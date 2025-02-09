@@ -3,6 +3,7 @@ package packages
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,8 +15,8 @@ import (
 )
 
 // DownloadDeps recursively fetches the imports of a local package while following a given gno.mod replace directives
-func DownloadDeps(conf *LoadConfig, pkgDir string, gnoMod *gnomod.File) error {
-	if conf.Fetcher == nil {
+func DownloadDeps(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir string, gnoMod *gnomod.File) error {
+	if fetcher == nil {
 		return errors.New("fetcher is nil")
 	}
 
@@ -39,11 +40,11 @@ func DownloadDeps(conf *LoadConfig, pkgDir string, gnoMod *gnomod.File) error {
 
 		depDir := gnomod.PackageDir("", module.Version{Path: resolvedPkgPath})
 
-		if err := downloadPackage(conf, resolvedPkgPath, depDir); err != nil {
+		if err := downloadPackage(out, fetcher, resolvedPkgPath, depDir); err != nil {
 			return fmt.Errorf("download import %q of %q: %w", resolvedPkgPath, pkgDir, err)
 		}
 
-		if err := DownloadDeps(conf, depDir, gnoMod); err != nil {
+		if err := DownloadDeps(out, fetcher, depDir, gnoMod); err != nil {
 			return err
 		}
 	}
@@ -52,7 +53,7 @@ func DownloadDeps(conf *LoadConfig, pkgDir string, gnoMod *gnomod.File) error {
 }
 
 // Download downloads a remote gno package by pkg path and store it at dst
-func downloadPackage(conf *LoadConfig, pkgPath string, dst string) error {
+func downloadPackage(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgPath string, dst string) error {
 	modFilePath := filepath.Join(dst, "gno.mod")
 
 	if _, err := os.Stat(modFilePath); err == nil {
@@ -62,9 +63,9 @@ func downloadPackage(conf *LoadConfig, pkgPath string, dst string) error {
 		return fmt.Errorf("stat downloaded module %q at %q: %w", pkgPath, dst, err)
 	}
 
-	conf.IO.ErrPrintfln("gno: downloading %s", pkgPath)
+	fmt.Fprintf(out, "gno: downloading %s\n", pkgPath)
 
-	if err := pkgdownload.Download(pkgPath, dst, conf.Fetcher); err != nil {
+	if err := pkgdownload.Download(pkgPath, dst, fetcher); err != nil {
 		return err
 	}
 

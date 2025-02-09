@@ -170,7 +170,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 	// Find targets for test.
 	conf := &packages.LoadConfig{
-		IO:           io,
+		Out:          io.Err(),
 		Fetcher:      testPackageFetcher,
 		DepsPatterns: depsPatterns,
 		Deps:         true,

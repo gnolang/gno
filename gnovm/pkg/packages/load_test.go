@@ -1,15 +1,20 @@
 package packages
 
 import (
+	"fmt"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/examplespkgfetcher"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/module"
 )
 
 func TestListAndNonDraftPkgs(t *testing.T) {
@@ -76,7 +81,7 @@ func TestListAndNonDraftPkgs(t *testing.T) {
 			}
 
 			// List packages
-			pkgs, err := Load(&LoadConfig{AllowEmpty: true, Fetcher: examplespkgfetcher.New()}, filepath.Join(dirPath, "..."))
+			pkgs, err := Load(&LoadConfig{AllowEmpty: true, Fetcher: examplespkgfetcher.New("")}, filepath.Join(dirPath, "..."))
 			require.NoError(t, err)
 			assert.Equal(t, len(tc.outListPkgs), len(pkgs))
 			for _, p := range pkgs {
@@ -182,4 +187,254 @@ func TestLoadNonDraftExamples(t *testing.T) {
 		}
 		require.Empty(t, pkg.Errors)
 	}
+}
+
+func TestDataLoad(t *testing.T) {
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+
+	localFromSlash := func(p string) string {
+		cp := path.Clean(p)
+		fp := filepath.FromSlash(cp)
+		if filepath.IsAbs(fp) {
+			return fp
+		}
+		return "." + string(filepath.Separator) + fp
+	}
+
+	// XXX: this won't guarantee clean state, since we only have one remote test it's okay but we need to fix paralelization
+	homeDir := t.TempDir()
+	t.Setenv("GNOHOME", homeDir)
+
+	tcs := []struct {
+		name string
+		// workdir          string
+		patterns           []string
+		conf               *LoadConfig
+		res                PkgList
+		errShouldContain   string
+		ioerrShouldContain string
+	}{
+		{
+			name:     "workspace-1-root",
+			patterns: []string{localFromSlash("./testdata/workspace-1")},
+			res: PkgList{{
+				ImportPath: "gno.example.com/r/wspace1/foo",
+				Name:       "foo",
+				Root:       filepath.Join(cwd, "testdata", "workspace-1"),
+				ModPath:    "gno.example.com/r/wspace1/foo",
+				Dir:        filepath.Join(cwd, "testdata", "workspace-1"),
+				Match:      []string{localFromSlash("./testdata/workspace-1")},
+				Files: FilesMap{
+					FileKindPackageSource: {"foo.gno"},
+					FileKindTest:          {"foo_test.gno"},
+				},
+				Imports: map[FileKind][]string{
+					FileKindTest: {"testing"},
+				},
+			}},
+		},
+		{
+			name:     "workspace-1-root-abs",
+			patterns: []string{filepath.Join(cwd, "testdata", "workspace-1")},
+			res: PkgList{{
+				ImportPath: "gno.example.com/r/wspace1/foo",
+				Name:       "foo",
+				Root:       filepath.Join(cwd, "testdata", "workspace-1"),
+				ModPath:    "gno.example.com/r/wspace1/foo",
+				Dir:        filepath.Join(cwd, "testdata", "workspace-1"),
+				Match:      []string{filepath.Join(cwd, "testdata", "workspace-1")},
+				Files: FilesMap{
+					FileKindPackageSource: {"foo.gno"},
+					FileKindTest:          {"foo_test.gno"},
+				},
+				Imports: map[FileKind][]string{
+					FileKindTest: {"testing"},
+				},
+			}},
+		},
+		{
+			name:     "workspace-1-recursive",
+			patterns: []string{localFromSlash("./testdata/workspace-1/...")},
+			res: PkgList{{
+				ImportPath: "gno.example.com/r/wspace1/foo",
+				Name:       "foo",
+				Root:       filepath.Join(cwd, "testdata", "workspace-1"),
+				ModPath:    "gno.example.com/r/wspace1/foo",
+				Dir:        filepath.Join(cwd, "testdata", "workspace-1"),
+				Match:      []string{localFromSlash("./testdata/workspace-1/...")},
+				Files: FilesMap{
+					FileKindPackageSource: {"foo.gno"},
+					FileKindTest:          {"foo_test.gno"},
+				},
+				Imports: map[FileKind][]string{
+					FileKindTest: {"testing"},
+				},
+			}},
+		},
+		{
+			name:     "workspace-2-root",
+			patterns: []string{localFromSlash("./testdata/workspace-2")},
+			res: PkgList{{
+				Name:  "main",
+				Dir:   filepath.Join(cwd, "testdata", "workspace-2"),
+				Match: []string{localFromSlash("./testdata/workspace-2")},
+				Files: FilesMap{
+					FileKindPackageSource: {"lib.gno", "main.gno"},
+				},
+			}},
+		},
+		{
+			name:     "workspace-2-recursive",
+			patterns: []string{localFromSlash("./testdata/workspace-2/...")},
+			res: PkgList{{
+				Name:  "main",
+				Dir:   filepath.Join(cwd, "testdata", "workspace-2"),
+				Match: []string{localFromSlash("./testdata/workspace-2/...")},
+				Files: FilesMap{
+					FileKindPackageSource: {"lib.gno", "main.gno"},
+				},
+			}, {
+				ImportPath: "gno.example.com/r/wspace2/bar",
+				Name:       "bar",
+				Dir:        filepath.Join(cwd, "testdata", "workspace-2", "bar"),
+				Root:       filepath.Join(cwd, "testdata", "workspace-2", "bar"),
+				ModPath:    "gno.example.com/r/wspace2/bar",
+				Match:      []string{localFromSlash("./testdata/workspace-2/...")},
+				Files: FilesMap{
+					FileKindPackageSource: {"bar.gno"},
+					FileKindXTest:         {"bar_test.gno"},
+				},
+				Imports: FilesMap{
+					FileKindPackageSource: {"gno.example.com/r/wspace2/foo"},
+					FileKindXTest:         {"gno.example.com/r/wspace2/bar", "testing"},
+				},
+			}, {
+				ImportPath: "gno.example.com/r/wspace2/bar/baz",
+				Name:       "baz",
+				Dir:        filepath.Join(cwd, "testdata", "workspace-2", "bar", "baz"),
+				Root:       filepath.Join(cwd, "testdata", "workspace-2", "bar"),
+				ModPath:    "gno.example.com/r/wspace2/bar",
+				Match:      []string{localFromSlash("./testdata/workspace-2/...")},
+				Files: FilesMap{
+					FileKindPackageSource: {"baz.gno"},
+				},
+			}, {
+				ImportPath: "gno.example.com/r/wspace2/foo",
+				ModPath:    "gno.example.com/r/wspace2/foo",
+				Name:       "foo",
+				Dir:        filepath.Join(cwd, "testdata", "workspace-2", "foo"),
+				Root:       filepath.Join(cwd, "testdata", "workspace-2", "foo"),
+				Match:      []string{localFromSlash("./testdata/workspace-2/...")},
+				Files: FilesMap{
+					FileKindPackageSource: {"foo.gno"},
+				},
+			}},
+		},
+		{
+			name:     "stdlibs",
+			patterns: []string{"math/bits"},
+			res: PkgList{{
+				ImportPath: "math/bits",
+				Name:       "bits",
+				Dir:        filepath.Join(StdlibDir("math"), "bits"),
+				Match:      []string{"math/bits"},
+				Files: FilesMap{
+					FileKindPackageSource: {
+						"bits.gno",
+						"bits_errors.gno",
+						"bits_tables.gno",
+					},
+					FileKindTest: {
+						"export_test.gno",
+					},
+					FileKindXTest: {
+						"bits_test.gno",
+					},
+				},
+				Imports: map[FileKind][]string{
+					FileKindPackageSource: {"errors"},
+					FileKindXTest:         {"math/bits", "testing"},
+				},
+			}},
+		},
+		{
+			name:     "remote",
+			patterns: []string{"gno.example.com/p/demo/avl"},
+			res: PkgList{{
+				ImportPath: "gno.example.com/p/demo/avl",
+				Name:       "avl",
+				Dir:        gnomod.PackageDir("", module.Version{Path: "gno.example.com/p/demo/avl"}),
+				Root:       gnomod.PackageDir("", module.Version{Path: "gno.example.com/p/demo/avl"}),
+				ModPath:    "gno.example.com/p/demo/avl",
+				Match:      []string{"gno.example.com/p/demo/avl"},
+				Files: FilesMap{
+					FileKindPackageSource: {"avl.gno"},
+				},
+			}},
+			ioerrShouldContain: `gno: downloading gno.example.com/p/demo/avl`,
+		},
+		{
+			name:             "err-stdlibs-recursive",
+			patterns:         []string{"strings/..."},
+			errShouldContain: "recursive remote patterns are not supported",
+		},
+		{
+			name:             "err-remote-recursive",
+			patterns:         []string{"gno.example.com/test/strings/..."},
+			errShouldContain: "recursive remote patterns are not supported",
+		},
+		{
+			name:             "err-recursive-noroot",
+			patterns:         []string{"./testdata/notexists/..."},
+			errShouldContain: "no such file or directory",
+		},
+		{
+			name:               "warn-recursive-nothing",
+			patterns:           []string{localFromSlash("./testdata/workspace-1/emptydir/...")},
+			errShouldContain:   "no packages",
+			ioerrShouldContain: fmt.Sprintf(`gno: warning: %q matched no packages`, localFromSlash("./testdata/workspace-1/emptydir/...")),
+		},
+	}
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			errBuf := &writeCloser{}
+			conf := &LoadConfig{Out: errBuf, Fetcher: examplespkgfetcher.New(filepath.Join("testdata", "examples"))}
+
+			res, err := Load(conf, tc.patterns...)
+
+			if tc.errShouldContain == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tc.errShouldContain)
+			}
+
+			if tc.ioerrShouldContain != "" {
+				require.Contains(t, errBuf.String(), tc.ioerrShouldContain)
+			} else {
+				require.Equal(t, errBuf.String(), "")
+			}
+
+			// normalize res
+			for _, pkg := range res {
+				pkg.ImportsSpecs = nil
+				if len(pkg.Errors) == 0 {
+					pkg.Errors = nil
+				}
+				if len(pkg.Imports) == 0 {
+					pkg.Imports = nil
+				}
+			}
+
+			require.EqualValues(t, tc.res, res)
+		})
+	}
+}
+
+type writeCloser struct {
+	strings.Builder
+}
+
+func (wc *writeCloser) Close() error {
+	return nil
 }

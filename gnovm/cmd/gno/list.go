@@ -51,7 +51,7 @@ func execList(cfg *listCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	conf := &packages.LoadConfig{IO: io, Fetcher: testPackageFetcher}
+	conf := &packages.LoadConfig{Out: io.Err(), Fetcher: testPackageFetcher}
 
 	if cfg.deps {
 		conf.Deps = true

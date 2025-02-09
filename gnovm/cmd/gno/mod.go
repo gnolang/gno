@@ -238,7 +238,7 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("validate: %w", err)
 	}
 
-	conf := &packages.LoadConfig{IO: io, Fetcher: fetcher}
+	conf := &packages.LoadConfig{Out: io.Err(), Fetcher: fetcher}
 	if err := packages.DownloadDeps(conf, path, gnoMod); err != nil {
 		return err
 	}
@@ -311,7 +311,7 @@ func execModTidy(cfg *modTidyCfg, args []string, io commands.IO) error {
 	}
 
 	if cfg.recursive {
-		loadCfg := packages.LoadConfig{IO: io, Fetcher: testPackageFetcher}
+		loadCfg := packages.LoadConfig{Out: io.Err(), Fetcher: testPackageFetcher}
 		pkgs, err := packages.Load(&loadCfg, filepath.Join(wd, "..."))
 		if err != nil {
 			return err

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -15,20 +16,19 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher"
-	"github.com/gnolang/gno/tm2/pkg/commands"
 	"golang.org/x/mod/module"
 )
 
 // FIXME: should not include pkgs imported in test except for matches and only when Test flag is set
 
 type LoadConfig struct {
-	IO           commands.IO
 	Fetcher      pkgdownload.PackageFetcher
 	Deps         bool
 	Cache        PkgList
 	AllowEmpty   bool
 	DepsPatterns []string
 	Fset         *token.FileSet
+	Out          io.Writer
 }
 
 var injectedTestingLibs = []string{"encoding/json", "fmt", "internal/os_test", "os"}
@@ -38,8 +38,8 @@ func IsInjectedTestingStdlib(pkgPath string) bool {
 }
 
 func (conf *LoadConfig) applyDefaults() {
-	if conf.IO == nil {
-		conf.IO = commands.NewTestIO()
+	if conf.Out == nil {
+		conf.Out = io.Discard
 	}
 	if conf.Fetcher == nil {
 		conf.Fetcher = rpcpkgfetcher.New(nil)
@@ -49,32 +49,18 @@ func (conf *LoadConfig) applyDefaults() {
 	}
 }
 
-func LoadWorkspace(conf *LoadConfig, dir string) (PkgList, error) {
-	absDir, err := filepath.Abs(dir)
-	if err != nil {
-		return nil, err
-	}
-
-	workRoot, err := gnomod.FindRootDir(absDir)
-	if err != nil {
-		return nil, err
-	}
-
-	return Load(conf, filepath.Join(workRoot, "..."))
-}
-
 func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 	if conf == nil {
 		conf = &LoadConfig{}
 	}
 	conf.applyDefaults()
 
-	expanded, err := expandPatterns(conf, patterns...)
+	expanded, err := expandPatterns(conf.Out, patterns...)
 	if err != nil {
 		return nil, err
 	}
 
-	pkgs, err := readPackages(expanded, nil, conf.Fset)
+	pkgs, err := readPackages(conf.Out, conf.Fetcher, expanded, nil, conf.Fset)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +75,7 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 		return pkgs, nil
 	}
 
-	extra, err := expandPatterns(conf, conf.DepsPatterns...)
+	extra, err := expandPatterns(conf.Out, conf.DepsPatterns...)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +83,7 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 		m.Match = []string{}
 	}
 
-	extraPkgs, err := readPackages(extra, pkgs, conf.Fset)
+	extraPkgs, err := readPackages(conf.Out, conf.Fetcher, extra, pkgs, conf.Fset)
 	if err != nil {
 		return nil, err
 	}
@@ -156,19 +142,19 @@ func Load(conf *LoadConfig, patterns ...string) (PkgList, error) {
 					}
 					pkg.Errors = append(pkg.Errors, err)
 				}
-				markForVisit(readPkgDir(dir, imp.PkgPath, conf.Fset))
+				markForVisit(readPkgDir(conf.Out, conf.Fetcher, dir, imp.PkgPath, conf.Fset))
 				continue
 			}
 
 			dir := gnomod.PackageDir("", module.Version{Path: imp.PkgPath})
-			if err := downloadPackage(conf, imp.PkgPath, dir); err != nil {
+			if err := downloadPackage(conf.Out, conf.Fetcher, imp.PkgPath, dir); err != nil {
 				pkg.Errors = append(pkg.Errors, &Error{
 					Pos: pkg.Dir,
 					Msg: fmt.Sprintf("download %q: %v", imp.PkgPath, err),
 				})
 				continue
 			}
-			markForVisit(readPkgDir(dir, imp.PkgPath, conf.Fset))
+			markForVisit(readPkgDir(conf.Out, conf.Fetcher, dir, imp.PkgPath, conf.Fset))
 		}
 
 		loaded = append(loaded, pkg)

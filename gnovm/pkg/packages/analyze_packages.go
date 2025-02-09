@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -13,9 +14,10 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 )
 
-func readPackages(matches []*pkgMatch, known PkgList, fset *token.FileSet) (PkgList, error) {
+func readPackages(out io.Writer, fetcher pkgdownload.PackageFetcher, matches []*pkgMatch, known PkgList, fset *token.FileSet) (PkgList, error) {
 	if fset == nil {
 		fset = token.NewFileSet()
 	}
@@ -31,7 +33,7 @@ func readPackages(matches []*pkgMatch, known PkgList, fset *token.FileSet) (PkgL
 		} else if known.GetByDir(pkgMatch.Dir) != nil {
 			continue
 		} else {
-			pkg = readPkgDir(pkgMatch.Dir, "", fset)
+			pkg = readPkgDir(out, fetcher, pkgMatch.Dir, "", fset)
 		}
 		pkg.Match = pkgMatch.Match
 		pkgs = append(pkgs, pkg)
@@ -67,7 +69,7 @@ func readCLAPkg(patterns []string, fset *token.FileSet) (*Package, error) {
 	return readPkgFiles(pkg, files, fset), nil
 }
 
-func readPkgDir(pkgDir string, importPath string, fset *token.FileSet) *Package {
+func readPkgDir(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir string, importPath string, fset *token.FileSet) *Package {
 	pkg := &Package{
 		Dir:          pkgDir,
 		Files:        FilesMap{},
@@ -87,12 +89,45 @@ func readPkgDir(pkgDir string, importPath string, fset *token.FileSet) *Package 
 				})
 				return pkg
 			}
-			pkg.ImportPath = libPath
+			pkg.ImportPath = filepath.ToSlash(libPath)
+		}
+
+		// FIXME: concurrency + don't overwrite
+		modCachePath := gnomod.ModCachePath()
+		if strings.HasPrefix(filepath.Clean(pkg.Dir), modCachePath) {
+			pkgPath, err := filepath.Rel(modCachePath, pkg.Dir)
+			if err != nil {
+				pkg.Errors = append(pkg.Errors, &Error{
+					Pos: pkg.Dir,
+					Msg: fmt.Errorf("pkgpath from cache dir: %w", err).Error(),
+				})
+				return pkg
+			}
+			pkgPath = path.Clean(pkgPath)
+			_, err = os.Stat(pkg.Dir)
+			if err != nil {
+				if os.IsNotExist(err) {
+					if err := downloadPackage(out, fetcher, pkgPath, pkg.Dir); err != nil {
+						pkg.Errors = append(pkg.Errors, &Error{
+							Pos: pkg.Dir,
+							Msg: err.Error(),
+						})
+						return pkg
+					}
+					pkg.ImportPath = pkgPath
+				} else {
+					pkg.Errors = append(pkg.Errors, &Error{
+						Pos: pkg.Dir,
+						Msg: fmt.Errorf("stat: %w", err).Error(),
+					})
+					return pkg
+				}
+			}
 		}
 	}
 
 	files := []string{}
-	entries, err := os.ReadDir(pkgDir)
+	entries, err := os.ReadDir(pkg.Dir)
 	if err != nil {
 		pkg.Errors = append(pkg.Errors, &Error{
 			Pos: pkg.Dir,

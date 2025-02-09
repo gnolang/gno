@@ -90,7 +90,7 @@ func TestDebug(t *testing.T) {
 	cont := brk + "continue\n"
 	cont2 := "break 21\ncontinue\n"
 
-	pkgs, err := packages.Load(&packages.LoadConfig{}, filepath.FromSlash("../../../examples/..."))
+	pkgs, err := packages.Load(nil, filepath.FromSlash("../../../examples/..."))
 	require.NoError(t, err)
 
 	runDebugTest(t, debugTarget, []dtest{
