@@ -144,7 +144,7 @@ func sendRequestCommon[T requestType, R responseType](
 	}
 
 	// Attempt to unmarshal into the expected response type.
-	var singleResponse types.RPCResponse
+	var singleResponse *types.RPCResponse
 	var batchResponse types.RPCResponses
 	if err = json.Unmarshal(responseBytes, &batchResponse); err == nil {
 		response = any(batchResponse).(R)
