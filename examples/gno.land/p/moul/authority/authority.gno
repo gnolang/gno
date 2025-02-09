@@ -1,3 +1,39 @@
+// Package authority provides a flexible ownership and access control system for Gno contracts.
+// It supports both wallet-based and contract-based ownership models, allowing for
+// secure management of privileged operations. The package enables ownership transfers
+// between wallets and contracts, and includes support for dropping ownership entirely.
+//
+// The main type is Authority, which encapsulates ownership information and provides
+// methods for executing privileged actions and transferring control. Actions can be
+// executed directly for wallet-based ownership, or through a handler for contract-based
+// ownership.
+//
+// Example usage with wallet ownership:
+//
+//	// Create a new authority with the current caller as owner
+//	auth := authority.New()
+//
+//	// Execute a privileged action
+//	err := auth.Do("UpdateConfig", func() error {
+//	    // Perform privileged operation here
+//	    return nil
+//	})
+//
+// Example of transferring from wallet to DAO contract:
+//
+//	import "gno.land/r/demo/dao"
+//
+//	// Initial setup with wallet owner
+//	auth := authority.New()
+//
+//	// Transfer ownership to the DAO contract using its handler
+//	err := auth.TransferToContract("gno.land/r/demo/dao", dao.HandlePrivilegedAction)
+//
+//	// Now all privileged actions must go through the DAO's governance process
+//	err = auth.Do("UpdateParams", func() error {
+//	    // This action will only execute if there's an approved proposal
+//	    return nil
+//	})
 package authority
 
 import (
