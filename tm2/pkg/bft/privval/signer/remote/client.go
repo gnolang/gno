@@ -89,11 +89,10 @@ func (rsc *RemoteSignerClient) send(request RemoteSignerMessage) (RemoteSignerMe
 	const maxResponseSize = 1024 * 10
 	var response RemoteSignerMessage
 
-  rsc.conn.Read(b []byte)
-
-	if _, err := amino.UnmarshalSized(
-		return nil, err
-	}
+	// rsc.conn.Read(b []byte)
+	// if _, err := amino.UnmarshalSized(
+	// 	return nil, err
+	// }
 
 	return response, nil
 }

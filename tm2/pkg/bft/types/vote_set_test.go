@@ -69,7 +69,7 @@ func TestAddVote(t *testing.T) {
 
 	// t.Logf(">> %v", voteSet)
 
-	val0PubKey, err := val0.GetPubKey()
+	val0PubKey, err := val0.PubKey()
 	if err != nil {
 		t.Errorf("Expected GetPubKey to not error")
 	}
@@ -129,7 +129,7 @@ func Test2_3Majority(t *testing.T) {
 	}
 	// 6 out of 10 voted for nil.
 	for i := 0; i < 6; i++ {
-		pubKey, err := privValidators[i].GetPubKey()
+		pubKey, err := privValidators[i].PubKey()
 		if err != nil {
 			t.Errorf("Expected GetPubKey to not error")
 		}
@@ -147,7 +147,7 @@ func Test2_3Majority(t *testing.T) {
 
 	// 7th validator voted for some blockhash
 	{
-		pubKey, err := privValidators[6].GetPubKey()
+		pubKey, err := privValidators[6].PubKey()
 		if err != nil {
 			t.Errorf("Expected GetPubKey to not error")
 		}
@@ -165,7 +165,7 @@ func Test2_3Majority(t *testing.T) {
 
 	// 8th validator voted for nil.
 	{
-		pubKey, err := privValidators[7].GetPubKey()
+		pubKey, err := privValidators[7].PubKey()
 		if err != nil {
 			t.Errorf("Expected GetPubKey to not error")
 		}
@@ -204,7 +204,7 @@ func Test2_3MajorityRedux(t *testing.T) {
 
 	// 66 out of 100 voted for nil.
 	for i := 0; i < 66; i++ {
-		pubKey, err := privValidators[i].GetPubKey()
+		pubKey, err := privValidators[i].PubKey()
 		if err != nil {
 			t.Errorf("Expected GetPubKey to not error")
 		}
@@ -222,7 +222,7 @@ func Test2_3MajorityRedux(t *testing.T) {
 
 	// 67th validator voted for nil
 	{
-		pubKey, err := privValidators[66].GetPubKey()
+		pubKey, err := privValidators[66].PubKey()
 		if err != nil {
 			t.Errorf("Expected GetPubKey to not error")
 		}
@@ -240,7 +240,7 @@ func Test2_3MajorityRedux(t *testing.T) {
 
 	// 68th validator voted for a different BlockParts PartSetHeader
 	{
-		pubKey, err := privValidators[67].GetPubKey()
+		pubKey, err := privValidators[67].PubKey()
 		if err != nil {
 			t.Errorf("Expected GetPubKey to not error")
 		}
@@ -259,7 +259,7 @@ func Test2_3MajorityRedux(t *testing.T) {
 
 	// 69th validator voted for different BlockParts Total
 	{
-		pubKey, err := privValidators[68].GetPubKey()
+		pubKey, err := privValidators[68].PubKey()
 		if err != nil {
 			t.Errorf("Expected GetPubKey to not error")
 		}
@@ -278,7 +278,7 @@ func Test2_3MajorityRedux(t *testing.T) {
 
 	// 70th validator voted for different BlockHash
 	{
-		pubKey, err := privValidators[69].GetPubKey()
+		pubKey, err := privValidators[69].PubKey()
 		if err != nil {
 			t.Errorf("Expected GetPubKey to not error")
 		}
@@ -296,7 +296,7 @@ func Test2_3MajorityRedux(t *testing.T) {
 
 	// 71st validator voted for the right BlockHash & BlockPartsHeader
 	{
-		pubKey, err := privValidators[70].GetPubKey()
+		pubKey, err := privValidators[70].PubKey()
 		if err != nil {
 			t.Errorf("Expected GetPubKey to not error")
 		}
@@ -331,7 +331,7 @@ func TestBadVotes(t *testing.T) {
 
 	// val0 votes for nil.
 	{
-		pubKey, err := privValidators[0].GetPubKey()
+		pubKey, err := privValidators[0].PubKey()
 		if err != nil {
 			t.Errorf("Expected GetPubKey to not error")
 		}
@@ -345,7 +345,7 @@ func TestBadVotes(t *testing.T) {
 
 	// val0 votes again for some block.
 	{
-		pubKey, err := privValidators[0].GetPubKey()
+		pubKey, err := privValidators[0].PubKey()
 		if err != nil {
 			t.Errorf("Expected GetPubKey to not error")
 		}
@@ -359,7 +359,7 @@ func TestBadVotes(t *testing.T) {
 
 	// val1 votes on another height
 	{
-		pubKey, err := privValidators[1].GetPubKey()
+		pubKey, err := privValidators[1].PubKey()
 		if err != nil {
 			t.Errorf("Expected GetPubKey to not error")
 		}
@@ -373,7 +373,7 @@ func TestBadVotes(t *testing.T) {
 
 	// val2 votes on another round
 	{
-		pubKey, err := privValidators[2].GetPubKey()
+		pubKey, err := privValidators[2].PubKey()
 		if err != nil {
 			t.Errorf("Expected GetPubKey to not error")
 		}
@@ -387,7 +387,7 @@ func TestBadVotes(t *testing.T) {
 
 	// val3 votes of another type.
 	{
-		pubKey, err := privValidators[3].GetPubKey()
+		pubKey, err := privValidators[3].PubKey()
 		if err != nil {
 			t.Errorf("Expected GetPubKey to not error")
 		}
@@ -418,7 +418,7 @@ func TestConflicts(t *testing.T) {
 		BlockID:          BlockID{nil, PartSetHeader{}},
 	}
 
-	val0PubKey, err := privValidators[0].GetPubKey()
+	val0PubKey, err := privValidators[0].PubKey()
 	if err != nil {
 		t.Errorf("Expected GetPubKey to not error")
 	}
@@ -477,7 +477,7 @@ func TestConflicts(t *testing.T) {
 
 	// val1 votes for blockHash1.
 	{
-		pubKey, err := privValidators[1].GetPubKey()
+		pubKey, err := privValidators[1].PubKey()
 		if err != nil {
 			t.Errorf("Expected GetPubKey to not error")
 		}
@@ -499,7 +499,7 @@ func TestConflicts(t *testing.T) {
 
 	// val2 votes for blockHash2.
 	{
-		pubKey, err := privValidators[2].GetPubKey()
+		pubKey, err := privValidators[2].PubKey()
 		if err != nil {
 			t.Errorf("Expected GetPubKey to not error")
 		}
@@ -524,7 +524,7 @@ func TestConflicts(t *testing.T) {
 
 	// val2 votes for blockHash1.
 	{
-		pubKey, err := privValidators[2].GetPubKey()
+		pubKey, err := privValidators[2].PubKey()
 		if err != nil {
 			t.Errorf("Expected GetPubKey to not error")
 		}
@@ -571,7 +571,7 @@ func TestMakeCommit(t *testing.T) {
 
 	// 6 out of 10 voted for some block.
 	for i := 0; i < 6; i++ {
-		pubKey, err := privValidators[i].GetPubKey()
+		pubKey, err := privValidators[i].PubKey()
 		if err != nil {
 			t.Errorf("Expected GetPubKey to not error")
 		}
@@ -588,7 +588,7 @@ func TestMakeCommit(t *testing.T) {
 
 	// 7th voted for some other block.
 	{
-		pubKey, err := privValidators[6].GetPubKey()
+		pubKey, err := privValidators[6].PubKey()
 		if err != nil {
 			t.Errorf("Expected GetPubKey to not error")
 		}
@@ -605,7 +605,7 @@ func TestMakeCommit(t *testing.T) {
 
 	// The 8th voted like everyone else.
 	{
-		pubKey, err := privValidators[7].GetPubKey()
+		pubKey, err := privValidators[7].PubKey()
 		if err != nil {
 			t.Errorf("Expected GetPubKey to not error")
 		}

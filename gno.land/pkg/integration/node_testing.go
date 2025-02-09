@@ -11,6 +11,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -33,7 +34,7 @@ func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMem
 	err = node.Start()
 	require.NoError(t, err)
 
-	ourPubKey, err := config.PrivValidator.GetPubKey()
+	ourPubKey, err := config.PrivValidator.PubKey()
 	require.NoError(t, err)
 
 	isValidator := slices.ContainsFunc(config.Genesis.Validators, func(val bft.GenesisValidator) bool {
@@ -82,10 +83,10 @@ func TestingMinimalNodeConfig(gnoroot string) *gnoland.InMemoryNodeConfig {
 	tmconfig := DefaultTestingTMConfig(gnoroot)
 
 	// Create Mocked Identity
-	pv := gnoland.NewMockedPrivValidator()
+	pv := types.NewMockPV()
 
 	// Get identity pubkey
-	pk, err := pv.GetPubKey()
+	pk, err := pv.PubKey()
 	if err != nil {
 		panic(err) // Should never happen
 	}

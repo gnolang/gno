@@ -242,7 +242,7 @@ func TestReactorVotingPowerChange(t *testing.T) {
 	// map of active validators
 	activeVals := make(map[string]struct{})
 	for i := 0; i < nVals; i++ {
-		pk, err := css[i].privValidator.GetPubKey()
+		pk, err := css[i].privValidator.PubKey()
 		if err != nil {
 			t.Fatalf("unable to get validator public key: %v", err)
 		}
@@ -258,7 +258,7 @@ func TestReactorVotingPowerChange(t *testing.T) {
 	// ---------------------------------------------------------------------------
 	logger.Debug("---------------------------- Testing changing the voting power of one validator a few times")
 
-	val1PubKey, err := css[0].privValidator.GetPubKey()
+	val1PubKey, err := css[0].privValidator.PubKey()
 	if err != nil {
 		t.Fatalf("unable to get val1PubKey: %v", err)
 	}
@@ -315,7 +315,7 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 	// map of active validators
 	activeVals := make(map[string]struct{})
 	for i := 0; i < nVals; i++ {
-		pk, err := css[i].privValidator.GetPubKey()
+		pk, err := css[i].privValidator.PubKey()
 		if err != nil {
 			t.Fatalf("unable to get validator public key: %v", err)
 		}
@@ -331,7 +331,7 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 	// ---------------------------------------------------------------------------
 	logger.Info("---------------------------- Testing adding one validator")
 
-	newValPubKey1, err := css[nVals].privValidator.GetPubKey()
+	newValPubKey1, err := css[nVals].privValidator.PubKey()
 	if err != nil {
 		t.Fatalf("unable to get newValPubKey1: %v", err)
 	}
@@ -360,7 +360,7 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 	// ---------------------------------------------------------------------------
 	logger.Info("---------------------------- Testing changing the voting power of one validator")
 
-	updateValPubKey1, err := css[nVals].privValidator.GetPubKey()
+	updateValPubKey1, err := css[nVals].privValidator.PubKey()
 	if err != nil {
 		t.Fatalf("unable to get updateValPubKey1: %v", err)
 	}
@@ -379,13 +379,13 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 	// ---------------------------------------------------------------------------
 	logger.Info("---------------------------- Testing adding two validators at once")
 
-	newValPubKey2, err := css[nVals+1].privValidator.GetPubKey()
+	newValPubKey2, err := css[nVals+1].privValidator.PubKey()
 	if err != nil {
 		t.Fatalf("unable to get newValPubKey2: %v", err)
 	}
 	newValTx2 := kvstore.MakeValSetChangeTx(newValPubKey2, testMinPower)
 
-	newValPubKey3, err := css[nVals+2].privValidator.GetPubKey()
+	newValPubKey3, err := css[nVals+2].privValidator.PubKey()
 	if err != nil {
 		t.Fatalf("unable to get newValPubKey3: %v", err)
 	}

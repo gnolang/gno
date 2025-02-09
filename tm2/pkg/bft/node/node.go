@@ -15,8 +15,10 @@ import (
 	goErrors "errors"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
+	"github.com/gnolang/gno/tm2/pkg/bft/privval"
+	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
+	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
-	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/discovery"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
@@ -27,7 +29,6 @@ import (
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	cs "github.com/gnolang/gno/tm2/pkg/bft/consensus"
 	mempl "github.com/gnolang/gno/tm2/pkg/bft/mempool"
-	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	rpccore "github.com/gnolang/gno/tm2/pkg/bft/rpc/core"
 	_ "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -99,6 +100,26 @@ func DefaultGenesisDocProviderFunc(genesisFile string) GenesisDocProvider {
 // NodeProvider takes a config and a logger and returns a ready to go Node.
 type NodeProvider func(*cfg.Config, *slog.Logger) (*Node, error)
 
+// initPrivValidator initializes the privValidator according to the node config.
+func initPrivValidator(config *cfg.Config) (types.PrivValidator, error) {
+	var (
+		signer types.Signer
+		err    error
+	)
+
+	// Determine the type of privValidator to use, either local or remote.
+	if config.PrivValidatorListenAddr != "" {
+		signer, err = remote.NewRemoteSignerClient(config.PrivValidatorListenAddr)
+	} else {
+		signer, err = local.NewLocalSigner(config.PrivValidatorKeyFile())
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return privval.NewPrivValidator(signer, config.PrivValidatorStateFile())
+}
+
 // DefaultNewNode returns a Tendermint node with default settings for the
 // PrivValidator, ClientCreator, GenesisDoc, and DBProvider.
 // It implements NodeProvider.
@@ -114,10 +135,6 @@ func DefaultNewNode(
 		return nil, err
 	}
 
-	// Get privValKeys.
-	newPrivValKey := config.PrivValidatorKeyFile()
-	newPrivValState := config.PrivValidatorStateFile()
-
 	// Get app client creator.
 	appClientCreator := proxy.DefaultClientCreator(
 		config.LocalApp,
@@ -126,8 +143,14 @@ func DefaultNewNode(
 		config.DBDir(),
 	)
 
+	// Initialize the privValidator
+	privVal, err := initPrivValidator(config)
+	if err != nil {
+		return nil, err
+	}
+
 	return NewNode(config,
-		privval.LoadOrGenFilePV(newPrivValKey, newPrivValState),
+		privVal,
 		nodeKey,
 		appClientCreator,
 		DefaultGenesisDocProviderFunc(genesisFile),
@@ -265,7 +288,7 @@ func onlyValidatorIsUs(state sm.State, privVal types.PrivValidator) bool {
 		return false
 	}
 	addr, _ := state.Validators.GetByIndex(0)
-	pubKey, err := privVal.GetPubKey()
+	pubKey, err := privVal.PubKey()
 	if err != nil {
 		return false
 	}
@@ -405,17 +428,7 @@ func NewNode(config *cfg.Config,
 	// what happened during block replay).
 	state = sm.LoadState(stateDB)
 
-	// If an address is provided, listen on the socket for a connection from an
-	// external signing process.
-	if config.PrivValidatorListenAddr != "" {
-		// FIXME: we should start services inside OnStart
-		privValidator, err = createAndStartPrivValidatorSocketClient(config.PrivValidatorListenAddr, logger)
-		if err != nil {
-			return nil, errors.Wrap(err, "error with private validator socket client")
-		}
-	}
-
-	pubKey, err := privValidator.GetPubKey()
+	pubKey, err := privValidator.PubKey()
 	if err != nil {
 		return nil, errors.New("could not retrieve public key from private validator")
 	}
@@ -707,7 +720,7 @@ func (n *Node) configureRPC() {
 	rpccore.SetMempool(n.mempool)
 	rpccore.SetP2PPeers(n.sw)
 	rpccore.SetP2PTransport(n)
-	pubKey, err := n.privValidator.GetPubKey()
+	pubKey, err := n.privValidator.PubKey()
 	if err != nil {
 		panic(err)
 	}
@@ -976,24 +989,6 @@ func saveGenesisDoc(db dbm.DB, genDoc *types.GenesisDoc) {
 		panic(fmt.Sprintf("Failed to save genesis doc due to marshaling error: %v", err))
 	}
 	db.SetSync(genesisDocKey, b)
-}
-
-func createAndStartPrivValidatorSocketClient(
-	listenAddr string,
-	logger *slog.Logger,
-) (types.PrivValidator, error) {
-	// TODO: pass in the mutual auth keys
-	listener, err := privval.NewListener(listenAddr, ed25519.GenPrivKey(), nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to start private validator")
-	}
-
-	pvsc, err := privval.NewSignerClient(privval.NewSignerListenerEndpoint(logger, listener))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to start private validator")
-	}
-
-	return pvsc, nil
 }
 
 // splitAndTrimEmpty slices s into all subslices separated by sep and returns a

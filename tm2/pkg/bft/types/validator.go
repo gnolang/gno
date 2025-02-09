@@ -109,12 +109,12 @@ func (v *Validator) ABCIValidatorUpdate() abci.ValidatorUpdate {
 // RandValidator returns a randomized validator, useful for testing.
 // UNSTABLE
 func RandValidator(randPower bool, minPower int64) (*Validator, PrivValidator) {
-	privVal := NewMockSigner()
+	privVal := NewMockPV()
 	votePower := minPower
 	if randPower {
 		votePower += int64(random.RandUint32())
 	}
-	pubKey, err := privVal.GetPubKey()
+	pubKey, err := privVal.PubKey()
 	if err != nil {
 		panic(fmt.Errorf("failed to get the validator public key: %w", err))
 	}

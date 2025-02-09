@@ -86,7 +86,7 @@ func TestStateProposerSelection0(t *testing.T) {
 
 	// Commit a block and ensure proposer for the next height is correct.
 	prop := cs1.GetRoundState().Validators.GetProposer()
-	pubKey, err := cs1.privValidator.GetPubKey()
+	pubKey, err := cs1.privValidator.PubKey()
 	if err != nil {
 		t.Fatalf("unable to get validator pub key: %v", err)
 	}
@@ -102,7 +102,7 @@ func TestStateProposerSelection0(t *testing.T) {
 	ensureNewRound(newRoundCh, height+1, 0)
 
 	prop = cs1.GetRoundState().Validators.GetProposer()
-	vss1, err := vss[1].GetPubKey()
+	vss1, err := vss[1].PubKey()
 	if err != nil {
 		t.Fatalf("unable to get vss1: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestStateProposerSelection2(t *testing.T) {
 	// everyone just votes nil. we get a new proposer each round
 	for i := 0; i < len(vss); i++ {
 		prop := cs1.GetRoundState().Validators.GetProposer()
-		vssPubKey, err := vss[(i+round)%len(vss)].GetPubKey()
+		vssPubKey, err := vss[(i+round)%len(vss)].PubKey()
 		if err != nil {
 			t.Fatalf("unable to get vssPubKey: %v", err)
 		}
@@ -579,7 +579,7 @@ func TestStateLockPOLRelock(t *testing.T) {
 
 	timeoutWaitCh := subscribe(cs1.evsw, cstypes.EventTimeoutWait{})
 	proposalCh := subscribe(cs1.evsw, cstypes.EventCompleteProposal{})
-	cs1PubKey, err := cs1.privValidator.GetPubKey()
+	cs1PubKey, err := cs1.privValidator.PubKey()
 	if err != nil {
 		t.Fatalf("unable to get cs1PubKey: %v", err)
 	}
@@ -684,7 +684,7 @@ func TestStateLockPOLUnlock(t *testing.T) {
 	timeoutWaitCh := subscribe(cs1.evsw, cstypes.EventTimeoutWait{})
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
 	unlockCh := subscribe(cs1.evsw, cstypes.EventUnlock{})
-	cs1PubKey, err := cs1.privValidator.GetPubKey()
+	cs1PubKey, err := cs1.privValidator.PubKey()
 	if err != nil {
 		t.Fatalf("unable to get cs1PubKey: %v", err)
 	}
@@ -791,7 +791,7 @@ func TestStateLockPOLSafety1(t *testing.T) {
 	timeoutProposeCh := subscribe(cs1.evsw, cstypes.EventTimeoutPropose{})
 	timeoutWaitCh := subscribe(cs1.evsw, cstypes.EventTimeoutWait{})
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
-	cs1PubKey, err := cs1.privValidator.GetPubKey()
+	cs1PubKey, err := cs1.privValidator.PubKey()
 	if err != nil {
 		t.Fatalf("unable to get cs1PubKey: %v", err)
 	}
@@ -918,7 +918,7 @@ func TestStateLockPOLSafety2(t *testing.T) {
 	timeoutWaitCh := subscribe(cs1.evsw, cstypes.EventTimeoutWait{})
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
 	unlockCh := subscribe(cs1.evsw, cstypes.EventUnlock{})
-	cs1PubKey, err := cs1.privValidator.GetPubKey()
+	cs1PubKey, err := cs1.privValidator.PubKey()
 	if err != nil {
 		t.Fatalf("unable to get cs1PubKey: %v", err)
 	}
@@ -1021,7 +1021,7 @@ func TestProposeValidBlock(t *testing.T) {
 	timeoutProposeCh := subscribe(cs1.evsw, cstypes.EventTimeoutPropose{})
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
 	unlockCh := subscribe(cs1.evsw, cstypes.EventUnlock{})
-	cs1PubKey, err := cs1.privValidator.GetPubKey()
+	cs1PubKey, err := cs1.privValidator.PubKey()
 	if err != nil {
 		t.Fatalf("unable to get cs1PubKey: %v", err)
 	}
@@ -1123,7 +1123,7 @@ func TestSetValidBlockOnDelayedPrevote(t *testing.T) {
 	timeoutWaitCh := subscribe(cs1.evsw, cstypes.EventTimeoutWait{})
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
 	validBlockCh := subscribe(cs1.evsw, cstypes.EventNewValidBlock{})
-	cs1PubKey, err := cs1.privValidator.GetPubKey()
+	cs1PubKey, err := cs1.privValidator.PubKey()
 	if err != nil {
 		t.Fatalf("unable to get cs1PubKey: %v", err)
 	}
@@ -1194,7 +1194,7 @@ func TestSetValidBlockOnDelayedProposal(t *testing.T) {
 	timeoutProposeCh := subscribe(cs1.evsw, cstypes.EventTimeoutPropose{})
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
 	validBlockCh := subscribe(cs1.evsw, cstypes.EventNewValidBlock{})
-	cs1PubKey, err := cs1.privValidator.GetPubKey()
+	cs1PubKey, err := cs1.privValidator.PubKey()
 	if err != nil {
 		t.Fatalf("unable to get cs1PubKey: %v", err)
 	}
@@ -1283,7 +1283,7 @@ func TestWaitingTimeoutProposeOnNewRound(t *testing.T) {
 
 	timeoutWaitCh := subscribe(cs1.evsw, cstypes.EventTimeoutPropose{})
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
-	cs1PubKey, err := cs1.privValidator.GetPubKey()
+	cs1PubKey, err := cs1.privValidator.PubKey()
 	if err != nil {
 		t.Fatalf("unable to get cs1PubKey: %v", err)
 	}
@@ -1328,7 +1328,7 @@ func TestRoundSkipOnNilPolkaFromHigherRound(t *testing.T) {
 
 	timeoutWaitCh := subscribe(cs1.evsw, cstypes.EventTimeoutWait{})
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
-	cs1PubKey, err := cs1.privValidator.GetPubKey()
+	cs1PubKey, err := cs1.privValidator.PubKey()
 	if err != nil {
 		t.Fatalf("unable to get cs1PubKey: %v", err)
 	}
@@ -1373,7 +1373,7 @@ func TestWaitTimeoutProposeOnNilPolkaForTheCurrentRound(t *testing.T) {
 
 	timeoutProposeCh := subscribe(cs1.evsw, cstypes.EventTimeoutPropose{})
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
-	cs1PubKey, err := cs1.privValidator.GetPubKey()
+	cs1PubKey, err := cs1.privValidator.PubKey()
 	if err != nil {
 		t.Fatalf("unable to get cs1PubKey: %v", err)
 	}
@@ -1510,7 +1510,7 @@ func TestStartNextHeightCorrectly(t *testing.T) {
 
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
 	newBlockHeader := subscribe(cs1.evsw, types.EventNewBlockHeader{})
-	cs1PubKey, err := cs1.privValidator.GetPubKey()
+	cs1PubKey, err := cs1.privValidator.PubKey()
 	if err != nil {
 		t.Fatalf("unable to get cs1PubKey: %v", err)
 	}
@@ -1577,7 +1577,7 @@ func TestFlappyResetTimeoutPrecommitUponNewHeight(t *testing.T) {
 	proposalCh := subscribe(cs1.evsw, cstypes.EventCompleteProposal{})
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
 	newBlockHeader := subscribe(cs1.evsw, types.EventNewBlockHeader{})
-	cs1PubKey, err := cs1.privValidator.GetPubKey()
+	cs1PubKey, err := cs1.privValidator.PubKey()
 	if err != nil {
 		t.Fatalf("unable to get cs1PubKey: %v", err)
 	}
@@ -1728,7 +1728,7 @@ func TestFlappyStateHalt1(t *testing.T) {
 	timeoutWaitCh := subscribe(cs1.evsw, cstypes.EventTimeoutWait{})
 	newRoundCh := subscribe(cs1.evsw, cstypes.EventNewRound{})
 	newBlockCh := subscribe(cs1.evsw, types.EventNewBlock{})
-	cs1PubKey, err := cs1.privValidator.GetPubKey()
+	cs1PubKey, err := cs1.privValidator.PubKey()
 	if err != nil {
 		t.Fatalf("unable to get cs1PubKey: %v", err)
 	}

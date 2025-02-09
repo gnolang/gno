@@ -11,7 +11,7 @@ func MakeCommit(blockID BlockID, height int64, round int,
 ) (*Commit, error) {
 	// all sign
 	for i := 0; i < len(validators); i++ {
-		pubKey, err := validators[i].GetPubKey()
+		pubKey, err := validators[i].PubKey()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get the validator public key: %w", err)
 		}
@@ -43,7 +43,7 @@ func signAddVote(privVal PrivValidator, vote *Vote, voteSet *VoteSet) (signed bo
 }
 
 func MakeVote(height int64, blockID BlockID, valSet *ValidatorSet, privVal PrivValidator, chainID string) (*Vote, error) {
-	pubKey, err := privVal.GetPubKey()
+	pubKey, err := privVal.PubKey()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get the validator public key: %w", err)
 	}

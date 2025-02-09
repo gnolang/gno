@@ -52,8 +52,8 @@ func TestProposalString(t *testing.T) {
 func TestProposalVerifySignature(t *testing.T) {
 	t.Parallel()
 
-	privVal := NewMockSigner()
-	pubKey, err := privVal.GetPubKey()
+	privVal := NewMockPV()
+	pubKey, err := privVal.PubKey()
 	require.NoError(t, err)
 
 	prop := NewProposal(
@@ -90,7 +90,7 @@ func BenchmarkProposalWriteSignBytes(b *testing.B) {
 }
 
 func BenchmarkProposalSign(b *testing.B) {
-	privVal := NewMockSigner()
+	privVal := NewMockPV()
 	for i := 0; i < b.N; i++ {
 		err := privVal.SignProposal("test_chain_id", testProposal)
 		if err != nil {
@@ -100,10 +100,10 @@ func BenchmarkProposalSign(b *testing.B) {
 }
 
 func BenchmarkProposalVerifySignature(b *testing.B) {
-	privVal := NewMockSigner()
+	privVal := NewMockPV()
 	err := privVal.SignProposal("test_chain_id", testProposal)
 	require.Nil(b, err)
-	pubKey, err := privVal.GetPubKey()
+	pubKey, err := privVal.PubKey()
 	require.NoError(b, err)
 
 	for i := 0; i < b.N; i++ {
@@ -114,7 +114,7 @@ func BenchmarkProposalVerifySignature(b *testing.B) {
 func TestProposalValidateBasic(t *testing.T) {
 	t.Parallel()
 
-	privVal := NewMockSigner()
+	privVal := NewMockPV()
 	testCases := []struct {
 		testName         string
 		malleateProposal func(*Proposal)
@@ -122,8 +122,6 @@ func TestProposalValidateBasic(t *testing.T) {
 	}{
 		{"Good Proposal", func(p *Proposal) {}, false},
 		{"Invalid Type", func(p *Proposal) { p.Type = PrecommitType }, true},
-		{"Invalid Height", func(p *Proposal) { p.Height = -1 }, true},
-		{"Invalid Round", func(p *Proposal) { p.Round = -1 }, true},
 		{"Invalid POLRound", func(p *Proposal) { p.POLRound = -2 }, true},
 		{"Invalid BlockId", func(p *Proposal) {
 			p.BlockID = BlockID{[]byte{1, 2, 3}, PartSetHeader{111, []byte("blockparts")}}

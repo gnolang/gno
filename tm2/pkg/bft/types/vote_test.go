@@ -167,8 +167,8 @@ func TestVoteProposalNotEq(t *testing.T) {
 func TestVoteVerifySignature(t *testing.T) {
 	t.Parallel()
 
-	privVal := NewMockSigner()
-	pubkey, err := privVal.GetPubKey()
+	privVal := NewMockPV()
+	pubkey, err := privVal.PubKey()
 	require.NoError(t, err)
 
 	vote := examplePrecommit()
@@ -224,8 +224,8 @@ func TestIsVoteTypeValid(t *testing.T) {
 func TestVoteVerify(t *testing.T) {
 	t.Parallel()
 
-	privVal := NewMockSigner()
-	pubkey, err := privVal.GetPubKey()
+	privVal := NewMockPV()
+	pubkey, err := privVal.PubKey()
 	require.NoError(t, err)
 
 	vote := examplePrevote()
@@ -265,7 +265,7 @@ func TestMaxVoteBytes(t *testing.T) {
 		},
 	}
 
-	privVal := NewMockSigner()
+	privVal := NewMockPV()
 	err := privVal.SignVote("test_chain_id", vote)
 	require.NoError(t, err)
 
@@ -294,7 +294,7 @@ func TestVoteString(t *testing.T) {
 func TestVoteValidateBasic(t *testing.T) {
 	t.Parallel()
 
-	privVal := NewMockSigner()
+	privVal := NewMockPV()
 
 	testCases := []struct {
 		testName     string

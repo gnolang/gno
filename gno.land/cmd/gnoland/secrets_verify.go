@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/gnolang/gno/tm2/pkg/bft/privval"
+	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
+	"github.com/gnolang/gno/tm2/pkg/bft/privval/state"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/p2p/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
 type secretsVerifyCfg struct {
@@ -68,36 +69,35 @@ func execSecretsVerify(cfg *secretsVerifyCfg, args []string, io commands.IO) err
 	switch key {
 	case validatorPrivateKeyKey:
 		// Validate the validator's private key
-		_, err := readAndVerifyValidatorKey(validatorKeyPath, io)
+		_, err := signer.LoadFileKey(validatorKeyPath)
 
 		return err
 	case validatorStateKey:
 		// Validate the validator's last sign state
-		validatorState, err := readAndVerifyValidatorState(validatorStatePath, io)
+		validatorState, err := state.LoadFileState(validatorStatePath)
 		if err != nil {
 			return err
 		}
 
 		// Attempt to read the validator key
-		if validatorKey, err := readAndVerifyValidatorKey(validatorKeyPath, io); validatorKey != nil && err == nil {
+		if validatorKey, err := signer.LoadFileKey(validatorKeyPath); validatorKey != nil && err == nil {
 			// Validate the signature bytes
 			return validateValidatorStateSignature(validatorState, validatorKey.PubKey)
-		} else {
-			io.Println("WARN: Skipped verification of validator state, as validator key is not present")
 		}
+		io.Println("WARN: Skipped verification of validator state, as validator key is not present")
 
 		return nil
 	case nodeIDKey:
 		return readAndVerifyNodeKey(nodeKeyPath, io)
 	default:
 		// Validate the validator's private key
-		validatorKey, err := readAndVerifyValidatorKey(validatorKeyPath, io)
+		validatorKey, err := signer.LoadFileKey(validatorKeyPath)
 		if err != nil {
 			return err
 		}
 
 		// Validate the validator's last sign state
-		validatorState, err := readAndVerifyValidatorState(validatorStatePath, io)
+		validatorState, err := state.LoadFileState(validatorStatePath)
 		if err != nil {
 			return err
 		}
@@ -112,41 +112,18 @@ func execSecretsVerify(cfg *secretsVerifyCfg, args []string, io commands.IO) err
 	}
 }
 
-// readAndVerifyValidatorKey reads the validator key from the given path and verifies it
-func readAndVerifyValidatorKey(path string, io commands.IO) (*privval.FilePVKey, error) {
-	validatorKey, err := readSecretData[privval.FilePVKey](path)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read validator key, %w", err)
+// validateValidatorStateSignature validates the signature of the given validator state.
+func validateValidatorStateSignature(validatorState *state.FileState, pubKey crypto.PubKey) error {
+	if !pubKey.VerifyBytes(validatorState.SignBytes, validatorState.Signature) {
+		return fmt.Errorf("validator state signature is invalid")
 	}
 
-	if err := validateValidatorKey(validatorKey); err != nil {
-		return nil, err
-	}
-
-	io.Printfln("Validator Private Key at %s is valid", path)
-
-	return validatorKey, nil
-}
-
-// readAndVerifyValidatorState reads the validator state from the given path and verifies it
-func readAndVerifyValidatorState(path string, io commands.IO) (*privval.FilePVLastSignState, error) {
-	validatorState, err := readSecretData[privval.FilePVLastSignState](path)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read last validator sign state, %w", err)
-	}
-
-	if err := validateValidatorState(validatorState); err != nil {
-		return nil, err
-	}
-
-	io.Printfln("Last Validator Sign state at %s is valid", path)
-
-	return validatorState, nil
+	return nil
 }
 
 // readAndVerifyNodeKey reads the node p2p key from the given path and verifies it
 func readAndVerifyNodeKey(path string, io commands.IO) error {
-	nodeKey, err := readSecretData[types.NodeKey](path)
+	nodeKey, err := readNodeKey(path)
 	if err != nil {
 		return fmt.Errorf("unable to read node p2p key, %w", err)
 	}

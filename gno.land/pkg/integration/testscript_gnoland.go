@@ -23,6 +23,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -290,8 +291,8 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 
 			cfg.Genesis.AppState = *genesis
 			if *nonVal {
-				pv := gnoland.NewMockedPrivValidator()
-				pvPubKey, err := pv.GetPubKey()
+				pv := types.NewMockPV()
+				pvPubKey, err := pv.PubKey()
 				if err != nil {
 					ts.Fatalf("unable to get validator public key: %v", err)
 				}

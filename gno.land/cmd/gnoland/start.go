@@ -19,7 +19,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
-	"github.com/gnolang/gno/tm2/pkg/bft/privval"
+	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -213,14 +213,14 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 			return errMissingGenesis
 		}
 
-		// Load the private validator secrets
-		privateKey := privval.LoadFilePV(
-			cfg.PrivValidatorKeyFile(),
-			cfg.PrivValidatorStateFile(),
-		)
+		// Load existing or generate a new private validator key
+		fileKey, err := signer.NewFileKey(cfg.PrivValidatorKeyFile())
+		if err != nil {
+			return fmt.Errorf("unable to instanciate validator key: %w", err)
+		}
 
 		// Init a new genesis.json
-		if err := lazyInitGenesis(io, c, genesisPath, privateKey.Key.PrivKey); err != nil {
+		if err := lazyInitGenesis(io, c, genesisPath, fileKey.PrivKey); err != nil {
 			return fmt.Errorf("unable to initialize genesis.json, %w", err)
 		}
 	}

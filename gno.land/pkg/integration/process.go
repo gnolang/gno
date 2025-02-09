@@ -81,9 +81,9 @@ func RunNode(ctx context.Context, pcfg *ProcessNodeConfig, stdout, stderr io.Wri
 
 	// Configure validator if provided
 	if len(pcfg.ValidatorKey) > 0 && !isAllZero(pcfg.ValidatorKey) {
-		nodecfg.PrivValidator = bft.NewMockPVWithParams(pcfg.ValidatorKey, false, false)
+		nodecfg.PrivValidator = bft.NewMockPVWithPrivKey(pcfg.ValidatorKey)
 	}
-	pv, err := nodecfg.PrivValidator.GetPubKey()
+	pv, err := nodecfg.PrivValidator.PubKey()
 	if err != nil {
 		return err
 	}
@@ -114,7 +114,7 @@ func RunNode(ctx context.Context, pcfg *ProcessNodeConfig, stdout, stderr io.Wri
 	defer node.Stop()
 
 	// Get the validator public key
-	ourPubKey, err := nodecfg.PrivValidator.GetPubKey()
+	ourPubKey, err := nodecfg.PrivValidator.PubKey()
 	if err != nil {
 		return fmt.Errorf("failed to get the validator public key: %w", err)
 	}

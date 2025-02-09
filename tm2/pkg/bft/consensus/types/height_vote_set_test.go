@@ -58,7 +58,7 @@ func makeVoteHR(t *testing.T, height int64, round int, privVals []types.PrivVali
 	t.Helper()
 
 	privVal := privVals[valIndex]
-	pubKey, err := privVal.GetPubKey()
+	pubKey, err := privVal.PubKey()
 	if err != nil {
 		t.Fatalf("unable to get pubKey: %v", err)
 	}

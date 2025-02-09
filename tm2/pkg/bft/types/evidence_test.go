@@ -20,7 +20,7 @@ type voteData struct {
 }
 
 func makeVote(val PrivValidator, chainID string, valIndex int, height int64, round, step int, blockID BlockID) *Vote {
-	pubKey, err := val.GetPubKey()
+	pubKey, err := val.PubKey()
 	if err != nil {
 		panic(err)
 	}
@@ -42,8 +42,8 @@ func makeVote(val PrivValidator, chainID string, valIndex int, height int64, rou
 func TestEvidence(t *testing.T) {
 	t.Parallel()
 
-	val := NewMockSigner()
-	val2 := NewMockSigner()
+	val := NewMockPV()
+	val2 := NewMockPV()
 
 	blockID := makeBlockID([]byte("blockhash"), 1000, []byte("partshash"))
 	blockID2 := makeBlockID([]byte("blockhash2"), 1000, []byte("partshash"))
@@ -73,7 +73,7 @@ func TestEvidence(t *testing.T) {
 		{vote1, badVote, false}, // signed by wrong key
 	}
 
-	pubKey, err := val.GetPubKey()
+	pubKey, err := val.PubKey()
 	if err != nil {
 		t.Fatalf("failed to get the validator public key: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestEvidenceList(t *testing.T) {
 func TestEvidenceByteSize(t *testing.T) {
 	t.Parallel()
 
-	val := NewMockSigner()
+	val := NewMockPV()
 	blockID := makeBlockID(tmhash.Sum([]byte("blockhash")), math.MaxInt64, tmhash.Sum([]byte("partshash")))
 	blockID2 := makeBlockID(tmhash.Sum([]byte("blockhash2")), math.MaxInt64, tmhash.Sum([]byte("partshash")))
 	const chainID = "mychain"
@@ -130,7 +130,7 @@ func TestEvidenceByteSize(t *testing.T) {
 }
 
 func randomDuplicatedVoteEvidence() *DuplicateVoteEvidence {
-	val := NewMockSigner()
+	val := NewMockPV()
 	blockID := makeBlockID([]byte("blockhash"), 1000, []byte("partshash"))
 	blockID2 := makeBlockID([]byte("blockhash2"), 1000, []byte("partshash"))
 	const chainID = "mychain"
@@ -143,7 +143,7 @@ func randomDuplicatedVoteEvidence() *DuplicateVoteEvidence {
 func TestDuplicateVoteEvidenceValidation(t *testing.T) {
 	t.Parallel()
 
-	val := NewMockSigner()
+	val := NewMockPV()
 	blockID := makeBlockID(tmhash.Sum([]byte("blockhash")), math.MaxInt64, tmhash.Sum([]byte("partshash")))
 	blockID2 := makeBlockID(tmhash.Sum([]byte("blockhash2")), math.MaxInt64, tmhash.Sum([]byte("partshash")))
 	const chainID = "mychain"

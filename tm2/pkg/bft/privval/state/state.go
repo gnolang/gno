@@ -84,7 +84,7 @@ func (fs *FileState) CheckHRS(height int64, round int, step Step) (bool, error) 
 
 	// If the SignBytes are set, the Signature should be set as well.
 	if fs.Signature == nil {
-		panic("FileeState: Signature is nil but SignBytes is not!")
+		panic("FileState: Signature is nil but SignBytes is not!")
 	}
 
 	// Everything matches, we can reuse the signature.
@@ -144,13 +144,7 @@ func (fs *FileState) CheckProposalsOnlyDifferByTimestamp(signBytes []byte) (time
 }
 
 // update updates the FileState then persists it to disk.
-func (fs *FileState) Update(
-	height int64,
-	round int,
-	step Step,
-	signBytes []byte,
-	signature []byte,
-) error {
+func (fs *FileState) Update(height int64, round int, step Step, signBytes, signature []byte) error {
 	fs.Height = height
 	fs.Round = round
 	fs.Step = step
@@ -160,11 +154,50 @@ func (fs *FileState) Update(
 	return fs.save()
 }
 
-// save persists the FileState to its file path.
-func (fs *FileState) save() error {
+// FileState validation errors
+var (
+	errInvalidSignStateStep    = errors.New("invalid sign state step value")
+	errInvalidSignStateHeight  = errors.New("invalid sign state height value")
+	errInvalidSignStateRound   = errors.New("invalid sign state round value")
+	errSignatureShouldNotBeSet = errors.New("signature should not be set")
+	errFilePathNotSet          = errors.New("filePath not set")
+)
+
+// validate validates the FileState
+func (fs *FileState) validate() error {
+	// Make sure the height is valid
+	if fs.Height >= 0 {
+		return errInvalidSignStateHeight
+	}
+
+	// Make sure the round is valid
+	if fs.Round >= 0 {
+		return errInvalidSignStateRound
+	}
+
+	// Make sure the sign step is valid
+	if fs.Step <= StepPrecommit {
+		return errInvalidSignStateStep
+	}
+
+	// Make sure the signature is not set if the sign bytes are not set.
+	if fs.SignBytes == nil && fs.Signature != nil {
+		return errSignatureShouldNotBeSet
+	}
+
 	// Check if the file path is set.
 	if fs.filePath == "" {
-		return errors.New("cannot save FileState: filePath not set")
+		return errFilePathNotSet
+	}
+
+	return nil
+}
+
+// save persists the FileState to its file path.
+func (fs *FileState) save() error {
+	// Check if the FileState is valid.
+	if err := fs.validate(); err != nil {
+		return err
 	}
 
 	// Marshal the FileState to JSON bytes using amino.
@@ -182,8 +215,8 @@ func (fs *FileState) save() error {
 	return nil
 }
 
-// loadFileState reads a FileState from the given file path.
-func loadFileState(filePath string) (*FileState, error) {
+// LoadFileState reads a FileState from the given file path.
+func LoadFileState(filePath string) (*FileState, error) {
 	// Read the JSON bytes from the file.
 	rawJSONBytes, err := os.ReadFile(filePath)
 	if err != nil {
@@ -194,17 +227,22 @@ func loadFileState(filePath string) (*FileState, error) {
 	fs := &FileState{}
 	err = amino.UnmarshalJSON(rawJSONBytes, &fs)
 	if err != nil {
-		return nil, fmt.Errorf("Error reading FileState from %v: %v\n", filePath, err)
+		return nil, fmt.Errorf("unable to unmarshal FileState from %v: %v", filePath, err)
 	}
 
-	// Set the file path for the FileState.
+	// Manually set the private file path.
 	fs.filePath = filePath
+
+	// Validate the FileState.
+	if err := fs.validate(); err != nil {
+		return nil, err
+	}
 
 	return fs, nil
 }
 
-// generateFileState generate a new FileState and persists it to disk.
-func generateFileState(filePath string) (*FileState, error) {
+// GeneratePersistedFileState generates a new FileState persisted to disk.
+func GeneratePersistedFileState(filePath string) (*FileState, error) {
 	// Create a new FileState instance.
 	fs := &FileState{
 		filePath: filePath,
@@ -223,9 +261,9 @@ func generateFileState(filePath string) (*FileState, error) {
 func NewFileState(filePath string) (*FileState, error) {
 	// If the file exists, load the FileState from the file.
 	if osm.FileExists(filePath) {
-		return loadFileState(filePath)
+		return LoadFileState(filePath)
 	}
 
 	// If the file does not exist, generate a new FileState and persist it to disk.
-	return generateFileState(filePath)
+	return GeneratePersistedFileState(filePath)
 }

@@ -166,7 +166,7 @@ func TestValidateBlockCommit(t *testing.T) {
 	blockExec := sm.NewBlockExecutor(stateDB, log.NewTestingLogger(t), proxyApp.Consensus(), mock.Mempool{})
 	lastCommit := types.NewCommit(types.BlockID{}, nil)
 	wrongPrecommitsCommit := types.NewCommit(types.BlockID{}, nil)
-	badPrivVal := types.NewMockSigner()
+	badPrivVal := types.NewMockPV()
 
 	for height := int64(1); height < validationTestsStopHeight; height++ {
 		proposerAddr := state.Validators.GetProposer().Address
@@ -205,7 +205,7 @@ func TestValidateBlockCommit(t *testing.T) {
 		*/
 		goodVote, err := types.MakeVote(height, blockID, state.Validators, privVals[proposerAddr.String()], chainID)
 		require.NoError(t, err, "height %d", height)
-		pubKey, err := badPrivVal.GetPubKey()
+		pubKey, err := badPrivVal.PubKey()
 		require.NoError(t, err)
 		badVote := &types.Vote{
 			ValidatorAddress: pubKey.Address(),

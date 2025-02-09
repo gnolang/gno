@@ -15,18 +15,51 @@ import (
 // FileKey is a struct that contains the private key, public key, and address of a
 // FileSigner. It is persisted to disk in JSON format using amino.
 type FileKey struct {
-	Address types.Address  `json:"address" comment:"the validator address"`
-	PubKey  crypto.PubKey  `json:"pub_key" comment:"the validator public key"`
 	PrivKey crypto.PrivKey `json:"priv_key" comment:"the validator private key"`
+	PubKey  crypto.PubKey  `json:"pub_key" comment:"the validator public key"`
+	Address types.Address  `json:"address" comment:"the validator address"`
 
 	filePath string
 }
 
-// save persists the FileKey to its file path.
-func (fk *FileKey) save() error {
+// FileKey validation errors
+var (
+	errInvalidPrivateKey = errors.New("invalid private key")
+	errPublicKeyMismatch = errors.New("public key does not match private key derivation")
+	errAddressMismatch   = errors.New("address does not match public key")
+	errFilePathNotSet    = errors.New("filePath not set")
+)
+
+// validate validates the FileKey
+func (fk *FileKey) validate() error {
+	// Make sure the private key is set
+	if fk.PrivKey == nil {
+		return errInvalidPrivateKey
+	}
+
+	// Make sure the public key is derived from the private one
+	if !fk.PrivKey.PubKey().Equals(fk.PubKey) {
+		return errPublicKeyMismatch
+	}
+
+	// Make sure the address is derived from the public key
+	if fk.PubKey.Address().Compare(fk.Address) != 0 {
+		return errAddressMismatch
+	}
+
 	// Check if the file path is set.
 	if fk.filePath == "" {
-		return errors.New("filePath not set")
+		return errFilePathNotSet
+	}
+
+	return nil
+}
+
+// save persists the FileKey to its file path.
+func (fk *FileKey) save() error {
+	// Check if the FileKey is valid.
+	if err := fk.validate(); err != nil {
+		return err
 	}
 
 	// Marshal the FileKey to JSON bytes using amino.
@@ -43,8 +76,8 @@ func (fk *FileKey) save() error {
 	return nil
 }
 
-// loadFileKey reads a FileKey from the given file path.
-func loadFileKey(filePath string) (*FileKey, error) {
+// LoadFileKey reads a FileKey from the given file path.
+func LoadFileKey(filePath string) (*FileKey, error) {
 	// Read the JSON bytes from the file.
 	rawJSONBytes, err := os.ReadFile(filePath)
 	if err != nil {
@@ -55,29 +88,38 @@ func loadFileKey(filePath string) (*FileKey, error) {
 	fk := &FileKey{}
 	err = amino.UnmarshalJSON(rawJSONBytes, &fk)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read FileKey from %v: %v\n", filePath, err)
+		return nil, fmt.Errorf("unable to unmarshal FileKey from %v: %v", filePath, err)
 	}
 
-	// Overwrite pubkey and address for convenience.
-	fk.PubKey = fk.PrivKey.PubKey()
-	fk.Address = fk.PubKey.Address()
+	// Manually set the private file path.
 	fk.filePath = filePath
+
+	// Validate the FileKey.
+	if err := fk.validate(); err != nil {
+		return nil, err
+	}
 
 	return fk, nil
 }
 
-// generateFileKey generate a new random FileKey and persists it to disk.
-func generateFileKey(filePath string) (*FileKey, error) {
+// GenerateFileKey generates a new random FileKey.
+func GenerateFileKey(filePath string) *FileKey {
 	// Generate a new random private key.
 	privKey := ed25519.GenPrivKey()
 
 	// Create a new FileKey instance.
-	fk := &FileKey{
-		Address:  privKey.PubKey().Address(),
-		PubKey:   privKey.PubKey(),
+	return &FileKey{
 		PrivKey:  privKey,
+		PubKey:   privKey.PubKey(),
+		Address:  privKey.PubKey().Address(),
 		filePath: filePath,
 	}
+}
+
+// GeneratePersistedFileKey generates a new random FileKey persisted to disk.
+func GeneratePersistedFileKey(filePath string) (*FileKey, error) {
+	// Generate a new random FileKey.
+	fk := GenerateFileKey(filePath)
 
 	// Persist the FileKey to disk.
 	if err := fk.save(); err != nil {
@@ -92,9 +134,9 @@ func generateFileKey(filePath string) (*FileKey, error) {
 func NewFileKey(filePath string) (*FileKey, error) {
 	// If the file exists, load the FileKey from the file.
 	if osm.FileExists(filePath) {
-		return loadFileKey(filePath)
+		return LoadFileKey(filePath)
 	}
 
 	// If the file does not exist, generate a new FileKey and persist it to disk.
-	return generateFileKey(filePath)
+	return GeneratePersistedFileKey(filePath)
 }
