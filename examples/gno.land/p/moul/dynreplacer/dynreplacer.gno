@@ -3,7 +3,7 @@
 // execution of replacements, making it more optimization-friendly in several
 // cases. While strings.Replacer requires all replacement values to be computed
 // upfront, dynreplacer only executes the callback functions for placeholders
-// that actually exist in the template, avoiding unnecessary computations. 
+// that actually exist in the template, avoiding unnecessary computations.
 //
 // The package ensures efficient, non-recursive replacement of placeholders in a
 // single pass. This lazy evaluation approach is particularly beneficial when:
@@ -18,7 +18,7 @@
 //
 // The replacer caches computed values, so subsequent calls with the same
 // placeholder will reuse the cached value instead of executing the callback
-// again: 
+// again:
 //
 //	r := New(":expensive:", func() string { return "computed" })
 //	r.Replace("Value1: :expensive:") // Computes the value
@@ -40,13 +40,13 @@ type Replacer struct {
 // New creates a new Replacer instance with optional initial replacements.
 // It accepts pairs of arguments where each pair consists of a placeholder
 // string and its corresponding callback function.
-// 
+//
 // Example:
 //
-//        New(
-//            ":name:", func() string { return "World" },
-//            ":greeting:", func() string { return "Hello" },
-//        )
+//	New(
+//	    ":name:", func() string { return "World" },
+//	    ":greeting:", func() string { return "Hello" },
+//	)
 func New(pairs ...interface{}) *Replacer {
 	if len(pairs)%2 != 0 {
 		panic("dynreplacer.New: odd argument count")
