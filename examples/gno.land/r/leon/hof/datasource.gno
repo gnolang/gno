@@ -6,6 +6,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/jeronimoalbi/datasource"
+	"gno.land/p/moul/md"
 )
 
 func NewDatasource() Datasource {
@@ -51,7 +52,8 @@ func (r record) Fields() (datasource.Fields, error) {
 }
 
 func (r record) Content() (string, error) {
-	content := ufmt.Sprintf("# Submission #%d\n\n", int(r.item.id))
+	content := md.H1(ufmt.Sprintf("Submission #%d\n\n", int(r.item.id)))
+	// content := ufmt.Sprintf("# Submission #%d\n\n", int(r.item.id))
 	content += r.item.Render(false)
 	return content, nil
 }
