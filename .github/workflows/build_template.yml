@@ -23,10 +23,14 @@ jobs:
           - name: Check generated files are up to date
             working-directory: ${{ inputs.modulepath }}
             run: |
-              make generate
+              if make -qp | grep -q '^generate:'; then
+                make generate
 
-              if [ "$(git status -s)" != "" ]; then
-                echo "command 'make generate' creates file that differ from git tree, please run 'make generate' and commit:"
-                git status -s
-                exit 1
+                if [ "$(git status -s)" != "" ]; then
+                  echo "command 'make generate' creates files that differ from the git tree, please run 'make generate' and commit:"
+                  git status -s
+                  exit 1
+                fi
+              else
+                echo "'make generate' rule not found, skipping."
               fi
