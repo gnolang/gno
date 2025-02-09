@@ -267,17 +267,12 @@ Main:
 				if fv, ok := cx.V.(*FuncValue); ok {
 					if fv.PkgPath == uversePkgPath {
 						// TODO: should support min, max, real, imag
-						switch {
-						case fv.Name == "len":
+						switch fv.Name {
+						case "len", "cap":
 							at := evalStaticTypeOf(store, last, currExpr.Args[0])
-							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
-								// ok
-								break Main
+							if ExprAsExpr(currExpr.Args[0], &CallExpr{}) {
+								panic(fmt.Sprintf("%s (value of type %s) is not constant", currExpr.String(), at))
 							}
-							assertValidConstValue(store, last, currExpr.Args[0])
-							break Main
-						case fv.Name == "cap":
-							at := evalStaticTypeOf(store, last, currExpr.Args[0])
 							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
 								// ok
 								break Main
@@ -1275,4 +1270,111 @@ func isBlankIdentifier(x Expr) bool {
 		return nx.Name == blankIdentifier
 	}
 	return false
+}
+
+func ExprAsExpr(base Expr, expr Expr) bool {
+	switch base := base.(type) {
+	case *NameExpr:
+		_, ok := expr.(*NameExpr)
+		return ok
+	case *BasicLitExpr:
+		_, ok := expr.(*BasicLitExpr)
+		return ok
+	case *BinaryExpr:
+		_, ok := expr.(*BinaryExpr)
+		return ok || ExprAsExpr(base.Left, expr) || ExprAsExpr(base.Right, expr)
+	case *CallExpr:
+		_, ok := expr.(*CallExpr)
+		if ok || ExprAsExpr(base.Func, expr) {
+			return true
+		}
+
+		for _, arg := range base.Args {
+			if ExprAsExpr(arg, expr) {
+				return true
+			}
+		}
+		return false
+	case *IndexExpr:
+		_, ok := expr.(*IndexExpr)
+		return ok || ExprAsExpr(base.X, expr) || ExprAsExpr(base.Index, expr)
+	case *SelectorExpr:
+		_, ok := expr.(*SelectorExpr)
+		return ok
+	case *SliceExpr:
+		_, ok := expr.(*SliceExpr)
+		return ok || ExprAsExpr(base.X, expr) || ExprAsExpr(base.Low, expr) || ExprAsExpr(base.High, expr) || ExprAsExpr(base.Max, expr)
+	case *StarExpr:
+		_, ok := expr.(*StarExpr)
+		return ok || ExprAsExpr(base.X, expr)
+	case *RefExpr:
+		_, ok := expr.(*RefExpr)
+		return ok || ExprAsExpr(base.X, expr)
+	case *TypeAssertExpr:
+		_, ok := expr.(*TypeAssertExpr)
+		return ok || ExprAsExpr(base.X, expr) || ExprAsExpr(base.Type, expr)
+	case *UnaryExpr:
+		_, ok := expr.(*UnaryExpr)
+		return ok || ExprAsExpr(base.X, expr)
+	case *CompositeLitExpr:
+		_, ok := expr.(*CompositeLitExpr)
+		if ok || ExprAsExpr(base.Type, expr) {
+			return true
+		}
+		for _, elt := range base.Elts {
+			if ExprAsExpr(&elt, expr) {
+				return true
+			}
+		}
+		return false
+	case *KeyValueExpr:
+		_, ok := expr.(*KeyValueExpr)
+		return ok || ExprAsExpr(base.Key, expr) || ExprAsExpr(base.Value, expr)
+	case *FuncLitExpr:
+		_, ok := expr.(*FuncLitExpr)
+		if ok || ExprAsExpr(&base.Type, expr) {
+			return true
+		}
+		for _, exp := range base.HeapCaptures {
+			if ExprAsExpr(&exp, expr) {
+				return true
+			}
+		}
+		return false
+	case *ConstExpr:
+		_, ok := expr.(*ConstExpr)
+		return ok
+	case *FieldTypeExpr:
+		_, ok := expr.(*FieldTypeExpr)
+		return ok || ExprAsExpr(base.Type, expr) || ExprAsExpr(base.Tag, expr)
+	case *ArrayTypeExpr:
+		_, ok := expr.(*ArrayTypeExpr)
+		return ok || ExprAsExpr(base.Len, expr) || ExprAsExpr(base.Elt, expr)
+	case *SliceTypeExpr:
+		_, ok := expr.(*SliceTypeExpr)
+		return ok || ExprAsExpr(base.Elt, expr)
+	case *InterfaceTypeExpr:
+		_, ok := expr.(*InterfaceTypeExpr)
+		return ok
+	case *ChanTypeExpr:
+		_, ok := expr.(*ChanTypeExpr)
+		return ok || ExprAsExpr(base.Value, expr)
+	case *FuncTypeExpr:
+		_, ok := expr.(*FuncTypeExpr)
+		return ok
+	case *MapTypeExpr:
+		_, ok := expr.(*MapTypeExpr)
+		return ok || ExprAsExpr(base.Key, expr) || ExprAsExpr(base.Value, expr)
+	case *StructTypeExpr:
+		_, ok := expr.(*StructTypeExpr)
+		return ok
+	case *constTypeExpr:
+		_, ok := expr.(*constTypeExpr)
+		return ok || ExprAsExpr(base.Source, expr)
+	case *MaybeNativeTypeExpr:
+		_, ok := expr.(*MaybeNativeTypeExpr)
+		return ok || ExprAsExpr(base.Type, expr)
+	default:
+		return false
+	}
 }
