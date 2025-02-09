@@ -34,7 +34,7 @@ func init() {
 	linkedinUrl = "https://www.linkedin.com/in/ivan-ursulovic-953310190/"
 	imageUpdatePrice = 5000000
 	isValidUrl = defaultURLValidation
-	hof.Register()
+	hof.Register("Ivan's Home Realm", "Welcome to my Home Realm, here you can display image of your choosing for several GNOTs!")
 }
 
 func Render(s string) string {
