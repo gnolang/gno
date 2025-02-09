@@ -20,9 +20,7 @@ func TestNew(t *testing.T) {
 	std.TestSetRealm(realm)
 
 	a := New()
-	if a.Owner() != alice.String() {
-		t.Errorf("New() owner = %v, want %v", a.Owner(), alice)
-	}
+	uassert.Equal(t, a.Owner(), alice.String(), "invalid owner")
 	if a.typeOf != OwnerTypeWallet {
 		t.Errorf("New() typeOf = %v, want %v", a.typeOf, OwnerTypeWallet)
 	}
@@ -245,10 +243,10 @@ func TestNewWithContract(t *testing.T) {
 	// Test with empty package path
 	a, err = NewWithContract("", handler)
 	uassert.Error(t, err)
-	uassert.Nil(t, a)
+	uassert.True(t, a == nil, "Expected nil Authority for invalid package path")
 
 	// Test with nil handler
 	a, err = NewWithContract(testPkgPath, nil)
 	uassert.Error(t, err)
-	uassert.Nil(t, a)
+	uassert.True(t, a == nil, "Expected nil Authority for nil handler")
 }
