@@ -218,5 +218,8 @@ func GenerateTestingGenesisState(creator crypto.PrivKey, pkgs ...gnovm.MemPackag
 			Address: creator.PubKey().Address(),
 			Amount:  std.MustParseCoins(ugnot.ValueString(10_000_000_000_000)),
 		}},
+		Auth: auth.DefaultGenesisState(),
+		Bank: bank.DefaultGenesisState(),
+		VM:   vmm.DefaultGenesisState(),
 	}
 }
