@@ -271,7 +271,7 @@ func ChangeMemberRole(bid BoardID, member std.Address, role Role) {
 }
 
 func assertIsUserCall() {
-	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) {
+	if !std.PrevRealm().IsUser() {
 		panic("invalid non-user call")
 	}
 }
