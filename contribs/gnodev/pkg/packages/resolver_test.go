@@ -239,7 +239,7 @@ func TestResolver_ResolveRemote(t *testing.T) {
 
 	// Setup genesis state
 	privKey := secp256k1.GenPrivKey()
-	cfg.Genesis.AppState = integration.GenerateTestinGenesisState(privKey, mempkg)
+	cfg.Genesis.AppState = integration.GenerateTestingGenesisState(privKey, mempkg)
 
 	_, address := integration.TestingInMemoryNode(t, logger, cfg)
 	cl, err := client.NewHTTPClient(address)

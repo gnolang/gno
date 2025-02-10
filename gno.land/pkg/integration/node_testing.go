@@ -189,7 +189,7 @@ func DefaultTestingTMConfig(gnoroot string) *tmcfg.Config {
 	return tmconfig
 }
 
-func GenerateTestinGenesisState(creator crypto.PrivKey, pkgs ...gnovm.MemPackage) gnoland.GnoGenesisState {
+func GenerateTestingGenesisState(creator crypto.PrivKey, pkgs ...gnovm.MemPackage) gnoland.GnoGenesisState {
 	txs := make([]gnoland.TxWithMetadata, len(pkgs))
 	for i, pkg := range pkgs {
 		// Create transaction

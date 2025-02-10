@@ -54,7 +54,7 @@ func TestProxy(t *testing.T) {
 
 	// Setup genesis
 	privKey := secp256k1.GenPrivKey()
-	cfg.Genesis.AppState = integration.GenerateTestinGenesisState(privKey, pkg)
+	cfg.Genesis.AppState = integration.GenerateTestingGenesisState(privKey, pkg)
 	creator := privKey.PubKey().Address()
 
 	integration.TestingInMemoryNode(t, logger, cfg)

@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGenerateTestinGenesisState(t *testing.T) {
+func TestGenerateTestingGenesisState(t *testing.T) {
 	// Generate a test private key and address
 	privKey := secp256k1.GenPrivKey()
 	creatorAddr := privKey.PubKey().Address()
@@ -34,7 +34,7 @@ func TestGenerateTestinGenesisState(t *testing.T) {
 	}
 
 	t.Run("single package genesis", func(t *testing.T) {
-		genesis := GenerateTestinGenesisState(privKey, pkg1)
+		genesis := GenerateTestingGenesisState(privKey, pkg1)
 
 		// Verify transactions
 		require.Len(t, genesis.Txs, 1)
@@ -58,7 +58,7 @@ func TestGenerateTestinGenesisState(t *testing.T) {
 	})
 
 	t.Run("multiple packages genesis", func(t *testing.T) {
-		genesis := GenerateTestinGenesisState(privKey, pkg1, pkg2)
+		genesis := GenerateTestingGenesisState(privKey, pkg1, pkg2)
 
 		// Verify two transactions are created
 		require.Len(t, genesis.Txs, 2)
