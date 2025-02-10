@@ -13,7 +13,13 @@
 // using the ParamfulKeeper interface.WillSetParam() is called whenever module
 // parameters need to be updated.
 //
-// ParamKeeper is the only component responsible for caching and storing parameters.
+//
+// NOTE: important to not use local cached fields unless they are synchronously
+// stored to the underlying store. This optimization generally only belongs in paramk.GetParams().
+// users of paramk.GetParams() generally should not cache anything and
+// instead rely on the efficiency of paramk.GetParams().
+//
+// In otherwords, ParamKeeper is the only component responsible for caching and storing parameters.
 // Other keepers should neither cache nor maintain these parameters as state variables.
 // While store access is synchronized, keeper access is not.
 //

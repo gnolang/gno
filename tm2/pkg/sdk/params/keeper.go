@@ -154,6 +154,8 @@ func (pk ParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte) {
 }
 
 // GetParam gets a param value from the global param store.
+// Users generally should not cache anything and instead rely on the efficiency
+// of paramk.GetParams().
 func (pk ParamsKeeper) GetParams(ctx sdk.Context, moduleKey string, key string, target interface{}) (bool, error) {
 	if moduleKey != "" {
 		if pk.IsRegistered(moduleKey) {

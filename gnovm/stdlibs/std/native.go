@@ -9,7 +9,6 @@ import (
 func AssertOriginCall(m *gno.Machine) {
 	if !isOriginCall(m) {
 		m.Panic(typedString("invalid non-origin call"))
-
 	}
 }
 
