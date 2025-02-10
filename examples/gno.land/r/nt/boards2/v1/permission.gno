@@ -31,6 +31,9 @@ const (
 )
 
 type (
+	// BoardPermissionsFn defines a type for functions that create board permissions.
+	BoardPermissionsFn = func(boardName string, creator std.Address) Permissions
+
 	// Permission defines the type for permissions.
 	Permission string
 

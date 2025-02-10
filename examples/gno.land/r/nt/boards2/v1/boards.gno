@@ -8,6 +8,7 @@ import (
 
 var (
 	gPerms        Permissions
+	gBoardPermsFn BoardPermissionsFn
 	gLastBoardID  BoardID
 	gBoardsByID   avl.Tree // string(id) -> *Board
 	gBoardsByName avl.Tree // string(name) -> *Board
@@ -17,8 +18,11 @@ func init() {
 	// TODO: Define and change the default realm owner (or owners)
 	owner := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 
-	// Initialize the default realm permissions
+	// Initialize default permissions
 	gPerms = createDefaultPermissions(owner)
+	gBoardPermsFn = func(_ string, creator std.Address) Permissions {
+		return createDefaultBoardPermissions(creator)
+	}
 }
 
 // incGetBoardID returns a new board ID.

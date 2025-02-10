@@ -14,6 +14,15 @@ func SetPermissions(p Permissions) {
 	})
 }
 
+func SetBoardPermissionsFunc(fn BoardPermissionsFn) {
+	assertIsUserCall()
+
+	caller := std.GetOrigCaller()
+	gPerms.WithPermission(caller, PermissionPermissionsUpdate, nil, func(Args) {
+		gBoardPermsFn = fn
+	})
+}
+
 func GetBoardIDFromName(name string) (BoardID, bool) {
 	v, found := gBoardsByName.Get(name)
 	if !found {
