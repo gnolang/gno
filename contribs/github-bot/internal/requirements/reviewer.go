@@ -158,7 +158,7 @@ func (r *ReviewByTeamMembersRequirement) IsSatisfied(pr *github.PullRequest, det
 
 	reviews, err := r.gh.ListPRReviews(pr.GetNumber())
 	if err != nil {
-		r.gh.Logger.Errorf("unable to fetch existing reviews of pr %d: %v", r.team, err)
+		r.gh.Logger.Errorf("unable to fetch existing reviews of pr %d: %v", pr.GetNumber(), err)
 		return utils.AddStatusNode(false, detail, details)
 	}
 
