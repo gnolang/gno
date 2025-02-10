@@ -150,7 +150,7 @@ func validateName(username string) error {
 	}
 
 	// Check if the username can be decoded or looks like a valid address
-	if _, _, ok := std.DecodeBech32(std.Address(username)); ok || reAddressLookalike.MatchString(username) {
+	if std.Address(username).IsValid() || reAddressLookalike.MatchString(username) {
 		return ErrNameLikeAddress
 	}
 
