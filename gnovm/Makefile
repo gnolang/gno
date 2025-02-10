@@ -126,7 +126,7 @@ _test.filetest:;
 ########################################
 # Code gen
 .PHONY: generate
-generate: _dev.generate _dev.docs
+generate: _dev.generate _dev.docs fmt imports
 
 .PHONY: _dev.docs
 _dev.docs:
