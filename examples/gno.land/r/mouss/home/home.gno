@@ -52,10 +52,9 @@ const (
 )
 
 var (
-	router  = mux.NewRouter()
-	profile Profile
-	recipes = avl.NewTree()
-	// Pager           = p.NewPager(recipes, 1, false)
+	router          = mux.NewRouter()
+	profile         Profile
+	recipes         = avl.NewTree()
 	margheritaPizza *Recipe
 )
 
