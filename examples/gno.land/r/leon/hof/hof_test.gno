@@ -4,10 +4,10 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/avl"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
-	"gno.land/p/demo/avl"
 )
 
 const (
@@ -152,20 +152,20 @@ func itemExists(t *testing.T, rlmPath string) bool {
 }
 
 func TestgenerateUpvoteSortKey(t *testing.T) {
-    i := &Item{
-        id:          1,
-        title:       validTitle,
-        description: validDesc,
-        pkgpath:     rlmPath,
-        blockNum:    std.GetHeight(),
-        upvote:      avl.NewTree(),
-        downvote:    avl.NewTree(),
-    }
+	i := &Item{
+		id:          1,
+		title:       validTitle,
+		description: validDesc,
+		pkgpath:     rlmPath,
+		blockNum:    std.GetHeight(),
+		upvote:      avl.NewTree(),
+		downvote:    avl.NewTree(),
+	}
 
-    i.upvote.Set(alice.String(), struct{}{})
+	i.upvote.Set(alice.String(), struct{}{})
 
-    generatedKey := generateUpvoteSortKey(i)
-    expectedKey := "0000000001:1"
+	generatedKey := generateUpvoteSortKey(i)
+	expectedKey := "0000000001:1"
 
-    urequire.Equal(t, generatedKey, expectedKey)
+	urequire.Equal(t, generatedKey, expectedKey)
 }

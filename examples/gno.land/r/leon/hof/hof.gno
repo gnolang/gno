@@ -12,7 +12,6 @@ import (
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/pausable"
 	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/ufmt"
 	"gno.land/r/leon/config"
 )
 
@@ -31,10 +30,10 @@ var (
 
 type (
 	Exhibition struct {
-		itemCounter seqid.ID
-		description string
-		items       *avl.Tree // pkgPath > &Item
-		itemsSorted *avl.Tree // same data but sorted, storing pointers
+		itemCounter          seqid.ID
+		description          string
+		items                *avl.Tree // pkgPath > &Item
+		itemsSorted          *avl.Tree // same data but sorted, storing pointers
 		itemsSortedByUpvotes *avl.Tree // same data but sorted by upvotes
 	}
 
@@ -51,8 +50,8 @@ type (
 
 func init() {
 	exhibition = &Exhibition{
-		items:       avl.NewTree(),
-		itemsSorted: avl.NewTree(),
+		items:                avl.NewTree(),
+		itemsSorted:          avl.NewTree(),
 		itemsSortedByUpvotes: avl.NewTree(),
 	}
 
@@ -150,7 +149,7 @@ func Delete(pkgpath string) {
 	if !ok {
 		panic(ErrNoSuchItem)
 	}
-	
+
 	if _, removed := exhibition.items.Remove(pkgpath); !removed {
 		panic(ErrNoSuchItem)
 	}
@@ -165,15 +164,14 @@ func Delete(pkgpath string) {
 }
 
 func generateUpvoteSortKey(item *Item) string {
-    upvotes := item.upvote.Size()  
-    
-    upvoteStr := strconv.Itoa(upvotes) 
-    
-    paddedUpvotes := strings.Repeat("0", 10 - len(upvoteStr)) + upvoteStr
-    
-    return paddedUpvotes + ":" + strconv.FormatUint(uint64(item.id), 10)
-}
+	upvotes := item.upvote.Size()
 
+	upvoteStr := strconv.Itoa(upvotes)
+
+	paddedUpvotes := strings.Repeat("0", 10-len(upvoteStr)) + upvoteStr
+
+	return paddedUpvotes + ":" + strconv.FormatUint(uint64(item.id), 10)
+}
 
 // func generateUpvoteSortKey(item *Item) string {
 // 	upvotes := item.upvote.Size()
