@@ -12,8 +12,6 @@ import (
 	"sync"
 	"time"
 
-	goErrors "errors"
-
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
@@ -604,12 +602,10 @@ func (n *Node) OnStart() error {
 	}
 
 	// Start the transport.
-	lAddr := n.config.P2P.ExternalAddress
-	if lAddr == "" {
-		lAddr = n.config.P2P.ListenAddress
-	}
+	// The listen address for the transport needs to be an address within reach of the machine NIC
+	listenAddress := p2pTypes.NetAddressString(n.nodeKey.ID(), n.config.P2P.ListenAddress)
 
-	addr, err := p2pTypes.NewNetAddressFromString(p2pTypes.NetAddressString(n.nodeKey.ID(), lAddr))
+	addr, err := p2pTypes.NewNetAddressFromString(listenAddress)
 	if err != nil {
 		return fmt.Errorf("unable to parse network address, %w", err)
 	}
@@ -903,7 +899,7 @@ func makeNodeInfo(
 
 	nodeInfo := p2pTypes.NodeInfo{
 		VersionSet: vset,
-		PeerID:     nodeKey.ID(),
+		NetAddress: nil, // The shared address depends on the configuration
 		Network:    genDoc.ChainID,
 		Version:    version.Version,
 		Channels: []byte{
@@ -918,13 +914,44 @@ func makeNodeInfo(
 		},
 	}
 
+	// Make sure the discovery channel is shared with peers
+	// in case peer discovery is enabled
 	if config.P2P.PeerExchange {
 		nodeInfo.Channels = append(nodeInfo.Channels, discovery.Channel)
 	}
 
+	// Grab the supplied listen address.
+	// This address needs to be valid, but it can be unspecified.
+	// If the listen address is unspecified (port / IP unbound),
+	// then this address cannot be used by peers for dialing
+	addr, err := p2pTypes.NewNetAddressFromString(
+		p2pTypes.NetAddressString(nodeKey.ID(), config.P2P.ListenAddress),
+	)
+	if err != nil {
+		return p2pTypes.NodeInfo{}, fmt.Errorf("unable to parse network address, %w", err)
+	}
+
+	// Use the transport listen address as the advertised address
+	nodeInfo.NetAddress = addr
+
+	// Prepare the advertised dial address (if any)
+	// for the node, which other peers can use to dial
+	if config.P2P.ExternalAddress != "" {
+		addr, err = p2pTypes.NewNetAddressFromString(
+			p2pTypes.NetAddressString(
+				nodeKey.ID(),
+				config.P2P.ExternalAddress,
+			),
+		)
+		if err != nil {
+			return p2pTypes.NodeInfo{}, fmt.Errorf("invalid p2p external address: %w", err)
+		}
+
+		nodeInfo.NetAddress = addr
+	}
+
 	// Validate the node info
-	err := nodeInfo.Validate()
-	if err != nil && !goErrors.Is(err, p2pTypes.ErrUnspecifiedIP) {
+	if err := nodeInfo.Validate(); err != nil {
 		return p2pTypes.NodeInfo{}, fmt.Errorf("unable to validate node info, %w", err)
 	}
 
