@@ -5,12 +5,14 @@ package hof
 
 import (
 	"std"
+	"strconv"
+	"strings"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/pausable"
 	"gno.land/p/demo/seqid"
-
+	"gno.land/p/demo/ufmt"
 	"gno.land/r/leon/config"
 )
 
@@ -33,6 +35,7 @@ type (
 		description string
 		items       *avl.Tree // pkgPath > &Item
 		itemsSorted *avl.Tree // same data but sorted, storing pointers
+		itemsSortedByUpvotes *avl.Tree // same data but sorted by upvotes
 	}
 
 	Item struct {
@@ -50,6 +53,7 @@ func init() {
 	exhibition = &Exhibition{
 		items:       avl.NewTree(),
 		itemsSorted: avl.NewTree(),
+		itemsSortedByUpvotes: avl.NewTree(),
 	}
 
 	Ownable = ownable.NewWithAddress(config.OwnableMain.Owner()) // OrigSendOwnable?
@@ -99,6 +103,7 @@ func Register(title, description string) {
 
 	exhibition.items.Set(pkgpath, i)
 	exhibition.itemsSorted.Set(id.String(), i)
+	exhibition.itemsSortedByUpvotes.Set(generateUpvoteSortKey(i), i)
 
 	std.Emit("Registration")
 }
@@ -117,6 +122,7 @@ func Upvote(pkgpath string) {
 	}
 
 	item.upvote.Set(caller, struct{}{})
+	exhibition.itemsSortedByUpvotes.Set(generateUpvoteSortKey(item), item)
 }
 
 func Downvote(pkgpath string) {
@@ -144,12 +150,32 @@ func Delete(pkgpath string) {
 	if !ok {
 		panic(ErrNoSuchItem)
 	}
+	
+	if _, removed := exhibition.items.Remove(pkgpath); !removed {
+		panic(ErrNoSuchItem)
+	}
 
 	if _, removed := exhibition.itemsSorted.Remove(i.(*Item).id.String()); !removed {
 		panic(ErrNoSuchItem)
 	}
 
-	if _, removed := exhibition.items.Remove(pkgpath); !removed {
+	if _, removed := exhibition.itemsSortedByUpvotes.Remove(generateUpvoteSortKey(i.(*Item))); !removed {
 		panic(ErrNoSuchItem)
 	}
 }
+
+func generateUpvoteSortKey(item *Item) string {
+    upvotes := item.upvote.Size()  
+    
+    upvoteStr := strconv.Itoa(upvotes) 
+    
+    paddedUpvotes := strings.Repeat("0", 10 - len(upvoteStr)) + upvoteStr
+    
+    return paddedUpvotes + ":" + strconv.FormatUint(uint64(item.id), 10)
+}
+
+
+// func generateUpvoteSortKey(item *Item) string {
+// 	upvotes := item.upvote.Size()
+// 	return ufmt.Sprintf("%010d:%s", upvotes, item.id.String())
+// }
