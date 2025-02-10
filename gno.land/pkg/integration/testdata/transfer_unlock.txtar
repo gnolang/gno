@@ -27,12 +27,12 @@ stdout '(0 uint64)'
 
 
 ## Vote unlock proposal with unrestricted account test1
-gnokey maketx call -pkgpath gno.land/r/gov/dao/v2 -func VoteOnProposal -args 0 -args "YES"  -send 250000000ugnot -gas-fee 1ugnot -gas-wanted 9500000 -broadcast -chainid=tendermint_test test1
+gnokey maketx run  -gas-fee 1ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_proposal.gno
 
 stdout 'OK!'
 
 ## Execute unlock proposal with unrestricted account test1
-gnokey maketx call -pkgpath gno.land/r/gov/dao/v2 -func ExecuteProposal -args 0 -send 250000000ugnot -gas-fee 1ugnot -gas-wanted 9500000  -broadcast -chainid=tendermint_test test1
+gnokey maketx run  -gas-fee 1ugnot -gas-wanted 95000000  -broadcast -chainid=tendermint_test test1 $WORK/run/exec_proposal.gno
 
 stdout 'OK!'
 
@@ -40,3 +40,25 @@ stdout 'OK!'
 gnokey maketx send -send "100ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 1ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test regular1
 
 stdout 'OK!'
+
+-- run/vote_proposal.gno --
+package main
+
+import (
+  govdao "gno.land/r/gov/dao/v2"
+)
+
+func main() {
+	govdao.GovDAO.VoteOnProposal(0,"YES")
+}
+
+-- run/exec_proposal.gno --
+package main
+
+import (
+  govdao "gno.land/r/gov/dao/v2"
+)
+
+func main() {
+	govdao.GovDAO.ExecuteProposal(0)
+}
