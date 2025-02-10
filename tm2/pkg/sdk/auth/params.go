@@ -122,6 +122,9 @@ func (ak AccountKeeper) SetParams(ctx sdk.Context, params Params) error {
 
 func (ak AccountKeeper) GetParams(ctx sdk.Context) Params {
 	params := &Params{}
+	// NOTE: important to not use local cached fields unless they are synchronously stored to the underlying store.
+	// this optimization generally only belongs in paramk.GetParams(), not here. users of paramk.GetParams()
+	// generally should not cache anything and instead rely on the efficiency of paramk.GetParams().
 
 	_, err := ak.paramk.GetParams(ctx, ModuleName, paramsKey, params)
 	if err != nil {

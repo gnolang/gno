@@ -2,6 +2,7 @@ package vm
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -11,37 +12,46 @@ import (
 
 const (
 	sysUsersPkgDefault = "gno.land/r/sys/users"
+	chainDomainDefault = "gno.land"
 	paramsKey          = "p"
 )
 
+var ASCIIDomain = regexp.MustCompile(`^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$`)
+
 // Params defines the parameters for the bank module.
 type Params struct {
-	SysUsersPkg string `json:"sysusers_pkgpath" yaml:"sysusers_pkgpath"`
+	SysUsersPkgPath string `json:"sysusers_pkgpath" yaml:"sysusers_pkgpath"`
+	ChainDomain     string `json:"chain_domain" yaml:"chain_domain"`
 }
 
 // NewParams creates a new Params object
-func NewParams(pkgPath string) Params {
+func NewParams(userPkgPath, chainDomain string) Params {
 	return Params{
-		SysUsersPkg: pkgPath,
+		SysUsersPkgPath: userPkgPath,
+		ChainDomain:     chainDomain,
 	}
 }
 
 // DefaultParams returns a default set of parameters.
 func DefaultParams() Params {
-	return NewParams(sysUsersPkgDefault)
+	return NewParams(sysUsersPkgDefault, chainDomainDefault)
 }
 
 // String implements the stringer interface.
 func (p Params) String() string {
 	var sb strings.Builder
 	sb.WriteString("Params: \n")
-	sb.WriteString(fmt.Sprintf("SysUsersPkg: %q\n", p.SysUsersPkg))
+	sb.WriteString(fmt.Sprintf("SysUsersPkgPath: %q\n", p.SysUsersPkgPath))
+	sb.WriteString(fmt.Sprintf("ChainDomain: %q\n", p.ChainDomain))
 	return sb.String()
 }
 
 func (p Params) Validate() error {
-	if !gno.ReRealmPath.MatchString(p.SysUsersPkg) {
-		return fmt.Errorf("invalid package/realm path %q, failed to match %q", p.SysUsersPkg, gno.ReRealmPath)
+	if !gno.ReRealmPath.MatchString(p.SysUsersPkgPath) {
+		return fmt.Errorf("invalid package/realm path %q, failed to match %q", p.SysUsersPkgPath, gno.ReRealmPath)
+	}
+	if !ASCIIDomain.MatchString(p.ChainDomain) {
+		return fmt.Errorf("invalid chain domain %q, failed to match %q", p.ChainDomain, ASCIIDomain)
 	}
 	return nil
 }
@@ -61,7 +71,9 @@ func (vm *VMKeeper) SetParams(ctx sdk.Context, params Params) error {
 
 func (vm *VMKeeper) GetParams(ctx sdk.Context) Params {
 	params := &Params{}
-
+	// NOTE: important to not use local cached fields unless they are synchronously stored to the underlying store.
+	// this optimization generally only belongs in paramk.GetParams(), not here. users of paramk.GetParams() generally
+	// should not cache anything and instead rely on the efficiency of paramk.GetParams().
 	_, err := vm.prmk.GetParams(ctx, ModuleName, paramsKey, params)
 	if err != nil {
 		panic(err.Error())
@@ -71,18 +83,18 @@ func (vm *VMKeeper) GetParams(ctx sdk.Context) Params {
 }
 
 const (
-	sysUsersPkgParamPath = "gno.land/r/sys/params.sys.users_pkgpath.string"
-	chainDomainParamPath = "gno.land/r/sys/params.vm.chain_domain.string"
+	sysUsersPkgParamPath = "gno.land/r/sys/params.vm:users_pkgpath.string"
+	chainDomainParamPath = "gno.land/r/sys/params.vm:chain_domain.string"
 )
 
 func (vm *VMKeeper) getChainDomainParam(ctx sdk.Context) string {
-	chainDomain := "gno.land" // default
+	chainDomain := chainDomainDefault // default
 	vm.prmk.GetString(ctx, chainDomainParamPath, &chainDomain)
 	return chainDomain
 }
 
 func (vm *VMKeeper) getSysUsersPkgParam(ctx sdk.Context) string {
-	var sysUsersPkg string
+	sysUsersPkg := sysUsersPkgDefault
 	vm.prmk.GetString(ctx, sysUsersPkgParamPath, &sysUsersPkg)
 	return sysUsersPkg
 }
@@ -93,5 +105,6 @@ func (vm *VMKeeper) GetParamfulKey() string {
 
 // WillSetParam checks if the key contains the module's parameter key prefix and updates the module parameter accordingly.
 func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
-	// TODO: move parameters here.
+	// TODO: add parameter settings here.
+	panic("setting params for vm is not supported yet")
 }

@@ -93,12 +93,14 @@ func (pk ParamsKeeper) Logger(ctx sdk.Context) *slog.Logger {
 
 func (pk ParamsKeeper) Has(ctx sdk.Context, key string) bool {
 	stor := ctx.Store(pk.key)
-	return stor.Has([]byte(key))
+	vk := ValueStoreKey(key)
+	return stor.Has(vk)
 }
 
 func (pk ParamsKeeper) GetRaw(ctx sdk.Context, key string) []byte {
 	stor := ctx.Store(pk.key)
-	return stor.Get([]byte(key))
+	vk := ValueStoreKey(key)
+	return stor.Get(vk)
 }
 
 func (pk ParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) {
@@ -155,7 +157,7 @@ func (pk ParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte) {
 func (pk ParamsKeeper) GetParams(ctx sdk.Context, moduleKey string, key string, target interface{}) (bool, error) {
 	if moduleKey != "" {
 		if pk.IsRegistered(moduleKey) {
-			key = moduleKey + "_" + key
+			key = moduleKey + ":" + key
 		} else {
 			return false, fmt.Errorf("params module key %q does not exisit", moduleKey)
 		}
@@ -175,7 +177,7 @@ func (pk ParamsKeeper) GetParams(ctx sdk.Context, moduleKey string, key string, 
 func (pk ParamsKeeper) SetParams(ctx sdk.Context, moduleKey string, key string, param interface{}) error {
 	if moduleKey != "" {
 		if pk.IsRegistered(moduleKey) {
-			key = moduleKey + "_" + key
+			key = moduleKey + ":" + key
 		} else {
 			return fmt.Errorf("parameter module key %q does not exist", moduleKey)
 		}
@@ -194,7 +196,8 @@ func (pk ParamsKeeper) SetParams(ctx sdk.Context, moduleKey string, key string, 
 
 func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr interface{}) {
 	stor := ctx.Store(pk.key)
-	bz := stor.Get([]byte(key))
+	vk := ValueStoreKey(key)
+	bz := stor.Get(vk)
 	if bz == nil {
 		return
 	}
@@ -206,7 +209,8 @@ func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr interface{})
 
 func (pk ParamsKeeper) get(ctx sdk.Context, key string, ptr interface{}) {
 	stor := ctx.Store(pk.key)
-	bz := stor.Get([]byte(key))
+	kv := ValueStoreKey(key)
+	bz := stor.Get(kv)
 	err := amino.UnmarshalJSON(bz, ptr)
 	if err != nil {
 		panic(err)
@@ -214,12 +218,13 @@ func (pk ParamsKeeper) get(ctx sdk.Context, key string, ptr interface{}) {
 }
 
 func (pk ParamsKeeper) set(ctx sdk.Context, key string, value interface{}) {
-	stor := ctx.Store(pk.key)
 	bz, err := amino.MarshalJSON(value)
 	if err != nil {
 		panic(err)
 	}
-	stor.Set([]byte(key), bz)
+	stor := ctx.Store(pk.key)
+	vk := ValueStoreKey(key)
+	stor.Set(vk, bz)
 }
 
 func checkSuffix(key, expectedSuffix string) {

@@ -32,12 +32,12 @@ const (
 	realmAccount
 )
 
-// bitSet represents a set of flags stored in a 16-bit unsigned integer.
+// bitSet represents a set of flags stored in a 64-bit unsigned integer.
 // Each bit in the BitSet corresponds to a specific flag.
-type BitSet uint16
+type BitSet uint64
 
 func (bs BitSet) String() string {
-	return fmt.Sprintf("%016b", bs) // Show all 16 bits
+	return fmt.Sprintf("0x%016X", uint64(bs)) // Show all 64 bits
 }
 
 var _ std.AccountRestricter = &GnoAccount{}
@@ -73,7 +73,7 @@ func (ga *GnoAccount) hasFlag(flag BitSet) bool {
 
 // isValidFlag ensures that a given BitSet uses only the allowed subset of bits
 // as defined in validFlags. This prevents accidentally setting invalid flags,
-// especially since BitSet can represent all 16 bits of a uint16.
+// especially since BitSet can represent all 64 bits of a uint64.
 func isValidFlag(flag BitSet) bool {
 	return flag&^validFlags == 0
 }

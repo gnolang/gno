@@ -108,11 +108,11 @@ func TestNewAppWithOptions(t *testing.T) {
 		path        string
 		expectedVal string
 	}{
-		{"params/vm/foo.string", `"hello"`},
-		{"params/vm/foo.int64", `"-42"`},
-		{"params/vm/foo.uint64", `"1337"`},
-		{"params/vm/foo.bool", `true`},
-		{"params/vm/foo.bytes", `"SGkh"`}, // XXX: make this test more readable
+		{"params/foo.string", `"hello"`},
+		{"params/foo.int64", `"-42"`},
+		{"params/foo.uint64", `"1337"`},
+		{"params/foo.bool", `true`},
+		{"params/foo.bytes", `"SGkh"`}, // XXX: make this test more readable
 	}
 
 	for _, tc := range tcs {
@@ -317,6 +317,9 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 				},
 				// Make sure the deployer account has a balance
 				Balances: balances,
+				Auth:     auth.DefaultGenesisState(),
+				Bank:     bank.DefaultGenesisState(),
+				VM:       vm.DefaultGenesisState(),
 			}
 		}
 
@@ -328,6 +331,9 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 					},
 				},
 				Balances: balances,
+				Auth:     auth.DefaultGenesisState(),
+				Bank:     bank.DefaultGenesisState(),
+				VM:       vm.DefaultGenesisState(),
 			}
 		}
 	)
@@ -958,6 +964,10 @@ func gnoGenesisState(t *testing.T) GnoGenesisState {
     }
   }`)
 	err := amino.UnmarshalJSON(genBytes, &gen)
+
+	gen.Bank = bank.DefaultGenesisState()
+	gen.VM = vm.DefaultGenesisState()
+
 	if err != nil {
 		t.Fatalf("failed to create genesis state: %v", err)
 	}

@@ -27,7 +27,7 @@ func TestParamsRestrictedRealm(t *testing.T) {
 				}
 				params.SetString(pk, "foo")
 			},
-			expectedMsg: "Set parameters must be accessed from a realm",
+			expectedMsg: "parameters must be set in a valid realm",
 		},
 		{
 			name: "SetBool should panic",
@@ -40,7 +40,7 @@ func TestParamsRestrictedRealm(t *testing.T) {
 				}
 				params.SetBool(pk, true)
 			},
-			expectedMsg: "Set parameters must be accessed from a realm",
+			expectedMsg: "parameters must be set in a valid realm",
 		},
 		{
 			name: "SetInt64 should panic",
@@ -53,7 +53,7 @@ func TestParamsRestrictedRealm(t *testing.T) {
 				}
 				params.SetInt64(pk, -100)
 			},
-			expectedMsg: "Set parameters must be accessed from a realm",
+			expectedMsg: "parameters must be set in a valid realm",
 		},
 		{
 			name: "SetUint64 should panic",
@@ -66,7 +66,7 @@ func TestParamsRestrictedRealm(t *testing.T) {
 				}
 				params.SetUint64(pk, 100)
 			},
-			expectedMsg: "Set parameters must be accessed from a realm",
+			expectedMsg: "parameters must be set in a valid realm",
 		},
 		{
 			name: "SetBytes should panic",
@@ -80,7 +80,7 @@ func TestParamsRestrictedRealm(t *testing.T) {
 
 				params.SetBytes(pk, []byte("foo"))
 			},
-			expectedMsg: "Set parameters must be accessed from a realm",
+			expectedMsg: "parameters must be set in a valid realm",
 		},
 	}
 
@@ -104,7 +104,7 @@ func TestParamsKeeper(t *testing.T) {
 			name: "SetString should panic",
 			setFunc: func() {
 				pk := gstd.ParamKey{
-					Realm:  "gno.land/p/foo",
+					Realm:  "gno.land/r/sys/params",
 					Prefix: "foo",
 					Key:    "name",
 					Type:   "string",
@@ -117,7 +117,7 @@ func TestParamsKeeper(t *testing.T) {
 			name: "SetBool should panic",
 			setFunc: func() {
 				pk := gstd.ParamKey{
-					Realm:  "gno.land/p/foo",
+					Realm:  "gno.land/r/sys/params",
 					Prefix: "foo",
 					Key:    "isFoo",
 					Type:   "bool",
@@ -130,7 +130,7 @@ func TestParamsKeeper(t *testing.T) {
 			name: "SetInt64 should panic",
 			setFunc: func() {
 				pk := gstd.ParamKey{
-					Realm:  "gno.land/p/foo",
+					Realm:  "gno.land/r/sys/params",
 					Prefix: "foo",
 					Key:    "number",
 					Type:   "int64",
@@ -143,7 +143,7 @@ func TestParamsKeeper(t *testing.T) {
 			name: "SetUint64 should panic",
 			setFunc: func() {
 				pk := gstd.ParamKey{
-					Realm:  "gno.land/p/foo",
+					Realm:  "gno.land/r/sys/params",
 					Prefix: "foo",
 					Key:    "number",
 					Type:   "uint64",
@@ -156,7 +156,7 @@ func TestParamsKeeper(t *testing.T) {
 			name: "SetBytes should panic",
 			setFunc: func() {
 				pk := gstd.ParamKey{
-					Realm:  "gno.land/p/foo",
+					Realm:  "gno.land/r/sys/params",
 					Prefix: "foo",
 					Key:    "name",
 					Type:   "bytes",
