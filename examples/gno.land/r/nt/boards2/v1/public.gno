@@ -5,21 +5,26 @@ import (
 	"strings"
 )
 
-func SetPermissions(p Permissions) {
+func SetPermissions(bid BoardID, p Permissions) {
 	assertIsUserCall()
 
-	caller := std.GetOrigCaller()
-	gPerms.WithPermission(caller, PermissionPermissionsUpdate, nil, func(Args) {
-		gPerms = p
-	})
-}
+	if bid != 0 {
+		assertBoardExists(bid)
+	}
 
-func SetBoardPermissionsFunc(fn BoardPermissionsFn) {
-	assertIsUserCall()
-
+	perms := mustGetPermissions(bid)
 	caller := std.GetOrigCaller()
-	gPerms.WithPermission(caller, PermissionPermissionsUpdate, nil, func(Args) {
-		gBoardPermsFn = fn
+	args := Args{bid}
+	perms.WithPermission(caller, PermissionPermissionsUpdate, args, func(Args) {
+		// When board ID is zero it means that realm permissions are being updated
+		if bid == 0 {
+			gPerms = p
+			return
+		}
+
+		// Otherwise update the permissions of a single board
+		board := mustGetBoard(bid)
+		board.perms = p
 	})
 }
 
@@ -44,7 +49,7 @@ func CreateBoard(name string) BoardID {
 	gPerms.WithPermission(caller, PermissionBoardCreate, args, func(Args) {
 		assertBoardNameNotExists(name)
 
-		perms := gBoardPermsFn(name, caller)
+		perms := createDefaultBoardPermissions(caller)
 		board := newBoard(id, name, caller, perms)
 		gBoardsByID.Set(id.Key(), board)
 		gBoardsByName.Set(name, board)
