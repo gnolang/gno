@@ -1,4 +1,4 @@
-package gnoweb
+package weburl
 
 import (
 	"errors"
@@ -97,20 +97,12 @@ func (gnoURL GnoURL) Encode(encodeFlags EncodeFlag) string {
 
 	if encodeFlags.Has(EncodeWebQuery) && len(gnoURL.WebQuery) > 0 {
 		urlstr.WriteRune('$')
-		if noEscape {
-			urlstr.WriteString(NoEscapeQuery(gnoURL.WebQuery))
-		} else {
-			urlstr.WriteString(gnoURL.WebQuery.Encode())
-		}
+		urlstr.WriteString(EncodeValues(gnoURL.WebQuery, !noEscape))
 	}
 
 	if encodeFlags.Has(EncodeQuery) && len(gnoURL.Query) > 0 {
 		urlstr.WriteRune('?')
-		if noEscape {
-			urlstr.WriteString(NoEscapeQuery(gnoURL.Query))
-		} else {
-			urlstr.WriteString(gnoURL.Query.Encode())
-		}
+		urlstr.WriteString(EncodeValues(gnoURL.Query, !noEscape))
 	}
 
 	return urlstr.String()
@@ -140,7 +132,7 @@ func (gnoURL GnoURL) EncodeURL() string {
 // EncodeWebURL encodes the path, package arguments, web query, and query into a string.
 // This function provides the full representation of the URL.
 func (gnoURL GnoURL) EncodeWebURL() string {
-	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeWebQuery | EncodeQuery)
+	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeWebQuery | EncodeQuery | EncodeNoEscape)
 }
 
 // IsPure checks if the URL path represents a pure path.
@@ -226,11 +218,11 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 	}, nil
 }
 
-// NoEscapeQuery generates a URL-encoded query string from the given url.Values,
-// without escaping the keys and values. The query parameters are sorted by key.
-func NoEscapeQuery(v url.Values) string {
-	// Encode encodes the values into “URL encoded” form
-	// ("bar=baz&foo=quux") sorted by key.
+// EncodeValues generates a URL-encoded query string from the given url.Values.
+// This function is a modified version of Go's `url.Values.Encode()`: https://pkg.go.dev/net/url#Values.Encode
+// It takes an additional `escape` boolean argument that disables escaping on keys and values.
+// Additionally, if an empty string value is passed, it omits the `=` sign, resulting in `?key` instead of `?key=` to enhance URL readability.
+func EncodeValues(v url.Values, escape bool) string {
 	if len(v) == 0 {
 		return ""
 	}
@@ -240,16 +232,29 @@ func NoEscapeQuery(v url.Values) string {
 		keys = append(keys, k)
 	}
 	slices.Sort(keys)
+
 	for _, k := range keys {
 		vs := v[k]
-		keyEscaped := k
+		keyEncoded := k
+		if escape {
+			keyEncoded = url.QueryEscape(k)
+		}
 		for _, v := range vs {
 			if buf.Len() > 0 {
 				buf.WriteByte('&')
 			}
-			buf.WriteString(keyEscaped)
+			buf.WriteString(keyEncoded)
+
+			if len(v) == 0 {
+				continue // Skip `=` for empty values
+			}
+
 			buf.WriteByte('=')
-			buf.WriteString(v)
+			if escape {
+				buf.WriteString(url.QueryEscape(v))
+			} else {
+				buf.WriteString(v)
+			}
 		}
 	}
 	return buf.String()
