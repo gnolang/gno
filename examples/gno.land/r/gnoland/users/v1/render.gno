@@ -43,6 +43,10 @@ func renderHomePage(path string) string {
 	p := pager.NewPager(users.GetReadOnlyNameStore(), 20, false)
 	page := p.MustGetPageByPath(path)
 	for _, item := range page.Items {
+		if item.Value == nil {
+			continue
+		}
+
 		data := item.Value.(*users.UserData)
 
 		// Skip previous names
@@ -50,14 +54,7 @@ func renderHomePage(path string) string {
 			continue
 		}
 
-		var displayKey string
-		if data.IsDeleted() {
-			displayKey = md.Bold(md.Strikethrough(item.Key))
-		} else {
-			displayKey = md.Bold(item.Key)
-		}
-
-		out += ufmt.Sprintf("- User [%s](/u/:%s)\n", displayKey, item.Key)
+		out += ufmt.Sprintf("- User [%s](/r/gnoland/users/v1:%s)\n", md.Bold(item.Key), item.Key)
 	}
 
 	out += "\n"
