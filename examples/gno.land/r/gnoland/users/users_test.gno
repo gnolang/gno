@@ -2,7 +2,6 @@ package users
 
 import (
 	"std"
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -12,7 +11,7 @@ func TestAddRelease(t *testing.T) {
 	if strings.Contains(changelog.Latest().Render(), "r/invalid/pkg/path") {
 		t.Fatalf("pkgpath was not rejected")
 	}
-	
+
 	std.TestSetRealm(std.NewCodeRealm("gno.land/r/gnoland/users/v1"))
 	AddRelease("")
 
