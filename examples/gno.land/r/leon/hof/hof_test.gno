@@ -9,7 +9,14 @@ import (
 	"gno.land/p/demo/urequire"
 )
 
-const rlmPath = "gno.land/r/gnoland/home"
+const (
+	rlmPath            = "gno.land/r/gnoland/home"
+	rlmPath2           = "gno.land/r/gnoland/test"
+	validTitle         = "valid title"
+	invalidTitle       = "This title is very very very long, longer than 30 characters"
+	validDesc          = "valid description"
+	invalidDescription = "This description is very very very long, longer than 50 characters"
+)
 
 var (
 	admin      = Ownable.Owner()
@@ -22,7 +29,7 @@ func TestRegister(t *testing.T) {
 	aliceRealm := std.NewUserRealm(alice)
 	std.TestSetRealm(aliceRealm)
 
-	Register()
+	Register(validTitle, validDesc)
 	uassert.False(t, itemExists(t, rlmPath))
 
 	// Test register while paused
@@ -32,7 +39,7 @@ func TestRegister(t *testing.T) {
 	// Set legitimate caller
 	std.TestSetRealm(std.NewCodeRealm(rlmPath))
 
-	Register()
+	Register(validTitle, validDesc)
 	uassert.False(t, itemExists(t, rlmPath))
 
 	// Unpause
@@ -41,10 +48,20 @@ func TestRegister(t *testing.T) {
 
 	// Set legitimate caller
 	std.TestSetRealm(std.NewCodeRealm(rlmPath))
-	Register()
+	Register(validTitle, validDesc)
 
 	// Find registered items
 	uassert.True(t, itemExists(t, rlmPath))
+
+	//Test register with invalid title
+	std.TestSetRealm(std.NewCodeRealm(rlmPath2))
+	Register(invalidTitle, validDesc)
+	uassert.False(t, itemExists(t, rlmPath2))
+
+	//Test register with invalid description
+	std.TestSetRealm(std.NewCodeRealm(rlmPath2))
+	Register(validTitle, invalidDescription)
+	uassert.False(t, itemExists(t, rlmPath2))
 }
 
 func TestUpvote(t *testing.T) {

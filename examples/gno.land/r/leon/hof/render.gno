@@ -16,7 +16,6 @@ const (
 
 func Render(path string) string {
 	out := md.H1("Hall of Fame\n\n")
-	//out := "# Hall of Fame\n\n"
 
 	dashboardEnabled := path == "dashboard"
 
@@ -77,23 +76,18 @@ func (i Item) Render(dashboard bool) string {
 
 func renderDashboard() string {
 	out := md.HorizontalRule()
-	// out := "---\n\n"
 	out += md.H2("Dashboard\n\n")
-	// out += "## Dashboard\n\n"
 	out += ufmt.Sprintf("Total submissions: %d\n\n", exhibition.items.Size())
 
 	out += ufmt.Sprintf("Exhibition admin: %s\n\n", Ownable.Owner().String())
 
 	if !Pausable.IsPaused() {
 		out += md.Link("Pause exhibition", txlink.Call("Pause"))
-		// out += ufmt.Sprintf("[Pause exhibition](%s)\n\n", txlink.Call("Pause"))
 	} else {
 		out += md.Link("Unpause exhibition", txlink.Call("Unpause"))
-		// out += ufmt.Sprintf("[Unpause exhibition](%s)\n\n", txlink.Call("Unpause"))
 	}
 
 	out += md.HorizontalRule()
-	// out += "---\n\n"
 
 	return out
 }

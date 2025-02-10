@@ -16,7 +16,7 @@ import (
 
 const (
 	maxTitleLength       = 30
-	maxDescriptionLength = 100
+	maxDescriptionLength = 50
 )
 
 var (
