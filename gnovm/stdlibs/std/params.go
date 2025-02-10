@@ -36,7 +36,7 @@ func NewParamKey(m *gno.Machine, prefix, key string, kind string) (ParamKey, err
 		m.Panic(typedString(es))
 		return ParamKey{}, err
 	}
-	_, realm := CurrentRealm(m)
+	_, realm := currentRealm(m)
 
 	return ParamKey{
 		Realm:  realm,
