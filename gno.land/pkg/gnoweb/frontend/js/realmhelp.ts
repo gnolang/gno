@@ -1,4 +1,4 @@
-import { debounce } from "./utils";
+import { debounce, escapeShellSpecialChars } from "./utils";
 
 class Help {
   private DOM: {
@@ -67,7 +67,7 @@ class Help {
 
       localStorage.setItem("helpAddressInput", address);
       this.funcList.forEach((func) => func.updateAddr(address));
-    });
+    }, 50);
     addressInput?.addEventListener("input", () => debouncedUpdate(addressInput));
 
     cmdModeSelect?.addEventListener("change", (e) => {
@@ -124,7 +124,7 @@ class HelpFunc {
   private bindEvents(): void {
     const debouncedUpdate = debounce((paramName: string, paramValue: string) => {
       if (paramName) this.updateArg(paramName, paramValue);
-    });
+    }, 50);
 
     this.DOM.el.addEventListener("input", (e) => {
       const target = e.target as HTMLInputElement;
@@ -143,10 +143,11 @@ class HelpFunc {
   }
 
   public updateArg(paramName: string, paramValue: string): void {
+    const escapedValue = escapeShellSpecialChars(paramValue);
     this.DOM.args
       .filter((arg) => arg.dataset.arg === paramName)
       .forEach((arg) => {
-        arg.textContent = paramValue || "";
+        arg.textContent = escapedValue || "";
       });
   }
 

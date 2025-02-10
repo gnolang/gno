@@ -1,4 +1,4 @@
-package gnoweb
+package weburl
 
 import (
 	"net/url"
@@ -301,7 +301,7 @@ func TestEncode(t *testing.T) {
 				},
 			},
 			EncodeFlags: EncodeWebQuery | EncodeNoEscape,
-			Expected:    "$fun$c=B$ ar&help=",
+			Expected:    "$fun$c=B$ ar&help",
 		},
 
 		{
@@ -449,6 +449,69 @@ func TestEncode(t *testing.T) {
 			},
 			EncodeFlags: EncodePath | EncodeArgs | EncodeQuery,
 			Expected:    "/r/demo/foo:example?hello=42",
+		},
+
+		{
+			Name: "WebQuery with empty value",
+			GnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				WebQuery: url.Values{
+					"source": {""},
+				},
+			},
+			EncodeFlags: EncodePath | EncodeWebQuery | EncodeNoEscape,
+			Expected:    "/r/demo/foo$source",
+		},
+
+		{
+			Name: "WebQuery with nil",
+			GnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				WebQuery: url.Values{
+					"debug": nil,
+				},
+			},
+			EncodeFlags: EncodePath | EncodeWebQuery,
+			Expected:    "/r/demo/foo$",
+		},
+
+		{
+			Name: "WebQuery with regular value",
+			GnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				WebQuery: url.Values{
+					"key": {"value"},
+				},
+			},
+			EncodeFlags: EncodePath | EncodeWebQuery,
+			Expected:    "/r/demo/foo$key=value",
+		},
+
+		{
+			Name: "WebQuery mixing empty and nil and filled values",
+			GnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				WebQuery: url.Values{
+					"source": {""},
+					"debug":  nil,
+					"user":   {"Alice"},
+				},
+			},
+			EncodeFlags: EncodePath | EncodeWebQuery,
+			Expected:    "/r/demo/foo$source&user=Alice",
+		},
+
+		{
+			Name: "WebQuery mixing nil and filled values",
+			GnoURL: GnoURL{
+				Path: "/r/demo/foo",
+				WebQuery: url.Values{
+					"debug": nil,
+					"user":  {"Alice"},
+				},
+			},
+			EncodeFlags: EncodePath | EncodeWebQuery,
+			Expected:    "/r/demo/foo$user=Alice",
 		},
 	}
 
