@@ -116,7 +116,7 @@ func TestNewThread(t *testing.T) {
 		uint(threadID),
 	)
 	replyURL := ufmt.Sprintf(
-		"/r/nt/boards2/v1$help&func=CreateReply&bid=%d&threadID=%d&replyID=%d",
+		"/r/nt/boards2/v1$help&func=CreateReply&bid=%d&replyID=%d&threadID=%d",
 		uint(boardID),
 		uint(threadID),
 		uint(threadID),
@@ -281,16 +281,16 @@ func TestNewReply(t *testing.T) {
 		uint(replyID),
 	)
 	replyURL := ufmt.Sprintf(
-		"/r/nt/boards2/v1$help&func=CreateReply&bid=%d&threadID=%d&replyID=%d",
+		"/r/nt/boards2/v1$help&func=CreateReply&bid=%d&replyID=%d&threadID=%d",
 		uint(boardID),
-		uint(threadID),
 		uint(replyID),
+		uint(threadID),
 	)
 	deleteURL := ufmt.Sprintf(
-		"/r/nt/boards2/v1$help&func=DeleteReply&bid=%d&threadID=%d&replyID=%d",
+		"/r/nt/boards2/v1$help&func=DeleteReply&bid=%d&replyID=%d&threadID=%d",
 		uint(boardID),
-		uint(threadID),
 		uint(replyID),
+		uint(threadID),
 	)
 
 	reply := newPost(board, replyID, creator, "", body, threadID, parentID, 0)
