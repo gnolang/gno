@@ -51,8 +51,9 @@ func (debugging) Println(args ...interface{}) {
 	if debug {
 		if enabled {
 			_, file, line, _ := runtime.Caller(2)
-			caller := fmt.Sprintf("DEBUG: %s:%d:", path.Base(file), line)
-			fmt.Println(append([]interface{}{caller}, args...)...)
+			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
+			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
+			fmt.Println(append([]interface{}{prefix}, args...)...)
 		}
 	}
 }
@@ -61,8 +62,9 @@ func (debugging) Printf(format string, args ...interface{}) {
 	if debug {
 		if enabled {
 			_, file, line, _ := runtime.Caller(2)
-			caller := fmt.Sprintf("DEBUG: %s:%d:", path.Base(file), line)
-			fmt.Printf(caller+format, args...)
+			caller := fmt.Sprintf("%.12s:%-4d", path.Base(file), line)
+			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
+			fmt.Printf(prefix+format, args...)
 		}
 	}
 }

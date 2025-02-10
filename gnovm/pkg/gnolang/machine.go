@@ -2149,8 +2149,9 @@ func (m *Machine) Println(args ...interface{}) {
 	if debug {
 		if enabled {
 			_, file, line, _ := runtime.Caller(2) // get caller info
-			caller := fmt.Sprintf("DEBUG: %s:%d:", path.Base(file), line)
-			s := caller + strings.Repeat("|", m.NumOps)
+			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
+			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
+			s := prefix + strings.Repeat("|", m.NumOps)
 			fmt.Println(append([]interface{}{s}, args...)...)
 		}
 	}
@@ -2160,8 +2161,9 @@ func (m *Machine) Printf(format string, args ...interface{}) {
 	if debug {
 		if enabled {
 			_, file, line, _ := runtime.Caller(2) // get caller info
-			caller := fmt.Sprintf("DEBUG: %s:%d:", path.Base(file), line)
-			s := caller + strings.Repeat("|", m.NumOps)
+			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
+			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
+			s := prefix + strings.Repeat("|", m.NumOps)
 			fmt.Printf(s+" "+format, args...)
 		}
 	}
