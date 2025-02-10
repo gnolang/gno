@@ -5,6 +5,15 @@ import (
 	"strings"
 )
 
+func SetPermissions(p Permissions) {
+	assertIsUserCall()
+
+	caller := std.GetOrigCaller()
+	gPerms.WithPermission(caller, PermissionPermissionsUpdate, nil, func(Args) {
+		gPerms = p
+	})
+}
+
 func GetBoardIDFromName(name string) (BoardID, bool) {
 	v, found := gBoardsByName.Get(name)
 	if !found {
@@ -23,7 +32,7 @@ func CreateBoard(name string) BoardID {
 	caller := std.GetOrigCaller()
 	id := incGetBoardID()
 	args := Args{name, id}
-	gPerm.WithPermission(caller, PermissionBoardCreate, args, func(Args) {
+	gPerms.WithPermission(caller, PermissionBoardCreate, args, func(Args) {
 		assertBoardNameNotExists(name)
 
 		board := newBoard(id, name, caller)
@@ -341,5 +350,5 @@ func mustGetPermissions(bid BoardID) Permissions {
 		board := mustGetBoard(bid)
 		return board.perms
 	}
-	return gPerm
+	return gPerms
 }
