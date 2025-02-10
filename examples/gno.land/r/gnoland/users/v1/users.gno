@@ -51,8 +51,8 @@ func UpdateName(newName string) error {
 		return ErrInvalidUsername
 	}
 
-	registrant := std.PrevRealm().Addr()
-	if err := users.UpdateName(newName, registrant); err != nil {
+	userData := users.ResolveAddress(std.PrevRealm().Addr())
+	if err := userData.UpdateName(newName); err != nil {
 		return err
 	}
 
@@ -68,8 +68,8 @@ func DeleteUser() error {
 		return ErrPaused
 	}
 
-	addr := std.PrevRealm().Addr()
-	if err := users.Delete(addr); err != nil {
+	userData := users.ResolveAddress(std.PrevRealm().Addr())
+	if err := userData.Delete(); err != nil {
 		return err
 	}
 

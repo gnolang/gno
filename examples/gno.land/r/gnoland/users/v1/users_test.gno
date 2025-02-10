@@ -100,5 +100,5 @@ func TestDeleteUser_Invalid(t *testing.T) {
 	std.TestSetOrigCaller(aliceAddr)
 
 	// Already deleted user
-	urequire.Error(t, DeleteUser(), users.ErrUserNotExist.Error())
+	urequire.Error(t, DeleteUser(), users.ErrUserNotExistOrDeleted.Error())
 }
