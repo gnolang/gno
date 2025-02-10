@@ -246,7 +246,7 @@ func SecureHeadersMiddleware(next http.Handler, strict bool) http.Handler {
 			// Enforce HTTPS by telling browsers to only access the site over HTTPS
 			// for a specified duration (1 year in this case). This also applies to
 			// subdomains and allows preloading into the browser's HSTS list.
-			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
+			w.Header().Set("Strict-Transport-Security", "max-age=31536000")
 		}
 
 		next.ServeHTTP(w, r)
