@@ -156,6 +156,7 @@ func TestItemRecord(t *testing.T) {
 
 	content, _ := r.Content()
 	wantContent := md.H1(item.title) +
+		md.H2(r.item.description) +
 		ufmt.Sprintf("\n%s\n\n", md.CodeBlock(item.pkgpath)) +
 		ufmt.Sprintf("%s\n\n", item.description) +
 		ufmt.Sprintf("by %s\n\n", strings.Split(item.pkgpath, "/")[2]) +

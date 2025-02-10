@@ -53,6 +53,7 @@ func (r record) Fields() (datasource.Fields, error) {
 
 func (r record) Content() (string, error) {
 	content := md.H1(r.item.title)
+	content += md.H2(r.item.description)
 	content += r.item.Render(false)
 	return content, nil
 }
