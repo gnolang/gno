@@ -294,7 +294,7 @@ func Render(_ string) string { return strconv.Itoa(i) }
 	require.Error(t, err)
 	require.ErrorAs(t, err, &tm2std.OutOfGasError{})
 
-	// Transaction should be commited regardless the error
+	// Transaction should be committed regardless the error
 	require.Equal(t, emitter.NextEvent().Type(), events.EvtTxResult,
 		"(probably) not enough gas for the transaction to be committed")
 
