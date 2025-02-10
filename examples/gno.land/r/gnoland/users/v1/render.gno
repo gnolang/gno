@@ -36,6 +36,13 @@ func renderHomePage(path string) string {
 
 	out += "# gno.land user registry\n"
 
+	if paused {
+		out += md.HorizontalRule()
+		out += md.H2("This realm is paused.")
+		out += md.Paragraph("Check out [`gno.land/r/gnoland/users`](/r/gnoland/users) for newer versions of the registry.")
+		out += md.HorizontalRule()
+	}
+
 	out += renderIntroParagraph()
 
 	out += md.H2("User list")
