@@ -35,8 +35,8 @@ type Recipe struct {
 }
 
 const (
-	RealmURL = "/r/mouss/home"
-	Rec      = RealmURL + ":recipe/"
+	realmURL = "/r/mouss/home"
+	Rec      = realmURL + ":recipe/"
 	gnoArt   = `
         -==++.                                                                  
 	     *@@@@=                                     @-                          -@
@@ -249,7 +249,7 @@ func (p Profile) Render() string {
 
 func Header(out *string) {
 	navItems := []string{
-		md.Link("Home", RealmURL),
+		md.Link("Home", realmURL),
 		md.Link("World Kitchen", Rec),
 		md.Link("Hackerspace", "https://github.com/gnolang/hackerspace/issues/86#issuecomment-2535795751"),
 	}
