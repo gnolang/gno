@@ -45,16 +45,18 @@ func TestBoard_GetURL(t *testing.T) {
 	name := "foobar_test_get_url123"
 	want := pkgPath + ":" + name
 
-	var addr std.Address
+	var addr std.Address // TODO: Assign a valid address here and in other tests
 
-	board := newBoard(1, name, addr)
+	perms := createDefaultBoardPermissions(addr)
+	board := newBoard(1, name, addr, perms)
 	got := board.GetURL()
 	uassert.Equal(t, want, got)
 }
 
 func TestBoard_GetThread(t *testing.T) {
 	var addr std.Address
-	b := newBoard(1, "test123", addr)
+	perms := createDefaultBoardPermissions(addr)
+	b := newBoard(1, "test123", addr, perms)
 
 	_, ok := b.GetThread(12345)
 	uassert.False(t, ok)
@@ -66,7 +68,8 @@ func TestBoard_GetThread(t *testing.T) {
 
 func TestBoard_DeleteThread(t *testing.T) {
 	var addr std.Address
-	b := newBoard(1, "test123", addr)
+	perms := createDefaultBoardPermissions(addr)
+	b := newBoard(1, "test123", addr, perms)
 
 	post := b.AddThread(addr, "foo", "bar")
 	id := post.GetPostID()
@@ -81,7 +84,8 @@ var boardUrlPrefix = strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land"
 
 func TestBoard_GetURLFromThreadID(t *testing.T) {
 	boardName := "test12345"
-	b := newBoard(BoardID(11), boardName, "")
+	perms := createDefaultBoardPermissions("")
+	b := newBoard(BoardID(11), boardName, "", perms)
 	want := boardUrlPrefix + ":" + boardName + "/10"
 
 	got := b.GetURLFromThreadID(10)
@@ -90,7 +94,8 @@ func TestBoard_GetURLFromThreadID(t *testing.T) {
 
 func TestBoard_GetURLFromReplyID(t *testing.T) {
 	boardName := "test12345"
-	b := newBoard(BoardID(11), boardName, "")
+	perms := createDefaultBoardPermissions("")
+	b := newBoard(BoardID(11), boardName, "", perms)
 	want := boardUrlPrefix + ":" + boardName + "/10/20"
 
 	got := b.GetURLFromReplyID(10, 20)
@@ -99,7 +104,8 @@ func TestBoard_GetURLFromReplyID(t *testing.T) {
 
 func TestBoard_GetPostFormURL(t *testing.T) {
 	bid := BoardID(386)
-	b := newBoard(bid, "foo1234", "")
+	perms := createDefaultBoardPermissions("")
+	b := newBoard(bid, "foo1234", "", perms)
 	expect := txlink.Call("CreateThread", "bid", bid.String())
 	got := b.GetPostFormURL()
 	uassert.Equal(t, expect, got)

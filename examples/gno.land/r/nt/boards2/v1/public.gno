@@ -44,7 +44,8 @@ func CreateBoard(name string) BoardID {
 	gPerms.WithPermission(caller, PermissionBoardCreate, args, func(Args) {
 		assertBoardNameNotExists(name)
 
-		board := newBoard(id, name, caller)
+		perms := gBoardPermsFn(name, caller)
+		board := newBoard(id, name, caller, perms)
 		gBoardsByID.Set(id.Key(), board)
 		gBoardsByName.Set(name, board)
 	})

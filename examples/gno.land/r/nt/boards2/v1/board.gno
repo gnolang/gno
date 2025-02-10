@@ -34,7 +34,7 @@ type Board struct {
 	perms     Permissions
 }
 
-func newBoard(id BoardID, name string, creator std.Address) *Board {
+func newBoard(id BoardID, name string, creator std.Address, p Permissions) *Board {
 	return &Board{
 		id:        id,
 		name:      name,
@@ -42,7 +42,7 @@ func newBoard(id BoardID, name string, creator std.Address) *Board {
 		threads:   avl.Tree{},
 		createdAt: time.Now(),
 		deleted:   avl.Tree{},
-		perms:     createDefaultBoardPermissions(creator),
+		perms:     p,
 	}
 }
 
