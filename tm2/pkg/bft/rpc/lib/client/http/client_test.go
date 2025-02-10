@@ -157,6 +157,76 @@ func TestSendRequestCommon_BatchSingleResponse(t *testing.T) {
 	assert.Equal(t, expectedBatchResponse[0].JSONRPC, actualBatchResponse[0].JSONRPC)
 }
 
+// TestSendRequestCommon_ErrorPaths tests error paths in sendRequestCommon without using a custom RoundTripper.
+func TestSendRequestCommon_ErrorPaths(t *testing.T) {
+	t.Parallel()
+
+	// 1. HTTP request creation failure: Using an invalid URL.
+	t.Run("HTTP request creation failure", func(t *testing.T) {
+		t.Parallel()
+		req := types.RPCRequest{JSONRPC: "2.0", ID: types.JSONRPCStringID("1")}
+		ctx := context.Background()
+		// Passing an invalid URL causes http.NewRequest to fail.
+		resp, err := sendRequestCommon[types.RPCRequest, *types.RPCResponse](ctx, http.DefaultClient, "://invalid-url", req)
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "unable to create request")
+	})
+
+	// 2. Client.Do failure: Cancel the context before the request is made.
+	t.Run("Client.Do failure", func(t *testing.T) {
+		t.Parallel()
+		req := types.RPCRequest{JSONRPC: "2.0", ID: types.JSONRPCStringID("1")}
+		// Create a context that is already canceled.
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		resp, err := sendRequestCommon[types.RPCRequest, *types.RPCResponse](ctx, http.DefaultClient, "http://example.com", req)
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		// Expect the error to mention the failure to send the request.
+		assert.Contains(t, err.Error(), "unable to send request")
+	})
+
+	// 3. Non-OK HTTP status: Simulate a server returning a bad status code.
+	t.Run("Non-OK HTTP status", func(t *testing.T) {
+		t.Parallel()
+		req := types.RPCRequest{JSONRPC: "2.0", ID: types.JSONRPCStringID("1")}
+		// Create an httptest server that always returns 500.
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		})
+		ts := httptest.NewServer(handler)
+		defer ts.Close()
+
+		ctx := context.Background()
+		resp, err := sendRequestCommon[types.RPCRequest, *types.RPCResponse](ctx, ts.Client(), ts.URL, req)
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "invalid status code")
+	})
+
+	// 4. JSON unmarshal failure: Simulate invalid JSON in the response.
+	t.Run("JSON unmarshal failure", func(t *testing.T) {
+		t.Parallel()
+		req := types.RPCRequest{JSONRPC: "2.0", ID: types.JSONRPCStringID("1")}
+		// Create an httptest server that returns invalid JSON.
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write([]byte("invalid json"))
+			require.NoError(t, err)
+		})
+		ts := httptest.NewServer(handler)
+		defer ts.Close()
+
+		ctx := context.Background()
+		resp, err := sendRequestCommon[types.RPCRequest, *types.RPCResponse](ctx, ts.Client(), ts.URL, req)
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "unable to unmarshal")
+	})
+}
+
 func TestClient_SendRequest(t *testing.T) {
 	t.Parallel()
 
