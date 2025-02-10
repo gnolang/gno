@@ -28,7 +28,8 @@ func ResolveAddress(addr std.Address) *UserData {
 		return nil
 	}
 
-	if raw.(*UserData).deleted {
+	data := raw.(*UserData)
+	if data.deleted {
 		return nil
 	}
 
@@ -37,10 +38,18 @@ func ResolveAddress(addr std.Address) *UserData {
 
 // GetReadonlyAddrStore exposes the address store in readonly mode
 func GetReadonlyAddrStore() *rotree.ReadOnlyTree {
-	return rotree.Wrap(addressStore, nil)
+	return rotree.Wrap(addressStore, makeUserDataSafe)
 }
 
 // GetReadOnlyNameStore exposes the name store in readonly mode
 func GetReadOnlyNameStore() *rotree.ReadOnlyTree {
-	return rotree.Wrap(nameStore, nil)
+	return rotree.Wrap(nameStore, makeUserDataSafe)
+}
+
+func makeUserDataSafe(data interface{}) interface{} {
+	u := data.(*UserData)
+	if u.deleted {
+		return nil
+	}
+	return u
 }

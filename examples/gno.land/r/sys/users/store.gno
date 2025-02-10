@@ -48,9 +48,14 @@ func RegisterUser(name string, address std.Address) error {
 		return err
 	}
 
-	// Validate inputs
-	if err := validateInputs(name, address); err != nil {
+	// Validate name
+	if err := validateName(name); err != nil {
 		return err
+	}
+
+	// Validate address
+	if !address.IsValid() {
+		return ErrInvalidAddress
 	}
 
 	// Check if name is taken
@@ -65,7 +70,7 @@ func RegisterUser(name string, address std.Address) error {
 			return ErrDeletedUser
 		}
 
-		// For a second name, user RegisterAlias
+		// For a second name, use UpdateName
 		return ErrAlreadyHasName
 	}
 
@@ -90,14 +95,18 @@ func RegisterUser(name string, address std.Address) error {
 // UpdateName adds a name that is associated with a specific address
 // All previous names are preserved and resolvable.
 // The new name is the default value returned for address lookups.
-func UpdateName(newName string, address std.Address) error {
+func (u *UserData) UpdateName(newName string) error {
+	if u == nil { // either doesnt exists or was deleted
+		return ErrUserNotExistOrDeleted
+	}
+
 	// Validate caller
 	if err := validateCall(); err != nil {
 		return err
 	}
 
-	// Validate inputs
-	if err := validateInputs(newName, address); err != nil {
+	// Validate name
+	if err := validateName(newName); err != nil {
 		return err
 	}
 
@@ -106,39 +115,30 @@ func UpdateName(newName string, address std.Address) error {
 		return ErrNameTaken
 	}
 
-	// Check if user has a name before an Alias
-	raw, ok := addressStore.Get(address.String())
-	if !ok {
-		return ErrAliasBeforeName
-	}
+	//if u.IsDeleted() {
+	//	return ErrDeletedUser
+	//}
 
-	userData := raw.(*UserData)
+	u.username = newName
+	nameStore.Set(newName, u)
 
-	if userData.IsDeleted() {
-		return ErrDeletedUser
-	}
-
-	userData.username = newName
-	nameStore.Set(newName, userData)
-
-	std.Emit(UpdateNameEvent, "Alias", newName, "address", address.String())
+	std.Emit(UpdateNameEvent, "Alias", newName, "address", u.addr.String())
 	return nil
 }
 
 // Delete marks a user and all their aliases as deleted.
-func Delete(addr std.Address) error {
+func (u *UserData) Delete() error {
+	if u == nil {
+		return ErrUserNotExistOrDeleted
+	}
+
 	if err := validateCall(); err != nil {
 		return err
 	}
 
-	data := ResolveAddress(addr)
-	if data == nil {
-		return ErrUserNotExist
-	}
+	u.deleted = true
 
-	data.deleted = true
-
-	std.Emit(DeleteUserEvent, "address", data.addr.String())
+	std.Emit(DeleteUserEvent, "address", u.addr.String())
 	return nil
 }
 
@@ -151,11 +151,7 @@ func validateCall() error {
 }
 
 // Validate validates username and address passed in
-func validateInputs(username string, address std.Address) error {
-	if !address.IsValid() {
-		return ErrInvalidAddress
-	}
-
+func validateName(username string) error {
 	if strings.TrimSpace(username) == "" {
 		return ErrEmptyUsername
 	}

@@ -15,9 +15,8 @@ var (
 	ErrNameTooLong     = errors.New(prefix + "username is too long")
 	ErrNameLikeAddress = errors.New(prefix + "username resembles a gno.land address")
 
-	ErrAlreadyHasName  = errors.New(prefix + "username for this address already registered - try creating an Alias")
-	ErrDeletedUser     = errors.New(prefix + "cannot register a new username after deleting")
-	ErrAliasBeforeName = errors.New(prefix + "cannot register Alias before a username")
+	ErrAlreadyHasName = errors.New(prefix + "username for this address already registered - try creating an Alias")
+	ErrDeletedUser    = errors.New(prefix + "cannot register a new username after deleting")
 
-	ErrUserNotExist = errors.New(prefix + "this user has not been registered before")
+	ErrUserNotExistOrDeleted = errors.New(prefix + "this user does not exist or was deleted")
 )
