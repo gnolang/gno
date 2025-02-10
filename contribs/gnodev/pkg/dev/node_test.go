@@ -204,7 +204,6 @@ func Render(_ string) string { return str }
 		},
 	}
 
-	// Call NewDevNode with no package should work
 	node, emitter := newTestingDevNode(t, &fooPkg)
 	assert.Len(t, node.ListPkgs(), 1)
 
@@ -245,33 +244,24 @@ func Render(_ string) string { return str }
 }
 
 func TestTxGasFailure(t *testing.T) {
-	const (
-		// foo package
-		foobarGnoMod = "module gno.land/r/dev/foo\n"
-		fooFile      = `package foo
+	fooPkg := gnovm.MemPackage{
+		Name: "foo",
+		Path: "gno.land/r/dev/foo",
+		Files: []*gnovm.MemFile{
+			{
+				Name: "foo.gno",
+				Body: `package foo
 import "strconv"
 
 var i int
 func Inc() { i++ } // method to increment i
 func Render(_ string) string { return strconv.Itoa(i) }
-`
-	)
+`,
+			},
+		},
+	}
 
-	// Generate package foo
-	foopkg := generateTestingPackage(t, "gno.mod", foobarGnoMod, "foo.gno", fooFile)
-
-	// Call NewDevNode with no package should work
-	// Call NewDevNode with no package should work
-	cfg := createDefaultTestingNodeConfig(foopkg)
-
-	// XXX(gfanton): Setting this to `false` somehow makes the time block
-	// drift from the time spanned by the VM.
-	cfg.TMConfig.Consensus.SkipTimeoutCommit = false
-	cfg.TMConfig.Consensus.TimeoutCommit = 500 * time.Millisecond
-	cfg.TMConfig.Consensus.TimeoutPropose = 100 * time.Millisecond
-	cfg.TMConfig.Consensus.CreateEmptyBlocks = true
-
-	node, emitter := newTestingDevNodeWithConfig(t, cfg)
+	node, emitter := newTestingDevNode(t, &fooPkg)
 	assert.Len(t, node.ListPkgs(), 1)
 
 	// Test rendering
@@ -324,6 +314,8 @@ func Render(_ string) string { return strconv.Itoa(i) }
 	// Check for correct render update
 	render, err = testingRenderRealm(t, node, "gno.land/r/dev/foo")
 	require.NoError(t, err)
+
+	// Assert that the previous transaction hasn't succeeded during genesis reload
 	require.Equal(t, "1", render)
 }
 
