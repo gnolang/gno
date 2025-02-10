@@ -12,7 +12,7 @@ similar to GitHub's user and organization model.
 A package path is a unique identifier for each package/realm. It specifies the location of the package source
 code which helps differentiate it from others. You can use a package path to:
 
-- Call a specific function from a package/realm. (e.g using `gnokey maketx call`)
+- Call a specific function from a package/realm. (e.g. using `gnokey maketx call`)
 - Import it in other packages/realms.
 
 Here's a breakdown of the structure of a package path:
@@ -41,10 +41,10 @@ Examples:
 The registration process is contract-based. The `AddPkg` command references
 `r/sys/names` for filtering, which in turn is based on `r/sys/users`.
 
-To obtain a namespace, you need to register a name using `r/gnoland/users/v1`.
-Visit [the realm](https://gno.land/r/gnoland/users/v1) for more information.
+To obtain a namespace, you need to register a name using the `r/gnoland/users` registries.
+Visit [the latest user registry realm](https://gno.land/r/gnoland/users) for more information.
 
-> ex: address `test1` registering as `patrick123`
+> ex: address `test1` registering as `patrick123` using registry v1, on the Portal Loop
 ```bash
 $ gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 \
     -func Register \
@@ -55,11 +55,6 @@ $ gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 \
     -args 'patrick123' \
     test1
 ```
-
-:::note Chain-ID
-
-Depending on the network you're usiing, the 
-:::
 
 After successful registration, you can add a package under the registered namespace.
 
