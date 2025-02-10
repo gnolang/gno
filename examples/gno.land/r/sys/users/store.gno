@@ -44,8 +44,8 @@ func (u UserData) IsDeleted() bool {
 // RegisterUser adds a new user to the system.
 func RegisterUser(name string, address std.Address) error {
 	// Validate caller
-	if err := validateCall(); err != nil {
-		return err
+	if !IsOnWhitelist(std.PrevRealm().Addr()) {
+		return ErrNotWhitelisted
 	}
 
 	// Validate name
@@ -101,8 +101,8 @@ func (u *UserData) UpdateName(newName string) error {
 	}
 
 	// Validate caller
-	if err := validateCall(); err != nil {
-		return err
+	if !IsOnWhitelist(std.PrevRealm().Addr()) {
+		return ErrNotWhitelisted
 	}
 
 	// Validate name
@@ -114,10 +114,6 @@ func (u *UserData) UpdateName(newName string) error {
 	if nameStore.Has(newName) {
 		return ErrNameTaken
 	}
-
-	//if u.IsDeleted() {
-	//	return ErrDeletedUser
-	//}
 
 	u.username = newName
 	nameStore.Set(newName, u)
@@ -132,21 +128,14 @@ func (u *UserData) Delete() error {
 		return ErrUserNotExistOrDeleted
 	}
 
-	if err := validateCall(); err != nil {
-		return err
+	// Validate caller
+	if !IsOnWhitelist(std.PrevRealm().Addr()) {
+		return ErrNotWhitelisted
 	}
 
 	u.deleted = true
 
 	std.Emit(DeleteUserEvent, "address", u.addr.String())
-	return nil
-}
-
-func validateCall() error {
-	if !IsOnWhitelist(std.PrevRealm().Addr()) {
-		return ErrNotWhitelisted
-	}
-
 	return nil
 }
 
