@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -20,6 +21,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
@@ -241,26 +243,53 @@ func (n *Node) getBlockTransactions(blockNum uint64) ([]gnoland.TxWithMetadata, 
 	int64BlockNum := int64(blockNum)
 	b, err := n.client.Block(&int64BlockNum)
 	if err != nil {
-		return []gnoland.TxWithMetadata{}, fmt.Errorf("unable to load block at height %d: %w", blockNum, err) // nothing to see here
+		return nil, fmt.Errorf("unable to load block at height %d: %w", blockNum, err)
+	}
+	txs := b.Block.Data.Txs
+
+	bres, err := n.client.BlockResults(&int64BlockNum)
+	if err != nil {
+		return nil, fmt.Errorf("unable to load block at height %d: %w", blockNum, err)
+	}
+	deliverTxs := bres.Results.DeliverTxs
+
+	// Sanity check
+	if len(txs) != len(deliverTxs) {
+		panic(fmt.Errorf("invalid block txs len (%d) vs block result txs len (%d)",
+			len(txs), len(deliverTxs),
+		))
 	}
 
-	txs := make([]gnoland.TxWithMetadata, len(b.Block.Data.Txs))
-	for i, encodedTx := range b.Block.Data.Txs {
-		// fallback on std tx
+	txResults := make([]*abci.ResponseDeliverTx, len(deliverTxs))
+	for i, tx := range deliverTxs {
+		txResults[i] = &tx
+	}
+
+	// XXX: Consider replacing a failed transaction with an empty transaction
+	// to preserve the transaction height ?
+	// Note that this would also require committing instead of using the
+	// genesis block.
+
+	metaTxs := make([]gnoland.TxWithMetadata, 0, len(txs))
+	for i, encodedTx := range txs {
+		if deliverTx := deliverTxs[i]; !deliverTx.IsOK() {
+			continue // skip failed tx
+		}
+
 		var tx std.Tx
 		if unmarshalErr := amino.Unmarshal(encodedTx, &tx); unmarshalErr != nil {
 			return nil, fmt.Errorf("unable to unmarshal tx: %w", unmarshalErr)
 		}
 
-		txs[i] = gnoland.TxWithMetadata{
+		metaTxs = append(metaTxs, gnoland.TxWithMetadata{
 			Tx: tx,
 			Metadata: &gnoland.GnoTxMetadata{
 				Timestamp: b.BlockMeta.Header.Time.Unix(),
 			},
-		}
+		})
 	}
 
-	return txs, nil
+	return slices.Clip(metaTxs), nil
 }
 
 // GetBlockTransactions returns the transactions contained
