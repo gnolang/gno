@@ -13,14 +13,18 @@
 //
 // Example usage:
 //
-//	r := New(":name:", func() string { return "World" })
+//	r := dynreplacer.New(
+//	    dynreplacer.Pair{":name:", func() string { return "World" }},
+//	    dynreplacer.Pair{":greeting:", func() string { return "Hello" }},
+//	)
 //	result := r.Replace("Hello :name:!") // Returns "Hello World!"
 //
 // The replacer caches computed values, so subsequent calls with the same
 // placeholder will reuse the cached value instead of executing the callback
 // again:
 //
-//	r := New(":expensive:", func() string { return "computed" })
+//	r := dynreplacer.New()
+//	r.RegisterCallback(":expensive:", func() string { return "computed" })
 //	r.Replace("Value1: :expensive:") // Computes the value
 //	r.Replace("Value2: :expensive:") // Uses cached value
 //	r.ClearCache()                   // Force re-computation on next use
@@ -37,38 +41,30 @@ type Replacer struct {
 	cachedValues map[string]string
 }
 
+// Pair represents a placeholder and its callback function
+type Pair struct {
+	Placeholder string
+	Callback    func() string
+}
+
 // New creates a new Replacer instance with optional initial replacements.
-// It accepts pairs of arguments where each pair consists of a placeholder
-// string and its corresponding callback function.
+// It accepts pairs where each pair consists of a placeholder string and
+// its corresponding callback function.
 //
 // Example:
 //
 //	New(
-//	    ":name:", func() string { return "World" },
-//	    ":greeting:", func() string { return "Hello" },
+//	    Pair{":name:", func() string { return "World" }},
+//	    Pair{":greeting:", func() string { return "Hello" }},
 //	)
-func New(pairs ...interface{}) *Replacer {
-	if len(pairs)%2 != 0 {
-		panic("dynreplacer.New: odd argument count")
-	}
-
+func New(pairs ...Pair) *Replacer {
 	r := &Replacer{
 		callbacks:    make(map[string]func() string),
 		cachedValues: make(map[string]string),
 	}
 
-	for i := 0; i < len(pairs); i += 2 {
-		placeholder, ok := pairs[i].(string)
-		if !ok {
-			panic("dynreplacer.New: placeholder must be a string")
-		}
-
-		callback, ok := pairs[i+1].(func() string)
-		if !ok {
-			panic("dynreplacer.New: callback must be a func() string")
-		}
-
-		r.RegisterCallback(placeholder, callback)
+	for _, pair := range pairs {
+		r.RegisterCallback(pair.Placeholder, pair.Callback)
 	}
 
 	return r

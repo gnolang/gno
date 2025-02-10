@@ -9,76 +9,38 @@ import (
 
 func TestNew(t *testing.T) {
 	tests := []struct {
-		name        string
-		args        []interface{}
-		shouldPanic bool
+		name  string
+		pairs []Pair
 	}{
 		{
-			name:        "empty constructor",
-			args:        []interface{}{},
-			shouldPanic: false,
+			name:  "empty constructor",
+			pairs: []Pair{},
 		},
 		{
 			name: "single pair",
-			args: []interface{}{
-				":name:", func() string { return "World" },
+			pairs: []Pair{
+				{":name:", func() string { return "World" }},
 			},
-			shouldPanic: false,
 		},
 		{
 			name: "multiple pairs",
-			args: []interface{}{
-				":greeting:", func() string { return "Hello" },
-				":name:", func() string { return "World" },
+			pairs: []Pair{
+				{":greeting:", func() string { return "Hello" }},
+				{":name:", func() string { return "World" }},
 			},
-			shouldPanic: false,
-		},
-		{
-			name: "odd number of arguments",
-			args: []interface{}{
-				":name:",
-			},
-			shouldPanic: true,
-		},
-		{
-			name: "invalid placeholder type",
-			args: []interface{}{
-				42, func() string { return "World" },
-			},
-			shouldPanic: true,
-		},
-		{
-			name: "invalid callback type",
-			args: []interface{}{
-				":name:", "not a function",
-			},
-			shouldPanic: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			defer func() {
-				r := recover()
-				if (r != nil) != tt.shouldPanic {
-					t.Errorf("New() panic = %v, shouldPanic = %v", r != nil, tt.shouldPanic)
-				}
-			}()
-
-			r := New(tt.args...)
-			if tt.shouldPanic {
-				t.Error("Expected panic did not occur")
-				return
-			}
-
+			r := New(tt.pairs...)
 			uassert.True(t, r.callbacks != nil, "callbacks map should be initialized")
 			uassert.True(t, r.cachedValues != nil, "cachedValues map should be initialized")
 
 			// Verify all callbacks were registered
-			for i := 0; i < len(tt.args); i += 2 {
-				placeholder := tt.args[i].(string)
-				_, exists := r.callbacks[placeholder]
-				uassert.True(t, exists, "callback should be registered for "+placeholder)
+			for _, pair := range tt.pairs {
+				_, exists := r.callbacks[pair.Placeholder]
+				uassert.True(t, exists, "callback should be registered for "+pair.Placeholder)
 			}
 		})
 	}
@@ -186,9 +148,9 @@ func TestComplexExample(t *testing.T) {
 	`
 
 	r := New(
-		":latest-blogposts:", func() string { return "Latest blog posts content here" },
-		":next-events:", func() string { return "Upcoming events listed here" },
-		":awesome-gno:", func() string { return ":latest-blogposts: (This should NOT be replaced again)" },
+		Pair{":latest-blogposts:", func() string { return "Latest blog posts content here" }},
+		Pair{":next-events:", func() string { return "Upcoming events listed here" }},
+		Pair{":awesome-gno:", func() string { return ":latest-blogposts: (This should NOT be replaced again)" }},
 	)
 
 	result := r.Replace(layout)
