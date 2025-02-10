@@ -7,12 +7,13 @@ import (
 )
 
 func AssertOriginCall(m *gno.Machine) {
-	if !IsOriginCall(m) {
-		m.Panic(TypedString("invalid non-origin call"))
+	if !isOriginCall(m) {
+		m.Panic(typedString("invalid non-origin call"))
+
 	}
 }
 
-func IsOriginCall(m *gno.Machine) bool {
+func isOriginCall(m *gno.Machine) bool {
 	n := m.NumFrames()
 	if n == 0 {
 		return false
@@ -81,7 +82,7 @@ func X_origPkgAddr(m *gno.Machine) string {
 
 func X_callerAt(m *gno.Machine, n int) string {
 	if n <= 0 {
-		m.Panic(TypedString("GetCallerAt requires positive arg"))
+		m.Panic(typedString("GetCallerAt requires positive arg"))
 		return ""
 	}
 	// Add 1 to n to account for the GetCallerAt (gno fn) frame.
@@ -90,7 +91,7 @@ func X_callerAt(m *gno.Machine, n int) string {
 		// NOTE: the last frame's LastPackage
 		// is set to the original non-frame
 		// package, so need this check.
-		m.Panic(TypedString("frame not found"))
+		m.Panic(typedString("frame not found"))
 		return ""
 	}
 	if n == m.NumFrames() {
@@ -144,11 +145,11 @@ func CurrentRealm(m *gno.Machine) (address, pkgPath string) {
 func X_assertCallerIsRealm(m *gno.Machine) {
 	frame := m.Frames[m.NumFrames()-2]
 	if path := frame.LastPackage.PkgPath; !gno.IsRealmPath(path) {
-		m.Panic(TypedString("caller is not a realm"))
+		m.Panic(typedString("caller is not a realm"))
 	}
 }
 
-func TypedString(s string) gno.TypedValue {
+func typedString(s string) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.StringType}
 	tv.SetString(gno.StringValue(s))
 	return tv

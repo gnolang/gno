@@ -14,7 +14,7 @@ var errInvalidGnoEventAttrs = errors.New("cannot pair attributes due to odd coun
 func X_emit(m *gno.Machine, typ string, attrs []string) {
 	eventAttrs, err := attrKeysAndValues(attrs)
 	if err != nil {
-		m.Panic(TypedString(err.Error()))
+		m.Panic(typedString(err.Error()))
 	}
 
 	_, pkgPath := CurrentRealm(m)

@@ -49,7 +49,7 @@ func X_bankerSendCoins(m *gno.Machine, bt uint8, fromS, toS string, denoms []str
 		// indirection allows us to "commit" in a second phase
 		spent := (*ctx.OrigSendSpent).Add(amt)
 		if !ctx.OrigSend.IsAllGTE(spent) {
-			m.Panic(TypedString(
+			m.Panic(typedString(
 				fmt.Sprintf(
 					`cannot send "%v", limit "%v" exceeded with "%v" already spent`,
 					amt, ctx.OrigSend, *ctx.OrigSendSpent),

@@ -33,7 +33,7 @@ func NewParamKey(m *gno.Machine, prefix, key string, kind string) (ParamKey, err
 	// validate key.
 	if err := validate(prefix, key, kind); err != nil {
 		es := err.Error()
-		m.Panic(TypedString(es))
+		m.Panic(typedString(es))
 		return ParamKey{}, err
 	}
 	_, realm := CurrentRealm(m)
