@@ -90,15 +90,14 @@ will gain permission to deploy packages and realms to package paths with the pat
 	out += "\n\n"
 	out += md.Paragraph("In later versions of the registry, vanity usernames will be allowed through specific mechanisms.")
 
-	out += md.H2("Actions\n\n")
-
-	items = []string{
-		"Register: " + ufmt.Sprintf(" [[Connect]](%s) - [[gnokey]](%s)\n\n", connectRegisterUrl, txlink.Call("Register")),
-		"Update Name: " + ufmt.Sprintf(" [[Connect]](%s) - [[gnokey]](%s)\n\n", connectUpdateNameUrl, txlink.Call("UpdateName")),
+	if !paused {
+		out += md.H2("Actions\n\n")
+		items = []string{
+			"Register: " + ufmt.Sprintf(" [[Connect]](%s) - [[gnokey]](%s)\n\n", connectRegisterUrl, txlink.Call("Register")),
+			"Update Name: " + ufmt.Sprintf(" [[Connect]](%s) - [[gnokey]](%s)\n\n", connectUpdateNameUrl, txlink.Call("UpdateName")),
+		}
+		out += md.BulletList(items)
 	}
-
-	out += md.BulletList(items)
-
 	out += md.HorizontalRule()
 	out += "\n\n"
 
