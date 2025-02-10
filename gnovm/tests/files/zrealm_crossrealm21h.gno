@@ -7,20 +7,20 @@ import (
 
 type fooer struct {
 	name string
-	bar
 }
-type bar struct{ name string }
 
 func (fooer) Foo() { println("hello") }
 
 var f = fooer{name: "local_fooer"}
 
+var f1 = &f
+
 func main() {
-	f.bar = bar{name: "local_bar"} // this makes f dirty, it's real
-	crossrealm.SetContainer2(&f)   // object DidUpdate is package block
+	crossrealm.SetContainer2(&f)
 	crossrealm.RunF()
 	print(".")
 }
 
-// Error:
-// cannot attach a reference to dirty object from an external realm
+// Output:
+// hello
+// .

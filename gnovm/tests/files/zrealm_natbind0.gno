@@ -22,5 +22,6 @@ func main() {
 	println(g())
 }
 
-// Error:
-// cannot attach objects by value from external realm
+// Output:
+// 123
+// dev

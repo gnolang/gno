@@ -21,4 +21,4 @@ func main() {
 }
 
 // Error:
-// cannot attach un-real object from external realm: struct{("key0" github.com/gnolang/gno/_test/timtadh/data_structures/types.String),("value0" string),(2 int),(nil *github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl.AvlNode),(&(struct{("key1" github.com/gnolang/gno/_test/timtadh/data_structures/types.String),("value1" string),(1 int),(nil *github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl.AvlNode),(nil *github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl.AvlNode)} github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl.AvlNode) *github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl.AvlNode)}
+// cannot attach a reference to dirty object from an external realm
