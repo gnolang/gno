@@ -224,10 +224,6 @@ func (r *ReviewByTeamMembersRequirement) IsSatisfied(pr *github.PullRequest, det
 	// Check how many members of this team already reviewed this PR.
 	reviewCount := uint(0)
 
-	stateStr := ""
-	if r.desiredState != "" {
-		stateStr = fmt.Sprintf("%q ", r.desiredState)
-	}
 	for _, review := range reviews {
 		login := review.GetUser().GetLogin()
 		if containsUserWithLogin(teamMembers, login) {
@@ -235,8 +231,8 @@ func (r *ReviewByTeamMembersRequirement) IsSatisfied(pr *github.PullRequest, det
 				reviewCount += 1
 			}
 			r.gh.Logger.Debugf(
-				"Member %s from team %s already reviewed PR %d with state %s (%d/%d required %sreview(s))",
-				login, r.team, pr.GetNumber(), review.GetState(), reviewCount, r.count, stateStr,
+				"Member %s from team %s already reviewed PR %d with state %s (%d/%d required review(s) with state %q)",
+				login, r.team, pr.GetNumber(), review.GetState(), reviewCount, r.count, r.desiredState,
 			)
 		}
 	}
@@ -311,19 +307,15 @@ func (r *ReviewByOrgMembersRequirement) IsSatisfied(pr *github.PullRequest, deta
 	}
 	reviews = deduplicateReviews(reviews)
 
-	stateStr := ""
-	if r.desiredState != "" {
-		stateStr = fmt.Sprintf("%q ", r.desiredState)
-	}
 	for _, review := range reviews {
 		if review.GetAuthorAssociation() == "MEMBER" {
 			if r.desiredState == "" || review.GetState() == r.desiredState {
 				reviewed++
 			}
 			r.gh.Logger.Debugf(
-				"Member %s already reviewed PR %d with state %s (%d/%d required %sreviews)",
+				"Member %s already reviewed PR %d with state %s (%d/%d required reviews with state %q)",
 				review.GetUser().GetLogin(), pr.GetNumber(), review.GetState(),
-				reviewed, r.count, stateStr,
+				reviewed, r.count, r.desiredState,
 			)
 		}
 	}
