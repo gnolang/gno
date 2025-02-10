@@ -55,7 +55,7 @@ var (
 	router  = mux.NewRouter()
 	profile Profile
 	recipes = avl.NewTree()
-	//Pager           = p.NewPager(recipes, 1, false)
+	// Pager           = p.NewPager(recipes, 1, false)
 	margheritaPizza *Recipe
 )
 
@@ -77,7 +77,7 @@ func init() {
 	margheritaPizza = &Recipe{
 		Name:         "Authentic Margherita Pizza 🤌",
 		Origin:       "Naples, 🇮🇹",
-		Author:       config.Address(),
+		Author:       config.OwnableMain.Owner(),
 		Ingredients:  "  1kg 00 flour\n 500ml water\n 3g fresh yeast\n 20g sea salt\n San Marzano tomatoes\n Fresh buffalo mozzarella\n Fresh basil\n Extra virgin olive oil",
 		Instructions: " Mix flour and water until incorporated\n Add yeast and salt, knead for 20 minutes\n Let rise for 2 hours at room temperature\n Divide into 250g balls\n Cold ferment for 24-48 hours\n Shape by hand, being gentle with the dough\n Top with crushed tomatoes, torn mozzarella, and basil\n Cook at 450°C for 60-90 seconds",
 		Tips:         "Use a pizza steel or stone preheated for at least 1 hour. The dough should be soft and extensible. For best results, cook in a wood-fired oven.",
@@ -104,7 +104,7 @@ func AddRecipe(name, origin, ingredients, instructions, tips string) string {
 
 func UpdateAboutMe(about string) error {
 	if !config.IsAuthorized(std.PrevRealm().Addr()) {
-		return config.ErrUnauthorized
+		panic(config.ErrUnauthorized)
 	}
 	profile.AboutMe = about
 	return nil
@@ -112,7 +112,7 @@ func UpdateAboutMe(about string) error {
 
 func UpdateAvatar(avatar string) error {
 	if !config.IsAuthorized(std.PrevRealm().Addr()) {
-		return config.ErrUnauthorized
+		panic(config.ErrUnauthorized)
 	}
 	profile.Avatar = avatar
 	return nil

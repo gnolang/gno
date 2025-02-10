@@ -12,7 +12,7 @@ import (
 var (
 	user1    = testutils.TestAddress("user1")
 	user2    = testutils.TestAddress("user2")
-	mainAddr = config.Address()
+	mainAddr = config.OwnableMain.Owner()
 )
 
 func TestProfile(t *testing.T) {
@@ -56,7 +56,7 @@ func TestAddRecipe(t *testing.T) {
 			uassert.Equal(t, recipe.Instructions, foundRecipe.Instructions)
 			uassert.Equal(t, recipe.Tips, foundRecipe.Tips)
 			uassert.Equal(t, recipe.Author, foundRecipe.Author)
-			return true // stop iteration
+			return true
 		}
 		return false
 	})
