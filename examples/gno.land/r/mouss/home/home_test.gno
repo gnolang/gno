@@ -66,43 +66,34 @@ func TestAddRecipe(t *testing.T) {
 func TestFollow(t *testing.T) {
 	// Test user following admin's profile
 	std.TestSetOrigCaller(user1)
-	err := Follow(user1)
-	uassert.NoError(t, err, "regular user should be able to follow admin's profile")
+	err := Follow()
+	uassert.NoError(t, err, "user should be able to follow admin's profile")
 
 	// Test admin trying to follow themselves
 	std.TestSetOrigCaller(mainAddr)
-	err = Follow(mainAddr)
+	err = Follow()
 	uassert.ErrorIs(t, err, config.ErrUnauthorized, "admin should not be able to follow their own profile")
 
 	// Test following same address twice
 	std.TestSetOrigCaller(user1)
-	err = Follow(user1)
+	err = Follow()
 	uassert.Error(t, err, "should not be able to follow same address twice")
 
 	// Test multiple users following admin
 	std.TestSetOrigCaller(user2)
-	err = Follow(user2)
+	err = Follow()
 	uassert.NoError(t, err, "another user should be able to follow admin's profile")
 }
 
 func TestUnfollow(t *testing.T) {
-	// user1 is already follower
 	// Test successful unfollow
-	err := Unfollow(user1)
+	std.TestSetOrigCaller(user1)
+	err := Unfollow()
 	uassert.NoError(t, err)
 	uassert.False(t, profile.Followers.Has(user1))
 
 	// Test unfollowing when not following
-	err = Unfollow(user1)
+	err = Unfollow()
 	uassert.Error(t, err)
 
-	// Test unauthorized unfollow
-	std.TestSetOrigCaller(mainAddr)
-	err = Unfollow(user1)
-	uassert.ErrorIs(t, err, config.ErrUnauthorized)
-}
-
-func TestIsUser(t *testing.T) {
-	uassert.True(t, isUser(user1), "should recognize normal user")
-	uassert.False(t, isUser(mainAddr), "should not recognize admin as normal user")
 }
