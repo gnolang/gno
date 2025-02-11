@@ -451,7 +451,7 @@ func TestAsExpr(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := ExprAsExpr(tt.baseExpr, tt.as, &seen[Expr]{})
+			got := AsExpr(tt.baseExpr, tt.as, &seen[Expr]{})
 			if got != tt.want {
 				t.Errorf("ExprAsExpr() = %v, want %v", got, tt.want)
 			}

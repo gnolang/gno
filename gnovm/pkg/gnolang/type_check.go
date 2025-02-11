@@ -270,7 +270,7 @@ Main:
 						switch fv.Name {
 						case "len", "cap":
 							at := evalStaticTypeOf(store, last, currExpr.Args[0])
-							if ExprAsExpr(currExpr.Args[0], &CallExpr{}, &seen[Expr]{}) {
+							if AsExpr(currExpr.Args[0], &CallExpr{}, &seen[Expr]{}) {
 								panic(fmt.Sprintf("%s (value of type %s) is not constant", currExpr.String(), at))
 							}
 							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
@@ -1272,7 +1272,7 @@ func isBlankIdentifier(x Expr) bool {
 	return false
 }
 
-func ExprAsExpr(base Expr, expr Expr, seen *seen[Expr]) bool {
+func AsExpr(base Expr, expr Expr, seen *seen[Expr]) bool {
 	if seen.Contains(base) {
 		return false
 	}
@@ -1289,61 +1289,61 @@ func ExprAsExpr(base Expr, expr Expr, seen *seen[Expr]) bool {
 		return ok
 	case *BinaryExpr:
 		_, ok := expr.(*BinaryExpr)
-		return ok || ExprAsExpr(base.Left, expr, seen) || ExprAsExpr(base.Right, expr, seen)
+		return ok || AsExpr(base.Left, expr, seen) || AsExpr(base.Right, expr, seen)
 	case *CallExpr:
 		_, ok := expr.(*CallExpr)
-		if ok || ExprAsExpr(base.Func, expr, seen) {
+		if ok || AsExpr(base.Func, expr, seen) {
 			return true
 		}
 
 		for _, arg := range base.Args {
-			if ExprAsExpr(arg, expr, seen) {
+			if AsExpr(arg, expr, seen) {
 				return true
 			}
 		}
 		return false
 	case *IndexExpr:
 		_, ok := expr.(*IndexExpr)
-		return ok || ExprAsExpr(base.X, expr, seen) || ExprAsExpr(base.Index, expr, seen)
+		return ok || AsExpr(base.X, expr, seen) || AsExpr(base.Index, expr, seen)
 	case *SelectorExpr:
 		_, ok := expr.(*SelectorExpr)
 		return ok
 	case *SliceExpr:
 		_, ok := expr.(*SliceExpr)
-		return ok || ExprAsExpr(base.X, expr, seen) || ExprAsExpr(base.Low, expr, seen) || ExprAsExpr(base.High, expr, seen) || ExprAsExpr(base.Max, expr, seen)
+		return ok || AsExpr(base.X, expr, seen) || AsExpr(base.Low, expr, seen) || AsExpr(base.High, expr, seen) || AsExpr(base.Max, expr, seen)
 	case *StarExpr:
 		_, ok := expr.(*StarExpr)
-		return ok || ExprAsExpr(base.X, expr, seen)
+		return ok || AsExpr(base.X, expr, seen)
 	case *RefExpr:
 		_, ok := expr.(*RefExpr)
-		return ok || ExprAsExpr(base.X, expr, seen)
+		return ok || AsExpr(base.X, expr, seen)
 	case *TypeAssertExpr:
 		_, ok := expr.(*TypeAssertExpr)
-		return ok || ExprAsExpr(base.X, expr, seen) || ExprAsExpr(base.Type, expr, seen)
+		return ok || AsExpr(base.X, expr, seen) || AsExpr(base.Type, expr, seen)
 	case *UnaryExpr:
 		_, ok := expr.(*UnaryExpr)
-		return ok || ExprAsExpr(base.X, expr, seen)
+		return ok || AsExpr(base.X, expr, seen)
 	case *CompositeLitExpr:
 		_, ok := expr.(*CompositeLitExpr)
-		if ok || ExprAsExpr(base.Type, expr, seen) {
+		if ok || AsExpr(base.Type, expr, seen) {
 			return true
 		}
 		for _, elt := range base.Elts {
-			if ExprAsExpr(&elt, expr, seen) {
+			if AsExpr(&elt, expr, seen) {
 				return true
 			}
 		}
 		return false
 	case *KeyValueExpr:
 		_, ok := expr.(*KeyValueExpr)
-		return ok || ExprAsExpr(base.Key, expr, seen) || ExprAsExpr(base.Value, expr, seen)
+		return ok || AsExpr(base.Key, expr, seen) || AsExpr(base.Value, expr, seen)
 	case *FuncLitExpr:
 		_, ok := expr.(*FuncLitExpr)
-		if ok || ExprAsExpr(&base.Type, expr, seen) {
+		if ok || AsExpr(&base.Type, expr, seen) {
 			return true
 		}
 		for _, exp := range base.HeapCaptures {
-			if ExprAsExpr(&exp, expr, seen) {
+			if AsExpr(&exp, expr, seen) {
 				return true
 			}
 		}
@@ -1353,34 +1353,34 @@ func ExprAsExpr(base Expr, expr Expr, seen *seen[Expr]) bool {
 		return ok
 	case *FieldTypeExpr:
 		_, ok := expr.(*FieldTypeExpr)
-		return ok || ExprAsExpr(base.Type, expr, seen) || ExprAsExpr(base.Tag, expr, seen)
+		return ok || AsExpr(base.Type, expr, seen) || AsExpr(base.Tag, expr, seen)
 	case *ArrayTypeExpr:
 		_, ok := expr.(*ArrayTypeExpr)
-		return ok || ExprAsExpr(base.Len, expr, seen) || ExprAsExpr(base.Elt, expr, seen)
+		return ok || AsExpr(base.Len, expr, seen) || AsExpr(base.Elt, expr, seen)
 	case *SliceTypeExpr:
 		_, ok := expr.(*SliceTypeExpr)
-		return ok || ExprAsExpr(base.Elt, expr, seen)
+		return ok || AsExpr(base.Elt, expr, seen)
 	case *InterfaceTypeExpr:
 		_, ok := expr.(*InterfaceTypeExpr)
 		return ok
 	case *ChanTypeExpr:
 		_, ok := expr.(*ChanTypeExpr)
-		return ok || ExprAsExpr(base.Value, expr, seen)
+		return ok || AsExpr(base.Value, expr, seen)
 	case *FuncTypeExpr:
 		_, ok := expr.(*FuncTypeExpr)
 		return ok
 	case *MapTypeExpr:
 		_, ok := expr.(*MapTypeExpr)
-		return ok || ExprAsExpr(base.Key, expr, seen) || ExprAsExpr(base.Value, expr, seen)
+		return ok || AsExpr(base.Key, expr, seen) || AsExpr(base.Value, expr, seen)
 	case *StructTypeExpr:
 		_, ok := expr.(*StructTypeExpr)
 		return ok
 	case *constTypeExpr:
 		_, ok := expr.(*constTypeExpr)
-		return ok || ExprAsExpr(base.Source, expr, seen)
+		return ok || AsExpr(base.Source, expr, seen)
 	case *MaybeNativeTypeExpr:
 		_, ok := expr.(*MaybeNativeTypeExpr)
-		return ok || ExprAsExpr(base.Type, expr, seen)
+		return ok || AsExpr(base.Type, expr, seen)
 	default:
 		return false
 	}
