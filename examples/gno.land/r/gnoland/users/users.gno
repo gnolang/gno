@@ -23,12 +23,12 @@ func Render(_ string) string {
 
 // NewAddReleaseExecutor allows a GovDAO proposal to add a release to the changelog
 func NewAddReleaseExecutor(newVerPkgPath, note string) dao.Executor {
-	if !strings.HasPrefix(newVerPkgPath, usersPrefix) {
-		panic("invalid version pkgpath")
+	ver := strings.TrimPrefix(newVerPkgPath, usersPrefix)
+	if ver == newVerPkgPath || strings.Contains(ver, "/") {
+		panic("r/gnoland/users: invalid version pkgpath")
 	}
 
 	cb := func() error {
-		ver := strings.TrimPrefix(newVerPkgPath, usersPrefix)
 		changelog.NewRelease(ver, strings.TrimPrefix(newVerPkgPath, "gno.land"), note)
 		return nil
 	}
