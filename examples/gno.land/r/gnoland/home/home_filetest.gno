@@ -79,7 +79,7 @@ func main() {
 //
 // ## [Hall of Fame](/r/leon/hof)
 //
-// - [gno.land/r/demo/tokenhub](/r/demo/tokenhub)
+// - [gno.land/r/matijamarjanovic/tokenhub](/r/matijamarjanovic/tokenhub)
 //
 // </div><!-- /column-->
 // </div><!-- /columns-3 -->
