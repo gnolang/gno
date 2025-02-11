@@ -154,7 +154,7 @@ func (err *cmnError) doTrace(msg string, n int) Error {
 func (err *cmnError) Format(s fmt.State, verb rune) {
 	switch {
 	case verb == 'p':
-		s.Write([]byte(fmt.Sprintf("%p", &err)))
+		fmt.Fprintf(s, "%p", &err)
 	case verb == 'v' && s.Flag('+'):
 		s.Write([]byte("--= Error =--\n"))
 		// Write data.
