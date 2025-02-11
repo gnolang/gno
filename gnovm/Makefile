@@ -125,26 +125,14 @@ _test.filetest:;
 
 ########################################
 # Code gen
-# TODO: move _dev.stringer to go:generate instructions, simplify generate
-#       to just go generate.
 .PHONY: generate
-generate: _dev.stringer _dev.generate _dev.docs fmt imports
+generate: _dev.generate _dev.docs fmt imports
 
 .PHONY: _dev.docs
 _dev.docs:
 	mkdir -p .tmp
 	(go run ./cmd/gno -h 2>&1 || true) | grep -v "exit status 1" > .tmp/gno-help.txt
 	$(rundep) github.com/campoy/embedmd -w `find . -name "*.md"`
-
-stringer_cmd=$(rundep) golang.org/x/tools/cmd/stringer
-.PHONY: _dev.stringer
-_dev.stringer:
-	$(stringer_cmd) -type=Kind       ./pkg/gnolang
-	$(stringer_cmd) -type=Op         ./pkg/gnolang
-	$(stringer_cmd) -type=TransCtrl  ./pkg/gnolang
-	$(stringer_cmd) -type=TransField ./pkg/gnolang
-	$(stringer_cmd) -type=VPType     ./pkg/gnolang
-	$(stringer_cmd) -type=Word       ./pkg/gnolang
 
 .PHONY: _dev.generate
 _dev.generate:
