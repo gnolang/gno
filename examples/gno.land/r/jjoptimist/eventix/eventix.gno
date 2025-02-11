@@ -80,6 +80,8 @@ func BuyTicket(eventId uint64) {
 
 	event.ticketsSold++
 	setEvent(eventId, event)
+	// Emit a "TicketPurchased" event with details about the purchase.
+	std.Emit("TicketPurchased", ufmt.Sprintf("Ticket %s purchased for Event %d by %s", tokenId, eventId, caller))
 }
 
 // all events and ticket info
