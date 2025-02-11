@@ -13,6 +13,15 @@ func SetSlice(fs []Fooer) {
 	}
 }
 
+var Arr [3]Fooer
+
+func SetArray(arr [3]Fooer) {
+	Arr = arr
+	for _, f := range Arr {
+		println(f)
+	}
+}
+
 // -------------------------------------
 type XYZ struct{ name string }
 
@@ -80,7 +89,7 @@ func GetSlice5() []*XYZ { // TODO, unwrap
 
 func GetSlice6(f func(s []*XYZ)) {
 	s6[1] = &XYZ{"6.1"}
-	f(s6) // not real now
+	f(s6)
 }
 
 func GetSlice7(f func(s [2]XYZ)) {

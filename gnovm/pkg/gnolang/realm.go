@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 
@@ -159,6 +160,7 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 		debug2.Println2("co.GetOriginRealm: ", co.GetOriginRealm())
 		debug2.Println2("originValue: ", co.GetOriginValue())
 		debug2.Println2("co.GetRefCount: ", co.GetRefCount())
+		debug2.Println2("co.GetIsReal: ", co.GetIsReal())
 	}
 
 	if rlm == nil {
@@ -243,10 +245,32 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, isLastRef bool) {
 			// XXX: consider pkgId here, A -> B - > A?...
 			reo := tv.GetFirstObject(store)
 			debug2.Println2("is reference to object, reo: ", reo)
-			// if base escaped, do nothing
+			debug2.Println2("is reference to object, tv2.V, type of : ", tv2.V, reflect.TypeOf(tv2.V))
+
+			// if a pointer has a base in
+			// current realm, implies the
+			// current realm is finalizing,
+			// just skip as a recursive guard.
+			if pv, ok := tv2.V.(PointerValue); ok {
+				debug2.Println2("pv: ", pv)
+				debug2.Println2("pv.TV: ", *pv.TV)
+				// check recursive
+				if b, ok := reo.(*Block); ok {
+					if slices.Contains(b.Values, *pv.TV) { // this implies *pv.TV is real
+						//if o2, ok := (*pv.TV).V.(Object); ok {
+						//	if !o2.GetIsReal() {
+						//  not return
+						//	}
+						//}
+						debug2.Println2("return on block recursive")
+						return
+					}
+				}
+			}
+
 			reo.SetOriginRealm(tv2.GetOriginPkg(store))
 			reo.SetOriginValue(rv)
-			checkCrossRealm(rlm, store, reo, isLastRef)
+			checkCrossRealm(rlm, store, reo, true)
 		}
 	}
 }
@@ -257,6 +281,7 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, isLastRef bool) {
 // NOTE, oo can be real or unreal.
 func checkCrossRealm(rlm *Realm, store Store, oo Object, isLastRef bool) {
 	debug2.Println2("checkCrossRealm, oo: ", oo, reflect.TypeOf(oo))
+	debug2.Printf2("isLastRef: %t, is current ref: %t \n", isLastRef, oo.GetOriginValue() != nil)
 	// is last not ref, current
 	// object can be reference
 	if !isLastRef && oo.GetOriginValue() != nil {
@@ -310,9 +335,7 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, isLastRef bool) {
 		// TODO:, also check captures?
 		for i, tv := range v.Values {
 			debug2.Printf2("tv[%d] is tv: %v \n", i, tv)
-			if tv.GetFirstObject(store) != v { // recursive guard
-				checkCrossRealm2(rlm, store, &tv, isLastRef)
-			}
+			checkCrossRealm2(rlm, store, &tv, isLastRef)
 		}
 	case *HeapItemValue:
 		if oo.GetRefCount() > 1 {
