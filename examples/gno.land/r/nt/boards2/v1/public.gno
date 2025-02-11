@@ -56,6 +56,26 @@ func RenameBoard(name, newName string) {
 	})
 }
 
+func SetFlaggingThreshold(bid BoardID, threshold int) {
+	if threshold < 1 {
+		panic("invalid flagging threshold")
+	}
+
+	board := mustGetBoard(bid)
+	caller := std.GetOrigCaller()
+	args := Args{bid, threshold}
+	board.perms.WithPermission(caller, PermissionBoardFlaggingUpdate, args, func(Args) {
+		assertBoardExists(bid)
+
+		gFlaggingThresholds.Set(bid.String(), threshold)
+	})
+}
+
+func GetFlaggingThreshold(bid BoardID) int {
+	assertBoardExists(bid)
+	return getFlaggingThreshold(bid)
+}
+
 func FlagThread(bid BoardID, postID PostID, reason string) {
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
@@ -66,7 +86,7 @@ func FlagThread(bid BoardID, postID PostID, reason string) {
 		panic("post doesn't exist")
 	}
 
-	hide := flagItem(t, NewFlag(caller, reason))
+	hide := flagItem(board.id, t, NewFlag(caller, reason))
 	if hide {
 		t.SetVisible(false)
 	}
@@ -124,7 +144,7 @@ func FlagReply(bid BoardID, threadID, replyID PostID, reason string) {
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
 
-	hide := flagItem(reply, NewFlag(caller, reason))
+	hide := flagItem(board.id, reply, NewFlag(caller, reason))
 	if hide {
 		reply.SetVisible(false)
 	}
