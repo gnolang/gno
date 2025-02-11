@@ -156,10 +156,10 @@ func getTokenBalances(input string, nonZero bool) string {
 	grc20reg.GetRegistry().Iterate("", "", func(key string, value interface{}) bool {
 		tokenGetter := value.(grc20.TokenGetter)
 		token := tokenGetter()
-		balance := token.BalanceOf(addr)  
-		if !nonZero || balance > 0 {  
-			out += ufmt.Sprintf("Token:%s:%d,", key, balance)  
-		}  
+		balance := token.BalanceOf(addr)
+		if !nonZero || balance > 0 {
+			out += ufmt.Sprintf("Token:%s:%d,", key, balance)
+		}
 		return false
 	})
 
