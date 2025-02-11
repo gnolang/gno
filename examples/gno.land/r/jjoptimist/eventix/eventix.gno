@@ -15,7 +15,8 @@ type Event struct {
 	description string
 	date        time.Time
 	maxTickets  int
-	price       uint64 // in gnot
+	price       uint64 // price per ticket (in tokens)
+	paymentToken string  // payment token symbol (e.g., ugnot or any GRC20 token)
 	ticketsSold int
 }
 
@@ -25,7 +26,7 @@ var (
 	tickets      = grc721.NewBasicNFT("Event Ticket", "EVTIX")
 )
 
-func CreateEvent(name, description string, dateStr string, maxTickets int, price uint64) uint64 {
+func CreateEvent(name, description string, dateStr string, paymentToken string, maxTickets int, price uint64) uint64 {
 
 	date, err := time.Parse("2006-01-02T15:04:05Z", dateStr)
 	if err != nil {
@@ -34,12 +35,13 @@ func CreateEvent(name, description string, dateStr string, maxTickets int, price
 
 	newID := eventCounter + 1
 	event := Event{
-		name:        name,
-		description: description,
-		date:        date,
-		maxTickets:  maxTickets,
-		price:       price,
-		ticketsSold: 0,
+		name:         name,
+		description:  description,
+		date:         date,
+		maxTickets:   maxTickets,
+		price:        price,
+		ticketsSold:  0,
+		paymentToken: paymentToken,
 	}
 	events.Set(strconv.Itoa(int(newID)), event)
 	eventCounter = newID
@@ -65,9 +67,9 @@ func BuyTicket(eventId uint64) {
 	}
 
 	sent := std.GetOrigSend()
-	amount := sent.AmountOf("ugnot")
+	amount := sent.AmountOf(event.paymentToken)
 	if amount != int64(event.price) {
-		panic(ufmt.Sprintf("Please send exactly %d ugnot", event.price))
+		panic(ufmt.Sprintf("Please send exactly %d %s", event.price, event.paymentToken))
 	}
 
 	caller := std.PrevRealm().Addr()
@@ -91,7 +93,7 @@ func Render(path string) string {
 		output += ufmt.Sprintf("Description: %s\n", event.description)
 		output += ufmt.Sprintf("Date: %s\n", event.date.Format(time.RFC3339))
 		output += ufmt.Sprintf("Tickets: %d/%d\n", event.ticketsSold, event.maxTickets)
-		output += ufmt.Sprintf("Price: %d ugnot\n\n", event.price)
+		output += ufmt.Sprintf("Price: %d %s\n\n", event.price, event.paymentToken)
 
 		if event.ticketsSold < event.maxTickets {
 			output += ufmt.Sprintf("[Buy Ticket](/r/jjoptimist/eventix/BuyTicket?eventId=%d)\n", id)
