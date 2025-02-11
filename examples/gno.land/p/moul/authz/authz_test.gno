@@ -46,7 +46,7 @@ func TestAuthorizerAuthorize(t *testing.T) {
 
 	// Test successful action
 	executed := false
-	err := auth.Authorize("test_action", func() error {
+	err := auth.Do("test_action", func() error {
 		executed = true
 		return nil
 	})
@@ -58,7 +58,7 @@ func TestAuthorizerAuthorize(t *testing.T) {
 	std.TestSetOrigCaller(testutils.TestAddress("bob"))
 
 	executed = false
-	err = auth.Authorize("test_action", func() error {
+	err = auth.Do("test_action", func() error {
 		executed = true
 		return nil
 	})
@@ -70,7 +70,7 @@ func TestAuthorizerAuthorize(t *testing.T) {
 	std.TestSetOrigCaller(testAddr)
 	expectedErr := errors.New("test error")
 
-	err = auth.Authorize("test_action", func() error {
+	err = auth.Do("test_action", func() error {
 		return expectedErr
 	})
 
@@ -152,7 +152,7 @@ func TestAuthorizerWithDroppedAuthority(t *testing.T) {
 	uassert.True(t, err == nil, "expected no error")
 
 	// Try to execute action
-	err = auth.Authorize("test_action", func() error {
+	err = auth.Do("test_action", func() error {
 		return nil
 	})
 	uassert.True(t, err != nil, "expected error from dropped authority")
@@ -269,4 +269,33 @@ func TestAuthorizerString(t *testing.T) {
 	newStr := auth.String()
 	uassert.True(t, newStr != "", "string representation should not be empty")
 	uassert.True(t, newStr != str, "string should change after transfer")
+}
+
+func TestContractAuthorityValidation(t *testing.T) {
+	// Test empty path
+	auth := NewContractAuthority("", nil)
+	std.TestSetOrigCaller(std.DerivePkgAddr(""))
+	err := auth.Authorize("test", func() error {
+		return nil
+	})
+	uassert.True(t, err != nil, "empty path authority should fail to authorize")
+
+	// Test nil handler
+	auth = NewContractAuthority("gno.land/r/test", nil)
+	std.TestSetOrigCaller(std.DerivePkgAddr("gno.land/r/test"))
+	err = auth.Authorize("test", func() error {
+		return nil
+	})
+	uassert.True(t, err != nil, "nil handler authority should fail to authorize")
+
+	// Test valid configuration
+	handler := func(title string, action PrivilegedAction) error {
+		return nil
+	}
+	contractAuth := NewContractAuthority("gno.land/r/test", handler)
+	std.TestSetOrigCaller(std.DerivePkgAddr("gno.land/r/test"))
+	err = contractAuth.Authorize("test", func() error {
+		return nil
+	})
+	uassert.True(t, err == nil, "valid contract authority should authorize successfully")
 }

@@ -139,8 +139,8 @@ func (a *Authorizer) Transfer(newAuthority Authority) error {
 	})
 }
 
-// Authorize executes a privileged action through the current authority
-func (a *Authorizer) Authorize(title string, action PrivilegedAction) error {
+// Do executes a privileged action through the current authority
+func (a *Authorizer) Do(title string, action PrivilegedAction) error {
 	return a.current.Authorize(title, action)
 }
 
@@ -239,6 +239,10 @@ func NewRestrictedContractAuthority(path string, handler PrivilegedActionHandler
 }
 
 func (a *ContractAuthority) Authorize(title string, action PrivilegedAction) error {
+	if a.contractHandler == nil {
+		return errors.New("contract handler is not set")
+	}
+
 	// Wrap the action to ensure it can only be executed by the contract
 	wrappedAction := func() error {
 		caller := std.PrevRealm().Addr()
