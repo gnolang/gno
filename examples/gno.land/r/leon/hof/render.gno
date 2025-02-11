@@ -16,6 +16,8 @@ const (
 
 func Render(path string) string {
 	out := md.H1("Hall of Fame\n\n")
+	out += md.Link("Reset Sort", "?") + " | "
+	out += md.Link("Sort by Upvotes", "?sort=upvotes") + "\n\n"
 
 	dashboardEnabled := path == "dashboard"
 
