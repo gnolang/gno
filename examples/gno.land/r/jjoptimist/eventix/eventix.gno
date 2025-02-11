@@ -32,7 +32,7 @@ func CreateEvent(name, description string, dateStr string, maxTickets int, price
 		panic("Invalid date format. Use: YYYY-MM-DDThh:mm:ssZ")
 	}
 
-	eventCounter++
+	newID := eventCounter + 1
 	event := Event{
 		name:        name,
 		description: description,
@@ -41,8 +41,9 @@ func CreateEvent(name, description string, dateStr string, maxTickets int, price
 		price:       price,
 		ticketsSold: 0,
 	}
-	events.Set(strconv.FormatUint(eventCounter, 10), event)
-	return eventCounter
+	events.Set(strconv.FormatUint(newID, 10), event)
+	eventCounter = newID
+	return newID
 }
 
 func getEvent(eventId uint64) (Event, bool) {
