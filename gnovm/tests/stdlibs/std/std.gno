@@ -3,7 +3,7 @@ package std
 func AssertOriginCall()           // injected
 func TestSkipHeights(count int64) // injected
 
-func TestSetOriginCaller(addr Address)  { testSetOriginCaller(string(addr)) }
+func TestSetOriginCaller(addr Address)     { testSetOriginCaller(string(addr)) }
 func TestSetOriginPkgAddress(addr Address) { testSetOriginPkgAddr(string(addr)) }
 
 // TestSetRealm sets the realm for the current frame.
