@@ -41,7 +41,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "ba465d7c93b78df4ef63299b2d8f09c9b30fecf4",
+//                     "Escaped": true,
 //                     "ObjectID": "f643af0964f4fc0bfa4d9d204506cc75a00fac2d:3"
 //                 },
 //                 "Index": "0",
@@ -60,7 +60,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "729e21266d34f42f83a286f76a8b5bc45f59290f",
+//                     "Escaped": true,
 //                     "ObjectID": "f643af0964f4fc0bfa4d9d204506cc75a00fac2d:5"
 //                 },
 //                 "Index": "0",
@@ -168,7 +168,7 @@ func main() {
 //                 "@type": "/gno.SliceValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "b05c9b53cf7a8585ea042470c2df36df476ddc75",
+//                     "Hash": "68be9ee1ced18f6b04bfcac812afe3f5cd7835d8",
 //                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:13"
 //                 },
 //                 "Length": "3",

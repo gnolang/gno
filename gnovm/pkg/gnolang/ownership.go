@@ -115,8 +115,8 @@ type Object interface {
 	SetIsNewReal(bool)
 	GetOriginRealm() PkgID
 	SetOriginRealm(pkgID PkgID)
-	GetOriginValue() Value
-	SetOriginValue(v Value)
+	GetIsRef() bool
+	SetIsRef(bool)
 	GetIsNewEscaped() bool
 	SetIsNewEscaped(bool)
 	GetIsNewDeleted() bool
@@ -151,7 +151,7 @@ type ObjectInfo struct {
 	isNewEscaped bool
 	isNewDeleted bool
 	originRealm  PkgID // realm where object is from
-	originValue  Value // pointerValue, sliceValue, funcValue
+	isRefValue   bool
 
 	// XXX huh?
 	owner Object // mem reference to owner.
@@ -324,12 +324,12 @@ func (oi *ObjectInfo) SetOriginRealm(pkgId PkgID) {
 	oi.originRealm = pkgId
 }
 
-func (oi *ObjectInfo) GetOriginValue() Value {
-	return oi.originValue
+func (oi *ObjectInfo) GetIsRef() bool {
+	return oi.isRefValue
 }
 
-func (oi *ObjectInfo) SetOriginValue(v Value) {
-	oi.originValue = v
+func (oi *ObjectInfo) SetIsRef(ref bool) {
+	oi.isRefValue = ref
 }
 
 func (oi *ObjectInfo) GetIsNewEscaped() bool {
