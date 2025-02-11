@@ -151,16 +151,25 @@ func (rlm *Realm) String() string {
 
 // ref value is the derived value from co, like a slice.
 func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
-	debug2.Printf2("DidUpdate, po: %v, type of po: %v\n", po, reflect.TypeOf(po))
-	debug2.Println2("po.GetIsReal: ", po.GetIsReal())
-	debug2.Printf2("xo: %v, type of xo: %v\n", xo, reflect.TypeOf(xo))
-	debug2.Printf2("co: %v, type of co: %v\n", co, reflect.TypeOf(co))
-	//debug2.Println2("rlm.ID: ", rlm.ID)
+	debug2.Printf2(
+		"DidUpdate - po: %v (type: %v) | xo: %v (type: %v)\n",
+		po, reflect.TypeOf(po), xo, reflect.TypeOf(xo),
+	)
+
+	if rlm != nil {
+		debug2.Println2("rlm.ID: %s \n", rlm.ID)
+	}
+
+	if po != nil {
+		debug2.Println2("po.GetIsReal: %t \n", po.GetIsReal())
+	}
+
+	// Combine debug logs for co (if not nil)
 	if co != nil {
-		debug2.Println2("co.GetOriginRealm: ", co.GetOriginRealm())
-		debug2.Println2("co.GetIsRef: ", co.GetIsRef())
-		debug2.Println2("co.GetRefCount: ", co.GetRefCount())
-		debug2.Println2("co.GetIsReal: ", co.GetIsReal())
+		debug2.Printf2(
+			"co: %v (type: %v) | GetOriginRealm: %v | GetIsRef: %v | GetRefCount: %v | GetIsReal: %v\n",
+			co, reflect.TypeOf(co), co.GetOriginRealm(), co.GetIsRef(), co.GetRefCount(), co.GetIsReal(),
+		)
 	}
 
 	if rlm == nil {
@@ -210,12 +219,11 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 			if co.GetIsReal() { // TODO: how this happen?
 				rlm.MarkDirty(co)
 			} else {
-				debug2.Println2("set owner of co: ", co)
 				co.SetOwner(po)
 				rlm.MarkNewReal(co)
 			}
 			// check cross realm for non escaped objects
-			debug2.Println2("=========po is real, check cross realm for non escaped objects========")
+			debug2.Println2("=========po is real, check cross realm========")
 			checkCrossRealm(rlm, store, co, false)
 		}
 	}
@@ -319,7 +327,6 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, isLastRef bool) {
 			checkCrossRealm2(rlm, store, &fv, isLastRef) // ref to struct is heapItemValue or block
 		}
 	case *MapValue:
-		debug2.Println2("MapValue, v: ", v)
 		for cur := v.List.Head; cur != nil; cur = cur.Next {
 			checkCrossRealm2(rlm, store, &cur.Key, isLastRef)
 			checkCrossRealm2(rlm, store, &cur.Value, isLastRef)
@@ -327,11 +334,8 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, isLastRef bool) {
 	case *BoundMethodValue:
 	// TODO: complete this
 	case *Block:
-		debug2.Println2("BlockValue, v: ", v)
-		debug2.Printf2("oo: %v, \n oo.GetRefCount: %v \n", oo, oo.GetRefCount())
 		// NOTE, it's not escaped until now,
 		// will set after check
-		debug2.Println2("block is NOT real, v...PkgID: ", v.GetObjectID().PkgID)
 		// TODO:, also check captures?
 		for i, tv := range v.Values {
 			debug2.Printf2("tv[%d] is tv: %v \n", i, tv)
@@ -345,20 +349,6 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, isLastRef bool) {
 		}
 	case *ArrayValue:
 		debug2.Println2("ArrayValue, v: ", v)
-		for i, e := range v.List {
-			debug2.Printf2("List, ArrayValue[%d] is %v: \n", i, e)
-		}
-		for i, e := range v.Data {
-			debug2.Printf2("Data, ArrayValue[%d] is %v: \n", i, e)
-		}
-		//// TODO: return if it's real?
-		//if oo.GetIsReal() {
-		//	debug2.Println2("array IsReal, do nothing")
-		//	return
-		//} else {
-		//	debug2.Println2("array is unreal")
-		//}
-
 		// if the array value is unreal,
 		// it's going to be attached with
 		// all the elems, so it's attaching
@@ -366,7 +356,7 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, isLastRef bool) {
 		if !oo.GetIsReal() {
 			isLastRef = false
 		}
-		debug2.Println2("2, check elems of ArrayValue, v: ", v)
+		debug2.Println2("check elems of ArrayValue, v: ", v)
 		if v.Data == nil {
 			for _, e := range v.List {
 				checkCrossRealm2(rlm, store, &e, isLastRef)
@@ -383,16 +373,17 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, isLastRef bool) {
 // MarkNewEscapedCheckCrossRealm mark new escaped object
 // and check cross realm
 func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object) {
-	debug2.Println2("MarkNewEscapedCheckCrossRealm, oo: ", oo)
-	debug2.Println2("oo.GetOriginRealm(): ", oo.GetOriginRealm())
-	debug2.Println2("isRef: ", oo.GetIsRef())
-	debug2.Println2("rlm.ID: ", rlm.ID)
+	debug2.Printf2(
+		"MarkNewEscapedCheckCrossRealm - oo: %v | oo.GetOriginRealm(): %v | isRef: %v | rlm.ID: %v\n",
+		oo, oo.GetOriginRealm(), oo.GetIsRef(), rlm.ID,
+	)
 
 	if oo.GetOriginRealm() == rlm.ID {
 		// do nothing
 		return
 	}
 
+	// origin realm should not be zero for escaped object
 	if !oo.GetOriginRealm().IsZero() && oo.GetOriginRealm() != rlm.ID { // crossing realm
 		if oo.GetIsRef() {
 			checkCrossRealm(rlm, store, oo, oo.GetIsRef())
@@ -407,7 +398,6 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object) {
 }
 
 func (rlm *Realm) MarkNewReal(oo Object) {
-	debug2.Println2("MarkNewReal, oo:", oo)
 	if debug {
 		if pv, ok := oo.(*PackageValue); ok {
 			// packages should have no owner.
@@ -440,7 +430,6 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 
 // mark dirty == updated
 func (rlm *Realm) MarkDirty(oo Object) {
-	debug2.Println2("MarkDirty, oo: ", oo)
 	if debug {
 		if !oo.GetIsReal() && !oo.GetIsNewReal() {
 			panic("cannot mark unreal object as dirty")
@@ -520,13 +509,13 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 	}
 	if readonly {
 		if true ||
-			len(rlm.newCreated) > 0 ||
-			len(rlm.newEscaped) > 0 ||
-			len(rlm.newDeleted) > 0 ||
-			len(rlm.created) > 0 ||
-			len(rlm.updated) > 0 ||
-			len(rlm.deleted) > 0 ||
-			len(rlm.escaped) > 0 {
+				len(rlm.newCreated) > 0 ||
+				len(rlm.newEscaped) > 0 ||
+				len(rlm.newDeleted) > 0 ||
+				len(rlm.created) > 0 ||
+				len(rlm.updated) > 0 ||
+				len(rlm.deleted) > 0 ||
+				len(rlm.escaped) > 0 {
 			panic("realm updates in readonly transaction")
 		}
 		return
@@ -541,9 +530,9 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 		ensureUniq(rlm.newDeleted)
 		ensureUniq(rlm.updated)
 		if false ||
-			rlm.created != nil ||
-			rlm.deleted != nil ||
-			rlm.escaped != nil {
+				rlm.created != nil ||
+				rlm.deleted != nil ||
+				rlm.escaped != nil {
 			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
@@ -609,7 +598,7 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 			// skip if became deleted.
 			continue
 		} else {
-			// check cross realm while attaching
+			// check cross realm before attaching
 			if pv, ok := oo.(*PackageValue); ok {
 				checkCrossRealm(rlm, store, pv.Block.(Object), false)
 			}
@@ -622,15 +611,8 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 	}
 }
 
-// XXX, unreal oo check happens in here
 // oo must be marked new-real, and ref-count already incremented.
 func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
-	//debug2.Println2("---incRefCreatedDescendants from oo: ", oo, reflect.TypeOf(oo))
-	//debug2.Println2("---oo.GetOriginRealm: ", oo.GetOriginRealm())
-	//debug2.Println2("---oo.GetRefCount: ", oo.GetRefCount())
-	//debug2.Println2("---rlm.ID: ", rlm.ID)
-	//debug2.Println2("oo.GetOriginValue: ", oo.GetOriginValue())
-
 	if debug {
 		if oo.GetIsDirty() {
 			panic("cannot increase reference of descendants of dirty objects")
@@ -667,7 +649,6 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 		}
 		child.IncRefCount()
 		rc := child.GetRefCount()
-		debug2.Println2("rc after inc: ", rc)
 		if rc == 1 {
 			if child.GetIsReal() {
 				// a deleted real became undeleted.
@@ -938,9 +919,9 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		}
 		// deleted objects should not have gotten here.
 		if false ||
-			oo.GetRefCount() <= 0 ||
-			oo.GetIsNewDeleted() ||
-			oo.GetIsDeleted() {
+				oo.GetRefCount() <= 0 ||
+				oo.GetIsNewDeleted() ||
+				oo.GetIsDeleted() {
 			panic("cannot save deleted objects")
 		}
 	}
