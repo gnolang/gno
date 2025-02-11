@@ -156,12 +156,10 @@ func getTokenBalances(input string, nonZero bool) string {
 	grc20reg.GetRegistry().Iterate("", "", func(key string, value interface{}) bool {
 		tokenGetter := value.(grc20.TokenGetter)
 		token := tokenGetter()
-		balance := token.BalanceOf(addr)
-		if nonZero && balance > 0 {
-			out += ufmt.Sprintf("Token:%s:%d,", key, balance)
-		} else if !nonZero {
-			out += ufmt.Sprintf("Token:%s:%d,", key, balance)
-		}
+		balance := token.BalanceOf(addr)  
+		if !nonZero || balance > 0 {  
+			out += ufmt.Sprintf("Token:%s:%d,", key, balance)  
+		}  
 		return false
 	})
 
@@ -181,9 +179,7 @@ func getMultiTokenBalances(input string, nonZero bool) string {
 		mt := info.Collection()
 		balance, err := mt.BalanceOf(addr, grc1155.TokenID(info.TokenID))
 		if err == nil {
-			if nonZero && balance > 0 {
-				out += ufmt.Sprintf("MultiToken:%s:%d,", key, balance)
-			} else if !nonZero {
+			if !nonZero || balance > 0 {
 				out += ufmt.Sprintf("MultiToken:%s:%d,", key, balance)
 			}
 		}
