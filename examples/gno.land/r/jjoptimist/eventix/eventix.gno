@@ -41,13 +41,13 @@ func CreateEvent(name, description string, dateStr string, maxTickets int, price
 		price:       price,
 		ticketsSold: 0,
 	}
-	events.Set(strconv.FormatUint(newID, 10), event)
+	events.Set(strconv.Itoa(int(newID)), event)
 	eventCounter = newID
 	return newID
 }
 
 func getEvent(eventId uint64) (Event, bool) {
-	value, exists := events.Get(strconv.FormatUint(eventId, 10))
+	value, exists := events.Get(strconv.Itoa(int(eventId)))
 	if !exists {
 		return Event{}, false
 	}
@@ -55,7 +55,7 @@ func getEvent(eventId uint64) (Event, bool) {
 }
 
 func setEvent(eventId uint64, event Event) {
-	events.Set(strconv.FormatUint(eventId, 10), event)
+	events.Set(strconv.Itoa(int(eventId)), event)
 }
 
 func BuyTicket(eventId uint64) {
