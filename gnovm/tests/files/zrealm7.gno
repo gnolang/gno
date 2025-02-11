@@ -20,5 +20,5 @@ func main() {
 	println(updated, tree.Size())
 }
 
-// Error:
-// cannot attach a reference to dirty object from an external realm
+// Output:
+// false 4

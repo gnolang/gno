@@ -12,9 +12,14 @@ var f = func(s []crossrealm.XYZ) {
 }
 
 func main() {
+	// XXX, even elem of the array is not real,
+	// but the array is already attached to
+	// external realm, so the elem has no
+	// chance to attach to this realm.
+	// so it isd valid.
 	crossrealm.GetSlice4(f)
 	println(".")
 }
 
-// Error:
-// cannot attach a reference to an unreal object from an external realm: struct{("0" string)}
+// Output:
+// .

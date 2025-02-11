@@ -16,5 +16,5 @@ func main() {
 	println(".")
 }
 
-// Error:
-// cannot attach a reference to an unreal object from an external realm: heapitem((struct{("6.1" string)} gno.land/r/demo/tests/crossrealm/slice.XYZ))
+// Output:
+// .

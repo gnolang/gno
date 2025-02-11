@@ -17,11 +17,12 @@ var f = fooer{name: "local_fooer"}
 var b = bar{name: "local_bar"}
 
 func main() {
-	f.bar = b // this makes f dirty, no attached after updated, panic
+	f.bar = b // this makes f dirty
 	crossrealm.SetContainer2(&f)
 	crossrealm.RunF()
 	print(".")
 }
 
-// Error:
-// cannot attach a reference to dirty object from an external realm
+// Output:
+// hello
+// .

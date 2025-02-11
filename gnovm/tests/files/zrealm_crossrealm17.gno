@@ -25,5 +25,6 @@ func main() {
 	print(".")
 }
 
-// Error:
-// cannot attach a reference to dirty object from an external realm
+// Output:
+// hello
+// .

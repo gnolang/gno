@@ -10,8 +10,8 @@ func cb(c *crossrealm.C) {
 }
 func main() {
 	crossrealm.GetStruct(cb)
-	println(s)
+	println("ok")
 }
 
-// Error:
-// cannot attach a reference to dirty object from an external realm
+// Output:
+// ok
