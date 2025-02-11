@@ -445,6 +445,23 @@ func TestAsExpr(t *testing.T) {
 			as:   &BinaryExpr{},
 			want: false,
 		},
+		{
+			name: "func lit expression search true",
+			baseExpr: &FuncLitExpr{
+				Type:         FuncTypeExpr{},
+				HeapCaptures: NameExprs{{Name: "test"}},
+			},
+			as:   &FuncLitExpr{},
+			want: true,
+		},
+		{
+			name: "func lit expression search false",
+			baseExpr: &FuncLitExpr{
+				Type: FuncTypeExpr{},
+			},
+			as:   &BinaryExpr{},
+			want: false,
+		},
 	}
 
 	for _, tt := range tests {
