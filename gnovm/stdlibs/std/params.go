@@ -6,6 +6,7 @@ import (
 	"unicode"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 )
 
 // ParamsInterface is the interface through which Gno is capable of accessing
@@ -14,36 +15,46 @@ import (
 // The name is what it is to avoid a collision with Gno's Params, when
 // transpiling.
 type ParamsInterface interface {
-	SetString(key, val string)
-	SetBool(key string, val bool)
-	SetInt64(key string, val int64)
-	SetUint64(key string, val uint64)
-	SetBytes(key string, val []byte)
+	SetString(ctx sdk.Context, key, val string)
+	SetBool(ctx sdk.Context, key string, val bool)
+	SetInt64(ctx sdk.Context, key string, val int64)
+	SetUint64(ctx sdk.Context, key string, val uint64)
+	SetBytes(ctx sdk.Context, key string, val []byte)
 }
 
 func X_setParamString(m *gno.Machine, key, val string) {
 	pk := pkey(m, key, "string")
-	GetContext(m).Params.SetString(pk, val)
+	msgCtx := GetContext(m)
+	sdkCtx := msgCtx.SDKContext
+	msgCtx.Params.SetString(sdkCtx, pk, val)
 }
 
 func X_setParamBool(m *gno.Machine, key string, val bool) {
 	pk := pkey(m, key, "bool")
-	GetContext(m).Params.SetBool(pk, val)
+	msgCtx := GetContext(m)
+	sdkCtx := msgCtx.SDKContext
+	msgCtx.Params.SetBool(sdkCtx, pk, val)
 }
 
 func X_setParamInt64(m *gno.Machine, key string, val int64) {
 	pk := pkey(m, key, "int64")
-	GetContext(m).Params.SetInt64(pk, val)
+	msgCtx := GetContext(m)
+	sdkCtx := msgCtx.SDKContext
+	msgCtx.Params.SetInt64(sdkCtx, pk, val)
 }
 
 func X_setParamUint64(m *gno.Machine, key string, val uint64) {
 	pk := pkey(m, key, "uint64")
-	GetContext(m).Params.SetUint64(pk, val)
+	msgCtx := GetContext(m)
+	sdkCtx := msgCtx.SDKContext
+	msgCtx.Params.SetUint64(sdkCtx, pk, val)
 }
 
 func X_setParamBytes(m *gno.Machine, key string, val []byte) {
 	pk := pkey(m, key, "bytes")
-	GetContext(m).Params.SetBytes(pk, val)
+	msgCtx := GetContext(m)
+	sdkCtx := msgCtx.SDKContext
+	msgCtx.Params.SetBytes(sdkCtx, pk, val)
 }
 
 func pkey(m *gno.Machine, key string, kind string) string {

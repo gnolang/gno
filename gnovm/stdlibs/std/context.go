@@ -19,6 +19,7 @@ type ExecContext struct {
 	OrigSendSpent *std.Coins // mutable
 	Banker        BankerInterface
 	Params        ParamsInterface
+	SDKContext    sdk.Context
 	EventLogger   *sdk.EventLogger
 }
 

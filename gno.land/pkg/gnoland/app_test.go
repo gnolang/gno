@@ -826,7 +826,9 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	acctKpr := auth.NewAccountKeeper(mainKey, paramsKpr, ProtoGnoAccount)
 	gpKpr := auth.NewGasPriceKeeper(mainKey)
 	bankKpr := bank.NewBankKeeper(acctKpr)
-	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, paramsKpr)
+
+	sdkPrms := vm.NewSDKParams(paramsKpr)
+	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, sdkPrms)
 
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
