@@ -133,8 +133,6 @@ func validateRecipe(name, ingredients, instructions string) error {
 
 // Follow allows a users to follow my home page.
 // If the caller is admin it returns error.
-// Add(caller) returns true, the caller is not in the list of followers and it adds the caller to the list of followers.
-// If the caller is already in the list of followers it returns error.
 func Follow() error {
 	caller := std.PrevRealm().Addr()
 
