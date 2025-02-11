@@ -18,7 +18,7 @@ func TestFunc(t *testing.T) {
 		{"Realm Example", "foo", []string{"bar", "1", "baz", "2"}, "[Realm Example](/r/lorem/ipsum$help&func=foo&bar=1&baz=2)", "gno.land/r/lorem/ipsum"},
 		{"Single Arg", "testFunc", []string{"key", "value"}, "[Single Arg]($help&func=testFunc&key=value)", ""},
 		{"No Args", "noArgsFunc", []string{}, "[No Args]($help&func=noArgsFunc)", ""},
-		{"Odd Args", "oddArgsFunc", []string{"key"}, "[Odd Args]($help&func=oddArgsFunc)", ""},
+		{"Odd Args", "oddArgsFunc", []string{"key"}, "[Odd Args]($help&func=oddArgsFunc&error=odd+number+of+arguments)", ""},
 	}
 
 	for _, tt := range tests {
@@ -39,15 +39,15 @@ func TestFuncURL(t *testing.T) {
 		{"foo", []string{"bar", "1", "baz", "2"}, "$help&func=foo&bar=1&baz=2", ""},
 		{"testFunc", []string{"key", "value"}, "$help&func=testFunc&key=value", ""},
 		{"noArgsFunc", []string{}, "$help&func=noArgsFunc", ""},
-		{"oddArgsFunc", []string{"key"}, "$help&func=oddArgsFunc", ""},
+		{"oddArgsFunc", []string{"key"}, "$help&func=oddArgsFunc&error=odd+number+of+arguments", ""},
 		{"foo", []string{"bar", "1", "baz", "2"}, "/r/lorem/ipsum$help&func=foo&bar=1&baz=2", "gno.land/r/lorem/ipsum"},
 		{"testFunc", []string{"key", "value"}, "/r/lorem/ipsum$help&func=testFunc&key=value", "gno.land/r/lorem/ipsum"},
 		{"noArgsFunc", []string{}, "/r/lorem/ipsum$help&func=noArgsFunc", "gno.land/r/lorem/ipsum"},
-		{"oddArgsFunc", []string{"key"}, "/r/lorem/ipsum$help&func=oddArgsFunc", "gno.land/r/lorem/ipsum"},
+		{"oddArgsFunc", []string{"key"}, "/r/lorem/ipsum$help&func=oddArgsFunc&error=odd+number+of+arguments", "gno.land/r/lorem/ipsum"},
 		{"foo", []string{"bar", "1", "baz", "2"}, "https://gno.world/r/lorem/ipsum$help&func=foo&bar=1&baz=2", "gno.world/r/lorem/ipsum"},
 		{"testFunc", []string{"key", "value"}, "https://gno.world/r/lorem/ipsum$help&func=testFunc&key=value", "gno.world/r/lorem/ipsum"},
 		{"noArgsFunc", []string{}, "https://gno.world/r/lorem/ipsum$help&func=noArgsFunc", "gno.world/r/lorem/ipsum"},
-		{"oddArgsFunc", []string{"key"}, "https://gno.world/r/lorem/ipsum$help&func=oddArgsFunc", "gno.world/r/lorem/ipsum"},
+		{"oddArgsFunc", []string{"key"}, "https://gno.world/r/lorem/ipsum$help&func=oddArgsFunc&error=odd+number+of+arguments", "gno.world/r/lorem/ipsum"},
 	}
 
 	for _, tt := range tests {
