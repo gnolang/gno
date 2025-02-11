@@ -36,7 +36,7 @@ type Recipe struct {
 
 const (
 	realmURL = "/r/mouss/home"
-	Rec      = realmURL + ":recipe/"
+	rec      = realmURL + ":recipe/"
 	gnoArt   = `
         -==++.                                                                  
 	     *@@@@=                                     @-                          -@
@@ -166,13 +166,13 @@ func renderRecipes(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Link to margarita pizza recipe
 	out += "### Available Recipes:\n\n"
-	out += "* " + md.Link(margheritaPizza.Name, Rec+"margheritaPizza") + "By : " + string(margheritaPizza.Author) + "\n"
+	out += "* " + md.Link(margheritaPizza.Name, rec+"margheritaPizza") + "By : " + string(margheritaPizza.Author) + "\n"
 
 	// The list of all other recipes with clickable links
 	if recipes.Size() > 0 {
 		recipes.Iterate("", "", func(key string, value interface{}) bool {
 			recipe := value.(*Recipe)
-			out += "* " + md.Link(recipe.Name, Rec+recipe.Name) + " By : " + recipe.Author.String() + "\n"
+			out += "* " + md.Link(recipe.Name, rec+recipe.Name) + " By : " + recipe.Author.String() + "\n"
 			return false // continue iterating
 		})
 		out += "\n------\n\n"
@@ -242,7 +242,7 @@ func (p Profile) Render() string {
 func Header(out *string) {
 	navItems := []string{
 		md.Link("Home", realmURL),
-		md.Link("World Kitchen", Rec),
+		md.Link("World Kitchen", rec),
 		md.Link("Hackerspace", "https://github.com/gnolang/hackerspace/issues/86#issuecomment-2535795751"),
 	}
 	*out += strings.Join(navItems, " | ") + "\n\n" + md.HorizontalRule() + "\n\n"
