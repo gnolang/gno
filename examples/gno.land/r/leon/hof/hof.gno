@@ -120,6 +120,7 @@ func Upvote(pkgpath string) {
 		panic(ErrDoubleUpvote)
 	}
 
+	exhibition.itemsSortedByUpvotes.Remove(generateUpvoteSortKey(item))
 	item.upvote.Set(caller, struct{}{})
 	exhibition.itemsSortedByUpvotes.Set(generateUpvoteSortKey(item), item)
 }

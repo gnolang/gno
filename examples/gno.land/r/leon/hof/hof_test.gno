@@ -12,7 +12,12 @@ import (
 
 const (
 	rlmPath            = "gno.land/r/gnoland/home"
-	rlmPath2           = "gno.land/r/gnoland/test"
+	rlmPath2           = "gno.land/r/gnoland/test2"
+
+	rlmPath3           = "gno.land/r/gnoland/test3"
+	rlmPath4           = "gno.land/r/gnoland/test4"
+	rlmPath5           = "gno.land/r/gnoland/test5"
+
 	validTitle         = "valid title"
 	invalidTitle       = "This title is very very very long, longer than 30 characters"
 	validDesc          = "valid description"
