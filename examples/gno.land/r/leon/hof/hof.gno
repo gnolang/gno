@@ -33,7 +33,8 @@ type (
 		itemCounter            seqid.ID
 		description            string
 		items                  *avl.Tree // pkgPath > &Item
-		itemsSorted            *avl.Tree // same data but sorted, storing pointers
+		itemsSorted            *avl.Tree // unneeded, will be removed
+		itemsSortedByCreation  *avl.Tree // same data but sorted by creation time
 		itemsSortedByUpvotes   *avl.Tree // same data but sorted by upvotes
 		itemsSortedByDownvotes *avl.Tree // same data but sorted by downvotes
 	}
@@ -53,6 +54,7 @@ func init() {
 	exhibition = &Exhibition{
 		items:                  avl.NewTree(),
 		itemsSorted:            avl.NewTree(),
+		itemsSortedByCreation:  avl.NewTree(),
 		itemsSortedByUpvotes:   avl.NewTree(),
 		itemsSortedByDownvotes: avl.NewTree(),
 	}
@@ -104,6 +106,7 @@ func Register(title, description string) {
 
 	exhibition.items.Set(pkgpath, i)
 	exhibition.itemsSorted.Set(id.String(), i)
+	exhibition.itemsSortedByCreation.Set(generateCreationSortKey(i.blockNum, i.id), i)
 	exhibition.itemsSortedByUpvotes.Set(generateVoteSortKey(i.upvote.Size(), i.id), i)
 	exhibition.itemsSortedByDownvotes.Set(generateVoteSortKey(i.downvote.Size(), i.id), i)
 
@@ -175,12 +178,22 @@ func Delete(pkgpath string) {
 	if _, removed := exhibition.itemsSortedByDownvotes.Remove(downvoteKey); !removed {
 		panic(ErrNoSuchItem)
 	}
+
+	if _, removed := exhibition.itemsSortedByCreation.Remove(generateCreationSortKey(item.blockNum, item.id)); !removed {
+		panic(ErrNoSuchItem)
+	}
 }
 
 func generateVoteSortKey(votes int, id seqid.ID) string {
 	votesStr := strconv.Itoa(votes)
 	paddedVotes := strings.Repeat("0", 10-len(votesStr)) + votesStr
 	return paddedVotes + ":" + strconv.FormatUint(uint64(id), 10)
+}
+
+func generateCreationSortKey(blockNum int64, id seqid.ID) string {
+	blockNumStr := strconv.FormatInt(blockNum, 10)
+	paddedBlockNum := strings.Repeat("0", 10-len(blockNumStr)) + blockNumStr
+	return paddedBlockNum + ":" + strconv.FormatUint(uint64(id), 10)
 }
 
 // func generateUpvoteSortKey(item *Item) string {
