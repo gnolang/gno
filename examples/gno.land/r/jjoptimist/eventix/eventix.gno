@@ -75,7 +75,7 @@ func BuyTicket(eventId uint64) {
 	}
 
 	caller := std.PrevRealm().Addr()
-	tokenId := grc721.TokenID(strconv.FormatUint(eventId, 10) + "-" + strconv.Itoa(event.ticketsSold+1))
+	tokenId := grc721.TokenID(strconv.Itoa(int(eventId)) + "-" + strconv.Itoa(event.ticketsSold+1))
 	tickets.Mint(caller, tokenId)
 
 	event.ticketsSold++
