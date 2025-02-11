@@ -7,6 +7,8 @@ import (
 	"gno.land/p/demo/json"
 )
 
+const dateFormat = "2006-01-02T15:04:05Z"
+
 func CreateField(label string, fieldType string, required bool) Field {
 	return Field{
 		Label:     label,
@@ -18,8 +20,6 @@ func CreateField(label string, fieldType string, required bool) Field {
 // CreateForm creates a new form with the given parameters
 func (db *FormDB) CreateForm(title string, description string, openAt string, closeAt string, data string) (string, error) {
 	// Parsing the dates
-	const dateFormat = "2006-01-02T15:04:05Z"
-
 	var parsedOpenTime, parsedCloseTime time.Time
 
 	if openAt != "" {
