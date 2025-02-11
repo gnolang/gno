@@ -12,6 +12,7 @@ import (
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/pausable"
 	"gno.land/p/demo/seqid"
+	"gno.land/p/moul/addrset"
 	"gno.land/r/leon/config"
 )
 
@@ -45,8 +46,8 @@ type (
 		description string
 		pkgpath     string
 		blockNum    int64
-		upvote      *avl.Tree // std.Addr > struct{}{}
-		downvote    *avl.Tree // std.Addr > struct{}{}
+		upvote      *addrset.Set
+		downvote    *addrset.Set
 	}
 )
 
@@ -100,8 +101,8 @@ func Register(title, description string) {
 		description: description,
 		pkgpath:     pkgpath,
 		blockNum:    std.GetHeight(),
-		upvote:      avl.NewTree(),
-		downvote:    avl.NewTree(),
+		upvote:      &addrset.Set{},
+		downvote:    &addrset.Set{},
 	}
 
 	exhibition.items.Set(pkgpath, i)
@@ -120,14 +121,16 @@ func Upvote(pkgpath string) {
 	}
 
 	item := rawItem.(*Item)
-	caller := std.PrevRealm().Addr().String()
+	caller := std.PrevRealm().Addr()
 
 	if item.upvote.Has(caller) {
 		panic(ErrDoubleUpvote)
 	}
 
 	exhibition.itemsSortedByUpvotes.Remove(generateVoteSortKey(item.upvote.Size(), item.id))
-	item.upvote.Set(caller, struct{}{})
+	if !item.upvote.Add(caller) {
+		panic(ErrDoubleUpvote)
+	}
 	exhibition.itemsSortedByUpvotes.Set(generateVoteSortKey(item.upvote.Size(), item.id), item)
 }
 
@@ -138,14 +141,16 @@ func Downvote(pkgpath string) {
 	}
 
 	item := rawItem.(*Item)
-	caller := std.PrevRealm().Addr().String()
+	caller := std.PrevRealm().Addr()
 
 	if item.downvote.Has(caller) {
 		panic(ErrDoubleDownvote)
 	}
 
 	exhibition.itemsSortedByDownvotes.Remove(generateVoteSortKey(item.downvote.Size(), item.id))
-	item.downvote.Set(caller, struct{}{})
+	if !item.downvote.Add(caller) {
+		panic(ErrDoubleDownvote)
+	}
 	exhibition.itemsSortedByDownvotes.Set(generateVoteSortKey(item.downvote.Size(), item.id), item)
 }
 
