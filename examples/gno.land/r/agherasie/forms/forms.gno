@@ -3,7 +3,7 @@ package forms
 import (
 	"std"
 
-	"gno.land/p/demo/forms"
+	"gno.land/p/agherasie/forms"
 	"gno.land/p/demo/json"
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/leon/hof"
@@ -100,6 +100,11 @@ func SubmitForm(formID string, answers string) {
 }
 
 func Render(path string) string {
+	if len(db.Forms) == 0 {
+		response := "No forms yet !"
+		return response
+	}
+
 	response := "Forms:\n\n"
 	for _, form := range db.Forms {
 		response += ufmt.Sprintf("- %s\n\n", GetFormByID(form.ID))
