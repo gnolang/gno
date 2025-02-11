@@ -93,10 +93,9 @@ func renderToken(path string) string {
 
 func renderNFT(path string) string {
 	out := md.H1("GRC721 NFTs")
+	
 	var nftItems []string
-
 	nftPager := pager.NewPager(registeredNFTs, pageSize, false)
-
 	page := nftPager.MustGetPageByPath(path)
 
 	for _, item := range page.Items {
