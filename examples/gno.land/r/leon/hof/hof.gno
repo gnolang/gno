@@ -30,11 +30,12 @@ var (
 
 type (
 	Exhibition struct {
-		itemCounter          seqid.ID
-		description          string
-		items                *avl.Tree // pkgPath > &Item
-		itemsSorted          *avl.Tree // same data but sorted, storing pointers
-		itemsSortedByUpvotes *avl.Tree // same data but sorted by upvotes
+		itemCounter            seqid.ID
+		description            string
+		items                  *avl.Tree // pkgPath > &Item
+		itemsSorted            *avl.Tree // same data but sorted, storing pointers
+		itemsSortedByUpvotes   *avl.Tree // same data but sorted by upvotes
+		itemsSortedByDownvotes *avl.Tree // same data but sorted by downvotes
 	}
 
 	Item struct {
@@ -50,9 +51,10 @@ type (
 
 func init() {
 	exhibition = &Exhibition{
-		items:                avl.NewTree(),
-		itemsSorted:          avl.NewTree(),
-		itemsSortedByUpvotes: avl.NewTree(),
+		items:                  avl.NewTree(),
+		itemsSorted:            avl.NewTree(),
+		itemsSortedByUpvotes:   avl.NewTree(),
+		itemsSortedByDownvotes: avl.NewTree(),
 	}
 
 	Ownable = ownable.NewWithAddress(config.OwnableMain.Owner()) // OrigSendOwnable?
@@ -102,7 +104,7 @@ func Register(title, description string) {
 
 	exhibition.items.Set(pkgpath, i)
 	exhibition.itemsSorted.Set(id.String(), i)
-	exhibition.itemsSortedByUpvotes.Set(generateUpvoteSortKey(i), i)
+	exhibition.itemsSortedByUpvotes.Set(generateVoteSortKey(i), i)
 
 	std.Emit("Registration")
 }
@@ -120,9 +122,9 @@ func Upvote(pkgpath string) {
 		panic(ErrDoubleUpvote)
 	}
 
-	exhibition.itemsSortedByUpvotes.Remove(generateUpvoteSortKey(item))
+	exhibition.itemsSortedByUpvotes.Remove(generateVoteSortKey(item))
 	item.upvote.Set(caller, struct{}{})
-	exhibition.itemsSortedByUpvotes.Set(generateUpvoteSortKey(item), item)
+	exhibition.itemsSortedByUpvotes.Set(generateVoteSortKey(item), item)
 }
 
 func Downvote(pkgpath string) {
@@ -138,7 +140,9 @@ func Downvote(pkgpath string) {
 		panic(ErrDoubleDownvote)
 	}
 
+	exhibition.itemsSortedByDownvotes.Remove(generateVoteSortKey(item))
 	item.downvote.Set(caller, struct{}{})
+	exhibition.itemsSortedByDownvotes.Set(generateVoteSortKey(item), item)
 }
 
 func Delete(pkgpath string) {
@@ -159,12 +163,16 @@ func Delete(pkgpath string) {
 		panic(ErrNoSuchItem)
 	}
 
-	if _, removed := exhibition.itemsSortedByUpvotes.Remove(generateUpvoteSortKey(i.(*Item))); !removed {
+	if _, removed := exhibition.itemsSortedByUpvotes.Remove(generateVoteSortKey(i.(*Item))); !removed {
+		panic(ErrNoSuchItem)
+	}
+
+	if _, removed := exhibition.itemsSortedByDownvotes.Remove(generateVoteSortKey(i.(*Item))); !removed {
 		panic(ErrNoSuchItem)
 	}
 }
 
-func generateUpvoteSortKey(item *Item) string {
+func generateVoteSortKey(item *Item) string {
 	upvotes := item.upvote.Size()
 
 	upvoteStr := strconv.Itoa(upvotes)

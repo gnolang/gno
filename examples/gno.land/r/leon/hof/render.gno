@@ -33,12 +33,11 @@ func Render(path string) string {
 }
 
 func (e Exhibition) Render(path string, dashboard bool) string {
-	out := ""
 
 	tree := getTreeByPath(&e, path)
 	page := pager.NewPager(tree, pageSize, true).MustGetPageByPath(path)
 
-	out += ufmt.Sprintf("%s\n\n", e.description)
+	out := ufmt.Sprintf("%s\n\n", e.description)
 
 	if e.items.Size() == 0 {
 		out += "No items in this exhibition currently.\n\n"
