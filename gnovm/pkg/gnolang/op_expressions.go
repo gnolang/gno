@@ -52,19 +52,19 @@ func (m *Machine) doOpIndex2() {
 				T: vt,
 				V: defaultValue(m.Alloc, vt),
 			}
-			*iv = untypedBool(false) // reuse as result
+			*iv = boolResult(false) // reuse as result
 		} else {
 			mv := xv.V.(*MapValue)
 			vv, exists := mv.GetValueForKey(m.Store, iv)
 			if exists {
-				*xv = vv                // reuse as result
-				*iv = untypedBool(true) // reuse as result
+				*xv = vv               // reuse as result
+				*iv = boolResult(true) // reuse as result
 			} else {
 				*xv = TypedValue{ // reuse as result
 					T: vt,
 					V: defaultValue(m.Alloc, vt),
 				}
-				*iv = untypedBool(false) // reuse as result
+				*iv = boolResult(false) // reuse as result
 			}
 		}
 	case *NativeType:
@@ -73,6 +73,12 @@ func (m *Machine) doOpIndex2() {
 	default:
 		panic("should not happen")
 	}
+}
+
+func boolResult(b bool) TypedValue {
+	tv := TypedValue{T: BoolType}
+	tv.SetBool(b)
+	return tv
 }
 
 func (m *Machine) doOpSelector() {
@@ -334,7 +340,7 @@ func (m *Machine) doOpTypeAssert2() {
 	if t.Kind() == InterfaceKind { // is interface assert
 		if xt == nil {
 			*xv = TypedValue{}
-			*tv = untypedBool(false)
+			*tv = boolResult(false)
 			return
 		}
 
@@ -343,7 +349,7 @@ func (m *Machine) doOpTypeAssert2() {
 			// type should always fail.
 			if _, ok := baseOf(xt).(*InterfaceType); ok {
 				*xv = TypedValue{}
-				*tv = untypedBool(false)
+				*tv = boolResult(false)
 				return
 			}
 
@@ -353,12 +359,12 @@ func (m *Machine) doOpTypeAssert2() {
 			impl = it.IsImplementedBy(xt)
 			if impl {
 				// *xv = *xv
-				*tv = untypedBool(true)
+				*tv = boolResult(true)
 			} else {
 				// NOTE: consider ability to push an
 				// interface-restricted form
 				*xv = TypedValue{}
-				*tv = untypedBool(false)
+				*tv = boolResult(false)
 			}
 		} else if nt, ok := baseOf(t).(*NativeType); ok {
 			// If the value being asserted on is nil, it can't implement an interface.
@@ -375,10 +381,10 @@ func (m *Machine) doOpTypeAssert2() {
 
 			if impl {
 				// *xv = *xv
-				*tv = untypedBool(true)
+				*tv = boolResult(true)
 			} else {
 				*xv = TypedValue{}
-				*tv = untypedBool(false)
+				*tv = boolResult(false)
 			}
 		} else {
 			panic("should not happen")
@@ -389,7 +395,7 @@ func (m *Machine) doOpTypeAssert2() {
 				T: t,
 				V: defaultValue(m.Alloc, t),
 			}
-			*tv = untypedBool(false)
+			*tv = boolResult(false)
 			return
 		}
 
@@ -400,13 +406,13 @@ func (m *Machine) doOpTypeAssert2() {
 
 		if same {
 			// *xv = *xv
-			*tv = untypedBool(true)
+			*tv = boolResult(true)
 		} else {
 			*xv = TypedValue{
 				T: t,
 				V: defaultValue(m.Alloc, t),
 			}
-			*tv = untypedBool(false)
+			*tv = boolResult(false)
 		}
 	}
 }

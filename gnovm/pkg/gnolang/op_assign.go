@@ -1,5 +1,7 @@
 package gnolang
 
+import "fmt"
+
 func (m *Machine) doOpDefine() {
 	s := m.PopStmt().(*AssignStmt)
 	// Define each value evaluated for Lhs.
@@ -19,6 +21,10 @@ func (m *Machine) doOpDefine() {
 					panic("readonly violation")
 				}
 			}
+		}
+		if !m.PreprocessorMode && isUntyped(rvs[i].T) {
+			fmt.Println(s)
+			panic("untyped conversion should not happen at runtime")
 		}
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
 	}
@@ -40,6 +46,9 @@ func (m *Machine) doOpAssign() {
 					panic("readonly violation")
 				}
 			}
+		}
+		if !m.PreprocessorMode && isUntyped(rvs[i].T) {
+			panic("untyped conversion should not happen at runtime")
 		}
 		lv.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
 	}
