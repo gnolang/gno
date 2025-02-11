@@ -24,9 +24,6 @@ var (
 )
 
 const pageSize = 10
-const token = "token" // grc20
-const nft = "nft"     // grc721
-const mt = "mt"       // grc1155
 
 func init() {
 	hof.Register()
