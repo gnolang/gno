@@ -54,10 +54,6 @@ func getEvent(eventId uint64) (Event, bool) {
 	return value.(Event), true
 }
 
-func setEvent(eventId uint64, event Event) {
-	events.Set(strconv.Itoa(int(eventId)), event)
-}
-
 func BuyTicket(eventId uint64) {
 	event, exists := getEvent(eventId)
 	if !exists {
@@ -79,7 +75,7 @@ func BuyTicket(eventId uint64) {
 	tickets.Mint(caller, tokenId)
 
 	event.ticketsSold++
-	setEvent(eventId, event)
+	events.Set(strconv.Itoa(int(eventId)), event)
 	std.Emit("TicketPurchased", ufmt.Sprintf("Ticket %s purchased for Event %d by %s", tokenId, eventId, caller))
 }
 
