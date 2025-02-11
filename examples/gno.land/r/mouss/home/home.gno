@@ -138,8 +138,8 @@ func validateRecipe(name, ingredients, instructions string) error {
 func Follow() error {
 	caller := std.PrevRealm().Addr()
 
-	if config.IsAuthorized(caller) {
-		return config.ErrUnauthorized
+	if caller == config.OwnableMain.Owner() {
+		return ufmt.Errorf("you cannot follow yourself")
 	}
 	if profile.Followers.Add(caller) {
 		return nil
