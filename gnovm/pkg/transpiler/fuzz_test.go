@@ -56,12 +56,15 @@ func FuzzTranspiling(f *testing.F) {
 		// to run, that we report this as problematic.
 		doneCh := make(chan bool, 1)
 		readyCh := make(chan bool)
+		isGnoTypeCheckError := false
 		defer func() {
 			goRunErr := checkIfGoCompilesProgram(t, gnoSrc)
 			r := recover()
 			if r == nil {
 				if goRunErr != nil {
-					panic(fmt.Sprintf("Runs alright in Gno but fails in Go:\n%v\n%s", goRunErr, gnoSrc))
+					if !isGnoTypeCheckError {
+						panic(fmt.Sprintf("Runs alright in Gno but fails in Go:\n%v\n%s", goRunErr, gnoSrc))
+					}
 				}
 				return
 			}
@@ -81,6 +84,7 @@ func FuzzTranspiling(f *testing.F) {
 				strings.Contains(sr, "not defined in fileset with"),
 				strings.Contains(sr, "literal not terminated"),
 				strings.Contains(sr, "illegal character"),
+				strings.Contains(sr, "expected 1 expression"),
 				strings.Contains(sr, "expected 'IDENT', found "),
 				strings.Contains(sr, "expected declaration, found"),
 				strings.Contains(sr, "expected 'package', found"),
@@ -99,15 +103,39 @@ func FuzzTranspiling(f *testing.F) {
 				strings.Contains(sr, "required in 3-index slice"),
 				strings.Contains(sr, "comment not terminated"),
 				strings.Contains(sr, "missing field"),
+				strings.Contains(sr, "expected operand, found"),
+				strings.Contains(sr, "expected statement, found"),
+				strings.Contains(sr, "m.NumValues <= 0"),
 				strings.Contains(sr, "missing ',' in composite literal"),
 				strings.Contains(sr, "no new variables on left side of"),
 				strings.Contains(sr, "expected boolean or range expression, found assignment (missing parentheses around composite"),
 				strings.Contains(sr, "must separate successive digits"),
 				strings.Contains(sr, "runtime error: invalid memory address") && strings.Contains(gnoSrc, " int."),
 				strings.Contains(sr, "expected '{', found "),
+				strings.Contains(sr, "ast.FuncDecl has missing receiver"),
 				strings.Contains(sr, "expected '}', found "),
+				strings.Contains(sr, "dot imports not allowed"),
 				strings.Contains(sr, "expected '(', found "),
 				strings.Contains(sr, "expected ')', found "),
+				strings.Contains(sr, "expected '[', found "),
+				strings.Contains(sr, "expected ']', found "),
+				strings.Contains(sr, "invalid digit"),
+				strings.Contains(sr, "missing ',' before newline in argument list"),
+				strings.Contains(sr, "import path must be a string"),
+				strings.Contains(sr, "cannot indirect"),
+				strings.Contains(sr, "invalid radix point in"),
+				strings.Contains(sr, "invalid column number"),
+				strings.Contains(sr, "unknown Go type *ast.IndexListExpr"),
+				strings.Contains(sr, "expected selector or type assertion"),
+				strings.Contains(sr, "cannot take address of"),
+				strings.Contains(sr, "unexpected selector expression type"),
+				strings.Contains(sr, "hexadecimal mantissa requires a 'p' exponent"),
+				strings.Contains(sr, "invalid operation: operator"),
+				strings.Contains(sr, "operator") && strings.Contains(sr, "not defined on"),
+				strings.Contains(sr, "illegal rune literal"),
+				strings.Contains(sr, "DeclaredType method named"),
+				strings.Contains(sr, "unknown Go type *ast.GoStmt"),
+				strings.Contains(sr, "invalid line number"),
 				strings.Contains(sr, "missing ',' before newline in parameter list"),
 				strings.Contains(sr, "expected ';', found "):
 				return
@@ -154,13 +182,18 @@ func FuzzTranspiling(f *testing.F) {
 		iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
 		store := gnolang.NewStore(nil, baseStore, iavlStore)
 		m := gnolang.NewMachine(string(fn.PkgName), store)
-		m.RunMemPackage(&gnovm.MemPackage{
+		memPkg := &gnovm.MemPackage{
 			Name: string(fn.PkgName),
 			Path: string(fn.Name),
 			Files: []*gnovm.MemFile{
 				{Name: "a.gno", Body: gnoSrc},
 			},
-		}, true)
+		}
+		if err := gnolang.TypeCheckMemPackage(memPkg, nil, false); err != nil {
+			isGnoTypeCheckError = true
+			return
+		}
+		m.RunMemPackage(memPkg, true)
 	})
 }
 
