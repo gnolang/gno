@@ -11,6 +11,7 @@ import (
 	"gno.land/p/jeronimoalbi/datasource"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
+	"gno.land/p/moul/addrset"
 )
 
 var (
@@ -137,12 +138,12 @@ func TestItemRecord(t *testing.T) {
 		title:       "Test Realm",
 		description: "This is a test realm in the Hall of Fame",
 		blockNum:    42,
-		upvote:      avl.NewTree(),
-		downvote:    avl.NewTree(),
+		upvote:      &addrset.Set{},
+		downvote:    &addrset.Set{},
 	}
-	item.downvote.Set("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", struct{}{})
-	item.upvote.Set("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", struct{}{})
-	item.upvote.Set("g1w4ek2u3jta047h6lta047h6lta047h6l9huexc", struct{}{})
+	item.downvote.Add("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	item.upvote.Add("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
+	item.upvote.Add("g1w4ek2u3jta047h6lta047h6lta047h6l9huexc")
 
 	r := record{&item}
 

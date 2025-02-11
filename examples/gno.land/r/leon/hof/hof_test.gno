@@ -8,6 +8,7 @@ import (
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
+	"gno.land/p/moul/addrset"
 )
 
 const (
@@ -163,11 +164,11 @@ func TestgenerateVoteSortKey(t *testing.T) {
 		description: validDesc,
 		pkgpath:     rlmPath,
 		blockNum:    std.GetHeight(),
-		upvote:      avl.NewTree(),
-		downvote:    avl.NewTree(),
+		upvote:      &addrset.Set{},
+		downvote:    &addrset.Set{},
 	}
 
-	i.upvote.Set(alice.String(), struct{}{})
+	i.upvote.Add(alice)
 
 	generatedKey := generateVoteSortKey(i.upvote.Size(), i.id)
 	expectedKey := "0000000001:1"
