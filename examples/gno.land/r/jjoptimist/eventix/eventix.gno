@@ -8,6 +8,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/avl/pager"
 )
 
 type Event struct {
@@ -82,13 +83,14 @@ func BuyTicket(eventId uint64) {
 	std.Emit("TicketPurchased", ufmt.Sprintf("Ticket %s purchased for Event %d by %s", tokenId, eventId, caller))
 }
 
-// all events and ticket info
 func Render(path string) string {
 	output := "# Event Ticketing System\n\n"
 
-	events.Iterate("", "", func(key string, value interface{}) bool {
-		id, _ := strconv.ParseUint(key, 10, 64)
-		event := value.(Event)
+	// Use pager to paginate events; assuming a fixed page size of 10.
+	pg := pager.NewPager(events, path, 10)
+	for _, item := range pg.Items {
+		id, _ := strconv.ParseUint(item.Key, 10, 64)
+		event := item.Value.(Event)
 
 		output += ufmt.Sprintf("## Event #%d: %s\n", id, event.name)
 		output += ufmt.Sprintf("Description: %s\n", event.description)
@@ -102,8 +104,10 @@ func Render(path string) string {
 			output += "**SOLD OUT**\n"
 		}
 		output += "---\n\n"
-		return false
-	})
+	}
+
+	// Append pager navigation links.
+	output += pg.RenderNavigation()
 
 	return output
 }
