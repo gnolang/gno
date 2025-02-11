@@ -104,7 +104,8 @@ func Register(title, description string) {
 
 	exhibition.items.Set(pkgpath, i)
 	exhibition.itemsSorted.Set(id.String(), i)
-	exhibition.itemsSortedByUpvotes.Set(generateVoteSortKey(i), i)
+	exhibition.itemsSortedByUpvotes.Set(generateVoteSortKey(i.upvote.Size(), i.id), i)
+	exhibition.itemsSortedByDownvotes.Set(generateVoteSortKey(i.downvote.Size(), i.id), i)
 
 	std.Emit("Registration")
 }
@@ -122,9 +123,9 @@ func Upvote(pkgpath string) {
 		panic(ErrDoubleUpvote)
 	}
 
-	exhibition.itemsSortedByUpvotes.Remove(generateVoteSortKey(item))
+	exhibition.itemsSortedByUpvotes.Remove(generateVoteSortKey(item.upvote.Size(), item.id))
 	item.upvote.Set(caller, struct{}{})
-	exhibition.itemsSortedByUpvotes.Set(generateVoteSortKey(item), item)
+	exhibition.itemsSortedByUpvotes.Set(generateVoteSortKey(item.upvote.Size(), item.id), item)
 }
 
 func Downvote(pkgpath string) {
@@ -140,9 +141,9 @@ func Downvote(pkgpath string) {
 		panic(ErrDoubleDownvote)
 	}
 
-	exhibition.itemsSortedByDownvotes.Remove(generateVoteSortKey(item))
+	exhibition.itemsSortedByDownvotes.Remove(generateVoteSortKey(item.downvote.Size(), item.id))
 	item.downvote.Set(caller, struct{}{})
-	exhibition.itemsSortedByDownvotes.Set(generateVoteSortKey(item), item)
+	exhibition.itemsSortedByDownvotes.Set(generateVoteSortKey(item.downvote.Size(), item.id), item)
 }
 
 func Delete(pkgpath string) {
@@ -155,31 +156,31 @@ func Delete(pkgpath string) {
 		panic(ErrNoSuchItem)
 	}
 
+	item := i.(*Item)
+	upvoteKey := generateVoteSortKey(item.upvote.Size(), item.id)
+	downvoteKey := generateVoteSortKey(item.downvote.Size(), item.id)
+
 	if _, removed := exhibition.items.Remove(pkgpath); !removed {
 		panic(ErrNoSuchItem)
 	}
 
-	if _, removed := exhibition.itemsSorted.Remove(i.(*Item).id.String()); !removed {
+	if _, removed := exhibition.itemsSorted.Remove(item.id.String()); !removed {
 		panic(ErrNoSuchItem)
 	}
 
-	if _, removed := exhibition.itemsSortedByUpvotes.Remove(generateVoteSortKey(i.(*Item))); !removed {
+	if _, removed := exhibition.itemsSortedByUpvotes.Remove(upvoteKey); !removed {
 		panic(ErrNoSuchItem)
 	}
 
-	if _, removed := exhibition.itemsSortedByDownvotes.Remove(generateVoteSortKey(i.(*Item))); !removed {
+	if _, removed := exhibition.itemsSortedByDownvotes.Remove(downvoteKey); !removed {
 		panic(ErrNoSuchItem)
 	}
 }
 
-func generateVoteSortKey(item *Item) string {
-	upvotes := item.upvote.Size()
-
-	upvoteStr := strconv.Itoa(upvotes)
-
-	paddedUpvotes := strings.Repeat("0", 10-len(upvoteStr)) + upvoteStr
-
-	return paddedUpvotes + ":" + strconv.FormatUint(uint64(item.id), 10)
+func generateVoteSortKey(votes int, id seqid.ID) string {
+	votesStr := strconv.Itoa(votes)
+	paddedVotes := strings.Repeat("0", 10-len(votesStr)) + votesStr
+	return paddedVotes + ":" + strconv.FormatUint(uint64(id), 10)
 }
 
 // func generateUpvoteSortKey(item *Item) string {

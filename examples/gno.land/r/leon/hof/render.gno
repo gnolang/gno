@@ -19,7 +19,8 @@ const (
 func Render(path string) string {
 	out := md.H1("Hall of Fame\n\n")
 	out += md.Link("Reset Sort", "?") + " | "
-	out += md.Link("Sort by Upvotes", "?sort=upvotes") + "\n\n"
+	out += md.Link("Sort by Upvotes", "?sort=upvotes") + " | "
+	out += md.Link("Sort by Downvotes", "?sort=downvotes") + "\n\n"
 
 	dashboardEnabled := path == "dashboard"
 
@@ -119,8 +120,12 @@ func RenderExhibWidget(itemsToRender int) string {
 
 func getTreeByPath(e *Exhibition, path string) *avl.Tree {
 	u, _ := url.Parse(path)
-	if u.Query().Get("sort") == "upvotes" {
+	switch u.Query().Get("sort") {
+	case "upvotes":
 		return e.itemsSortedByUpvotes
+	case "downvotes":
+		return e.itemsSortedByDownvotes
+	default:
+		return e.items
 	}
-	return e.items
 }
