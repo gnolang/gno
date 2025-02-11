@@ -2,12 +2,14 @@ package hof
 
 import (
 	"strings"
+	"net/url"
 
 	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/fqname"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
+	"gno.land/p/demo/avl"
 )
 
 const (
@@ -31,7 +33,12 @@ func Render(path string) string {
 }
 
 func (e Exhibition) Render(path string, dashboard bool) string {
-	out := ufmt.Sprintf("%s\n\n", e.description)
+	out := ""
+
+	tree := getTreeByPath(&e, path)
+	page := pager.NewPager(tree, pageSize, true).MustGetPageByPath(path)
+
+	out += ufmt.Sprintf("%s\n\n", e.description)
 
 	if e.items.Size() == 0 {
 		out += "No items in this exhibition currently.\n\n"
@@ -39,8 +46,6 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 	}
 
 	out += "<div class='columns-2'>\n\n"
-
-	page := pager.NewPager(e.itemsSorted, pageSize, true).MustGetPageByPath(path)
 
 	for _, item := range page.Items {
 		out += "<div>\n\n"
@@ -111,4 +116,12 @@ func RenderExhibWidget(itemsToRender int) string {
 	})
 
 	return out
+}
+
+func getTreeByPath(e *Exhibition, path string) *avl.Tree {
+	u, _ := url.Parse(path)
+	if u.Query().Get("sort") == "upvotes" {
+		return e.itemsSortedByUpvotes
+	}
+	return e.items
 }
