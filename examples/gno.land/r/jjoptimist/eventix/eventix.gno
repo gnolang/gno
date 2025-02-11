@@ -20,14 +20,10 @@ type Event struct {
 }
 
 var (
-	events       *avl.Tree
+	events       = avl.NewTree()
 	eventCounter uint64 = 0
-	tickets             = grc721.NewBasicNFT("Event Ticket", "EVTIX")
+	tickets      = grc721.NewBasicNFT("Event Ticket", "EVTIX")
 )
-
-func init() {
-	events = avl.NewTree()
-}
 
 func CreateEvent(name, description string, dateStr string, maxTickets int, price uint64) uint64 {
 
