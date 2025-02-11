@@ -23,7 +23,6 @@ func Render(_ string) string {
 
 // NewAddReleaseExecutor allows a GovDAO proposal to add a release to the changelog
 func NewAddReleaseExecutor(newVerPkgPath, note string) dao.Executor {
-
 	ver := strings.TrimPrefix(newVerPkgPath, usersPrefix)
 	if ver == newVerPkgPath || // TrimPrefix returns unchanged newVerPkgPath if !HasPrefix
 		strings.Contains(ver, "/") { // if has prefix, has to be first child under
