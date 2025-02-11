@@ -1,84 +1,110 @@
 // Package authz provides flexible authorization control for privileged actions.
 //
-// It offers various authorization strategies:
-//   - Member-based authorization (single user or teams)
-//   - Contract-based authorization (async)
-//   - Auto-accept authorization (allow all)
-//   - Drop authorization (deny all)
+// # Authorization Strategies
 //
-// Basic example with member-based authorization:
+// The package supports multiple authorization strategies:
+//   - Member-based: Single user or team of users
+//   - Contract-based: Async authorization (e.g., via DAO)
+//   - Auto-accept: Allow all actions
+//   - Drop: Deny all actions
+//
+// Core Components
+//
+//   - Authority interface: Base interface implemented by all authorities
+//   - Authorizer: Main wrapper object for authority management
+//   - MemberAuthority: Manages authorized addresses
+//   - ContractAuthority: Delegates to another contract
+//   - AutoAcceptAuthority: Accepts all actions
+//   - DroppedAuthority: Denies all actions
+//
+// Basic Usage (Member Authority)
 //
 //	import "gno.land/p/moul/authz"
 //
-//	// Initialize a single-member authority with the contract deployer
+//	// Initialize with contract deployer as authority
 //	var auth = authz.New()
 //
 //	func UpdateConfig(newValue string) error {
 //	    return auth.Do("update_config", func() error {
-//	        // Only authorized members can execute this
 //	        config = newValue
 //	        return nil
 //	    })
 //	}
 //
-// Example with contract-based authorization (e.g., DAO):
+// Adding Members Example
+//
+//	// Add a new member to the authority
+//	func AddNewMember(addr std.Address) error {
+//	    memberAuth, ok := auth.Current().(*MemberAuthority)
+//	    if !ok {
+//	        return errors.New("current authority is not a member authority")
+//	    }
+//	    return memberAuth.AddMember(addr)
+//	}
+//
+// Contract Authority Example
 //
 //	import (
 //	    "gno.land/p/moul/authz"
 //	    "gno.land/r/demo/dao"
 //	)
 //
-//	// Create contract authority that delegates to DAO
-//	auth := authz.NewContractAuthority("gno.land/r/demo/dao", dao.HandlePrivilegedAction)
+//	// Create authority that delegates to DAO
+//	auth := authz.NewWithAuthority(
+//	    authz.NewContractAuthority("gno.land/r/demo/dao", dao.HandlePrivilegedAction),
+//	)
 //
 //	func UpdateParams(params Params) error {
 //	    return auth.Do("update_params", func() error {
-//	        // This will only execute after DAO approval
+//	        // Executes after DAO approval
 //	        return nil
 //	    })
 //	}
 //
-// The package provides several authority implementations:
-//   - MemberAuthority: Manages a set of authorized addresses
-//   - ContractAuthority: Delegates authorization to another contract
-//   - AutoAcceptAuthority: Accepts all actions automatically
-//   - DroppedAuthority: Denies all actions
+// Restricted Contract Authority Example
 //
-// Each authority implements the Authority interface which provides:
-//   - Do(): Execute privileged actions if authorized
-//   - String(): Human-readable description
+//	// Create a member authority for proposers
+//	proposerAuth := authz.NewMemberAuthority(
+//	    "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",  // admin1
+//	    "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",  // admin2
+//	)
 //
-// The main type is Authority, which encapsulates ownership information and
-// provides methods for executing privileged actions and transferring
-// control. Actions can be executed directly for wallet-based ownership, or
-// through a handler for contract-based ownership.
+//	// Create a contract authority that only allows proposals from members
+//	auth := authz.NewWithAuthority(
+//	    authz.NewRestrictedContractAuthority(
+//	        "gno.land/r/demo/dao",
+//	        dao.HandlePrivilegedAction,
+//	        proposerAuth,
+//	    ),
+//	)
 //
-// Example usage with wallet ownership:
+//	func UpdateParams(params Params) error {
+//	    return auth.Do("update_params", func() error {
+//	        // Only executes after:
+//	        // 1. A proposer member initiates the action
+//	        // 2. The DAO approves it
+//	        return nil
+//	    })
+//	}
 //
-//	// Create a new authority with the current caller as owner
+// Switching from Member to Contract Authority
+//
+//	import (
+//	    "gno.land/p/moul/authz"
+//	    "gno.land/r/demo/dao"
+//	)
+//
+//	// Start with member authority (deployer)
 //	var auth = authz.New()
 //
-//	// Execute a privileged action
-//	err := auth.Do("UpdateConfig", func() error {
-//	    // Perform privileged operation here
-//	    return nil
-//	})
-//
-// Example of transferring from wallet to DAO contract:
-//
-//	import "gno.land/r/demo/dao"
-//
-//	// Initial setup with wallet owner
-//	var auth = authz.New()
-//
-//	// Transfer ownership to the DAO contract using its handler
-//	err := auth.TransferToContract("gno.land/r/demo/dao", dao.HandlePrivilegedAction)
-//
-//	// Now all privileged actions must go through the DAO's governance process
-//	err = auth.Do("UpdateParams", func() error {
-//	    // This action will only execute if there's an approved proposal
-//	    return nil
-//	})
+//	// Later, transfer to contract authority
+//	func TransferToDAO() error {
+//	    daoAuthority := authz.NewContractAuthority(
+//	        "gno.land/r/demo/dao",
+//	        dao.HandlePrivilegedAction,
+//	    )
+//	    return auth.Transfer(daoAuthority)
+//	}
 package authz
 
 import (
