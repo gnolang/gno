@@ -17,13 +17,12 @@
 //   - AutoAcceptAuthority: Accepts all actions
 //   - DroppedAuthority: Denies all actions
 //
-// Basic Usage (Member Authority)
-//
-//	import "gno.land/p/moul/authz"
+// Quick Start
 //
 //	// Initialize with contract deployer as authority
 //	var auth = authz.New()
 //
+//	// Create functions that require authorization
 //	func UpdateConfig(newValue string) error {
 //	    return auth.Do("update_config", func() error {
 //	        config = newValue
@@ -31,80 +30,7 @@
 //	    })
 //	}
 //
-// Adding Members Example
-//
-//	// Add a new member to the authority
-//	func AddNewMember(addr std.Address) error {
-//	    memberAuth, ok := auth.Current().(*MemberAuthority)
-//	    if !ok {
-//	        return errors.New("current authority is not a member authority")
-//	    }
-//	    return memberAuth.AddMember(addr)
-//	}
-//
-// Contract Authority Example
-//
-//	import (
-//	    "gno.land/p/moul/authz"
-//	    "gno.land/r/demo/dao"
-//	)
-//
-//	// Create authority that delegates to DAO
-//	auth := authz.NewWithAuthority(
-//	    authz.NewContractAuthority("gno.land/r/demo/dao", dao.HandlePrivilegedAction),
-//	)
-//
-//	func UpdateParams(params Params) error {
-//	    return auth.Do("update_params", func() error {
-//	        // Executes after DAO approval
-//	        return nil
-//	    })
-//	}
-//
-// Restricted Contract Authority Example
-//
-//	// Create a member authority for proposers
-//	proposerAuth := authz.NewMemberAuthority(
-//	    "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",  // admin1
-//	    "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",  // admin2
-//	)
-//
-//	// Create a contract authority that only allows proposals from members
-//	auth := authz.NewWithAuthority(
-//	    authz.NewRestrictedContractAuthority(
-//	        "gno.land/r/demo/dao",
-//	        dao.HandlePrivilegedAction,
-//	        proposerAuth,
-//	    ),
-//	)
-//
-//	func UpdateParams(params Params) error {
-//	    return auth.Do("update_params", func() error {
-//	        // Only executes after:
-//	        // 1. A proposer member initiates the action
-//	        // 2. The DAO approves it
-//	        return nil
-//	    })
-//	}
-//
-// Switching from Member to Contract Authority
-//
-//	import (
-//	    "gno.land/p/moul/authz"
-//	    "gno.land/r/demo/dao"
-//	)
-//
-//	// Start with member authority (deployer)
-//	var auth = authz.New()
-//
-//	// Later, transfer to contract authority
-//	func TransferToDAO() error {
-//	    daoAuthority := authz.NewContractAuthority(
-//	        "gno.land/r/demo/dao",
-//	        dao.HandlePrivilegedAction,
-//	    )
-//	    return auth.Transfer(daoAuthority)
-//	}
+// See example_test.gno for more usage examples.
 package authz
 
 import (
