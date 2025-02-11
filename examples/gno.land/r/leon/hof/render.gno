@@ -20,7 +20,9 @@ func Render(path string) string {
 	out := md.H1("Hall of Fame\n\n")
 	out += md.Link("Reset Sort", "?") + " | "
 	out += md.Link("Sort by Upvotes", "?sort=upvotes") + " | "
-	out += md.Link("Sort by Downvotes", "?sort=downvotes") + "\n\n"
+	out += md.Link("Sort by Downvotes", "?sort=downvotes") + " | "
+	out += md.Link("Sort by Most Recent", "?sort=creation") + " | "
+	out += md.Link("Sort by Oldest", "?sort=oldest") + "\n\n"
 
 	dashboardEnabled := path == "dashboard"
 
@@ -34,9 +36,12 @@ func Render(path string) string {
 }
 
 func (e Exhibition) Render(path string, dashboard bool) string {
-
 	tree := getTreeByPath(&e, path)
-	page := pager.NewPager(tree, pageSize, true).MustGetPageByPath(path)
+
+	u, _ := url.Parse(path)
+	reversed := u.Query().Get("sort") != "oldest"
+
+	page := pager.NewPager(tree, pageSize, reversed).MustGetPageByPath(path)
 
 	out := ufmt.Sprintf("%s\n\n", e.description)
 
@@ -125,6 +130,10 @@ func getTreeByPath(e *Exhibition, path string) *avl.Tree {
 		return e.itemsSortedByUpvotes
 	case "downvotes":
 		return e.itemsSortedByDownvotes
+	case "creation":
+		return e.itemsSortedByCreation
+	case "oldest":
+		return e.itemsSortedByCreation
 	default:
 		return e.items
 	}
