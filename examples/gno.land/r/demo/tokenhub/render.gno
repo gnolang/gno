@@ -39,12 +39,6 @@ func Render(path string) string {
 		out += md.Link("Back to home", "http://localhost:8888/r/demo/tokenhub")
 	}
 
-	// navigation footer if not on home page
-	if path != "" {
-		out += "\n"
-		out += md.Link("Back to home", "http://localhost:8888/r/demo/tokenhub")
-	}
-
 	return out
 }
 
@@ -93,7 +87,7 @@ func renderToken(path string) string {
 		out += md.Italic("No tokens registered yet")
 		out += "\n"
 	}
-
+	out += renderFooter()
 	return out
 }
 
@@ -133,7 +127,7 @@ func renderNFT(path string) string {
 		out += md.Italic("No NFTs registered yet")
 		out += "\n"
 	}
-
+	out += renderFooter()
 	return out
 }
 
@@ -167,6 +161,11 @@ func renderMT(path string) string {
 		out += md.Italic("No multi-tokens registered yet")
 		out += "\n"
 	}
-
+	out += renderFooter()
 	return out
 }
+ func renderFooter() string {
+	out := "\n"
+	out += md.Link("Back to home", "http://localhost:8888/r/demo/tokenhub")
+	return out
+ }
