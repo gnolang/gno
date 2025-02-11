@@ -80,7 +80,6 @@ func BuyTicket(eventId uint64) {
 
 	event.ticketsSold++
 	setEvent(eventId, event)
-	// Emit a "TicketPurchased" event with details about the purchase.
 	std.Emit("TicketPurchased", ufmt.Sprintf("Ticket %s purchased for Event %d by %s", tokenId, eventId, caller))
 }
 
@@ -94,7 +93,7 @@ func Render(path string) string {
 
 		output += ufmt.Sprintf("## Event #%d: %s\n", id, event.name)
 		output += ufmt.Sprintf("Description: %s\n", event.description)
-		output += ufmt.Sprintf("Date: %s\n", event.date.Format("2006-01-02 15:04:05"))
+		output += ufmt.Sprintf("Date: %s\n", event.date.Format(time.RFC3339))
 		output += ufmt.Sprintf("Tickets: %d/%d\n", event.ticketsSold, event.maxTickets)
 		output += ufmt.Sprintf("Price: %d ugnot\n\n", event.price)
 
