@@ -366,10 +366,6 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 	case *StructValue:
 		return cv
 	case *FuncValue:
-		//fmt.Println("fv: ", cv)
-		//fmt.Println("---fv.Closure: ", cv.GetClosure(store))
-		//fmt.Println("---fv.Capture: ", cv.Captures)
-		//fmt.Println("static block.Values: ", cv.Source.(BlockNode).GetStaticBlock().Values)
 		return cv.GetClosure(store)
 	case *MapValue:
 		return cv
@@ -435,9 +431,6 @@ func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 	}
 
 	switch cv := obj.(type) {
-	//case *Block:
-	//	originPkg = PkgIDFromPkgPath(cv.Source.GetLocation().PkgPath)
-	//	return
 	case *HeapItemValue:
 		originPkg = getPkgId(cv.Value.T)
 		return
@@ -448,11 +441,11 @@ func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 		}
 		return
 	case *MapValue, *StructValue, *ArrayValue:
-		originPkg = getPkgId(tv.T) // if it's declared type, otherwise zero
+		// if it's declared type,
+		// origin package is deduced
+		// from type, otherwise zero.
+		originPkg = getPkgId(tv.T)
 		return
-	//case *ArrayValue:
-	//	originPkg = getPkgId(tv.T.Elem())
-	//	return
 	default:
 		// do nothing
 	}
