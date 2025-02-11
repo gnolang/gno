@@ -34,7 +34,7 @@ func (mempkg *MemPackage) GetFile(name string) *MemFile {
 }
 
 func (mempkg *MemPackage) IsEmpty() bool {
-	return len(mempkg.Files) == 0
+	return mempkg.Name == "" || len(mempkg.Files) == 0
 }
 
 const pathLengthLimit = 256

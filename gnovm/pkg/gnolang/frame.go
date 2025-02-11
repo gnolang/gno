@@ -216,3 +216,30 @@ func toConstExpTrace(cte *ConstExpr) string {
 
 	return tv.T.String()
 }
+
+//----------------------------------------
+// Exception
+
+// Exception represents a panic that originates from a gno program.
+type Exception struct {
+	// Value is the value passed to panic.
+	Value TypedValue
+	// Frame is used to reference the frame a panic occurred in so that recover() knows if the
+	// currently executing deferred function is able to recover from the panic.
+	Frame *Frame
+
+	Stacktrace Stacktrace
+}
+
+func (e Exception) Sprint(m *Machine) string {
+	return e.Value.Sprint(m)
+}
+
+// UnhandledPanicError represents an error thrown when a panic is not handled in the realm.
+type UnhandledPanicError struct {
+	Descriptor string // Description of the unhandled panic.
+}
+
+func (e UnhandledPanicError) Error() string {
+	return e.Descriptor
+}
