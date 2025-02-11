@@ -1,15 +1,15 @@
 package hof
 
 import (
-	"strings"
 	"net/url"
+	"strings"
 
+	"gno.land/p/demo/avl"
 	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/fqname"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
-	"gno.land/p/demo/avl"
 )
 
 const (
