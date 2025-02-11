@@ -79,8 +79,6 @@ func main() {
 //
 // ## [Hall of Fame](/r/leon/hof)
 //
-// - [gno.land/r/matijamarjanovic/tokenhub](/r/matijamarjanovic/tokenhub)
-//
 // </div><!-- /column-->
 // </div><!-- /columns-3 -->
 //
