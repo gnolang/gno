@@ -45,6 +45,7 @@ func CreateEvent(name, description string, dateStr string, paymentToken string, 
 	}
 	events.Set(strconv.Itoa(int(newID)), event)
 	eventCounter = newID
+	std.Emit("EventCreated", ufmt.Sprintf("Event %d: %s created", newID, name))
 	return newID
 }
 
