@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"gno.land/p/demo/grc/grc721"
+	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/urequire"
 )
 
 func TestCreateEvent(t *testing.T) {
@@ -13,30 +15,25 @@ func TestCreateEvent(t *testing.T) {
 		"Test Event",
 		"A test event",
 		"2024-12-31T23:59:59Z",
+		"ugnot",
 		100,
 		1000000,
 	)
 
-	if eventId != 1 {
-		t.Errorf("Expected first event ID to be 1, got %d", eventId)
-	}
+	// Using uassert to perform a soft assertion.
+	uassert.Equal(t, 1, eventId)
 
 	event, exists := getEvent(eventId)
-	if !exists {
-		t.Error("Event was not created")
-	}
+	// urequire.True stops the test if the event was not created.
+	urequire.True(t, exists, "Event was not created")
 
-	if event.name != "Test Event" {
-		t.Errorf("Expected event name 'Test Event', got '%s'", event.name)
-	}
+	// Soft-assert that the event name is as expected.
+	uassert.Equal(t, "Test Event", event.name)
 
-	// Test invalid date format
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("Expected panic with invalid date format")
-		}
-	}()
-	CreateEvent("Test", "Test", "invalid-date", 100, 1000000)
+	// Test that providing an invalid date format causes a panic.
+	urequire.PanicsWithMessage(t, "Invalid date format. Use: YYYY-MM-DDThh:mm:ssZ", func() {
+		CreateEvent("Test", "Test", "invalid-date", "ugnot", 100, 1000000)
+	})
 }
 
 func TestBuyTicket(t *testing.T) {
@@ -45,6 +42,7 @@ func TestBuyTicket(t *testing.T) {
 		"Test Event",
 		"A test event",
 		"2024-12-31T23:59:59Z",
+		"ugnot",
 		2,
 		1000000,
 	)
@@ -62,7 +60,7 @@ func TestBuyTicket(t *testing.T) {
 	BuyTicket(eventId)
 
 	// Test successful purchase
-	std.TestSetOrigSend(std.Coins{{"ugnot", 1000000}}, nil)
+	std.TestSetOrigSend(std.NewCoins(std.NewCoin("ugnot", 1000000)), std.Coins{})
 	BuyTicket(eventId)
 
 	event, _ := getEvent(eventId)
@@ -81,7 +79,7 @@ func TestBuyTicket(t *testing.T) {
 	}
 
 	// Test buying sold out event
-	std.TestSetOrigSend(std.Coins{{"ugnot", 1000000}}, nil)
+	std.TestSetOrigSend(std.NewCoins(std.NewCoin("ugnot", 1000000)), std.Coins{})
 	BuyTicket(eventId) // Buy second ticket
 	defer func() {
 		if r := recover(); r == nil {

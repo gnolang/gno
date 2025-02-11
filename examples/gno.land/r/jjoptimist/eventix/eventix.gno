@@ -85,19 +85,26 @@ func BuyTicket(eventId uint64) {
 
 func Render(path string) string {
 	output := "# Event Ticketing System\n\n"
+	
+	page := 1
+	if path != "" {
+		if p, err := strconv.Atoi(path); err == nil {
+			page = p
+		}
+	}
 
-	// Use pager to paginate events; assuming a fixed page size of 10.
-	pg := pager.NewPager(events, path, 10)
+	pg := pager.NewPager(events, 10, true).GetPage(page)
+	
 	for _, item := range pg.Items {
 		id, _ := strconv.ParseUint(item.Key, 10, 64)
 		event := item.Value.(Event)
-
+	
 		output += ufmt.Sprintf("## Event #%d: %s\n", id, event.name)
 		output += ufmt.Sprintf("Description: %s\n", event.description)
 		output += ufmt.Sprintf("Date: %s\n", event.date.Format(time.RFC3339))
 		output += ufmt.Sprintf("Tickets: %d/%d\n", event.ticketsSold, event.maxTickets)
 		output += ufmt.Sprintf("Price: %d %s\n\n", event.price, event.paymentToken)
-
+	
 		if event.ticketsSold < event.maxTickets {
 			output += ufmt.Sprintf("[Buy Ticket](/r/jjoptimist/eventix/BuyTicket?eventId=%d)\n", id)
 		} else {
@@ -105,9 +112,9 @@ func Render(path string) string {
 		}
 		output += "---\n\n"
 	}
-
+	
 	// Append pager navigation links.
-	output += pg.RenderNavigation()
-
+	output += pg.Picker()
+	
 	return output
 }
