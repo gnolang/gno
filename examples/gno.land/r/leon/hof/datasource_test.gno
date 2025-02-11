@@ -9,9 +9,9 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/urequire"
 	"gno.land/p/jeronimoalbi/datasource"
+	"gno.land/p/moul/addrset"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
-	"gno.land/p/moul/addrset"
 )
 
 var (
