@@ -435,6 +435,9 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			if len(gon.Recv.List) > 1 {
 				panic("*ast.FuncDecl cannot have multiple receivers")
 			}
+			if len(gon.Recv.List) == 0 {
+				panic("*ast.FuncDecl has missing receiver")
+			}
 			recv = *Go2Gno(fs, gon.Recv.List[0]).(*FieldTypeExpr)
 		}
 		name := toName(gon.Name)
