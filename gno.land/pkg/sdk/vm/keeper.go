@@ -360,6 +360,18 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrTypeCheck(err)
 	}
 
+	// Set package metadata
+	for _, f := range msg.Metadata {
+		if f.Name == "tools" {
+			// The "tools" metadata field must have a valid pre-defined structure
+			if err := validateToolsMetaField(f.Value); err != nil {
+				return ErrInvalidPkgMeta(err.Error())
+			}
+		}
+
+		gnostore.SetPackageMetaField(msg.Package.Path, f.Name, f.Value)
+	}
+
 	// Pay deposit from creator.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 
@@ -652,69 +664,6 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	)
 
 	return res, nil
-}
-
-// SetMeta sets or updates the metadata of a package.
-func (vm *VMKeeper) SetMeta(ctx sdk.Context, msg MsgSetMeta) error {
-	gnostore := vm.getGnoTransactionStore(ctx)
-	if p := gnostore.GetPackage(msg.PkgPath, false); p == nil {
-		return ErrInvalidPkgPath("package doesn't exists: " + msg.PkgPath)
-	}
-
-	// Only the package creator is allowed to change its metadata.
-	// TODO: When gno.land/r/sys/users is not available check silently passes. How to check effectibly?
-	if err := vm.checkNamespacePermission(ctx, msg.Caller, msg.PkgPath); err != nil {
-		return err
-	}
-
-	// Get current metadata field names
-	fields := make(map[string]struct{})
-	gnostore.IteratePackageMeta(msg.PkgPath, func(name string, _ []byte) bool {
-		fields[name] = struct{}{}
-		return false
-	})
-
-	// Make sure that total number of fields is still valid
-	var toolsValue []byte
-	for _, f := range msg.Fields {
-		// The tools field can be setted only once, after initialization the field is inmutable
-		if f.Name == "tools" {
-			if _, exists := fields[f.Name]; exists {
-				return ErrInvalidPkgMeta("tools package metadata field is already initialized")
-			}
-
-			// Get the tools field value so it can be validated
-			toolsValue = f.Value
-		}
-
-		// Fields with empty values are removed, otherwise they are added
-		if len(f.Value) == 0 {
-			delete(fields, f.Name)
-		} else if _, exists := fields[f.Name]; !exists {
-			fields[f.Name] = struct{}{}
-		}
-	}
-
-	if len(fields) > maxMetaFields {
-		return ErrInvalidPkgMeta("maximum number of package metadata fields exceeded")
-	}
-
-	// Validate tools metadata field value
-	if toolsValue != nil {
-		if err := validateToolsMetaField(toolsValue); err != nil {
-			return ErrInvalidPkgMeta(err.Error())
-		}
-	}
-
-	// Update metadata fields, deleting fields with empty values
-	for _, f := range msg.Fields {
-		if len(f.Value) == 0 {
-			gnostore.DeletePackageMetaField(msg.PkgPath, f.Name)
-		} else {
-			gnostore.SetPackageMetaField(msg.PkgPath, f.Name, f.Value)
-		}
-	}
-	return nil
 }
 
 // QueryFuncs returns public facing function signatures.

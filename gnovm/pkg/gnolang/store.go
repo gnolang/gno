@@ -69,7 +69,6 @@ type Store interface {
 	SetNativeResolver(NativeResolver)                     // for "new" natives XXX
 	GetNative(pkgPath string, name Name) func(m *Machine) // for "new" natives XXX
 	SetPackageMetaField(pkgPath, field string, value []byte)
-	DeletePackageMetaField(pkgPath, field string)
 	IteratePackageMeta(pkgPath string, fn func(field string, value []byte) bool) bool
 	SetLogStoreOps(enabled bool)
 	SprintStoreOps() string
@@ -901,11 +900,6 @@ func (ds *defaultStore) GetNative(pkgPath string, name Name) func(m *Machine) {
 func (ds *defaultStore) SetPackageMetaField(pkgPath, field string, value []byte) {
 	key := backendPackageMetaFieldKey(pkgPath, field)
 	ds.iavlStore.Set([]byte(key), value)
-}
-
-func (ds *defaultStore) DeletePackageMetaField(pkgPath, field string) {
-	key := backendPackageMetaFieldKey(pkgPath, field)
-	ds.iavlStore.Delete([]byte(key))
 }
 
 func (ds *defaultStore) IteratePackageMeta(pkgPath string, fn func(field string, value []byte) bool) bool {

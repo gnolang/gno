@@ -17,7 +17,6 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	MsgCall{}, "m_call",
 	MsgRun{}, "m_run",
 	MsgAddPackage{}, "m_addpkg", // TODO rename both to MsgAddPkg?
-	MsgSetMeta{}, "m_setmeta",
 
 	// other
 	MetaField{}, "MetaField",

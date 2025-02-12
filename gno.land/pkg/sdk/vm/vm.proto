@@ -26,13 +26,7 @@ message m_addpkg {
 	string creator = 1;
 	gnovm.MemPackage package = 2;
 	string deposit = 3;
-}
-
-message m_setmeta {
-	string caller = 1;
-	string send = 2;
-	string pkg_path = 3;
-	repeated MetaField fields = 4;
+	repeated MetaField metadata = 4;
 }
 
 message MetaField {

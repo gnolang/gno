@@ -18,12 +18,21 @@ var reMetaFieldName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]*$`)
 //----------------------------------------
 // MsgAddPackage
 
-// MsgAddPackage - create and initialize new package
-type MsgAddPackage struct {
-	Creator crypto.Address    `json:"creator" yaml:"creator"`
-	Package *gnovm.MemPackage `json:"package" yaml:"package"`
-	Deposit std.Coins         `json:"deposit" yaml:"deposit"`
-}
+type (
+	// MsgAddPackage - create and initialize new package
+	MsgAddPackage struct {
+		Creator  crypto.Address    `json:"creator" yaml:"creator"`
+		Package  *gnovm.MemPackage `json:"package" yaml:"package"`
+		Deposit  std.Coins         `json:"deposit" yaml:"deposit"`
+		Metadata []*MetaField      `json:"metadata" yaml:"metadata"`
+	}
+
+	// MetaField - package metadata field
+	MetaField struct {
+		Name  string `json:"name" yaml:"name"`
+		Value []byte `json:"value" yaml:"value"`
+	}
+)
 
 var _ std.Msg = MsgAddPackage{}
 
@@ -63,6 +72,28 @@ func (msg MsgAddPackage) ValidateBasic() error {
 	if !msg.Deposit.IsValid() {
 		return std.ErrInvalidCoins(msg.Deposit.String())
 	}
+
+	if len(msg.Metadata) > maxMetaFields {
+		return ErrInvalidPkgMeta("maximum number of metadata fields exceeded")
+	}
+
+	seenFields := make(map[string]struct{}, len(msg.Metadata))
+	for _, f := range msg.Metadata {
+		if !reMetaFieldName.Match([]byte(f.Name)) {
+			return ErrInvalidPkgMeta("invalid metadata field name")
+		}
+
+		if _, exists := seenFields[f.Name]; exists {
+			return ErrInvalidPkgMeta("metadata contains duplicated fields")
+		}
+
+		if len(f.Value) > maxMetaFieldValueSize {
+			return ErrInvalidPkgMeta("metadata field value is too large")
+		}
+
+		seenFields[f.Name] = struct{}{}
+	}
+
 	// XXX validate files.
 	return nil
 }
@@ -209,87 +240,5 @@ func (msg MsgRun) GetSigners() []crypto.Address {
 
 // Implements ReceiveMsg.
 func (msg MsgRun) GetReceived() std.Coins {
-	return msg.Send
-}
-
-//----------------------------------------
-// MsgSetMeta
-
-type (
-	// MsgSetMeta - set package metadata.
-	MsgSetMeta struct {
-		Caller  crypto.Address `json:"caller" yaml:"caller"`
-		Send    std.Coins      `json:"send" yaml:"send"`
-		PkgPath string         `json:"pkg_path" yaml:"pkg_path"`
-		Fields  []*MetaField   `json:"fields" yaml:"fields"`
-	}
-
-	// MetaField defines a package metadata field.
-	MetaField struct {
-		Name  string `json:"name" yaml:"name"`
-		Value []byte `json:"value" yaml:"value"`
-	}
-)
-
-var _ std.Msg = MsgSetMeta{}
-
-func NewMsgSetMeta(caller crypto.Address, send std.Coins, pkgPath string, fields []*MetaField) MsgSetMeta {
-	return MsgSetMeta{
-		Caller:  caller,
-		Send:    send,
-		PkgPath: pkgPath,
-		Fields:  fields,
-	}
-}
-
-// Implements Msg.
-func (msg MsgSetMeta) Route() string { return RouterKey }
-
-// Implements Msg.
-func (msg MsgSetMeta) Type() string { return "meta" }
-
-// Implements Msg.
-func (msg MsgSetMeta) ValidateBasic() error {
-	if msg.Caller.IsZero() {
-		return std.ErrInvalidAddress("missing caller address")
-	}
-
-	if msg.PkgPath == "" {
-		return ErrInvalidPkgPath("missing package path")
-	}
-
-	count := len(msg.Fields)
-	if count == 0 {
-		return ErrInvalidPkgMeta("missing metadata fields")
-	}
-
-	if count > maxMetaFields {
-		return ErrInvalidPkgMeta("maximum number of package metadata fields reached")
-	}
-
-	for _, f := range msg.Fields {
-		if !reMetaFieldName.Match([]byte(f.Name)) {
-			return ErrInvalidPkgMeta("invalid metadata field name")
-		}
-
-		if len(f.Value) > maxMetaFieldValueSize {
-			return ErrInvalidPkgMeta("metadata field value is too large")
-		}
-	}
-	return nil
-}
-
-// Implements Msg.
-func (msg MsgSetMeta) GetSignBytes() []byte {
-	return std.MustSortJSON(amino.MustMarshalJSON(msg))
-}
-
-// Implements Msg.
-func (msg MsgSetMeta) GetSigners() []crypto.Address {
-	return []crypto.Address{msg.Caller}
-}
-
-// Implements ReceiveMsg.
-func (msg MsgSetMeta) GetReceived() std.Coins {
 	return msg.Send
 }
