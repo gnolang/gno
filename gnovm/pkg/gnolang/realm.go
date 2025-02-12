@@ -291,7 +291,9 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, isLastRef bool) {
 // The `len` and `offset` are needed to validate proper elements of the underlying array.
 // NOTE, oo can be real or unreal.
 func checkCrossRealm(rlm *Realm, store Store, oo Object, isLastRef bool) {
-	debug2.Printf2("checkCrossRealm, oo: %v, (type: %v) | GetIsReal: %t | oo.GetOriginRealm: %v \n", oo, reflect.TypeOf(oo), oo.GetIsReal(), oo.GetOriginRealm())
+	debug2.Printf2("checkCrossRealm, oo: %v, (type: %v) | GetIsReal: %t | oo.GetOriginRealm: %v | rlm.ID: %v \n",
+		oo, reflect.TypeOf(oo), oo.GetIsReal(), oo.GetOriginRealm(), rlm.ID)
+
 	debug2.Printf2(
 		"isLastRef: %t | isCurrentRef: %t\n",
 		isLastRef, oo.GetIsAttachingRef(),
@@ -305,32 +307,36 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, isLastRef bool) {
 		isLastRef = oo.GetIsAttachingRef()
 	}
 
-	if !oo.GetOriginRealm().IsZero() { // e.g. unreal array, struct...
-		if rlm.ID != oo.GetOriginRealm() { // crossing realm
-			debug2.Println2("crossing realm, check oo, return or check elems...")
-			// reference value
-			if isLastRef {
-				if oo.GetIsReal() {
-					debug2.Println2("base is REAL, return")
-					return
-				} else {
-					panic(fmt.Sprintf("cannot attach a reference to an unreal object from an external realm: %v", oo))
-				}
-			} else { // not reference to object
-				debug2.Println2("Non reference object crossing realm, panic...")
-				panic(fmt.Sprintf("cannot attach a value of a type defined by another realm: %v", oo))
-			}
-		} else {
-			// for local realm checking
-			// maybe a container not cross
-			// but embedded field does.
-			debug2.Println2("oo Not crossing realm, check elems...")
-		}
-	} else {
-		// e.g. array, map
-		debug2.Println2("Origin Realm is zero, unreal, check elems...")
+	if oo.GetOriginRealm().IsZero() {
+		debug2.Println2("origin realm is zero, it's unreal, check elems...")
+		checkCrossRealmChildren(rlm, store, oo, isLastRef)
+		return
 	}
 
+	if rlm.ID == oo.GetOriginRealm() {
+		debug2.Println2("oo Not crossing realm, recursively check for local realm")
+		// for local realm checking
+		// maybe a container not cross
+		// but embedded field does.
+		checkCrossRealmChildren(rlm, store, oo, isLastRef)
+		return
+	}
+
+	if rlm.ID != oo.GetOriginRealm() { // crossing realm
+		if isLastRef {
+			if oo.GetIsReal() {
+				debug2.Println2("reference base is REAL, return")
+				return
+			} else {
+				panic(fmt.Sprintf("cannot attach a reference to an unreal object from an external realm: %v", oo))
+			}
+		} else { // not reference to object
+			panic(fmt.Sprintf("cannot attach a value of a type defined by another realm: %v", oo))
+		}
+	}
+}
+
+func checkCrossRealmChildren(rlm *Realm, store Store, oo Object, isLastRef bool) {
 	switch v := oo.(type) {
 	case *StructValue:
 		// check fields
@@ -350,17 +356,14 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, isLastRef bool) {
 			panic("bound method closure should be real")
 		}
 	case *Block:
-		debug2.Printf2("block values: %v | b.source: %v \n ", v.Values, v.Source)
 		// NOTE, it's not escaped until now,
 		// will set after check
-		for i, tv := range v.Values {
-			debug2.Printf2("block tv[%d] is tv: %v \n", i, tv)
+		for _, tv := range v.Values {
 			checkCrossRealm2(rlm, store, &tv, isLastRef)
 		}
 	case *HeapItemValue:
 		checkCrossRealm2(rlm, store, &v.Value, isLastRef)
 	case *ArrayValue:
-		debug2.Println2("ArrayValue, v: ", v)
 		if v.Data == nil {
 			for _, e := range v.List {
 				checkCrossRealm2(rlm, store, &e, isLastRef)
@@ -391,7 +394,7 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object) {
 	// in current realm, and it's referenced twice.
 	if !oo.GetOriginRealm().IsZero() && oo.GetOriginRealm() != rlm.ID { // crossing realm
 		if !oo.GetIsAttachingRef() {
-			panic("cannot attach objects by value from external realm")
+			panic(fmt.Sprintf("cannot attach objects by value from external realm: %v", oo))
 		}
 	}
 	// mark escaped

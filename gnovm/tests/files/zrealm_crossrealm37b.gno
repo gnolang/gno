@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// cannot attach objects by value from external realm
+// cannot attach objects by value from external realm: map{("a" string):(1 int)}
