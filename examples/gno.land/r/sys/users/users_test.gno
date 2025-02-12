@@ -113,3 +113,50 @@ func TestResolveAddress(t *testing.T) {
 		uassert.Equal(t, "alice4", res.Name())
 	})
 }
+
+func TestROStores(t *testing.T) {
+	std.TestSetOrigCaller(whitelistedCallerAddr)
+	cleanStore(t)
+
+	urequire.NoError(t, RegisterUser(alice, aliceAddr))
+	roNS := GetReadOnlyNameStore()
+	roAS := GetReadonlyAddrStore()
+
+	t.Run("get user data", func(t *testing.T) {
+		// Name store
+		aliceDataRaw, ok := roNS.Get(alice)
+		uassert.True(t, ok)
+
+		_, ok = aliceDataRaw.(*UserData)
+		uassert.True(t, ok, "Could not cast data from RO tree to UserData")
+
+		// Addr store
+		aliceDataRaw, ok = roAS.Get(aliceAddr.String())
+		uassert.True(t, ok)
+
+		_, ok = aliceDataRaw.(*UserData)
+		uassert.True(t, ok, "Could not cast data from RO tree to UserData")
+	})
+
+	t.Run("get deleted data", func(t *testing.T) {
+		raw, _ := nameStore.Get(alice)
+		aliceData := raw.(*UserData)
+
+		urequire.NoError(t, aliceData.Delete())
+		urequire.True(t, aliceData.IsDeleted())
+
+		// Should be nil because of makeSafeFn
+		rawRoData, ok := roNS.Get(alice)
+
+		// uassert.False(t, ok)
+		// XXX: not sure what to do here, as the tree has the data so returns ok
+		// However the data is intercepted and something else (nilin this case) is returned.
+		// should we handle this somehow?
+
+		uassert.Equal(t, rawRoData, nil)
+
+		_, ok = rawRoData.(*UserData) // shouldn't be castable
+		uassert.False(t, ok)
+	})
+
+}

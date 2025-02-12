@@ -14,13 +14,7 @@ const gusersv1 = "gno.land/r/gnoland/users/v1" // preregistered with store write
 var controllers = addrset.Set{} // caller whitelist
 
 func init() {
-	callerWhitelist.Add(std.DerivePkgAddr(gusersv1)) // initially whitelisted
-}
-
-// IsOnWhitelist checks if the given address has
-// permission to write to the user store
-func IsOnWhitelist(addr std.Address) bool {
-	return callerWhitelist.Has(addr)
+	controllers.Add(std.DerivePkgAddr(gusersv1)) // initially whitelisted
 }
 
 // NewAddWhitelistedAddrExecutor allows GovDAO to add a whitelisted caller
@@ -44,11 +38,11 @@ func NewDeleteWhitelistedAddrExecutor(addr std.Address) dao.Executor {
 // Helpers
 
 func deleteFromwhitelist(addr std.Address) error {
-	if !callerWhitelist.Has(addr) {
+	if !controllers.Has(addr) {
 		return ErrNotWhitelisted
 	}
 
-	if ok := callerWhitelist.Remove(addr); !ok {
+	if ok := controllers.Remove(addr); !ok {
 		panic("failed to remove address from whitelist")
 	}
 
@@ -60,7 +54,7 @@ func addToWhitelist(newCaller std.Address) error {
 		return ErrInvalidAddress
 	}
 
-	if !callerWhitelist.Add(newCaller) {
+	if !controllers.Add(newCaller) {
 		return ErrAlreadyWhitelisted
 	}
 

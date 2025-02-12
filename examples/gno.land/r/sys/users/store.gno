@@ -44,7 +44,7 @@ func (u UserData) IsDeleted() bool {
 // RegisterUser adds a new user to the system.
 func RegisterUser(name string, address std.Address) error {
 	// Validate caller
-	if !IsOnWhitelist(std.PrevRealm().Addr()) {
+	if !controllers.Has(std.PrevRealm().Addr()) {
 		return ErrNotWhitelisted
 	}
 
@@ -101,7 +101,7 @@ func (u *UserData) UpdateName(newName string) error {
 	}
 
 	// Validate caller
-	if !IsOnWhitelist(std.PrevRealm().Addr()) {
+	if !controllers.Has(std.PrevRealm().Addr()) {
 		return ErrNotWhitelisted
 	}
 
@@ -129,7 +129,7 @@ func (u *UserData) Delete() error {
 	}
 
 	// Validate caller
-	if !IsOnWhitelist(std.PrevRealm().Addr()) {
+	if !controllers.Has(std.PrevRealm().Addr()) {
 		return ErrNotWhitelisted
 	}
 
