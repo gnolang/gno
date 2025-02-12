@@ -2,8 +2,6 @@
 package crossrealm_test
 
 import (
-	"std"
-
 	crossrealm "gno.land/r/demo/tests/crossrealm"
 )
 
@@ -13,14 +11,14 @@ type fooer struct {
 
 func (f *fooer) Foo() {
 	f.s = "B"
-	println("hello " + f.s + " " + std.CurrentRealm().PkgPath())
+	println("hello")
 }
 
 var f *fooer
 
 func init() {
-	f = &fooer{s: "A"} // this is unreal
-	crossrealm.SetFooer(f)
+	f = &fooer{s: "A"}     // unreal, refCount 1, owner f
+	crossrealm.SetFooer(f) // refCount2, escaped
 	crossrealm.CallFooerFoo()
 }
 
@@ -29,4 +27,4 @@ func main() {
 }
 
 // Error:
-// cannot attach a reference to an unreal object from an external realm: heapitem((struct{("A" string)} gno.land/r/crossrealm_test.fooer))
+// cannot attach objects by value from external realm

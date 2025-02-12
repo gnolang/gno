@@ -19,4 +19,4 @@ func main() {
 }
 
 // Error:
-// cannot attach a reference to an unreal object from an external realm: heapitem((struct{("local_fooer" string)} gno.land/r/crossrealm_test.fooer))
+// cannot attach a value of a type defined by another realm: heapitem((struct{("local_fooer" string)} gno.land/r/crossrealm_test.fooer))

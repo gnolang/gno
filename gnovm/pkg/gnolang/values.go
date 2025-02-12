@@ -255,7 +255,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 								panic("should not happen")
 							}
 							if nv, ok := tv2.V.(*NativeValue); !ok ||
-								nv.Value.Kind() != reflect.Func {
+									nv.Value.Kind() != reflect.Func {
 								panic("should not happen")
 							}
 						}
@@ -305,7 +305,9 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		// e.g. refValue is a sliceValue
 		switch pv.TV.V.(type) {
 		case *SliceValue, PointerValue:
-			oo2.SetIsRef(true)
+			if oo2.GetIsReal() {
+				oo2.SetIsRef(true)
+			}
 		}
 
 		if oo2 != nil && !originPkg.IsZero() {

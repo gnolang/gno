@@ -12,7 +12,7 @@ func (fooer) Foo() { println("hello") }
 var f *fooer
 
 func init() {
-	f = &fooer{}
+	f = &fooer{} // unreal
 	crossrealm.SetFooer(f)
 	crossrealm.CallFooerFoo()
 }
@@ -22,4 +22,4 @@ func main() {
 }
 
 // Error:
-// cannot attach a reference to an unreal object from an external realm: heapitem((struct{} gno.land/r/crossrealm_test.fooer))
+// cannot attach objects by value from external realm
