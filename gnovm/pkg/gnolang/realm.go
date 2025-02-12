@@ -284,6 +284,12 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, isLastRef bool) {
 						return
 					}
 				}
+				if hiv, ok := reo.(*HeapItemValue); ok {
+					debug2.Println2("hiv: ", hiv)
+					if hiv.Value == *pv.TV {
+						return
+					}
+				}
 			}
 
 			reo.SetOriginRealm(tv2.GetOriginPkg(store))
