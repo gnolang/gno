@@ -31,7 +31,7 @@ func ProposeNewName(addr std.Address, newName string) dao.Executor {
 
 	userData := susers.ResolveAddress(addr)
 	if userData == nil {
-		panic(ErrInvalidUsername)
+		panic(susers.ErrUserNotExistOrDeleted)
 	}
 
 	cb := func() error {
@@ -50,7 +50,7 @@ func ProposeNewName(addr std.Address, newName string) dao.Executor {
 func ProposeDeleteUser(addr std.Address) dao.Executor {
 	userData := susers.ResolveAddress(addr)
 	if userData == nil {
-		panic(ErrInvalidUsername)
+		panic(susers.ErrUserNotExistOrDeleted)
 	}
 
 	cb := func() error {
