@@ -18,13 +18,12 @@ type verifierFunc func(address std.Address, name string) bool
 var (
 	Ownable = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @moul > dropped in genesis via Enable
 
-	checkFunc = defaultVerifier // Callback for the namespace check
-	enabled   = false           // set to true in genesis
+	enabled = false // set to true in genesis
 )
 
 // IsAuthorizedAddressForName ensures that the given address has ownership of the given name.
 func IsAuthorizedAddressForName(address std.Address, name string) bool {
-	return checkFunc(enabled, address, name)
+	return verifier(enabled, address, name)
 }
 
 // Enable enables the namespace check and drops centralized ownership of this realm.
@@ -44,7 +43,7 @@ func IsEnabled() bool {
 // defaultVerifyFunction checks the store to see that the
 // user has properly registered the given name.
 // This function considers as valid an `address` that matches the `name`.
-func defaultVerifier(enabled bool, address std.Address, name string) bool {
+func verifier(enabled bool, address std.Address, name string) bool {
 	if !enabled {
 		return true // only in pre-genesis cases
 	}
@@ -68,14 +67,4 @@ func defaultVerifier(enabled bool, address std.Address, name string) bool {
 	/// XXX: add check for r/sys/teams down the line
 
 	return userData.Addr() == address
-}
-
-// NewVerifyCallExecutor allows updating the verifier function via a GovDAO proposal
-func NewVerifyCallExecutor(newVerifyCall func(enabled bool, address std.Address, name string) bool) dao.Executor {
-	callback := func() error {
-		checkFunc = newVerifyCall
-		return nil
-	}
-
-	return bridge.GovDAO().NewGovDAOExecutor(callback)
 }
