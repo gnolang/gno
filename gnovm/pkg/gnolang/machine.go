@@ -23,8 +23,8 @@ import (
 
 type Machine struct {
 	// State
-	Ops        []Op          // operations stack
-	NumOps     int           // number of operations
+	Ops        []Op // main operations
+	NumOps     int
 	Values     []TypedValue  // buffer of values to be operated on
 	NumValues  int           // number of values
 	Exprs      []Expr        // pending expressions
@@ -34,9 +34,9 @@ type Machine struct {
 	Package    *PackageValue // active package
 	Realm      *Realm        // active realm
 	Alloc      *Allocator    // memory allocations
-	Exceptions []Exception   // exceptions stack
-	NumResults int           // number of results returned
-	Cycles     int64         // number of "cpu" cycles performed
+	Exceptions []Exception
+	NumResults int   // number of results returned
+	Cycles     int64 // number of "cpu" cycles
 
 	Debugger Debugger
 
@@ -186,7 +186,6 @@ func (m *Machine) Release() {
 	machinePool.Put(m)
 }
 
-// Convenience for initial setup of the machine.
 func (m *Machine) SetActivePackage(pv *PackageValue) {
 	if err := m.CheckEmpty(); err != nil {
 		panic(errors.Wrap(err, "set package when machine not empty"))
@@ -195,14 +194,6 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 	m.Realm = pv.GetRealm()
 	m.Blocks = []*Block{
 		pv.GetBlock(m.Store),
-	}
-}
-
-func (m *Machine) setCurrentPackage(pv *PackageValue) {
-	m.Package = pv
-	rlm := pv.GetRealm()
-	if rlm != nil {
-		m.Realm = rlm
 	}
 }
 
@@ -298,7 +289,6 @@ func (m *Machine) runMemPackage(memPkg *gnovm.MemPackage, save, overrides bool) 
 		if throwaway != nil {
 			m.Realm = throwaway
 		}
-		debug2.Println2("save, throwaway: ", throwaway)
 	}
 	// run init functions
 	m.runInitFromUpdates(pv, updates)
@@ -398,8 +388,7 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 	}
 
 	calls := make([]StacktraceCall, 0, len(m.Stmts))
-	var nextStmtIndex int
-	nextStmtIndex = len(m.Stmts) - 1
+	nextStmtIndex := len(m.Stmts) - 1
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		if m.Frames[i].IsCall() {
 			stm := m.Stmts[nextStmtIndex]
@@ -555,7 +544,6 @@ func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
 	// recursive function for var declarations.
 	var runDeclarationFor func(fn *FileNode, decl Decl)
 	runDeclarationFor = func(fn *FileNode, decl Decl) {
-		debug2.Println2("runDeclarationFor, d: ", decl)
 		// get fileblock of fn.
 		// fb := pv.GetFileBlock(nil, fn.Name)
 		// get dependencies of decl.
@@ -646,12 +634,11 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 // Save the machine's package using realm finalization deep crawl.
 // Also saves declared types.
 // This happens before any init calls.
-// Returns a throwaway realm package if not a realm,
+// Returns a throwaway realm package is not a realm,
 // such as stdlibs or /p/ packages.
 func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 	// save package value and dependencies.
 	pv := m.Package
-	debug2.Println2("saveNewPackageValuesAndTypes, pv is realm? ", pv.IsRealm())
 	if pv.IsRealm() {
 		rlm := pv.Realm
 		rlm.MarkNewReal(pv)
@@ -681,12 +668,10 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 // Pass in the realm from m.saveNewPackageValuesAndTypes()
 // in case a throwaway was created.
 func (m *Machine) resavePackageValues(rlm *Realm) {
-	debug2.Println2("resavePackageValues, throwaway: ", rlm)
 	// save package value and dependencies.
 	pv := m.Package
 	if pv.IsRealm() {
 		rlm = pv.Realm
-		debug2.Println2("rlm.ID: ", rlm.ID)
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
 		// re-save package realm info.
 		m.Store.SetPackageRealm(rlm)
@@ -881,7 +866,6 @@ func (m *Machine) RunDeclaration(d Decl) {
 // package level, for which evaluations happen during
 // preprocessing).
 func (m *Machine) runDeclaration(d Decl) {
-	debug2.Println2("run declaration, d: ", d)
 	switch d := d.(type) {
 	case *FuncDecl:
 		// nothing to do.
@@ -1799,8 +1783,6 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
-	debug2.Println2("PushFrameCall, CallExpr: ", cx)
-	debug2.Println2("m.Realm: ", m.Realm)
 	fr := &Frame{
 		Source:      cx,
 		NumOps:      m.NumOps,
@@ -1826,39 +1808,29 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 		m.Printf("+F %#v\n", fr)
 	}
 	m.Frames = append(m.Frames, fr)
-	if recv.IsDefined() {
-		// If the receiver is defined, we enter the receiver's realm.
+	pv := fv.GetPackage(m.Store)
+	if pv == nil {
+		panic(fmt.Sprintf("package value missing in store: %s", fv.PkgPath))
+	}
+	rlm := pv.GetRealm()
+	if rlm == nil && recv.IsDefined() {
 		obj := recv.GetFirstObject(m.Store)
 		if obj == nil {
 			// could be a nil receiver.
-			// set package and realm of function.
-			pv := fv.GetPackage(m.Store)
-			if pv == nil {
-				panic(fmt.Sprintf("package value missing in store: %s", fv.PkgPath))
-			}
-			m.setCurrentPackage(pv) // maybe new realm
+			// just ignore.
 		} else {
 			recvOID := obj.GetObjectInfo().ID
-			debug2.Println2("---recvOID is: ", recvOID)
-			if recvOID.IsZero() {
-				debug2.Println2("---recv is ZERO, it's not owned, recv: ", recv)
-				// receiver isn't owned yet.
-				// just continue with current package and realm.
-				// XXX is this reasonable?
-			} else {
+			if !recvOID.IsZero() {
 				// override the pv and rlm with receiver's.
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
-				pv := m.Store.GetObject(recvPkgOID).(*PackageValue)
-				m.setCurrentPackage(pv) // maybe new realm
+				pv = m.Store.GetObject(recvPkgOID).(*PackageValue)
+				rlm = pv.GetRealm() // done
 			}
 		}
-	} else {
-		debug2.Println2("receiver not defined")
-		pv := fv.GetPackage(m.Store)
-		if pv == nil {
-			panic(fmt.Sprintf("package value missing in store: %s", fv.PkgPath))
-		}
-		m.setCurrentPackage(pv) // maybe new realm
+	}
+	m.Package = pv
+	if rlm != nil && m.Realm != rlm {
+		m.Realm = rlm // enter new realm
 	}
 }
 
@@ -1911,7 +1883,6 @@ func (m *Machine) PopFrameAndReset() {
 
 // TODO: optimize by passing in last frame.
 func (m *Machine) PopFrameAndReturn() {
-	debug2.Println2("PopFrameAndReturn")
 	fr := m.PopFrame()
 	fr.Popped = true
 	if debug {
@@ -1934,10 +1905,6 @@ func (m *Machine) PopFrameAndReturn() {
 		if res.IsUndefined() && rtypes[i].Type.Kind() != InterfaceKind {
 			res.T = rtypes[i].Type
 		}
-		//debug2.Println2("res: ", res)
-		//if oo, ok := res.V.(Object); ok {
-		//	debug2.Println2("oo.GetObjectInfo(): ", oo.GetObjectInfo())
-		//}
 		m.Values[fr.NumValues+i] = res
 	}
 	m.NumValues = fr.NumValues + numRes

@@ -24,10 +24,11 @@ func main() {
 }
 
 // Output:
-// hello from local realm fooer: gno.land/r/demo/tests/crossrealm
-// hello from local realm fooer: gno.land/r/demo/tests/crossrealm
+// hello from local realm fooer: gno.land/r/crossrealm_test
+// hello from local realm fooer: gno.land/r/crossrealm_test
 // .
 
 // Realm:
+// switchrealm["gno.land/r/crossrealm_test"]
 // switchrealm["gno.land/r/demo/tests/crossrealm"]
 // switchrealm["gno.land/r/crossrealm_test"]

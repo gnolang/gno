@@ -23,7 +23,7 @@ func main() {
 }
 
 // Output:
-// hello gno.land/r/demo/tests/crossrealm/iface
+// hello gno.land/r/crossrealm_test
 // .
 
 // Realm:
@@ -63,7 +63,6 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// switchrealm["gno.land/r/demo/tests/crossrealm/iface"]
 // switchrealm["gno.land/r/crossrealm_test"]
 // c[f5a516808f8976c33939133293d598ce3bca4e8d:5]={
 //     "Fields": [
@@ -86,3 +85,5 @@ func main() {
 //     }
 // }
 // d[f5a516808f8976c33939133293d598ce3bca4e8d:3]
+// switchrealm["gno.land/r/demo/tests/crossrealm/iface"]
+// switchrealm["gno.land/r/crossrealm_test"]
