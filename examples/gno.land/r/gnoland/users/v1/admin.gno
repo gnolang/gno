@@ -25,16 +25,19 @@ func NewSetPausedExecutor(newPausedValue bool) dao.Executor {
 // The associated address and all previous names of a user that changes a name
 // are preserved, and all resolve to the new name.
 func ProposeNewName(addr std.Address, newName string) dao.Executor {
-	cb := func() error {
-		if matched := reUsername.MatchString(newName); !matched {
-			return ErrInvalidUsername
-		}
+	if matched := reUsername.MatchString(newName); !matched {
+		panic(ErrInvalidUsername)
+	}
 
-		userData := susers.ResolveAddress(addr)
+	userData := susers.ResolveAddress(addr)
+	if userData == nil {
+		panic(ErrInvalidUsername)
+	}
+
+	cb := func() error {
 		if err := userData.UpdateName(newName); err != nil {
 			return err
 		}
-
 		return nil
 	}
 
@@ -45,12 +48,15 @@ func ProposeNewName(addr std.Address, newName string) dao.Executor {
 // This will make the associated address and names unresolvable.
 // WARN: After deletion, the same address WILL NOT be able to register a new name.
 func ProposeDeleteUser(addr std.Address) dao.Executor {
+	userData := susers.ResolveAddress(addr)
+	if userData == nil {
+		panic(ErrInvalidUsername)
+	}
+
 	cb := func() error {
-		userData := susers.ResolveAddress(addr)
 		if err := userData.Delete(); err != nil {
 			return err
 		}
-
 		return nil
 	}
 
