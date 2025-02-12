@@ -1,7 +1,7 @@
 package home
 
 import (
-   "gno.land/p/mason/md"
+	"gno.land/p/mason/md"
 )
 
 const (
@@ -11,7 +11,7 @@ const (
                   (o.o)
                   (\_/)
                   -"-"-`
-   dgnonut = `
+	dgnonut = `
                         #$$$$$$$$*                         
                      #$$@@@@@@@@@@$$$#                      
                    #$$@@@@@@@@@@@@@$$$$#                    
@@ -64,14 +64,14 @@ func Render(path string) string {
 	home.h1("Mason's Realm")
 
 	home.im("https://cdn.esawebb.org/archives/images/screen/weic2428a.jpg", "Placeholder")
-	home.p("Welcome to my realm. "+md.link("github","https://github.com/masonmcbride"))
+	home.p("Welcome to my realm. " + md.link("github", "https://github.com/masonmcbride"))
 
-   home.h3("Dgnonut")
-   home.code(dgnonut)
+	home.h3("Dgnonut")
+	home.code(dgnonut)
 
-   home.h3("More")
-   home.code(gnomeArt1)
-   home.bullet("Credit to "+md.link("JJOptimist", "https://gno.land/r/jjoptimist/home")+" for this gnome art.")
-   home.bullet("I'm testing out my markdown system.")
+	home.h3("More")
+	home.code(gnomeArt1)
+	home.bullet("Credit to " + md.link("JJOptimist", "https://gno.land/r/jjoptimist/home") + " for this gnome art.")
+	home.bullet("I'm testing out my markdown system.")
 	return home.Render()
 }
