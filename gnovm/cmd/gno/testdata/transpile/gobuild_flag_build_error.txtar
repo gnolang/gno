@@ -1,7 +1,7 @@
-# Run gno transpile with -gobuild flag
+# Run gno tool transpile with -gobuild flag
 # The error messages changed sometime in go1.23, so this avoids errors
 
-! gno transpile -gobuild .
+! gno tool transpile -gobuild .
 
 ! stdout .+
 stderr '^main.gno:4:6: .*declared and not used'

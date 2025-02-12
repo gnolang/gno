@@ -108,7 +108,7 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 	} else if result.Output != "" {
 		outputDirective := dirs.First(DirectiveOutput)
 		if outputDirective == nil {
-			return "", fmt.Errorf("unexpected output: \n%s", result.Output)
+			return "", fmt.Errorf("unexpected output:\n%s", result.Output)
 		}
 	} else {
 		err = m.CheckEmpty()

@@ -11,7 +11,11 @@ var mysv *MyStruct = &MyStruct{}
 
 func main() {
 	f = mysv.M
+	println(f)
 }
+
+// Output:
+// <*gno.land/r/crossrealm_test.MyStruct>.M(sv *gno.land/r/crossrealm_test.MyStruct)( string)
 
 // Realm:
 // switchrealm["gno.land/r/crossrealm_test"]
@@ -40,6 +44,7 @@ func main() {
 //         },
 //         "Type": {
 //             "@type": "/gno.FuncType",
+//             "IsClosure": false,
 //             "Params": [
 //                 {
 //                     "Embedded": false,
@@ -93,200 +98,23 @@ func main() {
 //         }
 //     }
 // }
-// u[f5a516808f8976c33939133293d598ce3bca4e8d:2]={
-//     "Blank": {},
+// u[f5a516808f8976c33939133293d598ce3bca4e8d:3]={
 //     "ObjectInfo": {
-//         "ID": "f5a516808f8976c33939133293d598ce3bca4e8d:2",
+//         "ID": "f5a516808f8976c33939133293d598ce3bca4e8d:3",
 //         "IsEscaped": true,
-//         "ModTime": "5",
+//         "ModTime": "6",
+//         "OwnerID": "f5a516808f8976c33939133293d598ce3bca4e8d:2",
 //         "RefCount": "2"
 //     },
-//     "Parent": null,
-//     "Source": {
-//         "@type": "/gno.RefNode",
-//         "BlockNode": null,
-//         "Location": {
-//             "Column": "0",
-//             "File": "",
-//             "Line": "0",
-//             "PkgPath": "gno.land/r/crossrealm_test"
+//     "Value": {
+//         "T": {
+//             "@type": "/gno.RefType",
+//             "ID": "gno.land/r/crossrealm_test.MyStruct"
+//         },
+//         "V": {
+//             "@type": "/gno.RefValue",
+//             "Hash": "c2dcd6b8b5bbe275e4cd7b90b0333aaf02e120eb",
+//             "ObjectID": "f5a516808f8976c33939133293d598ce3bca4e8d:4"
 //         }
-//     },
-//     "Values": [
-//         {
-//             "T": {
-//                 "@type": "/gno.FuncType",
-//                 "Params": [],
-//                 "Results": [
-//                     {
-//                         "Embedded": false,
-//                         "Name": "",
-//                         "Tag": "",
-//                         "Type": {
-//                             "@type": "/gno.PrimitiveType",
-//                             "value": "16"
-//                         }
-//                     }
-//                 ]
-//             },
-//             "V": {
-//                 "@type": "/gno.RefValue",
-//                 "Hash": "192f305dae814cfaa2d2804e0c29ca20b07aaf5b",
-//                 "ObjectID": "f5a516808f8976c33939133293d598ce3bca4e8d:6"
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.TypeType"
-//             },
-//             "V": {
-//                 "@type": "/gno.TypeValue",
-//                 "Type": {
-//                     "@type": "/gno.DeclaredType",
-//                     "Base": {
-//                         "@type": "/gno.StructType",
-//                         "Fields": [],
-//                         "PkgPath": "gno.land/r/crossrealm_test"
-//                     },
-//                     "Methods": [
-//                         {
-//                             "T": {
-//                                 "@type": "/gno.FuncType",
-//                                 "Params": [
-//                                     {
-//                                         "Embedded": false,
-//                                         "Name": "sv",
-//                                         "Tag": "",
-//                                         "Type": {
-//                                             "@type": "/gno.PointerType",
-//                                             "Elt": {
-//                                                 "@type": "/gno.RefType",
-//                                                 "ID": "gno.land/r/crossrealm_test.MyStruct"
-//                                             }
-//                                         }
-//                                     }
-//                                 ],
-//                                 "Results": [
-//                                     {
-//                                         "Embedded": false,
-//                                         "Name": "",
-//                                         "Tag": "",
-//                                         "Type": {
-//                                             "@type": "/gno.PrimitiveType",
-//                                             "value": "16"
-//                                         }
-//                                     }
-//                                 ]
-//                             },
-//                             "V": {
-//                                 "@type": "/gno.FuncValue",
-//                                 "Closure": null,
-//                                 "FileName": "files/zrealm_crossrealm41_method.gno",
-//                                 "IsMethod": true,
-//                                 "Name": "M",
-//                                 "NativeName": "",
-//                                 "NativePkg": "",
-//                                 "PkgPath": "gno.land/r/crossrealm_test",
-//                                 "Source": {
-//                                     "@type": "/gno.RefNode",
-//                                     "BlockNode": null,
-//                                     "Location": {
-//                                         "Column": "1",
-//                                         "File": "files/zrealm_crossrealm41_method.gno",
-//                                         "Line": "8",
-//                                         "PkgPath": "gno.land/r/crossrealm_test"
-//                                     }
-//                                 },
-//                                 "Type": {
-//                                     "@type": "/gno.FuncType",
-//                                     "Params": [
-//                                         {
-//                                             "Embedded": false,
-//                                             "Name": "sv",
-//                                             "Tag": "",
-//                                             "Type": {
-//                                                 "@type": "/gno.PointerType",
-//                                                 "Elt": {
-//                                                     "@type": "/gno.RefType",
-//                                                     "ID": "gno.land/r/crossrealm_test.MyStruct"
-//                                                 }
-//                                             }
-//                                         }
-//                                     ],
-//                                     "Results": [
-//                                         {
-//                                             "Embedded": false,
-//                                             "Name": "",
-//                                             "Tag": "",
-//                                             "Type": {
-//                                                 "@type": "/gno.PrimitiveType",
-//                                                 "value": "16"
-//                                             }
-//                                         }
-//                                     ]
-//                                 }
-//                             }
-//                         }
-//                     ],
-//                     "Name": "MyStruct",
-//                     "PkgPath": "gno.land/r/crossrealm_test"
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.PointerType",
-//                 "Elt": {
-//                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/r/crossrealm_test.MyStruct"
-//                 }
-//             },
-//             "V": {
-//                 "@type": "/gno.PointerValue",
-//                 "Base": {
-//                     "@type": "/gno.RefValue",
-//                     "Escaped": true,
-//                     "ObjectID": "f5a516808f8976c33939133293d598ce3bca4e8d:3"
-//                 },
-//                 "Index": "0",
-//                 "TV": null
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.FuncType",
-//                 "Params": [],
-//                 "Results": []
-//             },
-//             "V": {
-//                 "@type": "/gno.FuncValue",
-//                 "Closure": {
-//                     "@type": "/gno.RefValue",
-//                     "Escaped": true,
-//                     "ObjectID": "f5a516808f8976c33939133293d598ce3bca4e8d:5"
-//                 },
-//                 "FileName": "files/zrealm_crossrealm41_method.gno",
-//                 "IsMethod": false,
-//                 "Name": "main",
-//                 "NativeName": "",
-//                 "NativePkg": "",
-//                 "PkgPath": "gno.land/r/crossrealm_test",
-//                 "Source": {
-//                     "@type": "/gno.RefNode",
-//                     "BlockNode": null,
-//                     "Location": {
-//                         "Column": "1",
-//                         "File": "files/zrealm_crossrealm41_method.gno",
-//                         "Line": "12",
-//                         "PkgPath": "gno.land/r/crossrealm_test"
-//                     }
-//                 },
-//                 "Type": {
-//                     "@type": "/gno.FuncType",
-//                     "Params": [],
-//                     "Results": []
-//                 }
-//             }
-//         }
-//     ]
+//     }
 // }

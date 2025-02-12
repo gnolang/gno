@@ -25,3 +25,64 @@ func main() {
 // Output:
 // hello gno.land/r/demo/tests/crossrealm/iface
 // .
+
+// Realm:
+// switchrealm["gno.land/r/demo/tests/crossrealm/iface"]
+// u[5836d1a3cec217737a5553d4c1a03d8897d5f281:4]={
+//     "Fields": [
+//         {
+//             "T": {
+//                 "@type": "/gno.PrimitiveType",
+//                 "value": "16"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.PointerType",
+//                 "Elt": {
+//                     "@type": "/gno.RefType",
+//                     "ID": "gno.land/r/crossrealm_test.fooer"
+//                 }
+//             },
+//             "V": {
+//                 "@type": "/gno.PointerValue",
+//                 "Base": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "f5a516808f8976c33939133293d598ce3bca4e8d:2"
+//                 },
+//                 "Index": "1",
+//                 "TV": null
+//             }
+//         }
+//     ],
+//     "ObjectInfo": {
+//         "ID": "5836d1a3cec217737a5553d4c1a03d8897d5f281:4",
+//         "ModTime": "4",
+//         "OwnerID": "5836d1a3cec217737a5553d4c1a03d8897d5f281:2",
+//         "RefCount": "1"
+//     }
+// }
+// switchrealm["gno.land/r/demo/tests/crossrealm/iface"]
+// switchrealm["gno.land/r/crossrealm_test"]
+// c[f5a516808f8976c33939133293d598ce3bca4e8d:5]={
+//     "Fields": [
+//         {
+//             "T": {
+//                 "@type": "/gno.PrimitiveType",
+//                 "value": "16"
+//             },
+//             "V": {
+//                 "@type": "/gno.StringValue",
+//                 "value": "local_fooer"
+//             }
+//         }
+//     ],
+//     "ObjectInfo": {
+//         "ID": "f5a516808f8976c33939133293d598ce3bca4e8d:5",
+//         "ModTime": "0",
+//         "OwnerID": "f5a516808f8976c33939133293d598ce3bca4e8d:2",
+//         "RefCount": "1"
+//     }
+// }
+// d[f5a516808f8976c33939133293d598ce3bca4e8d:3]

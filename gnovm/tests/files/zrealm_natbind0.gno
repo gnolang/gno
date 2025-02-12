@@ -25,3 +25,6 @@ func main() {
 // Output:
 // 123
 // dev
+
+// Realm:
+// switchrealm["gno.land/r/test"]

@@ -6,15 +6,15 @@
 
   const modules: Record<string, Module> = {
     copy: {
-      selector: "[data-copy-btn]",
+      selector: ".js-copy-btn",
       path: "/public/js/copy.js",
     },
     help: {
-      selector: "#help",
+      selector: ".js-help-view",
       path: "/public/js/realmhelp.js",
     },
     searchBar: {
-      selector: "#header-searchbar",
+      selector: ".js-header-searchbar",
       path: "/public/js/searchbar.js",
     },
   };

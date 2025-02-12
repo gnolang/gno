@@ -217,7 +217,12 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 		// XXX, inc ref count everytime assignment happens
 		co.IncRefCount()
 		if co.GetRefCount() > 1 {
-			rlm.MarkNewEscapedCheckCrossRealm(store, co)
+			if co.GetIsEscaped() {
+				//	already escaped
+			} else {
+				rlm.MarkNewEscapedCheckCrossRealm(store, co)
+			}
+			//rlm.MarkNewEscapedCheckCrossRealm(store, co)
 		} else {
 			if co.GetIsReal() { // TODO: how this happen?
 				rlm.MarkDirty(co)
@@ -237,6 +242,8 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 			if xo.GetIsReal() {
 				rlm.MarkNewDeleted(xo)
 			}
+		} else if xo.GetIsReal() {
+			rlm.MarkDirty(xo)
 		}
 	}
 }
@@ -672,6 +679,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 				child.SetIsNewReal(true)
 			}
 		} else if rc > 1 {
+			rlm.MarkDirty(child)
 			if child.GetIsEscaped() {
 				// already escaped, do nothing.
 			} else {
@@ -745,7 +753,7 @@ func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 		if rc == 0 {
 			rlm.decRefDeletedDescendants(store, child)
 		} else if rc > 0 {
-			// do nothing
+			rlm.MarkDirty(child)
 		} else {
 			panic("deleted descendants should not have a reference count of less than zero")
 		}

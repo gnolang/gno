@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package strconv
+package strconv_test
 
 import (
 	"bytes"
+	"strconv"
 	"testing"
 )
 
@@ -16,8 +17,8 @@ type atobTest struct {
 }
 
 var atobtests = []atobTest{
-	{"", false, ErrSyntax},
-	{"asdf", false, ErrSyntax},
+	{"", false, strconv.ErrSyntax},
+	{"asdf", false, strconv.ErrSyntax},
 	{"0", false, nil},
 	{"f", false, nil},
 	{"F", false, nil},
@@ -34,14 +35,14 @@ var atobtests = []atobTest{
 
 func TestParseBool(t *testing.T) {
 	for _, test := range atobtests {
-		b, e := ParseBool(test.in)
+		b, e := strconv.ParseBool(test.in)
 		if test.err != nil {
 			// expect an error
 			if e == nil {
 				t.Errorf("ParseBool(%s) = nil; want %s", test.in, test.err)
 			} else {
 				// NumError assertion must succeed; it's the only thing we return.
-				if e.(*NumError).Err != test.err {
+				if e.(*strconv.NumError).Err != test.err {
 					t.Errorf("ParseBool(%s) = %s; want %s", test.in, e, test.err)
 				}
 			}
@@ -63,7 +64,7 @@ var boolString = map[bool]string{
 
 func TestFormatBool(t *testing.T) {
 	for b, s := range boolString {
-		if f := FormatBool(b); f != s {
+		if f := strconv.FormatBool(b); f != s {
 			t.Errorf("FormatBool(%v) = %q; want %q", b, f, s)
 		}
 	}
@@ -82,7 +83,7 @@ var appendBoolTests = []appendBoolTest{
 
 func TestAppendBool(t *testing.T) {
 	for _, test := range appendBoolTests {
-		b := AppendBool(test.in, test.b)
+		b := strconv.AppendBool(test.in, test.b)
 		if !bytes.Equal(b, test.out) {
 			t.Errorf("AppendBool(%q, %v) = %q; want %q", test.in, test.b, b, test.out)
 		}
