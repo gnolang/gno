@@ -304,15 +304,33 @@ func TestValidate(t *testing.T) {
 			SignBytes: []byte("invalid sign bytes"),
 		}
 		require.ErrorIs(t, fs.validate(), errInvalidSignStateSignBytes)
+		fs.Step = StepPrevote
+		require.ErrorIs(t, fs.validate(), errInvalidSignStateSignBytes)
+		fs.Step = StepPropose
+		require.ErrorIs(t, fs.validate(), errInvalidSignStateSignBytes)
 
 		// Test valid vote sign bytes with height mismatch.
 		var err error
+		fs.Step = StepPrecommit
 		vote := types.CanonicalVote{
 			Type:   types.PrecommitType,
 			Height: fs.Height + 1,
 			Round:  int64(fs.Round),
 		}
-		fs.Step = StepPrecommit
+		fs.SignBytes, err = amino.MarshalSized(&vote)
+		require.NoError(t, err)
+		require.ErrorIs(t, fs.validate(), errInvalidSignStateSignBytes)
+
+		// Test valid vote sign bytes with round mismatch.
+		vote.Height = fs.Height
+		vote.Round = int64(fs.Round) + 1
+		fs.SignBytes, err = amino.MarshalSized(&vote)
+		require.NoError(t, err)
+		require.ErrorIs(t, fs.validate(), errInvalidSignStateSignBytes)
+
+		// Test valid vote sign bytes with step mismatch.
+		vote.Round = int64(fs.Round)
+		vote.Type = types.PrevoteType
 		fs.SignBytes, err = amino.MarshalSized(&vote)
 		require.NoError(t, err)
 		require.ErrorIs(t, fs.validate(), errInvalidSignStateSignBytes)
