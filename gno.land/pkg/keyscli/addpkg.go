@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -21,6 +22,7 @@ type MakeAddPkgCfg struct {
 	PkgPath string
 	PkgDir  string
 	Deposit string
+	Meta    commands.StringArr
 }
 
 func NewMakeAddPkgCmd(rootCfg *client.MakeTxCfg, io commands.IO) *commands.Command {
@@ -61,6 +63,12 @@ func (c *MakeAddPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 		"deposit",
 		"",
 		"deposit coins",
+	)
+
+	fs.Var(
+		&c.Meta,
+		"meta",
+		"metadata fields",
 	)
 }
 
@@ -107,6 +115,30 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 		panic(fmt.Sprintf("found an empty package %q", cfg.PkgPath))
 	}
 
+	// parse metadata fields
+	var metadata []*vm.MetaField
+	for _, s := range cfg.Meta {
+		parts := strings.SplitN(s, "=", 2)
+		if len(parts) != 2 {
+			return errors.New("invalid metadata field format, expected field=value")
+		}
+
+		name := strings.TrimSpace(parts[0])
+		if name == "" {
+			return errors.New("empty metadata field name")
+		}
+
+		var value []byte
+		if v := parts[1]; strings.TrimSpace(v) != "" {
+			value = []byte(v)
+		}
+
+		metadata = append(metadata, &vm.MetaField{
+			Name:  name,
+			Value: value,
+		})
+	}
+
 	// parse gas wanted & fee.
 	gaswanted := cfg.RootCfg.GasWanted
 	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
@@ -115,9 +147,10 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	}
 	// construct msg & tx and marshal.
 	msg := vm.MsgAddPackage{
-		Creator: creator,
-		Package: memPkg,
-		Deposit: deposit,
+		Creator:  creator,
+		Package:  memPkg,
+		Deposit:  deposit,
+		Metadata: metadata,
 	}
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},
