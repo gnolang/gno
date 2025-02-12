@@ -6,6 +6,7 @@ package boards_test
 import (
 	"std"
 	"strconv"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
@@ -19,7 +20,7 @@ var (
 
 func init() {
 	caller := testutils.TestAddress("caller")
-	std.TestSetRealm(std.NewUserRealm(caller))
+	testing.SetRealm(std.NewUserRealm(caller))
 	users.Register("", "gnouser", "my profile")
 
 	bid = boards.CreateBoard("test_board")
@@ -29,7 +30,7 @@ func init() {
 func main() {
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
 	caller := testutils.TestAddress("caller")
-	std.TestSetRealm(std.NewUserRealm(caller))
+	testing.SetRealm(std.NewUserRealm(caller))
 	boards.EditPost(bid, pid, pid, "Edited: First Post in (title)", "Edited: Body of the first post. (body)")
 	println("----------------------------------------------------")
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
