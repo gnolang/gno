@@ -1,0 +1,217 @@
+package position
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/demo/json"
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/common"
+
+	"gno.land/r/gnoswap/v1/gns"
+	"gno.land/r/onbloc/bar"
+	"gno.land/r/onbloc/baz"
+	"gno.land/r/onbloc/foo"
+	"gno.land/r/onbloc/qux"
+
+	pl "gno.land/r/gnoswap/v1/pool"
+)
+
+func init() {
+	// set pool create fee to 0 for testing
+	std.TestSetRealm(adminRealm)
+	pl.SetPoolCreationFeeByAdmin(0)
+}
+
+func TestPoolInitCreatePool(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	gns.Approve(consts.POOL_ADDR, pl.GetPoolCreationFee())
+	pl.CreatePool(barPath, fooPath, fee500, common.TickMathGetSqrtRatioAtTick(-10000).ToString())
+	pl.CreatePool(bazPath, quxPath, fee500, "130621891405341611593710811006") // tick = 10000
+}
+
+func TestMintFooBar(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+	bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+	// admin mints => will get tid 1 nft
+	Mint(fooPath, barPath, fee500, int32(9000), int32(11000), "1000000", "1000000", "1", "1", max_timeout, adminAddr, adminAddr)
+
+	// admin mints => will get tid 2 nft
+	Mint(fooPath, barPath, fee500, int32(4000), int32(6000), "1000000", "1000000", "0", "0", max_timeout, adminAddr, adminAddr)
+}
+
+func TestMintBazQux(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	baz.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+	qux.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+	// admin mints => will get tid 3 nft
+	Mint(bazPath, quxPath, fee500, int32(9000), int32(11000), "1000000", "1000000", "1", "1", max_timeout, adminAddr, adminAddr)
+}
+
+func TestApiGetPositionsUnclaimedFee(t *testing.T) {
+	gpuf := ApiGetPositionsUnclaimedFee()
+
+	root, err := json.Unmarshal([]byte(gpuf))
+	if err != nil {
+		panic(err.Error())
+	}
+
+	response, err := root.GetKey("response")
+	if err != nil {
+		panic(err.Error())
+	}
+
+	uassert.Equal(t, response.Size(), 3)
+
+	uassert.Equal(
+		t,
+		response.String(),
+		`[{"lpTokenId":1,"fee0":"0","fee1":"0"},{"lpTokenId":2,"fee0":"0","fee1":"0"},{"lpTokenId":3,"fee0":"0","fee1":"0"}]`,
+	)
+}
+
+func TestSwap(t *testing.T) {
+	std.TestSetRealm(rouRealm)
+	pl.Swap(
+		fooPath,
+		barPath,
+		fee500,
+		adminAddr,
+		true,
+		"123456",
+		consts.MIN_PRICE,
+		adminAddr,
+	)
+}
+
+func TestApiGetPositionsUnclaimedFee2(t *testing.T) {
+	gpuf := ApiGetPositionsUnclaimedFee()
+
+	root, err := json.Unmarshal([]byte(gpuf))
+	if err != nil {
+		panic(err.Error())
+	}
+
+	response, err := root.GetKey("response")
+	if err != nil {
+		panic(err.Error())
+	}
+
+	uassert.Equal(t, response.Size(), 3)
+
+	uassert.Equal(
+		t,
+		response.String(),
+		`[{"lpTokenId":1,"fee0":"61","fee1":"0"},{"lpTokenId":2,"fee0":"0","fee1":"0"},{"lpTokenId":3,"fee0":"0","fee1":"0"}]`,
+	)
+}
+
+func TestApiGetPositionUnclaimedFeeByLpTokenId(t *testing.T) {
+	gpuf := ApiGetPositionUnclaimedFeeByLpTokenId(uint64(1))
+
+	root, err := json.Unmarshal([]byte(gpuf))
+	if err != nil {
+		panic(err.Error())
+	}
+
+	response, err := root.GetKey("response")
+	if err != nil {
+		panic(err.Error())
+	}
+
+	uassert.Equal(t, response.Size(), 1)
+
+	uassert.Equal(
+		t,
+		response.String(),
+		`[{"lpTokenId":1,"fee0":"61","fee1":"0"}]`,
+	)
+}
+
+func TestCollectFeeAfterSwap(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	// burn 0 to collect swap fee
+	tokneId, fee0, fee1, fromPath, _, _ := CollectFee(1, true)
+	uassert.Equal(t, tokneId, uint64(1))
+	uassert.Equal(t, fee0, "61")
+	uassert.Equal(t, fee1, "0")
+	uassert.Equal(t, fromPath, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
+}
+
+// RPCs
+func TestApiGetPositions(t *testing.T) {
+	gpss := ApiGetPositions()
+
+	root, err := json.Unmarshal([]byte(gpss))
+	if err != nil {
+		panic(err.Error())
+	}
+
+	response, err := root.GetKey("response")
+	if err != nil {
+		panic(err.Error())
+	}
+
+	uassert.Equal(t, response.Size(), 3)
+}
+
+func TestApiGetPositionsByPoolPath(t *testing.T) {
+	targetPool := "gno.land/r/onbloc/baz:gno.land/r/onbloc/qux:500"
+
+	gpss := ApiGetPositionsByPoolPath(targetPool)
+
+	root, err := json.Unmarshal([]byte(gpss))
+	if err != nil {
+		panic(err.Error())
+	}
+
+	response, err := root.GetKey("response")
+	if err != nil {
+		panic(err.Error())
+	}
+
+	uassert.Equal(t, response.Size(), 1)
+}
+
+func TestApiGetPositionsByAddress(t *testing.T) {
+	targetAddress := adminAddr
+
+	gpss := ApiGetPositionsByAddress(targetAddress)
+
+	root, err := json.Unmarshal([]byte(gpss))
+	if err != nil {
+		panic(err.Error())
+	}
+
+	response, err := root.GetKey("response")
+	if err != nil {
+		panic(err.Error())
+	}
+
+	uassert.Equal(t, response.Size(), 3)
+}
+
+func TestApiGetPositionsByAddressNo(t *testing.T) {
+	targetAddress := addr02
+
+	gpss := ApiGetPositionsByAddress(targetAddress)
+
+	root, err := json.Unmarshal([]byte(gpss))
+	if err != nil {
+		panic(err.Error())
+	}
+
+	response, err := root.GetKey("response")
+	if err != nil {
+		panic(err.Error())
+	}
+
+	uassert.Equal(t, response.Size(), 0)
+}

@@ -1,0 +1,88 @@
+package position
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/common"
+
+	"gno.land/r/gnoswap/v1/gns"
+	pl "gno.land/r/gnoswap/v1/pool"
+
+	"gno.land/r/onbloc/bar"
+	"gno.land/r/onbloc/foo"
+)
+
+func init() {
+	// set pool create fee to 0 for testing
+	std.TestSetRealm(adminRealm)
+	pl.SetPoolCreationFeeByAdmin(0)
+}
+
+func TestPoolInitCreatePool(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	gns.Approve(consts.POOL_ADDR, pl.GetPoolCreationFee())
+	pl.CreatePool(barPath, fooPath, fee500, common.TickMathGetSqrtRatioAtTick(1).ToString())
+}
+
+func TestMintPositionFullInRange(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+	foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+	tokenId, liquidity, amount0, amount1 := Mint(
+		barPath,
+		fooPath,
+		fee500,
+		-887270,
+		887270,
+		"50000",
+		"50000",
+		"0",
+		"0",
+		max_timeout,
+		adminAddr,
+		adminAddr,
+	)
+}
+
+func TestIncreaseLiquidity(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+	foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+	tokenId, liquidity, amount0, amount1, poolPath := IncreaseLiquidity(
+		uint64(1),
+		"50000",
+		"50000",
+		"0",
+		"0",
+		max_timeout,
+	)
+}
+
+func TestDecreaseLiquidity(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+	foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+	tokenId, liquidity, fee0, fee1, amount0, amount1, poolPath := DecreaseLiquidity(
+		uint64(1),
+		"50",
+		"0",
+		"0",
+		max_timeout,
+		false,
+	)
+
+}
+
+func TestCollectFee(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+	foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+	tokenId, fee0, fee1, poolPath, _, _ := CollectFee(uint64(1), false)
+}

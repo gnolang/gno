@@ -1,0 +1,107 @@
+package router
+
+import (
+	"std"
+	"testing"
+	"time"
+
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+
+	pl "gno.land/r/gnoswap/v1/pool"
+	pn "gno.land/r/gnoswap/v1/position"
+
+	"gno.land/r/demo/wugnot"
+	"gno.land/r/gnoswap/v1/gns"
+	"gno.land/r/onbloc/bar"
+	"gno.land/r/onbloc/baz"
+	"gno.land/r/onbloc/qux"
+)
+
+//=================================Test for SwapRouter exactOut 0 ->1 in single pool=================================
+
+func TestCreatePool(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	gns.Approve(consts.POOL_ADDR, pl.GetPoolCreationFee()*2)
+
+	pl.CreatePool(barPath, bazPath, 3000, "79228162514264337593543950336")
+}
+
+func TestPositionMint(t *testing.T) {
+	// bar_baz_3000 by admin
+	std.TestSetRealm(adminRealm)
+
+	bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+	baz.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+	// Mint
+	pn.Mint(barPath, bazPath, uint32(3000), int32(-887220), int32(887220), "1000000", "1000000", "0", "0", max_timeout, adminAddr, adminAddr)
+}
+
+func TestSwapRouteBarBazExactOut(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	bar.Approve(consts.ROUTER_ADDR, 1000000)
+	baz.Approve(consts.ROUTER_ADDR, 1000000)
+
+	token0Before := bar.BalanceOf(consts.ADMIN)
+	token1Before := baz.BalanceOf(consts.ADMIN)
+
+	amountIn, amountOut := ExactOutSwapRoute(
+		barPath, // inputToken
+		bazPath, // outputToken
+		"1",     // amountSpecified
+		"gno.land/r/onbloc/bar:gno.land/r/onbloc/baz:3000", // strRouteArr
+		"100", // quoteArr
+		"3",   // tokenAmountLimit
+		time.Now().Add(time.Hour).Unix(),
+	)
+
+	token0After := bar.BalanceOf(consts.ADMIN)
+	token1After := baz.BalanceOf(consts.ADMIN)
+
+	uassert.Equal(t, amountIn, "3")
+	uassert.Equal(t, amountOut, "-1")
+
+	uassert.Equal(t, token0After, token0Before-3)
+	uassert.Equal(t, token1After, token1Before+1)
+}
+
+/*
+This test demonstrates a issue(Gnoswap-16) in SwapRoute function. The key steps are:
+
+· Set up the test environment with necessary approvals
+· Set the original send amount to 12345 ugnot
+· Attempt to call SwapRoute with:
+
+	· GNOT as input token
+	· qux as output token
+	· An amountSpecified of "3" (which doesn't match the sent amount)
+
+· Check if the function panics as expected
+*/
+func TestSwapRouteWugnotquxExactInDifferentAmountCoinShouldPanic(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	wugnot.Approve(consts.ROUTER_ADDR, 1000000)
+	qux.Approve(consts.ROUTER_ADDR, 1000000)
+
+	std.TestSetOrigSend(std.Coins{{"ugnot", 12345}}, nil)
+
+	uassert.PanicsWithMessage(
+		t,
+		`[GNOSWAP-POOL-008] requested data not found || expected poolPath(gno.land/r/demo/wugnot:gno.land/r/onbloc/qux:3000) to exist`,
+		func() {
+			ExactOutSwapRoute(
+				consts.GNOT, // inputToken
+				quxPath,     // outputToken
+				"3",         // amountSpecified
+				"gno.land/r/demo/wugnot:gno.land/r/onbloc/qux:3000", // strRouteArr
+				"100", // quoteArr
+				"1",   // tokenAmountLimit
+				time.Now().Add(time.Hour).Unix(),
+			)
+		},
+	)
+}

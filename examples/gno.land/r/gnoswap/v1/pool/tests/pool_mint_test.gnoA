@@ -1,0 +1,100 @@
+package pool
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/demo/uassert"
+
+	"gno.land/r/onbloc/bar"
+	"gno.land/r/onbloc/foo"
+
+	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/common"
+
+	"gno.land/r/gnoswap/v1/gns"
+)
+
+var (
+	test_tickLower          = int32(-6000)
+	test_tickUpper          = int32(6000)
+	test_liquidityExpectStr = "1000"
+)
+
+func TestMintMiscellaneous(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	gns.Approve(consts.POOL_ADDR, poolCreationFee)
+	CreatePool(barPath, fooPath, fee500, common.TickMathGetSqrtRatioAtTick(0).ToString()) // tick
+
+	foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+	bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+	thisPool := GetPool(barPath, fooPath, fee500)
+
+	t.Run("returns 0 before initialization", func(t *testing.T) {
+		uassert.Equal(t, thisPool.liquidity.ToString(), "0")
+	})
+
+	t.Run("mint to right of the current price", func(t *testing.T) {
+		std.TestSetRealm(posRealm)
+		liqBefore := thisPool.liquidity.ToString()
+
+		amount0, amount1 := Mint(
+			barPath,
+			fooPath,
+			fee500,
+			consts.POSITION_ADDR,
+			1000,
+			2000,
+			test_liquidityExpectStr,
+			adminAddr,
+		)
+
+		liqAfter := thisPool.liquidity.ToString()
+		uassert.Equal(t, liqBefore, liqAfter)
+
+		uassert.NotEqual(t, amount0, "0")
+		uassert.Equal(t, amount1, "0")
+	})
+
+	t.Run("mint to left of the current price", func(t *testing.T) {
+		std.TestSetRealm(posRealm)
+		liqBefore := thisPool.liquidity.ToString()
+
+		amount0, amount1 := Mint(
+			barPath,
+			fooPath,
+			fee500,
+			consts.POSITION_ADDR,
+			-2000,
+			-1000,
+			test_liquidityExpectStr,
+			adminAddr,
+		)
+
+		liqAfter := thisPool.liquidity.ToString()
+		uassert.Equal(t, liqBefore, liqAfter)
+
+		uassert.Equal(t, amount0, "0")
+		uassert.NotEqual(t, amount1, "0")
+	})
+
+	t.Run("cannot remove more than the entire position", func(t *testing.T) {
+		std.TestSetRealm(posRealm)
+		uassert.PanicsWithMessage(
+			t,
+			`[GNOSWAP-POOL-009] invalid liquidity calculated || Condition failed: (z must be < x) (x: 0, y: -1001, z:115792089237316195423570985008687907853269984665640564039457584007913129638935)`,
+			func() {
+				Burn(
+					barPath,
+					fooPath,
+					fee500,
+					test_tickLower,
+					test_tickUpper,
+					"1001",
+				)
+			},
+		)
+
+	})
+}

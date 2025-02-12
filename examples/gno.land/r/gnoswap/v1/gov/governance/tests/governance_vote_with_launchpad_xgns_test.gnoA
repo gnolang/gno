@@ -1,0 +1,198 @@
+package governance
+
+import (
+	"std"
+	"strconv"
+	"testing"
+	"time"
+
+	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
+
+	"gno.land/r/onbloc/obl"
+
+	"gno.land/p/gnoswap/consts"
+
+	"gno.land/r/gnoswap/v1/gns"
+	"gno.land/r/gnoswap/v1/gov/xgns"
+
+	gs "gno.land/r/gnoswap/v1/gov/staker"
+	lp "gno.land/r/gnoswap/v1/launchpad"
+)
+
+var (
+	dummyToAddr  = testutils.TestAddress("dummyTo")
+	dummyToRealm = std.NewUserRealm(dummyToAddr)
+
+	dummyAddr  = testutils.TestAddress("dummy")
+	dummyRealm = std.NewUserRealm(dummyAddr)
+
+	reDelegate = testutils.TestAddress("reDelegate")
+
+	// launchpad
+	projectAddr  = testutils.TestAddress("projectAddr")
+	projectRealm = std.NewUserRealm(projectAddr)
+
+	user01      = testutils.TestAddress("user01")
+	user01Realm = std.NewUserRealm(user01)
+)
+
+func init() {
+	// overwrite config for testcase
+	config = Config{
+		VotingStartDelay:              uint64(10),   // 10s ≈ 5 block
+		VotingPeriod:                  uint64(30),   // 30s ≈ 15 block
+		VotingWeightSmoothingDuration: uint64(10),   // 10s ≈ 5 block
+		Quorum:                        uint64(50),   // 50% of total xGNS supply
+		ProposalCreationThreshold:     uint64(100),  //
+		ExecutionDelay:                uint64(10),   // 10s ≈ 5 block
+		ExecutionWindow:               uint64(1000), // 500 block
+	}
+	setConfigVersion(1, config)
+}
+
+func TestVoteWithoutLaunchpadXGns(t *testing.T) {
+	testCheckInitialGnsAndXGns(t)
+	testLaunchpad(t)
+	testDelegate01_2000000_toDummy(t)
+	testProposeText(t)
+	testVote(t)
+}
+
+func testCheckInitialGnsAndXGns(t *testing.T) {
+	t.Run("check current gns and xgns (total/voting) supply", func(t *testing.T) {
+		uassert.Equal(t, gns.TotalSupply(), uint64(100_000_000_000_000))
+		uassert.Equal(t, gns.BalanceOf(admin), uint64(100_000_000_000_000))
+		uassert.Equal(t, xgns.TotalSupply(), uint64(0))
+		uassert.Equal(t, xgns.VotingSupply(), uint64(0))
+	})
+}
+
+func testLaunchpad(t *testing.T) {
+	t.Run("launchpad project create", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		obl.Approve(consts.LAUNCHPAD_ADDR, 1_000_000_000)
+		projectId := lp.CreateProject(
+			"OBL PROTOCOL",
+			oblPath,
+			projectAddr,
+			uint64(1_000_000_000), // 1000000000
+			"gno.land/r/demo/wugnot",
+			"0",
+			uint64(10),                   // 100000000
+			uint64(20),                   // 200000000
+			uint64(70),                   // 700000000
+			uint64(time.Now().Unix()+10), // 5 block later
+		)
+		uassert.Equal(t, projectId, `gno.land/r/onbloc/obl:123`)
+		std.TestSkipHeights(10) // active project
+	})
+
+	t.Run("deposit gns", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		gns.Transfer(user01, uint64(1_000_000)) // to deposit
+
+		std.TestSetRealm(user01Realm)
+		gns.Approve(consts.LAUNCHPAD_ADDR, uint64(1_000_000))
+
+		// before
+		uassert.Equal(t, xgns.TotalSupply(), uint64(0))
+		uassert.Equal(t, xgns.VotingSupply(), uint64(0))
+
+		lp.DepositGns(
+			`gno.land/r/onbloc/obl:123:30`,
+			uint64(1_000_000), // this xGNS can not be used for voting
+		)
+
+		// after
+		uassert.Equal(t, xgns.TotalSupply(), uint64(1_000_000)) // launchpad supply => no voting
+		uassert.Equal(t, xgns.VotingSupply(), uint64(0))
+
+		std.TestSkipHeights(1)
+	})
+
+	t.Run("check xGNS", func(t *testing.T) {
+		xgnsTotal := xgns.TotalSupply()
+		xgnsVoting := xgns.VotingSupply()
+		uassert.Equal(t, xgnsTotal, uint64(1_000_000))
+		uassert.Equal(t, xgnsVoting, uint64(0))
+	})
+}
+
+func testDelegate01_2000000_toDummy(t *testing.T) {
+	t.Run("first delegation", func(t *testing.T) {
+		// before delegate 01
+		uassert.Equal(t, xgns.TotalSupply(), uint64(1_000_000))
+		uassert.Equal(t, xgns.VotingSupply(), uint64(0))
+
+		uassert.Equal(t, std.GetHeight(), int64(134))
+
+		std.TestSetRealm(adminRealm)
+		gns.Approve(consts.GOV_STAKER_ADDR, uint64(2_000_000))
+		gs.Delegate(dummyAddr, uint64(2_000_000)) // delegate to dummy
+
+		// after delegate 01
+		uassert.Equal(t, xgns.TotalSupply(), uint64(3_000_000))  // launchpad 2 + gov 1
+		uassert.Equal(t, xgns.VotingSupply(), uint64(2_000_000)) // gov 1
+
+		std.TestSkipHeights(1)
+	})
+}
+
+func testProposeText(t *testing.T) {
+	t.Run("Successful two text proposals ", func(t *testing.T) {
+		// pass some blocks
+		std.TestSkipHeights(10)
+
+		// text proposal
+		uassert.Equal(t, std.GetHeight(), int64(145))
+
+		std.TestSetRealm(adminRealm)
+		proposalID := ProposeText("test_title", "test_description")
+		uassert.Equal(t, proposalID, uint64(1))
+
+		// proposal := proposals[proposalID]
+		pp, ok := proposals.Get(strconv.FormatUint(proposalID, 10))
+		uassert.True(t, ok)
+		proposal := pp.(ProposalInfo)
+		uassert.Equal(t, proposal.QuorumAmount, uint64(1_000_000)) // 50% of voting xGNS supply (2_000_000)
+
+		maxVotingWeight, _ := gs.GetPossibleVotingAddressWithWeight(proposal.State.CreatedAt - config.VotingWeightSmoothingDuration)
+		// config.VotingWeightSmoothingDuration = 10s = 5 block
+
+		uassert.Equal(t, maxVotingWeight, uint64(2_000_000))
+		// createdAt > 145 // 1234567934
+		// (createdAt - VotingWeightSmoothingDuration) > 145 // 1234567924
+		// 1 delegation happend 134 block with amount of 2_000_000
+	})
+}
+
+func testVote(t *testing.T) {
+	t.Run("vote", func(t *testing.T) {
+		proposalId := uint64(1)
+
+		std.TestSkipHeights(5)
+
+		std.TestSetRealm(dummyRealm)
+		Vote(proposalId, true)
+
+		// proposal := proposals[proposalId]
+		pp, ok := proposals.Get(strconv.FormatUint(proposalId, 10))
+		uassert.True(t, ok)
+		proposal := pp.(ProposalInfo)
+		uassert.Equal(t, "2000000", proposal.Yea.ToString()) // 2_000_000
+		uassert.Equal(t, "0", proposal.Nay.ToString())
+	})
+
+	t.Run("gov/staker api get possible voting address with weight", func(t *testing.T) {
+		// proposal := proposals[uint64(1)]
+		pp, ok := proposals.Get(strconv.FormatUint(uint64(1), 10))
+		uassert.True(t, ok)
+		proposal := pp.(ProposalInfo)
+		maxVoting, addrsWithVooting := gs.GetPossibleVotingAddressWithWeightJSON(proposal.State.CreatedAt)
+
+		uassert.Equal(t, maxVoting, uint64(2_000_000)) // 2000000
+		uassert.Equal(t, addrsWithVooting, `{"height":"150","now":"1234567944","votingPower":[{"address":"g1v36k6mteta047h6lta047h6lta047h6lz7gmv8","weight":"2000000"}]}`)
+	})
+}

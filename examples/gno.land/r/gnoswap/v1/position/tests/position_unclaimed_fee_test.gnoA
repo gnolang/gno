@@ -1,0 +1,277 @@
+package position
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/demo/uassert"
+	i256 "gno.land/p/gnoswap/int256"
+
+	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/gnft"
+	"gno.land/r/gnoswap/v1/gns"
+	pl "gno.land/r/gnoswap/v1/pool"
+
+	"gno.land/r/onbloc/bar"
+	"gno.land/r/onbloc/foo"
+)
+
+const (
+	ugnotDenom string = "ugnot"
+	ugnotPath  string = "ugnot"
+	wugnotPath string = "gno.land/r/demo/wugnot"
+	gnsPath    string = "gno.land/r/gnoswap/v1/gns"
+	barPath    string = "gno.land/r/onbloc/bar"
+	bazPath    string = "gno.land/r/onbloc/baz"
+	fooPath    string = "gno.land/r/onbloc/foo"
+	oblPath    string = "gno.land/r/onbloc/obl"
+	quxPath    string = "gno.land/r/onbloc/qux"
+
+	fee100               uint32 = 100
+	fee500               uint32 = 500
+	fee3000              uint32 = 3000
+	fee10000             uint32 = 10000
+	maxApprove           uint64 = 18446744073709551615
+	max_timeout          int64  = 9999999999
+	maxSqrtPriceLimitX96 string = "1461446703485210103287273052203988822378723970341"
+
+	TIER_1 uint64 = 1
+	TIER_2 uint64 = 2
+	TIER_3 uint64 = 3
+)
+
+var (
+	adminAddr  = std.Address(consts.ADMIN)
+	admin      = adminAddr
+	adminRealm = std.NewUserRealm(admin)
+	rouRealm   = std.NewCodeRealm(consts.ROUTER_PATH)
+)
+
+func getPoolFromLpTokenId(t *testing.T, lpTokenId uint64) *pl.Pool {
+	t.Helper()
+
+	position := MustGetPosition(lpTokenId)
+	return pl.GetPoolFromPoolPath(position.poolKey)
+}
+
+func TestPoolInitCreatePool(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	gns.Approve(consts.POOL_ADDR, pl.GetPoolCreationFee())
+	pl.CreatePool(barPath, fooPath, fee500, "130621891405341611593710811006") // tick = 10000
+}
+
+func TestMintPosition01InRange(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	bar.Approve(consts.POOL_ADDR, 18394892)
+	foo.Approve(consts.POOL_ADDR, 50000000)
+
+	tokenId, liquidity, amount0, amount1 := Mint(
+		barPath,
+		fooPath,
+		fee500,
+		8000,
+		12000,
+		"50000000",
+		"50000000",
+		"0",
+		"0",
+		max_timeout,
+		adminAddr,
+		adminAddr,
+	)
+
+	uassert.Equal(t, tokenId, uint64(1))
+	uassert.Equal(t, getNextId(), uint64(2))
+	uassert.Equal(t, amount0, "18394892")
+	uassert.Equal(t, amount1, "50000000")
+}
+
+func TestMintPosition02LowerRange(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	bar.Approve(consts.POOL_ADDR, 0)
+	foo.Approve(consts.POOL_ADDR, 50000000)
+
+	tokenId, liquidity, amount0, amount1 := Mint(
+		barPath,
+		fooPath,
+		fee500,
+		5000,
+		8000,
+		"50000000",
+		"50000000",
+		"0",
+		"0",
+		max_timeout,
+		adminAddr,
+		adminAddr,
+	)
+
+	uassert.Equal(t, tokenId, uint64(2))
+	uassert.Equal(t, getNextId(), uint64(3))
+	uassert.Equal(t, amount0, "0")
+	uassert.Equal(t, amount1, "50000000")
+}
+
+func TestMintPosition03UpperRange(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	bar.Approve(consts.POOL_ADDR, 50000000)
+	foo.Approve(consts.POOL_ADDR, 0)
+
+	tokenId, liquidity, amount0, amount1 := Mint(
+		barPath,
+		fooPath,
+		fee500,
+		12000,
+		14000,
+		"50000000",
+		"50000000",
+		"0",
+		"0",
+		max_timeout,
+		adminAddr,
+		adminAddr,
+	)
+
+	uassert.Equal(t, tokenId, uint64(3))
+	uassert.Equal(t, getNextId(), uint64(4))
+	uassert.Equal(t, amount0, "50000000")
+	uassert.Equal(t, amount1, "0")
+}
+
+func TestCollectFeeBeforeSwap(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	tokenId, fee0, fee1, poolPath, _, _ := CollectFee(1, false)
+
+	uassert.Equal(t, tokenId, uint64(1))
+	uassert.Equal(t, fee0, "0")
+	uassert.Equal(t, fee1, "0")
+	uassert.Equal(t, poolPath, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
+}
+
+func TestUnclaimedFee0(t *testing.T) {
+	amount0, amount1 := unclaimedFee(1)
+
+	uassert.Equal(t, amount0.ToString(), "0")
+	uassert.Equal(t, amount1.ToString(), "0")
+}
+
+func TestSwap1(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	bar.Approve(consts.POOL_ADDR, 1234567)
+
+	std.TestSetRealm(rouRealm)
+	amount0, amount1 := pl.Swap(
+		barPath,
+		fooPath,
+		fee500,
+		adminAddr,
+		true,
+		"1234567",
+		consts.MIN_PRICE,
+		adminAddr,
+	)
+
+	uassert.Equal(t, amount0, "1234567")
+	uassert.Equal(t, amount1, "-3332779")
+}
+
+func TestUnclaimedFee1(t *testing.T) {
+	amount0, amount1 := unclaimedFee(1)
+
+	uassert.Equal(t, amount0.ToString(), "617")
+	uassert.Equal(t, amount1.ToString(), "0")
+}
+
+func TestSwap2(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+	std.TestSetRealm(rouRealm)
+	amount0, amount1 := pl.Swap(
+		barPath,
+		fooPath,
+		fee500,
+		adminAddr,
+		true,
+		"20000000", //
+		consts.MIN_PRICE,
+		adminAddr,
+	)
+
+	uassert.Equal(t, amount0, "20000000")
+	uassert.Equal(t, amount1, "-48647018")
+}
+
+func TestUnclaimedFee2(t *testing.T) {
+	amount0, amount1 := unclaimedFee(1)
+
+	uassert.Equal(t, amount0.ToString(), "10170")
+	uassert.Equal(t, amount1.ToString(), "0")
+}
+
+func TestSwap3(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+	std.TestSetRealm(rouRealm)
+	amount0, amount1 := pl.Swap(
+		fooPath,
+		barPath,
+		fee500,
+		adminAddr,
+		false,
+		"20000000", //
+		consts.MAX_PRICE,
+		adminAddr,
+	)
+
+	uassert.Equal(t, amount0, "-8692001")
+	uassert.Equal(t, amount1, "20000000")
+}
+
+func TestUnclaimedFee3(t *testing.T) {
+	amount0, amount1 := unclaimedFee(1)
+
+	uassert.Equal(t, amount0.ToString(), "10170")
+	uassert.Equal(t, amount1.ToString(), "9009")
+}
+
+func TestCollectFeeAfterSwap(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX) // COLLECT_FEE
+	bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX) // COLLECT_FEE
+
+	tokenId, fee0, fee1, poolPath, _, _ := CollectFee(1, false)
+
+	uassert.Equal(t, tokenId, uint64(1))
+	uassert.Equal(t, fee0, "10069") // this is input token
+	uassert.Equal(t, fee1, "8919")  // this it output token
+	uassert.Equal(t, poolPath, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
+}
+
+func TestDecreaseLiquidityUpperPosition(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	ownerOfPosition, _ := gnft.OwnerOf(tokenIdFrom(3))
+	uassert.Equal(t, ownerOfPosition, adminAddr)
+
+	tokenId, liquidity, fee0, fee1, amount0, amount1, poolPath := DecreaseLiquidity(uint64(3), "318704392", "0", "0", max_timeout, false)
+
+	uassert.Equal(t, tokenId, uint64(3))
+	uassert.Equal(t, amount0, "16644469")
+	uassert.Equal(t, amount1, "0")
+
+	ownerOfPosition, _ = gnft.OwnerOf(tokenIdFrom(3))
+	uassert.Equal(t, ownerOfPosition, adminAddr)
+}
+
+func TestSubIn256(t *testing.T) {
+	a := i256.Zero()
+	b := i256.One()
+
+	c := subIn256(a, b)
+	if c.ToString() != "115792089237316195423570985008687907853269984665640564039457584007913129639934" {
+		t.Errorf("subIn256 error")
+	}
+}

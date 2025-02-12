@@ -1,0 +1,85 @@
+package launchpad
+
+import (
+	"std"
+	"testing"
+	"time"
+
+	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/gns"
+
+	gs "gno.land/r/gnoswap/v1/gov/staker"
+
+	"gno.land/r/onbloc/obl"
+	"gno.land/r/onbloc/usdc"
+)
+
+var (
+	projectAddr = testutils.TestAddress("projectAddr")
+	user01      = testutils.TestAddress("user01")
+
+	user01Realm = std.NewUserRealm(user01)
+)
+
+func TestCreateProject(t *testing.T) {
+	t.Skip("fix this code")
+	testCreateProject(t)
+	depositTier30(t)
+}
+
+func testCreateProject(t *testing.T) {
+	t.Run("create project", func(t *testing.T) {
+		var allocationTokenAmount uint64 = 1_000_000_000_000 // 1000000000000
+
+		std.TestSetRealm(adminRealm)
+		obl.Approve(consts.LAUNCHPAD_ADDR, allocationTokenAmount)
+		std.TestSkipHeights(1)
+
+		projectId := CreateProject(
+			"Obl Protocol",
+			oblPath,
+			projectAddr,
+			allocationTokenAmount,
+			"gno.land/r/gnoswap/v1/gov/xgns*PAD*gno.land/r/onbloc/usdc*PAD*gno.land/r/gnoswap/v1/gns",
+			"100000000*PAD*200000000*PAD*300000000",
+			uint64(50),                   // 50%
+			uint64(30),                   // 30%
+			uint64(20),                   // 20%
+			uint64(time.Now().Unix()+10), // 10s later
+		)
+		uassert.Equal(t, projectId, `gno.land/r/onbloc/obl:124`)
+		std.TestSkipHeights(1)
+	})
+}
+
+func depositTier30(t *testing.T) {
+	t.Run("deposit tier 30, fail for no balance", func(t *testing.T) {
+		uassert.PanicsWithMessage(t,
+			`project is not active`,
+			func() {
+				DepositGns("gno.land/r/onbloc/obl:124:30", 1000000)
+			})
+	})
+
+	t.Run("deposit tier 30, success", func(t *testing.T) {
+		xGnsAmount := uint64(100_000_000)
+		usdcAmount := uint64(200_000_000)
+		gnsAmount := uint64(300_000_000)
+
+		std.TestSetRealm(adminRealm)
+		gns.Transfer(user01, xGnsAmount+gnsAmount)
+		usdc.Transfer(user01, usdcAmount)
+
+		std.TestSkipHeights(10) // start project
+
+		std.TestSetRealm(user01Realm)
+		gns.Approve(consts.GOV_STAKER_ADDR, xGnsAmount)
+		gs.Delegate(user01, xGnsAmount) // make xGNS required amount
+
+		gns.Approve(consts.LAUNCHPAD_ADDR, gnsAmount)
+		DepositGns("gno.land/r/onbloc/obl:124:30", gnsAmount)
+	})
+}

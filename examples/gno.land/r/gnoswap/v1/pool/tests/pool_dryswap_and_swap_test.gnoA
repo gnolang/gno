@@ -1,0 +1,86 @@
+package pool
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/common"
+
+	"gno.land/r/onbloc/bar"
+	"gno.land/r/onbloc/foo"
+
+	"gno.land/r/gnoswap/v1/gns"
+)
+
+var (
+	sqrtPrice = "130621891405341611593710811006"
+
+	tickLower       = int32(9000)
+	tickUpper       = int32(11000)
+	liquidityExpect = "100000000000"
+
+	currentTick = int32(10000)
+)
+
+func TestCreatePool(t *testing.T) {
+	// call gns faucet to get creation fee
+	std.TestSetRealm(adminRealm)
+
+	gns.Approve(consts.POOL_ADDR, poolCreationFee)
+	CreatePool(barPath, fooPath, fee500, common.TickMathGetSqrtRatioAtTick(-10000).ToString()) // tick -10000
+	uassert.Equal(t, pools.Size(), 1)
+}
+
+func TestDrySwap_ZeroForOneTrue_AmountSpecified_Positive_16000(t *testing.T) {
+	std.TestSetRealm(posRealm)
+
+	// no mint == no liquidity => swap will fail
+	DrySwap(fooPath, barPath, fee500, true, "16000", consts.MIN_PRICE)
+
+	// not enough mint == swap will fail
+	std.TestSetRealm(adminRealm)
+
+	foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+	bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+	std.TestSetRealm(posRealm)
+	DrySwap(fooPath, barPath, fee500, true, "16000", consts.MIN_PRICE)
+
+	std.TestSetRealm(adminRealm)
+
+	std.TestSetRealm(posRealm)
+	Mint(fooPath, barPath, fee500, consts.POSITION_ADDR, -tickUpper, -tickLower, liquidityExpect, adminAddr) // -11000  ~ -9000
+
+	// zeroForOne true
+	// amountSpecified 16000
+	poolIn, poolOut, _ := DrySwap(
+		fooPath,          // fooPath
+		barPath,          // barPath
+		fee500,           // fee500
+		true,             // zeroForOne
+		"16000",          // amountSpecified
+		consts.MIN_PRICE, // sqrtPriceLimitX96
+	)
+	uassert.Equal(t, poolIn, "16000")
+	uassert.Equal(t, poolOut, "-5883")
+}
+
+func TestDrySwap_ZeroForOneTrue_AmountSpecified_Negative_16000(t *testing.T) {
+	// zeroForOne true
+	// amountSpecified -16000
+
+	poolIn, poolOut, _ := DrySwap(
+		fooPath,          // fooPath
+		barPath,          // barPath
+		fee500,           // fee500
+		true,             // zeroForOne
+		"-16000",         // amountSpecified
+		consts.MIN_PRICE, // sqrtPriceLimitX96
+	)
+
+	uassert.Equal(t, poolIn, "43513")
+	uassert.Equal(t, poolOut, "-16000")
+}

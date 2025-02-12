@@ -1,0 +1,910 @@
+package pool
+
+import (
+	"std"
+	"strconv"
+	"testing"
+
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/uassert"
+	i256 "gno.land/p/gnoswap/int256"
+	u256 "gno.land/p/gnoswap/uint256"
+
+	"gno.land/r/gnoswap/v1/gns"
+
+	"gno.land/p/gnoswap/consts"
+
+	pl "gno.land/r/gnoswap/v1/pool"
+)
+
+var (
+	tickSpacing         int32
+	maxLiquidityPerTick *u256.Uint
+	singlePool          *Pool
+)
+
+const (
+	LOW    int32 = 10
+	MEDIUM int32 = 60
+	HIGH   int32 = 200
+)
+
+func init() {
+	// set pool create fee to 0 for testing
+	std.TestSetRealm(adminRealm)
+	pl.SetPoolCreationFeeByAdmin(0)
+}
+
+func TestInitCreatePool(t *testing.T) {
+	//================ Create Pool =================
+	std.TestSetRealm(adminRealm)
+	gns.Approve(consts.POOL_ADDR, pl.GetPoolCreationFee())
+	pl.CreatePool(barPath, fooPath, 500, "130621891405341611593710811006")
+	std.TestSkipHeights(1)
+}
+
+func DeployPool(token0 string, token1 string) {
+	pools = avl.NewTree()
+	std.TestSetRealm(adminRealm)
+	gns.Approve(consts.POOL_ADDR, poolCreationFee)
+	std.TestSetRealm(adminRealm)
+	CreatePool(token0, token1, 500, "130621891405341611593710811006") // tick 10000
+	std.TestSkipHeights(1)
+}
+
+func TestTickTickSpacingToMaxLiquidityPerTick_1(t *testing.T) {
+	// returns the correct value for low fee
+	var expected string = "1917569901783203986719870431555990"
+	var expectedgetMaxLiquidityPerTick string = "1917569901783203986719870431555990"
+	maxLiquidityPerTick = TickTickSpacingToMaxLiquidityPerTick(LOW)
+	uassert.Equal(t, maxLiquidityPerTick.ToString(), expected) // 110.8 bits
+	uassert.Equal(t, maxLiquidityPerTick.ToString(), expectedgetMaxLiquidityPerTick)
+}
+
+func TestTickTickSpacingToMaxLiquidityPerTick_2(t *testing.T) {
+	// returns the correct value for medium fee
+	var expected string = "11505743598341114571880798222544994"
+	var expectedgetMaxLiquidityPerTick string = "11505743598341114571880798222544994"
+	maxLiquidityPerTick = TickTickSpacingToMaxLiquidityPerTick(MEDIUM)
+	uassert.Equal(t, maxLiquidityPerTick.ToString(), expected) // 113.1 bits
+	uassert.Equal(t, maxLiquidityPerTick.ToString(), expectedgetMaxLiquidityPerTick)
+}
+
+func TestTickTickSpacingToMaxLiquidityPerTick_3(t *testing.T) {
+	// returns the correct value for high fee
+	var expected string = "38350317471085141830651933667504588"
+	var expectedgetMaxLiquidityPerTick string = "38350317471085141830651933667504588"
+	maxLiquidityPerTick = TickTickSpacingToMaxLiquidityPerTick(HIGH)
+	uassert.Equal(t, maxLiquidityPerTick.ToString(), expected) // 114.7 bits
+	uassert.Equal(t, maxLiquidityPerTick.ToString(), expectedgetMaxLiquidityPerTick)
+}
+
+func TestTickTickSpacingToMaxLiquidityPerTick_4(t *testing.T) {
+	// returns the correct value for entire range
+	var expectedgetMaxLiquidityPerTick string = "113427455640312821154458202477256070485"
+	var expected *u256.Uint = u256.MustFromDecimal(consts.MAX_UINT128)
+	expected.Div(expected, u256.NewUint(3))
+	maxLiquidityPerTick = TickTickSpacingToMaxLiquidityPerTick(887272)
+	uassert.Equal(t, maxLiquidityPerTick.ToString(), expected.ToString())
+	uassert.Equal(t, maxLiquidityPerTick.ToString(), expectedgetMaxLiquidityPerTick)
+}
+
+func TestTickTickSpacingToMaxLiquidityPerTick_5(t *testing.T) {
+	// returns the correct value for 2302
+
+	var expectedgetMaxLiquidityPerTick string = "441351967472034323558203122479595605"
+	var expected string = "441351967472034323558203122479595605"
+	maxLiquidityPerTick = TickTickSpacingToMaxLiquidityPerTick(2302)
+	uassert.Equal(t, maxLiquidityPerTick.ToString(), expected)
+	uassert.Equal(t, maxLiquidityPerTick.ToString(), expectedgetMaxLiquidityPerTick)
+}
+
+func TestTickGetFeeGrowthInside_1(t *testing.T) {
+	pool := GetPool(barPath, fooPath, 500)
+	// returns all for two uninitialized ticks if tick is inside
+
+	var feeGrowthInside0X128 *u256.Uint
+	var feeGrowthInside1X128 *u256.Uint
+
+	var expectedfeeGrowthInside0X128 string = "15"
+	var expectedfeeGrowthInside1X128 string = "15"
+
+	var tickLower int32 = -2
+	var tickUpper int32 = 2
+	var tickCurrent int32 = 0
+	var feeGrowthGlobal0X128 *u256.Uint = u256.NewUint(15)
+	var feeGrowthGlobal1X128 *u256.Uint = u256.NewUint(15)
+
+	feeGrowthInside0X128, feeGrowthInside1X128 = pool.TickGetFeeGrowthInside(tickLower, tickUpper, tickCurrent, feeGrowthGlobal0X128, feeGrowthGlobal1X128)
+
+	uassert.Equal(t, feeGrowthInside0X128.ToString(), expectedfeeGrowthInside0X128)
+	uassert.Equal(t, feeGrowthInside1X128.ToString(), expectedfeeGrowthInside1X128)
+}
+
+func TestTickGetFeeGrowthInside_2(t *testing.T) {
+	pool := GetPool(barPath, fooPath, 500)
+	// returns 0 for two uninitialized ticks if tick is above
+
+	var feeGrowthInside0X128 *u256.Uint
+	var feeGrowthInside1X128 *u256.Uint
+
+	var expectedfeeGrowthInside0X128 string = "0"
+	var expectedfeeGrowthInside1X128 string = "0"
+
+	var tickLower int32 = -2
+	var tickUpper int32 = 2
+	var tickCurrent int32 = 4
+	var feeGrowthGlobal0X128 *u256.Uint = u256.NewUint(15)
+	var feeGrowthGlobal1X128 *u256.Uint = u256.NewUint(15)
+
+	feeGrowthInside0X128, feeGrowthInside1X128 = pool.TickGetFeeGrowthInside(tickLower, tickUpper, tickCurrent, feeGrowthGlobal0X128, feeGrowthGlobal1X128)
+
+	uassert.Equal(t, feeGrowthInside0X128.ToString(), expectedfeeGrowthInside0X128)
+	uassert.Equal(t, feeGrowthInside1X128.ToString(), expectedfeeGrowthInside1X128)
+}
+
+func TestTickGetFeeGrowthInside_3(t *testing.T) {
+	pool := GetPool(barPath, fooPath, 500)
+	// returns 0 for two uninitialized ticks if tick is below
+
+	var feeGrowthInside0X128 *u256.Uint
+	var feeGrowthInside1X128 *u256.Uint
+
+	var expectedfeeGrowthInside0X128 string = "0"
+	var expectedfeeGrowthInside1X128 string = "0"
+
+	var tickLower int32 = -2
+	var tickUpper int32 = 2
+	var tickCurrent int32 = -4
+	var feeGrowthGlobal0X128 *u256.Uint = u256.NewUint(15)
+	var feeGrowthGlobal1X128 *u256.Uint = u256.NewUint(15)
+
+	feeGrowthInside0X128, feeGrowthInside1X128 = pool.TickGetFeeGrowthInside(tickLower, tickUpper, tickCurrent, feeGrowthGlobal0X128, feeGrowthGlobal1X128)
+
+	uassert.Equal(t, feeGrowthInside0X128.ToString(), expectedfeeGrowthInside0X128)
+	uassert.Equal(t, feeGrowthInside1X128.ToString(), expectedfeeGrowthInside1X128)
+}
+
+func TestTickGetFeeGrowthInside_4(t *testing.T) {
+	pool := GetPool(barPath, fooPath, 500)
+	// subtracts upper tick if below
+
+	pool.SetTick(
+		2,
+		u256.NewUint(2),
+		u256.NewUint(3),
+		u256.Zero(),
+		i256.Zero(),
+		u256.Zero(),
+		0,
+		0,
+		true,
+	)
+	var feeGrowthInside0X128 *u256.Uint
+	var feeGrowthInside1X128 *u256.Uint
+
+	var expectedfeeGrowthInside0X128 string = "13"
+	var expectedfeeGrowthInside1X128 string = "12"
+
+	var tickLower int32 = -2
+	var tickUpper int32 = 2
+	var tickCurrent int32 = 0
+	var feeGrowthGlobal0X128 *u256.Uint = u256.NewUint(15)
+	var feeGrowthGlobal1X128 *u256.Uint = u256.NewUint(15)
+
+	feeGrowthInside0X128, feeGrowthInside1X128 = pool.TickGetFeeGrowthInside(tickLower, tickUpper, tickCurrent, feeGrowthGlobal0X128, feeGrowthGlobal1X128)
+
+	uassert.Equal(t, feeGrowthInside0X128.ToString(), expectedfeeGrowthInside0X128)
+	uassert.Equal(t, feeGrowthInside1X128.ToString(), expectedfeeGrowthInside1X128)
+}
+
+func TestTickGetFeeGrowthInside_5(t *testing.T) {
+	var token0 string = "gno.land/r/onbloc/bar"
+	var token1 string = "gno.land/r/onbloc/foo"
+	DeployPool(token0, token1)
+	pool := GetPool(token0, token1, 500)
+	// subtracts lower tick if above
+
+	pool.SetTick(
+		-2,
+		u256.NewUint(2),
+		u256.NewUint(3),
+		u256.Zero(),
+		i256.Zero(),
+		u256.Zero(),
+		0,
+		0,
+		true,
+	)
+	var feeGrowthInside0X128 *u256.Uint
+	var feeGrowthInside1X128 *u256.Uint
+
+	var expectedfeeGrowthInside0X128 string = "13"
+	var expectedfeeGrowthInside1X128 string = "12"
+
+	var tickLower int32 = -2
+	var tickUpper int32 = 2
+	var tickCurrent int32 = 0
+	var feeGrowthGlobal0X128 *u256.Uint = u256.NewUint(15)
+	var feeGrowthGlobal1X128 *u256.Uint = u256.NewUint(15)
+
+	feeGrowthInside0X128, feeGrowthInside1X128 = pool.TickGetFeeGrowthInside(tickLower, tickUpper, tickCurrent, feeGrowthGlobal0X128, feeGrowthGlobal1X128)
+
+	uassert.Equal(t, feeGrowthInside0X128.ToString(), expectedfeeGrowthInside0X128) // 11
+	uassert.Equal(t, feeGrowthInside1X128.ToString(), expectedfeeGrowthInside1X128) // 9
+}
+
+func TestTickGetFeeGrowthInside_6(t *testing.T) {
+	pool := GetPool(barPath, fooPath, 500)
+	// subtracts upper and lower tick if inside
+
+	pool.SetTick(
+		-2,
+		u256.NewUint(2),
+		u256.NewUint(3),
+		u256.Zero(),
+		i256.Zero(),
+		u256.Zero(),
+		0,
+		0,
+		true,
+	)
+
+	pool.SetTick(
+		2,
+		u256.NewUint(4),
+		u256.NewUint(1),
+		u256.Zero(),
+		i256.Zero(),
+		u256.Zero(),
+		0,
+		0,
+		true,
+	)
+	var feeGrowthInside0X128 *u256.Uint
+	var feeGrowthInside1X128 *u256.Uint
+
+	var expectedfeeGrowthInside0X128 string = "9"
+	var expectedfeeGrowthInside1X128 string = "11"
+
+	var tickLower int32 = -2
+	var tickUpper int32 = 2
+	var tickCurrent int32 = 0
+	var feeGrowthGlobal0X128 *u256.Uint = u256.NewUint(15)
+	var feeGrowthGlobal1X128 *u256.Uint = u256.NewUint(15)
+
+	feeGrowthInside0X128, feeGrowthInside1X128 = pool.TickGetFeeGrowthInside(tickLower, tickUpper, tickCurrent, feeGrowthGlobal0X128, feeGrowthGlobal1X128)
+
+	uassert.Equal(t, feeGrowthInside0X128.ToString(), expectedfeeGrowthInside0X128)
+	uassert.Equal(t, feeGrowthInside1X128.ToString(), expectedfeeGrowthInside1X128)
+}
+
+func TestTickGetFeeGrowthInside_7(t *testing.T) {
+	pool := GetPool(barPath, fooPath, 500)
+	// works correctly with overflow on inside tick
+	var feeGrowthOutside0X128 *u256.Uint = u256.MustFromDecimal(consts.MAX_UINT256)
+	feeGrowthOutside0X128.Sub(feeGrowthOutside0X128, u256.NewUint(3))
+	var feeGrowthOutside1X128 *u256.Uint = u256.MustFromDecimal(consts.MAX_UINT256)
+	feeGrowthOutside1X128.Sub(feeGrowthOutside1X128, u256.NewUint(2))
+
+	pool.SetTick(
+		-2,
+		feeGrowthOutside0X128,
+		feeGrowthOutside1X128,
+		u256.Zero(),
+		i256.Zero(),
+		u256.Zero(),
+		0,
+		0,
+		true,
+	)
+
+	pool.SetTick(
+		2,
+		u256.NewUint(3),
+		u256.NewUint(5),
+		u256.Zero(),
+		i256.Zero(),
+		u256.Zero(),
+		0,
+		0,
+		true,
+	)
+	var feeGrowthInside0X128 *u256.Uint
+	var feeGrowthInside1X128 *u256.Uint
+
+	var expectedfeeGrowthInside0X128 string = "16"
+	var expectedfeeGrowthInside1X128 string = "13"
+
+	var tickLower int32 = -2
+	var tickUpper int32 = 2
+	var tickCurrent int32 = 0
+	var feeGrowthGlobal0X128 *u256.Uint = u256.NewUint(15)
+	var feeGrowthGlobal1X128 *u256.Uint = u256.NewUint(15)
+
+	feeGrowthInside0X128, feeGrowthInside1X128 = pool.TickGetFeeGrowthInside(tickLower, tickUpper, tickCurrent, feeGrowthGlobal0X128, feeGrowthGlobal1X128)
+
+	uassert.Equal(t, feeGrowthInside0X128.ToString(), expectedfeeGrowthInside0X128)
+	uassert.Equal(t, feeGrowthInside1X128.ToString(), expectedfeeGrowthInside1X128)
+}
+
+func TestTickUpdate_1(t *testing.T) {
+	var token0 string = "gno.land/r/onbloc/bar"
+	var token1 string = "gno.land/r/onbloc/foo"
+	DeployPool(token0, token1)
+	pool := GetPool(token0, token1, 500)
+	// flips from zero to non zero
+
+	var flipped bool
+
+	var tick int32 = 0
+	var tickCurrent int32 = 0
+	var liquidityDelta *i256.Int = i256.One()
+	var feeGrowthGlobal0X128 *u256.Uint = u256.Zero()
+	var feeGrowthGlobal1X128 *u256.Uint = u256.Zero()
+	var upper bool = false
+	var maxLiquidity *u256.Uint = u256.NewUint(3)
+
+	flipped = pool.tickUpdate(tick, tickCurrent, liquidityDelta, feeGrowthGlobal0X128, feeGrowthGlobal1X128, upper, maxLiquidity)
+	uassert.Equal(t, flipped, true)
+}
+
+func TestTickUpdate_2(t *testing.T) {
+	var token0 string = "gno.land/r/onbloc/bar"
+	var token1 string = "gno.land/r/onbloc/foo"
+	DeployPool(token0, token1)
+	pool := GetPool(token0, token1, 500)
+	// does not flip from nonzero to greater nonzero
+
+	var flipped bool
+
+	var tick int32 = 0
+	var tickCurrent int32 = 0
+	var liquidityDelta *i256.Int = i256.One()
+	var feeGrowthGlobal0X128 *u256.Uint = u256.Zero()
+	var feeGrowthGlobal1X128 *u256.Uint = u256.Zero()
+	var upper bool = false
+	var maxLiquidity *u256.Uint = u256.NewUint(3)
+
+	flipped = pool.tickUpdate(tick, tickCurrent, liquidityDelta, feeGrowthGlobal0X128, feeGrowthGlobal1X128, upper, maxLiquidity)
+	uassert.Equal(t, flipped, true)
+
+	flipped = pool.tickUpdate(tick, tickCurrent, liquidityDelta, feeGrowthGlobal0X128, feeGrowthGlobal1X128, upper, maxLiquidity)
+	uassert.Equal(t, flipped, false)
+}
+
+func TestTickUpdate_3(t *testing.T) {
+	var token0 string = "gno.land/r/onbloc/bar"
+	var token1 string = "gno.land/r/onbloc/foo"
+	DeployPool(token0, token1)
+	pool := GetPool(token0, token1, 500)
+
+	// flips from nonzero to zero
+
+	var flipped bool
+
+	var tick int32 = 0
+	var tickCurrent int32 = 0
+	var liquidityDelta *i256.Int = i256.MustFromDecimal("1")
+	var feeGrowthGlobal0X128 *u256.Uint = u256.Zero()
+	var feeGrowthGlobal1X128 *u256.Uint = u256.Zero()
+	var upper bool = false
+	var maxLiquidity *u256.Uint = u256.NewUint(3)
+
+	flipped = pool.tickUpdate(tick, tickCurrent, liquidityDelta, feeGrowthGlobal0X128, feeGrowthGlobal1X128, upper, maxLiquidity)
+	uassert.Equal(t, flipped, true)
+
+	liquidityDelta = i256.MustFromDecimal("-1")
+
+	flipped = pool.tickUpdate(tick, tickCurrent, liquidityDelta, feeGrowthGlobal0X128, feeGrowthGlobal1X128, upper, maxLiquidity)
+	uassert.Equal(t, flipped, true)
+}
+
+func TestTickUpdate_4(t *testing.T) {
+	var token0 string = "gno.land/r/onbloc/bar"
+	var token1 string = "gno.land/r/onbloc/foo"
+	DeployPool(token0, token1)
+	pool := GetPool(token0, token1, 500)
+
+	// does not flip from nonzero to lesser nonzero
+
+	var flipped bool
+
+	var tick int32 = 0
+	var tickCurrent int32 = 0
+	var liquidityDelta *i256.Int = i256.MustFromDecimal("2")
+	var feeGrowthGlobal0X128 *u256.Uint = u256.Zero()
+	var feeGrowthGlobal1X128 *u256.Uint = u256.Zero()
+	var upper bool = false
+	var maxLiquidity *u256.Uint = u256.NewUint(3)
+
+	flipped = pool.tickUpdate(tick, tickCurrent, liquidityDelta, feeGrowthGlobal0X128, feeGrowthGlobal1X128, upper, maxLiquidity)
+	uassert.Equal(t, flipped, true)
+
+	liquidityDelta = i256.MustFromDecimal("-1")
+
+	flipped = pool.tickUpdate(tick, tickCurrent, liquidityDelta, feeGrowthGlobal0X128, feeGrowthGlobal1X128, upper, maxLiquidity)
+	uassert.Equal(t, flipped, false)
+}
+
+func TestTickUpdate_5(t *testing.T) {
+	var token0 string = "gno.land/r/onbloc/bar"
+	var token1 string = "gno.land/r/onbloc/foo"
+	DeployPool(token0, token1)
+	pool := GetPool(token0, token1, 500)
+
+	// reverts if total liquidity gross is greater than max
+
+	var flipped bool
+
+	var tick int32 = 0
+	var tickCurrent int32 = 0
+	var liquidityDelta *i256.Int = i256.MustFromDecimal("2")
+	var feeGrowthGlobal0X128 *u256.Uint = u256.Zero()
+	var feeGrowthGlobal1X128 *u256.Uint = u256.Zero()
+	var upper bool = false
+	var maxLiquidity *u256.Uint = u256.NewUint(3)
+
+	flipped = pool.tickUpdate(tick, tickCurrent, liquidityDelta, feeGrowthGlobal0X128, feeGrowthGlobal1X128, upper, maxLiquidity)
+
+	liquidityDelta = i256.MustFromDecimal("1")
+	upper = true
+	flipped = pool.tickUpdate(tick, tickCurrent, liquidityDelta, feeGrowthGlobal0X128, feeGrowthGlobal1X128, upper, maxLiquidity)
+
+	uassert.PanicsWithMessage(
+		t,
+		`[GNOSWAP-POOL-009] invalid liquidity calculated || liquidityGrossAfter(4) overflows maxLiquidity(3)`,
+		func() {
+			pool.tickUpdate(tick, tickCurrent, liquidityDelta, feeGrowthGlobal0X128, feeGrowthGlobal1X128, upper, maxLiquidity)
+		},
+	)
+}
+
+func TestTickUpdate_6(t *testing.T) {
+	var liquidityGross *u256.Uint
+	var liquidityNet *i256.Int
+
+	var token0 string = "gno.land/r/onbloc/bar"
+	var token1 string = "gno.land/r/onbloc/foo"
+	DeployPool(token0, token1)
+	pool := GetPool(token0, token1, 500)
+
+	// nets the liquidity based on upper flag
+
+	var flipped bool
+
+	var tick int32 = 0
+	var tickCurrent int32 = 0
+	var liquidityDelta *i256.Int = i256.MustFromDecimal("2")
+	var feeGrowthGlobal0X128 *u256.Uint = u256.Zero()
+	var feeGrowthGlobal1X128 *u256.Uint = u256.Zero()
+	var upper bool = false
+	var maxLiquidity *u256.Uint = u256.NewUint(10)
+
+	flipped = pool.tickUpdate(tick, tickCurrent, liquidityDelta, feeGrowthGlobal0X128, feeGrowthGlobal1X128, upper, maxLiquidity)
+
+	liquidityDelta = i256.MustFromDecimal("1")
+	upper = true
+	flipped = pool.tickUpdate(tick, tickCurrent, liquidityDelta, feeGrowthGlobal0X128, feeGrowthGlobal1X128, upper, maxLiquidity)
+
+	liquidityDelta = i256.MustFromDecimal("3")
+	flipped = pool.tickUpdate(tick, tickCurrent, liquidityDelta, feeGrowthGlobal0X128, feeGrowthGlobal1X128, upper, maxLiquidity)
+
+	liquidityDelta = i256.MustFromDecimal("1")
+	upper = false
+	flipped = pool.tickUpdate(tick, tickCurrent, liquidityDelta, feeGrowthGlobal0X128, feeGrowthGlobal1X128, upper, maxLiquidity)
+
+	_, _, liquidityGross, liquidityNet, _, _, _, _ = pool.GetTicks(0)
+	uassert.Equal(t, liquidityGross.ToString(), "7")
+	uassert.Equal(t, liquidityNet.ToString(), "-1")
+}
+
+func TestTickUpdate_7(t *testing.T) {
+	var token0 string = "gno.land/r/onbloc/bar"
+	var token1 string = "gno.land/r/onbloc/foo"
+	DeployPool(token0, token1)
+	pool := GetPool(token0, token1, 500)
+
+	// reverts on overflow liquidity gross
+
+	var flipped bool
+
+	var tick int32 = 0
+	var tickCurrent int32 = 0
+	var maxLiquidityPerTick *u256.Uint = u256.Zero().Add(u256.Zero(), pool.maxLiquidityPerTick)
+	var liquidityDelta *i256.Int = i256.MustFromDecimal(maxLiquidityPerTick.ToString())
+	liquidityDelta.Div(liquidityDelta, i256.MustFromDecimal("2"))
+	liquidityDelta.Add(liquidityDelta, i256.MustFromDecimal("1"))
+	var feeGrowthGlobal0X128 *u256.Uint = u256.Zero()
+	var feeGrowthGlobal1X128 *u256.Uint = u256.Zero()
+	var upper bool = false
+
+	flipped = pool.tickUpdate(tick, tickCurrent, liquidityDelta, feeGrowthGlobal0X128, feeGrowthGlobal1X128, upper, maxLiquidityPerTick)
+	uassert.PanicsWithMessage(
+		t,
+		`[GNOSWAP-POOL-009] invalid liquidity calculated || liquidityGrossAfter(1917569901783203986719870431555992) overflows maxLiquidity(1917569901783203986719870431555990)`,
+		func() {
+			pool.tickUpdate(tick, tickCurrent, liquidityDelta, feeGrowthGlobal0X128, feeGrowthGlobal1X128, upper, maxLiquidityPerTick)
+		},
+	)
+}
+
+func TestTickUpdate_8(t *testing.T) {
+	var feeGrowthOutside0X128 *u256.Uint
+	var feeGrowthOutside1X128 *u256.Uint
+	var liquidityGross *u256.Uint
+	var liquidityNet *i256.Int
+	var secondsPerLiquidityOutsideX128 *u256.Uint
+	var tickCumulativeOutside int64
+	var secondsOutside uint32
+	var initialized bool
+
+	var token0 string = "gno.land/r/onbloc/bar"
+	var token1 string = "gno.land/r/onbloc/foo"
+	DeployPool(token0, token1)
+	pool := GetPool(token0, token1, 500)
+
+	// assumes all growth happens below ticks lte current tick
+
+	var flipped bool
+
+	var tick int32 = 1
+	var tickCurrent int32 = 1
+	var liquidityDelta *i256.Int = i256.One()
+	var feeGrowthGlobal0X128 *u256.Uint = u256.One()
+	var feeGrowthGlobal1X128 *u256.Uint = u256.MustFromDecimal("2")
+	var upper bool = false
+	var maxLiquidity *u256.Uint = u256.MustFromDecimal(consts.MAX_UINT128)
+
+	flipped = pool.tickUpdate(tick, tickCurrent, liquidityDelta, feeGrowthGlobal0X128, feeGrowthGlobal1X128, upper, maxLiquidity)
+	feeGrowthOutside0X128, feeGrowthOutside1X128, liquidityGross, liquidityNet, secondsPerLiquidityOutsideX128, tickCumulativeOutside, secondsOutside, initialized = pool.GetTicks(1)
+
+	uassert.Equal(t, feeGrowthOutside0X128.ToString(), "1")
+	uassert.Equal(t, feeGrowthOutside1X128.ToString(), "2")
+	//uassert.Equal(t, secondsPerLiquidityOutsideX128.ToString(), "3")
+	//uassert.Equal(t, tickCumulativeOutside, 4)
+	//uassert.Equal(t, secondsOutside, 5)
+	uassert.Equal(t, initialized, true)
+}
+
+func TestTickUpdate_9(t *testing.T) {
+	var feeGrowthOutside0X128 *u256.Uint
+	var feeGrowthOutside1X128 *u256.Uint
+	var liquidityGross *u256.Uint
+	var liquidityNet *i256.Int
+	var secondsPerLiquidityOutsideX128 *u256.Uint
+	var tickCumulativeOutside int64
+	var secondsOutside uint32
+	var initialized bool
+
+	var token0 string = "gno.land/r/onbloc/bar"
+	var token1 string = "gno.land/r/onbloc/foo"
+	DeployPool(token0, token1)
+	pool := GetPool(token0, token1, 500)
+
+	// does not set any growth fields if tick is already initialized
+
+	var flipped bool
+
+	var tick int32 = 1
+	var tickCurrent int32 = 1
+	var liquidityDelta *i256.Int = i256.One()
+	var feeGrowthGlobal0X128 *u256.Uint = u256.One()
+	var feeGrowthGlobal1X128 *u256.Uint = u256.MustFromDecimal("2")
+	var upper bool = false
+	var maxLiquidity *u256.Uint = u256.MustFromDecimal(consts.MAX_UINT128)
+
+	flipped = pool.tickUpdate(tick, tickCurrent, liquidityDelta, feeGrowthGlobal0X128, feeGrowthGlobal1X128, upper, maxLiquidity)
+
+	feeGrowthGlobal0X128 = u256.MustFromDecimal("6")
+	feeGrowthGlobal1X128 = u256.MustFromDecimal("7")
+	flipped = pool.tickUpdate(tick, tickCurrent, liquidityDelta, feeGrowthGlobal0X128, feeGrowthGlobal1X128, upper, maxLiquidity)
+
+	feeGrowthOutside0X128, feeGrowthOutside1X128, liquidityGross, liquidityNet, secondsPerLiquidityOutsideX128, tickCumulativeOutside, secondsOutside, initialized = pool.GetTicks(1)
+
+	uassert.Equal(t, feeGrowthOutside0X128.ToString(), "1")
+	uassert.Equal(t, feeGrowthOutside1X128.ToString(), "2")
+	uassert.Equal(t, initialized, true)
+}
+
+func TestTickUpdate_10(t *testing.T) {
+	var feeGrowthOutside0X128 *u256.Uint
+	var feeGrowthOutside1X128 *u256.Uint
+	var liquidityGross *u256.Uint
+	var liquidityNet *i256.Int
+	var secondsPerLiquidityOutsideX128 *u256.Uint
+	var tickCumulativeOutside int64
+	var secondsOutside uint32
+	var initialized bool
+
+	var token0 string = "gno.land/r/onbloc/bar"
+	var token1 string = "gno.land/r/onbloc/foo"
+	DeployPool(token0, token1)
+	pool := GetPool(token0, token1, 500)
+
+	// does not set any growth fields for ticks gt current tick
+
+	var flipped bool
+
+	var tick int32 = 2
+	var tickCurrent int32 = 1
+	var liquidityDelta *i256.Int = i256.One()
+	var feeGrowthGlobal0X128 *u256.Uint = u256.One()
+	var feeGrowthGlobal1X128 *u256.Uint = u256.MustFromDecimal("2")
+	var upper bool = false
+	var maxLiquidity *u256.Uint = u256.MustFromDecimal(consts.MAX_UINT128)
+
+	flipped = pool.tickUpdate(tick, tickCurrent, liquidityDelta, feeGrowthGlobal0X128, feeGrowthGlobal1X128, upper, maxLiquidity)
+
+	feeGrowthOutside0X128, feeGrowthOutside1X128, liquidityGross, liquidityNet, secondsPerLiquidityOutsideX128, tickCumulativeOutside, secondsOutside, initialized = pool.GetTicks(2)
+
+	uassert.Equal(t, feeGrowthOutside0X128.ToString(), "0")
+	uassert.Equal(t, feeGrowthOutside1X128.ToString(), "0")
+	uassert.Equal(t, secondsPerLiquidityOutsideX128.ToString(), "0")
+	uassert.Equal(t, tickCumulativeOutside, int64(0))
+	uassert.Equal(t, secondsOutside, uint32(0))
+	uassert.Equal(t, initialized, true)
+}
+
+// this test for veridating delete(pool.ticks, tick)
+func TestClear_1(t *testing.T) {
+	var feeGrowthOutside0X128 *u256.Uint
+	var feeGrowthOutside1X128 *u256.Uint
+	var liquidityGross *u256.Uint
+	var liquidityNet *i256.Int
+	var secondsPerLiquidityOutsideX128 *u256.Uint
+	var tickCumulativeOutside int64
+	var secondsOutside uint32
+	var initialized bool
+
+	var token0 string = "gno.land/r/onbloc/bar"
+	var token1 string = "gno.land/r/onbloc/foo"
+	DeployPool(token0, token1)
+
+	pool := GetPool(token0, token1, 500)
+	// deletes all the data in the tick
+
+	pool.SetTick(
+		2,
+		u256.NewUint(1),
+		u256.NewUint(2),
+		u256.NewUint(3),
+		i256.NewInt(4),
+		u256.NewUint(5),
+		6,
+		7,
+		true,
+	)
+
+	pool.Clear(2)
+	feeGrowthOutside0X128, feeGrowthOutside1X128, liquidityGross, liquidityNet, secondsPerLiquidityOutsideX128, tickCumulativeOutside, secondsOutside, initialized = pool.GetTicks(2)
+	uassert.Equal(t, feeGrowthOutside0X128.ToString(), "0")
+	uassert.Equal(t, feeGrowthOutside1X128.ToString(), "0")
+	uassert.Equal(t, secondsPerLiquidityOutsideX128.ToString(), "0")
+	uassert.Equal(t, tickCumulativeOutside, int64(0))
+	uassert.Equal(t, secondsOutside, uint32(0))
+	uassert.Equal(t, initialized, false)
+}
+
+func TestTickCross_1(t *testing.T) {
+	var feeGrowthOutside0X128 *u256.Uint
+	var feeGrowthOutside1X128 *u256.Uint
+	var liquidityGross *u256.Uint
+	var liquidityNet *i256.Int
+	var secondsPerLiquidityOutsideX128 *u256.Uint
+	var tickCumulativeOutside int64
+	var secondsOutside uint32
+	var initialized bool
+
+	var token0 string = "gno.land/r/onbloc/bar"
+	var token1 string = "gno.land/r/onbloc/foo"
+	DeployPool(token0, token1)
+
+	pool := GetPool(token0, token1, 500)
+	// deletes all the data in the tick
+
+	pool.SetTick(
+		2,
+		u256.NewUint(1),
+		u256.NewUint(2),
+		u256.NewUint(3),
+		i256.NewInt(4),
+		u256.NewUint(5),
+		6,
+		7,
+		true,
+	)
+	pool.TickCross(2, u256.NewUint(7), u256.NewUint(9))
+	feeGrowthOutside0X128, feeGrowthOutside1X128, liquidityGross, liquidityNet, secondsPerLiquidityOutsideX128, tickCumulativeOutside, secondsOutside, initialized = pool.GetTicks(2)
+	uassert.Equal(t, feeGrowthOutside0X128.ToString(), "6")
+	uassert.Equal(t, feeGrowthOutside1X128.ToString(), "7")
+	// uassert.Equal(t, secondsPerLiquidityOutsideX128.ToString(), "3")
+	// uassert.Equal(t, tickCumulativeOutside, 9)
+	// uassert.Equal(t, secondsOutside, 3)
+}
+
+func TestTickCross_2(t *testing.T) {
+	var feeGrowthOutside0X128 *u256.Uint
+	var feeGrowthOutside1X128 *u256.Uint
+	var liquidityGross *u256.Uint
+	var liquidityNet *i256.Int
+	var secondsPerLiquidityOutsideX128 *u256.Uint
+	var tickCumulativeOutside int64
+	var secondsOutside uint32
+	var initialized bool
+
+	var token0 string = "gno.land/r/onbloc/bar"
+	var token1 string = "gno.land/r/onbloc/foo"
+	DeployPool(token0, token1)
+
+	pool := GetPool(token0, token1, 500)
+	// two flips are no op
+
+	pool.SetTick(
+		2,
+		u256.NewUint(1),
+		u256.NewUint(2),
+		u256.NewUint(3),
+		i256.NewInt(4),
+		u256.NewUint(5),
+		6,
+		7,
+		true,
+	)
+	pool.TickCross(2, u256.NewUint(7), u256.NewUint(9))
+	pool.TickCross(2, u256.NewUint(7), u256.NewUint(9))
+	feeGrowthOutside0X128, feeGrowthOutside1X128, liquidityGross, liquidityNet, secondsPerLiquidityOutsideX128, tickCumulativeOutside, secondsOutside, initialized = pool.GetTicks(2)
+	uassert.Equal(t, feeGrowthOutside0X128.ToString(), "1")
+	uassert.Equal(t, feeGrowthOutside1X128.ToString(), "2")
+	// uassert.Equal(t, secondsPerLiquidityOutsideX128.ToString(), "3")
+	// uassert.Equal(t, tickCumulativeOutside, 9)
+	// uassert.Equal(t, secondsOutside, 3)
+}
+
+// ============ For Testing ============
+
+func TickTickSpacingToMaxLiquidityPerTick(tickSpacing int32) *u256.Uint {
+	minTick := (consts.MIN_TICK / tickSpacing) * tickSpacing
+	maxTick := (consts.MAX_TICK / tickSpacing) * tickSpacing
+	numTicks := uint64((maxTick-minTick)/tickSpacing) + 1
+
+	_maxUint128 := u256.MustFromDecimal(consts.MAX_UINT128)
+	return new(u256.Uint).Div(_maxUint128, u256.NewUint(numTicks))
+}
+
+func (pool *Pool) TickGetFeeGrowthInside(
+	tickLower int32,
+	tickUpper int32,
+	tickCurrent int32,
+	feeGrowthGlobal0X128 *u256.Uint, // uint256
+	feeGrowthGlobal1X128 *u256.Uint, // uint256
+) (*u256.Uint, *u256.Uint) { // uint256
+	lower := pool.getTick(tickLower)
+	upper := pool.getTick(tickUpper)
+
+	var feeGrowthBelow0X128, feeGrowthBelow1X128 *u256.Uint
+	if tickCurrent >= tickLower {
+		feeGrowthBelow0X128 = lower.feeGrowthOutside0X128
+		feeGrowthBelow1X128 = lower.feeGrowthOutside1X128
+	} else {
+		feeGrowthBelow0X128 = new(u256.Uint).Sub(feeGrowthGlobal0X128, lower.feeGrowthOutside0X128)
+		feeGrowthBelow1X128 = new(u256.Uint).Sub(feeGrowthGlobal1X128, lower.feeGrowthOutside1X128)
+	}
+
+	var feeGrowthAbove0X128, feeGrowthAbove1X128 *u256.Uint
+	if tickCurrent < tickUpper {
+		feeGrowthAbove0X128 = upper.feeGrowthOutside0X128
+		feeGrowthAbove1X128 = upper.feeGrowthOutside1X128
+	} else {
+		feeGrowthAbove0X128 = new(u256.Uint).Sub(feeGrowthGlobal0X128, upper.feeGrowthOutside0X128)
+		feeGrowthAbove1X128 = new(u256.Uint).Sub(feeGrowthGlobal1X128, upper.feeGrowthOutside1X128)
+	}
+
+	feeGrowthInside0X128 := new(u256.Uint).Sub(new(u256.Uint).Sub(feeGrowthGlobal0X128, feeGrowthBelow0X128), feeGrowthAbove0X128)
+	feeGrowthInside1X128 := new(u256.Uint).Sub(new(u256.Uint).Sub(feeGrowthGlobal1X128, feeGrowthBelow1X128), feeGrowthAbove1X128)
+
+	return feeGrowthInside0X128, feeGrowthInside1X128
+}
+
+func (pool *Pool) SetTick(
+	tick int32,
+	feeGrowthOutside0X128 *u256.Uint,
+	feeGrowthOutside1X128 *u256.Uint,
+	liquidityGross *u256.Uint,
+	liquidityNet *i256.Int,
+	secondsPerLiquidityOutsideX128 *u256.Uint,
+	tickCumulativeOutside int64,
+	secondsOutside uint32,
+	initialized bool,
+) {
+	info := pool.getTick(tick)
+
+	info.feeGrowthOutside0X128 = feeGrowthOutside0X128
+	info.feeGrowthOutside1X128 = feeGrowthOutside1X128
+	info.liquidityGross = liquidityGross
+	info.liquidityNet = liquidityNet
+	info.secondsPerLiquidityOutsideX128 = secondsPerLiquidityOutsideX128
+	info.tickCumulativeOutside = tickCumulativeOutside
+	info.secondsOutside = secondsOutside
+	info.initialized = initialized
+
+	pool.setTick(tick, info)
+}
+
+func (pool *Pool) TickUpdate(
+	tick int32,
+	tickCurrent int32,
+	liquidityDelta *i256.Int, // int128
+	feeGrowthGlobal0X128 *u256.Uint, // uint256
+	feeGrowthGlobal1X128 *u256.Uint, // uint256
+	upper bool,
+	maxLiquidity *u256.Uint, // uint256
+) (flipped bool) {
+	// PARAM INIT
+	liquidityDelta = liquidityDelta.NilToZero()
+	feeGrowthGlobal0X128 = feeGrowthGlobal0X128.NilToZero()
+	feeGrowthGlobal1X128 = feeGrowthGlobal1X128.NilToZero()
+
+	info := pool.getTick(tick)
+
+	liquidityGrossBefore := info.liquidityGross
+	liquidityGrossAfter := liquidityMathAddDelta(liquidityGrossBefore, liquidityDelta)
+
+	if !(liquidityGrossAfter.Lte(maxLiquidity)) {
+		panic("tick panic #1")
+	}
+
+	flipped = (liquidityGrossAfter.IsZero()) != (liquidityGrossBefore.IsZero())
+
+	if liquidityGrossBefore.IsZero() {
+		if tick <= tickCurrent {
+			info.feeGrowthOutside0X128 = feeGrowthGlobal0X128
+			info.feeGrowthOutside1X128 = feeGrowthGlobal1X128
+		}
+
+		info.initialized = true
+	}
+
+	info.liquidityGross = liquidityGrossAfter
+
+	if upper {
+		info.liquidityNet = i256.Zero().Sub(info.liquidityNet, liquidityDelta)
+	} else {
+		info.liquidityNet = i256.Zero().Add(info.liquidityNet, liquidityDelta)
+	}
+
+	pool.setTick(tick, info)
+
+	return flipped
+}
+
+func (pool *Pool) GetTicks(
+	tick int32,
+) (feeGrowthOutside0X128 *u256.Uint, feeGrowthOutside1X128 *u256.Uint, liquidityGross *u256.Uint, liquidityNet *i256.Int, secondsPerLiquidityOutsideX128 *u256.Uint, tickCumulativeOutside int64, secondsOutside uint32, initialized bool) {
+	info := pool.getTick(tick)
+
+	return info.feeGrowthOutside0X128, info.feeGrowthOutside1X128, info.liquidityGross, info.liquidityNet, info.secondsPerLiquidityOutsideX128, info.tickCumulativeOutside, info.secondsOutside, info.initialized
+}
+
+func (pool *Pool) Clear(
+	tick int32,
+) {
+	tickStr := strconv.Itoa(int(tick))
+	pool.ticks.Remove(tickStr)
+}
+
+func (pool *Pool) TickCross(
+	tick int32,
+	feeGrowthGlobal0X128 *u256.Uint, // uint256
+	feeGrowthGlobal1X128 *u256.Uint, // uint256
+) *i256.Int {
+	info := pool.getTick(tick)
+
+	info.feeGrowthOutside0X128 = new(u256.Uint).Sub(feeGrowthGlobal0X128, info.feeGrowthOutside0X128)
+	info.feeGrowthOutside1X128 = new(u256.Uint).Sub(feeGrowthGlobal1X128, info.feeGrowthOutside1X128)
+
+	pool.setTick(tick, info)
+
+	liquidityNet := info.liquidityNet
+	return liquidityNet
+}

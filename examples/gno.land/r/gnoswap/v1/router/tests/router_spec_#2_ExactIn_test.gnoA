@@ -1,0 +1,73 @@
+package router
+
+import (
+	"std"
+	"testing"
+	"time"
+
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+
+	pl "gno.land/r/gnoswap/v1/pool"
+	pn "gno.land/r/gnoswap/v1/position"
+
+	"gno.land/r/onbloc/bar"
+	"gno.land/r/onbloc/foo"
+
+	"gno.land/r/gnoswap/v1/gns"
+)
+
+func TestExactInputSinglePool1_to_0(t *testing.T) {
+	// ================================ Pool Setup & Add Liquidity================================================
+	std.TestSetRealm(adminRealm)
+
+	gns.Approve(consts.POOL_ADDR, pl.GetPoolCreationFee())
+
+	token0Path := "gno.land/r/onbloc/foo"
+
+	foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+	bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+	pl.CreatePool(barPath, token0Path, 3000, "79228162514264337593543950336") // encodePriceSqrt(1, 1)
+	poolPath := "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:3000"
+
+	tokenId, liquidity, amount0, amount1 := pn.Mint(barPath, token0Path, 3000, minTick, maxTick, "1000000", "1000000", "0", "0", max_timeout, adminAddr, adminAddr)
+	pool := pl.GetPool(barPath, token0Path, FEE_MEDIUM)
+	poolLiq := pool.Liquidity()
+	uassert.Equal(t, poolLiq.ToString(), "1000000")
+
+	// 1 -> 0
+
+	bar.Approve(consts.ROUTER_ADDR, consts.UINT64_MAX)
+	foo.Approve(consts.ROUTER_ADDR, consts.UINT64_MAX)
+
+	poolToken0Before := bar.BalanceOf(consts.POOL_ADDR)
+	poolToken1Before := foo.BalanceOf(consts.POOL_ADDR)
+
+	user1Token0Before := bar.BalanceOf(consts.ADMIN)
+	user1Token1Before := foo.BalanceOf(consts.ADMIN)
+
+	amountIn, amountOut := ExactInSwapRoute(
+		barPath, // inputToken
+		fooPath, // outputToken
+		"3",     // amountSpecified
+		"gno.land/r/onbloc/foo:gno.land/r/onbloc/bar:3000", // strRouteArr
+		"100", // quoteArr
+		"1",   // tokenAmountLimit
+		time.Now().Add(time.Hour).Unix(),
+	)
+
+	uassert.Equal(t, amountIn, "3")
+	uassert.Equal(t, amountOut, "-1")
+
+	poolToken0After := bar.BalanceOf(consts.POOL_ADDR)
+	poolToken1After := foo.BalanceOf(consts.POOL_ADDR)
+
+	user1Token0After := bar.BalanceOf(consts.ADMIN)
+	user1Token1After := foo.BalanceOf(consts.ADMIN)
+
+	uassert.Equal(t, user1Token0After, user1Token0Before+1) // bar
+	uassert.Equal(t, user1Token1After, user1Token1Before-3) // foo
+	uassert.Equal(t, poolToken0After, poolToken0Before-1)
+	uassert.Equal(t, poolToken1After, poolToken1Before+3)
+}

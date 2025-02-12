@@ -1,0 +1,76 @@
+package router
+
+import (
+	"gno.land/p/demo/uassert"
+	"std"
+	"testing"
+
+	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/common"
+
+	pl "gno.land/r/gnoswap/v1/pool"
+	pn "gno.land/r/gnoswap/v1/position"
+
+	"gno.land/r/demo/wugnot"
+	"gno.land/r/gnoswap/v1/gns"
+	"gno.land/r/onbloc/qux"
+)
+
+func TestCreatePool(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	gns.Approve(consts.POOL_ADDR, pl.GetPoolCreationFee()*3)
+
+	pl.CreatePool(consts.WRAPPED_WUGNOT, quxPath, fee500, common.TickMathGetSqrtRatioAtTick(-10000).ToString()) // tick -10000
+}
+
+func TestPositionMintQuxGnot(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	// send
+	std.TestIssueCoins(adminAddr, std.Coins{{"ugnot", 1000009}})
+	std.TestSetOrigSend(std.Coins{{"ugnot", 1000009}}, nil)
+
+	// Deposit(wrap)
+	std.TestSetRealm(adminRealm)
+	wugnot.Deposit()
+
+	qux.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+	wugnot.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+	tokenId, liquidity, amount0, amount1 := pn.Mint(quxPath, consts.WRAPPED_WUGNOT, fee500, int32(9000), int32(11000), "100000", "100000", "0", "0", max_timeout, adminAddr, adminAddr)
+
+	uassert.Equal(t, tokenId, uint64(1))
+	uassert.Equal(t, amount0, "100000")
+	uassert.Equal(t, amount1, "36790")
+}
+
+func TestDrySwapRouteQuxGnotExactIn(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	dryResult := DrySwapRoute(
+		quxPath,               // inputToken
+		consts.WRAPPED_WUGNOT, // outputToken
+		"1000",                // amountSpecified
+		"EXACT_IN",            // swapType
+		"gno.land/r/onbloc/qux:gno.land/r/demo/wugnot:500", // strRouteArr
+		"100", // quoteArr
+		"1",
+	)
+	uassert.Equal(t, dryResult, "2711")
+}
+
+func TestDrySwapRouteQuxGnotExactOut(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	dryResult := DrySwapRoute(
+		quxPath,               // inputToken
+		consts.WRAPPED_WUGNOT, // outputToken
+		"1000",                // amountSpecified
+		"EXACT_OUT",           // swapType
+		"gno.land/r/onbloc/qux:gno.land/r/demo/wugnot:500", // strRouteArr
+		"100", // quoteArr
+		"100000",
+	)
+	uassert.Equal(t, dryResult, "370")
+}

@@ -1,0 +1,193 @@
+// User 'A' mints NFT
+// User 'A' transfers NFT to 'B'
+// User 'B' stakes NFT
+// User 'A' can not collect reward
+// User 'B' can collect reward
+
+package staker
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+
+	pl "gno.land/r/gnoswap/v1/pool"
+	pn "gno.land/r/gnoswap/v1/position"
+
+	"gno.land/r/gnoswap/v1/gnft"
+
+	"gno.land/r/onbloc/bar"
+	"gno.land/r/onbloc/qux"
+)
+
+const (
+	ugnotDenom string = "ugnot"
+	ugnotPath  string = "ugnot"
+	wugnotPath string = "gno.land/r/demo/wugnot"
+	gnsPath    string = "gno.land/r/gnoswap/v1/gns"
+	barPath    string = "gno.land/r/onbloc/bar"
+	bazPath    string = "gno.land/r/onbloc/baz"
+	fooPath    string = "gno.land/r/onbloc/foo"
+	oblPath    string = "gno.land/r/onbloc/obl"
+	quxPath    string = "gno.land/r/onbloc/qux"
+
+	fee100      uint32 = 100
+	fee500      uint32 = 500
+	fee3000     uint32 = 3000
+	maxApprove  uint64 = 18446744073709551615
+	max_timeout int64  = 9999999999
+)
+
+var (
+	// define addresses to use in tests
+	addr01 = testutils.TestAddress("addr01")
+	addr02 = testutils.TestAddress("addr02")
+)
+
+var (
+	admin       = consts.ADMIN
+	alice       = testutils.TestAddress("alice")
+	pool        = consts.POOL_ADDR
+	protocolFee = consts.PROTOCOL_FEE_ADDR
+	adminRealm  = std.NewUserRealm(admin)
+	posRealm    = std.NewCodeRealm(consts.POSITION_PATH)
+
+	// addresses used in tests
+	addrUsedInTest = []std.Address{addr01, addr02}
+)
+
+var (
+	dummyAddr  = testutils.TestAddress("dummy")
+	dummyRealm = std.NewUserRealm(dummyAddr)
+)
+
+func TestNftTransfer01(t *testing.T) {
+	testInit(t)
+	testPoolCreatePool(t)
+	testPositionMint01(t)
+	testTransferNft(t)
+	testStakeToken01(t)
+	testCollectReward01(t)
+}
+
+func testInit(t *testing.T) {
+	t.Run("initial", func(t *testing.T) {
+		// set pool create fee to 0 for testing
+		std.TestSetRealm(adminRealm)
+		pl.SetPoolCreationFeeByAdmin(0)
+	})
+}
+
+func testPoolCreatePool(t *testing.T) {
+	t.Run("create pool", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		pl.CreatePool(barPath, quxPath, 500, "130621891405341611593710811006") // tick 10_000 ≈ x2.7
+		// tier 1
+		SetPoolTierByAdmin(`gno.land/r/onbloc/bar:gno.land/r/onbloc/qux:500`, 1)
+		std.TestSkipHeights(1)
+	})
+}
+
+func testPositionMint01(t *testing.T) {
+	t.Run("mint position 01, bar:qux:500", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		qux.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		std.TestSkipHeights(2)
+
+		lpTokenId, liquidity, amount0, amount1 := pn.Mint(
+			barPath,      // token0
+			quxPath,      // token1
+			uint32(500),  // fee
+			int32(9000),  // tickLower
+			int32(11000), // tickUpper
+			"1000",       // amount0Desired
+			"1000",       // amount1Desired
+			"1",          // amount0Min
+			"1",          // amount1Min
+			max_timeout,  // deadline
+			admin,
+			admin,
+		)
+
+		std.TestSkipHeights(1)
+
+		uassert.Equal(t, lpTokenId, uint64(1))
+		owner, _ := gnft.OwnerOf(tid(lpTokenId))
+		uassert.Equal(t, owner, admin)
+		uassert.Equal(t, amount0, "368")
+		uassert.Equal(t, amount1, "1000")
+	})
+}
+
+func testTransferNft(t *testing.T) {
+	t.Run("transfer nft", func(t *testing.T) {
+
+		t.Run("transfer nft to another address", func(t *testing.T) {
+			uassert.NotPanics(
+				t,
+				func() {
+					std.TestSetRealm(adminRealm)
+					gnft.TransferFrom(admin, dummyAddr, tid(uint64(1)))
+				},
+				`should not panic`,
+			)
+
+			owner, _ := gnft.OwnerOf(tid(uint64(1)))
+			uassert.Equal(t, owner.String(), dummyAddr.String())
+		})
+	})
+}
+
+func testStakeToken01(t *testing.T) {
+	t.Run("admin can not stake(not a owner)", func(t *testing.T) {
+
+		uassert.PanicsWithMessage(
+			t,
+			`[GNOSWAP-STAKER-001] caller has no permission`,
+			func() {
+				std.TestSetRealm(adminRealm)
+				StakeToken(1)
+			})
+	})
+
+	t.Run("dummyAddr(new owner) can stake", func(t *testing.T) {
+		std.TestSetRealm(dummyRealm)
+		gnft.Approve(consts.STAKER_ADDR, tid(uint64(1)))
+
+		uassert.NotPanics(
+			t,
+			func() {
+				StakeToken(1)
+			},
+			`should not panic`,
+		)
+	})
+}
+
+func testCollectReward01(t *testing.T) {
+	t.Run("admin can not collect reward(not a owner)", func(t *testing.T) {
+		uassert.PanicsWithMessage(
+			t,
+			`[GNOSWAP-STAKER-001] caller has no permission || caller is not owner of tokenId(1)`,
+			func() {
+				std.TestSetRealm(adminRealm)
+				CollectReward(1, false)
+			})
+	})
+
+	t.Run("dummyAddr(new owner) can collect reward", func(t *testing.T) {
+		uassert.NotPanics(
+			t,
+			func() {
+				std.TestSetRealm(dummyRealm)
+				CollectReward(1, false)
+			},
+			`should not panic`,
+		)
+	})
+}

@@ -1,0 +1,43 @@
+package gns
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/demo/uassert"
+	"gno.land/p/gnoswap/consts"
+)
+
+var (
+	emissionRealm = std.NewCodeRealm(consts.EMISSION_PATH)
+	adminRealm    = std.NewUserRealm(consts.ADMIN)
+)
+
+func TestMintGns(t *testing.T) {
+	t.Run("mint by year, until emission ends", func(t *testing.T) {
+		for year := int64(1); year <= 12; year++ {
+			skipUntilLastHeightOfHalvingYear(t, year)
+
+			std.TestSetRealm(emissionRealm)
+			mintedAmount := MintGns(consts.ADMIN)
+			uassert.Equal(t, GetHalvingYearMaxAmount(year), mintedAmount)
+			uassert.Equal(t, GetHalvingYearMaxAmount(year), GetHalvingYearMintAmount(year))
+			uassert.Equal(t, GetHalvingYearAccuAmount(year), GetMintedEmissionAmount())
+		}
+	})
+
+	t.Run("no more emission after it ends", func(t *testing.T) {
+		std.TestSkipHeights(blockPerYear)
+
+		std.TestSetRealm(emissionRealm)
+		mintedAmount := MintGns(consts.ADMIN)
+		uassert.Equal(t, uint64(0), mintedAmount)
+	})
+}
+
+func skipUntilLastHeightOfHalvingYear(t *testing.T, year int64) {
+	t.Helper()
+
+	lastHeight := GetHalvingYearEndBlock(year)
+	std.TestSkipHeights(lastHeight - std.GetHeight())
+}

@@ -1,0 +1,187 @@
+package position
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/gns"
+	pl "gno.land/r/gnoswap/v1/pool"
+
+	"gno.land/r/onbloc/bar"
+	"gno.land/r/onbloc/foo"
+)
+
+const (
+	ugnotDenom string = "ugnot"
+	ugnotPath  string = "ugnot"
+	wugnotPath string = "gno.land/r/demo/wugnot"
+	gnsPath    string = "gno.land/r/gnoswap/v1/gns"
+	barPath    string = "gno.land/r/onbloc/bar"
+	bazPath    string = "gno.land/r/onbloc/baz"
+	fooPath    string = "gno.land/r/onbloc/foo"
+	oblPath    string = "gno.land/r/onbloc/obl"
+	quxPath    string = "gno.land/r/onbloc/qux"
+
+	fee100               uint32 = 100
+	fee500               uint32 = 500
+	fee3000              uint32 = 3000
+	fee10000             uint32 = 10000
+	maxApprove           uint64 = 18446744073709551615
+	max_timeout          int64  = 9999999999
+	maxSqrtPriceLimitX96 string = "1461446703485210103287273052203988822378723970341"
+
+	TIER_1 uint64 = 1
+	TIER_2 uint64 = 2
+	TIER_3 uint64 = 3
+)
+
+var (
+	adminAddr  = std.Address(consts.ADMIN)
+	admin      = adminAddr
+	adminRealm = std.NewUserRealm(admin)
+	rouRealm   = std.NewCodeRealm(consts.ROUTER_PATH)
+)
+
+func TestPoolInitCreatePool(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	gns.Approve(consts.POOL_ADDR, pl.GetPoolCreationFee())
+	pl.CreatePool(barPath, fooPath, fee500, "130621891405341611593710811006") // tick = 10000
+}
+
+func TestMintPosition01InRange(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	bar.Approve(consts.POOL_ADDR, 18394892)
+	foo.Approve(consts.POOL_ADDR, 50000000)
+
+	tokenId, liquidity, amount0, amount1 := Mint(
+		barPath,
+		fooPath,
+		fee500,
+		7000,
+		13000,
+		"50000000",
+		"50000000",
+		"0",
+		"0",
+		max_timeout,
+		adminAddr,
+		adminAddr,
+	)
+
+	uassert.Equal(t, tokenId, uint64(1))
+	uassert.Equal(t, getNextId(), uint64(2))
+	uassert.Equal(t, amount0, "18394892")
+	uassert.Equal(t, amount1, "50000000")
+
+	position := MustGetPosition(tokenId)
+	uassert.Equal(t, position.nonce.ToString(), "0")
+	uassert.Equal(t, position.operator, consts.ZERO_ADDRESS)
+	uassert.Equal(t, position.poolKey, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
+	uassert.Equal(t, position.tickLower, int32(7000))
+	uassert.Equal(t, position.tickUpper, int32(13000))
+	uassert.Equal(t, position.liquidity.ToString(), "217734625")
+	uassert.Equal(t, position.feeGrowthInside0LastX128.ToString(), "0")
+	uassert.Equal(t, position.feeGrowthInside1LastX128.ToString(), "0")
+	uassert.Equal(t, position.tokensOwed0.ToString(), "0")
+	uassert.Equal(t, position.tokensOwed1.ToString(), "0")
+	uassert.Equal(t, position.burned, false)
+}
+
+func TestMintPosition02InRange(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	bar.Approve(consts.POOL_ADDR, 18394892)
+	foo.Approve(consts.POOL_ADDR, 50000000)
+
+	tokenId, liquidity, amount0, amount1 := Mint(
+		barPath,
+		fooPath,
+		fee500,
+		8000,
+		12000,
+		"50000000",
+		"50000000",
+		"0",
+		"0",
+		max_timeout,
+		adminAddr,
+		adminAddr,
+	)
+
+	uassert.Equal(t, tokenId, uint64(2))
+	uassert.Equal(t, getNextId(), uint64(3))
+	uassert.Equal(t, amount0, "18394892")
+	uassert.Equal(t, amount1, "50000000")
+
+	position := MustGetPosition(tokenId)
+	uassert.Equal(t, position.nonce.ToString(), "0")
+	uassert.Equal(t, position.operator, consts.ZERO_ADDRESS)
+	uassert.Equal(t, position.poolKey, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
+	uassert.Equal(t, position.tickLower, int32(8000))
+	uassert.Equal(t, position.tickUpper, int32(12000))
+	uassert.Equal(t, position.liquidity.ToString(), "318704392")
+	uassert.Equal(t, position.feeGrowthInside0LastX128.ToString(), "0")
+	uassert.Equal(t, position.feeGrowthInside1LastX128.ToString(), "0")
+	uassert.Equal(t, position.tokensOwed0.ToString(), "0")
+	uassert.Equal(t, position.tokensOwed1.ToString(), "0")
+	uassert.Equal(t, position.burned, false)
+}
+
+func TestSwap1(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	bar.Approve(consts.POOL_ADDR, 1234567)
+
+	std.TestSetRealm(rouRealm)
+	amount0, amount1 := pl.Swap(
+		barPath,
+		fooPath,
+		fee500,
+		adminAddr,
+		true,
+		"1234567",
+		consts.MIN_PRICE,
+		adminAddr,
+	)
+
+	uassert.Equal(t, amount0, "1234567")
+	uassert.Equal(t, amount1, "-3341381")
+}
+
+func TestUnclaimedFee01(t *testing.T) {
+	unclaimedFee0, unclaimedFee1 := unclaimedFee(1)
+
+	uassert.Equal(t, unclaimedFee0.ToString(), "250")
+	uassert.Equal(t, unclaimedFee1.ToString(), "0")
+
+	{
+		std.TestSetRealm(adminRealm)
+		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+		tokenId, tokensOwed0, tokensOwed1, poolPath, fee0, fee1 := CollectFee(1, true)
+		position := MustGetPosition(tokenId)
+		uassert.Equal(t, position.tokensOwed0.ToString(), "0")
+		uassert.Equal(t, position.tokensOwed1.ToString(), "0")
+	}
+}
+
+func TestUnclaimedFee02(t *testing.T) {
+	unclaimedFee0, unclaimedFee1 := unclaimedFee(2)
+
+	uassert.Equal(t, unclaimedFee0.ToString(), "367")
+	uassert.Equal(t, unclaimedFee1.ToString(), "0")
+
+	{
+		std.TestSetRealm(adminRealm)
+		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+		tokenId, tokensOwed0, tokensOwed1, poolPath, fee0, fee1 := CollectFee(2, true)
+		position := MustGetPosition(tokenId)
+		uassert.Equal(t, position.tokensOwed0.ToString(), "0")
+		uassert.Equal(t, position.tokensOwed1.ToString(), "0")
+	}
+}

@@ -1,0 +1,66 @@
+package router
+
+import (
+	"std"
+	"testing"
+	"time"
+
+	"gno.land/p/demo/json"
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/common"
+
+	pl "gno.land/r/gnoswap/v1/pool"
+
+	"gno.land/r/gnoswap/v1/gns"
+
+	"gno.land/r/demo/wugnot"
+	"gno.land/r/onbloc/qux"
+)
+
+func TestCreatePool(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	gns.Approve(consts.POOL_ADDR, pl.GetPoolCreationFee()*3)
+
+	pl.CreatePool(consts.GNOT, quxPath, fee500, common.TickMathGetSqrtRatioAtTick(-10000).ToString())
+	// 1 bar ≈ 19.683 gnot
+
+	jsonStr := pl.ApiGetPools()
+	root, err := json.Unmarshal([]byte(jsonStr))
+	if err != nil {
+		panic(err.Error())
+	}
+
+	response, err := root.GetKey("response")
+	if err != nil {
+		panic(err.Error())
+	}
+
+	uassert.Equal(t, response.Size(), 1)
+}
+
+func TestSwapRouteWugnotquxExactIn(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	wugnot.Approve(consts.ROUTER_ADDR, 1000000)
+	qux.Approve(consts.ROUTER_ADDR, 1000000)
+	std.TestSetOrigSend(std.Coins{{"ugnot", 12345}}, nil) // sented ugnot amount
+
+	uassert.PanicsWithMessage(
+		t,
+		`[GNOSWAP-ROUTER-005] invalid input data || invalid ExactInSwapOperation: ugnot sent by user(12345) is not equal to amountSpecified(3)`,
+		func() {
+			ExactInSwapRoute(
+				consts.GNOT, // inputToken
+				quxPath,     // outputToken
+				"3",         // amountSpecified   -> should be panic
+				"gno.land/r/demo/wugnot:gno.land/r/onbloc/qux:500", // strRouteArr
+				"100", // quoteArr
+				"1",   // tokenAmountLimit
+				time.Now().Add(time.Hour).Unix(),
+			)
+		},
+	)
+}

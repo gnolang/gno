@@ -1,0 +1,134 @@
+// change block avg time from 2s to 4s
+
+// PKGPATH: gno.land/r/gnoswap/v1/gns_test
+package gns_test
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/gns"
+
+	_ "gno.land/r/gnoswap/v1/emission"
+	_ "gno.land/r/gnoswap/v1/staker"
+)
+
+var t *testing.T
+
+var (
+	user01Addr  = testutils.TestAddress("user01Addr")
+	user01Realm = std.NewUserRealm(user01Addr)
+)
+
+func main() {
+	skip50Blocks()
+	blockTime4000ms()
+	reachFirstHalving()
+	startSecondHalving()
+	reachSecondHalving()
+}
+
+func skip50Blocks() {
+	std.TestSkipHeights(50)
+	uassert.Equal(t, std.GetHeight(), int64(173))
+
+	std.TestSetRealm(std.NewCodeRealm(consts.EMISSION_PATH))
+	gns.MintGns(user01Addr) // 14269406 * 50 = 713470300
+	uassert.Equal(t, uint64(713470300), gns.GetMintedEmissionAmount())
+}
+
+func blockTime4000ms() {
+	std.TestSetRealm(std.NewUserRealm(consts.ADMIN))
+	gns.SetAvgBlockTimeInMsByAdmin(4000)
+	// for block time 4s, amount per block is 28538812
+
+	// first halving year end block = 15768122
+	// first halving year end timestamp = 1234567990
+
+	// 50 block minted from L#38
+	// > current height = 173
+	// > current timestamp = 1234568140
+
+	// 1266103890 - 1234567990 = 31535900 // timestamp left for current halving year
+	// 31535900000 / 4000(new block avg time/ms) = 7883975 // number of block left for current halving year
+
+	// 713470300 // already minted amount
+
+	// first halving year should mint 225000000000000
+	// 225000000000000 - 713470300 = 224999286529700
+	// 224999286529700 / 7883975 ≈ 28538812
+
+	std.TestSetRealm(std.NewCodeRealm(consts.EMISSION_PATH))
+	std.TestSkipHeights(1)
+	mintedAmount := gns.MintGns(user01Addr)                                     // 28538812
+	uassert.Equal(t, uint64(713470300+28538812), gns.GetMintedEmissionAmount()) // 742009112
+
+	firstYearAmountPerBlock := gns.GetAmountPerBlockPerHalvingYear(1)
+	uassert.Equal(t, uint64(28538812), firstYearAmountPerBlock)
+
+	// next halving year start/end block
+	uassert.Equal(t, int64(7884149), gns.GetHalvingYearStartBlock(2))
+	uassert.Equal(t, int64(15768149), gns.GetHalvingYearEndBlock(2))
+
+	// orig year01 start block = 123
+	// 50 block mined from L#38
+	// current block = 173
+	// current timestamp = 1234567990
+	// orig year01 end timestamp = 1266103890
+
+	// 1266103890 - 1234567990 = 31535900 // timestamp left for current halving year
+	// 31535900000(ms) / 4000(ms) = 7883975 // number of block left for current halving year
+
+	// 173 + 7883975 = 7884148 // end block of current halving year
+	// 7884148 + 1 = 7884149 // start block of next halving year
+
+	// 7884000 // based on 4s block, how many block in a year
+	// 7884149 + 7884000 = 15768149 // end block of next halving year
+}
+
+func reachFirstHalving() {
+	// current := 174
+	// nextHalving := 7884148
+	// 7884148 - 174 = 7883974
+
+	std.TestSkipHeights(7883974)
+	std.TestSetRealm(std.NewCodeRealm(consts.EMISSION_PATH))
+	gns.MintGns(user01Addr)
+
+	// minted all amount for first halving year
+	uassert.Equal(t, uint64(225000000000000), gns.GetMintedEmissionAmount())
+
+	year := gns.GetHalvingYearByHeight(std.GetHeight())
+	uassert.Equal(t, int64(1), year)
+}
+
+func startSecondHalving() {
+	std.TestSkipHeights(1)
+
+	year := gns.GetHalvingYearByHeight(std.GetHeight())
+	uassert.Equal(t, int64(2), year)
+
+	amount := gns.GetAmountByHeight(std.GetHeight())
+	uassert.Equal(t, uint64(14269406), amount)
+
+	std.TestSetRealm(std.NewCodeRealm(consts.EMISSION_PATH))
+	gns.MintGns(user01Addr)
+	uassert.Equal(t, uint64(225000000000000+14269406), gns.GetMintedEmissionAmount())
+}
+
+func reachSecondHalving() {
+	blockLeftUntilEndOfYear02 := gns.GetHalvingYearEndBlock(2) - std.GetHeight()
+
+	std.TestSkipHeights(int64(blockLeftUntilEndOfYear02))
+	std.TestSetRealm(std.NewCodeRealm(consts.EMISSION_PATH))
+	gns.MintGns(user01Addr)
+
+	// minted all amount until second halving
+	year01Max := gns.GetHalvingYearMaxAmount(1)
+	year02Max := gns.GetHalvingYearMaxAmount(2)
+	uassert.Equal(t, year01Max+year02Max, gns.GetMintedEmissionAmount())
+}

@@ -1,0 +1,113 @@
+package router
+
+import (
+	"std"
+	"testing"
+	"time"
+
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/common"
+
+	pl "gno.land/r/gnoswap/v1/pool"
+	pn "gno.land/r/gnoswap/v1/position"
+
+	"gno.land/r/demo/wugnot"
+	"gno.land/r/gnoswap/v1/gns"
+	"gno.land/r/onbloc/bar"
+)
+
+func TestCreatePool(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	gns.Approve(consts.POOL_ADDR, pl.GetPoolCreationFee()*2)
+
+	pl.CreatePool(consts.WRAPPED_WUGNOT, consts.GNS_PATH, fee100, common.TickMathGetSqrtRatioAtTick(-10000).ToString()) // tick -10000
+
+	pl.CreatePool(consts.WRAPPED_WUGNOT, barPath, fee100, "130621891405341611593710811006") // tick =  10_000, ratio = 2.71814592682522526700950038502924144268035888671875
+
+	// 1 gns ≈ 7.29 bar
+
+	// jsonOutput := pl.ApiGetPools()
+	// jsonStr := gjson.Parse(jsonOutput)
+	// uassert.Equal(t, len(jsonStr.Get("response").Array()), 2)
+}
+
+func TestPositionMintGnsGnot(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	// send
+	std.TestIssueCoins(adminAddr, std.Coins{{"ugnot", 100000}})
+	std.TestSetOrigSend(std.Coins{{"ugnot", 100000}}, nil)
+
+	// Deposit(wrap)
+	std.TestSetRealm(adminRealm)
+	wugnot.Deposit()
+
+	gns.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+	wugnot.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+	tokenId, liquidity, amount0, amount1 := pn.Mint(consts.GNS_PATH, consts.WRAPPED_WUGNOT, fee100, int32(9000), int32(11000), "100000", "100000", "0", "0", max_timeout, adminAddr, adminAddr)
+
+	uassert.Equal(t, tokenId, uint64(1))
+	uassert.Equal(t, amount0, "100000")
+	uassert.Equal(t, amount1, "36790")
+}
+
+func TestPositionMintGnotBar(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	// send
+	std.TestIssueCoins(adminAddr, std.Coins{{"ugnot", 100000}})
+	std.TestSetOrigSend(std.Coins{{"ugnot", 100000}}, nil)
+	testBanker := std.GetBanker(std.BankerTypeRealmIssue)
+
+	// Deposit(wrap)
+	std.TestSetRealm(adminRealm)
+	wugnot.Deposit()
+
+	wugnot.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+	bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+	tokenId, liquidity, amount0, amount1 := pn.Mint(consts.WRAPPED_WUGNOT, barPath, fee100, int32(9000), int32(11000), "100000", "100000", "0", "0", max_timeout, adminAddr, adminAddr)
+
+	uassert.Equal(t, tokenId, uint64(2))
+	uassert.Equal(t, amount0, "36790")
+	uassert.Equal(t, amount1, "100000")
+}
+
+func TestDrySwapRouteGnsBarExactIn(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	dryResult := DrySwapRoute(
+		consts.GNS_PATH, // inputToken
+		barPath,         // outputToken
+		"1000",          // amountSpecified
+		"EXACT_IN",      // swapType
+		"gno.land/r/gnoswap/v1/gns:gno.land/r/demo/wugnot:100*POOL*gno.land/r/demo/wugnot:gno.land/r/onbloc/bar:100", // strRouteArr
+		"100", // quoteArr
+		"1",
+	)
+	uassert.Equal(t, dryResult, "7327")
+}
+
+func TestSwapRouteGnsBarExactIn(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	gns.Approve(consts.POOL_ADDR, 1000)   // swap input amount
+	bar.Approve(consts.ROUTER_ADDR, 7325) // 0.15% fee
+
+	amountIn, amountOut := ExactInSwapRoute(
+		consts.GNS_PATH, // inputToken
+		barPath,         // outputToken
+		"1000",          // amountSpecified
+		"gno.land/r/gnoswap/v1/gns:gno.land/r/demo/wugnot:100*POOL*gno.land/r/demo/wugnot:gno.land/r/onbloc/bar:100", // strRouteArr
+		"100", // quoteArr
+		"0",   // tokenAmountLimit
+		time.Now().Add(time.Hour).Unix(),
+	)
+
+	uassert.Equal(t, amountIn, "1000")
+	uassert.Equal(t, amountOut, "-7317")
+}

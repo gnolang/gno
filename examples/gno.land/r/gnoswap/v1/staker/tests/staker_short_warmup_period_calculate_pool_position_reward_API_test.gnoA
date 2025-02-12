@@ -1,0 +1,362 @@
+package staker
+
+import (
+	"math"
+	"std"
+	"testing"
+
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+
+	pl "gno.land/r/gnoswap/v1/pool"
+
+	"gno.land/r/gnoswap/v1/gns"
+
+	"gno.land/r/onbloc/bar"
+	"gno.land/r/onbloc/baz"
+	"gno.land/r/onbloc/foo"
+	"gno.land/r/onbloc/qux"
+)
+
+func TestCalcPoolPositionRewardGetter(t *testing.T) {
+	testInit(t)
+
+	testPoolCreatePoolOnlyInternalBarFoo(t) // bar:foo:100 only GNS
+
+	testPoolCreatePoolOnlyExternalBarBaz(t) // bar:baz:100 BAR and BAZ
+	testCreateExternalIncentiveBarAndBaz(t)
+
+	testPoolCreatePoolBothInternalAndExternalBarQux(t) // bar:qux:100 QUX and GNS
+	testCreateExternalIncentiveQux(t)
+
+	testMintAndStakeOnlyInternal01And02(t)
+	testMintAndStakeOnlyExternal03And04(t)
+	testMintAndStakeBothInternalAndExternal05(t)
+
+	testMakeExternalIncentiveStart(t)
+
+	// APIs
+	// all api tests just print result, most likely it is for debugging
+	testApiGetRewardTokens(t)
+	testApiGetRewardTokensByPoolPath(t)
+	testApiGetExternalIncentives(t)
+	testApiGetExternalIncentiveById(t)
+	testApiGetExternalIncentivesByPoolPath(t)
+	testApiGetExternalIncentivesByRewardTokenPath(t)
+	testApiGetInternalIncentives(t)
+	testApiGetInternalIncentivesByPoolPath(t)
+	testApiGetInternalIncentivesByTiers(t)
+	testApiGetRewardsByLpTokenId(t)
+	testApiGetRewardsByAddress(t)
+	testApiGetStakes(t)
+	testApiGetStakesByLpTokenId(t)
+	testApiGetStakesByAddress(t)
+	testIsStaked(t)
+}
+
+func testInit(t *testing.T) {
+	t.Run("initial", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		deletePoolTier(t, MUST_EXISTS_IN_TIER_1)
+
+		// override warm-up period for testing
+		changeWarmup(t, 0, 150)
+		changeWarmup(t, 1, 300)
+		changeWarmup(t, 2, 900)
+		changeWarmup(t, 3, math.MaxInt64)
+
+		// no pool creation fee
+		pl.SetPoolCreationFeeByAdmin(0)
+
+		// no unstaking fee
+		SetUnStakingFeeByAdmin(0)
+
+		std.TestSkipHeights(1)
+	})
+}
+
+func testPoolCreatePoolOnlyInternalBarFoo(t *testing.T) {
+	t.Run("create bar:foo:100 pool for internal tier #1", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		pl.CreatePool(barPath, fooPath, 100, "79228162514264337593543950337")
+		SetPoolTierByAdmin("gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:100", 1)
+		std.TestSkipHeights(1)
+	})
+}
+
+func testPoolCreatePoolOnlyExternalBarBaz(t *testing.T) {
+	t.Run("create pool bar:baz:100 for external", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		pl.CreatePool(barPath, bazPath, 100, "79228162514264337593543950337")
+		std.TestSkipHeights(1)
+	})
+}
+
+func testCreateExternalIncentiveBarAndBaz(t *testing.T) {
+	t.Run("create external incentive for bar:baz:100", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		bar.Approve(consts.STAKER_ADDR, consts.UINT64_MAX)
+		baz.Approve(consts.STAKER_ADDR, consts.UINT64_MAX)
+		gns.Approve(consts.STAKER_ADDR, depositGnsAmount*2)
+
+		CreateExternalIncentive(
+			"gno.land/r/onbloc/bar:gno.land/r/onbloc/baz:100",
+			barPath,
+			900000000,
+			1234569600,
+			1234569600+TIMESTAMP_90DAYS,
+		)
+
+		CreateExternalIncentive(
+			"gno.land/r/onbloc/bar:gno.land/r/onbloc/baz:100",
+			bazPath,
+			1800000000,
+			1234569600,
+			1234569600+TIMESTAMP_90DAYS,
+		)
+
+		std.TestSkipHeights(1)
+	})
+}
+
+func testPoolCreatePoolBothInternalAndExternalBarQux(t *testing.T) {
+	t.Run("create pool bar:qux:100 for internal tier #1 and external", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		pl.CreatePool(barPath, quxPath, 100, "79228162514264337593543950337")
+		SetPoolTierByAdmin("gno.land/r/onbloc/bar:gno.land/r/onbloc/qux:100", 1)
+		std.TestSkipHeights(1)
+	})
+}
+
+func testCreateExternalIncentiveQux(t *testing.T) {
+	t.Run("create external incentive for bar:qux:100", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		qux.Approve(consts.STAKER_ADDR, consts.UINT64_MAX)
+		gns.Approve(consts.STAKER_ADDR, depositGnsAmount)
+
+		CreateExternalIncentive(
+			"gno.land/r/onbloc/bar:gno.land/r/onbloc/qux:100",
+			quxPath,
+			900000000,
+			1234569600,
+			1234569600+TIMESTAMP_90DAYS,
+		)
+	})
+}
+
+func testMintAndStakeOnlyInternal01And02(t *testing.T) {
+	t.Run("mint and stake position 01 and 02", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		// token to provide liquidity
+		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+		// position01
+		lpTokenId, _, _, _, _ := MintAndStake(
+			barPath,
+			fooPath,
+			fee100,
+			int32(-1000),
+			int32(1000),
+			"50",
+			"50",
+			"1",
+			"1",
+			max_timeout,
+		)
+		uassert.Equal(t, lpTokenId, uint64(1))
+		std.TestSkipHeights(1)
+
+		// position02
+		lpTokenId, _, _, _, _ = MintAndStake(
+			barPath,
+			fooPath,
+			fee100,
+			int32(-1000),
+			int32(1000),
+			"50",
+			"50",
+			"1",
+			"1",
+			max_timeout,
+		)
+		uassert.Equal(t, lpTokenId, uint64(2))
+		std.TestSkipHeights(1)
+	})
+}
+
+func testMintAndStakeOnlyExternal03And04(t *testing.T) {
+	t.Run("mint and stake position 03 and 04", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		// token to provide liquidity
+		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		baz.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+		// position03
+		lpTokenId, _, _, _, _ := MintAndStake(
+			barPath,
+			bazPath,
+			fee100,
+			int32(-1000),
+			int32(1000),
+			"50",
+			"50",
+			"1",
+			"1",
+			max_timeout,
+		)
+		uassert.Equal(t, lpTokenId, uint64(3))
+		std.TestSkipHeights(1)
+
+		// position04
+		lpTokenId, _, _, _, _ = MintAndStake(
+			barPath,
+			bazPath,
+			fee100,
+			int32(-1000),
+			int32(1000),
+			"50",
+			"50",
+			"1",
+			"1",
+			max_timeout,
+		)
+		uassert.Equal(t, lpTokenId, uint64(4))
+		std.TestSkipHeights(1)
+	})
+}
+
+func testMintAndStakeBothInternalAndExternal05(t *testing.T) {
+	t.Run("mint and stake position 05", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		// token to provide liquidity
+		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		qux.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+		// position05
+		lpTokenId, _, _, _, _ := MintAndStake(
+			barPath,
+			quxPath,
+			fee100,
+			int32(-1000),
+			int32(1000),
+			"50",
+			"50",
+			"1",
+			"1",
+			max_timeout,
+		)
+		uassert.Equal(t, lpTokenId, uint64(5))
+		std.TestSkipHeights(1)
+	})
+}
+
+func testMakeExternalIncentiveStart(t *testing.T) {
+	t.Run("make external incentive start", func(t *testing.T) {
+		std.TestSkipHeights(100000)
+	})
+}
+
+func testApiGetRewardTokens(t *testing.T) {
+	res := ApiGetRewardTokens()
+	println(res)
+	println()
+}
+
+func testApiGetRewardTokensByPoolPath(t *testing.T) {
+	res := ApiGetRewardTokensByPoolPath("gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:100")
+	println(res)
+	println()
+}
+
+func testApiGetExternalIncentives(t *testing.T) {
+	res := ApiGetExternalIncentives()
+	println(res)
+	println()
+}
+
+func testApiGetExternalIncentiveById(t *testing.T) {
+	res := ApiGetExternalIncentiveById(
+		"gno.land/r/onbloc/bar:gno.land/r/onbloc/baz:100",
+		"00000000001234569600:00000000001242345600:g17290cwvmrapvp869xfnhhawa8sm9edpufzat7d:gno.land/r/onbloc/bar",
+	)
+	println(res)
+	println()
+}
+
+func testApiGetExternalIncentivesByPoolPath(t *testing.T) {
+	res := ApiGetExternalIncentivesByPoolPath("gno.land/r/onbloc/bar:gno.land/r/onbloc/baz:100")
+	println(res)
+	println()
+}
+
+func testApiGetExternalIncentivesByRewardTokenPath(t *testing.T) {
+	res := ApiGetExternalIncentivesByRewardTokenPath("gno.land/r/onbloc/qux")
+	println(res)
+	println()
+}
+
+func testApiGetInternalIncentives(t *testing.T) {
+	res := ApiGetInternalIncentives()
+	println(res)
+	println()
+}
+
+func testApiGetInternalIncentivesByPoolPath(t *testing.T) {
+	res := ApiGetInternalIncentivesByPoolPath("gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:100")
+	println(res)
+	println()
+}
+
+func testApiGetInternalIncentivesByTiers(t *testing.T) {
+	res := ApiGetInternalIncentivesByTiers(1)
+	println(res)
+	println()
+}
+
+func testApiGetRewardsByLpTokenId(t *testing.T) {
+	res := ApiGetRewardsByLpTokenId(1)
+	println(res)
+	println()
+}
+
+func testApiGetRewardsByAddress(t *testing.T) {
+	res := ApiGetRewardsByAddress("g17290cwvmrapvp869xfnhhawa8sm9edpufzat7d")
+	println(res)
+	println()
+}
+
+func testApiGetStakes(t *testing.T) {
+	res := ApiGetStakes()
+	println(res)
+	println()
+}
+
+func testApiGetStakesByLpTokenId(t *testing.T) {
+	res := ApiGetStakesByLpTokenId(1)
+	println(res)
+	println()
+}
+
+func testApiGetStakesByAddress(t *testing.T) {
+	res := ApiGetStakesByAddress("g17290cwvmrapvp869xfnhhawa8sm9edpufzat7d")
+	println(res)
+	println()
+}
+
+func testIsStaked(t *testing.T) {
+	res := IsStaked(1)
+	if !res {
+		t.Errorf("IsStaked(1) = false; want true")
+	}
+}

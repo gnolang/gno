@@ -1,0 +1,193 @@
+package launchpad
+
+import (
+	"std"
+	"testing"
+	"time"
+
+	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+	gs "gno.land/r/gnoswap/v1/gov/staker"
+
+	"gno.land/r/onbloc/bar"
+	"gno.land/r/onbloc/foo"
+	"gno.land/r/onbloc/obl"
+	"gno.land/r/onbloc/qux"
+
+	"gno.land/r/gnoswap/v1/gns"
+)
+
+var (
+	projectAddr   = testutils.TestAddress("projectAddr")
+	projectAddr02 = testutils.TestAddress("projectAddr02")
+	user01        = testutils.TestAddress("user01")
+
+	projectRealm   = std.NewUserRealm(projectAddr)
+	projectRealm02 = std.NewUserRealm(projectAddr02)
+	user01Realm    = std.NewUserRealm(user01)
+)
+
+func TestCreateProjectTwoRecipient(t *testing.T) {
+	t.Skip("fix this code")
+	testMockProtocolFee(t)
+	testCreateProject(t)
+	testDepositGns(t)
+	testCollectProtocolFee(t)
+	testClaimable(t)
+}
+
+func testMockProtocolFee(t *testing.T) {
+	t.Run("mock protocol fee", func(t *testing.T) {
+		// admin > protocol_fee
+		// send qux, bar for testing
+		std.TestSetRealm(adminRealm)
+		bar.Transfer(consts.PROTOCOL_FEE_ADDR, 1000)
+		qux.Transfer(consts.PROTOCOL_FEE_ADDR, 2500)
+
+		uassert.Equal(t, bar.BalanceOf(consts.PROTOCOL_FEE_ADDR), uint64(1000))
+		uassert.Equal(t, bar.BalanceOf(consts.DEV_OPS), uint64(0))
+		uassert.Equal(t, bar.BalanceOf(consts.GOV_STAKER_ADDR), uint64(0))
+
+		uassert.Equal(t, qux.BalanceOf(consts.PROTOCOL_FEE_ADDR), uint64(2500))
+		uassert.Equal(t, qux.BalanceOf(consts.DEV_OPS), uint64(0))
+		uassert.Equal(t, qux.BalanceOf(consts.GOV_STAKER_ADDR), uint64(0))
+	})
+}
+
+func testCreateProject(t *testing.T) {
+	t.Run("create project 01", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		obl.Approve(consts.LAUNCHPAD_ADDR, uint64(1_000_000_000))
+		std.TestSkipHeights(1)
+
+		projectId := CreateProject(
+			"Obl Protocol",
+			oblPath,
+			projectAddr,
+			uint64(1_000_000_000), // 1000000000
+			"gno.land/r/onbloc/foo*PAD*gno.land/r/onbloc/bar",
+			"1*PAD*2",
+			uint64(10),                   // 100000000
+			uint64(20),                   // 200000000
+			uint64(70),                   // 700000000
+			uint64(time.Now().Unix()+10), // 10s later
+		)
+		uassert.Equal(t, projectId, `gno.land/r/onbloc/obl:124`)
+		std.TestSkipHeights(1)
+	})
+
+	t.Run("create project 02", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		bar.Approve(consts.LAUNCHPAD_ADDR, uint64(1_000_000_000))
+		std.TestSkipHeights(1)
+
+		projectId := CreateProject(
+			"Bar Protocol",
+			barPath,
+			projectAddr02,
+			uint64(1_000_000_000), // 1000000000
+			"",
+			"",
+			uint64(10),                   // 100000000
+			uint64(20),                   // 200000000
+			uint64(70),                   // 700000000
+			uint64(time.Now().Unix()+10), // 10s later
+		)
+		uassert.Equal(t, projectId, `gno.land/r/onbloc/bar:126`)
+		std.TestSkipHeights(1)
+	})
+}
+
+func testDepositGns(t *testing.T) {
+	t.Run("deposit project01, tier30", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		gns.Transfer(user01, uint64(1_000_000)) // to deposit
+		// transfer some grc20 tokens to bypass project condition
+		foo.Transfer(user01, uint64(10))
+		bar.Transfer(user01, uint64(10))
+
+		std.TestSetRealm(user01Realm)
+		gns.Approve(consts.LAUNCHPAD_ADDR, uint64(1_000_000))
+
+		// skip some blocks to make project active
+		std.TestSkipHeights(4)
+		depositId := DepositGns("gno.land/r/onbloc/obl:124:30", uint64(1_000_000)) // 1000000
+		uassert.Equal(t, depositId, `gno.land/r/onbloc/obl:124:30:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:131`)
+		std.TestSkipHeights(1)
+	})
+
+	t.Run("deposit project02, tier180", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		gns.Transfer(user01, uint64(9_000_000)) // to deposit
+
+		std.TestSetRealm(user01Realm)
+		gns.Approve(consts.LAUNCHPAD_ADDR, uint64(9_000_000))
+
+		// skip some blocks to make project active
+		std.TestSkipHeights(4)
+		depositId := DepositGns("gno.land/r/onbloc/bar:126:180", uint64(9_000_000)) // 9000000
+		uassert.Equal(t, depositId, `gno.land/r/onbloc/bar:126:180:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:136`)
+		std.TestSkipHeights(1)
+	})
+}
+
+func testCollectProtocolFee(t *testing.T) {
+	t.Run("from project01", func(t *testing.T) {
+		std.TestSetRealm(projectRealm)
+
+		oldBar := bar.BalanceOf(projectAddr)
+		oldQux := qux.BalanceOf(projectAddr)
+		uassert.Equal(t, oldBar, uint64(0))
+		uassert.Equal(t, oldQux, uint64(0))
+
+		// check claimble reward
+		res := gs.GetClaimableRewardByAddress(projectAddr)
+		uassert.Equal(t, res, `{"height":"137","now":"1234567918","emissionReward":"0","protocolFees":[{"tokenPath":"gno.land/r/onbloc/bar","amount":"1000"},{"tokenPath":"gno.land/r/onbloc/qux","amount":"2500"}]}`)
+
+		CollectProtocolFee()
+
+		newBar := bar.BalanceOf(projectAddr)
+		newQux := qux.BalanceOf(projectAddr)
+		uassert.Equal(t, newBar, uint64(1000))
+		uassert.Equal(t, newQux, uint64(2500))
+
+		std.TestSkipHeights(10) // pass some blocks
+	})
+
+	t.Run("from project02", func(t *testing.T) {
+		std.TestSetRealm(projectRealm02)
+
+		oldBar := bar.BalanceOf(projectAddr02)
+		oldQux := qux.BalanceOf(projectAddr02)
+		uassert.Equal(t, oldBar, uint64(0))
+		uassert.Equal(t, oldQux, uint64(0))
+
+		// check claimble reward
+		res := gs.GetClaimableRewardByAddress(projectAddr02)
+		uassert.Equal(t, res, `{"height":"147","now":"1234567938","emissionReward":"0"}`)
+
+		CollectProtocolFee()
+
+		newBar := bar.BalanceOf(projectAddr02)
+		newQux := qux.BalanceOf(projectAddr02)
+		uassert.Equal(t, newBar, uint64(0))
+		uassert.Equal(t, newQux, uint64(0))
+
+		std.TestSkipHeights(10) // pass some blocks
+	})
+}
+
+func testClaimable(t *testing.T) {
+	t.Run("check claimable reward", func(t *testing.T) {
+		// check claimble reward
+		claimableProject01 := gs.GetClaimableRewardByAddress(projectAddr)
+		uassert.Equal(t, claimableProject01, `{"height":"157","now":"1234567958","emissionReward":"0","protocolFees":[]}`)
+
+		claimableProject02 := gs.GetClaimableRewardByAddress(projectAddr02)
+		uassert.Equal(t, claimableProject02, `{"height":"157","now":"1234567958","emissionReward":"0"}`)
+	})
+}

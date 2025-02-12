@@ -1,0 +1,77 @@
+package router
+
+import (
+	"std"
+	"testing"
+	"time"
+
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+
+	pl "gno.land/r/gnoswap/v1/pool"
+	pn "gno.land/r/gnoswap/v1/position"
+
+	"gno.land/r/gnoswap/v1/gns"
+	"gno.land/r/onbloc/bar"
+	"gno.land/r/onbloc/baz"
+	"gno.land/r/onbloc/foo"
+)
+
+//=================================Test for SwapRouter exactInput 0 ->1 -> 2 in multi pool=================================
+
+func TestCreatePool(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	gns.Approve(consts.POOL_ADDR, pl.GetPoolCreationFee()*2)
+
+	pl.CreatePool(barPath, bazPath, 3000, "79228162514264337593543950336")
+
+	pl.CreatePool(bazPath, fooPath, 3000, "79228162514264337593543950336")
+
+	// jsonOutput := pl.ApiGetPools()
+	// jsonStr := gjson.Parse(jsonOutput)
+	// uassert.Equal(t, len(jsonStr.Get("response").Array()), 2)
+}
+
+func TestPositionMint(t *testing.T) {
+	// bar_baz_3000 by admin
+	std.TestSetRealm(adminRealm)
+
+	bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+	baz.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+	foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+	// Mint
+	pn.Mint(barPath, bazPath, uint32(3000), int32(-887220), int32(887220), "1000000", "1000000", "0", "0", max_timeout, adminAddr, adminAddr)
+
+	pn.Mint(bazPath, fooPath, uint32(3000), int32(-887220), int32(887220), "1000000", "1000000", "0", "0", max_timeout, adminAddr, adminAddr)
+}
+
+func TestSwapRouteBarfooExactIn(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	bar.Approve(consts.ROUTER_ADDR, 1000000)
+	foo.Approve(consts.ROUTER_ADDR, 1000000)
+
+	token0Before := bar.BalanceOf(consts.ADMIN)
+	token2Before := foo.BalanceOf(consts.ADMIN)
+
+	amountIn, amountOut := ExactInSwapRoute(
+		barPath, // inputToken
+		fooPath, // outputToken
+		"5",     // amountSpecified
+		"gno.land/r/onbloc/bar:gno.land/r/onbloc/baz:3000*POOL*gno.land/r/onbloc/baz:gno.land/r/onbloc/foo:3000", // strRouteArr
+		"100", // quoteArr
+		"1",   // tokenAmountLimit
+		time.Now().Add(time.Hour).Unix(),
+	)
+
+	token0After := bar.BalanceOf(consts.ADMIN)
+	token2After := foo.BalanceOf(consts.ADMIN)
+
+	uassert.Equal(t, amountIn, "5")
+	uassert.Equal(t, amountOut, "-1")
+
+	uassert.Equal(t, token0After, token0Before-5)
+	uassert.Equal(t, token2After, token2Before+1)
+}

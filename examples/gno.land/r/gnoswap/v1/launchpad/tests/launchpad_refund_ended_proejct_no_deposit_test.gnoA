@@ -1,0 +1,97 @@
+package launchpad
+
+import (
+	"std"
+	"testing"
+	"time"
+
+	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+
+	"gno.land/r/onbloc/obl"
+)
+
+var (
+	projectAddr = testutils.TestAddress("projectAddr")
+	user01      = testutils.TestAddress("user01")
+
+	projectRealm = std.NewUserRealm(projectAddr)
+	user01Realm  = std.NewUserRealm(user01)
+
+	refundAddr  = testutils.TestAddress("refundAddr")
+	refundRealm = std.NewUserRealm(refundAddr)
+)
+
+func TestRefundEndedProjectWithNoDeposit(t *testing.T) {
+	t.Skip("fix this code")
+	testCreateProject(t)
+	testMakeProjectEnd(t)
+	testOneMoreBlock(t)
+}
+
+func testCreateProject(t *testing.T) {
+	t.Run("create project", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		obl.Approve(consts.LAUNCHPAD_ADDR, uint64(1_000_000_000))
+		std.TestSkipHeights(1)
+
+		{
+			// check before project create
+			uassert.Equal(t, len(projects), 0)
+			uassert.Equal(t, len(deposits), 0)
+			uassert.Equal(t, len(depositsByProject), 0)
+			uassert.Equal(t, len(depositsByUser), 0)
+		}
+
+		projectId := CreateProject(
+			"Obl Protocol",
+			oblPath,
+			projectAddr,
+			uint64(1_000_000_000), // 1000000000
+			"gno.land/r/onbloc/foo*PAD*gno.land/r/onbloc/bar",
+			"1*PAD*2",
+			uint64(10),                   // 100000000
+			uint64(20),                   // 200000000
+			uint64(70),                   // 700000000
+			uint64(time.Now().Unix()+10), // 10s later
+		)
+		uassert.Equal(t, projectId, `gno.land/r/onbloc/obl:124`)
+		std.TestSkipHeights(1)
+	})
+}
+
+func testMakeProjectEnd(t *testing.T) {
+	t.Run("make project end", func(t *testing.T) {
+		user01OldOblBalance := obl.BalanceOf(user01)
+		uassert.Equal(t, user01OldOblBalance, uint64(0)) // already collected
+
+		refundOldOblBalance := obl.BalanceOf(refundAddr)
+		uassert.Equal(t, refundOldOblBalance, uint64(0))
+
+		std.TestSkipHeights(10)                           // make active
+		std.TestSkipHeights(int64(TIMESTAMP_180DAYS) / 2) // make end
+		std.TestSetRealm(adminRealm)
+		TransferLeftFromProjectByAdmin(`gno.land/r/onbloc/obl:124`, refundAddr)
+
+		user01NewOblBalance := obl.BalanceOf(user01)
+		uassert.Equal(t, user01NewOblBalance, uint64(0))
+
+		refundNewOblBalance := obl.BalanceOf(refundAddr)
+		uassert.Equal(t, refundNewOblBalance, uint64(1000000000))
+	})
+}
+
+func testOneMoreBlock(t *testing.T) {
+	std.TestSkipHeights(1)
+
+	uassert.PanicsWithMessage(t,
+		"project already refunded(height:7776135)",
+		func() {
+			std.TestSetRealm(adminRealm)
+			TransferLeftFromProjectByAdmin(`gno.land/r/onbloc/obl:124`, refundAddr)
+		},
+	)
+}

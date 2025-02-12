@@ -1,0 +1,365 @@
+package staker
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+
+	en "gno.land/r/gnoswap/v1/emission"
+	pl "gno.land/r/gnoswap/v1/pool"
+	pn "gno.land/r/gnoswap/v1/position"
+
+	"gno.land/r/gnoswap/v1/common"
+	"gno.land/r/gnoswap/v1/gnft"
+
+	"gno.land/r/gnoswap/v1/gns"
+	"gno.land/r/onbloc/bar"
+	"gno.land/r/onbloc/baz"
+)
+
+var poolPath string = "gno.land/r/onbloc/bar:gno.land/r/onbloc/baz:100"
+
+func TestMore04(t *testing.T) {
+	testInit(t)
+	testCreatePool(t)
+	testMintBarBaz100Pos01(t)
+	testMintBarBaz100Pos02(t)
+	testMintBarBaz100Pos03(t)
+	testMintBarBaz100Pos04(t)
+	testMintBarBaz100Pos05(t)
+	testStakeTokenPos01(t)
+	testStakeTokenPos02ToWarmUp70_Pos03ToWarmUp50_Pos04ToWarmUp30_Pos05(t)
+	testCollectRewardFor01Block(t)
+}
+
+func testInit(t *testing.T) {
+	t.Run("initialize", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		// bar:baz:100 is only pool for internal emission reward (tier1)
+		deletePoolTier(t, MUST_EXISTS_IN_TIER_1)
+
+		// set community pool distribution to 0% (give it to devOps)
+		en.ChangeDistributionPctByAdmin(
+			1, 7500,
+			2, 2500,
+			3, 0,
+			4, 0,
+		)
+
+		// set unstaking fee to 0
+		SetUnStakingFeeByAdmin(0)
+
+		std.TestSkipHeights(1)
+	})
+}
+
+func testCreatePool(t *testing.T) {
+	t.Run("create pool", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		// set pool creation fee to 0
+		pl.SetPoolCreationFeeByAdmin(uint64(0))
+
+		barToken := common.GetTokenTeller(barPath)
+		bazToken := common.GetTokenTeller(bazPath)
+		gnsToken := common.GetTokenTeller(consts.GNS_PATH)
+		gns.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		baz.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		pl.CreatePool(barPath, bazPath, 100, "79228162514264337593543950337") // price ratio 1:1
+		SetPoolTierByAdmin(poolPath, 1)
+		std.TestSkipHeights(1)
+	})
+}
+
+func testMintBarBaz100Pos01(t *testing.T) {
+	t.Run("mint position 01, bar:baz:100", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		baz.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+		tokenId, liquidity, amount0, amount1 := pn.Mint(
+			barPath,         // token0
+			bazPath,         // token1
+			fee100,          // fee
+			consts.MIN_TICK, // tickLower
+			consts.MAX_TICK, // tickUpper
+			"3000",          // amount0Desired
+			"3000",          // amount1Desired
+			"1",             // amount0Min
+			"1",             // amount1Min
+			max_timeout,
+			adminAddr,
+			adminAddr,
+		)
+		std.TestSkipHeights(1)
+	})
+}
+
+func testMintBarBaz100Pos02(t *testing.T) {
+	t.Run("mint position 02, bar:baz:100", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		baz.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+		tokenId, liquidity, amount0, amount1 := pn.Mint(
+			barPath,      // token0
+			bazPath,      // token1
+			fee100,       // fee
+			int32(-6931), // tickLower ( price ratio 1:0.5 )
+			int32(6932),  // tickUpper ( price ratio 1:2)
+			"6000",       // amount0Desired
+			"6000",       // amount1Desired
+			"1",          // amount0Min
+			"1",          // amount1Min
+			max_timeout,
+			adminAddr,
+			adminAddr,
+		)
+		std.TestSkipHeights(1)
+	})
+}
+
+func testMintBarBaz100Pos03(t *testing.T) {
+	t.Run("mint position 03, bar:baz:100", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		baz.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+		tokenId, liquidity, amount0, amount1 := pn.Mint(
+			barPath,     // token0
+			bazPath,     // token1
+			fee100,      // fee
+			int32(-944), // tickLower ( price ratio 1:0.9 )
+			int32(954),  // tickUpper ( price ratio 1:1.1 )
+			"1000",      // amount0Desired
+			"1000",      // amount1Desired
+			"1",         // amount0Min
+			"1",         // amount1Min
+			max_timeout,
+			adminAddr,
+			adminAddr,
+		)
+		std.TestSkipHeights(1)
+	})
+}
+
+func testMintBarBaz100Pos04(t *testing.T) {
+	t.Run("mint position 04, bar:baz:100", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		baz.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+		tokenId, liquidity, amount0, amount1 := pn.Mint(
+			barPath,     // token0
+			bazPath,     // token1
+			fee100,      // fee
+			int32(-944), // tickLower ( price ratio 1:0.90 )
+			int32(-512), // tickUpper ( price ratio 1:0.95 )
+			"50",        // amount0Desired
+			"50",        // amount1Desired
+			"0",         // amount0Min
+			"0",         // amount1Min
+			max_timeout,
+			adminAddr,
+			adminAddr,
+		)
+		std.TestSkipHeights(1)
+	})
+}
+
+func testMintBarBaz100Pos05(t *testing.T) {
+	t.Run("mint position 05, bar:baz:100", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+		baz.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+		tokenId, liquidity, amount0, amount1 := pn.Mint(
+			barPath,                   // token0
+			bazPath,                   // token1
+			fee100,                    // fee
+			int32(consts.MAX_TICK-10), // tickLower
+			int32(consts.MAX_TICK),    // tickUpper
+			"50",                      // amount0Desired
+			"50",                      // amount1Desired
+			"0",                       // amount0Min
+			"0",                       // amount1Min
+			max_timeout,
+			adminAddr,
+			adminAddr,
+		)
+		std.TestSkipHeights(1)
+	})
+}
+
+func testStakeTokenPos01(t *testing.T) {
+	t.Run("stake position 01", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		gnft.Approve(consts.STAKER_ADDR, tid(1))
+		StakeToken(1)
+
+		// make it warm up 100%
+		std.TestSkipHeights(1944001) // 	// 1+216000+432000+1296000
+	})
+}
+
+func testStakeTokenPos02ToWarmUp70_Pos03ToWarmUp50_Pos04ToWarmUp30_Pos05(t *testing.T) {
+	t.Run("stake position 02", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		gnft.Approve(consts.STAKER_ADDR, tid(2))
+		StakeToken(2)
+		std.TestSkipHeights(432001) // 70%
+	})
+
+	t.Run("stake position 03", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		gnft.Approve(consts.STAKER_ADDR, tid(3))
+		StakeToken(3)
+		std.TestSkipHeights(216001) //  50%
+	})
+
+	t.Run("stake position 04", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		gnft.Approve(consts.STAKER_ADDR, tid(4))
+		StakeToken(4)          //  (out of range, will become in-range by swap)
+		std.TestSkipHeights(1) // 30%
+	})
+
+	t.Run("stake position 05", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		gnft.Approve(consts.STAKER_ADDR, tid(5))
+		StakeToken(5)          //  (out of range forever)
+		std.TestSkipHeights(1) // 30%
+	})
+
+	t.Run("collect reward for all positions_01_to_05", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		CollectReward(1, false) // toUser 13458934078339
+		CollectReward(2, false) // toUser 2139767397225
+		CollectReward(3, false) // toUser 331211442847
+		CollectReward(4, false) // toUser 0 (out of range)
+		CollectReward(5, false) // toUser 0 (out of range)
+	})
+}
+
+func testCollectRewardFor01Block(t *testing.T) {
+	t.Run("skip 01 block", func(t *testing.T) {
+		std.TestSkipHeights(1)
+	})
+
+	/*
+		- staker gets 10702054 for 1 block emission reward
+		- total 5 positions are staked
+
+		position-01
+		> liquidity: 3000
+		> range: in
+		> warmUp: 100%
+
+		position-02
+		> liquidity: 20484
+		> range: in
+		> warmUp: 70%
+
+		position-03
+		> liquidity: 21469
+		> range: in
+		> warmUp: 50%
+
+		position-04
+		> liquidity: 2400
+		> range: out
+		> warmUp: 30%
+
+		position-05
+		> liquidity: 1844236186985805146768743
+		> range: out
+		> warmUp: 30%
+
+		- total inRange liquidity: 3000 + 20484 + 21469 = 44953
+		- liquidity ratio
+		> position-01: 3000 / 44953 = 6.6736369097%
+		> position-02: 20484 / 44953 = 45.5675928192%
+		> position-03: 21469 / 44953 = 47.7587702712%
+	*/
+
+	t.Run("collect reward for position 1", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		beforeGns := gns.BalanceOf(admin)
+		CollectReward(1, false)
+		afterGns := gns.BalanceOf(admin)
+
+		uassert.True(t, isInErrorRange(uint64(714216), afterGns-beforeGns))
+		// reward per block: 10702054
+		// position-01 liquditiy ratio: 6.6736369097%
+		// position-01 reward: 10702054 * 6.6736369097% = 714216.2258400252
+		// warmUp: 100%
+		// position-01 reward: 714216.2258400252 * 100% = 714216.2258400252
+	})
+
+	t.Run("collect reward for position 2", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		beforeGns := gns.BalanceOf(admin)
+		CollectReward(2, false)
+		afterGns := gns.BalanceOf(admin)
+
+		uassert.True(t, isInErrorRange(uint64(3413667), afterGns-beforeGns))
+		// reward per block: 10702054
+		// position-02 liquidity ratio: 45.5675928192%
+		// position-02 reward: 10702054 * 45.5675928192% = 4876668.3900109064
+		// warmUp: 70%
+		// position-02 reward: 4876668.3900109064 * 70% = 3413667.8730076345
+	})
+
+	t.Run("collect reward for position 3", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		beforeGns := gns.BalanceOf(admin)
+		CollectReward(3, false)
+		afterGns := gns.BalanceOf(admin)
+
+		uassert.True(t, isInErrorRange(uint64(2555584), afterGns-beforeGns))
+		// reward per block: 10702054
+		// position-03 liquidity ratio: 47.7587702712%
+		// position-03 reward: 10702054 * 47.7587702712% = 5111169.3841597704
+		// warmUp: 50%
+		// position-03 reward: 5111169.3841597704 * 50% = 2555584.6920798852
+	})
+
+	t.Run("collect reward for position 4", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		beforeGns := gns.BalanceOf(admin)
+		CollectReward(4, false)
+		afterGns := gns.BalanceOf(admin)
+		uassert.Equal(t, uint64(0), afterGns-beforeGns)
+		// out range
+	})
+
+	t.Run("collect reward for position 5", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		beforeGns := gns.BalanceOf(admin)
+		CollectReward(5, false)
+		afterGns := gns.BalanceOf(admin)
+		uassert.Equal(t, uint64(0), afterGns-beforeGns)
+		// out range
+	})
+}

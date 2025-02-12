@@ -1,0 +1,155 @@
+package position
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/common"
+
+	"gno.land/r/gnoswap/v1/gns"
+	"gno.land/r/onbloc/bar"
+	"gno.land/r/onbloc/foo"
+
+	pl "gno.land/r/gnoswap/v1/pool"
+)
+
+func init() {
+	// set pool create fee to 0 for testing
+	std.TestSetRealm(adminRealm)
+	pl.SetPoolCreationFeeByAdmin(0)
+}
+
+// 1. Create Pool
+func TestPoolInitCreatePool(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	gns.Approve(consts.POOL_ADDR, pl.GetPoolCreationFee())
+	pl.CreatePool(barPath, fooPath, fee500, common.TickMathGetSqrtRatioAtTick(10000).ToString()) // x2.71814592682522526700950038502924144268035888671875
+}
+
+func TestMintPosition(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	bar.Approve(consts.POOL_ADDR, 18394892)
+	foo.Approve(consts.POOL_ADDR, 50000000)
+
+	tokenId, liquidity, amount0, amount1 := Mint(
+		barPath,
+		fooPath,
+		fee500,
+		8000,
+		12000,
+		"50000000",
+		"50000000",
+		"0",
+		"0",
+		max_timeout,
+		adminAddr,
+		adminAddr,
+	)
+	uassert.Equal(t, tokenId, uint64(1))
+	uassert.Equal(t, getNextId(), uint64(2))
+	uassert.Equal(t, amount0, "18394892")
+	uassert.Equal(t, amount1, "50000000")
+}
+
+func TestIncreaseLiquidity(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	bar.Approve(consts.POOL_ADDR, 3678979)
+	foo.Approve(consts.POOL_ADDR, 10000000)
+
+	pool := getPoolFromLpTokenId(t, uint64(1))
+	oldLiquidity := pool.Liquidity()
+
+	_, _, m0, m1, _ := IncreaseLiquidity(
+		uint64(1),   // tokenId
+		"10000000",  // amount0Desired
+		"10000000",  // amount1Desired
+		"0",         // amount0Min
+		"0",         // amount1Min
+		max_timeout, // deadline
+	)
+
+	uassert.Equal(t, m0, "3678979")
+	uassert.Equal(t, m1, "10000000")
+
+	newLiquidity := pool.Liquidity()
+
+	uassert.Equal(t, newLiquidity.Gt(oldLiquidity), true)
+}
+
+func TestDecreaseLiquidity(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	oldLiquidity := getPoolFromLpTokenId(t, uint64(1)).Liquidity()
+
+	DecreaseLiquidity(
+		uint64(1),   // tokenId
+		"191222635", // liquidity
+		"0",         // amount0Min
+		"0",         // amount1Min
+		max_timeout, // deadline
+		false,       // unwrapResult
+	)
+
+	newLiquidity := getPoolFromLpTokenId(t, uint64(1)).Liquidity()
+	uassert.Equal(t, true, newLiquidity.Lt(oldLiquidity))
+
+	// check fee left
+	tokenId, fee0, fee1, poolPath, _, _ := CollectFee(1, false)
+
+	uassert.Equal(t, tokenId, uint64(1))
+	uassert.Equal(t, fee0, "0")
+	uassert.Equal(t, fee1, "0")
+
+	position := MustGetPosition(uint64(1))
+	uassert.Equal(t, position.burned, false) // not burned yet
+}
+
+func TestDecreaseLiquidityToBurnPosition(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	// burn it
+	DecreaseLiquidity(
+		uint64(1), // tokenId
+		"191222635",
+		"0",         // amount0Min
+		"0",         // amount1Min
+		max_timeout, // deadline
+		true,        // unwrapResult
+	)
+	position := MustGetPosition(uint64(1))
+	uassert.Equal(t, position.burned, true)              // it is burned
+	uassert.Equal(t, position.liquidity.ToString(), "0") // and liquidity is 0
+}
+
+func TestIncreaseLiquidityBurnedPosition(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+	foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+	pool := getPoolFromLpTokenId(t, uint64(1))
+	oldLiquidity := pool.Liquidity()
+
+	position := MustGetPosition(uint64(1))
+	uassert.Equal(t, position.burned, true) // it is burned
+
+	_, _, m0, m1, _ := IncreaseLiquidity(
+		uint64(1),   // tokenId
+		"10000000",  // amount0Desired
+		"10000000",  // amount1Desired
+		"0",         // amount0Min
+		"0",         // amount1Min
+		max_timeout, // deadline
+	)
+
+	uassert.Equal(t, m0, "3678979")
+	uassert.Equal(t, m1, "10000000")
+
+	newLiquidity := pool.Liquidity()
+	uassert.Equal(t, newLiquidity.Gt(oldLiquidity), true)
+
+	position = MustGetPosition(uint64(1))
+	uassert.Equal(t, position.burned, false)
+}

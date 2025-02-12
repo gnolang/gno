@@ -1,0 +1,53 @@
+loadpkg gno.land/p/demo/users
+
+loadpkg gno.land/r/demo/foo20
+loadpkg gno.land/r/demo/grc20reg
+
+loadpkg gno.land/r/demo/reg $WORK/reg
+
+## start a new node
+gnoland start
+
+## faucet
+# gnokey maketx call -pkgpath gno.land/r/demo/foo20 -func Faucet -gas-fee 1ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
+
+## print reg addr
+gnokey maketx call -pkgpath gno.land/r/demo/reg -func RelamAddr -gas-fee 1ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
+stdout 'g19tlskvga928es8ug2empargp0teul03apzjud9'
+
+## approve
+gnokey maketx call -pkgpath gno.land/r/demo/foo20 -func Approve -args 'g19tlskvga928es8ug2empargp0teul03apzjud9' -args '100' -gas-fee 1ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
+
+## transfer from
+gnokey maketx call -pkgpath gno.land/r/demo/reg -func TransferFromWithReg -gas-fee 1ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
+stdout ''
+
+-- reg/reg.gno --
+package reg
+
+import (
+  "std"
+
+  "gno.land/r/demo/grc20reg"
+)
+
+func RelamAddr() string {
+  addr := std.CurrentRealm().Addr().String()
+  return addr
+}
+
+func TransferFromWithReg() {
+  caller := std.PrevRealm().Addr()
+  curr := std.CurrentRealm().Addr()
+
+
+  // using import
+  // foo20.TransferFrom(uCaller, uCurr, uint64(100))
+
+  // using grc20reg
+  fooTokenGetter := grc20reg.Get("gno.land/r/demo/foo20")
+  fooToken := fooTokenGetter()
+  userTeller := fooToken.CallerTeller()
+
+  userTeller.TransferFrom(caller, curr, uint64(100))
+}

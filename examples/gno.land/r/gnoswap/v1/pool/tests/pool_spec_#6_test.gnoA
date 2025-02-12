@@ -1,0 +1,143 @@
+package pool
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/demo/uassert"
+
+	u256 "gno.land/p/gnoswap/uint256"
+
+	"gno.land/r/onbloc/bar"
+	"gno.land/r/onbloc/foo"
+
+	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/common"
+
+	"gno.land/r/gnoswap/v1/gns"
+)
+
+var (
+	test_tickLower          = int32(9000)
+	test_tickUpper          = int32(11000)
+	test_liquidityExpectStr = "100000000"
+)
+
+func TestPositionsProtected(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	gns.Approve(consts.POOL_ADDR, poolCreationFee)
+	CreatePool(barPath, fooPath, fee500, common.TickMathGetSqrtRatioAtTick(-10000).ToString()) // tick -10000
+
+	foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+	bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+	std.TestSetRealm(posRealm)
+	Mint(
+		barPath,
+		fooPath,
+		fee500,
+		consts.POSITION_ADDR,
+		-887160,
+		887160,
+		test_liquidityExpectStr,
+		adminAddr,
+	)
+
+	std.TestSetRealm(rouRealm)
+	Swap(
+		barPath,
+		fooPath,
+		fee500,
+		adminAddr,
+		true,
+		"10000",
+		consts.MIN_PRICE,
+		adminAddr,
+	)
+
+	Swap(
+		barPath,
+		fooPath,
+		fee500,
+		adminAddr,
+		false,
+		"10000",
+		consts.MAX_PRICE,
+		adminAddr,
+	)
+	// did swap t0 => t1 and t1 => t0
+
+	// before protocol fee is turned on
+	thisPool := GetPool(barPath, fooPath, fee500)
+	uassert.Equal(t, thisPool.protocolFees.token0.ToString(), "0")
+	uassert.Equal(t, thisPool.protocolFees.token1.ToString(), "0")
+}
+
+func TestPokeIsNotAllowedOnUninitilaizedPosition(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	gns.Approve(consts.POOL_ADDR, poolCreationFee)
+	CreatePool(barPath, fooPath, fee3000, common.TickMathGetSqrtRatioAtTick(0).ToString()) // tick 0
+
+	std.TestSetRealm(posRealm)
+	uassert.PanicsWithMessage(
+		t,
+		`[GNOSWAP-POOL-010] zero liquidity || both liquidityDelta and current position's liquidity are zero`,
+		func() {
+			Burn(
+				barPath,
+				fooPath,
+				fee3000,
+				-887160,
+				887160,
+				"0",
+			)
+		},
+	)
+}
+
+func TestWorkAccross(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	gns.Approve(consts.POOL_ADDR, poolCreationFee)
+	// CreatePool(barPath, fooPath, fee100, common.TickMathGetSqrtRatioAtTick(0).ToString())
+	CreatePool(barPath, fooPath, fee100, "79228162514264337593543950336")
+
+	bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+	foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
+
+	std.TestSetRealm(posRealm)
+	Mint(
+		barPath,
+		fooPath,
+		fee100,
+		consts.POSITION_ADDR,
+		-887270,
+		887270,
+		"100000000000",
+		adminAddr,
+	)
+
+	// type(uint128).max * 2**128 / 1e18
+	magicNumber := u256.MustFromDecimal("115792089237316195423570985008687907852929702298719625575994")
+
+	thisPool := GetPool(barPath, fooPath, fee100)
+	thisPool.feeGrowthGlobal0X128 = magicNumber.Clone()
+
+	std.TestSetRealm(posRealm)
+	Burn(
+		barPath,
+		fooPath,
+		fee100,
+		-887270,
+		887270,
+		"0",
+	)
+
+	// tokensOwed
+	thisPositionKey := getPositionKey(consts.POSITION_ADDR, -887270, 887270)
+	thisPosition := thisPool.mustGetPosition(thisPositionKey)
+
+	tokensOwed0 := thisPosition.tokensOwed0
+	tokensOwed1 := thisPosition.tokensOwed1
+	uassert.Equal(t, tokensOwed0.ToString(), "34028236692093846346337460743176") // XXX: BE AWARE OF liquidity (unlikely uniswap, we don't use 10^18)
+	uassert.Equal(t, tokensOwed1.ToString(), "0")
+}
