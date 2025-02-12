@@ -22,8 +22,6 @@ var (
 	enabled   = false           // set to true in genesis
 )
 
-const VerifyFuncUpdatedEvent = "VerifyFuncUpdated"
-
 // IsAuthorizedAddressForName ensures that the given address has ownership of the given name.
 func IsAuthorizedAddressForName(address std.Address, name string) bool {
 	return checkFunc(enabled, address, name)
@@ -76,8 +74,6 @@ func defaultVerifier(enabled bool, address std.Address, name string) bool {
 func NewVerifyCallExecutor(newVerifyCall func(enabled bool, address std.Address, name string) bool) dao.Executor {
 	callback := func() error {
 		checkFunc = newVerifyCall
-
-		std.Emit(VerifyFuncUpdatedEvent)
 		return nil
 	}
 
