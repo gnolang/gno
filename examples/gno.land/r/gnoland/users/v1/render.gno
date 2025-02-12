@@ -14,11 +14,6 @@ import (
 	susers "gno.land/r/sys/users"
 )
 
-var (
-	connectUrlBase     = "https://gno.studio/connect/view/gno.land/r/gnoland/users/v1?network=" + std.GetChainID()
-	connectRegisterUrl = connectUrlBase + "#Register"
-)
-
 func Render(path string) string {
 	req := realmpath.Parse(path)
 
@@ -90,8 +85,7 @@ will gain permission to deploy packages and realms to package paths with the pat
 	out += md.Paragraph("In later versions of the registry, vanity usernames will be allowed through specific mechanisms.")
 
 	if !paused {
-		out += md.H2("Actions\n\n")
-		out += "Register: " + ufmt.Sprintf(" [[Connect]](%s) - [[gnokey]](%s)\n\n", connectRegisterUrl, txlink.Call("Register"))
+		out += md.H3(ufmt.Sprintf(" [[Click here to register]](%s)", txlink.Call("Register")))
 	}
 
 	out += md.HorizontalRule()
