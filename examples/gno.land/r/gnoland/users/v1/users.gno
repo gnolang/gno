@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"std"
 
-	"gno.land/r/sys/users"
+	susers "gno.land/r/sys/users"
 )
 
 const (
@@ -30,46 +30,7 @@ func Register(username string) error {
 	}
 
 	registrant := std.PrevRealm().Addr()
-	if err := users.RegisterUser(username, registrant); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// UpdateName allows a user to update their name.
-// The associated address and all previous names of a user that changes a name
-// are preserved, and all resolve to the new name.
-func UpdateName(newName string) error {
-	std.AssertOriginCall()
-
-	if paused {
-		return ErrPaused
-	}
-
-	if matched := reUsername.MatchString(newName); !matched {
-		return ErrInvalidUsername
-	}
-
-	userData := users.ResolveAddress(std.PrevRealm().Addr())
-	if err := userData.UpdateName(newName); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// DeleteUser makes all names associated with the `PrevRealm()` address unresolvable.
-// WARN: After deletion, the same address WILL NOT be able to register a new name.
-func DeleteUser() error {
-	std.AssertOriginCall()
-
-	if paused {
-		return ErrPaused
-	}
-
-	userData := users.ResolveAddress(std.PrevRealm().Addr())
-	if err := userData.Delete(); err != nil {
+	if err := susers.RegisterUser(username, registrant); err != nil {
 		return err
 	}
 

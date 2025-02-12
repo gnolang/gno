@@ -92,12 +92,9 @@ will gain permission to deploy packages and realms to package paths with the pat
 
 	if !paused {
 		out += md.H2("Actions\n\n")
-		items = []string{
-			"Register: " + ufmt.Sprintf(" [[Connect]](%s) - [[gnokey]](%s)\n\n", connectRegisterUrl, txlink.Call("Register")),
-			"Update Name: " + ufmt.Sprintf(" [[Connect]](%s) - [[gnokey]](%s)\n\n", connectUpdateNameUrl, txlink.Call("UpdateName")),
-		}
-		out += md.BulletList(items)
+		out += "Register: " + ufmt.Sprintf(" [[Connect]](%s) - [[gnokey]](%s)\n\n", connectRegisterUrl, txlink.Call("Register"))
 	}
+
 	out += md.HorizontalRule()
 	out += "\n\n"
 
