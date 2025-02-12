@@ -208,7 +208,7 @@ func (vh vmHandler) queryFile(ctx sdk.Context, req abci.RequestQuery) (res abci.
 func (vh vmHandler) queryMeta(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	parts := strings.SplitN(string(req.Data), ":", 2)
 	if len(parts) != 2 {
-		panic("expected <pkgpath>:field_name> syntax in query input data")
+		panic("expected <pkgpath>:<field_name> syntax in query input data")
 	}
 
 	pkgPath, name := parts[0], parts[1]
