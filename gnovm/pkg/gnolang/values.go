@@ -288,31 +288,28 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 	// General case
 	if rlm != nil && pv.Base != nil {
 		oo1 := pv.TV.GetFirstObject(store)
-		debug2.Println2("oo1: ", oo1)
-
 		// get origin pkgId, this should happen before assign,
 		// because assign will discard original object info
 		originPkg := tv2.GetOriginPkg(store)
-		debug2.Println2("originPkg: ", originPkg)
 
 		pv.TV.Assign(alloc, tv2, cu)
 
 		oo2 := pv.TV.GetFirstObject(store)
-		debug2.Println2("oo2: ", oo2)
 
 		// originValue is needed for checking
 		// proper element in the base.
 		// e.g. refValue is a sliceValue
 		switch pv.TV.V.(type) {
-		case *SliceValue, PointerValue:
+		case *SliceValue, PointerValue, *FuncValue:
 			if oo2.GetIsReal() {
-				oo2.SetIsRef(true)
+				oo2.SetIsAttachingRef(true)
 			}
 		}
 
 		if oo2 != nil && !originPkg.IsZero() {
 			oo2.SetOriginRealm(originPkg) // attach origin package info
 		}
+
 		rlm.DidUpdate(store, pv.Base.(Object), oo1, oo2)
 	} else {
 		pv.TV.Assign(alloc, tv2, cu)

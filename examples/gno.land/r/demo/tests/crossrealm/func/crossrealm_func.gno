@@ -28,10 +28,15 @@ func GetFunc2() func() string {
 }
 
 type MyStruct struct{}
+type MyStruct2 struct{}
 
 func (sv *MyStruct) M() string { return "a" }
 
 var mysv *MyStruct = &MyStruct{}
+
+func (sv2 MyStruct2) M2() string { return "a2" }
+
+var mysv2 = MyStruct2{}
 
 //var f_local func() string
 //
@@ -41,4 +46,8 @@ var mysv *MyStruct = &MyStruct{}
 
 func GetMethod() func() string {
 	return mysv.M
+}
+
+func GetMethod2() func() string {
+	return mysv2.M2
 }

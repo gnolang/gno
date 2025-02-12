@@ -11,15 +11,16 @@ type Local_S struct {
 	name string
 }
 
+var f = func() bool {
+	c := b
+	var ls Local_S
+	return true
+}
+
 func main() {
-	var ls Local_S // panic
-	f := func() bool {
-		c := b
-		return true
-	}
 	crossrealm.SetCallback(f)
 	println("ok")
 }
 
-// Error:
-// cannot attach a value of a type defined by another realm: struct{( string)}
+// Output:
+// ok

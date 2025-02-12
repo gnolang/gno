@@ -10,5 +10,5 @@ func main() {
 	println(f)
 }
 
-// Error:
-// cannot attach a value of a type defined by another realm: <*gno.land/r/demo/tests/crossrealm/func.MyStruct>.M(sv *gno.land/r/demo/tests/crossrealm/func.MyStruct)( string)
+// Output:
+// <*gno.land/r/demo/tests/crossrealm/func.MyStruct>.M(sv *gno.land/r/demo/tests/crossrealm/func.MyStruct)( string)

@@ -115,8 +115,8 @@ type Object interface {
 	SetIsNewReal(bool)
 	GetOriginRealm() PkgID
 	SetOriginRealm(pkgID PkgID)
-	GetIsRef() bool
-	SetIsRef(bool)
+	GetIsAttachingRef() bool
+	SetIsAttachingRef(bool)
 	GetIsNewEscaped() bool
 	SetIsNewEscaped(bool)
 	GetIsNewDeleted() bool
@@ -145,13 +145,13 @@ type ObjectInfo struct {
 	RefCount  int       // for persistence. deleted/gc'd if 0.
 	IsEscaped bool      `json:",omitempty"` // hash in iavl.
 	// MemRefCount int // consider for optimizations.
-	isDirty      bool
-	isDeleted    bool
-	isNewReal    bool
-	isNewEscaped bool
-	isNewDeleted bool
-	originRealm  PkgID // realm where object is from
-	isRefValue   bool
+	isDirty        bool
+	isDeleted      bool
+	isNewReal      bool
+	isNewEscaped   bool
+	isNewDeleted   bool
+	originRealm    PkgID // realm where object is from
+	isAttachingRef bool
 
 	// XXX huh?
 	owner Object // mem reference to owner.
@@ -324,12 +324,12 @@ func (oi *ObjectInfo) SetOriginRealm(pkgId PkgID) {
 	oi.originRealm = pkgId
 }
 
-func (oi *ObjectInfo) GetIsRef() bool {
-	return oi.isRefValue
+func (oi *ObjectInfo) GetIsAttachingRef() bool {
+	return oi.isAttachingRef
 }
 
-func (oi *ObjectInfo) SetIsRef(ref bool) {
-	oi.isRefValue = ref
+func (oi *ObjectInfo) SetIsAttachingRef(ref bool) {
+	oi.isAttachingRef = ref
 }
 
 func (oi *ObjectInfo) GetIsNewEscaped() bool {
@@ -395,15 +395,11 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 	debug2.Println2("GetOriginPkg, tv: ", tv, reflect.TypeOf(tv.V))
 
-	// special case for func value
-	if _, ok := tv.V.(*FuncValue); ok {
-		return
-	}
-
 	// attempting to retrieve the original package using the ObjectID
 	obj := tv.GetFirstObject(store)
-	debug2.Println2("obj: ", obj, reflect.TypeOf(obj))
+	debug2.Printf2("obj: %v (type: %v) \n", obj, reflect.TypeOf(obj))
 	if obj != nil {
+		debug2.Println2("GetIsReal: ", obj.GetIsReal())
 		// origin realm maybe set while association, even
 		// it's un-real.
 		originPkg = obj.GetOriginRealm()
@@ -436,9 +432,9 @@ func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 		return
 	case *BoundMethodValue:
 		debug2.Println2("BoundMethodValue, recv: ", cv.Receiver)
-		if pv, ok := cv.Receiver.V.(PointerValue); ok {
-			originPkg = getPkgId(pv.TV.T)
-		}
+		//if pv, ok := cv.Receiver.V.(PointerValue); ok {
+		//	originPkg = getPkgId(pv.TV.T)
+		//}
 		return
 	case *MapValue, *StructValue, *ArrayValue:
 		// if it's declared type,
