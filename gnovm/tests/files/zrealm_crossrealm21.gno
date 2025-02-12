@@ -33,6 +33,11 @@ func main() {
 //         "RefCount": "2"
 //     },
 //     "Value": {
+//         "AllocationInfo": {
+//             "AllocType": false,
+//             "AllocValue": true,
+//             "RefCount": "0"
+//         },
 //         "T": {
 //             "@type": "/gno.RefType",
 //             "ID": "gno.land/r/demo/tests/crossrealm_b.fooer"

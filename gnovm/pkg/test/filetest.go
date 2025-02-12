@@ -261,6 +261,10 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		tx.Write()
 		m.Store = orig
 
+		// set allocator for test, it's
+		// used for allocating for RefValue
+		m.Store.SetAllocator(m.Alloc)
+
 		pv2 := m.Store.GetPackage(pkgPath, false)
 		m.SetActivePackage(pv2)
 		gno.EnableDebug()

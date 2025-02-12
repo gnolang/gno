@@ -284,7 +284,7 @@ func (opts *TestOptions) runTestFiles(
 
 	var alloc *gno.Allocator
 	if opts.Metrics {
-		alloc = gno.NewAllocator(math.MaxInt64)
+		alloc = gno.NewAllocator(math.MaxInt64, m)
 	}
 	// reset store ops, if any - we only need them for some filetests.
 	opts.TestStore.SetLogStoreOps(false)

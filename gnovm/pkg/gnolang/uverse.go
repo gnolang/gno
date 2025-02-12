@@ -187,13 +187,18 @@ func makeUverseNode() {
 				// so the modification here is only local.
 				newArrayValue := m.Alloc.NewDataArray(len(arg1String))
 				copy(newArrayValue.Data, []byte(arg1String))
-				arg1.TV = &TypedValue{
+				tv := &TypedValue{
 					T: m.Alloc.NewType(&SliceType{ // TODO: reuse
 						Elt: Uint8Type,
 						Vrd: true,
 					}),
 					V: m.Alloc.NewSlice(newArrayValue, 0, len(arg1String), len(arg1String)), // TODO: pool?
 				}
+				if m.Alloc != nil {
+					tv.SetAllocType(true)
+					tv.SetAllocValue(true)
+				}
+				arg1.TV = tv
 			}
 			arg0Type := arg0.TV.T
 			arg1Type := arg1.TV.T
@@ -434,10 +439,12 @@ func makeUverseNode() {
 								)
 							}
 						}
-						m.PushValue(TypedValue{
+						sv := TypedValue{
 							T: arg0Type,
 							V: m.Alloc.NewSlice(arrayValue, 0, arrayLen, arrayLen),
-						})
+						}
+						sv.SetAllocValue(true)
+						m.PushValue(sv)
 						return
 					}
 
@@ -817,10 +824,12 @@ func makeUverseNode() {
 					li := lv.ConvertGetInt()
 					if et.Kind() == Uint8Kind {
 						arrayValue := m.Alloc.NewDataArray(li)
-						m.PushValue(TypedValue{
+						tv := TypedValue{
 							T: tt,
 							V: m.Alloc.NewSlice(arrayValue, 0, li, li),
-						})
+						}
+						tv.SetAllocValue(true)
+						m.PushValue(tv)
 						return
 					} else {
 						arrayValue := m.Alloc.NewListArray(li)
@@ -964,7 +973,7 @@ func makeUverseNode() {
 				T: tt,
 				V: vv,
 			})
-			m.PushValue(TypedValue{
+			tv := TypedValue{
 				T: m.Alloc.NewType(&PointerType{
 					Elt: tt,
 				}),
@@ -973,7 +982,12 @@ func makeUverseNode() {
 					Base:  hi,
 					Index: 0,
 				},
-			})
+			}
+			if m.Alloc != nil {
+				tv.SetAllocType(true)
+				tv.SetAllocValue(true)
+			}
+			m.PushValue(tv)
 			return
 		},
 	)

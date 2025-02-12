@@ -34,7 +34,7 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "a05e5e1e2d2a27d94408a9325a58068e60b504df",
+//             "Hash": "829bd36cab38505e281d7a09cb21b433b4954698",
 //             "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
 //         }
 //     }

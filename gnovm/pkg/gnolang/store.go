@@ -56,6 +56,7 @@ type Store interface {
 	// UNSTABLE
 	Go2GnoType(rt reflect.Type) Type
 	GetAllocator() *Allocator
+	SetAllocator(alloc *Allocator)
 	NumMemPackages() int64
 	// Upon restart, all packages will be re-preprocessed; This
 	// loads BlockNodes and Types onto the store for persistence
@@ -260,6 +261,10 @@ func (ds *defaultStore) GetAllocator() *Allocator {
 	return ds.alloc
 }
 
+func (ds *defaultStore) SetAllocator(alloc *Allocator) {
+	ds.alloc = alloc
+}
+
 func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 	ds.pkgGetter = pg
 }
@@ -461,6 +466,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 			}
 		}
 		oo.SetHash(ValueHash{NewHashlet(hash)})
+		oo.SetByteSize(int64(len(bz)))
 		ds.cacheObjects[oid] = oo
 		_ = fillTypesOfValue(ds, oo)
 		return oo

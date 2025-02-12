@@ -1,14 +1,22 @@
 package gnolang
 
-import "reflect"
+import (
+	"fmt"
+	"reflect"
+
+	"github.com/gnolang/gno/tm2/pkg/overflow"
+)
 
 // Keeps track of in-memory allocations.
 // In the future, allocations within realm boundaries will be
 // (optionally?) condensed (objects to be GC'd will be discarded),
 // but for now, allocations strictly increment across the whole tx.
 type Allocator struct {
-	maxBytes int64
-	bytes    int64
+	m          *Machine
+	maxBytes   int64
+	bytes      int64
+	throwAway  bool
+	allocTimes int64 // times allocation for gc
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -65,12 +73,13 @@ const (
 	allocHeapItem  = _allocBase + _allocPointer + _allocTypedValue
 )
 
-func NewAllocator(maxBytes int64) *Allocator {
+func NewAllocator(maxBytes int64, m *Machine) *Allocator {
 	if maxBytes == 0 {
 		return nil
 	}
 	return &Allocator{
 		maxBytes: maxBytes,
+		m:        m,
 	}
 }
 
@@ -96,15 +105,162 @@ func (alloc *Allocator) Fork() *Allocator {
 	}
 }
 
+func (alloc *Allocator) MemStats() string {
+	if alloc == nil {
+		return "nil allocator"
+	} else {
+		return fmt.Sprintf("Allocator{maxBytes:%d, bytes:%d}", alloc.maxBytes, alloc.bytes)
+	}
+}
+
+func (alloc *Allocator) GC() {
+	// using a throwaway allocator to recalculate memory usages
+	throwaway := NewAllocator(alloc.maxBytes, alloc.m)
+	throwaway.throwAway = true
+
+	// XXX, This is a rough implementation that
+	// estimates consumption based on the number
+	// of allocation cycles. A benchmark should
+	// be introduced for precise measurement, but
+	// that will be addressed in the future.
+	defer func() {
+		gasCPU := overflow.Mul64p(throwaway.allocTimes, GasFactorCPU)
+		if alloc.m.GasMeter != nil { //  no gas meter for test
+			alloc.m.GasMeter.ConsumeGas(gasCPU, "GC")
+		}
+	}()
+
+	// scan frames primarily to count occurrences of BoundMethod
+	for _, fr := range alloc.m.Frames {
+		if !fr.Receiver.IsUndefined() {
+			if pv, ok := fr.Receiver.V.(PointerValue); ok {
+				if _, ok := pv.Base.(*HeapItemValue); !ok {
+					// only alloc pointer for implicit
+					// address-taking, while using val
+					// invoke ptr method
+					throwaway.AllocatePointer()
+				} else {
+					throwaway.allocateValue(fr.Receiver.V)
+				}
+			}
+			if fr.Func != nil {
+				throwaway.allocateValue(fr.Func)
+			} else if fr.GoFunc != nil {
+				throwaway.allocateValue(fr.GoFunc)
+			}
+			// by default
+			throwaway.AllocateBoundMethod()
+		}
+	}
+
+	// scan blocks
+	for _, b := range alloc.m.Blocks {
+		throwaway.allocateValue(b)
+	}
+
+	// reset allocator
+	alloc.bytes = throwaway.bytes
+}
+
+func (alloc *Allocator) allocateTV(tv TypedValue) {
+	if tv.GetRefCount() < 2 {
+		if tv.AllocType {
+			alloc.AllocateType()
+		}
+		if tv.AllocValue {
+			alloc.allocateValue(tv.V)
+		}
+	}
+}
+
+func (alloc *Allocator) allocateValue(v Value) {
+	// if RefValue, allocate amino
+	if oo, ok := v.(Object); ok {
+		if oid := oo.GetObjectID(); !oid.IsZero() {
+			alloc.AllocateAmino(oo.GetByteSize())
+		}
+	}
+	switch vv := v.(type) {
+	case *StructValue:
+		alloc.AllocateStructFields(int64(len(vv.Fields)))
+		alloc.AllocateStruct()
+		// alloc fields
+		for _, field := range vv.Fields {
+			alloc.allocateTV(field)
+		}
+	case *FuncValue:
+		alloc.AllocateFunc()
+		for _, c := range vv.Captures {
+			if c.GetRefCount() < 2 {
+				if c.AllocationInfo.AllocType {
+					alloc.AllocateType()
+				}
+				if c.AllocationInfo.AllocValue {
+					alloc.allocateValue(c.V)
+				}
+			}
+		}
+	case PointerValue:
+		alloc.AllocatePointer()
+		alloc.allocateValue(vv.Base)
+	case *HeapItemValue:
+		alloc.AllocateHeapItem()
+		alloc.allocateValue(vv.Value.V)
+	case *SliceValue:
+		alloc.AllocateSlice()
+		alloc.allocateValue(vv.Base)
+	case *ArrayValue:
+		if vv.Data == nil {
+			alloc.AllocateListArray(int64(len(vv.List)))
+			for _, elem := range vv.List {
+				alloc.allocateTV(elem)
+			}
+		} else {
+			alloc.AllocateDataArray(int64(len(vv.Data)))
+		}
+	case *Block:
+		alloc.AllocateBlock(int64(vv.Source.GetNumNames()))
+		for _, tv := range vv.Values {
+			alloc.allocateTV(tv)
+		}
+	case StringValue:
+		alloc.AllocateString(int64(len(vv)))
+	case *MapValue:
+		alloc.AllocateMap(int64(vv.List.Size))
+		for cur := vv.List.Head; cur != nil; cur = cur.Next {
+			alloc.allocateTV(cur.Key)
+			alloc.allocateTV(cur.Value)
+		}
+	case *BoundMethodValue:
+		// this is handled in frame scan
+	case *NativeValue:
+		alloc.AllocateNative()
+	default:
+		// do nothing
+	}
+}
+
 func (alloc *Allocator) Allocate(size int64) {
 	if alloc == nil {
 		// this can happen for map items just prior to assignment.
 		return
 	}
 
-	alloc.bytes += size
-	if alloc.bytes > alloc.maxBytes {
-		panic("allocation limit exceeded")
+	// measure current memory usage
+	if alloc.throwAway {
+		alloc.allocTimes++ // metric gc cycles
+		alloc.bytes += size
+		if alloc.bytes > alloc.maxBytes {
+			panic("should not happen")
+		}
+	} else {
+		if alloc.bytes+size > alloc.maxBytes {
+			alloc.GC()
+		}
+		alloc.bytes += size
+		if alloc.bytes > alloc.maxBytes {
+			panic("allocation limit exceeded")
+		}
 	}
 }
 
@@ -314,4 +470,38 @@ func (alloc *Allocator) NewType(t Type) Type {
 func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 	alloc.AllocateHeapItem()
 	return &HeapItemValue{Value: tv}
+}
+
+// ========================================================
+type AllocationInfo struct {
+	AllocType  bool
+	AllocValue bool
+	RefCount   int
+}
+
+func (ai *AllocationInfo) String() string {
+	return fmt.Sprintf(
+		"AllocationInfo{AllocType: %t, AllocValue: %t, RefCount: %d}",
+		ai.AllocType, ai.AllocValue, ai.RefCount,
+	)
+}
+
+func (ai *AllocationInfo) SetAllocValue(allocValue bool) {
+	ai.AllocValue = allocValue
+}
+
+func (ai *AllocationInfo) SetAllocType(allocType bool) {
+	ai.AllocType = allocType
+}
+
+func (ai *AllocationInfo) IncRefCount() {
+	ai.RefCount++
+}
+
+func (ai *AllocationInfo) DecRefCount() {
+	ai.RefCount--
+}
+
+func (ai *AllocationInfo) GetRefCount() int {
+	return ai.RefCount
 }

@@ -86,6 +86,11 @@ func main() {
 //         "RefCount": "1"
 //     },
 //     "Value": {
+//         "AllocationInfo": {
+//             "AllocType": false,
+//             "AllocValue": true,
+//             "RefCount": "0"
+//         },
 //         "T": {
 //             "@type": "/gno.RefType",
 //             "ID": "github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl.AvlNode"
@@ -136,6 +141,11 @@ func main() {
 //             }
 //         },
 //         {
+//             "AllocationInfo": {
+//                 "AllocType": false,
+//                 "AllocValue": false,
+//                 "RefCount": "1"
+//             },
 //             "T": {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
@@ -147,7 +157,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "7c63a8fd451cd7c470c1851f1ead037246422ded",
+//                     "Hash": "b2dc81389a0e7fde84b54c29b37aefc88b55137a",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6"
 //                 },
 //                 "Index": "0",
@@ -170,13 +180,18 @@ func main() {
 //         "RefCount": "1"
 //     },
 //     "Value": {
+//         "AllocationInfo": {
+//             "AllocType": false,
+//             "AllocValue": true,
+//             "RefCount": "0"
+//         },
 //         "T": {
 //             "@type": "/gno.RefType",
 //             "ID": "github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl.AvlNode"
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "115779a405a1cae45446397ea897a98a4043cbb2",
+//             "Hash": "06d403c450cda90fdbfc1b9fccdd7d2fdc054549",
 //             "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
 //         }
 //     }

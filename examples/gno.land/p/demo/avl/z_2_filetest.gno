@@ -31,6 +31,11 @@ func main() {
 //         "RefCount": "1"
 //     },
 //     "Value": {
+//         "AllocationInfo": {
+//             "AllocType": false,
+//             "AllocValue": true,
+//             "RefCount": "0"
+//         },
 //         "T": {
 //             "@type": "/gno.RefType",
 //             "ID": "gno.land/p/demo/avl.Node"
@@ -50,6 +55,11 @@ func main() {
 //         "RefCount": "1"
 //     },
 //     "Value": {
+//         "AllocationInfo": {
+//             "AllocType": false,
+//             "AllocValue": true,
+//             "RefCount": "0"
+//         },
 //         "T": {
 //             "@type": "/gno.RefType",
 //             "ID": "gno.land/p/demo/avl.Node"
@@ -130,6 +140,11 @@ func main() {
 //         "RefCount": "1"
 //     },
 //     "Value": {
+//         "AllocationInfo": {
+//             "AllocType": false,
+//             "AllocValue": true,
+//             "RefCount": "0"
+//         },
 //         "T": {
 //             "@type": "/gno.RefType",
 //             "ID": "gno.land/p/demo/avl.Node"
@@ -180,7 +195,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "db39c9c0a60e0d5b30dbaf9be6150d3fec16aa4b",
+//                     "Hash": "f3785a060a50e3043d9344e2e05d1f8ed949c936",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:9"
 //                 },
 //                 "Index": "0",
@@ -199,7 +214,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "b4fc2fdd2d0fe936c87ed2ace97136cffeed207f",
+//                     "Hash": "c2edf01b02b110165f1ebfa0e2b149034e477dee",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:15"
 //                 },
 //                 "Index": "0",
@@ -222,13 +237,18 @@ func main() {
 //         "RefCount": "1"
 //     },
 //     "Value": {
+//         "AllocationInfo": {
+//             "AllocType": false,
+//             "AllocValue": true,
+//             "RefCount": "0"
+//         },
 //         "T": {
 //             "@type": "/gno.RefType",
 //             "ID": "gno.land/p/demo/avl.Node"
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "2e9127534f91b385426d76e8e164f50f635cc1de",
+//             "Hash": "dc9e647607b2abdf0b9c77b8ec4ee4adf7bbbb8c",
 //             "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:14"
 //         }
 //     }
@@ -261,6 +281,11 @@ func main() {
 //             }
 //         },
 //         {
+//             "AllocationInfo": {
+//                 "AllocType": false,
+//                 "AllocValue": false,
+//                 "RefCount": "2"
+//             },
 //             "T": {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
@@ -272,7 +297,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "43e03b0c877b40c34e12bc2b15560e8ecd42ae9d",
+//                     "Hash": "2f234c29a99816ae48647101c64be373a6611b78",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7"
 //                 },
 //                 "Index": "0",
@@ -280,6 +305,11 @@ func main() {
 //             }
 //         },
 //         {
+//             "AllocationInfo": {
+//                 "AllocType": false,
+//                 "AllocValue": false,
+//                 "RefCount": "1"
+//             },
 //             "T": {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
@@ -291,7 +321,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "4b123e2424d900a427f9dee88a70ce61f3cdcf5b",
+//                     "Hash": "56ae2daff88e4c38ddd50c0438ebf87ad5494fd9",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:13"
 //                 },
 //                 "Index": "0",
@@ -314,13 +344,18 @@ func main() {
 //         "RefCount": "1"
 //     },
 //     "Value": {
+//         "AllocationInfo": {
+//             "AllocType": false,
+//             "AllocValue": true,
+//             "RefCount": "0"
+//         },
 //         "T": {
 //             "@type": "/gno.RefType",
 //             "ID": "gno.land/p/demo/avl.Node"
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "76d9227e755efd6674d8fa34e12decb7a9855488",
+//             "Hash": "1618bf34838481730c3db0e55a38fa949963fc88",
 //             "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:12"
 //         }
 //     }
@@ -328,6 +363,11 @@ func main() {
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3]={
 //     "Fields": [
 //         {
+//             "AllocationInfo": {
+//                 "AllocType": false,
+//                 "AllocValue": false,
+//                 "RefCount": "3"
+//             },
 //             "T": {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
@@ -339,7 +379,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "ff46b4dd63457c3fd59801e725f65af524ec829d",
+//                     "Hash": "9752a7451993923a0096182e1c20160bd740f34b",
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:11"
 //                 },
 //                 "Index": "0",

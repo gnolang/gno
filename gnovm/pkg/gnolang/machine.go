@@ -121,7 +121,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	}
 	alloc := opts.Alloc
 	if alloc == nil {
-		alloc = NewAllocator(opts.MaxAllocBytes)
+		alloc = NewAllocator(opts.MaxAllocBytes, nil)
 	}
 	store := opts.Store
 	if store == nil {
@@ -143,6 +143,9 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm := machinePool.Get().(*Machine)
 	mm.Package = pv
 	mm.Alloc = alloc
+	if mm.Alloc != nil {
+		mm.Alloc.m = mm
+	}
 	mm.PreprocessorMode = preprocessorMode
 	mm.ReadOnly = readOnly
 	mm.MaxCycles = maxCycles

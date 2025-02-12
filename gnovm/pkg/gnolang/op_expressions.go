@@ -203,10 +203,17 @@ func (m *Machine) doOpRef() {
 	if elt == DataByteType {
 		elt = xv.TV.V.(DataByteValue).ElemType
 	}
-	m.PushValue(TypedValue{
+	tv := TypedValue{
 		T: m.Alloc.NewType(&PointerType{Elt: elt}),
 		V: xv,
-	})
+	}
+	if m.Alloc != nil {
+		tv.SetAllocType(true) // only for type alloc
+		if _, ok := rx.X.(*CompositeLitExpr); ok {
+			tv.SetAllocValue(true) // only alloc value for &CompositeLit
+		}
+	}
+	m.PushValue(tv)
 }
 
 // NOTE: keep in sync with doOpTypeAssert2.
@@ -552,11 +559,13 @@ func (m *Machine) doOpArrayLit() {
 	} else {
 		m.PopValue()
 	}
-	// push value
-	m.PushValue(TypedValue{
+	tv := TypedValue{
 		T: at,
 		V: av,
-	})
+	}
+	tv.SetAllocValue(true)
+	// push value
+	m.PushValue(tv)
 }
 
 func (m *Machine) doOpSliceLit() {
@@ -579,10 +588,12 @@ func (m *Machine) doOpSliceLit() {
 		m.PopValue()
 	}
 	sv := m.Alloc.NewSliceFromList(es)
-	m.PushValue(TypedValue{
+	tv := TypedValue{
 		T: st,
 		V: sv,
-	})
+	}
+	tv.SetAllocValue(true)
+	m.PushValue(tv)
 }
 
 func (m *Machine) doOpSliceLit2() {
@@ -666,11 +677,13 @@ func (m *Machine) doOpMapLit() {
 	} else {
 		m.PopValue()
 	}
-	// push value
-	m.PushValue(TypedValue{
+	tv := TypedValue{
 		T: mt,
 		V: mv,
-	})
+	}
+	tv.SetAllocValue(true)
+	// push value
+	m.PushValue(tv)
 }
 
 func (m *Machine) doOpStructLit() {
@@ -751,10 +764,13 @@ func (m *Machine) doOpStructLit() {
 	// construct and push value.
 	m.PopValue() // baseOf() is st
 	sv := m.Alloc.NewStruct(fs)
-	m.PushValue(TypedValue{
+	tv := TypedValue{
 		T: xt,
 		V: sv,
-	})
+	}
+
+	tv.SetAllocValue(true)
+	m.PushValue(tv)
 }
 
 func (m *Machine) doOpFuncLit() {
@@ -781,7 +797,8 @@ func (m *Machine) doOpFuncLit() {
 		}
 		captures = append(captures, *ptr.TV)
 	}
-	m.PushValue(TypedValue{
+
+	fv := TypedValue{
 		T: ft,
 		V: &FuncValue{
 			Type:       ft,
@@ -794,7 +811,9 @@ func (m *Machine) doOpFuncLit() {
 			body:       x.Body,
 			nativeBody: nil,
 		},
-	})
+	}
+	fv.SetAllocValue(true)
+	m.PushValue(fv)
 }
 
 func (m *Machine) doOpConvert() {
