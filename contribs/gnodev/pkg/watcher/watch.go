@@ -58,7 +58,7 @@ func (p *PackageWatcher) startWatching() {
 		defer close(pkgsUpdateChan)
 
 		var debounceTimer <-chan time.Time
-		pathList := []string{}
+		filesList := []string{}
 		var err error
 
 		for err == nil {
@@ -69,7 +69,7 @@ func (p *PackageWatcher) startWatching() {
 				err = fmt.Errorf("watch error: %w", watchErr)
 			case <-debounceTimer:
 				// Process and emit package updates after the debounce interval
-				updates := p.generatePackagesUpdateList(pathList)
+				updates := p.generatePackagesUpdateList(filesList)
 				for _, update := range updates {
 					p.logger.Info("packages update",
 						"pkg", update.Package,
@@ -84,7 +84,7 @@ func (p *PackageWatcher) startWatching() {
 				})
 
 				// Reset the path list and debounce timer
-				pathList = []string{}
+				filesList = []string{}
 				debounceTimer = nil
 			case evt := <-p.watcher.Events:
 				// Only handle write operations
@@ -92,7 +92,7 @@ func (p *PackageWatcher) startWatching() {
 					continue
 				}
 
-				pathList = append(pathList, evt.Name)
+				filesList = append(filesList, evt.Name)
 
 				// Set up the debounce timer
 				debounceTimer = time.After(timeout)
@@ -125,43 +125,43 @@ func (p *PackageWatcher) UpdatePackagesWatch(pkgs ...packages.Package) {
 			continue
 		}
 
-		path, err := filepath.Abs(pkg.Location)
+		dir, err := filepath.Abs(pkg.Location)
 		if err != nil {
 			p.logger.Error("Unable to get absolute path", "path", pkg.Location, "error", err)
 			continue
 		}
 
-		newPkgs[path] = struct{}{}
+		newPkgs[dir] = struct{}{}
 	}
 
-	for path := range oldPkgs {
-		if _, exists := newPkgs[path]; !exists {
-			p.watcher.Remove(path)
-			p.logger.Debug("Watcher list: removed", "path", path)
+	for dir := range oldPkgs {
+		if _, exists := newPkgs[dir]; !exists {
+			p.watcher.Remove(dir)
+			p.logger.Debug("Watcher list: removed", "path", dir)
 		}
 	}
 
-	for path := range newPkgs {
-		if _, exists := oldPkgs[path]; !exists {
-			p.watcher.Add(path)
-			p.logger.Debug("Watcher list: added", "path", path)
+	for dir := range newPkgs {
+		if _, exists := oldPkgs[dir]; !exists {
+			p.watcher.Add(dir)
+			p.logger.Debug("Watcher list: added", "path", dir)
 		}
 	}
 }
 
-func (p *PackageWatcher) generatePackagesUpdateList(paths []string) PackageUpdateList {
+func (p *PackageWatcher) generatePackagesUpdateList(files []string) PackageUpdateList {
 	pkgsUpdate := []events.PackageUpdate{}
 
 	mpkgs := map[string]*events.PackageUpdate{} // Pkg -> Update
 	watchList := p.watcher.WatchList()
-	for _, path := range paths {
+	for _, file := range files {
 		for _, pkg := range watchList {
-			if len(pkg) == len(path) {
+			if len(pkg) == len(file) {
 				continue // Skip if pkg == path
 			}
 
 			// Check if a package directory contain our path directory
-			dirPath := filepath.Dir(path)
+			dirPath := filepath.Dir(file)
 			if !strings.HasPrefix(pkg, dirPath) {
 				continue
 			}
@@ -176,7 +176,7 @@ func (p *PackageWatcher) generatePackagesUpdateList(paths []string) PackageUpdat
 				pkgu = &pkgsUpdate[len(pkgsUpdate)-1]
 			}
 
-			pkgu.Files = append(pkgu.Files, path)
+			pkgu.Files = append(pkgu.Files, file)
 		}
 	}
 

@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -453,7 +452,7 @@ func ValidatePathCommandMiddleware(pathPrefix string) wish.Middleware {
 				return
 			case 1: // check for valid path
 				path := cmd[0]
-				if strings.HasPrefix(path, pathPrefix) && filepath.Clean(path) == path {
+				if strings.HasPrefix(path, pathPrefix) && path.Clean(path) == path {
 					s.Context().SetValue("path", path)
 					next(s)
 					return
