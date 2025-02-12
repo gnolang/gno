@@ -7,6 +7,7 @@ import (
 
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/txlink"
 
 	"gno.land/r/demo/users"
 )
@@ -34,11 +35,20 @@ func RenderHome() string {
 
 	// Play Game section
 	builder.WriteString("## How to Play\n\n")
-	builder.WriteString(ufmt.Sprintf("1. **Buy Keys** - Send GNOT to this realm with function [`BuyKeys()`](%s)\n", gameState.BuyKeysLink))
-	builder.WriteString(ufmt.Sprintf("2. **Collect Dividends** - Call [`ClaimDividends()`](%s) to collect your earnings\n", gameState.ClaimDividendsLink))
+	builder.WriteString(ufmt.Sprintf("1. **Buy Keys** - Send GNOT to this realm with function [`BuyKeys()`](%s) or [click here](%s)\n",
+		gameState.BuyKeysLink,
+		txlink.Call("BuyKeys"),
+	))
+	builder.WriteString(ufmt.Sprintf("2. **Collect Dividends** - Call [`ClaimDividends()`](%s) or [click here](%s) to collect your earnings\n",
+		gameState.ClaimDividendsLink,
+		txlink.Call("ClaimDividends"),
+	))
 	builder.WriteString("3. **Check Your Stats** - Append `:player/` followed by your address or namespace to the current URL to view your keys and dividends\n")
 	if gameState.Ended {
-		builder.WriteString(ufmt.Sprintf("4. **Start New Round** - Call [`StartGame()`](%s) to begin a new round\n", gameState.StartGameLink))
+		builder.WriteString(ufmt.Sprintf("4. **Start New Round** - Call [`StartGame()`](%s) or [click here](%s) to begin a new round\n",
+			gameState.StartGameLink,
+			txlink.Call("StartGame"),
+		))
 	}
 	builder.WriteString("\n")
 
@@ -113,9 +123,15 @@ func RenderPlayer(addr std.Address, keys int64, dividends int64) string {
 	}
 
 	builder.WriteString("## Actions\n\n")
-	builder.WriteString(ufmt.Sprintf("* To buy more keys, send GNOT to this realm with [`BuyKeys()`](%s)\n", gameState.BuyKeysLink))
+	builder.WriteString(ufmt.Sprintf("* To buy more keys, send GNOT to this realm with [`BuyKeys()`](%s) or [click here](%s)\n",
+		gameState.BuyKeysLink,
+		txlink.Call("BuyKeys"),
+	))
 	if dividends > 0 {
-		builder.WriteString("* You have unclaimed dividends! Call `ClaimDividends()` to collect them\n")
+		builder.WriteString(ufmt.Sprintf("* You have unclaimed dividends! Call [`ClaimDividends()`](%s) or [click here](%s) to collect them\n",
+			gameState.ClaimDividendsLink,
+			txlink.Call("ClaimDividends"),
+		))
 	}
 
 	return builder.String()
