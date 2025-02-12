@@ -1,1 +1,1 @@
-module gno.land/r/demo/tokenhub
+module gno.land/r/matijamajranovic/tokenhub
