@@ -34,22 +34,10 @@ func New(size int) (*RingBuffer, error) {
 	}, nil
 }
 
-// IsEmpty checks if the RingBuffer is empty.
-// Returns true if the buffer is empty, false otherwise.
-func (cb *RingBuffer) IsEmpty() bool {
-	return !cb.isFull && cb.start == cb.end
-}
-
-// IsFull checks if the RingBuffer is full.
-// Returns true if the buffer is full, false otherwise.
-func (cb *RingBuffer) IsFull() bool {
-	return cb.isFull
-}
-
 // Write adds an element to the RingBuffer.
 // If the buffer is full, it returns an error.
 func (cb *RingBuffer) Write(value interface{}) error {
-	if cb.IsFull() {
+	if cb.isFull {
 		return ErrFull
 	}
 
@@ -66,7 +54,7 @@ func (cb *RingBuffer) Write(value interface{}) error {
 // WriteOverwrite adds an element to the RingBuffer.
 // If the buffer is full, it overwrites the oldest element.
 func (cb *RingBuffer) WriteOverwrite(value interface{}) {
-	if cb.IsFull() {
+	if cb.isFull {
 		// Buffer is full, overwrite the oldest element
 		cb.start = (cb.start + 1) % cb.size
 	}
@@ -82,7 +70,7 @@ func (cb *RingBuffer) WriteOverwrite(value interface{}) {
 // Read removes and returns the oldest element from the RingBuffer.
 // If the buffer is empty, it returns an error.
 func (cb *RingBuffer) Read() (interface{}, error) {
-	if cb.IsEmpty() {
+	if !cb.isFull && cb.start == cb.end {
 		return nil, ErrEmpty
 	}
 
