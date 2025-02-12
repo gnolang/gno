@@ -12,7 +12,7 @@ import (
 const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func main() {
-	std.TestSetOrigCaller(admin)
+	testing.SetOriginCaller(admin)
 	caller := std.GetOrigCaller() // main
 	// add restricted name
 	users.AdminAddRestrictedName("superrestricted")
