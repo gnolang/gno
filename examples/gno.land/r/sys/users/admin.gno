@@ -11,7 +11,7 @@ import (
 
 const gusersv1 = "gno.land/r/gnoland/users/v1" // preregistered with store write perms
 
-var callerWhitelist = addrset.Set{}
+var controllers = addrset.Set{} // caller whitelist
 
 func init() {
 	callerWhitelist.Add(std.DerivePkgAddr(gusersv1)) // initially whitelisted
@@ -24,7 +24,7 @@ func IsOnWhitelist(addr std.Address) bool {
 }
 
 // NewAddWhitelistedAddrExecutor allows GovDAO to add a whitelisted caller
-func NewAddWhitelistedAddrExecutor(addr std.Address) dao.Executor {
+func ProposeNewController(addr std.Address) dao.Executor {
 	cb := func() error {
 		return addToWhitelist(addr)
 	}
