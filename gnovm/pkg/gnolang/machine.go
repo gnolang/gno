@@ -1,11 +1,11 @@
 package gnolang
 
-// XXX rename file to machine.go.
-
 import (
 	"fmt"
 	"io"
+	"path"
 	"reflect"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -17,30 +17,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
-
-// Exception represents a panic that originates from a gno program.
-type Exception struct {
-	// Value is the value passed to panic.
-	Value TypedValue
-	// Frame is used to reference the frame a panic occurred in so that recover() knows if the
-	// currently executing deferred function is able to recover from the panic.
-	Frame *Frame
-
-	Stacktrace Stacktrace
-}
-
-func (e Exception) Sprint(m *Machine) string {
-	return e.Value.Sprint(m)
-}
-
-// UnhandledPanicError represents an error thrown when a panic is not handled in the realm.
-type UnhandledPanicError struct {
-	Descriptor string // Description of the unhandled panic.
-}
-
-func (e UnhandledPanicError) Error() string {
-	return e.Descriptor
-}
 
 //----------------------------------------
 // Machine
@@ -2146,8 +2122,11 @@ func (m *Machine) Panic(ex TypedValue) {
 func (m *Machine) Println(args ...interface{}) {
 	if debug {
 		if enabled {
-			s := strings.Repeat("|", m.NumOps)
-			debug.Println(append([]interface{}{s}, args...)...)
+			_, file, line, _ := runtime.Caller(2) // get caller info
+			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
+			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
+			s := prefix + strings.Repeat("|", m.NumOps)
+			fmt.Println(append([]interface{}{s}, args...)...)
 		}
 	}
 }
@@ -2155,8 +2134,11 @@ func (m *Machine) Println(args ...interface{}) {
 func (m *Machine) Printf(format string, args ...interface{}) {
 	if debug {
 		if enabled {
-			s := strings.Repeat("|", m.NumOps)
-			debug.Printf(s+" "+format, args...)
+			_, file, line, _ := runtime.Caller(2) // get caller info
+			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
+			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
+			s := prefix + strings.Repeat("|", m.NumOps)
+			fmt.Printf(s+" "+format, args...)
 		}
 	}
 }
