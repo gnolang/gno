@@ -5,6 +5,7 @@ package boards_test
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"

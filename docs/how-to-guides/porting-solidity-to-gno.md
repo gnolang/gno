@@ -387,8 +387,7 @@ func Bid() {
 // Bid Function Test - Send Coin
 func TestBidCoins(t *testing.T) {
 	// Sending two types of coins
-    t.SetOriginCaller(bidder01)
-    
+	t.SetOriginCaller(bidder01)
 	t.SetOriginSend(std.Coins{{"ugnot", 0}, {"test", 1}})
 	shouldPanic(t, Bid)
 
@@ -621,7 +620,8 @@ func TestFull(t *testing.T) {
 
 	// Send two or more types of coins
 	{
-        t.SetOriginCaller(bidder01)
+		t.SetOriginCaller(bidder01)
+
 		t.SetOriginSend(std.Coins{{"ugnot", 0}, {"test", 1}})
 		shouldPanic(t, Bid)
 	}
@@ -636,7 +636,7 @@ func TestFull(t *testing.T) {
 	// Send more than the highest bid
 	{
 		t.SetOriginCaller(bidder01)
-        t.SetOriginSend(std.Coins{{"ugnot", 1}})
+		t.SetOriginSend(std.Coins{{"ugnot", 1}})
 		shouldNoPanic(t, Bid)
 
 		shouldEqual(t, pendingReturns.Size(), 0)
