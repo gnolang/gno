@@ -41,6 +41,8 @@ func (u UserData) IsDeleted() bool {
 	return u.deleted
 }
 
+// RenderLink provides a render link to the user page on gnoweb
+// ufmt.Sprintf("[%s](%s)", userData.Name(), userData.RenderLink())
 func (u UserData) RenderLink() string {
 	return "/u/" + u.username
 }
