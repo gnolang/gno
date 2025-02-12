@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"path/filepath"
+	"path"
+	gopath "path"
 	"strings"
 
 	"github.com/alecthomas/chroma/v2"
@@ -121,7 +122,7 @@ func (s *HTMLWebClient) SourceFile(w io.Writer, path, fileName string) (*FileMet
 	}
 
 	// XXX: Consider moving this into gnoclient
-	fullPath := filepath.Join(s.domain, strings.Trim(path, "/"), fileName)
+	fullPath := gopath.Join(s.domain, strings.Trim(path, "/"), fileName)
 
 	source, err := s.query(qpath, []byte(fullPath))
 	if err != nil {
@@ -230,7 +231,7 @@ func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) e
 	var lexer chroma.Lexer
 
 	// Determine the lexer to be used based on the file extension.
-	switch strings.ToLower(filepath.Ext(fileName)) {
+	switch strings.ToLower(path.Ext(fileName)) {
 	case ".gno":
 		lexer = lexers.Get("go")
 	case ".md":
