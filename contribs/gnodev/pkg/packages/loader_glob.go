@@ -52,9 +52,9 @@ func (l GlobLoader) MatchPaths(globs ...string) ([]string, error) {
 				return err
 			}
 
-			path, relErr := filepath.Rel(root, dirpath)
-			if relErr != nil {
-				return relErr
+			path, err := filepath.Rel(root, dirpath)
+			if err != nil {
+				return err
 			}
 
 			// normalize filepath to path
