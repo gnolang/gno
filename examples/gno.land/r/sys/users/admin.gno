@@ -17,7 +17,7 @@ func init() {
 	controllers.Add(std.DerivePkgAddr(gusersv1)) // initially whitelisted
 }
 
-// NewAddWhitelistedAddrExecutor allows GovDAO to add a whitelisted caller
+// ProposeNewController allows GovDAO to add a whitelisted caller
 func ProposeNewController(addr std.Address) dao.Executor {
 	cb := func() error {
 		return addToWhitelist(addr)
@@ -26,8 +26,8 @@ func ProposeNewController(addr std.Address) dao.Executor {
 	return bridge.GovDAO().NewGovDAOExecutor(cb)
 }
 
-// NewDeleteWhitelistedAddrExecutor allows GovDAO to add a whitelisted caller
-func NewDeleteWhitelistedAddrExecutor(addr std.Address) dao.Executor {
+// ProposeControllerRemoval allows GovDAO to add a whitelisted caller
+func ProposeControllerRemoval(addr std.Address) dao.Executor {
 	cb := func() error {
 		return deleteFromwhitelist(addr)
 	}
