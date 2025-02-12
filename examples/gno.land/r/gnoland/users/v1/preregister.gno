@@ -30,7 +30,7 @@ func init() {
 	// add pre-registered users
 	for _, res := range preRegisteredUsers {
 		if err := users.RegisterUser(res.Name, res.Address); err != nil {
-			panic(err)
+			continue
 		}
 	}
 }
