@@ -54,9 +54,9 @@ func DecodeUint(s string) uint64 {
 //
 // Methods:
 // - Get: Retrieves a value associated with a uint64 key.
-// - Set: Stores a value with a uint64 key.
+// - set: Stores a value with a uint64 key.
 // - Has: Checks if a uint64 key exists in the tree.
-// - Remove: Removes a uint64 key and its associated value.
+// - remove: Removes a uint64 key and its associated value.
 // - Iterate: Iterates over keys and values in a range.
 // - ReverseIterate: Iterates in reverse order over keys and values in a range.
 type UintTree struct {
@@ -78,7 +78,7 @@ func (self *UintTree) Get(key int64) (interface{}, bool) {
 	return v, true
 }
 
-func (self *UintTree) Set(key int64, value interface{}) {
+func (self *UintTree) set(key int64, value interface{}) {
 	self.tree.Set(EncodeUint(uint64(key)), value)
 }
 
@@ -86,7 +86,7 @@ func (self *UintTree) Has(key int64) bool {
 	return self.tree.Has(EncodeUint(uint64(key)))
 }
 
-func (self *UintTree) Remove(key int64) {
+func (self *UintTree) remove(key int64) {
 	self.tree.Remove(EncodeUint(uint64(key)))
 }
 

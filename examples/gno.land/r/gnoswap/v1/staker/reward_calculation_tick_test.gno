@@ -38,11 +38,11 @@ func TestTicks(t *testing.T) {
 	}
 
 	tick.stakedLiquidityGross = u256.MustFromDecimal("1")
-	ticks.Set(100, tick)
+	ticks.set(100, tick)
 	uassert.True(t, ticks.Has(100))
 
 	tick.stakedLiquidityGross = u256.Zero()
-	ticks.Set(100, tick)
+	ticks.set(100, tick)
 	uassert.False(t, ticks.Has(100))
 }
 
@@ -58,7 +58,7 @@ func TestTicksBasic(t *testing.T) {
 	uassert.True(t, tick100Again.stakedLiquidityGross.IsZero())
 	uassert.True(t, tick100Again.stakedLiquidityDelta.IsZero())
 
-	ticks.Set(100, tick100)
+	ticks.set(100, tick100)
 	uassert.False(t, ticks.Has(100))
 }
 

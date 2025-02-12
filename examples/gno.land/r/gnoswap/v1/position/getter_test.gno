@@ -27,14 +27,14 @@ func setupPositionGetter(t *testing.T) {
 		tokensOwed1:              u256.Zero(),
 		burned:                   false,
 	}
-	tokenId := getNextId()
-	setPosition(tokenId, position)
+	positionId := getNextId()
+	setPosition(positionId, position)
 }
 
 func TestPositionGetPosition(t *testing.T) {
 	setupPositionGetter(t)
-	tokenId := getNextId()
-	position := PositionGetPosition(tokenId)
+	positionId := getNextId()
+	position := PositionGetPosition(positionId)
 	uassert.Equal(t, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500", position.poolKey)
 	uassert.Equal(t, int32(-10000), position.tickLower)
 	uassert.Equal(t, int32(10000), position.tickUpper)
@@ -48,133 +48,133 @@ func TestPositionGetPosition(t *testing.T) {
 
 func TestPositionGetPositionNonce(t *testing.T) {
 	setupPositionGetter(t)
-	tokenId := getNextId()
-	nonce := PositionGetPositionNonce(tokenId)
+	positionId := getNextId()
+	nonce := PositionGetPositionNonce(positionId)
 	uassert.Equal(t, "0", nonce.ToString())
 }
 
 func TestPositionGetPositionOperator(t *testing.T) {
 	setupPositionGetter(t)
-	tokenId := getNextId()
-	operator := PositionGetPositionOperator(tokenId)
+	positionId := getNextId()
+	operator := PositionGetPositionOperator(positionId)
 	uassert.Equal(t, consts.POSITION_ADDR, operator)
 }
 
 func TestPositionGetPositionPoolKey(t *testing.T) {
 	setupPositionGetter(t)
-	tokenId := getNextId()
-	poolKey := PositionGetPositionPoolKey(tokenId)
+	positionId := getNextId()
+	poolKey := PositionGetPositionPoolKey(positionId)
 	uassert.Equal(t, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500", poolKey)
 }
 
 func TestPositionGetPositionTickLower(t *testing.T) {
 	setupPositionGetter(t)
-	tokenId := getNextId()
-	tickLower := PositionGetPositionTickLower(tokenId)
+	positionId := getNextId()
+	tickLower := PositionGetPositionTickLower(positionId)
 	uassert.Equal(t, int32(-10000), tickLower)
 }
 
 func TestPositionGetPositionTickUpper(t *testing.T) {
 	setupPositionGetter(t)
-	tokenId := getNextId()
-	tickUpper := PositionGetPositionTickUpper(tokenId)
+	positionId := getNextId()
+	tickUpper := PositionGetPositionTickUpper(positionId)
 	uassert.Equal(t, int32(10000), tickUpper)
 }
 
 func TestPositionGetPositionLiquidity(t *testing.T) {
 	setupPositionGetter(t)
-	tokenId := getNextId()
-	liquidity := PositionGetPositionLiquidity(tokenId)
+	positionId := getNextId()
+	liquidity := PositionGetPositionLiquidity(positionId)
 	uassert.Equal(t, "1000000", liquidity.ToString())
 }
 
 func TestPositionGetPositionFeeGrowthInside0LastX128(t *testing.T) {
 	setupPositionGetter(t)
-	tokenId := getNextId()
-	feeGrowth0 := PositionGetPositionFeeGrowthInside0LastX128(tokenId)
+	positionId := getNextId()
+	feeGrowth0 := PositionGetPositionFeeGrowthInside0LastX128(positionId)
 	uassert.Equal(t, "0", feeGrowth0.ToString())
 }
 
 func TestPositionGetPositionFeeGrowthInside1LastX128(t *testing.T) {
 	setupPositionGetter(t)
-	tokenId := getNextId()
-	feeGrowth1 := PositionGetPositionFeeGrowthInside1LastX128(tokenId)
+	positionId := getNextId()
+	feeGrowth1 := PositionGetPositionFeeGrowthInside1LastX128(positionId)
 	uassert.Equal(t, "0", feeGrowth1.ToString())
 }
 
 func TestPositionGetPositionTokensOwed0(t *testing.T) {
 	setupPositionGetter(t)
-	tokenId := getNextId()
-	tokenOwed0 := PositionGetPositionTokensOwed0(tokenId)
+	positionId := getNextId()
+	tokenOwed0 := PositionGetPositionTokensOwed0(positionId)
 	uassert.Equal(t, "0", tokenOwed0.ToString())
 }
 
 func TestPositionGetPositionTokensOwed1(t *testing.T) {
 	setupPositionGetter(t)
-	tokenId := getNextId()
-	tokenOwed1 := PositionGetPositionTokensOwed1(tokenId)
+	positionId := getNextId()
+	tokenOwed1 := PositionGetPositionTokensOwed1(positionId)
 	uassert.Equal(t, "0", tokenOwed1.ToString())
 }
 
 func TestPositionGetPositionIsBurned(t *testing.T) {
 	setupPositionGetter(t)
-	tokenId := getNextId()
-	isBurn := PositionGetPositionIsBurned(tokenId)
+	positionId := getNextId()
+	isBurn := PositionGetPositionIsBurned(positionId)
 	uassert.Equal(t, false, isBurn)
 }
 
 func TestPositionIsInRange(t *testing.T) {
 	setupPositionGetter(t)
-	tokenId := getNextId()
-	inRange := PositionIsInRange(tokenId)
+	positionId := getNextId()
+	inRange := PositionIsInRange(positionId)
 	uassert.Equal(t, true, inRange)
 }
 
 func TestPositionGetPositionNonceStr(t *testing.T) {
 	setupPositionGetter(t)
-	tokenId := getNextId()
-	nonceStr := PositionGetPositionNonceStr(tokenId)
+	positionId := getNextId()
+	nonceStr := PositionGetPositionNonceStr(positionId)
 	uassert.Equal(t, "0", nonceStr)
 }
 
 func TestPositionGetPositionOperatorStr(t *testing.T) {
 	setupPositionGetter(t)
-	tokenId := getNextId()
-	operator := PositionGetPositionOperatorStr(tokenId)
+	positionId := getNextId()
+	operator := PositionGetPositionOperatorStr(positionId)
 	uassert.Equal(t, string(consts.POSITION_ADDR), operator)
 }
 
 func TestPositionGetPositionLiquidityStr(t *testing.T) {
 	setupPositionGetter(t)
-	tokenId := getNextId()
-	liquidity := PositionGetPositionLiquidityStr(tokenId)
+	positionId := getNextId()
+	liquidity := PositionGetPositionLiquidityStr(positionId)
 	uassert.Equal(t, "1000000", liquidity)
 }
 
 func TestPositionGetPositionFeeGrowthInside0LastX128Str(t *testing.T) {
 	setupPositionGetter(t)
-	tokenId := getNextId()
-	feeGrowth0 := PositionGetPositionFeeGrowthInside0LastX128Str(tokenId)
+	positionId := getNextId()
+	feeGrowth0 := PositionGetPositionFeeGrowthInside0LastX128Str(positionId)
 	uassert.Equal(t, "0", feeGrowth0)
 }
 
 func TestPositionGetPositionFeeGrowthInside1LastX128Str(t *testing.T) {
 	setupPositionGetter(t)
-	tokenId := getNextId()
-	feeGrowth1 := PositionGetPositionFeeGrowthInside1LastX128Str(tokenId)
+	positionId := getNextId()
+	feeGrowth1 := PositionGetPositionFeeGrowthInside1LastX128Str(positionId)
 	uassert.Equal(t, "0", feeGrowth1)
 }
 
 func TestPositionGetPositionTokensOwed0Str(t *testing.T) {
 	setupPositionGetter(t)
-	tokenId := getNextId()
-	tokenOwed0 := PositionGetPositionTokensOwed0Str(tokenId)
+	positionId := getNextId()
+	tokenOwed0 := PositionGetPositionTokensOwed0Str(positionId)
 	uassert.Equal(t, "0", tokenOwed0)
 }
 
 func TestPositionGetPositionTokensOwed1Str(t *testing.T) {
 	setupPositionGetter(t)
-	tokenId := getNextId()
-	tokenOwed1 := PositionGetPositionTokensOwed1Str(tokenId)
+	positionId := getNextId()
+	tokenOwed1 := PositionGetPositionTokensOwed1Str(positionId)
 	uassert.Equal(t, "0", tokenOwed1)
 }

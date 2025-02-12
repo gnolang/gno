@@ -47,7 +47,7 @@ func testMintBarBaz100(t *testing.T) {
 		baz.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 		std.TestSkipHeights(2)
 
-		tokenId, liquidity, amount0, amount1 := pn.Mint(
+		positionId, liquidity, amount0, amount1 := pn.Mint(
 			barPath,      // token0
 			bazPath,      // token1
 			fee100,       // fee
@@ -60,6 +60,7 @@ func testMintBarBaz100(t *testing.T) {
 			max_timeout,
 			adminAddr,
 			adminAddr,
+			"",
 		)
 		std.TestSkipHeights(1)
 	})
@@ -95,7 +96,7 @@ func testStakeToken(t *testing.T) {
 		std.TestSetRealm(adminRealm)
 
 		gnft.Approve(consts.STAKER_ADDR, "1")
-		StakeToken(1)
+		StakeToken(1, "")
 	})
 }
 

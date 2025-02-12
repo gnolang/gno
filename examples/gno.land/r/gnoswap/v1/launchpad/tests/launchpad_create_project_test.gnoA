@@ -77,7 +77,7 @@ func depositTier30(t *testing.T) {
 
 		std.TestSetRealm(user01Realm)
 		gns.Approve(consts.GOV_STAKER_ADDR, xGnsAmount)
-		gs.Delegate(user01, xGnsAmount) // make xGNS required amount
+		gs.Delegate(user01, xGnsAmount, "") // make xGNS required amount
 
 		gns.Approve(consts.LAUNCHPAD_ADDR, gnsAmount)
 		DepositGns("gno.land/r/onbloc/obl:124:30", gnsAmount)

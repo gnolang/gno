@@ -66,7 +66,7 @@ func delegateAdmin(t *testing.T) {
 
 	std.TestSetRealm(adminRealm)
 	gns.Approve(consts.GOV_STAKER_ADDR, uint64(minAmount))
-	Delegate(dummyToAddr, minAmount)
+	Delegate(dummyToAddr, minAmount, "")
 
 	// gns emission after adjustment & delegate
 	// 1 block gns 14269406
@@ -89,7 +89,7 @@ func delegateAnother(t *testing.T) {
 	std.TestSkipHeights(1)
 	std.TestSetRealm(dummyRealm)
 	gns.Approve(consts.GOV_STAKER_ADDR, delegateAmount)
-	Delegate(dummyAddr, delegateAmount)
+	Delegate(dummyAddr, delegateAmount, "")
 
 	uassert.Equal(t, gns.BalanceOf(consts.STAKER_ADDR), uint64(19977168))
 	uassert.Equal(t, gns.BalanceOf(consts.DEV_OPS), uint64(5707762))

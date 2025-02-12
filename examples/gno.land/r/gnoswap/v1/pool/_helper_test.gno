@@ -223,7 +223,9 @@ func MintPosition(t *testing.T,
 		amount1Min,
 		deadline,
 		mintTo,
-		caller)
+		caller,
+		"",
+	)
 }
 
 func MintPositionAll(t *testing.T, caller std.Address) {

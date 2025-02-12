@@ -120,20 +120,20 @@ func testMint(t *testing.T) {
 		wugnot.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 		gns.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 
-		tokenId, liquidity, amount0, amount1 := pn.Mint(consts.WUGNOT_PATH, consts.GNS_PATH, fee3000, int32(-8040), int32(8040), "10000000000", "10000000000", "0", "0", max_timeout, admin, admin)
-		uassert.Equal(t, tokenId, uint64(1))
+		positionId, liquidity, amount0, amount1 := pn.Mint(consts.WUGNOT_PATH, consts.GNS_PATH, fee3000, int32(-8040), int32(8040), "10000000000", "10000000000", "0", "0", max_timeout, admin, admin, "")
+		uassert.Equal(t, positionId, uint64(1))
 		uassert.Equal(t, amount0, "10000000000")
 		uassert.Equal(t, amount1, "10000000000")
 
 		std.TestSetRealm(adminRealm)
 		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 		foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
-		pn.Mint(barPath, fooPath, fee500, int32(-8000), int32(8000), "10000000000", "10000000000", "0", "0", max_timeout, admin, admin)
+		pn.Mint(barPath, fooPath, fee500, int32(-8000), int32(8000), "10000000000", "10000000000", "0", "0", max_timeout, admin, admin, "")
 
 		std.TestSetRealm(adminRealm)
 		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 		baz.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
-		pn.Mint(barPath, bazPath, fee500, int32(-8000), int32(8000), "10000000000", "10000000000", "0", "0", max_timeout, admin, admin)
+		pn.Mint(barPath, bazPath, fee500, int32(-8000), int32(8000), "10000000000", "10000000000", "0", "0", max_timeout, admin, admin, "")
 
 		checkProtocolFeeBalance()
 		// (still) gns 300_000_000
@@ -147,7 +147,7 @@ func testStakeToken(t *testing.T) {
 		std.TestSetRealm(adminRealm)
 		gnft.Approve(consts.STAKER_ADDR, "1")
 
-		sr.StakeToken(1)
+		sr.StakeToken(1, "")
 
 		checkProtocolFeeBalance()
 		// (still) gns 300_000_000
@@ -258,7 +258,7 @@ func testGovStakerDelegate(t *testing.T) {
 	t.Run("gov delegate", func(t *testing.T) {
 		std.TestSetRealm(govDelegateRealm)
 		gns.Approve(consts.GOV_STAKER_ADDR, uint64(1_000_000))
-		gs.Delegate(govDelegateAddr, uint64(1_000_000))
+		gs.Delegate(govDelegateAddr, uint64(1_000_000), "")
 
 		checkProtocolFeeBalance()
 		// (still) none

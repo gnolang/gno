@@ -25,7 +25,7 @@ func TestProposeText(t *testing.T) {
 	t.Run("initial state", func(t *testing.T) {
 		std.TestSetRealm(adminRealm)
 		gns.Approve(consts.GOV_STAKER_ADDR, uint64(1_000_000))
-		gs.Delegate(admin, uint64(1_000_000))
+		gs.Delegate(admin, uint64(1_000_000), "")
 		std.TestSkipHeights(11) // VotingWeightSmoothingDuration is 10 block
 
 		// overwrite config for testcase
@@ -173,7 +173,7 @@ func TestParamaterChange(t *testing.T) {
 	t.Run("initial state", func(t *testing.T) {
 		std.TestSetRealm(adminRealm)
 		gns.Approve(consts.GOV_STAKER_ADDR, uint64(1_000_000))
-		gs.Delegate(admin, uint64(1_000_000))
+		gs.Delegate(admin, uint64(1_000_000), "")
 		std.TestSkipHeights(11) // VotingWeightSmoothingDuration is 10 block
 
 		// overwrite config for testcase

@@ -71,7 +71,7 @@ func testMintBarQux100_1(t *testing.T) {
 		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 		qux.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 
-		tokenId, liquidity, amount0, amount1 := pn.Mint(
+		positionId, liquidity, amount0, amount1 := pn.Mint(
 			barPath,    // token0
 			quxPath,    // token1
 			fee100,     // fee
@@ -84,11 +84,12 @@ func testMintBarQux100_1(t *testing.T) {
 			max_timeout,
 			admin,
 			admin,
+			"",
 		)
 
-		uassert.Equal(t, tokenId, uint64(1))
+		uassert.Equal(t, positionId, uint64(1))
 
-		owner, err := gnft.OwnerOf(tid(tokenId))
+		owner, err := gnft.OwnerOf(positionIdFrom(positionId))
 		uassert.NoError(t, err)
 		uassert.Equal(t, owner, admin)
 
@@ -103,7 +104,7 @@ func testMintBarQux100_2(t *testing.T) {
 		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 		qux.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 
-		tokenId, liquidity, amount0, amount1 := pn.Mint(
+		positionId, liquidity, amount0, amount1 := pn.Mint(
 			barPath,      // token0
 			quxPath,      // token1
 			fee100,       // fee
@@ -116,11 +117,12 @@ func testMintBarQux100_2(t *testing.T) {
 			max_timeout,
 			admin,
 			admin,
+			"",
 		)
 
-		uassert.Equal(t, tokenId, uint64(2))
+		uassert.Equal(t, positionId, uint64(2))
 
-		owner, err := gnft.OwnerOf(tid(tokenId))
+		owner, err := gnft.OwnerOf(positionIdFrom(positionId))
 		uassert.NoError(t, err)
 		uassert.Equal(t, owner, admin)
 
@@ -151,11 +153,11 @@ func testStakeToken_1_AND_2(t *testing.T) {
 	t.Run("stake position 01 and 02", func(t *testing.T) {
 		std.TestSetRealm(adminRealm)
 
-		gnft.Approve(GetOrigPkgAddr(), tid(1))
-		StakeToken(1)
+		gnft.Approve(GetOrigPkgAddr(), positionIdFrom(1))
+		StakeToken(1, "")
 
-		gnft.Approve(GetOrigPkgAddr(), tid(2))
-		StakeToken(2)
+		gnft.Approve(GetOrigPkgAddr(), positionIdFrom(2))
+		StakeToken(2, "")
 
 		std.TestSkipHeights(1)
 	})

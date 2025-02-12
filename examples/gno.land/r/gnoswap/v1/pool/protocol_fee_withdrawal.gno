@@ -26,11 +26,11 @@ const (
 // HandleWithdrawalFee withdraws the fee from the user and returns the amount after the fee
 // Only position contract can call this function
 // Input:
-// - tokenId: the id of the LP token
+// - positionId: the id of the LP token
 // - token0Path: the path of the token0
-// - _amount0: the amount of token0
+// - amount0: the amount of token0
 // - token1Path: the path of the token1
-// - _amount1: the amount of token1
+// - amount1: the amount of token1
 // - poolPath: the path of the pool
 // - positionCaller: the original caller of the position contract
 // Output:
@@ -39,7 +39,7 @@ const (
 //
 // ref: https://docs.gnoswap.io/contracts/pool/protocol_fee_withdrawal.gno#handlewithdrawalfee
 func HandleWithdrawalFee(
-	tokenId uint64,
+	positionId uint64,
 	token0Path string,
 	amount0 string, // uint256
 	token1Path string,
@@ -81,7 +81,7 @@ func HandleWithdrawalFee(
 		"WithdrawalFee",
 		"prevAddr", prevAddr,
 		"prevRealm", prevPkgPath,
-		"lpTokenId", formatUint(tokenId),
+		"lpTokenId", formatUint(positionId),
 		"poolPath", poolPath,
 		"feeAmount0", feeAmount0.ToString(),
 		"feeAmount1", feeAmount1.ToString(),

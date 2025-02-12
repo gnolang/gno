@@ -81,7 +81,7 @@ func testMintWugnotGnsPos01(t *testing.T) {
 		wugnot.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 		gns.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 
-		tokenId, liquidity, amount0, amount1 := pn.Mint(
+		positionId, liquidity, amount0, amount1 := pn.Mint(
 			wugnotPath,   // token0
 			gnsPath,      // token1
 			fee3000,      // fee
@@ -94,10 +94,11 @@ func testMintWugnotGnsPos01(t *testing.T) {
 			max_timeout,
 			adminAddr,
 			adminAddr,
+			"",
 		)
 
-		uassert.Equal(t, tokenId, uint64(1))
-		uassert.Equal(t, gnft.MustOwnerOf(tid(tokenId)), adminAddr)
+		uassert.Equal(t, positionId, uint64(1))
+		uassert.Equal(t, gnft.MustOwnerOf(positionIdFrom(positionId)), adminAddr)
 
 		std.TestSkipHeights(1)
 		// 1 block minted
@@ -109,8 +110,8 @@ func testStakeToken01(t *testing.T) {
 	t.Run("stake token 1", func(t *testing.T) {
 		std.TestSetRealm(adminRealm)
 
-		gnft.Approve(consts.STAKER_ADDR, tid(1))
-		StakeToken(1)
+		gnft.Approve(consts.STAKER_ADDR, positionIdFrom(1))
+		StakeToken(1, "")
 		std.TestSkipHeights(1)
 		// 1 block staked
 		// 75% of emission to staker (it is unclaimable amount, because we don't have any staked position)

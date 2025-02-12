@@ -41,9 +41,9 @@ func TestPositionMintBarBaz(t *testing.T) {
 	std.TestSetRealm(adminRealm)
 	bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 	baz.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
-	tokenId, liquidity, amount0, amount1 := pn.Mint(barPath, bazPath, fee500, int32(9000), int32(11000), "100000", "100000", "0", "0", max_timeout, adminAddr, adminAddr)
+	positionId, liquidity, amount0, amount1 := pn.Mint(barPath, bazPath, fee500, int32(9000), int32(11000), "100000", "100000", "0", "0", max_timeout, adminAddr, adminAddr, "")
 
-	uassert.Equal(t, tokenId, uint64(1))
+	uassert.Equal(t, positionId, uint64(1))
 	uassert.Equal(t, amount0, "36790")  // bar
 	uassert.Equal(t, amount1, "100000") // baz
 }
@@ -53,9 +53,9 @@ func TestPositionMintBazQux(t *testing.T) {
 	baz.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 	qux.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 
-	tokenId, liquidity, amount0, amount1 := pn.Mint(bazPath, quxPath, fee500, int32(9000), int32(11000), "100000", "100000", "0", "0", max_timeout, adminAddr, adminAddr)
+	positionId, liquidity, amount0, amount1 := pn.Mint(bazPath, quxPath, fee500, int32(9000), int32(11000), "100000", "100000", "0", "0", max_timeout, adminAddr, adminAddr, "")
 
-	uassert.Equal(t, tokenId, uint64(2))
+	uassert.Equal(t, positionId, uint64(2))
 	uassert.Equal(t, amount0, "36790")
 	uassert.Equal(t, amount1, "100000")
 }
@@ -74,9 +74,9 @@ func TestPositionMintQuxGnot(t *testing.T) {
 	qux.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 	wugnot.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 
-	tokenId, liquidity, amount0, amount1 := pn.Mint(quxPath, consts.WRAPPED_WUGNOT, fee500, int32(9000), int32(11000), "100000", "100000", "0", "0", max_timeout, adminAddr, adminAddr)
+	positionId, liquidity, amount0, amount1 := pn.Mint(quxPath, consts.WRAPPED_WUGNOT, fee500, int32(9000), int32(11000), "100000", "100000", "0", "0", max_timeout, adminAddr, adminAddr, "")
 
-	uassert.Equal(t, tokenId, uint64(3))
+	uassert.Equal(t, positionId, uint64(3))
 	uassert.Equal(t, amount0, "100000")
 	uassert.Equal(t, amount1, "36790")
 }

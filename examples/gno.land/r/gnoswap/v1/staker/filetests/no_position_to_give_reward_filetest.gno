@@ -135,8 +135,8 @@ func testStakeTokenPos01() {
 	std.TestSetRealm(adminRealm)
 
 	// stake
-	gnft.Approve(consts.STAKER_ADDR, tokenIdFrom(1))
-	sr.StakeToken(1)
+	gnft.Approve(consts.STAKER_ADDR, positionIdFrom(1))
+	sr.StakeToken(1, "")
 }
 
 func testUnstakePos01() {
@@ -156,21 +156,21 @@ func testUnstakePos01() {
 	}
 }
 
-func tokenIdFrom(tokenId interface{}) grc721.TokenID {
-	if tokenId == nil {
-		panic("tokenId is nil")
+func positionIdFrom(positionId interface{}) grc721.TokenID {
+	if positionId == nil {
+		panic("positionId is nil")
 	}
 
-	switch tokenId.(type) {
+	switch positionId.(type) {
 	case string:
-		return grc721.TokenID(tokenId.(string))
+		return grc721.TokenID(positionId.(string))
 	case int:
-		return grc721.TokenID(strconv.Itoa(tokenId.(int)))
+		return grc721.TokenID(strconv.Itoa(positionId.(int)))
 	case uint64:
-		return grc721.TokenID(strconv.Itoa(int(tokenId.(uint64))))
+		return grc721.TokenID(strconv.Itoa(int(positionId.(uint64))))
 	case grc721.TokenID:
-		return tokenId.(grc721.TokenID)
+		return positionId.(grc721.TokenID)
 	default:
-		panic("unsupported tokenId type")
+		panic("unsupported positionId type")
 	}
 }

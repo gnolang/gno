@@ -59,7 +59,7 @@ func testMintPosition(t *testing.T) {
 		adminOldWugnotBalance := wugnot.BalanceOf(adminAddr)
 		uassert.Equal(t, adminOldWugnotBalance, uint64(0))
 
-		tokenId, liquidity, amount0, amount1 := Mint(
+		positionId, liquidity, amount0, amount1 := Mint(
 			consts.GNOT,
 			consts.GNS_PATH,
 			fee500,
@@ -72,15 +72,16 @@ func testMintPosition(t *testing.T) {
 			max_timeout,
 			adminAddr,
 			adminAddr,
+			"",
 		)
 		std.TestSetOrigSend(std.Coins{{"ugnot", 0}}, nil)
 
-		uassert.Equal(t, tokenId, uint64(1))
+		uassert.Equal(t, positionId, uint64(1))
 		uassert.Equal(t, getNextId(), uint64(2))
 		uassert.Equal(t, amount0, "49984837")
 		uassert.Equal(t, amount1, "50000000")
 
-		position := MustGetPosition(tokenId)
+		position := MustGetPosition(positionId)
 		uassert.Equal(t, position.nonce.ToString(), "0")
 		uassert.Equal(t, position.operator, consts.ZERO_ADDRESS)
 		uassert.Equal(t, position.poolKey, "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:500")

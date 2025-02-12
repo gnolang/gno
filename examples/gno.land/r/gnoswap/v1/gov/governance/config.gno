@@ -133,8 +133,6 @@ func reconfigure(
 // GetConfigVersion returns the configuration for a specific version.
 // If version is 0, it returns the current configuration.
 func GetConfigVersion(version uint64) Config {
-	en.MintAndDistributeGns()
-
 	if version == 0 {
 		return config
 	}

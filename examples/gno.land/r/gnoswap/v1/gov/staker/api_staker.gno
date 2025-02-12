@@ -5,14 +5,10 @@ import (
 	"time"
 
 	"gno.land/p/demo/json"
-
-	en "gno.land/r/gnoswap/v1/emission"
 )
 
 // GetLockedAmount gets the total locked amount of GNS.
 func GetLockedAmount() uint64 {
-	en.MintAndDistributeGns()
-
 	return lockedAmount
 }
 
@@ -20,8 +16,6 @@ func GetLockedAmount() uint64 {
 // - total locked amount
 // - claimable amount
 func GetLockedInfoByAddress(addr std.Address) string {
-	en.MintAndDistributeGns()
-
 	lockeds, exist := addrLockedGns.Get(addr.String())
 	if !exist {
 		return ""
@@ -54,9 +48,7 @@ func GetLockedInfoByAddress(addr std.Address) string {
 }
 
 func GetClaimableRewardByAddress(addr std.Address) string {
-	en.MintAndDistributeGns()
-
-	rewardState.finalize(getCurrentBalance(), getCurrentProtocolFeeBalance())
+	rewardState.finalize(collectAndGetGNSBalance(), updateAndGetProtocolFeeBalance())
 
 	emissionReward, protocolFeeRewards := rewardState.CalculateReward(addr)
 

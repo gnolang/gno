@@ -106,12 +106,13 @@ func testPositionMint01(t *testing.T) {
 			max_timeout,  // deadline
 			admin,
 			admin,
+			"",
 		)
 
 		std.TestSkipHeights(1)
 
 		uassert.Equal(t, lpTokenId, uint64(1))
-		owner, _ := gnft.OwnerOf(tid(lpTokenId))
+		owner, _ := gnft.OwnerOf(positionIdFrom(lpTokenId))
 		uassert.Equal(t, owner, admin)
 		uassert.Equal(t, amount0, "368")
 		uassert.Equal(t, amount1, "1000")
@@ -123,13 +124,13 @@ func testStakeToken01(t *testing.T) {
 		std.TestSetRealm(adminRealm)
 
 		// approve nft to staker
-		gnft.Approve(consts.STAKER_ADDR, tid(uint64(1)))
+		gnft.Approve(consts.STAKER_ADDR, positionIdFrom(uint64(1)))
 		std.TestSkipHeights(1)
 
-		StakeToken(uint64(1)) // GNFT tokenId
+		StakeToken(uint64(1), "") // GNFT tokenId
 		std.TestSkipHeights(1)
 
-		owner, _ := gnft.OwnerOf(tid(1))
+		owner, _ := gnft.OwnerOf(positionIdFrom(1))
 		uassert.Equal(t, owner, consts.STAKER_ADDR)
 		uassert.Equal(t, deposits.Size(), 1)
 	})
@@ -145,7 +146,7 @@ func testTransferNft(t *testing.T) {
 				`[GNOSWAP-GNFT-001] caller has no permission || caller (g1v36k6mteta047h6lta047h6lta047h6lz7gmv8) is not the owner or operator of token (1)`,
 				func() {
 					std.TestSetRealm(std.NewUserRealm(dummyAddr))
-					gnft.TransferFrom(admin, dummyAddr, tid(uint64(1)))
+					gnft.TransferFrom(admin, dummyAddr, positionIdFrom(uint64(1)))
 				},
 			)
 		})
@@ -156,12 +157,12 @@ func testTransferNft(t *testing.T) {
 				`[GNOSWAP-GNFT-001] caller has no permission || caller (g17290cwvmrapvp869xfnhhawa8sm9edpufzat7d) is not the owner or operator of token (1)`,
 				func() {
 					std.TestSetRealm(adminRealm)
-					gnft.TransferFrom(consts.STAKER_ADDR, dummyAddr, tid(uint64(1)))
+					gnft.TransferFrom(consts.STAKER_ADDR, dummyAddr, positionIdFrom(uint64(1)))
 				},
 			)
 		})
 
-		gnft.TransferFrom(consts.STAKER_ADDR, dummyAddr, tid(uint64(1)))
+		gnft.TransferFrom(consts.STAKER_ADDR, dummyAddr, positionIdFrom(uint64(1)))
 	})
 }
 

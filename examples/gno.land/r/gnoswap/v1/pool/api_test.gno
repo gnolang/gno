@@ -54,7 +54,7 @@ func TestApiGetPool(t *testing.T) {
 
 func TestMakeStatNode(t *testing.T) {
 	t.Run("default block height and timestamp", func(t *testing.T) {
-		statNode := makeStatNode()
+		statNode := newStatNode().JSON()
 
 		statHeight, _ := statNode.GetKey("height")
 		uassert.Equal(t, statHeight.String(), "123")
@@ -66,7 +66,7 @@ func TestMakeStatNode(t *testing.T) {
 	t.Run("increase block height and timestamp", func(t *testing.T) {
 		std.TestSkipHeights(1)
 
-		statNode := makeStatNode()
+		statNode := newStatNode().JSON()
 
 		statHeight, _ := statNode.GetKey("height")
 		uassert.Equal(t, statHeight.String(), "124")
@@ -75,7 +75,7 @@ func TestMakeStatNode(t *testing.T) {
 
 func TestRpcMakePool(t *testing.T) {
 	t.Run("existing pool", func(t *testing.T) {
-		rpcPool := rpcMakePool("gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
+		rpcPool := newRpcPool("gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
 		uassert.Equal(t, rpcPool.PoolPath, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
 		uassert.Equal(t, rpcPool.Token0Path, "gno.land/r/onbloc/bar")
 		uassert.Equal(t, rpcPool.Token1Path, "gno.land/r/onbloc/foo")
@@ -108,65 +108,6 @@ func TestRpcMakePool(t *testing.T) {
 			}
 		}()
 
-		rpcMakePool("gno.land/r/onbloc/bar:gno.land/r/onbloc/baz:3000")
-	})
-}
-
-func TestMakeTicksJson(t *testing.T) {
-	t.Run("existing tick", func(t *testing.T) {
-		ticks := RpcTicks{
-			10000: {
-				LiquidityGross:              "100000000",
-				LiquidityNet:                "100000000",
-				FeeGrowthOutside0X128:       "100000000",
-				FeeGrowthOutside1X128:       "100000000",
-				TickCumulativeOutside:       100000000,
-				SecondsPerLiquidityOutsideX: "100000000",
-				SecondsOutside:              100000000,
-				Initialized:                 true,
-			},
-		}
-
-		ticksJson := makeTicksJson(ticks)
-		uassert.Equal(t, ticksJson["10000"].String(), `{"liquidityGross":"100000000","liquidityNet":"100000000","feeGrowthOutside0X128":"100000000","feeGrowthOutside1X128":"100000000","tickCumulativeOutside":100000000,"secondsPerLiquidityOutsideX":"100000000","secondsOutside":100000000,"initialized":true}`)
-	})
-
-	t.Run("non-existing tick", func(t *testing.T) {
-		ticksJson := makeTicksJson(RpcTicks{})
-		uassert.Equal(t, len(ticksJson), 0)
-	})
-}
-
-func TestMakeRpcTickBitmapsJson(t *testing.T) {
-	t.Run("existing tickBitmap", func(t *testing.T) {
-		tickBitmaps := RpcTickBitmaps{
-			10000: "100000000",
-			10001: "100000001",
-		}
-
-		tickBitmapsJson := makeRpcTickBitmapsJson(tickBitmaps)
-		uassert.Equal(t, tickBitmapsJson["10000"].String(), `"100000000"`)
-		uassert.Equal(t, tickBitmapsJson["10001"].String(), `"100000001"`)
-	})
-
-	t.Run("non-existing tickBitmap", func(t *testing.T) {
-		tickBitmapsJson := makeRpcTickBitmapsJson(RpcTickBitmaps{})
-		uassert.Equal(t, len(tickBitmapsJson), 0)
-	})
-}
-
-func TestMakeRpcPositionsArray(t *testing.T) {
-	t.Run("existing positions", func(t *testing.T) {
-		positions := []RpcPosition{
-			{Owner: "gno.land/r/onbloc/bar", TickLower: 10000, TickUpper: 10001, Liquidity: "100000000", Token0Owed: "100000000", Token1Owed: "100000000"},
-		}
-
-		positionsJson := makeRpcPositionsArray(positions)
-		uassert.Equal(t, positionsJson[0].String(), `{"owner":"gno.land/r/onbloc/bar","tickLower":10000,"tickUpper":10001,"liquidity":"100000000","token0Owed":"100000000","token1Owed":"100000000"}`)
-	})
-
-	t.Run("non-existing positions", func(t *testing.T) {
-		positionsJson := makeRpcPositionsArray([]RpcPosition{})
-		uassert.Equal(t, len(positionsJson), 0)
+		newRpcPool("gno.land/r/onbloc/bar:gno.land/r/onbloc/baz:3000")
 	})
 }

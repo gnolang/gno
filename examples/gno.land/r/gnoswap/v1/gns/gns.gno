@@ -21,7 +21,7 @@ const (
 
 var (
 	owner         *ownable.Ownable
-	Token         *grc20.Token
+	token         *grc20.Token
 	privateLedger *grc20.PrivateLedger
 	UserTeller    grc20.Teller
 
@@ -34,11 +34,11 @@ var (
 
 func init() {
 	owner = ownable.NewWithAddress(consts.ADMIN)
-	Token, privateLedger = grc20.NewToken("Gnoswap", "GNS", 6)
-	UserTeller = Token.CallerTeller()
+	token, privateLedger = grc20.NewToken("Gnoswap", "GNS", 6)
+	UserTeller = token.CallerTeller()
 
 	privateLedger.Mint(owner.Owner(), INITIAL_MINT_AMOUNT)
-	getter := func() *grc20.Token { return Token }
+	getter := func() *grc20.Token { return token }
 	grc20reg.Register(getter, "")
 
 	// Initial amount set to 900_000_000_000_000 (MAXIMUM_SUPPLY - INITIAL_MINT_AMOUNT).
@@ -50,31 +50,31 @@ func init() {
 }
 
 func TotalSupply() uint64 {
-	return Token.TotalSupply()
+	return token.TotalSupply()
 }
 
 func GetName() string {
-	return Token.GetName()
+	return token.GetName()
 }
 
 func GetSymbol() string {
-	return Token.GetSymbol()
+	return token.GetSymbol()
 }
 
 func GetDecimals() uint {
-	return Token.GetDecimals()
+	return token.GetDecimals()
 }
 
 func KnownAccounts() int {
-	return Token.KnownAccounts()
+	return token.KnownAccounts()
 }
 
 func BalanceOf(owner std.Address) uint64 {
-	return Token.BalanceOf(owner)
+	return token.BalanceOf(owner)
 }
 
 func Allowance(owner, spender std.Address) uint64 {
-	return Token.Allowance(owner, spender)
+	return token.Allowance(owner, spender)
 }
 
 func MintGns(address std.Address) uint64 {
@@ -155,10 +155,10 @@ func Render(path string) string {
 
 	switch {
 	case path == "":
-		return Token.RenderHome()
+		return token.RenderHome()
 	case c == 2 && parts[0] == "balance":
 		owner := std.Address(parts[1])
-		balance := Token.BalanceOf(owner)
+		balance := token.BalanceOf(owner)
 		return ufmt.Sprintf("%d\n", balance)
 	default:
 		return "404\n"

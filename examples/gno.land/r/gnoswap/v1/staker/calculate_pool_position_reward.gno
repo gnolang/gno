@@ -27,26 +27,26 @@ type Reward struct {
 }
 
 // calculate position reward by each warmup
-func calcPositionRewardByWarmups(currentHeight int64, tokenId uint64) []Reward {
-	rewards := CalcPositionReward(CalcPositionRewardParam{
+func calcPositionRewardByWarmups(currentHeight int64, positionId uint64) []Reward {
+	rewards := calculatePositionReward(CalcPositionRewardParam{
 		CurrentHeight: currentHeight,
 		Deposits:      deposits,
 		Pools:         pools,
 		PoolTier:      poolTier,
-		TokenId:       tokenId,
+		PositionId:    positionId,
 	})
 
 	return rewards
 }
 
 // calculate total position rewards and penalties
-func calcPositionReward(currentHeight int64, tokenId uint64) Reward {
-	rewards := CalcPositionReward(CalcPositionRewardParam{
+func calcPositionReward(currentHeight int64, positionId uint64) Reward {
+	rewards := calculatePositionReward(CalcPositionRewardParam{
 		CurrentHeight: currentHeight,
 		Deposits:      deposits,
 		Pools:         pools,
 		PoolTier:      poolTier,
-		TokenId:       tokenId,
+		PositionId:    positionId,
 	})
 
 	internal := uint64(0)
@@ -94,20 +94,20 @@ type CalcPositionRewardParam struct {
 	PoolTier      *PoolTier
 
 	// Position variables
-	TokenId uint64
+	PositionId uint64
 }
 
-func CalcPositionReward(param CalcPositionRewardParam) []Reward {
+func calculatePositionReward(param CalcPositionRewardParam) []Reward {
 	// cache per-pool rewards in the internal incentive(tiers)
 	param.PoolTier.cacheReward(param.CurrentHeight, param.Pools)
 
-	deposit := param.Deposits.Get(param.TokenId)
+	deposit := param.Deposits.Get(param.PositionId)
 	poolPath := deposit.targetPoolPath
 
 	pool, ok := param.Pools.Get(poolPath)
 	if !ok {
 		pool = NewPool(poolPath, param.CurrentHeight)
-		param.Pools.Set(poolPath, pool)
+		param.Pools.set(poolPath, pool)
 	}
 
 	lastCollectHeight := deposit.lastCollectHeight
@@ -121,7 +121,7 @@ func CalcPositionReward(param CalcPositionRewardParam) []Reward {
 	if param.PoolTier.CurrentTier(poolPath) != 0 {
 		// Internal incentivized pool.
 		// Calculate reward for each warmup
-		internalRewards, internalPenalties = pool.RewardStateOf(deposit).CalculateInternalReward(lastCollectHeight, param.CurrentHeight)
+		internalRewards, internalPenalties = pool.RewardStateOf(deposit).calculateInternalReward(lastCollectHeight, param.CurrentHeight)
 	}
 
 	// All active incentives
@@ -135,7 +135,7 @@ func CalcPositionReward(param CalcPositionRewardParam) []Reward {
 	for incentiveId, incentive := range allIncentives {
 		// External incentivized pool.
 		// Calculate reward for each warmup
-		externalReward, externalPenalty := pool.RewardStateOf(deposit).CalculateExternalReward(int64(lastCollectHeight), int64(param.CurrentHeight), incentive)
+		externalReward, externalPenalty := pool.RewardStateOf(deposit).calculateExternalReward(int64(lastCollectHeight), int64(param.CurrentHeight), incentive)
 
 		for i := range externalReward {
 			externalRewards[i][incentiveId] = externalReward[i]
@@ -157,7 +157,7 @@ func CalcPositionReward(param CalcPositionRewardParam) []Reward {
 }
 
 // calculates internal unclaimable reward for the pool
-func ProcessUnClaimableReward(poolPath string, endHeight int64) uint64 {
+func processUnClaimableReward(poolPath string, endHeight int64) uint64 {
 	pool, ok := pools.Get(poolPath)
 	if !ok {
 		return 0

@@ -114,7 +114,7 @@ func CreateExternalIncentive(
 		))
 	}
 	// store external incentive information for each incentiveId
-	externalIncentives.Set(incentiveId, incentive)
+	externalIncentives.set(incentiveId, incentive)
 
 	// deposit gns amount
 	gns.TransferFrom(caller, consts.STAKER_ADDR, depositGnsAmount)

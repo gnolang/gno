@@ -556,9 +556,9 @@ func GetPrintExternalInfo() string {
 	}
 
 	externalPositions := []ApiExternalDebugPosition{}
-	deposits.Iterate(uint64(0), uint64(deposits.Size()), func(tokenId uint64, deposit *Deposit) bool {
+	deposits.Iterate(uint64(0), uint64(deposits.Size()), func(positionId uint64, deposit *Deposit) bool {
 		externalPosition := ApiExternalDebugPosition{
-			LpTokenId:       tokenId,
+			PositionId:      positionId,
 			StakedHeight:    deposit.stakeHeight,
 			StakedTimestamp: deposit.stakeTimestamp,
 		}
@@ -633,7 +633,7 @@ func makeExternalPositionsNode(positions []ApiExternalDebugPosition) []*json.Nod
 		}
 
 		externalPositions = append(externalPositions, json.ObjectNode("", map[string]*json.Node{
-			"lpTokenId":       json.NumberNode("lpTokenId", float64(externalPosition.LpTokenId)),
+			"lpTokenId":       json.NumberNode("lpTokenId", float64(externalPosition.PositionId)),
 			"stakedHeight":    json.NumberNode("stakedHeight", float64(externalPosition.StakedHeight)),
 			"stakedTimestamp": json.NumberNode("stakedTimestamp", float64(externalPosition.StakedTimestamp)),
 			"incentive":       json.ArrayNode("", incentives),
@@ -656,7 +656,7 @@ type ApiExternalDebugInfo struct {
 }
 
 type ApiExternalDebugPosition struct {
-	LpTokenId       uint64                      `json:"lpTokenId"`
+	PositionId      uint64                      `json:"positionId"`
 	StakedHeight    int64                       `json:"stakedHeight"`
 	StakedTimestamp int64                       `json:"stakedTimestamp"`
 	Incentive       []ApiExternalDebugIncentive `json:"incentive"`

@@ -40,9 +40,8 @@ func TestPositionMint(t *testing.T) {
 	qux.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 
 	// Mint
-	pn.Mint(barPath, bazPath, uint32(500), int32(9000), int32(11000), "100000", "100000", "0", "0", max_timeout, adminAddr, adminAddr)
-
-	pn.Mint(bazPath, quxPath, uint32(500), int32(9000), int32(11000), "100000", "100000", "0", "0", max_timeout, adminAddr, adminAddr)
+	pn.Mint(barPath, bazPath, uint32(500), int32(9000), int32(11000), "100000", "100000", "0", "0", max_timeout, adminAddr, adminAddr, "")
+	pn.Mint(bazPath, quxPath, uint32(500), int32(9000), int32(11000), "100000", "100000", "0", "0", max_timeout, adminAddr, adminAddr, "")
 }
 
 func TestDrySwapRouteBarQuxExactIn(t *testing.T) {

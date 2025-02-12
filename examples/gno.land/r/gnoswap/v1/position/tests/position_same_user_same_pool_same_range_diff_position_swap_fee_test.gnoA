@@ -57,7 +57,7 @@ func TestMintPosition01InRange(t *testing.T) {
 	bar.Approve(consts.POOL_ADDR, 18394892)
 	foo.Approve(consts.POOL_ADDR, 50000000)
 
-	tokenId, liquidity, amount0, amount1 := Mint(
+	positionId, liquidity, amount0, amount1 := Mint(
 		barPath,
 		fooPath,
 		fee500,
@@ -70,14 +70,15 @@ func TestMintPosition01InRange(t *testing.T) {
 		max_timeout,
 		adminAddr,
 		adminAddr,
+		"",
 	)
 
-	uassert.Equal(t, tokenId, uint64(1))
+	uassert.Equal(t, positionId, uint64(1))
 	uassert.Equal(t, getNextId(), uint64(2))
 	uassert.Equal(t, amount0, "18394892")
 	uassert.Equal(t, amount1, "50000000")
 
-	position := MustGetPosition(tokenId)
+	position := MustGetPosition(positionId)
 	uassert.Equal(t, position.nonce.ToString(), "0")
 	uassert.Equal(t, position.operator, consts.ZERO_ADDRESS)
 	uassert.Equal(t, position.poolKey, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
@@ -96,7 +97,7 @@ func TestMintPosition02InRange(t *testing.T) {
 	bar.Approve(consts.POOL_ADDR, 18394892)
 	foo.Approve(consts.POOL_ADDR, 50000000)
 
-	tokenId, liquidity, amount0, amount1 := Mint(
+	positionId, liquidity, amount0, amount1 := Mint(
 		barPath,
 		fooPath,
 		fee500,
@@ -109,14 +110,15 @@ func TestMintPosition02InRange(t *testing.T) {
 		max_timeout,
 		adminAddr,
 		adminAddr,
+		"",
 	)
 
-	uassert.Equal(t, tokenId, uint64(2))
+	uassert.Equal(t, positionId, uint64(2))
 	uassert.Equal(t, getNextId(), uint64(3))
 	uassert.Equal(t, amount0, "18394892")
 	uassert.Equal(t, amount1, "50000000")
 
-	position := MustGetPosition(tokenId)
+	position := MustGetPosition(positionId)
 	uassert.Equal(t, position.nonce.ToString(), "0")
 	uassert.Equal(t, position.operator, consts.ZERO_ADDRESS)
 	uassert.Equal(t, position.poolKey, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
@@ -161,8 +163,8 @@ func TestUnclaimedFee01(t *testing.T) {
 		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 		foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 
-		tokenId, afterFee0, afterFee1, poolPath, fee0, fee1 := CollectFee(1, false)
-		position := MustGetPosition(tokenId)
+		positionId, afterFee0, afterFee1, poolPath, fee0, fee1 := CollectFee(1, false)
+		position := MustGetPosition(positionId)
 		uassert.Equal(t, position.tokensOwed0.ToString(), "0")
 		uassert.Equal(t, position.tokensOwed1.ToString(), "0")
 		uassert.Equal(t, fee0, "308")
@@ -181,8 +183,8 @@ func TestUnclaimedFee02(t *testing.T) {
 		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 		foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 
-		tokenId, afterFee0, afterFee1, poolPath, fee0, fee1 := CollectFee(2, false)
-		position := MustGetPosition(tokenId)
+		positionId, afterFee0, afterFee1, poolPath, fee0, fee1 := CollectFee(2, false)
+		position := MustGetPosition(positionId)
 		uassert.Equal(t, position.tokensOwed0.ToString(), "0")
 		uassert.Equal(t, position.tokensOwed1.ToString(), "0")
 		uassert.Equal(t, fee0, "308")

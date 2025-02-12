@@ -39,10 +39,10 @@ func TestMintFooBar(t *testing.T) {
 	bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 
 	// admin mints => will get tid 1 nft
-	Mint(fooPath, barPath, fee500, int32(9000), int32(11000), "1000000", "1000000", "1", "1", max_timeout, adminAddr, adminAddr)
+	Mint(fooPath, barPath, fee500, int32(9000), int32(11000), "1000000", "1000000", "1", "1", max_timeout, adminAddr, adminAddr, "")
 
 	// admin mints => will get tid 2 nft
-	Mint(fooPath, barPath, fee500, int32(4000), int32(6000), "1000000", "1000000", "0", "0", max_timeout, adminAddr, adminAddr)
+	Mint(fooPath, barPath, fee500, int32(4000), int32(6000), "1000000", "1000000", "0", "0", max_timeout, adminAddr, adminAddr, "")
 }
 
 func TestMintBazQux(t *testing.T) {
@@ -51,7 +51,7 @@ func TestMintBazQux(t *testing.T) {
 	qux.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 
 	// admin mints => will get tid 3 nft
-	Mint(bazPath, quxPath, fee500, int32(9000), int32(11000), "1000000", "1000000", "1", "1", max_timeout, adminAddr, adminAddr)
+	Mint(bazPath, quxPath, fee500, int32(9000), int32(11000), "1000000", "1000000", "1", "1", max_timeout, adminAddr, adminAddr, "")
 }
 
 func TestApiGetPositionsUnclaimedFee(t *testing.T) {
@@ -72,7 +72,7 @@ func TestApiGetPositionsUnclaimedFee(t *testing.T) {
 	uassert.Equal(
 		t,
 		response.String(),
-		`[{"lpTokenId":1,"fee0":"0","fee1":"0"},{"lpTokenId":2,"fee0":"0","fee1":"0"},{"lpTokenId":3,"fee0":"0","fee1":"0"}]`,
+		`[{"lpPositionId":1,"fee0":"0","fee1":"0"},{"lpPositionId":2,"fee0":"0","fee1":"0"},{"lpPositionId":3,"fee0":"0","fee1":"0"}]`,
 	)
 }
 
@@ -108,12 +108,12 @@ func TestApiGetPositionsUnclaimedFee2(t *testing.T) {
 	uassert.Equal(
 		t,
 		response.String(),
-		`[{"lpTokenId":1,"fee0":"61","fee1":"0"},{"lpTokenId":2,"fee0":"0","fee1":"0"},{"lpTokenId":3,"fee0":"0","fee1":"0"}]`,
+		`[{"lpPositionId":1,"fee0":"61","fee1":"0"},{"lpPositionId":2,"fee0":"0","fee1":"0"},{"lpPositionId":3,"fee0":"0","fee1":"0"}]`,
 	)
 }
 
-func TestApiGetPositionUnclaimedFeeByLpTokenId(t *testing.T) {
-	gpuf := ApiGetPositionUnclaimedFeeByLpTokenId(uint64(1))
+func TestApiGetPositionUnclaimedFeeByLpPositionId(t *testing.T) {
+	gpuf := ApiGetPositionUnclaimedFeeByLpPositionId(uint64(1))
 
 	root, err := json.Unmarshal([]byte(gpuf))
 	if err != nil {
@@ -130,7 +130,7 @@ func TestApiGetPositionUnclaimedFeeByLpTokenId(t *testing.T) {
 	uassert.Equal(
 		t,
 		response.String(),
-		`[{"lpTokenId":1,"fee0":"61","fee1":"0"}]`,
+		`[{"lpPositionId":1,"fee0":"61","fee1":"0"}]`,
 	)
 }
 

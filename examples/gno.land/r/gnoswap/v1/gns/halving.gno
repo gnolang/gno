@@ -29,7 +29,7 @@ const (
 )
 
 var (
-	HALVING_AMOUNTS_PER_YEAR = [HALVING_END_YEAR]uint64{
+	halvingAmountsPerYear = [HALVING_END_YEAR]uint64{
 		18_750_000_000_000 * 12, // Year 1:  225000000000000
 		18_750_000_000_000 * 12, // Year 2:  225000000000000
 		9_375_000_000_000 * 12,  // Year 3:  112500000000000
@@ -566,7 +566,7 @@ func setAmountPerBlockPerHalvingYear(year int64, amount uint64) {
 }
 
 func GetHalvingAmountsPerYear(year int64) uint64 {
-	return HALVING_AMOUNTS_PER_YEAR[year-1]
+	return halvingAmountsPerYear[year-1]
 }
 
 func GetEndHeight() int64 {

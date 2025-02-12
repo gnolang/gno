@@ -70,7 +70,7 @@ func (self *Ticks) Get(tickId int32) *Tick {
 	return v.(*Tick)
 }
 
-func (self *Ticks) Set(tickId int32, tick *Tick) {
+func (self *Ticks) set(tickId int32, tick *Tick) {
 	if tick.stakedLiquidityGross.IsZero() {
 		self.tree.Remove(EncodeInt(tickId))
 		return
@@ -140,7 +140,7 @@ func (self *Tick) modifyDepositUpper(currentHeight int64, currentTick int32, liq
 func (self *Tick) updateCurrentOutsideAccumulation(blockNumber int64, acc *u256.Uint) {
 	currentOutsideAccumulation := self.CurrentOutsideAccumulation(blockNumber)
 	newOutsideAccumulation := u256.Zero().Sub(acc, currentOutsideAccumulation)
-	self.outsideAccumulation.Set(blockNumber, newOutsideAccumulation)
+	self.outsideAccumulation.set(blockNumber, newOutsideAccumulation)
 }
 
 // TickCrossHook is a hook that is called when a tick is crossed.

@@ -125,7 +125,7 @@ func NewPoolTier(pools *Pools, currentHeight int64, initialPoolPath string, getE
 		currentEmission:         getEmission(),
 	}
 
-	pools.Set(initialPoolPath, NewPool(initialPoolPath, currentHeight+1))
+	pools.set(initialPoolPath, NewPool(initialPoolPath, currentHeight+1))
 	result.changeTier(currentHeight+1, pools, initialPoolPath, 1)
 	return result
 }

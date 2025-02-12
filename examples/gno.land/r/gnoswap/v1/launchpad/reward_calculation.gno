@@ -75,12 +75,12 @@ func (states RewardStates) Get(projectId string, tierStr string) (*RewardState, 
 	return statesI.(*RewardState), nil
 }
 
-func (states RewardStates) Set(projectId string, tierStr string, state *RewardState) {
+func (states RewardStates) set(projectId string, tierStr string, state *RewardState) {
 	key := projectId + ":" + tierStr
 	states.states.Set(key, state)
 }
 
-func (states RewardStates) DeleteProject(projectId string) uint64 {
+func (states RewardStates) deleteProject(projectId string) uint64 {
 	totalLeftover := uint64(0)
 	keys := []string{}
 	states.states.Iterate(projectId+":", projectId+";", func(key string, value interface{}) bool {
@@ -154,7 +154,7 @@ func (self *RewardState) deductReward(depositId string, currentHeight uint64) ui
 	return reward64
 }
 
-// This function MUST be called as a part of AddStake or RemoveStake
+// This function MUST be called as a part of addStake or removeStake
 // CurrentBalance / StakeChange / IsRemoveStake will be updated in those functions
 func (self *RewardState) finalize(currentHeight uint64) {
 	if currentHeight <= self.LastHeight {
@@ -184,7 +184,7 @@ func (self *RewardState) finalize(currentHeight uint64) {
 	self.LastHeight = currentHeight
 }
 
-func (self *RewardState) AddStake(currentHeight uint64, depositId string, amount uint64) {
+func (self *RewardState) addStake(currentHeight uint64, depositId string, amount uint64) {
 	if self.info.Has(depositId) {
 		panic(addDetailToError(
 			errAlreadyExistDeposit,
@@ -215,7 +215,7 @@ func (self *RewardState) AddStake(currentHeight uint64, depositId string, amount
 	self.info.Set(depositId, info)
 }
 
-func (self *RewardState) Claim(depositId string, currentHeight uint64) uint64 {
+func (self *RewardState) claim(depositId string, currentHeight uint64) uint64 {
 	if !self.info.Has(depositId) {
 		panic(addDetailToError(
 			errNotExistDeposit,
@@ -229,7 +229,7 @@ func (self *RewardState) Claim(depositId string, currentHeight uint64) uint64 {
 	return reward
 }
 
-func (self *RewardState) RemoveStake(depositId string, amount uint64, currentHeight uint64) uint64 {
+func (self *RewardState) removeStake(depositId string, amount uint64, currentHeight uint64) uint64 {
 	if !self.info.Has(depositId) {
 		panic(addDetailToError(
 			errNotExistDeposit,

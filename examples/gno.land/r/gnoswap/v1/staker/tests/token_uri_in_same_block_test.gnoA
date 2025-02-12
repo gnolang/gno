@@ -33,7 +33,7 @@ func TestMintPositionAndCheckURI(t *testing.T) {
 	bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 	foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 
-	tokenId1, _, _, _, _ := MintAndStake(
+	positionId, _, _, _, _ := MintAndStake(
 		barPath,
 		fooPath,
 		fee500,
@@ -46,7 +46,7 @@ func TestMintPositionAndCheckURI(t *testing.T) {
 		max_timeout,
 	)
 
-	tokenId2, _, _, _, _ := MintAndStake(
+	otherPositionId, _, _, _, _ := MintAndStake(
 		barPath,
 		fooPath,
 		fee500,
@@ -59,8 +59,8 @@ func TestMintPositionAndCheckURI(t *testing.T) {
 		max_timeout,
 	)
 
-	tid1 := grc721.TokenID(ufmt.Sprintf("%d", tokenId1))
-	tid2 := grc721.TokenID(ufmt.Sprintf("%d", tokenId2))
+	tid1 := grc721.TokenID(ufmt.Sprintf("%d", positionId))
+	tid2 := grc721.TokenID(ufmt.Sprintf("%d", otherPositionId))
 	uassert.True(t, tid1 != tid2)
 
 	tokenURI1 := gnft.TokenURI(tid1)

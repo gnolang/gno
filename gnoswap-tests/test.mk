@@ -202,3 +202,15 @@ collect-project-token:
 	$(info ************ collect project token ************)
 	@echo "" | gnokey maketx call -pkgpath gno.land/r/gnoswap/v1/launchpad -func CollectRewardByProjectId -args "gno.land/r/gnoswap/v1/test_token/obl:4215" -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
 	@echo
+
+# mint gns to admin
+mint-gns-to-admin:
+	$(info ************ mint GNS tokens to admin ************)
+	@echo "" | gnokey maketx call -pkgpath gno.land/r/gnoswap/v1/gns -func MintGns -args $(ADDR_GNOSWAP) -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
+	@echo
+
+# check gns balance
+check-gns-balance:
+	$(info ************ check GNS balance of admin ************)
+	@echo "" | gnokey maketx call -pkgpath gno.land/r/gnoswap/v1/gns -func BalanceOf -args $(ADDR_GNOSWAP) -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
+	@echo

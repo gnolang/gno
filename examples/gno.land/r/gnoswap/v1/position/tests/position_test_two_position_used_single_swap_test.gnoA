@@ -64,7 +64,7 @@ func TestMintPosition01WideInRange(t *testing.T) {
 	bar.Approve(consts.POOL_ADDR, 18394892)
 	foo.Approve(consts.POOL_ADDR, 50000000)
 
-	tokenId, liquidity, amount0, amount1 := Mint(
+	positionId, liquidity, amount0, amount1 := Mint(
 		barPath,
 		fooPath,
 		fee500,
@@ -77,9 +77,10 @@ func TestMintPosition01WideInRange(t *testing.T) {
 		max_timeout,
 		adminAddr,
 		adminAddr,
+		"",
 	)
 
-	uassert.Equal(t, tokenId, uint64(1))
+	uassert.Equal(t, positionId, uint64(1))
 	uassert.Equal(t, getNextId(), uint64(2))
 	uassert.Equal(t, liquidity, "318704392")
 	uassert.Equal(t, amount0, "18394892")
@@ -91,7 +92,7 @@ func TestMintPositionTightInRange(t *testing.T) {
 	bar.Approve(consts.POOL_ADDR, 18394892)
 	foo.Approve(consts.POOL_ADDR, 50000000)
 
-	tokenId, liquidity, amount0, amount1 := Mint(
+	positionId, liquidity, amount0, amount1 := Mint(
 		barPath,
 		fooPath,
 		fee500,
@@ -104,9 +105,10 @@ func TestMintPositionTightInRange(t *testing.T) {
 		max_timeout,
 		adminAddr,
 		adminAddr,
+		"",
 	)
 
-	uassert.Equal(t, tokenId, uint64(2))
+	uassert.Equal(t, positionId, uint64(2))
 	uassert.Equal(t, getNextId(), uint64(3))
 	uassert.Equal(t, liquidity, "1228379121")
 	uassert.Equal(t, amount0, "18394892")
@@ -115,9 +117,9 @@ func TestMintPositionTightInRange(t *testing.T) {
 
 func TestCollectFeeBeforeSwapPos1(t *testing.T) {
 	std.TestSetRealm(adminRealm)
-	tokenId, fee0, fee1, poolPath, _, _ := CollectFee(1, false)
+	positionId, fee0, fee1, poolPath, _, _ := CollectFee(1, false)
 
-	uassert.Equal(t, tokenId, uint64(1))
+	uassert.Equal(t, positionId, uint64(1))
 	uassert.Equal(t, fee0, "0")
 	uassert.Equal(t, fee1, "0")
 	uassert.Equal(t, poolPath, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
@@ -125,9 +127,9 @@ func TestCollectFeeBeforeSwapPos1(t *testing.T) {
 
 func TestCollectFeeBeforeSwapPos2(t *testing.T) {
 	std.TestSetRealm(adminRealm)
-	tokenId, fee0, fee1, poolPath, _, _ := CollectFee(2, false)
+	positionId, fee0, fee1, poolPath, _, _ := CollectFee(2, false)
 
-	uassert.Equal(t, tokenId, uint64(2))
+	uassert.Equal(t, positionId, uint64(2))
 	uassert.Equal(t, fee0, "0")
 	uassert.Equal(t, fee1, "0")
 	uassert.Equal(t, poolPath, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
@@ -157,9 +159,9 @@ func TestCollectFeeAfterSwapPos1(t *testing.T) {
 	foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX) // COLLECT_FEE
 	bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX) // COLLECT_FEE
 
-	tokenId, fee0, fee1, poolPath, _, _ := CollectFee(1, false)
+	positionId, fee0, fee1, poolPath, _, _ := CollectFee(1, false)
 
-	uassert.Equal(t, tokenId, uint64(1))
+	uassert.Equal(t, positionId, uint64(1))
 	// uassert.Equal(t, fee0, uint64(617))
 	uassert.Equal(t, fee0, "126")
 	uassert.Equal(t, fee1, "0")
@@ -168,9 +170,9 @@ func TestCollectFeeAfterSwapPos1(t *testing.T) {
 
 func TestCollectFeeAfterSwapPos2(t *testing.T) {
 	std.TestSetRealm(adminRealm)
-	tokenId, fee0, fee1, poolPath, _, _ := CollectFee(2, false)
+	positionId, fee0, fee1, poolPath, _, _ := CollectFee(2, false)
 
-	uassert.Equal(t, tokenId, uint64(2))
+	uassert.Equal(t, positionId, uint64(2))
 	uassert.Equal(t, fee0, "486")
 	uassert.Equal(t, fee1, "0")
 	uassert.Equal(t, poolPath, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")

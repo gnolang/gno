@@ -64,10 +64,10 @@ func testMintBarQux3000_1_4(t *testing.T) {
 
 		anoAdmin := admin
 
-		pn.Mint(barPath, bazPath, fee3000, int32(-1020), int32(1020), "13630", "13630", "0", "0", max_timeout, anoAdmin, anoAdmin)
-		pn.Mint(barPath, bazPath, fee3000, int32(-1020), int32(1020), "84360", "84360", "0", "0", max_timeout, anoAdmin, anoAdmin)
-		pn.Mint(barPath, bazPath, fee3000, int32(-1020), int32(1020), "1990", "1990", "0", "0", max_timeout, anoAdmin, anoAdmin)
-		pn.Mint(barPath, bazPath, fee3000, int32(-1020), int32(1020), "7", "7", "0", "0", max_timeout, anoAdmin, anoAdmin)
+		pn.Mint(barPath, bazPath, fee3000, int32(-1020), int32(1020), "13630", "13630", "0", "0", max_timeout, anoAdmin, anoAdmin, "")
+		pn.Mint(barPath, bazPath, fee3000, int32(-1020), int32(1020), "84360", "84360", "0", "0", max_timeout, anoAdmin, anoAdmin, "")
+		pn.Mint(barPath, bazPath, fee3000, int32(-1020), int32(1020), "1990", "1990", "0", "0", max_timeout, anoAdmin, anoAdmin, "")
+		pn.Mint(barPath, bazPath, fee3000, int32(-1020), int32(1020), "7", "7", "0", "0", max_timeout, anoAdmin, anoAdmin, "")
 		std.TestSkipHeights(1)
 
 		t1Liq := pn.PositionGetPositionLiquidity(1).Clone()
@@ -115,17 +115,17 @@ func testStakeToken_1_4(t *testing.T) {
 	t.Run("stake token 1 ~ 4", func(t *testing.T) {
 		std.TestSetRealm(adminRealm)
 
-		gnft.Approve(GetOrigPkgAddr(), tid(1))
-		StakeToken(1)
+		gnft.Approve(GetOrigPkgAddr(), positionIdFrom(1))
+		StakeToken(1, "")
 
-		gnft.Approve(GetOrigPkgAddr(), tid(2))
-		StakeToken(2)
+		gnft.Approve(GetOrigPkgAddr(), positionIdFrom(2))
+		StakeToken(2, "")
 
-		gnft.Approve(GetOrigPkgAddr(), tid(3))
-		StakeToken(3)
+		gnft.Approve(GetOrigPkgAddr(), positionIdFrom(3))
+		StakeToken(3, "")
 
-		gnft.Approve(GetOrigPkgAddr(), tid(4))
-		StakeToken(4)
+		gnft.Approve(GetOrigPkgAddr(), positionIdFrom(4))
+		StakeToken(4, "")
 
 		std.TestSkipHeights(1)
 	})

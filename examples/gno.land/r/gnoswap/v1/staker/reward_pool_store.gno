@@ -33,23 +33,23 @@ func NewRewardPool() *RewardPool {
 	}
 }
 
-// SetTier : Sets the tier of the pool.
-func (r *RewardPool) SetTier(tier uint64) {
+// setTier : Sets the tier of the pool.
+func (r *RewardPool) setTier(tier uint64) {
 	r.tier = tier
 }
 
-// SetRewardAmount : Sets the total reward amount for the pool.
-func (r *RewardPool) SetRewardAmount(rewardAmount uint64) {
+// setRewardAmount : Sets the total reward amount for the pool.
+func (r *RewardPool) setRewardAmount(rewardAmount uint64) {
 	r.rewardAmount = rewardAmount
 }
 
-// SetDistributedAmount : Sets the amount of rewards distributed.
-func (r *RewardPool) SetDistributedAmount(distributedAmount uint64) {
+// setDistributedAmount : Sets the amount of rewards distributed.
+func (r *RewardPool) setDistributedAmount(distributedAmount uint64) {
 	r.distributedAmount = distributedAmount
 }
 
-// SetLeftAmount : Sets the remaining rewards in the pool.
-func (r *RewardPool) SetLeftAmount(leftAmount uint64) {
+// setLeftAmount : Sets the remaining rewards in the pool.
+func (r *RewardPool) setLeftAmount(leftAmount uint64) {
 	r.leftAmount = leftAmount
 }
 
@@ -100,44 +100,44 @@ func NewRewardPoolMap() *RewardPoolMap {
 	}
 }
 
-// SetRewardPoolMap : Replaces the current reward pool map.
-func (r *RewardPoolMap) SetRewardPoolMap(rewardPools map[string]*RewardPool) {
+// setRewardPoolMap : Replaces the current reward pool map.
+func (r *RewardPoolMap) setRewardPoolMap(rewardPools map[string]*RewardPool) {
 	r.rewardPools = rewardPools
 }
 
-// SetRewardPool : Adds or updates a reward pool for a specific pool path.
-func (r *RewardPoolMap) SetRewardPool(poolPath string, rewardPool *RewardPool) {
+// setRewardPool : Adds or updates a reward pool for a specific pool path.
+func (r *RewardPoolMap) setRewardPool(poolPath string, rewardPool *RewardPool) {
 	r.rewardPools[poolPath] = rewardPool
 }
 
 // SetPoolTier : Sets the tier of a specific pool.
-func (r *RewardPoolMap) SetPoolTier(poolPath string, tier uint64) {
+func (r *RewardPoolMap) setPoolTier(poolPath string, tier uint64) {
 	if _, exist := r.rewardPools[poolPath]; !exist {
 		r.rewardPools[poolPath] = NewRewardPool()
 	}
-	r.rewardPools[poolPath].SetTier(tier)
+	r.rewardPools[poolPath].setTier(tier)
 }
 
-// SetPoolRewardAmount : Sets the reward amount for a specific pool.
-func (r *RewardPoolMap) SetPoolRewardAmount(poolPath string, rewardAmount uint64) {
+// setPoolRewardAmount : Sets the reward amount for a specific pool.
+func (r *RewardPoolMap) setPoolRewardAmount(poolPath string, rewardAmount uint64) {
 	if _, exist := r.rewardPools[poolPath]; !exist {
 		r.rewardPools[poolPath] = NewRewardPool()
 	}
-	r.rewardPools[poolPath].SetRewardAmount(rewardAmount)
+	r.rewardPools[poolPath].setRewardAmount(rewardAmount)
 }
 
-// SetRewardAmountForTier : Sets the total reward amount for a tier.
-func (r *RewardPoolMap) SetRewardAmountForTier(tierIndex int, amount uint64) {
+// setRewardAmountForTier : Sets the total reward amount for a tier.
+func (r *RewardPoolMap) setRewardAmountForTier(tierIndex int, amount uint64) {
 	r.rewardAmountForTier[tierIndex] = amount
 }
 
-// SetRewardAmountForTierEachPool : Sets the reward amount per pool for a tier.
-func (r *RewardPoolMap) SetRewardAmountForTierEachPool(tierIndex int, amount uint64) {
+// setRewardAmountForTierEachPool : Sets the reward amount per pool for a tier.
+func (r *RewardPoolMap) setRewardAmountForTierEachPool(tierIndex int, amount uint64) {
 	r.rewardAmountForTierEachPool[tierIndex] = amount
 }
 
-// SetLeftAmountForTier : Sets the remaining reward amount for a tier.
-func (r *RewardPoolMap) SetLeftAmountForTier(tierIndex int, amount uint64) {
+// setLeftAmountForTier : Sets the remaining reward amount for a tier.
+func (r *RewardPoolMap) setLeftAmountForTier(tierIndex int, amount uint64) {
 	r.leftAmountForTier[tierIndex] = amount
 }
 

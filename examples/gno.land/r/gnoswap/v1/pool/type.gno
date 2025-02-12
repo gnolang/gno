@@ -155,19 +155,19 @@ func newSwapState(
 	}
 }
 
-func (s *SwapState) SetSqrtPriceX96(sqrtPriceX96 string) {
+func (s *SwapState) setSqrtPriceX96(sqrtPriceX96 string) {
 	s.sqrtPriceX96 = u256.MustFromDecimal(sqrtPriceX96)
 }
 
-func (s *SwapState) SetTick(tick int32) {
+func (s *SwapState) setTick(tick int32) {
 	s.tick = tick
 }
 
-func (s *SwapState) SetFeeGrowthGlobalX128(feeGrowthGlobalX128 *u256.Uint) {
+func (s *SwapState) setFeeGrowthGlobalX128(feeGrowthGlobalX128 *u256.Uint) {
 	s.feeGrowthGlobalX128 = feeGrowthGlobalX128
 }
 
-func (s *SwapState) SetProtocolFee(fee *u256.Uint) {
+func (s *SwapState) setProtocolFee(fee *u256.Uint) {
 	s.protocolFee = fee
 }
 

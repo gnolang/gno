@@ -65,7 +65,7 @@ func TestMintPosition01InRange(t *testing.T) {
 	bar.Approve(consts.POOL_ADDR, 18394892)
 	foo.Approve(consts.POOL_ADDR, 50000000)
 
-	tokenId, liquidity, amount0, amount1 := Mint(
+	positionId, liquidity, amount0, amount1 := Mint(
 		barPath,
 		fooPath,
 		fee500,
@@ -78,14 +78,15 @@ func TestMintPosition01InRange(t *testing.T) {
 		max_timeout,
 		adminAddr,
 		adminAddr,
+		"",
 	)
 
-	uassert.Equal(t, tokenId, uint64(1))
+	uassert.Equal(t, positionId, uint64(1))
 	uassert.Equal(t, getNextId(), uint64(2))
 	uassert.Equal(t, amount0, "18394892")
 	uassert.Equal(t, amount1, "50000000")
 
-	position := MustGetPosition(tokenId)
+	position := MustGetPosition(positionId)
 	uassert.Equal(t, position.nonce.ToString(), "0")
 	uassert.Equal(t, position.operator, consts.ZERO_ADDRESS)
 	uassert.Equal(t, position.poolKey, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
@@ -104,7 +105,7 @@ func TestMintPosition02InRange(t *testing.T) {
 	bar.Approve(consts.POOL_ADDR, 18394892)
 	foo.Approve(consts.POOL_ADDR, 50000000)
 
-	tokenId, liquidity, amount0, amount1 := Mint(
+	positionId, liquidity, amount0, amount1 := Mint(
 		barPath,
 		fooPath,
 		fee500,
@@ -117,14 +118,15 @@ func TestMintPosition02InRange(t *testing.T) {
 		max_timeout,
 		adminAddr,
 		adminAddr,
+		"",
 	)
 
-	uassert.Equal(t, tokenId, uint64(2))
+	uassert.Equal(t, positionId, uint64(2))
 	uassert.Equal(t, getNextId(), uint64(3))
 	uassert.Equal(t, amount0, "18394892")
 	uassert.Equal(t, amount1, "50000000")
 
-	position := MustGetPosition(tokenId)
+	position := MustGetPosition(positionId)
 	uassert.Equal(t, position.nonce.ToString(), "0")
 	uassert.Equal(t, position.operator, consts.ZERO_ADDRESS)
 	uassert.Equal(t, position.poolKey, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
@@ -143,7 +145,7 @@ func TestMintPosition03InRange(t *testing.T) {
 	bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 	foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 
-	tokenId, liquidity, amount0, amount1 := Mint(
+	positionId, liquidity, amount0, amount1 := Mint(
 		barPath,
 		fooPath,
 		fee500,
@@ -156,14 +158,15 @@ func TestMintPosition03InRange(t *testing.T) {
 		max_timeout,
 		adminAddr,
 		adminAddr,
+		"",
 	)
 
-	uassert.Equal(t, tokenId, uint64(3))
+	uassert.Equal(t, positionId, uint64(3))
 	uassert.Equal(t, getNextId(), uint64(4))
 	uassert.Equal(t, amount0, "18394892")
 	uassert.Equal(t, amount1, "50000000")
 
-	position := MustGetPosition(tokenId)
+	position := MustGetPosition(positionId)
 	uassert.Equal(t, position.nonce.ToString(), "0")
 	uassert.Equal(t, position.operator, consts.ZERO_ADDRESS)
 	uassert.Equal(t, position.poolKey, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
@@ -234,28 +237,28 @@ func TestUnclaimedFee03(t *testing.T) {
 func TestDecreaseLiquidity03(t *testing.T) {
 	std.TestSetRealm(adminRealm)
 
-	_lpTokenId := uint64(03)
+	positionId := uint64(03)
 
-	ownerOfPosition, _ := gnft.OwnerOf(tokenIdFrom(_lpTokenId))
+	ownerOfPosition, _ := gnft.OwnerOf(positionIdFrom(positionId))
 	uassert.Equal(t, ownerOfPosition, adminAddr)
 
 	// approve fee0, fee1 to pool ( for withdrawal protocol fee )
 	bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 	foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 
-	tokenId, liquidity, fee0, fee1, amount0, amount1, poolPath := DecreaseLiquidity(_lpTokenId, "167312775", "0", "0", max_timeout, false)
+	resultPositionId, liquidity, fee0, fee1, amount0, amount1, poolPath := DecreaseLiquidity(positionId, "167312775", "0", "0", max_timeout, false)
 
-	uassert.Equal(t, tokenId, _lpTokenId)
+	uassert.Equal(t, resultPositionId, positionId)
 	uassert.Equal(t, amount0, "18651446")
 	uassert.Equal(t, amount1, "49304404")
 
 	uassert.Equal(t, fee0, "127")
 	uassert.Equal(t, fee1, "0")
 
-	ownerOfPosition, _ = gnft.OwnerOf(tokenIdFrom(_lpTokenId))
+	ownerOfPosition, _ = gnft.OwnerOf(positionIdFrom(positionId))
 	uassert.Equal(t, ownerOfPosition, adminAddr)
 
-	position := MustGetPosition(_lpTokenId)
+	position := MustGetPosition(positionId)
 	uassert.Equal(t, position.nonce.ToString(), "0")
 	uassert.Equal(t, position.operator, consts.ZERO_ADDRESS)
 	uassert.Equal(t, position.poolKey, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
@@ -272,10 +275,10 @@ func TestDecreaseLiquidity03(t *testing.T) {
 func TestReposition(t *testing.T) {
 	std.TestSetRealm(adminRealm)
 
-	_lpTokenId := uint64(3)
+	positionId := uint64(3)
 
 	// check current state
-	position := MustGetPosition(_lpTokenId)
+	position := MustGetPosition(positionId)
 	uassert.Equal(t, position.nonce.ToString(), "0")
 	uassert.Equal(t, position.operator, consts.ZERO_ADDRESS)
 	uassert.Equal(t, position.poolKey, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
@@ -289,7 +292,7 @@ func TestReposition(t *testing.T) {
 	uassert.Equal(t, position.burned, true)
 
 	Reposition(
-		_lpTokenId, // tokenId
+		positionId, // positionId
 		8000,       // tickLower
 		12000,      // tickUpper
 		"18651446", // amount0Desired
@@ -298,7 +301,7 @@ func TestReposition(t *testing.T) {
 		"0",        // amount1Min
 	)
 
-	position = MustGetPosition(_lpTokenId)
+	position = MustGetPosition(positionId)
 	uassert.Equal(t, position.nonce.ToString(), "0")
 	uassert.Equal(t, position.operator, consts.ZERO_ADDRESS)
 	uassert.Equal(t, position.poolKey, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
@@ -378,8 +381,8 @@ func TestUnclaimedFee03_AfterSwap2(t *testing.T) {
 		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 		foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 
-		tokenId, afterFee0, afterFee1, poolPath, fee0, fee1 := CollectFee(3, true)
-		position := MustGetPosition(tokenId)
+		positionId, afterFee0, afterFee1, poolPath, fee0, fee1 := CollectFee(3, true)
+		position := MustGetPosition(positionId)
 		uassert.Equal(t, position.tokensOwed0.ToString(), "0")
 		uassert.Equal(t, position.tokensOwed1.ToString(), "0")
 		uassert.Equal(t, fee0, "204")

@@ -87,7 +87,7 @@ func testStakerMintAndStake(t *testing.T) {
 		qux.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 		std.TestSkipHeights(2)
 
-		tokenId, _, _, _, _ := MintAndStake(
+		positionId, _, _, _, _ := MintAndStake(
 			barPath, // token0
 			quxPath, // token1
 			500,     // fee

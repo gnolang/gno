@@ -1331,23 +1331,23 @@ func (event *TestEventChangeTier) String() string {
 }
 
 type TestEventStakeToken struct {
-	tokenId   uint64
-	poolPath  string
-	address   std.Address
-	liquidity *u256.Uint
-	tickLower int32
-	tickUpper int32
+	positionId uint64
+	poolPath   string
+	address    std.Address
+	liquidity  *u256.Uint
+	tickLower  int32
+	tickUpper  int32
 }
 
 func (event *TestEventStakeToken) Apply(canonical *canonicalRewardState) {
-	if canonical.global.deposits.Has(event.tokenId) {
-		if canonical.global.deposits.Get(event.tokenId).liquidity.IsZero() {
-			canonical.StakeToken(event.tokenId, event.poolPath, event.address, event.tickLower, event.tickUpper, event.liquidity)
+	if canonical.global.deposits.Has(event.positionId) {
+		if canonical.global.deposits.Get(event.positionId).liquidity.IsZero() {
+			canonical.StakeToken(event.positionId, event.poolPath, event.address, event.tickLower, event.tickUpper, event.liquidity)
 		} else {
-			canonical.UnstakeToken(event.tokenId)
+			canonical.UnstakeToken(event.positionId)
 		}
 	} else {
-		canonical.StakeToken(event.tokenId, event.poolPath, event.address, event.tickLower, event.tickUpper, event.liquidity)
+		canonical.StakeToken(event.positionId, event.poolPath, event.address, event.tickLower, event.tickUpper, event.liquidity)
 	}
 }
 
@@ -1357,7 +1357,7 @@ func (event *TestEventStakeToken) IsValid(canonical *canonicalRewardState) bool 
 }
 
 func (event *TestEventStakeToken) String() string {
-	return ufmt.Sprintf("StakeToken(%d, %s, %s, %d, %d, %s)", event.tokenId, event.poolPath, event.address, event.tickLower, event.tickUpper, event.liquidity.ToString())
+	return ufmt.Sprintf("StakeToken(%d, %s, %s, %d, %d, %s)", event.positionId, event.poolPath, event.address, event.tickLower, event.tickUpper, event.liquidity.ToString())
 }
 
 type TestEventMoveTick struct {
@@ -1401,11 +1401,11 @@ type SimulationEvent interface {
 }
 
 type tokenStake struct {
-	tokenId   uint64
-	address   std.Address
-	liquidity *u256.Uint
-	tickLower int32
-	tickUpper int32
+	positionId uint64
+	address    std.Address
+	liquidity  *u256.Uint
+	tickLower  int32
+	tickUpper  int32
 }
 
 func events(
@@ -1424,12 +1424,12 @@ func events(
 	}
 	for i := 0; i < len(tokenStakes); i++ {
 		result = append(result, &TestEventStakeToken{
-			tokenId:   tokenStakes[i].tokenId,
-			poolPath:  poolPath,
-			address:   tokenStakes[i].address,
-			liquidity: tokenStakes[i].liquidity,
-			tickLower: tokenStakes[i].tickLower,
-			tickUpper: tokenStakes[i].tickUpper,
+			positionId: tokenStakes[i].positionId,
+			poolPath:   poolPath,
+			address:    tokenStakes[i].address,
+			liquidity:  tokenStakes[i].liquidity,
+			tickLower:  tokenStakes[i].tickLower,
+			tickUpper:  tokenStakes[i].tickUpper,
 		})
 	}
 	for i := 0; i < len(moveTicks); i++ {

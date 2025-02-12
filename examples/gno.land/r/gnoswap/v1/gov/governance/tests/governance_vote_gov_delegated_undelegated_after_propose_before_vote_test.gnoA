@@ -51,7 +51,7 @@ func testDelegate01_1000000(t *testing.T) {
 		std.TestSetRealm(adminRealm)
 		gns.Approve(consts.GOV_STAKER_ADDR, uint64(1_000_000))
 
-		gs.Delegate(admin, uint64(1_000_000)) // self delegate
+		gs.Delegate(admin, uint64(1_000_000), "") // self delegate
 
 		uassert.Equal(t, int64(123), std.GetHeight())
 		uassert.Equal(t, int64(1234567890), time.Now().Unix())
@@ -74,7 +74,7 @@ func testDelegate02_2000000(t *testing.T) {
 		std.TestSetRealm(adminRealm)
 		gns.Approve(consts.GOV_STAKER_ADDR, uint64(2_000_000))
 
-		gs.Delegate(dummyAddr, uint64(2_000_000)) // delegate to dummy
+		gs.Delegate(dummyAddr, uint64(2_000_000), "") // delegate to dummy
 
 		uassert.Equal(t, int64(124), std.GetHeight())
 		uassert.Equal(t, int64(1234567892), time.Now().Unix())

@@ -79,12 +79,12 @@ func CreatePool(t *testing.T,
 	}
 }
 
-func LPTokenStake(t *testing.T, owner std.Address, tokenId uint64) {
+func LPTokenStake(t *testing.T, owner std.Address, positionId uint64) {
 	t.Helper()
 	std.TestSetRealm(std.NewUserRealm(owner))
 }
 
-func LPTokenUnStake(t *testing.T, owner std.Address, tokenId uint64, unwrap bool) {
+func LPTokenUnStake(t *testing.T, owner std.Address, positionId uint64, unwrap bool) {
 	t.Helper()
 	std.TestSetRealm(std.NewUserRealm(owner))
 }
@@ -160,6 +160,7 @@ func MakeMintPositionWithoutFee(t *testing.T) (uint64, string, string, string) {
 		max_timeout,
 		admin,
 		admin,
+		"",
 	)
 }
 
@@ -283,7 +284,9 @@ func MintPosition(t *testing.T,
 		amount1Min,
 		deadline,
 		mintTo,
-		caller)
+		caller,
+		"",
+	)
 }
 
 func wugnotApprove(t *testing.T, owner, spender std.Address, amount uint64) {
@@ -433,7 +436,7 @@ func burnAllNFT(t *testing.T) {
 
 	std.TestSetRealm(std.NewCodeRealm(consts.POSITION_PATH))
 	for i := uint64(1); i <= gnft.TotalSupply(); i++ {
-		gnft.Burn(tid(i))
+		gnft.Burn(positionIdFrom(i))
 	}
 }
 
@@ -550,13 +553,13 @@ func getPrintInfo(t *testing.T) string {
 			pool.NumPoolInSameTier = numTier3
 		}
 
-		deposits.tree.Iterate("", "", func(tokenIdStr string, value interface{}) bool {
-			tokenId := DecodeUint(tokenIdStr)
+		deposits.tree.Iterate("", "", func(positionIdStr string, value interface{}) bool {
+			positionId := DecodeUint(positionIdStr)
 			deposit := value.(*Deposit)
 
 			if deposit.targetPoolPath == poolPath {
 				position := ApiEmissionDebugPosition{}
-				position.LpTokenId = tokenId
+				position.PositionId = positionId
 				position.StakedHeight = deposit.stakeHeight
 				position.StakedTimestamp = deposit.stakeTimestamp
 				position.StakedDuration = emissionDebug.Height - deposit.stakeHeight
@@ -612,7 +615,7 @@ type ApiEmissionDebugPool struct {
 }
 
 type ApiEmissionDebugPosition struct {
-	LpTokenId       uint64 `json:"lpTokenId"`
+	PositionId      uint64 `json:"positionId"`
 	StakedHeight    int64  `json:"stakedHeight"`
 	StakedTimestamp int64  `json:"stakedTimestamp"`
 	StakedDuration  int64  `json:"stakedDuration"`
@@ -623,7 +626,7 @@ type ApiEmissionDebugPosition struct {
 
 func getRewardRatio(t *testing.T, height int64) uint64 {
 	t.Helper()
-	warmups := InstantiateWarmup(height)
+	warmups := instantiateWarmup(height)
 
 	for _, warmup := range warmups {
 		if height < warmup.NextWarmupHeight {
@@ -671,15 +674,15 @@ func makePoolsNode(t *testing.T, emissionPool []ApiEmissionDebugPool) []*json.No
 func makePositionsNode(t *testing.T, poolPath string) []*json.Node {
 	positions := make([]*json.Node, 0)
 
-	deposits.tree.Iterate("", "", func(tokenIdStr string, value interface{}) bool {
-		tokenId := DecodeUint(tokenIdStr)
+	deposits.tree.Iterate("", "", func(positionIdStr string, value interface{}) bool {
+		positionId := DecodeUint(positionIdStr)
 		deposit := value.(*Deposit)
 
 		if deposit.targetPoolPath == poolPath {
 			stakedDuration := std.GetHeight() - deposit.stakeHeight
 			ratio := getRewardRatio(t, stakedDuration)
 
-			rewardByWarmup := calcPositionRewardByWarmups(std.GetHeight(), tokenId)
+			rewardByWarmup := calcPositionRewardByWarmups(std.GetHeight(), positionId)
 			if len(rewardByWarmup) != 4 {
 				panic("len(rewardByWarmup) != 4")
 			}
@@ -704,7 +707,7 @@ func makePositionsNode(t *testing.T, poolPath string) []*json.Node {
 			warmUpAmount := reward30 + reward50 + reward70 + reward100
 
 			positions = append(positions, json.ObjectNode("", map[string]*json.Node{
-				"lpTokenId":       json.StringNode("lpTokenId", ufmt.Sprintf("%d", tokenId)),
+				"positionId":      json.StringNode("lpTokenId", ufmt.Sprintf("%d", positionId)),
 				"stakedHeight":    json.StringNode("stakedHeight", ufmt.Sprintf("%d", deposit.stakeHeight)),
 				"stakedTimestamp": json.StringNode("stakedTimestamp", ufmt.Sprintf("%d", deposit.stakeTimestamp)),
 				"stakedDuration":  json.StringNode("stakedDuration", ufmt.Sprintf("%d", stakedDuration)),

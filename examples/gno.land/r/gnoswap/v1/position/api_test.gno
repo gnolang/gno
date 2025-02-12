@@ -37,11 +37,11 @@ func TestApiGetPositions(t *testing.T) {
 		panic(err.Error())
 	}
 
-	lpTokenId, err := response.GetKey("lpTokenId")
+	lpPositionId, err := response.GetKey("lpPositionId")
 	if err != nil {
 		panic(err.Error())
 	}
-	uassert.Equal(t, "1", lpTokenId.String())
+	uassert.Equal(t, "1", lpPositionId.String())
 
 	burned, err := response.GetKey("burned")
 	if err != nil {
@@ -156,11 +156,11 @@ func TestApiGetPositionsByPoolPath(t *testing.T) {
 		panic(err.Error())
 	}
 
-	lpTokenId, err := response.GetKey("lpTokenId")
+	lpPositionId, err := response.GetKey("lpPositionId")
 	if err != nil {
 		panic(err.Error())
 	}
-	uassert.Equal(t, "1", lpTokenId.String())
+	uassert.Equal(t, "1", lpPositionId.String())
 
 	burned, err := response.GetKey("burned")
 	if err != nil {
@@ -276,11 +276,11 @@ func TestApiGetPositionsByAddress(t *testing.T) {
 		panic(err.Error())
 	}
 
-	lpTokenId, err := response.GetKey("lpTokenId")
+	lpPositionId, err := response.GetKey("lpPositionId")
 	if err != nil {
 		panic(err.Error())
 	}
-	uassert.Equal(t, "1", lpTokenId.String())
+	uassert.Equal(t, "1", lpPositionId.String())
 
 	burned, err := response.GetKey("burned")
 	if err != nil {
@@ -395,11 +395,11 @@ func TestApiGetPositionsUnclaimedFee(t *testing.T) {
 		panic(err.Error())
 	}
 
-	lpTokenId, err := response.GetKey("lpTokenId")
+	lpPositionId, err := response.GetKey("lpPositionId")
 	if err != nil {
 		panic(err.Error())
 	}
-	uassert.Equal(t, "1", lpTokenId.String())
+	uassert.Equal(t, "1", lpPositionId.String())
 
 	fee0Unclaimed, err := response.GetKey("fee0")
 	if err != nil {
@@ -414,9 +414,9 @@ func TestApiGetPositionsUnclaimedFee(t *testing.T) {
 	uassert.Equal(t, "\"0\"", fee1Unclaimed.String())
 }
 
-func TestApiGetPositionUnclaimedFeeByLpTokenId(t *testing.T) {
+func TestApiGetPositionUnclaimedFeeByLpPositionId(t *testing.T) {
 	setupPositions(t)
-	result := ApiGetPositionUnclaimedFeeByLpTokenId(1)
+	result := ApiGetPositionUnclaimedFeeByLpPositionId(1)
 
 	root, err := json.Unmarshal([]byte(result))
 	if err != nil {
@@ -435,11 +435,11 @@ func TestApiGetPositionUnclaimedFeeByLpTokenId(t *testing.T) {
 		panic(err.Error())
 	}
 
-	lpTokenId, err := response.GetKey("lpTokenId")
+	lpPositionId, err := response.GetKey("lpPositionId")
 	if err != nil {
 		panic(err.Error())
 	}
-	uassert.Equal(t, "1", lpTokenId.String())
+	uassert.Equal(t, "1", lpPositionId.String())
 
 	fee0Unclaimed, err := response.GetKey("fee0")
 	if err != nil {

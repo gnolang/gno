@@ -25,7 +25,7 @@ var (
 // - tokenPath (string): The token path (e.g., the contract managing the token).
 // - amount (uint64): The total unstaked amount.
 // - internal (bool): Indicates if the fee is for internal or external use.
-// - tokenId (uint64): The token ID associated with the unstaking action.
+// - positionId (uint64): The token ID associated with the unstaking action.
 // - poolPath (string): The pool path related to the unstaking.
 //
 // Returns:
@@ -34,7 +34,7 @@ func handleUnStakingFee(
 	tokenPath string,
 	amount uint64,
 	internal bool,
-	tokenId uint64,
+	positionId uint64,
 	poolPath string,
 ) uint64 {
 	if unstakingFee == 0 {
@@ -57,7 +57,7 @@ func handleUnStakingFee(
 			"ProtocolFeeInternalReward",
 			"prevAddr", prevAddr,
 			"prevRealm", prevPkgPath,
-			"fromPositionId", formatUint(tokenId),
+			"fromPositionId", formatUint(positionId),
 			"fromPoolPath", poolPath,
 			"feeTokenPath", consts.GNS_PATH,
 			"feeAmount", formatUint(feeAmount),
@@ -72,7 +72,7 @@ func handleUnStakingFee(
 			"ProtocolFeeExternalReward",
 			"prevAddr", prevAddr,
 			"prevRealm", prevPkgPath,
-			"fromPositionId", formatUint(tokenId),
+			"fromPositionId", formatUint(positionId),
 			"fromPoolPath", poolPath,
 			"feeTokenPath", tokenPath,
 			"feeAmount", formatUint(feeAmount),
@@ -104,7 +104,7 @@ func SetUnStakingFeeByAdmin(fee uint64) {
 		panic(err.Error())
 	}
 
-	prevUnStakingFee := getUnStakingFee()
+	prevUnStakingFee := GetUnstakingFee()
 
 	setUnStakingFee(fee)
 
@@ -128,7 +128,7 @@ func SetUnStakingFee(fee uint64) {
 		panic(err.Error())
 	}
 
-	prevUnStakingFee := getUnStakingFee()
+	prevUnStakingFee := GetUnstakingFee()
 
 	setUnStakingFee(fee)
 
@@ -153,8 +153,4 @@ func setUnStakingFee(fee uint64) {
 	}
 
 	unstakingFee = fee
-}
-
-func getUnStakingFee() uint64 {
-	return unstakingFee
 }

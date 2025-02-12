@@ -45,7 +45,7 @@ func delegateAdmin(t *testing.T) {
 
 	std.TestSetRealm(adminRealm)
 	gns.Approve(consts.GOV_STAKER_ADDR, uint64(1000000))
-	Delegate(dummyAddr, 1000000)
+	Delegate(dummyAddr, 1000000, "")
 	println("CALLER", adminRealm.Addr())
 	println("TO", dummyAddr)
 

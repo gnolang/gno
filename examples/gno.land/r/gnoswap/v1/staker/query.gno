@@ -93,7 +93,7 @@ func QueryIncentiveData(incentiveId string) (*IncentiveData, error) {
 func QueryDepositData(lpTokenId uint64) (*DepositData, error) {
 	deposit := deposits.Get(lpTokenId)
 	if deposit == nil {
-		return nil, ufmt.Errorf("tokenId(%d) deposit does not exist", lpTokenId)
+		return nil, ufmt.Errorf("positionId(%d) deposit does not exist", lpTokenId)
 	}
 
 	return &DepositData{

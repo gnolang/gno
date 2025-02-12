@@ -17,7 +17,7 @@ var (
 	errWugnotMinimum         = errors.New("[GNOSWAP-POSITION-008] can not wrap less than minimum amount")
 	errNotClear              = errors.New("[GNOSWAP-POSITION-009] position is not clear")
 	errZeroLiquidity         = errors.New("[GNOSWAP-POSITION-010] zero liquidity")
-	errPositionExist         = errors.New("[GNOSWAP-POSITION-011] position with same tokenId already exists")
+	errPositionExist         = errors.New("[GNOSWAP-POSITION-011] position with same positionId already exists")
 	errInvalidAddress        = errors.New("[GNOSWAP-POSITION-012] invalid address")
 	errPositionDoesNotExist  = errors.New("[GNOSWAP-POSITION-013] position does not exist")
 	errZeroUGNOT             = errors.New("[GNOSWAP-POSITION-014] No UGNOTs were sent")

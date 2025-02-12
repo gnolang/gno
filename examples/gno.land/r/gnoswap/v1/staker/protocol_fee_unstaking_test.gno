@@ -10,7 +10,7 @@ func TestHandleUnstakingFee(t *testing.T) {
 		tokenPath   string
 		amount      uint64
 		internal    bool
-		tokenId     uint64
+		positionId  uint64
 		poolPath    string
 		expectedFee uint64
 		expectedNet uint64
@@ -20,7 +20,7 @@ func TestHandleUnstakingFee(t *testing.T) {
 			tokenPath:   gnsPath,
 			amount:      10000,
 			internal:    true,
-			tokenId:     1,
+			positionId:  1,
 			poolPath:    "pool1",
 			expectedFee: 0,
 			expectedNet: 10000,
@@ -30,7 +30,7 @@ func TestHandleUnstakingFee(t *testing.T) {
 			tokenPath:   gnsPath,
 			amount:      10000,
 			internal:    false,
-			tokenId:     1,
+			positionId:  1,
 			poolPath:    "pool1",
 			expectedFee: 100,
 			expectedNet: 9900,
@@ -41,7 +41,7 @@ func TestHandleUnstakingFee(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			unstakingFee = tc.expectedFee // Set the fee globally for the test
 
-			netAmount := handleUnStakingFee(tc.tokenPath, tc.amount, tc.internal, tc.tokenId, tc.poolPath)
+			netAmount := handleUnStakingFee(tc.tokenPath, tc.amount, tc.internal, tc.positionId, tc.poolPath)
 
 			if netAmount != tc.expectedNet {
 				t.Errorf("Expected netAmount %d, got %d", tc.expectedNet, netAmount)

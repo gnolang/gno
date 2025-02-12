@@ -109,12 +109,13 @@ func testPositionMintNative01(t *testing.T) {
 			max_timeout,     // deadline
 			adminAddr,
 			adminAddr,
+			"",
 		)
 
 		std.TestSkipHeights(1)
 
 		uassert.Equal(t, lpTokenId, uint64(1))
-		uassert.Equal(t, gnft.MustOwnerOf(tid(lpTokenId)), adminAddr)
+		uassert.Equal(t, gnft.MustOwnerOf(positionIdFrom(lpTokenId)), adminAddr)
 		uassert.Equal(t, amount0, "1000")
 		uassert.Equal(t, amount1, "368")
 	})
@@ -159,12 +160,13 @@ func testPositionMintNative02(t *testing.T) {
 			max_timeout,     // deadline
 			adminAddr,
 			adminAddr,
+			"",
 		)
 
 		std.TestSkipHeights(1)
 
 		uassert.Equal(t, lpTokenId, uint64(2))
-		uassert.Equal(t, gnft.MustOwnerOf(tid(lpTokenId)), adminAddr)
+		uassert.Equal(t, gnft.MustOwnerOf(positionIdFrom(lpTokenId)), adminAddr)
 		uassert.Equal(t, amount0, "1000")
 		uassert.Equal(t, amount1, "368")
 	})
@@ -215,14 +217,14 @@ func testStakeToken01(t *testing.T) {
 	t.Run("stake token 01", func(t *testing.T) {
 		// approve nft to staker for staking
 		std.TestSetRealm(adminRealm)
-		gnft.Approve(consts.STAKER_ADDR, tid(1))
+		gnft.Approve(consts.STAKER_ADDR, positionIdFrom(1))
 		std.TestSkipHeights(1)
 
-		StakeToken(1) // GNFT tokenId
+		StakeToken(1, "") // GNFT tokenId
 
 		std.TestSkipHeights(1)
 
-		uassert.Equal(t, gnft.MustOwnerOf(tid(1)), consts.STAKER_ADDR)
+		uassert.Equal(t, gnft.MustOwnerOf(positionIdFrom(1)), consts.STAKER_ADDR)
 		uassert.Equal(t, deposits.Size(), 1)
 	})
 }
@@ -231,14 +233,14 @@ func testStakeToken02(t *testing.T) {
 	t.Run("stake token 02", func(t *testing.T) {
 		// approve nft to staker for staking
 		std.TestSetRealm(adminRealm)
-		gnft.Approve(consts.STAKER_ADDR, tid(2))
+		gnft.Approve(consts.STAKER_ADDR, positionIdFrom(2))
 		std.TestSkipHeights(1)
 
-		StakeToken(2) // GNFT tokenId
+		StakeToken(2, "") // GNFT tokenId
 
 		std.TestSkipHeights(1)
 
-		uassert.Equal(t, gnft.MustOwnerOf(tid(2)), consts.STAKER_ADDR)
+		uassert.Equal(t, gnft.MustOwnerOf(positionIdFrom(2)), consts.STAKER_ADDR)
 		uassert.Equal(t, deposits.Size(), 2)
 	})
 }
@@ -272,7 +274,7 @@ func testUnstakeToken02(t *testing.T) {
 		UnStakeToken(2, false) // GNFT tokenId
 		std.TestSkipHeights(1)
 
-		uassert.Equal(t, gnft.MustOwnerOf(tid(2)), adminAddr)
+		uassert.Equal(t, gnft.MustOwnerOf(positionIdFrom(2)), adminAddr)
 
 		uassert.Equal(t, wugnot.BalanceOf(admin), uint64(622937))
 		uassert.Equal(t, ugnotBalanceOf(t, adminAddr), uint64(99998010))

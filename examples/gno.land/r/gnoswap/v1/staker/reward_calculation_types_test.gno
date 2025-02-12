@@ -52,8 +52,8 @@ func TestDecodeUint(t *testing.T) {
 func TestUintTree(t *testing.T) {
 	tree := NewUintTree()
 
-	// Test Set and Get
-	tree.Set(12345, "testValue")
+	// Test set and Get
+	tree.set(12345, "testValue")
 	value, ok := tree.Get(12345)
 	if !ok || value != "testValue" {
 		t.Errorf("UintTree.Get(12345) = %v, %v; want testValue, true", value, ok)
@@ -64,16 +64,16 @@ func TestUintTree(t *testing.T) {
 		t.Errorf("UintTree.Has(12345) = false; want true")
 	}
 
-	// Test Remove
-	tree.Remove(12345)
+	// Test remove
+	tree.remove(12345)
 	if tree.Has(12345) {
 		t.Errorf("UintTree.Has(12345) after Remove = true; want false")
 	}
 
 	// Test Iterate
-	tree.Set(100, "a")
-	tree.Set(200, "b")
-	tree.Set(300, "c")
+	tree.set(100, "a")
+	tree.set(200, "b")
+	tree.set(300, "c")
 
 	var keys []uint64
 	var values []interface{}

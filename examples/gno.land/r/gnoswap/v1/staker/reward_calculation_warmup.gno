@@ -64,7 +64,7 @@ func modifyWarmup(index int, blockDuration int64) {
 	warmupTemplate[index].BlockDuration = blockDuration
 }
 
-func InstantiateWarmup(currentHeight int64) []Warmup {
+func instantiateWarmup(currentHeight int64) []Warmup {
 	warmups := make([]Warmup, 0)
 	for _, warmup := range warmupTemplate {
 		nextWarmupHeight := currentHeight + warmup.BlockDuration
@@ -83,7 +83,7 @@ func InstantiateWarmup(currentHeight int64) []Warmup {
 	return warmups
 }
 
-func (warmup *Warmup) Apply(poolReward uint64, positionLiquidity, stakedLiquidity *u256.Uint) (uint64, uint64) {
+func (warmup *Warmup) apply(poolReward uint64, positionLiquidity, stakedLiquidity *u256.Uint) (uint64, uint64) {
 	poolRewardUint := u256.NewUint(poolReward)
 	perPositionReward := u256.Zero().Mul(poolRewardUint, positionLiquidity)
 	perPositionReward = u256.Zero().Div(perPositionReward, stakedLiquidity)

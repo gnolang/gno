@@ -112,12 +112,13 @@ func testPositionMint01(t *testing.T) {
 			max_timeout,  // deadline
 			admin,
 			admin,
+			"",
 		)
 
 		std.TestSkipHeights(1)
 
 		uassert.Equal(t, lpTokenId, uint64(1))
-		owner, _ := gnft.OwnerOf(tid(lpTokenId))
+		owner, _ := gnft.OwnerOf(positionIdFrom(lpTokenId))
 		uassert.Equal(t, owner, admin)
 		uassert.Equal(t, amount0, "368")
 		uassert.Equal(t, amount1, "1000")
@@ -132,12 +133,12 @@ func testTransferNft(t *testing.T) {
 				t,
 				func() {
 					std.TestSetRealm(adminRealm)
-					gnft.TransferFrom(admin, dummyAddr, tid(uint64(1)))
+					gnft.TransferFrom(admin, dummyAddr, positionIdFrom(uint64(1)))
 				},
 				`should not panic`,
 			)
 
-			owner, _ := gnft.OwnerOf(tid(uint64(1)))
+			owner, _ := gnft.OwnerOf(positionIdFrom(uint64(1)))
 			uassert.Equal(t, owner.String(), dummyAddr.String())
 		})
 	})
@@ -151,18 +152,18 @@ func testStakeToken01(t *testing.T) {
 			`[GNOSWAP-STAKER-001] caller has no permission`,
 			func() {
 				std.TestSetRealm(adminRealm)
-				StakeToken(1)
+				StakeToken(1, "")
 			})
 	})
 
 	t.Run("dummyAddr(new owner) can stake", func(t *testing.T) {
 		std.TestSetRealm(dummyRealm)
-		gnft.Approve(consts.STAKER_ADDR, tid(uint64(1)))
+		gnft.Approve(consts.STAKER_ADDR, positionIdFrom(uint64(1)))
 
 		uassert.NotPanics(
 			t,
 			func() {
-				StakeToken(1)
+				StakeToken(1, "")
 			},
 			`should not panic`,
 		)
@@ -173,7 +174,7 @@ func testCollectReward01(t *testing.T) {
 	t.Run("admin can not collect reward(not a owner)", func(t *testing.T) {
 		uassert.PanicsWithMessage(
 			t,
-			`[GNOSWAP-STAKER-001] caller has no permission || caller is not owner of tokenId(1)`,
+			`[GNOSWAP-STAKER-001] caller has no permission || caller is not owner of positionId(1)`,
 			func() {
 				std.TestSetRealm(adminRealm)
 				CollectReward(1, false)

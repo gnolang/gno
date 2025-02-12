@@ -496,21 +496,21 @@ func TestProject_GetSet(t *testing.T) {
 		t.Errorf("NewProject Refund mismatch, got=%d", refund.Amount())
 	}
 
-	p.SetID("pid2")
+	p.setID("pid2")
 	if p.ID() != "pid2" {
-		t.Errorf("SetID failed, got=%s", p.ID())
+		t.Errorf("setID failed, got=%s", p.ID())
 	}
-	p.SetName("MyProject2")
+	p.setName("MyProject2")
 	if p.Name() != "MyProject2" {
-		t.Errorf("SetName failed, got=%s", p.Name())
+		t.Errorf("setName failed, got=%s", p.Name())
 	}
-	p.SetTokenPath("new/tokenPath")
+	p.setTokenPath("new/tokenPath")
 	if p.TokenPath() != "new/tokenPath" {
-		t.Errorf("SetTokenPath failed, got=%s", p.TokenPath())
+		t.Errorf("setTokenPath failed, got=%s", p.TokenPath())
 	}
-	p.SetDepositAmount(2000)
+	p.setDepositAmount(2000)
 	if p.DepositAmount() != 2000 {
-		t.Errorf("SetDepositAmount failed, got=%d", p.DepositAmount())
+		t.Errorf("setDepositAmount failed, got=%d", p.DepositAmount())
 	}
 	t.Run("TestProject_isActivated", func(t *testing.T) {
 		now := uint64(1)
@@ -583,17 +583,17 @@ func TestTier_GetSet(t *testing.T) {
 		t.Errorf("Tier CalculatedAmount mismatch, got=%d", tr.CalculatedAmount())
 	}
 
-	tr.SetID("tierIdNew")
+	tr.setID("tierIdNew")
 	if tr.ID() != "tierIdNew" {
-		t.Errorf("SetID failed, got=%s", tr.ID())
+		t.Errorf("setID failed, got=%s", tr.ID())
 	}
-	tr.SetTierAmount(999)
+	tr.setTierAmount(999)
 	if tr.TierAmount() != 999 {
-		t.Errorf("SetTierAmount failed, got=%d", tr.TierAmount())
+		t.Errorf("setTierAmount failed, got=%d", tr.TierAmount())
 	}
-	tr.SetActualDepositAmount(777)
+	tr.setActualDepositAmount(777)
 	if tr.ActualDepositAmount() != 777 {
-		t.Errorf("SetActualDepositAmount failed, got=%d", tr.ActualDepositAmount())
+		t.Errorf("setActualDepositAmount failed, got=%d", tr.ActualDepositAmount())
 	}
 }
 
@@ -623,13 +623,13 @@ func TestRewardInfo_GetSet(t *testing.T) {
 	if ri.GetLastHeight() != 777 {
 		t.Errorf("LastHeight mismatch, got=%d", ri.GetLastHeight())
 	}
-	ri.SetPriceDebt(u256.NewUint(999))
+	ri.setPriceDebt(u256.NewUint(999))
 	if ri.PriceDebt().ToString() != "999" {
-		t.Errorf("SetPriceDebt failed, got=%s", ri.PriceDebt().ToString())
+		t.Errorf("setPriceDebt failed, got=%s", ri.PriceDebt().ToString())
 	}
-	ri.SetRewardAmount(1234)
+	ri.setRewardAmount(1234)
 	if ri.RewardAmount() != 1234 {
-		t.Errorf("SetRewardAmount failed, got=%d", ri.RewardAmount())
+		t.Errorf("setRewardAmount failed, got=%d", ri.RewardAmount())
 	}
 }
 
@@ -643,13 +643,13 @@ func TestTimeInfo_GetSet(t *testing.T) {
 		t.Errorf("Time mismatch, got=%d", ti.Time())
 	}
 
-	ti.SetHeight(100)
-	ti.SetTime(9999)
+	ti.setHeight(100)
+	ti.setTime(9999)
 	if ti.Height() != 100 {
-		t.Errorf("SetHeight failed, got=%d", ti.Height())
+		t.Errorf("setHeight failed, got=%d", ti.Height())
 	}
 	if ti.Time() != 9999 {
-		t.Errorf("SetTime failed, got=%d", ti.Time())
+		t.Errorf("setTime failed, got=%d", ti.Time())
 	}
 }
 
@@ -665,17 +665,17 @@ func TestRefundInfo_GetSet(t *testing.T) {
 		t.Errorf("Time mismatch, got=%d", ri.Time())
 	}
 
-	ri.SetAmount(111)
-	ri.SetHeight(222)
-	ri.SetTime(333)
+	ri.setAmount(111)
+	ri.setHeight(222)
+	ri.setTime(333)
 	if ri.Amount() != 111 {
-		t.Errorf("SetAmount failed, got=%d", ri.Amount())
+		t.Errorf("setAmount failed, got=%d", ri.Amount())
 	}
 	if ri.Height() != 222 {
-		t.Errorf("SetHeight failed, got=%d", ri.Height())
+		t.Errorf("setHeight failed, got=%d", ri.Height())
 	}
 	if ri.Time() != 333 {
-		t.Errorf("SetTime failed, got=%d", ri.Time())
+		t.Errorf("setTime failed, got=%d", ri.Time())
 	}
 }
 
@@ -688,13 +688,13 @@ func TestCondition_GetSet(t *testing.T) {
 		t.Errorf("Condition MinAmount mismatch, got=%d", c.MinAmount())
 	}
 
-	c.SetTokenPath("new/token")
+	c.setTokenPath("new/token")
 	if c.TokenPath() != "new/token" {
-		t.Errorf("SetTokenPath failed, got=%s", c.TokenPath())
+		t.Errorf("setTokenPath failed, got=%s", c.TokenPath())
 	}
-	c.SetMinAmount(2000)
+	c.setMinAmount(2000)
 	if c.MinAmount() != 2000 {
-		t.Errorf("SetMinAmount failed, got=%d", c.MinAmount())
+		t.Errorf("setMinAmount failed, got=%d", c.MinAmount())
 	}
 }
 
@@ -714,13 +714,13 @@ func TestReward_GetSet(t *testing.T) {
 	if r.Info() == nil {
 		t.Errorf("Info mismatch, got=%v, want=not nil", r.Info())
 	}
-	r.SetAccumRewardPerDeposit(u256.NewUint(9999))
+	r.setAccumRewardPerDeposit(u256.NewUint(9999))
 	if r.AccumRewardPerDeposit().ToString() != "9999" {
-		t.Errorf("SetAccumRewardPerDeposit failed, got=%s", r.AccumRewardPerDeposit().ToString())
+		t.Errorf("setAccumRewardPerDeposit failed, got=%s", r.AccumRewardPerDeposit().ToString())
 	}
-	r.SetLastHeight(111)
+	r.setLastHeight(111)
 	if r.GetLastHeight() != 111 {
-		t.Errorf("SetLastHeight failed, got=%d", r.GetLastHeight())
+		t.Errorf("setLastHeight failed, got=%d", r.GetLastHeight())
 	}
 }
 

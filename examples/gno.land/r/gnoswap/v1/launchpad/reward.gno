@@ -75,7 +75,7 @@ func CollectRewardByProjectId(projectId string) uint64 {
 			panic(err.Error())
 		}
 		reward.addRewardPerDeposit(rewardPerDeposit)
-		reward.SetLastHeight(currentHeight)
+		reward.setLastHeight(currentHeight)
 		rewardAmount := reward.deductReward(depositId, currentHeight)
 		if rewardAmount == 0 {
 			continue
@@ -97,9 +97,9 @@ func CollectRewardByProjectId(projectId string) uint64 {
 		project.setTier(convertTierTypeStrToUint64(deposit.Tier()), tier)
 
 		// Update deposit
-		deposit.SetRewardCollected(deposit.RewardCollected() + rewardAmount)
-		deposit.SetRewardCollectHeight(currentHeight)
-		deposit.SetRewardCollectTime(uint64(time.Now().Unix()))
+		deposit.setRewardCollected(deposit.RewardCollected() + rewardAmount)
+		deposit.setRewardCollectHeight(currentHeight)
+		deposit.setRewardCollectTime(uint64(time.Now().Unix()))
 		deposits[depositId] = deposit
 	}
 
@@ -151,14 +151,14 @@ func CollectRewardByDepositId(depositId string) uint64 {
 		panic(err.Error())
 	}
 	reward.addRewardPerDeposit(rewardPerDeposit)
-	reward.SetLastHeight(currentHeight)
+	reward.setLastHeight(currentHeight)
 
 	rewardAmount := reward.deductReward(depositId, currentHeight)
 	if rewardAmount == 0 {
 		panic(addDetailToError(errAlreadyCollected, ufmt.Sprintf("depositId(%s)", depositId)))
 	}
 
-	tier.SetReward(reward)
+	tier.setReward(reward)
 	tier.userCollectedAmount += rewardAmount
 	project.Stats().totalCollected += rewardAmount
 
@@ -174,9 +174,9 @@ func CollectRewardByDepositId(depositId string) uint64 {
 	project.setTier(convertTierTypeStrToUint64(deposit.Tier()), tier)
 
 	// Update deposit
-	deposit.SetRewardCollected(deposit.RewardCollected() + rewardAmount)
-	deposit.SetRewardCollectHeight(currentHeight)
-	deposit.SetRewardCollectTime(uint64(time.Now().Unix()))
+	deposit.setRewardCollected(deposit.RewardCollected() + rewardAmount)
+	deposit.setRewardCollectHeight(currentHeight)
+	deposit.setRewardCollectTime(uint64(time.Now().Unix()))
 	deposits[depositId] = deposit
 
 	projects[deposit.projectId] = project

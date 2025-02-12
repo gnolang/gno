@@ -80,34 +80,34 @@ func poolPathDivide(poolPath string) (string, string, string) {
 	return pToken0, pToken1, fee
 }
 
-// tid converts uint64 to grc721.TokenID.
+// positionIdFrom converts uint64 to grc721.TokenID.
 //
 // Input:
 //   - id: the uint64 to convert
 //
 // Output:
 //   - grc721.TokenID: the converted token ID
-func tid(tokenId interface{}) grc721.TokenID {
-	if tokenId == nil {
+func positionIdFrom(positionId interface{}) grc721.TokenID {
+	if positionId == nil {
 		panic(addDetailToError(
 			errDataNotFound,
-			"tokenId is nil",
+			"positionId is nil",
 		))
 	}
 
-	switch tokenId.(type) {
+	switch positionId.(type) {
 	case string:
-		return grc721.TokenID(tokenId.(string))
+		return grc721.TokenID(positionId.(string))
 	case int:
-		return grc721.TokenID(strconv.Itoa(tokenId.(int)))
+		return grc721.TokenID(strconv.Itoa(positionId.(int)))
 	case uint64:
-		return grc721.TokenID(strconv.Itoa(int(tokenId.(uint64))))
+		return grc721.TokenID(strconv.Itoa(int(positionId.(uint64))))
 	case grc721.TokenID:
-		return tokenId.(grc721.TokenID)
+		return positionId.(grc721.TokenID)
 	default:
 		panic(addDetailToError(
 			errInvalidInput,
-			ufmt.Sprintf("unsupported tokenId type(%T)", tokenId),
+			ufmt.Sprintf("unsupported positionId type(%T)", positionId),
 		))
 	}
 }

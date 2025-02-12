@@ -108,13 +108,13 @@ func TestTid(t *testing.T) {
 		{
 			name:        "Panic - nil",
 			input:       nil,
-			expected:    "[GNOSWAP-STAKER-022] requested data not found || tokenId is nil",
+			expected:    "[GNOSWAP-STAKER-022] requested data not found || positionId is nil",
 			shouldPanic: true,
 		},
 		{
 			name:        "Panic - unsupported type",
 			input:       float64(1),
-			expected:    "[GNOSWAP-STAKER-007] invalid input data || unsupported tokenId type(unknown)",
+			expected:    "[GNOSWAP-STAKER-007] invalid input data || unsupported positionId type(unknown)",
 			shouldPanic: true,
 		},
 		{
@@ -168,10 +168,10 @@ func TestTid(t *testing.T) {
 			}()
 
 			if !tc.shouldPanic {
-				got := tid(tc.input)
+				got := positionIdFrom(tc.input)
 				uassert.Equal(t, tc.expected, string(got))
 			} else {
-				tid(tc.input)
+				positionIdFrom(tc.input)
 			}
 		})
 	}

@@ -367,14 +367,14 @@ func computeSwapStep(
 	// update global fee tracker
 	if newState.liquidity.Gt(u256.Zero()) {
 		update := u256.MulDiv(step.feeAmount, fixedPointQ128, newState.liquidity)
-		newState.SetFeeGrowthGlobalX128(new(u256.Uint).Add(newState.feeGrowthGlobalX128, update))
+		newState.setFeeGrowthGlobalX128(new(u256.Uint).Add(newState.feeGrowthGlobalX128, update))
 	}
 
 	// handling tick transitions
 	if newState.sqrtPriceX96.Eq(step.sqrtPriceNextX96) {
 		newState = tickTransition(step, zeroForOne, newState, pool)
 	} else if newState.sqrtPriceX96.Neq(step.sqrtPriceStartX96) {
-		newState.SetTick(common.TickMathGetTickAtSqrtRatio(newState.sqrtPriceX96))
+		newState.setTick(common.TickMathGetTickAtSqrtRatio(newState.sqrtPriceX96))
 	}
 
 	return newState, nil
@@ -448,7 +448,7 @@ func computeAmounts(state SwapState, sqrtRatioTargetX96 *u256.Uint, pool *Pool, 
 	step.amountOut = u256.MustFromDecimal(amountOutStr)
 	step.feeAmount = u256.MustFromDecimal(feeAmountStr)
 
-	state.SetSqrtPriceX96(sqrtPriceX96Str)
+	state.setSqrtPriceX96(sqrtPriceX96Str)
 
 	return state, step
 }

@@ -21,52 +21,52 @@ func GetOrigPkgAddr() std.Address {
 	return consts.POSITION_ADDR
 }
 
-// assertTokenExists checks if a token with the specified tokenId exists in the system.
+// assertTokenExists checks if a token with the specified positionId exists in the system.
 //
-// This function verifies the existence of a token by its tokenId. If the token does not exist,
+// This function verifies the existence of a token by its positionId. If the token does not exist,
 // it triggers a panic with a descriptive error message.
 //
 // Parameters:
-// - tokenId (uint64): The unique identifier of the token to check.
+// - positionId (uint64): The unique identifier of the token to check.
 //
 // Panics:
 // - If the token does not exist, it panics with the error `errDataNotFound`.
-func assertTokenExists(tokenId uint64) {
-	if !exists(tokenId) {
+func assertTokenExists(positionId uint64) {
+	if !exists(positionId) {
 		panic(newErrorWithDetail(
 			errDataNotFound,
-			ufmt.Sprintf("tokenId(%d) doesn't exist", tokenId),
+			ufmt.Sprintf("positionId(%d) doesn't exist", positionId),
 		))
 	}
 }
 
 // assertOnlyOwnerOfToken ensures that only the owner of the specified token can perform operations on it.
 //
-// This function checks if the caller is the owner of the token identified by `tokenId`.
+// This function checks if the caller is the owner of the token identified by `positionId`.
 // If the caller is not the owner, the function triggers a panic to prevent unauthorized access.
 //
 // Parameters:
-// - tokenId (uint64): The unique identifier of the token to check ownership.
+// - positionId (uint64): The unique identifier of the token to check ownership.
 // - caller (std.Address): The address of the entity attempting to modify the token.
 //
 // Panics:
 // - If the caller is not the owner of the token, the function panics with an `errNoPermission` error.
-func assertOnlyOwnerOfToken(tokenId uint64, caller std.Address) {
-	owner, err := gnft.OwnerOf(tokenIdFrom(tokenId))
+func assertOnlyOwnerOfToken(positionId uint64, caller std.Address) {
+	owner, err := gnft.OwnerOf(positionIdFrom(positionId))
 	if err != nil {
 		panic(newErrorWithDetail(
 			errDataNotFound,
-			ufmt.Sprintf("tokenId(%d) doesn't exist", tokenId),
+			ufmt.Sprintf("positionId(%d) doesn't exist", positionId),
 		))
 	}
-	assertCallerIsOwner(tokenId, owner, caller)
+	assertCallerIsOwner(positionId, owner, caller)
 }
 
-func assertCallerIsOwner(tokenId uint64, owner, caller std.Address) {
+func assertCallerIsOwner(positionId uint64, owner, caller std.Address) {
 	if owner != caller {
 		panic(newErrorWithDetail(
 			errNoPermission,
-			ufmt.Sprintf("caller(%s) is not owner(%s) for tokenId(%d)", caller, owner, tokenId),
+			ufmt.Sprintf("caller(%s) is not owner(%s) for positionId(%d)", caller, owner, positionId),
 		))
 	}
 }
@@ -212,45 +212,45 @@ func checkDeadline(deadline int64) {
 	}
 }
 
-// tokenIdFrom converts tokenId to grc721.TokenID type
-// NOTE: input parameter tokenId can be string, int, uint64, or grc721.TokenID
-// if tokenId is nil or not supported, it will panic
-// if tokenId is not found, it will panic
-// input: tokenId interface{}
+// positionIdFrom converts positionId to grc721.TokenID type
+// NOTE: input parameter positionId can be string, int, uint64, or grc721.TokenID
+// if positionId is nil or not supported, it will panic
+// if positionId is not found, it will panic
+// input: positionId interface{}
 // output: grc721.TokenID
-func tokenIdFrom(tokenId interface{}) grc721.TokenID {
-	if tokenId == nil {
-		panic(newErrorWithDetail(errInvalidInput, "tokenId is nil"))
+func positionIdFrom(positionId interface{}) grc721.TokenID {
+	if positionId == nil {
+		panic(newErrorWithDetail(errInvalidInput, "positionId is nil"))
 	}
 
-	switch tokenId.(type) {
+	switch positionId.(type) {
 	case string:
-		return grc721.TokenID(tokenId.(string))
+		return grc721.TokenID(positionId.(string))
 	case int:
-		return grc721.TokenID(strconv.Itoa(tokenId.(int)))
+		return grc721.TokenID(strconv.Itoa(positionId.(int)))
 	case uint64:
-		return grc721.TokenID(strconv.Itoa(int(tokenId.(uint64))))
+		return grc721.TokenID(strconv.Itoa(int(positionId.(uint64))))
 	case grc721.TokenID:
-		return tokenId.(grc721.TokenID)
+		return positionId.(grc721.TokenID)
 	default:
-		panic(newErrorWithDetail(errInvalidInput, "unsupported tokenId type"))
+		panic(newErrorWithDetail(errInvalidInput, "unsupported positionId type"))
 	}
 }
 
-// exists checks whether tokenId exists
-// If tokenId doesn't exist, return false, otherwise return true
-// input: tokenId uint64
+// exists checks whether positionId exists
+// If positionId doesn't exist, return false, otherwise return true
+// input: positionId uint64
 // output: bool
-func exists(tokenId uint64) bool {
-	return gnft.Exists(tokenIdFrom(tokenId))
+func exists(positionId uint64) bool {
+	return gnft.Exists(positionIdFrom(positionId))
 }
 
-// isOwner checks whether the caller is the owner of the tokenId
-// If the caller is the owner of the tokenId, return true, otherwise return false
-// input: tokenId uint64, addr std.Address
+// isOwner checks whether the caller is the owner of the positionId
+// If the caller is the owner of the positionId, return true, otherwise return false
+// input: positionId uint64, addr std.Address
 // output: bool
-func isOwner(tokenId uint64, addr std.Address) bool {
-	owner, err := gnft.OwnerOf(tokenIdFrom(tokenId))
+func isOwner(positionId uint64, addr std.Address) bool {
+	owner, err := gnft.OwnerOf(positionIdFrom(positionId))
 	if err == nil {
 		if owner == addr {
 			return true
@@ -259,27 +259,27 @@ func isOwner(tokenId uint64, addr std.Address) bool {
 	return false
 }
 
-// isOperator checks whether the caller is the approved operator of the tokenId
-// If the caller is the approved operator of the tokenId, return true, otherwise return false
-// input: tokenId uint64, addr std.Address
+// isOperator checks whether the caller is the approved operator of the positionId
+// If the caller is the approved operator of the positionId, return true, otherwise return false
+// input: positionId uint64, addr std.Address
 // output: bool
-func isOperator(tokenId uint64, addr std.Address) bool {
-	operator, err := gnft.GetApproved(tokenIdFrom(tokenId))
+func isOperator(positionId uint64, addr std.Address) bool {
+	operator, err := gnft.GetApproved(positionIdFrom(positionId))
 	if err == nil && operator == addr {
 		return true
 	}
 	return false
 }
 
-// isStaked checks whether tokenId is staked
-// If tokenId is staked, owner of tokenId is staker contract
-// If tokenId is staked, return true, otherwise return false
-// input: tokenId grc721.TokenID
+// isStaked checks whether positionId is staked
+// If positionId is staked, owner of positionId is staker contract
+// If positionId is staked, return true, otherwise return false
+// input: positionId grc721.TokenID
 // output: bool
-func isStaked(tokenId grc721.TokenID) bool {
-	exist := gnft.Exists(tokenId)
+func isStaked(positionId grc721.TokenID) bool {
+	exist := gnft.Exists(positionId)
 	if exist {
-		owner, err := gnft.OwnerOf(tokenId)
+		owner, err := gnft.OwnerOf(positionId)
 		if err == nil && owner == consts.STAKER_ADDR {
 			return true
 		}
@@ -287,20 +287,20 @@ func isStaked(tokenId grc721.TokenID) bool {
 	return false
 }
 
-// isOwnerOrOperator checks whether the caller is the owner or approved operator of the tokenId
-// If the caller is the owner or approved operator of the tokenId, return true, otherwise return false
-// input: addr std.Address, tokenId uint64
+// isOwnerOrOperator checks whether the caller is the owner or approved operator of the positionId
+// If the caller is the owner or approved operator of the positionId, return true, otherwise return false
+// input: addr std.Address, positionId uint64
 // output: bool
-func isOwnerOrOperator(addr std.Address, tokenId uint64) bool {
+func isOwnerOrOperator(addr std.Address, positionId uint64) bool {
 	assertOnlyValidAddress(addr)
-	if !exists(tokenId) {
+	if !exists(positionId) {
 		return false
 	}
-	if isOwner(tokenId, addr) || isOperator(tokenId, addr) {
+	if isOwner(positionId, addr) || isOperator(positionId, addr) {
 		return true
 	}
-	if isStaked(tokenIdFrom(tokenId)) {
-		position, exist := GetPosition(tokenId)
+	if isStaked(positionIdFrom(positionId)) {
+		position, exist := GetPosition(positionId)
 		if exist && addr == position.operator {
 			return true
 		}
@@ -308,12 +308,12 @@ func isOwnerOrOperator(addr std.Address, tokenId uint64) bool {
 	return false
 }
 
-func isAuthorizedForToken(tokenId uint64) {
+func isAuthorizedForToken(positionId uint64) {
 	caller := getPrevAddr()
-	if !(isOwnerOrOperator(caller, tokenId)) {
+	if !(isOwnerOrOperator(caller, positionId)) {
 		panic(newErrorWithDetail(
 			errNoPermission,
-			ufmt.Sprintf("caller(%s) is not approved or owner of tokenId(%d)", caller, tokenId),
+			ufmt.Sprintf("caller(%s) is not approved or owner of positionId(%d)", caller, positionId),
 		))
 	}
 }
@@ -340,9 +340,9 @@ func splitOf(poolKey string) (string, string, uint32) {
 	return pToken0, pToken1, uint32(pFee)
 }
 
-func verifyTokenIdAndOwnership(tokenId uint64) {
-	assertTokenExists(tokenId)
-	assertOnlyOwnerOfToken(tokenId, getPrevAddr())
+func verifyTokenIdAndOwnership(positionId uint64) {
+	assertTokenExists(positionId)
+	assertOnlyOwnerOfToken(positionId, getPrevAddr())
 }
 
 func verifySlippageAmounts(amount0, amount1, amount0Min, amount1Min *u256.Uint) {

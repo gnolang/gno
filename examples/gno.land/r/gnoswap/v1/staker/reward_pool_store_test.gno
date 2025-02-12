@@ -20,10 +20,10 @@ func TestRewardPool(t *testing.T) {
 	}
 
 	// Test setters
-	pool.SetTier(1)
-	pool.SetRewardAmount(1000)
-	pool.SetDistributedAmount(500)
-	pool.SetLeftAmount(500)
+	pool.setTier(1)
+	pool.setRewardAmount(1000)
+	pool.setDistributedAmount(500)
+	pool.setLeftAmount(500)
 
 	// Test getters
 	if pool.GetTier() != 1 {
@@ -49,7 +49,7 @@ func TestRewardPoolMap(t *testing.T) {
 	}
 
 	// Test adding a new pool
-	rewardMap.SetRewardPool("pool1", &RewardPool{tier: 1, rewardAmount: 1000})
+	rewardMap.setRewardPool("pool1", &RewardPool{tier: 1, rewardAmount: 1000})
 	rewardPool := rewardMap.GetRewardPoolByPoolPath("pool1")
 	if rewardPool.GetTier() != 1 {
 		t.Errorf("Expected tier of pool1 to be 1, got %d", rewardPool.GetTier())
@@ -59,19 +59,19 @@ func TestRewardPoolMap(t *testing.T) {
 	}
 
 	// Test updating pool tier
-	rewardMap.SetPoolTier("pool1", 2)
+	rewardMap.setPoolTier("pool1", 2)
 	if rewardMap.GetPoolTier("pool1") != 2 {
 		t.Errorf("Expected updated tier of pool1 to be 2, got %d", rewardMap.GetPoolTier("pool1"))
 	}
 
 	// Test setting and getting reward amount for tiers
-	rewardMap.SetRewardAmountForTier(TIER1_INDEX, 5000)
+	rewardMap.setRewardAmountForTier(TIER1_INDEX, 5000)
 	if rewardMap.GetRewardAmountForTier(TIER1_INDEX) != 5000 {
 		t.Errorf("Expected rewardAmountForTier[TIER1_INDEX] to be 5000, got %d", rewardMap.GetRewardAmountForTier(TIER1_INDEX))
 	}
 
 	// Test setting and getting left amount for tiers
-	rewardMap.SetLeftAmountForTier(TIER2_INDEX, 3000)
+	rewardMap.setLeftAmountForTier(TIER2_INDEX, 3000)
 	if rewardMap.GetLeftAmountForTier(TIER2_INDEX) != 3000 {
 		t.Errorf("Expected leftAmountForTier[TIER2_INDEX] to be 3000, got %d", rewardMap.GetLeftAmountForTier(TIER2_INDEX))
 	}

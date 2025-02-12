@@ -14,8 +14,11 @@ type Referral struct {
 // NewReferral creates and returns a new instance of `Referral`.
 // it initializes the underlying keeper with a new storage instance.
 func NewReferral() *Referral {
+	if gReferralKeeper == nil {
+		gReferralKeeper = NewKeeper()
+	}
 	return &Referral{
-		keeper: NewKeeper(),
+		keeper: gReferralKeeper,
 	}
 }
 

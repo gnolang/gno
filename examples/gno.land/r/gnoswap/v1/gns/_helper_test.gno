@@ -22,8 +22,8 @@ func resetObject(t *testing.T) {
 func resetGnsTokenObject(t *testing.T) {
 	t.Helper()
 
-	Token, privateLedger = grc20.NewToken("Gnoswap", "GNS", 6)
-	UserTeller = Token.CallerTeller()
+	token, privateLedger = grc20.NewToken("Gnoswap", "GNS", 6)
+	UserTeller = token.CallerTeller()
 	owner = ownable.NewWithAddress(consts.ADMIN)
 	privateLedger.Mint(owner.Owner(), INITIAL_MINT_AMOUNT)
 }

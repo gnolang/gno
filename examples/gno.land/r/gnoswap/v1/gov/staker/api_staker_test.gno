@@ -73,7 +73,7 @@ func TestGetLockedInfoByAddress_EmptyLocks(t *testing.T) {
 func TestGetClaimableRewardByAddress(t *testing.T) {
 	addr := testutils.TestAddress("claimable_test")
 
-	rewardState.AddStake(uint64(std.GetHeight()), addr, 100, 0, nil)
+	rewardState.addStake(uint64(std.GetHeight()), addr, 100, 0, nil)
 
 	currentGNSBalance = 1000
 	// userEmissionReward.Set(addr.String(), uint64(1000))

@@ -166,8 +166,8 @@ func testMintAndStakeBarQuxPos01() {
 		adminAddr,
 	)
 
-	gnft.Approve(stakerAddr, tokenIdFrom(1))
-	sr.StakeToken(1)
+	gnft.Approve(stakerAddr, positionIdFrom(1))
+	sr.StakeToken(1, "")
 }
 
 func testMintAndStakeBarQuxPos02() {
@@ -192,8 +192,8 @@ func testMintAndStakeBarQuxPos02() {
 		adminAddr,
 	)
 
-	gnft.Approve(stakerAddr, tokenIdFrom(2))
-	sr.StakeToken(2)
+	gnft.Approve(stakerAddr, positionIdFrom(2))
+	sr.StakeToken(2, "")
 }
 
 func testMakeExternalBarAndQuxStart() {
@@ -224,27 +224,27 @@ func testCollectRewardPos01() {
 	}
 }
 
-func tokenIdFrom(tokenId interface{}) grc721.TokenID {
-	if tokenId == nil {
-		panic("tokenId is nil")
+func positionIdFrom(positionId interface{}) grc721.TokenID {
+	if positionId == nil {
+		panic("positionId is nil")
 	}
 
-	switch tokenId.(type) {
+	switch positionId.(type) {
 	case string:
-		return grc721.TokenID(tokenId.(string))
+		return grc721.TokenID(positionId.(string))
 	case int:
-		return grc721.TokenID(strconv.Itoa(tokenId.(int)))
+		return grc721.TokenID(strconv.Itoa(positionId.(int)))
 	case uint64:
-		return grc721.TokenID(strconv.Itoa(int(tokenId.(uint64))))
+		return grc721.TokenID(strconv.Itoa(int(positionId.(uint64))))
 	case grc721.TokenID:
-		return tokenId.(grc721.TokenID)
+		return positionId.(grc721.TokenID)
 	default:
-		panic("unsupported tokenId type")
+		panic("unsupported positionId type")
 	}
 }
 
-func extractReward(tokenId uint64) uint64 {
-	apiReward := sr.ApiGetRewardsByLpTokenId(tokenId)
+func extractReward(positionId uint64) uint64 {
+	apiReward := sr.ApiGetRewardsByLpTokenId(positionId)
 	rawReward, _ := json.Unmarshal([]byte(apiReward))
 	rawRewardObject, _ := rawReward.GetKey("response")
 	arrReward, _ := rawRewardObject.GetArray()

@@ -15,7 +15,7 @@ import (
 )
 
 // MintAndStake mints LP tokens and stakes them in a single transaction.
-// Returns tokenId, liquidity, amount0, amount1, poolPath
+// Returns positionId, liquidity, amount0, amount1, poolPath
 // ref: https://docs.gnoswap.io/contracts/staker/mint_stake.gno#mintandstake
 func MintAndStake(
 	token0 string,
@@ -49,7 +49,7 @@ func MintAndStake(
 		banker.SendCoins(consts.STAKER_ADDR, consts.POSITION_ADDR, std.Coins{{Denom: "ugnot", Amount: int64(ugnotSent)}})
 	}
 
-	tokenId, liquidity, amount0, amount1 := pn.Mint(
+	positionId, liquidity, amount0, amount1 := pn.Mint(
 		token0,
 		token1,
 		fee,
@@ -62,13 +62,15 @@ func MintAndStake(
 		deadline,
 		consts.STAKER_ADDR,
 		std.PrevRealm().Addr(),
+		// TODO: need to add referrer address here?
+		"",
 	)
 
 	// at this point, staker has minted token
-	toTid := grc721.TokenID(ufmt.Sprintf("%d", tokenId))
+	toTid := grc721.TokenID(ufmt.Sprintf("%d", positionId))
 	gnft.SetTokenURIByImageURI(toTid)
 
-	poolPath, _, _ := StakeToken(tokenId) // poolPath, stakedAmount0, stakedAmount1
+	poolPath, _, _ := StakeToken(positionId, "") // poolPath, stakedAmount0, stakedAmount1
 
-	return tokenId, liquidity, amount0, amount1, poolPath
+	return positionId, liquidity, amount0, amount1, poolPath
 }

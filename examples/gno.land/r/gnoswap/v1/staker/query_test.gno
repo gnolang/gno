@@ -15,7 +15,7 @@ func TestQueryPoolData(t *testing.T) {
 	poolPath := "test_pool"
 
 	pool := NewPool(poolPath, std.GetHeight())
-	pools.Set(poolPath, pool)
+	pools.set(poolPath, pool)
 
 	// Add test incentive to pool
 	startTime := time.Now().Unix()
@@ -63,7 +63,7 @@ func TestQueryDepositData(t *testing.T) {
 		warmups:        make([]Warmup, 2),
 	}
 
-	deposits.Set(lpTokenId, deposit)
+	deposits.set(lpTokenId, deposit)
 
 	// Test query
 	data, err := QueryDepositData(lpTokenId)
@@ -78,5 +78,5 @@ func TestQueryDepositData(t *testing.T) {
 	uassert.Equal(t, data.WarmupCount, 2)
 
 	// reset
-	deposits.Remove(lpTokenId)
+	deposits.remove(lpTokenId)
 }

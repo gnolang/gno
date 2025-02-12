@@ -77,8 +77,8 @@ func testPositionMint(t *testing.T) {
 		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 		foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 
-		tokenId, liquidity, amount0, amount1 := pn.Mint(barPath, fooPath, fee500, int32(-8000), int32(8000), "10000000000", "10000000000", "0", "0", max_timeout, admin, admin)
-		uassert.Equal(t, tokenId, uint64(1))
+		positionId, liquidity, amount0, amount1 := pn.Mint(barPath, fooPath, fee500, int32(-8000), int32(8000), "10000000000", "10000000000", "0", "0", max_timeout, admin, admin, "")
+		uassert.Equal(t, positionId, uint64(1))
 		uassert.Equal(t, amount0, "10000000000")
 		uassert.Equal(t, amount1, "10000000000")
 	})
@@ -108,7 +108,7 @@ func testEarlyGovDelegateAndReward(t *testing.T) {
 	t.Run("early gov delegate and reward", func(t *testing.T) {
 		std.TestSetRealm(dummyRealm)
 		gns.Approve(consts.GOV_STAKER_ADDR, uint64(1_000_000))
-		gs.Delegate(dummyAddr, uint64(1_000_000))
+		gs.Delegate(dummyAddr, uint64(1_000_000), "")
 		std.TestSkipHeights(1)
 
 		rewardJson := gs.GetClaimableRewardByAddress(dummyAddr)
@@ -175,7 +175,7 @@ func testGovDelegate(t *testing.T) {
 	t.Run("gov delegate", func(t *testing.T) {
 		std.TestSetRealm(govDelegateRealm)
 		gns.Approve(consts.GOV_STAKER_ADDR, uint64(1_000_000_000))
-		gs.Delegate(govDelegateAddr, uint64(1_000_000_000))
+		gs.Delegate(govDelegateAddr, uint64(1_000_000_000), "")
 		std.TestSkipHeights(1)
 	})
 }

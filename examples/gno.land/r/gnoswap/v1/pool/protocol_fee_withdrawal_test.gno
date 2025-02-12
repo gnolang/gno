@@ -84,6 +84,7 @@ func TestHandleWithdrawalFee(t *testing.T) {
 					max_timeout,
 					alice,
 					alice,
+					"",
 				)
 			},
 			verify: func(t *testing.T) (string, string) {

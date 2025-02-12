@@ -169,7 +169,7 @@ func TestProcessDepositReward(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			state := NewRewardState(tt.rewardX128, 1000, 2000)
 			depositId := ufmt.Sprintf("depositId-%d", i)
-			state.AddStake(1000, depositId, tt.deposit.amount)
+			state.addStake(1000, depositId, tt.deposit.amount)
 			state.TotalStake = tt.tierAmount // force overriding total stake
 			state.finalize(1001)
 
@@ -360,7 +360,7 @@ func TestCollectRewardByDepositId_OwnerCheck(t *testing.T) {
 			totalDepositAmount:     100,
 			ended:                  TimeInfo{height: 10000},
 		}
-		mockTier.SetReward(*mockReward)
+		mockTier.setReward(*mockReward)
 		project.setTier(TIER30, *mockTier)
 
 		amount := CollectRewardByDepositId("depA")

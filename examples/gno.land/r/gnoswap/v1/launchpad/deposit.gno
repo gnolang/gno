@@ -136,7 +136,7 @@ func DepositGns(targetProjectTierId string, amount uint64) string {
 		// update StartHeight, StartTime, TierAmountPerBlockX128
 		tier.updateStarted(info.CurrentHeight, info.CurrentTime)
 		duration := tier.Ended().height - info.CurrentHeight
-		tier.SetTierAmountPerBlockX128(calcRewardPerBlockX128(tier.TierAmount(), duration))
+		tier.setTierAmountPerBlockX128(calcRewardPerBlockX128(tier.TierAmount(), duration))
 
 		prevAddr, prevPkgPath := getPrev()
 		std.Emit(
@@ -152,7 +152,7 @@ func DepositGns(targetProjectTierId string, amount uint64) string {
 		)
 
 		rewardState := NewRewardState(tier.tierAmountPerBlockX128, tier.started.height, tier.ended.height)
-		rewardStates.Set(info.Project.id, info.TierType, rewardState)
+		rewardStates.set(info.Project.id, info.TierType, rewardState)
 	}
 
 	reward := tier.Reward()
@@ -161,7 +161,7 @@ func DepositGns(targetProjectTierId string, amount uint64) string {
 		panic(err.Error())
 	}
 	reward.addRewardPerDeposit(rewardPerDeposit)
-	reward.SetLastHeight(currentHeight)
+	reward.setLastHeight(currentHeight)
 
 	rewardInfo := NewRewardInfo(
 		reward.AccumRewardPerDeposit(),
@@ -172,17 +172,17 @@ func DepositGns(targetProjectTierId string, amount uint64) string {
 		tier.Ended().height,
 		currentHeight)
 	reward.Info().Set(deposit.ID(), rewardInfo)
-	tier.SetReward(reward)
-	tier.SetTotalDepositAmount(tier.TotalDepositAmount() + amount)
-	tier.SetActualDepositAmount(tier.ActualDepositAmount() + amount)
-	tier.SetTotalParticipant(tier.TotalParticipant() + 1)
-	tier.SetActualParticipant(tier.ActualParticipant() + 1)
+	tier.setReward(reward)
+	tier.setTotalDepositAmount(tier.TotalDepositAmount() + amount)
+	tier.setActualDepositAmount(tier.ActualDepositAmount() + amount)
+	tier.setTotalParticipant(tier.TotalParticipant() + 1)
+	tier.setActualParticipant(tier.ActualParticipant() + 1)
 
 	project.setTier(convertTierTypeStrToUint64(tierType), tier)
-	project.Stats().SetTotalDeposit(project.Stats().TotalDeposit() + amount)
-	project.Stats().SetActualDeposit(project.Stats().ActualDeposit() + amount)
-	project.Stats().SetTotalParticipant(project.Stats().TotalParticipant() + 1)
-	project.Stats().SetActualParticipant(project.Stats().ActualParticipant() + 1)
+	project.Stats().setTotalDeposit(project.Stats().TotalDeposit() + amount)
+	project.Stats().setActualDeposit(project.Stats().ActualDeposit() + amount)
+	project.Stats().setTotalParticipant(project.Stats().TotalParticipant() + 1)
+	project.Stats().setActualParticipant(project.Stats().ActualParticipant() + 1)
 
 	projects[projectId] = project
 
@@ -191,7 +191,7 @@ func DepositGns(targetProjectTierId string, amount uint64) string {
 		panic(addDetailToError(
 			errInvalidRewardState, err.Error()))
 	}
-	rewardState.AddStake(uint64(std.GetHeight()), deposit.id, amount)
+	rewardState.addStake(uint64(std.GetHeight()), deposit.id, amount)
 
 	// Update gov_staker to calculate project's recipient's reward
 	gs.SetAmountByProjectWallet(project.recipient, amount, true)
@@ -783,20 +783,20 @@ func processDepositCollection(
 			continue
 		}
 
-		deposit.SetDepositCollectHeight(currentHeight)
-		deposit.SetDepositCollectTime(now)
+		deposit.setDepositCollectHeight(currentHeight)
+		deposit.setDepositCollectTime(now)
 		deposits[deposit.id] = deposit
 
 		totalAmount += deposit.amount
 
 		gs.SetAmountByProjectWallet(project.recipient, deposit.amount, false)
 
-		tier.SetActualDepositAmount(tier.ActualDepositAmount() - deposit.amount)
-		tier.SetActualParticipant(tier.ActualParticipant() - 1)
+		tier.setActualDepositAmount(tier.ActualDepositAmount() - deposit.amount)
+		tier.setActualParticipant(tier.ActualParticipant() - 1)
 
 		project.setTier(convertTierTypeStrToUint64(deposit.tier), tier)
-		project.Stats().SetActualDeposit(project.Stats().actualDeposit - deposit.amount)
-		project.Stats().SetActualParticipant(project.Stats().actualParticipant - 1)
+		project.Stats().setActualDeposit(project.Stats().actualDeposit - deposit.amount)
+		project.Stats().setActualParticipant(project.Stats().actualParticipant - 1)
 
 		projects[deposit.projectId] = project
 
@@ -899,18 +899,18 @@ func processDeposit(deposit *Deposit, project *Project, height uint64) (uint64, 
 	}
 
 	// Update deposit status
-	deposit.SetDepositCollectHeight(height)
-	deposit.SetDepositCollectTime(uint64(time.Now().Unix()))
+	deposit.setDepositCollectHeight(height)
+	deposit.setDepositCollectTime(uint64(time.Now().Unix()))
 	deposits[deposit.id] = *deposit
 
 	// Update project tier
-	tier.SetActualDepositAmount(tier.ActualDepositAmount() - deposit.amount)
-	tier.SetActualParticipant(tier.ActualParticipant() - 1)
+	tier.setActualDepositAmount(tier.ActualDepositAmount() - deposit.amount)
+	tier.setActualParticipant(tier.ActualParticipant() - 1)
 
 	// Update project
 	project.setTier(convertTierTypeStrToUint64(deposit.tier), tier)
-	project.Stats().SetActualDeposit(project.Stats().actualDeposit - deposit.amount)
-	project.Stats().SetActualParticipant(project.Stats().actualParticipant - 1)
+	project.Stats().setActualDeposit(project.Stats().actualDeposit - deposit.amount)
+	project.Stats().setActualParticipant(project.Stats().actualParticipant - 1)
 
 	projects[deposit.projectId] = *project
 

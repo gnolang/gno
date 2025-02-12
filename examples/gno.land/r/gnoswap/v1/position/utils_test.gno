@@ -52,26 +52,26 @@ func TestAssertTokenExists(t *testing.T) {
 	t.Run("Token Exists - No Panic", func(t *testing.T) {
 		defer func() {
 			if r := recover(); r != nil {
-				t.Errorf("unexpected panic for existing tokenId(%d): %v", mockTokenId, r)
+				t.Errorf("unexpected panic for existing positionId(%d): %v", mockTokenId, r)
 			}
 		}()
 		assertTokenExists(mockTokenId) // Should not panic
 	})
 
 	t.Run("Token Does Not Exist - Panic Expected", func(t *testing.T) {
-		expectedErr := ufmt.Sprintf("[GNOSWAP-POSITION-006] requested data not found || tokenId(%d) doesn't exist", mockInvalidTokenId)
+		expectedErr := ufmt.Sprintf("[GNOSWAP-POSITION-006] requested data not found || positionId(%d) doesn't exist", mockInvalidTokenId)
 		uassert.PanicsWithMessage(t, expectedErr, func() {
 			assertTokenExists(mockInvalidTokenId) // Should panic
 		})
 	})
 
-	t.Run("Boundary Case - TokenId Zero", func(t *testing.T) {
+	t.Run("Boundary Case - PositionId Zero", func(t *testing.T) {
 		defer func() {
 			if r := recover(); r == nil {
-				t.Errorf("expected panic for tokenId(0) but did not occur")
+				t.Errorf("expected panic for positionId(0) but did not occur")
 			}
 		}()
-		assertTokenExists(0) // Assume tokenId 0 does not exist
+		assertTokenExists(0) // Assume positionId 0 does not exist
 	})
 }
 
@@ -85,7 +85,7 @@ func TestAssertOnlyOwnerOfToken(t *testing.T) {
 	t.Run("Token Owned by Caller - No Panic", func(t *testing.T) {
 		defer func() {
 			if r := recover(); r != nil {
-				t.Errorf("unexpected panic for tokenId(%d) called by owner(%s): %v", mockTokenId, mockOwner, r)
+				t.Errorf("unexpected panic for positionId(%d) called by owner(%s): %v", mockTokenId, mockOwner, r)
 			}
 		}()
 		assertOnlyOwnerOfToken(mockTokenId, mockOwner) // Should pass without panic
@@ -94,9 +94,9 @@ func TestAssertOnlyOwnerOfToken(t *testing.T) {
 	t.Run("Token Not Owned by Caller - Panic Expected", func(t *testing.T) {
 		defer func() {
 			if r := recover(); r == nil {
-				t.Errorf("expected panic for tokenId(%d) called by unauthorized user(%s), but no panic occurred", mockTokenId, mockCaller)
+				t.Errorf("expected panic for positionId(%d) called by unauthorized user(%s), but no panic occurred", mockTokenId, mockCaller)
 			} else {
-				expectedErr := ufmt.Sprintf("caller(%s) is not owner(%s) for tokenId(%d)", mockCaller, mockOwner, mockTokenId)
+				expectedErr := ufmt.Sprintf("caller(%s) is not owner(%s) for positionId(%d)", mockCaller, mockOwner, mockTokenId)
 				if !strings.Contains(fmt.Sprintf("%v", r), expectedErr) {
 					t.Errorf("unexpected error message: %v", r)
 				}
@@ -108,7 +108,7 @@ func TestAssertOnlyOwnerOfToken(t *testing.T) {
 	t.Run("Non-Existent Token - Panic Expected", func(t *testing.T) {
 		defer func() {
 			if r := recover(); r == nil {
-				t.Errorf("expected panic for non-existent tokenId(9999), but no panic occurred")
+				t.Errorf("expected panic for non-existent positionId(9999), but no panic occurred")
 			}
 		}()
 		assertOnlyOwnerOfToken(9999, mockCaller) // Token 9999 does not exist, should panic
@@ -489,7 +489,7 @@ func TestCheckDeadline(t *testing.T) {
 	}
 }
 
-func TestTokenIdFrom(t *testing.T) {
+func TestPositionIdFrom(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       interface{}
@@ -499,13 +499,13 @@ func TestTokenIdFrom(t *testing.T) {
 		{
 			name:        "Panic - nil",
 			input:       nil,
-			expected:    "[GNOSWAP-POSITION-005] invalid input data || tokenId is nil",
+			expected:    "[GNOSWAP-POSITION-005] invalid input data || positionId is nil",
 			shouldPanic: true,
 		},
 		{
 			name:        "Panic - unsupported type",
 			input:       float64(1),
-			expected:    "[GNOSWAP-POSITION-005] invalid input data || unsupported tokenId type",
+			expected:    "[GNOSWAP-POSITION-005] invalid input data || unsupported positionId type",
 			shouldPanic: true,
 		},
 		{
@@ -559,10 +559,10 @@ func TestTokenIdFrom(t *testing.T) {
 			}()
 
 			if !tc.shouldPanic {
-				got := tokenIdFrom(tc.input)
+				got := positionIdFrom(tc.input)
 				uassert.Equal(t, tc.expected, string(got))
 			} else {
-				tokenIdFrom(tc.input)
+				positionIdFrom(tc.input)
 			}
 		})
 	}
@@ -570,24 +570,24 @@ func TestTokenIdFrom(t *testing.T) {
 
 func TestExists(t *testing.T) {
 	tests := []struct {
-		name     string
-		tokenId  uint64
-		expected bool
+		name       string
+		positionId uint64
+		expected   bool
 	}{
 		{
-			name:     "Fail - not exists",
-			tokenId:  300000,
-			expected: false,
+			name:       "Fail - not exists",
+			positionId: 300000,
+			expected:   false,
 		},
 		{
-			name:     "Success - exists",
-			tokenId:  1,
-			expected: true,
+			name:       "Success - exists",
+			positionId: 1,
+			expected:   true,
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := exists(tc.tokenId)
+			got := exists(tc.positionId)
 			uassert.Equal(t, tc.expected, got)
 		})
 	}
@@ -595,28 +595,28 @@ func TestExists(t *testing.T) {
 
 func TestIsOwner(t *testing.T) {
 	tests := []struct {
-		name     string
-		tokenId  uint64
-		addr     std.Address
-		expected bool
+		name       string
+		positionId uint64
+		addr       std.Address
+		expected   bool
 	}{
 		{
-			name:     "Fail - is not owner",
-			tokenId:  1,
-			addr:     alice,
-			expected: false,
+			name:       "Fail - is not owner",
+			positionId: 1,
+			addr:       alice,
+			expected:   false,
 		},
 		{
-			name:     "Success - is owner",
-			tokenId:  1,
-			addr:     admin,
-			expected: true,
+			name:       "Success - is owner",
+			positionId: 1,
+			addr:       admin,
+			expected:   true,
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			//MakeMintPositionWithoutFee(t)
-			got := isOwner(tc.tokenId, tc.addr)
+			got := isOwner(tc.positionId, tc.addr)
 			uassert.Equal(t, tc.expected, got)
 		})
 	}
@@ -624,30 +624,30 @@ func TestIsOwner(t *testing.T) {
 
 func TestIsOperator(t *testing.T) {
 	tests := []struct {
-		name     string
-		tokenId  uint64
-		addr     std.Address
-		expected bool
+		name       string
+		positionId uint64
+		addr       std.Address
+		expected   bool
 	}{
 		{
-			name:     "Fail - is not operator",
-			tokenId:  1,
-			addr:     alice,
-			expected: false,
+			name:       "Fail - is not operator",
+			positionId: 1,
+			addr:       alice,
+			expected:   false,
 		},
 		{
-			name:     "Success - is operator",
-			tokenId:  1,
-			addr:     bob,
-			expected: true,
+			name:       "Success - is operator",
+			positionId: 1,
+			addr:       bob,
+			expected:   true,
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.expected {
-				LPTokenApprove(t, admin, tc.addr, tc.tokenId)
+				LPTokenApprove(t, admin, tc.addr, tc.positionId)
 			}
-			got := isOperator(tc.tokenId, tc.addr)
+			got := isOperator(tc.positionId, tc.addr)
 			uassert.Equal(t, tc.expected, got)
 		})
 	}
@@ -655,45 +655,45 @@ func TestIsOperator(t *testing.T) {
 
 func TestIsStaked(t *testing.T) {
 	tests := []struct {
-		name     string
-		owner    std.Address
-		operator std.Address
-		tokenId  uint64
-		expected bool
+		name       string
+		owner      std.Address
+		operator   std.Address
+		positionId uint64
+		expected   bool
 	}{
 		{
-			name:     "Fail - is not staked",
-			owner:    bob,
-			operator: alice,
-			tokenId:  1,
-			expected: false,
+			name:       "Fail - is not staked",
+			owner:      bob,
+			operator:   alice,
+			positionId: 1,
+			expected:   false,
 		},
 		{
-			name:     "Fail - is not exist tokenId",
-			owner:    admin,
-			operator: bob,
-			tokenId:  100,
-			expected: false,
+			name:       "Fail - is not exist positionId",
+			owner:      admin,
+			operator:   bob,
+			positionId: 100,
+			expected:   false,
 		},
 		{
-			name:     "Success - is staked",
-			owner:    admin,
-			operator: admin,
-			tokenId:  11,
-			expected: true,
+			name:       "Success - is staked",
+			owner:      admin,
+			operator:   admin,
+			positionId: 11,
+			expected:   true,
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.expected && tc.owner == tc.operator {
 				MakeMintPositionWithoutFee(t)
-				LPTokenApprove(t, tc.owner, consts.STAKER_ADDR, tc.tokenId)
-				LPTokenStake(t, tc.owner, tc.tokenId)
+				LPTokenApprove(t, tc.owner, consts.STAKER_ADDR, tc.positionId)
+				LPTokenStake(t, tc.owner, tc.positionId)
 			}
-			got := isStaked(tokenIdFrom(tc.tokenId))
+			got := isStaked(positionIdFrom(tc.positionId))
 			uassert.Equal(t, tc.expected, got)
 			if tc.expected && tc.owner == tc.operator {
-				LPTokenUnStake(t, tc.owner, tc.tokenId, false)
+				LPTokenUnStake(t, tc.owner, tc.positionId, false)
 			}
 		})
 	}
@@ -701,44 +701,44 @@ func TestIsStaked(t *testing.T) {
 
 func TestIsOwnerOrOperator(t *testing.T) {
 	tests := []struct {
-		name     string
-		owner    std.Address
-		operator std.Address
-		tokenId  uint64
-		expected bool
+		name       string
+		owner      std.Address
+		operator   std.Address
+		positionId uint64
+		expected   bool
 	}{
 		{
-			name:     "Fail - is not owner or operator",
-			owner:    admin,
-			operator: alice,
-			tokenId:  1,
-			expected: false,
+			name:       "Fail - is not owner or operator",
+			owner:      admin,
+			operator:   alice,
+			positionId: 1,
+			expected:   false,
 		},
 		{
-			name:     "Success - is operator",
-			owner:    admin,
-			operator: bob,
-			tokenId:  1,
-			expected: true,
+			name:       "Success - is operator",
+			owner:      admin,
+			operator:   bob,
+			positionId: 1,
+			expected:   true,
 		},
 		{
-			name:     "Success - is owner",
-			owner:    admin,
-			operator: admin,
-			tokenId:  1,
-			expected: true,
+			name:       "Success - is owner",
+			owner:      admin,
+			operator:   admin,
+			positionId: 1,
+			expected:   true,
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.expected && tc.owner != tc.operator {
-				LPTokenApprove(t, tc.owner, tc.operator, tc.tokenId)
+				LPTokenApprove(t, tc.owner, tc.operator, tc.positionId)
 			}
 			var got bool
 			if tc.owner == tc.operator {
-				got = isOwnerOrOperator(tc.owner, tc.tokenId)
+				got = isOwnerOrOperator(tc.owner, tc.positionId)
 			} else {
-				got = isOwnerOrOperator(tc.operator, tc.tokenId)
+				got = isOwnerOrOperator(tc.operator, tc.positionId)
 			}
 			uassert.Equal(t, tc.expected, got)
 		})
@@ -747,38 +747,38 @@ func TestIsOwnerOrOperator(t *testing.T) {
 
 func TestIsOwnerOrOperatorWithStake(t *testing.T) {
 	tests := []struct {
-		name     string
-		owner    std.Address
-		operator std.Address
-		tokenId  uint64
-		isStake  bool
-		expected bool
+		name       string
+		owner      std.Address
+		operator   std.Address
+		positionId uint64
+		isStake    bool
+		expected   bool
 	}{
 		{
-			name:     "Fail - is not token staked",
-			owner:    admin,
-			operator: alice,
-			tokenId:  10,
-			isStake:  false,
-			expected: false,
+			name:       "Fail - is not token staked",
+			owner:      admin,
+			operator:   alice,
+			positionId: 10,
+			isStake:    false,
+			expected:   false,
 		},
 		{
-			name:     "Success - is token staked (position operator)",
-			owner:    admin,
-			operator: admin,
-			tokenId:  10,
-			isStake:  true,
-			expected: true,
+			name:       "Success - is token staked (position operator)",
+			owner:      admin,
+			operator:   admin,
+			positionId: 10,
+			isStake:    true,
+			expected:   true,
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.isStake {
-				tokenId, _, _, _ := MakeMintPositionWithoutFee(t)
-				LPTokenApprove(t, tc.owner, consts.STAKER_ADDR, tc.tokenId)
-				LPTokenStake(t, tc.owner, tc.tokenId)
+				positionId, _, _, _ := MakeMintPositionWithoutFee(t)
+				LPTokenApprove(t, tc.owner, consts.STAKER_ADDR, tc.positionId)
+				LPTokenStake(t, tc.owner, tc.positionId)
 			}
-			got := isOwnerOrOperator(tc.operator, tc.tokenId)
+			got := isOwnerOrOperator(tc.operator, tc.positionId)
 			uassert.Equal(t, tc.expected, got)
 		})
 	}

@@ -6,8 +6,6 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
-
-	en "gno.land/r/gnoswap/v1/emission"
 )
 
 // DelegationHistory represents a single delegation event
@@ -34,8 +32,6 @@ var (
 
 // GetDelegatedCumulative gets the cumulative delegated amount for an address at a certain timestamp.
 func GetDelegatedCumulative(delegator std.Address, endTimestamp uint64) uint64 {
-	en.MintAndDistributeGns()
-
 	if !delegator.IsValid() {
 		panic(addDetailToError(
 			errInvalidAddress,
@@ -65,7 +61,7 @@ func GetDelegatedCumulative(delegator std.Address, endTimestamp uint64) uint64 {
 			continue
 		}
 
-		return record.amount // return last accu amount
+		return record.amount // return last accumulated amount
 	}
 
 	return 0

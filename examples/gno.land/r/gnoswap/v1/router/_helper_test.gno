@@ -208,16 +208,16 @@ func CreatePool(t *testing.T,
 	}
 }
 
-func LPTokenStake(t *testing.T, owner std.Address, tokenId uint64) {
+func LPTokenStake(t *testing.T, owner std.Address, positionId uint64) {
 	t.Helper()
 	std.TestSetRealm(std.NewUserRealm(owner))
-	sr.StakeToken(tokenId)
+	sr.StakeToken(positionId, "")
 }
 
-func LPTokenUnStake(t *testing.T, owner std.Address, tokenId uint64, unwrap bool) {
+func LPTokenUnStake(t *testing.T, owner std.Address, positionId uint64, unwrap bool) {
 	t.Helper()
 	std.TestSetRealm(std.NewUserRealm(owner))
-	sr.UnStakeToken(tokenId, unwrap)
+	sr.UnStakeToken(positionId, unwrap)
 }
 
 func wugnotApprove(t *testing.T, owner, spender std.Address, amount uint64) {
@@ -409,6 +409,7 @@ func MakeMintPositionWithoutFee(t *testing.T) (uint64, string, string, string) {
 		max_timeout,
 		admin,
 		admin,
+		"",
 	)
 }
 
@@ -433,6 +434,7 @@ func MakeSecondMintPositionWithoutFee(t *testing.T) (uint64, string, string, str
 		max_timeout,
 		admin,
 		admin,
+		"",
 	)
 }
 
@@ -457,6 +459,7 @@ func MakeThirdMintPositionWithoutFee(t *testing.T) (uint64, string, string, stri
 		max_timeout,
 		admin,
 		admin,
+		"",
 	)
 }
 
@@ -483,5 +486,6 @@ func MakeForthMintPositionWithoutFee(t *testing.T) (uint64, string, string, stri
 		max_timeout,
 		admin,
 		admin,
+		"",
 	)
 }

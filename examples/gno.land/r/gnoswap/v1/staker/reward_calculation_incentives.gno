@@ -39,7 +39,7 @@ func NewIncentives() Incentives {
 	}
 
 	// initial unclaimable period starts, as there cannot be any staked positions yet.
-	result.unclaimablePeriods.Set(std.GetHeight(), int64(0))
+	result.unclaimablePeriods.set(std.GetHeight(), int64(0))
 	return result
 }
 
@@ -124,7 +124,7 @@ func (self *Incentives) create(
 
 // starts incentive unclaimable period for this pool
 func (self *Incentives) startUnclaimablePeriod(startHeight int64) {
-	self.unclaimablePeriods.Set(startHeight, int64(0))
+	self.unclaimablePeriods.set(startHeight, int64(0))
 }
 
 // ends incentive unclaimable period for this pool
@@ -147,9 +147,9 @@ func (self *Incentives) endUnclaimablePeriod(endHeight int64) {
 	}
 
 	if startHeight == endHeight {
-		self.unclaimablePeriods.Remove(startHeight)
+		self.unclaimablePeriods.remove(startHeight)
 	} else {
-		self.unclaimablePeriods.Set(startHeight, endHeight)
+		self.unclaimablePeriods.set(startHeight, endHeight)
 	}
 }
 

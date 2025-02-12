@@ -71,7 +71,7 @@ func testMintBarQux100_1(t *testing.T) {
 		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 		qux.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 
-		tokenId, liquidity, amount0, amount1 := pn.Mint(
+		positionId, liquidity, amount0, amount1 := pn.Mint(
 			barPath,      // token0
 			quxPath,      // token1
 			fee100,       // fee
@@ -84,10 +84,11 @@ func testMintBarQux100_1(t *testing.T) {
 			max_timeout,
 			adminAddr,
 			adminAddr,
+			"",
 		)
 
-		uassert.Equal(t, tokenId, uint64(1))
-		uassert.Equal(t, gnft.MustOwnerOf(tid(tokenId)), adminAddr)
+		uassert.Equal(t, positionId, uint64(1))
+		uassert.Equal(t, gnft.MustOwnerOf(positionIdFrom(positionId)), adminAddr)
 
 		std.TestSkipHeights(1)
 	})
@@ -115,8 +116,8 @@ func testStakeToken_1(t *testing.T) {
 	t.Run("stake token 01", func(t *testing.T) {
 		std.TestSetRealm(adminRealm)
 
-		gnft.Approve(consts.STAKER_ADDR, tid(1))
-		StakeToken(1)
+		gnft.Approve(consts.STAKER_ADDR, positionIdFrom(1))
+		StakeToken(1, "")
 
 		std.TestSkipHeights(1)
 	})
@@ -175,7 +176,7 @@ func testMintBarQux100_2(t *testing.T) {
 		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 		qux.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 
-		tokenId, liquidity, amount0, amount1 := pn.Mint(
+		positionId, liquidity, amount0, amount1 := pn.Mint(
 			barPath,      // token0
 			quxPath,      // token1
 			fee100,       // fee
@@ -188,10 +189,11 @@ func testMintBarQux100_2(t *testing.T) {
 			max_timeout,
 			adminAddr,
 			adminAddr,
+			"",
 		)
 
-		uassert.Equal(t, tokenId, uint64(2))
-		uassert.Equal(t, gnft.MustOwnerOf(tid(tokenId)), adminAddr)
+		uassert.Equal(t, positionId, uint64(2))
+		uassert.Equal(t, gnft.MustOwnerOf(positionIdFrom(positionId)), adminAddr)
 
 		std.TestSkipHeights(1)
 	})
@@ -201,8 +203,8 @@ func testStakeToken_2(t *testing.T) {
 	t.Run("stake token 02", func(t *testing.T) {
 		std.TestSetRealm(adminRealm)
 
-		gnft.Approve(consts.STAKER_ADDR, tid(2))
-		StakeToken(2)
+		gnft.Approve(consts.STAKER_ADDR, positionIdFrom(2))
+		StakeToken(2, "")
 		std.TestSkipHeights(1)
 	})
 }

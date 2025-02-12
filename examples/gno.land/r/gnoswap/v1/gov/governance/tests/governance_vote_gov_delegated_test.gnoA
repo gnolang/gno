@@ -58,7 +58,7 @@ func proposeText(t *testing.T) {
 		uassert.Equal(t, xgns.VotingSupply(), uint64(0))
 
 		gns.Approve(consts.GOV_STAKER_ADDR, uint64(1_000_000))
-		gs.Delegate(admin, uint64(1_000_000)) // self delegate
+		gs.Delegate(admin, uint64(1_000_000), "") // self delegate
 		uassert.Equal(t, int64(123), std.GetHeight())
 		std.TestSkipHeights(1)
 
@@ -67,7 +67,7 @@ func proposeText(t *testing.T) {
 		uassert.Equal(t, xgns.VotingSupply(), uint64(1_000_000))
 
 		gns.Approve(consts.GOV_STAKER_ADDR, uint64(2_000_000))
-		gs.Delegate(dummyAddr, uint64(2_000_000)) // delegate to dummy
+		gs.Delegate(dummyAddr, uint64(2_000_000), "") // delegate to dummy
 		uassert.Equal(t, int64(124), std.GetHeight())
 		std.TestSkipHeights(1)
 

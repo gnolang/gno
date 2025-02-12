@@ -5,17 +5,16 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ufmt"
 )
 
 const (
 	// MinTimeBetweenUpdates represents minimum duration between operations
-    MinTimeBetweenUpdates int64 = 24 * 60 * 60
+	MinTimeBetweenUpdates int64 = 24 * 60 * 60
 )
 
 // keeper implements the `ReferralKeeper` interface using an AVL tree for storage.
 type keeper struct {
-	store *avl.Tree
+	store   *avl.Tree
 	lastOps map[string]int64
 }
 
@@ -26,7 +25,7 @@ var _ ReferralKeeper = &keeper{}
 // The keeper is initialized with an empty AVL tree for storing referral relationships.
 func NewKeeper() ReferralKeeper {
 	return &keeper{
-		store: avl.NewTree(),
+		store:   avl.NewTree(),
 		lastOps: make(map[string]int64),
 	}
 }
@@ -61,11 +60,12 @@ func (k *keeper) setReferral(addr, refAddr std.Address, eventType string) error 
 		return err
 	}
 
-	if err := k.checkRateLimit(addr.String()); err != nil {
-		// XXX: because of the weird type-related errors, this is the only
-		// part where we need to use `ufmt.Errorf` to build error message.
-		return ufmt.Errorf("too many requests")
-	}
+	// TODO: change error handler
+	// if err := k.checkRateLimit(addr.String()); err != nil {
+	// 	// XXX: because of the weird type-related errors, this is the only
+	// 	// part where we need to use `ufmt.Errorf` to build error message.
+	// 	return nil
+	// }
 
 	if refAddr == zeroAddress {
 		std.Emit(
@@ -88,10 +88,10 @@ func (k *keeper) setReferral(addr, refAddr std.Address, eventType string) error 
 // validateAddresses checks if the given addresses are valid for referral
 func (k *keeper) validateAddresses(addr, refAddr std.Address) error {
 	if !addr.IsValid() || (refAddr != zeroAddress && !refAddr.IsValid()) {
-		return NewError(ErrInvalidAddress)
+		return ErrInvalidAddress
 	}
 	if addr == refAddr {
-		return NewError(ErrSelfReferral)
+		return ErrSelfReferral
 	}
 	return nil
 }
@@ -106,7 +106,7 @@ func (k *keeper) remove(target std.Address) error {
 	}
 
 	if !target.IsValid() {
-		return NewError(ErrInvalidAddress)
+		return ErrInvalidAddress
 	}
 
 	if err := k.checkRateLimit(target.String()); err != nil {
@@ -135,43 +135,43 @@ func (k *keeper) has(addr std.Address) bool {
 // It retrieves the referral address for a given address.
 func (k *keeper) get(addr std.Address) (std.Address, error) {
 	if !addr.IsValid() {
-		return zeroAddress, NewError(ErrInvalidAddress)
+		return zeroAddress, ErrInvalidAddress
 	}
 
 	val, ok := k.store.Get(addr.String())
 	if !ok {
-		return zeroAddress, NewError(ErrNotFound)
+		return zeroAddress, ErrNotFound
 	}
 
 	refAddr, ok := val.(string)
 	if !ok {
-		return zeroAddress, NewError(ErrInvalidAddress)
+		return zeroAddress, ErrInvalidAddress
 	}
 
 	return std.Address(refAddr), nil
 }
 
 func (k *keeper) isEmpty() bool {
-    empty := true
-    k.store.Iterate("", "", func(key string, value interface{}) bool {
-        empty = false
-        return true // stop iteration on first item
-    })
-    return empty
+	empty := true
+	k.store.Iterate("", "", func(key string, value interface{}) bool {
+		empty = false
+		return true // stop iteration on first item
+	})
+	return empty
 }
 
 // checkRateLimit verifies if enough time has passed since the last operation
 func (k *keeper) checkRateLimit(addr string) error {
-    now := time.Now().Unix()
-    
-    if lastOpTime, exists := k.lastOps[addr]; exists {
-        timeSinceLastOp := now - lastOpTime
-        
-        if timeSinceLastOp < MinTimeBetweenUpdates {
-            return NewError(ErrTooManyRequests)
-        }
-    }
-    
-    k.lastOps[addr] = now
-    return nil
+	now := time.Now().Unix()
+
+	if lastOpTime, exists := k.lastOps[addr]; exists {
+		timeSinceLastOp := now - lastOpTime
+
+		if timeSinceLastOp < MinTimeBetweenUpdates {
+			return ErrTooManyRequests
+		}
+	}
+
+	k.lastOps[addr] = now
+	return nil
 }

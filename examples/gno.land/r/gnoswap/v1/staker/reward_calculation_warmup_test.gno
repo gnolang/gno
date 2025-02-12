@@ -26,7 +26,7 @@ func TestDefaultWarmupTemplate(t *testing.T) {
 
 func TestInstantiateWarmup(t *testing.T) {
 	currentHeight := int64(1000)
-	warmups := InstantiateWarmup(currentHeight)
+	warmups := instantiateWarmup(currentHeight)
 
 	uassert.True(t, warmups[0].NextWarmupHeight > currentHeight)
 	uassert.True(t, warmups[1].NextWarmupHeight > warmups[0].NextWarmupHeight)
@@ -41,7 +41,7 @@ func TestWarmupApply(t *testing.T) {
 	positionLiquidity := u256.NewUint(100)
 	stakedLiquidity := u256.NewUint(200)
 
-	reward, penalty := warmup.Apply(poolReward, positionLiquidity, stakedLiquidity)
+	reward, penalty := warmup.apply(poolReward, positionLiquidity, stakedLiquidity)
 
 	uassert.Equal(t, poolReward/2, reward+penalty)
 	uassert.Equal(t, uint64(150), reward)
@@ -111,7 +111,7 @@ func TestWarmupApply2(t *testing.T) {
 				WarmupRatio: tt.warmupRatio,
 			}
 
-			reward, penalty := warmup.Apply(
+			reward, penalty := warmup.apply(
 				tt.poolReward,
 				u256.NewUint(tt.position),
 				u256.NewUint(tt.staked),
@@ -134,18 +134,18 @@ func TestWarmupBoundaryValues(t *testing.T) {
 	position := u256.NewUint(1)
 	staked := u256.NewUint(1)
 
-	reward, penalty := warmup.Apply(maxReward, position, staked)
+	reward, penalty := warmup.apply(maxReward, position, staked)
 	uassert.Equal(t, maxReward/2, reward)
 
 	// zero reward
-	reward, penalty = warmup.Apply(0, position, staked)
+	reward, penalty = warmup.apply(0, position, staked)
 	uassert.Equal(t, uint64(0), reward)
 	uassert.Equal(t, uint64(0), penalty)
 }
 
 func TestFindWarmup(t *testing.T) {
 	deposit := &Deposit{
-		warmups: InstantiateWarmup(1000),
+		warmups: instantiateWarmup(1000),
 	}
 
 	// check index of warmup
@@ -190,7 +190,7 @@ func TestLiquidityRatios(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			reward, _ := warmup.Apply(
+			reward, _ := warmup.apply(
 				tt.reward,
 				u256.NewUint(tt.position),
 				u256.NewUint(tt.staked),
@@ -203,7 +203,7 @@ func TestLiquidityRatios(t *testing.T) {
 func TestWarmupTransitions(t *testing.T) {
 	currentHeight := int64(1000)
 	deposit := &Deposit{
-		warmups: InstantiateWarmup(currentHeight),
+		warmups: instantiateWarmup(currentHeight),
 	}
 
 	transitions := []struct {
@@ -234,7 +234,7 @@ func TestModifyWarmup(t *testing.T) {
 
 	t.Run("modify warmup with negative block duration", func(t *testing.T) {
 		modifyWarmup(0, -1000)
-		instantiated := InstantiateWarmup(0)
+		instantiated := instantiateWarmup(0)
 		uassert.Equal(t, int64(math.MaxInt64), instantiated[0].NextWarmupHeight)
 	})
 
@@ -286,7 +286,7 @@ func TestRewardCalculationPrecision(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			reward, penalty := warmup.Apply(tt.reward, position, staked)
+			reward, penalty := warmup.apply(tt.reward, position, staked)
 			uassert.Equal(t, tt.expectedReward, reward)
 			uassert.Equal(t, tt.expectedPenalty, penalty)
 			// consider rounding error
@@ -317,7 +317,7 @@ func TestMultipleWarmupPeriods(t *testing.T) {
 		std.TestSkipHeights(startHeight)
 
 		deposit := &Deposit{
-			warmups: InstantiateWarmup(startHeight),
+			warmups: instantiateWarmup(startHeight),
 		}
 
 		position := u256.NewUint(1000)
@@ -327,7 +327,7 @@ func TestMultipleWarmupPeriods(t *testing.T) {
 
 		// WarmupRatio30 (30%) 5 days
 		blocks5Days := uint64(5 * blocksInDay)
-		reward5Days, penalty5Days := deposit.warmups[0].Apply(
+		reward5Days, penalty5Days := deposit.warmups[0].apply(
 			baseReward*blocks5Days,
 			position,
 			staked,
@@ -343,7 +343,7 @@ func TestMultipleWarmupPeriods(t *testing.T) {
 		// WarmupRatio50 (50%) 2 days
 		std.TestSkipHeights(5 * blocksInDay)
 		blocks2Days := uint64(2 * blocksInDay)
-		reward2Days, penalty2Days := deposit.warmups[1].Apply(
+		reward2Days, penalty2Days := deposit.warmups[1].apply(
 			baseReward*blocks2Days,
 			position,
 			staked,
@@ -378,7 +378,7 @@ func TestMultipleWarmupPeriods(t *testing.T) {
 		std.TestSkipHeights(startHeight)
 
 		deposit := &Deposit{
-			warmups: InstantiateWarmup(startHeight),
+			warmups: instantiateWarmup(startHeight),
 		}
 
 		position := u256.NewUint(1000)
@@ -399,7 +399,7 @@ func TestMultipleWarmupPeriods(t *testing.T) {
 
 		for i, period := range periods {
 			blocks := uint64(period.days * blocksInDay)
-			reward, penalty := deposit.warmups[i].Apply(
+			reward, penalty := deposit.warmups[i].apply(
 				baseReward*blocks,
 				position,
 				staked,

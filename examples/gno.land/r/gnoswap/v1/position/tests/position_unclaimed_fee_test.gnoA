@@ -47,13 +47,6 @@ var (
 	rouRealm   = std.NewCodeRealm(consts.ROUTER_PATH)
 )
 
-func getPoolFromLpTokenId(t *testing.T, lpTokenId uint64) *pl.Pool {
-	t.Helper()
-
-	position := MustGetPosition(lpTokenId)
-	return pl.GetPoolFromPoolPath(position.poolKey)
-}
-
 func TestPoolInitCreatePool(t *testing.T) {
 	std.TestSetRealm(adminRealm)
 
@@ -66,7 +59,7 @@ func TestMintPosition01InRange(t *testing.T) {
 	bar.Approve(consts.POOL_ADDR, 18394892)
 	foo.Approve(consts.POOL_ADDR, 50000000)
 
-	tokenId, liquidity, amount0, amount1 := Mint(
+	positionId, liquidity, amount0, amount1 := Mint(
 		barPath,
 		fooPath,
 		fee500,
@@ -79,9 +72,10 @@ func TestMintPosition01InRange(t *testing.T) {
 		max_timeout,
 		adminAddr,
 		adminAddr,
+		"",
 	)
 
-	uassert.Equal(t, tokenId, uint64(1))
+	uassert.Equal(t, positionId, uint64(1))
 	uassert.Equal(t, getNextId(), uint64(2))
 	uassert.Equal(t, amount0, "18394892")
 	uassert.Equal(t, amount1, "50000000")
@@ -92,7 +86,7 @@ func TestMintPosition02LowerRange(t *testing.T) {
 	bar.Approve(consts.POOL_ADDR, 0)
 	foo.Approve(consts.POOL_ADDR, 50000000)
 
-	tokenId, liquidity, amount0, amount1 := Mint(
+	positionId, liquidity, amount0, amount1 := Mint(
 		barPath,
 		fooPath,
 		fee500,
@@ -105,9 +99,10 @@ func TestMintPosition02LowerRange(t *testing.T) {
 		max_timeout,
 		adminAddr,
 		adminAddr,
+		"",
 	)
 
-	uassert.Equal(t, tokenId, uint64(2))
+	uassert.Equal(t, positionId, uint64(2))
 	uassert.Equal(t, getNextId(), uint64(3))
 	uassert.Equal(t, amount0, "0")
 	uassert.Equal(t, amount1, "50000000")
@@ -118,7 +113,7 @@ func TestMintPosition03UpperRange(t *testing.T) {
 	bar.Approve(consts.POOL_ADDR, 50000000)
 	foo.Approve(consts.POOL_ADDR, 0)
 
-	tokenId, liquidity, amount0, amount1 := Mint(
+	positionId, liquidity, amount0, amount1 := Mint(
 		barPath,
 		fooPath,
 		fee500,
@@ -131,9 +126,10 @@ func TestMintPosition03UpperRange(t *testing.T) {
 		max_timeout,
 		adminAddr,
 		adminAddr,
+		"",
 	)
 
-	uassert.Equal(t, tokenId, uint64(3))
+	uassert.Equal(t, positionId, uint64(3))
 	uassert.Equal(t, getNextId(), uint64(4))
 	uassert.Equal(t, amount0, "50000000")
 	uassert.Equal(t, amount1, "0")
@@ -141,9 +137,9 @@ func TestMintPosition03UpperRange(t *testing.T) {
 
 func TestCollectFeeBeforeSwap(t *testing.T) {
 	std.TestSetRealm(adminRealm)
-	tokenId, fee0, fee1, poolPath, _, _ := CollectFee(1, false)
+	positionId, fee0, fee1, poolPath, _, _ := CollectFee(1, false)
 
-	uassert.Equal(t, tokenId, uint64(1))
+	uassert.Equal(t, positionId, uint64(1))
 	uassert.Equal(t, fee0, "0")
 	uassert.Equal(t, fee1, "0")
 	uassert.Equal(t, poolPath, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
@@ -242,9 +238,9 @@ func TestCollectFeeAfterSwap(t *testing.T) {
 	foo.Approve(consts.POOL_ADDR, consts.UINT64_MAX) // COLLECT_FEE
 	bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX) // COLLECT_FEE
 
-	tokenId, fee0, fee1, poolPath, _, _ := CollectFee(1, false)
+	positionId, fee0, fee1, poolPath, _, _ := CollectFee(1, false)
 
-	uassert.Equal(t, tokenId, uint64(1))
+	uassert.Equal(t, positionId, uint64(1))
 	uassert.Equal(t, fee0, "10069") // this is input token
 	uassert.Equal(t, fee1, "8919")  // this it output token
 	uassert.Equal(t, poolPath, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
@@ -253,16 +249,16 @@ func TestCollectFeeAfterSwap(t *testing.T) {
 func TestDecreaseLiquidityUpperPosition(t *testing.T) {
 	std.TestSetRealm(adminRealm)
 
-	ownerOfPosition, _ := gnft.OwnerOf(tokenIdFrom(3))
+	ownerOfPosition, _ := gnft.OwnerOf(positionIdFrom(3))
 	uassert.Equal(t, ownerOfPosition, adminAddr)
 
-	tokenId, liquidity, fee0, fee1, amount0, amount1, poolPath := DecreaseLiquidity(uint64(3), "318704392", "0", "0", max_timeout, false)
+	positionId, liquidity, fee0, fee1, amount0, amount1, poolPath := DecreaseLiquidity(uint64(3), "318704392", "0", "0", max_timeout, false)
 
-	uassert.Equal(t, tokenId, uint64(3))
+	uassert.Equal(t, positionId, uint64(3))
 	uassert.Equal(t, amount0, "16644469")
 	uassert.Equal(t, amount1, "0")
 
-	ownerOfPosition, _ = gnft.OwnerOf(tokenIdFrom(3))
+	ownerOfPosition, _ = gnft.OwnerOf(positionIdFrom(3))
 	uassert.Equal(t, ownerOfPosition, adminAddr)
 }
 
