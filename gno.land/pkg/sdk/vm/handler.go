@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -28,6 +29,8 @@ func (vh vmHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 		return vh.handleMsgCall(ctx, msg)
 	case MsgRun:
 		return vh.handleMsgRun(ctx, msg)
+	case MsgEval:
+		return vh.handleMsgEval(ctx, msg)
 	default:
 		errMsg := fmt.Sprintf("unrecognized vm message type: %T", msg)
 		return abciResult(std.ErrUnknownRequest(errMsg))
@@ -43,14 +46,25 @@ func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.
 	return sdk.Result{}
 }
 
-// Handle MsgCall.
 func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result) {
 	resstr, err := vh.vm.Call(ctx, msg)
 	if err != nil {
 		return abciResult(err)
 	}
+
 	res.Data = []byte(resstr)
-	return
+	return res
+}
+
+// Handle MsgEval.
+func (vh vmHandler) handleMsgEval(ctx sdk.Context, msg MsgEval) (res sdk.Result) {
+	resstr, err := vh.vm.Eval(ctx, msg)
+	if err != nil {
+		return abciResult(err)
+	}
+
+	res.Data = []byte(resstr)
+	return res
 }
 
 // Handle MsgRun.
@@ -59,8 +73,9 @@ func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
 	if err != nil {
 		return abciResult(err)
 	}
+
 	res.Data = []byte(resstr)
-	return
+	return res
 }
 
 // ----------------------------------------
@@ -91,10 +106,10 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQ
 		res = vh.queryRender(ctx, req)
 	case QueryFuncs:
 		res = vh.queryFuncs(ctx, req)
-	case QueryEval:
-		res = vh.queryEval(ctx, req)
 	case QueryFile:
 		res = vh.queryFile(ctx, req)
+	case QueryEval:
+		res = vh.queryEval(ctx, req)
 	default:
 		return sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
@@ -126,8 +141,13 @@ func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abc
 	}
 
 	pkgPath, path := reqData[:dot], reqData[dot+1:]
+
+	// Generate msg eval request
 	expr := fmt.Sprintf("Render(%q)", path)
-	result, err := vh.vm.QueryEvalString(ctx, pkgPath, expr)
+	msgEval := NewMsgEval(FormatString, pkgPath, expr)
+
+	// Try evaluate `Render` function
+	result, err := vh.vm.Eval(ctx, msgEval)
 	if err != nil {
 		if strings.Contains(err.Error(), "Render not declared") {
 			err = NoRenderDeclError{}
@@ -152,16 +172,38 @@ func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci
 	return
 }
 
-// queryEval evaluates any expression in readonly mode and returns the results.
+// queryEval evaluates any expression in readonly mode and returns the results based on the given format.
 func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	pkgPath, expr := parseQueryEvalData(string(req.Data))
-	result, err := vh.vm.QueryEval(ctx, pkgPath, expr)
-	if err != nil {
-		res = sdk.ABCIResponseQueryFromError(err)
-		return
+	var format Format
+	switch ss := strings.Split(req.Path, "/"); len(ss) {
+	case 2:
+		format = FormatDefault
+	case 3:
+		format = Format(ss[2])
+	default:
+		return sdk.ABCIResponseQueryFromError(errors.New("invalid query path"))
 	}
+
+	// Validate format
+	switch format {
+	case FormatMachine, FormatJSON, FormatString:
+	default:
+		return sdk.ABCIResponseQueryFromError(fmt.Errorf("invalid query result format %q", format))
+	}
+
+	pkgpath, expr := parseQueryEvalData(string(req.Data))
+	msgEval := NewMsgEval(format, pkgpath, expr)
+	if expr == "" {
+		return sdk.ABCIResponseQueryFromError(fmt.Errorf("expr cannot be empty"))
+	}
+
+	result, err := vh.vm.Eval(ctx, msgEval)
+	if err != nil {
+		return sdk.ABCIResponseQueryFromError(err)
+	}
+
 	res.Data = []byte(result)
-	return
+	return res
 }
 
 // parseQueryEval parses the input string of vm/qeval. It takes the first dot

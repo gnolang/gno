@@ -336,6 +336,74 @@ func Echo(msg string) string {
 	assert.Error(t, err)
 }
 
+func TestVMKeeperEvalJSONFormatting2(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+
+	tests := []struct {
+		name     string
+		pkgBody  string
+		expr     string
+		expected string
+	}{
+		{
+			name:     "JSON string",
+			pkgBody:  `func GetString() string { return "hello" }`,
+			expr:     "GetString()",
+			expected: `["hello"]`,
+		},
+		{
+			name:     "JSON integer",
+			pkgBody:  `func GetInt() int { return 42 }`,
+			expr:     "GetInt()",
+			expected: `[42]`,
+		},
+		{
+			name:     "JSON boolean",
+			pkgBody:  `func GetBool() bool { return true }`,
+			expr:     "GetBool()",
+			expected: `[true]`,
+		},
+		{
+			name:     "JSON bytes",
+			pkgBody:  `func GetBytes() []byte { return []byte("test") }`,
+			expr:     "GetBytes()",
+			expected: `["dGVzdA=="]`,
+		},
+		{
+			name:     "JSON multiple values",
+			pkgBody:  `func GetMulti() (string, int) { return "hello", 42 }`,
+			expr:     "GetMulti()",
+			expected: `["hello",42]`,
+		},
+	}
+
+	for i, tc := range tests {
+		pkgPath := fmt.Sprintf("gno.land/r/hello%d", i)
+		pkgBody := fmt.Sprintf("package hello%d", 1) + "\n" + tc.pkgBody
+		t.Run(tc.name, func(t *testing.T) {
+			files := []*gnovm.MemFile{
+				{Name: "hello.gno", Body: pkgBody},
+			}
+
+			msg1 := NewMsgAddPackage(addr, pkgPath, files)
+			err := env.vmk.AddPackage(ctx, msg1)
+			assert.NoError(t, err)
+			env.vmk.CommitGnoTransactionStore(ctx)
+
+			msgEval := NewMsgEval(FormatJSON, pkgPath, tc.expr)
+			res, err := env.vmk.Eval(env.ctx, msgEval)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, res)
+		})
+	}
+}
+
 // Using x/params from a realm.
 func TestVMKeeperParams(t *testing.T) {
 	env := setupTestEnv()
@@ -442,6 +510,99 @@ func GetAdmin() string {
 	addrString := fmt.Sprintf("(\"%s\" string)\n\n", addr.String())
 	assert.NoError(t, err)
 	assert.Equal(t, addrString, res)
+}
+
+func TestVMKeeperCallReturnJSONPointerValues(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+
+	// Create test package.
+	files := []*gnovm.MemFile{
+		{Name: "init.gno", Body: `
+package test
+
+type TStructA struct {  }
+
+func (a *TStructA) String() string { return "S:This Is A" }
+
+type TStructB struct {  }
+
+func (b *TStructB) Error() string { return "E:This Is B" }
+
+type TStructC struct {  }
+
+var A, B, C = &TStructA{}, &TStructB{}, &TStructC{}
+
+func StringerReturnPointer() (*TStructA, *TStructB, *TStructC) {
+	return A, B, C
+}
+`},
+	}
+	pkgPath := "gno.land/r/test"
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	const expected = `["<obj:*gno.land/r/test.TStructA:a8ada09dee16d791fd406d629fe29bb0ed084a30:3>","E:This Is B","<obj:*gno.land/r/test.TStructC:a8ada09dee16d791fd406d629fe29bb0ed084a30:7>"]`
+
+	// Run GetAdmin()
+	coins := std.MustParseCoins("")
+	msg2 := NewMsgCallJSON(addr, coins, pkgPath, "StringerReturnPointer", []string{})
+	res, err := env.vmk.Call(ctx, msg2)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, res)
+}
+
+func TestVMKeeperCallReturnJSONValues(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+
+	// Create test package.
+	files := []*gnovm.MemFile{
+		{Name: "init.gno", Body: `
+package test
+
+type TStructA struct {  }
+
+func (a *TStructA) String() string { return "S:This Is A" }
+
+type TStructB struct {  }
+
+func (b *TStructB) Error() string { return "E:This Is B" }
+
+type TStructC struct {  }
+
+func StringerReturn() (TStructA, TStructB, TStructC) {
+        return TStructA{}, TStructB{}, TStructC{}
+}
+`},
+	}
+	pkgPath := "gno.land/r/test"
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg1)
+	require.NoError(t, err)
+
+	const expected = `["<obj:gno.land/r/test.TStructA:0>","E:This Is B","<obj:gno.land/r/test.TStructC:0>"]`
+
+	coins := std.MustParseCoins("")
+	msg3 := NewMsgCallJSON(addr, coins, pkgPath, "StringerReturn", []string{})
+	res, err := env.vmk.Call(ctx, msg3)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, res)
 }
 
 // Call Run without imports, without variables.

@@ -119,7 +119,7 @@ func TestMsgCall_ValidateBasic(t *testing.T) {
 			name: "valid message",
 			msg:  NewMsgCall(caller, std.NewCoins(std.NewCoin("ugnot", 1000)), pkgPath, funcName, args),
 			expectSignBytes: `{"args":["arg1","arg2"],"caller":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt",` +
-				`"func":"MyFunction","pkg_path":"gno.land/r/namespace/test","send":"1000ugnot"}`,
+				`"format":"machine","func":"MyFunction","pkg_path":"gno.land/r/namespace/test","send":"1000ugnot"}`,
 			expectErr: nil,
 		},
 		{

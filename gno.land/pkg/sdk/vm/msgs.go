@@ -12,6 +12,15 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+type Format string
+
+const (
+	FormatMachine Format = "machine" // Default machine representation
+	FormatString         = "string"  // Single string representation
+	FormatJSON           = "json"    // XXX: EXPERIMENTAL, only supports primitive types for now
+	FormatDefault        = FormatMachine
+)
+
 //----------------------------------------
 // MsgAddPackage
 
@@ -80,6 +89,59 @@ func (msg MsgAddPackage) GetReceived() std.Coins {
 }
 
 //----------------------------------------
+// MsgEval
+
+// MsgEval - eval a Gno Expr.
+type MsgEval struct {
+	PkgPath string         `json:"pkg_path" yaml:"pkg_path"`
+	Expr    string         `json:"expr" yaml:"expr"`
+	Caller  crypto.Address `json:"caller" yaml:"caller"`
+
+	// XXX: This field is experimental, use with care as output is likely to change
+	// Default format is machine
+	Format Format `json:"format" yaml:"format"`
+}
+
+var _ std.Msg = MsgEval{}
+
+func NewMsgEval(format Format, pkgPath, expr string) MsgEval {
+	return MsgEval{
+		PkgPath: pkgPath,
+		Expr:    expr,
+		Format:  format,
+	}
+}
+
+// Implements Msg.
+func (msg MsgEval) Route() string { return RouterKey }
+
+// Implements Msg.
+func (msg MsgEval) Type() string { return "eval" }
+
+// Implements Msg.
+func (msg MsgEval) ValidateBasic() error {
+	if msg.Caller.IsZero() {
+		return std.ErrInvalidAddress("missing caller address")
+	}
+
+	if msg.Expr == "" {
+		return ErrInvalidExpr("missing expr to eval")
+	}
+
+	return nil
+}
+
+// Implements Msg.
+func (msg MsgEval) GetSignBytes() []byte {
+	return std.MustSortJSON(amino.MustMarshalJSON(msg))
+}
+
+// Implements Msg.
+func (msg MsgEval) GetSigners() []crypto.Address {
+	return []crypto.Address{msg.Caller}
+}
+
+//----------------------------------------
 // MsgCall
 
 // MsgCall - executes a Gno statement.
@@ -89,18 +151,28 @@ type MsgCall struct {
 	PkgPath string         `json:"pkg_path" yaml:"pkg_path"`
 	Func    string         `json:"func" yaml:"func"`
 	Args    []string       `json:"args" yaml:"args"`
+
+	// XXX: This field is experimental, use with care as output is likely to change
+	Format Format `json:"format" yaml:"format"`
 }
 
 var _ std.Msg = MsgCall{}
 
 func NewMsgCall(caller crypto.Address, send sdk.Coins, pkgPath, fnc string, args []string) MsgCall {
 	return MsgCall{
+		Format:  FormatDefault,
 		Caller:  caller,
 		Send:    send,
 		PkgPath: pkgPath,
 		Func:    fnc,
 		Args:    args,
 	}
+}
+
+func NewMsgCallJSON(caller crypto.Address, send sdk.Coins, pkgPath, fnc string, args []string) MsgCall {
+	msg := NewMsgCall(caller, send, pkgPath, fnc, args)
+	msg.Format = FormatJSON
+	return msg
 }
 
 // Implements Msg.

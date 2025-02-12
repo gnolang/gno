@@ -1,3 +1,5 @@
+loadpkg gno.land/r/dev/silo $WORK/silo
+
 # test basic gnokey integrations commands
 # golden files have been generated using UPDATE_SCRIPTS=true
 
@@ -7,6 +9,9 @@ adduser user1
 # start gnoland
 gnoland start
 
+# query
+
+## auth
 ## test1 account should be available on default
 gnokey query auth/accounts/$user1_user_addr
 stdout 'height: 0'
@@ -25,3 +30,61 @@ stdout '}'
 ! gnokey query foo/bar
 stdout 'Log:'
 stderr '"gnokey" error: unknown request error'
+
+# jquery
+
+## succeed call: string
+gnokey jquery vm/qeval -data "gno.land/r/dev/silo.Hello(\"juliette\")"
+stdout '"returns": \['
+stdout '   "Hello juliette",'
+stdout '   null'
+stdout '\]'
+
+## succeed call: error
+gnokey jquery vm/qeval -data "gno.land/r/dev/silo.Hello(\"bernard\")"
+stdout '"returns": \['
+stdout '   "",'
+stdout '   "not for you bernard!"'
+stdout '\]'
+
+## success call: object
+gnokey jquery vm/qeval -data "gno.land/r/dev/silo.GetSilo()"
+stdout '"returns": \['
+stdout '  "<obj:\*gno.land/r/dev/silo.Silo:6aed2eda72c79e411eec1ea7f661c5e30383fb59:2>"'
+stdout '\]'
+
+## success call: []byte
+gnokey jquery vm/qeval -data "gno.land/r/dev/silo.GetSiloData()"
+stdout '"returns": \['
+stdout '  "c2VjcmV0IG1lc3NhZ2U="'
+stdout '\]'
+
+
+-- silo/silo.gno --
+package silo
+
+import "errors"
+
+type Silo struct {
+	Data string
+}
+
+var mysilo = Silo{
+	Data: "secret message",
+}
+
+func Hello(name string) (string, error) {
+	if name == "bernard" {
+		return "", errors.New("not for you bernard!")
+	}
+
+	return "Hello "+name, nil
+}
+
+func GetSilo() *Silo {
+	return &mysilo
+}
+
+func GetSiloData() []byte {
+	return []byte(mysilo.Data)
+}
