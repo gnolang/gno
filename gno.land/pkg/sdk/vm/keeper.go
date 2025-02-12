@@ -925,7 +925,7 @@ func validateToolsMetaField(value []byte) error {
 	}
 
 	if err := json.Unmarshal(value, &v); err != nil {
-		return fmt.Errorf("invalid tools field format: %s", err)
+		return fmt.Errorf("invalid tools field format: %w", err)
 	}
 
 	if len(v.Tools) == 0 {
