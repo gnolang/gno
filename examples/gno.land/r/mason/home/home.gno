@@ -61,17 +61,17 @@ const (
 
 func Render(path string) string {
 	home := md.New()
-	home.h1("Mason's Realm")
+	home.H1("Mason's Realm")
 
-	home.im("https://cdn.esawebb.org/archives/images/screen/weic2428a.jpg", "Placeholder")
-	home.p("Welcome to my realm. " + md.link("github", "https://github.com/masonmcbride"))
+	home.Im("https://cdn.esawebb.org/archives/images/screen/weic2428a.jpg", "Placeholder")
+	home.P("Welcome to my realm. " + md.link("github", "https://github.com/masonmcbride"))
 
-	home.h3("Dgnonut")
-	home.code(dgnonut)
+	home.H3("Dgnonut")
+	home.Code(dgnonut)
 
-	home.h3("More")
-	home.code(gnomeArt1)
-	home.bullet("Credit to " + md.link("JJOptimist", "https://gno.land/r/jjoptimist/home") + " for this gnome art.")
-	home.bullet("I'm testing out my markdown system.")
+	home.H3("More")
+	home.Code(gnomeArt1)
+	home.Bullet("Credit to " + md.link("JJOptimist", "https://gno.land/r/jjoptimist/home") + " for this gnome art.")
+	home.Bullet("I'm testing out my markdown system.")
 	return home.Render()
 }
