@@ -41,6 +41,10 @@ func (u UserData) IsDeleted() bool {
 	return u.deleted
 }
 
+func (u UserData) RenderLink() string {
+	return "/u/" + u.username
+}
+
 // RegisterUser adds a new user to the system.
 func RegisterUser(name string, address std.Address) error {
 	// Validate caller
