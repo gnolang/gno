@@ -21,7 +21,9 @@ func NewColumnLogger(w io.Writer, level slog.Level, profile termenv.Profile) *Co
 	})
 
 	// Default column output
-	defaultOutput := newColumeWriter(lipgloss.NewStyle(), "", w)
+	renderer := lipgloss.NewRenderer(nil, termenv.WithProfile(profile))
+
+	defaultOutput := newColumeWriter(w, lipgloss.NewStyle(), "")
 	charmLogger.SetOutput(defaultOutput)
 	charmLogger.SetStyles(defaultStyles())
 	charmLogger.SetColorProfile(profile)
@@ -40,10 +42,12 @@ func NewColumnLogger(w io.Writer, level slog.Level, profile termenv.Profile) *Co
 	}
 
 	return &ColumnLogger{
-		Logger: charmLogger,
-		writer: w,
-		prefix: charmLogger.GetPrefix(),
-		colors: map[string]lipgloss.Color{},
+		Logger:       charmLogger,
+		writer:       w,
+		prefix:       charmLogger.GetPrefix(),
+		colors:       map[string]lipgloss.Color{},
+		colorProfile: profile,
+		renderer:     renderer,
 	}
 }
 
@@ -52,6 +56,7 @@ type ColumnLogger struct {
 
 	prefix       string
 	writer       io.Writer
+	renderer     *lipgloss.Renderer
 	colorProfile termenv.Profile
 
 	colors   map[string]lipgloss.Color
@@ -72,10 +77,11 @@ func (cl *ColumnLogger) WithGroup(group string) slog.Handler {
 		// generate bright color based on the group name
 		fg = colorFromString(group, 0.5, 0.6)
 	}
-	baseStyle := lipgloss.NewStyle().Foreground(fg)
+
+	baseStyle := lipgloss.NewStyle().Foreground(fg).Renderer(cl.renderer)
 
 	nlog := cl.Logger.With() // clone logger
-	nlog.SetOutput(newColumeWriter(baseStyle, group, cl.writer))
+	nlog.SetOutput(newColumeWriter(cl.writer, baseStyle, group))
 	nlog.SetColorProfile(cl.colorProfile)
 	return &ColumnLogger{
 		Logger: nlog,
@@ -99,7 +105,7 @@ type columnWriter struct {
 	writer io.Writer
 }
 
-func newColumeWriter(baseStyle lipgloss.Style, prefix string, writer io.Writer) *columnWriter {
+func newColumeWriter(w io.Writer, baseStyle lipgloss.Style, prefix string) *columnWriter {
 	const width = 12
 
 	style := baseStyle.
@@ -112,7 +118,7 @@ func newColumeWriter(baseStyle lipgloss.Style, prefix string, writer io.Writer) 
 		prefix = prefix[:width-3] + "..."
 	}
 
-	return &columnWriter{style: style, prefix: prefix, writer: writer}
+	return &columnWriter{style: style, prefix: prefix, writer: w}
 }
 
 func (cl *columnWriter) Write(buf []byte) (n int, err error) {

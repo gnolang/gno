@@ -32,7 +32,7 @@ func CallAssertOriginCall() {
 }
 
 func CallIsOriginCall() bool {
-	return std.IsOriginCall()
+	return std.PrevRealm().IsUser()
 }
 
 func CallSubtestsAssertOriginCall() {
@@ -49,6 +49,8 @@ func CallSubtestsIsOriginCall() bool {
 type TestRealmObject struct {
 	Field string
 }
+
+var TestRealmObjectValue TestRealmObject
 
 func ModifyTestRealmObject(t *TestRealmObject) {
 	t.Field += "_modified"

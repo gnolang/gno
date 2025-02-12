@@ -130,7 +130,7 @@ func UnmarshalAnySized(bz []byte, ptr interface{}) error {
 }
 
 func MarshalJSON(o interface{}) ([]byte, error) {
-	return gcdc.MarshalJSON(o)
+	return gcdc.JSONMarshal(o)
 }
 
 func MarshalJSONAny(o interface{}) ([]byte, error) {
@@ -146,7 +146,7 @@ func MustMarshalJSONAny(o interface{}) []byte {
 }
 
 func UnmarshalJSON(bz []byte, ptr interface{}) error {
-	return gcdc.UnmarshalJSON(bz, ptr)
+	return gcdc.JSONUnmarshal(bz, ptr)
 }
 
 func MustUnmarshalJSON(bz []byte, ptr interface{}) {
@@ -219,7 +219,8 @@ func (cdc *Codec) MarshalSized(o interface{}) ([]byte, error) {
 	cdc.doAutoseal()
 
 	// Write the bytes here.
-	buf := new(bytes.Buffer)
+	buf := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(buf)
 
 	// Write the bz without length-prefixing.
 	bz, err := cdc.Marshal(o)
@@ -239,7 +240,7 @@ func (cdc *Codec) MarshalSized(o interface{}) ([]byte, error) {
 		return nil, err
 	}
 
-	return buf.Bytes(), nil
+	return copyBytes(buf.Bytes()), nil
 }
 
 // MarshalSizedWriter writes the bytes as would be returned from
@@ -271,8 +272,8 @@ func (cdc *Codec) MarshalAnySized(o interface{}) ([]byte, error) {
 	cdc.doAutoseal()
 
 	// Write the bytes here.
-	buf := new(bytes.Buffer)
-
+	buf := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(buf)
 	// Write the bz without length-prefixing.
 	bz, err := cdc.MarshalAny(o)
 	if err != nil {
@@ -291,7 +292,7 @@ func (cdc *Codec) MarshalAnySized(o interface{}) ([]byte, error) {
 		return nil, err
 	}
 
-	return buf.Bytes(), nil
+	return copyBytes(buf.Bytes()), nil
 }
 
 func (cdc *Codec) MustMarshalAnySized(o interface{}) []byte {
@@ -357,7 +358,9 @@ func (cdc *Codec) MarshalReflect(o interface{}) ([]byte, error) {
 
 	// Encode Amino:binary bytes.
 	var bz []byte
-	buf := new(bytes.Buffer)
+	buf := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(buf)
+
 	rt := rv.Type()
 	info, err := cdc.getTypeInfoWLock(rt)
 	if err != nil {
@@ -377,7 +380,7 @@ func (cdc *Codec) MarshalReflect(o interface{}) ([]byte, error) {
 		if err = cdc.writeFieldIfNotEmpty(buf, 1, info, FieldOptions{}, FieldOptions{}, rv, writeEmpty); err != nil {
 			return nil, err
 		}
-		bz = buf.Bytes()
+		bz = copyBytes(buf.Bytes())
 	} else {
 		// The passed in BinFieldNum is only relevant for when the type is to
 		// be encoded unpacked (elements are Typ3_ByteLength).  In that case,
@@ -387,7 +390,7 @@ func (cdc *Codec) MarshalReflect(o interface{}) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		bz = buf.Bytes()
+		bz = copyBytes(buf.Bytes())
 	}
 	// If bz is empty, prefer nil.
 	if len(bz) == 0 {
@@ -443,14 +446,21 @@ func (cdc *Codec) MarshalAny(o interface{}) ([]byte, error) {
 	}
 
 	// Encode as interface.
-	buf := new(bytes.Buffer)
+	buf := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(buf)
 	err = cdc.encodeReflectBinaryInterface(buf, iinfo, reflect.ValueOf(&ivar).Elem(), FieldOptions{}, true)
 	if err != nil {
 		return nil, err
 	}
-	bz := buf.Bytes()
+	bz := copyBytes(buf.Bytes())
 
 	return bz, nil
+}
+
+func copyBytes(bz []byte) []byte {
+	cp := make([]byte, len(bz))
+	copy(cp, bz)
+	return cp
 }
 
 // Panics if error.
@@ -756,15 +766,16 @@ func (cdc *Codec) MustUnmarshalAny(bz []byte, ptr interface{}) {
 	return
 }
 
-func (cdc *Codec) MarshalJSON(o interface{}) ([]byte, error) {
+func (cdc *Codec) JSONMarshal(o interface{}) ([]byte, error) {
 	cdc.doAutoseal()
 
 	rv := reflect.ValueOf(o)
-	if rv.Kind() == reflect.Invalid {
+	if !rv.IsValid() {
 		return []byte("null"), nil
 	}
 	rt := rv.Type()
-	w := new(bytes.Buffer)
+	w := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(w)
 	info, err := cdc.getTypeInfoWLock(rt)
 	if err != nil {
 		return nil, err
@@ -772,7 +783,8 @@ func (cdc *Codec) MarshalJSON(o interface{}) ([]byte, error) {
 	if err = cdc.encodeReflectJSON(w, info, rv, FieldOptions{}); err != nil {
 		return nil, err
 	}
-	return w.Bytes(), nil
+
+	return copyBytes(w.Bytes()), nil
 }
 
 func (cdc *Codec) MarshalJSONAny(o interface{}) ([]byte, error) {
@@ -802,19 +814,21 @@ func (cdc *Codec) MarshalJSONAny(o interface{}) ([]byte, error) {
 	}
 
 	// Encode as interface.
-	buf := new(bytes.Buffer)
+	buf := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(buf)
+
 	err = cdc.encodeReflectJSONInterface(buf, iinfo, reflect.ValueOf(&ivar).Elem(), FieldOptions{})
 	if err != nil {
 		return nil, err
 	}
-	bz := buf.Bytes()
+	bz := copyBytes(buf.Bytes())
 
 	return bz, nil
 }
 
 // MustMarshalJSON panics if an error occurs. Besides tha behaves exactly like MarshalJSON.
 func (cdc *Codec) MustMarshalJSON(o interface{}) []byte {
-	bz, err := cdc.MarshalJSON(o)
+	bz, err := cdc.JSONMarshal(o)
 	if err != nil {
 		panic(err)
 	}
@@ -830,7 +844,7 @@ func (cdc *Codec) MustMarshalJSONAny(o interface{}) []byte {
 	return bz
 }
 
-func (cdc *Codec) UnmarshalJSON(bz []byte, ptr interface{}) error {
+func (cdc *Codec) JSONUnmarshal(bz []byte, ptr interface{}) error {
 	cdc.doAutoseal()
 	if len(bz) == 0 {
 		return errors.New("cannot decode empty bytes")
@@ -851,7 +865,7 @@ func (cdc *Codec) UnmarshalJSON(bz []byte, ptr interface{}) error {
 
 // MustUnmarshalJSON panics if an error occurs. Besides tha behaves exactly like UnmarshalJSON.
 func (cdc *Codec) MustUnmarshalJSON(bz []byte, ptr interface{}) {
-	if err := cdc.UnmarshalJSON(bz, ptr); err != nil {
+	if err := cdc.JSONUnmarshal(bz, ptr); err != nil {
 		panic(err)
 	}
 }
@@ -859,16 +873,16 @@ func (cdc *Codec) MustUnmarshalJSON(bz []byte, ptr interface{}) {
 // MarshalJSONIndent calls json.Indent on the output of cdc.MarshalJSON
 // using the given prefix and indent string.
 func (cdc *Codec) MarshalJSONIndent(o interface{}, prefix, indent string) ([]byte, error) {
-	bz, err := cdc.MarshalJSON(o)
+	bz, err := cdc.JSONMarshal(o)
 	if err != nil {
 		return nil, err
 	}
+
 	var out bytes.Buffer
-	err = json.Indent(&out, bz, prefix, indent)
-	if err != nil {
+	if err := json.Indent(&out, bz, prefix, indent); err != nil {
 		return nil, err
 	}
-	return out.Bytes(), nil
+	return copyBytes(out.Bytes()), nil
 }
 
 // ----------------------------------------

@@ -1,25 +1,21 @@
 package pausable
 
-import "gno.land/p/demo/ownable"
+import (
+	"std"
+
+	"gno.land/p/demo/ownable"
+)
 
 type Pausable struct {
-	*ownable.Ownable
+	o      *ownable.Ownable
 	paused bool
-}
-
-// New returns a new Pausable struct with non-paused state as default
-func New() *Pausable {
-	return &Pausable{
-		Ownable: ownable.New(),
-		paused:  false,
-	}
 }
 
 // NewFromOwnable is the same as New, but with a pre-existing top-level ownable
 func NewFromOwnable(ownable *ownable.Ownable) *Pausable {
 	return &Pausable{
-		Ownable: ownable,
-		paused:  false,
+		o:      ownable,
+		paused: false,
 	}
 }
 
@@ -30,20 +26,29 @@ func (p Pausable) IsPaused() bool {
 
 // Pause sets the state of Pausable to true, meaning all pausable functions are paused
 func (p *Pausable) Pause() error {
-	if err := p.CallerIsOwner(); err != nil {
-		return err
+	if !p.o.CallerIsOwner() {
+		return ownable.ErrUnauthorized
 	}
 
 	p.paused = true
+	std.Emit("Paused", "account", p.o.Owner().String())
+
 	return nil
 }
 
 // Unpause sets the state of Pausable to false, meaning all pausable functions are resumed
 func (p *Pausable) Unpause() error {
-	if err := p.CallerIsOwner(); err != nil {
-		return err
+	if !p.o.CallerIsOwner() {
+		return ownable.ErrUnauthorized
 	}
 
 	p.paused = false
+	std.Emit("Unpaused", "account", p.o.Owner().String())
+
 	return nil
+}
+
+// Ownable returns the underlying ownable
+func (p *Pausable) Ownable() *ownable.Ownable {
+	return p.o
 }

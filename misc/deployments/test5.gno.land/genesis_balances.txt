@@ -1,0 +1,83 @@
+# Predeploy Accounts
+
+g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5=131000000ugnot # Test1 (just enough for predeployment)
+
+# Faucet Accounts (Core)
+
+g13fzhe4655aqdfr3flydd3pt9s0f4a775g96wj7=9000000000000000000ugnot # Faucet #0
+g1mdy2f562he07a5txs8nvjelstur90e5sg5tkux=9000000000000000000ugnot # Faucet #1
+g1wmw2czwy260sydkupu53k6aeh6gxtf3e0egtku=9000000000000000000ugnot # Faucet #2
+g14vzc065ntj3rq3gfz9my3aja0yyezv7frmjsy3=9000000000000000000ugnot # Faucet #3
+g1pw4ju09ac9y0nj9lltglctk9zq7klk0tkttygk=9000000000000000000ugnot # Faucet #4
+g1dvkfj5q79r3fnepqa0u5ym9d5l3dw83z203j02=9000000000000000000ugnot # Faucet #5
+g1a6jf5g6gkhn5rxcvwxq5zjxgwaznjr9r8gehey=9000000000000000000ugnot # Faucet #6
+g1cx6s2rd4274vhvg509cwglw8senpq00ldqrntv=9000000000000000000ugnot # Faucet #7
+g1yllclm55ls04dtemcwqgd0nyvyem0s8v6arwzt=9000000000000000000ugnot # Faucet #8
+g1j40cmy9yefpwtesqzutc347d48uzk4428zu536=9000000000000000000ugnot # Faucet #9
+
+# Faucet Accounts (DevX)
+
+g1q6jrp203fq0239pv38sdq3y3urvd6vt5azacpv=9000000000000000000ugnot # Faucet #10
+g13d7jc32adhc39erm5me38w5v7ej7lpvlnqjk73=9000000000000000000ugnot # Faucet #11
+
+# Core Team
+
+g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj=9000000000000000000ugnot # Jae
+g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq=9000000000000000000ugnot # Manfred
+g1e6gxg5tvc55mwsn7t7dymmlasratv7mkv0rap2=9000000000000000000ugnot # Milos
+g1jazghxvvgz3egnr2fc8uf72z4g0l03596y9ls7=9000000000000000000ugnot # Nemanja
+g1qhskthp2uycmg4zsdc9squ2jds7yv3t0qyrlnp=9000000000000000000ugnot # Petar
+g18amm3fc00t43dcxsys6udug0czyvqt9e7p23rd=9000000000000000000ugnot # Marc
+g1dfr24yhk5ztwtqn2a36m8f6ud8cx5hww4dkjfl=9000000000000000000ugnot # Antonio
+g19p3yzr3cuhzqa02j0ce6kzvyjqfzwemw3vam0x=9000000000000000000ugnot # Guilhem
+g1mx4pum9976th863jgry4sdjzfwu03qan5w2v9j=9000000000000000000ugnot # Ray
+g127l4gkhk0emwsx5tmxe96sp86c05h8vg5tufzq=9000000000000000000ugnot # Maxwell
+g1acn3xssksatydd0fcuslvgmjyw0fzkjdhusddg=9000000000000000000ugnot # Dylan
+g1cpx59z5r8vzeww2fm4ezpz7yvjs7kptywkm864=9000000000000000000ugnot # Morgan
+g1ker4vvggvsyatexxn3hkthp2hu80pkhrwmuczr=9000000000000000000ugnot # Sergio
+g18x425qmujg99cfz3q97y4uep5pxjq3z8lmpt25=9000000000000000000ugnot # Antoine
+
+# DevRel
+
+g1778y2yphxs2wpuaflsy5y9qwcd4gttn4g5yjx5=9000000000000000000ugnot # Michelle
+g1whzkakk4hzjkvy60d5pwfk484xu67ar2cl62h2=9000000000000000000ugnot # Kirk
+g125em6arxsnj49vx35f0n0z34putv5ty3376fg5=9000000000000000000ugnot # Leon
+
+# DevX Team
+
+g16tfrrul20g4jzt3z303raqw8vs8s2pqqh5clwu=9000000000000000000ugnot # Ilker
+g1hy6zry03hg5d8le9s2w4fxme6236hkgd928dun=9000000000000000000ugnot # Jerónimo
+g15ruzptpql4dpuyzej0wkt5rq6r26kw4nxu9fwd=9000000000000000000ugnot # Denis
+g1dnllrdzwfhxv3evyk09y48mgn5phfjvtyrlzm7=9000000000000000000ugnot # Danny
+g197q5e9v00vuz256ly7fq7v3ekaun5cr7wmjgfh=9000000000000000000ugnot # Salvo
+g1mpkp5lm8lwpm0pym4388836d009zfe4maxlqsq=9000000000000000000ugnot # Alexis
+
+# AiB
+
+g1sw5xklxjjuv0yvuxy5f5s3l3mnj0nqq626a9wr=9000000000000000000ugnot # Albert
+
+g1gu6wrz7xcavjtk2dudsfl586qrz5g4ahhhz2j3=9000000000000000000ugnot # aib-val-01
+g1x7rewh0w7u7yrmsmadq6w6t3jwh7ec6ql02klh=9000000000000000000ugnot # aib-val-02
+g1l8j7ts0gmghag7zmnatq5ta5xg83ylyxnmaxlh=9000000000000000000ugnot # aib-val-03
+
+# Onbloc
+
+g1er355fkjksqpdtwmhf5penwa82p0rhqxkkyhk5=9000000000000000000ugnot
+g18l9us6trqaljw39j94wzf5ftxmd9qqkvrxghd2=9000000000000000000ugnot
+
+# Berty
+
+g1qynsu9dwj9lq0m5fkje7jh6qy3md80ztqnshhm=9000000000000000000ugnot
+
+# Dragos
+
+g16f5chytu99dmjqtekxf8qzg04vcv7dck6qny6d=9000000000000000000ugnot # Flippando faucet
+g17ernafy6ctpcz6uepfsq2js8x2vz0wladh5yc3=9000000000000000000ugnot # ZenTasktic faucet
+
+# Teritori
+
+g1qrvwpcw0uxr22d8kgydfz3wp8rtl2h2l3lqmva=9000000000000000000ugnot # team address
+g14u5eaheavy0ux4dmpykg2gvxpvqvexm9cyg58a=9000000000000000000ugnot # norman
+g1g69npft5fav254rvuay7xlmlvt7ddfucgvx8xf=9000000000000000000ugnot # gh0st
+g16jv3rpz7mkt0gqulxas56se2js7v5vmc6n6e0r=9000000000000000000ugnot # Mikael
+g14vxq5e5pt5sev7rkz2ej438scmxtylnzv5vnkw=9000000000000000000ugnot # mikecito

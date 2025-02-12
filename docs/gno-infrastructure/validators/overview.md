@@ -6,7 +6,7 @@ id: validators-overview
 
 ## Introduction
 
-Gno.land is a blockchain powered by the Gno tech stack, which consists of
+gno.land is a blockchain powered by the Gno tech stack, which consists of
 the [Gno Language](https://docs.gno.land/concepts/gno-language/) (Gno),
 [Tendermint2](https://docs.gno.land/concepts/tendermint2/) (TM2),
 and [GnoVM](https://docs.gno.land/concepts/gnovm/). Unlike
@@ -17,7 +17,7 @@ selected via governance based on their contribution to the project and technical
 network is equally distributed across all validators to achieve a high nakamoto coefficient. A portion of all
 transaction fees paid to the network are evenly shared between all validators to provide a fair incentive structure.
 
-| **Blockchain**                       | Cosmos                  | Gno.land                      |
+| **Blockchain**                       | Cosmos                  | gno.land                      |
 |--------------------------------------|-------------------------|-------------------------------|
 | **Consensus Protocol**               | Comet BFT               | Tendermint2                   |
 | **Consensus Mechanism**              | Proof of Stake          | Proof of Contribution         |
@@ -78,9 +78,9 @@ be expected from a good, reliable validator.
 Join the official gno.land community in various channels to receive the latest updates about the project and actively
 communicate with other validators and contributors.
 
-- [Gno.land Blog](https://gno.land/r/gnoland/blog)
-- [Gno.land Discord](https://discord.gg/YFtMjWwUN7)
-- [Gno.land Twitter](https://x.com/_gnoland)
+- [gno.land Blog](https://gno.land/r/gnoland/blog)
+- [gno.land Discord](https://discord.gg/YFtMjWwUN7)
+- [gno.land Twitter](https://x.com/_gnoland)
 
 :::info
 

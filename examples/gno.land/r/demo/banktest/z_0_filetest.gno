@@ -1,6 +1,11 @@
+// Empty line between the directives is important for them to be parsed
+// independently. :facepalm:
+
+// PKGPATH: gno.land/r/demo/bank1
+
 // SEND: 100000000ugnot
 
-package main
+package bank1
 
 import (
 	"std"
@@ -11,7 +16,7 @@ import (
 func main() {
 	// set up main address and banktest addr.
 	banktestAddr := std.DerivePkgAddr("gno.land/r/demo/banktest")
-	mainaddr := std.DerivePkgAddr("main")
+	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
 	std.TestSetOrigCaller(mainaddr)
 	std.TestSetOrigPkgAddr(banktestAddr)
 
@@ -37,12 +42,12 @@ func main() {
 }
 
 // Output:
-// main before: 300000000ugnot
+// main before: 100000000ugnot
 // Deposit(): returned!
-// main after: 250000000ugnot
+// main after: 50000000ugnot
 // ## recent activity
 //
-//  * g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 100000000ugnot sent, 50000000ugnot returned, at 2009-02-13 11:31pm UTC
+//  * g1tnpdmvrmtgql8fmxgsq9rwtst5hsxahk3f05dk 100000000ugnot sent, 50000000ugnot returned, at 2009-02-13 11:31pm UTC
 //
 // ## total deposits
 // 50000000ugnot

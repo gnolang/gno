@@ -26,6 +26,9 @@ var preRegisteredUsers = []struct {
 	{"nt", "g15ge0ae9077eh40erwrn2eq0xw6wupwqthpv34l"},       // -> @r_nt
 	{"sys", "g1r929wt2qplfawe4lvqv9zuwfdcz4vxdun7qh8l"},      // -> @r_sys
 	{"x", "g164sdpew3c2t3rvxj3kmfv7c7ujlvcw2punzzuz"},        // -> @r_x
+
+	// test1 user
+	{"test1", "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}, // -> @test1
 }
 
 func init() {
