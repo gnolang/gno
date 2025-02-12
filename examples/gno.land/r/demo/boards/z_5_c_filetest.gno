@@ -15,6 +15,8 @@ import (
 const admin = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 func main() {
+	caller := testutils.TestAddress("caller")
+	std.TestSetRealm(std.NewUserRealm(caller))
 	users.Register("", "gnouser", "my profile")
 	// create board via registered user
 	bid := boards.CreateBoard("test_board")
@@ -34,8 +36,8 @@ func main() {
 // # First Post (title)
 //
 // Body of the first post. (body)
-// \- [g1w3jhxapjta047h6lta047h6lta047h6laqcyu4](/r/demo/users:g1w3jhxapjta047h6lta047h6lta047h6laqcyu4), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/1) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=1&postid=1)] \[[repost](/r/demo/boards$help&func=CreateRepost&bid=1&postid=1)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=1&postid=1)]
+// \- [g1w3jhxapjta047h6lta047h6lta047h6laqcyu4](/r/demo/users:g1w3jhxapjta047h6lta047h6lta047h6laqcyu4), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/1) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&postid=1&threadid=1)] \[[repost](/r/demo/boards$help&func=CreateRepost&bid=1&postid=1)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=1&threadid=1)]
 //
 // > Reply of the first post
-// > \- [g1w3jhxapjta047h6lta047h6lta047h6laqcyu4](/r/demo/users:g1w3jhxapjta047h6lta047h6lta047h6laqcyu4), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/1/2) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=1&postid=2)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=1&postid=2)]
+// > \- [g1w3jhxapjta047h6lta047h6lta047h6laqcyu4](/r/demo/users:g1w3jhxapjta047h6lta047h6lta047h6laqcyu4), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/1/2) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&postid=2&threadid=1)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=2&threadid=1)]
 //

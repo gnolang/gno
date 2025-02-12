@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"std"
 	"testing"
 
 	"gno.land/p/demo/dao"
@@ -25,11 +26,47 @@ func TestBridge_DAO(t *testing.T) {
 	uassert.Equal(t, proposalID, GovDAO().Propose(dao.ProposalRequest{}))
 }
 
+func TestBridge_LoadGovDAO(t *testing.T) {
+	t.Run("invalid initializer path", func(t *testing.T) {
+		std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/init")) // invalid loader
+
+		// Attempt to set a new DAO implementation
+		uassert.PanicsWithMessage(t, "unauthorized", func() {
+			LoadGovDAO(&mockDAO{})
+		})
+	})
+
+	t.Run("valid loader", func(t *testing.T) {
+		var (
+			initializer = "gno.land/r/gov/dao/init"
+			proposalID  = uint64(10)
+			mockDAO     = &mockDAO{
+				proposeFn: func(_ dao.ProposalRequest) uint64 {
+					return proposalID
+				},
+			}
+		)
+
+		std.TestSetRealm(std.NewCodeRealm(initializer))
+
+		// Attempt to set a new DAO implementation
+		uassert.NotPanics(t, func() {
+			LoadGovDAO(mockDAO)
+		})
+
+		uassert.Equal(
+			t,
+			mockDAO.Propose(dao.ProposalRequest{}),
+			GovDAO().Propose(dao.ProposalRequest{}),
+		)
+	})
+}
+
 func TestBridge_SetDAO(t *testing.T) {
 	t.Run("invalid owner", func(t *testing.T) {
 		// Attempt to set a new DAO implementation
 		uassert.PanicsWithMessage(t, ownable.ErrUnauthorized.Error(), func() {
-			SetDAO(&mockDAO{})
+			SetGovDAO(&mockDAO{})
 		})
 	})
 
@@ -47,10 +84,10 @@ func TestBridge_SetDAO(t *testing.T) {
 
 		t.SetOriginCaller(addr)
 
-		b.Ownable = ownable.NewWithAddress(addr)
+		Ownable = ownable.NewWithAddress(addr)
 
 		urequire.NotPanics(t, func() {
-			SetDAO(mockDAO)
+			SetGovDAO(mockDAO)
 		})
 
 		uassert.Equal(

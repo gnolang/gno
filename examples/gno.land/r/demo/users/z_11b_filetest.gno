@@ -12,8 +12,8 @@ import (
 const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func main() {
+	std.TestSetOrigCaller(admin)
 	caller := std.GetOrigCaller() // main
-	testing.SetOriginCaller(admin)
 	// add restricted name
 	users.AdminAddRestrictedName("superrestricted")
 	// grant invite to caller
