@@ -37,10 +37,10 @@ func (m *MD) Bullet(point string) {
 }
 
 func Link(text, url string, title ...string) string {
-    if len(title) > 0 && title[0] != "" {
-        return "["+text+"]("+url+" \""+title[0]+"\")"
-    }
-    return "["+text+"]("+url+")"
+	if len(title) > 0 && title[0] != "" {
+		return "[" + text + "](" + url + " \"" + title[0] + "\")"
+	}
+	return "[" + text + "](" + url + ")"
 }
 
 func (m *MD) Render() string {
