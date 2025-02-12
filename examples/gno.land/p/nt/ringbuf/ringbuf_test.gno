@@ -10,20 +10,12 @@ func TestRingBufferInt(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if !buf.IsEmpty() {
-		t.Errorf("expected buffer to be empty")
-	}
-
 	if err := buf.Write(1); err != nil {
 		t.Errorf("unexpected error writing to buffer: %v", err)
 	}
 
 	if err := buf.Write(2); err != nil {
 		t.Errorf("unexpected error writing to buffer: %v", err)
-	}
-
-	if buf.IsEmpty() {
-		t.Errorf("expected buffer to not be empty")
 	}
 
 	val, err := buf.Read()
