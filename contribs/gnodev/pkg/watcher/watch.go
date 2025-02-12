@@ -72,7 +72,7 @@ func (p *PackageWatcher) startWatching() {
 				updates := p.generatePackagesUpdateList(filesList)
 				for _, update := range updates {
 					p.logger.Info("packages update",
-						"pkg", update.Package,
+						"pkg", update.PackageDir,
 						"files", update.Files,
 					)
 				}
@@ -149,29 +149,29 @@ func (p *PackageWatcher) UpdatePackagesWatch(pkgs ...packages.Package) {
 	}
 }
 
-func (p *PackageWatcher) generatePackagesUpdateList(files []string) PackageUpdateList {
+func (p *PackageWatcher) generatePackagesUpdateList(paths []string) PackageUpdateList {
 	pkgsUpdate := []events.PackageUpdate{}
 
 	mpkgs := map[string]*events.PackageUpdate{} // Pkg -> Update
 	watchList := p.watcher.WatchList()
-	for _, file := range files {
-		for _, pkg := range watchList {
-			if len(pkg) == len(file) {
-				continue // Skip if pkg == path
+	for _, file := range paths {
+		for _, watchDir := range watchList {
+			if len(watchDir) == len(file) {
+				continue // Skip if watchDir == file
 			}
 
 			// Check if a package directory contain our path directory
-			dirPath := filepath.Dir(file)
-			if !strings.HasPrefix(pkg, dirPath) {
+			dir := filepath.Dir(file)
+			if !strings.HasPrefix(watchDir, dir) {
 				continue
 			}
 
 			// Accumulate file updates for each package
-			pkgu, ok := mpkgs[pkg]
+			pkgu, ok := mpkgs[watchDir]
 			if !ok {
 				pkgsUpdate = append(pkgsUpdate, events.PackageUpdate{
-					Package: pkg,
-					Files:   []string{},
+					PackageDir: watchDir,
+					Files:      []string{},
 				})
 				pkgu = &pkgsUpdate[len(pkgsUpdate)-1]
 			}
@@ -188,7 +188,7 @@ type PackageUpdateList []events.PackageUpdate
 func (pkgsu PackageUpdateList) PackagesPath() []string {
 	pkgs := make([]string, len(pkgsu))
 	for i, pkg := range pkgsu {
-		pkgs[i] = pkg.Package
+		pkgs[i] = pkg.PackageDir
 	}
 	return pkgs
 }
