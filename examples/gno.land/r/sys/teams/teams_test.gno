@@ -1,3 +1,0 @@
-package teams
-
-// XXX: TODO
