@@ -15,9 +15,8 @@ import (
 )
 
 var (
-	connectUrlBase       = "https://gno.studio/connect/view/gno.land/r/gnoland/users/v1?network=" + std.GetChainID()
-	connectRegisterUrl   = connectUrlBase + "#Register"
-	connectUpdateNameUrl = connectUrlBase + "#UpdateName"
+	connectUrlBase     = "https://gno.studio/connect/view/gno.land/r/gnoland/users/v1?network=" + std.GetChainID()
+	connectRegisterUrl = connectUrlBase + "#Register"
 )
 
 func Render(path string) string {
