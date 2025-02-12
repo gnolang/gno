@@ -65,7 +65,7 @@ func (rsc *RemoteSignerClient) Sign(signBytes []byte) ([]byte, error) {
 	return signResponse.Signature, nil
 }
 
-// Ping sends a ping request to the remote signer
+// Ping sends a ping request to the remote signer.
 func (rsc *RemoteSignerClient) Ping() error {
 	response, err := rsc.send(&PingRequest{})
 	if err != nil {
@@ -97,7 +97,7 @@ func (rsc *RemoteSignerClient) send(request RemoteSignerMessage) (RemoteSignerMe
 	return response, nil
 }
 
-// Close closes the underlying connection
+// Close closes the underlying connection.
 func (rsc *RemoteSignerClient) Close() error {
 	return rsc.conn.Close()
 }

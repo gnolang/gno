@@ -17,6 +17,12 @@ type PrivValidator struct {
 	state  *fstate.FileState
 }
 
+// PrivValidator errors.
+var (
+	errSameHRSBadData    = errors.New("same HRS with conflicting data")
+	errSignatureMismatch = errors.New("state signature verification failed using signer public key")
+)
+
 // PrivValidator type implements types.PrivValidator.
 var _ types.PrivValidator = (*PrivValidator)(nil)
 
@@ -30,7 +36,7 @@ func (pv *PrivValidator) PubKey() (crypto.PubKey, error) {
 // state file to prevent double signing.
 func (pv *PrivValidator) SignVote(chainID string, vote *types.Vote) error {
 	// Check for identical height, round, step (HRS) against the last state.
-	height, round, step := vote.Height, vote.Round, fstate.VoteToStep(vote)
+	height, round, step := vote.Height, vote.Round, fstate.VoteTypeToStep(vote.Type)
 	sameHRS, err := pv.state.CheckHRS(height, round, step)
 	if err != nil {
 		return err
@@ -56,7 +62,7 @@ func (pv *PrivValidator) SignVote(chainID string, vote *types.Vote) error {
 		}
 
 		// Otherwise, something is wrong.
-		return errors.New("same HRS with conflicting data")
+		return errSameHRSBadData
 	}
 
 	// The HRS is different, so we need to sign the vote.
@@ -100,7 +106,7 @@ func (pv *PrivValidator) SignProposal(chainID string, proposal *types.Proposal) 
 		}
 
 		// Otherwise, something is wrong.
-		return errors.New("same HRS with conflicting data")
+		return errSameHRSBadData
 	}
 
 	// The HRS is different, so we need to sign.
@@ -121,6 +127,20 @@ func NewPrivValidator(signer types.Signer, stateFilePath string) (*PrivValidator
 	state, err := fstate.NewFileState(stateFilePath)
 	if err != nil {
 		return nil, err
+	}
+
+	// Check if validator state was signed by this signer.
+	if state.SignBytes != nil {
+		// Get signer public key.
+		pubKey, err := signer.PubKey()
+		if err != nil {
+			return nil, err
+		}
+
+		// Verify state signature using it.
+		if !pubKey.VerifyBytes(state.SignBytes, state.Signature) {
+			return nil, errSignatureMismatch
+		}
 	}
 
 	return &PrivValidator{

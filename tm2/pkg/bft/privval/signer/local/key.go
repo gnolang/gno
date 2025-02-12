@@ -22,7 +22,7 @@ type FileKey struct {
 	filePath string
 }
 
-// FileKey validation errors
+// FileKey validation errors.
 var (
 	errInvalidPrivateKey = errors.New("invalid private key")
 	errPublicKeyMismatch = errors.New("public key does not match private key derivation")
@@ -30,19 +30,19 @@ var (
 	errFilePathNotSet    = errors.New("filePath not set")
 )
 
-// validate validates the FileKey
+// validate validates the FileKey.
 func (fk *FileKey) validate() error {
-	// Make sure the private key is set
+	// Make sure the private key is set.
 	if fk.PrivKey == nil {
 		return errInvalidPrivateKey
 	}
 
-	// Make sure the public key is derived from the private one
+	// Make sure the public key is derived from the private one.
 	if !fk.PrivKey.PubKey().Equals(fk.PubKey) {
 		return errPublicKeyMismatch
 	}
 
-	// Make sure the address is derived from the public key
+	// Make sure the address is derived from the public key.
 	if fk.PubKey.Address().Compare(fk.Address) != 0 {
 		return errAddressMismatch
 	}

@@ -4,7 +4,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 )
 
-// Register Amino package with remote signer message types
+// Register Amino package with remote signer message types.
 var Package = amino.RegisterPackage(
 	amino.NewPackage(
 		"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote",

@@ -5,6 +5,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
+	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 // Signer is an interface for signing arbitrary byte slices.
@@ -48,11 +49,43 @@ func (ms *mockSigner) String() string {
 }
 
 // newMockSignerWithPrivKey returns a new mockSigner instance.
-func newMockSignerWithPrivKey(privKey crypto.PrivKey) Signer {
+func NewMockSignerWithPrivKey(privKey crypto.PrivKey) Signer {
 	return &mockSigner{privKey}
 }
 
 // newMockSigner returns a new mockSigner instance.
-func newMockSigner() Signer {
+func NewMockSigner() Signer {
 	return &mockSigner{ed25519.GenPrivKey()}
+}
+
+// erroringMockSigner implements Signer that only returns error. Only use it for testing.
+type erroringMockSigner struct{}
+
+// Error that will be returned by erroringMockSigner.
+var ErrErroringMockSigner = errors.New("erroringMockSigner error")
+
+// erroringMockSigner type implements Signer.
+var _ Signer = &erroringMockSigner{}
+
+// PubKey implements Signer.
+func (ems *erroringMockSigner) PubKey() (crypto.PubKey, error) {
+	return nil, ErrErroringMockSigner
+}
+
+// Sign implements Signer.
+func (ems *erroringMockSigner) Sign(signBytes []byte) ([]byte, error) {
+	return nil, ErrErroringMockSigner
+}
+
+// erroringMockSigner type implements fmt.Stringer.
+var _ fmt.Stringer = &erroringMockSigner{}
+
+// String implements fmt.Stringer.
+func (ems *erroringMockSigner) String() string {
+	return "erroringMockSigner"
+}
+
+// NewErroringMockSigner returns a new erroringMockSigner instance.
+func NewErroringMockSigner() Signer {
+	return &erroringMockSigner{}
 }

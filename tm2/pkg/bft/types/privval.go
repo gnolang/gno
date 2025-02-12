@@ -93,10 +93,10 @@ func (pv *mockPV) String() string {
 
 // NewMockPVWithPrivKey returns a new MockPV instance.
 func NewMockPVWithPrivKey(privKey crypto.PrivKey) *mockPV {
-	return &mockPV{newMockSignerWithPrivKey(privKey)}
+	return &mockPV{NewMockSignerWithPrivKey(privKey)}
 }
 
 // NewMockPV returns a new MockPV instance.
 func NewMockPV() *mockPV {
-	return &mockPV{newMockSigner()}
+	return &mockPV{NewMockSigner()}
 }

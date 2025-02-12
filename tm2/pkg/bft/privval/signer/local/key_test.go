@@ -5,7 +5,9 @@ import (
 	"path"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/stretchr/testify/require"
 )
 
@@ -62,29 +64,32 @@ func TestSave(t *testing.T) {
 	t.Run("empty file path", func(t *testing.T) {
 		t.Parallel()
 
-		fk := GenerateFileKey("")
-		require.Error(t, fk.save())
+		fk, err := GeneratePersistedFileKey("")
+		require.Nil(t, fk)
+		require.Error(t, err)
 	})
 
 	t.Run("read-only file path", func(t *testing.T) {
 		t.Parallel()
 
-		// Create a read-only file.
-		filePath := path.Join(t.TempDir(), "unwritable")
-		file, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDONLY, 0444)
+		// Create a read-only directory.
+		dirPath := path.Join(t.TempDir(), "read-only")
+		err := os.Mkdir(dirPath, 0444)
 		require.NoError(t, err)
-		defer file.Close()
 
-		fk := GenerateFileKey(filePath)
-		require.Error(t, fk.save())
+		filePath := path.Join(dirPath, "file")
+		fk, err := GeneratePersistedFileKey(filePath)
+		require.Nil(t, fk)
+		require.Error(t, err)
 	})
 
 	t.Run("read-write file path", func(t *testing.T) {
 		t.Parallel()
 
 		filePath := path.Join(t.TempDir(), "writable")
-		fk := GenerateFileKey(filePath)
-		require.NoError(t, fk.save())
+		fk, err := GeneratePersistedFileKey(filePath)
+		require.NotNil(t, fk)
+		require.NoError(t, err)
 	})
 }
 
@@ -104,10 +109,7 @@ func TestLoadFileKey(t *testing.T) {
 		require.NoError(t, err)
 
 		// Compare the loaded file key with the original.
-		require.Equal(t, fk.PrivKey, loaded.PrivKey)
-		require.Equal(t, fk.PubKey, loaded.PubKey)
-		require.Equal(t, fk.Address, loaded.Address)
-		require.Equal(t, fk.filePath, loaded.filePath)
+		require.Equal(t, fk, loaded)
 	})
 
 	t.Run("non-existent file path", func(t *testing.T) {
@@ -128,57 +130,64 @@ func TestLoadFileKey(t *testing.T) {
 		fk, err := LoadFileKey(filePath)
 		require.Nil(t, fk)
 		require.Error(t, err)
+
+		// Generate a valid FileKey first.
+		fk, err = GeneratePersistedFileKey(filePath)
+		require.NotNil(t, fk)
+		require.NoError(t, err)
+
+		// Make its address invalid then persist it to disk.
+		copy(fk.Address[:], "invalid address")
+		jsonBytes, err := amino.MarshalJSONIndent(fk, "", "  ")
+		require.NoError(t, err)
+		require.NoError(t, osm.WriteFileAtomic(fk.filePath, jsonBytes, 0o600))
+
+		fk, err = LoadFileKey(filePath)
+		require.Nil(t, fk)
+		require.ErrorIs(t, err, errAddressMismatch)
 	})
 }
 
-// func TestFileKeyMarshalling(t *testing.T) {
-// 	t.Parallel()
-//
-// 	// Generate a random file key.
-// 	fk := GenerateFileKey("")
-// 	pubBytes := [32]byte(fk.PubKey.(ed25519.PubKeyEd25519))
-// 	privBytes := [64]byte(fk.PrivKey.(ed25519.PrivKeyEd25519))
-// 	pubB64 := base64.StdEncoding.EncodeToString(pubBytes[:])
-// 	privB64 := base64.StdEncoding.EncodeToString(privBytes[:])
-//
-// 	// Format the file key to JSON.
-// 	json := fmt.Sprintf(`{
-//   "address": "%s",
-//   "pub_key": {
-//     "@type": "/tm.PubKeyEd25519",
-//     "value": "%s"
-//   },
-//   "priv_key": {
-//     "@type": "/tm.PrivKeyEd25519",
-//     "value": "%s"
-//   }
-// }`, fk.Address, pubB64, privB64)
-//
-// 	// Helper to make sure the JSON strings are comparable.
-// 	removeWhitespaces := func(s string) string {
-// 		return strings.Map(func(r rune) rune {
-// 			if unicode.IsSpace(r) {
-// 				return -1
-// 			}
-// 			return r
-// 		}, s)
-// 	}
-//
-// 	// Marshal the file key to JSON.
-// 	marshalled, err := amino.MarshalJSON(fk)
-// 	require.NotNil(t, marshalled)
-// 	require.NoError(t, err)
-//
-// 	// Make sure the JSON strings match.
-// 	require.Equal(t, removeWhitespaces(json), removeWhitespaces(string(marshalled)))
-//
-// 	// Unmarshal the JSON into a file key.
-// 	unmarshalled := FileKey{}
-// 	err = amino.UnmarshalJSON([]byte(json), &unmarshalled)
-// 	require.NoError(t, err)
-//
-// 	// Make sure the values match.
-// 	require.Equal(t, fk.Address, unmarshalled.Address)
-// 	require.Equal(t, fk.PrivKey, unmarshalled.PrivKey)
-// 	require.Equal(t, fk.PubKey, unmarshalled.PubKey)
-// }
+func TestNewFileKey(t *testing.T) {
+	t.Parallel()
+
+	t.Run("genetate new key", func(t *testing.T) {
+		t.Parallel()
+
+		filePath := path.Join(t.TempDir(), "new")
+		fk, err := NewFileKey(filePath)
+		require.NotNil(t, fk)
+		require.NoError(t, err)
+	})
+
+	t.Run("load existing key", func(t *testing.T) {
+		t.Parallel()
+
+		// Generate a valid random file key on disk.
+		filePath := path.Join(t.TempDir(), "existing")
+		fk, err := GeneratePersistedFileKey(filePath)
+		require.NoError(t, err)
+
+		// Load it using NewFileKey.
+		loaded, err := NewFileKey(filePath)
+		require.NotNil(t, loaded)
+		require.NoError(t, err)
+
+		// Compare the loaded file key with the original.
+		require.Equal(t, fk, loaded)
+	})
+
+	t.Run("read-only file path", func(t *testing.T) {
+		t.Parallel()
+
+		// Create a read-only directory.
+		dirPath := path.Join(t.TempDir(), "read-only")
+		err := os.Mkdir(dirPath, 0444)
+		require.NoError(t, err)
+
+		filePath := path.Join(dirPath, "file")
+		fk, err := NewFileKey(filePath)
+		require.Nil(t, fk)
+		require.Error(t, err)
+	})
+}

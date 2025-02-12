@@ -23,9 +23,9 @@ const (
 	StepPrecommit Step = 3 // Only used in vote signing
 )
 
-// A vote is either stepPrevote or stepPrecommit.
-func VoteToStep(vote *types.Vote) Step {
-	switch vote.Type {
+// A vote type is either stepPrevote or stepPrecommit.
+func VoteTypeToStep(voteType types.SignedMsgType) Step {
+	switch voteType {
 	case types.PrevoteType:
 		return StepPrevote
 	case types.PrecommitType:
@@ -46,6 +46,14 @@ type FileState struct {
 	filePath string
 }
 
+// FileState HRS checking errors.
+var (
+	errHeightRegression = errors.New("height regression")
+	errRoundRegression  = errors.New("round regression")
+	errStepRegression   = errors.New("step regression")
+	errNoSignBytes      = errors.New("no SignBytes set")
+)
+
 // checkHRS checks the given height, round, step (HRS) against the last state.
 // It returns an error if the arguments constitute a regression, or if HRS match but
 // the SignBytes are not set.
@@ -55,7 +63,7 @@ type FileState struct {
 func (fs *FileState) CheckHRS(height int64, round int, step Step) (bool, error) {
 	// Check if the height differs.
 	if height < fs.Height { // Height regression
-		return false, fmt.Errorf("height regression. Got %v, last height %v", height, fs.Height)
+		return false, fmt.Errorf("%w: expected >= %d, got %d", errHeightRegression, fs.Height, height)
 	}
 	if height > fs.Height { // New height, we can't reuse the signature.
 		return false, nil
@@ -63,7 +71,7 @@ func (fs *FileState) CheckHRS(height int64, round int, step Step) (bool, error) 
 
 	// Height is the same, now check if the round differs.
 	if round < fs.Round { // Round regression
-		return false, fmt.Errorf("round regression at height %v. Got %v, last round %v", height, round, fs.Round)
+		return false, fmt.Errorf("%w: expected >= %d, got %d (height %d)", errRoundRegression, fs.Round, round, height)
 	}
 	if round > fs.Round { // New round, we can't reuse the signature.
 		return false, nil
@@ -71,7 +79,7 @@ func (fs *FileState) CheckHRS(height int64, round int, step Step) (bool, error) 
 
 	// Round is the same, now check if the step differs.
 	if step < fs.Step { // Step regression
-		return false, fmt.Errorf("step regression at height %v round %v. Got %v, last step %v", height, round, step, fs.Step)
+		return false, fmt.Errorf("%w: expected >= %d, got %d (height %d, round %d)", errStepRegression, fs.Step, step, height, round)
 	}
 	if step > fs.Step { // New step, we can't reuse the signature.
 		return false, nil
@@ -79,7 +87,7 @@ func (fs *FileState) CheckHRS(height int64, round int, step Step) (bool, error) 
 
 	// If the HRS are the same, the SignBytes should be already set.
 	if fs.SignBytes == nil {
-		return false, errors.New("no SignBytes found")
+		return false, errNoSignBytes
 	}
 
 	// If the SignBytes are set, the Signature should be set as well.
@@ -154,30 +162,74 @@ func (fs *FileState) Update(height int64, round int, step Step, signBytes, signa
 	return fs.save()
 }
 
-// FileState validation errors
+// FileState validation errors.
 var (
-	errInvalidSignStateStep    = errors.New("invalid sign state step value")
-	errInvalidSignStateHeight  = errors.New("invalid sign state height value")
-	errInvalidSignStateRound   = errors.New("invalid sign state round value")
-	errSignatureShouldNotBeSet = errors.New("signature should not be set")
-	errFilePathNotSet          = errors.New("filePath not set")
+	errInvalidSignStateStep      = errors.New("invalid sign state step value")
+	errInvalidSignStateHeight    = errors.New("invalid sign state height value")
+	errInvalidSignStateRound     = errors.New("invalid sign state round value")
+	errInvalidSignStateSignBytes = errors.New("invalid sign state sign bytes")
+	errSignatureShouldNotBeSet   = errors.New("signature should not be set")
+	errFilePathNotSet            = errors.New("filePath not set")
 )
 
-// validate validates the FileState
+// validate validates the FileState.
 func (fs *FileState) validate() error {
-	// Make sure the height is valid
-	if fs.Height >= 0 {
+	// Make sure the height is valid.
+	if fs.Height < 0 {
 		return errInvalidSignStateHeight
 	}
 
-	// Make sure the round is valid
-	if fs.Round >= 0 {
+	// Make sure the round is valid.
+	if fs.Round < 0 {
 		return errInvalidSignStateRound
 	}
 
-	// Make sure the sign step is valid
-	if fs.Step <= StepPrecommit {
+	// Make sure the sign step is valid.
+	if fs.Step > StepPrecommit {
 		return errInvalidSignStateStep
+	}
+
+	// Make sure the sign bytes are valid if set.
+	if fs.SignBytes != nil {
+		checkSignBytesHRS := func(height int64, round int, step Step) error {
+			if height != fs.Height {
+				return fmt.Errorf("%w: height mismatch", errInvalidSignStateSignBytes)
+			}
+			if round != fs.Round {
+				return fmt.Errorf("%w: round mismatch", errInvalidSignStateSignBytes)
+			}
+			if step != fs.Step {
+				return fmt.Errorf("%w: step mismatch", errInvalidSignStateSignBytes)
+			}
+			return nil
+		}
+
+		switch fs.Step {
+		case StepPrevote, StepPrecommit:
+			// Try to unmarshal as a canonical vote.
+			var vote types.CanonicalVote
+			if err := amino.UnmarshalSized(fs.SignBytes, &vote); err != nil {
+				return errInvalidSignStateSignBytes
+				// If SignBytes unmarshalled to vote, check if it contains the same HRS values.
+			} else if err := checkSignBytesHRS(vote.Height, int(vote.Round), VoteTypeToStep(vote.Type)); err != nil {
+				return err
+			}
+
+		case StepPropose:
+			// Try to unmarshal as a canonical proposal.
+			var proposal types.CanonicalProposal
+			if err := amino.UnmarshalSized(fs.SignBytes, &proposal); err != nil {
+				return errInvalidSignStateSignBytes
+				// If SignBytes unmarshalled to proposal, check if it contains the same HRS values.
+			} else if err := checkSignBytesHRS(proposal.Height, int(proposal.Round), StepPropose); err != nil {
+				return err
+			}
+
+		default:
+			// Invalid Step.
+			return errInvalidSignStateSignBytes
+		}
+
 	}
 
 	// Make sure the signature is not set if the sign bytes are not set.
