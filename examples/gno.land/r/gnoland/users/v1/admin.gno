@@ -1,4 +1,4 @@
-package v1
+package users
 
 import (
 	"std"
@@ -29,7 +29,7 @@ func ProposeNewName(addr std.Address, newName string) dao.Executor {
 		if matched := reUsername.MatchString(newName); !matched {
 			return ErrInvalidUsername
 		}
-		
+
 		userData := susers.ResolveAddress(addr)
 		if err := userData.UpdateName(newName); err != nil {
 			return err
