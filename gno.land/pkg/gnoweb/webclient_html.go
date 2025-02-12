@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"path"
 	gopath "path"
 	"strings"
 
@@ -231,7 +230,7 @@ func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) e
 	var lexer chroma.Lexer
 
 	// Determine the lexer to be used based on the file extension.
-	switch strings.ToLower(path.Ext(fileName)) {
+	switch strings.ToLower(gopath.Ext(fileName)) {
 	case ".gno":
 		lexer = lexers.Get("go")
 	case ".md":
