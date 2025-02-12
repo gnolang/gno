@@ -44,7 +44,7 @@ func ProposeNewName(addr std.Address, newName string) dao.Executor {
 	return bridge.GovDAO().NewGovDAOExecutor(cb)
 }
 
-// ProposeDeleteUser allows GovDAO to propose propose deletion of a user
+// ProposeDeleteUser allows GovDAO to propose deletion of a user
 // This will make the associated address and names unresolvable.
 // WARN: After deletion, the same address WILL NOT be able to register a new name.
 func ProposeDeleteUser(addr std.Address) dao.Executor {
