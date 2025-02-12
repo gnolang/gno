@@ -11,7 +11,7 @@ import (
 	"gno.land/p/moul/txlink"
 
 	"gno.land/r/demo/profile"
-	"gno.land/r/sys/users"
+	susers "gno.land/r/sys/users"
 )
 
 var (
@@ -47,14 +47,14 @@ func renderHomePage(path string) string {
 
 	out += md.H2("User list")
 
-	p := pager.NewPager(users.GetReadOnlyNameStore(), 20, false)
+	p := pager.NewPager(susers.GetReadOnlyNameStore(), 20, false)
 	page := p.MustGetPageByPath(path)
 	for _, item := range page.Items {
 		if item.Value == nil {
 			continue
 		}
 
-		data := item.Value.(*users.UserData)
+		data := item.Value.(*susers.UserData)
 
 		// Skip previous names
 		if item.Key != data.Name() {
@@ -105,12 +105,12 @@ will gain permission to deploy packages and realms to package paths with the pat
 }
 
 // resolveUser resolves the user based on the path, determining if it's a name or address
-func resolveUser(path string) (*users.UserData, bool, bool) {
+func resolveUser(path string) (*susers.UserData, bool, bool) {
 	if std.Address(path).IsValid() {
-		return users.ResolveAddress(std.Address(path)), false, false
+		return susers.ResolveAddress(std.Address(path)), false, false
 	}
 
-	data, isLatest := users.ResolveName(path)
+	data, isLatest := susers.ResolveName(path)
 	return data, isLatest, true
 }
 
