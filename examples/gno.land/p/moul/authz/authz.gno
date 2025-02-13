@@ -37,6 +37,8 @@ import (
 	"errors"
 	"std"
 
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl/rotree"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/addrset"
 	"gno.land/p/moul/once"
@@ -146,19 +148,13 @@ func (a *MemberAuthority) RemoveMember(addr std.Address) error {
 	})
 }
 
-// ListMembers returns the list of all member addresses
-// This is a read-only operation that can be called by anyone
-func (a *MemberAuthority) ListMembers() []std.Address {
-	var members []std.Address
-	a.members.IterateByOffset(0, a.members.Size(), func(addr std.Address) bool {
-		members = append(members, addr)
-		return false // continue iteration
-	})
-	return members
+// Tree returns a read-only view of the members tree
+func (a *MemberAuthority) Tree() *rotree.ReadOnlyTree {
+	tree := a.members.Tree().(*avl.Tree)
+	return rotree.Wrap(tree, nil)
 }
 
-// Has checks if an address is a member
-// This is a read-only operation that can be called by anyone
+// Has checks if the given address is a member of the authority
 func (a *MemberAuthority) Has(addr std.Address) bool {
 	return a.members.Has(addr)
 }

@@ -240,6 +240,27 @@ func TestMemberAuthorityMultipleMembers(t *testing.T) {
 		return nil
 	})
 	uassert.True(t, err != nil, "non-member should not be authorized")
+
+	// Test Tree() functionality
+	tree := auth.Tree()
+	uassert.True(t, tree.Size() == 2, "tree should have 2 members")
+
+	// Verify both members are in the tree
+	found := make(map[std.Address]bool)
+	tree.Iterate("", "", func(key string, _ interface{}) bool {
+		found[std.Address(key)] = true
+		return false
+	})
+	uassert.True(t, found[alice], "alice should be in the tree")
+	uassert.True(t, found[bob], "bob should be in the tree")
+	uassert.False(t, found[carol], "carol should not be in the tree")
+
+	// Test read-only nature of the tree
+	defer func() {
+		r := recover()
+		uassert.True(t, r != nil, "modifying read-only tree should panic")
+	}()
+	tree.Set(string(carol), nil) // This should panic
 }
 
 func TestAuthorizerCurrentNeverNil(t *testing.T) {
