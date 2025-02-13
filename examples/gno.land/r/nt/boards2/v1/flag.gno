@@ -39,8 +39,7 @@ type Flaggable interface {
 // Returns whether flag count threshold is reached and item can be hidden.
 //
 // Panics if flag count threshold was already reached.
-func flagItem(bid BoardID, item Flaggable, flag Flag) bool {
-	threshold := getFlaggingThreshold(bid)
+func flagItem(item Flaggable, flag Flag, threshold int) bool {
 	if item.FlagsCount() >= threshold {
 		panic("item flag count threshold exceeded: " + strconv.Itoa(threshold))
 	}

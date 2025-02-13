@@ -86,7 +86,8 @@ func FlagThread(bid BoardID, postID PostID, reason string) {
 		panic("post doesn't exist")
 	}
 
-	hide := flagItem(board.id, t, NewFlag(caller, reason))
+	threshold := getFlaggingThreshold(bid)
+	hide := flagItem(t, NewFlag(caller, reason), threshold)
 	if hide {
 		t.SetVisible(false)
 	}
@@ -144,7 +145,8 @@ func FlagReply(bid BoardID, threadID, replyID PostID, reason string) {
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
 
-	hide := flagItem(board.id, reply, NewFlag(caller, reason))
+	threshold := getFlaggingThreshold(bid)
+	hide := flagItem(reply, NewFlag(caller, reason), threshold)
 	if hide {
 		reply.SetVisible(false)
 	}
