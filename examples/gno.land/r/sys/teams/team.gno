@@ -25,21 +25,23 @@ type (
 	// NOTE: More actions to come...
 )
 
-// Team defines the core capabilities for team management
+// Team defines the core capabilities for team management.
 type Team interface {
 	Can(member std.Address, action Action) bool
 
 	// Members listing
+	// XXX This should probably not be part of the interface, but should still be
+	// something exposed through `sys/team`
 	Size() int
 	HasMember(member std.Address) bool
 	PageMember(pageNumber, pageSize int) []std.Address
 }
 
-// Register creates a new team from a home realm
+// Register creates a new team from a home realm.
 func Register() {
 	caller := std.GetOrigCaller()
 	if teams.Has(caller.String()) {
-		panic("team already exists: " + caller.String())
+		panic("team already register: " + caller.String())
 	}
 
 	prev := std.PrevRealm()
@@ -59,22 +61,38 @@ func Get(team std.Address) Team {
 	return nil
 }
 
-// SetMember updates permissions for a team member
-func HasMember(team, member std.Address) bool {
-	caller := std.GetOrigCaller()
-	val, exists := teams.Get(caller.String())
-	if !exists {
-		panic(ErrInvalidTeam)
+// TeamSize returns the number of members in the specified team.
+func TeamSize(team std.Address) int {
+	if t := Get(team); t != nil {
+		return t.Size()
 	}
 
-	return val.(Team).HasMember(member)
+	panic(ErrInvalidTeam)
 }
 
-// CanTeamMemberDo checks permissions across teams
-func MemberCanDo(team, member std.Address, action string) bool {
-	val, exists := teams.Get(team.String())
-	if !exists {
-		return false
+// TeamHasMember checks if a member is part of the specified team.
+func TeamHasMember(team std.Address, member std.Address) bool {
+	if t := Get(team); t != nil {
+		return t.HasMember(member)
 	}
-	return val.(Team).Can(member, action)
+
+	panic(ErrInvalidTeam)
+}
+
+// TeamPageMember returns a paginated list of members from the specified team.
+func TeamPageMember(team std.Address, pageNumber, pageSize int) []std.Address {
+	if t := Get(team); t != nil {
+		return t.PageMember(pageNumber, pageSize)
+	}
+
+	panic(ErrInvalidTeam)
+}
+
+// CanTeamMemberDo checks permissions across teams.
+func MemberCanDo(team, member std.Address, action string) bool {
+	if t := Get(team); t != nil {
+		return t.Can(member, action)
+	}
+
+	panic(ErrInvalidTeam)
 }
