@@ -47,9 +47,10 @@ func GetReadOnlyNameStore() *rotree.ReadOnlyTree {
 }
 
 func makeUserDataSafe(data interface{}) interface{} {
-	u := data.(*UserData) // WARN: roTree will return ok = true when getting in this case
-	if u.deleted {
+	cpy := new(UserData)
+	*cpy = *(data.(*UserData))
+	if cpy.deleted {
 		return nil
 	}
-	return u
+	return cpy
 }
