@@ -137,6 +137,33 @@ func setLoc(fs *token.FileSet, pos token.Pos, n Node) Node {
 	return n
 }
 
+type LocationPlusError struct {
+	pos token.Position
+	msg string
+}
+
+func (ewp *LocationPlusError) Error() string {
+	return fmt.Sprintf("%s: %s", ewp.Location(), ewp.msg)
+}
+
+func (ewp *LocationPlusError) Location() string {
+	if ewp == nil {
+		return "undefined:0"
+	}
+	return fmt.Sprintf("%s:%d:%d", ewp.pos.Filename, ewp.pos.Line, ewp.pos.Column)
+}
+
+func (ewp *LocationPlusError) Message() string {
+	return ewp.msg
+}
+
+func MakeLocationPlusError(pos token.Position, msg string) *LocationPlusError {
+	return &LocationPlusError{
+		msg: msg,
+		pos: pos,
+	}
+}
+
 // If gon is a *ast.File, the name must be filled later.
 func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 	if gon == nil {
@@ -149,6 +176,14 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			}
 		}()
 	}
+
+	panicWithPos := func(msg string) {
+		posn := fs.Position(gon.Pos())
+		panic(&LocationPlusError{posn, msg})
+	}
+
+	panic := panicWithPos
+
 	switch gon := gon.(type) {
 	case *ast.ParenExpr:
 		return toExpr(fs, gon.X)
@@ -478,6 +513,8 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			spew.Sdump(gon),
 		))
 	}
+
+	return
 }
 
 //----------------------------------------

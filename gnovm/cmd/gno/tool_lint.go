@@ -264,7 +264,7 @@ var reParseRecover = regexp.MustCompile(`^([^:]+)((?::(?:\d+)){1,2}):? *(.*)$`)
 
 func catchRuntimeError(pkgPath string, stderr goio.WriteCloser, action func()) (hasError bool) {
 	defer func() {
-		// Errors catched here mostly come from: gnovm/pkg/gnolang/preprocess.go
+		// Errors caught here mostly come from: gnovm/pkg/gnolang/preprocess.go
 		r := recover()
 		if r == nil {
 			return
@@ -301,6 +301,16 @@ func issueFromError(pkgPath string, err error) lintIssue {
 	var issue lintIssue
 	issue.Confidence = 1
 	issue.Code = lintGnoError
+
+	if err == nil {
+		return issue
+	}
+
+	if ewp, ok := err.(*gno.LocationPlusError); ok {
+		issue.Location = ewp.Location()
+		issue.Msg = ewp.Message()
+		return issue
+	}
 
 	parsedError := strings.TrimSpace(err.Error())
 	parsedError = strings.TrimPrefix(parsedError, pkgPath+"/")
