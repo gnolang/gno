@@ -1211,8 +1211,8 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 	switch baseOf(lv.T) {
 	case IntType:
 		checkOverflow(func() bool {
-			l := big.NewInt(int64(lv.GetInt()))
-			r := big.NewInt(0).Lsh(l, rv.GetUint())
+			l := big.NewInt(lv.GetInt())
+			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxInt)) != 1
 		})
@@ -1221,7 +1221,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 	case Int8Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(int64(lv.GetInt8()))
-			r := big.NewInt(0).Lsh(l, rv.GetUint())
+			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxInt8)) != 1
 		})
@@ -1230,7 +1230,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 	case Int16Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(int64(lv.GetInt16()))
-			r := big.NewInt(0).Lsh(l, rv.GetUint())
+			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxInt16)) != 1
 		})
@@ -1239,7 +1239,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 	case Int32Type, UntypedRuneType:
 		checkOverflow(func() bool {
 			l := big.NewInt(int64(lv.GetInt32()))
-			r := big.NewInt(0).Lsh(l, rv.GetUint())
+			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxInt32)) != 1
 		})
@@ -1248,7 +1248,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 	case Int64Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(lv.GetInt64())
-			r := big.NewInt(0).Lsh(l, rv.GetUint())
+			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxInt64)) != 1
 		})
@@ -1256,8 +1256,8 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 		lv.SetInt64(lv.GetInt64() << rv.GetUint())
 	case UintType:
 		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(uint64(lv.GetUint()))
-			r := big.NewInt(0).Lsh(l, rv.GetUint())
+			l := big.NewInt(0).SetUint64(lv.GetUint())
+			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(0).SetUint64(math.MaxUint)) != 1
 		})
@@ -1266,7 +1266,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 	case Uint8Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(0).SetUint64(uint64(lv.GetUint8()))
-			r := big.NewInt(0).Lsh(l, rv.GetUint())
+			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxUint8)) != 1
 		})
@@ -1275,7 +1275,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 	case DataByteType:
 		checkOverflow(func() bool {
 			l := big.NewInt(0).SetUint64(uint64(lv.GetDataByte()))
-			r := big.NewInt(0).Lsh(l, rv.GetUint())
+			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxUint8)) != 1
 		})
@@ -1284,7 +1284,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 	case Uint16Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(0).SetUint64(uint64(lv.GetUint16()))
-			r := big.NewInt(0).Lsh(l, rv.GetUint())
+			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxUint16)) != 1
 		})
@@ -1293,7 +1293,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 	case Uint32Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(0).SetUint64(uint64(lv.GetUint32()))
-			r := big.NewInt(0).Lsh(l, rv.GetUint())
+			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxUint32)) != 1
 		})
@@ -1302,7 +1302,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 	case Uint64Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(0).SetUint64(lv.GetUint64())
-			r := big.NewInt(0).Lsh(l, rv.GetUint())
+			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(0).SetUint64(math.MaxUint64)) != 1
 		})
@@ -1310,7 +1310,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 		lv.SetUint64(lv.GetUint64() << rv.GetUint())
 	case BigintType, UntypedBigintType:
 		lb := lv.GetBigInt()
-		lb = big.NewInt(0).Lsh(lb, rv.GetUint())
+		lb = big.NewInt(0).Lsh(lb, uint(rv.GetUint()))
 		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
@@ -1335,8 +1335,8 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 	switch baseOf(lv.T) {
 	case IntType:
 		checkOverflow(func() bool {
-			l := big.NewInt(int64(lv.GetInt()))
-			r := big.NewInt(0).Rsh(l, rv.GetUint())
+			l := big.NewInt(lv.GetInt())
+			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxInt)) != 1
 		})
@@ -1345,7 +1345,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 	case Int8Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(int64(lv.GetInt8()))
-			r := big.NewInt(0).Rsh(l, rv.GetUint())
+			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxInt8)) != 1
 		})
@@ -1354,7 +1354,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 	case Int16Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(int64(lv.GetInt16()))
-			r := big.NewInt(0).Rsh(l, rv.GetUint())
+			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxInt16)) != 1
 		})
@@ -1363,7 +1363,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 	case Int32Type, UntypedRuneType:
 		checkOverflow(func() bool {
 			l := big.NewInt(int64(lv.GetInt32()))
-			r := big.NewInt(0).Rsh(l, rv.GetUint())
+			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxInt32)) != 1
 		})
@@ -1372,7 +1372,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 	case Int64Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(lv.GetInt64())
-			r := big.NewInt(0).Rsh(l, rv.GetUint())
+			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxInt64)) != 1
 		})
@@ -1380,8 +1380,8 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 		lv.SetInt64(lv.GetInt64() >> rv.GetUint())
 	case UintType:
 		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(uint64(lv.GetUint()))
-			r := big.NewInt(0).Rsh(l, rv.GetUint())
+			l := big.NewInt(0).SetUint64(lv.GetUint())
+			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(0).SetUint64(math.MaxUint)) != 1
 		})
@@ -1390,7 +1390,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 	case Uint8Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(0).SetUint64(uint64(lv.GetUint8()))
-			r := big.NewInt(0).Rsh(l, rv.GetUint())
+			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxUint8)) != 1
 		})
@@ -1399,7 +1399,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 	case DataByteType:
 		checkOverflow(func() bool {
 			l := big.NewInt(0).SetUint64(uint64(lv.GetDataByte()))
-			r := big.NewInt(0).Rsh(l, rv.GetUint())
+			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxUint8)) != 1
 		})
@@ -1408,7 +1408,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 	case Uint16Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(0).SetUint64(uint64(lv.GetUint16()))
-			r := big.NewInt(0).Rsh(l, rv.GetUint())
+			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxUint16)) != 1
 		})
@@ -1417,7 +1417,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 	case Uint32Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(0).SetUint64(uint64(lv.GetUint32()))
-			r := big.NewInt(0).Rsh(l, rv.GetUint())
+			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxUint32)) != 1
 		})
@@ -1426,7 +1426,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 	case Uint64Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(0).SetUint64(lv.GetUint64())
-			r := big.NewInt(0).Rsh(l, rv.GetUint())
+			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(0).SetUint64(math.MaxUint64)) != 1
 		})
@@ -1434,7 +1434,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 		lv.SetUint64(lv.GetUint64() >> rv.GetUint())
 	case BigintType, UntypedBigintType:
 		lb := lv.GetBigInt()
-		lb = big.NewInt(0).Rsh(lb, rv.GetUint())
+		lb = big.NewInt(0).Rsh(lb, uint(rv.GetUint()))
 		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
