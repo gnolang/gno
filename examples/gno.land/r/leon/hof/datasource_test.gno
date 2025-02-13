@@ -59,9 +59,9 @@ func TestDatasourceRecords(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Initialize a local instance of exhibition
-			exhibition := &Exhibition{itemsSorted: avl.NewTree()}
+			exhibition := &Exhibition{items: avl.NewTree()}
 			for _, item := range tc.items {
-				exhibition.itemsSorted.Set(item.id.String(), item)
+				exhibition.items.Set(item.id.String(), item)
 			}
 
 			// Get a records iterator
@@ -108,9 +108,9 @@ func TestDatasourceRecord(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Initialize a local instance of exhibition
-			exhibition := &Exhibition{itemsSorted: avl.NewTree()}
+			exhibition := &Exhibition{items: avl.NewTree()}
 			for _, item := range tc.items {
-				exhibition.itemsSorted.Set(item.id.String(), item)
+				exhibition.items.Set(item.id.String(), item)
 			}
 
 			// Get a single record

@@ -34,7 +34,6 @@ type (
 		itemCounter            seqid.ID
 		description            string
 		items                  *avl.Tree // pkgPath > &Item
-		itemsSorted            *avl.Tree // unneeded, will be removed
 		itemsSortedByCreation  *avl.Tree // same data but sorted by creation time
 		itemsSortedByUpvotes   *avl.Tree // same data but sorted by upvotes
 		itemsSortedByDownvotes *avl.Tree // same data but sorted by downvotes
@@ -54,7 +53,6 @@ type (
 func init() {
 	exhibition = &Exhibition{
 		items:                  avl.NewTree(),
-		itemsSorted:            avl.NewTree(),
 		itemsSortedByCreation:  avl.NewTree(),
 		itemsSortedByUpvotes:   avl.NewTree(),
 		itemsSortedByDownvotes: avl.NewTree(),
@@ -84,12 +82,12 @@ func Register(title, description string) {
 		return
 	}
 
-	//Title must be between 1 maxTitleLength long
+	// Title must be between 1 maxTitleLength long
 	if len(title) == 0 || len(title) > maxTitleLength {
 		return
 	}
 
-	//Description must be between 1 maxDescriptionLength long
+	// Description must be between 1 maxDescriptionLength long
 	if len(description) == 0 || len(description) > maxDescriptionLength {
 		return
 	}
@@ -106,7 +104,6 @@ func Register(title, description string) {
 	}
 
 	exhibition.items.Set(pkgpath, i)
-	exhibition.itemsSorted.Set(id.String(), i)
 	exhibition.itemsSortedByCreation.Set(generateCreationSortKey(i.blockNum, i.id), i)
 	exhibition.itemsSortedByUpvotes.Set(generateVoteSortKey(i.upvote.Size(), i.id), i)
 	exhibition.itemsSortedByDownvotes.Set(generateVoteSortKey(i.downvote.Size(), i.id), i)
@@ -169,10 +166,6 @@ func Delete(pkgpath string) {
 	downvoteKey := generateVoteSortKey(item.downvote.Size(), item.id)
 
 	if _, removed := exhibition.items.Remove(pkgpath); !removed {
-		panic(ErrNoSuchItem)
-	}
-
-	if _, removed := exhibition.itemsSorted.Remove(item.id.String()); !removed {
 		panic(ErrNoSuchItem)
 	}
 

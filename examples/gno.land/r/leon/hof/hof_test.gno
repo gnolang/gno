@@ -74,9 +74,6 @@ func TestUpvote(t *testing.T) {
 	raw, _ := exhibition.items.Get(rlmPath)
 	item := raw.(*Item)
 
-	rawSorted, _ := exhibition.itemsSorted.Get(item.id.String())
-	itemSorted := rawSorted.(*Item)
-
 	// 0 upvotes by default
 	urequire.Equal(t, item.upvote.Size(), 0)
 
@@ -88,7 +85,6 @@ func TestUpvote(t *testing.T) {
 
 	// Check both trees for 1 upvote
 	uassert.Equal(t, item.upvote.Size(), 1)
-	uassert.Equal(t, itemSorted.upvote.Size(), 1)
 
 	// Check double upvote
 	uassert.PanicsWithMessage(t, ErrDoubleUpvote.Error(), func() {
@@ -99,9 +95,6 @@ func TestUpvote(t *testing.T) {
 func TestDownvote(t *testing.T) {
 	raw, _ := exhibition.items.Get(rlmPath)
 	item := raw.(*Item)
-
-	rawSorted, _ := exhibition.itemsSorted.Get(item.id.String())
-	itemSorted := rawSorted.(*Item)
 
 	// 0 downvotes by default
 	urequire.Equal(t, item.downvote.Size(), 0)
@@ -115,7 +108,6 @@ func TestDownvote(t *testing.T) {
 
 	// Check both trees for 1 upvote
 	uassert.Equal(t, item.downvote.Size(), 1)
-	uassert.Equal(t, itemSorted.downvote.Size(), 1)
 
 	// Check double downvote
 	uassert.PanicsWithMessage(t, ErrDoubleDownvote.Error(), func() {
@@ -140,20 +132,14 @@ func TestDelete(t *testing.T) {
 	})
 
 	uassert.False(t, exhibition.items.Has(rlmPath))
-	uassert.False(t, exhibition.itemsSorted.Has(id.String()))
 }
 
 func itemExists(t *testing.T, rlmPath string) bool {
 	t.Helper()
 
 	i, ok1 := exhibition.items.Get(rlmPath)
-	ok2 := false
 
-	if ok1 {
-		_, ok2 = exhibition.itemsSorted.Get(i.(*Item).id.String())
-	}
-
-	return ok1 && ok2
+	return ok1
 }
 
 func TestgenerateVoteSortKey(t *testing.T) {

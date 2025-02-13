@@ -17,7 +17,7 @@ type Datasource struct {
 	exhibition *Exhibition
 }
 
-func (ds Datasource) Size() int { return ds.exhibition.itemsSorted.Size() }
+func (ds Datasource) Size() int { return ds.exhibition.items.Size() }
 
 func (ds Datasource) Records(q datasource.Query) datasource.Iterator {
 	return &iterator{
@@ -28,7 +28,7 @@ func (ds Datasource) Records(q datasource.Query) datasource.Iterator {
 }
 
 func (ds Datasource) Record(id string) (datasource.Record, error) {
-	v, found := ds.exhibition.itemsSorted.Get(id)
+	v, found := ds.exhibition.items.Get(id)
 	if !found {
 		return nil, errors.New("realm submission not found")
 	}
@@ -68,11 +68,11 @@ func (it iterator) Record() datasource.Record { return it.record }
 func (it iterator) Err() error                { return nil }
 
 func (it *iterator) Next() bool {
-	if it.index >= it.maxIndex || it.index >= it.exhibition.itemsSorted.Size() {
+	if it.index >= it.maxIndex || it.index >= it.exhibition.items.Size() {
 		return false
 	}
 
-	_, v := it.exhibition.itemsSorted.GetByIndex(it.index)
+	_, v := it.exhibition.items.GetByIndex(it.index)
 	it.record = &record{v.(*Item)}
 	it.index++
 	return true
