@@ -7,6 +7,7 @@ import (
 
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
+	"gno.land/r/sys/names"
 )
 
 func TestResolveName(t *testing.T) {
@@ -127,15 +128,25 @@ func TestROStores(t *testing.T) {
 		aliceDataRaw, ok := roNS.Get(alice)
 		uassert.True(t, ok)
 
-		_, ok = aliceDataRaw.(*UserData)
+		roData, ok := aliceDataRaw.(*UserData)
 		uassert.True(t, ok, "Could not cast data from RO tree to UserData")
+
+		// Try to modify data
+		roData.Delete()
+		raw, ok := nameStore.Get(alice)
+		uassert.False(t, raw.(*UserData).deleted)
 
 		// Addr store
 		aliceDataRaw, ok = roAS.Get(aliceAddr.String())
 		uassert.True(t, ok)
 
-		_, ok = aliceDataRaw.(*UserData)
+		roData, ok = aliceDataRaw.(*UserData)
 		uassert.True(t, ok, "Could not cast data from RO tree to UserData")
+
+		// Try to modify data
+		roData.Delete()
+		raw, ok = nameStore.Get(alice)
+		uassert.False(t, raw.(*UserData).deleted)
 	})
 
 	t.Run("get deleted data", func(t *testing.T) {
@@ -154,7 +165,6 @@ func TestROStores(t *testing.T) {
 		// should we handle this somehow?
 
 		uassert.Equal(t, rawRoData, nil)
-
 		_, ok = rawRoData.(*UserData) // shouldn't be castable
 		uassert.False(t, ok)
 	})
