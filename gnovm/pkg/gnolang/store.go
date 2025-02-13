@@ -513,8 +513,8 @@ func (ds *defaultStore) SetObject(oo Object) {
 		ds.baseStore.Set([]byte(key), hashbz)
 		size = len(hashbz)
 	}
-	//ooo := ds.loadObjectSafe(oid)
-	//debug2.Printf2("check ooo: %v, ooo.GetObjectID: %v, pure: %t \n", ooo, ooo.GetObjectID(), ooo.GetObjectID().PkgID.purePkg)
+	// ooo := ds.loadObjectSafe(oid)
+	// debug2.Printf2("check ooo: %v, ooo.GetObjectID: %v, pure: %t \n", ooo, ooo.GetObjectID(), ooo.GetObjectID().PkgID.purePkg)
 	// save object to cache.
 	if debug {
 		if oid.IsZero() {

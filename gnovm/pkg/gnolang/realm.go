@@ -231,7 +231,7 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 			} else {
 				rlm.MarkNewEscapedCheckCrossRealm(store, co)
 			}
-			//rlm.MarkNewEscapedCheckCrossRealm(store, co)
+			// rlm.MarkNewEscapedCheckCrossRealm(store, co)
 		} else {
 			if co.GetIsReal() { // TODO: how this happen?
 				rlm.MarkDirty(co)
@@ -593,9 +593,9 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 // and get assigned ids.
 func (rlm *Realm) processNewCreatedMarks(store Store) {
 	debug2.Println2("processNewCreatedMarks")
-	//fmt.Println("---len of newCreated objects:", len(rlm.newCreated))
+	// fmt.Println("---len of newCreated objects:", len(rlm.newCreated))
 	// Create new objects and their new descendants.
-	//for _, oo := range rlm.newCreated {
+	// for _, oo := range rlm.newCreated {
 	for i := 0; i < len(rlm.newCreated); i++ {
 		oo := rlm.newCreated[i]
 		debug2.Printf2("---oo[%d] is: %v (type: %v) \n", i, oo, reflect.TypeOf(oo))
@@ -992,8 +992,8 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 func (rlm *Realm) saveObject(store Store, oo Object) {
 	debug2.Println2("saveObject: ", oo)
 	oid := oo.GetObjectID()
-	//debug2.Println2("---oid: ", oid)
-	//debug2.Println2("---oo.GetRefCount: ", oo.GetRefCount())
+	// debug2.Println2("---oid: ", oid)
+	// debug2.Println2("---oo.GetRefCount: ", oo.GetRefCount())
 	if oid.IsZero() {
 		panic("unexpected zero object id")
 	}
@@ -1060,7 +1060,7 @@ func (rlm *Realm) clearMarks() {
 // Value is either Object or RefValue.
 // Shallow; doesn't recurse into objects.
 func getSelfOrChildObjects(val Value, more []Value) []Value {
-	//debug2.Printf2("getSelfOrChildObjects, val: %v (type: %v) \n", val, reflect.TypeOf(val))
+	// debug2.Printf2("getSelfOrChildObjects, val: %v (type: %v) \n", val, reflect.TypeOf(val))
 	if _, ok := val.(RefValue); ok {
 		return append(more, val)
 	} else if _, ok := val.(Object); ok {
@@ -1073,7 +1073,7 @@ func getSelfOrChildObjects(val Value, more []Value) []Value {
 // Gets child objects.
 // Shallow; doesn't recurse into objects.
 func getChildObjects(val Value, more []Value) []Value {
-	//debug2.Printf2("getChildObjects, val: %v (type: %v) \n", val, reflect.TypeOf(val))
+	// debug2.Printf2("getChildObjects, val: %v (type: %v) \n", val, reflect.TypeOf(val))
 	switch cv := val.(type) {
 	case nil:
 		return more

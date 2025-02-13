@@ -46,7 +46,6 @@ type ObjectID struct {
 func (oid ObjectID) MarshalAmino() (string, error) {
 	pid := hex.EncodeToString(oid.PkgID.Hashlet[:])
 	if oid.PkgID.purePkg {
-		debug2.Println2("Marshal objectID, is pure")
 		return fmt.Sprintf("%s:%s:%d", "purePkg", pid, oid.NewTime), nil
 	} else {
 		return fmt.Sprintf("%s:%d", pid, oid.NewTime), nil
@@ -368,10 +367,10 @@ func (oi *ObjectInfo) GetIsTransient() bool {
 
 // XXX, get first accessible object, maybe containing(parent) object, maybe itself.
 func (tv *TypedValue) GetFirstObject(store Store) Object {
-	//debug2.Println2("GetFirstObject, tv, type ot tv.V: ", tv, reflect.TypeOf(tv.V))
+	// debug2.Println2("GetFirstObject, tv, type ot tv.V: ", tv, reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case PointerValue:
-		//debug2.Println2("pointer value, base: ", cv.Base)
+		// debug2.Println2("pointer value, base: ", cv.Base)
 		return cv.GetBase(store)
 	case *ArrayValue:
 		return cv

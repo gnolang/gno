@@ -550,10 +550,10 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	}
 
 	nsv := alloc.NewStruct(fields)
-	//debug2.Println2("sv.GetOriginRealm: ", sv.GetOriginRealm())
-	//debug2.Println2("sv.GetObjectID(): ", sv.GetObjectID())
-	//debug2.Println2("sv.GetRefCount: ", sv.GetRefCount())
-	//debug2.Println2("sv...OwneID: ", sv.GetObjectInfo().OwnerID)
+	// debug2.Println2("sv.GetOriginRealm: ", sv.GetOriginRealm())
+	// debug2.Println2("sv.GetObjectID(): ", sv.GetObjectID())
+	// debug2.Println2("sv.GetRefCount: ", sv.GetRefCount())
+	// debug2.Println2("sv...OwneID: ", sv.GetObjectInfo().OwnerID)
 	// append, unref copy...
 
 	// this copy is needed,
@@ -565,7 +565,7 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	}
 	nsv.SetOriginRealm(pkgId)
 	return nsv
-	//return alloc.NewStruct(fields)
+	// return alloc.NewStruct(fields)
 }
 
 // ----------------------------------------
@@ -2400,7 +2400,7 @@ type Block struct {
 
 // NOTE: for allocation, use *Allocator.NewBlock.
 func NewBlock(source BlockNode, parent *Block) *Block {
-	//fmt.Println("parent: ", parent)
+	// fmt.Println("parent: ", parent)
 	var values []TypedValue
 	if source != nil {
 		values = make([]TypedValue, source.GetNumNames())
