@@ -47,7 +47,7 @@ func NewParamKey(m *gno.Machine, prefix, key string, kind string) (ParamKey, err
 }
 
 // String representation of ParamKey in the format:
-// <prefix:><realm>.<key>.<type>
+// <module>:(<realm>".")?<key>
 func (pk ParamKey) String() string {
 	pks := ""
 	if pk.Prefix == "" {

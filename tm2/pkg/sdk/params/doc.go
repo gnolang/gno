@@ -23,9 +23,9 @@
 // Other keepers should neither cache nor maintain these parameters as state variables.
 // While store access is synchronized, keeper access is not.
 //
-// Here is the interval key specs that is used to stored
+// Here is the interval key specs that is stored
 
-// "/pv/" <module shortpath> ":" <primary key> ("." secondary key )? == ( <type byte> ":" )? <value bytes>
+// /pv/<module>:(<realm>".")?<key>
 //
 //
 // ParamKeeper.SetParams(module_prefix, k, v) is used by each registered module keeper to set the
@@ -33,12 +33,11 @@
 // ParamKeeper.SetParamXXX() is used to set arbitrary parameters as single primitive values.
 //
 // A prefix, ValueStoreKeyPrefix (/pv/), is added to each key before it is stored as the internal key:
-// /pv/<module_prefix>:<params_key>.
-//
-// Arbitrary parameter keys follow this format:
-// /pv/<param_key>
-// special case for arbitrary parameter keys that set from realm.
-// /pv/vm:<realm>.<params_key>
+// Module parameter keys follow this format:
+// /pv/<module>:<key>
+
+// For arbitrary parameter keys that set from realm.
+// /pv/vm:<realm>.<key>
 
 // The method for querying parameters follows this pattern:
 // To query module parameters:
