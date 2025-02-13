@@ -1153,6 +1153,11 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case Float32Kind:
+			var f64 float64 = math.Float64frombits(tv.GetFloat64())
+			if g, w := f64, float64(math.MaxFloat32); g > w {
+				panic(fmt.Sprintf("cannot convert %g to type float32", g))
+			}
+
 			validate(Float64Kind, Float32Kind, func() bool {
 				return softfloat.Fle64(tv.GetFloat64(), math.Float64bits(float64(math.MaxFloat32)))
 			})

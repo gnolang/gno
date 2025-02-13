@@ -99,6 +99,10 @@ func TestRunApp(t *testing.T) {
 			}(),
 			errShouldBe: "exit code: 1",
 		},
+		{
+			args:                 []string{"run", "../../tests/overflows/issue-3496/"},
+			recoverShouldContain: "cannot convert 1.7976931348623157e+308 to type float32",
+		},
 		// TODO: a test file
 		// TODO: args
 		// TODO: nativeLibs VS stdlibs
