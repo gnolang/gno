@@ -6,8 +6,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-
-	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 /*
@@ -47,19 +45,35 @@ type ObjectID struct {
 
 func (oid ObjectID) MarshalAmino() (string, error) {
 	pid := hex.EncodeToString(oid.PkgID.Hashlet[:])
-	return fmt.Sprintf("%s:%d", pid, oid.NewTime), nil
+	if oid.PkgID.purePkg {
+		debug2.Println2("Marshal objectID, is pure")
+		return fmt.Sprintf("%s:%s:%d", "purePkg", pid, oid.NewTime), nil
+	} else {
+		return fmt.Sprintf("%s:%d", pid, oid.NewTime), nil
+	}
 }
 
 func (oid *ObjectID) UnmarshalAmino(oids string) error {
 	parts := strings.Split(oids, ":")
-	if len(parts) != 2 {
-		return errors.New("invalid ObjectID %s", oids)
+
+	if len(parts) < 2 || len(parts) > 3 {
+		return fmt.Errorf("invalid ObjectID %s", oids)
 	}
-	_, err := hex.Decode(oid.PkgID.Hashlet[:], []byte(parts[0]))
+
+	index1, index2 := 0, 1
+	if len(parts) == 3 {
+		index1, index2 = 1, 2
+	}
+
+	if parts[0] == "purePkg" {
+		oid.PkgID.purePkg = true
+	}
+
+	_, err := hex.Decode(oid.PkgID.Hashlet[:], []byte(parts[index1]))
 	if err != nil {
 		return err
 	}
-	newTime, err := strconv.Atoi(parts[1])
+	newTime, err := strconv.Atoi(parts[index2])
 	if err != nil {
 		return err
 	}
@@ -320,7 +334,7 @@ func (oi *ObjectInfo) GetOriginRealm() PkgID {
 }
 
 func (oi *ObjectInfo) SetOriginRealm(pkgId PkgID) {
-	debug2.Println2("SetOriginRealm: ", pkgId)
+	debug2.Println2("SetOriginRealm: ", pkgId, pkgId.purePkg)
 	oi.originRealm = pkgId
 }
 
@@ -404,12 +418,12 @@ func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 		// it's un-real.
 		originPkg = obj.GetOriginRealm()
 		if !originPkg.IsZero() {
-			debug2.Println2("got originPkg from object: ", originPkg)
+			debug2.Println2("1, got originPkg from object: ", originPkg, originPkg.purePkg)
 			return
 		}
 		originPkg = obj.GetObjectID().PkgID
 		if !originPkg.IsZero() {
-			debug2.Println2("got originPkg from object: ", originPkg)
+			debug2.Println2("2, got originPkg from object: ", originPkg, originPkg.purePkg)
 			return
 		}
 	}
@@ -420,6 +434,7 @@ func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 			debug2.Printf2("getPkgId, dt: %v, dt.Base: %v, dt.Base.PkgPath: %s \n", dt, dt.Base, dt.Base.GetPkgPath())
 			if IsRealmPath(dt.Base.GetPkgPath()) {
 				pkgId = PkgIDFromPkgPath(dt.Base.GetPkgPath())
+				debug2.Println2("pkgId.purePkg: ", pkgId.purePkg)
 				return
 			}
 		}

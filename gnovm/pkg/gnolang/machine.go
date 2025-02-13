@@ -257,6 +257,7 @@ func (m *Machine) RunMemPackageWithOverrides(memPkg *gnovm.MemPackage, save bool
 }
 
 func (m *Machine) runMemPackage(memPkg *gnovm.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
+	debug2.Println2("runMemPackage, save: ", save)
 	// parse files.
 	files := ParseMemPackage(memPkg)
 	if !overrides {
@@ -637,6 +638,7 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 // Returns a throwaway realm package is not a realm,
 // such as stdlibs or /p/ packages.
 func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
+	debug2.Println2("saveNewPackageValuesAndTypes...")
 	// save package value and dependencies.
 	pv := m.Package
 	if pv.IsRealm() {
@@ -648,14 +650,19 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 	} else { // use a throwaway realm.
 		rlm := NewRealm(pv.PkgPath)
 		rlm.MarkNewReal(pv)
+		debug2.Println2("NOT realm, finalizing throwaway")
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
 		throwaway = rlm
 	}
+	debug2.Println2("saving types...")
 	// save declared types.
 	if bv, ok := pv.Block.(*Block); ok {
 		for _, tv := range bv.Values {
+			debug2.Println2("tv: ", tv)
 			if tvv, ok := tv.V.(TypeValue); ok {
+				debug2.Println2("tvv: ", tvv)
 				if dt, ok := tvv.Type.(*DeclaredType); ok {
+					debug2.Println2("---saving types, dt: ", dt)
 					m.Store.SetType(dt)
 				}
 			}

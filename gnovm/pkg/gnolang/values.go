@@ -254,7 +254,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 								panic("should not happen")
 							}
 							if nv, ok := tv2.V.(*NativeValue); !ok ||
-									nv.Value.Kind() != reflect.Func {
+								nv.Value.Kind() != reflect.Func {
 								panic("should not happen")
 							}
 						}
@@ -290,6 +290,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		// get origin pkgId, this should happen before assign,
 		// because assign will discard original object info
 		originPkg := tv2.GetOriginPkg(store)
+		debug2.Println2("originPkg: ", originPkg, originPkg.purePkg)
 
 		pv.TV.Assign(alloc, tv2, cu)
 
@@ -2478,7 +2479,6 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 }
 
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
-	//debug2.Println2("GetPoinerTo, b: ", b)
 	if path.IsBlockBlankPath() {
 		if debug {
 			if path.Name != blankIdentifier {
@@ -2724,6 +2724,7 @@ func typedString(s string) TypedValue {
 }
 
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
+	debug2.Printf2("fillValueTV: %v (type: %v) \n", tv, reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case RefValue:
 		if cv.PkgPath != "" { // load package

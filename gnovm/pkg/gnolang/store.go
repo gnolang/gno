@@ -266,6 +266,7 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 
 // Gets package from cache, or loads it from baseStore, or gets it from package getter.
 func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue {
+	debug2.Printf2("GetPackage:  %s \n", pkgPath)
 	// helper to detect circular imports
 	if isImport {
 		if slices.Contains(ds.current, pkgPath) {
@@ -397,6 +398,7 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 // all []TypedValue types and TypeValue{} types to be
 // loaded (non-ref) types.
 func (ds *defaultStore) GetObject(oid ObjectID) Object {
+	debug2.Printf2("GetObject %s, pure: %t \n", oid, oid.PkgID.purePkg)
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -430,6 +432,7 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 // loads and caches an object.
 // CONTRACT: object isn't already in the cache.
 func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
+	debug2.Println2("loadObjectSafe: ", oid, oid.PkgID.purePkg)
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -460,6 +463,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 					oid, oo.GetObjectID()))
 			}
 		}
+		debug2.Println2("oo loaded, objectID: ", oo.GetObjectID(), oo.GetObjectID().PkgID.purePkg)
 		oo.SetHash(ValueHash{NewHashlet(hash)})
 		ds.cacheObjects[oid] = oo
 		_ = fillTypesOfValue(ds, oo)
@@ -484,9 +488,12 @@ func (ds *defaultStore) SetObject(oo Object) {
 		}()
 	}
 	oid := oo.GetObjectID()
+	debug2.Println2("oid: ", oid, oid.PkgID.purePkg)
 	// replace children/fields with Ref.
 	o2 := copyValueWithRefs(oo)
-	//debug2.Println2("---o2: ", o2)
+	debug2.Println2("---o2: ", o2)
+	oid2 := o2.(Object).GetObjectID()
+	debug2.Println2("oid2: ", oid2, oid2.PkgID.purePkg)
 	// marshal to binary.
 	bz := amino.MustMarshalAny(o2)
 	gas := overflow.Mul64p(ds.gasConfig.GasSetObject, store.Gas(len(bz)))
@@ -506,6 +513,8 @@ func (ds *defaultStore) SetObject(oo Object) {
 		ds.baseStore.Set([]byte(key), hashbz)
 		size = len(hashbz)
 	}
+	//ooo := ds.loadObjectSafe(oid)
+	//debug2.Printf2("check ooo: %v, ooo.GetObjectID: %v, pure: %t \n", ooo, ooo.GetObjectID(), ooo.GetObjectID().PkgID.purePkg)
 	// save object to cache.
 	if debug {
 		if oid.IsZero() {

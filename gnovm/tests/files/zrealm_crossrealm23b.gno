@@ -15,8 +15,8 @@ var root interface{}
 // an another realm.
 func main() {
 	root = tests.F // already attached in p
-	println("done")
+	println("done:", root)
 }
 
-// Error:
-// cannot attach a value of a type defined by another realm: struct{("p" string)}
+// Output:
+// done: (struct{("p" string)} gno.land/p/demo/tests.Foo)

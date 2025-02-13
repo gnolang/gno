@@ -53,6 +53,7 @@ a realm to keep it alive.
 // PkgID & Realm
 
 type PkgID struct {
+	purePkg bool
 	Hashlet
 }
 
@@ -69,6 +70,10 @@ func (pid PkgID) String() string {
 	return fmt.Sprintf("RID%X", pid.Hashlet[:])
 }
 
+func (pid PkgID) IsPurePkg() bool {
+	return pid.purePkg
+}
+
 func (pid PkgID) Bytes() []byte {
 	return pid.Hashlet[:]
 }
@@ -82,13 +87,14 @@ var (
 )
 
 func PkgIDFromPkgPath(path string) PkgID {
+	debug2.Printf2("PkgIDFromPkgPath: %s | purePkg: %t \n", path, !IsRealmPath(path))
 	pkgIDFromPkgPathCacheMu.Lock()
 	defer pkgIDFromPkgPathCacheMu.Unlock()
 
 	pkgID, ok := pkgIDFromPkgPathCache[path]
 	if !ok {
 		pkgID = new(PkgID)
-		*pkgID = PkgID{HashBytes([]byte(path))}
+		*pkgID = PkgID{purePkg: !IsRealmPath(path), Hashlet: HashBytes([]byte(path))}
 		pkgIDFromPkgPathCache[path] = pkgID
 	}
 	return *pkgID
@@ -96,7 +102,9 @@ func PkgIDFromPkgPath(path string) PkgID {
 
 // Returns the ObjectID of the PackageValue associated with path.
 func ObjectIDFromPkgPath(path string) ObjectID {
+	debug2.Println2("ObjectIDFromPkgPath: ", path)
 	pkgID := PkgIDFromPkgPath(path)
+	pkgID.purePkg = !IsRealmPath(path)
 	return ObjectIDFromPkgID(pkgID)
 }
 
@@ -129,6 +137,7 @@ type Realm struct {
 // Creates a blank new realm with counter 0.
 func NewRealm(path string) *Realm {
 	id := PkgIDFromPkgPath(path)
+	debug2.Printf2("NewRealm: %s | purePkg: %t \n", path, id.purePkg)
 	return &Realm{
 		ID:   id,
 		Path: path,
@@ -249,14 +258,14 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 }
 
 // check cross realm recursively
-func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, isLastRef bool, stack []Object) {
+func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, isLastRef bool, seenObjs []Object) {
 	debug2.Printf2("checkCrossRealm2, tv: %v (type: %v) | isLastRef: %t \n", tv, reflect.TypeOf(tv.V), isLastRef)
 	tv2 := fillValueTV(store, tv)
 	if oo, ok := tv2.V.(Object); ok {
 		debug2.Println2("is object, GetIsReal: ", oo.GetIsReal())
 		// set origin realm for embedded value
 		oo.SetOriginRealm(tv2.GetOriginPkg(store))
-		checkCrossRealm(rlm, store, oo, isLastRef, stack)
+		checkCrossRealm(rlm, store, oo, isLastRef, seenObjs)
 	} else { // reference to object
 		switch tv.V.(type) {
 		case *SliceValue, PointerValue: // if reference object from external realm
@@ -269,22 +278,19 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, isLastRef bool, s
 			// current realm, implies the
 			// current realm is finalizing,
 			// just skip as a recursive guard.
-			if pv, ok := tv2.V.(PointerValue); ok {
-				debug2.Println2("pv: ", pv)
-				debug2.Println2("pv.TV: ", *pv.TV)
+			if _, ok := tv2.V.(PointerValue); ok {
 				// check recursive
-
-				if slices.Contains(stack, reo) {
+				if slices.Contains(seenObjs, reo) {
 					debug2.Printf2("stack contains reo, return: ", reo)
-					stack = nil
+					seenObjs = nil
 					return
 				}
-				stack = append(stack, reo)
+				seenObjs = append(seenObjs, reo)
 			}
 
 			reo.SetOriginRealm(tv2.GetOriginPkg(store))
 			reo.SetIsAttachingRef(true)
-			checkCrossRealm(rlm, store, reo, isLastRef, stack)
+			checkCrossRealm(rlm, store, reo, isLastRef, seenObjs)
 		}
 	}
 }
@@ -293,26 +299,30 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, isLastRef bool, s
 // refValue is required to handle cases where the value is a slice.
 // The `len` and `offset` are needed to validate proper elements of the underlying array.
 // NOTE, oo can be real or unreal.
-func checkCrossRealm(rlm *Realm, store Store, oo Object, isLastRef bool, stack []Object) {
-	debug2.Printf2("checkCrossRealm, oo: %v, (type: %v) | GetIsReal: %t | oo.GetOriginRealm: %v | rlm.ID: %v \n",
-		oo, reflect.TypeOf(oo), oo.GetIsReal(), oo.GetOriginRealm(), rlm.ID)
+func checkCrossRealm(rlm *Realm, store Store, oo Object, isLastRef bool, seenObjs []Object) {
+	debug2.Printf2("checkCrossRealm, oo: %v, (type: %v) | GetIsReal: %t | oo.GetOriginRealm: %v (purePkg? %t) | rlm.ID: %v \n",
+		oo, reflect.TypeOf(oo), oo.GetIsReal(), oo.GetOriginRealm(), oo.GetOriginRealm().purePkg, rlm.ID)
 
 	debug2.Printf2(
 		"isLastRef: %t | isCurrentRef: %t\n",
 		isLastRef, oo.GetIsAttachingRef(),
 	)
-	// refer 20c, 20c2
+
+	if oo.GetOriginRealm().IsPurePkg() {
+		return
+	}
 
 	// update isLastRef based on the current object's reference status
 	// If the last object was not a reference, but the current one is,
 	// then the current object and its children are referenced.
+	// refer 20c, 20c2
 	if !isLastRef {
 		isLastRef = oo.GetIsAttachingRef()
 	}
 
 	if oo.GetOriginRealm().IsZero() {
 		debug2.Println2("origin realm is zero, it's unreal, check elems...")
-		checkCrossRealmChildren(rlm, store, oo, isLastRef, stack)
+		checkCrossRealmChildren(rlm, store, oo, isLastRef, seenObjs)
 		return
 	}
 
@@ -321,7 +331,7 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, isLastRef bool, stack [
 		// for local realm checking
 		// maybe a container not cross
 		// but embedded field does.
-		checkCrossRealmChildren(rlm, store, oo, isLastRef, stack)
+		checkCrossRealmChildren(rlm, store, oo, isLastRef, seenObjs)
 		return
 	}
 
@@ -339,20 +349,20 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, isLastRef bool, stack [
 	}
 }
 
-func checkCrossRealmChildren(rlm *Realm, store Store, oo Object, isLastRef bool, stack []Object) {
+func checkCrossRealmChildren(rlm *Realm, store Store, oo Object, isLastRef bool, seenObjs []Object) {
 	switch v := oo.(type) {
 	case *StructValue:
 		// check fields
 		for _, fv := range v.Fields {
-			checkCrossRealm2(rlm, store, &fv, isLastRef, stack) // ref to struct is heapItemValue or block
+			checkCrossRealm2(rlm, store, &fv, isLastRef, seenObjs) // ref to struct is heapItemValue or block
 		}
 	case *MapValue:
 		for cur := v.List.Head; cur != nil; cur = cur.Next {
-			checkCrossRealm2(rlm, store, &cur.Key, isLastRef, stack)
-			checkCrossRealm2(rlm, store, &cur.Value, isLastRef, stack)
+			checkCrossRealm2(rlm, store, &cur.Key, isLastRef, seenObjs)
+			checkCrossRealm2(rlm, store, &cur.Value, isLastRef, seenObjs)
 		}
 	case *BoundMethodValue:
-		checkCrossRealm2(rlm, store, &v.Receiver, isLastRef, stack)
+		checkCrossRealm2(rlm, store, &v.Receiver, isLastRef, seenObjs)
 		o2 := v.Func.Closure.(Object)
 		// the closure must be a real fileBlock
 		if !o2.GetIsReal() {
@@ -362,14 +372,14 @@ func checkCrossRealmChildren(rlm *Realm, store Store, oo Object, isLastRef bool,
 		// NOTE, it's not escaped until now,
 		// will set after check
 		for _, tv := range v.Values {
-			checkCrossRealm2(rlm, store, &tv, isLastRef, stack)
+			checkCrossRealm2(rlm, store, &tv, isLastRef, seenObjs)
 		}
 	case *HeapItemValue:
-		checkCrossRealm2(rlm, store, &v.Value, isLastRef, stack)
+		checkCrossRealm2(rlm, store, &v.Value, isLastRef, seenObjs)
 	case *ArrayValue:
 		if v.Data == nil {
 			for _, e := range v.List {
-				checkCrossRealm2(rlm, store, &e, isLastRef, stack)
+				checkCrossRealm2(rlm, store, &e, isLastRef, seenObjs)
 			}
 		}
 	default:
@@ -395,7 +405,8 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object) {
 
 	// originRealm can be zero, e.g. an array value
 	// in current realm, and it's referenced twice.
-	if !oo.GetOriginRealm().IsZero() && oo.GetOriginRealm() != rlm.ID { // crossing realm
+	originRealm := oo.GetOriginRealm()
+	if !originRealm.IsZero() && !originRealm.IsPurePkg() && originRealm != rlm.ID { // crossing realm
 		if !oo.GetIsAttachingRef() {
 			panic(fmt.Sprintf("cannot attach objects by value from external realm: %v", oo))
 		}
@@ -610,7 +621,9 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 			// check cross realm before attaching
 			// from package block, recursively
 			if pv, ok := oo.(*PackageValue); ok {
-				checkCrossRealm(rlm, store, pv.Block.(Object), false, nil)
+				if IsRealmPath(pv.PkgPath) {
+					checkCrossRealm(rlm, store, pv.Block.(Object), false, nil)
+				}
 			}
 			rlm.incRefCreatedDescendants(store, oo)
 		}
@@ -1047,7 +1060,7 @@ func (rlm *Realm) clearMarks() {
 // Value is either Object or RefValue.
 // Shallow; doesn't recurse into objects.
 func getSelfOrChildObjects(val Value, more []Value) []Value {
-	debug2.Printf2("getSelfOrChildObjects, val: %v (type: %v) \n", val, reflect.TypeOf(val))
+	//debug2.Printf2("getSelfOrChildObjects, val: %v (type: %v) \n", val, reflect.TypeOf(val))
 	if _, ok := val.(RefValue); ok {
 		return append(more, val)
 	} else if _, ok := val.(Object); ok {
@@ -1060,7 +1073,7 @@ func getSelfOrChildObjects(val Value, more []Value) []Value {
 // Gets child objects.
 // Shallow; doesn't recurse into objects.
 func getChildObjects(val Value, more []Value) []Value {
-	debug2.Printf2("getChildObjects, val: %v (type: %v) \n", val, reflect.TypeOf(val))
+	//debug2.Printf2("getChildObjects, val: %v (type: %v) \n", val, reflect.TypeOf(val))
 	switch cv := val.(type) {
 	case nil:
 		return more
@@ -1587,6 +1600,7 @@ func fillTypesTV(store Store, tv *TypedValue) {
 // Partially fills loaded objects shallowly, similarly to
 // getUnsavedTypes. Replaces all RefTypes with corresponding types.
 func fillTypesOfValue(store Store, val Value) Value {
+	debug2.Printf2("fillTypesOfValue, val: %v (type: %v) \n", val, reflect.TypeOf(val))
 	switch cv := val.(type) {
 	case nil: // do nothing
 		return cv
@@ -1685,14 +1699,15 @@ func (rlm *Realm) nextObjectID() ObjectID {
 // Object gets its id set (panics if already set), and becomes
 // marked as new and real.
 func (rlm *Realm) assignNewObjectID(oo Object) ObjectID {
-	debug2.Printf2("assignNewObjectID, rlm: %v, oo: %v, oo: %p\n", rlm, oo, oo)
+	debug2.Printf2("assignNewObjectID, rlm: %v | rlm.Path: %s | oo: %v \n", rlm, rlm.Path, oo)
+	debug2.Printf2("%s is Realm path: %t \n", rlm.Path, IsRealmPath(rlm.Path))
 	oid := oo.GetObjectID()
 	debug2.Println2("oid: ", oid)
 	if !oid.IsZero() {
 		panic("unexpected non-zero object id")
 	}
 	noid := rlm.nextObjectID()
-	debug2.Println2("noid: ", noid)
+	debug2.Printf2("noid: %s | purePkg: %t \n", noid, noid.PkgID.purePkg)
 	oo.SetObjectID(noid)
 	return noid
 }
