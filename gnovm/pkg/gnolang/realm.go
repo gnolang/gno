@@ -224,6 +224,9 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 		co.IncRefCount()
 		debug2.Println2("co.GetRecCount() after inc: ", co.GetRefCount())
 		if co.GetRefCount() > 1 {
+			if co.GetIsReal() {
+				rlm.MarkDirty(co)
+			}
 			if co.GetIsEscaped() {
 				//	already escaped
 			} else {
