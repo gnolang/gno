@@ -1,1 +1,1 @@
-module gno.land/r/sys/teams2
+module gno.land/r/sys/teams
