@@ -1,5 +1,3 @@
-// Package team provides decentralized team management with permission control.
-// Teams are identified by addresses and manage member permissions.
 package teams
 
 import (
