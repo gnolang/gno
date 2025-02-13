@@ -3,6 +3,7 @@ package packages
 import (
 	"fmt"
 	"go/token"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -20,7 +21,7 @@ func NewLocalResolver(path, dir string) *LocalResolver {
 }
 
 func (r *LocalResolver) Name() string {
-	return fmt.Sprintf("local<%s>", filepath.Base(r.Dir))
+	return fmt.Sprintf("local<%s>", path.Base(r.Dir))
 }
 
 func (r LocalResolver) IsValid() bool {
