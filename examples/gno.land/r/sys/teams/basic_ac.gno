@@ -36,7 +36,7 @@ func (ac *BasicAccessController) setPermission(member std.Address, perms Permiss
 
 // SetMember updates permissions for a team member
 // Only team address can set member permission
-func OwnerSetMember(member std.Address, perms Permissions) {
+func SetMember(member std.Address, perms Permissions) {
 	caller := std.GetOrigCaller()
 	team := Get(caller)
 	if team == nil {
@@ -50,4 +50,3 @@ func OwnerSetMember(member std.Address, perms Permissions) {
 
 	team.Register(member)
 	ac.setPermission(member, perms)
-}

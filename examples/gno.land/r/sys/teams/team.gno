@@ -72,6 +72,16 @@ func (t *Team) Page(pageNumber, pageSize int) []std.Address {
 	return result
 }
 
+func (t *Team) Can(member std.Address, do Action) bool {
+	if !t.Has(member) {
+		panic(ErrUnauthorized)
+	}
+
+	return t.AccessController.Can(member, do)
+}
+
+// Admin method
+
 func (t *Team) Tree() *rotree.ReadOnlyTree {
 	tree := t.members.Tree().(*avl.Tree)
 	return rotree.Wrap(tree, nil)
