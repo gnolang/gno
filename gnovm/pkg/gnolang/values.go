@@ -1206,7 +1206,7 @@ func (tv *TypedValue) SetInt(n int) {
 
 func (tv *TypedValue) ConvertGetInt() int {
 	var store Store = nil // not used
-	ConvertTo(nilAllocator, store, tv, IntType, false)
+	ConvertTo(nil, nilAllocator, store, tv, IntType, false)
 	return tv.GetInt()
 }
 

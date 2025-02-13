@@ -3395,6 +3395,7 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	if cx == nil {
 		// is constant?  From the machine?
 		m := NewMachine(".dontcare", store)
+		m.PreprocessorMode = true
 		cv := m.EvalStatic(last, x)
 		m.PreprocessorMode = false
 		m.Release()
@@ -3791,7 +3792,7 @@ func convertConst(store Store, last BlockNode, n Node, cx *ConstExpr, t Type) {
 		setConstAttrs(cx)
 	} else if t != nil {
 		// e.g. a named type or uint8 type to int for indexing.
-		ConvertTo(nilAllocator, store, &cx.TypedValue, t, true)
+		ConvertTo(nil, nilAllocator, store, &cx.TypedValue, t, true)
 		setConstAttrs(cx)
 	}
 }

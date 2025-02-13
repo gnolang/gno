@@ -14,7 +14,7 @@ import (
 // t cannot be nil or untyped or DataByteType.
 // the conversion is forced and overflow/underflow is ignored.
 // TODO: return error, and let caller also print the file and line.
-func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bool) {
+func ConvertTo(m *Machine, alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bool) {
 	if debug {
 		if t == nil {
 			panic("ConvertTo() requires non-nil type")
@@ -48,7 +48,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			// both NativeType, use reflect to assert.
 			// convert go-native to gno type (shallow).
 			*tv = go2GnoValue2(alloc, store, tv.V.(*NativeValue).Value, false)
-			ConvertTo(alloc, store, tv, t, isConst)
+			ConvertTo(m, alloc, store, tv, t, isConst)
 			return
 		}
 	} else {
@@ -95,7 +95,7 @@ GNO_CASE:
 	}
 
 	validate := func(from Kind, to Kind, cmp func() bool) {
-		if isConst {
+		if isConst || (m != nil && m.PreprocessorMode) {
 			msg := fmt.Sprintf("cannot convert constant of type %s to %s\n", from, to)
 			if cmp != nil && cmp() {
 				return
@@ -1299,7 +1299,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 		ConvertUntypedTo(tv, gnot)
 		// then convert to native value.
 		// NOTE: this should only be called during preprocessing, so no alloc needed.
-		ConvertTo(nilAllocator, nil, tv, t, false)
+		ConvertTo(nil, nilAllocator, nil, tv, t, false)
 	}
 	// special case: simple conversion
 	if t != nil && tv.T.Kind() == t.Kind() {
@@ -1338,7 +1338,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 			tv.T = t
 			return
 		} else {
-			ConvertTo(nilAllocator, nil, tv, t, false)
+			ConvertTo(nil, nilAllocator, nil, tv, t, false)
 		}
 	default:
 		panic(fmt.Sprintf(
