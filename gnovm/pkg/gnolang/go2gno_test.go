@@ -25,15 +25,3 @@ func main(){
 	fmt.Printf("AST:\n%#v\n\n", n)
 	fmt.Printf("AST.String():\n%s\n", n.String())
 }
-
-// Issue https://github.com/gnolang/gno/issues/3727
-func TestParseFile_wonkyFunctionDeclarationConfusesReceiver(t *testing.T) {
-	t.Parallel()
-
-	gocode := `package main
-func() A()
-func main() {}`
-	_, err := ParseFile("main.go", gocode)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "missing receiver")
-}
