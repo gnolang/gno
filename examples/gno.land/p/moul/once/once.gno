@@ -24,8 +24,8 @@ func (o *Once) Do(fn func()) {
 	if o.done {
 		return
 	}
+	defer func() { o.done = true }()
 	fn()
-	o.done = true
 }
 
 // DoErr executes fn only once and returns the same error on subsequent calls
@@ -33,8 +33,8 @@ func (o *Once) DoErr(fn func() error) error {
 	if o.done {
 		return o.err
 	}
+	defer func() { o.done = true }()
 	o.err = fn()
-	o.done = true
 	return o.err
 }
 
@@ -43,8 +43,8 @@ func (o *Once) DoOrPanic(fn func()) {
 	if o.done {
 		panic("once: multiple execution attempted")
 	}
+	defer func() { o.done = true }()
 	fn()
-	o.done = true
 }
 
 // DoValue executes fn only once and returns its value, subsequent calls return the cached value
@@ -52,8 +52,8 @@ func (o *Once) DoValue(fn func() interface{}) interface{} {
 	if o.done {
 		return o.value
 	}
+	defer func() { o.done = true }()
 	o.value = fn()
-	o.done = true
 	return o.value
 }
 
@@ -63,8 +63,8 @@ func (o *Once) DoValueErr(fn func() (interface{}, error)) (interface{}, error) {
 	if o.done {
 		return o.value, o.err
 	}
+	defer func() { o.done = true }()
 	o.value, o.err = fn()
-	o.done = true
 	return o.value, o.err
 }
 

@@ -198,3 +198,34 @@ func TestOnce_Value(t *testing.T) {
 		t.Errorf("expected value %v, got %v", expected, val)
 	}
 }
+
+func TestOnce_DoValueErr_Panic_MarkedDone(t *testing.T) {
+	once := New()
+	count := 0
+	fn := func() (interface{}, error) {
+		count++
+		panic("panic")
+	}
+	var r interface{}
+	func() {
+		defer func() { r = recover() }()
+		once.DoValueErr(fn)
+	}()
+	if r == nil {
+		t.Error("expected panic on first call")
+	}
+	if !once.IsDone() {
+		t.Error("expected once to be marked as done after panic")
+	}
+	r = nil
+	func() {
+		defer func() { r = recover() }()
+		once.DoValueErr(fn)
+	}()
+	if r != nil {
+		t.Error("expected no panic on subsequent call")
+	}
+	if count != 1 {
+		t.Errorf("expected count to be 1, got %d", count)
+	}
+}
