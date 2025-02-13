@@ -181,16 +181,16 @@ func TestSortByUpvote(t *testing.T) {
 		exhibition.items.Remove(key)
 		return false
 	})
-	exhibition.items.Iterate("", "", func(key string, value interface{}) bool {
-		exhibition.itemsSortedByCreation.Remove(key)
-		return false
-	})
-	exhibition.items.Iterate("", "", func(key string, value interface{}) bool {
+	exhibition.itemsSortedByUpvotes.Iterate("", "", func(key string, value interface{}) bool {
 		exhibition.itemsSortedByUpvotes.Remove(key)
 		return false
 	})
-	exhibition.items.Iterate("", "", func(key string, value interface{}) bool {
+	exhibition.itemsSortedByDownvotes.Iterate("", "", func(key string, value interface{}) bool {
 		exhibition.itemsSortedByDownvotes.Remove(key)
+		return false
+	})
+	exhibition.itemsSortedByCreation.Iterate("", "", func(key string, value interface{}) bool {
+		exhibition.itemsSortedByCreation.Remove(key)
 		return false
 	})
 
@@ -223,19 +223,14 @@ func TestSortByUpvote(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(user3))
 	Upvote(rlmPath5)
 
-	//We are dispalying data is reverse order in render, so items should be sorted in reverse order
+	// We are displaying data in reverse order in render, so items should be sorted in reverse order
 	firstKey, firstRawValue := exhibition.itemsSortedByUpvotes.GetByIndex(0)
-
 	firstValue := firstRawValue.(*Item)
-
 	uassert.Equal(t, firstValue.pkgpath, rlmPath3)
 
 	secondKey, secondRawValue := exhibition.itemsSortedByUpvotes.GetByIndex(1)
-
 	secondValue := secondRawValue.(*Item)
-
 	uassert.Equal(t, secondValue.pkgpath, rlmPath4)
-
 }
 
 func TestSortByDownvote(t *testing.T) {
@@ -244,16 +239,16 @@ func TestSortByDownvote(t *testing.T) {
 		exhibition.items.Remove(key)
 		return false
 	})
-	exhibition.items.Iterate("", "", func(key string, value interface{}) bool {
-		exhibition.itemsSortedByCreation.Remove(key)
+	exhibition.itemsSortedByUpvotes.Iterate("", "", func(key string, value interface{}) bool {
+		exhibition.itemsSortedByUpvotes.Remove(key)
 		return false
 	})
-	exhibition.items.Iterate("", "", func(key string, value interface{}) bool {
+	exhibition.itemsSortedByDownvotes.Iterate("", "", func(key string, value interface{}) bool {
 		exhibition.itemsSortedByDownvotes.Remove(key)
 		return false
 	})
-	exhibition.items.Iterate("", "", func(key string, value interface{}) bool {
-		exhibition.itemsSortedByUpvotes.Remove(key)
+	exhibition.itemsSortedByCreation.Iterate("", "", func(key string, value interface{}) bool {
+		exhibition.itemsSortedByCreation.Remove(key)
 		return false
 	})
 
@@ -286,7 +281,7 @@ func TestSortByDownvote(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(user3))
 	Downvote(rlmPath5)
 
-	//We are dispalying data is reverse order in render, so items should be sorted in reverse order
+	// We are dispalying data is reverse order in render, so items should be sorted in reverse order
 	firstKey, firstRawValue := exhibition.itemsSortedByDownvotes.GetByIndex(0)
 
 	firstValue := firstRawValue.(*Item)
@@ -306,16 +301,16 @@ func TestSortByCreation(t *testing.T) {
 		exhibition.items.Remove(key)
 		return false
 	})
-	exhibition.items.Iterate("", "", func(key string, value interface{}) bool {
-		exhibition.itemsSortedByCreation.Remove(key)
+	exhibition.itemsSortedByUpvotes.Iterate("", "", func(key string, value interface{}) bool {
+		exhibition.itemsSortedByUpvotes.Remove(key)
 		return false
 	})
-	exhibition.items.Iterate("", "", func(key string, value interface{}) bool {
+	exhibition.itemsSortedByDownvotes.Iterate("", "", func(key string, value interface{}) bool {
 		exhibition.itemsSortedByDownvotes.Remove(key)
 		return false
 	})
-	exhibition.items.Iterate("", "", func(key string, value interface{}) bool {
-		exhibition.itemsSortedByUpvotes.Remove(key)
+	exhibition.itemsSortedByCreation.Iterate("", "", func(key string, value interface{}) bool {
+		exhibition.itemsSortedByCreation.Remove(key)
 		return false
 	})
 
@@ -331,7 +326,7 @@ func TestSortByCreation(t *testing.T) {
 	std.TestSetRealm(std.NewCodeRealm(rlmPath5))
 	Register(validTitle, validDesc)
 
-	//We are dispalying data is reverse order in render, so items should be sorted in reverse order
+	// We are dispalying data is reverse order in render, so items should be sorted in reverse order
 	firstKey, firstRawValue := exhibition.itemsSortedByCreation.GetByIndex(0)
 
 	firstValue := firstRawValue.(*Item)
@@ -343,5 +338,4 @@ func TestSortByCreation(t *testing.T) {
 	secondValue := secondRawValue.(*Item)
 
 	uassert.Equal(t, secondValue.pkgpath, rlmPath4)
-
 }
