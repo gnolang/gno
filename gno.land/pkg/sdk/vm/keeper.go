@@ -535,9 +535,8 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 		if goerrors.As(err, &oog) {
 			if repanicOutOfGas {
 				panic(oog)
-			} else {
-				*e = oog
 			}
+			*e = oog
 			return
 		}
 		var up gno.UnhandledPanicError
