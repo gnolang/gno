@@ -3381,7 +3381,7 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 			switch fv.Name {
 			case "cap", "len":
 				tv := TypedValue{T: IntType}
-				tv.SetInt(ar.Len)
+				tv.SetInt(int64(ar.Len))
 				cx = &ConstExpr{
 					Source:     x,
 					TypedValue: tv,
