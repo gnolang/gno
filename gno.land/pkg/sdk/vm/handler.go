@@ -68,13 +68,11 @@ func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
 
 // query paths
 const (
-	QueryPackage = "package"
-	QueryStore   = "store"
-	QueryRender  = "qrender"
-	QueryFuncs   = "qfuncs"
-	QueryEval    = "qeval"
-	QueryFile    = "qfile"
-	QueryMeta    = "qmeta"
+	QueryRender = "qrender"
+	QueryFuncs  = "qfuncs"
+	QueryEval   = "qeval"
+	QueryFile   = "qfile"
+	QueryMeta   = "qmeta"
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQuery {
@@ -84,10 +82,6 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQ
 	)
 
 	switch path {
-	case QueryPackage:
-		res = vh.queryPackage(ctx, req)
-	case QueryStore:
-		res = vh.queryStore(ctx, req)
 	case QueryRender:
 		res = vh.queryRender(ctx, req)
 	case QueryFuncs:
@@ -106,18 +100,6 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQ
 	}
 
 	return res
-}
-
-// queryPackage fetch a package's files.
-func (vh vmHandler) queryPackage(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	res.Data = []byte(fmt.Sprintf("TODO: parse parts get or make fileset..."))
-	return
-}
-
-// queryPackage fetch items from the store.
-func (vh vmHandler) queryStore(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	res.Data = []byte(fmt.Sprintf("TODO: fetch from store"))
-	return
 }
 
 // queryRender calls .Render(<path>) in readonly mode.

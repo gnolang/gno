@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"path/filepath"
+	"path"
 	"strings"
 	"time"
 
@@ -207,14 +207,14 @@ func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) 
 		}
 	}
 
-	realmName := filepath.Base(gnourl.Path)
+	realmName := path.Base(gnourl.Path)
 	return http.StatusOK, components.HelpView(components.HelpData{
 		SelectedFunc: selFn,
 		SelectedArgs: selArgs,
 		RealmName:    realmName,
 		// TODO: get chain domain and use that.
 		ChainId:   h.Static.ChainId,
-		PkgPath:   filepath.Join(h.Static.Domain, gnourl.Path),
+		PkgPath:   path.Join(h.Static.Domain, gnourl.Path),
 		Remote:    h.Static.RemoteHelp,
 		Functions: fsigs,
 	})
