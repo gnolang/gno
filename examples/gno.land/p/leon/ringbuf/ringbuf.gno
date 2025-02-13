@@ -35,30 +35,13 @@ func New(size int) (*RingBuffer, error) {
 }
 
 // Write adds an element to the RingBuffer.
-// If the buffer is full, it returns an error.
-func (cb *RingBuffer) Write(value interface{}) error {
-	if cb.isFull {
-		return ErrFull
-	}
-
-	cb.data[cb.end] = value
-	cb.end = (cb.end + 1) % cb.size
-
-	if cb.end == cb.start {
-		cb.isFull = true
-	}
-
-	return nil
-}
-
-// WriteOverwrite adds an element to the RingBuffer.
 // If the buffer is full, it overwrites the oldest element.
-func (cb *RingBuffer) WriteOverwrite(value interface{}) {
+func (cb *RingBuffer) Write(value interface{}) {
 	if cb.isFull {
 		// Buffer is full, overwrite the oldest element
 		cb.start = (cb.start + 1) % cb.size
 	}
-
+	
 	cb.data[cb.end] = value
 	cb.end = (cb.end + 1) % cb.size
 
