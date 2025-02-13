@@ -116,8 +116,8 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	}
 
 	// parse metadata fields
-	metadata := make([]*vm.MetaField, len(cfg.Meta))
-	for i, s := range cfg.Meta {
+	var metadata []*vm.MetaField //nolint: prealloc // Must be nil when there are no meta fields
+	for _, s := range cfg.Meta {
 		parts := strings.SplitN(s, "=", 2)
 		if len(parts) != 2 {
 			return errors.New("invalid metadata field format, expected field=value")
@@ -133,10 +133,10 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 			value = []byte(v)
 		}
 
-		metadata[i] = &vm.MetaField{
+		metadata = append(metadata, &vm.MetaField{
 			Name:  name,
 			Value: value,
-		}
+		})
 	}
 
 	// parse gas wanted & fee.
