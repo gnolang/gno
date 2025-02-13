@@ -49,7 +49,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "0d544f117e621748ff328095eeef0fb1e4cbc6f1",
+//                     "Escaped": true,
 //                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
 //                 },
 //                 "Index": "0",

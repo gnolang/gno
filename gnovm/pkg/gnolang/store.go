@@ -398,7 +398,6 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 // all []TypedValue types and TypeValue{} types to be
 // loaded (non-ref) types.
 func (ds *defaultStore) GetObject(oid ObjectID) Object {
-	debug2.Printf2("GetObject %s, pure: %t \n", oid, oid.PkgID.purePkg)
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -432,7 +431,6 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 // loads and caches an object.
 // CONTRACT: object isn't already in the cache.
 func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
-	debug2.Println2("loadObjectSafe: ", oid, oid.PkgID.purePkg)
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -463,7 +461,6 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 					oid, oo.GetObjectID()))
 			}
 		}
-		debug2.Println2("oo loaded, objectID: ", oo.GetObjectID(), oo.GetObjectID().PkgID.purePkg)
 		oo.SetHash(ValueHash{NewHashlet(hash)})
 		ds.cacheObjects[oid] = oo
 		_ = fillTypesOfValue(ds, oo)
@@ -475,7 +472,8 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
 // package values.
 func (ds *defaultStore) SetObject(oo Object) {
-	debug2.Println2("SetObject: ", oo)
+	debug2.Printf2("SetObject: %v | oo.GetIsNewReal: %t | oo.GetIsReal: %t \n", oo, oo.GetIsNewReal(), oo.GetIsReal())
+	debug2.Println2("ds.opslog: ", ds.opslog)
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -488,12 +486,10 @@ func (ds *defaultStore) SetObject(oo Object) {
 		}()
 	}
 	oid := oo.GetObjectID()
-	debug2.Println2("oid: ", oid, oid.PkgID.purePkg)
+	//debug2.Println2("oid: ", oid, oid.PkgID.purePkg)
 	// replace children/fields with Ref.
 	o2 := copyValueWithRefs(oo)
 	debug2.Println2("---o2: ", o2)
-	oid2 := o2.(Object).GetObjectID()
-	debug2.Println2("oid2: ", oid2, oid2.PkgID.purePkg)
 	// marshal to binary.
 	bz := amino.MustMarshalAny(o2)
 	gas := overflow.Mul64p(ds.gasConfig.GasSetObject, store.Gas(len(bz)))
@@ -513,8 +509,6 @@ func (ds *defaultStore) SetObject(oo Object) {
 		ds.baseStore.Set([]byte(key), hashbz)
 		size = len(hashbz)
 	}
-	// ooo := ds.loadObjectSafe(oid)
-	// debug2.Printf2("check ooo: %v, ooo.GetObjectID: %v, pure: %t \n", ooo, ooo.GetObjectID(), ooo.GetObjectID().PkgID.purePkg)
 	// save object to cache.
 	if debug {
 		if oid.IsZero() {
@@ -537,9 +531,11 @@ func (ds *defaultStore) SetObject(oo Object) {
 		} else {
 			op = StoreOpMod
 		}
+		debug2.Println2("op: ", op)
 		ds.opslog = append(ds.opslog,
 			StoreOp{Type: op, Object: o2.(Object)})
 	}
+	debug2.Println2("after add, ds.opslog: ", ds.opslog)
 	// if escaped, add hash to iavl.
 	if oo.GetIsEscaped() && ds.iavlStore != nil {
 		var key, value []byte
@@ -947,6 +943,7 @@ func (sop StoreOp) String() string {
 }
 
 func (ds *defaultStore) SetLogStoreOps(enabled bool) {
+	debug2.Println2("SetLogStoreOps, enabled: ", enabled)
 	if enabled {
 		ds.ResetStoreOps()
 	} else {
@@ -956,6 +953,7 @@ func (ds *defaultStore) SetLogStoreOps(enabled bool) {
 
 // resets .realmops.
 func (ds *defaultStore) ResetStoreOps() {
+	debug2.Println2("Reset store ops")
 	ds.opslog = make([]StoreOp, 0, 1024)
 }
 
@@ -969,6 +967,8 @@ func (ds *defaultStore) SprintStoreOps() string {
 }
 
 func (ds *defaultStore) LogSwitchRealm(rlmpath string) {
+	debug2.Println2("LogSwitchRealm, rlmpath: ", rlmpath)
+	debug2.Println2("LogSwitchRealm, opslog: ", ds.opslog)
 	ds.opslog = append(ds.opslog,
 		StoreOp{Type: StoreOpSwitchRealm, RlmPath: rlmpath})
 }

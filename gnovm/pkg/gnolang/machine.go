@@ -545,6 +545,7 @@ func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
 	// recursive function for var declarations.
 	var runDeclarationFor func(fn *FileNode, decl Decl)
 	runDeclarationFor = func(fn *FileNode, decl Decl) {
+		debug2.Println2("runDeclarationFor, decl: ", decl)
 		// get fileblock of fn.
 		// fb := pv.GetFileBlock(nil, fn.Name)
 		// get dependencies of decl.
@@ -644,6 +645,7 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 	if pv.IsRealm() {
 		rlm := pv.Realm
 		rlm.MarkNewReal(pv)
+		debug2.Println2("===realm, finalizing throwaway")
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
 		// save package realm info.
 		m.Store.SetPackageRealm(rlm)
@@ -654,15 +656,11 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
 		throwaway = rlm
 	}
-	debug2.Println2("saving types...")
 	// save declared types.
 	if bv, ok := pv.Block.(*Block); ok {
 		for _, tv := range bv.Values {
-			debug2.Println2("tv: ", tv)
 			if tvv, ok := tv.V.(TypeValue); ok {
-				debug2.Println2("tvv: ", tvv)
 				if dt, ok := tvv.Type.(*DeclaredType); ok {
-					debug2.Println2("---saving types, dt: ", dt)
 					m.Store.SetType(dt)
 				}
 			}

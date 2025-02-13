@@ -87,7 +87,6 @@ var (
 )
 
 func PkgIDFromPkgPath(path string) PkgID {
-	debug2.Printf2("PkgIDFromPkgPath: %s | purePkg: %t \n", path, !IsRealmPath(path))
 	pkgIDFromPkgPathCacheMu.Lock()
 	defer pkgIDFromPkgPathCacheMu.Unlock()
 
@@ -102,7 +101,6 @@ func PkgIDFromPkgPath(path string) PkgID {
 
 // Returns the ObjectID of the PackageValue associated with path.
 func ObjectIDFromPkgPath(path string) ObjectID {
-	debug2.Println2("ObjectIDFromPkgPath: ", path)
 	pkgID := PkgIDFromPkgPath(path)
 	pkgID.purePkg = !IsRealmPath(path)
 	return ObjectIDFromPkgID(pkgID)
@@ -137,7 +135,6 @@ type Realm struct {
 // Creates a blank new realm with counter 0.
 func NewRealm(path string) *Realm {
 	id := PkgIDFromPkgPath(path)
-	debug2.Printf2("NewRealm: %s | purePkg: %t \n", path, id.purePkg)
 	return &Realm{
 		ID:   id,
 		Path: path,
@@ -161,8 +158,8 @@ func (rlm *Realm) String() string {
 // ref value is the derived value from co, like a slice.
 func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 	debug2.Printf2(
-		"DidUpdate - po: %v (type: %v) | xo: %v (type: %v)\n",
-		po, reflect.TypeOf(po), xo, reflect.TypeOf(xo),
+		"DidUpdate - po: %v (type: %v) | xo: %v (type: %v) | co: %v (type: %v) \n",
+		po, reflect.TypeOf(po), xo, reflect.TypeOf(xo), co, reflect.TypeOf(co),
 	)
 
 	if rlm != nil {
@@ -225,14 +222,15 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 	if co != nil {
 		// XXX, inc ref count everytime assignment happens
 		co.IncRefCount()
+		debug2.Println2("co.GetRecCount() after inc: ", co.GetRefCount())
 		if co.GetRefCount() > 1 {
 			if co.GetIsEscaped() {
 				//	already escaped
 			} else {
 				rlm.MarkNewEscapedCheckCrossRealm(store, co)
 			}
-			// rlm.MarkNewEscapedCheckCrossRealm(store, co)
 		} else {
+			debug2.Printf2("co.GetIsReal: %t \n", co.GetIsReal())
 			if co.GetIsReal() { // TODO: how this happen?
 				rlm.MarkDirty(co)
 			} else {
@@ -399,6 +397,8 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object) {
 	)
 
 	if oo.GetOriginRealm() == rlm.ID {
+		debug2.Println2("1, mark oo new escaped: ", oo)
+		rlm.MarkNewEscaped(oo)
 		// do nothing
 		return
 	}
@@ -412,9 +412,8 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object) {
 		}
 	}
 	// mark escaped
-	if !oo.GetIsEscaped() {
-		rlm.MarkNewEscaped(oo)
-	}
+	debug2.Println2("mark oo new escaped: ", oo)
+	rlm.MarkNewEscaped(oo)
 }
 
 func (rlm *Realm) MarkNewReal(oo Object) {
@@ -529,13 +528,13 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 	}
 	if readonly {
 		if true ||
-			len(rlm.newCreated) > 0 ||
-			len(rlm.newEscaped) > 0 ||
-			len(rlm.newDeleted) > 0 ||
-			len(rlm.created) > 0 ||
-			len(rlm.updated) > 0 ||
-			len(rlm.deleted) > 0 ||
-			len(rlm.escaped) > 0 {
+				len(rlm.newCreated) > 0 ||
+				len(rlm.newEscaped) > 0 ||
+				len(rlm.newDeleted) > 0 ||
+				len(rlm.created) > 0 ||
+				len(rlm.updated) > 0 ||
+				len(rlm.deleted) > 0 ||
+				len(rlm.escaped) > 0 {
 			panic("realm updates in readonly transaction")
 		}
 		return
@@ -550,9 +549,9 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 		ensureUniq(rlm.newDeleted)
 		ensureUniq(rlm.updated)
 		if false ||
-			rlm.created != nil ||
-			rlm.deleted != nil ||
-			rlm.escaped != nil {
+				rlm.created != nil ||
+				rlm.deleted != nil ||
+				rlm.escaped != nil {
 			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
@@ -944,9 +943,9 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		}
 		// deleted objects should not have gotten here.
 		if false ||
-			oo.GetRefCount() <= 0 ||
-			oo.GetIsNewDeleted() ||
-			oo.GetIsDeleted() {
+				oo.GetRefCount() <= 0 ||
+				oo.GetIsNewDeleted() ||
+				oo.GetIsDeleted() {
 			panic("cannot save deleted objects")
 		}
 	}
@@ -1592,7 +1591,6 @@ func fillType(store Store, typ Type) Type {
 }
 
 func fillTypesTV(store Store, tv *TypedValue) {
-	debug2.Println2("fillTypesTV, tv: ", tv)
 	tv.T = fillType(store, tv.T)
 	tv.V = fillTypesOfValue(store, tv.V)
 }
@@ -1600,7 +1598,6 @@ func fillTypesTV(store Store, tv *TypedValue) {
 // Partially fills loaded objects shallowly, similarly to
 // getUnsavedTypes. Replaces all RefTypes with corresponding types.
 func fillTypesOfValue(store Store, val Value) Value {
-	debug2.Printf2("fillTypesOfValue, val: %v (type: %v) \n", val, reflect.TypeOf(val))
 	switch cv := val.(type) {
 	case nil: // do nothing
 		return cv
@@ -1809,6 +1806,8 @@ func refOrCopyValue(tv TypedValue) TypedValue {
 }
 
 func isUnsaved(oo Object) bool {
+	debug2.Printf2("check is Unsaved, oo: %v | oo.GetIsEscaped: %t | oo.GetIsNewEscaped: %t | oo.GetIsNewReal: %t | oo.getIsDirty: %t \n",
+		oo, oo.GetIsEscaped(), oo.GetIsNewEscaped(), oo.GetIsNewReal(), oo.GetIsDirty())
 	return oo.GetIsNewReal() || oo.GetIsDirty()
 }
 

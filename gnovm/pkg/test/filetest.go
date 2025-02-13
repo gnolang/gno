@@ -234,6 +234,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		m.RunFiles(n)
 		m.RunStatement(gno.S(gno.Call(gno.X("main"))))
 	} else {
+		fmt.Println("realm case...")
 		// Realm case.
 		gno.DisableDebug() // until main call.
 
@@ -259,14 +260,21 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		// Clear store cache and reconstruct machine from committed info
 		// (mimicking on-chain behaviour).
 		tx.Write()
+
+		fmt.Println("tx, opslog: ", m.Store.SprintStoreOps())
+
 		m.Store = orig
+
+		fmt.Println("orig, opslog: ", m.Store.SprintStoreOps())
 
 		pv2 := m.Store.GetPackage(pkgPath, false)
 		m.SetActivePackage(pv2)
 		gno.EnableDebug()
 		// clear store.opslog from init function(s).
 		m.Store.SetLogStoreOps(true) // resets.
+		fmt.Println("run statement...")
 		m.RunStatement(gno.S(gno.Call(gno.X("main"))))
+		fmt.Println("final, opslog: ", m.Store.SprintStoreOps())
 	}
 
 	return runResult{
