@@ -229,13 +229,12 @@ func _() {
 	var x [1]struct{}
 	_ = x[TRANS_CONTINUE-0]
 	_ = x[TRANS_SKIP-1]
-	_ = x[TRANS_BREAK-2]
-	_ = x[TRANS_EXIT-3]
+	_ = x[TRANS_EXIT-2]
 }
 
-const _TransCtrl_name = "TRANS_CONTINUETRANS_SKIPTRANS_BREAKTRANS_EXIT"
+const _TransCtrl_name = "TRANS_CONTINUETRANS_SKIPTRANS_EXIT"
 
-var _TransCtrl_index = [...]uint8{0, 14, 24, 35, 45}
+var _TransCtrl_index = [...]uint8{0, 14, 24, 34}
 
 func (i TransCtrl) String() string {
 	if i >= TransCtrl(len(_TransCtrl_index)-1) {
