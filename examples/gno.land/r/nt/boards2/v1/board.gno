@@ -162,6 +162,7 @@ func createDefaultBoardPermissions(owner std.Address) *DefaultPermissions {
 		WithRole(
 			RoleAdmin,
 			PermissionBoardRename,
+			PermissionBoardFlaggingUpdate,
 			PermissionMemberInvite,
 			PermissionMemberRemove,
 			PermissionThreadCreate,
