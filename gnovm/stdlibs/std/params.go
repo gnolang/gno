@@ -47,14 +47,13 @@ func NewParamKey(m *gno.Machine, prefix, key string, kind string) (ParamKey, err
 }
 
 // String representation of ParamKey in the format:
-// <realm>.[prefix:]<key>.<type>
+// <prefix:><realm>.<key>.<type>
 func (pk ParamKey) String() string {
 	pks := ""
 	if pk.Prefix == "" {
-		//	pks = fmt.Sprintf("%s.%s.%s", pk.Realm, pk.Key, pk.Type)
-		pks = fmt.Sprintf("%s.%s", pk.Realm, pk.Key)
+		pks = fmt.Sprintf("vm:%s.%s", pk.Realm, pk.Key)
 	} else {
-		pks = fmt.Sprintf("%s.%s:%s", pk.Realm, pk.Prefix, pk.Key)
+		pks = fmt.Sprintf("%s:%s", pk.Prefix, pk.Key)
 	}
 	return pks
 }

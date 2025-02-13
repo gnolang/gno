@@ -6,6 +6,9 @@ func setPrefixedInt64(keeperPrefix, key string, val int64)
 func setPrefixedUint64(keeperPrefix, key string, val uint64)
 func setPrefixedBytes(keeperPrefix, key string, val []byte)
 
+// SetPrefixedXXX(module, k, v) is used for module parameters and can be called only from the gno.land/r/sys/params realm.
+// It modifies an existing parameter predefined in the module and affects system behavior.
+
 func SetPrefixedString(keeperPrefix, key string, val string) {
 	setPrefixedString(keeperPrefix, key, val)
 }

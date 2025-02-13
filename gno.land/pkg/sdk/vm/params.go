@@ -83,8 +83,8 @@ func (vm *VMKeeper) GetParams(ctx sdk.Context) Params {
 }
 
 const (
-	sysUsersPkgParamPath = "gno.land/r/sys/params.vm:users_pkgpath.string"
-	chainDomainParamPath = "gno.land/r/sys/params.vm:chain_domain.string"
+	sysUsersPkgParamPath = "vm:users_pkgpath.string"
+	chainDomainParamPath = "vm:chain_domain.string"
 )
 
 func (vm *VMKeeper) getChainDomainParam(ctx sdk.Context) string {
@@ -104,7 +104,24 @@ func (vm *VMKeeper) GetParamfulKey() string {
 }
 
 // WillSetParam checks if the key contains the module's parameter key prefix and updates the module parameter accordingly.
+// The key is in the format (<realm>.)?<key>. If <realm> is present, the key is an arbitrary key; otherwise, the key
+// is a module key and needs to be checked against the module's parameter keys.
+
 func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
-	// TODO: add parameter settings here.
-	panic("setting params for vm is not supported yet")
+	params := vm.GetParams(ctx)
+	realm := gno.ReRealmPath.FindString(key)
+	if realm == "" { // module parameters
+		switch key {
+		case "sysusers_pkgpath.string":
+			params.SysUsersPkgPath = value.(string)
+			vm.SetParams(ctx, params)
+		case "chain_domain.string":
+			params.ChainDomain = value.(string)
+			vm.SetParams(ctx, params)
+		default:
+			panic(fmt.Sprintf("unknown parameter key: %s\n", key))
+		}
+	}
+	// TODO: Check for duplicate parameter key names between individual fields and the fields of the Params struct.
+	vm.prmk.SetParams(ctx, ModuleName, key, value)
 }

@@ -197,36 +197,40 @@ func (pk ParamsKeeper) SetParams(ctx sdk.Context, moduleKey string, key string, 
 }
 
 func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr interface{}) {
-	stor := ctx.Store(pk.key)
-	vk := ValueStoreKey(key)
-	bz := stor.Get(vk)
-	if bz == nil {
+	module, rawKey := parsePrefix(key)
+	_, err := pk.GetParams(ctx, module, rawKey, ptr)
+	if err != nil {
+		panic(err.Error())
+	}
+}
+
+// set is only used for setting invidual key that
+func (pk ParamsKeeper) set(ctx sdk.Context, key string, value interface{}) {
+	module, rawKey := parsePrefix(key)
+	if module != "" {
+		kpr := pk.GetRegisteredKeeper(module)
+		if kpr != nil {
+			kpr.WillSetParam(ctx, rawKey, value)
+		}
+	}
+	err := pk.SetParams(ctx, "", key, value)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func parsePrefix(key string) (prefix, rawKey string) {
+	// Look for the first colon.
+	colonIndex := strings.Index(key, ":")
+
+	if colonIndex != -1 {
+		// colon found: the key has a module prefix.
+		prefix = key[:colonIndex]
+		rawKey = key[colonIndex+1:]
+
 		return
 	}
-	err := amino.UnmarshalJSON(bz, ptr)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func (pk ParamsKeeper) get(ctx sdk.Context, key string, ptr interface{}) {
-	stor := ctx.Store(pk.key)
-	kv := ValueStoreKey(key)
-	bz := stor.Get(kv)
-	err := amino.UnmarshalJSON(bz, ptr)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func (pk ParamsKeeper) set(ctx sdk.Context, key string, value interface{}) {
-	bz, err := amino.MarshalJSON(value)
-	if err != nil {
-		panic(err)
-	}
-	stor := ctx.Store(pk.key)
-	vk := ValueStoreKey(key)
-	stor.Set(vk, bz)
+	return "", key
 }
 
 func checkSuffix(key, expectedSuffix string) {

@@ -78,11 +78,17 @@ func LoadGenesisParamsFile(path string) ([]Param, error) {
 	}
 
 	params := make([]Param, 0)
+	// By default parameters are group by modules. the module seperater is ":"
+	separator := ":"
 	for category, keys := range m {
+		// the category prefixed with "vm:"  contains arbirary parameters
+		if strings.HasPrefix(category, "vm:") {
+			separator = "."
+		}
 		for key, kinds := range keys {
 			for kind, val := range kinds {
 				param := Param{
-					key:  category + "." + key,
+					key:  category + separator + key,
 					kind: kind,
 				}
 				switch kind {

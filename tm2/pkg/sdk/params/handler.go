@@ -55,22 +55,6 @@ func abciResult(err error) sdk.Result {
 	return sdk.ABCIResultFromError(err)
 }
 
-/*
-// return the parameter key and it's prefix
-func parseParamKeyWithPrefix(path string) (prefix, key string) {
-	parts := strings.SplitN(path, "/", 2)
-	if len(parts) < 2 {
-		return "", ""
-	}
-
-	subParts := strings.SplitN(parts[1], ":", 2)
-	if len(subParts) < 2 {
-		return "", parts[1]
-	}
-	return subParts[0], parts[1]
-
-}
-*/
 // paramKey may include a prefix in the format "<prefix:>" if a prefix is detected.
 func parseParamKey(path string) (prefix, key string) {
 	parts := strings.SplitN(path, "/", 2)

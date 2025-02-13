@@ -114,18 +114,9 @@ func TestKeeper_internal(t *testing.T) {
 	for i, kv := range kvs {
 		require.NotPanics(t, func() { keeper.getIfExists(ctx, "invalid", kv.ptr) }, "keeper.GetIfExists panics when no value exists, tc #%d", i)
 		require.Equal(t, kv.zero, indirect(kv.ptr), "keeper.GetIfExists unmarshalls when no value exists, tc #%d", i)
-		require.Panics(t, func() { keeper.get(ctx, "invalid", kv.ptr) }, "invalid keeper.Get not panics when no value exists, tc #%d", i)
-		require.Equal(t, kv.zero, indirect(kv.ptr), "invalid keeper.Get unmarshalls when no value exists, tc #%d", i)
-
 		require.NotPanics(t, func() { keeper.getIfExists(ctx, kv.key, kv.ptr) }, "keeper.GetIfExists panics, tc #%d", i)
 		require.Equal(t, kv.param, indirect(kv.ptr), "stored param not equal, tc #%d", i)
-		require.NotPanics(t, func() { keeper.get(ctx, kv.key, kv.ptr) }, "keeper.Get panics, tc #%d", i)
-		require.Equal(t, kv.param, indirect(kv.ptr), "stored param not equal, tc #%d", i)
-
-		require.Panics(t, func() { keeper.get(ctx, "invalid", kv.ptr) }, "invalid keeper.Get not panics when no value exists, tc #%d", i)
-		require.Equal(t, kv.param, indirect(kv.ptr), "invalid keeper.Get unmarshalls when no value existt, tc #%d", i)
-
-		require.Panics(t, func() { keeper.get(ctx, kv.key, nil) }, "invalid keeper.Get not panics when the pointer is nil, tc #%d", i)
+		require.Panics(t, func() { keeper.getIfExists(ctx, kv.key, nil) }, "invalid keeper.Get not panics when the pointer is nil, tc #%d", i)
 	}
 
 	for i, kv := range kvs {
