@@ -8,83 +8,110 @@ import (
 	"gno.land/r/sys/teams"
 )
 
-const admin = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
+const adminAddress = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
 
-type VerifyNameFunc func(enabled bool, address std.Address, name string) bool
-
-var (
-	owner     = ownable.NewWithAddress(admin) // Package owner
-	checkFunc = VerifyNameByUser              // Checking namespace callback
-	enabled   = false                         // For now this package is disabled by default
+type (
+	VerifyNameFunc    func(enabled bool, address std.Address, name string) bool
+	VerifyPackageFunc func(enabled bool, address std.Address, name, path string) bool
 )
 
-func IsEnabled() bool { return enabled }
+var (
+	owner          = ownable.NewWithAddress(adminAddress)
+	nameCheck      = VerifyNameByUser
+	packageCheck   = VerifyPackageAuthorization
+	packageEnabled = false
+)
 
-// This method ensures that the given address has ownership of the given name.
-func IsAuthorizedAddressForName(address std.Address, name string) bool {
-	return checkFunc(enabled, address, name)
-}
-
-// VerifyNameByUser checks from the `users` package that the user has correctly
-// registered the given name.
-// This function considers as valid an `address` that matches the `name`.
+// Core authorization functions
 func VerifyNameByUser(enable bool, address std.Address, name string) bool {
-	if !enable {
-		return true
-	}
-
-	// Allow user with their own address as name
-	if address.String() == name {
+	if checkBasicAuth(enable, address, name) {
 		return true
 	}
 
 	if user := users.GetUserByName(name); user != nil {
-		// Check if team exist first
-		// XXX: for now a team is still user
-		if team := teams.Get(user.Address); team != nil {
-			return team.CanAddPackage(address)
-		}
-
 		return user.Address == address
 	}
 
 	return false
 }
 
-// Admin calls
+func VerifyPackageAuthorization(enable bool, address std.Address, name, path string) bool {
+	if checkBasicAuth(enable, address, name) {
+		return true
+	}
 
-// Enable this package.
+	user := users.GetUserByName(name)
+	if user == nil {
+		return false // user doesn't exist
+	}
+
+	// Check if user is a team
+	if team := teams.Get(user.Address); team != nil {
+		return team.Can(address, teams.ActionAddPackage{Path: path})
+	}
+
+	// Else user need to own the name
+	return user.Address == address
+}
+
+// Public authorization interfaces
+func IsAuthorizedAddressForName(address std.Address, name string) bool {
+	return nameCheck(packageEnabled, address, name)
+}
+
+func IsAuthorizedToAddPackage(address std.Address, name, path string) bool {
+	return packageCheck(packageEnabled, address, name, path)
+}
+
+// System status management
+func IsEnabled() bool { return packageEnabled }
+
+// Helper functions
+func checkBasicAuth(enable bool, address std.Address, name string) (authorized bool) {
+	if !enable {
+		return true
+	}
+
+	return address.String() == name
+}
+
+// Administration functions
 func AdminEnable() {
 	if !owner.CallerIsOwner() {
 		panic(ownable.ErrUnauthorized)
 	}
 
-	enabled = true
+	packageEnabled = true
 }
 
-// Disable this package.
 func AdminDisable() {
 	if !owner.CallerIsOwner() {
 		panic(ownable.ErrUnauthorized)
 	}
 
-	enabled = false
+	packageEnabled = false
 }
 
-// AdminUpdateVerifyCall updates the method that verifies the namespace.
-func AdminUpdateVerifyCall(check VerifyNameFunc) {
+func AdminUpdateNameCheck(fn VerifyNameFunc) {
 	if !owner.CallerIsOwner() {
 		panic(ownable.ErrUnauthorized)
 	}
 
-	checkFunc = check
+	nameCheck = fn
 }
 
-// AdminTransferOwnership transfers the ownership to a new owner.
-func AdminTransferOwnership(newOwner std.Address) error {
+func AdminUpdatePackageCheck(fn VerifyPackageFunc) {
 	if !owner.CallerIsOwner() {
 		panic(ownable.ErrUnauthorized)
 	}
 
-	return owner.TransferOwnership(newOwner)
+	packageCheck = fn
+}
+
+func AdminTransferOwnership(newOwner std.Address) {
+	if !owner.CallerIsOwner() {
+		panic(ownable.ErrUnauthorized)
+	}
+
+	owner.TransferOwnership(newOwner)
 }
