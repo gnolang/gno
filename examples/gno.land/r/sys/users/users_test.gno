@@ -158,9 +158,8 @@ func TestROStores(t *testing.T) {
 
 		// Should be nil because of makeSafeFn
 		rawRoData, ok := roNS.Get(alice)
-
 		// uassert.False(t, ok)
-		// XXX: not sure what to do here, as the tree has the data so returns ok
+		// XXX: not sure what to do here, as the tree technically has the data so returns ok
 		// However the data is intercepted and something else (nilin this case) is returned.
 		// should we handle this somehow?
 
