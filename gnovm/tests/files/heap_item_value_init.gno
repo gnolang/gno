@@ -14,7 +14,7 @@ func init() {
 }
 
 func main() {
-	b = a
+	b = a // dirty, refCount change.
 }
 
 // Realm:

@@ -473,7 +473,6 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 // package values.
 func (ds *defaultStore) SetObject(oo Object) {
 	debug2.Printf2("SetObject: %v | oo.GetIsNewReal: %t | oo.GetIsReal: %t \n", oo, oo.GetIsNewReal(), oo.GetIsReal())
-	debug2.Println2("ds.opslog: ", ds.opslog)
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -531,11 +530,9 @@ func (ds *defaultStore) SetObject(oo Object) {
 		} else {
 			op = StoreOpMod
 		}
-		debug2.Println2("op: ", op)
 		ds.opslog = append(ds.opslog,
 			StoreOp{Type: op, Object: o2.(Object)})
 	}
-	debug2.Println2("after add, ds.opslog: ", ds.opslog)
 	// if escaped, add hash to iavl.
 	if oo.GetIsEscaped() && ds.iavlStore != nil {
 		var key, value []byte
@@ -943,7 +940,6 @@ func (sop StoreOp) String() string {
 }
 
 func (ds *defaultStore) SetLogStoreOps(enabled bool) {
-	debug2.Println2("SetLogStoreOps, enabled: ", enabled)
 	if enabled {
 		ds.ResetStoreOps()
 	} else {
@@ -953,7 +949,6 @@ func (ds *defaultStore) SetLogStoreOps(enabled bool) {
 
 // resets .realmops.
 func (ds *defaultStore) ResetStoreOps() {
-	debug2.Println2("Reset store ops")
 	ds.opslog = make([]StoreOp, 0, 1024)
 }
 
@@ -967,8 +962,6 @@ func (ds *defaultStore) SprintStoreOps() string {
 }
 
 func (ds *defaultStore) LogSwitchRealm(rlmpath string) {
-	debug2.Println2("LogSwitchRealm, rlmpath: ", rlmpath)
-	debug2.Println2("LogSwitchRealm, opslog: ", ds.opslog)
 	ds.opslog = append(ds.opslog,
 		StoreOp{Type: StoreOpSwitchRealm, RlmPath: rlmpath})
 }

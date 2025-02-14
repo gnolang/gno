@@ -2724,7 +2724,7 @@ func typedString(s string) TypedValue {
 }
 
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
-	debug2.Printf2("fillValueTV: %v (type: %v) \n", tv, reflect.TypeOf(tv.V))
+	//debug2.Printf2("fillValueTV: %v (type: %v) \n", tv, reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case RefValue:
 		if cv.PkgPath != "" { // load package

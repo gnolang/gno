@@ -431,11 +431,11 @@ func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 	getPkgId := func(t Type) (pkgId PkgID) {
 		if dt, ok := t.(*DeclaredType); ok {
 			debug2.Printf2("getPkgId, dt: %v, dt.Base: %v, dt.Base.PkgPath: %s \n", dt, dt.Base, dt.Base.GetPkgPath())
-			if IsRealmPath(dt.Base.GetPkgPath()) {
-				pkgId = PkgIDFromPkgPath(dt.Base.GetPkgPath())
-				debug2.Println2("pkgId.purePkg: ", pkgId.purePkg)
-				return
-			}
+			//if IsRealmPath(dt.Base.GetPkgPath()) {
+			pkgId = PkgIDFromPkgPath(dt.Base.GetPkgPath())
+			debug2.Println2("pkgId.purePkg: ", pkgId.purePkg)
+			return
+			//}
 		}
 		return
 	}

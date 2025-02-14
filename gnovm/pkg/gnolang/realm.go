@@ -339,11 +339,21 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, isLastRef bool, seenObj
 	if rlm.ID != oo.GetOriginRealm() { // crossing realm
 		if isLastRef {
 			if oo.GetIsReal() {
-				debug2.Println2("reference base is REAL, return")
+				debug2.Println2("reference base is REAL, NO return, check recursively")
 				return
-			} else {
-				panic(fmt.Sprintf("cannot attach a reference to an unreal object from an external realm: %v", oo))
+				checkCrossRealmChildren(rlm, store, oo, isLastRef, seenObjs)
 			}
+
+			//if !oo.GetIsReal() {
+			//	panic(fmt.Sprintf("cannot attach a reference to an unreal object from an external realm: %v", oo))
+			//}
+			//if oo.GetIsDirty() {
+			//	panic(fmt.Sprintf("cannot attach a reference to an dirty object from an external realm: %v", oo))
+			//}
+
+			// check children
+			checkCrossRealmChildren(rlm, store, oo, isLastRef, seenObjs)
+
 		} else { // not reference to object
 			panic(fmt.Sprintf("cannot attach a value of a type defined by another realm: %v", oo))
 		}
@@ -413,6 +423,7 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object) {
 		if !oo.GetIsAttachingRef() {
 			panic(fmt.Sprintf("cannot attach objects by value from external realm: %v", oo))
 		}
+		//checkCrossRealm(rlm, store, oo, true, nil)
 	}
 	// mark escaped
 	debug2.Println2("mark oo new escaped: ", oo)
@@ -957,12 +968,17 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 	debug2.Println2("unsaved: ", unsaved)
 	for _, uch := range unsaved {
 		debug2.Println2("uch: ", uch)
-		if uch.GetIsEscaped() || uch.GetIsNewEscaped() {
+		// TODO: make it ahead of here.
+		if uch.GetOriginRealm() != rlm.ID {
+			debug2.Println2("uch cross realm, does NOT save here!!!")
+		} else if uch.GetIsEscaped() || uch.GetIsNewEscaped() {
 			// no need to save preemptively.
 		} else {
 			rlm.saveUnsavedObjectRecursively(store, uch)
 		}
 	}
+	debug2.Println2("then, save self")
+	//if oo.GetOriginRealm() == rlm.ID {
 	// then, save self.
 	if oo.GetIsNewReal() {
 		// save created object.
@@ -989,13 +1005,14 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		rlm.saveObject(store, oo)
 		oo.SetIsDirty(false, 0)
 	}
+	//}
 }
 
 func (rlm *Realm) saveObject(store Store, oo Object) {
-	debug2.Println2("saveObject: ", oo)
+	fmt.Println("saveObject: ", oo)
 	oid := oo.GetObjectID()
-	// debug2.Println2("---oid: ", oid)
-	// debug2.Println2("---oo.GetRefCount: ", oo.GetRefCount())
+	debug2.Println2("---oid: ", oid)
+	debug2.Println2("---oo.GetRefCount: ", oo.GetRefCount())
 	if oid.IsZero() {
 		panic("unexpected zero object id")
 	}
@@ -1196,6 +1213,7 @@ func getUnsavedChildObjects(val Value) []Object {
 		} else if obj, ok := val.(Object); ok {
 			// if object...
 			if isUnsaved(obj) {
+				debug2.Println2("obj is unsaved...")
 				unsaved = append(unsaved, obj)
 			}
 		} else {
