@@ -462,7 +462,7 @@ type StructValue struct {
 // TODO handle unexported fields in debug, and also ensure in the preprocessor.
 func (sv *StructValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 	if debug {
-		if path.Depth != 0 {
+		if path.Depth() != 0 {
 			panic(fmt.Sprintf(
 				"expected path.Depth of 0 but got %s %s",
 				path.Name, path))
@@ -483,7 +483,7 @@ func (sv *StructValue) GetPointerToInt(store Store, index int) PointerValue {
 // Like GetPointerTo*, but returns (a pointer of) a reference to field.
 func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path ValuePath) PointerValue {
 	if debug {
-		if path.Depth != 0 {
+		if path.Depth() != 0 {
 			panic(fmt.Sprintf(
 				"expected path.Depth of 0 but got %s %s",
 				path.Name, path))
@@ -1665,37 +1665,37 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 	var isPtr bool = false
 	switch path.Type {
 	case VPField:
-		switch path.Depth {
+		switch path.Depth() {
 		case 0:
 			dtv = tv
 		case 1:
 			dtv = tv
-			path.Depth = 0
+			path.SetDepth(0)
 		default:
 			panic("should not happen")
 		}
 	case VPSubrefField:
-		switch path.Depth {
+		switch path.Depth() {
 		case 0:
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
 		case 1:
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
-			path.Depth = 0
+			path.SetDepth(0)
 		case 2:
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
-			path.Depth = 0
+			path.SetDepth(0)
 		case 3:
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
-			path.Depth = 0
+			path.SetDepth(0)
 		default:
 			panic("should not happen")
 		}
 	case VPDerefField:
-		switch path.Depth {
+		switch path.Depth() {
 		case 0:
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
@@ -1704,7 +1704,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
 			path.Type = VPField
-			path.Depth = 0
+			path.SetDepth(0)
 		case 2:
 			if tv.V == nil {
 				panic(&Exception{Value: typedString("nil pointer dereference")})
@@ -1712,12 +1712,12 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
 			path.Type = VPField
-			path.Depth = 0
+			path.SetDepth(0)
 		case 3:
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
 			path.Type = VPField
-			path.Depth = 0
+			path.SetDepth(0)
 		default:
 			panic("should not happen")
 		}
@@ -2451,7 +2451,7 @@ func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	// the generation for uverse is 0.  If path.Depth is
 	// 0, it implies that b == uverse, and the condition
 	// would fail as if it were 1.
-	for i := uint8(1); i < path.Depth; i++ {
+	for i := uint8(1); i < path.Depth(); i++ {
 		b = b.GetParent(store)
 	}
 	return b.GetPointerToInt(store, int(path.Index))

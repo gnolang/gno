@@ -733,7 +733,7 @@ func (m *Machine) doOpStructLit() {
 			fnx := x.Elts[i].Key.(*NameExpr)
 			ftv := ftvs[i]
 			if debug {
-				if fnx.Path.Depth != 0 {
+				if fnx.Path.Depth() != 0 {
 					panic("unexpected struct composite lit key path generation value")
 				}
 				if !ftv.IsUndefined() && ftv.T.Kind() == InterfaceKind {

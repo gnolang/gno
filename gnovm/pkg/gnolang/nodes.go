@@ -1808,9 +1808,9 @@ func (sb *StaticBlock) GetBlockNodeForPath(store Store, path ValuePath) BlockNod
 		panic("expected block type value path but got " + path.Type.String())
 	}
 
-	// NOTE: path.Depth == 1 means it's in bn.
+	// NOTE: path.Depth() == 1 means it's in bn.
 	bn := sb.GetSource(store)
-	for i := 1; i < int(path.Depth); i++ {
+	for i := 1; i < int(path.Depth()); i++ {
 		bn = bn.GetParentNode(store)
 	}
 
@@ -1903,7 +1903,7 @@ func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 // Implements BlockNode.
 func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
 	if debug {
-		if path.Depth == 0 {
+		if path.Depth() == 0 {
 			panic("should not happen")
 		}
 	}
@@ -2119,9 +2119,21 @@ func (x *PackageNode) SetBody(b Body) {
 // see tests/selector_test.go.
 type ValuePath struct {
 	Type  VPType // see VPType* consts.
-	Depth uint8  // see doc for ValuePath.
+	depth uint8  // see doc for ValuePath.
 	Index uint16 // index of value, field, or method.
 	Name  Name   // name of value, field, or method.
+}
+
+func (vp ValuePath) Depth() uint8 {
+	return vp.depth
+}
+
+func (vp *ValuePath) SetDepth(d uint8) {
+	if d > 127 {
+		panic("value path depth overflow")
+	}
+
+	vp.depth = d
 }
 
 type VPType uint8
@@ -2145,7 +2157,7 @@ const (
 func NewValuePath(t VPType, depth uint8, index uint16, n Name) ValuePath {
 	vp := ValuePath{
 		Type:  t,
-		Depth: depth,
+		depth: depth,
 		Index: index,
 		Name:  n,
 	}
@@ -2203,61 +2215,61 @@ func NewValuePathNative(n Name) ValuePath {
 
 func (vp ValuePath) Validate() {
 	// no ValuePath depths should exceed uint8/2
-	if vp.Depth > 127 {
+	if vp.Depth() > 127 {
 		panic("value path depth overflow")
 	}
 
 	switch vp.Type {
 	case VPUverse:
-		if vp.Depth != 0 {
+		if vp.Depth() != 0 {
 			panic("uverse value path must have depth 0")
 		}
 	case VPBlock:
 		// 0 ok ("_" blank)
 	case VPField:
-		if vp.Depth > 1 {
+		if vp.Depth() > 1 {
 			panic("field value path must have depth 0 or 1")
 		}
 	case VPValMethod:
-		if vp.Depth != 0 {
+		if vp.Depth() != 0 {
 			panic("method value path must have depth 0")
 		}
 	case VPPtrMethod:
-		if vp.Depth != 0 {
+		if vp.Depth() != 0 {
 			panic("ptr receiver method value path must have depth 0")
 		}
 	case VPInterface:
-		if vp.Depth != 0 {
+		if vp.Depth() != 0 {
 			panic("interface method value path must have depth 0")
 		}
 		if vp.Name == "" {
 			panic("interface value path must have name")
 		}
 	case VPSubrefField:
-		if vp.Depth > 3 {
+		if vp.Depth() > 3 {
 			panic("subref field value path must have depth 0, 1, 2, or 3")
 		}
 	case VPDerefField:
-		if vp.Depth > 3 {
+		if vp.Depth() > 3 {
 			panic("deref field value path must have depth 0, 1, 2, or 3")
 		}
 	case VPDerefValMethod:
-		if vp.Depth != 0 {
+		if vp.Depth() != 0 {
 			panic("(deref) method value path must have depth 0")
 		}
 	case VPDerefPtrMethod:
-		if vp.Depth != 0 {
+		if vp.Depth() != 0 {
 			panic("(deref) ptr receiver method value path must have depth 0")
 		}
 	case VPDerefInterface:
-		if vp.Depth != 0 {
+		if vp.Depth() != 0 {
 			panic("(deref) interface method value path must have depth 0")
 		}
 		if vp.Name == "" {
 			panic("(deref) interface value path must have name")
 		}
 	case VPNative:
-		if vp.Depth != 0 {
+		if vp.Depth() != 0 {
 			panic("native value path must have depth 0")
 		}
 		if vp.Name == "" {
@@ -2271,7 +2283,7 @@ func (vp ValuePath) Validate() {
 }
 
 func (vp ValuePath) IsBlockBlankPath() bool {
-	return vp.Type == VPBlock && vp.Depth == 0 && vp.Index == 0
+	return vp.Type == VPBlock && vp.Depth() == 0 && vp.Index == 0
 }
 
 func (vp ValuePath) IsDerefType() bool {

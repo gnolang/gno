@@ -69,11 +69,11 @@ func (vp ValuePath) String() string {
 	case VPUverse:
 		return fmt.Sprintf("VPUverse(%d)", vp.Index)
 	case VPBlock:
-		return fmt.Sprintf("VPBlock(%d,%d)", vp.Depth, vp.Index)
+		return fmt.Sprintf("VPBlock(%d,%d)", vp.Depth(), vp.Index)
 	case VPField:
-		return fmt.Sprintf("VPField(%d,%d,%s)", vp.Depth, vp.Index, vp.Name)
+		return fmt.Sprintf("VPField(%d,%d,%s)", vp.Depth(), vp.Index, vp.Name)
 	case VPSubrefField:
-		return fmt.Sprintf("VPSubrefField(%d,%d,%s)", vp.Depth, vp.Index, vp.Name)
+		return fmt.Sprintf("VPSubrefField(%d,%d,%s)", vp.Depth(), vp.Index, vp.Name)
 	case VPValMethod:
 		return fmt.Sprintf("VPValMethod(%d,%s)", vp.Index, vp.Name)
 	case VPPtrMethod:
@@ -81,7 +81,7 @@ func (vp ValuePath) String() string {
 	case VPInterface:
 		return fmt.Sprintf("VPInterface(%s)", vp.Name)
 	case VPDerefField:
-		return fmt.Sprintf("VPDerefField(%d,%d,%s)", vp.Depth, vp.Index, vp.Name)
+		return fmt.Sprintf("VPDerefField(%d,%d,%s)", vp.Depth(), vp.Index, vp.Name)
 	case VPDerefValMethod:
 		return fmt.Sprintf("VPDerefValMethod(%d,%s)", vp.Index, vp.Name)
 	case VPDerefPtrMethod:

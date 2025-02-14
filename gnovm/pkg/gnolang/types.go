@@ -692,13 +692,13 @@ func (pt *PointerType) FindEmbeddedFieldType(callerPath string, n Name, m map[Ty
 				} else {
 					// Case 2: otherwise, is just a deref field.
 					trail[0].Type = VPDerefField
-					switch trail[0].Depth {
+					switch trail[0].Depth() {
 					case 0:
 						// *PointerType > *StructType.Field has depth 0.
 					case 1:
 						// *DeclaredType > *StructType.Field has depth 1 (& type VPField).
 						// *PointerType > *DeclaredType > *StructType.Field has depth 2.
-						trail[0].Depth = 2
+						trail[0].SetDepth(2)
 						/*
 							// If trail[-1].Type == VPPtrMethod, set VPDerefPtrMethod.
 							if len(trail) > 1 && trail[1].Type == VPPtrMethod {
@@ -804,7 +804,7 @@ func (st *StructType) GetPathForName(n Name) ValuePath {
 
 func (st *StructType) GetStaticTypeOfAt(path ValuePath) Type {
 	if debug {
-		if path.Depth != 0 {
+		if path.Depth() != 0 {
 			panic("expected path.Depth of 0")
 		}
 	}
@@ -1602,7 +1602,7 @@ func (dt *DeclaredType) GetPathForName(n Name) ValuePath {
 	}
 	// Otherwise it is underlying.
 	path := dt.Base.(ValuePather).GetPathForName(n)
-	path.Depth += 1
+	path.SetDepth(path.Depth() + 1)
 	return path
 }
 
@@ -1668,11 +1668,12 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 		return trail, hasPtr, rcvr, ft, false
 	case VPField, VPDerefField:
 		if debug {
-			if trail[0].Depth != 0 && trail[0].Depth != 2 {
+			if trail[0].Depth() != 0 && trail[0].Depth() != 2 {
 				panic("should not happen")
 			}
 		}
-		trail[0].Depth += 1
+
+		trail[0].SetDepth(trail[0].Depth() + 1)
 		return trail, hasPtr, rcvr, ft, false
 	default:
 		panic("should not happen")
@@ -1697,7 +1698,7 @@ func (dt *DeclaredType) GetValueAt(alloc *Allocator, store Store, path ValuePath
 		// should call *DT.FindEmbeddedFieldType(name) instead.
 		// tr, hp, rt, ft := dt.FindEmbeddedFieldType(n)
 	case VPValMethod, VPPtrMethod, VPField:
-		if path.Depth == 0 {
+		if path.Depth() == 0 {
 			mtv := dt.Methods[path.Index]
 			// Fill in *FV.Closure.
 			ft := mtv.T
@@ -1722,7 +1723,7 @@ func (dt *DeclaredType) GetStaticValueAt(path ValuePath) TypedValue {
 		// should call *DT.FindEmbeddedFieldType(name) instead.
 		// tr, hp, rt, ft := dt.FindEmbeddedFieldType(n)
 	case VPValMethod, VPPtrMethod, VPField:
-		if path.Depth == 0 {
+		if path.Depth() == 0 {
 			return dt.Methods[path.Index]
 		} else {
 			panic("DeclaredType.GetStaticValueAt() expects depth == 0")

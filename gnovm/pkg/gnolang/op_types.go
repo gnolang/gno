@@ -185,7 +185,7 @@ func (m *Machine) doOpStaticTypeOf() {
 	switch x := x.(type) {
 	case *NameExpr:
 		// NOTE: duplicated from doOpEval
-		if x.Path.Depth == 0 {
+		if x.Path.Depth() == 0 {
 			// Name is in uverse (global).
 			gv := Uverse().GetBlock(nil).GetPointerTo(nil, x.Path)
 			m.PushValue(asValue(gv.TV.T))
@@ -234,50 +234,50 @@ func (m *Machine) doOpStaticTypeOf() {
 		path := x.Path // mutable
 		switch path.Type {
 		case VPField:
-			switch path.Depth { // see tests/selector_test.go for cases.
+			switch path.Depth() { // see tests/selector_test.go for cases.
 			case 0:
 				dxt = xt
 			case 1:
 				dxt = baseOf(xt)
-				path.Depth = 0
+				path.SetDepth(0)
 			default:
 				panic("should not happen")
 			}
 		case VPSubrefField:
-			switch path.Depth {
+			switch path.Depth() {
 			case 0:
 				dxt = xt.Elem()
-				path.Depth = 0
+				path.SetDepth(0)
 			case 1:
 				dxt = xt.Elem()
-				path.Depth = 0
+				path.SetDepth(0)
 			case 2:
 				dxt = baseOf(xt.Elem())
-				path.Depth = 0
+				path.SetDepth(0)
 			case 3:
 				dxt = baseOf(xt.Elem())
-				path.Depth = 0
+				path.SetDepth(0)
 			default:
 				panic("should not happen")
 			}
 		case VPDerefField:
-			switch path.Depth {
+			switch path.Depth() {
 			case 0:
 				dxt = xt.Elem()
 				path.Type = VPField
-				path.Depth = 0
+				path.SetDepth(0)
 			case 1:
 				dxt = xt.Elem()
 				path.Type = VPField
-				path.Depth = 0
+				path.SetDepth(0)
 			case 2:
 				dxt = baseOf(xt.Elem())
 				path.Type = VPField
-				path.Depth = 0
+				path.SetDepth(0)
 			case 3:
 				dxt = baseOf(xt.Elem())
 				path.Type = VPField
-				path.Depth = 0
+				path.SetDepth(0)
 			default:
 				panic("should not happen")
 			}
