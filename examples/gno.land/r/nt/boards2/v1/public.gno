@@ -387,9 +387,9 @@ func assertReplyVisible(thread *Post) {
 	}
 }
 
-func mustGetPermissions(boardID BoardID) Permissions {
-	if boardID != 0 {
-		board := mustGetBoard(boardID)
+func mustGetPermissions(bid BoardID) Permissions {
+	if bid != 0 {
+		board := mustGetBoard(bid)
 		return board.perms
 	}
 	return gPerm
