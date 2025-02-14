@@ -183,6 +183,98 @@ func (p *Page) Picker() string {
 	return md
 }
 
+// This picker preserves the query parameters when changing pages
+func (p *Page) PickerWithQuery(rawURL string) string {
+	pageNumber := p.PageNumber
+	pageNumber = max(pageNumber, 1)
+
+	if p.TotalPages <= 1 {
+		return ""
+	}
+
+	u, _ := url.Parse(rawURL)
+	query := u.Query()
+
+	baseQuery := ""
+	for key, values := range query {
+		if key != p.Pager.PageQueryParam {
+			for _, value := range values {
+				if baseQuery != "" {
+					baseQuery += "&"
+				}
+				baseQuery += key + "=" + url.QueryEscape(value)
+			}
+		}
+	}
+
+	md := ""
+
+	if p.HasPrev {
+
+		if baseQuery != "" {
+			md += ufmt.Sprintf("[%d](?%s=%d&%s) | ", 1, p.Pager.PageQueryParam, 1, baseQuery)
+		} else {
+			md += ufmt.Sprintf("[%d](?%s=%d) | ", 1, p.Pager.PageQueryParam, 1)
+		}
+
+		if p.PageNumber > 4 {
+			md += "… | "
+		}
+
+		if p.PageNumber > 3 {
+			if baseQuery != "" {
+				md += ufmt.Sprintf("[%d](?%s=%d&%s) | ", p.PageNumber-2, p.Pager.PageQueryParam, p.PageNumber-2, baseQuery)
+			} else {
+				md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber-2, p.Pager.PageQueryParam, p.PageNumber-2)
+			}
+		}
+
+		if p.PageNumber > 2 {
+			if baseQuery != "" {
+				md += ufmt.Sprintf("[%d](?%s=%d&%s) | ", p.PageNumber-1, p.Pager.PageQueryParam, p.PageNumber-1, baseQuery)
+			} else {
+				md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber-1, p.Pager.PageQueryParam, p.PageNumber-1)
+			}
+		}
+	}
+
+	if p.PageNumber > 0 && p.PageNumber <= p.TotalPages {
+		md += ufmt.Sprintf("**%d**", p.PageNumber)
+	} else {
+		md += ufmt.Sprintf("_%d_", p.PageNumber)
+	}
+
+	if p.HasNext {
+		if p.PageNumber < p.TotalPages-1 {
+			if baseQuery != "" {
+				md += ufmt.Sprintf(" | [%d](?%s=%d&%s)", p.PageNumber+1, p.Pager.PageQueryParam, p.PageNumber+1, baseQuery)
+			} else {
+				md += ufmt.Sprintf(" | [%d](?%s=%d)", p.PageNumber+1, p.Pager.PageQueryParam, p.PageNumber+1)
+			}
+		}
+
+		if p.PageNumber < p.TotalPages-2 {
+			if baseQuery != "" {
+				md += ufmt.Sprintf(" | [%d](?%s=%d&%s)", p.PageNumber+2, p.Pager.PageQueryParam, p.PageNumber+2, baseQuery)
+			} else {
+				md += ufmt.Sprintf(" | [%d](?%s=%d)", p.PageNumber+2, p.Pager.PageQueryParam, p.PageNumber+2)
+			}
+		}
+
+		if p.PageNumber < p.TotalPages-3 {
+			md += " | …"
+		}
+
+		if baseQuery != "" {
+			md += ufmt.Sprintf(" | [%d](?%s=%d&%s)", p.TotalPages, p.Pager.PageQueryParam, p.TotalPages, baseQuery)
+		} else {
+			md += ufmt.Sprintf(" | [%d](?%s=%d)", p.TotalPages, p.Pager.PageQueryParam, p.TotalPages)
+		}
+	}
+
+	return md
+}
+
 // ParseQuery parses the URL to extract the page number and page size.
 func (p *Pager) ParseQuery(rawURL string) (int, int, error) {
 	u, err := url.Parse(rawURL)
