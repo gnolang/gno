@@ -47,7 +47,7 @@ func (m *Machine) doOpArrayType() {
 				panic("unexpected untyped const type for array type len during runtime")
 			}
 		}
-		t.Len = lv.GetInt() // TODO lazy convert?
+		t.Len = int(lv.GetInt()) // TODO lazy convert?
 	}
 	tv := m.PeekValue(1) // re-use
 	t.Elt = tv.GetType()
