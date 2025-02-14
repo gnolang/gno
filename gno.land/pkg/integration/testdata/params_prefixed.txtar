@@ -1,4 +1,4 @@
-# test for params with prefixed key
+# test set prefixed parameter keys
 
 gnoland start
 
@@ -8,15 +8,15 @@ gnokey maketx addpkg -pkgdir $WORK/prefixed -pkgpath gno.land/r/sys/params -gas-
 
 ## lock transfer
 gnokey maketx call -pkgpath gno.land/r/sys/params -func SetLockTransfer -args "ugnot" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-gnokey query params/bank:lockTransfer.string
-stdout 'data: "ugnot"'
+gnokey query params/bank:p
+stdout 'data: {"restricted_denoms":\["ugnot"\]}'
 
 # unlock transfer
 gnokey maketx call -pkgpath gno.land/r/sys/params -func SetLockTransfer -args "" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-gnokey query params/bank:lockTransfer.string
-stdout 'data: '
+gnokey query params/bank:p
+stdout 'data: {"restricted_denoms":\[\]}'
 
-# set non-exists keeper params key
+# set non-exists module params key
 ! gnokey maketx call -pkgpath gno.land/r/sys/params -func SetPrefixBank -args "foo" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 stderr 'invalid bank parameter key: foo.string'
 
@@ -25,7 +25,7 @@ stdout 'data: '
 
 # set invalid key
 ! gnokey maketx call -pkgpath gno.land/r/sys/params -func SetInvalidKey -args "ugnot" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-stderr 'invalid parameter key: bank:lockTransfer.string'
+stderr 'invalid parameter key: bank/lockTransfer.string'
 
 gnokey query params/bank:lockTransfer.string
 stdout 'data: '
@@ -86,7 +86,7 @@ func SetPrefixBank(newFoo string) { params.SetPrefixedString("bank","foo.string"
 
 
 // This should fail because the key "bank:lockTransfer.string" is not valid
-func SetInvalidKey(denom string)  { params.SetPrefixedString("bank", "bank:lockTransfer.string", "ugnot") }
+func SetInvalidKey(denom string)  { params.SetPrefixedString("bank", "bank/lockTransfer.string", "ugnot") }
 
 
 func SetPrefixedString(s string) { params.SetPrefixedString("bank","foo.string", s) }

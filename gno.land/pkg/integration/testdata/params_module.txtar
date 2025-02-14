@@ -7,14 +7,11 @@ gnoland start
 gnokey maketx addpkg -pkgdir $WORK/prefixed -pkgpath gno.land/r/sys/params -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
 
 ## before set lock transfer
-gnokey query params/bank:lockTransfer.string
+gnokey query params/bank:p
 stdout 'data: '
 
 ## lock transfer
 gnokey maketx call -pkgpath gno.land/r/sys/params -func SetLockTransfer -args "ugnot" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-
-gnokey query params/bank:lockTransfer.string
-stdout 'data: "ugnot"'
 
 ## 	query bank module
 gnokey query params/bank:p

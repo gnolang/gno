@@ -103,9 +103,10 @@ func (vm *VMKeeper) GetParamfulKey() string {
 	return ModuleName
 }
 
-// WillSetParam checks if the key contains the module's parameter key prefix and updates the module parameter accordingly.
-// The key is in the format (<realm>.)?<key>. If <realm> is present, the key is an arbitrary key; otherwise, the key
-// is a module key and needs to be checked against the module's parameter keys.
+// WillSetParam checks if the key contains the module's parameter key prefix and updates the
+// module parameter accordingly.The key is in the format (<realm>.)?<key>. If <realm> is present,
+// the key is an arbitrary key; otherwise, the key is a module key and needs to be checked against
+// the module's parameter keys.
 
 func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
 	params := vm.GetParams(ctx)
@@ -122,6 +123,7 @@ func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value interface{})
 			panic(fmt.Sprintf("unknown parameter key: %s\n", key))
 		}
 	}
-	// TODO: Check for duplicate parameter key names between individual fields and the fields of the Params struct.
+	// TODO: Check for duplicate parameter key names between individual fields and the fields
+	// of the Params struct.
 	vm.prmk.SetParams(ctx, ModuleName, key, value)
 }

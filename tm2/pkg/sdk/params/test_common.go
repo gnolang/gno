@@ -25,7 +25,7 @@ func setupTestEnv() testEnv {
 	ms.LoadLatestVersion()
 
 	paramk := NewParamsKeeper(paramsCapKey)
-	dk := NewDummyKeeper()
+	dk := NewDummyKeeper(paramk)
 	paramk.Register(dk.GetParamfulKey(), dk)
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{Height: 1, ChainID: "test-chain-id"}, log.NewNoopLogger())
@@ -49,13 +49,20 @@ func setupTestEnv() testEnv {
 
 const DummyModuleName = "params_test"
 
-type DummyKeeper struct{}
+type DummyKeeper struct {
+	prmk ParamsKeeper
+}
 
-func NewDummyKeeper() DummyKeeper {
-	return DummyKeeper{}
+func NewDummyKeeper(paramk ParamsKeeper) DummyKeeper {
+	return DummyKeeper{
+		prmk: paramk,
+	}
 }
 
 func (dk DummyKeeper) GetParamfulKey() string {
 	return DummyModuleName
 }
-func (dk DummyKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {}
+func (dk DummyKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
+
+	dk.prmk.SetParams(ctx, DummyModuleName, key, value)
+}

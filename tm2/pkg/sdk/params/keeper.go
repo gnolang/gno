@@ -211,6 +211,7 @@ func (pk ParamsKeeper) set(ctx sdk.Context, key string, value interface{}) {
 		kpr := pk.GetRegisteredKeeper(module)
 		if kpr != nil {
 			kpr.WillSetParam(ctx, rawKey, value)
+			return
 		}
 	}
 	err := pk.SetParams(ctx, "", key, value)
