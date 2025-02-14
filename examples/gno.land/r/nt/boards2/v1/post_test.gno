@@ -27,7 +27,10 @@ func TestPostAddFlag(t *testing.T) {
 	addr := testutils.TestAddress("creator")
 	post := createTestThread(t)
 
-	flag := NewFlag(addr, "foobar")
+	flag := Flag{
+		User:   addr,
+		Reason: "foobar",
+	}
 	uassert.True(t, post.AddFlag(flag))
 	uassert.False(t, post.AddFlag(flag), "should reject flag from duplicate user")
 	uassert.Equal(t, post.FlagsCount(), 1)

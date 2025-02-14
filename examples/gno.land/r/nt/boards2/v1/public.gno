@@ -66,7 +66,10 @@ func FlagThread(boardID BoardID, threadID PostID, reason string) {
 		panic("post doesn't exist")
 	}
 
-	hide := flagItem(t, NewFlag(caller, reason))
+	hide := flagItem(t, Flag{
+		User:   caller,
+		Reason: reason,
+	})
 	if hide {
 		t.SetVisible(false)
 	}
@@ -124,7 +127,10 @@ func FlagReply(boardID BoardID, threadID, replyID PostID, reason string) {
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
 
-	hide := flagItem(reply, NewFlag(caller, reason))
+	hide := flagItem(reply, Flag{
+		User:   caller,
+		Reason: reason,
+	})
 	if hide {
 		reply.SetVisible(false)
 	}

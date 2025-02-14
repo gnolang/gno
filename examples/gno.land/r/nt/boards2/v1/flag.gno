@@ -13,13 +13,6 @@ type Flag struct {
 	Reason string
 }
 
-func NewFlag(creator std.Address, reason string) Flag {
-	return Flag{
-		User:   creator,
-		Reason: reason,
-	}
-}
-
 type Flaggable interface {
 	// AddFlag adds a new flag to an item.
 	//
