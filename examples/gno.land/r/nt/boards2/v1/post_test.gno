@@ -131,6 +131,11 @@ func TestNewThread(t *testing.T) {
 		uint(boardID),
 		uint(threadID),
 	)
+	flagURL := ufmt.Sprintf(
+		"/r/nt/boards2/v1$help&func=FlagThread&boardID=%d&threadID=%d",
+		uint(boardID),
+		uint(threadID),
+	)
 
 	thread := newPost(board, threadID, creator, title, body, threadID, 0, 0)
 
@@ -145,6 +150,7 @@ func TestNewThread(t *testing.T) {
 	uassert.Equal(t, replyURL, thread.GetReplyFormURL())
 	uassert.Equal(t, repostURL, thread.GetRepostFormURL())
 	uassert.Equal(t, deleteURL, thread.GetDeleteFormURL())
+	uassert.Equal(t, flagURL, thread.GetFlagFormURL())
 }
 
 func TestThreadAddReply(t *testing.T) {
