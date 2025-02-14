@@ -62,24 +62,28 @@ func RenameBoard(name, newName string) {
 	})
 }
 
-func SetFlaggingThreshold(bid BoardID, threshold int) {
+// SetFlaggingThreshold sets the number of flags required to hide a thread or comment.
+//
+// Threshold is only applicable within the board where it's setted.
+func SetFlaggingThreshold(boardID BoardID, threshold int) {
 	if threshold < 1 {
 		panic("invalid flagging threshold")
 	}
 
-	board := mustGetBoard(bid)
+	board := mustGetBoard(boardID)
 	caller := std.GetOrigCaller()
-	args := Args{bid, threshold}
+	args := Args{boardID, threshold}
 	board.perms.WithPermission(caller, PermissionBoardFlaggingUpdate, args, func(Args) {
-		assertBoardExists(bid)
+		assertBoardExists(boardID)
 
-		gFlaggingThresholds.Set(bid.String(), threshold)
+		gFlaggingThresholds.Set(boardID.String(), threshold)
 	})
 }
 
-func GetFlaggingThreshold(bid BoardID) int {
-	assertBoardExists(bid)
-	return getFlaggingThreshold(bid)
+// GetFlaggingThreshold returns the number of flags required to hide a thread or comment within a board.
+func GetFlaggingThreshold(boardID BoardID) int {
+	assertBoardExists(boardID)
+	return getFlaggingThreshold(boardID)
 }
 
 // FlagThread adds a new flag to a thread.
