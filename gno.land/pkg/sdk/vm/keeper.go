@@ -295,7 +295,7 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	m.SetActivePackage(mpv)
 	m.RunDeclaration(gno.ImportD("users", sysUsersPkg))
 	x := gno.Call(
-		gno.Sel(gno.Nx("users"), "VerifyPackageAuthorization"),
+		gno.Sel(gno.Nx("users"), "IsAuthorizedToAddPackage"),
 		gno.Str(creator.String()),
 		gno.Str(username),
 		gno.Str(pkgPath),

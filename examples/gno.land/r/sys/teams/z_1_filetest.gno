@@ -37,7 +37,7 @@ func main() {
 	println("alice can now add a package:", myteam.Can(alice, teams.ActionAddPackage{}))
 
 	println(" -> setting alice AddPackage permission to false ")
-	myteam.Set(alice, teams.Permissions{CanAddPackage: true})
+	myteam.Set(alice, teams.Permissions{CanAddPackage: false})
 
 	println("alice cannot now add a package anymore:", !myteam.Can(alice, teams.ActionAddPackage{}))
 
@@ -54,4 +54,4 @@ func main() {
 //  -> setting alice AddPackage permission to true
 // alice can now add a package: true
 //  -> setting alice AddPackage permission to false
-// alice cannot now add a package anymore: false
+// alice cannot now add a package anymore: true
