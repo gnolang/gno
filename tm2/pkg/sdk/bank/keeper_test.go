@@ -160,3 +160,72 @@ func TestViewKeeper(t *testing.T) {
 	require.False(t, view.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 15))))
 	require.False(t, view.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 5))))
 }
+
+// Test AddRestrictedDenoms
+func TestAddRestrictedDenoms(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.ctx
+	bank := env.bank
+
+	// Add a single denom
+	bank.AddRestrictedDenoms(ctx, "foo")
+	params := bank.GetParams(ctx)
+	require.Contains(t, params.RestrictedDenoms, "foo")
+
+	// Add multiple denoms
+	bank.AddRestrictedDenoms(ctx, "goo", "bar")
+	params = bank.GetParams(ctx)
+	require.Contains(t, params.RestrictedDenoms, "goo")
+	require.Contains(t, params.RestrictedDenoms, "bar")
+
+	// Add duplicate denom (should not duplicate)
+	initialLength := len(params.RestrictedDenoms)
+	bank.AddRestrictedDenoms(ctx, "bar")
+	params = bank.GetParams(ctx)
+	require.Equal(t, initialLength, len(params.RestrictedDenoms)) // No change in length
+
+	// Add empty list (should not modify state)
+	paramsBefore := bank.GetParams(ctx)
+	bank.AddRestrictedDenoms(ctx)
+	paramsAfter := bank.GetParams(ctx)
+	require.Equal(t, paramsBefore.RestrictedDenoms, paramsAfter.RestrictedDenoms) // No change
+}
+
+// Test DelRestrictedDenoms
+func TestDelRestrictedDenoms(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.ctx
+	bank := env.bank
+
+	bank.AddRestrictedDenoms(ctx, "bar")
+	bank.AddRestrictedDenoms(ctx, "foo")
+
+	// Remove a single existing denom
+	bank.DelRestrictedDenoms(ctx, "bar")
+	params := bank.GetParams(ctx)
+	require.NotContains(t, params.RestrictedDenoms, "bar")
+
+	// Remove multiple denoms
+	bank.DelRestrictedDenoms(ctx, "bar", "foo") //
+	params = bank.GetParams(ctx)
+	require.NotContains(t, params.RestrictedDenoms, "foo")
+	require.NotContains(t, params.RestrictedDenoms, "bar")
+
+	// Remove from an empty list
+	bank.DelAllRestrictedDenoms(ctx)
+	bank.DelRestrictedDenoms(ctx, "bar") // Should not fail
+	params = bank.GetParams(ctx)
+	require.Len(t, params.RestrictedDenoms, 0) // Still empty
+}
+
+// Test DelAllRestrictedDenoms
+func TestDelAllRestrictedDenoms(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.ctx
+	bank := env.bank
+
+	// Delete all
+	bank.DelAllRestrictedDenoms(ctx)
+	params := bank.GetParams(ctx)
+	require.Empty(t, params.RestrictedDenoms) // Should be empty
+}
