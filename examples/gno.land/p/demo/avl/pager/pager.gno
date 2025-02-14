@@ -126,7 +126,7 @@ func (p *Pager) GetPageByPath(rawURL string) (*Page, error) {
 }
 
 // Picker generates the Markdown UI for the page Picker
-func (p *Page) Picker() string {
+func (p *Page) Picker(path string) string {
 	pageNumber := p.PageNumber
 	pageNumber = max(pageNumber, 1)
 
@@ -134,65 +134,7 @@ func (p *Page) Picker() string {
 		return ""
 	}
 
-	md := ""
-
-	if p.HasPrev {
-		// Always show the first page link
-		md += ufmt.Sprintf("[%d](?%s=%d) | ", 1, p.Pager.PageQueryParam, 1)
-
-		// Before
-		if p.PageNumber > 4 {
-			md += "… | "
-		}
-
-		if p.PageNumber > 3 {
-			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber-2, p.Pager.PageQueryParam, p.PageNumber-2)
-		}
-
-		if p.PageNumber > 2 {
-			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber-1, p.Pager.PageQueryParam, p.PageNumber-1)
-		}
-	}
-
-	if p.PageNumber > 0 && p.PageNumber <= p.TotalPages {
-		// Current page
-		md += ufmt.Sprintf("**%d**", p.PageNumber)
-	} else {
-		md += ufmt.Sprintf("_%d_", p.PageNumber)
-	}
-
-	if p.HasNext {
-		md += " | "
-
-		if p.PageNumber < p.TotalPages-1 {
-			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber+1, p.Pager.PageQueryParam, p.PageNumber+1)
-		}
-
-		if p.PageNumber < p.TotalPages-2 {
-			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber+2, p.Pager.PageQueryParam, p.PageNumber+2)
-		}
-
-		if p.PageNumber < p.TotalPages-3 {
-			md += "… | "
-		}
-
-		// Always show the last page link
-		md += ufmt.Sprintf("[%d](?%s=%d)", p.TotalPages, p.Pager.PageQueryParam, p.TotalPages)
-	}
-
-	return md
-}
-
-// This picker preserves the query parameters when changing pages
-func (p *Page) PickerWithQuery(rawURL string) string {
-	pageNumber := p.PageNumber
-	pageNumber = max(pageNumber, 1)
-
-	if p.TotalPages <= 1 {
-		return ""
-	}
-
-	u, _ := url.Parse(rawURL)
+	u, _ := url.Parse(path)
 	query := u.Query()
 
 	baseQuery := ""
