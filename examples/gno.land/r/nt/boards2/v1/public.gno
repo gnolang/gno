@@ -56,12 +56,12 @@ func RenameBoard(name, newName string) {
 	})
 }
 
-func FlagThread(boardID BoardID, postID PostID, reason string) {
+func FlagThread(boardID BoardID, threadID PostID, reason string) {
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(boardID)
 	assertHasBoardPermission(board, caller, PermissionThreadFlag)
 
-	t, ok := board.GetThread(postID)
+	t, ok := board.GetThread(threadID)
 	if !ok {
 		panic("post doesn't exist")
 	}

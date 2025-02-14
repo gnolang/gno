@@ -247,7 +247,7 @@ func (post *Post) GetFlagFormURL() string {
 	if post.IsThread() {
 		return txlink.Call("FlagThread",
 			"boardID", post.board.id.String(),
-			"postID", post.threadID.String(),
+			"threadID", post.threadID.String(),
 		)
 	}
 
