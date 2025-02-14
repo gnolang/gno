@@ -2143,11 +2143,6 @@ const (
 )
 
 func NewValuePath(t VPType, depth uint8, index uint16, n Name) ValuePath {
-	// no ValuePath depths should exceed uint8/2
-	if depth > 127 {
-		panic("value path depth overflow")
-	}
-
 	vp := ValuePath{
 		Type:  t,
 		Depth: depth,
@@ -2207,6 +2202,11 @@ func NewValuePathNative(n Name) ValuePath {
 }
 
 func (vp ValuePath) Validate() {
+	// no ValuePath depths should exceed uint8/2
+	if vp.Depth > 127 {
+		panic("value path depth overflow")
+	}
+
 	switch vp.Type {
 	case VPUverse:
 		if vp.Depth != 0 {

@@ -5067,6 +5067,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 				}
 			}
 			path.Depth += uint8(i)
+			path.Validate()
 			nx.Path = path
 			return
 		}
