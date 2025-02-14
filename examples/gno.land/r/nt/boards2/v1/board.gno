@@ -46,20 +46,6 @@ func newBoard(id BoardID, name string, creator std.Address) *Board {
 	}
 }
 
-/* TODO support this once we figure out how to ensure URL correctness.
-// A private board is not tracked by gBoards*,
-// but must be persisted by the caller's realm.
-// Private boards have 0 id and does not ping
-// back the remote board on reposts.
-func NewPrivateBoard(url string, name string, creator std.Address) *Board {
-	return newBoard(0, url, name, creator)
-}
-*/
-
-func (board *Board) IsPrivate() bool {
-	return board.id == 0
-}
-
 func (board *Board) GetID() BoardID {
 	return board.id
 }

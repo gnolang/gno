@@ -163,10 +163,6 @@ func CreateRepost(boardID BoardID, threadID PostID, title, body string, dstBoard
 	assertHasBoardPermission(dst, caller, PermissionThreadRepost)
 
 	board := mustGetBoard(boardID)
-	if board.IsPrivate() {
-		panic("cannot repost from a private board")
-	}
-
 	thread := mustGetThread(board, threadID)
 	repostId := dst.incGetPostID()
 	repost := newPost(dst, repostId, caller, title, body, repostId, thread.GetPostID(), thread.GetBoard().GetID())

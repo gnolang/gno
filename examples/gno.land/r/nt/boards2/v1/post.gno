@@ -171,9 +171,7 @@ func (post *Post) AddRepostTo(creator std.Address, repost *Post, dst *Board) {
 
 	post.repostsCount++
 	dst.threads.Set(repost.id.Key(), repost)
-	if !dst.IsPrivate() {
-		post.reposts.Set(dst.id.Key(), repost.id)
-	}
+	post.reposts.Set(dst.id.Key(), repost.id)
 }
 
 func (post *Post) DeleteReply(replyID PostID) error {

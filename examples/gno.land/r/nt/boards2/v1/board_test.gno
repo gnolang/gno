@@ -21,15 +21,6 @@ func TestBoardID_Key(t *testing.T) {
 	uassert.Equal(t, want, input.Key())
 }
 
-func TestBoard_IsPrivate(t *testing.T) {
-	b := new(Board)
-	b.id = 0
-	uassert.True(t, b.IsPrivate())
-
-	b.id = 128
-	uassert.False(t, b.IsPrivate())
-}
-
 func TestBoard_GetID(t *testing.T) {
 	want := int(92)
 	b := new(Board)
