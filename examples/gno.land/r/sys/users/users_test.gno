@@ -167,5 +167,14 @@ func TestROStores(t *testing.T) {
 		_, ok = rawRoData.(*UserData) // shouldn't be castable
 		uassert.False(t, ok)
 	})
+}
 
+func TestUserRenderLink(t *testing.T) {
+	std.TestSetOrigCaller(whitelistedCallerAddr)
+	cleanStore(t)
+
+	urequire.NoError(t, RegisterUser(alice, aliceAddr))
+
+	data, _ := ResolveName(alice)
+	uassert.Equal(t, data.RenderLink(), "/u/"+data.Name())
 }
