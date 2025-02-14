@@ -41,6 +41,8 @@ func RenameBoard(name, newName string) {
 	assertBoardNameNotExists(newName)
 
 	board := mustGetBoardByName(name)
+	assertBoardIsNotFrozen(board)
+
 	bid := board.GetID()
 	caller := std.GetOrigCaller()
 	args := Args{bid, name, newName}
@@ -56,12 +58,35 @@ func RenameBoard(name, newName string) {
 	})
 }
 
+// FreezeBoard freezes a board so no more threads and comments can be created or modified.
+func FreezeBoard(boardID BoardID) {
+	board := mustGetBoard(boardID)
+	assertBoardIsNotFrozen(board)
+
+	caller := std.GetOrigCaller()
+	args := Args{boardID}
+	board.perms.WithPermission(caller, PermissionBoardFreeze, args, func(Args) {
+		board := mustGetBoard(boardID)
+		assertBoardIsNotFrozen(board)
+
+		board.SetReadOnly(true)
+	})
+}
+
+// IsBoardFrozen checks if a board has been frozen.
+func IsBoardFrozen(boardID BoardID) bool {
+	board := mustGetBoard(boardID)
+	return board.IsReadOnly()
+}
+
 func SetFlaggingThreshold(bid BoardID, threshold int) {
 	if threshold < 1 {
 		panic("invalid flagging threshold")
 	}
 
 	board := mustGetBoard(bid)
+	assertBoardIsNotFrozen(board)
+
 	caller := std.GetOrigCaller()
 	args := Args{bid, threshold}
 	board.perms.WithPermission(caller, PermissionBoardFlaggingUpdate, args, func(Args) {
@@ -79,6 +104,7 @@ func GetFlaggingThreshold(bid BoardID) int {
 func FlagThread(bid BoardID, postID PostID, reason string) {
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
+	assertBoardIsNotFrozen(board)
 	assertHasBoardPermission(board, caller, PermissionThreadFlag)
 
 	t, ok := board.GetThread(postID)
@@ -104,6 +130,7 @@ func CreateThread(bid BoardID, title, body string) PostID {
 
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
+	assertBoardIsNotFrozen(board)
 	assertHasBoardPermission(board, caller, PermissionThreadCreate)
 
 	thread := board.AddThread(caller, title, body)
@@ -118,6 +145,7 @@ func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
+	assertBoardIsNotFrozen(board)
 	assertHasBoardPermission(board, caller, PermissionReplyCreate)
 
 	thread := mustGetThread(board, threadID)
@@ -140,6 +168,7 @@ func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 func FlagReply(bid BoardID, threadID, replyID PostID, reason string) {
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
+	assertBoardIsNotFrozen(board)
 	assertHasBoardPermission(board, caller, PermissionThreadFlag)
 
 	thread := mustGetThread(board, threadID)
@@ -157,6 +186,7 @@ func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID B
 
 	caller := std.GetOrigCaller()
 	dst := mustGetBoard(dstBoardID)
+	assertBoardIsNotFrozen(dst)
 	assertHasBoardPermission(dst, caller, PermissionThreadRepost)
 
 	board := mustGetBoard(bid)
@@ -174,8 +204,10 @@ func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID B
 func DeleteThread(bid BoardID, threadID PostID) {
 	assertIsUserCall()
 
-	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
+	assertBoardIsNotFrozen(board)
+
+	caller := std.GetOrigCaller()
 	thread := mustGetThread(board, threadID)
 	if caller != thread.GetCreator() {
 		assertHasBoardPermission(board, caller, PermissionThreadDelete)
@@ -189,6 +221,8 @@ func DeleteReply(bid BoardID, threadID, replyID PostID) {
 	assertIsUserCall()
 
 	board := mustGetBoard(bid)
+	assertBoardIsNotFrozen(board)
+
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
 	assertReplyVisible(reply)
@@ -217,6 +251,8 @@ func EditThread(bid BoardID, threadID PostID, title, body string) {
 	assertBodyIsNotEmpty(body)
 
 	board := mustGetBoard(bid)
+	assertBoardIsNotFrozen(board)
+
 	thread := mustGetThread(board, threadID)
 	caller := std.GetOrigCaller()
 	if caller != thread.GetCreator() {
@@ -233,6 +269,8 @@ func EditReply(bid BoardID, threadID, replyID PostID, body string) {
 	assertBodyIsNotEmpty(body)
 
 	board := mustGetBoard(bid)
+	assertBoardIsNotFrozen(board)
+
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
 	assertReplyVisible(reply)
@@ -244,10 +282,11 @@ func EditReply(bid BoardID, threadID, replyID PostID, body string) {
 	reply.Update("", body)
 }
 
-func InviteMember(bid BoardID, user std.Address, role Role) {
+func InviteMember(boardID BoardID, user std.Address, role Role) {
 	assertIsUserCall()
+	tryAssertBoardIsNotFrozen(boardID)
 
-	perms := mustGetPermissions(bid)
+	perms := mustGetPermissions(boardID)
 	caller := std.GetOrigCaller()
 	args := Args{user, role}
 	perms.WithPermission(caller, PermissionMemberInvite, args, func(Args) {
@@ -257,10 +296,11 @@ func InviteMember(bid BoardID, user std.Address, role Role) {
 	})
 }
 
-func RemoveMember(bid BoardID, user std.Address) {
+func RemoveMember(boardID BoardID, user std.Address) {
 	assertIsUserCall()
+	tryAssertBoardIsNotFrozen(boardID)
 
-	perms := mustGetPermissions(bid)
+	perms := mustGetPermissions(boardID)
 	caller := std.GetOrigCaller()
 	perms.WithPermission(caller, PermissionMemberRemove, Args{user}, func(Args) {
 		if !perms.RemoveUser(user) {
@@ -269,22 +309,27 @@ func RemoveMember(bid BoardID, user std.Address) {
 	})
 }
 
-func IsMember(bid BoardID, member std.Address) bool {
-	perms := mustGetPermissions(bid)
+func IsMember(boardID BoardID, member std.Address) bool {
+	tryAssertBoardIsNotFrozen(boardID)
+
+	perms := mustGetPermissions(boardID)
 	return perms.HasUser(member)
 }
 
-func HasMemberRole(bid BoardID, member std.Address, role Role) bool {
-	perms := mustGetPermissions(bid)
+func HasMemberRole(boardID BoardID, member std.Address, role Role) bool {
+	tryAssertBoardIsNotFrozen(boardID)
+
+	perms := mustGetPermissions(boardID)
 	return perms.HasRole(member, role)
 }
 
-func ChangeMemberRole(bid BoardID, member std.Address, role Role) {
+func ChangeMemberRole(boardID BoardID, member std.Address, role Role) {
 	assertIsUserCall()
+	tryAssertBoardIsNotFrozen(boardID)
 
-	perms := mustGetPermissions(bid)
+	perms := mustGetPermissions(boardID)
 	caller := std.GetOrigCaller()
-	args := Args{bid, member, role}
+	args := Args{boardID, member, role}
 	perms.WithPermission(caller, PermissionRoleChange, args, func(Args) {
 		if err := perms.SetUserRoles(member, role); err != nil {
 			panic(err)
@@ -307,6 +352,19 @@ func assertHasBoardPermission(b *Board, user std.Address, p Permission) {
 func assertBoardExists(id BoardID) {
 	if _, found := getBoard(id); !found {
 		panic("board not found: " + id.String())
+	}
+}
+
+func assertBoardIsNotFrozen(b *Board) {
+	if b.IsReadOnly() {
+		panic("board is frozen")
+	}
+}
+
+func tryAssertBoardIsNotFrozen(bid BoardID) {
+	if bid != 0 {
+		board := mustGetBoard(bid)
+		assertBoardIsNotFrozen(board)
 	}
 }
 
