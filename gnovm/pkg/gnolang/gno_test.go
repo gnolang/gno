@@ -168,6 +168,170 @@ func TestConvertTo(t *testing.T) {
 	tests := []cases{
 		{
 			`package test
+func main() {
+	var t interface{}
+	t = 2
+	var g = float32(t)
+	println(g)
+}
+`, `test/main.go:5:10: cannot convert interface{} to float32: need type assertion`,
+		},
+		{
+			`package test
+func main() {
+    var t interface{}
+    t = 2
+    var g = int(t)
+    println(g)
+}
+`, `test/main.go:5:13: cannot convert interface{} to int: need type assertion`,
+		},
+		{
+			`package test
+func main() {
+    var t interface{}
+    t = 2
+    var g = int8(t)
+    println(g)
+}
+`, `test/main.go:5:13: cannot convert interface{} to int8: need type assertion`,
+		},
+		{
+			`package test
+func main() {
+    var t interface{}
+    t = 2
+    var g = int16(t)
+    println(g)
+}
+`, `test/main.go:5:13: cannot convert interface{} to int16: need type assertion`,
+		},
+		{
+			`package test
+		func main() {
+		   var t interface{}
+		   t = 2
+		   var g = int32(t)
+		   println(g)
+		}
+		`, `test/main.go:5:14: cannot convert interface{} to int32: need type assertion`,
+		},
+		{
+			`package test
+func main() {
+    var t interface{}
+    t = 2
+    var g = int64(t)
+    println(g)
+}
+`, `test/main.go:5:13: cannot convert interface{} to int64: need type assertion`,
+		},
+		{
+			`package test
+func main() {
+    var t interface{}
+    t = 2
+    var g = uint(t)
+    println(g)
+}
+`, `test/main.go:5:13: cannot convert interface{} to uint: need type assertion`,
+		},
+		{
+			`package test
+func main() {
+    var t interface{}
+    t = 2
+    var g = uint8(t)
+    println(g)
+}
+`, `test/main.go:5:13: cannot convert interface{} to uint8: need type assertion`,
+		},
+		{
+			`package test
+func main() {
+    var t interface{}
+    t = 2
+    var g = uint16(t)
+    println(g)
+}
+`, `test/main.go:5:13: cannot convert interface{} to uint16: need type assertion`,
+		},
+		{
+			`package test
+func main() {
+    var t interface{}
+    t = 2
+    var g = uint32(t)
+    println(g)
+}
+`, `test/main.go:5:13: cannot convert interface{} to uint32: need type assertion`,
+		},
+		{
+			`package test
+func main() {
+    var t interface{}
+    t = 2
+    var g = uint64(t)
+    println(g)
+}
+`, `test/main.go:5:13: cannot convert interface{} to uint64: need type assertion`,
+		},
+
+		// Built-in non-numeric types
+		{
+			`package test
+func main() {
+    var t interface{}
+    t = "hello"
+    var g = string(t)
+    println(g)
+}
+`, `test/main.go:5:13: cannot convert interface{} to string: need type assertion`,
+		},
+		{
+			`package test
+func main() {
+    var t interface{}
+    t = true
+    var g = bool(t)
+    println(g)
+}
+`, `test/main.go:5:13: cannot convert interface{} to bool: need type assertion`,
+		},
+		{
+			`package test
+func main() {
+    var t interface{}
+    t = 'a'
+    var g = rune(t)
+    println(g)
+}
+`, `test/main.go:5:13: cannot convert interface{} to int32: need type assertion`,
+		},
+		{
+			`package test
+func main() {
+    var t interface{}
+    t = byte(65)
+    var g = byte(t)
+    println(g)
+}
+`, `test/main.go:5:13: cannot convert interface{} to uint8: need type assertion`,
+		},
+
+		{
+			`package test
+type MyInt int
+func main() {
+    var t interface{}
+    t = MyInt(2)
+    var g = MyInt(t)
+    println(g)
+}
+`, `test/main.go:6:13: cannot convert interface{} to test.MyInt: need type assertion`,
+		},
+		{
+			`package test
 
 func main() {
 	const a int = -1
