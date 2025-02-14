@@ -129,17 +129,19 @@ func TestPage_Picker(t *testing.T) {
 	tests := []struct {
 		pageNumber int
 		pageSize   int
+		path       string
 		expected   string
 	}{
-		{1, 2, "**1** | [2](?page=2) | [3](?page=3)"},
-		{2, 2, "[1](?page=1) | **2** | [3](?page=3)"},
-		{3, 2, "[1](?page=1) | [2](?page=2) | **3**"},
+		{1, 2, "/test", "**1** | [2](?page=2) | [3](?page=3)"},
+		{2, 2, "/test", "[1](?page=1) | **2** | [3](?page=3)"},
+		{3, 2, "/test", "[1](?page=1) | [2](?page=2) | **3**"},
+		{1, 2, "/test?foo=bar", "**1** | [2](?page=2&foo=bar) | [3](?page=3&foo=bar)"},
 	}
 
 	for _, tt := range tests {
 		page := pager.GetPageWithSize(tt.pageNumber, tt.pageSize)
 
-		ui := page.Picker()
+		ui := page.Picker(tt.path)
 		uassert.Equal(t, tt.expected, ui)
 	}
 }
@@ -158,27 +160,25 @@ func TestPager_UI_WithManyPages(t *testing.T) {
 	tests := []struct {
 		pageNumber int
 		pageSize   int
+		path       string
 		expected   string
 	}{
-		// XXX: -1
-		// XXX: 0
-		{1, 10, "**1** | [2](?page=2) | [3](?page=3) | … | [10](?page=10)"},
-		{2, 10, "[1](?page=1) | **2** | [3](?page=3) | [4](?page=4) | … | [10](?page=10)"},
-		{3, 10, "[1](?page=1) | [2](?page=2) | **3** | [4](?page=4) | [5](?page=5) | … | [10](?page=10)"},
-		{4, 10, "[1](?page=1) | [2](?page=2) | [3](?page=3) | **4** | [5](?page=5) | [6](?page=6) | … | [10](?page=10)"},
-		{5, 10, "[1](?page=1) | … | [3](?page=3) | [4](?page=4) | **5** | [6](?page=6) | [7](?page=7) | … | [10](?page=10)"},
-		{6, 10, "[1](?page=1) | … | [4](?page=4) | [5](?page=5) | **6** | [7](?page=7) | [8](?page=8) | … | [10](?page=10)"},
-		{7, 10, "[1](?page=1) | … | [5](?page=5) | [6](?page=6) | **7** | [8](?page=8) | [9](?page=9) | [10](?page=10)"},
-		{8, 10, "[1](?page=1) | … | [6](?page=6) | [7](?page=7) | **8** | [9](?page=9) | [10](?page=10)"},
-		{9, 10, "[1](?page=1) | … | [7](?page=7) | [8](?page=8) | **9** | [10](?page=10)"},
-		{10, 10, "[1](?page=1) | … | [8](?page=8) | [9](?page=9) | **10**"},
-		// XXX: 11
+		{1, 10, "/test", "**1** | [2](?page=2) | [3](?page=3) | … | [10](?page=10)"},
+		{2, 10, "/test", "[1](?page=1) | **2** | [3](?page=3) | [4](?page=4) | … | [10](?page=10)"},
+		{3, 10, "/test", "[1](?page=1) | [2](?page=2) | **3** | [4](?page=4) | [5](?page=5) | … | [10](?page=10)"},
+		{4, 10, "/test", "[1](?page=1) | [2](?page=2) | [3](?page=3) | **4** | [5](?page=5) | [6](?page=6) | … | [10](?page=10)"},
+		{5, 10, "/test", "[1](?page=1) | … | [3](?page=3) | [4](?page=4) | **5** | [6](?page=6) | [7](?page=7) | … | [10](?page=10)"},
+		{6, 10, "/test", "[1](?page=1) | … | [4](?page=4) | [5](?page=5) | **6** | [7](?page=7) | [8](?page=8) | … | [10](?page=10)"},
+		{7, 10, "/test", "[1](?page=1) | … | [5](?page=5) | [6](?page=6) | **7** | [8](?page=8) | [9](?page=9) | [10](?page=10)"},
+		{8, 10, "/test", "[1](?page=1) | … | [6](?page=6) | [7](?page=7) | **8** | [9](?page=9) | [10](?page=10)"},
+		{9, 10, "/test", "[1](?page=1) | … | [7](?page=7) | [8](?page=8) | **9** | [10](?page=10)"},
+		{10, 10, "/test", "[1](?page=1) | … | [8](?page=8) | [9](?page=9) | **10**"},
 	}
 
 	for _, tt := range tests {
 		page := pager.GetPageWithSize(tt.pageNumber, tt.pageSize)
 
-		ui := page.Picker()
+		ui := page.Picker(tt.path)
 		uassert.Equal(t, tt.expected, ui)
 	}
 }
