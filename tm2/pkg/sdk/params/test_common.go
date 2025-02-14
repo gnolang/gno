@@ -62,7 +62,7 @@ func NewDummyKeeper(paramk ParamsKeeper) DummyKeeper {
 func (dk DummyKeeper) GetParamfulKey() string {
 	return DummyModuleName
 }
-func (dk DummyKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
 
+func (dk DummyKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
 	dk.prmk.SetParams(ctx, DummyModuleName, key, value)
 }
