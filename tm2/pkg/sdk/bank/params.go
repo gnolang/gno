@@ -48,9 +48,6 @@ func (p *Params) Validate() error {
 }
 
 func (bank BankKeeper) SetParams(ctx sdk.Context, params Params) error {
-	if len(params.RestrictedDenoms) == 0 {
-		return nil
-	}
 	if err := params.Validate(); err != nil {
 		return err
 	}

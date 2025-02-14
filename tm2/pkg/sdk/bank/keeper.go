@@ -80,7 +80,7 @@ func (bank BankKeeper) DelRestrictedDenoms(ctx sdk.Context, restrictedDenoms ...
 	for d := range rdSet {
 		ds = append(ds, d)
 	}
-
+	params.RestrictedDenoms = ds
 	if err := bank.SetParams(ctx, params); err != nil {
 		panic(err)
 	}
