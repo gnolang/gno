@@ -5,7 +5,8 @@ import (
 	"strings"
 )
 
-func GetBoardIDFromName(name string) (BoardID, bool) {
+// GetBoardIDFromName searches a board by name and returns it's ID.
+func GetBoardIDFromName(name string) (_ BoardID, found bool) {
 	v, found := gBoardsByName.Get(name)
 	if !found {
 		return 0, false
@@ -13,6 +14,7 @@ func GetBoardIDFromName(name string) (BoardID, bool) {
 	return v.(*Board).id, true
 }
 
+// CreateBoard creates a new board.
 func CreateBoard(name string) BoardID {
 	assertIsUserCall()
 
@@ -33,6 +35,10 @@ func CreateBoard(name string) BoardID {
 	return id
 }
 
+// RenameBoard changes the name of an existing board.
+//
+// A history of previous board names is kept when boards are renamed.
+// Because of that boards are also accesible using previous name(s).
 func RenameBoard(name, newName string) {
 	assertIsUserCall()
 
@@ -56,6 +62,10 @@ func RenameBoard(name, newName string) {
 	})
 }
 
+// FlagThread adds a new flag to a thread.
+//
+// Flagging requires special permissions and hides the thread when
+// the number of flags reaches a pre-defined flagging threshold.
 func FlagThread(boardID BoardID, threadID PostID, reason string) {
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(boardID)
@@ -75,6 +85,7 @@ func FlagThread(boardID BoardID, threadID PostID, reason string) {
 	}
 }
 
+// CreateThread creates a new thread within a board.
 func CreateThread(boardID BoardID, title, body string) PostID {
 	assertIsUserCall()
 
@@ -92,6 +103,9 @@ func CreateThread(boardID BoardID, title, body string) PostID {
 	return thread.id
 }
 
+// CreateReply creates a new comment or reply within a thread.
+//
+// The value of `replyID` is only required when creating a reply of another reply.
 func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID {
 	assertIsUserCall()
 
@@ -119,6 +133,10 @@ func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID 
 	return reply.id
 }
 
+// FlagReply adds a new flag to a comment or reply.
+//
+// Flagging requires special permissions and hides the comment or reply
+// when the number of flags reaches a pre-defined flagging threshold.
 func FlagReply(boardID BoardID, threadID, replyID PostID, reason string) {
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(boardID)
@@ -136,6 +154,7 @@ func FlagReply(boardID BoardID, threadID, replyID PostID, reason string) {
 	}
 }
 
+// CreateRepost reposts a thread into another board.
 func CreateRepost(boardID BoardID, threadID PostID, title, body string, dstBoardID BoardID) PostID {
 	assertIsUserCall()
 
@@ -155,6 +174,9 @@ func CreateRepost(boardID BoardID, threadID PostID, title, body string, dstBoard
 	return repostId
 }
 
+// DeleteThread deletes a thread from a board.
+//
+// Threads can be deleted by the users who created them or otherwise by users with special permissions.
 func DeleteThread(boardID BoardID, threadID PostID) {
 	assertIsUserCall()
 
@@ -165,10 +187,15 @@ func DeleteThread(boardID BoardID, threadID PostID) {
 		assertHasBoardPermission(board, caller, PermissionThreadDelete)
 	}
 
-	// TODO: Discuss how to deal with thread deletion
+	// TODO: Discuss how to deal with thread deletion (should we hide instead?)
 	board.DeleteThread(threadID)
 }
 
+// DeleteReply deletes a reply from a thread.
+//
+// Replies can be deleted by the users who created them or otherwise by users with special permissions.
+// Soft deletion is used when the deleted reply contains sub replies, in which case the reply content
+// is replaced by a text informing that reply has been deleted to avoid deleting sub-replies.
 func DeleteReply(boardID BoardID, threadID, replyID PostID) {
 	assertIsUserCall()
 
@@ -191,6 +218,9 @@ func DeleteReply(boardID BoardID, threadID, replyID PostID) {
 	}
 }
 
+// EditThread updates the title and body of thread.
+//
+// Threads can be updated by the users who created them or otherwise by users with special permissions.
 func EditThread(boardID BoardID, threadID PostID, title, body string) {
 	assertIsUserCall()
 
@@ -210,6 +240,9 @@ func EditThread(boardID BoardID, threadID PostID, title, body string) {
 	thread.Update(title, body)
 }
 
+// EditReply updates the body of comment or reply.
+//
+// Replies can be updated only by the users who created them.
 func EditReply(boardID BoardID, threadID, replyID PostID, body string) {
 	assertIsUserCall()
 
@@ -228,6 +261,10 @@ func EditReply(boardID BoardID, threadID, replyID PostID, body string) {
 	reply.Update("", body)
 }
 
+// InviteMember adds a member to the realm or to a boards.
+//
+// A role can optionally be specified to be assigned to the new member.
+// Board ID is only required when inviting a member to a board.
 func InviteMember(boardID BoardID, user std.Address, role Role) {
 	assertIsUserCall()
 
@@ -241,6 +278,9 @@ func InviteMember(boardID BoardID, user std.Address, role Role) {
 	})
 }
 
+// RemoveMember removes a member from the realm or a boards.
+//
+// Board ID is only required when removing a member from board.
 func RemoveMember(boardID BoardID, user std.Address) {
 	assertIsUserCall()
 
@@ -253,16 +293,25 @@ func RemoveMember(boardID BoardID, user std.Address) {
 	})
 }
 
-func IsMember(boardID BoardID, member std.Address) bool {
+// IsMember checks if an user is a member of the realm or a board.
+//
+// Board ID is only required when checking if a user is a member of a board.
+func IsMember(boardID BoardID, user std.Address) bool {
 	perms := mustGetPermissions(boardID)
-	return perms.HasUser(member)
+	return perms.HasUser(user)
 }
 
+// HasMemberRole checks if a realm or board member has a specific role assigned.
+//
+// Board ID is only required when checking a member of a board.
 func HasMemberRole(boardID BoardID, member std.Address, role Role) bool {
 	perms := mustGetPermissions(boardID)
 	return perms.HasRole(member, role)
 }
 
+// ChangeMemberRole changes the role of a realm or board member.
+//
+// Board ID is only required when changing the role for a member of a board.
 func ChangeMemberRole(boardID BoardID, member std.Address, role Role) {
 	assertIsUserCall()
 
