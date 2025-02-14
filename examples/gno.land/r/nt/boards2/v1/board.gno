@@ -152,7 +152,7 @@ func (board *Board) GetURLFromReplyID(threadID, replyID PostID) string {
 }
 
 func (board *Board) GetPostFormURL() string {
-	return txlink.Call("CreateThread", "bid", board.id.String())
+	return txlink.Call("CreateThread", "boardID", board.id.String())
 }
 
 func createDefaultBoardPermissions(owner std.Address) *DefaultPermissions {

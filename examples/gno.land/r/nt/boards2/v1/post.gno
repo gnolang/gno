@@ -216,7 +216,7 @@ func (post *Post) GetURL() string {
 
 func (post *Post) GetReplyFormURL() string {
 	return txlink.Call("CreateReply",
-		"bid", post.board.id.String(),
+		"boardID", post.board.id.String(),
 		"threadID", post.threadID.String(),
 		"replyID", post.id.String(),
 	)
@@ -224,7 +224,7 @@ func (post *Post) GetReplyFormURL() string {
 
 func (post *Post) GetRepostFormURL() string {
 	return txlink.Call("CreateRepost",
-		"bid", post.board.id.String(),
+		"boardID", post.board.id.String(),
 		"threadID", post.id.String(),
 	)
 }
@@ -232,12 +232,12 @@ func (post *Post) GetRepostFormURL() string {
 func (post *Post) GetDeleteFormURL() string {
 	if post.IsThread() {
 		return txlink.Call("DeleteThread",
-			"bid", post.board.id.String(),
+			"boardID", post.board.id.String(),
 			"threadID", post.threadID.String(),
 		)
 	}
 	return txlink.Call("DeleteReply",
-		"bid", post.board.id.String(),
+		"boardID", post.board.id.String(),
 		"threadID", post.threadID.String(),
 		"replyID", post.id.String(),
 	)
@@ -246,13 +246,13 @@ func (post *Post) GetDeleteFormURL() string {
 func (post *Post) GetFlagFormURL() string {
 	if post.IsThread() {
 		return txlink.Call("FlagThread",
-			"bid", post.board.id.String(),
+			"boardID", post.board.id.String(),
 			"postID", post.threadID.String(),
 		)
 	}
 
 	return txlink.Call("FlagReply",
-		"bid", post.board.id.String(),
+		"boardID", post.board.id.String(),
 		"threadID", post.threadID.String(),
 		"replyID", post.id.String(),
 	)

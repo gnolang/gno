@@ -116,18 +116,18 @@ func TestNewThread(t *testing.T) {
 		uint(threadID),
 	)
 	replyURL := ufmt.Sprintf(
-		"/r/nt/boards2/v1$help&func=CreateReply&bid=%d&replyID=%d&threadID=%d",
+		"/r/nt/boards2/v1$help&func=CreateReply&boardID=%d&replyID=%d&threadID=%d",
 		uint(boardID),
 		uint(threadID),
 		uint(threadID),
 	)
 	repostURL := ufmt.Sprintf(
-		"/r/nt/boards2/v1$help&func=CreateRepost&bid=%d&threadID=%d",
+		"/r/nt/boards2/v1$help&func=CreateRepost&boardID=%d&threadID=%d",
 		uint(boardID),
 		uint(threadID),
 	)
 	deleteURL := ufmt.Sprintf(
-		"/r/nt/boards2/v1$help&func=DeleteThread&bid=%d&threadID=%d",
+		"/r/nt/boards2/v1$help&func=DeleteThread&boardID=%d&threadID=%d",
 		uint(boardID),
 		uint(threadID),
 	)
@@ -281,13 +281,13 @@ func TestNewReply(t *testing.T) {
 		uint(replyID),
 	)
 	replyURL := ufmt.Sprintf(
-		"/r/nt/boards2/v1$help&func=CreateReply&bid=%d&replyID=%d&threadID=%d",
+		"/r/nt/boards2/v1$help&func=CreateReply&boardID=%d&replyID=%d&threadID=%d",
 		uint(boardID),
 		uint(replyID),
 		uint(threadID),
 	)
 	deleteURL := ufmt.Sprintf(
-		"/r/nt/boards2/v1$help&func=DeleteReply&bid=%d&replyID=%d&threadID=%d",
+		"/r/nt/boards2/v1$help&func=DeleteReply&boardID=%d&replyID=%d&threadID=%d",
 		uint(boardID),
 		uint(replyID),
 		uint(threadID),

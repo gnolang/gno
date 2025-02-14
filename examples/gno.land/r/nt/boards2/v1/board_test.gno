@@ -100,7 +100,7 @@ func TestBoard_GetURLFromReplyID(t *testing.T) {
 func TestBoard_GetPostFormURL(t *testing.T) {
 	bid := BoardID(386)
 	b := newBoard(bid, "foo1234", "")
-	expect := txlink.Call("CreateThread", "bid", bid.String())
+	expect := txlink.Call("CreateThread", "boardID", bid.String())
 	got := b.GetPostFormURL()
 	uassert.Equal(t, expect, got)
 }
