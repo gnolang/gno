@@ -56,9 +56,9 @@ func RenameBoard(name, newName string) {
 	})
 }
 
-func FlagThread(bid BoardID, postID PostID, reason string) {
+func FlagThread(boardID BoardID, postID PostID, reason string) {
 	caller := std.GetOrigCaller()
-	board := mustGetBoard(bid)
+	board := mustGetBoard(boardID)
 	assertHasBoardPermission(board, caller, PermissionThreadFlag)
 
 	t, ok := board.GetThread(postID)
@@ -72,7 +72,7 @@ func FlagThread(bid BoardID, postID PostID, reason string) {
 	}
 }
 
-func CreateThread(bid BoardID, title, body string) PostID {
+func CreateThread(boardID BoardID, title, body string) PostID {
 	assertIsUserCall()
 
 	title = strings.TrimSpace(title)
@@ -82,21 +82,21 @@ func CreateThread(bid BoardID, title, body string) PostID {
 	assertBodyIsNotEmpty(body)
 
 	caller := std.GetOrigCaller()
-	board := mustGetBoard(bid)
+	board := mustGetBoard(boardID)
 	assertHasBoardPermission(board, caller, PermissionThreadCreate)
 
 	thread := board.AddThread(caller, title, body)
 	return thread.id
 }
 
-func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
+func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID {
 	assertIsUserCall()
 
 	body = strings.TrimSpace(body)
 	assertBodyIsNotEmpty(body)
 
 	caller := std.GetOrigCaller()
-	board := mustGetBoard(bid)
+	board := mustGetBoard(boardID)
 	assertHasBoardPermission(board, caller, PermissionReplyCreate)
 
 	thread := mustGetThread(board, threadID)
@@ -116,9 +116,9 @@ func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 	return reply.id
 }
 
-func FlagReply(bid BoardID, threadID, replyID PostID, reason string) {
+func FlagReply(boardID BoardID, threadID, replyID PostID, reason string) {
 	caller := std.GetOrigCaller()
-	board := mustGetBoard(bid)
+	board := mustGetBoard(boardID)
 	assertHasBoardPermission(board, caller, PermissionThreadFlag)
 
 	thread := mustGetThread(board, threadID)
@@ -130,14 +130,14 @@ func FlagReply(bid BoardID, threadID, replyID PostID, reason string) {
 	}
 }
 
-func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID BoardID) PostID {
+func CreateRepost(boardID BoardID, threadID PostID, title, body string, dstBoardID BoardID) PostID {
 	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
 	dst := mustGetBoard(dstBoardID)
 	assertHasBoardPermission(dst, caller, PermissionThreadRepost)
 
-	board := mustGetBoard(bid)
+	board := mustGetBoard(boardID)
 	if board.IsPrivate() {
 		panic("cannot repost from a private board")
 	}
@@ -149,11 +149,11 @@ func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID B
 	return repostId
 }
 
-func DeleteThread(bid BoardID, threadID PostID) {
+func DeleteThread(boardID BoardID, threadID PostID) {
 	assertIsUserCall()
 
 	caller := std.GetOrigCaller()
-	board := mustGetBoard(bid)
+	board := mustGetBoard(boardID)
 	thread := mustGetThread(board, threadID)
 	if caller != thread.GetCreator() {
 		assertHasBoardPermission(board, caller, PermissionThreadDelete)
@@ -163,10 +163,10 @@ func DeleteThread(bid BoardID, threadID PostID) {
 	board.DeleteThread(threadID)
 }
 
-func DeleteReply(bid BoardID, threadID, replyID PostID) {
+func DeleteReply(boardID BoardID, threadID, replyID PostID) {
 	assertIsUserCall()
 
-	board := mustGetBoard(bid)
+	board := mustGetBoard(boardID)
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
 	assertReplyVisible(reply)
@@ -185,7 +185,7 @@ func DeleteReply(bid BoardID, threadID, replyID PostID) {
 	}
 }
 
-func EditThread(bid BoardID, threadID PostID, title, body string) {
+func EditThread(boardID BoardID, threadID PostID, title, body string) {
 	assertIsUserCall()
 
 	title = strings.TrimSpace(title)
@@ -194,7 +194,7 @@ func EditThread(bid BoardID, threadID PostID, title, body string) {
 	body = strings.TrimSpace(body)
 	assertBodyIsNotEmpty(body)
 
-	board := mustGetBoard(bid)
+	board := mustGetBoard(boardID)
 	thread := mustGetThread(board, threadID)
 	caller := std.GetOrigCaller()
 	if caller != thread.GetCreator() {
@@ -204,13 +204,13 @@ func EditThread(bid BoardID, threadID PostID, title, body string) {
 	thread.Update(title, body)
 }
 
-func EditReply(bid BoardID, threadID, replyID PostID, body string) {
+func EditReply(boardID BoardID, threadID, replyID PostID, body string) {
 	assertIsUserCall()
 
 	body = strings.TrimSpace(body)
 	assertBodyIsNotEmpty(body)
 
-	board := mustGetBoard(bid)
+	board := mustGetBoard(boardID)
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
 	assertReplyVisible(reply)
@@ -222,10 +222,10 @@ func EditReply(bid BoardID, threadID, replyID PostID, body string) {
 	reply.Update("", body)
 }
 
-func InviteMember(bid BoardID, user std.Address, role Role) {
+func InviteMember(boardID BoardID, user std.Address, role Role) {
 	assertIsUserCall()
 
-	perms := mustGetPermissions(bid)
+	perms := mustGetPermissions(boardID)
 	caller := std.GetOrigCaller()
 	args := Args{user, role}
 	perms.WithPermission(caller, PermissionMemberInvite, args, func(Args) {
@@ -235,10 +235,10 @@ func InviteMember(bid BoardID, user std.Address, role Role) {
 	})
 }
 
-func RemoveMember(bid BoardID, user std.Address) {
+func RemoveMember(boardID BoardID, user std.Address) {
 	assertIsUserCall()
 
-	perms := mustGetPermissions(bid)
+	perms := mustGetPermissions(boardID)
 	caller := std.GetOrigCaller()
 	perms.WithPermission(caller, PermissionMemberRemove, Args{user}, func(Args) {
 		if !perms.RemoveUser(user) {
@@ -247,22 +247,22 @@ func RemoveMember(bid BoardID, user std.Address) {
 	})
 }
 
-func IsMember(bid BoardID, member std.Address) bool {
-	perms := mustGetPermissions(bid)
+func IsMember(boardID BoardID, member std.Address) bool {
+	perms := mustGetPermissions(boardID)
 	return perms.HasUser(member)
 }
 
-func HasMemberRole(bid BoardID, member std.Address, role Role) bool {
-	perms := mustGetPermissions(bid)
+func HasMemberRole(boardID BoardID, member std.Address, role Role) bool {
+	perms := mustGetPermissions(boardID)
 	return perms.HasRole(member, role)
 }
 
-func ChangeMemberRole(bid BoardID, member std.Address, role Role) {
+func ChangeMemberRole(boardID BoardID, member std.Address, role Role) {
 	assertIsUserCall()
 
-	perms := mustGetPermissions(bid)
+	perms := mustGetPermissions(boardID)
 	caller := std.GetOrigCaller()
-	args := Args{bid, member, role}
+	args := Args{boardID, member, role}
 	perms.WithPermission(caller, PermissionRoleChange, args, func(Args) {
 		if err := perms.SetUserRoles(member, role); err != nil {
 			panic(err)
@@ -336,9 +336,9 @@ func assertReplyVisible(thread *Post) {
 	}
 }
 
-func mustGetPermissions(bid BoardID) Permissions {
-	if bid != 0 {
-		board := mustGetBoard(bid)
+func mustGetPermissions(boardID BoardID) Permissions {
+	if boardID != 0 {
+		board := mustGetBoard(boardID)
 		return board.perms
 	}
 	return gPerm
