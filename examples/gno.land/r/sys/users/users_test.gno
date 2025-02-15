@@ -7,7 +7,6 @@ import (
 
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
-	"gno.land/r/sys/names"
 )
 
 func TestResolveName(t *testing.T) {
