@@ -16,8 +16,6 @@ func GetBoardIDFromName(name string) (_ BoardID, found bool) {
 
 // CreateBoard creates a new board.
 func CreateBoard(name string) BoardID {
-	assertIsUserCall()
-
 	name = strings.TrimSpace(name)
 	assertNameIsNotEmpty(name)
 	assertBoardNameNotExists(name)
@@ -40,8 +38,6 @@ func CreateBoard(name string) BoardID {
 // A history of previous board names is kept when boards are renamed.
 // Because of that boards are also accesible using previous name(s).
 func RenameBoard(name, newName string) {
-	assertIsUserCall()
-
 	newName = strings.TrimSpace(newName)
 	assertNameIsNotEmpty(newName)
 	assertBoardNameNotExists(newName)
@@ -112,8 +108,6 @@ func FlagThread(boardID BoardID, threadID PostID, reason string) {
 
 // CreateThread creates a new thread within a board.
 func CreateThread(boardID BoardID, title, body string) PostID {
-	assertIsUserCall()
-
 	title = strings.TrimSpace(title)
 	assertTitleIsNotEmpty(title)
 
@@ -132,8 +126,6 @@ func CreateThread(boardID BoardID, title, body string) PostID {
 //
 // The value of `replyID` is only required when creating a reply of another reply.
 func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID {
-	assertIsUserCall()
-
 	body = strings.TrimSpace(body)
 	assertBodyIsNotEmpty(body)
 
@@ -182,8 +174,6 @@ func FlagReply(boardID BoardID, threadID, replyID PostID, reason string) {
 
 // CreateRepost reposts a thread into another board.
 func CreateRepost(boardID BoardID, threadID PostID, title, body string, dstBoardID BoardID) PostID {
-	assertIsUserCall()
-
 	caller := std.GetOrigCaller()
 	dst := mustGetBoard(dstBoardID)
 	assertHasBoardPermission(dst, caller, PermissionThreadRepost)
@@ -200,8 +190,6 @@ func CreateRepost(boardID BoardID, threadID PostID, title, body string, dstBoard
 //
 // Threads can be deleted by the users who created them or otherwise by users with special permissions.
 func DeleteThread(boardID BoardID, threadID PostID) {
-	assertIsUserCall()
-
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(boardID)
 	thread := mustGetThread(board, threadID)
@@ -219,8 +207,6 @@ func DeleteThread(boardID BoardID, threadID PostID) {
 // Soft deletion is used when the deleted reply contains sub replies, in which case the reply content
 // is replaced by a text informing that reply has been deleted to avoid deleting sub-replies.
 func DeleteReply(boardID BoardID, threadID, replyID PostID) {
-	assertIsUserCall()
-
 	board := mustGetBoard(boardID)
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
@@ -244,8 +230,6 @@ func DeleteReply(boardID BoardID, threadID, replyID PostID) {
 //
 // Threads can be updated by the users who created them or otherwise by users with special permissions.
 func EditThread(boardID BoardID, threadID PostID, title, body string) {
-	assertIsUserCall()
-
 	title = strings.TrimSpace(title)
 	assertTitleIsNotEmpty(title)
 
@@ -266,8 +250,6 @@ func EditThread(boardID BoardID, threadID PostID, title, body string) {
 //
 // Replies can be updated only by the users who created them.
 func EditReply(boardID BoardID, threadID, replyID PostID, body string) {
-	assertIsUserCall()
-
 	body = strings.TrimSpace(body)
 	assertBodyIsNotEmpty(body)
 
@@ -288,8 +270,6 @@ func EditReply(boardID BoardID, threadID, replyID PostID, body string) {
 // A role can optionally be specified to be assigned to the new member.
 // Board ID is only required when inviting a member to a board.
 func InviteMember(boardID BoardID, user std.Address, role Role) {
-	assertIsUserCall()
-
 	perms := mustGetPermissions(boardID)
 	caller := std.GetOrigCaller()
 	args := Args{user, role}
@@ -304,8 +284,6 @@ func InviteMember(boardID BoardID, user std.Address, role Role) {
 //
 // Board ID is only required when removing a member from board.
 func RemoveMember(boardID BoardID, user std.Address) {
-	assertIsUserCall()
-
 	perms := mustGetPermissions(boardID)
 	caller := std.GetOrigCaller()
 	perms.WithPermission(caller, PermissionMemberRemove, Args{user}, func(Args) {
@@ -335,8 +313,6 @@ func HasMemberRole(boardID BoardID, member std.Address, role Role) bool {
 //
 // Board ID is only required when changing the role for a member of a board.
 func ChangeMemberRole(boardID BoardID, member std.Address, role Role) {
-	assertIsUserCall()
-
 	perms := mustGetPermissions(boardID)
 	caller := std.GetOrigCaller()
 	args := Args{boardID, member, role}
@@ -345,12 +321,6 @@ func ChangeMemberRole(boardID BoardID, member std.Address, role Role) {
 			panic(err)
 		}
 	})
-}
-
-func assertIsUserCall() {
-	if !std.PrevRealm().IsUser() {
-		panic("invalid non-user call")
-	}
 }
 
 func assertHasBoardPermission(b *Board, user std.Address, p Permission) {
