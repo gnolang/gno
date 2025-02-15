@@ -109,11 +109,13 @@ func GetAllTokens() string {
 	return out
 }
 
-// GetAllMultiTokens returns a string of all the multi-tokens registered
-func GetAllMultiTokens() string {
+// GetAllTokenWithDetails returns a string of all the tokens registered with their details
+func GetAllTokenWithDetails() string {
 	var out string
-	registeredMTs.Iterate("", "", func(key string, value interface{}) bool {
-		out += "MultiToken:" + key + ","
+	grc20reg.GetRegistry().Iterate("", "", func(key string, value interface{}) bool {
+		tokenGetter := value.(grc20.TokenGetter)
+		token := tokenGetter()
+		out += ufmt.Sprintf("Token:%s,Name:%s,Symbol:%s,Decimals:%d;", key, token.GetName(), token.GetSymbol(), token.GetDecimals())
 		return false
 	})
 	return out
