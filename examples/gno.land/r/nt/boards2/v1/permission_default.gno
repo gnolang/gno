@@ -10,6 +10,8 @@ import (
 	"gno.land/r/demo/users"
 )
 
+// TODO: Move to a package or make it private?
+
 // DefaultPermissions manages users, roles and permissions.
 type DefaultPermissions struct {
 	superRole Role

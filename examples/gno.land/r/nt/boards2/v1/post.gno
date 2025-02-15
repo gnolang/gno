@@ -171,9 +171,7 @@ func (post *Post) AddRepostTo(creator std.Address, repost *Post, dst *Board) {
 
 	post.repostsCount++
 	dst.threads.Set(repost.id.Key(), repost)
-	if !dst.IsPrivate() {
-		post.reposts.Set(dst.id.Key(), repost.id)
-	}
+	post.reposts.Set(dst.id.Key(), repost.id)
 }
 
 func (post *Post) DeleteReply(replyID PostID) error {
@@ -216,7 +214,7 @@ func (post *Post) GetURL() string {
 
 func (post *Post) GetReplyFormURL() string {
 	return txlink.Call("CreateReply",
-		"bid", post.board.id.String(),
+		"boardID", post.board.id.String(),
 		"threadID", post.threadID.String(),
 		"replyID", post.id.String(),
 	)
@@ -224,7 +222,7 @@ func (post *Post) GetReplyFormURL() string {
 
 func (post *Post) GetRepostFormURL() string {
 	return txlink.Call("CreateRepost",
-		"bid", post.board.id.String(),
+		"boardID", post.board.id.String(),
 		"threadID", post.id.String(),
 	)
 }
@@ -232,12 +230,12 @@ func (post *Post) GetRepostFormURL() string {
 func (post *Post) GetDeleteFormURL() string {
 	if post.IsThread() {
 		return txlink.Call("DeleteThread",
-			"bid", post.board.id.String(),
+			"boardID", post.board.id.String(),
 			"threadID", post.threadID.String(),
 		)
 	}
 	return txlink.Call("DeleteReply",
-		"bid", post.board.id.String(),
+		"boardID", post.board.id.String(),
 		"threadID", post.threadID.String(),
 		"replyID", post.id.String(),
 	)
@@ -246,13 +244,13 @@ func (post *Post) GetDeleteFormURL() string {
 func (post *Post) GetFlagFormURL() string {
 	if post.IsThread() {
 		return txlink.Call("FlagThread",
-			"bid", post.board.id.String(),
-			"postID", post.threadID.String(),
+			"boardID", post.board.id.String(),
+			"threadID", post.threadID.String(),
 		)
 	}
 
 	return txlink.Call("FlagReply",
-		"bid", post.board.id.String(),
+		"boardID", post.board.id.String(),
 		"threadID", post.threadID.String(),
 		"replyID", post.id.String(),
 	)
