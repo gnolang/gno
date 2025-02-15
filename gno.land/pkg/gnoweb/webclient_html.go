@@ -261,20 +261,6 @@ func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) e
 
 	// Process .gno files to add links
 	if strings.HasSuffix(fileName, ".gno") {
-		// Add css for linkabel imports
-		cssStyle := `<style>
-        .gno-import {
-            color: #0366d6 !important;
-            text-decoration: none;
-        }
-        .gno-import:hover {
-            text-decoration: underline;
-        }
-        </style>`
-		_, err = w.Write([]byte(cssStyle))
-		if err != nil {
-			return err
-		}
 
 		// Find and process string spans containing gno.land imports
 		lines := strings.Split(formatted, "\n")
