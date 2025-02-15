@@ -1373,8 +1373,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					ct := evalStaticType(store, last, n.Func)
 					at := evalStaticTypeOf(store, last, n.Args[0])
 
-					_, isCTInterface := ct.(*InterfaceType)
-					_, isATInterface := at.(*InterfaceType)
+					ctBase := BaseOf(ct)
+					atBase := baseOf(at)
+
+					_, isCTInterface := ctBase.(*InterfaceType)
+					_, isATInterface := atBase.(*InterfaceType)
 
 					if !isCTInterface && isATInterface {
 						panic(fmt.Sprintf("cannot convert %v to %v: need type assertion", at.TypeID(), ct.TypeID()))
