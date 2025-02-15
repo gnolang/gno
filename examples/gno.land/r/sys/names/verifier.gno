@@ -11,8 +11,6 @@ import (
 	"gno.land/r/sys/users"
 )
 
-type verifierFunc func(address std.Address, name string) bool
-
 var (
 	Ownable = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @moul > dropped in genesis via Enable
 
