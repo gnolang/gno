@@ -14,8 +14,6 @@ func GetBoardIDFromName(name string) (BoardID, bool) {
 }
 
 func CreateBoard(name string) BoardID {
-	assertIsUserCall()
-
 	name = strings.TrimSpace(name)
 	assertNameIsNotEmpty(name)
 	assertBoardNameNotExists(name)
@@ -34,8 +32,6 @@ func CreateBoard(name string) BoardID {
 }
 
 func RenameBoard(name, newName string) {
-	assertIsUserCall()
-
 	newName = strings.TrimSpace(newName)
 	assertNameIsNotEmpty(newName)
 	assertBoardNameNotExists(newName)
@@ -94,8 +90,6 @@ func FlagThread(bid BoardID, postID PostID, reason string) {
 }
 
 func CreateThread(bid BoardID, title, body string) PostID {
-	assertIsUserCall()
-
 	title = strings.TrimSpace(title)
 	assertTitleIsNotEmpty(title)
 
@@ -111,8 +105,6 @@ func CreateThread(bid BoardID, title, body string) PostID {
 }
 
 func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
-	assertIsUserCall()
-
 	body = strings.TrimSpace(body)
 	assertBodyIsNotEmpty(body)
 
@@ -153,8 +145,6 @@ func FlagReply(bid BoardID, threadID, replyID PostID, reason string) {
 }
 
 func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID BoardID) PostID {
-	assertIsUserCall()
-
 	caller := std.GetOrigCaller()
 	dst := mustGetBoard(dstBoardID)
 	assertHasBoardPermission(dst, caller, PermissionThreadRepost)
@@ -172,8 +162,6 @@ func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID B
 }
 
 func DeleteThread(bid BoardID, threadID PostID) {
-	assertIsUserCall()
-
 	caller := std.GetOrigCaller()
 	board := mustGetBoard(bid)
 	thread := mustGetThread(board, threadID)
@@ -186,8 +174,6 @@ func DeleteThread(bid BoardID, threadID PostID) {
 }
 
 func DeleteReply(bid BoardID, threadID, replyID PostID) {
-	assertIsUserCall()
-
 	board := mustGetBoard(bid)
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
@@ -208,8 +194,6 @@ func DeleteReply(bid BoardID, threadID, replyID PostID) {
 }
 
 func EditThread(bid BoardID, threadID PostID, title, body string) {
-	assertIsUserCall()
-
 	title = strings.TrimSpace(title)
 	assertTitleIsNotEmpty(title)
 
@@ -227,8 +211,6 @@ func EditThread(bid BoardID, threadID PostID, title, body string) {
 }
 
 func EditReply(bid BoardID, threadID, replyID PostID, body string) {
-	assertIsUserCall()
-
 	body = strings.TrimSpace(body)
 	assertBodyIsNotEmpty(body)
 
@@ -245,8 +227,6 @@ func EditReply(bid BoardID, threadID, replyID PostID, body string) {
 }
 
 func InviteMember(bid BoardID, user std.Address, role Role) {
-	assertIsUserCall()
-
 	perms := mustGetPermissions(bid)
 	caller := std.GetOrigCaller()
 	args := Args{user, role}
@@ -258,8 +238,6 @@ func InviteMember(bid BoardID, user std.Address, role Role) {
 }
 
 func RemoveMember(bid BoardID, user std.Address) {
-	assertIsUserCall()
-
 	perms := mustGetPermissions(bid)
 	caller := std.GetOrigCaller()
 	perms.WithPermission(caller, PermissionMemberRemove, Args{user}, func(Args) {
@@ -280,8 +258,6 @@ func HasMemberRole(bid BoardID, member std.Address, role Role) bool {
 }
 
 func ChangeMemberRole(bid BoardID, member std.Address, role Role) {
-	assertIsUserCall()
-
 	perms := mustGetPermissions(bid)
 	caller := std.GetOrigCaller()
 	args := Args{bid, member, role}
@@ -290,12 +266,6 @@ func ChangeMemberRole(bid BoardID, member std.Address, role Role) {
 			panic(err)
 		}
 	})
-}
-
-func assertIsUserCall() {
-	if !std.PrevRealm().IsUser() {
-		panic("invalid non-user call")
-	}
 }
 
 func assertHasBoardPermission(b *Board, user std.Address, p Permission) {
