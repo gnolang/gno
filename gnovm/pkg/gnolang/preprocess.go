@@ -1373,16 +1373,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					ct := evalStaticType(store, last, n.Func)
 					at := evalStaticTypeOf(store, last, n.Args[0])
 
-					ctBase := BaseOf(ct)
-					atBase := baseOf(at)
-
-					_, isCTInterface := ctBase.(*InterfaceType)
-					_, isATInterface := atBase.(*InterfaceType)
-
-					if !isCTInterface && isATInterface {
-						panic(fmt.Sprintf("cannot convert %v to %v: need type assertion", at.TypeID(), ct.TypeID()))
-					}
-
 					var constConverted bool
 					switch arg0 := n.Args[0].(type) {
 					case *ConstExpr:
@@ -1434,7 +1424,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							checkOrConvertType(store, last, n, &n.Args[0], ct, false)
 						}
 					default:
-						// do nothing
+						ctBase := BaseOf(ct)
+						atBase := baseOf(at)
+
+						_, isCTInterface := ctBase.(*InterfaceType)
+						_, isCTNative := ctBase.(*NativeType)
+						_, isATInterface := atBase.(*InterfaceType)
+
+						if (!isCTInterface && !isCTNative) && isATInterface {
+							panic(fmt.Sprintf("cannot convert %v to %v: need type assertion", at.TypeID(), ct.TypeID()))
+						}
 					}
 					// general case, for non-const untyped && no nested untyped shift
 					// after handling const, and special cases recursively, set the target node type
