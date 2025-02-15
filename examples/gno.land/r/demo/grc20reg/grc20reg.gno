@@ -25,7 +25,7 @@ func Register(tokenGetter grc20.TokenGetter, slug string) {
 
 func RegisterWithTokenhub(tokenGetter grc20.TokenGetter, key string) {
 	prevRealmPath := std.PrevRealm().PkgPath()
-	if prevRealmPath != "gno.land/r/matijamajranovic/tokenhub" {
+	if prevRealmPath != "gno.land/r/matijamarjanovic/tokenhub" {
 		return
 	}
 
