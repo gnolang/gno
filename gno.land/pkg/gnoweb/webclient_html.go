@@ -230,6 +230,7 @@ func (s *HTMLWebClient) query(qpath string, data []byte) ([]byte, error) {
 func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) error {
 	var lexer chroma.Lexer
 
+	// Determine lexer based on file extension
 	switch strings.ToLower(filepath.Ext(fileName)) {
 	case ".gno":
 		lexer = lexers.Get("go")
@@ -238,7 +239,7 @@ func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) e
 	case ".mod":
 		lexer = lexers.Get("gomod")
 	default:
-		lexer = lexers.Get("txt")
+		lexer = lexers.Get("txt") // Unsupoorted file type, default to plain text
 	}
 
 	if lexer == nil {
