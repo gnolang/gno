@@ -5,7 +5,8 @@ import (
 	"strings"
 )
 
-func GetBoardIDFromName(name string) (BoardID, bool) {
+// GetBoardIDFromName searches a board by name and returns it's ID.
+func GetBoardIDFromName(name string) (_ BoardID, found bool) {
 	v, found := gBoardsByName.Get(name)
 	if !found {
 		return 0, false
@@ -13,6 +14,7 @@ func GetBoardIDFromName(name string) (BoardID, bool) {
 	return v.(*Board).id, true
 }
 
+// CreateBoard creates a new board.
 func CreateBoard(name string) BoardID {
 	name = strings.TrimSpace(name)
 	assertNameIsNotEmpty(name)
@@ -31,6 +33,10 @@ func CreateBoard(name string) BoardID {
 	return id
 }
 
+// RenameBoard changes the name of an existing board.
+//
+// A history of previous board names is kept when boards are renamed.
+// Because of that boards are also accesible using previous name(s).
 func RenameBoard(name, newName string) {
 	newName = strings.TrimSpace(newName)
 	assertNameIsNotEmpty(newName)
@@ -52,44 +58,56 @@ func RenameBoard(name, newName string) {
 	})
 }
 
-func SetFlaggingThreshold(bid BoardID, threshold int) {
+// SetFlaggingThreshold sets the number of flags required to hide a thread or comment.
+//
+// Threshold is only applicable within the board where it's setted.
+func SetFlaggingThreshold(boardID BoardID, threshold int) {
 	if threshold < 1 {
 		panic("invalid flagging threshold")
 	}
 
-	board := mustGetBoard(bid)
+	board := mustGetBoard(boardID)
 	caller := std.GetOrigCaller()
-	args := Args{bid, threshold}
+	args := Args{boardID, threshold}
 	board.perms.WithPermission(caller, PermissionBoardFlaggingUpdate, args, func(Args) {
-		assertBoardExists(bid)
+		assertBoardExists(boardID)
 
-		gFlaggingThresholds.Set(bid.String(), threshold)
+		gFlaggingThresholds.Set(boardID.String(), threshold)
 	})
 }
 
-func GetFlaggingThreshold(bid BoardID) int {
-	assertBoardExists(bid)
-	return getFlaggingThreshold(bid)
+// GetFlaggingThreshold returns the number of flags required to hide a thread or comment within a board.
+func GetFlaggingThreshold(boardID BoardID) int {
+	assertBoardExists(boardID)
+	return getFlaggingThreshold(boardID)
 }
 
-func FlagThread(bid BoardID, postID PostID, reason string) {
+// FlagThread adds a new flag to a thread.
+//
+// Flagging requires special permissions and hides the thread when
+// the number of flags reaches a pre-defined flagging threshold.
+func FlagThread(boardID BoardID, threadID PostID, reason string) {
 	caller := std.GetOrigCaller()
-	board := mustGetBoard(bid)
+	board := mustGetBoard(boardID)
 	assertHasBoardPermission(board, caller, PermissionThreadFlag)
 
-	t, ok := board.GetThread(postID)
+	t, ok := board.GetThread(threadID)
 	if !ok {
 		panic("post doesn't exist")
 	}
 
-	threshold := getFlaggingThreshold(bid)
-	hide := flagItem(t, NewFlag(caller, reason), threshold)
+	f := Flag{
+		User:   caller,
+		Reason: reason,
+	}
+	hide := flagItem(t, f, getFlaggingThreshold(boardID))
 	if hide {
 		t.SetVisible(false)
 	}
 }
 
-func CreateThread(bid BoardID, title, body string) PostID {
+// CreateThread creates a new thread within a board.
+func CreateThread(boardID BoardID, title, body string) PostID {
 	title = strings.TrimSpace(title)
 	assertTitleIsNotEmpty(title)
 
@@ -97,19 +115,22 @@ func CreateThread(bid BoardID, title, body string) PostID {
 	assertBodyIsNotEmpty(body)
 
 	caller := std.GetOrigCaller()
-	board := mustGetBoard(bid)
+	board := mustGetBoard(boardID)
 	assertHasBoardPermission(board, caller, PermissionThreadCreate)
 
 	thread := board.AddThread(caller, title, body)
 	return thread.id
 }
 
-func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
+// CreateReply creates a new comment or reply within a thread.
+//
+// The value of `replyID` is only required when creating a reply of another reply.
+func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID {
 	body = strings.TrimSpace(body)
 	assertBodyIsNotEmpty(body)
 
 	caller := std.GetOrigCaller()
-	board := mustGetBoard(bid)
+	board := mustGetBoard(boardID)
 	assertHasBoardPermission(board, caller, PermissionReplyCreate)
 
 	thread := mustGetThread(board, threadID)
@@ -129,31 +150,35 @@ func CreateReply(bid BoardID, threadID, replyID PostID, body string) PostID {
 	return reply.id
 }
 
-func FlagReply(bid BoardID, threadID, replyID PostID, reason string) {
+// FlagReply adds a new flag to a comment or reply.
+//
+// Flagging requires special permissions and hides the comment or reply
+// when the number of flags reaches a pre-defined flagging threshold.
+func FlagReply(boardID BoardID, threadID, replyID PostID, reason string) {
 	caller := std.GetOrigCaller()
-	board := mustGetBoard(bid)
+	board := mustGetBoard(boardID)
 	assertHasBoardPermission(board, caller, PermissionThreadFlag)
 
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
 
-	threshold := getFlaggingThreshold(bid)
-	hide := flagItem(reply, NewFlag(caller, reason), threshold)
+	f := Flag{
+		User:   caller,
+		Reason: reason,
+	}
+	hide := flagItem(reply, f, getFlaggingThreshold(boardID))
 	if hide {
 		reply.SetVisible(false)
 	}
 }
 
-func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID BoardID) PostID {
+// CreateRepost reposts a thread into another board.
+func CreateRepost(boardID BoardID, threadID PostID, title, body string, dstBoardID BoardID) PostID {
 	caller := std.GetOrigCaller()
 	dst := mustGetBoard(dstBoardID)
 	assertHasBoardPermission(dst, caller, PermissionThreadRepost)
 
-	board := mustGetBoard(bid)
-	if board.IsPrivate() {
-		panic("cannot repost from a private board")
-	}
-
+	board := mustGetBoard(boardID)
 	thread := mustGetThread(board, threadID)
 	repostId := dst.incGetPostID()
 	repost := newPost(dst, repostId, caller, title, body, repostId, thread.GetPostID(), thread.GetBoard().GetID())
@@ -161,20 +186,28 @@ func CreateRepost(bid BoardID, threadID PostID, title, body string, dstBoardID B
 	return repostId
 }
 
-func DeleteThread(bid BoardID, threadID PostID) {
+// DeleteThread deletes a thread from a board.
+//
+// Threads can be deleted by the users who created them or otherwise by users with special permissions.
+func DeleteThread(boardID BoardID, threadID PostID) {
 	caller := std.GetOrigCaller()
-	board := mustGetBoard(bid)
+	board := mustGetBoard(boardID)
 	thread := mustGetThread(board, threadID)
 	if caller != thread.GetCreator() {
 		assertHasBoardPermission(board, caller, PermissionThreadDelete)
 	}
 
-	// TODO: Discuss how to deal with thread deletion
+	// TODO: Discuss how to deal with thread deletion (should we hide instead?)
 	board.DeleteThread(threadID)
 }
 
-func DeleteReply(bid BoardID, threadID, replyID PostID) {
-	board := mustGetBoard(bid)
+// DeleteReply deletes a reply from a thread.
+//
+// Replies can be deleted by the users who created them or otherwise by users with special permissions.
+// Soft deletion is used when the deleted reply contains sub replies, in which case the reply content
+// is replaced by a text informing that reply has been deleted to avoid deleting sub-replies.
+func DeleteReply(boardID BoardID, threadID, replyID PostID) {
+	board := mustGetBoard(boardID)
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
 	assertReplyVisible(reply)
@@ -193,14 +226,17 @@ func DeleteReply(bid BoardID, threadID, replyID PostID) {
 	}
 }
 
-func EditThread(bid BoardID, threadID PostID, title, body string) {
+// EditThread updates the title and body of thread.
+//
+// Threads can be updated by the users who created them or otherwise by users with special permissions.
+func EditThread(boardID BoardID, threadID PostID, title, body string) {
 	title = strings.TrimSpace(title)
 	assertTitleIsNotEmpty(title)
 
 	body = strings.TrimSpace(body)
 	assertBodyIsNotEmpty(body)
 
-	board := mustGetBoard(bid)
+	board := mustGetBoard(boardID)
 	thread := mustGetThread(board, threadID)
 	caller := std.GetOrigCaller()
 	if caller != thread.GetCreator() {
@@ -210,11 +246,14 @@ func EditThread(bid BoardID, threadID PostID, title, body string) {
 	thread.Update(title, body)
 }
 
-func EditReply(bid BoardID, threadID, replyID PostID, body string) {
+// EditReply updates the body of comment or reply.
+//
+// Replies can be updated only by the users who created them.
+func EditReply(boardID BoardID, threadID, replyID PostID, body string) {
 	body = strings.TrimSpace(body)
 	assertBodyIsNotEmpty(body)
 
-	board := mustGetBoard(bid)
+	board := mustGetBoard(boardID)
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
 	assertReplyVisible(reply)
@@ -226,8 +265,12 @@ func EditReply(bid BoardID, threadID, replyID PostID, body string) {
 	reply.Update("", body)
 }
 
-func InviteMember(bid BoardID, user std.Address, role Role) {
-	perms := mustGetPermissions(bid)
+// InviteMember adds a member to the realm or to a boards.
+//
+// A role can optionally be specified to be assigned to the new member.
+// Board ID is only required when inviting a member to a board.
+func InviteMember(boardID BoardID, user std.Address, role Role) {
+	perms := mustGetPermissions(boardID)
 	caller := std.GetOrigCaller()
 	args := Args{user, role}
 	perms.WithPermission(caller, PermissionMemberInvite, args, func(Args) {
@@ -237,8 +280,11 @@ func InviteMember(bid BoardID, user std.Address, role Role) {
 	})
 }
 
-func RemoveMember(bid BoardID, user std.Address) {
-	perms := mustGetPermissions(bid)
+// RemoveMember removes a member from the realm or a boards.
+//
+// Board ID is only required when removing a member from board.
+func RemoveMember(boardID BoardID, user std.Address) {
+	perms := mustGetPermissions(boardID)
 	caller := std.GetOrigCaller()
 	perms.WithPermission(caller, PermissionMemberRemove, Args{user}, func(Args) {
 		if !perms.RemoveUser(user) {
@@ -247,20 +293,29 @@ func RemoveMember(bid BoardID, user std.Address) {
 	})
 }
 
-func IsMember(bid BoardID, member std.Address) bool {
-	perms := mustGetPermissions(bid)
-	return perms.HasUser(member)
+// IsMember checks if an user is a member of the realm or a board.
+//
+// Board ID is only required when checking if a user is a member of a board.
+func IsMember(boardID BoardID, user std.Address) bool {
+	perms := mustGetPermissions(boardID)
+	return perms.HasUser(user)
 }
 
-func HasMemberRole(bid BoardID, member std.Address, role Role) bool {
-	perms := mustGetPermissions(bid)
+// HasMemberRole checks if a realm or board member has a specific role assigned.
+//
+// Board ID is only required when checking a member of a board.
+func HasMemberRole(boardID BoardID, member std.Address, role Role) bool {
+	perms := mustGetPermissions(boardID)
 	return perms.HasRole(member, role)
 }
 
-func ChangeMemberRole(bid BoardID, member std.Address, role Role) {
-	perms := mustGetPermissions(bid)
+// ChangeMemberRole changes the role of a realm or board member.
+//
+// Board ID is only required when changing the role for a member of a board.
+func ChangeMemberRole(boardID BoardID, member std.Address, role Role) {
+	perms := mustGetPermissions(boardID)
 	caller := std.GetOrigCaller()
-	args := Args{bid, member, role}
+	args := Args{boardID, member, role}
 	perms.WithPermission(caller, PermissionRoleChange, args, func(Args) {
 		if err := perms.SetUserRoles(member, role); err != nil {
 			panic(err)

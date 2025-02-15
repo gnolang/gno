@@ -21,15 +21,6 @@ func TestBoardID_Key(t *testing.T) {
 	uassert.Equal(t, want, input.Key())
 }
 
-func TestBoard_IsPrivate(t *testing.T) {
-	b := new(Board)
-	b.id = 0
-	uassert.True(t, b.IsPrivate())
-
-	b.id = 128
-	uassert.False(t, b.IsPrivate())
-}
-
 func TestBoard_GetID(t *testing.T) {
 	want := int(92)
 	b := new(Board)
@@ -100,7 +91,7 @@ func TestBoard_GetURLFromReplyID(t *testing.T) {
 func TestBoard_GetPostFormURL(t *testing.T) {
 	bid := BoardID(386)
 	b := newBoard(bid, "foo1234", "")
-	expect := txlink.Call("CreateThread", "bid", bid.String())
+	expect := txlink.Call("CreateThread", "boardID", bid.String())
 	got := b.GetPostFormURL()
 	uassert.Equal(t, expect, got)
 }
