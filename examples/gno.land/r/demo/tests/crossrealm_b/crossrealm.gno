@@ -19,9 +19,7 @@ func (f *fooer) Foo() {
 }
 
 var (
-	Fooer = &fooer{s: "A"}
-	// this is already attached, so cannot be attached to external realm
-	FooerGetter = func() crossrealm.Fooer { return Fooer }
-	// same
+	Fooer              = &fooer{s: "A"}
+	FooerGetter        = func() crossrealm.Fooer { return Fooer }
 	FooerGetterBuilder = func() crossrealm.FooerGetter { return func() crossrealm.Fooer { return Fooer } }
 )

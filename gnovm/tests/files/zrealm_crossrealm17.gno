@@ -10,7 +10,7 @@ type container struct {
 	f    *fooer
 }
 
-func (container) Foo() { println("hello") }
+func (container) Foo() { println("hello " + c.f.name) }
 
 type fooer struct{ name string }
 
@@ -29,7 +29,7 @@ func main() {
 }
 
 // Output:
-// hello
+// hello local_foo
 // .
 
 // Realm:

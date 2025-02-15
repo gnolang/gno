@@ -310,6 +310,8 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 			oo2.SetOriginRealm(originPkg) // attach origin package info
 		}
 
+		debug2.Println2("oo2: ", oo2)
+
 		rlm.DidUpdate(store, pv.Base.(Object), oo1, oo2)
 	} else {
 		pv.TV.Assign(alloc, tv2, cu)
@@ -1074,6 +1076,7 @@ func (tv *TypedValue) ClearNum() {
 }
 
 func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
+	debug2.Printf2("Copy, tv: %v (type: %v) \n", tv, reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case BigintValue:
 		cp.T = tv.T
