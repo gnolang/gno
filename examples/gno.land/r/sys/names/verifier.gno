@@ -6,10 +6,8 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/p/demo/dao"
 	"gno.land/p/demo/ownable"
 
-	"gno.land/r/gov/dao/bridge"
 	"gno.land/r/sys/users"
 )
 
