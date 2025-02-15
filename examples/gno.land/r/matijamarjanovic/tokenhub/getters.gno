@@ -119,6 +119,16 @@ func GetAllMultiTokens() string {
 	return out
 }
 
+// GetAllMultiTokens returns a string of all the multi-tokens registered
+func GetAllMultiTokens() string {
+	var out string
+	registeredMTs.Iterate("", "", func(key string, value interface{}) bool {
+		out += "MultiToken:" + key + ","
+		return false
+	})
+	return out
+}
+
 // GetAllRegistered returns a string of all the registered tokens, NFTs and multi-tokens
 func GetAllRegistered() string {
 	return GetAllNFTs() + GetAllTokens() + GetAllMultiTokens()
