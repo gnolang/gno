@@ -1,6 +1,7 @@
 package gnoweb
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -229,7 +230,6 @@ func (s *HTMLWebClient) query(qpath string, data []byte) ([]byte, error) {
 func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) error {
 	var lexer chroma.Lexer
 
-	// Determine the lexer to be used based on the file extension.
 	switch strings.ToLower(filepath.Ext(fileName)) {
 	case ".gno":
 		lexer = lexers.Get("go")
@@ -238,23 +238,72 @@ func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) e
 	case ".mod":
 		lexer = lexers.Get("gomod")
 	default:
-		lexer = lexers.Get("txt") // Unsupported file type, default to plain text.
+		lexer = lexers.Get("txt")
 	}
 
 	if lexer == nil {
 		return fmt.Errorf("unsupported lexer for file %q", fileName)
 	}
 
+	// Format with Chroma
+	var buf bytes.Buffer
 	iterator, err := lexer.Tokenise(nil, string(src))
 	if err != nil {
 		return fmt.Errorf("unable to tokenise %q: %w", fileName, err)
 	}
 
-	if err := s.Formatter.Format(w, s.chromaStyle, iterator); err != nil {
+	if err := s.Formatter.Format(&buf, s.chromaStyle, iterator); err != nil {
 		return fmt.Errorf("unable to format source file %q: %w", fileName, err)
 	}
 
-	return nil
+	formatted := buf.String()
+
+	// Process .gno files to add links
+	if strings.HasSuffix(fileName, ".gno") {
+		// Add css for linkabel imports
+		cssStyle := `<style>
+        .gno-import {
+            color: #0366d6 !important;
+            text-decoration: none;
+        }
+        .gno-import:hover {
+            text-decoration: underline;
+        }
+        </style>`
+		_, err = w.Write([]byte(cssStyle))
+		if err != nil {
+			return err
+		}
+
+		// Find and process string spans containing gno.land imports
+		lines := strings.Split(formatted, "\n")
+		for i, line := range lines {
+			if strings.Contains(line, "gno.land/") {
+				// Look for chroma string spans
+				start := strings.Index(line, `<span class="chroma-s">&#34;gno.land/`)
+				if start != -1 {
+					prefix := line[:start]
+					rest := line[start:]
+					end := strings.Index(rest, `&#34;</span>`)
+					if end != -1 {
+						// Extract the path of gnoland import
+						importPath := rest[len(`<span class="chroma-s">&#34;`):end]
+						urlPath := strings.TrimPrefix(importPath, "gno.land/")
+
+						// Create new span with link
+						replacement := fmt.Sprintf(`<span class="chroma-s"><a href="/%s$source" class="gno-import">&#34;%s&#34;</a></span>`,
+							urlPath, importPath)
+
+						lines[i] = prefix + replacement + rest[end+len(`&#34;</span>`):]
+					}
+				}
+			}
+		}
+		formatted = strings.Join(lines, "\n")
+	}
+
+	_, err = w.Write([]byte(formatted))
+	return err
 }
 
 func (s *HTMLWebClient) WriteFormatterCSS(w io.Writer) error {
