@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"path/filepath"
+	gopath "path"
 	"regexp"
 	"slices"
 	"strings"
@@ -179,8 +179,8 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 
 	// A file is considered as one that either ends with an extension or
 	// contains an uppercase rune
-	ext := filepath.Ext(upath)
-	base := filepath.Base(upath)
+	ext := gopath.Ext(upath)
+	base := gopath.Base(upath)
 	if ext != "" || strings.ToLower(base) != base {
 		file = base
 		upath = strings.TrimSuffix(upath, base)

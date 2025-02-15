@@ -11,7 +11,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"path/filepath"
+	gopath "path"
 	"strings"
 	"time"
 
@@ -239,7 +239,6 @@ func runLocal(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg br
 	)
 
 	var errgs errgroup.Group
-
 	if cfg.dev {
 		devpoint, err := getDevEndpoint(cfg)
 		if err != nil {
@@ -453,7 +452,7 @@ func ValidatePathCommandMiddleware(pathPrefix string) wish.Middleware {
 				return
 			case 1: // check for valid path
 				path := cmd[0]
-				if strings.HasPrefix(path, pathPrefix) && filepath.Clean(path) == path {
+				if strings.HasPrefix(path, pathPrefix) && gopath.Clean(path) == path {
 					s.Context().SetValue("path", path)
 					next(s)
 					return
