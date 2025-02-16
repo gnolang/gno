@@ -9,7 +9,7 @@ var S []Fooer
 func SetSlice(fs []Fooer) {
 	S = fs
 	for _, f := range fs {
-		println(f)
+		f.Foo()
 	}
 }
 
@@ -80,7 +80,7 @@ func GetSlice3() []XYZ {
 
 func GetSlice4(f func(s []XYZ)) {
 	s4 = append(s4, XYZ{"0"}) // this is real after this function
-	f(s4)                     // XYZ{"0"} is floating
+	f(s4)
 }
 
 func GetSlice5() []*XYZ { // TODO, unwrap

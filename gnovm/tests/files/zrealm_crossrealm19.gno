@@ -17,8 +17,8 @@ func (f *fooer) Foo() {
 var f *fooer
 
 func init() {
-	f = &fooer{s: "A"}     // unreal, refCount 1, owner f
-	crossrealm.SetFooer(f) // refCount2, escaped
+	f = &fooer{s: "A"} // unreal, refCount 1, owner f
+	crossrealm.SetFooer(f)
 	crossrealm.CallFooerFoo()
 }
 

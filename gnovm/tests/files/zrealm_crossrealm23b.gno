@@ -7,16 +7,33 @@ import (
 
 var root interface{}
 
-// TODO: consider this
-// should it be valid to attach
-// an object by value with type
-// from p? maybe yes, but it should
-// be invalid if the type is from
-// an another realm.
 func main() {
-	root = tests.F // already attached in p
-	println("done:", root)
+	root = tests.F
+	println(root)
 }
 
 // Output:
-// done: (struct{("p" string)} gno.land/p/demo/tests.Foo)
+// (struct{("p" string)} gno.land/p/demo/tests.Foo)
+
+// Realm:
+// switchrealm["gno.land/r/crossrealm_test"]
+// c[f5a516808f8976c33939133293d598ce3bca4e8d:4]={
+//     "Fields": [
+//         {
+//             "T": {
+//                 "@type": "/gno.PrimitiveType",
+//                 "value": "16"
+//             },
+//             "V": {
+//                 "@type": "/gno.StringValue",
+//                 "value": "p"
+//             }
+//         }
+//     ],
+//     "ObjectInfo": {
+//         "ID": "f5a516808f8976c33939133293d598ce3bca4e8d:4",
+//         "ModTime": "0",
+//         "OwnerID": "f5a516808f8976c33939133293d598ce3bca4e8d:2",
+//         "RefCount": "1"
+//     }
+// }

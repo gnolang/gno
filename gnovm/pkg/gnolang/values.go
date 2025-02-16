@@ -551,23 +551,7 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 		fields[i] = field.Copy(alloc)
 	}
 
-	nsv := alloc.NewStruct(fields)
-	// debug2.Println2("sv.GetOriginRealm: ", sv.GetOriginRealm())
-	// debug2.Println2("sv.GetObjectID(): ", sv.GetObjectID())
-	// debug2.Println2("sv.GetRefCount: ", sv.GetRefCount())
-	// debug2.Println2("sv...OwneID: ", sv.GetObjectInfo().OwnerID)
-	// append, unref copy...
-
-	// this copy is needed,
-	// copy origin realm is necessary here because, for example, if `sv` is an embedded struct,
-	// assigning the containing struct will also copy the embedded struct.
-	pkgId := sv.GetOriginRealm()
-	if pkgId.IsZero() {
-		pkgId = sv.GetObjectID().PkgID
-	}
-	nsv.SetOriginRealm(pkgId)
-	return nsv
-	// return alloc.NewStruct(fields)
+	return alloc.NewStruct(fields)
 }
 
 // ----------------------------------------

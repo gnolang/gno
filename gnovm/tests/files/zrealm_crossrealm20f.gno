@@ -2,7 +2,6 @@
 package crossrealm_test
 
 import (
-	"fmt"
 	crossrealm "gno.land/r/demo/tests/crossrealm/struct"
 )
 
@@ -12,8 +11,7 @@ var b Dt
 
 func main() {
 	b = &crossrealm.Bar{A: 22} // this should panic
-	//println(b)
-	fmt.Println(b)
+	println(b)
 }
 
 // Error:

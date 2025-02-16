@@ -4,67 +4,50 @@ package crossrealm_test
 import (
 	"std"
 
-	crossrealm "gno.land/r/demo/tests/crossrealm/iface"
+	"gno.land/r/demo/tests/crossrealm"
+	"gno.land/r/demo/tests/crossrealm_b"
 )
 
-type fooer struct {
-	name string
-}
-
-func (fooer) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
-
-var f fooer
-
 func main() {
-	f = fooer{name: "local_fooer"} // f is dirty
-	crossrealm.SetContainer2(&f)
-	crossrealm.RunF()
+	f := crossrealm_b.Fooer
+	crossrealm.SetFooer(f)
+	crossrealm.CallFooerFoo()
+	f.SetS("B")
+	crossrealm.CallFooerFoo()
 	print(".")
 }
 
 // Output:
-// hello gno.land/r/crossrealm_test
+// hello A cur=gno.land/r/demo/tests/crossrealm_b prev=gno.land/r/demo/tests/crossrealm
+// hello B cur=gno.land/r/demo/tests/crossrealm_b prev=gno.land/r/demo/tests/crossrealm
 // .
 
 // Realm:
-// switchrealm["gno.land/r/demo/tests/crossrealm/iface"]
-// u[5836d1a3cec217737a5553d4c1a03d8897d5f281:4]={
-//     "Fields": [
-//         {
-//             "T": {
-//                 "@type": "/gno.PrimitiveType",
-//                 "value": "16"
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.PointerType",
-//                 "Elt": {
-//                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/r/crossrealm_test.fooer"
-//                 }
-//             },
-//             "V": {
-//                 "@type": "/gno.PointerValue",
-//                 "Base": {
-//                     "@type": "/gno.RefValue",
-//                     "Escaped": true,
-//                     "ObjectID": "f5a516808f8976c33939133293d598ce3bca4e8d:2"
-//                 },
-//                 "Index": "1",
-//                 "TV": null
-//             }
-//         }
-//     ],
+// switchrealm["gno.land/r/demo/tests/crossrealm"]
+// u[0edc46caf30c00efd87b6c272673239eafbd051e:3]={
 //     "ObjectInfo": {
-//         "ID": "5836d1a3cec217737a5553d4c1a03d8897d5f281:4",
-//         "ModTime": "4",
-//         "OwnerID": "5836d1a3cec217737a5553d4c1a03d8897d5f281:2",
-//         "RefCount": "1"
+//         "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:3",
+//         "IsEscaped": true,
+//         "ModTime": "5",
+//         "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:2",
+//         "RefCount": "2"
+//     },
+//     "Value": {
+//         "T": {
+//             "@type": "/gno.RefType",
+//             "ID": "gno.land/r/demo/tests/crossrealm_b.fooer"
+//         },
+//         "V": {
+//             "@type": "/gno.RefValue",
+//             "Hash": "8222b763e9bc04b4b7805e165e9f1324a39f28b6",
+//             "ObjectID": "0edc46caf30c00efd87b6c272673239eafbd051e:4"
+//         }
 //     }
 // }
-// switchrealm["gno.land/r/crossrealm_test"]
-// c[f5a516808f8976c33939133293d598ce3bca4e8d:5]={
+// switchrealm["gno.land/r/demo/tests/crossrealm_b"]
+// switchrealm["gno.land/r/demo/tests/crossrealm"]
+// switchrealm["gno.land/r/demo/tests/crossrealm_b"]
+// u[0edc46caf30c00efd87b6c272673239eafbd051e:4]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -73,17 +56,20 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.StringValue",
-//                 "value": "local_fooer"
+//                 "value": "B"
 //             }
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "f5a516808f8976c33939133293d598ce3bca4e8d:5",
-//         "ModTime": "0",
-//         "OwnerID": "f5a516808f8976c33939133293d598ce3bca4e8d:2",
+//         "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:4",
+//         "ModTime": "5",
+//         "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:3",
 //         "RefCount": "1"
 //     }
 // }
-// d[f5a516808f8976c33939133293d598ce3bca4e8d:3]
-// switchrealm["gno.land/r/demo/tests/crossrealm/iface"]
+// switchrealm["gno.land/r/demo/tests/crossrealm_b"]
+// switchrealm["gno.land/r/demo/tests/crossrealm"]
 // switchrealm["gno.land/r/crossrealm_test"]
+
+// Error:
+//

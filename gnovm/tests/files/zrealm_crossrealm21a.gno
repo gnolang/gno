@@ -13,10 +13,10 @@ func (fooer) Foo() { println("hello") }
 
 func main() {
 	// object attaching to external is main block,
-	// f is a value defined w/i this block,
+	// f is an unreal value defined w/i this block,
 	// and invalid to attach to external, panic.
 	f := fooer{name: "local_fooer"}
-	crossrealm.SetContainer2(&f) // refCount 1, f not owner
+	crossrealm.SetContainer2(&f)
 	print(".")
 }
 

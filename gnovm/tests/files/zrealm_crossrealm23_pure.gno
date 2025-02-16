@@ -15,7 +15,8 @@ func main() {
 	print(".")
 }
 
-// XXX, this works attach value with type defined in p
-
 // Output:
 // .
+
+// Realm:
+// switchrealm["gno.land/r/crossrealm_test"]

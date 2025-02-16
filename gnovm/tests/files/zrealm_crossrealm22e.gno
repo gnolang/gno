@@ -24,3 +24,7 @@ func main() {
 
 // Output:
 // ok
+
+// Realm:
+// switchrealm["gno.land/r/demo/tests/crossrealm/func"]
+// switchrealm["gno.land/r/crossrealm_test"]

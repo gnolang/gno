@@ -8,7 +8,7 @@ import (
 // associate to a containing object
 type Container struct {
 	name string
-	b    crossrealm.Bar // panic while attaching(finalizing)
+	b    crossrealm.Bar
 }
 
 var c Container

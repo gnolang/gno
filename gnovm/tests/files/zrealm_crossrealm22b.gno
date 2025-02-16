@@ -12,7 +12,7 @@ type Local_S struct {
 }
 
 func main() {
-	var ls Local_S // panic
+	ls := Local_S{name: "local_s"} // panic
 	f := func() bool {
 		c := b
 		return true
@@ -22,4 +22,4 @@ func main() {
 }
 
 // Error:
-// cannot attach a value of a type defined by another realm: struct{( string)}
+// cannot attach a value of a type defined by another realm: struct{("local_s" string)}

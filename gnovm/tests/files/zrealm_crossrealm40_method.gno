@@ -6,7 +6,7 @@ import crossrealm "gno.land/r/demo/tests/crossrealm/func"
 var f func() string
 
 func main() {
-	f = crossrealm.GetMethod() // XXX, this attach boundmethodvalue to current realm, shoud panic
+	f = crossrealm.GetMethod()
 	println(f)
 }
 

@@ -5,8 +5,6 @@ import (
 	crossrealm "gno.land/r/demo/tests/crossrealm/struct"
 )
 
-// TODO: should panic at once
-// var b0 crossrealm.Bar = crossrealm.Bar3
 var root interface{}
 
 func main() {

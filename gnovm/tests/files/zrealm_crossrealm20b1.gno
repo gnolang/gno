@@ -8,17 +8,18 @@ import (
 // associate to a containing object
 type Container struct {
 	name string
-	b    crossrealm.Bar // panic while attaching(finalizing)
+	b    crossrealm.Bar
 }
 
 var c *Container
 
 func init() {
-	print("ok")
+	c = &Container{name: "Container", b: crossrealm.Bar{A: 1}}
+	println(c.b)
 }
 
 func main() {
 }
 
-// Output:
-// ok
+// Error:
+// cannot attach a value of a type defined by another realm: struct{(1 int)}

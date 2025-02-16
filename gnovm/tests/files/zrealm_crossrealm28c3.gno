@@ -15,7 +15,7 @@ var f1 = foo{name: "1"}
 var f2 = foo{name: "2"}
 var f3 = foo{name: "3"}
 
-var arr []crossrealm.Fooer // unreal array
+var arr []crossrealm.Fooer
 
 func init() {
 	arr = append(arr, &f1)
@@ -29,12 +29,15 @@ func main() {
 }
 
 // Output:
-// &(struct{("1" string)} gno.land/r/crossrealm_test.foo)
-// &(struct{("2" string)} gno.land/r/crossrealm_test.foo)
-// &(struct{("3" string)} gno.land/r/crossrealm_test.foo)
+// hello from crossrealm_test
+// hello from crossrealm_test
+// hello from crossrealm_test
 // ok
 
 // Realm:
+// switchrealm["gno.land/r/crossrealm_test"]
+// switchrealm["gno.land/r/crossrealm_test"]
+// switchrealm["gno.land/r/crossrealm_test"]
 // switchrealm["gno.land/r/demo/tests/crossrealm/slice"]
 // u[f5a516808f8976c33939133293d598ce3bca4e8d:7]={
 //     "Data": null,

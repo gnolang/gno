@@ -26,3 +26,75 @@ func main() {
 
 // Output:
 // ok
+
+// Realm:
+// switchrealm["gno.land/r/crossrealm_test"]
+// u[f5a516808f8976c33939133293d598ce3bca4e8d:3]={
+//     "Data": null,
+//     "List": [
+//         {
+//             "T": {
+//                 "@type": "/gno.PointerType",
+//                 "Elt": {
+//                     "@type": "/gno.RefType",
+//                     "ID": "gno.land/r/crossrealm_test.foo"
+//                 }
+//             },
+//             "V": {
+//                 "@type": "/gno.PointerValue",
+//                 "Base": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "f5a516808f8976c33939133293d598ce3bca4e8d:5"
+//                 },
+//                 "Index": "0",
+//                 "TV": null
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.PointerType",
+//                 "Elt": {
+//                     "@type": "/gno.RefType",
+//                     "ID": "gno.land/r/crossrealm_test.foo"
+//                 }
+//             },
+//             "V": {
+//                 "@type": "/gno.PointerValue",
+//                 "Base": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "f5a516808f8976c33939133293d598ce3bca4e8d:5"
+//                 },
+//                 "Index": "1",
+//                 "TV": null
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.PointerType",
+//                 "Elt": {
+//                     "@type": "/gno.RefType",
+//                     "ID": "gno.land/r/crossrealm_test.foo"
+//                 }
+//             },
+//             "V": {
+//                 "@type": "/gno.PointerValue",
+//                 "Base": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "f5a516808f8976c33939133293d598ce3bca4e8d:5"
+//                 },
+//                 "Index": "2",
+//                 "TV": null
+//             }
+//         }
+//     ],
+//     "ObjectInfo": {
+//         "ID": "f5a516808f8976c33939133293d598ce3bca4e8d:3",
+//         "IsEscaped": true,
+//         "ModTime": "8",
+//         "OwnerID": "f5a516808f8976c33939133293d598ce3bca4e8d:2",
+//         "RefCount": "2"
+//     }
+// }

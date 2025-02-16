@@ -1029,7 +1029,7 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 	}
 	if isCrossRealm(oo.GetOriginRealm(), rlm.ID) {
 		if !oo.GetIsEscaped() && !oo.GetIsNewEscaped() {
-			panic("should not attach not escaped/new escaped object from external realm")
+			panic("cannot attach object from external realm: object must be either escaped or newly escaped")
 		}
 	}
 	// set hash to escape index.

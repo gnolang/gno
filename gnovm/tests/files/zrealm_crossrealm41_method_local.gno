@@ -26,7 +26,7 @@ func main() {
 //             "Escaped": true,
 //             "ObjectID": "f5a516808f8976c33939133293d598ce3bca4e8d:5"
 //         },
-//         "FileName": "files/zrealm_crossrealm41_method.gno",
+//         "FileName": "files/zrealm_crossrealm41_method_local.gno",
 //         "IsMethod": true,
 //         "Name": "M",
 //         "NativeName": "",
@@ -37,7 +37,7 @@ func main() {
 //             "BlockNode": null,
 //             "Location": {
 //                 "Column": "1",
-//                 "File": "files/zrealm_crossrealm41_method.gno",
+//                 "File": "files/zrealm_crossrealm41_method_local.gno",
 //                 "Line": "8",
 //                 "PkgPath": "gno.land/r/crossrealm_test"
 //             }

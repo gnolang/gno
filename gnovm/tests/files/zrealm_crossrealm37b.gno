@@ -3,11 +3,11 @@ package crossrealm_test
 
 import crossrealm "gno.land/r/demo/tests/crossrealm/map"
 
-var m1 crossrealm.MyMap
+var local_m crossrealm.MyMap // default value is nil
 
 func main() {
-	m1 = crossrealm.GetMap()
-	println(m1)
+	local_m = crossrealm.GetMap3()
+	println("ok")
 }
 
 // Error:

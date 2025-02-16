@@ -12,15 +12,13 @@ type foo struct {
 func (foo) Foo() { println("hello from crossrealm_test") }
 
 func main() {
-	var arr []crossrealm.Fooer // unreal array with type from external realm
+	var arr []crossrealm.Fooer
 	arr = append(arr, foo{name: "1"})
 	arr = append(arr, foo{name: "2"})
 	arr = append(arr, foo{name: "3"})
 
 	fs := arr[1:]
-	// this works cuz it's not crossing realm,
-	// even underlying array is unreal
-	crossrealm.SetSlice(fs) // valid
+	crossrealm.SetSlice(fs)
 	println("ok")
 }
 

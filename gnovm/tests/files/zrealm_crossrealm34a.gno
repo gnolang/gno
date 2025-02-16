@@ -8,7 +8,7 @@ import (
 var SS []*crossrealm.XYZ
 
 var f = func(s []*crossrealm.XYZ) {
-	SS = s //  Note, s is dirty, but it's real, so it's ok
+	SS = s
 }
 
 func main() {

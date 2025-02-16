@@ -7,10 +7,9 @@ import (
 
 var root = tests.Foo{"p"}
 
-// TODO: also this.
 func main() {
-	println("done")
+	println(root)
 }
 
 // Output:
-// done
+// (struct{("p" string)} gno.land/p/demo/tests.Foo)
