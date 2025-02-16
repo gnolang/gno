@@ -17,7 +17,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-const testdataDir = "testdata"
+const testdataDir = "golden"
 
 var update = flag.Bool("update-golden-file", false, "update golden files")
 

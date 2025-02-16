@@ -267,6 +267,13 @@ func (a *ColumnASTTransformer) Transform(node *ast.Document, reader text.Reader,
 
 }
 
+type columnRenderer struct{}
+
+// RegisterFuncs add AST objects to Renderer.
+func (r *columnRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
+	reg.Register(KindColumn, columnRender)
+}
+
 // column struct is used to extend the markdown with column functionality.
 type column struct{}
 
@@ -283,7 +290,7 @@ func (e *column) Extend(m goldmark.Markdown) {
 		),
 	)
 	m.Renderer().AddOptions(renderer.WithNodeRenderers(
-		util.Prioritized(NewRenderer(), 500),
+		util.Prioritized(&columnRenderer{}, 500),
 	))
 
 }
