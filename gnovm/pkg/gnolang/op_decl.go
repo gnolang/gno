@@ -6,7 +6,6 @@ import (
 
 func (m *Machine) doOpValueDecl() {
 	s := m.PopStmt().(*ValueDecl)
-	debug2.Println2("doOpValueDecl, s: ", s)
 	lb := m.LastBlock()
 	nt := Type(nil)
 	if s.Type != nil {
@@ -27,7 +26,6 @@ func (m *Machine) doOpValueDecl() {
 			} else {
 				tv = TypedValue{T: nt, V: defaultValue(m.Alloc, nt)}
 			}
-			debug2.Println2("rvs is nil, using default value,: ", tv)
 		} else {
 			tv = rvs[i]
 		}

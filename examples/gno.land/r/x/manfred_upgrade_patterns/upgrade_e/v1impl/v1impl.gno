@@ -14,7 +14,7 @@ func init() {
 	home.SetImpl(impl)
 }
 
-type Impl struct{}
+type Impl struct{} // make it real first
 
 func (i Impl) Render(path string) string { return "hello from v1" }
 func (i Impl) Foo() error                { return errors.New("not implemented") }

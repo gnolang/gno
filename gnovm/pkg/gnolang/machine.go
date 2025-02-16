@@ -257,7 +257,6 @@ func (m *Machine) RunMemPackageWithOverrides(memPkg *gnovm.MemPackage, save bool
 }
 
 func (m *Machine) runMemPackage(memPkg *gnovm.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
-	debug2.Println2("runMemPackage, save: ", save)
 	// parse files.
 	files := ParseMemPackage(memPkg)
 	if !overrides {
@@ -545,7 +544,6 @@ func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
 	// recursive function for var declarations.
 	var runDeclarationFor func(fn *FileNode, decl Decl)
 	runDeclarationFor = func(fn *FileNode, decl Decl) {
-		debug2.Println2("runDeclarationFor, decl: ", decl)
 		// get fileblock of fn.
 		// fb := pv.GetFileBlock(nil, fn.Name)
 		// get dependencies of decl.
@@ -639,20 +637,17 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 // Returns a throwaway realm package is not a realm,
 // such as stdlibs or /p/ packages.
 func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
-	debug2.Println2("saveNewPackageValuesAndTypes...")
 	// save package value and dependencies.
 	pv := m.Package
 	if pv.IsRealm() {
 		rlm := pv.Realm
 		rlm.MarkNewReal(pv)
-		debug2.Println2("===realm, finalizing throwaway")
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
 		// save package realm info.
 		m.Store.SetPackageRealm(rlm)
 	} else { // use a throwaway realm.
 		rlm := NewRealm(pv.PkgPath)
 		rlm.MarkNewReal(pv)
-		debug2.Println2("NOT realm, finalizing throwaway")
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
 		throwaway = rlm
 	}

@@ -234,7 +234,6 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		m.RunFiles(n)
 		m.RunStatement(gno.S(gno.Call(gno.X("main"))))
 	} else {
-		//fmt.Println("realm case...")
 		// Realm case.
 		gno.DisableDebug() // until main call.
 
@@ -260,7 +259,6 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		// Clear store cache and reconstruct machine from committed info
 		// (mimicking on-chain behaviour).
 		tx.Write()
-
 		m.Store = orig
 
 		pv2 := m.Store.GetPackage(pkgPath, false)

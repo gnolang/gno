@@ -3,7 +3,6 @@ package gnolang
 import (
 	"encoding/hex"
 	"fmt"
-	"reflect"
 	"strconv"
 	"strings"
 )
@@ -170,6 +169,7 @@ type ObjectInfo struct {
 	owner Object // mem reference to owner.
 }
 
+// Copy used for serialization of objects.
 // Note that "owner" is nil.
 func (oi *ObjectInfo) Copy() ObjectInfo {
 	return ObjectInfo{
@@ -333,7 +333,6 @@ func (oi *ObjectInfo) GetOriginRealm() PkgID {
 }
 
 func (oi *ObjectInfo) SetOriginRealm(pkgId PkgID) {
-	debug2.Println2("SetOriginRealm: ", pkgId, pkgId.purePkg)
 	oi.originRealm = pkgId
 }
 
@@ -367,10 +366,8 @@ func (oi *ObjectInfo) GetIsTransient() bool {
 
 // XXX, get first accessible object, maybe containing(parent) object, maybe itself.
 func (tv *TypedValue) GetFirstObject(store Store) Object {
-	debug2.Printf2("GetFirstObject, tv: %v (type: %v) \n", tv, reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case PointerValue:
-		// debug2.Println2("pointer value, base: ", cv.Base)
 		return cv.GetBase(store)
 	case *ArrayValue:
 		return cv
@@ -406,36 +403,25 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 // if the object is real, it's retrieved from objectID,
 // otherwise, it's inference from its type.
 func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
-	debug2.Println2("GetOriginPkg, tv: ", tv, reflect.TypeOf(tv.V))
-
-	// attempting to retrieve the original package using the ObjectID
+	// attempting to retrieve the original package from ObjectID
 	obj := tv.GetFirstObject(store)
-	debug2.Printf2("obj: %v (type: %v) \n", obj, reflect.TypeOf(obj))
 	if obj != nil {
-		debug2.Println2("GetIsReal: ", obj.GetIsReal())
-		// origin realm maybe set while association, even
-		// it's un-real.
 		originPkg = obj.GetOriginRealm()
 		if !originPkg.IsZero() {
-			debug2.Println2("1, got originPkg from object: ", originPkg, originPkg.purePkg)
 			return
 		}
 		originPkg = obj.GetObjectID().PkgID
 		if !originPkg.IsZero() {
-			debug2.Println2("2, got originPkg from object: ", originPkg, originPkg.purePkg)
 			return
 		}
 	}
 
 	// attempting to infer original package using declared type
+	// if it does not have an objectID(unreal)
 	getPkgId := func(t Type) (pkgId PkgID) {
 		if dt, ok := t.(*DeclaredType); ok {
-			debug2.Printf2("getPkgId, dt: %v, dt.Base: %v, dt.Base.PkgPath: %s \n", dt, dt.Base, dt.Base.GetPkgPath())
-			//if IsRealmPath(dt.Base.GetPkgPath()) {
 			pkgId = PkgIDFromPkgPath(dt.Base.GetPkgPath())
-			debug2.Println2("pkgId.purePkg: ", pkgId.purePkg)
 			return
-			//}
 		}
 		return
 	}
@@ -445,15 +431,11 @@ func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 		originPkg = getPkgId(cv.Value.T)
 		return
 	case *BoundMethodValue:
-		debug2.Println2("BoundMethodValue, recv: ", cv.Receiver)
-		//if pv, ok := cv.Receiver.V.(PointerValue); ok {
-		//	originPkg = getPkgId(pv.TV.T)
-		//}
+		// do nothing
 		return
 	case *MapValue, *StructValue, *ArrayValue:
-		// if it's declared type,
-		// origin package is deduced
-		// from type, otherwise zero.
+		// if it's a declared type, origin realm
+		// is deduced from type, otherwise zero.
 		originPkg = getPkgId(tv.T)
 		return
 	default:

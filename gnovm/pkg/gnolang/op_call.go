@@ -62,7 +62,6 @@ func (m *Machine) doOpCall() {
 	// Create new block scope.
 	clo := fr.Func.GetClosure(m.Store)
 	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
-	debug2.Println2("doOpCall, b: ", b)
 
 	// Copy *FuncValue.Captures into block
 	// NOTE: addHeapCapture in preprocess ensures order.
@@ -199,8 +198,6 @@ func (m *Machine) doOpCallDeferNativeBody() {
 
 // Assumes that result values are pushed onto the Values stack.
 func (m *Machine) doOpReturn() {
-	debug2.Println2("doOpReturn")
-	debug2.Println2("---done doOpReturn")
 	cfr := m.PopUntilLastCallFrame()
 	// See if we are exiting a realm boundary.
 	// NOTE: there are other ways to implement realm boundary transitions,
@@ -220,7 +217,6 @@ func (m *Machine) doOpReturn() {
 			finalize = true
 		}
 		if finalize {
-			debug2.Println2("doOpReturn, finalizing")
 			// Finalize realm updates!
 			// NOTE: This is a resource intensive undertaking.
 			crlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
@@ -233,7 +229,6 @@ func (m *Machine) doOpReturn() {
 // Like doOpReturn, but with results from the block;
 // i.e. named result vars declared in func signatures.
 func (m *Machine) doOpReturnFromBlock() {
-	debug2.Println2("doOpReturnFromBlock")
 	// Copy results from block.
 	cfr := m.PopUntilLastCallFrame()
 	ft := cfr.Func.GetType(m.Store)
@@ -257,7 +252,6 @@ func (m *Machine) doOpReturnFromBlock() {
 			finalize = true
 		}
 		if finalize {
-			debug2.Println2("finalizing")
 			// Finalize realm updates!
 			// NOTE: This is a resource intensive undertaking.
 			crlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
@@ -271,7 +265,6 @@ func (m *Machine) doOpReturnFromBlock() {
 // deferred statements can refer to results with name
 // expressions.
 func (m *Machine) doOpReturnToBlock() {
-	debug2.Println2("doOpReturnToBlock")
 	cfr := m.MustLastCallFrame(1)
 	ft := cfr.Func.GetType(m.Store)
 	numParams := len(ft.Params)

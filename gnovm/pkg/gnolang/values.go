@@ -210,10 +210,6 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
-	debug2.Println2("Assign2, pv: ", pv)
-	debug2.Println2("tv2: ", tv2, reflect.TypeOf(tv2.V))
-	debug2.Println2("rlm: ", rlm)
-
 	// Special cases.
 	if pv.Index == PointerIndexNative {
 		// Special case if extended object && native.
@@ -287,30 +283,26 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 	// General case
 	if rlm != nil && pv.Base != nil {
 		oo1 := pv.TV.GetFirstObject(store)
+
 		// get origin pkgId, this should happen before assign,
 		// because assign will discard original object info
 		originPkg := tv2.GetOriginPkg(store)
-		debug2.Println2("originPkg: ", originPkg, originPkg.purePkg)
 
 		pv.TV.Assign(alloc, tv2, cu)
 
 		oo2 := pv.TV.GetFirstObject(store)
 
-		// originValue is needed for checking
-		// proper element in the base.
-		// e.g. refValue is a sliceValue
-		switch pv.TV.V.(type) {
-		case *SliceValue, PointerValue, *FuncValue:
-			if oo2.GetIsReal() {
-				oo2.SetIsAttachingRef(true)
-			}
-		}
-
+		// set origin realm to object
 		if oo2 != nil && !originPkg.IsZero() {
 			oo2.SetOriginRealm(originPkg) // attach origin package info
+			// used for checking cross realm after
+			switch pv.TV.V.(type) {
+			case *SliceValue, PointerValue:
+				if oo2.GetIsReal() {
+					oo2.SetIsAttachingRef(true)
+				}
+			}
 		}
-
-		debug2.Println2("oo2: ", oo2)
 
 		rlm.DidUpdate(store, pv.Base.(Object), oo1, oo2)
 	} else {
@@ -410,7 +402,6 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 }
 
 func (av *ArrayValue) Copy(alloc *Allocator) *ArrayValue {
-	debug2.Println2("Array copy, av: ", av)
 	/* TODO: consider second ref count field.
 	if av.GetRefCount() == 0 {
 		return av
@@ -535,7 +526,6 @@ func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path Valu
 }
 
 func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
-	//debug2.Println2("StructValue copy, sv: ", sv)
 	/* TODO consider second refcount field
 	if sv.GetRefCount() == 0 {
 		return sv
@@ -1060,7 +1050,6 @@ func (tv *TypedValue) ClearNum() {
 }
 
 func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
-	debug2.Printf2("Copy, tv: %v (type: %v) \n", tv, reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case BigintValue:
 		cp.T = tv.T
@@ -1083,7 +1072,6 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 // unrefCopy makes a copy of the underlying value in the case of reference values.
 // It copies other values as expected using the normal Copy method.
 func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
-	debug2.Println2("UnrefCopy, tv: ", tv)
 	switch tv.V.(type) {
 	case RefValue:
 		cp.T = tv.T
@@ -1660,7 +1648,6 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 // cu: convert untyped after assignment. pass false
 // for const definitions, but true for all else.
 func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
-	debug2.Println2("Assign, tv2: ", tv2)
 	if debug {
 		if tv.T == DataByteType {
 			// assignment to data byte types should only
@@ -2387,7 +2374,6 @@ type Block struct {
 
 // NOTE: for allocation, use *Allocator.NewBlock.
 func NewBlock(source BlockNode, parent *Block) *Block {
-	// fmt.Println("parent: ", parent)
 	var values []TypedValue
 	if source != nil {
 		values = make([]TypedValue, source.GetNumNames())
@@ -2711,7 +2697,6 @@ func typedString(s string) TypedValue {
 }
 
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
-	//debug2.Printf2("fillValueTV: %v (type: %v) \n", tv, reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case RefValue:
 		if cv.PkgPath != "" { // load package

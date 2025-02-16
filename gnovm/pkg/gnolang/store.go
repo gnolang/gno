@@ -266,7 +266,6 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 
 // Gets package from cache, or loads it from baseStore, or gets it from package getter.
 func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue {
-	debug2.Printf2("GetPackage:  %s \n", pkgPath)
 	// helper to detect circular imports
 	if isImport {
 		if slices.Contains(ds.current, pkgPath) {
@@ -472,7 +471,9 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
 // package values.
 func (ds *defaultStore) SetObject(oo Object) {
-	debug2.Printf2("SetObject: %v | oo.GetIsNewReal: %t | oo.GetIsReal: %t \n", oo, oo.GetIsNewReal(), oo.GetIsReal())
+	if debug {
+		debug.Printf("SetObject: %v | oo.GetIsNewReal: %t | oo.GetIsReal: %t \n", oo, oo.GetIsNewReal(), oo.GetIsReal())
+	}
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -485,10 +486,8 @@ func (ds *defaultStore) SetObject(oo Object) {
 		}()
 	}
 	oid := oo.GetObjectID()
-	//debug2.Println2("oid: ", oid, oid.PkgID.purePkg)
 	// replace children/fields with Ref.
 	o2 := copyValueWithRefs(oo)
-	debug2.Println2("---o2: ", o2)
 	// marshal to binary.
 	bz := amino.MustMarshalAny(o2)
 	gas := overflow.Mul64p(ds.gasConfig.GasSetObject, store.Gas(len(bz)))
