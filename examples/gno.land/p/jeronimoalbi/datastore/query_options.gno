@@ -3,8 +3,6 @@ package datastore
 import (
 	"errors"
 	"strings"
-
-	"gno.land/p/moul/collection"
 )
 
 var (
