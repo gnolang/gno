@@ -143,6 +143,20 @@ but that looks ugly.
       You just need to indent an additional four spaces.
 
 
+Column
+=========
+
+<gno-column>
+## Title 1
+
+content 1
+
+## Title 2
+
+content 2
+</gno-column>
+
+
 Even More
 =========
 
