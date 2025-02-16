@@ -157,6 +157,10 @@ func MarshalJSONIndent(o interface{}, prefix, indent string) ([]byte, error) {
 	return gcdc.MarshalJSONIndent(o, prefix, indent)
 }
 
+func MustMarshalJSONIndent(o interface{}, prefix, indent string) []byte {
+	return gcdc.MustMarshalJSONIndent(o, prefix, indent)
+}
+
 // XXX unstable API.
 func GetTypeURL(o interface{}) string {
 	return gcdc.GetTypeURL(o)
@@ -812,7 +816,7 @@ func (cdc *Codec) MarshalJSONAny(o interface{}) ([]byte, error) {
 	return bz, nil
 }
 
-// MustMarshalJSON panics if an error occurs. Besides tha behaves exactly like MarshalJSON.
+// MustMarshalJSON panics if an error occurs. Besides that behaves exactly like MarshalJSON.
 func (cdc *Codec) MustMarshalJSON(o interface{}) []byte {
 	bz, err := cdc.JSONMarshal(o)
 	if err != nil {
@@ -821,7 +825,7 @@ func (cdc *Codec) MustMarshalJSON(o interface{}) []byte {
 	return bz
 }
 
-// MustMarshalJSONAny panics if an error occurs. Besides tha behaves exactly like MarshalJSONAny.
+// MustMarshalJSONAny panics if an error occurs. Besides that behaves exactly like MarshalJSONAny.
 func (cdc *Codec) MustMarshalJSONAny(o interface{}) []byte {
 	bz, err := cdc.MarshalJSONAny(o)
 	if err != nil {
@@ -849,7 +853,7 @@ func (cdc *Codec) JSONUnmarshal(bz []byte, ptr interface{}) error {
 	return cdc.decodeReflectJSON(bz, info, rv, FieldOptions{})
 }
 
-// MustUnmarshalJSON panics if an error occurs. Besides tha behaves exactly like UnmarshalJSON.
+// MustUnmarshalJSON panics if an error occurs. Besides that behaves exactly like UnmarshalJSON.
 func (cdc *Codec) MustUnmarshalJSON(bz []byte, ptr interface{}) {
 	if err := cdc.JSONUnmarshal(bz, ptr); err != nil {
 		panic(err)
@@ -869,6 +873,16 @@ func (cdc *Codec) MarshalJSONIndent(o interface{}, prefix, indent string) ([]byt
 		return nil, err
 	}
 	return out.Bytes(), nil
+}
+
+// MustMarshalJSONIndent panics if an error occurs. Besides that behaves exactly like
+// MarshalJSONIndent.
+func (cdc *Codec) MustMarshalJSONIndent(o interface{}, prefix, indent string) []byte {
+	bz, err := cdc.MarshalJSONIndent(o, prefix, indent)
+	if err != nil {
+		panic(err)
+	}
+	return bz
 }
 
 // ----------------------------------------

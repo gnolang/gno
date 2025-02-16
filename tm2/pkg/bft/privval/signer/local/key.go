@@ -63,13 +63,10 @@ func (fk *FileKey) save() error {
 	}
 
 	// Marshal the FileKey to JSON bytes using amino.
-	jsonBytes, err := amino.MarshalJSONIndent(fk, "", "  ")
-	if err != nil {
-		return err
-	}
+	jsonBytes := amino.MustMarshalJSONIndent(fk, "", "  ")
 
 	// Write the JSON bytes to the file.
-	if err = osm.WriteFileAtomic(fk.filePath, jsonBytes, 0o600); err != nil {
+	if err := osm.WriteFileAtomic(fk.filePath, jsonBytes, 0o600); err != nil {
 		return err
 	}
 

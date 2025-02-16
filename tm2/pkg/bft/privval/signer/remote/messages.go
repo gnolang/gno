@@ -4,6 +4,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
+// MaxMessageSize is the maximum size of a message that can be sent or received.
+const MaxMessageSize = 1024
+
 // RemoteSignerMessage is sent between Remote Signer clients and servers.
 type RemoteSignerMessage interface{}
 
@@ -13,7 +16,7 @@ type PubKeyRequest struct{}
 // PubKeyResponse is a response containing the public key or an error.
 type PubKeyResponse struct {
 	PubKey crypto.PubKey
-	Error  *RemoteSignerError
+	Error  error
 }
 
 // SignRequest is a request to sign arbitrary bytes.
@@ -24,7 +27,7 @@ type SignRequest struct {
 // SignResponse is a response containing the signature or an error.
 type SignResponse struct {
 	Signature []byte
-	Error     *RemoteSignerError
+	Error     error
 }
 
 // PingRequest is a request to confirm that the connection is alive.
