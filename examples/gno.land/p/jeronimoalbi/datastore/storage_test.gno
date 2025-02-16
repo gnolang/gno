@@ -14,7 +14,6 @@ func TestStorageDefaults(t *testing.T) {
 	storage := NewStorage(name)
 
 	uassert.Equal(t, name, storage.Name())
-	uassert.Equal(t, collection.IDIndex, storage.CurrentIndex())
 	uassert.NotEqual(t, nil, storage.Collection())
 	uassert.Equal(t, 0, storage.Size())
 
@@ -40,16 +39,6 @@ func TestStorageNewRecord(t *testing.T) {
 	got, ok := v.(string)
 	urequire.True(t, ok, "default value type")
 	uassert.Equal(t, defaultValue, got)
-}
-
-func TestStorageWithIndex(t *testing.T) {
-	index := "bar"
-	storage1 := NewStorage("foo")
-	storage2 := storage1.WithIndex(index)
-
-	uassert.Equal(t, collection.IDIndex, storage1.CurrentIndex())
-	uassert.Equal(t, storage1.Name(), storage2.Name())
-	uassert.Equal(t, index, storage2.CurrentIndex())
 }
 
 func TestStorageIterate(t *testing.T) {

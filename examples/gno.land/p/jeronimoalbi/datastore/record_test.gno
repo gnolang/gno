@@ -7,7 +7,10 @@ import (
 	"gno.land/p/demo/urequire"
 )
 
-var _ Record = (*record)(nil)
+var (
+	_ Record    = (*record)(nil)
+	_ Recordset = (*recordset)(nil)
+)
 
 func TestRecordDefaults(t *testing.T) {
 	storage := NewStorage("foo")
@@ -114,12 +117,11 @@ func TestRecordGet(t *testing.T) {
 }
 
 func TestRecordSave(t *testing.T) {
-	fieldName := "name"
-	nameIdx := NewIndex("name", func(r Record) string {
-		return r.MustGet(fieldName).(string)
+	index := NewIndex("name", func(r Record) string {
+		return r.MustGet("name").(string)
 	}).Unique().CaseInsensitive()
 
-	storage := NewStorage("foo", WithDefaultIndex(nameIdx))
+	storage := NewStorage("foo", WithIndex(index))
 	cases := []struct {
 		name            string
 		id              uint64
@@ -149,24 +151,28 @@ func TestRecordSave(t *testing.T) {
 			key:         "0000002",
 			fieldValue:  "baz",
 			storageSize: 2,
-			setup:       func(s Storage) Record { return storage.GetFirst("bar") },
+			setup: func(s Storage) Record {
+				r, _ := storage.GetRecord(index.Name(), "bar")
+				return r
+			},
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			r := tc.setup(storage)
-			r.Set(fieldName, tc.fieldValue)
+			r.Set("name", tc.fieldValue)
 
-			urequire.Equal(t, nil, storage.GetFirst(tc.fieldValue), "record not found")
+			_, found := storage.GetRecord(index.Name(), tc.fieldValue)
+			urequire.False(t, found, "record not found")
 			urequire.True(t, r.Save(), "save success")
 			uassert.Equal(t, tc.storageSize, storage.Size())
 
-			r = storage.GetFirst(tc.fieldValue)
-			urequire.NotEqual(t, nil, r, "record found")
+			r, found = storage.GetRecord(index.Name(), tc.fieldValue)
+			urequire.True(t, found, "record found")
 			uassert.Equal(t, tc.id, r.ID())
 			uassert.Equal(t, tc.key, r.Key())
-			uassert.Equal(t, tc.fieldValue, r.MustGet(fieldName))
+			uassert.Equal(t, tc.fieldValue, r.MustGet("name"))
 		})
 	}
 }

@@ -20,11 +20,13 @@
 //
 // Example usage:
 //
+//	import "gno.land/p/moul/collection"
+//
 //	var db datastore.Datastore
 //
 //	// Define a unique case insensitive index for user emails
 //	emailIdx := datastore.NewIndex("email", func(r datastore.Record) string {
-//		return r.MustGet("email").(string)
+//	  return r.MustGet("email").(string)
 //	}).Unique().CaseInsensitive()
 //
 //	// Create a new storage for user records
@@ -38,15 +40,18 @@
 //	user.Save()
 //
 //	// Find user by email
-//	user = storage.WithIndex("email").GetFirst("foo@bar.org")
+//	user, _ = storage.GetRecord("email", "foo@bar.org")
 //
 //	// Find user by ID
-//	user = storage.GetFirst(user.Key())
+//	user, _ = storage.GetRecord(collection.IDIndex, user.Key())
 //
 //	// Search user's profile by email in another existing storage
 //	storage = db.GetStorage("profiles")
 //	email := user.MustGet("email").(string)
-//	profile := storage.WithIndex("user").GetFirst(email)
+//	profile, found := storage.GetRecord("user", email)
+//	if !found {
+//	  panic("profile not found")
+//	}
 //
 //	// Delete the profile from the storage and update indexes
 //	storage.Delete(profile.ID())

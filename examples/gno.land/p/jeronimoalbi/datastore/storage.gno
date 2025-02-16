@@ -1,6 +1,7 @@
 package datastore
 
 import (
+	"errors"
 	"strings"
 
 	"gno.land/p/moul/collection"
@@ -9,10 +10,9 @@ import (
 // NewStorage creates a new records storage.
 func NewStorage(name string, options ...StorageOption) Storage {
 	s := Storage{
-		name:         name,
-		currentIndex: collection.IDIndex,
-		collection:   collection.New(),
-		schema:       NewSchema(strings.Title(name)),
+		name:       name,
+		collection: collection.New(),
+		schema:     NewSchema(strings.Title(name)),
 	}
 
 	for _, apply := range options {
@@ -32,21 +32,14 @@ func NewStorage(name string, options ...StorageOption) Storage {
 // of fields has to be pre-defined or when new records must have
 // one or more fields initialized to default values.
 type Storage struct {
-	name         string
-	currentIndex string
-	collection   *collection.Collection
-	schema       *Schema
+	name       string
+	collection *collection.Collection
+	schema     *Schema
 }
 
 // Name returns storage's name.
 func (s Storage) Name() string {
 	return s.name
-}
-
-// CurrentIndex returns the name of the index that is used
-// by default for search and iteration.
-func (s Storage) CurrentIndex() string {
-	return s.currentIndex
 }
 
 // Collection returns the undelying collection used by the
@@ -89,106 +82,73 @@ func (s Storage) NewRecord() Record {
 	return r
 }
 
-// WithIndex returns a copy of the storage with a different default index.
+// Query returns a recordset that matches the query parameters.
+// By default query selects records using the ID index.
 //
 // Example usage:
 //
-//	// Create a storage that index users by ID (default) and email
-//	storage := NewStorage("users", WithIndex(emailIdx))
+//	// Get 50 records starting from the one at position 100
+//	var records []Record
+//	storage.Query(
+//		ithOffset(100),
+//		ithSize(50),
+//	).Iterate(func (r Record) bool {
+//		records = append(records, r)
+//		return false
+//	})
+func (s Storage) Query(options ...QueryOption) (Recordset, error) {
+	// Initialize records's query
+	rs := recordset{query: defaultQuery}
+	for _, apply := range options {
+		if err := apply(&rs.query); err != nil {
+			return nil, err
+		}
+	}
+
+	// When a custom index is used get the keys of the records that match
+	if name := rs.query.IndexName(); name != collection.IDIndex {
+		idx := s.collection.GetIndex(name)
+		if idx == nil {
+			return nil, errors.New("storage index for query not found: " + name)
+		}
+
+		if v, found := idx.Get(rs.query.IndexKey()); found {
+			rs.keys = castIfaceToRecordKeys(v)
+			if rs.keys == nil {
+				return nil, errors.New("unexpected storage index key format")
+			}
+		}
+	}
+
+	rs.records = s.collection.GetIndex(collection.IDIndex)
+	return rs, nil
+}
+
+// MustQuery returns a recordset that matches the query parameters or panics on error.
+// By default query selects records using the ID index.
+func (s Storage) MustQuery(options ...QueryOption) Recordset {
+	rs, err := s.Query(options...)
+	if err != nil {
+		panic(err)
+	}
+	return rs
+}
+
+// GetRecord returns the first record found for a key within a storage index.
 //
-//	// The "email" index has to be used instead of the default "ID"
-//	// index to search a user by email.
-//	user := storage.WithIndex("email").GetFirst("foo@bar.org")
-func (s Storage) WithIndex(name string) Storage {
-	s.currentIndex = name
-	return s
-}
-
-// Iterate iterates each storage record using the current index.
-func (s Storage) Iterate(start, end string, fn func(Record) bool) bool {
-	idx := s.collection.GetIndex(s.currentIndex)
-	if idx == nil {
-		return false
-	}
-
-	// Actual record references are stored in the ID index
-	recordsIdx := s.collection.GetIndex(collection.IDIndex)
-
-	return idx.Iterate(start, end, func(_ string, v interface{}) bool {
-		keys := castIfaceToRecordKeys(v)
-		if keys == nil {
-			// Skip unknown key formats
-			return false
-		}
-
-		for _, k := range keys {
-			v, found := recordsIdx.Get(k)
-			if !found {
-				continue
-			}
-
-			if fn(v.(Record)) {
-				return true
-			}
-		}
-		return false
-	})
-}
-
-// ReverseIterate iterates each storage record using the current index.
-func (s Storage) ReverseIterate(start, end string, fn func(Record) bool) bool {
-	idx := s.collection.GetIndex(s.currentIndex)
-	if idx == nil {
-		return false
-	}
-
-	// Actual record references are stored in the ID index
-	recordsIdx := s.collection.GetIndex(collection.IDIndex)
-
-	return idx.ReverseIterate(start, end, func(_ string, v interface{}) bool {
-		keys := castIfaceToRecordKeys(v)
-		if keys == nil {
-			// Skip unknown key formats
-			return false
-		}
-
-		for i := len(keys) - 1; i >= 0; i-- {
-			v, found := recordsIdx.Get(keys[i])
-			if !found {
-				continue
-			}
-
-			if fn(v.(Record)) {
-				return true
-			}
-		}
-		return false
-	})
-}
-
-// Get returns all records found for a key searched using current index.
-func (s Storage) Get(key string) []Record {
-	var (
-		records []Record
-		iter    = s.collection.Get(s.currentIndex, key)
-	)
-	for iter.Next() {
-		records = append(records, iter.Value().Obj.(Record))
-	}
-	return records
-}
-
-// GetFirst returns the first record found for a key searched within current index.
-// It returns nil when no records are found for the given key.
-func (s Storage) GetFirst(key string) Record {
+// This is a convenience method to get a single record independently of the index
+// type. A multi index will always return the first record value for the specified
+// key in this case. To get multiple records create a query using a custom index
+// and key vale or use the underlying storage collection.
+func (s Storage) GetRecord(indexName, indexKey string) (_ Record, found bool) {
 	var (
 		record Record
-		iter   = s.collection.Get(s.currentIndex, key)
+		iter   = s.collection.Get(indexName, indexKey)
 	)
 	if iter.Next() {
-		record = iter.Value().Obj.(Record)
+		return iter.Value().Obj.(Record), true
 	}
-	return record
+	return nil, false
 }
 
 // Delete deletes a record from the storage.

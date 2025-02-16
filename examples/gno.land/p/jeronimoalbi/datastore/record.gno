@@ -53,6 +53,21 @@ type (
 		// MustGet returns the value of a record's field or panics when the field is not found.
 		MustGet(field string) interface{}
 	}
+
+	// RecordIterFn defines a type for record iteration functions.
+	RecordIterFn func(Record) (stop bool)
+
+	// Recordset defines an interface that allows iterating multiple records.
+	Recordset interface {
+		// Iterate iterates records in order.
+		Iterate(fn RecordIterFn) (stopped bool)
+
+		// ReverseIterate iterates records in reverse order.
+		ReverseIterate(fn RecordIterFn) (stopped bool)
+
+		// Size returns the number of records in the recordset.
+		Size() int
+	}
 )
 
 type record struct {
@@ -139,4 +154,62 @@ func (r *record) Save() bool {
 		return r.id != 0
 	}
 	return r.collection.Update(r.id, r)
+}
+
+type recordset struct {
+	query   Query
+	records avl.ITree
+	keys    []string
+}
+
+// Iterate iterates records in order.
+func (rs recordset) Iterate(fn RecordIterFn) (stopped bool) {
+	if rs.isUsingCustomIndex() {
+		for _, k := range rs.keys {
+			v, found := rs.records.Get(k)
+			if !found {
+				continue
+			}
+
+			if fn(v.(Record)) {
+				return true
+			}
+		}
+	}
+
+	return rs.records.Iterate("", "", func(_ string, v interface{}) bool {
+		return fn(v.(Record))
+	})
+}
+
+// ReverseIterate iterates records in reverse order.
+func (rs recordset) ReverseIterate(fn RecordIterFn) (stopped bool) {
+	if rs.isUsingCustomIndex() {
+		for i := len(rs.keys) - 1; i >= 0; i-- {
+			v, found := rs.records.Get(rs.keys[i])
+			if !found {
+				continue
+			}
+
+			if fn(v.(Record)) {
+				return true
+			}
+		}
+	}
+
+	return rs.records.ReverseIterate("", "", func(_ string, v interface{}) bool {
+		return fn(v.(Record))
+	})
+}
+
+// Size returns the number of records in the recordset.
+func (rs recordset) Size() int {
+	if rs.isUsingCustomIndex() {
+		return len(rs.keys)
+	}
+	return rs.records.Size()
+}
+
+func (rs recordset) isUsingCustomIndex() bool {
+	return rs.query.IndexName() != collection.IDIndex
 }

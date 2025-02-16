@@ -6,8 +6,6 @@ import (
 	"gno.land/p/demo/avl"
 )
 
-// TODO: Write unit test for Datastore
-
 // ErrStorageExists indicates that a storage exists with the same name.
 var ErrStorageExists = errors.New("a storage with the same name exists")
 
@@ -21,9 +19,7 @@ var ErrStorageExists = errors.New("a storage with the same name exists")
 //	storage := db.CreateStorage("users")
 //
 //	// Get a storage that has been created before
-//	// and search a user by record ID.
-//	storage = db.GetStorage("users")
-//	user := storage.GetFirst(user.Key())
+//	storage = db.GetStorage("profiles")
 type Datastore struct {
 	storages avl.Tree // string(name) -> *Storage
 }
