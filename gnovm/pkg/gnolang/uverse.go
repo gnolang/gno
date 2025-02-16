@@ -638,7 +638,7 @@ func makeUverseNode() {
 				T: IntType,
 				V: nil,
 			}
-			res0.SetInt(arg0.TV.GetCapacity())
+			res0.SetInt(int64(arg0.TV.GetCapacity()))
 			m.PushValue(res0)
 			return
 		},
@@ -694,7 +694,7 @@ func makeUverseNode() {
 						T: IntType,
 						V: nil,
 					}
-					res0.SetInt(minl)
+					res0.SetInt(int64(minl))
 					m.PushValue(res0)
 					return
 				case *SliceType:
@@ -720,7 +720,7 @@ func makeUverseNode() {
 						T: IntType,
 						V: nil,
 					}
-					res0.SetInt(minl)
+					res0.SetInt(int64(minl))
 					m.PushValue(res0)
 					return
 				case *NativeType:
@@ -792,7 +792,7 @@ func makeUverseNode() {
 				T: IntType,
 				V: nil,
 			}
-			res0.SetInt(arg0.TV.GetLength())
+			res0.SetInt(int64(arg0.TV.GetLength()))
 			m.PushValue(res0)
 			return
 		},
@@ -815,7 +815,7 @@ func makeUverseNode() {
 				et := bt.Elem()
 				if vargsl == 1 {
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
-					li := lv.ConvertGetInt()
+					li := int(lv.ConvertGetInt())
 					if et.Kind() == Uint8Kind {
 						arrayValue := m.Alloc.NewDataArray(li)
 						m.PushValue(TypedValue{
@@ -841,9 +841,9 @@ func makeUverseNode() {
 					}
 				} else if vargsl == 2 {
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
-					li := lv.ConvertGetInt()
+					li := int(lv.ConvertGetInt())
 					cv := vargs.TV.GetPointerAtIndexInt(m.Store, 1).Deref()
-					ci := cv.ConvertGetInt()
+					ci := int(cv.ConvertGetInt())
 
 					if ci < li {
 						panic(&Exception{Value: typedString(`makeslice: cap out of range`)})
@@ -897,7 +897,7 @@ func makeUverseNode() {
 					return
 				} else if vargsl == 1 {
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
-					li := lv.ConvertGetInt()
+					li := int(lv.ConvertGetInt())
 					m.PushValue(TypedValue{
 						T: tt,
 						V: m.Alloc.NewMap(li),
@@ -927,7 +927,7 @@ func makeUverseNode() {
 						return
 					} else if vargsl == 1 {
 						sv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
-						si := sv.ConvertGetInt()
+						si := int(sv.ConvertGetInt())
 						m.PushValue(TypedValue{
 							T: tt,
 							V: m.Alloc.NewNative(

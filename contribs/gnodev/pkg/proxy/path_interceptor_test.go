@@ -3,6 +3,7 @@ package proxy_test
 import (
 	"net"
 	"net/http"
+	"path"
 	"path/filepath"
 	"testing"
 
@@ -86,7 +87,7 @@ func TestProxy(t *testing.T) {
 		cli, err := client.NewHTTPClient(interceptor.TargetAddress())
 		require.NoError(t, err)
 
-		res, err := cli.ABCIQuery("vm/qfile", []byte(filepath.Join(targetPath, "foo.gno")))
+		res, err := cli.ABCIQuery("vm/qfile", []byte(path.Join(targetPath, "foo.gno")))
 		require.NoError(t, err)
 		assert.Nil(t, res.Response.Error)
 
