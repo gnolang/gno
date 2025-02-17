@@ -312,7 +312,10 @@ func EditReply(boardID BoardID, threadID, replyID PostID, body string) {
 // A role can optionally be specified to be assigned to the new member.
 // Board ID is only required when inviting a member to a board.
 func InviteMember(boardID BoardID, user std.Address, role Role) {
-	tryAssertBoardIsNotFrozen(boardID)
+	if boardID != 0 {
+		board := mustGetBoard(boardID)
+		assertBoardIsNotFrozen(board)
+	}
 
 	perms := mustGetPermissions(boardID)
 	caller := std.GetOrigCaller()
@@ -328,7 +331,10 @@ func InviteMember(boardID BoardID, user std.Address, role Role) {
 //
 // Board ID is only required when removing a member from board.
 func RemoveMember(boardID BoardID, user std.Address) {
-	tryAssertBoardIsNotFrozen(boardID)
+	if boardID != 0 {
+		board := mustGetBoard(boardID)
+		assertBoardIsNotFrozen(board)
+	}
 
 	perms := mustGetPermissions(boardID)
 	caller := std.GetOrigCaller()
@@ -343,7 +349,10 @@ func RemoveMember(boardID BoardID, user std.Address) {
 //
 // Board ID is only required when checking if a user is a member of a board.
 func IsMember(boardID BoardID, user std.Address) bool {
-	tryAssertBoardIsNotFrozen(boardID)
+	if boardID != 0 {
+		board := mustGetBoard(boardID)
+		assertBoardIsNotFrozen(board)
+	}
 
 	perms := mustGetPermissions(boardID)
 	return perms.HasUser(user)
@@ -353,7 +362,10 @@ func IsMember(boardID BoardID, user std.Address) bool {
 //
 // Board ID is only required when checking a member of a board.
 func HasMemberRole(boardID BoardID, member std.Address, role Role) bool {
-	tryAssertBoardIsNotFrozen(boardID)
+	if boardID != 0 {
+		board := mustGetBoard(boardID)
+		assertBoardIsNotFrozen(board)
+	}
 
 	perms := mustGetPermissions(boardID)
 	return perms.HasRole(member, role)
@@ -363,7 +375,10 @@ func HasMemberRole(boardID BoardID, member std.Address, role Role) bool {
 //
 // Board ID is only required when changing the role for a member of a board.
 func ChangeMemberRole(boardID BoardID, member std.Address, role Role) {
-	tryAssertBoardIsNotFrozen(boardID)
+	if boardID != 0 {
+		board := mustGetBoard(boardID)
+		assertBoardIsNotFrozen(board)
+	}
 
 	perms := mustGetPermissions(boardID)
 	caller := std.GetOrigCaller()
@@ -390,13 +405,6 @@ func assertBoardExists(id BoardID) {
 func assertBoardIsNotFrozen(b *Board) {
 	if b.IsReadOnly() {
 		panic("board is frozen")
-	}
-}
-
-func tryAssertBoardIsNotFrozen(bid BoardID) {
-	if bid != 0 {
-		board := mustGetBoard(bid)
-		assertBoardIsNotFrozen(board)
 	}
 }
 
