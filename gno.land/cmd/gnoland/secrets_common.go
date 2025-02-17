@@ -6,8 +6,6 @@ import (
 	"os"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
-	"github.com/gnolang/gno/tm2/pkg/bft/privval/state"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
@@ -38,10 +36,6 @@ func isValidDirectory(dirPath string) bool {
 
 	// Check if the path is indeed a directory
 	return fileInfo.IsDir()
-}
-
-type secretData interface {
-	signer.FileKey | state.FileState | types.NodeKey
 }
 
 // readNodeKey reads the NodeKey from the given path

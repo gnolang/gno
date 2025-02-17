@@ -85,7 +85,7 @@ func LoadFileKey(filePath string) (*FileKey, error) {
 	fk := &FileKey{}
 	err = amino.UnmarshalJSON(rawJSONBytes, &fk)
 	if err != nil {
-		return nil, fmt.Errorf("unable to unmarshal FileKey from %v: %v", filePath, err)
+		return nil, fmt.Errorf("unable to unmarshal FileKey from %v: %w", filePath, err)
 	}
 
 	// Manually set the private file path.

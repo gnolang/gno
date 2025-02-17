@@ -188,7 +188,7 @@ func TestSignVote(t *testing.T) {
 	t.Run("signer Sign error", func(t *testing.T) {
 		t.Parallel()
 
-		// Instanciate a new PrivValidator.
+		// Instantiate a new PrivValidator.
 		statePath := path.Join(t.TempDir(), "state")
 		pv, err := NewPrivValidator(types.NewMockSigner(), statePath)
 		require.NotNil(t, pv)
@@ -328,7 +328,7 @@ func TestSignProposal(t *testing.T) {
 	t.Run("signer Sign error", func(t *testing.T) {
 		t.Parallel()
 
-		// Instanciate a new PrivValidator.
+		// Instantiate a new PrivValidator.
 		statePath := path.Join(t.TempDir(), "state")
 		pv, err := NewPrivValidator(types.NewMockSigner(), statePath)
 		require.NotNil(t, pv)
@@ -429,7 +429,7 @@ func TestNewPrivValidator(t *testing.T) {
 			statePath = path.Join(t.TempDir(), "state")
 		)
 
-		// Instanciate PrivValidator with signer1.
+		// Instantiate PrivValidator with signer1.
 		pv, err := NewPrivValidator(signer1, statePath)
 		require.NotNil(t, pv)
 		require.NoError(t, err)
@@ -440,7 +440,7 @@ func TestNewPrivValidator(t *testing.T) {
 		}
 		pv.SignVote(chainID, vote)
 
-		// Instanciate PrivValidator with signer2
+		// Instantiate PrivValidator with signer2
 		pv, err = NewPrivValidator(signer2, statePath)
 		require.Nil(t, pv)
 		require.ErrorIs(t, err, errSignatureMismatch)

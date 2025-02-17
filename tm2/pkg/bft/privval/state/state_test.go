@@ -17,11 +17,15 @@ func TestStepToVote(t *testing.T) {
 	t.Parallel()
 
 	t.Run("valid step conversion", func(t *testing.T) {
+		t.Parallel()
+
 		require.NotPanics(t, func() { VoteTypeToStep(types.PrevoteType) })
 		require.NotPanics(t, func() { VoteTypeToStep(types.PrecommitType) })
 	})
 
 	t.Run("invalid step conversion", func(t *testing.T) {
+		t.Parallel()
+
 		require.Panics(t, func() { VoteTypeToStep(types.ProposalType) })
 		require.Panics(t, func() { VoteTypeToStep(4) })
 	})

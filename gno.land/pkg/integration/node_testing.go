@@ -11,7 +11,6 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
-	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -83,7 +82,7 @@ func TestingMinimalNodeConfig(gnoroot string) *gnoland.InMemoryNodeConfig {
 	tmconfig := DefaultTestingTMConfig(gnoroot)
 
 	// Create Mocked Identity
-	pv := types.NewMockPV()
+	pv := bft.NewMockPV()
 
 	// Get identity pubkey
 	pk, err := pv.PubKey()

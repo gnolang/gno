@@ -38,10 +38,10 @@ func (pvba PrivValidatorsByAddress) Less(i int, j int) bool {
 }
 
 // Swap implements sort.Interface.
-func (sba PrivValidatorsByAddress) Swap(i int, j int) {
-	it := sba[i]
-	sba[i] = sba[j]
-	sba[j] = it
+func (pvba PrivValidatorsByAddress) Swap(i int, j int) {
+	it := pvba[i]
+	pvba[i] = pvba[j]
+	pvba[j] = it
 }
 
 // mockPV implements PrivValidator without any safety or persistence.

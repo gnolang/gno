@@ -216,7 +216,7 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		// Load existing or generate a new private validator key
 		fileKey, err := signer.NewFileKey(cfg.PrivValidatorKeyFile())
 		if err != nil {
-			return fmt.Errorf("unable to instanciate validator key: %w", err)
+			return fmt.Errorf("unable to instantiate validator key: %w", err)
 		}
 
 		// Init a new genesis.json

@@ -229,7 +229,6 @@ func (fs *FileState) validate() error {
 			// Invalid Step.
 			return errInvalidSignStateSignBytes
 		}
-
 	}
 
 	// Make sure the signature is not set if the sign bytes are not set.
@@ -275,7 +274,7 @@ func LoadFileState(filePath string) (*FileState, error) {
 	fs := &FileState{}
 	err = amino.UnmarshalJSON(rawJSONBytes, &fs)
 	if err != nil {
-		return nil, fmt.Errorf("unable to unmarshal FileState from %v: %v", filePath, err)
+		return nil, fmt.Errorf("unable to unmarshal FileState from %s: %w", filePath, err)
 	}
 
 	// Manually set the private file path.
