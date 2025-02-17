@@ -52,7 +52,7 @@ func (cn *ColumnNode) Len() int {
 func (n *ColumnNode) Dump(source []byte, level int) {
 	kv := make(map[string]string)
 	kv["tag"] = columnTagNames[n.Tag]
-	kv["head_ref"] = strconv.Itoa(n.ctx.headingLevel)
+	kv["head_ref"] = strconv.Itoa(n.ctx.refHeadingLevel)
 	if n.Tag == ColumnTagSep {
 		kv["index"] = strconv.Itoa(n.Index)
 	}
@@ -86,9 +86,9 @@ var columnContextKey = parser.NewContextKey()
 
 // columnContext struct and its methods are used for handling column context.
 type columnContext struct {
-	initilized   bool
-	index        int
-	headingLevel int // serve as level reference for separator
+	initilized      bool
+	index           int
+	refHeadingLevel int // serve as level reference for separator
 }
 
 func (ctx *columnContext) Init() {
@@ -140,6 +140,8 @@ func getColumnContext(pc parser.Context) *columnContext {
 
 // Open function opens a new column node based on the separator kind.
 func (s *columnParser) Open(self ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
+	const MaxHeading = 6
+
 	cctx := getColumnContext(pc)
 
 	line, segment := reader.PeekLine()
@@ -156,15 +158,19 @@ func (s *columnParser) Open(self ast.Node, reader text.Reader, pc parser.Context
 			return nil, parser.NoChildren
 		}
 
-		level, maxLevel := 0, min(len(line), 6) // maximum level heading is 6
+		level, maxLevel := 1, min(len(line), MaxHeading+1)
 		for level < maxLevel && line[level] == '#' {
 			level++
 		}
 
-		if cctx.headingLevel == 0 {
+		switch {
+		case level >= MaxHeading:
+			// Level is beyond the maximum one, ignore this heading
+			return nil, parser.NoChildren
+		case cctx.refHeadingLevel == 0:
 			// Register first header as reference
-			cctx.headingLevel = level
-		} else if cctx.headingLevel != level {
+			cctx.refHeadingLevel = level
+		case cctx.refHeadingLevel != level:
 			// If heading level reference is different, skip it
 			return nil, parser.NoChildren
 		}

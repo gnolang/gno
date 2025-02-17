@@ -75,21 +75,21 @@ content 3
 		{
 			Name: "sticky header",
 			Input: `
-<gno-column>
+<gno-columns>
 ## Title 1
 content 1
 ## Title 2
 content 2
 ## Title 3
 content 3
-</gno-column>
+</gno-columns>
 `,
 		},
 
 		{
 			Name: "multi level",
 			Input: `
-<gno-column>
+<gno-columns>
 # Title 1
 content 1
 ## Title 2
@@ -98,14 +98,14 @@ content 2
 content 3
 #### Title 4
 content 4
-</gno-column>
+</gno-columns>
 `,
 		},
 
 		{
 			Name: "multi level 2",
 			Input: `
-<gno-column>
+<gno-columns>
 ## Title 1
 content 1
 # Title 2
@@ -114,7 +114,22 @@ content 2
 content 3
 # Title 4
 content 4
-</gno-column>
+</gno-columns>
+`,
+		},
+
+		{
+			"maximum level heading", `
+<gno-columns>
+###### Title 1
+content 1
+## Title 2
+content 2
+###### Title 3
+content 3
+## Title 4
+content 4
+</gno-columns>
 `,
 		},
 
@@ -174,6 +189,21 @@ content 2
 content 1
 ## Title 2
 content 2
+</gno-columns>
+`,
+		},
+
+		{
+			"beyond maximum level heading", `
+<gno-columns>
+####### Title 1
+content 1
+## Title 2
+content 2
+####### Title 3
+content 3
+## Title 4
+content 4
 </gno-columns>
 `,
 		},

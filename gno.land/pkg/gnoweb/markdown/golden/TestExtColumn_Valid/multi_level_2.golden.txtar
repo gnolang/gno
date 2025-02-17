@@ -1,5 +1,5 @@
 -- input.md --
-<gno-column>
+<gno-columns>
 ## Title 1
 content 1
 # Title 2
@@ -8,23 +8,23 @@ content 2
 content 3
 # Title 4
 content 4
-</gno-column>
+</gno-columns>
 
 -- output.html --
-<div class="cols-start cols-2">
+<div class="gno-cols">
 <!-- Column 1 -->
-<div class="col">
+<div class="gno-col">
 <h2>Title 1</h2>
 <p>content 1</p>
 <h1>Title 2</h1>
 <p>content 2</p>
 </div>
 <!-- Column 2 -->
-<div class="col">
+<div class="gno-col">
 <h2>Title 3</h2>
 <p>content 3</p>
 <h1>Title 4</h1>
 <p>content 4</p>
 </div>
-</div class="cols-end">
+</div>
 
