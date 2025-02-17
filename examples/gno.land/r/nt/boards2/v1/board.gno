@@ -32,6 +32,7 @@ type Board struct {
 	createdAt time.Time
 	deleted   avl.Tree // TODO reserved for fast-delete.
 	perms     Permissions
+	readOnly  bool
 }
 
 func newBoard(id BoardID, name string, creator std.Address) *Board {
@@ -64,6 +65,16 @@ func (board *Board) GetPath() string {
 
 func (board *Board) GetPermissions() Permissions {
 	return board.perms
+}
+
+// SetReadOnly updates board's read-only status.
+func (board *Board) SetReadOnly(readOnly bool) {
+	board.readOnly = readOnly
+}
+
+// IsReadOnly checks if the board is a read-only board.
+func (board *Board) IsReadOnly() bool {
+	return board.readOnly
 }
 
 func (board *Board) GetThread(threadID PostID) (_ *Post, found bool) {
