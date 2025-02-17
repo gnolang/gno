@@ -112,9 +112,9 @@ func parseSeparator(ctx *columnContext, line []byte) ColumnTag {
 	}
 
 	switch string(line) {
-	case "<gno-column>":
+	case "<gno-columns>":
 		return ColumnTagOpen
-	case "</gno-column>":
+	case "</gno-columns>":
 		return ColumnTagClose
 	case ":::":
 		if ctx.initilized {

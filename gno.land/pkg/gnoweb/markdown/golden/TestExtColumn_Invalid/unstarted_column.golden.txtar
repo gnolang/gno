@@ -3,7 +3,7 @@
 content 1
 ## Title 2
 content 2
-</gno-column>
+</gno-columns>
 
 -- output.html --
 <h2>Title 1</h2>

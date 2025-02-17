@@ -14,7 +14,7 @@ func TestExtColumn_Valid(t *testing.T) {
 		{
 			Name: "basic",
 			Input: `
-<gno-column>
+<gno-columns>
 ## Title 1
 
 content 1
@@ -26,7 +26,7 @@ content 2
 ## Title 3
 
 content 3
-</gno-column>
+</gno-columns>
 
 `,
 		},
@@ -34,7 +34,7 @@ content 3
 		{
 			Name: "empty heading",
 			Input: `
-<gno-column>
+<gno-columns>
 ## Title 1
 
 content 1
@@ -46,7 +46,7 @@ content 2
 ## Title 3
 
 content 3
-</gno-column>
+</gno-columns>
 
 `,
 		},
@@ -103,8 +103,8 @@ content 4
 		{
 			Name: "no column",
 			Input: `
-<gno-column>
-</gno-column>
+<gno-columns>
+</gno-columns>
 `,
 		},
 	}
@@ -126,7 +126,7 @@ func TestExtColumn_Invalid(t *testing.T) {
 	}{
 		{
 			Name:  "inline tag",
-			Input: `<gno-column></gno-column>`,
+			Input: `<gno-columns></gno-columns>`,
 		},
 
 		{
@@ -137,7 +137,7 @@ func TestExtColumn_Invalid(t *testing.T) {
 		{
 			Name: "unfinished column",
 			Input: `
-<gno-column>
+<gno-columns>
 ## Title 1
 content 1
 ## Title 2
@@ -151,7 +151,7 @@ content 2
 content 1
 ## Title 2
 content 2
-</gno-column>
+</gno-columns>
 `,
 		},
 	}
