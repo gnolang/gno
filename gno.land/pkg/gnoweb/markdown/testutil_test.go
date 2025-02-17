@@ -19,7 +19,10 @@ import (
 
 const testdataDir = "golden"
 
-var update = flag.Bool("update-golden-file", false, "update golden files")
+var (
+	update = flag.Bool("update-golden-file", false, "update golden files")
+	dump   = flag.Bool("dump", false, "dump ast tree after parsing")
+)
 
 var makedir = sync.Map{}
 
@@ -49,7 +52,9 @@ func testGoldamarkGoldenOuput(t *testing.T, m goldmark.Markdown, input string) {
 		text.NewReader(source),
 	)
 
-	// node.Dump(source, 1)
+	if *dump {
+		node.Dump(source, 1)
+	}
 
 	var buf bytes.Buffer
 	m.Renderer().Render(&buf, source, node)
@@ -78,5 +83,5 @@ func testGoldamarkGoldenOuput(t *testing.T, m goldmark.Markdown, input string) {
 	}
 
 	require.NoError(t, err)
-	assert.Equal(t, expected, golden.Bytes())
+	assert.Equal(t, string(expected), golden.String())
 }

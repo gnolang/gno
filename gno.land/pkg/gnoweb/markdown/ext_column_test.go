@@ -7,6 +7,8 @@ import (
 )
 
 func TestExtColumn_Valid(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		Name  string
 		Input string
@@ -73,21 +75,21 @@ content 3
 		{
 			Name: "sticky header",
 			Input: `
-:::
+<gno-column>
 ## Title 1
 content 1
 ## Title 2
 content 2
 ## Title 3
 content 3
-:::
+</gno-column>
 `,
 		},
 
 		{
 			Name: "multi level",
 			Input: `
-:::
+<gno-column>
 # Title 1
 content 1
 ## Title 2
@@ -96,7 +98,23 @@ content 2
 content 3
 #### Title 4
 content 4
-:::
+</gno-column>
+`,
+		},
+
+		{
+			Name: "multi level 2",
+			Input: `
+<gno-column>
+## Title 1
+content 1
+# Title 2
+content 2
+## Title 3
+content 3
+# Title 4
+content 4
+</gno-column>
 `,
 		},
 
@@ -114,12 +132,17 @@ content 4
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
 			testGoldamarkGoldenOuput(t, m, tc.Input)
 		})
 	}
 }
 
+// Invalid format should still have a predictable output
 func TestExtColumn_Invalid(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		Name  string
 		Input string
@@ -161,6 +184,8 @@ content 2
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
 			testGoldamarkGoldenOuput(t, m, tc.Input)
 		})
 	}

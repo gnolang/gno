@@ -35,10 +35,9 @@ var columnTagNames = map[ColumnTag]string{
 // ColumnNode represents a semantic tree for "column".
 type ColumnNode struct {
 	ast.BaseBlock
-	Index   int
-	SepKind byte
-	Tag     ColumnTag
-	ctx     *columnContext
+	Index int
+	Tag   ColumnTag
+	ctx   *columnContext
 }
 
 // Len function returns the length of the context index if it exists
@@ -53,6 +52,7 @@ func (cn *ColumnNode) Len() int {
 func (n *ColumnNode) Dump(source []byte, level int) {
 	kv := make(map[string]string)
 	kv["tag"] = columnTagNames[n.Tag]
+	kv["head_ref"] = strconv.Itoa(n.ctx.headingLevel)
 	if n.Tag == ColumnTagSep {
 		kv["index"] = strconv.Itoa(n.Index)
 	}
@@ -77,12 +77,6 @@ func NewColumn(ctx *columnContext, tag ColumnTag) *ColumnNode {
 // columnParser struct and its methods are used for parsing columns.
 type columnParser struct{}
 
-var defaultColumnParser = &columnParser{}
-
-func NewColumnBlockParser() parser.BlockParser {
-	return defaultColumnParser
-}
-
 // Trigger returns the trigger characters for the parser.
 func (s *columnParser) Trigger() []byte {
 	return []byte{':', '<', '#'}
@@ -92,9 +86,9 @@ var columnContextKey = parser.NewContextKey()
 
 // columnContext struct and its methods are used for handling column context.
 type columnContext struct {
-	initilized      bool
-	index           int
-	colHeadingLevel int
+	initilized   bool
+	index        int
+	headingLevel int // serve as level reference for separator
 }
 
 func (ctx *columnContext) Init() {
@@ -103,7 +97,6 @@ func (ctx *columnContext) Init() {
 
 func (ctx *columnContext) Destroy() {
 	ctx.initilized = false
-	ctx.colHeadingLevel = 0
 }
 
 func (ctx *columnContext) SpanColumn() { ctx.index++ }
@@ -129,21 +122,7 @@ func parseSeparator(ctx *columnContext, line []byte) ColumnTag {
 	}
 
 	if line[0] == '#' {
-		if !ctx.initilized {
-			return ColumnTagUndefined
-		}
-
-		i := 0
-		for i < len(line) && line[i] == '#' {
-			i++
-		}
-		if ctx.colHeadingLevel == 0 {
-			ctx.colHeadingLevel = i
-		}
-		if i == ctx.colHeadingLevel {
-			return ColumnTagSep
-		}
-		return ColumnTagUndefined
+		return ColumnTagSep
 	}
 
 	return ColumnTagUndefined
@@ -172,27 +151,43 @@ func (s *columnParser) Open(self ast.Node, reader text.Reader, pc parser.Context
 
 	node := NewColumn(cctx, tagKind)
 	switch tagKind {
+	case ColumnTagSep:
+		if !cctx.initilized {
+			return nil, parser.NoChildren
+		}
+
+		level, maxLevel := 0, min(len(line), 6) // maximum level heading is 6
+		for level < maxLevel && line[level] == '#' {
+			level++
+		}
+
+		if cctx.headingLevel == 0 {
+			// Register first header as reference
+			cctx.headingLevel = level
+		} else if cctx.headingLevel != level {
+			// If heading level reference is different, skip it
+			return nil, parser.NoChildren
+		}
+
+		cctx.SpanColumn()
+
+		if trimed := util.TrimLeft(line[level:], []byte{' ', '\n'}); len(trimed) == 0 {
+			// empty heading, create a column separtor and skip the parsing
+			reader.Advance(segment.Len())
+			return node, parser.NoChildren
+		}
+
+		// Insert a column separtor but return an empty node so we can
+		// let the parser parse the heading
+		self.InsertBefore(self, self.PreviousSibling(), node)
+		return nil, parser.NoChildren
+
 	case ColumnTagOpen:
 		if cctx.initilized {
 			return nil, parser.NoChildren
 		}
 
 		cctx.Init()
-
-	case ColumnTagSep:
-		if !cctx.initilized {
-			return nil, parser.NoChildren
-		}
-
-		cctx.SpanColumn()
-
-		if trimed := util.TrimLeft(line, []byte{'#', ' ', '\n'}); len(trimed) == 0 {
-			reader.Advance(segment.Len()) // We can skip this one
-			return node, parser.NoChildren
-		}
-
-		self.InsertBefore(self, self.PreviousSibling(), node)
-		return nil, parser.NoChildren
 
 	case ColumnTagClose:
 		if !cctx.initilized {
@@ -261,15 +256,9 @@ func columnRender(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast
 	return ast.WalkContinue, nil
 }
 
-type ColumnASTTransformer struct{}
+type columnASTTransformer struct{}
 
-// NewTableParagraphTransformer returns  a new ParagraphTransformer
-// that can transform paragraphs into tables.
-func NewColumnASTTransformer() parser.ASTTransformer {
-	return &ColumnASTTransformer{}
-}
-
-func (a *ColumnASTTransformer) Transform(node *ast.Document, reader text.Reader, pc parser.Context) {
+func (a *columnASTTransformer) Transform(node *ast.Document, reader text.Reader, pc parser.Context) {
 	cctx := getColumnContext(pc)
 	if !cctx.initilized {
 		return
@@ -300,10 +289,10 @@ var Column = &column{}
 func (e *column) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(
 		parser.WithBlockParsers(
-			util.Prioritized(NewColumnBlockParser(), 500),
+			util.Prioritized(&columnParser{}, 500),
 		),
 		parser.WithASTTransformers(
-			util.Prioritized(NewColumnASTTransformer(), 500),
+			util.Prioritized(&columnASTTransformer{}, 500),
 		),
 	)
 	m.Renderer().AddOptions(renderer.WithNodeRenderers(
