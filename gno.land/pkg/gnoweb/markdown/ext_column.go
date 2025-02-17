@@ -41,28 +41,28 @@ type ColumnNode struct {
 }
 
 // Len returns the length of the context index if it exists.
-func (cn *ColumnNode) Len() int {
-	if cn.ctx != nil {
-		return cn.ctx.index
+func (n *ColumnNode) Len() int {
+	if n.ctx != nil {
+		return n.ctx.index
 	}
 	return 0
 }
 
 // Dump implements Node.Dump.
-func (cn *ColumnNode) Dump(source []byte, level int) {
+func (n *ColumnNode) Dump(source []byte, level int) {
 	kv := map[string]string{
-		"tag":      columnTagNames[cn.Tag],
-		"head_ref": strconv.Itoa(cn.ctx.refHeadingLevel),
+		"tag":      columnTagNames[n.Tag],
+		"head_ref": strconv.Itoa(n.ctx.refHeadingLevel),
 	}
-	if cn.Tag == ColumnTagSep {
-		kv["index"] = strconv.Itoa(cn.Index)
+	if n.Tag == ColumnTagSep {
+		kv["index"] = strconv.Itoa(n.Index)
 	}
 
-	ast.DumpHelper(cn, source, level, kv, nil)
+	ast.DumpHelper(n, source, level, kv, nil)
 }
 
 // Kind implements Node.Kind.
-func (cn *ColumnNode) Kind() ast.NodeKind {
+func (*ColumnNode) Kind() ast.NodeKind {
 	return KindColumn
 }
 
@@ -79,7 +79,7 @@ func NewColumn(ctx *columnContext, tag ColumnTag) *ColumnNode {
 type columnParser struct{}
 
 // Trigger returns the trigger characters for the parser.
-func (s *columnParser) Trigger() []byte {
+func (*columnParser) Trigger() []byte {
 	return []byte{':', '<', '#'}
 }
 
@@ -141,7 +141,7 @@ func getColumnContext(pc parser.Context) *columnContext {
 }
 
 // Open opens a new column node based on the separator kind.
-func (s *columnParser) Open(self ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
+func (p *columnParser) Open(self ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	const MaxHeading = 6
 
 	cctx := getColumnContext(pc)
@@ -208,22 +208,21 @@ func (s *columnParser) Open(self ast.Node, reader text.Reader, pc parser.Context
 	return node, parser.NoChildren
 }
 
-func (b *columnParser) Continue(n ast.Node, reader text.Reader, _ parser.Context) parser.State {
+func (*columnParser) Continue(n ast.Node, reader text.Reader, _ parser.Context) parser.State {
 	return parser.Close
 }
 
-func (b *columnParser) Close(_ ast.Node, reader text.Reader, _ parser.Context) {
-}
+func (*columnParser) Close(_ ast.Node, reader text.Reader, _ parser.Context) {}
 
-func (b *columnParser) CanInterruptParagraph() bool {
+func (*columnParser) CanInterruptParagraph() bool {
 	return true
 }
 
-func (b *columnParser) CanAcceptIndentedLine() bool {
+func (*columnParser) CanAcceptIndentedLine() bool {
 	return false
 }
 
-func (s *columnParser) CloseBlock(_ ast.Node, _ parser.Context) {}
+func (*columnParser) CloseBlock(_ ast.Node, _ parser.Context) {}
 
 // columnRender function is used to render the column node.
 func columnRender(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
