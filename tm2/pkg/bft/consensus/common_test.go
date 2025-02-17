@@ -336,8 +336,8 @@ func loadPrivValidator(config *cfg.Config) *privval.PrivValidator {
 		panic(err)
 	}
 	privValidatorStateFile := config.PrivValidatorStateFile()
-	if osm.FileExists(privValidatorKeyFile) {
-		if err := os.Remove(privValidatorKeyFile); err != nil {
+	if osm.FileExists(privValidatorStateFile) {
+		if err := os.Remove(privValidatorStateFile); err != nil {
 			panic(err)
 		}
 	}
@@ -666,14 +666,28 @@ func randConsensusNetWithPeers(nValidators, nPeers int, testName string, tickerF
 		if i < nValidators {
 			privVal = privVals[i]
 		} else {
-			tempKeyFile := path.Join(thisConfig.RootDir, "priv_validator_key")
-			tempStateFile := path.Join(thisConfig.RootDir, "priv_validator_state")
-
-			fileSigner, err := signer.NewLocalSigner(tempKeyFile)
+			tempKeyFile, err := os.CreateTemp("", "priv_validator_key_")
 			if err != nil {
 				panic(err)
 			}
-			privVal, err = privval.NewPrivValidator(fileSigner, tempStateFile)
+			tempStateFile, err := os.CreateTemp("", "priv_validator_state_")
+			if err != nil {
+				panic(err)
+			}
+
+			// Remove both temps files so contructors won't try to restore invalide files
+			if err := os.Remove(tempKeyFile.Name()); err != nil {
+				panic(err)
+			}
+			if err := os.Remove(tempStateFile.Name()); err != nil {
+				panic(err)
+			}
+
+			fileSigner, err := signer.NewLocalSigner(tempKeyFile.Name())
+			if err != nil {
+				panic(err)
+			}
+			privVal, err = privval.NewPrivValidator(fileSigner, tempStateFile.Name())
 			if err != nil {
 				panic(err)
 			}
