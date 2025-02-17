@@ -133,11 +133,6 @@ type Object interface {
 	SetIsNewEscaped(bool)
 	GetIsNewDeleted() bool
 	SetIsNewDeleted(bool)
-	GetIsTransient() bool
-
-	// Saves to realm along the way if owned, and also (dirty
-	// or new).
-	// ValueImage(rlm *Realm, owned bool) *ValueImage
 }
 
 var (
@@ -196,15 +191,6 @@ func (oi *ObjectInfo) Copy() ObjectInfo {
 		ModTime:   oi.ModTime,
 		RefCount:  oi.RefCount,
 		IsEscaped: oi.IsEscaped,
-		/*
-			// XXX do the following need copying too?
-			isDirty:          oi.isDirty,
-			isDeleted:        oi.isDeleted,
-			isNewReal:        oi.isNewReal,
-			isNewEscaped:     oi.isNewEscaped,
-			isNewDeleted:     oi.isNewDeleted,
-			originRealm: oi.originRealm,
-		*/
 	}
 }
 
@@ -381,10 +367,6 @@ func (oi *ObjectInfo) GetIsNewDeleted() bool {
 
 func (oi *ObjectInfo) SetIsNewDeleted(x bool) {
 	oi.isNewDeleted = x
-}
-
-func (oi *ObjectInfo) GetIsTransient() bool {
-	return false
 }
 
 // get first accessible object, maybe containing(parent) object, maybe itself.
