@@ -261,7 +261,6 @@ func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) e
 
 	// Process .gno files to add links
 	if strings.HasSuffix(fileName, ".gno") {
-
 		// Find and process string spans containing gno.land imports
 		lines := strings.Split(formatted, "\n")
 		for i, line := range lines {
