@@ -10,6 +10,7 @@ const (
 	PermissionBoardCreate         Permission = "board:create"
 	PermissionBoardRename                    = "board:rename"
 	PermissionBoardFlaggingUpdate            = "board:flagging-update"
+	PermissionBoardFreeze                    = "board:freeze"
 	PermissionThreadCreate                   = "thread:create"
 	PermissionThreadEdit                     = "thread:edit"
 	PermissionThreadDelete                   = "thread:delete"
