@@ -16,16 +16,16 @@ content 3
 -- output.html --
 <div class="gno-cols">
 <!-- Column 1 -->
-<div class="gno-col">
+<div>
 <h2>Title 1</h2>
 <p>content 1</p>
 </div>
 <!-- Column 2 -->
-<div class="gno-col">
+<div>
 <p>content 2</p>
 </div>
 <!-- Column 3 -->
-<div class="gno-col">
+<div>
 <h2>Title 3</h2>
 <p>content 3</p>
 </div>

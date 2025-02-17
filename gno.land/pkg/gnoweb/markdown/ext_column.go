@@ -241,9 +241,8 @@ func columnRender(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast
 			fmt.Fprint(w, "</div>\n")
 		}
 
-		classes := []string{"gno-col"}
 		fmt.Fprintf(w, "<!-- Column %d -->\n", cnode.Index+1)
-		fmt.Fprintf(w, `<div class="%s">`+"\n", strings.Join(classes, " "))
+		fmt.Fprintf(w, `<div>`+"\n")
 	case ColumnTagClose:
 		fmt.Fprint(w, "</div>\n</div>\n")
 	default:

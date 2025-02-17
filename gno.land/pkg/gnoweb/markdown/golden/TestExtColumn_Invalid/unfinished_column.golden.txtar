@@ -8,12 +8,12 @@ content 2
 -- output.html --
 <div class="gno-cols">
 <!-- Column 1 -->
-<div class="gno-col">
+<div>
 <h2>Title 1</h2>
 <p>content 1</p>
 </div>
 <!-- Column 2 -->
-<div class="gno-col">
+<div>
 <h2>Title 2</h2>
 <p>content 2</div>
 </div>
