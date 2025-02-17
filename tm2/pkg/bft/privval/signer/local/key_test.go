@@ -74,7 +74,7 @@ func TestSave(t *testing.T) {
 
 		// Create a read-only directory.
 		dirPath := path.Join(t.TempDir(), "read-only")
-		err := os.Mkdir(dirPath, 0444)
+		err := os.Mkdir(dirPath, 0o444)
 		require.NoError(t, err)
 
 		filePath := path.Join(dirPath, "file")
@@ -125,7 +125,7 @@ func TestLoadFileKey(t *testing.T) {
 
 		// Create a file with invalid FileKey JSON.
 		filePath := path.Join(t.TempDir(), "invalid")
-		os.WriteFile(filePath, []byte(`{address:"invalid"}`), 0644)
+		os.WriteFile(filePath, []byte(`{address:"invalid"}`), 0o644)
 
 		fk, err := LoadFileKey(filePath)
 		require.Nil(t, fk)
@@ -182,7 +182,7 @@ func TestNewFileKey(t *testing.T) {
 
 		// Create a read-only directory.
 		dirPath := path.Join(t.TempDir(), "read-only")
-		err := os.Mkdir(dirPath, 0444)
+		err := os.Mkdir(dirPath, 0o444)
 		require.NoError(t, err)
 
 		filePath := path.Join(dirPath, "file")

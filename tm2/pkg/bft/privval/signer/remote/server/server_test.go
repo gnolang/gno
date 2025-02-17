@@ -56,7 +56,7 @@ func TestCloseState(t *testing.T) {
 	t.Parallel()
 
 	// Create a directory for the unix socket.
-	os.MkdirAll(unixSocketPath, 0755)
+	os.MkdirAll(unixSocketPath, 0o755)
 
 	// Remove the directory after the test.
 	t.Cleanup(func() {
@@ -125,7 +125,7 @@ func TestCloseState(t *testing.T) {
 		file, err := os.Create(address)
 		require.NotNil(t, file)
 		require.NoError(t, err)
-		err = file.Chmod(0000)
+		err = file.Chmod(0o000)
 		require.NoError(t, err)
 		require.ErrorIs(t, rss.Start(), ErrListenFailed)
 	})
@@ -135,7 +135,7 @@ func TestServerResponse(t *testing.T) {
 	t.Parallel()
 
 	// Create a directory for the unix socket.
-	os.MkdirAll(unixSocketPath, 0755)
+	os.MkdirAll(unixSocketPath, 0o755)
 
 	// Remove the directory after the test.
 	t.Cleanup(func() {
@@ -255,7 +255,7 @@ func TestServerConnection(t *testing.T) {
 	t.Parallel()
 
 	// Create a directory for the unix socket.
-	os.MkdirAll(unixSocketPath, 0755)
+	os.MkdirAll(unixSocketPath, 0o755)
 
 	// Remove the directory after the test.
 	t.Cleanup(func() {

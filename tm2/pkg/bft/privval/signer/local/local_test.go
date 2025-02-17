@@ -33,7 +33,7 @@ func TestNewLocalSigner(t *testing.T) {
 
 		// Create a read-only directory.
 		dirPath := path.Join(t.TempDir(), "read-only")
-		err := os.Mkdir(dirPath, 0444)
+		err := os.Mkdir(dirPath, 0o444)
 		require.NoError(t, err)
 
 		filePath := path.Join(dirPath, "file")

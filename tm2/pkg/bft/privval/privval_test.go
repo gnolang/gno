@@ -366,7 +366,7 @@ func TestNewPrivValidator(t *testing.T) {
 
 		// Create a read-only directory.
 		dirPath := path.Join(t.TempDir(), "read-only")
-		require.NoError(t, os.Mkdir(dirPath, 0444))
+		require.NoError(t, os.Mkdir(dirPath, 0o444))
 
 		filePath := path.Join(dirPath, "file")
 		pv, err = NewPrivValidator(types.NewMockSigner(), filePath)

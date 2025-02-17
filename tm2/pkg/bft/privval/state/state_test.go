@@ -425,7 +425,7 @@ func TestSave(t *testing.T) {
 
 		// Create a read-only directory.
 		dirPath := path.Join(t.TempDir(), "read-only")
-		err := os.Mkdir(dirPath, 0444)
+		err := os.Mkdir(dirPath, 0o444)
 		require.NoError(t, err)
 
 		filePath := path.Join(dirPath, "file")
@@ -476,7 +476,7 @@ func TestLoadFileState(t *testing.T) {
 
 		// Create a file with invalid FileState JSON.
 		filePath := path.Join(t.TempDir(), "invalid")
-		os.WriteFile(filePath, []byte(`{height:"invalid"}`), 0644)
+		os.WriteFile(filePath, []byte(`{height:"invalid"}`), 0o644)
 
 		fs, err := LoadFileState(filePath)
 		require.Nil(t, fs)
@@ -533,7 +533,7 @@ func TestNewFileState(t *testing.T) {
 
 		// Create a read-only directory.
 		dirPath := path.Join(t.TempDir(), "read-only")
-		err := os.Mkdir(dirPath, 0444)
+		err := os.Mkdir(dirPath, 0o444)
 		require.NoError(t, err)
 
 		filePath := path.Join(dirPath, "file")

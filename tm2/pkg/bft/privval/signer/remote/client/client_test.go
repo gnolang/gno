@@ -58,7 +58,7 @@ func TestCloseState(t *testing.T) {
 	t.Parallel()
 
 	// Create a directory for the unix socket.
-	os.MkdirAll(unixSocketPath, 0755)
+	os.MkdirAll(unixSocketPath, 0o755)
 
 	// Remove the directory after the test.
 	t.Cleanup(func() {
@@ -115,7 +115,7 @@ func TestClientRequest(t *testing.T) {
 	wg := new(sync.WaitGroup)
 
 	// Create a directory for the unix socket.
-	os.MkdirAll(unixSocketPath, 0755)
+	os.MkdirAll(unixSocketPath, 0o755)
 
 	// Remove the directory after the test.
 	t.Cleanup(func() {
@@ -349,7 +349,7 @@ func TestClientConnection(t *testing.T) {
 	wg := new(sync.WaitGroup)
 
 	// Create a directory for the unix socket.
-	os.MkdirAll(unixSocketPath, 0755)
+	os.MkdirAll(unixSocketPath, 0o755)
 
 	// Remove the directory after the test.
 	t.Cleanup(func() {
