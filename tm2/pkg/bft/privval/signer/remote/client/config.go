@@ -128,6 +128,11 @@ func NewRemoteSignerClient(
 		return nil, fmt.Errorf("%w: expected (tcp|unix), got %s", ErrInvalidAddressProtocol, rsc.protocol)
 	}
 
+	// Check if logger is nil.
+	if logger == nil {
+		return nil, ErrNilLogger
+	}
+
 	// Apply all the functional options to configure the client.
 	for _, option := range options {
 		option(rsc)

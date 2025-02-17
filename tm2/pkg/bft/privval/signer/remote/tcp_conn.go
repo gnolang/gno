@@ -15,7 +15,7 @@ import (
 var (
 	ErrUnauthorizedPubKey = errors.New("unauthorized remote public key")
 	ErrSecretConnFailed   = errors.New("secret connection handshake failed")
-	ErrTCPConfigFailed    = errors.New("TCP connection configuration failed")
+	ErrNilConn            = errors.New("nil connection")
 )
 
 // configureTCPConnection configures the linger and keep alive options for a TCP connection.
@@ -28,19 +28,18 @@ func ConfigureTCPConnection(
 	keepAlivePeriod time.Duration,
 	handshakeTimeout time.Duration,
 ) (net.Conn, error) {
-	// Set the linger option to 0 to close the connection immediately.
-	if err := conn.SetLinger(0); err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrTCPConfigFailed, err)
+	// Check if the connection is nil.
+	if conn == nil {
+		return nil, ErrNilConn
 	}
+
+	// Set the linger option to 0 to close the connection immediately.
+	conn.SetLinger(0)
 
 	// If keepAlive duration is not 0, set the keep alive options.
 	if keepAlivePeriod != 0 {
-		if err := conn.SetKeepAlive(true); err != nil {
-			return nil, fmt.Errorf("%w: %w", ErrTCPConfigFailed, err)
-		}
-		if err := conn.SetKeepAlivePeriod(keepAlivePeriod); err != nil {
-			return nil, fmt.Errorf("%w: %w", ErrTCPConfigFailed, err)
-		}
+		conn.SetKeepAlive(true)
+		conn.SetKeepAlivePeriod(keepAlivePeriod)
 	}
 
 	// If handshakeTimeout is not 0, set the deadline for the secret connection handshake.

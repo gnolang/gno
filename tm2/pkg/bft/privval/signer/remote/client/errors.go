@@ -4,15 +4,18 @@ import "errors"
 
 // Errors returned by the remote signer client.
 var (
+	// Init.
+	ErrInvalidAddressProtocol = errors.New("invalid client address protocol")
+	ErrNilLogger              = errors.New("nil logger")
+
 	// Request.
 	ErrSendingRequestFailed  = errors.New("failed to send request")
 	ErrInvalidResponseType   = errors.New("invalid response type")
 	ErrResponseContainsError = errors.New("response contains error")
 
 	// Connection.
-	ErrInvalidAddressProtocol = errors.New("invalid server address protocol")
-	ErrMaxRetriesExceeded     = errors.New("maximum retries exceeded")
+	ErrMaxRetriesExceeded = errors.New("maximum retries exceeded")
 
-	// Misc.
+	// State.
 	ErrClientAlreadyClosed = errors.New("client already closed")
 )

@@ -97,9 +97,9 @@ func NewRemoteSignerServer(
 		listeners:       make([]net.Listener, len(listenAddresses)),
 	}
 
-	// Apply all the functional options to configure the server.
-	for _, option := range options {
-		option(rss)
+	// Check if signer is nil.
+	if signer == nil {
+		return nil, ErrNilSigner
 	}
 
 	// At least one listen address must be provided.
@@ -118,6 +118,16 @@ func NewRemoteSignerServer(
 				protocol,
 			)
 		}
+	}
+
+	// Check if logger is nil.
+	if logger == nil {
+		return nil, ErrNilLogger
+	}
+
+	// Apply all the functional options to configure the server.
+	for _, option := range options {
+		option(rss)
 	}
 
 	return rss, nil

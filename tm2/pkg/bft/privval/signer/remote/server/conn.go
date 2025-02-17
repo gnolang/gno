@@ -161,7 +161,7 @@ func (rss *RemoteSignerServer) handle(request r.RemoteSignerMessage) r.RemoteSig
 	// PubKey request is proxied to the signer.
 	case *r.PubKeyRequest:
 		if pubKey, err := rss.signer.PubKey(); err != nil {
-			return &r.PubKeyResponse{PubKey: nil, Error: err}
+			return &r.PubKeyResponse{PubKey: nil, Error: &r.RemoteSignerError{Err: err.Error()}}
 		} else {
 			return &r.PubKeyResponse{PubKey: pubKey, Error: nil}
 		}
@@ -169,7 +169,7 @@ func (rss *RemoteSignerServer) handle(request r.RemoteSignerMessage) r.RemoteSig
 		// Sign request is proxied to the signer.
 	case *r.SignRequest:
 		if signature, err := rss.signer.Sign(request.SignBytes); err != nil {
-			return &r.SignResponse{Signature: nil, Error: err}
+			return &r.SignResponse{Signature: nil, Error: &r.RemoteSignerError{Err: err.Error()}}
 		} else {
 			return &r.SignResponse{Signature: signature, Error: nil}
 		}

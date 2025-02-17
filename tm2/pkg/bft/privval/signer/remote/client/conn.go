@@ -17,6 +17,11 @@ func (rsc *RemoteSignerClient) ensureConnection() error {
 
 	// Try to establish a connection with the server, retrying if necessary.
 	for try := 0; ; try++ {
+		// Ensure the client is not closed.
+		if rsc.isClosed() {
+			return ErrClientAlreadyClosed
+		}
+
 		// Dial the server.
 		conn, err := net.DialTimeout(rsc.protocol, rsc.address, rsc.dialTimeout)
 		if err != nil {
@@ -98,11 +103,6 @@ func (rsc *RemoteSignerClient) send(request r.RemoteSignerMessage) (r.RemoteSign
 	// resend the request. This loop will break if the attempt to establish the connection
 	// fails, if the client is closed or if the response is received successfully.
 	for {
-		// Ensure the client is not closed.
-		if rsc.isClosed() {
-			return nil, ErrClientAlreadyClosed
-		}
-
 		// Ensure the connection is established.
 		if err := rsc.ensureConnection(); err != nil {
 			return nil, err

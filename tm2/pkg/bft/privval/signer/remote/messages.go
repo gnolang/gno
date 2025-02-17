@@ -7,6 +7,20 @@ import (
 // MaxMessageSize is the maximum size of a message that can be sent or received.
 const MaxMessageSize = 1024
 
+// RemoteSignerError is an error returned by the remote signer.
+// Necessary because golang errors are not serializable (private fields).
+type RemoteSignerError struct {
+	Err string
+}
+
+// RemoteSignerError type implements error.
+var _ error = (*RemoteSignerError)(nil)
+
+// Error implements error.
+func (rse *RemoteSignerError) Error() string {
+	return rse.Err
+}
+
 // RemoteSignerMessage is sent between Remote Signer clients and servers.
 type RemoteSignerMessage interface{}
 
@@ -16,7 +30,7 @@ type PubKeyRequest struct{}
 // PubKeyResponse is a response containing the public key or an error.
 type PubKeyResponse struct {
 	PubKey crypto.PubKey
-	Error  error
+	Error  *RemoteSignerError
 }
 
 // SignRequest is a request to sign arbitrary bytes.
@@ -27,7 +41,7 @@ type SignRequest struct {
 // SignResponse is a response containing the signature or an error.
 type SignResponse struct {
 	Signature []byte
-	Error     error
+	Error     *RemoteSignerError
 }
 
 // PingRequest is a request to confirm that the connection is alive.
