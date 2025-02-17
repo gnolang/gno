@@ -1,8 +1,6 @@
 module github.com/gnolang/gno
 
-go 1.22.0
-
-toolchain go1.22.10
+go 1.23.6
 
 require (
 	dario.cat/mergo v1.0.1

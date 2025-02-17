@@ -150,13 +150,12 @@ func verifyHashMapValues(t *testing.T, m Map[int, *struct{}], expectedReadonly m
 	t.Helper()
 
 	expected := maps.Clone(expectedReadonly)
-	m.Iterate()(func(k int, v *struct{}) bool {
+	for k, v := range m.Iterate() {
 		ev, eok := expected[k]
 		_ = assert.True(t, eok, "mapping %d:%v should exist in expected map", k, v) &&
 			assert.Equal(t, ev, v, "values should match")
 		delete(expected, k)
-		return true
-	})
+	}
 	assert.Empty(t, expected, "(some) expected values not found in the Map")
 }
 
