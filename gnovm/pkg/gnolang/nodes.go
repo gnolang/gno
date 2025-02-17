@@ -1039,9 +1039,6 @@ type bodyStmt struct {
 	StrIndex      int          // for RangeStmt w/ strings only
 	NextRune      rune         // for RangeStmt w/ strings only
 }
-type BodyStmt struct {
-	bodyStmt
-}
 
 func (x *bodyStmt) PopActiveStmt() (as Stmt) {
 	as = x.Active

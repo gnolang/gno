@@ -121,9 +121,6 @@ func defaultPkgName(gopkgPath string) Name {
 	name = strings.ToLower(name)
 	return Name(name)
 }
-func DefaultPkgName(gopkgPath string) Name {
-	return defaultPkgName(gopkgPath)
-}
 
 //----------------------------------------
 // value convenience
@@ -164,9 +161,6 @@ func isUverseName(n Name) bool {
 		}
 	}
 	return false
-}
-func IsUverseName(n Name) bool {
-	return isUverseName(n)
 }
 
 //----------------------------------------

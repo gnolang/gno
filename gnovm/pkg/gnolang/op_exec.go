@@ -774,9 +774,7 @@ EXEC_SWITCH:
 		panic(fmt.Sprintf("unexpected statement %#v", s))
 	}
 }
-func (m *Machine) DoOpExec(op Op) {
-	m.doOpExec(op)
-}
+
 func (m *Machine) doOpIfCond() {
 	is := m.PopStmt().(*IfStmt)
 	b := m.LastBlock()

@@ -5346,9 +5346,6 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 			n, reflect.TypeOf(n)))
 	}
 }
-func FindDependentNames(n Node, dst map[Name]struct{}) {
-	findDependentNames(n, dst)
-}
 
 // A name is locally defined on a block node
 // if the type is set to anything but nil.

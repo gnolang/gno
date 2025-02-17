@@ -210,32 +210,3 @@ func runExpr(m *gno.Machine, expr string) {
 	}
 	m.Eval(ex)
 }
-
-// runGNOinGo는 Gno 익명 함수를 문자열로 받아 실행하는 함수입니다.
-func RunGNOinGo(expr string) error {
-	// 1. Gno 환경의 루트 디렉터리를 결정합니다.
-	rootDir := gnoenv.RootDir()
-
-	// 2. 테스트용 스토어를 초기화합니다.
-	_, testStore := test.Store(rootDir, false, os.Stdin, os.Stdout, os.Stderr)
-
-	// 3. 기본 패키지 경로와 컨텍스트를 설정합니다.
-	pkgPath := "main"
-	ctx := test.Context(pkgPath, std.Coins{})
-
-	// 4. 가상 머신을 생성합니다.
-	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		PkgPath: pkgPath,
-		Output:  os.Stdout,
-		Input:   os.Stdin,
-		Store:   testStore,
-		Context: ctx,
-		Debug:   false, // 필요에 따라 true로 설정
-	})
-	defer m.Release()
-
-	// 5. runExpr를 사용하여 전달된 문자열 코드를 실행합니다.
-	runExpr(m, expr)
-
-	return nil
-}

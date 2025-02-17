@@ -37,12 +37,7 @@ func sortPackages(pkgs []*pkgData) []string {
 			if slices.Contains(res, imp) {
 				continue
 			}
-			// if pkg.importPath == "testing" &&
-			// 	slices.Contains(nativeInjections, imp) {
-			// 	continue
-			// }
-			//TODO: 이건 좀 위험한 방식. 머지 전 적당히 검증 추가!
-			if strings.Contains(pkg.importPath, "testing") &&
+			if strings.HasPrefix(pkg.importPath, "testing") &&
 				slices.Contains(nativeInjections, imp) {
 				continue
 			}

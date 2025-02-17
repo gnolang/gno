@@ -54,13 +54,6 @@ type Debugger struct {
 	getSrc      func(string) string // helper to access source from repl or others
 }
 
-func (d *Debugger) GetStatus() (enabled bool, in io.Reader, out io.Writer) {
-	enabled = d.enabled
-	in = d.in
-	out = d.out
-	return enabled, in, out
-}
-
 // Enable makes the debugger d active, using in as input reader, out as output writer and f as a source helper.
 func (d *Debugger) Enable(in io.Reader, out io.Writer, f func(string) string) {
 	d.in = in
@@ -177,9 +170,6 @@ loop:
 	case OpReturn, OpReturnFromBlock:
 		m.Debugger.call = m.Debugger.call[:len(m.Debugger.call)-1]
 	}
-}
-func InjectedDebug(m *Machine) {
-	m.Debug()
 }
 
 // atBreak returns true if current machine location matches a breakpoint, false otherwise.
