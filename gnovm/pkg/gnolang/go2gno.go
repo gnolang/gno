@@ -433,7 +433,10 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		recv := FieldTypeExpr{}
 		if isMethod {
 			if len(gon.Recv.List) > 1 {
-				panic("*ast.FuncDecl cannot have multiple receivers")
+				panic("method has multiple receivers")
+			}
+			if len(gon.Recv.List) == 0 {
+				panic("method has no receiver")
 			}
 			recv = *Go2Gno(fs, gon.Recv.List[0]).(*FieldTypeExpr)
 		}
