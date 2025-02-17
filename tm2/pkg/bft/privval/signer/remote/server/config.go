@@ -39,8 +39,8 @@ type RemoteSignerServer struct {
 
 // Default connection config.
 const (
-	defaultKeepAlivePeriod = 2 * time.Second
-	defaultResponseTimeout = 3 * time.Second
+	DefaultKeepAlivePeriod = 2 * time.Second
+	DefaultResponseTimeout = 3 * time.Second
 )
 
 // ServerOption is a functional option type used for optional configuration.
@@ -91,8 +91,8 @@ func NewRemoteSignerServer(
 		signer:          signer,
 		listenAddresses: listenAddresses,
 		logger:          logger,
-		keepAlivePeriod: defaultKeepAlivePeriod,
-		responseTimeout: defaultResponseTimeout,
+		keepAlivePeriod: DefaultKeepAlivePeriod,
+		responseTimeout: DefaultResponseTimeout,
 		serverPrivKey:   ed25519.GenPrivKey(),
 		listeners:       make([]net.Listener, len(listenAddresses)),
 	}

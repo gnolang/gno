@@ -69,7 +69,7 @@ func TestNewRemoteSignerServer(t *testing.T) {
 		rss, err := NewRemoteSignerServer(signer, listenAddresses, logger)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
-		require.Equal(t, defaultKeepAlivePeriod, rss.keepAlivePeriod)
+		require.Equal(t, DefaultKeepAlivePeriod, rss.keepAlivePeriod)
 
 		// Test functional option.
 		option := WithKeepAlivePeriod(42)
@@ -86,7 +86,7 @@ func TestNewRemoteSignerServer(t *testing.T) {
 		rss, err := NewRemoteSignerServer(signer, listenAddresses, logger)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
-		require.Equal(t, defaultResponseTimeout, rss.responseTimeout)
+		require.Equal(t, DefaultResponseTimeout, rss.responseTimeout)
 
 		// Test functional option.
 		option := WithResponseTimeout(42)

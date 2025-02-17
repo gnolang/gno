@@ -9,55 +9,34 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 )
 
-// gnokeyPrivVal is a private validator that uses gnokey to sign proposals and votes.
-type gnokeyPrivVal struct {
+// gnokeySigner is a gno-kms signer based on gnokey.
+type gnokeySigner struct {
 	keyBase  keys.Keybase
 	keyInfo  keys.Info
 	password string
 }
 
-var _ types.PrivValidator = (*gnokeyPrivVal)(nil)
+// gnokeySigner type implements types.Signer.
+var _ types.Signer = (*gnokeySigner)(nil)
 
-// GetPubKey implements types.PrivValidator.
-func (gk *gnokeyPrivVal) GetPubKey() (crypto.PubKey, error) {
+// PubKey implements types.Signer.
+func (gk *gnokeySigner) PubKey() (crypto.PubKey, error) {
 	return gk.keyInfo.GetPubKey(), nil
 }
 
-// SignProposal implements types.PrivValidator.
-func (gk *gnokeyPrivVal) SignProposal(chainID string, proposal *types.Proposal) error {
-	// Sign the proposal.
-	sig, _, err := gk.keyBase.Sign(gk.keyInfo.GetName(), gk.password, proposal.SignBytes(chainID))
-	if err != nil {
-		return fmt.Errorf("unable to sign proposal bytes: %w", err)
-	}
-
-	// Save the signature (the proposal will be returned to the client).
-	proposal.Signature = sig
-
-	return nil
+// SignProposal implements types.Signer.
+func (gk *gnokeySigner) Sign(signBytes []byte) ([]byte, error) {
+	signature, _, err := gk.keyBase.Sign(gk.keyInfo.GetName(), gk.password, signBytes)
+	return signature, err
 }
 
-// SignVote implements types.PrivValidator.
-func (gk *gnokeyPrivVal) SignVote(chainID string, vote *types.Vote) error {
-	// Sign the vote.
-	sig, _, err := gk.keyBase.Sign(gk.keyInfo.GetName(), gk.password, vote.SignBytes(chainID))
-	if err != nil {
-		return fmt.Errorf("unable to sign vote bytes: %w", err)
-	}
-
-	// Save the vote (the vote will be returned to the client).
-	vote.Signature = sig
-
-	return nil
-}
-
-// newGnokeyPrivVal initializes a new gnokey private validator with the provided key name and asks
+// newGnokeySigner initializes a new gnokey signer with the provided key name and asks
 // the user for a password if necessary.
-func newGnokeyPrivVal(
+func newGnokeySigner(
 	io commands.IO,
 	gnFlags *gnokeyFlags,
 	keyName string,
-) (*gnokeyPrivVal, error) {
+) (*gnokeySigner, error) {
 	// Load the keybase located at the home directory.
 	keyBase, err := keys.NewKeyBaseFromDir(gnFlags.home)
 	if err != nil {
@@ -98,7 +77,7 @@ func newGnokeyPrivVal(
 		return nil, fmt.Errorf("unsupported key type: %s", info.GetType())
 	}
 
-	return &gnokeyPrivVal{
+	return &gnokeySigner{
 		keyBase:  keyBase,
 		keyInfo:  info,
 		password: password,

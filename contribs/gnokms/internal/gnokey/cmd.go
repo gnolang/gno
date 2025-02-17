@@ -16,7 +16,7 @@ func NewGnokeyCmd(io commands.IO, commonFlags *common.Flags) *commands.Command {
 			Name:       "gnokey",
 			ShortUsage: "gnokey [flags] <key-name or address>",
 			ShortHelp:  "use gnokey as a remote signer",
-			LongHelp:   "Run a gnokms remote signer server using gnokey as a private validator.",
+			LongHelp:   "Run a gnokms remote signer server using gnokey as backend.",
 		},
 		gnFlags,
 		func(_ context.Context, args []string) error {
@@ -33,12 +33,12 @@ func exec(io commands.IO, args []string, gnFlags *gnokeyFlags, commonFlags *comm
 	}
 	keyName := args[0]
 
-	// Initialize the gnokey private validator with the provided key name.
-	privVal, err := newGnokeyPrivVal(io, gnFlags, keyName)
+	// Initialize the gnokey signer with the provided key name.
+	gnokeySigner, err := newGnokeySigner(io, gnFlags, keyName)
 	if err != nil {
 		return err
 	}
 
-	// Run the remote signer server with the gnokey private validator.
-	return common.RunSignerServer(io, commonFlags, privVal)
+	// Run the remote signer server with the gnokey signer.
+	return common.RunSignerServer(io, commonFlags, gnokeySigner)
 }
