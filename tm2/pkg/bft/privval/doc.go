@@ -1,5 +1,5 @@
 /*
-* PrivValidator;
+* PrivValidator
 *
 * Package privval implements the BFT validator interface defined in tm2/pkg/bft/types.PrivValidator.
 * The BFT validator role is to sign votes and proposals for the consensus protocol and to ensure that
@@ -26,12 +26,12 @@
 * TCP connections can optionally be mutually authenticated using a whitelist of allowed public keys for both the
 * client and the server.
 *
-* By default, the remote signer client will indefinetely try to connect to the remote signer server for each
+* By default, the remote signer client will indefinitely try to connect to the remote signer server for each
 * request it sends. A node using a private validator with a remote signer will therefore not fail in case of
 * a temporary network failure or a crash of the remote signer server.
 *
 * The remote signer server provided by this package is just a generic bridge that take any types.Signer as
-* parameter and proxy the client requests to it. gnokms is a cli tool available in contrib/gnokms that aims to
+* parameter and proxy the client requests to it. gnokms is a cli tool available in contribs/gnokms that aims to
 * provide a remote signer server along with a set of backend signers among which a gnokey based signer.
 *
 *
