@@ -37,7 +37,7 @@ func testGoldamarkGoldenOuput(t *testing.T, m goldmark.Markdown, input string) {
 		var newOnce sync.Once
 		val, _ := makedir.LoadOrStore(testdir, &newOnce)
 		val.(*sync.Once).Do(func() {
-			err := os.MkdirAll(testdir, 0755)
+			err := os.MkdirAll(testdir, 0o755)
 			require.NoError(t, err)
 		})
 	}
@@ -69,7 +69,7 @@ func testGoldamarkGoldenOuput(t *testing.T, m goldmark.Markdown, input string) {
 	golden.WriteRune('\n')
 
 	if *update {
-		err := os.WriteFile(file, golden.Bytes(), 0644)
+		err := os.WriteFile(file, golden.Bytes(), 0o644)
 		require.NoError(t, err)
 	}
 

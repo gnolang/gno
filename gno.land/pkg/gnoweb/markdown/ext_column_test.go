@@ -6,6 +6,7 @@ import (
 	"github.com/yuin/goldmark"
 )
 
+// TestExtColumn_Valid tests the valid cases for gno-columns markdown extension.
 func TestExtColumn_Valid(t *testing.T) {
 	t.Parallel()
 
@@ -29,10 +30,8 @@ content 2
 
 content 3
 </gno-columns>
-
 `,
 		},
-
 		{
 			Name: "empty heading",
 			Input: `
@@ -49,10 +48,8 @@ content 2
 
 content 3
 </gno-columns>
-
 `,
 		},
-
 		{
 			Name: "shortcut separator",
 			Input: `
@@ -71,7 +68,6 @@ content 3
 :::
 `,
 		},
-
 		{
 			Name: "sticky header",
 			Input: `
@@ -85,7 +81,6 @@ content 3
 </gno-columns>
 `,
 		},
-
 		{
 			Name: "multi level",
 			Input: `
@@ -101,7 +96,6 @@ content 4
 </gno-columns>
 `,
 		},
-
 		{
 			Name: "multi level 2",
 			Input: `
@@ -117,9 +111,9 @@ content 4
 </gno-columns>
 `,
 		},
-
 		{
-			"maximum level heading", `
+			Name: "maximum level heading",
+			Input: `
 <gno-columns>
 ###### Title 1
 content 1
@@ -132,7 +126,6 @@ content 4
 </gno-columns>
 `,
 		},
-
 		{
 			Name: "no column",
 			Input: `
@@ -146,15 +139,16 @@ content 4
 	Column.Extend(m)
 
 	for _, tc := range cases {
+		tc := tc // capture range variable
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
-
 			testGoldamarkGoldenOuput(t, m, tc.Input)
 		})
 	}
 }
 
-// Invalid format should still have a predictable output
+// TestExtColumn_Invalid tests the invalid cases for gno-columns markdown extension.
+// Invalid format should still have a predictable output.
 func TestExtColumn_Invalid(t *testing.T) {
 	t.Parallel()
 
@@ -166,12 +160,10 @@ func TestExtColumn_Invalid(t *testing.T) {
 			Name:  "inline tag",
 			Input: `<gno-columns></gno-columns>`,
 		},
-
 		{
 			Name:  "inline shortcut tag",
 			Input: `::: :::`,
 		},
-
 		{
 			Name: "unfinished column",
 			Input: `
@@ -182,9 +174,9 @@ content 1
 content 2
 `,
 		},
-
 		{
-			"unstarted column", `
+			Name: "unstarted column",
+			Input: `
 ## Title 1
 content 1
 ## Title 2
@@ -192,9 +184,9 @@ content 2
 </gno-columns>
 `,
 		},
-
 		{
-			"beyond maximum level heading", `
+			Name: "beyond maximum level heading",
+			Input: `
 <gno-columns>
 ####### Title 1
 content 1
@@ -213,9 +205,9 @@ content 4
 	Column.Extend(m)
 
 	for _, tc := range cases {
+		tc := tc // capture range variable
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
-
 			testGoldamarkGoldenOuput(t, m, tc.Input)
 		})
 	}
