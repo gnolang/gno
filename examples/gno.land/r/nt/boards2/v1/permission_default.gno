@@ -10,6 +10,8 @@ import (
 	"gno.land/r/demo/users"
 )
 
+// TODO: Move to a package or make it private?
+
 // DefaultPermissions manages users, roles and permissions.
 type DefaultPermissions struct {
 	superRole Role
@@ -228,35 +230,7 @@ func createDefaultPermissions(owner std.Address) *DefaultPermissions {
 	return NewDefaultPermissions(
 		commondao.New(),
 		WithSuperRole(RoleOwner),
-		WithRole(
-			RoleAdmin,
-			PermissionBoardCreate,
-			PermissionBoardRename,
-			PermissionMemberInvite,
-			PermissionMemberRemove,
-			PermissionThreadCreate,
-			PermissionThreadEdit,
-			PermissionThreadDelete,
-			PermissionThreadFlag,
-			PermissionReplyCreate,
-			PermissionReplyDelete,
-			PermissionReplyFlag,
-			PermissionRoleChange,
-		),
-		WithRole(
-			RoleModerator,
-			PermissionThreadCreate,
-			PermissionThreadEdit,
-			PermissionThreadFlag,
-			PermissionReplyCreate,
-			PermissionReplyFlag,
-		),
-		WithRole(
-			RoleGuest,
-			PermissionThreadCreate,
-			PermissionThreadRepost,
-			PermissionReplyCreate,
-		),
+		WithRole(RoleAdmin, PermissionBoardCreate),
 		WithUser(owner, RoleOwner),
 	)
 }

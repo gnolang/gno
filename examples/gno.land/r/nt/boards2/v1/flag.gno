@@ -3,21 +3,18 @@ package boards2
 import (
 	"std"
 	"strconv"
+
+	"gno.land/p/demo/avl"
 )
 
-// TODO: We should allow changing the threshold, also support value per board
-const flagThreshold = 1
+// DefaultFlaggingThreshold defines the default number of flags that hides flaggable items.
+const DefaultFlaggingThreshold = 1
+
+var gFlaggingThresholds avl.Tree // string(board ID) -> int
 
 type Flag struct {
 	User   std.Address
 	Reason string
-}
-
-func NewFlag(creator std.Address, reason string) Flag {
-	return Flag{
-		User:   creator,
-		Reason: reason,
-	}
 }
 
 type Flaggable interface {
@@ -35,14 +32,21 @@ type Flaggable interface {
 // Returns whether flag count threshold is reached and item can be hidden.
 //
 // Panics if flag count threshold was already reached.
-func flagItem(item Flaggable, flag Flag) bool {
-	if item.FlagsCount() >= flagThreshold {
-		panic("item flag count threshold exceeded: " + strconv.Itoa(flagThreshold))
+func flagItem(item Flaggable, flag Flag, threshold int) bool {
+	if item.FlagsCount() >= threshold {
+		panic("item flag count threshold exceeded: " + strconv.Itoa(threshold))
 	}
 
 	if !item.AddFlag(flag) {
 		panic("item has been already flagged by a current user")
 	}
 
-	return item.FlagsCount() == flagThreshold
+	return item.FlagsCount() == threshold
+}
+
+func getFlaggingThreshold(bid BoardID) int {
+	if v, ok := gFlaggingThresholds.Get(bid.String()); ok {
+		return v.(int)
+	}
+	return DefaultFlaggingThreshold
 }

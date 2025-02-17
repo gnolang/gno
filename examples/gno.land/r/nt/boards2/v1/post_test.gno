@@ -29,7 +29,10 @@ func TestPostAddFlag(t *testing.T) {
 	addr := testutils.TestAddress("creator")
 	post := createTestThread(t)
 
-	flag := NewFlag(addr, "foobar")
+	flag := Flag{
+		User:   addr,
+		Reason: "foobar",
+	}
 	uassert.True(t, post.AddFlag(flag))
 	uassert.False(t, post.AddFlag(flag), "should reject flag from duplicate user")
 	uassert.Equal(t, post.FlagsCount(), 1)
@@ -122,18 +125,23 @@ func TestNewThread(t *testing.T) {
 		uint(threadID),
 	)
 	replyURL := ufmt.Sprintf(
-		"/r/nt/boards2/v1$help&func=CreateReply&bid=%d&replyID=%d&threadID=%d",
+		"/r/nt/boards2/v1$help&func=CreateReply&boardID=%d&replyID=%d&threadID=%d",
 		uint(boardID),
 		uint(threadID),
 		uint(threadID),
 	)
 	repostURL := ufmt.Sprintf(
-		"/r/nt/boards2/v1$help&func=CreateRepost&bid=%d&threadID=%d",
+		"/r/nt/boards2/v1$help&func=CreateRepost&boardID=%d&threadID=%d",
 		uint(boardID),
 		uint(threadID),
 	)
 	deleteURL := ufmt.Sprintf(
-		"/r/nt/boards2/v1$help&func=DeleteThread&bid=%d&threadID=%d",
+		"/r/nt/boards2/v1$help&func=DeleteThread&boardID=%d&threadID=%d",
+		uint(boardID),
+		uint(threadID),
+	)
+	flagURL := ufmt.Sprintf(
+		"/r/nt/boards2/v1$help&func=FlagThread&boardID=%d&threadID=%d",
 		uint(boardID),
 		uint(threadID),
 	)
@@ -151,6 +159,7 @@ func TestNewThread(t *testing.T) {
 	uassert.Equal(t, replyURL, thread.GetReplyFormURL())
 	uassert.Equal(t, repostURL, thread.GetRepostFormURL())
 	uassert.Equal(t, deleteURL, thread.GetDeleteFormURL())
+	uassert.Equal(t, flagURL, thread.GetFlagFormURL())
 }
 
 func TestThreadAddReply(t *testing.T) {
@@ -288,13 +297,13 @@ func TestNewReply(t *testing.T) {
 		uint(replyID),
 	)
 	replyURL := ufmt.Sprintf(
-		"/r/nt/boards2/v1$help&func=CreateReply&bid=%d&replyID=%d&threadID=%d",
+		"/r/nt/boards2/v1$help&func=CreateReply&boardID=%d&replyID=%d&threadID=%d",
 		uint(boardID),
 		uint(replyID),
 		uint(threadID),
 	)
 	deleteURL := ufmt.Sprintf(
-		"/r/nt/boards2/v1$help&func=DeleteReply&bid=%d&replyID=%d&threadID=%d",
+		"/r/nt/boards2/v1$help&func=DeleteReply&boardID=%d&replyID=%d&threadID=%d",
 		uint(boardID),
 		uint(replyID),
 		uint(threadID),

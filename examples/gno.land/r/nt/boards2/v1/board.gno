@@ -32,6 +32,7 @@ type Board struct {
 	createdAt time.Time
 	deleted   avl.Tree // TODO reserved for fast-delete.
 	perms     Permissions
+	readOnly  bool
 }
 
 func newBoard(id BoardID, name string, creator std.Address, p Permissions) *Board {
@@ -44,20 +45,6 @@ func newBoard(id BoardID, name string, creator std.Address, p Permissions) *Boar
 		deleted:   avl.Tree{},
 		perms:     p,
 	}
-}
-
-/* TODO support this once we figure out how to ensure URL correctness.
-// A private board is not tracked by gBoards*,
-// but must be persisted by the caller's realm.
-// Private boards have 0 id and does not ping
-// back the remote board on reposts.
-func NewPrivateBoard(url string, name string, creator std.Address) *Board {
-	return newBoard(0, url, name, creator)
-}
-*/
-
-func (board *Board) IsPrivate() bool {
-	return board.id == 0
 }
 
 func (board *Board) GetID() BoardID {
@@ -78,6 +65,16 @@ func (board *Board) GetPath() string {
 
 func (board *Board) GetPermissions() Permissions {
 	return board.perms
+}
+
+// SetReadOnly updates board's read-only status.
+func (board *Board) SetReadOnly(readOnly bool) {
+	board.readOnly = readOnly
+}
+
+// IsReadOnly checks if the board is a read-only board.
+func (board *Board) IsReadOnly() bool {
+	return board.readOnly
 }
 
 func (board *Board) GetThread(threadID PostID) (_ *Post, found bool) {
@@ -152,7 +149,7 @@ func (board *Board) GetURLFromReplyID(threadID, replyID PostID) string {
 }
 
 func (board *Board) GetPostFormURL() string {
-	return txlink.Call("CreateThread", "bid", board.id.String())
+	return txlink.Call("CreateThread", "boardID", board.id.String())
 }
 
 func createDefaultBoardPermissions(owner std.Address) *DefaultPermissions {
@@ -162,6 +159,7 @@ func createDefaultBoardPermissions(owner std.Address) *DefaultPermissions {
 		WithRole(
 			RoleAdmin,
 			PermissionBoardRename,
+			PermissionBoardFlaggingUpdate,
 			PermissionMemberInvite,
 			PermissionMemberRemove,
 			PermissionThreadCreate,
