@@ -241,7 +241,8 @@ func SecureHeadersMiddleware(next http.Handler, strict bool) http.Handler {
 			// cross-site scripting (XSS) and other code injection attacks.
 			// - 'self' allows resources from the same origin.
 			// - 'data:' allows inline images (e.g., base64-encoded images).
-			w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src 'self' data:; font-src 'self'")
+			// - 'https://gnolang.github.io' allows images from this specific domain - used by gno.land. TODO: use a proper generic whitelisted service
+			w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src 'self' data: https://gnolang.github.io; font-src 'self'")
 
 			// Enforce HTTPS by telling browsers to only access the site over HTTPS
 			// for a specified duration (1 year in this case). This also applies to
