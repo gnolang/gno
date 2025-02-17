@@ -27,7 +27,7 @@ func (m *Machine) doOpEval() {
 	// TODO: understand this better.
 	if nx, ok := x.(*NameExpr); ok {
 		m.PopExpr()
-		if nx.Path.Depth() == 0 {
+		if nx.Path.Depth == 0 {
 			// Name is in uverse (global).
 			gv := Uverse().GetBlock(nil).GetPointerTo(nil, nx.Path)
 			m.PushValue(gv.Deref())

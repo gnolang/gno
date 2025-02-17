@@ -1026,7 +1026,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						fillNameExprPath(last, n, false)
 					}
 					// If uverse, return a *ConstExpr.
-					if n.Path.Depth() == 0 { // uverse
+					if n.Path.Depth == 0 { // uverse
 						cx := evalConst(store, last, n)
 						// built-in functions must be called.
 						if !cx.IsUndefined() &&
@@ -2982,7 +2982,7 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, name Name) (idx uint16) {
 
 	// add name to fle.HeapCaptures.
 	vp := fle.GetPathForName(nil, name)
-	vp.SetDepth(vp.Depth() - 1) // minus 1 for fle itself.
+	vp.SetDepth(vp.Depth - 1) // minus 1 for fle itself.
 	ne := NameExpr{
 		Path: vp,
 		Name: name,
@@ -5066,7 +5066,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 					break
 				}
 			}
-			path.SetDepth(path.Depth() + uint8(i))
+			path.SetDepth(path.Depth + uint8(i))
 			path.Validate()
 			nx.Path = path
 			return
