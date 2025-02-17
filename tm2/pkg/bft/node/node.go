@@ -17,8 +17,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
-	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote"
+	sclient "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/discovery"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
@@ -101,7 +102,11 @@ func DefaultGenesisDocProviderFunc(genesisFile string) GenesisDocProvider {
 type NodeProvider func(*cfg.Config, *slog.Logger) (*Node, error)
 
 // initPrivValidator initializes the privValidator according to the node config.
-func initPrivValidator(config *cfg.Config) (types.PrivValidator, error) {
+func initPrivValidator(
+	config *cfg.Config,
+	logger *slog.Logger,
+	nodeKey *p2pTypes.NodeKey,
+) (types.PrivValidator, error) {
 	var (
 		signer types.Signer
 		err    error
@@ -109,7 +114,22 @@ func initPrivValidator(config *cfg.Config) (types.PrivValidator, error) {
 
 	// Determine the type of privValidator to use, either local or remote.
 	if config.PrivValidatorListenAddr != "" {
-		signer, err = remote.NewRemoteSignerClient(config.PrivValidatorListenAddr)
+		// NOTE: It looks like most of the code require an ed25519 keypair.
+		// Check with @zivkovicmilos if we can replace crypto.PrivKey with ed25519.PrivKeyEd25519.
+		if clientPrivKey, ok := nodeKey.PrivKey.(ed25519.PrivKeyEd25519); ok {
+			signer, err = sclient.NewRemoteSignerClient(
+				config.PrivValidatorListenAddr,
+				logger.With("module", "remote_signer_client"),
+				sclient.WithClientPrivKey(clientPrivKey),
+				// TODO: Add the missing options to the config
+				// sclient.WithDialMaxRetries(config.PrivValidatorDialMaxRetries),
+				// sclient.WithDialRetryInterval(config.PrivValidatorDialRetryInterval),
+				// sclient.WithDialTimeout(config.PrivValidatorDialTimeout),
+				// sclient.WithKeepAlivePeriod(config.PrivValidatorKeepAlivePeriod),
+				// sclient.WithRequestTimeout(config.PrivValidatorRequestTimeout),
+				// sclient.WithAuthorizedKeys(config.PrivValidatorAuthorizedKeys),
+			)
+		}
 	} else {
 		signer, err = local.NewLocalSigner(config.PrivValidatorKeyFile())
 	}
@@ -144,7 +164,7 @@ func DefaultNewNode(
 	)
 
 	// Initialize the privValidator
-	privVal, err := initPrivValidator(config)
+	privVal, err := initPrivValidator(config, logger, nodeKey)
 	if err != nil {
 		return nil, err
 	}
