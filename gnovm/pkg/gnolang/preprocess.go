@@ -1266,8 +1266,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// check legal type for nil
 						if arg0.IsUndefined() {
 							switch ct.Kind() { // special case for nil conversion check.
-							case SliceKind, PointerKind, FuncKind, MapKind, InterfaceKind:
-								//dt = ct // convert nil to typed-nil
+							case SliceKind, PointerKind, FuncKind, MapKind, InterfaceKind, ChanKind:
 								convertConst(store, last, arg0, ct)
 							default:
 								panic(fmt.Sprintf(
@@ -1283,7 +1282,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						cx.SetAttribute(ATTR_TYPEOF_VALUE, ct)
 						return cx, TRANS_CONTINUE
 					} else {
-						ct := evalStaticType(store, last, n.Func)
 						n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
 						return n, TRANS_CONTINUE
 					}
