@@ -92,15 +92,19 @@ var columnContextKey = parser.NewContextKey()
 
 // columnContext struct and its methods are used for handling column context.
 type columnContext struct {
-	initilized bool
-	index      int
+	initilized      bool
+	index           int
+	colHeadingLevel int
 }
 
 func (ctx *columnContext) Init() {
 	ctx.initilized = true
 }
 
-func (ctx *columnContext) Destroy() { ctx.initilized = false }
+func (ctx *columnContext) Destroy() {
+	ctx.initilized = false
+	ctx.colHeadingLevel = 0
+}
 
 func (ctx *columnContext) SpanColumn() { ctx.index++ }
 
@@ -125,7 +129,21 @@ func parseSeparator(ctx *columnContext, line []byte) ColumnTag {
 	}
 
 	if line[0] == '#' {
-		return ColumnTagSep
+		if !ctx.initilized {
+			return ColumnTagUndefined
+		}
+
+		i := 0
+		for i < len(line) && line[i] == '#' {
+			i++
+		}
+		if ctx.colHeadingLevel == 0 {
+			ctx.colHeadingLevel = i
+		}
+		if i == ctx.colHeadingLevel {
+			return ColumnTagSep
+		}
+		return ColumnTagUndefined
 	}
 
 	return ColumnTagUndefined
