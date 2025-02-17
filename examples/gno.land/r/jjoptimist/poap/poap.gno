@@ -1,11 +1,11 @@
 package poap
 
 import (
-	"strconv"
-	"time"
-	"std"
 	"errors"
+	"std"
+	"strconv"
 	"strings"
+	"time"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/grc721"
@@ -22,7 +22,7 @@ type POAP struct {
 
 type token struct {
 	TokenCounter int
-	Tokens       *avl.Tree 
+	Tokens       *avl.Tree
 }
 
 type NFToken struct {
@@ -74,9 +74,9 @@ func (grc *token) IsApprovedForAll(owner, operator std.Address) bool {
 }
 
 var (
-	poaps     *avl.Tree                            // Store POAPs
-	poapCount uint64                               // Counter for POAP IDs
-	nftTokens *token                              // NFT implementation
+	poaps     *avl.Tree // Store POAPs
+	poapCount uint64    // Counter for POAP IDs
+	nftTokens *token    // NFT implementation
 )
 
 func init() {
@@ -129,16 +129,16 @@ func MintPOAP(poapId uint64) {
 	if !exists {
 		panic("POAP does not exist")
 	}
-	
+
 	if poap.MintCount >= poap.MaxMints {
 		panic("POAP minting limit reached")
 	}
-	
+
 	caller := std.PrevRealm().Addr()
 	tokenId := grc721.TokenID(strconv.FormatUint(poapId, 10) + "-" + strconv.Itoa(poap.MintCount+1))
-	
+
 	nftTokens.Mint(caller, tokenId)
-	
+
 	poap.MintCount++
 	poaps.Set(strconv.FormatUint(poapId, 10), &poap)
 }

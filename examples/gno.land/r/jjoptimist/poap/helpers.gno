@@ -30,4 +30,4 @@ func centerText(s string, total int) string {
 	leftSpaces := spaces / 2
 	rightSpaces := spaces - leftSpaces
 	return repeat(" ", leftSpaces) + s + repeat(" ", rightSpaces)
-} 
+}
