@@ -218,8 +218,7 @@ func columnRender(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast
 	switch cnode.Tag {
 	case ColumnTagOpen:
 		var classes = []string{
-			"cols-start",
-			fmt.Sprintf("cols-%d", numColumns),
+			"gno-cols",
 		}
 
 		fmt.Fprintf(w, `<div class="%s">`+"\n", strings.Join(classes, " "))
@@ -229,14 +228,14 @@ func columnRender(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast
 		}
 
 		var classes = []string{
-			"col",
+			"gno-col",
 		}
 
 		fmt.Fprintf(w, "<!-- Column %d -->\n", cnode.Index+1)
 		fmt.Fprintf(w, `<div class="%s">`+"\n", strings.Join(classes, " "))
 	case ColumnTagClose:
 		fmt.Fprint(w, "</div>\n")
-		fmt.Fprint(w, `</div class="cols-end">`+"\n")
+		fmt.Fprint(w, "</div>\n")
 	default:
 		panic("invalid column tag - should not happend")
 	}
