@@ -116,15 +116,16 @@ type Name string
 // Acts as an identifier for nodes.
 
 type Location struct {
-	PkgPath string
-	File    string
-	Line    int
-	Column  int
+	PkgPath  string
+	File     string
+	Line     int
+	Column   int
+	FilePath string
 }
 
 func (loc Location) String() string {
 	return fmt.Sprintf("%s/%s:%d:%d",
-		loc.PkgPath,
+		loc.FilePath,
 		loc.File,
 		loc.Line,
 		loc.Column,
@@ -1327,6 +1328,7 @@ func ReadMemPackageFromList(list []string, pkgPath string) (*gnovm.MemPackage, e
 		}
 		memPkg.Files = append(memPkg.Files,
 			&gnovm.MemFile{
+				Path: fpath,
 				Name: fname,
 				Body: string(bz),
 			})
