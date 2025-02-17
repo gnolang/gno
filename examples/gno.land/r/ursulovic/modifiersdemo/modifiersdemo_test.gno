@@ -1,8 +1,10 @@
 package modifiersdemo
 
 import (
-	"testing"
 	"std"
+	"testing"
+
+	"gno.land/p/demo/avl"
 	"gno.land/p/ursulovic/functionmodifiers"
 )
 
@@ -85,14 +87,14 @@ func TestProposeNewOwner(t *testing.T) {
 	t.Run("valid_proposal", func(t *testing.T) {
 		newOwner := "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 		Modifiers.ProposeNewOwner(newOwner)
-		
+
 		// Verify proposal was added
 		proposals := Modifiers.Proposals.OwnerProposals
 		v, exists := proposals.Get(newOwner)
 		if !exists {
 			t.Fatal("New owner proposal was not properly added")
 		}
-		
+
 		// Verify the approval was recorded
 		approvals := v.(*avl.Tree)
 		if !approvals.Has(initialOwner) {
