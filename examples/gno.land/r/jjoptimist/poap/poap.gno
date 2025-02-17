@@ -137,10 +137,8 @@ func MintPOAP(poapId uint64) {
 	caller := std.PrevRealm().Addr()
 	tokenId := grc721.TokenID(strconv.FormatUint(poapId, 10) + "-" + strconv.Itoa(poap.MintCount+1))
 	
-	// Mint NFT
 	nftTokens.Mint(caller, tokenId)
 	
-	// Update mint count
 	poap.MintCount++
 	poaps.Set(strconv.FormatUint(poapId, 10), &poap)
 }
@@ -157,7 +155,6 @@ func (grc *token) TokenURI(id grc721.TokenID) string {
 	return string(id)
 }
 
-// GetPOAPsByOwner returns all POAPs owned by an address
 func GetPOAPsByOwner(owner std.Address) []POAP {
 	poaps := make([]POAP, 0)
 	nftTokens.Tokens.Iterate("", "", func(key string, value interface{}) bool {
@@ -174,7 +171,6 @@ func GetPOAPsByOwner(owner std.Address) []POAP {
 	return poaps
 }
 
-// ListPOAPs returns all POAPs in the system
 func ListPOAPs() []POAP {
 	poapList := make([]POAP, 0)
 	poaps.Iterate("", "", func(key string, value interface{}) bool {
@@ -185,7 +181,6 @@ func ListPOAPs() []POAP {
 	return poapList
 }
 
-// GetPOAPTokens returns all NFT tokens for a specific POAP
 func GetPOAPTokens(poapId uint64) []NFToken {
 	tokens := make([]NFToken, 0)
 	nftTokens.Tokens.Iterate("", "", func(key string, value interface{}) bool {
