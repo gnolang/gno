@@ -48,5 +48,4 @@ func TestExeUnlockTransfer(t *testing.T) {
 	)
 
 	urequire.True(t, dao.ExecutionSuccessful == p.Status())
-
 }

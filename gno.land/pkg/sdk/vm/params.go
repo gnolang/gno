@@ -76,7 +76,7 @@ func (vm *VMKeeper) GetParams(ctx sdk.Context) Params {
 	// should not cache anything and instead rely on the efficiency of paramk.GetParams().
 	_, err := vm.prmk.GetParams(ctx, ModuleName, paramsKey, params)
 	if err != nil {
-		panic(err.Error())
+		panic(err)
 	}
 
 	return *params

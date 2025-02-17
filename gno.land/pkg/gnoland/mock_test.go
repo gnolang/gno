@@ -118,9 +118,7 @@ func (m *mockVMKeeper) CommitGnoTransactionStore(ctx sdk.Context) {
 	}
 }
 
-func (m *mockVMKeeper) InitGenesis(ctx sdk.Context, gs vm.GenesisState) {
-	// TODO:
-}
+func (m *mockVMKeeper) InitGenesis(ctx sdk.Context, gs vm.GenesisState) {}
 
 type mockBankKeeper struct{}
 

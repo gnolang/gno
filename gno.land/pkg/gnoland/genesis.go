@@ -78,7 +78,7 @@ func LoadGenesisParamsFile(path string) ([]Param, error) {
 	}
 
 	params := make([]Param, 0)
-	// By default parameters are group by modules. the module seperater is ":"
+	// By default parameters are grouped by modules. the module separator is ":"
 
 	for category, keys := range m {
 		separator := ":"
@@ -88,7 +88,6 @@ func LoadGenesisParamsFile(path string) ([]Param, error) {
 		}
 		for key, kinds := range keys {
 			for kind, val := range kinds {
-				fmt.Println(category)
 				param := Param{
 					key:  category + separator + key,
 					kind: kind,

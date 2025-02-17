@@ -223,11 +223,7 @@ func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
 		gpKpr:           &mockGasPriceKeeper{},
 		CacheStdlibLoad: cached,
 	}
-	// Construct keepers.
-	// paramsKpr := params.NewParamsKeeper(iavlCapKey, params.PrefixKeyMapper{})
-	// cfg.paramsKpr = &mockParamsKeeper{}
-	// cfg.acctKpr = auth.NewAccountKeeper(iavlCapKey, paramsKpr, ProtoGnoAccount)
-	// cfg.gpKpr = auth.NewGasPriceKeeper(iavlCapKey)
+
 	cfg.InitChainer(testCtx, abci.RequestInitChain{
 		AppState: DefaultGenState(),
 	})

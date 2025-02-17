@@ -47,7 +47,7 @@ func setupTestEnv() testEnv {
 	return testEnv{ctx: ctx, store: stor, keeper: paramk}
 }
 
-const DummyModuleName = "params_test"
+const dummyModuleName = "params_test"
 
 type DummyKeeper struct {
 	prmk ParamsKeeper
@@ -60,9 +60,9 @@ func NewDummyKeeper(paramk ParamsKeeper) DummyKeeper {
 }
 
 func (dk DummyKeeper) GetParamfulKey() string {
-	return DummyModuleName
+	return dummyModuleName
 }
 
 func (dk DummyKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
-	dk.prmk.SetParams(ctx, DummyModuleName, key, value)
+	dk.prmk.SetParams(ctx, dummyModuleName, key, value)
 }

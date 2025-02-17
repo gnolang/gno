@@ -50,5 +50,5 @@ func Withdraw(denom string, amt int64) string{
   banker := std.GetBanker(std.BankerTypeOrigSend)
   pkgaddr := std.GetOrigPkgAddr()
   banker.SendCoins(pkgaddr, caller, coin)
-  return "Withdrawed!"
+  return "Withdrawn!"
 }

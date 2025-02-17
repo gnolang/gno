@@ -128,7 +128,7 @@ func (ak AccountKeeper) GetParams(ctx sdk.Context) Params {
 
 	_, err := ak.paramk.GetParams(ctx, ModuleName, paramsKey, params)
 	if err != nil {
-		panic(err.Error())
+		panic(err)
 	}
 
 	return *params

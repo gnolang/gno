@@ -23,6 +23,9 @@ import (
 
 	"gno.land/p/demo/dao"
 	"gno.land/r/gov/dao/bridge"
+
+	// loads the latest DAO implementation in the bridge.
+	_ "gno.land/r/gov/dao/init"
 )
 
 func NewStringPropExecutor(key string, value string) dao.Executor {

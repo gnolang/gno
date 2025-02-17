@@ -21,7 +21,6 @@ var (
 )
 
 const (
-
 	// unrestricted allows unrestricted transfers.
 	unrestricted BitSet = 1 << iota
 
@@ -75,7 +74,7 @@ func (ga *GnoAccount) hasFlag(flag BitSet) bool {
 // as defined in validFlags. This prevents accidentally setting invalid flags,
 // especially since BitSet can represent all 64 bits of a uint64.
 func isValidFlag(flag BitSet) bool {
-	return flag&^validFlags == 0
+	return flag&^validFlags == 0 && flag != 0
 }
 
 // SetUnrestricted allows the account to bypass global transfer locking restrictions.

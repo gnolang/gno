@@ -7,37 +7,37 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// NewModuleParams defines the parameters with updated fields for a module.
-type NewModuleParams struct {
+// newModuleParams defines the parameters with updated fields for a module.
+type newModuleParams struct {
 	LimitedTokens []string `json:"limited_tokens" yaml:"limited_tokens"`
 	Max           uint64   `json:"max" yaml:"max"`
 }
 
-// OldModuleParams defines the parameters for a module.
-type OldModuleParams struct {
+// oldModuleParams defines the parameters for a module.
+type oldModuleParams struct {
 	LimitedTokens []string `json:"limited_tokens" yaml:"limited_tokens"`
 }
 
-// NewOldModuleParams creates a new OldModuleParams object.
-func NewOldModuleParams(tokens []string) OldModuleParams {
-	return OldModuleParams{
+// newOldModuleParams creates a new oldModuleParams object.
+func newOldModuleParams(tokens []string) oldModuleParams {
+	return oldModuleParams{
 		LimitedTokens: tokens,
 	}
 }
 
 func TestBackwardCompatibility(t *testing.T) {
-	oldParams := NewOldModuleParams([]string{"token1", "token2"})
+	oldParams := newOldModuleParams([]string{"token1", "token2"})
 
-	// Serialize OldModuleParams to JSON
+	// Serialize oldModuleParams to JSON
 	bz, err := amino.MarshalJSON(oldParams)
-	require.NoError(t, err, "Failed to marshal OldModuleParams")
+	require.NoError(t, err, "Failed to marshal oldModuleParams")
 
-	t.Logf("Serialized OldModuleParams: %s\n", bz)
+	t.Logf("Serialized oldModuleParams: %s\n", bz)
 
-	// Deserialize JSON into NewModuleParams
-	newParams := &NewModuleParams{}
+	// Deserialize JSON into newModuleParams
+	newParams := &newModuleParams{}
 	err = amino.UnmarshalJSON(bz, newParams)
-	require.NoError(t, err, "Failed to unmarshal into NewModuleParams")
+	require.NoError(t, err, "Failed to unmarshal into newModuleParams")
 
 	// Validate compatibility
 	require.Equal(t, oldParams.LimitedTokens, newParams.LimitedTokens, "LimitedTokens mismatch")
@@ -45,18 +45,18 @@ func TestBackwardCompatibility(t *testing.T) {
 }
 
 func TestForwardCompatibility(t *testing.T) {
-	newParams := NewModuleParams{LimitedTokens: []string{"token1", "token2"}, Max: 10}
+	newParams := newModuleParams{LimitedTokens: []string{"token1", "token2"}, Max: 10}
 
-	// Serialize NewModuleParams to JSON
+	// Serialize newModuleParams to JSON
 	bz, err := amino.MarshalJSON(newParams)
-	require.NoError(t, err, "Failed to marshal NewModuleParams")
+	require.NoError(t, err, "Failed to marshal newModuleParams")
 
-	t.Logf("Serialized NewModuleParams: %s\n", bz)
+	t.Logf("Serialized newModuleParams: %s\n", bz)
 
-	// Deserialize JSON into OldModuleParams
-	oldParams := &OldModuleParams{}
+	// Deserialize JSON into oldModuleParams
+	oldParams := &oldModuleParams{}
 	err = amino.UnmarshalJSON(bz, oldParams)
-	require.NoError(t, err, "Failed to unmarshal into OldModuleParams")
+	require.NoError(t, err, "Failed to unmarshal into oldModuleParams")
 
 	// Validate compatibility
 	require.Equal(t, newParams.LimitedTokens, oldParams.LimitedTokens, "LimitedTokens mismatch")

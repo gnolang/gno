@@ -200,7 +200,7 @@ func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr interface{})
 	module, rawKey := parsePrefix(key)
 	_, err := pk.GetParams(ctx, module, rawKey, ptr)
 	if err != nil {
-		panic(err.Error())
+		panic(err)
 	}
 }
 

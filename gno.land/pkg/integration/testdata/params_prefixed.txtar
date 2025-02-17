@@ -77,11 +77,11 @@ import (
 	"sys/params"
 )
 
-// This should success if it is called from gno.land/r/sys/params
+// This should succeed if it is called from gno.land/r/sys/params
 func SetLockTransfer(denom string) { params.SetPrefixedString("bank","lockTransfer.string", denom) }
 
 // SetPrefixedXXX must be called from gno.land/r/sys/params; otherwise it panics
-// This should fail because the parameter does not exists
+// This should fail because the parameter does not exist
 func SetPrefixBank(newFoo string) { params.SetPrefixedString("bank","foo.string", newFoo) }
 
 
