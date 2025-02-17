@@ -14,7 +14,7 @@ func TestProUnlockTransfer(t *testing.T) {
 	id := ProposeUnlockTransfer()
 	p, err := govdao.GetPropStore().ProposalByID(id)
 	urequire.NoError(t, err)
-	urequire.Equal(t, UnlockTransferTitle, p.Title())
+	urequire.Equal(t, unlockTransferTitle, p.Title())
 }
 
 func TestFailUnlockTransfer(t *testing.T) {
