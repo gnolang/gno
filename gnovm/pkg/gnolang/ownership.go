@@ -387,7 +387,7 @@ func (oi *ObjectInfo) GetIsTransient() bool {
 	return false
 }
 
-// XXX, get first accessible object, maybe containing(parent) object, maybe itself.
+// get first accessible object, maybe containing(parent) object, maybe itself.
 func (tv *TypedValue) GetFirstObject(store Store) Object {
 	switch cv := tv.V.(type) {
 	case PointerValue:

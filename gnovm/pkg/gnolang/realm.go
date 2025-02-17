@@ -166,19 +166,11 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 			debug.Println("rlm.ID: ", rlm.ID)
 		}
 
-		if po != nil {
-			debug.Println("po.GetIsReal: ", po.GetIsReal())
-		}
-
 		if co != nil {
 			debug.Printf(
 				"co: %v (type: %v) | GetOriginRealm: %v | GetIsRef: %v | GetRefCount: %v | GetIsReal: %v\n",
 				co, reflect.TypeOf(co), co.GetOriginRealm(), co.GetIsAttachingRef(), co.GetRefCount(), co.GetIsReal(),
 			)
-
-			if b, ok := co.(*Block); ok {
-				debug.Printf("b.source: %v (type: %v) \n", b.Source, reflect.TypeOf(b.Source))
-			}
 		}
 	}
 
@@ -201,9 +193,6 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 		return // do nothing.
 	}
 
-	// TODO: check unreal external here, if po is real, association is invalid, panic
-
-	// else, defer to finalize???
 	if po.GetObjectID().PkgID != rlm.ID {
 		panic("cannot modify external-realm or non-realm object")
 	}
@@ -228,17 +217,25 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 			if co.GetIsEscaped() {
 				//	already escaped
 			} else {
-				rlm.MarkNewEscapedCheckCrossRealm(store, co)
+				rlm.MarkNewEscaped(co)
+				// check cross realm
+				originRealm := co.GetOriginRealm()
+				if originRealm == rlm.ID {
+				} else if isCrossRealm(originRealm, rlm.ID) {
+					if !co.GetIsAttachingRef() {
+						panic(fmt.Sprintf("cannot attach objects by value from external realm: %v", co))
+					}
+				}
 			}
 		} else {
-			if co.GetIsReal() { // TODO: how this happen?
+			if co.GetIsReal() { // e.g. refCount change
 				rlm.MarkDirty(co)
 			} else {
 				co.SetOwner(po)
 				rlm.MarkNewReal(co)
 			}
 			// check cross realm for non escaped objects
-			checkCrossRealm(rlm, store, co, false, nil) // XXX, always false?
+			checkCrossRealm(rlm, store, co, false, nil)
 		}
 	}
 
@@ -254,7 +251,7 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 	}
 }
 
-// checkCrossRealm2 checks cross realm recursively
+// checkCrossRealm2 checks cross realm recursively.
 func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, isLastRef bool, seenObjs []Object) {
 	if debug {
 		debug.Printf("checkCrossRealm2, tv: %v (type: %v) | isLastRef: %t \n", tv, reflect.TypeOf(tv.V), isLastRef)
@@ -291,12 +288,9 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, isLastRef bool, s
 // checkCrossRealm performs a deep crawl to determine if cross-realm conditions exist.
 func checkCrossRealm(rlm *Realm, store Store, oo Object, isAttachingRef bool, seenObjs []Object) {
 	if debug {
-		debug.Printf("checkCrossRealm, oo: %v, (type: %v) | GetIsReal: %t | oo.GetOriginRealm: %v (purePkg? %t) | rlm.ID: %v \n",
-			oo, reflect.TypeOf(oo), oo.GetIsReal(), oo.GetOriginRealm(), oo.GetOriginRealm().purePkg, rlm.ID)
-
 		debug.Printf(
-			"isLastRef: %t | isCurrentRef: %t\n",
-			isAttachingRef, oo.GetIsAttachingRef(),
+			"checkCrossRealm, oo: %v (type: %v) | GetIsReal: %t | oo.GetOriginRealm: %v (purePkg? %t) | rlm.ID: %v | isLastRef: %t | isCurrentRef: %t\n",
+			oo, reflect.TypeOf(oo), oo.GetIsReal(), oo.GetOriginRealm(), oo.GetOriginRealm().purePkg, rlm.ID, isAttachingRef, oo.GetIsAttachingRef(),
 		)
 	}
 
@@ -305,7 +299,7 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, isAttachingRef bool, se
 		return
 	}
 
-	// update isLastRef based on the current object's reference status
+	// update isAttachingRef based on the current object's reference status
 	// If the last object was not a reference, but the current one is,
 	// then the current object and its children are referenced.
 	// refer 20c, 20c2
@@ -368,40 +362,12 @@ func checkCrossRealmChildren(rlm *Realm, store Store, oo Object, isLastRef bool,
 			}
 		}
 	default:
-		panic("should not happen, oo is not object")
+		panic("should not happen, oo is not an object")
 	}
 }
 
 //----------------------------------------
 // mark*
-
-// MarkNewEscapedCheckCrossRealm mark new escaped object
-// and check cross realm
-func (rlm *Realm) MarkNewEscapedCheckCrossRealm(store Store, oo Object) {
-	if debug {
-		debug.Printf(
-			"MarkNewEscapedCheckCrossRealm - oo: %v | oo.GetRefCount: %d | oo.GetOriginRealm(): %v | isRef: %v | rlm.ID: %v\n",
-			oo, oo.GetRefCount(), oo.GetOriginRealm(), oo.GetIsAttachingRef(), rlm.ID,
-		)
-	}
-
-	if oo.GetOriginRealm() == rlm.ID {
-		rlm.MarkNewEscaped(oo)
-		// do nothing
-		return
-	}
-
-	// originRealm can be zero, e.g. an array value
-	// in current realm, and it's referenced twice.
-	originRealm := oo.GetOriginRealm()
-	if isCrossRealm(originRealm, rlm.ID) {
-		if !oo.GetIsAttachingRef() {
-			panic(fmt.Sprintf("cannot attach objects by value from external realm: %v", oo))
-		}
-	}
-	// mark escaped
-	rlm.MarkNewEscaped(oo)
-}
 
 func (rlm *Realm) MarkNewReal(oo Object) {
 	if debug {
@@ -511,13 +477,13 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 	}
 	if readonly {
 		if true ||
-			len(rlm.newCreated) > 0 ||
-			len(rlm.newEscaped) > 0 ||
-			len(rlm.newDeleted) > 0 ||
-			len(rlm.created) > 0 ||
-			len(rlm.updated) > 0 ||
-			len(rlm.deleted) > 0 ||
-			len(rlm.escaped) > 0 {
+				len(rlm.newCreated) > 0 ||
+				len(rlm.newEscaped) > 0 ||
+				len(rlm.newDeleted) > 0 ||
+				len(rlm.created) > 0 ||
+				len(rlm.updated) > 0 ||
+				len(rlm.deleted) > 0 ||
+				len(rlm.escaped) > 0 {
 			panic("realm updates in readonly transaction")
 		}
 		return
@@ -532,9 +498,9 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 		ensureUniq(rlm.newDeleted)
 		ensureUniq(rlm.updated)
 		if false ||
-			rlm.created != nil ||
-			rlm.deleted != nil ||
-			rlm.escaped != nil {
+				rlm.created != nil ||
+				rlm.deleted != nil ||
+				rlm.escaped != nil {
 			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
@@ -912,9 +878,9 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		}
 		// deleted objects should not have gotten here.
 		if false ||
-			oo.GetRefCount() <= 0 ||
-			oo.GetIsNewDeleted() ||
-			oo.GetIsDeleted() {
+				oo.GetRefCount() <= 0 ||
+				oo.GetIsNewDeleted() ||
+				oo.GetIsDeleted() {
 			panic("cannot save deleted objects")
 		}
 	}
@@ -1806,7 +1772,13 @@ func getOwner(store Store, oo Object) Object {
 	return po
 }
 
-// check if it's crossing realm
+// ----------------------------------------
+// misc
+
+// isCrossRealm checks if it's crossing realms.
+// if the origin realm is zero, e.g. an unreal array,
+// it is not considered a cross-realm scenario for now.
+// however, further checks on children are required afterward.
 func isCrossRealm(originRealm, rlmID PkgID) bool {
 	return !originRealm.IsZero() && !originRealm.IsPurePkg() && originRealm != rlmID
 }
