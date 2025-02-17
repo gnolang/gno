@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"sync"
@@ -406,57 +407,76 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 			peersToDial = make([]*types.NetAddress, 0)
 		)
 
+		// Gather addresses of persistent peers that are missing or
+		// not already in the dial queue
 		sw.persistentPeers.Range(func(key, value any) bool {
 			var (
 				id   = key.(types.ID)
 				addr = value.(*types.NetAddress)
 			)
 
-			// Check if the peer is part of the peer set
-			// or is scheduled for dialing
-			if peers.Has(id) || sw.dialQueue.Has(addr) {
-				return true
+			if !peers.Has(id) && !sw.dialQueue.Has(addr) {
+				peersToDial = append(peersToDial, addr)
 			}
-
-			peersToDial = append(peersToDial, addr)
 
 			return true
 		})
 
 		if len(peersToDial) == 0 {
-			// No persistent peers are missing
+			// No persistent peers need dialing
 			return
 		}
 
-		// Calculate the dial items
+		// Prepare dial items with the appropriate backoff
 		dialItems := make([]dial.Item, 0, len(peersToDial))
-		for _, p := range peersToDial {
-			item := getBackoffItem(p.ID)
-			if item == nil {
-				dialItem := dial.Item{
-					Time:    time.Now(),
-					Address: p,
-				}
+		for _, addr := range peersToDial {
+			item := getBackoffItem(addr.ID)
 
-				dialItems = append(dialItems, dialItem)
-				setBackoffItem(p.ID, &backoffItem{dialItem.Time, 0})
+			if item == nil {
+				// First attempt
+				now := time.Now()
+
+				dialItems = append(dialItems,
+					dial.Item{
+						Time:    now,
+						Address: addr,
+					},
+				)
+
+				setBackoffItem(addr.ID, &backoffItem{
+					lastDialTime: now,
+					attempts:     0,
+				})
 
 				continue
 			}
 
-			setBackoffItem(p.ID, &backoffItem{
-				lastDialTime: time.Now().Add(
+			// Subsequent attempt: apply backoff
+			var (
+				attempts = item.attempts + 1
+				dialTime = time.Now().Add(
 					calculateBackoff(
 						item.attempts,
 						time.Second,
 						10*time.Minute,
 					),
-				),
-				attempts: item.attempts + 1,
+				)
+			)
+
+			dialItems = append(dialItems,
+				dial.Item{
+					Time:    dialTime,
+					Address: addr,
+				},
+			)
+
+			setBackoffItem(addr.ID, &backoffItem{
+				lastDialTime: dialTime,
+				attempts:     attempts,
 			})
 		}
 
-		// Add the peers to the dial queue
+		// Add these items to the dial queue
 		sw.dialItems(dialItems...)
 	}
 
@@ -622,50 +642,50 @@ func (sw *MultiplexSwitch) isPrivatePeer(id types.ID) bool {
 // and persisting them
 func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 	for {
-		select {
-		case <-ctx.Done():
+		p, err := sw.transport.Accept(ctx, sw.peerBehavior)
+
+		switch {
+		case err == nil: // ok
+		case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+			// Upper context as been canceled/timeout
 			sw.Logger.Debug("switch context close received")
-
-			return
+			return // exit
+		case errors.As(err, &errTransportClosed):
+			// Underlaying transport as been closed
+			sw.Logger.Warn("cannot accept connection on closed transport, exiting")
+			return // exit
 		default:
-			p, err := sw.transport.Accept(ctx, sw.peerBehavior)
-			if err != nil {
-				sw.Logger.Error(
-					"error encountered during peer connection accept",
-					"err", err,
-				)
+			// An error occurred during accept, report and continue
+			sw.Logger.Error("error encountered during peer connection accept", "err", err)
+			continue
+		}
 
-				continue
+		// Ignore connection if we already have enough peers.
+		if in := sw.Peers().NumInbound(); in >= sw.maxInboundPeers {
+			sw.Logger.Info(
+				"Ignoring inbound connection: already have enough inbound peers",
+				"address", p.SocketAddr(),
+				"have", in,
+				"max", sw.maxInboundPeers,
+			)
+
+			sw.transport.Remove(p)
+			continue
+		}
+
+		// There are open peer slots, add peers
+		if err := sw.addPeer(p); err != nil {
+			sw.transport.Remove(p)
+
+			if p.IsRunning() {
+				_ = p.Stop()
 			}
 
-			// Ignore connection if we already have enough peers.
-			if in := sw.Peers().NumInbound(); in >= sw.maxInboundPeers {
-				sw.Logger.Info(
-					"Ignoring inbound connection: already have enough inbound peers",
-					"address", p.SocketAddr(),
-					"have", in,
-					"max", sw.maxInboundPeers,
-				)
-
-				sw.transport.Remove(p)
-
-				continue
-			}
-
-			// There are open peer slots, add peers
-			if err := sw.addPeer(p); err != nil {
-				sw.transport.Remove(p)
-
-				if p.IsRunning() {
-					_ = p.Stop()
-				}
-
-				sw.Logger.Info(
-					"Ignoring inbound connection: error while adding peer",
-					"err", err,
-					"id", p.ID(),
-				)
-			}
+			sw.Logger.Info(
+				"Ignoring inbound connection: error while adding peer",
+				"err", err,
+				"id", p.ID(),
+			)
 		}
 	}
 }

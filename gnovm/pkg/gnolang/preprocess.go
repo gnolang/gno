@@ -1814,7 +1814,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							if elt.Key == nil {
 								idx++
 							} else {
-								k := evalConst(store, last, elt.Key).ConvertGetInt()
+								k := int(evalConst(store, last, elt.Key).ConvertGetInt())
 								if idx <= k {
 									idx = k + 1
 								} else {
@@ -1827,7 +1827,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// at.Vrd = false
 						at.Len = idx
 						// update node
-						cx := constInt(n, idx)
+						cx := constInt(n, int64(idx))
 						n.Type.(*ArrayTypeExpr).Len = cx
 					}
 				}
@@ -3366,18 +3366,42 @@ func getResultTypedValues(cx *CallExpr) []TypedValue {
 // NOTE: Generally, conversion happens in a separate step while leaving
 // composite exprs/nodes that contain constant expression nodes (e.g. const
 // exprs in the rhs of AssignStmts).
+//
+// Array-related expressions like `len` and `cap` are manually evaluated
+// as constants, even if the array itself is not a constant. This evaluation
+// is handled independently of the rest of the constant evaluation process,
+// bypassing machine.EvalStatic.
 func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	// TODO: some check or verification for ensuring x
-	// is constant?  From the machine?
-	m := NewMachine(".dontcare", store)
-	m.PreprocessorMode = true
+	var cx *ConstExpr
+	if clx, ok := x.(*CallExpr); ok {
+		t := evalStaticTypeOf(store, last, clx.Args[0])
+		if ar, ok := unwrapPointerType(baseOf(t)).(*ArrayType); ok {
+			fv := clx.Func.(*ConstExpr).V.(*FuncValue)
+			switch fv.Name {
+			case "cap", "len":
+				tv := TypedValue{T: IntType}
+				tv.SetInt(int64(ar.Len))
+				cx = &ConstExpr{
+					Source:     x,
+					TypedValue: tv,
+				}
+			default:
+				panic(fmt.Sprintf("unexpected const func %s", fv.Name))
+			}
+		}
+	}
 
-	cv := m.EvalStatic(last, x)
-	m.PreprocessorMode = false
-	m.Release()
-	cx := &ConstExpr{
-		Source:     x,
-		TypedValue: cv,
+	if cx == nil {
+		// is constant?  From the machine?
+		m := NewMachine(".dontcare", store)
+		cv := m.EvalStatic(last, x)
+		m.PreprocessorMode = false
+		m.Release()
+		cx = &ConstExpr{
+			Source:     x,
+			TypedValue: cv,
+		}
 	}
 	cx.SetLine(x.GetLine())
 	cx.SetAttribute(ATTR_PREPROCESSED, true)
@@ -4986,7 +5010,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 	return ""
 }
 
-func constInt(source Expr, i int) *ConstExpr {
+func constInt(source Expr, i int64) *ConstExpr {
 	cx := &ConstExpr{Source: source}
 	cx.T = IntType
 	cx.SetInt(i)
