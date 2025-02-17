@@ -666,20 +666,14 @@ func randConsensusNetWithPeers(nValidators, nPeers int, testName string, tickerF
 		if i < nValidators {
 			privVal = privVals[i]
 		} else {
-			tempKeyFile, err := os.CreateTemp("", "priv_validator_key_")
-			if err != nil {
-				panic(err)
-			}
-			tempStateFile, err := os.CreateTemp("", "priv_validator_state_")
-			if err != nil {
-				panic(err)
-			}
+			tempKeyFile := path.Join(thisConfig.RootDir, "priv_validator_key")
+			tempStateFile := path.Join(thisConfig.RootDir, "priv_validator_state")
 
-			fileSigner, err := signer.NewLocalSigner(tempKeyFile.Name())
+			fileSigner, err := signer.NewLocalSigner(tempKeyFile)
 			if err != nil {
 				panic(err)
 			}
-			privVal, err = privval.NewPrivValidator(fileSigner, tempStateFile.Name())
+			privVal, err = privval.NewPrivValidator(fileSigner, tempStateFile)
 			if err != nil {
 				panic(err)
 			}
