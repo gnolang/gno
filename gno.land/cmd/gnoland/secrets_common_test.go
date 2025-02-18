@@ -4,12 +4,14 @@ import (
 	"path/filepath"
 	"testing"
 
+	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
+	fstate "github.com/gnolang/gno/tm2/pkg/bft/privval/state"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestCommon_SaveReadNodeKey(t *testing.T) {
+func TestCommon_SaveReadData(t *testing.T) {
 	t.Parallel()
 
 	t.Run("invalid data save path", func(t *testing.T) {
@@ -17,7 +19,7 @@ func TestCommon_SaveReadNodeKey(t *testing.T) {
 
 		assert.ErrorContains(
 			t,
-			saveNodeKey(nil, ""),
+			saveSecretData(nil, ""),
 			"unable to save data to path",
 		)
 	})
@@ -25,7 +27,7 @@ func TestCommon_SaveReadNodeKey(t *testing.T) {
 	t.Run("invalid data read path", func(t *testing.T) {
 		t.Parallel()
 
-		readData, err := readNodeKey("")
+		readData, err := readSecretData[types.NodeKey]("")
 		assert.Nil(t, readData)
 
 		assert.ErrorContains(
@@ -35,6 +37,20 @@ func TestCommon_SaveReadNodeKey(t *testing.T) {
 		)
 	})
 
+	t.Run("invalid data read", func(t *testing.T) {
+		t.Parallel()
+
+		dir := t.TempDir()
+		path := filepath.Join(dir, "key.json")
+
+		require.NoError(t, saveSecretData("totally valid key", path))
+
+		readData, err := readSecretData[types.NodeKey](path)
+		require.Nil(t, readData)
+
+		assert.ErrorContains(t, err, "unable to unmarshal data")
+	})
+
 	t.Run("valid data save and read", func(t *testing.T) {
 		t.Parallel()
 
@@ -42,12 +58,66 @@ func TestCommon_SaveReadNodeKey(t *testing.T) {
 		path := filepath.Join(dir, "key.json")
 		key := types.GenerateNodeKey()
 
-		require.NoError(t, saveNodeKey(key, path))
+		require.NoError(t, saveSecretData(key, path))
 
-		readKey, err := readNodeKey(path)
+		readKey, err := readSecretData[types.NodeKey](path)
 		require.NoError(t, err)
 
 		assert.Equal(t, key, readKey)
+	})
+}
+
+func TestCommon_ValidateStateSignature(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid state signature", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			key   = signer.GenerateFileKey("")
+			state = &fstate.FileState{SignBytes: []byte("random data")}
+		)
+
+		// Prepare the signature
+		signature, err := key.PrivKey.Sign(state.SignBytes)
+		require.NoError(t, err)
+
+		state.Signature = signature
+
+		assert.NoError(t, validateValidatorStateSignature(state, key.PubKey))
+	})
+
+	t.Run("no state signature", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			key   = signer.GenerateFileKey("")
+			state = &fstate.FileState{}
+		)
+
+		assert.NoError(t, validateValidatorStateSignature(state, key.PubKey))
+	})
+
+	t.Run("signature mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			key   = signer.GenerateFileKey("")
+			state = &fstate.FileState{SignBytes: []byte("random data")}
+		)
+
+		// Prepare the signature
+		signature, err := key.PrivKey.Sign(state.SignBytes)
+		require.NoError(t, err)
+
+		state.Signature = signature
+		state.SignBytes = []byte("something different")
+
+		assert.ErrorIs(
+			t,
+			validateValidatorStateSignature(state, key.PubKey),
+			errSignatureMismatch,
+		)
 	})
 }
 

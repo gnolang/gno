@@ -12,7 +12,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
-	"github.com/gnolang/gno/tm2/pkg/bft/privval/state"
+	fstate "github.com/gnolang/gno/tm2/pkg/bft/privval/state"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/stretchr/testify/assert"
@@ -67,7 +67,7 @@ func TestSecrets_Get_All(t *testing.T) {
 
 		// Get the node key
 		nodeKeyPath := filepath.Join(tempDir, defaultNodeKeyName)
-		nodeKey, err := readNodeKey(nodeKeyPath)
+		nodeKey, err := readSecretData[types.NodeKey](nodeKeyPath)
 		require.NoError(t, err)
 
 		// Get the validator private key
@@ -77,7 +77,7 @@ func TestSecrets_Get_All(t *testing.T) {
 
 		// Get the validator state
 		validatorStatePath := filepath.Join(tempDir, defaultValidatorStateName)
-		validatorState, err := state.LoadFileState(validatorStatePath)
+		state, err := fstate.LoadFileState(validatorStatePath)
 		require.NoError(t, err)
 
 		// Run the show command
@@ -136,19 +136,19 @@ func TestSecrets_Get_All(t *testing.T) {
 		assert.Contains(
 			t,
 			output,
-			fmt.Sprintf("%d", validatorState.Step),
+			fmt.Sprintf("%d", state.Step),
 		)
 
 		assert.Contains(
 			t,
 			output,
-			fmt.Sprintf("%d", validatorState.Height),
+			fmt.Sprintf("%d", state.Height),
 		)
 
 		assert.Contains(
 			t,
 			output,
-			strconv.Itoa(validatorState.Round),
+			strconv.Itoa(state.Round),
 		)
 	})
 }
@@ -182,7 +182,7 @@ func TestSecrets_Get_ValidatorKeyInfo(t *testing.T) {
 		// Run the command
 		require.NoError(t, cmd.ParseAndRun(context.Background(), args))
 
-		var vk signer.FileKey
+		var vk validatorKeyInfo
 
 		require.NoError(t, json.Unmarshal(mockOutput.Bytes(), &vk))
 
@@ -352,7 +352,7 @@ func TestSecrets_Get_ValidatorStateInfo(t *testing.T) {
 		dirPath := t.TempDir()
 		statePath := filepath.Join(dirPath, defaultValidatorStateName)
 
-		validState, err := state.GeneratePersistedFileState(statePath)
+		validState, err := fstate.GeneratePersistedFileState(statePath)
 		require.NoError(t, err)
 
 		mockOutput := bytes.NewBufferString("")
@@ -372,7 +372,7 @@ func TestSecrets_Get_ValidatorStateInfo(t *testing.T) {
 		// Run the command
 		require.NoError(t, cmd.ParseAndRun(context.Background(), args))
 
-		var vs state.FileState
+		var vs validatorStateInfo
 
 		require.NoError(t, json.Unmarshal(mockOutput.Bytes(), &vs))
 
@@ -402,7 +402,7 @@ func TestSecrets_Get_ValidatorStateInfo(t *testing.T) {
 		dirPath := t.TempDir()
 		statePath := filepath.Join(dirPath, defaultValidatorStateName)
 
-		validState, err := state.GeneratePersistedFileState(statePath)
+		validState, err := fstate.GeneratePersistedFileState(statePath)
 		require.NoError(t, err)
 
 		mockOutput := bytes.NewBufferString("")
@@ -435,7 +435,7 @@ func TestSecrets_Get_ValidatorStateInfo(t *testing.T) {
 		dirPath := t.TempDir()
 		statePath := filepath.Join(dirPath, defaultValidatorStateName)
 
-		validState, err := state.GeneratePersistedFileState(statePath)
+		validState, err := fstate.GeneratePersistedFileState(statePath)
 		require.NoError(t, err)
 
 		mockOutput := bytes.NewBufferString("")
@@ -468,7 +468,7 @@ func TestSecrets_Get_ValidatorStateInfo(t *testing.T) {
 		dirPath := t.TempDir()
 		statePath := filepath.Join(dirPath, defaultValidatorStateName)
 
-		validState, err := state.GeneratePersistedFileState(statePath)
+		validState, err := fstate.GeneratePersistedFileState(statePath)
 		require.NoError(t, err)
 
 		mockOutput := bytes.NewBufferString("")
@@ -508,7 +508,8 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 		nodeKeyPath := filepath.Join(dirPath, defaultNodeKeyName)
 
 		validNodeKey := types.GenerateNodeKey()
-		require.NoError(t, saveNodeKey(validNodeKey, nodeKeyPath))
+
+		require.NoError(t, saveSecretData(validNodeKey, nodeKeyPath))
 
 		mockOutput := bytes.NewBufferString("")
 		io := commands.NewTestIO()
@@ -566,7 +567,7 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 		require.NoError(t, config.WriteConfigFile(configPath, cfg))
 
 		validNodeKey := types.GenerateNodeKey()
-		require.NoError(t, saveNodeKey(validNodeKey, nodeKeyPath))
+		require.NoError(t, saveSecretData(validNodeKey, nodeKeyPath))
 
 		mockOutput := bytes.NewBufferString("")
 		io := commands.NewTestIO()
@@ -610,7 +611,8 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 		nodeKeyPath := filepath.Join(dirPath, defaultNodeKeyName)
 
 		validNodeKey := types.GenerateNodeKey()
-		require.NoError(t, saveNodeKey(validNodeKey, nodeKeyPath))
+
+		require.NoError(t, saveSecretData(validNodeKey, nodeKeyPath))
 
 		mockOutput := bytes.NewBufferString("")
 		io := commands.NewTestIO()
@@ -647,7 +649,8 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 		nodeKeyPath := filepath.Join(dirPath, defaultNodeKeyName)
 
 		validNodeKey := types.GenerateNodeKey()
-		require.NoError(t, saveNodeKey(validNodeKey, nodeKeyPath))
+
+		require.NoError(t, saveSecretData(validNodeKey, nodeKeyPath))
 
 		mockOutput := bytes.NewBufferString("")
 		io := commands.NewTestIO()
@@ -684,7 +687,8 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 		nodeKeyPath := filepath.Join(dirPath, defaultNodeKeyName)
 
 		validNodeKey := types.GenerateNodeKey()
-		require.NoError(t, saveNodeKey(validNodeKey, nodeKeyPath))
+
+		require.NoError(t, saveSecretData(validNodeKey, nodeKeyPath))
 
 		mockOutput := bytes.NewBufferString("")
 		io := commands.NewTestIO()
@@ -723,7 +727,8 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 		nodeKeyPath := filepath.Join(dirPath, defaultNodeKeyName)
 
 		validNodeKey := types.GenerateNodeKey()
-		require.NoError(t, saveNodeKey(validNodeKey, nodeKeyPath))
+
+		require.NoError(t, saveSecretData(validNodeKey, nodeKeyPath))
 
 		mockOutput := bytes.NewBufferString("")
 		io := commands.NewTestIO()

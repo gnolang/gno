@@ -10,7 +10,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
-	"github.com/gnolang/gno/tm2/pkg/bft/privval/state"
+	fstate "github.com/gnolang/gno/tm2/pkg/bft/privval/state"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
@@ -103,8 +103,8 @@ func loadSecrets(dirPath string) (*secrets, error) {
 	)
 
 	var (
-		vkInfo *signer.FileKey
-		vsInfo *state.FileState
+		vkInfo *validatorKeyInfo
+		vsInfo *validatorStateInfo
 		niInfo *nodeIDInfo
 
 		err error
@@ -112,14 +112,14 @@ func loadSecrets(dirPath string) (*secrets, error) {
 
 	// Load the secrets
 	if osm.FileExists(validatorKeyPath) {
-		vkInfo, err = signer.LoadFileKey(validatorKeyPath)
+		vkInfo, err = readValidatorKey(validatorKeyPath)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load secrets, %w", err)
 		}
 	}
 
 	if osm.FileExists(validatorStatePath) {
-		vsInfo, err = state.LoadFileState(validatorStatePath)
+		vsInfo, err = readValidatorState(validatorStatePath)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load secrets, %w", err)
 		}
@@ -139,9 +139,38 @@ func loadSecrets(dirPath string) (*secrets, error) {
 	}, nil
 }
 
+// readValidatorKey reads the validator key from the given path
+func readValidatorKey(path string) (*validatorKeyInfo, error) {
+	validatorKey, err := signer.LoadFileKey(path)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read validator key, %w", err)
+	}
+
+	return &validatorKeyInfo{
+		Address: validatorKey.Address.String(),
+		PubKey:  validatorKey.PubKey.String(),
+	}, nil
+}
+
+// readValidatorState reads the validator state from the given path
+func readValidatorState(path string) (*validatorStateInfo, error) {
+	validatorState, err := fstate.LoadFileState(path)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read validator state, %w", err)
+	}
+
+	return &validatorStateInfo{
+		Height:    validatorState.Height,
+		Round:     validatorState.Round,
+		Step:      validatorState.Step,
+		Signature: validatorState.Signature,
+		SignBytes: validatorState.SignBytes,
+	}, nil
+}
+
 // readNodeID reads the node p2p info from the given path
 func readNodeID(path string) (*nodeIDInfo, error) {
-	nodeKey, err := readNodeKey(path)
+	nodeKey, err := readSecretData[types.NodeKey](path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read node key, %w", err)
 	}

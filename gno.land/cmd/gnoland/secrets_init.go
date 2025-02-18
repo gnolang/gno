@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 
 	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
-	"github.com/gnolang/gno/tm2/pkg/bft/privval/state"
+	fstate "github.com/gnolang/gno/tm2/pkg/bft/privval/state"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
@@ -153,7 +153,7 @@ func initAndSaveValidatorKey(path string, io commands.IO) error {
 // initAndSaveValidatorState generates an empty last validator sign state and saves it to the given path
 func initAndSaveValidatorState(path string, io commands.IO) error {
 	// Initialize the validator's last sign state
-	if _, err := state.GeneratePersistedFileState(path); err != nil {
+	if _, err := fstate.GeneratePersistedFileState(path); err != nil {
 		return fmt.Errorf("unable to save last validator sign state, %w", err)
 	}
 
@@ -168,7 +168,7 @@ func initAndSaveNodeKey(path string, io commands.IO) error {
 	nodeKey := types.GenerateNodeKey()
 
 	// Save the node key
-	if err := saveNodeKey(nodeKey, path); err != nil {
+	if err := saveSecretData(nodeKey, path); err != nil {
 		return fmt.Errorf("unable to save node p2p key, %w", err)
 	}
 

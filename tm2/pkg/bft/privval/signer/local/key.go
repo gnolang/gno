@@ -14,6 +14,7 @@ import (
 
 // FileKey is a struct that contains the private key, public key, and address of a
 // FileSigner. It is persisted to disk in JSON format using amino.
+// NOTE: keep in sync with gno.land/cmd/gnoland/secrets.go
 type FileKey struct {
 	PrivKey crypto.PrivKey `json:"priv_key" comment:"the validator private key"`
 	PubKey  crypto.PubKey  `json:"pub_key" comment:"the validator public key"`

@@ -36,6 +36,7 @@ func VoteTypeToStep(voteType types.SignedMsgType) Step {
 }
 
 // FileState stores the state of the last signing operation in a file.
+// NOTE: keep in sync with gno.land/cmd/gnoland/secrets.go
 type FileState struct {
 	Height    int64  `json:"height" comment:"the height of the last sign"`
 	Round     int    `json:"round" comment:"the round of the last sign"`

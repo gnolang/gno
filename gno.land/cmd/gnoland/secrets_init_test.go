@@ -6,8 +6,9 @@ import (
 	"testing"
 
 	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
-	"github.com/gnolang/gno/tm2/pkg/bft/privval/state"
+	fstate "github.com/gnolang/gno/tm2/pkg/bft/privval/state"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,7 +23,7 @@ func verifyValidatorKey(t *testing.T, path string) {
 func verifyValidatorState(t *testing.T, path string) {
 	t.Helper()
 
-	validatorState, err := state.LoadFileState(path)
+	validatorState, err := fstate.LoadFileState(path)
 	require.NoError(t, err)
 
 	assert.Zero(t, validatorState.Height)
@@ -35,7 +36,7 @@ func verifyValidatorState(t *testing.T, path string) {
 func verifyNodeKey(t *testing.T, path string) {
 	t.Helper()
 
-	nodeKey, err := readNodeKey(path)
+	nodeKey, err := readSecretData[types.NodeKey](path)
 	require.NoError(t, err)
 
 	assert.NoError(t, validateNodeKey(nodeKey))

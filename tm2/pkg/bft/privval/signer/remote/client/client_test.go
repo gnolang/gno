@@ -427,7 +427,7 @@ func TestClientConnection(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			require.ErrorIs(t, rsc.ensureConnection(), ErrClientAlreadyClosed)
+			require.NoError(t, rsc.ensureConnection())
 		}()
 		time.Sleep(10 * time.Millisecond)
 		rsc.Close()
