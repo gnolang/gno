@@ -4661,7 +4661,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 
 	// recursively predefine dependencies.
 	for {
-		un := tryPredefine(store, last, d)
+		un := tryPredefine(store, pkg, last, d)
 		if un != "" {
 			// check circularity.
 			for _, n := range *stack {
@@ -4788,7 +4788,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 // side effects.  This function works for all block nodes and
 // must be called for name declarations within (non-file,
 // non-package) stmt bodies.
-func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
+func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Name) {
 	if d.GetAttribute(ATTR_PREDEFINED) == true {
 		panic(fmt.Sprintf("decl node already predefined! %v", d))
 	}
@@ -4804,6 +4804,21 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 	// so value paths cannot be used here.
 	switch d := d.(type) {
 	case *ImportDecl:
+		// stdlib internal package
+		if strings.HasPrefix(d.PkgPath, "internal/") && !IsStdlib(pkg.PkgPath) {
+			panic("cannot import stdlib internal/ package outside of standard library")
+		}
+
+		// Restrict imports to /internal packages to a package rooted at base.
+		base, suff, isInternal := strings.Cut(d.PkgPath, "/internal")
+		// /internal should be either at the end, or be a part: /internal/
+		isInternal = isInternal && (suff == "" || suff[0] == '/')
+		if isInternal &&
+			pkg.PkgPath != base &&
+			!strings.HasPrefix(pkg.PkgPath, base+"/") {
+			panic("internal/ packages can only be imported by packages rooted at the parent of \"internal\"")
+		}
+
 		pv := store.GetPackage(d.PkgPath, true)
 		if pv == nil {
 			panic(fmt.Sprintf(
@@ -4967,7 +4982,6 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			}
 			// define package-level function.
 			ft := &FuncType{}
-			pkg := skipFile(last).(*PackageNode)
 			// define a FuncValue w/ above type as d.Name.
 			// fill in later during *FuncDecl:BLOCK.
 			// The body may get altered during preprocessing later.
