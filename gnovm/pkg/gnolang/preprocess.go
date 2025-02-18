@@ -1407,7 +1407,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						if arg0.IsUndefined() {
 							switch ct.Kind() { // special case for nil conversion check.
 							case SliceKind, PointerKind, FuncKind, MapKind, InterfaceKind, ChanKind:
-								convertConst(store, last, arg0, ct)
+								convertConst(store, last, n, arg0, ct)
 							default:
 								panic(fmt.Sprintf(
 									"cannot convert %v to %v",
@@ -1708,13 +1708,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				if isUntyped(t) {
 					dt := defaultTypeOf(t)
 					checkOrConvertType(store, last, n, &n.X, dt, false)
-				}
-
-				// if n.X is untyped, convert to corresponding type
-				t := evalStaticTypeOf(store, last, n.X)
-				if isUntyped(t) {
-					dt := defaultTypeOf(t)
-					checkOrConvertType(store, last, &n.X, dt, false)
 				}
 
 			// TRANS_LEAVE -----------------------

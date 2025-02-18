@@ -15,4 +15,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/typed_nil_a.gno:10:5: cannot convert (undefined) to main.integer
+// main/files/types/typed_nil_a.gno:10:5: cannot convert (const (undefined)) to IntKind
