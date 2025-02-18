@@ -65,17 +65,8 @@ func (gp GasPrice) IsGTE(gpB GasPrice) (bool, error) {
 		return false, errors.New("GasPrice.Gas cannot be zero; %+v, %+v", gp, gpB)
 	}
 
-	gpg := big.NewInt(gp.Gas)
-	gpa := big.NewInt(gp.Price.Amount)
+	providedFee := big.NewInt(0).Mul(big.NewInt(gp.Price.Amount), big.NewInt(gp.Gas))
+	requiredFee := big.NewInt(0).Mul(big.NewInt(gpB.Price.Amount), big.NewInt(gpB.Gas))
 
-	gpBg := big.NewInt(gpB.Gas)
-	gpBa := big.NewInt(gpB.Price.Amount)
-
-	prod1 := big.NewInt(0).Mul(gpa, gpBg) // gp's price amount * gpB's gas
-	prod2 := big.NewInt(0).Mul(gpg, gpBa) // gpB's gas * pg's price amount
-	// This is equivalent to checking
-	// That the Fee / GasWanted ratio is greater than or equal to the minimum GasPrice per gas.
-	// This approach helps us avoid dealing with configurations where the value of
-	// the minimum gas price is set to 0.00001ugnot/gas.
-	return prod1.Cmp(prod2) >= 0, nil
+	return providedFee.Cmp(requiredFee) >= 0, nil
 }

@@ -78,7 +78,7 @@ func TestGasPriceGTE(t *testing.T) {
 		},
 		// Valid cases: No errors, just compare gas prices
 		{
-			name: "Greater Gas Price",
+			name: "Greater Gas Price: Increased Unit Price (Same Gas Amount)",
 			gp: GasPrice{
 				Gas: 100,
 				Price: Coin{
@@ -91,6 +91,44 @@ func TestGasPriceGTE(t *testing.T) {
 				Price: Coin{
 					Denom:  "atom",
 					Amount: 500,
+				},
+			},
+			expectError: false,
+			expected:    true,
+		},
+		{
+			name: "Greater Gas Price: Increased Gas Amount (Same Unit Price)",
+			gp: GasPrice{
+				Gas: 10000, // greater gas
+				Price: Coin{
+					Denom:  "ugnot",
+					Amount: 1,
+				},
+			},
+			gpB: GasPrice{
+				Gas: 1000,
+				Price: Coin{
+					Denom:  "ugnot",
+					Amount: 1,
+				},
+			},
+			expectError: false,
+			expected:    true,
+		},
+		{
+			name: "Greater Gas Price: Higher Fee Per Gas (and Increased Gas)",
+			gp: GasPrice{
+				Gas: 10000,
+				Price: Coin{
+					Denom:  "ugnot",
+					Amount: 5, // Greater price
+				},
+			},
+			gpB: GasPrice{
+				Gas: 1000,
+				Price: Coin{
+					Denom:  "ugnot",
+					Amount: 1,
 				},
 			},
 			expectError: false,
