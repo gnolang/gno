@@ -1402,6 +1402,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						if !constConverted {
 							convertConst(store, last, n, arg0, nil)
 						}
+
+						// check legal type for nil
+						if arg0.IsUndefined() {
+							switch ct.Kind() { // special case for nil conversion check.
+							case SliceKind, PointerKind, FuncKind, MapKind, InterfaceKind, ChanKind:
+								convertConst(store, last, n, arg0, ct)
+							default:
+								panic(fmt.Sprintf(
+									"cannot convert %v to %v",
+									arg0, ct.Kind()))
+							}
+						}
+
 						// evaluate the new expression.
 						cx := evalConst(store, last, n)
 						// Though cx may be undefined if ct is interface,
@@ -1814,7 +1827,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							if elt.Key == nil {
 								idx++
 							} else {
-								k := evalConst(store, last, elt.Key).ConvertGetInt()
+								k := int(evalConst(store, last, elt.Key).ConvertGetInt())
 								if idx <= k {
 									idx = k + 1
 								} else {
@@ -1827,7 +1840,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// at.Vrd = false
 						at.Len = idx
 						// update node
-						cx := constInt(n, idx)
+						cx := constInt(n, int64(idx))
 						n.Type.(*ArrayTypeExpr).Len = cx
 					}
 				}
@@ -3381,7 +3394,7 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 			switch fv.Name {
 			case "cap", "len":
 				tv := TypedValue{T: IntType}
-				tv.SetInt(ar.Len)
+				tv.SetInt(int64(ar.Len))
 				cx = &ConstExpr{
 					Source:     x,
 					TypedValue: tv,
@@ -5010,7 +5023,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 	return ""
 }
 
-func constInt(source Expr, i int) *ConstExpr {
+func constInt(source Expr, i int64) *ConstExpr {
 	cx := &ConstExpr{Source: source}
 	cx.T = IntType
 	cx.SetInt(i)

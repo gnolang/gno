@@ -343,9 +343,9 @@ func (tv *TypedValue) ProtectedSprint(seen *seen[Value], considerDeclaredType bo
 			return fmt.Sprintf("%v", math.Float32frombits(tv.GetFloat32()))
 		case Float64Type:
 			return fmt.Sprintf("%v", math.Float64frombits(tv.GetFloat64()))
-		case UntypedBigintType, BigintType:
+		case UntypedBigintType:
 			return tv.V.(BigintValue).V.String()
-		case UntypedBigdecType, BigdecType:
+		case UntypedBigdecType:
 			return tv.V.(BigdecValue).V.String()
 		default:
 			panic("should not happen")

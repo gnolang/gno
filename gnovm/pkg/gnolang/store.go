@@ -1028,7 +1028,7 @@ func InitStoreCaches(store Store) {
 		StringType, UntypedStringType,
 		IntType, Int8Type, Int16Type, Int32Type, Int64Type, UntypedRuneType,
 		UintType, Uint8Type, Uint16Type, Uint32Type, Uint64Type,
-		BigintType, UntypedBigintType,
+		UntypedBigintType,
 		gTypeType,
 		gPackageType,
 		blockType{},
