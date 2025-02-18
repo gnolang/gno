@@ -153,40 +153,39 @@ func (board *Board) GetPostFormURL() string {
 }
 
 func createDefaultBoardPermissions(owner std.Address) *DefaultPermissions {
-	return NewDefaultPermissions(
-		commondao.New(),
-		WithSuperRole(RoleOwner),
-		WithRole(
-			RoleAdmin,
-			PermissionBoardRename,
-			PermissionBoardFlaggingUpdate,
-			PermissionMemberInvite,
-			PermissionMemberRemove,
-			PermissionThreadCreate,
-			PermissionThreadEdit,
-			PermissionThreadDelete,
-			PermissionThreadRepost,
-			PermissionThreadFlag,
-			PermissionReplyCreate,
-			PermissionReplyDelete,
-			PermissionReplyFlag,
-			PermissionRoleChange,
-		),
-		WithRole(
-			RoleModerator,
-			PermissionThreadCreate,
-			PermissionThreadEdit,
-			PermissionThreadRepost,
-			PermissionThreadFlag,
-			PermissionReplyCreate,
-			PermissionReplyFlag,
-		),
-		WithRole(
-			RoleGuest,
-			PermissionThreadCreate,
-			PermissionThreadRepost,
-			PermissionReplyCreate,
-		),
-		WithUser(owner, RoleOwner),
+	perms := NewDefaultPermissions(commondao.New())
+	perms.SetSuperRole(RoleOwner)
+	perms.AddRole(
+		RoleAdmin,
+		PermissionBoardRename,
+		PermissionBoardFlaggingUpdate,
+		PermissionMemberInvite,
+		PermissionMemberRemove,
+		PermissionThreadCreate,
+		PermissionThreadEdit,
+		PermissionThreadDelete,
+		PermissionThreadRepost,
+		PermissionThreadFlag,
+		PermissionReplyCreate,
+		PermissionReplyDelete,
+		PermissionReplyFlag,
+		PermissionRoleChange,
 	)
+	perms.AddRole(
+		RoleModerator,
+		PermissionThreadCreate,
+		PermissionThreadEdit,
+		PermissionThreadRepost,
+		PermissionThreadFlag,
+		PermissionReplyCreate,
+		PermissionReplyFlag,
+	)
+	perms.AddRole(
+		RoleGuest,
+		PermissionThreadCreate,
+		PermissionThreadRepost,
+		PermissionReplyCreate,
+	)
+	perms.AddUser(owner, RoleOwner)
+	return perms
 }
