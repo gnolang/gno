@@ -675,7 +675,7 @@ func randConsensusNetWithPeers(nValidators, nPeers int, testName string, tickerF
 				panic(err)
 			}
 
-			// Remove both temps files so contructors won't try to restore invalide files
+			// Remove both temps files so constructors won't try to restore invalide files
 			if err := os.Remove(tempKeyFile.Name()); err != nil {
 				panic(err)
 			}
