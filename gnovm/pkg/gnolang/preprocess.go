@@ -1402,6 +1402,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						if !constConverted {
 							convertConst(store, last, n, arg0, nil)
 						}
+
+						// check legal type for nil
+						if arg0.IsUndefined() {
+							switch ct.Kind() { // special case for nil conversion check.
+							case SliceKind, PointerKind, FuncKind, MapKind, InterfaceKind, ChanKind:
+								convertConst(store, last, n, arg0, ct)
+							default:
+								panic(fmt.Sprintf(
+									"cannot convert %v to %v",
+									arg0, ct.Kind()))
+							}
+						}
+
 						// evaluate the new expression.
 						cx := evalConst(store, last, n)
 						// Though cx may be undefined if ct is interface,
