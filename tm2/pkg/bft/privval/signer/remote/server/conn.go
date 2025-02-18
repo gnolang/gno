@@ -87,6 +87,7 @@ func (rss *RemoteSignerServer) listen(listener net.Listener) {
 			}
 			return
 		}
+		rss.logger.Debug("accepted new connection", "remote", conn.RemoteAddr())
 
 		// If the connection is a TCP connection, configure and secure it.
 		tcpConn, ok := conn.(*net.TCPConn)
@@ -100,9 +101,12 @@ func (rss *RemoteSignerServer) listen(listener net.Listener) {
 				rss.responseTimeout*2, // Double the response timeout for the handshake (send + receive).
 			)
 			if err != nil {
+				rss.logger.Error("failed to configure TCP connection", "error", err)
 				conn.Close() // Close the connection if its configuration failed.
 				continue
 			}
+
+			rss.logger.Debug("configured TCP connection successfully")
 			conn = sconn
 		}
 
@@ -111,6 +115,11 @@ func (rss *RemoteSignerServer) listen(listener net.Listener) {
 		go func(conn net.Conn) {
 			defer rss.wg.Done()
 			defer conn.Close() // Close the connection when the goroutine exits.
+
+			rss.logger.Info("connected to client",
+				"protocol", conn.RemoteAddr().Network(),
+				"address", conn.RemoteAddr().String(),
+			)
 
 			// Add the connection to the server then serve it.
 			rss.addConnection(conn)
@@ -152,6 +161,8 @@ func (rss *RemoteSignerServer) serve(conn net.Conn) {
 			}
 			break
 		}
+
+		rss.logger.Debug("served request successfully", "request", fmt.Sprintf("%T", request))
 	}
 }
 

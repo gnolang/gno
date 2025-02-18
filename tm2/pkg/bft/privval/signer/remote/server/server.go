@@ -49,6 +49,8 @@ func (rss *RemoteSignerServer) Start() error {
 		}(listener)
 	}
 
+	rss.logger.Info("server started")
+
 	return nil
 }
 
@@ -67,6 +69,8 @@ func (rss *RemoteSignerServer) Stop() error {
 
 	// Wait for all listeners and connections goroutines to stop.
 	rss.wg.Wait()
+
+	rss.logger.Info("server stopped")
 
 	return err
 }

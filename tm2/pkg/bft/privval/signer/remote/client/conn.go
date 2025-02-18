@@ -12,6 +12,7 @@ import (
 func (rsc *RemoteSignerClient) ensureConnection() error {
 	// If the connection is already established, return.
 	if rsc.isConnected() {
+		rsc.logger.Debug("already connected to server")
 		return nil
 	}
 
@@ -19,7 +20,7 @@ func (rsc *RemoteSignerClient) ensureConnection() error {
 	for try := 0; ; try++ {
 		// Ensure the client is not closed.
 		if rsc.isClosed() {
-			return ErrClientAlreadyClosed
+			return nil
 		}
 
 		// Dial the server.
@@ -44,6 +45,7 @@ func (rsc *RemoteSignerClient) ensureConnection() error {
 			time.Sleep(rsc.dialRetryInterval)
 			continue
 		}
+		rsc.logger.Debug("dial succeeded")
 
 		// If the connection is a TCP connection, configure and secure it.
 		tcpConn, ok := conn.(*net.TCPConn)
@@ -57,9 +59,12 @@ func (rsc *RemoteSignerClient) ensureConnection() error {
 				rsc.requestTimeout,
 			)
 			if err != nil {
+				rsc.logger.Error("failed to configure TCP connection", "error", err)
 				conn.Close() // Close the connection if its configuration failed.
 				return err
 			}
+
+			rsc.logger.Debug("configured TCP connection successfully")
 			conn = sconn
 		}
 
@@ -97,6 +102,11 @@ func (rsc *RemoteSignerClient) setConnection(conn net.Conn) error {
 // send sends a request to the server and returns the response.
 func (rsc *RemoteSignerClient) send(request r.RemoteSignerMessage) (r.RemoteSignerMessage, error) {
 	var response r.RemoteSignerMessage
+
+	// Ensure the client is not closed.
+	if rsc.isClosed() {
+		return nil, ErrClientAlreadyClosed
+	}
 
 	// This infinite loop ensures that if the connection is lost while sending the request
 	// or receiving the response, the client will retry to establish the connection and

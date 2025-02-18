@@ -21,7 +21,7 @@ var defaultFlags = Flags{
 	ListenAddresses: "tcp://127.0.0.1:26659",
 	KeepAlivePeriod: sserver.DefaultKeepAlivePeriod,
 	ResponseTimeout: sserver.DefaultResponseTimeout,
-	LogLevel:        zapcore.DebugLevel.String(),
+	LogLevel:        zapcore.InfoLevel.String(),
 	LogFormat:       log.ConsoleFormat.String(),
 }
 
