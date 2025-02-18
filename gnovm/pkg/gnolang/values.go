@@ -1130,8 +1130,6 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 		binary.LittleEndian.PutUint64(
 			data, u64)
 		return data
-	case BigintType:
-		return tv.V.(BigintValue).V.Bytes()
 	default:
 		panic(fmt.Sprintf(
 			"unexpected primitive value type: %s",
