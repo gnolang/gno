@@ -44,7 +44,7 @@ func (grc *token) OwnerOf(tokenId grc721.TokenID) (std.Address, error) {
 	if !exists {
 		return "", errors.New("token not found")
 	}
-	nft := token.(NFToken)
+	nft := token.(*NFToken)
 	return nft.Owner, nil
 }
 
