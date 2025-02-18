@@ -547,4 +547,4 @@ func main() {
 }
 
 // Error:
-// main/files/block2.gno:419:129: value path depth overflow
+// main/files/block2.gno:419:129: exceeded maximum VPBlock depth (127)

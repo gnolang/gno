@@ -2126,12 +2126,19 @@ type ValuePath struct {
 	Name  Name   // name of value, field, or method.
 }
 
-func (vp *ValuePath) SetDepth(d uint8) {
-	if d > 127 {
-		panic("value path depth overflow")
-	}
+// Maximum depth of a ValuePath.
+const MaxValuePathDepth = 127
 
+func (vp ValuePath) validateDepth() {
+	if vp.Depth > MaxValuePathDepth {
+		panic(fmt.Sprintf("exceeded maximum %s depth (%d)", vp.Type, MaxValuePathDepth))
+	}
+}
+
+func (vp *ValuePath) SetDepth(d uint8) {
 	vp.Depth = d
+
+	vp.validateDepth()
 }
 
 type VPType uint8
@@ -2212,10 +2219,7 @@ func NewValuePathNative(n Name) ValuePath {
 }
 
 func (vp ValuePath) Validate() {
-	// no ValuePath depths should exceed uint8/2
-	if vp.Depth > 127 {
-		panic("value path depth overflow")
-	}
+	vp.validateDepth()
 
 	switch vp.Type {
 	case VPUverse:
