@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"strconv"
 	"strings"
+	"time"
 
 	"std"
 
@@ -17,7 +18,7 @@ import (
 // Global State
 
 var (
-	polls         *avl.Tree
+	polls         *avl.Tree // TODO: This would be better as a btree; no need to key off a string, then.
 	pollIDCounter seqid.ID
 	pageSize      = 5
 )
@@ -30,13 +31,20 @@ func init() {
 // Poll Management Functions
 
 // CreatePoll creates a new poll with no options initially.
+// The deadline parameter should be a date/time string in RFC3339 format,
+// e.g. "2025-12-31T23:59:59Z".
 func CreatePoll(
 	title string,
 	description string,
 	maxChoices int,
-	deadline int64,
+	deadlineStr string,
 ) string {
 	caller := std.GetOrigCaller()
+
+	deadline, err := time.Parse(time.RFC3339, deadlineStr)
+	if err != nil {
+		panic("invalid deadline format; please use RFC3339 format (e.g., 2025-12-31T23:59:59Z)")
+	}
 
 	id := pollIDCounter.Next().String()
 	// Create with an empty slice of options
@@ -52,9 +60,13 @@ func EditPoll(
 	id string,
 	newTitle string,
 	newDescription string,
-	newDeadline int64,
+	newDeadlineStr string,
 	newMaxChoices int,
 ) string {
+	newDeadline, err := time.Parse(time.RFC3339, newDeadlineStr)
+	if err != nil {
+		panic("invalid deadline format; please use RFC3339 format (e.g., 2025-12-31T23:59:59Z)")
+	}
 	p := getPoll(id)
 	p.Edit(std.GetOrigCaller(), newTitle, newDescription, newDeadline, newMaxChoices)
 	polls.Set(id, p)
@@ -79,8 +91,7 @@ func AddOption(id string, optionText string) string {
 
 // EditOption changes the text of an existing option in a poll.
 // Allowed even if votes have already been cast, because it does not
-// change the *number* of options. Maybe this shouldn't be allowed if
-// votes have been cast?
+// change the *number* of options.
 func EditOption(id string, optionIndex int, newText string) string {
 	p := getPoll(id)
 	// Only the creator can edit
@@ -109,10 +120,8 @@ func DeleteOption(id string, optionIndex int) string {
 }
 
 // Vote: Cast a vote for the poll with given ID.
-// `choices` is a list of option indices the user picks.
-// This is a string of comma separated indexes, e.g. "1, 2, 4".
-// This list will get parsed into a slice of int, and the selected options will be
-// recorded in the poll's votes database.
+// `choices` is a list of option indices the user picks (a comma-separated string,
+// e.g. "1,2,4"). The string is parsed into a slice of ints.
 func Vote(id string, choices string) string {
 	choiceIndices := parseChoices(choices)
 
@@ -143,11 +152,11 @@ func Render(path string) string {
 	return b.String()
 }
 
-// Show the details of a single poll. This is kind of ugly, and could be improved.
+// renderSinglePoll shows the details of a single poll.
 func renderSinglePoll(b *bytes.Buffer, id string, p *poll.Poll) {
 	b.WriteString(ufmt.Sprintf("# Poll %s: %s\n\n", id, p.Title))
 	b.WriteString(ufmt.Sprintf("**Description:** %s\n\n", p.Description))
-	b.WriteString(ufmt.Sprintf("**Deadline (block):** %d\n", p.Deadline))
+	b.WriteString(ufmt.Sprintf("**Deadline:** %s\n", p.Deadline.Format(time.RFC1123)))
 	b.WriteString(ufmt.Sprintf("**Creator:** %s\n", p.Creator))
 	b.WriteString(ufmt.Sprintf("**MaxChoices:** %d\n", p.MaxChoices))
 
@@ -174,8 +183,7 @@ func renderSinglePoll(b *bytes.Buffer, id string, p *poll.Poll) {
 	})
 }
 
-// Render a list of all polls. The pagination is completely untested, and may well
-// be broken.
+// renderPollList displays a paginated list of all polls.
 func renderPollList(b *bytes.Buffer, path string) string {
 	realmAddr := strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land")
 	b.WriteString("# All Polls\n\n")
@@ -216,7 +224,7 @@ func renderPollList(b *bytes.Buffer, path string) string {
 		p := val.(*poll.Poll)
 		poll_url := ufmt.Sprintf("%s:%s", realmAddr, id)
 		b.WriteString(ufmt.Sprintf("## [Poll](%s) #%s: %s\n", poll_url, id, p.Title))
-		b.WriteString(ufmt.Sprintf("- Deadline: %d\n", p.Deadline))
+		b.WriteString(ufmt.Sprintf("- Deadline: %s\n", p.Deadline.Format(time.RFC1123)))
 		b.WriteString(ufmt.Sprintf("- Votes cast: %d\n\n", p.VoterCount()))
 	}
 
@@ -241,8 +249,8 @@ func getPoll(id string) *poll.Poll {
 	return val.(*poll.Poll)
 }
 
-// parseChoices takes a comma-separated string of integers (e.g. "0,2,3")
-// and turns it into a slice of int, so we can pass to p.Vote(...)
+// parseChoices converts a comma-separated string of integers (e.g. "0,2,3")
+// into a slice of ints.
 func parseChoices(choices string) []int {
 	if choices == "" {
 		panic("must provide at least one choice index")

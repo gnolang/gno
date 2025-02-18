@@ -2,6 +2,7 @@ package poll
 
 import (
 	"std"
+	"time"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
@@ -11,11 +12,11 @@ import (
 type Poll struct {
 	Title       string
 	Description string
-	Deadline    int64
+	Deadline    time.Time  // now a standard time.Time
 	Creator     std.Address
-	Options     []string  // e.g. ["Red", "Green", "Blue"]
-	MaxChoices  int       // how many options a voter can select
-	Votes       *avl.Tree // key: voter address, value: []int (indices of Options)
+	Options     []string   // e.g. ["Red", "Green", "Blue"]
+	MaxChoices  int        // how many options a voter can select
+	Votes       *avl.Tree  // key: voter address, value: []int (indices of Options)
 }
 
 // NewPoll constructs a Poll with the desired configuration.
@@ -24,13 +25,13 @@ func NewPoll(
 	description string,
 	opts []string, // often an empty slice in this refactor
 	maxChoices int,
-	deadline int64,
+	deadline time.Time, // now a time.Time
 	creator std.Address,
 ) *Poll {
 	if maxChoices < 1 {
 		panic("maxChoices must be at least 1")
 	}
-	if deadline <= std.GetHeight() {
+	if deadline.Before(time.Now()) {
 		panic("deadline must be in the future")
 	}
 	p := &Poll{
@@ -53,7 +54,7 @@ func (p *Poll) HasVoted(addr std.Address) bool {
 
 // Vote registers the given list of option indices for the address `voter`.
 func (p *Poll) Vote(voter std.Address, choices []int) {
-	if p.Deadline <= std.GetHeight() {
+	if time.Now().After(p.Deadline) {
 		panic("voting for this poll is closed")
 	}
 	if p.HasVoted(voter) {
@@ -98,20 +99,17 @@ func (p *Poll) Edit(
 	editor std.Address,
 	newTitle string,
 	newDescription string,
-	newDeadline int64,
+	newDeadline time.Time, // now a time.Time
 	newMaxChoices int,
 ) {
 	if editor != p.Creator {
 		panic("only the poll creator can edit this poll")
 	}
-	if p.Deadline <= std.GetHeight() {
+	if time.Now().After(p.Deadline) {
 		panic("poll is already closed (cannot edit closed poll)")
 	}
-	if newDeadline <= std.GetHeight() {
+	if newDeadline.Before(time.Now()) {
 		panic("deadline must be in the future")
-	}
-	if newMaxChoices < 1 {
-		panic("maxChoices must be at least 1")
 	}
 	p.Title = newTitle
 	p.Description = newDescription
