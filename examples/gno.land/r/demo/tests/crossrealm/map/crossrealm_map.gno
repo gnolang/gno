@@ -16,6 +16,10 @@ func GetMap() map[string]int {
 	return m
 }
 
+func ModifyMap() {
+	m["a"] = 2
+}
+
 func GetMap2(f func(map[string]int)) {
 	m1 := map[string]int{"a": 1}
 	f(m1)
