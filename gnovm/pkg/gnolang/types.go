@@ -684,7 +684,7 @@ func (pt *PointerType) FindEmbeddedFieldType(callerPath string, n Name, m map[Ty
 					case 1:
 						// *DeclaredType > *StructType.Field has depth 1 (& type VPField).
 						// *PointerType > *DeclaredType > *StructType.Field has depth 2.
-						trail[0].Depth = 2
+						trail[0].SetDepth(2)
 						/*
 							// If trail[-1].Type == VPPtrMethod, set VPDerefPtrMethod.
 							if len(trail) > 1 && trail[1].Type == VPPtrMethod {
@@ -1588,7 +1588,7 @@ func (dt *DeclaredType) GetPathForName(n Name) ValuePath {
 	}
 	// Otherwise it is underlying.
 	path := dt.Base.(ValuePather).GetPathForName(n)
-	path.Depth += 1
+	path.SetDepth(path.Depth + 1)
 	return path
 }
 
@@ -1658,7 +1658,8 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 				panic("should not happen")
 			}
 		}
-		trail[0].Depth += 1
+
+		trail[0].SetDepth(trail[0].Depth + 1)
 		return trail, hasPtr, rcvr, ft, false
 	default:
 		panic("should not happen")

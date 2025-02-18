@@ -2899,7 +2899,7 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 							idx := addHeapCapture(dbn, fle, n.Name)
 							// adjust NameExpr type.
 							n.Type = NameExprTypeHeapUse
-							n.Path.Depth = uint8(depth)
+							n.Path.SetDepth(uint8(depth))
 							n.Path.Index = idx
 						} else {
 							if ftype == TRANS_REF_X {
@@ -2995,7 +2995,7 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, name Name) (idx uint16) {
 
 	// add name to fle.HeapCaptures.
 	vp := fle.GetPathForName(nil, name)
-	vp.Depth -= 1 // minus 1 for fle itself.
+	vp.SetDepth(vp.Depth - 1) // minus 1 for fle itself.
 	ne := NameExpr{
 		Path: vp,
 		Name: name,
@@ -5079,7 +5079,8 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 					break
 				}
 			}
-			path.Depth += uint8(i)
+			path.SetDepth(path.Depth + uint8(i))
+			path.Validate()
 			nx.Path = path
 			return
 		}
