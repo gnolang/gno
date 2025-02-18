@@ -8,10 +8,10 @@ import (
 )
 
 func main() {
-	println(internal.A)
+	println(internal.A, internal.B)
 	println(aa.A)
 }
 
 // Output:
-// 123
+// 123 456
 // 456
