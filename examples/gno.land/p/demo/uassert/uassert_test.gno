@@ -218,8 +218,9 @@ func TestEmpty(t *testing.T) {
 		{"", true},
 		{0, true},
 		{int(0), true},
-		{int64(0), false},
-		{uint(0), false},
+		{int32(0), true},
+		{int64(0), true},
+		{uint(0), true},
 		// XXX: continue
 
 		// not expected to be empty
@@ -258,8 +259,9 @@ func TestNotEmpty(t *testing.T) {
 		{"", false},
 		{0, false},
 		{int(0), false},
-		{int64(0), true},
-		{uint(0), true},
+		{int32(0), false},
+		{int64(0), false},
+		{uint(0), false},
 		{std.Address(""), false},
 
 		// not expected to be empty
