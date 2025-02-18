@@ -16,7 +16,7 @@ import (
 // Used to flush the logger.
 type logFlusher func()
 
-// NewSignerServer creates a new remote signer server with the given private validator.
+// NewSignerServer creates a new remote signer server with the given gnokms signer.
 func NewSignerServer(
 	io commands.IO,
 	commonFlags *Flags,
@@ -58,10 +58,10 @@ func NewSignerServer(
 	return server, flush, err
 }
 
-// RunSignerServer initializes and start a remote signer server with the given private validator.
+// RunSignerServer initializes and start a remote signer server with the given gnokms signer.
 // It then waits for the server to finish.
 func RunSignerServer(io commands.IO, commonFlags *Flags, signer types.Signer) error {
-	// Initialize the remote signer server with the private validator.
+	// Initialize the remote signer server with the gnokms signer.
 	server, flush, err := NewSignerServer(io, commonFlags, signer)
 	if err != nil {
 		return err
