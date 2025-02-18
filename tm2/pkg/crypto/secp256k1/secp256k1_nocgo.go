@@ -15,10 +15,7 @@ import (
 func (privKey PrivKeySecp256k1) Sign(msg []byte) ([]byte, error) {
 	priv, _ := btcec.PrivKeyFromBytes(privKey[:])
 
-	sig, err := ecdsa.SignCompact(priv, crypto.Sha256(msg), false) // ref uncompressed pubkey
-	if err != nil {
-		return nil, err
-	}
+	sig := ecdsa.SignCompact(priv, crypto.Sha256(msg), false) // ref uncompressed pubkey
 
 	// remove compact sig recovery code byte at the beginning
 	return sig[1:], nil

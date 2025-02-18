@@ -7,8 +7,6 @@ import (
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/wugnot"
-
-	pusers "gno.land/p/demo/users"
 )
 
 var (
@@ -39,7 +37,7 @@ func main() {
 
 func printBalances() {
 	printSingleBalance := func(name string, addr std.Address) {
-		wugnotBal := wugnot.BalanceOf(pusers.AddressOrName(addr))
+		wugnotBal := wugnot.BalanceOf(addr)
 		std.TestSetOrigCaller(addr)
 		robanker := std.GetBanker(std.BankerTypeReadonly)
 		coins := robanker.GetCoins(addr).AmountOf("ugnot")
@@ -55,17 +53,17 @@ func printBalances() {
 
 // Output:
 // -----------
-// | wugnot_test   | addr=g19rmydykafrqyyegc8uuaxxpzqwzcnxraj2dev9 | wugnot=0     | ugnot=200000000 |
+// | wugnot_test   | addr=g19rmydykafrqyyegc8uuaxxpzqwzcnxraj2dev9 | wugnot=0     | ugnot=0         |
 // | wugnot        | addr=g1pf6dv9fjk3rn0m4jjcne306ga4he3mzmupfjl6 | wugnot=0     | ugnot=100000001 |
 // | addr1         | addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 | wugnot=0     | ugnot=100000001 |
 // -----------
 // -----------
-// | wugnot_test   | addr=g19rmydykafrqyyegc8uuaxxpzqwzcnxraj2dev9 | wugnot=123400 | ugnot=200000000 |
+// | wugnot_test   | addr=g19rmydykafrqyyegc8uuaxxpzqwzcnxraj2dev9 | wugnot=123400 | ugnot=0         |
 // | wugnot        | addr=g1pf6dv9fjk3rn0m4jjcne306ga4he3mzmupfjl6 | wugnot=0     | ugnot=100000001 |
 // | addr1         | addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 | wugnot=0     | ugnot=100000001 |
 // -----------
 // -----------
-// | wugnot_test   | addr=g19rmydykafrqyyegc8uuaxxpzqwzcnxraj2dev9 | wugnot=119158 | ugnot=200004242 |
+// | wugnot_test   | addr=g19rmydykafrqyyegc8uuaxxpzqwzcnxraj2dev9 | wugnot=119158 | ugnot=4242      |
 // | wugnot        | addr=g1pf6dv9fjk3rn0m4jjcne306ga4he3mzmupfjl6 | wugnot=0     | ugnot=99995759  |
 // | addr1         | addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 | wugnot=0     | ugnot=100000001 |
 // -----------

@@ -1,4 +1,4 @@
-name: "lint-pr-title"
+name: PR Title Linter
 
 on:
   pull_request_target:

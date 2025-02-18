@@ -20,7 +20,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.22.x
+          go-version-file: go.mod
 
       - name: Tidy all Go mods
         env:
@@ -28,7 +28,7 @@ jobs:
         run: |
           # Ensure Make is installed
           make --version
-          
+
           # Run the tidy target
           make tidy
 

@@ -1,17 +1,14 @@
 package std
 
-// AssertOriginCall panics if [IsOriginCall] returns false.
-func AssertOriginCall() // injected
-
-// IsOriginCall returns true only if the calling method is invoked via a direct
-// MsgCall. It returns false for all other cases, like if the calling method
+// AssertOriginCall panics if the calling method is not invoked via a direct
+// MsgCall. It panics for for other cases, like if the calling method
 // is invoked by another method (even from the same realm or package).
-// It also returns false every time when the transaction is broadcasted via
+// It also panic every time when the transaction is broadcasted via
 // MsgRun.
-func IsOriginCall() bool // injected
-
-func GetChainID() string // injected
-func GetHeight() int64   // injected
+func AssertOriginCall()      // injected
+func GetChainID() string     // injected
+func GetChainDomain() string // injected
+func GetHeight() int64       // injected
 
 func GetOrigSend() Coins {
 	den, amt := origSend()
@@ -44,24 +41,10 @@ func GetCallerAt(n int) Address {
 	return Address(callerAt(n))
 }
 
-func DerivePkgAddr(pkgPath string) Address {
-	return Address(derivePkgAddr(pkgPath))
-}
-
-func EncodeBech32(prefix string, bz [20]byte) Address {
-	return Address(encodeBech32(prefix, bz))
-}
-
-func DecodeBech32(addr Address) (prefix string, bz [20]byte, ok bool) {
-	return decodeBech32(string(addr))
-}
-
 // Variations which don't use named types.
 func origSend() (denoms []string, amounts []int64)
 func origCaller() string
 func origPkgAddr() string
 func callerAt(n int) string
 func getRealm(height int) (address string, pkgPath string)
-func derivePkgAddr(pkgPath string) string
-func encodeBech32(prefix string, bz [20]byte) string
-func decodeBech32(addr string) (prefix string, bz [20]byte, ok bool)
+func assertCallerIsRealm()

@@ -41,7 +41,15 @@ func (tid TypeID) String() string {
 	return string(tid)
 }
 
-func typeid(f string, args ...interface{}) (tid TypeID) {
+func typeid(s string) (tid TypeID) {
+	x := TypeID(s)
+	if debug {
+		debug.Println("TYPEID", s)
+	}
+	return x
+}
+
+func typeidf(f string, args ...interface{}) (tid TypeID) {
 	fs := fmt.Sprintf(f, args...)
 	x := TypeID(fs)
 	if debug {
@@ -69,6 +77,7 @@ func (*PackageType) assertType()    {}
 func (*ChanType) assertType()       {}
 func (*NativeType) assertType()     {}
 func (blockType) assertType()       {}
+func (heapItemType) assertType()    {}
 func (*tupleType) assertType()      {}
 func (RefType) assertType()         {}
 func (MaybeNativeType) assertType() {}
@@ -99,9 +108,7 @@ const (
 	Float32Type
 	Float64Type
 	UntypedBigintType
-	BigintType
 	UntypedBigdecType
-	BigdecType
 	// UintptrType
 )
 
@@ -144,20 +151,16 @@ func (pt PrimitiveType) Specificity() int {
 		return 0
 	case Float64Type:
 		return 0
-	case BigintType:
-		return 1
-	case BigdecType:
-		return 2
 	case UntypedBigdecType:
-		return 3
+		return 1
 	case UntypedStringType:
-		return 4
+		return 2
 	case UntypedBigintType:
-		return 4
+		return 2
 	case UntypedRuneType:
-		return 5
+		return 3
 	case UntypedBoolType:
-		return 6
+		return 4
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %v", pt))
 	}
@@ -195,9 +198,9 @@ func (pt PrimitiveType) Kind() Kind {
 		return Float32Kind
 	case Float64Type:
 		return Float64Kind
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		return BigintKind
-	case BigdecType, UntypedBigdecType:
+	case UntypedBigdecType:
 		return BigdecKind
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %v", pt))
@@ -247,12 +250,8 @@ func (pt PrimitiveType) TypeID() TypeID {
 		return typeid("float64")
 	case UntypedBigintType:
 		return typeid("<untyped> bigint")
-	case BigintType:
-		return typeid("bigint")
 	case UntypedBigdecType:
 		return typeid("<untyped> bigdec")
-	case BigdecType:
-		return typeid("bigdec")
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %v", pt))
 	}
@@ -300,12 +299,8 @@ func (pt PrimitiveType) String() string {
 		return string("float64")
 	case UntypedBigintType:
 		return string("<untyped> bigint")
-	case BigintType:
-		return string("bigint")
 	case UntypedBigdecType:
 		return string("<untyped> bigdec")
-	case BigdecType:
-		return string("bigdec")
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %d", pt))
 	}
@@ -520,7 +515,7 @@ func (at *ArrayType) Kind() Kind {
 
 func (at *ArrayType) TypeID() TypeID {
 	if at.typeid.IsZero() {
-		at.typeid = typeid("[%d]%s", at.Len, at.Elt.TypeID().String())
+		at.typeid = typeidf("[%d]%s", at.Len, at.Elt.TypeID().String())
 	}
 	return at.typeid
 }
@@ -563,9 +558,9 @@ func (st *SliceType) Kind() Kind {
 func (st *SliceType) TypeID() TypeID {
 	if st.typeid.IsZero() {
 		if st.Vrd {
-			st.typeid = typeid("...%s", st.Elt.TypeID().String())
+			st.typeid = typeidf("...%s", st.Elt.TypeID().String())
 		} else {
-			st.typeid = typeid("[]%s", st.Elt.TypeID().String())
+			st.typeid = typeidf("[]%s", st.Elt.TypeID().String())
 		}
 	}
 	return st.typeid
@@ -606,7 +601,7 @@ func (pt *PointerType) Kind() Kind {
 
 func (pt *PointerType) TypeID() TypeID {
 	if pt.typeid.IsZero() {
-		pt.typeid = typeid("*%s", pt.Elt.TypeID().String())
+		pt.typeid = typeidf("*%s", pt.Elt.TypeID().String())
 	}
 	return pt.typeid
 }
@@ -747,7 +742,7 @@ func (st *StructType) TypeID() TypeID {
 		// may have the same TypeID if and only if neither have
 		// unexported fields.  st.PkgPath is only included in field
 		// names that are not uppercase.
-		st.typeid = typeid(
+		st.typeid = typeidf(
 			"struct{%s}",
 			FieldTypeList(st.Fields).TypeIDForPackage(st.PkgPath),
 		)
@@ -1077,11 +1072,11 @@ func (ct *ChanType) TypeID() TypeID {
 	if ct.typeid.IsZero() {
 		switch ct.Dir {
 		case SEND | RECV:
-			ct.typeid = typeid("chan{%s}" + ct.Elt.TypeID().String())
+			ct.typeid = typeidf("chan{%s}", ct.Elt.TypeID().String())
 		case SEND:
-			ct.typeid = typeid("<-chan{%s}" + ct.Elt.TypeID().String())
+			ct.typeid = typeidf("<-chan{%s}", ct.Elt.TypeID().String())
 		case RECV:
-			ct.typeid = typeid("chan<-{%s}" + ct.Elt.TypeID().String())
+			ct.typeid = typeidf("chan<-{%s}", ct.Elt.TypeID().String())
 		default:
 			panic("should not happen")
 		}
@@ -1123,6 +1118,8 @@ type FuncType struct {
 
 	typeid TypeID
 	bound  *FuncType
+
+	IsClosure bool
 }
 
 // true for predefined func types that are not filled in yet.
@@ -1172,7 +1169,7 @@ func (ft *FuncType) UnboundType(rft FieldType) *FuncType {
 // NOTE: if ft.HasVarg() and !isVarg, argTVs[len(ft.Params):]
 // are ignored (since they are of the same type as
 // argTVs[len(ft.Params)-1]).
-func (ft *FuncType) Specify(store Store, argTVs []TypedValue, isVarg bool) *FuncType {
+func (ft *FuncType) Specify(store Store, n Node, argTVs []TypedValue, isVarg bool) *FuncType {
 	hasGenericParams := false
 	hasGenericResults := false
 	for _, pf := range ft.Params {
@@ -1239,9 +1236,9 @@ func (ft *FuncType) Specify(store Store, argTVs []TypedValue, isVarg bool) *Func
 	for i, pf := range ft.Params {
 		arg := &argTVs[i]
 		if arg.T.Kind() == TypeKind {
-			specifyType(store, lookup, pf.Type, arg.T, arg.GetType())
+			specifyType(store, n, lookup, pf.Type, arg.T, arg.GetType())
 		} else {
-			specifyType(store, lookup, pf.Type, arg.T, nil)
+			specifyType(store, n, lookup, pf.Type, arg.T, nil)
 		}
 	}
 	// apply specifics to generic params and results.
@@ -1297,7 +1294,7 @@ func (ft *FuncType) TypeID() TypeID {
 		}
 	*/
 	if ft.typeid.IsZero() {
-		ft.typeid = typeid(
+		ft.typeid = typeidf(
 			"func(%s)(%s)",
 			// pp,
 			ps.UnnamedTypeID(),
@@ -1360,7 +1357,7 @@ func (mt *MapType) Kind() Kind {
 
 func (mt *MapType) TypeID() TypeID {
 	if mt.typeid.IsZero() {
-		mt.typeid = typeid(
+		mt.typeid = typeidf(
 			"map[%s]%s",
 			mt.Key.TypeID().String(),
 			mt.Value.TypeID().String(),
@@ -1458,6 +1455,13 @@ func baseOf(t Type) Type {
 	}
 }
 
+func unwrapPointerType(t Type) Type {
+	if pt, ok := t.(*PointerType); ok {
+		return pt.Elem()
+	}
+	return t
+}
+
 // NOTE: it may be faster to switch on baseOf().
 func (dt *DeclaredType) Kind() Kind {
 	return dt.Base.Kind()
@@ -1488,7 +1492,7 @@ func (dt *DeclaredType) TypeID() TypeID {
 }
 
 func DeclaredTypeID(pkgPath string, name Name) TypeID {
-	return typeid("%s.%s", pkgPath, name)
+	return typeidf("%s.%s", pkgPath, name)
 }
 
 func (dt *DeclaredType) String() string {
@@ -1786,9 +1790,9 @@ func (nt *NativeType) TypeID() TypeID {
 			// > (e.g., base64 instead of "encoding/base64") and is not
 			// > guaranteed to be unique among types. To test for type identity,
 			// > compare the Types directly.
-			nt.typeid = typeid("go:%s.%s", nt.Type.PkgPath(), nt.Type.String())
+			nt.typeid = typeidf("go:%s.%s", nt.Type.PkgPath(), nt.Type.String())
 		} else {
-			nt.typeid = typeid("go:%s.%s", nt.Type.PkgPath(), nt.Type.Name())
+			nt.typeid = typeidf("go:%s.%s", nt.Type.PkgPath(), nt.Type.Name())
 		}
 	}
 	return nt.typeid
@@ -1965,6 +1969,35 @@ func (bt blockType) IsNamed() bool {
 }
 
 // ----------------------------------------
+// heapItemType
+
+type heapItemType struct{} // no data
+
+func (bt heapItemType) Kind() Kind {
+	return HeapItemKind
+}
+
+func (bt heapItemType) TypeID() TypeID {
+	return typeid("heapitem")
+}
+
+func (bt heapItemType) String() string {
+	return "heapitem"
+}
+
+func (bt heapItemType) Elem() Type {
+	panic("heapItemType has no elem type")
+}
+
+func (bt heapItemType) GetPkgPath() string {
+	panic("heapItemType has no package path")
+}
+
+func (bt heapItemType) IsNamed() bool {
+	panic("heapItemType has no property called named")
+}
+
+// ----------------------------------------
 // tupleType
 
 type tupleType struct {
@@ -2118,9 +2151,10 @@ const (
 	MapKind
 	TypeKind // not in go.
 	// UnsafePointerKind
-	BlockKind   // not in go.
-	TupleKind   // not in go.
-	RefTypeKind // not in go.
+	BlockKind    // not in go.
+	HeapItemKind // not in go.
+	TupleKind    // not in go.
+	RefTypeKind  // not in go.
 )
 
 // This is generally slower than switching on baseOf(t).
@@ -2158,9 +2192,9 @@ func KindOf(t Type) Kind {
 			return Float32Kind
 		case Float64Type:
 			return Float64Kind
-		case BigintType, UntypedBigintType:
+		case UntypedBigintType:
 			return BigintKind
-		case BigdecType, UntypedBigdecType:
+		case UntypedBigdecType:
 			return BigdecKind
 		default:
 			panic(fmt.Sprintf("unexpected primitive type %s", t.String()))
@@ -2193,6 +2227,8 @@ func KindOf(t Type) Kind {
 		return t.Kind()
 	case blockType:
 		return BlockKind
+	case heapItemType:
+		return HeapItemKind
 	case *tupleType:
 		return TupleKind
 	case RefType:
@@ -2351,12 +2387,6 @@ func fillEmbeddedName(ft *FieldType) {
 			ft.Name = Name("float32")
 		case Float64Type:
 			ft.Name = Name("float64")
-		case BigintType:
-			ft.Name = Name("bigint")
-		case BigdecType:
-			ft.Name = Name("bigdec")
-		default:
-			panic("should not happen")
 		}
 	case *NativeType:
 		panic("native type cannot be embedded")
@@ -2386,7 +2416,7 @@ func IsImplementedBy(it Type, ot Type) bool {
 // specTypeval is Type if spec is TypeKind.
 // NOTE: type-checking isn't strictly necessary here, as the resulting lookup
 // map gets applied to produce the ultimate param and result types.
-func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
+func specifyType(store Store, n Node, lookup map[Name]Type, tmpl Type, spec Type, specTypeval Type) {
 	if isGeneric(spec) {
 		panic("spec must not be generic")
 	}
@@ -2400,11 +2430,11 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 	case *PointerType:
 		switch pt := baseOf(spec).(type) {
 		case *PointerType:
-			specifyType(store, lookup, ct.Elt, pt.Elt, nil)
+			specifyType(store, n, lookup, ct.Elt, pt.Elt, nil)
 		case *NativeType:
 			// NOTE: see note about type-checking.
 			et := pt.Elem()
-			specifyType(store, lookup, ct.Elt, et, nil)
+			specifyType(store, n, lookup, ct.Elt, et, nil)
 		default:
 			panic(fmt.Sprintf(
 				"expected pointer kind but got %s",
@@ -2413,11 +2443,11 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 	case *ArrayType:
 		switch at := baseOf(spec).(type) {
 		case *ArrayType:
-			specifyType(store, lookup, ct.Elt, at.Elt, nil)
+			specifyType(store, n, lookup, ct.Elt, at.Elt, nil)
 		case *NativeType:
 			// NOTE: see note about type-checking.
 			et := at.Elem()
-			specifyType(store, lookup, ct.Elt, et, nil)
+			specifyType(store, n, lookup, ct.Elt, et, nil)
 		default:
 			panic(fmt.Sprintf(
 				"expected array kind but got %s",
@@ -2428,7 +2458,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 		case PrimitiveType:
 			if isGeneric(ct.Elt) {
 				if st.Kind() == StringKind {
-					specifyType(store, lookup, ct.Elt, Uint8Type, nil)
+					specifyType(store, n, lookup, ct.Elt, Uint8Type, nil)
 				} else {
 					panic(fmt.Sprintf(
 						"expected slice kind but got %s",
@@ -2444,11 +2474,11 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 					spec.Kind()))
 			}
 		case *SliceType:
-			specifyType(store, lookup, ct.Elt, st.Elt, nil)
+			specifyType(store, n, lookup, ct.Elt, st.Elt, nil)
 		case *NativeType:
 			// NOTE: see note about type-checking.
 			et := st.Elem()
-			specifyType(store, lookup, ct.Elt, et, nil)
+			specifyType(store, n, lookup, ct.Elt, et, nil)
 		default:
 			panic(fmt.Sprintf(
 				"expected slice kind but got %s",
@@ -2457,14 +2487,14 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 	case *MapType:
 		switch mt := baseOf(spec).(type) {
 		case *MapType:
-			specifyType(store, lookup, ct.Key, mt.Key, nil)
-			specifyType(store, lookup, ct.Value, mt.Value, nil)
+			specifyType(store, n, lookup, ct.Key, mt.Key, nil)
+			specifyType(store, n, lookup, ct.Value, mt.Value, nil)
 		case *NativeType:
 			// NOTE: see note about type-checking.
 			kt := mt.Key()
 			vt := mt.Elem()
-			specifyType(store, lookup, ct.Key, kt, nil)
-			specifyType(store, lookup, ct.Value, vt, nil)
+			specifyType(store, n, lookup, ct.Key, kt, nil)
+			specifyType(store, n, lookup, ct.Value, vt, nil)
 		default:
 			panic(fmt.Sprintf(
 				"expected map kind but got %s",
@@ -2503,7 +2533,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 				generic := ct.Generic[:len(ct.Generic)-len(".Elem()")]
 				match, ok := lookup[generic]
 				if ok {
-					assertAssignableTo(spec, match.Elem(), false)
+					assertAssignableTo(n, spec, match.Elem(), false)
 					return // ok
 				} else {
 					// Panic here, because we don't know whether T
@@ -2517,7 +2547,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 			} else {
 				match, ok := lookup[ct.Generic]
 				if ok {
-					assertAssignableTo(spec, match, false)
+					assertAssignableTo(n, spec, match, false)
 					return // ok
 				} else {
 					if isUntyped(spec) {
@@ -2535,9 +2565,9 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 		switch cbt := baseOf(spec).(type) {
 		case *NativeType:
 			gnoType := store.Go2GnoType(cbt.Type)
-			specifyType(store, lookup, ct.Type, gnoType, nil)
+			specifyType(store, n, lookup, ct.Type, gnoType, nil)
 		default:
-			specifyType(store, lookup, ct.Type, cbt, nil)
+			specifyType(store, n, lookup, ct.Type, cbt, nil)
 		}
 	default:
 		// ignore, no generics.

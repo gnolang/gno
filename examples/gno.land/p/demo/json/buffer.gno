@@ -3,7 +3,6 @@ package json
 import (
 	"errors"
 	"io"
-	"strings"
 
 	"gno.land/p/demo/ufmt"
 )
@@ -112,28 +111,6 @@ func (b *buffer) skip(bs byte) error {
 	return io.EOF
 }
 
-// skipAny moves the index until it encounters one of the given set of bytes.
-func (b *buffer) skipAny(endTokens map[byte]bool) error {
-	for b.index < b.length {
-		if _, exists := endTokens[b.data[b.index]]; exists {
-			return nil
-		}
-
-		b.index++
-	}
-
-	// build error message
-	var tokens []string
-	for token := range endTokens {
-		tokens = append(tokens, string(token))
-	}
-
-	return ufmt.Errorf(
-		"EOF reached before encountering one of the expected tokens: %s",
-		strings.Join(tokens, ", "),
-	)
-}
-
 // skipAndReturnIndex moves the buffer index forward by one and returns the new index.
 func (b *buffer) skipAndReturnIndex() (int, error) {
 	err := b.step()
@@ -165,7 +142,7 @@ func (b *buffer) skipUntil(endTokens map[byte]bool) (int, error) {
 
 // significantTokens is a map where the keys are the significant characters in a JSON path.
 // The values in the map are all true, which allows us to use the map as a set for quick lookups.
-var significantTokens = map[byte]bool{
+var significantTokens = [256]bool{
 	dot:          true, // access properties of an object
 	dollarSign:   true, // root object
 	atSign:       true, // current object
@@ -174,7 +151,7 @@ var significantTokens = map[byte]bool{
 }
 
 // filterTokens stores the filter expression tokens.
-var filterTokens = map[byte]bool{
+var filterTokens = [256]bool{
 	aesterisk: true, // wildcard
 	andSign:   true,
 	orSign:    true,
@@ -186,7 +163,7 @@ func (b *buffer) skipToNextSignificantToken() {
 	for b.index < b.length {
 		current := b.data[b.index]
 
-		if _, ok := significantTokens[current]; ok {
+		if significantTokens[current] {
 			break
 		}
 
@@ -205,7 +182,7 @@ func (b *buffer) backslash() bool {
 
 	count := 0
 	for i := b.index - 1; ; i-- {
-		if i >= b.length || b.data[i] != backSlash {
+		if b.data[i] != backSlash {
 			break
 		}
 
@@ -220,7 +197,7 @@ func (b *buffer) backslash() bool {
 }
 
 // numIndex holds a map of valid numeric characters
-var numIndex = map[byte]bool{
+var numIndex = [256]bool{
 	'0': true,
 	'1': true,
 	'2': true,
@@ -255,11 +232,11 @@ func (b *buffer) pathToken() error {
 			}
 
 			if err := b.skip(c); err != nil {
-				return errors.New("unmatched quote in path")
+				return errUnmatchedQuotePath
 			}
 
 			if b.index >= b.length {
-				return errors.New("unmatched quote in path")
+				return errUnmatchedQuotePath
 			}
 
 		case c == bracketOpen || c == parenOpen:
@@ -269,7 +246,7 @@ func (b *buffer) pathToken() error {
 		case c == bracketClose || c == parenClose:
 			inToken = true
 			if len(stack) == 0 || (c == bracketClose && stack[len(stack)-1] != bracketOpen) || (c == parenClose && stack[len(stack)-1] != parenOpen) {
-				return errors.New("mismatched bracket or parenthesis")
+				return errUnmatchedParenthesis
 			}
 
 			stack = stack[:len(stack)-1]
@@ -284,7 +261,7 @@ func (b *buffer) pathToken() error {
 				inToken = true
 				inNumber = true
 			} else if !inToken {
-				return errors.New("unexpected operator at start of token")
+				return errInvalidToken
 			}
 
 		default:
@@ -300,7 +277,7 @@ func (b *buffer) pathToken() error {
 
 end:
 	if len(stack) != 0 {
-		return errors.New("unclosed bracket or parenthesis at end of path")
+		return errUnmatchedParenthesis
 	}
 
 	if first == b.index {
@@ -315,15 +292,15 @@ end:
 }
 
 func pathStateContainsValidPathToken(c byte) bool {
-	if _, ok := significantTokens[c]; ok {
+	if significantTokens[c] {
 		return true
 	}
 
-	if _, ok := filterTokens[c]; ok {
+	if filterTokens[c] {
 		return true
 	}
 
-	if _, ok := numIndex[c]; ok {
+	if numIndex[c] {
 		return true
 	}
 
@@ -342,7 +319,7 @@ func (b *buffer) numeric(token bool) error {
 	for ; b.index < b.length; b.index++ {
 		b.class = b.getClasses(doubleQuote)
 		if b.class == __ {
-			return errors.New("invalid token found while parsing path")
+			return errInvalidToken
 		}
 
 		b.state = StateTransitionTable[b.last][b.class]
@@ -351,7 +328,7 @@ func (b *buffer) numeric(token bool) error {
 				break
 			}
 
-			return errors.New("invalid token found while parsing path")
+			return errInvalidToken
 		}
 
 		if b.state < __ {
@@ -366,7 +343,7 @@ func (b *buffer) numeric(token bool) error {
 	}
 
 	if b.last != ZE && b.last != IN && b.last != FR && b.last != E3 {
-		return errors.New("invalid token found while parsing path")
+		return errInvalidToken
 	}
 
 	return nil
@@ -407,12 +384,12 @@ func (b *buffer) string(search byte, token bool) error {
 		b.class = b.getClasses(search)
 
 		if b.class == __ {
-			return errors.New("invalid token found while parsing path")
+			return errInvalidToken
 		}
 
 		b.state = StateTransitionTable[b.last][b.class]
 		if b.state == __ {
-			return errors.New("invalid token found while parsing path")
+			return errInvalidToken
 		}
 
 		if b.state < __ {
@@ -431,11 +408,11 @@ func (b *buffer) word(bs []byte) error {
 	max := len(bs)
 	index := 0
 
-	for ; b.index < b.length; b.index++ {
+	for ; b.index < b.length && index < max; b.index++ {
 		c = b.data[b.index]
 
 		if c != bs[index] {
-			return errors.New("invalid token found while parsing path")
+			return errInvalidToken
 		}
 
 		index++
@@ -445,7 +422,7 @@ func (b *buffer) word(bs []byte) error {
 	}
 
 	if index != max {
-		return errors.New("invalid token found while parsing path")
+		return errInvalidToken
 	}
 
 	return nil

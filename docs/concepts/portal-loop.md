@@ -67,3 +67,20 @@ has some drawbacks:
 Gno will fail to be replayed, meaning **data will be lost**. 
 - Since transactions are archived and replayed during genesis, 
 block height & timestamp cannot be relied upon.
+
+### Deploying to the Portal Loop
+
+There are two ways to deploy code to the Portal Loop:
+
+1. *automatic* - all packages in found in the `examples/gno.land/{p,r}/` directory in the [Gno monorepo](https://github.com/gnolang/gno) get added to the
+   new genesis each cycle,
+2. *permissionless* - this includes replayed transactions with `addpkg`, and
+   new transactions you can issue with `gnokey maketx addpkg`.
+
+Since the packages in `examples/gno.land/{p,r}` are deployed first,
+permissionless deployments get superseded when packages with identical `pkgpath` 
+get merged into `examples/`. 
+
+The above mechanism is also how the `examples/` on the Portal Loop
+get collaboratively iterated upon, which is its main mission.
+

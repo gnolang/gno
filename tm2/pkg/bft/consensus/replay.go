@@ -237,7 +237,7 @@ func (h *Handshaker) Handshake(proxyApp appconn.AppConns) error {
 	// Handshake is done via ABCI Info on the query conn.
 	res, err := proxyApp.Query().InfoSync(abci.RequestInfo{})
 	if err != nil {
-		return fmt.Errorf("Error calling Info: %w", err)
+		return fmt.Errorf("error calling Info: %w", err)
 	}
 
 	blockHeight := res.LastBlockHeight
@@ -306,6 +306,13 @@ func (h *Handshaker) ReplayBlocks(
 		if err != nil {
 			return nil, err
 		}
+
+		// Save the results by height
+		abciResponse := sm.NewABCIResponsesFromNum(int64(len(res.TxResponses)))
+		copy(abciResponse.DeliverTxs, res.TxResponses)
+		sm.SaveABCIResponses(h.stateDB, 0, abciResponse)
+
+		// NOTE: we don't save results by tx hash since the transactions are in the AppState opaque type
 
 		if stateBlockHeight == 0 { // we only update state when we are in initial state
 			// If the app returned validators or consensus params, update the state.

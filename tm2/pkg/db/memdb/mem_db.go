@@ -150,7 +150,7 @@ func (db *MemDB) NewBatch() dbm.Batch {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	return &internal.MemBatch{db, nil}
+	return &internal.MemBatch{DB: db}
 }
 
 // ----------------------------------------

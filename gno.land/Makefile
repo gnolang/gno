@@ -47,6 +47,16 @@ install.gnoland:;    go install ./cmd/gnoland
 install.gnoweb:;     go install ./cmd/gnoweb
 install.gnokey:;     go install ./cmd/gnokey
 
+.PHONY: dev.gnoweb generate.gnoweb
+dev.gnoweb:
+	make -C ./pkg/gnoweb dev
+
+.PHONY: generate
+generate:
+	go generate -x ./...
+	make -C ./pkg/gnoweb generate
+
+
 .PHONY: fclean
 fclean: clean
 	rm -rf gnoland-data genesis.json

@@ -35,7 +35,7 @@ func newFmtCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "fmt",
 			ShortUsage: "gno fmt [flags] [path ...]",
-			ShortHelp:  "Run gno file formatter.",
+			ShortHelp:  "gnofmt (reformat) package sources",
 			LongHelp:   "The `gno fmt` tool processes, formats, and cleans up `gno` source files.",
 		},
 		cfg,
@@ -162,7 +162,7 @@ func fmtProcessSingleFile(cfg *fmtCfg, file string, processFile fmtProcessFileFu
 	}
 	if !cfg.write {
 		if !cfg.diff && !cfg.quiet {
-			io.Println(string(out))
+			io.Out().Write(out)
 		}
 		return true
 	}

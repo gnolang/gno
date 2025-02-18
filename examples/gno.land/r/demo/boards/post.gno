@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/moul/txlink"
 )
 
 //----------------------------------------
@@ -155,27 +156,26 @@ func (post *Post) GetURL() string {
 }
 
 func (post *Post) GetReplyFormURL() string {
-	return "/r/demo/boards?help&__func=CreateReply" +
-		"&bid=" + post.board.id.String() +
-		"&threadid=" + post.threadID.String() +
-		"&postid=" + post.id.String() +
-		"&body.type=textarea"
+	return txlink.Call("CreateReply",
+		"bid", post.board.id.String(),
+		"threadid", post.threadID.String(),
+		"postid", post.id.String(),
+	)
 }
 
 func (post *Post) GetRepostFormURL() string {
-	return "/r/demo/boards?help&__func=CreateRepost" +
-		"&bid=" + post.board.id.String() +
-		"&postid=" + post.id.String() +
-		"&title.type=textarea" +
-		"&body.type=textarea" +
-		"&dstBoardID.type=textarea"
+	return txlink.Call("CreateRepost",
+		"bid", post.board.id.String(),
+		"postid", post.id.String(),
+	)
 }
 
 func (post *Post) GetDeleteFormURL() string {
-	return "/r/demo/boards?help&__func=DeletePost" +
-		"&bid=" + post.board.id.String() +
-		"&threadid=" + post.threadID.String() +
-		"&postid=" + post.id.String()
+	return txlink.Call("DeletePost",
+		"bid", post.board.id.String(),
+		"threadid", post.threadID.String(),
+		"postid", post.id.String(),
+	)
 }
 
 func (post *Post) RenderSummary() string {

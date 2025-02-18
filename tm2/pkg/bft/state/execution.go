@@ -82,20 +82,13 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 	return state.MakeBlock(height, txs, commit, proposerAddr)
 }
 
-// ValidateBlock validates the given block against the given state.
-// If the block is invalid, it returns an error.
-// Validation does not mutate state, but does require historical information from the stateDB
-func (blockExec *BlockExecutor) ValidateBlock(state State, block *types.Block) error {
-	return validateBlock(blockExec.db, state, block)
-}
-
 // ApplyBlock validates the block against the state, executes it against the app,
 // fires the relevant events, commits the app, and saves the new state and responses.
 // It's the only function that needs to be called
 // from outside this package to process and commit an entire block.
 // It takes a blockID to avoid recomputing the parts hash.
 func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, block *types.Block) (State, error) {
-	if err := blockExec.ValidateBlock(state, block); err != nil {
+	if err := state.ValidateBlock(block); err != nil {
 		return state, InvalidBlockError(err)
 	}
 
@@ -106,10 +99,10 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 
 	fail.Fail() // XXX
 
-	// Save the results before we commit.
-	saveABCIResponses(blockExec.db, block.Height, abciResponses)
+	// Save the results by height
+	SaveABCIResponses(blockExec.db, block.Height, abciResponses)
 
-	// Save the transaction results
+	// Save the results by tx hash
 	for index, tx := range block.Txs {
 		saveTxResultIndex(
 			blockExec.db,
