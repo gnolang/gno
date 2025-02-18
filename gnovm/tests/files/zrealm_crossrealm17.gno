@@ -24,4 +24,4 @@ func main() {
 }
 
 // Error:
-// cannot attach a value of a type defined by another realm: heapitem((struct{(&(struct{} gno.land/r/crossrealm_test.fooer) *gno.land/r/crossrealm_test.fooer)} gno.land/r/crossrealm_test.container))
+// cannot attach a value of a type defined by another realm

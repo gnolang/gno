@@ -1,3 +1,4 @@
+// PKGPATH: gno.land/r/crossrealm_map
 package crossrealm_map
 
 type Foo struct{}
@@ -35,3 +36,5 @@ func GetMap3() MyMap {
 }
 
 // TODO: add some map with elements of object
+
+// Realm:

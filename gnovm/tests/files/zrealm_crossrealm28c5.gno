@@ -27,4 +27,4 @@ func main() {
 }
 
 // Error:
-// cannot attach a reference to an unreal object from an external realm: struct{("1" string)}
+// cannot attach a reference to an unattached object from an external realm

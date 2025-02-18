@@ -18,4 +18,4 @@ func main() {
 }
 
 // Error:
-// cannot attach a reference to an unreal object from an external realm: struct{(1 int)}
+// cannot attach a reference to an unattached object from an external realm

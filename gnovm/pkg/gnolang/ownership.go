@@ -179,7 +179,13 @@ type ObjectInfo struct {
 	// realm where object is from
 	originRealm PkgID
 
-	// if this object is attaching as a base of reference
+	// This flag indicates whether the object is being
+	// attached as a base of reference or as itself.
+	// For example:
+	// - If the object being attached is a struct value
+	// whose type is declared in another realm, it should panic.
+	// - If the object being attached is a pointer to such
+	// a struct value, it is allowed.
 	isAttachingRef bool
 
 	// XXX huh?
@@ -196,15 +202,6 @@ func (oi *ObjectInfo) Copy() ObjectInfo {
 		ModTime:   oi.ModTime,
 		RefCount:  oi.RefCount,
 		IsEscaped: oi.IsEscaped,
-		/*
-			// XXX do the following need copying too?
-			isDirty:          oi.isDirty,
-			isDeleted:        oi.isDeleted,
-			isNewReal:        oi.isNewReal,
-			isNewEscaped:     oi.isNewEscaped,
-			isNewDeleted:     oi.isNewDeleted,
-			originRealm: oi.originRealm,
-		*/
 	}
 }
 
@@ -269,6 +266,7 @@ func (oi *ObjectInfo) GetOwnerID() ObjectID {
 	} else {
 		return oi.owner.GetObjectID()
 	}
+	//return oi.OwnerID
 }
 
 func (oi *ObjectInfo) GetIsOwned() bool {
@@ -422,28 +420,14 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 	}
 }
 
-// GetOriginPkg get origin pkg for real or unreal object
-// if the object is real, it's retrieved from objectID,
-// otherwise, it's inference from its type.
-func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
-	// attempting to retrieve the original package from ObjectID
-	obj := tv.GetFirstObject(store)
-	if obj != nil {
-		originPkg = obj.GetOriginRealm()
-		if !originPkg.IsZero() {
-			return
-		}
-		originPkg = obj.GetObjectID().PkgID
-		if !originPkg.IsZero() {
-			return
-		}
-	}
-
+// GetBoundRealmByType retrieves the bound realm for the object
+// by checking its type. If the type is a declared type, it is
+// considered bound to a specific realm; otherwise, it returns zero.
+func (tv *TypedValue) GetBoundRealmByType(obj Object) (originPkg PkgID) {
 	// attempting to infer original package using declared type
-	// if it does not have an objectID(unreal)
 	getPkgId := func(t Type) (pkgId PkgID) {
 		if dt, ok := t.(*DeclaredType); ok {
-			pkgId = PkgIDFromPkgPath(dt.Base.GetPkgPath())
+			pkgId = PkgIDFromPkgPath(dt.GetPkgPath())
 			return
 		}
 		return
@@ -453,6 +437,14 @@ func (tv *TypedValue) GetOriginPkg(store Store) (originPkg PkgID) {
 	case *HeapItemValue:
 		originPkg = getPkgId(cv.Value.T)
 		return
+	case *Block:
+		// assert to pointer value
+		if pv, ok := tv.V.(PointerValue); ok {
+			originPkg = getPkgId(pv.TV.T)
+			return
+		} else {
+			// XXX?
+		}
 	case *BoundMethodValue:
 		// do nothing
 		return

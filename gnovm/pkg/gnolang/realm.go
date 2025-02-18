@@ -94,6 +94,7 @@ func PkgIDFromPkgPath(path string) PkgID {
 	if !ok {
 		pkgID = new(PkgID)
 		*pkgID = PkgID{purePkg: !IsRealmPath(path), Hashlet: HashBytes([]byte(path))}
+
 		pkgIDFromPkgPathCache[path] = pkgID
 	}
 	return *pkgID
@@ -210,6 +211,7 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 	if co != nil {
 		// XXX, inc ref count everytime assignment happens
 		co.IncRefCount()
+		//fmt.Println("co.GetRefCount() after inc: ", co.GetRefCount())
 		if co.GetRefCount() > 1 {
 			if co.GetIsReal() {
 				rlm.MarkDirty(co)
@@ -217,15 +219,19 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 			if co.GetIsEscaped() {
 				//	already escaped
 			} else {
-				rlm.MarkNewEscaped(co)
+				//rlm.MarkNewEscaped(co)
 				// check cross realm
 				originRealm := co.GetOriginRealm()
+				//fmt.Println("originRealm: ", originRealm)
 				if originRealm == rlm.ID {
+					//rlm.MarkNewEscaped(co)
 				} else if isCrossRealm(originRealm, rlm.ID) {
 					if !co.GetIsAttachingRef() {
 						panic(fmt.Sprintf("cannot attach objects by value from external realm: %v", co))
 					}
+					//rlm.MarkNewEscaped(co)
 				}
+				rlm.MarkNewEscaped(co)
 			}
 		} else {
 			if co.GetIsReal() { // e.g. refCount change
@@ -258,7 +264,7 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, isLastRef bool, s
 	}
 	tv2 := fillValueTV(store, tv)
 	if oo, ok := tv2.V.(Object); ok {
-		oo.SetOriginRealm(tv2.GetOriginPkg(store))
+		oo.SetOriginRealm(tv2.GetBoundRealmByType(oo))
 		checkCrossRealm(rlm, store, oo, isLastRef, seenObjs)
 	} else {
 		switch tv.V.(type) {
@@ -278,7 +284,7 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, isLastRef bool, s
 			}
 
 			// set origin realm info
-			reo.SetOriginRealm(tv2.GetOriginPkg(store))
+			reo.SetOriginRealm(tv2.GetBoundRealmByType(reo))
 			reo.SetIsAttachingRef(true)
 			checkCrossRealm(rlm, store, reo, isLastRef, seenObjs)
 		}
@@ -320,12 +326,12 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, isAttachingRef bool, se
 		// they can be attached(real) after.
 		if isAttachingRef {
 			if !oo.GetIsReal() {
-				panic(fmt.Sprintf("cannot attach a reference to an unreal object from an external realm: %v", oo))
+				panic("cannot attach a reference to an unattached object from an external realm")
 			} else {
 				return
 			}
 		} else {
-			panic(fmt.Sprintf("cannot attach a value of a type defined by another realm: %v", oo))
+			panic("cannot attach a value of a type defined by another realm")
 		}
 	}
 }
@@ -402,6 +408,7 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 
 // mark dirty == updated
 func (rlm *Realm) MarkDirty(oo Object) {
+	//fmt.Println("MarkDirty, oo: ", oo)
 	if debug {
 		if !oo.GetIsReal() && !oo.GetIsNewReal() {
 			panic("cannot mark unreal object as dirty")
@@ -723,6 +730,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 	// except for new-reals that get demoted
 	// because ref-count isn't >= 2.
 	for _, eo := range rlm.newEscaped {
+		//fmt.Println("eo: ", eo)
 		if debug {
 			if !eo.GetIsNewEscaped() {
 				panic("new escaped mark not marked as new escaped")
@@ -745,9 +753,11 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 
 			// add to escaped, and mark dirty previous owner.
 			po := getOwner(store, eo)
+			//fmt.Println("po: ", po)
 			if po == nil {
 				// e.g. !eo.GetIsNewReal(),
 				// should have no parent.
+				//eo.SetOwner(nil)
 				continue
 			} else {
 				if po.GetRefCount() == 0 {
@@ -762,6 +772,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 					panic("new escaped mark has no object ID")
 				}
 				// escaped has no owner.
+				//fmt.Println("set owner to be nil")
 				eo.SetOwner(nil)
 			}
 		}
@@ -935,7 +946,7 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 func (rlm *Realm) saveObject(store Store, oo Object) {
 	oid := oo.GetObjectID()
 	if oid.IsZero() {
-		panic("unexpected zero object id")
+		panic(fmt.Sprintf("unexpected zero object id: %v", oo))
 	}
 	if isCrossRealm(oo.GetOriginRealm(), rlm.ID) {
 		if !oo.GetIsEscaped() && !oo.GetIsNewEscaped() {
@@ -1670,7 +1681,7 @@ func toRefValue(val Value) RefValue {
 				PkgPath: pv.PkgPath,
 			}
 		} else if !oo.GetIsReal() {
-			panic("unexpected unreal object")
+			panic(fmt.Sprintf("unexpected unreal object: %v", val))
 		} else if oo.GetIsDirty() {
 			// This can happen with some circular
 			// references.

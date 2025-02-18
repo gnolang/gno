@@ -25,4 +25,4 @@ func main() {
 }
 
 // Error:
-// cannot attach a value of a type defined by another realm: struct{("Local_S" string)}
+// cannot attach a value of a type defined by another realm

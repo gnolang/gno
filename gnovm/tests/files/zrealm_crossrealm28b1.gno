@@ -18,4 +18,4 @@ func main() {
 }
 
 // Error:
-// cannot attach a value of a type defined by another realm: struct{}
+// cannot attach a value of a type defined by another realm

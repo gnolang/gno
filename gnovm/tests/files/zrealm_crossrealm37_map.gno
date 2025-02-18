@@ -10,5 +10,41 @@ func main() {
 	println(m1)
 }
 
-// Error:
-// cannot attach objects by value from external realm: map{("a" string):(1 int)}
+// Output:
+// map{("a" string):(1 int)}
+
+// Realm:
+// switchrealm["gno.land/r/demo/tests/crossrealm/map"]
+// switchrealm["gno.land/r/crossrealm_test"]
+// u[5a06306c27263d4b9ae8f2f30e82f8ef014042cd:6]={
+//     "List": {
+//         "List": [
+//             {
+//                 "Key": {
+//                     "T": {
+//                         "@type": "/gno.PrimitiveType",
+//                         "value": "16"
+//                     },
+//                     "V": {
+//                         "@type": "/gno.StringValue",
+//                         "value": "a"
+//                     }
+//                 },
+//                 "Value": {
+//                     "N": "AQAAAAAAAAA=",
+//                     "T": {
+//                         "@type": "/gno.PrimitiveType",
+//                         "value": "32"
+//                     }
+//                 }
+//             }
+//         ]
+//     },
+//     "ObjectInfo": {
+//         "ID": "5a06306c27263d4b9ae8f2f30e82f8ef014042cd:6",
+//         "IsEscaped": true,
+//         "ModTime": "3",
+//         "OwnerID": "5a06306c27263d4b9ae8f2f30e82f8ef014042cd:2",
+//         "RefCount": "2"
+//     }
+// }

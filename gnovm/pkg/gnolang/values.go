@@ -284,13 +284,11 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 	if rlm != nil && pv.Base != nil {
 		oo1 := pv.TV.GetFirstObject(store)
 
-		// get origin pkgId, this should happen before assign,
-		// because assign will discard original object info
-		originPkg := tv2.GetOriginPkg(store)
-
 		pv.TV.Assign(alloc, tv2, cu)
 
 		oo2 := pv.TV.GetFirstObject(store)
+
+		originPkg := tv2.GetBoundRealmByType(oo2)
 
 		// set origin realm to object
 		if oo2 != nil && !originPkg.IsZero() {
@@ -2393,8 +2391,8 @@ func (b *Block) StringIndented(indent string) string {
 	}
 	lines := make([]string, 0, 3)
 	lines = append(lines,
-		fmt.Sprintf("Block(ID:%v,Addr:%p,Source:%s,Parent:%p)",
-			b.ObjectInfo.ID, b, source, b.Parent)) // XXX Parent may be RefValue{}.
+		fmt.Sprintf("Block(ID:%v,Source:%s,Parent:%p)",
+			b.ObjectInfo.ID, source, b.Parent)) // XXX Parent may be RefValue{}.
 	if b.Source != nil {
 		if _, ok := b.Source.(RefNode); ok {
 			lines = append(lines,

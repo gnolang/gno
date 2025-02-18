@@ -13,4 +13,4 @@ func main() {
 }
 
 // Error:
-// cannot attach a value of a type defined by another realm: struct{(22 int)}
+// cannot attach a value of a type defined by another realm
