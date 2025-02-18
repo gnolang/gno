@@ -20,7 +20,7 @@ jobs:
       fail-fast: false
       matrix:
         goversion:
-          - "1.22.x"
+          - "1.23.x"
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -35,7 +35,7 @@ jobs:
       fail-fast: false
       matrix:
         goversion:
-          - "1.22.x"
+          - "1.23.x"
         # unittests: TODO: matrix with contracts
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -58,7 +58,7 @@ jobs:
       fail-fast: false
       matrix:
         goversion:
-          - "1.22.x"
+          - "1.23.x"
         # unittests: TODO: matrix with contracts
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -83,13 +83,13 @@ jobs:
     uses: ./.github/workflows/build_template.yml
     with:
       modulepath: "examples"
-      go-version: "1.22.x"
+      go-version: "1.23.x"
 
   mod-tidy:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.22.x" ]
+        go-version: [ "1.23.x" ]
         # unittests: TODO: matrix with contracts
     runs-on: ubuntu-latest
     timeout-minutes: 10
