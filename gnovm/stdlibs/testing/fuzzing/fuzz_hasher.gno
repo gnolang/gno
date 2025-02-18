@@ -30,9 +30,10 @@ type (
 	}
 )
 
-// ----------------------------------------
-// FuzzHasher: main struct
-// ----------------------------------------
+// FuzzHasher is the main struct for managing hash mappings.
+//
+// It maintains mappings between hash numbers, internal hashes, and coverage data.
+// The struct includes a counter for assigning unique hash numbers.
 type FuzzHasher struct {
 	HashNumber2Internal     *[MaxCapacity]InternalHash  // Table: hashNumber -> internalHash
 	internal2Cov            map[InternalHash]Coverage   // Table: internalHash -> Coverage
@@ -42,14 +43,15 @@ type FuzzHasher struct {
 	// coverageCache map[string]hashNumber  // coverage -> hashNumber
 }
 
-// ----------------------------------------
-// registerCoverage2HashNumber
-// ----------------------------------------
-// 1) computes internalHash from coverage
-// 2) inserts coverage into internal2Cov
-// 3) obtains hashNumber (unique ID)
-// 4) updates hashNumber2Internal
-// 5) returns the assigned hashNumber
+// RegisterCoverage2HashNumber computes an internal hash from the given coverage,
+// stores the mapping, assigns a unique hash number, and updates the internal tables.
+//
+// It performs the following steps:
+// 1. Computes the internal hash from the coverage.
+// 2. Inserts the coverage into internal2Cov.
+// 3. Obtains a unique hash number.
+// 4. Updates HashNumber2Internal.
+// 5. Returns the assigned hash number.
 func (fh *FuzzHasher) RegisterCoverage2HashNumber(coverage Coverage) HashNumber {
 	ih := GetInternalHash(coverage) // compute internalHash
 	fh.internal2Cov[ih] = coverage
@@ -111,7 +113,7 @@ func (fh *FuzzHasher) countHashNumber(ih InternalHash) HashNumber {
 	return current
 }
 
-// IsExistingCoverage는 주어진 coverage가 이미 등록되어 있는지 확인하여, 등록되어 있으면 true, 아니면 false를 반환합니다.
+// IsExistingCoverage checks whether the given coverage is already registered.
 func (fh *FuzzHasher) IsExistingCoverage(cv Coverage) bool {
 	ih := GetInternalHash(cv)
 	_, exists := fh.internal2Cov[ih]

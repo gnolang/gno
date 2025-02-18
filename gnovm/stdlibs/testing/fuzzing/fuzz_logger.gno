@@ -90,12 +90,11 @@ func TokenizeXXX(s interface{}) []Token {
 	var tokens []Token
 	var b []byte
 
-	// 입력 타입 체크
 	switch v := s.(type) {
 	case string:
-		b = []byte(v) // string을 []byte로 변환
+		b = []byte(v)
 	case []byte:
-		b = v // []byte 그대로 사용
+		b = v
 	default:
 		panic("unsupported type: must be string or []byte")
 	}

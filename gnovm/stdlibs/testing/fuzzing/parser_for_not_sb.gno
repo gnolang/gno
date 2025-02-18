@@ -162,7 +162,6 @@ func quickSortMutationCodesForNotSB(keys []MutationCodeForNotSB) {
 	}
 	pivotIndex := len(keys) / 2
 	pivot := keys[pivotIndex]
-	// 피벗을 마지막 요소와 교환합니다.
 	keys[pivotIndex], keys[len(keys)-1] = keys[len(keys)-1], keys[pivotIndex]
 
 	storeIndex := 0
@@ -172,7 +171,6 @@ func quickSortMutationCodesForNotSB(keys []MutationCodeForNotSB) {
 			storeIndex++
 		}
 	}
-	// 피벗을 올바른 위치로 이동합니다.
 	keys[storeIndex], keys[len(keys)-1] = keys[len(keys)-1], keys[storeIndex]
 
 	quickSortMutationCodesForNotSB(keys[:storeIndex])

@@ -127,7 +127,7 @@ func TestMutateArg(t *testing.T) {
 	ms := fuzzing.NewMutSample(seed)
 
 	for idx, original := range seed.Content {
-		t.Logf("원본 인자 [idx=%d]: %v", idx, original)
+		t.Logf("original args [idx=%d]: %v", idx, original)
 		for iter := 0; iter < 5; iter++ {
 			mutatedArg, mutationInfo := ms.MutateArg(original, 3, idx)
 			t.Logf("  Iteration %d: mutated value: %v, mutation info: %+v", iter, mutatedArg, mutationInfo)
@@ -135,9 +135,7 @@ func TestMutateArg(t *testing.T) {
 	}
 
 	keys, cum := ms.Seed.HashNumber, []uint64{0}
-	t.Logf("MutSample 내부 전략 캐시 (예시): keys=%v, cum=%v", keys, cum)
-
-	fmt.Println("테스트가 완료되었습니다.")
+	t.Logf("MutSample's strategy cache (example): keys=%v, cum=%v", keys, cum)
 }
 
 // TestSort tests boundary-based selection logic for mappedGeneratingNumber.

@@ -765,7 +765,7 @@ func NewMutSample(seed Seed) *MutSample {
 		Seed:                 seed,
 		ArgPowerSetScores:    scores,
 		SamplePopularity:     1,
-		RootEntsDict:         formattedRootEntsDict, // arg idx와 Ent매핑
+		RootEntsDict:         formattedRootEntsDict,
 		NotSbEntsDict:        formattedNotSbEntsDict,
 		CachedPowerSetCumSum: nil, // Cache starts empty
 		NeedsUpdateCache:     true,
@@ -890,7 +890,7 @@ var entMutators = map[MutationCode]MutateFunc{
 	CHP:   changePattern,
 	IR:    insertRandomly,
 	IG:    insertGradual,
-	II:    insertInteresting, // 수정된 이름
+	II:    insertInteresting,
 	IP:    insertPattern,
 	SW:    swap,
 	PKL:   preserveKindLight,
