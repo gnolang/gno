@@ -1,45 +1,22 @@
 package gnolang
 
-// XXX rename file to machine.go.
-
 import (
 	"fmt"
 	"io"
+	"path"
 	"reflect"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/gnolang/gno/gnovm"
+	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
-
-// Exception represents a panic that originates from a gno program.
-type Exception struct {
-	// Value is the value passed to panic.
-	Value TypedValue
-	// Frame is used to reference the frame a panic occurred in so that recover() knows if the
-	// currently executing deferred function is able to recover from the panic.
-	Frame *Frame
-
-	Stacktrace Stacktrace
-}
-
-func (e Exception) Sprint(m *Machine) string {
-	return e.Value.Sprint(m)
-}
-
-// UnhandledPanicError represents an error thrown when a panic is not handled in the realm.
-type UnhandledPanicError struct {
-	Descriptor string // Description of the unhandled panic.
-}
-
-func (e UnhandledPanicError) Error() string {
-	return e.Descriptor
-}
 
 //----------------------------------------
 // Machine
@@ -66,7 +43,6 @@ type Machine struct {
 	// Configuration
 	PreprocessorMode bool // this is used as a flag when const values are evaluated during preprocessing
 	ReadOnly         bool
-	MaxCycles        int64
 	Output           io.Writer
 	Store            Store
 	Context          interface{}
@@ -110,7 +86,6 @@ type MachineOptions struct {
 	Context          interface{}
 	Alloc            *Allocator // or see MaxAllocBytes.
 	MaxAllocBytes    int64      // or 0 for no limit.
-	MaxCycles        int64      // or 0 for no limit.
 	GasMeter         store.GasMeter
 }
 
@@ -135,7 +110,6 @@ var machinePool = sync.Pool{
 func NewMachineWithOptions(opts MachineOptions) *Machine {
 	preprocessorMode := opts.PreprocessorMode
 	readOnly := opts.ReadOnly
-	maxCycles := opts.MaxCycles
 	vmGasMeter := opts.GasMeter
 
 	output := opts.Output
@@ -168,7 +142,6 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Alloc = alloc
 	mm.PreprocessorMode = preprocessorMode
 	mm.ReadOnly = readOnly
-	mm.MaxCycles = maxCycles
 	mm.Output = output
 	mm.Store = store
 	mm.Context = context
@@ -262,6 +235,12 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // and corresponding package node, package value, and types to store. Save
 // is set to false for tests where package values may be native.
 func (m *Machine) RunMemPackage(memPkg *gnovm.MemPackage, save bool) (*PackageNode, *PackageValue) {
+	if bm.OpsEnabled || bm.StorageEnabled {
+		bm.InitMeasure()
+	}
+	if bm.StorageEnabled {
+		defer bm.FinishStore()
+	}
 	return m.runMemPackage(memPkg, save, false)
 }
 
@@ -445,6 +424,51 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	}
 	updates := m.runFileDecls(fns...)
 	m.runInitFromUpdates(pv, updates)
+}
+
+// PreprocessFiles runs Preprocess on the given files. It is used to detect
+// compile-time errors in the package.
+func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, withOverrides bool) (*PackageNode, *PackageValue) {
+	if !withOverrides {
+		if err := checkDuplicates(fset); err != nil {
+			panic(fmt.Errorf("running package %q: %w", pkgName, err))
+		}
+	}
+	pn := NewPackageNode(Name(pkgName), pkgPath, fset)
+	pv := pn.NewPackage()
+	pb := pv.GetBlock(m.Store)
+	m.SetActivePackage(pv)
+	m.Store.SetBlockNode(pn)
+	PredefineFileSet(m.Store, pn, fset)
+	for _, fn := range fset.Files {
+		fn = Preprocess(m.Store, pn, fn).(*FileNode)
+		// After preprocessing, save blocknodes to store.
+		SaveBlockNodes(m.Store, fn)
+		// Make block for fn.
+		// Each file for each *PackageValue gets its own file *Block,
+		// with values copied over from each file's
+		// *FileNode.StaticBlock.
+		fb := m.Alloc.NewBlock(fn, pb)
+		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
+		copy(fb.Values, fn.StaticBlock.Values)
+		pv.AddFileBlock(fn.Name, fb)
+	}
+	// Get new values across all files in package.
+	pn.PrepareNewValues(pv)
+	// save package value.
+	var throwaway *Realm
+	if save {
+		// store new package values and types
+		throwaway = m.saveNewPackageValuesAndTypes()
+		if throwaway != nil {
+			m.Realm = throwaway
+		}
+		m.resavePackageValues(throwaway)
+		if throwaway != nil {
+			m.Realm = nil
+		}
+	}
+	return pn, pv
 }
 
 // Add files to the package's *FileSet and run decls in them.
@@ -698,6 +722,13 @@ func (m *Machine) RunMain() {
 func (m *Machine) Eval(x Expr) []TypedValue {
 	if debug {
 		m.Printf("Machine.Eval(%v)\n", x)
+	}
+	if bm.OpsEnabled || bm.StorageEnabled {
+		// reset the benchmark
+		bm.InitMeasure()
+	}
+	if bm.StorageEnabled {
+		defer bm.FinishStore()
 	}
 	// X must not have been preprocessed.
 	if x.GetAttribute(ATTR_PREPROCESSED) != nil {
@@ -979,6 +1010,7 @@ const (
 	OpRangeIterMap      Op = 0xD5
 	OpRangeIterArrayPtr Op = 0xD6
 	OpReturnCallDefers  Op = 0xD7 // TODO rename?
+	OpVoid              Op = 0xFF // For profiling simple operation
 )
 
 const GasFactorCPU int64 = 1
@@ -989,13 +1021,9 @@ const GasFactorCPU int64 = 1
 func (m *Machine) incrCPU(cycles int64) {
 	if m.GasMeter != nil {
 		gasCPU := overflow.Mul64p(cycles, GasFactorCPU)
-		m.GasMeter.ConsumeGas(gasCPU, "CPUCycles")
+		m.GasMeter.ConsumeGas(gasCPU, "CPUCycles") // May panic if out of gas.
 	}
-
 	m.Cycles += cycles
-	if m.MaxCycles != 0 && m.Cycles > m.MaxCycles {
-		panic("CPU cycle overrun")
-	}
 }
 
 const (
@@ -1129,6 +1157,12 @@ const (
 // main run loop.
 
 func (m *Machine) Run() {
+	if bm.OpsEnabled {
+		defer func() {
+			// output each machine run results to file
+			bm.FinishRun()
+		}()
+	}
 	defer func() {
 		r := recover()
 
@@ -1148,11 +1182,23 @@ func (m *Machine) Run() {
 			m.Debug()
 		}
 		op := m.PopOp()
+		if bm.OpsEnabled {
+			// benchmark the operation.
+			bm.StartOpCode(byte(OpVoid))
+			bm.StopOpCode()
+			// we do not benchmark static evaluation.
+			if op != OpStaticTypeOf {
+				bm.StartOpCode(byte(op))
+			}
+		}
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
 		/* Control operators */
 		case OpHalt:
 			m.incrCPU(OpCPUHalt)
+			if bm.OpsEnabled {
+				bm.StopOpCode()
+			}
 			return
 		case OpNoop:
 			m.incrCPU(OpCPUNoop)
@@ -1470,6 +1516,11 @@ func (m *Machine) Run() {
 			m.doOpReturnCallDefers()
 		default:
 			panic(fmt.Sprintf("unexpected opcode %s", op.String()))
+		}
+		if bm.OpsEnabled {
+			if op != OpStaticTypeOf {
+				bm.StopOpCode()
+			}
 		}
 	}
 }
@@ -2063,8 +2114,11 @@ func (m *Machine) Panic(ex TypedValue) {
 func (m *Machine) Println(args ...interface{}) {
 	if debug {
 		if enabled {
-			s := strings.Repeat("|", m.NumOps)
-			debug.Println(append([]interface{}{s}, args...)...)
+			_, file, line, _ := runtime.Caller(2) // get caller info
+			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
+			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
+			s := prefix + strings.Repeat("|", m.NumOps)
+			fmt.Println(append([]interface{}{s}, args...)...)
 		}
 	}
 }
@@ -2072,13 +2126,20 @@ func (m *Machine) Println(args ...interface{}) {
 func (m *Machine) Printf(format string, args ...interface{}) {
 	if debug {
 		if enabled {
-			s := strings.Repeat("|", m.NumOps)
-			debug.Printf(s+" "+format, args...)
+			_, file, line, _ := runtime.Caller(2) // get caller info
+			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
+			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
+			s := prefix + strings.Repeat("|", m.NumOps)
+			fmt.Printf(s+" "+format, args...)
 		}
 	}
 }
 
 func (m *Machine) String() string {
+	if m == nil {
+		return "Machine:nil"
+	}
+
 	// Calculate some reasonable total length to avoid reallocation
 	// Assuming an average length of 32 characters per string
 	var (
@@ -2093,25 +2154,26 @@ func (m *Machine) String() string {
 		totalLength = vsLength + ssLength + xsLength + bsLength + obsLength + fsLength + exceptionsLength
 	)
 
-	var builder strings.Builder
+	var sb strings.Builder
+	builder := &sb // Pointer for use in fmt.Fprintf.
 	builder.Grow(totalLength)
 
-	builder.WriteString(fmt.Sprintf("Machine:\n    PreprocessorMode: %v\n    Op: %v\n    Values: (len: %d)\n", m.PreprocessorMode, m.Ops[:m.NumOps], m.NumValues))
+	fmt.Fprintf(builder, "Machine:\n    PreprocessorMode: %v\n    Op: %v\n    Values: (len: %d)\n", m.PreprocessorMode, m.Ops[:m.NumOps], m.NumValues)
 
 	for i := m.NumValues - 1; i >= 0; i-- {
-		builder.WriteString(fmt.Sprintf("          #%d %v\n", i, m.Values[i]))
+		fmt.Fprintf(builder, "          #%d %v\n", i, m.Values[i])
 	}
 
 	builder.WriteString("    Exprs:\n")
 
 	for i := len(m.Exprs) - 1; i >= 0; i-- {
-		builder.WriteString(fmt.Sprintf("          #%d %v\n", i, m.Exprs[i]))
+		fmt.Fprintf(builder, "          #%d %v\n", i, m.Exprs[i])
 	}
 
 	builder.WriteString("    Stmts:\n")
 
 	for i := len(m.Stmts) - 1; i >= 0; i-- {
-		builder.WriteString(fmt.Sprintf("          #%d %v\n", i, m.Stmts[i]))
+		fmt.Fprintf(builder, "          #%d %v\n", i, m.Stmts[i])
 	}
 
 	builder.WriteString("    Blocks:\n")
@@ -2128,17 +2190,17 @@ func (m *Machine) String() string {
 		if pv, ok := b.Source.(*PackageNode); ok {
 			// package blocks have too much, so just
 			// print the pkgpath.
-			builder.WriteString(fmt.Sprintf("          %s(%d) %s\n", gens, gen, pv.PkgPath))
+			fmt.Fprintf(builder, "          %s(%d) %s\n", gens, gen, pv.PkgPath)
 		} else {
 			bsi := b.StringIndented("            ")
-			builder.WriteString(fmt.Sprintf("          %s(%d) %s\n", gens, gen, bsi))
+			fmt.Fprintf(builder, "          %s(%d) %s\n", gens, gen, bsi)
 
 			if b.Source != nil {
 				sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
-				builder.WriteString(fmt.Sprintf(" (s vals) %s(%d) %s\n", gens, gen, sb.StringIndented("            ")))
+				fmt.Fprintf(builder, " (s vals) %s(%d) %s\n", gens, gen, sb.StringIndented("            "))
 
 				sts := b.GetSource(m.Store).GetStaticBlock().Types
-				builder.WriteString(fmt.Sprintf(" (s typs) %s(%d) %s\n", gens, gen, sts))
+				fmt.Fprintf(builder, " (s typs) %s(%d) %s\n", gens, gen, sts)
 			}
 		}
 
@@ -2149,7 +2211,7 @@ func (m *Machine) String() string {
 		case *Block:
 			b = bp
 		case RefValue:
-			builder.WriteString(fmt.Sprintf("            (block ref %v)\n", bp.ObjectID))
+			fmt.Fprintf(builder, "            (block ref %v)\n", bp.ObjectID)
 			b = nil
 		default:
 			panic("should not happen")
@@ -2168,12 +2230,12 @@ func (m *Machine) String() string {
 		if _, ok := b.Source.(*PackageNode); ok {
 			break // done, skip *PackageNode.
 		} else {
-			builder.WriteString(fmt.Sprintf("          #%d %s\n", i,
-				b.StringIndented("            ")))
+			fmt.Fprintf(builder, "          #%d %s\n", i,
+				b.StringIndented("            "))
 			if b.Source != nil {
 				sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
-				builder.WriteString(fmt.Sprintf(" (static) #%d %s\n", i,
-					sb.StringIndented("            ")))
+				fmt.Fprintf(builder, " (static) #%d %s\n", i,
+					sb.StringIndented("            "))
 			}
 		}
 	}
@@ -2181,17 +2243,17 @@ func (m *Machine) String() string {
 	builder.WriteString("    Frames:\n")
 
 	for i := len(m.Frames) - 1; i >= 0; i-- {
-		builder.WriteString(fmt.Sprintf("          #%d %s\n", i, m.Frames[i]))
+		fmt.Fprintf(builder, "          #%d %s\n", i, m.Frames[i])
 	}
 
 	if m.Realm != nil {
-		builder.WriteString(fmt.Sprintf("    Realm:\n      %s\n", m.Realm.Path))
+		fmt.Fprintf(builder, "    Realm:\n      %s\n", m.Realm.Path)
 	}
 
 	builder.WriteString("    Exceptions:\n")
 
 	for _, ex := range m.Exceptions {
-		builder.WriteString(fmt.Sprintf("      %s\n", ex.Sprint(m)))
+		fmt.Fprintf(builder, "      %s\n", ex.Sprint(m))
 	}
 
 	return builder.String()

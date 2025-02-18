@@ -752,7 +752,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 				dao.ExecutionSuccessful,
 			},
 			{
-				"execution failed",
+				"execution not succeeded",
 				dao.ExecutionFailed,
 			},
 		}

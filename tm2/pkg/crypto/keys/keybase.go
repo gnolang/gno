@@ -17,6 +17,11 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
+var (
+	errCannotOverwrite = errors.New("cannot overwrite existing key")
+	errKeyNotAvailable = errors.New("private key not available")
+)
+
 var _ Keybase = dbKeybase{}
 
 // Language is a language to create the BIP 39 mnemonic in.
@@ -222,7 +227,7 @@ func (kb dbKeybase) Sign(nameOrBech32, passphrase string, msg []byte) (sig []byt
 	case localInfo:
 		linfo := info.(localInfo)
 		if linfo.PrivKeyArmor == "" {
-			err = fmt.Errorf("private key not available")
+			err = fmt.Errorf("%w: %s", errKeyNotAvailable, nameOrBech32)
 			return
 		}
 
@@ -268,7 +273,17 @@ func (kb dbKeybase) Verify(nameOrBech32 string, msg []byte, sig []byte) (err err
 	return nil
 }
 
-func (kb dbKeybase) ExportPrivateKeyObject(nameOrBech32 string, passphrase string) (crypto.PrivKey, error) {
+func (kb dbKeybase) ImportPrivKey(name string, key crypto.PrivKey, encryptPass string) error {
+	if _, err := kb.GetByNameOrAddress(name); err == nil {
+		return fmt.Errorf("%w: %s", errCannotOverwrite, name)
+	}
+
+	_, err := kb.writeLocalKey(name, key, encryptPass)
+
+	return err
+}
+
+func (kb dbKeybase) ExportPrivKey(nameOrBech32 string, passphrase string) (crypto.PrivKey, error) {
 	info, err := kb.GetByNameOrAddress(nameOrBech32)
 	if err != nil {
 		return nil, err
@@ -280,142 +295,18 @@ func (kb dbKeybase) ExportPrivateKeyObject(nameOrBech32 string, passphrase strin
 	case localInfo:
 		linfo := info.(localInfo)
 		if linfo.PrivKeyArmor == "" {
-			err = fmt.Errorf("private key not available")
-			return nil, err
+			return nil, fmt.Errorf("%w: %s", errKeyNotAvailable, nameOrBech32)
 		}
+
 		priv, err = armor.UnarmorDecryptPrivKey(linfo.PrivKeyArmor, passphrase)
 		if err != nil {
 			return nil, err
 		}
-
 	case ledgerInfo, offlineInfo, multiInfo:
 		return nil, errors.New("only works on local private keys")
 	}
 
 	return priv, nil
-}
-
-func (kb dbKeybase) Export(nameOrBech32 string) (astr string, err error) {
-	info, err := kb.GetByNameOrAddress(nameOrBech32)
-	if err != nil {
-		return "", errors.Wrapf(err, "getting info for name %s", nameOrBech32)
-	}
-	bz := kb.db.Get(infoKey(info.GetName()))
-	if bz == nil {
-		return "", fmt.Errorf("no key to export with name %s", nameOrBech32)
-	}
-	return armor.ArmorInfoBytes(bz), nil
-}
-
-// ExportPubKey returns public keys in ASCII armored format.
-// Retrieve a Info object by its name and return the public key in
-// a portable format.
-func (kb dbKeybase) ExportPubKey(nameOrBech32 string) (astr string, err error) {
-	info, err := kb.GetByNameOrAddress(nameOrBech32)
-	if err != nil {
-		return "", errors.Wrapf(err, "getting info for name %s", nameOrBech32)
-	}
-	return armor.ArmorPubKeyBytes(info.GetPubKey().Bytes()), nil
-}
-
-// ExportPrivKey returns a private key in ASCII armored format.
-// It returns an error if the key does not exist or a wrong encryption passphrase is supplied.
-func (kb dbKeybase) ExportPrivKey(
-	name,
-	decryptPassphrase,
-	encryptPassphrase string,
-) (astr string, err error) {
-	priv, err := kb.ExportPrivateKeyObject(name, decryptPassphrase)
-	if err != nil {
-		return "", err
-	}
-
-	return armor.EncryptArmorPrivKey(priv, encryptPassphrase), nil
-}
-
-// ExportPrivKeyUnsafe returns a private key in ASCII armored format.
-// The returned armor is unencrypted.
-// It returns an error if the key does not exist
-func (kb dbKeybase) ExportPrivKeyUnsafe(
-	name,
-	decryptPassphrase string,
-) (string, error) {
-	priv, err := kb.ExportPrivateKeyObject(name, decryptPassphrase)
-	if err != nil {
-		return "", err
-	}
-
-	return armor.ArmorPrivateKey(priv), nil
-}
-
-// ImportPrivKey imports a private key in ASCII armor format.
-// It returns an error if a key with the same name exists or a wrong encryption passphrase is
-// supplied.
-func (kb dbKeybase) ImportPrivKey(
-	name,
-	astr,
-	decryptPassphrase,
-	encryptPassphrase string,
-) error {
-	if _, err := kb.GetByNameOrAddress(name); err == nil {
-		return errors.New("Cannot overwrite key " + name)
-	}
-	privKey, err := armor.UnarmorDecryptPrivKey(astr, decryptPassphrase)
-	if err != nil {
-		return errors.Wrap(err, "couldn't import private key")
-	}
-
-	kb.writeLocalKey(name, privKey, encryptPassphrase)
-	return nil
-}
-
-func (kb dbKeybase) ImportPrivKeyUnsafe(
-	name,
-	armorStr,
-	encryptPassphrase string,
-) error {
-	if _, err := kb.GetByNameOrAddress(name); err == nil {
-		return fmt.Errorf("cannot overwrite key %s", name)
-	}
-
-	privKey, err := armor.UnarmorPrivateKey(armorStr)
-	if err != nil {
-		return errors.Wrap(err, "couldn't import private key")
-	}
-
-	kb.writeLocalKey(name, privKey, encryptPassphrase)
-	return nil
-}
-
-func (kb dbKeybase) Import(name, astr string) (err error) {
-	if _, err := kb.GetByNameOrAddress(name); err == nil {
-		return errors.New("Cannot overwrite key " + name)
-	}
-	infoBytes, err := armor.UnarmorInfoBytes(astr)
-	if err != nil {
-		return
-	}
-	kb.db.Set(infoKey(name), infoBytes)
-	return nil
-}
-
-// ImportPubKey imports ASCII-armored public keys.
-// Store a new Info object holding a public key only, i.e. it will
-// not be possible to sign with it as it lacks the secret key.
-func (kb dbKeybase) ImportPubKey(name, astr string) (err error) {
-	if _, err := kb.GetByNameOrAddress(name); err == nil {
-		return errors.New("Cannot overwrite data for name " + name)
-	}
-	pubBytes, err := armor.UnarmorPubKeyBytes(astr)
-	if err != nil {
-		return
-	}
-	pubKey, err := crypto.PubKeyFromBytes(pubBytes)
-	if err != nil {
-		return
-	}
-	kb.writeOfflineKey(name, pubKey)
-	return
 }
 
 // Delete removes key forever, but we must present the

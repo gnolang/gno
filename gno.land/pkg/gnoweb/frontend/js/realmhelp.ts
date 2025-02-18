@@ -1,3 +1,5 @@
+import { debounce, escapeShellSpecialChars } from "./utils";
+
 class Help {
   private DOM: {
     el: HTMLElement | null;
@@ -9,7 +11,7 @@ class Help {
   private funcList: HelpFunc[];
 
   private static SELECTORS = {
-    container: "#help",
+    container: ".js-help-view",
     func: "[data-func]",
     addressInput: "[data-role='help-input-addr']",
     cmdModeSelect: "[data-role='help-select-mode']",
@@ -40,18 +42,33 @@ class Help {
     this.DOM.addressInput = el.querySelector<HTMLInputElement>(Help.SELECTORS.addressInput);
     this.DOM.cmdModeSelect = el.querySelector<HTMLSelectElement>(Help.SELECTORS.cmdModeSelect);
 
-    console.log(this.DOM);
     this.funcList = this.DOM.funcs.map((funcEl) => new HelpFunc(funcEl));
 
+    this.restoreAddress();
     this.bindEvents();
+  }
+
+  private restoreAddress(): void {
+    const { addressInput } = this.DOM;
+    if (addressInput) {
+      const storedAddress = localStorage.getItem("helpAddressInput");
+      if (storedAddress) {
+        addressInput.value = storedAddress;
+        this.funcList.forEach((func) => func.updateAddr(storedAddress));
+      }
+    }
   }
 
   private bindEvents(): void {
     const { addressInput, cmdModeSelect } = this.DOM;
 
-    addressInput?.addEventListener("input", () => {
-      this.funcList.forEach((func) => func.updateAddr(addressInput.value));
-    });
+    const debouncedUpdate = debounce((addressInput: HTMLInputElement) => {
+      const address = addressInput.value;
+
+      localStorage.setItem("helpAddressInput", address);
+      this.funcList.forEach((func) => func.updateAddr(address));
+    }, 50);
+    addressInput?.addEventListener("input", () => debouncedUpdate(addressInput));
 
     cmdModeSelect?.addEventListener("change", (e) => {
       const target = e.target as HTMLSelectElement;
@@ -66,6 +83,7 @@ class HelpFunc {
     addrs: HTMLElement[];
     args: HTMLElement[];
     modes: HTMLElement[];
+    paramInputs: HTMLInputElement[];
   };
 
   private funcName: string | null;
@@ -83,27 +101,53 @@ class HelpFunc {
       addrs: Array.from(el.querySelectorAll<HTMLElement>(HelpFunc.SELECTORS.address)),
       args: Array.from(el.querySelectorAll<HTMLElement>(HelpFunc.SELECTORS.args)),
       modes: Array.from(el.querySelectorAll<HTMLElement>(HelpFunc.SELECTORS.mode)),
+      paramInputs: Array.from(el.querySelectorAll<HTMLInputElement>(HelpFunc.SELECTORS.paramInput)),
     };
 
     this.funcName = el.dataset.func || null;
 
+    this.initializeArgs();
     this.bindEvents();
   }
 
+  private static sanitizeArgsInput(input: HTMLInputElement) {
+    const paramName = input.dataset.param || "";
+    const paramValue = input.value.trim();
+
+    if (!paramName) {
+      console.warn("sanitizeArgsInput: param is missing in arg input dataset.");
+    }
+
+    return { paramName, paramValue };
+  }
+
   private bindEvents(): void {
+    const debouncedUpdate = debounce((paramName: string, paramValue: string) => {
+      if (paramName) this.updateArg(paramName, paramValue);
+    }, 50);
+
     this.DOM.el.addEventListener("input", (e) => {
       const target = e.target as HTMLInputElement;
       if (target.dataset.role === "help-param-input") {
-        this.updateArg(target.dataset.param || "", target.value);
+        const { paramName, paramValue } = HelpFunc.sanitizeArgsInput(target);
+        debouncedUpdate(paramName, paramValue);
       }
     });
   }
 
+  private initializeArgs(): void {
+    this.DOM.paramInputs.forEach((input) => {
+      const { paramName, paramValue } = HelpFunc.sanitizeArgsInput(input);
+      if (paramName) this.updateArg(paramName, paramValue);
+    });
+  }
+
   public updateArg(paramName: string, paramValue: string): void {
+    const escapedValue = escapeShellSpecialChars(paramValue);
     this.DOM.args
       .filter((arg) => arg.dataset.arg === paramName)
       .forEach((arg) => {
-        arg.textContent = paramValue.trim() || "";
+        arg.textContent = escapedValue || "";
       });
   }
 
@@ -116,7 +160,8 @@ class HelpFunc {
   public updateMode(mode: string): void {
     this.DOM.modes.forEach((cmd) => {
       const isVisible = cmd.dataset.codeMode === mode;
-      cmd.className = isVisible ? "inline" : "hidden";
+      cmd.classList.toggle("inline", isVisible);
+      cmd.classList.toggle("hidden", !isVisible);
       cmd.dataset.copyContent = isVisible ? `help-cmd-${this.funcName}` : "";
     });
   }

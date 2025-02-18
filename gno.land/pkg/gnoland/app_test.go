@@ -134,7 +134,7 @@ func TestNewApp(t *testing.T) {
 	// NewApp should have good defaults and manage to run InitChain.
 	td := t.TempDir()
 
-	app, err := NewApp(td, true, events.NewEventSwitch(), log.NewNoopLogger())
+	app, err := NewApp(td, NewTestGenesisAppConfig(), events.NewEventSwitch(), log.NewNoopLogger(), "")
 	require.NoError(t, err, "NewApp should be successful")
 
 	resp := app.InitChain(abci.RequestInitChain{
@@ -853,7 +853,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 				}
 			}
 
-			newCtx = auth.SetGasMeter(false, ctx, tx.Fee.GasWanted)
+			newCtx = auth.SetGasMeter(ctx, tx.Fee.GasWanted)
 
 			count := getTotalCount(tx)
 

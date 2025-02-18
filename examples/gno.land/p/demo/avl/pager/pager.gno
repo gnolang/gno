@@ -5,13 +5,13 @@ import (
 	"net/url"
 	"strconv"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl/rotree"
 	"gno.land/p/demo/ufmt"
 )
 
 // Pager is a struct that holds the AVL tree and pagination parameters.
 type Pager struct {
-	Tree            *avl.Tree
+	Tree            rotree.IReadOnlyTree
 	PageQueryParam  string
 	SizeQueryParam  string
 	DefaultPageSize int
@@ -37,7 +37,7 @@ type Item struct {
 }
 
 // NewPager creates a new Pager with default values.
-func NewPager(tree *avl.Tree, defaultPageSize int, reversed bool) *Pager {
+func NewPager(tree rotree.IReadOnlyTree, defaultPageSize int, reversed bool) *Pager {
 	return &Pager{
 		Tree:            tree,
 		PageQueryParam:  "page",
@@ -90,12 +90,12 @@ func (p *Pager) GetPageWithSize(pageNumber, pageSize int) *Page {
 	items := []Item{}
 
 	if p.Reversed {
-		p.Tree.IterateByOffset(startIndex, endIndex-startIndex, func(key string, value interface{}) bool {
+		p.Tree.ReverseIterateByOffset(startIndex, endIndex-startIndex, func(key string, value interface{}) bool {
 			items = append(items, Item{Key: key, Value: value})
 			return false
 		})
 	} else {
-		p.Tree.ReverseIterateByOffset(startIndex, endIndex-startIndex, func(key string, value interface{}) bool {
+		p.Tree.IterateByOffset(startIndex, endIndex-startIndex, func(key string, value interface{}) bool {
 			items = append(items, Item{Key: key, Value: value})
 			return false
 		})

@@ -759,7 +759,7 @@ func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 	defer func() {
 		if r := recover(); r != nil {
 			switch ex := r.(type) {
-			case store.OutOfGasException:
+			case store.OutOfGasError:
 				log := fmt.Sprintf(
 					"out of gas, gasWanted: %d, gasUsed: %d location: %v",
 					gasWanted,

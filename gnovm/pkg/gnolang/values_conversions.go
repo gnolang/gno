@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/cockroachdb/apd/v3"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 )
 
 // t cannot be nil or untyped or DataByteType.
@@ -129,13 +130,13 @@ GNO_CASE:
 			tv.T = t
 			tv.SetInt32(x)
 		case Int64Kind:
-			x := int64(tv.GetInt())
+			x := tv.GetInt()
 			tv.T = t
 			tv.SetInt64(x)
 		case UintKind:
 			validate(IntKind, UintKind, func() bool { return tv.GetInt() >= 0 })
 
-			x := uint(tv.GetInt())
+			x := uint64(tv.GetInt())
 			tv.T = t
 			tv.SetUint(x)
 		case Uint8Kind:
@@ -163,11 +164,11 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case Float32Kind:
-			x := float32(tv.GetInt()) // XXX determinism?
+			x := softfloat.Fintto32(tv.GetInt())
 			tv.T = t
 			tv.SetFloat32(x)
 		case Float64Kind:
-			x := float64(tv.GetInt()) // XXX determinism?
+			x := softfloat.Fintto64(tv.GetInt())
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
@@ -183,7 +184,7 @@ GNO_CASE:
 	case Int8Kind:
 		switch k {
 		case IntKind:
-			x := int(tv.GetInt8())
+			x := int64(tv.GetInt8())
 			tv.T = t
 			tv.SetInt(x)
 		case Int8Kind:
@@ -205,7 +206,7 @@ GNO_CASE:
 		case UintKind:
 			validate(Int8Kind, UintKind, func() bool { return tv.GetInt8() >= 0 })
 
-			x := uint(tv.GetInt8())
+			x := uint64(tv.GetInt8())
 			tv.T = t
 			tv.SetUint(x)
 		case Uint8Kind:
@@ -233,11 +234,11 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case Float32Kind:
-			x := float32(tv.GetInt8()) // XXX determinism?
+			x := softfloat.Fint32to32(int32(tv.GetInt8()))
 			tv.T = t
 			tv.SetFloat32(x)
 		case Float64Kind:
-			x := float64(tv.GetInt8()) // XXX determinism?
+			x := softfloat.Fint32to64(int32(tv.GetInt8()))
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
@@ -252,7 +253,7 @@ GNO_CASE:
 	case Int16Kind:
 		switch k {
 		case IntKind:
-			x := int(tv.GetInt16())
+			x := int64(tv.GetInt16())
 			tv.T = t
 			tv.SetInt(x)
 		case Int8Kind:
@@ -276,7 +277,7 @@ GNO_CASE:
 		case UintKind:
 			validate(Int16Kind, UintKind, func() bool { return tv.GetInt16() >= 0 })
 
-			x := uint(tv.GetInt16())
+			x := uint64(tv.GetInt16())
 			tv.T = t
 			tv.SetUint(x)
 		case Uint8Kind:
@@ -304,11 +305,11 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case Float32Kind:
-			x := float32(tv.GetInt16()) // XXX determinism?
+			x := softfloat.Fint32to32(int32(tv.GetInt16()))
 			tv.T = t
 			tv.SetFloat32(x)
 		case Float64Kind:
-			x := float64(tv.GetInt16()) // XXX determinism?
+			x := softfloat.Fint32to64(int32(tv.GetInt16()))
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
@@ -325,7 +326,7 @@ GNO_CASE:
 	case Int32Kind:
 		switch k {
 		case IntKind:
-			x := int(tv.GetInt32())
+			x := int64(tv.GetInt32())
 			tv.T = t
 			tv.SetInt(x)
 		case Int8Kind:
@@ -351,7 +352,7 @@ GNO_CASE:
 		case UintKind:
 			validate(Int32Kind, UintKind, func() bool { return tv.GetInt32() >= 0 })
 
-			x := uint(tv.GetInt32())
+			x := uint64(tv.GetInt32())
 			tv.T = t
 			tv.SetUint(x)
 		case Uint8Kind:
@@ -379,11 +380,11 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case Float32Kind:
-			x := float32(tv.GetInt32()) // XXX determinism?
+			x := softfloat.Fint32to32(tv.GetInt32())
 			tv.T = t
 			tv.SetFloat32(x)
 		case Float64Kind:
-			x := float64(tv.GetInt32()) // XXX determinism?
+			x := softfloat.Fint32to64(tv.GetInt32())
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
@@ -400,7 +401,7 @@ GNO_CASE:
 	case Int64Kind:
 		switch k {
 		case IntKind:
-			x := int(tv.GetInt64())
+			x := tv.GetInt64()
 			tv.T = t
 			tv.SetInt(x)
 		case Int8Kind:
@@ -428,7 +429,7 @@ GNO_CASE:
 		case UintKind:
 			validate(Int64Kind, UintKind, func() bool { return tv.GetInt64() >= 0 && uint(tv.GetInt64()) <= math.MaxUint })
 
-			x := uint(tv.GetInt64())
+			x := uint64(tv.GetInt64())
 			tv.T = t
 			tv.SetUint(x)
 		case Uint8Kind:
@@ -456,11 +457,11 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case Float32Kind:
-			x := float32(tv.GetInt64()) // XXX determinism?
+			x := softfloat.Fint64to32(tv.GetInt64())
 			tv.T = t
 			tv.SetFloat32(x)
 		case Float64Kind:
-			x := float64(tv.GetInt64()) // XXX determinism?
+			x := softfloat.Fint64to64(tv.GetInt64())
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
@@ -479,7 +480,7 @@ GNO_CASE:
 		case IntKind:
 			validate(UintKind, IntKind, func() bool { return tv.GetUint() <= math.MaxInt })
 
-			x := int(tv.GetUint())
+			x := int64(tv.GetUint())
 			tv.T = t
 			tv.SetInt(x)
 		case Int8Kind:
@@ -501,7 +502,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetInt32(x)
 		case Int64Kind:
-			validate(UintKind, Int64Kind, func() bool { return uint64(tv.GetUint()) <= math.MaxInt64 })
+			validate(UintKind, Int64Kind, func() bool { return tv.GetUint() <= math.MaxInt64 })
 
 			x := int64(tv.GetUint())
 			tv.T = t
@@ -529,15 +530,15 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint32(x)
 		case Uint64Kind:
-			x := uint64(tv.GetUint())
+			x := tv.GetUint()
 			tv.T = t
 			tv.SetUint64(x)
 		case Float32Kind:
-			x := float32(tv.GetUint()) // XXX determinism?
+			x := softfloat.Fuint64to32(tv.GetUint())
 			tv.T = t
 			tv.SetFloat32(x)
 		case Float64Kind:
-			x := float64(tv.GetUint()) // XXX determinism?
+			x := softfloat.Fuint64to64(tv.GetUint())
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
@@ -554,7 +555,7 @@ GNO_CASE:
 	case Uint8Kind:
 		switch k {
 		case IntKind:
-			x := int(tv.GetUint8())
+			x := int64(tv.GetUint8())
 			tv.T = t
 			tv.SetInt(x)
 		case Int8Kind:
@@ -564,13 +565,13 @@ GNO_CASE:
 			tv.T = t
 			tv.SetInt8(x)
 		case Int16Kind:
-			validate(Uint8Kind, Int16Kind, func() bool { return int(tv.GetUint8()) <= math.MaxInt16 })
+			validate(Uint8Kind, Int16Kind, func() bool { return int64(tv.GetUint8()) <= math.MaxInt16 })
 
 			x := int16(tv.GetUint8())
 			tv.T = t
 			tv.SetInt16(x)
 		case Int32Kind:
-			validate(Uint8Kind, Int32Kind, func() bool { return int(tv.GetUint8()) <= math.MaxInt32 })
+			validate(Uint8Kind, Int32Kind, func() bool { return int64(tv.GetUint8()) <= math.MaxInt32 })
 
 			x := int32(tv.GetUint8())
 			tv.T = t
@@ -582,7 +583,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetInt64(x)
 		case UintKind:
-			x := uint(tv.GetUint8())
+			x := uint64(tv.GetUint8())
 			tv.T = t
 			tv.SetUint(x)
 		case Uint8Kind:
@@ -602,11 +603,11 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case Float32Kind:
-			x := float32(tv.GetUint8()) // XXX determinism?
+			x := softfloat.Fuint64to32(uint64(tv.GetUint8()))
 			tv.T = t
 			tv.SetFloat32(x)
 		case Float64Kind:
-			x := float64(tv.GetUint8()) // XXX determinism?
+			x := softfloat.Fuint64to64(uint64(tv.GetUint8()))
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
@@ -623,7 +624,7 @@ GNO_CASE:
 	case Uint16Kind:
 		switch k {
 		case IntKind:
-			x := int(tv.GetUint16())
+			x := int64(tv.GetUint16())
 			tv.T = t
 			tv.SetInt(x)
 		case Int8Kind:
@@ -639,7 +640,7 @@ GNO_CASE:
 			tv.T = t
 			tv.SetInt16(x)
 		case Int32Kind:
-			validate(Uint16Kind, Int32Kind, func() bool { return int(tv.GetUint16()) <= math.MaxInt32 })
+			validate(Uint16Kind, Int32Kind, func() bool { return int64(tv.GetUint16()) <= math.MaxInt32 })
 
 			x := int32(tv.GetUint16())
 			tv.T = t
@@ -651,11 +652,11 @@ GNO_CASE:
 			tv.T = t
 			tv.SetInt64(x)
 		case UintKind:
-			x := uint(tv.GetUint16())
+			x := uint64(tv.GetUint16())
 			tv.T = t
 			tv.SetUint(x)
 		case Uint8Kind:
-			validate(Uint16Kind, Uint8Kind, func() bool { return int(tv.GetUint16()) <= math.MaxUint8 })
+			validate(Uint16Kind, Uint8Kind, func() bool { return int64(tv.GetUint16()) <= math.MaxUint8 })
 
 			x := uint8(tv.GetUint16())
 			tv.T = t
@@ -673,11 +674,11 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case Float32Kind:
-			x := float32(tv.GetUint16()) // XXX determinism?
+			x := softfloat.Fuint64to32(uint64(tv.GetUint16()))
 			tv.T = t
 			tv.SetFloat32(x)
 		case Float64Kind:
-			x := float64(tv.GetUint16()) // XXX determinism?
+			x := softfloat.Fuint64to64(uint64(tv.GetUint16()))
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
@@ -694,25 +695,25 @@ GNO_CASE:
 	case Uint32Kind:
 		switch k {
 		case IntKind:
-			validate(Uint32Kind, IntKind, func() bool { return int(tv.GetUint32()) <= math.MaxInt })
+			validate(Uint32Kind, IntKind, func() bool { return int64(tv.GetUint32()) <= math.MaxInt })
 
-			x := int(tv.GetUint32())
+			x := int64(tv.GetUint32())
 			tv.T = t
 			tv.SetInt(x)
 		case Int8Kind:
-			validate(Uint32Kind, Int8Kind, func() bool { return int(tv.GetUint32()) <= math.MaxInt8 })
+			validate(Uint32Kind, Int8Kind, func() bool { return int64(tv.GetUint32()) <= math.MaxInt8 })
 
 			x := int8(tv.GetUint32())
 			tv.T = t
 			tv.SetInt8(x)
 		case Int16Kind:
-			validate(Uint32Kind, Int16Kind, func() bool { return int(tv.GetUint32()) <= math.MaxInt16 })
+			validate(Uint32Kind, Int16Kind, func() bool { return int64(tv.GetUint32()) <= math.MaxInt16 })
 
 			x := int16(tv.GetUint32())
 			tv.T = t
 			tv.SetInt16(x)
 		case Int32Kind:
-			validate(Uint32Kind, Int32Kind, func() bool { return int(tv.GetUint32()) <= math.MaxInt32 })
+			validate(Uint32Kind, Int32Kind, func() bool { return int64(tv.GetUint32()) <= math.MaxInt32 })
 
 			x := int32(tv.GetUint32())
 			tv.T = t
@@ -722,9 +723,9 @@ GNO_CASE:
 			tv.T = t
 			tv.SetInt64(x)
 		case UintKind:
-			x := uint(tv.GetUint32())
+			x := uint64(tv.GetUint32())
 			tv.T = t
-			tv.SetUint(x)
+			tv.SetUint64(x)
 		case Uint8Kind:
 			validate(Uint32Kind, Uint8Kind, func() bool { return int(tv.GetUint32()) <= math.MaxUint8 })
 
@@ -746,11 +747,11 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case Float32Kind:
-			x := float32(tv.GetUint32()) // XXX determinism?
+			x := softfloat.Fuint64to32(uint64(tv.GetUint32()))
 			tv.T = t
 			tv.SetFloat32(x)
 		case Float64Kind:
-			x := float64(tv.GetUint32()) // XXX determinism?
+			x := softfloat.Fuint64to64(uint64(tv.GetUint32()))
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
@@ -767,25 +768,25 @@ GNO_CASE:
 	case Uint64Kind:
 		switch k {
 		case IntKind:
-			validate(Uint64Kind, IntKind, func() bool { return int(tv.GetUint64()) <= math.MaxInt })
+			validate(Uint64Kind, IntKind, func() bool { return int64(tv.GetUint64()) <= math.MaxInt })
 
-			x := int(tv.GetUint64())
+			x := int64(tv.GetUint64())
 			tv.T = t
 			tv.SetInt(x)
 		case Int8Kind:
-			validate(Uint64Kind, Int8Kind, func() bool { return int(tv.GetUint64()) <= math.MaxInt8 })
+			validate(Uint64Kind, Int8Kind, func() bool { return int64(tv.GetUint64()) <= math.MaxInt8 })
 
 			x := int8(tv.GetUint64())
 			tv.T = t
 			tv.SetInt8(x)
 		case Int16Kind:
-			validate(Uint64Kind, Int16Kind, func() bool { return int(tv.GetUint64()) <= math.MaxInt16 })
+			validate(Uint64Kind, Int16Kind, func() bool { return int64(tv.GetUint64()) <= math.MaxInt16 })
 
 			x := int16(tv.GetUint64())
 			tv.T = t
 			tv.SetInt16(x)
 		case Int32Kind:
-			validate(Uint64Kind, Int32Kind, func() bool { return int(tv.GetUint64()) <= math.MaxInt32 })
+			validate(Uint64Kind, Int32Kind, func() bool { return int64(tv.GetUint64()) <= math.MaxInt32 })
 
 			x := int32(tv.GetUint64())
 			tv.T = t
@@ -799,17 +800,17 @@ GNO_CASE:
 		case UintKind:
 			validate(Uint64Kind, UintKind, func() bool { return tv.GetUint64() <= math.MaxUint })
 
-			x := uint(tv.GetUint64())
+			x := tv.GetUint64()
 			tv.T = t
-			tv.SetUint(x)
+			tv.SetUint64(x)
 		case Uint8Kind:
-			validate(Uint64Kind, Uint8Kind, func() bool { return int(tv.GetUint64()) <= math.MaxUint8 })
+			validate(Uint64Kind, Uint8Kind, func() bool { return int64(tv.GetUint64()) <= math.MaxUint8 })
 
 			x := uint8(tv.GetUint64())
 			tv.T = t
 			tv.SetUint8(x)
 		case Uint16Kind:
-			validate(Uint64Kind, Uint16Kind, func() bool { return int(tv.GetUint64()) <= math.MaxUint16 })
+			validate(Uint64Kind, Uint16Kind, func() bool { return int64(tv.GetUint64()) <= math.MaxUint16 })
 
 			x := uint16(tv.GetUint64())
 			tv.T = t
@@ -825,11 +826,11 @@ GNO_CASE:
 			tv.T = t
 			tv.SetUint64(x)
 		case Float32Kind:
-			x := float32(tv.GetUint64()) // XXX determinism?
+			x := softfloat.Fuint64to32(tv.GetUint64())
 			tv.T = t
 			tv.SetFloat32(x)
 		case Float64Kind:
-			x := float64(tv.GetUint64()) // XXX determinism?
+			x := softfloat.Fuint64to64(tv.GetUint64())
 			tv.T = t
 			tv.SetFloat64(x)
 		case StringKind:
@@ -847,156 +848,155 @@ GNO_CASE:
 		switch k {
 		case IntKind:
 			validate(Float32Kind, IntKind, func() bool {
-				val := float64(tv.GetFloat32())
-				trunc := math.Trunc(val)
+				trunc := softfloat.Ftrunc32(tv.GetFloat32())
 
-				if val != trunc {
+				if !softfloat.Feq32(trunc, tv.GetFloat32()) {
 					return false
 				}
 
-				return int64(trunc) >= math.MinInt && int64(trunc) <= math.MaxInt
+				truncInt64 := softfloat.F32toint64(trunc)
+				return truncInt64 >= math.MinInt && truncInt64 <= math.MaxInt
 			})
 
-			x := int(tv.GetFloat32()) // XXX determinism?
+			x := softfloat.F32toint64(tv.GetFloat32())
 			tv.T = t
 			tv.SetInt(x)
 		case Int8Kind:
 			validate(Float32Kind, Int8Kind, func() bool {
-				val := float64(tv.GetFloat32())
-				trunc := math.Trunc(val)
+				trunc := softfloat.Ftrunc32(tv.GetFloat32())
 
-				if val != trunc {
+				if !softfloat.Feq32(trunc, tv.GetFloat32()) {
 					return false
 				}
 
-				return int64(trunc) >= math.MinInt8 && int64(trunc) <= math.MaxInt8
+				truncInt64 := softfloat.F32toint64(trunc)
+				return truncInt64 >= math.MinInt8 && truncInt64 <= math.MaxInt8
 			})
 
-			x := int8(tv.GetFloat32()) // XXX determinism?
+			x := int8(softfloat.F32toint32(tv.GetFloat32()))
 			tv.T = t
 			tv.SetInt8(x)
 		case Int16Kind:
 			validate(Float32Kind, Int16Kind, func() bool {
-				val := float64(tv.GetFloat32())
-				trunc := math.Trunc(val)
+				trunc := softfloat.Ftrunc32(tv.GetFloat32())
 
-				if val != trunc {
+				if !softfloat.Feq32(trunc, tv.GetFloat32()) {
 					return false
 				}
 
-				return int64(trunc) >= math.MinInt16 && int64(trunc) <= math.MaxInt16
+				truncInt64 := softfloat.F32toint64(trunc)
+				return truncInt64 >= math.MinInt16 && truncInt64 <= math.MaxInt16
 			})
 
-			x := int16(tv.GetFloat32()) // XXX determinism?
+			x := int16(softfloat.F32toint32(tv.GetFloat32()))
 			tv.T = t
 			tv.SetInt16(x)
 		case Int32Kind:
 			validate(Float32Kind, Int32Kind, func() bool {
-				val := float64(tv.GetFloat32())
-				trunc := math.Trunc(val)
+				trunc := softfloat.Ftrunc32(tv.GetFloat32())
 
-				if val != trunc {
+				if !softfloat.Feq32(trunc, tv.GetFloat32()) {
 					return false
 				}
 
-				return int64(trunc) >= math.MinInt32 && int64(trunc) <= math.MaxInt32
+				truncInt64 := softfloat.F32toint64(trunc)
+				return truncInt64 >= math.MinInt32 && truncInt64 <= math.MaxInt32
 			})
 
-			x := int32(tv.GetFloat32()) // XXX determinism?
+			x := softfloat.F32toint32(tv.GetFloat32())
 			tv.T = t
 			tv.SetInt32(x)
 		case Int64Kind:
 			validate(Float32Kind, Int64Kind, func() bool {
-				val := float64(tv.GetFloat32())
-				trunc := math.Trunc(val)
+				trunc := softfloat.Ftrunc32(tv.GetFloat32())
 
-				return val == trunc
+				return softfloat.Feq32(trunc, tv.GetFloat32())
 			})
 
-			x := int64(tv.GetFloat32()) // XXX determinism?
+			x := softfloat.F32toint64(tv.GetFloat32())
 			tv.T = t
 			tv.SetInt64(x)
 		case UintKind:
 			validate(Float32Kind, UintKind, func() bool {
-				val := float64(tv.GetFloat32())
-				trunc := math.Trunc(val)
+				trunc := softfloat.Ftrunc32(tv.GetFloat32())
 
-				if val != trunc {
+				if !softfloat.Feq32(trunc, tv.GetFloat32()) {
 					return false
 				}
 
-				return trunc >= 0 && trunc <= math.MaxUint
+				truncUint64 := softfloat.F32touint64(trunc)
+				return truncUint64 >= 0 && truncUint64 <= math.MaxUint
 			})
 
-			x := uint(tv.GetFloat32()) // XXX determinism?
+			x := softfloat.F32touint64(tv.GetFloat32())
 			tv.T = t
 			tv.SetUint(x)
 		case Uint8Kind:
 			validate(Float32Kind, Uint8Kind, func() bool {
-				val := float64(tv.GetFloat32())
-				trunc := math.Trunc(val)
+				trunc := softfloat.Ftrunc32(tv.GetFloat32())
 
-				if val != trunc {
+				if !softfloat.Feq32(trunc, tv.GetFloat32()) {
 					return false
 				}
 
-				return int64(trunc) >= 0 && int64(trunc) <= math.MaxUint8
+				truncUint64 := softfloat.F32touint64(trunc)
+				return truncUint64 >= 0 && truncUint64 <= math.MaxUint8
 			})
 
-			x := uint8(tv.GetFloat32()) // XXX determinism?
+			x := uint8(softfloat.F32touint64(tv.GetFloat32()))
 			tv.T = t
 			tv.SetUint8(x)
 		case Uint16Kind:
 			validate(Float32Kind, Uint16Kind, func() bool {
-				val := float64(tv.GetFloat32())
-				trunc := math.Trunc(val)
+				trunc := softfloat.Ftrunc32(tv.GetFloat32())
 
-				if val != trunc {
+				if !softfloat.Feq32(trunc, tv.GetFloat32()) {
 					return false
 				}
 
-				return int64(trunc) >= 0 && int64(trunc) <= math.MaxUint16
+				truncUint64 := softfloat.F32touint64(trunc)
+				return truncUint64 >= 0 && truncUint64 <= math.MaxUint16
 			})
 
-			x := uint16(tv.GetFloat32()) // XXX determinism?
+			x := uint16(softfloat.F32touint64(tv.GetFloat32()))
 			tv.T = t
 			tv.SetUint16(x)
 		case Uint32Kind:
 			validate(Float32Kind, Uint32Kind, func() bool {
-				val := float64(tv.GetFloat32())
-				trunc := math.Trunc(val)
+				trunc := softfloat.Ftrunc32(tv.GetFloat32())
 
-				if val != trunc {
+				if !softfloat.Feq32(trunc, tv.GetFloat32()) {
 					return false
 				}
 
-				return int64(trunc) >= 0 && int64(trunc) <= math.MaxUint32
+				truncUint64 := softfloat.F32touint64(trunc)
+				return truncUint64 >= 0 && truncUint64 <= math.MaxUint32
 			})
 
-			x := uint32(tv.GetFloat32()) // XXX determinism?
+			x := uint32(softfloat.F32touint64(tv.GetFloat32()))
 			tv.T = t
 			tv.SetUint32(x)
 		case Uint64Kind:
 			validate(Float32Kind, Uint64Kind, func() bool {
-				val := float64(tv.GetFloat32())
-				trunc := math.Trunc(val)
+				trunc := softfloat.Ftrunc32(tv.GetFloat32())
 
-				if val != trunc {
+				if !softfloat.Feq32(trunc, tv.GetFloat32()) {
 					return false
 				}
 
-				return trunc >= 0 && trunc <= math.MaxUint
+				truncUint64 := softfloat.F32touint64(trunc)
+				return truncUint64 >= 0 && truncUint64 <= math.MaxUint
 			})
 
-			x := uint64(tv.GetFloat32()) // XXX determinism?
+			x := softfloat.F32touint64(tv.GetFloat32())
 			tv.T = t
 			tv.SetUint64(x)
 		case Float32Kind:
-			x := tv.GetFloat32() // XXX determinism?
+			x := tv.GetFloat32() // ???
 			tv.T = t
 			tv.SetFloat32(x)
 		case Float64Kind:
-			x := float64(tv.GetFloat32()) // XXX determinism?
+			x := softfloat.F32to64(tv.GetFloat32())
 			tv.T = t
 			tv.SetFloat64(x)
 		default:
@@ -1008,160 +1008,159 @@ GNO_CASE:
 		switch k {
 		case IntKind:
 			validate(Float64Kind, IntKind, func() bool {
-				val := tv.GetFloat64()
-				trunc := math.Trunc(val)
+				trunc := softfloat.Ftrunc64(tv.GetFloat64())
 
-				if val != trunc {
+				if !softfloat.Feq64(trunc, tv.GetFloat64()) {
 					return false
 				}
 
-				return int64(trunc) >= math.MinInt && int64(trunc) <= math.MaxInt
+				truncInt64 := softfloat.F64toint64(trunc)
+				return truncInt64 >= math.MinInt && truncInt64 <= math.MaxInt
 			})
 
-			x := int(tv.GetFloat64()) // XXX determinism?
+			xp, _ := softfloat.F64toint(tv.GetFloat64())
 			tv.T = t
-			tv.SetInt(x)
+			tv.SetInt(xp)
 		case Int8Kind:
 			validate(Float64Kind, Int8Kind, func() bool {
-				val := tv.GetFloat64()
-				trunc := math.Trunc(val)
+				trunc := softfloat.Ftrunc64(tv.GetFloat64())
 
-				if val != trunc {
+				if !softfloat.Feq64(trunc, tv.GetFloat64()) {
 					return false
 				}
 
-				return int64(trunc) >= math.MinInt8 && int64(trunc) <= math.MaxInt8
+				truncInt64 := softfloat.F64toint64(trunc)
+				return truncInt64 >= math.MinInt8 && truncInt64 <= math.MaxInt8
 			})
 
-			x := int8(tv.GetFloat64()) // XXX determinism?
+			x := int8(softfloat.F64toint32(tv.GetFloat64()))
 			tv.T = t
 			tv.SetInt8(x)
 		case Int16Kind:
 			validate(Float64Kind, Int16Kind, func() bool {
-				val := tv.GetFloat64()
-				trunc := math.Trunc(val)
+				trunc := softfloat.Ftrunc64(tv.GetFloat64())
 
-				if val != trunc {
+				if !softfloat.Feq64(trunc, tv.GetFloat64()) {
 					return false
 				}
 
-				return int64(trunc) >= math.MinInt16 && int64(trunc) <= math.MaxInt16
+				truncInt64 := softfloat.F64toint64(trunc)
+				return truncInt64 >= math.MinInt16 && truncInt64 <= math.MaxInt16
 			})
 
-			x := int16(tv.GetFloat64()) // XXX determinism?
+			x := int16(softfloat.F64toint32(tv.GetFloat64()))
 			tv.T = t
 			tv.SetInt16(x)
 		case Int32Kind:
 			validate(Float64Kind, Int32Kind, func() bool {
-				val := tv.GetFloat64()
-				trunc := math.Trunc(val)
+				trunc := softfloat.Ftrunc64(tv.GetFloat64())
 
-				if val != trunc {
+				if !softfloat.Feq64(trunc, tv.GetFloat64()) {
 					return false
 				}
 
-				return int64(trunc) >= math.MinInt32 && int64(trunc) <= math.MaxInt32
+				truncInt64 := softfloat.F64toint64(trunc)
+				return truncInt64 >= math.MinInt32 && truncInt64 <= math.MaxInt32
 			})
 
-			x := int32(tv.GetFloat64()) // XXX determinism?
+			x := softfloat.F64toint32(tv.GetFloat64())
 			tv.T = t
 			tv.SetInt32(x)
 		case Int64Kind:
 			validate(Float64Kind, Int64Kind, func() bool {
-				val := tv.GetFloat64()
-				trunc := math.Trunc(val)
+				trunc := softfloat.Ftrunc64(tv.GetFloat64())
 
-				return val == trunc
+				return softfloat.Feq64(trunc, tv.GetFloat64())
 			})
 
-			x := int64(tv.GetFloat64()) // XXX determinism?
+			x := softfloat.F64toint64(tv.GetFloat64())
 			tv.T = t
 			tv.SetInt64(x)
 		case UintKind:
 			validate(Float64Kind, UintKind, func() bool {
-				val := tv.GetFloat64()
-				trunc := math.Trunc(val)
+				trunc := softfloat.Ftrunc64(tv.GetFloat64())
 
-				if val != trunc {
+				if !softfloat.Feq64(trunc, tv.GetFloat64()) {
 					return false
 				}
 
-				return trunc >= 0 && trunc <= math.MaxUint
+				truncUint64 := softfloat.F64touint64(trunc)
+
+				return truncUint64 >= 0 && truncUint64 <= math.MaxUint
 			})
 
-			x := uint(tv.GetFloat64()) // XXX determinism?
+			x := softfloat.F64touint64(tv.GetFloat64())
 			tv.T = t
 			tv.SetUint(x)
 		case Uint8Kind:
 			validate(Float64Kind, Uint8Kind, func() bool {
-				val := tv.GetFloat64()
-				trunc := math.Trunc(val)
+				trunc := softfloat.Ftrunc64(tv.GetFloat64())
 
-				if val != trunc {
+				if !softfloat.Feq64(trunc, tv.GetFloat64()) {
 					return false
 				}
 
-				return int64(trunc) >= 0 && int64(trunc) <= math.MaxUint8
+				truncUint64 := softfloat.F64touint64(trunc)
+				return truncUint64 >= 0 && truncUint64 <= math.MaxUint8
 			})
 
-			x := uint8(tv.GetFloat64()) // XXX determinism?
+			x := uint8(softfloat.F64touint64(tv.GetFloat64()))
 			tv.T = t
 			tv.SetUint8(x)
 		case Uint16Kind:
 			validate(Float64Kind, Uint16Kind, func() bool {
-				val := tv.GetFloat64()
-				trunc := math.Trunc(val)
+				trunc := softfloat.Ftrunc64(tv.GetFloat64())
 
-				if val != trunc {
+				if !softfloat.Feq64(trunc, tv.GetFloat64()) {
 					return false
 				}
 
-				return int64(trunc) >= 0 && int64(trunc) <= math.MaxUint16
+				truncUint64 := softfloat.F64touint64(trunc)
+				return truncUint64 >= 0 && truncUint64 <= math.MaxUint16
 			})
 
-			x := uint16(tv.GetFloat64()) // XXX determinism?
+			x := uint16(softfloat.F64touint64(tv.GetFloat64()))
 			tv.T = t
 			tv.SetUint16(x)
 		case Uint32Kind:
 			validate(Float64Kind, Uint32Kind, func() bool {
-				val := tv.GetFloat64()
-				trunc := math.Trunc(val)
-
-				if val != trunc {
+				trunc := softfloat.Ftrunc64(tv.GetFloat64())
+				if !softfloat.Feq64(trunc, tv.GetFloat64()) {
 					return false
 				}
 
-				return int64(trunc) >= 0 && int64(trunc) <= math.MaxUint32
+				truncUint64 := softfloat.F64touint64(trunc)
+				return truncUint64 >= 0 && truncUint64 <= math.MaxUint32
 			})
 
-			x := uint32(tv.GetFloat64()) // XXX determinism?
+			x := uint32(softfloat.F64touint64(tv.GetFloat64()))
 			tv.T = t
 			tv.SetUint32(x)
 		case Uint64Kind:
 			validate(Float64Kind, Uint64Kind, func() bool {
-				val := tv.GetFloat64()
-				trunc := math.Trunc(val)
+				trunc := softfloat.Ftrunc64(tv.GetFloat64())
 
-				if val != trunc {
+				if !softfloat.Feq64(tv.GetFloat64(), trunc) {
 					return false
 				}
 
-				return trunc >= 0 && trunc <= math.MaxUint64
+				truncUint64 := softfloat.F64touint64(trunc)
+				return truncUint64 >= 0 && truncUint64 <= math.MaxUint64
 			})
 
-			x := uint64(tv.GetFloat64()) // XXX determinism?
+			x := softfloat.F64touint64(tv.GetFloat64())
 			tv.T = t
 			tv.SetUint64(x)
 		case Float32Kind:
 			validate(Float64Kind, Float32Kind, func() bool {
-				return tv.GetFloat64() <= math.MaxFloat32
+				return softfloat.Fle64(tv.GetFloat64(), math.Float64bits(float64(math.MaxFloat32)))
 			})
 
-			x := float32(tv.GetFloat64()) // XXX determinism?
+			x := softfloat.F64to32(tv.GetFloat64())
 			tv.T = t
 			tv.SetFloat32(x)
 		case Float64Kind:
-			x := tv.GetFloat64() // XXX determinism?
+			x := tv.GetFloat64() // ???
 			tv.T = t
 			tv.SetFloat64(x)
 		default:
@@ -1372,7 +1371,7 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 	// the value is within int64 or uint64.
 	switch k {
 	case IntKind:
-		dst.SetInt(int(sv))
+		dst.SetInt(int64(sv))
 	case Int8Kind:
 		if math.MaxInt8 < sv {
 			panic("rune overflows target kind")
@@ -1397,7 +1396,7 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 		if sv < 0 {
 			panic("rune underflows target kind")
 		}
-		dst.SetUint(uint(sv))
+		dst.SetUint(uint64(sv))
 	case Uint8Kind:
 		if sv < 0 {
 			panic("rune underflows target kind")
@@ -1481,7 +1480,7 @@ func ConvertUntypedBigintTo(dst *TypedValue, bv BigintValue, t Type) {
 		if f32 == 0 && (acc == big.Below || acc == big.Above) {
 			panic("bigint underflows float32 (too close to zero)")
 		}
-		dst.SetFloat32(f32)
+		dst.SetFloat32(math.Float32bits(f32))
 		return // done
 	case Float64Kind:
 		dst.T = t
@@ -1495,7 +1494,7 @@ func ConvertUntypedBigintTo(dst *TypedValue, bv BigintValue, t Type) {
 		if f64 == 0 && (acc == big.Below || acc == big.Above) {
 			panic("bigint underflows float64 (too close to zero)")
 		}
-		dst.SetFloat64(f64)
+		dst.SetFloat64(math.Float64bits(f64))
 		return // done
 	case BigdecKind:
 		dst.T = t
@@ -1523,9 +1522,9 @@ func ConvertUntypedBigintTo(dst *TypedValue, bv BigintValue, t Type) {
 			if sv < math.MinInt32 {
 				panic("bigint underflows target kind")
 			}
-			dst.SetInt(int(sv))
+			dst.SetInt(sv)
 		} else if strconv.IntSize == 64 {
-			dst.SetInt(int(sv))
+			dst.SetInt(sv)
 		} else {
 			panic("unexpected IntSize")
 		}
@@ -1560,9 +1559,9 @@ func ConvertUntypedBigintTo(dst *TypedValue, bv BigintValue, t Type) {
 			if math.MaxUint32 < uv {
 				panic("bigint overflows target kind")
 			}
-			dst.SetUint(uint(uv))
+			dst.SetUint(uv)
 		} else if strconv.IntSize == 64 {
-			dst.SetUint(uint(uv))
+			dst.SetUint(uv)
 		} else {
 			panic("unexpected IntSize")
 		}
@@ -1610,7 +1609,7 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bv BigdecValue, t Type) {
 		dst.T = Float64Type
 		dst.V = nil
 		f, _ := bd.Float64()
-		dst.SetFloat64(f)
+		dst.SetFloat64(math.Float64bits(f))
 		return
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind:
 		fallthrough
@@ -1636,7 +1635,7 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bv BigdecValue, t Type) {
 		if math.IsInf(float64(f32), 0) {
 			panic("cannot convert untyped bigdec to float32 -- too close to +-Inf")
 		}
-		dst.SetFloat32(f32)
+		dst.SetFloat32(math.Float32bits(f32))
 		return
 	case Float64Kind:
 		dst.T = t
@@ -1648,7 +1647,7 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bv BigdecValue, t Type) {
 		if math.IsInf(f64, 0) {
 			panic("cannot convert untyped bigdec to float64 -- too close to +-Inf")
 		}
-		dst.SetFloat64(f64)
+		dst.SetFloat64(math.Float64bits(f64))
 		return
 	default:
 		panic(fmt.Sprintf(

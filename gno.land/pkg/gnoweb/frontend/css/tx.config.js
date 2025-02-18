@@ -1,7 +1,7 @@
 const pxToRem = (px) => px / 16;
 
 export default {
-  content: ["./components/**/*.{gohtml,ts}"],
+  content: ["./components/**/*.{html,ts}"],
   theme: {
     screens: {
       xs: `${pxToRem(360)}rem`,
@@ -26,6 +26,7 @@ export default {
     borderRadius: {
       sm: `${pxToRem(4)}rem`,
       DEFAULT: `${pxToRem(6)}rem`,
+      full: "9999px",
     },
     colors: {
       light: "#FFFFFF",
@@ -51,11 +52,7 @@ export default {
       mono: ["Roboto", 'Menlo, Consolas, "Ubuntu Mono", "Roboto Mono", "DejaVu Sans Mono", monospace;'],
       interVar: [
         '"Inter var"',
-        'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
-      ],
-      interNormal: [
-        "Inter",
-        'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
+        '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif',
       ],
     },
     fontSize: {
@@ -72,5 +69,6 @@ export default {
       900: `${pxToRem(42)}rem`,
     },
   },
+  safelist: ["realm-view", { pattern: /^realm-view/ }],
   plugins: [],
 };

@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
+
+	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 )
 
 /*
@@ -69,8 +72,25 @@ func (pid PkgID) Bytes() []byte {
 	return pid.Hashlet[:]
 }
 
+var (
+	pkgIDFromPkgPathCacheMu sync.Mutex // protects the shared cache.
+	// TODO: later on switch this to an LRU if needed to ensure
+	// fixed memory caps. For now though it isn't a problem:
+	// https://github.com/gnolang/gno/pull/3424#issuecomment-2564571785
+	pkgIDFromPkgPathCache = make(map[string]*PkgID, 100)
+)
+
 func PkgIDFromPkgPath(path string) PkgID {
-	return PkgID{HashBytes([]byte(path))}
+	pkgIDFromPkgPathCacheMu.Lock()
+	defer pkgIDFromPkgPathCacheMu.Unlock()
+
+	pkgID, ok := pkgIDFromPkgPathCache[path]
+	if !ok {
+		pkgID = new(PkgID)
+		*pkgID = PkgID{HashBytes([]byte(path))}
+		pkgIDFromPkgPathCache[path] = pkgID
+	}
+	return *pkgID
 }
 
 // Returns the ObjectID of the PackageValue associated with path.
@@ -134,6 +154,10 @@ func (rlm *Realm) String() string {
 // xo or co is nil if the element value is undefined or has no
 // associated object.
 func (rlm *Realm) DidUpdate(po, xo, co Object) {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
 	if rlm == nil {
 		return
 	}
@@ -168,6 +192,9 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	if co != nil {
 		co.IncRefCount()
 		if co.GetRefCount() > 1 {
+			if co.GetIsReal() {
+				rlm.MarkDirty(co)
+			}
 			if co.GetIsEscaped() {
 				// already escaped
 			} else {
@@ -187,6 +214,8 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 			if xo.GetIsReal() {
 				rlm.MarkNewDeleted(xo)
 			}
+		} else if xo.GetIsReal() {
+			rlm.MarkDirty(xo)
 		}
 	}
 }
@@ -293,6 +322,10 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 
 // OpReturn calls this when exiting a realm transaction.
 func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
 	if readonly {
 		if true ||
 			len(rlm.newCreated) > 0 ||
@@ -436,6 +469,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 				child.SetIsNewReal(true)
 			}
 		} else if rc > 1 {
+			rlm.MarkDirty(child)
 			if child.GetIsEscaped() {
 				// already escaped, do nothing.
 			} else {
@@ -509,7 +543,7 @@ func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 		if rc == 0 {
 			rlm.decRefDeletedDescendants(store, child)
 		} else if rc > 0 {
-			// do nothing
+			rlm.MarkDirty(child)
 		} else {
 			panic("deleted descendants should not have a reference count of less than zero")
 		}

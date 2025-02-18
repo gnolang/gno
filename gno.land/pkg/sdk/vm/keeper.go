@@ -5,6 +5,7 @@ package vm
 import (
 	"bytes"
 	"context"
+	goerrors "errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -38,6 +39,7 @@ import (
 const (
 	maxAllocTx    = 500_000_000
 	maxAllocQuery = 1_500_000_000 // higher limit for queries
+	maxGasQuery   = 3_000_000_000 // same as max block gas
 )
 
 // vm.VMKeeperI defines a module interface that supports Gno
@@ -392,18 +394,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 			GasMeter: ctx.GasMeter(),
 		})
 	defer m2.Release()
-	defer func() {
-		if r := recover(); r != nil {
-			switch r.(type) {
-			case store.OutOfGasException: // panic in consumeGas()
-				panic(r)
-			default:
-				err = errors.Wrapf(fmt.Errorf("%v", r), "VM addpkg panic: %v\n%s\n",
-					r, m2.String())
-				return
-			}
-		}
-	}()
+	defer doRecover(m2, &err)
 	m2.RunMemPackage(memPkg, true)
 
 	// Log the telemetry
@@ -495,21 +486,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		})
 	defer m.Release()
 	m.SetActivePackage(mpv)
-	defer func() {
-		if r := recover(); r != nil {
-			switch r := r.(type) {
-			case store.OutOfGasException: // panic in consumeGas()
-				panic(r)
-			case gno.UnhandledPanicError:
-				err = errors.Wrapf(fmt.Errorf("%v", r.Error()), "VM call panic: %s\nStacktrace: %s\n",
-					r.Error(), m.ExceptionsStacktrace())
-			default:
-				err = errors.Wrapf(fmt.Errorf("%v", r), "VM call panic: %v\nMachine State:%s\nStacktrace: %s\n",
-					r, m.String(), m.Stacktrace().String())
-				return
-			}
-		}
-	}()
+	defer doRecover(m, &err)
 	rtvs := m.Eval(xn)
 	for i, rtv := range rtvs {
 		res = res + rtv.String()
@@ -532,6 +509,52 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 
 	return res, nil
 	// TODO pay for gas? TODO see context?
+}
+
+func doRecover(m *gno.Machine, e *error) {
+	r := recover()
+
+	// On normal transaction execution, out of gas panics are handled in the
+	// BaseApp, so repanic here.
+	const repanicOutOfGas = true
+	doRecoverInternal(m, e, r, repanicOutOfGas)
+}
+
+func doRecoverQuery(m *gno.Machine, e *error) {
+	r := recover()
+	const repanicOutOfGas = false
+	doRecoverInternal(m, e, r, repanicOutOfGas)
+}
+
+func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
+	if r == nil {
+		return
+	}
+	if err, ok := r.(error); ok {
+		var oog types.OutOfGasError
+		if goerrors.As(err, &oog) {
+			if repanicOutOfGas {
+				panic(oog)
+			}
+			*e = oog
+			return
+		}
+		var up gno.UnhandledPanicError
+		if goerrors.As(err, &up) {
+			// Common unhandled panic error, skip machine state.
+			*e = errors.Wrapf(
+				errors.New(up.Descriptor),
+				"VM panic: %s\nStacktrace: %s\n",
+				up.Descriptor, m.ExceptionsStacktrace(),
+			)
+			return
+		}
+	}
+	*e = errors.Wrapf(
+		fmt.Errorf("%v", r),
+		"VM panic: %v\nMachine State:%s\nStacktrace: %s\n",
+		r, m.String(), m.Stacktrace().String(),
+	)
 }
 
 // Run executes arbitrary Gno code in the context of the caller's realm.
@@ -583,37 +606,36 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		Params:        NewSDKParams(vm, ctx),
 		EventLogger:   ctx.EventLogger(),
 	}
-	// Parse and run the files, construct *PV.
+
 	buf := new(bytes.Buffer)
 	output := io.Writer(buf)
-	if vm.Output != nil {
-		output = io.MultiWriter(buf, vm.Output)
-	}
-	m := gno.NewMachineWithOptions(
-		gno.MachineOptions{
-			PkgPath:  "",
-			Output:   output,
-			Store:    gnostore,
-			Alloc:    gnostore.GetAllocator(),
-			Context:  msgCtx,
-			GasMeter: ctx.GasMeter(),
-		})
-	// XXX MsgRun does not have pkgPath. How do we find it on chain?
-	defer m.Release()
-	defer func() {
-		if r := recover(); r != nil {
-			switch r.(type) {
-			case store.OutOfGasException: // panic in consumeGas()
-				panic(r)
-			default:
-				err = errors.Wrapf(fmt.Errorf("%v", r), "VM run main addpkg panic: %v\n%s\n",
-					r, m.String())
-				return
-			}
-		}
-	}()
 
-	_, pv := m.RunMemPackage(memPkg, false)
+	// Run as self-executing closure to have own function for doRecover / m.Release defers.
+	pv := func() *gno.PackageValue {
+		// Parse and run the files, construct *PV.
+		if vm.Output != nil {
+			output = io.MultiWriter(buf, vm.Output)
+		}
+		m := gno.NewMachineWithOptions(
+			gno.MachineOptions{
+				PkgPath:  "",
+				Output:   output,
+				Store:    gnostore,
+				Alloc:    gnostore.GetAllocator(),
+				Context:  msgCtx,
+				GasMeter: ctx.GasMeter(),
+			})
+		// XXX MsgRun does not have pkgPath. How do we find it on chain?
+		defer m.Release()
+		defer doRecover(m, &err)
+
+		_, pv := m.RunMemPackage(memPkg, false)
+		return pv
+	}()
+	if err != nil {
+		// handle any errors happened within pv generation.
+		return
+	}
 
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
@@ -626,18 +648,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		})
 	defer m2.Release()
 	m2.SetActivePackage(pv)
-	defer func() {
-		if r := recover(); r != nil {
-			switch r.(type) {
-			case store.OutOfGasException: // panic in consumeGas()
-				panic(r)
-			default:
-				err = errors.Wrapf(fmt.Errorf("%v", r), "VM run main call panic: %v\n%s\n",
-					r, m2.String())
-				return
-			}
-		}
-	}()
+	defer doRecover(m2, &err)
 	m2.RunMain()
 	res = buf.String()
 
@@ -715,9 +726,39 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 }
 
 // QueryEval evaluates a gno expression (readonly, for ABCI queries).
-// TODO: modify query protocol to allow MsgEval.
-// TODO: then, rename to "Eval".
 func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
+	rtvs, err := vm.queryEvalInternal(ctx, pkgPath, expr)
+	if err != nil {
+		return "", err
+	}
+	res = ""
+	for i, rtv := range rtvs {
+		res += rtv.String()
+		if i < len(rtvs)-1 {
+			res += "\n"
+		}
+	}
+	return res, nil
+}
+
+// QueryEvalString evaluates a gno expression (readonly, for ABCI queries).
+// The result is expected to be a single string (not a tuple).
+func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
+	rtvs, err := vm.queryEvalInternal(ctx, pkgPath, expr)
+	if err != nil {
+		return "", err
+	}
+	if len(rtvs) != 1 {
+		return "", errors.New("expected 1 string result, got %d", len(rtvs))
+	} else if rtvs[0].T.Kind() != gno.StringKind {
+		return "", errors.New("expected 1 string result, got %v", rtvs[0].T.Kind())
+	}
+	res = rtvs[0].GetString()
+	return res, nil
+}
+
+func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr string) (rtvs []gno.TypedValue, err error) {
+	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	alloc := gno.NewAllocator(maxAllocQuery)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
@@ -726,12 +767,12 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	if pv == nil {
 		err = ErrInvalidPkgPath(fmt.Sprintf(
 			"package not found: %s", pkgPath))
-		return "", err
+		return nil, err
 	}
 	// Parse expression.
 	xx, err := gno.ParseExpr(expr)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	// Construct new machine.
 	chainDomain := vm.getChainDomainParam(ctx)
@@ -758,94 +799,8 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 			GasMeter: ctx.GasMeter(),
 		})
 	defer m.Release()
-	defer func() {
-		if r := recover(); r != nil {
-			switch r.(type) {
-			case store.OutOfGasException: // panic in consumeGas()
-				panic(r)
-			default:
-				err = errors.Wrapf(fmt.Errorf("%v", r), "VM query eval panic: %v\n%s\n",
-					r, m.String())
-				return
-			}
-		}
-	}()
-	rtvs := m.Eval(xx)
-	res = ""
-	for i, rtv := range rtvs {
-		res += rtv.String()
-		if i < len(rtvs)-1 {
-			res += "\n"
-		}
-	}
-	return res, nil
-}
-
-// QueryEvalString evaluates a gno expression (readonly, for ABCI queries).
-// The result is expected to be a single string (not a tuple).
-// TODO: modify query protocol to allow MsgEval.
-// TODO: then, rename to "EvalString".
-func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
-	alloc := gno.NewAllocator(maxAllocQuery)
-	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
-	pkgAddr := gno.DerivePkgAddr(pkgPath)
-	// Get Package.
-	pv := gnostore.GetPackage(pkgPath, false)
-	if pv == nil {
-		err = ErrInvalidPkgPath(fmt.Sprintf(
-			"package not found: %s", pkgPath))
-		return "", err
-	}
-	// Parse expression.
-	xx, err := gno.ParseExpr(expr)
-	if err != nil {
-		return "", err
-	}
-	// Construct new machine.
-	chainDomain := vm.getChainDomainParam(ctx)
-	msgCtx := stdlibs.ExecContext{
-		ChainID:     ctx.ChainID(),
-		ChainDomain: chainDomain,
-		Height:      ctx.BlockHeight(),
-		Timestamp:   ctx.BlockTime().Unix(),
-		// OrigCaller:    caller,
-		// OrigSend:      jsend,
-		// OrigSendSpent: nil,
-		OrigPkgAddr: pkgAddr.Bech32(),
-		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
-		Params:      NewSDKParams(vm, ctx),
-		EventLogger: ctx.EventLogger(),
-	}
-	m := gno.NewMachineWithOptions(
-		gno.MachineOptions{
-			PkgPath:  pkgPath,
-			Output:   vm.Output,
-			Store:    gnostore,
-			Context:  msgCtx,
-			Alloc:    alloc,
-			GasMeter: ctx.GasMeter(),
-		})
-	defer m.Release()
-	defer func() {
-		if r := recover(); r != nil {
-			switch r.(type) {
-			case store.OutOfGasException: // panic in consumeGas()
-				panic(r)
-			default:
-				err = errors.Wrapf(fmt.Errorf("%v", r), "VM query eval string panic: %v\n%s\n",
-					r, m.String())
-				return
-			}
-		}
-	}()
-	rtvs := m.Eval(xx)
-	if len(rtvs) != 1 {
-		return "", errors.New("expected 1 string result, got %d", len(rtvs))
-	} else if rtvs[0].T.Kind() != gno.StringKind {
-		return "", errors.New("expected 1 string result, got %v", rtvs[0].T.Kind())
-	}
-	res = rtvs[0].GetString()
-	return res, nil
+	defer doRecoverQuery(m, &err)
+	return m.Eval(xx), err
 }
 
 func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err error) {

@@ -2,18 +2,17 @@ package std
 
 import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/tm2/pkg/bech32"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 func AssertOriginCall(m *gno.Machine) {
-	if !IsOriginCall(m) {
+	if !isOriginCall(m) {
 		m.Panic(typedString("invalid non-origin call"))
 	}
 }
 
-func IsOriginCall(m *gno.Machine) bool {
+func isOriginCall(m *gno.Machine) bool {
 	n := m.NumFrames()
 	if n == 0 {
 		return false
@@ -140,26 +139,6 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 // It's not a native binding; but is used within this package to clarify usage.
 func currentRealm(m *gno.Machine) (address, pkgPath string) {
 	return X_getRealm(m, 0)
-}
-
-func X_derivePkgAddr(pkgPath string) string {
-	return string(gno.DerivePkgAddr(pkgPath).Bech32())
-}
-
-func X_encodeBech32(prefix string, bytes [20]byte) string {
-	b32, err := bech32.ConvertAndEncode(prefix, bytes[:])
-	if err != nil {
-		panic(err) // should not happen
-	}
-	return b32
-}
-
-func X_decodeBech32(addr string) (prefix string, bytes [20]byte, ok bool) {
-	prefix, bz, err := bech32.Decode(addr)
-	if err != nil || len(bz) != 20 {
-		return "", [20]byte{}, false
-	}
-	return prefix, [20]byte(bz), true
 }
 
 func X_assertCallerIsRealm(m *gno.Machine) {
