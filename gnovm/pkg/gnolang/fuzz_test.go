@@ -50,8 +50,8 @@ func FuzzConvertUntypedBigdecToFloat(f *testing.F) {
 
 func FuzzParseFile(f *testing.F) {
 	// 1. Add the corpra.
-	parseFileDir := filepath.Join("testdata", "corpra", "parsefile")
-	paths, err := filepath.Glob(filepath.Join(parseFileDir, "*.go"))
+	parseFileDir := filepath.Join("testdata", "corpora", "parsefile")
+	paths, err := filepath.Glob(filepath.Join(parseFileDir, "*.go_fuzz"))
 	if err != nil {
 		f.Fatal(err)
 	}

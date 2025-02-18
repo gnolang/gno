@@ -13,7 +13,7 @@ func TestFoo721(t *testing.T) {
 	admin := pusers.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 	hariom := pusers.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
-	for i, tc := range []struct {
+	for _, tc := range []struct {
 		name     string
 		expected interface{}
 		fn       func() interface{}

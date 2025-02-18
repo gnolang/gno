@@ -12,8 +12,6 @@ import (
 	"sync"
 	"time"
 
-	goErrors "errors"
-
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
@@ -641,12 +639,10 @@ func (n *Node) OnStart() error {
 	}
 
 	// Start the transport.
-	lAddr := n.config.P2P.ExternalAddress
-	if lAddr == "" {
-		lAddr = n.config.P2P.ListenAddress
-	}
+	// The listen address for the transport needs to be an address within reach of the machine NIC
+	listenAddress := p2pTypes.NetAddressString(n.nodeKey.ID(), n.config.P2P.ListenAddress)
 
-	addr, err := p2pTypes.NewNetAddressFromString(p2pTypes.NetAddressString(n.nodeKey.ID(), lAddr))
+	addr, err := p2pTypes.NewNetAddressFromString(listenAddress)
 	if err != nil {
 		return fmt.Errorf("unable to parse network address, %w", err)
 	}
@@ -753,7 +749,17 @@ func (n *Node) configureRPC() {
 	rpccore.SetConfig(*n.config.RPC)
 }
 
-func (n *Node) startRPC() ([]net.Listener, error) {
+func (n *Node) startRPC() (listeners []net.Listener, err error) {
+	defer func() {
+		if err != nil {
+			// Close all the created listeners on any error, instead of
+			// leaking them: https://github.com/gnolang/gno/issues/3639
+			for _, ln := range listeners {
+				ln.Close()
+			}
+		}
+	}()
+
 	listenAddrs := splitAndTrimEmpty(n.config.RPC.ListenAddress, ",", " ")
 
 	config := rpcserver.DefaultConfig()
@@ -769,8 +775,8 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 
 	// we may expose the rpc over both a unix and tcp socket
 	var rebuildAddresses bool
-	listeners := make([]net.Listener, len(listenAddrs))
-	for i, listenAddr := range listenAddrs {
+	listeners = make([]net.Listener, 0, len(listenAddrs))
+	for _, listenAddr := range listenAddrs {
 		mux := http.NewServeMux()
 		rpcLogger := n.Logger.With("module", "rpc-server")
 		wmLogger := rpcLogger.With("protocol", "websocket")
@@ -822,7 +828,7 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 			)
 		}
 
-		listeners[i] = listener
+		listeners = append(listeners, listener)
 	}
 	if rebuildAddresses {
 		n.config.RPC.ListenAddress = joinListenerAddresses(listeners)
@@ -933,7 +939,7 @@ func makeNodeInfo(
 
 	nodeInfo := p2pTypes.NodeInfo{
 		VersionSet: vset,
-		PeerID:     nodeKey.ID(),
+		NetAddress: nil, // The shared address depends on the configuration
 		Network:    genDoc.ChainID,
 		Version:    version.Version,
 		Channels: []byte{
@@ -948,13 +954,44 @@ func makeNodeInfo(
 		},
 	}
 
+	// Make sure the discovery channel is shared with peers
+	// in case peer discovery is enabled
 	if config.P2P.PeerExchange {
 		nodeInfo.Channels = append(nodeInfo.Channels, discovery.Channel)
 	}
 
+	// Grab the supplied listen address.
+	// This address needs to be valid, but it can be unspecified.
+	// If the listen address is unspecified (port / IP unbound),
+	// then this address cannot be used by peers for dialing
+	addr, err := p2pTypes.NewNetAddressFromString(
+		p2pTypes.NetAddressString(nodeKey.ID(), config.P2P.ListenAddress),
+	)
+	if err != nil {
+		return p2pTypes.NodeInfo{}, fmt.Errorf("unable to parse network address, %w", err)
+	}
+
+	// Use the transport listen address as the advertised address
+	nodeInfo.NetAddress = addr
+
+	// Prepare the advertised dial address (if any)
+	// for the node, which other peers can use to dial
+	if config.P2P.ExternalAddress != "" {
+		addr, err = p2pTypes.NewNetAddressFromString(
+			p2pTypes.NetAddressString(
+				nodeKey.ID(),
+				config.P2P.ExternalAddress,
+			),
+		)
+		if err != nil {
+			return p2pTypes.NodeInfo{}, fmt.Errorf("invalid p2p external address: %w", err)
+		}
+
+		nodeInfo.NetAddress = addr
+	}
+
 	// Validate the node info
-	err := nodeInfo.Validate()
-	if err != nil && !goErrors.Is(err, p2pTypes.ErrUnspecifiedIP) {
+	if err := nodeInfo.Validate(); err != nil {
 		return p2pTypes.NodeInfo{}, fmt.Errorf("unable to validate node info, %w", err)
 	}
 

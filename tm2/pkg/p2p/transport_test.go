@@ -122,14 +122,12 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 
 		transport := NewMultiplexTransport(ni, nk, mCfg, logger)
 
-		p, err := transport.Accept(context.Background(), nil)
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
 
+		p, err := transport.Accept(ctx, nil)
 		assert.Nil(t, p)
-		assert.ErrorIs(
-			t,
-			err,
-			errTransportInactive,
-		)
+		assert.ErrorIs(t, err, context.DeadlineExceeded)
 	})
 
 	t.Run("transport closed", func(t *testing.T) {
@@ -235,7 +233,7 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 
 			ni := types.NodeInfo{
 				Network:    network, // common network
-				PeerID:     id,
+				NetAddress: na,
 				Version:    "v1.0.0-rc.0",
 				Moniker:    fmt.Sprintf("node-%d", index),
 				VersionSet: make(versionset.VersionSet, 0), // compatible version set
@@ -315,7 +313,7 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 
 			ni := types.NodeInfo{
 				Network:    chainID,
-				PeerID:     id,
+				NetAddress: na,
 				Version:    "v1.0.0-rc.0",
 				Moniker:    fmt.Sprintf("node-%d", index),
 				VersionSet: make(versionset.VersionSet, 0), // compatible version set
@@ -387,7 +385,7 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 
 			ni := types.NodeInfo{
 				Network:    network, // common network
-				PeerID:     key.ID(),
+				NetAddress: na,
 				Version:    "v1.0.0-rc.0",
 				Moniker:    fmt.Sprintf("node-%d", index),
 				VersionSet: make(versionset.VersionSet, 0), // compatible version set
@@ -465,7 +463,7 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 
 			ni := types.NodeInfo{
 				Network:    network, // common network
-				PeerID:     key.ID(),
+				NetAddress: na,
 				Version:    "v1.0.0-rc.0",
 				Moniker:    fmt.Sprintf("node-%d", index),
 				VersionSet: make(versionset.VersionSet, 0), // compatible version set
