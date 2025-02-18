@@ -16,6 +16,7 @@ require (
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/gofuzz v1.2.0
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/libp2p/go-buffer-pool v0.1.0
 	github.com/pelletier/go-toml v1.9.5
@@ -57,7 +58,6 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.25.1 // indirect
 	github.com/nxadm/tail v1.4.11 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
