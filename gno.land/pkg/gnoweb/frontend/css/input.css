@@ -344,12 +344,3 @@
     scrollbar-width: none;
   }
 }
-/* Styling for import links */
-.gno-import {
-  color: #0366d6 !important;
-  text-decoration: none;
-}
-
-.gno-import:hover {
-  text-decoration: underline;
-}
