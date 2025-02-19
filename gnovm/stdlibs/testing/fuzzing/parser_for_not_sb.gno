@@ -85,8 +85,8 @@ func toUint64(v int64) uint64 {
 // Beacuse factorization can be extremely resource-intensive for certain numbers.
 // However, since successful factorization is not essential for fuzzing mutations,
 // a balance between performance and effectiveness is necessary.(so used heuristic)
-// To cover frequently occurring numbers below 10⁶, the maximum iteration count was initially set to 1,000.
-// Yet, considering the potential time cost, it has been optimized to 500 iterations,
+// To cover frequently occurring numbers below 10⁶(or above),
+// it has been optimized to 500 iterations,
 // providing a good trade-off between feasibility and coverage in most cases.
 // If factorization is successful, the function returns the factors and true; otherwise, it returns nil and false.
 func factorize(n uint64) ([]uint64, bool) {
