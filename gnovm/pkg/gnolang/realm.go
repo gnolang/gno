@@ -185,8 +185,8 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 
 		if co != nil {
 			debug.Printf(
-				"co: %v (type: %v) | GetOriginRealm: %v | GetIsRef: %v | GetRefCount: %v | GetIsReal: %v\n",
-				co, reflect.TypeOf(co), co.GetOriginRealm(), co.GetIsAttachingRef(), co.GetRefCount(), co.GetIsReal(),
+				"co: %v (type: %v) | GetBoundRealm: %v | GetIsRef: %v | GetRefCount: %v | GetIsReal: %v\n",
+				co, reflect.TypeOf(co), co.GetBoundRealm(), co.GetIsAttachingRef(), co.GetRefCount(), co.GetIsReal(),
 			)
 		}
 	}
@@ -237,11 +237,11 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 			} else {
 				//rlm.MarkNewEscaped(co)
 				// check cross realm
-				originRealm := co.GetOriginRealm()
+				boundRealm := co.GetBoundRealm()
 				//fmt.Println("originRealm: ", originRealm)
-				if originRealm == rlm.ID {
+				if boundRealm == rlm.ID {
 					//rlm.MarkNewEscaped(co)
-				} else if isCrossRealm(originRealm, rlm.ID) {
+				} else if isCrossRealm(boundRealm, rlm.ID) {
 					if !co.GetIsAttachingRef() {
 						panic(fmt.Sprintf("cannot attach objects by value from external realm: %v", co))
 					}
@@ -280,7 +280,7 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, seenObjs []Object
 	}
 	tv2 := fillValueTV(store, tv)
 	if oo, ok := tv2.V.(Object); ok {
-		oo.SetOriginRealm(tv2.GetBoundRealmByType(oo))
+		oo.SetBoundRealm(tv2.GetBoundRealmByType(oo))
 		checkCrossRealm(rlm, store, oo, seenObjs)
 	} else {
 		switch tv.V.(type) {
@@ -300,7 +300,7 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, seenObjs []Object
 			}
 
 			// set origin realm info
-			reo.SetOriginRealm(tv2.GetBoundRealmByType(reo))
+			reo.SetBoundRealm(tv2.GetBoundRealmByType(reo))
 			reo.SetIsAttachingRef(true)
 			checkCrossRealm(rlm, store, reo, seenObjs)
 		}
@@ -311,24 +311,24 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, seenObjs []Object
 func checkCrossRealm(rlm *Realm, store Store, oo Object, seenObjs []Object) {
 	if debug {
 		debug.Printf(
-			"checkCrossRealm, oo: %v (type: %v) | GetIsReal: %t | oo.GetOriginRealm: %v (purePkg? %t) | rlm.ID: %v | isCurrentRef: %t\n",
-			oo, reflect.TypeOf(oo), oo.GetIsReal(), oo.GetOriginRealm(), oo.GetOriginRealm().purePkg, rlm.ID, oo.GetIsAttachingRef(),
+			"checkCrossRealm, oo: %v (type: %v) | GetIsReal: %t | oo.GetBoundRealm: %v (purePkg? %t) | rlm.ID: %v | isCurrentRef: %t\n",
+			oo, reflect.TypeOf(oo), oo.GetIsReal(), oo.GetBoundRealm(), oo.GetBoundRealm().purePkg, rlm.ID, oo.GetIsAttachingRef(),
 		)
 	}
 
 	// object from pure package is ok
-	if oo.GetOriginRealm().IsPurePkg() {
+	if oo.GetBoundRealm().IsPurePkg() {
 		return
 	}
 
 	// for local realm checking, maybe a container not cross,
 	// but its children does.
-	if oo.GetOriginRealm().IsZero() || rlm.ID == oo.GetOriginRealm() {
+	if oo.GetBoundRealm().IsZero() || rlm.ID == oo.GetBoundRealm() {
 		checkCrossRealmChildren(rlm, store, oo, seenObjs)
 		return
 	}
 
-	if rlm.ID != oo.GetOriginRealm() { // crossing realm
+	if rlm.ID != oo.GetBoundRealm() { // crossing realm
 		// When attaching a reference, ensure that the base object is real.
 		// The child objects do not need to be real at this stage;
 		// they can be attached(real) after.
@@ -909,7 +909,7 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 	// if oo is from external realm, imply it's already real,
 	// and it's attaching by ref, (after the checkCrossReal logic)
 	// skip its unreal child, to be attached in respective realm
-	if !isCrossRealm(oo.GetOriginRealm(), rlm.ID) {
+	if !isCrossRealm(oo.GetBoundRealm(), rlm.ID) {
 		unsaved = getUnsavedChildObjects(oo)
 	}
 	for _, uch := range unsaved {
@@ -955,7 +955,7 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 	if oid.IsZero() {
 		panic(fmt.Sprintf("unexpected zero object id: %v", oo))
 	}
-	if isCrossRealm(oo.GetOriginRealm(), rlm.ID) {
+	if isCrossRealm(oo.GetBoundRealm(), rlm.ID) {
 		if !oo.GetIsEscaped() && !oo.GetIsNewEscaped() {
 			panic("cannot attach object from external realm: object must be either escaped or newly escaped")
 		}
@@ -1792,6 +1792,6 @@ func getOwner(store Store, oo Object) Object {
 // if the origin realm is zero, e.g. an unreal array,
 // it is not considered a cross-realm scenario for now.
 // however, further checks on children are required afterward.
-func isCrossRealm(originRealm, rlmID PkgID) bool {
-	return !originRealm.IsZero() && !originRealm.IsPurePkg() && originRealm != rlmID
+func isCrossRealm(boundRealm, rlmID PkgID) bool {
+	return !boundRealm.IsZero() && !boundRealm.IsPurePkg() && boundRealm != rlmID
 }

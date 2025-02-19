@@ -292,7 +292,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 
 		// set origin realm to object
 		if oo2 != nil && !originPkg.IsZero() {
-			oo2.SetOriginRealm(originPkg) // attach origin package info
+			oo2.SetBoundRealm(originPkg) // attach origin package info
 			// used for checking cross realm after
 			switch pv.TV.V.(type) {
 			case *SliceValue, PointerValue:

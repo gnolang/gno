@@ -125,8 +125,8 @@ type Object interface {
 	SetIsDeleted(bool, uint64)
 	GetIsNewReal() bool
 	SetIsNewReal(bool)
-	GetOriginRealm() PkgID
-	SetOriginRealm(pkgID PkgID)
+	GetBoundRealm() PkgID
+	SetBoundRealm(pkgID PkgID)
 	GetIsAttachingRef() bool
 	SetIsAttachingRef(bool)
 	GetIsNewEscaped() bool
@@ -349,11 +349,11 @@ func (oi *ObjectInfo) SetIsNewReal(x bool) {
 	oi.isNewReal = x
 }
 
-func (oi *ObjectInfo) GetOriginRealm() PkgID {
+func (oi *ObjectInfo) GetBoundRealm() PkgID {
 	return oi.originRealm
 }
 
-func (oi *ObjectInfo) SetOriginRealm(pkgId PkgID) {
+func (oi *ObjectInfo) SetBoundRealm(pkgId PkgID) {
 	oi.originRealm = pkgId
 }
 
