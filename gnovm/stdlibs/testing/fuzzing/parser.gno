@@ -974,7 +974,7 @@ func (lx *Lexer) lexNumber() Ent {
 							break
 						}
 						r, _ = utf8.DecodeRune(pb)
-						if (r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F') {
+						if isHexDigit[r] {
 							hexDigits += string(r)
 							lx.next()
 						} else {
@@ -1814,4 +1814,26 @@ func SafeUTF8(s string) string {
 	}
 	// If the input contains invalid UTF-8 sequences, they are removed by "rune()"" function.
 	return string([]rune(s))
+}
+
+// isHexDigit is a lookup table mapping each byte to a boolean indicating
+// whether the byte represents a valid hexadecimal digit.
+var isHexDigit [256]bool
+
+// init initializes the isHexDigit lookup table for hexadecimal digit validation.
+func init() {
+	fmt.Println("Initializing isHexDigit lookup table...")
+
+	// Mark '0' to '9' as valid hex digits.
+	for i := byte('0'); i <= byte('9'); i++ {
+		isHexDigit[i] = true
+	}
+	// Mark 'a' to 'f' as valid hex digits.
+	for i := byte('a'); i <= byte('f'); i++ {
+		isHexDigit[i] = true
+	}
+	// Mark 'A' to 'F' as valid hex digits.
+	for i := byte('A'); i <= byte('F'); i++ {
+		isHexDigit[i] = true
+	}
 }

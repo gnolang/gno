@@ -133,9 +133,6 @@ func TestMutateArg(t *testing.T) {
 			t.Logf("  Iteration %d: mutated value: %v, mutation info: %+v", iter, mutatedArg, mutationInfo)
 		}
 	}
-
-	keys, cum := ms.Seed.HashNumber, []uint64{0}
-	t.Logf("MutSample's strategy cache (example): keys=%v, cum=%v", keys, cum)
 }
 
 // TestSort tests boundary-based selection logic for mappedGeneratingNumber.
