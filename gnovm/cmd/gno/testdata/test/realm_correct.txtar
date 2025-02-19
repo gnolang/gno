@@ -4,8 +4,8 @@ gno test -v .
 
 ! stdout .+ # stdout should be empty
 stderr '=== RUN   file/x_filetest.gno'
-stderr '--- PASS: file/x_filetest.gno \(\d\.\d\ds\)'
-stderr 'ok      \. 	\d\.\d\ds'
+stderr '--- PASS: file/x_filetest.gno \(\d+\.\d\ds\)'
+stderr 'ok      \. 	\d+\.\d\ds'
 
 -- x_filetest.gno --
 // PKGPATH: gno.land/r/xx
