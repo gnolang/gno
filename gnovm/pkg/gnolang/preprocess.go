@@ -1402,6 +1402,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						if !constConverted {
 							convertConst(store, last, n, arg0, nil)
 						}
+
+						// check legal type for nil
+						if arg0.IsUndefined() {
+							switch ct.Kind() { // special case for nil conversion check.
+							case SliceKind, PointerKind, FuncKind, MapKind, InterfaceKind, ChanKind:
+								convertConst(store, last, n, arg0, ct)
+							default:
+								panic(fmt.Sprintf(
+									"cannot convert %v to %v",
+									arg0, ct.Kind()))
+							}
+						}
+
 						// evaluate the new expression.
 						cx := evalConst(store, last, n)
 						// Though cx may be undefined if ct is interface,
@@ -2886,7 +2899,7 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 							idx := addHeapCapture(dbn, fle, n.Name)
 							// adjust NameExpr type.
 							n.Type = NameExprTypeHeapUse
-							n.Path.Depth = uint8(depth)
+							n.Path.SetDepth(uint8(depth))
 							n.Path.Index = idx
 						} else {
 							if ftype == TRANS_REF_X {
@@ -2982,7 +2995,7 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, name Name) (idx uint16) {
 
 	// add name to fle.HeapCaptures.
 	vp := fle.GetPathForName(nil, name)
-	vp.Depth -= 1 // minus 1 for fle itself.
+	vp.SetDepth(vp.Depth - 1) // minus 1 for fle itself.
 	ne := NameExpr{
 		Path: vp,
 		Name: name,
@@ -5066,7 +5079,8 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 					break
 				}
 			}
-			path.Depth += uint8(i)
+			path.SetDepth(path.Depth + uint8(i))
+			path.Validate()
 			nx.Path = path
 			return
 		}
