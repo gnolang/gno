@@ -384,7 +384,7 @@ func fRunner(f *F, fn fuzzingFunc) {
 	start := unixNano()
 	defer func() {
 		if r := recover(); r != nil {
-			// panic 발생 시, panic 메시지와 스택 트레이스 출력
+			// On panic, prints the panic message and stack trace
 			fmt.Fprintf(os.Stderr, "\n--- Panic occurred(Fuzzer Internal Error): \"%v\"\n", r)
 		}
 		dur := unixNano() - start
