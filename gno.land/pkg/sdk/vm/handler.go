@@ -72,7 +72,7 @@ const (
 	QueryFuncs  = "qfuncs"
 	QueryEval   = "qeval"
 	QueryFile   = "qfile"
-	QueryDoc     = "qdoc"
+	QueryDoc    = "qdoc"
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQuery {
