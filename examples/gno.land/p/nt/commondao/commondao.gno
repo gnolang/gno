@@ -23,6 +23,9 @@ var (
 type (
 	// CommonDAO defines a DAO.
 	CommonDAO struct {
+		id       uint64
+		slug     string
+		name     string
 		parent   *CommonDAO
 		members  *avl.Tree // string(std.Address) -> struct{}
 		genID    seqid.ID
@@ -49,6 +52,21 @@ func New(options ...Option) *CommonDAO {
 		apply(dao)
 	}
 	return dao
+}
+
+// ID returns DAO's unique identifier.
+func (dao CommonDAO) ID() uint64 {
+	return dao.id
+}
+
+// Slug returns DAO's URL slug.
+func (dao CommonDAO) Slug() string {
+	return dao.slug
+}
+
+// Name returns DAO's name.
+func (dao CommonDAO) Name() string {
+	return dao.name
 }
 
 // Parent returns the parent DAO.
