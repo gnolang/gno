@@ -117,6 +117,7 @@ func (b txLog[K, V]) Iterate() iter.Seq2[K, V] {
 				if !yield(k, dirty.v) {
 					return
 				}
+				continue
 			}
 
 			// not in dirty
