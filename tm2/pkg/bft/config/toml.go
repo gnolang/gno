@@ -87,7 +87,7 @@ func ResetTestRoot(testName string) (*Config, string) {
 	// behaviour, we place genesis.json in the rootDir.
 	genesisFilePath := filepath.Join(rootDir, "genesis.json")
 	privvalConfig := privval.DefaultPrivValidatorConfig()
-	privvalConfig.RootDir = rootDir
+	privvalConfig.RootDir = filepath.Join(rootDir, DefaultSecretsDir)
 
 	// Write default config file if missing.
 	if !osm.FileExists(configFilePath) {
@@ -129,12 +129,12 @@ var testPrivValidatorKey = `{
   "priv_key": {
     "@type": "/tm.PrivKeyEd25519",
     "value": "Qq4Q9QH2flPSIJShbXPIocbrQtQ4S7Kdn31uI3sKZoJxW3rDcLUNZjDCQCKuduwvj0Kg57xPxlHYEIHwx44ZGA=="
-  }
+  },
   "pub_key": {
     "@type": "/tm.PubKeyEd25519",
     "value": "cVt6w3C1DWYwwkAirnbsL49CoOe8T8ZR2BCB8MeOGRg="
   },
-  "address": "g1uvwz22t0l2fv9az93wutmlusrjv5zdwx2n32d5",
+  "address": "g1uvwz22t0l2fv9az93wutmlusrjv5zdwx2n32d5"
 }`
 
 var testPrivValidatorState = `{

@@ -70,8 +70,8 @@ func TestEnsureTestRoot(t *testing.T) {
 		rootDir,
 		"genesis.json",
 		DefaultDBDir,
-		baseConfig.PrivValidator.SignStatePath(),
 		baseConfig.PrivValidator.LocalSignerPath(),
+		baseConfig.PrivValidator.SignStatePath(),
 	)
 }
 
