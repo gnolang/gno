@@ -69,6 +69,17 @@ func TransferOwnership(daoID uint64, newOwner std.Address) {
 	}
 }
 
+// GetByID returns a DAO searched by its ID.
+// It panics if caller doesn't have access ownership to it.
+func GetByID(daoID uint64) *commondao.CommonDAO {
+	assertCallerIsRealm() // TODO: Allow users to get DAOs using run TX?
+
+	caller := std.PrevRealm().Addr()
+	assertIsOwner(caller, daoID)
+
+	return mustGetDAO(daoID)
+}
+
 func checkOwnershipExists(addr std.Address) bool {
 	_, found := ownership.Get(addr.String())
 	return found
