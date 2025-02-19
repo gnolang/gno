@@ -67,6 +67,20 @@ builds:
     goarch:
       - amd64
       - arm64
+  - id: gnodev
+    dir: ./contribs/gnodev/cmd/gnodev
+    binary: gnodev
+    ldflags:
+      # using hardcoded ldflag
+      - -X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=/gnoroot
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
   # Gno Contribs
   # NOTE: Contribs binary will be added in a single docker image below: gnocontribs
   - id: gnobro
@@ -307,6 +321,48 @@ dockers:
     ids:
       - gnofaucet
 
+  # gnodev
+  - use: buildx
+    dockerfile: Dockerfile.release
+    goos: linux
+    goarch: amd64
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnodev:{{ .Version }}-amd64"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnodev:{{ .Env.TAG_VERSION }}-amd64"
+    build_flag_templates:
+      - "--target=gnodev"
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnodev"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gnodev
+    extra_files:
+      - examples
+      - gno.land/genesis/genesis_balances.txt
+      - gno.land/genesis/genesis_txs.jsonl
+  - use: buildx
+    dockerfile: Dockerfile.release
+    goos: linux
+    goarch: arm64
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnodev:{{ .Version }}-arm64v8"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnodev:{{ .Env.TAG_VERSION }}-arm64v8"
+    build_flag_templates:
+      - "--target=gnodev"
+      - "--platform=linux/arm64/v8"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnodev"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gnodev
+    extra_files:
+      - examples
+      - gno.land/genesis/genesis_balances.txt
+      - gno.land/genesis/genesis_txs.jsonl
+
   # gnocontribs
   - use: buildx
     dockerfile: Dockerfile.release
@@ -405,6 +461,16 @@ docker_manifests:
     image_templates:
       - ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Env.TAG_VERSION }}-amd64
       - ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Env.TAG_VERSION }}-arm64v8
+
+ # gnodev
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnodev:{{ .Version }}
+    image_templates:
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnodev:{{ .Version }}-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnodev:{{ .Version }}-arm64v8
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnodev:{{ .Env.TAG_VERSION }}
+    image_templates:
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnodev:{{ .Env.TAG_VERSION }}-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnodev:{{ .Env.TAG_VERSION }}-arm64v8
 
   # gnocontribs
   - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnocontribs:{{ .Version }}
