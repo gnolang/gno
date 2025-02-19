@@ -7,8 +7,9 @@ import (
 )
 
 var (
-	daoID seqid.ID
-	daos  = avl.NewTree() // string(DAO ID) -> *commondao.CommonDAO
+	daoID   seqid.ID
+	daos    = avl.NewTree() // string(DAO ID) -> *commondao.CommonDAO
+	invites = avl.NewTree() // string(std.Address) -> std.Address(inviter)
 )
 
 func getDAO(daoID uint64) *commondao.CommonDAO {
