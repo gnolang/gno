@@ -37,6 +37,7 @@ type Machine struct {
 	Exceptions []Exception
 	NumResults int   // number of results returned
 	Cycles     int64 // number of "cpu" cycles
+	GCCycle    int64 // number of "gc" cycles
 
 	Debugger Debugger
 
@@ -137,6 +138,9 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm := machinePool.Get().(*Machine)
 	mm.Package = pv
 	mm.Alloc = alloc
+	if mm.Alloc != nil {
+		mm.Alloc.SetGCCallback(func() (int64, bool) { return mm.GarbageCollect() })
+	}
 	mm.PreprocessorMode = preprocessorMode
 	mm.Output = output
 	mm.Store = store
