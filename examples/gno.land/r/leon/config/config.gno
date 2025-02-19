@@ -15,7 +15,7 @@ var (
 	cfgID   seqid.ID
 	configs = avl.NewTree()
 
-	absPath = strings.TrimPrefix(std.CurrentRealm().PkgPath(), std.GetChainDomain())
+	absPath = strings.TrimPrefix(std.CurrentRealm().PkgPath(), std.ChainDomain())
 
 	// SafeObjects
 	OwnableMain   = ownable.NewWithAddress("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
@@ -32,7 +32,7 @@ type Config struct {
 }
 
 func AddConfig(name, lines string) {
-	if !IsAuthorized(std.PrevRealm().Addr()) {
+	if !IsAuthorized(std.PreviousRealm().Address()) {
 		panic(ErrUnauthorized)
 	}
 
@@ -46,7 +46,7 @@ func AddConfig(name, lines string) {
 }
 
 func EditConfig(id string, name, lines string) {
-	if !IsAuthorized(std.PrevRealm().Addr()) {
+	if !IsAuthorized(std.PreviousRealm().Address()) {
 		panic(ErrUnauthorized)
 	}
 
@@ -63,7 +63,7 @@ func EditConfig(id string, name, lines string) {
 }
 
 func RemoveConfig(id string) {
-	if !IsAuthorized(std.PrevRealm().Addr()) {
+	if !IsAuthorized(std.PreviousRealm().Address()) {
 		panic(ErrUnauthorized)
 	}
 
@@ -73,7 +73,7 @@ func RemoveConfig(id string) {
 }
 
 func UpdateBanner(newBanner string) {
-	if !IsAuthorized(std.PrevRealm().Addr()) {
+	if !IsAuthorized(std.PreviousRealm().Address()) {
 		panic(ErrUnauthorized)
 	}
 
