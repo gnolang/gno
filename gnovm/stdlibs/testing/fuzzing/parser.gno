@@ -861,7 +861,8 @@ func (lx *Lexer) Lex() []Ent {
 }
 
 // Global settings (mark list, bracket)
-var parserMark = []string{
+// ParserMark is sorted in descending order of length by the init() function.
+var ParserMark = []string{
 	"\r\n", "\n", "\t",
 	"/", "://", "//",
 	".", "?", "@", "!", "#", "$", "%", "^",
@@ -928,8 +929,7 @@ func (lx *Lexer) nextToken() Ent {
 	}
 
 	// 5) Identifies multi-character markers.
-	sorted := sortMarksByLengthDesc(parserMark)
-	for _, mk := range sorted {
+	for _, mk := range ParserMark {
 		if lx.matchString(mk) {
 			lx.pos += len([]byte(mk))
 			return &MarkEnt{Data: []byte(mk)}
@@ -1815,7 +1815,7 @@ func SafeUTF8(s string) string {
 	if utf8.ValidString(s) {
 		return s
 	}
-	// If the input contains invalid UTF-8 sequences, they are removed by "rune()"" function.
+	// If the input contains invalid UTF-8 sequences, they are removed by "rune()" function.
 	return string([]rune(s))
 }
 
@@ -1837,4 +1837,6 @@ func init() {
 	for i := byte('A'); i <= byte('F'); i++ {
 		isHexDigit[i] = true
 	}
+	// By sorting ParserMark in descending order, the parser can correctly recognize them during the parsing process.
+	ParserMark = sortMarksByLengthDesc(ParserMark)
 }

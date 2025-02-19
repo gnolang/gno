@@ -158,6 +158,13 @@ func TestSort(t *testing.T) {
 	}
 }
 
+// TestInit checks whether the lookup table is created correctly and the global variables are properly sorted by the init() function.
+func TestInit(t *testing.T) {
+	for i, mark := range fuzzing.ParserMark {
+		println(i, fuzzing.EscapedToString(mark))
+	}
+}
+
 func TestParser(t *testing.T) {
 	fmt.Println("=== Final AST ===")
 
