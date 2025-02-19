@@ -157,22 +157,6 @@ func (rlm *Realm) String() string {
 // ownership hooks
 
 func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
-	//fmt.Printf(
-	//	"DidUpdate - po: %v (type: %v) | xo: %v (type: %v) | co: %v (type: %v) \n",
-	//	po, reflect.TypeOf(po), xo, reflect.TypeOf(xo), co, reflect.TypeOf(co),
-	//)
-	//
-	//if rlm != nil {
-	//	fmt.Println("rlm.ID: ", rlm.ID)
-	//}
-	//
-	//if co != nil {
-	//	fmt.Printf(
-	//		"co: %v (type: %v) | GetOriginRealm: %v | GetIsRef: %v | GetRefCount: %v | GetIsReal: %v\n",
-	//		co, reflect.TypeOf(co), co.GetOriginRealm(), co.GetIsAttachingRef(), co.GetRefCount(), co.GetIsReal(),
-	//	)
-	//}
-
 	if debug {
 		debug.Printf(
 			"DidUpdate - po: %v (type: %v) | xo: %v (type: %v) | co: %v (type: %v) \n",
@@ -191,9 +175,26 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 		}
 	}
 
+	//fmt.Printf(
+	//	"DidUpdate - po: %v (type: %v) | xo: %v (type: %v) | co: %v (type: %v) \n",
+	//	po, reflect.TypeOf(po), xo, reflect.TypeOf(xo), co, reflect.TypeOf(co),
+	//)
+	//
+	//if rlm != nil {
+	//	fmt.Println("rlm.ID: ", rlm.ID)
+	//}
+	//
+	//if co != nil {
+	//	fmt.Printf(
+	//		"co: %v (type: %v) | GetBoundRealm: %v | GetIsRef: %v | GetRefCount: %v | GetIsReal: %v\n",
+	//		co, reflect.TypeOf(co), co.GetBoundRealm(), co.GetIsAttachingRef(), co.GetRefCount(), co.GetIsReal(),
+	//	)
+	//}
+
 	if rlm == nil {
 		return
 	}
+
 	if debug {
 		if co != nil && co.GetIsDeleted() {
 			panic("cannot attach a deleted object")
@@ -235,17 +236,12 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 			if co.GetIsEscaped() {
 				//	already escaped
 			} else {
-				//rlm.MarkNewEscaped(co)
 				// check cross realm
 				boundRealm := co.GetBoundRealm()
-				//fmt.Println("originRealm: ", originRealm)
-				if boundRealm == rlm.ID {
-					//rlm.MarkNewEscaped(co)
-				} else if isCrossRealm(boundRealm, rlm.ID) {
+				if isCrossRealm(boundRealm, rlm.ID) {
 					if !co.GetIsAttachingRef() {
-						panic(fmt.Sprintf("cannot attach objects by value from external realm: %v", co))
+						panic("cannot attach a value of a type defined by another realm")
 					}
-					//rlm.MarkNewEscaped(co)
 				}
 				rlm.MarkNewEscaped(co)
 			}
@@ -279,31 +275,19 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, seenObjs []Object
 		debug.Printf("checkCrossRealm2, tv: %v (type: %v) \n", tv, reflect.TypeOf(tv.V))
 	}
 	tv2 := fillValueTV(store, tv)
-	if oo, ok := tv2.V.(Object); ok {
-		oo.SetBoundRealm(tv2.GetBoundRealmByType(oo))
-		checkCrossRealm(rlm, store, oo, seenObjs)
-	} else {
-		switch tv.V.(type) {
-		case *SliceValue, PointerValue:
-			reo := tv.GetFirstObject(store)
-			// if it is checking a pointer, and it
-			// has a base in current realm, implies
-			// the current realm is finalizing,
-			// just skip the next recursive step.
-			if _, ok := tv2.V.(PointerValue); ok {
-				// check recursive
-				if slices.Contains(seenObjs, reo) {
-					seenObjs = nil
-					return
-				}
-				seenObjs = append(seenObjs, reo)
-			}
+	oo2 := tv2.GetFirstObject2(store)
 
-			// set origin realm info
-			reo.SetBoundRealm(tv2.GetBoundRealmByType(reo))
-			reo.SetIsAttachingRef(true)
-			checkCrossRealm(rlm, store, reo, seenObjs)
+	if oo2 != nil {
+		// if it is checking a pointer, and it
+		// has a base in current realm, implies
+		// the current realm is finalizing,
+		// just skip the next recursive step.
+		if slices.Contains(seenObjs, oo2) {
+			seenObjs = nil
+			return
 		}
+		seenObjs = append(seenObjs, oo2)
+		checkCrossRealm(rlm, store, oo2, seenObjs)
 	}
 }
 
@@ -311,10 +295,15 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, seenObjs []Object
 func checkCrossRealm(rlm *Realm, store Store, oo Object, seenObjs []Object) {
 	if debug {
 		debug.Printf(
-			"checkCrossRealm, oo: %v (type: %v) | GetIsReal: %t | oo.GetBoundRealm: %v (purePkg? %t) | rlm.ID: %v | isCurrentRef: %t\n",
+			"checkCrossRealm, oo: %v (type: %v) | GetIsReal: %t | oo.GetBoundRealm: %v (purePkg? %t) | rlm.ID: %v | isAttachingRef: %t\n",
 			oo, reflect.TypeOf(oo), oo.GetIsReal(), oo.GetBoundRealm(), oo.GetBoundRealm().purePkg, rlm.ID, oo.GetIsAttachingRef(),
 		)
 	}
+
+	//fmt.Printf(
+	//	"checkCrossRealm, oo: %v (type: %v) | GetIsReal: %t | oo.GetBoundRealm: %v (purePkg? %t) | rlm.ID: %v | isAttachingRef: %t\n",
+	//	oo, reflect.TypeOf(oo), oo.GetIsReal(), oo.GetBoundRealm(), oo.GetBoundRealm().purePkg, rlm.ID, oo.GetIsAttachingRef(),
+	//)
 
 	// object from pure package is ok
 	if oo.GetBoundRealm().IsPurePkg() {
@@ -776,7 +765,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 					rlm.MarkDirty(po)
 				}
 				if eo.GetObjectID().IsZero() {
-					panic("new escaped mark has no object ID")
+					panic("new escaped object has no object ID")
 				}
 				// escaped has no owner.
 				//fmt.Println("set owner to be nil")

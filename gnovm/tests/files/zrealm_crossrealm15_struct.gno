@@ -22,4 +22,4 @@ func main() {
 }
 
 // Error:
-// cannot attach objects by value from external realm: heapitem((struct{} gno.land/r/crossrealm_test.fooer))
+// cannot attach a value of a type defined by another realm
