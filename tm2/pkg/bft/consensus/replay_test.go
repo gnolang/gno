@@ -883,9 +883,9 @@ func TestHandshakePanicsIfAppReturnsWrongAppHash(t *testing.T) {
 	//		- 0x03
 	config, genesisFile := ResetConfig("handshake_test_")
 	defer os.RemoveAll(config.RootDir)
-	fileSigner, err := signer.NewLocalSigner(config.PrivValidatorKeyFile())
+	fileSigner, err := signer.NewLocalSigner(config.PrivValidator.LocalSignerPath())
 	require.NoError(t, err)
-	privVal, err := privval.NewPrivValidator(fileSigner, config.PrivValidatorStateFile())
+	privVal, err := privval.NewPrivValidator(fileSigner, config.PrivValidator.SignStatePath())
 	require.NoError(t, err)
 	const appVersion = "v0.0.0-test"
 	stateDB, state, store := makeStateAndStore(config, genesisFile, appVersion)

@@ -165,7 +165,7 @@ func TestNodeSetPrivValTCP(t *testing.T) {
 
 	config, genesisFile := cfg.ResetTestRoot("node_priv_val_tcp_test")
 	defer os.RemoveAll(config.RootDir)
-	config.BaseConfig.PrivValidatorListenAddr = addr
+	config.PrivValidator.RemoteSignerAddress = addr
 
 	signer := types.NewMockSigner()
 
@@ -197,51 +197,13 @@ func TestNodeSetPrivValTCP(t *testing.T) {
 	require.Equal(t, signerPK, privValPK)
 }
 
-// address without a protocol must result in error
-func TestPrivValidatorListenAddrNoProtocol(t *testing.T) {
-	addrNoPrefix := testFreeAddr(t)
-
-	config, genesisFile := cfg.ResetTestRoot("node_priv_val_tcp_test")
-	defer os.RemoveAll(config.RootDir)
-	config.BaseConfig.PrivValidatorListenAddr = addrNoPrefix
-
-	signer := types.NewMockSigner()
-
-	pvss, err := sserver.NewRemoteSignerServer(
-		signer,
-		[]string{addrNoPrefix},
-		log.NewNoopLogger(),
-	)
-	require.NoError(t, err)
-
-	go func() {
-		err := pvss.Start()
-		require.NoError(t, err)
-	}()
-	defer pvss.Stop()
-
-	n, err := DefaultNewNode(config, genesisFile, events.NewEventSwitch(), log.NewTestingLogger(t))
-	require.NotNil(t, n)
-	require.NoError(t, err)
-
-	privValPK, err := n.PrivValidator().PubKey()
-	require.NotNil(t, privValPK)
-	require.NoError(t, err)
-
-	signerPK, err := signer.PubKey()
-	require.NotNil(t, signerPK)
-	require.NoError(t, err)
-
-	require.Equal(t, signerPK, privValPK)
-}
-
 func TestNodeSetPrivValIPC(t *testing.T) {
 	unixSocket := "unix:///tmp/kms." + random.RandStr(6) + ".sock"
 	defer os.Remove(unixSocket) // clean up
 
 	config, genesisFile := cfg.ResetTestRoot("node_priv_val_tcp_test")
 	defer os.RemoveAll(config.RootDir)
-	config.BaseConfig.PrivValidatorListenAddr = unixSocket
+	config.PrivValidator.RemoteSignerAddress = unixSocket
 
 	signer := types.NewMockSigner()
 

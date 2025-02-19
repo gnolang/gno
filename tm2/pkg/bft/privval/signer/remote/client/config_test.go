@@ -56,7 +56,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		rsc, err := NewRemoteSignerClient(validTCP, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
-		require.Equal(t, defaultDialMaxRetries, rsc.dialMaxRetries)
+		require.Equal(t, DefaultDialMaxRetries, rsc.dialMaxRetries)
 
 		// Test functional option.
 		option := WithDialMaxRetries(3)
@@ -73,7 +73,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		rsc, err := NewRemoteSignerClient(validTCP, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
-		require.Equal(t, defaultDialRetryInterval, rsc.dialRetryInterval)
+		require.Equal(t, DefaultDialRetryInterval, rsc.dialRetryInterval)
 
 		// Test functional option.
 		option := WithDialRetryInterval(42)
@@ -90,7 +90,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		rsc, err := NewRemoteSignerClient(validTCP, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
-		require.Equal(t, defaultDialTimeout, rsc.dialTimeout)
+		require.Equal(t, DefaultDialTimeout, rsc.dialTimeout)
 
 		// Test functional option.
 		option := WithDialTimeout(42)
@@ -107,7 +107,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		rsc, err := NewRemoteSignerClient(validTCP, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
-		require.Equal(t, defaultKeepAlivePeriod, rsc.keepAlivePeriod)
+		require.Equal(t, DefaultKeepAlivePeriod, rsc.keepAlivePeriod)
 
 		// Test functional option.
 		option := WithKeepAlivePeriod(42)
@@ -124,7 +124,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		rsc, err := NewRemoteSignerClient(validTCP, logger)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
-		require.Equal(t, defaultRequestTimeout, rsc.requestTimeout)
+		require.Equal(t, DefaultRequestTimeout, rsc.requestTimeout)
 
 		// Test functional option.
 		option := WithRequestTimeout(42)

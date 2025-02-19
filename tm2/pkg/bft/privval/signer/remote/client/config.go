@@ -38,11 +38,11 @@ type RemoteSignerClient struct {
 
 // Default connection config.
 const (
-	defaultDialMaxRetries    = -1 // Retry indefinitely.
-	defaultDialRetryInterval = 5 * time.Second
-	defaultDialTimeout       = 5 * time.Second
-	defaultKeepAlivePeriod   = 2 * time.Second
-	defaultRequestTimeout    = 5 * time.Second
+	DefaultDialMaxRetries    = -1 // Retry indefinitely.
+	DefaultDialRetryInterval = 5 * time.Second
+	DefaultDialTimeout       = 5 * time.Second
+	DefaultKeepAlivePeriod   = 2 * time.Second
+	DefaultRequestTimeout    = 5 * time.Second
 )
 
 // ClientOption is a functional option type used for optional configuration.
@@ -114,11 +114,11 @@ func NewRemoteSignerClient(
 	// Instantiate a RemoteSignerClient with default options.
 	rsc := &RemoteSignerClient{
 		logger:            logger,
-		dialMaxRetries:    defaultDialMaxRetries,
-		dialRetryInterval: defaultDialRetryInterval,
-		dialTimeout:       defaultDialTimeout,
-		keepAlivePeriod:   defaultKeepAlivePeriod,
-		requestTimeout:    defaultRequestTimeout,
+		dialMaxRetries:    DefaultDialMaxRetries,
+		dialRetryInterval: DefaultDialRetryInterval,
+		dialTimeout:       DefaultDialTimeout,
+		keepAlivePeriod:   DefaultKeepAlivePeriod,
+		requestTimeout:    DefaultRequestTimeout,
 		clientPrivKey:     ed25519.GenPrivKey(),
 	}
 

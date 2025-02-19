@@ -14,8 +14,6 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
-	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
-	sclient "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
@@ -99,45 +97,6 @@ func DefaultGenesisDocProviderFunc(genesisFile string) GenesisDocProvider {
 // NodeProvider takes a config and a logger and returns a ready to go Node.
 type NodeProvider func(*cfg.Config, *slog.Logger) (*Node, error)
 
-// initPrivValidator initializes the privValidator according to the node config.
-func initPrivValidator(
-	config *cfg.Config,
-	logger *slog.Logger,
-	nodeKey *p2pTypes.NodeKey,
-) (types.PrivValidator, error) {
-	var (
-		signer types.Signer
-		err    error
-	)
-
-	// Determine the type of privValidator to use, either local or remote.
-	if config.PrivValidatorListenAddr != "" {
-		// NOTE: It looks like most of the code require an ed25519 keypair.
-		// Check with @zivkovicmilos if we can replace crypto.PrivKey with ed25519.PrivKeyEd25519.
-		if clientPrivKey, ok := nodeKey.PrivKey.(ed25519.PrivKeyEd25519); ok {
-			signer, err = sclient.NewRemoteSignerClient(
-				config.PrivValidatorListenAddr,
-				logger.With("module", "remote_signer_client"),
-				sclient.WithClientPrivKey(clientPrivKey),
-				// TODO: Add the missing options to the config
-				// sclient.WithDialMaxRetries(config.PrivValidatorDialMaxRetries),
-				// sclient.WithDialRetryInterval(config.PrivValidatorDialRetryInterval),
-				// sclient.WithDialTimeout(config.PrivValidatorDialTimeout),
-				// sclient.WithKeepAlivePeriod(config.PrivValidatorKeepAlivePeriod),
-				// sclient.WithRequestTimeout(config.PrivValidatorRequestTimeout),
-				// sclient.WithAuthorizedKeys(config.PrivValidatorAuthorizedKeys),
-			)
-		}
-	} else {
-		signer, err = local.NewLocalSigner(config.PrivValidatorKeyFile())
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	return privval.NewPrivValidator(signer, config.PrivValidatorStateFile())
-}
-
 // DefaultNewNode returns a Tendermint node with default settings for the
 // PrivValidator, ClientCreator, GenesisDoc, and DBProvider.
 // It implements NodeProvider.
@@ -161,8 +120,21 @@ func DefaultNewNode(
 		config.DBDir(),
 	)
 
+	// Use the node key as an authentication key for the remote signer client.
+	var clientPrivKey *ed25519.PrivKeyEd25519
+
+	// Only use if it is an ed25519 key.
+	switch nodePrivKey := nodeKey.PrivKey.(type) {
+	case ed25519.PrivKeyEd25519:
+		clientPrivKey = &nodePrivKey
+	}
+
 	// Initialize the privValidator
-	privVal, err := initPrivValidator(config, logger, nodeKey)
+	privVal, err := privval.NewPrivValidatorFromConfig(
+		config.PrivValidator,
+		clientPrivKey,
+		logger.With("module", "remote_signer_client"),
+	)
 	if err != nil {
 		return nil, err
 	}

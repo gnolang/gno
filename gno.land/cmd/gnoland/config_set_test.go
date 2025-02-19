@@ -185,33 +185,23 @@ func TestConfig_Set_Base(t *testing.T) {
 			},
 		},
 		{
-			"validator key updated",
+			"validator sign state updated",
 			[]string{
-				"priv_validator_key_file",
+				"priv_validator.sign_state",
 				"example path",
 			},
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.PrivValidatorKey)
+				assert.Equal(t, value, loadedCfg.PrivValidator.SignState)
 			},
 		},
 		{
-			"validator state file updated",
+			"validator local signer updated",
 			[]string{
-				"priv_validator_state_file",
+				"priv_validator.local_signer",
 				"example path",
 			},
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.PrivValidatorState)
-			},
-		},
-		{
-			"validator listen addr updated",
-			[]string{
-				"priv_validator_laddr",
-				"0.0.0.0:0",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.PrivValidatorListenAddr)
+				assert.Equal(t, value, loadedCfg.PrivValidator.LocalSigner)
 			},
 		},
 		{

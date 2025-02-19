@@ -344,6 +344,7 @@ func TestSignProposal(t *testing.T) {
 	})
 }
 
+// TODO: Test TestNewPrivValidatorWithConfig
 func TestNewPrivValidator(t *testing.T) {
 	t.Parallel()
 
