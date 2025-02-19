@@ -10,6 +10,7 @@ import (
 const (
 	owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 	user  = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
+	name  = "Foo"
 )
 
 var realm std.Address
@@ -28,16 +29,18 @@ func init() {
 }
 
 func main() {
-	dao := commondao.New("Foo")
+	dao := commondao.New(name)
 
 	if dao == nil {
 		panic("expected DAO to be created")
 	}
 
+	println(dao.Name() == name)
 	println(commondao.IsOwner(realm, dao.ID()))
 	println(commondao.IsInvited(user))
 }
 
 // Output:
+// true
 // true
 // false
