@@ -92,6 +92,22 @@ func Vote(daoID, proposalID uint64, vote commondao.VoteChoice) {
 	}
 }
 
+// Execute executes a DAO proposal.
+func Execute(daoID, proposalID uint64) {
+	dao := mustGetDAO(daoID)
+	caller := std.PrevRealm().Addr()
+	if !dao.IsMember(caller) {
+		panic("caller is not a DAO member")
+	}
+
+	err := dao.Execute(proposalID)
+	if err != nil {
+		panic(err)
+	}
+}
+
+// TODO: Implement Render()
+
 func checkOwnershipExists(addr std.Address) bool {
 	_, found := ownership.Get(addr.String())
 	return found
