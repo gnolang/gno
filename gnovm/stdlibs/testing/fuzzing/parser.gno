@@ -1822,8 +1822,6 @@ var isHexDigit [256]bool
 
 // init initializes the isHexDigit lookup table for hexadecimal digit validation.
 func init() {
-	fmt.Println("Initializing isHexDigit lookup table...")
-
 	// Mark '0' to '9' as valid hex digits.
 	for i := byte('0'); i <= byte('9'); i++ {
 		isHexDigit[i] = true
