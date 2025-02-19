@@ -30,7 +30,7 @@ var _ fmt.Stringer = (*LocalSigner)(nil)
 
 // String implements fmt.Stringer.
 func (fs *LocalSigner) String() string {
-	return fmt.Sprintf("LocalSigner(%v)", fs.key.Address)
+	return fmt.Sprintf("{Type: LocalSigner, Addr: %s}", fs.key.Address)
 }
 
 // NewLocalSigner returns a new LocalSigner instance using a file key from the given

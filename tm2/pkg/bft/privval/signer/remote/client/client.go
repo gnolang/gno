@@ -85,6 +85,27 @@ func (rsc *RemoteSignerClient) Ping() error {
 	return nil
 }
 
+// RemoteSignerClient type implements fmt.Stringer.
+var _ fmt.Stringer = (*RemoteSignerClient)(nil)
+
+// String implements fmt.Stringer.
+// Since this method requires a network request to get the server public key, it may
+// be slow or fail. To mitigate this, the address is cached after the first request.
+func (rsc *RemoteSignerClient) String() string {
+	address := rsc.addrCache
+
+	// If the address is not in the cache, get it from the server.
+	if address == "" {
+		address = "unknown"
+		if pubKey, err := rsc.PubKey(); err == nil {
+			address = pubKey.Address().String()
+			rsc.addrCache = address // Save the address in the cache.
+		}
+	}
+
+	return fmt.Sprintf("{Type: RemoteSigner, Addr: %s}", address)
+}
+
 // isClosed returns true if the client is closed.
 func (rsc *RemoteSignerClient) isClosed() bool {
 	return rsc.closed.Load()

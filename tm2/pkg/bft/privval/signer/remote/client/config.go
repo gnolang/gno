@@ -31,9 +31,10 @@ type RemoteSignerClient struct {
 	authorizedKeys []ed25519.PubKeyEd25519 // If empty, all keys are authorized.
 
 	// Internal.
-	conn     net.Conn
-	connLock sync.RWMutex
-	closed   atomic.Bool
+	conn      net.Conn
+	connLock  sync.RWMutex
+	closed    atomic.Bool
+	addrCache string
 }
 
 // Default connection config.

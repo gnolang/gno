@@ -125,6 +125,14 @@ func (pv *PrivValidator) SignProposal(chainID string, proposal *types.Proposal) 
 	return pv.state.Update(height, round, step, signBytes, signature)
 }
 
+// PrivValidator type implements fmt.Stringer.
+var _ fmt.Stringer = (*PrivValidator)(nil)
+
+// String implements fmt.Stringer.
+func (pv *PrivValidator) String() string {
+	return fmt.Sprintf("PrivValidator{Signer: %v, State: %v}", pv.signer, pv.state)
+}
+
 // NewPrivValidator returns a new PrivValidator instance with the given signer and state
 // file path. If the state file does not exist, it will be created.
 func NewPrivValidator(signer types.Signer, stateFilePath string) (*PrivValidator, error) {

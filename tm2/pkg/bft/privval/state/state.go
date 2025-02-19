@@ -47,6 +47,14 @@ type FileState struct {
 	filePath string
 }
 
+// FileState type implements fmt.Stringer.
+var _ fmt.Stringer = (*FileState)(nil)
+
+// String implements fmt.Stringer.
+func (fs *FileState) String() string {
+	return fmt.Sprintf("{H: %d, R: %d, S: %d}", fs.Height, fs.Round, fs.Step)
+}
+
 // FileState HRS checking errors.
 var (
 	errHeightRegression = errors.New("height regression")
