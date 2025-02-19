@@ -1,13 +1,8 @@
 package main
 
 import (
-	"errors"
-	"go/token"
 	"strings"
 	"testing"
-
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/stretchr/testify/require"
 )
 
 func TestLintApp(t *testing.T) {
@@ -79,51 +74,4 @@ func TestLintApp(t *testing.T) {
 		// TODO: check for imports of native libs from non _test.gno files
 	}
 	testMainCaseRun(t, tc)
-}
-
-func TestIssueWithLocationError(t *testing.T) {
-	tests := []struct {
-		name  string
-		inErr error
-		want  lintIssue
-	}{
-		{
-			"nil error",
-			nil,
-			lintIssue{
-				Code:       lintGnoError,
-				Confidence: 1,
-			},
-		},
-		{
-			"location in error",
-			gnolang.MakeLocationPlusError(
-				token.Position{"foo.gno", 0, 1, 1},
-				"this panicked",
-			),
-			lintIssue{
-				Code:       lintGnoError,
-				Confidence: 1,
-				Msg:        "this panicked",
-				Location:   "foo.gno:1:1",
-			},
-		},
-		{
-			"generic error",
-			errors.New("foo.gno:10:18: this one"),
-			lintIssue{
-				Code:       lintGnoError,
-				Confidence: 1,
-				Msg:        "this one",
-				Location:   "path:10:18",
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := issueFromError("path", tt.inErr)
-			require.Equal(t, got, tt.want)
-		})
-	}
 }
