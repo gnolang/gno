@@ -26,10 +26,10 @@ type JSONDocumentation struct {
 }
 
 type JSONValueDecl struct {
-	Signature string      `json:"signature"`
-	Const     bool        `json:"const"`
-	Values    []JSONValue `json:"values"`
-	Doc       string      `json:"doc"` // markdown
+	Signature string       `json:"signature"`
+	Const     bool         `json:"const"`
+	Values    []*JSONValue `json:"values"`
+	Doc       string       `json:"doc"` // markdown
 }
 
 type JSONValue struct {
@@ -44,12 +44,12 @@ type JSONField struct {
 }
 
 type JSONFunc struct {
-	Type      string      `json:"type"` // if this is a method
-	Name      string      `json:"name"`
-	Signature string      `json:"signature"`
-	Doc       string      `json:"doc"` // markdown
-	Params    []JSONField `json:"params"`
-	Results   []JSONField `json:"results"`
+	Type      string       `json:"type"` // if this is a method
+	Name      string       `json:"name"`
+	Signature string       `json:"signature"`
+	Doc       string       `json:"doc"` // markdown
+	Params    []*JSONField `json:"params"`
+	Results   []*JSONField `json:"results"`
 }
 
 type JSONType struct {
@@ -195,8 +195,8 @@ func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
 	return jsonDoc, nil
 }
 
-func (d *Documentable) extractFuncParams(fun *doc.Func) ([]JSONField, error) {
-	params := []JSONField{}
+func (d *Documentable) extractFuncParams(fun *doc.Func) ([]*JSONField, error) {
+	params := []*JSONField{}
 	for _, param := range fun.Decl.Type.Params.List {
 		buf := new(strings.Builder)
 		if err := format.Node(buf, d.pkgData.fset, param.Type); err != nil {
@@ -206,7 +206,7 @@ func (d *Documentable) extractFuncParams(fun *doc.Func) ([]JSONField, error) {
 		// parameters can be of the format: (a, b int, c string)
 		// so we need to iterate over the names
 		for _, name := range param.Names {
-			field := JSONField{
+			field := &JSONField{
 				Name: name.Name,
 				Type: buf.String(),
 			}
@@ -218,8 +218,8 @@ func (d *Documentable) extractFuncParams(fun *doc.Func) ([]JSONField, error) {
 	return params, nil
 }
 
-func (d *Documentable) extractFuncResults(fun *doc.Func) ([]JSONField, error) {
-	results := []JSONField{}
+func (d *Documentable) extractFuncResults(fun *doc.Func) ([]*JSONField, error) {
+	results := []*JSONField{}
 	if fun.Decl.Type.Results != nil {
 		for _, result := range fun.Decl.Type.Results.List {
 			buf := new(strings.Builder)
@@ -230,7 +230,7 @@ func (d *Documentable) extractFuncResults(fun *doc.Func) ([]JSONField, error) {
 			// results can be of the format: (a, b int, c string)
 			// so we need to iterate over the names
 			for _, name := range result.Names {
-				result := JSONField{
+				result := &JSONField{
 					Name: name.Name,
 					Type: buf.String(),
 				}
@@ -240,7 +240,7 @@ func (d *Documentable) extractFuncResults(fun *doc.Func) ([]JSONField, error) {
 
 			// if there are no names, then the result is an unnamed return
 			if len(result.Names) == 0 {
-				result := JSONField{
+				result := &JSONField{
 					Name: "",
 					Type: buf.String(),
 				}
@@ -251,8 +251,8 @@ func (d *Documentable) extractFuncResults(fun *doc.Func) ([]JSONField, error) {
 	return results, nil
 }
 
-func (d *Documentable) extractValueSpecs(pkg *doc.Package, specs []ast.Spec) ([]JSONValue, error) {
-	values := []JSONValue{}
+func (d *Documentable) extractValueSpecs(pkg *doc.Package, specs []ast.Spec) ([]*JSONValue, error) {
+	values := []*JSONValue{}
 
 	for _, value := range specs {
 		constSpec := value.(*ast.ValueSpec)
@@ -274,7 +274,7 @@ func (d *Documentable) extractValueSpecs(pkg *doc.Package, specs []ast.Spec) ([]
 		// Const declaration can be of the form: const a, b, c = 1, 2, 3
 		// so we need to iterate over the names
 		for _, name := range constSpec.Names {
-			jsonValue := JSONValue{
+			jsonValue := &JSONValue{
 				Name: name.Name,
 				Type: buf.String(),
 				Doc:  string(pkg.Markdown(commentBuf.String())),
