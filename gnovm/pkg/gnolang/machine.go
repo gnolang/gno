@@ -61,6 +61,7 @@ type Machine struct {
 	Exceptions []Exception
 	NumResults int   // number of results returned
 	Cycles     int64 // number of "cpu" cycles
+	GCCycles   int64 // number of "gc" cycles
 
 	Debugger Debugger
 
