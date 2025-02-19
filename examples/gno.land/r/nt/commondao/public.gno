@@ -80,6 +80,18 @@ func GetByID(daoID uint64) *commondao.CommonDAO {
 	return mustGetDAO(daoID)
 }
 
+// Vote submits a vote for a DAO proposal.
+func Vote(daoID, proposalID uint64, vote commondao.VoteChoice) {
+	dao := mustGetDAO(daoID)
+	caller := std.GetOrigCaller()
+	assertCallerIsMember(caller, dao)
+
+	err := dao.Vote(caller, proposalID, vote)
+	if err != nil {
+		panic(err)
+	}
+}
+
 func checkOwnershipExists(addr std.Address) bool {
 	_, found := ownership.Get(addr.String())
 	return found
@@ -120,5 +132,11 @@ func assertIsOwner(addr std.Address, daoID uint64) {
 func assertNameIsNotEmpty(name string) {
 	if name == "" {
 		panic("DAO name is empty")
+	}
+}
+
+func assertCallerIsMember(caller std.Address, dao *commondao.CommonDAO) {
+	if !dao.IsMember(caller) {
+		panic("caller is not a DAO member")
 	}
 }
