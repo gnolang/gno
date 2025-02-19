@@ -48,7 +48,6 @@ func main() {
 //         "ID": "5a06306c27263d4b9ae8f2f30e82f8ef014042cd:6",
 //         "IsEscaped": true,
 //         "ModTime": "3",
-//         "OwnerID": "5a06306c27263d4b9ae8f2f30e82f8ef014042cd:2",
 //         "RefCount": "2"
 //     }
 // }

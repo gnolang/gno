@@ -157,6 +157,22 @@ func (rlm *Realm) String() string {
 // ownership hooks
 
 func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
+	//fmt.Printf(
+	//	"DidUpdate - po: %v (type: %v) | xo: %v (type: %v) | co: %v (type: %v) \n",
+	//	po, reflect.TypeOf(po), xo, reflect.TypeOf(xo), co, reflect.TypeOf(co),
+	//)
+	//
+	//if rlm != nil {
+	//	fmt.Println("rlm.ID: ", rlm.ID)
+	//}
+	//
+	//if co != nil {
+	//	fmt.Printf(
+	//		"co: %v (type: %v) | GetOriginRealm: %v | GetIsRef: %v | GetRefCount: %v | GetIsReal: %v\n",
+	//		co, reflect.TypeOf(co), co.GetOriginRealm(), co.GetIsAttachingRef(), co.GetRefCount(), co.GetIsReal(),
+	//	)
+	//}
+
 	if debug {
 		debug.Printf(
 			"DidUpdate - po: %v (type: %v) | xo: %v (type: %v) | co: %v (type: %v) \n",
@@ -400,7 +416,6 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 
 // mark dirty == updated
 func (rlm *Realm) MarkDirty(oo Object) {
-	//fmt.Println("MarkDirty, oo: ", oo)
 	if debug {
 		if !oo.GetIsReal() && !oo.GetIsNewReal() {
 			panic("cannot mark unreal object as dirty")
@@ -1077,11 +1092,6 @@ func getChildObjects(val Value, more []Value) []Value {
 		}
 		return more
 	case *Block:
-		//fmt.Println("block, cv: ", cv)
-		//if _, ok := cv.Parent.(*Block); ok {
-		//	fmt.Println("block, cv.parent: ", cv.Parent)
-		//	fmt.Println("parent.Source: ", cv.Parent.(*Block).Source)
-		//}
 		for _, ctv := range cv.Values {
 			more = getSelfOrChildObjects(ctv.V, more)
 		}
