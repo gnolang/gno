@@ -2377,8 +2377,8 @@ func (b *Block) StringIndented(indent string) string {
 	}
 	lines := make([]string, 0, 3)
 	lines = append(lines,
-		fmt.Sprintf("Block(ID:%v,Source:%s,Parent:%p)",
-			b.ObjectInfo.ID, source, b.Parent)) // XXX Parent may be RefValue{}.
+		fmt.Sprintf("Block(ID:%v,Addr:%p,Source:%s,Parent:%p)",
+			b.ObjectInfo.ID, b, source, b.Parent)) // XXX Parent may be RefValue{}.
 	if b.Source != nil {
 		if _, ok := b.Source.(RefNode); ok {
 			lines = append(lines,

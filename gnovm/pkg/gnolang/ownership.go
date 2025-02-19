@@ -421,7 +421,6 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 }
 
 func (tv *TypedValue) GetFirstObject2(store Store) Object {
-	//fmt.Println("GetFirstObject2, tv: ", tv, reflect.TypeOf(tv.V))
 	obj := tv.GetFirstObject(store)
 
 	// infer original package using declared type
@@ -455,57 +454,15 @@ func (tv *TypedValue) GetFirstObject2(store Store) Object {
 	}
 
 	// set origin realm to object
-	if obj != nil && !originPkg.IsZero() {
-		// attach bound package info
-		// used for checking cross realm after
-		obj.SetBoundRealm(originPkg)
+	if obj != nil {
+		if !originPkg.IsZero() {
+			obj.SetBoundRealm(originPkg)
+		}
+
 		switch tv.V.(type) {
 		case *SliceValue, PointerValue:
-			//fmt.Println("match!!!")
-			//fmt.Println("real? ", obj.GetIsReal())
-			//obj.SetIsAttachingRef(true)
-			if obj.GetIsReal() { // if not real, is attaching by value, e.g. heapItemValue
-				obj.SetIsAttachingRef(true)
-			}
+			obj.SetIsAttachingRef(true)
 		}
 	}
 	return obj
-}
-
-// GetBoundRealmByType retrieves the bound realm for the object
-// by checking its type. If the type is a declared type, it is
-// considered bound to a specific realm; otherwise, it returns zero.
-func (tv *TypedValue) GetBoundRealmByType(obj Object) (originPkg PkgID) {
-	// infer original package using declared type
-	getPkgId := func(t Type) (pkgId PkgID) {
-		if dt, ok := t.(*DeclaredType); ok {
-			pkgId = PkgIDFromPkgPath(dt.GetPkgPath())
-		}
-		return
-	}
-
-	switch cv := obj.(type) {
-	case *HeapItemValue:
-		originPkg = getPkgId(cv.Value.T)
-		return
-	case *Block:
-		// assert to pointer value
-		if pv, ok := tv.V.(PointerValue); ok {
-			originPkg = getPkgId(pv.TV.T)
-			return
-		} else {
-			// XXX?
-		}
-	case *BoundMethodValue:
-		// do nothing
-		return
-	case *MapValue, *StructValue, *ArrayValue:
-		// if it's a declared type, origin realm
-		// is deduced from type, otherwise zero.
-		originPkg = getPkgId(tv.T)
-		return
-	default:
-		// do nothing
-	}
-	return
 }

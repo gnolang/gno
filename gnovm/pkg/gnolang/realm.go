@@ -175,22 +175,6 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 		}
 	}
 
-	//fmt.Printf(
-	//	"DidUpdate - po: %v (type: %v) | xo: %v (type: %v) | co: %v (type: %v) \n",
-	//	po, reflect.TypeOf(po), xo, reflect.TypeOf(xo), co, reflect.TypeOf(co),
-	//)
-	//
-	//if rlm != nil {
-	//	fmt.Println("rlm.ID: ", rlm.ID)
-	//}
-	//
-	//if co != nil {
-	//	fmt.Printf(
-	//		"co: %v (type: %v) | GetBoundRealm: %v | GetIsRef: %v | GetRefCount: %v | GetIsReal: %v\n",
-	//		co, reflect.TypeOf(co), co.GetBoundRealm(), co.GetIsAttachingRef(), co.GetRefCount(), co.GetIsReal(),
-	//	)
-	//}
-
 	if rlm == nil {
 		return
 	}
@@ -226,9 +210,7 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 	rlm.MarkDirty(po)
 
 	if co != nil {
-		// XXX, inc ref count everytime assignment happens
 		co.IncRefCount()
-		//fmt.Println("co.GetRefCount() after inc: ", co.GetRefCount())
 		if co.GetRefCount() > 1 {
 			if co.GetIsReal() {
 				rlm.MarkDirty(co)
@@ -236,17 +218,11 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 			if co.GetIsEscaped() {
 				//	already escaped
 			} else {
-				// check cross realm
-				boundRealm := co.GetBoundRealm()
-				if isCrossRealm(boundRealm, rlm.ID) {
-					if !co.GetIsAttachingRef() {
-						panic("cannot attach a value of a type defined by another realm")
-					}
-				}
+				checkCrossRealm(rlm, store, co, nil)
 				rlm.MarkNewEscaped(co)
 			}
 		} else {
-			if co.GetIsReal() { // e.g. refCount change
+			if co.GetIsReal() {
 				rlm.MarkDirty(co)
 			} else {
 				co.SetOwner(po)
@@ -300,21 +276,26 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, seenObjs []Object) {
 		)
 	}
 
-	//fmt.Printf(
-	//	"checkCrossRealm, oo: %v (type: %v) | GetIsReal: %t | oo.GetBoundRealm: %v (purePkg? %t) | rlm.ID: %v | isAttachingRef: %t\n",
-	//	oo, reflect.TypeOf(oo), oo.GetIsReal(), oo.GetBoundRealm(), oo.GetBoundRealm().purePkg, rlm.ID, oo.GetIsAttachingRef(),
-	//)
-
 	// object from pure package is ok
 	if oo.GetBoundRealm().IsPurePkg() {
 		return
 	}
 
-	// for local realm checking, maybe a container not cross,
-	// but its children does.
-	if oo.GetBoundRealm().IsZero() || rlm.ID == oo.GetBoundRealm() {
+	// same realm recursive check
+	if rlm.ID == oo.GetBoundRealm() {
 		checkCrossRealmChildren(rlm, store, oo, seenObjs)
 		return
+	}
+
+	// if object does not have a
+	// bound realm. e.g. array, map, struct...
+	if oo.GetBoundRealm().IsZero() {
+		if oo.GetIsReal() && oo.GetIsAttachingRef() {
+			return
+		} else {
+			checkCrossRealmChildren(rlm, store, oo, seenObjs)
+			return
+		}
 	}
 
 	if rlm.ID != oo.GetBoundRealm() { // crossing realm
