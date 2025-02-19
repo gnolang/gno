@@ -22,9 +22,9 @@ type OwnershipProposalDetails struct {
 }
 
 type ModifierRegistry struct {
-	Owners    *addrset.Set
-	Modifiers *avl.Tree
-	Proposals *OwnershipProposalDetails
+	Owners            *addrset.Set
+	Modifiers         *avl.Tree
+	NewOwnerProposals *OwnershipProposalDetails
 }
 
 func init() {
@@ -65,11 +65,11 @@ func (registry *ModifierRegistry) ProposeNewOwner(address string) {
 		panic("Address is already an owner!")
 	}
 
-	v, exists := registry.Proposals.OwnerProposals.Get(address)
+	v, exists := registry.NewOwnerProposals.OwnerProposals.Get(address)
 
 	if !exists {
 		v = avl.NewTree()
-		registry.Proposals.OwnerProposals.Set(address, v)
+		registry.NewOwnerProposals.OwnerProposals.Set(address, v)
 	}
 
 	addressApprovals := v.(*avl.Tree)
@@ -80,10 +80,10 @@ func (registry *ModifierRegistry) ProposeNewOwner(address string) {
 
 	addressApprovals.Set(caller.String(), true)
 
-	approvalsNeeded := registry.Proposals.NewOwnerPercentage * float64(registry.Owners.Size())
+	approvalsNeeded := registry.NewOwnerProposals.NewOwnerPercentage * float64(registry.Owners.Size())
 
 	if float64(addressApprovals.Size()) >= approvalsNeeded {
-		registry.Proposals.OwnerProposals.Remove(address)
+		registry.NewOwnerProposals.OwnerProposals.Remove(address)
 		registry.Owners.Add(addr)
 	}
 }
@@ -216,7 +216,7 @@ func (registry *ModifierRegistry) AssertIsApproved(name string) {
 func (registry *ModifierRegistry) initVariables(newOwnerPercentage float64) {
 	registry.Owners = &addrset.Set{}
 	registry.Modifiers = avl.NewTree()
-	registry.Proposals = &OwnershipProposalDetails{
+	registry.NewOwnerProposals = &OwnershipProposalDetails{
 		NewOwnerPercentage: newOwnerPercentage,
 		OwnerProposals:     avl.NewTree(),
 	}
