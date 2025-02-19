@@ -72,7 +72,7 @@ builds:
     binary: gnodev
     ldflags:
       # using hardcoded ldflag
-      - -X main.build="-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=/gnoroot"
+      - -X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=/gnoroot
     env:
       - CGO_ENABLED=0
     goos:
