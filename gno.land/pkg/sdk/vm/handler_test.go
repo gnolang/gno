@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/gnovm/pkg/doc"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -329,13 +330,174 @@ func TestVmHandlerQuery_File(t *testing.T) {
 }
 
 func TestVmHandlerQuery_Doc(t *testing.T) {
+	expected := &doc.JSONDocumentation{
+		PackagePath: "gno.land/r/hello",
+		PackageLine: "package hello // import \"hello\"",
+		PackageDoc:  "hello is a package for testing\n",
+		Values: []*doc.JSONValueDecl{
+			{
+				Signature: "const ConstString = \"const string\"",
+				Const:     true,
+				Doc:       "",
+				Values: []*doc.JSONValue{
+					{
+						Name: "ConstString",
+						Doc:  "",
+						Type: "",
+					},
+				},
+			},
+			{
+				Signature: "var PubString = \"public string\"",
+				Const:     false,
+				Doc:       "",
+				Values: []*doc.JSONValue{
+					{
+						Name: "PubString",
+						Doc:  "",
+						Type: "",
+					},
+				},
+			},
+			{
+				Signature: "var counter int = 42",
+				Const:     false,
+				Doc:       "",
+				Values: []*doc.JSONValue{
+					{
+						Name: "counter",
+						Doc:  "",
+						Type: "int",
+					},
+				},
+			},
+			{
+				Signature: "var myStructInst = myStruct{a: 1000}",
+				Const:     false,
+				Doc:       "",
+				Values: []*doc.JSONValue{
+					{
+						Name: "myStructInst",
+						Doc:  "",
+						Type: "",
+					},
+				},
+			},
+			{
+				Signature: "var pvString = \"private string\"",
+				Const:     false,
+				Doc:       "",
+				Values: []*doc.JSONValue{
+					{
+						Name: "pvString",
+						Doc:  "",
+						Type: "",
+					},
+				},
+			},
+			{
+				Signature: "var sl = []int{1, 2, 3, 4, 5}",
+				Const:     false,
+				Doc:       "sl is an int array\n",
+				Values: []*doc.JSONValue{
+					{
+						Name: "sl",
+						Doc:  "",
+						Type: "",
+					},
+				},
+			},
+		},
+		Funcs: []*doc.JSONFunc{
+			{
+				Type:      "",
+				Name:      "Echo",
+				Signature: "func Echo(msg string) string",
+				Doc:       "",
+				Params: []*doc.JSONField{
+					{Name: "msg", Type: "string"},
+				},
+				Results: []*doc.JSONField{
+					{Name: "", Type: "string"},
+				},
+			},
+			{
+				Type:      "",
+				Name:      "GetCounter",
+				Signature: "func GetCounter() int",
+				Doc:       "",
+				Params:    []*doc.JSONField{},
+				Results: []*doc.JSONField{
+					{Name: "", Type: "int"},
+				},
+			},
+			{
+				Type:      "",
+				Name:      "Inc",
+				Signature: "func Inc() int",
+				Doc:       "",
+				Params:    []*doc.JSONField{},
+				Results: []*doc.JSONField{
+					{Name: "", Type: "int"},
+				},
+			},
+			{
+				Type:      "",
+				Name:      "Panic",
+				Signature: "func Panic()",
+				Doc:       "Panic is a func for testing\n",
+				Params:    []*doc.JSONField{},
+				Results:   []*doc.JSONField{},
+			},
+			{
+				Type:      "",
+				Name:      "fn",
+				Signature: "func fn() func(string) string",
+				Doc:       "",
+				Params:    []*doc.JSONField{},
+				Results: []*doc.JSONField{
+					{Name: "", Type: "func(string) string"},
+				},
+			},
+			{
+				Type:      "",
+				Name:      "pvEcho",
+				Signature: "func pvEcho(msg string) string",
+				Doc:       "",
+				Params: []*doc.JSONField{
+					{Name: "msg", Type: "string"},
+				},
+				Results: []*doc.JSONField{
+					{Name: "", Type: "string"},
+				},
+			},
+			{
+				Type:      "myStruct",
+				Name:      "Foo",
+				Signature: "func (ms myStruct) Foo() string",
+				Doc:       "Foo is a method for testing\n",
+				Params:    []*doc.JSONField{},
+				Results: []*doc.JSONField{
+					{Name: "", Type: "string"},
+				},
+			},
+		},
+		Types: []*doc.JSONType{
+			{
+				Name:      "myStruct",
+				Signature: "type myStruct struct{ a int }",
+				Doc:       "myStruct is a struct for testing\n",
+			},
+		},
+	}
+
 	tt := []struct {
 		input              []byte
 		expectedResult     string
 		expectedErrorMatch string
 	}{
 		// valid queries
-		{input: []byte(`gno.land/r/hello`), expectedResult: `{"package_path":"gno.land/r/hello","package_line":"package hello // import \"hello\"","package_doc":"hello is a package for testing\n","values":[{"signature":"const ConstString = \"const string\"","const":true,"values":[{"name":"ConstString","doc":"","type":""}],"doc":""},{"signature":"var PubString = \"public string\"","const":false,"values":[{"name":"PubString","doc":"","type":""}],"doc":""},{"signature":"var counter int = 42","const":false,"values":[{"name":"counter","doc":"","type":"int"}],"doc":""},{"signature":"var myStructInst = myStruct{a: 1000}","const":false,"values":[{"name":"myStructInst","doc":"","type":""}],"doc":""},{"signature":"var pvString = \"private string\"","const":false,"values":[{"name":"pvString","doc":"","type":""}],"doc":""},{"signature":"var sl = []int{1, 2, 3, 4, 5}","const":false,"values":[{"name":"sl","doc":"","type":""}],"doc":"sl is an int array\n"}],"funcs":[{"type":"","name":"Echo","signature":"func Echo(msg string) string","doc":"","params":[{"Name":"msg","Type":"string"}],"results":[{"Name":"","Type":"string"}]},{"type":"","name":"GetCounter","signature":"func GetCounter() int","doc":"","params":[],"results":[{"Name":"","Type":"int"}]},{"type":"","name":"Inc","signature":"func Inc() int","doc":"","params":[],"results":[{"Name":"","Type":"int"}]},{"type":"","name":"Panic","signature":"func Panic()","doc":"Panic is a func for testing\n","params":[],"results":[]},{"type":"","name":"fn","signature":"func fn() func(string) string","doc":"","params":[],"results":[{"Name":"","Type":"func(string) string"}]},{"type":"","name":"pvEcho","signature":"func pvEcho(msg string) string","doc":"","params":[{"Name":"msg","Type":"string"}],"results":[{"Name":"","Type":"string"}]},{"type":"myStruct","name":"Foo","signature":"func (ms myStruct) Foo() string","doc":"Foo is a method for testing\n","params":[],"results":[{"Name":"","Type":"string"}]}],"types":[{"name":"myStruct","signature":"type myStruct struct{ a int }","doc":"myStruct is a struct for testing\n"}]}`},
+		{input: []byte(`gno.land/r/hello`), expectedResult: expected.JSON()},
 		{input: []byte(`gno.land/r/doesnotexist`), expectedErrorMatch: `invalid package path`},
 	}
 
