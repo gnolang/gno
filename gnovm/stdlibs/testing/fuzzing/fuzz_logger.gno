@@ -244,8 +244,8 @@ func ContentToString(content []interface{}) string {
 	return result.String()
 }
 
-// getLastCrashCase retrieves the most recent crash case from the fuzzLogger.
-func (fl *FuzzLogger) GetLastCrashCase() CrashCase {
+// LastCrashCase retrieves the most recent crash case from the fuzzLogger.
+func (fl *FuzzLogger) LastCrashCase() CrashCase {
 	log := fl.Data
 	lastCrashCase := log[len(log)-1]
 	return lastCrashCase

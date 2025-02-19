@@ -14,20 +14,18 @@ import (
 type Ent interface {
 	// setDepth assigns a depth value to the entity from a tree perspective.
 	setDepth(d int)
-	// getDepth retrieves the depth value of the entity.
-	getDepth() int
 
 	// setID assigns a unique ID to the entity from a tree perspective.
 	setID(id int)
-	// getID retrieves the assigned entity ID.
-	getID() int
+	// ID retrieves the assigned entity ID.
+	ID() int
 
 	// Returns a printable string representation of the fields in the XXXEnt structure.
 	String() string
 	// Score-related methods
-	// GetScore retrieves the entity's score, which is used by the mutator to
+	// Score retrieves the entity's score, which is used by the mutator to
 	// determine the next entity to mutate.
-	GetScore() uint64
+	Score() uint64
 	// SetScore assigns a score to the entity.
 	SetScore(s uint64)
 	PlusScore(delta int)
@@ -42,8 +40,8 @@ type Ent interface {
 	InitStrategyCount()
 
 	// Strategy map retrieval methods
-	// getStrategy2count retrieves the overall scores for each mutation strategy.
-	getStrategy2count() map[MutationCode]uint64
+	// Strategy2count retrieves the overall scores for each mutation strategy.
+	Strategy2count() map[MutationCode]uint64
 
 	// Caching methods for mutation strategies
 	// getStrategyCache retrieves an array of mutation strategies along with
@@ -57,15 +55,15 @@ type Ent interface {
 // LetterEnt represents an entity storing alphabetic data such as "apple" or "hello"
 // from strings or byte slices.
 type LetterEnt struct {
-	Data  []byte // Stores the string data.
-	Depth int    // Represents the depth of the entity in a tree structure.
+	data  []byte // Stores the string data.
+	depth int    // Represents the depth of the entity in a tree structure.
 
-	Id int // Unique node ID assigned to each entity in the tree.
+	id int // Unique node ID assigned to each entity in the tree.
 
-	Score uint64 // Score associated with the entity.
+	score uint64 // Score associated with the entity.
 
 	// Strategy usage log
-	Strategy2count map[MutationCode]uint64 // Stores scores for each applied mutation strategy.
+	strategy2count map[MutationCode]uint64 // Stores scores for each applied mutation strategy.
 
 	// Cache fields
 	cachedStrategyCodes []MutationCode // Array of mutation codes.
@@ -74,46 +72,45 @@ type LetterEnt struct {
 }
 
 // Implements Ent interface.
-func (l *LetterEnt) setDepth(d int) { l.Depth = d }
-func (l *LetterEnt) getDepth() int  { return l.Depth }
+func (l *LetterEnt) setDepth(d int) { l.depth = d }
 
-func (l *LetterEnt) setID(id int) { l.Id = id }
-func (l *LetterEnt) getID() int   { return l.Id }
+func (l *LetterEnt) setID(id int) { l.id = id }
+func (l *LetterEnt) ID() int      { return l.id }
 
 func (l *LetterEnt) String() string {
-	return fmt.Sprintf("LetterEnt{Data:%q, Depth:%d, Id:%d, Score: %d}", l.Data, l.Depth, l.Id, l.Score)
+	return fmt.Sprintf("LetterEnt{Data:%q, Depth:%d, Id:%d, Score: %d}", l.data, l.depth, l.id, l.score)
 }
-func (l *LetterEnt) SetScore(s uint64)   { l.Score = s }
-func (l *LetterEnt) GetScore() uint64    { return l.Score }
-func (l *LetterEnt) PlusScore(delta int) { l.Score += uint64(delta) }
+func (l *LetterEnt) SetScore(s uint64)   { l.score = s }
+func (l *LetterEnt) Score() uint64       { return l.score }
+func (l *LetterEnt) PlusScore(delta int) { l.score += uint64(delta) }
 
 func (l *LetterEnt) getStrategyCount(code MutationCode) uint64 {
-	if l.Strategy2count == nil {
+	if l.strategy2count == nil {
 		l.InitStrategyCount()
 	}
-	if count, ok := l.Strategy2count[code]; ok {
+	if count, ok := l.strategy2count[code]; ok {
 		return count
 	}
 	return 1
 }
 
 func (l *LetterEnt) plusStrategyCount(code MutationCode, delta int) {
-	if l.Strategy2count == nil {
+	if l.strategy2count == nil {
 		l.InitStrategyCount()
 	}
 	l.needsUpdateChache = true
-	l.Strategy2count[code] += uint64(delta)
+	l.strategy2count[code] += uint64(delta)
 }
 
 func (l *LetterEnt) InitStrategyCount() {
-	l.Strategy2count = make(map[MutationCode]uint64, len(entMutators))
+	l.strategy2count = make(map[MutationCode]uint64, len(entMutators))
 	for code := range entMutators {
-		l.Strategy2count[code] = 1
+		l.strategy2count[code] = 1
 	}
 }
 
-func (l *LetterEnt) getStrategy2count() map[MutationCode]uint64 {
-	return l.Strategy2count
+func (l *LetterEnt) Strategy2count() map[MutationCode]uint64 {
+	return l.strategy2count
 }
 
 func (l *LetterEnt) getStrategyCache() ([]MutationCode, []uint64) {
@@ -129,10 +126,10 @@ func (l *LetterEnt) updateStrategyCache() {
 	if !l.needsUpdateChache && l.cachedStrategyCodes != nil {
 		return
 	}
-	if l.Strategy2count == nil {
+	if l.strategy2count == nil {
 		l.InitStrategyCount()
 	}
-	keys, cum := buildCumulativeStrategyUint64(l.Strategy2count)
+	keys, cum := buildCumulativeStrategyUint64(l.strategy2count)
 	l.cachedStrategyCodes = keys
 	l.cachedStrategySums = cum
 	l.needsUpdateChache = false
@@ -182,15 +179,15 @@ func quickSortMutationCodes(keys []MutationCode) {
 // NumEnt represents an entity that stores numerical data extracted from
 // strings or byte slices, such as "12", "-1", "0x12", or "1e13".
 type NumEnt struct {
-	Data []byte
+	data []byte
 	Hex  bool // Hex indicates whether the data is represented in hexadecimal notation.
 
-	Depth int
+	depth int
 
-	Id    int
-	Score uint64
+	id    int
+	score uint64
 
-	Strategy2count map[MutationCode]uint64
+	strategy2count map[MutationCode]uint64
 
 	cachedStrategyCodes []MutationCode
 	cachedStrategySums  []uint64
@@ -198,45 +195,44 @@ type NumEnt struct {
 }
 
 // Implements Ent interface.
-func (n *NumEnt) setDepth(d int) { n.Depth = d }
-func (n *NumEnt) getDepth() int  { return n.Depth }
+func (n *NumEnt) setDepth(d int) { n.depth = d }
 
-func (n *NumEnt) setID(id int) { n.Id = id }
-func (n *NumEnt) getID() int   { return n.Id }
+func (n *NumEnt) setID(id int) { n.id = id }
+func (n *NumEnt) ID() int      { return n.id }
 func (n *NumEnt) String() string {
-	return fmt.Sprintf("NumEnt{Data:%q, Hex:%v, Depth:%d, Id:%d, Score: %d}", n.Data, n.Hex, n.Depth, n.Id, n.Score)
+	return fmt.Sprintf("NumEnt{Data:%q, Hex:%v, Depth:%d, Id:%d, Score: %d}", n.data, n.Hex, n.depth, n.id, n.score)
 }
-func (n *NumEnt) SetScore(s uint64)   { n.Score = s }
-func (n *NumEnt) GetScore() uint64    { return n.Score }
-func (n *NumEnt) PlusScore(delta int) { n.Score += uint64(delta) }
+func (n *NumEnt) SetScore(s uint64)   { n.score = s }
+func (n *NumEnt) Score() uint64       { return n.score }
+func (n *NumEnt) PlusScore(delta int) { n.score += uint64(delta) }
 
 func (n *NumEnt) getStrategyCount(code MutationCode) uint64 {
-	if n.Strategy2count == nil {
+	if n.strategy2count == nil {
 		n.InitStrategyCount()
 	}
-	if count, ok := n.Strategy2count[code]; ok {
+	if count, ok := n.strategy2count[code]; ok {
 		return count
 	}
 	return 1
 }
 
 func (n *NumEnt) plusStrategyCount(code MutationCode, delta int) {
-	if n.Strategy2count == nil {
+	if n.strategy2count == nil {
 		n.InitStrategyCount()
 	}
 	n.needsUpdateChache = true
-	n.Strategy2count[code] += uint64(delta)
+	n.strategy2count[code] += uint64(delta)
 }
 
 func (n *NumEnt) InitStrategyCount() {
-	n.Strategy2count = make(map[MutationCode]uint64, len(entMutators))
+	n.strategy2count = make(map[MutationCode]uint64, len(entMutators))
 	for code := range entMutators {
-		n.Strategy2count[code] = 1
+		n.strategy2count[code] = 1
 	}
 }
 
-func (n *NumEnt) getStrategy2count() map[MutationCode]uint64 {
-	return n.Strategy2count
+func (n *NumEnt) Strategy2count() map[MutationCode]uint64 {
+	return n.strategy2count
 }
 
 func (n *NumEnt) getStrategyCache() ([]MutationCode, []uint64) {
@@ -253,7 +249,7 @@ func (n *NumEnt) updateStrategyCache() {
 	if n.Strategy2count == nil {
 		n.InitStrategyCount()
 	}
-	keys, cum := buildCumulativeStrategyUint64(n.Strategy2count)
+	keys, cum := buildCumulativeStrategyUint64(n.strategy2count)
 	n.cachedStrategyCodes = keys
 	n.cachedStrategySums = cum
 	n.needsUpdateChache = false
@@ -262,13 +258,13 @@ func (n *NumEnt) updateStrategyCache() {
 // WsEnt represents an entity that stores whitespace characters, such as " ",
 // extracted from strings or byte slices.
 type WsEnt struct {
-	Data  []byte
-	Depth int
+	data  []byte
+	depth int
 
-	Id    int
-	Score uint64
+	id    int
+	score uint64
 
-	Strategy2count map[MutationCode]uint64
+	strategy2count map[MutationCode]uint64
 
 	cachedStrategyCodes []MutationCode
 	cachedStrategySums  []uint64
@@ -276,46 +272,45 @@ type WsEnt struct {
 }
 
 // Implements Ent interface.
-func (w *WsEnt) setDepth(d int) { w.Depth = d }
-func (w *WsEnt) getDepth() int  { return w.Depth }
+func (w *WsEnt) setDepth(d int) { w.depth = d }
 
-func (w *WsEnt) setID(id int) { w.Id = id }
-func (w *WsEnt) getID() int   { return w.Id }
+func (w *WsEnt) setID(id int) { w.id = id }
+func (w *WsEnt) ID() int      { return w.id }
 
 func (w *WsEnt) String() string {
-	return fmt.Sprintf("WsEnt{Data:%q, Depth:%d, Id:%d, Score: %d}", w.Data, w.Depth, w.Id, w.Score)
+	return fmt.Sprintf("WsEnt{Data:%q, Depth:%d, Id:%d, Score: %d}", w.data, w.depth, w.id, w.score)
 }
-func (w *WsEnt) SetScore(s uint64)   { w.Score = s }
-func (w *WsEnt) GetScore() uint64    { return w.Score }
-func (w *WsEnt) PlusScore(delta int) { w.Score += uint64(delta) }
+func (w *WsEnt) SetScore(s uint64)   { w.score = s }
+func (w *WsEnt) Score() uint64       { return w.score }
+func (w *WsEnt) PlusScore(delta int) { w.score += uint64(delta) }
 
 func (w *WsEnt) getStrategyCount(code MutationCode) uint64 {
-	if w.Strategy2count == nil {
+	if w.strategy2count == nil {
 		w.InitStrategyCount()
 	}
-	if count, ok := w.Strategy2count[code]; ok {
+	if count, ok := w.strategy2count[code]; ok {
 		return count
 	}
 	return 1
 }
 
 func (w *WsEnt) plusStrategyCount(code MutationCode, delta int) {
-	if w.Strategy2count == nil {
+	if w.strategy2count == nil {
 		w.InitStrategyCount()
 	}
 	w.needsUpdateChache = true
-	w.Strategy2count[code] += uint64(delta)
+	w.strategy2count[code] += uint64(delta)
 }
 
 func (w *WsEnt) InitStrategyCount() {
-	w.Strategy2count = make(map[MutationCode]uint64, len(entMutators))
+	w.strategy2count = make(map[MutationCode]uint64, len(entMutators))
 	for code := range entMutators {
-		w.Strategy2count[code] = 1
+		w.strategy2count[code] = 1
 	}
 }
 
-func (w *WsEnt) getStrategy2count() map[MutationCode]uint64 {
-	return w.Strategy2count
+func (w *WsEnt) Strategy2count() map[MutationCode]uint64 {
+	return w.strategy2count
 }
 
 func (w *WsEnt) getStrategyCache() ([]MutationCode, []uint64) {
@@ -332,7 +327,7 @@ func (w *WsEnt) updateStrategyCache() {
 	if w.Strategy2count == nil {
 		w.InitStrategyCount()
 	}
-	keys, cum := buildCumulativeStrategyUint64(w.Strategy2count)
+	keys, cum := buildCumulativeStrategyUint64(w.strategy2count)
 	w.cachedStrategyCodes = keys
 	w.cachedStrategySums = cum
 	w.needsUpdateChache = false
@@ -341,13 +336,13 @@ func (w *WsEnt) updateStrategyCache() {
 // MarkEnt represents an entity that stores special values such as "!", "HTTP",
 // or "AND", extracted from strings or byte slices.
 type MarkEnt struct {
-	Data  []byte
-	Depth int
+	data  []byte
+	depth int
 
-	Id    int
-	Score uint64
+	id    int
+	score uint64
 
-	Strategy2count map[MutationCode]uint64
+	strategy2count map[MutationCode]uint64
 
 	// build cache
 	cachedStrategyCodes []MutationCode
@@ -356,46 +351,45 @@ type MarkEnt struct {
 }
 
 // Implements Ent interface.
-func (m *MarkEnt) setDepth(d int) { m.Depth = d }
-func (m *MarkEnt) getDepth() int  { return m.Depth }
+func (m *MarkEnt) setDepth(d int) { m.depth = d }
 
-func (m *MarkEnt) setID(id int) { m.Id = id }
-func (m *MarkEnt) getID() int   { return m.Id }
+func (m *MarkEnt) setID(id int) { m.id = id }
+func (m *MarkEnt) ID() int      { return m.id }
 
 func (m *MarkEnt) String() string {
-	return fmt.Sprintf("MarkEnt{Data:%q, Depth:%d, Id:%d, Score: %d}", m.Data, m.Depth, m.Id, m.Score)
+	return fmt.Sprintf("MarkEnt{Data:%q, Depth:%d, Id:%d, Score: %d}", m.data, m.depth, m.id, m.score)
 }
-func (m *MarkEnt) SetScore(s uint64)   { m.Score = s }
-func (m *MarkEnt) GetScore() uint64    { return m.Score }
-func (m *MarkEnt) PlusScore(delta int) { m.Score += uint64(delta) }
+func (m *MarkEnt) SetScore(s uint64)   { m.score = s }
+func (m *MarkEnt) Score() uint64       { return m.score }
+func (m *MarkEnt) PlusScore(delta int) { m.score += uint64(delta) }
 
 func (m *MarkEnt) getStrategyCount(code MutationCode) uint64 {
-	if m.Strategy2count == nil {
+	if m.strategy2count == nil {
 		m.InitStrategyCount()
 	}
-	if count, ok := m.Strategy2count[code]; ok {
+	if count, ok := m.strategy2count[code]; ok {
 		return count
 	}
 	return 1
 }
 
 func (m *MarkEnt) plusStrategyCount(code MutationCode, delta int) {
-	if m.Strategy2count == nil {
+	if m.strategy2count == nil {
 		m.InitStrategyCount()
 	}
 	m.needsUpdateChache = true
-	m.Strategy2count[code] += uint64(delta)
+	m.strategy2count[code] += uint64(delta)
 }
 
 func (m *MarkEnt) InitStrategyCount() {
-	m.Strategy2count = make(map[MutationCode]uint64, len(entMutators))
+	m.strategy2count = make(map[MutationCode]uint64, len(entMutators))
 	for code := range entMutators {
-		m.Strategy2count[code] = 1
+		m.strategy2count[code] = 1
 	}
 }
 
-func (m *MarkEnt) getStrategy2count() map[MutationCode]uint64 {
-	return m.Strategy2count
+func (m *MarkEnt) Strategy2count() map[MutationCode]uint64 {
+	return m.strategy2count
 }
 
 func (m *MarkEnt) getStrategyCache() ([]MutationCode, []uint64) {
@@ -409,10 +403,10 @@ func (m *MarkEnt) updateStrategyCache() {
 	if !m.needsUpdateChache && m.cachedStrategyCodes != nil {
 		return
 	}
-	if m.Strategy2count == nil {
+	if m.strategy2count == nil {
 		m.InitStrategyCount()
 	}
-	keys, cum := buildCumulativeStrategyUint64(m.Strategy2count)
+	keys, cum := buildCumulativeStrategyUint64(m.strategy2count)
 	m.cachedStrategyCodes = keys
 	m.cachedStrategySums = cum
 	m.needsUpdateChache = false
@@ -423,16 +417,16 @@ func (m *MarkEnt) updateStrategyCache() {
 // KeyValEnt represents an entity that stores key-delimiter-value structures
 // extracted from strings or byte slices, such as "a := 2" or "var = x".
 type KeyValEnt struct {
-	Depth     int
-	K         Ent // Represents the key in the key-delimiter-value structure.
-	PlOrNil   Ent // Represents the whitespace entity between the key and the delimiter.
-	PrOrNil   Ent // Represents the whitespace entity between the delimiter and the value.
-	Delimiter Ent // Represents the delimiter in the key-delimiter-value structure.
-	V         Ent // Represents the value in the key-delimiter-value structure.
-	Id        int
-	Score     uint64
+	k         Ent // Represents the key in the key-delimiter-value structure.
+	plOrNil   Ent // Represents the whitespace entity between the key and the delimiter.
+	prOrNil   Ent // Represents the whitespace entity between the delimiter and the value.
+	delimiter Ent // Represents the delimiter in the key-delimiter-value structure.
+	v         Ent // Represents the value in the key-delimiter-value structure.
+	depth     int
+	id        int
+	score     uint64
 
-	Strategy2count map[MutationCode]uint64
+	strategy2count map[MutationCode]uint64
 
 	cachedStrategyCodes []MutationCode
 	cachedStrategySums  []uint64
@@ -440,46 +434,45 @@ type KeyValEnt struct {
 }
 
 // Implements Ent interface.
-func (kv *KeyValEnt) setDepth(d int) { kv.Depth = d }
-func (kv *KeyValEnt) getDepth() int  { return kv.Depth }
+func (kv *KeyValEnt) setDepth(d int) { kv.depth = d }
 
-func (kv *KeyValEnt) setID(id int) { kv.Id = id }
-func (kv *KeyValEnt) getID() int   { return kv.Id }
+func (kv *KeyValEnt) setID(id int) { kv.id = id }
+func (kv *KeyValEnt) ID() int      { return kv.id }
 func (kv *KeyValEnt) String() string {
 	return fmt.Sprintf("KeyValEnt{Depth:%d, Id:%d, K=%v, Delim=%v, V=%v, Score: %d}",
-		kv.Depth, kv.Id, kv.K, kv.Delimiter, kv.V, kv.Score)
+		kv.depth, kv.id, kv.k, kv.delimiter, kv.v, kv.score)
 }
-func (kv *KeyValEnt) SetScore(s uint64)   { kv.Score = s }
-func (kv *KeyValEnt) GetScore() uint64    { return kv.Score }
-func (kv *KeyValEnt) PlusScore(delta int) { kv.Score += uint64(delta) }
+func (kv *KeyValEnt) SetScore(s uint64)   { kv.score = s }
+func (kv *KeyValEnt) Score() uint64       { return kv.score }
+func (kv *KeyValEnt) PlusScore(delta int) { kv.score += uint64(delta) }
 
 func (kv *KeyValEnt) getStrategyCount(code MutationCode) uint64 {
-	if kv.Strategy2count == nil {
+	if kv.strategy2count == nil {
 		kv.InitStrategyCount()
 	}
-	if count, ok := kv.Strategy2count[code]; ok {
+	if count, ok := kv.strategy2count[code]; ok {
 		return count
 	}
 	return 1
 }
 
 func (kv *KeyValEnt) plusStrategyCount(code MutationCode, delta int) {
-	if kv.Strategy2count == nil {
+	if kv.strategy2count == nil {
 		kv.InitStrategyCount()
 	}
 	kv.needsUpdateChache = true
-	kv.Strategy2count[code] += uint64(delta)
+	kv.strategy2count[code] += uint64(delta)
 }
 
 func (kv *KeyValEnt) InitStrategyCount() {
-	kv.Strategy2count = make(map[MutationCode]uint64, len(entMutators))
+	kv.strategy2count = make(map[MutationCode]uint64, len(entMutators))
 	for code := range entMutators {
-		kv.Strategy2count[code] = 1
+		kv.strategy2count[code] = 1
 	}
 }
 
-func (kv *KeyValEnt) getStrategy2count() map[MutationCode]uint64 {
-	return kv.Strategy2count
+func (kv *KeyValEnt) Strategy2count() map[MutationCode]uint64 {
+	return kv.strategy2count
 }
 
 func (kv *KeyValEnt) getStrategyCache() ([]MutationCode, []uint64) {
@@ -493,10 +486,10 @@ func (kv *KeyValEnt) updateStrategyCache() {
 	if !kv.needsUpdateChache && kv.cachedStrategyCodes != nil {
 		return
 	}
-	if kv.Strategy2count == nil {
+	if kv.strategy2count == nil {
 		kv.InitStrategyCount()
 	}
-	keys, cum := buildCumulativeStrategyUint64(kv.Strategy2count)
+	keys, cum := buildCumulativeStrategyUint64(kv.strategy2count)
 	kv.cachedStrategyCodes = keys
 	kv.cachedStrategySums = cum
 	kv.needsUpdateChache = false
@@ -505,14 +498,14 @@ func (kv *KeyValEnt) updateStrategyCache() {
 // GroupEnt represents an entity that stores grouped structures extracted from
 // strings or byte slices, such as "(a)" or "[1,2,3]".
 type GroupEnt struct {
-	Data      []Ent // Stores entities grouped together in an array.
-	Depth     int
+	data      []Ent // Stores entities grouped together in an array.
+	depth     int
 	IsPattern bool // Indicates whether the group follows a specific pattern.
 
-	Id    int
-	Score uint64
+	id    int
+	score uint64
 
-	Strategy2count map[MutationCode]uint64
+	strategy2count map[MutationCode]uint64
 
 	cachedStrategyCodes []MutationCode
 	cachedStrategySums  []uint64
@@ -522,44 +515,43 @@ type GroupEnt struct {
 // Implements Ent interface.
 func (g *GroupEnt) String() string {
 	return fmt.Sprintf("GroupEnt{Len:%d, Depth:%d, Id:%d, IsPattern:%v, Score: %d}",
-		len(g.Data), g.Depth, g.Id, g.IsPattern, g.Score)
+		len(g.data), g.depth, g.id, g.IsPattern, g.score)
 }
-func (g *GroupEnt) setDepth(d int) { g.Depth = d }
-func (g *GroupEnt) getDepth() int  { return g.Depth }
+func (g *GroupEnt) setDepth(d int) { g.depth = d }
 
-func (g *GroupEnt) setID(id int)        { g.Id = id }
-func (g *GroupEnt) getID() int          { return g.Id }
-func (g *GroupEnt) SetScore(s uint64)   { g.Score = s }
-func (g *GroupEnt) GetScore() uint64    { return g.Score }
-func (g *GroupEnt) PlusScore(delta int) { g.Score += uint64(delta) }
+func (g *GroupEnt) setID(id int)        { g.id = id }
+func (g *GroupEnt) ID() int             { return g.id }
+func (g *GroupEnt) SetScore(s uint64)   { g.score = s }
+func (g *GroupEnt) Score() uint64       { return g.score }
+func (g *GroupEnt) PlusScore(delta int) { g.score += uint64(delta) }
 
 func (g *GroupEnt) getStrategyCount(code MutationCode) uint64 {
-	if g.Strategy2count == nil {
+	if g.strategy2count == nil {
 		g.InitStrategyCount()
 	}
-	if count, ok := g.Strategy2count[code]; ok {
+	if count, ok := g.strategy2count[code]; ok {
 		return count
 	}
 	return 1
 }
 
 func (g *GroupEnt) plusStrategyCount(code MutationCode, delta int) {
-	if g.Strategy2count == nil {
+	if g.strategy2count == nil {
 		g.InitStrategyCount()
 	}
 	g.needsUpdateChache = true
-	g.Strategy2count[code] += uint64(delta)
+	g.strategy2count[code] += uint64(delta)
 }
 
 func (g *GroupEnt) InitStrategyCount() {
-	g.Strategy2count = make(map[MutationCode]uint64, len(entMutators))
+	g.strategy2count = make(map[MutationCode]uint64, len(entMutators))
 	for code := range entMutators {
-		g.Strategy2count[code] = 1
+		g.strategy2count[code] = 1
 	}
 }
 
-func (g *GroupEnt) getStrategy2count() map[MutationCode]uint64 {
-	return g.Strategy2count
+func (g *GroupEnt) Strategy2count() map[MutationCode]uint64 {
+	return g.strategy2count
 }
 
 func (g *GroupEnt) getStrategyCache() ([]MutationCode, []uint64) {
@@ -573,10 +565,10 @@ func (g *GroupEnt) updateStrategyCache() {
 	if !g.needsUpdateChache && g.cachedStrategyCodes != nil {
 		return
 	}
-	if g.Strategy2count == nil {
+	if g.strategy2count == nil {
 		g.InitStrategyCount()
 	}
-	keys, cum := buildCumulativeStrategyUint64(g.Strategy2count)
+	keys, cum := buildCumulativeStrategyUint64(g.strategy2count)
 	g.cachedStrategyCodes = keys
 	g.cachedStrategySums = cum
 	g.needsUpdateChache = false
@@ -585,18 +577,18 @@ func (g *GroupEnt) updateStrategyCache() {
 // RootEnt represents the root entity that stores, manages, and analyzes
 // an entire string or byte sequence.
 type RootEnt struct {
-	Data  []Ent // Stores all entities within the root.
-	Depth int
+	data  []Ent // Stores all entities within the root.
+	depth int
 
 	IsPattern bool   // Indicates whether the string follows a specific pattern.
 	Pattern   string // Stores the expected pattern of the string.
 
-	Id int // Unique ID of the root entity. (it's value is 0)
+	id int // Unique ID of the root entity. (it's value is 0)
 
 	Id2Ent map[int]Ent // Maps each contained entity's ID for easy access.
-	Score  uint64
+	score  uint64
 
-	Strategy2count map[MutationCode]uint64
+	strategy2count map[MutationCode]uint64
 
 	// Cache fields
 	cachedStrategyCodes       []MutationCode
@@ -610,47 +602,46 @@ type RootEnt struct {
 }
 
 // Implements Ent interface.
-func (r *RootEnt) setDepth(d int) { r.Depth = d }
-func (r *RootEnt) getDepth() int  { return r.Depth }
+func (r *RootEnt) setDepth(d int) { r.depth = d }
 
-func (r *RootEnt) setID(id int) { r.Id = id }
-func (r *RootEnt) getID() int   { return r.Id }
+func (r *RootEnt) setID(id int) { r.id = id }
+func (r *RootEnt) ID() int      { return r.id }
 
 func (r *RootEnt) String() string {
 	return fmt.Sprintf("RootEnt{Len:%d, Depth:%d, Pattern:%q, Id:%d, Score: %d}",
-		len(r.Data), r.Depth, r.Pattern, r.Id, r.Score)
+		len(r.data), r.depth, r.Pattern, r.id, r.score)
 }
-func (r *RootEnt) SetScore(s uint64)   { r.Score = s }
-func (r *RootEnt) GetScore() uint64    { return r.Score }
-func (r *RootEnt) PlusScore(delta int) { r.Score += uint64(delta) }
+func (r *RootEnt) SetScore(s uint64)   { r.score = s }
+func (r *RootEnt) Score() uint64       { return r.score }
+func (r *RootEnt) PlusScore(delta int) { r.score += uint64(delta) }
 
 func (r *RootEnt) InitStrategyCount() {
-	r.Strategy2count = make(map[MutationCode]uint64, len(entMutators))
+	r.strategy2count = make(map[MutationCode]uint64, len(entMutators))
 	for code := range entMutators {
-		r.Strategy2count[code] = 1
+		r.strategy2count[code] = 1
 	}
 }
 
 func (r *RootEnt) getStrategyCount(code MutationCode) uint64 {
-	if r.Strategy2count == nil {
+	if r.strategy2count == nil {
 		r.InitStrategyCount()
 	}
-	if count, ok := r.Strategy2count[code]; ok {
+	if count, ok := r.strategy2count[code]; ok {
 		return count
 	}
 	return 1
 }
 
 func (r *RootEnt) plusStrategyCount(code MutationCode, delta int) {
-	if r.Strategy2count == nil {
+	if r.strategy2count == nil {
 		r.InitStrategyCount()
 	}
 	r.needsUpdateStrategyChache = true
-	r.Strategy2count[code] += uint64(delta)
+	r.strategy2count[code] += uint64(delta)
 }
 
-func (r *RootEnt) getStrategy2count() map[MutationCode]uint64 {
-	return r.Strategy2count
+func (r *RootEnt) Strategy2count() map[MutationCode]uint64 {
+	return r.strategy2count
 }
 
 func (r *RootEnt) getStrategyCache() ([]MutationCode, []uint64) {
@@ -664,10 +655,10 @@ func (r *RootEnt) updateStrategyCache() {
 	if !r.needsUpdateStrategyChache && r.cachedStrategyCodes != nil {
 		return
 	}
-	if r.Strategy2count == nil {
+	if r.strategy2count == nil {
 		r.InitStrategyCount()
 	}
-	keys, cum := buildCumulativeStrategyUint64(r.Strategy2count)
+	keys, cum := buildCumulativeStrategyUint64(r.strategy2count)
 	r.cachedStrategyCodes = keys
 	r.cachedStrategySums = cum
 	r.needsUpdateStrategyChache = false
@@ -702,7 +693,7 @@ func (r *RootEnt) ReflectMutationInfo(mutInfo MutationInfo) {
 // GetScoreById retrieves the score of an entity with the specified ID.
 func (r *RootEnt) GetScoreById(id int) uint64 {
 	if ent, exists := r.Id2Ent[id]; exists {
-		return ent.GetScore()
+		return ent.Score()
 	}
 	return 0
 }
@@ -741,7 +732,7 @@ func (r *RootEnt) updateScoreCache() {
 	var total uint64 = 0
 	for i, id := range keys {
 		// Converts GetScore() return value from int to uint64.
-		score := uint64(r.Id2Ent[id].GetScore())
+		score := uint64(r.Id2Ent[id].Score())
 		total += score
 		cum[i] = total
 	}
@@ -766,7 +757,7 @@ func ParseToRoot(b []byte) *RootEnt {
 	// 3) Parses bracketed expressions into Group entities.
 	toks3 := parseBrackets(toks2)
 	// 4) Constructs the RootEnt entity.
-	r := &RootEnt{Data: toks3, Depth: 0, needsUpdateStrategyChache: true, needsUpdateScoreChache: true}
+	r := &RootEnt{data: toks3, depth: 0, needsUpdateStrategyChache: true, needsUpdateScoreChache: true}
 	// 5) Infers patterns within the root entity.
 	r = applyPatternToRoot(r)
 	// 6) Assigns depth values to each entity.
@@ -884,7 +875,7 @@ func (lx *Lexer) nextToken() Ent {
 	// 1) Handles newline characters.
 	if r == '\n' {
 		lx.next()
-		return &MarkEnt{Data: []byte("\n")}
+		return &MarkEnt{data: []byte("\n")}
 	}
 
 	// 2) Detects and groups whitespace characters (excluding newlines).
@@ -902,7 +893,7 @@ func (lx *Lexer) nextToken() Ent {
 			sb.WriteRune(r)
 			lx.next()
 		}
-		return &WsEnt{Data: []byte(sb.String())}
+		return &WsEnt{data: []byte(sb.String())}
 	}
 
 	// 3) Parses numbers, including negative, decimal, hexadecimal, and scientific notation.
@@ -925,20 +916,20 @@ func (lx *Lexer) nextToken() Ent {
 			sb.WriteRune(r)
 			lx.next()
 		}
-		return &LetterEnt{Data: []byte(sb.String())}
+		return &LetterEnt{data: []byte(sb.String())}
 	}
 
 	// 5) Identifies multi-character markers.
 	for _, mk := range ParserMark {
 		if lx.matchString(mk) {
 			lx.pos += len([]byte(mk))
-			return &MarkEnt{Data: []byte(mk)}
+			return &MarkEnt{data: []byte(mk)}
 		}
 	}
 
 	// 6) Defaults to treating unrecognized single characters as markers.
 	b := lx.next()
-	return &MarkEnt{Data: b}
+	return &MarkEnt{data: b}
 }
 
 // lexNumber parses numeric values, including decimal, hexadecimal,
@@ -985,13 +976,13 @@ func (lx *Lexer) lexNumber() Ent {
 					hexDigits := hexBuilder.String()
 					if len(hexDigits) == 0 {
 						return &NumEnt{
-							Data: []byte(sign + "0" + string(nr)),
+							data: []byte(sign + "0" + string(nr)),
 							Hex:  false,
 						}
 					}
 
 					return &NumEnt{
-						Data: []byte(sign + "0" + string(nr) + hexDigits),
+						data: []byte(sign + "0" + string(nr) + hexDigits),
 						Hex:  true,
 					}
 				}
@@ -1013,7 +1004,7 @@ func (lx *Lexer) lexNumber() Ent {
 		lx.next()
 	}
 	if digits == "" {
-		return &MarkEnt{Data: []byte(sign)}
+		return &MarkEnt{data: []byte(sign)}
 	}
 	// Handles scientific notation: If 'e' or 'E' is encountered,
 	expo := ""
@@ -1044,12 +1035,12 @@ func (lx *Lexer) lexNumber() Ent {
 				lx.next()
 			}
 			if expDigits == "" {
-				return &NumEnt{Data: []byte(sign + digits + expLetter + expSign), Hex: false}
+				return &NumEnt{data: []byte(sign + digits + expLetter + expSign), Hex: false}
 			}
 			expo = expLetter + expSign + expDigits
 		}
 	}
-	return &NumEnt{Data: []byte(sign + digits + expo), Hex: false}
+	return &NumEnt{data: []byte(sign + digits + expo), Hex: false}
 }
 
 // parseKeyVals identifies key-delimiter-value structures in the token stream.
@@ -1092,7 +1083,7 @@ func parseKeyVals(tokens []Ent) []Ent {
 
 		delimiter := tokens[pos]
 		md, ok2 := delimiter.(*MarkEnt)
-		if !ok2 || !(bytes.Equal(md.Data, []byte(":")) || bytes.Equal(md.Data, []byte("=")) || bytes.Equal(md.Data, []byte(":="))) {
+		if !ok2 || !(bytes.Equal(md.data, []byte(":")) || bytes.Equal(md.data, []byte("=")) || bytes.Equal(md.data, []byte(":="))) {
 			// Not a delimiter => failure.
 			result = append(result, left)
 			if leftPadding != nil {
@@ -1152,12 +1143,12 @@ func parseKeyVals(tokens []Ent) []Ent {
 		// Success => Create keyValEnt.
 
 		kv := &KeyValEnt{
-			Depth:     0,
-			K:         left,
-			PlOrNil:   leftPadding,
-			Delimiter: delimiter,
-			PrOrNil:   rightPadding,
-			V:         right,
+			depth:     0,
+			k:         left,
+			plOrNil:   leftPadding,
+			delimiter: delimiter,
+			prOrNil:   rightPadding,
+			v:         right,
 		}
 		result = append(result, kv)
 
@@ -1183,8 +1174,8 @@ func parseBrackets(tokens []Ent) []Ent {
 	i := 0
 	for i < len(tokens) {
 		tok := tokens[i]
-		if mk, ok := tok.(*MarkEnt); ok && len(mk.Data) == 1 {
-			openRune := rune(mk.Data[0])
+		if mk, ok := tok.(*MarkEnt); ok && len(mk.data) == 1 {
+			openRune := rune(mk.data[0])
 			if _, exist := bracketPairs[openRune]; exist {
 				g, consumed := parseBracketGroup(tokens, i)
 				result = append(result, g)
@@ -1209,28 +1200,28 @@ var bracketPairs = map[rune]rune{
 // parseBracketGroup recursively parses a bracketed group starting from the given index.
 func parseBracketGroup(tokens []Ent, from int) (*GroupEnt, int) {
 	open, _ := tokens[from].(*MarkEnt)
-	closeRune := bracketPairs[rune(open.Data[0])]
+	closeRune := bracketPairs[rune(open.data[0])]
 	g := &GroupEnt{
-		Depth: 0,
-		Data:  []Ent{open},
+		depth: 0,
+		data:  []Ent{open},
 	}
 	i := from + 1
 	for i < len(tokens) {
 		tok := tokens[i]
-		if mk, ok := tok.(*MarkEnt); ok && len(mk.Data) == 1 {
-			if rune(mk.Data[0]) == closeRune {
-				g.Data = append(g.Data, mk)
+		if mk, ok := tok.(*MarkEnt); ok && len(mk.data) == 1 {
+			if rune(mk.data[0]) == closeRune {
+				g.data = append(g.data, mk)
 				return g, i + 1
 			}
 			// Handle nested parentheses.
-			if _, has := bracketPairs[rune(mk.Data[0])]; has {
+			if _, has := bracketPairs[rune(mk.data[0])]; has {
 				sub, consumed := parseBracketGroup(tokens, i)
-				g.Data = append(g.Data, sub)
+				g.data = append(g.data, sub)
 				i = consumed
 				continue
 			}
 		}
-		g.Data = append(g.Data, tok)
+		g.data = append(g.data, tok)
 		i++
 	}
 	return g, i
@@ -1238,7 +1229,7 @@ func parseBracketGroup(tokens []Ent, from int) (*GroupEnt, int) {
 
 // applyPatternToRoot assigns a pattern to the root entity.
 func applyPatternToRoot(r *RootEnt) *RootEnt {
-	p, ok := detectPattern(r.Data)
+	p, ok := detectPattern(r.data)
 	if ok {
 		r.IsPattern = true
 		r.Pattern = p
@@ -1261,7 +1252,7 @@ func detectPattern(tokens []Ent) (string, bool) {
 			continue
 		case *LetterEnt:
 			total++
-			low := bytes.ToLower(t.Data)
+			low := bytes.ToLower(t.data)
 			if bytes.Equal(low, []byte("return")) || bytes.Equal(low, []byte("func")) ||
 				bytes.Equal(low, []byte("for")) || bytes.Equal(low, []byte("if")) ||
 				bytes.Equal(low, []byte("case")) || bytes.Equal(low, []byte("switch")) ||
@@ -1273,7 +1264,7 @@ func detectPattern(tokens []Ent) (string, bool) {
 			}
 		case *MarkEnt:
 			total++
-			d := bytes.ToLower(t.Data)
+			d := bytes.ToLower(t.data)
 			if bytes.Equal(d, []byte(":=")) || bytes.Equal(d, []byte("=")) {
 				gnoCount++
 			}
@@ -1291,10 +1282,10 @@ func detectPattern(tokens []Ent) (string, bool) {
 			}
 		case *KeyValEnt:
 			total++
-			d := t.Delimiter
+			d := t.delimiter
 			var dStr []byte
 			if delim, ok := d.(*MarkEnt); ok {
-				dStr = delim.Data
+				dStr = delim.data
 			} else {
 				continue
 			}
@@ -1331,13 +1322,13 @@ func flattenTokens(tokens []Ent) []Ent {
 	for _, e := range tokens {
 		switch gg := e.(type) {
 		case *GroupEnt:
-			if len(gg.Data) > 0 {
-				out = append(out, gg.Data[0]) // open bracket
-				if len(gg.Data) > 2 {
-					body := gg.Data[1 : len(gg.Data)-1]
+			if len(gg.data) > 0 {
+				out = append(out, gg.data[0]) // open bracket
+				if len(gg.data) > 2 {
+					body := gg.data[1 : len(gg.data)-1]
 					out = append(out, flattenTokens(body)...)
 				}
-				out = append(out, gg.Data[len(gg.Data)-1]) // close bracket
+				out = append(out, gg.data[len(gg.data)-1]) // close bracket
 			}
 		default:
 			out = append(out, e)
@@ -1351,26 +1342,26 @@ func finalizeDepth(e Ent, currentDepth int) {
 	// - Sets the given entity's depth to currentDepth.
 	e.setDepth(currentDepth)
 	// - If the entity has children, assigns them a depth of (currentDepth + 1).
-	switch kv := e.(type) {
+	switch ent := e.(type) {
 	case *KeyValEnt:
 		// - Applies depth propagation for composite entities like KeyValEnt, GroupEnt, and RootEnt.
-		finalizeDepth(kv.K, currentDepth+1)
-		if kv.PlOrNil != nil {
-			finalizeDepth(kv.PlOrNil, currentDepth+1)
+		finalizeDepth(ent.k, currentDepth+1)
+		if ent.plOrNil != nil {
+			finalizeDepth(ent.plOrNil, currentDepth+1)
 		}
-		finalizeDepth(kv.Delimiter, currentDepth+1)
-		if kv.PrOrNil != nil {
-			finalizeDepth(kv.PrOrNil, currentDepth+1)
+		finalizeDepth(ent.delimiter, currentDepth+1)
+		if ent.prOrNil != nil {
+			finalizeDepth(ent.prOrNil, currentDepth+1)
 		}
-		finalizeDepth(kv.V, currentDepth+1)
+		finalizeDepth(ent.v, currentDepth+1)
 	case *GroupEnt:
 		// - Applies depth propagation for composite entities like KeyValEnt, GroupEnt, and RootEnt.
-		for _, c := range kv.Data {
+		for _, c := range ent.data {
 			finalizeDepth(c, currentDepth+1)
 		}
 	case *RootEnt:
 		// - Applies depth propagation for composite entities like KeyValEnt, GroupEnt, and RootEnt.
-		for _, c := range kv.Data {
+		for _, c := range ent.data {
 			finalizeDepth(c, currentDepth+1)
 		}
 	}
@@ -1396,29 +1387,29 @@ func assignId(e Ent, currentID *int, root *RootEnt) {
 	// 2) Process child nodes (branching based on structure type)
 	switch node := e.(type) {
 	case *KeyValEnt:
-		if node.K != nil {
-			assignId(node.K, currentID, root)
+		if node.k != nil {
+			assignId(node.k, currentID, root)
 		}
-		if node.PlOrNil != nil {
-			assignId(node.PlOrNil, currentID, root)
+		if node.plOrNil != nil {
+			assignId(node.plOrNil, currentID, root)
 		}
-		if node.Delimiter != nil {
-			assignId(node.Delimiter, currentID, root)
+		if node.delimiter != nil {
+			assignId(node.delimiter, currentID, root)
 		}
-		if node.PrOrNil != nil {
-			assignId(node.PrOrNil, currentID, root)
+		if node.prOrNil != nil {
+			assignId(node.prOrNil, currentID, root)
 		}
-		if node.V != nil {
-			assignId(node.V, currentID, root)
+		if node.v != nil {
+			assignId(node.v, currentID, root)
 		}
 
 	case *GroupEnt:
-		for _, c := range node.Data {
+		for _, c := range node.data {
 			assignId(c, currentID, root)
 		}
 
 	case *RootEnt:
-		for _, c := range node.Data {
+		for _, c := range node.data {
 			assignId(c, currentID, root)
 		}
 
@@ -1434,32 +1425,32 @@ func initializeScore(e Ent) {
 	e.SetScore(1)
 
 	// If there are child elements, recursively finalizeScore
-	switch kv := e.(type) {
+	switch ent := e.(type) {
 
 	case *KeyValEnt:
-		if kv.K != nil {
-			initializeScore(kv.K)
+		if ent.k != nil {
+			initializeScore(ent.k)
 		}
-		if kv.PlOrNil != nil {
-			initializeScore(kv.PlOrNil)
+		if ent.plOrNil != nil {
+			initializeScore(ent.plOrNil)
 		}
-		if kv.Delimiter != nil {
-			initializeScore(kv.Delimiter)
+		if ent.delimiter != nil {
+			initializeScore(ent.delimiter)
 		}
-		if kv.PrOrNil != nil {
-			initializeScore(kv.PrOrNil)
+		if ent.prOrNil != nil {
+			initializeScore(ent.prOrNil)
 		}
-		if kv.V != nil {
-			initializeScore(kv.V)
+		if ent.v != nil {
+			initializeScore(ent.v)
 		}
 
 	case *GroupEnt:
-		for _, c := range kv.Data {
+		for _, c := range ent.data {
 			initializeScore(c)
 		}
 
 	case *RootEnt:
-		for _, c := range kv.Data {
+		for _, c := range ent.data {
 			initializeScore(c)
 		}
 
@@ -1478,27 +1469,27 @@ func initializeStrategyCount(e Ent) {
 	// Recursively calls for child nodes if they exist.
 	switch node := e.(type) {
 	case *KeyValEnt:
-		if node.K != nil {
-			initializeStrategyCount(node.K)
+		if node.k != nil {
+			initializeStrategyCount(node.k)
 		}
-		if node.PlOrNil != nil {
-			initializeStrategyCount(node.PlOrNil)
+		if node.plOrNil != nil {
+			initializeStrategyCount(node.plOrNil)
 		}
-		if node.Delimiter != nil {
-			initializeStrategyCount(node.Delimiter)
+		if node.delimiter != nil {
+			initializeStrategyCount(node.delimiter)
 		}
-		if node.PrOrNil != nil {
-			initializeStrategyCount(node.PrOrNil)
+		if node.prOrNil != nil {
+			initializeStrategyCount(node.prOrNil)
 		}
-		if node.V != nil {
-			initializeStrategyCount(node.V)
+		if node.v != nil {
+			initializeStrategyCount(node.v)
 		}
 	case *GroupEnt:
-		for _, child := range node.Data {
+		for _, child := range node.data {
 			initializeStrategyCount(child)
 		}
 	case *RootEnt:
-		for _, child := range node.Data {
+		for _, child := range node.data {
 			initializeStrategyCount(child)
 		}
 	default:
@@ -1523,7 +1514,7 @@ func SliceWithOutID(excludeID int, r *RootEnt) (string, string) {
 	tokens := SerializeToTokens(r)
 	firstIdx, lastIdx := -1, -1
 	for i, token := range tokens {
-		if excludedIDs[token.getID()] {
+		if excludedIDs[token.ID()] {
 			if firstIdx == -1 {
 				firstIdx = i
 			}
@@ -1571,34 +1562,34 @@ func SerializeToTokens(e Ent) []Ent {
 	case *KeyValEnt:
 		var out []Ent
 		// k
-		out = append(out, SerializeToTokens(t.K)...)
+		out = append(out, SerializeToTokens(t.k)...)
 		// plOrNil
-		if t.PlOrNil != nil {
-			out = append(out, SerializeToTokens(t.PlOrNil)...)
+		if t.plOrNil != nil {
+			out = append(out, SerializeToTokens(t.plOrNil)...)
 		}
 		// delimiter
-		out = append(out, SerializeToTokens(t.Delimiter)...)
+		out = append(out, SerializeToTokens(t.delimiter)...)
 		// prOrNil
-		if t.PrOrNil != nil {
-			out = append(out, SerializeToTokens(t.PrOrNil)...)
+		if t.prOrNil != nil {
+			out = append(out, SerializeToTokens(t.prOrNil)...)
 		}
 		// v
-		out = append(out, SerializeToTokens(t.V)...)
+		out = append(out, SerializeToTokens(t.v)...)
 		return out
 
 	// 3) groupEnt (first child: opening bracket, last child: closing bracket, middle: content)
 	case *GroupEnt:
 		var out []Ent
-		if len(t.Data) > 0 {
+		if len(t.data) > 0 {
 			// opening bracket
-			out = append(out, SerializeToTokens(t.Data[0])...)
+			out = append(out, SerializeToTokens(t.data[0])...)
 			// data except opening,closing breacket
-			for i := 1; i < len(t.Data)-1; i++ {
-				out = append(out, SerializeToTokens(t.Data[i])...)
+			for i := 1; i < len(t.data)-1; i++ {
+				out = append(out, SerializeToTokens(t.data[i])...)
 			}
 			// closing bracket
-			if len(t.Data) > 1 {
-				out = append(out, SerializeToTokens(t.Data[len(t.Data)-1])...)
+			if len(t.data) > 1 {
+				out = append(out, SerializeToTokens(t.data[len(t.data)-1])...)
 			}
 		}
 		return out
@@ -1607,7 +1598,7 @@ func SerializeToTokens(e Ent) []Ent {
 	case *RootEnt:
 		// Iterate through the data within rootEnt.
 		var out []Ent
-		for _, c := range t.Data {
+		for _, c := range t.data {
 			out = append(out, SerializeToTokens(c)...)
 		}
 		return out
@@ -1623,13 +1614,13 @@ func SerializeToTokens(e Ent) []Ent {
 func entToString(e Ent) string {
 	switch t := e.(type) {
 	case *LetterEnt:
-		return string(t.Data)
+		return string(t.data)
 	case *NumEnt:
-		return string(t.Data)
+		return string(t.data)
 	case *WsEnt:
-		return string(t.Data)
+		return string(t.data)
 	case *MarkEnt:
-		return string(t.Data)
+		return string(t.data)
 	case nil:
 		return ""
 	default:
@@ -1640,30 +1631,30 @@ func entToString(e Ent) string {
 // collectIDs recursively gathers the IDs of an entity and its children,
 // storing them in the provided map.
 func collectIDs(e Ent, m map[int]bool) {
-	m[e.getID()] = true
+	m[e.ID()] = true
 	switch v := e.(type) {
 	case *KeyValEnt:
-		if v.K != nil {
-			collectIDs(v.K, m)
+		if v.k != nil {
+			collectIDs(v.k, m)
 		}
-		if v.PlOrNil != nil {
-			collectIDs(v.PlOrNil, m)
+		if v.plOrNil != nil {
+			collectIDs(v.plOrNil, m)
 		}
-		if v.Delimiter != nil {
-			collectIDs(v.Delimiter, m)
+		if v.delimiter != nil {
+			collectIDs(v.delimiter, m)
 		}
-		if v.PrOrNil != nil {
-			collectIDs(v.PrOrNil, m)
+		if v.prOrNil != nil {
+			collectIDs(v.prOrNil, m)
 		}
-		if v.V != nil {
-			collectIDs(v.V, m)
+		if v.v != nil {
+			collectIDs(v.v, m)
 		}
 	case *GroupEnt:
-		for _, child := range v.Data {
+		for _, child := range v.data {
 			collectIDs(child, m)
 		}
 	case *RootEnt:
-		for _, child := range v.Data {
+		for _, child := range v.data {
 			collectIDs(child, m)
 		}
 	default:
@@ -1675,82 +1666,82 @@ func collectIDs(e Ent, m map[int]bool) {
 func cloneEnt(e Ent) Ent {
 	switch v := e.(type) {
 	case *LetterEnt:
-		newData := make([]byte, len(v.Data))
-		copy(newData, v.Data)
+		newData := make([]byte, len(v.data))
+		copy(newData, v.data)
 		return &LetterEnt{
-			Data:  newData,
-			Depth: v.Depth,
+			data:  newData,
+			depth: v.depth,
 		}
 
 	case *NumEnt:
-		newData := make([]byte, len(v.Data))
-		copy(newData, v.Data)
+		newData := make([]byte, len(v.data))
+		copy(newData, v.data)
 		return &NumEnt{
-			Data:  newData,
-			Depth: v.Depth,
+			data:  newData,
+			depth: v.depth,
 		}
 
 	case *WsEnt:
-		newData := make([]byte, len(v.Data))
-		copy(newData, v.Data)
+		newData := make([]byte, len(v.data))
+		copy(newData, v.data)
 		return &WsEnt{
-			Data:  newData,
-			Depth: v.Depth,
+			data:  newData,
+			depth: v.depth,
 		}
 
 	case *MarkEnt:
-		newData := make([]byte, len(v.Data))
-		copy(newData, v.Data)
+		newData := make([]byte, len(v.data))
+		copy(newData, v.data)
 		return &MarkEnt{
-			Data:  newData,
-			Depth: v.Depth,
+			data:  newData,
+			depth: v.depth,
 		}
 
 	case *KeyValEnt:
 
 		var k, pl, delim, pr, vv Ent
-		if v.K != nil {
-			k = cloneEnt(v.K)
+		if v.k != nil {
+			k = cloneEnt(v.k)
 		}
-		if v.PlOrNil != nil {
-			pl = cloneEnt(v.PlOrNil)
+		if v.plOrNil != nil {
+			pl = cloneEnt(v.plOrNil)
 		}
-		if v.Delimiter != nil {
-			delim = cloneEnt(v.Delimiter)
+		if v.delimiter != nil {
+			delim = cloneEnt(v.delimiter)
 		}
-		if v.PrOrNil != nil {
-			pr = cloneEnt(v.PrOrNil)
+		if v.prOrNil != nil {
+			pr = cloneEnt(v.prOrNil)
 		}
-		if v.V != nil {
-			vv = cloneEnt(v.V)
+		if v.v != nil {
+			vv = cloneEnt(v.v)
 		}
 		return &KeyValEnt{
-			Depth:     v.Depth,
-			K:         k,
-			PlOrNil:   pl,
-			Delimiter: delim,
-			PrOrNil:   pr,
-			V:         vv,
+			depth:     v.depth,
+			k:         k,
+			plOrNil:   pl,
+			delimiter: delim,
+			prOrNil:   pr,
+			v:         vv,
 		}
 
 	case *GroupEnt:
-		newData := make([]Ent, len(v.Data))
-		for i, child := range v.Data {
+		newData := make([]Ent, len(v.data))
+		for i, child := range v.data {
 			newData[i] = cloneEnt(child)
 		}
 		return &GroupEnt{
-			Depth: v.Depth,
-			Data:  newData,
+			depth: v.depth,
+			data:  newData,
 		}
 
 	case *RootEnt:
-		newData := make([]Ent, len(v.Data))
-		for i, child := range v.Data {
+		newData := make([]Ent, len(v.data))
+		for i, child := range v.data {
 			newData[i] = cloneEnt(child)
 		}
 		return &RootEnt{
-			Depth: v.Depth,
-			Data:  newData,
+			depth: v.depth,
+			data:  newData,
 		}
 	}
 	return nil
@@ -1763,43 +1754,43 @@ func PrintTree(e Ent, indent int) {
 	idInfo := ""
 
 	if e != nil {
-		idInfo = fmt.Sprintf("id:%d", e.getID())
+		idInfo = fmt.Sprintf("id:%d", e.ID())
 	}
 	switch t := e.(type) {
 	case *LetterEnt:
-		fmt.Printf("%sletterEnt(%q, depth:%d, %s)\n", ind, t.Data, t.Depth, idInfo)
+		fmt.Printf("%sletterEnt(%q, depth:%d, %s)\n", ind, t.data, t.depth, idInfo)
 	case *NumEnt:
-		fmt.Printf("%snumEnt(%q, hex:%v, depth:%d, %s)\n", ind, t.Data, t.Hex, t.Depth, idInfo)
+		fmt.Printf("%snumEnt(%q, hex:%v, depth:%d, %s)\n", ind, t.data, t.Hex, t.depth, idInfo)
 	case *WsEnt:
-		fmt.Printf("%swsEnt(%q, depth:%d, %s)\n", ind, t.Data, t.Depth, idInfo)
+		fmt.Printf("%swsEnt(%q, depth:%d, %s)\n", ind, t.data, t.depth, idInfo)
 	case *MarkEnt:
-		fmt.Printf("%smarkEnt(%q, depth:%d, %s)\n", ind, t.Data, t.Depth, idInfo)
+		fmt.Printf("%smarkEnt(%q, depth:%d, %s)\n", ind, t.data, t.depth, idInfo)
 	case *KeyValEnt:
-		fmt.Printf("%skeyValEnt(depth:%d, %s)[\n", ind, t.Depth, idInfo)
+		fmt.Printf("%skeyValEnt(depth:%d, %s)[\n", ind, t.depth, idInfo)
 		fmt.Printf("%s  k:\n", ind)
-		PrintTree(t.K, indent+2)
+		PrintTree(t.k, indent+2)
 		fmt.Printf("%s  pl:\n", ind)
-		PrintTree(t.PlOrNil, indent+2)
+		PrintTree(t.plOrNil, indent+2)
 		fmt.Printf("%s  delimiter:\n", ind)
-		PrintTree(t.Delimiter, indent+2)
+		PrintTree(t.delimiter, indent+2)
 		fmt.Printf("%s  pr:\n", ind)
-		PrintTree(t.PrOrNil, indent+2)
+		PrintTree(t.prOrNil, indent+2)
 		fmt.Printf("%s  v:\n", ind)
-		PrintTree(t.V, indent+2)
+		PrintTree(t.v, indent+2)
 		fmt.Printf("%s]\n", ind)
 	case *GroupEnt:
-		fmt.Printf("%sgroupEnt(depth:%d, %s)[\n", ind, t.Depth, idInfo)
-		for _, c := range t.Data {
+		fmt.Printf("%sgroupEnt(depth:%d, %s)[\n", ind, t.depth, idInfo)
+		for _, c := range t.data {
 			PrintTree(c, indent+1)
 		}
 		fmt.Printf("%s]\n", ind)
 	case *RootEnt:
 		if t.IsPattern {
-			fmt.Printf("%srootEnt(depth:%d, pattern:%q, %s)[\n", ind, t.Depth, t.Pattern, idInfo)
+			fmt.Printf("%srootEnt(depth:%d, pattern:%q, %s)[\n", ind, t.depth, t.Pattern, idInfo)
 		} else {
-			fmt.Printf("%srootEnt(depth:%d, %s)[\n", ind, t.Depth, idInfo)
+			fmt.Printf("%srootEnt(depth:%d, %s)[\n", ind, t.depth, idInfo)
 		}
-		for _, c := range t.Data {
+		for _, c := range t.data {
 			PrintTree(c, indent+1)
 		}
 		fmt.Printf("%s]\n", ind)

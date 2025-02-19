@@ -17,8 +17,8 @@ func Reverse(s string) string {
 	return string(r)
 }
 
-// GetCoverageOfReverse records coverage information for the Reverse function.
-func GetCoverageOfReverse(c *Coverage, s string) string {
+// CoverageOfReverse records coverage information for the Reverse function.
+func CoverageOfReverse(c *Coverage, s string) string {
 	r := []rune(s)
 	*c = append(*c, CoveredLine{CoName: "Reverse", CoLine: 37})
 	for i, j := 0, len(r)-1; i < len(r)/2; i, j = i+1, j-1 {
@@ -39,8 +39,8 @@ func byteToHexChar(b byte) string {
 
 // TODO: This is a pseudo-coverage function. Must replace with a real coverage function in the future.
 
-// GetCoverageOfrunner is a pseudo-coverage function. It must be replaced with a real coverage function in the future.
-func GetCoverageOfrunner(content []interface{}) Coverage {
+// CoverageOfrunner is a pseudo-coverage function. It must be replaced with a real coverage function in the future.
+func CoverageOfrunner(content []interface{}) Coverage {
 	// TODO: Ensure to get coverage.
 	// TODO: The format is (function name, line)
 	if len(content) == 1 {
@@ -79,8 +79,8 @@ func GetCoverageOfrunner(content []interface{}) Coverage {
 	if !ok2 {
 		panic("did not implement other type")
 	}
-	s1 := GetCoverageOfReverse(&coverage, orig)
-	s2 := GetCoverageOfReverse(&coverage, s1)
+	s1 := CoverageOfReverse(&coverage, orig)
+	s2 := CoverageOfReverse(&coverage, s1)
 
 	if orig != s2 && u > 300 && u < 1000 {
 

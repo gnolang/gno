@@ -162,8 +162,8 @@ var (
 	initialized bool
 )
 
-// GetPCG returns a singleton instance of the PCG-based random generator.
-func GetPCG() *PCG {
+// OncePCG returns a singleton instance of the PCG-based random generator.
+func OncePCG() *PCG {
 	if !initialized {
 		initialized = true
 		seed := uint64(unixNano())
@@ -174,7 +174,7 @@ func GetPCG() *PCG {
 
 // Nrand returns a value approximating a normal distribution scaled to roughly [-1,1].
 func Nrand() float64 {
-	pcg := GetPCG()
+	pcg := OncePCG()
 	val := pcg.NormFloat64()
 	scaled := val / 3
 	if scaled < -1 {
@@ -190,7 +190,7 @@ func RandRange(start, end int64) int64 {
 	if start >= end {
 		panic("start >= end")
 	}
-	pcg := GetPCG()
+	pcg := OncePCG()
 	// Int64() Effect: Uses a 63-bit value by removing the highest bit.
 
 	randNum := int64(pcg.Uint64() &^ (1 << 63))
@@ -206,7 +206,7 @@ func UintRandRange(start, end uint64) uint64 {
 	if start >= end {
 		panic("start >= end")
 	}
-	pcg := GetPCG()
+	pcg := OncePCG()
 	randNum := pcg.Uint64()
 	hashedNum := randNum % (end - start)
 	return start + hashedNum
@@ -214,18 +214,18 @@ func UintRandRange(start, end uint64) uint64 {
 
 // RandInt64 returns a pseudo-random int64 (full range).
 func RandInt64() int64 {
-	pcg := GetPCG()
+	pcg := OncePCG()
 	return int64(pcg.Uint64() &^ (1 << 63))
 }
 
 // RandUint64 returns a pseudo-random uint64 (full range).
 func RandUint64() uint64 {
-	return GetPCG().Uint64()
+	return OncePCG().Uint64()
 }
 
 // RandUint32 returns a pseudo-random uint32 (full range).
 func RandUint32() uint32 {
-	return GetPCG().Uint32()
+	return OncePCG().Uint32()
 }
 
 // GenerateRandomBool returns a boolean value based on a bias using a normal distribution.
@@ -243,5 +243,5 @@ func UniformRandomBool(probability float64) bool {
 	if probability < 0.0 || probability > 1.0 {
 		panic("Probability must be between 0.0 and 1.0")
 	}
-	return GetPCG().Float64() < probability
+	return OncePCG().Float64() < probability
 }

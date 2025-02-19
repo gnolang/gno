@@ -278,7 +278,7 @@ func (fm *FuzzManager) PopSeed() Seed {
 			fm.PriorityCache++
 			continue
 		}
-		hn, isExist := fm.Priority2HashNumSet[fm.PriorityCache].getAny()
+		hn, isExist := fm.Priority2HashNumSet[fm.PriorityCache].anyHashNumber()
 		if !isExist {
 			fm.PriorityCache++
 			continue
@@ -421,9 +421,9 @@ func (s hashNumberSet) contains(hn HashNumber) bool {
 	return exists
 }
 
-// getAny retrieves any hashNumber from the hashNumberSet.
+// anyHashNumber retrieves any hashNumber from the hashNumberSet.
 // It returns the hashNumber and a boolean indicating if it was found.
-func (s hashNumberSet) getAny() (HashNumber, bool) {
+func (s hashNumberSet) anyHashNumber() (HashNumber, bool) {
 	for k := range s {
 		return k, true
 	}

@@ -33,8 +33,8 @@ func TestReflectMutationInfo_RootEnt(t *testing.T) {
 	// Call ReflectMutationInfo: Updates the strategy count and Score of child entities.
 	root.ReflectMutationInfo(mutInfo)
 
-	// Expected outcome: root.Score should increase by 1 + 0 = 0.
-	if root.Score != 1 {
+	// Expected outcome: root.Score() should increase by 1 + 0 = 0.
+	if root.Score() != 1 {
 		t.Errorf("Expected root Score to be %d, got %d", 1, root.Score)
 	}
 
@@ -46,19 +46,19 @@ func TestReflectMutationInfo_RootEnt(t *testing.T) {
 	ent := root.Id2Ent[2]
 	switch e := ent.(type) {
 	case *fuzzing.LetterEnt:
-		verifyStrategyCounts(t, e.Score, e.Strategy2count, expectedDS, expectedCHR, expectedScore)
+		verifyStrategyCounts(t, e.Score(), e.Strategy2count(), expectedDS, expectedCHR, expectedScore)
 	case *fuzzing.NumEnt:
-		verifyStrategyCounts(t, e.Score, e.Strategy2count, expectedDS, expectedCHR, expectedScore)
+		verifyStrategyCounts(t, e.Score(), e.Strategy2count(), expectedDS, expectedCHR, expectedScore)
 	case *fuzzing.WsEnt:
-		verifyStrategyCounts(t, e.Score, e.Strategy2count, expectedDS, expectedCHR, expectedScore)
+		verifyStrategyCounts(t, e.Score(), e.Strategy2count(), expectedDS, expectedCHR, expectedScore)
 	case *fuzzing.MarkEnt:
-		verifyStrategyCounts(t, e.Score, e.Strategy2count, expectedDS, expectedCHR, expectedScore)
+		verifyStrategyCounts(t, e.Score(), e.Strategy2count(), expectedDS, expectedCHR, expectedScore)
 	case *fuzzing.KeyValEnt:
-		verifyStrategyCounts(t, e.Score, e.Strategy2count, expectedDS, expectedCHR, expectedScore)
+		verifyStrategyCounts(t, e.Score(), e.Strategy2count(), expectedDS, expectedCHR, expectedScore)
 	case *fuzzing.GroupEnt:
-		verifyStrategyCounts(t, e.Score, e.Strategy2count, expectedDS, expectedCHR, expectedScore)
+		verifyStrategyCounts(t, e.Score(), e.Strategy2count(), expectedDS, expectedCHR, expectedScore)
 	case *fuzzing.RootEnt:
-		verifyStrategyCounts(t, e.Score, e.Strategy2count, expectedDS, expectedCHR, expectedScore)
+		verifyStrategyCounts(t, e.Score(), e.Strategy2count(), expectedDS, expectedCHR, expectedScore)
 	default:
 		t.Errorf("Unexpected type for root.Id2Ent[2]: %T", ent)
 	}

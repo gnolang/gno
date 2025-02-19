@@ -42,7 +42,7 @@ func (m *Mutator) MutateSeed2Seeds(sampleSeed Seed, seedCount *uint) []Seed {
 	boundarySamplePopularity := [8]uint64{2, 8, 32, 128, 512, 2048, 8096, 16192}
 	mappedGeneratingNumber := [8]int{1440, 1080, 720, 600, 480, 360, 240, 120}
 	genIdx := sort.Search(len(boundarySamplePopularity), func(i int) bool {
-		return mutationSample.SamplePopularity <= boundarySamplePopularity[i]
+		return mutationSample.samplePopularity <= boundarySamplePopularity[i]
 	})
 	var generatingNumber int
 	if genIdx < len(boundarySamplePopularity) {
@@ -53,7 +53,7 @@ func (m *Mutator) MutateSeed2Seeds(sampleSeed Seed, seedCount *uint) []Seed {
 	boundaryClusterPopularity := [4]uint64{32, 256, 4096, 259072}
 	mappedMutationStrength := [4]int{5, 4, 3, 2}
 	mutIdx := sort.Search(len(boundaryClusterPopularity), func(i int) bool {
-		return m.data[mutationSample.Seed.HashNumber].ClusterPopularity <= boundaryClusterPopularity[i]
+		return m.data[mutationSample.seed.HashNumber].ClusterPopularity <= boundaryClusterPopularity[i]
 	})
 	var mutationStrength int
 	if mutIdx < len(boundaryClusterPopularity) {
@@ -63,7 +63,7 @@ func (m *Mutator) MutateSeed2Seeds(sampleSeed Seed, seedCount *uint) []Seed {
 	}
 
 	mutationSample.UpdatePowerSetCache()
-	cum := mutationSample.GetPowerSetCache()
+	cum := mutationSample.PowerSetCache()
 
 	chunk := 120 //* Must be a divisor of the generating number.
 
@@ -75,7 +75,7 @@ func (m *Mutator) MutateSeed2Seeds(sampleSeed Seed, seedCount *uint) []Seed {
 			selectedPowerSetIdx = 0
 		} else {
 			total := cum[len(cum)-1]
-			r := GetPCG().Uint64n(total)
+			r := OncePCG().Uint64n(total)
 			selectedPowerSetIdx = sort.Search(len(cum), func(i int) bool {
 				return cum[i] > r
 			})
@@ -86,7 +86,7 @@ func (m *Mutator) MutateSeed2Seeds(sampleSeed Seed, seedCount *uint) []Seed {
 		// From this loop onwards, actual seed generation begins.
 
 		for j := 0; j < chunk; j++ {
-			castedContent := efficientCasting(mutationSample.Seed.Content)
+			castedContent := efficientCasting(mutationSample.seed.Content)
 			mutationsInfo := make(map[int]MutationInfo)
 
 			for _, idx := range selectedSubSetArgs {
@@ -102,9 +102,9 @@ func (m *Mutator) MutateSeed2Seeds(sampleSeed Seed, seedCount *uint) []Seed {
 			// Generate seed.
 			newSeed := Seed{
 				Content:        castedContent,
-				Pid:            mutationSample.Seed.Id,
+				Pid:            mutationSample.seed.Id,
 				Id:             *seedCount,
-				Gen:            mutationSample.Seed.Gen + 1,
+				Gen:            mutationSample.seed.Gen + 1,
 				ArgPowerSetIdx: selectedPowerSetIdx,
 				MutationsInfo:  mutationsInfo,
 			}
@@ -199,7 +199,7 @@ func (mss *MutSampleSet) FindSample(seedId uint) (*MutSample, bool) {
 // that shares the given parent ID (pid).
 func (mss *MutSampleSet) FindSiblingID(pid uint) (uint, bool) {
 	for id, sample := range mss.Samples {
-		if sample.Seed.Pid == pid {
+		if sample.seed.Pid == pid {
 			return id, true
 		}
 	}
@@ -210,7 +210,7 @@ func (mss *MutSampleSet) FindSiblingID(pid uint) (uint, bool) {
 // to the given child ID (pid).
 func (mss *MutSampleSet) FindParentID(pid uint) (uint, bool) {
 	for id, sample := range mss.Samples {
-		if sample.Seed.Id == pid {
+		if sample.seed.Id == pid {
 			return id, true
 		}
 	}
@@ -219,7 +219,7 @@ func (mss *MutSampleSet) FindParentID(pid uint) (uint, bool) {
 
 // Add inserts a new sample into the MutSampleSet.
 func (mss *MutSampleSet) Add(sample *MutSample) {
-	mss.Samples[sample.Seed.Id] = sample
+	mss.Samples[sample.seed.Id] = sample
 }
 
 // PlusClusterPopularity increases the cluster's popularity score.
@@ -248,15 +248,15 @@ func NewMutSampleSet() *MutSampleSet {
 // MutSample represents a mutation sample containing the original seed,
 // scoring information, and mappings to entity representations.
 type MutSample struct {
-	Seed              Seed             // Original seed data
-	ArgPowerSetScores []uint64         // Argument scores, considering aspects like [arguments, entity, strategy]
-	SamplePopularity  uint64           // Number of times the sample has been leveraged
-	RootEntsDict      map[int]*RootEnt // Mapping of argument index to RootEnt
-	NotSbEntsDict     map[int]*EntForNotSB
+	seed              Seed             // Original seed data
+	argPowerSetScores []uint64         // Argument scores, considering aspects like [arguments, entity, strategy]
+	samplePopularity  uint64           // Number of times the sample has been leveraged
+	rootEntsDict      map[int]*RootEnt // Mapping of argument index to RootEnt
+	notSbEntsDict     map[int]*EntForNotSB
 
 	// Caching fields for cumulative sum calculations
-	CachedPowerSetCumSum []uint64
-	NeedsUpdateCache     bool
+	cachedPowerSetCumSum []uint64
+	needsUpdateCache     bool
 }
 
 // MutateArg applies a mutation to the given input argument based on the specified strength
@@ -264,7 +264,7 @@ type MutSample struct {
 func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (interface{}, MutationInfo) {
 	switch input.(type) {
 	case string:
-		result, entID, usedStrategyMap := MutateRoot2String(ms.RootEntsDict[argIdx], strength)
+		result, entID, usedStrategyMap := MutateRoot2String(ms.rootEntsDict[argIdx], strength)
 		isMutated := true
 		if usedStrategyMap == nil {
 			isMutated = false
@@ -277,7 +277,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 			UsedCodesForNotSbMap: nil,
 		}
 	case []byte:
-		result, entID, usedStrategyMap := MutateRoot2String(ms.RootEntsDict[argIdx], strength)
+		result, entID, usedStrategyMap := MutateRoot2String(ms.rootEntsDict[argIdx], strength)
 		isMutated := true
 		if usedStrategyMap == nil {
 			isMutated = false
@@ -290,7 +290,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 			UsedCodesForNotSbMap: nil,
 		}
 	case bool:
-		result, usedStrategyMap := MutateNotSbEnt2interface(ms.NotSbEntsDict[argIdx], strength)
+		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		boolResult, ok := result.(bool)
 		if !ok {
 			panic("logical Error. If it occred, Needs to fix")
@@ -308,7 +308,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 		}
 
 	case float32:
-		result, usedStrategyMap := MutateNotSbEnt2interface(ms.NotSbEntsDict[argIdx], strength)
+		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		float32Result, ok := result.(float32)
 		if !ok {
 			panic("logical Error. If it occred, Needs to fix")
@@ -325,7 +325,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 			UsedCodesForNotSbMap: usedStrategyMap,
 		}
 	case float64:
-		result, usedStrategyMap := MutateNotSbEnt2interface(ms.NotSbEntsDict[argIdx], strength)
+		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		float64Result, ok := result.(float64)
 		if !ok {
 			panic("logical Error. If it occred, Needs to fix")
@@ -342,7 +342,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 			UsedCodesForNotSbMap: usedStrategyMap,
 		}
 	case int:
-		result, usedStrategyMap := MutateNotSbEnt2interface(ms.NotSbEntsDict[argIdx], strength)
+		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		intResult, ok := result.(int)
 		if !ok {
 			panic("logical Error. If it occred, Needs to fix")
@@ -360,7 +360,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 		}
 
 	case int8:
-		result, usedStrategyMap := MutateNotSbEnt2interface(ms.NotSbEntsDict[argIdx], strength)
+		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		int8Result, ok := result.(int8)
 		if !ok {
 			panic("logical Error. If it occurred, Needs to fix")
@@ -378,7 +378,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 		}
 
 	case int16:
-		result, usedStrategyMap := MutateNotSbEnt2interface(ms.NotSbEntsDict[argIdx], strength)
+		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		int16Result, ok := result.(int16)
 		if !ok {
 			panic("logical Error. If it occurred, Needs to fix")
@@ -396,7 +396,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 		}
 
 	case int32:
-		result, usedStrategyMap := MutateNotSbEnt2interface(ms.NotSbEntsDict[argIdx], strength)
+		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		int32Result, ok := result.(int32)
 		if !ok {
 			panic("logical Error. If it occurred, Needs to fix")
@@ -414,7 +414,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 		}
 
 	case int64:
-		result, usedStrategyMap := MutateNotSbEnt2interface(ms.NotSbEntsDict[argIdx], strength)
+		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		int64Result, ok := result.(int64)
 		if !ok {
 			panic("logical Error. If it occurred, Needs to fix")
@@ -432,7 +432,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 		}
 
 	case uint:
-		result, usedStrategyMap := MutateNotSbEnt2interface(ms.NotSbEntsDict[argIdx], strength)
+		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		uintResult, ok := result.(uint)
 		if !ok {
 			panic("logical Error. If it occurred, Needs to fix")
@@ -450,7 +450,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 		}
 
 	case uint8:
-		result, usedStrategyMap := MutateNotSbEnt2interface(ms.NotSbEntsDict[argIdx], strength)
+		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		uint8Result, ok := result.(uint8)
 		if !ok {
 			panic("logical Error. If it occurred, Needs to fix")
@@ -468,7 +468,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 		}
 
 	case uint16:
-		result, usedStrategyMap := MutateNotSbEnt2interface(ms.NotSbEntsDict[argIdx], strength)
+		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		uint16Result, ok := result.(uint16)
 		if !ok {
 			panic("logical Error. If it occurred, Needs to fix")
@@ -486,7 +486,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 		}
 
 	case uint32:
-		result, usedStrategyMap := MutateNotSbEnt2interface(ms.NotSbEntsDict[argIdx], strength)
+		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		uint32Result, ok := result.(uint32)
 		if !ok {
 			panic("logical Error. If it occurred, Needs to fix")
@@ -504,7 +504,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 		}
 
 	case uint64:
-		result, usedStrategyMap := MutateNotSbEnt2interface(ms.NotSbEntsDict[argIdx], strength)
+		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		uint64Result, ok := result.(uint64)
 		if !ok {
 			panic("logical Error. If it occurred, Needs to fix")
@@ -539,7 +539,7 @@ func MutateRoot2String(r *RootEnt, strength int) (string, int, map[MutationCode]
 	startStr, endStr := SliceWithOutID(selectedID, r)
 	targetPtr := r.Id2Ent[selectedID]
 	// Perform mutation on the selected entity
-	mutatedString, usedStrategy := MutateEnt2String(targetPtr, strength, r.Pattern, r.Strategy2count)
+	mutatedString, usedStrategy := MutateEnt2String(targetPtr, strength, r.Pattern, r.Strategy2count())
 	// Reconstruct the final mutated string
 	finalString := startStr + mutatedString + endStr
 
@@ -549,7 +549,7 @@ func MutateRoot2String(r *RootEnt, strength int) (string, int, map[MutationCode]
 // selectID selects an ID from the cumulative sum slice (cum) using a random value.
 func selectID(keys []int, cum []uint64) int {
 	total := cum[len(cum)-1]
-	r := GetPCG().Uint64n(total)
+	r := OncePCG().Uint64n(total)
 	idx := sort.Search(len(cum), func(i int) bool { return cum[i] > r })
 	return keys[idx]
 }
@@ -604,7 +604,7 @@ func MutateEnt2String(e Ent, strength int, pattern string, strategy2count map[Mu
 // selectStrategyWithIndex selects a mutation strategy and its index from the cumulative sum slice.
 func selectStrategyWithIndex(keys []MutationCode, cum []uint64) (MutationCode, int) {
 	total := cum[len(cum)-1]
-	rng := GetPCG()
+	rng := OncePCG()
 	r := rng.Uint64n(total)
 	idx := sort.Search(len(cum), func(i int) bool { return cum[i] > r })
 	return keys[idx], idx
@@ -664,7 +664,7 @@ func MutateNotSbEnt2interface(ens *EntForNotSB, strength int) (interface{}, map[
 // selectStrategyWithIndexForNotSB selects a NotSb mutation strategy and its index using a random value.
 func selectStrategyWithIndexForNotSB(keys []MutationCodeForNotSB, cum []uint64) (MutationCodeForNotSB, int) {
 	total := cum[len(cum)-1]
-	rng := GetPCG()
+	rng := OncePCG()
 	r := rng.Uint64n(total)
 	idx := sort.Search(len(cum), func(i int) bool { return cum[i] > r })
 	return keys[idx], idx
@@ -684,14 +684,14 @@ func (ms *MutSample) ReflectSeed(seed Seed) {
 
 // PlusArgPowerSetScore increases the score of a given argument index in the power set.
 func (ms *MutSample) PlusArgPowerSetScore(i uint64, delta uint64) {
-	if int(i) >= len(ms.ArgPowerSetScores) {
+	if int(i) >= len(ms.argPowerSetScores) {
 		newSize := int(i) + 1
 		newScores := make([]uint64, newSize)
-		copy(newScores, ms.ArgPowerSetScores)
-		ms.ArgPowerSetScores = newScores
+		copy(newScores, ms.argPowerSetScores)
+		ms.argPowerSetScores = newScores
 	}
-	ms.ArgPowerSetScores[i] += delta
-	ms.NeedsUpdateCache = true
+	ms.argPowerSetScores[i] += delta
+	ms.needsUpdateCache = true
 }
 
 // reflectMutationsInfo updates mutation data for all mutated arguments in the sample.
@@ -701,11 +701,11 @@ func (ms *MutSample) reflectMutationsInfo(mutInfoDict map[int]MutationInfo) {
 			continue
 		}
 		if mi.IsStringOrByteArray {
-			if root, exists := ms.RootEntsDict[argIdx]; exists {
+			if root, exists := ms.rootEntsDict[argIdx]; exists {
 				root.ReflectMutationInfo(mi)
 			}
 		} else {
-			if ens, exists := ms.NotSbEntsDict[argIdx]; exists {
+			if ens, exists := ms.notSbEntsDict[argIdx]; exists {
 				ens.ReflectMutationInfo(mi)
 			}
 		}
@@ -714,39 +714,30 @@ func (ms *MutSample) reflectMutationsInfo(mutInfoDict map[int]MutationInfo) {
 
 // PlusSamplePopularity increases the sample's popularity count.
 func (ms *MutSample) PlusSamplePopularity(delta int) {
-	ms.SamplePopularity += uint64(delta)
-}
-
-// GetArgPowerSetScore returns the ArgPowerSetScore value at index i.
-func (ms *MutSample) GetArgPowerSetScore(i uint64) uint64 {
-	if int(i) >= len(ms.ArgPowerSetScores) {
-		// If the index is out of bounds, it returns 0.
-		return 0
-	}
-	return ms.ArgPowerSetScores[i]
+	ms.samplePopularity += uint64(delta)
 }
 
 // UpdatePowerSetCache updates the cached cumulative sum array based on ArgPowerSetScores.
 func (ms *MutSample) UpdatePowerSetCache() {
-	if !ms.NeedsUpdateCache && ms.CachedPowerSetCumSum != nil {
+	if !ms.needsUpdateCache && ms.cachedPowerSetCumSum != nil {
 		return
 	}
-	n := len(ms.ArgPowerSetScores)
-	ms.CachedPowerSetCumSum = make([]uint64, n)
+	n := len(ms.argPowerSetScores)
+	ms.cachedPowerSetCumSum = make([]uint64, n)
 	var total uint64 = 0
-	for i, score := range ms.ArgPowerSetScores {
+	for i, score := range ms.argPowerSetScores {
 		total += score
-		ms.CachedPowerSetCumSum[i] = total
+		ms.cachedPowerSetCumSum[i] = total
 	}
-	ms.NeedsUpdateCache = false
+	ms.needsUpdateCache = false
 }
 
-// GetPowerSetCache retrieves the cached cumulative sum array. If it is outdated, it updates it first.
-func (ms *MutSample) GetPowerSetCache() []uint64 {
-	if ms.NeedsUpdateCache {
+// PowerSetCache retrieves the cached cumulative sum array. If it is outdated, it updates it first.
+func (ms *MutSample) PowerSetCache() []uint64 {
+	if ms.needsUpdateCache {
 		ms.UpdatePowerSetCache()
 	}
-	return ms.CachedPowerSetCumSum
+	return ms.cachedPowerSetCumSum
 }
 
 // NewMutSample creates a new MutSample from the given Seed.
@@ -762,13 +753,13 @@ func NewMutSample(seed Seed) *MutSample {
 	// Parse seed content into root and non-root entities
 	formattedRootEntsDict, formattedNotSbEntsDict := formatToRootOrNotSbEnts(seed.Content)
 	return &MutSample{
-		Seed:                 seed,
-		ArgPowerSetScores:    scores,
-		SamplePopularity:     1,
-		RootEntsDict:         formattedRootEntsDict,
-		NotSbEntsDict:        formattedNotSbEntsDict,
-		CachedPowerSetCumSum: nil, // Cache starts empty
-		NeedsUpdateCache:     true,
+		seed:                 seed,
+		argPowerSetScores:    scores,
+		samplePopularity:     1,
+		rootEntsDict:         formattedRootEntsDict,
+		notSbEntsDict:        formattedNotSbEntsDict,
+		cachedPowerSetCumSum: nil, // Cache starts empty
+		needsUpdateCache:     true,
 	}
 }
 
@@ -937,13 +928,13 @@ func deleteStart(e Ent, p string) bool {
 		var data []byte
 		switch t := e.(type) {
 		case *LetterEnt:
-			data = t.Data
+			data = t.data
 		case *NumEnt:
-			data = t.Data
+			data = t.data
 		case *WsEnt:
-			data = t.Data
+			data = t.data
 		case *MarkEnt:
-			data = t.Data
+			data = t.data
 		}
 		if data == nil || len(data) == 0 {
 			return false
@@ -952,32 +943,32 @@ func deleteStart(e Ent, p string) bool {
 		if maxToDelete <= 0 {
 			return false
 		}
-		deleteCount := GetPCG().Intn(maxToDelete + 1)
+		deleteCount := OncePCG().Intn(maxToDelete + 1)
 		if deleteCount == 0 {
 			return false
 		}
-		newData := data[deleteCount:]
+		newdata := data[deleteCount:]
 		switch t := e.(type) {
 		case *LetterEnt:
-			t.Data = newData
+			t.data = newdata
 		case *NumEnt:
-			t.Data = newData
+			t.data = newdata
 		case *WsEnt:
-			t.Data = newData
+			t.data = newdata
 		case *MarkEnt:
-			t.Data = newData
+			t.data = newdata
 		}
 		return true
 	case *RootEnt:
 		root := e.(*RootEnt)
-		if len(root.Data) == 0 {
+		if len(root.data) == 0 {
 			// Block handling edge case for empty strings. (This is essential.)
-			randomChar := byte(GetPCG().Intn(26) + 65)
-			if GetPCG().Intn(2) == 0 {
-				randomChar = byte(GetPCG().Intn(26) + 97)
+			randomChar := byte(OncePCG().Intn(26) + 65)
+			if OncePCG().Intn(2) == 0 {
+				randomChar = byte(OncePCG().Intn(26) + 97)
 			}
-			root.Data = []Ent{
-				&LetterEnt{Data: []byte{randomChar}},
+			root.data = []Ent{
+				&LetterEnt{data: []byte{randomChar}},
 			}
 		}
 		return true
@@ -996,13 +987,13 @@ func deleteMiddle(e Ent, p string) bool {
 		var data []byte
 		switch t := e.(type) {
 		case *LetterEnt:
-			data = t.Data
+			data = t.data
 		case *NumEnt:
-			data = t.Data
+			data = t.data
 		case *WsEnt:
-			data = t.Data
+			data = t.data
 		case *MarkEnt:
-			data = t.Data
+			data = t.data
 		}
 		if data == nil || len(data) < 3 {
 			return true
@@ -1011,30 +1002,30 @@ func deleteMiddle(e Ent, p string) bool {
 		if maxToDelete <= 0 {
 			return false
 		}
-		deleteCount := GetPCG().Intn(maxToDelete) + 1
-		start := GetPCG().Intn(len(data)-deleteCount-1) + 1
-		newData := append(data[:start], data[start+deleteCount:]...)
+		deleteCount := OncePCG().Intn(maxToDelete) + 1
+		start := OncePCG().Intn(len(data)-deleteCount-1) + 1
+		newdata := append(data[:start], data[start+deleteCount:]...)
 		switch t := e.(type) {
 		case *LetterEnt:
-			t.Data = newData
+			t.data = newdata
 		case *NumEnt:
-			t.Data = newData
+			t.data = newdata
 		case *WsEnt:
-			t.Data = newData
+			t.data = newdata
 		case *MarkEnt:
-			t.Data = newData
+			t.data = newdata
 		}
 		return true
 	case *RootEnt:
 		root := e.(*RootEnt)
-		if len(root.Data) == 0 {
+		if len(root.data) == 0 {
 
-			randomChar := byte(GetPCG().Intn(26) + 65)
-			if GetPCG().Intn(2) == 0 {
-				randomChar = byte(GetPCG().Intn(26) + 97)
+			randomChar := byte(OncePCG().Intn(26) + 65)
+			if OncePCG().Intn(2) == 0 {
+				randomChar = byte(OncePCG().Intn(26) + 97)
 			}
-			root.Data = []Ent{
-				&LetterEnt{Data: []byte{randomChar}},
+			root.data = []Ent{
+				&LetterEnt{data: []byte{randomChar}},
 			}
 		}
 		return true
@@ -1051,13 +1042,13 @@ func deleteEnd(e Ent, p string) bool {
 		var data []byte
 		switch t := e.(type) {
 		case *LetterEnt:
-			data = t.Data
+			data = t.data
 		case *NumEnt:
-			data = t.Data
+			data = t.data
 		case *WsEnt:
-			data = t.Data
+			data = t.data
 		case *MarkEnt:
-			data = t.Data
+			data = t.data
 		}
 		if data == nil || len(data) == 0 {
 			return false
@@ -1066,28 +1057,28 @@ func deleteEnd(e Ent, p string) bool {
 		if maxToDelete <= 0 {
 			return false
 		}
-		deleteCount := GetPCG().Intn(maxToDelete) + 1
-		newData := data[:len(data)-deleteCount]
+		deleteCount := OncePCG().Intn(maxToDelete) + 1
+		newdata := data[:len(data)-deleteCount]
 		switch t := e.(type) {
 		case *LetterEnt:
-			t.Data = newData
+			t.data = newdata
 		case *NumEnt:
-			t.Data = newData
+			t.data = newdata
 		case *WsEnt:
-			t.Data = newData
+			t.data = newdata
 		case *MarkEnt:
-			t.Data = newData
+			t.data = newdata
 		}
 		return true
 	case *RootEnt:
 		root := e.(*RootEnt)
-		if len(root.Data) == 0 {
-			randomChar := byte(GetPCG().Intn(26) + 65)
-			if GetPCG().Intn(2) == 0 {
-				randomChar = byte(GetPCG().Intn(26) + 97)
+		if len(root.data) == 0 {
+			randomChar := byte(OncePCG().Intn(26) + 65)
+			if OncePCG().Intn(2) == 0 {
+				randomChar = byte(OncePCG().Intn(26) + 97)
 			}
-			root.Data = []Ent{
-				&LetterEnt{Data: []byte{randomChar}},
+			root.data = []Ent{
+				&LetterEnt{data: []byte{randomChar}},
 			}
 		}
 		return true
@@ -1104,37 +1095,37 @@ func appendStart(e Ent, p string) bool {
 		var data []byte
 		switch t := e.(type) {
 		case *LetterEnt:
-			data = t.Data
+			data = t.data
 		case *NumEnt:
-			data = t.Data
+			data = t.data
 		case *WsEnt:
-			data = t.Data
+			data = t.data
 		case *MarkEnt:
-			data = t.Data
+			data = t.data
 		}
-		randomByte := byte(GetPCG().Intn(256))
-		newData := append([]byte{randomByte}, data...)
+		randomByte := byte(OncePCG().Intn(256))
+		newdata := append([]byte{randomByte}, data...)
 		switch t := e.(type) {
 		case *LetterEnt:
-			t.Data = newData
+			t.data = newdata
 		case *NumEnt:
-			t.Data = newData
+			t.data = newdata
 		case *WsEnt:
-			t.Data = newData
+			t.data = newdata
 		case *MarkEnt:
-			t.Data = newData
+			t.data = newdata
 		}
 		return true
 	case *RootEnt:
 		root := e.(*RootEnt)
-		if len(root.Data) == 0 {
+		if len(root.data) == 0 {
 
-			randomChar := byte(GetPCG().Intn(26) + 65)
-			if GetPCG().Intn(2) == 0 {
-				randomChar = byte(GetPCG().Intn(26) + 97)
+			randomChar := byte(OncePCG().Intn(26) + 65)
+			if OncePCG().Intn(2) == 0 {
+				randomChar = byte(OncePCG().Intn(26) + 97)
 			}
-			root.Data = []Ent{
-				&LetterEnt{Data: []byte{randomChar}},
+			root.data = []Ent{
+				&LetterEnt{data: []byte{randomChar}},
 			}
 		}
 		return true
@@ -1164,37 +1155,37 @@ func appendEnd(e Ent, p string) bool {
 		var data []byte
 		switch t := e.(type) {
 		case *LetterEnt:
-			data = t.Data
+			data = t.data
 		case *NumEnt:
-			data = t.Data
+			data = t.data
 		case *WsEnt:
-			data = t.Data
+			data = t.data
 		case *MarkEnt:
-			data = t.Data
+			data = t.data
 		}
-		randomByte := byte(GetPCG().Intn(256))
-		newData := append(data, randomByte)
+		randomByte := byte(OncePCG().Intn(256))
+		newdata := append(data, randomByte)
 		switch t := e.(type) {
 		case *LetterEnt:
-			t.Data = newData
+			t.data = newdata
 		case *NumEnt:
-			t.Data = newData
+			t.data = newdata
 		case *WsEnt:
-			t.Data = newData
+			t.data = newdata
 		case *MarkEnt:
-			t.Data = newData
+			t.data = newdata
 		}
 		return true
 	case *RootEnt:
 		root := e.(*RootEnt)
-		if len(root.Data) == 0 {
+		if len(root.data) == 0 {
 
-			randomChar := byte(GetPCG().Intn(26) + 65)
-			if GetPCG().Intn(2) == 0 {
-				randomChar = byte(GetPCG().Intn(26) + 97)
+			randomChar := byte(OncePCG().Intn(26) + 65)
+			if OncePCG().Intn(2) == 0 {
+				randomChar = byte(OncePCG().Intn(26) + 97)
 			}
-			root.Data = []Ent{
-				&LetterEnt{Data: []byte{randomChar}},
+			root.data = []Ent{
+				&LetterEnt{data: []byte{randomChar}},
 			}
 		}
 		return true
@@ -1223,13 +1214,13 @@ func overwriteStart(e Ent, p string) bool {
 		var data []byte
 		switch t := e.(type) {
 		case *LetterEnt:
-			data = t.Data
+			data = t.data
 		case *NumEnt:
-			data = t.Data
+			data = t.data
 		case *WsEnt:
-			data = t.Data
+			data = t.data
 		case *MarkEnt:
-			data = t.Data
+			data = t.data
 		}
 		if data == nil || len(data) == 0 {
 			return false
@@ -1238,31 +1229,31 @@ func overwriteStart(e Ent, p string) bool {
 		if maxToOverwrite <= 0 {
 			maxToOverwrite = 1
 		}
-		overwriteCount := GetPCG().Intn(maxToOverwrite) + 1
+		overwriteCount := OncePCG().Intn(maxToOverwrite) + 1
 		for i := 0; i < overwriteCount && i < len(data); i++ {
-			data[i] = byte(GetPCG().Intn(256))
+			data[i] = byte(OncePCG().Intn(256))
 		}
 		switch t := e.(type) {
 		case *LetterEnt:
-			t.Data = data
+			t.data = data
 		case *NumEnt:
-			t.Data = data
+			t.data = data
 		case *WsEnt:
-			t.Data = data
+			t.data = data
 		case *MarkEnt:
-			t.Data = data
+			t.data = data
 		}
 		return true
 	case *RootEnt:
 		root := e.(*RootEnt)
-		if len(root.Data) == 0 {
+		if len(root.data) == 0 {
 
-			randomChar := byte(GetPCG().Intn(26) + 65)
-			if GetPCG().Intn(2) == 0 {
-				randomChar = byte(GetPCG().Intn(26) + 97)
+			randomChar := byte(OncePCG().Intn(26) + 65)
+			if OncePCG().Intn(2) == 0 {
+				randomChar = byte(OncePCG().Intn(26) + 97)
 			}
-			root.Data = []Ent{
-				&LetterEnt{Data: []byte{randomChar}},
+			root.data = []Ent{
+				&LetterEnt{data: []byte{randomChar}},
 			}
 		}
 		return true
@@ -1279,52 +1270,52 @@ func overwriteMiddle(e Ent, p string) bool {
 		var data []byte
 		switch t := e.(type) {
 		case *LetterEnt:
-			data = t.Data
+			data = t.data
 		case *NumEnt:
-			data = t.Data
+			data = t.data
 		case *WsEnt:
-			data = t.Data
+			data = t.data
 		case *MarkEnt:
-			data = t.Data
+			data = t.data
 		}
 		if data == nil || len(data) < 3 {
 			return false
 		}
 
-		start := GetPCG().Intn(len(data)/2) + 1
+		start := OncePCG().Intn(len(data)/2) + 1
 
 		maxOverwrite := len(data) - start
 		if maxOverwrite <= 0 {
 			return false
 		}
-		overwriteCount := GetPCG().Intn(maxOverwrite)
+		overwriteCount := OncePCG().Intn(maxOverwrite)
 		if overwriteCount == 0 {
 			overwriteCount = 1
 		}
 		for i := start; i < start+overwriteCount && i < len(data); i++ {
-			data[i] = byte(GetPCG().Intn(256))
+			data[i] = byte(OncePCG().Intn(256))
 		}
 		switch t := e.(type) {
 		case *LetterEnt:
-			t.Data = data
+			t.data = data
 		case *NumEnt:
-			t.Data = data
+			t.data = data
 		case *WsEnt:
-			t.Data = data
+			t.data = data
 		case *MarkEnt:
-			t.Data = data
+			t.data = data
 		}
 		return true
 	case *RootEnt:
 		root := e.(*RootEnt)
-		if len(root.Data) == 0 {
+		if len(root.data) == 0 {
 
-			randomChar := byte(GetPCG().Intn(26) + 65)
-			if GetPCG().Intn(2) == 0 {
-				randomChar = byte(GetPCG().Intn(26) + 97)
+			randomChar := byte(OncePCG().Intn(26) + 65)
+			if OncePCG().Intn(2) == 0 {
+				randomChar = byte(OncePCG().Intn(26) + 97)
 			}
-			root.Data = []Ent{
-				&LetterEnt{Data: []byte{randomChar}},
+			root.data = []Ent{
+				&LetterEnt{data: []byte{randomChar}},
 			}
 		}
 		return true
@@ -1341,13 +1332,13 @@ func copyStart(e Ent, p string) bool {
 		var data []byte
 		switch t := e.(type) {
 		case *LetterEnt:
-			data = t.Data
+			data = t.data
 		case *NumEnt:
-			data = t.Data
+			data = t.data
 		case *WsEnt:
-			data = t.Data
+			data = t.data
 		case *MarkEnt:
-			data = t.Data
+			data = t.data
 		}
 		if data == nil || len(data) < 1 {
 			return false
@@ -1355,30 +1346,30 @@ func copyStart(e Ent, p string) bool {
 		if len(data) < 1 {
 			return false
 		}
-		copyLength := GetPCG().Intn(len(data)) + 1
+		copyLength := OncePCG().Intn(len(data)) + 1
 		segment := data[:copyLength]
-		newData := append(segment, data...)
+		newdata := append(segment, data...)
 		switch t := e.(type) {
 		case *LetterEnt:
-			t.Data = newData
+			t.data = newdata
 		case *NumEnt:
-			t.Data = newData
+			t.data = newdata
 		case *WsEnt:
-			t.Data = newData
+			t.data = newdata
 		case *MarkEnt:
-			t.Data = newData
+			t.data = newdata
 		}
 		return true
 	case *RootEnt:
 		root := e.(*RootEnt)
-		if len(root.Data) == 0 {
+		if len(root.data) == 0 {
 
-			randomChar := byte(GetPCG().Intn(26) + 65)
-			if GetPCG().Intn(2) == 0 {
-				randomChar = byte(GetPCG().Intn(26) + 97)
+			randomChar := byte(OncePCG().Intn(26) + 65)
+			if OncePCG().Intn(2) == 0 {
+				randomChar = byte(OncePCG().Intn(26) + 97)
 			}
-			root.Data = []Ent{
-				&LetterEnt{Data: []byte{randomChar}},
+			root.data = []Ent{
+				&LetterEnt{data: []byte{randomChar}},
 			}
 		}
 		return true
@@ -1395,47 +1386,47 @@ func copyMiddle(e Ent, p string) bool {
 		var data []byte
 		switch t := e.(type) {
 		case *LetterEnt:
-			data = t.Data
+			data = t.data
 		case *NumEnt:
-			data = t.Data
+			data = t.data
 		case *WsEnt:
-			data = t.Data
+			data = t.data
 		case *MarkEnt:
-			data = t.Data
+			data = t.data
 		}
 		if data == nil || len(data) < 3 {
 			return false
 		}
 
-		start := GetPCG().Intn(len(data)/2) + 1
+		start := OncePCG().Intn(len(data)/2) + 1
 		maxCopy := len(data) - start
 		if maxCopy <= 0 {
 			return false
 		}
-		copyLength := GetPCG().Intn(maxCopy) + 1
+		copyLength := OncePCG().Intn(maxCopy) + 1
 		segment := data[start : start+copyLength]
-		newData := append(data[:start], append(segment, data[start:]...)...)
+		newdata := append(data[:start], append(segment, data[start:]...)...)
 		switch t := e.(type) {
 		case *LetterEnt:
-			t.Data = newData
+			t.data = newdata
 		case *NumEnt:
-			t.Data = newData
+			t.data = newdata
 		case *WsEnt:
-			t.Data = newData
+			t.data = newdata
 		case *MarkEnt:
-			t.Data = newData
+			t.data = newdata
 		}
 		return true
 	case *RootEnt:
 		root := e.(*RootEnt)
-		if len(root.Data) == 0 {
+		if len(root.data) == 0 {
 
-			randomChar := byte(GetPCG().Intn(26) + 65)
-			if GetPCG().Intn(2) == 0 {
-				randomChar = byte(GetPCG().Intn(26) + 97)
+			randomChar := byte(OncePCG().Intn(26) + 65)
+			if OncePCG().Intn(2) == 0 {
+				randomChar = byte(OncePCG().Intn(26) + 97)
 			}
-			root.Data = []Ent{
-				&LetterEnt{Data: []byte{randomChar}},
+			root.data = []Ent{
+				&LetterEnt{data: []byte{randomChar}},
 			}
 		}
 		return true
@@ -1452,13 +1443,13 @@ func copyEnd(e Ent, p string) bool {
 		var data []byte
 		switch t := e.(type) {
 		case *LetterEnt:
-			data = t.Data
+			data = t.data
 		case *NumEnt:
-			data = t.Data
+			data = t.data
 		case *WsEnt:
-			data = t.Data
+			data = t.data
 		case *MarkEnt:
-			data = t.Data
+			data = t.data
 		}
 		if data == nil || len(data) < 1 {
 			return false
@@ -1466,30 +1457,30 @@ func copyEnd(e Ent, p string) bool {
 		if len(data) == 0 {
 			return false
 		}
-		copyLength := GetPCG().Intn(len(data)) + 1
+		copyLength := OncePCG().Intn(len(data)) + 1
 		segment := data[len(data)-copyLength:]
-		newData := append(data, segment...)
+		newdata := append(data, segment...)
 		switch t := e.(type) {
 		case *LetterEnt:
-			t.Data = newData
+			t.data = newdata
 		case *NumEnt:
-			t.Data = newData
+			t.data = newdata
 		case *WsEnt:
-			t.Data = newData
+			t.data = newdata
 		case *MarkEnt:
-			t.Data = newData
+			t.data = newdata
 		}
 		return true
 	case *RootEnt:
 		root := e.(*RootEnt)
-		if len(root.Data) == 0 {
+		if len(root.data) == 0 {
 
-			randomChar := byte(GetPCG().Intn(26) + 65)
-			if GetPCG().Intn(2) == 0 {
-				randomChar = byte(GetPCG().Intn(26) + 97)
+			randomChar := byte(OncePCG().Intn(26) + 65)
+			if OncePCG().Intn(2) == 0 {
+				randomChar = byte(OncePCG().Intn(26) + 97)
 			}
-			root.Data = []Ent{
-				&LetterEnt{Data: []byte{randomChar}},
+			root.data = []Ent{
+				&LetterEnt{data: []byte{randomChar}},
 			}
 		}
 		return true
@@ -1506,31 +1497,31 @@ func changeRandomly(e Ent, p string) bool {
 		var data []byte
 		switch t := e.(type) {
 		case *LetterEnt:
-			data = t.Data
+			data = t.data
 		case *NumEnt:
-			data = t.Data
+			data = t.data
 		case *WsEnt:
-			data = t.Data
+			data = t.data
 		case *MarkEnt:
-			data = t.Data
+			data = t.data
 		}
 		if data == nil || len(data) == 0 {
 			return false
 		}
 
-		idx := GetPCG().Intn(len(data))
-		data[idx] = byte(GetPCG().Intn(256))
+		idx := OncePCG().Intn(len(data))
+		data[idx] = byte(OncePCG().Intn(256))
 		return true
 	case *RootEnt:
 		root := e.(*RootEnt)
-		if len(root.Data) == 0 {
+		if len(root.data) == 0 {
 
-			randomChar := byte(GetPCG().Intn(26) + 65)
-			if GetPCG().Intn(2) == 0 {
-				randomChar = byte(GetPCG().Intn(26) + 97)
+			randomChar := byte(OncePCG().Intn(26) + 65)
+			if OncePCG().Intn(2) == 0 {
+				randomChar = byte(OncePCG().Intn(26) + 97)
 			}
-			root.Data = []Ent{
-				&LetterEnt{Data: []byte{randomChar}},
+			root.data = []Ent{
+				&LetterEnt{data: []byte{randomChar}},
 			}
 		}
 		return true
@@ -1547,19 +1538,19 @@ func changeGradual(e Ent, p string) bool {
 		var data []byte
 		switch t := e.(type) {
 		case *LetterEnt:
-			data = t.Data
+			data = t.data
 		case *NumEnt:
-			data = t.Data
+			data = t.data
 		case *WsEnt:
-			data = t.Data
+			data = t.data
 		case *MarkEnt:
-			data = t.Data
+			data = t.data
 		}
 		if data == nil || len(data) == 0 {
 			return false
 		}
-		idx := GetPCG().Intn(len(data))
-		if GetPCG().Intn(2) == 0 && data[idx] > 0 {
+		idx := OncePCG().Intn(len(data))
+		if OncePCG().Intn(2) == 0 && data[idx] > 0 {
 			data[idx]--
 		} else {
 			data[idx]++
@@ -1567,9 +1558,9 @@ func changeGradual(e Ent, p string) bool {
 		return true
 	case *RootEnt:
 		root := e.(*RootEnt)
-		if len(root.Data) == 0 {
-			root.Data = []Ent{
-				&LetterEnt{Data: []byte{byte(GetPCG().Intn(256))}},
+		if len(root.data) == 0 {
+			root.data = []Ent{
+				&LetterEnt{data: []byte{byte(OncePCG().Intn(256))}},
 			}
 		}
 		return true
@@ -1586,20 +1577,20 @@ func changeGradual16(e Ent, p string) bool {
 		var data []byte
 		switch t := e.(type) {
 		case *LetterEnt:
-			data = t.Data
+			data = t.data
 		case *NumEnt:
-			data = t.Data
+			data = t.data
 		case *WsEnt:
-			data = t.Data
+			data = t.data
 		case *MarkEnt:
-			data = t.Data
+			data = t.data
 		}
 		if data == nil || len(data) < 2 {
 			return false
 		}
-		idx := GetPCG().Intn(len(data) - 1)
+		idx := OncePCG().Intn(len(data) - 1)
 		for i := 0; i < 2; i++ {
-			if GetPCG().Intn(2) == 0 && data[idx+i] > 0 {
+			if OncePCG().Intn(2) == 0 && data[idx+i] > 0 {
 				data[idx+i]--
 			} else {
 				data[idx+i]++
@@ -1609,9 +1600,9 @@ func changeGradual16(e Ent, p string) bool {
 	case *RootEnt:
 
 		root := e.(*RootEnt)
-		if len(root.Data) == 0 {
-			root.Data = []Ent{
-				&LetterEnt{Data: []byte{byte(GetPCG().Intn(256))}},
+		if len(root.data) == 0 {
+			root.data = []Ent{
+				&LetterEnt{data: []byte{byte(OncePCG().Intn(256))}},
 			}
 		}
 		return true
@@ -1628,20 +1619,20 @@ func changeGradual32(e Ent, p string) bool {
 		var data []byte
 		switch t := e.(type) {
 		case *LetterEnt:
-			data = t.Data
+			data = t.data
 		case *NumEnt:
-			data = t.Data
+			data = t.data
 		case *WsEnt:
-			data = t.Data
+			data = t.data
 		case *MarkEnt:
-			data = t.Data
+			data = t.data
 		}
 		if data == nil || len(data) < 4 {
 			return false
 		}
-		idx := GetPCG().Intn(len(data) - 3)
+		idx := OncePCG().Intn(len(data) - 3)
 		for i := 0; i < 4; i++ {
-			if GetPCG().Intn(2) == 0 && data[idx+i] > 0 {
+			if OncePCG().Intn(2) == 0 && data[idx+i] > 0 {
 				data[idx+i]--
 			} else {
 				data[idx+i]++
@@ -1661,20 +1652,20 @@ func changeGradual64(e Ent, p string) bool {
 		var data []byte
 		switch t := e.(type) {
 		case *LetterEnt:
-			data = t.Data
+			data = t.data
 		case *NumEnt:
-			data = t.Data
+			data = t.data
 		case *WsEnt:
-			data = t.Data
+			data = t.data
 		case *MarkEnt:
-			data = t.Data
+			data = t.data
 		}
 		if data == nil || len(data) < 8 {
 			return false
 		}
-		idx := GetPCG().Intn(len(data) - 7)
+		idx := OncePCG().Intn(len(data) - 7)
 		for i := 0; i < 8; i++ {
-			if GetPCG().Intn(2) == 0 && data[idx+i] > 0 {
+			if OncePCG().Intn(2) == 0 && data[idx+i] > 0 {
 				data[idx+i]--
 			} else {
 				data[idx+i]++
@@ -1695,19 +1686,19 @@ func changeInteresting(e Ent, p string) bool {
 		var data []byte
 		switch t := e.(type) {
 		case *LetterEnt:
-			data = t.Data
+			data = t.data
 		case *NumEnt:
-			data = t.Data
+			data = t.data
 		case *WsEnt:
-			data = t.Data
+			data = t.data
 		case *MarkEnt:
-			data = t.Data
+			data = t.data
 		}
 		if data == nil || len(data) == 0 {
 			return false
 		}
-		idx := GetPCG().Intn(len(data))
-		data[idx] = interestingValues[GetPCG().Intn(len(interestingValues))]
+		idx := OncePCG().Intn(len(data))
+		data[idx] = interestingValues[OncePCG().Intn(len(interestingValues))]
 		return true
 	default:
 		return false
@@ -1723,19 +1714,19 @@ func changeInteresting16(e Ent, p string) bool {
 		var data []byte
 		switch t := e.(type) {
 		case *LetterEnt:
-			data = t.Data
+			data = t.data
 		case *NumEnt:
-			data = t.Data
+			data = t.data
 		case *WsEnt:
-			data = t.Data
+			data = t.data
 		case *MarkEnt:
-			data = t.Data
+			data = t.data
 		}
 		if data == nil || len(data) < 2 {
 			return false
 		}
-		idx := GetPCG().Intn(len(data) - 1)
-		pair := interesting16[GetPCG().Intn(len(interesting16))]
+		idx := OncePCG().Intn(len(data) - 1)
+		pair := interesting16[OncePCG().Intn(len(interesting16))]
 		data[idx] = pair[0]
 		data[idx+1] = pair[1]
 		return true
@@ -1758,19 +1749,19 @@ func changeInteresting32(e Ent, p string) bool {
 		var data []byte
 		switch t := e.(type) {
 		case *LetterEnt:
-			data = t.Data
+			data = t.data
 		case *NumEnt:
-			data = t.Data
+			data = t.data
 		case *WsEnt:
-			data = t.Data
+			data = t.data
 		case *MarkEnt:
-			data = t.Data
+			data = t.data
 		}
 		if data == nil || len(data) < 4 {
 			return false
 		}
-		idx := GetPCG().Intn(len(data) - 3)
-		pattern := interesting32[GetPCG().Intn(len(interesting32))]
+		idx := OncePCG().Intn(len(data) - 3)
+		pattern := interesting32[OncePCG().Intn(len(interesting32))]
 		for i := 0; i < 4; i++ {
 			data[idx+i] = pattern[i]
 		}
@@ -1789,18 +1780,18 @@ func changePattern(e Ent, p string) bool {
 		var data []byte
 		switch t := e.(type) {
 		case *LetterEnt:
-			data = t.Data
+			data = t.data
 		case *NumEnt:
-			data = t.Data
+			data = t.data
 		case *WsEnt:
-			data = t.Data
+			data = t.data
 		case *MarkEnt:
-			data = t.Data
+			data = t.data
 		}
 		if data == nil || len(data) == 0 {
 			return false
 		}
-		idx := GetPCG().Intn(len(data))
+		idx := OncePCG().Intn(len(data))
 		data[idx] = pattern
 		return true
 	default:
@@ -1816,29 +1807,29 @@ func insertRandomly(e Ent, p string) bool {
 		var data []byte
 		switch t := e.(type) {
 		case *LetterEnt:
-			data = t.Data
+			data = t.data
 		case *NumEnt:
-			data = t.Data
+			data = t.data
 		case *WsEnt:
-			data = t.Data
+			data = t.data
 		case *MarkEnt:
-			data = t.Data
+			data = t.data
 		}
-		randomByte := byte(GetPCG().Intn(256))
+		randomByte := byte(OncePCG().Intn(256))
 		pos := 0
 		if len(data) > 0 {
-			pos = GetPCG().Intn(len(data))
+			pos = OncePCG().Intn(len(data))
 		}
-		newData := append(data[:pos], append([]byte{randomByte}, data[pos:]...)...)
+		newdata := append(data[:pos], append([]byte{randomByte}, data[pos:]...)...)
 		switch t := e.(type) {
 		case *LetterEnt:
-			t.Data = newData
+			t.data = newdata
 		case *NumEnt:
-			t.Data = newData
+			t.data = newdata
 		case *WsEnt:
-			t.Data = newData
+			t.data = newdata
 		case *MarkEnt:
-			t.Data = newData
+			t.data = newdata
 		}
 		return true
 	default:
@@ -1861,29 +1852,29 @@ func insertInteresting(e Ent, p string) bool {
 		var data []byte
 		switch t := e.(type) {
 		case *LetterEnt:
-			data = t.Data
+			data = t.data
 		case *NumEnt:
-			data = t.Data
+			data = t.data
 		case *WsEnt:
-			data = t.Data
+			data = t.data
 		case *MarkEnt:
-			data = t.Data
+			data = t.data
 		}
-		value := interestingValues[GetPCG().Intn(len(interestingValues))]
+		value := interestingValues[OncePCG().Intn(len(interestingValues))]
 		pos := 0
 		if len(data) > 0 {
-			pos = GetPCG().Intn(len(data))
+			pos = OncePCG().Intn(len(data))
 		}
-		newData := append(data[:pos], append([]byte{value}, data[pos:]...)...)
+		newdata := append(data[:pos], append([]byte{value}, data[pos:]...)...)
 		switch t := e.(type) {
 		case *LetterEnt:
-			t.Data = newData
+			t.data = newdata
 		case *NumEnt:
-			t.Data = newData
+			t.data = newdata
 		case *WsEnt:
-			t.Data = newData
+			t.data = newdata
 		case *MarkEnt:
-			t.Data = newData
+			t.data = newdata
 		}
 		return true
 	default:
@@ -1905,19 +1896,19 @@ func swap(e Ent, p string) bool {
 		var data []byte
 		switch t := e.(type) {
 		case *LetterEnt:
-			data = t.Data
+			data = t.data
 		case *NumEnt:
-			data = t.Data
+			data = t.data
 		case *WsEnt:
-			data = t.Data
+			data = t.data
 		case *MarkEnt:
-			data = t.Data
+			data = t.data
 		}
 		if data == nil || len(data) < 2 {
 			return false
 		}
-		idx1 := GetPCG().Intn(len(data))
-		idx2 := GetPCG().Intn(len(data))
+		idx1 := OncePCG().Intn(len(data))
+		idx2 := OncePCG().Intn(len(data))
 		data[idx1], data[idx2] = data[idx2], data[idx1]
 		return true
 	default:
@@ -2712,7 +2703,7 @@ func randomChange(ens *EntForNotSB) bool {
 	if ens.IsBool {
 		return mutateBool(ens)
 	}
-	r := GetPCG().Intn(10001)
+	r := OncePCG().Intn(10001)
 	switch ens.Data.(type) {
 	case int:
 		ens.Data = int(r)
@@ -2747,7 +2738,7 @@ func randomChange(ens *EntForNotSB) bool {
 // Various helper functions.
 // randomXXXFrom gradually mutates XXX and return XXX
 func randomByteFrom(seedByte byte) byte {
-	p := GetPCG().Float64() // 0.0 <= p < 1.0
+	p := OncePCG().Float64() // 0.0 <= p < 1.0
 
 	var b uint8
 
@@ -2844,7 +2835,7 @@ func determineCase(seedRune rune) int {
 
 // randomXXXFrom gradually mutates XXX and return XXX
 func randomIntFrom(i interface{}) interface{} {
-	p := GetPCG().Float64()
+	p := OncePCG().Float64()
 
 	switch v := i.(type) {
 	case int:
@@ -2882,7 +2873,7 @@ func randomIntFrom(i interface{}) interface{} {
 			}
 			i = int(RandRange(min, max))
 		default:
-			i = int(GetPCG().Int())
+			i = int(OncePCG().Int())
 		}
 		return i
 
@@ -2964,7 +2955,7 @@ func randomIntFrom(i interface{}) interface{} {
 			}
 			i16 = int32(RandRange(min, max))
 		default:
-			i16 = GetPCG().Int32
+			i16 = OncePCG().Int32
 		}
 		return i16
 
@@ -3003,7 +2994,7 @@ func randomIntFrom(i interface{}) interface{} {
 			}
 			i64 = RandRange(min, max)
 		default:
-			i64 = GetPCG().Int64()
+			i64 = OncePCG().Int64()
 		}
 		return i64
 
@@ -3014,7 +3005,7 @@ func randomIntFrom(i interface{}) interface{} {
 
 // randomXXXFrom gradually mutates XXX and return XXX
 func randomUintFrom(u interface{}) interface{} {
-	p := GetPCG().Float64()
+	p := OncePCG().Float64()
 
 	switch v := u.(type) {
 	case uint:
@@ -3032,7 +3023,7 @@ func randomUintFrom(u interface{}) interface{} {
 			max := v * 8
 			u = uint(UintRandRange(uint64(min), uint64(max)))
 		default:
-			u = uint(GetPCG().Uint64())
+			u = uint(OncePCG().Uint64())
 		}
 		return u
 

@@ -286,7 +286,7 @@ func monitor(run Runner, content []interface{}) (coverage fuzzing.Coverage, err 
 		if r := recover(); r != nil {
 
 			// TODO: part 1
-			coverage = fuzzing.GetCoverageOfrunner(content)
+			coverage = fuzzing.CoverageOfrunner(content)
 			isPanic = true
 			if err, ok := r.(error); ok {
 				panicMsg = err.Error()
@@ -315,7 +315,7 @@ func monitor(run Runner, content []interface{}) (coverage fuzzing.Coverage, err 
 	// TODO: part 2
 	// Modifying this function to get real coverage
 	// It's just pseudo-coverage of some function
-	coverage = fuzzing.GetCoverageOfrunner(content)
+	coverage = fuzzing.CoverageOfrunner(content)
 
 	return coverage, err, isPanic, panicMsg
 }
@@ -380,10 +380,10 @@ func (f *F) handleFail() {
 	fmt.Fprintln(os.Stderr, "\n--- FAIL:")
 
 	f.logger.ReportLastFailingInput()
-	lastCrashCase := f.logger.GetLastCrashCase()
+	lastCrashCase := f.logger.LastCrashCase()
 	f.minimizeAndLogInput(lastCrashCase.RawContent)
 	f.logger.ReportLastCrashCase()
-	minimaizedCase := f.logger.GetLastCrashCase()
+	minimaizedCase := f.logger.LastCrashCase()
 	hn := minimaizedCase.HashNumber
 	coverage := f.hasher.HashNumber2Coverage(hn)
 	if f.verbose {
