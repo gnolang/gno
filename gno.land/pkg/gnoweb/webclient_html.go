@@ -288,7 +288,6 @@ func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) e
 						lines[i] = prefix + replacement + rest[end+len(`&#34;</span>`):]
 					}
 					s.logger.Debug("Inserted link for Gno.land import", "newLine", lines[i])
-
 				}
 			}
 		}
