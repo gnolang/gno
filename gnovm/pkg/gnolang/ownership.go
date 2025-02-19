@@ -133,11 +133,6 @@ type Object interface {
 	SetIsNewEscaped(bool)
 	GetIsNewDeleted() bool
 	SetIsNewDeleted(bool)
-	GetIsTransient() bool
-
-	// Saves to realm along the way if owned, and also (dirty
-	// or new).
-	// ValueImage(rlm *Realm, owned bool) *ValueImage
 }
 
 var (
@@ -378,10 +373,6 @@ func (oi *ObjectInfo) GetIsNewDeleted() bool {
 
 func (oi *ObjectInfo) SetIsNewDeleted(x bool) {
 	oi.isNewDeleted = x
-}
-
-func (oi *ObjectInfo) GetIsTransient() bool {
-	return false
 }
 
 // get first accessible object, maybe containing(parent) object, maybe itself.

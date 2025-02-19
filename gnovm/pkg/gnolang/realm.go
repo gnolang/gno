@@ -52,6 +52,8 @@ a realm to keep it alive.
 //----------------------------------------
 // PkgID & Realm
 
+// PkgID is an identifier for a package, stored using a fixed length in bytes.
+// It is a [Hashlet] (sha256 hash, cut at 20 bytes) of the package path.
 type PkgID struct {
 	purePkg bool
 	Hashlet
@@ -86,6 +88,7 @@ var (
 	pkgIDFromPkgPathCache = make(map[string]*PkgID, 100)
 )
 
+// PkgIDFromPkgPath creates a new [PkgID] from the given package path.
 func PkgIDFromPkgPath(path string) PkgID {
 	pkgIDFromPkgPathCacheMu.Lock()
 	defer pkgIDFromPkgPathCacheMu.Unlock()
@@ -100,14 +103,13 @@ func PkgIDFromPkgPath(path string) PkgID {
 	return *pkgID
 }
 
-// Returns the ObjectID of the PackageValue associated with path.
+// ObjectIDFromPkgPath the [ObjectID] of the [PackageValue] associated with path.
 func ObjectIDFromPkgPath(path string) ObjectID {
 	pkgID := PkgIDFromPkgPath(path)
-	pkgID.purePkg = !IsRealmPath(path)
 	return ObjectIDFromPkgID(pkgID)
 }
 
-// Returns the ObjectID of the PackageValue associated with pkgID.
+// ObjectIDFromPkgID the [ObjectID] of the [PackageValue] associated with pkgID.
 func ObjectIDFromPkgID(pkgID PkgID) ObjectID {
 	return ObjectID{
 		PkgID:   pkgID,
@@ -115,17 +117,29 @@ func ObjectIDFromPkgID(pkgID PkgID) ObjectID {
 	}
 }
 
-// NOTE: A nil realm is special and has limited functionality; enough to
-// support methods that don't require persistence. This is the default realm
-// when a machine starts with a non-realm package.
+// Realm is a data structure to keep track of modifications done to a realm
+// package's state. A Realm state is composed of various objects attached to a
+// realm. Any of the objects of the realm may be created, escaped or deleted
+// during a transaction, these actions are recorded through [Realm.DidUpdate].
+// When a realm boundary is exited, then [Realm.FinalizeRealmTransaction] is
+// called, which updates the store with the up-to-date objects.
+//
+// An object is considered "escaped" when it has a RefCount > 1.
 type Realm struct {
-	ID   PkgID
+	// ID is a constant-sized hash for the realm's package path.
+	ID PkgID
+	// The realm package path.
 	Path string
+	// The "Time" of a realm; a variable increased for each new object, in order
+	// to assign it a unique [ObjectID].
 	Time uint64
 
-	newCreated []Object
-	newEscaped []Object
-	newDeleted []Object
+	// Temporary creates/escapes/deletes that happen in [DidUpdate].
+	newCreated []Object // may become created unless ancestor is deleted
+	newEscaped []Object // may become escaped unless new-real and refcount 0 or 1.
+	newDeleted []Object // may become deleted unless attached to new-real owner
+	// Updated objects are marked directly in updated, there is no newUpdated.
+	// During finalization, all ancestors of updated are finalized too.
 
 	created []Object // about to become real.
 	updated []Object // real objects that were modified.
@@ -133,7 +147,7 @@ type Realm struct {
 	escaped []Object // real objects with refcount > 1.
 }
 
-// Creates a blank new realm with counter 0.
+// NewRealm a blank new [Realm] with counter 0.
 func NewRealm(path string) *Realm {
 	id := PkgIDFromPkgPath(path)
 	return &Realm{
@@ -156,6 +170,12 @@ func (rlm *Realm) String() string {
 //----------------------------------------
 // ownership hooks
 
+// DidUpdate attaches co (Created Object) to po (Parent Object), substituting xo
+// (deleted (X) Object).
+//
+// po will be marked as dirty. If co is not nil, its ref-count will be increased.
+// If xo is not nil, its ref-count will be decreased, and if 0 it will be
+// considered as deleted.
 func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 	if debug {
 		debug.Printf(
@@ -182,9 +202,6 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 	if debug {
 		if co != nil && co.GetIsDeleted() {
 			panic("cannot attach a deleted object")
-		}
-		if po != nil && po.GetIsTransient() {
-			panic("cannot attach to a transient object")
 		}
 		if po != nil && po.GetIsDeleted() {
 			panic("cannot attach to a deleted object")
@@ -215,9 +232,8 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 			if co.GetIsReal() {
 				rlm.MarkDirty(co)
 			}
-			if co.GetIsEscaped() {
-				//	already escaped
-			} else {
+			// If it's not escaped, mark as newly escaped item.
+			if !co.GetIsEscaped() {
 				checkCrossRealm(rlm, store, co, nil)
 				rlm.MarkNewEscaped(co)
 			}
@@ -351,6 +367,9 @@ func checkCrossRealmChildren(rlm *Realm, store Store, oo Object, seenObjs []Obje
 //----------------------------------------
 // mark*
 
+// MarkNewReal marks the given [Object] as a new real object; that is, that
+// it should be considered a newly created object to save during realm
+// finalization.
 func (rlm *Realm) MarkNewReal(oo Object) {
 	if debug {
 		if pv, ok := oo.(*PackageValue); ok {
@@ -382,7 +401,8 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 	rlm.newCreated = append(rlm.newCreated, oo)
 }
 
-// mark dirty == updated
+// MarkDirty sets the given [Object] as "dirty" (updated) at the given rlm.Time,
+// and marks it to be updated during the next realm finalization.
 func (rlm *Realm) MarkDirty(oo Object) {
 	if debug {
 		if !oo.GetIsReal() && !oo.GetIsNewReal() {
@@ -403,6 +423,8 @@ func (rlm *Realm) MarkDirty(oo Object) {
 	rlm.updated = append(rlm.updated, oo)
 }
 
+// MarkNewEscaped marks the given [Object] as to be deleted during the next
+// realm finalization.
 func (rlm *Realm) MarkNewDeleted(oo Object) {
 	if debug {
 		if !oo.GetIsNewReal() && !oo.GetIsReal() {
@@ -423,6 +445,8 @@ func (rlm *Realm) MarkNewDeleted(oo Object) {
 	rlm.newDeleted = append(rlm.newDeleted, oo)
 }
 
+// MarkNewEscaped marks the given [Object] to be escaped during the next realm
+// finalization.
 func (rlm *Realm) MarkNewEscaped(oo Object) {
 	if debug {
 		if !oo.GetIsNewReal() && !oo.GetIsReal() {
@@ -449,40 +473,40 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 //----------------------------------------
 // transactions
 
-// TODO: check cross realm, that might be objects not attached
-// to a realm gets attached here, which should panic.
-// OpReturn calls this when exiting a realm transaction.
+// FinalizeRealmTransaction moves the changes recorded in the given [Realm] and
+// writes them into the underlying [Store]. OpReturn calls this when exiting a
+// realm transaction; additionally, this is called by the machine itself in
+// [Machine.RunMemPackage].
 func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
+	// TODO: check cross realm, that might be objects not attached
+	// to a realm gets attached here, which should panic.
+
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
 	}
 	if readonly {
 		if true ||
-				len(rlm.newCreated) > 0 ||
-				len(rlm.newEscaped) > 0 ||
-				len(rlm.newDeleted) > 0 ||
-				len(rlm.created) > 0 ||
-				len(rlm.updated) > 0 ||
-				len(rlm.deleted) > 0 ||
-				len(rlm.escaped) > 0 {
+			len(rlm.newCreated) > 0 ||
+			len(rlm.newEscaped) > 0 ||
+			len(rlm.newDeleted) > 0 ||
+			len(rlm.created) > 0 ||
+			len(rlm.updated) > 0 ||
+			len(rlm.deleted) > 0 ||
+			len(rlm.escaped) > 0 {
 			panic("realm updates in readonly transaction")
 		}
 		return
 	}
 	if debug {
-		// * newCreated - may become created unless ancestor is deleted
-		// * newDeleted - may become deleted unless attached to new-real owner
-		// * newEscaped - may become escaped unless new-real and refcount 0 or 1.
-		// * updated - includes all real updated objects, and will be appended with ancestors
 		ensureUniq(rlm.newCreated)
 		ensureUniq(rlm.newEscaped)
 		ensureUniq(rlm.newDeleted)
 		ensureUniq(rlm.updated)
 		if false ||
-				rlm.created != nil ||
-				rlm.deleted != nil ||
-				rlm.escaped != nil {
+			rlm.created != nil ||
+			rlm.deleted != nil ||
+			rlm.escaped != nil {
 			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
@@ -705,7 +729,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 	// except for new-reals that get demoted
 	// because ref-count isn't >= 2.
 	for _, eo := range rlm.newEscaped {
-		//fmt.Println("eo: ", eo)
+		// fmt.Println("eo: ", eo)
 		if debug {
 			if !eo.GetIsNewEscaped() {
 				panic("new escaped mark not marked as new escaped")
@@ -728,11 +752,11 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 
 			// add to escaped, and mark dirty previous owner.
 			po := getOwner(store, eo)
-			//fmt.Println("po: ", po)
+			// fmt.Println("po: ", po)
 			if po == nil {
 				// e.g. !eo.GetIsNewReal(),
 				// should have no parent.
-				//eo.SetOwner(nil)
+				// eo.SetOwner(nil)
 				continue
 			} else {
 				if po.GetRefCount() == 0 {
@@ -747,7 +771,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 					panic("new escaped object has no object ID")
 				}
 				// escaped has no owner.
-				//fmt.Println("set owner to be nil")
+				// fmt.Println("set owner to be nil")
 				eo.SetOwner(nil)
 			}
 		}
@@ -864,9 +888,9 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		}
 		// deleted objects should not have gotten here.
 		if false ||
-				oo.GetRefCount() <= 0 ||
-				oo.GetIsNewDeleted() ||
-				oo.GetIsDeleted() {
+			oo.GetRefCount() <= 0 ||
+			oo.GetIsNewDeleted() ||
+			oo.GetIsDeleted() {
 			panic("cannot save deleted objects")
 		}
 	}
