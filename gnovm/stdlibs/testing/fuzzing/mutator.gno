@@ -531,7 +531,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 func MutateRoot2String(r *RootEnt, strength int) (string, int, map[MutationCode]int) {
 	// Update score cache for selecting mutation target
 	r.updateScoreCache()
-	cachedScoreIds, cachedScoreCum := r.getScoreCache()
+	cachedScoreIds, cachedScoreCum := r.ScoreCache()
 
 	// Select an entity ID for mutation based on weighted probability
 	selectedID := selectID(cachedScoreIds, cachedScoreCum)
@@ -564,7 +564,7 @@ func MutateEnt2String(e Ent, strength int, pattern string, strategy2count map[Mu
 
 	cnt := 0
 	e.updateStrategyCache()
-	cachedKeys, cachedCums := e.getStrategyCache()
+	cachedKeys, cachedCums := e.StrategyCache()
 	// Local copies for mutation
 	localKeys := make([]MutationCode, len(cachedKeys))
 	copy(localKeys, cachedKeys)
@@ -631,7 +631,7 @@ func MutateNotSbEnt2interface(ens *EntForNotSB, strength int) (interface{}, map[
 	strategyCounts := make(map[MutationCodeForNotSB]int)
 	cnt := 0
 	ens.updateStrategyCache()
-	cachedKeys, cachedCums := ens.getStrategyCache()
+	cachedKeys, cachedCums := ens.StrategyCache()
 
 	localKeys := make([]MutationCodeForNotSB, len(cachedKeys))
 	copy(localKeys, cachedKeys)
@@ -648,7 +648,7 @@ func MutateNotSbEnt2interface(ens *EntForNotSB, strength int) (interface{}, map[
 			strategyCounts[strategy]++
 			cnt++
 		} else {
-			delta := ens.Strategy2count[strategy]
+			delta := ens.strategy2count[strategy]
 			localKeys = removeStrategyAtForNotSB(localKeys, idx)
 			localCums = updateCumulativeAfterRemoval(localCums, idx, delta)
 			continue
@@ -657,7 +657,7 @@ func MutateNotSbEnt2interface(ens *EntForNotSB, strength int) (interface{}, map[
 			break
 		}
 	}
-	result := clone.Data
+	result := clone.data
 	return result, strategyCounts
 }
 
@@ -921,7 +921,7 @@ var notSbEntMutators = map[MutationCodeForNotSB]MutateFuncForNotSB{
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-// deleteStart removes a portion of the beginning of the entity's Data.
+// deleteStart removes a portion of the beginning of the entity's data.
 func deleteStart(e Ent, p string) bool {
 	switch e.(type) {
 	case *LetterEnt, *NumEnt, *WsEnt, *MarkEnt:
@@ -1946,44 +1946,44 @@ func switchKindHard(e Ent, p string) bool {
 
 // TODO: Fine-tuning is, of course, needed in the future.
 func mutateBool(ens *EntForNotSB) bool {
-	b, ok := ens.Data.(bool)
+	b, ok := ens.data.(bool)
 	if !ok {
 		return false
 	}
-	ens.Data = !b
+	ens.data = !b
 	return true
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 func smallPlus(ens *EntForNotSB) bool {
-	if ens.IsBool {
+	if ens.isBool {
 		return mutateBool(ens)
 	}
-	switch v := ens.Data.(type) {
+	switch v := ens.data.(type) {
 	case int:
-		ens.Data = v + int(1)
+		ens.data = v + int(1)
 	case int8:
-		ens.Data = v + int8(1)
+		ens.data = v + int8(1)
 	case int16:
-		ens.Data = v + int16(1)
+		ens.data = v + int16(1)
 	case int32:
-		ens.Data = v + int32(1)
+		ens.data = v + int32(1)
 	case int64:
-		ens.Data = v + int64(1)
+		ens.data = v + int64(1)
 	case uint:
-		ens.Data = v + uint(1)
+		ens.data = v + uint(1)
 	case uint8:
-		ens.Data = v + uint8(1)
+		ens.data = v + uint8(1)
 	case uint16:
-		ens.Data = v + uint16(1)
+		ens.data = v + uint16(1)
 	case uint32:
-		ens.Data = v + uint32(1)
+		ens.data = v + uint32(1)
 	case uint64:
-		ens.Data = v + uint64(1)
+		ens.data = v + uint64(1)
 	case float32:
-		ens.Data = v + float32(1.0)
+		ens.data = v + float32(1.0)
 	case float64:
-		ens.Data = v + float64(1.0)
+		ens.data = v + float64(1.0)
 	default:
 		return false
 	}
@@ -1992,54 +1992,54 @@ func smallPlus(ens *EntForNotSB) bool {
 
 // TODO: Fine-tuning is, of course, needed in the future.
 func smallMinus(ens *EntForNotSB) bool {
-	if ens.IsBool {
+	if ens.isBool {
 		return mutateBool(ens)
 	}
-	switch v := ens.Data.(type) {
+	switch v := ens.data.(type) {
 	case int:
-		ens.Data = v - int(1)
+		ens.data = v - int(1)
 	case int8:
-		ens.Data = v - int8(1)
+		ens.data = v - int8(1)
 	case int16:
-		ens.Data = v - int16(1)
+		ens.data = v - int16(1)
 	case int32:
-		ens.Data = v - int32(1)
+		ens.data = v - int32(1)
 	case int64:
-		ens.Data = v - int64(1)
+		ens.data = v - int64(1)
 	case uint:
 		if v == 0 {
-			ens.Data = uint(0)
+			ens.data = uint(0)
 		} else {
-			ens.Data = v - uint(1)
+			ens.data = v - uint(1)
 		}
 	case uint8:
 		if v == 0 {
-			ens.Data = uint8(0)
+			ens.data = uint8(0)
 		} else {
-			ens.Data = v - uint8(1)
+			ens.data = v - uint8(1)
 		}
 	case uint16:
 		if v == 0 {
-			ens.Data = uint16(0)
+			ens.data = uint16(0)
 		} else {
-			ens.Data = v - uint16(1)
+			ens.data = v - uint16(1)
 		}
 	case uint32:
 		if v == 0 {
-			ens.Data = uint32(0)
+			ens.data = uint32(0)
 		} else {
-			ens.Data = v - uint32(1)
+			ens.data = v - uint32(1)
 		}
 	case uint64:
 		if v == 0 {
-			ens.Data = uint64(0)
+			ens.data = uint64(0)
 		} else {
-			ens.Data = v - uint64(1)
+			ens.data = v - uint64(1)
 		}
 	case float32:
-		ens.Data = v - float32(1.0)
+		ens.data = v - float32(1.0)
 	case float64:
-		ens.Data = v - float64(1.0)
+		ens.data = v - float64(1.0)
 	default:
 		return false
 	}
@@ -2048,70 +2048,70 @@ func smallMinus(ens *EntForNotSB) bool {
 
 // TODO: Fine-tuning is, of course, needed in the future.
 func smallDiv(ens *EntForNotSB) bool {
-	if ens.IsBool {
+	if ens.isBool {
 		return mutateBool(ens)
 	}
-	switch v := ens.Data.(type) {
+	switch v := ens.data.(type) {
 	case int:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / int(2)
+		ens.data = v / int(2)
 	case int8:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / int8(2)
+		ens.data = v / int8(2)
 	case int16:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / int16(2)
+		ens.data = v / int16(2)
 	case int32:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / int32(2)
+		ens.data = v / int32(2)
 	case int64:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / int64(2)
+		ens.data = v / int64(2)
 	case uint:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / uint(2)
+		ens.data = v / uint(2)
 	case uint8:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / uint8(2)
+		ens.data = v / uint8(2)
 	case uint16:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / uint16(2)
+		ens.data = v / uint16(2)
 	case uint32:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / uint32(2)
+		ens.data = v / uint32(2)
 	case uint64:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / uint64(2)
+		ens.data = v / uint64(2)
 	case float32:
 		if v == 0.0 {
 			return false
 		}
-		ens.Data = v / float32(2.0)
+		ens.data = v / float32(2.0)
 	case float64:
 		if v == 0.0 {
 			return false
 		}
-		ens.Data = v / float64(2.0)
+		ens.data = v / float64(2.0)
 	default:
 		return false
 	}
@@ -2120,34 +2120,34 @@ func smallDiv(ens *EntForNotSB) bool {
 
 // TODO: Fine-tuning is, of course, needed in the future.
 func smallMul(ens *EntForNotSB) bool {
-	if ens.IsBool {
+	if ens.isBool {
 		return mutateBool(ens)
 	}
-	switch v := ens.Data.(type) {
+	switch v := ens.data.(type) {
 	case int:
-		ens.Data = v * int(2)
+		ens.data = v * int(2)
 	case int8:
-		ens.Data = v * int8(2)
+		ens.data = v * int8(2)
 	case int16:
-		ens.Data = v * int16(2)
+		ens.data = v * int16(2)
 	case int32:
-		ens.Data = v * int32(2)
+		ens.data = v * int32(2)
 	case int64:
-		ens.Data = v * int64(2)
+		ens.data = v * int64(2)
 	case uint:
-		ens.Data = v * uint(2)
+		ens.data = v * uint(2)
 	case uint8:
-		ens.Data = v * uint8(2)
+		ens.data = v * uint8(2)
 	case uint16:
-		ens.Data = v * uint16(2)
+		ens.data = v * uint16(2)
 	case uint32:
-		ens.Data = v * uint32(2)
+		ens.data = v * uint32(2)
 	case uint64:
-		ens.Data = v * uint64(2)
+		ens.data = v * uint64(2)
 	case float32:
-		ens.Data = v * float32(2.0)
+		ens.data = v * float32(2.0)
 	case float64:
-		ens.Data = v * float64(2.0)
+		ens.data = v * float64(2.0)
 	default:
 		return false
 	}
@@ -2156,34 +2156,34 @@ func smallMul(ens *EntForNotSB) bool {
 
 // TODO: Fine-tuning is, of course, needed in the future.
 func middlePlus(ens *EntForNotSB) bool {
-	if ens.IsBool {
+	if ens.isBool {
 		return mutateBool(ens)
 	}
-	switch v := ens.Data.(type) {
+	switch v := ens.data.(type) {
 	case int:
-		ens.Data = v + int(10)
+		ens.data = v + int(10)
 	case int8:
-		ens.Data = v + int8(10)
+		ens.data = v + int8(10)
 	case int16:
-		ens.Data = v + int16(10)
+		ens.data = v + int16(10)
 	case int32:
-		ens.Data = v + int32(10)
+		ens.data = v + int32(10)
 	case int64:
-		ens.Data = v + int64(10)
+		ens.data = v + int64(10)
 	case uint:
-		ens.Data = v + uint(10)
+		ens.data = v + uint(10)
 	case uint8:
-		ens.Data = v + uint8(10)
+		ens.data = v + uint8(10)
 	case uint16:
-		ens.Data = v + uint16(10)
+		ens.data = v + uint16(10)
 	case uint32:
-		ens.Data = v + uint32(10)
+		ens.data = v + uint32(10)
 	case uint64:
-		ens.Data = v + uint64(10)
+		ens.data = v + uint64(10)
 	case float32:
-		ens.Data = v + float32(10.0)
+		ens.data = v + float32(10.0)
 	case float64:
-		ens.Data = v + float64(10.0)
+		ens.data = v + float64(10.0)
 	default:
 		return false
 	}
@@ -2192,54 +2192,54 @@ func middlePlus(ens *EntForNotSB) bool {
 
 // TODO: Fine-tuning is, of course, needed in the future.
 func middleMinus(ens *EntForNotSB) bool {
-	if ens.IsBool {
+	if ens.isBool {
 		return mutateBool(ens)
 	}
-	switch v := ens.Data.(type) {
+	switch v := ens.data.(type) {
 	case int:
-		ens.Data = v - int(10)
+		ens.data = v - int(10)
 	case int8:
-		ens.Data = v - int8(10)
+		ens.data = v - int8(10)
 	case int16:
-		ens.Data = v - int16(10)
+		ens.data = v - int16(10)
 	case int32:
-		ens.Data = v - int32(10)
+		ens.data = v - int32(10)
 	case int64:
-		ens.Data = v - int64(10)
+		ens.data = v - int64(10)
 	case uint:
 		if v < uint(10) {
-			ens.Data = uint(0)
+			ens.data = uint(0)
 		} else {
-			ens.Data = v - uint(10)
+			ens.data = v - uint(10)
 		}
 	case uint8:
 		if v < uint8(10) {
-			ens.Data = uint8(0)
+			ens.data = uint8(0)
 		} else {
-			ens.Data = v - uint8(10)
+			ens.data = v - uint8(10)
 		}
 	case uint16:
 		if v < uint16(10) {
-			ens.Data = uint16(0)
+			ens.data = uint16(0)
 		} else {
-			ens.Data = v - uint16(10)
+			ens.data = v - uint16(10)
 		}
 	case uint32:
 		if v < uint32(10) {
-			ens.Data = uint32(0)
+			ens.data = uint32(0)
 		} else {
-			ens.Data = v - uint32(10)
+			ens.data = v - uint32(10)
 		}
 	case uint64:
 		if v < uint64(10) {
-			ens.Data = uint64(0)
+			ens.data = uint64(0)
 		} else {
-			ens.Data = v - uint64(10)
+			ens.data = v - uint64(10)
 		}
 	case float32:
-		ens.Data = v - float32(10.0)
+		ens.data = v - float32(10.0)
 	case float64:
-		ens.Data = v - float64(10.0)
+		ens.data = v - float64(10.0)
 	default:
 		return false
 	}
@@ -2248,70 +2248,70 @@ func middleMinus(ens *EntForNotSB) bool {
 
 // TODO: Fine-tuning is, of course, needed in the future.
 func middleDiv(ens *EntForNotSB) bool {
-	if ens.IsBool {
+	if ens.isBool {
 		return mutateBool(ens)
 	}
-	switch v := ens.Data.(type) {
+	switch v := ens.data.(type) {
 	case int:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / int(2)
+		ens.data = v / int(2)
 	case int8:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / int8(2)
+		ens.data = v / int8(2)
 	case int16:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / int16(2)
+		ens.data = v / int16(2)
 	case int32:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / int32(2)
+		ens.data = v / int32(2)
 	case int64:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / int64(2)
+		ens.data = v / int64(2)
 	case uint:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / uint(2)
+		ens.data = v / uint(2)
 	case uint8:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / uint8(2)
+		ens.data = v / uint8(2)
 	case uint16:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / uint16(2)
+		ens.data = v / uint16(2)
 	case uint32:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / uint32(2)
+		ens.data = v / uint32(2)
 	case uint64:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / uint64(2)
+		ens.data = v / uint64(2)
 	case float32:
 		if v == 0.0 {
 			return false
 		}
-		ens.Data = v / float32(2.0)
+		ens.data = v / float32(2.0)
 	case float64:
 		if v == 0.0 {
 			return false
 		}
-		ens.Data = v / float64(2.0)
+		ens.data = v / float64(2.0)
 	default:
 		return false
 	}
@@ -2320,34 +2320,34 @@ func middleDiv(ens *EntForNotSB) bool {
 
 // TODO: Fine-tuning is, of course, needed in the future.
 func middleMul(ens *EntForNotSB) bool {
-	if ens.IsBool {
+	if ens.isBool {
 		return mutateBool(ens)
 	}
-	switch v := ens.Data.(type) {
+	switch v := ens.data.(type) {
 	case int:
-		ens.Data = v * int(2)
+		ens.data = v * int(2)
 	case int8:
-		ens.Data = v * int8(2)
+		ens.data = v * int8(2)
 	case int16:
-		ens.Data = v * int16(2)
+		ens.data = v * int16(2)
 	case int32:
-		ens.Data = v * int32(2)
+		ens.data = v * int32(2)
 	case int64:
-		ens.Data = v * int64(2)
+		ens.data = v * int64(2)
 	case uint:
-		ens.Data = v * uint(2)
+		ens.data = v * uint(2)
 	case uint8:
-		ens.Data = v * uint8(2)
+		ens.data = v * uint8(2)
 	case uint16:
-		ens.Data = v * uint16(2)
+		ens.data = v * uint16(2)
 	case uint32:
-		ens.Data = v * uint32(2)
+		ens.data = v * uint32(2)
 	case uint64:
-		ens.Data = v * uint64(2)
+		ens.data = v * uint64(2)
 	case float32:
-		ens.Data = v * float32(2.0)
+		ens.data = v * float32(2.0)
 	case float64:
-		ens.Data = v * float64(2.0)
+		ens.data = v * float64(2.0)
 	default:
 		return false
 	}
@@ -2356,34 +2356,34 @@ func middleMul(ens *EntForNotSB) bool {
 
 // TODO: Fine-tuning is, of course, needed in the future.
 func bigPlus(ens *EntForNotSB) bool {
-	if ens.IsBool {
+	if ens.isBool {
 		return mutateBool(ens)
 	}
-	switch v := ens.Data.(type) {
+	switch v := ens.data.(type) {
 	case int:
-		ens.Data = v + int(1000)
+		ens.data = v + int(1000)
 	case int8:
-		ens.Data = v + int8(100)
+		ens.data = v + int8(100)
 	case int16:
-		ens.Data = v + int16(1000)
+		ens.data = v + int16(1000)
 	case int32:
-		ens.Data = v + int32(1000)
+		ens.data = v + int32(1000)
 	case int64:
-		ens.Data = v + int64(1000)
+		ens.data = v + int64(1000)
 	case uint:
-		ens.Data = v + uint(1000)
+		ens.data = v + uint(1000)
 	case uint8:
-		ens.Data = v + uint8(100)
+		ens.data = v + uint8(100)
 	case uint16:
-		ens.Data = v + uint16(1000)
+		ens.data = v + uint16(1000)
 	case uint32:
-		ens.Data = v + uint32(1000)
+		ens.data = v + uint32(1000)
 	case uint64:
-		ens.Data = v + uint64(1000)
+		ens.data = v + uint64(1000)
 	case float32:
-		ens.Data = v + float32(1000.0)
+		ens.data = v + float32(1000.0)
 	case float64:
-		ens.Data = v + float64(1000.0)
+		ens.data = v + float64(1000.0)
 	default:
 		return false
 	}
@@ -2392,54 +2392,54 @@ func bigPlus(ens *EntForNotSB) bool {
 
 // TODO: Fine-tuning is, of course, needed in the future.
 func bigMinus(ens *EntForNotSB) bool {
-	if ens.IsBool {
+	if ens.isBool {
 		return mutateBool(ens)
 	}
-	switch v := ens.Data.(type) {
+	switch v := ens.data.(type) {
 	case int:
-		ens.Data = v - int(1000)
+		ens.data = v - int(1000)
 	case int8:
-		ens.Data = v - int8(100)
+		ens.data = v - int8(100)
 	case int16:
-		ens.Data = v - int16(1000)
+		ens.data = v - int16(1000)
 	case int32:
-		ens.Data = v - int32(1000)
+		ens.data = v - int32(1000)
 	case int64:
-		ens.Data = v - int64(1000)
+		ens.data = v - int64(1000)
 	case uint:
 		if v < uint(1000) {
-			ens.Data = uint(0)
+			ens.data = uint(0)
 		} else {
-			ens.Data = v - uint(1000)
+			ens.data = v - uint(1000)
 		}
 	case uint8:
 		if v < uint8(100) {
-			ens.Data = uint8(0)
+			ens.data = uint8(0)
 		} else {
-			ens.Data = v - uint8(100)
+			ens.data = v - uint8(100)
 		}
 	case uint16:
 		if v < uint16(1000) {
-			ens.Data = uint16(0)
+			ens.data = uint16(0)
 		} else {
-			ens.Data = v - uint16(1000)
+			ens.data = v - uint16(1000)
 		}
 	case uint32:
 		if v < uint32(1000) {
-			ens.Data = uint32(0)
+			ens.data = uint32(0)
 		} else {
-			ens.Data = v - uint32(1000)
+			ens.data = v - uint32(1000)
 		}
 	case uint64:
 		if v < uint64(1000) {
-			ens.Data = uint64(0)
+			ens.data = uint64(0)
 		} else {
-			ens.Data = v - uint64(1000)
+			ens.data = v - uint64(1000)
 		}
 	case float32:
-		ens.Data = v - float32(1000.0)
+		ens.data = v - float32(1000.0)
 	case float64:
-		ens.Data = v - float64(1000.0)
+		ens.data = v - float64(1000.0)
 	default:
 		return false
 	}
@@ -2448,70 +2448,70 @@ func bigMinus(ens *EntForNotSB) bool {
 
 // TODO: Fine-tuning is, of course, needed in the future.
 func bigDiv(ens *EntForNotSB) bool {
-	if ens.IsBool {
+	if ens.isBool {
 		return mutateBool(ens)
 	}
-	switch v := ens.Data.(type) {
+	switch v := ens.data.(type) {
 	case int:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / int(2)
+		ens.data = v / int(2)
 	case int8:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / int8(2)
+		ens.data = v / int8(2)
 	case int16:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / int16(2)
+		ens.data = v / int16(2)
 	case int32:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / int32(2)
+		ens.data = v / int32(2)
 	case int64:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / int64(2)
+		ens.data = v / int64(2)
 	case uint:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / uint(2)
+		ens.data = v / uint(2)
 	case uint8:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / uint8(2)
+		ens.data = v / uint8(2)
 	case uint16:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / uint16(2)
+		ens.data = v / uint16(2)
 	case uint32:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / uint32(2)
+		ens.data = v / uint32(2)
 	case uint64:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / uint64(2)
+		ens.data = v / uint64(2)
 	case float32:
 		if v == 0.0 {
 			return false
 		}
-		ens.Data = v / float32(2.0)
+		ens.data = v / float32(2.0)
 	case float64:
 		if v == 0.0 {
 			return false
 		}
-		ens.Data = v / float64(2.0)
+		ens.data = v / float64(2.0)
 	default:
 		return false
 	}
@@ -2520,34 +2520,34 @@ func bigDiv(ens *EntForNotSB) bool {
 
 // TODO: Fine-tuning is, of course, needed in the future.
 func bigMul(ens *EntForNotSB) bool {
-	if ens.IsBool {
+	if ens.isBool {
 		return mutateBool(ens)
 	}
-	switch v := ens.Data.(type) {
+	switch v := ens.data.(type) {
 	case int:
-		ens.Data = v * int(2)
+		ens.data = v * int(2)
 	case int8:
-		ens.Data = v * int8(2)
+		ens.data = v * int8(2)
 	case int16:
-		ens.Data = v * int16(2)
+		ens.data = v * int16(2)
 	case int32:
-		ens.Data = v * int32(2)
+		ens.data = v * int32(2)
 	case int64:
-		ens.Data = v * int64(2)
+		ens.data = v * int64(2)
 	case uint:
-		ens.Data = v * uint(2)
+		ens.data = v * uint(2)
 	case uint8:
-		ens.Data = v * uint8(2)
+		ens.data = v * uint8(2)
 	case uint16:
-		ens.Data = v * uint16(2)
+		ens.data = v * uint16(2)
 	case uint32:
-		ens.Data = v * uint32(2)
+		ens.data = v * uint32(2)
 	case uint64:
-		ens.Data = v * uint64(2)
+		ens.data = v * uint64(2)
 	case float32:
-		ens.Data = v * float32(2.0)
+		ens.data = v * float32(2.0)
 	case float64:
-		ens.Data = v * float64(2.0)
+		ens.data = v * float64(2.0)
 	default:
 		return false
 	}
@@ -2556,34 +2556,34 @@ func bigMul(ens *EntForNotSB) bool {
 
 // TODO: Fine-tuning is, of course, needed in the future.
 func factorialMul(ens *EntForNotSB) bool {
-	if ens.IsBool {
+	if ens.isBool {
 		return mutateBool(ens)
 	}
-	switch v := ens.Data.(type) {
+	switch v := ens.data.(type) {
 	case int:
-		ens.Data = v * int(3)
+		ens.data = v * int(3)
 	case int8:
-		ens.Data = v * int8(3)
+		ens.data = v * int8(3)
 	case int16:
-		ens.Data = v * int16(3)
+		ens.data = v * int16(3)
 	case int32:
-		ens.Data = v * int32(3)
+		ens.data = v * int32(3)
 	case int64:
-		ens.Data = v * int64(3)
+		ens.data = v * int64(3)
 	case uint:
-		ens.Data = v * uint(3)
+		ens.data = v * uint(3)
 	case uint8:
-		ens.Data = v * uint8(3)
+		ens.data = v * uint8(3)
 	case uint16:
-		ens.Data = v * uint16(3)
+		ens.data = v * uint16(3)
 	case uint32:
-		ens.Data = v * uint32(3)
+		ens.data = v * uint32(3)
 	case uint64:
-		ens.Data = v * uint64(3)
+		ens.data = v * uint64(3)
 	case float32:
-		ens.Data = v * float32(3.0)
+		ens.data = v * float32(3.0)
 	case float64:
-		ens.Data = v * float64(3.0)
+		ens.data = v * float64(3.0)
 	default:
 		return false
 	}
@@ -2592,70 +2592,70 @@ func factorialMul(ens *EntForNotSB) bool {
 
 // TODO: Fine-tuning is, of course, needed in the future.
 func factorialDiv(ens *EntForNotSB) bool {
-	if ens.IsBool {
+	if ens.isBool {
 		return mutateBool(ens)
 	}
-	switch v := ens.Data.(type) {
+	switch v := ens.data.(type) {
 	case int:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / int(3)
+		ens.data = v / int(3)
 	case int8:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / int8(3)
+		ens.data = v / int8(3)
 	case int16:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / int16(3)
+		ens.data = v / int16(3)
 	case int32:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / int32(3)
+		ens.data = v / int32(3)
 	case int64:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / int64(3)
+		ens.data = v / int64(3)
 	case uint:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / uint(3)
+		ens.data = v / uint(3)
 	case uint8:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / uint8(3)
+		ens.data = v / uint8(3)
 	case uint16:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / uint16(3)
+		ens.data = v / uint16(3)
 	case uint32:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / uint32(3)
+		ens.data = v / uint32(3)
 	case uint64:
 		if v == 0 {
 			return false
 		}
-		ens.Data = v / uint64(3)
+		ens.data = v / uint64(3)
 	case float32:
 		if v == 0.0 {
 			return false
 		}
-		ens.Data = v / float32(3.0)
+		ens.data = v / float32(3.0)
 	case float64:
 		if v == 0.0 {
 			return false
 		}
-		ens.Data = v / float64(3.0)
+		ens.data = v / float64(3.0)
 	default:
 		return false
 	}
@@ -2664,34 +2664,34 @@ func factorialDiv(ens *EntForNotSB) bool {
 
 // TODO: Fine-tuning is, of course, needed in the future.
 func interestingChange(ens *EntForNotSB) bool {
-	if ens.IsBool {
+	if ens.isBool {
 		return mutateBool(ens)
 	}
-	switch ens.Data.(type) {
+	switch ens.data.(type) {
 	case int:
-		ens.Data = int(42)
+		ens.data = int(42)
 	case int8:
-		ens.Data = int8(42)
+		ens.data = int8(42)
 	case int16:
-		ens.Data = int16(42)
+		ens.data = int16(42)
 	case int32:
-		ens.Data = int32(42)
+		ens.data = int32(42)
 	case int64:
-		ens.Data = int64(42)
+		ens.data = int64(42)
 	case uint:
-		ens.Data = uint(42)
+		ens.data = uint(42)
 	case uint8:
-		ens.Data = uint8(42)
+		ens.data = uint8(42)
 	case uint16:
-		ens.Data = uint16(42)
+		ens.data = uint16(42)
 	case uint32:
-		ens.Data = uint32(42)
+		ens.data = uint32(42)
 	case uint64:
-		ens.Data = uint64(42)
+		ens.data = uint64(42)
 	case float32:
-		ens.Data = float32(42)
+		ens.data = float32(42)
 	case float64:
-		ens.Data = float64(42)
+		ens.data = float64(42)
 	default:
 		return false
 	}
@@ -2700,35 +2700,35 @@ func interestingChange(ens *EntForNotSB) bool {
 
 // TODO: Fine-tuning is, of course, needed in the future.
 func randomChange(ens *EntForNotSB) bool {
-	if ens.IsBool {
+	if ens.isBool {
 		return mutateBool(ens)
 	}
 	r := OncePCG().Intn(10001)
-	switch ens.Data.(type) {
+	switch ens.data.(type) {
 	case int:
-		ens.Data = int(r)
+		ens.data = int(r)
 	case int8:
-		ens.Data = int8(r)
+		ens.data = int8(r)
 	case int16:
-		ens.Data = int16(r)
+		ens.data = int16(r)
 	case int32:
-		ens.Data = int32(r)
+		ens.data = int32(r)
 	case int64:
-		ens.Data = int64(r)
+		ens.data = int64(r)
 	case uint:
-		ens.Data = uint(r)
+		ens.data = uint(r)
 	case uint8:
-		ens.Data = uint8(r)
+		ens.data = uint8(r)
 	case uint16:
-		ens.Data = uint16(r)
+		ens.data = uint16(r)
 	case uint32:
-		ens.Data = uint32(r)
+		ens.data = uint32(r)
 	case uint64:
-		ens.Data = uint64(r)
+		ens.data = uint64(r)
 	case float32:
-		ens.Data = float32(r)
+		ens.data = float32(r)
 	case float64:
-		ens.Data = float64(r)
+		ens.data = float64(r)
 	default:
 		return false
 	}
