@@ -51,22 +51,3 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// u[f5a516808f8976c33939133293d598ce3bca4e8d:3]={
-//     "ObjectInfo": {
-//         "ID": "f5a516808f8976c33939133293d598ce3bca4e8d:3",
-//         "ModTime": "5",
-//         "OwnerID": "f5a516808f8976c33939133293d598ce3bca4e8d:2",
-//         "RefCount": "1"
-//     },
-//     "Value": {
-//         "T": {
-//             "@type": "/gno.RefType",
-//             "ID": "gno.land/r/crossrealm_test.Local_S"
-//         },
-//         "V": {
-//             "@type": "/gno.RefValue",
-//             "Hash": "d436c9ee2f7cf94dd3e9e665ab79cd5fdf1583ee",
-//             "ObjectID": "f5a516808f8976c33939133293d598ce3bca4e8d:4"
-//         }
-//     }
-// }

@@ -250,9 +250,7 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, seenObjs []Object
 	if debug {
 		debug.Printf("checkCrossRealm2, tv: %v (type: %v) \n", tv, reflect.TypeOf(tv.V))
 	}
-	tv2 := fillValueTV(store, tv)
-	oo2 := tv2.GetFirstObject2(store)
-
+	oo2 := tv.GetFirstObject2(store)
 	if oo2 != nil {
 		// if it is checking a pointer, and it
 		// has a base in current realm, implies

@@ -259,22 +259,3 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:4]={
-//     "ObjectInfo": {
-//         "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:4",
-//         "ModTime": "11",
-//         "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:2",
-//         "RefCount": "1"
-//     },
-//     "Value": {
-//         "T": {
-//             "@type": "/gno.RefType",
-//             "ID": "gno.land/p/demo/dom.Plot"
-//         },
-//         "V": {
-//             "@type": "/gno.RefValue",
-//             "Hash": "55cdade76217efb79610717408f633577326b29a",
-//             "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:5"
-//         }
-//     }
-// }
