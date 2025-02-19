@@ -79,12 +79,12 @@ import (
 )
 
 func Mint(addr std.Address, denom string, amount int64) {
-	banker := std.GetBanker(std.BankerTypeRealmIssue)
+	banker := std.NewBanker(std.BankerTypeRealmIssue)
 	banker.IssueCoin(addr, std.CurrentRealm().CoinDenom(denom), amount)
 }
 
 func Burn(addr std.Address, denom string, amount int64) {
-  banker := std.GetBanker(std.BankerTypeRealmIssue)
+  banker := std.NewBanker(std.BankerTypeRealmIssue)
   banker.RemoveCoin(addr, std.CurrentRealm().CoinDenom(denom), amount)
 }
 
@@ -97,12 +97,12 @@ import (
 )
 
 func Mint(addr std.Address, denom string, amount int64) {
-	banker := std.GetBanker(std.BankerTypeRealmIssue)
+	banker := std.NewBanker(std.BankerTypeRealmIssue)
 	banker.IssueCoin(addr, std.CurrentRealm().CoinDenom(denom), amount)
 }
 
 func Burn(addr std.Address, denom string, amount int64) {
-  banker := std.GetBanker(std.BankerTypeRealmIssue)
+  banker := std.NewBanker(std.BankerTypeRealmIssue)
   banker.RemoveCoin(addr, std.CurrentRealm().CoinDenom(denom), amount)
 }
 
@@ -114,11 +114,11 @@ import (
 )
 
 func Mint(addr std.Address, denom string, amount int64) {
-	banker := std.GetBanker(std.BankerTypeRealmIssue)
+	banker := std.NewBanker(std.BankerTypeRealmIssue)
 	banker.IssueCoin(addr, denom, amount)
 }
 
 func Burn(addr std.Address, denom string, amount int64) {
-  banker := std.GetBanker(std.BankerTypeRealmIssue)
+  banker := std.NewBanker(std.BankerTypeRealmIssue)
   banker.RemoveCoin(addr, denom, amount)
 }

@@ -9,7 +9,7 @@ func TestAuctionEnd(t *testing.T) {
 	shouldNoPanic(t, AuctionEnd)
 	shouldEqual(t, ended, true)
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 	shouldEqual(t, banker.GetCoins(receiver).String(), "3ugnot")
 
 	// Auction has already ended
