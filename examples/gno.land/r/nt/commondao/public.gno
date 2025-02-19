@@ -53,6 +53,22 @@ func IsOwner(addr std.Address, daoID uint64) bool {
 	return checkIsOwner(addr, daoID)
 }
 
+// TransferOwnership transfers DAO access ownership to a different address.
+func TransferOwnership(daoID uint64, newOwner std.Address) {
+	caller := std.PrevRealm().Addr()
+	assertIsOwner(caller, daoID)
+
+	ids := getOwnership(caller)
+	for i, id := range ids {
+		if id == daoID {
+			ownership.Set(caller.String(), append(ids[:i], ids[i+1:]...))
+			ownership.Set(newOwner.String(), append(getOwnership(newOwner), id))
+
+			break
+		}
+	}
+}
+
 func checkOwnershipExists(addr std.Address) bool {
 	_, found := ownership.Get(addr.String())
 	return found
