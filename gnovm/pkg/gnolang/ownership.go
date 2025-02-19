@@ -430,15 +430,15 @@ func (tv *TypedValue) GetFirstObject2(store Store) Object {
 		return
 	}
 
-	var originPkg PkgID
+	var boundRealm PkgID
 
 	switch cv := obj.(type) {
 	case *HeapItemValue:
-		originPkg = getPkgId(cv.Value.T)
+		boundRealm = getPkgId(cv.Value.T)
 	case *Block:
 		// assert to pointer value
 		if pv, ok := tv.V.(PointerValue); ok {
-			originPkg = getPkgId(pv.TV.T)
+			boundRealm = getPkgId(pv.TV.T)
 		} else {
 			// XXX?
 		}
@@ -447,15 +447,15 @@ func (tv *TypedValue) GetFirstObject2(store Store) Object {
 	case *MapValue, *StructValue, *ArrayValue:
 		// if it's a declared type, origin realm
 		// is deduced from type, otherwise zero.
-		originPkg = getPkgId(tv.T)
+		boundRealm = getPkgId(tv.T)
 	default:
 		// do nothing
 	}
 
-	// set origin realm to object
+	// set bound realm to object
 	if obj != nil {
-		if !originPkg.IsZero() {
-			obj.SetBoundRealm(originPkg)
+		if !boundRealm.IsZero() {
+			obj.SetBoundRealm(boundRealm)
 		}
 
 		switch tv.V.(type) {
