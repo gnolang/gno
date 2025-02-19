@@ -20,8 +20,8 @@ type JSONDocumentation struct {
 	// https://pkg.go.dev/go/doc#Package.Markdown to render markdown
 
 	// These match each of the sections in a pkg.go.dev package documentationj
-	Values []*JSONValueDecl `json:"values_decl"` // constants and variables declared
-	Funcs  []*JSONFunc      `json:"funcs"`       // Funcs and methods
+	Values []*JSONValueDecl `json:"values"` // constants and variables declared
+	Funcs  []*JSONFunc      `json:"funcs"`  // Funcs and methods
 	Types  []*JSONType      `json:"types"`
 }
 
@@ -35,7 +35,7 @@ type JSONValueDecl struct {
 type JSONValue struct {
 	Name string `json:"name"`
 	Doc  string `json:"doc"`
-	Type string `json:"type"`
+	Type string `json:"type"` // often empty
 }
 
 type JSONField struct {
