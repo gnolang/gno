@@ -1,5 +1,10 @@
 package gnolang
 
+import (
+	"fmt"
+	"reflect"
+)
+
 // Returns the amount of memory left over. If the allocator limit is exceeded
 // it returns false.  It doesn't actually garbage collect, but it recalculates
 // allocated memory from what is already reachable.
@@ -21,7 +26,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	vis := GCVisitorFn(m.gcCycle, m.Alloc)
 
 	// Visit blocks
-	for block := range m.Blocks {
+	for _, block := range m.Blocks {
 		stop := vis(block)
 		if stop {
 			return -1, false
@@ -29,10 +34,11 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	}
 
 	// Visit frames
-	for frame := range m.Frames {
+	for i, frame := range m.Frames {
 		// XXX implement for frames.
 		// XXX Frame is not an object,
 		// so implement a custom method and pass in vis.
+		fmt.Printf("Frame[%d] is: %v \n", i, frame)
 	}
 
 	// Visit package
@@ -42,10 +48,11 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	}
 
 	// Visit exceptions
-	for exception := range m.Exceptions {
+	for i, exception := range m.Exceptions {
 		// XXX implement for exceptions.
 		// XXX Exception is not an object,
 		// so implement a custom method and pass in vis.
+		fmt.Printf("Exception[%d] is: %v \n", i, exception)
 	}
 
 	// Return bytes remaining.
@@ -55,8 +62,15 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 // Returns a visitor that bumps the gcCycle counter
 // and stops if alloc is out of memory.
-func GCVisitorFn(gcCycle int64, alloc *Alloc) Visitor {
-	vis := func(o Object) bool {
+func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
+	var vis func(Object) bool // Declare `vis` first
+	vis = func(o Object) bool {
+		fmt.Println("o: ", o)
+		if o == (*Block)(nil) {
+			fmt.Println("nil block") // XXX ???
+			return true              // stop
+		}
+		fmt.Println("o: ", o, reflect.TypeOf(o))
 		// Return if already measured.
 		if o.GetLastGCCycle() == gcCycle {
 			return false // but don't stop
@@ -75,19 +89,22 @@ func GCVisitorFn(gcCycle int64, alloc *Alloc) Visitor {
 		o.SetLastGCCycle(gcCycle)
 		return stop
 	}
-	return tr
+	return vis
 }
 
 func (av *ArrayValue) VisitAssociated(vis Visitor) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(av.List); i++ {
-		v := av.List[i].Value
+		v := av.List[i].V
 		if v == nil {
 			continue
 		}
-		stop = vis(v)
-		if stop {
-			return
+
+		if o, ok := v.(Object); ok {
+			stop = vis(o)
+			if stop {
+				return
+			}
 		}
 	}
 	return
@@ -96,13 +113,15 @@ func (av *ArrayValue) VisitAssociated(vis Visitor) (stop bool) {
 func (sv *StructValue) VisitAssociated(vis Visitor) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(sv.Fields); i++ {
-		v := sv.Fields[i].Value
+		v := sv.Fields[i].V
 		if v == nil {
 			continue
 		}
-		stop = vis(v)
-		if stop {
-			return
+		if o, ok := v.(Object); ok {
+			stop = vis(o)
+			if stop {
+				return
+			}
 		}
 	}
 	return
@@ -113,7 +132,12 @@ func (bmv *BoundMethodValue) VisitAssociated(vis Visitor) (stop bool) {
 	// So we do not visit it (for garbage collection).
 
 	// Visit receiver.
-	stop = vis(bmv.Receiver.V)
+	if o, ok := bmv.Receiver.V.(Object); ok {
+		stop = vis(o)
+		if stop {
+			return
+		}
+	}
 	return
 }
 
@@ -128,30 +152,41 @@ func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
 	// XXX visit pv.Block
 	// XXX visit pv.FBlocks
 	// XXX do NOT visit Realm.
+	return
 }
 
 func (b *Block) VisitAssociated(vis Visitor) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(b.Values); i++ {
-		v := b.Values[i].Value
+		v := b.Values[i].V
 		if v == nil {
 			continue
 		}
-		stop = vis(v)
-		if stop {
-			return
+		if o, ok := v.(Object); ok {
+			stop = vis(o)
+			if stop {
+				return
+			}
 		}
 	}
 	// Visit parent.
 	if b.Parent != nil {
-		stop = vis(b.Parent)
+		if o, ok := b.Parent.(Object); ok {
+			stop = vis(o)
+			if stop {
+				return
+			}
+		}
+	}
+	return
+}
+
+func (hiv *HeapItemValue) VisitAssociated(vis Visitor) (stop bool) {
+	if o, ok := hiv.Value.V.(Object); ok {
+		stop = vis(o)
 		if stop {
 			return
 		}
 	}
-}
-
-func (hiv *HeapItemValue) VisitAssociated(vis Visitor) (stop bool) {
-	stop = vis(hiv.Value.V)
 	return
 }

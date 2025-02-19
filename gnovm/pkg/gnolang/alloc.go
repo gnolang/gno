@@ -1,12 +1,14 @@
 package gnolang
 
 import "reflect"
+import "fmt"
 
 // Keeps track of in-memory allocations.
 // In the future, allocations within realm boundaries will be
 // (optionally?) condensed (objects to be GC'd will be discarded),
 // but for now, allocations strictly increment across the whole tx.
 type Allocator struct {
+	m        *Machine
 	maxBytes int64
 	bytes    int64
 }
@@ -59,18 +61,27 @@ const (
 	allocNative      = _allocBase + _allocPointer + _allocNativeValue
 	allocType        = _allocBase + _allocPointer + _allocType
 	// allocDataByte    = 1
-	// allocPackge = 1
+	allocPackge    = 1
 	allocAmino     = _allocBase + _allocPointer + _allocAny
 	allocAminoByte = 10 // XXX
 	allocHeapItem  = _allocBase + _allocPointer + _allocTypedValue
 )
 
-func NewAllocator(maxBytes int64) *Allocator {
+func NewAllocator(maxBytes int64, m *Machine) *Allocator {
 	if maxBytes == 0 {
 		return nil
 	}
 	return &Allocator{
 		maxBytes: maxBytes,
+		m:        m,
+	}
+}
+
+func (alloc *Allocator) MemStats() string {
+	if alloc == nil {
+		return "nil allocator"
+	} else {
+		return fmt.Sprintf("Allocator{maxBytes:%d, bytes:%d}", alloc.maxBytes, alloc.bytes)
 	}
 }
 
@@ -104,6 +115,7 @@ func (alloc *Allocator) Allocate(size int64) {
 
 	alloc.bytes += size
 	if alloc.bytes > alloc.maxBytes {
+		alloc.m.GarbageCollect()
 		panic("allocation limit exceeded")
 	}
 }
@@ -314,4 +326,33 @@ func (alloc *Allocator) NewType(t Type) Type {
 func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 	alloc.AllocateHeapItem()
 	return &HeapItemValue{Value: tv}
+}
+
+// -----------------------------------------------
+
+func (p *PackageValue) GetShallowSize() int64 {
+	return allocPackge
+}
+func (b *Block) GetShallowSize() int64 {
+	return allocBlock + allocBlockItem*int64(len(b.Values))
+}
+
+func (av *ArrayValue) GetShallowSize() int64 {
+	return allocArray + allocArrayItem*int64(len(av.List))
+}
+
+func (sv *StructValue) GetShallowSize() int64 {
+	return allocStruct + allocStructField*int64(len(sv.Fields))
+}
+
+func (mv *MapValue) GetShallowSize() int64 {
+	return allocMap + allocMapItem*int64(len(mv.vmap))
+}
+
+func (bmv *BoundMethodValue) GetShallowSize() int64 {
+	return allocBoundMethod
+}
+
+func (hiv *HeapItemValue) GetShallowSize() int64 {
+	return allocHeapItem
 }

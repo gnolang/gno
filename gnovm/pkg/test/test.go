@@ -262,9 +262,9 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 }
 
 func (opts *TestOptions) runTestFiles(
-	memPkg *gnovm.MemPackage,
-	files *gno.FileSet,
-	cw storetypes.Store, gs gno.TransactionStore,
+		memPkg *gnovm.MemPackage,
+		files *gno.FileSet,
+		cw storetypes.Store, gs gno.TransactionStore,
 ) (errs error) {
 	var m *gno.Machine
 	defer func() {
@@ -284,7 +284,7 @@ func (opts *TestOptions) runTestFiles(
 
 	var alloc *gno.Allocator
 	if opts.Metrics {
-		alloc = gno.NewAllocator(math.MaxInt64)
+		alloc = gno.NewAllocator(math.MaxInt64, nil)
 	}
 	// reset store ops, if any - we only need them for some filetests.
 	opts.TestStore.SetLogStoreOps(false)

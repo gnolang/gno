@@ -119,7 +119,9 @@ type Object interface {
 	GetIsNewDeleted() bool
 	SetIsNewDeleted(bool)
 	GetIsTransient() bool
-	GetShalowSize() int64
+	GetShallowSize() int64
+	GetLastGCCycle() int64
+	SetLastGCCycle(int64)
 
 	// Visit visits all reachable associated values.
 	// It is used primarily for GC.
