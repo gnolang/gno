@@ -128,7 +128,7 @@ func Delete(slug string) string {
 	}
 
 	// XXX: consider this:
-	// if entry.Obj.(*Presentation).Uploader != std.PrevRealm().Addr() {
+	// if entry.Obj.(*Presentation).Uploader != std.PreviousRealm().Address() {
 	// 	return "401: unauthorized - only the uploader can delete their presentations"
 	// }
 

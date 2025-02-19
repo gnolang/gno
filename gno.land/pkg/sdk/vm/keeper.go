@@ -781,13 +781,13 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 		ChainDomain: chainDomain,
 		Height:      ctx.BlockHeight(),
 		Timestamp:   ctx.BlockTime().Unix(),
-		// OrigCaller:    caller,
-		// OrigSend:      send,
-		// OrigSendSpent: nil,
-		OrigPkgAddr: pkgAddr.Bech32(),
-		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
-		Params:      NewSDKParams(vm, ctx),
-		EventLogger: ctx.EventLogger(),
+		// OriginCaller:    caller,
+		// OriginSend:      send,
+		// OriginSendSpent: nil,
+		OriginPkgAddr: pkgAddr.Bech32(),
+		Banker:        NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
+		Params:        NewSDKParams(vm, ctx),
+		EventLogger:   ctx.EventLogger(),
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{

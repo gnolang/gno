@@ -46,7 +46,7 @@ func AddConfig(name, lines string) {
 }
 
 func EditConfig(id string, name, lines string) {
-	if !IsAuthorized(std.PrevRealm().Addr()) {
+	if !IsAuthorized(std.PreviousRealm().Address()) {
 		panic(ErrUnauthorized)
 	}
 
