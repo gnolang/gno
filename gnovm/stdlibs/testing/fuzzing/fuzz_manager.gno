@@ -324,15 +324,14 @@ func (phl priorytyHashNumberList) Less(i, j int) bool { return phl[i].priority <
 // Swap swaps two elements in the priorytyHashNumberList.
 func (phl priorytyHashNumberList) Swap(i, j int) { phl[i], phl[j] = phl[j], phl[i] }
 
-// SummarizeSeed는 FuzzManager 내부에 저장된 모든 Seed를 단순히 모아 반환한다.
+// SummarizeSeed simply collects and returns all the Seeds stored inside the FuzzManager.
 func (fm *FuzzManager) SummarizeSeeds() []Seed {
 	var seeds []Seed
-	// fm.HashNumber2Seeds는 *[MaxCapacity]*SeedQueue 타입이므로,
-	// 각 인덱스를 순회하며, SeedQueue가 nil이 아니면 그 안의 Seed들을 append합니다.
+	// fm.HashNumber2Seeds is of type *[MaxCapacity]*SeedQueue, so we iterate through each index,
+	// and if the SeedQueue is not nil, we append the Seeds inside it.
 	for i := 0; i < int(MaxCapacity); i++ {
 		queue := fm.HashNumber2Seeds[i]
 		if queue != nil {
-			// SeedQueue의 Data는 []Seed
 			for _, s := range queue.Data {
 				s.IsCoordinated = false
 				seeds = append(seeds, s)

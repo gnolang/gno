@@ -128,11 +128,11 @@ func RebuildString(tokens []Token) string {
 	return buf.String()
 }
 
-// RebuildBytes: `tokens` 슬라이스를 다시 `[]byte`로 변환
+// RebuildBytes: Converts the `tokens` slice back to `[]byte`
 func RebuildBytes(tokens []Token) []byte {
 	var buf bytes.Buffer
 	for _, t := range tokens {
-		buf.Write(t.Data) // token.Data ([]byte)를 그대로 추가
+		buf.Write(t.Data) // Adds `token.Data` ([]byte) as it is
 	}
 	return buf.Bytes()
 }

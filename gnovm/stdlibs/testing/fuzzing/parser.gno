@@ -349,7 +349,7 @@ type MarkEnt struct {
 
 	Strategy2count map[MutationCode]uint64
 
-	// 캐시 필드
+	// build cache
 	cachedStrategyCodes []MutationCode
 	cachedStrategySums  []uint64
 	needsUpdateChache   bool
@@ -569,7 +569,6 @@ func (g *GroupEnt) getStrategyCache() ([]MutationCode, []uint64) {
 	return g.cachedStrategyCodes, g.cachedStrategySums
 }
 
-// 캐시 관련 메서드 구현
 func (g *GroupEnt) updateStrategyCache() {
 	if !g.needsUpdateChache && g.cachedStrategyCodes != nil {
 		return
@@ -688,7 +687,7 @@ func (r *RootEnt) ReflectMutationInfo(mutInfo MutationInfo) {
 
 	ent, exists := r.Id2Ent[mutInfo.EntId]
 	if !exists {
-		panic("logic error. reflect를 만족하는 EntID가 존재하지 않음")
+		panic("logic error. No EntID satisfying reflect exists")
 	}
 
 	// Calls plusStrategyCount for each strategy in UsedStrategyMap, increasing the count by 5 for each usage.
@@ -861,7 +860,7 @@ func (lx *Lexer) Lex() []Ent {
 	return tokens
 }
 
-// 전역 설정 (mark 목록, bracket)
+// Global settings (mark list, bracket)
 var parserMark = []string{
 	"\r\n", "\n", "\t",
 	"/", "://", "//",
@@ -900,7 +899,7 @@ func (lx *Lexer) nextToken() Ent {
 				break
 			}
 			sb.WriteRune(r)
-			lx.next() // 소비
+			lx.next()
 		}
 		return &WsEnt{Data: []byte(sb.String())}
 	}
@@ -1060,7 +1059,6 @@ func parseKeyVals(tokens []Ent) []Ent {
 		// 1) Identifies a potential key (letter or number).
 		left := tokens[i]
 		if !isAlphaOrNum(left) {
-			// (키 후보 아님) => 그대로 결과에 넣고 다음
 			result = append(result, left)
 			i++
 			continue
@@ -1133,7 +1131,8 @@ func parseKeyVals(tokens []Ent) []Ent {
 		// 5) Identifies a potential value (letter or number).
 		right := tokens[pos]
 		if !isAlphaOrNum(right) {
-			// 값 후보가 아니면 => 실패
+			// If not a value candidate => failure
+
 			result = append(result, left)
 			if leftPadding != nil {
 				result = append(result, leftPadding)
@@ -1271,7 +1270,7 @@ func detectPattern(tokens []Ent) (string, bool) {
 			}
 		case *MarkEnt:
 			total++
-			d := bytes.ToLower(t.Data) // modified: []byte 변환 후 소문자 처리
+			d := bytes.ToLower(t.Data)
 			if bytes.Equal(d, []byte(":=")) || bytes.Equal(d, []byte("=")) {
 				gnoCount++
 			}
@@ -1761,7 +1760,7 @@ func PrintTree(e Ent, indent int) {
 	idInfo := ""
 
 	if e != nil {
-		idInfo = fmt.Sprintf("id:%d", e.getID()) // 추가}
+		idInfo = fmt.Sprintf("id:%d", e.getID())
 	}
 	switch t := e.(type) {
 	case *LetterEnt:
