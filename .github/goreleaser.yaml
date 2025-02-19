@@ -338,6 +338,9 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
     ids:
       - gnodev
+    extra_files:
+      - gno.land/genesis/genesis_balances.txt
+      - gno.land/genesis/genesis_txs.jsonl
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
