@@ -964,10 +964,10 @@ func (lx *Lexer) lexNumber() Ent {
 				nb := lx.input[lx.pos+1:]
 				nr, _ := utf8.DecodeRune(nb)
 				if nr == 'x' || nr == 'X' {
-					lx.next()
-					xCharBytes := lx.next()
-					xChar, _ := utf8.DecodeRune(xCharBytes)
-					hexDigits := ""
+					lx.next() // consume '0'
+					lx.next() // consume 'x' or 'X'
+
+					var hexBuilder strings.Builder
 					for !lx.eof() {
 						pb = lx.peek()
 						if pb == nil {
@@ -975,20 +975,23 @@ func (lx *Lexer) lexNumber() Ent {
 						}
 						r, _ = utf8.DecodeRune(pb)
 						if isHexDigit[r] {
-							hexDigits += string(r)
+							hexBuilder.WriteRune(r)
+
 							lx.next()
 						} else {
 							break
 						}
 					}
-					if hexDigits == "" {
+					hexDigits := hexBuilder.String()
+					if len(hexDigits) == 0 {
 						return &NumEnt{
-							Data: []byte(sign + "0" + string(xChar)),
+							Data: []byte(sign + "0" + string(nr)),
 							Hex:  false,
 						}
 					}
+
 					return &NumEnt{
-						Data: []byte(sign + "0" + string(xChar) + hexDigits),
+						Data: []byte(sign + "0" + string(nr) + hexDigits),
 						Hex:  true,
 					}
 				}
