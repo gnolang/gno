@@ -6,12 +6,13 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/addrset"
 )
 
 type Modifier struct {
 	Name                            string
 	ApprovalPercentage              float64
-	Approvers                       *avl.Tree
+	Approvers                       *addrset.Set
 	EditApprovalPercentageProposals *avl.Tree
 }
 
@@ -21,7 +22,7 @@ type OwnershipProposalDetails struct {
 }
 
 type ModifierRegistry struct {
-	Owners    *avl.Tree
+	Owners    *addrset.Set
 	Modifiers *avl.Tree
 	Proposals *OwnershipProposalDetails
 }
@@ -43,7 +44,9 @@ func (registry *ModifierRegistry) InitializeOwners(owners []string, newOwnerPerc
 		if !address.IsValid() {
 			panic(ufmt.Sprintf("Address %s is not valid!", addr))
 		}
-		registry.Owners.Set(addr, true)
+		if !registry.Owners.Add(address) {
+			panic(ufmt.Sprintf("Address %s is already an owner!", addr))
+		}
 	}
 }
 
@@ -58,7 +61,7 @@ func (registry *ModifierRegistry) ProposeNewOwner(address string) {
 		panic("Address " + address + " is not valid!")
 	}
 
-	if registry.Owners.Has(address) {
+	if registry.Owners.Has(addr) {
 		panic("Address is already an owner!")
 	}
 
@@ -81,7 +84,7 @@ func (registry *ModifierRegistry) ProposeNewOwner(address string) {
 
 	if float64(addressApprovals.Size()) >= approvalsNeeded {
 		registry.Proposals.OwnerProposals.Remove(address)
-		registry.Owners.Set(address, true)
+		registry.Owners.Add(addr)
 	}
 }
 
@@ -95,7 +98,7 @@ func (registry *ModifierRegistry) ResignOwnership() {
 		panic("You cannot give up ownership because there must be at least one owner!")
 	}
 
-	registry.Owners.Remove(caller.String())
+	registry.Owners.Remove(caller)
 }
 
 func (registry *ModifierRegistry) RegisterModifier(name string, approvalPercentage float64) {
@@ -116,7 +119,7 @@ func (registry *ModifierRegistry) RegisterModifier(name string, approvalPercenta
 	modifier := &Modifier{
 		Name:                            name,
 		ApprovalPercentage:              approvalPercentage,
-		Approvers:                       avl.NewTree(),
+		Approvers:                       &addrset.Set{},
 		EditApprovalPercentageProposals: avl.NewTree(),
 	}
 	registry.Modifiers.Set(name, modifier)
@@ -182,11 +185,11 @@ func (registry *ModifierRegistry) ApproveModifier(name string) {
 
 	modifier := v.(*Modifier)
 
-	if modifier.Approvers.Has(caller.String()) {
+	if modifier.Approvers.Has(caller) {
 		panic("You have already approved this modifier!")
 	}
 
-	modifier.Approvers.Set(caller.String(), true)
+	modifier.Approvers.Add(caller)
 }
 
 func (registry *ModifierRegistry) AssertIsApproved(name string) {
@@ -211,7 +214,7 @@ func (registry *ModifierRegistry) AssertIsApproved(name string) {
 }
 
 func (registry *ModifierRegistry) initVariables(newOwnerPercentage float64) {
-	registry.Owners = avl.NewTree()
+	registry.Owners = &addrset.Set{}
 	registry.Modifiers = avl.NewTree()
 	registry.Proposals = &OwnershipProposalDetails{
 		NewOwnerPercentage: newOwnerPercentage,
@@ -220,7 +223,7 @@ func (registry *ModifierRegistry) initVariables(newOwnerPercentage float64) {
 }
 
 func (registry *ModifierRegistry) AssertIsOwner(address std.Address) {
-	if !registry.Owners.Has(address.String()) {
+	if !registry.Owners.Has(address) {
 		panic("You are not the owner!")
 	}
 }
