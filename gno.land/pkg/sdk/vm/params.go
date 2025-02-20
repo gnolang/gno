@@ -47,7 +47,7 @@ func (p Params) String() string {
 }
 
 func (p Params) Validate() error {
-	if p.ChainDomain != "" && !gno.ReRealmPath.MatchString(p.SysUsersPkgPath) {
+	if p.SysUsersPkgPath != "" && !gno.ReRealmPath.MatchString(p.SysUsersPkgPath) {
 		return fmt.Errorf("invalid package/realm path %q, failed to match %q", p.SysUsersPkgPath, gno.ReRealmPath)
 	}
 	if p.ChainDomain != "" && !ASCIIDomain.MatchString(p.ChainDomain) {
