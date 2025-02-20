@@ -59,7 +59,7 @@ func execAuthGenerate(authGenFlags *authGenerateFlags, io commands.IO) error {
 
 	// Generate a new auth keys file.
 	if _, err := common.GeneratePersistedAuthKeysFile(authGenFlags.auth.AuthKeysFile); err != nil {
-		return fmt.Errorf("error generating auth keys file: %v", err)
+		return fmt.Errorf("error generating auth keys file: %w", err)
 	}
 
 	// Print the path to the generated file.

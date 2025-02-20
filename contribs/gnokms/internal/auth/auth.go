@@ -12,7 +12,7 @@ import (
 func loadAuthKeysFile(rootCfg *common.AuthFlags) (*common.AuthKeysFile, error) {
 	// Check if the file exists.
 	if !osm.FileExists(rootCfg.AuthKeysFile) {
-		return nil, fmt.Errorf("%s: %s\n%s\n",
+		return nil, fmt.Errorf("%s: %s\n%s",
 			"error: auth keys file does not exist at path", rootCfg.AuthKeysFile,
 			"use 'gnokms auth generate' to create a new one",
 		)
@@ -21,7 +21,7 @@ func loadAuthKeysFile(rootCfg *common.AuthFlags) (*common.AuthKeysFile, error) {
 	// Check if the file is valid.
 	authKeysFile, err := common.LoadAuthKeysFile(rootCfg.AuthKeysFile)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %s\n%s: %v\n%s\n",
+		return nil, fmt.Errorf("%s: %s\n%s: %w\n%s",
 			"error: auth keys file is invalid at path", rootCfg.AuthKeysFile,
 			"unable to load", err,
 			"use 'gnokms auth generate -overwrite' to create a new one",
