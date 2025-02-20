@@ -22,8 +22,27 @@ jobs:
       tests-extra-args: "-coverpkg=github.com/gnolang/gno/gnovm/..."
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
-  fmt:
+
+  stdlibs-fmt:
     name: Run gno fmt on stdlibs
     uses: ./.github/workflows/gnofmt_template.yml
     with:
       path: "gnovm/stdlibs/..."
+
+  stdlibs-test:
+    name: Run gno test on stdlibs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.22
+      - name: Install Gno
+        working-directory: gnovm
+        run: go install -v ./cmd/gno
+      - name: Go test
+        working-directory: gnovm
+        # use 0 for GOMAXPROCS
+        run: gno test -v -parallel=0 ./stdlibs/...
