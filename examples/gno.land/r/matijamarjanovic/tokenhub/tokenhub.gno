@@ -34,7 +34,7 @@ func init() {
 // The logic is the same as in grc20reg, but it's done here so the key path is callers pkgpath and not of this realm
 // After doing so, the token hub realm uses grc20reg's registry as a read-only avl.Tree
 func RegisterToken(tokenGetter grc20.TokenGetter, slug string) {
-	rlmPath := std.PrevRealm().PkgPath()
+	rlmPath := std.PreviousRealm().PkgPath()
 	key := fqname.Construct(rlmPath, slug)
 	grc20reg.RegisterWithTokenhub(tokenGetter, key)
 }
@@ -56,7 +56,7 @@ func RegisterNFT(nftGetter grc721.NFTGetter, collection string, tokenId string) 
 		return ErrNFTtokIDNotExists
 	}
 
-	rlmPath := std.PrevRealm().PkgPath()
+	rlmPath := std.PreviousRealm().PkgPath()
 	key := rlmPath + "." + collection + "." + tokenId
 
 	if registeredNFTs.Has(key) {
@@ -70,7 +70,7 @@ func RegisterNFT(nftGetter grc721.NFTGetter, collection string, tokenId string) 
 // RegisterMultiToken is a function that registers a multi-token in an avl.Tree
 // The avl.Tree value is a struct defined in this realm. It contains not only the getter (like other token types) but also the tokenID
 func RegisterMultiToken(mtGetter grc1155.MultiTokenGetter, tokenID string) error {
-	rlmPath := std.PrevRealm().PkgPath()
+	rlmPath := std.PreviousRealm().PkgPath()
 
 	key := rlmPath + "." + tokenID
 
