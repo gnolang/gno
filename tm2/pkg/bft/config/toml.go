@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/pelletier/go-toml"
 )
@@ -80,14 +79,13 @@ func ResetTestRoot(testName string) (*Config, string) {
 		panic(err)
 	}
 
+	config := TestConfig().SetRootDir(rootDir)
 	configFilePath := filepath.Join(rootDir, defaultConfigPath)
 	// NOTE: this does not match the behaviour of the gno.land node.
 	// However, many tests rely on the fact that they can cleanup the directory
 	// by doing RemoveAll on the rootDir; so to keep compatibility with that
 	// behaviour, we place genesis.json in the rootDir.
 	genesisFilePath := filepath.Join(rootDir, "genesis.json")
-	privvalConfig := privval.DefaultPrivValidatorConfig()
-	privvalConfig.RootDir = filepath.Join(rootDir, DefaultSecretsDir)
 
 	// Write default config file if missing.
 	if !osm.FileExists(configFilePath) {
@@ -100,11 +98,10 @@ func ResetTestRoot(testName string) (*Config, string) {
 		testGenesis := fmt.Sprintf(testGenesisFmt, chainID)
 		osm.MustWriteFile(genesisFilePath, []byte(testGenesis), 0o644)
 	}
-	// we always overwrite the priv val
-	osm.MustWriteFile(privvalConfig.LocalSignerPath(), []byte(testPrivValidatorKey), 0o644)
-	osm.MustWriteFile(privvalConfig.SignStatePath(), []byte(testPrivValidatorState), 0o644)
 
-	config := TestConfig().SetRootDir(rootDir)
+	// we always overwrite the priv val
+	osm.MustWriteFile(config.PrivValidator.LocalSignerPath(), []byte(testPrivValidatorKey), 0o644)
+	osm.MustWriteFile(config.PrivValidator.SignStatePath(), []byte(testPrivValidatorState), 0o644)
 
 	return config, genesisFilePath
 }
