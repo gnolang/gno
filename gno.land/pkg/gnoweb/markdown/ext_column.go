@@ -75,7 +75,6 @@ var columnContextKey = parser.NewContextKey()
 
 // columnContext struct and its methods are used for handling column context.
 type columnContext struct {
-	initialized     bool
 	prevContext     *columnContext
 	openNode        ast.Node
 	index           int
@@ -301,7 +300,6 @@ func (a *columnASTTransformer) Transform(node *ast.Document, reader text.Reader,
 
 		cctx = cctx.prevContext
 	}
-
 }
 
 type columnRenderer struct{}
