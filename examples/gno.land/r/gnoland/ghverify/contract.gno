@@ -16,7 +16,7 @@ const (
 )
 
 var (
-	ownerAddress = std.GetOrigCaller()
+	ownerAddress = std.OriginCaller()
 	oracle       *gnorkle.Instance
 	postHandler  postGnorkleMessageHandler
 
@@ -70,7 +70,7 @@ func (h postGnorkleMessageHandler) Handle(i *gnorkle.Instance, funcType message.
 // RequestVerification creates a new static feed with a single task that will
 // instruct an agent to verify the github handle / gno address pair.
 func RequestVerification(githubHandle string) {
-	gnoAddress := string(std.GetOrigCaller())
+	gnoAddress := string(std.OriginCaller())
 	if err := oracle.AddFeeds(
 		static.NewSingleValueFeed(
 			gnoAddress,
@@ -83,6 +83,11 @@ func RequestVerification(githubHandle string) {
 	); err != nil {
 		panic(err)
 	}
+	std.Emit(
+		"verification_requested",
+		"from", gnoAddress,
+		"handle", githubHandle,
+	)
 }
 
 // GnorkleEntrypoint is the entrypoint to the gnorkle oracle handler.
@@ -97,7 +102,7 @@ func GnorkleEntrypoint(message string) string {
 
 // SetOwner transfers ownership of the contract to the given address.
 func SetOwner(owner std.Address) {
-	if ownerAddress != std.GetOrigCaller() {
+	if ownerAddress != std.OriginCaller() {
 		panic("only the owner can set a new owner")
 	}
 
@@ -139,7 +144,7 @@ func Render(_ string) string {
 		result += `"` + handle + `": "` + address.(string) + `"`
 		appendComma = true
 
-		return true
+		return false
 	})
 
 	return result + "}"

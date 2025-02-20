@@ -106,7 +106,7 @@ type PostMessageHandler interface {
 // TODO: Consider further message types that could allow administrative action such as modifying
 // a feed's whitelist without the owner of this oracle having to maintain a reference to it.
 func (i *Instance) HandleMessage(msg string, postHandler PostMessageHandler) (string, error) {
-	caller := string(std.GetOrigCaller())
+	caller := string(std.OriginCaller())
 
 	funcType, msg := message.ParseFunc(msg)
 
@@ -227,7 +227,7 @@ func (i *Instance) GetFeedDefinitions(forAddress string) (string, error) {
 
 		first = false
 		buf.Write(taskBytes)
-		return true
+		return false
 	})
 
 	if err != nil {

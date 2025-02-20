@@ -11,9 +11,8 @@ func TestFoo721(t *testing.T) {
 	admin := users.AddressOrName("g10x5phu0k6p64cwrhfpsc8tk43st9kug6wft530")
 	bob := users.AddressOrName("g1ze6et22ces5atv79y4xh38s4kuraey4y2fr6tw")
 	tid1 := grc1155.TokenID("1")
-	tid2 := grc1155.TokenID("2")
 
-	for i, tc := range []struct {
+	for _, tc := range []struct {
 		name     string
 		expected interface{}
 		fn       func() interface{}

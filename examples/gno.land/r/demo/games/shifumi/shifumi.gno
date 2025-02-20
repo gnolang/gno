@@ -63,7 +63,7 @@ func (g *game) winner() int {
 // NewGame creates a new game where player1 is the caller and player2 the argument.
 // A new game index is returned.
 func NewGame(player std.Address) int {
-	games.Set(id.Next().String(), &game{player1: std.PrevRealm().Addr(), player2: player})
+	games.Set(id.Next().String(), &game{player1: std.PreviousRealm().Address(), player2: player})
 	return int(id)
 }
 
@@ -74,7 +74,7 @@ func Play(idx, move int) {
 	if !ok {
 		panic("game not found")
 	}
-	if err := v.(*game).play(std.PrevRealm().Addr(), move); err != nil {
+	if err := v.(*game).play(std.PreviousRealm().Address(), move); err != nil {
 		panic(err)
 	}
 }
@@ -86,8 +86,8 @@ func Render(path string) string {
 
 	output := `# 👊  ✋  ✌️  Shifumi
 Actions:
-* [NewGame](shifumi?help&__func=NewGame) opponentAddress
-* [Play](shifumi?help&__func=Play) gameIndex move (1=rock, 2=paper, 3=scissors)
+* [NewGame](shifumi$help&func=NewGame) opponentAddress
+* [Play](shifumi$help&func=Play) gameIndex move (1=rock, 2=paper, 3=scissors)
 
  game  | player1 |     | player2 |       | win 
  --- | --- | --- | --- | --- | ---

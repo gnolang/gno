@@ -13,8 +13,8 @@ type AuthenticatedRequest struct {
 
 func main() {
 	a := &AuthenticatedRequest{}
-	fmt.Println("ua:", a.UserAgent())
+	fmt.Println("ua:", a.UserAgent(), ";")
 }
 
 // Output:
-// ua:
+// ua:  ;

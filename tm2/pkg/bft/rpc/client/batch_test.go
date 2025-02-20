@@ -10,7 +10,7 @@ import (
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	bfttypes "github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/p2p"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -116,7 +116,7 @@ func TestRPCBatch_Send(t *testing.T) {
 		var (
 			numRequests    = 10
 			expectedStatus = &ctypes.ResultStatus{
-				NodeInfo: p2p.NodeInfo{
+				NodeInfo: p2pTypes.NodeInfo{
 					Moniker: "dummy",
 				},
 			}
@@ -160,7 +160,7 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 		{
 			statusMethod,
 			&ctypes.ResultStatus{
-				NodeInfo: p2p.NodeInfo{
+				NodeInfo: p2pTypes.NodeInfo{
 					Moniker: "dummy",
 				},
 			},

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -16,25 +17,25 @@ import (
 
 // MsgAddPackage - create and initialize new package
 type MsgAddPackage struct {
-	Creator crypto.Address  `json:"creator" yaml:"creator"`
-	Package *std.MemPackage `json:"package" yaml:"package"`
-	Deposit std.Coins       `json:"deposit" yaml:"deposit"`
+	Creator crypto.Address    `json:"creator" yaml:"creator"`
+	Package *gnovm.MemPackage `json:"package" yaml:"package"`
+	Deposit std.Coins         `json:"deposit" yaml:"deposit"`
 }
 
 var _ std.Msg = MsgAddPackage{}
 
 // NewMsgAddPackage - upload a package with files.
-func NewMsgAddPackage(creator crypto.Address, pkgPath string, files []*std.MemFile) MsgAddPackage {
+func NewMsgAddPackage(creator crypto.Address, pkgPath string, files []*gnovm.MemFile) MsgAddPackage {
 	var pkgName string
 	for _, file := range files {
 		if strings.HasSuffix(file.Name, ".gno") {
-			pkgName = string(gno.PackageNameFromFileBody(file.Name, file.Body))
+			pkgName = string(gno.MustPackageNameFromFileBody(file.Name, file.Body))
 			break
 		}
 	}
 	return MsgAddPackage{
 		Creator: creator,
-		Package: &std.MemPackage{
+		Package: &gnovm.MemPackage{
 			Name:  pkgName,
 			Path:  pkgPath,
 			Files: files,
@@ -145,17 +146,17 @@ func (msg MsgCall) GetReceived() std.Coins {
 
 // MsgRun - executes arbitrary Gno code.
 type MsgRun struct {
-	Caller  crypto.Address  `json:"caller" yaml:"caller"`
-	Send    std.Coins       `json:"send" yaml:"send"`
-	Package *std.MemPackage `json:"package" yaml:"package"`
+	Caller  crypto.Address    `json:"caller" yaml:"caller"`
+	Send    std.Coins         `json:"send" yaml:"send"`
+	Package *gnovm.MemPackage `json:"package" yaml:"package"`
 }
 
 var _ std.Msg = MsgRun{}
 
-func NewMsgRun(caller crypto.Address, send std.Coins, files []*std.MemFile) MsgRun {
+func NewMsgRun(caller crypto.Address, send std.Coins, files []*gnovm.MemFile) MsgRun {
 	for _, file := range files {
 		if strings.HasSuffix(file.Name, ".gno") {
-			pkgName := string(gno.PackageNameFromFileBody(file.Name, file.Body))
+			pkgName := string(gno.MustPackageNameFromFileBody(file.Name, file.Body))
 			if pkgName != "main" {
 				panic("package name should be 'main'")
 			}
@@ -164,7 +165,7 @@ func NewMsgRun(caller crypto.Address, send std.Coins, files []*std.MemFile) MsgR
 	return MsgRun{
 		Caller: caller,
 		Send:   send,
-		Package: &std.MemPackage{
+		Package: &gnovm.MemPackage{
 			Name:  "main",
 			Path:  "", // auto set by the handler
 			Files: files,
@@ -185,8 +186,8 @@ func (msg MsgRun) ValidateBasic() error {
 	}
 
 	// Force memPkg path to the reserved run path.
-	wantPath := "gno.land/r/" + msg.Caller.String() + "/run"
-	if path := msg.Package.Path; path != "" && path != wantPath {
+	wantSuffix := "/r/" + msg.Caller.String() + "/run"
+	if path := msg.Package.Path; path != "" && !strings.HasSuffix(path, wantSuffix) {
 		return ErrInvalidPkgPath(fmt.Sprintf("invalid pkgpath for MsgRun: %q", path))
 	}
 

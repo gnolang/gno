@@ -1,0 +1,70 @@
+#### 🛠 PR Checks Summary
+{{ if and .AutoRules (not .AutoAllSatisfied) }}{{ range .AutoRules }}{{ if not .Satisfied }} 🔴 {{ .Description }}
+{{end}}{{end}}{{ else }}All **Automated Checks** passed. ✅{{end}}
+
+##### Manual Checks (for Reviewers):
+{{ if .ManualRules }}{{ range .ManualRules }}- [{{ if .CheckedBy }}x{{ else }} {{ end }}] {{ .Description }}{{ if .CheckedBy }} (checked by @{{ .CheckedBy }}){{ end }}
+{{ end }}{{ else }}*No manual checks match this pull request.*{{ end }}
+
+<details><summary>Read More</summary>
+
+🤖 This bot helps streamline PR reviews by verifying automated checks and providing guidance for contributors and reviewers.
+
+##### ✅ Automated Checks (for Contributors):
+{{ if .AutoRules }}{{ range .AutoRules }} {{ if .Satisfied }}🟢{{ else }}🔴{{ end }} {{ .Description }}
+{{ end }}{{ else }}*No automated checks match this pull request.*{{ end }}
+
+##### ☑️ Contributor Actions:
+1. Fix any issues flagged by automated checks.
+2. Follow the Contributor Checklist to ensure your PR is ready for review.
+	- Add new tests, or document why they are unnecessary.
+	- Provide clear examples/screenshots, if necessary.
+	- Update documentation, if required.
+	- Ensure no breaking changes, or include `BREAKING CHANGE` notes.
+	- Link related issues/PRs, where applicable.
+
+##### ☑️ Reviewer Actions:
+1. Complete manual checks for the PR, including the guidelines and additional checks if applicable.
+
+##### 📚 Resources:
+- [Report a bug with the bot](https://www.github.com/gnolang/gno/issues/3238).
+- [View the bot’s configuration file](https://github.com/gnolang/gno/tree/master/contribs/github-bot/internal/config/config.go).
+
+{{ if or .AutoRules .ManualRules }}<details><summary><b>Debug</b></summary><blockquote>
+{{ if .AutoRules }}<details><summary><b>Automated Checks</b></summary><blockquote>
+{{ range .AutoRules }}
+<details><summary>{{ .Description | stripLinks }}</summary><blockquote>
+
+### If
+```
+{{ .ConditionDetails | stripLinks }}
+```
+### Then
+```
+{{ .RequirementDetails | stripLinks }}
+```
+</blockquote></details>
+{{ end }}
+</blockquote></details>
+{{ end }}
+
+{{ if .ManualRules }}<details><summary><b>Manual Checks</b></summary><blockquote>
+{{ range .ManualRules }}
+<details><summary>{{ .Description | stripLinks }}</summary><blockquote>
+
+### If
+```
+{{ .ConditionDetails }}
+```
+### Can be checked by
+{{range $item := .Teams }} - team {{ $item | stripLinks }}
+{{ else }}
+- Any user with comment edit permission
+{{end}}
+</blockquote></details>
+{{ end }}
+</blockquote></details>
+{{ end }}
+</blockquote></details>
+{{ end }}
+</details>

@@ -13,7 +13,7 @@ to run on your machine.
 ## Prerequisites
 - **Git**
 - **`make` (for running Makefiles)**
-- **Go 1.22+**
+- **Go 1.23+**
 - **Go Environment Setup**:
   - Make sure `$GOPATH` is well-defined, and `$GOPATH/bin` is added to your `$PATH` variable.
   - To do this, you can add the following line to your `.bashrc`, `.zshrc` or other config file:
@@ -69,7 +69,7 @@ go run ./cmd/gno --help
 
 ### `gnodev`
 `gnodev` is the go-to Gno development helper tool - it comes with a built in
-Gno.land node, a `gnoweb` server to display the state of your smart contracts
+gno.land node, a `gnoweb` server to display the state of your smart contracts
 (realms), and a watcher system to actively track changes in your code. Read more
 about `gnodev` [here](../../gno-tooling/cli/gnodev.md).
 
