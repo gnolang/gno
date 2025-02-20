@@ -3,6 +3,7 @@ package privval
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"log/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
@@ -123,6 +124,18 @@ func (pv *PrivValidator) SignProposal(chainID string, proposal *types.Proposal) 
 
 	// Then update the state and persist it.
 	return pv.state.Update(height, round, step, signBytes, signature)
+}
+
+// PrivValidator type implements io.Closer.
+var _ io.Closer = (*PrivValidator)(nil)
+
+// Close implements io.Closer.
+func (pv *PrivValidator) Close() error {
+	// If the signer implements the io.Closer interface, close it.
+	if closer, ok := pv.signer.(io.Closer); ok {
+		return closer.Close()
+	}
+	return nil
 }
 
 // PrivValidator type implements fmt.Stringer.
