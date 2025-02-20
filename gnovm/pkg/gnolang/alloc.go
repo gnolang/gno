@@ -117,8 +117,16 @@ func (alloc *Allocator) Allocate(size int64) {
 	alloc.bytes += size
 	debug2.Printf2("after, Allocate, bytes: %d \n", alloc.bytes)
 	if alloc.bytes > alloc.maxBytes {
-		alloc.m.GarbageCollect()
-		panic("allocation limit exceeded")
+		debug2.Printf2("exceed, bytes: %d, maxBytes: %d\n", alloc.bytes, alloc.maxBytes)
+		if left, ok := alloc.m.GarbageCollect(); !ok {
+			panic("allocation limit exceeded")
+		} else { // retry
+			alloc.bytes += size
+			if alloc.bytes > alloc.maxBytes {
+				panic("allocation limit exceeded")
+			}
+			debug2.Printf2("%d left after GC: \n", left)
+		}
 	}
 }
 
@@ -139,6 +147,7 @@ func (alloc *Allocator) AllocateListArray(items int64) {
 }
 
 func (alloc *Allocator) AllocateSlice() {
+	debug2.Println2("Allocate slice")
 	alloc.Allocate(allocSlice)
 }
 
@@ -332,29 +341,41 @@ func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 
 // -----------------------------------------------
 
+// TODO: fix this
 func (p *PackageValue) GetShallowSize() int64 {
+	debug2.Println2("GetShallowSize: ", p)
 	return allocPackge
 }
 func (b *Block) GetShallowSize() int64 {
+	debug2.Println2("GetShallowSize: ", b)
 	return allocBlock + allocBlockItem*int64(len(b.Values))
 }
 
 func (av *ArrayValue) GetShallowSize() int64 {
-	return allocArray + allocArrayItem*int64(len(av.List))
+	debug2.Printf2("GetShallowSize: %v, len: %d, cap: %d \n", av, av.GetLength(), av.GetCapacity())
+	if av.Data == nil {
+		return allocArray + allocArrayItem*int64(len(av.List))
+	} else {
+		return allocArray + int64(len(av.Data))
+	}
 }
 
 func (sv *StructValue) GetShallowSize() int64 {
+	debug2.Println2("GetShallowSize: ", sv)
 	return allocStruct + allocStructField*int64(len(sv.Fields))
 }
 
 func (mv *MapValue) GetShallowSize() int64 {
+	debug2.Println2("GetShallowSize: ", mv)
 	return allocMap + allocMapItem*int64(len(mv.vmap))
 }
 
 func (bmv *BoundMethodValue) GetShallowSize() int64 {
+	debug2.Println2("GetShallowSize: ", bmv)
 	return allocBoundMethod
 }
 
 func (hiv *HeapItemValue) GetShallowSize() int64 {
+	debug2.Println2("GetShallowSize: ", hiv)
 	return allocHeapItem
 }
