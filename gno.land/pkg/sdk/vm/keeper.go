@@ -267,13 +267,13 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	// Parse and run the files, construct *PV.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	msgCtx := stdlibs.ExecContext{
-		ChainID:       ctx.ChainID(),
-		ChainDomain:   chainDomain,
-		Height:        ctx.BlockHeight(),
-		Timestamp:     ctx.BlockTime().Unix(),
-		OrigCaller:    creator.Bech32(),
-		OrigSendSpent: new(std.Coins),
-		OrigPkgAddr:   pkgAddr.Bech32(),
+		ChainID:         ctx.ChainID(),
+		ChainDomain:     chainDomain,
+		Height:          ctx.BlockHeight(),
+		Timestamp:       ctx.BlockTime().Unix(),
+		OriginCaller:    creator.Bech32(),
+		OriginSendSpent: new(std.Coins),
+		OriginPkgAddr:   pkgAddr.Bech32(),
 		// XXX: should we remove the banker ?
 		Banker:      NewSDKBanker(vm, ctx),
 		Params:      NewSDKParams(&vm.prmk, ctx),
@@ -372,17 +372,17 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
-		ChainID:       ctx.ChainID(),
-		ChainDomain:   chainDomain,
-		Height:        ctx.BlockHeight(),
-		Timestamp:     ctx.BlockTime().Unix(),
-		OrigCaller:    creator.Bech32(),
-		OrigSend:      deposit,
-		OrigSendSpent: new(std.Coins),
-		OrigPkgAddr:   pkgAddr.Bech32(),
-		Banker:        NewSDKBanker(vm, ctx),
-		Params:        NewSDKParams(&vm.prmk, ctx),
-		EventLogger:   ctx.EventLogger(),
+		ChainID:         ctx.ChainID(),
+		ChainDomain:     chainDomain,
+		Height:          ctx.BlockHeight(),
+		Timestamp:       ctx.BlockTime().Unix(),
+		OriginCaller:    creator.Bech32(),
+		OriginSend:      deposit,
+		OriginSendSpent: new(std.Coins),
+		OriginPkgAddr:   pkgAddr.Bech32(),
+		Banker:          NewSDKBanker(vm, ctx),
+		Params:          NewSDKParams(&vm.prmk, ctx),
+		EventLogger:     ctx.EventLogger(),
 	}
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
@@ -463,17 +463,17 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// could it be safely partially memoized?
 	chainDomain := vm.getChainDomainParam(ctx)
 	msgCtx := stdlibs.ExecContext{
-		ChainID:       ctx.ChainID(),
-		ChainDomain:   chainDomain,
-		Height:        ctx.BlockHeight(),
-		Timestamp:     ctx.BlockTime().Unix(),
-		OrigCaller:    caller.Bech32(),
-		OrigSend:      send,
-		OrigSendSpent: new(std.Coins),
-		OrigPkgAddr:   pkgAddr.Bech32(),
-		Banker:        NewSDKBanker(vm, ctx),
-		Params:        NewSDKParams(&vm.prmk, ctx),
-		EventLogger:   ctx.EventLogger(),
+		ChainID:         ctx.ChainID(),
+		ChainDomain:     chainDomain,
+		Height:          ctx.BlockHeight(),
+		Timestamp:       ctx.BlockTime().Unix(),
+		OriginCaller:    caller.Bech32(),
+		OriginSend:      send,
+		OriginSendSpent: new(std.Coins),
+		OriginPkgAddr:   pkgAddr.Bech32(),
+		Banker:          NewSDKBanker(vm, ctx),
+		Params:          NewSDKParams(&vm.prmk, ctx),
+		EventLogger:     ctx.EventLogger(),
 	}
 	// Construct machine and evaluate.
 	m := gno.NewMachineWithOptions(
@@ -595,17 +595,17 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
-		ChainID:       ctx.ChainID(),
-		ChainDomain:   chainDomain,
-		Height:        ctx.BlockHeight(),
-		Timestamp:     ctx.BlockTime().Unix(),
-		OrigCaller:    caller.Bech32(),
-		OrigSend:      send,
-		OrigSendSpent: new(std.Coins),
-		OrigPkgAddr:   pkgAddr.Bech32(),
-		Banker:        NewSDKBanker(vm, ctx),
-		Params:        NewSDKParams(&vm.prmk, ctx),
-		EventLogger:   ctx.EventLogger(),
+		ChainID:         ctx.ChainID(),
+		ChainDomain:     chainDomain,
+		Height:          ctx.BlockHeight(),
+		Timestamp:       ctx.BlockTime().Unix(),
+		OriginCaller:    caller.Bech32(),
+		OriginSend:      send,
+		OriginSendSpent: new(std.Coins),
+		OriginPkgAddr:   pkgAddr.Bech32(),
+		Banker:          NewSDKBanker(vm, ctx),
+		Params:          NewSDKParams(&vm.prmk, ctx),
+		EventLogger:     ctx.EventLogger(),
 	}
 
 	buf := new(bytes.Buffer)
@@ -785,10 +785,10 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 		// OrigCaller:    caller,
 		// OrigSend:      send,
 		// OrigSendSpent: nil,
-		OrigPkgAddr: pkgAddr.Bech32(),
-		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
-		Params:      NewSDKParams(&vm.prmk, ctx),
-		EventLogger: ctx.EventLogger(),
+		OriginPkgAddr: pkgAddr.Bech32(),
+		Banker:        NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
+		Params:        NewSDKParams(&vm.prmk, ctx),
+		EventLogger:   ctx.EventLogger(),
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{

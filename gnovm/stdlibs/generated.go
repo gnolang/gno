@@ -431,14 +431,14 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
-		"GetChainID",
+		"ChainID",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
 		true,
 		func(m *gno.Machine) {
-			r0 := libs_std.GetChainID(
+			r0 := libs_std.ChainID(
 				m,
 			)
 
@@ -451,14 +451,14 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
-		"GetChainDomain",
+		"ChainDomain",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
 		true,
 		func(m *gno.Machine) {
-			r0 := libs_std.GetChainDomain(
+			r0 := libs_std.ChainDomain(
 				m,
 			)
 
@@ -471,14 +471,14 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
-		"GetHeight",
+		"ChainHeight",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("int64")},
 		},
 		true,
 		func(m *gno.Machine) {
-			r0 := libs_std.GetHeight(
+			r0 := libs_std.ChainHeight(
 				m,
 			)
 
@@ -491,7 +491,7 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
-		"origSend",
+		"originSend",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("[]string")},
@@ -499,7 +499,7 @@ var nativeFuncs = [...]NativeFunc{
 		},
 		true,
 		func(m *gno.Machine) {
-			r0, r1 := libs_std.X_origSend(
+			r0, r1 := libs_std.X_originSend(
 				m,
 			)
 
@@ -517,14 +517,14 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
-		"origCaller",
+		"originCaller",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
 		true,
 		func(m *gno.Machine) {
-			r0 := libs_std.X_origCaller(
+			r0 := libs_std.X_originCaller(
 				m,
 			)
 
@@ -537,14 +537,14 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
-		"origPkgAddr",
+		"originPkgAddr",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
 		true,
 		func(m *gno.Machine) {
-			r0 := libs_std.X_origPkgAddr(
+			r0 := libs_std.X_originPkgAddr(
 				m,
 			)
 
