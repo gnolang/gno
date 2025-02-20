@@ -16,6 +16,7 @@ import (
 //
 // XXX: make sure tv.T isn't bumped from allocation either.
 func (m *Machine) GarbageCollect() (left int64, ok bool) {
+	debug2.Println2("===GarbageCollect")
 	// We don't need the old value anymore.
 	m.Alloc.Reset()
 
@@ -65,12 +66,11 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 	var vis func(Object) bool // Declare `vis` first
 	vis = func(o Object) bool {
-		fmt.Println("o: ", o)
+		debug2.Printf2("===visit o: %v (type: %v) \n", o, reflect.TypeOf(o))
 		if o == (*Block)(nil) {
-			fmt.Println("nil block") // XXX ???
-			return true              // stop
+			debug2.Println2("nil block: ", o) // XXX ???
+			return true                       // stop
 		}
-		fmt.Println("o: ", o, reflect.TypeOf(o))
 		// Return if already measured.
 		if o.GetLastGCCycle() == gcCycle {
 			return false // but don't stop
@@ -93,6 +93,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 }
 
 func (av *ArrayValue) VisitAssociated(vis Visitor) (stop bool) {
+	debug2.Println2("VisitAssociated, av: ", av)
 	// Visit each value.
 	for i := 0; i < len(av.List); i++ {
 		v := av.List[i].V
@@ -111,6 +112,7 @@ func (av *ArrayValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (sv *StructValue) VisitAssociated(vis Visitor) (stop bool) {
+	debug2.Println2("VisitAssociated, sv: ", sv)
 	// Visit each value.
 	for i := 0; i < len(sv.Fields); i++ {
 		v := sv.Fields[i].V
@@ -128,6 +130,7 @@ func (sv *StructValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (bmv *BoundMethodValue) VisitAssociated(vis Visitor) (stop bool) {
+	debug2.Println2("VisitAssociated, bmv: ", bmv)
 	// bmv.Func cannot be a closure, it must be a method.
 	// So we do not visit it (for garbage collection).
 
@@ -142,26 +145,58 @@ func (bmv *BoundMethodValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (mv *MapValue) VisitAssociated(vis Visitor) (stop bool) {
+	debug2.Println2("VisitAssociated, mv: ", mv)
 	// Visit values.
 	// XXX visit mv.List.
 	// XXX do NOT visit mv.vmap.
+	for cur := mv.List.Head; cur != nil; cur = cur.Next {
+		if o, ok := cur.Key.V.(Object); ok {
+			stop = vis(o)
+			if stop {
+				return
+			}
+		}
+		if o, ok := cur.Value.V.(Object); ok {
+			stop = vis(o)
+			if stop {
+				return
+			}
+		}
+	}
 	return
 }
 
 func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
+	debug2.Println2("VisitAssociated, pv: ", pv)
 	// XXX visit pv.Block
 	// XXX visit pv.FBlocks
 	// XXX do NOT visit Realm.
+	stop = vis(pv.Block.(Object))
+	if stop {
+		return
+	}
+
+	for _, fb := range pv.FBlocks {
+		debug2.Printf2("fb: ", fb)
+		if o, ok := fb.(Object); ok {
+			stop = vis(o)
+			if stop {
+				return
+			}
+		}
+	}
 	return
 }
 
 func (b *Block) VisitAssociated(vis Visitor) (stop bool) {
+	debug2.Println2("VisitAssociated, block: ", b)
 	// Visit each value.
 	for i := 0; i < len(b.Values); i++ {
 		v := b.Values[i].V
 		if v == nil {
 			continue
 		}
+		// TODO: reference types, slice, pointer...
 		if o, ok := v.(Object); ok {
 			stop = vis(o)
 			if stop {
@@ -182,6 +217,7 @@ func (b *Block) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (hiv *HeapItemValue) VisitAssociated(vis Visitor) (stop bool) {
+	debug2.Println2("VisitAssociated, hiv: ", hiv)
 	if o, ok := hiv.Value.V.(Object); ok {
 		stop = vis(o)
 		if stop {

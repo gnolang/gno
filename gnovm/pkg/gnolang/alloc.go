@@ -108,12 +108,14 @@ func (alloc *Allocator) Fork() *Allocator {
 }
 
 func (alloc *Allocator) Allocate(size int64) {
+	debug2.Printf2("Allocate, size: %d \n", size)
 	if alloc == nil {
 		// this can happen for map items just prior to assignment.
 		return
 	}
 
 	alloc.bytes += size
+	debug2.Printf2("after, Allocate, bytes: %d \n", alloc.bytes)
 	if alloc.bytes > alloc.maxBytes {
 		alloc.m.GarbageCollect()
 		panic("allocation limit exceeded")

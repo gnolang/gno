@@ -262,9 +262,9 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 }
 
 func (opts *TestOptions) runTestFiles(
-		memPkg *gnovm.MemPackage,
-		files *gno.FileSet,
-		cw storetypes.Store, gs gno.TransactionStore,
+	memPkg *gnovm.MemPackage,
+	files *gno.FileSet,
+	cw storetypes.Store, gs gno.TransactionStore,
 ) (errs error) {
 	var m *gno.Machine
 	defer func() {
