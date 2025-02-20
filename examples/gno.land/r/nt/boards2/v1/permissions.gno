@@ -1,10 +1,6 @@
 package boards2
 
-import (
-	"std"
-
-	"gno.land/p/nt/commondao"
-)
+import "std"
 
 const (
 	PermissionBoardCreate         Permission = "board:create"
@@ -64,9 +60,5 @@ type (
 
 		// HasUser checks if a user exists.
 		HasUser(std.Address) bool
-
-		// GetDAO returns the underlying DAO.
-		// Returned value can be nil if the implementation doesn't have a DAO.
-		GetDAO() *commondao.CommonDAO // TODO: should return an interface
 	}
 )

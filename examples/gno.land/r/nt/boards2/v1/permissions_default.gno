@@ -127,12 +127,6 @@ func (dp DefaultPermissions) HasUser(user std.Address) bool {
 	return dp.users.Has(user.String())
 }
 
-// GetDAO returns the underlying DAO.
-// Returned value can be nil if the implementation doesn't have a DAO.
-func (dp DefaultPermissions) GetDAO() *commondao.CommonDAO {
-	return dp.dao
-}
-
 // WithPermission calls a callback when a user has a specific permission.
 // It panics on error or when a handler panics.
 // Callbacks are by default called when there is no handle registered for the permission.
