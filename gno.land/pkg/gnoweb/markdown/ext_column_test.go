@@ -46,22 +46,6 @@ content 3
 `,
 		},
 		{
-			Name: "intermediary content",
-			Input: `
-<gno-columns>
-content 1
-
-content 2
-
-## Title 1
-content 1
-## Title 2
-content 2
-</gno-columns>
-`,
-		},
-
-		{
 			Name: "empty heading",
 			Input: `
 <gno-columns>
@@ -229,6 +213,21 @@ content 2
 content 1
 ## Title 2
 content 2
+</gno-columns>
+`,
+		},
+		{
+			Name: "top level intermediary content",
+			Input: `
+<gno-columns>
+
+content 1
+content 2
+
+## Title 1
+content 3
+## Title 2
+content 4
 </gno-columns>
 `,
 		},

@@ -1,0 +1,31 @@
+-- input.md --
+<gno-columns>
+
+content 1
+content 2
+
+## Title 1
+content 3
+## Title 2
+content 4
+</gno-columns>
+
+-- output.html --
+<div class="gno-cols">
+<!-- Column 0 -->
+<div class="gno-col">
+<p>content 1
+content 2</p>
+</div>
+<!-- Column 1 -->
+<div class="gno-col">
+<h2>Title 1</h2>
+<p>content 3</p>
+</div>
+<!-- Column 2 -->
+<div class="gno-col">
+<h2>Title 2</h2>
+<p>content 4</p>
+</div>
+</div>
+
