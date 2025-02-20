@@ -8,4 +8,5 @@ var (
 	ErrRoleNotFound    = errors.New("accesscontrol: role not found")
 	ErrAccountNotRole  = errors.New("accesscontrol: this account does not have the role")
 	ErrNameRole        = errors.New("accesscontrol: role name cannot be empty or exceed 30 characters")
+	ErrNotOwner        = errors.New("accesscontrol: caller is not the owner of the role")
 )

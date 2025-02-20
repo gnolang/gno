@@ -39,7 +39,7 @@ func validRoleName(name string) error {
 // NewRole creates a new instance of Role
 func NewRole(name string, admin std.Address) (*Role, error) {
 	if err := validRoleName(name); err != nil {
-		return nil, err
+		return nil, ErrNameRole
 	}
 
 	return &Role{
@@ -55,8 +55,8 @@ func (rs *Roles) CreateRole(name string) (*Role, error) {
 		return nil, ErrNameRole
 	}
 
-	if err := rs.Ownable.CallerIsOwner(); err != nil {
-		return nil, err
+	if !rs.Ownable.CallerIsOwner() {
+		return nil, ErrNotOwner
 	}
 
 	for _, role := range rs.Roles {
@@ -104,9 +104,8 @@ func (rs *Roles) GrantRole(name string, account std.Address) error {
 		return ErrRoleNotFound
 	}
 
-	err = r.Ownable.CallerIsOwner()
-	if err != nil {
-		return err
+	if !r.Ownable.CallerIsOwner() {
+		return ErrNotOwner
 	}
 
 	r.Holders.Set(account.String(), struct{}{})
@@ -123,7 +122,7 @@ func (rs *Roles) GrantRole(name string, account std.Address) error {
 		RoleGrantedEvent,
 		"roleName", r.Name,
 		"account", account.String(),
-		"sender", std.PrevRealm().Addr().String(),
+		"sender",  std.PreviousRealm().Address().String(),
 	)
 
 	return nil
@@ -136,9 +135,8 @@ func (rs *Roles) RevokeRole(name string, account std.Address) error {
 		return ErrRoleNotFound
 	}
 
-	err = r.Ownable.CallerIsOwner()
-	if err != nil {
-		return err
+	if !r.Ownable.CallerIsOwner() {
+		return ErrNotOwner
 	}
 
 	r.Holders.Remove(account.String())
@@ -159,7 +157,7 @@ func (rs *Roles) RevokeRole(name string, account std.Address) error {
 		RoleRevokedEvent,
 		"roleName", r.Name,
 		"account", account.String(),
-		"sender", std.PrevRealm().Addr().String(),
+		"sender",  std.PreviousRealm().Address().String(),
 	)
 
 	return nil
@@ -172,7 +170,7 @@ func (rs *Roles) RenounceRole(name string) error {
 		return ErrRoleNotFound
 	}
 
-	caller := std.PrevRealm().Addr()
+	caller := std.OriginCaller()
 
 	if !r.HasAccount(caller) {
 		return ErrAccountNotRole
