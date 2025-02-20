@@ -16,7 +16,7 @@ var (
 )
 
 func main() {
-	std.TestSetOrigPkgAddr(addrc)
+	std.TestSetOriginPkgAddress(addrc)
 	std.TestIssueCoins(addrc, std.Coins{{"ugnot", 100000001}}) // TODO: remove this
 
 	// issue ugnots
@@ -27,8 +27,8 @@ func main() {
 	// println(wugnot.Render("queues"))
 	// println("A -", wugnot.Render(""))
 
-	std.TestSetOrigCaller(addr1)
-	std.TestSetOrigSend(std.Coins{{"ugnot", 123_400}}, nil)
+	std.TestSetOriginCaller(addr1)
+	std.TestSetOriginSend(std.Coins{{"ugnot", 123_400}}, nil)
 	wugnot.Deposit()
 	printBalances()
 	wugnot.Withdraw(4242)
@@ -38,8 +38,8 @@ func main() {
 func printBalances() {
 	printSingleBalance := func(name string, addr std.Address) {
 		wugnotBal := wugnot.BalanceOf(addr)
-		std.TestSetOrigCaller(addr)
-		robanker := std.GetBanker(std.BankerTypeReadonly)
+		std.TestSetOriginCaller(addr)
+		robanker := std.NewBanker(std.BankerTypeReadonly)
 		coins := robanker.GetCoins(addr).AmountOf("ugnot")
 		fmt.Printf("| %-13s | addr=%s | wugnot=%-5d | ugnot=%-9d |\n",
 			name, addr, wugnotBal, coins)
