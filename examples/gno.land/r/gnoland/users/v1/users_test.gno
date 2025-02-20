@@ -20,7 +20,7 @@ var (
 
 func TestRegister_Valid(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(aliceAddr))
-	std.TestSetOrigCaller(aliceAddr)
+	std.TestSetOriginCaller(aliceAddr)
 
 	uassert.NoError(t, Register(alice))
 	res, latest := susers.ResolveName(alice)
@@ -34,7 +34,7 @@ func TestRegister_Valid(t *testing.T) {
 
 func TestRegister_Invalid(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(bobAddr))
-	std.TestSetOrigCaller(bobAddr)
+	std.TestSetOriginCaller(bobAddr)
 
 	// Invalid usernames
 	uassert.Error(t, Register("alice"), ErrInvalidUsername.Error())      // vanity

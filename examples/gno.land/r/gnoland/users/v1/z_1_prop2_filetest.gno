@@ -15,16 +15,16 @@ import (
 // Test updating a name via GovDAO
 
 func init() {
-	c := std.GetOrigCaller()
+	c := std.OriginCaller()
 	alice := testutils.TestAddress("alice")
 
 	// Register alice
-	std.TestSetOrigCaller(alice)
+	std.TestSetOriginCaller(alice)
 	std.TestSetRealm(std.NewUserRealm(alice))
 	users.Register("alice123")
 
 	// Prop to change name
-	std.TestSetOrigCaller(c)
+	std.TestSetOriginCaller(c)
 	std.TestSetRealm(std.NewUserRealm(c))
 	ex := users.ProposeDeleteUser(alice)
 

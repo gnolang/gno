@@ -29,7 +29,7 @@ func Register(username string) error {
 		return ErrInvalidUsername
 	}
 
-	registrant := std.PrevRealm().Addr()
+	registrant := std.PreviousRealm().Address()
 	if err := susers.RegisterUser(username, registrant); err != nil {
 		return err
 	}
