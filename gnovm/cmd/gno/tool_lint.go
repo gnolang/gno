@@ -159,7 +159,8 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 				io.ErrPrintfln("%s: module is draft, skipping type check", pkgPath)
 			}
 
-			tm := test.Machine(gs, goio.Discard, memPkg.Path)
+			tm := test.Machine(gs, goio.Discard, memPkg.Path, false)
+
 			defer tm.Release()
 
 			// Check test files
