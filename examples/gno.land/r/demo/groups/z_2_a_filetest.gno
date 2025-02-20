@@ -8,7 +8,7 @@ import (
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/groups"
-	users "gno.land/r/gnoland/users/v1"
+	"gno.land/r/demo/users"
 )
 
 var gid groups.GroupID
@@ -16,30 +16,46 @@ var gid groups.GroupID
 const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func main() {
-	caller := std.GetOrigCaller() // main
-	std.TestSetRealm(std.NewUserRealm(caller))
-	users.Register("main123")
+	caller := std.OriginCaller() // main
+	users.Register("", "gnouser0", "my profile 1")
 
+	std.TestSetOriginCaller(admin)
+	users.GrantInvites(caller.String() + ":1")
+	// switch back to caller
+	std.TestSetOriginCaller(caller)
+	// invite another addr
 	test1 := testutils.TestAddress("gnouser1")
-	std.TestSetOrigCaller(test1)
-	std.TestSetRealm(std.NewUserRealm(test1))
-	users.Register("test123")
+	users.Invite(test1.String())
+	// switch to test1
+	std.TestSetOriginCaller(test1)
+	users.Register(caller, "gnouser1", "my other profile 1")
 
+	std.TestSetOriginCaller(admin)
+	users.GrantInvites(caller.String() + ":1")
+	// switch back to caller
+	std.TestSetOriginCaller(caller)
+	// invite another addr
 	test2 := testutils.TestAddress("gnouser2")
-	std.TestSetOrigCaller(test2)
-	std.TestSetRealm(std.NewUserRealm(test2))
-	users.Register("test223")
+	users.Invite(test2.String())
+	// switch to test1
+	std.TestSetOriginCaller(test2)
+	users.Register(caller, "gnouser2", "my other profile 2")
 
+	std.TestSetOriginCaller(admin)
+	users.GrantInvites(caller.String() + ":1")
+	// switch back to caller
+	std.TestSetOriginCaller(caller)
+	// invite another addr
 	test3 := testutils.TestAddress("gnouser3")
-	std.TestSetOrigCaller(test3)
-	std.TestSetRealm(std.NewUserRealm(test3))
-	users.Register("test323")
+	users.Invite(test3.String())
+	// switch to test1
+	std.TestSetOriginCaller(test3)
+	users.Register(caller, "gnouser3", "my other profile 3")
 
-	std.TestSetOrigCaller(caller)
-	std.TestSetRealm(std.NewUserRealm(caller))
+	std.TestSetOriginCaller(caller)
 
 	gid = groups.CreateGroup("test_group")
-	println(groups.Render("test_group"))
+	println(gid)
 
 	groups.AddMember(gid, test2.String(), 42, "metadata3")
 
@@ -48,24 +64,12 @@ func main() {
 }
 
 // Output:
+// 1
 // Group ID: 0000000001
 //
 // Group Name: test_group
 //
-// Group Creator: main123
-//
-// Group createdAt: 2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001
-//
-// Group Last MemberID: 0000000000
-//
-// Group Members:
-//
-//
-// Group ID: 0000000001
-//
-// Group Name: test_group
-//
-// Group Creator: main123
+// Group Creator: gnouser0
 //
 // Group createdAt: 2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001
 //

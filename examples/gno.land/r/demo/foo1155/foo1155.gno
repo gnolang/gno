@@ -5,6 +5,9 @@ import (
 
 	"gno.land/p/demo/grc/grc1155"
 	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/users"
+
+	pusers "gno.land/p/demo/users"
 )
 
 var (
@@ -26,8 +29,8 @@ func mintGRC1155Token(owner std.Address) {
 
 // Getters
 
-func BalanceOf(user std.Address, tid grc1155.TokenID) uint64 {
-	balance, err := foo.BalanceOf(user, tid)
+func BalanceOf(user pusers.AddressOrName, tid grc1155.TokenID) uint64 {
+	balance, err := foo.BalanceOf(users.Resolve(user), tid)
 	if err != nil {
 		panic(err)
 	}
@@ -35,11 +38,11 @@ func BalanceOf(user std.Address, tid grc1155.TokenID) uint64 {
 	return balance
 }
 
-func BalanceOfBatch(ul []std.Address, batch []grc1155.TokenID) []uint64 {
+func BalanceOfBatch(ul []pusers.AddressOrName, batch []grc1155.TokenID) []uint64 {
 	var usersResolved []std.Address
 
 	for i := 0; i < len(ul); i++ {
-		usersResolved[i] = ul[i]
+		usersResolved[i] = users.Resolve(ul[i])
 	}
 	balanceBatch, err := foo.BalanceOfBatch(usersResolved, batch)
 	if err != nil {
@@ -49,28 +52,28 @@ func BalanceOfBatch(ul []std.Address, batch []grc1155.TokenID) []uint64 {
 	return balanceBatch
 }
 
-func IsApprovedForAll(owner, user std.Address) bool {
-	return foo.IsApprovedForAll(owner, user)
+func IsApprovedForAll(owner, user pusers.AddressOrName) bool {
+	return foo.IsApprovedForAll(users.Resolve(owner), users.Resolve(user))
 }
 
 // Setters
 
-func SetApprovalForAll(user std.Address, approved bool) {
-	err := foo.SetApprovalForAll(user, approved)
+func SetApprovalForAll(user pusers.AddressOrName, approved bool) {
+	err := foo.SetApprovalForAll(users.Resolve(user), approved)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func TransferFrom(from, to std.Address, tid grc1155.TokenID, amount uint64) {
-	err := foo.SafeTransferFrom(from, to, tid, amount)
+func TransferFrom(from, to pusers.AddressOrName, tid grc1155.TokenID, amount uint64) {
+	err := foo.SafeTransferFrom(users.Resolve(from), users.Resolve(to), tid, amount)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func BatchTransferFrom(from, to std.Address, batch []grc1155.TokenID, amounts []uint64) {
-	err := foo.SafeBatchTransferFrom(from, to, batch, amounts)
+func BatchTransferFrom(from, to pusers.AddressOrName, batch []grc1155.TokenID, amounts []uint64) {
+	err := foo.SafeBatchTransferFrom(users.Resolve(from), users.Resolve(to), batch, amounts)
 	if err != nil {
 		panic(err)
 	}
@@ -78,37 +81,37 @@ func BatchTransferFrom(from, to std.Address, batch []grc1155.TokenID, amounts []
 
 // Admin
 
-func Mint(to std.Address, tid grc1155.TokenID, amount uint64) {
-	caller := std.GetOrigCaller()
+func Mint(to pusers.AddressOrName, tid grc1155.TokenID, amount uint64) {
+	caller := std.OriginCaller()
 	assertIsAdmin(caller)
-	err := foo.SafeMint(to, tid, amount)
+	err := foo.SafeMint(users.Resolve(to), tid, amount)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func MintBatch(to std.Address, batch []grc1155.TokenID, amounts []uint64) {
-	caller := std.GetOrigCaller()
+func MintBatch(to pusers.AddressOrName, batch []grc1155.TokenID, amounts []uint64) {
+	caller := std.OriginCaller()
 	assertIsAdmin(caller)
-	err := foo.SafeBatchMint(to, batch, amounts)
+	err := foo.SafeBatchMint(users.Resolve(to), batch, amounts)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func Burn(from std.Address, tid grc1155.TokenID, amount uint64) {
-	caller := std.GetOrigCaller()
+func Burn(from pusers.AddressOrName, tid grc1155.TokenID, amount uint64) {
+	caller := std.OriginCaller()
 	assertIsAdmin(caller)
-	err := foo.Burn(from, tid, amount)
+	err := foo.Burn(users.Resolve(from), tid, amount)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func BurnBatch(from std.Address, batch []grc1155.TokenID, amounts []uint64) {
-	caller := std.GetOrigCaller()
+func BurnBatch(from pusers.AddressOrName, batch []grc1155.TokenID, amounts []uint64) {
+	caller := std.OriginCaller()
 	assertIsAdmin(caller)
-	err := foo.BatchBurn(from, batch, amounts)
+	err := foo.BatchBurn(users.Resolve(from), batch, amounts)
 	if err != nil {
 		panic(err)
 	}
