@@ -163,7 +163,7 @@ func renderSinglePoll(b *bytes.Buffer, id string, p *poll.Poll) {
 	tally := p.Tally()
 	b.WriteString("\n## Options:\n")
 	for i, opt := range p.Options {
-		b.WriteString(ufmt.Sprintf("  - (%d) %s — Votes: %d\n", i, opt, tally[i]))
+		b.WriteString(ufmt.Sprintf("  - (%d) %s — Votes: %d -- %f%%\n", i, opt, tally[i], 100*float64(tally[i])/float64(p.VoteTotal)))
 	}
 
 	b.WriteString(ufmt.Sprintf("\n**Distinct Voters:** %d\n", p.VoterCount()))
@@ -172,13 +172,18 @@ func renderSinglePoll(b *bytes.Buffer, id string, p *poll.Poll) {
 		sumVotes += count
 	}
 	if sumVotes > p.VoterCount() && p.MaxChoices > 1 {
-		b.WriteString("*Multiple selections are allowed; total votes can exceed distinct voters.*\n\n")
+		b.WriteString(
+			ufmt.Sprintf("*Multiple selections (%d) are allowed; total votes can exceed distinct voters.*\n\n", p.MaxChoices))
 	}
 
 	b.WriteString("\n## Detailed Votes:\n")
 	p.Votes.Iterate("", "", func(addr string, val interface{}) bool {
 		indexes := val.([]int)
-		b.WriteString(ufmt.Sprintf("- %s => %v\n", addr, indexes))
+		strIndexes := make([]string, len(indexes))
+		for i, num := range indexes {
+			strIndexes[i] = strconv.Itoa(num)
+		}
+		b.WriteString(ufmt.Sprintf("- %s => %s\n", addr, strings.Join(strIndexes, ", ")))
 		return false
 	})
 }
@@ -244,7 +249,7 @@ func renderPollList(b *bytes.Buffer, path string) string {
 func getPoll(id string) *poll.Poll {
 	val, exists := polls.Get(id)
 	if !exists {
-		panic("poll not found")
+		panic(ufmt.Sprintf("poll not found: %s", id))
 	}
 	return val.(*poll.Poll)
 }

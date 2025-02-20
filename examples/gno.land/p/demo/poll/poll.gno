@@ -12,11 +12,12 @@ import (
 type Poll struct {
 	Title       string
 	Description string
-	Deadline    time.Time  // now a standard time.Time
+	Deadline    time.Time // now a standard time.Time
 	Creator     std.Address
-	Options     []string   // e.g. ["Red", "Green", "Blue"]
-	MaxChoices  int        // how many options a voter can select
-	Votes       *avl.Tree  // key: voter address, value: []int (indices of Options)
+	Options     []string  // e.g. ["Red", "Green", "Blue"]
+	MaxChoices  int       // how many options a voter can select
+	VoteTotal   int       // total number of votes cast
+	Votes       *avl.Tree // key: voter address, value: []int (indices of Options)
 }
 
 // NewPoll constructs a Poll with the desired configuration.
@@ -41,6 +42,7 @@ func NewPoll(
 		Creator:     creator,
 		Options:     opts,
 		MaxChoices:  maxChoices,
+		VoteTotal:   0,
 		Votes:       avl.NewTree(),
 	}
 	return p
@@ -71,6 +73,7 @@ func (p *Poll) Vote(voter std.Address, choices []int) {
 			panic("invalid option index")
 		}
 	}
+	p.VoteTotal = p.VoteTotal + len(choices)
 	p.Votes.Set(voter.String(), choices)
 }
 
