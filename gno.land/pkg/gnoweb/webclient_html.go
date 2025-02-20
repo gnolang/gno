@@ -261,12 +261,10 @@ func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) e
 
 	// Process .gno files to add links
 	if strings.HasSuffix(fileName, ".gno") {
-
 		// Find and process string spans containing gno.land imports
 		lines := strings.Split(formatted, "\n")
 		for i, line := range lines {
 			if strings.Contains(line, "gno.land/") {
-
 				// Look for chroma string spans
 				start := strings.Index(line, `<span class="chroma-s">&#34;gno.land/`)
 				if start != -1 {
