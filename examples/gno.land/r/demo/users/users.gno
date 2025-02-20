@@ -16,7 +16,7 @@ import (
 // State
 
 var (
-	admin std.Address = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" // @moul
+	admin std.Address = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
 
 	restricted avl.Tree                  // Name -> true - restricted name
 	name2User  avl.Tree                  // Name -> *users.User
@@ -34,16 +34,16 @@ func Register(inviter std.Address, name string, profile string) {
 	// assert CallTx call.
 	std.AssertOriginCall()
 	// assert invited or paid.
-	caller := std.GetCallerAt(2)
-	if caller != std.GetOrigCaller() {
-		panic("should not happen") // because std.AssertOrigCall().
+	caller := std.CallerAt(2)
+	if caller != std.OriginCaller() {
+		panic("should not happen") // because std.AssertOriginCall().
 	}
 
-	sentCoins := std.GetOrigSend()
+	sentCoins := std.OriginSend()
 	minCoin := std.NewCoin("ugnot", minFee)
 
 	if inviter == "" {
-		// banker := std.GetBanker(std.BankerTypeOrigSend)
+		// banker := std.NewBanker(std.BankerTypeOriginSend)
 		if len(sentCoins) == 1 && sentCoins[0].IsGTE(minCoin) {
 			if sentCoins[0].Amount > minFee*maxFeeMult {
 				panic("payment must not be greater than " + strconv.Itoa(int(minFee*maxFeeMult)))
@@ -118,9 +118,9 @@ func Invite(invitee string) {
 	// assert CallTx call.
 	std.AssertOriginCall()
 	// get caller/inviter.
-	caller := std.GetCallerAt(2)
-	if caller != std.GetOrigCaller() {
-		panic("should not happen") // because std.AssertOrigCall().
+	caller := std.CallerAt(2)
+	if caller != std.OriginCaller() {
+		panic("should not happen") // because std.AssertOriginCall().
 	}
 	lines := strings.Split(invitee, "\n")
 	if caller == admin {
@@ -157,9 +157,9 @@ func GrantInvites(invites string) {
 	// assert CallTx call.
 	std.AssertOriginCall()
 	// assert admin.
-	caller := std.GetCallerAt(2)
-	if caller != std.GetOrigCaller() {
-		panic("should not happen") // because std.AssertOrigCall().
+	caller := std.CallerAt(2)
+	if caller != std.OriginCaller() {
+		panic("should not happen") // because std.AssertOriginCall().
 	}
 	if caller != admin {
 		panic("unauthorized")
@@ -208,7 +208,7 @@ func SetMinFee(newMinFee int64) {
 	// assert CallTx call.
 	std.AssertOriginCall()
 	// assert admin caller.
-	caller := std.GetCallerAt(2)
+	caller := std.CallerAt(2)
 	if caller != admin {
 		panic("unauthorized")
 	}
@@ -221,7 +221,7 @@ func SetMaxFeeMultiple(newMaxFeeMult int64) {
 	// assert CallTx call.
 	std.AssertOriginCall()
 	// assert admin caller.
-	caller := std.GetCallerAt(2)
+	caller := std.CallerAt(2)
 	if caller != admin {
 		panic("unauthorized")
 	}
@@ -260,7 +260,7 @@ func GetUserByAddressOrName(input users.AddressOrName) *users.User {
 // Get a list of user names starting from the given prefix. Limit the
 // number of results to maxResults. (This can be used for a name search tool.)
 func ListUsersByPrefix(prefix string, maxResults int) []string {
-	return avlhelpers.ListByteStringKeysByPrefix(name2User, prefix, maxResults)
+	return avlhelpers.ListByteStringKeysByPrefix(&name2User, prefix, maxResults)
 }
 
 func Resolve(input users.AddressOrName) std.Address {
@@ -278,7 +278,7 @@ func AdminAddRestrictedName(name string) {
 	// assert CallTx call.
 	std.AssertOriginCall()
 	// get caller
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	// assert admin
 	if caller != admin {
 		panic("unauthorized")
@@ -328,14 +328,14 @@ func Render(fullPath string) string {
 func renderHome(path string) string {
 	doc := ""
 
-	page := pager.NewPager(&name2User, 50).MustGetPageByPath(path)
+	page := pager.NewPager(&name2User, 50, false).MustGetPageByPath(path)
 
 	for _, item := range page.Items {
 		user := item.Value.(*users.User)
 		doc += " * [" + user.Name + "](/r/demo/users:" + user.Name + ")\n"
 	}
 	doc += "\n"
-	doc += page.Selector()
+	doc += page.Picker()
 	return doc
 }
 

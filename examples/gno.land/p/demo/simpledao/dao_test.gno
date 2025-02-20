@@ -45,6 +45,50 @@ func TestSimpleDAO_Propose(t *testing.T) {
 		)
 	})
 
+	t.Run("invalid title", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			called = false
+			cb     = func() error {
+				called = true
+
+				return nil
+			}
+			ex = &mockExecutor{
+				executeFn: cb,
+			}
+
+			sentCoins = std.NewCoins(
+				std.NewCoin(
+					"ugnot",
+					minProposalFeeValue,
+				),
+			)
+
+			ms = &mockMemberStore{
+				isMemberFn: func(_ std.Address) bool {
+					return false
+				},
+			}
+			s = New(ms)
+		)
+
+		std.TestSetOriginSend(sentCoins, std.Coins{})
+
+		_, err := s.Propose(dao.ProposalRequest{
+			Executor: ex,
+			Title:    "", // Set invalid title
+		})
+		uassert.ErrorIs(
+			t,
+			err,
+			ErrInvalidTitle,
+		)
+
+		uassert.False(t, called)
+	})
+
 	t.Run("caller cannot cover fee", func(t *testing.T) {
 		t.Parallel()
 
@@ -58,6 +102,7 @@ func TestSimpleDAO_Propose(t *testing.T) {
 			ex = &mockExecutor{
 				executeFn: cb,
 			}
+			title = "Proposal title"
 
 			sentCoins = std.NewCoins(
 				std.NewCoin(
@@ -76,10 +121,11 @@ func TestSimpleDAO_Propose(t *testing.T) {
 
 		// Set the sent coins to be lower
 		// than the proposal fee
-		std.TestSetOrigSend(sentCoins, std.Coins{})
+		std.TestSetOriginSend(sentCoins, std.Coins{})
 
 		_, err := s.Propose(dao.ProposalRequest{
 			Executor: ex,
+			Title:    title,
 		})
 		uassert.ErrorIs(
 			t,
@@ -105,6 +151,7 @@ func TestSimpleDAO_Propose(t *testing.T) {
 				executeFn: cb,
 			}
 			description = "Proposal description"
+			title       = "Proposal title"
 
 			proposer  = testutils.TestAddress("proposer")
 			sentCoins = std.NewCoins(
@@ -124,11 +171,12 @@ func TestSimpleDAO_Propose(t *testing.T) {
 
 		// Set the sent coins to be enough
 		// to cover the fee
-		std.TestSetOrigSend(sentCoins, std.Coins{})
-		std.TestSetOrigCaller(proposer)
+		std.TestSetOriginSend(sentCoins, std.Coins{})
+		std.TestSetOriginCaller(proposer)
 
 		// Make sure the proposal was added
 		id, err := s.Propose(dao.ProposalRequest{
+			Title:       title,
 			Description: description,
 			Executor:    ex,
 		})
@@ -141,6 +189,7 @@ func TestSimpleDAO_Propose(t *testing.T) {
 
 		uassert.Equal(t, proposer.String(), prop.Author().String())
 		uassert.Equal(t, description, prop.Description())
+		uassert.Equal(t, title, prop.Title())
 		uassert.Equal(t, dao.Active.String(), prop.Status().String())
 
 		stats := prop.Stats()
@@ -172,7 +221,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 			s = New(ms)
 		)
 
-		std.TestSetOrigCaller(voter)
+		std.TestSetOriginCaller(voter)
 
 		// Attempt to vote on the proposal
 		uassert.ErrorContains(
@@ -202,7 +251,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 			s = New(ms)
 		)
 
-		std.TestSetOrigCaller(voter)
+		std.TestSetOriginCaller(voter)
 
 		// Attempt to vote on the proposal
 		uassert.ErrorContains(
@@ -236,7 +285,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 			}
 		)
 
-		std.TestSetOrigCaller(voter)
+		std.TestSetOriginCaller(voter)
 
 		// Add an initial proposal
 		id, err := s.addProposal(prop)
@@ -278,7 +327,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 			}
 		)
 
-		std.TestSetOrigCaller(voter)
+		std.TestSetOriginCaller(voter)
 
 		// Cast the initial vote
 		urequire.NoError(t, prop.tally.castVote(member, dao.YesVote))
@@ -337,7 +386,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 
 		majorityIndex := (len(members)*2)/3 + 1 // 2/3+
 		for _, m := range members[:majorityIndex] {
-			std.TestSetOrigCaller(m.Address)
+			std.TestSetOriginCaller(m.Address)
 
 			// Attempt to vote on the proposal
 			urequire.NoError(
@@ -392,7 +441,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 
 		majorityIndex := (len(members)*2)/3 + 1 // 2/3+
 		for _, m := range members[:majorityIndex] {
-			std.TestSetOrigCaller(m.Address)
+			std.TestSetOriginCaller(m.Address)
 
 			// Attempt to vote on the proposal
 			urequire.NoError(
@@ -447,7 +496,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 
 		majorityIndex := (len(members)*2)/3 + 1 // 2/3+
 		for _, m := range members[:majorityIndex] {
-			std.TestSetOrigCaller(m.Address)
+			std.TestSetOriginCaller(m.Address)
 
 			// Attempt to vote on the proposal
 			urequire.NoError(
@@ -502,7 +551,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 
 		// The first half votes yes
 		for _, m := range members[:len(members)/2] {
-			std.TestSetOrigCaller(m.Address)
+			std.TestSetOriginCaller(m.Address)
 
 			// Attempt to vote on the proposal
 			urequire.NoError(
@@ -513,7 +562,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 
 		// The other half votes no
 		for _, m := range members[len(members)/2:] {
-			std.TestSetOrigCaller(m.Address)
+			std.TestSetOriginCaller(m.Address)
 
 			// Attempt to vote on the proposal
 			urequire.NoError(
@@ -569,7 +618,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 
 		// The first quarter votes yes
 		for _, m := range members[:len(members)/4] {
-			std.TestSetOrigCaller(m.Address)
+			std.TestSetOriginCaller(m.Address)
 
 			// Attempt to vote on the proposal
 			urequire.NoError(
@@ -580,7 +629,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 
 		// The second quarter votes no
 		for _, m := range members[len(members)/4 : len(members)/2] {
-			std.TestSetOrigCaller(m.Address)
+			std.TestSetOriginCaller(m.Address)
 
 			// Attempt to vote on the proposal
 			urequire.NoError(
@@ -619,7 +668,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 
 		// Set the sent coins to be lower
 		// than the execute fee
-		std.TestSetOrigSend(sentCoins, std.Coins{})
+		std.TestSetOriginSend(sentCoins, std.Coins{})
 
 		uassert.ErrorIs(
 			t,
@@ -650,7 +699,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 
 		// Set the sent coins to be enough
 		// so the execution can take place
-		std.TestSetOrigSend(sentCoins, std.Coins{})
+		std.TestSetOriginSend(sentCoins, std.Coins{})
 
 		uassert.ErrorContains(
 			t,
@@ -677,7 +726,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 			}
 		)
 
-		std.TestSetOrigCaller(voter)
+		std.TestSetOriginCaller(voter)
 
 		// Add an initial proposal
 		id, err := s.addProposal(prop)
@@ -703,7 +752,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 				dao.ExecutionSuccessful,
 			},
 			{
-				"execution failed",
+				"execution not succeeded",
 				dao.ExecutionFailed,
 			},
 		}
@@ -727,7 +776,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 					}
 				)
 
-				std.TestSetOrigCaller(voter)
+				std.TestSetOriginCaller(voter)
 
 				// Add an initial proposal
 				id, err := s.addProposal(prop)
@@ -771,7 +820,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 			}
 		)
 
-		std.TestSetOrigCaller(voter)
+		std.TestSetOriginCaller(voter)
 
 		// Add an initial proposal
 		id, err := s.addProposal(prop)
@@ -815,7 +864,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 			}
 		)
 
-		std.TestSetOrigCaller(voter)
+		std.TestSetOriginCaller(voter)
 
 		// Add an initial proposal
 		id, err := s.addProposal(prop)

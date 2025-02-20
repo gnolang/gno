@@ -14,10 +14,10 @@ func main() {
 	disperseAddr := std.DerivePkgAddr("gno.land/r/demo/disperse")
 	mainaddr := std.DerivePkgAddr("gno.land/r/demo/main")
 
-	std.TestSetOrigPkgAddr(disperseAddr)
-	std.TestSetOrigCaller(mainaddr)
+	std.TestSetOriginPkgAddress(disperseAddr)
+	std.TestSetOriginCaller(mainaddr)
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 
 	mainbal := banker.GetCoins(mainaddr)
 	println("main before:", mainbal)
@@ -30,5 +30,5 @@ func main() {
 }
 
 // Output:
-// main before: 200000300ugnot
-// main after: 200000100ugnot
+// main before: 300ugnot
+// main after: 100ugnot

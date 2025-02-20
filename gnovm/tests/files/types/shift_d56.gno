@@ -9,7 +9,7 @@ func shiftReturn() int64 {
 func main() {
 	r := shiftReturn()
 
-	fmt.Printf("%T, %d \n", r, r)
+	fmt.Printf("%T, %d\n", r, r)
 }
 
 // Error:

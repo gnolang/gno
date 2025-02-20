@@ -9,6 +9,7 @@ import (
 
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/grc20reg"
 )
 
 var (
@@ -17,11 +18,11 @@ var (
 )
 
 func init() {
-	// XXX: grc20reg.Register(Token, "")
+	grc20reg.Register(Token.Getter(), "")
 }
 
 func Faucet() string {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	if err := adm.Mint(caller, 1_000_000); err != nil {
 		return "error: " + err.Error()
 	}

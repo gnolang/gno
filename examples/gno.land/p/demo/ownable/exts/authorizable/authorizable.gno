@@ -41,7 +41,7 @@ func NewAuthorizableWithAddress(addr std.Address) *Authorizable {
 }
 
 func (a *Authorizable) AddToAuthList(addr std.Address) error {
-	if err := a.CallerIsOwner(); err != nil {
+	if !a.CallerIsOwner() {
 		return ErrNotSuperuser
 	}
 
@@ -55,7 +55,7 @@ func (a *Authorizable) AddToAuthList(addr std.Address) error {
 }
 
 func (a *Authorizable) DeleteFromAuthList(addr std.Address) error {
-	if err := a.CallerIsOwner(); err != nil {
+	if !a.CallerIsOwner() {
 		return ErrNotSuperuser
 	}
 
@@ -72,7 +72,7 @@ func (a *Authorizable) DeleteFromAuthList(addr std.Address) error {
 }
 
 func (a Authorizable) CallerOnAuthList() error {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 
 	if !a.authorized.Has(caller.String()) {
 		return ErrNotInAuthList
@@ -82,7 +82,7 @@ func (a Authorizable) CallerOnAuthList() error {
 }
 
 func (a Authorizable) AssertOnAuthList() {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 
 	if !a.authorized.Has(caller.String()) {
 		panic(ErrNotInAuthList)

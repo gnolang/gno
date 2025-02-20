@@ -39,11 +39,11 @@ type Teller interface {
 	//
 	// Returns an error if the operation failed.
 	//
-	// IMPORTANT: Beware that changing an allowance with this method brings the risk
-	// that someone may use both the old and the new allowance by unfortunate
-	// transaction ordering. One possible solution to mitigate this race
-	// condition is to first reduce the spender's allowance to 0 and set the
-	// desired value afterwards:
+	// IMPORTANT: Beware that changing an allowance with this method brings
+	// the risk that someone may use both the old and the new allowance by
+	// unfortunate transaction ordering. One possible solution to mitigate
+	// this race condition is to first reduce the spender's allowance to 0
+	// and set the desired value afterwards:
 	// https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
 	Approve(spender std.Address, amount uint64) error
 
@@ -63,11 +63,22 @@ type Teller interface {
 // name, symbol, and decimals, as well as methods for interacting with the
 // ledger, including checking balances and allowances.
 type Token struct {
-	name     string         // Name of the token (e.g., "Dummy Token").
-	symbol   string         // Symbol of the token (e.g., "DUMMY").
-	decimals uint           // Number of decimal places used for the token's precision.
-	ledger   *PrivateLedger // Pointer to the PrivateLedger that manages balances and allowances.
+	// Name of the token (e.g., "Dummy Token").
+	name string
+	// Symbol of the token (e.g., "DUMMY").
+	symbol string
+	// Number of decimal places used for the token's precision.
+	decimals uint
+	// Pointer to the PrivateLedger that manages balances and allowances.
+	ledger *PrivateLedger
 }
+
+// TokenGetter is a function type that returns a Token pointer. This type allows
+// bypassing a limitation where we cannot directly pass Token pointers between
+// realms. Instead, we pass this function which can then be called to get the
+// Token pointer. For more details on this limitation and workaround, see:
+// https://github.com/gnolang/gno/pull/3135
+type TokenGetter func() *Token
 
 // PrivateLedger is a struct that holds the balances and allowances for the
 // token. It provides administrative functions for minting, burning,
@@ -77,10 +88,14 @@ type Token struct {
 // information regarding token balances and allowances, and allows direct,
 // unrestricted access to all administrative functions.
 type PrivateLedger struct {
-	totalSupply uint64   // Total supply of the token managed by this ledger.
-	balances    avl.Tree // std.Address -> uint64
-	allowances  avl.Tree // owner.(std.Address)+":"+spender.(std.Address)) -> uint64
-	token       *Token   // Pointer to the associated Token struct
+	// Total supply of the token managed by this ledger.
+	totalSupply uint64
+	// std.Address -> uint64
+	balances avl.Tree
+	// owner.(std.Address)+":"+spender.(std.Address)) -> uint64
+	allowances avl.Tree
+	// Pointer to the associated Token struct
+	token *Token
 }
 
 var (

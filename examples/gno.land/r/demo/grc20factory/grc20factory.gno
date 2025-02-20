@@ -8,6 +8,7 @@ import (
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/grc20reg"
 )
 
 var instances avl.Tree // symbol -> instance
@@ -20,7 +21,7 @@ type instance struct {
 }
 
 func New(name, symbol string, decimals uint, initialMint, faucet uint64) {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	NewWithAdmin(name, symbol, decimals, initialMint, faucet, caller)
 }
 
@@ -42,7 +43,7 @@ func NewWithAdmin(name, symbol string, decimals uint, initialMint, faucet uint64
 		faucet: faucet,
 	}
 	instances.Set(symbol, &inst)
-	// XXX: grc20reg.Register(token, symbol)
+	grc20reg.Register(token.Getter(), symbol)
 }
 
 func (inst instance) Token() *grc20.Token {
@@ -75,21 +76,21 @@ func Allowance(symbol string, owner, spender std.Address) uint64 {
 
 func Transfer(symbol string, to std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.Transfer(to, amount))
 }
 
 func Approve(symbol string, spender std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.Approve(spender, amount))
 }
 
 func TransferFrom(symbol string, from, to std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.TransferFrom(from, to, amount))
 }
@@ -102,7 +103,7 @@ func Faucet(symbol string) {
 	}
 	// FIXME: add limits?
 	// FIXME: add payment in gnot?
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	checkErr(inst.ledger.Mint(caller, inst.faucet))
 }
 
@@ -116,6 +117,17 @@ func Burn(symbol string, from std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
 	inst.admin.AssertCallerIsOwner()
 	checkErr(inst.ledger.Burn(from, amount))
+}
+
+// instance admin functionality
+func DropInstanceOwnership(symbol string) {
+	inst := mustGetInstance(symbol)
+	checkErr(inst.admin.DropOwnership())
+}
+
+func TransferInstanceOwnership(symbol string, newOwner std.Address) {
+	inst := mustGetInstance(symbol)
+	checkErr(inst.admin.TransferOwnership(newOwner))
 }
 
 func Render(path string) string {

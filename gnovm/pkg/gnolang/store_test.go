@@ -17,7 +17,7 @@ func TestTransactionStore(t *testing.T) {
 
 	st := NewStore(nil, tm2Store, tm2Store)
 	wrappedTm2Store := tm2Store.CacheWrap()
-	txSt := st.BeginTransaction(wrappedTm2Store, wrappedTm2Store)
+	txSt := st.BeginTransaction(wrappedTm2Store, wrappedTm2Store, nil)
 	m := NewMachineWithOptions(MachineOptions{
 		PkgPath: "hello",
 		Store:   txSt,
@@ -58,9 +58,7 @@ func TestTransactionStore_blockedMethods(t *testing.T) {
 	// These methods should panic as they modify store settings, which should
 	// only be changed in the root store.
 	assert.Panics(t, func() { transactionStore{}.SetPackageGetter(nil) })
-	assert.Panics(t, func() { transactionStore{}.ClearCache() })
-	assert.Panics(t, func() { transactionStore{}.SetNativeStore(nil) })
-	assert.Panics(t, func() { transactionStore{}.SetStrictGo2GnoMapping(false) })
+	assert.Panics(t, func() { transactionStore{}.SetNativeResolver(nil) })
 }
 
 func TestCopyFromCachedStore(t *testing.T) {
@@ -88,7 +86,7 @@ func TestCopyFromCachedStore(t *testing.T) {
 	d1s := dbadapter.StoreConstructor(d1, storetypes.StoreOptions{})
 	d2s := dbadapter.StoreConstructor(d2, storetypes.StoreOptions{})
 	destStore := NewStore(nil, d1s, d2s)
-	destStoreTx := destStore.BeginTransaction(nil, nil) // CopyFromCachedStore requires a tx store.
+	destStoreTx := destStore.BeginTransaction(nil, nil, nil) // CopyFromCachedStore requires a tx store.
 	CopyFromCachedStore(destStoreTx, cachedStore, c1s, c2s)
 	destStoreTx.Write()
 

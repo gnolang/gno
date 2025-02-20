@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
+	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload/examplespkgfetcher"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMain_Gno(t *testing.T) {
@@ -60,10 +60,7 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 			mockErr := bytes.NewBufferString("")
 
 			if !test.noTmpGnohome {
-				tmpGnoHome, err := os.MkdirTemp(os.TempDir(), "gnotesthome_")
-				require.NoError(t, err)
-				t.Cleanup(func() { os.RemoveAll(tmpGnoHome) })
-				t.Setenv("GNOHOME", tmpGnoHome)
+				t.Setenv("GNOHOME", t.TempDir())
 			}
 
 			checkOutputs := func(t *testing.T) {
@@ -130,6 +127,8 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 			io := commands.NewTestIO()
 			io.SetOut(commands.WriteNopCloser(mockOut))
 			io.SetErr(commands.WriteNopCloser(mockErr))
+
+			testPackageFetcher = examplespkgfetcher.New()
 
 			err := newGnocliCmd(io).ParseAndRun(context.Background(), test.args)
 

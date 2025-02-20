@@ -7,7 +7,7 @@ func main() {
 	var b int32 = 10
 	c := b + a<<2
 
-	fmt.Printf("%T, %d \n", c, c)
+	fmt.Printf("%T, %d\n", c, c)
 }
 
 // Error:

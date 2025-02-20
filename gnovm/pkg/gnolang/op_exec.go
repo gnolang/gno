@@ -166,7 +166,7 @@ func (m *Machine) doOpExec(op Op) {
 		case -1: // assign list element.
 			if bs.Key != nil {
 				iv := TypedValue{T: IntType}
-				iv.SetInt(bs.ListIndex)
+				iv.SetInt(int64(bs.ListIndex))
 				switch bs.Op {
 				case ASSIGN:
 					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
@@ -180,7 +180,7 @@ func (m *Machine) doOpExec(op Op) {
 			}
 			if bs.Value != nil {
 				iv := TypedValue{T: IntType}
-				iv.SetInt(bs.ListIndex)
+				iv.SetInt(int64(bs.ListIndex))
 				ev := xv.GetPointerAtIndex(m.Alloc, m.Store, &iv).Deref()
 				switch bs.Op {
 				case ASSIGN:
@@ -262,7 +262,7 @@ func (m *Machine) doOpExec(op Op) {
 		case -1: // assign list element.
 			if bs.Key != nil {
 				iv := TypedValue{T: IntType}
-				iv.SetInt(bs.ListIndex)
+				iv.SetInt(int64(bs.ListIndex))
 				switch bs.Op {
 				case ASSIGN:
 					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
@@ -676,25 +676,15 @@ EXEC_SWITCH:
 			bs.Active = bs.Body[cs.BodyIndex] // prefill
 		case FALLTHROUGH:
 			ss, ok := m.LastFrame().Source.(*SwitchStmt)
+			// this is handled in the preprocessor
+			// should never happen
 			if !ok {
-				// fallthrough is only allowed in a switch statement
 				panic("fallthrough statement out of place")
 			}
-			if ss.IsTypeSwitch {
-				// fallthrough is not allowed in type switches
-				panic("cannot fallthrough in type switch")
-			}
+
 			b := m.LastBlock()
-			if b.bodyStmt.NextBodyIndex != len(b.bodyStmt.Body) {
-				// fallthrough is not the final statement
-				panic("fallthrough statement out of place")
-			}
 			// compute next switch clause from BodyIndex (assigned in preprocess)
 			nextClause := cs.BodyIndex + 1
-			if nextClause >= len(ss.Clauses) {
-				// no more clause after the one executed, this is not allowed
-				panic("cannot fallthrough final case in switch")
-			}
 			// expand block size
 			cl := ss.Clauses[nextClause]
 			if nn := cl.GetNumNames(); int(nn) > len(b.Values) {
@@ -779,6 +769,7 @@ EXEC_SWITCH:
 		}
 		m.PushOp(OpBody)
 		m.PushStmt(b.GetBodyStmt())
+	case *EmptyStmt:
 	default:
 		panic(fmt.Sprintf("unexpected statement %#v", s))
 	}
@@ -913,7 +904,7 @@ func (m *Machine) doOpSwitchClause() {
 	// caiv := m.PeekValue(2) // switch clause case index (reuse)
 	cliv := m.PeekValue(3) // switch clause index (reuse)
 	idx := cliv.GetInt()
-	if idx >= len(ss.Clauses) {
+	if int(idx) >= len(ss.Clauses) {
 		// no clauses matched: do nothing.
 		m.PopStmt()  // pop switch stmt
 		m.PopValue() // pop switch tag value
@@ -989,7 +980,7 @@ func (m *Machine) doOpSwitchClauseCase() {
 		clidx := cliv.GetInt()
 		cl := ss.Clauses[clidx]
 		caidx := caiv.GetInt()
-		if (caidx + 1) < len(cl.Cases) {
+		if int(caidx+1) < len(cl.Cases) {
 			// try next clause case.
 			m.PushOp(OpSwitchClauseCase) // TODO consider sticky
 			caiv.SetInt(caidx + 1)

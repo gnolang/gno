@@ -6,7 +6,7 @@ func main() {
 	x := 11
 	y := uint64(-(1 + 1<<x))
 	println(y)
-	fmt.Printf("%T \n", y)
+	fmt.Printf("%T\n", y)
 }
 
 // Output:

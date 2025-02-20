@@ -4,8 +4,10 @@ package boards_test
 // SEND: 200000000ugnot
 
 import (
+	"std"
 	"strconv"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
 	"gno.land/r/demo/users"
 )
@@ -17,6 +19,8 @@ var (
 )
 
 func init() {
+	caller := testutils.TestAddress("caller")
+	std.TestSetRealm(std.NewUserRealm(caller))
 	users.Register("", "gnouser", "my profile")
 
 	firstBoard = boards.CreateBoard("first_board")
@@ -34,4 +38,5 @@ func main() {
 // # First Post in (title)
 //
 // Body of the first post. (body)
-// \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:second_board/1/1) \[[reply](/r/demo/boards$help&func=CreateReply&bid=2&threadid=1&postid=1)] \[[x](/r/demo/boards$help&func=DeletePost&bid=2&threadid=1&postid=1)]
+// \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:second_board/1/1) \[[reply](/r/demo/boards$help&func=CreateReply&bid=2&postid=1&threadid=1)] \[[x](/r/demo/boards$help&func=DeletePost&bid=2&postid=1&threadid=1)]
+//

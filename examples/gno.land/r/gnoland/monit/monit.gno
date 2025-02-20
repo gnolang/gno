@@ -20,7 +20,7 @@ var (
 	lastUpdate       time.Time
 	lastCaller       std.Address
 	wd               = watchdog.Watchdog{Duration: 5 * time.Minute}
-	owner            = ownable.New() // TODO: replace with -> ownable.NewWithAddress...
+	Ownable          = ownable.New() // TODO: replace with -> ownable.NewWithAddress...
 	watchdogDuration = 5 * time.Minute
 )
 
@@ -29,7 +29,7 @@ var (
 func Incr() int {
 	counter++
 	lastUpdate = time.Now()
-	lastCaller = std.PrevRealm().Addr()
+	lastCaller = std.PreviousRealm().Address()
 	wd.Alive()
 	return counter
 }
@@ -37,11 +37,10 @@ func Incr() int {
 // Reset resets the realm state.
 // This function can only be called by the admin.
 func Reset() {
-	if owner.CallerIsOwner() != nil { // TODO: replace with owner.AssertCallerIsOwner
-		panic("unauthorized")
-	}
+	Ownable.AssertCallerIsOwner()
+
 	counter = 0
-	lastCaller = std.PrevRealm().Addr()
+	lastCaller = std.PreviousRealm().Address()
 	lastUpdate = time.Now()
 	wd = watchdog.Watchdog{Duration: 5 * time.Minute}
 }
@@ -53,7 +52,3 @@ func Render(_ string) string {
 		counter, lastUpdate, lastCaller, status,
 	)
 }
-
-// TransferOwnership transfers ownership to a new owner. This is a proxy to
-// ownable.Ownable.TransferOwnership.
-func TransferOwnership(newOwner std.Address) { owner.TransferOwnership(newOwner) }

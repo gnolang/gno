@@ -1,10 +1,12 @@
 package gnoclient
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -21,8 +23,14 @@ import (
 )
 
 func TestCallSingle_Integration(t *testing.T) {
-	// Set up in-memory node
-	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	// Setup packages
+	rootdir := gnoenv.RootDir()
+	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
+	meta := loadpkgs(t, rootdir, "gno.land/r/demo/deep/very/deep")
+	state := config.Genesis.AppState.(gnoland.GnoGenesisState)
+	state.Txs = append(state.Txs, meta...)
+	config.Genesis.AppState = state
+
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
 	defer node.Stop()
 
@@ -39,8 +47,8 @@ func TestCallSingle_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         ugnot.ValueString(10000),
-		GasWanted:      8000000,
+		GasFee:         ugnot.ValueString(2100000),
+		GasWanted:      21000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -74,8 +82,14 @@ func TestCallSingle_Integration(t *testing.T) {
 }
 
 func TestCallMultiple_Integration(t *testing.T) {
-	// Set up in-memory node
-	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	// Setup packages
+	rootdir := gnoenv.RootDir()
+	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
+	meta := loadpkgs(t, rootdir, "gno.land/r/demo/deep/very/deep")
+	state := config.Genesis.AppState.(gnoland.GnoGenesisState)
+	state.Txs = append(state.Txs, meta...)
+	config.Genesis.AppState = state
+
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
 	defer node.Stop()
 
@@ -92,8 +106,8 @@ func TestCallMultiple_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         ugnot.ValueString(10000),
-		GasWanted:      8000000,
+		GasFee:         ugnot.ValueString(2100000),
+		GasWanted:      21000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -137,7 +151,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 
 func TestSendSingle_Integration(t *testing.T) {
 	// Set up in-memory node
-	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
 	defer node.Stop()
 
@@ -154,8 +168,8 @@ func TestSendSingle_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         ugnot.ValueString(10000),
-		GasWanted:      8000000,
+		GasFee:         ugnot.ValueString(2100000),
+		GasWanted:      21000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -201,7 +215,7 @@ func TestSendSingle_Integration(t *testing.T) {
 
 func TestSendMultiple_Integration(t *testing.T) {
 	// Set up in-memory node
-	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
 	defer node.Stop()
 
@@ -218,8 +232,8 @@ func TestSendMultiple_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         ugnot.ValueString(10000),
-		GasWanted:      8000000,
+		GasFee:         ugnot.ValueString(2100000),
+		GasWanted:      21000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -273,8 +287,15 @@ func TestSendMultiple_Integration(t *testing.T) {
 
 // Run tests
 func TestRunSingle_Integration(t *testing.T) {
+	// Setup packages
+	rootdir := gnoenv.RootDir()
+	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
+	meta := loadpkgs(t, rootdir, "gno.land/p/demo/ufmt", "gno.land/r/demo/tests")
+	state := config.Genesis.AppState.(gnoland.GnoGenesisState)
+	state.Txs = append(state.Txs, meta...)
+	config.Genesis.AppState = state
+
 	// Set up in-memory node
-	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
 	defer node.Stop()
 
@@ -290,8 +311,8 @@ func TestRunSingle_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         ugnot.ValueString(10000),
-		GasWanted:      8000000,
+		GasFee:         ugnot.ValueString(2100000),
+		GasWanted:      21000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -342,7 +363,17 @@ func main() {
 // Run tests
 func TestRunMultiple_Integration(t *testing.T) {
 	// Set up in-memory node
-	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	rootdir := gnoenv.RootDir()
+	config := integration.TestingMinimalNodeConfig(rootdir)
+	meta := loadpkgs(t, rootdir,
+		"gno.land/p/demo/ufmt",
+		"gno.land/r/demo/tests",
+		"gno.land/r/demo/deep/very/deep",
+	)
+	state := config.Genesis.AppState.(gnoland.GnoGenesisState)
+	state.Txs = append(state.Txs, meta...)
+	config.Genesis.AppState = state
+
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
 	defer node.Stop()
 
@@ -358,8 +389,8 @@ func TestRunMultiple_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         ugnot.ValueString(10000),
-		GasWanted:      13000000,
+		GasFee:         ugnot.ValueString(2300000),
+		GasWanted:      23000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -434,7 +465,7 @@ func main() {
 
 func TestAddPackageSingle_Integration(t *testing.T) {
 	// Set up in-memory node
-	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
 	defer node.Stop()
 
@@ -451,8 +482,8 @@ func TestAddPackageSingle_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         ugnot.ValueString(10000),
-		GasWanted:      8000000,
+		GasFee:         ugnot.ValueString(2100000),
+		GasWanted:      21000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -519,7 +550,7 @@ func Echo(str string) string {
 
 func TestAddPackageMultiple_Integration(t *testing.T) {
 	// Set up in-memory node
-	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	config := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
 	defer node.Stop()
 
@@ -536,8 +567,8 @@ func TestAddPackageMultiple_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         ugnot.ValueString(10000),
-		GasWanted:      8000000,
+		GasFee:         ugnot.ValueString(2100000),
+		GasWanted:      21000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
@@ -669,4 +700,25 @@ func newInMemorySigner(t *testing.T, chainid string) *SignerFromKeybase {
 		Password: "",      // Password for encryption
 		ChainID:  chainid, // Chain ID for transaction signing
 	}
+}
+
+func loadpkgs(t *testing.T, rootdir string, paths ...string) []gnoland.TxWithMetadata {
+	t.Helper()
+
+	loader := integration.NewPkgsLoader()
+	examplesDir := filepath.Join(rootdir, "examples")
+	for _, path := range paths {
+		path = filepath.Clean(path)
+		path = filepath.Join(examplesDir, path)
+		err := loader.LoadPackage(examplesDir, path, "")
+		require.NoErrorf(t, err, "`loadpkg` unable to load package(s) from %q: %s", path, err)
+	}
+	privKey, err := integration.GeneratePrivKeyFromMnemonic(integration.DefaultAccount_Seed, "", 0, 0)
+	require.NoError(t, err)
+
+	defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+
+	meta, err := loader.LoadPackages(privKey, defaultFee, nil)
+	require.NoError(t, err)
+	return meta
 }
