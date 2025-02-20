@@ -19,7 +19,7 @@
 // users of paramk.GetParams() generally should not cache anything and
 // instead rely on the efficiency of paramk.GetParams().
 //
-// In otherwords, ParamKeeper is the only component responsible for caching and storing parameters.
+// In other words, ParamKeeper is the only component responsible for caching and storing parameters.
 // Other keepers should neither cache nor maintain these parameters as state variables.
 // While store access is synchronized, keeper access is not.
 //

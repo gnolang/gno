@@ -139,8 +139,4 @@ func (prm *SDKParams) assertRealmAccess(key gstd.ParamKey) {
 	if realm == "" {
 		panic(fmt.Sprintf("parameters must be set in a valid realm"))
 	}
-
-	if key.Realm != SysParamsRealmPath && key.Prefix != "" {
-		panic(fmt.Sprintf("prefixed parameter %q with keeper prefix %q must be set in %q", key.Key, key.Prefix, SysParamsRealmPath))
-	}
 }

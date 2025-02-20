@@ -50,7 +50,7 @@ func (p Params) Validate() error {
 	if !gno.ReRealmPath.MatchString(p.SysUsersPkgPath) {
 		return fmt.Errorf("invalid package/realm path %q, failed to match %q", p.SysUsersPkgPath, gno.ReRealmPath)
 	}
-	if !ASCIIDomain.MatchString(p.ChainDomain) {
+	if p.ChainDomain != "" && !ASCIIDomain.MatchString(p.ChainDomain) {
 		return fmt.Errorf("invalid chain domain %q, failed to match %q", p.ChainDomain, ASCIIDomain)
 	}
 	return nil
@@ -107,23 +107,29 @@ func (vm *VMKeeper) GetParamfulKey() string {
 // module parameter accordingly.The key is in the format (<realm>.)?<key>. If <realm> is present,
 // the key is an arbitrary key; otherwise, the key is a module key and needs to be checked against
 // the module's parameter keys.
-
 func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
 	params := vm.GetParams(ctx)
 	realm := gno.ReRealmPath.FindString(key)
+	var err error
 	if realm == "" { // module parameters
 		switch key {
 		case "sysusers_pkgpath.string":
 			params.SysUsersPkgPath = value.(string)
-			vm.SetParams(ctx, params)
+			err = vm.SetParams(ctx, params)
 		case "chain_domain.string":
 			params.ChainDomain = value.(string)
-			vm.SetParams(ctx, params)
+			err = vm.SetParams(ctx, params)
 		default:
 			panic(fmt.Sprintf("unknown parameter key: %s\n", key))
 		}
 	}
+	if err != nil {
+		panic(err)
+	}
 	// TODO: Check for duplicate parameter key names between individual fields and the fields
 	// of the Params struct.
-	vm.prmk.SetParams(ctx, ModuleName, key, value)
+	err = vm.prmk.SetParams(ctx, ModuleName, key, value)
+	if err != nil {
+		panic(err)
+	}
 }

@@ -23,9 +23,6 @@ const (
 	GasPriceKey = "gasPrice"
 	// param key for global account number
 	GlobalAccountNumberKey = "globalAccountNumber"
-
-	// param
-	ParamsKeyPrefix = ModuleName
 )
 
 // AddressStoreKey turn an address to key used to get it from the account store
