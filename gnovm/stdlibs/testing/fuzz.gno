@@ -700,7 +700,7 @@ func (f *F) updateMachines(parentSeed fuzzing.Seed) bool {
 			sampleSeed := seedArray[0]
 			sampleSet, foundSampleSet := f.mutator.FindMutSampleSet(hn)
 			if !foundSampleSet {
-				panic("Logic error: Unable to find sampleSet based on hn")
+				panic("Logic error: Unable to find sampleSet based on hash number")
 			}
 			if parentId, foundParent := sampleSet.FindParentID(sampleSeed.Pid); foundParent {
 				// If a mutated input returns to the parent's coverage,
@@ -710,7 +710,7 @@ func (f *F) updateMachines(parentSeed fuzzing.Seed) bool {
 
 				parentSample, foundParentSample := sampleSet.FindSample(parentId)
 				if !foundParentSample {
-					panic("logic error")
+					panic("logic error: Unable to find sample sample based on parent id")
 				}
 				for _, seed := range seedArray {
 					parentSample.ReflectSeed(seed)

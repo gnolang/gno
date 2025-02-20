@@ -1,6 +1,7 @@
 package fuzzing
 
 import (
+	"fmt"
 	"math"
 	"sort"
 )
@@ -92,8 +93,13 @@ func (m *Mutator) MutateSeed2Seeds(sampleSeed Seed, seedCount *uint) []Seed {
 			for _, idx := range selectedSubSetArgs {
 				// Mutate the selected index element.
 				var mutationInfo MutationInfo
+				var mutatedContent interface{}
 				// Modify the value and receive the mutated data.
-				castedContent[idx], mutationInfo = mutationSample.MutateArg(castedContent[idx], mutationStrength, idx)
+				mutatedContent, mutationInfo = mutationSample.MutateArg(castedContent[idx], mutationStrength, idx)
+				if mutatedContent == nil {
+					panic("MutateArg returned nil")
+				}
+				castedContent[idx] = mutatedContent
 				mutationsInfo[idx] = mutationInfo
 
 			}
@@ -262,7 +268,7 @@ type MutSample struct {
 // MutateArg applies a mutation to the given input argument based on the specified strength
 // and argument index. The mutation method is determined by the data type of the input.
 func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (interface{}, MutationInfo) {
-	switch input.(type) {
+	switch v := input.(type) {
 	case string:
 		result, entID, usedStrategyMap := MutateRoot2String(ms.rootEntsDict[argIdx], strength)
 		isMutated := true
@@ -520,9 +526,9 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 			UsedStrategyMap:      nil,
 			UsedCodesForNotSbMap: usedStrategyMap,
 		}
-
 	default:
-		panic("logical Error. Type not implemented")
+		panic(fmt.Sprintf("Type (%T) not implemented", v))
+		return nil, MutationInfo{}
 	}
 }
 
@@ -982,19 +988,9 @@ func deleteStart(e Ent, p string) bool {
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
 func deleteMiddle(e Ent, p string) bool {
-	switch e.(type) {
-	case *LetterEnt, *NumEnt, *WsEnt, *MarkEnt:
-		var data []byte
-		switch t := e.(type) {
-		case *LetterEnt:
-			data = t.data
-		case *NumEnt:
-			data = t.data
-		case *WsEnt:
-			data = t.data
-		case *MarkEnt:
-			data = t.data
-		}
+	if pe, ok := e.(PrimitiveEnt); ok {
+		//*LetterEnt, *NumEnt,*WsEnt, *MarkEnt
+		data := pe.PrimitiveData()
 		if data == nil || len(data) < 3 {
 			return true
 		}
@@ -1005,19 +1001,10 @@ func deleteMiddle(e Ent, p string) bool {
 		deleteCount := OncePCG().Intn(maxToDelete) + 1
 		start := OncePCG().Intn(len(data)-deleteCount-1) + 1
 		newdata := append(data[:start], data[start+deleteCount:]...)
-		switch t := e.(type) {
-		case *LetterEnt:
-			t.data = newdata
-		case *NumEnt:
-			t.data = newdata
-		case *WsEnt:
-			t.data = newdata
-		case *MarkEnt:
-			t.data = newdata
-		}
+		pe.SetPrimitiveData(newdata)
 		return true
-	case *RootEnt:
-		root := e.(*RootEnt)
+	}
+	if root, ok := e.(*RootEnt); ok {
 		if len(root.data) == 0 {
 
 			randomChar := byte(OncePCG().Intn(26) + 65)
@@ -1029,9 +1016,8 @@ func deleteMiddle(e Ent, p string) bool {
 			}
 		}
 		return true
-	default:
-		return false
 	}
+	return false
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
@@ -2829,7 +2815,7 @@ func determineCase(seedRune rune) int {
 	case seedRune >= HighAsciiMin && seedRune <= HighAscillMax:
 		return 3
 	default:
-		panic("logical error: default case must not be caught")
+		panic("default case must not be caught")
 	}
 }
 

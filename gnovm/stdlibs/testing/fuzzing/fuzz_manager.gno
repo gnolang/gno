@@ -289,7 +289,7 @@ func (fm *FuzzManager) PopSeed() Seed {
 	// Dequeues a seed with the corresponding hash number (mapped to coverage).
 	popedSeed, isOnce := fm.HashNumber2Seeds[highestPriorityHashNumber].dequeue()
 	if !isOnce {
-		panic("logical internal error(PopSeed): it must have more than one seed")
+		panic("it must have more than one seed")
 	}
 	return popedSeed
 }
@@ -299,7 +299,7 @@ func (fm *FuzzManager) PopSeed() Seed {
 func (fm *FuzzManager) PopInitSeedByHN(hn HashNumber) Seed {
 	popedSeed, isOnce := fm.HashNumber2Seeds[hn].dequeue()
 	if !isOnce {
-		panic("logical internal error(PopInitSeedByHN): it must have more than one seed")
+		panic("it must have more than one seed")
 	}
 	return popedSeed
 }

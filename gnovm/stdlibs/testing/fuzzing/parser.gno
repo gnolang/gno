@@ -52,6 +52,12 @@ type Ent interface {
 	updateStrategyCache()
 }
 
+type PrimitiveEnt interface {
+	Ent
+	PrimitiveData() []byte
+	SetPrimitiveData([]byte)
+}
+
 // LetterEnt represents an entity storing alphabetic data such as "apple" or "hello"
 // from strings or byte slices.
 type LetterEnt struct {
@@ -70,6 +76,9 @@ type LetterEnt struct {
 	cachedStrategySums  []uint64       // Cumulative sum array mapping to mutation codes.
 	needsUpdateChache   bool           // Tracks whether the cumulative sum array needs an update.
 }
+
+func (l *LetterEnt) PrimitiveData() []byte                 { return l.data }
+func (l *LetterEnt) SetPrimitiveData(primitiveData []byte) { l.data = primitiveData }
 
 // Implements Ent interface.
 func (l *LetterEnt) setDepth(d int) { l.depth = d }
@@ -194,6 +203,9 @@ type NumEnt struct {
 	needsUpdateChache   bool
 }
 
+func (n *NumEnt) PrimitiveData() []byte                 { return n.data }
+func (n *NumEnt) SetPrimitiveData(primitiveData []byte) { n.data = primitiveData }
+
 // Implements Ent interface.
 func (n *NumEnt) setDepth(d int) { n.depth = d }
 
@@ -270,6 +282,9 @@ type WsEnt struct {
 	cachedStrategySums  []uint64
 	needsUpdateChache   bool
 }
+
+func (w *WsEnt) PrimitiveData() []byte                 { return w.data }
+func (w *WsEnt) SetPrimitiveData(primitiveData []byte) { w.data = primitiveData }
 
 // Implements Ent interface.
 func (w *WsEnt) setDepth(d int) { w.depth = d }
@@ -349,6 +364,9 @@ type MarkEnt struct {
 	cachedStrategySums  []uint64
 	needsUpdateChache   bool
 }
+
+func (m *MarkEnt) PrimitiveData() []byte                 { return m.data }
+func (m *MarkEnt) SetPrimitiveData(primitiveData []byte) { m.data = primitiveData }
 
 // Implements Ent interface.
 func (m *MarkEnt) setDepth(d int) { m.depth = d }
@@ -678,7 +696,7 @@ func (r *RootEnt) ReflectMutationInfo(mutInfo MutationInfo) {
 
 	ent, exists := r.Id2Ent[mutInfo.EntId]
 	if !exists {
-		panic("logic error. No EntID satisfying reflect exists")
+		panic("No EntID satisfying reflect exists.")
 	}
 
 	// Calls plusStrategyCount for each strategy in UsedStrategyMap, increasing the count by 5 for each usage.
