@@ -45,10 +45,10 @@ import (
 "std"
 )
 func Withdraw(denom string, amt int64) string{
-  caller := std.GetOrigCaller()
+  caller := std.OriginCaller()
   coin := std.Coins{{denom, amt}}
-  banker := std.GetBanker(std.BankerTypeOrigSend)
-  pkgaddr := std.GetOrigPkgAddr()
+  banker := std.NewBanker(std.BankerTypeOriginSend)
+  pkgaddr := std.OriginPkgAddress()
   banker.SendCoins(pkgaddr, caller, coin)
   return "Withdrawn!"
 }
