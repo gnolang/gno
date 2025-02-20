@@ -50,10 +50,10 @@ func (d Debug) Render(path string) string {
 			Headers: []string{"Key", "Value"},
 		}
 		table.Append([]string{"`std.CurrentRealm().PkgPath()`", string(std.CurrentRealm().PkgPath())})
-		table.Append([]string{"`std.CurrentRealm().Addr()`", string(std.CurrentRealm().Addr())})
-		table.Append([]string{"`std.PrevRealm().PkgPath()`", string(std.PrevRealm().PkgPath())})
-		table.Append([]string{"`std.PrevRealm().Addr()`", string(std.PrevRealm().Addr())})
-		table.Append([]string{"`std.GetHeight()`", ufmt.Sprintf("%d", std.GetHeight())})
+		table.Append([]string{"`std.CurrentRealm().Address()`", string(std.CurrentRealm().Address())})
+		table.Append([]string{"`std.PreviousRealm().PkgPath()`", string(std.PreviousRealm().PkgPath())})
+		table.Append([]string{"`std.PreviousRealm().Address()`", string(std.PreviousRealm().Address())})
+		table.Append([]string{"`std.ChainHeight()`", ufmt.Sprintf("%d", std.ChainHeight())})
 		table.Append([]string{"`time.Now().Format(time.RFC3339)`", time.Now().Format(time.RFC3339)})
 		content += table.String()
 	}
