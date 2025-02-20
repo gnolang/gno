@@ -261,18 +261,15 @@ func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) e
 
 	// Process .gno files to add links
 	if strings.HasSuffix(fileName, ".gno") {
-		s.logger.Debug("Processing .gno file for links", "fileName", fileName)
 
 		// Find and process string spans containing gno.land imports
 		lines := strings.Split(formatted, "\n")
 		for i, line := range lines {
 			if strings.Contains(line, "gno.land/") {
-				s.logger.Debug("Found potential Gno.land import", "line", line)
 
 				// Look for chroma string spans
 				start := strings.Index(line, `<span class="chroma-s">&#34;gno.land/`)
 				if start != -1 {
-					s.logger.Debug("Found Chroma span for Gno.land import", "start", start)
 					prefix := line[:start]
 					rest := line[start:]
 					end := strings.Index(rest, `&#34;</span>`)
@@ -287,7 +284,6 @@ func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) e
 
 						lines[i] = prefix + replacement + rest[end+len(`&#34;</span>`):]
 					}
-					s.logger.Debug("Inserted link for Gno.land import", "newLine", lines[i])
 				}
 			}
 		}
