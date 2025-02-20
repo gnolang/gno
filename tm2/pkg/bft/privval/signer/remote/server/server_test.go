@@ -283,8 +283,9 @@ func TestServerConnection(t *testing.T) {
 			// Dial the server.
 			protocol, address := osm.ProtocolAndAddress(address)
 			conn, err := net.Dial(protocol, address)
-			require.NoError(t, err)
-			defer conn.Close()
+			if err == nil {
+				defer conn.Close()
+			}
 
 			// If noWrite is true, return without writing anything.
 			if noWrite {
@@ -305,7 +306,7 @@ func TestServerConnection(t *testing.T) {
 			newReadWriteErrorRemoteSignerClient(t, unixSocket, false)
 			newReadWriteErrorRemoteSignerClient(t, unixSocket, true)
 		}
-		rss.Stop()
+		require.NoError(t, rss.Stop())
 	})
 
 	t.Run("tcp configuration succeeded", func(t *testing.T) {

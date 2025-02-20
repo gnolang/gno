@@ -43,12 +43,12 @@ const (
 	DefaultResponseTimeout = 3 * time.Second
 )
 
-// ServerOption is a functional option type used for optional configuration.
-type ServerOption func(*RemoteSignerServer)
+// Option is a functional option type used for optional configuration.
+type Option func(*RemoteSignerServer)
 
 // WithKeepAlivePeriod sets the keep alive period for the TCP connection to the client.
 // If set to 0, keep alive is disabled. The default is 2 seconds.
-func WithKeepAlivePeriod(period time.Duration) ServerOption {
+func WithKeepAlivePeriod(period time.Duration) Option {
 	return func(rss *RemoteSignerServer) {
 		rss.keepAlivePeriod = period
 	}
@@ -56,7 +56,7 @@ func WithKeepAlivePeriod(period time.Duration) ServerOption {
 
 // WithResponseTimeout sets the timeout for sending response to the client.
 // If set to 0, no timeout is set. The default is 3 seconds.
-func WithResponseTimeout(timeout time.Duration) ServerOption {
+func WithResponseTimeout(timeout time.Duration) Option {
 	return func(rss *RemoteSignerServer) {
 		rss.responseTimeout = timeout
 	}
@@ -64,7 +64,7 @@ func WithResponseTimeout(timeout time.Duration) ServerOption {
 
 // WithServerPrivKey sets the private key used by the server to authenticate with the client.
 // The default is a random key.
-func WithServerPrivKey(privKey ed25519.PrivKeyEd25519) ServerOption {
+func WithServerPrivKey(privKey ed25519.PrivKeyEd25519) Option {
 	return func(rss *RemoteSignerServer) {
 		rss.serverPrivKey = privKey
 	}
@@ -72,7 +72,7 @@ func WithServerPrivKey(privKey ed25519.PrivKeyEd25519) ServerOption {
 
 // WithAuthorizedKeys sets the list of authorized public keys that the server will accept.
 // If empty (default), all keys are authorized.
-func WithAuthorizedKeys(keys []ed25519.PubKeyEd25519) ServerOption {
+func WithAuthorizedKeys(keys []ed25519.PubKeyEd25519) Option {
 	return func(rss *RemoteSignerServer) {
 		rss.authorizedKeys = keys
 	}
@@ -84,7 +84,7 @@ func NewRemoteSignerServer(
 	signer types.Signer,
 	listenAddresses []string,
 	logger *slog.Logger,
-	options ...ServerOption,
+	options ...Option,
 ) (*RemoteSignerServer, error) {
 	// Instantiate a RemoteSignerServer with default options.
 	rss := &RemoteSignerServer{

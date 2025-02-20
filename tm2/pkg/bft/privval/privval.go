@@ -175,7 +175,7 @@ func NewPrivValidator(signer types.Signer, stateFilePath string) (*PrivValidator
 	}, nil
 }
 
-// NewPrivValidator returns a new PrivValidator instance with the PrivValidatoronfig.
+// NewPrivValidatorFromConfig returns a new PrivValidator instance based on the configuration.
 // The clientLogger is only used for the remote signer client and ignored it the signer is local.
 // The clientPrivKey is only used for the remote signer client using a TCP connection.
 func NewPrivValidatorFromConfig(
@@ -190,34 +190,11 @@ func NewPrivValidatorFromConfig(
 
 	// Initialize the signer based on the configuration.
 	// If the remote signer address is set, use a remote signer client.
-	if config.RemoteSignerAddress != "" {
-		// Options for the remote signer client.
-		options := []rsclient.ClientOption{
-			rsclient.WithDialMaxRetries(config.RemoteDialMaxRetries),
-			rsclient.WithDialRetryInterval(config.RemoteDialRetryInterval),
-			rsclient.WithDialTimeout(config.RemoteDialTimeout),
-			rsclient.WithRequestTimeout(config.RemoteRequestTimeout),
-		}
-
-		// If a clientPrivKey is provided, set it in the options..
-		if clientPrivKey != nil {
-			options = append(options, rsclient.WithClientPrivKey(*clientPrivKey))
-		}
-
-		// If authorized keys are set in the config, add them to the options.
-		if len(config.RemoteAuthorizedKeys) > 0 {
-			authorizedKeys, err := config.AuthorizedKeys()
-			if err != nil {
-				return nil, err
-			}
-			options = append(options, rsclient.WithAuthorizedKeys(authorizedKeys))
-		}
-
-		// Create the remote signer client.
-		signer, err = rsclient.NewRemoteSignerClient(
-			config.RemoteSignerAddress,
+	if config.RemoteSigner != nil && config.RemoteSigner.ServerAddress != "" {
+		signer, err = rsclient.NewRemoteSignerClientFromConfig(
+			config.RemoteSigner,
+			clientPrivKey,
 			clientLogger,
-			options...,
 		)
 	} else {
 		// Otherwise, use a local signer.
