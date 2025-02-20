@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	println(std.GetChainDomain())
+	println(std.ChainDomain())
 }
 
 // Output:

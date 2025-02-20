@@ -69,7 +69,7 @@ func Register(title, description string) {
 		return
 	}
 
-	submission := std.PrevRealm()
+	submission := std.PreviousRealm()
 	pkgpath := submission.PkgPath()
 
 	// Must be called from code
@@ -101,6 +101,7 @@ func Register(title, description string) {
 		blockNum:    std.GetHeight(),
 		upvote:      &addrset.Set{},
 		downvote:    &addrset.Set{},
+
 	}
 
 	exhibition.items.Set(pkgpath, i)
