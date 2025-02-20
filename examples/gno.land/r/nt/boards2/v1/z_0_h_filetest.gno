@@ -16,12 +16,12 @@ const (
 )
 
 func init() {
-	std.TestSetOrigCaller(owner)
+	std.TestSetOriginCaller(owner)
 
 	// Test1 is the boards owner and its address has a user already registered
 	// so a new member must register a user with the new board name.
 	boards2.InviteMember(0, member, boards2.RoleOwner) // Operate on realm DAO members instead of individual boards
-	std.TestSetOrigCaller(member)
+	std.TestSetOriginCaller(member)
 	users.Register("", name, "")
 }
 

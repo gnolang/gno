@@ -19,14 +19,14 @@ const (
 var bid boards2.BoardID // Operate on board DAO
 
 func init() {
-	std.TestSetOrigCaller(owner)
+	std.TestSetOriginCaller(owner)
 
 	bid = boards2.CreateBoard(name)
 	boards2.InviteMember(bid, member, boards2.RoleOwner)
 
 	// Test1 is the boards owner and its address has a user already registered
 	// so a new member must register a user with the new board name.
-	std.TestSetOrigCaller(member)
+	std.TestSetOriginCaller(member)
 	users.Register("", newName, "")
 }
 

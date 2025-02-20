@@ -15,13 +15,13 @@ const (
 var bid boards2.BoardID // Operate on board DAO
 
 func init() {
-	std.TestSetOrigCaller(owner)
+	std.TestSetOriginCaller(owner)
 	bid = boards2.CreateBoard("test123")
 
 	boards2.InviteMember(bid, admin, boards2.RoleAdmin)
 	boards2.InviteMember(bid, admin2, boards2.RoleAdmin)
 
-	std.TestSetOrigCaller(admin)
+	std.TestSetOriginCaller(admin)
 }
 
 func main() {

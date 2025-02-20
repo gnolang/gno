@@ -13,10 +13,10 @@ const (
 )
 
 func init() {
-	std.TestSetOrigCaller(owner)
+	std.TestSetOriginCaller(owner)
 	boards2.CreateBoard(name)
 
-	std.TestSetOrigCaller(user)
+	std.TestSetOriginCaller(user)
 }
 
 func main() {

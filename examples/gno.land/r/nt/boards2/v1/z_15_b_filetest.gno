@@ -15,7 +15,7 @@ var (
 )
 
 func init() {
-	std.TestSetOrigCaller(owner)
+	std.TestSetOriginCaller(owner)
 	srcBid = boards2.CreateBoard("src-board")
 	dstBid = boards2.CreateBoard("dst-board")
 }
