@@ -237,7 +237,6 @@ func columnRender(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast
 		return ast.WalkContinue, nil
 	}
 
-	// ctx := cnode.ctx
 	switch cnode.Tag {
 	case ColumnTagOpen:
 		fmt.Fprint(w, `<div class="gno-cols">`+"\n")
@@ -245,13 +244,14 @@ func columnRender(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast
 	case ColumnTagSep:
 		prev, ok := cnode.PreviousSibling().(*ColumnNode)
 		if !ok || prev.Tag != ColumnTagOpen {
-			fmt.Fprint(w, "</div>\n")
+			fmt.Fprintln(w, "</div>")
 		}
+
 		fmt.Fprintf(w, "<!-- Column %d -->\n", cnode.Index)
-		fmt.Fprint(w, `<div class="gno-col">`+"\n")
+		fmt.Fprintln(w, "<div>")
 
 	case ColumnTagClose:
-		fmt.Fprint(w, "</div>\n</div>\n")
+		fmt.Fprintln(w, "</div>\n</div>")
 
 	default:
 		panic("invalid column tag - should not happen")
