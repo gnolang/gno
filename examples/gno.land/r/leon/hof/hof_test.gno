@@ -148,7 +148,7 @@ func TestgenerateVoteSortKey(t *testing.T) {
 		title:       validTitle,
 		description: validDesc,
 		pkgpath:     rlmPath,
-		blockNum:    std.GetHeight(),
+		blockNum:    std.ChainHeight(),
 		upvote:      &addrset.Set{},
 		downvote:    &addrset.Set{},
 	}
@@ -194,18 +194,18 @@ func TestSortByUpvote(t *testing.T) {
 	user2 := testutils.TestAddress("user2")
 	user3 := testutils.TestAddress("user3")
 
-	std.TestSetOrigCaller(user1)
+	std.TestSetOriginCaller(user1)
 	std.TestSetRealm(std.NewUserRealm(user1))
 	Upvote(rlmPath3)
 	Upvote(rlmPath4)
 	Upvote(rlmPath5)
 
-	std.TestSetOrigCaller(user2)
+	std.TestSetOriginCaller(user2)
 	std.TestSetRealm(std.NewUserRealm(user2))
 	Upvote(rlmPath4)
 	Upvote(rlmPath5)
 
-	std.TestSetOrigCaller(user3)
+	std.TestSetOriginCaller(user3)
 	std.TestSetRealm(std.NewUserRealm(user3))
 	Upvote(rlmPath5)
 
@@ -252,18 +252,18 @@ func TestSortByDownvote(t *testing.T) {
 	user2 := testutils.TestAddress("user2")
 	user3 := testutils.TestAddress("user3")
 
-	std.TestSetOrigCaller(user1)
+	std.TestSetOriginCaller(user1)
 	std.TestSetRealm(std.NewUserRealm(user1))
 	Downvote(rlmPath3)
 	Downvote(rlmPath4)
 	Downvote(rlmPath5)
 
-	std.TestSetOrigCaller(user2)
+	std.TestSetOriginCaller(user2)
 	std.TestSetRealm(std.NewUserRealm(user2))
 	Downvote(rlmPath4)
 	Downvote(rlmPath5)
 
-	std.TestSetOrigCaller(user3)
+	std.TestSetOriginCaller(user3)
 	std.TestSetRealm(std.NewUserRealm(user3))
 	Downvote(rlmPath5)
 

@@ -98,7 +98,7 @@ func Register(title, description string) {
 		title:       title,
 		description: description,
 		pkgpath:     pkgpath,
-		blockNum:    std.GetHeight(),
+		blockNum:    std.ChainHeight(),
 		upvote:      &addrset.Set{},
 		downvote:    &addrset.Set{},
 	}
@@ -118,7 +118,7 @@ func Upvote(pkgpath string) {
 	}
 
 	item := rawItem.(*Item)
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 
 	if item.upvote.Has(caller) {
 		panic(ErrDoubleUpvote)
@@ -138,7 +138,7 @@ func Downvote(pkgpath string) {
 	}
 
 	item := rawItem.(*Item)
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 
 	if item.downvote.Has(caller) {
 		panic(ErrDoubleDownvote)
