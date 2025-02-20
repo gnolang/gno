@@ -156,7 +156,7 @@ func (r *Repl) Process(input string) (out string, err error) {
 	r.state.id++
 
 	if r.debug {
-		r.state.machine.Debugger.Enable(os.Stdin, os.Stdout, func(file string) string {
+		r.state.machine.Debugger.Enable(os.Stdin, os.Stdout, func(ppath, file string) string {
 			return r.state.files[file]
 		})
 		r.debug = false

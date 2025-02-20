@@ -1,8 +1,6 @@
 module loop
 
-go 1.22.0
-
-toolchain go1.22.10
+go 1.23.6
 
 require (
 	github.com/docker/docker v25.0.6+incompatible

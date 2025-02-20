@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"path"
 	"path/filepath"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
@@ -28,7 +29,7 @@ var defaultStagingOptions = AppConfig{
 	interactive:         false,
 	unsafeAPI:           false,
 	lazyLoader:          false,
-	paths:               filepath.Join(DefaultDomain, "/**"), // Load every package under the main domain},
+	paths:               path.Join(DefaultDomain, "/**"), // Load every package under the main domain},
 
 	// As we have no reason to configure this yet, set this to random port
 	// to avoid potential conflict with other app

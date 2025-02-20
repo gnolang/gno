@@ -58,11 +58,11 @@ func (m *Machine) doOpInc() {
 		lv.SetFloat32(softfloat.Fadd32(lv.GetFloat32(), softfloat.Fintto32(1)))
 	case Float64Type:
 		lv.SetFloat64(softfloat.Fadd64(lv.GetFloat64(), softfloat.Fintto64(1)))
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Add(lb, big.NewInt(1))
 		lv.V = BigintValue{V: lb}
-	case BigdecType, UntypedBigdecType:
+	case UntypedBigdecType:
 		lb := lv.GetBigDec()
 		sum := apd.New(0, 0)
 		cond, err := apd.BaseContext.WithPrecision(0).Add(sum, lb, apd.New(1, 0))
@@ -128,11 +128,11 @@ func (m *Machine) doOpDec() {
 		lv.SetFloat32(softfloat.Fsub32(lv.GetFloat32(), softfloat.Fintto32(1)))
 	case Float64Type:
 		lv.SetFloat64(softfloat.Fsub64(lv.GetFloat64(), softfloat.Fintto64(1)))
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Sub(lb, big.NewInt(1))
 		lv.V = BigintValue{V: lb}
-	case BigdecType, UntypedBigdecType:
+	case UntypedBigdecType:
 		lb := lv.GetBigDec()
 		sum := apd.New(0, 0)
 		cond, err := apd.BaseContext.WithPrecision(0).Sub(sum, lb, apd.New(1, 0))

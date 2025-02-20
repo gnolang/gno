@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
-	"path/filepath"
+	gopath "path"
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -56,7 +56,7 @@ func (res *remoteResolver) Resolve(fset *token.FileSet, path string) (*Package, 
 	files := bytes.Split(qres.Response.Data, []byte{'\n'})
 	for _, filename := range files {
 		fname := string(filename)
-		fpath := filepath.Join(path, fname)
+		fpath := gopath.Join(path, fname)
 		qres, err := res.RPCClient.ABCIQuery(qpath, []byte(fpath))
 		if err != nil {
 			return nil, fmt.Errorf("unable to query path")

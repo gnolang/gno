@@ -166,7 +166,7 @@ func (m *Machine) doOpExec(op Op) {
 		case -1: // assign list element.
 			if bs.Key != nil {
 				iv := TypedValue{T: IntType}
-				iv.SetInt(bs.ListIndex)
+				iv.SetInt(int64(bs.ListIndex))
 				switch bs.Op {
 				case ASSIGN:
 					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
@@ -180,7 +180,7 @@ func (m *Machine) doOpExec(op Op) {
 			}
 			if bs.Value != nil {
 				iv := TypedValue{T: IntType}
-				iv.SetInt(bs.ListIndex)
+				iv.SetInt(int64(bs.ListIndex))
 				ev := xv.GetPointerAtIndex(m.Alloc, m.Store, &iv).Deref()
 				switch bs.Op {
 				case ASSIGN:
@@ -262,7 +262,7 @@ func (m *Machine) doOpExec(op Op) {
 		case -1: // assign list element.
 			if bs.Key != nil {
 				iv := TypedValue{T: IntType}
-				iv.SetInt(bs.ListIndex)
+				iv.SetInt(int64(bs.ListIndex))
 				switch bs.Op {
 				case ASSIGN:
 					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
@@ -904,7 +904,7 @@ func (m *Machine) doOpSwitchClause() {
 	// caiv := m.PeekValue(2) // switch clause case index (reuse)
 	cliv := m.PeekValue(3) // switch clause index (reuse)
 	idx := cliv.GetInt()
-	if idx >= len(ss.Clauses) {
+	if int(idx) >= len(ss.Clauses) {
 		// no clauses matched: do nothing.
 		m.PopStmt()  // pop switch stmt
 		m.PopValue() // pop switch tag value
@@ -980,7 +980,7 @@ func (m *Machine) doOpSwitchClauseCase() {
 		clidx := cliv.GetInt()
 		cl := ss.Clauses[clidx]
 		caidx := caiv.GetInt()
-		if (caidx + 1) < len(cl.Cases) {
+		if int(caidx+1) < len(cl.Cases) {
 			// try next clause case.
 			m.PushOp(OpSwitchClauseCase) // TODO consider sticky
 			caiv.SetInt(caidx + 1)

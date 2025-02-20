@@ -18,7 +18,7 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 	}
 
 	_, pkgPath := currentRealm(m)
-	fnIdent := getPrevFunctionNameFromTarget(m, "Emit")
+	fnIdent := getPreviousFunctionNameFromTarget(m, "Emit")
 
 	ctx := GetContext(m)
 

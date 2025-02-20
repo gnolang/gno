@@ -1,6 +1,6 @@
 module github.com/gnolang/gno/contribs/gnohealth
 
-go 1.22.4
+go 1.23.6
 
 replace github.com/gnolang/gno => ../..
 

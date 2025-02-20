@@ -90,7 +90,7 @@ func gitRoot() (string, error) {
 	}
 	p := wd
 	for {
-		if s, e := os.Stat(filepath.Join(p, ".git")); e == nil && s.IsDir() {
+		if _, e := os.Stat(filepath.Join(p, ".git")); e == nil {
 			return p, nil
 		}
 

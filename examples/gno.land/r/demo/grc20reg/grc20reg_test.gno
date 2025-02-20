@@ -13,7 +13,7 @@ func TestRegistry(t *testing.T) {
 	std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/foo"))
 	realmAddr := std.CurrentRealm().PkgPath()
 	token, ledger := grc20.NewToken("TestToken", "TST", 4)
-	ledger.Mint(std.CurrentRealm().Addr(), 1234567)
+	ledger.Mint(std.CurrentRealm().Address(), 1234567)
 	tokenGetter := func() *grc20.Token { return token }
 	// register
 	Register(tokenGetter, "")

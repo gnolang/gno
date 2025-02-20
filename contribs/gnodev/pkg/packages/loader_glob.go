@@ -5,6 +5,7 @@ import (
 	"go/token"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -33,7 +34,7 @@ func (l GlobLoader) MatchPaths(globs ...string) ([]string, error) {
 
 	mpaths := []string{}
 	for _, input := range globs {
-		cleanInput := filepath.Clean(input)
+		cleanInput := path.Clean(input)
 		gpath, err := Parse(cleanInput)
 		if err != nil {
 			return nil, fmt.Errorf("invalid glob path %q: %w", input, err)
@@ -45,17 +46,19 @@ func (l GlobLoader) MatchPaths(globs ...string) ([]string, error) {
 			continue
 		}
 
-		// root := filepath.Join(l.Root, base)
 		root := l.Root
 		err = filepath.WalkDir(root, func(dirpath string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
 			}
 
-			relPath, relErr := filepath.Rel(root, dirpath)
-			if relErr != nil {
-				return relErr
+			path, err := filepath.Rel(root, dirpath)
+			if err != nil {
+				return err
 			}
+
+			// normalize filepath to path
+			path = NormalizeFilepathToPath(path)
 
 			if !d.IsDir() {
 				return nil
@@ -65,8 +68,8 @@ func (l GlobLoader) MatchPaths(globs ...string) ([]string, error) {
 				return fs.SkipDir
 			}
 
-			if gpath.Match(relPath) {
-				mpaths = append(mpaths, relPath)
+			if gpath.Match(path) {
+				mpaths = append(mpaths, path)
 			}
 
 			return nil

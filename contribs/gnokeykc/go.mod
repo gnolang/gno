@@ -1,8 +1,6 @@
 module github.com/gnolang/gno/contribs/gnokeykc
 
-go 1.22.0
-
-toolchain go1.22.10
+go 1.23.6
 
 replace github.com/gnolang/gno => ../..
 

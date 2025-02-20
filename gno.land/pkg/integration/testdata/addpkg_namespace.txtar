@@ -43,7 +43,7 @@ stdout 'true'
 
 # Try to add a pkg an with unregistered user
 # gui addpkg -> gno.land/r/<addr_test1>/one
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/one -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test gui
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/one -gas-fee 1000000ugnot -gas-wanted 10_000_000 -broadcast -chainid=tendermint_test gui
 stderr 'unauthorized user'
 
 # Try to add a pkg with an unregistered user, on their own address as namespace
@@ -55,8 +55,7 @@ stdout 'OK!'
 
 # Call addpkg with admin user on gui namespace
 # admin addpkg -> gno.land/r/guiland/one
-# This is expected to fail at the transaction simulation stage, which is why we set gas-wanted to 1.
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guiland/one -gas-fee 1000000ugnot -gas-wanted 1 -broadcast -chainid=tendermint_test admin
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guiland/one -gas-fee 1000000ugnot -gas-wanted 10_000_000 -broadcast -chainid=tendermint_test admin
 stderr 'unauthorized user'
 
 ## Test registered namespace
@@ -78,8 +77,7 @@ stdout 'OK!'
 
 # Test admin publishing on guiland/two
 # admin addpkg -> gno.land/r/guiland/two
-# This is expected to fail at the transaction simulation stage, which is why we set gas-wanted to 1.
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guiland/two -gas-fee 1000000ugnot -gas-wanted 1 -broadcast -chainid=tendermint_test admin
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guiland/two -gas-fee 1000000ugnot -gas-wanted 10_000_000 -broadcast -chainid=tendermint_test admin
 stderr 'unauthorized user'
 
 -- one.gno --

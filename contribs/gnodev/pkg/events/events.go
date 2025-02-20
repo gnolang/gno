@@ -41,8 +41,8 @@ type PackagesUpdate struct {
 }
 
 type PackageUpdate struct {
-	Package string   `json:"package"`
-	Files   []string `json:"files"`
+	PackageDir string   `json:"package"`
+	Files      []string `json:"files"`
 }
 
 func (PackagesUpdate) Type() Type   { return EvtPackagesUpdate }

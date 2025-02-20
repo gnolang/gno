@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// main/files/convert5.gno:3:1: cannot convert (undefined) to int
+// main/files/convert5.gno:3:1: cannot convert (const (undefined)) to IntKind

@@ -11,7 +11,7 @@ var posts []*Post
 func CreatePost(text string) {
 	posts = append(posts, &Post{
 		text:      text,
-		author:    std.PrevRealm().Addr(), // provided by env
+		author:    std.PreviousRealm().Address(), // provided by env
 		createdAt: time.Now(),
 	})
 }

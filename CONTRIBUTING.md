@@ -56,7 +56,7 @@ The gno repository is primarily based on Go (Golang) and Gno.
 
 The primary tech stack for working on the repository:
 
-- Go (version 1.22+)
+- Go (version 1.23+)
 - make (for using Makefile configurations)
 
 It is recommended to work on a Unix environment, as most of the tooling is built around ready-made tools in Unix (WSL2
@@ -514,4 +514,3 @@ automatic label management.
 | info needed      | Issue is lacking information needed for resolving |
 | investigating    | Issue is still being investigated by the team     |
 | question         | Issue starts a discussion or raises a question    |
-

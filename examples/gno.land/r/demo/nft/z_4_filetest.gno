@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	caller := std.GetCallerAt(1)
+	caller := std.CallerAt(1)
 	addr1 := testutils.TestAddress("addr1")
 	addr2 := testutils.TestAddress("addr2")
 	grc721 := nft.GetToken()

@@ -425,7 +425,7 @@ func EncodeJSONTimeValue(w io.Writer, s int64, ns int32) (err error) {
 	x = strings.TrimSuffix(x, "000")
 	x = strings.TrimSuffix(x, "000")
 	x = strings.TrimSuffix(x, ".000")
-	_, err = w.Write([]byte(fmt.Sprintf(`"%vZ"`, x)))
+	_, err = fmt.Fprintf(w, `"%vZ"`, x)
 	return err
 }
 
@@ -456,7 +456,7 @@ func EncodeJSONDurationValue(w io.Writer, s int64, ns int32) (err error) {
 	x = strings.TrimSuffix(x, "000")
 	x = strings.TrimSuffix(x, "000")
 	x = strings.TrimSuffix(x, ".000")
-	_, err = w.Write([]byte(fmt.Sprintf(`"%vs"`, x)))
+	_, err = fmt.Fprintf(w, `"%vs"`, x)
 	return err
 }
 

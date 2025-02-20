@@ -91,15 +91,15 @@ func (m *Machine) doOpSlice() {
 	var lowVal, highVal, maxVal int = -1, -1, -1
 	// max
 	if sx.Max != nil {
-		maxVal = m.PopValue().ConvertGetInt()
+		maxVal = int(m.PopValue().ConvertGetInt())
 	}
 	// high
 	if sx.High != nil {
-		highVal = m.PopValue().ConvertGetInt()
+		highVal = int(m.PopValue().ConvertGetInt())
 	}
 	// low
 	if sx.Low != nil {
-		lowVal = m.PopValue().ConvertGetInt()
+		lowVal = int(m.PopValue().ConvertGetInt())
 	} else {
 		lowVal = 0
 	}
@@ -513,7 +513,7 @@ func (m *Machine) doOpArrayLit() {
 		al, ad := av.List, av.Data
 		vs := m.PopValues(ne)
 		set := make([]bool, bt.Len)
-		idx := 0
+		var idx int64
 		for i, v := range vs {
 			if kx := x.Elts[i].Key; kx != nil {
 				// XXX why convert?
@@ -593,7 +593,7 @@ func (m *Machine) doOpSliceLit2() {
 	// peek slice type.
 	st := m.PeekValue(1).V.(TypeValue).Type
 	// calculate maximum index.
-	maxVal := 0
+	var maxVal int64
 	for i := 0; i < el; i++ {
 		itv := tvs[i*2+0]
 		idx := itv.ConvertGetInt()

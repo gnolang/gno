@@ -45,6 +45,18 @@ EXPOSE     5050
 ENTRYPOINT [ "/usr/bin/gnofaucet" ]
 
 #
+## ghcr.io/gnolang/gno/gnodev
+FROM base as gnodev
+
+COPY       ./gnodev /usr/bin/gnodev
+COPY       ./examples                              /gnoroot/examples/
+COPY       ./gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
+COPY       ./gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
+# gnoweb exposed by default
+EXPOSE     8888
+ENTRYPOINT [ "/usr/bin/gnodev" ]
+
+#
 ## ghcr.io/gnolang/gno
 FROM base as gno
 
