@@ -256,7 +256,12 @@ func columnRender(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast
 		fmt.Fprintln(w, "<div>")
 
 	case ColumnTagClose:
-		fmt.Fprintln(w, "</div>\n</div>")
+		prev, ok := cnode.PreviousSibling().(*ColumnNode)
+		if !ok || prev.Tag != ColumnTagOpen {
+			fmt.Fprintln(w, "</div>")
+		}
+
+		fmt.Fprintln(w, "</div>")
 
 	default:
 		panic("invalid column tag - should not happen")
