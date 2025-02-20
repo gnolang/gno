@@ -39,4 +39,3 @@ jobs:
       tests-extra-args: ${{ inputs.tests-extra-args }}
     secrets:
       codecov-token: ${{ secrets.codecov-token }}
-    

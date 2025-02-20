@@ -102,7 +102,7 @@ everything and not save wrong changes.
 In Gno, the use of `panic()` and `error` should be context-dependent to ensure
 clarity and proper error handling:
 - Use `panic()` to immediately halt execution and roll back the transaction when
-  encountering critical issues or invalid inputs that cannot be recovered from. 
+  encountering critical issues or invalid inputs that cannot be recovered from.
 - Return an `error` when the situation allows for the possibility of recovery or
   when the caller should decide how to handle the error.
 
@@ -199,7 +199,7 @@ code readability and trust.
 
 A Gno contract is not just its lines of code, but also the imports it uses. More
 importantly, Gno contracts are not just for developers. For the first time, it
-makes sense for users to see what functionality they are executing too. Code simplicity, transparency, 
+makes sense for users to see what functionality they are executing too. Code simplicity, transparency,
 explicitness, and trustability are paramount.
 
 Another good reason for creating simple, focused libraries is the composability
@@ -402,10 +402,30 @@ just to have internal libraries that you created to centralize your helpers and
 don't expect that other people will use your helpers, then you should probably
 use subdirectories like `p/NAMESPACE/DAPP/foo/bar/baz`.
 
+Packages which contain `internal` as an element of the path (ie. at the end, or
+in between, like `gno.land/p/demo/seqid/internal`, or
+`gno.land/p/demo/seqid/internal/base32`) can only be imported by packages
+sharing the same root as the `internal` package. That is, given a package
+structure as follows:
+
+```
+gno.land/p/demo/seqid
+├── generator
+└── internal
+    ├── base32
+    └── cford32
+```
+
+The `seqid/internal`, `seqid/internal/base32` and `seqid/internal/cford32`
+packages can only be imported by `seqid` and `seqid/generator`.
+
+This works for both realm and packages, and can be used to create entirely
+restricted packages and realms that are not meant for outside consumption.
+
 ### Define types and interfaces in pure packages (p/)
 
 In Gno, it's common to create `p/NAMESPACE/DAPP` for defining types and
-interfaces, and `r/NAMESPACE/DAPP` for the runtime, especially when the goal 
+interfaces, and `r/NAMESPACE/DAPP` for the runtime, especially when the goal
 for the realm is to become a standard that could be imported by `p/`.
 
 The reason for this is that `p/` can only import `p/`, while `r/` can import
@@ -465,19 +485,19 @@ checks.
 
 ### Emit Gno events to make life off-chain easier
 
-Gno provides users the ability to log specific occurrences that happened in their 
+Gno provides users the ability to log specific occurrences that happened in their
 on-chain apps. An `event` log is stored in the ABCI results of each block, and
-these logs can be indexed, filtered, and searched by external services, allowing 
+these logs can be indexed, filtered, and searched by external services, allowing
 them to monitor the behaviour of on-chain apps.
 
-It is good practice to emit events when any major action in your code is 
+It is good practice to emit events when any major action in your code is
 triggered. For example, good times to emit an event is after a balance transfer,
 ownership change, profile created, etc. Alternatively, you can view event emission
-as a way to include data for monitoring purposes, given the indexable nature of 
+as a way to include data for monitoring purposes, given the indexable nature of
 events.
 
 Events consist of a type and a slice of strings representing `key:value` pairs.
-They are emitted with the `Emit()` function, contained in the `std` package in 
+They are emitted with the `Emit()` function, contained in the `std` package in
 the Gno standard library:
 
 ```go
@@ -499,7 +519,7 @@ func ChangeOwner(newOwner std.Address) {
 	if caller != owner {
 		panic("access denied")
 	}
-	
+
 	owner = newOwner
 	std.Emit("OwnershipChange", "newOwner", newOwner.String())
 }
@@ -701,7 +721,7 @@ func (s *MySafeStruct) Inc() {
 Then, you can register this object in another or several other realms so other
 realms can access the object, but still following your own rules.
 
-```go 
+```go
 import "gno.land/r/otherrealm"
 
 func init() {
