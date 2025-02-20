@@ -10,6 +10,8 @@ import (
 // TODO: Consider using an interface instead of a ref to CommonDAO type
 // TODO: Add support for creating hierarchical DAOs (require slug value)
 
+// Invite invites a user to the realm.
+// A user invitation is required to start creating new DAOs.
 func Invite(invitee std.Address) {
 	// TODO: Use an authority to restrict inviters when `p/moul/authz` is available
 	caller := std.PrevRealm().Addr()
