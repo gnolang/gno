@@ -194,7 +194,7 @@ func (dp DefaultPermissions) handleMemberInvite(args Args, cb func(Args)) {
 	}
 
 	if role == RoleOwner {
-		caller := std.GetOrigCaller()
+		caller := std.OriginCaller()
 		if !dp.HasRole(caller, RoleOwner) {
 			panic("only owners are allowed to invite other owners")
 		}
@@ -206,7 +206,7 @@ func (dp DefaultPermissions) handleMemberInvite(args Args, cb func(Args)) {
 func (dp DefaultPermissions) handleRoleChange(args Args, cb func(Args)) {
 	// Owners and Admins can change roles.
 	// Admins should not be able to assign or remove the Owner role from members.
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	if dp.HasRole(caller, RoleAdmin) {
 		role, ok := args[2].(Role)
 		if !ok {
@@ -253,7 +253,7 @@ func assertValidBoardNameLength(name string) {
 func assertBoardNameBelongsToCaller(name string) {
 	// When the board name is the name of a registered user
 	// check that caller is the owner of the name.
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	user := users.GetUserByName(name)
 	if user != nil && user.Address != caller {
 		panic("board name is a user name registered to a different user")
