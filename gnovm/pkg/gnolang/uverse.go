@@ -1050,6 +1050,9 @@ func makeUverseNode() {
 				}
 			}
 
+			if isUntyped(exception.Value.T) {
+				ConvertUntypedTo(&exception.Value, nil)
+			}
 			m.PushValue(exception.Value)
 			// Recover complete; remove exceptions.
 			m.Exceptions = nil

@@ -3692,9 +3692,6 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type, au
 					// always be a BoolType. (in this scenario, we may have some
 					// UntypedBoolTypes)
 					t = BoolType
-					if strings.Contains(bx.Left.String(), "neg<!VPBlock(1,5)>") {
-						fmt.Println("HEY")
-					}
 				default:
 					// do nothing
 				}
