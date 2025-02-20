@@ -23,6 +23,8 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	// This is the only place where it's bumped.
 	m.gcCycle += 1
 
+	debug2.Println2("m.gcCycle: ", m.gcCycle)
+
 	// Construct visitor callback.
 	vis := GCVisitorFn(m.gcCycle, m.Alloc)
 
