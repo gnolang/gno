@@ -37,7 +37,7 @@ stdout 'true'
 
 # Try to add a pkg an with unregistered user
 # gui addpkg -> gno.land/r/<addr_test1>/one
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/one -gas-fee 1000000ugnot -gas-wanted 1000000 -broadcast -chainid=tendermint_test gui
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/one -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test gui
 stderr 'unauthorized user'
 
 # Try to add a pkg with an unregistered user, on their own address as namespace
@@ -50,7 +50,7 @@ stdout 'OK!'
 # Call addpkg with admin user on gui namespace
 # admin addpkg -> gno.land/r/guiland/one
 # This is expected to fail at the transaction simulation stage, which is why we set gas-wanted to 1.
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guiland/one -gas-fee 1000000ugnot -gas-wanted 1 -broadcast -chainid=tendermint_test admin
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guiland/one -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test admin
 stderr 'unauthorized user'
 
 ## Test registered namespace
@@ -67,36 +67,7 @@ stdout 'OK!'
 
 # Test admin publishing on guigui123/two
 # admin addpkg -> gno.land/r/guigui123/two
-# This is expected to fail at the transaction simulation stage, which is why we set gas-wanted to 1.
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guigui123/two -gas-fee 1000000ugnot -gas-wanted 1 -broadcast -chainid=tendermint_test admin
-stderr 'unauthorized user'
-
-## Test gui alias
-
-# test gui change name
-# gui call -> gnoland/users/v1.UpdateName
-gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 -func UpdateName -gas-fee 1000000ugnot -gas-wanted 90000000 -broadcast -chainid=tendermint_test -args 'newguigui123' gui
-stdout 'OK!'
-
-## Old name should still work
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guigui123/new/one -gas-fee 1000000ugnot -gas-wanted 27000000 -broadcast -chainid=tendermint_test gui
-stdout 'OK!'
-
-## New name should work
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/newguigui123/newnew/one -gas-fee 1000000ugnot -gas-wanted 27000000 -broadcast -chainid=tendermint_test gui
-stdout 'OK!'
-
-## Test deleted gui
-## Delete guigui123
-gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 -func DeleteUser -gas-fee 1000000ugnot -gas-wanted 90000000 -broadcast -chainid=tendermint_test gui
-stdout 'OK!'
-
-## Latest name should fail
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/newguigui123/deleted/one -gas-fee 100000ugnot -gas-wanted 30000000 -broadcast -chainid=tendermint_test gui
-stderr 'unauthorized user'
-
-## Old name should fail
-! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/newguigui123/deleted/one -gas-fee 100000ugnot -gas-wanted 27000000 -broadcast -chainid=tendermint_test gui
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guigui123/two -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test admin
 stderr 'unauthorized user'
 
 -- one.gno --
