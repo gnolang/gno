@@ -165,6 +165,21 @@ content 2
 </gno-columns>
 `,
 		},
+		{
+			Name: "mix of tags",
+			Input: `
+:::
+## title 1
+
+content 1
+
+## title 2
+
+content 2
+
+</gno-columns>
+`,
+		},
 	}
 
 	m := goldmark.New()
@@ -275,6 +290,32 @@ content
 
 content 2
 </gno-columns>
+
+## title 3
+
+content 3
+</gno-columns>
+`,
+		},
+		{
+			Name: "mix of scopped tags",
+			Input: `
+<gno-columns>
+## title 1
+
+content 1
+
+## title 2
+
+:::
+## sub-title 1
+
+content
+
+## sub-title 2
+
+content 2
+:::
 
 ## title 3
 
