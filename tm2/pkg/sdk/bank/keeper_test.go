@@ -166,7 +166,6 @@ func TestAddRestrictedDenoms(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.ctx
 	bank := env.bank
-
 	// Add a single denom
 	bank.AddRestrictedDenoms(ctx, "foo")
 	params := bank.GetParams(ctx)

@@ -39,7 +39,7 @@ type Account interface {
 }
 
 type AccountRestricter interface {
-	IsRestricted() bool
+	IsUnrestricted() bool
 }
 
 //----------------------------------------

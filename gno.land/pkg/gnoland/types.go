@@ -83,14 +83,9 @@ func (ga *GnoAccount) SetUnrestricted() {
 	ga.setFlag(unrestricted)
 }
 
-// SetRestricted restricts the account when global transfer locking is enabled.
-func (ga *GnoAccount) SetRestricted() {
-	ga.clearFlag(unrestricted)
-}
-
-// IsRestricted checks whether the account is restricted.
-func (ga *GnoAccount) IsRestricted() bool {
-	return !ga.hasFlag(unrestricted)
+// IsUnrestricted checks whether the account is unrestricted.
+func (ga *GnoAccount) IsUnrestricted() bool {
+	return ga.hasFlag(unrestricted)
 }
 
 // String implements fmt.Stringer
