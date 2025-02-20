@@ -98,23 +98,23 @@ func TestRevokeRole(t *testing.T) {
 }
 
 func TestRenounceRole(t *testing.T) {
-    roles := initSetup(admin)
+	roles := initSetup(admin)
 
-    std.TestSetOriginCaller(admin)
+	std.TestSetOriginCaller(admin)
 
-    role, err := roles.CreateRole(roleName)
-    uassert.NoError(t, err)
-    err = roles.GrantRole(roleName, user1)
-    uassert.NoError(t, err)
+	role, err := roles.CreateRole(roleName)
+	uassert.NoError(t, err)
+	err = roles.GrantRole(roleName, user1)
+	uassert.NoError(t, err)
 
-    // Pas besoin de transférer la propriété pour renoncer à un rôle
-    std.TestSetOriginCaller(user1)
-    err = roles.RenounceRole(roleName)
-    uassert.NoError(t, err)
+	// Pas besoin de transférer la propriété pour renoncer à un rôle
+	std.TestSetOriginCaller(user1)
+	err = roles.RenounceRole(roleName)
+	uassert.NoError(t, err)
 
-    role, err = roles.FindRole(roleName)
-    uassert.NoError(t, err)
-    uassert.False(t, role.HasAccount(user1), "user1 should have renounced the TestRole")
+	role, err = roles.FindRole(roleName)
+	uassert.NoError(t, err)
+	uassert.False(t, role.HasAccount(user1), "user1 should have renounced the TestRole")
 }
 
 func TestSetRoleAdmin(t *testing.T) {

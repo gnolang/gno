@@ -122,7 +122,7 @@ func (rs *Roles) GrantRole(name string, account std.Address) error {
 		RoleGrantedEvent,
 		"roleName", r.Name,
 		"account", account.String(),
-		"sender",  std.PreviousRealm().Address().String(),
+		"sender", std.PreviousRealm().Address().String(),
 	)
 
 	return nil
@@ -157,7 +157,7 @@ func (rs *Roles) RevokeRole(name string, account std.Address) error {
 		RoleRevokedEvent,
 		"roleName", r.Name,
 		"account", account.String(),
-		"sender",  std.PreviousRealm().Address().String(),
+		"sender", std.PreviousRealm().Address().String(),
 	)
 
 	return nil
