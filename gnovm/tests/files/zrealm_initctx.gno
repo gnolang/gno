@@ -10,8 +10,8 @@ var addr = std.Address("test")
 var addrInit = std.Address("addrInit")
 
 func init() {
-	addr = std.GetOrigCaller()
-	addrInit = tests.InitOrigCaller()
+	addr = std.OriginCaller()
+	addrInit = tests.InitOriginCaller()
 }
 
 func main() {
