@@ -2,6 +2,8 @@ package common
 
 import (
 	"flag"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/log"
@@ -9,7 +11,33 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-type Flags struct {
+type AuthFlags struct {
+	AuthKeysFile string
+}
+
+func defaultAuthKeysFile() string {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		// Unable to get the user's config directory, fallback to the current directory.
+		if dir, err = os.Getwd(); err != nil {
+			panic("Unable to get any of the user or current directories")
+		}
+	}
+	return filepath.Join(dir, "gnokms/auth_keys.json")
+}
+
+func (f *AuthFlags) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&f.AuthKeysFile,
+		"auth-keys-file",
+		defaultAuthKeysFile(),
+		"path to the file containing the authentication keys (both own private and client public keys)",
+	)
+}
+
+type ServerFlags struct {
+	AuthFlags
+
 	ListenAddresses string
 	KeepAlivePeriod time.Duration
 	ResponseTimeout time.Duration
@@ -17,7 +45,7 @@ type Flags struct {
 	LogFormat       string
 }
 
-var defaultFlags = Flags{
+var defaultServerFlags = ServerFlags{
 	ListenAddresses: "tcp://127.0.0.1:26659",
 	KeepAlivePeriod: sserver.DefaultKeepAlivePeriod,
 	ResponseTimeout: sserver.DefaultResponseTimeout,
@@ -25,39 +53,41 @@ var defaultFlags = Flags{
 	LogFormat:       log.ConsoleFormat.String(),
 }
 
-func (f *Flags) RegisterFlags(fs *flag.FlagSet) {
+func (f *ServerFlags) RegisterFlags(fs *flag.FlagSet) {
+	f.AuthFlags.RegisterFlags(fs)
+
 	fs.StringVar(
 		&f.ListenAddresses,
 		"listeners",
-		defaultFlags.ListenAddresses,
+		defaultServerFlags.ListenAddresses,
 		"list of TCP or UNIX listening addresses separated by comma",
 	)
 
 	fs.DurationVar(
 		&f.KeepAlivePeriod,
 		"keep-alive",
-		defaultFlags.KeepAlivePeriod,
+		defaultServerFlags.KeepAlivePeriod,
 		"keep alive period for the TCP connection",
 	)
 
 	fs.DurationVar(
 		&f.ResponseTimeout,
 		"timeout",
-		defaultFlags.ResponseTimeout,
+		defaultServerFlags.ResponseTimeout,
 		"timeout for sending response to the client",
 	)
 
 	fs.StringVar(
 		&f.LogLevel,
 		"log-level",
-		defaultFlags.LogLevel,
+		defaultServerFlags.LogLevel,
 		"log level (debug|info|warn|error)",
 	)
 
 	fs.StringVar(
 		&f.LogFormat,
 		"log-format",
-		defaultFlags.LogFormat,
+		defaultServerFlags.LogFormat,
 		"log format (json|console)",
 	)
 }

@@ -4,28 +4,26 @@ import (
 	"context"
 	"os"
 
-	"github.com/gnolang/gno/contribs/gnokms/internal/common"
-	check "github.com/gnolang/gno/contribs/gnokms/internal/gnokey"
+	"github.com/gnolang/gno/contribs/gnokms/internal/auth"
+	"github.com/gnolang/gno/contribs/gnokms/internal/gnokey"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
 func main() {
-	var (
-		io          = commands.NewDefaultIO()
-		commonFlags = &common.Flags{}
-	)
+	io := commands.NewDefaultIO()
 
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
 			LongHelp:   "Gno Key Management System used to securely manage and control cryptographic keys.",
 		},
-		commonFlags,
+		commands.NewEmptyConfig(),
 		commands.HelpExec,
 	)
 
 	cmd.AddSubCommands(
-		check.NewGnokeyCmd(io, commonFlags),
+		auth.NewAuthCmd(io),
+		gnokey.NewGnokeyCmd(io),
 	)
 
 	cmd.Execute(context.Background(), os.Args[1:])

@@ -10,7 +10,6 @@ import (
 	sserver "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/server"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 )
 
 // Used to flush the logger.
@@ -19,7 +18,7 @@ type logFlusher func()
 // NewSignerServer creates a new remote signer server with the given gnokms signer.
 func NewSignerServer(
 	io commands.IO,
-	commonFlags *Flags,
+	commonFlags *ServerFlags,
 	signer types.Signer,
 ) (*sserver.RemoteSignerServer, logFlusher, error) {
 	// Initialize the zap logger.
@@ -41,15 +40,34 @@ func NewSignerServer(
 	// Split the listen addresses into a slice.
 	listenAddresses := strings.Split(commonFlags.ListenAddresses, ",")
 
+	// Create server options.
+	options := []sserver.Option{
+		sserver.WithKeepAlivePeriod(commonFlags.KeepAlivePeriod),
+		sserver.WithResponseTimeout(commonFlags.ResponseTimeout),
+	}
+
+	// Load the auth keys file if it exists.
+	authKeysFile, err := LoadAuthKeysFile(commonFlags.AuthKeysFile)
+	if err == nil {
+		// Get the authorized keys from the auth keys file.
+		authorizedKeys, err := authKeysFile.AuthorizedKeys()
+		if err != nil {
+			return nil, nil, fmt.Errorf("unable to get authorized keys from auth keys file: %w", err)
+		}
+
+		// Add the authorized keys and server private key to the server options.
+		options = append(options,
+			sserver.WithAuthorizedKeys(authorizedKeys),
+			sserver.WithServerPrivKey(*authKeysFile.ServerIdentity.PrivKey),
+		)
+	}
+
 	// Initialize the remote signer server with its options.
 	server, err := sserver.NewRemoteSignerServer(
 		signer,
 		listenAddresses,
 		logger.With("module", "remote_signer_server"),
-		sserver.WithKeepAlivePeriod(commonFlags.KeepAlivePeriod),
-		sserver.WithResponseTimeout(commonFlags.ResponseTimeout),
-		sserver.WithServerPrivKey(ed25519.GenPrivKey()), // TODO: Add server private key.
-		sserver.WithAuthorizedKeys(nil),                 // TODO: Add authorized keys.
+		options...,
 	)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to initialize remote signer server: %w", err)
@@ -60,7 +78,7 @@ func NewSignerServer(
 
 // RunSignerServer initializes and start a remote signer server with the given gnokms signer.
 // It then waits for the server to finish.
-func RunSignerServer(io commands.IO, commonFlags *Flags, signer types.Signer) error {
+func RunSignerServer(io commands.IO, commonFlags *ServerFlags, signer types.Signer) error {
 	// Initialize the remote signer server with the gnokms signer.
 	server, flush, err := NewSignerServer(io, commonFlags, signer)
 	if err != nil {
