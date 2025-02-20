@@ -6,7 +6,6 @@
 package microblog
 
 import (
-	"std"
 	"strings"
 
 	"gno.land/p/demo/microblog"
