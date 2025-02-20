@@ -101,7 +101,6 @@ func Register(title, description string) {
 		blockNum:    std.GetHeight(),
 		upvote:      &addrset.Set{},
 		downvote:    &addrset.Set{},
-
 	}
 
 	exhibition.items.Set(pkgpath, i)
