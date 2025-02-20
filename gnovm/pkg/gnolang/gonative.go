@@ -275,7 +275,7 @@ func Go2GnoNativeValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	return go2GnoValue(alloc, rv)
 }
 
-// NOTE: used by imports_test.go TestSetOrigCaller.
+// NOTE: used by imports_test.go TestSetOriginCaller.
 func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 	return gno2GoValue(tv, rv)
 }
@@ -769,9 +769,9 @@ func gno2GoType(t Type) reflect.Type {
 			return reflect.TypeOf(float32(0))
 		case Float64Type:
 			return reflect.TypeOf(float64(0))
-		case BigintType, UntypedBigintType:
+		case UntypedBigintType:
 			panic("not yet implemented")
-		case BigdecType, UntypedBigdecType:
+		case UntypedBigdecType:
 			panic("not yet implemented")
 		default:
 			panic("should not happen")
@@ -887,9 +887,9 @@ func gno2GoTypeMatches(t Type, rt reflect.Type) (result bool) {
 			return rt.Kind() == reflect.Float32
 		case Float64Type:
 			return rt.Kind() == reflect.Float64
-		case BigintType, UntypedBigintType:
+		case UntypedBigintType:
 			panic("not yet implemented")
-		case BigdecType, UntypedBigdecType:
+		case UntypedBigdecType:
 			panic("not yet implemented")
 		default:
 			panic("should not happen")
