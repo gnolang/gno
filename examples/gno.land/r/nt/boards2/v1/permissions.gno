@@ -37,6 +37,15 @@ type (
 	// Args is a list of generic arguments.
 	Args []interface{}
 
+	// User contains user info.
+	User struct {
+		Address std.Address
+		Roles   []Role
+	}
+
+	// UsersIterFn defines a function type to iterate users.
+	UsersIterFn func(User) bool
+
 	// Permissions define an interface to for permissioned execution.
 	Permissions interface {
 		// HasRole checks if a user has a specific role assigned.
@@ -60,5 +69,8 @@ type (
 
 		// HasUser checks if a user exists.
 		HasUser(std.Address) bool
+
+		// IterateUsers iterates permission users
+		IterateUsers(start, count int, fn UsersIterFn) bool
 	}
 )
