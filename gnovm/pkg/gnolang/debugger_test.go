@@ -143,6 +143,9 @@ func TestDebug(t *testing.T) {
 		{in: "b 27\nc\np b\n", out: `("!zero" string)`},
 		{in: "b 22\nc\np t.A[3]\n", out: "Command failed: &{(\"slice index out of bounds: 3 (len=3)\" string) <nil> }"},
 		{in: "b 43\nc\nc\nc\np i\ndetach\n", out: "(1 int)"},
+		{in: "b 37\nc\nnext\n", out: "=>   39:"},
+		{in: "b 40\nc\nnext\n", out: "=>   41:"},
+		{in: "b 22\nc\nstepout\n", out: "=>   40:"},
 	})
 
 	runDebugTest(t, "../../tests/files/a1.gno", []dtest{
