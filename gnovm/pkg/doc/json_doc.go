@@ -165,6 +165,32 @@ func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
 			Doc:       string(pkg.Markdown(typ.Doc)),
 		})
 
+		// constructors for this type
+		for _, fun := range typ.Funcs {
+			buf := new(strings.Builder)
+			if err := format.Node(buf, d.pkgData.fset, fun.Decl); err != nil {
+				return nil, err
+			}
+
+			params, err := d.extractFuncParams(fun)
+			if err != nil {
+				return nil, err
+			}
+
+			results, err := d.extractFuncResults(fun)
+			if err != nil {
+				return nil, err
+			}
+
+			jsonDoc.Funcs = append(jsonDoc.Funcs, &JSONFunc{
+				Name:      fun.Name,
+				Signature: buf.String(),
+				Doc:       string(pkg.Markdown(fun.Doc)),
+				Params:    params,
+				Results:   results,
+			})
+		}
+
 		for _, meth := range typ.Methods {
 			buf := new(strings.Builder)
 			if err := format.Node(buf, d.pkgData.fset, meth.Decl); err != nil {
