@@ -133,7 +133,7 @@ func (tl *TimeLock) Execute(id seqid.ID) error {
 
 // Update the minimum lead time for future operations
 func (tl *TimeLock) UpdateDelay(newDelay uint64) error {
-	if std.PrevRealm().Addr() != tl.accessControl.Ownable.Owner() {
+	if std.PreviousRealm().Address() != tl.accessControl.Ownable.Owner() {
 		return ErrUpadateDelay
 	}
 
