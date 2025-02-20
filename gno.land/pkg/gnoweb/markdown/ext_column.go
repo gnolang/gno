@@ -87,6 +87,7 @@ type columnContext struct {
 	openNode        ast.Node
 	index           int
 	refHeadingLevel int // serves as a level reference for separators
+	depth           int
 }
 
 func (ctx *columnContext) Init(node ast.Node) {
@@ -195,7 +196,10 @@ func (p *columnParser) Open(self ast.Node, reader text.Reader, pc parser.Context
 		return nil, parser.NoChildren
 
 	case ColumnTagOpen:
+
 		if cctx.initialized {
+			cctx.depth++
+			reader.Advance(segment.Len())
 			return nil, parser.NoChildren
 		}
 
@@ -206,6 +210,11 @@ func (p *columnParser) Open(self ast.Node, reader text.Reader, pc parser.Context
 			return nil, parser.NoChildren
 		}
 
+		if cctx.depth > 0 {
+			cctx.depth--
+			reader.Advance(segment.Len())
+			return nil, parser.NoChildren
+		}
 		cctx.Destroy()
 
 		reader.Advance(segment.Len())
