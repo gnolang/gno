@@ -12,11 +12,8 @@ content 4
 
 -- output.html --
 <div class="gno-cols">
-<!-- Column 0 -->
-<div>
 <h6>Title 1</h6>
 <p>content 1</p>
-</div>
 <!-- Column 1 -->
 <div>
 <h2>Title 2</h2>

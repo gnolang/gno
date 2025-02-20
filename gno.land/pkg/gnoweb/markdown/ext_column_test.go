@@ -261,15 +261,23 @@ content 4
 			Input: `
 <gno-columns>
 ## title 1
+
 content 1
+
 ## title 2
+
 <gno-columns>
 ## sub-title 1
+
 content
+
 ## sub-title 2
+
 content 2
 </gno-columns>
+
 ## title 3
+
 content 3
 </gno-columns>
 `,

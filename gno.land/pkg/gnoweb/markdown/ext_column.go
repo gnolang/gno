@@ -3,6 +3,7 @@ package markdown
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
@@ -67,7 +68,11 @@ func (*ColumnNode) Kind() ast.NodeKind {
 
 // NewColumn initializes a ColumnNode object.
 func NewColumn(ctx *columnContext, tag ColumnTag) *ColumnNode {
-	return &ColumnNode{ctx: ctx, Index: ctx.index, Tag: tag}
+	node := &ColumnNode{ctx: ctx, Index: 1, Tag: tag}
+	if ctx != nil {
+		node.Index = ctx.index
+	}
+	return node
 }
 
 // columnParser struct and its methods are used for parsing columns.
@@ -83,16 +88,12 @@ var columnContextKey = parser.NewContextKey()
 // columnContext struct and its methods are used for handling column context.
 type columnContext struct {
 	initialized     bool
-	prevContext     *columnContext
-	openNode        ast.Node
 	index           int
 	refHeadingLevel int // serves as a level reference for separators
-	depth           int
 }
 
-func (ctx *columnContext) Init(node ast.Node) {
+func (ctx *columnContext) Init() {
 	ctx.initialized = true
-	ctx.openNode = node
 }
 
 func (ctx *columnContext) Destroy() {
@@ -103,23 +104,8 @@ func (ctx *columnContext) SpanColumn() {
 	ctx.index++
 }
 
-func getColumnContext(pc parser.Context) *columnContext {
-	cctx, ok := pc.Get(columnContextKey).(*columnContext)
-	switch {
-	case !ok:
-		cctx = &columnContext{index: 1}
-	case !cctx.initialized:
-		cctx = &columnContext{prevContext: cctx, index: 1}
-	default:
-		return cctx
-	}
-
-	pc.Set(columnContextKey, cctx)
-	return cctx
-}
-
-// parseLineTag checks if the line starts with any of the tag.
-func parseLineTag(ctx *columnContext, line []byte) ColumnTag {
+// parseSeparator checks if the line starts with any of the given separators and returns the separator kind.
+func parseSeparator(ctx *columnContext, line []byte) ColumnTag {
 	line = util.TrimRightSpace(util.TrimLeftSpace(line))
 	if len(line) == 0 {
 		return ColumnTagUndefined
@@ -144,6 +130,16 @@ func parseLineTag(ctx *columnContext, line []byte) ColumnTag {
 	return ColumnTagUndefined
 }
 
+func getColumnContext(pc parser.Context) *columnContext {
+	cctx, ok := pc.Get(columnContextKey).(*columnContext)
+	if !ok || !cctx.initialized {
+		cctx = &columnContext{}
+		pc.Set(columnContextKey, cctx)
+	}
+
+	return cctx
+}
+
 // Open opens a new column node based on the separator kind.
 func (p *columnParser) Open(self ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	const MaxHeading = 6
@@ -151,7 +147,7 @@ func (p *columnParser) Open(self ast.Node, reader text.Reader, pc parser.Context
 	cctx := getColumnContext(pc)
 	line, segment := reader.PeekLine()
 
-	tagKind := parseLineTag(cctx, line)
+	tagKind := parseSeparator(cctx, line)
 	if tagKind == ColumnTagUndefined {
 		return nil, parser.NoChildren
 	}
@@ -180,8 +176,6 @@ func (p *columnParser) Open(self ast.Node, reader text.Reader, pc parser.Context
 			return nil, parser.NoChildren
 		}
 
-		// Process creating a column
-
 		cctx.SpanColumn()
 
 		if trimmed := util.TrimLeft(line[level:], []byte{' ', '\n'}); len(trimmed) == 0 {
@@ -196,27 +190,18 @@ func (p *columnParser) Open(self ast.Node, reader text.Reader, pc parser.Context
 		return nil, parser.NoChildren
 
 	case ColumnTagOpen:
-
 		if cctx.initialized {
-			cctx.depth++
-			reader.Advance(segment.Len())
 			return nil, parser.NoChildren
 		}
 
-		cctx.Init(node)
+		cctx.Init()
 
 	case ColumnTagClose:
 		if !cctx.initialized {
 			return nil, parser.NoChildren
 		}
 
-		if cctx.depth > 0 {
-			cctx.depth--
-			reader.Advance(segment.Len())
-			return nil, parser.NoChildren
-		}
 		cctx.Destroy()
-
 		reader.Advance(segment.Len())
 	}
 
@@ -242,26 +227,24 @@ func (*columnParser) CloseBlock(_ ast.Node, _ parser.Context) {}
 // columnRender function is used to render the column node.
 func columnRender(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
 	cnode, ok := node.(*ColumnNode)
-	if !ok || cnode.Len() == 0 || !entering {
+	numColumns := cnode.Len()
+	if !ok || numColumns == 0 || !entering {
 		return ast.WalkContinue, nil
 	}
 
 	switch cnode.Tag {
 	case ColumnTagOpen:
-		fmt.Fprint(w, `<div class="gno-cols">`+"\n")
-
+		classes := []string{"gno-cols"}
+		fmt.Fprintf(w, `<div class="%s">`+"\n", strings.Join(classes, " "))
 	case ColumnTagSep:
-		prev, ok := cnode.PreviousSibling().(*ColumnNode)
-		if !ok || prev.Tag != ColumnTagOpen {
-			fmt.Fprintln(w, "</div>")
+		if cnode.Index > 0 {
+			fmt.Fprint(w, "</div>\n")
 		}
 
-		fmt.Fprintf(w, "<!-- Column %d -->\n", cnode.Index)
-		fmt.Fprintln(w, "<div>")
-
+		fmt.Fprintf(w, "<!-- Column %d -->\n", cnode.Index+1)
+		fmt.Fprintf(w, `<div>`+"\n")
 	case ColumnTagClose:
-		fmt.Fprintln(w, "</div>\n</div>")
-
+		fmt.Fprint(w, "</div>\n</div>\n")
 	default:
 		panic("invalid column tag - should not happen")
 	}
@@ -272,36 +255,17 @@ func columnRender(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast
 type columnASTTransformer struct{}
 
 func (a *columnASTTransformer) Transform(node *ast.Document, reader text.Reader, pc parser.Context) {
-	cctx, ok := pc.Get(columnContextKey).(*columnContext)
-	if !ok {
+	cctx := getColumnContext(pc)
+	if !cctx.initialized {
 		return
 	}
-	defer cctx.Destroy()
 
-	// Check if node hasn't been closed
-	if cctx.initialized {
-		// If not closed simply add a closed node at the end
-		lc := node.LastChild()
+	// Node hasn't been closed
+	lc := node.LastChild()
 
-		nodeCol := NewColumn(cctx, ColumnTagClose)
-		lc.InsertAfter(lc, lc, nodeCol)
-	}
-
-	// Ensure that each open tag always start with a column
-	for cctx != nil && cctx.openNode != nil {
-		next := cctx.openNode.NextSibling()
-		if _, ok := next.(*ColumnNode); !ok {
-			// Generate column0
-			column0 := NewColumn(cctx, ColumnTagSep)
-			column0.Index = 0
-
-			// Instert column after OpenNode
-			node.InsertAfter(node, cctx.openNode, column0)
-		}
-
-		cctx = cctx.prevContext
-	}
-
+	nodeCol := NewColumn(cctx, ColumnTagClose)
+	cctx.Destroy()
+	lc.InsertAfter(lc, lc, nodeCol)
 }
 
 type columnRenderer struct{}

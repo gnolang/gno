@@ -14,6 +14,39 @@ functions in your code using the repo.
 
 Visit the playground at [play.gno.land](https://play.gno.land)!
 
+<gno-columns>
+## title 1
+content 1
+## title 2
+<gno-columns>
+## sub-title 1
+content
+## sub-title 2
+content 2
+</gno-columns>
+## title 3
+content 3
+</gno-columns>
+
+
+blabla
+
+<gno-columns>
+
+content 1  
+
+content 2  
+
+## Title 1  
+
+content 3  
+
+## Title 2  
+
+content 4  
+
+</gno-columns>
+
 ### [Gno Studio Connect](https://gno.studio/connect)
 
 Gno Studio Connect provides seamless access to realms, making it simple to explore, interact, and engage
