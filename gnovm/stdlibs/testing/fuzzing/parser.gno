@@ -52,9 +52,17 @@ type Ent interface {
 	updateStrategyCache()
 }
 
+// PrimitiveEnt is an extended interface of `Ent` for entities that store and manipulate raw byte data (`[]byte`).
+//
+// This interface is implemented by entities such as `LetterEnt`, `NumEnt`, `WsEnt`, and `MarkEnt`,
+// which store their internal data in the form of a byte slice (`data []byte`).
+// It provides methods to retrieve (`PrimitiveData`) and update (`SetPrimitiveData`) this byte slice.
 type PrimitiveEnt interface {
 	Ent
+	// PrimitiveData returns the raw byte slice (`[]byte`) stored in the entity.
 	PrimitiveData() []byte
+
+	// SetPrimitiveData updates the byte slice (`[]byte`) stored in the entity.
 	SetPrimitiveData([]byte)
 }
 
@@ -435,11 +443,11 @@ func (m *MarkEnt) updateStrategyCache() {
 // KeyValEnt represents an entity that stores key-delimiter-value structures
 // extracted from strings or byte slices, such as "a := 2" or "var = x".
 type KeyValEnt struct {
-	k         Ent // Represents the key in the key-delimiter-value structure.
-	plOrNil   Ent // Represents the whitespace entity between the key and the delimiter.
-	prOrNil   Ent // Represents the whitespace entity between the delimiter and the value.
-	delimiter Ent // Represents the delimiter in the key-delimiter-value structure.
-	v         Ent // Represents the value in the key-delimiter-value structure.
+	k         PrimitiveEnt // Represents the key in the key-delimiter-value structure.
+	plOrNil   PrimitiveEnt // Represents the whitespace entity between the key and the delimiter.
+	prOrNil   PrimitiveEnt // Represents the whitespace entity between the delimiter and the value.
+	delimiter PrimitiveEnt // Represents the delimiter in the key-delimiter-value structure.
+	v         PrimitiveEnt // Represents the value in the key-delimiter-value structure.
 	depth     int
 	id        int
 	score     uint64
@@ -856,9 +864,9 @@ func sortMarksByLengthDesc(marks []string) []string {
 	return cp
 }
 
-// Lex scans the entire []byte input and returns a list of tokens (Ent).
-func (lx *Lexer) Lex() []Ent {
-	var tokens []Ent
+// Lex scans the entire []byte input and returns a list of tokens (PrimitiveEnt).
+func (lx *Lexer) Lex() []PrimitiveEnt {
+	var tokens []PrimitiveEnt
 	for !lx.eof() {
 		t := lx.nextToken()
 		if t != nil {
@@ -882,7 +890,7 @@ var ParserMark = []string{
 }
 
 // nextToken extracts a single token (Ent) from the input stream.
-func (lx *Lexer) nextToken() Ent {
+func (lx *Lexer) nextToken() PrimitiveEnt {
 	// Retrieves the []byte at the current position and decodes it as a UTF-8 character.
 	pb := lx.peek()
 	if pb == nil {
@@ -952,7 +960,7 @@ func (lx *Lexer) nextToken() Ent {
 
 // lexNumber parses numeric values, including decimal, hexadecimal,
 // and scientific notation, and returns a NumEnt entity.
-func (lx *Lexer) lexNumber() Ent {
+func (lx *Lexer) lexNumber() PrimitiveEnt {
 	sign := ""
 	// Handles negative sign if present.
 	pb := lx.peek()
@@ -1064,7 +1072,7 @@ func (lx *Lexer) lexNumber() Ent {
 // parseKeyVals identifies key-delimiter-value structures in the token stream.
 // It detects and extracts key-value pairs, including optional whitespace
 // surrounding delimiters like ":", "=", and ":=".
-func parseKeyVals(tokens []Ent) []Ent {
+func parseKeyVals(tokens []PrimitiveEnt) []Ent {
 	var result []Ent
 	i := 0
 	for i < len(tokens) {
@@ -1077,7 +1085,7 @@ func parseKeyVals(tokens []Ent) []Ent {
 		}
 		pos := i + 1
 		// 2) Optionally captures whitespace between the key and delimiter.
-		var leftPadding Ent
+		var leftPadding PrimitiveEnt
 		if pos < len(tokens) {
 			if w, ok := tokens[pos].(*WsEnt); ok {
 				leftPadding = w
@@ -1115,7 +1123,7 @@ func parseKeyVals(tokens []Ent) []Ent {
 		pos++ // Consume delimiter.
 
 		// 4) Optionally captures whitespace between the delimiter and the value.
-		var rightPadding Ent
+		var rightPadding PrimitiveEnt
 		if pos < len(tokens) {
 			if w2, ok3 := tokens[pos].(*WsEnt); ok3 {
 				rightPadding = w2
@@ -1683,55 +1691,24 @@ func collectIDs(e Ent, m map[int]bool) {
 // child entities while preserving structure.
 func cloneEnt(e Ent) Ent {
 	switch v := e.(type) {
-	case *LetterEnt:
-		newData := make([]byte, len(v.data))
-		copy(newData, v.data)
-		return &LetterEnt{
-			data:  newData,
-			depth: v.depth,
-		}
-
-	case *NumEnt:
-		newData := make([]byte, len(v.data))
-		copy(newData, v.data)
-		return &NumEnt{
-			data:  newData,
-			depth: v.depth,
-		}
-
-	case *WsEnt:
-		newData := make([]byte, len(v.data))
-		copy(newData, v.data)
-		return &WsEnt{
-			data:  newData,
-			depth: v.depth,
-		}
-
-	case *MarkEnt:
-		newData := make([]byte, len(v.data))
-		copy(newData, v.data)
-		return &MarkEnt{
-			data:  newData,
-			depth: v.depth,
-		}
-
+	case PrimitiveEnt:
+		return clonePrimitiveEnt(v)
 	case *KeyValEnt:
-
-		var k, pl, delim, pr, vv Ent
+		var k, pl, delim, pr, vv PrimitiveEnt
 		if v.k != nil {
-			k = cloneEnt(v.k)
+			k = clonePrimitiveEnt(v.k)
 		}
 		if v.plOrNil != nil {
-			pl = cloneEnt(v.plOrNil)
+			pl = clonePrimitiveEnt(v.plOrNil)
 		}
 		if v.delimiter != nil {
-			delim = cloneEnt(v.delimiter)
+			delim = clonePrimitiveEnt(v.delimiter)
 		}
 		if v.prOrNil != nil {
-			pr = cloneEnt(v.prOrNil)
+			pr = clonePrimitiveEnt(v.prOrNil)
 		}
 		if v.v != nil {
-			vv = cloneEnt(v.v)
+			vv = clonePrimitiveEnt(v.v)
 		}
 		return &KeyValEnt{
 			depth:     v.depth,
@@ -1763,6 +1740,44 @@ func cloneEnt(e Ent) Ent {
 		}
 	}
 	return nil
+}
+
+func clonePrimitiveEnt(pe PrimitiveEnt) PrimitiveEnt {
+	switch v := pe.(type) {
+	case *LetterEnt:
+		newData := make([]byte, len(v.data))
+		copy(newData, v.data)
+		return &LetterEnt{
+			data:  newData,
+			depth: v.depth,
+		}
+
+	case *NumEnt:
+		newData := make([]byte, len(v.data))
+		copy(newData, v.data)
+		return &NumEnt{
+			data:  newData,
+			depth: v.depth,
+		}
+
+	case *WsEnt:
+		newData := make([]byte, len(v.data))
+		copy(newData, v.data)
+		return &WsEnt{
+			data:  newData,
+			depth: v.depth,
+		}
+
+	case *MarkEnt:
+		newData := make([]byte, len(v.data))
+		copy(newData, v.data)
+		return &MarkEnt{
+			data:  newData,
+			depth: v.depth,
+		}
+	default:
+		panic("it must not be reached")
+	}
 }
 
 // PrintTree recursively prints the AST structure with indentation to

@@ -3,6 +3,7 @@ package fuzzing
 import (
 	"fmt"
 	"math"
+	"os"
 	"sort"
 )
 
@@ -925,23 +926,63 @@ var notSbEntMutators = map[MutationCodeForNotSB]MutateFuncForNotSB{
 // The mutation refinement should also be performed based on the pattern value.
 // The p parameter is intended for future use but is currently unused.
 
+// processMutateStrategy applies a mutation strategy based on the type of the given Ent.
+// depending on whether the entity is a `PrimitiveEnt`, `KeyValEnt`, `GroupEnt`, or `RootEnt`.
+// Parameters:
+//   - e: The entity (`Ent`) to be processed.
+//   - primitiveFunc: A function that applies a mutation to `PrimitiveEnt` instances.
+//   - keyValFunc: A function that applies a mutation to `KeyValEnt` instances.
+//   - groupFunc: A function that applies a mutation to `GroupEnt` instances.
+//   - rootFunc: A function that applies a mutation to `RootEnt` instances.
+//
+// Returns:
+//   - `true` if a mutation function was successfully applied to the given entity.
+//   - `false` if a mutation was failed or not implemented.
+func processMutateStrategy(
+	e Ent,
+	primitiveFunc func(PrimitiveEnt) bool,
+	keyValFunc func(*KeyValEnt) bool,
+	groupFunc func(*GroupEnt) bool,
+	rootFunc func(*RootEnt) bool,
+) bool {
+	switch ent := e.(type) {
+	case PrimitiveEnt:
+		return primitiveFunc(ent)
+	case *KeyValEnt:
+		return keyValFunc(ent)
+	case *GroupEnt:
+		return groupFunc(ent)
+	case *RootEnt:
+		return rootFunc(ent)
+	default:
+		return false
+	}
+}
+
+// handleEmptyRoot ensures that a `RootEnt` is not empty.
+// If empty, it inserts a random alphabetic character.
+func handleEmptyRoot(root *RootEnt) bool {
+	if len(root.data) == 0 {
+		randomChar := byte(OncePCG().Intn(26) + 65) // 'A' ~ 'Z'
+		if OncePCG().Intn(2) == 0 {
+			randomChar = byte(OncePCG().Intn(26) + 97) // 'a' ~ 'z'
+		}
+		root.data = []Ent{&LetterEnt{data: []byte{randomChar}}}
+	}
+	return true
+}
+
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
 // deleteStart removes a portion of the beginning of the entity's data.
-func deleteStart(e Ent, p string) bool {
-	switch e.(type) {
-	case *LetterEnt, *NumEnt, *WsEnt, *MarkEnt:
-		var data []byte
-		switch t := e.(type) {
-		case *LetterEnt:
-			data = t.data
-		case *NumEnt:
-			data = t.data
-		case *WsEnt:
-			data = t.data
-		case *MarkEnt:
-			data = t.data
-		}
+func deleteStart(e Ent, pattern string) bool {
+	// pFunc applies a mutation to `PrimitiveEnt` instances by removing
+	// a portion of their data from the start.
+	pFunc := func(pe PrimitiveEnt) bool {
+		// TODO: Fine-tuning is, of course, needed in the future.
+		// Must add mutation guidelines for complex types.
+
+		data := pe.PrimitiveData()
 		if data == nil || len(data) == 0 {
 			return false
 		}
@@ -954,42 +995,31 @@ func deleteStart(e Ent, p string) bool {
 			return false
 		}
 		newdata := data[deleteCount:]
-		switch t := e.(type) {
-		case *LetterEnt:
-			t.data = newdata
-		case *NumEnt:
-			t.data = newdata
-		case *WsEnt:
-			t.data = newdata
-		case *MarkEnt:
-			t.data = newdata
-		}
+		pe.SetPrimitiveData(newdata)
 		return true
-	case *RootEnt:
-		root := e.(*RootEnt)
-		if len(root.data) == 0 {
-			// Block handling edge case for empty strings. (This is essential.)
-			randomChar := byte(OncePCG().Intn(26) + 65)
-			if OncePCG().Intn(2) == 0 {
-				randomChar = byte(OncePCG().Intn(26) + 97)
-			}
-			root.data = []Ent{
-				&LetterEnt{data: []byte{randomChar}},
-			}
-		}
-		return true
-	default:
-		// TODO: Add mutation guidelines for complex types.
-		// Composite types are not handled yet.
+	}
+
+	// TODO: Add mutation guidelines for complex types.
+	// Composite types are not handled yet.
+	// kvFunc serves as a placeholder for `KeyValEnt` mutation logic.
+	// Currently, it does nothing and always returns false.
+	kvFunc := func(kv *KeyValEnt) bool {
 		return false
 	}
+	// gFunc serves as a placeholder for `GroupEnt` mutation logic.
+	// Currently, it does nothing and always returns false.
+	gFunc := func(g *GroupEnt) bool {
+		return false
+	}
+	// rFunc applies a mutation to `RootEnt` instances.
+	rFunc := handleEmptyRoot
+	return processMutateStrategy(e, pFunc, kvFunc, gFunc, rFunc)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func deleteMiddle(e Ent, p string) bool {
-	if pe, ok := e.(PrimitiveEnt); ok {
-		//*LetterEnt, *NumEnt,*WsEnt, *MarkEnt
+func deleteMiddle(e Ent, pattern string) bool {
+	pFunc := func(pe PrimitiveEnt) bool {
 		data := pe.PrimitiveData()
 		if data == nil || len(data) < 3 {
 			return true
@@ -1004,38 +1034,24 @@ func deleteMiddle(e Ent, p string) bool {
 		pe.SetPrimitiveData(newdata)
 		return true
 	}
-	if root, ok := e.(*RootEnt); ok {
-		if len(root.data) == 0 {
 
-			randomChar := byte(OncePCG().Intn(26) + 65)
-			if OncePCG().Intn(2) == 0 {
-				randomChar = byte(OncePCG().Intn(26) + 97)
-			}
-			root.data = []Ent{
-				&LetterEnt{data: []byte{randomChar}},
-			}
-		}
-		return true
+	kvFunc := func(kv *KeyValEnt) bool {
+		return false
 	}
-	return false
+
+	gFunc := func(g *GroupEnt) bool {
+		return false
+	}
+
+	rFunc := handleEmptyRoot
+	return processMutateStrategy(e, pFunc, kvFunc, gFunc, rFunc)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func deleteEnd(e Ent, p string) bool {
-	switch e.(type) {
-	case *LetterEnt, *NumEnt, *WsEnt, *MarkEnt:
-		var data []byte
-		switch t := e.(type) {
-		case *LetterEnt:
-			data = t.data
-		case *NumEnt:
-			data = t.data
-		case *WsEnt:
-			data = t.data
-		case *MarkEnt:
-			data = t.data
-		}
+func deleteEnd(e Ent, pattern string) bool {
+	pFunc := func(pe PrimitiveEnt) bool {
+		data := pe.PrimitiveData()
 		if data == nil || len(data) == 0 {
 			return false
 		}
@@ -1045,169 +1061,96 @@ func deleteEnd(e Ent, p string) bool {
 		}
 		deleteCount := OncePCG().Intn(maxToDelete) + 1
 		newdata := data[:len(data)-deleteCount]
-		switch t := e.(type) {
-		case *LetterEnt:
-			t.data = newdata
-		case *NumEnt:
-			t.data = newdata
-		case *WsEnt:
-			t.data = newdata
-		case *MarkEnt:
-			t.data = newdata
-		}
+		pe.SetPrimitiveData(newdata)
 		return true
-	case *RootEnt:
-		root := e.(*RootEnt)
-		if len(root.data) == 0 {
-			randomChar := byte(OncePCG().Intn(26) + 65)
-			if OncePCG().Intn(2) == 0 {
-				randomChar = byte(OncePCG().Intn(26) + 97)
-			}
-			root.data = []Ent{
-				&LetterEnt{data: []byte{randomChar}},
-			}
-		}
-		return true
-	default:
+	}
+	kvFunc := func(kv *KeyValEnt) bool {
 		return false
 	}
+
+	gFunc := func(g *GroupEnt) bool {
+		return false
+	}
+
+	rFunc := handleEmptyRoot
+	return processMutateStrategy(e, pFunc, kvFunc, gFunc, rFunc)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func appendStart(e Ent, p string) bool {
-	switch e.(type) {
-	case *LetterEnt, *NumEnt, *WsEnt, *MarkEnt:
-		var data []byte
-		switch t := e.(type) {
-		case *LetterEnt:
-			data = t.data
-		case *NumEnt:
-			data = t.data
-		case *WsEnt:
-			data = t.data
-		case *MarkEnt:
-			data = t.data
-		}
+func appendStart(e Ent, pattern string) bool {
+	pFunc := func(pe PrimitiveEnt) bool {
+		data := pe.PrimitiveData()
+
 		randomByte := byte(OncePCG().Intn(256))
 		newdata := append([]byte{randomByte}, data...)
-		switch t := e.(type) {
-		case *LetterEnt:
-			t.data = newdata
-		case *NumEnt:
-			t.data = newdata
-		case *WsEnt:
-			t.data = newdata
-		case *MarkEnt:
-			t.data = newdata
-		}
+		pe.SetPrimitiveData(newdata)
 		return true
-	case *RootEnt:
-		root := e.(*RootEnt)
-		if len(root.data) == 0 {
-
-			randomChar := byte(OncePCG().Intn(26) + 65)
-			if OncePCG().Intn(2) == 0 {
-				randomChar = byte(OncePCG().Intn(26) + 97)
-			}
-			root.data = []Ent{
-				&LetterEnt{data: []byte{randomChar}},
-			}
-		}
-		return true
-
-	default:
+	}
+	kvFunc := func(kv *KeyValEnt) bool {
 		return false
 	}
+
+	gFunc := func(g *GroupEnt) bool {
+		return false
+	}
+
+	rFunc := handleEmptyRoot
+	return processMutateStrategy(e, pFunc, kvFunc, gFunc, rFunc)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func appendStartInteresting(e Ent, p string) bool {
-	return appendStart(e, p)
+func appendStartInteresting(e Ent, pattern string) bool {
+	return appendStart(e, pattern)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func appendStartPattern(e Ent, p string) bool {
-	return appendStart(e, p)
+func appendStartPattern(e Ent, pattern string) bool {
+	return appendStart(e, pattern)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func appendEnd(e Ent, p string) bool {
-	switch e.(type) {
-	case *LetterEnt, *NumEnt, *WsEnt, *MarkEnt:
-		var data []byte
-		switch t := e.(type) {
-		case *LetterEnt:
-			data = t.data
-		case *NumEnt:
-			data = t.data
-		case *WsEnt:
-			data = t.data
-		case *MarkEnt:
-			data = t.data
-		}
+func appendEnd(e Ent, pattern string) bool {
+	pFunc := func(pe PrimitiveEnt) bool {
+		data := pe.PrimitiveData()
+
 		randomByte := byte(OncePCG().Intn(256))
 		newdata := append(data, randomByte)
-		switch t := e.(type) {
-		case *LetterEnt:
-			t.data = newdata
-		case *NumEnt:
-			t.data = newdata
-		case *WsEnt:
-			t.data = newdata
-		case *MarkEnt:
-			t.data = newdata
-		}
+		pe.SetPrimitiveData(newdata)
 		return true
-	case *RootEnt:
-		root := e.(*RootEnt)
-		if len(root.data) == 0 {
-
-			randomChar := byte(OncePCG().Intn(26) + 65)
-			if OncePCG().Intn(2) == 0 {
-				randomChar = byte(OncePCG().Intn(26) + 97)
-			}
-			root.data = []Ent{
-				&LetterEnt{data: []byte{randomChar}},
-			}
-		}
-		return true
-	default:
+	}
+	kvFunc := func(kv *KeyValEnt) bool {
 		return false
 	}
+
+	gFunc := func(g *GroupEnt) bool {
+		return false
+	}
+
+	rFunc := handleEmptyRoot
+	return processMutateStrategy(e, pFunc, kvFunc, gFunc, rFunc)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func appendEndInteresting(e Ent, p string) bool {
-	return appendEnd(e, p)
+func appendEndInteresting(e Ent, pattern string) bool {
+	return appendEnd(e, pattern)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func appendEndPattern(e Ent, p string) bool {
-	return appendEnd(e, p)
+func appendEndPattern(e Ent, pattern string) bool {
+	return appendEnd(e, pattern)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func overwriteStart(e Ent, p string) bool {
-	switch e.(type) {
-	case *LetterEnt, *NumEnt, *WsEnt, *MarkEnt:
-		var data []byte
-		switch t := e.(type) {
-		case *LetterEnt:
-			data = t.data
-		case *NumEnt:
-			data = t.data
-		case *WsEnt:
-			data = t.data
-		case *MarkEnt:
-			data = t.data
-		}
+func overwriteStart(e Ent, pattern string) bool {
+	pFunc := func(pe PrimitiveEnt) bool {
+		data := pe.PrimitiveData()
 		if data == nil || len(data) == 0 {
 			return false
 		}
@@ -1219,57 +1162,29 @@ func overwriteStart(e Ent, p string) bool {
 		for i := 0; i < overwriteCount && i < len(data); i++ {
 			data[i] = byte(OncePCG().Intn(256))
 		}
-		switch t := e.(type) {
-		case *LetterEnt:
-			t.data = data
-		case *NumEnt:
-			t.data = data
-		case *WsEnt:
-			t.data = data
-		case *MarkEnt:
-			t.data = data
-		}
 		return true
-	case *RootEnt:
-		root := e.(*RootEnt)
-		if len(root.data) == 0 {
-
-			randomChar := byte(OncePCG().Intn(26) + 65)
-			if OncePCG().Intn(2) == 0 {
-				randomChar = byte(OncePCG().Intn(26) + 97)
-			}
-			root.data = []Ent{
-				&LetterEnt{data: []byte{randomChar}},
-			}
-		}
-		return true
-	default:
+	}
+	kvFunc := func(kv *KeyValEnt) bool {
 		return false
 	}
+
+	gFunc := func(g *GroupEnt) bool {
+		return false
+	}
+
+	rFunc := handleEmptyRoot
+	return processMutateStrategy(e, pFunc, kvFunc, gFunc, rFunc)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func overwriteMiddle(e Ent, p string) bool {
-	switch e.(type) {
-	case *LetterEnt, *NumEnt, *WsEnt, *MarkEnt:
-		var data []byte
-		switch t := e.(type) {
-		case *LetterEnt:
-			data = t.data
-		case *NumEnt:
-			data = t.data
-		case *WsEnt:
-			data = t.data
-		case *MarkEnt:
-			data = t.data
-		}
+func overwriteMiddle(e Ent, pattern string) bool {
+	pFunc := func(pe PrimitiveEnt) bool {
+		data := pe.PrimitiveData()
 		if data == nil || len(data) < 3 {
 			return false
 		}
-
 		start := OncePCG().Intn(len(data)/2) + 1
-
 		maxOverwrite := len(data) - start
 		if maxOverwrite <= 0 {
 			return false
@@ -1281,51 +1196,25 @@ func overwriteMiddle(e Ent, p string) bool {
 		for i := start; i < start+overwriteCount && i < len(data); i++ {
 			data[i] = byte(OncePCG().Intn(256))
 		}
-		switch t := e.(type) {
-		case *LetterEnt:
-			t.data = data
-		case *NumEnt:
-			t.data = data
-		case *WsEnt:
-			t.data = data
-		case *MarkEnt:
-			t.data = data
-		}
 		return true
-	case *RootEnt:
-		root := e.(*RootEnt)
-		if len(root.data) == 0 {
-
-			randomChar := byte(OncePCG().Intn(26) + 65)
-			if OncePCG().Intn(2) == 0 {
-				randomChar = byte(OncePCG().Intn(26) + 97)
-			}
-			root.data = []Ent{
-				&LetterEnt{data: []byte{randomChar}},
-			}
-		}
-		return true
-	default:
+	}
+	kvFunc := func(kv *KeyValEnt) bool {
 		return false
 	}
+
+	gFunc := func(g *GroupEnt) bool {
+		return false
+	}
+
+	rFunc := handleEmptyRoot
+	return processMutateStrategy(e, pFunc, kvFunc, gFunc, rFunc)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func copyStart(e Ent, p string) bool {
-	switch e.(type) {
-	case *LetterEnt, *NumEnt, *WsEnt, *MarkEnt:
-		var data []byte
-		switch t := e.(type) {
-		case *LetterEnt:
-			data = t.data
-		case *NumEnt:
-			data = t.data
-		case *WsEnt:
-			data = t.data
-		case *MarkEnt:
-			data = t.data
-		}
+func copyStart(e Ent, pattern string) bool {
+	pFunc := func(pe PrimitiveEnt) bool {
+		data := pe.PrimitiveData()
 		if data == nil || len(data) < 1 {
 			return false
 		}
@@ -1335,55 +1224,29 @@ func copyStart(e Ent, p string) bool {
 		copyLength := OncePCG().Intn(len(data)) + 1
 		segment := data[:copyLength]
 		newdata := append(segment, data...)
-		switch t := e.(type) {
-		case *LetterEnt:
-			t.data = newdata
-		case *NumEnt:
-			t.data = newdata
-		case *WsEnt:
-			t.data = newdata
-		case *MarkEnt:
-			t.data = newdata
-		}
+		pe.SetPrimitiveData(newdata)
 		return true
-	case *RootEnt:
-		root := e.(*RootEnt)
-		if len(root.data) == 0 {
-
-			randomChar := byte(OncePCG().Intn(26) + 65)
-			if OncePCG().Intn(2) == 0 {
-				randomChar = byte(OncePCG().Intn(26) + 97)
-			}
-			root.data = []Ent{
-				&LetterEnt{data: []byte{randomChar}},
-			}
-		}
-		return true
-	default:
+	}
+	kvFunc := func(kv *KeyValEnt) bool {
 		return false
 	}
+
+	gFunc := func(g *GroupEnt) bool {
+		return false
+	}
+
+	rFunc := handleEmptyRoot
+	return processMutateStrategy(e, pFunc, kvFunc, gFunc, rFunc)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func copyMiddle(e Ent, p string) bool {
-	switch e.(type) {
-	case *LetterEnt, *NumEnt, *WsEnt, *MarkEnt:
-		var data []byte
-		switch t := e.(type) {
-		case *LetterEnt:
-			data = t.data
-		case *NumEnt:
-			data = t.data
-		case *WsEnt:
-			data = t.data
-		case *MarkEnt:
-			data = t.data
-		}
+func copyMiddle(e Ent, pattern string) bool {
+	pFunc := func(pe PrimitiveEnt) bool {
+		data := pe.PrimitiveData()
 		if data == nil || len(data) < 3 {
 			return false
 		}
-
 		start := OncePCG().Intn(len(data)/2) + 1
 		maxCopy := len(data) - start
 		if maxCopy <= 0 {
@@ -1392,51 +1255,26 @@ func copyMiddle(e Ent, p string) bool {
 		copyLength := OncePCG().Intn(maxCopy) + 1
 		segment := data[start : start+copyLength]
 		newdata := append(data[:start], append(segment, data[start:]...)...)
-		switch t := e.(type) {
-		case *LetterEnt:
-			t.data = newdata
-		case *NumEnt:
-			t.data = newdata
-		case *WsEnt:
-			t.data = newdata
-		case *MarkEnt:
-			t.data = newdata
-		}
+		pe.SetPrimitiveData(newdata)
 		return true
-	case *RootEnt:
-		root := e.(*RootEnt)
-		if len(root.data) == 0 {
-
-			randomChar := byte(OncePCG().Intn(26) + 65)
-			if OncePCG().Intn(2) == 0 {
-				randomChar = byte(OncePCG().Intn(26) + 97)
-			}
-			root.data = []Ent{
-				&LetterEnt{data: []byte{randomChar}},
-			}
-		}
-		return true
-	default:
+	}
+	kvFunc := func(kv *KeyValEnt) bool {
 		return false
 	}
+
+	gFunc := func(g *GroupEnt) bool {
+		return false
+	}
+
+	rFunc := handleEmptyRoot
+	return processMutateStrategy(e, pFunc, kvFunc, gFunc, rFunc)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func copyEnd(e Ent, p string) bool {
-	switch e.(type) {
-	case *LetterEnt, *NumEnt, *WsEnt, *MarkEnt:
-		var data []byte
-		switch t := e.(type) {
-		case *LetterEnt:
-			data = t.data
-		case *NumEnt:
-			data = t.data
-		case *WsEnt:
-			data = t.data
-		case *MarkEnt:
-			data = t.data
-		}
+func copyEnd(e Ent, pattern string) bool {
+	pFunc := func(pe PrimitiveEnt) bool {
+		data := pe.PrimitiveData()
 		if data == nil || len(data) < 1 {
 			return false
 		}
@@ -1446,51 +1284,26 @@ func copyEnd(e Ent, p string) bool {
 		copyLength := OncePCG().Intn(len(data)) + 1
 		segment := data[len(data)-copyLength:]
 		newdata := append(data, segment...)
-		switch t := e.(type) {
-		case *LetterEnt:
-			t.data = newdata
-		case *NumEnt:
-			t.data = newdata
-		case *WsEnt:
-			t.data = newdata
-		case *MarkEnt:
-			t.data = newdata
-		}
+		pe.SetPrimitiveData(newdata)
 		return true
-	case *RootEnt:
-		root := e.(*RootEnt)
-		if len(root.data) == 0 {
-
-			randomChar := byte(OncePCG().Intn(26) + 65)
-			if OncePCG().Intn(2) == 0 {
-				randomChar = byte(OncePCG().Intn(26) + 97)
-			}
-			root.data = []Ent{
-				&LetterEnt{data: []byte{randomChar}},
-			}
-		}
-		return true
-	default:
+	}
+	kvFunc := func(kv *KeyValEnt) bool {
 		return false
 	}
+
+	gFunc := func(g *GroupEnt) bool {
+		return false
+	}
+
+	rFunc := handleEmptyRoot
+	return processMutateStrategy(e, pFunc, kvFunc, gFunc, rFunc)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func changeRandomly(e Ent, p string) bool {
-	switch e.(type) {
-	case *LetterEnt, *NumEnt, *WsEnt, *MarkEnt:
-		var data []byte
-		switch t := e.(type) {
-		case *LetterEnt:
-			data = t.data
-		case *NumEnt:
-			data = t.data
-		case *WsEnt:
-			data = t.data
-		case *MarkEnt:
-			data = t.data
-		}
+func changeRandomly(e Ent, pattern string) bool {
+	pFunc := func(pe PrimitiveEnt) bool {
+		data := pe.PrimitiveData()
 		if data == nil || len(data) == 0 {
 			return false
 		}
@@ -1498,40 +1311,24 @@ func changeRandomly(e Ent, p string) bool {
 		idx := OncePCG().Intn(len(data))
 		data[idx] = byte(OncePCG().Intn(256))
 		return true
-	case *RootEnt:
-		root := e.(*RootEnt)
-		if len(root.data) == 0 {
-
-			randomChar := byte(OncePCG().Intn(26) + 65)
-			if OncePCG().Intn(2) == 0 {
-				randomChar = byte(OncePCG().Intn(26) + 97)
-			}
-			root.data = []Ent{
-				&LetterEnt{data: []byte{randomChar}},
-			}
-		}
-		return true
-	default:
+	}
+	kvFunc := func(kv *KeyValEnt) bool {
 		return false
 	}
+
+	gFunc := func(g *GroupEnt) bool {
+		return false
+	}
+
+	rFunc := handleEmptyRoot
+	return processMutateStrategy(e, pFunc, kvFunc, gFunc, rFunc)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func changeGradual(e Ent, p string) bool {
-	switch e.(type) {
-	case *LetterEnt, *NumEnt, *WsEnt, *MarkEnt:
-		var data []byte
-		switch t := e.(type) {
-		case *LetterEnt:
-			data = t.data
-		case *NumEnt:
-			data = t.data
-		case *WsEnt:
-			data = t.data
-		case *MarkEnt:
-			data = t.data
-		}
+func changeGradual(e Ent, pattern string) bool {
+	pFunc := func(pe PrimitiveEnt) bool {
+		data := pe.PrimitiveData()
 		if data == nil || len(data) == 0 {
 			return false
 		}
@@ -1542,35 +1339,24 @@ func changeGradual(e Ent, p string) bool {
 			data[idx]++
 		}
 		return true
-	case *RootEnt:
-		root := e.(*RootEnt)
-		if len(root.data) == 0 {
-			root.data = []Ent{
-				&LetterEnt{data: []byte{byte(OncePCG().Intn(256))}},
-			}
-		}
-		return true
-	default:
+	}
+	kvFunc := func(kv *KeyValEnt) bool {
 		return false
 	}
+
+	gFunc := func(g *GroupEnt) bool {
+		return false
+	}
+
+	rFunc := handleEmptyRoot
+	return processMutateStrategy(e, pFunc, kvFunc, gFunc, rFunc)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func changeGradual16(e Ent, p string) bool {
-	switch e.(type) {
-	case *LetterEnt, *NumEnt, *WsEnt, *MarkEnt:
-		var data []byte
-		switch t := e.(type) {
-		case *LetterEnt:
-			data = t.data
-		case *NumEnt:
-			data = t.data
-		case *WsEnt:
-			data = t.data
-		case *MarkEnt:
-			data = t.data
-		}
+func changeGradual16(e Ent, pattern string) bool {
+	pFunc := func(pe PrimitiveEnt) bool {
+		data := pe.PrimitiveData()
 		if data == nil || len(data) < 2 {
 			return false
 		}
@@ -1583,36 +1369,24 @@ func changeGradual16(e Ent, p string) bool {
 			}
 		}
 		return true
-	case *RootEnt:
-
-		root := e.(*RootEnt)
-		if len(root.data) == 0 {
-			root.data = []Ent{
-				&LetterEnt{data: []byte{byte(OncePCG().Intn(256))}},
-			}
-		}
-		return true
-	default:
+	}
+	kvFunc := func(kv *KeyValEnt) bool {
 		return false
 	}
+
+	gFunc := func(g *GroupEnt) bool {
+		return false
+	}
+
+	rFunc := handleEmptyRoot
+	return processMutateStrategy(e, pFunc, kvFunc, gFunc, rFunc)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func changeGradual32(e Ent, p string) bool {
-	switch e.(type) {
-	case *LetterEnt, *NumEnt, *WsEnt, *MarkEnt:
-		var data []byte
-		switch t := e.(type) {
-		case *LetterEnt:
-			data = t.data
-		case *NumEnt:
-			data = t.data
-		case *WsEnt:
-			data = t.data
-		case *MarkEnt:
-			data = t.data
-		}
+func changeGradual32(e Ent, pattern string) bool {
+	pFunc := func(pe PrimitiveEnt) bool {
+		data := pe.PrimitiveData()
 		if data == nil || len(data) < 4 {
 			return false
 		}
@@ -1625,27 +1399,24 @@ func changeGradual32(e Ent, p string) bool {
 			}
 		}
 		return true
-	default:
+	}
+	kvFunc := func(kv *KeyValEnt) bool {
 		return false
 	}
+
+	gFunc := func(g *GroupEnt) bool {
+		return false
+	}
+
+	rFunc := handleEmptyRoot
+	return processMutateStrategy(e, pFunc, kvFunc, gFunc, rFunc)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func changeGradual64(e Ent, p string) bool {
-	switch e.(type) {
-	case *LetterEnt, *NumEnt, *WsEnt, *MarkEnt:
-		var data []byte
-		switch t := e.(type) {
-		case *LetterEnt:
-			data = t.data
-		case *NumEnt:
-			data = t.data
-		case *WsEnt:
-			data = t.data
-		case *MarkEnt:
-			data = t.data
-		}
+func changeGradual64(e Ent, pattern string) bool {
+	pFunc := func(pe PrimitiveEnt) bool {
+		data := pe.PrimitiveData()
 		if data == nil || len(data) < 8 {
 			return false
 		}
@@ -1658,56 +1429,52 @@ func changeGradual64(e Ent, p string) bool {
 			}
 		}
 		return true
-	default:
+	}
+	kvFunc := func(kv *KeyValEnt) bool {
 		return false
 	}
+
+	gFunc := func(g *GroupEnt) bool {
+		return false
+	}
+
+	rFunc := handleEmptyRoot
+	return processMutateStrategy(e, pFunc, kvFunc, gFunc, rFunc)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func changeInteresting(e Ent, p string) bool {
+func changeInteresting(e Ent, pattern string) bool {
 	interestingValues := []byte{0, 1, 0x7F, 0xFF}
-	switch e.(type) {
-	case *LetterEnt, *NumEnt, *WsEnt, *MarkEnt:
-		var data []byte
-		switch t := e.(type) {
-		case *LetterEnt:
-			data = t.data
-		case *NumEnt:
-			data = t.data
-		case *WsEnt:
-			data = t.data
-		case *MarkEnt:
-			data = t.data
-		}
+	pFunc := func(pe PrimitiveEnt) bool {
+		data := pe.PrimitiveData()
 		if data == nil || len(data) == 0 {
 			return false
 		}
 		idx := OncePCG().Intn(len(data))
+
 		data[idx] = interestingValues[OncePCG().Intn(len(interestingValues))]
 		return true
-	default:
+	}
+	kvFunc := func(kv *KeyValEnt) bool {
 		return false
 	}
+
+	gFunc := func(g *GroupEnt) bool {
+		return false
+	}
+
+	rFunc := handleEmptyRoot
+	return processMutateStrategy(e, pFunc, kvFunc, gFunc, rFunc)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func changeInteresting16(e Ent, p string) bool {
+func changeInteresting16(e Ent, pattern string) bool {
 	interesting16 := [][]byte{{0, 0}, {0, 1}, {0x7F, 0xFF}, {0xFF, 0xFF}}
-	switch e.(type) {
-	case *LetterEnt, *NumEnt, *WsEnt, *MarkEnt:
-		var data []byte
-		switch t := e.(type) {
-		case *LetterEnt:
-			data = t.data
-		case *NumEnt:
-			data = t.data
-		case *WsEnt:
-			data = t.data
-		case *MarkEnt:
-			data = t.data
-		}
+
+	pFunc := func(pe PrimitiveEnt) bool {
+		data := pe.PrimitiveData()
 		if data == nil || len(data) < 2 {
 			return false
 		}
@@ -1716,33 +1483,30 @@ func changeInteresting16(e Ent, p string) bool {
 		data[idx] = pair[0]
 		data[idx+1] = pair[1]
 		return true
-	default:
+	}
+	kvFunc := func(kv *KeyValEnt) bool {
 		return false
 	}
+
+	gFunc := func(g *GroupEnt) bool {
+		return false
+	}
+
+	rFunc := handleEmptyRoot
+	return processMutateStrategy(e, pFunc, kvFunc, gFunc, rFunc)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func changeInteresting32(e Ent, p string) bool {
+func changeInteresting32(e Ent, pattern string) bool {
 	interesting32 := [][]byte{
 		{0, 0, 0, 0},
 		{0, 0, 0, 1},
 		{0x7F, 0xFF, 0xFF, 0xFF},
 		{0xFF, 0xFF, 0xFF, 0xFF},
 	}
-	switch e.(type) {
-	case *LetterEnt, *NumEnt, *WsEnt, *MarkEnt:
-		var data []byte
-		switch t := e.(type) {
-		case *LetterEnt:
-			data = t.data
-		case *NumEnt:
-			data = t.data
-		case *WsEnt:
-			data = t.data
-		case *MarkEnt:
-			data = t.data
-		}
+	pFunc := func(pe PrimitiveEnt) bool {
+		data := pe.PrimitiveData()
 		if data == nil || len(data) < 4 {
 			return false
 		}
@@ -1752,144 +1516,113 @@ func changeInteresting32(e Ent, p string) bool {
 			data[idx+i] = pattern[i]
 		}
 		return true
-	default:
+	}
+	kvFunc := func(kv *KeyValEnt) bool {
 		return false
 	}
+
+	gFunc := func(g *GroupEnt) bool {
+		return false
+	}
+
+	rFunc := handleEmptyRoot
+	return processMutateStrategy(e, pFunc, kvFunc, gFunc, rFunc)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func changePattern(e Ent, p string) bool {
-	pattern := byte(0xAA)
-	switch e.(type) {
-	case *LetterEnt, *NumEnt, *WsEnt, *MarkEnt:
-		var data []byte
-		switch t := e.(type) {
-		case *LetterEnt:
-			data = t.data
-		case *NumEnt:
-			data = t.data
-		case *WsEnt:
-			data = t.data
-		case *MarkEnt:
-			data = t.data
-		}
+func changePattern(e Ent, pattern string) bool {
+	p := byte(0xAA)
+
+	pFunc := func(pe PrimitiveEnt) bool {
+		data := pe.PrimitiveData()
 		if data == nil || len(data) == 0 {
 			return false
 		}
 		idx := OncePCG().Intn(len(data))
-		data[idx] = pattern
+		data[idx] = p
 		return true
-	default:
+	}
+	kvFunc := func(kv *KeyValEnt) bool {
 		return false
 	}
+
+	gFunc := func(g *GroupEnt) bool {
+		return false
+	}
+
+	rFunc := handleEmptyRoot
+	return processMutateStrategy(e, pFunc, kvFunc, gFunc, rFunc)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func insertRandomly(e Ent, p string) bool {
-	switch e.(type) {
-	case *LetterEnt, *NumEnt, *WsEnt, *MarkEnt:
-		var data []byte
-		switch t := e.(type) {
-		case *LetterEnt:
-			data = t.data
-		case *NumEnt:
-			data = t.data
-		case *WsEnt:
-			data = t.data
-		case *MarkEnt:
-			data = t.data
-		}
+func insertRandomly(e Ent, pattern string) bool {
+	pFunc := func(pe PrimitiveEnt) bool {
+		data := pe.PrimitiveData()
 		randomByte := byte(OncePCG().Intn(256))
 		pos := 0
 		if len(data) > 0 {
 			pos = OncePCG().Intn(len(data))
 		}
 		newdata := append(data[:pos], append([]byte{randomByte}, data[pos:]...)...)
-		switch t := e.(type) {
-		case *LetterEnt:
-			t.data = newdata
-		case *NumEnt:
-			t.data = newdata
-		case *WsEnt:
-			t.data = newdata
-		case *MarkEnt:
-			t.data = newdata
-		}
+		pe.SetPrimitiveData(newdata)
 		return true
-	default:
+	}
+	kvFunc := func(kv *KeyValEnt) bool {
 		return false
 	}
+
+	gFunc := func(g *GroupEnt) bool {
+		return false
+	}
+
+	rFunc := handleEmptyRoot
+	return processMutateStrategy(e, pFunc, kvFunc, gFunc, rFunc)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func insertGradual(e Ent, p string) bool {
-	return insertRandomly(e, p)
+func insertGradual(e Ent, pattern string) bool {
+	return insertRandomly(e, pattern)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func insertInteresting(e Ent, p string) bool {
+func insertInteresting(e Ent, pattern string) bool {
 	interestingValues := []byte{0, 1, 0x7F, 0xFF}
-	switch e.(type) {
-	case *LetterEnt, *NumEnt, *WsEnt, *MarkEnt:
-		var data []byte
-		switch t := e.(type) {
-		case *LetterEnt:
-			data = t.data
-		case *NumEnt:
-			data = t.data
-		case *WsEnt:
-			data = t.data
-		case *MarkEnt:
-			data = t.data
-		}
+	pFunc := func(pe PrimitiveEnt) bool {
+		data := pe.PrimitiveData()
 		value := interestingValues[OncePCG().Intn(len(interestingValues))]
 		pos := 0
 		if len(data) > 0 {
 			pos = OncePCG().Intn(len(data))
 		}
 		newdata := append(data[:pos], append([]byte{value}, data[pos:]...)...)
-		switch t := e.(type) {
-		case *LetterEnt:
-			t.data = newdata
-		case *NumEnt:
-			t.data = newdata
-		case *WsEnt:
-			t.data = newdata
-		case *MarkEnt:
-			t.data = newdata
-		}
+		pe.SetPrimitiveData(newdata)
 		return true
-	default:
+	}
+	kvFunc := func(kv *KeyValEnt) bool {
 		return false
 	}
+	gFunc := func(g *GroupEnt) bool {
+		return false
+	}
+	rFunc := handleEmptyRoot
+	return processMutateStrategy(e, pFunc, kvFunc, gFunc, rFunc)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func insertPattern(e Ent, p string) bool {
-	return insertRandomly(e, p)
+func insertPattern(e Ent, pattern string) bool {
+	return insertRandomly(e, pattern)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func swap(e Ent, p string) bool {
-	switch e.(type) {
-	case *LetterEnt, *NumEnt, *WsEnt, *MarkEnt:
-		var data []byte
-		switch t := e.(type) {
-		case *LetterEnt:
-			data = t.data
-		case *NumEnt:
-			data = t.data
-		case *WsEnt:
-			data = t.data
-		case *MarkEnt:
-			data = t.data
-		}
+func swap(e Ent, pattern string) bool {
+	pFunc := func(pe PrimitiveEnt) bool {
+		data := pe.PrimitiveData()
 		if data == nil || len(data) < 2 {
 			return false
 		}
@@ -1897,32 +1630,40 @@ func swap(e Ent, p string) bool {
 		idx2 := OncePCG().Intn(len(data))
 		data[idx1], data[idx2] = data[idx2], data[idx1]
 		return true
-	default:
+	}
+	kvFunc := func(kv *KeyValEnt) bool {
 		return false
 	}
+
+	gFunc := func(g *GroupEnt) bool {
+		return false
+	}
+
+	rFunc := handleEmptyRoot
+	return processMutateStrategy(e, pFunc, kvFunc, gFunc, rFunc)
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func preserveKindLight(e Ent, p string) bool {
+func preserveKindLight(e Ent, pattern string) bool {
 	return false
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func preserveKindHard(e Ent, p string) bool {
+func preserveKindHard(e Ent, pattern string) bool {
 	return false
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func switchKindLight(e Ent, p string) bool {
+func switchKindLight(e Ent, pattern string) bool {
 	return false
 }
 
 // TODO: Fine-tuning is, of course, needed in the future.
 // Must add mutation guidelines for complex types.
-func switchKindHard(e Ent, p string) bool {
+func switchKindHard(e Ent, pattern string) bool {
 	return false
 }
 
@@ -1949,23 +1690,23 @@ func smallPlus(ens *EntForNotSB) bool {
 	case int:
 		ens.data = v + int(1)
 	case int8:
-		ens.data = v + int8(1)
+		ens.data = v + int8(2)
 	case int16:
-		ens.data = v + int16(1)
+		ens.data = v + int16(3)
 	case int32:
-		ens.data = v + int32(1)
+		ens.data = v + int32(4)
 	case int64:
-		ens.data = v + int64(1)
+		ens.data = v + int64(5)
 	case uint:
 		ens.data = v + uint(1)
 	case uint8:
-		ens.data = v + uint8(1)
+		ens.data = v + uint8(2)
 	case uint16:
-		ens.data = v + uint16(1)
+		ens.data = v + uint16(3)
 	case uint32:
-		ens.data = v + uint32(1)
+		ens.data = v + uint32(4)
 	case uint64:
-		ens.data = v + uint64(1)
+		ens.data = v + uint64(5)
 	case float32:
 		ens.data = v + float32(1.0)
 	case float64:
@@ -1985,13 +1726,13 @@ func smallMinus(ens *EntForNotSB) bool {
 	case int:
 		ens.data = v - int(1)
 	case int8:
-		ens.data = v - int8(1)
+		ens.data = v - int8(11)
 	case int16:
-		ens.data = v - int16(1)
+		ens.data = v - int16(111)
 	case int32:
-		ens.data = v - int32(1)
+		ens.data = v - int32(1111)
 	case int64:
-		ens.data = v - int64(1)
+		ens.data = v - int64(11111)
 	case uint:
 		if v == 0 {
 			ens.data = uint(0)
