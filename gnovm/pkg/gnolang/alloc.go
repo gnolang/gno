@@ -1,12 +1,14 @@
 package gnolang
 
 import "reflect"
+import "fmt"
 
 // Keeps track of in-memory allocations.
 // In the future, allocations within realm boundaries will be
 // (optionally?) condensed (objects to be GC'd will be discarded),
 // but for now, allocations strictly increment across the whole tx.
 type Allocator struct {
+	m        *Machine
 	maxBytes int64
 	bytes    int64
 }
@@ -59,18 +61,27 @@ const (
 	allocNative      = _allocBase + _allocPointer + _allocNativeValue
 	allocType        = _allocBase + _allocPointer + _allocType
 	// allocDataByte    = 1
-	// allocPackge = 1
+	allocPackge    = 1
 	allocAmino     = _allocBase + _allocPointer + _allocAny
 	allocAminoByte = 10 // XXX
 	allocHeapItem  = _allocBase + _allocPointer + _allocTypedValue
 )
 
-func NewAllocator(maxBytes int64) *Allocator {
+func NewAllocator(maxBytes int64, m *Machine) *Allocator {
 	if maxBytes == 0 {
 		return nil
 	}
 	return &Allocator{
 		maxBytes: maxBytes,
+		m:        m,
+	}
+}
+
+func (alloc *Allocator) MemStats() string {
+	if alloc == nil {
+		return "nil allocator"
+	} else {
+		return fmt.Sprintf("Allocator{maxBytes:%d, bytes:%d}", alloc.maxBytes, alloc.bytes)
 	}
 }
 
@@ -97,14 +108,25 @@ func (alloc *Allocator) Fork() *Allocator {
 }
 
 func (alloc *Allocator) Allocate(size int64) {
+	debug2.Printf2("Allocate, size: %d \n", size)
 	if alloc == nil {
 		// this can happen for map items just prior to assignment.
 		return
 	}
 
 	alloc.bytes += size
+	debug2.Printf2("after, Allocate, bytes: %d \n", alloc.bytes)
 	if alloc.bytes > alloc.maxBytes {
-		panic("allocation limit exceeded")
+		debug2.Printf2("exceed, bytes: %d, maxBytes: %d\n", alloc.bytes, alloc.maxBytes)
+		if left, ok := alloc.m.GarbageCollect(); !ok {
+			panic("allocation limit exceeded")
+		} else { // retry
+			alloc.bytes += size
+			if alloc.bytes > alloc.maxBytes {
+				panic("allocation limit exceeded")
+			}
+			debug2.Printf2("%d left after GC: \n", left)
+		}
 	}
 }
 
@@ -125,6 +147,7 @@ func (alloc *Allocator) AllocateListArray(items int64) {
 }
 
 func (alloc *Allocator) AllocateSlice() {
+	debug2.Println2("Allocate slice")
 	alloc.Allocate(allocSlice)
 }
 
@@ -314,4 +337,45 @@ func (alloc *Allocator) NewType(t Type) Type {
 func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 	alloc.AllocateHeapItem()
 	return &HeapItemValue{Value: tv}
+}
+
+// -----------------------------------------------
+
+// TODO: fix this
+func (p *PackageValue) GetShallowSize() int64 {
+	debug2.Println2("GetShallowSize: ", p)
+	return allocPackge
+}
+func (b *Block) GetShallowSize() int64 {
+	debug2.Println2("GetShallowSize: ", b)
+	return allocBlock + allocBlockItem*int64(len(b.Values))
+}
+
+func (av *ArrayValue) GetShallowSize() int64 {
+	debug2.Printf2("GetShallowSize: %v, len: %d, cap: %d \n", av, av.GetLength(), av.GetCapacity())
+	if av.Data == nil {
+		return allocArray + allocArrayItem*int64(len(av.List))
+	} else {
+		return allocArray + int64(len(av.Data))
+	}
+}
+
+func (sv *StructValue) GetShallowSize() int64 {
+	debug2.Println2("GetShallowSize: ", sv)
+	return allocStruct + allocStructField*int64(len(sv.Fields))
+}
+
+func (mv *MapValue) GetShallowSize() int64 {
+	debug2.Println2("GetShallowSize: ", mv)
+	return allocMap + allocMapItem*int64(len(mv.vmap))
+}
+
+func (bmv *BoundMethodValue) GetShallowSize() int64 {
+	debug2.Println2("GetShallowSize: ", bmv)
+	return allocBoundMethod
+}
+
+func (hiv *HeapItemValue) GetShallowSize() int64 {
+	debug2.Println2("GetShallowSize: ", hiv)
+	return allocHeapItem
 }
