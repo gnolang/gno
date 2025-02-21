@@ -603,7 +603,6 @@ type RootEnt struct {
 	needsUpdateStrategyChache bool // Tracks if the strategy cache needs updating.
 
 	// Score-based cache fields
-	cachedScoreIds         []int    // Caches an array of entity IDs.
 	cachedScoreCums        []uint64 // Caches the cumulative score array for entity IDs.
 	needsUpdateScoreChache bool     // Tracks if the ID-score cache needs updating.
 }
@@ -723,34 +722,32 @@ func (r *RootEnt) PlusScoreById(id int, delta int) {
 // updateScoreCache computes and stores cumulative scores from RootEnt's Id2Ent map.
 // It gathers all node IDs, sorts them in ascending order, and calculates the cumulative sum.
 func (r *RootEnt) updateScoreCache() {
-	if !r.needsUpdateScoreChache && r.cachedScoreIds != nil {
+	if !r.needsUpdateScoreChache && r.cachedScoreCums != nil {
 		return
 	}
-	// Collects all IDs.
-	keys := make([]int, 0, len(r.Id2Ent))
-	for id := range r.Id2Ent {
-		keys = append(keys, id)
-	}
-	// Sorts them in ascending order (used for binary search via sort.Search).
-	sort.Ints(keys)
-
-	cum := make([]uint64, len(keys))
+	// RootEnt maintains entity IDs in a strictly increasing order starting from 0.
+	// For example:
+	//   - The root entity itself has ID 0.
+	//   - Subsequent child entities are assigned IDs sequentially (1, 2, 3, ...).
+	// This allows direct iteration over entity IDs for cumulative score computation
+	numIds := len(r.Id2Ent)
+	cum := make([]uint64, numIds)
 	var total uint64 = 0
-	for i, id := range keys {
+	for id := 0; id < numIds; id++ {
 		// Converts Score() return value from int to uint64.
 		score := uint64(r.Id2Ent[id].Score())
 		total += score
-		cum[i] = total
+		cum[id] = total
 	}
-	r.cachedScoreIds = keys
+
 	r.cachedScoreCums = cum
 	r.needsUpdateScoreChache = false
 }
 
 // ScoreCache returns cached score-related slices.
 // Updates the cache if it is uninitialized.
-func (r *RootEnt) ScoreCache() ([]int, []uint64) {
-	return r.cachedScoreIds, r.cachedScoreCums
+func (r *RootEnt) ScoreCache() []uint64 {
+	return r.cachedScoreCums
 }
 
 // ParseToRoot parses a []byte input into a RootEnt structure.

@@ -537,10 +537,10 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 func MutateRoot2String(r *RootEnt, strength int) (string, int, map[MutationCode]int) {
 	// Update score cache for selecting mutation target
 	r.updateScoreCache()
-	cachedScoreIds, cachedScoreCum := r.ScoreCache()
+	cachedScoreCums := r.ScoreCache()
 
 	// Select an entity ID for mutation based on weighted probability
-	selectedID := selectID(cachedScoreIds, cachedScoreCum)
+	selectedID := selectID(cachedScoreCums)
 	// Extract surrounding string content while removing the selected entity
 	startStr, endStr := SliceWithOutID(selectedID, r)
 	targetPtr := r.Id2Ent[selectedID]
@@ -552,11 +552,11 @@ func MutateRoot2String(r *RootEnt, strength int) (string, int, map[MutationCode]
 }
 
 // selectID selects an ID from the cumulative sum slice (cum) using a random value.
-func selectID(keys []int, cum []uint64) int {
-	total := cum[len(cum)-1]
+func selectID(cums []uint64) int {
+	total := cums[len(cums)-1]
 	r := OncePCG().Uint64n(total)
-	idx := sort.Search(len(cum), func(i int) bool { return cum[i] > r })
-	return keys[idx]
+	idx := sort.Search(len(cums), func(i int) bool { return cums[i] > r })
+	return idx
 }
 
 // cumAndStrategy represents a structure that stores the cumulative sum at each mutation strategy point.
