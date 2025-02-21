@@ -24,11 +24,6 @@ Explore various examples to learn more about Gno functionality and usage.
 - ...
 <!-- meta issue with suggestions: https://github.com/gnolang/gno/issues/3292 -->
 
-| Month    | Savings |
-| -------- | ------- |
-| January  | $250    |
-| February | $80     |
-| March    | $420    |
 
 ## Other resources
 
