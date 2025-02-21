@@ -69,7 +69,24 @@
       </div>
     </div>
 
-    <form class="sidemenu col-span-3 flex justify-end lg:justify-start gap-3 sm:gap-6 h-full text-100 text-gray-400">{{ range .Links }} {{ template "ui/header_link" . }} {{ end }}</form>
+    <form class="sidemenu col-span-3 flex justify-end lg:justify-start gap-3 sm:gap-6 h-full text-100 text-gray-400"><!-- Theme Toggle Button -->
+      <button 
+        type="button" 
+        class="js-theme-toggle flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200"
+        aria-label="Toggle dark mode"
+      >
+        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path 
+            stroke-linecap="round" 
+            stroke-linejoin="round" 
+            stroke-width="2" 
+            d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+          ></path>
+        </svg>
+      </button>
+      
+      {{ range .Links }} {{ template "ui/header_link" . }} {{ end }}</form>
+
   </nav>
 </header>
 {{ end }}
