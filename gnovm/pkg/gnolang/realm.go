@@ -53,7 +53,6 @@ a realm to keep it alive.
 // PkgID & Realm
 
 type PkgID struct {
-	purePkg bool
 	Hashlet
 }
 
@@ -68,10 +67,6 @@ func (pid *PkgID) UnmarshalAmino(h string) error {
 
 func (pid PkgID) String() string {
 	return fmt.Sprintf("RID%X", pid.Hashlet[:])
-}
-
-func (pid PkgID) IsPurePkg() bool {
-	return pid.purePkg
 }
 
 func (pid PkgID) Bytes() []byte {
@@ -93,7 +88,7 @@ func PkgIDFromPkgPath(path string) PkgID {
 	pkgID, ok := pkgIDFromPkgPathCache[path]
 	if !ok {
 		pkgID = new(PkgID)
-		*pkgID = PkgID{purePkg: !IsRealmPath(path), Hashlet: HashBytes([]byte(path))}
+		*pkgID = PkgID{Hashlet: HashBytes([]byte(path))}
 
 		pkgIDFromPkgPathCache[path] = pkgID
 	}
@@ -103,7 +98,6 @@ func PkgIDFromPkgPath(path string) PkgID {
 // Returns the ObjectID of the PackageValue associated with path.
 func ObjectIDFromPkgPath(path string) ObjectID {
 	pkgID := PkgIDFromPkgPath(path)
-	pkgID.purePkg = !IsRealmPath(path)
 	return ObjectIDFromPkgID(pkgID)
 }
 
@@ -269,17 +263,14 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, seenObjs []Object
 func checkCrossRealm(rlm *Realm, store Store, oo Object, seenObjs []Object) {
 	if debug {
 		debug.Printf(
-			"checkCrossRealm, oo: %v (type: %v) | GetIsReal: %t | oo.GetBoundRealm: %v (purePkg? %t) | rlm.ID: %v | isAttachingRef: %t\n",
-			oo, reflect.TypeOf(oo), oo.GetIsReal(), oo.GetBoundRealm(), oo.GetBoundRealm().purePkg, rlm.ID, oo.GetIsAttachingRef(),
+			"checkCrossRealm, oo: %v (type: %v) | GetIsReal: %t | oo.GetBoundRealm: %v | rlm.ID: %v | isAttachingRef: %t\n",
+			oo, reflect.TypeOf(oo), oo.GetIsReal(), oo.GetBoundRealm(), rlm.ID, oo.GetIsAttachingRef(),
 		)
 	}
 
 	// object from pure package is ok
-	// object from pure package is ok
 	if pv := oo.GetPackage(); pv != nil {
-		//fmt.Println("pv, pv.Realm: ", pv, pv.Realm)
 		if pv.Realm == nil {
-			//fmt.Println("pure, return")
 			return
 		}
 	}

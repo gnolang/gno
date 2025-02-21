@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 /*
@@ -44,34 +46,21 @@ type ObjectID struct {
 
 func (oid ObjectID) MarshalAmino() (string, error) {
 	pid := hex.EncodeToString(oid.PkgID.Hashlet[:])
-	if oid.PkgID.purePkg {
-		return fmt.Sprintf("%s:%s:%d", "purePkg", pid, oid.NewTime), nil
-	} else {
-		return fmt.Sprintf("%s:%d", pid, oid.NewTime), nil
-	}
+	return fmt.Sprintf("%s:%d", pid, oid.NewTime), nil
 }
 
 func (oid *ObjectID) UnmarshalAmino(oids string) error {
 	parts := strings.Split(oids, ":")
 
-	if len(parts) < 2 || len(parts) > 3 {
-		return fmt.Errorf("invalid ObjectID %s", oids)
+	if len(parts) != 2 {
+		return errors.New("invalid ObjectID %s", oids)
 	}
 
-	index1, index2 := 0, 1
-	if len(parts) == 3 {
-		index1, index2 = 1, 2
-	}
-
-	if parts[0] == "purePkg" {
-		oid.PkgID.purePkg = true
-	}
-
-	_, err := hex.Decode(oid.PkgID.Hashlet[:], []byte(parts[index1]))
+	_, err := hex.Decode(oid.PkgID.Hashlet[:], []byte(parts[0]))
 	if err != nil {
 		return err
 	}
-	newTime, err := strconv.Atoi(parts[index2])
+	newTime, err := strconv.Atoi(parts[1])
 	if err != nil {
 		return err
 	}

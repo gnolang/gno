@@ -11,4 +11,4 @@ func main() {
 }
 
 // Output:
-// &(&(ref(purePkg:4021fadf187fd2c8277aad0fbc5e8fc4e7f1c75f:10) errors.errorString) *errors.errorString)
+// &(&(ref(4021fadf187fd2c8277aad0fbc5e8fc4e7f1c75f:10) errors.errorString) *errors.errorString)
