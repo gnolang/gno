@@ -101,8 +101,6 @@ func (rsc *RemoteSignerClient) setConnection(conn net.Conn) error {
 
 // send sends a request to the server and returns the response.
 func (rsc *RemoteSignerClient) send(request r.RemoteSignerMessage) (r.RemoteSignerMessage, error) {
-	var response r.RemoteSignerMessage
-
 	// Ensure the client is not closed.
 	if rsc.isClosed() {
 		return nil, ErrClientAlreadyClosed
@@ -129,6 +127,9 @@ func (rsc *RemoteSignerClient) send(request r.RemoteSignerMessage) (r.RemoteSign
 			rsc.setConnection(nil) // Close the connection if the sending the request failed.
 			continue
 		}
+
+		// Amino unmarshal target must be niled before unmarshaling.
+		var response r.RemoteSignerMessage
 
 		// Receive the response from the server and unmarshal it using amino.
 		if _, err := amino.UnmarshalSizedReader(rsc.conn, &response, r.MaxMessageSize); err != nil {

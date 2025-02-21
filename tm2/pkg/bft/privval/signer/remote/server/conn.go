@@ -131,11 +131,12 @@ func (rss *RemoteSignerServer) listen(listener net.Listener) {
 
 // serve processes the incoming requests and sends the responses.
 func (rss *RemoteSignerServer) serve(conn net.Conn) {
-	var request r.RemoteSignerMessage
-
 	// Serve will run until the connection is closed or an error occurs while receiving
 	// a request from or sending a response to the client.
 	for {
+		// Amino unmarshal target must be niled before unmarshaling.
+		var request r.RemoteSignerMessage
+
 		// Receive the request from the client and unmarshal it using amino.
 		if _, err := amino.UnmarshalSizedReader(conn, &request, r.MaxMessageSize); err != nil {
 			// Only log the error if the server is still running.

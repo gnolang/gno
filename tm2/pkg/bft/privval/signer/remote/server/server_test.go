@@ -306,6 +306,8 @@ func TestServerConnection(t *testing.T) {
 			newReadWriteErrorRemoteSignerClient(t, unixSocket, false)
 			newReadWriteErrorRemoteSignerClient(t, unixSocket, true)
 		}
+
+		require.True(t, rss.IsRunning())
 		require.NoError(t, rss.Stop())
 	})
 
