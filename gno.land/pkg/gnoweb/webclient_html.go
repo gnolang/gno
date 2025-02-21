@@ -18,7 +18,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
 	markdown "github.com/yuin/goldmark-highlighting/v2"
-	meta "github.com/yuin/goldmark-meta"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
@@ -47,8 +46,8 @@ func NewDefaultHTMLWebClientConfig(client *client.RPCClient) *HTMLWebClientConfi
 	goldmarkOptions := []goldmark.Option{
 		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 		goldmark.WithExtensions(
-			meta.New(
-				meta.WithStoresInDocument(),
+			md.New(
+				md.WithStoresInDocument(),
 			),
 			markdown.NewHighlighting(
 				markdown.WithFormatOptions(chromaOptions...),
