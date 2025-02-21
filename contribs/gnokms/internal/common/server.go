@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"strings"
@@ -12,31 +13,12 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
-// Used to flush the logger.
-type logFlusher func()
-
 // NewSignerServer creates a new remote signer server with the given gnokms signer.
 func NewSignerServer(
-	io commands.IO,
 	commonFlags *ServerFlags,
 	signer types.Signer,
-) (*sserver.RemoteSignerServer, logFlusher, error) {
-	// Initialize the zap logger.
-	zapLogger, err := log.InitializeLogger(
-		io.Out(),
-		commonFlags.LogLevel,
-		commonFlags.LogFormat,
-	)
-	if err != nil {
-		return nil, nil, fmt.Errorf("unable to initialize zap logger: %w", err)
-	}
-
-	// Keep a reference to the zap logger flush function.
-	flush := func() { _ = zapLogger.Sync() }
-
-	// Wrap the zap logger with a slog logger.
-	logger := log.ZapLoggerToSlog(zapLogger)
-
+	logger *slog.Logger,
+) (*sserver.RemoteSignerServer, error) {
 	// Split the listen addresses into a slice.
 	listenAddresses := strings.Split(commonFlags.ListenAddresses, ",")
 
@@ -51,8 +33,8 @@ func NewSignerServer(
 	if err == nil {
 		// Get the authorized keys from the auth keys file.
 		authorizedKeys, err := authKeysFile.AuthorizedKeys()
-		if err != nil {
-			return nil, nil, fmt.Errorf("unable to get authorized keys from auth keys file: %w", err)
+		if err != nil { // Will be caught by only if the authorized keys are invalid.
+			return nil, fmt.Errorf("unable to get authorized keys from auth keys file: %w", err)
 		}
 
 		// Add the authorized keys and server private key to the server options.
@@ -70,31 +52,36 @@ func NewSignerServer(
 		options...,
 	)
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to initialize remote signer server: %w", err)
+		return nil, fmt.Errorf("unable to initialize remote signer server: %w", err)
 	}
 
-	return server, flush, err
+	return server, err
 }
 
 // RunSignerServer initializes and start a remote signer server with the given gnokms signer.
 // It then waits for the server to finish.
 func RunSignerServer(commonFlags *ServerFlags, signer types.Signer, io commands.IO) error {
-
-	// Initialize the remote signer server with the gnokms signer.
-	server, flush, err := NewSignerServer(io, commonFlags, signer)
+	// Initialize the logger.
+	logger, flusher, err := LoggerFromServerFlags(commonFlags, io)
 	if err != nil {
-		return err
+		return fmt.Errorf("logger initialization failed: %w", err)
 	}
 
 	// Flush any remaining server logs on exit.
-	defer flush()
+	defer flusher()
+
+	// Initialize the remote signer server with the gnokms signer.
+	server, err := NewSignerServer(commonFlags, signer, logger)
+	if err != nil {
+		return fmt.Errorf("signer server initialization failed: %w", err)
+	}
 
 	// Catch SIGINT signal to stop the server gracefully.
 	catch := make(chan os.Signal, 1)
 	signal.Notify(catch, os.Interrupt)
 	go func() {
 		<-catch
-		io.Println("Caught interrupt signal, stopping server...")
+		logger.Info("Caught interrupt signal, stopping signer server...")
 		server.Stop()
 	}()
 
