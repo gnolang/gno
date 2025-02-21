@@ -51,6 +51,11 @@ func (board *Board) GetID() BoardID {
 	return board.id
 }
 
+// GetName returns the name of the board.
+func (board *Board) GetName() string {
+	return board.name
+}
+
 // GetURL returns the relative URL of the board.
 func (board *Board) GetURL() string {
 	return strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land") + ":" + url.PathEscape(board.name)
@@ -107,7 +112,8 @@ func (board *Board) DeleteThread(pid PostID) {
 func (board *Board) Render(p *PaginationOpts) string {
 	sb := &strings.Builder{}
 
-	sb.WriteString(newButtonLink("post", board.GetPostFormURL()))
+	sb.WriteString(newButtonLink("post", board.GetPostFormURL()) + " ")
+	sb.WriteString(newButtonLink("members", board.GetMembersURL()))
 	sb.WriteString("\n\n")
 
 	if board.threads.Size() == 0 {
@@ -150,6 +156,10 @@ func (board *Board) GetURLFromReplyID(threadID, replyID PostID) string {
 
 func (board *Board) GetPostFormURL() string {
 	return txlink.Call("CreateThread", "boardID", board.id.String())
+}
+
+func (board *Board) GetMembersURL() string {
+	return board.GetURL() + "/members"
 }
 
 func createDefaultBoardPermissions(owner std.Address) *DefaultPermissions {

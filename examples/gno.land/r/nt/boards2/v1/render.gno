@@ -2,6 +2,7 @@ package boards2
 
 import (
 	"strconv"
+	"strings"
 
 	"gno.land/p/demo/mux"
 )
@@ -15,7 +16,9 @@ const (
 func Render(path string) string {
 	router := mux.NewRouter()
 	router.HandleFunc("", renderBoardsList)
+	router.HandleFunc("members", renderMembers)
 	router.HandleFunc("{board}", renderBoard)
+	router.HandleFunc("{board}/members", renderMembers)
 	router.HandleFunc("{board}/{thread}", renderThread)
 	router.HandleFunc("{board}/{thread}/{reply}", renderReply)
 
@@ -122,4 +125,43 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 	// Original comment content will be hidden under the hood.
 	// See: #3480
 	res.Write(reply.RenderInner())
+}
+
+func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
+	perms := gPerm
+	name := req.GetVar("board")
+	if name != "" {
+		v, found := gBoardsByName.Get(name)
+		if !found {
+			res.Write("Board does not exist: " + name)
+			return
+		}
+
+		board := v.(*Board)
+		perms = board.perms
+
+		res.Write("# Board Members: " + board.GetName() + "\n\n")
+	} else {
+		res.Write("# Boards Members\n\n")
+	}
+
+	// TODO: Add pagination support
+	start := 0
+	count := 50
+	perms.IterateUsers(start, count, func(u User) bool {
+		res.Write("- " + u.Address.String() + " " + rolesToString(u.Roles) + "\n")
+		return false
+	})
+}
+
+func rolesToString(roles []Role) string {
+	if len(roles) == 0 {
+		return ""
+	}
+
+	names := make([]string, len(roles))
+	for i, r := range roles {
+		names[i] = string(r)
+	}
+	return strings.Join(names, ", ")
 }
