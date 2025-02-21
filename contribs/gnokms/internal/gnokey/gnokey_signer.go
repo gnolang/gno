@@ -33,9 +33,9 @@ func (gk *gnokeySigner) Sign(signBytes []byte) ([]byte, error) {
 // newGnokeySigner initializes a new gnokey signer with the provided key name and asks
 // the user for a password if necessary.
 func newGnokeySigner(
-	io commands.IO,
 	gnFlags *gnokeyFlags,
 	keyName string,
+	io commands.IO,
 ) (*gnokeySigner, error) {
 	// Load the keybase located at the home directory.
 	keyBase, err := keys.NewKeyBaseFromDir(gnFlags.home)

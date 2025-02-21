@@ -66,11 +66,11 @@ func execGnokey(args []string, gnFlags *gnokeyFlags, io commands.IO) error {
 	keyName := args[0]
 
 	// Initialize the gnokey signer with the provided key name.
-	gnokeySigner, err := newGnokeySigner(io, gnFlags, keyName)
+	gnokeySigner, err := newGnokeySigner(gnFlags, keyName, io)
 	if err != nil {
 		return err
 	}
 
 	// Run the remote signer server with the gnokey signer.
-	return common.RunSignerServer(io, &gnFlags.ServerFlags, gnokeySigner)
+	return common.RunSignerServer(&gnFlags.ServerFlags, gnokeySigner, io)
 }

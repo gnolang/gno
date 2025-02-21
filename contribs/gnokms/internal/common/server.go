@@ -78,7 +78,8 @@ func NewSignerServer(
 
 // RunSignerServer initializes and start a remote signer server with the given gnokms signer.
 // It then waits for the server to finish.
-func RunSignerServer(io commands.IO, commonFlags *ServerFlags, signer types.Signer) error {
+func RunSignerServer(commonFlags *ServerFlags, signer types.Signer, io commands.IO) error {
+
 	// Initialize the remote signer server with the gnokms signer.
 	server, flush, err := NewSignerServer(io, commonFlags, signer)
 	if err != nil {
