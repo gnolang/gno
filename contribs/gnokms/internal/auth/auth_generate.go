@@ -52,7 +52,7 @@ func execAuthGenerate(authGenFlags *authGenerateFlags, io commands.IO) error {
 	// Check if the file already exists.
 	if osm.FileExists(authGenFlags.auth.AuthKeysFile) && !authGenFlags.overwrite {
 		return fmt.Errorf("%s: %s\n%s",
-			"error: auth keys file already exists at path: %s", authGenFlags.auth.AuthKeysFile,
+			"error: auth keys file already exists at path", authGenFlags.auth.AuthKeysFile,
 			"use 'gnokms auth generate -overwrite' to overwrite it",
 		)
 	}

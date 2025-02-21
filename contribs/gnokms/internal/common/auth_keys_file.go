@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -35,6 +36,12 @@ var (
 	errFilePathNotSet       = errors.New("filePath not set")
 )
 
+// SortAndDuplicate sorts and deduplicates the given string slice.
+func SortAndDuplicate(keys []string) []string {
+	slices.Sort(keys)
+	return slices.Compact(keys)
+}
+
 // validate validates the AuthKeysFile.
 func (akf *AuthKeysFile) validate() error {
 	// Make sure the private key is set.
@@ -54,6 +61,9 @@ func (akf *AuthKeysFile) validate() error {
 		}
 	}
 
+	// Sort and deduplicate the authorized keys.
+	akf.ClientAuthorizedKeys = SortAndDuplicate(akf.ClientAuthorizedKeys)
+
 	// Check if the file path is set.
 	if akf.filePath == "" {
 		return errFilePathNotSet
@@ -62,8 +72,8 @@ func (akf *AuthKeysFile) validate() error {
 	return nil
 }
 
-// save persists the AuthKeysFile to its file path.
-func (akf *AuthKeysFile) save() error {
+// Save persists the AuthKeysFile to its file path.
+func (akf *AuthKeysFile) Save() error {
 	// Check if the AuthKeysFile is valid.
 	if err := akf.validate(); err != nil {
 		return err
@@ -169,7 +179,7 @@ func GeneratePersistedAuthKeysFile(filePath string) (*AuthKeysFile, error) {
 	}
 
 	// Persist the AuthKeysFile to disk.
-	if err := afk.save(); err != nil {
+	if err := afk.Save(); err != nil {
 		return nil, err
 	}
 
