@@ -15,7 +15,7 @@ import (
 // using the gnoland CLI tool.
 type RemoteSignerClientConfig struct {
 	// Address of the remote signer to dial (UNIX or TCP).
-	ServerAddress string `json:"server_address" toml:"signer_address" comment:"Address of the remote signer to dial (UNIX or TCP). If set, the local signer is disabled"`
+	ServerAddress string `json:"server_address" toml:"server_address" comment:"Address of the remote signer to dial (UNIX or TCP). If set, the local signer is disabled"`
 
 	// Network dial and timeout options.
 	DialMaxRetries    int           `json:"dial_max_retries" toml:"dial_max_retries" comment:"Maximum number of retries to dial the remote signer"`
@@ -24,7 +24,7 @@ type RemoteSignerClientConfig struct {
 	RequestTimeout    time.Duration `json:"request_timeout" toml:"request_timeout" comment:"Timeout for requests to the remote signer"`
 
 	// TCP specific options.
-	AuthorizedKeys  []string      `json:"tcp_authorized_keys" toml:"server_authorized_keys" comment:"List of authorized public keys for the remote signer (only for TCP). If empty, all keys are authorized"`
+	AuthorizedKeys  []string      `json:"tcp_authorized_keys" toml:"tcp_authorized_keys" comment:"List of authorized public keys for the remote signer (only for TCP). If empty, all keys are authorized"`
 	KeepAlivePeriod time.Duration `json:"tcp_keep_alive_period" toml:"tcp_keep_alive_period" comment:"Keep alive period for the remote signer connection (only for TCP)"`
 }
 
