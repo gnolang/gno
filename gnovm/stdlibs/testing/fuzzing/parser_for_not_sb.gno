@@ -155,27 +155,6 @@ func buildCumulativeStrategyUint64ForNotSB(strategy [NumNotSbMutCodes]uint64) [N
 	return cum
 }
 
-func quickSortMutationCodesForNotSB(keys []MutationCodeForNotSB) {
-	if len(keys) < 2 {
-		return
-	}
-	pivotIndex := len(keys) / 2
-	pivot := keys[pivotIndex]
-	keys[pivotIndex], keys[len(keys)-1] = keys[len(keys)-1], keys[pivotIndex]
-
-	storeIndex := 0
-	for i := 0; i < len(keys)-1; i++ {
-		if keys[i] < pivot {
-			keys[i], keys[storeIndex] = keys[storeIndex], keys[i]
-			storeIndex++
-		}
-	}
-	keys[storeIndex], keys[len(keys)-1] = keys[len(keys)-1], keys[storeIndex]
-
-	quickSortMutationCodesForNotSB(keys[:storeIndex])
-	quickSortMutationCodesForNotSB(keys[storeIndex+1:])
-}
-
 // ReflectMutationInfo operates only when MutationInfo has IsMutated set to true
 // and IsStringOrByteArray set to false.
 // For each strategy recorded in UsedCodesForNotSbMap, it calls plusStrategyCount

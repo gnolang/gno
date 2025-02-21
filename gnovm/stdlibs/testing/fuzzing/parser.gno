@@ -162,29 +162,6 @@ func buildCumulativeStrategyUint64(strategy [NumMutationCodes]uint64) [NumMutati
 	return cum
 }
 
-// quickSortMutationCodes sorts a slice of MutationCode values in ascending order
-// using the Quicksort algorithm.
-func quickSortMutationCodes(keys []MutationCode) {
-	if len(keys) < 2 {
-		return
-	}
-	pivotIndex := len(keys) / 2
-	pivot := keys[pivotIndex]
-	keys[pivotIndex], keys[len(keys)-1] = keys[len(keys)-1], keys[pivotIndex]
-
-	storeIndex := 0
-	for i := 0; i < len(keys)-1; i++ {
-		if keys[i] < pivot {
-			keys[i], keys[storeIndex] = keys[storeIndex], keys[i]
-			storeIndex++
-		}
-	}
-	keys[storeIndex], keys[len(keys)-1] = keys[len(keys)-1], keys[storeIndex]
-
-	quickSortMutationCodes(keys[:storeIndex])
-	quickSortMutationCodes(keys[storeIndex+1:])
-}
-
 // NumEnt represents an entity that stores numerical data extracted from
 // strings or byte slices, such as "12", "-1", "0x12", or "1e13".
 type NumEnt struct {
