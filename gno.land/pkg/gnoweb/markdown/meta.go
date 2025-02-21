@@ -181,7 +181,6 @@ type astTransformer struct {
 }
 
 type transformerConfig struct {
-
 	// Stores metadata in ast.Document.Meta().
 	StoresInDocument bool
 }
