@@ -36,3 +36,7 @@ func ProposeNewRelease(newVerPkgPath, note string) dao.Executor {
 
 	return bridge.GovDAO().NewGovDAOExecutor(cb)
 }
+
+func LatestRelease() *releases.release {
+	return changelog.Latest()
+}
