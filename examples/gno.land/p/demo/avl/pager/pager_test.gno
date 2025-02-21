@@ -222,3 +222,60 @@ func TestPager_ParseQuery(t *testing.T) {
 		}
 	}
 }
+
+func TestPage_PickerQueryParamPreservation(t *testing.T) {
+	tree := avl.NewTree()
+	for i := 1; i <= 6; i++ {
+		tree.Set(ufmt.Sprintf("key%d", i), i)
+	}
+
+	pager := NewPager(tree, 2, false)
+
+	tests := []struct {
+		name       string
+		pageNumber int
+		path       string
+		expected   string
+	}{
+		{
+			name:       "single query param",
+			pageNumber: 1,
+			path:       "/test?foo=bar",
+			expected:   "**1** | [2](?page=2&foo=bar) | [3](?page=3&foo=bar)",
+		},
+		{
+			name:       "multiple query params",
+			pageNumber: 2,
+			path:       "/test?foo=bar&baz=qux",
+			expected:   "[1](?page=1&foo=bar&baz=qux) | **2** | [3](?page=3&foo=bar&baz=qux)",
+		},
+		{
+			name:       "overwrite existing page param",
+			pageNumber: 1,
+			path:       "/test?param1=value1&page=999&param2=value2",
+			expected:   "**1** | [2](?page=2&param1=value1&param2=value2) | [3](?page=3&param1=value1&param2=value2)",
+		},
+		{
+			name:       "empty query string",
+			pageNumber: 2,
+			path:       "/test",
+			expected:   "[1](?page=1) | **2** | [3](?page=3)",
+		},
+		{
+			name:       "query string with only page param",
+			pageNumber: 2,
+			path:       "/test?page=2",
+			expected:   "[1](?page=1) | **2** | [3](?page=3)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			page := pager.GetPageWithSize(tt.pageNumber, 2)
+			result := page.Picker(tt.path)
+			if result != tt.expected {
+				t.Errorf("\nwant: %s\ngot:  %s", tt.expected, result)
+			}
+		})
+	}
+}
