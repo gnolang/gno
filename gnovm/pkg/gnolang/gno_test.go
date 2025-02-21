@@ -64,7 +64,6 @@ func TestBuiltinIdentifiersShadowing(t *testing.T) {
 		"println",
 		"recover",
 		"nil",
-		"bigint",
 		"bool",
 		"byte",
 		"float32",
@@ -247,7 +246,7 @@ func main() {
 		},
 		{
 			`package test
-		
+
 		func main() {
 			const f = float64(1.0)
 		   println(int64(f))
