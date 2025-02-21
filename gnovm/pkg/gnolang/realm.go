@@ -244,6 +244,7 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, seenObjs []Object
 	if debug {
 		debug.Printf("checkCrossRealm2, tv: %v (type: %v) \n", tv, reflect.TypeOf(tv.V))
 	}
+	fillValueTV(store, tv)
 	oo2 := tv.GetFirstObject2(store)
 	if oo2 != nil {
 		// if it is checking a pointer, and it
@@ -701,7 +702,6 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 	// except for new-reals that get demoted
 	// because ref-count isn't >= 2.
 	for _, eo := range rlm.newEscaped {
-		//fmt.Println("eo: ", eo)
 		if debug {
 			if !eo.GetIsNewEscaped() {
 				panic("new escaped mark not marked as new escaped")
@@ -724,7 +724,6 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 
 			// add to escaped, and mark dirty previous owner.
 			po := getOwner(store, eo)
-			//fmt.Println("po: ", po)
 			if po == nil {
 				// e.g. !eo.GetIsNewReal(),
 				// should have no parent.
@@ -743,7 +742,6 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 					panic("new escaped object has no object ID")
 				}
 				// escaped has no owner.
-				//fmt.Println("set owner to be nil")
 				eo.SetOwner(nil)
 			}
 		}
