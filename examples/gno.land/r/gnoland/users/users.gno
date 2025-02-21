@@ -21,6 +21,10 @@ func Render(_ string) string {
 	return changelog.RenderAsTable(10)
 }
 
+func LatestRelease() *releases.release {
+	return changelog.Latest()
+}
+
 // ProposeNewRelease allows a GovDAO proposal to add a release to the changelog
 func ProposeNewRelease(newVerPkgPath, note string) dao.Executor {
 	ver := strings.TrimPrefix(newVerPkgPath, usersPrefix)
@@ -35,8 +39,4 @@ func ProposeNewRelease(newVerPkgPath, note string) dao.Executor {
 	}
 
 	return bridge.GovDAO().NewGovDAOExecutor(cb)
-}
-
-func LatestRelease() *releases.release {
-	return changelog.Latest()
 }
