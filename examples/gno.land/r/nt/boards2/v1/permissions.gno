@@ -70,7 +70,7 @@ type (
 		// HasUser checks if a user exists.
 		HasUser(std.Address) bool
 
-		// IterateUsers iterates permission users
+		// IterateUsers iterates permissions' users.
 		IterateUsers(start, count int, fn UsersIterFn) bool
 	}
 )

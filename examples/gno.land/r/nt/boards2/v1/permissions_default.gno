@@ -127,6 +127,16 @@ func (dp DefaultPermissions) HasUser(user std.Address) bool {
 	return dp.users.Has(user.String())
 }
 
+// IterateUsers iterates permissions' users.
+func (dp DefaultPermissions) IterateUsers(start, count int, fn UsersIterFn) bool {
+	return dp.users.IterateByOffset(start, count, func(k string, v interface{}) bool {
+		return fn(User{
+			Address: std.Address(k),
+			Roles:   v.([]Role),
+		})
+	})
+}
+
 // WithPermission calls a callback when a user has a specific permission.
 // It panics on error or when a handler panics.
 // Callbacks are by default called when there is no handle registered for the permission.
