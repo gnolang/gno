@@ -1,7 +1,6 @@
 package pager
 
 import (
-	"fmt"
 	"testing"
 
 	"gno.land/p/demo/uassert"
