@@ -31,8 +31,57 @@
     text-rendering: optimizeLegibility;
   }
 
+  html.dark {
+    @apply bg-dark text-gray-d400 text-200;
+  }
+
   svg {
     @apply max-w-full max-h-full;
+  }
+
+  /* Dark mode base styles */
+  .dark .realm-view {
+    color: theme('colors.gray.d400');
+  }
+
+  .dark .realm-view a {
+    @apply text-green-d600 hover:text-green-d400;
+  }
+
+  .dark .realm-view h1,
+  .dark .realm-view h2,
+  .dark .realm-view h3,
+  .dark .realm-view h4 {
+    @apply text-gray-d600;
+  }
+
+  .dark .realm-view strong {
+    @apply text-gray-d600;
+  }
+
+  .dark .realm-view blockquote {
+    @apply border-l-4 border-gray-d200 text-gray-d400;
+  }
+
+  .dark .realm-view :not(pre) > code {
+    @apply bg-gray-d100 text-gray-d400;
+  }
+
+  .dark .realm-view pre {
+    @apply bg-gray-d50;
+  }
+
+  .dark .realm-view th {
+    @apply bg-gray-d100;
+  }
+
+  .dark .realm-view table {
+    @apply border-gray-d200;
+  }
+
+  .dark .realm-view th,
+  .dark .realm-view td {
+    @apply border-gray-d200;
   }
 
   form {
@@ -248,6 +297,23 @@
 }
 
 @layer components {
+  /* Dark mode component variants */
+  .dark .main-header {
+    @apply bg-dark border-gray-d100 text-gray-d400;
+  }
+
+  .dark .sidemenu {
+    @apply text-gray-d400;
+  }
+
+  .dark main {
+    @apply bg-dark;
+  }
+
+  .dark .dev-mode {
+    @apply bg-gray-d50;
+  }
+  
   /* header */
   .sidemenu .peer:checked + label > svg {
     @apply text-green-600;
