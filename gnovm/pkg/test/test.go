@@ -330,7 +330,6 @@ func (opts *TestOptions) runTestFiles(
 		testingtv := gno.TypedValue{T: &gno.PackageType{}, V: testingpv}
 		testingcx := &gno.ConstExpr{TypedValue: testingtv}
 
-
 		calledFunction := gno.Sel(testingcx, fmt.Sprintf("Run%s", testOrFuzz)) // Call testing.RunTest or testing.RunFuzz
 		var params []interface{}
 		if testOrFuzz == "Fuzz" {
@@ -345,7 +344,7 @@ func (opts *TestOptions) runTestFiles(
 			Type: gno.Sel(testingcx, fmt.Sprintf("Internal%s", testOrFuzz)),
 			Elts: gno.KeyValueExprs{
 				{Key: gno.X("Name"), Value: gno.Str(tf.Name)},
-				{Key: gno.X("F"), Value: gno.Nx(tf.Name)},},
+				{Key: gno.X("F"), Value: gno.Nx(tf.Name)}},
 		})
 
 		if opts.Debug {
@@ -364,8 +363,6 @@ func (opts *TestOptions) runTestFiles(
 			}
 			m.Debugger.Enable(os.Stdin, os.Stdout, fileContent)
 		}
-
-
 
 		eval := m.Eval(gno.Call(
 			calledFunction,

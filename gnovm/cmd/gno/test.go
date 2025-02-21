@@ -27,10 +27,10 @@ type testCfg struct {
 	printRuntimeMetrics bool
 	printEvents         bool
 
-	fuzzName            string
-	fuzzIters           int
-	debug               bool
-	debugAddr           string
+	fuzzName  string
+	fuzzIters int
+	debug     bool
+	debugAddr string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -159,8 +159,7 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.fuzzIters,
 		"i",
 		50000,
-		"number of fuzz iterations to run",
-
+		"number of fuzz iterations to run")
 
 	fs.BoolVar(
 		&c.debug,
@@ -229,7 +228,6 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	opts.FuzzIters = cfg.fuzzIters
 
 	opts.Debug = cfg.debug
-
 
 	buildErrCount := 0
 	testErrCount := 0
