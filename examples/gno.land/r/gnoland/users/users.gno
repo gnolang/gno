@@ -1,6 +1,7 @@
 package users
 
 import (
+	"std"
 	"strings"
 
 	"gno.land/p/demo/dao"
@@ -21,8 +22,8 @@ func Render(_ string) string {
 	return changelog.RenderAsTable(10)
 }
 
-func LatestRelease() *releases.release {
-	return changelog.Latest()
+func LatestRelease() string {
+	return std.ChainDomain() + changelog.Latest().URL()
 }
 
 // ProposeNewRelease allows a GovDAO proposal to add a release to the changelog
