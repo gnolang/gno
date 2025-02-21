@@ -10,7 +10,10 @@ import (
 	"gno.land/r/gov/dao/bridge"
 )
 
-var changelog = releases.NewChangelog("r/gnoland/users")
+var (
+	changelog = releases.NewChangelog("r/gnoland/users")
+	cd        = std.ChainDomain()
+)
 
 const usersPrefix = "gno.land/r/gnoland/users/"
 
@@ -23,7 +26,7 @@ func Render(_ string) string {
 }
 
 func LatestRelease() string {
-	return std.ChainDomain() + changelog.Latest().URL()
+	return cd + changelog.Latest().URL()
 }
 
 // ProposeNewRelease allows a GovDAO proposal to add a release to the changelog
