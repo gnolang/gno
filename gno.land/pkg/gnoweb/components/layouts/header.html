@@ -75,18 +75,18 @@
       <button 
       type="button" 
       class="js-theme-toggle flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-d100 self-center"
-      aria-label="Toggle dark mode">
-      <svg class="w-5 h-5 text-gray-600 dark:hidden">
-        <use href="#ico-moon"></use>
-      </svg>
-      <svg class="w-5 h-5 text-gray-600 hidden dark:block">
-        <use href="#ico-sun"></use>
-      </svg>
+      aria-label="Toggle dark mode"
+      >
+        <svg class="w-5 h-5 text-gray-600 dark:hidden">
+          <use href="#ico-moon"></use>
+        </svg>
+        <svg class="w-5 h-5 text-gray-600 hidden dark:block">
+          <use href="#ico-sun"></use>
+        </svg>
       </button>
       
       {{ range .Links }} {{ template "ui/header_link" . }} {{ end }}
     </form>
-
   </nav>
 </header>
 {{ end }}
