@@ -284,6 +284,8 @@ func (fv *FuncValue) VisitAssociation(vis Visitor, store Store) (stop bool) {
 
 func (fr *Frame) VisitAssociation(vis Visitor, store Store) (stop bool) {
 	// vis receiver
+	// TODO: how about receiver define in other file
+	// also check gcCount...
 	oo := unwrapObject(fr.Receiver.V, store)
 	debug2.Println2("vis receiver oo: ", oo)
 	if oo != nil {
