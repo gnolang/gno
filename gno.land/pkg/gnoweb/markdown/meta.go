@@ -194,25 +194,6 @@ type transformerOption interface {
 	SetMetaOption(*transformerConfig)
 }
 
-var _ transformerOption = &withTable{}
-
-type withTable struct {
-	value bool
-}
-
-func (o *withTable) metaOption() {}
-
-func (o *withTable) SetMetaOption(m *transformerConfig) {
-	m.Table = o.value
-}
-
-// WithTable is a functional option that renders YAML metadata as a table.
-func WithTable() Option {
-	return &withTable{
-		value: true,
-	}
-}
-
 var _ transformerOption = &withStoresInDocument{}
 
 type withStoresInDocument struct {

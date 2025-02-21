@@ -61,7 +61,7 @@ Tags:
 func TestMetaError(t *testing.T) {
 	markdown := goldmark.New(
 		goldmark.WithExtensions(
-			New(WithTable()),
+			Meta,
 		),
 	)
 	source := `---
