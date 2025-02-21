@@ -70,6 +70,9 @@ type (
 		// HasUser checks if a user exists.
 		HasUser(std.Address) bool
 
+		// UsersCount returns the total number of users the permissioner contains.
+		UsersCount() int
+
 		// IterateUsers iterates permissions' users.
 		IterateUsers(start, count int, fn UsersIterFn) bool
 	}

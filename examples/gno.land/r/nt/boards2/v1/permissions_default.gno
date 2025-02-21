@@ -127,6 +127,11 @@ func (dp DefaultPermissions) HasUser(user std.Address) bool {
 	return dp.users.Has(user.String())
 }
 
+// UsersCount returns the total number of users the permissioner contains.
+func (dp DefaultPermissions) UsersCount() int {
+	return dp.users.Size()
+}
+
 // IterateUsers iterates permissions' users.
 func (dp DefaultPermissions) IterateUsers(start, count int, fn UsersIterFn) bool {
 	return dp.users.IterateByOffset(start, count, func(k string, v interface{}) bool {
