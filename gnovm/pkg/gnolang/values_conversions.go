@@ -75,6 +75,11 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 GNO_CASE:
 	// special case for interface target
 	if t.Kind() == InterfaceKind {
+		if tv.IsUndefined() && tv.T == nil {
+			if _, ok := t.(*NativeType); !ok { // no support for native now
+				tv.T = t
+			}
+		}
 		return
 	}
 	// special case for undefined/nil source

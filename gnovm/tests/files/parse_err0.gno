@@ -7,4 +7,4 @@ func () A()
 func main() {}
 
 // Error:
-// method has no receiver
+// files/parse_err0.gno:5:1: method has no receiver
