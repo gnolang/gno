@@ -26,6 +26,7 @@ Below is a list of queries a user can make with `gnokey`:
 - `vm/qfile` - returns package contents for a given pkgpath
 - `vm/qeval` - evaluates an expression in read-only mode on and returns the results
 - `vm/qrender` - shorthand for evaluating `vm/qeval Render("")` for a given pkgpath
+- `vm/qmeta` - returns the value for a package metadata field
 
 Let's see how we can use them.
 
@@ -224,6 +225,14 @@ gnokey query vm/qrender --data "gno.land/r/demo/wugnot:balance/g125em6arxsnj49vx
 
 To see how this was achieved, check out `wugnot`'s `Render()` function.
 :::
+
+## `vm/qmeta`
+
+`vm/qmeta` allows us to read the metadata of a realm or package. For example:
+
+```bash
+gnokey query vm/qmeta --data "gno.land/r/demo/boards:field_name"`                     |
+```
 
 ## Conclusion
 

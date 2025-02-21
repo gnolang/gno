@@ -5,6 +5,8 @@ package vm
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	goerrors "errors"
 	"fmt"
 	"io"
@@ -37,10 +39,15 @@ import (
 )
 
 const (
-	maxAllocTx    = 500_000_000
-	maxAllocQuery = 1_500_000_000 // higher limit for queries
-	maxGasQuery   = 3_000_000_000 // same as max block gas
+	maxAllocTx               = 500_000_000
+	maxAllocQuery            = 1_500_000_000 // higher limit for queries
+	maxGasQuery              = 3_000_000_000 // same as max block gas
+	maxMetaFieldValueSize    = 1_000_000     // maximum size for package metadata field values in bytes
+	maxMetaFields            = 10            // maximum number of package metadata fields
+	maxToolDescriptionLenght = 100
 )
+
+var reToolName = regexp.MustCompile(`^[a-z]+[_a-z0-9]{5,16}$`)
 
 // vm.VMKeeperI defines a module interface that supports Gno
 // smart contracts programming (scripting).
@@ -352,6 +359,18 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	format := true
 	if err := gno.TypeCheckMemPackage(memPkg, gnostore, format); err != nil {
 		return ErrTypeCheck(err)
+	}
+
+	// Set package metadata
+	for _, f := range msg.Metadata {
+		if f.Name == "tools" {
+			// The "tools" metadata field must have a valid pre-defined structure
+			if err := validateToolsMetaField(f.Value); err != nil {
+				return ErrInvalidPkgMeta(err.Error())
+			}
+		}
+
+		gnostore.SetPackageMetaField(msg.Package.Path, f.Name, f.Value)
 	}
 
 	// Pay deposit from creator.
@@ -827,6 +846,27 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 	}
 }
 
+func (vm *VMKeeper) QueryMeta(ctx sdk.Context, pkgPath, name string) ([]byte, error) {
+	var (
+		res   []byte
+		store = vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+	)
+
+	found := store.IteratePackageMeta(pkgPath, func(field string, value []byte) bool {
+		if field == name {
+			res = make([]byte, base64.StdEncoding.EncodedLen(len(value)))
+			base64.StdEncoding.Encode(res, value)
+			return true
+		}
+		return false
+	})
+
+	if !found {
+		return nil, fmt.Errorf("metadata field for package %s not found: %s", pkgPath, name) // TODO: XSS protection
+	}
+	return res, nil
+}
+
 // logTelemetry logs the VM processing telemetry
 func logTelemetry(
 	gasUsed int64,
@@ -857,4 +897,43 @@ func logTelemetry(
 		gasUsed,
 		metric.WithAttributes(attributes...),
 	)
+}
+
+func validateToolsMetaField(value []byte) error {
+	var v struct {
+		Tools []struct {
+			Name        string  `json:"name"`
+			Weight      float64 `json:"weight"`
+			Description string  `json:"description,omitempty"`
+		} `json:"tools,omitempty"`
+	}
+
+	if err := json.Unmarshal(value, &v); err != nil {
+		return fmt.Errorf("invalid tools field format: %w", err)
+	}
+
+	if len(v.Tools) == 0 {
+		return errors.New("tools list is empty")
+	}
+
+	var totalWeight float64
+	for _, t := range v.Tools {
+		if len(t.Description) > maxToolDescriptionLenght {
+			return fmt.Errorf("maximum length for tool description is %d", maxToolDescriptionLenght)
+		}
+
+		if !reToolName.MatchString(t.Name) {
+			return fmt.Errorf(
+				"invalid tool name: %s (minimum 6 chars, lowercase alphanumeric with underscore)",
+				t.Name,
+			)
+		}
+
+		totalWeight += t.Weight
+	}
+
+	if totalWeight != 1 {
+		return errors.New("the sum of all tool weights must be 1")
+	}
+	return nil
 }

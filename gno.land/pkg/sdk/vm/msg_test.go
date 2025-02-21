@@ -32,7 +32,7 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 		{
 			name: "valid message",
 			msg:  NewMsgAddPackage(creator, pkgPath, files),
-			expectSignBytes: `{"creator":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt","deposit":"",` +
+			expectSignBytes: `{"creator":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt","deposit":"","metadata":null,` +
 				`"package":{"files":[{"body":"package test\n\t\tfunc Echo() string {return \"hello world\"}",` +
 				`"name":"test.gno"}],"name":"test","path":"gno.land/r/namespace/test"}}`,
 			expectErr: nil,
