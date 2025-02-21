@@ -267,17 +267,12 @@ Main:
 				if fv, ok := cx.V.(*FuncValue); ok {
 					if fv.PkgPath == uversePkgPath {
 						// TODO: should support min, max, real, imag
-						switch {
-						case fv.Name == "len":
+						switch fv.Name {
+						case "len", "cap":
 							at := evalStaticTypeOf(store, last, currExpr.Args[0])
-							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
-								// ok
-								break Main
+							if AsExpr(currExpr.Args[0], &CallExpr{}, &seen[Expr]{}) {
+								panic(fmt.Sprintf("%s (value of type %s) is not constant", currExpr.String(), at))
 							}
-							assertValidConstValue(store, last, currExpr.Args[0])
-							break Main
-						case fv.Name == "cap":
-							at := evalStaticTypeOf(store, last, currExpr.Args[0])
 							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
 								// ok
 								break Main
@@ -1275,4 +1270,118 @@ func isBlankIdentifier(x Expr) bool {
 		return nx.Name == blankIdentifier
 	}
 	return false
+}
+
+func AsExpr(base Expr, expr Expr, seen *seen[Expr]) bool {
+	if seen.Contains(base) {
+		return false
+	}
+
+	seen.Put(base)
+	defer seen.Pop()
+
+	switch base := base.(type) {
+	case *NameExpr:
+		_, ok := expr.(*NameExpr)
+		return ok
+	case *BasicLitExpr:
+		_, ok := expr.(*BasicLitExpr)
+		return ok
+	case *BinaryExpr:
+		_, ok := expr.(*BinaryExpr)
+		return ok || AsExpr(base.Left, expr, seen) || AsExpr(base.Right, expr, seen)
+	case *CallExpr:
+		_, ok := expr.(*CallExpr)
+		if ok || AsExpr(base.Func, expr, seen) {
+			return true
+		}
+
+		for _, arg := range base.Args {
+			if AsExpr(arg, expr, seen) {
+				return true
+			}
+		}
+		return false
+	case *IndexExpr:
+		_, ok := expr.(*IndexExpr)
+		return ok || AsExpr(base.X, expr, seen) || AsExpr(base.Index, expr, seen)
+	case *SelectorExpr:
+		_, ok := expr.(*SelectorExpr)
+		return ok
+	case *SliceExpr:
+		_, ok := expr.(*SliceExpr)
+		return ok || AsExpr(base.X, expr, seen) || AsExpr(base.Low, expr, seen) || AsExpr(base.High, expr, seen) || AsExpr(base.Max, expr, seen)
+	case *StarExpr:
+		_, ok := expr.(*StarExpr)
+		return ok || AsExpr(base.X, expr, seen)
+	case *RefExpr:
+		_, ok := expr.(*RefExpr)
+		return ok || AsExpr(base.X, expr, seen)
+	case *TypeAssertExpr:
+		_, ok := expr.(*TypeAssertExpr)
+		return ok || AsExpr(base.X, expr, seen) || AsExpr(base.Type, expr, seen)
+	case *UnaryExpr:
+		_, ok := expr.(*UnaryExpr)
+		return ok || AsExpr(base.X, expr, seen)
+	case *CompositeLitExpr:
+		_, ok := expr.(*CompositeLitExpr)
+		if ok || AsExpr(base.Type, expr, seen) {
+			return true
+		}
+		for _, elt := range base.Elts {
+			if AsExpr(&elt, expr, seen) {
+				return true
+			}
+		}
+		return false
+	case *KeyValueExpr:
+		_, ok := expr.(*KeyValueExpr)
+		return ok || AsExpr(base.Key, expr, seen) || AsExpr(base.Value, expr, seen)
+	case *FuncLitExpr:
+		_, ok := expr.(*FuncLitExpr)
+		if ok || AsExpr(&base.Type, expr, seen) {
+			return true
+		}
+		for _, exp := range base.HeapCaptures {
+			if AsExpr(&exp, expr, seen) {
+				return true
+			}
+		}
+		return false
+	case *ConstExpr:
+		_, ok := expr.(*ConstExpr)
+		return ok
+	case *FieldTypeExpr:
+		_, ok := expr.(*FieldTypeExpr)
+		return ok || AsExpr(base.Type, expr, seen) || AsExpr(base.Tag, expr, seen)
+	case *ArrayTypeExpr:
+		_, ok := expr.(*ArrayTypeExpr)
+		return ok || AsExpr(base.Len, expr, seen) || AsExpr(base.Elt, expr, seen)
+	case *SliceTypeExpr:
+		_, ok := expr.(*SliceTypeExpr)
+		return ok || AsExpr(base.Elt, expr, seen)
+	case *InterfaceTypeExpr:
+		_, ok := expr.(*InterfaceTypeExpr)
+		return ok
+	case *ChanTypeExpr:
+		_, ok := expr.(*ChanTypeExpr)
+		return ok || AsExpr(base.Value, expr, seen)
+	case *FuncTypeExpr:
+		_, ok := expr.(*FuncTypeExpr)
+		return ok
+	case *MapTypeExpr:
+		_, ok := expr.(*MapTypeExpr)
+		return ok || AsExpr(base.Key, expr, seen) || AsExpr(base.Value, expr, seen)
+	case *StructTypeExpr:
+		_, ok := expr.(*StructTypeExpr)
+		return ok
+	case *constTypeExpr:
+		_, ok := expr.(*constTypeExpr)
+		return ok || AsExpr(base.Source, expr, seen)
+	case *MaybeNativeTypeExpr:
+		_, ok := expr.(*MaybeNativeTypeExpr)
+		return ok || AsExpr(base.Type, expr, seen)
+	default:
+		return false
+	}
 }
