@@ -41,7 +41,11 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		// XXX implement for frames.
 		// XXX Frame is not an object,
 		// so implement a custom method and pass in vis.
-		fmt.Printf("Frame[%d] is: %v \n", i, frame)
+		fmt.Printf("===visit Frame[%d] is: %v \n", i, frame)
+		stop := frame.VisitAssociation(vis, m.Store)
+		if stop {
+			return -1, false
+		}
 	}
 
 	// Visit package
@@ -56,6 +60,10 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		// XXX Exception is not an object,
 		// so implement a custom method and pass in vis.
 		fmt.Printf("Exception[%d] is: %v \n", i, exception)
+		stop = exception.VisitAssociated(vis, m.Store)
+		if stop {
+			return -1, false
+		}
 	}
 
 	// Return bytes remaining.
@@ -105,7 +113,7 @@ func (av *ArrayValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(av.List); i++ {
 		v := av.List[i].V
-		oo := unwrapReference(v, store)
+		oo := unwrapObject(v, store)
 		if oo == nil {
 			continue
 		}
@@ -122,7 +130,7 @@ func (sv *StructValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(sv.Fields); i++ {
 		v := sv.Fields[i].V
-		oo := unwrapReference(v, store)
+		oo := unwrapObject(v, store)
 		if oo == nil {
 			continue
 		}
@@ -140,7 +148,7 @@ func (bmv *BoundMethodValue) VisitAssociated(vis Visitor, store Store) (stop boo
 	// So we do not visit it (for garbage collection).
 
 	// Visit receiver.
-	oo := unwrapReference(bmv.Receiver.V, store)
+	oo := unwrapObject(bmv.Receiver.V, store)
 	if oo == nil {
 		return
 	}
@@ -157,7 +165,7 @@ func (mv *MapValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	// XXX visit mv.List.
 	// XXX do NOT visit mv.vmap.
 	for cur := mv.List.Head; cur != nil; cur = cur.Next {
-		oo := unwrapReference(cur.Key.V, store)
+		oo := unwrapObject(cur.Key.V, store)
 		if oo == nil {
 			continue
 		}
@@ -166,7 +174,7 @@ func (mv *MapValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 			return
 		}
 
-		oo = unwrapReference(cur.Value.V, store)
+		oo = unwrapObject(cur.Value.V, store)
 		if oo == nil {
 			continue
 		}
@@ -184,7 +192,7 @@ func (pv *PackageValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	// XXX visit pv.Block
 	// XXX visit pv.FBlocks
 	// XXX do NOT visit Realm.
-	oo := unwrapReference(pv.Block, store)
+	oo := unwrapObject(pv.Block, store)
 	if oo == nil {
 		return
 	}
@@ -195,7 +203,7 @@ func (pv *PackageValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 
 	for _, fb := range pv.FBlocks {
 		debug2.Printf2("fb: %v \n", fb)
-		oo := unwrapReference(fb, store)
+		oo := unwrapObject(fb, store)
 		if oo == nil {
 			continue
 		}
@@ -213,7 +221,7 @@ func (b *Block) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	debug2.Println2("len of values in block: ", len(b.Values))
 	for i := 0; i < len(b.Values); i++ {
 		v := b.Values[i].V
-		oo := unwrapReference(v, store)
+		oo := unwrapObject(v, store)
 		if oo == nil {
 			continue
 		}
@@ -225,7 +233,7 @@ func (b *Block) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	// Visit parent.
 	if b.Parent != nil {
 		debug2.Println2("visit parent block: ", b.Parent)
-		oo := unwrapReference(b.Parent, store)
+		oo := unwrapObject(b.Parent, store)
 		if oo == nil {
 			return
 		}
@@ -239,7 +247,7 @@ func (b *Block) VisitAssociated(vis Visitor, store Store) (stop bool) {
 
 func (hiv *HeapItemValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	debug2.Println2("VisitAssociated, hiv: ", hiv)
-	oo := unwrapReference(hiv.Value.V, store)
+	oo := unwrapObject(hiv.Value.V, store)
 	if oo == nil {
 		return
 	}
@@ -250,8 +258,89 @@ func (hiv *HeapItemValue) VisitAssociated(vis Visitor, store Store) (stop bool) 
 	return
 }
 
-func unwrapReference(v Value, store Store) Object {
-	debug2.Println2("unwrapReference, v: ", v, reflect.TypeOf(v))
+func (fv *FuncValue) VisitAssociation(vis Visitor, store Store) (stop bool) {
+	// visit captures
+	for _, tv := range fv.Captures {
+		oo := unwrapObject(tv.V, store)
+		debug2.Println2("vis capture, oo: ", oo)
+		if oo != nil {
+			stop = vis(oo)
+			if stop {
+				return
+			}
+		}
+	}
+	// visit FuncValue's closure
+	oo := unwrapObject(fv.Closure, store)
+	debug2.Println2("vis Closure, oo: ", oo)
+	if oo != nil {
+		stop = vis(oo)
+		if stop {
+			return
+		}
+	}
+	return false
+}
+
+func (fr *Frame) VisitAssociation(vis Visitor, store Store) (stop bool) {
+	// vis receiver
+	oo := unwrapObject(fr.Receiver.V, store)
+	debug2.Println2("vis receiver oo: ", oo)
+	if oo != nil {
+		stop = vis(oo)
+		if stop {
+			return
+		}
+	}
+	// vis FuncValue
+	if fv := fr.Func; fv != nil {
+		stop = fv.VisitAssociation(vis, store)
+		if stop {
+			return
+		}
+	}
+	// vis defer
+	for _, dfr := range fr.Defers {
+		debug2.Println2("vis defer: ", dfr)
+		// visit dfr.Func
+		stop = dfr.Func.VisitAssociation(vis, store)
+		if stop {
+			return
+		}
+
+		for _, arg := range dfr.Args {
+			debug2.Println2("vis arg: ", arg)
+			oo = unwrapObject(arg.V, store)
+			if oo != nil {
+				stop = vis(oo)
+				if stop {
+					return
+				}
+			}
+		}
+	}
+	return false
+}
+
+func (ex *Exception) VisitAssociated(vis Visitor, store Store) (stop bool) {
+	// vis value
+	oo := unwrapObject(ex.Value.V, store)
+	if oo != nil {
+		stop = vis(oo)
+		if stop {
+			return
+		}
+	}
+	// vis Frame ?
+	stop = ex.Frame.VisitAssociation(vis, store)
+	if stop {
+		return
+	}
+	return
+}
+
+func unwrapObject(v Value, store Store) Object {
+	//debug2.Println2("unwrapReference, v: ", v, reflect.TypeOf(v))
 	switch v := v.(type) {
 	case *SliceValue:
 		return v.GetBase(store)
