@@ -559,6 +559,7 @@ func selectID(keys []int, cum []uint64) int {
 	return keys[idx]
 }
 
+// cumAndStrategy represents a structure that stores the cumulative sum at each mutation strategy point.
 type cumAndStrategy struct {
 	cumSum   uint64
 	strategy MutationCode
@@ -590,7 +591,7 @@ func MutateEnt2String(e Ent, strength int, pattern string) (string, map[Mutation
 			return SerializeToString(clone), nil
 			break
 		}
-		strategy := selectStrategyWithIndex(localCumsAndStrategy)
+		strategy := selectStrategy(localCumsAndStrategy)
 		selectedMutator := entMutators[strategy]
 
 		isSuccess := selectedMutator(clone, pattern)
@@ -614,8 +615,8 @@ func MutateEnt2String(e Ent, strength int, pattern string) (string, map[Mutation
 	return result, strategyCounts
 }
 
-// selectStrategyWithIndex selects a mutation strategy and its index from the cumulative sum slice.
-func selectStrategyWithIndex(cumAndStrategy []cumAndStrategy) MutationCode {
+// selectStrategy selects a mutation strategy from the cumulative sum slice.
+func selectStrategy(cumAndStrategy []cumAndStrategy) MutationCode {
 	total := cumAndStrategy[len(cumAndStrategy)-1].cumSum
 	rng := OncePCG()
 	r := rng.Uint64n(total)
@@ -649,6 +650,7 @@ func removeStrategy(localCumsAndStrategy []cumAndStrategy, strategy MutationCode
 	return localCumsAndStrategy
 }
 
+// cumAndStrategyForNotSb represents a structure that stores the cumulative sum at each mutation strategy point.
 type cumAndStrategyForNotSb struct {
 	cumSum   uint64
 	strategy MutationCodeForNotSB
@@ -676,9 +678,8 @@ func MutateNotSbEnt2interface(ens *EntForNotSB, strength int) (interface{}, map[
 		if len(localCumsAndStrategy) == 0 {
 			break
 		}
-		strategy := selectStrategyWithIndexForNotSB(localCumsAndStrategy)
+		strategy := selectStrategyForNotSB(localCumsAndStrategy)
 		selectedMutator := notSbEntMutators[strategy]
-
 		isSuccess := selectedMutator(clone)
 		if isSuccess {
 			strategyCounts[strategy]++
@@ -696,8 +697,8 @@ func MutateNotSbEnt2interface(ens *EntForNotSB, strength int) (interface{}, map[
 	return result, strategyCounts
 }
 
-// selectStrategyWithIndexForNotSB selects a NotSb mutation strategy and its index using a random value.
-func selectStrategyWithIndexForNotSB(cumAndStrategy []cumAndStrategyForNotSb) MutationCodeForNotSB {
+// selectStrategyForNotSB selects a NotSb mutation strategy using a random value.
+func selectStrategyForNotSB(cumAndStrategy []cumAndStrategyForNotSb) MutationCodeForNotSB {
 	total := cumAndStrategy[len(cumAndStrategy)-1].cumSum
 	rng := OncePCG()
 	r := rng.Uint64n(total)
@@ -842,149 +843,188 @@ func formatToRootOrNotSbEnts(content []interface{}) (map[int]*RootEnt, map[int]*
 	return resultRoot, resultNotSB
 }
 
-// MutateFunc defines the type of functions that mutate Ent(string and []byte) values.
-type MutateFunc func(Ent, string) bool
+// MutatorEntry represents an entry mapping a mutation code to its corresponding function.
+type MutatorEntry struct {
+	Code MutationCode // The mutation strategy code.
+	Func MutateFunc   // The function implementing the mutation.
+}
 
-// MutationCode defines various mutation operations for modifying entities.
+// MutationCode defines various mutation operations for mutateing entities.
 type MutationCode int
 
-const (
-	DS MutationCode = iota // Delete Start
-	DM                     // Delete Middle
-	DE                     // Delete End
+// MutateFunc defines the type of functions that mutate Ent values.
+type MutateFunc func(Ent, string) bool
 
-	AS  // Append Start
-	ASI // Append Start Interesting
-	ASP // Append Start Pattern
-
-	AE  // Append End
-	AEI // Append End Interesting
-	AEP // Append End Pattern
-
-	OS  // Overwrite Start
-	OM  // Overwrite Middle
-	CPS // Copy Start
-
-	CPM // Copy Middle
-	CPE // Copy End
-	CHR // Change Randomly
-
-	CHG   // Change Gradual
-	CHG16 // Change Gradual 16
-	CHG32 // Change Gradual 32
-
-	CHG64 // Change Gradual 64
-	CHI   // Change Interesting
-	CHI16 // Change Interesting 16
-
-	CHI32 // Change Interesting 32
-	CHP   // Change Pattern
-	IR    // Insert Randomly
-
-	IG // Insert Gradual
-	II // Insert Interesting
-	IP // Insert Pattern
-
-	SW  // Swap
-	PKL // Preserve Kind Light
-	PKH // Preserve Kind Hard
-
-	SKL // Switch Kind Light
-	SKH // Switch Kind Hard
-
-)
-
-// MutateFuncForNotSB defines the type of functions that mutate EntForNotSB (not string or []byte) values.
-type MutateFuncForNotSB func(*EntForNotSB) bool
+// NotSbMutatorEntry represents an entry mapping a non-string/byte mutation code to its function.
+type NotSbMutatorEntry struct {
+	Code MutationCodeForNotSB // The mutation strategy code for non-string/byte entities.
+	Func MutateFuncForNotSB   // The function implementing the mutation.
+}
 
 // MutationCodeForNotSB defines mutation strategies for non-string/byte entities.
 type MutationCodeForNotSB int
 
-const (
-	NumMutationCodes = 32
-	NumNotSbMutCodes = 16
-)
+// MutateFuncForNotSB defines the type of functions that mutate EntForNotSB (not string or []byte) values.
+type MutateFuncForNotSB func(*EntForNotSB) bool
 
 const (
-	SmlPls MutationCodeForNotSB = iota // small plus
-	SmlMns                             // small minus
-	SmlDv                              // small division
-	SmlMl                              // small multiply
-
-	MddlPls  // middle plus
-	MddlMins // middle minus
-	MddlDv   // middle division
-	MddlMl   // middcle multiply
-
-	BgPls // big plus
-	BgMns // big minus
-	BgDv  // big division
-	BgMl  // big multiply
-
-	FctrlDv      // factorial division
-	FctrlMl      // fcatorial multiply
-	IntrstngChng // change to interesting value
-
-	RndmChng // chahge to radom value
+	DS    MutationCode = iota // Delete Start
+	DM                        // Delete Middle
+	DE                        // Delete End
+	AS                        // Append Start
+	ASI                       // Append Start Interesting
+	ASP                       // Append Start Pattern
+	AE                        // Append End
+	AEI                       // Append End Interesting
+	AEP                       // Append End Pattern
+	OS                        // Overwrite Start
+	OM                        // Overwrite Middle
+	CPS                       // Copy Start
+	CPM                       // Copy Middle
+	CPE                       // Copy End
+	CHR                       // Change Randomly
+	CHG                       // Change Gradual
+	CHG16                     // Change Gradual 16
+	CHG32                     // Change Gradual 32
+	CHG64                     // Change Gradual 64
+	CHI                       // Change Interesting
+	CHI16                     // Change Interesting 16
+	CHI32                     // Change Interesting 32
+	CHP                       // Change Pattern
+	IR                        // Insert Randomly
+	IG                        // Insert Gradual
+	II                        // Insert Interesting
+	IP                        // Insert Pattern
+	SW                        // Swap
+	PKL                       // Preserve Kind Light
+	PKH                       // Preserve Kind Hard
+	SKL                       // Switch Kind Light
+	SKH                       // Switch Kind Hard
+	// MutationBoundaryMarker is an `iota` value used to track the number of registered mutation codes.
+	//
+	// **DO NOT USE THIS VALUE AS A MUTATION CODE!**
+	// This is strictly for tracking the total number of mutation codes.
+	MutationBoundaryMarker // tracking the number of mutation codes
 )
 
-// entMutators maps mutation codes to their respective transformation functions.
-var entMutators = map[MutationCode]MutateFunc{
-	DS:    deleteStart,
-	DM:    deleteMiddle,
-	DE:    deleteEnd,
-	AS:    appendStart,
-	ASI:   appendStartInteresting,
-	ASP:   appendStartPattern,
-	AE:    appendEnd,
-	AEI:   appendEndInteresting,
-	AEP:   appendEndPattern,
-	OS:    overwriteStart,
-	OM:    overwriteMiddle,
-	CPS:   copyStart,
-	CPM:   copyMiddle,
-	CPE:   copyEnd,
-	CHR:   changeRandomly,
-	CHG:   changeGradual,
-	CHG16: changeGradual16,
-	CHG32: changeGradual32,
-	CHG64: changeGradual64,
-	CHI:   changeInteresting,
-	CHI16: changeInteresting16,
-	CHI32: changeInteresting32,
-	CHP:   changePattern,
-	IR:    insertRandomly,
-	IG:    insertGradual,
-	II:    insertInteresting,
-	IP:    insertPattern,
-	SW:    swap,
-	PKL:   preserveKindLight,
-	PKH:   preserveKindHard,
-	SKL:   switchKindLight,
-	SKH:   switchKindHard,
+// mutatorList stores a list of mutation strategy mappings.
+var mutatorList = []MutatorEntry{
+	{DS, deleteStart},
+	{DM, deleteMiddle},
+	{DE, deleteEnd},
+	{AS, appendStart},
+	{ASI, appendStartInteresting},
+	{ASP, appendStartPattern},
+	{AE, appendEnd},
+	{AEI, appendEndInteresting},
+	{AEP, appendEndPattern},
+	{OS, overwriteStart},
+	{OM, overwriteMiddle},
+	{CPS, copyStart},
+	{CPM, copyMiddle},
+	{CPE, copyEnd},
+	{CHR, changeRandomly},
+	{CHG, changeGradual},
+	{CHG16, changeGradual16},
+	{CHG32, changeGradual32},
+	{CHG64, changeGradual64},
+	{CHI, changeInteresting},
+	{CHI16, changeInteresting16},
+	{CHI32, changeInteresting32},
+	{CHP, changePattern},
+	{IR, insertRandomly},
+	{IG, insertGradual},
+	{II, insertInteresting},
+	{IP, insertPattern},
+	{SW, swap},
+	{PKL, preserveKindLight},
+	{PKH, preserveKindHard},
+	{SKL, switchKindLight},
+	{SKH, switchKindHard},
 }
 
-// notSbEntMutators maps non-string/byte mutation codes to their respective transformation functions.
-var notSbEntMutators = map[MutationCodeForNotSB]MutateFuncForNotSB{
-	SmlPls: smallPlus,  // small plus
-	SmlMns: smallMinus, // small minus
-	SmlDv:  smallDiv,   // small division
-	SmlMl:  smallMul,   // small multiply
+const (
+	SmlPls       MutationCodeForNotSB = iota // small plus
+	SmlMns                                   // small minus
+	SmlDv                                    // small division
+	SmlMl                                    // small multiply
+	MddlPls                                  // middle plus
+	MddlMins                                 // middle minus
+	MddlDv                                   // middle division
+	MddlMl                                   // middcle multiply
+	BgPls                                    // big plus
+	BgMns                                    // big minus
+	BgDv                                     // big division
+	BgMl                                     // big multiply
+	FctrlDv                                  // factorial division
+	FctrlMl                                  // fcatorial multiply
+	IntrstngChng                             // change to interesting value
+	RndmChng                                 // chahge to radom value
+	// NotSbBoundaryMarker is an `iota` value used to track the number of registered mutation codes.
+	//
+	// **DO NOT USE THIS VALUE AS A MUTATION CODE!**
+	// This is strictly for tracking the total number of mutation codes.
+	NotSbBoundaryMarker // tracking the number of notSbmutation codes
+)
 
-	MddlPls:  middlePlus,  // middle plus
-	MddlMins: middleMinus, // middle minus
-	MddlDv:   middleDiv,   // middle division
-	MddlMl:   middleMul,   // middcle multiply
+// notSbMutatorList stores a list of mutation strategy mappings for non-string/byte entities
+var notSbMutatorList = []NotSbMutatorEntry{
+	{SmlPls, smallPlus},
+	{SmlMns, smallMinus},
+	{SmlDv, smallDiv},
+	{SmlMl, smallMul},
+	{MddlPls, middlePlus},
+	{MddlMins, middleMinus},
+	{MddlDv, middleDiv},
+	{MddlMl, middleMul},
+	{BgPls, bigPlus},
+	{BgMns, bigMinus},
+	{BgDv, bigDiv},
+	{BgMl, bigMul},
+	{FctrlDv, factorialDiv},
+	{FctrlMl, factorialMul},
+	{IntrstngChng, interestingChange},
+	{RndmChng, randomChange},
+}
 
-	BgPls: bigPlus,  // big plus
-	BgMns: bigMinus, // big minus
-	BgDv:  bigDiv,   // big division
-	BgMl:  bigMul,   // big multiply
+const (
+	// NumMutationCodes defines the total number of mutation codes.
+	// This constant is derived from `MutationBoundaryMarker` and is automatically updated
+	// when new mutation codes are added.
+	//
+	// DO NOT modify this manually!
+	NumMutationCodes = int(MutationBoundaryMarker)
 
-	FctrlDv:      factorialDiv,      // factorial division
-	FctrlMl:      factorialMul,      // fcatorial multiply
-	IntrstngChng: interestingChange, // change to interesting value
-	RndmChng:     randomChange,
+	// NumNotSbMutCodes defines the total number of non-string/byte mutation codes.
+	//
+	// This constant is derived from `NotSbBoundaryMarker` and is automatically updated
+	// when new non-string mutation codes are added.
+	// DO NOT modify this manually!
+	NumNotSbMutCodes = int(NotSbBoundaryMarker)
+)
+
+var (
+	// entMutators maps mutation codes to their respective transformation functions.
+	// NOTE: This map is initialized in the `init()` function
+	entMutators map[MutationCode]MutateFunc
+	// notSbEntMutators maps non-string/byte mutation codes to their respective transformation functions.
+	// NOTE: This map is initialized in the `init()` function
+	notSbEntMutators map[MutationCodeForNotSB]MutateFuncForNotSB
+)
+
+// init initializes mutation function mappings at runtime.
+//
+// It populates `entMutators` and `notSbEntMutators` based on the predefined
+// mutation strategy lists (`mutatorList` and `notSbMutatorList`)
+func init() {
+	entMutators = make(map[MutationCode]MutateFunc, NumMutationCodes)
+	for _, entry := range mutatorList {
+		entMutators[entry.Code] = entry.Func
+	}
+	notSbEntMutators = make(map[MutationCodeForNotSB]MutateFuncForNotSB, NumNotSbMutCodes)
+	for _, entry := range notSbMutatorList {
+		notSbEntMutators[entry.Code] = entry.Func
+	}
 }
 
 // TODO: Refine the mutation logic from this point onwards.
