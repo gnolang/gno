@@ -1,7 +1,12 @@
 package docs
 
 func Render(_ string) string {
-	return `# Gno Examples Documentation
+	return `---
+Title: Welcome to the Gno examples documentation index 
+Description: Welcome to the Gno examples documentation index. Explore various examples to learn more about Gno functionality and usage.
+---
+
+# Gno Examples Documentation
 
 Welcome to the Gno examples documentation index.
 Explore various examples to learn more about Gno functionality and usage.
@@ -18,6 +23,12 @@ Explore various examples to learn more about Gno functionality and usage.
 - [Optional Render](/r/docs/optional_render) - Render() is optional in realms.
 - ...
 <!-- meta issue with suggestions: https://github.com/gnolang/gno/issues/3292 -->
+
+| Month    | Savings |
+| -------- | ------- |
+| January  | $250    |
+| February | $80     |
+| March    | $420    |
 
 ## Other resources
 
