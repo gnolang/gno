@@ -82,12 +82,12 @@ func (rss *RemoteSignerServer) listen(listener net.Listener) {
 		if err != nil {
 			// If the server is still running, log the error and continue accepting connections.
 			if rss.IsRunning() {
-				rss.logger.Error("failed to accept connection", "error", err)
+				rss.logger.Error("Failed to accept connection", "error", err)
 				continue
 			}
 			return
 		}
-		rss.logger.Debug("accepted new connection", "remote", conn.RemoteAddr())
+		rss.logger.Debug("Accepted new connection", "remote", conn.RemoteAddr())
 
 		// If the connection is a TCP connection, configure and secure it.
 		tcpConn, ok := conn.(*net.TCPConn)
@@ -101,12 +101,12 @@ func (rss *RemoteSignerServer) listen(listener net.Listener) {
 				rss.responseTimeout*2, // Double the response timeout for the handshake (send + receive).
 			)
 			if err != nil {
-				rss.logger.Error("failed to configure TCP connection", "error", err)
+				rss.logger.Error("Failed to configure TCP connection", "error", err)
 				conn.Close() // Close the connection if its configuration failed.
 				continue
 			}
 
-			rss.logger.Debug("configured TCP connection successfully")
+			rss.logger.Debug("Configured TCP connection successfully")
 			conn = sconn
 		}
 
@@ -116,7 +116,7 @@ func (rss *RemoteSignerServer) listen(listener net.Listener) {
 			defer rss.wg.Done()
 			defer conn.Close() // Close the connection when the goroutine exits.
 
-			rss.logger.Info("connected to client",
+			rss.logger.Info("Connected to client",
 				"protocol", conn.RemoteAddr().Network(),
 				"address", conn.RemoteAddr().String(),
 			)
@@ -141,7 +141,7 @@ func (rss *RemoteSignerServer) serve(conn net.Conn) {
 		if _, err := amino.UnmarshalSizedReader(conn, &request, r.MaxMessageSize); err != nil {
 			// Only log the error if the server is still running.
 			if rss.IsRunning() {
-				rss.logger.Error("failed to receive request", "error", err)
+				rss.logger.Error("Failed to receive request", "error", err)
 			}
 			break
 		}
@@ -158,12 +158,12 @@ func (rss *RemoteSignerServer) serve(conn net.Conn) {
 		if _, err := amino.MarshalAnySizedWriter(conn, response); err != nil {
 			// Only log the error if the server is still running.
 			if rss.IsRunning() {
-				rss.logger.Error("failed to send response", "error", err)
+				rss.logger.Error("Failed to send response", "error", err)
 			}
 			break
 		}
 
-		rss.logger.Debug("served request successfully", "request", fmt.Sprintf("%T", request))
+		rss.logger.Debug("Served request successfully", "request", fmt.Sprintf("%T", request))
 	}
 }
 
@@ -191,7 +191,7 @@ func (rss *RemoteSignerServer) handle(request r.RemoteSignerMessage) r.RemoteSig
 		return &r.PingResponse{}
 
 	default:
-		rss.logger.Error("invalid request type", "type", fmt.Sprintf("%T", request))
+		rss.logger.Error("Invalid request type", "type", fmt.Sprintf("%T", request))
 		return nil
 	}
 }

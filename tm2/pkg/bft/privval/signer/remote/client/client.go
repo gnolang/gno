@@ -125,7 +125,7 @@ func (rsc *RemoteSignerClient) Close() error {
 	// Close the connection.
 	err := rsc.setConnection(nil)
 
-	rsc.logger.Info("client closed")
+	rsc.logger.Info("Client closed")
 
 	return err
 }

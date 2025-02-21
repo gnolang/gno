@@ -12,7 +12,7 @@ import (
 func (rsc *RemoteSignerClient) ensureConnection() error {
 	// If the connection is already established, return.
 	if rsc.isConnected() {
-		rsc.logger.Debug("already connected to server")
+		rsc.logger.Debug("Already connected to server")
 		return nil
 	}
 
@@ -26,7 +26,7 @@ func (rsc *RemoteSignerClient) ensureConnection() error {
 		// Dial the server.
 		conn, err := net.DialTimeout(rsc.protocol, rsc.address, rsc.dialTimeout)
 		if err != nil {
-			rsc.logger.Warn("fail to dial",
+			rsc.logger.Warn("Failed to dial",
 				"protocol", rsc.protocol,
 				"address", rsc.address,
 				"error", err,
@@ -34,9 +34,9 @@ func (rsc *RemoteSignerClient) ensureConnection() error {
 
 			// If the maximum retries are not exceeded, log attempts count then retry.
 			if rsc.dialMaxRetries > 0 && try < rsc.dialMaxRetries {
-				rsc.logger.Info("retrying to connect", "try", try+1, "maxRetry", rsc.dialMaxRetries)
+				rsc.logger.Info("Retrying to connect", "try", try+1, "maxRetry", rsc.dialMaxRetries)
 			} else if rsc.dialMaxRetries < 0 { // Retry indefinitely.
-				rsc.logger.Info("retrying to connect", "try", try+1, "maxRetry", "unlimited")
+				rsc.logger.Info("Retrying to connect", "try", try+1, "maxRetry", "unlimited")
 			} else { // Max retries exceeded.
 				return ErrMaxRetriesExceeded
 			}
@@ -45,7 +45,7 @@ func (rsc *RemoteSignerClient) ensureConnection() error {
 			time.Sleep(rsc.dialRetryInterval)
 			continue
 		}
-		rsc.logger.Debug("dial succeeded")
+		rsc.logger.Debug("Dial succeeded")
 
 		// If the connection is a TCP connection, configure and secure it.
 		tcpConn, ok := conn.(*net.TCPConn)
@@ -59,18 +59,18 @@ func (rsc *RemoteSignerClient) ensureConnection() error {
 				rsc.requestTimeout,
 			)
 			if err != nil {
-				rsc.logger.Error("failed to configure TCP connection", "error", err)
+				rsc.logger.Error("Failed to configure TCP connection", "error", err)
 				conn.Close() // Close the connection if its configuration failed.
 				return err
 			}
 
-			rsc.logger.Debug("configured TCP connection successfully")
+			rsc.logger.Debug("Configured TCP connection successfully")
 			conn = sconn
 		}
 
 		// Set the connection.
 		rsc.setConnection(conn)
-		rsc.logger.Info("connected to server", "protocol", rsc.protocol, "address", rsc.address)
+		rsc.logger.Info("Connected to server", "protocol", rsc.protocol, "address", rsc.address)
 
 		return nil
 	}
@@ -123,7 +123,7 @@ func (rsc *RemoteSignerClient) send(request r.RemoteSignerMessage) (r.RemoteSign
 
 		// Marshal the request using amino then send it to the server.
 		if _, err := amino.MarshalAnySizedWriter(rsc.conn, request); err != nil {
-			rsc.logger.Warn("failed to send request", "error", err)
+			rsc.logger.Warn("Failed to send request", "error", err)
 			rsc.setConnection(nil) // Close the connection if the sending the request failed.
 			continue
 		}
@@ -133,7 +133,7 @@ func (rsc *RemoteSignerClient) send(request r.RemoteSignerMessage) (r.RemoteSign
 
 		// Receive the response from the server and unmarshal it using amino.
 		if _, err := amino.UnmarshalSizedReader(rsc.conn, &response, r.MaxMessageSize); err != nil {
-			rsc.logger.Warn("failed to receive response", "error", err)
+			rsc.logger.Warn("Failed to receive response", "error", err)
 			rsc.setConnection(nil) // Close the connection if the receiving the response failed.
 			continue
 		}
