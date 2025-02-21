@@ -152,7 +152,7 @@ func TestRecordSave(t *testing.T) {
 			fieldValue:  "baz",
 			storageSize: 2,
 			setup: func(s Storage) Record {
-				r, _ := storage.GetRecord(index.Name(), "bar")
+				r, _ := storage.Get(index.Name(), "bar")
 				return r
 			},
 		},
@@ -163,12 +163,12 @@ func TestRecordSave(t *testing.T) {
 			r := tc.setup(storage)
 			r.Set("name", tc.fieldValue)
 
-			_, found := storage.GetRecord(index.Name(), tc.fieldValue)
+			_, found := storage.Get(index.Name(), tc.fieldValue)
 			urequire.False(t, found, "record not found")
 			urequire.True(t, r.Save(), "save success")
 			uassert.Equal(t, tc.storageSize, storage.Size())
 
-			r, found = storage.GetRecord(index.Name(), tc.fieldValue)
+			r, found = storage.Get(index.Name(), tc.fieldValue)
 			urequire.True(t, found, "record found")
 			uassert.Equal(t, tc.id, r.ID())
 			uassert.Equal(t, tc.key, r.Key())

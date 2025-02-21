@@ -40,15 +40,15 @@
 //	user.Save()
 //
 //	// Find user by email
-//	user, _ = storage.GetRecord("email", "foo@bar.org")
+//	user, _ = storage.Get("email", "foo@bar.org")
 //
 //	// Find user by ID
-//	user, _ = storage.GetRecord(collection.IDIndex, user.Key())
+//	user, _ = storage.Get(collection.IDIndex, user.Key())
 //
 //	// Search user's profile by email in another existing storage
 //	storage = db.GetStorage("profiles")
 //	email := user.MustGet("email").(string)
-//	profile, found := storage.GetRecord("user", email)
+//	profile, found := storage.Get("user", email)
 //	if !found {
 //	  panic("profile not found")
 //	}

@@ -134,13 +134,13 @@ func (s Storage) MustQuery(options ...QueryOption) Recordset {
 	return rs
 }
 
-// GetRecord returns the first record found for a key within a storage index.
+// Get returns the first record found for a key within a storage index.
 //
-// This is a convenience method to get a single record independently of the index
-// type. A multi index will always return the first record value for the specified
-// key in this case. To get multiple records create a query using a custom index
-// and key vale or use the underlying storage collection.
-func (s Storage) GetRecord(indexName, indexKey string) (_ Record, found bool) {
+// This is a convenience method to get a single record. A multi index will
+// always return the first record value for the specified key in this case.
+// To get multiple records create a query using a custom index and key value
+// or use the underlying storage collection.
+func (s Storage) Get(indexName, indexKey string) (_ Record, found bool) {
 	var (
 		record Record
 		iter   = s.collection.Get(indexName, indexKey)
