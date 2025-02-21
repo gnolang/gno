@@ -80,8 +80,7 @@ func TryGetItems(pc parser.Context) ([]yaml.Node, error) {
 	return d.Items, nil
 }
 
-type metaParser struct {
-}
+type metaParser struct{}
 
 var defaultParser = &metaParser{}
 
