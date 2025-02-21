@@ -22,17 +22,43 @@ func NewGovDAO() *GovDAO {
 	}
 }
 
-func (g *GovDAO) PreCreateProposal(r proxy.ProposalRequest)(proxy.Author, error) {
+func (g *GovDAO) PreCreateProposal(r proxy.ProposalRequest) (proxy.Author, error) {
 	// TODO validate that the caller is a member
 	return NewUserAuthor(), nil
 }
 
 func (g *GovDAO) PostCreateProposal(r proxy.ProposalRequest, pid proxy.ProposalID) {
+	tatv := []string{memberstore.T1, memberstore.T2, memberstore.T3}
+	switch v := r.Metadata.(type) {
+	case *AddMemberMetadata:
+		// only members from T1 are allowed to vote when adding new members to T1
+		if v.Tier == memberstore.T1 {
+			tatv = []string{memberstore.T1}
+		}
+		// only members from T1 and T2 are allowed to vote when adding new members to T2
+		if v.Tier == memberstore.T2 {
+			tatv = []string{memberstore.T1, memberstore.T2}
+		}
+	case *PromoteMemberMetadata:
+		// only members from T1 are allowed to vote when promoting someone to T1
+		if v.ToTier == memberstore.T1 {
+			tatv = []string{memberstore.T1}
+		}
+		// only members from T1 and T2 are allowed to vote when promoting someone to T2
+		if v.ToTier == memberstore.T2 {
+			tatv = []string{memberstore.T1, memberstore.T2}
+		}
+	}
+
 	pids := ufmt.Sprintf("%v", int(pid))
-	g.pss.Set(pids, newProposalStatus())
+	g.pss.Set(pids, newProposalStatus(tatv))
 }
 
 func (g *GovDAO) VoteOnProposal(r proxy.VoteRequest) error {
+	if !g.isValidCall() {
+		return errors.New("proposal voting must be done directly by a user")
+	}
+
 	caller := std.GetOrigCaller()
 	mem, tie := memberstore.Get().GetMember(caller)
 	if mem == nil {
@@ -43,20 +69,26 @@ func (g *GovDAO) VoteOnProposal(r proxy.VoteRequest) error {
 
 	status := g.pss.GetStatus(r.ProposalID)
 
+	// TODO check if proposal status is accepted or rejected already
+
+	if !status.IsAllowed(tie) {
+		return errors.New("member on specified tier is not allowed to vote on this proposal")
+	}
+
 	mVoted, _ := status.AllVotes.GetMember(caller)
 	if mVoted != nil {
 		return errors.New("already voted on proposal")
 	}
 
 	switch r.Option {
-		case proxy.YesVote:
-			status.AllVotes.SetMember(tie, caller, mem)
-			status.YesVotes.SetMember(tie, caller, mem)
-		case proxy.NoVote:
-			status.AllVotes.SetMember(tie, caller, mem)
-			status.NoVotes.SetMember(tie, caller, mem)
-		default:
-			return errors.New("voting can only be YES or NO")
+	case proxy.YesVote:
+		status.AllVotes.SetMember(tie, caller, mem)
+		status.YesVotes.SetMember(tie, caller, mem)
+	case proxy.NoVote:
+		status.AllVotes.SetMember(tie, caller, mem)
+		status.NoVotes.SetMember(tie, caller, mem)
+	default:
+		return errors.New("voting can only be YES or NO")
 	}
 
 	return nil
@@ -71,11 +103,8 @@ func (g *GovDAO) PostGetProposal(pid proxy.ProposalID, p *proxy.Proposal) error 
 }
 
 func (g *GovDAO) PreExecuteProposal(pid proxy.ProposalID) error {
-	// TODO: remove caller. Anyone can call this
-	caller := std.GetOrigCaller()
-	_, tie := memberstore.Get().GetMember(caller)
-	if tie != memberstore.T1 { 
-		return errors.New("only members from Tier 1 can execute the proposals")
+	if !std.PrevRealm().IsUser() {
+		return errors.New("invalid non-user call")
 	}
 
 	status := g.pss.GetStatus(pid)
@@ -102,16 +131,16 @@ func (g *GovDAO) renderActiveProposals() string {
 		if ps.Inactive {
 			return false
 		}
-		
+
 		pid, err := strconv.Atoi(key)
 		if err != nil {
 			panic(err.Error())
 		}
 
 		p := proxy.MustGetProposal(proxy.ProposalID(pid))
-		
+
 		out += ufmt.Sprintf("### Proposal with id: %v", key)
-		out += p.String()
+		out += StringifyProposal(p)
 		out += "\n\n"
 		out += ps.String()
 		out += "\n\n"
@@ -129,6 +158,10 @@ func (g *GovDAO) Render(string) string {
 	return g.renderActiveProposals()
 }
 
+func (g *GovDAO) isValidCall() bool {
+	// only calls from the proxy are allowed
+	return std.GetOrigPkgAddr() == "gno.land/r/gov/dao/proxy"
+}
 
 type UserAuthor struct {
 	addr string
@@ -140,10 +173,10 @@ func NewUserAuthor() *UserAuthor {
 	}
 }
 
-func (u *UserAuthor)ID() string {
-	return "addr:"+u.addr
+func (u *UserAuthor) ID() string {
+	return "addr:" + u.addr
 }
 
-func (u *UserAuthor)String() string {
+func (u *UserAuthor) String() string {
 	return u.addr
 }

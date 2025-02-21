@@ -6,6 +6,7 @@ import (
 	"gno.land/r/gov/dao/proxy"
 	"gno.land/r/gov/dao/v3/memberstore"
 )
+
 var govDAO *GovDAO
 var law *Law
 
@@ -13,8 +14,10 @@ func init() {
 	govDAO = NewGovDAO()
 
 	law := &Law{
-		Supermajority:66,
+		Supermajority: 66,
 	}
+
+	println(law)
 }
 
 func Render(in string) string {
@@ -24,7 +27,7 @@ func Render(in string) string {
 // AddMember allows T1 and T2 members to freely add T3 members using their invitation points.
 func AddMember(addr std.Address) {
 	caller := std.GetOrigCaller()
-	m,t := memberstore.Get().GetMember(caller)
+	m, t := memberstore.Get().GetMember(caller)
 	if m == nil {
 		panic("caller is not a member")
 	}
@@ -44,26 +47,17 @@ func AddMember(addr std.Address) {
 	}
 }
 
-func MustExecuteProposal(pid proxy.ProposalID) {
-	if err := ExecuteProposal(pid); err != nil {
-		panic(err.Error())
-	}
-}
-
-func ExecuteProposal(pid proxy.ProposalID) error {
-	// TODO: validate is a direct call
+func ExecuteProposal(pid proxy.ProposalID) {
 	if err := govDAO.PreExecuteProposal(pid); err != nil {
-		return err
+		panic(err)
 	}
 
 	prop, err := proxy.GetProposal(pid)
 	if err != nil {
-		return err
+		panic(err)
 	}
 
 	if err := prop.Executor.Execute(); err != nil {
-		return err
+		panic(err)
 	}
-
-	return nil
 }

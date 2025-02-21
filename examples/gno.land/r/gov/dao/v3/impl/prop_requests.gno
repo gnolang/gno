@@ -38,7 +38,7 @@ func NewChangeLawRequest(law *Law) proxy.ProposalRequest {
 	return proxy.ProposalRequest{
 		Title:       "Change Law Proposal",
 		Description: "This prpoposal is looking to change the actual govDAO Law",
-		Callback: changeLawCallback,
+		Callback:    changeLawCallback,
 		Metadata: &ChangeLawMetadata{
 			Law: law,
 		},
@@ -69,11 +69,11 @@ func addMemberCallback(m proxy.Metadata) error {
 }
 
 func NewAddMemberRequest(addr std.Address, tier string) proxy.ProposalRequest {
-	_,ok := memberstore.Tiers.GetTier(tier)
+	_, ok := memberstore.Tiers.GetTier(tier)
 	if !ok {
 		panic("provided tier does not exists")
 	}
-	
+
 	member, _ := memberstore.Get().GetMember(std.GetOrigCaller())
 	if member == nil {
 		panic("proposer is not a member")
@@ -86,11 +86,11 @@ func NewAddMemberRequest(addr std.Address, tier string) proxy.ProposalRequest {
 	return proxy.ProposalRequest{
 		Title:       "New Member porposal",
 		Description: "This prpoposal is looking to add a new member to the board.",
-		Callback: addMemberCallback,
+		Callback:    addMemberCallback,
 		Metadata: &AddMemberMetadata{
 			Member: memberByTier(tier),
-			Tier: tier,
-			Addr: addr,
+			Tier:   tier,
+			Addr:   addr,
 		},
 	}
 }
@@ -129,9 +129,9 @@ func NewWithdrawMemberRequest(addr std.Address, reason string) proxy.ProposalReq
 	return proxy.ProposalRequest{
 		Title:       "Member Withdrawn",
 		Description: "This prpoposal is looking to remove a member from the board.",
-		Callback: removeMemberCallback,
+		Callback:    removeMemberCallback,
 		Metadata: &RemoveMemberMetadata{
-			Addr: addr,
+			Addr:   addr,
 			Reason: reason,
 		},
 	}
@@ -171,12 +171,12 @@ func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) p
 	return proxy.ProposalRequest{
 		Title:       "Member Promotion",
 		Description: "This prpoposal is looking to promote a member to an upper tier.",
-		Callback: promoteMemberCallback,
+		Callback:    promoteMemberCallback,
 		Metadata: &PromoteMemberMetadata{
-			Addr: addr,
+			Addr:     addr,
 			FromTier: fromTier,
-			ToTier: toTier,
-			Member: memberByTier(toTier),
+			ToTier:   toTier,
+			Member:   memberByTier(toTier),
 		},
 	}
 }
@@ -185,15 +185,15 @@ func memberByTier(tier string) *memberstore.Member {
 	switch tier {
 	case memberstore.T1:
 		return &memberstore.Member{
-			InvitationPoints:3,
+			InvitationPoints: 3,
 		}
 	case memberstore.T2:
 		return &memberstore.Member{
-			InvitationPoints:2,
+			InvitationPoints: 2,
 		}
 	case memberstore.T3:
 		return &memberstore.Member{
-			InvitationPoints:1,
+			InvitationPoints: 1,
 		}
 	default:
 		return &memberstore.Member{}

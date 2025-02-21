@@ -13,7 +13,7 @@ const v4 = "gno.land/r/gov/dao/v4"
 const v5 = "gno.land/r/gov/dao/v5"
 const v6 = "gno.land/r/gov/dao/v6"
 
-const invalid  = "gno.land/r/invalid/dao"
+const invalid = "gno.land/r/invalid/dao"
 
 var (
 	alice = testutils.TestAddress("alice")
@@ -37,23 +37,22 @@ func TestProxy_Functions(t *testing.T) {
 		})
 	})
 
-
 	// v3 that is in charge adds v5 in charge
- 	std.TestSetRealm(std.NewCodeRealm(v3))
- 	urequire.NotPanics(t, func() {
+	std.TestSetRealm(std.NewCodeRealm(v3))
+	urequire.NotPanics(t, func() {
 		UpdateImpl(UpdateRequest{
-			DAO: &dummyDao{},
+			DAO:         &dummyDao{},
 			AllowedDAOs: []string{v3},
 		})
- 	})
+	})
 
- 	// v3 can still do updates
- 	std.TestSetRealm(std.NewCodeRealm(v3))
+	// v3 can still do updates
+	std.TestSetRealm(std.NewCodeRealm(v3))
 	urequire.NotPanics(t, func() {
 		UpdateImpl(UpdateRequest{
 			AllowedDAOs: []string{v4},
 		})
- 	})
+	})
 
 	// not after removing himself from allowedDAOs list
 	std.TestSetRealm(std.NewCodeRealm(v3))
@@ -67,36 +66,35 @@ func TestProxy_Functions(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(alice))
 	urequire.NotPanics(t, func() {
 		pid = MustCreateProposal(ProposalRequest{
-			Title: "Proposal Title",
+			Title:       "Proposal Title",
 			Description: "Description",
 			Callback: func(m Metadata) error {
 				return nil
 			},
 			Metadata: nil,
 		})
- 	})
+	})
 
-	 p := MustGetProposal(1000)
-	 if p != nil {
+	p := MustGetProposal(1000)
+	if p != nil {
 		panic("proposal must be nil")
-	 }
-	
+	}
+
 	p = MustGetProposal(pid)
 	urequire.Equal(t, "Proposal Title", p.Title)
 	urequire.Equal(t, p.Author.ID(), "user:g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")
 
- 	urequire.Equal(
- 		t,
- 		"Render: test",
+	urequire.Equal(
+		t,
+		"Render: test",
 		Render("test"),
- 	)
+	)
 }
 
 type dummyDao struct {
-
 }
 
-func (dd *dummyDao) PreCreateProposal(r ProposalRequest)(Author, error) {
+func (dd *dummyDao) PreCreateProposal(r ProposalRequest) (Author, error) {
 	return &dummyAuthor{std.GetOrigCaller()}, nil
 }
 
@@ -104,10 +102,9 @@ func (dd *dummyDao) PostCreateProposal(r ProposalRequest, pid ProposalID) {
 
 }
 
-func (dd *dummyDao)VoteOnProposal(r VoteRequest) error {
+func (dd *dummyDao) VoteOnProposal(r VoteRequest) error {
 	return nil
 }
-
 
 func (dd *dummyDao) PreGetProposal(pid ProposalID) error {
 	return nil
@@ -117,19 +114,18 @@ func (dd *dummyDao) PostGetProposal(pid ProposalID, p *Proposal) error {
 	return nil
 }
 
-func (dd *dummyDao)Render(i string) string {
+func (dd *dummyDao) Render(i string) string {
 	return "Render: " + i
 }
-
 
 type dummyAuthor struct {
 	caller std.Address
 }
 
-func (da *dummyAuthor)ID() string {
+func (da *dummyAuthor) ID() string {
 	return "user:" + string(da.caller)
 }
 
-func (da *dummyAuthor)String() string {
+func (da *dummyAuthor) String() string {
 	return da.ID()
 }
