@@ -6,18 +6,15 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/dao"
 	"gno.land/p/demo/ufmt"
-	pVals "gno.land/p/sys/validators"
-	"gno.land/r/gov/dao/bridge"
-	validators "gno.land/r/sys/validators/v2"
+	"gno.land/r/demo/profile"
 )
 
 const (
-	errValoperExists        = "valoper already exists"
-	errValoperMissing       = "valoper does not exist"
-	errInvalidAddressUpdate = "valoper updated address exists"
-	errValoperNotCaller     = "valoper is not the caller"
+	ErrValoperExists        = "valoper already exists"
+	ErrValoperMissing       = "valoper does not exist"
+	ErrInvalidAddressUpdate = "valoper updated address exists"
+	ErrValoperNotCaller     = "valoper is not the caller"
 )
 
 // valopers keeps track of all the active validator operators
@@ -25,9 +22,14 @@ var valopers *avl.Tree // Address -> Valoper
 
 // Valoper represents a validator operator profile
 type Valoper struct {
-	Name        string // the display name of the valoper
-	Moniker     string // the moniker of the valoper
-	Description string // the description of the valoper
+	Name               string // the display name of the valoper
+	Description        string // the description of the valoper
+	ProfileAddress     string // The address of the r/demo/profile you want to link to
+	OtherNetworks      string // What networks are you currently validating?
+	DigitalPresence    string // Website, social links, contact details
+	AssetsManagement   string // How do you manage your assets?
+	ValidatingInterest string // Why are you interested in validating on gno.land?
+	Contributions      string // What contributions have you made to gno.land? Or what contributions are you willing to make to gno.land?
 
 	Address      std.Address // The bech32 gno address of the validator
 	PubKey       string      // the bech32 public key of the validator
@@ -39,7 +41,7 @@ type Valoper struct {
 func Register(v Valoper) {
 	// Check if the valoper is already registered
 	if isValoper(v.Address) {
-		panic(errValoperExists)
+		panic(ErrValoperExists)
 	}
 
 	// TODO add address derivation from public key
@@ -53,14 +55,14 @@ func Register(v Valoper) {
 func Update(address std.Address, v Valoper) {
 	// Check if the valoper is present
 	if !isValoper(address) {
-		panic(errValoperMissing)
+		panic(ErrValoperMissing)
 	}
 
 	// Check that the valoper wouldn't be
 	// overwriting an existing one
 	isAddressUpdate := address != v.Address
 	if isAddressUpdate && isValoper(v.Address) {
-		panic(errInvalidAddressUpdate)
+		panic(ErrInvalidAddressUpdate)
 	}
 
 	// Remove the old valoper info
@@ -77,7 +79,7 @@ func Update(address std.Address, v Valoper) {
 func GetByAddr(address std.Address) Valoper {
 	valoperRaw, exists := valopers.Get(address.String())
 	if !exists {
-		panic(errValoperMissing)
+		panic(ErrValoperMissing)
 	}
 
 	return valoperRaw.(Valoper)
@@ -103,8 +105,36 @@ func Render(_ string) string {
 
 // Render renders a single valoper with their information
 func (v Valoper) Render() string {
-	output := ufmt.Sprintf("## %s (%s)\n", v.Name, v.Moniker)
-	output += ufmt.Sprintf("%s\n\n", v.Description)
+	output := ufmt.Sprintf("## %s\n", v.Name)
+
+	if v.Description != "" {
+		output += ufmt.Sprintf("%s\n\n", v.Description)
+	}
+
+	if v.ProfileAddress != "" {
+		profile := profile.Render(ufmt.Sprintf("u/%s", v.ProfileAddress))
+		output += ufmt.Sprintf("%s\n\n", profile)
+	}
+
+	if v.OtherNetworks != "" {
+		output += ufmt.Sprintf("What networks are you currently validating?\n%s\n", v.OtherNetworks)
+	}
+
+	if v.DigitalPresence != "" {
+		output += ufmt.Sprintf("Digital presence?\n%s\n", v.DigitalPresence)
+	}
+
+	if v.AssetsManagement != "" {
+		output += ufmt.Sprintf("Assets under management?\n%s\n", v.AssetsManagement)
+	}
+
+	if v.ValidatingInterest != "" {
+		output += ufmt.Sprintf("Why are you interested in validating on gno.land?\n%s\n", v.ValidatingInterest)
+	}
+
+	if v.Contributions != "" {
+		output += ufmt.Sprintf("What contributions have you made to gno.land? Or what contributions are you willing to make to gno.land?\n%s\n", v.Contributions)
+	}
 	output += ufmt.Sprintf("- Address: %s\n", v.Address.String())
 	output += ufmt.Sprintf("- PubKey: %s\n", v.PubKey)
 	output += "- P2P Addresses: [\n"
@@ -135,54 +165,4 @@ func isValoper(address std.Address) bool {
 	_, exists := valopers.Get(address.String())
 
 	return exists
-}
-
-// GovDAOProposal creates a proposal to the GovDAO
-// for adding the given valoper to the validator set.
-// This function is meant to serve as a helper
-// for generating the govdao proposal
-func GovDAOProposal(address std.Address) {
-	var (
-		valoper     = GetByAddr(address)
-		votingPower = uint64(1)
-	)
-
-	// Make sure the valoper is the caller
-	if std.OriginCaller() != address {
-		panic(errValoperNotCaller)
-	}
-
-	// Determine the voting power
-	if !valoper.Active {
-		votingPower = uint64(0)
-	}
-
-	changesFn := func() []pVals.Validator {
-		return []pVals.Validator{
-			{
-				Address:     valoper.Address,
-				PubKey:      valoper.PubKey,
-				VotingPower: votingPower,
-			},
-		}
-	}
-
-	// Create the executor
-	executor := validators.NewPropExecutor(changesFn)
-
-	// Craft the proposal description
-	description := ufmt.Sprintf(
-		"Add valoper %s (Address: %s; PubKey: %s) to the valset",
-		valoper.Name,
-		valoper.Address.String(),
-		valoper.PubKey,
-	)
-
-	prop := dao.ProposalRequest{
-		Description: description,
-		Executor:    executor,
-	}
-
-	// Create the govdao proposal
-	bridge.GovDAO().Propose(prop)
 }

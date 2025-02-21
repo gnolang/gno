@@ -24,7 +24,7 @@ func TestValopers_Register(t *testing.T) {
 		// Add the valoper
 		valopers.Set(v.Address.String(), v)
 
-		uassert.PanicsWithMessage(t, errValoperExists, func() {
+		uassert.PanicsWithMessage(t, ErrValoperExists, func() {
 			Register(v)
 		})
 	})
@@ -38,7 +38,6 @@ func TestValopers_Register(t *testing.T) {
 		v := Valoper{
 			Address: testutils.TestAddress("valoper"),
 			Name:    "new valoper",
-			Moniker: "val-1",
 			PubKey:  "pub key",
 		}
 
@@ -51,7 +50,6 @@ func TestValopers_Register(t *testing.T) {
 
 			uassert.Equal(t, v.Address, valoper.Address)
 			uassert.Equal(t, v.Name, valoper.Name)
-			uassert.Equal(t, v.Moniker, valoper.Moniker)
 			uassert.Equal(t, v.PubKey, valoper.PubKey)
 		})
 	})
@@ -69,7 +67,7 @@ func TestValopers_Update(t *testing.T) {
 		v := Valoper{}
 
 		// Update the valoper
-		uassert.PanicsWithMessage(t, errValoperMissing, func() {
+		uassert.PanicsWithMessage(t, ErrValoperMissing, func() {
 			Update(v.Address, v)
 		})
 	})
@@ -106,7 +104,7 @@ func TestValopers_Update(t *testing.T) {
 		}
 
 		// Update the valoper
-		uassert.PanicsWithMessage(t, errInvalidAddressUpdate, func() {
+		uassert.PanicsWithMessage(t, ErrInvalidAddressUpdate, func() {
 			Update(initialAddress, two)
 		})
 	})
