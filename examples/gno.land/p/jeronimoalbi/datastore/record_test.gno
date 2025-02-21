@@ -13,9 +13,13 @@ var (
 )
 
 func TestRecordDefaults(t *testing.T) {
+	// Arrange
 	storage := NewStorage("foo")
+
+	// Act
 	r := storage.NewRecord()
 
+	// Assert
 	uassert.Equal(t, uint64(0), r.ID())
 	uassert.Equal(t, "0000000", r.Key())
 	uassert.Equal(t, "Foo", r.Type())
@@ -25,10 +29,9 @@ func TestRecordDefaults(t *testing.T) {
 
 func TestRecordHasField(t *testing.T) {
 	storage := NewStorage("foo")
-	r := storage.NewRecord()
+	storage.Schema().AddField("foo", nil)
 
-	s := storage.Schema()
-	s.AddField("foo", nil)
+	r := storage.NewRecord()
 
 	uassert.True(t, r.HasField("foo"))
 	uassert.False(t, r.HasField("undefined"))
@@ -80,12 +83,15 @@ func TestRecordSet(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
 			s := NewSchema("Foo", tc.options...)
 			storage := NewStorage("foo", WithSchema(s))
 			r := storage.NewRecord()
 
+			// Act
 			err := r.Set(tc.field, tc.value)
 
+			// Assert
 			if tc.err != nil {
 				urequire.ErrorIs(t, err, tc.err)
 				return
@@ -173,6 +179,159 @@ func TestRecordSave(t *testing.T) {
 			uassert.Equal(t, tc.id, r.ID())
 			uassert.Equal(t, tc.key, r.Key())
 			uassert.Equal(t, tc.fieldValue, r.MustGet("name"))
+		})
+	}
+}
+
+func TestRecordsetIterate(t *testing.T) {
+	cases := []struct {
+		name      string
+		recordIDs []uint64
+		setup     func(*Storage)
+	}{
+		{
+			name:      "single record",
+			recordIDs: []uint64{1},
+			setup: func(s *Storage) {
+				s.NewRecord().Save()
+			},
+		},
+		{
+			name:      "two records",
+			recordIDs: []uint64{1, 2},
+			setup: func(s *Storage) {
+				s.NewRecord().Save()
+				s.NewRecord().Save()
+			},
+		},
+		{
+			name: "empty recordset",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			storage := NewStorage("foo")
+			if tc.setup != nil {
+				tc.setup(&storage)
+			}
+
+			var (
+				records []Record
+				rs      = storage.MustQuery()
+			)
+
+			// Act
+			rs.Iterate(func(r Record) bool {
+				records = append(records, r)
+				return false
+			})
+
+			// Assert
+			urequire.Equal(t, len(tc.recordIDs), len(records), "results count")
+			for i, r := range records {
+				uassert.Equal(t, tc.recordIDs[i], r.ID())
+			}
+		})
+	}
+}
+
+func TestRecordsetReverseIterate(t *testing.T) {
+	cases := []struct {
+		name      string
+		recordIDs []uint64
+		setup     func(*Storage)
+	}{
+		{
+			name:      "single record",
+			recordIDs: []uint64{1},
+			setup: func(s *Storage) {
+				s.NewRecord().Save()
+			},
+		},
+		{
+			name:      "two records",
+			recordIDs: []uint64{2, 1},
+			setup: func(s *Storage) {
+				s.NewRecord().Save()
+				s.NewRecord().Save()
+			},
+		},
+		{
+			name: "empty recordser",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			storage := NewStorage("foo")
+			if tc.setup != nil {
+				tc.setup(&storage)
+			}
+
+			var (
+				records []Record
+				rs      = storage.MustQuery()
+			)
+
+			// Act
+			rs.ReverseIterate(func(r Record) bool {
+				records = append(records, r)
+				return false
+			})
+
+			// Assert
+			urequire.Equal(t, len(tc.recordIDs), len(records), "results count")
+			for i, r := range records {
+				uassert.Equal(t, tc.recordIDs[i], r.ID())
+			}
+		})
+	}
+}
+
+func TestRecordsetSize(t *testing.T) {
+	cases := []struct {
+		name  string
+		size  int
+		setup func(*Storage)
+	}{
+		{
+			name: "single record",
+			size: 1,
+			setup: func(s *Storage) {
+				s.NewRecord().Save()
+			},
+		},
+		{
+			name: "two records",
+			size: 2,
+			setup: func(s *Storage) {
+				s.NewRecord().Save()
+				s.NewRecord().Save()
+			},
+		},
+		{
+			name: "empty recordser",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			storage := NewStorage("foo")
+			if tc.setup != nil {
+				tc.setup(&storage)
+			}
+
+			rs := storage.MustQuery()
+
+			// Act
+			size := rs.Size()
+
+			// Assert
+			uassert.Equal(t, tc.size, size)
 		})
 	}
 }
