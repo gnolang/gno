@@ -16,14 +16,13 @@ const (
 	T3 = "T3"
 )
 
-
 func init() {
 	members = NewMembersByTier()
 
 	Tiers = TiersByName{avl.NewTree()}
 	Tiers.Set(T1, Tier{
 		InvitationPoints: 3,
-		Payment: 90000,
+		Payment:          90000,
 		MinSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
 			return 70
 		},
@@ -38,7 +37,7 @@ func init() {
 
 	Tiers.Set(T2, Tier{
 		InvitationPoints: 2,
-		Payment: 90000,
+		Payment:          90000,
 		MaxSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
 			return membersByTier.GetTierSize(T1) * 4
 		},
@@ -67,7 +66,7 @@ func init() {
 
 	Tiers.Set(T3, Tier{
 		InvitationPoints: 1,
-		Payment: 0,
+		Payment:          0,
 		MaxSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
 			return 0
 		},

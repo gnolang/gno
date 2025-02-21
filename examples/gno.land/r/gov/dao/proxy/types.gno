@@ -4,6 +4,7 @@ import (
 	"errors"
 	"std"
 )
+
 type ProposalID int
 
 // VoteOption is the limited voting option for a DAO proposal
@@ -24,14 +25,14 @@ type VoteRequest struct {
 }
 
 type ProposalRequest struct {
-	Title string
+	Title       string
 	Description string
-	Callback func(Metadata) error
-	Metadata Metadata
+	Callback    func(Metadata) error
+	Metadata    Metadata
 }
 
 type Proposal struct {
-	Author      Author
+	Author Author
 
 	Title       string
 	Description string
@@ -74,7 +75,7 @@ func (e *executor) Execute() error {
 }
 
 func securityWrapper(fn func(m Metadata) error) func(m Metadata) error {
-	return func (m Metadata) error {
+	return func(m Metadata) error {
 		if index(std.PrevRealm().PkgPath()) < 0 {
 			return ErrInvalidExecutorCaller
 		}
@@ -95,13 +96,13 @@ type Metadata interface {
 
 type DAO interface {
 	// PreCreateProposal is called just before creating a new Proposal
-	// It is intended to be used to get the Author of the proposal, that 
+	// It is intended to be used to get the Author of the proposal, that
 	// may vary depending on the DAO implementation, and to validate that
 	// the requester is allowed to do a proposal
-	PreCreateProposal(r ProposalRequest)(Author, error)
+	PreCreateProposal(r ProposalRequest) (Author, error)
 
-	// PostCreateProposal is called after creating the Proposal. It is 
-    // intended to be used as a way to store a new proposal status, that
+	// PostCreateProposal is called after creating the Proposal. It is
+	// intended to be used as a way to store a new proposal status, that
 	// depends on the actuall govDAO implementation
 	PostCreateProposal(r ProposalRequest, pid ProposalID)
 
@@ -115,11 +116,11 @@ type DAO interface {
 	PreGetProposal(pid ProposalID) error
 
 	// PostGetProposal is called after the proposal has been obtained. Intended to be
-	// used by govDAO implementations if they need to check Proposal data to know if 
+	// used by govDAO implementations if they need to check Proposal data to know if
 	// the caller is allowed to get that kind of Proposal or not.
 	PostGetProposal(pid ProposalID, p *Proposal) error
 
-	// Render will return a human-readable string in markdown format that 
+	// Render will return a human-readable string in markdown format that
 	// will be used to show new data through the dao proxy entrypoint.
 	Render(string) string
 }

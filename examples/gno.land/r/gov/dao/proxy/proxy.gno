@@ -19,7 +19,7 @@ func init() {
 	AllowedDAOs = []string{"gno.land/r/gov/dao/v3/impl"}
 }
 
-// Render calls directly to Render's DAO implementation. 
+// Render calls directly to Render's DAO implementation.
 // This allows to have this realm as the main entry point for everything.
 func Render(p string) string {
 	return dao.Render(p)
@@ -41,15 +41,15 @@ func MustCreateProposal(r ProposalRequest) ProposalID {
 func CreateProposal(r ProposalRequest) (ProposalID, error) {
 	//TODO: get prev realm here and remove the author coming from the govDAO impl
 	author, err := dao.PreCreateProposal(r)
-	if err != nil{
+	if err != nil {
 		return -1, err
 	}
-	
+
 	p := &Proposal{
-		Author: author, 
-		Title: r.Title,
+		Author:      author,
+		Title:       r.Title,
 		Description: r.Description,
-		Executor: newExecutor(r.Callback, r.Metadata),
+		Executor:    newExecutor(r.Callback, r.Metadata),
 		AllowedDAOs: AllowedDAOs,
 	}
 
@@ -59,7 +59,7 @@ func CreateProposal(r ProposalRequest) (ProposalID, error) {
 
 	dao.PostCreateProposal(r, pid)
 
-	return pid,nil
+	return pid, nil
 }
 
 func MustVoteOnProposal(r VoteRequest) {
@@ -84,7 +84,6 @@ func MustGetProposal(pid ProposalID) *Proposal {
 	return p
 }
 
-
 // GetProposal gets created proposal by its ID
 func GetProposal(pid ProposalID) (*Proposal, error) {
 	if err := dao.PreGetProposal(pid); err != nil {
@@ -105,9 +104,9 @@ func GetProposal(pid ProposalID) (*Proposal, error) {
 	return proposals[ipid], nil
 }
 
-// UpdateImpl is a method intended to be used on a proposal. 
+// UpdateImpl is a method intended to be used on a proposal.
 // This method will update the current govDAO implementation
-// to a new one. newDAOUpdaters are a list of realms that can 
+// to a new one. newDAOUpdaters are a list of realms that can
 // call this method, in case the new DAO implementation had
 // a breaking bug. Any value set as nil will be ignored.
 // If AllowedDAOs field is not set correctly, the actual DAO
@@ -121,7 +120,7 @@ func UpdateImpl(r UpdateRequest) {
 	if r.AllowedDAOs != nil {
 		AllowedDAOs = r.AllowedDAOs
 	}
-	
+
 	if r.DAO != nil {
 		dao = r.DAO
 	}
@@ -135,7 +134,7 @@ func index(pkg string) int {
 	for i, d := range AllowedDAOs {
 		if pkg == d {
 			return i
-		}	
+		}
 	}
 
 	return -1

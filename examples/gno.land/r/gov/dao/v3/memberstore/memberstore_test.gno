@@ -101,20 +101,18 @@ func TestCreateMembers(t *testing.T) {
 	addMembers(ms, 1000, "T3")
 	println("added T3")
 
-	m , tier := ms.GetMember(std.Address("11T3"))
-	urequire.Equal(t,"T3",tier)
+	m, tier := ms.GetMember(std.Address("11T3"))
+	urequire.Equal(t, "T3", tier)
 
 	m, tier = ms.GetMember(std.Address("2000T1"))
-	urequire.Equal(t,"",tier)
+	urequire.Equal(t, "", tier)
 	if m != nil {
 		t.Fatal("member must be nil if not found")
 	}
 
 	tier = ms.RemoveMember(std.Address("1T1"))
-	urequire.Equal(t,"T1",tier)
+	urequire.Equal(t, "T1", tier)
 }
-
-
 
 func addMembers(ms MembersByTier, c int, tier string) {
 	mt := avl.NewTree()

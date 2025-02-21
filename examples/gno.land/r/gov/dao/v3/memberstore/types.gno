@@ -23,7 +23,7 @@ func (m *Member) RemoveInvitationPoint() {
 		panic("not enough invitation points")
 	}
 
-	m.InvitationPoints = m.InvitationPoints -1
+	m.InvitationPoints = m.InvitationPoints - 1
 }
 
 // MembersByTier contains all `Member`s indexed by their Address.
@@ -52,9 +52,9 @@ func (mbt MembersByTier) GetTierSize(tn string) int {
 
 // SetMember adds a new member to the specified tier. The tier index is created on the fly if it does not exists.
 func (mbt MembersByTier) SetMember(tier string, addr std.Address, member *Member) error {
-	_ ,t := mbt.GetMember(addr)
+	_, t := mbt.GetMember(addr)
 	if t != "" {
-		return &ErrMemberAlreadyExists{Tier:t}
+		return &ErrMemberAlreadyExists{Tier: t}
 	}
 
 	if ok := mbt.Has(tier); !ok {
@@ -104,7 +104,7 @@ func (mbt MembersByTier) RemoveMember(addr std.Address) (t string) {
 		if !ok {
 			panic("MembersByTier values can only be avl.Tree")
 		}
-		
+
 		_, removed := mst.Remove(string(addr))
 		t = tn
 		return removed

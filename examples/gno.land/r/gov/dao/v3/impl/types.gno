@@ -18,7 +18,7 @@ type ProposalsStatuses struct {
 	*avl.Tree // map[int]*proposalStatus
 }
 
-func NewProposalsStatuses() ProposalsStatuses{
+func NewProposalsStatuses() ProposalsStatuses {
 	return ProposalsStatuses{avl.NewTree()}
 }
 
@@ -47,13 +47,17 @@ type proposalStatus struct {
 	Denied   bool
 
 	DeniedReason string
+
+	TiersAllowedToVote []string
 }
 
-func newProposalStatus() *proposalStatus {
+func newProposalStatus(allowedToVote []string) *proposalStatus {
 	return &proposalStatus{
 		YesVotes: memberstore.NewMembersByTier(),
 		NoVotes:  memberstore.NewMembersByTier(),
 		AllVotes: memberstore.NewMembersByTier(),
+
+		TiersAllowedToVote: allowedToVote,
 	}
 }
 
@@ -75,7 +79,7 @@ func (ps *proposalStatus) YesPercent() float64 {
 		return false
 	})
 
-	return (yp/tp) * 100
+	return (yp / tp) * 100
 }
 
 func (ps *proposalStatus) NoPercent() float64 {
@@ -95,12 +99,29 @@ func (ps *proposalStatus) NoPercent() float64 {
 		return false
 	})
 
-	return (np/tp) * 100
+	return (np / tp) * 100
+}
+
+func (ps *proposalStatus) IsAllowed(tier string) bool {
+	for _, ta := range ps.TiersAllowedToVote {
+		if ta == tier {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (ps *proposalStatus) String() string {
 	var sb strings.Builder
 	sb.WriteString("Proposal Status:\n")
+
+	sb.WriteString("\nAllowed tiers to vote: ")
+	for _, t := range ps.TiersAllowedToVote {
+		sb.WriteString(t)
+		sb.WriteString(" ")
+	}
+	sb.WriteString("\n")
 
 	if ps.Accepted {
 		sb.WriteString("\nPROPOSAL HAS BEEN ACCEPTED\n")
@@ -123,7 +144,7 @@ func (ps *proposalStatus) String() string {
 	sb.WriteString(ufmt.Sprintf("YES PERCENT: %v%%", ps.YesPercent()))
 	sb.WriteString("\n\n")
 	sb.WriteString(ufmt.Sprintf("NO PERCENT: %v%%", ps.NoPercent()))
-	
+
 	return sb.String()
 }
 
@@ -151,7 +172,7 @@ func writeVotes(sb *strings.Builder, t memberstore.MembersByTier, title string) 
 	}
 }
 
-func (p *proxy.Proposal) String() string {
+func StringifyProposal(p *proxy.Proposal) string {
 	return ufmt.Sprintf(`
 Title: %s
 
