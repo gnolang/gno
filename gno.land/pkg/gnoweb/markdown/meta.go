@@ -1,7 +1,8 @@
-// Package meta is an extension for the goldmark (http://github.com/yuin/goldmark).
+// Updated meta Package from goldmark (http://github.com/yuin/goldmark).
 //
 // This extension parses YAML metadata blocks and stores metadata in a
-// parser.Context.
+// parser.Context. The updated version uses gopkg.in/yaml.v3 instead of
+// gopkg.in/yaml.v2 and remove useless options such as table rendering.
 package markdown
 
 import (
@@ -10,7 +11,6 @@ import (
 
 	"github.com/yuin/goldmark"
 	gast "github.com/yuin/goldmark/ast"
-	east "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
@@ -181,8 +181,6 @@ type astTransformer struct {
 }
 
 type transformerConfig struct {
-	// Renders metadata as an HTML table.
-	Table bool
 
 	// Stores metadata in ast.Document.Meta().
 	StoresInDocument bool
@@ -216,7 +214,6 @@ func WithStoresInDocument() Option {
 func newTransformer(opts ...transformerOption) parser.ASTTransformer {
 	p := &astTransformer{
 		transformerConfig: transformerConfig{
-			Table:            false,
 			StoresInDocument: false,
 		},
 	}
@@ -237,39 +234,6 @@ func (a *astTransformer) Transform(node *gast.Document, reader text.Reader, pc p
 		msg.SetCode(true)
 		d.Node.AppendChild(d.Node, msg)
 		return
-	}
-
-	if a.Table {
-		metaNodes := GetItems(pc)
-		if metaNodes == nil || len(metaNodes)%2 != 0 {
-			return
-		}
-		numPairs := len(metaNodes) / 2
-
-		table := east.NewTable()
-		alignments := make([]east.Alignment, numPairs)
-		for i := 0; i < numPairs; i++ {
-			alignments[i] = east.AlignNone
-		}
-
-		headerRow := east.NewTableRow(alignments)
-		for i := 0; i < len(metaNodes); i += 2 {
-			keyNode := metaNodes[i]
-			cell := east.NewTableCell()
-			cell.AppendChild(cell, gast.NewString([]byte(fmt.Sprintf("%v", keyNode.Value))))
-			headerRow.AppendChild(headerRow, cell)
-		}
-		table.AppendChild(table, east.NewTableHeader(headerRow))
-
-		valueRow := east.NewTableRow(alignments)
-		for i := 1; i < len(metaNodes); i += 2 {
-			valNode := metaNodes[i]
-			cell := east.NewTableCell()
-			cell.AppendChild(cell, gast.NewString([]byte(fmt.Sprintf("%v", valNode.Value))))
-			valueRow.AppendChild(valueRow, cell)
-		}
-		table.AppendChild(table, valueRow)
-		node.InsertBefore(node, node.FirstChild(), table)
 	}
 
 	if a.StoresInDocument {
