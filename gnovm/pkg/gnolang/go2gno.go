@@ -149,6 +149,13 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			}
 		}()
 	}
+
+	panicWithPos := func(fmtStr string, args ...any) {
+		pos := fs.Position(gon.Pos())
+		loc := fmt.Sprintf("%s:%d:%d", pos.Filename, pos.Line, pos.Column)
+		panic(fmt.Errorf("%s: %v", loc, fmt.Sprintf(fmtStr, args...)))
+	}
+
 	switch gon := gon.(type) {
 	case *ast.ParenExpr:
 		return toExpr(fs, gon.X)
@@ -245,10 +252,10 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 				Tag:  toExpr(fs, gon.Tag),
 			}
 		} else {
-			panic(fmt.Sprintf(
+			panicWithPos(
 				"expected a Go Field with 1 name but got %v.\n"+
 					"maybe call toFields",
-				gon.Names))
+				gon.Names)
 		}
 	case *ast.ArrayType:
 		if _, ok := gon.Len.(*ast.Ellipsis); ok {
@@ -330,7 +337,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		if cx, ok := gon.X.(*ast.CallExpr); ok {
 			if ix, ok := cx.Fun.(*ast.Ident); ok && ix.Name == "panic" {
 				if len(cx.Args) != 1 {
-					panic("expected panic statement to have single exception value")
+					panicWithPos("expected panic statement to have single exception value")
 				}
 				return &PanicStmt{
 					Exception: toExpr(fs, cx.Args[0]),
@@ -412,9 +419,8 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 				VarName:      "",
 			}
 		default:
-			panic(fmt.Sprintf(
-				"unexpected *ast.TypeSwitchStmt.Assign type %s",
-				reflect.TypeOf(gon.Assign).String()))
+			panicWithPos("unexpected *ast.TypeSwitchStmt.Assign type %s",
+				reflect.TypeOf(gon.Assign).String())
 		}
 	case *ast.SwitchStmt:
 		x := toExpr(fs, gon.Tag)
@@ -433,10 +439,10 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		recv := FieldTypeExpr{}
 		if isMethod {
 			if len(gon.Recv.List) > 1 {
-				panic("method has multiple receivers")
+				panicWithPos("method has multiple receivers")
 			}
 			if len(gon.Recv.List) == 0 {
-				panic("method has no receiver")
+				panicWithPos("method has no receiver")
 			}
 			recv = *Go2Gno(fs, gon.Recv.List[0]).(*FieldTypeExpr)
 		}
@@ -454,7 +460,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Body:     body,
 		}
 	case *ast.GenDecl:
-		panic("unexpected *ast.GenDecl; use toDecls(fs,) instead")
+		panicWithPos("unexpected *ast.GenDecl; use toDecls(fs,) instead")
 	case *ast.File:
 		pkgName := Name(gon.Name.Name)
 		decls := make([]Decl, 0, len(gon.Decls))
@@ -473,11 +479,13 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 	case *ast.EmptyStmt:
 		return &EmptyStmt{}
 	default:
-		panic(fmt.Sprintf("unknown Go type %v: %s\n",
+		panicWithPos("unknown Go type %v: %s\n",
 			reflect.TypeOf(gon),
 			spew.Sdump(gon),
-		))
+		)
 	}
+
+	return
 }
 
 //----------------------------------------
