@@ -262,9 +262,8 @@ func (fm *FuzzManager) IsCoordinatedHashNumber(hn HashNumber) bool {
 	priority := fm.HashNumber2Priority[hn]
 	if priority == 0 {
 		return false
-	} else {
-		return true
 	}
+	return true
 }
 
 // seeds and hashNumbers are already  sorted by priority within o(1) time automatically by the coordinating function.
