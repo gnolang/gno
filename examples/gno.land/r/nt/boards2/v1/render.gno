@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/mux"
+	"gno.land/p/jeronimoalbi/pager"
 )
 
 const (
@@ -145,13 +146,20 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write("# Boards Members\n\n")
 	}
 
-	// TODO: Add pagination support
-	start := 0
-	count := 50
-	perms.IterateUsers(start, count, func(u User) bool {
+	p, err := pager.New(req.RawPath, perms.UsersCount())
+	if err != nil {
+		res.Write(err.Error())
+		return
+	}
+
+	perms.IterateUsers(p.Offset(), p.PageSize(), func(u User) bool {
 		res.Write("- " + u.Address.String() + " " + rolesToString(u.Roles) + "\n")
 		return false
 	})
+
+	if p.HasPages() {
+		res.Write("\n\n" + pager.Picker(p))
+	}
 }
 
 func rolesToString(roles []Role) string {
