@@ -52,7 +52,7 @@ func (registry *ModifierRegistry) InitializeOwners(owners []string, newOwnerPerc
 
 func (registry *ModifierRegistry) ProposeNewOwner(address string) {
 	addr := std.Address(address)
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 
 	registry.AssertIsOwner(caller)
 	registry.AssertOwnersInitialized()
@@ -89,7 +89,7 @@ func (registry *ModifierRegistry) ProposeNewOwner(address string) {
 }
 
 func (registry *ModifierRegistry) ResignOwnership() {
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 
 	registry.AssertIsOwner(caller)
 	registry.AssertOwnersInitialized()
@@ -102,7 +102,7 @@ func (registry *ModifierRegistry) ResignOwnership() {
 }
 
 func (registry *ModifierRegistry) RegisterModifier(name string, approvalPercentage float64) {
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 
 	registry.AssertIsOwner(caller)
 	registry.AssertOwnersInitialized()
@@ -126,7 +126,7 @@ func (registry *ModifierRegistry) RegisterModifier(name string, approvalPercenta
 }
 
 func (registry *ModifierRegistry) EditModifierApprovalPercentage(name string, newApprovalPercentage float64) {
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 
 	registry.AssertIsOwner(caller)
 	registry.AssertOwnersInitialized()
@@ -172,7 +172,7 @@ func (registry *ModifierRegistry) ApproveModifier(name string) {
 		panic("Name of the modifier cannot be empty!")
 	}
 
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 
 	registry.AssertIsOwner(caller)
 	registry.AssertOwnersInitialized()
@@ -193,7 +193,7 @@ func (registry *ModifierRegistry) ApproveModifier(name string) {
 }
 
 func (registry *ModifierRegistry) AssertIsApproved(name string) {
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 
 	registry.AssertIsOwner(caller)
 	registry.AssertOwnersInitialized()

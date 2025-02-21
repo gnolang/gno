@@ -28,14 +28,14 @@ func (wallet *Wallet) InitOwners(owners []string, newOwnerPercentage float64) {
 }
 
 func (wallet *Wallet) DepositCoins() {
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 
 	wallet.Modifiers.AssertIsOwner(caller)
 	wallet.Modifiers.AssertOwnersInitialized()
 }
 
 func (wallet *Wallet) ProposeWithdraw(recipient string, amount int64, denom string, approvalPercentage float64) int64 {
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 
 	wallet.Modifiers.AssertIsOwner(caller)
 	wallet.Modifiers.AssertOwnersInitialized()
@@ -68,9 +68,9 @@ func (wallet *Wallet) ExecuteWithdraw(id int64) {
 
 	coins := std.NewCoins(withdrawProposal.coin)
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 
-	banker.SendCoins(std.CurrentRealm().Addr(), withdrawProposal.recipient, coins)
+	banker.SendCoins(std.CurrentRealm().Address(), withdrawProposal.recipient, coins)
 
 	wallet.withdrawProposals.Remove(formatProposalKey(id))
 }
