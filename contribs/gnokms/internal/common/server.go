@@ -11,6 +11,7 @@ import (
 	sserver "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/server"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
 // NewSignerServer creates a new remote signer server with the given gnokms signer.
@@ -28,9 +29,13 @@ func NewSignerServer(
 		sserver.WithResponseTimeout(commonFlags.ResponseTimeout),
 	}
 
-	// Load the auth keys file if it exists.
-	authKeysFile, err := LoadAuthKeysFile(commonFlags.AuthKeysFile)
-	if err == nil {
+	// Load the auth keys file if it exists for mutual authentication.
+	if osm.FileExists(commonFlags.AuthKeysFile) {
+		authKeysFile, err := LoadAuthKeysFile(commonFlags.AuthKeysFile)
+		if err != nil {
+			return nil, fmt.Errorf("invalid auth keys file: %w", err)
+		}
+
 		// Get the authorized keys from the auth keys file.
 		authorizedKeys, err := authKeysFile.AuthorizedKeys()
 		if err != nil { // Will be caught by only if the authorized keys are invalid.
@@ -42,6 +47,10 @@ func NewSignerServer(
 			sserver.WithAuthorizedKeys(authorizedKeys),
 			sserver.WithServerPrivKey(*authKeysFile.ServerIdentity.PrivKey),
 		)
+	} else {
+		// Log a warning if the auth keys file does not exist.
+		logger.Warn("Mutual auth keys not found, gnokms and its clients will not be able to authenticate")
+		logger.Warn("For more security, generate mutual auth keys using 'gnokms auth generate'")
 	}
 
 	// Initialize the remote signer server with its options.
