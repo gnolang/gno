@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"strings"
 
-	"github.com/gnolang/gno/gno.land/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	sserver "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/server"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -67,6 +67,31 @@ func NewSignerServer(
 	return server, err
 }
 
+// genesisValidatorInfoFromSigner gets a genesis validator info from the given signer.
+func genesisValidatorInfoFromSigner(signer types.Signer) (string, error) {
+	// Get the public key of the signer.
+	pubKey, err := signer.PubKey()
+	if err != nil {
+		return "", fmt.Errorf("unable to get signer public key: %w", err)
+	}
+
+	// Create a genesis validator with the signer's public key.
+	genesisValidator := types.GenesisValidator{
+		PubKey:  pubKey,
+		Address: pubKey.Address(),
+		Power:   10,
+		Name:    "gnokms_remote_signer",
+	}
+
+	// Marshal the genesis validator info to JSON using amino.
+	genesisValidatorInfo, err := amino.MarshalJSONIndent(genesisValidator, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("unable to marshal genesis validator info: %w", err)
+	}
+
+	return string(genesisValidatorInfo), nil
+}
+
 // RunSignerServer initializes and start a remote signer server with the given gnokms signer.
 // It then waits for the server to finish.
 func RunSignerServer(commonFlags *ServerFlags, signer types.Signer, io commands.IO) error {
@@ -78,6 +103,13 @@ func RunSignerServer(commonFlags *ServerFlags, signer types.Signer, io commands.
 
 	// Flush any remaining server logs on exit.
 	defer flusher()
+
+	// Print the public key of the signer as a genesis validator.
+	info, err := genesisValidatorInfoFromSigner(signer)
+	if err != nil {
+		return fmt.Errorf("unable to print genesis validator info: %w", err)
+	}
+	logger.Info(fmt.Sprintf("Genesis validator info:\n%s", info))
 
 	// Initialize the remote signer server with the gnokms signer.
 	server, err := NewSignerServer(commonFlags, signer, logger)
@@ -96,7 +128,7 @@ func RunSignerServer(commonFlags *ServerFlags, signer types.Signer, io commands.
 
 	// Start the remote signer server, then wait for it to finish.
 	if err := server.Start(); err != nil {
-		return err
+		return fmt.Errorf("signer server start failed: %w", err)
 	}
 	server.Wait()
 
