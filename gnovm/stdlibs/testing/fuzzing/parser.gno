@@ -41,13 +41,13 @@ type Ent interface {
 
 	// Strategy map retrieval methods
 	// Strategy2count retrieves the overall scores for each mutation strategy.
-	Strategy2count() map[MutationCode]uint64
+	Strategy2count() [NumMutationCodes]uint64
 
 	// Caching methods for mutation strategies
 	// StrategyCache retrieves an array of mutation strategies along with
 	// their cumulative scores. The mutator uses this to select a strategy based
 	// on its score distribution.
-	StrategyCache() ([]MutationCode, []uint64)
+	StrategyCache() [NumMutationCodes]uint64
 	// updateStrategyCache updates the cumulative score array for mutation strategies.
 	updateStrategyCache()
 }
@@ -77,12 +77,11 @@ type LetterEnt struct {
 	score uint64 // Score associated with the entity.
 
 	// Strategy usage log
-	strategy2count map[MutationCode]uint64 // Stores scores for each applied mutation strategy.
+	strategy2count [NumMutationCodes]uint64 // Stores scores for each applied mutation strategy.
 
 	// Cache fields
-	cachedStrategyCodes []MutationCode // Array of mutation codes.
-	cachedStrategySums  []uint64       // Cumulative sum array mapping to mutation codes.
-	needsUpdateChache   bool           // Tracks whether the cumulative sum array needs an update.
+	cachedStrategyCums [NumMutationCodes]uint64 // Cumulative sum array mapping to mutation codes.
+	needsUpdateChache  bool                     // Tracks whether the cumulative sum array needs an update.
 }
 
 func (l *LetterEnt) PrimitiveData() []byte                 { return l.data }
@@ -102,17 +101,17 @@ func (l *LetterEnt) Score() uint64       { return l.score }
 func (l *LetterEnt) PlusScore(delta int) { l.score += uint64(delta) }
 
 func (l *LetterEnt) StrategyCount(code MutationCode) uint64 {
-	if l.strategy2count == nil {
+	if l.strategy2count[0] == 0 {
 		l.InitStrategyCount()
 	}
-	if count, ok := l.strategy2count[code]; ok {
-		return count
+	if int(code) < len(l.strategy2count) {
+		return l.strategy2count[code]
 	}
 	return 1
 }
 
 func (l *LetterEnt) plusStrategyCount(code MutationCode, delta int) {
-	if l.strategy2count == nil {
+	if l.strategy2count[0] == 0 {
 		l.InitStrategyCount()
 	}
 	l.needsUpdateChache = true
@@ -120,54 +119,47 @@ func (l *LetterEnt) plusStrategyCount(code MutationCode, delta int) {
 }
 
 func (l *LetterEnt) InitStrategyCount() {
-	l.strategy2count = make(map[MutationCode]uint64, len(entMutators))
-	for code := range entMutators {
+	for code := 0; code < NumMutationCodes; code++ {
 		l.strategy2count[code] = 1
 	}
 }
 
-func (l *LetterEnt) Strategy2count() map[MutationCode]uint64 {
+func (l *LetterEnt) Strategy2count() [NumMutationCodes]uint64 {
 	return l.strategy2count
 }
 
-func (l *LetterEnt) StrategyCache() ([]MutationCode, []uint64) {
+func (l *LetterEnt) StrategyCache() [NumMutationCodes]uint64 {
 	// Updates the cache if it is not already initialized.
 
-	if l.cachedStrategyCodes == nil || l.cachedStrategySums == nil {
+	if l.cachedStrategyCums[0] == 0 {
+		l.needsUpdateChache = true
 		l.updateStrategyCache()
 	}
-	return l.cachedStrategyCodes, l.cachedStrategySums
+	return l.cachedStrategyCums
 }
 
 func (l *LetterEnt) updateStrategyCache() {
-	if !l.needsUpdateChache && l.cachedStrategyCodes != nil {
+	if !l.needsUpdateChache && l.cachedStrategyCums[0] != 0 {
 		return
 	}
-	if l.strategy2count == nil {
+	if l.strategy2count[0] == 0 {
 		l.InitStrategyCount()
 	}
-	keys, cum := buildCumulativeStrategyUint64(l.strategy2count)
-	l.cachedStrategyCodes = keys
-	l.cachedStrategySums = cum
+	cum := buildCumulativeStrategyUint64(l.strategy2count)
+	l.cachedStrategyCums = cum
 	l.needsUpdateChache = false
 }
 
 // buildCumulativeStrategyUint64 generates a cumulative sum slice (uint64)
-// and a corresponding key slice from the Strategy2count map.
-func buildCumulativeStrategyUint64(strategy map[MutationCode]uint64) ([]MutationCode, []uint64) {
-	keys := make([]MutationCode, 0, len(strategy))
-	for code := range strategy {
-		keys = append(keys, code)
-	}
-	quickSortMutationCodes(keys)
-
-	cum := make([]uint64, len(keys))
+func buildCumulativeStrategyUint64(strategy [NumMutationCodes]uint64) [NumMutationCodes]uint64 {
+	var cum [NumMutationCodes]uint64
 	var total uint64 = 0
-	for i, code := range keys {
+
+	for code := 0; code < NumMutationCodes; code++ {
 		total += strategy[code]
-		cum[i] = total
+		cum[code] = total
 	}
-	return keys, cum
+	return cum
 }
 
 // quickSortMutationCodes sorts a slice of MutationCode values in ascending order
@@ -204,11 +196,10 @@ type NumEnt struct {
 	id    int
 	score uint64
 
-	strategy2count map[MutationCode]uint64
+	strategy2count [NumMutationCodes]uint64
 
-	cachedStrategyCodes []MutationCode
-	cachedStrategySums  []uint64
-	needsUpdateChache   bool
+	cachedStrategyCums [NumMutationCodes]uint64
+	needsUpdateChache  bool
 }
 
 func (n *NumEnt) PrimitiveData() []byte                 { return n.data }
@@ -227,17 +218,17 @@ func (n *NumEnt) Score() uint64       { return n.score }
 func (n *NumEnt) PlusScore(delta int) { n.score += uint64(delta) }
 
 func (n *NumEnt) StrategyCount(code MutationCode) uint64 {
-	if n.strategy2count == nil {
+	if n.strategy2count[0] == 0 {
 		n.InitStrategyCount()
 	}
-	if count, ok := n.strategy2count[code]; ok {
-		return count
+	if int(code) < len(n.strategy2count) {
+		return n.strategy2count[code]
 	}
 	return 1
 }
 
 func (n *NumEnt) plusStrategyCount(code MutationCode, delta int) {
-	if n.strategy2count == nil {
+	if n.strategy2count[0] == 0 {
 		n.InitStrategyCount()
 	}
 	n.needsUpdateChache = true
@@ -245,33 +236,32 @@ func (n *NumEnt) plusStrategyCount(code MutationCode, delta int) {
 }
 
 func (n *NumEnt) InitStrategyCount() {
-	n.strategy2count = make(map[MutationCode]uint64, len(entMutators))
-	for code := range entMutators {
+	for code := 0; code < NumMutationCodes; code++ {
 		n.strategy2count[code] = 1
 	}
 }
 
-func (n *NumEnt) Strategy2count() map[MutationCode]uint64 {
+func (n *NumEnt) Strategy2count() [NumMutationCodes]uint64 {
 	return n.strategy2count
 }
 
-func (n *NumEnt) StrategyCache() ([]MutationCode, []uint64) {
-	if n.cachedStrategyCodes == nil || n.cachedStrategySums == nil {
+func (n *NumEnt) StrategyCache() [NumMutationCodes]uint64 {
+	if n.cachedStrategyCums[0] == 0 {
+		n.needsUpdateChache = true
 		n.updateStrategyCache()
 	}
-	return n.cachedStrategyCodes, n.cachedStrategySums
+	return n.cachedStrategyCums
 }
 
 func (n *NumEnt) updateStrategyCache() {
-	if !n.needsUpdateChache && n.cachedStrategyCodes != nil {
+	if !n.needsUpdateChache && n.cachedStrategyCums[0] != 0 {
 		return
 	}
-	if n.Strategy2count == nil {
+	if n.strategy2count[0] == 0 {
 		n.InitStrategyCount()
 	}
-	keys, cum := buildCumulativeStrategyUint64(n.strategy2count)
-	n.cachedStrategyCodes = keys
-	n.cachedStrategySums = cum
+	cum := buildCumulativeStrategyUint64(n.strategy2count)
+	n.cachedStrategyCums = cum
 	n.needsUpdateChache = false
 }
 
@@ -284,11 +274,10 @@ type WsEnt struct {
 	id    int
 	score uint64
 
-	strategy2count map[MutationCode]uint64
+	strategy2count [NumMutationCodes]uint64
 
-	cachedStrategyCodes []MutationCode
-	cachedStrategySums  []uint64
-	needsUpdateChache   bool
+	cachedStrategyCums [NumMutationCodes]uint64
+	needsUpdateChache  bool
 }
 
 func (w *WsEnt) PrimitiveData() []byte                 { return w.data }
@@ -308,17 +297,17 @@ func (w *WsEnt) Score() uint64       { return w.score }
 func (w *WsEnt) PlusScore(delta int) { w.score += uint64(delta) }
 
 func (w *WsEnt) StrategyCount(code MutationCode) uint64 {
-	if w.strategy2count == nil {
+	if w.strategy2count[0] == 0 {
 		w.InitStrategyCount()
 	}
-	if count, ok := w.strategy2count[code]; ok {
-		return count
+	if int(code) < len(w.strategy2count) {
+		return w.strategy2count[code]
 	}
 	return 1
 }
 
 func (w *WsEnt) plusStrategyCount(code MutationCode, delta int) {
-	if w.strategy2count == nil {
+	if w.strategy2count[0] == 0 {
 		w.InitStrategyCount()
 	}
 	w.needsUpdateChache = true
@@ -326,33 +315,32 @@ func (w *WsEnt) plusStrategyCount(code MutationCode, delta int) {
 }
 
 func (w *WsEnt) InitStrategyCount() {
-	w.strategy2count = make(map[MutationCode]uint64, len(entMutators))
-	for code := range entMutators {
+	for code := 0; code < NumMutationCodes; code++ {
 		w.strategy2count[code] = 1
 	}
 }
 
-func (w *WsEnt) Strategy2count() map[MutationCode]uint64 {
+func (w *WsEnt) Strategy2count() [NumMutationCodes]uint64 {
 	return w.strategy2count
 }
 
-func (w *WsEnt) StrategyCache() ([]MutationCode, []uint64) {
-	if w.cachedStrategyCodes == nil || w.cachedStrategySums == nil {
+func (w *WsEnt) StrategyCache() [NumMutationCodes]uint64 {
+	if w.cachedStrategyCums[0] == 0 {
+		w.needsUpdateChache = true
 		w.updateStrategyCache()
 	}
-	return w.cachedStrategyCodes, w.cachedStrategySums
+	return w.cachedStrategyCums
 }
 
 func (w *WsEnt) updateStrategyCache() {
-	if !w.needsUpdateChache && w.cachedStrategyCodes != nil {
+	if !w.needsUpdateChache && w.cachedStrategyCums[0] != 0 {
 		return
 	}
-	if w.Strategy2count == nil {
+	if w.strategy2count[0] == 0 {
 		w.InitStrategyCount()
 	}
-	keys, cum := buildCumulativeStrategyUint64(w.strategy2count)
-	w.cachedStrategyCodes = keys
-	w.cachedStrategySums = cum
+	cum := buildCumulativeStrategyUint64(w.strategy2count)
+	w.cachedStrategyCums = cum
 	w.needsUpdateChache = false
 }
 
@@ -365,12 +353,11 @@ type MarkEnt struct {
 	id    int
 	score uint64
 
-	strategy2count map[MutationCode]uint64
+	strategy2count [NumMutationCodes]uint64
 
 	// build cache
-	cachedStrategyCodes []MutationCode
-	cachedStrategySums  []uint64
-	needsUpdateChache   bool
+	cachedStrategyCums [NumMutationCodes]uint64
+	needsUpdateChache  bool
 }
 
 func (m *MarkEnt) PrimitiveData() []byte                 { return m.data }
@@ -390,17 +377,17 @@ func (m *MarkEnt) Score() uint64       { return m.score }
 func (m *MarkEnt) PlusScore(delta int) { m.score += uint64(delta) }
 
 func (m *MarkEnt) StrategyCount(code MutationCode) uint64 {
-	if m.strategy2count == nil {
+	if m.strategy2count[0] == 0 {
 		m.InitStrategyCount()
 	}
-	if count, ok := m.strategy2count[code]; ok {
-		return count
+	if int(code) < len(m.strategy2count) {
+		return m.strategy2count[code]
 	}
 	return 1
 }
 
 func (m *MarkEnt) plusStrategyCount(code MutationCode, delta int) {
-	if m.strategy2count == nil {
+	if m.strategy2count[0] == 0 {
 		m.InitStrategyCount()
 	}
 	m.needsUpdateChache = true
@@ -408,33 +395,32 @@ func (m *MarkEnt) plusStrategyCount(code MutationCode, delta int) {
 }
 
 func (m *MarkEnt) InitStrategyCount() {
-	m.strategy2count = make(map[MutationCode]uint64, len(entMutators))
-	for code := range entMutators {
+	for code := 0; code < NumMutationCodes; code++ {
 		m.strategy2count[code] = 1
 	}
 }
 
-func (m *MarkEnt) Strategy2count() map[MutationCode]uint64 {
+func (m *MarkEnt) Strategy2count() [NumMutationCodes]uint64 {
 	return m.strategy2count
 }
 
-func (m *MarkEnt) StrategyCache() ([]MutationCode, []uint64) {
-	if m.cachedStrategyCodes == nil || m.cachedStrategySums == nil {
+func (m *MarkEnt) StrategyCache() [NumMutationCodes]uint64 {
+	if m.cachedStrategyCums[0] == 0 {
+		m.needsUpdateChache = true
 		m.updateStrategyCache()
 	}
-	return m.cachedStrategyCodes, m.cachedStrategySums
+	return m.cachedStrategyCums
 }
 
 func (m *MarkEnt) updateStrategyCache() {
-	if !m.needsUpdateChache && m.cachedStrategyCodes != nil {
+	if !m.needsUpdateChache && m.cachedStrategyCums[0] != 0 {
 		return
 	}
-	if m.strategy2count == nil {
+	if m.strategy2count[0] == 0 {
 		m.InitStrategyCount()
 	}
-	keys, cum := buildCumulativeStrategyUint64(m.strategy2count)
-	m.cachedStrategyCodes = keys
-	m.cachedStrategySums = cum
+	cum := buildCumulativeStrategyUint64(m.strategy2count)
+	m.cachedStrategyCums = cum
 	m.needsUpdateChache = false
 }
 
@@ -452,11 +438,10 @@ type KeyValEnt struct {
 	id        int
 	score     uint64
 
-	strategy2count map[MutationCode]uint64
+	strategy2count [NumMutationCodes]uint64
 
-	cachedStrategyCodes []MutationCode
-	cachedStrategySums  []uint64
-	needsUpdateChache   bool
+	cachedStrategyCums [NumMutationCodes]uint64
+	needsUpdateChache  bool
 }
 
 // Implements Ent interface.
@@ -473,17 +458,17 @@ func (kv *KeyValEnt) Score() uint64       { return kv.score }
 func (kv *KeyValEnt) PlusScore(delta int) { kv.score += uint64(delta) }
 
 func (kv *KeyValEnt) StrategyCount(code MutationCode) uint64 {
-	if kv.strategy2count == nil {
+	if kv.strategy2count[0] == 0 {
 		kv.InitStrategyCount()
 	}
-	if count, ok := kv.strategy2count[code]; ok {
-		return count
+	if int(code) < len(kv.strategy2count) {
+		return kv.strategy2count[code]
 	}
 	return 1
 }
 
 func (kv *KeyValEnt) plusStrategyCount(code MutationCode, delta int) {
-	if kv.strategy2count == nil {
+	if kv.strategy2count[0] == 0 {
 		kv.InitStrategyCount()
 	}
 	kv.needsUpdateChache = true
@@ -491,33 +476,32 @@ func (kv *KeyValEnt) plusStrategyCount(code MutationCode, delta int) {
 }
 
 func (kv *KeyValEnt) InitStrategyCount() {
-	kv.strategy2count = make(map[MutationCode]uint64, len(entMutators))
-	for code := range entMutators {
+	for code := 0; code < NumMutationCodes; code++ {
 		kv.strategy2count[code] = 1
 	}
 }
 
-func (kv *KeyValEnt) Strategy2count() map[MutationCode]uint64 {
+func (kv *KeyValEnt) Strategy2count() [NumMutationCodes]uint64 {
 	return kv.strategy2count
 }
 
-func (kv *KeyValEnt) StrategyCache() ([]MutationCode, []uint64) {
-	if kv.cachedStrategyCodes == nil || kv.cachedStrategySums == nil {
+func (kv *KeyValEnt) StrategyCache() [NumMutationCodes]uint64 {
+	if kv.cachedStrategyCums[0] == 0 {
+		kv.needsUpdateChache = true
 		kv.updateStrategyCache()
 	}
-	return kv.cachedStrategyCodes, kv.cachedStrategySums
+	return kv.cachedStrategyCums
 }
 
 func (kv *KeyValEnt) updateStrategyCache() {
-	if !kv.needsUpdateChache && kv.cachedStrategyCodes != nil {
+	if !kv.needsUpdateChache && kv.cachedStrategyCums[0] != 0 {
 		return
 	}
-	if kv.strategy2count == nil {
+	if kv.strategy2count[0] == 0 {
 		kv.InitStrategyCount()
 	}
-	keys, cum := buildCumulativeStrategyUint64(kv.strategy2count)
-	kv.cachedStrategyCodes = keys
-	kv.cachedStrategySums = cum
+	cum := buildCumulativeStrategyUint64(kv.strategy2count)
+	kv.cachedStrategyCums = cum
 	kv.needsUpdateChache = false
 }
 
@@ -531,11 +515,10 @@ type GroupEnt struct {
 	id    int
 	score uint64
 
-	strategy2count map[MutationCode]uint64
+	strategy2count [NumMutationCodes]uint64
 
-	cachedStrategyCodes []MutationCode
-	cachedStrategySums  []uint64
-	needsUpdateChache   bool
+	cachedStrategyCums [NumMutationCodes]uint64
+	needsUpdateChache  bool
 }
 
 // Implements Ent interface.
@@ -552,17 +535,17 @@ func (g *GroupEnt) Score() uint64       { return g.score }
 func (g *GroupEnt) PlusScore(delta int) { g.score += uint64(delta) }
 
 func (g *GroupEnt) StrategyCount(code MutationCode) uint64 {
-	if g.strategy2count == nil {
+	if g.strategy2count[0] == 0 {
 		g.InitStrategyCount()
 	}
-	if count, ok := g.strategy2count[code]; ok {
-		return count
+	if int(code) < len(g.strategy2count) {
+		return g.strategy2count[code]
 	}
 	return 1
 }
 
 func (g *GroupEnt) plusStrategyCount(code MutationCode, delta int) {
-	if g.strategy2count == nil {
+	if g.strategy2count[0] == 0 {
 		g.InitStrategyCount()
 	}
 	g.needsUpdateChache = true
@@ -570,33 +553,32 @@ func (g *GroupEnt) plusStrategyCount(code MutationCode, delta int) {
 }
 
 func (g *GroupEnt) InitStrategyCount() {
-	g.strategy2count = make(map[MutationCode]uint64, len(entMutators))
-	for code := range entMutators {
+	for code := 0; code < NumMutationCodes; code++ {
 		g.strategy2count[code] = 1
 	}
 }
 
-func (g *GroupEnt) Strategy2count() map[MutationCode]uint64 {
+func (g *GroupEnt) Strategy2count() [NumMutationCodes]uint64 {
 	return g.strategy2count
 }
 
-func (g *GroupEnt) StrategyCache() ([]MutationCode, []uint64) {
-	if g.cachedStrategyCodes == nil || g.cachedStrategySums == nil {
+func (g *GroupEnt) StrategyCache() [NumMutationCodes]uint64 {
+	if g.cachedStrategyCums[0] == 0 {
+		g.needsUpdateChache = true
 		g.updateStrategyCache()
 	}
-	return g.cachedStrategyCodes, g.cachedStrategySums
+	return g.cachedStrategyCums
 }
 
 func (g *GroupEnt) updateStrategyCache() {
-	if !g.needsUpdateChache && g.cachedStrategyCodes != nil {
+	if !g.needsUpdateChache && g.cachedStrategyCums[0] != 0 {
 		return
 	}
-	if g.strategy2count == nil {
+	if g.strategy2count[0] == 0 {
 		g.InitStrategyCount()
 	}
-	keys, cum := buildCumulativeStrategyUint64(g.strategy2count)
-	g.cachedStrategyCodes = keys
-	g.cachedStrategySums = cum
+	cum := buildCumulativeStrategyUint64(g.strategy2count)
+	g.cachedStrategyCums = cum
 	g.needsUpdateChache = false
 }
 
@@ -614,11 +596,10 @@ type RootEnt struct {
 	Id2Ent map[int]Ent // Maps each contained entity's ID for easy access.
 	score  uint64
 
-	strategy2count map[MutationCode]uint64
+	strategy2count [NumMutationCodes]uint64
 
 	// Cache fields
-	cachedStrategyCodes       []MutationCode
-	cachedStrategySums        []uint64
+	cachedStrategyCums        [NumMutationCodes]uint64
 	needsUpdateStrategyChache bool // Tracks if the strategy cache needs updating.
 
 	// Score-based cache fields
@@ -641,52 +622,51 @@ func (r *RootEnt) SetScore(s uint64)   { r.score = s }
 func (r *RootEnt) Score() uint64       { return r.score }
 func (r *RootEnt) PlusScore(delta int) { r.score += uint64(delta) }
 
-func (r *RootEnt) InitStrategyCount() {
-	r.strategy2count = make(map[MutationCode]uint64, len(entMutators))
-	for code := range entMutators {
-		r.strategy2count[code] = 1
-	}
-}
-
 func (r *RootEnt) StrategyCount(code MutationCode) uint64 {
-	if r.strategy2count == nil {
+	if r.strategy2count[0] == 0 {
 		r.InitStrategyCount()
 	}
-	if count, ok := r.strategy2count[code]; ok {
-		return count
+	if int(code) < len(r.strategy2count) {
+		return r.strategy2count[code]
 	}
 	return 1
 }
 
 func (r *RootEnt) plusStrategyCount(code MutationCode, delta int) {
-	if r.strategy2count == nil {
+	if r.strategy2count[0] == 0 {
 		r.InitStrategyCount()
 	}
 	r.needsUpdateStrategyChache = true
 	r.strategy2count[code] += uint64(delta)
 }
 
-func (r *RootEnt) Strategy2count() map[MutationCode]uint64 {
+func (r *RootEnt) InitStrategyCount() {
+	for code := 0; code < NumMutationCodes; code++ {
+		r.strategy2count[code] = 1
+	}
+}
+
+func (r *RootEnt) Strategy2count() [NumMutationCodes]uint64 {
 	return r.strategy2count
 }
 
-func (r *RootEnt) StrategyCache() ([]MutationCode, []uint64) {
-	if r.cachedStrategyCodes == nil || r.cachedStrategySums == nil {
+func (r *RootEnt) StrategyCache() [NumMutationCodes]uint64 {
+	if r.cachedStrategyCums[0] == 0 {
+		r.needsUpdateStrategyChache = true
 		r.updateStrategyCache()
 	}
-	return r.cachedStrategyCodes, r.cachedStrategySums
+	return r.cachedStrategyCums
 }
 
 func (r *RootEnt) updateStrategyCache() {
-	if !r.needsUpdateStrategyChache && r.cachedStrategyCodes != nil {
+	if !r.needsUpdateStrategyChache && r.cachedStrategyCums[0] != 0 {
 		return
 	}
-	if r.strategy2count == nil {
+	if r.strategy2count[0] == 0 {
 		r.InitStrategyCount()
 	}
-	keys, cum := buildCumulativeStrategyUint64(r.strategy2count)
-	r.cachedStrategyCodes = keys
-	r.cachedStrategySums = cum
+	cum := buildCumulativeStrategyUint64(r.strategy2count)
+	r.cachedStrategyCums = cum
 	r.needsUpdateStrategyChache = false
 }
 

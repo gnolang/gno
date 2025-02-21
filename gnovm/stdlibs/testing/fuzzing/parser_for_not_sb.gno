@@ -2,16 +2,15 @@ package fuzzing
 
 // EntForNotSB represents a non-string, non-byte entity for mutation analysis.
 type EntForNotSB struct {
-	data              interface{}                     // Original data stored in the entity.
-	isBool            bool                            // Indicates if the data is a boolean value.
-	isIntegerCategory bool                            // Indicates if the data belongs to an integer category.
-	isFactorized      bool                            // True if factorization was attempted and successful.
-	factorizedList    []uint64                        // Stores the factorized components of an integer.
-	strategy2count    map[MutationCodeForNotSB]uint64 // Stores mutation strategy usage counts.
+	data              interface{}              // Original data stored in the entity.
+	isBool            bool                     // Indicates if the data is a boolean value.
+	isIntegerCategory bool                     // Indicates if the data belongs to an integer category.
+	isFactorized      bool                     // True if factorization was attempted and successful.
+	factorizedList    []uint64                 // Stores the factorized components of an integer.
+	strategy2count    [NumNotSbMutCodes]uint64 // Stores mutation strategy usage counts.
 	// Cached strategy fields for optimization.
-	cachedStrategyCodes []MutationCodeForNotSB
-	cachedStrategySums  []uint64
-	needsUpdateCache    bool
+	cachedStrategyCums [NumNotSbMutCodes]uint64
+	needsUpdateCache   bool
 }
 
 // ParseToEntForNotSB parses the given data into an EntForNotSB entity.
@@ -119,47 +118,41 @@ func factorize(n uint64) ([]uint64, bool) {
 
 // InitStrategyCount initializes all mutation strategy counts to 1.
 func (ens *EntForNotSB) InitStrategyCount() {
-	ens.strategy2count = make(map[MutationCodeForNotSB]uint64, len(notSbEntMutators))
-	for code := range notSbEntMutators {
+	for code := 0; code < NumNotSbMutCodes; code++ {
 		ens.strategy2count[code] = 1
 	}
 }
 
+func (ens *EntForNotSB) StrategyCache() [NumNotSbMutCodes]uint64 {
+	if ens.cachedStrategyCums[0] == 0 {
+		ens.needsUpdateCache = true
+		ens.updateStrategyCache()
+	}
+	return ens.cachedStrategyCums
+}
+
 // updateStrategyCache updates the cached mutation strategy data.
 func (ens *EntForNotSB) updateStrategyCache() {
-	if !ens.needsUpdateCache && ens.cachedStrategyCodes != nil {
+	if !ens.needsUpdateCache && ens.cachedStrategyCums[0] != 0 {
 		return
 	}
-	if ens.strategy2count == nil {
+	if ens.strategy2count[0] == 0 {
 		ens.InitStrategyCount()
 	}
-	keys, cum := buildCumulativeStrategyUint64ForNotSB(ens.strategy2count)
-	ens.cachedStrategyCodes = keys
-	ens.cachedStrategySums = cum
+	cum := buildCumulativeStrategyUint64ForNotSB(ens.strategy2count)
+	ens.cachedStrategyCums = cum
 	ens.needsUpdateCache = false
 }
 
-func (ens *EntForNotSB) StrategyCache() ([]MutationCodeForNotSB, []uint64) {
-	if ens.cachedStrategyCodes == nil || ens.cachedStrategySums == nil {
-		ens.updateStrategyCache()
-	}
-	return ens.cachedStrategyCodes, ens.cachedStrategySums
-}
-
-func buildCumulativeStrategyUint64ForNotSB(strategy map[MutationCodeForNotSB]uint64) ([]MutationCodeForNotSB, []uint64) {
-	keys := make([]MutationCodeForNotSB, 0, len(strategy))
-	for code := range strategy {
-		keys = append(keys, code)
-	}
-	quickSortMutationCodesForNotSB(keys)
-
-	cum := make([]uint64, len(keys))
+func buildCumulativeStrategyUint64ForNotSB(strategy [NumNotSbMutCodes]uint64) [NumNotSbMutCodes]uint64 {
+	var cum [NumNotSbMutCodes]uint64
 	var total uint64 = 0
-	for i, code := range keys {
+
+	for code := 0; code < NumNotSbMutCodes; code++ {
 		total += strategy[code]
-		cum[i] = total
+		cum[code] = total
 	}
-	return keys, cum
+	return cum
 }
 
 func quickSortMutationCodesForNotSB(keys []MutationCodeForNotSB) {
@@ -199,7 +192,7 @@ func (ens *EntForNotSB) ReflectMutationInfo(mutInfo MutationInfo) {
 
 // plusStrategyCount increases the count of a given mutation strategy.
 func (ens *EntForNotSB) plusStrategyCount(code MutationCodeForNotSB, delta int) {
-	if ens.strategy2count == nil {
+	if ens.strategy2count[0] == 0 {
 		ens.InitStrategyCount()
 	}
 	ens.needsUpdateCache = true
@@ -241,16 +234,16 @@ func cloneEntForNotSb(orig *EntForNotSB) *EntForNotSB {
 
 // StrategyCount retrieves the count for a given mutation strategy.
 func (ens *EntForNotSB) StrategyCount(code MutationCodeForNotSB) uint64 {
-	if ens.strategy2count == nil {
+	if ens.strategy2count[0] == 0 {
 		ens.InitStrategyCount()
 	}
-	if count, ok := ens.strategy2count[code]; ok {
-		return count
+	if int(code) < len(ens.strategy2count) {
+		return ens.strategy2count[code]
 	}
 	return 1
 }
 
 // Strategy2count returns the complete strategy count mapping.
-func (a *EntForNotSB) Strategy2count() map[MutationCodeForNotSB]uint64 {
+func (a *EntForNotSB) Strategy2count() [NumNotSbMutCodes]uint64 {
 	return a.strategy2count
 }

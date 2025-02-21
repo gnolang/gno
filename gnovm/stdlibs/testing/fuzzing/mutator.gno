@@ -94,18 +94,17 @@ func (m *Mutator) MutateSeed2Seeds(sampleSeed Seed, seedCount *uint) []Seed {
 			for _, idx := range selectedSubSetArgs {
 				// Mutate the selected index element.
 				var mutationInfo MutationInfo
-				var mutatedContent interface{}
+				var mutatedArgument interface{}
 				// Modify the value and receive the mutated data.
-				mutatedContent, mutationInfo = mutationSample.MutateArg(castedContent[idx], mutationStrength, idx)
-				if mutatedContent == nil {
+				mutatedArgument, mutationInfo = mutationSample.MutateArg(castedContent[idx], mutationStrength, idx)
+				if mutatedArgument == nil {
 					panic("MutateArg returned nil")
 				}
-				castedContent[idx] = mutatedContent
+				castedContent[idx] = mutatedArgument
 				mutationsInfo[idx] = mutationInfo
-
 			}
 			// Synchronize seed counting.
-			*seedCount += 1
+			*seedCount++
 			// Generate seed.
 			newSeed := Seed{
 				Content:        castedContent,
@@ -546,10 +545,9 @@ func MutateRoot2String(r *RootEnt, strength int) (string, int, map[MutationCode]
 	startStr, endStr := SliceWithOutID(selectedID, r)
 	targetPtr := r.Id2Ent[selectedID]
 	// Perform mutation on the selected entity
-	mutatedString, usedStrategy := MutateEnt2String(targetPtr, strength, r.Pattern, r.Strategy2count())
+	mutatedString, usedStrategy := MutateEnt2String(targetPtr, strength, r.Pattern)
 	// Reconstruct the final mutated string
 	finalString := startStr + mutatedString + endStr
-
 	return finalString, selectedID, usedStrategy
 }
 
@@ -561,43 +559,51 @@ func selectID(keys []int, cum []uint64) int {
 	return keys[idx]
 }
 
+type cumAndStrategy struct {
+	cumSum   uint64
+	strategy MutationCode
+}
+
 // MutateEnt2String mutates an entity (Ent) into a string using cached strategy weights.
 // It selects mutation strategies probabilistically and applies them until the mutation
 // strength limit is reached. If a mutation fails, the strategy is removed.
-func MutateEnt2String(e Ent, strength int, pattern string, strategy2count map[MutationCode]uint64) (string, map[MutationCode]int) {
+func MutateEnt2String(e Ent, strength int, pattern string) (string, map[MutationCode]int) {
 	clone := cloneEnt(e)
-
 	strategyCounts := make(map[MutationCode]int)
 
 	cnt := 0
 	e.updateStrategyCache()
-	cachedKeys, cachedCums := e.StrategyCache()
+	cachedCums := e.StrategyCache()
+	localCumsAndStrategy := make([]cumAndStrategy, len(cachedCums))
+
 	// Local copies for mutation
-	localKeys := make([]MutationCode, len(cachedKeys))
-	copy(localKeys, cachedKeys)
-	localCums := make([]uint64, len(cachedCums))
-	copy(localCums, cachedCums)
+	for i := 0; i < len(cachedCums); i++ {
+		localCumsAndStrategy[i] = cumAndStrategy{
+			cumSum:   cachedCums[i],
+			strategy: MutationCode(i),
+		}
+	}
 
 	for {
 		// If all available strategies are exhausted, exit the loop.
-
-		if len(localKeys) == 0 {
+		if len(localCumsAndStrategy) == 0 {
 			return SerializeToString(clone), nil
 			break
 		}
-		strategy, idx := selectStrategyWithIndex(localKeys, localCums)
+		strategy := selectStrategyWithIndex(localCumsAndStrategy)
 		selectedMutator := entMutators[strategy]
 
 		isSuccess := selectedMutator(clone, pattern)
 		if isSuccess {
 			strategyCounts[strategy]++
 			cnt++
+
 		} else {
+
 			// If a failure occurs, compute the contribution value (delta) of the strategy
 			// and remove it from localKeys and localCum.
-			delta := strategy2count[strategy]
-			localKeys = removeStrategyAt(localKeys, idx)
-			localCums = updateCumulativeAfterRemoval(localCums, idx, delta)
+			delta := e.StrategyCount(strategy)
+			localCumsAndStrategy = removeStrategy(localCumsAndStrategy, strategy, delta)
 			continue
 		}
 		if cnt >= strength {
@@ -609,26 +615,43 @@ func MutateEnt2String(e Ent, strength int, pattern string, strategy2count map[Mu
 }
 
 // selectStrategyWithIndex selects a mutation strategy and its index from the cumulative sum slice.
-func selectStrategyWithIndex(keys []MutationCode, cum []uint64) (MutationCode, int) {
-	total := cum[len(cum)-1]
+func selectStrategyWithIndex(cumAndStrategy []cumAndStrategy) MutationCode {
+	total := cumAndStrategy[len(cumAndStrategy)-1].cumSum
 	rng := OncePCG()
 	r := rng.Uint64n(total)
-	idx := sort.Search(len(cum), func(i int) bool { return cum[i] > r })
-	return keys[idx], idx
+
+	idx := sort.Search(len(cumAndStrategy), func(i int) bool {
+		return cumAndStrategy[i].cumSum > r
+	})
+	return cumAndStrategy[idx].strategy
 }
 
-// removeStrategyAt removes an element from a slice at a given index.
-func removeStrategyAt(keys []MutationCode, idx int) []MutationCode {
-	return append(keys[:idx], keys[idx+1:]...)
-}
-
-// updateCumulativeAfterRemoval updates the cumulative sum slice after removing a strategy.
-func updateCumulativeAfterRemoval(localCum []uint64, idx int, delta uint64) []uint64 {
-	newCum := append([]uint64{}, localCum[:idx]...)
-	for i := idx + 1; i < len(localCum); i++ {
-		newCum = append(newCum, localCum[i]-delta)
+// removeStrategy removes a strategy from localCumsAndStrategy and updates cumulative sums.
+func removeStrategy(localCumsAndStrategy []cumAndStrategy, strategy MutationCode, delta uint64) []cumAndStrategy {
+	// remove strategy
+	index := -1
+	for i, entry := range localCumsAndStrategy {
+		if entry.strategy == strategy {
+			index = i
+			break
+		}
 	}
-	return newCum
+	if index == -1 {
+		return localCumsAndStrategy
+	}
+	localCumsAndStrategy = append(localCumsAndStrategy[:index], localCumsAndStrategy[index+1:]...)
+
+	// reflect removing to cumulative sum list
+	for i := index; i < len(localCumsAndStrategy); i++ {
+		localCumsAndStrategy[i].cumSum -= delta
+	}
+
+	return localCumsAndStrategy
+}
+
+type cumAndStrategyForNotSb struct {
+	cumSum   uint64
+	strategy MutationCodeForNotSB
 }
 
 // MutateNotSbEnt2interface mutates a NotSb entity using cached strategy probabilities.
@@ -638,26 +661,31 @@ func MutateNotSbEnt2interface(ens *EntForNotSB, strength int) (interface{}, map[
 	strategyCounts := make(map[MutationCodeForNotSB]int)
 	cnt := 0
 	ens.updateStrategyCache()
-	cachedKeys, cachedCums := ens.StrategyCache()
+	cachedCums := ens.StrategyCache()
+	localCumsAndStrategy := make([]cumAndStrategyForNotSb, len(cachedCums))
 
-	localKeys := make([]MutationCodeForNotSB, len(cachedKeys))
-	copy(localKeys, cachedKeys)
-	localCums := make([]uint64, len(cachedCums))
-	copy(localCums, cachedCums)
+	// Local copies for mutation
+	for i := 0; i < len(cachedCums); i++ {
+		localCumsAndStrategy[i] = cumAndStrategyForNotSb{
+			cumSum:   cachedCums[i],
+			strategy: MutationCodeForNotSB(i),
+		}
+	}
 
 	for {
-		if len(localKeys) == 0 {
+		if len(localCumsAndStrategy) == 0 {
 			break
 		}
-		strategy, idx := selectStrategyWithIndexForNotSB(localKeys, localCums)
+		strategy := selectStrategyWithIndexForNotSB(localCumsAndStrategy)
 		selectedMutator := notSbEntMutators[strategy]
-		if selectedMutator(clone) {
+
+		isSuccess := selectedMutator(clone)
+		if isSuccess {
 			strategyCounts[strategy]++
 			cnt++
 		} else {
-			delta := ens.strategy2count[strategy]
-			localKeys = removeStrategyAtForNotSB(localKeys, idx)
-			localCums = updateCumulativeAfterRemoval(localCums, idx, delta)
+			delta := ens.StrategyCount(strategy)
+			localCumsAndStrategy = removeStrategyForNotSB(localCumsAndStrategy, strategy, delta)
 			continue
 		}
 		if cnt >= strength {
@@ -669,17 +697,38 @@ func MutateNotSbEnt2interface(ens *EntForNotSB, strength int) (interface{}, map[
 }
 
 // selectStrategyWithIndexForNotSB selects a NotSb mutation strategy and its index using a random value.
-func selectStrategyWithIndexForNotSB(keys []MutationCodeForNotSB, cum []uint64) (MutationCodeForNotSB, int) {
-	total := cum[len(cum)-1]
+func selectStrategyWithIndexForNotSB(cumAndStrategy []cumAndStrategyForNotSb) MutationCodeForNotSB {
+	total := cumAndStrategy[len(cumAndStrategy)-1].cumSum
 	rng := OncePCG()
 	r := rng.Uint64n(total)
-	idx := sort.Search(len(cum), func(i int) bool { return cum[i] > r })
-	return keys[idx], idx
+
+	idx := sort.Search(len(cumAndStrategy), func(i int) bool {
+		return cumAndStrategy[i].cumSum > r
+	})
+	return cumAndStrategy[idx].strategy
 }
 
-// removeStrategyAtForNotSB removes an element from a NotSb strategy slice at a given index.
-func removeStrategyAtForNotSB(keys []MutationCodeForNotSB, idx int) []MutationCodeForNotSB {
-	return append(keys[:idx], keys[idx+1:]...)
+// removeStrategyForNotSB removes an element from a NotSb strategy slice at a given index.
+func removeStrategyForNotSB(localCumsAndStrategy []cumAndStrategyForNotSb, strategy MutationCodeForNotSB, delta uint64) []cumAndStrategyForNotSb {
+	// remove strategy
+	index := -1
+	for i, entry := range localCumsAndStrategy {
+		if entry.strategy == strategy {
+			index = i
+			break
+		}
+	}
+	if index == -1 {
+		return localCumsAndStrategy
+	}
+	localCumsAndStrategy = append(localCumsAndStrategy[:index], localCumsAndStrategy[index+1:]...)
+
+	// reflect removing to cumulative sum list
+	for i := index; i < len(localCumsAndStrategy); i++ {
+		localCumsAndStrategy[i].cumSum -= delta
+	}
+
+	return localCumsAndStrategy
 }
 
 // ReflectSeed updates the mutation sample using the given seed's mutation information.
@@ -800,38 +849,48 @@ type MutateFunc func(Ent, string) bool
 type MutationCode int
 
 const (
-	DS    MutationCode = iota // Delete Start
-	DM                        // Delete Middle
-	DE                        // Delete End
-	AS                        // Append Start
-	ASI                       // Append Start Interesting
-	ASP                       // Append Start Pattern
-	AE                        // Append End
-	AEI                       // Append End Interesting
-	AEP                       // Append End Pattern
-	OS                        // Overwrite Start
-	OM                        // Overwrite Middle
-	CPS                       // Copy Start
-	CPM                       // Copy Middle
-	CPE                       // Copy End
-	CHR                       // Change Randomly
-	CHG                       // Change Gradual
-	CHG16                     // Change Gradual 16
-	CHG32                     // Change Gradual 32
-	CHG64                     // Change Gradual 64
-	CHI                       // Change Interesting
-	CHI16                     // Change Interesting 16
-	CHI32                     // Change Interesting 32
-	CHP                       // Change Pattern
-	IR                        // Insert Randomly
-	IG                        // Insert Gradual
-	II                        // Insert Interesting
-	IP                        // Insert Pattern
-	SW                        // Swap
-	PKL                       // Preserve Kind Light
-	PKH                       // Preserve Kind Hard
-	SKL                       // Switch Kind Light
-	SKH                       // Switch Kind Hard
+	DS MutationCode = iota // Delete Start
+	DM                     // Delete Middle
+	DE                     // Delete End
+
+	AS  // Append Start
+	ASI // Append Start Interesting
+	ASP // Append Start Pattern
+
+	AE  // Append End
+	AEI // Append End Interesting
+	AEP // Append End Pattern
+
+	OS  // Overwrite Start
+	OM  // Overwrite Middle
+	CPS // Copy Start
+
+	CPM // Copy Middle
+	CPE // Copy End
+	CHR // Change Randomly
+
+	CHG   // Change Gradual
+	CHG16 // Change Gradual 16
+	CHG32 // Change Gradual 32
+
+	CHG64 // Change Gradual 64
+	CHI   // Change Interesting
+	CHI16 // Change Interesting 16
+
+	CHI32 // Change Interesting 32
+	CHP   // Change Pattern
+	IR    // Insert Randomly
+
+	IG // Insert Gradual
+	II // Insert Interesting
+	IP // Insert Pattern
+
+	SW  // Swap
+	PKL // Preserve Kind Light
+	PKH // Preserve Kind Hard
+
+	SKL // Switch Kind Light
+	SKH // Switch Kind Hard
 
 )
 
@@ -842,23 +901,31 @@ type MutateFuncForNotSB func(*EntForNotSB) bool
 type MutationCodeForNotSB int
 
 const (
-	SmlPls       MutationCodeForNotSB = iota // small plus
-	SmlMns                                   // small minus
-	SmlDv                                    // small division
-	SmlMl                                    // small multiply
-	MddlPls                                  // middle plus
-	MddlMins                                 // middle minus
-	MddlDv                                   // middle division
-	MddlMl                                   // middcle multiply
-	BgPls                                    // big plus
-	BgMns                                    // big minus
-	BgDv                                     // big division
-	BgMl                                     // big multiply
-	FctrlDv                                  // factorial division
-	FctrlMl                                  // fcatorial multiply
-	IntrstngChng                             // change to interesting value
-	PttrnChng                                // change to pattern value
-	RndmChng                                 // chahge to radom value
+	NumMutationCodes = 32
+	NumNotSbMutCodes = 16
+)
+
+const (
+	SmlPls MutationCodeForNotSB = iota // small plus
+	SmlMns                             // small minus
+	SmlDv                              // small division
+	SmlMl                              // small multiply
+
+	MddlPls  // middle plus
+	MddlMins // middle minus
+	MddlDv   // middle division
+	MddlMl   // middcle multiply
+
+	BgPls // big plus
+	BgMns // big minus
+	BgDv  // big division
+	BgMl  // big multiply
+
+	FctrlDv      // factorial division
+	FctrlMl      // fcatorial multiply
+	IntrstngChng // change to interesting value
+
+	RndmChng // chahge to radom value
 )
 
 // entMutators maps mutation codes to their respective transformation functions.
@@ -899,18 +966,21 @@ var entMutators = map[MutationCode]MutateFunc{
 
 // notSbEntMutators maps non-string/byte mutation codes to their respective transformation functions.
 var notSbEntMutators = map[MutationCodeForNotSB]MutateFuncForNotSB{
-	SmlPls:       smallPlus,         // small plus
-	SmlMns:       smallMinus,        // small minus
-	SmlDv:        smallDiv,          // small division
-	SmlMl:        smallMul,          // small multiply
-	MddlPls:      middlePlus,        // middle plus
-	MddlMins:     middleMinus,       // middle minus
-	MddlDv:       middleDiv,         // middle division
-	MddlMl:       middleMul,         // middcle multiply
-	BgPls:        bigPlus,           // big plus
-	BgMns:        bigMinus,          // big minus
-	BgDv:         bigDiv,            // big division
-	BgMl:         bigMul,            // big multiply
+	SmlPls: smallPlus,  // small plus
+	SmlMns: smallMinus, // small minus
+	SmlDv:  smallDiv,   // small division
+	SmlMl:  smallMul,   // small multiply
+
+	MddlPls:  middlePlus,  // middle plus
+	MddlMins: middleMinus, // middle minus
+	MddlDv:   middleDiv,   // middle division
+	MddlMl:   middleMul,   // middcle multiply
+
+	BgPls: bigPlus,  // big plus
+	BgMns: bigMinus, // big minus
+	BgDv:  bigDiv,   // big division
+	BgMl:  bigMul,   // big multiply
+
 	FctrlDv:      factorialDiv,      // factorial division
 	FctrlMl:      factorialMul,      // fcatorial multiply
 	IntrstngChng: interestingChange, // change to interesting value
@@ -1690,23 +1760,23 @@ func smallPlus(ens *EntForNotSB) bool {
 	case int:
 		ens.data = v + int(1)
 	case int8:
-		ens.data = v + int8(2)
+		ens.data = v + int8(1)
 	case int16:
-		ens.data = v + int16(3)
+		ens.data = v + int16(1)
 	case int32:
-		ens.data = v + int32(4)
+		ens.data = v + int32(1)
 	case int64:
-		ens.data = v + int64(5)
+		ens.data = v + int64(1)
 	case uint:
 		ens.data = v + uint(1)
 	case uint8:
-		ens.data = v + uint8(2)
+		ens.data = v + uint8(1)
 	case uint16:
-		ens.data = v + uint16(3)
+		ens.data = v + uint16(1)
 	case uint32:
-		ens.data = v + uint32(4)
+		ens.data = v + uint32(1)
 	case uint64:
-		ens.data = v + uint64(5)
+		ens.data = v + uint64(1)
 	case float32:
 		ens.data = v + float32(1.0)
 	case float64:
@@ -2430,7 +2500,7 @@ func randomChange(ens *EntForNotSB) bool {
 	if ens.isBool {
 		return mutateBool(ens)
 	}
-	r := OncePCG().Intn(10001)
+	r := OncePCG().Intn(101)
 	switch ens.data.(type) {
 	case int:
 		ens.data = int(r)

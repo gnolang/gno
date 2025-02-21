@@ -180,7 +180,6 @@ func (f *F) Fuzz(run Runner) {
 	for _, corp := range f.corpus {
 		corp = f.simulateFF(corp)
 		if f.failed {
-
 			f.handleFail()
 			return
 		}
@@ -227,6 +226,7 @@ func (f *F) Fuzz(run Runner) {
 		}
 	}
 	for {
+
 		// 1) Pop input from the manager
 		parentSeed := f.manager.PopSeed()
 		// 2) Generate evolved input from the retrieved input.
@@ -633,7 +633,6 @@ func (f *F) migrateMachines() {
 // and determines whether fuzzing should be terminated.
 func (f *F) updateMachines(parentSeed fuzzing.Seed) bool {
 	f.manager.CoordinateSeed(parentSeed)
-
 	// 1) Generate mutated input from the popped input by mutator.
 	childSeeds := f.mutator.MutateSeed2Seeds(parentSeed, &f.seedCount)
 
