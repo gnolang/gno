@@ -48,9 +48,15 @@ func NewSignerServer(
 			sserver.WithServerPrivKey(*authKeysFile.ServerIdentity.PrivKey),
 		)
 	} else {
-		// Log a warning if the auth keys file does not exist.
-		logger.Warn("Mutual auth keys not found, gnokms and its clients will not be able to authenticate")
-		logger.Warn("For more security, generate mutual auth keys using 'gnokms auth generate'")
+		// Check if at least one of the listener is using the tcp protocol.
+		for _, listenAddress := range listenAddresses {
+			if protocol, _ := osm.ProtocolAndAddress(listenAddress); protocol == "tcp" {
+				// Log a warning if the auth keys file does not exist and if the server is using a tcp listener.
+				logger.Warn("Mutual auth keys not found, gnokms and its clients will not be able to authenticate")
+				logger.Warn("For more security, generate mutual auth keys using 'gnokms auth generate'")
+				break
+			}
+		}
 	}
 
 	// Initialize the remote signer server with its options.
