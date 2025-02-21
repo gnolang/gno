@@ -162,7 +162,8 @@ type ObjectInfo struct {
 	// Object is marked for deletion in current transaction
 	isNewDeleted bool
 
-	// realm where object is from
+	// If an object’s type is declared in a
+	// realm, it's considered bound to that realm
 	boundRealm PkgID
 
 	// This flag indicates whether the object is being
@@ -174,6 +175,7 @@ type ObjectInfo struct {
 	// a struct value, it is allowed.
 	isAttachingRef bool
 
+	// object’s package and realm info
 	pv *PackageValue
 
 	// XXX huh?
