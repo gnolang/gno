@@ -14,10 +14,10 @@ const (
 var bid boards2.BoardID
 
 func init() {
-	std.TestSetOrigCaller(owner)
+	std.TestSetOriginCaller(owner)
 	bid = boards2.CreateBoard("test123")
 
-	std.TestSetOrigCaller(user)
+	std.TestSetOriginCaller(user)
 }
 
 func main() {

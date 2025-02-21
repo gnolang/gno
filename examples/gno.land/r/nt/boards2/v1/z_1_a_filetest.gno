@@ -14,7 +14,7 @@ const (
 )
 
 func init() {
-	std.TestSetOrigCaller(owner)
+	std.TestSetOriginCaller(owner)
 }
 
 func main() {

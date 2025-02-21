@@ -18,12 +18,12 @@ var (
 )
 
 func init() {
-	std.TestSetOrigCaller(owner)
+	std.TestSetOriginCaller(owner)
 	srcBid = boards2.CreateBoard("src-board")
 	dstBid = boards2.CreateBoard("dst-board")
 
 	srcTid = boards2.CreateThread(srcBid, "Foo", "bar")
-	std.TestSetOrigCaller(user)
+	std.TestSetOriginCaller(user)
 }
 
 func main() {
