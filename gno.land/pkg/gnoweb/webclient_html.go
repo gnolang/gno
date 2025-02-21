@@ -18,6 +18,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
 	markdown "github.com/yuin/goldmark-highlighting/v2"
+	meta "github.com/yuin/goldmark-meta"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
@@ -46,6 +47,9 @@ func NewDefaultHTMLWebClientConfig(client *client.RPCClient) *HTMLWebClientConfi
 	goldmarkOptions := []goldmark.Option{
 		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 		goldmark.WithExtensions(
+			meta.New(
+				meta.WithStoresInDocument(),
+			),
 			markdown.NewHighlighting(
 				markdown.WithFormatOptions(chromaOptions...),
 			),
@@ -170,6 +174,23 @@ func (s *HTMLWebClient) Sources(path string) ([]string, error) {
 	return files, nil
 }
 
+// extractHeadMeta extracts optional head metadata from the provided metaData map
+// and returns a HeadMeta struct. All fields ("Title", "Description", "Canonical")
+// are optional; if a field is not present or not a string, it will be empty.
+func extractHeadMeta(metaData map[string]interface{}) HeadMeta {
+	hm := HeadMeta{}
+	if title, ok := metaData["Title"].(string); ok {
+		hm.Title = title
+	}
+	if desc, ok := metaData["Description"].(string); ok {
+		hm.Description = desc
+	}
+	if canonical, ok := metaData["Canonical"].(string); ok {
+		hm.Canonical = canonical
+	}
+	return hm
+}
+
 // RenderRealm renders the content of a realm from a given path
 // and arguments into the provided writer. It uses Goldmark for
 // Markdown processing to generate HTML content.
@@ -186,6 +207,8 @@ func (s *HTMLWebClient) RenderRealm(w io.Writer, pkgPath string, args string) (*
 
 	// Use Goldmark for Markdown parsing
 	doc := s.Markdown.Parser().Parse(text.NewReader(rawres))
+	metaData := doc.OwnerDocument().Meta()
+
 	if err := s.Markdown.Renderer().Render(w, rawres, doc); err != nil {
 		return nil, fmt.Errorf("unable to render realm %q: %w", data, err)
 	}
@@ -195,6 +218,8 @@ func (s *HTMLWebClient) RenderRealm(w io.Writer, pkgPath string, args string) (*
 	if err != nil {
 		s.logger.Warn("unable to inspect for TOC elements", "error", err)
 	}
+
+	meta.Head = extractHeadMeta(metaData)
 
 	return &meta, nil
 }
