@@ -129,6 +129,8 @@ type Object interface {
 	SetBoundRealm(pkgID PkgID)
 	GetIsAttachingRef() bool
 	SetIsAttachingRef(bool)
+	GetPackage() *PackageValue
+	SetPackage(*PackageValue)
 	GetIsNewEscaped() bool
 	SetIsNewEscaped(bool)
 	GetIsNewDeleted() bool
@@ -187,6 +189,8 @@ type ObjectInfo struct {
 	// - If the object being attached is a pointer to such
 	// a struct value, it is allowed.
 	isAttachingRef bool
+
+	pv *PackageValue
 
 	// XXX huh?
 	owner Object // mem reference to owner.
@@ -364,6 +368,14 @@ func (oi *ObjectInfo) SetIsAttachingRef(ref bool) {
 	oi.isAttachingRef = ref
 }
 
+func (oi *ObjectInfo) GetPackage() *PackageValue {
+	return oi.pv
+}
+
+func (oi *ObjectInfo) SetPackage(pv *PackageValue) {
+	oi.pv = pv
+}
+
 func (oi *ObjectInfo) GetIsNewEscaped() bool {
 	return oi.isNewEscaped
 }
@@ -422,9 +434,11 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 func (tv *TypedValue) GetFirstObject2(store Store) Object {
 	obj := tv.GetFirstObject(store)
 
+	var path string
 	// infer original package using declared type
 	getPkgId := func(t Type) (pkgId PkgID) {
 		if dt, ok := t.(*DeclaredType); ok {
+			path = dt.GetPkgPath()
 			pkgId = PkgIDFromPkgPath(dt.GetPkgPath())
 		}
 		return
@@ -461,6 +475,14 @@ func (tv *TypedValue) GetFirstObject2(store Store) Object {
 		switch tv.V.(type) {
 		case *SliceValue, PointerValue:
 			obj.SetIsAttachingRef(true)
+		}
+	}
+	if obj != nil {
+		if path != "" {
+			pkg := store.GetPackage(path, false)
+			if pkg != nil {
+				obj.SetPackage(pkg)
+			}
 		}
 	}
 	return obj
