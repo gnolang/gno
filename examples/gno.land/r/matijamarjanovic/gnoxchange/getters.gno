@@ -25,13 +25,13 @@ func GetTicket(ticketID string) (*Ticket, error) {
 
 // GetAllTickets returns a paginated list of all tickets.
 func GetAllTickets(path string) *pager.Page {
-	pager := pager.NewPager(ticketRegistry.allTickets, 5, true)
+	pager := pager.NewPager(ticketRegistry.allTickets, 1000000, true)
 	return pager.MustGetPageByPath(path)
 }
 
 // GetOpenTickets returns a paginated list of open, non-expired tickets.
 func GetOpenTickets(path string) *pager.Page {
-	pager := pager.NewPager(ticketRegistry.openTickets, 5, true)
+	pager := pager.NewPager(ticketRegistry.openTickets, 1000000, true)
 	return pager.MustGetPageByPath(path)
 }
 
@@ -51,7 +51,7 @@ func GetAllNFTTickets(path string) *pager.Page {
 }
 
 func GetOpenNFTTickets(path string) *pager.Page {
-	pager := pager.NewPager(ticketRegistry.openNFTTickets, 5, true)
+	pager := pager.NewPager(ticketRegistry.openNFTTickets, 1000000, true)
 	return pager.MustGetPageByPath(path)
 }
 
@@ -69,14 +69,14 @@ func GetAllOpenNonNFTTickets(path string) *pager.Page {
 		return false
 	})
 
-	pager := pager.NewPager(nonNFTTickets, 5, true)
+	pager := pager.NewPager(nonNFTTickets, 1000000, true)
 	return pager.MustGetPageByPath(path)
 }
 
 // GetTicketsPageInfoString returns a string representation of ticket information for the given page
 // e.g. ticketsStr, err := GetTicketsPageInfoString("?page=1&size=10")
 func GetTicketsPageInfoString(path string) (string, error) {
-	pager := pager.NewPager(ticketRegistry.allTickets, 5, true)
+	pager := pager.NewPager(ticketRegistry.allTickets, 1000000, true)
 	page := pager.MustGetPageByPath(path)
 	var result string
 
@@ -106,7 +106,7 @@ func GetTicketsPageInfoString(path string) (string, error) {
 // GetOpenTicketsPageInfoString returns a string representation of open ticket information for the given page
 // e.g. ticketsStr, err := GetOpenTicketsPageInfoString("?page=1&size=10")
 func GetOpenTicketsPageInfoString(path string) (string, error) {
-	pager := pager.NewPager(ticketRegistry.openTickets, 5, true)
+	pager := pager.NewPager(ticketRegistry.openTickets, 1000000, true)
 	page := pager.MustGetPageByPath(path)
 	var result string
 
@@ -146,7 +146,7 @@ func GetAllNFTTicketsPageInfoString(path string) (string, error) {
 		return false
 	})
 
-	pager := pager.NewPager(nftTickets, 5, true)
+	pager := pager.NewPager(nftTickets, 1000000, true)
 	page := pager.MustGetPageByPath(path)
 	var result string
 
@@ -176,7 +176,7 @@ func GetAllNFTTicketsPageInfoString(path string) (string, error) {
 // GetOpenNFTTicketsPageInfoString returns a string representation of open NFT ticket information for the given page
 // e.g. ticketsStr, err := GetOpenNFTTicketsPageInfoString("?page=1&size=10")
 func GetOpenNFTTicketsPageInfoString(path string) (string, error) {
-	pager := pager.NewPager(ticketRegistry.openNFTTickets, 5, true)
+	pager := pager.NewPager(ticketRegistry.openNFTTickets, 1000000, true)
 	page := pager.MustGetPageByPath(path)
 	var result string
 
@@ -263,7 +263,7 @@ func GetPoolInfo(poolKey string) (string, string, uint64, uint64, error) {
 
 // GetPoolsPageInfo returns detailed information about pools for the given page
 func GetPoolsPageInfo(path string) ([]PoolInfo, string, error) {
-	pager := pager.NewPager(poolRegistry.pools, 5, false)
+	pager := pager.NewPager(poolRegistry.pools, 1000000, false)
 	page := pager.MustGetPageByPath(path)
 	pools := make([]PoolInfo, 0, len(page.Items))
 
@@ -299,7 +299,7 @@ func GetPoolsPageInfo(path string) ([]PoolInfo, string, error) {
 // GetPoolsPageInfoString returns a string representation of pool information for the given page
 // e.g. poolsStr, err := GetPoolsPageInfoString("?page=1&size=10")
 func GetPoolsPageInfoString(path string) (string, error) {
-	pager := pager.NewPager(poolRegistry.pools, 5, false)
+	pager := pager.NewPager(poolRegistry.pools, 1000000, false)
 	page := pager.MustGetPageByPath(path)
 	var result string
 
