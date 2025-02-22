@@ -5,7 +5,6 @@ import (
 	"flag"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
@@ -79,12 +78,6 @@ func execMakeCall(cfg *MakeCallCfg, args []string, io commands.IO) error {
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}
-	if cfg.RootCfg.GasWanted == 0 {
-		return errors.New("gas-wanted not specified")
-	}
-	if cfg.RootCfg.GasFee == "" {
-		return errors.New("gas-fee not specified")
-	}
 
 	// read statement.
 	fnc := cfg.FuncName
@@ -100,7 +93,6 @@ func execMakeCall(cfg *MakeCallCfg, args []string, io commands.IO) error {
 		return err
 	}
 	caller := info.GetAddress()
-	// info.GetPubKey()
 
 	// Parse send amount.
 	send, err := std.ParseCoins(cfg.Send)
@@ -108,35 +100,12 @@ func execMakeCall(cfg *MakeCallCfg, args []string, io commands.IO) error {
 		return errors.Wrap(err, "parsing send coins")
 	}
 
-	// parse gas wanted & fee.
-	gaswanted := cfg.RootCfg.GasWanted
-	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
-	if err != nil {
-		return errors.Wrap(err, "parsing gas fee coin")
-	}
-
-	// construct msg & tx and marshal.
-	msg := vm.MsgCall{
+	return client.MakeTransaction(vm.MsgCall{
 		Caller:  caller,
 		Send:    send,
 		PkgPath: cfg.PkgPath,
 		Func:    fnc,
 		Args:    cfg.Args,
-	}
-	tx := std.Tx{
-		Msgs:       []std.Msg{msg},
-		Fee:        std.NewFee(gaswanted, gasfee),
-		Signatures: nil,
-		Memo:       cfg.RootCfg.Memo,
-	}
+	}, cfg.RootCfg, args, io)
 
-	if cfg.RootCfg.Broadcast {
-		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, io)
-		if err != nil {
-			return err
-		}
-	} else {
-		io.Println(string(amino.MustMarshalJSON(tx)))
-	}
-	return nil
 }
