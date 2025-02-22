@@ -348,10 +348,15 @@ func TestVmHandlerQuery_Doc(t *testing.T) {
 				},
 			},
 			{
-				Signature: "var PubString = \"public string\"",
+				Signature: "var (\n\tpvString  = \"private string\" // A private var\n\tPubString = \"public string\"\n)",
 				Const:     false,
-				Doc:       "",
+				Doc:       "Test public and private vars\n",
 				Values: []*doc.JSONValue{
+					{
+						Name: "pvString",
+						Doc:  "// A private var\n",
+						Type: "",
+					},
 					{
 						Name: "PubString",
 						Doc:  "",
@@ -384,18 +389,6 @@ func TestVmHandlerQuery_Doc(t *testing.T) {
 				},
 			},
 			{
-				Signature: "var pvString = \"private string\"",
-				Const:     false,
-				Doc:       "",
-				Values: []*doc.JSONValue{
-					{
-						Name: "pvString",
-						Doc:  "",
-						Type: "",
-					},
-				},
-			},
-			{
 				Signature: "var sl = []int{1, 2, 3, 4, 5}",
 				Const:     false,
 				Doc:       "sl is an int array\n",
@@ -412,13 +405,13 @@ func TestVmHandlerQuery_Doc(t *testing.T) {
 			{
 				Type:      "",
 				Name:      "Echo",
-				Signature: "func Echo(msg string) string",
+				Signature: "func Echo(msg string) (res string)",
 				Doc:       "",
 				Params: []*doc.JSONField{
 					{Name: "msg", Type: "string"},
 				},
 				Results: []*doc.JSONField{
-					{Name: "", Type: "string"},
+					{Name: "res", Type: "string"},
 				},
 			},
 			{
@@ -532,10 +525,13 @@ func (ms myStruct) Foo() string { return "myStruct.Foo" }
 // Panic is a func for testing
 func Panic() { panic("foo") }
 var counter int = 42
-var pvString = "private string"
-var PubString = "public string"
+// Test public and private vars
+var (
+  pvString = "private string" // A private var
+  PubString = "public string"
+)
 const ConstString = "const string"
-func Echo(msg string) string { return "echo:"+msg }
+func Echo(msg string) (res string) { res = "echo:"+msg; return }
 func GetCounter() int { return counter }
 func Inc() int { counter += 1; return counter }
 func pvEcho(msg string) string { return "pvecho:"+msg }
