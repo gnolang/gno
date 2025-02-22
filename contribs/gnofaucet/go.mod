@@ -5,6 +5,7 @@ go 1.23.6
 require (
 	github.com/gnolang/faucet v0.3.2
 	github.com/gnolang/gno v0.1.0-nightly.20240627
+	github.com/google/go-github/v64 v64.0.0
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/time v0.5.0
@@ -21,6 +22,7 @@ require (
 	github.com/go-chi/chi/v5 v5.1.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.25.1 // indirect

@@ -57,8 +57,10 @@ type serveCfg struct {
 
 	remote string
 
-	captchaSecret string
-	isBehindProxy bool
+	captchaSecret  string
+	ghClientID     string
+	ghClientSecret string
+	isBehindProxy  bool
 }
 
 func newServeCmd() *commands.Command {
@@ -125,6 +127,20 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 		"captcha-secret",
 		"",
 		"recaptcha secret key (if empty, captcha are disabled)",
+	)
+
+	fs.StringVar(
+		&c.ghClientSecret,
+		"github-client-secret",
+		"",
+		"github client secret for oauth authentication (if empty, middleware is disabled)",
+	)
+
+	fs.StringVar(
+		&c.ghClientID,
+		"github-client-id",
+		"",
+		"github client id for oauth authentication",
 	)
 
 	fs.BoolVar(
@@ -195,6 +211,7 @@ func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
 	middlewares := []faucet.Middleware{
 		getIPMiddleware(cfg.isBehindProxy, st),
 		getCaptchaMiddleware(cfg.captchaSecret),
+		getGithubMiddleware(cfg.ghClientID, cfg.ghClientSecret, 1*time.Hour),
 	}
 
 	// Create a new faucet with
