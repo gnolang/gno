@@ -62,9 +62,37 @@
 //
 // Example query usage:
 //
-//	... TODO
+//	var db datastore.Datastore
+//
+//	// Create a query with a custom offset and size
+//	storage := db.GetStorage("users")
+//	recordset, err := storage.Query(datastore.WithOffset(100), datastore.WithSize(50))
+//	if err != nil {
+//	  panic(err)
+//	}
+//
+//	// Get all query results
+//	var records []Record
+//	recordset.Iterate(func(r datastore.Record) bool {
+//	  records = append(records, r)
+//	  return false
+//	})
 //
 // Example query using a custom index usage:
 //
-//	... TODO
+//	var db datastore.Datastore
+//
+//	// Create a query to get records using a custom pre-defined index
+//	storage := db.GetStorage("posts")
+//	recordset, err := storage.Query(datastore.UseIndex("tags", "tagname"))
+//	if err != nil {
+//	  panic(err)
+//	}
+//
+//	// Get all query results
+//	var records []Record
+//	recordset.Iterate(func(r datastore.Record) bool {
+//	  records = append(records, r)
+//	  return false
+//	})
 package datastore
