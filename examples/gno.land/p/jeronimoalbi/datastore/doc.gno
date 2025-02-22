@@ -18,9 +18,13 @@
 // The default index is the ID index but custom single and multi value indexes can
 // be defined.
 //
-// Example usage:
+// WARNING: Using this package to store your realm data must be carefully considered.
+// The fact that record fields are not strictly typed and can be renamed or removed
+// could lead to issues if not careful when coding your realm(s). So it's recommended
+// that you consider other alternatives first, like alternative patterns or solutions
+// provided by the blockchain to deal with data, types and data migration for example.
 //
-//	import "gno.land/p/moul/collection"
+// Example usage:
 //
 //	var db datastore.Datastore
 //
@@ -39,11 +43,11 @@
 //	// Save to assing user ID and update indexes
 //	user.Save()
 //
-//	// Find user by email
-//	user, _ = storage.Get("email", "foo@bar.org")
+//	// Find user by email using the custom index
+//	user, _ = storage.Get(emailIdx.Name(), "foo@bar.org")
 //
 //	// Find user by ID
-//	user, _ = storage.Get(collection.IDIndex, user.Key())
+//	user, _ = storage.GetByID(user.ID())
 //
 //	// Search user's profile by email in another existing storage
 //	storage = db.GetStorage("profiles")
@@ -55,4 +59,12 @@
 //
 //	// Delete the profile from the storage and update indexes
 //	storage.Delete(profile.ID())
+//
+// Example query usage:
+//
+//	... TODO
+//
+// Example query using a custom index usage:
+//
+//	... TODO
 package datastore
