@@ -2,6 +2,7 @@ package metamodel
 
 import (
 	"encoding/base64"
+
 	"gno.land/p/demo/ufmt"
 )
 
@@ -227,7 +228,7 @@ func (d *Display) GetViewPort() (x1 int, y1 int, width int, height int) {
 	return x1, y1, x2 - x1, y2 - y1
 }
 
-// NewSvgImage creates a new Svg image for the Petri net model.
+// NewSvgImage creates a new Svg image for the Petri net model
 func (d *Display) NewSvgImage() {
 	x1, y1, width, height := d.GetViewPort()
 	d.Buffer += ufmt.Sprintf("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"%v\" height=\"%v\" viewBox=\"%v %v %v %v\">", width, height, x1, y1, width, height)
@@ -455,23 +456,41 @@ func (net *Pflow) ToJson() string {
 	return jsonStr
 }
 
+// ToBase64 returns a base64 encoded JSON representation of the Petri net model.
+// Open the base64 encoded JSON with https://pflow.xyz/editor to interact with the state machine.
 func (net *Pflow) ToBase64() string {
 	return base64.StdEncoding.EncodeToString([]byte(net.ToJson()))
 }
 
+// ToJsonDataUrl returns a data url for the JSON representation of the Petri net model.
+// Open the data url in a browser to interact with the state machine.
 func (net *Pflow) ToJsonDataUrl() string {
 	return "data:text/json;base64," + net.ToBase64()
 }
 
+// ToSvgDataUrl returns a data url for the Svg representation of the Petri net model.
+// Open the data url in a browser to view the state machine.
 func (net *Pflow) ToSvgDataUrl() string {
 	return "data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString([]byte(net.ToSvg()))
 }
 
+// ToImageMarkdown returns a markdown image of the Petri net model.
+// Open the image in a browser to view the state machine.
+// The image is a base64 encoded SVG.
+// The image is not interactive.
 func (net *Pflow) ToImageMarkdown() string {
 	return "![Petri-net](" + net.ToSvgDataUrl() + ")"
 }
 
-func (net *Pflow) ToLinkMarkdown() string {
+// ToLinkMarkdown returns a markdown link to the Petri net model.
+// The urlBase is the base url of the pflow server. Default is https://pflow.dev
+// The link is to the pflow editor with the Petri net model as a base64 encoded query parameter.
+// Open the link in a browser to interact with the state machine.
+func (net *Pflow) ToLinkMarkdown(urlBase ...string) string {
+	url := "https://pflow.dev"
+	if len(urlBase) > 0 {
+		url = urlBase[0]
+	}
 	data := net.ToBase64()
-	return "[![Petri-net](https://pflow.dev/img/?b=" + data + ")](https://pflow.dev/?b=" + data + ")"
+	return "[![Petri-net](" + url + "/img/?b=" + data + ")](" + url + "/?b=" + data + ")"
 }
