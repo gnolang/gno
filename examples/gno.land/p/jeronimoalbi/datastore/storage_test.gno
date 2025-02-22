@@ -6,7 +6,6 @@ import (
 
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
-	"gno.land/p/moul/collection"
 )
 
 func TestStorageDefaults(t *testing.T) {

@@ -186,10 +186,7 @@ func (s Storage) MustQuery(options ...QueryOption) Recordset {
 // To get multiple records create a query using a custom index and key value
 // or use the underlying storage collection.
 func (s Storage) Get(indexName, indexKey string) (_ Record, found bool) {
-	var (
-		record Record
-		iter   = s.collection.Get(indexName, indexKey)
-	)
+	iter := s.collection.Get(indexName, indexKey)
 	if iter.Next() {
 		return iter.Value().Obj.(Record), true
 	}
@@ -198,10 +195,7 @@ func (s Storage) Get(indexName, indexKey string) (_ Record, found bool) {
 
 // GetByID returns a record whose ID matches the specified ID.
 func (s Storage) GetByID(id uint64) (_ Record, found bool) {
-	var (
-		record Record
-		iter   = s.collection.Get(collection.IDIndex, seqid.ID(id).String())
-	)
+	iter := s.collection.Get(collection.IDIndex, seqid.ID(id).String())
 	if iter.Next() {
 		return iter.Value().Obj.(Record), true
 	}
