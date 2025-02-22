@@ -182,6 +182,10 @@ func (rs recordset) Iterate(fn RecordIterFn) (stopped bool) {
 
 	offset := rs.query.Offset()
 	count := rs.query.Size()
+	if count == 0 {
+		count = rs.records.Size()
+	}
+
 	return rs.records.IterateByOffset(offset, count, func(_ string, v interface{}) bool {
 		return fn(v.(Record))
 	})
@@ -205,8 +209,12 @@ func (rs recordset) ReverseIterate(fn RecordIterFn) (stopped bool) {
 	}
 
 	offset := rs.query.Offset()
-	size := rs.query.Size()
-	return rs.records.ReverseIterateByOffset(offset, size, func(_ string, v interface{}) bool {
+	count := rs.query.Size()
+	if count == 0 {
+		count = rs.records.Size()
+	}
+
+	return rs.records.ReverseIterateByOffset(offset, count, func(_ string, v interface{}) bool {
 		return fn(v.(Record))
 	})
 }
