@@ -339,9 +339,10 @@ dockers:
     ids:
       - gnodev
     extra_files:
-      - examples
       - gno.land/genesis/genesis_balances.txt
       - gno.land/genesis/genesis_txs.jsonl
+      - examples
+      - gnovm/stdlibs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -359,9 +360,10 @@ dockers:
     ids:
       - gnodev
     extra_files:
-      - examples
       - gno.land/genesis/genesis_balances.txt
       - gno.land/genesis/genesis_txs.jsonl
+      - examples
+      - gnovm/stdlibs
 
   # gnocontribs
   - use: buildx
