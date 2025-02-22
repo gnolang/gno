@@ -160,6 +160,7 @@ type recordset struct {
 	query   Query
 	records avl.ITree
 	keys    []string
+	size    int
 }
 
 // Iterate iterates records in order.
@@ -175,9 +176,13 @@ func (rs recordset) Iterate(fn RecordIterFn) (stopped bool) {
 				return true
 			}
 		}
+
+		return false
 	}
 
-	return rs.records.Iterate("", "", func(_ string, v interface{}) bool {
+	offset := rs.query.Offset()
+	count := rs.query.Size()
+	return rs.records.IterateByOffset(offset, count, func(_ string, v interface{}) bool {
 		return fn(v.(Record))
 	})
 }
@@ -195,19 +200,20 @@ func (rs recordset) ReverseIterate(fn RecordIterFn) (stopped bool) {
 				return true
 			}
 		}
+
+		return false
 	}
 
-	return rs.records.ReverseIterate("", "", func(_ string, v interface{}) bool {
+	offset := rs.query.Offset()
+	size := rs.query.Size()
+	return rs.records.ReverseIterateByOffset(offset, size, func(_ string, v interface{}) bool {
 		return fn(v.(Record))
 	})
 }
 
 // Size returns the number of records in the recordset.
 func (rs recordset) Size() int {
-	if rs.isUsingCustomIndex() {
-		return len(rs.keys)
-	}
-	return rs.records.Size()
+	return rs.size
 }
 
 func (rs recordset) isUsingCustomIndex() bool {

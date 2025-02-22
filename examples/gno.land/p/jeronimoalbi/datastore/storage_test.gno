@@ -41,199 +41,189 @@ func TestStorageNewRecord(t *testing.T) {
 	uassert.Equal(t, defaultValue, got)
 }
 
-func TestStorageIterate(t *testing.T) {
-	index := NewIndex("name", func(r Record) string {
-		if v, found := r.Get("name"); found {
+func TestStorageQuery(t *testing.T) {
+	index := NewIndex("tag", func(r Record) string {
+		if v, found := r.Get("tag"); found {
 			return v.(string)
 		}
 		return ""
 	})
 
 	cases := []struct {
-		name      string
-		recordIDs []uint64
-		setup     func(*Storage)
+		name    string
+		options []QueryOption
+		results []uint64
+		setup   func() *Storage
+		errMsg  string
 	}{
 		{
-			name:      "single record",
-			recordIDs: []uint64{1},
-			setup: func(s *Storage) {
-				r := s.NewRecord()
-				r.Set("name", "foobar")
-				r.Save()
+			name:    "default query",
+			results: []uint64{1, 2},
+			setup: func() *Storage {
+				s := NewStorage("foo")
+				s.NewRecord().Save()
+				s.NewRecord().Save()
+				return &s
 			},
 		},
 		{
-			name:      "two records",
-			recordIDs: []uint64{1, 2},
-			setup: func(s *Storage) {
+			name:    "with size",
+			results: []uint64{1},
+			options: []QueryOption{WithSize(1)},
+			setup: func() *Storage {
+				s := NewStorage("foo")
+				s.NewRecord().Save()
+				s.NewRecord().Save()
+				return &s
+			},
+		},
+		{
+			name:    "with offset",
+			results: []uint64{2},
+			options: []QueryOption{WithOffset(1)},
+			setup: func() *Storage {
+				s := NewStorage("foo")
+				s.NewRecord().Save()
+				s.NewRecord().Save()
+				return &s
+			},
+		},
+		{
+			name:    "with offset overflow",
+			options: []QueryOption{WithOffset(4)},
+			setup: func() *Storage {
+				s := NewStorage("foo")
+				s.NewRecord().Save()
+				return &s
+			},
+		},
+		{
+			name:    "with size and offset",
+			results: []uint64{2, 3},
+			options: []QueryOption{WithSize(2), WithOffset(1)},
+			setup: func() *Storage {
+				s := NewStorage("foo")
+				s.NewRecord().Save()
+				s.NewRecord().Save()
+				s.NewRecord().Save()
+				s.NewRecord().Save()
+				return &s
+			},
+		},
+		{
+			name:    "custom index",
+			options: []QueryOption{UseIndex("tag", "A")},
+			results: []uint64{1, 3},
+			setup: func() *Storage {
+				s := NewStorage("foo", WithIndex(index))
+
 				r := s.NewRecord()
-				r.Set("name", "foobar")
+				r.Set("tag", "A")
 				r.Save()
 
 				r = s.NewRecord()
-				r.Set("name", "foobar")
+				r.Set("tag", "B")
 				r.Save()
+
+				r = s.NewRecord()
+				r.Set("tag", "A")
+				r.Save()
+
+				return &s
 			},
 		},
 		{
-			name: "empty storage",
+			name:    "custom index with offset",
+			options: []QueryOption{UseIndex("tag", "B"), WithOffset(1)},
+			results: []uint64{3, 4},
+			setup: func() *Storage {
+				s := NewStorage("foo", WithIndex(index))
+
+				r := s.NewRecord()
+				r.Set("tag", "B")
+				r.Save()
+
+				r = s.NewRecord()
+				r.Set("tag", "A")
+				r.Save()
+
+				r = s.NewRecord()
+				r.Set("tag", "B")
+				r.Save()
+
+				r = s.NewRecord()
+				r.Set("tag", "B")
+				r.Save()
+
+				return &s
+			},
+		},
+		{
+			name:    "custom index with offset and size",
+			options: []QueryOption{UseIndex("tag", "B"), WithOffset(1), WithSize(1)},
+			results: []uint64{3},
+			setup: func() *Storage {
+				s := NewStorage("foo", WithIndex(index))
+
+				r := s.NewRecord()
+				r.Set("tag", "B")
+				r.Save()
+
+				r = s.NewRecord()
+				r.Set("tag", "A")
+				r.Save()
+
+				r = s.NewRecord()
+				r.Set("tag", "B")
+				r.Save()
+
+				r = s.NewRecord()
+				r.Set("tag", "B")
+				r.Save()
+
+				return &s
+			},
+		},
+		{
+			name:    "custom index not found",
+			options: []QueryOption{UseIndex("foo", "B")},
+			setup: func() *Storage {
+				s := NewStorage("foo")
+				return &s
+			},
+			errMsg: "storage index for query not found: foo",
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			storage := NewStorage("foo", WithDefaultIndex(index))
-			if tc.setup != nil {
-				tc.setup(&storage)
+			// Arrange
+			storage := tc.setup()
+
+			// Act
+			rs, err := storage.Query(tc.options...)
+
+			// Assert
+			if tc.errMsg != "" {
+				uassert.ErrorContains(t, err, tc.errMsg, "expect error")
+				return
 			}
 
-			var records []Record
-			storage.Iterate("", "", func(r Record) bool {
-				records = append(records, r)
+			urequire.NoError(t, err, "expect no error")
+			urequire.NotEqual(t, nil, rs, "new record is not nil")
+			urequire.Equal(t, len(tc.results), rs.Size(), "expect query results count to match")
+
+			var i int
+			rs.Iterate(func(r Record) bool {
+				urequire.Equal(t, tc.results[i], r.ID(), "expect result IDs to match")
+				i++
 				return false
 			})
-
-			urequire.Equal(t, len(tc.recordIDs), len(records), "results count")
-			for i, r := range records {
-				uassert.Equal(t, tc.recordIDs[i], r.ID())
-			}
-		})
-	}
-}
-
-func TestStorageReverseIterate(t *testing.T) {
-	index := NewIndex("name", func(r Record) string {
-		if v, found := r.Get("name"); found {
-			return v.(string)
-		}
-		return ""
-	})
-
-	cases := []struct {
-		name      string
-		recordIDs []uint64
-		setup     func(*Storage)
-	}{
-		{
-			name:      "single record",
-			recordIDs: []uint64{1},
-			setup: func(s *Storage) {
-				r := s.NewRecord()
-				r.Set("name", "foobar")
-				r.Save()
-			},
-		},
-		{
-			name:      "two records",
-			recordIDs: []uint64{2, 1},
-			setup: func(s *Storage) {
-				r := s.NewRecord()
-				r.Set("name", "foobar")
-				r.Save()
-
-				r = s.NewRecord()
-				r.Set("name", "foobar")
-				r.Save()
-			},
-		},
-		{
-			name: "empty storage",
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			storage := NewStorage("foo", WithDefaultIndex(index))
-			if tc.setup != nil {
-				tc.setup(&storage)
-			}
-
-			var records []Record
-			storage.ReverseIterate("", "", func(r Record) bool {
-				records = append(records, r)
-				return false
-			})
-
-			urequire.Equal(t, len(tc.recordIDs), len(records), "results count")
-			for i, r := range records {
-				uassert.Equal(t, tc.recordIDs[i], r.ID())
-			}
 		})
 	}
 }
 
 func TestStorageGet(t *testing.T) {
-	index := NewIndex("name", func(r Record) string {
-		if v, found := r.Get("name"); found {
-			return v.(string)
-		}
-		return ""
-	})
-
-	cases := []struct {
-		name      string
-		key       string
-		recordIDs []uint64
-		setup     func(*Storage)
-	}{
-		{
-			name:      "single record",
-			key:       "foobar",
-			recordIDs: []uint64{1},
-			setup: func(s *Storage) {
-				r := s.NewRecord()
-				r.Set("name", "foobar")
-				r.Save()
-			},
-		},
-		{
-			name:      "two records",
-			key:       "foobar",
-			recordIDs: []uint64{1, 2},
-			setup: func(s *Storage) {
-				r := s.NewRecord()
-				r.Set("name", "foobar")
-				r.Save()
-
-				r = s.NewRecord()
-				r.Set("name", "foobar")
-				r.Save()
-			},
-		},
-		{
-			name: "no records found",
-			key:  "unknown",
-			setup: func(s *Storage) {
-				r := s.NewRecord()
-				r.Set("name", "foobar")
-				r.Save()
-			},
-		},
-		{
-			name: "empty storage",
-			key:  "unknown",
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			storage := NewStorage("foo", WithDefaultIndex(index))
-			if tc.setup != nil {
-				tc.setup(&storage)
-			}
-
-			records := storage.Get(tc.key)
-
-			urequire.Equal(t, len(tc.recordIDs), len(records), "results count")
-			for i, r := range records {
-				uassert.Equal(t, tc.recordIDs[i], r.ID())
-			}
-		})
-	}
-}
-
-func TestStorageGetFirst(t *testing.T) {
 	index := NewIndex("name", func(r Record) string {
 		if v, found := r.Get("name"); found {
 			return v.(string)
@@ -292,20 +282,83 @@ func TestStorageGetFirst(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			storage := NewStorage("foo", WithDefaultIndex(index))
+			storage := NewStorage("foo", WithIndex(index))
 			if tc.setup != nil {
 				tc.setup(&storage)
 			}
 
-			r := storage.GetFirst(tc.key)
+			r, found := storage.Get(index.Name(), tc.key)
 
 			if tc.recordID == 0 {
-				urequire.Equal(t, nil, r, "record not found")
+				uassert.Equal(t, nil, r, "expect no record")
+				uassert.False(t, found, "expect record not found")
 				return
 			}
 
-			urequire.NotEqual(t, nil, r, "record found")
-			uassert.Equal(t, tc.recordID, r.ID())
+			uassert.True(t, found, "expect record found")
+			urequire.NotEqual(t, nil, r, "expect record to be found")
+			uassert.Equal(t, tc.recordID, r.ID(), "expect ID to match")
+		})
+	}
+}
+
+func TestStorageGetByID(t *testing.T) {
+	cases := []struct {
+		name     string
+		recordID uint64
+		found    bool
+		setup    func(*Storage)
+	}{
+		{
+			name:     "single record",
+			recordID: 1,
+			found:    true,
+			setup: func(s *Storage) {
+				s.NewRecord().Save()
+			},
+		},
+		{
+			name:     "multiple records",
+			recordID: 2,
+			found:    true,
+			setup: func(s *Storage) {
+				s.NewRecord().Save()
+				s.NewRecord().Save()
+				s.NewRecord().Save()
+			},
+		},
+		{
+			name:     "record not found",
+			recordID: 3,
+			setup: func(s *Storage) {
+				s.NewRecord().Save()
+				s.NewRecord().Save()
+			},
+		},
+		{
+			name:     "empty storage",
+			recordID: 1,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			storage := NewStorage("foo")
+			if tc.setup != nil {
+				tc.setup(&storage)
+			}
+
+			r, found := storage.GetByID(tc.recordID)
+
+			if !tc.found {
+				uassert.Equal(t, nil, r, "expect no record")
+				uassert.False(t, found, "expect record not found")
+				return
+			}
+
+			uassert.True(t, found, "expect record found")
+			urequire.NotEqual(t, nil, r, "expect record to be found")
+			uassert.Equal(t, tc.recordID, r.ID(), "expect ID to match")
 		})
 	}
 }

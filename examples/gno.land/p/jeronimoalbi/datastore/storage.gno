@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 
+	"gno.land/p/demo/seqid"
 	"gno.land/p/moul/collection"
 )
 
@@ -88,44 +89,88 @@ func (s Storage) NewRecord() Record {
 // Example usage:
 //
 //	// Get 50 records starting from the one at position 100
+//	rs, _ := storage.Query(
+//		WithOffset(100),
+//		WithSize(50),
+//	)
+//
+//	// Iterate records to create a new slice
 //	var records []Record
-//	storage.Query(
-//		ithOffset(100),
-//		ithSize(50),
-//	).Iterate(func (r Record) bool {
+//	rs.Iterate(func (r Record) bool {
 //		records = append(records, r)
 //		return false
 //	})
 func (s Storage) Query(options ...QueryOption) (Recordset, error) {
-	// Initialize records's query
-	rs := recordset{query: defaultQuery}
+	// Initialize the recordset for the query
+	rs := recordset{
+		query:   defaultQuery,
+		records: s.collection.GetIndex(collection.IDIndex),
+	}
+
 	for _, apply := range options {
 		if err := apply(&rs.query); err != nil {
 			return nil, err
 		}
 	}
 
-	// When a custom index is used get the keys of the records that match
-	if name := rs.query.IndexName(); name != collection.IDIndex {
-		idx := s.collection.GetIndex(name)
-		if idx == nil {
-			return nil, errors.New("storage index for query not found: " + name)
+	indexName := rs.query.IndexName()
+	if indexName != collection.IDIndex {
+		// When using a custom index get the keys to get records from the ID index
+		keys, err := s.getIndexRecordsKeys(indexName, rs.query.IndexKey())
+		if err != nil {
+			return nil, err
 		}
 
-		if v, found := idx.Get(rs.query.IndexKey()); found {
-			rs.keys = castIfaceToRecordKeys(v)
-			if rs.keys == nil {
-				return nil, errors.New("unexpected storage index key format")
+		// Adjust the number of keys to match available query options
+		if offset := rs.query.Offset(); offset > 0 {
+			if offset > len(keys) {
+				keys = nil
+			} else {
+				keys = keys[offset:]
 			}
+		}
+
+		if size := rs.query.Size(); size > 0 && size < len(keys) {
+			keys = keys[:size]
+		}
+
+		rs.keys = keys
+		rs.size = len(keys)
+	} else {
+		// When using the default ID index init size with the total number of records
+		rs.size = rs.records.Size()
+
+		// Adjust recordset size to match available query options
+		if offset := rs.query.Offset(); offset > 0 {
+			if offset > rs.size {
+				rs.size = 0
+			} else {
+				rs.size -= offset
+			}
+		}
+
+		if size := rs.query.Size(); size > 0 && size < rs.size {
+			rs.size = size
 		}
 	}
 
-	rs.records = s.collection.GetIndex(collection.IDIndex)
 	return rs, nil
 }
 
 // MustQuery returns a recordset that matches the query parameters or panics on error.
 // By default query selects records using the ID index.
+//
+// Example usage:
+//
+//	// Get 50 records starting from the one at position 100
+//	var records []Record
+//	storage.MustQuery(
+//		WithOffset(100),
+//		WithSize(50),
+//	).Iterate(func (r Record) bool {
+//		records = append(records, r)
+//		return false
+//	})
 func (s Storage) MustQuery(options ...QueryOption) Recordset {
 	rs, err := s.Query(options...)
 	if err != nil {
@@ -151,9 +196,37 @@ func (s Storage) Get(indexName, indexKey string) (_ Record, found bool) {
 	return nil, false
 }
 
+// GetByID returns a record whose ID matches the specified ID.
+func (s Storage) GetByID(id uint64) (_ Record, found bool) {
+	var (
+		record Record
+		iter   = s.collection.Get(collection.IDIndex, seqid.ID(id).String())
+	)
+	if iter.Next() {
+		return iter.Value().Obj.(Record), true
+	}
+	return nil, false
+}
+
 // Delete deletes a record from the storage.
 func (s Storage) Delete(id uint64) bool {
 	return s.collection.Delete(id)
+}
+
+func (s Storage) getIndexRecordsKeys(indexName, indexKey string) ([]string, error) {
+	idx := s.collection.GetIndex(indexName)
+	if idx == nil {
+		return nil, errors.New("storage index for query not found: " + indexName)
+	}
+
+	var keys []string
+	if v, found := idx.Get(indexKey); found {
+		keys = castIfaceToRecordKeys(v)
+		if keys == nil {
+			return nil, errors.New("unexpected storage index key format")
+		}
+	}
+	return keys, nil
 }
 
 func castIfaceToRecordKeys(v interface{}) []string {
