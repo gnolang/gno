@@ -69,6 +69,7 @@ func TestUpvote(t *testing.T) {
 
 	// Check double upvote
 	uassert.PanicsWithMessage(t, ErrDoubleUpvote.Error(), func() {
+		println(ErrDoubleUpvote.Error())
 		Upvote(rlmPath)
 	})
 }
