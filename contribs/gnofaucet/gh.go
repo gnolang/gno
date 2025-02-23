@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -15,7 +16,7 @@ func getGithubMiddleware(clientID, secret string, cooldown time.Duration) func(n
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
-				// Check if the captcha is enabled
+				// github Oauth flow is enabled
 				if secret == "" || clientID == "" {
 					// Continue with serving the faucet request
 					next.ServeHTTP(w, r)
@@ -29,18 +30,12 @@ func getGithubMiddleware(clientID, secret string, cooldown time.Duration) func(n
 					return
 				}
 
-				res, err := exchangeCodeForToken(secret, clientID, code)
+				user, err := exchangeCodeForUser(r.Context(), secret, clientID, code)
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusBadRequest)
 					return
 				}
 
-				client := github.NewClient(http.DefaultClient).WithAuthToken(res.AccessToken)
-				user, _, err := client.Users.Get(r.Context(), "")
-				if err != nil {
-					http.Error(w, err.Error(), http.StatusBadRequest)
-					return
-				}
 				// Just check if given account have asked for faucet before the cooldown period
 				if !coolDownLimiter.CheckCooldown(user.GetLogin()) {
 					http.Error(w, "user is on cooldown", http.StatusTooManyRequests)
@@ -59,7 +54,7 @@ type GitHubTokenResponse struct {
 	AccessToken string `json:"access_token"`
 }
 
-func exchangeCodeForToken(secret, clientID, code string) (*GitHubTokenResponse, error) {
+var exchangeCodeForUser = func(ctx context.Context, secret, clientID, code string) (*github.User, error) {
 	url := "https://github.com/login/oauth/access_token"
 	body := fmt.Sprintf("client_id=%s&client_secret=%s&code=%s", clientID, secret, code)
 	req, err := http.NewRequest("POST", url, strings.NewReader(body))
@@ -84,5 +79,7 @@ func exchangeCodeForToken(secret, clientID, code string) (*GitHubTokenResponse, 
 		return nil, fmt.Errorf("unable to exchange code for token")
 	}
 
-	return &tokenResponse, nil
+	ghClient := github.NewClient(http.DefaultClient).WithAuthToken(tokenResponse.AccessToken)
+	user, _, err := ghClient.Users.Get(ctx, "")
+	return user, err
 }

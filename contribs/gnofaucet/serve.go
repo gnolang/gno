@@ -59,6 +59,7 @@ type serveCfg struct {
 
 	captchaSecret  string
 	ghClientID     string
+	maxBalance     int64
 	ghClientSecret string
 	isBehindProxy  bool
 }
@@ -143,6 +144,13 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 		"github client id for oauth authentication",
 	)
 
+	fs.Int64Var(
+		&c.maxBalance,
+		"max-balance",
+		10000000, // 10 ugnot
+		"limit of tokens the user can possess to be eligible to claim the faucet",
+	)
+
 	fs.BoolVar(
 		&c.isBehindProxy,
 		"is-behind-proxy",
@@ -212,6 +220,7 @@ func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
 		getIPMiddleware(cfg.isBehindProxy, st),
 		getCaptchaMiddleware(cfg.captchaSecret),
 		getGithubMiddleware(cfg.ghClientID, cfg.ghClientSecret, 1*time.Hour),
+		getAccountBalanceMiddleware(cli, cfg.maxBalance),
 	}
 
 	// Create a new faucet with
