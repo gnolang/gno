@@ -327,9 +327,7 @@ func TestSecrets_Verify_Single(t *testing.T) {
 		dirPath := t.TempDir()
 		path := filepath.Join(dirPath, defaultNodeKeyName)
 
-		invalidNodeKey := &types.NodeKey{
-			PrivKey: nil, // invalid
-		}
+		var invalidNodeKey *types.NodeKey = nil // invalid
 
 		require.NoError(t, saveSecretData(invalidNodeKey, path))
 

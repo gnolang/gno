@@ -87,7 +87,7 @@ func validateValidatorStateSignature(
 
 // validateNodeKey validates the node's p2p key
 func validateNodeKey(key *types.NodeKey) error {
-	if key.PrivKey == nil {
+	if key == nil {
 		return errInvalidNodeKey
 	}
 

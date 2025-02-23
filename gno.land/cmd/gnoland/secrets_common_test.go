@@ -135,8 +135,7 @@ func TestCommon_ValidateNodeKey(t *testing.T) {
 	t.Run("invalid node key", func(t *testing.T) {
 		t.Parallel()
 
-		key := types.GenerateNodeKey()
-		key.PrivKey = nil
+		var key *types.NodeKey = nil
 
 		assert.ErrorIs(t, validateNodeKey(key), errInvalidNodeKey)
 	})

@@ -296,7 +296,7 @@ func (mt *MultiplexTransport) upgradeAndVerifyConn(c net.Conn) (secretConn, type
 	sc, err := mt.upgradeToSecretConn(
 		c,
 		defaultHandshakeTimeout,
-		mt.nodeKey.PrivKey.(ed25519.PrivKeyEd25519),
+		mt.nodeKey.PrivKey,
 	)
 	if err != nil {
 		return nil, types.NodeInfo{}, fmt.Errorf("unable to upgrade p2p connection, %w", err)

@@ -16,7 +16,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
-	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/discovery"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
@@ -121,19 +120,10 @@ func DefaultNewNode(
 		config.DBDir(),
 	)
 
-	// Use the node key as an authentication key for the remote signer client.
-	var clientPrivKey *ed25519.PrivKeyEd25519
-
-	// Only use if it is an ed25519 key.
-	switch nodePrivKey := nodeKey.PrivKey.(type) {
-	case ed25519.PrivKeyEd25519:
-		clientPrivKey = &nodePrivKey
-	}
-
 	// Initialize the privValidator
 	privVal, err := privval.NewPrivValidatorFromConfig(
 		config.PrivValidator,
-		clientPrivKey,
+		nodeKey.PrivKey,
 		logger.With("module", "remote_signer_client"),
 	)
 	if err != nil {

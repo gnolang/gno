@@ -195,6 +195,7 @@ func readNodeID(path string) (*nodeIDInfo, error) {
 	return &nodeIDInfo{
 		ID:         nodeKey.ID().String(),
 		P2PAddress: constructP2PAddress(nodeKey.ID(), cfg.P2P.ListenAddress),
+		PubKey:     nodeKey.PrivKey.PubKey().String(),
 	}, nil
 }
 

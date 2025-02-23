@@ -38,7 +38,7 @@ func TestNodeKey_Generate(t *testing.T) {
 				continue
 			}
 
-			assert.False(t, key.Equals(keyInner))
+			assert.False(t, key.PrivKey.Equals(keyInner.PrivKey))
 		}
 	}
 }

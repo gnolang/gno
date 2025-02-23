@@ -180,7 +180,7 @@ func NewPrivValidator(signer types.Signer, stateFilePath string) (*PrivValidator
 // The clientPrivKey is only used for the remote signer client using a TCP connection.
 func NewPrivValidatorFromConfig(
 	config *PrivValidatorConfig,
-	clientPrivKey *ed25519.PrivKeyEd25519,
+	clientPrivKey ed25519.PrivKeyEd25519,
 	clientLogger *slog.Logger,
 ) (*PrivValidator, error) {
 	var (

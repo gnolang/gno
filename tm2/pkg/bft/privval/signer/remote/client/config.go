@@ -89,20 +89,16 @@ func (cfg *RemoteSignerClientConfig) ValidateBasic() error {
 // The clientPrivKey is only used if the client connects to the server using TCP.
 func NewRemoteSignerClientFromConfig(
 	config *RemoteSignerClientConfig,
-	clientPrivKey *ed25519.PrivKeyEd25519,
+	clientPrivKey ed25519.PrivKeyEd25519,
 	clientLogger *slog.Logger,
 ) (*RemoteSignerClient, error) {
 	// Options for the remote signer client.
 	options := []Option{
+		WithClientPrivKey(clientPrivKey),
 		WithDialMaxRetries(config.DialMaxRetries),
 		WithDialRetryInterval(config.DialRetryInterval),
 		WithDialTimeout(config.DialTimeout),
 		WithRequestTimeout(config.RequestTimeout),
-	}
-
-	// If a clientPrivKey is provided, set it in the options.
-	if clientPrivKey != nil {
-		options = append(options, WithClientPrivKey(*clientPrivKey))
 	}
 
 	// If authorized keys are set in the config, add them to the options.

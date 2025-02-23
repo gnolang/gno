@@ -39,14 +39,14 @@ func NewIDFromStrings(idStrs []string) ([]ID, []error) {
 // It contains the nodes private key for authentication.
 // NOTE: keep in sync with gno.land/cmd/gnoland/secrets.go
 type NodeKey struct {
-	crypto.PrivKey `json:"priv_key"` // our priv key
+	PrivKey ed25519.PrivKeyEd25519 `json:"priv_key"` // our priv key
 }
 
 // ID returns the bech32 representation
 // of the node's public p2p key, with
 // the bech32 prefix
 func (k NodeKey) ID() ID {
-	return k.PubKey().Address().ID()
+	return k.PrivKey.PubKey().Address().ID()
 }
 
 // LoadOrGenNodeKey attempts to load the NodeKey from the given filePath.

@@ -101,5 +101,6 @@ type (
 	nodeIDInfo struct {
 		ID         string `json:"id" toml:"id" comment:"the node ID derived from the private key"`
 		P2PAddress string `json:"p2p_address" toml:"p2p_address" comment:"the node's constructed P2P address'"`
+		PubKey     string `json:"pub_key" toml:"pub_key" comment:"the node public key that can be used to anthenticate with gnokms"`
 	}
 )
