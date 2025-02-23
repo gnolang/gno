@@ -5,7 +5,6 @@ package node
 
 import (
 	"fmt"
-	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -680,11 +679,9 @@ func (n *Node) OnStop() {
 		}
 	}
 
-	// If the privValidator implements the io.Closer interface, close it.
-	if closer, ok := n.privValidator.(io.Closer); ok {
-		if err := closer.Close(); err != nil {
-			n.Logger.Error("Error closing private validator", "err", err)
-		}
+	// Close the private validator
+	if err := n.privValidator.Close(); err != nil {
+		n.Logger.Error("Error closing private validator", "err", err)
 	}
 }
 

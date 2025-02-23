@@ -25,6 +25,11 @@ func (fs *LocalSigner) Sign(signBytes []byte) ([]byte, error) {
 	return fs.key.PrivKey.Sign(signBytes)
 }
 
+// Close implements types.Signer.
+func (fs *LocalSigner) Close() error {
+	return nil
+}
+
 // LocalSigner type implements fmt.Stringer.
 var _ fmt.Stringer = (*LocalSigner)(nil)
 

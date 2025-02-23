@@ -12,6 +12,7 @@ type PrivValidator interface {
 	PubKey() (crypto.PubKey, error)
 	SignVote(chainID string, vote *Vote) error
 	SignProposal(chainID string, proposal *Proposal) error
+	Close() error
 }
 
 // PrivValidatorsByAddress implements sort.Interface for []PrivValidator based
@@ -79,6 +80,11 @@ func (pv *mockPV) SignProposal(chainID string, proposal *Proposal) error {
 		return err
 	}
 	proposal.Signature = sig
+	return nil
+}
+
+// Close implements PrivValidator.
+func (pv *mockPV) Close() error {
 	return nil
 }
 

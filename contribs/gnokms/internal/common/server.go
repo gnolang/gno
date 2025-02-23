@@ -138,5 +138,10 @@ func RunSignerServer(commonFlags *ServerFlags, signer types.Signer, io commands.
 	}
 	server.Wait()
 
+	// Close the signer.
+	if err := signer.Close(); err != nil {
+		return fmt.Errorf("signer close failed: %w", err)
+	}
+
 	return nil
 }

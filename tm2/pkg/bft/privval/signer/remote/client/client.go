@@ -2,7 +2,6 @@ package client
 
 import (
 	"fmt"
-	"io"
 
 	r "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -66,6 +65,21 @@ func (rsc *RemoteSignerClient) Sign(signBytes []byte) ([]byte, error) {
 	return signResponse.Signature, nil
 }
 
+// Close implements type.Signer.
+func (rsc *RemoteSignerClient) Close() error {
+	// Check if the client is already closed and set the closed state.
+	if !rsc.closed.CompareAndSwap(false, true) {
+		return ErrClientAlreadyClosed
+	}
+
+	// Close the connection.
+	err := rsc.setConnection(nil)
+
+	rsc.logger.Info("Client closed")
+
+	return err
+}
+
 // Ping sends a ping request to the server.
 func (rsc *RemoteSignerClient) Ping() error {
 	response, err := rsc.send(&r.PingRequest{})
@@ -110,22 +124,4 @@ func (rsc *RemoteSignerClient) String() string {
 // isClosed returns true if the client is closed.
 func (rsc *RemoteSignerClient) isClosed() bool {
 	return rsc.closed.Load()
-}
-
-// RemoteSignerClient type implements io.Closer.
-var _ io.Closer = (*RemoteSignerClient)(nil)
-
-// Close implements io.Closer.
-func (rsc *RemoteSignerClient) Close() error {
-	// Check if the client is already closed and set the closed state.
-	if !rsc.closed.CompareAndSwap(false, true) {
-		return ErrClientAlreadyClosed
-	}
-
-	// Close the connection.
-	err := rsc.setConnection(nil)
-
-	rsc.logger.Info("Client closed")
-
-	return err
 }

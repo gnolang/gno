@@ -24,10 +24,16 @@ func (gk *gnokeySigner) PubKey() (crypto.PubKey, error) {
 	return gk.keyInfo.GetPubKey(), nil
 }
 
-// SignProposal implements types.Signer.
+// Sign implements types.Signer.
 func (gk *gnokeySigner) Sign(signBytes []byte) ([]byte, error) {
 	signature, _, err := gk.keyBase.Sign(gk.keyInfo.GetName(), gk.password, signBytes)
 	return signature, err
+}
+
+// Close implements types.Signer.
+func (gk *gnokeySigner) Close() error {
+	gk.keyBase.CloseDB()
+	return nil
 }
 
 // newGnokeySigner initializes a new gnokey signer with the provided key name and asks

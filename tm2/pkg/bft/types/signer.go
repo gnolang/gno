@@ -14,6 +14,7 @@ import (
 type Signer interface {
 	PubKey() (crypto.PubKey, error)
 	Sign([]byte) ([]byte, error)
+	Close() error
 }
 
 // mockSigner implements Signer without persistence. Only use it for testing.
@@ -37,6 +38,11 @@ func (ms *mockSigner) Sign(signBytes []byte) ([]byte, error) {
 	}
 
 	return signature, nil
+}
+
+// Close implements Signer.
+func (ms *mockSigner) Close() error {
+	return nil
 }
 
 // mockSigner type implements fmt.Stringer.
@@ -75,6 +81,11 @@ func (ems *erroringMockSigner) PubKey() (crypto.PubKey, error) {
 // Sign implements Signer.
 func (ems *erroringMockSigner) Sign(signBytes []byte) ([]byte, error) {
 	return nil, ErrErroringMockSigner
+}
+
+// Close implements Signer.
+func (ems *erroringMockSigner) Close() error {
+	return nil
 }
 
 // erroringMockSigner type implements fmt.Stringer.

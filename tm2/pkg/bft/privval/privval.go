@@ -126,10 +126,7 @@ func (pv *PrivValidator) SignProposal(chainID string, proposal *types.Proposal) 
 	return pv.state.Update(height, round, step, signBytes, signature)
 }
 
-// PrivValidator type implements io.Closer.
-var _ io.Closer = (*PrivValidator)(nil)
-
-// Close implements io.Closer.
+// Close implements types.PrivValidator.
 func (pv *PrivValidator) Close() error {
 	// If the signer implements the io.Closer interface, close it.
 	if closer, ok := pv.signer.(io.Closer); ok {
