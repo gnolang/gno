@@ -17,13 +17,13 @@ var (
 )
 
 func init() {
-	std.TestSetOrigCaller(owner)
+	std.TestSetOriginCaller(owner)
 	bid = boards2.CreateBoard("test-board")
 	pid = boards2.CreateThread(bid, "Foo", "bar")
 
 	// Invite a member using a role with permission to delete threads
 	boards2.InviteMember(bid, member, boards2.RoleAdmin)
-	std.TestSetOrigCaller(member)
+	std.TestSetOriginCaller(member)
 }
 
 func main() {

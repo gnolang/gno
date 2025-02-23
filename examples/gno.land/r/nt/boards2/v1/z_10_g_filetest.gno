@@ -14,7 +14,7 @@ var (
 )
 
 func init() {
-	std.TestSetOrigCaller(owner)
+	std.TestSetOriginCaller(owner)
 	bid = boards2.CreateBoard("test-board")
 	pid = boards2.CreateThread(bid, "Foo", "bar")
 

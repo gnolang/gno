@@ -10,8 +10,6 @@ import (
 	"gno.land/r/demo/users"
 )
 
-// TODO: Move to a package or make it private?
-
 // DefaultPermissions manages users, roles and permissions.
 type DefaultPermissions struct {
 	superRole Role
@@ -22,16 +20,28 @@ type DefaultPermissions struct {
 
 // NewDefaultPermissions creates a new permissions type.
 // This type is a default implementation to handle users, roles and permissions.
-func NewDefaultPermissions(dao *commondao.CommonDAO, options ...DefaultPermissionsOption) *DefaultPermissions {
-	dp := &DefaultPermissions{
+func NewDefaultPermissions(dao *commondao.CommonDAO) *DefaultPermissions {
+	if dao == nil {
+		panic("default permissions require a DAO")
+	}
+
+	return &DefaultPermissions{
 		dao:   dao,
 		roles: avl.NewTree(),
 		users: avl.NewTree(),
 	}
-	for _, apply := range options {
-		apply(dp)
-	}
-	return dp
+}
+
+// SetSuperRole assigns a super role.
+// A super role is one that have all permissions.
+// These type of role doesn't need to be mapped to any permission.
+func (dp *DefaultPermissions) SetSuperRole(r Role) {
+	dp.superRole = r
+}
+
+// AddRole add a role with one or more assigned permissions.
+func (dp *DefaultPermissions) AddRole(r Role, p Permission, extra ...Permission) {
+	dp.roles.Set(string(r), append([]Permission{p}, extra...))
 }
 
 // RoleExists checks if a role exists.
@@ -117,12 +127,6 @@ func (dp DefaultPermissions) HasUser(user std.Address) bool {
 	return dp.users.Has(user.String())
 }
 
-// GetDAO returns the underlying DAO.
-// Returned value can be nil if the implementation doesn't have a DAO.
-func (dp DefaultPermissions) GetDAO() *commondao.CommonDAO {
-	return dp.dao
-}
-
 // WithPermission calls a callback when a user has a specific permission.
 // It panics on error or when a handler panics.
 // Callbacks are by default called when there is no handle registered for the permission.
@@ -190,7 +194,7 @@ func (dp DefaultPermissions) handleMemberInvite(args Args, cb func(Args)) {
 	}
 
 	if role == RoleOwner {
-		caller := std.GetOrigCaller()
+		caller := std.OriginCaller()
 		if !dp.HasRole(caller, RoleOwner) {
 			panic("only owners are allowed to invite other owners")
 		}
@@ -202,7 +206,7 @@ func (dp DefaultPermissions) handleMemberInvite(args Args, cb func(Args)) {
 func (dp DefaultPermissions) handleRoleChange(args Args, cb func(Args)) {
 	// Owners and Admins can change roles.
 	// Admins should not be able to assign or remove the Owner role from members.
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	if dp.HasRole(caller, RoleAdmin) {
 		role, ok := args[2].(Role)
 		if !ok {
@@ -227,12 +231,11 @@ func (dp DefaultPermissions) handleRoleChange(args Args, cb func(Args)) {
 }
 
 func createDefaultPermissions(owner std.Address) *DefaultPermissions {
-	return NewDefaultPermissions(
-		commondao.New(),
-		WithSuperRole(RoleOwner),
-		WithRole(RoleAdmin, PermissionBoardCreate),
-		WithUser(owner, RoleOwner),
-	)
+	perms := NewDefaultPermissions(commondao.New())
+	perms.SetSuperRole(RoleOwner)
+	perms.AddRole(RoleAdmin, PermissionBoardCreate)
+	perms.AddUser(owner, RoleOwner)
+	return perms
 }
 
 func assertBoardNameIsNotAddress(s string) {
@@ -250,7 +253,7 @@ func assertValidBoardNameLength(name string) {
 func assertBoardNameBelongsToCaller(name string) {
 	// When the board name is the name of a registered user
 	// check that caller is the owner of the name.
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	user := users.GetUserByName(name)
 	if user != nil && user.Address != caller {
 		panic("board name is a user name registered to a different user")
