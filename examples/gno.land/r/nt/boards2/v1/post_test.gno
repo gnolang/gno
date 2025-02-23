@@ -119,10 +119,16 @@ func TestNewThread(t *testing.T) {
 		uint(threadID),
 	)
 	replyURL := ufmt.Sprintf(
-		"/r/nt/boards2/v1$help&func=CreateReply&boardID=%d&replyID=%d&threadID=%d",
+		"/r/nt/boards2/v1$help&func=CreateReply&boardID=%d&replyID=0&threadID=%d",
 		uint(boardID),
 		uint(threadID),
+	)
+	editURL := ufmt.Sprintf(
+		"/r/nt/boards2/v1$help&func=EditThread&boardID=%d&body=%s&threadID=%d&title=%s",
+		uint(boardID),
+		body,
 		uint(threadID),
+		strings.ReplaceAll(title, " ", "+"),
 	)
 	repostURL := ufmt.Sprintf(
 		"/r/nt/boards2/v1$help&func=CreateRepost&boardID=%d&threadID=%d",
@@ -151,6 +157,7 @@ func TestNewThread(t *testing.T) {
 	uassert.False(t, thread.HasReplies())
 	uassert.Equal(t, url, thread.GetURL())
 	uassert.Equal(t, replyURL, thread.GetReplyFormURL())
+	uassert.Equal(t, editURL, thread.GetEditFormURL())
 	uassert.Equal(t, repostURL, thread.GetRepostFormURL())
 	uassert.Equal(t, deleteURL, thread.GetDeleteFormURL())
 	uassert.Equal(t, flagURL, thread.GetFlagFormURL())
