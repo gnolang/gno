@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The PCG struct is independently implemented within the testing/fuzzing package.
+// This is because importing the math/rand package's PCG struct into testing/fuzzing
+// would cause an import cycle error.
+
 package fuzzing
 
 import (

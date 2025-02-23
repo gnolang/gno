@@ -299,7 +299,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		boolResult, ok := result.(bool)
 		if !ok {
-			panic("logical Error. If it occred, Needs to fix")
+			panicWithExpectedType(Bool, result)
 		}
 		isMutated := true
 		if usedStrategyMap == nil {
@@ -317,7 +317,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		float32Result, ok := result.(float32)
 		if !ok {
-			panic("logical Error. If it occred, Needs to fix")
+			panicWithExpectedType(Float32, result)
 		}
 		isMutated := true
 		if usedStrategyMap == nil {
@@ -334,7 +334,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		float64Result, ok := result.(float64)
 		if !ok {
-			panic("logical Error. If it occred, Needs to fix")
+			panicWithExpectedType(Float64, result)
 		}
 		isMutated := true
 		if usedStrategyMap == nil {
@@ -351,7 +351,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		intResult, ok := result.(int)
 		if !ok {
-			panic("logical Error. If it occred, Needs to fix")
+			panicWithExpectedType(Int, result)
 		}
 		isMutated := true
 		if usedStrategyMap == nil {
@@ -369,7 +369,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		int8Result, ok := result.(int8)
 		if !ok {
-			panic("logical Error. If it occurred, Needs to fix")
+			panicWithExpectedType(Int8, result)
 		}
 		isMutated := true
 		if usedStrategyMap == nil {
@@ -387,7 +387,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		int16Result, ok := result.(int16)
 		if !ok {
-			panic("logical Error. If it occurred, Needs to fix")
+			panicWithExpectedType(Int16, result)
 		}
 		isMutated := true
 		if usedStrategyMap == nil {
@@ -405,7 +405,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		int32Result, ok := result.(int32)
 		if !ok {
-			panic("logical Error. If it occurred, Needs to fix")
+			panicWithExpectedType(Int32, result)
 		}
 		isMutated := true
 		if usedStrategyMap == nil {
@@ -423,7 +423,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		int64Result, ok := result.(int64)
 		if !ok {
-			panic("logical Error. If it occurred, Needs to fix")
+			panicWithExpectedType(Int64, result)
 		}
 		isMutated := true
 		if usedStrategyMap == nil {
@@ -441,7 +441,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		uintResult, ok := result.(uint)
 		if !ok {
-			panic("logical Error. If it occurred, Needs to fix")
+			panicWithExpectedType(Uint, result)
 		}
 		isMutated := true
 		if usedStrategyMap == nil {
@@ -459,7 +459,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		uint8Result, ok := result.(uint8)
 		if !ok {
-			panic("logical Error. If it occurred, Needs to fix")
+			panicWithExpectedType(Uint8, result)
 		}
 		isMutated := true
 		if usedStrategyMap == nil {
@@ -477,7 +477,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		uint16Result, ok := result.(uint16)
 		if !ok {
-			panic("logical Error. If it occurred, Needs to fix")
+			panicWithExpectedType(Uint16, result)
 		}
 		isMutated := true
 		if usedStrategyMap == nil {
@@ -495,7 +495,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		uint32Result, ok := result.(uint32)
 		if !ok {
-			panic("logical Error. If it occurred, Needs to fix")
+			panicWithExpectedType(Uint32, result)
 		}
 		isMutated := true
 		if usedStrategyMap == nil {
@@ -513,7 +513,7 @@ func (ms *MutSample) MutateArg(input interface{}, strength int, argIdx int) (int
 		result, usedStrategyMap := MutateNotSbEnt2interface(ms.notSbEntsDict[argIdx], strength)
 		uint64Result, ok := result.(uint64)
 		if !ok {
-			panic("logical Error. If it occurred, Needs to fix")
+			panicWithExpectedType(Uint64, result)
 		}
 		isMutated := true
 		if usedStrategyMap == nil {
@@ -549,6 +549,11 @@ func MutateRoot2String(r *RootEnt, strength int) (string, int, map[MutationCode]
 	// Reconstruct the final mutated string
 	finalString := startStr + mutatedString + endStr
 	return finalString, selectedID, usedStrategy
+}
+
+// panicWithExpectedType generates a structured panic message based on expected and actual types.
+func panicWithExpectedType(expectedType SupportedType, actual interface{}) {
+	panic(fmt.Sprintf("Logical Error: Expected a %s, but got %T.", expectedType, actual))
 }
 
 // selectID selects an ID from the cumulative sum slice (cum) using a random value.
@@ -2984,22 +2989,22 @@ func randomBool() bool {
 func randomFloat32(a float32) float32 {
 	bits := math.Float32bits(a)
 
-	exponent := (bits >> 23) & 0xFF
+	exponent := int32((bits >> 23) & 0xFF)
 	mantissa := bits & 0x7FFFFF
 	sign := bits & 0x80000000
 	t := uint32(UnixNano())
 	manshift := 1 + (t % 7)
 
-	var shift int8
+	var shift int32
 	if exponent <= 1 {
-		shift = int8(1 + int(mantissa%2))
+		shift = 1 + int32(mantissa&1)
 	} else if exponent >= 0xFE {
-		shift = int8(-1 - int(mantissa%2))
+		shift = -1 - int32(mantissa&1)
 	} else {
-		shift = int8(-2 + int(mantissa%5))
+		shift = -2 + int32(mantissa&3)
 	}
 
-	newExp := int32(exponent) + int32(shift)
+	newExp := exponent + shift
 	newExponent := uint32(newExp)
 
 	newMantissa := mantissa ^ (mantissa >> manshift)
@@ -3012,7 +3017,7 @@ func randomFloat32(a float32) float32 {
 func randomFloat64(a float64) float64 {
 	bits := math.Float64bits(a)
 
-	exponent := (bits >> 52) & 0x7FF
+	exponent := int64((bits >> 52) & 0x7FF)
 
 	mantissa := bits & 0xFFFFFFFFFFFFF
 
@@ -3021,16 +3026,16 @@ func randomFloat64(a float64) float64 {
 	t := uint64(UnixNano())
 	manshift := 1 + (t % 7)
 
-	var shift int16
+	var shift int64
 	if exponent <= 1 {
-		shift = int16(1 + int64(mantissa%2))
+		shift = 1 + int64(mantissa&1)
 	} else if exponent >= 0x7FE {
-		shift = int16(-1 - int64(mantissa%2))
+		shift = -1 - int64(mantissa&1)
 	} else {
-		shift = int16(-2 + int64(mantissa%5))
+		shift = -2 + int64(mantissa&3)
 	}
 
-	newExp := int64(exponent) + int64(shift)
+	newExp := exponent + shift
 	newExponent := uint64(newExp)
 
 	newMantissa := mantissa ^ (mantissa >> manshift)
