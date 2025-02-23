@@ -27,7 +27,10 @@ func (opts *PaginationOpts) Iterate(tree *avl.Tree, cb func(k string, val interf
 		}
 	}
 
-	return page
+	if page.TotalPages > 1 {
+		return page
+	}
+	return nil
 }
 
 func mustGetPagination(rawPath string, pageSize int) *PaginationOpts {
