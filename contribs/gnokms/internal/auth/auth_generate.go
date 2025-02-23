@@ -63,7 +63,7 @@ func execAuthGenerate(authGenFlags *authGenerateFlags, io commands.IO) error {
 	}
 
 	// Print the path to the generated file.
-	io.Printfln("Generated auth keys file at path: %s", authGenFlags.auth.AuthKeysFile)
+	io.Printfln("Generated auth keys file at path: %q", authGenFlags.auth.AuthKeysFile)
 
 	return nil
 }

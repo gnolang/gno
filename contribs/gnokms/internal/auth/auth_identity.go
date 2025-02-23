@@ -31,7 +31,7 @@ func execAuthIdentity(rootCfg *common.AuthFlags, io commands.IO) error {
 	}
 
 	// Print the identity public key.
-	io.Printfln("GnoKMS server public key: %q", authKeysFile.ServerIdentity.PubKey)
+	io.Printfln("Server public key: %q", authKeysFile.ServerIdentity.PubKey)
 
 	return nil
 }
