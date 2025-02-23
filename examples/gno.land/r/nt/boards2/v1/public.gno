@@ -5,15 +5,19 @@ import (
 	"strings"
 )
 
+// SetPermissions sets a permissions implementation for boards2 realm or a board.
 func SetPermissions(bid BoardID, p Permissions) {
+	if p == nil {
+		panic("permissions is required")
+	}
+
 	if bid != 0 {
 		assertBoardExists(bid)
 	}
 
-	perms := mustGetPermissions(bid)
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	args := Args{bid}
-	perms.WithPermission(caller, PermissionPermissionsUpdate, args, func(Args) {
+	gPerms.WithPermission(caller, PermissionPermissionsUpdate, args, func(Args) {
 		// When board ID is zero it means that realm permissions are being updated
 		if bid == 0 {
 			gPerms = p
