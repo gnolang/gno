@@ -91,7 +91,7 @@ caller := std.OriginCaller()
 
 ## OriginPkgAddress
 ```go
-func OriginPkgAddress() string
+func OriginPkgAddress() Address
 ```
 Returns the address of the first (entry point) realm/package in a sequence of realm/package calls.
 
