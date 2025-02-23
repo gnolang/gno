@@ -127,6 +127,21 @@ func (dp DefaultPermissions) HasUser(user std.Address) bool {
 	return dp.users.Has(user.String())
 }
 
+// UsersCount returns the total number of users the permissioner contains.
+func (dp DefaultPermissions) UsersCount() int {
+	return dp.users.Size()
+}
+
+// IterateUsers iterates permissions' users.
+func (dp DefaultPermissions) IterateUsers(start, count int, fn UsersIterFn) bool {
+	return dp.users.IterateByOffset(start, count, func(k string, v interface{}) bool {
+		return fn(User{
+			Address: std.Address(k),
+			Roles:   v.([]Role),
+		})
+	})
+}
+
 // WithPermission calls a callback when a user has a specific permission.
 // It panics on error or when a handler panics.
 // Callbacks are by default called when there is no handle registered for the permission.
@@ -194,8 +209,7 @@ func (dp DefaultPermissions) handleMemberInvite(args Args, cb func(Args)) {
 	}
 
 	if role == RoleOwner {
-		caller := std.OriginCaller()
-		if !dp.HasRole(caller, RoleOwner) {
+		if !dp.HasRole(std.OriginCaller(), RoleOwner) {
 			panic("only owners are allowed to invite other owners")
 		}
 	}
@@ -206,8 +220,7 @@ func (dp DefaultPermissions) handleMemberInvite(args Args, cb func(Args)) {
 func (dp DefaultPermissions) handleRoleChange(args Args, cb func(Args)) {
 	// Owners and Admins can change roles.
 	// Admins should not be able to assign or remove the Owner role from members.
-	caller := std.OriginCaller()
-	if dp.HasRole(caller, RoleAdmin) {
+	if dp.HasRole(std.OriginCaller(), RoleAdmin) {
 		role, ok := args[2].(Role)
 		if !ok {
 			panic("expected a valid member role")
@@ -253,9 +266,8 @@ func assertValidBoardNameLength(name string) {
 func assertBoardNameBelongsToCaller(name string) {
 	// When the board name is the name of a registered user
 	// check that caller is the owner of the name.
-	caller := std.OriginCaller()
 	user := users.GetUserByName(name)
-	if user != nil && user.Address != caller {
+	if user != nil && user.Address != std.OriginCaller() {
 		panic("board name is a user name registered to a different user")
 	}
 }

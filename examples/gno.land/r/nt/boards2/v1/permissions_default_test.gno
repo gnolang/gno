@@ -533,3 +533,78 @@ func TestDefaultPermissionsRemoveUser(t *testing.T) {
 		})
 	}
 }
+
+func TestDefaultPermissionsIterateUsers(t *testing.T) {
+	users := []User{
+		{
+			Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+			Roles:   []Role{"foo"},
+		},
+		{
+			Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+			Roles:   []Role{"foo", "bar"},
+		},
+		{
+			Address: "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5",
+			Roles:   []Role{"bar"},
+		},
+	}
+
+	perms := NewDefaultPermissions(commondao.New())
+	perms.AddRole("foo", "perm1")
+	perms.AddRole("bar", "perm2")
+	for _, u := range users {
+		perms.AddUser(u.Address, u.Roles...)
+	}
+
+	cases := []struct {
+		name               string
+		start, count, want int
+	}{
+		{
+			name:  "exceed users count",
+			count: 50,
+			want:  3,
+		},
+		{
+			name:  "exact users count",
+			count: 3,
+			want:  3,
+		},
+		{
+			name:  "two users",
+			start: 1,
+			count: 2,
+			want:  2,
+		},
+		{
+			name:  "one user",
+			start: 1,
+			count: 1,
+			want:  1,
+		},
+		{
+			name:  "no iteration",
+			start: 50,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var i int
+			perms.IterateUsers(0, len(users), func(u User) bool {
+				urequire.True(t, i < len(users), "expect iterator to respect number of users")
+				uassert.Equal(t, users[i].Address, u.Address)
+
+				urequire.Equal(t, len(users[i].Roles), len(u.Roles), "expect number of roles to match")
+				for j, r := range u.Roles {
+					uassert.Equal(t, string(users[i].Roles[j]), string(u.Roles[j]))
+				}
+
+				i++
+			})
+
+			uassert.Equal(t, i, len(users), "expect iterator to iterate all users")
+		})
+	}
+}
