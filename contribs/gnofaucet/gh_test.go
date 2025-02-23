@@ -48,7 +48,6 @@ func TestGitHubMiddleware(t *testing.T) {
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status OK, got %d", rec.Code)
 		}
-
 	})
 	t.Run("request without code", func(t *testing.T) {
 		middleware := getGithubMiddleware("mockClientID", "mockSecret", cooldown)
@@ -64,7 +63,6 @@ func TestGitHubMiddleware(t *testing.T) {
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("Expected status BadRequest, got %d", rec.Code)
 		}
-
 	})
 
 	t.Run("request invalid code", func(t *testing.T) {
@@ -122,5 +120,4 @@ func TestGitHubMiddleware(t *testing.T) {
 			t.Errorf("Expected status TooManyRequest, got %d", rec.Code)
 		}
 	})
-
 }
