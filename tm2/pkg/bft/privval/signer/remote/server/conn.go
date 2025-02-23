@@ -75,6 +75,11 @@ func (rss *RemoteSignerServer) closeConnections() {
 
 // listen starts the listener and accepts incoming connections.
 func (rss *RemoteSignerServer) listen(listener net.Listener) {
+	rss.logger.Info("Start listening",
+		"protocol", listener.Addr().Network(),
+		"address", listener.Addr().String(),
+	)
+
 	// The listener will run until the server is stopped.
 	for {
 		// Accept incoming client connections.
@@ -85,7 +90,7 @@ func (rss *RemoteSignerServer) listen(listener net.Listener) {
 				rss.logger.Error("Failed to accept connection", "error", err)
 				continue
 			}
-			return
+			break // Else, stop listening.
 		}
 		rss.logger.Debug("Accepted new connection", "remote", conn.RemoteAddr())
 
@@ -127,6 +132,11 @@ func (rss *RemoteSignerServer) listen(listener net.Listener) {
 			rss.removeConnection(conn)
 		}(conn)
 	}
+
+	rss.logger.Info("Stop listening",
+		"protocol", listener.Addr().Network(),
+		"address", listener.Addr().String(),
+	)
 }
 
 // serve processes the incoming requests and sends the responses.
