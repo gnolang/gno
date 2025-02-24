@@ -1,18 +1,21 @@
 {{ define "ui/breadcrumb" }}
 <ol
   data-role="header-breadcrumb-search"
-  class="peer-focus-within:hidden flex text-gray-800 font-semibold bg-gray-100 after:absolute after:w-full after:top-0 after:left-0 after:h-full after:block after:bg-gray-100 after:pointer-events-none"
+  class="peer-focus-within:hidden flex text-gray-900 dark:text-gray-d900 font-semibold bg-gray-50 dark:bg-gray-d50 after:absolute after:w-full after:top-0 after:left-0 after:h-full after:block after:bg-gray-50 dark:after:bg-gray-d50 after:pointer-events-none"
 >
   {{- range $index, $part := .Parts }} {{- if $index }}
-  <li class="flex z-1 before:content-['/'] before:px-[0.18rem] before:text-gray-300 whitespace-nowrap">{{- else }}</li>
+  <li class="flex z-1 before:content-['/'] before:px-[0.18rem] before:text-gray-300 dark:before:text-gray-d300 whitespace-nowrap">{{- else }}</li>
 
   <li class="z-1 whitespace-nowrap">
     {{- end }}
-    <a class="hover:bg-green-600 hover:text-light bg-light inline-block rounded-sm px-1 py-px" href="{{ $part.URL }}">{{ $part.Name }}</a>
+    <a 
+      class="hover:bg-green-600 hover:text-light dark:hover:bg-green-d600 dark:hover:text-gray-d50 inline-block rounded-sm px-1 py-px" 
+      href="{{ $part.URL }}"
+    >{{ $part.Name }}</a>
   </li>
   {{- end }} {{- if .Args }}
-  <li class="flex z-1 before:content-[':'] before:px-[0.18rem] before:text-gray-300 whitespace-nowrap">
-    <a class="text-light bg-gray-300 inline-block rounded-sm px-1 py-px">{{ .Args }}</a>
+  <li class="flex z-1 before:content-[':'] before:px-[0.18rem] before:text-gray-300 dark:before:text-gray-d300 whitespace-nowrap">
+    <a class="text-light bg-green-400 dark:bg-green-d400 dark:text-gray-d50 inline-block rounded-sm px-1 py-px">{{ .Args }}</a>
   </li>
   {{- end }}
 </ol>
