@@ -46,6 +46,7 @@ func init() {
 // runtime debugging flag.
 
 var enabled bool = true
+var Enabled *bool = &enabled
 
 func (debugging) Println(args ...interface{}) {
 	if debug {
