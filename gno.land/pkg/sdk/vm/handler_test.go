@@ -86,6 +86,10 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 		{input: []byte(`gno.land/r/hello.sl`), expectedResultMatch: `(slice[ref(.*)] []int)`},    // XXX: should return the actual value
 		{input: []byte(`gno.land/r/hello.sl[1]`), expectedResultMatch: `(slice[ref(.*)] []int)`}, // XXX: should return the actual value
 		{input: []byte(`gno.land/r/hello.println(1234)`), expectedResultMatch: `^$`},             // XXX: compare stdout?
+		{
+			input:          []byte(`gno.land/r/hello.func() string { return "hello123" + pvString }()`),
+			expectedResult: `("hello123private string" string)`,
+		},
 
 		// panics
 		{input: []byte(`gno.land/r/hello`), expectedPanicMatch: `expected <pkgpath>.<expression> syntax in query input data`},
@@ -95,6 +99,7 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 		{input: []byte(`gno.land/r/doesnotexist.Foo`), expectedErrorMatch: `^invalid package path$`},
 		{input: []byte(`gno.land/r/hello.Panic()`), expectedErrorMatch: `^foo$`},
 		{input: []byte(`gno.land/r/hello.sl[6]`), expectedErrorMatch: `^slice index out of bounds: 6 \(len=5\)$`},
+		{input: []byte(`gno.land/r/hello.func(){ for {} }()`), expectedErrorMatch: `out of gas in location: CPUCycles`},
 	}
 
 	for _, tc := range tt {
@@ -120,8 +125,8 @@ import "std"
 import "time"
 
 var _ = time.RFC3339
-func caller() std.Address { return std.GetOrigCaller() }
-var GetHeight = std.GetHeight
+func caller() std.Address { return std.OriginCaller() }
+var GetHeight = std.ChainHeight
 var sl = []int{1,2,3,4,5}
 func fn() func(string) string { return Echo }
 type myStruct struct{a int}

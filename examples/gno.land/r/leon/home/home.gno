@@ -52,7 +52,7 @@ TODO import r/gh`,
 }
 
 func UpdatePFP(url, caption string) {
-	if !config.IsAuthorized(std.PrevRealm().Addr()) {
+	if !config.IsAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -61,7 +61,7 @@ func UpdatePFP(url, caption string) {
 }
 
 func UpdateAboutMe(col1, col2 string) {
-	if !config.IsAuthorized(std.PrevRealm().Addr()) {
+	if !config.IsAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -71,7 +71,7 @@ func UpdateAboutMe(col1, col2 string) {
 
 func renderBlogPosts() string {
 	out := ""
-	//out += "## Leon's Blog Posts"
+	// out += "## Leon's Blog Posts"
 
 	// todo fetch blog posts authored by @leohhhn
 	// and render them
@@ -118,7 +118,7 @@ func renderArt() string {
 
 func renderGnoFace() string {
 	out := "<div>\n\n"
-	out += gnoface.Render(strconv.Itoa(int(std.GetHeight())))
+	out += gnoface.Render(strconv.Itoa(int(std.ChainHeight())))
 	out += "</div>\n\n"
 
 	return out
@@ -127,7 +127,7 @@ func renderGnoFace() string {
 func renderMillipede() string {
 	out := "<div>\n\n"
 	out += "Millipede\n\n"
-	out += "```\n" + millipede.Draw(int(std.GetHeight())%10+1) + "```\n"
+	out += "```\n" + millipede.Draw(int(std.ChainHeight())%10+1) + "```\n"
 	out += "</div>\n\n"
 
 	return out
