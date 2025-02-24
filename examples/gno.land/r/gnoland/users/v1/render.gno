@@ -2,9 +2,7 @@ package users
 
 import (
 	"std"
-	"strconv"
 
-	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/realmpath"
@@ -18,14 +16,14 @@ func Render(path string) string {
 	req := realmpath.Parse(path)
 
 	if req.Path == "" {
-		return renderHomePage(path)
+		return renderHomePage()
 	}
 
 	// Otherwise, render the user page
 	return renderUserPage(req.Path)
 }
 
-func renderHomePage(path string) string {
+func renderHomePage() string {
 	var out string
 
 	out += "# gno.land user registry\n"
@@ -39,29 +37,16 @@ func renderHomePage(path string) string {
 
 	out += renderIntroParagraph()
 
-	out += md.H2("User list")
-
-	p := pager.NewPager(susers.GetReadOnlyNameStore(), 20, false)
-	page := p.MustGetPageByPath(path)
-	for _, item := range page.Items {
-		if item.Value == nil {
-			continue
-		}
-
-		data := item.Value.(*susers.UserData)
-
-		// Skip previous names
-		if item.Key != data.Name() {
-			continue
-		}
-
-		out += ufmt.Sprintf("- User [%s](/r/gnoland/users/v1:%s)\n", md.Bold(item.Key), item.Key)
+	out += md.H2("Latest registrations")
+	entries := latestUsers.Entries()
+	if len(entries) == 0 {
+		out += "No registered users."
 	}
 
-	out += "\n"
-	out += page.Picker()
-	out += "\n\n"
-	out += "Page " + strconv.Itoa(page.PageNumber) + " of " + strconv.Itoa(page.TotalPages) + "\n\n"
+	for i := len(entries) - 1; i >= 0; i-- {
+		user := entries[i].(string)
+		out += ufmt.Sprintf("- User [%s](/r/gnoland/users/v1:%s)\n", md.Bold(user), user)
+	}
 
 	return out
 }
