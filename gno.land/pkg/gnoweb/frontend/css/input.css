@@ -305,7 +305,7 @@
   .dark .sidemenu {
     @apply text-gray-d400 ;
   }
-
+  
   .dark main {
     @apply bg-dark;
   }
@@ -320,15 +320,23 @@
   }
 
   .dark .sidemenu .peer:checked + label > svg {
-    @apply text-green-d400;
+    @apply text-green-d600;
   }
-  
+
   /* toc */
   .toc-expend-btn:has(#toc-expend:checked) + nav {
     @apply block;
   }
   .toc-expend-btn:has(#toc-expend:checked) .toc-expend-btn_ico {
     @apply rotate-180;
+  }
+
+  .dark .toc-nav a {
+    @apply text-gray-d400;
+  }
+  
+  .dark .toc-nav a:hover {
+    @apply text-green-d400;
   }
 
   /* sidebar */
