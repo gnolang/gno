@@ -175,6 +175,7 @@ func NewContractAuthority(path string, handler PrivilegedActionHandler) *Contrac
 		contractAddr:    std.DerivePkgAddr(path),
 		contractHandler: handler,
 		proposer:        NewAutoAcceptAuthority(), // default: anyone can propose
+		executionOnce:   once.Once{},              // initialize execution once
 	}
 }
 
@@ -203,29 +204,24 @@ func (a *ContractAuthority) Authorize(title string, action PrivilegedAction, arg
 		return errors.New("contract handler is not set")
 	}
 
-	// First, check if the proposer allows the action
-	err := a.proposer.Authorize(title+"_proposal", func() error {
-		// Create the final action that will be executed by the contract
-		finalAction := func() error {
-			// Wrap the action to ensure it can only be executed by the contract
-			wrappedAction := func() error {
-				caller := std.PrevRealm().Addr()
-				if caller != a.contractAddr {
-					return errors.New("action can only be executed by the contract")
-				}
-				return a.executionOnce.DoErr(func() error {
-					return action()
-				})
-			}
-
-			// Execute the contract handler
-			return a.contractHandler(title, wrappedAction)
+	// Wrap the action to ensure it can only be executed by the contract
+	wrappedAction := func() error {
+		caller := std.PrevRealm().Addr()
+		if caller != a.contractAddr {
+			return errors.New("action can only be executed by the contract")
 		}
+		return a.executionOnce.DoErr(func() error {
+			return action()
+		})
+	}
 
-		return finalAction()
+	// Use the proposer authority to control who can create proposals
+	return a.proposer.Authorize(title+"_proposal", func() error {
+		if err := a.contractHandler(title, wrappedAction); err != nil {
+			return err
+		}
+		return nil
 	}, args...)
-
-	return err
 }
 
 func (a *ContractAuthority) String() string {
