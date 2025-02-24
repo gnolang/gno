@@ -33,7 +33,7 @@ func init() {
 // LoadGovDAO loads the initial version of GovDAO into the bridge
 // All changes to b.dao need to be done via GovDAO proposals after
 func LoadGovDAO(d DAO) {
-	if std.PrevRealm().PkgPath() != loader {
+	if std.PreviousRealm().PkgPath() != loader {
 		panic("unauthorized")
 	}
 

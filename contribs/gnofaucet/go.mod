@@ -1,8 +1,6 @@
 module github.com/gnolang/gno/contribs/gnofaucet
 
-go 1.22.0
-
-toolchain go1.22.10
+go 1.23.6
 
 require (
 	github.com/gnolang/faucet v0.3.2

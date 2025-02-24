@@ -15,7 +15,7 @@ func TestMicroblog(t *testing.T) {
 		author2 std.Address = testutils.TestAddress("author2")
 	)
 
-	std.TestSetOrigCaller(author1)
+	std.TestSetOriginCaller(author1)
 
 	urequire.Equal(t, "404", Render("/wrongpath"), "rendering not giving 404")
 	urequire.NotEqual(t, "404", Render(""), "rendering / should not give 404")
@@ -27,7 +27,7 @@ func TestMicroblog(t *testing.T) {
 	_, err = m.GetPage("no such author")
 	urequire.Error(t, err, "silo should not exist")
 
-	std.TestSetOrigCaller(author2)
+	std.TestSetOriginCaller(author2)
 
 	urequire.NoError(t, m.NewPost("hello, web3"), "could not create post")
 	urequire.NoError(t, m.NewPost("hello again, web3"), "could not create post")
