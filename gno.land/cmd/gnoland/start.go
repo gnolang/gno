@@ -26,6 +26,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"go.opentelemetry.io/otel"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
@@ -231,6 +232,10 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	if err := telemetry.Init(*cfg.Telemetry); err != nil {
 		return fmt.Errorf("unable to initialize telemetry, %w", err)
 	}
+
+	tracer := otel.Tracer("gnoland")
+	_, parentSpan := tracer.Start(context.Background(), "Mainfunc")
+	defer parentSpan.End()
 
 	// Print the starting graphic
 	if c.logFormat != string(log.JSONFormat) {
