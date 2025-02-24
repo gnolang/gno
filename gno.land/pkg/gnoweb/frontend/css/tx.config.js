@@ -31,7 +31,7 @@ export default {
     },
     colors: {
       light: "#FFFFFF",
-      dark:  "#0F172A",
+      dark: "#282828",
       gray: {
         50: "#F0F0F0", // Background color
         100: "#E2E2E2", // Title dark color
@@ -42,19 +42,21 @@ export default {
         800: "#131313", // Background dark color
         900: "#080809", // Title color
         // dark mode grays
-        d50: "#1E293B", // Dark Background color
-        d100: "#334155", // Dark mode lighter background
+        d50: "#282828", // Dark Background color
+        d100: "#1c1c1c", // Dark mode lighter background
         d200: "#475569", //Dark mode border color
         d300: "#64748B", // Dark mode muted color
-        d400: "#94A3B8", // Dark mode text
-        d600: "#CBD5E1", // dark mode high contrast text
+        d400: "#a8a8a8", // Dark mode text
+        d600: "#ffffff", // dark mode high contrast text
+        d800: "1C1C1C", // Dark mode background dark color
+        d900: "#000000", // Dark mode title color 
       },
       green: {
         400: "#2D8D72", // Primary dark color
         600: "#226C57", // Primary light color
-        // dark mode green
-        d400: "#34D399", // Primary dark color
-        d600: "#059669", // Primary light color
+        // dark mode 
+        d400: "#ffffff", // Primary dark color
+        d600: "#a8a8a8",// Primary light color
       },
       transparent: "transparent",
       current: "currentColor",
