@@ -213,6 +213,13 @@ func (post *Post) GetURL() string {
 }
 
 func (post *Post) GetReplyFormURL() string {
+	if post.IsThread() {
+		return txlink.Call("CreateReply",
+			"boardID", post.board.id.String(),
+			"threadID", post.threadID.String(),
+			"replyID", "0",
+		)
+	}
 	return txlink.Call("CreateReply",
 		"boardID", post.board.id.String(),
 		"threadID", post.threadID.String(),
@@ -238,6 +245,24 @@ func (post *Post) GetDeleteFormURL() string {
 		"boardID", post.board.id.String(),
 		"threadID", post.threadID.String(),
 		"replyID", post.id.String(),
+	)
+}
+
+func (post *Post) GetEditFormURL() string {
+	if post.IsThread() {
+		return txlink.Call("EditThread",
+			"boardID", post.board.id.String(),
+			"threadID", post.threadID.String(),
+			"title", post.GetTitle(),
+			"body", post.GetBody(),
+		)
+	}
+
+	return txlink.Call("EditReply",
+		"boardID", post.board.id.String(),
+		"threadID", post.threadID.String(),
+		"replyID", post.id.String(),
+		"body", post.GetBody(),
 	)
 }
 
@@ -325,20 +350,23 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
 		sb.WriteString("\n")
 	}
 
-	postURL := post.GetURL()
-
 	// Buttons & counters
 	sb.WriteString(indent)
-	sb.WriteString(`\- `)
+	if !post.IsThread() {
+		sb.WriteString("  \n" + indent)
+	}
+
 	sb.WriteString(newUserLink(post.creator))
 	sb.WriteString(", ")
-	sb.WriteString(newLink(post.createdAt.Format(dateFormat), postURL))
+	sb.WriteString(post.createdAt.Format(dateFormat))
 
 	if post.repostsCount > 0 {
 		sb.WriteString(", ")
 		sb.WriteString(strconv.FormatUint(post.repostsCount, 10))
 		sb.WriteString(" reposts")
 	}
+
+	sb.WriteString(" - ")
 
 	if srcPost != nil {
 		sb.WriteString(" ")
@@ -354,6 +382,9 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
 	}
 
 	sb.WriteString(" ")
+	sb.WriteString(newButtonLink("edit", post.GetEditFormURL()))
+
+	sb.WriteString(" ")
 	sb.WriteString(newButtonLink("flag", post.GetFlagFormURL()))
 
 	sb.WriteString(" ")
@@ -367,7 +398,7 @@ func (post *Post) Render(p *PaginationOpts, indent string, levels int) string {
 	}
 
 	// TODO: pass a builder as arg into Render.
-	sb := &strings.Builder{}
+	var sb strings.Builder
 
 	if post.title != "" {
 		sb.WriteString(indent)
@@ -378,7 +409,7 @@ func (post *Post) Render(p *PaginationOpts, indent string, levels int) string {
 		sb.WriteString("\n")
 	}
 
-	post.renderPostContent(sb, indent)
+	post.renderPostContent(&sb, indent)
 
 	if post.replies.Size() == 0 {
 		return sb.String()
