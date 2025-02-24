@@ -3,15 +3,10 @@ package privval
 import (
 	"bytes"
 	"fmt"
-	"io"
-	"log/slog"
 
-	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
-	rsclient "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/client"
 	fstate "github.com/gnolang/gno/tm2/pkg/bft/privval/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
@@ -128,11 +123,7 @@ func (pv *PrivValidator) SignProposal(chainID string, proposal *types.Proposal) 
 
 // Close implements types.PrivValidator.
 func (pv *PrivValidator) Close() error {
-	// If the signer implements the io.Closer interface, close it.
-	if closer, ok := pv.signer.(io.Closer); ok {
-		return closer.Close()
-	}
-	return nil
+	return pv.signer.Close()
 }
 
 // PrivValidator type implements fmt.Stringer.
@@ -170,36 +161,4 @@ func NewPrivValidator(signer types.Signer, stateFilePath string) (*PrivValidator
 		signer: signer,
 		state:  state,
 	}, nil
-}
-
-// NewPrivValidatorFromConfig returns a new PrivValidator instance based on the configuration.
-// The clientLogger is only used for the remote signer client and ignored it the signer is local.
-// The clientPrivKey is only used for the remote signer client using a TCP connection.
-func NewPrivValidatorFromConfig(
-	config *PrivValidatorConfig,
-	clientPrivKey ed25519.PrivKeyEd25519,
-	clientLogger *slog.Logger,
-) (*PrivValidator, error) {
-	var (
-		signer types.Signer
-		err    error
-	)
-
-	// Initialize the signer based on the configuration.
-	// If the remote signer address is set, use a remote signer client.
-	if config.RemoteSigner != nil && config.RemoteSigner.ServerAddress != "" {
-		signer, err = rsclient.NewRemoteSignerClientFromConfig(
-			config.RemoteSigner,
-			clientPrivKey,
-			clientLogger,
-		)
-	} else {
-		// Otherwise, use a local signer.
-		signer, err = local.NewLocalSigner(config.LocalSignerPath())
-	}
-	if err != nil {
-		return nil, fmt.Errorf("signer initialization from config failed: %w", err)
-	}
-
-	return NewPrivValidator(signer, config.SignStatePath())
 }

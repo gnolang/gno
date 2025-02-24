@@ -340,6 +340,32 @@ func TestClientRequest(t *testing.T) {
 		err = rsc.Ping()
 		require.ErrorIs(t, err, ErrSendingRequestFailed)
 	})
+
+	t.Run("String method and cache", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			unixSocket = testUnixSocket(t)
+			signer     = types.NewMockSigner()
+		)
+
+		// Init a new remote signer server and client.
+		rss := newRemoteSignerServer(t, unixSocket, signer)
+		require.NoError(t, rss.Start())
+		rsc := newRemoteSignerClient(t, unixSocket)
+
+		// Check if the address is not cached
+		require.Empty(t, rsc.addrCache)
+
+		// Check if the String method returns the address.
+		pk, err := signer.PubKey()
+		require.NotNil(t, pk)
+		require.NoError(t, err)
+		require.Contains(t, rsc.String(), pk.Address().String())
+		require.Contains(t, rsc.addrCache, pk.Address().String())
+		rss.Stop()
+		rsc.Close()
+	})
 }
 
 func TestClientConnection(t *testing.T) {

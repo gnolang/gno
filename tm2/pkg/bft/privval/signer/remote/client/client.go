@@ -33,6 +33,8 @@ func (rsc *RemoteSignerClient) PubKey() (crypto.PubKey, error) {
 		return nil, err
 	}
 
+	// Save the address in the cache for the String method.
+	rsc.addrCache = pubKeyResponse.PubKey.Address().String()
 	rsc.logger.Debug("PubKey request succeeded")
 
 	return pubKeyResponse.PubKey, nil
@@ -112,9 +114,9 @@ func (rsc *RemoteSignerClient) String() string {
 	// If the address is not in the cache, get it from the server.
 	if address == "" {
 		address = "unknown"
-		if pubKey, err := rsc.PubKey(); err == nil {
-			address = pubKey.Address().String()
-			rsc.addrCache = address // Save the address in the cache.
+		if _, err := rsc.PubKey(); err == nil {
+			// Get the address from the cache populated by the PubKey method on success.
+			address = rsc.addrCache
 		}
 	}
 

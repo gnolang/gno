@@ -8,6 +8,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestStringer(t *testing.T) {
+	t.Parallel()
+
+	filePath := path.Join(t.TempDir(), "new")
+	ls, err := NewLocalSigner(filePath)
+	require.NotNil(t, ls)
+	require.NoError(t, err)
+	require.Contains(t, ls.String(), ls.key.Address.String())
+}
+
 func TestNewLocalSigner(t *testing.T) {
 	t.Parallel()
 
@@ -26,6 +36,7 @@ func TestNewLocalSigner(t *testing.T) {
 
 		// Compare the loaded file key with the original.
 		require.Equal(t, ls.key, loaded.key)
+		require.Nil(t, ls.Close())
 	})
 
 	t.Run("read-only file path", func(t *testing.T) {
@@ -37,29 +48,30 @@ func TestNewLocalSigner(t *testing.T) {
 		require.NoError(t, err)
 
 		filePath := path.Join(dirPath, "file")
-		fk, err := NewLocalSigner(filePath)
-		require.Nil(t, fk)
+		ls, err := NewLocalSigner(filePath)
+		require.Nil(t, ls)
 		require.Error(t, err)
+		require.Nil(t, ls.Close())
 	})
 
 	t.Run("simple valid flow", func(t *testing.T) {
 		t.Parallel()
 
 		filePath := path.Join(t.TempDir(), "new")
-		fk, err := NewLocalSigner(filePath)
-		require.NotNil(t, fk)
+		ls, err := NewLocalSigner(filePath)
+		require.NotNil(t, ls)
 		require.NoError(t, err)
 
 		signBytes := []byte("sign bytes")
-		signature, err := fk.Sign(signBytes)
+		signature, err := ls.Sign(signBytes)
 		require.NotNil(t, signature)
 		require.NoError(t, err)
 
-		pk, err := fk.PubKey()
+		pk, err := ls.PubKey()
 		require.NotNil(t, pk)
 		require.NoError(t, err)
 
 		require.True(t, pk.VerifyBytes(signBytes, signature))
-		require.Contains(t, fk.String(), fk.key.Address.String())
+		require.Nil(t, ls.Close())
 	})
 }

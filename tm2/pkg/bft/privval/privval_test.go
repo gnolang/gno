@@ -1,6 +1,7 @@
 package privval
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -48,6 +49,7 @@ func TestSignVote(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NoError(t, pv.SignVote(chainID, &types.Vote{Type: types.PrecommitType}))
+		require.NoError(t, pv.Close())
 	})
 
 	t.Run("invalid vote type", func(t *testing.T) {
@@ -344,7 +346,22 @@ func TestSignProposal(t *testing.T) {
 	})
 }
 
-// TODO: Test TestNewPrivValidatorWithConfig
+func TestStringer(t *testing.T) {
+	t.Parallel()
+
+	signer := types.NewMockSigner()
+	require.NotNil(t, signer)
+
+	statePath := path.Join(t.TempDir(), "state")
+	state, err := fstate.NewFileState(statePath)
+	require.NotNil(t, state)
+	require.NoError(t, err)
+
+	pv := &PrivValidator{signer: signer, state: state}
+	require.Contains(t, pv.String(), fmt.Sprintf("%v", signer))
+	require.Contains(t, pv.String(), state.String())
+}
+
 func TestNewPrivValidator(t *testing.T) {
 	t.Parallel()
 

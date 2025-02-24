@@ -274,6 +274,18 @@ func TestUpdate(t *testing.T) {
 	})
 }
 
+func TestStringer(t *testing.T) {
+	t.Parallel()
+
+	state := &FileState{
+		Height: 42,
+		Round:  24,
+		Step:   StepPrecommit,
+	}
+
+	require.Equal(t, state.String(), "{H: 42, R: 24, S: 3}")
+}
+
 func TestValidate(t *testing.T) {
 	t.Parallel()
 
