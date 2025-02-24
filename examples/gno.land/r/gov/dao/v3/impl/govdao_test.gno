@@ -62,7 +62,6 @@ func TestCreateProposalAndVote(t *testing.T) {
 
 	std.TestSetOrigCaller(m11)
 	std.TestSetRealm(std.NewUserRealm(m11))
-
 	proxy.MustVoteOnProposal(proxy.VoteRequest{
 		Option:     proxy.NoVote,
 		ProposalID: proxy.ProposalID(0),
@@ -70,7 +69,6 @@ func TestCreateProposalAndVote(t *testing.T) {
 
 	std.TestSetOrigCaller(m2)
 	std.TestSetRealm(std.NewUserRealm(m2))
-
 	proxy.MustVoteOnProposal(proxy.VoteRequest{
 		Option:     proxy.NoVote,
 		ProposalID: proxy.ProposalID(0),

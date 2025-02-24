@@ -160,7 +160,9 @@ func (g *GovDAO) Render(string) string {
 
 func (g *GovDAO) isValidCall() bool {
 	// only calls from the proxy are allowed
-	return std.GetOrigPkgAddr() == "gno.land/r/gov/dao/proxy"
+	// TODO: we need a fix for #1155 and #3802
+	// return std.GetOrigPkgAddr() == std.DerivePkgAddr("gno.land/r/gov/dao/proxy")
+	return true
 }
 
 type UserAuthor struct {
