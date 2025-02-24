@@ -45,11 +45,11 @@ func X_testSetContext(
 	}
 
 	if originCaller != "" {
-		ctx.OrigCaller = crypto.Bech32Address(originCaller)
+		ctx.OriginCaller = crypto.Bech32Address(originCaller)
 	}
 
 	if originPkgAddress != "" {
-		ctx.OrigPkgAddr = crypto.Bech32Address(originPkgAddress)
+		ctx.OriginPkgAddr = crypto.Bech32Address(originPkgAddress)
 	}
 
 	if currRealmAddr != "" {
@@ -77,12 +77,12 @@ func X_testSetContext(
 	}
 
 	if len(origSendDenoms) > 0 && len(origSendDenoms) == len(origSendAmounts) {
-		ctx.OrigSend = std.CompactCoins(origSendDenoms, origSendAmounts)
+		ctx.OriginSend = std.CompactCoins(origSendDenoms, origSendAmounts)
 	}
 
 	if len(origSpendDenoms) > 0 && len(origSpendDenoms) == len(origSpendAmounts) {
 		coins := std.CompactCoins(origSpendDenoms, origSpendAmounts)
-		ctx.OrigSendSpent = &coins
+		ctx.OriginSendSpent = &coins
 	}
 
 	m.Context = ctx
