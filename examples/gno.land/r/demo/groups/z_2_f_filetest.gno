@@ -5,13 +5,13 @@ package groups_test
 
 import (
 	"gno.land/r/demo/groups"
-	"gno.land/r/demo/users"
+	users "gno.land/r/gnoland/users/v1"
 )
 
 var gid groups.GroupID
 
 func main() {
-	users.Register("", "gnouser", "my profile")
+	users.Register("gnouser123")
 	gid = groups.CreateGroup("test_group")
 	println(gid)
 	groups.DeleteGroup(20)
@@ -19,4 +19,4 @@ func main() {
 }
 
 // Error:
-// group id (20) does not exists
+// user not found

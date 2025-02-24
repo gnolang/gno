@@ -8,8 +8,8 @@ import (
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
 
-	"gno.land/r/demo/users"
 	"gno.land/r/leon/hof"
+	"gno.land/r/sys/users"
 )
 
 // FOMO3D (Fear Of Missing Out 3D) is a blockchain-based game that combines elements
@@ -305,8 +305,8 @@ func stringToAddress(input string) std.Address {
 	}
 
 	// Not an address, try to find namespace
-	if user := users.GetUserByName(input); user != nil {
-		return user.Address
+	if user, _ := users.ResolveName(input); user != nil {
+		return user.Addr()
 	}
 
 	return ""

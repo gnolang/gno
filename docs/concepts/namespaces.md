@@ -18,7 +18,7 @@ This feature isn't enabled by default on the Portal Loop chain and is currently 
 A package path is a unique identifier for each package/realm. It specifies the location of the package source
 code which helps differentiate it from others. You can use a package path to:
 
-- Call a specific function from a package/realm. (e.g using `gnokey maketx call`)
+- Call a specific function from a package/realm. (e.g. using `gnokey maketx call`)
 - Import it in other packages/realms.
 
 Here's a breakdown of the structure of a package path:
@@ -45,14 +45,14 @@ Examples:
 ## Registration Process
 
 The registration process is contract-based. The `AddPkg` command references
-`sys/users` for filtering, which in turn is based on `r/demo/users`.
+`r/sys/names` for filtering, which in turn is based on `r/sys/users`.
 
-When `sys/users` is enabled, you need to register a name using `r/demo/users`. You can call the
-`r/demo/users.Register` function to register the name for the caller's address.
+To obtain a namespace, you need to register a name using the `r/gnoland/users` registries.
+Visit [the latest user registry realm](https://gno.land/r/gnoland/users) for more information.
 
-> ex: `test1` user registering as `patrick`
+> ex: address `test1` registering as `patrick123` using registry v1, on the Portal Loop
 ```bash
-$ gnokey maketx call -pkgpath gno.land/r/demo/users \
+$ gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 \
     -func Register \
     -gas-fee 1000000ugnot -gas-wanted 2000000 \
     -broadcast \
@@ -62,13 +62,6 @@ $ gnokey maketx call -pkgpath gno.land/r/demo/users \
     -args 'patrick' \
     -args 'My Profile Quote' test1
 ```
-
-:::note Chain-ID
-
-Do not forget to update chain id, adequate to the network you're interacting with
-
-:::
-
 
 After successful registration, you can add a package under the registered namespace.
 
