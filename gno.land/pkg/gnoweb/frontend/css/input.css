@@ -303,7 +303,7 @@
   }
 
   .dark .sidemenu {
-    @apply text-gray-d400;
+    @apply text-gray-d400 ;
   }
 
   .dark main {
@@ -319,6 +319,10 @@
     @apply text-green-600;
   }
 
+  .dark .sidemenu .peer:checked + label > svg {
+    @apply text-green-d400;
+  }
+  
   /* toc */
   .toc-expend-btn:has(#toc-expend:checked) + nav {
     @apply block;
