@@ -135,8 +135,7 @@ func (prm *SDKParams) willSetKeeperParams(ctx sdk.Context, key gstd.ParamKey, va
 }
 
 func (prm *SDKParams) assertRealmAccess(key gstd.ParamKey) {
-	realm := gno.ReRealmPath.FindString(key.Realm)
-	if realm == "" {
+	if gno.IsRealmPath(key.Realm) == false {
 		panic(fmt.Sprintf("parameters must be set in a valid realm"))
 	}
 	if key.Realm != SysParamsRealmPath && key.Prefix != "" {

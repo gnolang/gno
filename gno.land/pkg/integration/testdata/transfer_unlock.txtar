@@ -9,7 +9,8 @@ adduser regular1
 ## The -lock-transfer flag is not a Gnoland service flag; it is a flag for the txtar setting.
 gnoland start -lock-transfer
 
-## User test1 is an unrestricted account specified in the genesis state
+## test1 is the DefaultAccount in the integration test. To ensure that the unrestricted account can send tokens even when token transfers are locked,
+## we included it in the unrestricted account list in the genesis state. By default, the unrestricted account list is empty.
 gnokey maketx send -send "9999999ugnot" -to $regular1_user_addr -gas-fee 1ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 
 stdout 'OK!'

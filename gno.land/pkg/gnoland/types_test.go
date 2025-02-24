@@ -173,7 +173,6 @@ func TestGnoAccountRestriction(t *testing.T) {
 	err = bankpr.SendCoins(ctx, fromAddress, toAddress, std.NewCoins(std.NewCoin("foocoin", 3)))
 	require.NoError(t, err)
 	assert.Equal(t, balance.String(), "3foocoin")
-
 }
 
 func TestGnoAccountSendRestrictions(t *testing.T) {
