@@ -9,11 +9,11 @@ import (
 func main() {
 	PrintRealm()
 	println(pad("CurrentRealm:"), std.CurrentRealm())
-	println(pad("PrevRealm:"), std.PrevRealm())
+	println(pad("PreviousRealm:"), std.PreviousRealm())
 	testing.SetRealm(std.NewUserRealm("g1user"))
 	PrintRealm()
 	println(pad("CurrentRealm:"), std.CurrentRealm())
-	println(pad("PrevRealm:"), std.PrevRealm())
+	println(pad("PreviousRealm:"), std.PreviousRealm())
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/users"))
 	PrintRealm()
 	println(pad("CurrentRealm:"), std.CurrentRealm())
