@@ -74,22 +74,18 @@ func TestNodeKey_Load(t *testing.T) {
 		require.NoError(t, os.WriteFile(path, data, 0o644))
 
 		// Load the key, that's invalid
-		key, err := LoadNodeKey(path)
-
-		require.NoError(t, err)
-		assert.Nil(t, key.PrivKey)
+		_, err = LoadNodeKey(path)
+		require.ErrorIs(t, err, errInvalidNodeKey)
 	})
 
 	t.Run("valid key loaded", func(t *testing.T) {
 		t.Parallel()
 
-		var (
-			path = fmt.Sprintf("%s/key.json", t.TempDir())
-			key  = GenerateNodeKey()
-		)
+		path := fmt.Sprintf("%s/key.json", t.TempDir())
 
 		// Save the key
-		require.NoError(t, saveNodeKey(path, key))
+		key, err := GeneratePersistedNodeKey(path)
+		require.NoError(t, err)
 
 		// Load the key, that's valid
 		loadedKey, err := LoadNodeKey(path)
@@ -120,15 +116,14 @@ func TestNodeKey_LoadOrGenNodeKey(t *testing.T) {
 	t.Run("existing key loaded", func(t *testing.T) {
 		t.Parallel()
 
-		var (
-			path = fmt.Sprintf("%s/key.json", t.TempDir())
-			key  = GenerateNodeKey()
-		)
+		path := fmt.Sprintf("%s/key.json", t.TempDir())
 
 		// Save the key
-		require.NoError(t, saveNodeKey(path, key))
+		key, err := GeneratePersistedNodeKey(path)
+		require.NoError(t, err)
 
-		loadedKey, err := LoadOrGenNodeKey(path)
+		// Load the saved key
+		loadedKey, err := LoadNodeKey(path)
 		require.NoError(t, err)
 
 		// Make sure the key was not generated
@@ -145,11 +140,11 @@ func TestNodeKey_LoadOrGenNodeKey(t *testing.T) {
 		require.ErrorIs(t, err, os.ErrNotExist)
 
 		// Generate the fresh key
-		key, err := LoadOrGenNodeKey(path)
+		key, err := GeneratePersistedNodeKey(path)
 		require.NoError(t, err)
 
 		// Load the saved key
-		loadedKey, err := LoadOrGenNodeKey(path)
+		loadedKey, err := LoadNodeKey(path)
 		require.NoError(t, err)
 
 		// Make sure the keys are the same

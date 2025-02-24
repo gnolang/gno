@@ -106,7 +106,7 @@ func DefaultNewNode(
 	logger *slog.Logger,
 ) (*Node, error) {
 	// Generate node PrivKey
-	nodeKey, err := p2pTypes.LoadOrGenNodeKey(config.NodeKeyFile())
+	nodeKey, err := p2pTypes.NewNodeKey(config.NodeKeyFile())
 	if err != nil {
 		return nil, err
 	}

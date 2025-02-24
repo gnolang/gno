@@ -67,7 +67,7 @@ func TestSecrets_Get_All(t *testing.T) {
 
 		// Get the node key
 		nodeKeyPath := filepath.Join(tempDir, defaultNodeKeyName)
-		nodeKey, err := readSecretData[types.NodeKey](nodeKeyPath)
+		nodeKey, err := types.LoadNodeKey(nodeKeyPath)
 		require.NoError(t, err)
 
 		// Get the validator private key
@@ -507,9 +507,8 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 		dirPath := t.TempDir()
 		nodeKeyPath := filepath.Join(dirPath, defaultNodeKeyName)
 
-		validNodeKey := types.GenerateNodeKey()
-
-		require.NoError(t, saveSecretData(validNodeKey, nodeKeyPath))
+		validNodeKey, err := types.GeneratePersistedNodeKey(nodeKeyPath)
+		require.NoError(t, err)
 
 		mockOutput := bytes.NewBufferString("")
 		io := commands.NewTestIO()
@@ -566,8 +565,8 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 
 		require.NoError(t, config.WriteConfigFile(configPath, cfg))
 
-		validNodeKey := types.GenerateNodeKey()
-		require.NoError(t, saveSecretData(validNodeKey, nodeKeyPath))
+		validNodeKey, err := types.GeneratePersistedNodeKey(nodeKeyPath)
+		require.NoError(t, err)
 
 		mockOutput := bytes.NewBufferString("")
 		io := commands.NewTestIO()
@@ -610,9 +609,8 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 		dirPath := t.TempDir()
 		nodeKeyPath := filepath.Join(dirPath, defaultNodeKeyName)
 
-		validNodeKey := types.GenerateNodeKey()
-
-		require.NoError(t, saveSecretData(validNodeKey, nodeKeyPath))
+		validNodeKey, err := types.GeneratePersistedNodeKey(nodeKeyPath)
+		require.NoError(t, err)
 
 		mockOutput := bytes.NewBufferString("")
 		io := commands.NewTestIO()
@@ -648,9 +646,8 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 		dirPath := t.TempDir()
 		nodeKeyPath := filepath.Join(dirPath, defaultNodeKeyName)
 
-		validNodeKey := types.GenerateNodeKey()
-
-		require.NoError(t, saveSecretData(validNodeKey, nodeKeyPath))
+		validNodeKey, err := types.GeneratePersistedNodeKey(nodeKeyPath)
+		require.NoError(t, err)
 
 		mockOutput := bytes.NewBufferString("")
 		io := commands.NewTestIO()
@@ -686,9 +683,8 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 		dirPath := t.TempDir()
 		nodeKeyPath := filepath.Join(dirPath, defaultNodeKeyName)
 
-		validNodeKey := types.GenerateNodeKey()
-
-		require.NoError(t, saveSecretData(validNodeKey, nodeKeyPath))
+		validNodeKey, err := types.GeneratePersistedNodeKey(nodeKeyPath)
+		require.NoError(t, err)
 
 		mockOutput := bytes.NewBufferString("")
 		io := commands.NewTestIO()
@@ -726,9 +722,8 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 		dirPath := t.TempDir()
 		nodeKeyPath := filepath.Join(dirPath, defaultNodeKeyName)
 
-		validNodeKey := types.GenerateNodeKey()
-
-		require.NoError(t, saveSecretData(validNodeKey, nodeKeyPath))
+		validNodeKey, err := types.GeneratePersistedNodeKey(nodeKeyPath)
+		require.NoError(t, err)
 
 		mockOutput := bytes.NewBufferString("")
 		io := commands.NewTestIO()

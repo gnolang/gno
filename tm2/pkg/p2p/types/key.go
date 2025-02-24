@@ -7,6 +7,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
+	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
@@ -40,74 +41,118 @@ func NewIDFromStrings(idStrs []string) ([]ID, []error) {
 // NOTE: keep in sync with gno.land/cmd/gnoland/secrets.go
 type NodeKey struct {
 	PrivKey ed25519.PrivKeyEd25519 `json:"priv_key"` // our priv key
+
+	filePath string
 }
 
 // ID returns the bech32 representation
 // of the node's public p2p key, with
 // the bech32 prefix
-func (k NodeKey) ID() ID {
-	return k.PrivKey.PubKey().Address().ID()
+func (nk *NodeKey) ID() ID {
+	return nk.PrivKey.PubKey().Address().ID()
 }
 
-// LoadOrGenNodeKey attempts to load the NodeKey from the given filePath.
-// If the file does not exist, it generates and saves a new NodeKey.
-func LoadOrGenNodeKey(path string) (*NodeKey, error) {
-	// Check if the key exists
-	if osm.FileExists(path) {
-		// Load the node key
-		return LoadNodeKey(path)
+// NodeKey validation errors.
+var (
+	errInvalidNodeKey = errors.New("invalid node p2p key")
+	errFilePathNotSet = errors.New("filePath not set")
+)
+
+// validate validates the NodeKey.
+func (nk *NodeKey) validate() (err error) {
+	// Use named return value to set error from recover.
+	err = errInvalidNodeKey
+
+	// Setup a recover as next steps may panic.
+	defer func() { recover() }()
+
+	// Check if the file path is set.
+	if nk.filePath == "" {
+		return errFilePathNotSet
 	}
 
-	// Key is not present on path,
-	// generate a fresh one
-	nodeKey := GenerateNodeKey()
-	if err := saveNodeKey(path, nodeKey); err != nil {
-		return nil, fmt.Errorf("unable to save node key, %w", err)
-	}
+	// Try to amino marshal the PrivKey.
+	nk.PrivKey.Bytes()
 
-	return nodeKey, nil
+	// Try to get the ID.
+	nk.ID()
+
+	return nil
 }
 
-// LoadNodeKey loads the node key from the given path
-func LoadNodeKey(path string) (*NodeKey, error) {
-	// Load the key
-	jsonBytes, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read key, %w", err)
+// save persists the NodeKey to its file path.
+func (nk *NodeKey) save() error {
+	// Check if the NodeKey is valid.
+	if err := nk.validate(); err != nil {
+		return err
 	}
 
-	var nodeKey NodeKey
+	// Marshal the NodeKey to JSON bytes using amino.
+	jsonBytes := amino.MustMarshalJSONIndent(nk, "", "  ")
 
-	// Parse the key
-	if err = amino.UnmarshalJSON(jsonBytes, &nodeKey); err != nil {
-		return nil, fmt.Errorf("unable to JSON unmarshal node key, %w", err)
-	}
-
-	return &nodeKey, nil
-}
-
-// GenerateNodeKey generates a random
-// node P2P key, based on ed25519
-func GenerateNodeKey() *NodeKey {
-	privKey := ed25519.GenPrivKey()
-
-	return &NodeKey{
-		PrivKey: privKey,
-	}
-}
-
-// saveNodeKey saves the node key
-func saveNodeKey(path string, nodeKey *NodeKey) error {
-	// Get Amino JSON
-	marshalledData, err := amino.MarshalJSONIndent(nodeKey, "", "\t")
-	if err != nil {
-		return fmt.Errorf("unable to marshal node key into JSON, %w", err)
-	}
-
-	// Save the data to disk
-	if err := os.WriteFile(path, marshalledData, 0o644); err != nil {
-		return fmt.Errorf("unable to save node key to path, %w", err)
+	// Write the JSON bytes to the file.
+	if err := osm.WriteFileAtomic(nk.filePath, jsonBytes, 0o600); err != nil {
+		return err
 	}
 
 	return nil
+}
+
+// LoadNodeKey loads the node key from the given path.
+func LoadNodeKey(filePath string) (*NodeKey, error) {
+	// Read the JSON bytes from the file.
+	rawJSONBytes, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Unmarshal the JSON bytes into a NodeKey using amino.
+	nk := &NodeKey{}
+	err = amino.UnmarshalJSON(rawJSONBytes, nk)
+	if err != nil {
+		return nil, fmt.Errorf("unable to unmarshal NodeKey from %v: %w", filePath, err)
+	}
+
+	// Manually set the private file path.
+	nk.filePath = filePath
+
+	// Validate the NodeKey.
+	if err := nk.validate(); err != nil {
+		return nil, err
+	}
+
+	return nk, nil
+}
+
+// GenerateNodeKey generates a random node P2P key.
+func GenerateNodeKey() *NodeKey {
+	return &NodeKey{PrivKey: ed25519.GenPrivKey()}
+}
+
+// GeneratePersistedNodeKey generates a new random NodeKey persisted to disk.
+func GeneratePersistedNodeKey(filePath string) (*NodeKey, error) {
+	// Generate a new random NodeKey.
+	fk := GenerateNodeKey()
+
+	// Set the file path.
+	fk.filePath = filePath
+
+	// Persist the NodeKey to disk.
+	if err := fk.save(); err != nil {
+		return nil, err
+	}
+
+	return fk, nil
+}
+
+// NewNodeKey returns a new NodeKey instance from the given file path.
+// If the file does not exist, a new NodeKey is generated and persisted to disk.
+func NewNodeKey(filePath string) (*NodeKey, error) {
+	// If the file exists, load the NodeKey from the file.
+	if osm.FileExists(filePath) {
+		return LoadNodeKey(filePath)
+	}
+
+	// If the file does not exist, generate a new NodeKey and persist it to disk.
+	return GeneratePersistedNodeKey(filePath)
 }

@@ -36,10 +36,8 @@ func verifyValidatorState(t *testing.T, path string) {
 func verifyNodeKey(t *testing.T, path string) {
 	t.Helper()
 
-	nodeKey, err := readSecretData[types.NodeKey](path)
+	_, err := types.LoadNodeKey(path)
 	require.NoError(t, err)
-
-	assert.NoError(t, validateNodeKey(nodeKey))
 }
 
 func TestSecrets_Init_All(t *testing.T) {

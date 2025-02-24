@@ -170,7 +170,7 @@ func readValidatorState(path string) (*validatorStateInfo, error) {
 
 // readNodeID reads the node p2p info from the given path
 func readNodeID(path string) (*nodeIDInfo, error) {
-	nodeKey, err := readSecretData[types.NodeKey](path)
+	nodeKey, err := types.LoadNodeKey(path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read node key, %w", err)
 	}

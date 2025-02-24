@@ -165,10 +165,7 @@ func initAndSaveValidatorState(path string, io commands.IO) error {
 // initAndSaveNodeKey generates a node p2p key and saves it to the given path
 func initAndSaveNodeKey(path string, io commands.IO) error {
 	// Initialize the node's p2p key
-	nodeKey := types.GenerateNodeKey()
-
-	// Save the node key
-	if err := saveSecretData(nodeKey, path); err != nil {
+	if _, err := types.GeneratePersistedNodeKey(path); err != nil {
 		return fmt.Errorf("unable to save node p2p key, %w", err)
 	}
 

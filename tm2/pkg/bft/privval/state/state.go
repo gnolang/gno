@@ -281,7 +281,7 @@ func LoadFileState(filePath string) (*FileState, error) {
 
 	// Unmarshal the JSON bytes into a FileState using amino.
 	fs := &FileState{}
-	err = amino.UnmarshalJSON(rawJSONBytes, &fs)
+	err = amino.UnmarshalJSON(rawJSONBytes, fs)
 	if err != nil {
 		return nil, fmt.Errorf("unable to unmarshal FileState from %s: %w", filePath, err)
 	}

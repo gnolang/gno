@@ -16,6 +16,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func persistData(t *testing.T, data any, path string) {
+	t.Helper()
+
+	marshalledData, err := amino.MarshalJSONIndent(data, "", "\t")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, marshalledData, 0o644))
+}
+
 func TestSecrets_Verify_All(t *testing.T) {
 	t.Parallel()
 
@@ -101,7 +109,8 @@ func TestSecrets_Verify_All(t *testing.T) {
 		state.SignBytes, err = amino.MarshalSized(&vote)
 		require.NoError(t, err)
 
-		require.NoError(t, saveSecretData(state, statePath))
+		// Persist the modified state
+		persistData(t, state, statePath)
 
 		cmd = newRootCmd(commands.NewTestIO())
 
@@ -277,7 +286,7 @@ func TestSecrets_Verify_Single(t *testing.T) {
 			PrivKey: nil, // invalid
 		}
 
-		require.NoError(t, saveSecretData(invalidKey, path))
+		persistData(t, invalidKey, path)
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
@@ -304,7 +313,7 @@ func TestSecrets_Verify_Single(t *testing.T) {
 			Height: -1, // invalid
 		}
 
-		require.NoError(t, saveSecretData(invalidState, path))
+		persistData(t, invalidState, path)
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
@@ -329,7 +338,7 @@ func TestSecrets_Verify_Single(t *testing.T) {
 
 		var invalidNodeKey *types.NodeKey = nil // invalid
 
-		require.NoError(t, saveSecretData(invalidNodeKey, path))
+		persistData(t, invalidNodeKey, path)
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
@@ -343,6 +352,6 @@ func TestSecrets_Verify_Single(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorIs(t, cmdErr, errInvalidNodeKey)
+		assert.Error(t, cmdErr)
 	})
 }

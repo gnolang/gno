@@ -139,13 +139,9 @@ func readAndVerifyValidatorState(path string, io commands.IO) (*fstate.FileState
 
 // readAndVerifyNodeKey reads the node p2p key from the given path and verifies it
 func readAndVerifyNodeKey(path string, io commands.IO) error {
-	nodeKey, err := readSecretData[types.NodeKey](path)
+	_, err := types.LoadNodeKey(path)
 	if err != nil {
 		return fmt.Errorf("unable to read node p2p key, %w", err)
-	}
-
-	if err := validateNodeKey(nodeKey); err != nil {
-		return err
 	}
 
 	io.Printfln("Node P2P key at %s is valid", path)
