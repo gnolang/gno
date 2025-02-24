@@ -103,7 +103,7 @@ func (t *T) Fail() {
 func (t *T) FailNow() {
 	t.Fail()
 	panic(skipErr("testing: you have recovered a panic attempting to interrupt a test, as a consequence of FailNow. " +
-			"Use testing.Recover to recover panics within tests"))
+		"Use testing.Recover to recover panics within tests"))
 }
 
 func (t *T) Failed() bool {
@@ -186,7 +186,7 @@ func (t *T) Skip(args ...interface{}) {
 func (t *T) SkipNow() {
 	t.skipped = true
 	panic(skipErr("testing: you have recovered a panic attempting to interrupt a test, as a consequence of SkipNow. " +
-			"Use testing.Recover to recover panics within tests"))
+		"Use testing.Recover to recover panics within tests"))
 }
 
 func (t *T) Skipped() bool {
