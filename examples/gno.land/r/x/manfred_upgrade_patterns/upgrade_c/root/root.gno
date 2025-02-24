@@ -23,7 +23,7 @@ func SetCurrentImpl(pkgpath string) {
 }
 
 func assertIsCurrentImpl() {
-	if std.PrevRealm().PkgPath() != currentImpl {
+	if std.PreviousRealm().PkgPath() != currentImpl {
 		panic("unauthorized")
 	}
 }

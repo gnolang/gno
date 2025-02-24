@@ -14,7 +14,7 @@ import (
 type TestExecContext struct {
 	std.ExecContext
 
-	// These are used to set up the result of CurrentRealm() and PrevRealm().
+	// These are used to set up the result of CurrentRealm() and PreviousRealm().
 	RealmFrames map[*gno.Frame]RealmOverride
 }
 
@@ -64,10 +64,10 @@ func isOriginCall(m *gno.Machine) bool {
 
 func X_callerAt(m *gno.Machine, n int) string {
 	if n <= 0 {
-		m.Panic(typedString("GetCallerAt requires positive arg"))
+		m.Panic(typedString("CallerAt requires positive arg"))
 		return ""
 	}
-	// Add 1 to n to account for the GetCallerAt (gno fn) frame.
+	// Add 1 to n to account for the CallerAt (gno fn) frame.
 	n++
 	if n > m.NumFrames()-1 {
 		// NOTE: the last frame's LastPackage
@@ -77,9 +77,9 @@ func X_callerAt(m *gno.Machine, n int) string {
 		return ""
 	}
 	if n == m.NumFrames()-1 {
-		// This makes it consistent with GetOrigCaller and TestSetOrigCaller.
+		// This makes it consistent with OriginCaller and TestSetOriginCaller.
 		ctx := m.Context.(*TestExecContext)
-		return string(ctx.OrigCaller)
+		return string(ctx.OriginCaller)
 	}
 	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
@@ -119,8 +119,8 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 		}
 	}
 
-	// Fallback case: return OrigCaller.
-	return string(ctx.OrigCaller), ""
+	// Fallback case: return OriginCaller.
+	return string(ctx.OriginCaller), ""
 }
 
 func X_isRealm(m *gno.Machine, pkgPath string) bool {

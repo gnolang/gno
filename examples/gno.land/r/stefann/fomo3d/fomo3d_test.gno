@@ -74,7 +74,7 @@ func TestOwnership(t *testing.T) {
 	_, feesAfter := GetOwnerInfo()
 	urequire.Equal(t, int64(0), feesAfter)
 
-	finalBalance := std.GetBanker(std.BankerTypeRealmSend).GetCoins(nonOwner)
+	finalBalance := std.NewBanker(std.BankerTypeRealmSend).GetCoins(nonOwner)
 	urequire.Equal(t, initialBalance.AmountOf("ugnot")+expectedFees, finalBalance.AmountOf("ugnot"))
 }
 
@@ -94,7 +94,7 @@ func TestFullGameFlow(t *testing.T) {
 	// Start game
 	urequire.NotPanics(t, StartGame)
 	urequire.Equal(t, false, gameState.Ended)
-	urequire.Equal(t, std.GetHeight(), gameState.StartBlock)
+	urequire.Equal(t, std.ChainHeight(), gameState.StartBlock)
 	urequire.Equal(t, int64(1), gameState.CurrentRound)
 
 	t.Run("buying keys", func(t *testing.T) {
@@ -110,7 +110,7 @@ func TestFullGameFlow(t *testing.T) {
 		t.SetOriginSend(std.Coins{{"ugnot", payment}})
 		t.IssueCoins(std.GetOrigPkgAddr(), std.Coins{{"ugnot", payment}})
 
-		currentBlock := std.GetHeight()
+		currentBlock := std.ChainHeight()
 		urequire.NotPanics(t, BuyKeys)
 
 		// Verify time extension
@@ -163,7 +163,7 @@ func TestFullGameFlow(t *testing.T) {
 			_, dividendsAfter := GetPlayerInfo(player1.String())
 			urequire.Equal(t, int64(0), dividendsAfter)
 
-			lastBuyerBalance := std.GetBanker(std.BankerTypeRealmSend).GetCoins(player1)
+			lastBuyerBalance := std.NewBanker(std.BankerTypeRealmSend).GetCoins(player1)
 			urequire.Equal(t, initialBalance.AmountOf("ugnot")+expectedDividends, lastBuyerBalance.AmountOf("ugnot"))
 		}
 	})
@@ -182,7 +182,7 @@ func TestFullGameFlow(t *testing.T) {
 		urequire.Equal(t, int64(1), gameState.CurrentRound)
 
 		// Verify winner received jackpot
-		lastBuyerBalance := std.GetBanker(std.BankerTypeRealmSend).GetCoins(gameState.LastBuyer)
+		lastBuyerBalance := std.NewBanker(std.BankerTypeRealmSend).GetCoins(gameState.LastBuyer)
 		urequire.Equal(t, gameState.Jackpot, lastBuyerBalance.AmountOf("ugnot"))
 
 		// Verify NFT was minted to winner
@@ -226,7 +226,7 @@ func TestStartGame(t *testing.T) {
 	// Test starting first game
 	urequire.NotPanics(t, StartGame)
 	urequire.Equal(t, false, gameState.Ended)
-	urequire.Equal(t, std.GetHeight(), gameState.StartBlock)
+	urequire.Equal(t, std.ChainHeight(), gameState.StartBlock)
 
 	// Test cannot start while game in progress
 	urequire.PanicsWithMessage(t, ErrGameInProgress.Error(), StartGame)

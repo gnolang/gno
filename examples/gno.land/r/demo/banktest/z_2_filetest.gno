@@ -19,9 +19,9 @@ func main() {
 	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
 	testing.SetOriginCaller(mainaddr)
 
-	banker := std.GetBanker(std.BankerTypeReadonly)
+	banker := std.NewBanker(std.BankerTypeReadonly)
 	mainbal := banker.GetCoins(mainaddr)
-	println("main before:", mainbal) // plus OrigSend equals 300.
+	println("main before:", mainbal) // plus OriginSend equals 300.
 
 	// simulate a Deposit call.
 	testing.SetOriginPkgAddress(banktestAddr)

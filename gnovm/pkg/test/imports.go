@@ -131,7 +131,7 @@ func StoreWithOptions(
 			pkg.DefineGoNativeValue("Unmarshal", json.Unmarshal)
 			pkg.DefineGoNativeValue("Marshal", json.Marshal)
 			return pkg, pkg.NewPackage()
-		case "internal/os_test":
+		case "os_test":
 			pkg := gno.NewPackageNode("os_test", pkgPath, nil)
 			pkg.DefineNative("Sleep",
 				gno.Flds( // params

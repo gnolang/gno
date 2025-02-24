@@ -48,18 +48,18 @@ func TestAssertOriginCall(t *testing.T) {
 	tests.CallSubtestsAssertOriginCall()
 }
 
-func TestPrevRealm(t *testing.T) {
+func TestPreviousRealm(t *testing.T) {
 	var (
 		firstRealm = std.DerivePkgAddr("gno.land/r/demo/tests_test")
 		rTestsAddr = std.DerivePkgAddr("gno.land/r/demo/tests")
 	)
-	// When only one realm in the frames, PrevRealm returns the same realm
-	if addr := tests.GetPrevRealm().Addr(); addr != firstRealm {
-		println(tests.GetPrevRealm())
-		t.Errorf("want GetPrevRealm().Addr==%s, got %s", firstRealm, addr)
+	// When only one realm in the frames, PreviousRealm returns the same realm
+	if addr := tests.GetPreviousRealm().Address(); addr != firstRealm {
+		println(tests.GetPreviousRealm())
+		t.Errorf("want GetPreviousRealm().Address==%s, got %s", firstRealm, addr)
 	}
-	// When 2 or more realms in the frames, PrevRealm returns the second to last
-	if addr := tests.GetRSubtestsPrevRealm().Addr(); addr != rTestsAddr {
-		t.Errorf("want GetRSubtestsPrevRealm().Addr==%s, got %s", rTestsAddr, addr)
+	// When 2 or more realms in the frames, PreviousRealm returns the second to last
+	if addr := tests.GetRSubtestsPreviousRealm().Address(); addr != rTestsAddr {
+		t.Errorf("want GetRSubtestsPreviousRealm().Address==%s, got %s", rTestsAddr, addr)
 	}
 }

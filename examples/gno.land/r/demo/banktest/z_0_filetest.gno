@@ -23,11 +23,11 @@ func main() {
 
 	// get and print balance of mainaddr.
 	// with the SEND, + 200 gnot given by the TestContext, main should have 300gnot.
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 	mainbal := banker.GetCoins(mainaddr)
 	println("main before:", mainbal)
 
-	// simulate a Deposit call. use Send + OrigSend to simulate -send.
+	// simulate a Deposit call. use Send + OriginSend to simulate -send.
 	banker.SendCoins(mainaddr, banktestAddr, std.Coins{{"ugnot", 100_000_000}})
 	testing.SetOriginSend(std.Coins{{"ugnot", 100_000_000}})
 	res := banktest.Deposit("ugnot", 50_000_000)

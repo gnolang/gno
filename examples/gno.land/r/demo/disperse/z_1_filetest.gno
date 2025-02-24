@@ -18,7 +18,7 @@ func main() {
 	testing.SetOriginPkgAddress(disperseAddr)
 	testing.SetOriginCaller(mainaddr)
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 
 	mainbal := banker.GetCoins(mainaddr)
 	println("main before:", mainbal)

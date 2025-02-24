@@ -11,18 +11,18 @@ type Realm struct {
     pkgPath string
 }
 
-func (r Realm) Addr() Address {...}
+func (r Realm) Address() Address {...}
 func (r Realm) PkgPath() string {...}
 func (r Realm) IsUser() bool {...}
 func (r Realm) CoinDenom(coinName string) string {...}
 ```
 
-## Addr
+## Address
 Returns the **Address** field of the realm it was called upon.
 
 #### Usage
 ```go
-realmAddr := r.Addr() // eg. g1n2j0gdyv45aem9p0qsfk5d2gqjupv5z536na3d
+realmAddr := r.Address() // eg. g1n2j0gdyv45aem9p0qsfk5d2gqjupv5z536na3d
 ```
 ---
 ## PkgPath

@@ -2,7 +2,7 @@ package std
 
 func AssertOriginCall() // injected
 
-// GetCallerAt calls callerAt, which we overwrite
+// CallerAt calls callerAt, which we overwrite
 func callerAt(n int) string
 
 // native bindings
