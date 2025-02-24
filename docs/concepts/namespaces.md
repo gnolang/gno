@@ -7,6 +7,12 @@ id: namespaces
 Namespaces provide users with the exclusive capability to publish contracts under their designated namespaces,
 similar to GitHub's user and organization model.
 
+:::warning Not enabled
+
+This feature isn't enabled by default on the Portal Loop chain and is currently available only on test5.gno.land.
+
+:::
+
 # Package Path
 
 A package path is a unique identifier for each package/realm. It specifies the location of the package source
@@ -50,10 +56,11 @@ $ gnokey maketx call -pkgpath gno.land/r/gnoland/users/v1 \
     -func Register \
     -gas-fee 1000000ugnot -gas-wanted 2000000 \
     -broadcast \
-    -chainid=portal-loop \
-    -remote="https://gno.land/r/gnoland/users/v1" \
-    -args 'patrick123' \
-    test1
+    -chainid=test5 \
+    -send=20000000ugnot \
+    -args '' \
+    -args 'patrick' \
+    -args 'My Profile Quote' test1
 ```
 
 After successful registration, you can add a package under the registered namespace.
@@ -72,6 +79,6 @@ $ gnokey maketx addpkg \
     --gas-fee 1000000ugnot \
     --gas-wanted 2000000 \
     --broadcast \
-    --chainid test4 \
+    --chainid test5 \
     test1
 ```
