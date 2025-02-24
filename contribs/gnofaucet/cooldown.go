@@ -20,17 +20,17 @@ func NewCooldownLimiter(cooldown time.Duration) *CooldownLimiter {
 	}
 }
 
-// CheckCooldown checks if a user is eligible for a reward claim
-func (rl *CooldownLimiter) CheckCooldown(ghLogin string) bool {
+// CheckCooldown checks if a key has done some action before the cooldown period has passed
+func (rl *CooldownLimiter) CheckCooldown(key string) bool {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 
-	if lastClaim, found := rl.cooldowns[ghLogin]; found {
+	if lastClaim, found := rl.cooldowns[key]; found {
 		if time.Since(lastClaim) < rl.cooldownTime {
 			return false // Deny claim if within cooldown period
 		}
 	}
 
-	rl.cooldowns[ghLogin] = time.Now()
+	rl.cooldowns[key] = time.Now()
 	return true
 }
