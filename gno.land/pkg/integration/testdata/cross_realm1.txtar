@@ -1,0 +1,52 @@
+gnoland start
+
+# add contract
+gnokey maketx addpkg -pkgdir $WORK/first -pkgpath gno.land/r/demo/first -gas-fee 1000000ugnot -gas-wanted 16000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx addpkg -pkgdir $WORK/second -pkgpath gno.land/r/demo/second -gas-fee 1000000ugnot -gas-wanted 16000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# "Attach" func block is attaching by ref as unreal, panic
+! gnokey maketx call -pkgpath 'gno.land/r/demo/second' -func 'Attach' -gas-fee 1000000ugnot -gas-wanted 2000000 -send '' -broadcast -chainid='tendermint_test' test1
+! stdout OK!
+stderr 'cannot attach a reference to an unattached object from an external realm'
+
+
+-- first/first.gno --
+package first
+
+
+type First struct {
+	I *int
+}
+
+var Var *First = &First{}
+
+func SetI(i *int) {
+	Var.I = i
+}
+
+func Get() int {
+	return *Var.I
+}
+
+
+-- second/second.gno --
+package second
+
+import (
+	"gno.land/r/demo/first"
+)
+
+var ( 
+	i *int
+	f *first.First
+)
+
+func Attach(){ // refCount 2, but unreal
+	f = first.Var
+	v := 0
+	i = &v
+	first.SetI(i)
+}

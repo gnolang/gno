@@ -163,7 +163,8 @@ type ObjectInfo struct {
 	isNewDeleted bool
 
 	// If an object’s type is declared in a
-	// realm, it's considered bound to that realm
+	// realm, it's considered bound to that
+	// realm, otherwise it zero
 	boundRealm PkgID
 
 	// This flag indicates whether the object is being
@@ -435,8 +436,6 @@ func (tv *TypedValue) GetFirstObject2(store Store) Object {
 		// assert to pointer value
 		if pv, ok := tv.V.(PointerValue); ok {
 			boundRealm = getPkgId(pv.TV.T)
-		} else {
-			// XXX?
 		}
 	case *BoundMethodValue:
 		// do nothing
@@ -450,6 +449,13 @@ func (tv *TypedValue) GetFirstObject2(store Store) Object {
 
 	// set bound realm to object
 	if obj != nil {
+		// if the object is unreal but already owned,
+		// it means the object is bound to this realm
+		// and must be attached to it.
+		if !obj.GetIsReal() && obj.GetIsOwned() {
+			boundRealm = obj.GetOwnerID().PkgID
+		}
+
 		if !boundRealm.IsZero() {
 			obj.SetBoundRealm(boundRealm)
 		}
@@ -458,8 +464,8 @@ func (tv *TypedValue) GetFirstObject2(store Store) Object {
 		case *SliceValue, PointerValue:
 			obj.SetIsAttachingRef(true)
 		}
-	}
-	if obj != nil {
+
+		// attach package value to object
 		if path != "" {
 			pkg := store.GetPackage(path, false)
 			if pkg != nil {

@@ -299,8 +299,7 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, seenObjs []Object) {
 		return
 	}
 
-	// if object does not have a
-	// bound realm. e.g. array, map, struct...
+	// if object does not have a bound realm
 	if oo.GetBoundRealm().IsZero() {
 		if oo.GetIsReal() && oo.GetIsAttachingRef() {
 			return
