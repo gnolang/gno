@@ -85,7 +85,7 @@ These testnets are deprecated and currently serve as archives of previous progre
 
 ## Test4
 
-Test4 is the first permanent multi-node testnet. Archived data for test3 can be found [here](https://github.com/gnolang/tx-exports/tree/main/test4.gno.land).
+Test4 is the first permanent multi-node testnet. Archived data for test4 can be found [here](https://github.com/gnolang/tx-exports/tree/main/test4.gno.land).
 
 Launch date: July 10th 2024
 Release commit: [194903d](https://github.com/gnolang/gno/commit/194903db0350ace7d57910e6c34125d3aa9817da)
