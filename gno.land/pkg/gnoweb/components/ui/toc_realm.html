@@ -2,9 +2,14 @@
 <ul class="space-y-2 pt-2 pl-4">
   {{ range .Items }}
   <li>
-    <a class="line-clamp-2 hover:text-green-600 hover:underline" href="{{ .Anchor }}"> {{ .Title | noescape_bytes }} </a>
+    <a 
+      class="line-clamp-2 hover:text-green-600 dark:hover:text-green-d600 text-gray-900 dark:text-gray-d900 hover:underline" 
+      href="{{ .Anchor }}"
+    > 
+      {{ .Title | noescape_bytes }} 
+    </a>
     {{ if .Items }} {{ template "ui/toc_realm" . }} {{ end }}
   </li>
   {{ end }}
 </ul>
-{{ end }} 
+{{ end }}
