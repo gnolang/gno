@@ -10,6 +10,14 @@ services:
     networks:
       - gnoland-net
   
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+    networks:
+      - gnoland-net
+
   prometheus:
     image: prom/prometheus:latest
     command:
@@ -114,6 +122,8 @@ networks:
     driver: bridge
 
 volumes:
+  jaeger:
+    driver: local
   prometheus:
     driver: local
   grafana_data:

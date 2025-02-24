@@ -9,6 +9,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/telemetry/config"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/tracing"
 )
 
 var (
@@ -41,5 +42,15 @@ func Init(c config.Config) error {
 	// Update the global configuration
 	globalConfig = c
 
-	return metrics.Init(c)
+	if err := metrics.Init(c); err != nil {
+		return fmt.Errorf("unable to initialize metrics, %w", err)
+	}
+
+	// TODO: handle shutdown func
+	_, err := tracing.Init()
+	if err != nil {
+		return fmt.Errorf("unable to initialize tracing, %w", err)
+	}
+
+	return nil
 }
