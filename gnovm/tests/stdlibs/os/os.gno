@@ -1,22 +1,19 @@
 package os
 
-type (
-	stdoutWriter struct{}
-	stderrWriter struct{}
-)
+type stdoutWriter struct{}
+type stderrWriter struct{}
 
-var (
-	Stdout = &stdoutWriter{}
-	Stderr = &stderrWriter{}
-)
+var Stdout  = &stdoutWriter{}
+var Stderr  = &stderrWriter{}
 
-func (w *stdoutWriter) Write(p []byte) (n int, err error) {
-	return write(p, false), nil
+func (w* stdoutWriter)Write(p []byte) (n int, err error){
+	return writeStdout(p)
 }
 
-func (w *stderrWriter) Write(p []byte) (n int, err error) {
-	return write(p, true), nil
+func (w* stderrWriter)Write(p []byte) (n int, err error){
+	return writeStderr(p)
 }
 
 // native bindings
-func write(p []byte, isStderr bool) int
+func writeStderr(p []byte) (n int, err error)
+func writeStdout(p []byte) (n int, err error)

@@ -368,8 +368,22 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 		tv.SetFloat32(softfloat.F64to32(math.Float64bits(rv.Float())))
 	case reflect.Float64:
 		tv.SetFloat64(math.Float64bits(rv.Float()))
+	case reflect.Array:
+		panic("not yet implemented")
+	case reflect.Slice:
+		panic("not yet implemented")
+	case reflect.Chan:
+		panic("not yet implemented")
 	case reflect.Func:
-		panic("New function")
+		panic("not yet implemented")
+	case reflect.Interface:
+		panic("not yet implemented")
+	case reflect.Map:
+		panic("not yet implemented")
+	case reflect.Ptr:
+		panic("not yet implemented")
+	case reflect.Struct:
+		panic("not yet implemented")
 	case reflect.UnsafePointer:
 		panic("not yet implemented")
 	default:
