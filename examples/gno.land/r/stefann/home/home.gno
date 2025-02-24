@@ -50,7 +50,7 @@ var (
 
 func init() {
 	owner = ownable.NewWithAddress(registry.MainAddr())
-	hof.Register()
+	hof.Register("Stefann's Home Realm", "This is Stefann's home realm!")
 
 	profile = Profile{
 		aboutMe: []string{
