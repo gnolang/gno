@@ -15,13 +15,13 @@ func main() {
 		rTestsAddr = std.DerivePkgAddr("gno.land/r/demo/tests")
 	)
 	testing.SetOriginCaller(eoa)
-	// Contrarily to z2_filetest.gno we EXPECT GetPrevRealms != eoa (#1704)
-	if addr := tests.GetPrevRealm().Addr(); addr != eoa {
-		println("want tests.GetPrevRealm().Addr ==", eoa, "got", addr)
+	// Contrarily to z2_filetest.gno we EXPECT GetPreviousRealms != eoa (#1704)
+	if addr := tests.GetPreviousRealm().Address(); addr != eoa {
+		println("want tests.GetPreviousRealm().Address ==", eoa, "got", addr)
 	}
 	// When 2 or more realms in the frames, it is also different
 	if addr := tests.GetRSubtestsPreviousRealm().Address(); addr != rTestsAddr {
-		println("want GetRSubtestsPreviousRealm().Addr ==", rTestsAddr, "got", addr)
+		println("want GetRSubtestsPreviousRealm().Address ==", rTestsAddr, "got", addr)
 	}
 }
 

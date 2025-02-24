@@ -443,7 +443,7 @@ func TestSetContext(ctx Context) {
 		ctx.IsOrigin,
 		ctx.OriginCaller.String(),
 		ctx.OriginPkgAddress.String(),
-		ctx.CurrentRealm.Addr().String(), ctx.CurrentRealm.PkgPath(),
+		ctx.CurrentRealm.Address().String(), ctx.CurrentRealm.PkgPath(),
 		originSendDenom, originSendAmount,
 		originSpendDenom, originSpendAmount,
 		ctx.ChainID,
@@ -480,7 +480,7 @@ func SetRealm(rlm std.Realm) {
 }
 
 func SkipHeights(count int64) {
-	toHeight := std.GetHeight() + count
+	toHeight := std.ChainHeight() + count
 	toTime := time.Now().Unix() + (count * 5)
 	TestSetContext(Context{Height: toHeight, Time: time.Unix(toTime, 0)})
 }
