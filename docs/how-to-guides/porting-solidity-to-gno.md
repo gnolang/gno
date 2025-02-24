@@ -621,6 +621,7 @@ func TestFull(t *testing.T) {
 	// Send two or more types of coins
 	{
 		t.SetOriginCaller(bidder01)
+
 		t.SetOriginSend(std.Coins{{"ugnot", 0}, {"test", 1}})
 		shouldPanic(t, Bid)
 	}

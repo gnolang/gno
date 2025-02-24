@@ -26,4 +26,4 @@ func main() {
 }
 
 // Output:
-// want tests.GetPreviousRealm().Addr == g1wdhk6et0dej47h6lta047h6lta047h6lrnerlk got g1xufrdvnfk6zc9r0nqa23ld3tt2r5gkyvw76q63
+// want tests.GetPreviousRealm().Address == g1wdhk6et0dej47h6lta047h6lta047h6lrnerlk got g1xufrdvnfk6zc9r0nqa23ld3tt2r5gkyvw76q63
