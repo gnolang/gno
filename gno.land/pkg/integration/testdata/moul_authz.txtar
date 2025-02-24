@@ -35,7 +35,7 @@ type prop struct {
 var props []*prop
 
 func HandlePrivilegedAction(title string, action authz.PrivilegedAction) error {
-    if std.PrevRealm().PkgPath() != "gno.land/r/testing/resource" {
+    if std.PreviousRealm().PkgPath() != "gno.land/r/testing/resource" {
         return errors.New("unauthorized proposer")
     }
     props = append(props, &prop{title: title, action: action})
@@ -43,7 +43,7 @@ func HandlePrivilegedAction(title string, action authz.PrivilegedAction) error {
 }
 
 func ExecuteAction(index int) {
-    if std.PrevRealm().Addr() != "g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0" {
+    if std.PreviousRealm().Address() != "g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0" {
         panic(errors.New("not alice"))
     }
     if err := props[index].action(); err != nil {
