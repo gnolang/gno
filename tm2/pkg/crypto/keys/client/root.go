@@ -80,7 +80,7 @@ func (c *BaseCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.InsecurePasswordStdin,
 		"insecure-password-stdin",
-		c.Quiet,
+		c.InsecurePasswordStdin,
 		"WARNING! take password from stdin",
 	)
 

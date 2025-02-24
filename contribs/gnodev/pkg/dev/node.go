@@ -661,12 +661,15 @@ func (n *Node) genesisTxResultHandler(ctx sdk.Context, tx std.Tx, res sdk.Result
 
 func newNodeConfig(tmc *tmcfg.Config, chainid, chaindomain string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
 	// Create Mocked Identity
-	pv := gnoland.NewMockedPrivValidator()
+	pv := bft.NewMockPV()
 	genesis := gnoland.NewDefaultGenesisConfig(chainid, chaindomain)
 	genesis.AppState = appstate
 
 	// Add self as validator
-	self := pv.GetPubKey()
+	self, err := pv.PubKey()
+	if err != nil {
+		panic(err) // Should never happen.
+	}
 	genesis.Validators = []bft.GenesisValidator{
 		{
 			Address: self.Address(),
