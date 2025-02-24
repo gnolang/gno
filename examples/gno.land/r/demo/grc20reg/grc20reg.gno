@@ -4,6 +4,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl/rotree"
 	"gno.land/p/demo/fqname"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ufmt"
@@ -15,6 +16,22 @@ func Register(tokenGetter grc20.TokenGetter, slug string) {
 	rlmPath := std.PreviousRealm().PkgPath()
 	key := fqname.Construct(rlmPath, slug)
 	registry.Set(key, tokenGetter)
+	std.Emit(
+		registerEvent,
+		"pkgpath", rlmPath,
+		"slug", slug,
+	)
+}
+
+func RegisterWithTokenhub(tokenGetter grc20.TokenGetter, key string) {
+	prevRealmPath := std.PreviousRealm().PkgPath()
+	if prevRealmPath != "gno.land/r/matijamarjanovic/tokenhub" {
+		return
+	}
+
+	registry.Set(key, tokenGetter)
+
+	rlmPath, slug := fqname.Parse(key)
 	std.Emit(
 		registerEvent,
 		"pkgpath", rlmPath,
@@ -74,3 +91,7 @@ func Render(path string) string {
 }
 
 const registerEvent = "register"
+
+func GetRegistry() *rotree.ReadOnlyTree {
+	return rotree.Wrap(registry, nil)
+}
