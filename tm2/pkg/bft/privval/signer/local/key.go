@@ -84,7 +84,7 @@ func LoadFileKey(filePath string) (*FileKey, error) {
 
 	// Unmarshal the JSON bytes into a FileKey using amino.
 	fk := &FileKey{}
-	err = amino.UnmarshalJSON(rawJSONBytes, &fk)
+	err = amino.UnmarshalJSON(rawJSONBytes, fk)
 	if err != nil {
 		return nil, fmt.Errorf("unable to unmarshal FileKey from %v: %w", filePath, err)
 	}
@@ -101,23 +101,25 @@ func LoadFileKey(filePath string) (*FileKey, error) {
 }
 
 // GenerateFileKey generates a new random FileKey.
-func GenerateFileKey(filePath string) *FileKey {
+func GenerateFileKey() *FileKey {
 	// Generate a new random private key.
 	privKey := ed25519.GenPrivKey()
 
 	// Create a new FileKey instance.
 	return &FileKey{
-		PrivKey:  privKey,
-		PubKey:   privKey.PubKey(),
-		Address:  privKey.PubKey().Address(),
-		filePath: filePath,
+		PrivKey: privKey,
+		PubKey:  privKey.PubKey(),
+		Address: privKey.PubKey().Address(),
 	}
 }
 
 // GeneratePersistedFileKey generates a new random FileKey persisted to disk.
 func GeneratePersistedFileKey(filePath string) (*FileKey, error) {
 	// Generate a new random FileKey.
-	fk := GenerateFileKey(filePath)
+	fk := GenerateFileKey()
+
+	// Set the file path.
+	fk.filePath = filePath
 
 	// Persist the FileKey to disk.
 	if err := fk.save(); err != nil {

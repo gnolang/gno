@@ -74,7 +74,7 @@ func TestCommon_ValidateStateSignature(t *testing.T) {
 		t.Parallel()
 
 		var (
-			key   = signer.GenerateFileKey("")
+			key   = signer.GenerateFileKey()
 			state = &fstate.FileState{SignBytes: []byte("random data")}
 		)
 
@@ -91,7 +91,7 @@ func TestCommon_ValidateStateSignature(t *testing.T) {
 		t.Parallel()
 
 		var (
-			key   = signer.GenerateFileKey("")
+			key   = signer.GenerateFileKey()
 			state = &fstate.FileState{}
 		)
 
@@ -102,7 +102,7 @@ func TestCommon_ValidateStateSignature(t *testing.T) {
 		t.Parallel()
 
 		var (
-			key   = signer.GenerateFileKey("")
+			key   = signer.GenerateFileKey()
 			state = &fstate.FileState{SignBytes: []byte("random data")}
 		)
 

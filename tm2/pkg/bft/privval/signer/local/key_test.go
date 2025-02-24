@@ -17,7 +17,8 @@ func TestValidate(t *testing.T) {
 	t.Run("valid FileKey", func(t *testing.T) {
 		t.Parallel()
 
-		fk := GenerateFileKey("filePath")
+		fk := GenerateFileKey()
+		fk.filePath = "filePath"
 
 		require.NoError(t, fk.validate())
 	})
@@ -25,7 +26,8 @@ func TestValidate(t *testing.T) {
 	t.Run("invalid private key", func(t *testing.T) {
 		t.Parallel()
 
-		fk := GenerateFileKey("filePath")
+		fk := GenerateFileKey()
+		fk.filePath = "filePath"
 		fk.PrivKey = nil
 
 		require.ErrorIs(t, fk.validate(), errInvalidPrivateKey)
@@ -34,7 +36,8 @@ func TestValidate(t *testing.T) {
 	t.Run("public key mismatch", func(t *testing.T) {
 		t.Parallel()
 
-		fk := GenerateFileKey("filePath")
+		fk := GenerateFileKey()
+		fk.filePath = "filePath"
 		fk.PubKey = nil
 
 		require.ErrorIs(t, fk.validate(), errPublicKeyMismatch)
@@ -43,7 +46,8 @@ func TestValidate(t *testing.T) {
 	t.Run("address mismatch", func(t *testing.T) {
 		t.Parallel()
 
-		fk := GenerateFileKey("filePath")
+		fk := GenerateFileKey()
+		fk.filePath = "filePath"
 		fk.Address = crypto.Address{} // zero address
 
 		require.ErrorIs(t, fk.validate(), errAddressMismatch)
@@ -52,7 +56,7 @@ func TestValidate(t *testing.T) {
 	t.Run("empty filepath", func(t *testing.T) {
 		t.Parallel()
 
-		fk := GenerateFileKey("")
+		fk := GenerateFileKey()
 
 		require.ErrorIs(t, fk.validate(), errFilePathNotSet)
 	})
