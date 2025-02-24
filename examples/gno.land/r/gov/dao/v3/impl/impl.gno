@@ -13,11 +13,14 @@ var law *Law
 func init() {
 	govDAO = NewGovDAO()
 
-	law := &Law{
+	law = &Law{
 		Supermajority: 66,
 	}
 
-	println(law)
+	proxy.UpdateImpl(proxy.UpdateRequest{
+		DAO:         govDAO,
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+	})
 }
 
 func Render(in string) string {
