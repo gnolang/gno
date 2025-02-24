@@ -140,14 +140,8 @@ func TestGnoAccountRestriction(t *testing.T) {
 	fromAccount := acckpr.NewAccountWithAddress(ctx, fromAddress)
 	toAccount := acckpr.NewAccountWithAddress(ctx, toAddress)
 
-	// Unrestrict Account
-	fromAccount.(*GnoAccount).SetUnrestricted()
-	assert.True(t, fromAccount.(*GnoAccount).IsUnrestricted())
-
-	// Persisted unrestricted state
-	acckpr.SetAccount(ctx, fromAccount)
-	fromAccount = acckpr.GetAccount(ctx, fromAddress)
-	assert.True(t, fromAccount.(*GnoAccount).IsUnrestricted())
+	// Default account is not unrestricted
+	assert.False(t, fromAccount.(*GnoAccount).IsUnrestricted())
 
 	// Send Unrestricted
 	fromAccount.SetCoins(std.NewCoins(std.NewCoin("foocoin", 10)))
@@ -164,6 +158,22 @@ func TestGnoAccountRestriction(t *testing.T) {
 	err = bankpr.SendCoins(ctx, fromAddress, toAddress, std.NewCoins(std.NewCoin("foocoin", 3)))
 	require.Error(t, err)
 	assert.Equal(t, "restricted token transfer error", err.Error())
+
+	// Set unrestrict Account
+	fromAccount.(*GnoAccount).SetUnrestricted()
+	assert.True(t, fromAccount.(*GnoAccount).IsUnrestricted())
+
+	// Persisted unrestricted state
+	acckpr.SetAccount(ctx, fromAccount)
+	fromAccount = acckpr.GetAccount(ctx, fromAddress)
+	assert.True(t, fromAccount.(*GnoAccount).IsUnrestricted())
+
+	// Send Restricted
+	bankpr.AddRestrictedDenoms(ctx, "foocoin")
+	err = bankpr.SendCoins(ctx, fromAddress, toAddress, std.NewCoins(std.NewCoin("foocoin", 3)))
+	require.NoError(t, err)
+	assert.Equal(t, balance.String(), "3foocoin")
+
 }
 
 func TestGnoAccountSendRestrictions(t *testing.T) {
