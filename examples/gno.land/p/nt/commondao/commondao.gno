@@ -8,11 +8,11 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/avl/rotree"
 	"gno.land/p/demo/seqid"
+	"gno.land/p/moul/addrset"
 )
 
 var (
 	ErrInvalidVoteChoice    = errors.New("invalid vote choice")
-	ErrMemberExists         = errors.New("member already exist")
 	ErrNotMember            = errors.New("account is not a member of the DAO")
 	ErrOverflow             = errors.New("next ID overflows uint64")
 	ErrProposalNotFound     = errors.New("proposal not found")
@@ -24,7 +24,7 @@ type (
 	// CommonDAO defines a DAO.
 	CommonDAO struct {
 		parent   *CommonDAO
-		members  *avl.Tree // string(std.Address) -> struct{}
+		members  *addrset.Set
 		genID    seqid.ID
 		active   *avl.Tree // string(proposal ID) -> *Proposal
 		finished *avl.Tree // string(proposal ID) -> *Proposal
@@ -41,7 +41,7 @@ type (
 // New creates a new common DAO.
 func New(options ...Option) *CommonDAO {
 	dao := &CommonDAO{
-		members:  avl.NewTree(),
+		members:  &addrset.Set{},
 		active:   avl.NewTree(),
 		finished: avl.NewTree(),
 	}
@@ -58,33 +58,8 @@ func (dao CommonDAO) Parent() *CommonDAO {
 }
 
 // Members returns the list of DAO members.
-func (dao CommonDAO) Members() []std.Address {
-	var members []std.Address
-	dao.members.Iterate("", "", func(key string, _ interface{}) bool {
-		members = append(members, std.Address(key))
-		return false
-	})
-	return members
-}
-
-// AddMember adds a new member to the DAO.
-func (dao *CommonDAO) AddMember(user std.Address) error {
-	if dao.IsMember(user) {
-		return ErrMemberExists
-	}
-	dao.members.Set(user.String(), struct{}{})
-	return nil
-}
-
-// RemoveMember removes a member from the DAO.
-func (dao *CommonDAO) RemoveMember(user std.Address) (removed bool) {
-	_, removed = dao.members.Remove(user.String())
-	return removed
-}
-
-// IsMember checks if a user is a member of the DAO.
-func (dao CommonDAO) IsMember(user std.Address) bool {
-	return dao.members.Has(user.String())
+func (dao CommonDAO) Members() *addrset.Set {
+	return dao.members
 }
 
 // ActiveProposals returns all active DAO proposals.
@@ -138,7 +113,7 @@ func (dao *CommonDAO) Vote(member std.Address, proposalID uint64, c VoteChoice) 
 		return ErrInvalidVoteChoice
 	}
 
-	if !dao.IsMember(member) {
+	if !dao.Members().Has(member) {
 		return ErrNotMember
 	}
 
@@ -157,7 +132,7 @@ func (dao *CommonDAO) Tally(p *Proposal) Stats {
 		NayVotes: record.VoteCount(ChoiceNo),
 	}
 	votesCount := stats.YayVotes + stats.NayVotes
-	membersCount := len(dao.Members())
+	membersCount := dao.Members().Size()
 	stats.Abstained = membersCount - votesCount
 
 	percentage := float64(votesCount) / float64(membersCount)
