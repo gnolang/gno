@@ -1,7 +1,12 @@
 package docs
 
 func Render(_ string) string {
-	return `# Gno Examples Documentation
+	return `---
+Title: Welcome to the Gno examples documentation index 
+Description: Welcome to the Gno examples documentation index. Explore various examples to learn more about Gno functionality and usage.
+---
+
+# Gno Examples Documentation
 
 Welcome to the Gno examples documentation index.
 Explore various examples to learn more about Gno functionality and usage.
