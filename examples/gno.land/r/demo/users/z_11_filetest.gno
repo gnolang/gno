@@ -4,6 +4,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/r/demo/users"
 )
@@ -11,12 +12,12 @@ import (
 const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func main() {
-	std.TestSetOriginCaller(admin)
+	testing.SetOriginCaller(admin)
 	caller := std.OriginCaller() // main
 	users.AdminAddRestrictedName("superrestricted")
 
 	// test restricted name
-	std.TestSetOriginCaller(caller)
+	testing.SetOriginCaller(caller)
 	users.Register("", "superrestricted", "my profile")
 	println("done")
 }

@@ -11,7 +11,7 @@ import (
 )
 
 func TestExample(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/lorem/ipsum"))
+	t.SetRealm(std.NewCodeRealm("gno.land/r/lorem/ipsum"))
 
 	// initial parsing
 	path := "hello/world?foo=bar&baz=foobar"
@@ -32,7 +32,7 @@ func TestExample(t *testing.T) {
 }
 
 func TestParse(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/lorem/ipsum"))
+	t.SetRealm(std.NewCodeRealm("gno.land/r/lorem/ipsum"))
 
 	tests := []struct {
 		rawPath        string

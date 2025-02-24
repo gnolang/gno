@@ -50,6 +50,7 @@ func (m LoaderModel) Update(msg tea.Msg) (LoaderModel, tea.Cmd) {
 
 func (m LoaderModel) tick() tea.Cmd {
 	return tea.Tick(m.spinner.FPS, func(t time.Time) tea.Msg {
+		t.Unix()
 		return SpinnerTickMsg(t)
 	})
 }

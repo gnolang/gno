@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"std"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // ----------------------------------------
@@ -203,6 +205,54 @@ func (t *T) TempDir() string {
 func (t *T) Helper() {
 }
 
+func expandNative(coins std.Coins) (denoms []string, amounts []int64) {
+	denoms = make([]string, len(coins))
+	amounts = make([]int64, len(coins))
+
+	for i, coin := range coins {
+		denoms[i] = coin.Denom
+		amounts[i] = coin.Amount
+	}
+	return denoms, amounts
+}
+
+func (t *T) SetContext(ctx Context) {
+	TestSetContext(ctx)
+}
+
+// SetRealm sets the realm for the current frame.
+// After calling SetRealm, calling CurrentRealm() in the test function will yield the value of
+// rlm, while if a realm function is called, using PrevRealm() will yield rlm.
+func (t *T) SetRealm(rlm std.Realm) {
+	// NODE: We should not call SetRealm like other methods because it changes the frames stack
+	// so for this method we have to use TestSetContext instead.
+	TestSetContext(Context{CurrentRealm: rlm})
+}
+
+func (t *T) SetOriginCaller(addr std.Address) {
+	SetOriginCaller(addr)
+}
+
+func (t *T) SetOriginSend(send std.Coins) {
+	SetOriginSend(send)
+}
+
+func (t *T) SetOriginSpend(spend std.Coins) {
+	SetOriginSpend(spend)
+}
+
+func (t *T) SetOriginPkgAddress(addr std.Address) {
+	SetOriginPkgAddress(addr)
+}
+
+func (t *T) SkipHeights(count int64) {
+	SkipHeights(count)
+}
+
+func (t *T) IssueCoins(addr std.Address, coins std.Coins) {
+	IssueCoins(addr, coins)
+}
+
 func (t *T) log(s string) {
 	if t.verbose {
 		// verbose, print immediately
@@ -362,4 +412,80 @@ func tRunner(t *T, fn testingFunc, verbose bool) {
 	}
 
 	fn(t)
+}
+
+func testSetContext(
+	isOrigin bool,
+	originCaller string,
+	originPkgAddress string,
+	currRealmAddr string, currRealmPkgPath string,
+	origSendDenoms []string, origSendAmounts []int64,
+	origSpendDenoms []string, origSpendAmounts []int64,
+	chainID string,
+	height int64,
+	timeUnix int64, timeNano int64,
+)
+
+func testIssueCoins(addr string, denom []string, amt []int64)
+
+func TestSetContext(ctx Context) {
+	originSendDenom, originSendAmount := expandNative(ctx.OriginSend)
+	originSpendDenom, originSpendAmount := expandNative(ctx.OriginSpend)
+
+	var timestamp, timestampNano int64 = 0, 0
+
+	if !ctx.Time.IsZero() {
+		timestamp = ctx.Time.Unix()
+		timestampNano = 0
+	}
+
+	testSetContext(
+		ctx.IsOrigin,
+		ctx.OriginCaller.String(),
+		ctx.OriginPkgAddress.String(),
+		ctx.CurrentRealm.Address().String(), ctx.CurrentRealm.PkgPath(),
+		originSendDenom, originSendAmount,
+		originSpendDenom, originSpendAmount,
+		ctx.ChainID,
+		ctx.Height,
+		timestamp, timestampNano,
+	)
+}
+
+func SetOriginCaller(origCaller std.Address) {
+	TestSetContext(Context{OriginCaller: origCaller})
+}
+
+func SetOriginSend(send std.Coins) {
+	TestSetContext(Context{OriginSend: send})
+}
+
+func SetOriginSpend(spend std.Coins) {
+	TestSetContext(Context{OriginSpend: spend})
+}
+
+func SetOriginPkgAddress(addr std.Address) {
+	TestSetContext(Context{OriginPkgAddress: addr})
+}
+
+func SetHeight(height int64) {
+	TestSetContext(Context{Height: height})
+}
+
+// SetRealm sets the realm for the current frame.
+// After calling SetRealm, calling CurrentRealm() in the test function will yield the value of
+// rlm, while if a realm function is called, using PrevRealm() will yield rlm.
+func SetRealm(rlm std.Realm) {
+	TestSetContext(Context{CurrentRealm: rlm})
+}
+
+func SkipHeights(count int64) {
+	toHeight := std.ChainHeight() + count
+	toTime := time.Now().Unix() + (count * 5)
+	TestSetContext(Context{Height: toHeight, Time: time.Unix(toTime, 0)})
+}
+
+func IssueCoins(addr std.Address, coins std.Coins) {
+	denom, amt := expandNative(coins)
+	testIssueCoins(addr.String(), denom, amt)
 }
