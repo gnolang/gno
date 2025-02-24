@@ -13,4 +13,4 @@ func (n *node) foo(targ, wndex int) {
 func main() {}
 
 // Error:
-// files/parse_indexListExpr.gno:10:6: invalid operation: more than one index
+// files/parse_err1.gno:10:6: invalid operation: more than one index
