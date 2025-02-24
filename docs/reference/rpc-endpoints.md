@@ -459,6 +459,7 @@ Call with the `/abci_query` to get information via the ABCI Query.
 | `bank/balances/{ADDRESS}` | Returns the balance information about the account.                 |
 | `vm/qfuncs`               | Returns public facing function signatures as JSON.                 |
 | `vm/qfile`                | Returns the file bytes, or list of files if directory.             |
+| `vm/qdoc`                 | Returns JSON of the package doc, suitable for printing.            |
 | `vm/qrender`              | Calls `.Render(<path>)` in readonly mode.                          |
 | `vm/qeval`                | Evaluates any expression in readonly mode and returns the results. |
 | `vm/store`                | (not yet supported) Fetches items from the store.                  |
