@@ -10,7 +10,9 @@ import (
 )
 
 func TestPostUpdate(t *testing.T) {
-	board := newBoard(1, "test123", testutils.TestAddress("creator"))
+	addr := testutils.TestAddress("creator")
+	perms := createDefaultBoardPermissions(addr)
+	board := newBoard(1, "test123", addr, perms)
 	creator := testutils.TestAddress("creator")
 	post := newPost(board, 1, creator, "Title", "Body", 1, 0, 0)
 	title := "New Title"
@@ -48,6 +50,9 @@ func TestPostSetVisible(t *testing.T) {
 }
 
 func TestPostAddRepostTo(t *testing.T) {
+	// TODO: Improve this unit test
+	addr := testutils.TestAddress("creatorDstBoard")
+	perms := createDefaultBoardPermissions(addr)
 	cases := []struct {
 		name, title, body string
 		dstBoard          *Board
@@ -59,7 +64,7 @@ func TestPostAddRepostTo(t *testing.T) {
 			name:     "repost thread",
 			title:    "Repost Title",
 			body:     "Repost body",
-			dstBoard: newBoard(42, "dst123", testutils.TestAddress("creatorDstBoard")),
+			dstBoard: newBoard(42, "dst123", addr, perms),
 			setup:    func() *Post { return createTestThread(t) },
 		},
 		{
@@ -112,7 +117,8 @@ func TestNewThread(t *testing.T) {
 	boardID := BoardID(1)
 	threadID := PostID(42)
 	boardName := "test123"
-	board := newBoard(boardID, boardName, creator)
+	perms := createDefaultBoardPermissions(creator)
+	board := newBoard(boardID, boardName, creator, perms)
 	url := ufmt.Sprintf(
 		"/r/nt/boards2/v1:%s/%d",
 		boardName,
@@ -289,7 +295,8 @@ func TestNewReply(t *testing.T) {
 	parentID := PostID(1)
 	replyID := PostID(2)
 	boardName := "test123"
-	board := newBoard(boardID, boardName, creator)
+	perms := createDefaultBoardPermissions(creator)
+	board := newBoard(boardID, boardName, creator, perms)
 	url := ufmt.Sprintf(
 		"/r/nt/boards2/v1:%s/%d/%d",
 		boardName,
@@ -398,7 +405,8 @@ func createTestThread(t *testing.T) *Post {
 	t.Helper()
 
 	creator := testutils.TestAddress("creator")
-	board := newBoard(1, "test_board_123", creator)
+	perms := createDefaultBoardPermissions(creator)
+	board := newBoard(1, "test_board_123", creator, perms)
 	return board.AddThread(creator, "Title", "Body")
 }
 
