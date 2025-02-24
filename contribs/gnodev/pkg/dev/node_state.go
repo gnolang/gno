@@ -127,7 +127,6 @@ func (n *Node) ExportStateAsGenesis(ctx context.Context) (*bft.GenesisDoc, error
 
 	// Get current blockstore state
 	doc := *n.Node.GenesisDoc() // copy doc
-
 	genState := doc.AppState.(gnoland.GnoGenesisState)
 	genState.Balances = n.config.BalancesList
 	genState.Txs = state

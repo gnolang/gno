@@ -1,4 +1,4 @@
-package auth
+package vm
 
 import (
 	"fmt"
@@ -26,25 +26,23 @@ func DefaultGenesisState() GenesisState {
 // error for any failed validation criteria.
 func ValidateGenesis(data GenesisState) error {
 	if amino.DeepEqual(data, GenesisState{}) {
-		return fmt.Errorf("auth genesis state cannot be empty")
+		return fmt.Errorf("vm genesis state cannot be empty")
 	}
 	return data.Params.Validate()
 }
 
 // InitGenesis - Init store state from genesis data
-func (ak AccountKeeper) InitGenesis(ctx sdk.Context, data GenesisState) {
+func (vm *VMKeeper) InitGenesis(ctx sdk.Context, data GenesisState) {
 	if err := ValidateGenesis(data); err != nil {
 		panic(err)
 	}
-
-	if err := ak.SetParams(ctx, data.Params); err != nil {
+	if err := vm.SetParams(ctx, data.Params); err != nil {
 		panic(err)
 	}
 }
 
 // ExportGenesis returns a GenesisState for a given context and keeper
-func (ak AccountKeeper) ExportGenesis(ctx sdk.Context) GenesisState {
-	params := ak.GetParams(ctx)
-
+func (vm *VMKeeper) ExportGenesis(ctx sdk.Context) GenesisState {
+	params := vm.GetParams(ctx)
 	return NewGenesisState(params)
 }

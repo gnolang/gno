@@ -40,7 +40,7 @@ func NewMockedPrivValidator() bft.PrivValidator {
 func NewDefaultGenesisConfig(chainid, chaindomain string) *bft.GenesisDoc {
 	// custom chain domain
 	var domainParam Param
-	_ = domainParam.Parse("gno.land/r/sys/params.vm.chain_domain.string=" + chaindomain)
+	_ = domainParam.Parse("vm:chain_domain.string=" + chaindomain)
 
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
