@@ -172,6 +172,21 @@ func main() {
 //     "func": "RegisterUser"
 //   },
 //   {
+//     "type": "Registeration",
+//     "attrs": [
+//       {
+//         "key": "address",
+//         "value": "g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh"
+//       },
+//       {
+//         "key": "name",
+//         "value": "alice123"
+//       }
+//     ],
+//     "pkg_path": "gno.land/r/gnoland/users/v1",
+//     "func": "Register"
+//   },
+//   {
 //     "type": "ProposalAdded",
 //     "attrs": [
 //       {
