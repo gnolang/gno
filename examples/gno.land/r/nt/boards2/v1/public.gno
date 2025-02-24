@@ -5,6 +5,31 @@ import (
 	"strings"
 )
 
+// SetPermissions sets a permissions implementation for boards2 realm or a board.
+func SetPermissions(bid BoardID, p Permissions) {
+	if p == nil {
+		panic("permissions is required")
+	}
+
+	if bid != 0 {
+		assertBoardExists(bid)
+	}
+
+	caller := std.OriginCaller()
+	args := Args{bid}
+	gPerms.WithPermission(caller, PermissionPermissionsUpdate, args, func(Args) {
+		// When board ID is zero it means that realm permissions are being updated
+		if bid == 0 {
+			gPerms = p
+			return
+		}
+
+		// Otherwise update the permissions of a single board
+		board := mustGetBoard(bid)
+		board.perms = p
+	})
+}
+
 // GetBoardIDFromName searches a board by name and returns it's ID.
 func GetBoardIDFromName(name string) (_ BoardID, found bool) {
 	v, found := gBoardsByName.Get(name)
@@ -23,10 +48,11 @@ func CreateBoard(name string) BoardID {
 	caller := std.OriginCaller()
 	id := incGetBoardID()
 	args := Args{name, id}
-	gPerm.WithPermission(caller, PermissionBoardCreate, args, func(Args) {
+	gPerms.WithPermission(caller, PermissionBoardCreate, args, func(Args) {
 		assertBoardNameNotExists(name)
 
-		board := newBoard(id, name, caller)
+		perms := createDefaultBoardPermissions(caller)
+		board := newBoard(id, name, caller, perms)
 		gBoardsByID.Set(id.Key(), board)
 		gBoardsByName.Set(name, board)
 	})
@@ -461,5 +487,5 @@ func mustGetPermissions(bid BoardID) Permissions {
 		board := mustGetBoard(bid)
 		return board.perms
 	}
-	return gPerm
+	return gPerms
 }
