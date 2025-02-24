@@ -84,7 +84,7 @@ func printRender(path string) {
 // | 2024-01-15 | [title11](/r/moul/present:s11) | event1 | author2 | 4 |
 // | 2024-01-10 | [title17](/r/moul/present:s17) | event3 | author2 | 4 |
 // | 2024-01-05 | [title20](/r/moul/present:s20) | event3 | author4 | 4 |
-// **1** | [2](?page=2)
+// **1** | [2](?page=2&order=desc&sort=author)
 //
 // +-------------------------------
 // | PATH: ?order=asc&sort=date
@@ -102,7 +102,7 @@ func printRender(path string) {
 // | 2024-02-20 | [title18](/r/moul/present:s18) | event2 | author3 | 4 |
 // | 2024-03-01 | [title14](/r/moul/present:s14) | event3 | author2 | 4 |
 // | 2024-03-10 | [title19](/r/moul/present:s19) | event1 | author1 | 4 |
-// **1** | [2](?page=2)
+// **1** | [2](?page=2&order=desc&sort=author)
 //
 // +-------------------------------
 // | PATH: ?order=asc&sort=title
@@ -120,7 +120,7 @@ func printRender(path string) {
 // | 2024-01-10 | [title17](/r/moul/present:s17) | event3 | author2 | 4 |
 // | 2024-02-20 | [title18](/r/moul/present:s18) | event2 | author3 | 4 |
 // | 2024-03-10 | [title19](/r/moul/present:s19) | event1 | author1 | 4 |
-// **1** | [2](?page=2)
+// **1** | [2](?page=2&order=desc&sort=author)
 //
 // +-------------------------------
 // | PATH: ?order=asc&sort=author
@@ -148,7 +148,7 @@ func printRender(path string) {
 // | [Date](?order=desc&page=2&sort=date) | [Title](?order=desc&page=2&sort=title) | Event | [Author](?order=desc&page=2&sort=author) | Slides |
 // | --- | --- | --- | --- | --- |
 // | 2024-01-05 | [title20](/r/moul/present:s20) | event3 | author4 | 4 |
-// [1](?page=1) | **2**
+// [1](?page=1&order=desc&sort=author) | **2**
 //
 // +-------------------------------
 // | PATH: s15

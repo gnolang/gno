@@ -193,7 +193,7 @@ func renderList(req *realmpath.Request) string {
 	}
 
 	out.WriteString(table.String())
-	out.WriteString(page.Picker()) // XXX: picker is not preserving the previous flags, should take "req" as argument.
+	out.WriteString(page.Picker(req.String()))
 	return out.String()
 }
 
