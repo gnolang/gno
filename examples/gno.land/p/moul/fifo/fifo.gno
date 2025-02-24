@@ -93,7 +93,7 @@ func (l *List) Prepend(entry interface{}) {
 	}
 	current.next = nil
 	l.tail = current
-	
+
 }
 
 // Append adds a new entry at the end of the list. If the list exceeds maxSize,
