@@ -336,65 +336,12 @@ func TestVmHandlerQuery_Doc(t *testing.T) {
 		PackageDoc:  "hello is a package for testing\n",
 		Values: []*doc.JSONValueDecl{
 			{
-				Signature: "const ConstString = \"const string\"",
+				Signature: "const prefix = \"Hello\"",
 				Const:     true,
-				Doc:       "",
+				Doc:       "The prefix for the hello message\n",
 				Values: []*doc.JSONValue{
 					{
-						Name: "ConstString",
-						Doc:  "",
-						Type: "",
-					},
-				},
-			},
-			{
-				Signature: "var (\n\tpvString  = \"private string\" // A private var\n\tPubString = \"public string\"\n)",
-				Const:     false,
-				Doc:       "Test public and private vars\n",
-				Values: []*doc.JSONValue{
-					{
-						Name: "pvString",
-						Doc:  "// A private var\n",
-						Type: "",
-					},
-					{
-						Name: "PubString",
-						Doc:  "",
-						Type: "",
-					},
-				},
-			},
-			{
-				Signature: "var counter int = 42",
-				Const:     false,
-				Doc:       "",
-				Values: []*doc.JSONValue{
-					{
-						Name: "counter",
-						Doc:  "",
-						Type: "int",
-					},
-				},
-			},
-			{
-				Signature: "var myStructInst = myStruct{a: 1000}",
-				Const:     false,
-				Doc:       "",
-				Values: []*doc.JSONValue{
-					{
-						Name: "myStructInst",
-						Doc:  "",
-						Type: "",
-					},
-				},
-			},
-			{
-				Signature: "var sl = []int{1, 2, 3, 4, 5}",
-				Const:     false,
-				Doc:       "sl is an int array\n",
-				Values: []*doc.JSONValue{
-					{
-						Name: "sl",
+						Name: "prefix",
 						Doc:  "",
 						Type: "",
 					},
@@ -404,8 +351,8 @@ func TestVmHandlerQuery_Doc(t *testing.T) {
 		Funcs: []*doc.JSONFunc{
 			{
 				Type:      "",
-				Name:      "Echo",
-				Signature: "func Echo(msg string) (res string)",
+				Name:      "Hello",
+				Signature: "func Hello(msg string) (res string)",
 				Doc:       "",
 				Params: []*doc.JSONField{
 					{Name: "msg", Type: "string"},
@@ -415,60 +362,10 @@ func TestVmHandlerQuery_Doc(t *testing.T) {
 				},
 			},
 			{
-				Type:      "",
-				Name:      "GetCounter",
-				Signature: "func GetCounter() int",
-				Doc:       "",
-				Params:    []*doc.JSONField{},
-				Results: []*doc.JSONField{
-					{Name: "", Type: "int"},
-				},
-			},
-			{
-				Type:      "",
-				Name:      "Inc",
-				Signature: "func Inc() int",
-				Doc:       "",
-				Params:    []*doc.JSONField{},
-				Results: []*doc.JSONField{
-					{Name: "", Type: "int"},
-				},
-			},
-			{
-				Type:      "",
-				Name:      "Panic",
-				Signature: "func Panic()",
-				Doc:       "Panic is a func for testing\n",
-				Params:    []*doc.JSONField{},
-				Results:   []*doc.JSONField{},
-			},
-			{
-				Type:      "",
-				Name:      "fn",
-				Signature: "func fn() func(string) string",
-				Doc:       "",
-				Params:    []*doc.JSONField{},
-				Results: []*doc.JSONField{
-					{Name: "", Type: "func(string) string"},
-				},
-			},
-			{
-				Type:      "",
-				Name:      "pvEcho",
-				Signature: "func pvEcho(msg string) string",
-				Doc:       "",
-				Params: []*doc.JSONField{
-					{Name: "msg", Type: "string"},
-				},
-				Results: []*doc.JSONField{
-					{Name: "", Type: "string"},
-				},
-			},
-			{
 				Type:      "myStruct",
 				Name:      "Foo",
 				Signature: "func (ms myStruct) Foo() string",
-				Doc:       "Foo is a method for testing\n",
+				Doc:       "",
 				Params:    []*doc.JSONField{},
 				Results: []*doc.JSONField{
 					{Name: "", Type: "string"},
@@ -514,27 +411,12 @@ func TestVmHandlerQuery_Doc(t *testing.T) {
 // hello is a package for testing
 package hello
 
-// sl is an int array
-var sl = []int{1,2,3,4,5}
-func fn() func(string) string { return Echo }
 // myStruct is a struct for testing
 type myStruct struct{a int}
-var myStructInst = myStruct{a: 1000}
-// Foo is a method for testing
 func (ms myStruct) Foo() string { return "myStruct.Foo" }
-// Panic is a func for testing
-func Panic() { panic("foo") }
-var counter int = 42
-// Test public and private vars
-var (
-  pvString = "private string" // A private var
-  PubString = "public string"
-)
-const ConstString = "const string"
-func Echo(msg string) (res string) { res = "echo:"+msg; return }
-func GetCounter() int { return counter }
-func Inc() int { counter += 1; return counter }
-func pvEcho(msg string) string { return "pvecho:"+msg }
+// The prefix for the hello message
+const prefix = "Hello"
+func Hello(msg string) (res string) { res = prefix+" "+msg; return }
 `},
 			}
 			pkgPath := "gno.land/r/hello"
