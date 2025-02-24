@@ -44,24 +44,25 @@ func TestAuthorizerAuthorize(t *testing.T) {
 
 	auth := New()
 
-	// Test successful action
+	// Test successful action with args
 	executed := false
+	args := []interface{}{"test_arg", 123}
 	err := auth.Do("test_action", func() error {
 		executed = true
 		return nil
-	})
+	}, args...)
 
 	uassert.True(t, err == nil, "expected no error")
 	uassert.True(t, executed, "action should have been executed")
 
-	// Test unauthorized action
+	// Test unauthorized action with args
 	std.TestSetOrigCaller(testutils.TestAddress("bob"))
 
 	executed = false
 	err = auth.Do("test_action", func() error {
 		executed = true
 		return nil
-	})
+	}, "unauthorized_arg")
 
 	uassert.True(t, err != nil, "expected error")
 	uassert.False(t, executed, "action should not have been executed")
@@ -165,6 +166,8 @@ func TestAuthorizerWithDroppedAuthority(t *testing.T) {
 func TestContractAuthorityExecutionOnce(t *testing.T) {
 	attempts := 0
 	executed := 0
+	var capturedArgs []interface{}
+
 	contractAuth := NewContractAuthority("gno.land/r/test", func(title string, action PrivilegedAction) error {
 		// Try to execute the action twice in the same handler
 		if err := action(); err != nil {
@@ -183,13 +186,57 @@ func TestContractAuthorityExecutionOnce(t *testing.T) {
 	// Set caller to contract address
 	std.TestSetOrigCaller(std.DerivePkgAddr("gno.land/r/test"))
 
+	testArgs := []interface{}{"proposal_id", 42, "metadata", map[string]string{"key": "value"}}
 	err := contractAuth.Authorize("test_action", func() error {
 		executed++
 		return nil
-	})
+	}, testArgs...)
+
 	uassert.True(t, err == nil, "handler execution should succeed")
 	uassert.True(t, attempts == 2, "handler should have attempted execution twice")
 	uassert.True(t, executed == 1, "handler should have executed once")
+}
+
+func TestContractAuthorityWithProposer(t *testing.T) {
+	testAddr := testutils.TestAddress("alice")
+	memberAuth := NewMemberAuthority(testAddr)
+
+	handlerCalled := false
+	actionExecuted := false
+
+	contractAuth := NewRestrictedContractAuthority("gno.land/r/test", func(title string, action PrivilegedAction) error {
+		handlerCalled = true
+		// Set caller to contract address before executing action
+		std.TestSetOrigCaller(std.DerivePkgAddr("gno.land/r/test"))
+		return action()
+	}, memberAuth)
+
+	// Test authorized member
+	std.TestSetOrigCaller(testAddr)
+	testArgs := []interface{}{"proposal_metadata", "test value"}
+	err := contractAuth.Authorize("test_action", func() error {
+		actionExecuted = true
+		return nil
+	}, testArgs...)
+
+	uassert.True(t, err == nil, "authorized member should be able to propose")
+	uassert.True(t, handlerCalled, "contract handler should be called")
+	uassert.True(t, actionExecuted, "action should be executed")
+
+	// Reset flags for unauthorized test
+	handlerCalled = false
+	actionExecuted = false
+
+	// Test unauthorized proposer
+	std.TestSetOrigCaller(testutils.TestAddress("bob"))
+	err = contractAuth.Authorize("test_action", func() error {
+		actionExecuted = true
+		return nil
+	}, testArgs...)
+
+	uassert.True(t, err != nil, "unauthorized member should not be able to propose")
+	uassert.False(t, handlerCalled, "contract handler should not be called for unauthorized proposer")
+	uassert.False(t, actionExecuted, "action should not be executed for unauthorized proposer")
 }
 
 func TestAutoAcceptAuthority(t *testing.T) {
@@ -214,6 +261,21 @@ func TestAutoAcceptAuthority(t *testing.T) {
 	})
 
 	uassert.True(t, err == nil, "auto-accept should not care about caller")
+	uassert.True(t, executed, "action should have been executed")
+}
+
+func TestAutoAcceptAuthorityWithArgs(t *testing.T) {
+	auth := NewAutoAcceptAuthority()
+
+	// Test that any action is authorized with args
+	executed := false
+	testArgs := []interface{}{"arg1", 42, "arg3"}
+	err := auth.Authorize("test_action", func() error {
+		executed = true
+		return nil
+	}, testArgs...)
+
+	uassert.True(t, err == nil, "auto-accept should not return error")
 	uassert.True(t, executed, "action should have been executed")
 }
 
