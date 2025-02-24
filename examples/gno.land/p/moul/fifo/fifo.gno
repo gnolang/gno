@@ -212,27 +212,33 @@ func (l *List) Delete(index int) bool {
 		return false
 	}
 
-	if index == 0 {
-		// Remove from head
-		l.head = l.head.next
-		if l.size == 1 {
-			l.tail = nil
-		}
-	} else {
-		// Find the node before the one to delete
-		current := l.head
-		for i := 0; i < index-1; i++ {
-			current = current.next
-		}
+	// Special case: deleting the only element
+	if l.size == 1 {
+		l.head = nil
+		l.tail = nil
+		l.size = 0
+		return true
+	}
 
-		// Skip the node to delete
-		if index == l.size-1 {
-			// If deleting last element, update tail
-			l.tail = current
-			current.next = nil
-		} else {
-			current.next = current.next.next
-		}
+	// Special case: deleting first element
+	if index == 0 {
+		l.head = l.head.next
+		l.size--
+		return true
+	}
+
+	// Find the node before the one to delete
+	current := l.head
+	for i := 0; i < index-1; i++ {
+		current = current.next
+	}
+
+	// Special case: deleting last element
+	if index == l.size-1 {
+		l.tail = current
+		current.next = nil
+	} else {
+		current.next = current.next.next
 	}
 
 	l.size--
