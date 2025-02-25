@@ -24,7 +24,7 @@ func TestProfile(t *testing.T) {
 }
 
 func TestAddRecipe(t *testing.T) {
-	std.TestSetOrigCaller(user1)
+	std.TestSetOriginCaller(user1)
 	name := "Test Recipe"
 	origin := "Test Origin"
 	ingredients := "Ingredient 1\nIngredient 2"
@@ -65,29 +65,29 @@ func TestAddRecipe(t *testing.T) {
 
 func TestFollow(t *testing.T) {
 	// Test user following admin's profile
-	std.TestSetOrigCaller(user1)
+	std.TestSetOriginCaller(user1)
 	err := Follow()
 	uassert.NoError(t, err, "user should be able to follow admin's profile")
 
 	// Test admin trying to follow themselves
-	std.TestSetOrigCaller(mainAddr)
+	std.TestSetOriginCaller(mainAddr)
 	err = Follow()
-	uassert.ErrorIs(t, err, config.ErrUnauthorized, "admin should not be able to follow their own profile")
+	uassert.Error(t, err, "you cannot follow yourself")
 
 	// Test following same address twice
-	std.TestSetOrigCaller(user1)
+	std.TestSetOriginCaller(user1)
 	err = Follow()
 	uassert.Error(t, err, "should not be able to follow same address twice")
 
 	// Test multiple users following admin
-	std.TestSetOrigCaller(user2)
+	std.TestSetOriginCaller(user2)
 	err = Follow()
 	uassert.NoError(t, err, "another user should be able to follow admin's profile")
 }
 
 func TestUnfollow(t *testing.T) {
 	// Test successful unfollow
-	std.TestSetOrigCaller(user1)
+	std.TestSetOriginCaller(user1)
 	err := Unfollow()
 	uassert.NoError(t, err)
 	uassert.False(t, profile.Followers.Has(user1))

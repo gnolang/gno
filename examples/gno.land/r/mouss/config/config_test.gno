@@ -44,7 +44,7 @@ func TestIsAuthorized(t *testing.T) {
 }
 
 func TestSetMainAddr(t *testing.T) {
-	std.TestSetOrigCaller(mainAddr)
+	std.TestSetOriginCaller(mainAddr)
 
 	// Test successful transfer
 	err := SetMainAddr(addr2)
@@ -52,37 +52,37 @@ func TestSetMainAddr(t *testing.T) {
 	uassert.Equal(t, OwnableMain.Owner(), addr2)
 
 	// Test unauthorized transfer
-	std.TestSetOrigCaller(addr3)
+	std.TestSetOriginCaller(addr3)
 	err = SetMainAddr(addr1)
 	uassert.ErrorContains(t, err, "ownable: caller is not owner")
 
 	// Test invalid address
-	std.TestSetOrigCaller(addr2)
+	std.TestSetOriginCaller(addr2)
 	err = SetMainAddr("")
 	uassert.ErrorContains(t, err, "ownable: new owner address is invalid")
 
 	// Reset state
-	std.TestSetOrigCaller(addr2)
+	std.TestSetOriginCaller(addr2)
 	err = SetMainAddr(mainAddr)
 	urequire.NoError(t, err)
 }
 
 func TestSetBackupAddr(t *testing.T) {
-	std.TestSetOrigCaller(backupAddr)
+	std.TestSetOriginCaller(backupAddr)
 
 	err := SetBackupAddr(addr2)
 	urequire.NoError(t, err)
 	uassert.Equal(t, OwnableBackup.Owner(), addr2)
 
-	std.TestSetOrigCaller(addr3)
+	std.TestSetOriginCaller(addr3)
 	err = SetBackupAddr(addr1)
 	uassert.ErrorContains(t, err, "ownable: caller is not owner")
 
-	std.TestSetOrigCaller(addr2)
+	std.TestSetOriginCaller(addr2)
 	err = SetBackupAddr("")
 	uassert.ErrorContains(t, err, "ownable: new owner address is invalid")
 
-	std.TestSetOrigCaller(addr2)
+	std.TestSetOriginCaller(addr2)
 	err = SetBackupAddr(backupAddr)
 	urequire.NoError(t, err)
 }

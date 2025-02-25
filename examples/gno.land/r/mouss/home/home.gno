@@ -92,7 +92,7 @@ func AddRecipe(name, origin, ingredients, instructions, tips string) string {
 	recipe := &Recipe{
 		Name:         name,
 		Origin:       origin,
-		Author:       std.PrevRealm().Addr(),
+		Author:       std.PreviousRealm().Address(),
 		Ingredients:  ingredients,
 		Instructions: instructions,
 		Tips:         tips,
@@ -102,7 +102,7 @@ func AddRecipe(name, origin, ingredients, instructions, tips string) string {
 }
 
 func UpdateAboutMe(about string) error {
-	if !config.IsAuthorized(std.PrevRealm().Addr()) {
+	if !config.IsAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 	profile.AboutMe = about
@@ -110,7 +110,7 @@ func UpdateAboutMe(about string) error {
 }
 
 func UpdateAvatar(avatar string) error {
-	if !config.IsAuthorized(std.PrevRealm().Addr()) {
+	if !config.IsAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 	profile.Avatar = avatar
@@ -134,7 +134,7 @@ func validateRecipe(name, ingredients, instructions string) error {
 // Follow allows a users to follow my home page.
 // If the caller is admin it returns error.
 func Follow() error {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 
 	if caller == config.OwnableMain.Owner() {
 		return ufmt.Errorf("you cannot follow yourself")
@@ -148,7 +148,7 @@ func Follow() error {
 
 // Unfollow allows a user to unfollow my home page.
 func Unfollow() error {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 
 	if profile.Followers.Remove(caller) {
 		return nil
