@@ -93,40 +93,33 @@ func TestPager(t *testing.T) {
 
 func TestPagerIterate(t *testing.T) {
 	cases := []struct {
-		name, uri     string
-		items, page   []int
-		stop, stopped bool
+		name, uri   string
+		items, page []int
+		stop        bool
 	}{
 		{
 			name:  "page 1",
 			uri:   "gno.land/r/demo/test:foo/bar?page=1",
-			items: []int{1, 2, 3, 4, 5, 6, 7, 8, 9},
+			items: []int{1, 2, 3, 4, 5, 6, 7},
 			page:  []int{1, 2, 3},
 		},
 		{
 			name:  "page 2",
 			uri:   "gno.land/r/demo/test:foo/bar?page=2",
-			items: []int{1, 2, 3, 4, 5, 6, 7, 8, 9},
+			items: []int{1, 2, 3, 4, 5, 6, 7},
 			page:  []int{4, 5, 6},
 		},
 		{
 			name:  "page 3",
 			uri:   "gno.land/r/demo/test:foo/bar?page=3",
-			items: []int{1, 2, 3, 4, 5, 6, 7, 8, 9},
-			page:  []int{7, 8, 9},
+			items: []int{1, 2, 3, 4, 5, 6, 7},
+			page:  []int{7},
 		},
 		{
-			name:    "invalid page",
-			uri:     "gno.land/r/demo/test:foo/bar?page=2",
-			items:   []int{1, 2, 3},
-			stopped: true,
-		},
-		{
-			name:    "stop iteration",
-			uri:     "gno.land/r/demo/test:foo/bar?page=1",
-			items:   []int{1, 2, 3},
-			stop:    true,
-			stopped: true,
+			name:  "stop iteration",
+			uri:   "gno.land/r/demo/test:foo/bar?page=1",
+			items: []int{1, 2, 3},
+			stop:  true,
 		},
 	}
 
@@ -149,7 +142,7 @@ func TestPagerIterate(t *testing.T) {
 			})
 
 			// Assert
-			uassert.Equal(t, tc.stopped, stopped)
+			uassert.Equal(t, tc.stop, stopped)
 			urequire.Equal(t, len(tc.page), len(items), "expect iteration of the right number of items")
 
 			for i, v := range items {

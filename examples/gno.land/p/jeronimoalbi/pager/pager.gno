@@ -162,7 +162,12 @@ func (p Pager) Iterate(fn PagerIterFn) bool {
 	}
 
 	start := p.Offset()
-	for i := start; i < start+p.PageSize(); i++ {
+	end := start + p.PageSize()
+	if end > p.totalItems {
+		end = p.totalItems
+	}
+
+	for i := start; i < end; i++ {
 		if fn(i) {
 			return true
 		}
