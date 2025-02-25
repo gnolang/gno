@@ -17,13 +17,14 @@ const (
 
 const (
 	ChoiceAbstain VoteChoice = ""
-	ChoiceYes                = "yes"
-	ChoiceNo                 = "no"
+	ChoiceYes                = "YES"
+	ChoiceNo                 = "NO"
 )
 
 var (
 	ErrInvalidCreatorAddress      = errors.New("invalid proposal creator address")
 	ErrProposalDefinitionRequired = errors.New("proposal definition is required")
+	ErrStatusIsNotActive          = errors.New("proposal status is not active")
 )
 
 type (
@@ -66,17 +67,22 @@ type (
 		// Its value must be between 0 and 1, being 1 = 100% of member votes.
 		Quorum() float64
 
-		// Validate validates that the proposal is valid.
-		// Validations are optional and allow the validation of the current state before proposal execution.
-		Validate() error
-
 		// Tally counts the number of votes and verifies that there is consensus.
 		// Tally fails when none of the vote choices wins over the others.
 		Tally(r ReadOnlyVotingRecord, memberCount int) (success bool)
+	}
 
+	// Validable defines an interface for proposal definitions that require state validation.
+	// Validation is done before execution and normally also during proposal rendering.
+	Validable interface {
+		// Validate validates that the proposal is valid for the current state.
+		Validate() error
+	}
+
+	// Executable defines an interface for proposal definitions that modify state on approval.
+	// Once proposals are executed they are archived and considered finished.
+	Executable interface {
 		// Execute executes the proposal.
-		// Once proposal are executed they are archived and considered finished.
-		// Execution allows changing the state after a proposal passes.
 		Execute() error
 	}
 )
@@ -152,4 +158,17 @@ func (p Proposal) StatusReason() string {
 // VotingDeadline returns the deadline after which no more votes should be allowed.
 func (p Proposal) VotingDeadline() time.Time {
 	return p.votingDeadline
+}
+
+// Validate validates that a proposal is valid for the current state.
+// Validation is done when proposal status is active and when the definition supports validation.
+func (p Proposal) Validate() error {
+	if p.status != StatusActive {
+		return nil
+	}
+
+	if v, ok := p.definition.(Validable); ok {
+		return v.Validate()
+	}
+	return nil
 }
