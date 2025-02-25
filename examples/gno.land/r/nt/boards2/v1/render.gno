@@ -1,17 +1,24 @@
 package boards2
 
 import (
+	"net/url"
 	"strconv"
 	"strings"
 
 	"gno.land/p/demo/mux"
 	"gno.land/p/jeronimoalbi/pager"
+	"gno.land/p/moul/txlink"
 )
 
 const (
 	boardsPageSize  = 20
 	threadsPageSize = 30
 	repliesPageSize = 30
+)
+
+const (
+	menuAdmin      = "admin"
+	menuMembership = "membership"
 )
 
 func Render(path string) string {
@@ -31,6 +38,8 @@ func Render(path string) string {
 }
 
 func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
+	renderBoardListMenu(res, req)
+
 	res.Write("These are all the boards of this realm:\n\n")
 	p := mustGetPagination(req.RawPath, boardsPageSize)
 	page := p.Iterate(&gBoardsByID, func(_ string, value interface{}) bool {
@@ -47,6 +56,26 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 	}
 }
 
+func renderBoardListMenu(res *mux.ResponseWriter, req *mux.Request) {
+	res.Write(newButtonLink("create board", txlink.Call("CreateBoard")) + " - ")
+
+	menu := getCurrentSubmenu(req.RawPath)
+	if menu == menuMembership {
+		res.Write("**membership**")
+	} else {
+		res.Write(newButtonLink("membership", submenuURL(menuMembership)))
+	}
+
+	res.Write("\n\n")
+
+	if menu == menuMembership {
+		res.Write("↳")
+		res.Write(newButtonLink("invite", txlink.Call("InviteMember", "boardID", "0")) + " ")
+		res.Write(newButtonLink("remove member", txlink.Call("RemoveMember", "boardID", "0")) + " ")
+		res.Write(newButtonLink("change member role", txlink.Call("ChangeMemberRole", "boardID", "0")) + "\n\n")
+	}
+}
+
 func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
 	v, found := gBoardsByName.Get(name)
@@ -56,8 +85,44 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	board := v.(*Board)
+	renderBoardMenu(board, res, req)
+
 	p := mustGetPagination(req.RawPath, threadsPageSize)
 	res.Write(board.Render(p))
+}
+
+func renderBoardMenu(board *Board, res *mux.ResponseWriter, req *mux.Request) {
+	res.Write(newButtonLink("post", board.GetPostFormURL()) + " - ")
+
+	menu := getCurrentSubmenu(req.RawPath)
+	if menu == menuMembership {
+		res.Write("**membership** - ")
+	} else {
+		res.Write(newButtonLink("membership", submenuURL(menuMembership)) + " - ")
+	}
+
+	if menu == menuAdmin {
+		res.Write("**admin**")
+	} else {
+		res.Write(newButtonLink("admin", submenuURL(menuAdmin)))
+	}
+
+	res.Write("\n\n")
+
+	if menu != "" {
+		res.Write("↳")
+	}
+
+	switch menu {
+	case menuAdmin:
+		res.Write(newButtonLink("rename board", board.GetRenameFormURL()) + " ")
+		res.Write(newButtonLink("freeze", board.GetFreezeFormURL()) + " ")
+		res.Write(newButtonLink("change flagging threshold", board.GetFlaggingThresholdFormURL()) + "\n\n")
+	case menuMembership:
+		res.Write(newButtonLink("invite", board.GetInviteMemberFormURL()) + " ")
+		res.Write(newButtonLink("remove member", board.GetRemoveMemberFormURL()) + " ")
+		res.Write(newButtonLink("change member role", board.GetChangeMemberRoleFormURL()) + "\n\n")
+	}
 }
 
 func renderThread(res *mux.ResponseWriter, req *mux.Request) {
@@ -129,7 +194,7 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
-	perms := gPerm
+	perms := gPerms
 	name := req.GetVar("board")
 	if name != "" {
 		v, found := gBoardsByName.Get(name)
@@ -172,4 +237,19 @@ func rolesToString(roles []Role) string {
 		names[i] = string(r)
 	}
 	return strings.Join(names, ", ")
+}
+
+func submenuURL(name string) string {
+	// TODO: Submenu URL works because no other GET arguments are being used
+	return "?submenu=" + name
+}
+
+func getCurrentSubmenu(rawURL string) string {
+	_, rawQuery, found := strings.Cut(rawURL, "?")
+	if !found {
+		return ""
+	}
+
+	query, _ := url.ParseQuery(rawQuery)
+	return query.Get("submenu")
 }

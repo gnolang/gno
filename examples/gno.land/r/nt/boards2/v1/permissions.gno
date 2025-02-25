@@ -18,6 +18,7 @@ const (
 	PermissionMemberInvite                   = "member:invite"
 	PermissionMemberRemove                   = "member:remove"
 	PermissionRoleChange                     = "role:change"
+	PermissionPermissionsUpdate              = "permissions:update"
 )
 
 const (

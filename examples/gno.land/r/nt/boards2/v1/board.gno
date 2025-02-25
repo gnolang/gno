@@ -35,7 +35,7 @@ type Board struct {
 	readOnly  bool
 }
 
-func newBoard(id BoardID, name string, creator std.Address) *Board {
+func newBoard(id BoardID, name string, creator std.Address, p Permissions) *Board {
 	return &Board{
 		id:        id,
 		name:      name,
@@ -43,7 +43,7 @@ func newBoard(id BoardID, name string, creator std.Address) *Board {
 		threads:   avl.Tree{},
 		createdAt: time.Now(),
 		deleted:   avl.Tree{},
-		perms:     createDefaultBoardPermissions(creator),
+		perms:     p,
 	}
 }
 
@@ -110,7 +110,7 @@ func (board *Board) DeleteThread(pid PostID) {
 //
 // Pager is used for pagination if it's not nil.
 func (board *Board) Render(p *PaginationOpts) string {
-	sb := &strings.Builder{}
+	var sb strings.Builder
 
 	sb.WriteString(newButtonLink("post", board.GetPostFormURL()) + " ")
 	sb.WriteString(newButtonLink("members", board.GetMembersURL()))
@@ -152,6 +152,30 @@ func (board *Board) GetURLFromThreadID(threadID PostID) string {
 
 func (board *Board) GetURLFromReplyID(threadID, replyID PostID) string {
 	return board.GetURL() + "/" + threadID.String() + "/" + replyID.String()
+}
+
+func (board *Board) GetRenameFormURL() string {
+	return txlink.Call("RenameBoard", "name", board.name)
+}
+
+func (board *Board) GetFreezeFormURL() string {
+	return txlink.Call("FreezeBoard", "boardID", board.id.String())
+}
+
+func (board *Board) GetFlaggingThresholdFormURL() string {
+	return txlink.Call("SetFlaggingThreshold", "boardID", board.id.String())
+}
+
+func (board *Board) GetInviteMemberFormURL() string {
+	return txlink.Call("InviteMember", "boardID", board.id.String())
+}
+
+func (board *Board) GetRemoveMemberFormURL() string {
+	return txlink.Call("RemoveMember", "boardID", board.id.String())
+}
+
+func (board *Board) GetChangeMemberRoleFormURL() string {
+	return txlink.Call("ChangeMemberRole", "boardID", board.id.String())
 }
 
 func (board *Board) GetPostFormURL() string {
