@@ -1131,7 +1131,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								checkUntypedShiftExpr(n.Left)
 							}
 						}
-
 					} else if lcx.T == nil { // LHS is nil.
 						// convert n.Left to typed-nil type.
 						checkOrConvertType(store, last, n, &n.Left, rt, false)

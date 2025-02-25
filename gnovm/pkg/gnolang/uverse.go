@@ -2,7 +2,6 @@ package gnolang
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
@@ -785,18 +784,5 @@ func copyListToData(dst []byte, tvs []TypedValue) {
 func copyListToRunes(dst []rune, tvs []TypedValue) {
 	for i := 0; i < len(tvs); i++ {
 		dst[i] = tvs[i].GetInt32()
-	}
-}
-
-func copyNativeToList(alloc *Allocator, dst []TypedValue, rv reflect.Value, rvl int) {
-	// TODO: redundant go2GnoType() conversions.
-	for i := 0; i < rvl; i++ {
-		dst[i] = go2GnoValue(alloc, rv.Index(i))
-	}
-}
-
-func copyNativeToData(dst []byte, rv reflect.Value, rvl int) {
-	for i := 0; i < rvl; i++ {
-		dst[i] = uint8(rv.Index(i).Uint())
 	}
 }
