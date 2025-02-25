@@ -101,9 +101,10 @@ func TransferOwnership(daoID uint64, newOwner std.Address) {
 	}
 }
 
-// GetByID returns a DAO searched by ID.
+// Get returns a common DAO searched by ID.
 // It panics if caller doesn't have access ownership to it.
-func GetByID(daoID uint64) *commondao.CommonDAO {
+// Only toplevel DAOs are returned, to get SubDAOs use `GetSubDAO()`.
+func Get(daoID uint64) *commondao.CommonDAO {
 	assertCallerIsRealm() // TODO: Allow users to get DAOs using run TX?
 
 	caller := std.PrevRealm().Addr()

@@ -28,7 +28,7 @@ func init() {
 }
 
 func main() {
-	dao := commondao.GetByID(daoID)
+	dao := commondao.Get(daoID)
 
 	if dao == nil {
 		panic("expected DAO to be found")

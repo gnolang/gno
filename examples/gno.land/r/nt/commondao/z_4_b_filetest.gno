@@ -24,7 +24,7 @@ func init() {
 }
 
 func main() {
-	commondao.GetByID(daoID)
+	commondao.Get(daoID)
 }
 
 // Error:

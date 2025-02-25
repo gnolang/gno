@@ -28,7 +28,7 @@ func main() {
 	// Use a caller that is not the owner of the DAO
 	std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/tests"))
 
-	commondao.GetByID(daoID)
+	commondao.Get(daoID)
 }
 
 // Error:
