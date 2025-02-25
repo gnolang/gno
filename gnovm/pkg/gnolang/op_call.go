@@ -355,20 +355,6 @@ func (m *Machine) doOpReturnCallDefers() {
 			}
 		}
 		copy(b.Values, dfr.Args)
-		/*} else if dfr.GoFunc != nil {
-		fv := dfr.GoFunc
-		ptvs := dfr.Args
-		prvs := make([]reflect.Value, len(ptvs))
-		for i := 0; i < len(prvs); i++ {
-			// TODO consider when declared types can be
-			// converted, e.g. fmt.Println. See GoValue.
-			prvs[i] = gno2GoValue(&ptvs[i], reflect.Value{})
-		}
-		// Call and ignore results.
-		fv.Value.Call(prvs)
-		// Cleanup.
-		m.NumResults = 0
-		*/
 	} else {
 		panic("should not happen")
 	}

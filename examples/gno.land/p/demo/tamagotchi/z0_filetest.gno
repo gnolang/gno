@@ -1,7 +1,7 @@
 package main
 
 import (
-	"os_test"
+	"os"
 	"time"
 
 	"gno.land/p/demo/tamagotchi"
