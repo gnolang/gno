@@ -41,6 +41,7 @@ func TestNew(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			membersCount := len(tc.members)
 			options := []Option{WithParent(tc.parent)}
 			for _, m := range tc.members {
 				options = append(options, WithMember(m))
@@ -54,39 +55,44 @@ func TestNew(t *testing.T) {
 				uassert.NotEqual(t, nil, dao.Parent())
 			}
 
-			urequire.Equal(t, len(tc.members), len(dao.Members()), "dao members")
-			for i, m := range dao.Members() {
-				uassert.Equal(t, tc.members[i], m)
-			}
+			urequire.Equal(t, membersCount, dao.Members().Size(), "dao members")
+
+			var i int
+			dao.Members().IterateByOffset(0, membersCount, func(addr std.Address) bool {
+				uassert.Equal(t, tc.members[i], addr)
+				i++
+				return false
+			})
 		})
 	}
 }
 
-func TestCommonDAOAddMember(t *testing.T) {
+func TestCommonDAOMembersAdd(t *testing.T) {
 	member := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	dao := New(WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"))
 
-	err := dao.AddMember(member)
-	urequire.NoError(t, err)
-	uassert.Equal(t, 2, len(dao.Members()))
-	uassert.True(t, dao.IsMember(member))
+	added := dao.Members().Add(member)
+	urequire.True(t, added)
 
-	err = dao.AddMember(member)
-	uassert.ErrorIs(t, err, ErrMemberExists)
+	uassert.Equal(t, 2, dao.Members().Size())
+	uassert.True(t, dao.Members().Has(member))
+
+	added = dao.Members().Add(member)
+	urequire.False(t, added)
 }
 
-func TestCommonDAORemoveMember(t *testing.T) {
+func TestCommonDAOMembersRemove(t *testing.T) {
 	member := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	dao := New(WithMember(member))
 
-	removed := dao.RemoveMember(member)
+	removed := dao.Members().Remove(member)
 	urequire.True(t, removed)
 
-	removed = dao.RemoveMember(member)
+	removed = dao.Members().Remove(member)
 	urequire.False(t, removed)
 }
 
-func TestCommonDAOIsMember(t *testing.T) {
+func TestCommonDAOMembersHas(t *testing.T) {
 	cases := []struct {
 		name   string
 		member std.Address
@@ -108,7 +114,7 @@ func TestCommonDAOIsMember(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := tc.dao.IsMember(tc.member)
+			got := tc.dao.Members().Has(tc.member)
 			uassert.Equal(t, got, tc.want)
 		})
 	}
