@@ -42,14 +42,14 @@ export default {
         800: "#131313", // Background dark color
         900: "#080809", // Title color
         // dark mode grays
-        d50: "#1A1A1A",    // Background color 
-        d100: "#2C2C2C",   // Title dark color 
-        d200: "#404040",   // Content dark color 
+        d50: "#1A1A1A",    // Background color
+        d100: "#2C2C2C",   // Title light color 
+        d200: "#404040",   // Content color 
         d300: "#5C5C5C",   // Muted color 
         d400: "#777777",   // Border color 
         d600: "#A0A0A0",   // Content color 
         d800: "#D0D0D0",   // Background light color 
-        d900: "#F0F0F0"    // Blanc cassé
+        d900: "#F0F0F0"    
       },
       green: {
         400: "#2D8D72", // Primary dark color
