@@ -17,7 +17,7 @@ func TestPager(t *testing.T) {
 	}{
 		{
 			name:      "page 1",
-			uri:       "gno.land/r/devxteam/gnome:foo/bar?page=1&foo=bar",
+			uri:       "gno.land/r/demo/test:foo/bar?page=1&foo=bar",
 			items:     []int{1, 2, 3, 4, 5, 6},
 			hasPages:  true,
 			nextPath:  "?foo=bar&page=2",
@@ -27,7 +27,7 @@ func TestPager(t *testing.T) {
 		},
 		{
 			name:      "page 2",
-			uri:       "gno.land/r/devxteam/gnome:foo/bar?page=2&foo=bar",
+			uri:       "gno.land/r/demo/test:foo/bar?page=2&foo=bar",
 			items:     []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 			hasPages:  true,
 			prevPath:  "?foo=bar&page=1",
@@ -39,7 +39,20 @@ func TestPager(t *testing.T) {
 		},
 		{
 			name:      "custom query param",
-			uri:       "gno.land/r/devxteam/gnome:foo/bar?current=2&foo=bar",
+			uri:       "gno.land/r/demo/test:foo/bar?current=2&foo=bar",
+			items:     []int{1, 2, 3},
+			param:     "current",
+			hasPages:  true,
+			prevPath:  "?current=1&foo=bar",
+			nextPath:  "",
+			offset:    2,
+			pageSize:  2,
+			page:      2,
+			pageCount: 2,
+		},
+		{
+			name:      "with custom gnoweb args",
+			uri:       "gno.land/r/demo/test:foo/bar?current=2&foo=bar",
 			items:     []int{1, 2, 3},
 			param:     "current",
 			hasPages:  true,
@@ -52,17 +65,17 @@ func TestPager(t *testing.T) {
 		},
 		{
 			name: "missing page",
-			uri:  "gno.land/r/devxteam/gnome:foo/bar?page=3&foo=bar",
+			uri:  "gno.land/r/demo/test:foo/bar?page=3&foo=bar",
 			err:  ErrInvalidPageNumber,
 		},
 		{
 			name: "invalid page zero",
-			uri:  "gno.land/r/devxteam/gnome:foo/bar?page=0",
+			uri:  "gno.land/r/demo/test:foo/bar?page=0",
 			err:  ErrInvalidPageNumber,
 		},
 		{
 			name: "invalid page number",
-			uri:  "gno.land/r/devxteam/gnome:foo/bar?page=foo",
+			uri:  "gno.land/r/demo/test:foo/bar?page=foo",
 			err:  ErrInvalidPageNumber,
 		},
 	}
@@ -99,31 +112,31 @@ func TestPagerIterate(t *testing.T) {
 	}{
 		{
 			name:  "page 1",
-			uri:   "gno.land/r/devxteam/gnome:foo/bar?page=1",
+			uri:   "gno.land/r/demo/test:foo/bar?page=1",
 			items: []int{1, 2, 3, 4, 5, 6, 7, 8, 9},
 			page:  []int{1, 2, 3},
 		},
 		{
 			name:  "page 2",
-			uri:   "gno.land/r/devxteam/gnome:foo/bar?page=2",
+			uri:   "gno.land/r/demo/test:foo/bar?page=2",
 			items: []int{1, 2, 3, 4, 5, 6, 7, 8, 9},
 			page:  []int{4, 5, 6},
 		},
 		{
 			name:  "page 3",
-			uri:   "gno.land/r/devxteam/gnome:foo/bar?page=3",
+			uri:   "gno.land/r/demo/test:foo/bar?page=3",
 			items: []int{1, 2, 3, 4, 5, 6, 7, 8, 9},
 			page:  []int{7, 8, 9},
 		},
 		{
 			name:    "invalid page",
-			uri:     "gno.land/r/devxteam/gnome:foo/bar?page=2",
+			uri:     "gno.land/r/demo/test:foo/bar?page=2",
 			items:   []int{1, 2, 3},
 			stopped: true,
 		},
 		{
 			name:    "stop iteration",
-			uri:     "gno.land/r/devxteam/gnome:foo/bar?page=1",
+			uri:     "gno.land/r/demo/test:foo/bar?page=1",
 			items:   []int{1, 2, 3},
 			stop:    true,
 			stopped: true,
