@@ -4822,10 +4822,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 			panic("cannot import stdlib internal/ package outside of standard library")
 		}
 
-		// Restrict imports to /internal packages to a package rooted at base.
-		base, suff, isInternal := strings.Cut(d.PkgPath, "/internal")
-		// /internal should be either at the end, or be a part: /internal/
-		isInternal = isInternal && (suff == "" || suff[0] == '/')
+		base, isInternal := IsInternalPath(d.PkgPath)
 		if isInternal &&
 			pkg.PkgPath != base &&
 			!strings.HasPrefix(pkg.PkgPath, base+"/") {
