@@ -107,7 +107,7 @@ Tags:
 func TestMetaStoreInDocument(t *testing.T) {
 	markdown := goldmark.New(
 		goldmark.WithExtensions(
-			New(
+			NewMetadata(
 				WithStoresInDocument(),
 			),
 		),

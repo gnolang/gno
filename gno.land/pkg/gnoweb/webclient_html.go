@@ -46,9 +46,7 @@ func NewDefaultHTMLWebClientConfig(client *client.RPCClient) *HTMLWebClientConfi
 	goldmarkOptions := []goldmark.Option{
 		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 		goldmark.WithExtensions(
-			md.New(
-				md.WithStoresInDocument(),
-			),
+			md.NewMetadata(),
 			markdown.NewHighlighting(
 				markdown.WithFormatOptions(chromaOptions...),
 			),
@@ -205,8 +203,9 @@ func (s *HTMLWebClient) RenderRealm(w io.Writer, pkgPath string, args string) (*
 	}
 
 	// Use Goldmark for Markdown parsing
-	doc := s.Markdown.Parser().Parse(text.NewReader(rawres))
-	metaData := doc.OwnerDocument().Meta()
+	context := parser.NewContext()
+	doc := s.Markdown.Parser().Parse(text.NewReader(rawres), parser.WithContext(context))
+	metaData := md.Get(context)
 
 	if err := s.Markdown.Renderer().Render(w, rawres, doc); err != nil {
 		return nil, fmt.Errorf("unable to render realm %q: %w", data, err)

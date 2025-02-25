@@ -249,8 +249,8 @@ type meta struct {
 // Meta is an extension for goldmark.
 var Meta = &meta{}
 
-// New returns a new Meta extension.
-func New(opts ...Option) goldmark.Extender {
+// NewMetadata returns a new Meta extension.
+func NewMetadata(opts ...Option) goldmark.Extender {
 	return &meta{
 		options: opts,
 	}
