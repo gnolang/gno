@@ -24,3 +24,5 @@ func main() {
 }
 
 // Output:
+// foo
+// slice[(struct{(1 int)} main.Bar),(struct{(2 int)} main.Bar),(struct{(3 int)} main.Bar)]

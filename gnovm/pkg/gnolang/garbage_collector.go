@@ -17,6 +17,7 @@ import (
 // XXX: make sure tv.T isn't bumped from allocation either.
 func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	debug2.Println2("=====GarbageCollect")
+	debug2.Println2("m.Exceptions: ", m.Exceptions)
 	// We don't need the old value anymore.
 	m.Alloc.Reset()
 
@@ -42,7 +43,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		// XXX Frame is not an object,
 		// so implement a custom method and pass in vis.
 		fmt.Printf("===visit Frame[%d] is: %v \n", i, frame)
-		stop := frame.VisitAssociation(vis, m.Store)
+		stop := frame.Visit(vis, m.Store)
 		if stop {
 			return -1, false
 		}
@@ -60,7 +61,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		// XXX Exception is not an object,
 		// so implement a custom method and pass in vis.
 		fmt.Printf("Exception[%d] is: %v \n", i, exception)
-		stop = exception.VisitAssociated(vis, m.Store)
+		stop = exception.Visit(vis, m.Store)
 		if stop {
 			return -1, false
 		}
@@ -165,6 +166,7 @@ func (mv *MapValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	// XXX visit mv.List.
 	// XXX do NOT visit mv.vmap.
 	for cur := mv.List.Head; cur != nil; cur = cur.Next {
+		// vis key
 		oo := unwrapObject(cur.Key.V, store)
 		if oo == nil {
 			continue
@@ -174,6 +176,7 @@ func (mv *MapValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 			return
 		}
 
+		// vis value
 		oo = unwrapObject(cur.Value.V, store)
 		if oo == nil {
 			continue
@@ -258,7 +261,7 @@ func (hiv *HeapItemValue) VisitAssociated(vis Visitor, store Store) (stop bool) 
 	return
 }
 
-func (fv *FuncValue) VisitAssociation(vis Visitor, store Store) (stop bool) {
+func (fv *FuncValue) Visit(vis Visitor, store Store) (stop bool) {
 	// visit captures
 	for _, tv := range fv.Captures {
 		oo := unwrapObject(tv.V, store)
@@ -282,7 +285,7 @@ func (fv *FuncValue) VisitAssociation(vis Visitor, store Store) (stop bool) {
 	return false
 }
 
-func (fr *Frame) VisitAssociation(vis Visitor, store Store) (stop bool) {
+func (fr *Frame) Visit(vis Visitor, store Store) (stop bool) {
 	// vis receiver
 	// TODO: how about receiver define in other file
 	// also check gcCount...
@@ -296,7 +299,7 @@ func (fr *Frame) VisitAssociation(vis Visitor, store Store) (stop bool) {
 	}
 	// vis FuncValue
 	if fv := fr.Func; fv != nil {
-		stop = fv.VisitAssociation(vis, store)
+		stop = fv.Visit(vis, store)
 		if stop {
 			return
 		}
@@ -305,7 +308,7 @@ func (fr *Frame) VisitAssociation(vis Visitor, store Store) (stop bool) {
 	for _, dfr := range fr.Defers {
 		debug2.Println2("vis defer: ", dfr)
 		// visit dfr.Func
-		stop = dfr.Func.VisitAssociation(vis, store)
+		stop = dfr.Func.Visit(vis, store)
 		if stop {
 			return
 		}
@@ -324,7 +327,8 @@ func (fr *Frame) VisitAssociation(vis Visitor, store Store) (stop bool) {
 	return false
 }
 
-func (ex *Exception) VisitAssociated(vis Visitor, store Store) (stop bool) {
+func (ex *Exception) Visit(vis Visitor, store Store) (stop bool) {
+	debug2.Println2("vis exception: ", ex)
 	// vis value
 	oo := unwrapObject(ex.Value.V, store)
 	if oo != nil {
@@ -333,8 +337,8 @@ func (ex *Exception) VisitAssociated(vis Visitor, store Store) (stop bool) {
 			return
 		}
 	}
-	// vis Frame ?
-	stop = ex.Frame.VisitAssociation(vis, store)
+	// Max, this should be unnecessary
+	stop = ex.Frame.Visit(vis, store)
 	if stop {
 		return
 	}

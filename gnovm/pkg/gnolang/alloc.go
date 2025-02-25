@@ -26,10 +26,11 @@ const (
 	_allocStructValue      = 152
 	_allocArrayValue       = 176
 	_allocSliceValue       = 40
-	_allocFuncValue        = 136
+	_allocFuncValue        = 136 // Max, 196
 	_allocMapValue         = 144
 	_allocBoundMethodValue = 176
-	_allocBlock            = 464
+	_allocBlock            = 464 // Max, should be 472
+	_allocPackageValue     = 240
 	_allocNativeValue      = 48
 	_allocTypeValue        = 16
 	_allocTypedValue       = 40
@@ -61,7 +62,7 @@ const (
 	allocNative      = _allocBase + _allocPointer + _allocNativeValue
 	allocType        = _allocBase + _allocPointer + _allocType
 	// allocDataByte    = 1
-	allocPackge    = 1
+	allocPackage   = _allocBase + _allocPointer + _allocPackageValue // Max why pointer?
 	allocAmino     = _allocBase + _allocPointer + _allocAny
 	allocAminoByte = 10 // XXX
 	allocHeapItem  = _allocBase + _allocPointer + _allocTypedValue
@@ -341,10 +342,9 @@ func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 
 // -----------------------------------------------
 
-// TODO: fix this
 func (p *PackageValue) GetShallowSize() int64 {
 	debug2.Println2("GetShallowSize: ", p)
-	return allocPackge
+	return allocPackage
 }
 func (b *Block) GetShallowSize() int64 {
 	debug2.Println2("GetShallowSize: ", b)

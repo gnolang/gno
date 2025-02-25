@@ -154,7 +154,7 @@ type ObjectInfo struct {
 	RefCount  int       // for persistence. deleted/gc'd if 0.
 	IsEscaped bool      `json:",omitempty"` // hash in iavl.
 	// MemRefCount int // consider for optimizations.
-	isDirty      bool
+	isDirty      bool // 1
 	isDeleted    bool
 	isNewReal    bool
 	isNewEscaped bool
