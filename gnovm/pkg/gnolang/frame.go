@@ -78,8 +78,7 @@ func (fr *Frame) PopDefer() (res Defer, ok bool) {
 // Defer
 
 type Defer struct {
-	Func *FuncValue // function value
-	// GoFunc *NativeValue // go function value
+	Func   *FuncValue   // function value
 	Args   []TypedValue // arguments
 	Source *DeferStmt   // source
 	Parent *Block

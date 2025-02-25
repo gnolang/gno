@@ -15,7 +15,7 @@ func (w *stderrWriter) Write(p []byte) (n int, err error) {
 }
 
 func Sleep(duration int64) {
-	return unmarshal(data, dest)
+	return sleep(duration)
 }
 
 // native bindings
