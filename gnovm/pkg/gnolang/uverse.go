@@ -731,6 +731,27 @@ func makeUverseNode() {
 			m.Output.Write([]byte(rs))
 		},
 	)
+	defNative("println",
+		Flds( // param
+			"xs", Vrd(AnyT()), // args[0]
+		),
+		nil, // results
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1()
+			xv := arg0
+			xvl := xv.TV.GetLength()
+			ss := make([]string, xvl)
+			for i := 0; i < xvl; i++ {
+				ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
+				ss[i] = ev.Sprint(m)
+			}
+			rs := strings.Join(ss, " ") + "\n"
+			if debug {
+				println("DEBUG/stdout: " + rs)
+			}
+			m.Output.Write([]byte(rs))
+		},
+	)
 	defNative("recover",
 		nil, // params
 		Flds( // results

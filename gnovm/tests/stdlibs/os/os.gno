@@ -18,7 +18,6 @@ func Sleep(duration int64) {
 	return unmarshal(data, dest)
 }
 
-
 // native bindings
 func writeStderr(p []byte) (n int, err error)
 func writeStdout(p []byte) (n int, err error)
