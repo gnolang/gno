@@ -18,6 +18,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zapcore"
 )
 
 func getFreePort(t *testing.T) int {
@@ -203,6 +204,7 @@ func TestRunSignerServer(t *testing.T) {
 
 		serverFlags := &ServerFlags{
 			ListenAddresses: getTCPAddress(t),
+			LogLevel:        zapcore.ErrorLevel.String(),
 			AuthFlags: AuthFlags{
 				AuthKeysFile: filePath,
 			},
@@ -220,6 +222,7 @@ func TestRunSignerServer(t *testing.T) {
 
 		serverFlags := &ServerFlags{
 			ListenAddresses: getTCPAddress(t),
+			LogLevel:        zapcore.ErrorLevel.String(),
 		}
 
 		// Listen on the address to make it unavailable.
@@ -238,6 +241,7 @@ func TestRunSignerServer(t *testing.T) {
 
 		serverFlags := &ServerFlags{
 			ListenAddresses: getTCPAddress(t),
+			LogLevel:        zapcore.ErrorLevel.String(),
 		}
 
 		require.ErrorIs(t, RunSignerServer(
@@ -254,6 +258,7 @@ func TestRunSignerServer(t *testing.T) {
 
 		serverFlags := &ServerFlags{
 			ListenAddresses: getTCPAddress(t),
+			LogLevel:        zapcore.ErrorLevel.String(),
 		}
 
 		// Simulate a SIGINT signal after 30 milliseconds.

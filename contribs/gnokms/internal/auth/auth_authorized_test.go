@@ -88,7 +88,7 @@ func TestAuthorizedAdd(t *testing.T) {
 		authorizedKey := "invalid"
 
 		// Run exec authorized key argument.
-		err := execAuthAuthorizedAdd(flags, []string{authorizedKey}, commands.NewDefaultIO())
+		err := execAuthAuthorizedAdd(flags, []string{authorizedKey}, commands.NewTestIO())
 		require.Error(t, err)
 	})
 
@@ -110,7 +110,7 @@ func TestAuthorizedAdd(t *testing.T) {
 		authorizedKey := ed25519.GenPrivKey().PubKey().String()
 
 		// Run exec authorized key argument.
-		err := execAuthAuthorizedAdd(flags, []string{authorizedKey}, commands.NewDefaultIO())
+		err := execAuthAuthorizedAdd(flags, []string{authorizedKey}, commands.NewTestIO())
 		require.Error(t, err)
 
 		// Turn it back to read-write for cleanup.
@@ -201,7 +201,7 @@ func TestAuthorizedRemove(t *testing.T) {
 		authorizedKey := "invalid"
 
 		// Run exec authorized key argument.
-		err := execAuthAuthorizedRemove(flags, []string{authorizedKey}, commands.NewDefaultIO())
+		err := execAuthAuthorizedRemove(flags, []string{authorizedKey}, commands.NewTestIO())
 		require.Error(t, err)
 	})
 
@@ -223,7 +223,7 @@ func TestAuthorizedRemove(t *testing.T) {
 		authorizedKey := ed25519.GenPrivKey().PubKey().String()
 
 		// Run exec authorized key argument.
-		err := execAuthAuthorizedRemove(flags, []string{authorizedKey}, commands.NewDefaultIO())
+		err := execAuthAuthorizedRemove(flags, []string{authorizedKey}, commands.NewTestIO())
 		require.Error(t, err)
 
 		// Turn it back to read-write for cleanup.

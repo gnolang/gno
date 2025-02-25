@@ -1,6 +1,7 @@
 package gnokey
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -18,6 +19,7 @@ func TestNewGnokeyCmd(t *testing.T) {
 
 		cmd := NewGnokeyCmd(commands.NewTestIO())
 		require.NotNil(t, cmd)
+		cmd.SetOutput(commands.WriteNopCloser(new(bytes.Buffer)))
 
 		require.Error(t, cmd.ParseAndRun(context.Background(), []string{}))
 	})
@@ -39,7 +41,7 @@ func TestNewGnokeyCmd(t *testing.T) {
 		defer keybase.CloseDB()
 
 		// Create a stdin with the password.
-		io := commands.NewDefaultIO()
+		io := commands.NewTestIO()
 		io.SetIn(strings.NewReader(fmt.Sprintf("%s\n", keyPassword)))
 
 		cmd := NewGnokeyCmd(io)
@@ -48,6 +50,8 @@ func TestNewGnokeyCmd(t *testing.T) {
 			cmd.ParseAndRun(
 				context.Background(),
 				[]string{
+					"--log-level",
+					"error",
 					"--listeners",
 					"wrong_address",
 					"--home",

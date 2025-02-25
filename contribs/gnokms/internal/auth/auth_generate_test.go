@@ -77,7 +77,7 @@ func TestGenerate(t *testing.T) {
 		// Run exec with overwrite flag.
 		cmdErr = execAuthGenerate(
 			&authGenerateFlags{auth: flags, overwrite: true},
-			commands.NewDefaultIO(),
+			commands.NewTestIO(),
 		)
 		require.NoError(t, cmdErr)
 	})

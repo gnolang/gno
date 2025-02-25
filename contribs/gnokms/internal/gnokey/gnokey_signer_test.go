@@ -56,7 +56,7 @@ func TestNewGnokeySigner(t *testing.T) {
 		defer keybase.CloseDB()
 
 		// Create a stdin with the password.
-		io := commands.NewDefaultIO()
+		io := commands.NewTestIO()
 		io.SetIn(strings.NewReader(fmt.Sprintf("%s\n%s\n", "invalid", keyPassword)))
 
 		signer, err := newGnokeySigner(
@@ -79,7 +79,7 @@ func TestNewGnokeySigner(t *testing.T) {
 		defer keybase.CloseDB()
 
 		// Create a stdin with the password.
-		io := commands.NewDefaultIO()
+		io := commands.NewTestIO()
 		io.SetIn(strings.NewReader(""))
 
 		signer, err := newGnokeySigner(
@@ -107,7 +107,7 @@ func TestNewGnokeySigner(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create a stdin with the password.
-		io := commands.NewDefaultIO()
+		io := commands.NewTestIO()
 		io.SetIn(strings.NewReader(""))
 
 		signer, err := newGnokeySigner(
@@ -130,7 +130,7 @@ func TestNewGnokeySigner(t *testing.T) {
 		defer keybase.CloseDB()
 
 		// Create a stdin with the password.
-		io := commands.NewDefaultIO()
+		io := commands.NewTestIO()
 		io.SetIn(strings.NewReader(fmt.Sprintf("%s\n", keyPassword)))
 
 		signer, err := newGnokeySigner(

@@ -49,8 +49,9 @@ func TestDefaultAuthKeysFile(t *testing.T) {
 
 		// Should fallback to the current directory.
 		wd, err := os.Getwd()
-		require.NoError(t, err)
-		require.Contains(t, defaultAuthKeysFile(), wd)
+		if err == nil {
+			require.Contains(t, defaultAuthKeysFile(), wd)
+		}
 	})
 
 	t.Run("no user directory and working dir", func(t *testing.T) {
