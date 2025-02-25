@@ -35,7 +35,7 @@ Same as [`tm2-js-client` `JSONRPCProvider`](../tm2-js-client/Provider/json-rpc-p
 #### Usage
 
 ```ts
-new GnoJSONRPCProvider('http://gno.land:443');
+new GnoJSONRPCProvider('https://gno.land:443');
 // provider is created
 ```
 
