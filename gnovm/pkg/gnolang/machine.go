@@ -3,7 +3,9 @@ package gnolang
 import (
 	"fmt"
 	"io"
+	"path"
 	"reflect"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -41,7 +43,6 @@ type Machine struct {
 	// Configuration
 	PreprocessorMode bool // this is used as a flag when const values are evaluated during preprocessing
 	ReadOnly         bool
-	MaxCycles        int64
 	Output           io.Writer
 	Store            Store
 	Context          interface{}
@@ -85,7 +86,6 @@ type MachineOptions struct {
 	Context          interface{}
 	Alloc            *Allocator // or see MaxAllocBytes.
 	MaxAllocBytes    int64      // or 0 for no limit.
-	MaxCycles        int64      // or 0 for no limit.
 	GasMeter         store.GasMeter
 }
 
@@ -110,7 +110,6 @@ var machinePool = sync.Pool{
 func NewMachineWithOptions(opts MachineOptions) *Machine {
 	preprocessorMode := opts.PreprocessorMode
 	readOnly := opts.ReadOnly
-	maxCycles := opts.MaxCycles
 	vmGasMeter := opts.GasMeter
 
 	output := opts.Output
@@ -143,7 +142,6 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Alloc = alloc
 	mm.PreprocessorMode = preprocessorMode
 	mm.ReadOnly = readOnly
-	mm.MaxCycles = maxCycles
 	mm.Output = output
 	mm.Store = store
 	mm.Context = context
@@ -1023,13 +1021,9 @@ const GasFactorCPU int64 = 1
 func (m *Machine) incrCPU(cycles int64) {
 	if m.GasMeter != nil {
 		gasCPU := overflow.Mul64p(cycles, GasFactorCPU)
-		m.GasMeter.ConsumeGas(gasCPU, "CPUCycles")
+		m.GasMeter.ConsumeGas(gasCPU, "CPUCycles") // May panic if out of gas.
 	}
-
 	m.Cycles += cycles
-	if m.MaxCycles != 0 && m.Cycles > m.MaxCycles {
-		panic("CPU cycle overrun")
-	}
 }
 
 const (
@@ -2120,8 +2114,11 @@ func (m *Machine) Panic(ex TypedValue) {
 func (m *Machine) Println(args ...interface{}) {
 	if debug {
 		if enabled {
-			s := strings.Repeat("|", m.NumOps)
-			debug.Println(append([]interface{}{s}, args...)...)
+			_, file, line, _ := runtime.Caller(2) // get caller info
+			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
+			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
+			s := prefix + strings.Repeat("|", m.NumOps)
+			fmt.Println(append([]interface{}{s}, args...)...)
 		}
 	}
 }
@@ -2129,8 +2126,11 @@ func (m *Machine) Println(args ...interface{}) {
 func (m *Machine) Printf(format string, args ...interface{}) {
 	if debug {
 		if enabled {
-			s := strings.Repeat("|", m.NumOps)
-			debug.Printf(s+" "+format, args...)
+			_, file, line, _ := runtime.Caller(2) // get caller info
+			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
+			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
+			s := prefix + strings.Repeat("|", m.NumOps)
+			fmt.Printf(s+" "+format, args...)
 		}
 	}
 }
