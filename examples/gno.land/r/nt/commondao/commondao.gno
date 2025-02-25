@@ -34,6 +34,22 @@ func mustGetDAO(daoID uint64) *commondao.CommonDAO {
 	return dao
 }
 
+func getSubDAO(rootID uint64, path string) *commondao.CommonDAO {
+	key := makeTreesKey(rootID, path)
+	if v, found := trees.Get(key); found {
+		return v.(*commondao.CommonDAO)
+	}
+	return nil
+}
+
+func mustGetSubDAO(rootID uint64, path string) *commondao.CommonDAO {
+	dao := getSubDAO(rootID, path)
+	if dao == nil {
+		panic("subDAO not found")
+	}
+	return dao
+}
+
 func getOwnership(addr std.Address) []uint64 {
 	if v, ok := ownership.Get(addr.String()); ok {
 		return v.([]uint64)
