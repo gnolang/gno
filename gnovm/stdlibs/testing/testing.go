@@ -62,9 +62,9 @@ func X_testSetContext(
 		// #6: [FRAME FUNC:TestSetContext RECV:(undefined) (1 args) 8/2/0/4/3 LASTPKG:testing ...]
 		// #5: [FRAME FUNC:SetRealm RECV:(undefined) (1 args) 5/1/0/2/2 LASTPKG:gno.land/r/demo/groups ...]
 		// We want to set the Realm of the frame where t/testing.SetRealm is being called, hence -4.
-		for i := m.NumFrames() - 4; i >= 0; i-- {
+		for i := m.NumFrames() - 3; i >= 0; i-- {
 			// Must be a frame from calling a function.
-			if fr := m.Frames[i]; fr.Func != nil {
+			if fr := m.Frames[i]; fr.Func != nil && fr.Func.PkgPath != "testing" {
 				frame = fr
 				break
 			}

@@ -15,6 +15,4 @@ type Context struct {
 	ChainID          string
 	Height           int64
 	Time             time.Time
-	Banker           bool // TODO
-	Logger           bool // TODO
 }
