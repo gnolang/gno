@@ -3,10 +3,12 @@ package eventix
 import (
 	"std"
 	"testing"
+	"fmt"
 
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
+	"gno.land/p/demo/grc/grc20"
 )
 
 func TestCreateEvent(t *testing.T) {
@@ -20,17 +22,14 @@ func TestCreateEvent(t *testing.T) {
 		1000000,
 	)
 
-	// Using uassert to perform a soft assertion.
-	uassert.Equal(t, 1, eventId)
+	// Convert eventId to int for comparison since CreateEvent returns uint64
+	uassert.Equal(t, uint64(1), eventId)
 
 	event, exists := getEvent(eventId)
-	// urequire.True stops the test if the event was not created.
 	urequire.True(t, exists, "Event was not created")
-
-	// Soft-assert that the event name is as expected.
 	uassert.Equal(t, "Test Event", event.name)
 
-	// Test that providing an invalid date format causes a panic.
+	// Test invalid date format
 	urequire.PanicsWithMessage(t, "Invalid date format. Use: YYYY-MM-DDThh:mm:ssZ", func() {
 		CreateEvent("Test", "Test", "invalid-date", "ugnot", 100, 1000000)
 	})
@@ -69,14 +68,10 @@ func TestBuyTicket(t *testing.T) {
 	}
 
 	// Verify NFT ownership
-	tokenId := grc721.TokenID("1-1")
-	owner, err := tickets.OwnerOf(tokenId) // Handle both return values
-	if err != nil {
-		t.Errorf("Error getting token owner: %v", err)
-	}
-	if owner != buyer {
-		t.Errorf("Expected ticket owner to be %s, got %s", buyer, owner)
-	}
+	tokenId := grc721.TokenID(fmt.Sprintf("event_%d_ticket_%d", eventId, 1))
+	owner, err := tickets.OwnerOf(tokenId)
+	urequire.NoError(t, err)
+	urequire.Equal(t, buyer, owner)
 
 	// Test buying sold out event
 	std.TestSetOrigSend(std.NewCoins(std.NewCoin("ugnot", 1000000)), std.Coins{})
@@ -87,4 +82,66 @@ func TestBuyTicket(t *testing.T) {
 		}
 	}()
 	BuyTicket(eventId) // Should panic - sold out
+}
+
+func TestBuyTicketWithGRC20(t *testing.T) {
+	// Set up package address first
+	pkgAddr := std.GetOrigPkgAddr()
+	std.TestSetOrigPkgAddr(pkgAddr)
+	
+	// Create a test GRC20 token and set up addresses
+	token, ledger := grc20.NewToken("Test Token", "TEST", 6) 
+	buyer := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	adminAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf6")
+	
+	// Set up admin and mint tokens
+	std.TestSetOrigCaller(adminAddr)
+	std.TestSetRealm(std.NewUserRealm(adminAddr))
+	err := ledger.Mint(buyer, 2000000) // Use ledger to mint
+	urequire.NoError(t, err)
+
+	// Create event with GRC20 token payment
+	std.TestSetOrigCaller(buyer)
+	std.TestSetRealm(std.NewUserRealm(buyer))
+	
+	eventId := CreateEvent(
+		"GRC20 Event",
+		"An event with GRC20 payment",
+		"2024-12-31T23:59:59Z",
+		token.RealmTeller(),
+		2,
+		1000000,
+	)
+
+	// Set up for approval
+	std.TestSetOrigCaller(buyer)
+	std.TestSetRealm(std.NewUserRealm(buyer))
+	
+	// Approve using the ledger (following grc20factory_test pattern)
+	err = ledger.Approve(buyer, pkgAddr, 1000000)
+	urequire.NoError(t, err)
+
+	// Verify approval
+	allowance := token.Allowance(buyer, pkgAddr)
+	urequire.Equal(t, uint64(1000000), allowance, "Approval should be set correctly")
+
+	// Buy ticket
+	std.TestSetOrigCaller(buyer)
+	std.TestSetRealm(std.NewUserRealm(buyer))
+	BuyTicket(eventId)
+
+	// Verify purchase
+	event, exists := getEvent(eventId)
+	urequire.True(t, exists)
+	urequire.Equal(t, 1, event.ticketsSold)
+
+	// Verify NFT ownership
+	tokenId := grc721.TokenID(fmt.Sprintf("event_%d_ticket_%d", eventId, 1))
+	owner, err := tickets.OwnerOf(tokenId)
+	urequire.NoError(t, err)
+	urequire.Equal(t, buyer, owner)
+
+	// Verify GRC20 balance changes
+	buyerBalance := token.BalanceOf(buyer)
+	urequire.Equal(t, uint64(1000000), buyerBalance) // Should have 1M left after spending 1M
 }

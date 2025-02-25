@@ -4,11 +4,13 @@ import (
 	"std"
 	"strconv"
 	"time"
+	"fmt"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/avl/pager"
+	"gno.land/p/demo/grc/grc20"
 )
 
 type Event struct {
@@ -16,8 +18,8 @@ type Event struct {
 	description string
 	date        time.Time
 	maxTickets  int
-	price       uint64 // price per ticket (in tokens)
-	paymentToken string  // payment token symbol (e.g., ugnot or any GRC20 token)
+	price       uint64
+	paymentToken interface{} 
 	ticketsSold int
 }
 
@@ -27,11 +29,31 @@ var (
 	tickets      = grc721.NewBasicNFT("Event Ticket", "EVTIX")
 )
 
-func CreateEvent(name, description string, dateStr string, paymentToken string, maxTickets int, price uint64) uint64 {
-
+func CreateEvent(name, description, dateStr string, paymentToken interface{}, maxTickets int, price uint64) uint64 {
+	// validate inputs
+	if maxTickets <= 0 {
+		panic("Maximum tickets must be greater than 0")
+	}
+	
 	date, err := time.Parse("2006-01-02T15:04:05Z", dateStr)
 	if err != nil {
 		panic("Invalid date format. Use: YYYY-MM-DDThh:mm:ssZ")
+	}
+
+	// Validate payment token
+	switch pt := paymentToken.(type) {
+	case string:
+		// Native token (e.g., "ugnot")
+		if pt != "ugnot" {
+			panic("Unsupported native token")
+		}
+	case grc20.Teller:
+		// GRC20 token
+		if pt == nil {
+			panic("Invalid GRC20 token")
+		}
+	default:
+		panic("Unsupported payment token type")
 	}
 
 	newID := eventCounter + 1
@@ -46,7 +68,7 @@ func CreateEvent(name, description string, dateStr string, paymentToken string, 
 	}
 	events.Set(strconv.Itoa(int(newID)), event)
 	eventCounter = newID
-	std.Emit("EventCreated", ufmt.Sprintf("Event %d: %s created", newID, name))
+	std.Emit("EventCreated", "id", strconv.FormatUint(newID, 10), "name", name)
 	return newID
 }
 
@@ -68,19 +90,35 @@ func BuyTicket(eventId uint64) {
 		panic("Event is sold out")
 	}
 
-	sent := std.GetOrigSend()
-	amount := sent.AmountOf(event.paymentToken)
-	if amount != int64(event.price) {
-		panic(ufmt.Sprintf("Please send exactly %d %s", event.price, event.paymentToken))
+	buyer := std.PrevRealm().Addr()
+
+	switch pt := event.paymentToken.(type) {
+	case string:
+		// Handle native token payment
+		if pt != "ugnot" {
+			panic("Unsupported native token")
+		}
+		
+		sent := std.GetOrigSend()
+		if len(sent) != 1 || sent[0].Denom != "ugnot" || uint64(sent[0].Amount) != event.price {
+			panic("Invalid payment amount")
+		}
+
+	case grc20.Teller:
+		// Handle GRC20 payment
+		if err := pt.TransferFrom(buyer, std.CurrentRealm().Addr(), event.price); err != nil {
+			panic("GRC20 payment failed: " + err.Error())
+		}
+	default:
+		panic("Unsupported payment token type")
 	}
 
-	caller := std.PrevRealm().Addr()
-	tokenId := grc721.TokenID(strconv.Itoa(int(eventId)) + "-" + strconv.Itoa(event.ticketsSold+1))
-	tickets.Mint(caller, tokenId)
+	// Mint NFT ticket
+	tokenId := grc721.TokenID(fmt.Sprintf("event_%d_ticket_%d", eventId, event.ticketsSold+1))
+	tickets.Mint(buyer, tokenId)
 
 	event.ticketsSold++
 	events.Set(strconv.Itoa(int(eventId)), event)
-	std.Emit("TicketPurchased", ufmt.Sprintf("Ticket %s purchased for Event %d by %s", tokenId, eventId, caller))
 }
 
 func Render(path string) string {
