@@ -158,3 +158,54 @@ func TestPagerIterate(t *testing.T) {
 		})
 	}
 }
+
+func TestPicker(t *testing.T) {
+	pageSize := 3
+	cases := []struct {
+		name, uri, output string
+		totalItems        int
+	}{
+		{
+			name:       "one page",
+			uri:        "gno.land/r/demo/test:foo/bar?page=1",
+			totalItems: 3,
+			output:     "",
+		},
+		{
+			name:       "two pages",
+			uri:        "gno.land/r/demo/test:foo/bar?page=1",
+			totalItems: 4,
+			output:     "\\- | page 1 of 2 | [»](?page=2)",
+		},
+		{
+			name:       "three pages",
+			uri:        "gno.land/r/demo/test:foo/bar?page=1",
+			totalItems: 7,
+			output:     "\\- | page 1 of 3 | [»](?page=2)",
+		},
+		{
+			name:       "three pages second page",
+			uri:        "gno.land/r/demo/test:foo/bar?page=2",
+			totalItems: 7,
+			output:     "[«](?page=1) | page 2 of 3 | [»](?page=3)",
+		},
+		{
+			name:       "three pages third page",
+			uri:        "gno.land/r/demo/test:foo/bar?page=3",
+			totalItems: 7,
+			output:     "[«](?page=2) | page 3 of 3 | \\-",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			p := MustNew(tc.uri, tc.totalItems, WithPageSize(pageSize))
+
+			// Act
+			output := Picker(p)
+
+			// Assert
+			uassert.Equal(t, tc.output, output)
+		})
+	}
+}
