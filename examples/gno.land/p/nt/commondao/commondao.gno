@@ -160,10 +160,7 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 	// From this point any error results in execution success and proposal failure
 	err := p.Validate()
 	if err == nil {
-		err = dao.Tally(p)
-		if err == nil {
-			err = dao.executeProposal(p)
-		}
+		err = dao.executeProposal(p)
 	}
 
 	// Proposal fails if there is any error during validation and execution process
@@ -185,6 +182,10 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 func (dao *CommonDAO) executeProposal(p *Proposal) error {
 	if p.Status() != StatusActive {
 		return ErrStatusIsNotActive
+	}
+
+	if err := dao.Tally(p); err != nil {
+		return err
 	}
 
 	if e, ok := p.Definition().(Executable); ok {
