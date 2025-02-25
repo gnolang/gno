@@ -1400,10 +1400,6 @@ func (m *Machine) Run() {
 		case OpConvert:
 			m.incrCPU(OpCPUConvert)
 			m.doOpConvert()
-		/* GoNative Operators */
-		//case OpCallGoNative:
-		//	m.incrCPU(OpCPUCallGoNative)
-		//	m.doOpCallGoNative()
 		/* Type operators */
 		case OpFieldType:
 			m.incrCPU(OpCPUFieldType)

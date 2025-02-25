@@ -72,15 +72,13 @@ func go2GnoBaseType(rt reflect.Type) Type {
 		return Float32Type
 	case reflect.Float64:
 		return Float64Type
-		//case reflect.Array:
 	case reflect.Slice:
 		return &SliceType{
 			Elt: go2GnoType(rt.Elem()),
 			Vrd: false,
 		}
-		//	return &NativeType{Type: rt}
-	//case reflect.Chan:
-	//	return &NativeType{Type: rt}
+	case reflect.Chan:
+		panic("not yet implemented")
 	case reflect.Func:
 		return getFuncType(rt)
 	case reflect.Interface:
@@ -98,11 +96,11 @@ func go2GnoBaseType(rt reflect.Type) Type {
 		it.Methods = fs
 		fmt.Println("here")
 		return it
-	//case reflect.Map:
+	// case reflect.Map:
 	//	return &NativeType{Type: rt}
-	//case reflect.Ptr:
+	// case reflect.Ptr:
 	//	return &NativeType{Type: rt}
-	//case reflect.Struct:
+	// case reflect.Struct:
 	//	return &NativeType{Type: rt}
 	case reflect.UnsafePointer:
 		panic("not yet implemented")
@@ -265,6 +263,7 @@ func (ds *defaultStore) go2GnoFuncType(rt reflect.Type) *FuncType {
 
 	return ft
 }
+
 func getFuncType(rt reflect.Type) *FuncType {
 	// predefine func type
 	ft := &FuncType{}
@@ -377,7 +376,7 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	case reflect.Func:
 		panic("not yet implemented")
 	case reflect.Interface:
-		panic("not yet implemented")
+		panic("should not happen")
 	case reflect.Map:
 		panic("not yet implemented")
 	case reflect.Ptr:
@@ -719,22 +718,9 @@ func go2GnoValue2(alloc *Allocator, store Store, rv reflect.Value, recursive boo
 	case reflect.Chan:
 		panic("not yet implemented")
 	case reflect.Func:
-		// NOTE: the type may be a full gno type, either a
-		// *FuncType or *DeclaredType.  The value may still be a
-		// *NativeValue though, and the function can be called
-		// regardless.
-		//tv.V = alloc.New(rv)
+		panic("not yet implemented")
 	case reflect.Interface:
-		// special case for errors, which are very often used especially in
-		// native bindings
-		//if rv.Type() == tError {
-		//	tv.T = gErrorType
-		//	if !rv.IsNil() {
-		//		tv.V = alloc.NewNative(rv.Elem())
-		//	}
-		//	return
-		//}
-		panic(rv.Type())
+		panic("not yet implemented")
 	case reflect.Map:
 		panic("not yet implemented")
 	case reflect.Ptr:
@@ -1219,7 +1205,6 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 // PackageNode methods
 
 func (x *PackageNode) DefineGoNativeValue(name Name, nv interface{}) {
-	fmt.Println("DefineGoNativeValue", name, nv)
 	x.defineGoNativeValue(false, name, nv)
 }
 
@@ -1239,61 +1224,6 @@ func (x *PackageNode) defineGoNativeValue(isConst bool, n Name, nv interface{}) 
 	tv := go2GnoValue(nilAllocator, rv2)
 	x.Define2(isConst, n, tv.T, tv)
 }
-
-// ----------------------------------------
-// Machine methods
-
-// NOTE: Unlike doOpCall(), doOpCallGoNative() also handles
-// conversions, similarly to doOpConvert().
-/*func (m *Machine) doOpCallGoNative() {
-	fr := m.LastFrame()
-	fv := fr.GoFunc
-	ft := fv.Value.Type()
-	hasVarg := ft.IsVariadic()
-	numParams := ft.NumIn()
-	isVarg := fr.IsVarg
-	// pop and convert params.
-	ptvs := m.PopCopyValues(fr.NumArgs)
-	m.PopValue() // func value
-	prvs := make([]reflect.Value, 0, len(ptvs))
-	for i := 0; i < fr.NumArgs; i++ {
-		ptv := &ptvs[i]
-		var it reflect.Type
-		if hasVarg && numParams-1 <= i && !isVarg {
-			it = ft.In(numParams - 1)
-			it = it.Elem()
-		} else {
-			it = ft.In(i)
-		}
-		erv := reflect.New(it).Elem()
-		prvs = append(prvs, gno2GoValue(ptv, erv))
-	}
-	// call and get results.
-	rrvs := []reflect.Value(nil)
-	if isVarg {
-		rrvs = fv.Value.CallSlice(prvs)
-	} else {
-		rrvs = fv.Value.Call(prvs)
-	}
-	// convert and push results.
-	for _, rvs := range rrvs {
-		// TODO instead of this shallow conversion,
-		// look at expected Gno type and convert appropriately.
-		rtv := go2GnoValue(m.Alloc, rvs)
-		m.PushValue(rtv)
-	}
-	// carry writes to params if needed.
-	for i := 0; i < fr.NumArgs; i++ {
-		ptv := &ptvs[i]
-		prv := prvs[i]
-		if !ptv.IsUndefined() {
-			go2GnoValueUpdate(m.Alloc, m.Realm, 0, ptv, prv)
-		}
-	}
-	// cleanup
-	m.NumResults = fv.Value.Type().NumOut()
-	m.PopFrame()
-}*/
 
 // ----------------------------------------
 // misc

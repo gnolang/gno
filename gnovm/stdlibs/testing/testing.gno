@@ -216,16 +216,17 @@ type Report struct {
 	Failed  bool
 	Skipped bool
 }
-func (r *Report) marshal() string{
-	failed:="false"
+
+func (r *Report) marshal() string {
+	failed := "false"
 	skipped := "false"
-	if r.Failed{
-		failed="true"
+	if r.Failed {
+		failed = "true"
 	}
-	if r.Skipped{
-		skipped="true"
+	if r.Skipped {
+		skipped = "true"
 	}
-	return `{"Failed":`+failed+`,"Skipped":`+skipped+`}`
+	return `{"Failed":` + failed + `,"Skipped":` + skipped + `}`
 }
 
 func (t *T) report() Report {
