@@ -76,20 +76,24 @@ func newAuthAuthorizedAddCmd(rootCfg *common.AuthFlags, io commands.IO) *command
 		},
 		commands.NewEmptyConfig(),
 		func(_ context.Context, args []string) error {
-			// Add the public keys to the authorized keys list.
-			return manipulatesAuthorizedKeys(rootCfg, args, func(current []string, updates []string) []string {
-				for _, publicKey := range updates {
-					if _, found := slices.BinarySearch(current, publicKey); found {
-						io.Printfln("Public key %q already in the authorized keys list.", publicKey)
-					} else {
-						current = append(current, publicKey)
-						io.Printfln("Public key %q added to the authorized keys list.", publicKey)
-					}
-				}
-				return current
-			})
+			return execAuthAuthorizedAdd(rootCfg, args, io)
 		},
 	)
+}
+
+func execAuthAuthorizedAdd(rootCfg *common.AuthFlags, args []string, io commands.IO) error {
+	// Add the public keys to the authorized keys list.
+	return manipulatesAuthorizedKeys(rootCfg, args, func(current []string, updates []string) []string {
+		for _, publicKey := range updates {
+			if _, found := slices.BinarySearch(current, publicKey); found {
+				io.Printfln("Public key %q already in the authorized keys list.", publicKey)
+			} else {
+				current = append(current, publicKey)
+				io.Printfln("Public key %q added to the authorized keys list.", publicKey)
+			}
+		}
+		return current
+	})
 }
 
 // newAuthAuthorizedRemoveCmd creates the auth authorized remove subcommand.
@@ -103,20 +107,24 @@ func newAuthAuthorizedRemoveCmd(rootCfg *common.AuthFlags, io commands.IO) *comm
 		},
 		commands.NewEmptyConfig(),
 		func(_ context.Context, args []string) error {
-			// Remove the public keys from the authorized keys list.
-			return manipulatesAuthorizedKeys(rootCfg, args, func(current []string, updates []string) []string {
-				for _, publicKey := range updates {
-					if index, found := slices.BinarySearch(current, publicKey); found {
-						current = slices.Delete(current, index, index+1)
-						io.Printfln("Public key %q removed from the authorized keys list.", publicKey)
-					} else {
-						io.Printfln("Public key %q not found in the authorized keys list.", publicKey)
-					}
-				}
-				return current
-			})
+			return execAuthAuthorizedRemove(rootCfg, args, io)
 		},
 	)
+}
+
+func execAuthAuthorizedRemove(rootCfg *common.AuthFlags, args []string, io commands.IO) error {
+	// Remove the public keys from the authorized keys list.
+	return manipulatesAuthorizedKeys(rootCfg, args, func(current []string, updates []string) []string {
+		for _, publicKey := range updates {
+			if index, found := slices.BinarySearch(current, publicKey); found {
+				current = slices.Delete(current, index, index+1)
+				io.Printfln("Public key %q removed from the authorized keys list.", publicKey)
+			} else {
+				io.Printfln("Public key %q not found in the authorized keys list.", publicKey)
+			}
+		}
+		return current
+	})
 }
 
 // newAuthAuthorizedListCmd creates the auth authorized list subcommand.
@@ -130,23 +138,27 @@ func newAuthAuthorizedListCmd(rootCfg *common.AuthFlags, io commands.IO) *comman
 		},
 		commands.NewEmptyConfig(),
 		func(_ context.Context, _ []string) error {
-			// Load the auth keys file.
-			authKeysFile, err := loadAuthKeysFile(rootCfg)
-			if err != nil {
-				return err
-			}
-
-			// Print the authorized keys.
-			if len(authKeysFile.ClientAuthorizedKeys) == 0 {
-				io.Printfln("No authorized keys found.")
-			} else {
-				io.Printfln("Authorized keys:")
-				for _, authorizedKey := range authKeysFile.ClientAuthorizedKeys {
-					io.Printfln("- %s", authorizedKey)
-				}
-			}
-
-			return nil
+			return execAuthAuthorizedList(rootCfg, io)
 		},
 	)
+}
+
+func execAuthAuthorizedList(rootCfg *common.AuthFlags, io commands.IO) error {
+	// Load the auth keys file.
+	authKeysFile, err := loadAuthKeysFile(rootCfg)
+	if err != nil {
+		return err
+	}
+
+	// Print the authorized keys.
+	if len(authKeysFile.ClientAuthorizedKeys) == 0 {
+		io.Printfln("No authorized keys found.")
+	} else {
+		io.Printfln("Authorized keys:")
+		for _, authorizedKey := range authKeysFile.ClientAuthorizedKeys {
+			io.Printfln("- %s", authorizedKey)
+		}
+	}
+
+	return nil
 }

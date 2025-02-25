@@ -44,10 +44,7 @@ func newGnokeySigner(
 	io commands.IO,
 ) (*gnokeySigner, error) {
 	// Load the keybase located at the home directory.
-	keyBase, err := keys.NewKeyBaseFromDir(gnFlags.home)
-	if err != nil {
-		return nil, fmt.Errorf("unable to load keybase: %w", err)
-	}
+	keyBase, _ := keys.NewKeyBaseFromDir(gnFlags.home)
 
 	// Get the key info from the keybase.
 	info, err := keyBase.GetByNameOrAddress(keyName)

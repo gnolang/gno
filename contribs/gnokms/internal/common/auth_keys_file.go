@@ -15,8 +15,8 @@ import (
 
 // ServerIdentity defines the server identity keypair.
 type ServerIdentity struct {
-	PrivKey *ed25519.PrivKeyEd25519 `json:"priv_key" comment:"gnokms server private key used to authenticate with clients"`
-	PubKey  string                  `json:"pub_key" comment:"gnokms server public key that should be authorized by clients"`
+	PrivKey ed25519.PrivKeyEd25519 `json:"priv_key" comment:"gnokms server private key used to authenticate with clients"`
+	PubKey  string                 `json:"pub_key" comment:"gnokms server public key that should be authorized by clients"`
 }
 
 // AuthKeysFile defines the content of the auth keys file.
@@ -43,11 +43,18 @@ func SortAndDuplicate(keys []string) []string {
 }
 
 // validate validates the AuthKeysFile.
-func (akf *AuthKeysFile) validate() error {
-	// Make sure the private key is set.
-	if akf.ServerIdentity.PrivKey == nil {
-		return errInvalidPrivateKey
-	}
+func (akf *AuthKeysFile) validate() (err error) {
+	// Use named return value to set error from recover.
+	err = errInvalidPrivateKey
+
+	// Setup a recover as next steps may panic.
+	defer func() { recover() }()
+
+	// Try to amino marshal the PrivKey.
+	akf.ServerIdentity.PrivKey.Bytes()
+
+	// Try to get the PubKey..
+	akf.ServerIdentity.PrivKey.PubKey()
 
 	// Make sure the public key is derived from the private one.
 	if akf.ServerIdentity.PrivKey.PubKey().String() != akf.ServerIdentity.PubKey {
@@ -84,7 +91,9 @@ func (akf *AuthKeysFile) Save() error {
 
 	// Ensure the parent directory exists.
 	parentDir := filepath.Dir(akf.filePath)
-	osm.EnsureDir(parentDir, 0o700)
+	if err := osm.EnsureDir(parentDir, 0o700); err != nil {
+		return err
+	}
 
 	// Write the JSON bytes to the file.
 	if err := osm.WriteFileAtomic(akf.filePath, jsonBytes, 0o600); err != nil {
@@ -171,7 +180,7 @@ func GeneratePersistedAuthKeysFile(filePath string) (*AuthKeysFile, error) {
 	// Create a new AuthKeysFile instance.
 	afk := &AuthKeysFile{
 		ServerIdentity: ServerIdentity{
-			PrivKey: &privKey,
+			PrivKey: privKey,
 			PubKey:  privKey.PubKey().String(),
 		},
 		ClientAuthorizedKeys: []string{},

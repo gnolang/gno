@@ -1,6 +1,7 @@
 package common
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -37,15 +38,12 @@ func NewSignerServer(
 		}
 
 		// Get the authorized keys from the auth keys file.
-		authorizedKeys, err := authKeysFile.AuthorizedKeys()
-		if err != nil { // Will be caught by only if the authorized keys are invalid.
-			return nil, fmt.Errorf("unable to get authorized keys from auth keys file: %w", err)
-		}
+		authorizedKeys, _ := authKeysFile.AuthorizedKeys() // Ignore error as it is already validated by LoadAuthKeysFile.
 
 		// Add the authorized keys and server private key to the server options.
 		options = append(options,
 			sserver.WithAuthorizedKeys(authorizedKeys),
-			sserver.WithServerPrivKey(*authKeysFile.ServerIdentity.PrivKey),
+			sserver.WithServerPrivKey(authKeysFile.ServerIdentity.PrivKey),
 		)
 	} else {
 		// Check if at least one of the listener is using the tcp protocol.
@@ -75,6 +73,11 @@ func NewSignerServer(
 
 // genesisValidatorInfoFromSigner gets a genesis validator info from the given signer.
 func genesisValidatorInfoFromSigner(signer types.Signer) (string, error) {
+	// Check if the signer is nil.
+	if signer == nil {
+		return "", errors.New("signer is nil")
+	}
+
 	// Get the public key of the signer.
 	pubKey, err := signer.PubKey()
 	if err != nil {
@@ -90,10 +93,7 @@ func genesisValidatorInfoFromSigner(signer types.Signer) (string, error) {
 	}
 
 	// Marshal the genesis validator info to JSON using amino.
-	genesisValidatorInfo, err := amino.MarshalJSONIndent(genesisValidator, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("unable to marshal genesis validator info: %w", err)
-	}
+	genesisValidatorInfo := amino.MustMarshalJSONIndent(genesisValidator, "", "  ")
 
 	return string(genesisValidatorInfo), nil
 }

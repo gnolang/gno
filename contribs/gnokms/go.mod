@@ -6,6 +6,7 @@ replace github.com/gnolang/gno => ../..
 
 require (
 	github.com/gnolang/gno v0.0.0-00010101000000-000000000000
+	github.com/google/uuid v1.6.0
 	go.uber.org/zap v1.27.0
 )
 
