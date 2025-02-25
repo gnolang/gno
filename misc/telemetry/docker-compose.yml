@@ -9,12 +9,18 @@ services:
       - ./collector/collector.yaml:/etc/otelcol-contrib/config.yaml
     networks:
       - gnoland-net
+    depends_on:
+      - tempo
+      - prometheus
   
-  jaeger:
-    image: jaegertracing/all-in-one:latest
+  tempo:
+    image: grafana/tempo:latest
+    command: [ "-config.file=/etc/tempo.yaml" ]
+    volumes:
+      - ./tempo/tempo.yaml:/etc/tempo.yaml
     ports:
-      - "16686:16686"
-      - "14268:14268"
+      - "3200:3200"   # Tempo HTTP API
+      - "4319:4317"   # OTLP gRPC
     networks:
       - gnoland-net
 

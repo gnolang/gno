@@ -22,10 +22,15 @@ func MetricsEnabled() bool {
 	return globalConfig.MetricsEnabled
 }
 
+// TracingEnabled returns true if tracing has been initialized
+func TracingEnabled() bool {
+	return globalConfig.TracingEnabled
+}
+
 // Init initializes the global telemetry
 func Init(c config.Config) error {
-	// Check if the metrics are enabled at all
-	if !c.MetricsEnabled {
+	anyTelemetryEnabled := c.MetricsEnabled || c.TracingEnabled
+	if !anyTelemetryEnabled {
 		return nil
 	}
 
@@ -42,14 +47,17 @@ func Init(c config.Config) error {
 	// Update the global configuration
 	globalConfig = c
 
-	if err := metrics.Init(c); err != nil {
-		return fmt.Errorf("unable to initialize metrics, %w", err)
+	// Check if the metrics are enabled at all
+	if !c.MetricsEnabled {
+		if err := metrics.Init(c); err != nil {
+			return fmt.Errorf("unable to initialize metrics, %w", err)
+		}
 	}
 
-	// TODO: handle shutdown func
-	_, err := tracing.Init()
-	if err != nil {
-		return fmt.Errorf("unable to initialize tracing, %w", err)
+	if !c.TracingEnabled {
+		if err := tracing.Init(c); err != nil {
+			return fmt.Errorf("unable to initialize tracing, %w", err)
+		}
 	}
 
 	return nil
