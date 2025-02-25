@@ -1,14 +1,16 @@
 package commondao
 
 import (
+	"regexp"
 	"std"
 	"strings"
 
 	"gno.land/p/nt/commondao"
 )
 
-// TODO: Consider using an interface instead of a ref to CommonDAO type
-// TODO: Add support for creating hierarchical DAOs (require slug value)
+// TODO: Allow different ownerships of DAOs within the same tree
+
+var reSlug = regexp.MustCompile("^[a-zA-Z]+[a-zA-Z0-9-]*$")
 
 // Invite invites a user to the realm.
 // A user invitation is required to start creating new DAOs.
@@ -46,6 +48,34 @@ func New(name string) *commondao.CommonDAO {
 
 	ownership.Set(caller.String(), ids)
 	daos.Set(id.String(), dao)
+
+	return dao
+}
+
+// NewSubDAO creates a new SubDAO.
+func NewSubDAO(name, slug string, parent *commondao.CommonDAO) *commondao.CommonDAO {
+	assertCallerIsRealm() // TODO: Allow users to create DAOs using run TX?
+
+	if parent == nil {
+		panic("parent is required")
+	}
+
+	name = strings.TrimSpace(name)
+	assertNameIsNotEmpty(name)
+	assertSlugIsValid(slug)
+
+	dao := commondao.New(
+		commondao.WithParent(parent),
+		commondao.WithName(name),
+		commondao.WithSlug(slug),
+	)
+
+	key := makeTreesKey(parent.TopParent().ID(), dao.Path())
+	if trees.Has(key) {
+		panic("subDAO slug is already taken")
+	}
+
+	trees.Set(key, dao)
 
 	return dao
 }
@@ -156,5 +186,11 @@ func assertNameIsNotEmpty(name string) {
 func assertCallerIsMember(caller std.Address, dao *commondao.CommonDAO) {
 	if !dao.IsMember(caller) {
 		panic("caller is not a DAO member")
+	}
+}
+
+func assertSlugIsValid(slug string) {
+	if !reSlug.MatchString(slug) {
+		panic("invalid DAO slug")
 	}
 }

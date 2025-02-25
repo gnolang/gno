@@ -10,6 +10,9 @@ import (
 	"gno.land/p/demo/seqid"
 )
 
+// PathSeparator is the separator character used in DAO paths.
+const PathSeparator = "/"
+
 var (
 	ErrInvalidVoteChoice    = errors.New("invalid vote choice")
 	ErrMemberExists         = errors.New("member already exist")
@@ -69,10 +72,34 @@ func (dao CommonDAO) Name() string {
 	return dao.name
 }
 
+// Path returns the full path to the DAO.
+// Paths are normally used when working with hierarchical
+// DAOs and is created by concatenating DAO slugs.
+func (dao CommonDAO) Path() string {
+	parent := dao.Parent()
+	if parent != nil {
+		prefix := parent.Path()
+		if prefix != "" {
+			return prefix + PathSeparator + dao.slug
+		}
+	}
+	return dao.slug
+}
+
 // Parent returns the parent DAO.
 // Null can be returned when DAO has no parent assigned.
 func (dao CommonDAO) Parent() *CommonDAO {
 	return dao.parent
+}
+
+// TopParent returns the topmost parent DAO.
+// The top parent is the root of the DAO tree.
+func (dao *CommonDAO) TopParent() *CommonDAO {
+	parent := dao.Parent()
+	if parent != nil {
+		return parent.TopParent()
+	}
+	return dao
 }
 
 // Members returns the list of DAO members.
