@@ -88,23 +88,93 @@ func RenameBoard(name, newName string) {
 
 // FreezeBoard freezes a board so no more threads and comments can be created or modified.
 func FreezeBoard(boardID BoardID) {
-	board := mustGetBoard(boardID)
-	assertBoardIsNotFrozen(board)
+	setBoardReadOnly(boardID, true)
+}
 
-	caller := std.OriginCaller()
-	args := Args{boardID}
-	board.perms.WithPermission(caller, PermissionBoardFreeze, args, func(Args) {
-		board := mustGetBoard(boardID)
-		assertBoardIsNotFrozen(board)
-
-		board.SetReadOnly(true)
-	})
+// UnfreezeBoard removes frozen status from a board.
+func UnfreezeBoard(boardID BoardID) {
+	setBoardReadOnly(boardID, false)
 }
 
 // IsBoardFrozen checks if a board has been frozen.
 func IsBoardFrozen(boardID BoardID) bool {
 	board := mustGetBoard(boardID)
 	return board.IsReadOnly()
+}
+
+// FreezeThread freezes a thread so thread cannot be replied, modified or deleted.
+//
+// Fails if board is frozen.
+func FreezeThread(boardID BoardID, threadID PostID) {
+	args := freezeArgs{
+		boardID:  boardID,
+		threadID: threadID,
+	}
+
+	setThreadReadOnly(args, true)
+}
+
+// UnfreezeThread removes frozen status from a thread.
+//
+// Fails if board is frozen.
+func UnfreezeThread(boardID BoardID, threadID PostID) {
+	args := freezeArgs{
+		boardID:  boardID,
+		threadID: threadID,
+	}
+
+	setThreadReadOnly(args, false)
+}
+
+// IsThreadFrozen checks if a thread has been frozen.
+//
+// Returns true if board is frozen.
+func IsThreadFrozen(boardID BoardID, threadID PostID) bool {
+	board := mustGetBoard(boardID)
+	thread := mustGetThread(board, threadID)
+	assertThreadVisible(thread)
+
+	return board.IsReadOnly() || thread.IsReadOnly()
+}
+
+// IsReplyFrozen checks if a thread reply has been frozen.
+//
+// Returns true when board or a parent thread is frozen.
+func IsReplyFrozen(boardID BoardID, threadID, replyID PostID) bool {
+	board := mustGetBoard(boardID)
+	thread := mustGetThread(board, threadID)
+	assertThreadVisible(thread)
+
+	reply := mustGetReply(thread, replyID)
+	assertReplyVisible(reply)
+
+	return board.IsReadOnly() || thread.IsReadOnly() || reply.IsReadOnly()
+}
+
+// UnfreezeReply removes frozen status from a reply.
+//
+// Fails when parent thread or board are frozen.
+func UnfreezeReply(boardID BoardID, threadID, replyID PostID) {
+	args := freezeArgs{
+		boardID:  boardID,
+		threadID: threadID,
+		replyID:  replyID,
+	}
+
+	setReplyReadOnly(args, false)
+}
+
+// FreezeReply freezes a thread reply so it cannot be modified or deleted.
+//
+// Fails when parent thread or board are frozen.
+func FreezeReply(boardID BoardID, threadID, replyID PostID) {
+	args := freezeArgs{
+		boardID:  boardID,
+		threadID: threadID,
+		replyID:  replyID,
+	}
+
+	setReplyReadOnly(args, true)
 }
 
 // SetFlaggingThreshold sets the number of flags required to hide a thread or comment.
@@ -148,6 +218,7 @@ func FlagThread(boardID BoardID, threadID PostID, reason string) {
 	if !ok {
 		panic("post doesn't exist")
 	}
+	assertThreadIsNotFrozen(t)
 
 	f := Flag{
 		User:   caller,
@@ -192,6 +263,7 @@ func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID 
 
 	thread := mustGetThread(board, threadID)
 	assertThreadVisible(thread)
+	assertThreadIsNotFrozen(thread)
 
 	var reply *Post
 	if replyID == 0 {
@@ -201,6 +273,7 @@ func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID 
 		// Try to get parent reply and add a new child reply
 		post := mustGetReply(thread, replyID)
 		assertReplyVisible(post)
+		assertReplyIsNotFrozen(post)
 
 		reply = post.AddReply(caller, body)
 	}
@@ -219,7 +292,10 @@ func FlagReply(boardID BoardID, threadID, replyID PostID, reason string) {
 	assertHasBoardPermission(board, caller, PermissionThreadFlag)
 
 	thread := mustGetThread(board, threadID)
+	assertThreadIsNotFrozen(thread)
+
 	reply := mustGetReply(thread, replyID)
+	assertReplyIsNotFrozen(thread)
 
 	f := Flag{
 		User:   caller,
@@ -255,6 +331,8 @@ func DeleteThread(boardID BoardID, threadID PostID) {
 
 	caller := std.OriginCaller()
 	thread := mustGetThread(board, threadID)
+	assertThreadIsNotFrozen(thread)
+
 	if caller != thread.GetCreator() {
 		assertHasBoardPermission(board, caller, PermissionThreadDelete)
 	}
@@ -273,8 +351,11 @@ func DeleteReply(boardID BoardID, threadID, replyID PostID) {
 	assertBoardIsNotFrozen(board)
 
 	thread := mustGetThread(board, threadID)
+	assertThreadIsNotFrozen(thread)
+
 	reply := mustGetReply(thread, replyID)
 	assertReplyVisible(reply)
+	assertReplyIsNotFrozen(reply)
 
 	caller := std.OriginCaller()
 	if caller != reply.GetCreator() {
@@ -304,6 +385,8 @@ func EditThread(boardID BoardID, threadID PostID, title, body string) {
 	assertBoardIsNotFrozen(board)
 
 	thread := mustGetThread(board, threadID)
+	assertThreadIsNotFrozen(thread)
+
 	caller := std.OriginCaller()
 	if caller != thread.GetCreator() {
 		assertHasBoardPermission(board, caller, PermissionThreadEdit)
@@ -323,8 +406,11 @@ func EditReply(boardID BoardID, threadID, replyID PostID, body string) {
 	assertBoardIsNotFrozen(board)
 
 	thread := mustGetThread(board, threadID)
+	assertThreadIsNotFrozen(thread)
+
 	reply := mustGetReply(thread, replyID)
 	assertReplyVisible(reply)
+	assertReplyIsNotFrozen(reply)
 
 	if std.OriginCaller() != reply.GetCreator() {
 		panic("only the reply creator is allowed to edit it")
@@ -431,6 +517,18 @@ func assertBoardExists(id BoardID) {
 func assertBoardIsNotFrozen(b *Board) {
 	if b.IsReadOnly() {
 		panic("board is frozen")
+	}
+}
+
+func assertThreadIsNotFrozen(t *Post) {
+	if t.IsReadOnly() {
+		panic("thread is frozen")
+	}
+}
+
+func assertReplyIsNotFrozen(r *Post) {
+	if r.IsReadOnly() {
+		panic("reply is frozen")
 	}
 }
 
