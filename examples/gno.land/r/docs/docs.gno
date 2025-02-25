@@ -33,7 +33,5 @@ Explore various examples to learn more about Gno functionality and usage.
 
 - [Official documentation](https://github.com/gnolang/gno/tree/master/docs) <!-- should be /docs with gnoweb embedding the docs/ folder. -->
 `
-    return content
+	return content
 }
-
-
