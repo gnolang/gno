@@ -3,7 +3,7 @@ package dev
 import (
 	"fmt"
 	"net/url"
-	"path/filepath"
+	"path"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -24,7 +24,7 @@ func ResolveQueryPath(bk *address.Book, query string) (QueryPath, error) {
 		return qpath, fmt.Errorf("malformed path/query: %w", err)
 	}
 
-	qpath.Path = filepath.Clean(upath.Path)
+	qpath.Path = path.Clean(upath.Path)
 
 	// Check for creator option
 	creator := upath.Query().Get("creator")
