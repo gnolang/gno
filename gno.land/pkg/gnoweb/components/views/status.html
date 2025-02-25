@@ -1,6 +1,7 @@
 {{ define "status" }}
 <div class="col-span-10 flex flex-col h-full w-full mt-10 pb-24 justify-center items-center">
-  <img src="/public/imgs/gnoland.svg" alt="gno land" width="70px" height="70px" />
+  <img src="/public/imgs/gnoland.svg" class="dark:hidden" alt="gno land" width="70px" height="70px" />
+  <img src="/public/imgs/gnoland-dark.svg" class="hidden dark:block" alt="gno land dark" width="70px" height="70px" />
   <h1 class="text-600 font-bold text-gray-600 pb-4 capitalize">
     {{ .Title }}
   </h1>
