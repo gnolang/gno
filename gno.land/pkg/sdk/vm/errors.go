@@ -16,6 +16,7 @@ func (abciError) AssertABCIError() {}
 // NOTE: these are meant to be used in conjunction with pkgs/errors.
 type (
 	InvalidPkgPathError   struct{ abciError }
+	NoRenderDeclError     struct{ abciError }
 	PkgExistError         struct{ abciError }
 	InvalidStmtError      struct{ abciError }
 	InvalidExprError      struct{ abciError }
@@ -27,6 +28,7 @@ type (
 )
 
 func (e InvalidPkgPathError) Error() string   { return "invalid package path" }
+func (e NoRenderDeclError) Error() string     { return "render function not declared" }
 func (e PkgExistError) Error() string         { return "package already exists" }
 func (e InvalidStmtError) Error() string      { return "invalid statement" }
 func (e InvalidExprError) Error() string      { return "invalid expression" }

@@ -15,7 +15,7 @@ func (f *fooer) SetS(newVal string) {
 }
 
 func (f *fooer) Foo() {
-	println("hello " + f.s + " cur=" + std.CurrentRealm().PkgPath() + " prev=" + std.PrevRealm().PkgPath())
+	println("hello " + f.s + " cur=" + std.CurrentRealm().PkgPath() + " prev=" + std.PreviousRealm().PkgPath())
 }
 
 var (

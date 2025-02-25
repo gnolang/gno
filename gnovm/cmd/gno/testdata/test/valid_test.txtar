@@ -2,13 +2,13 @@
 
 gno test .
 
-! stdout .+ 
-stderr 'ok      \. 	\d\.\d\ds'
+! stdout .+
+stderr 'ok      \. 	\d+\.\d\ds'
 
 gno test ./...
 
-! stdout .+ 
-stderr 'ok      \. 	\d\.\d\ds'
+! stdout .+
+stderr 'ok      \. 	\d+\.\d\ds'
 
 -- valid.gno --
 package valid

@@ -79,7 +79,7 @@ func (g *basicGasMeter) Limit() Gas {
 }
 
 func (g *basicGasMeter) Remaining() Gas {
-	return g.Limit() - g.GasConsumedToLimit()
+	return overflow.Sub64p(g.Limit(), g.GasConsumedToLimit())
 }
 
 func (g *basicGasMeter) GasConsumedToLimit() Gas {

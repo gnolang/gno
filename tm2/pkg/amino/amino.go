@@ -219,7 +219,8 @@ func (cdc *Codec) MarshalSized(o interface{}) ([]byte, error) {
 	cdc.doAutoseal()
 
 	// Write the bytes here.
-	buf := new(bytes.Buffer)
+	buf := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(buf)
 
 	// Write the bz without length-prefixing.
 	bz, err := cdc.Marshal(o)
@@ -239,7 +240,7 @@ func (cdc *Codec) MarshalSized(o interface{}) ([]byte, error) {
 		return nil, err
 	}
 
-	return buf.Bytes(), nil
+	return copyBytes(buf.Bytes()), nil
 }
 
 // MarshalSizedWriter writes the bytes as would be returned from
@@ -271,8 +272,8 @@ func (cdc *Codec) MarshalAnySized(o interface{}) ([]byte, error) {
 	cdc.doAutoseal()
 
 	// Write the bytes here.
-	buf := new(bytes.Buffer)
-
+	buf := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(buf)
 	// Write the bz without length-prefixing.
 	bz, err := cdc.MarshalAny(o)
 	if err != nil {
@@ -291,7 +292,7 @@ func (cdc *Codec) MarshalAnySized(o interface{}) ([]byte, error) {
 		return nil, err
 	}
 
-	return buf.Bytes(), nil
+	return copyBytes(buf.Bytes()), nil
 }
 
 func (cdc *Codec) MustMarshalAnySized(o interface{}) []byte {
@@ -357,7 +358,9 @@ func (cdc *Codec) MarshalReflect(o interface{}) ([]byte, error) {
 
 	// Encode Amino:binary bytes.
 	var bz []byte
-	buf := new(bytes.Buffer)
+	buf := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(buf)
+
 	rt := rv.Type()
 	info, err := cdc.getTypeInfoWLock(rt)
 	if err != nil {
@@ -377,7 +380,7 @@ func (cdc *Codec) MarshalReflect(o interface{}) ([]byte, error) {
 		if err = cdc.writeFieldIfNotEmpty(buf, 1, info, FieldOptions{}, FieldOptions{}, rv, writeEmpty); err != nil {
 			return nil, err
 		}
-		bz = buf.Bytes()
+		bz = copyBytes(buf.Bytes())
 	} else {
 		// The passed in BinFieldNum is only relevant for when the type is to
 		// be encoded unpacked (elements are Typ3_ByteLength).  In that case,
@@ -387,7 +390,7 @@ func (cdc *Codec) MarshalReflect(o interface{}) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		bz = buf.Bytes()
+		bz = copyBytes(buf.Bytes())
 	}
 	// If bz is empty, prefer nil.
 	if len(bz) == 0 {
@@ -443,14 +446,21 @@ func (cdc *Codec) MarshalAny(o interface{}) ([]byte, error) {
 	}
 
 	// Encode as interface.
-	buf := new(bytes.Buffer)
+	buf := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(buf)
 	err = cdc.encodeReflectBinaryInterface(buf, iinfo, reflect.ValueOf(&ivar).Elem(), FieldOptions{}, true)
 	if err != nil {
 		return nil, err
 	}
-	bz := buf.Bytes()
+	bz := copyBytes(buf.Bytes())
 
 	return bz, nil
+}
+
+func copyBytes(bz []byte) []byte {
+	cp := make([]byte, len(bz))
+	copy(cp, bz)
+	return cp
 }
 
 // Panics if error.
@@ -764,7 +774,8 @@ func (cdc *Codec) JSONMarshal(o interface{}) ([]byte, error) {
 		return []byte("null"), nil
 	}
 	rt := rv.Type()
-	w := new(bytes.Buffer)
+	w := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(w)
 	info, err := cdc.getTypeInfoWLock(rt)
 	if err != nil {
 		return nil, err
@@ -772,7 +783,8 @@ func (cdc *Codec) JSONMarshal(o interface{}) ([]byte, error) {
 	if err = cdc.encodeReflectJSON(w, info, rv, FieldOptions{}); err != nil {
 		return nil, err
 	}
-	return w.Bytes(), nil
+
+	return copyBytes(w.Bytes()), nil
 }
 
 func (cdc *Codec) MarshalJSONAny(o interface{}) ([]byte, error) {
@@ -802,12 +814,14 @@ func (cdc *Codec) MarshalJSONAny(o interface{}) ([]byte, error) {
 	}
 
 	// Encode as interface.
-	buf := new(bytes.Buffer)
+	buf := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(buf)
+
 	err = cdc.encodeReflectJSONInterface(buf, iinfo, reflect.ValueOf(&ivar).Elem(), FieldOptions{})
 	if err != nil {
 		return nil, err
 	}
-	bz := buf.Bytes()
+	bz := copyBytes(buf.Bytes())
 
 	return bz, nil
 }
@@ -863,12 +877,12 @@ func (cdc *Codec) MarshalJSONIndent(o interface{}, prefix, indent string) ([]byt
 	if err != nil {
 		return nil, err
 	}
+
 	var out bytes.Buffer
-	err = json.Indent(&out, bz, prefix, indent)
-	if err != nil {
+	if err := json.Indent(&out, bz, prefix, indent); err != nil {
 		return nil, err
 	}
-	return out.Bytes(), nil
+	return copyBytes(out.Bytes()), nil
 }
 
 // ----------------------------------------

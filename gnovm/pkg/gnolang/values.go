@@ -1025,7 +1025,7 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 	case UintType, Uint64Type:
 		data = make([]byte, 8)
 		binary.LittleEndian.PutUint64(
-			data, uint64(tv.GetUint()))
+			data, tv.GetUint())
 		return data
 	case Float32Type:
 		data = make([]byte, 4)
@@ -1039,8 +1039,6 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 		binary.LittleEndian.PutUint64(
 			data, u64)
 		return data
-	case BigintType:
-		return tv.V.(BigintValue).V.Bytes()
 	default:
 		panic(fmt.Sprintf(
 			"unexpected primitive value type: %s",
@@ -1099,7 +1097,7 @@ func (tv *TypedValue) GetString() string {
 	return string(tv.V.(StringValue))
 }
 
-func (tv *TypedValue) SetInt(n int) {
+func (tv *TypedValue) SetInt(n int64) {
 	if debug {
 		if tv.T.Kind() != IntKind {
 			panic(fmt.Sprintf(
@@ -1107,19 +1105,16 @@ func (tv *TypedValue) SetInt(n int) {
 				tv.T.String()))
 		}
 	}
-	// XXX probably should be coerced into int64 for determinism.
-	// XXX otherwise, all nodes must run in 64bit.
-	// XXX alternatively, require 64bit.
-	*(*int)(unsafe.Pointer(&tv.N)) = n
+	*(*int64)(unsafe.Pointer(&tv.N)) = n
 }
 
-func (tv *TypedValue) ConvertGetInt() int {
+func (tv *TypedValue) ConvertGetInt() int64 {
 	var store Store = nil // not used
 	ConvertTo(nilAllocator, store, tv, IntType, false)
 	return tv.GetInt()
 }
 
-func (tv *TypedValue) GetInt() int {
+func (tv *TypedValue) GetInt() int64 {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != IntKind {
 			panic(fmt.Sprintf(
@@ -1127,7 +1122,7 @@ func (tv *TypedValue) GetInt() int {
 				tv.T.String()))
 		}
 	}
-	return *(*int)(unsafe.Pointer(&tv.N))
+	return *(*int64)(unsafe.Pointer(&tv.N))
 }
 
 func (tv *TypedValue) SetInt8(n int8) {
@@ -1218,7 +1213,7 @@ func (tv *TypedValue) GetInt64() int64 {
 	return *(*int64)(unsafe.Pointer(&tv.N))
 }
 
-func (tv *TypedValue) SetUint(n uint) {
+func (tv *TypedValue) SetUint(n uint64) {
 	if debug {
 		if tv.T.Kind() != UintKind {
 			panic(fmt.Sprintf(
@@ -1226,10 +1221,10 @@ func (tv *TypedValue) SetUint(n uint) {
 				tv.T.String()))
 		}
 	}
-	*(*uint)(unsafe.Pointer(&tv.N)) = n
+	*(*uint64)(unsafe.Pointer(&tv.N)) = n
 }
 
-func (tv *TypedValue) GetUint() uint {
+func (tv *TypedValue) GetUint() uint64 {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != UintKind {
 			panic(fmt.Sprintf(
@@ -1237,7 +1232,7 @@ func (tv *TypedValue) GetUint() uint {
 				tv.T.String()))
 		}
 	}
-	return *(*uint)(unsafe.Pointer(&tv.N))
+	return *(*uint64)(unsafe.Pointer(&tv.N))
 }
 
 func (tv *TypedValue) SetUint8(n uint8) {
@@ -1577,7 +1572,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			dtv = tv
 		case 1:
 			dtv = tv
-			path.Depth = 0
+			path.SetDepth(0)
 		default:
 			panic("should not happen")
 		}
@@ -1589,15 +1584,15 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		case 1:
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
-			path.Depth = 0
+			path.SetDepth(0)
 		case 2:
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
-			path.Depth = 0
+			path.SetDepth(0)
 		case 3:
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
-			path.Depth = 0
+			path.SetDepth(0)
 		default:
 			panic("should not happen")
 		}
@@ -1611,7 +1606,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
 			path.Type = VPField
-			path.Depth = 0
+			path.SetDepth(0)
 		case 2:
 			if tv.V == nil {
 				panic(&Exception{Value: typedString("nil pointer dereference")})
@@ -1619,12 +1614,12 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
 			path.Type = VPField
-			path.Depth = 0
+			path.SetDepth(0)
 		case 3:
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
 			path.Type = VPField
-			path.Depth = 0
+			path.SetDepth(0)
 		default:
 			panic("should not happen")
 		}
@@ -1783,7 +1778,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 // Convenience for GetPointerAtIndex().  Slow.
 func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
 	iv := TypedValue{T: IntType}
-	iv.SetInt(ii)
+	iv.SetInt(int64(ii))
 	return tv.GetPointerAtIndex(nilAllocator, store, &iv)
 }
 
@@ -1792,7 +1787,7 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 	case PrimitiveType:
 		if bt == StringType || bt == UntypedStringType {
 			sv := tv.GetString()
-			ii := iv.ConvertGetInt()
+			ii := int(iv.ConvertGetInt())
 			bv := &TypedValue{ // heap alloc
 				T: Uint8Type,
 			}
@@ -1815,14 +1810,14 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 			tv.T.String()))
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
-		ii := iv.ConvertGetInt()
+		ii := int(iv.ConvertGetInt())
 		return av.GetPointerAtIndexInt2(store, ii, bt.Elt)
 	case *SliceType:
 		if tv.V == nil {
 			panic("nil slice index (out of bounds)")
 		}
 		sv := tv.V.(*SliceValue)
-		ii := iv.ConvertGetInt()
+		ii := int(iv.ConvertGetInt())
 		return sv.GetPointerAtIndexInt2(store, ii, bt.Elt)
 	case *MapType:
 		if tv.V == nil {
@@ -2420,7 +2415,7 @@ func defaultTypedValue(alloc *Allocator, t Type) TypedValue {
 
 func typedInt(i int) TypedValue {
 	tv := TypedValue{T: IntType}
-	tv.SetInt(i)
+	tv.SetInt(int64(i))
 	return tv
 }
 

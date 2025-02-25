@@ -14,15 +14,16 @@ USAGE
   gno <command> [arguments]
 
 SUBCOMMANDS
-  bug    start a bug report
-  clean  remove generated and cached data
-  doc    show documentation for package or symbol
-  env    print gno environment information
-  fmt    gnofmt (reformat) package sources
-  mod    module maintenance
-  run    run gno packages
-  test   test packages
-  tool   run specified gno tool
+  bug      start a bug report
+  clean    remove generated and cached data
+  doc      show documentation for package or symbol
+  env      print gno environment information
+  fmt      gnofmt (reformat) package sources
+  mod      module maintenance
+  run      run gno packages
+  test     test packages
+  tool     run specified gno tool
+  version  display installed gno version
 
 ```
 

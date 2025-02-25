@@ -853,7 +853,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 				}
 			}
 
-			newCtx = auth.SetGasMeter(false, ctx, tx.Fee.GasWanted)
+			newCtx = auth.SetGasMeter(ctx, tx.Fee.GasWanted)
 
 			count := getTotalCount(tx)
 

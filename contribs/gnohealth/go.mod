@@ -1,6 +1,6 @@
 module github.com/gnolang/gno/contribs/gnohealth
 
-go 1.22.4
+go 1.23.6
 
 replace github.com/gnolang/gno => ../..
 
@@ -23,6 +23,7 @@ require (
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/sig-0/insertion-queue v0.0.0-20241004125609-6b3ca841346b // indirect
 	github.com/stretchr/testify v1.10.0 // indirect
+	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/otel v1.34.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.34.0 // indirect

@@ -63,40 +63,16 @@ Test5 was launched in November 2024.
 - **Versioning strategy**:
   - Test5 is to be release-based, following releases of the Gno tech stack.
 
-## Test4
-
-Test4 is the first permanent multi-node testnet, launched in July 2024.
-
-- **Persistence of state:**
-  - State is fully persisted unless there are breaking changes in a new release,
-    where persistence partly depends on implementing a migration strategy
-- **Timeliness of code:**
-  - Versioning mechanisms for packages & realms will be implemented for test4
-- **Intended purpose**
-  - Running a full node, testing validator coordination, deploying stable Gno
-    dApps, creating tools that require persisted state & transaction history
-- **Versioning strategy**:
-  - Test4 is the first gno.land testnet to be release-based, following releases
-of the Gno tech stack.
-
-## Staging
-
-Staging is a testnet that is reset once every 60 minutes.
-
-- **Persistence of state:**
-  - State is fully discarded
-- **Timeliness of code:**
-  - With every reset, the latest commit of the Gno tech stack is applied, including
-  the demo packages and realms
-- **Intended purpose**
-  - Demoing, single-use code in a staging environment, testing automation which
-  uploads code to the chain, etc.
-- **Versioning strategy**:
-  - Staging is reset every 60 minutes to match the latest monorepo commit
-
 ## TestX
 
 These testnets are deprecated and currently serve as archives of previous progress.
+
+## Test4
+
+Test4 is the first permanent multi-node testnet. Archived data for test4 can be found [here](https://github.com/gnolang/tx-exports/tree/main/test4.gno.land).
+
+Launch date: July 10th 2024
+Release commit: [194903d](https://github.com/gnolang/gno/commit/194903db0350ace7d57910e6c34125d3aa9817da)
 
 ### Test3 (archive)
 

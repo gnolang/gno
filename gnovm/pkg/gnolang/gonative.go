@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"unsafe"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 )
@@ -294,7 +295,7 @@ func Go2GnoNativeValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	return go2GnoValue(alloc, rv)
 }
 
-// NOTE: used by imports_test.go TestSetOrigCaller.
+// NOTE: used by imports_test.go TestSetOriginCaller.
 func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 	return gno2GoValue(tv, rv)
 }
@@ -331,7 +332,7 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	case reflect.String:
 		tv.V = alloc.NewString(rv.String())
 	case reflect.Int:
-		tv.SetInt(int(rv.Int()))
+		tv.SetInt(rv.Int())
 	case reflect.Int8:
 		tv.SetInt8(int8(rv.Int()))
 	case reflect.Int16:
@@ -341,7 +342,7 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	case reflect.Int64:
 		tv.SetInt64(rv.Int())
 	case reflect.Uint:
-		tv.SetUint(uint(rv.Uint()))
+		tv.SetUint(rv.Uint())
 	case reflect.Uint8:
 		tv.SetUint8(uint8(rv.Uint()))
 	case reflect.Uint16:
@@ -406,7 +407,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 		}
 	case IntKind:
 		if lvl != 0 {
-			tv.SetInt(int(rv.Int()))
+			tv.SetInt(rv.Int())
 		}
 	case Int8Kind:
 		if lvl != 0 {
@@ -426,7 +427,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 		}
 	case UintKind:
 		if lvl != 0 {
-			tv.SetUint(uint(rv.Uint()))
+			tv.SetUint(rv.Uint())
 		}
 	case Uint8Kind:
 		if lvl != 0 {
@@ -642,7 +643,7 @@ func go2GnoValue2(alloc *Allocator, store Store, rv reflect.Value, recursive boo
 	case reflect.String:
 		tv.V = alloc.NewString(rv.String())
 	case reflect.Int:
-		tv.SetInt(int(rv.Int()))
+		tv.SetInt(rv.Int())
 	case reflect.Int8:
 		tv.SetInt8(int8(rv.Int()))
 	case reflect.Int16:
@@ -652,7 +653,7 @@ func go2GnoValue2(alloc *Allocator, store Store, rv reflect.Value, recursive boo
 	case reflect.Int64:
 		tv.SetInt64(rv.Int())
 	case reflect.Uint:
-		tv.SetUint(uint(rv.Uint()))
+		tv.SetUint(rv.Uint())
 	case reflect.Uint8:
 		tv.SetUint8(uint8(rv.Uint()))
 	case reflect.Uint16:
@@ -784,9 +785,9 @@ func gno2GoType(t Type) reflect.Type {
 			return reflect.TypeOf(float32(0))
 		case Float64Type:
 			return reflect.TypeOf(float64(0))
-		case BigintType, UntypedBigintType:
+		case UntypedBigintType:
 			panic("not yet implemented")
-		case BigdecType, UntypedBigdecType:
+		case UntypedBigdecType:
 			panic("not yet implemented")
 		default:
 			panic("should not happen")
@@ -900,9 +901,9 @@ func gno2GoTypeMatches(t Type, rt reflect.Type) (result bool) {
 			return rt.Kind() == reflect.Float32
 		case Float64Type:
 			return rt.Kind() == reflect.Float64
-		case BigintType, UntypedBigintType:
+		case UntypedBigintType:
 			panic("not yet implemented")
-		case BigdecType, UntypedBigdecType:
+		case UntypedBigdecType:
 			panic("not yet implemented")
 		default:
 			panic("should not happen")
@@ -1043,7 +1044,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		case StringType, UntypedStringType:
 			rv.SetString(tv.GetString())
 		case IntType:
-			rv.SetInt(int64(tv.GetInt()))
+			rv.SetInt(tv.GetInt())
 		case Int8Type:
 			rv.SetInt(int64(tv.GetInt8()))
 		case Int16Type:
@@ -1053,7 +1054,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		case Int64Type:
 			rv.SetInt(tv.GetInt64())
 		case UintType:
-			rv.SetUint(uint64(tv.GetUint()))
+			rv.SetUint(tv.GetUint())
 		case Uint8Type:
 			rv.SetUint(uint64(tv.GetUint8()))
 		case Uint16Type:
@@ -1144,7 +1145,12 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 			if ftv.IsUndefined() {
 				continue
 			}
-			gno2GoValue(ftv, rv.Field(i))
+			fv := rv.Field(i)
+			if !fv.CanSet() {
+				// Normally private fields can not bet set via reflect. Override this limitation.
+				fv = reflect.NewAt(fv.Type(), unsafe.Pointer(fv.UnsafeAddr())).Elem()
+			}
+			gno2GoValue(ftv, fv)
 		}
 	case *MapType:
 		// If uninitialized map, return zero value.

@@ -160,7 +160,7 @@ func (p *peer) OnStop() {
 
 // ID returns the peer's ID - the hex encoded hash of its pubkey.
 func (p *peer) ID() types.ID {
-	return p.nodeInfo.PeerID
+	return p.nodeInfo.ID()
 }
 
 // NodeInfo returns a copy of the peer's NodeInfo.

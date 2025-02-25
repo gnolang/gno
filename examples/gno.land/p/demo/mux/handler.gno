@@ -7,6 +7,8 @@ type Handler struct {
 
 type HandlerFunc func(*ResponseWriter, *Request)
 
-// TODO: type ErrHandlerFunc func(*ResponseWriter, *Request) error
-// TODO: NotFoundHandler
+type ErrHandlerFunc func(*ResponseWriter, *Request) error
+
+type NotFoundHandler func(*ResponseWriter, *Request)
+
 // TODO: AutomaticIndex

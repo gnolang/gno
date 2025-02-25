@@ -42,7 +42,7 @@ func (privKey PrivKeyMock) Equals(other crypto.PrivKey) bool {
 
 func GenPrivKey() PrivKeyMock {
 	randstr := random.RandStr(12)
-	return PrivKeyMock([]byte(randstr))
+	return []byte(randstr)
 }
 
 // -------------------------------------

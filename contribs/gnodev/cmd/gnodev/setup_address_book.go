@@ -9,7 +9,7 @@ import (
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
-func setupAddressBook(logger *slog.Logger, cfg *devCfg) (*address.Book, error) {
+func setupAddressBook(logger *slog.Logger, cfg *AppConfig) (*address.Book, error) {
 	book := address.NewBook()
 
 	// Check for home folder
@@ -40,24 +40,24 @@ func setupAddressBook(logger *slog.Logger, cfg *devCfg) (*address.Book, error) {
 	}
 
 	// Ensure that we have a default address
-	names, ok := book.GetByAddress(DefaultDeployerAddress)
+	names, ok := book.GetByAddress(defaultDeployerAddress)
 	if ok {
 		// Account already exist in the keybase
 		if len(names) > 0 && names[0] != "" {
-			logger.Info("default address imported", "name", names[0], "addr", DefaultDeployerAddress.String())
+			logger.Info("default address imported", "name", names[0], "addr", defaultDeployerAddress.String())
 		} else {
-			logger.Info("default address imported", "addr", DefaultDeployerAddress.String())
+			logger.Info("default address imported", "addr", defaultDeployerAddress.String())
 		}
 		return book, nil
 	}
 
 	// If the key isn't found, create a default one
-	creatorName := fmt.Sprintf("_default#%.6s", DefaultDeployerAddress.String())
-	book.Add(DefaultDeployerAddress, creatorName)
+	creatorName := fmt.Sprintf("_default#%.6s", defaultDeployerAddress.String())
+	book.Add(defaultDeployerAddress, creatorName)
 
 	logger.Warn("default address created",
 		"name", creatorName,
-		"addr", DefaultDeployerAddress.String(),
+		"addr", defaultDeployerAddress.String(),
 		"mnemonic", DefaultDeployerSeed,
 	)
 

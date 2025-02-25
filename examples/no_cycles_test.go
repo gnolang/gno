@@ -19,7 +19,7 @@ import (
 
 // XXX: move this into `gno lint`
 
-var injectedTestingLibs = []string{"encoding/json", "fmt", "os", "internal/os_test"}
+var injectedTestingLibs = []string{"encoding/json", "fmt", "os", "os_test"}
 
 // TestNoCycles checks that there is no import cycles in stdlibs and non-draft examples
 func TestNoCycles(t *testing.T) {

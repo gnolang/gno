@@ -1,15 +1,13 @@
 run:
   concurrency: 8
   timeout: 10m
-  issue-exit-code: 1
+  issues-exit-code: 1
   tests: true
-  skip-dirs-use-default: true
   modules-download-mode: readonly
   allow-parallel-runners: false
   go: ""
 
 output:
-  uniq-by-line: false
   path-prefix: ""
   sort-results: true
 
@@ -55,7 +53,7 @@ linters-settings:
       - G306 # Expect WriteFile permissions to be 0600 or less
       - G115 # Integer overflow conversion, no solution to check the overflow in time of convert, so linter shouldn't check the overflow.
   stylecheck:
-    checks: [ "all", "-ST1022", "-ST1003" ]
+    checks: ["all", "-ST1022", "-ST1003"]
   errorlint:
     asserts: false
 
@@ -78,6 +76,8 @@ issues:
   max-same-issues: 0
   new: false
   fix: false
+  exclude-dirs-use-default: true
+  uniq-by-line: false
 
   exclude-rules:
     - path: _test\.go

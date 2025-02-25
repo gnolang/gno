@@ -50,10 +50,10 @@ func (m *Machine) doOpUneg() {
 		xv.SetFloat32(softfloat.Fneg32(xv.GetFloat32()))
 	case Float64Type:
 		xv.SetFloat64(softfloat.Fneg64(xv.GetFloat64()))
-	case UntypedBigintType, BigintType:
+	case UntypedBigintType:
 		bv := xv.V.(BigintValue)
 		xv.V = BigintValue{V: new(big.Int).Neg(bv.V)}
-	case UntypedBigdecType, BigdecType:
+	case UntypedBigdecType:
 		bv := xv.V.(BigdecValue)
 		xv.V = BigdecValue{V: apd.New(0, 0).Neg(bv.V)}
 	case nil:
@@ -112,7 +112,7 @@ func (m *Machine) doOpUxor() {
 		xv.SetUint32(^xv.GetUint32())
 	case Uint64Type:
 		xv.SetUint64(^xv.GetUint64())
-	case UntypedBigintType, BigintType:
+	case UntypedBigintType:
 		// XXX can it even be implemented?
 		panic("not yet implemented")
 	default:

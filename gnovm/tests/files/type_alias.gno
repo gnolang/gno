@@ -6,7 +6,8 @@ import "gno.land/p/demo/uassert"
 type TestingT = uassert.TestingT
 
 func main() {
-	println(TestingT)
+	println("ok")
 }
 
-// No need for output; not panicking is passing.
+// Output:
+// ok

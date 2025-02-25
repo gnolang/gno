@@ -13,7 +13,7 @@ import (
 var errNoChangesProposed = errors.New("no set changes proposed")
 
 // NewGovDAOExecutor creates the govdao wrapped callback executor
-func NewGovDAOExecutor(cb func() error) dao.Executor {
+func (_ DAO) NewGovDAOExecutor(cb func() error) dao.Executor {
 	if cb == nil {
 		panic(errNoChangesProposed)
 	}
@@ -25,7 +25,7 @@ func NewGovDAOExecutor(cb func() error) dao.Executor {
 }
 
 // NewMemberPropExecutor returns the GOVDAO member change executor
-func NewMemberPropExecutor(changesFn func() []membstore.Member) dao.Executor {
+func (_ DAO) NewMemberPropExecutor(changesFn func() []membstore.Member) dao.Executor {
 	if changesFn == nil {
 		panic(errNoChangesProposed)
 	}
@@ -65,10 +65,10 @@ func NewMemberPropExecutor(changesFn func() []membstore.Member) dao.Executor {
 		return errs
 	}
 
-	return NewGovDAOExecutor(callback)
+	return GovDAO.NewGovDAOExecutor(callback)
 }
 
-func NewMembStoreImplExecutor(changeFn func() membstore.MemberStore) dao.Executor {
+func (_ DAO) NewMembStoreImplExecutor(changeFn func() membstore.MemberStore) dao.Executor {
 	if changeFn == nil {
 		panic(errNoChangesProposed)
 	}
@@ -79,7 +79,7 @@ func NewMembStoreImplExecutor(changeFn func() membstore.MemberStore) dao.Executo
 		return nil
 	}
 
-	return NewGovDAOExecutor(callback)
+	return GovDAO.NewGovDAOExecutor(callback)
 }
 
 // setMembStoreImpl sets a new dao.MembStore implementation

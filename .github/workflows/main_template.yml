@@ -11,7 +11,7 @@ on:
         description: "Go version to use"
         required: false
         type: string
-        default: "1.22.x"
+        default: "1.23.x"
     secrets:
       codecov-token:
         required: true
@@ -39,4 +39,3 @@ jobs:
       tests-extra-args: ${{ inputs.tests-extra-args }}
     secrets:
       codecov-token: ${{ secrets.codecov-token }}
-    

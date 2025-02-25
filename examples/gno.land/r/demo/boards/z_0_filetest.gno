@@ -4,6 +4,9 @@ package boards_test
 // SEND: 20000000ugnot
 
 import (
+	"std"
+
+	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
 	"gno.land/r/demo/users"
 )
@@ -11,6 +14,8 @@ import (
 var bid boards.BoardID
 
 func init() {
+	caller := testutils.TestAddress("caller")
+	std.TestSetRealm(std.NewUserRealm(caller))
 	users.Register("", "gnouser", "my profile")
 
 	bid = boards.CreateBoard("test_board")
@@ -30,12 +35,12 @@ func main() {
 // ## [First Post (title)](/r/demo/boards:test_board/1)
 //
 // Body of the first post. (body)
-// \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm UTC](/r/demo/boards:test_board/1) \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=1&postid=1)] (0 replies) (0 reposts)
+// \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm UTC](/r/demo/boards:test_board/1) \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=1&threadid=1)] (0 replies) (0 reposts)
 //
 // ----------------------------------------
 // ## [Second Post (title)](/r/demo/boards:test_board/2)
 //
 // Body of the second post. (body)
-// \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm UTC](/r/demo/boards:test_board/2) \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=2&postid=2)] (1 replies) (0 reposts)
+// \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm UTC](/r/demo/boards:test_board/2) \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=2&threadid=2)] (1 replies) (0 reposts)
 //
 //

@@ -1,14 +1,12 @@
 module loop
 
-go 1.22.0
-
-toolchain go1.22.10
+go 1.23.6
 
 require (
 	github.com/docker/docker v25.0.6+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/gnolang/gno v0.1.0-nightly.20240627
-	github.com/gnolang/tx-archive v0.4.2
+	github.com/gnolang/tx-archive v0.5.0
 	github.com/prometheus/client_golang v1.17.0
 	github.com/sirupsen/logrus v1.9.3
 )
@@ -56,6 +54,7 @@ require (
 	github.com/sig-0/insertion-queue v0.0.0-20241004125609-6b3ca841346b // indirect
 	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
+	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	go.etcd.io/bbolt v1.3.11 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.59.0 // indirect

@@ -166,7 +166,7 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 
 		slices.ContainsFunc(resp.Peers, func(addr *types.NetAddress) bool {
 			for _, localP := range peers {
-				if localP.SocketAddr().Equals(*addr) {
+				if localP.NodeInfo().DialAddress().Equals(*addr) {
 					return true
 				}
 			}
@@ -317,7 +317,7 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 
 		slices.ContainsFunc(resp.Peers, func(addr *types.NetAddress) bool {
 			for _, localP := range peers {
-				if localP.SocketAddr().Equals(*addr) {
+				if localP.NodeInfo().DialAddress().Equals(*addr) {
 					return true
 				}
 			}
@@ -373,7 +373,7 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 		peerAddrs := make([]*types.NetAddress, 0, len(peers))
 
 		for _, p := range peers {
-			peerAddrs = append(peerAddrs, p.SocketAddr())
+			peerAddrs = append(peerAddrs, p.NodeInfo().DialAddress())
 		}
 
 		// Prepare the message

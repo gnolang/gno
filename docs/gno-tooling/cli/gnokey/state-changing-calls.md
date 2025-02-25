@@ -99,12 +99,11 @@ Next, let's configure the `addpkg` subcommand to publish this package to the
 the `example/p/` folder, the command will look like this:
 
 ```bash
-gnokey maketx addpkg \                                                                                                                                                                                          
+gnokey maketx addpkg \
 -pkgpath "gno.land/p/<your_namespace>/hello_world" \
 -pkgdir "." \
--send "" \
 -gas-fee 10000000ugnot \
--gas-wanted 8000000 \
+-gas-wanted 200000 \
 -broadcast \
 -chainid portal-loop \
 -remote "https://rpc.gno.land:443"
@@ -114,15 +113,14 @@ Once we have added a desired [namespace](../../../concepts/namespaces.md) to upl
 a keypair name to use to execute the transaction:
 
 ```bash
-gnokey maketx addpkg \                                                                                                                                                                                          
+gnokey maketx addpkg \
 -pkgpath "gno.land/p/examplenamespace/hello_world" \
 -pkgdir "." \
--send "" \
 -gas-fee 10000000ugnot \
 -gas-wanted 200000 \
 -broadcast \
 -chainid portal-loop \
--remote "https://rpc.gno.land:443"
+-remote "https://rpc.gno.land:443" \
 mykey
 ```
 

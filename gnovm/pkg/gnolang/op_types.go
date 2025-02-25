@@ -47,7 +47,7 @@ func (m *Machine) doOpArrayType() {
 				panic("unexpected untyped const type for array type len during runtime")
 			}
 		}
-		t.Len = lv.GetInt() // TODO lazy convert?
+		t.Len = int(lv.GetInt()) // TODO lazy convert?
 	}
 	tv := m.PeekValue(1) // re-use
 	t.Elt = tv.GetType()
@@ -239,7 +239,7 @@ func (m *Machine) doOpStaticTypeOf() {
 				dxt = xt
 			case 1:
 				dxt = baseOf(xt)
-				path.Depth = 0
+				path.SetDepth(0)
 			default:
 				panic("should not happen")
 			}
@@ -247,16 +247,16 @@ func (m *Machine) doOpStaticTypeOf() {
 			switch path.Depth {
 			case 0:
 				dxt = xt.Elem()
-				path.Depth = 0
+				path.SetDepth(0)
 			case 1:
 				dxt = xt.Elem()
-				path.Depth = 0
+				path.SetDepth(0)
 			case 2:
 				dxt = baseOf(xt.Elem())
-				path.Depth = 0
+				path.SetDepth(0)
 			case 3:
 				dxt = baseOf(xt.Elem())
-				path.Depth = 0
+				path.SetDepth(0)
 			default:
 				panic("should not happen")
 			}
@@ -265,19 +265,19 @@ func (m *Machine) doOpStaticTypeOf() {
 			case 0:
 				dxt = xt.Elem()
 				path.Type = VPField
-				path.Depth = 0
+				path.SetDepth(0)
 			case 1:
 				dxt = xt.Elem()
 				path.Type = VPField
-				path.Depth = 0
+				path.SetDepth(0)
 			case 2:
 				dxt = baseOf(xt.Elem())
 				path.Type = VPField
-				path.Depth = 0
+				path.SetDepth(0)
 			case 3:
 				dxt = baseOf(xt.Elem())
 				path.Type = VPField
-				path.Depth = 0
+				path.SetDepth(0)
 			default:
 				panic("should not happen")
 			}

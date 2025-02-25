@@ -24,7 +24,7 @@ const (
 	MaxBlockDataBytes int64 = 2000000 // 2MB
 
 	// MaxBlockMaxGas is the max gas limit for the block
-	MaxBlockMaxGas int64 = 100000000 // 100M gas
+	MaxBlockMaxGas int64 = 3000000000 // 3B gas
 
 	// BlockTimeIotaMS is the block time iota (in ms)
 	BlockTimeIotaMS int64 = 100 // ms

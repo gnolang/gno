@@ -13,7 +13,9 @@ Explore various examples to learn more about Gno functionality and usage.
 - [Source](/r/docs/source) - View realm source code.
 - [Buttons](/r/docs/buttons) - Add buttons to your realm's render.
 - [AVL Pager](/r/docs/avl_pager) - Paginate through AVL tree items.  
+- [AVL Pager + Render paths](/r/docs/avl_pager_params) - Handle render arguments with pagination.
 - [Img Embed](/r/docs/img_embed) - Demonstrates how to embed an image.
+- [Optional Render](/r/docs/optional_render) - Render() is optional in realms.
 - ...
 <!-- meta issue with suggestions: https://github.com/gnolang/gno/issues/3292 -->
 

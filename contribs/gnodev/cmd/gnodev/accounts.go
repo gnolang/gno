@@ -49,7 +49,7 @@ func (va varPremineAccounts) String() string {
 	return strings.Join(accs, ",")
 }
 
-func generateBalances(bk *address.Book, cfg *devCfg) (gnoland.Balances, error) {
+func generateBalances(bk *address.Book, cfg *AppConfig) (gnoland.Balances, error) {
 	bls := gnoland.NewBalances()
 	premineBalance := std.Coins{std.NewCoin(ugnot.Denom, 10e12)}
 

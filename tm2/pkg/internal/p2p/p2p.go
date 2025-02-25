@@ -70,12 +70,12 @@ func MakeConnectedPeers(
 			VersionSet: versionset.VersionSet{
 				versionset.VersionInfo{Name: "p2p", Version: "v0.0.0"},
 			},
-			PeerID:   key.ID(),
-			Network:  "testing",
-			Software: "p2ptest",
-			Version:  "v1.2.3-rc.0-deadbeef",
-			Channels: cfg.Channels,
-			Moniker:  fmt.Sprintf("node-%d", index),
+			NetAddress: addr,
+			Network:    "testing",
+			Software:   "p2ptest",
+			Version:    "v1.2.3-rc.0-deadbeef",
+			Channels:   cfg.Channels,
+			Moniker:    fmt.Sprintf("node-%d", index),
 			Other: p2pTypes.NodeInfoOther{
 				TxIndex:    "off",
 				RPCAddress: fmt.Sprintf("127.0.0.1:%d", 0),
@@ -231,7 +231,7 @@ func (mp *Peer) TrySend(_ byte, _ []byte) bool { return true }
 func (mp *Peer) Send(_ byte, _ []byte) bool    { return true }
 func (mp *Peer) NodeInfo() p2pTypes.NodeInfo {
 	return p2pTypes.NodeInfo{
-		PeerID: mp.id,
+		NetAddress: mp.addr,
 	}
 }
 func (mp *Peer) Status() conn.ConnectionStatus { return conn.ConnectionStatus{} }
