@@ -7,6 +7,7 @@ replace github.com/gnolang/gno => ../..
 require (
 	github.com/gnolang/gno v0.0.0-00010101000000-000000000000
 	github.com/google/uuid v1.6.0
+	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
 )
 
@@ -22,7 +23,6 @@ require (
 	github.com/peterbourgon/ff/v3 v3.4.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/zondax/hid v0.9.2 // indirect
