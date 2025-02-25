@@ -3,7 +3,8 @@
   font-style: normal;
   font-weight: 900;
   font-display: swap;
-  src: url("./fonts/roboto/roboto-mono-normal.woff2") format("woff2"), url("./fonts/roboto/roboto-mono-normal.woff") format("woff");
+  src: url("./fonts/roboto/roboto-mono-normal.woff2") format("woff2"),
+       url("./fonts/roboto/roboto-mono-normal.woff") format("woff");
 }
 
 @font-face {
@@ -32,60 +33,32 @@
   }
 
   html.dark {
-    @apply bg-dark text-gray-d400 text-200;
+    @apply bg-gray-d100 text-gray-d600 text-200;
   }
 
   svg {
     @apply max-w-full max-h-full;
   }
 
-  /* Dark mode base styles */
-  .dark .realm-view {
-    color: theme('colors.gray.d400');
+  ::-moz-selection {
+    @apply bg-green-600 text-light;
   }
-
-  .dark .realm-view a {
-    @apply text-green-d600 hover:text-green-d400;
+  ::selection {
+    @apply bg-green-600 text-light;
   }
-
-  .dark .realm-view h1,
-  .dark .realm-view h2,
-  .dark .realm-view h3,
-  .dark .realm-view h4 {
-    @apply text-gray-d600;
+  .dark ::-moz-selection {
+    @apply bg-green-d600 text-light;
   }
-
-  .dark .realm-view strong {
-    @apply text-gray-d600;
-  }
-
-  .dark .realm-view blockquote {
-    @apply border-l-4 border-gray-d200 text-gray-d400;
-  }
-
-  .dark .realm-view :not(pre) > code {
-    @apply bg-gray-d100 text-gray-d400;
-  }
-
-  .dark .realm-view pre {
-    @apply bg-gray-d50;
-  }
-
-  .dark .realm-view th {
-    @apply bg-gray-d100;
-  }
-
-  .dark .realm-view table {
-    @apply border-gray-d200;
-  }
-
-  .dark .realm-view th,
-  .dark .realm-view td {
-    @apply border-gray-d200;
+  .dark ::selection {
+    @apply bg-green-d600 text-light;
   }
 
   form {
     @apply my-0;
+  }
+
+  main :is(h1, h2, h3, h4) {
+    @apply scroll-mt-24;
   }
 
   .realm-view {
@@ -99,7 +72,7 @@
   .realm-view a {
     @apply text-green-600 font-medium hover:underline;
   }
-
+  
   .realm-view h1,
   .realm-view h2,
   .realm-view h3,
@@ -171,6 +144,22 @@
     @apply mb-2;
   }
 
+  .realm-view ul ul,
+  .realm-view ul ol,
+  .realm-view ol ul,
+  .realm-view ol ol {
+    @apply mt-3 mb-2 pl-4;
+  }
+
+  .realm-view ul {
+    @apply list-disc;
+  }
+
+  .realm-view ol {
+    @apply list-decimal;
+  }
+
+  /* Images et médias */
   .realm-view img {
     @apply max-w-full my-8;
   }
@@ -183,6 +172,10 @@
     @apply text-100 text-gray-600;
   }
 
+  .realm-view video {
+    @apply max-w-full my-8;
+  }
+
   .realm-view :not(pre) > code {
     @apply bg-gray-100 px-1 py-0.5 rounded-sm text-[.96em] font-mono;
   }
@@ -191,8 +184,8 @@
     @apply bg-gray-50 p-4 rounded overflow-x-auto font-mono;
   }
 
-  .realm-view hr {
-    @apply border-t border-gray-100 my-10;
+  .realm-view a code {
+    @apply text-inherit;
   }
 
   .realm-view table {
@@ -224,21 +217,6 @@
     content: close-quote;
   }
 
-  .realm-view ul ul,
-  .realm-view ul ol,
-  .realm-view ol ul,
-  .realm-view ol ol {
-    @apply mt-3 mb-2 pl-4;
-  }
-
-  .realm-view ul {
-    @apply list-disc;
-  }
-
-  .realm-view ol {
-    @apply list-decimal;
-  }
-
   .realm-view abbr[title] {
     @apply border-b border-dotted cursor-help;
   }
@@ -249,14 +227,6 @@
 
   .realm-view summary {
     @apply font-bold cursor-pointer;
-  }
-
-  .realm-view a code {
-    @apply text-inherit;
-  }
-
-  .realm-view video {
-    @apply max-w-full my-8;
   }
 
   .realm-view math {
@@ -284,37 +254,70 @@
     @apply px-4 py-2 border border-gray-300;
   }
 
-  main :is(h1, h2, h3, h4) {
-    @apply scroll-mt-24;
+  .realm-view hr {
+    @apply border-t border-gray-100 my-10;
   }
 
-  ::-moz-selection {
-    @apply bg-green-600 text-light;
+  .dark .realm-view {
+    color: theme('colors.gray.d800');
   }
-  ::selection {
-    @apply bg-green-600 text-light;
+
+  .dark .realm-view a {
+    @apply text-green-d600 hover:text-green-d400;
+  }
+
+  .dark .realm-view h1,
+  .dark .realm-view h2,
+  .dark .realm-view h3,
+  .dark .realm-view h4 {
+    @apply text-gray-d800;
+  }
+
+  .dark .realm-view strong {
+    @apply text-gray-d600;
+  }
+
+  .dark .realm-view blockquote {
+    @apply border-l-4 border-gray-d200 text-gray-d400;
+  }
+
+  .dark .realm-view :not(pre) > code {
+    @apply bg-gray-d100 text-gray-d400;
+  }
+
+  .dark .realm-view pre {
+    @apply bg-gray-d50;
+  }
+
+  .dark .realm-view th {
+    @apply bg-gray-d100;
+  }
+
+  .dark .realm-view table,
+  .dark .realm-view th,
+  .dark .realm-view td {
+    @apply border-gray-d200;
   }
 }
 
 @layer components {
-  /* Dark mode component variants */
+   /* header */
+  .main-header {
+    @apply bg-light border-gray-100 text-gray-600;
+  }
+  
   .dark .main-header {
     @apply bg-dark border-gray-d100 text-gray-d400;
   }
 
+  .sidemenu {
+    @apply text-gray-600;
+  }
+  
   .dark .sidemenu {
-    @apply text-gray-d400 ;
+    @apply text-gray-d400;
   }
   
-  .dark main {
-    @apply bg-dark;
-  }
-
-  .dark .dev-mode {
-    @apply bg-gray-d50;
-  }
-  
-  /* header */
   .sidemenu .peer:checked + label > svg {
     @apply text-green-600;
   }
@@ -322,17 +325,60 @@
   .dark .sidemenu .peer:checked + label > svg {
     @apply text-green-d600;
   }
+  
+  /* main content */
+  main {
+    @apply bg-light;
+  }
+  
+  .dark main {
+    @apply bg-gray-d100;
+  }
 
+  .dev-mode {
+    @apply bg-gray-50;
+  }
+  
+  .dark .dev-mode {
+    @apply bg-gray-d50;
+  }
+  
   /* toc */
+  .dev-mode .toc-expend-btn {
+    @apply bg-gray-100 hover:bg-gray-50 cursor-pointer border lg:border-none lg:bg-transparent;
+  }
+
+  .dev-mode #sidebar-summary {
+    @apply bg-light lg:bg-transparent;
+  }
+  
+  .dark .dev-mode #sidebar-summary {
+    @apply bg-gray-d100 lg:bg-transparent;
+  }
+  
+  .dev-mode .toc-nav {
+    @apply font-mono;
+  }
+
+    /* toc */
   .toc-expend-btn:has(#toc-expend:checked) + nav {
     @apply block;
   }
+  
   .toc-expend-btn:has(#toc-expend:checked) .toc-expend-btn_ico {
     @apply rotate-180;
   }
-
+  
+  .toc-nav a {
+    @apply text-gray-900;
+  }
+  
+  .toc-nav a:hover {
+    @apply text-green-600;
+  }
+  
   .dark .toc-nav a {
-    @apply text-gray-d400;
+    @apply text-gray-d800;
   }
   
   .dark .toc-nav a:hover {
@@ -351,18 +397,21 @@
   :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) .main-navigation {
     @apply md:col-span-6;
   }
+  
   :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) + main #sidebar,
   :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) .sidemenu {
     @apply md:col-span-4;
   }
+  
   :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) + main #sidebar::before {
     @apply absolute block content-[''] top-0 w-[50vw] h-full -left-7 bg-gray-100 z-min;
   }
 
-  /* chroma */
+   /* chroma */
   main :is(.source-code) > pre {
-    @apply !bg-light overflow-scroll rounded py-4 md:py-8 px-1 md:px-3 font-mono text-100 md:text-200;
+    @apply !bg-light overflow-scroll dark:!bg-gray-d400 rounded py-4 md:py-8 px-1 md:px-3 font-mono text-100 md:text-200;
   }
+  
   main .realm-view > pre a {
     @apply hover:no-underline;
   }
@@ -370,24 +419,16 @@
   main :is(.realm-view, .source-code) > pre .chroma-ln:target {
     @apply !bg-transparent;
   }
+  
   main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-ln:target),
   main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-lnlinks:hover),
   main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-ln:target) .chroma-cl,
   main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-lnlinks:hover) .chroma-cl {
-    @apply !bg-gray-100 rounded;
+    @apply !bg-gray-100 dark:!bg-gray-d300 rounded;
   }
+  
   main :is(.realm-view, .source-code) > pre .chroma-ln {
     @apply scroll-mt-24;
-  }
-
-  .dev-mode .toc-expend-btn {
-    @apply bg-gray-100 hover:bg-gray-50 cursor-pointer border lg:border-none lg:bg-transparent;
-  }
-  .dev-mode #sidebar-summary {
-    @apply bg-light lg:bg-transparent;
-  }
-  .dev-mode .toc-nav {
-    @apply font-mono;
   }
 }
 
@@ -397,7 +438,7 @@
   }
 
   .quotes {
-    @apply italic-subtle text-[#555] border-l-4 border-l-[#ccc] pl-4 my-6 [quotes:"“"_"”"_"‘"_"’"];
+    @apply italic-subtle text-[#555] border-l-4 border-l-[#ccc] pl-4 my-6 [quotes:"""_"""_"'"_"'"];
   }
 
   .quotes::before,
@@ -417,6 +458,7 @@
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+  
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
