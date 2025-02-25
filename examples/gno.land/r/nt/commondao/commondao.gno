@@ -15,11 +15,11 @@ var (
 	daos      = avl.NewTree() // string(ID) -> *commondao.CommonDAO
 	ownership = avl.NewTree() // string(std.Address) -> []uint64(DAO ID)
 	invites   = avl.NewTree() // string(std.Address) -> std.Address(inviter)
-	trees     = avl.NewTree() // string(root ID + ":" + path) -> *commondao.CommonDAO
+	trees     = avl.NewTree() // string(root ID) -> avl.Tree(string(path) -> *commondao.CommonDAO)
 )
 
 func getDAO(daoID uint64) *commondao.CommonDAO {
-	key := seqid.ID(daoID).String()
+	key := makeIDKey(daoID)
 	if v, found := daos.Get(key); found {
 		return v.(*commondao.CommonDAO)
 	}
@@ -35,8 +35,12 @@ func mustGetDAO(daoID uint64) *commondao.CommonDAO {
 }
 
 func getSubDAO(rootID uint64, path string) *commondao.CommonDAO {
-	key := makeTreesKey(rootID, path)
-	if v, found := trees.Get(key); found {
+	tree := getTree(rootID)
+	if tree == nil {
+		return nil
+	}
+
+	if v, found := tree.Get(path); found {
 		return v.(*commondao.CommonDAO)
 	}
 	return nil
@@ -50,6 +54,14 @@ func mustGetSubDAO(rootID uint64, path string) *commondao.CommonDAO {
 	return dao
 }
 
+func getTree(rootID uint64) *avl.Tree {
+	key := makeIDKey(rootID)
+	if v, found := trees.Get(key); found {
+		return v.(*avl.Tree)
+	}
+	return nil
+}
+
 func getOwnership(addr std.Address) []uint64 {
 	if v, ok := ownership.Get(addr.String()); ok {
 		return v.([]uint64)
@@ -57,6 +69,6 @@ func getOwnership(addr std.Address) []uint64 {
 	return nil
 }
 
-func makeTreesKey(rootID uint64, path string) string {
-	return seqid.ID(rootID).String() + ":" + path
+func makeIDKey(daoID uint64) string {
+	return seqid.ID(daoID).String()
 }

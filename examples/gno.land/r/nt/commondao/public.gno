@@ -5,6 +5,7 @@ import (
 	"std"
 	"strings"
 
+	"gno.land/p/demo/avl"
 	"gno.land/p/nt/commondao"
 )
 
@@ -70,12 +71,19 @@ func NewSubDAO(name, slug string, parent *commondao.CommonDAO) *commondao.Common
 		commondao.WithSlug(slug),
 	)
 
-	key := makeTreesKey(parent.TopParent().ID(), dao.Path())
-	if trees.Has(key) {
+	parentID := parent.TopParent().ID()
+	tree := getTree(parentID)
+	if tree == nil {
+		tree = avl.NewTree()
+		trees.Set(makeIDKey(parentID), tree)
+	}
+
+	path := dao.Path()
+	if tree.Has(path) {
 		panic("subDAO slug is already taken")
 	}
 
-	trees.Set(key, dao)
+	tree.Set(path, dao)
 
 	return dao
 }
