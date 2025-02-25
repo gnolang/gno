@@ -2,6 +2,7 @@ package boards2
 
 import (
 	"net/url"
+	"std"
 	"strconv"
 	"strings"
 
@@ -69,8 +70,11 @@ func renderBoardListMenu(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write("\n\n")
 
 	if menu == menuMembership {
+		path := strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land")
+
 		res.Write("↳")
 		res.Write(newButtonLink("invite", txlink.Call("InviteMember", "boardID", "0")) + " ")
+		res.Write(newButtonLink("members", path+":members") + " ")
 		res.Write(newButtonLink("remove member", txlink.Call("RemoveMember", "boardID", "0")) + " ")
 		res.Write(newButtonLink("change member role", txlink.Call("ChangeMemberRole", "boardID", "0")) + "\n\n")
 	}
@@ -120,6 +124,7 @@ func renderBoardMenu(board *Board, res *mux.ResponseWriter, req *mux.Request) {
 		res.Write(newButtonLink("change flagging threshold", board.GetFlaggingThresholdFormURL()) + "\n\n")
 	case menuMembership:
 		res.Write(newButtonLink("invite", board.GetInviteMemberFormURL()) + " ")
+		res.Write(newButtonLink("members", board.GetPath()+"/members") + " ")
 		res.Write(newButtonLink("remove member", board.GetRemoveMemberFormURL()) + " ")
 		res.Write(newButtonLink("change member role", board.GetChangeMemberRoleFormURL()) + "\n\n")
 	}

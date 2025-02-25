@@ -110,16 +110,11 @@ func (board *Board) DeleteThread(pid PostID) {
 //
 // Pager is used for pagination if it's not nil.
 func (board *Board) Render(p *PaginationOpts) string {
-	var sb strings.Builder
-
-	sb.WriteString(newButtonLink("post", board.GetPostFormURL()) + " ")
-	sb.WriteString(newButtonLink("members", board.GetMembersURL()))
-	sb.WriteString("\n\n")
-
 	if board.threads.Size() == 0 {
-		sb.WriteString("*This board doesn't have any threads.*")
-		return sb.String()
+		return "*This board doesn't have any threads.*"
 	}
+
+	var sb strings.Builder
 
 	page := p.Iterate(&board.threads, func(_ string, v interface{}) bool {
 		p := v.(*Post)
