@@ -8,9 +8,10 @@ import "fmt"
 // (optionally?) condensed (objects to be GC'd will be discarded),
 // but for now, allocations strictly increment across the whole tx.
 type Allocator struct {
-	m        *Machine
-	maxBytes int64
-	bytes    int64
+	m          *Machine
+	maxBytes   int64
+	bytes      int64
+	allocCount int64 // times allocation is triggered for garbage collection
 }
 
 // for gonative, which doesn't consider the allocator.
