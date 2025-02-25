@@ -229,13 +229,15 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	}
 
 	// Initialize telemetry
+	// TODO: handle shutdown func
 	if err := telemetry.Init(*cfg.Telemetry); err != nil {
 		return fmt.Errorf("unable to initialize telemetry, %w", err)
 	}
 
-	tracer := otel.Tracer("gnoland")
-	_, parentSpan := tracer.Start(context.Background(), "Mainfunc")
-	defer parentSpan.End()
+	tracer := otel.Tracer("Main tracer")
+	_, span := tracer.Start(context.Background(), "hello")
+	time.Sleep(1 * time.Second)
+	span.End()
 
 	// Print the starting graphic
 	if c.logFormat != string(log.JSONFormat) {
