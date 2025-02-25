@@ -820,7 +820,7 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"testing",
-		"testSetContext",
+		"setContext",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("bool")},
 			{Name: gno.N("p1"), Type: gno.X("string")},
@@ -883,7 +883,7 @@ var nativeFuncs = [...]NativeFunc{
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 11, "")).TV, rp11)
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 12, "")).TV, rp12)
 
-			libs_testing.X_testSetContext(
+			libs_testing.X_setContext(
 				m,
 				p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12)
 		},

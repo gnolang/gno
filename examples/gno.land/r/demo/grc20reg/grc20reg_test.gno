@@ -10,7 +10,7 @@ import (
 )
 
 func TestRegistry(t *testing.T) {
-	t.SetRealm(std.NewCodeRealm("gno.land/r/demo/foo"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/foo"))
 	realmAddr := std.CurrentRealm().PkgPath()
 	token, ledger := grc20.NewToken("TestToken", "TST", 4)
 	ledger.Mint(std.CurrentRealm().Address(), 1234567)

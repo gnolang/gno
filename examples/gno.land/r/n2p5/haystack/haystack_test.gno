@@ -30,14 +30,14 @@ func TestHaystack(t *testing.T) {
 		n2, _ := genNeedleHex(2)
 		n3, _ := genNeedleHex(3)
 
-		t.SetOriginCaller(u1)
+		testing.SetOriginCaller(u1)
 		urequire.NotPanics(t, func() { Add(n1) })
 		urequire.PanicsWithMessage(t,
 			haystack.ErrorDuplicateNeedle.Error(),
 			func() {
 				Add(n1)
 			})
-		t.SetOriginCaller(u2)
+		testing.SetOriginCaller(u2)
 		urequire.NotPanics(t, func() { Add(n2) })
 		urequire.NotPanics(t, func() { Add(n3) })
 	})
@@ -48,14 +48,14 @@ func TestHaystack(t *testing.T) {
 		n1, h1 := genNeedleHex(4)
 		_, h2 := genNeedleHex(5)
 
-		t.SetOriginCaller(u1)
+		testing.SetOriginCaller(u1)
 		urequire.NotPanics(t, func() { Add(n1) })
 		urequire.NotPanics(t, func() {
 			result := Get(h1)
 			urequire.Equal(t, n1, result)
 		})
 
-		t.SetOriginCaller(u2)
+		testing.SetOriginCaller(u2)
 		urequire.NotPanics(t, func() {
 			result := Get(h1)
 			urequire.Equal(t, n1, result)

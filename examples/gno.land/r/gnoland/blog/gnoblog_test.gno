@@ -7,7 +7,7 @@ import (
 )
 
 func TestPackage(t *testing.T) {
-	t.SetOriginCaller(std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
+	testing.SetOriginCaller(std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
 	// by default, no posts.
 	{
 		got := Render("")

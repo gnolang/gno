@@ -28,7 +28,7 @@ func TestBridge_DAO(t *testing.T) {
 
 func TestBridge_LoadGovDAO(t *testing.T) {
 	t.Run("invalid initializer path", func(t *testing.T) {
-		t.SetRealm(std.NewCodeRealm("gno.land/r/demo/init")) // invalid loader
+		testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/init")) // invalid loader
 
 		// Attempt to set a new DAO implementation
 		uassert.PanicsWithMessage(t, "unauthorized", func() {
@@ -47,7 +47,7 @@ func TestBridge_LoadGovDAO(t *testing.T) {
 			}
 		)
 
-		t.SetRealm(std.NewCodeRealm(initializer))
+		testing.SetRealm(std.NewCodeRealm(initializer))
 
 		// Attempt to set a new DAO implementation
 		uassert.NotPanics(t, func() {
@@ -82,7 +82,7 @@ func TestBridge_SetDAO(t *testing.T) {
 			}
 		)
 
-		t.SetOriginCaller(addr)
+		testing.SetOriginCaller(addr)
 
 		Ownable = ownable.NewWithAddress(addr)
 

@@ -44,7 +44,7 @@ func TestValidators_AddRemove(t *testing.T) {
 		// Make sure the validator is added
 		uassert.True(t, vp.IsValidator(val.Address))
 
-		t.SkipHeights(1)
+		testing.SkipHeights(1)
 	}
 
 	for i := initialHeight; i < initialHeight+int64(len(vals)); i++ {
@@ -78,7 +78,7 @@ func TestValidators_AddRemove(t *testing.T) {
 		// Make sure the validator is removed
 		uassert.False(t, vp.IsValidator(val.Address))
 
-		t.SkipHeights(1)
+		testing.SkipHeights(1)
 	}
 
 	for i := initialRemoveHeight; i < initialRemoveHeight+int64(len(vals)); i++ {

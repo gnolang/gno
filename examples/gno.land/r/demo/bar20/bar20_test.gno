@@ -9,7 +9,7 @@ import (
 
 func TestPackage(t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	t.SetOriginCaller(alice)
+	testing.SetOriginCaller(alice)
 
 	urequire.Equal(t, UserTeller.BalanceOf(alice), uint64(0))
 	urequire.Equal(t, Faucet(), "OK")
