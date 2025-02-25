@@ -20,7 +20,7 @@ Same as [`tm2-js-client` `WSProvider`](../tm2-js-client/Provider/ws-provider.md)
 #### Usage
 
 ```ts
-new GnoWSProvider('ws://staging.gno.land:26657/ws');
+new GnoWSProvider('ws://gno.land:443/ws');
 // provider with WS connection is created
 ```
 
@@ -35,7 +35,7 @@ Same as [`tm2-js-client` `JSONRPCProvider`](../tm2-js-client/Provider/json-rpc-p
 #### Usage
 
 ```ts
-new GnoJSONRPCProvider('http://staging.gno.land:36657');
+new GnoJSONRPCProvider('http://gno.land:443');
 // provider is created
 ```
 
