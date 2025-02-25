@@ -42,13 +42,13 @@ export default {
         800: "#131313", // Background dark color
         900: "#080809", // Title color
         // dark mode grays
-        d50: "#1A1A1A",    // Background color (très sombre)
-        d100: "#2C2C2C",   // Title dark color (gris très foncé)
-        d200: "#404040",   // Content dark color (gris foncé)
-        d300: "#5C5C5C",   // Muted color (gris moyen)
-        d400: "#777777",   // Border color (gris moyen-clair)
-        d600: "#A0A0A0",   // Content color (gris clair)
-        d800: "#D0D0D0",   // Background light color (gris très clair)
+        d50: "#1A1A1A",    // Background color 
+        d100: "#2C2C2C",   // Title dark color 
+        d200: "#404040",   // Content dark color 
+        d300: "#5C5C5C",   // Muted color 
+        d400: "#777777",   // Border color 
+        d600: "#A0A0A0",   // Content color 
+        d800: "#D0D0D0",   // Background light color 
         d900: "#F0F0F0"    // Blanc cassé
       },
       green: {
