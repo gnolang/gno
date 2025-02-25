@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/doc"
 	"go/format"
+	"go/token"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm"
@@ -92,128 +93,59 @@ func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
 	}
 
 	for _, value := range pkg.Consts {
-		buf := new(strings.Builder)
-		if err := format.Node(buf, d.pkgData.fset, value.Decl); err != nil {
-			return nil, err
-		}
-
-		values, err := d.extractValueSpecs(pkg, value.Decl.Specs)
-		if err != nil {
-			return nil, err
-		}
-
 		jsonDoc.Values = append(jsonDoc.Values, &JSONValueDecl{
-			Signature: buf.String(),
+			Signature: mustFormatNode(d.pkgData.fset, value.Decl),
 			Const:     true,
-			Values:    values,
+			Values:    d.extractValueSpecs(pkg, value.Decl.Specs),
 			Doc:       string(pkg.Markdown(value.Doc)),
 		})
 	}
 
 	for _, value := range pkg.Vars {
-		buf := new(strings.Builder)
-		if err := format.Node(buf, d.pkgData.fset, value.Decl); err != nil {
-			return nil, err
-		}
-
-		values, err := d.extractValueSpecs(pkg, value.Decl.Specs)
-		if err != nil {
-			return nil, err
-		}
-
 		jsonDoc.Values = append(jsonDoc.Values, &JSONValueDecl{
-			Signature: buf.String(),
+			Signature: mustFormatNode(d.pkgData.fset, value.Decl),
 			Const:     false,
-			Values:    values,
+			Values:    d.extractValueSpecs(pkg, value.Decl.Specs),
 			Doc:       string(pkg.Markdown(value.Doc)),
 		})
 	}
 
 	for _, fun := range pkg.Funcs {
-		buf := new(strings.Builder)
-		if err := format.Node(buf, d.pkgData.fset, fun.Decl); err != nil {
-			return nil, err
-		}
-
-		params, err := d.extractFuncParams(fun)
-		if err != nil {
-			return nil, err
-		}
-
-		results, err := d.extractFuncResults(fun)
-		if err != nil {
-			return nil, err
-		}
-
 		jsonDoc.Funcs = append(jsonDoc.Funcs, &JSONFunc{
 			Name:      fun.Name,
-			Signature: buf.String(),
+			Signature: mustFormatNode(d.pkgData.fset, fun.Decl),
 			Doc:       string(pkg.Markdown(fun.Doc)),
-			Params:    params,
-			Results:   results,
+			Params:    d.extractFuncParams(fun),
+			Results:   d.extractFuncResults(fun),
 		})
 	}
 
 	for _, typ := range pkg.Types {
-		buf := new(strings.Builder)
-		if err := format.Node(buf, d.pkgData.fset, typ.Decl); err != nil {
-			return nil, err
-		}
 		jsonDoc.Types = append(jsonDoc.Types, &JSONType{
 			Name:      typ.Name,
-			Signature: buf.String(),
+			Signature: mustFormatNode(d.pkgData.fset, typ.Decl),
 			Doc:       string(pkg.Markdown(typ.Doc)),
 		})
 
 		// constructors for this type
 		for _, fun := range typ.Funcs {
-			buf := new(strings.Builder)
-			if err := format.Node(buf, d.pkgData.fset, fun.Decl); err != nil {
-				return nil, err
-			}
-
-			params, err := d.extractFuncParams(fun)
-			if err != nil {
-				return nil, err
-			}
-
-			results, err := d.extractFuncResults(fun)
-			if err != nil {
-				return nil, err
-			}
-
 			jsonDoc.Funcs = append(jsonDoc.Funcs, &JSONFunc{
 				Name:      fun.Name,
-				Signature: buf.String(),
+				Signature: mustFormatNode(d.pkgData.fset, fun.Decl),
 				Doc:       string(pkg.Markdown(fun.Doc)),
-				Params:    params,
-				Results:   results,
+				Params:    d.extractFuncParams(fun),
+				Results:   d.extractFuncResults(fun),
 			})
 		}
 
 		for _, meth := range typ.Methods {
-			buf := new(strings.Builder)
-			if err := format.Node(buf, d.pkgData.fset, meth.Decl); err != nil {
-				return nil, err
-			}
-
-			params, err := d.extractFuncParams(meth)
-			if err != nil {
-				return nil, err
-			}
-
-			results, err := d.extractFuncResults(meth)
-			if err != nil {
-				return nil, err
-			}
-
 			jsonDoc.Funcs = append(jsonDoc.Funcs, &JSONFunc{
 				Type:      typ.Name,
 				Name:      meth.Name,
-				Signature: buf.String(),
+				Signature: mustFormatNode(d.pkgData.fset, meth.Decl),
 				Doc:       string(pkg.Markdown(meth.Doc)),
-				Params:    params,
-				Results:   results,
+				Params:    d.extractFuncParams(meth),
+				Results:   d.extractFuncResults(meth),
 			})
 		}
 	}
@@ -221,73 +153,60 @@ func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
 	return jsonDoc, nil
 }
 
-func (d *Documentable) extractFuncParams(fun *doc.Func) ([]*JSONField, error) {
+func (d *Documentable) extractFuncParams(fun *doc.Func) []*JSONField {
 	params := []*JSONField{}
 	for _, param := range fun.Decl.Type.Params.List {
-		buf := new(strings.Builder)
-		if err := format.Node(buf, d.pkgData.fset, param.Type); err != nil {
-			return nil, err
-		}
-
 		// parameters can be of the format: (a, b int, c string)
 		// so we need to iterate over the names
 		for _, name := range param.Names {
 			field := &JSONField{
 				Name: name.Name,
-				Type: buf.String(),
+				Type: mustFormatNode(d.pkgData.fset, param.Type),
 			}
 
 			params = append(params, field)
 		}
 	}
 
-	return params, nil
+	return params
 }
 
-func (d *Documentable) extractFuncResults(fun *doc.Func) ([]*JSONField, error) {
+func (d *Documentable) extractFuncResults(fun *doc.Func) []*JSONField {
 	results := []*JSONField{}
 	if fun.Decl.Type.Results != nil {
 		for _, result := range fun.Decl.Type.Results.List {
-			buf := new(strings.Builder)
-			if err := format.Node(buf, d.pkgData.fset, result.Type); err != nil {
-				return nil, err
-			}
-
-			// results can be of the format: (a, b int, c string)
-			// so we need to iterate over the names
-			for _, name := range result.Names {
-				result := &JSONField{
-					Name: name.Name,
-					Type: buf.String(),
-				}
-
-				results = append(results, result)
-			}
-
-			// if there are no names, then the result is an unnamed return
 			if len(result.Names) == 0 {
+				// if there are no names, then the result is an unnamed return
 				result := &JSONField{
 					Name: "",
-					Type: buf.String(),
+					Type: mustFormatNode(d.pkgData.fset, result.Type),
 				}
 				results = append(results, result)
+			} else {
+				// results can be of the format: (a, b int, c string)
+				// so we need to iterate over the names
+				for _, name := range result.Names {
+					result := &JSONField{
+						Name: name.Name,
+						Type: mustFormatNode(d.pkgData.fset, result.Type),
+					}
+					results = append(results, result)
+				}
 			}
 		}
 	}
-	return results, nil
+	return results
 }
 
-func (d *Documentable) extractValueSpecs(pkg *doc.Package, specs []ast.Spec) ([]*JSONValue, error) {
+func (d *Documentable) extractValueSpecs(pkg *doc.Package, specs []ast.Spec) []*JSONValue {
 	values := []*JSONValue{}
 
 	for _, value := range specs {
 		constSpec := value.(*ast.ValueSpec)
-		buf := new(strings.Builder)
 
+		typeString := ""
 		if constSpec.Type != nil {
-			if err := format.Node(buf, d.pkgData.fset, constSpec.Type); err != nil {
-				return nil, err
-			}
+			typeString = mustFormatNode(d.pkgData.fset, constSpec.Type)
 		}
 
 		commentBuf := new(strings.Builder)
@@ -302,13 +221,23 @@ func (d *Documentable) extractValueSpecs(pkg *doc.Package, specs []ast.Spec) ([]
 		for _, name := range constSpec.Names {
 			jsonValue := &JSONValue{
 				Name: name.Name,
-				Type: buf.String(),
+				Type: typeString,
 				Doc:  string(pkg.Markdown(commentBuf.String())),
 			}
 			values = append(values, jsonValue)
 		}
 	}
-	return values, nil
+	return values
+}
+
+// mustFormatNode calls format.Node and returns the result as a string.
+// Panic on error, which shouldn't happen since the node is a valid AST from pkgData.parseFile.
+func mustFormatNode(fset *token.FileSet, node any) string {
+	buf := new(strings.Builder)
+	if err := format.Node(buf, fset, node); err != nil {
+		panic("Error in format.Node: " + err.Error())
+	}
+	return buf.String()
 }
 
 func (jsonDoc *JSONDocumentation) JSON() string {
