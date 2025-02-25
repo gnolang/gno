@@ -40,15 +40,12 @@ func CreateEvent(name, description, dateStr string, paymentToken interface{}, ma
 		panic("Invalid date format. Use: YYYY-MM-DDThh:mm:ssZ")
 	}
 
-	// Validate payment token
 	switch pt := paymentToken.(type) {
 	case string:
-		// Native token (e.g., "ugnot")
 		if pt != "ugnot" {
 			panic("Unsupported native token")
 		}
 	case grc20.Teller:
-		// GRC20 token
 		if pt == nil {
 			panic("Invalid GRC20 token")
 		}
@@ -94,7 +91,6 @@ func BuyTicket(eventId uint64) {
 
 	switch pt := event.paymentToken.(type) {
 	case string:
-		// Handle native token payment
 		if pt != "ugnot" {
 			panic("Unsupported native token")
 		}
@@ -105,7 +101,6 @@ func BuyTicket(eventId uint64) {
 		}
 
 	case grc20.Teller:
-		// Handle GRC20 payment
 		if err := pt.TransferFrom(buyer, std.CurrentRealm().Addr(), event.price); err != nil {
 			panic("GRC20 payment failed: " + err.Error())
 		}
@@ -124,14 +119,7 @@ func BuyTicket(eventId uint64) {
 func Render(path string) string {
 	output := "# Event Ticketing System\n\n"
 	
-	page := 1
-	if path != "" {
-		if p, err := strconv.Atoi(path); err == nil {
-			page = p
-		}
-	}
-
-	pg := pager.NewPager(events, 10, true).GetPage(page)
+	pg := pager.NewPager(events, 10, true).MustGetPageByPath(path)
 	
 	for _, item := range pg.Items {
 		id, _ := strconv.ParseUint(item.Key, 10, 64)
@@ -141,7 +129,7 @@ func Render(path string) string {
 		output += ufmt.Sprintf("Description: %s\n", event.description)
 		output += ufmt.Sprintf("Date: %s\n", event.date.Format(time.RFC3339))
 		output += ufmt.Sprintf("Tickets: %d/%d\n", event.ticketsSold, event.maxTickets)
-		output += ufmt.Sprintf("Price: %d %s\n\n", event.price, event.paymentToken)
+		output += ufmt.Sprintf("Price: %d %v\n\n", event.price, event.paymentToken)
 	
 		if event.ticketsSold < event.maxTickets {
 			output += ufmt.Sprintf("[Buy Ticket](/r/jjoptimist/eventix/BuyTicket?eventId=%d)\n", id)
@@ -151,7 +139,7 @@ func Render(path string) string {
 		output += "---\n\n"
 	}
 	
-	// Append pager navigation links.
+	
 	output += pg.Picker()
 	
 	return output
