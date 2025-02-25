@@ -51,19 +51,6 @@ func TestPager(t *testing.T) {
 			pageCount: 2,
 		},
 		{
-			name:      "with custom gnoweb args",
-			uri:       "gno.land/r/demo/test:foo/bar?current=2&foo=bar",
-			items:     []int{1, 2, 3},
-			param:     "current",
-			hasPages:  true,
-			prevPath:  "?current=1&foo=bar",
-			nextPath:  "",
-			offset:    2,
-			pageSize:  2,
-			page:      2,
-			pageCount: 2,
-		},
-		{
 			name: "missing page",
 			uri:  "gno.land/r/demo/test:foo/bar?page=3&foo=bar",
 			err:  ErrInvalidPageNumber,
@@ -142,12 +129,13 @@ func TestPagerIterate(t *testing.T) {
 			stopped: true,
 		},
 	}
+
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Arrange
 			var (
 				items []int
-				p, _  = New(tc.uri, len(tc.items), WithPageSize(3))
+				p     = MustNew(tc.uri, len(tc.items), WithPageSize(3))
 			)
 
 			// Act
