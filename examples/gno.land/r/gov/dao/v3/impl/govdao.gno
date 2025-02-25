@@ -5,6 +5,7 @@ import (
 	"std"
 	"strconv"
 
+	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/gov/dao/proxy"
 	"gno.land/r/gov/dao/v3/memberstore"
@@ -14,11 +15,14 @@ var ErrMemberNotFound = errors.New("member not found")
 
 type GovDAO struct {
 	pss ProposalsStatuses
+	pssPager *pager.Pager
 }
 
 func NewGovDAO() *GovDAO {
+	pss := NewProposalsStatuses()
 	return &GovDAO{
-		pss: NewProposalsStatuses(),
+		pss: pss,
+		pssPager: pager.NewPager(pss.Tree, 3, false),
 	}
 }
 
@@ -124,22 +128,29 @@ func (g *GovDAO) PreExecuteProposal(pid proxy.ProposalID) error {
 	return nil
 }
 
-func (g *GovDAO) renderActiveProposals() string {
+func (g *GovDAO) renderActiveProposals(url string) string {
 	out := "## Active Propoposals:\n"
-	g.pss.Iterate("", "", func(key string, valuePs interface{}) bool {
-		ps, _ := valuePs.(*proposalStatus)
+
+	page, err := g.pssPager.GetPageByPath(url)
+	if err != nil {
+		out += ufmt.Sprintf("Error getting selected page: %v", err.Error())
+		return out
+	}
+
+	for _, item := range page.Items {
+		ps, _ := item.Value.(*proposalStatus)
 		if ps.Inactive {
-			return false
+			continue
 		}
 
-		pid, err := strconv.Atoi(key)
+		pid, err := strconv.Atoi(item.Key)
 		if err != nil {
 			panic(err.Error())
 		}
 
 		p := proxy.MustGetProposal(proxy.ProposalID(pid))
 
-		out += ufmt.Sprintf("### Proposal with id: %v", key)
+		out += ufmt.Sprintf("### Proposal with id: %v", item.Key)
 		out += StringifyProposal(p)
 		out += "\n\n"
 		out += ps.String()
@@ -147,15 +158,15 @@ func (g *GovDAO) renderActiveProposals() string {
 
 		// TODO print total state of the voting process
 		out += "------------------\n"
+	}
 
-		return false
-	})
+	out += page.Picker()
 
 	return out
 }
 
-func (g *GovDAO) Render(string) string {
-	return g.renderActiveProposals()
+func (g *GovDAO) Render(url string) string {
+	return g.renderActiveProposals(url)
 }
 
 func (g *GovDAO) isValidCall() bool {

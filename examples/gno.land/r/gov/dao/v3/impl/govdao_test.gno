@@ -48,6 +48,8 @@ func TestCreateProposalAndVote(t *testing.T) {
 		proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T3))
 	})
 
+	println(proxy.Render(""))
+
 	std.TestSetOrigCaller(m1)
 	std.TestSetRealm(std.NewUserRealm(m1))
 
@@ -59,6 +61,8 @@ func TestCreateProposalAndVote(t *testing.T) {
 		Option:     proxy.YesVote,
 		ProposalID: proxy.ProposalID(0),
 	})
+
+	println(proxy.Render(""))
 
 	std.TestSetOrigCaller(m11)
 	std.TestSetRealm(std.NewUserRealm(m11))
@@ -73,6 +77,8 @@ func TestCreateProposalAndVote(t *testing.T) {
 		Option:     proxy.NoVote,
 		ProposalID: proxy.ProposalID(0),
 	})
+
+	println(proxy.Render(""))
 
 	std.TestSetOrigCaller(m3)
 	std.TestSetRealm(std.NewUserRealm(m3))
@@ -95,6 +101,8 @@ func TestCreateProposalAndVote(t *testing.T) {
 		ProposalID: proxy.ProposalID(0),
 	})
 
+	println(proxy.Render(""))
+
 	std.TestSetOrigCaller(m6)
 	std.TestSetRealm(std.NewUserRealm(m6))
 	proxy.MustVoteOnProposal(proxy.VoteRequest{
@@ -103,6 +111,21 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	println(proxy.Render(""))
+
+
+	std.TestSetOrigCaller(m111)
+	std.TestSetRealm(std.NewUserRealm(m111))
+	proxy.MustVoteOnProposal(proxy.VoteRequest{
+		Option:     proxy.NoVote,
+		ProposalID: proxy.ProposalID(0),
+	})
+
+	println(proxy.Render(""))
+
+	ExecuteProposal(proxy.ProposalID(0))
+
+	println(proxy.Render(""))
+
 }
 
 var executed bool

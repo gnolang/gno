@@ -7,12 +7,10 @@ import (
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
-var govDAO *GovDAO
+var govDAO *GovDAO = NewGovDAO()
 var law *Law
 
 func init() {
-	govDAO = NewGovDAO()
-
 	law = &Law{
 		Supermajority: 66,
 	}
