@@ -165,6 +165,20 @@ func TestMsgCall_ValidateBasic(t *testing.T) {
 			expectErr: InvalidPkgPathError{},
 		},
 		{
+			name: "pkgPath should not be an internal path",
+			msg: MsgCall{
+				Caller:  caller,
+				PkgPath: "gno.land/r/demo/avl/internal/sort",
+				Func:    funcName,
+				Args:    args,
+				Send: std.Coins{std.Coin{
+					Denom:  "ugnot",
+					Amount: 1000,
+				}},
+			},
+			expectErr: InvalidPkgPathError{},
+		},
+		{
 			name: "missing function name to call",
 			msg: MsgCall{
 				Caller:  caller,
