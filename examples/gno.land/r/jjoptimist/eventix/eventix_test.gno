@@ -1,14 +1,14 @@
 package eventix
 
 import (
+	"fmt"
 	"std"
 	"testing"
-	"fmt"
 
+	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
-	"gno.land/p/demo/grc/grc20"
 )
 
 func TestCreateEvent(t *testing.T) {
@@ -88,12 +88,12 @@ func TestBuyTicketWithGRC20(t *testing.T) {
 	// Set up package address first
 	pkgAddr := std.GetOrigPkgAddr()
 	std.TestSetOrigPkgAddr(pkgAddr)
-	
+
 	// Create a test GRC20 token and set up addresses
-	token, ledger := grc20.NewToken("Test Token", "TEST", 6) 
+	token, ledger := grc20.NewToken("Test Token", "TEST", 6)
 	buyer := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	adminAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf6")
-	
+
 	// Set up admin and mint tokens
 	std.TestSetOrigCaller(adminAddr)
 	std.TestSetRealm(std.NewUserRealm(adminAddr))
@@ -103,7 +103,7 @@ func TestBuyTicketWithGRC20(t *testing.T) {
 	// Create event with GRC20 token payment
 	std.TestSetOrigCaller(buyer)
 	std.TestSetRealm(std.NewUserRealm(buyer))
-	
+
 	eventId := CreateEvent(
 		"GRC20 Event",
 		"An event with GRC20 payment",
@@ -116,7 +116,7 @@ func TestBuyTicketWithGRC20(t *testing.T) {
 	// Set up for approval
 	std.TestSetOrigCaller(buyer)
 	std.TestSetRealm(std.NewUserRealm(buyer))
-	
+
 	// Approve using the ledger (following grc20factory_test pattern)
 	err = ledger.Approve(buyer, pkgAddr, 1000000)
 	urequire.NoError(t, err)
