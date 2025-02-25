@@ -17,7 +17,6 @@ import (
 // XXX: make sure tv.T isn't bumped from allocation either.
 func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	debug2.Println2("=====GarbageCollect")
-	debug2.Println2("m.Exceptions: ", m.Exceptions)
 	// We don't need the old value anymore.
 	m.Alloc.Reset()
 
@@ -55,6 +54,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		return -1, false
 	}
 
+	debug2.Println2("m.Exceptions: ", m.Exceptions)
 	// Visit exceptions
 	for i, exception := range m.Exceptions {
 		// XXX implement for exceptions.
@@ -78,13 +78,6 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 	var vis func(Object) bool // Declare `vis` first
 	vis = func(o Object) bool {
 		debug2.Printf2("===visit o: %v (type: %v) \n", o, reflect.TypeOf(o))
-		if o == nil {
-			return false
-		}
-		if o == (*Block)(nil) {
-			debug2.Println2("nil block: ", o) // XXX ???
-			return false                      // stop
-		}
 		debug2.Printf2("o.GetLastGCCycle: %d, GcCycle: %d\n", o.GetLastGCCycle(), gcCycle)
 		// Return if already measured.
 		if o.GetLastGCCycle() == gcCycle {
@@ -221,7 +214,6 @@ func (pv *PackageValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 func (b *Block) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	debug2.Println2("VisitAssociated, block: ", b)
 	// Visit each value.
-	debug2.Println2("len of values in block: ", len(b.Values))
 	for i := 0; i < len(b.Values); i++ {
 		v := b.Values[i].V
 		oo := unwrapObject(v, store)
@@ -237,7 +229,7 @@ func (b *Block) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	if b.Parent != nil {
 		debug2.Println2("visit parent block: ", b.Parent)
 		oo := unwrapObject(b.Parent, store)
-		if oo == nil {
+		if oo == (*Block)(nil) {
 			return
 		}
 		stop = vis(oo)
@@ -275,8 +267,8 @@ func (fv *FuncValue) Visit(vis Visitor, store Store) (stop bool) {
 	}
 	// visit FuncValue's closure
 	oo := unwrapObject(fv.Closure, store)
-	debug2.Println2("vis Closure, oo: ", oo)
-	if oo != nil {
+	debug2.Println2("vis Closure, oo: ", oo, reflect.TypeOf(oo))
+	if oo != (*Block)(nil) {
 		stop = vis(oo)
 		if stop {
 			return
