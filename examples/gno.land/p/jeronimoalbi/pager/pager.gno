@@ -5,6 +5,7 @@ import (
 	"math"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 var ErrInvalidPageNumber = errors.New("invalid page number")
@@ -137,21 +138,27 @@ func (p Pager) Iterate(fn PagerIterFn) bool {
 // TODO: Support different types of pickers (ex. with clickable page numbers)
 
 // Picker returns a string with the pager as Markdown.
+// An empty string is returned when the pager has no pages.
 func Picker(p Pager) string {
-	var out string
-	if s := p.PrevPageURI(); s != "" {
-		out = "[«](" + s + ") | "
-	} else {
-		out = "\\- | "
+	if !p.HasPages() {
+		return ""
 	}
 
-	out += "page " + strconv.Itoa(p.Page()) + " of " + strconv.Itoa(p.PageCount())
+	var out strings.Builder
+
+	if s := p.PrevPageURI(); s != "" {
+		out.WriteString("[«](" + s + ") | ")
+	} else {
+		out.WriteString("\\- | ")
+	}
+
+	out.WriteString("page " + strconv.Itoa(p.Page()) + " of " + strconv.Itoa(p.PageCount()))
 
 	if s := p.NextPageURI(); s != "" {
-		out += " | [»](" + s + ")"
+		out.WriteString(" | [»](" + s + ")")
 	} else {
-		out += " | \\-"
+		out.WriteString(" | \\-")
 	}
 
-	return out
+	return out.String()
 }
