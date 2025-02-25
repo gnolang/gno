@@ -1,3 +1,38 @@
+// Package pager provides pagination functionality through a generic pager implementation.
+//
+// Example usage:
+//
+//	import (
+//	    "strconv"
+//	    "strings"
+//
+//	    "gno.land/p/jeronimoalbi/pager"
+//	)
+//
+//	func Render(path string) string {
+//	    // Define the items to paginate
+//	    items := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+//
+//	    // Create a pager that paginates 4 items at a time
+//	    p, err := pager.New(path, len(items), pager.WithPageSize(4))
+//	    if err != nil {
+//	        panic(err)
+//	    }
+//
+//	    // Render items for the current page
+//	    var output strings.Builder
+//	    p.Iterate(func(i int) bool {
+//	        output.WriteString("- " + strconv.Itoa(items[i]) + "\n")
+//	        return false
+//	    })
+//
+//	    // Render page picker
+//	    if p.HasPages() {
+//	        output.WriteString("\n" + pager.Picker(p))
+//	    }
+//
+//	    return output.String()
+//	}
 package pager
 
 import (
