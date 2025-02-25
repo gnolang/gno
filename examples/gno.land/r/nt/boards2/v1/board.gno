@@ -51,6 +51,11 @@ func (board *Board) GetID() BoardID {
 	return board.id
 }
 
+// GetName returns the name of the board.
+func (board *Board) GetName() string {
+	return board.name
+}
+
 // GetURL returns the relative URL of the board.
 func (board *Board) GetURL() string {
 	return strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land") + ":" + url.PathEscape(board.name)
@@ -105,12 +110,11 @@ func (board *Board) DeleteThread(pid PostID) {
 //
 // Pager is used for pagination if it's not nil.
 func (board *Board) Render(p *PaginationOpts) string {
-	var sb strings.Builder
-
 	if board.threads.Size() == 0 {
-		sb.WriteString("*This board doesn't have any threads.*")
-		return sb.String()
+		return "*This board doesn't have any threads.*"
 	}
+
+	var sb strings.Builder
 
 	page := p.Iterate(&board.threads, func(_ string, v interface{}) bool {
 		p := v.(*Post)
@@ -171,6 +175,10 @@ func (board *Board) GetChangeMemberRoleFormURL() string {
 
 func (board *Board) GetPostFormURL() string {
 	return txlink.Call("CreateThread", "boardID", board.id.String())
+}
+
+func (board *Board) GetMembersURL() string {
+	return board.GetURL() + "/members"
 }
 
 func createDefaultBoardPermissions(owner std.Address) *DefaultPermissions {
