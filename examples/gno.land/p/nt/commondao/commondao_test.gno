@@ -241,12 +241,10 @@ func TestCommonDAOVote(t *testing.T) {
 
 func TestCommonDAOTally(t *testing.T) {
 	cases := []struct {
-		name         string
-		dao          *CommonDAO
-		votes        []Vote
-		status       ProposalStatus
-		statusReason string
-		stats        Stats
+		name  string
+		dao   *CommonDAO
+		votes []Vote
+		err   error
 	}{
 		{
 			name: "pass",
@@ -259,14 +257,11 @@ func TestCommonDAOTally(t *testing.T) {
 				{Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", Choice: ChoiceYes},
 				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes},
 			},
-			status: StatusActive,
-			stats:  Stats{YayVotes: 2, Abstained: 1},
 		},
 		{
-			name:         "no votes",
-			dao:          New(),
-			status:       StatusFailed,
-			statusReason: "low participation",
+			name: "no votes",
+			dao:  New(),
+			err:  ErrLowParticipation,
 		},
 		{
 			name: "no quorum",
@@ -278,9 +273,7 @@ func TestCommonDAOTally(t *testing.T) {
 			votes: []Vote{
 				{Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", Choice: ChoiceYes},
 			},
-			status:       StatusFailed,
-			statusReason: "low participation",
-			stats:        Stats{YayVotes: 1, Abstained: 2},
+			err: ErrLowParticipation,
 		},
 		{
 			name: "no consensus",
@@ -293,9 +286,7 @@ func TestCommonDAOTally(t *testing.T) {
 				{Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", Choice: ChoiceYes},
 				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceNo},
 			},
-			status:       StatusFailed,
-			statusReason: "no consensus",
-			stats:        Stats{YayVotes: 1, NayVotes: 1, Abstained: 1},
+			err: ErrNoConcensus,
 		},
 	}
 
@@ -306,13 +297,13 @@ func TestCommonDAOTally(t *testing.T) {
 				p.record.AddVote(v.Address, v.Choice)
 			}
 
-			stats := tc.dao.Tally(p)
+			err := tc.dao.Tally(p)
 
-			uassert.Equal(t, string(p.Status()), string(tc.status))
-			uassert.Equal(t, p.StatusReason(), tc.statusReason)
-			uassert.Equal(t, stats.YayVotes, tc.stats.YayVotes)
-			uassert.Equal(t, stats.NayVotes, tc.stats.NayVotes)
-			uassert.Equal(t, stats.Abstained, tc.stats.Abstained)
+			if tc.err != nil {
+				uassert.Error(t, err, "expect an error")
+			} else {
+				uassert.NoError(t, err, "expect no error")
+			}
 		})
 	}
 }
@@ -385,7 +376,18 @@ func TestCommonDAOExecute(t *testing.T) {
 			proposalID:   1,
 			status:       StatusFailed,
 			statusReason: errValidation.Error(),
-			err:          errValidation,
+		},
+		{
+			name: "tally error",
+			setup: func() *CommonDAO {
+				member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
+				dao := New(WithMember(member))
+				p, _ := dao.Propose(member, testPropDef{})
+				return dao
+			},
+			proposalID:   1,
+			status:       StatusFailed,
+			statusReason: ErrLowParticipation.Error(),
 		},
 		{
 			name: "execution error",
@@ -407,7 +409,6 @@ func TestCommonDAOExecute(t *testing.T) {
 			proposalID:   1,
 			status:       StatusFailed,
 			statusReason: errExecution.Error(),
-			err:          errExecution,
 		},
 	}
 
@@ -418,19 +419,19 @@ func TestCommonDAOExecute(t *testing.T) {
 			err := dao.Execute(tc.proposalID)
 
 			if tc.err != nil {
-				urequire.ErrorIs(t, err, tc.err)
+				urequire.ErrorIs(t, err, tc.err, "expect error to match")
 				return
 			}
 
-			urequire.NoError(t, err)
+			urequire.NoError(t, err, "expect no error")
 
 			_, found := dao.GetActiveProposal(tc.proposalID)
 			urequire.False(t, found, "proposal should not be active")
 
 			p, found := dao.GetFinishedProposal(tc.proposalID)
-			urequire.True(t, found, "proposal not found")
-			uassert.Equal(t, string(p.Status()), string(tc.status))
-			uassert.Equal(t, string(p.StatusReason()), string(tc.statusReason))
+			urequire.True(t, found, "proposal must be found")
+			uassert.Equal(t, string(p.Status()), string(tc.status), "status must match")
+			uassert.Equal(t, string(p.StatusReason()), string(tc.statusReason), "status reason must match")
 		})
 	}
 }
