@@ -28,7 +28,7 @@ func CreatePost(text string) error {
 }
 
 func Render(_ string) string {
-	output := "# Gno Threads\n\n" // \n is needed just like in standard Markdown
+	output := "# MiniSocial\n\n" // \n is needed just like in standard Markdown
 
 	// Handle the edge case
 	if len(posts) == 0 {
