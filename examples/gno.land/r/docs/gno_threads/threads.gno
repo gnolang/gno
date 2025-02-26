@@ -11,3 +11,6 @@ and manages storage more efficiently with an AVL tree. V2 also utilizes differen
 easier Markdown formatting, etc.`
 
 }
+
+// Original work & inspiration here: https://gno.land/r/leon/fosdem25/microposts
+// Find the full tutorial on the official gno.land docs at docs.gno.land
