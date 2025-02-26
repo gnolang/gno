@@ -159,7 +159,7 @@ func Unfollow() error {
 // renderRecipes renders the list of recipes.
 func renderRecipes(res *mux.ResponseWriter, req *mux.Request) {
 	var out string
-	Header(out)
+	out += Header()
 	out += "## World Kitchen\n\n------\n\n"
 
 	// Link to margarita pizza recipe
@@ -198,7 +198,7 @@ func renderRecipe(res *mux.ResponseWriter, req *mux.Request) {
 
 func (r Recipe) Render() string {
 	var out string
-	Header(out)
+	out += Header()
 	out += md.H2(r.Name)
 	out += md.Bold("Author:") + "\n" + r.Author.String() + "\n\n"
 	out += md.Bold("Origin:") + "\n" + r.Origin + "\n\n"
@@ -213,7 +213,7 @@ func (r Recipe) Render() string {
 
 func renderHomepage(res *mux.ResponseWriter, req *mux.Request) {
 	var out string
-	Header(out)
+	out += Header()
 	out += profile.Render()
 	res.Write(out)
 }
@@ -237,13 +237,13 @@ func (p Profile) Render() string {
 	return out
 }
 
-func Header(out string) {
+func Header() string {
 	navItems := []string{
 		md.Link("Home", realmURL),
 		md.Link("World Kitchen", rec),
 		md.Link("Hackerspace", "https://github.com/gnolang/hackerspace/issues/86#issuecomment-2535795751"),
 	}
-	out += strings.Join(navItems, " | ") + "\n\n" + md.HorizontalRule() + "\n\n"
+	return strings.Join(navItems, " | ") + "\n\n" + md.HorizontalRule() + "\n\n"
 }
 
 func Render(path string) string {
