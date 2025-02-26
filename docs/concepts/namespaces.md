@@ -9,7 +9,7 @@ similar to GitHub's user and organization model.
 
 :::warning Not enabled
 
-This feature isn't enabled by default on the portal loop chain and is currently available only on test4.gno.land.
+This feature isn't enabled by default on the Portal Loop chain and is currently available only on test5.gno.land.
 
 :::
 
@@ -56,7 +56,7 @@ $ gnokey maketx call -pkgpath gno.land/r/demo/users \
     -func Register \
     -gas-fee 1000000ugnot -gas-wanted 2000000 \
     -broadcast \
-    -chainid=test4 \
+    -chainid=test5 \
     -send=20000000ugnot \
     -args '' \
     -args 'patrick' \
@@ -86,6 +86,6 @@ $ gnokey maketx addpkg \
     --gas-fee 1000000ugnot \
     --gas-wanted 2000000 \
     --broadcast \
-    --chainid test4 \
+    --chainid test5 \
     test1
 ```

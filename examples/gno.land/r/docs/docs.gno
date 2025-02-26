@@ -16,6 +16,7 @@ Explore various examples to learn more about Gno functionality and usage.
 - [AVL Pager + Render paths](/r/docs/avl_pager_params) - Handle render arguments with pagination.
 - [Img Embed](/r/docs/img_embed) - Demonstrates how to embed an image.
 - [Optional Render](/r/docs/optional_render) - Render() is optional in realms.
+- [MiniSocial](/r/docs/minisocial) - Minimalistic social media app for learning purposes.
 - ...
 <!-- meta issue with suggestions: https://github.com/gnolang/gno/issues/3292 -->
 
