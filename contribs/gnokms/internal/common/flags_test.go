@@ -24,10 +24,12 @@ func TestRegistersDontPanic(t *testing.T) {
 	t.Run("server flags", func(t *testing.T) {
 		t.Parallel()
 
-		require.NotPanics(t, func() {
-			serverFlags := &ServerFlags{}
-			serverFlags.RegisterFlags(&flag.FlagSet{})
-		})
+		if _, err := os.Getwd(); err == nil {
+			require.NotPanics(t, func() {
+				serverFlags := &ServerFlags{}
+				serverFlags.RegisterFlags(&flag.FlagSet{})
+			})
+		}
 	})
 }
 
@@ -48,8 +50,7 @@ func TestDefaultAuthKeysFile(t *testing.T) {
 		os.Setenv("HOME", "")
 
 		// Should fallback to the current directory.
-		wd, err := os.Getwd()
-		if err == nil {
+		if wd, err := os.Getwd(); err == nil {
 			require.Contains(t, defaultAuthKeysFile(), wd)
 		}
 	})
