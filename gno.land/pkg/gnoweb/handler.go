@@ -316,8 +316,31 @@ func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
 		})
 	}
 
-	if args := url.EncodeArgs(); args != "" {
-		data.Args = args
+	// Add args
+	if url.Args != "" {
+		argSplit := strings.Split(url.Args, "/")
+		var nonEmptyArgs []string
+		for _, a := range argSplit {
+			if a != "" {
+				nonEmptyArgs = append(nonEmptyArgs, a)
+			}
+		}
+		for i := range nonEmptyArgs {
+			data.ArgParts = append(data.ArgParts, components.BreadcrumbPart{
+				Name: nonEmptyArgs[i],
+				URL:  url.Path + ":" + strings.Join(nonEmptyArgs[:i+1], "/"),
+			})
+		}
+	}
+
+	// Add query params
+	for key, values := range url.Query {
+		for _, v := range values {
+			data.Queries = append(data.Queries, components.QueryParam{
+				Key:   key,
+				Value: v,
+			})
+		}
 	}
 
 	return data

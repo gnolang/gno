@@ -1,18 +1,22 @@
 {{ define "ui/breadcrumb" }}
 <ol
   data-role="header-breadcrumb-search"
-  class="peer-focus-within:hidden flex text-gray-800 font-semibold bg-gray-100 after:absolute after:w-full after:top-0 after:left-0 after:h-full after:block after:bg-gray-100 after:pointer-events-none"
+  class="peer-focus-within:hidden flex leading-snug text-gray-800 font-semibold bg-gray-100 after:absolute after:w-full after:top-0 after:left-0 after:h-full after:block after:bg-gray-100 after:pointer-events-none"
 >
   {{- range $index, $part := .Parts }} {{- if $index }}
-  <li class="flex z-1 before:content-['/'] before:px-[0.18rem] before:text-gray-300 whitespace-nowrap">{{- else }}</li>
+  <li class="flex z-1 before:content-['/'] before:px-[0.18rem] before:pt-0.5 before:text-gray-300 whitespace-nowrap">{{- else }}</li>
 
   <li class="z-1 whitespace-nowrap">
     {{- end }}
-    <a class="hover:bg-green-600 hover:text-light bg-light inline-block rounded-sm px-1 py-px" href="{{ $part.URL }}">{{ $part.Name }}</a>
+    <a class="hover:bg-green-600 border-2 border-transparent hover:text-light bg-light inline-block rounded-sm px-0.5" href="{{ $part.URL }}">{{ $part.Name }}</a>
   </li>
-  {{- end }} {{- if .Args }}
-  <li class="flex z-1 before:content-[':'] before:px-[0.18rem] before:text-gray-300 whitespace-nowrap">
-    <a class="text-light bg-gray-300 inline-block rounded-sm px-1 py-px">{{ .Args }}</a>
+  {{- end }} {{- if .ArgParts }} {{- range $index, $arg := .ArgParts }}
+  <li class="flex z-1 {{ if eq $index 0 }} before:content-[':'] {{ else }} before:content-['/'] {{ end }} before:px-[0.18rem] before:pt-0.5 before:text-gray-300 whitespace-nowrap">
+    <a class="text-light border-2 border-transparent bg-gray-400 hover:bg-green-600 hover:text-light inline-block rounded-sm px-0.5" href="{{ $arg.URL }}">{{ $arg.Name }}</a>
+  </li>
+  {{- end }} {{- end }} {{- range $index, $query := .Queries }}
+  <li class="flex z-1 {{ if eq $index 0 }} before:content-['?'] {{ else }} before:content-['&'] {{ end }} before:px-[0.18rem] before:pt-0.5 before:text-gray-300 whitespace-nowrap">
+    <span class="text-gray-400 border-2 border-gray-400 inline-block rounded-sm px-1">{{ $query.Key }}{{- with $query.Value }}={{ . }}{{- end }}</span>
   </li>
   {{- end }}
 </ol>
