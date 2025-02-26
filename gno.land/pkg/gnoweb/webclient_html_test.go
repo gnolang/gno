@@ -95,7 +95,7 @@ func TestFormatSource(t *testing.T) {
 					expectedLink := fmt.Sprintf(`<a href="/%s$source"`, path)
 					assert.Contains(t, result, expectedLink,
 						"Should contain link to source for path %s", path)
-					assert.Contains(t, result, `class="text-blue-600 hover:underline"`)
+					assert.Contains(t, result, `class="hover:underline"`)
 				}
 			} else {
 				assert.NotContains(t, result, `<a href=`,
