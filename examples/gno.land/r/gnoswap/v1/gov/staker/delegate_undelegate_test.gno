@@ -9,7 +9,7 @@ import (
 
 func TestDelegateInternal(t *testing.T) {
 	t.Skip("Must running separately. because this test depends on TestUndelegate's state")
-	std.TestSetOrigCaller(testAddr1)
+	std.TestSetOriginCaller(testAddr1)
 	resetState()
 
 	addr1 := testAddr1
@@ -56,7 +56,7 @@ func TestDelegateInternal(t *testing.T) {
 func TestUndelegateInternal(t *testing.T) {
 	t.Skip("Must running separately. because this test depends on TestUndelegate's state")
 	addr1 := testAddr1
-	std.TestSetOrigCaller(addr1)
+	std.TestSetOriginCaller(addr1)
 	resetState()
 
 	t.Run("fail - no delegation", func(t *testing.T) {

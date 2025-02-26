@@ -52,7 +52,7 @@ func (k *keeper) update(addr, newRefAddr std.Address) error {
 //
 // TODO: need to discuss what values to emit as event
 func (k *keeper) setReferral(addr, refAddr std.Address, eventType string) error {
-	if err := isValidCaller(std.PrevRealm().Addr()); err != nil {
+	if err := isValidCaller(std.PreviousRealm().Address()); err != nil {
 		return err
 	}
 
@@ -101,7 +101,7 @@ func (k *keeper) validateAddresses(addr, refAddr std.Address) error {
 //
 // TODO: need to discuss what values to emit as event
 func (k *keeper) remove(target std.Address) error {
-	if err := isValidCaller(std.PrevRealm().Addr()); err != nil {
+	if err := isValidCaller(std.PreviousRealm().Address()); err != nil {
 		return err
 	}
 

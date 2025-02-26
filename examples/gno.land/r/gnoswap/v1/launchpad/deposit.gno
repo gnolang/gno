@@ -13,6 +13,7 @@ import (
 	"gno.land/r/gnoswap/v1/gns"
 	gs "gno.land/r/gnoswap/v1/gov/staker"
 	"gno.land/r/gnoswap/v1/gov/xgns"
+	"gno.land/r/gnoswap/v1/referral"
 )
 
 var (
@@ -57,6 +58,7 @@ type ProjectTierInfo struct {
 // Parameters:
 // - targetProjectTierId (string): The ID of the target project and tier in the format "{projectId}:{tierType}".
 // - amount (uint64): The amount to deposit.
+// - referrer (string): The referrer address.
 //
 // Returns:
 // - string: The ID of the newly created deposit.
@@ -90,7 +92,7 @@ type ProjectTierInfo struct {
 //   - Emit events for both the deposit and the first deposit for the tier (if applicable).
 //
 // ref: https://docs.gnoswap.io/contracts/launchpad/launchpad_deposit.gno#depositgns
-func DepositGns(targetProjectTierId string, amount uint64) string {
+func DepositGns(targetProjectTierId string, amount uint64, referrer string) string {
 	assertOnlyNotHalted()
 	assertValidAmount(amount)
 
@@ -100,11 +102,12 @@ func DepositGns(targetProjectTierId string, amount uint64) string {
 		panic(err.Error())
 	}
 
-	currentHeight := uint64(std.GetHeight())
+	currentHeight := uint64(std.ChainHeight())
 	if !project.isActivated(currentHeight) {
 		panic(addDetailToError(errInactiveProject, projectId))
 	}
 	caller := getPrevAddr()
+	referral.TryRegister(caller, referrer)
 	project.checkDepositConditions(caller)
 
 	tier, err := project.Tier(convertTierTypeStrToUint64(tierType))
@@ -191,7 +194,7 @@ func DepositGns(targetProjectTierId string, amount uint64) string {
 		panic(addDetailToError(
 			errInvalidRewardState, err.Error()))
 	}
-	rewardState.addStake(uint64(std.GetHeight()), deposit.id, amount)
+	rewardState.addStake(uint64(std.ChainHeight()), deposit.id, amount)
 
 	// Update gov_staker to calculate project's recipient's reward
 	gs.SetAmountByProjectWallet(project.recipient, amount, true)
@@ -215,6 +218,7 @@ func DepositGns(targetProjectTierId string, amount uint64) string {
 		"depositId", deposit.id,
 		"claimableHeight", strconv.FormatUint(deposit.claimableHeight, 10),
 		"claimableTime", strconv.FormatUint(deposit.claimableTime, 10),
+		"referrer", referrer,
 	)
 
 	return deposit.id
@@ -313,7 +317,7 @@ func CollectDepositGnsByDepositId(depositId string) uint64 {
 	project = projects[deposit.projectId]
 
 	// Process deposit collection
-	height := uint64(std.GetHeight())
+	height := uint64(std.ChainHeight())
 	amount, err := processDeposit(&deposit, &project, height)
 	if err != nil {
 		panic(err.Error())
@@ -372,7 +376,7 @@ func validateProjectTier(projectId string, tierStr string) (Project, Tier, error
 		return Project{}, Tier{}, errors.New(ufmt.Sprintf("project(%s) not found", projectId))
 	}
 
-	currentHeight := uint64(std.GetHeight())
+	currentHeight := uint64(std.ChainHeight())
 
 	project.Tiers()
 
@@ -449,7 +453,7 @@ func checkDepositConditions(project Project) {
 // Returns:
 // - bool: True if the tier is active, otherwise false.
 func checkTierActive(project Project, tier Tier) bool {
-	if tier.ended.height < uint64(std.GetHeight()) {
+	if tier.ended.height < uint64(std.ChainHeight()) {
 		return false
 	}
 
@@ -755,7 +759,7 @@ func processDepositCollection(
 	projectId string,
 ) (uint64, error) {
 	totalAmount := uint64(0) // gnsToUser
-	currentHeight := uint64(std.GetHeight())
+	currentHeight := uint64(std.ChainHeight())
 	now := uint64(time.Now().Unix())
 	prevAddr, prevPkgPath := getPrev()
 
@@ -870,7 +874,7 @@ func validateDepositCollection(depositId string, caller std.Address) (Deposit, P
 		return Deposit{}, Project{}, errors.New("user has no deposit with this id")
 	}
 
-	currentHeight := uint64(std.GetHeight())
+	currentHeight := uint64(std.ChainHeight())
 
 	if !isPassedClaimableHeight(deposit, currentHeight) {
 		return Deposit{}, Project{}, errors.New("not passed claimable block height yet")

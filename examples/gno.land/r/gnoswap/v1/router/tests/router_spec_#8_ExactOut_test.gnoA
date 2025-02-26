@@ -63,6 +63,7 @@ func TestSwapRouteFooBarExactOut(t *testing.T) {
 		"100", // quoteArr
 		"5",   // tokenAmountLimit
 		time.Now().Add(time.Hour).Unix(),
+		"", // referrer
 	)
 
 	token0After := bar.BalanceOf(consts.ADMIN)

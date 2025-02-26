@@ -41,7 +41,7 @@ func TestProposeText(t *testing.T) {
 		setConfigVersion(1, config)
 	})
 
-	oldHeight = uint64(std.GetHeight())
+	oldHeight = uint64(std.ChainHeight())
 	oldTime = uint64(time.Now().Unix())
 
 	nowHeight = oldHeight
@@ -71,7 +71,7 @@ func TestProposeText(t *testing.T) {
 		std.TestSetRealm(adminRealm)
 		std.TestSkipHeights(11)
 
-		nowHeight = uint64(std.GetHeight())
+		nowHeight = uint64(std.ChainHeight())
 		nowTime = uint64(time.Now().Unix())
 
 		voteKey := Vote(proposalId, true)
@@ -100,7 +100,7 @@ func TestProposeText(t *testing.T) {
 		std.TestSetRealm(adminRealm)
 		std.TestSkipHeights(31)
 
-		nowHeight = uint64(std.GetHeight())
+		nowHeight = uint64(std.ChainHeight())
 		nowTime = uint64(time.Now().Unix())
 
 		updateProposalsState()
@@ -151,7 +151,7 @@ func TestProposeText(t *testing.T) {
 		updateProposalsState()
 		proposalStat := mustGetProposal(proposalId).State
 
-		nowHeight = uint64(std.GetHeight())
+		nowHeight = uint64(std.ChainHeight())
 		nowTime = uint64(time.Now().Unix())
 
 		uassert.True(t, proposalStat.Created)
@@ -189,7 +189,7 @@ func TestParamaterChange(t *testing.T) {
 		setConfigVersion(1, config)
 	})
 
-	oldHeight = uint64(std.GetHeight())
+	oldHeight = uint64(std.ChainHeight())
 	oldTime = uint64(time.Now().Unix())
 
 	nowHeight = oldHeight
@@ -219,7 +219,7 @@ func TestParamaterChange(t *testing.T) {
 		std.TestSetRealm(adminRealm)
 		std.TestSkipHeights(11)
 
-		nowHeight = uint64(std.GetHeight())
+		nowHeight = uint64(std.ChainHeight())
 		nowTime = uint64(time.Now().Unix())
 
 		voteKey := Vote(proposalId, true)
@@ -247,7 +247,7 @@ func TestParamaterChange(t *testing.T) {
 		std.TestSetRealm(adminRealm)
 		std.TestSkipHeights(31)
 
-		nowHeight = uint64(std.GetHeight())
+		nowHeight = uint64(std.ChainHeight())
 		nowTime = uint64(time.Now().Unix())
 
 		updateProposalsState()
@@ -273,7 +273,7 @@ func TestParamaterChange(t *testing.T) {
 		updateProposalsState()
 		proposalStat := mustGetProposal(proposalId).State
 
-		nowHeight = uint64(std.GetHeight())
+		nowHeight = uint64(std.ChainHeight())
 		nowTime = uint64(time.Now().Unix())
 
 		uassert.True(t, proposalStat.Created)
@@ -323,7 +323,7 @@ func TestParamaterChange(t *testing.T) {
 		updateProposalsState()
 		proposalStat := mustGetProposal(proposalId).State
 
-		nowHeight = uint64(std.GetHeight())
+		nowHeight = uint64(std.ChainHeight())
 		nowTime = uint64(time.Now().Unix())
 
 		uassert.True(t, proposalStat.Created)
@@ -347,7 +347,7 @@ func TestParamaterChange(t *testing.T) {
 
 		std.TestSkipHeights(1000)
 		nowTime = uint64(time.Now().Unix())
-		nowHeight = uint64(std.GetHeight())
+		nowHeight = uint64(std.ChainHeight())
 
 		updateProposalsState()
 		proposalStat := mustGetProposal(proposalId).State
@@ -372,14 +372,14 @@ func TestParamaterChange(t *testing.T) {
 		std.TestSetRealm(adminRealm)
 		std.TestSkipHeights(100)
 		proposalId := ProposeParameterChange("test_title_4", "test_description_4", uint64(1), "gno.land/r/gnoswap/v1/gns*EXE*SetAvgBlockTimeInMs*EXE*300")
-		oldHeight = uint64(std.GetHeight())
+		oldHeight = uint64(std.ChainHeight())
 		oldTime = uint64(time.Now().Unix())
 
 		std.TestSkipHeights(11) // voting start
 		Vote(proposalId, true)
 		std.TestSkipHeights(31) // finish voting
 
-		nowHeight = uint64(std.GetHeight())
+		nowHeight = uint64(std.ChainHeight())
 		nowTime = uint64(time.Now().Unix())
 
 		updateProposalsState()
@@ -409,7 +409,7 @@ func TestParamaterChange(t *testing.T) {
 		std.TestSkipHeights(600)
 		updateProposalsState()
 		nowTime = uint64(time.Now().Unix())
-		nowHeight = uint64(std.GetHeight())
+		nowHeight = uint64(std.ChainHeight())
 
 		proposalStat := mustGetProposal(proposalId).State
 		uassert.True(t, proposalStat.Created)

@@ -90,7 +90,7 @@ func testDepositGnsToTier30(t *testing.T) {
 
 		// skip some blocks to make project active
 		std.TestSkipHeights(4)
-		depositId := DepositGns("gno.land/r/onbloc/obl:124:30", uint64(1_000_000)) // 1000000
+		depositId := DepositGns("gno.land/r/onbloc/obl:124:30", uint64(1_000_000), "") // 1000000
 		uassert.Equal(t, depositId, `gno.land/r/onbloc/obl:124:30:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:129`)
 		std.TestSkipHeights(1)
 	})

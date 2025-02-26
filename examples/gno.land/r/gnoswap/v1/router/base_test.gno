@@ -113,8 +113,8 @@ func TestHandleNativeTokenWrapping(t *testing.T) {
 			op := &baseSwapOperation{}
 
 			testCoins := std.Coins{{"ugnot", tt.sentAmount}}
-			std.TestIssueCoins(std.CurrentRealm().Addr(), testCoins)
-			std.TestSetOrigSend(testCoins, nil)
+			std.TestIssueCoins(std.CurrentRealm().Address(), testCoins)
+			std.TestSetOriginSend(testCoins, nil)
 
 			err := op.handleNativeTokenWrapping(
 				tt.inputToken,
@@ -122,7 +122,7 @@ func TestHandleNativeTokenWrapping(t *testing.T) {
 				tt.swapType,
 				tt.specifiedAmount,
 			)
-			std.TestSetOrigSend(testCoins, nil)
+			std.TestSetOriginSend(testCoins, nil)
 
 			if tt.expectError && err == nil {
 				t.Errorf("expected an error but got nil")

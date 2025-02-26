@@ -7,7 +7,6 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
-	u256 "gno.land/p/gnoswap/uint256"
 
 	"gno.land/p/gnoswap/consts"
 	"gno.land/r/gnoswap/v1/common"
@@ -32,102 +31,6 @@ func init() {
 	setFeeAmountTickSpacing(10000, 200) // 1%
 }
 
-// createPoolParams holds the essential parameters for creating a new pool.
-type createPoolParams struct {
-	token0Path, token1Path string
-	fee                    uint32
-	sqrtPriceX96           *u256.Uint
-	tickSpacing            int32
-}
-
-// newPoolParams defines the essential parameters for creating a new pool.
-func newPoolParams(
-	token0Path string,
-	token1Path string,
-	fee uint32,
-	sqrtPriceX96 string,
-) *createPoolParams {
-	price := u256.MustFromDecimal(sqrtPriceX96)
-	tickSpacing := GetFeeAmountTickSpacing(fee)
-	return &createPoolParams{
-		token0Path:   token0Path,
-		token1Path:   token1Path,
-		fee:          fee,
-		sqrtPriceX96: price,
-		tickSpacing:  tickSpacing,
-	}
-}
-
-func (p *createPoolParams) updateWithWrapping() *createPoolParams {
-	token0Path, token1Path := p.wrap()
-
-	if !p.isInOrder() {
-		token0Path, token1Path = token1Path, token0Path
-
-		oldTick := common.TickMathGetTickAtSqrtRatio(p.sqrtPriceX96)
-		if oldTick > consts.MAX_TICK || oldTick < consts.MIN_TICK {
-			panic(addDetailToError(
-				errInvalidTickRange,
-				ufmt.Sprintf("expected tick(%d) to be within range", oldTick),
-			))
-		}
-		newPrice := common.TickMathGetSqrtRatioAtTick(oldTick * int32(-1))
-		if newPrice.IsZero() {
-			panic(addDetailToError(
-				errOverFlow,
-				ufmt.Sprintf("expected newPrice(%s) to be non-zero", newPrice.ToString()),
-			))
-		}
-		p.sqrtPriceX96 = new(u256.Uint).Set(newPrice)
-	}
-
-	return newPoolParams(token0Path, token1Path, p.fee, p.sqrtPriceX96.ToString())
-}
-
-func (p *createPoolParams) isSameTokenPath() bool {
-	return p.token0Path == p.token1Path
-}
-
-// isInOrder checks if token paths are in lexicographical (or, alphabetical) order
-func (p *createPoolParams) isInOrder() bool {
-	if strings.Compare(p.token0Path, p.token1Path) < 0 {
-		return true
-	}
-
-	return false
-}
-
-func (p *createPoolParams) wrap() (string, string) {
-	if p.token0Path == consts.GNOT {
-		p.token0Path = consts.WRAPPED_WUGNOT
-	}
-	if p.token1Path == consts.GNOT {
-		p.token1Path = consts.WRAPPED_WUGNOT
-	}
-
-	return p.token0Path, p.token1Path
-}
-
-func (p *createPoolParams) Token0Path() string {
-	return p.token0Path
-}
-
-func (p *createPoolParams) Token1Path() string {
-	return p.token1Path
-}
-
-func (p *createPoolParams) Fee() uint32 {
-	return p.fee
-}
-
-func (p *createPoolParams) TickSpacing() int32 {
-	return p.tickSpacing
-}
-
-func (p *createPoolParams) SqrtPriceX96() *u256.Uint {
-	return p.sqrtPriceX96
-}
-
 // CreatePool creates a new concentrated liquidity pool with the given parameters.
 // It mints and distributes GNS tokens, validates the input parameters, and creates a new pool.
 // If GNOT is used as one of the tokens, it is automatically wrapped to WUGNOT.
@@ -141,57 +44,22 @@ func CreatePool(
 ) {
 	assertOnlyNotHalted()
 
-	poolInfo := newPoolParams(token0Path, token1Path, fee, sqrtPriceX96)
-	poolInfo = poolInfo.updateWithWrapping()
-	if poolInfo.isSameTokenPath() {
-		panic(addDetailToError(
-			errDuplicateTokenInPool,
-			ufmt.Sprintf(
-				"expected token0Path(%s) != token1Path(%s)",
-				poolInfo.token0Path, poolInfo.token1Path,
-			),
-		))
-	}
+	poolInfo := createPool(token0Path, token1Path, fee, sqrtPriceX96, GetFeeAmountTickSpacing(fee))
 	en.MintAndDistributeGns()
 
-	// wrap first
-	token0Path, token1Path = poolInfo.wrap()
-	poolPath := GetPoolPath(token0Path, token1Path, fee)
-
-	// reinitialize poolInfo with wrapped tokens
-	poolInfo = newPoolParams(token0Path, token1Path, fee, sqrtPriceX96)
-
-	// then check if token0Path == token1Path
-	if poolInfo.isSameTokenPath() {
-		panic(addDetailToError(
-			errDuplicateTokenInPool,
-			ufmt.Sprintf(
-				"expected token0Path(%s) != token1Path(%s)",
-				token0Path, token1Path,
-			),
-		))
-	}
-
-	if !poolInfo.isInOrder() {
-		panic(addDetailToError(
-			errTokenSortOrder,
-			ufmt.Sprintf("expected token0Path(%s) < token1Path(%s)", token0Path, token1Path),
-		))
-	}
-
-	prevAddr, prevRealm := getPrevAsString()
-
+	poolPath := poolInfo.generatePoolPath()
 	// check whether the pool already exist
-	pool, exist := pools.Get(poolPath)
-	if exist {
-		panic(addDetailToError(
+	if DoesPoolPathExist(poolPath) {
+		panic(newErrorWithDetail(
 			errPoolAlreadyExists,
 			ufmt.Sprintf("expected poolPath(%s) not to exist", poolPath),
 		))
 	}
 
+	prevAddr, prevRealm := getPrevAsString()
+
 	if poolCreationFee > 0 {
-		gns.TransferFrom(std.PrevRealm().Addr(), consts.PROTOCOL_FEE_ADDR, poolCreationFee)
+		gns.TransferFrom(std.PreviousRealm().Address(), consts.PROTOCOL_FEE_ADDR, poolCreationFee)
 		pf.AddToProtocolFee(consts.GNS_PATH, poolCreationFee)
 
 		std.Emit(
@@ -204,10 +72,10 @@ func CreatePool(
 		)
 	}
 
-	pool = newPool(poolInfo)
+	pool := newPool(poolInfo)
 	pools.Set(poolPath, pool)
 
-	currentTick := common.TickMathGetTickAtSqrtRatio(u256.MustFromDecimal(sqrtPriceX96))
+	currentTick := common.TickMathGetTickAtSqrtRatio(poolInfo.SqrtPriceX96())
 
 	std.Emit(
 		"CreatePool",
@@ -276,7 +144,7 @@ func GetPool(token0Path, token1Path string, fee uint32) *Pool {
 func GetPoolFromPoolPath(poolPath string) *Pool {
 	iPool, exist := pools.Get(poolPath)
 	if !exist {
-		panic(addDetailToError(
+		panic(newErrorWithDetail(
 			errDataNotFound,
 			ufmt.Sprintf("expected poolPath(%s) to exist", poolPath),
 		))
@@ -333,13 +201,32 @@ func GetFeeAmountTickSpacing(fee uint32) int32 {
 	feeStr := strconv.FormatUint(uint64(fee), 10)
 	iTickSpacing, exist := feeAmountTickSpacing.Get(feeStr)
 	if !exist {
-		panic(addDetailToError(
+		panic(newErrorWithDetail(
 			errDataNotFound,
 			ufmt.Sprintf("expected feeAmountTickSpacing(%s) to exist", feeStr),
 		))
 	}
 
 	return iTickSpacing.(int32)
+}
+
+// SetFeeProtocolByAdmin sets the fee protocol for all pools
+// Also it will be applied to new created pools
+func SetFeeProtocolByAdmin(
+	feeProtocol0 uint8,
+	feeProtocol1 uint8,
+) {
+	assertOnlyAdmin()
+	setFeeProtocolInternal(feeProtocol0, feeProtocol1, "SetFeeProtocolByAdmin")
+}
+
+// SetFeeProtocol sets the fee protocol for all pools
+// Only governance contract can execute this function via proposal
+// Also it will be applied to new created pools
+// ref: https://docs.gnoswap.io/contracts/pool/pool.gno#setfeeprotocol
+func SetFeeProtocol(feeProtocol0, feeProtocol1 uint8) {
+	assertOnlyGovernance()
+	setFeeProtocolInternal(feeProtocol0, feeProtocol1, "SetFeeProtocol")
 }
 
 // setFeeAmountTickSpacing associates a tick spacing value with a fee amount.
@@ -354,4 +241,147 @@ func GetFeeAmountTickSpacing(fee uint32) int32 {
 func setFeeAmountTickSpacing(fee uint32, tickSpacing int32) {
 	feeStr := strconv.FormatUint(uint64(fee), 10)
 	feeAmountTickSpacing.Set(feeStr, tickSpacing)
+}
+
+// mustGetPool retrieves a pool instance by its path and ensures it exists.
+//
+// This function attempts to fetch the pool using GetPoolFromPoolPath().
+// If the pool does not exist, it panics with a detailed error message.
+//
+// Parameters:
+//   - poolPath: The unique identifier for the pool.
+//
+// Returns:
+//   - *Pool: A valid Pool instance.
+//
+// Panics:
+//   - If the pool does not exist, an error is thrown with the message
+//     "expected poolPath(<poolPath>) to exist".
+func mustGetPool(poolPath string) *Pool {
+	pool := GetPoolFromPoolPath(poolPath)
+	if pool == nil {
+		panic(newErrorWithDetail(
+			errDataNotFound,
+			ufmt.Sprintf("expected poolPath(%s) to exist", poolPath),
+		))
+	}
+	return pool
+}
+
+// setFeeProtocolInternal updates the protocol fee for all pools and emits an event.
+//
+// This function is an internal utility used to set the protocol fee for token0 and token1 in a compact
+// format. The fee values are stored as a single `uint8` byte where:
+//   - Lower 4 bits represent the fee for token0 (feeProtocol0).
+//   - Upper 4 bits represent the fee for token1 (feeProtocol1).
+//
+// It also emits an event to log the changes, including the previous and new fee protocol values.
+//
+// Parameters:
+//   - feeProtocol0: uint8, protocol fee for token0 (must be 0 or between 4 and 10 inclusive).
+//   - feeProtocol1: uint8, protocol fee for token1 (must be 0 or between 4 and 10 inclusive).
+//   - eventName: string, the name of the event to emit (e.g., "SetFeeProtocolByAdmin").
+//
+// Notes:
+//   - This function is called by higher-level functions like `SetFeeProtocolByAdmin` or `SetFeeProtocol`.
+//   - It does not validate caller permissions; validation must be performed by the calling function.
+func setFeeProtocolInternal(feeProtocol0, feeProtocol1 uint8, eventName string) {
+	oldFee := slot0FeeProtocol
+	newFee := setFeeProtocol(feeProtocol0, feeProtocol1)
+
+	feeProtocol0Old := oldFee % 16
+	feeProtocol1Old := oldFee >> 4
+
+	prevAddr, prevPkgPath := getPrevAsString()
+	std.Emit(
+		eventName,
+		"prevAddr", prevAddr,
+		"prevRealm", prevPkgPath,
+		"prevFeeProtocol0", formatUint(uint64(feeProtocol0Old)),
+		"prevFeeProtocol1", formatUint(uint64(feeProtocol1Old)),
+		"feeProtocol0", formatUint(uint64(feeProtocol0)),
+		"feeProtocol1", formatUint(uint64(feeProtocol1)),
+		"newFee", formatUint(uint64(newFee)),
+	)
+}
+
+// setFeeProtocol updates the protocol fee configuration for all managed pools.
+//
+// This function combines the protocol fee values for token0 and token1 into a single `uint8` value,
+// where:
+//   - Lower 4 bits store feeProtocol0 (for token0).
+//   - Upper 4 bits store feeProtocol1 (for token1).
+//
+// The updated fee protocol is applied uniformly to all pools managed by the system.
+//
+// Parameters:
+//   - feeProtocol0: protocol fee for token0 (must be 0 or between 4 and 10 inclusive).
+//   - feeProtocol1: protocol fee for token1 (must be 0 or between 4 and 10 inclusive).
+//
+// Returns:
+//   - newFee (uint8): the combined fee protocol value.
+//
+// Example:
+// If feeProtocol0 = 4 and feeProtocol1 = 5:
+//
+//	newFee = 4 + (5 << 4)
+//	// Results in: 0x54 (84 in decimal)
+//	// Binary: 0101 0100
+//	//         ^^^^ ^^^^
+//	//       fee1=5  fee0=4
+//
+// Notes:
+//   - This function ensures that all pools under management are updated to use the same fee protocol.
+//   - Caller restrictions (e.g., admin or governance) are not enforced in this function.
+//   - Ensure the system is not halted before updating fees.
+func setFeeProtocol(feeProtocol0, feeProtocol1 uint8) uint8 {
+	assertOnlyNotHalted()
+	if err := validateFeeProtocol(feeProtocol0, feeProtocol1); err != nil {
+		panic(newErrorWithDetail(
+			err,
+			ufmt.Sprintf("expected (feeProtocol0(%d) == 0 || (feeProtocol0(%d) >= 4 && feeProtocol0(%d) <= 10)) && (feeProtocol1(%d) == 0 || (feeProtocol1(%d) >= 4 && feeProtocol1(%d) <= 10))", feeProtocol0, feeProtocol0, feeProtocol0, feeProtocol1, feeProtocol1, feeProtocol1),
+		))
+	}
+	// combine both protocol fee into a single byte:
+	// - feePrtocol0 occupies the lower 4 bits
+	// - feeProtocol1 is shifted the lower 4 positions to occupy the upper 4 bits
+	newFee := feeProtocol0 + (feeProtocol1 << 4) // ( << 4 ) = ( * 16 )
+
+	// Update slot0 for each pool
+	pools.Iterate("", "", func(poolPath string, iPool interface{}) bool {
+		pool := iPool.(*Pool)
+		pool.slot0.feeProtocol = newFee
+
+		return false
+	})
+
+	// update slot0
+	slot0FeeProtocol = newFee
+	return newFee
+}
+
+// validateFeeProtocol validates the fee protocol values for token0 and token1.
+//
+// This function checks whether the provided fee protocol values (`feeProtocol0` and `feeProtocol1`)
+// are valid using the `isValidFeeProtocolValue` function. If either value is invalid, it returns
+// an error indicating that the protocol fee percentage is invalid.
+//
+// Parameters:
+//   - feeProtocol0: uint8, the fee protocol value for token0.
+//   - feeProtocol1: uint8, the fee protocol value for token1.
+//
+// Returns:
+//   - error: Returns `errInvalidProtocolFeePct` if either `feeProtocol0` or `feeProtocol1` is invalid.
+//     Returns `nil` if both values are valid.
+func validateFeeProtocol(feeProtocol0, feeProtocol1 uint8) error {
+	if !isValidFeeProtocolValue(feeProtocol0) || !isValidFeeProtocolValue(feeProtocol1) {
+		return errInvalidProtocolFeePct
+	}
+	return nil
+}
+
+// isValidFeeProtocolValue checks if a fee protocol value is within acceptable range.
+// valid values are either 0 or between 4 and 10 inclusive.
+func isValidFeeProtocolValue(value uint8) bool {
+	return value == 0 || (value >= 4 && value <= 10)
 }

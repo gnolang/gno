@@ -97,7 +97,7 @@ func (self *RewardState) Info(staker std.Address) StakerRewardInfo {
 	infoI, exists := self.info.Get(staker.String())
 	if !exists {
 		return StakerRewardInfo{
-			StartHeight:          uint64(std.GetHeight()),
+			StartHeight:          uint64(std.ChainHeight()),
 			PriceDebt:            u256.Zero(),
 			ProtocolFeePriceDebt: make(map[string]*u256.Uint),
 			Amount:               0,
@@ -254,7 +254,7 @@ func (self *RewardState) claim(staker std.Address, currentBalance uint64, curren
 		return 0, make(map[string]uint64)
 	}
 
-	if self.LastHeight == uint64(std.GetHeight()) {
+	if self.LastHeight == uint64(std.ChainHeight()) {
 		return 0, make(map[string]uint64)
 	}
 
@@ -262,7 +262,7 @@ func (self *RewardState) claim(staker std.Address, currentBalance uint64, curren
 
 	reward, protocolFeeRewards := self.deductReward(staker, currentBalance)
 
-	self.LastHeight = uint64(std.GetHeight())
+	self.LastHeight = uint64(std.ChainHeight())
 	return reward, protocolFeeRewards
 }
 
@@ -278,9 +278,7 @@ func (self *RewardState) removeStake(staker std.Address, amount uint64, currentB
 	return reward, protocolFeeRewards
 }
 
-var (
-	q96 = u256.MustFromDecimal(consts.Q96)
-)
+var q96 = u256.MustFromDecimal(consts.Q96)
 
 // === LAUNCHPAD DEPOSIT
 var (
@@ -305,7 +303,7 @@ func getAmountByProjectWallet(addr std.Address) uint64 {
 }
 
 func SetAmountByProjectWallet(addr std.Address, amount uint64, add bool) {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	if err := common.LaunchpadOnly(caller); err != nil {
 		panic(err)
 	}
@@ -316,7 +314,7 @@ func SetAmountByProjectWallet(addr std.Address, amount uint64, add bool) {
 	currentAmount := getAmountByProjectWallet(addr)
 	if add {
 		amountByProjectWallet.Set(addr.String(), currentAmount+amount)
-		rewardState.addStake(uint64(std.GetHeight()), caller, amount, collectAndGetGNSBalance(), updateAndGetProtocolFeeBalance())
+		rewardState.addStake(uint64(std.ChainHeight()), caller, amount, collectAndGetGNSBalance(), updateAndGetProtocolFeeBalance())
 	} else {
 		amountByProjectWallet.Set(addr.String(), currentAmount-amount)
 		rewardState.removeStake(caller, amount, collectAndGetGNSBalance(), updateAndGetProtocolFeeBalance())

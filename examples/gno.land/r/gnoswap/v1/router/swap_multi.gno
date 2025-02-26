@@ -168,7 +168,6 @@ func multiDrySwap(params SwapParams, currentPoolIndex, numPool int, swapPath str
 		params.fee = nextFee
 		params.amountSpecified = i256.FromUint256(amountOut)
 	}
-
 }
 
 func multiDrySwapNegative(params SwapParams, currentPoolIndex int, swapPath string) (*u256.Uint, *u256.Uint) {

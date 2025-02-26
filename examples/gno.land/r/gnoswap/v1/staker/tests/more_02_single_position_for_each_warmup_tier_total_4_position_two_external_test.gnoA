@@ -210,7 +210,7 @@ func testCreateBazExternal(t *testing.T) {
 	// endHeight		15768978
 
 	// make external start
-	leftHeight := 978 - std.GetHeight()
+	leftHeight := 978 - std.ChainHeight()
 	std.TestSkipHeights(leftHeight + 5) // skip 5 block more
 }
 

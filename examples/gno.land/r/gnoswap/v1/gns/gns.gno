@@ -45,7 +45,7 @@ func init() {
 	// leftEmissionAmount will decrease as tokens are minted.
 	setLeftEmissionAmount(MAX_EMISSION_AMOUNT)
 	setMintedEmissionAmount(uint64(0))
-	setLastMintedHeight(std.GetHeight())
+	setLastMintedHeight(std.ChainHeight())
 	burnAmount = uint64(0)
 }
 
@@ -79,7 +79,7 @@ func Allowance(owner, spender std.Address) uint64 {
 
 func MintGns(address std.Address) uint64 {
 	lastGNSMintedHeight := GetLastMintedHeight()
-	currentHeight := std.GetHeight()
+	currentHeight := std.ChainHeight()
 
 	// skip minting process if following conditions are met
 	// - if gns for current block is already minted
@@ -130,7 +130,7 @@ func Burn(from std.Address, amount uint64) {
 		"Burn",
 		"prevAddr", prevAddr,
 		"prevRealm", prevPkgPath,
-		"burnedBlockHeight", formatInt(std.GetHeight()),
+		"burnedBlockHeight", formatInt(std.ChainHeight()),
 		"burnFrom", from.String(),
 		"burnedGNSAmount", formatUint(amount),
 		"accumBurnedGNSAmount", formatUint(GetBurnAmount()),

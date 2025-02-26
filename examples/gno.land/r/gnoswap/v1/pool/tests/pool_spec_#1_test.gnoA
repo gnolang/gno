@@ -156,7 +156,7 @@ func TestMint_fail_if_tickLower_less_than_min_tick(t *testing.T) {
 	// =====================fails if tickLower less than min tick==========================
 	uassert.PanicsWithMessage(
 		t,
-		`[GNOSWAP-POOL-028] tickLower is invalid || tickLower(-887273) < MIN_TICK(-887272)`,
+		`[GNOSWAP-POOL-013] tickLower is invalid || tickLower(-887273) < MIN_TICK(-887272)`,
 		func() {
 			pl.Mint(barPath, fooPath, 3000, "g1ecely4gjy0yl6s9kt409ll330q9hk2lj9ls3ec", -887273, 0, "1", adminAddr)
 		},
@@ -180,7 +180,7 @@ func TestMint_fail_if_tickUpper_greater_than_max_tick(t *testing.T) {
 	// =====================fails if tickUpper greater than max tick==========================
 	uassert.PanicsWithMessage(
 		t,
-		`[GNOSWAP-POOL-029] tickUpper is invalid || tickUpper(887273) > MAX_TICK(887272)`,
+		`[GNOSWAP-POOL-014] tickUpper is invalid || tickUpper(887273) > MAX_TICK(887272)`,
 		func() {
 			pl.Mint(barPath, fooPath, 3000, "g1ecely4gjy0yl6s9kt409ll330q9hk2lj9ls3ec", 0, 887273, "1", adminAddr)
 		},

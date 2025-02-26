@@ -39,7 +39,7 @@ func TestSetDepositGnsAmountByAdmin(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			std.TestSetOrigCaller(tt.caller)
+			std.TestSetOriginCaller(tt.caller)
 
 			defer func() {
 				r := recover()
@@ -87,7 +87,7 @@ func TestSetDepositGnsAmount(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			std.TestSetOrigCaller(tt.caller)
+			std.TestSetOriginCaller(tt.caller)
 
 			defer func() {
 				r := recover()

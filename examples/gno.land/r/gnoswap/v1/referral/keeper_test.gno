@@ -28,10 +28,10 @@ func mockTimeNow() time.Time {
 func setupKeeper() *keeper { return NewKeeper().(*keeper) }
 
 func mockValidCaller() func() {
-	origCaller := std.GetOrigCaller()
-	std.TestSetOrigCaller(consts.ROUTER_ADDR)
+	origCaller := std.OriginCaller()
+	std.TestSetOriginCaller(consts.ROUTER_ADDR)
 	return func() {
-		std.TestSetOrigCaller(origCaller)
+		std.TestSetOriginCaller(origCaller)
 	}
 }
 
@@ -55,10 +55,10 @@ func TestRegister(t *testing.T) {
 			addr:    validAddr1,
 			refAddr: validAddr2,
 			setupCaller: func() func() {
-				origCaller := std.GetOrigCaller()
-				std.TestSetOrigCaller(std.Address("unauthorized"))
+				origCaller := std.OriginCaller()
+				std.TestSetOriginCaller(std.Address("unauthorized"))
 				return func() {
-					std.TestSetOrigCaller(origCaller)
+					std.TestSetOriginCaller(origCaller)
 				}
 			},
 			wantErr: true,

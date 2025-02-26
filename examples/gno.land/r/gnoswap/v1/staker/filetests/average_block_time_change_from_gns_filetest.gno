@@ -86,11 +86,11 @@ func testInit() {
 
 	// prepare wugnot
 	std.TestIssueCoins(adminAddr, std.Coins{{"ugnot", 100_000_000_000_000}})
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(adminAddr, wugnotAddr, std.Coins{{"ugnot", 50_000_000_000_000}})
-	std.TestSetOrigSend(std.Coins{{"ugnot", 50_000_000_000_000}}, nil)
+	std.TestSetOriginSend(std.Coins{{"ugnot", 50_000_000_000_000}}, nil)
 	wugnot.Deposit()
-	std.TestSetOrigSend(nil, nil)
+	std.TestSetOriginSend(nil, nil)
 
 	// set unstaking fee to 0
 	sr.SetUnStakingFeeByAdmin(0)

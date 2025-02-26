@@ -299,7 +299,7 @@ func (in ProjectInput) ConvertStartTimeToHeight(now uint64) (uint64, error) {
 	}
 
 	diffBlockHeight := uint64(diffSec * 1000 / int64(avgBlockTimeMs))
-	currentHeight := uint64(std.GetHeight())
+	currentHeight := uint64(std.ChainHeight())
 	return currentHeight + diffBlockHeight, nil
 }
 
@@ -383,7 +383,7 @@ func CreateProject(
 	}
 
 	projectCreated := TimeInfo{
-		height: uint64(std.GetHeight()),
+		height: uint64(std.ChainHeight()),
 		time:   now,
 	}
 
@@ -478,7 +478,7 @@ func TransferLeftFromProjectByAdmin(projectId string, recipient std.Address) uin
 		panic(err.Error())
 	}
 
-	currentHeight := uint64(std.GetHeight())
+	currentHeight := uint64(std.ChainHeight())
 	if err := validateTransferLeft(project, recipient, currentHeight); err != nil {
 		panic(addDetailToError(
 			errInvalidCondition, err.Error()))
@@ -572,7 +572,7 @@ func calculateProjectParams(input ProjectInput, now uint64) (*ProjectCalculation
 	// calculate when the block starts
 	timeUntilStart := input.StartTime - now
 	blockDurationToStart := convertTimeToHeight(timeUntilStart)
-	currentHeight := uint64(std.GetHeight())
+	currentHeight := uint64(std.ChainHeight())
 	startHeight := currentHeight + blockDurationToStart
 
 	return &ProjectCalculationResult{
@@ -596,7 +596,7 @@ func calculateProjectParams(input ProjectInput, now uint64) (*ProjectCalculation
 func generateProjectId(tokenPath string) string {
 	// gno.land/r/gnoswap/gns:{height}
 	// gno.land/r/gnoswap/gns:30
-	return ufmt.Sprintf("%s:%d", tokenPath, std.GetHeight())
+	return ufmt.Sprintf("%s:%d", tokenPath, std.ChainHeight())
 }
 
 // generateTierId generates a unique tier ID based on the given project ID and the tier duration.
@@ -623,8 +623,8 @@ func createTier(
 	amount uint64,
 	startHeight uint64,
 	startTime uint64,
-	collectWaitDuration uint64) Tier {
-
+	collectWaitDuration uint64,
+) Tier {
 	tierId := generateTierId(projectId, duration)
 
 	tierStart := TimeInfo{

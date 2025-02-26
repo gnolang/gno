@@ -74,10 +74,12 @@ type RpcPosition struct {
 	TokensOwed0              string `json:"token0Owed"`
 	TokensOwed1              string `json:"token1Owed"`
 
-	Token0Balance string `json:"token0Balance"`
-	Token1Balance string `json:"token1Balance"`
-	FeeUnclaimed0 string `json:"fee0Unclaimed"`
-	FeeUnclaimed1 string `json:"fee1Unclaimed"`
+	Token0Balance           string `json:"token0Balance"`
+	Token1Balance           string `json:"token1Balance"`
+	CalculatedToken0Balance string `json:"calculatedToken0Balance"`
+	CalculatedToken1Balance string `json:"calculatedToken1Balance"`
+	FeeUnclaimed0           string `json:"fee0Unclaimed"`
+	FeeUnclaimed1           string `json:"fee1Unclaimed"`
 }
 
 func (p RpcPosition) JSON(owner std.Address) *json.Node {

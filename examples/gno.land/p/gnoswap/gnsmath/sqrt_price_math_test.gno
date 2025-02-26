@@ -5,6 +5,7 @@ import (
 
 	"gno.land/p/demo/uassert"
 
+	"gno.land/p/gnoswap/consts"
 	i256 "gno.land/p/gnoswap/int256"
 	u256 "gno.land/p/gnoswap/uint256"
 )
@@ -422,7 +423,7 @@ func TestSqrtPriceMathGetNextSqrtPriceFromOutput(t *testing.T) {
 			name:         "reverts if amountOut is impossible in zero for one direction",
 			sqrtPriceX96: encodePriceSqrt("1", "1"),
 			liquidity:    u256.NewUint(1),
-			amountOut:    u256.MustFromDecimal(MAX_UINT256),
+			amountOut:    u256.MustFromDecimal(consts.MAX_UINT256),
 			zeroForOne:   true,
 			shouldPanic:  true,
 		},
@@ -430,7 +431,7 @@ func TestSqrtPriceMathGetNextSqrtPriceFromOutput(t *testing.T) {
 			name:         "reverts if amountOut is impossible in one for zero direction",
 			sqrtPriceX96: encodePriceSqrt("1", "1"),
 			liquidity:    u256.NewUint(1),
-			amountOut:    u256.MustFromDecimal(MAX_UINT256),
+			amountOut:    u256.MustFromDecimal(consts.MAX_UINT256),
 			zeroForOne:   false,
 			shouldPanic:  true,
 		},

@@ -281,15 +281,16 @@ func computeAmount1ForLiquidity(sqrtRatioAX96, sqrtRatioBX96, liquidity *u256.Ui
 // Example:
 // ```
 // amount0, amount1 := GetAmountsForLiquidity(
-//
 //	u256.MustFromDecimal("79228162514264337593543950336"),  // sqrtRatioX96 (1.0 in Q64.96)
 //	u256.MustFromDecimal("39614081257132168796771975168"),  // sqrtRatioAX96 (0.5 in Q64.96)
 //	u256.MustFromDecimal("158456325028528675187087900672"), // sqrtRatioBX96 (2.0 in Q64.96)
 //	u256.MustFromDecimal("1000000"),                        // Liquidity
-//
 // )
-// fmt.Println("Token0:", amount0, "Token1:", amount1)
-// // Example output: Token0: 500000, Token1: 250000
+// 
+// println("Token0:", amount0, "Token1:", amount1)
+//
+// // Output:
+// Token0: 500000, Token1: 250000
 // ```
 func GetAmountsForLiquidity(sqrtRatioX96, sqrtRatioAX96, sqrtRatioBX96, liquidity *u256.Uint) (string, string) {
 	if liquidity.IsZero() {

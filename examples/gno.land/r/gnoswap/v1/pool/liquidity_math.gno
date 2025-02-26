@@ -29,7 +29,7 @@ import (
 // - The function ensures correctness by validating the results of the arithmetic operations.
 func liquidityMathAddDelta(x *u256.Uint, y *i256.Int) *u256.Uint {
 	if x == nil || y == nil {
-		panic(addDetailToError(
+		panic(newErrorWithDetail(
 			errInvalidInput,
 			"x or y is nil",
 		))
@@ -42,7 +42,7 @@ func liquidityMathAddDelta(x *u256.Uint, y *i256.Int) *u256.Uint {
 		absDelta := y.Abs()
 		z = new(u256.Uint).Sub(x, absDelta)
 		if z.Gte(x) {
-			panic(addDetailToError(
+			panic(newErrorWithDetail(
 				errLiquidityCalculation,
 				ufmt.Sprintf("Condition failed: (z must be < x) (x: %s, y: %s, z:%s)", x.ToString(), y.ToString(), z.ToString()),
 			))
@@ -50,7 +50,7 @@ func liquidityMathAddDelta(x *u256.Uint, y *i256.Int) *u256.Uint {
 	} else {
 		z = new(u256.Uint).Add(x, y.Abs())
 		if z.Lt(x) {
-			panic(addDetailToError(
+			panic(newErrorWithDetail(
 				errLiquidityCalculation,
 				ufmt.Sprintf("Condition failed: (z must be >= x) (x: %s, y: %s, z:%s)", x.ToString(), y.ToString(), z.ToString()),
 			))

@@ -74,15 +74,15 @@ func InitialisePoolTest(t *testing.T) {
 	ugnotFaucet(t, admin, 100_000_000_000_000)
 	ugnotDeposit(t, admin, 100_000_000_000_000)
 
-	std.TestSetOrigCaller(admin)
+	std.TestSetOriginCaller(admin)
 	TokenApprove(t, gnsPath, admin, pool, maxApprove)
 	poolPath := GetPoolPath(wugnotPath, gnsPath, fee3000)
 	if !DoesPoolPathExist(poolPath) {
 		CreatePool(wugnotPath, gnsPath, fee3000, "79228162514264337593543950336")
 	}
 
-	//2. create position
-	std.TestSetOrigCaller(alice)
+	// 2. create position
+	std.TestSetOriginCaller(alice)
 	TokenFaucet(t, wugnotPath, alice)
 	TokenFaucet(t, gnsPath, alice)
 	TokenApprove(t, wugnotPath, alice, pool, uint64(1000))
@@ -105,7 +105,7 @@ func InitialisePoolTest(t *testing.T) {
 
 func TokenFaucet(t *testing.T, tokenPath string, to std.Address) {
 	t.Helper()
-	std.TestSetOrigCaller(admin)
+	std.TestSetOriginCaller(admin)
 	defaultAmount := uint64(5_000_000_000)
 
 	switch tokenPath {
@@ -379,7 +379,6 @@ func MintPositionAll(t *testing.T, caller std.Address) {
 			caller,
 			caller)
 	}
-
 }
 
 func wugnotApprove(t *testing.T, owner, spender std.Address, amount uint64) {
@@ -473,15 +472,15 @@ func ugnotTransfer(t *testing.T, from, to std.Address, amount uint64) {
 	t.Helper()
 
 	std.TestSetRealm(std.NewUserRealm(from))
-	std.TestSetOrigSend(std.Coins{{ugnotDenom, int64(amount)}}, nil)
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	std.TestSetOriginSend(std.Coins{{ugnotDenom, int64(amount)}}, nil)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(from, to, std.Coins{{ugnotDenom, int64(amount)}})
 }
 
 func ugnotBalanceOf(t *testing.T, addr std.Address) uint64 {
 	t.Helper()
 
-	banker := std.GetBanker(std.BankerTypeRealmIssue)
+	banker := std.NewBanker(std.BankerTypeRealmIssue)
 	coins := banker.GetCoins(addr)
 	if len(coins) == 0 {
 		return 0
@@ -497,19 +496,19 @@ func ugnotMint(t *testing.T, addr std.Address, denom string, amount int64) {
 
 func ugnotBurn(t *testing.T, addr std.Address, denom string, amount int64) {
 	t.Helper()
-	banker := std.GetBanker(std.BankerTypeRealmIssue)
+	banker := std.NewBanker(std.BankerTypeRealmIssue)
 	banker.RemoveCoin(addr, denom, amount)
 }
 
 func ugnotFaucet(t *testing.T, to std.Address, amount uint64) {
 	t.Helper()
 	faucetAddress := admin
-	std.TestSetOrigCaller(faucetAddress)
+	std.TestSetOriginCaller(faucetAddress)
 
 	if ugnotBalanceOf(t, faucetAddress) < amount {
 		newCoins := std.Coins{{ugnotDenom, int64(amount)}}
 		ugnotMint(t, faucetAddress, newCoins[0].Denom, newCoins[0].Amount)
-		std.TestSetOrigSend(newCoins, nil)
+		std.TestSetOriginSend(newCoins, nil)
 	}
 	ugnotTransfer(t, faucetAddress, to, amount)
 }
@@ -518,7 +517,7 @@ func ugnotDeposit(t *testing.T, addr std.Address, amount uint64) {
 	t.Helper()
 	std.TestSetRealm(std.NewUserRealm(addr))
 	wugnotAddr := consts.WUGNOT_ADDR
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(addr, wugnotAddr, std.Coins{{ugnotDenom, int64(amount)}})
 	wugnot.Deposit()
 }

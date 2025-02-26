@@ -60,7 +60,7 @@ func depositTier30(t *testing.T) {
 		uassert.PanicsWithMessage(t,
 			`project is not active`,
 			func() {
-				DepositGns("gno.land/r/onbloc/obl:124:30", 1000000)
+				DepositGns("gno.land/r/onbloc/obl:124:30", 1000000, "")
 			})
 	})
 
@@ -80,6 +80,6 @@ func depositTier30(t *testing.T) {
 		gs.Delegate(user01, xGnsAmount, "") // make xGNS required amount
 
 		gns.Approve(consts.LAUNCHPAD_ADDR, gnsAmount)
-		DepositGns("gno.land/r/onbloc/obl:124:30", gnsAmount)
+		DepositGns("gno.land/r/onbloc/obl:124:30", gnsAmount, "")
 	})
 }

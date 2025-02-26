@@ -9,13 +9,13 @@ import (
 
 // getPrevAsString returns the address and package path of the previous realm.
 func getPrevAsString() (string, string) {
-	prev := std.PrevRealm()
-	return prev.Addr().String(), prev.PkgPath()
+	prev := std.PreviousRealm()
+	return prev.Address().String(), prev.PkgPath()
 }
 
 // getPrevAddr returns the address of the previous realm.
 func getPrevAddr() std.Address {
-	return std.PrevRealm().Addr()
+	return std.PreviousRealm().Address()
 }
 
 // tid converts uint64 to grc721.TokenID.

@@ -1,10 +1,11 @@
 package launchpad
 
 import (
-	"gno.land/p/demo/json"
-	u256 "gno.land/p/gnoswap/uint256"
 	"std"
 	"testing"
+
+	"gno.land/p/demo/json"
+	u256 "gno.land/p/gnoswap/uint256"
 
 	"gno.land/p/demo/uassert"
 )

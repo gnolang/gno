@@ -48,7 +48,7 @@ func CollectRewardByProjectId(projectId string) uint64 {
 	}
 	en.MintAndDistributeGns()
 
-	currentHeight := uint64(std.GetHeight())
+	currentHeight := uint64(std.ChainHeight())
 	totalReward := uint64(0) // toUser
 	prevPkgPath := getPrevPkgPath()
 
@@ -124,7 +124,7 @@ func CollectRewardByDepositId(depositId string) uint64 {
 		panic(ufmt.Sprintf("depositId(%s) not found", depositId))
 	}
 
-	currentHeight := uint64(std.GetHeight())
+	currentHeight := uint64(std.ChainHeight())
 	if err := validateRewardCollection(deposit, currentHeight); err != nil {
 		panic(err.Error())
 	}

@@ -115,7 +115,7 @@ func testCreatePool(t *testing.T) {
 func testMint(t *testing.T) {
 	t.Run("mint", func(t *testing.T) {
 		std.TestSetRealm(adminRealm)
-		std.TestSetOrigSend(std.Coins{{"ugnot", 100000000000000}}, nil)
+		std.TestSetOriginSend(std.Coins{{"ugnot", 100000000000000}}, nil)
 		wugnot.Deposit()
 		wugnot.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 		gns.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
@@ -218,7 +218,7 @@ func testDepositGns(t *testing.T) {
 	t.Run("deposit to project01 tier30", func(t *testing.T) {
 		std.TestSetRealm(launchpadDeposit01Realm)
 		gns.Approve(consts.LAUNCHPAD_ADDR, uint64(1_000_000))
-		depositId := DepositGns("gno.land/r/onbloc/foo:127:30", uint64(1_000_000))
+		depositId := DepositGns("gno.land/r/onbloc/foo:127:30", uint64(1_000_000), "")
 		uassert.Equal(t, depositId, `gno.land/r/onbloc/foo:127:30:g1d3sh2mnrdpcxzezyv4cx7umfwscrzh6lzr9g7u:140`)
 
 		checkProtocolFeeBalance()
@@ -229,7 +229,7 @@ func testDepositGns(t *testing.T) {
 		std.TestSkipHeights(1)
 		std.TestSetRealm(launchpadDeposit02Realm)
 		gns.Approve(consts.LAUNCHPAD_ADDR, uint64(1_000_000))
-		depositId := DepositGns("gno.land/r/onbloc/foo:127:30", uint64(1_000_000))
+		depositId := DepositGns("gno.land/r/onbloc/foo:127:30", uint64(1_000_000), "")
 		uassert.Equal(t, depositId, `gno.land/r/onbloc/foo:127:30:g1d3sh2mnrdpcxzezyv4cx7umfwscryh6llz2xdm:141`)
 	})
 
@@ -246,7 +246,7 @@ func testDepositGns(t *testing.T) {
 
 		std.TestSetRealm(launchpadDeposit03Realm)
 		gns.Approve(consts.LAUNCHPAD_ADDR, uint64(1_000_000))
-		depositId := DepositGns("gno.land/r/onbloc/bar:129:30", uint64(1_000_000)) // 1 GNS
+		depositId := DepositGns("gno.land/r/onbloc/bar:129:30", uint64(1_000_000), "") // 1 GNS
 		uassert.Equal(t, depositId, `gno.land/r/onbloc/bar:129:30:g1d3sh2mnrdpcxzezyv4cx7umfwscrxh6l560mmp:142`)
 
 		checkProtocolFeeBalance()
@@ -299,6 +299,7 @@ func testSwapRoute(t *testing.T) {
 			"100",
 			"1",
 			time.Now().Unix(),
+			"", // referrer
 		)
 		uassert.Equal(t, amountIn, "100000")
 		uassert.Equal(t, amountOut, "-99800")
@@ -325,6 +326,7 @@ func testSwapRoute(t *testing.T) {
 			"100",
 			"1",
 			time.Now().Unix(),
+			"", // referrer
 		)
 		uassert.Equal(t, amountIn, "100000")
 		uassert.Equal(t, amountOut, "-99800")
@@ -353,6 +355,7 @@ func testSwapRoute(t *testing.T) {
 			"100",
 			"1",
 			time.Now().Unix(),
+			"", // referrer
 		)
 		uassert.Equal(t, amountIn, "100000")
 		uassert.Equal(t, amountOut, "-99550")

@@ -262,56 +262,55 @@ func TestClone(t *testing.T) {
 	}
 }
 
-
 func TestNilChecks(t *testing.T) {
-    validInt := NewInt(123)
+	validInt := NewInt(123)
 
-    tests := []struct {
-        name      string
-        fn        func()
-        wantPanic string
-    }{
-        {
-            name: "Eq with nil",
-            fn: func() { validInt.Eq(nil) },
-            wantPanic: "int256: comparing with nil",
-        },
-        {
-            name: "Neq with nil",
-            fn: func() { validInt.Neq(nil) },
-            wantPanic: "int256: comparing with nil",
-        },
-        {
-            name: "Cmp with nil",
-            fn: func() { validInt.Cmp(nil) },
-            wantPanic: "int256: comparing with nil",
-        },
-        {
-            name: "Lt with nil",
-            fn: func() { validInt.Lt(nil) },
-            wantPanic: "int256: comparing with nil",
-        },
-        {
-            name: "Gt with nil",
-            fn: func() { validInt.Gt(nil) },
-            wantPanic: "int256: comparing with nil",
-        },
-    }
+	tests := []struct {
+		name      string
+		fn        func()
+		wantPanic string
+	}{
+		{
+			name:      "Eq with nil",
+			fn:        func() { validInt.Eq(nil) },
+			wantPanic: "int256: comparing with nil",
+		},
+		{
+			name:      "Neq with nil",
+			fn:        func() { validInt.Neq(nil) },
+			wantPanic: "int256: comparing with nil",
+		},
+		{
+			name:      "Cmp with nil",
+			fn:        func() { validInt.Cmp(nil) },
+			wantPanic: "int256: comparing with nil",
+		},
+		{
+			name:      "Lt with nil",
+			fn:        func() { validInt.Lt(nil) },
+			wantPanic: "int256: comparing with nil",
+		},
+		{
+			name:      "Gt with nil",
+			fn:        func() { validInt.Gt(nil) },
+			wantPanic: "int256: comparing with nil",
+		},
+	}
 
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            defer func() {
-                r := recover()
-                if r == nil {
-                    t.Errorf("%s: expected panic but got none", tt.name)
-                    return
-                }
-                if r.(string) != tt.wantPanic {
-                    t.Errorf("%s: got panic %v, want %v", tt.name, r, tt.wantPanic)
-                }
-            }()
-            
-            tt.fn()
-        })
-    }
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				r := recover()
+				if r == nil {
+					t.Errorf("%s: expected panic but got none", tt.name)
+					return
+				}
+				if r.(string) != tt.wantPanic {
+					t.Errorf("%s: got panic %v, want %v", tt.name, r, tt.wantPanic)
+				}
+			}()
+
+			tt.fn()
+		})
+	}
 }

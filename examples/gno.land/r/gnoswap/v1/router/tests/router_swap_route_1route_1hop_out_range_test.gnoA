@@ -88,6 +88,7 @@ func TestSwapRouteBazBarExactIn(t *testing.T) {
 				"100",  // quoteArr
 				"2710", // tokenAmountLimit ( too few recieved (expected 2710, got 300))
 				time.Now().Add(time.Hour).Unix(),
+				"", // referrer
 			)
 		},
 	)

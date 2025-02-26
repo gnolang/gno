@@ -7,8 +7,8 @@ import (
 )
 
 func getPrev() (string, string) {
-	prev := std.PrevRealm()
-	return prev.Addr().String(), prev.PkgPath()
+	prev := std.PreviousRealm()
+	return prev.Address().String(), prev.PkgPath()
 }
 
 // assertOnlyNotHalted panics if the contract is halted.

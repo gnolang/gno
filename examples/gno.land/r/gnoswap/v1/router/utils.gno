@@ -20,7 +20,7 @@ func assertOnlyNotHalted() {
 
 // assertDirectCallOnly panics if the caller is not the user.
 func assertDirectCallOnly() {
-	if common.GetLimitCaller() && std.PrevRealm().PkgPath() != "" {
+	if common.GetLimitCaller() && std.PreviousRealm().PkgPath() != "" {
 		panic(addDetailToError(errNoPermission, "only user can call this function"))
 	}
 }
@@ -119,23 +119,23 @@ func i256Max(x, y *i256.Int) *i256.Int {
 
 // getPrevRealm returns object of the previous realm.
 func prevRealm() string {
-	return std.PrevRealm().PkgPath()
+	return std.PreviousRealm().PkgPath()
 }
 
 // getPrevAddr returns the address of the previous realm.
 func getPrevAddr() std.Address {
-	return std.PrevRealm().Addr()
+	return std.PreviousRealm().Address()
 }
 
 // isUserCall returns true if the caller is a user.
 func isUserCall() bool {
-	return std.PrevRealm().IsUser()
+	return std.PreviousRealm().IsUser()
 }
 
 // getPrev returns the address and package path of the previous realm.
 func getPrev() (string, string) {
-	prev := std.PrevRealm()
-	return prev.Addr().String(), prev.PkgPath()
+	prev := std.PreviousRealm()
+	return prev.Address().String(), prev.PkgPath()
 }
 
 // checkDeadline checks if the deadline is expired.

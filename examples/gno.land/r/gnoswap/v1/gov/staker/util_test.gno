@@ -16,7 +16,7 @@ import (
 
 func TestMarshal(t *testing.T) {
 	fakeNode := json.ObjectNode("", map[string]*json.Node{
-		"height":    json.NumberNode("height", float64(std.GetHeight())),
+		"height":    json.NumberNode("height", float64(std.ChainHeight())),
 		"timestamp": json.NumberNode("timestamp", float64(time.Now().Unix())),
 	})
 
@@ -157,11 +157,11 @@ func TestAssertCallerIsAdmin(t *testing.T) {
 	adminAddr := consts.ADMIN
 	nonAdminAddr := std.Address("user456")
 
-	std.TestSetOrigCaller(adminAddr)
+	std.TestSetOriginCaller(adminAddr)
 	assertCallerIsAdmin()
 
 	// Test non-admin
-	std.TestSetOrigCaller(nonAdminAddr)
+	std.TestSetOriginCaller(nonAdminAddr)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Errorf("assertCallerIsAdmin() did not panic for non-admin")
@@ -175,11 +175,11 @@ func TestAssertCallerIsLaunchpad(t *testing.T) {
 	otherAddr := std.Address("other123")
 
 	// Test valid launchpad
-	std.TestSetOrigCaller(launchpadAddr)
+	std.TestSetOriginCaller(launchpadAddr)
 	assertCallerIsLaunchpad()
 
 	// Test invalid caller
-	std.TestSetOrigCaller(otherAddr)
+	std.TestSetOriginCaller(otherAddr)
 	defer func() {
 		if r := recover(); r == nil {
 			t.Errorf("assertCallerIsLaunchpad() did not panic for non-launchpad caller")

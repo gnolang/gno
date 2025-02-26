@@ -341,7 +341,6 @@ func TestTickUpdate(t *testing.T) {
 				deleteTick(t, pool, 0)
 				pool.tickUpdate(0, 0, i256.NewInt(2), u256.Zero(), u256.Zero(), false, u256.NewUint(3))
 				pool.tickUpdate(0, 0, i256.One(), u256.Zero(), u256.Zero(), true, u256.NewUint(3))
-
 			},
 			tick:                 0,
 			tickCurrent:          0,
@@ -360,7 +359,6 @@ func TestTickUpdate(t *testing.T) {
 				pool.tickUpdate(0, 0, i256.One(), u256.Zero(), u256.Zero(), true, u256.NewUint(10))
 				pool.tickUpdate(0, 0, i256.NewInt(3), u256.Zero(), u256.Zero(), true, u256.NewUint(10))
 				pool.tickUpdate(0, 0, i256.One(), u256.Zero(), u256.Zero(), false, u256.NewUint(10))
-
 			},
 			tick:                 0,
 			tickCurrent:          0,

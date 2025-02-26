@@ -110,13 +110,13 @@ func b64Decode(data string) string {
 
 // Returns the package path of the previous realm
 func prevRealm() string {
-	return std.PrevRealm().PkgPath()
+	return std.PreviousRealm().PkgPath()
 }
 
 // Returns the address and package path of the previous realm
 func getPrev() (string, string) {
-	prev := std.PrevRealm()
-	return prev.Addr().String(), prev.PkgPath()
+	prev := std.PreviousRealm()
+	return prev.Address().String(), prev.PkgPath()
 }
 
 // Formats an unsigned integer to a string

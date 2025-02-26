@@ -243,7 +243,7 @@ func getProposalVotes(id uint64) string {
 }
 
 func metaNode() *json.Node {
-	height := std.GetHeight()
+	height := std.ChainHeight()
 	now := time.Now().Unix()
 
 	return json.Builder().

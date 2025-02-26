@@ -2,7 +2,6 @@ package staker
 
 import (
 	"std"
-
 	"strconv"
 	"strings"
 
@@ -178,5 +177,5 @@ func TickCrossHook(pools *Pools, height func() int64) func(poolPath string, tick
 
 func init() {
 	// Sets tick cross hook for pool contract
-	pl.SetTickCrossHook(TickCrossHook(pools, std.GetHeight))
+	pl.SetTickCrossHook(TickCrossHook(pools, std.ChainHeight))
 }

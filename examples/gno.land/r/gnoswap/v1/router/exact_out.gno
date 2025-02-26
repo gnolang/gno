@@ -7,6 +7,8 @@ import (
 
 	i256 "gno.land/p/gnoswap/int256"
 	u256 "gno.land/p/gnoswap/uint256"
+
+	"gno.land/r/gnoswap/v1/referral"
 )
 
 type ExactOutSwapOperation struct {
@@ -33,6 +35,7 @@ func ExactOutSwapRoute(
 	quoteArr string,
 	amountInMax string,
 	deadline int64,
+	referrer string,
 ) (string, string) {
 	checkDeadline(deadline)
 	commonSwapSetup()
@@ -65,7 +68,7 @@ func ExactOutSwapRoute(
 	)
 
 	prevAddr, prevPkgPath := getPrev()
-
+	referral.TryRegister(std.Address(prevAddr), referrer)
 	std.Emit(
 		"ExactOutSwap",
 		"prevAddr", prevAddr,

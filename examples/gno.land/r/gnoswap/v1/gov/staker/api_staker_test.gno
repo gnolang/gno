@@ -73,17 +73,17 @@ func TestGetLockedInfoByAddress_EmptyLocks(t *testing.T) {
 func TestGetClaimableRewardByAddress(t *testing.T) {
 	addr := testutils.TestAddress("claimable_test")
 
-	rewardState.addStake(uint64(std.GetHeight()), addr, 100, 0, nil)
+	rewardState.addStake(uint64(std.ChainHeight()), addr, 100, 0, nil)
 
 	currentGNSBalance = 1000
 	// userEmissionReward.Set(addr.String(), uint64(1000))
 
 	currentProtocolFeeBalance["token1:token2"] = 500
 	currentProtocolFeeBalance["token2:token3"] = 300
-	//pfTree := avl.NewTree()
-	//pfTree.Set("token1:token2", uint64(500))
-	//pfTree.Set("token2:token3", uint64(300))
-	//userProtocolFeeReward.Set(addr.String(), pfTree)
+	// pfTree := avl.NewTree()
+	// pfTree.Set("token1:token2", uint64(500))
+	// pfTree.Set("token2:token3", uint64(300))
+	// userProtocolFeeReward.Set(addr.String(), pfTree)
 
 	result := GetClaimableRewardByAddress(addr)
 

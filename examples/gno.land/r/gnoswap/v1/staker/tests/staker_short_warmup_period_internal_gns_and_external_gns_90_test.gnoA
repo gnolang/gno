@@ -151,9 +151,9 @@ func testStakeToken_1(t *testing.T) {
 
 func testAfterActive(t *testing.T) {
 	t.Run("after active", func(t *testing.T) {
-		std.TestSkipHeights(978 - std.GetHeight() - 1) // in active
-		std.TestSkipHeights(1)                         // active // but no block passed since active
-		std.TestSkipHeights(50)                        // skip 50 more block
+		std.TestSkipHeights(978 - std.ChainHeight() - 1) // in active
+		std.TestSkipHeights(1)                           // active // but no block passed since active
+		std.TestSkipHeights(50)                          // skip 50 more block
 
 		std.TestSkipHeights(1)
 

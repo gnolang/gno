@@ -42,7 +42,7 @@ func ProposeText(
 	en.MintAndDistributeGns()
 	updateProposalsState()
 
-	proposer := std.PrevRealm().Addr()
+	proposer := std.PreviousRealm().Address()
 
 	enough, balance, wanted := checkEnoughXGnsToPropose(proposer)
 	if !enough {
@@ -113,7 +113,7 @@ func ProposeCommunityPoolSpend(
 	en.MintAndDistributeGns()
 	updateProposalsState()
 
-	proposer := std.PrevRealm().Addr()
+	proposer := std.PreviousRealm().Address()
 
 	enough, balance, wanted := checkEnoughXGnsToPropose(proposer)
 	if !enough {
@@ -195,7 +195,7 @@ func ProposeParameterChange(
 	en.MintAndDistributeGns()
 	updateProposalsState()
 
-	proposer := std.PrevRealm().Addr()
+	proposer := std.PreviousRealm().Address()
 
 	enough, balance, wanted := checkEnoughXGnsToPropose(proposer)
 	if !enough {

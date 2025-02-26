@@ -71,6 +71,7 @@ func TestSwapRouteBarBazExactOut(t *testing.T) {
 				"100",    // quoteArr
 				"0",      // tokenAmountLimit
 				time.Now().Add(time.Hour).Unix(),
+				"", // referrer
 			)
 		},
 	)

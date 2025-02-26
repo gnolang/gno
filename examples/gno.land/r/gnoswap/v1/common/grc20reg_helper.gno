@@ -10,9 +10,7 @@ import (
 	"gno.land/r/demo/grc20reg"
 )
 
-var (
-	re = regexp.MustCompile(`\[gno\.land/r/[^\]]+\]`)
-)
+var re = regexp.MustCompile(`\[gno\.land/r/[^\]]+\]`)
 
 // GetToken returns a grc20.Token instance
 // if token is not registered, it will panic

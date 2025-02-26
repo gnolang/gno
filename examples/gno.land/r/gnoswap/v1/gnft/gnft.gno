@@ -13,9 +13,7 @@ import (
 	"gno.land/r/gnoswap/v1/common"
 )
 
-var (
-	gnft = grc721.NewBasicNFT("GNOSWAP NFT", "GNFT")
-)
+var gnft = grc721.NewBasicNFT("GNOSWAP NFT", "GNFT")
 
 var (
 	owner     *ownable.Ownable

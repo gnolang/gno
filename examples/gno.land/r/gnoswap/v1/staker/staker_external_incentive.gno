@@ -28,7 +28,7 @@ func CreateExternalIncentive(
 	assertOnlyNotHalted()
 
 	if common.GetLimitCaller() {
-		prev := std.PrevRealm()
+		prev := std.PreviousRealm()
 		if err := common.UserOnly(prev); err != nil {
 			panic(ufmt.Sprintf("%v: %v", errNoPermission, err))
 		}
@@ -51,7 +51,7 @@ func CreateExternalIncentive(
 
 	// native ugnot check
 	if rewardToken == consts.GNOT {
-		sent := std.GetOrigSend()
+		sent := std.OriginSend()
 		ugnotSent := uint64(sent.AmountOf("ugnot"))
 
 		if ugnotSent != rewardAmount {
@@ -83,7 +83,7 @@ func CreateExternalIncentive(
 
 	caller := getPrevAddr()
 
-	// incentiveId := incentiveIdCompute(std.PrevRealm().Addr(), targetPoolPath, rewardToken, startTimestamp, endTimestamp, std.GetHeight())
+	// incentiveId := incentiveIdCompute(std.PrevRealm().Address(), targetPoolPath, rewardToken, startTimestamp, endTimestamp, std.GetHeight())
 	incentiveId := incentiveIdByTime(startTimestamp, endTimestamp, caller, rewardToken)
 
 	externalDuration := uint64(endTimestamp - startTimestamp)
@@ -101,7 +101,7 @@ func CreateExternalIncentive(
 		startTimestamp,
 		endTimestamp,
 		caller,
-		std.GetHeight(),
+		std.ChainHeight(),
 		depositGnsAmount,
 		time.Now().Unix(),
 		gns.GetAvgBlockTimeInMs(),
@@ -137,7 +137,7 @@ func CreateExternalIncentive(
 		"startTimestamp", formatInt(startTimestamp),
 		"endTimestamp", formatInt(endTimestamp),
 		"depositGnsAmount", formatUint(depositGnsAmount),
-		"currentHeight", formatInt(std.GetHeight()),
+		"currentHeight", formatInt(std.ChainHeight()),
 		"currentTime", formatInt(time.Now().Unix()),
 		"avgBlockTimeInMs", formatInt(gns.GetAvgBlockTimeInMs()),
 	)
@@ -164,7 +164,7 @@ func EndExternalIncentive(refundee std.Address, targetPoolPath, rewardToken stri
 		))
 	}
 
-	currentHeight := std.GetHeight()
+	currentHeight := std.ChainHeight()
 	if currentHeight < ictv.endHeight {
 		panic(addDetailToError(
 			errCannotEndIncentive,

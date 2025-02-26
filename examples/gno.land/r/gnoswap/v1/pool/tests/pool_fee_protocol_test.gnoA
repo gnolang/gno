@@ -33,37 +33,37 @@ func TestProtocolFee(t *testing.T) {
 		t.Run("fails if fee is lt 4 or gt 10", func(t *testing.T) {
 			uassert.PanicsWithMessage(
 				t,
-				`[GNOSWAP-POOL-015] invalid protocol fee percentage || expected (feeProtocol0(3) == 0 || (feeProtocol0(3) >= 4 && feeProtocol0(3) <= 10)) && (feeProtocol1(3) == 0 || (feeProtocol1(3) >= 4 && feeProtocol1(3) <= 10))`,
+				`[GNOSWAP-POOL-016] invalid protocol fee percentage || expected (feeProtocol0(3) == 0 || (feeProtocol0(3) >= 4 && feeProtocol0(3) <= 10)) && (feeProtocol1(3) == 0 || (feeProtocol1(3) >= 4 && feeProtocol1(3) <= 10))`,
 				func() { setFeeProtocol(3, 3) },
 			)
 
 			uassert.PanicsWithMessage(
 				t,
-				`[GNOSWAP-POOL-015] invalid protocol fee percentage || expected (feeProtocol0(6) == 0 || (feeProtocol0(6) >= 4 && feeProtocol0(6) <= 10)) && (feeProtocol1(3) == 0 || (feeProtocol1(3) >= 4 && feeProtocol1(3) <= 10))`,
+				`[GNOSWAP-POOL-016] invalid protocol fee percentage || expected (feeProtocol0(6) == 0 || (feeProtocol0(6) >= 4 && feeProtocol0(6) <= 10)) && (feeProtocol1(3) == 0 || (feeProtocol1(3) >= 4 && feeProtocol1(3) <= 10))`,
 				func() { setFeeProtocol(6, 3) },
 			)
 
 			uassert.PanicsWithMessage(
 				t,
-				`[GNOSWAP-POOL-015] invalid protocol fee percentage || expected (feeProtocol0(3) == 0 || (feeProtocol0(3) >= 4 && feeProtocol0(3) <= 10)) && (feeProtocol1(6) == 0 || (feeProtocol1(6) >= 4 && feeProtocol1(6) <= 10))`,
+				`[GNOSWAP-POOL-016] invalid protocol fee percentage || expected (feeProtocol0(3) == 0 || (feeProtocol0(3) >= 4 && feeProtocol0(3) <= 10)) && (feeProtocol1(6) == 0 || (feeProtocol1(6) >= 4 && feeProtocol1(6) <= 10))`,
 				func() { setFeeProtocol(3, 6) },
 			)
 
 			uassert.PanicsWithMessage(
 				t,
-				`[GNOSWAP-POOL-015] invalid protocol fee percentage || expected (feeProtocol0(11) == 0 || (feeProtocol0(11) >= 4 && feeProtocol0(11) <= 10)) && (feeProtocol1(11) == 0 || (feeProtocol1(11) >= 4 && feeProtocol1(11) <= 10))`,
+				`[GNOSWAP-POOL-016] invalid protocol fee percentage || expected (feeProtocol0(11) == 0 || (feeProtocol0(11) >= 4 && feeProtocol0(11) <= 10)) && (feeProtocol1(11) == 0 || (feeProtocol1(11) >= 4 && feeProtocol1(11) <= 10))`,
 				func() { setFeeProtocol(11, 11) },
 			)
 
 			uassert.PanicsWithMessage(
 				t,
-				`[GNOSWAP-POOL-015] invalid protocol fee percentage || expected (feeProtocol0(6) == 0 || (feeProtocol0(6) >= 4 && feeProtocol0(6) <= 10)) && (feeProtocol1(11) == 0 || (feeProtocol1(11) >= 4 && feeProtocol1(11) <= 10))`,
+				`[GNOSWAP-POOL-016] invalid protocol fee percentage || expected (feeProtocol0(6) == 0 || (feeProtocol0(6) >= 4 && feeProtocol0(6) <= 10)) && (feeProtocol1(11) == 0 || (feeProtocol1(11) >= 4 && feeProtocol1(11) <= 10))`,
 				func() { setFeeProtocol(6, 11) },
 			)
 
 			uassert.PanicsWithMessage(
 				t,
-				`[GNOSWAP-POOL-015] invalid protocol fee percentage || expected (feeProtocol0(11) == 0 || (feeProtocol0(11) >= 4 && feeProtocol0(11) <= 10)) && (feeProtocol1(6) == 0 || (feeProtocol1(6) >= 4 && feeProtocol1(6) <= 10))`,
+				`[GNOSWAP-POOL-016] invalid protocol fee percentage || expected (feeProtocol0(11) == 0 || (feeProtocol0(11) >= 4 && feeProtocol0(11) <= 10)) && (feeProtocol1(6) == 0 || (feeProtocol1(6) >= 4 && feeProtocol1(6) <= 10))`,
 				func() { setFeeProtocol(11, 6) },
 			)
 		})

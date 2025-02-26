@@ -169,7 +169,7 @@ type statNode struct {
 
 func newStatNode() statNode {
 	return statNode{
-		height:    std.GetHeight(),
+		height:    std.ChainHeight(),
 		timestamp: time.Now().Unix(),
 	}
 }

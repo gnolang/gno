@@ -10,7 +10,7 @@ var (
 	errNoPermission          = errors.New("[GNOSWAP-POSITION-001] caller has no permission")
 	errSlippage              = errors.New("[GNOSWAP-POSITION-002] slippage failed")
 	errWrapUnwrap            = errors.New("[GNOSWAP-POSITION-003] wrap, unwrap failed")
-	errOutOfRange            = errors.New("[GNOSWAP-POSITION-004] out of range for numeric value")
+	errZeroWrappedAmount     = errors.New("[GNOSWAP-POSITION-004] zero wrapped amount")
 	errInvalidInput          = errors.New("[GNOSWAP-POSITION-005] invalid input data")
 	errDataNotFound          = errors.New("[GNOSWAP-POSITION-006] requested data not found")
 	errExpired               = errors.New("[GNOSWAP-POSITION-007] transaction expired")

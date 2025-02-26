@@ -55,6 +55,7 @@ func TestExactInputSinglePool1_to_0(t *testing.T) {
 		"100", // quoteArr
 		"1",   // tokenAmountLimit
 		time.Now().Add(time.Hour).Unix(),
+		"", // referrer
 	)
 
 	uassert.Equal(t, amountIn, "3")

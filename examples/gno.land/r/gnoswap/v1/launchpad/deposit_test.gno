@@ -31,7 +31,7 @@ func setupTestDeposit(t *testing.T) (*MockTokenTeller, std.Address) {
 
 func createTestProject(t *testing.T) Project {
 	now := uint64(time.Now().Unix())
-	height := uint64(std.GetHeight())
+	height := uint64(std.ChainHeight())
 
 	tiers := make(map[uint64]Tier)
 	tiersRatios := make(map[uint64]uint64)
@@ -162,7 +162,7 @@ func TestCreateDeposit(t *testing.T) {
 	_, testAddr := setupTestDeposit(t)
 	project := createTestProject(t)
 	now := uint64(time.Now().Unix())
-	height := uint64(std.GetHeight())
+	height := uint64(std.ChainHeight())
 
 	info := ProjectTierInfo{
 		Project:       project,
@@ -261,7 +261,7 @@ func TestCollectDeposit(t *testing.T) {
 	project := createTestProject(t)
 	projects[project.id] = project
 	currentTime := uint64(time.Now().Unix())
-	height := uint64(std.GetHeight())
+	height := uint64(std.ChainHeight())
 
 	// Create test deposit
 	info := ProjectTierInfo{
@@ -318,7 +318,7 @@ func TestDepositGns(t *testing.T) {
 			}
 		}()
 
-		DepositGns(project.id+":30", 1000)
+		DepositGns(project.id+":30", 1000, "")
 		std.TestSkipHeights(1)
 	})
 
@@ -331,7 +331,7 @@ func TestDepositGns(t *testing.T) {
 		gns.Approve(consts.LAUNCHPAD_ADDR, 1000000)
 
 		std.TestSkipHeights(10)
-		depositId := DepositGns(project.id+":30", 1000000)
+		depositId := DepositGns(project.id+":30", 1000000, "")
 		deposit := deposits[depositId]
 
 		uassert.Equal(t, deposit.amount, uint64(1000000))
@@ -394,7 +394,7 @@ func TestMultipleDeposits(t *testing.T) {
 			Project:       project,
 			Tier:          project.tiers[30],
 			TierType:      "30",
-			CurrentHeight: uint64(std.GetHeight()),
+			CurrentHeight: uint64(std.ChainHeight()),
 			CurrentTime:   uint64(time.Now().Unix()),
 		}
 
@@ -587,7 +587,7 @@ func TestProcessCollectedDeposits_TransactionFail(t *testing.T) {
 		Project:       project,
 		Tier:          project.tiers[30],
 		TierType:      "30",
-		CurrentHeight: uint64(std.GetHeight()),
+		CurrentHeight: uint64(std.ChainHeight()),
 		CurrentTime:   uint64(time.Now().Unix()),
 	}
 
@@ -614,14 +614,14 @@ func TestProcessCollectedDeposits_BalanceChanges(t *testing.T) {
 		Project:       project,
 		Tier:          project.tiers[30],
 		TierType:      "30",
-		CurrentHeight: uint64(std.GetHeight()),
+		CurrentHeight: uint64(std.ChainHeight()),
 		CurrentTime:   uint64(time.Now().Unix()),
 	}
 
 	deposit, _ := createDeposit(info, depositAmount)
 	deposits[deposit.id] = deposit
 
-	std.TestSkipHeights(int64(deposit.claimableHeight - uint64(std.GetHeight()) + 1))
+	std.TestSkipHeights(int64(deposit.claimableHeight - uint64(std.ChainHeight()) + 1))
 
 	std.TestSetRealm(std.NewCodeRealm(consts.LAUNCHPAD_PATH))
 	amount := processCollectedDeposits([]string{deposit.id}, "")
@@ -637,7 +637,7 @@ func TestCollectDepositGnsByDepositId_ClaimableCheck(t *testing.T) {
 
 	// TierInfo
 	now := uint64(time.Now().Unix())
-	height := uint64(std.GetHeight())
+	height := uint64(std.ChainHeight())
 	info := ProjectTierInfo{
 		Project:       project,
 		Tier:          project.tiers[30],
@@ -680,7 +680,7 @@ func TestCollectDepositGnsByDepositId_OtherOwner(t *testing.T) {
 
 	// create deposit (owner = userA)
 	now := uint64(time.Now().Unix())
-	height := uint64(std.GetHeight())
+	height := uint64(std.ChainHeight())
 	info := ProjectTierInfo{
 		Project:       project,
 		Tier:          project.tiers[30],
@@ -720,7 +720,7 @@ func TestCollectDepositGnsByDepositId_ExactClaimable(t *testing.T) {
 	projects[project.id] = project
 
 	now := uint64(time.Now().Unix())
-	initialHeight := uint64(std.GetHeight())
+	initialHeight := uint64(std.ChainHeight())
 
 	info := ProjectTierInfo{
 		Project:       project,
@@ -756,7 +756,7 @@ func TestCollectDepositGnsByDepositId_ExactClaimable(t *testing.T) {
 	token, _ := setupXGNSTest(t)
 
 	std.TestSetRealm(std.NewCodeRealm(consts.LAUNCHPAD_PATH))
-	std.TestSetOrigCaller(std.Address(consts.LAUNCHPAD_PATH))
+	std.TestSetOriginCaller(std.Address(consts.LAUNCHPAD_PATH))
 	xgnsMint(t, token, consts.LAUNCHPAD_ADDR, 1000)
 
 	std.TestSetRealm(std.NewUserRealm(consts.LAUNCHPAD_ADDR))
@@ -765,7 +765,7 @@ func TestCollectDepositGnsByDepositId_ExactClaimable(t *testing.T) {
 		1000,
 	)
 
-	skipCount := deposit.claimableHeight - uint64(std.GetHeight())
+	skipCount := deposit.claimableHeight - uint64(std.ChainHeight())
 	if skipCount > 0 {
 		std.TestSkipHeights(int64(skipCount))
 	}

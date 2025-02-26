@@ -74,6 +74,7 @@ func TestSwapRouteBarQuxExactIn(t *testing.T) {
 		"50,50", // quoteArr
 		"1",     // tokenAmountLimit
 		time.Now().Add(time.Hour).Unix(),
+		"", // referrer
 	)
 
 	uassert.Equal(t, amountIn, "1000")
@@ -91,6 +92,7 @@ func TestSwapRouteBarQuxExactOut(t *testing.T) {
 		"50,50", // quoteArr
 		"99999", // tokenAmountLimit
 		time.Now().Add(time.Hour).Unix(),
+		"", // referrer
 	)
 
 	uassert.Equal(t, amountIn, "140")
@@ -108,6 +110,7 @@ func TestSwapRouteQuxBarExactIn(t *testing.T) {
 		"30,70", // quoteArr
 		"1",     // tokenAmountLimit
 		time.Now().Add(time.Hour).Unix(),
+		"", // referrer
 	)
 
 	uassert.Equal(t, amountIn, "1000")
@@ -128,6 +131,7 @@ func TestwapRouteQuxBarExactOut(t *testing.T) {
 		"30,70", // quoteArr
 		"99999", // tokenAmountLimit
 		time.Now().Add(time.Hour).Unix(),
+		"", // referrer
 	)
 
 	uassert.Equal(t, amountIn, "7365")

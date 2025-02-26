@@ -9,11 +9,11 @@ import (
 	u256 "gno.land/p/gnoswap/uint256"
 )
 
-// tickBitmapPosition calculates the word and bit position for a given tick
-func tickBitmapPosition(tick int32) (int16, uint8) {
-	wordPos := int16(tick >> 8) // tick / 256
-	bitPos := uint8(tick % 256)
-	return wordPos, bitPos
+// bMap is a map that maps boolean values to uint values.
+// true maps to 1, and false maps to 0.
+var bMap = map[bool]uint{
+	true:  1,
+	false: 0,
 }
 
 // tickBitmapFlipTick flips the state of a tick in the tick bitmap.
@@ -90,7 +90,7 @@ func (p *Pool) getTickBitmap(wordPos int16) *u256.Uint {
 
 	iU256, exist := p.tickBitmaps.Get(wordPosStr)
 	if !exist {
-		panic(addDetailToError(
+		panic(newErrorWithDetail(
 			errDataNotFound,
 			ufmt.Sprintf("tickBitmap(%d) does not exist", wordPos),
 		))
@@ -110,6 +110,13 @@ func (p *Pool) initTickBitmap(wordPos int16) {
 	p.setTickBitmap(wordPos, u256.Zero())
 }
 
+// tickBitmapPosition calculates the word and bit position for a given tick
+func tickBitmapPosition(tick int32) (int16, uint8) {
+	wordPos := int16(tick >> 8) // tick / 256
+	bitPos := uint8(tick % 256)
+	return wordPos, bitPos
+}
+
 // getWordAndBitPos gets tick's wordPos and bitPos depending on the swap direction
 func getWordAndBitPos(tick int32, lte bool) (int16, uint8) {
 	if lte {
@@ -118,13 +125,6 @@ func getWordAndBitPos(tick int32, lte bool) (int16, uint8) {
 
 	tick++
 	return tickBitmapPosition(tick)
-}
-
-// bMap is a map that maps boolean values to uint values.
-// true maps to 1, and false maps to 0.
-var bMap = map[bool]uint{
-	true:  1,
-	false: 0,
 }
 
 // getMaskBit generates a mask based on the provided bit position (bitPos) and a boolean flag (lte).

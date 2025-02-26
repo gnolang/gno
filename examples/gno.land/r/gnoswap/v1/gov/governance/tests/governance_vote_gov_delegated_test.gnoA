@@ -59,7 +59,7 @@ func proposeText(t *testing.T) {
 
 		gns.Approve(consts.GOV_STAKER_ADDR, uint64(1_000_000))
 		gs.Delegate(admin, uint64(1_000_000), "") // self delegate
-		uassert.Equal(t, int64(123), std.GetHeight())
+		uassert.Equal(t, int64(123), std.ChainHeight())
 		std.TestSkipHeights(1)
 
 		// after delegate 01
@@ -68,7 +68,7 @@ func proposeText(t *testing.T) {
 
 		gns.Approve(consts.GOV_STAKER_ADDR, uint64(2_000_000))
 		gs.Delegate(dummyAddr, uint64(2_000_000), "") // delegate to dummy
-		uassert.Equal(t, int64(124), std.GetHeight())
+		uassert.Equal(t, int64(124), std.ChainHeight())
 		std.TestSkipHeights(1)
 
 		// after delegate 02
@@ -77,7 +77,7 @@ func proposeText(t *testing.T) {
 
 		t.Run("text proposal -- only 2 block passed", func(t *testing.T) {
 			// text proposal
-			uassert.Equal(t, int64(125), std.GetHeight())
+			uassert.Equal(t, int64(125), std.ChainHeight())
 			uassert.Equal(t, int64(1234567894), time.Now().Unix())
 			proposalID := ProposeText("test_title", "test_description")
 			uassert.Equal(t, proposalID, uint64(1))
@@ -108,7 +108,7 @@ func proposeText(t *testing.T) {
 			std.TestSkipHeights(5)
 
 			// text proposal
-			uassert.Equal(t, int64(130), std.GetHeight())
+			uassert.Equal(t, int64(130), std.ChainHeight())
 			uassert.Equal(t, int64(1234567904), time.Now().Unix())
 			proposalID := ProposeText("test_title", "test_description")
 			uassert.Equal(t, proposalID, uint64(2))

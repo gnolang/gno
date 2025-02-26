@@ -79,6 +79,7 @@ const (
 	Text               ProposalType = "TEXT"
 	CommunityPoolSpend ProposalType = "COMMUNITY_POOL_SPEND"
 	ParameterChange    ProposalType = "PARAMETER_CHANGE"
+	RoleChange         ProposalType = "ROLE_CHANGE"
 )
 
 func tryParseProposalType(v string) (ProposalType, error) {
@@ -89,6 +90,8 @@ func tryParseProposalType(v string) (ProposalType, error) {
 		return CommunityPoolSpend, nil
 	case "PARAMETER_CHANGE":
 		return ParameterChange, nil
+	case "ROLE_CHANGE":
+		return RoleChange, nil
 	default:
 		return "", errInvalidProposalType
 	}
@@ -137,4 +140,7 @@ type ProposalInfo struct {
 
 	// Execution (ParamterChange)
 	Execution ExecutionInfo
+
+	// RoleChange
+	RoleChange RoleChangeInfo
 }

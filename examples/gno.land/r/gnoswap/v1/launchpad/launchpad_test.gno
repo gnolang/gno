@@ -1300,7 +1300,7 @@ func TestCreateTier(t *testing.T) {
 
 func TestCalculateProjectParams(t *testing.T) {
 	currentTime := uint64(time.Now().Unix())
-	baseHeight := uint64(std.GetHeight())
+	baseHeight := uint64(std.ChainHeight())
 
 	tests := []struct {
 		name    string
@@ -1381,7 +1381,7 @@ func TestCalculateProjectParams(t *testing.T) {
 func TestGenerateProjectId(t *testing.T) {
 	setupTest(t)
 
-	currentHeight := std.GetHeight()
+	currentHeight := std.ChainHeight()
 
 	tests := []struct {
 		name       string
@@ -1405,7 +1405,7 @@ func TestGenerateProjectId(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			heightBefore := std.GetHeight()
+			heightBefore := std.ChainHeight()
 			skip := tt.mockHeight - heightBefore
 			if skip > 0 {
 				std.TestSkipHeights(skip)
@@ -1413,7 +1413,7 @@ func TestGenerateProjectId(t *testing.T) {
 
 			got := generateProjectId(tt.tokenPath)
 
-			want := ufmt.Sprintf("%s:%d", tt.tokenPath, std.GetHeight())
+			want := ufmt.Sprintf("%s:%d", tt.tokenPath, std.ChainHeight())
 
 			uassert.Equal(t, got, want)
 		})
@@ -1622,7 +1622,7 @@ func TestTransferLeftFromProjectByAdmin(t *testing.T) {
 			tt.setupFunc()
 
 			// control block height
-			currHeight := std.GetHeight()
+			currHeight := std.ChainHeight()
 			skip := int64(tt.mockHeight) - int64(currHeight)
 			if skip > 0 {
 				std.TestSkipHeights(skip)

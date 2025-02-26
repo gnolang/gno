@@ -84,15 +84,15 @@ func testMintBarBaz100Pos01(t *testing.T) {
 		baz.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 
 		positionId, liquidity, amount0, amount1 := pn.Mint(
-			barPath,         // token0
-			bazPath,         // token1
-			fee100,          // fee
-			consts.MIN_TICK, // tickLower
-			consts.MAX_TICK, // tickUpper
-			"3000",          // amount0Desired
-			"3000",          // amount1Desired
-			"1",             // amount0Min
-			"1",             // amount1Min
+			barPath,                  // token0
+			bazPath,                  // token1
+			fee100,                   // fee
+			int32(consts.MIN_TICK),   // tickLower
+			int32(consts.MAX_TICK-1), // tickUpper
+			"3000",                   // amount0Desired
+			"3000",                   // amount1Desired
+			"1",                      // amount0Min
+			"1",                      // amount1Min
 			max_timeout,
 			adminAddr,
 			adminAddr,
@@ -192,7 +192,7 @@ func testMintBarBaz100Pos05(t *testing.T) {
 			bazPath,                   // token1
 			fee100,                    // fee
 			int32(consts.MAX_TICK-10), // tickLower
-			int32(consts.MAX_TICK),    // tickUpper
+			int32(consts.MAX_TICK-1),  // tickUpper
 			"50",                      // amount0Desired
 			"50",                      // amount1Desired
 			"0",                       // amount0Min
@@ -239,7 +239,7 @@ func testStakeTokenPos02ToWarmUp70_Pos03ToWarmUp50_Pos04ToWarmUp30_Pos05(t *test
 		std.TestSetRealm(adminRealm)
 
 		gnft.Approve(consts.STAKER_ADDR, positionIdFrom(4))
-		StakeToken(4, "")          //  (out of range, will become in-range by swap)
+		StakeToken(4, "")      //  (out of range, will become in-range by swap)
 		std.TestSkipHeights(1) // 30%
 	})
 
@@ -247,7 +247,7 @@ func testStakeTokenPos02ToWarmUp70_Pos03ToWarmUp50_Pos04ToWarmUp30_Pos05(t *test
 		std.TestSetRealm(adminRealm)
 
 		gnft.Approve(consts.STAKER_ADDR, positionIdFrom(5))
-		StakeToken(5, "")          //  (out of range forever)
+		StakeToken(5, "")      //  (out of range forever)
 		std.TestSkipHeights(1) // 30%
 	})
 

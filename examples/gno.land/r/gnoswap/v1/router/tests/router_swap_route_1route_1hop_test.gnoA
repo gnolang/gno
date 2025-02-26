@@ -73,6 +73,7 @@ func TestSwapRouteBarBazExactIn(t *testing.T) {
 		"100",  // quoteArr
 		"2700", // tokenAmountLimit
 		time.Now().Add(time.Hour).Unix(),
+		"", // referrer
 	)
 
 	uassert.Equal(t, amountIn, "1000")
@@ -93,6 +94,7 @@ func TestSwapRouteBarBazExactOut(t *testing.T) {
 		"100", // quoteArr
 		"371", // tokenAmountLimit
 		time.Now().Add(time.Hour).Unix(),
+		"", // referrer
 	)
 
 	uassert.Equal(t, amountIn, "371")
@@ -113,6 +115,7 @@ func TestSwapRouteBazBarExactIn(t *testing.T) {
 		"100", // quoteArr
 		"360", // tokenAmountLimit
 		time.Now().Add(time.Hour).Unix(),
+		"", // referrer
 	)
 
 	uassert.Equal(t, amountIn, "1000")
@@ -131,6 +134,7 @@ func TestSwapRouteBazBarExactOut(t *testing.T) {
 		"100",  // quoteArr
 		"8200", // tokenAmountLimit
 		time.Now().Add(time.Hour).Unix(),
+		"", // referrer
 	)
 
 	uassert.Equal(t, amountIn, "8171")

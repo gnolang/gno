@@ -551,7 +551,7 @@ func GetExternalIncentiveByPoolPath(poolPath string) []ExternalIncentive {
 
 func GetPrintExternalInfo() string {
 	externalDebug := ApiExternalDebugInfo{
-		Height: std.GetHeight(),
+		Height: std.ChainHeight(),
 		Time:   time.Now().Unix(),
 	}
 
@@ -578,7 +578,7 @@ func GetPrintExternalInfo() string {
 					RewardPerBlock:    strconv.FormatUint(incentive.rewardPerBlock, 10),
 					Refundee:          incentive.refundee,
 					tokenAmountFull:   incentive.depositGnsAmount,
-					tokenAmountToGive: incentive.RewardSpent(uint64(std.GetHeight())),
+					tokenAmountToGive: incentive.RewardSpent(uint64(std.ChainHeight())),
 					StartHeight:       incentive.startHeight,
 					EndHeight:         incentive.endHeight,
 				}
@@ -616,7 +616,7 @@ func makeExternalPositionsNode(positions []ApiExternalDebugPosition) []*json.Nod
 	for _, externalPosition := range positions {
 		incentives := make([]*json.Node, 0)
 		for _, incentive := range externalPosition.Incentive {
-			stakedOrExternalDuration := std.GetHeight() - max(incentive.StartHeight, externalPosition.StakedHeight)
+			stakedOrExternalDuration := std.ChainHeight() - max(incentive.StartHeight, externalPosition.StakedHeight)
 
 			incentives = append(incentives, json.ObjectNode("", map[string]*json.Node{
 				"poolPath":                 json.StringNode("poolPath", incentive.PoolPath),
@@ -704,7 +704,7 @@ type currentInfo struct {
 
 func getCurrentInfo() currentInfo {
 	return currentInfo{
-		height:           std.GetHeight(),
+		height:           std.ChainHeight(),
 		time:             time.Now().Unix(),
 		gnsStaker:        gns.BalanceOf(consts.STAKER_ADDR),
 		gnsDevOps:        gns.BalanceOf(consts.DEV_OPS),

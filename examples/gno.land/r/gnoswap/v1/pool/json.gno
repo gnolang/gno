@@ -1,13 +1,13 @@
 package pool
 
 import (
-    "std"
+	"std"
 	"strconv"
-    "time"
+	"time"
 
 	"gno.land/p/demo/json"
 
-    u256 "gno.land/p/gnoswap/uint256"
+	u256 "gno.land/p/gnoswap/uint256"
 )
 
 // JsonResponse is an interface that all JSON response types must implement.
@@ -247,7 +247,7 @@ type statNode struct {
 
 func newStatNode() statNode {
 	return statNode{
-		height:    std.GetHeight(),
+		height:    std.ChainHeight(),
 		timestamp: time.Now().Unix(),
 	}
 }

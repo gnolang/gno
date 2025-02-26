@@ -5,16 +5,13 @@ import (
 	"testing"
 
 	"gno.land/p/demo/uassert"
-
+	"gno.land/p/gnoswap/consts"
 	u256 "gno.land/p/gnoswap/uint256"
 
+	"gno.land/r/gnoswap/v1/common"
+	"gno.land/r/gnoswap/v1/gns"
 	"gno.land/r/onbloc/bar"
 	"gno.land/r/onbloc/foo"
-
-	"gno.land/p/gnoswap/consts"
-	"gno.land/r/gnoswap/v1/common"
-
-	"gno.land/r/gnoswap/v1/gns"
 )
 
 var (
@@ -73,7 +70,7 @@ func TestPositionsProtected(t *testing.T) {
 	uassert.Equal(t, thisPool.protocolFees.token1.ToString(), "0")
 }
 
-func TestPokeIsNotAllowedOnUninitilaizedPosition(t *testing.T) {
+func TestPokeIsNotAllowedOnUninitializedPosition(t *testing.T) {
 	std.TestSetRealm(adminRealm)
 	gns.Approve(consts.POOL_ADDR, poolCreationFee)
 	CreatePool(barPath, fooPath, fee3000, common.TickMathGetSqrtRatioAtTick(0).ToString()) // tick 0

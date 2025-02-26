@@ -92,7 +92,7 @@ func TestOneSideOnlyGrc20WithSend0Coin(t *testing.T) {
 
 	wugnot.Approve(consts.POSITION_ADDR, consts.UINT64_MAX) // POSITION FOR WRAP
 
-	std.TestSetOrigSend(std.Coins{{"ugnot", 0}}, nil)
+	std.TestSetOriginSend(std.Coins{{"ugnot", 0}}, nil)
 
 	// should panic
 	// user is trying to mint position with native coin, but sent 0 coin
@@ -129,7 +129,7 @@ func TestOneSideOnlyUgnot(t *testing.T) {
 
 	wugnot.Approve(consts.POSITION_ADDR, consts.UINT64_MAX) // POSITION FOR WRAP
 
-	std.TestSetOrigSend(std.Coins{{"ugnot", 100_000_000}}, nil)
+	std.TestSetOriginSend(std.Coins{{"ugnot", 100_000_000}}, nil)
 	std.TestIssueCoins(consts.POSITION_ADDR, std.Coins{{"ugnot", 100_000_000}})
 	uassert.Equal(t, ugnotBalanceOf(t, fresh01), uint64(0))
 

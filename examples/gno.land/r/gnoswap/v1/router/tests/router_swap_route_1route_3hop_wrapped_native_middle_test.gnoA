@@ -39,7 +39,7 @@ func TestPositionMintGnsGnot(t *testing.T) {
 
 	// send
 	std.TestIssueCoins(adminAddr, std.Coins{{"ugnot", 100000}})
-	std.TestSetOrigSend(std.Coins{{"ugnot", 100000}}, nil)
+	std.TestSetOriginSend(std.Coins{{"ugnot", 100000}}, nil)
 
 	// Deposit(wrap)
 	std.TestSetRealm(adminRealm)
@@ -60,8 +60,8 @@ func TestPositionMintGnotBar(t *testing.T) {
 
 	// send
 	std.TestIssueCoins(adminAddr, std.Coins{{"ugnot", 100000}})
-	std.TestSetOrigSend(std.Coins{{"ugnot", 100000}}, nil)
-	testBanker := std.GetBanker(std.BankerTypeRealmIssue)
+	std.TestSetOriginSend(std.Coins{{"ugnot", 100000}}, nil)
+	testBanker := std.NewBanker(std.BankerTypeRealmIssue)
 
 	// Deposit(wrap)
 	std.TestSetRealm(adminRealm)
@@ -106,6 +106,7 @@ func TestSwapRouteGnsBarExactIn(t *testing.T) {
 		"100", // quoteArr
 		"0",   // tokenAmountLimit
 		time.Now().Add(time.Hour).Unix(),
+		"", // referrer
 	)
 
 	uassert.Equal(t, amountIn, "1000")

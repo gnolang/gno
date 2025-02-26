@@ -142,6 +142,7 @@ func launchPadDeposit(t *testing.T) {
 	lp.DepositGns(
 		`gno.land/r/onbloc/obl:125:30`,
 		uint64(1_000_000),
+		"",
 	)
 	std.TestSkipHeights(1)
 }

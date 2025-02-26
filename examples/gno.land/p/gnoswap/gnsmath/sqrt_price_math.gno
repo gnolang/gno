@@ -1,6 +1,7 @@
 package gnsmath
 
 import (
+	"gno.land/p/gnoswap/consts"
 	i256 "gno.land/p/gnoswap/int256"
 	u256 "gno.land/p/gnoswap/uint256"
 )
@@ -11,47 +12,60 @@ const (
 )
 
 var (
-	q96    = u256.MustFromDecimal(Q96)
-	max160 = u256.MustFromDecimal(MAX_UINT160)
+	q96    = u256.MustFromDecimal(consts.Q96)
+	max160 = u256.MustFromDecimal(consts.MAX_UINT160)
 )
 
 // getNextPriceAmount0Add calculates the next sqrt price when we are adding token0.
 // Preserves the rounding-up logic. No in-place mutation of input arguments.
 func getNextPriceAmount0Add(
-	sqrtPX96, liquidity, amount *u256.Uint,
+	currentSqrtPriceX96, liquidity, amountToAdd *u256.Uint,
 ) *u256.Uint {
-	numerator1 := new(u256.Uint).Lsh(liquidity, Q96_RESOLUTION)
-	product := new(u256.Uint).Mul(amount, sqrtPX96)
+	// Shift liquidity left by Q96 bits to increase precision
+	liquidityShifted := new(u256.Uint).Lsh(liquidity, Q96_RESOLUTION)
+	// Multiply the amount to add by the current square root price
+	amountTimesSqrtPrice := new(u256.Uint).Mul(amountToAdd, currentSqrtPriceX96)
 
-	// overflow check
-	if new(u256.Uint).Div(product, amount).Eq(sqrtPX96) {
-		denominator := new(u256.Uint).Add(numerator1, product)
-		if denominator.Gte(numerator1) {
-			return u256.MulDivRoundingUp(numerator1, sqrtPX96, denominator)
+	// Overflow check: Ensure (amountTimesSqrtPrice / amountToAdd) == currentSqrtPriceX96
+	if new(u256.Uint).Div(amountTimesSqrtPrice, amountToAdd).Eq(currentSqrtPriceX96) {
+		// Compute denominator: liquidityShifted + (amountToAdd * currentSqrtPriceX96)
+		denominator := new(u256.Uint).Add(liquidityShifted, amountTimesSqrtPrice)
+		if denominator.Gte(liquidityShifted) {
+			return u256.MulDivRoundingUp(liquidityShifted, currentSqrtPriceX96, denominator)
 		}
 	}
 
-	divValue := new(u256.Uint).Div(numerator1, sqrtPX96)
-	addValue := new(u256.Uint).Add(divValue, amount)
+	// Alternative computation path: (liquidityShifted / currentSqrtPriceX96) + amountToAdd
+	divValue := new(u256.Uint).Div(liquidityShifted, currentSqrtPriceX96)
+	addValue := new(u256.Uint).Add(divValue, amountToAdd)
 
-	return u256.DivRoundingUp(numerator1, addValue)
+	// Compute the next square root price using division rounding up
+	return u256.DivRoundingUp(liquidityShifted, addValue)
 }
 
 // getNextPriceAmount0Remove calculates the next sqrt price when we are removing token0.
 // Preserves the rounding-up logic. No in-place mutation of input arguments.
 func getNextPriceAmount0Remove(
-	sqrtPX96, liquidity, amount *u256.Uint,
+	currentSqrtPriceX96, liquidity, amountToRemove *u256.Uint,
 ) *u256.Uint {
-	numerator1 := new(u256.Uint).Lsh(liquidity, Q96_RESOLUTION)
-	product := new(u256.Uint).Mul(amount, sqrtPX96)
+	// Shift liquidity left by Q96 bits to increase precision
+	liquidityShifted := new(u256.Uint).Lsh(liquidity, Q96_RESOLUTION)
+
+	// Multiply the amount to remove by the current square root price
+	amountTimesSqrtPrice := new(u256.Uint).Mul(amountToRemove, currentSqrtPriceX96)
 
 	// Conditions must hold: product/amount == sqrtPX96 and numerator1 > product
-	if !new(u256.Uint).Div(product, amount).Eq(sqrtPX96) || !numerator1.Gt(product) {
+	if !new(u256.Uint).Div(amountTimesSqrtPrice, amountToRemove).Eq(currentSqrtPriceX96) ||
+		!liquidityShifted.Gt(amountTimesSqrtPrice) {
 		panic(errInvalidPoolSqrtPrice)
 	}
 
-	denominator := new(u256.Uint).Sub(numerator1, product)
-	nextSqrtPrice := u256.MulDivRoundingUp(numerator1, sqrtPX96, denominator)
+	// Compute denominator: liquidityShifted - (amountToRemove * currentSqrtPriceX96)
+	denominator := new(u256.Uint).Sub(liquidityShifted, amountTimesSqrtPrice)
+	// Calculate next square root price: (liquidityShifted * currentSqrtPriceX96) / denominator (with rounding up)
+	nextSqrtPrice := u256.MulDivRoundingUp(liquidityShifted, currentSqrtPriceX96, denominator)
+
+	// Check for overflow
 	if nextSqrtPrice.Gt(max160) {
 		panic(errNextSqrtPriceOverflow)
 	}
@@ -95,10 +109,8 @@ func getNextSqrtPriceFromAmount0RoundingUp(
 	if add {
 		return getNextPriceAmount0Add(sqrtPX96, liquidity, amount)
 	}
-
 	return getNextPriceAmount0Remove(sqrtPX96, liquidity, amount)
 }
-
 
 // getNextPriceAmount1Add calculates the next sqrt price when adding token1.
 // Preserves rounding-down logic for the final result.
@@ -172,9 +184,16 @@ func getNextPriceAmount1Remove(
 // - The function uses high-precision math (MulDiv and DivRoundingUp) to handle division and prevent precision loss.
 // - The function validates input conditions and panics if the state is invalid.
 func getNextSqrtPriceFromAmount1RoundingDown(
-	sqrtPX96, liquidity, amount *u256.Uint,
+	sqrtPX96,
+	liquidity,
+	amount *u256.Uint,
 	add bool,
 ) *u256.Uint {
+	// Shortcut: if no amount, return original price
+	if amount.IsZero() {
+		return sqrtPX96
+	}
+
 	if add {
 		return getNextPriceAmount1Add(sqrtPX96, liquidity, amount)
 	}
@@ -367,7 +386,7 @@ func GetAmount0DeltaStr(
 ) string {
 	if liquidity.IsNeg() {
 		u := getAmount0DeltaHelper(sqrtRatioAX96, sqrtRatioBX96, liquidity.Abs(), false)
-		if u.Gt(u256.MustFromDecimal(MAX_INT256)) {
+		if u.Gt(u256.MustFromDecimal(consts.MAX_INT256)) {
 			// if u > (2**255 - 1), cannot cast to int256
 			panic(errAmount0DeltaOverflow)
 		}
@@ -376,7 +395,7 @@ func GetAmount0DeltaStr(
 	}
 
 	u := getAmount0DeltaHelper(sqrtRatioAX96, sqrtRatioBX96, liquidity.Abs(), true)
-	if u.Gt(u256.MustFromDecimal(MAX_INT256)) {
+	if u.Gt(u256.MustFromDecimal(consts.MAX_INT256)) {
 		// if u > (2**255 - 1), cannot cast to int256
 		panic(errAmount0DeltaOverflow)
 	}
@@ -410,7 +429,7 @@ func GetAmount1DeltaStr(
 ) string {
 	if liquidity.IsNeg() {
 		u := getAmount1DeltaHelper(sqrtRatioAX96, sqrtRatioBX96, liquidity.Abs(), false)
-		if u.Gt(u256.MustFromDecimal(MAX_INT256)) {
+		if u.Gt(u256.MustFromDecimal(consts.MAX_INT256)) {
 			// if u > (2**255 - 1), cannot cast to int256
 			panic(errAmount1DeltaOverflow)
 		}
@@ -419,7 +438,7 @@ func GetAmount1DeltaStr(
 	}
 
 	u := getAmount1DeltaHelper(sqrtRatioAX96, sqrtRatioBX96, liquidity.Abs(), true)
-	if u.Gt(u256.MustFromDecimal(MAX_INT256)) {
+	if u.Gt(u256.MustFromDecimal(consts.MAX_INT256)) {
 		// if u > (2**255 - 1), cannot cast to int256
 		panic(errAmount1DeltaOverflow)
 	}

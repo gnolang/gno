@@ -170,7 +170,7 @@ func TestSkipIfEmissionEnded(t *testing.T) {
 	})
 
 	t.Run("should not skip if emission has not ended", func(t *testing.T) {
-		uassert.False(t, skipIfEmissionEnded(std.GetHeight()))
+		uassert.False(t, skipIfEmissionEnded(std.ChainHeight()))
 	})
 }
 

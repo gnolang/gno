@@ -339,7 +339,6 @@ func TestMint(t *testing.T) {
 				uassert.PanicsWithMessage(t, tt.panicMsg, func() {
 					Mint((tt.addressToMint), tid(tt.tokenIdToMint))
 				})
-
 			} else {
 				std.TestSetRealm(tt.callerRealm)
 				mintedTokenId := Mint((tt.addressToMint), tid(tt.tokenIdToMint))

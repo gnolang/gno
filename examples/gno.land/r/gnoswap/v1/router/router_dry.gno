@@ -121,7 +121,7 @@ func handleMultiDrySwap(
 			tokenIn:         input,
 			tokenOut:        output,
 			fee:             fee,
-			recipient:       std.PrevRealm().Addr(),
+			recipient:       std.PreviousRealm().Address(),
 			amountSpecified: amountSpecified,
 		}
 		return multiDrySwap(swapParams, 0, numHops, route)
@@ -131,7 +131,7 @@ func handleMultiDrySwap(
 			tokenIn:         input,
 			tokenOut:        output,
 			fee:             fee,
-			recipient:       std.PrevRealm().Addr(),
+			recipient:       std.PreviousRealm().Address(),
 			amountSpecified: amountSpecified,
 		}
 		return multiDrySwapNegative(swapParams, numHops-1, route)

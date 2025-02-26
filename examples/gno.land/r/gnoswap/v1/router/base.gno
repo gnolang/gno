@@ -74,10 +74,10 @@ func (op *baseSwapOperation) handleNativeTokenWrapping(
 	}
 
 	// save current user's WGNOT amount
-	op.userBeforeWugnotBalance = wugnot.BalanceOf(std.PrevRealm().Addr())
+	op.userBeforeWugnotBalance = wugnot.BalanceOf(std.PreviousRealm().Address())
 
 	if swapType == ExactIn && inputToken == consts.GNOT {
-		sent := std.GetOrigSend()
+		sent := std.OriginSend()
 
 		ugnotSentByUser := uint64(sent.AmountOf("ugnot"))
 		amountSpecified := specifiedAmount.Uint64()

@@ -9,20 +9,20 @@ import (
 
 // Market represents a lending market for a specific token pair
 type Market struct {
-	LastUpdate         time.Time
-	LoanToken          string // Token that can be borrowed
-	CollateralToken    string // Token used as collateral
-	TotalSupplyAssets  int64  // Total assets supplied to market
-	TotalSupplyShares  int64  // Total shares issued for supply
-	TotalBorrowAssets  int64  // Total assets borrowed from market
-	TotalBorrowShares  int64  // Total shares issued for borrows
+	LastUpdate        time.Time
+	LoanToken         string // Token that can be borrowed
+	CollateralToken   string // Token used as collateral
+	TotalSupplyAssets int64  // Total assets supplied to market
+	TotalSupplyShares int64  // Total shares issued for supply
+	TotalBorrowAssets int64  // Total assets borrowed from market
+	TotalBorrowShares int64  // Total shares issued for borrows
 }
 
 // Position represents a user's position in a market
 type Position struct {
-	SupplyShares  int64 // Shares for supplied assets
-	BorrowShares  int64 // Shares for borrowed assets
-	Collateral    int64 // Amount of collateral token deposited
+	SupplyShares int64 // Shares for supplied assets
+	BorrowShares int64 // Shares for borrowed assets
+	Collateral   int64 // Amount of collateral token deposited
 }
 
 // MarketParams defines parameters for market creation

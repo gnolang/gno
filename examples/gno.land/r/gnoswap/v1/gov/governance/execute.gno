@@ -68,7 +68,6 @@ func makeHandlerKey(pkgPath, function string) string {
 }
 
 ///////////////////// EXECUTION /////////////////////
-// region: Execute
 
 type ExecutionContext struct {
 	ProposalId  uint64

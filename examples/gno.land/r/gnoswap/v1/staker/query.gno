@@ -40,7 +40,7 @@ func QueryPoolData(poolPath string) (*PoolData, error) {
 		return nil, ufmt.Errorf("pool %s not found", poolPath)
 	}
 
-	currentHeight := std.GetHeight()
+	currentHeight := std.ChainHeight()
 	tier := poolTier.CurrentTier(poolPath)
 
 	ictvIds := filterActiveIncentives(pool, currentHeight)
@@ -49,7 +49,7 @@ func QueryPoolData(poolPath string) (*PoolData, error) {
 		PoolPath:         poolPath,
 		Tier:             tier,
 		ActiveIncentives: ictvIds,
-		StakedLiquidity:  pool.CurrentStakedLiquidity(std.GetHeight()),
+		StakedLiquidity:  pool.CurrentStakedLiquidity(std.ChainHeight()),
 	}, nil
 }
 

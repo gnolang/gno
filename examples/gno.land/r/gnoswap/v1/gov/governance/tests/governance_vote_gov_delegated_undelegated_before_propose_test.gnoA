@@ -52,7 +52,7 @@ func testDelegate01_1000000_toSelf(t *testing.T) {
 		std.TestSetRealm(adminRealm)
 		gns.Approve(consts.GOV_STAKER_ADDR, uint64(1_000_000))
 
-		uassert.Equal(t, int64(123), std.GetHeight())
+		uassert.Equal(t, int64(123), std.ChainHeight())
 		uassert.Equal(t, int64(1234567890), time.Now().Unix())
 
 		gs.Delegate(admin, uint64(1_000_000), "") // self delegate
@@ -74,7 +74,7 @@ func testDelegate02_2000000_toDummy(t *testing.T) {
 		std.TestSetRealm(adminRealm)
 		gns.Approve(consts.GOV_STAKER_ADDR, uint64(2_000_000))
 
-		uassert.Equal(t, int64(124), std.GetHeight())
+		uassert.Equal(t, int64(124), std.ChainHeight())
 		uassert.Equal(t, int64(1234567892), time.Now().Unix())
 
 		gs.Delegate(dummyAddr, uint64(2_000_000), "") // delegate to dummy
@@ -92,7 +92,7 @@ func testUndelegate_1000000_fromDummy(t *testing.T) {
 		std.TestSetRealm(adminRealm)
 		std.TestSkipHeights(1)
 
-		uassert.Equal(t, int64(126), std.GetHeight())
+		uassert.Equal(t, int64(126), std.ChainHeight())
 		uassert.Equal(t, int64(1234567896), time.Now().Unix())
 
 		gs.Undelegate(dummyAddr, uint64(1_000_000)) // 1000000
@@ -109,7 +109,7 @@ func testProposeText(t *testing.T) {
 	t.Run("Successful two text proposals ", func(t *testing.T) {
 		t.Run("text proposal 01 // only 4 block passed", func(t *testing.T) {
 			// text proposal
-			uassert.Equal(t, int64(127), std.GetHeight())
+			uassert.Equal(t, int64(127), std.ChainHeight())
 			uassert.Equal(t, int64(1234567898), time.Now().Unix())
 
 			std.TestSetRealm(adminRealm)
@@ -134,7 +134,7 @@ func testProposeText(t *testing.T) {
 			std.TestSkipHeights(6)
 
 			// text proposal
-			uassert.Equal(t, int64(133), std.GetHeight())
+			uassert.Equal(t, int64(133), std.ChainHeight())
 			uassert.Equal(t, int64(1234567910), time.Now().Unix())
 
 			std.TestSetRealm(adminRealm)

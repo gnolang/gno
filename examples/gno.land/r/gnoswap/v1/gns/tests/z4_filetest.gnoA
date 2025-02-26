@@ -34,7 +34,7 @@ func main() {
 
 func reachAlmostEndOfEmission() {
 	endHeight := gns.GetEndHeight()
-	untilEnds := endHeight - std.GetHeight()
+	untilEnds := endHeight - std.ChainHeight()
 	std.TestSkipHeights(untilEnds - 10) // 10 blocks before end of emission
 
 	std.TestSetRealm(std.NewCodeRealm(consts.EMISSION_PATH))
@@ -51,7 +51,7 @@ func reachAlmostEndOfEmission() {
 	}
 
 	// we're at the end of last halving year
-	year := gns.GetHalvingYearByHeight(std.GetHeight())
+	year := gns.GetHalvingYearByHeight(std.ChainHeight())
 	uassert.Equal(t, int64(12), year)
 }
 

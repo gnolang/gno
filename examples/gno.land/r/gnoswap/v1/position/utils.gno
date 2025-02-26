@@ -74,10 +74,10 @@ func assertCallerIsOwner(positionId uint64, owner, caller std.Address) {
 // assertOnlyUserOrStaker panics if the caller is not a user or staker.
 func assertOnlyUserOrStaker(caller std.Realm) {
 	if !caller.IsUser() {
-		if err := common.StakerOnly(caller.Addr()); err != nil {
+		if err := common.StakerOnly(caller.Address()); err != nil {
 			panic(newErrorWithDetail(
 				errNoPermission,
-				ufmt.Sprintf("from (%s)", caller.Addr()),
+				ufmt.Sprintf("from (%s)", caller.Address()),
 			))
 		}
 	}
@@ -178,23 +178,23 @@ func derivePkgAddr(pkgPath string) std.Address {
 
 // getPrevRealm returns object of the previous realm.
 func getPrevRealm() std.Realm {
-	return std.PrevRealm()
+	return std.PreviousRealm()
 }
 
 // getPrevAddr returns the address of the previous realm.
 func getPrevAddr() std.Address {
-	return std.PrevRealm().Addr()
+	return std.PreviousRealm().Address()
 }
 
 // getPrev returns the address and package path of the previous realm.
 func getPrevAsString() (string, string) {
 	prev := getPrevRealm()
-	return prev.Addr().String(), prev.PkgPath()
+	return prev.Address().String(), prev.PkgPath()
 }
 
 // isUserCall returns true if the caller is a user.
 func isUserCall() bool {
-	return std.PrevRealm().IsUser()
+	return std.PreviousRealm().IsUser()
 }
 
 // checkDeadline checks if the deadline is expired.

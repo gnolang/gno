@@ -142,7 +142,7 @@ func TestSetWithdrawalFeeByAdminFeeOutOfRange(t *testing.T) {
 	std.TestSetRealm(adminRealm)
 	uassert.PanicsWithMessage(
 		t,
-		`[GNOSWAP-POOL-016] invalid withdrawal fee percentage || withdrawal_fee.gno__setWithdrawalFee() || fee(10001) must be in range 0 ~ 10000`,
+		`[GNOSWAP-POOL-017] invalid withdrawal fee percentage || withdrawal_fee.gno__setWithdrawalFee() || fee(10001) must be in range 0 ~ 10000`,
 		func() {
 			SetWithdrawalFeeByAdmin(10001)
 		},

@@ -76,7 +76,7 @@ func TestMintPosition01InRange(t *testing.T) {
 	)
 
 	uassert.Equal(t, positionId, uint64(1))
-	uassert.Equal(t, getNextId(), uint64(2))
+	uassert.Equal(t, GetNextId(), uint64(2))
 	uassert.Equal(t, amount0, "18394892")
 	uassert.Equal(t, amount1, "50000000")
 }
@@ -103,7 +103,7 @@ func TestMintPosition02LowerRange(t *testing.T) {
 	)
 
 	uassert.Equal(t, positionId, uint64(2))
-	uassert.Equal(t, getNextId(), uint64(3))
+	uassert.Equal(t, GetNextId(), uint64(3))
 	uassert.Equal(t, amount0, "0")
 	uassert.Equal(t, amount1, "50000000")
 }
@@ -130,7 +130,7 @@ func TestMintPosition03UpperRange(t *testing.T) {
 	)
 
 	uassert.Equal(t, positionId, uint64(3))
-	uassert.Equal(t, getNextId(), uint64(4))
+	uassert.Equal(t, GetNextId(), uint64(4))
 	uassert.Equal(t, amount0, "50000000")
 	uassert.Equal(t, amount1, "0")
 }

@@ -39,5 +39,5 @@ func skipUntilLastHeightOfHalvingYear(t *testing.T, year int64) {
 	t.Helper()
 
 	lastHeight := GetHalvingYearEndBlock(year)
-	std.TestSkipHeights(lastHeight - std.GetHeight())
+	std.TestSkipHeights(lastHeight - std.ChainHeight())
 }

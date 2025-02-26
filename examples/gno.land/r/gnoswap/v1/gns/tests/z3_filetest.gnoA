@@ -35,7 +35,7 @@ func main() {
 
 func skip50Blocks() {
 	std.TestSkipHeights(50)
-	uassert.Equal(t, std.GetHeight(), int64(173))
+	uassert.Equal(t, std.ChainHeight(), int64(173))
 
 	std.TestSetRealm(std.NewCodeRealm(consts.EMISSION_PATH))
 	gns.MintGns(user01Addr) // 14269406 * 50 = 71347030
@@ -66,7 +66,7 @@ func reachAboutHalfOfFirstHalving() {
 	gns.MintGns(user01Addr)
 
 	// stil in first halving year
-	year := gns.GetHalvingYearByHeight(std.GetHeight())
+	year := gns.GetHalvingYearByHeight(std.ChainHeight())
 	uassert.Equal(t, int64(1), year)
 }
 
@@ -77,7 +77,7 @@ func blockTime3000ms() {
 }
 
 func reachFirstHalving() {
-	blockLeftUntilEndOfYear01 := gns.GetHalvingYearEndBlock(1) - std.GetHeight()
+	blockLeftUntilEndOfYear01 := gns.GetHalvingYearEndBlock(1) - std.ChainHeight()
 	std.TestSkipHeights(blockLeftUntilEndOfYear01)
 
 	std.TestSetRealm(std.NewCodeRealm(consts.EMISSION_PATH))
@@ -87,17 +87,17 @@ func reachFirstHalving() {
 	uassert.Equal(t, gns.GetHalvingYearMaxAmount(1), gns.GetMintedEmissionAmount())
 
 	// we're at the end of first halving year
-	year := gns.GetHalvingYearByHeight(std.GetHeight())
+	year := gns.GetHalvingYearByHeight(std.ChainHeight())
 	uassert.Equal(t, int64(1), year)
 }
 
 func startSecondHalving() {
 	std.TestSkipHeights(1)
 
-	year := gns.GetHalvingYearByHeight(std.GetHeight())
+	year := gns.GetHalvingYearByHeight(std.ChainHeight())
 	uassert.Equal(t, int64(2), year)
 
-	amount := gns.GetAmountByHeight(std.GetHeight())
+	amount := gns.GetAmountByHeight(std.ChainHeight())
 	uassert.Equal(t, uint64(14269406), amount)
 
 	std.TestSetRealm(std.NewCodeRealm(consts.EMISSION_PATH))

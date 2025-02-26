@@ -38,7 +38,7 @@ func GetLockedInfoByAddress(addr std.Address) string {
 	}
 
 	data := json.Builder().
-		WriteString("height", formatInt(std.GetHeight())).
+		WriteString("height", formatInt(std.ChainHeight())).
 		WriteString("now", formatInt(time.Now().Unix())).
 		WriteString("totalLocked", formatUint(totalLocked)).
 		WriteString("claimableAmount", formatUint(claimableAmount)).
@@ -57,7 +57,7 @@ func GetClaimableRewardByAddress(addr std.Address) string {
 	}
 
 	data := json.Builder().
-		WriteString("height", formatInt(std.GetHeight())).
+		WriteString("height", formatInt(std.ChainHeight())).
 		WriteString("now", formatInt(time.Now().Unix())).
 		WriteString("emissionReward", formatUint(emissionReward)).
 		Node()

@@ -86,9 +86,9 @@ func testPositionMintNative01(t *testing.T) {
 		uassert.Equal(t, ugnotBalanceOf(t, adminAddr), uint64(50000005))
 		uassert.Equal(t, ugnotBalanceOf(t, consts.POSITION_ADDR), uint64(0))
 
-		banker := std.GetBanker(std.BankerTypeRealmIssue)
+		banker := std.NewBanker(std.BankerTypeRealmIssue)
 		banker.SendCoins(adminAddr, consts.POSITION_ADDR, std.Coins{{"ugnot", 50000005}})
-		std.TestSetOrigSend(std.Coins{{"ugnot", 50000005}}, nil)
+		std.TestSetOriginSend(std.Coins{{"ugnot", 50000005}}, nil)
 
 		uassert.Equal(t, ugnotBalanceOf(t, adminAddr), uint64(0))
 		uassert.Equal(t, ugnotBalanceOf(t, consts.POSITION_ADDR), uint64(50000005))
@@ -137,9 +137,9 @@ func testPositionMintNative02(t *testing.T) {
 		uassert.Equal(t, ugnotBalanceOf(t, consts.POSITION_ADDR), uint64(0))
 
 		// send & set orig send
-		banker := std.GetBanker(std.BankerTypeRealmIssue)
+		banker := std.NewBanker(std.BankerTypeRealmIssue)
 		banker.SendCoins(adminAddr, consts.POSITION_ADDR, std.Coins{{"ugnot", 50000005}})
-		std.TestSetOrigSend(std.Coins{{"ugnot", 50000005}}, nil)
+		std.TestSetOriginSend(std.Coins{{"ugnot", 50000005}}, nil)
 
 		uassert.Equal(t, ugnotBalanceOf(t, adminAddr), uint64(49999005))
 		uassert.Equal(t, ugnotBalanceOf(t, consts.POSITION_ADDR), uint64(50000005))
@@ -181,9 +181,9 @@ func testCreateExternalIncentive(t *testing.T) {
 		uassert.Equal(t, ugnotBalanceOf(t, adminAddr), uint64(10099998010))
 		uassert.Equal(t, ugnotBalanceOf(t, consts.STAKER_ADDR), uint64(0))
 
-		banker := std.GetBanker(std.BankerTypeRealmIssue)
+		banker := std.NewBanker(std.BankerTypeRealmIssue)
 		banker.SendCoins(adminAddr, consts.STAKER_ADDR, std.Coins{{"ugnot", 10_000_000_000}})
-		std.TestSetOrigSend(std.Coins{{"ugnot", 10_000_000_000}}, nil)
+		std.TestSetOriginSend(std.Coins{{"ugnot", 10_000_000_000}}, nil)
 
 		uassert.Equal(t, ugnotBalanceOf(t, adminAddr), uint64(99998010))
 		uassert.Equal(t, ugnotBalanceOf(t, consts.STAKER_ADDR), uint64(10_000_000_000))

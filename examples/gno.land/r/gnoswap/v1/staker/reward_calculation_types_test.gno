@@ -49,6 +49,7 @@ func TestDecodeUint(t *testing.T) {
 		}
 	}
 }
+
 func TestUintTree(t *testing.T) {
 	tree := NewUintTree()
 

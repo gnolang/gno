@@ -155,6 +155,7 @@ func TestExactInSwapRoute(t *testing.T) {
 				tt.quoteArr,
 				tt.amountOutMin,
 				time.Now().Add(time.Hour).Unix(),
+				"", // referrer
 			)
 
 			if !tt.wantErr {

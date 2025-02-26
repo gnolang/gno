@@ -11,21 +11,21 @@ import (
 
 func TestGetDelegatedCumulative(t *testing.T) {
 	delegationSnapShotHistory = avl.NewTree()
-	
+
 	addr1 := testutils.TestAddress("test1")
 	now := uint64(time.Now().Unix())
 
 	tests := []struct {
-		name          string
-		setupHistory  []DelegationSnapShotHistory
-		delegator     std.Address
-		endTimestamp  uint64
-		expectAmount  uint64
-		expectPanic   bool
+		name         string
+		setupHistory []DelegationSnapShotHistory
+		delegator    std.Address
+		endTimestamp uint64
+		expectAmount uint64
+		expectPanic  bool
 	}{
 		{
-			name: "no history returns zero",
-			delegator: addr1,
+			name:         "no history returns zero",
+			delegator:    addr1,
 			endTimestamp: now,
 			expectAmount: 0,
 		},
@@ -33,13 +33,13 @@ func TestGetDelegatedCumulative(t *testing.T) {
 			name: "single history before timestamp",
 			setupHistory: []DelegationSnapShotHistory{
 				{
-					to: addr1,
-					amount: 100,
+					to:           addr1,
+					amount:       100,
 					updatedBlock: 1,
-					updatedAt: now - 100,
+					updatedAt:    now - 100,
 				},
 			},
-			delegator: addr1,
+			delegator:    addr1,
 			endTimestamp: now,
 			expectAmount: 100,
 		},
@@ -47,33 +47,33 @@ func TestGetDelegatedCumulative(t *testing.T) {
 			name: "multiple histories returns latest before timestamp",
 			setupHistory: []DelegationSnapShotHistory{
 				{
-					to: addr1,
-					amount: 100,
+					to:           addr1,
+					amount:       100,
 					updatedBlock: 1,
-					updatedAt: now - 200,
+					updatedAt:    now - 200,
 				},
 				{
-					to: addr1,
-					amount: 150,
+					to:           addr1,
+					amount:       150,
 					updatedBlock: 2,
-					updatedAt: now - 100,
+					updatedAt:    now - 100,
 				},
 				{
-					to: addr1,
-					amount: 200,
+					to:           addr1,
+					amount:       200,
 					updatedBlock: 3,
-					updatedAt: now + 100, // Future update
+					updatedAt:    now + 100, // Future update
 				},
 			},
-			delegator: addr1,
+			delegator:    addr1,
 			endTimestamp: now,
 			expectAmount: 150,
 		},
 		{
-			name: "future timestamp panics",
-			delegator: addr1,
+			name:         "future timestamp panics",
+			delegator:    addr1,
 			endTimestamp: now + 1000,
-			expectPanic: true,
+			expectPanic:  true,
 		},
 	}
 
@@ -94,7 +94,7 @@ func TestGetDelegatedCumulative(t *testing.T) {
 			}
 
 			result := GetDelegatedCumulative(tt.delegator, tt.endTimestamp)
-			
+
 			if !tt.expectPanic && result != tt.expectAmount {
 				t.Errorf("expected amount %d but got %d", tt.expectAmount, result)
 			}

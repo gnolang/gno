@@ -86,7 +86,7 @@ func TestMintPosition01(t *testing.T) {
 	std.TestSkipHeights(10)
 
 	uassert.Equal(t, positionId, uint64(1))
-	uassert.Equal(t, getNextId(), uint64(2))
+	uassert.Equal(t, GetNextId(), uint64(2))
 	uassert.Equal(t, amount0, "20000000")
 	uassert.Equal(t, amount1, "20000000")
 
@@ -121,10 +121,12 @@ func TestSwap1(t *testing.T) {
 		"100",
 		"6550809",
 		max_timeout,
+		"", // referrer
 	)
-	println("amount0, amount1:", amount0, amount1)
+
 	uassert.Equal(t, amount0, "6508448")
 	uassert.Equal(t, amount1, "-4992500") // -5000000 * 99.85%
+
 	std.TestSkipHeights(10)
 
 	// swap really doesn't update the position
@@ -165,7 +167,7 @@ func TestMintPosition02(t *testing.T) {
 	std.TestSkipHeights(10)
 
 	uassert.Equal(t, positionId, uint64(2))
-	uassert.Equal(t, getNextId(), uint64(3))
+	uassert.Equal(t, GetNextId(), uint64(3))
 	uassert.Equal(t, amount0, "8455058")
 	uassert.Equal(t, amount1, "4991781")
 
@@ -206,7 +208,7 @@ func TestMintPosition03(t *testing.T) {
 	std.TestSkipHeights(10)
 
 	uassert.Equal(t, positionId, uint64(3))
-	uassert.Equal(t, getNextId(), uint64(4))
+	uassert.Equal(t, GetNextId(), uint64(4))
 	uassert.Equal(t, amount0, "40000000")
 	uassert.Equal(t, amount1, "23615594")
 
@@ -241,6 +243,7 @@ func TestSwap2(t *testing.T) {
 		"100",
 		"2866635",
 		max_timeout,
+		"", // referrer
 	)
 	uassert.Equal(t, amount0, "5000000")
 	uassert.Equal(t, amount1, "-2881042") // -2881041.945
@@ -270,7 +273,7 @@ func TestMintPosition04(t *testing.T) {
 	std.TestSkipHeights(10)
 
 	uassert.Equal(t, positionId, uint64(4))
-	uassert.Equal(t, getNextId(), uint64(5))
+	uassert.Equal(t, GetNextId(), uint64(5))
 	uassert.Equal(t, amount0, "5098207")
 	uassert.Equal(t, amount1, "2881761")
 
@@ -305,6 +308,7 @@ func TestSwap3(t *testing.T) {
 		"100",
 		"559130",
 		max_timeout,
+		"", // referrer
 	)
 	// 1000000,-559976
 	uassert.Equal(t, amount0, "1000000")

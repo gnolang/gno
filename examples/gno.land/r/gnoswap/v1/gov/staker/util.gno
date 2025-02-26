@@ -30,23 +30,23 @@ func b64Encode(data string) string {
 
 // getPrevRealm returns the previous realm's package path
 func getPrevRealm() std.Realm {
-	return std.PrevRealm()
+	return std.PreviousRealm()
 }
 
 // getPrevAddr returns the address of the previous realm.
 func getPrevAddr() std.Address {
-	return std.PrevRealm().Addr()
+	return std.PreviousRealm().Address()
 }
 
 // isUserCall returns true if the previous realm is a user
 func isUserCall() bool {
-	return std.PrevRealm().IsUser()
+	return std.PreviousRealm().IsUser()
 }
 
 // getPrev returns the previous realm's address and package path
 func getPrev() (string, string) {
 	prev := getPrevRealm()
-	return prev.Addr().String(), prev.PkgPath()
+	return prev.Address().String(), prev.PkgPath()
 }
 
 // derivePkgAddr derives the Realm address from it's pkgPath parameter
@@ -74,12 +74,9 @@ func assertCallerIsAdmin() {
 
 // assertCallerIsLaunchpad panics if the caller is not the launchpad
 func assertCallerIsLaunchpad() {
-	caller := std.PrevRealm().Addr()
-	if caller != consts.LAUNCHPAD_ADDR {
-		panic(addDetailToError(
-			errNoPermission,
-			ufmt.Sprintf("only launchpad can call CollectRewardFromLaunchPad(), called from %s", caller.String()),
-		))
+	caller := std.PreviousRealm().Address()
+	if err := common.LaunchpadOnly(caller); err != nil {
+		panic(err)
 	}
 }
 

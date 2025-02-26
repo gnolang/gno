@@ -17,9 +17,7 @@ const (
 	defaultSwapFeeBPS = uint64(15) // 0.15%
 )
 
-var (
-	swapFee = defaultSwapFeeBPS
-)
+var swapFee = defaultSwapFeeBPS
 
 // GetSwapFee returns current rate of swap fee
 // ref: https://docs.gnoswap.io/contracts/router/protocol_fee_swap.gno#getswapfee
@@ -106,7 +104,7 @@ func handleSwapFee(
 	feeAmountUint64 := feeAmount.Uint64()
 
 	outputTeller := common.GetTokenTeller(outputToken)
-	outputTeller.TransferFrom(std.PrevRealm().Addr(), consts.PROTOCOL_FEE_ADDR, feeAmountUint64)
+	outputTeller.TransferFrom(std.PreviousRealm().Address(), consts.PROTOCOL_FEE_ADDR, feeAmountUint64)
 	pf.AddToProtocolFee(outputToken, feeAmountUint64)
 
 	prevAddr, prevPkgPath := getPrev()

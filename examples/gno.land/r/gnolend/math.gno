@@ -28,7 +28,7 @@ func MulDivUp(x, y, denominator int64) int64 {
 		panic(ErrDivisionByZero)
 	}
 	result := (x * y) / denominator
-	if (x * y) % denominator > 0 {
+	if (x*y)%denominator > 0 {
 		result++
 	}
 	return result
@@ -40,8 +40,8 @@ func MulDivUp(x, y, denominator int64) int64 {
 func ToSharesDown(assets, totalAssets, totalShares int64) int64 {
 	return MulDivDown(
 		assets,
-		totalShares + VIRTUAL_SHARES,
-		totalAssets + VIRTUAL_ASSETS,
+		totalShares+VIRTUAL_SHARES,
+		totalAssets+VIRTUAL_ASSETS,
 	)
 }
 
@@ -51,8 +51,8 @@ func ToSharesDown(assets, totalAssets, totalShares int64) int64 {
 func ToSharesUp(assets, totalAssets, totalShares int64) int64 {
 	return MulDivUp(
 		assets,
-		totalShares + VIRTUAL_SHARES,
-		totalAssets + VIRTUAL_ASSETS,
+		totalShares+VIRTUAL_SHARES,
+		totalAssets+VIRTUAL_ASSETS,
 	)
 }
 
@@ -62,8 +62,8 @@ func ToSharesUp(assets, totalAssets, totalShares int64) int64 {
 func ToAssetsDown(shares, totalAssets, totalShares int64) int64 {
 	return MulDivDown(
 		shares,
-		totalAssets + VIRTUAL_ASSETS,
-		totalShares + VIRTUAL_SHARES,
+		totalAssets+VIRTUAL_ASSETS,
+		totalShares+VIRTUAL_SHARES,
 	)
 }
 
@@ -73,7 +73,7 @@ func ToAssetsDown(shares, totalAssets, totalShares int64) int64 {
 func ToAssetsUp(shares, totalAssets, totalShares int64) int64 {
 	return MulDivUp(
 		shares,
-		totalAssets + VIRTUAL_ASSETS,
-		totalShares + VIRTUAL_SHARES,
+		totalAssets+VIRTUAL_ASSETS,
+		totalShares+VIRTUAL_SHARES,
 	)
 }

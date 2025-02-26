@@ -15,9 +15,9 @@ var (
 	delegatedFromTo = avl.NewTree() // caller => to => amount
 	delegatedTo     = avl.NewTree() // to => amount
 )
- 
+
 func delegate(to std.Address, amount uint64) {
-	caller := std.PrevRealm().Addr().String()
+	caller := std.PreviousRealm().Address().String()
 	toStr := to.String()
 
 	// initialize the internal tree for callers to `delegatedFromTo`
@@ -40,7 +40,7 @@ func delegate(to std.Address, amount uint64) {
 		to:        to,
 		amount:    amount,
 		timestamp: timeStamp,
-		height:    uint64(std.GetHeight()),
+		height:    uint64(std.ChainHeight()),
 		add:       true, // if true, delegation
 	}
 
@@ -65,14 +65,14 @@ func delegate(to std.Address, amount uint64) {
 	snapShotHistory = append(snapShotHistory, DelegationSnapShotHistory{
 		to:           to,
 		amount:       updateAmount,
-		updatedBlock: uint64(std.GetHeight()),
+		updatedBlock: uint64(std.ChainHeight()),
 		updatedAt:    timeStamp,
 	})
 	delegationSnapShotHistory.Set(toStr, snapShotHistory)
 }
 
 func undelegate(to std.Address, amount uint64) {
-	caller := std.PrevRealm().Addr().String()
+	caller := std.PreviousRealm().Address().String()
 	toStr := to.String()
 
 	// check caller's delegatedFromTo
@@ -143,7 +143,7 @@ func undelegate(to std.Address, amount uint64) {
 		to:        to,
 		amount:    amount,
 		timestamp: uint64(time.Now().Unix()),
-		height:    uint64(std.GetHeight()),
+		height:    uint64(std.ChainHeight()),
 		add:       false,
 	}
 	var history []DelegationHistory

@@ -8,11 +8,11 @@ package uint256
 //
 // Example) 0x28 (binary 00101000)
 //
-//	Binary: [ 0  0  1  0  1  0  0  0 ]
-//	                         ^^^^^^^^
-//                          3 consecutive zeros
+//		Binary: [ 0  0  1  0  1  0  0  0 ]
+//		                         ^^^^^^^^
+//	                         3 consecutive zeros
 //
-//  ntz8tab[0x28] = 3
+//	 ntz8tab[0x28] = 3
 const ntz8tab = "" +
 	"\x08\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
 	"\x04\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
@@ -36,10 +36,10 @@ const ntz8tab = "" +
 //
 // Example) 0xB2 (binary 10110010)
 //
-//	Binary: [ 1  0  1  1  0  0  1  0 ]
-//	Total of 4 set bits
+//		Binary: [ 1  0  1  1  0  0  1  0 ]
+//		Total of 4 set bits
 //
-//  pop8tab[0xB2] = 4
+//	 pop8tab[0xB2] = 4
 const pop8tab = "" +
 	"\x00\x01\x01\x02\x01\x02\x02\x03\x01\x02\x02\x03\x02\x03\x03\x04" +
 	"\x01\x02\x02\x03\x02\x03\x03\x04\x02\x03\x03\x04\x03\x04\x04\x05" +
@@ -63,10 +63,10 @@ const pop8tab = "" +
 //
 // Example) 0x16 (binary 00010110)
 //
-//	Binary:       [ 0  0  0  1  0  1  1  0 ]
-//	Reversed:     [ 0  1  1  0  1  0  0  0 ] -> 0x68 (104 in decimal)
+//		Binary:       [ 0  0  0  1  0  1  1  0 ]
+//		Reversed:     [ 0  1  1  0  1  0  0  0 ] -> 0x68 (104 in decimal)
 //
-//  rev8tab[0x16] = 0x68
+//	 rev8tab[0x16] = 0x68
 const rev8tab = "" +
 	"\x00\x80\x40\xc0\x20\xa0\x60\xe0\x10\x90\x50\xd0\x30\xb0\x70\xf0" +
 	"\x08\x88\x48\xc8\x28\xa8\x68\xe8\x18\x98\x58\xd8\x38\xb8\x78\xf8" +

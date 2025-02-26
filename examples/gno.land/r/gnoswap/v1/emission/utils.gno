@@ -6,6 +6,7 @@ import (
 
 	"gno.land/p/demo/ufmt"
 
+	"gno.land/r/gnoswap/v1/access"
 	"gno.land/r/gnoswap/v1/common"
 )
 
@@ -13,24 +14,24 @@ const MAX_BPS_PCT uint64 = 10000
 
 // getPrevRealm returns object of the previous realm.
 func getPrevRealm() std.Realm {
-	return std.PrevRealm()
+	return std.PreviousRealm()
 }
 
 // getPrevAddr returns the address of the previous realm.
 func getPrevAddr() std.Address {
-	return std.PrevRealm().Addr()
+	return std.PreviousRealm().Address()
 }
 
 // getPrev returns the address and package path of the previous realm.
 func getPrevAsString() (string, string) {
-	prev := std.PrevRealm()
-	return prev.Addr().String(), prev.PkgPath()
+	prev := std.PreviousRealm()
+	return prev.Address().String(), prev.PkgPath()
 }
 
 // assertOnlyAdmin panics if the caller is not the admin.
 func assertOnlyAdmin() {
 	caller := getPrevAddr()
-	if err := common.AdminOnly(caller); err != nil {
+	if err := access.AdminOnly(caller); err != nil {
 		panic(err.Error())
 	}
 }
@@ -38,7 +39,7 @@ func assertOnlyAdmin() {
 // assertStakerOnly panics if the caller is not the staker.
 func assertStakerOnly() {
 	caller := getPrevAddr()
-	if err := common.StakerOnly(caller); err != nil {
+	if err := access.StakerOnly(caller); err != nil {
 		panic(err.Error())
 	}
 }
@@ -46,7 +47,7 @@ func assertStakerOnly() {
 // assertOnlyGovernance panics if the caller is not the governance.
 func assertOnlyGovernance() {
 	caller := getPrevAddr()
-	if err := common.GovernanceOnly(caller); err != nil {
+	if err := access.GovernanceOnly(caller); err != nil {
 		panic(err.Error())
 	}
 }
@@ -54,7 +55,7 @@ func assertOnlyGovernance() {
 // assertOnlyGovStaker panics if the caller is not the gov staker.
 func assertOnlyGovStaker() {
 	caller := getPrevAddr()
-	if err := common.GovStakerOnly(caller); err != nil {
+	if err := access.GovStakerOnly(caller); err != nil {
 		panic(err.Error())
 	}
 }

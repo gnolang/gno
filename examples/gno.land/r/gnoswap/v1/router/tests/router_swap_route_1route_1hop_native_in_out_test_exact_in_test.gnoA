@@ -87,7 +87,7 @@ func testPositionMint(t *testing.T) {
 
 		// send coin
 		std.TestIssueCoins(consts.POSITION_ADDR, std.Coins{{"ugnot", 1000009}}) // without issuing, it will fail `source address g1q646ctzhvn60v492x8ucvyqnrj2w30cwh6efk5 does not exist`
-		std.TestSetOrigSend(std.Coins{{"ugnot", 1000009}}, nil)
+		std.TestSetOriginSend(std.Coins{{"ugnot", 1000009}}, nil)
 
 		positionId, liquidity, amount0, amount1 := pn.Mint(quxPath, consts.GNOT, fee500, int32(9000), int32(11000), "100000", "100000", "0", "0", max_timeout, adminAddr, adminAddr, "")
 
@@ -95,7 +95,7 @@ func testPositionMint(t *testing.T) {
 		uassert.Equal(t, amount0, "100000")
 		uassert.Equal(t, amount1, "36790")
 
-		std.TestSetOrigSend(std.Coins{{}}, nil) // reset context
+		std.TestSetOriginSend(std.Coins{{}}, nil) // reset context
 	})
 }
 
@@ -123,6 +123,7 @@ func testPositionMint(t *testing.T) {
 // 			"gno.land/r/onbloc/bar:gno.land/r/onbloc/baz:500*POOL*gno.land/r/onbloc/baz:gno.land/r/onbloc/qux:500*POOL*gno.land/r/onbloc/qux:gno.land/r/demo/wugnot:500", // strRouteArr
 // 			"100", // quoteArr
 // 			"0",   // tokenAmountLimit
+// 			"",    // referrer
 // 		)
 
 // 		uassert.Equal(t, amountIn, "1000")
@@ -165,7 +166,8 @@ func testPositionMint(t *testing.T) {
 // 			"5000",      // amountSpecified
 // 			"gno.land/r/demo/wugnot:gno.land/r/onbloc/qux:500*POOL*gno.land/r/onbloc/qux:gno.land/r/onbloc/baz:500*POOL*gno.land/r/onbloc/baz:gno.land/r/onbloc/bar:500", // strRouteArr
 // 			"100", // quoteArr
-// 			"0",
+// 			"0",   // tokenAmountLimit
+// 			"",    // referrer
 // 		)
 // 		std.TestSetOrigSend(std.Coins{{}}, nil)
 

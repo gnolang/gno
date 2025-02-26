@@ -13,7 +13,7 @@ var (
 	markets *avl.Tree // marketId -> Market
 	// First level: marketId -> *avl.Tree
 	// Second level: userAddr -> Position
-	positions *avl.Tree 
+	positions *avl.Tree
 )
 
 func init() {
@@ -92,7 +92,7 @@ func Supply(marketId string, assets, shares int64) {
 	}
 
 	// Get caller
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 
 	// Get market
 	market := GetMarket(marketId)
@@ -118,9 +118,13 @@ func Supply(marketId string, assets, shares int64) {
 
 	// Update position
 	position.SupplyShares += sharesToMint
-	
+
 	// Get market's positions tree and update position
-	marketPositions := positions.Get(marketId).(*avl.Tree)
+	marketPositionsInterface, exists := positions.Get(marketId)
+	if !exists {
+		panic(ErrMarketNotCreated)
+	}
+	marketPositions := marketPositionsInterface.(*avl.Tree)
 	marketPositions.Set(caller.String(), position)
 
 	// Update market state

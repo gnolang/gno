@@ -37,30 +37,39 @@ func NewProjectStats(
 func (ps *ProjectStats) TotalDeposit() uint64 {
 	return ps.totalDeposit
 }
+
 func (ps *ProjectStats) setTotalDeposit(v uint64) {
 	ps.totalDeposit = v
 }
+
 func (ps *ProjectStats) ActualDeposit() uint64 {
 	return ps.actualDeposit
 }
+
 func (ps *ProjectStats) setActualDeposit(v uint64) {
 	ps.actualDeposit = v
 }
+
 func (ps *ProjectStats) TotalParticipant() uint64 {
 	return ps.totalParticipant
 }
+
 func (ps *ProjectStats) setTotalParticipant(v uint64) {
 	ps.totalParticipant = v
 }
+
 func (ps *ProjectStats) ActualParticipant() uint64 {
 	return ps.actualParticipant
 }
+
 func (ps *ProjectStats) setActualParticipant(v uint64) {
 	ps.actualParticipant = v
 }
+
 func (ps *ProjectStats) TotalCollected() uint64 {
 	return ps.totalCollected
 }
+
 func (ps *ProjectStats) setTotalCollected(v uint64) {
 	ps.totalCollected = v
 }
@@ -113,81 +122,107 @@ func NewProject(
 func (p *Project) ID() string {
 	return p.id
 }
+
 func (p *Project) setID(v string) {
 	p.id = v
 }
+
 func (p *Project) Name() string {
 	return p.name
 }
+
 func (p *Project) setName(v string) {
 	p.name = v
 }
+
 func (p *Project) TokenPath() string {
 	return p.tokenPath
 }
+
 func (p *Project) setTokenPath(v string) {
 	p.tokenPath = v
 }
+
 func (p *Project) DepositAmount() uint64 {
 	return p.depositAmount
 }
+
 func (p *Project) setDepositAmount(v uint64) {
 	p.depositAmount = v
 }
+
 func (p *Project) Recipient() std.Address {
 	return p.recipient
 }
+
 func (p *Project) setRecipient(v std.Address) {
 	p.recipient = v
 }
+
 func (p *Project) Conditions() map[string]Condition {
 	return p.conditions
 }
+
 func (p *Project) setConditions(v map[string]Condition) {
 	p.conditions = v
 }
+
 func (p *Project) Tiers() map[uint64]Tier {
 	return p.tiers
 }
+
 func (p *Project) setTiers(v map[uint64]Tier) {
 	p.tiers = v
 }
+
 func (p *Project) TiersRatios() map[uint64]uint64 {
 	return p.tiersRatios
 }
+
 func (p *Project) setTiersRatios(v map[uint64]uint64) {
 	p.tiersRatios = v
 }
+
 func (p *Project) Created() TimeInfo {
 	return p.created
 }
+
 func (p *Project) setCreated(v TimeInfo) {
 	p.created = v
 }
+
 func (p *Project) Started() TimeInfo {
 	return p.started
 }
+
 func (p *Project) setStarted(v TimeInfo) {
 	p.started = v
 }
+
 func (p *Project) Ended() TimeInfo {
 	return p.ended
 }
+
 func (p *Project) setEnded(v TimeInfo) {
 	p.ended = v
 }
+
 func (p *Project) Stats() *ProjectStats {
 	return &p.stats
 }
+
 func (p *Project) setStats(v ProjectStats) {
 	p.stats = v
 }
+
 func (p *Project) Refund() RefundInfo {
 	return p.refund
 }
+
 func (p *Project) setRefund(v RefundInfo) {
 	p.refund = v
 }
+
 func (p *Project) Tier(key uint64) (Tier, error) {
 	tier, exists := p.tiers[key]
 	if !exists {
@@ -196,9 +231,11 @@ func (p *Project) Tier(key uint64) (Tier, error) {
 	}
 	return tier, nil
 }
+
 func (p *Project) isActivated(currentHeight uint64) bool {
 	return p.started.Height() <= currentHeight && currentHeight < p.ended.Height()
 }
+
 func (p *Project) checkDepositConditions(caller std.Address) {
 	conditions := p.Conditions()
 	if conditions == nil {
@@ -225,9 +262,11 @@ func (p *Project) checkDepositConditions(caller std.Address) {
 		}
 	}
 }
+
 func (p *Project) setTier(key uint64, tier Tier) {
 	p.tiers[key] = tier
 }
+
 func (p *Project) calculateLeftReward() uint64 {
 	return p.DepositAmount() - p.Stats().totalCollected
 }
@@ -280,98 +319,129 @@ func NewTier(
 func (t *Tier) ID() string {
 	return t.id
 }
+
 func (t *Tier) setID(v string) {
 	t.id = v
 }
+
 func (t *Tier) CollectWaitDuration() uint64 {
 	return t.collectWaitDuration
 }
+
 func (t *Tier) setCollectWaitDuration(v uint64) {
 	t.collectWaitDuration = v
 }
+
 func (t *Tier) TierAmount() uint64 {
 	return t.tierAmount
 }
+
 func (t *Tier) setTierAmount(v uint64) {
 	t.tierAmount = v
 }
+
 func (t *Tier) TierAmountPerBlockX128() *u256.Uint {
 	return t.tierAmountPerBlockX128
 }
+
 func (t *Tier) setTierAmountPerBlockX128(v *u256.Uint) {
 	t.tierAmountPerBlockX128 = v.Clone()
 }
+
 func (t *Tier) Started() TimeInfo {
 	return t.started
 }
+
 func (t *Tier) setStarted(v TimeInfo) {
 	t.started = v
 }
+
 func (t *Tier) Ended() TimeInfo {
 	return t.ended
 }
+
 func (t *Tier) setEnded(v TimeInfo) {
 	t.ended = v
 }
+
 func (t *Tier) TotalDepositAmount() uint64 {
 	return t.totalDepositAmount
 }
+
 func (t *Tier) setTotalDepositAmount(v uint64) {
 	t.totalDepositAmount = v
 }
+
 func (t *Tier) ActualDepositAmount() uint64 {
 	return t.actualDepositAmount
 }
+
 func (t *Tier) setActualDepositAmount(v uint64) {
 	t.actualDepositAmount = v
 }
+
 func (t *Tier) TotalParticipant() uint64 {
 	return t.totalParticipant
 }
+
 func (t *Tier) setTotalParticipant(v uint64) {
 	t.totalParticipant = v
 }
+
 func (t *Tier) ActualParticipant() uint64 {
 	return t.actualParticipant
 }
+
 func (t *Tier) setActualParticipant(v uint64) {
 	t.actualParticipant = v
 }
+
 func (t *Tier) UserCollectedAmount() uint64 {
 	return t.userCollectedAmount
 }
+
 func (t *Tier) setUserCollectedAmount(v uint64) {
 	t.userCollectedAmount = v
 }
+
 func (t *Tier) CalculatedAmount() uint64 {
 	return t.calculatedAmount
 }
+
 func (t *Tier) setCalculatedAmount(v uint64) {
 	t.calculatedAmount = v
 }
+
 func (t *Tier) Reward() Reward {
 	return t.reward
 }
+
 func (t *Tier) setReward(v Reward) {
 	t.reward = v
 }
+
 func (t *Tier) isActivated(currentHeight uint64) bool {
 	return t.started.Height() <= currentHeight && currentHeight < t.ended.Height()
 }
+
 func (t *Tier) isFirstDeposit() bool {
 	return t.totalParticipant == 0
 }
+
 func (t *Tier) updateStarted(height, time uint64) {
 	t.started.setHeight(height)
 	t.started.setTime(time)
 	t.reward.setLastHeight(height)
 }
+
 func (t *Tier) rewardPerBlockUint64() uint64 {
 	return u256.Zero().Rsh(t.tierAmountPerBlockX128, 128).Uint64()
 }
+
 func (t *Tier) isEnded(currentHeight uint64) bool {
 	return t.ended.Height() < currentHeight
 }
+
 func (t *Tier) calculateLeftReward() uint64 {
 	return t.tierAmount - t.userCollectedAmount
 }
@@ -405,45 +475,59 @@ func NewRewardInfo(
 func (r *RewardInfo) PriceDebt() *u256.Uint {
 	return r.priceDebt
 }
+
 func (r *RewardInfo) setPriceDebt(v *u256.Uint) {
 	r.priceDebt = v
 }
+
 func (r *RewardInfo) DepositAmount() uint64 {
 	return r.depositAmount
 }
+
 func (r *RewardInfo) setDepositAmount(v uint64) {
 	r.depositAmount = v
 }
+
 func (r *RewardInfo) RewardAmount() uint64 {
 	return r.rewardAmount
 }
+
 func (r *RewardInfo) setRewardAmount(v uint64) {
 	r.rewardAmount = v
 }
+
 func (r *RewardInfo) Claimed() uint64 {
 	return r.claimed
 }
+
 func (r *RewardInfo) setClaimed(v uint64) {
 	r.claimed = v
 }
+
 func (r *RewardInfo) StartHeight() uint64 {
 	return r.startHeight
 }
+
 func (r *RewardInfo) setStartHeight(v uint64) {
 	r.startHeight = v
 }
+
 func (r *RewardInfo) GetEndHeight() uint64 {
 	return r.EndHeight
 }
+
 func (r *RewardInfo) setEndHeight(v uint64) {
 	r.EndHeight = v
 }
+
 func (r *RewardInfo) GetLastHeight() uint64 {
 	return r.LastHeight
 }
+
 func (r *RewardInfo) setLastHeight(v uint64) {
 	r.LastHeight = v
 }
+
 func (r *RewardInfo) calculateReward(accumRewardPerDeposit *u256.Uint) uint64 {
 	actualRewardPerDeposit := u256.Zero().Sub(accumRewardPerDeposit, r.PriceDebt())
 	reward := u256.Zero().Mul(actualRewardPerDeposit, u256.NewUint(r.DepositAmount()))
@@ -474,30 +558,39 @@ func NewReward(
 func (r *Reward) AccumRewardPerDeposit() *u256.Uint {
 	return r.accumRewardPerDeposit
 }
+
 func (r *Reward) setAccumRewardPerDeposit(v *u256.Uint) {
 	r.accumRewardPerDeposit = v
 }
+
 func (r *Reward) GetLastHeight() uint64 {
 	return r.LastHeight
 }
+
 func (r *Reward) setLastHeight(v uint64) {
 	r.LastHeight = v
 }
+
 func (r *Reward) GetEndHeight() uint64 {
 	return r.EndHeight
 }
+
 func (r *Reward) setEndHeight(v uint64) {
 	r.EndHeight = v
 }
+
 func (r *Reward) Info() *avl.Tree {
 	return r.info
 }
+
 func (r *Reward) setInfo(v *avl.Tree) {
 	r.info = v
 }
+
 func (r *Reward) accumulationRewardUint64() uint64 {
 	return u256.Zero().Rsh(r.accumRewardPerDeposit, 128).Uint64()
 }
+
 func (r *Reward) InfoOf(depositId string) *RewardInfo {
 	infoI, exists := r.info.Get(depositId)
 	if !exists {
@@ -507,9 +600,10 @@ func (r *Reward) InfoOf(depositId string) *RewardInfo {
 
 	return infoI.(*RewardInfo)
 }
+
 func (r *Reward) calculateRewardPerDeposit(rewardPerBlock *u256.Uint, totalStaked uint64) (*u256.Uint, error) {
 	// blockDuration * rewardPerBlock / totalStaked
-	currentHeight := uint64(std.GetHeight())
+	currentHeight := uint64(std.ChainHeight())
 	lastUpdateHeight := r.GetLastHeight()
 	if currentHeight == lastUpdateHeight {
 		return u256.Zero(), nil
@@ -558,6 +652,7 @@ func (r *Reward) finalize(currentHeight, totalStaked uint64, rewardPerBlock *u25
 	}
 	return r.calculateRewardPerDeposit(rewardPerBlock, totalStaked)
 }
+
 func (r *Reward) deductReward(depositId string, currentHeight uint64) uint64 {
 	if currentHeight < r.LastHeight {
 		panic(addDetailToError(
@@ -639,93 +734,123 @@ func NewDeposit(
 func (d *Deposit) ID() string {
 	return d.id
 }
+
 func (d *Deposit) setID(v string) {
 	d.id = v
 }
+
 func (d *Deposit) ProjectID() string {
 	return d.projectId
 }
+
 func (d *Deposit) setProjectID(v string) {
 	d.projectId = v
 }
+
 func (d *Deposit) Tier() string {
 	return d.tier
 }
+
 func (d *Deposit) setTier(v string) {
 	d.tier = v
 }
+
 func (d *Deposit) Depositor() std.Address {
 	return d.depositor
 }
+
 func (d *Deposit) setDepositor(v std.Address) {
 	d.depositor = v
 }
+
 func (d *Deposit) Amount() uint64 {
 	return d.amount
 }
+
 func (d *Deposit) setAmount(v uint64) {
 	d.amount = v
 }
+
 func (d *Deposit) DepositHeight() uint64 {
 	return d.depositHeight
 }
+
 func (d *Deposit) setDepositHeight(v uint64) {
 	d.depositHeight = v
 }
+
 func (d *Deposit) DepositTime() uint64 {
 	return d.depositTime
 }
+
 func (d *Deposit) setDepositTime(v uint64) {
 	d.depositTime = v
 }
+
 func (d *Deposit) DepositCollectHeight() uint64 {
 	return d.depositCollectHeight
 }
+
 func (d *Deposit) setDepositCollectHeight(v uint64) {
 	d.depositCollectHeight = v
 }
+
 func (d *Deposit) DepositCollectTime() uint64 {
 	return d.depositCollectTime
 }
+
 func (d *Deposit) setDepositCollectTime(v uint64) {
 	d.depositCollectTime = v
 }
+
 func (d *Deposit) ClaimableHeight() uint64 {
 	return d.claimableHeight
 }
+
 func (d *Deposit) setClaimableHeight(v uint64) {
 	d.claimableHeight = v
 }
+
 func (d *Deposit) ClaimableTime() uint64 {
 	return d.claimableTime
 }
+
 func (d *Deposit) setClaimableTime(v uint64) {
 	d.claimableTime = v
 }
+
 func (d *Deposit) RewardAmount() uint64 {
 	return d.rewardAmount
 }
+
 func (d *Deposit) setRewardAmount(v uint64) {
 	d.rewardAmount = v
 }
+
 func (d *Deposit) RewardCollected() uint64 {
 	return d.rewardCollected
 }
+
 func (d *Deposit) setRewardCollected(v uint64) {
 	d.rewardCollected = v
 }
+
 func (d *Deposit) RewardCollectHeight() uint64 {
 	return d.rewardCollectHeight
 }
+
 func (d *Deposit) setRewardCollectHeight(v uint64) {
 	d.rewardCollectHeight = v
 }
+
 func (d *Deposit) RewardCollectTime() uint64 {
 	return d.rewardCollectTime
 }
+
 func (d *Deposit) setRewardCollectTime(v uint64) {
 	d.rewardCollectTime = v
 }
+
 func (d *Deposit) isClaimable(currentHeight uint64) bool {
 	return d.claimableHeight <= currentHeight
 }
@@ -746,12 +871,15 @@ func NewTimeInfo(height, t uint64) TimeInfo {
 func (ti *TimeInfo) Height() uint64 {
 	return ti.height
 }
+
 func (ti *TimeInfo) setHeight(v uint64) {
 	ti.height = v
 }
+
 func (ti *TimeInfo) Time() uint64 {
 	return ti.time
 }
+
 func (ti *TimeInfo) setTime(v uint64) {
 	ti.time = v
 }
@@ -774,18 +902,23 @@ func NewRefundInfo(amount, height, t uint64) RefundInfo {
 func (ri *RefundInfo) Amount() uint64 {
 	return ri.amount
 }
+
 func (ri *RefundInfo) setAmount(v uint64) {
 	ri.amount = v
 }
+
 func (ri *RefundInfo) Height() uint64 {
 	return ri.height
 }
+
 func (ri *RefundInfo) setHeight(v uint64) {
 	ri.height = v
 }
+
 func (ri *RefundInfo) Time() uint64 {
 	return ri.time
 }
+
 func (ri *RefundInfo) setTime(v uint64) {
 	ri.time = v
 }
@@ -806,12 +939,15 @@ func NewCondition(tokenPath string, minAmount uint64) Condition {
 func (c *Condition) TokenPath() string {
 	return c.tokenPath
 }
+
 func (c *Condition) setTokenPath(v string) {
 	c.tokenPath = v
 }
+
 func (c *Condition) MinAmount() uint64 {
 	return c.minAmount
 }
+
 func (c *Condition) setMinAmount(v uint64) {
 	c.minAmount = v
 }

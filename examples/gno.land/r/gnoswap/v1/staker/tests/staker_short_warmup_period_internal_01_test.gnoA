@@ -154,7 +154,6 @@ func testStakeToken_1(t *testing.T) {
 		beforeGns := gns.BalanceOf(admin)
 		CollectReward(1, false)
 		afterGns := gns.BalanceOf(admin)
-		println(afterGns - beforeGns)
 		uassert.True(t, isInErrorRange(uint64(1605308), afterGns-beforeGns))
 		// reward 1605307
 		// penalty 3745719

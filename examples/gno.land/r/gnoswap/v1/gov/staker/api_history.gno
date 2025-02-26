@@ -48,7 +48,7 @@ func GetPossibleVotingAddressWithWeightJSON(endTimestamp uint64) (uint64, string
 	totalWeight, addressWithWeight := GetPossibleVotingAddressWithWeight(endTimestamp)
 
 	possibleObj := json.ObjectNode("", nil)
-	possibleObj.AppendObject("height", json.StringNode("height", ufmt.Sprintf("%d", std.GetHeight())))
+	possibleObj.AppendObject("height", json.StringNode("height", ufmt.Sprintf("%d", std.ChainHeight())))
 	possibleObj.AppendObject("now", json.StringNode("now", ufmt.Sprintf("%d", time.Now().Unix())))
 
 	possibleArr := json.ArrayNode("votingPower", nil)

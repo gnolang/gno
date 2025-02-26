@@ -80,7 +80,6 @@ func finalizeSwap(
 	userBeforeWugnotBalance, userWrappedWugnot uint64,
 	amountSpecified *u256.Uint,
 ) (string, string) {
-
 	if swapType == ExactOut {
 		// If the pool's raw output is less than user wants, fail fast.
 		// (Optional: some designs skip this, and only check afterFee.)
@@ -94,7 +93,7 @@ func finalizeSwap(
 
 	afterFee := handleSwapFee(outputToken, resultAmountOut)
 
-	userNewWugnotBalance := wugnot.BalanceOf(std.PrevRealm().Addr())
+	userNewWugnotBalance := wugnot.BalanceOf(std.PreviousRealm().Address())
 	if inputToken == consts.GNOT {
 		totalBefore := userBeforeWugnotBalance + userWrappedWugnot
 		spend := totalBefore - userNewWugnotBalance

@@ -20,7 +20,7 @@ func ApiGetPositions() string {
 		rpcPositions = append(rpcPositions, rpcPosition)
 	}
 
-	baseStat := NewResponseQueryBase(std.GetHeight(), time.Now().Unix())
+	baseStat := NewResponseQueryBase(std.ChainHeight(), time.Now().Unix())
 	return makeJsonResponse(&baseStat, &PositionsResponse{Positions: rpcPositions})
 }
 
@@ -31,7 +31,7 @@ func ApiGetPosition(id uint64) string {
 	}
 
 	rpcPosition := rpcMakePosition(id)
-	baseStat := NewResponseQueryBase(std.GetHeight(), time.Now().Unix())
+	baseStat := NewResponseQueryBase(std.ChainHeight(), time.Now().Unix())
 	return makeJsonResponse(&baseStat, &PositionsResponse{Positions: []RpcPosition{rpcPosition}})
 }
 
@@ -46,7 +46,7 @@ func ApiGetPositionsByPoolPath(poolPath string) string {
 		rpcPositions = append(rpcPositions, rpcPosition)
 	}
 
-	baseStat := NewResponseQueryBase(std.GetHeight(), time.Now().Unix())
+	baseStat := NewResponseQueryBase(std.ChainHeight(), time.Now().Unix())
 	return makeJsonResponse(&baseStat, &PositionsResponse{Positions: rpcPositions})
 }
 
@@ -61,7 +61,7 @@ func ApiGetPositionsUnclaimedFee() string {
 		})
 	}
 
-	baseStat := NewResponseQueryBase(std.GetHeight(), time.Now().Unix())
+	baseStat := NewResponseQueryBase(std.ChainHeight(), time.Now().Unix())
 	return makeJsonResponse(&baseStat, &UnclaimedFeesResponse{Fees: rpcUnclaimedFee})
 }
 
@@ -82,7 +82,7 @@ func ApiGetPositionsByAddress(address std.Address) string {
 		rpcPositions = append(rpcPositions, rpcPosition)
 	}
 
-	baseStat := NewResponseQueryBase(std.GetHeight(), time.Now().Unix())
+	baseStat := NewResponseQueryBase(std.ChainHeight(), time.Now().Unix())
 	r := NewResponseApiGetPositions(baseStat, rpcPositions)
 	stat := baseStat.JSON()
 
@@ -117,7 +117,7 @@ func ApiGetPositionUnclaimedFeeByLpPositionId(lpPositionId uint64) string {
 		Fee1:         unclaimedFee1.ToString(),
 	}
 
-	baseStat := NewResponseQueryBase(std.GetHeight(), time.Now().Unix())
+	baseStat := NewResponseQueryBase(std.ChainHeight(), time.Now().Unix())
 	return makeJsonResponse(&baseStat, &UnclaimedFeesResponse{
 		Fees: []RpcUnclaimedFee{fee},
 	})
@@ -126,22 +126,23 @@ func ApiGetPositionUnclaimedFeeByLpPositionId(lpPositionId uint64) string {
 func rpcMakePosition(positionId uint64) RpcPosition {
 	position := MustGetPosition(positionId)
 
-	burned := isBurned(positionId)
-
 	pool := pl.GetPoolFromPoolPath(position.poolKey)
-	currentX96 := pool.Slot0SqrtPriceX96()
-	lowerX96 := common.TickMathGetSqrtRatioAtTick(position.tickLower)
-	upperX96 := common.TickMathGetSqrtRatioAtTick(position.tickUpper)
+	currentSqrtPriceX96 := pool.Slot0SqrtPriceX96()
+	lowerTickSqrtPriceX96 := common.TickMathGetSqrtRatioAtTick(position.tickLower)
+	upperTickSqrtPriceX96 := common.TickMathGetSqrtRatioAtTick(position.tickUpper)
 
-	token0Balance, token1Balance := common.GetAmountsForLiquidity(
-		currentX96,
-		lowerX96,
-		upperX96,
+	calculatedToken0Balance, calculatedToken1Balance := common.GetAmountsForLiquidity(
+		currentSqrtPriceX96,
+		lowerTickSqrtPriceX96,
+		upperTickSqrtPriceX96,
 		position.liquidity,
 	)
 
+	token0Balance, token1Balance := position.token0Balance, position.token1Balance
+
 	unclaimedFee0 := i256.Zero()
 	unclaimedFee1 := i256.Zero()
+	burned := isBurned(positionId)
 	if !burned {
 		unclaimedFee0, unclaimedFee1 = unclaimedFee(positionId)
 	}
@@ -164,8 +165,10 @@ func rpcMakePosition(positionId uint64) RpcPosition {
 		FeeGrowthInside1LastX128: position.feeGrowthInside1LastX128.ToString(),
 		TokensOwed0:              position.tokensOwed0.ToString(),
 		TokensOwed1:              position.tokensOwed1.ToString(),
-		Token0Balance:            token0Balance,
-		Token1Balance:            token1Balance,
+		Token0Balance:            token0Balance.ToString(),
+		Token1Balance:            token1Balance.ToString(),
+		CalculatedToken0Balance:  calculatedToken0Balance,
+		CalculatedToken1Balance:  calculatedToken1Balance,
 		FeeUnclaimed0:            unclaimedFee0.ToString(),
 		FeeUnclaimed1:            unclaimedFee1.ToString(),
 	}

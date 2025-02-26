@@ -188,7 +188,6 @@ func testMakeExternalBarStart() {
 
 	std.TestSkipHeights(int64(blockLeft)) // skip until external bar starts
 	std.TestSkipHeights(10)               // skip bit more to see reward calculation
-
 }
 
 func testCheckReward01() {
@@ -223,6 +222,7 @@ func testMakePosition1OutRangeBySwap() {
 		"100",       // quoteArr
 		"0",         // amountOutMin
 		max_timeout, // timeout
+		"",          // referrer
 	)
 	std.TestSkipHeights(1)
 
@@ -264,6 +264,7 @@ func testMakePosition1InRangeBySwap() {
 		"100",
 		"0",
 		max_timeout,
+		"",
 	)
 
 	newPoolTick := pl.PoolGetSlot0Tick(poolPath)

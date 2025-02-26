@@ -46,8 +46,6 @@ func delegateAdmin(t *testing.T) {
 	std.TestSetRealm(adminRealm)
 	gns.Approve(consts.GOV_STAKER_ADDR, uint64(1000000))
 	Delegate(dummyAddr, 1000000, "")
-	println("CALLER", adminRealm.Addr())
-	println("TO", dummyAddr)
 
 	uassert.Equal(t, gns.BalanceOf(consts.STAKER_ADDR), uint64(10702054))
 	uassert.Equal(t, gns.BalanceOf(consts.DEV_OPS), uint64(2853881))
@@ -63,10 +61,6 @@ func redelegateAdmin(t *testing.T) {
 	uassert.Equal(t, xgns.BalanceOf(admin), uint64(1000000))
 
 	std.TestSetRealm(adminRealm)
-	println()
-	println("CALLER", adminRealm.Addr())
-	println("FROM", dummyAddr)
-	println("TO", reDelegate)
 	Redelegate(dummyAddr, reDelegate, 1000000)
 
 	uassert.Equal(t, gns.BalanceOf(admin), uint64(99999999000000))

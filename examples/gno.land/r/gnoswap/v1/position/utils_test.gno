@@ -80,7 +80,7 @@ func TestAssertOnlyOwnerOfToken(t *testing.T) {
 	mockTokenId := uint64(1)
 	mockOwner := admin
 	mockCaller := alice
-	//MakeMintPositionWithoutFee(t)
+	// MakeMintPositionWithoutFee(t)
 
 	t.Run("Token Owned by Caller - No Panic", func(t *testing.T) {
 		defer func() {
@@ -139,8 +139,8 @@ func TestAssertOnlyUserOrStaker(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			std.TestSetOrigCaller(tc.originCaller)
-			assertOnlyUserOrStaker(std.PrevRealm())
+			std.TestSetOriginCaller(tc.originCaller)
+			assertOnlyUserOrStaker(std.PreviousRealm())
 		})
 	}
 }
@@ -366,9 +366,9 @@ func TestGetPrevRealm(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			std.TestSetOrigCaller(std.Address(tc.originCaller))
+			std.TestSetOriginCaller(std.Address(tc.originCaller))
 			got := getPrevRealm()
-			uassert.Equal(t, got.Addr().String(), tc.expected[0])
+			uassert.Equal(t, got.Address().String(), tc.expected[0])
 			uassert.Equal(t, got.PkgPath(), tc.expected[1])
 		})
 	}
@@ -388,7 +388,7 @@ func TestGetPrevAddr(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			std.TestSetOrigCaller(std.Address(tc.originCaller))
+			std.TestSetOriginCaller(std.Address(tc.originCaller))
 			got := getPrevAddr()
 			uassert.Equal(t, got.String(), tc.expected.String())
 		})
@@ -409,7 +409,7 @@ func TestGetPrevAsString(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			std.TestSetOrigCaller(std.Address(tc.originCaller))
+			std.TestSetOriginCaller(std.Address(tc.originCaller))
 			got1, got2 := getPrevAsString()
 			uassert.Equal(t, got1, tc.expected[0])
 			uassert.Equal(t, got2, tc.expected[1])
@@ -438,7 +438,7 @@ func TestIsUserCall(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			std.TestSetOrigCaller(tc.originCaller)
+			std.TestSetOriginCaller(tc.originCaller)
 			if !tc.expected {
 				std.TestSetRealm(std.NewCodeRealm(tc.originPkgPath))
 			}
@@ -615,7 +615,7 @@ func TestIsOwner(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			//MakeMintPositionWithoutFee(t)
+			// MakeMintPositionWithoutFee(t)
 			got := isOwner(tc.positionId, tc.addr)
 			uassert.Equal(t, tc.expected, got)
 		})

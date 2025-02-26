@@ -9,17 +9,12 @@ import (
 // Position represents a liquidity position in a pool.
 // Each position tracks the amount of liquidity, fee growth, and tokens owed to the position owner.
 type Position struct {
-	nonce *u256.Uint // nonce for permits
-
-	operator std.Address // address that is approved for spending this token
-
-	poolKey string // poolPath of the pool which this has lp token
-
-	// the tick range of the position, bounds are included
-	tickLower int32
-	tickUpper int32
-
-	liquidity *u256.Uint // liquidity of the position
+	nonce     *u256.Uint  // nonce for permits
+	operator  std.Address // address that is approved for spending this token
+	poolKey   string      // poolPath of the pool which this has lp token
+	tickLower int32       // the lower tick of the position, bounds are included
+	tickUpper int32       // the upper tick of the position
+	liquidity *u256.Uint  // liquidity of the position
 
 	// fee growth of the aggregate position as of the last action on the individual position
 	feeGrowthInside0LastX128 *u256.Uint
@@ -28,6 +23,9 @@ type Position struct {
 	// how many uncollected tokens are owed to the position, as of the last computation
 	tokensOwed0 *u256.Uint
 	tokensOwed1 *u256.Uint
+
+	token0Balance *u256.Uint // token0 balance of the position
+	token1Balance *u256.Uint // token1 balance of the position
 
 	burned bool // whether the position has been burned(≈ actuall we don't burn lp token even its empty, just update flag)
 }
@@ -120,4 +118,10 @@ type ProcessedMintInput struct {
 	tickLower      int32
 	tickUpper      int32
 	poolPath       string
+}
+
+// FeeGrowthInside represents fee growth inside ticks
+type FeeGrowthInside struct {
+	feeGrowthInside0LastX128 *u256.Uint
+	feeGrowthInside1LastX128 *u256.Uint
 }

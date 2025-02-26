@@ -36,9 +36,7 @@ type SwapComputation struct {
 	Cache             SwapCache
 }
 
-var (
-	fixedPointQ128 = u256.MustFromDecimal(consts.Q128)
-)
+var fixedPointQ128 = u256.MustFromDecimal(consts.Q128)
 
 // Swap swaps token0 for token1, or token1 for token0
 // Returns swapped amount0, amount1 in string
@@ -57,7 +55,7 @@ func Swap(
 	if common.GetLimitCaller() {
 		caller := getPrevAddr()
 		if err := common.RouterOnly(caller); err != nil {
-			panic(addDetailToError(
+			panic(newErrorWithDetail(
 				errNoPermission,
 				ufmt.Sprintf("only router(%s) can call pool swap(), called from %s", consts.ROUTER_ADDR, caller.String()),
 			))
@@ -65,7 +63,7 @@ func Swap(
 	}
 
 	if amountSpecified == "0" {
-		panic(addDetailToError(
+		panic(newErrorWithDetail(
 			errInvalidSwapAmount,
 			ufmt.Sprintf("amountSpecified == 0"),
 		))
@@ -287,7 +285,7 @@ func validatePriceLimits(slot0 Slot0, zeroForOne bool, sqrtPriceLimitX96 *u256.U
 		cond1 := sqrtPriceLimitX96.Lt(slot0.sqrtPriceX96)
 		cond2 := sqrtPriceLimitX96.Gt(minSqrtRatio)
 		if !(cond1 && cond2) {
-			panic(addDetailToError(
+			panic(newErrorWithDetail(
 				errPriceOutOfRange,
 				ufmt.Sprintf("sqrtPriceLimitX96(%s) < slot0Start.sqrtPriceX96(%s) && sqrtPriceLimitX96(%s) > consts.MIN_SQRT_RATIO(%s)",
 					sqrtPriceLimitX96.ToString(),
@@ -302,7 +300,7 @@ func validatePriceLimits(slot0 Slot0, zeroForOne bool, sqrtPriceLimitX96 *u256.U
 		cond1 := sqrtPriceLimitX96.Gt(slot0.sqrtPriceX96)
 		cond2 := sqrtPriceLimitX96.Lt(maxSqrtRatio)
 		if !(cond1 && cond2) {
-			panic(addDetailToError(
+			panic(newErrorWithDetail(
 				errPriceOutOfRange,
 				ufmt.Sprintf("sqrtPriceLimitX96(%s) > slot0Start.sqrtPriceX96(%s) && sqrtPriceLimitX96(%s) < consts.MAX_SQRT_RATIO(%s)",
 					sqrtPriceLimitX96.ToString(),

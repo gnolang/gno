@@ -189,7 +189,7 @@ func init() {
 	// ONLY GNOT:GNS 0.3%
 
 	pools.GetOrCreate(MUST_EXISTS_IN_TIER_1)
-	poolTier = NewPoolTier(pools, std.GetHeight(), MUST_EXISTS_IN_TIER_1, en.GetEmission, en.GetHalvingBlocksInRange)
+	poolTier = NewPoolTier(pools, std.ChainHeight(), MUST_EXISTS_IN_TIER_1, en.GetEmission, en.GetHalvingBlocksInRange)
 	RegisterCallbackStakerEmissionChange()
 }
 
@@ -246,7 +246,7 @@ func StakeToken(positionId uint64, referrer string) (string, string, string) {
 			ufmt.Sprintf("can not stake position to non existing pool(%s)", poolPath),
 		))
 	}
-	currentHeight := std.GetHeight()
+	currentHeight := std.ChainHeight()
 	liquidity := getLiquidity(positionId)
 
 	tickLower, tickUpper := getTickOf(positionId)
@@ -419,7 +419,7 @@ func CollectReward(positionId uint64, unwrapResult bool) (string, string) {
 
 	en.MintAndDistributeGns()
 
-	currentHeight := std.GetHeight()
+	currentHeight := std.ChainHeight()
 	// get all internal and external rewards
 	reward := calcPositionReward(currentHeight, positionId)
 
@@ -581,7 +581,7 @@ func applyUnStake(positionId uint64) {
 		))
 	}
 
-	currentHeight := std.GetHeight()
+	currentHeight := std.ChainHeight()
 	currentTick := pl.PoolGetSlot0Tick(deposit.targetPoolPath)
 	signedLiquidity := i256.FromUint256(deposit.liquidity)
 	signedLiquidity = signedLiquidity.Neg(signedLiquidity)

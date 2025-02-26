@@ -67,7 +67,7 @@ func GetDevOpsPct() uint64 {
 
 // SetDevOpsPctByAdmin sets the devOpsPct.
 func SetDevOpsPctByAdmin(pct uint64) {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	if err := common.AdminOnly(caller); err != nil {
 		panic(err)
 	}
@@ -78,7 +78,7 @@ func SetDevOpsPctByAdmin(pct uint64) {
 // SetDevOpsPct sets the devOpsPct.
 // Only governance contract can execute this function via proposal
 func SetDevOpsPct(pct uint64) {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	if err := common.GovernanceOnly(caller); err != nil {
 		panic(err)
 	}
@@ -136,7 +136,7 @@ func GetAccuTransferToGovStakerByTokenPath(path string) uint64 {
 func ClearAccuTransferToGovStaker() {
 	assertOnlyNotHalted()
 
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	if err := common.GovStakerOnly(caller); err != nil {
 		panic(err)
 	}

@@ -16,7 +16,7 @@ func TestInitTwoPools(t *testing.T) {
 	SetPoolCreationFeeByAdmin(0)
 
 	// foo:bar
-	CreatePool("gno.land/r/onbloc/bar", "gno.land/r/onbloc/foo", uint32(500), common.TickMathGetSqrtRatioAtTick(-10000).ToString())
+	CreatePool("gno.land/r/onbloc/bar", "gno.land/r/onbloc/foo", FeeTier500, common.TickMathGetSqrtRatioAtTick(-10000).ToString())
 
 	// bar:baz
 	CreatePool(barPath, bazPath, fee500, "130621891405341611593710811006") // tick 10000

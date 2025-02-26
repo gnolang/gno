@@ -15,7 +15,7 @@ func resetObject(t *testing.T) {
 
 	resetGnsTokenObject(t)
 
-	height := std.GetHeight()
+	height := std.ChainHeight()
 	lastMintedHeight = height
 }
 

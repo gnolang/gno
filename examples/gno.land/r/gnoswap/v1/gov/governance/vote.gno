@@ -85,7 +85,7 @@ func Vote(pid uint64, yes bool) string {
 
 	proposal := mustGetProposal(pid)
 
-	voter := std.PrevRealm().Addr()
+	voter := std.PreviousRealm().Address()
 	now := uint64(time.Now().Unix())
 
 	voteKey := createVoteKey(pid, voter.String())
@@ -110,7 +110,7 @@ func Vote(pid uint64, yes bool) string {
 	setUserVote(voter, pid, voteWithWeight{
 		Yes:         yes,
 		Weight:      state.userWeight,
-		VotedHeight: uint64(std.GetHeight()),
+		VotedHeight: uint64(std.ChainHeight()),
 		VotedAt:     now,
 	})
 
@@ -233,7 +233,7 @@ func Cancel(proposalId uint64) {
 		))
 	}
 
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	if caller != proposal.Proposer {
 		// If the caller is not the proposer, check if the proposer's stake has fallen below the threshold
 		enough, balance, wanted := checkEnoughXGnsToPropose(proposal.Proposer)

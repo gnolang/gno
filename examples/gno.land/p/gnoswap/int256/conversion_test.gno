@@ -142,7 +142,7 @@ func TestSet(t *testing.T) {
 
 		got := z.ToString()
 		if got != tc.want {
-			t.Errorf("Set(%s) = %s, want %s", tc.x, got, tc.want)
+			t.Errorf("set(%s) = %s, want %s", tc.x, got, tc.want)
 		}
 	}
 }

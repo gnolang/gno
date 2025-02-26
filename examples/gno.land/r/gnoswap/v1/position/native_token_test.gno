@@ -382,13 +382,13 @@ func TestSafeWrapNativeToken(t *testing.T) {
 			expectPanic:   false,
 			expectedWrap:  1000,
 		},
-		// {
-		// 	name:          "Zero Desired Amount", // unable to catch this panic
-		// 	amountDesired: "0",
-		// 	userAddress:   alice,
-		// 	sentAmount:    100,
-		// 	expectPanic:   true,
-		// },
+		{
+			name:          "Zero Desired Amount", // unable to catch this panic
+			amountDesired: "0",
+			userAddress:   alice,
+			sentAmount:    100,
+			expectPanic:   true,
+		},
 		{
 			name:          "Wrap Error Test",
 			amountDesired: "100",
@@ -416,7 +416,9 @@ func TestSafeWrapNativeToken(t *testing.T) {
 			if err != nil {
 				panic("can not parse amount")
 			}
-			ugnotFaucet(t, consts.POSITION_ADDR, amount)
+			if amount > 0 {
+				ugnotFaucet(t, consts.POSITION_ADDR, amount)
+			}
 			std.TestSetRealm(std.NewUserRealm(consts.POSITION_ADDR))
 
 			transferUGNOT(consts.POSITION_ADDR, consts.POSITION_ADDR, amount)

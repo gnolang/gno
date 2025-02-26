@@ -103,11 +103,8 @@ func TestFullInternalExternal(t *testing.T) {
 
 func testInit(t *testing.T) {
 	t.Run("initialize", func(t *testing.T) {
-		println("[", std.GetHeight(), "] [testInit]")
 		std.TestSetRealm(adminRealm)
-
 		SetUnStakingFeeByAdmin(0)
-		println("[", std.GetHeight(), "] [testInit] SetUnStakingFeeByAdmin(0)")
 
 		en.ChangeDistributionPctByAdmin(
 			1, 7500, // staker
@@ -115,14 +112,13 @@ func testInit(t *testing.T) {
 			3, 0, // community pool
 			4, 0, // xGNS
 		)
-		println("[", std.GetHeight(), "] [testInit] ChangeDistributionPctByAdmin(75, 25, 0, 0)")
 
 		std.TestIssueCoins(adminAddr, std.Coins{{"ugnot", 100_000_000_000_000}})
-		banker := std.GetBanker(std.BankerTypeRealmSend)
+		banker := std.NewBanker(std.BankerTypeRealmSend)
 		banker.SendCoins(adminAddr, wugnotAddr, std.Coins{{"ugnot", 50_000_000_000_000}})
-		std.TestSetOrigSend(std.Coins{{"ugnot", 50_000_000_000_000}}, nil)
+		std.TestSetOriginSend(std.Coins{{"ugnot", 50_000_000_000_000}}, nil)
 		wugnot.Deposit()
-		std.TestSetOrigSend(nil, nil)
+		std.TestSetOriginSend(nil, nil)
 		uassert.Equal(t, uint64(50_000_000_000_000), wugnot.BalanceOf(adminAddr))
 		uassert.Equal(t, "50000000000000ugnot", (banker.GetCoins(adminAddr).String()))
 	})
@@ -130,12 +126,10 @@ func testInit(t *testing.T) {
 
 func testCreatePoolWugnotGns3000Tier01(t *testing.T) {
 	t.Run("create pool gnot:gns:0.3%", func(t *testing.T) {
-		println("[", std.GetHeight(), "] [create pool gnot:gns:0.3%]")
 		std.TestSetRealm(adminRealm)
 
 		gns.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 		pl.CreatePool(wugnotPath, gnsPath, 3000, common.TickMathGetSqrtRatioAtTick(0).ToString()) // current tick 0
-		println("[", std.GetHeight(), "] Already set PoolTier 1")
 
 		uassert.Equal(t, uint64(100000000000000), gns.TotalSupply())
 		uassert.Equal(t, uint64(0), gnsBalance(consts.EMISSION_ADDR))
@@ -148,7 +142,6 @@ func testCreatePoolWugnotGns3000Tier01(t *testing.T) {
 func testCreateExternalIncentiveGns(t *testing.T) {
 	t.Run("create external incentive gns for gnot:gns:0.3% pool", func(t *testing.T) {
 
-		println("[", std.GetHeight(), "] [create external incentive gns for gnot:gns:0.3% pool]")
 		std.TestSetRealm(adminRealm)
 
 		gns.Approve(consts.STAKER_ADDR, consts.UINT64_MAX) // this includes depositGnsAmount
@@ -167,7 +160,6 @@ func testCreateExternalIncentiveGns(t *testing.T) {
 
 func testMintPos01InRange(t *testing.T) {
 	t.Run("mint position 01 in range", func(t *testing.T) {
-		println("[", std.GetHeight(), "] [mint position 01 in range]")
 		std.TestSetRealm(adminRealm)
 
 		wugnot.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
@@ -194,13 +186,11 @@ func testMintPos01InRange(t *testing.T) {
 
 func testCreateBarBaz500Tier02(t *testing.T) {
 	t.Run("create bar:baz:500 pool, and set internal emission tier #2", func(t *testing.T) {
-		println("[", std.GetHeight(), "] [create bar:baz:500 pool, and set internal emission tier #2]")
 		std.TestSetRealm(adminRealm)
 
 		gns.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
 		pl.CreatePool(barPath, bazPath, 500, common.TickMathGetSqrtRatioAtTick(0).ToString())
 
-		println("[", std.GetHeight(), "] (gno.land/r/onbloc/bar:gno.land/r/onbloc/baz:500) set PoolTier 2")
 		SetPoolTierByAdmin("gno.land/r/onbloc/bar:gno.land/r/onbloc/baz:500", 2)
 
 		checkGnsBalance(t, 0)
@@ -210,7 +200,6 @@ func testCreateBarBaz500Tier02(t *testing.T) {
 
 func testMintPos02InRange(t *testing.T) {
 	t.Run("mint position 02 in range", func(t *testing.T) {
-		println("[", std.GetHeight(), "] [mint position 02 in range]")
 		std.TestSetRealm(adminRealm)
 
 		bar.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
@@ -237,7 +226,6 @@ func testMintPos02InRange(t *testing.T) {
 
 func testMintPos03OutRange(t *testing.T) {
 	t.Run("mint position 03 out range", func(t *testing.T) {
-		println("[", std.GetHeight(), "] [mint position 03 out range]")
 		std.TestSetRealm(adminRealm)
 
 		wugnot.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
@@ -264,7 +252,6 @@ func testMintPos03OutRange(t *testing.T) {
 
 func testMintPos04OutRange(t *testing.T) {
 	t.Run("mint position 04 out range", func(t *testing.T) {
-		println("[", std.GetHeight(), "] [mint position 04 out range]")
 		std.TestSetRealm(adminRealm)
 
 		wugnot.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
@@ -291,7 +278,6 @@ func testMintPos04OutRange(t *testing.T) {
 
 func testMintPos05OutRange(t *testing.T) {
 	t.Run("mint position 05 out range", func(t *testing.T) {
-		println("[", std.GetHeight(), "] [mint position 05 out range]")
 		std.TestSetRealm(adminRealm)
 
 		wugnot.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
@@ -318,7 +304,6 @@ func testMintPos05OutRange(t *testing.T) {
 
 func testMintPos06OutRange(t *testing.T) {
 	t.Run("mint position 06 out range", func(t *testing.T) {
-		println("[", std.GetHeight(), "] [mint position 06 out range]")
 		std.TestSetRealm(adminRealm)
 
 		wugnot.Approve(consts.POOL_ADDR, consts.UINT64_MAX)
@@ -345,7 +330,6 @@ func testMintPos06OutRange(t *testing.T) {
 
 func testStakeToken01(t *testing.T) {
 	t.Run("stake token 01", func(t *testing.T) {
-		println("[", std.GetHeight(), "][****** Reward Available ******] [stake token 01]")
 		std.TestSetRealm(adminRealm)
 
 		gnft.Approve(stakerAddr, common.PositionIdFrom(1))
@@ -358,7 +342,6 @@ func testStakeToken01(t *testing.T) {
 
 func testStakeToken02(t *testing.T) {
 	t.Run("stake token 02", func(t *testing.T) {
-		println("[", std.GetHeight(), "][****** Reward Available ******] [stake token 02]")
 		std.TestSetRealm(adminRealm)
 
 		gnft.Approve(stakerAddr, common.PositionIdFrom(2))
@@ -371,7 +354,6 @@ func testStakeToken02(t *testing.T) {
 
 func testStakeToken03(t *testing.T) {
 	t.Run("stake token 03", func(t *testing.T) {
-		println("[", std.GetHeight(), "][****** Reward No OutRange ******] [stake token 03]")
 		std.TestSetRealm(adminRealm)
 
 		gnft.Approve(stakerAddr, common.PositionIdFrom(3))
@@ -384,7 +366,6 @@ func testStakeToken03(t *testing.T) {
 
 func testStakeToken04(t *testing.T) {
 	t.Run("stake token 04", func(t *testing.T) {
-		println("[", std.GetHeight(), "][****** Reward No OutRange ******] [stake token 04]")
 		std.TestSetRealm(adminRealm)
 
 		gnft.Approve(stakerAddr, common.PositionIdFrom(4))
@@ -397,7 +378,6 @@ func testStakeToken04(t *testing.T) {
 
 func testStakeToken05(t *testing.T) {
 	t.Run("stake token 05", func(t *testing.T) {
-		println("[", std.GetHeight(), "][****** Reward No OutRange ******] [stake token 05]")
 		std.TestSetRealm(adminRealm)
 
 		gnft.Approve(stakerAddr, common.PositionIdFrom(5))
@@ -410,7 +390,6 @@ func testStakeToken05(t *testing.T) {
 
 func testStakeToken06(t *testing.T) {
 	t.Run("stake token 06", func(t *testing.T) {
-		println("[", std.GetHeight(), "][****** Reward No OutRange ******] [stake token 06]")
 		std.TestSetRealm(adminRealm)
 
 		gnft.Approve(stakerAddr, common.PositionIdFrom(6))
@@ -423,7 +402,6 @@ func testStakeToken06(t *testing.T) {
 
 func testCollectRewardAllForWarmUp30(t *testing.T) {
 	t.Run("collect reward for all position, while warm up is in 30", func(t *testing.T) {
-		println("[", std.GetHeight(), "] [collect reward for all position, while warm up is in 30%]")
 		std.TestSetRealm(adminRealm)
 
 		CollectReward(1, false)
@@ -447,7 +425,6 @@ func testCollectRewardAllForWarmUp50(t *testing.T) {
 
 	t.Run("make warm up to 50% (currently reward for 30% and 50% are mixed)", func(t *testing.T) {
 		std.TestSkipHeights(blocksIn5Days)
-		println("[", std.GetHeight(), "] [made all staked position warm up to 50%]")
 		std.TestSetRealm(adminRealm)
 
 		CollectReward(1, false)
@@ -461,7 +438,6 @@ func testCollectRewardAllForWarmUp50(t *testing.T) {
 	})
 
 	t.Run("only single block for 50% warm up", func(t *testing.T) {
-		println("[", std.GetHeight(), "] [collect reward for all position, while warm up is in 50%]")
 		std.TestSetRealm(adminRealm)
 
 		CollectReward(1, false)
@@ -485,7 +461,6 @@ func testCollectRewardAllForWarmUp70(t *testing.T) {
 
 	t.Run("make warm up to 70% (currently reward for 50% and 70% are mixed)", func(t *testing.T) {
 		std.TestSkipHeights(blocksIn10Days)
-		println("[", std.GetHeight(), "] [made all staked position warm up to 70%]")
 		std.TestSetRealm(adminRealm)
 
 		CollectReward(1, false)
@@ -500,7 +475,6 @@ func testCollectRewardAllForWarmUp70(t *testing.T) {
 	})
 
 	t.Run("only single block for 70% warm up", func(t *testing.T) {
-		println("[", std.GetHeight(), "] [collect reward for all position, while warm up is in 70%]")
 		std.TestSetRealm(adminRealm)
 
 		CollectReward(1, false)
@@ -524,7 +498,6 @@ func testCollectRewardAllForWarmUp100(t *testing.T) {
 
 	t.Run("make warm up to 100% (currently reward for 70% and 100% are mixed)", func(t *testing.T) {
 		std.TestSkipHeights(blocksIn30Days)
-		println("[", std.GetHeight(), "] [made all staked position warm up to 100%]")
 		std.TestSetRealm(adminRealm)
 
 		CollectReward(1, false)
@@ -539,7 +512,6 @@ func testCollectRewardAllForWarmUp100(t *testing.T) {
 	})
 
 	t.Run("only single block for 100% warm up", func(t *testing.T) {
-		println("[", std.GetHeight(), "] [collect reward for all position, while warm up is in 100%]")
 		std.TestSetRealm(adminRealm)
 
 		CollectReward(1, false)
@@ -571,6 +543,7 @@ func testSwapExactIn(t *testing.T) {
 			"100",       // quoteArr
 			"0",         // amountOutMin
 			max_timeout, // deadline
+			"",          // referrer
 		)
 		// tick changed
 		// > from 0 to -30
@@ -608,6 +581,7 @@ func testSwapExactIn(t *testing.T) {
 			"100",       // quoteArr
 			"0",         // amountOutMin
 			max_timeout, // deadline
+			"",          // referrer
 		)
 		// tick changed
 		// > from 0 to -30
@@ -645,6 +619,7 @@ func testSwapExactIn(t *testing.T) {
 			"100",       // quoteArr
 			"0",         // amountOutMin
 			max_timeout, // deadline
+			"",          // referrer
 		)
 
 		checkGnsBalance(t, 0)
@@ -688,6 +663,7 @@ func testSwapExactIn(t *testing.T) {
 			"100",       // quoteArr
 			"0",         // amountOutMin
 			max_timeout, // deadline
+			"",          // referrer
 		)
 
 		checkGnsBalance(t, 0)
@@ -722,6 +698,7 @@ func testSwapExactOut(t *testing.T) {
 			"100",       // quoteArr
 			"1000",      // amountInMax
 			max_timeout, // deadline
+			"",          // referrer
 		)
 		// tick changed
 		// > from -119 ~ -89
@@ -758,6 +735,7 @@ func testSwapExactOut(t *testing.T) {
 			"100",       // quoteArr
 			"1000",      // amountInMax
 			max_timeout, // deadline
+			"",          // referrer
 		)
 		// tick changed
 		// > from -89 ~ -60
@@ -794,6 +772,7 @@ func testSwapExactOut(t *testing.T) {
 			"100",       // quoteArr
 			"1000",      // amountInMax
 			max_timeout, // deadline
+			"",          // referrer
 		)
 		// tick changed
 		// > from -60 ~ -30
@@ -830,6 +809,7 @@ func testSwapExactOut(t *testing.T) {
 			"100",       // quoteArr
 			"1000",      // amountInMax
 			max_timeout, // deadline
+			"",          // referrer
 		)
 		// tick changed
 		// > from -30 ~ 0
@@ -1042,7 +1022,7 @@ func testCollectReward08(t *testing.T) {
 
 func testStartExternalIncentive(t *testing.T) {
 	t.Run("external incentive start block skip", func(t *testing.T) {
-		std.TestSkipHeights(1944978 - std.GetHeight())
+		std.TestSkipHeights(1944978 - std.ChainHeight())
 		std.TestSkipHeights(10)
 	})
 }
@@ -1075,7 +1055,7 @@ func testEndExternalIncentiveBaz(t *testing.T) {
 
 		lpOldBaz := baz.BalanceOf(adminAddr)
 
-		std.TestSkipHeights(5832978 - std.GetHeight())
+		std.TestSkipHeights(5832978 - std.ChainHeight())
 		std.TestSkipHeights(1)
 
 		EndExternalIncentive(
@@ -1220,7 +1200,7 @@ func testChangeDistributionPctByAdmin(t *testing.T) {
 func checkGnsBalance(t *testing.T, adjustAmount uint64) {
 	t.Helper()
 
-	currentHeight := std.GetHeight()
+	currentHeight := std.ChainHeight()
 	blockPassedFromGenesis := uint64(currentHeight - genesisBlockHeight)
 
 	oneBlockEmissionAmount := uint64(14269406)

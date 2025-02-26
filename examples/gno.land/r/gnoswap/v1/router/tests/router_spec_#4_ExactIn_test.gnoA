@@ -63,6 +63,7 @@ func TestSwapRouteBarfooExactIn(t *testing.T) {
 		"100", // quoteArr
 		"1",   // tokenAmountLimit
 		time.Now().Add(time.Hour).Unix(),
+		"",
 	)
 
 	token0After := bar.BalanceOf(consts.ADMIN)

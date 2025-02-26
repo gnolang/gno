@@ -6,9 +6,7 @@ import (
 	"gno.land/r/gnoswap/v1/common"
 )
 
-var (
-	depositGnsAmount = uint64(1_000_000_000) // 1_000 GNS
-)
+var depositGnsAmount = uint64(1_000_000_000) // 1_000 GNS
 
 // GetDepositGnsAmount returns the current deposit amount in GNS.
 //

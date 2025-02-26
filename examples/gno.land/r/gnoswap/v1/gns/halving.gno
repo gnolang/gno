@@ -28,22 +28,20 @@ const (
 	HALVING_END_YEAR   = int64(12)
 )
 
-var (
-	halvingAmountsPerYear = [HALVING_END_YEAR]uint64{
-		18_750_000_000_000 * 12, // Year 1:  225000000000000
-		18_750_000_000_000 * 12, // Year 2:  225000000000000
-		9_375_000_000_000 * 12,  // Year 3:  112500000000000
-		9_375_000_000_000 * 12,  // Year 4:  112500000000000
-		4_687_500_000_000 * 12,  // Year 5:  56250000000000
-		4_687_500_000_000 * 12,  // Year 6:  56250000000000
-		2_343_750_000_000 * 12,  // Year 7:  28125000000000
-		2_343_750_000_000 * 12,  // Year 8:  28125000000000
-		1_171_875_000_000 * 12,  // Year 9:  14062500000000
-		1_171_875_000_000 * 12,  // Year 10: 14062500000000
-		1_171_875_000_000 * 12,  // Year 11: 14062500000000
-		1_171_875_000_000 * 12,  // Year 12: 14062500000000
-	}
-)
+var halvingAmountsPerYear = [HALVING_END_YEAR]uint64{
+	18_750_000_000_000 * 12, // Year 1:  225000000000000
+	18_750_000_000_000 * 12, // Year 2:  225000000000000
+	9_375_000_000_000 * 12,  // Year 3:  112500000000000
+	9_375_000_000_000 * 12,  // Year 4:  112500000000000
+	4_687_500_000_000 * 12,  // Year 5:  56250000000000
+	4_687_500_000_000 * 12,  // Year 6:  56250000000000
+	2_343_750_000_000 * 12,  // Year 7:  28125000000000
+	2_343_750_000_000 * 12,  // Year 8:  28125000000000
+	1_171_875_000_000 * 12,  // Year 9:  14062500000000
+	1_171_875_000_000 * 12,  // Year 10: 14062500000000
+	1_171_875_000_000 * 12,  // Year 11: 14062500000000
+	1_171_875_000_000 * 12,  // Year 12: 14062500000000
+}
 
 var (
 	blockPerYear = SECONDS_IN_YEAR / milliToSec(consts.BLOCK_GENERATION_INTERVAL)
@@ -230,7 +228,7 @@ func GetHalvingBlocksInRange(startHeight, endHeight int64) ([]int64, []uint64) {
 // height MUST be smaller than the current height(we don't read future emissions)
 func GetEmission() uint64 {
 	halvingData := GetEmissionState().getHalvingData()
-	height := std.GetHeight()
+	height := std.ChainHeight()
 
 	for year := HALVING_START_YEAR; year <= HALVING_END_YEAR; year++ {
 		startBlock := halvingData.getStartBlockHeight(year)
@@ -263,7 +261,7 @@ func NewEmissionState() *EmissionState {
 	emissionEndTime := now + SECONDS_IN_YEAR*HALVING_END_YEAR
 
 	return &EmissionState{
-		startHeight:    std.GetHeight() + 1,
+		startHeight:    std.ChainHeight() + 1,
 		startTimestamp: now,
 		endTimestamp:   emissionEndTime,
 		halvingData: HalvingData{
@@ -394,7 +392,7 @@ func setAvgBlockTimeInMs(ms int64) {
 	assertShouldNotBeHalted()
 
 	now := time.Now().Unix()
-	height := std.GetHeight()
+	height := std.ChainHeight()
 
 	// update block per year
 	yearByMilliSec := secToMs(SECONDS_IN_YEAR)
@@ -448,7 +446,6 @@ func setAvgBlockTimeInMs(ms int64) {
 	}
 
 	avgBlockTimeMs = ms
-
 }
 
 // GetAmountByHeight returns the amount of gns to mint by height
@@ -584,7 +581,7 @@ func setEndTimestamp(timestamp int64) {
 }
 
 func GetHalvingInfo() string {
-	height := std.GetHeight()
+	height := std.ChainHeight()
 	now := time.Now().Unix()
 
 	halvings := make([]*json.Node, 0)

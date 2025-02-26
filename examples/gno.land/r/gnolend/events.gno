@@ -2,7 +2,7 @@ package gnolend
 
 import (
 	"std"
-	
+
 	"gno.land/p/demo/ufmt"
 )
 
@@ -29,10 +29,10 @@ const (
 	EventCollateralTokenKey = "collateral_token"
 
 	// Liquidation keys
-	EventLiquidatorKey      = "liquidator"
-	EventBorrowerKey        = "borrower"
-	EventLiquidatedAmtKey   = "liquidated_amount"
-	EventCollateralAmtKey   = "collateral_amount"
+	EventLiquidatorKey    = "liquidator"
+	EventBorrowerKey      = "borrower"
+	EventLiquidatedAmtKey = "liquidated_amount"
+	EventCollateralAmtKey = "collateral_amount"
 )
 
 // Event emission helper functions
@@ -90,4 +90,4 @@ func emitLiquidate(marketId string, liquidator std.Address, borrower std.Address
 		EventLiquidatedAmtKey, ufmt.Sprintf("%d", liquidatedAmt),
 		EventCollateralAmtKey, ufmt.Sprintf("%d", collateralAmt),
 	)
-} 
+}

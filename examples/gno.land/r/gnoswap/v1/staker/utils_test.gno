@@ -11,10 +11,10 @@ import (
 )
 
 func TestGetOrigPkgAddr(t *testing.T) {
-	std.TestSetOrigCaller(consts.STAKER_ADDR)
+	std.TestSetOriginCaller(consts.STAKER_ADDR)
 	origPkgAddr := GetOrigPkgAddr()
-	if origPkgAddr != std.GetOrigCaller() {
-		t.Errorf("Expected %v, got %v", std.GetOrigCaller(), origPkgAddr)
+	if origPkgAddr != std.OriginCaller() {
+		t.Errorf("Expected %v, got %v", std.OriginCaller(), origPkgAddr)
 	}
 }
 
@@ -191,9 +191,9 @@ func TestGetPrevRealm(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			std.TestSetOrigCaller(std.Address(tc.originCaller))
+			std.TestSetOriginCaller(std.Address(tc.originCaller))
 			got := getPrevRealm()
-			uassert.Equal(t, got.Addr().String(), tc.expected[0])
+			uassert.Equal(t, got.Address().String(), tc.expected[0])
 			uassert.Equal(t, got.PkgPath(), tc.expected[1])
 		})
 	}
@@ -213,7 +213,7 @@ func TestGetPrevAddr(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			std.TestSetOrigCaller(std.Address(tc.originCaller))
+			std.TestSetOriginCaller(std.Address(tc.originCaller))
 			got := getPrevAddr()
 			uassert.Equal(t, got.String(), tc.expected.String())
 		})
@@ -234,7 +234,7 @@ func TestGetPrevAsString(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			std.TestSetOrigCaller(std.Address(tc.originCaller))
+			std.TestSetOriginCaller(std.Address(tc.originCaller))
 			got1, got2 := getPrev()
 			uassert.Equal(t, got1, tc.expected[0])
 			uassert.Equal(t, got2, tc.expected[1])
@@ -263,7 +263,7 @@ func TestIsUserCall(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			std.TestSetOrigCaller(tc.originCaller)
+			std.TestSetOriginCaller(tc.originCaller)
 			if !tc.expected {
 				std.TestSetRealm(std.NewCodeRealm(tc.originPkgPath))
 			}

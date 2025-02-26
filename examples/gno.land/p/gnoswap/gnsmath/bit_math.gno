@@ -1,27 +1,28 @@
 package gnsmath
 
 import (
+	"gno.land/p/gnoswap/consts"
 	u256 "gno.land/p/gnoswap/uint256"
 )
 
 var (
 	msbShifts = []bitShift{
-		{u256.MustFromDecimal(Q128), 128}, // 2^128
-		{u256.MustFromDecimal(Q64), 64},   // 2^64
-		{u256.NewUint(0x100000000), 32},   // 2^32
-		{u256.NewUint(0x10000), 16},       // 2^16
-		{u256.NewUint(0x100), 8},          // 2^8
-		{u256.NewUint(0x10), 4},           // 2^4
-		{u256.NewUint(0x4), 2},            // 2^2
-		{u256.NewUint(0x2), 1},            // 2^1
+		{u256.MustFromDecimal(consts.Q128), 128}, // 2^128
+		{u256.MustFromDecimal(consts.Q64), 64},   // 2^64
+		{u256.NewUint(0x100000000), 32},          // 2^32
+		{u256.NewUint(0x10000), 16},              // 2^16
+		{u256.NewUint(0x100), 8},                 // 2^8
+		{u256.NewUint(0x10), 4},                  // 2^4
+		{u256.NewUint(0x4), 2},                   // 2^2
+		{u256.NewUint(0x2), 1},                   // 2^1
 	}
 
 	lsbShifts = []bitShift{
-		{u256.MustFromDecimal(MAX_UINT128), 128},
-		{u256.MustFromDecimal(MAX_UINT64), 64},
-		{u256.MustFromDecimal(MAX_UINT32), 32},
-		{u256.MustFromDecimal(MAX_UINT16), 16},
-		{u256.MustFromDecimal(MAX_UINT8), 8},
+		{u256.MustFromDecimal(consts.MAX_UINT128), 128},
+		{u256.MustFromDecimal(consts.MAX_UINT64), 64},
+		{u256.MustFromDecimal(consts.MAX_UINT32), 32},
+		{u256.MustFromDecimal(consts.MAX_UINT16), 16},
+		{u256.MustFromDecimal(consts.MAX_UINT8), 8},
 		{u256.NewUint(0xf), 4},
 		{u256.NewUint(0x3), 2},
 		{u256.NewUint(0x1), 1},

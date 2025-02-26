@@ -198,6 +198,7 @@ func testMakePosition1OutRange(t *testing.T) {
 			"100",
 			"0",
 			max_timeout,
+			"", // referrer
 		)
 		uassert.Equal(t, tokenIn, "10000")
 		uassert.Equal(t, tokenOut, "-9884")

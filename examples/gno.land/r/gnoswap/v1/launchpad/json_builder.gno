@@ -109,7 +109,7 @@ func DepositBuilder(b *json.NodeBuilder, deposit Deposit) *json.NodeBuilder {
 
 // MetaBuilder adds metadata fields to JSON
 func MetaBuilder() *json.NodeBuilder {
-	height := std.GetHeight()
+	height := std.ChainHeight()
 	now := time.Now().Unix()
 
 	return json.Builder().

@@ -31,25 +31,25 @@ func DefaultWarmupTemplate() []Warmup {
 		{
 			Index:         0,
 			BlockDuration: blocksIn5Days,
-			//NextWarmupHeight: currentHeight + blocksIn5Days,
+			// NextWarmupHeight: currentHeight + blocksIn5Days,
 			WarmupRatio: 30,
 		},
 		{
 			Index:         1,
 			BlockDuration: blocksIn10Days,
-			//NextWarmupHeight: currentHeight + blocksIn10Days,
+			// NextWarmupHeight: currentHeight + blocksIn10Days,
 			WarmupRatio: 50,
 		},
 		{
 			Index:         2,
 			BlockDuration: blocksIn30Days,
-			//NextWarmupHeight: currentHeight + blocksIn30Days,
+			// NextWarmupHeight: currentHeight + blocksIn30Days,
 			WarmupRatio: 70,
 		},
 		{
 			Index:         3,
 			BlockDuration: math.MaxInt64,
-			//NextWarmupHeight: math.MaxInt64,
+			// NextWarmupHeight: math.MaxInt64,
 			WarmupRatio: 100,
 		},
 	}

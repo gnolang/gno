@@ -65,7 +65,7 @@ func TestPositionMintQuxGnot(t *testing.T) {
 
 	// send
 	std.TestIssueCoins(adminAddr, std.Coins{{"ugnot", 1000009}})
-	std.TestSetOrigSend(std.Coins{{"ugnot", 1000009}}, nil)
+	std.TestSetOriginSend(std.Coins{{"ugnot", 1000009}}, nil)
 
 	// Deposit(wrap)
 	std.TestSetRealm(adminRealm)

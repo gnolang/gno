@@ -77,7 +77,7 @@ func transferUGNOT(from, to std.Address, amount uint64) {
 		return
 	}
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(from, to, std.Coins{
 		{Denom: consts.UGNOT, Amount: int64(amount)},
 	})
@@ -121,7 +121,7 @@ func isWrappedToken(tokenPath string) bool {
 //   - If there is a mismatch between the expected wrapped token amount and the user's balance after wrapping.
 func safeWrapNativeToken(amountDesired string, userAddress std.Address) uint64 {
 	beforeWugnotBalance := wugnot.BalanceOf(userAddress)
-	sentNative := std.GetOrigSend()
+	sentNative := std.OriginSend()
 	sentUgnotAmount := uint64(sentNative.AmountOf(consts.UGNOT))
 
 	if sentUgnotAmount <= 0 {
@@ -131,6 +131,9 @@ func safeWrapNativeToken(amountDesired string, userAddress std.Address) uint64 {
 	amount, err := strconv.ParseUint(amountDesired, 10, 64)
 	if err != nil {
 		panic(newErrorWithDetail(errWrapUnwrap, err.Error()))
+	}
+	if amount == 0 {
+		panic(newErrorWithDetail(errZeroWrappedAmount, "amount requested to wrap is zero"))
 	}
 
 	if sentUgnotAmount < amount {
@@ -165,7 +168,9 @@ func handleUnwrap(pToken0, pToken1 string, unwrapResult bool, userOldWugnotBalan
 		userNewWugnotBalance := wugnot.BalanceOf(to)
 		leftOver := userNewWugnotBalance - userOldWugnotBalance
 		if leftOver > 0 {
-			unwrap(leftOver, to)
+			if err := unwrap(leftOver, to); err != nil {
+				panic(newErrorWithDetail(errWrapUnwrap, err.Error()))
+			}
 		}
 	}
 }

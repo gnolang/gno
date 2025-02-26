@@ -72,7 +72,7 @@ func Delegate(to std.Address, amount uint64, referrer string) {
 		))
 	}
 
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	referral.TryRegister(caller, referrer)
 
 	gnsBalance := gns.BalanceOf(caller)
@@ -83,10 +83,10 @@ func Delegate(to std.Address, amount uint64, referrer string) {
 		))
 	}
 
-	rewardState.addStake(uint64(std.GetHeight()), caller, amount, collectAndGetGNSBalance(), updateAndGetProtocolFeeBalance())
+	rewardState.addStake(uint64(std.ChainHeight()), caller, amount, collectAndGetGNSBalance(), updateAndGetProtocolFeeBalance())
 
 	// GNS // caller -> GovStaker
-	gns.TransferFrom(caller, std.CurrentRealm().Addr(), amount)
+	gns.TransferFrom(caller, std.CurrentRealm().Address(), amount)
 
 	// actual delegate
 	delegate(to, amount)
@@ -143,7 +143,7 @@ func Redelegate(from, to std.Address, amount uint64) {
 		))
 	}
 
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 
 	delegated := xgns.BalanceOf(caller)
 	if delegated < amount {
@@ -195,7 +195,7 @@ func Undelegate(from std.Address, amount uint64) {
 		))
 	}
 
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	delegated := xgns.BalanceOf(caller)
 
 	if delegated < amount {
@@ -250,7 +250,7 @@ func CollectUndelegatedGns() uint64 {
 	common.IsHalted()
 	en.MintAndDistributeGns()
 
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 
 	value, exists := addrLockedGns.Get(caller.String())
 	if !exists {
@@ -308,7 +308,7 @@ func CollectReward() {
 	en.MintAndDistributeGns()
 
 	prevAddr, prevPkgPath := getPrev()
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 
 	reward, protocolFeeRewards := rewardState.claim(caller, collectAndGetGNSBalance(), updateAndGetProtocolFeeBalance())
 
@@ -345,7 +345,7 @@ func CollectReward() {
 				}
 				currentProtocolFeeBalance[tokenPath] -= amount
 				wugnot.Withdraw(amount)
-				banker := std.GetBanker(std.BankerTypeRealmSend)
+				banker := std.NewBanker(std.BankerTypeRealmSend)
 				banker.SendCoins(consts.GOV_STAKER_ADDR, caller, std.Coins{{"ugnot", int64(amount)}})
 
 			}

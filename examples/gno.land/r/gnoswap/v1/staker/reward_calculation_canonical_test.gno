@@ -33,7 +33,6 @@ func TestCanonicalSimple(t *testing.T) {
 		200,
 		u256.NewUint(1000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -132,7 +131,6 @@ func TestCanonicalTickCross_0(t *testing.T) {
 		200,
 		u256.NewUint(1000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -210,7 +208,6 @@ func TestCanonicalTickCross_1(t *testing.T) {
 		200,
 		u256.NewUint(1000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -261,7 +258,6 @@ func TestCanonicalTickCross_2(t *testing.T) {
 		200,
 		u256.NewUint(1000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -274,7 +270,6 @@ func TestCanonicalTickCross_2(t *testing.T) {
 		200,
 		u256.NewUint(1000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -335,7 +330,6 @@ func TestCanonicalTickCross_3(t *testing.T) {
 		200,
 		u256.NewUint(3000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -384,7 +378,6 @@ func TestCanonicalTickCross_4(t *testing.T) {
 		300,
 		u256.NewUint(1000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -397,7 +390,6 @@ func TestCanonicalTickCross_4(t *testing.T) {
 		400,
 		u256.NewUint(1000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -455,7 +447,6 @@ func TestCanonicalTickCross_5(t *testing.T) {
 		300,
 		u256.NewUint(1000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -525,7 +516,6 @@ func TestCanonicalTickCross_6(t *testing.T) {
 		300,
 		u256.NewUint(1000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -586,7 +576,6 @@ func TestCanonicalExternalReward_1(t *testing.T) {
 		300,
 		u256.NewUint(1000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -626,7 +615,6 @@ func TestCanonicalExternalReward_2(t *testing.T) {
 		300,
 		u256.NewUint(1000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -657,7 +645,6 @@ func TestCanonicalExternalReward_3(t *testing.T) {
 		300,
 		u256.NewUint(1000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -706,7 +693,6 @@ func TestCanonicalMultiplePool_1(t *testing.T) {
 		300,
 		u256.NewUint(1000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -719,7 +705,6 @@ func TestCanonicalMultiplePool_1(t *testing.T) {
 		400,
 		u256.NewUint(2000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -771,7 +756,6 @@ func TestCanonicalMultiplePool_2(t *testing.T) {
 		300,
 		u256.NewUint(1000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -784,7 +768,6 @@ func TestCanonicalMultiplePool_2(t *testing.T) {
 		400,
 		u256.NewUint(2000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -797,7 +780,6 @@ func TestCanonicalMultiplePool_2(t *testing.T) {
 		500,
 		u256.NewUint(3000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -833,7 +815,6 @@ func TestCanonicalMultiplePool_2(t *testing.T) {
 	canonical.AssertEmulatedRewardOf(0, expected*40/100)
 	canonical.AssertEmulatedRewardOf(1, expected*40/100)
 	canonical.AssertEmulatedRewardOf(2, expected*20/100)
-
 }
 
 // Large number of blocks passed
@@ -851,7 +832,6 @@ func TestCanonicalLargeBlocksPassed(t *testing.T) {
 		200,
 		u256.NewUint(1000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -889,7 +869,6 @@ func TestCanonicalWarmup_1(t *testing.T) {
 		200,
 		u256.NewUint(1000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -949,7 +928,6 @@ func TestCanonicalWarmup_1(t *testing.T) {
 	canonical.NextBlock()
 	canonical.NextBlock()
 	canonical.AssertEmulatedRewardOf(0, expected*10)
-
 }
 
 func TestCanonicalWarmup_2(t *testing.T) {
@@ -970,7 +948,6 @@ func TestCanonicalWarmup_2(t *testing.T) {
 		200,
 		u256.NewUint(1000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -1028,7 +1005,6 @@ func TestCanonicalWarmup_2(t *testing.T) {
 	canonical.NextBlock()
 
 	canonical.AssertEmulatedRewardOf(0, expected0*10+expected1*10+expected2*10+expected3*10)
-
 }
 
 // ================
@@ -1050,7 +1026,6 @@ func TestCanonicalTickCross_7(t *testing.T) {
 		300,
 		u256.NewUint(1000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -1094,7 +1069,6 @@ func TestCanonicalTickCross_8(t *testing.T) {
 		300,
 		u256.NewUint(1000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -1107,7 +1081,6 @@ func TestCanonicalTickCross_8(t *testing.T) {
 		400,
 		u256.NewUint(2000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -1120,7 +1093,6 @@ func TestCanonicalTickCross_8(t *testing.T) {
 		500,
 		u256.NewUint(3000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -1153,7 +1125,6 @@ func TestCanonicalTickCross_9(t *testing.T) {
 		300,
 		u256.NewUint(1000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -1166,7 +1137,6 @@ func TestCanonicalTickCross_9(t *testing.T) {
 		400,
 		u256.NewUint(2000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -1179,7 +1149,6 @@ func TestCanonicalTickCross_9(t *testing.T) {
 		500,
 		u256.NewUint(3000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -1215,7 +1184,6 @@ func TestCanonicalTickCross_10(t *testing.T) {
 		-100,
 		u256.NewUint(1000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -1228,7 +1196,6 @@ func TestCanonicalTickCross_10(t *testing.T) {
 		-200,
 		u256.NewUint(2000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -1241,7 +1208,6 @@ func TestCanonicalTickCross_10(t *testing.T) {
 		-300,
 		u256.NewUint(3000000000000000000),
 	)
-
 	if err != nil {
 		t.Errorf("StakeToken failed: %s", err.Error())
 	}
@@ -1449,6 +1415,7 @@ func events(
 	}
 	return result
 }
+
 func TestCanonicalSimulation_0(t *testing.T) {
 	t.Skip("gets affect by previous")
 	wugnotgns := events(
@@ -1514,8 +1481,6 @@ func TestCanonicalSimulation_0(t *testing.T) {
 	eventId := 0
 
 	for i := 0; i < 10; i++ {
-		println("=======ITERATION : ", i, "========")
-
 		canonicalRewardMap := make(map[uint64]uint64)
 		for j := 0; j < 100; j++ {
 			var event SimulationEvent
@@ -1526,8 +1491,6 @@ func TestCanonicalSimulation_0(t *testing.T) {
 					break
 				}
 			}
-			println("=======HEIGHT : ", std.GetHeight(), "========")
-			println("	", eventId, " : ", event.String())
 			event.Apply(canonical)
 			canonical.NextBlock()
 			for i := 0; i < 12; i++ {
@@ -1539,10 +1502,6 @@ func TestCanonicalSimulation_0(t *testing.T) {
 			}
 		}
 
-		println("======ASSERTING========")
-		for k, v := range canonicalRewardMap {
-			println("	", k, " : ", v)
-		}
 		canonical.AssertEmulatedRewardMap(canonicalRewardMap)
 	}
 }

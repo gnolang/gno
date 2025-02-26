@@ -115,13 +115,13 @@ func TestApiGetPositions(t *testing.T) {
 	if err != nil {
 		panic(err.Error())
 	}
-	uassert.Equal(t, "\"49999\"", token0Balance.String())
+	uassert.Equal(t, "\"50000\"", token0Balance.String())
 
 	token1Balance, err := response.GetKey("token1Balance")
 	if err != nil {
 		panic(err.Error())
 	}
-	uassert.Equal(t, "\"49999\"", token1Balance.String())
+	uassert.Equal(t, "\"50000\"", token1Balance.String())
 
 	fee0Unclaimed, err := response.GetKey("fee0Unclaimed")
 	if err != nil {
@@ -234,13 +234,13 @@ func TestApiGetPositionsByPoolPath(t *testing.T) {
 	if err != nil {
 		panic(err.Error())
 	}
-	uassert.Equal(t, "\"49999\"", token0Balance.String())
+	uassert.Equal(t, "\"50000\"", token0Balance.String())
 
 	token1Balance, err := response.GetKey("token1Balance")
 	if err != nil {
 		panic(err.Error())
 	}
-	uassert.Equal(t, "\"49999\"", token1Balance.String())
+	uassert.Equal(t, "\"50000\"", token1Balance.String())
 
 	fee0Unclaimed, err := response.GetKey("fee0Unclaimed")
 	if err != nil {
@@ -354,13 +354,13 @@ func TestApiGetPositionsByAddress(t *testing.T) {
 	if err != nil {
 		panic(err.Error())
 	}
-	uassert.Equal(t, "\"49999\"", token0Balance.String())
+	uassert.Equal(t, "\"50000\"", token0Balance.String())
 
 	token1Balance, err := response.GetKey("token1Balance")
 	if err != nil {
 		panic(err.Error())
 	}
-	uassert.Equal(t, "\"49999\"", token1Balance.String())
+	uassert.Equal(t, "\"50000\"", token1Balance.String())
 
 	fee0Unclaimed, err := response.GetKey("fee0Unclaimed")
 	if err != nil {

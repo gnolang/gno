@@ -22,7 +22,7 @@ func TestLiquidityMathAddDelta(t *testing.T) {
 				y = i256.MustFromDecimal("100")
 				liquidityMathAddDelta(nil, y)
 			},
-			wantPanic: addDetailToError(errInvalidInput, "x or y is nil"),
+			wantPanic: newErrorWithDetail(errInvalidInput, "x or y is nil"),
 		},
 		{
 			name: "y is nil",
@@ -31,7 +31,7 @@ func TestLiquidityMathAddDelta(t *testing.T) {
 				x = u256.MustFromDecimal("100")
 				liquidityMathAddDelta(x, nil)
 			},
-			wantPanic: addDetailToError(errInvalidInput, "x or y is nil"),
+			wantPanic: newErrorWithDetail(errInvalidInput, "x or y is nil"),
 		},
 		{
 			name: "underflow panic with sub delta",
@@ -40,7 +40,7 @@ func TestLiquidityMathAddDelta(t *testing.T) {
 				y := i256.MustFromDecimal("-100")
 				liquidityMathAddDelta(x, y)
 			},
-			wantPanic: addDetailToError(
+			wantPanic: newErrorWithDetail(
 				errLiquidityCalculation,
 				ufmt.Sprintf("Condition failed: (z must be < x) (x: 0, y: -100, z:115792089237316195423570985008687907853269984665640564039457584007913129639836)")),
 		},
@@ -51,7 +51,7 @@ func TestLiquidityMathAddDelta(t *testing.T) {
 				y := i256.MustFromDecimal("100")
 				liquidityMathAddDelta(x, y)
 			},
-			wantPanic: addDetailToError(
+			wantPanic: newErrorWithDetail(
 				errLiquidityCalculation,
 				ufmt.Sprintf("Condition failed: (z must be >= x) (x: 115792089237316195423570985008687907853269984665640564039457584007913129639935, y: 100, z:99)")),
 		},

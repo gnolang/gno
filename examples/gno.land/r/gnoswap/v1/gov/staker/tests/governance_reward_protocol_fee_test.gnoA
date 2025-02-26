@@ -100,7 +100,7 @@ func mockProtocolFee(t *testing.T) {
 	qux.Transfer(consts.PROTOCOL_FEE_ADDR, 2500)
 
 	// wugnot
-	std.TestSetOrigSend(std.Coins{{"ugnot", 10000}}, nil)
+	std.TestSetOriginSend(std.Coins{{"ugnot", 10000}}, nil)
 	std.TestIssueCoins(consts.WUGNOT_ADDR, std.Coins{{"ugnot", 10000}})
 	wugnot.Deposit()
 

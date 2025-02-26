@@ -35,7 +35,7 @@ var (
 
 /* HELPER */
 func ugnotBalanceOf(addr std.Address) uint64 {
-	testBanker := std.GetBanker(std.BankerTypeRealmIssue)
+	testBanker := std.NewBanker(std.BankerTypeRealmIssue)
 
 	coins := testBanker.GetCoins(addr)
 	if len(coins) == 0 {

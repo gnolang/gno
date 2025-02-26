@@ -64,7 +64,7 @@ func ReconfigureByAdmin(
 	executionDelay uint64,
 	executionWindow uint64,
 ) uint64 {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	if err := common.AdminOnly(caller); err != nil {
 		panic(err)
 	}

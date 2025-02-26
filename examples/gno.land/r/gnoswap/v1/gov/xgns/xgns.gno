@@ -9,6 +9,7 @@ import (
 	"gno.land/p/demo/ufmt"
 
 	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/access"
 	"gno.land/r/gnoswap/v1/common"
 )
 
@@ -19,7 +20,8 @@ var (
 )
 
 func init() {
-	admin = ownable.NewWithAddress(std.DerivePkgAddr(consts.GOV_STAKER_PATH))
+	gsAddr := getContractAddress(access.ROLE_GOV_STAKER)
+	admin = ownable.NewWithAddress(std.DerivePkgAddr(gsAddr.String()))
 
 	token, ledger = grc20.NewToken("XGNS", "xGNS", 6)
 }
@@ -43,7 +45,8 @@ func VotingSupply() uint64 {
 
 	// this is amount of xGNS held by launchpad
 	// this xGNS doesn't participate in voting
-	launchpad := token.BalanceOf(consts.LAUNCHPAD_ADDR)
+	launchpadAddr := getContractAddress(access.ROLE_LAUNCHPAD)
+	launchpad := token.BalanceOf(launchpadAddr)
 	return total - launchpad
 }
 
@@ -96,15 +99,18 @@ func Mint(to std.Address, amount uint64) {
 	common.IsHalted()
 
 	// only (gov staker) or (launchpad) contract can call Mint
-	caller := std.PrevRealm().Addr()
-	if caller != consts.GOV_STAKER_ADDR && caller != consts.LAUNCHPAD_ADDR {
+	caller := std.PreviousRealm().Address()
+
+	govAddress := getContractAddress(access.ROLE_GOV_STAKER)
+	launchpadAddress := getContractAddress(access.ROLE_LAUNCHPAD)
+	if govAddress == caller || launchpadAddress == caller {
+		checkErr(ledger.Mint(to, amount))
+	} else {
 		panic(addDetailToError(
 			errNoPermission,
-			ufmt.Sprintf("only gov/staker(%s) or launchpad(%s) contract can call Mint, called from %s", consts.GOV_STAKER_ADDR.String(), consts.LAUNCHPAD_ADDR.String(), caller.String()),
+			ufmt.Sprintf("only gov/staker(%s) or launchpad(%s) contract can call Mint, called from %s", govAddress.String(), launchpadAddress.String(), caller.String()),
 		))
 	}
-
-	checkErr(ledger.Mint(to, amount))
 }
 
 // MintByLaunchPad increases the balance of a specified address by a given amount.
@@ -124,11 +130,12 @@ func Mint(to std.Address, amount uint64) {
 func MintByLaunchPad(to std.Address, amount uint64) {
 	common.IsHalted()
 
-	caller := std.PrevRealm().Addr()
-	if caller != consts.LAUNCHPAD_ADDR {
+	caller := std.PreviousRealm().Address()
+	launchpadAddr := getContractAddress(access.ROLE_LAUNCHPAD)
+	if err := access.LaunchpadOnly(caller); err != nil {
 		panic(addDetailToError(
 			errNoPermission,
-			ufmt.Sprintf("only launchpad(%s) contract can call MintByLaunchPad, called from %s", consts.LAUNCHPAD_ADDR.String(), caller.String()),
+			ufmt.Sprintf("only launchpad(%s) contract can call MintByLaunchPad, called from %s", launchpadAddr.String(), caller.String()),
 		))
 	}
 
@@ -159,22 +166,25 @@ func Burn(from std.Address, amount uint64) {
 	common.IsHalted()
 
 	// only (gov staker) or (launchpad) contract can call Mint
-	caller := std.PrevRealm().Addr()
-	if !(caller == consts.GOV_STAKER_ADDR || caller == consts.LAUNCHPAD_ADDR) {
+	caller := std.PreviousRealm().Address()
+
+	gsAddr := getContractAddress(access.ROLE_GOV_STAKER)
+	launchpadAddr := getContractAddress(access.ROLE_LAUNCHPAD)
+	if gsAddr == caller || launchpadAddr == caller {
+		burn(from, amount)
+	} else {
 		panic(addDetailToError(
 			errNoPermission,
-			ufmt.Sprintf("only gov/staker(%s) or launchpad(%s) contract can call Burn, called from %s", consts.GOV_STAKER_ADDR.String(), consts.LAUNCHPAD_ADDR.String(), caller.String()),
+			ufmt.Sprintf("only gov/staker(%s) or launchpad(%s) contract can call Burn, called from %s", gsAddr.String(), launchpadAddr.String(), caller.String()),
 		))
 	}
-
-	burn(from, amount)
 }
 
 func BurnByLaunchPad(from std.Address, amount uint64) {
 	common.IsHalted()
 
-	caller := std.PrevRealm().Addr()
-	if caller != consts.LAUNCHPAD_ADDR {
+	caller := std.PreviousRealm().Address()
+	if err := access.LaunchpadOnly(caller); err != nil {
 		panic(addDetailToError(
 			errNoPermission,
 			ufmt.Sprintf("only launchpad(%s) contract can call BurnByLaunchPad, called from %s", consts.LAUNCHPAD_ADDR.String(), caller.String()),
@@ -185,4 +195,10 @@ func BurnByLaunchPad(from std.Address, amount uint64) {
 
 func burn(from std.Address, amount uint64) {
 	checkErr(ledger.Burn(from, amount))
+}
+
+// getContractAddress retrieves the address which registered the role
+func getContractAddress(roleName string) std.Address {
+	addr, _ := access.GetAddress(roleName)
+	return addr
 }

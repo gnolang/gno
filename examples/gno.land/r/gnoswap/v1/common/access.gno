@@ -4,7 +4,8 @@ import (
 	"std"
 
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/gnoswap/consts"
+
+	"gno.land/r/gnoswap/v1/access"
 )
 
 const (
@@ -28,7 +29,7 @@ func SatisfyCond(cond bool) error {
 
 // AdminOnly checks if the caller is the admin.
 func AdminOnly(caller std.Address) error {
-	if caller != consts.ADMIN {
+	if err := access.AdminOnly(caller); err != nil {
 		return ufmt.Errorf(ErrNoPermission, caller.String())
 	}
 	return nil
@@ -36,7 +37,7 @@ func AdminOnly(caller std.Address) error {
 
 // GovernanceOnly checks if the caller is the gov governance contract.
 func GovernanceOnly(caller std.Address) error {
-	if caller != consts.GOV_GOVERNANCE_ADDR {
+	if err := access.GovernanceOnly(caller); err != nil {
 		return ufmt.Errorf(ErrNoPermission, caller.String())
 	}
 	return nil
@@ -44,7 +45,7 @@ func GovernanceOnly(caller std.Address) error {
 
 // GovStakerOnly checks if the caller is the gov staker contract.
 func GovStakerOnly(caller std.Address) error {
-	if caller != consts.GOV_STAKER_ADDR {
+	if err := access.GovStakerOnly(caller); err != nil {
 		return ufmt.Errorf(ErrNoPermission, caller.String())
 	}
 	return nil
@@ -52,7 +53,7 @@ func GovStakerOnly(caller std.Address) error {
 
 // RouterOnly checks if the caller is the router contract.
 func RouterOnly(caller std.Address) error {
-	if caller != consts.ROUTER_ADDR {
+	if err := access.RouterOnly(caller); err != nil {
 		return ufmt.Errorf(ErrNoPermission, caller.String())
 	}
 	return nil
@@ -60,7 +61,7 @@ func RouterOnly(caller std.Address) error {
 
 // PoolOnly checks if the caller is the pool contract.
 func PoolOnly(caller std.Address) error {
-	if caller != consts.POOL_ADDR {
+	if err := access.PoolOnly(caller); err != nil {
 		return ufmt.Errorf(ErrNoPermission, caller.String())
 	}
 	return nil
@@ -68,7 +69,7 @@ func PoolOnly(caller std.Address) error {
 
 // PositionOnly checks if the caller is the position contract.
 func PositionOnly(caller std.Address) error {
-	if caller != consts.POSITION_ADDR {
+	if err := access.PositionOnly(caller); err != nil {
 		return ufmt.Errorf(ErrNoPermission, caller.String())
 	}
 	return nil
@@ -76,7 +77,7 @@ func PositionOnly(caller std.Address) error {
 
 // StakerOnly checks if the caller is the staker contract.
 func StakerOnly(caller std.Address) error {
-	if caller != consts.STAKER_ADDR {
+	if err := access.StakerOnly(caller); err != nil {
 		return ufmt.Errorf(ErrNoPermission, caller.String())
 	}
 	return nil
@@ -84,7 +85,7 @@ func StakerOnly(caller std.Address) error {
 
 // LaunchpadOnly checks if the caller is the launchpad contract.
 func LaunchpadOnly(caller std.Address) error {
-	if caller != consts.LAUNCHPAD_ADDR {
+	if err := access.LaunchpadOnly(caller); err != nil {
 		return ufmt.Errorf(ErrNoPermission, caller.String())
 	}
 	return nil
@@ -92,7 +93,7 @@ func LaunchpadOnly(caller std.Address) error {
 
 // EmissionOnly checks if the caller is the emission contract.
 func EmissionOnly(caller std.Address) error {
-	if caller != consts.EMISSION_ADDR {
+	if err := access.EmissionOnly(caller); err != nil {
 		return ufmt.Errorf(ErrNoPermission, caller.String())
 	}
 	return nil

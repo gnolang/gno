@@ -69,7 +69,6 @@ func TestFullMathMulDiv(t *testing.T) {
 	})
 
 	t.Run("accurate without phantom overflow", func(t *testing.T) {
-
 		result := new(Uint).Div(Q128, NewUint(3))
 
 		x := NewUint(50)
@@ -87,7 +86,6 @@ func TestFullMathMulDiv(t *testing.T) {
 	})
 
 	t.Run("accurate with phantom overflow", func(t *testing.T) {
-
 		x := NewUint(4375)
 		expected := MulDiv(x, Q128, NewUint(1000))
 
@@ -104,7 +102,6 @@ func TestFullMathMulDiv(t *testing.T) {
 	})
 
 	t.Run("accurate with phantom overflow and repeating decimal", func(t *testing.T) {
-
 		expected := MulDiv(One(), Q128, NewUint(3))
 
 		y := NewUint(1000)
@@ -204,7 +201,6 @@ func TestMulDivRoundingUp(t *testing.T) {
 	})
 
 	t.Run("accurate without phantom overflow", func(t *testing.T) {
-
 		result := new(Uint).Div(Q128, NewUint(3))
 		result = result.Add(result, One())
 

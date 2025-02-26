@@ -48,7 +48,7 @@ var (
 func ugnotBalanceOf(t *testing.T, addr std.Address) uint64 {
 	t.Helper()
 
-	testBanker := std.GetBanker(std.BankerTypeRealmIssue)
+	testBanker := std.NewBanker(std.BankerTypeRealmIssue)
 
 	coins := testBanker.GetCoins(addr)
 	if len(coins) == 0 {
@@ -92,9 +92,9 @@ func testMintPosition01InRange(t *testing.T) {
 		std.TestIssueCoins(consts.POSITION_ADDR, std.Coins{{"ugnot", 200000000}})
 		uassert.Equal(t, ugnotBalanceOf(t, consts.POSITION_ADDR), uint64(200000000))
 
-		banker := std.GetBanker(std.BankerTypeRealmIssue)
+		banker := std.NewBanker(std.BankerTypeRealmIssue)
 		banker.SendCoins(adminAddr, consts.POSITION_ADDR, std.Coins{{"ugnot", 50000005}})
-		std.TestSetOrigSend(std.Coins{{"ugnot", 50000005}}, nil)
+		std.TestSetOriginSend(std.Coins{{"ugnot", 50000005}}, nil)
 		uassert.Equal(t, ugnotBalanceOf(t, adminAddr), uint64(0))
 
 		adminOldWugnotBalance := wugnot.BalanceOf(adminAddr)
@@ -115,10 +115,10 @@ func testMintPosition01InRange(t *testing.T) {
 			adminAddr,
 			"",
 		)
-		std.TestSetOrigSend(std.Coins{{"ugnot", 0}}, nil)
+		std.TestSetOriginSend(std.Coins{{"ugnot", 0}}, nil)
 
 		uassert.Equal(t, positionId, uint64(1))
-		uassert.Equal(t, getNextId(), uint64(2))
+		uassert.Equal(t, GetNextId(), uint64(2))
 		uassert.Equal(t, amount0, "18394892")
 		uassert.Equal(t, amount1, "50000000")
 
@@ -266,9 +266,9 @@ func testReposition(t *testing.T) {
 		uassert.Equal(t, ugnotBalanceOf(t, adminAddr), uint64(81605118))
 
 		std.TestSetRealm(adminRealm)
-		banker := std.GetBanker(std.BankerTypeRealmIssue)
+		banker := std.NewBanker(std.BankerTypeRealmIssue)
 		banker.SendCoins(adminAddr, consts.POSITION_ADDR, std.Coins{{"ugnot", 5000}})
-		std.TestSetOrigSend(std.Coins{{"ugnot", 5000}}, nil)
+		std.TestSetOriginSend(std.Coins{{"ugnot", 5000}}, nil)
 
 		std.TestSetRealm(adminRealm)
 		Reposition(

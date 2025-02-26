@@ -72,7 +72,7 @@ func depositGnsTier(t *testing.T) {
 
 		// skip some blocks to make project active
 		std.TestSkipHeights(4)
-		DepositGns("gno.land/r/onbloc/obl:124:30", uint64(1_000_000))
+		DepositGns("gno.land/r/onbloc/obl:124:30", uint64(1_000_000), "")
 		std.TestSkipHeights(1)
 	})
 
@@ -88,7 +88,7 @@ func depositGnsTier(t *testing.T) {
 		gns.Approve(consts.LAUNCHPAD_ADDR, uint64(9_000_000))
 
 		// skip some blocks to make project active
-		DepositGns("gno.land/r/onbloc/obl:124:30", uint64(1_000_000))
+		DepositGns("gno.land/r/onbloc/obl:124:30", uint64(1_000_000), "")
 		std.TestSkipHeights(1)
 	})
 }

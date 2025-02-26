@@ -72,7 +72,7 @@ func depositGnsTier(t *testing.T) {
 		// > diff is `1029 - 125 = 904`
 		std.TestSkipHeights(900) // 4 block before tier30 end
 
-		depositId := DepositGns("gno.land/r/onbloc/obl:124:30", uint64(1_000_000))
+		depositId := DepositGns("gno.land/r/onbloc/obl:124:30", uint64(1_000_000), "")
 		uassert.Equal(t, depositId, `gno.land/r/onbloc/obl:124:30:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:1025`)
 		std.TestSkipHeights(1)
 	})
@@ -91,7 +91,7 @@ func collectRewardByDepositId(t *testing.T) {
 		std.TestSkipHeights(5)
 
 		tier30EndHeight := projects[`gno.land/r/onbloc/obl:124`].tiers[30].ended.height
-		currHeight := uint64(std.GetHeight())
+		currHeight := uint64(std.ChainHeight())
 		uassert.Equal(t, bool(tier30EndHeight < currHeight), true)
 
 		reward := CollectRewardByDepositId(`gno.land/r/onbloc/obl:124:30:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:1025`)

@@ -15,7 +15,7 @@ var (
 	govRealm   = std.NewCodeRealm(consts.GOV_GOVERNANCE_PATH)
 	adminRealm = std.NewUserRealm(consts.ADMIN)
 
-	startHeight    int64 = std.GetHeight()
+	startHeight    int64 = std.ChainHeight()
 	startTimestamp int64 = time.Now().Unix() + milliToSec(consts.BLOCK_GENERATION_INTERVAL)
 )
 

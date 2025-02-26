@@ -39,7 +39,7 @@ func NewIncentives() Incentives {
 	}
 
 	// initial unclaimable period starts, as there cannot be any staked positions yet.
-	result.unclaimablePeriods.set(std.GetHeight(), int64(0))
+	result.unclaimablePeriods.set(std.ChainHeight(), int64(0))
 	return result
 }
 

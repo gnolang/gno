@@ -54,7 +54,7 @@ func AddToken(tokenPath string) {
 // Panics:
 //   - If the caller is not the admin
 func RemoveToken(tokenPath string) {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	if err := common.AdminOnly(caller); err != nil {
 		panic(err.Error())
 	}
