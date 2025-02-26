@@ -53,7 +53,7 @@ func (akf *AuthKeysFile) validate() (err error) {
 	// Try to amino marshal the PrivKey.
 	akf.ServerIdentity.PrivKey.Bytes()
 
-	// Try to get the PubKey..
+	// Try to get the PubKey.
 	akf.ServerIdentity.PrivKey.PubKey()
 
 	// Make sure the public key is derived from the private one.

@@ -8,7 +8,7 @@ import (
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
-// loadAuthKeysFile load the auth keys file and checks if it is valid.
+// loadAuthKeysFile loads the auth keys file and checks if it is valid.
 func loadAuthKeysFile(rootCfg *common.AuthFlags) (*common.AuthKeysFile, error) {
 	// Check if the file exists.
 	if !osm.FileExists(rootCfg.AuthKeysFile) {

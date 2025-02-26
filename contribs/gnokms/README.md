@@ -61,7 +61,8 @@ When launching the `gnokms` server (e.g. step 2 from the previous section), it s
 ```shell
 $ gnokms gnokey test1
 Enter password to decrypt the key
-2025-02-21T14:57:54.636+0100 INFO  Genesis validator info:
+2025-02-26T17:30:25.340+0100 INFO  Validator info:
+Genesis format:
 {
   "address": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
   "pub_key": {
@@ -71,9 +72,21 @@ Enter password to decrypt the key
   "power": "10",
   "name": "gnokms_remote_signer"
 }
+Bech32 format:
+  pub_key: gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj
+  address: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 ```
 
-If you need to manually edit a genesis file to include these infos, you can copy and paste them and potentially modify the default power and name.
+If you need to manually edit a genesis file to include these infos, you can copy and paste the `Genesis format` part of the output. If it better suits your needs, you can also use the `Bech32 format` part in conjunction with the [gnogenesis](../gnogenesis) command:
+
+```shell
+$ gnogenesis validator add \
+--address g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 \
+--pub-key gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj \
+--name gnokms_remote_signer \
+--power 10 \
+--genesis-path <path_to_genesis_file>
+```
 
 ### Mutual TCP Authentication
 
