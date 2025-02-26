@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/dao"
-	"gno.land/r/gov/dao/bridge"
+	"gno.land/p/demo/ufmt"
+	"gno.land/r/gov/dao/proxy"
 )
 
 var (
@@ -41,14 +41,47 @@ func AdminRemoveModerator(addr std.Address) {
 	moderatorList.Set(addr.String(), false) // FIXME: delete instead?
 }
 
-func NewPostExecutor(slug, title, body, publicationDate, authors, tags string) dao.Executor {
-	callback := func() error {
-		addPost(std.PreviousRealm().Address(), slug, title, body, publicationDate, authors, tags)
+type NewPostMetadata struct {
+	Slug string
+	Title string
+	Body string
+	PublicationDate string
+	Authors string
+	Tags string
+	Caller std.Address
+}
 
-		return nil
+func (a *NewPostMetadata) IsMetadata() {}
+func (a *NewPostMetadata) String() string {
+	return ufmt.Sprintf("- Post Title: %v\n- Post Publication Date: %v\n- Authors: %v\n- Tags: %v", a.Title, a.PublicationDate, a.Authors, a.Tags)
+}
+
+func newPostCallback(m proxy.Metadata) error {
+	amm, ok := m.(*NewPostMetadata)
+	if !ok {
+		panic("wrong metadata type")
 	}
 
-	return bridge.GovDAO().NewGovDAOExecutor(callback)
+	addPost(amm.Caller, amm.Slug, amm.Title, amm.Body, amm.PublicationDate, amm.Authors, amm.Tags)
+
+	return nil
+}
+
+func NewPostProposalRequest(slug, title, body, publicationDate, authors, tags string) proxy.ProposalRequest {
+	return proxy.ProposalRequest{
+		Title:       "Add new post to gnoland blog",
+		Description: "This propoposal is looking to add a new post to gnoland blog",
+		Callback:    newPostCallback,
+		Metadata: &NewPostMetadata{
+			Slug: slug,
+			Title: title,
+			Body: body,
+			PublicationDate: publicationDate,
+			Authors: authors,
+			Tags:tags,
+			Caller: std.PrevRealm().Addr(),
+		},
+	}
 }
 
 func ModAddPost(slug, title, body, publicationDate, authors, tags string) {

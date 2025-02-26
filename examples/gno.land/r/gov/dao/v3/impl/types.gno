@@ -42,7 +42,6 @@ type proposalStatus struct {
 	NoVotes  memberstore.MembersByTier
 	AllVotes memberstore.MembersByTier
 
-	Inactive bool
 	Accepted bool
 	Denied   bool
 
@@ -114,36 +113,38 @@ func (ps *proposalStatus) IsAllowed(tier string) bool {
 
 func (ps *proposalStatus) String() string {
 	var sb strings.Builder
-	sb.WriteString("Proposal Status:\n")
+	sb.WriteString("### Proposal Status:\n\n")
 
-	sb.WriteString("\nAllowed tiers to vote: ")
+	if ps.Accepted {
+		sb.WriteString("- **PROPOSAL HAS BEEN ACCEPTED**\n")
+	} else if ps.Denied {
+		sb.WriteString("- **PROPOSAL HAS BEEN DENIED**\n")
+		if ps.DeniedReason != "" {
+			sb.WriteString("REASON: ")
+			sb.WriteString(ps.DeniedReason)
+		}
+	} else {
+		sb.WriteString("- **Proposal open for votes**\n")
+	}
+
+	sb.WriteString("- Allowed tiers to vote: ")
 	for _, t := range ps.TiersAllowedToVote {
 		sb.WriteString(t)
 		sb.WriteString(" ")
 	}
 	sb.WriteString("\n")
 
-	if ps.Accepted {
-		sb.WriteString("\nPROPOSAL HAS BEEN ACCEPTED\n")
-	}
-	if ps.Denied {
-		sb.WriteString("\nPROPOSAL HAS BEEN DENIED\n")
-		if ps.DeniedReason != "" {
-			sb.WriteString("REASON: ")
-			sb.WriteString(ps.DeniedReason)
-		}
-	}
+	sb.WriteString(ufmt.Sprintf("- YES PERCENT: %v%%\n", ps.YesPercent()))
+	sb.WriteString(ufmt.Sprintf("- NO PERCENT: %v%%\n", ps.NoPercent()))
 
-	sb.WriteString("\n")
+	return sb.String()
+}
 
-	writeVotes(&sb, ps.YesVotes, "Voting YES")
-	sb.WriteString("\n\n")
-	writeVotes(&sb, ps.NoVotes, "Voting NO")
+func StringifyVotes(ps *proposalStatus) string {
+	var sb strings.Builder
 
-	sb.WriteString("\n")
-	sb.WriteString(ufmt.Sprintf("YES PERCENT: %v%%", ps.YesPercent()))
-	sb.WriteString("\n\n")
-	sb.WriteString(ufmt.Sprintf("NO PERCENT: %v%%", ps.NoPercent()))
+	writeVotes(&sb, ps.YesVotes, "### Voting YES")
+	writeVotes(&sb, ps.NoVotes, "### Voting NO")
 
 	return sb.String()
 }
@@ -174,9 +175,9 @@ func writeVotes(sb *strings.Builder, t memberstore.MembersByTier, title string) 
 
 func StringifyProposal(p *proxy.Proposal) string {
 	return ufmt.Sprintf(`
-Title: %s
+### Title: %s
 
-Proposed by: %s
+### Proposed by: %s
 
 %s
 

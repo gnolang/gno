@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/avl/pager"
+	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/gov/dao/proxy"
 	"gno.land/r/gov/dao/v3/memberstore"
@@ -14,16 +15,39 @@ import (
 var ErrMemberNotFound = errors.New("member not found")
 
 type GovDAO struct {
-	pss ProposalsStatuses
+	pss      ProposalsStatuses
 	pssPager *pager.Pager
+	router   *mux.Router
 }
 
 func NewGovDAO() *GovDAO {
 	pss := NewProposalsStatuses()
-	return &GovDAO{
-		pss: pss,
-		pssPager: pager.NewPager(pss.Tree, 3, false),
+	d := &GovDAO{
+		pss:      pss,
+		pssPager: pager.NewPager(pss.Tree, 3, true),
 	}
+
+	r := mux.NewRouter()
+
+	r.HandleFunc("/", func(rw *mux.ResponseWriter, req *mux.Request) {
+		rw.Write(d.renderActiveProposals(req.RawPath))
+	})
+
+	r.HandleFunc("", func(rw *mux.ResponseWriter, req *mux.Request) {
+		rw.Write(d.renderActiveProposals(req.RawPath))
+	})
+
+	r.HandleFunc("/{pid}", func(rw *mux.ResponseWriter, req *mux.Request) {
+		rw.Write(d.renderProposal(req.GetVar("pid")))
+	})
+
+	r.HandleFunc("/{pid}/votes", func(rw *mux.ResponseWriter, req *mux.Request) {
+		rw.Write(d.renderVotesForProposal(req.GetVar("pid")))
+	})
+
+	d.router = r
+
+	return d
 }
 
 func (g *GovDAO) PreCreateProposal(r proxy.ProposalRequest) (proxy.Author, error) {
@@ -52,6 +76,11 @@ func (g *GovDAO) PostCreateProposal(r proxy.ProposalRequest, pid proxy.ProposalI
 		if v.ToTier == memberstore.T2 {
 			tatv = []string{memberstore.T1, memberstore.T2}
 		}
+	case *RemoveMemberMetadata:
+		if v.Tier == memberstore.T1 {
+
+		}
+
 	}
 
 	pids := ufmt.Sprintf("%v", int(pid))
@@ -129,7 +158,7 @@ func (g *GovDAO) PreExecuteProposal(pid proxy.ProposalID) error {
 }
 
 func (g *GovDAO) renderActiveProposals(url string) string {
-	out := "## Active Propoposals:\n"
+	out := "# Active Propoposals:\n"
 
 	page, err := g.pssPager.GetPageByPath(url)
 	if err != nil {
@@ -138,26 +167,7 @@ func (g *GovDAO) renderActiveProposals(url string) string {
 	}
 
 	for _, item := range page.Items {
-		ps, _ := item.Value.(*proposalStatus)
-		if ps.Inactive {
-			continue
-		}
-
-		pid, err := strconv.Atoi(item.Key)
-		if err != nil {
-			panic(err.Error())
-		}
-
-		p := proxy.MustGetProposal(proxy.ProposalID(pid))
-
-		out += ufmt.Sprintf("### Proposal with id: %v", item.Key)
-		out += StringifyProposal(p)
-		out += "\n\n"
-		out += ps.String()
-		out += "\n\n"
-
-		// TODO print total state of the voting process
-		out += "------------------\n"
+		out += g.renderProposal(item.Key)
 	}
 
 	out += page.Picker()
@@ -165,8 +175,42 @@ func (g *GovDAO) renderActiveProposals(url string) string {
 	return out
 }
 
-func (g *GovDAO) Render(url string) string {
-	return g.renderActiveProposals(url)
+func (g *GovDAO) renderProposal(sPid string) string {
+	pid, err := strconv.Atoi(sPid)
+	if err != nil {
+		panic(err.Error())
+	}
+	ps := g.pss.GetStatus(proxy.ProposalID(pid))
+
+	p := proxy.MustGetProposal(proxy.ProposalID(pid))
+
+	out := ""
+	out += ufmt.Sprintf("## Proposal with id: %v", sPid)
+	out += StringifyProposal(p)
+	out += "\n\n"
+	out += ps.String()
+	out += ufmt.Sprintf("- [Go to votes list](/%v/votes).", sPid)
+	out += "\n\n"
+
+	return out
+}
+
+func (g *GovDAO) renderVotesForProposal(sPid string) string {
+	pid, err := strconv.Atoi(sPid)
+	if err != nil {
+		panic(err.Error())
+	}
+	ps := g.pss.GetStatus(proxy.ProposalID(pid))
+
+	out := ""
+	out += ufmt.Sprintf("## Proposal with id: %v\n\n", sPid)
+	out += StringifyVotes(ps)
+
+	return out
+}
+
+func (g *GovDAO) Render(path string) string {
+	return g.router.Render(path)
 }
 
 func (g *GovDAO) isValidCall() bool {

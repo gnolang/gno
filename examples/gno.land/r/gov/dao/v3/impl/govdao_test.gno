@@ -14,6 +14,7 @@ var (
 	m1   = testutils.TestAddress("m1")
 	m11  = testutils.TestAddress("m1.1")
 	m111 = testutils.TestAddress("m1.1.1")
+	m1111 = testutils.TestAddress("m1.1.1.1")
 	m2   = testutils.TestAddress("m2")
 	m3   = testutils.TestAddress("m3")
 	m4   = testutils.TestAddress("m4")
@@ -23,37 +24,43 @@ var (
 	noMember = testutils.TestAddress("nm1")
 )
 
-func TestCreateProposalAndVote(t *testing.T) {
-	proxy.UpdateImpl(proxy.UpdateRequest{
-		DAO:         govDAO,
-		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
-	})
-
+// TODO: This is not needed right now. Tests keep the same vm state: https://github.com/gnolang/gno/issues/1982
+func loadMembers() {
 	memberstore.Get().SetMember(memberstore.T1, m1, memberByTier(memberstore.T1))
 	memberstore.Get().SetMember(memberstore.T1, m11, memberByTier(memberstore.T1))
 	memberstore.Get().SetMember(memberstore.T1, m111, memberByTier(memberstore.T1))
+	memberstore.Get().SetMember(memberstore.T1, m1111, memberByTier(memberstore.T1))
+
 
 	memberstore.Get().SetMember(memberstore.T2, m2, memberByTier(memberstore.T2))
 	memberstore.Get().SetMember(memberstore.T2, m3, memberByTier(memberstore.T2))
 	memberstore.Get().SetMember(memberstore.T3, m4, memberByTier(memberstore.T3))
 	memberstore.Get().SetMember(memberstore.T3, m5, memberByTier(memberstore.T3))
 	memberstore.Get().SetMember(memberstore.T3, m6, memberByTier(memberstore.T3))
+}
+
+func TestCreateProposalAndVote(t *testing.T) {
+	loadMembers()
+
+	portfolio := "# This is my portfolio:\n\n- THINGS"
 
 	std.TestSetOrigCaller(noMember)
 	std.TestSetRealm(std.NewUserRealm(noMember))
 
 	nm1 := testutils.TestAddress("nm1")
 
-	urequire.PanicsWithMessage(t, "proposer is not a member", func() {
-		proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T3))
+	urequire.PanicsWithMessage(t, "Only T1 and T2 members must be added by proposal. To add a T3 member use AddMember function directly.", func() {
+		proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T3, portfolio))
 	})
 
-	println(proxy.Render(""))
+	urequire.PanicsWithMessage(t, "proposer is not a member", func() {
+		proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
+	})
 
 	std.TestSetOrigCaller(m1)
 	std.TestSetRealm(std.NewUserRealm(m1))
 
-	pid := proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T3))
+	pid := proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
 	urequire.Equal(t, int(pid), 0)
 
 	// m1 votes yes because that member is interested on it
@@ -61,8 +68,6 @@ func TestCreateProposalAndVote(t *testing.T) {
 		Option:     proxy.YesVote,
 		ProposalID: proxy.ProposalID(0),
 	})
-
-	println(proxy.Render(""))
 
 	std.TestSetOrigCaller(m11)
 	std.TestSetRealm(std.NewUserRealm(m11))
@@ -78,8 +83,6 @@ func TestCreateProposalAndVote(t *testing.T) {
 		ProposalID: proxy.ProposalID(0),
 	})
 
-	println(proxy.Render(""))
-
 	std.TestSetOrigCaller(m3)
 	std.TestSetRealm(std.NewUserRealm(m3))
 	proxy.MustVoteOnProposal(proxy.VoteRequest{
@@ -89,29 +92,12 @@ func TestCreateProposalAndVote(t *testing.T) {
 
 	std.TestSetOrigCaller(m4)
 	std.TestSetRealm(std.NewUserRealm(m4))
-	proxy.MustVoteOnProposal(proxy.VoteRequest{
-		Option:     proxy.NoVote,
-		ProposalID: proxy.ProposalID(0),
+	urequire.PanicsWithMessage(t, "member on specified tier is not allowed to vote on this proposal", func() {
+		proxy.MustVoteOnProposal(proxy.VoteRequest{
+			Option:     proxy.NoVote,
+			ProposalID: proxy.ProposalID(0),
+		})
 	})
-
-	std.TestSetOrigCaller(m5)
-	std.TestSetRealm(std.NewUserRealm(m5))
-	proxy.MustVoteOnProposal(proxy.VoteRequest{
-		Option:     proxy.NoVote,
-		ProposalID: proxy.ProposalID(0),
-	})
-
-	println(proxy.Render(""))
-
-	std.TestSetOrigCaller(m6)
-	std.TestSetRealm(std.NewUserRealm(m6))
-	proxy.MustVoteOnProposal(proxy.VoteRequest{
-		Option:     proxy.NoVote,
-		ProposalID: proxy.ProposalID(0),
-	})
-
-	println(proxy.Render(""))
-
 
 	std.TestSetOrigCaller(m111)
 	std.TestSetRealm(std.NewUserRealm(m111))
@@ -120,18 +106,56 @@ func TestCreateProposalAndVote(t *testing.T) {
 		ProposalID: proxy.ProposalID(0),
 	})
 
+	// TODO: check that output from render are correct
 	println(proxy.Render(""))
+
+	urequire.PanicsWithMessage(t, "proposal didn't reached supermajority yet: 66", func() {
+		ExecuteProposal(proxy.ProposalID(0))
+	})
+
+	std.TestSetOrigCaller(m1111)
+	std.TestSetRealm(std.NewUserRealm(m1111))
+	proxy.MustVoteOnProposal(proxy.VoteRequest{
+		Option:     proxy.NoVote,
+		ProposalID: proxy.ProposalID(0),
+	})
 
 	ExecuteProposal(proxy.ProposalID(0))
 
+	// TODO: check that output from render are correct
 	println(proxy.Render(""))
 
 }
 
-var executed bool
+func TestProposalPagination(t *testing.T) {
+	loadMembers()
+	portfolio := "### This is my portfolio:\n\n- THINGS"
 
-func callback(proxy.Metadata) error {
-	println("PROPOSAL EXECUTED!")
-	executed = true
-	return nil
+	std.TestSetOrigCaller(m1)
+	std.TestSetRealm(std.NewUserRealm(m1))
+
+	nm1 := testutils.TestAddress("nm1")
+
+	var pid proxy.ProposalID
+
+	pid = proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
+	// TODO: tests keep the same vm state: https://github.com/gnolang/gno/issues/1982
+	urequire.Equal(t, int(pid), 1)
+
+	pid = proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
+	urequire.Equal(t, int(pid), 2)
+
+	pid = proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
+	urequire.Equal(t, int(pid), 3)
+
+	pid = proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
+	urequire.Equal(t, int(pid), 4)
+
+	pid = proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
+	urequire.Equal(t, int(pid), 5)
+
+	pid = proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
+	urequire.Equal(t, int(pid), 6)
+
+
 }

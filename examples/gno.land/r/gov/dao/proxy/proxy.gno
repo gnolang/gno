@@ -30,7 +30,7 @@ func Render(p string) string {
 func MustCreateProposal(r ProposalRequest) ProposalID {
 	pid, err := CreateProposal(r)
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 
 	return pid
@@ -64,7 +64,7 @@ func CreateProposal(r ProposalRequest) (ProposalID, error) {
 
 func MustVoteOnProposal(r VoteRequest) {
 	if err := VoteOnProposal(r); err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 }
 
@@ -78,7 +78,7 @@ func VoteOnProposal(r VoteRequest) error {
 func MustGetProposal(pid ProposalID) *Proposal {
 	p, err := GetProposal(pid)
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 
 	return p

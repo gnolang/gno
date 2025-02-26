@@ -1,7 +1,6 @@
 package impl
 
 import (
-	"errors"
 	"std"
 
 	"gno.land/p/demo/ufmt"
@@ -46,15 +45,16 @@ func NewChangeLawRequest(law *Law) proxy.ProposalRequest {
 }
 
 type AddMemberMetadata struct {
-	Member *memberstore.Member
-	Tier   string
-	Addr   std.Address
-	Caller *memberstore.Member
+	Member    *memberstore.Member
+	Portfolio string
+	Tier      string
+	Addr      std.Address
+	Caller    *memberstore.Member
 }
 
 func (a *AddMemberMetadata) IsMetadata() {}
 func (a *AddMemberMetadata) String() string {
-	return ufmt.Sprintf("A new member with address %v is proposed to be on tier %v.", a.Addr, a.Tier)
+	return ufmt.Sprintf("A new member with address %v is proposed to be on tier %v. Provided Portfolio information:\n\n%v", a.Addr, a.Tier, a.Portfolio)
 }
 
 func addMemberCallback(m proxy.Metadata) error {
@@ -68,10 +68,18 @@ func addMemberCallback(m proxy.Metadata) error {
 	return memberstore.Get().SetMember(amm.Tier, amm.Addr, amm.Member)
 }
 
-func NewAddMemberRequest(addr std.Address, tier string) proxy.ProposalRequest {
+func NewAddMemberRequest(addr std.Address, tier string, portfolio string) proxy.ProposalRequest {
 	_, ok := memberstore.Tiers.GetTier(tier)
 	if !ok {
 		panic("provided tier does not exists")
+	}
+
+	if tier != memberstore.T1 && tier != memberstore.T2 {
+		panic("Only T1 and T2 members must be added by proposal. To add a T3 member use AddMember function directly.")
+	}
+
+	if portfolio == "" {
+		panic("A portfolio for the proposed member is required")
 	}
 
 	member, _ := memberstore.Get().GetMember(std.GetOrigCaller())
@@ -88,21 +96,24 @@ func NewAddMemberRequest(addr std.Address, tier string) proxy.ProposalRequest {
 		Description: "This prpoposal is looking to add a new member to the board.",
 		Callback:    addMemberCallback,
 		Metadata: &AddMemberMetadata{
-			Member: memberByTier(tier),
-			Tier:   tier,
-			Addr:   addr,
+			Member:    memberByTier(tier),
+			Portfolio: portfolio,
+			Tier:      tier,
+			Addr:      addr,
+			Caller:    member,
 		},
 	}
 }
 
 type RemoveMemberMetadata struct {
 	Addr   std.Address
+	Tier   string
 	Reason string
 }
 
 func (a *RemoveMemberMetadata) IsMetadata() {}
 func (a *RemoveMemberMetadata) String() string {
-	return ufmt.Sprintf("Member with address %v will be withdrawn. REASON: %v.", a.Addr, a.Reason)
+	return ufmt.Sprintf("Member with address %v will be withdrawn.\n\n REASON: %v.", a.Addr, a.Reason)
 }
 
 func removeMemberCallback(m proxy.Metadata) error {
@@ -111,27 +122,28 @@ func removeMemberCallback(m proxy.Metadata) error {
 		panic("metadata type for removing a member is wrong")
 	}
 
-	member, tier := memberstore.Get().GetMember(std.GetOrigCaller())
-	if member == nil {
-		panic("user we tried to remove not found")
-	}
-
-	if tier == memberstore.T1 && rmm.Reason == "" {
-		return errors.New("T1 user removals must contains a reason.")
-	}
-
 	memberstore.Get().RemoveMember(rmm.Addr)
 
 	return nil
 }
 
 func NewWithdrawMemberRequest(addr std.Address, reason string) proxy.ProposalRequest {
+	member, tier := memberstore.Get().GetMember(addr)
+	if member == nil {
+		panic("user we want to remove not found")
+	}
+
+	if tier == memberstore.T1 && reason == "" {
+		panic("T1 user removals must contains a reason.")
+	}
+
 	return proxy.ProposalRequest{
 		Title:       "Member Withdrawn",
 		Description: "This prpoposal is looking to remove a member from the board.",
 		Callback:    removeMemberCallback,
 		Metadata: &RemoveMemberMetadata{
 			Addr:   addr,
+			Tier:   tier,
 			Reason: reason,
 		},
 	}
@@ -184,18 +196,21 @@ func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) p
 func memberByTier(tier string) *memberstore.Member {
 	switch tier {
 	case memberstore.T1:
+		t, _ := memberstore.Tiers.GetTier(memberstore.T1)
 		return &memberstore.Member{
-			InvitationPoints: 3,
+			InvitationPoints: t.InvitationPoints,
 		}
 	case memberstore.T2:
+		t, _ := memberstore.Tiers.GetTier(memberstore.T2)
 		return &memberstore.Member{
-			InvitationPoints: 2,
+			InvitationPoints: t.InvitationPoints,
 		}
 	case memberstore.T3:
+		t, _ := memberstore.Tiers.GetTier(memberstore.T3)
 		return &memberstore.Member{
-			InvitationPoints: 1,
+			InvitationPoints: t.InvitationPoints,
 		}
 	default:
-		return &memberstore.Member{}
+		panic("member not found by the specified tier")
 	}
 }

@@ -94,6 +94,7 @@ func init() {
 	})
 }
 
+// Get gets the Members store
 func Get() MembersByTier {
 	realm := std.PrevRealm().PkgPath()
 	if proxy.InAllowedDAOsIndex(realm) < 0 {
