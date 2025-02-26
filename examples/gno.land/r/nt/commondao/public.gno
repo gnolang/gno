@@ -156,7 +156,7 @@ func Vote(daoID, proposalID uint64, vote commondao.VoteChoice) {
 func Execute(daoID, proposalID uint64) {
 	dao := mustGetDAO(daoID)
 	caller := std.PrevRealm().Addr()
-	if !dao.IsMember(caller) {
+	if !dao.Members().Has(caller) {
 		panic("caller is not a DAO member")
 	}
 
@@ -214,7 +214,7 @@ func assertNameIsNotEmpty(name string) {
 }
 
 func assertCallerIsMember(caller std.Address, dao *commondao.CommonDAO) {
-	if !dao.IsMember(caller) {
+	if !dao.Members().Has(caller) {
 		panic("caller is not a DAO member")
 	}
 }

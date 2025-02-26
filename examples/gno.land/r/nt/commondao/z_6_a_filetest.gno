@@ -48,9 +48,9 @@ func init() {
 	dao = commondao.New("Foo")
 
 	// Configure DAO
-	dao.AddMember(user1)
-	dao.AddMember(user2)
-	dao.AddMember(user3)
+	dao.Members().Add(user1)
+	dao.Members().Add(user2)
+	dao.Members().Add(user3)
 
 	// Create a new proposal
 	proposal, _ = dao.Propose(user1, propDef{})

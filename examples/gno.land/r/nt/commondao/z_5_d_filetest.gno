@@ -29,7 +29,7 @@ func init() {
 	daoID = dao.ID()
 
 	// Configure DAO
-	dao.AddMember(user)
+	dao.Members().Add(user)
 }
 
 func main() {

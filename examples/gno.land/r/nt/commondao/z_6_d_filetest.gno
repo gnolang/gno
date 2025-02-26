@@ -28,7 +28,7 @@ func init() {
 	dao = commondao.New("Foo")
 
 	// Configure DAO
-	dao.AddMember(user)
+	dao.Members().Add(user)
 }
 
 func main() {

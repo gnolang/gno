@@ -44,7 +44,7 @@ func init() {
 	daoID = dao.ID()
 
 	// Configure DAO
-	dao.AddMember(user)
+	dao.Members().Add(user)
 
 	// Create a new proposal
 	proposal, _ = dao.Propose(user, propDef{})
