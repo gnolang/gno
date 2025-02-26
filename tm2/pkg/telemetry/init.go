@@ -5,6 +5,7 @@ package telemetry
 
 import (
 	"fmt"
+	"log/slog"
 	"sync/atomic"
 
 	"github.com/gnolang/gno/tm2/pkg/telemetry/config"
@@ -28,7 +29,7 @@ func TracingEnabled() bool {
 }
 
 // Init initializes the global telemetry
-func Init(c config.Config) error {
+func Init(c config.Config, logger *slog.Logger) error {
 	anyTelemetryEnabled := c.MetricsEnabled || c.TracingEnabled
 	if !anyTelemetryEnabled {
 		return nil
@@ -48,16 +49,18 @@ func Init(c config.Config) error {
 	globalConfig = c
 
 	// Check if the metrics are enabled at all
-	if !c.MetricsEnabled {
+	if c.MetricsEnabled {
 		if err := metrics.Init(c); err != nil {
 			return fmt.Errorf("unable to initialize metrics, %w", err)
 		}
+		logger.Info("Metrics initialized")
 	}
 
-	if !c.TracingEnabled {
+	if c.TracingEnabled {
 		if err := tracing.Init(c); err != nil {
 			return fmt.Errorf("unable to initialize tracing, %w", err)
 		}
+		logger.Info("Tracing initialized")
 	}
 
 	return nil

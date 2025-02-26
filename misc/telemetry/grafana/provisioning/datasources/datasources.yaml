@@ -11,3 +11,14 @@ datasources:
     version: 1
     editable: true
     uid: prometheus
+
+  - name: Tempo
+    type: tempo
+    access: proxy
+    orgId: 1
+    url: http://tempo:3200
+    basicAuth: false
+    isDefault: false
+    version: 1
+    editable: true
+    uid: tempo
