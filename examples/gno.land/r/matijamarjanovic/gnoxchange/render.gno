@@ -7,6 +7,7 @@ import (
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
+	"gno.land/p/moul/txlink"
 	"gno.land/r/matijamarjanovic/tokenhub"
 )
 
@@ -72,6 +73,29 @@ func renderTickets(path string) string {
 	str += md.H2("Ticket System")
 	str += md.Paragraph("View all open tickets for coin and token swaps.")
 
+	str += md.Paragraph(
+		"[Create Coin to Token Ticket](" + txlink.Call("CreateCoinToTokenTicket",
+			"coinDenom", "ugnot",
+			"tokenKey", "",
+			"minAmountOut", "0",
+			"expiryHours", "24") + ")" +
+			" | " +
+			"[Create Token to Coin Ticket](" + txlink.Call("CreateTokenToCoinTicket",
+			"tokenKey", "",
+			"coinDenom", "ugnot",
+			"amountIn", "0",
+			"minAmountOut", "0",
+			"expiryHours", "24") + ")" +
+			" | " +
+			"[Create Token to Token Ticket](" + txlink.Call("CreateTokenToTokenTicket",
+			"tokenInKey", "",
+			"tokenOutKey", "",
+			"amountIn", "0",
+			"minAmountOut", "0",
+			"expiryHours", "24") + ")")
+
+	str += md.HorizontalRule()
+
 	page := GetAllOpenNonNFTTickets(path)
 	if len(page.Items) == 0 {
 		str += md.Blockquote("No open tickets available.")
@@ -124,6 +148,10 @@ func renderTickets(path string) string {
 			"Status: " + statusEmojis[ticket.Status],
 		}
 
+		if ticket.Status == "open" && !time.Now().After(ticket.ExpiresAt) {
+			details = append(details, "[Fulfill Ticket]("+txlink.Call("FulfillTicket", "ticketID", ticket.ID)+")"+" | "+"[Cancel Ticket]("+txlink.Call("CancelTicket", "ticketID", ticket.ID)+")")
+		}
+
 		str += md.BulletList(details)
 		str += md.HorizontalRule()
 	}
@@ -139,6 +167,21 @@ func renderNFTMarket(path string) string {
 	var str string
 	str += md.H2("NFT Market")
 	str += md.Paragraph("View all NFT tickets for sale.")
+
+	str += md.Paragraph(
+		"[Sell NFT for Tokens](" + txlink.Call("CreateNFTToTokenTicket",
+			"nftFullPath", "",
+			"tokenKey", "",
+			"minAmountOut", "0",
+			"expiryHours", "24") + ")" +
+			" | " +
+			"[Sell NFT for GNOT](" + txlink.Call("CreateNFTToCoinTicket",
+			"nftFullPath", "",
+			"coinDenom", "ugnot",
+			"minAmountOut", "0",
+			"expiryHours", "24") + ")")
+
+	str += md.HorizontalRule()
 
 	page := GetOpenNFTTickets(path)
 	if len(page.Items) == 0 {
@@ -180,6 +223,10 @@ func renderNFTMarket(path string) string {
 			"Status: " + statusEmojis[ticket.Status],
 		}
 
+		if ticket.Status == "open" && !time.Now().After(ticket.ExpiresAt) {
+			details = append(details, "[Buy NFT]("+txlink.Call("FulfillTicket", "ticketID", ticket.ID)+")"+" | "+"[Cancel Ticket]("+txlink.Call("CancelTicket", "ticketID", ticket.ID)+")")
+		}
+
 		str += md.BulletList(details)
 		str += md.HorizontalRule()
 	}
@@ -195,6 +242,7 @@ func renderPools(path string) string {
 	var str string
 	str += md.H2("Available Pools")
 	str += md.Paragraph("View and interact with liquidity pools.")
+	str += md.Paragraph("[Create Pool](" + txlink.Call("CreatePool") + ")")
 
 	page := GetPoolsPage(path)
 	if len(page.Items) == 0 {
@@ -228,6 +276,8 @@ func renderPools(path string) string {
 				" (1 " + tokenBSymbol + " ≈ " + ufmt.Sprintf("%f", float64(reserveA)/float64(reserveB)) + " " + tokenASymbol + ")",
 		}
 		str += md.BulletList(details)
+		str += md.Paragraph("")
+		str += md.Paragraph("[Add Liquidity](" + txlink.Call("AddLiquidity", "poolKey", poolKey) + ") " + "|" + " [Withdraw Liquidity](" + txlink.Call("WithdrawLiquidity", "poolKey", poolKey) + ")")
 		str += md.HorizontalRule()
 	}
 
@@ -285,6 +335,10 @@ func renderTicketHistory(path string) string {
 				"Status: " + statusEmojis[ticket.Status],
 			}
 
+			if ticket.Status == "open" && !time.Now().After(ticket.ExpiresAt) {
+				details = append(details, "[Cancel Ticket]("+txlink.Call("CancelTicket", "ticketID", ticket.ID)+")")
+			}
+
 			str += md.BulletList(details)
 
 		} else {
@@ -328,6 +382,10 @@ func renderTicketHistory(path string) string {
 				"Created At: " + ticket.CreatedAt.Format(time.RFC3339),
 				"Expires In: " + formatDuration(ticket.ExpiresAt.Sub(time.Now())),
 				"Status: " + statusEmojis[ticket.Status],
+			}
+
+			if ticket.Status == "open" && !time.Now().After(ticket.ExpiresAt) {
+				details = append(details, "[Cancel Ticket]("+txlink.Call("CancelTicket", "ticketID", ticket.ID)+")")
 			}
 
 			str += md.BulletList(details)
