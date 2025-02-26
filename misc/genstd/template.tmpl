@@ -38,12 +38,12 @@ var nativeFuncs = [...]NativeFunc{
 		{{- /* TODO: set nil if empty */}}
 		[]gno.FieldTypeExpr{
 		{{- range $i, $p := $m.Params }}
-			{Name: gno.N("p{{ $i }}"), Type: {{ $p.GnoTypeExpression -}} },
+			{Name: gno.N("p{{ $i }}"), Type: gno.X({{ printf "%q" $p.GnoType }})},
 		{{- end }}
 		},
 		[]gno.FieldTypeExpr{
 		{{- range $i, $r := $m.Results }}
-			{Name: gno.N("r{{ $i }}"), Type: {{ $r.GnoTypeExpression -}} },
+			{Name: gno.N("r{{ $i }}"), Type: gno.X({{ printf "%q" $r.GnoType }})},
 		{{- end }}
 		},
 		{{ if $m.MachineParam }}true{{ else }}false{{ end }},

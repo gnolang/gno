@@ -35,12 +35,8 @@ func (mt mappingType) GoQualifiedName() string {
 	return types.ExprString(mt.Type)
 }
 
-func (mt mappingType) GnoTypeExpression() string {
-	s := types.ExprString(mt.Type)
-	if s == "interface{}" {
-		return "gno.AnyT()"
-	}
-	return fmt.Sprintf("gno.X(%q)", s)
+func (mt mappingType) GnoType() string {
+	return types.ExprString(mt.Type)
 }
 
 func linkFunctions(pkgs []*pkgData) []mapping {

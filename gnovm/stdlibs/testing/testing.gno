@@ -322,9 +322,6 @@ func formatDur(dur int64) string {
 // used to calculate execution times; only present in testing stdlibs
 func unixNano() int64
 
-// recovers panics and returns their related stacktraces, as well
-func recoverWithStacktrace() (interface{}, string)
-
 // used to filter tests, we can't directly use regexp here due to a cyclic import; only present in testing stdlibs
 func matchString(pat, str string) (result bool, err error)
 
@@ -336,13 +333,13 @@ func tRunner(t *T, fn testingFunc, verbose bool) {
 	start := unixNano()
 
 	defer func() {
-		err, st := recoverWithStacktrace()
+		err := recover()
 		switch err.(type) {
 		case nil:
 		case skipErr:
 		default:
 			t.Fail()
-			fmt.Fprintf(os.Stderr, "panic: %v\nStacktrace:\n%s\n", err, st)
+			fmt.Fprintf(os.Stderr, "panic: %v\n", err)
 		}
 
 		dur := unixNano() - start

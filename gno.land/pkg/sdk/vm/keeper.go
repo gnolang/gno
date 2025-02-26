@@ -544,7 +544,7 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 			// Common unhandled panic error, skip machine state.
 			*e = errors.Wrapf(
 				errors.New(up.Descriptor),
-				"VM panic: %s\nStacktrace:\n%s\n",
+				"VM panic: %s\nStacktrace: %s\n",
 				up.Descriptor, m.ExceptionsStacktrace(),
 			)
 			return
@@ -552,7 +552,7 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 	}
 	*e = errors.Wrapf(
 		fmt.Errorf("%v", r),
-		"VM panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
+		"VM panic: %v\nMachine State:%s\nStacktrace: %s\n",
 		r, m.String(), m.Stacktrace().String(),
 	)
 }
