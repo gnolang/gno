@@ -12,5 +12,7 @@ easier Markdown formatting, etc.`
 
 }
 
-// Original work & inspiration here: https://gno.land/r/leon/fosdem25/microposts
+// Original work & inspiration here:
+// https://gno.land/r/leon/fosdem25/microposts
+// https://gno.land/r/moul/microposts
 // Find the full tutorial on the official gno.land docs at docs.gno.land
