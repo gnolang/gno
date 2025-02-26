@@ -121,23 +121,19 @@ func TestGenesisValidatorInfoFromSigner(t *testing.T) {
 	t.Run("nil signer", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := genesisValidatorInfoFromSigner(nil)
-		require.Error(t, err)
+		require.Error(t, printValidatorInfo(nil, log.NewNoopLogger()))
 	})
 
 	t.Run("erroring signer", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := genesisValidatorInfoFromSigner(types.NewErroringMockSigner())
-		require.Error(t, err)
+		require.Error(t, printValidatorInfo(types.NewErroringMockSigner(), log.NewNoopLogger()))
 	})
 
 	t.Run("valid signer", func(t *testing.T) {
 		t.Parallel()
 
-		validatorInfo, err := genesisValidatorInfoFromSigner(types.NewMockSigner())
-		require.NoError(t, err)
-		require.NotNil(t, validatorInfo)
+		require.NoError(t, printValidatorInfo(types.NewMockSigner(), log.NewNoopLogger()))
 	})
 }
 
@@ -261,7 +257,7 @@ func TestRunSignerServer(t *testing.T) {
 			LogLevel:        zapcore.ErrorLevel.String(),
 		}
 
-		// Simulate a SIGINT signal after 30 milliseconds.
+		// Simulate a SIGINT signal after 50 milliseconds.
 		go func() {
 			time.Sleep(50 * time.Millisecond)
 			syscall.Kill(syscall.Getpid(), syscall.SIGINT)

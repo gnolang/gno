@@ -71,17 +71,17 @@ func NewSignerServer(
 	return server, err
 }
 
-// genesisValidatorInfoFromSigner gets a genesis validator info from the given signer.
-func genesisValidatorInfoFromSigner(signer types.Signer) (string, error) {
+// printValidatorInfo prints the validator info in genesis and bech32 formats.
+func printValidatorInfo(signer types.Signer, logger *slog.Logger) error {
 	// Check if the signer is nil.
 	if signer == nil {
-		return "", errors.New("signer is nil")
+		return errors.New("signer is nil")
 	}
 
 	// Get the public key of the signer.
 	pubKey, err := signer.PubKey()
 	if err != nil {
-		return "", fmt.Errorf("unable to get signer public key: %w", err)
+		return fmt.Errorf("unable to get signer public key: %w", err)
 	}
 
 	// Create a genesis validator with the signer's public key.
@@ -93,9 +93,19 @@ func genesisValidatorInfoFromSigner(signer types.Signer) (string, error) {
 	}
 
 	// Marshal the genesis validator info to JSON using amino.
-	genesisValidatorInfo := amino.MustMarshalJSONIndent(genesisValidator, "", "  ")
+	const indent = "  "
+	genesisValidatorInfo := amino.MustMarshalJSONIndent(genesisValidator, "", indent)
 
-	return string(genesisValidatorInfo), nil
+	// Print the validator info in genesis and bech32 formats.
+	logger.Info(fmt.Sprintf("Validator info:\n%s\n%s\n%s\n%s%s%s\n%s%s%s",
+		"Genesis format:",
+		genesisValidatorInfo,
+		"Bech32 format:",
+		indent, "pub_key: ", pubKey.String(),
+		indent, "address: ", pubKey.Address().String(),
+	))
+
+	return nil
 }
 
 // RunSignerServer initializes and start a remote signer server with the given gnokms signer.
@@ -110,12 +120,10 @@ func RunSignerServer(commonFlags *ServerFlags, signer types.Signer, io commands.
 	// Flush any remaining server logs on exit.
 	defer flusher()
 
-	// Print the public key of the signer as a genesis validator.
-	info, err := genesisValidatorInfoFromSigner(signer)
-	if err != nil {
+	// Print the validator info of the signer.
+	if err := printValidatorInfo(signer, logger); err != nil {
 		return fmt.Errorf("unable to print genesis validator info: %w", err)
 	}
-	logger.Info(fmt.Sprintf("Genesis validator info:\n%s", info))
 
 	// Initialize the remote signer server with the gnokms signer.
 	server, err := NewSignerServer(commonFlags, signer, logger)
