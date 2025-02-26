@@ -1,4 +1,4 @@
-package threads
+package minisocial
 
 import (
 	"std"
@@ -65,3 +65,5 @@ func TestCreatePostMultiple(t *testing.T) {
 		}
 	}
 }
+
+// TODO: Add tests for Update & Delete

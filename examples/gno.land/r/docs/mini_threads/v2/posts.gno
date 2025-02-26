@@ -1,4 +1,4 @@
-package threads
+package minisocial
 
 import (
 	"errors"

@@ -1,4 +1,4 @@
-package threads
+package minisocial
 
 import (
 	"errors"
@@ -8,7 +8,7 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-var posts []*Post
+var posts []*Post // inefficient for large amounts of posts; see v2
 
 // CreatePost creates a new post
 func CreatePost(text string) error {
