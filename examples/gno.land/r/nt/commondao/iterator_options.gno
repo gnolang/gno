@@ -16,6 +16,5 @@ func WithOffset(offset uint) IteratorOption {
 func WithCount(count uint) IteratorOption {
 	return func(it *Iterator) {
 		it.count = int(count)
-		it.maxIndex = it.offset + it.count
 	}
 }

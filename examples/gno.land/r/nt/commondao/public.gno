@@ -95,8 +95,9 @@ func IsOwner(addr std.Address, daoID uint64) bool {
 
 // TransferOwnership transfers DAO access ownership to a different address.
 func TransferOwnership(daoID uint64, newOwner std.Address) {
-	assertCallerIsOwner(caller, daoID)
+	assertCallerIsOwner(daoID)
 
+	caller := std.PrevRealm().Addr()
 	ids := getOwnership(caller)
 	for i, id := range ids {
 		if id == daoID {
@@ -113,7 +114,7 @@ func TransferOwnership(daoID uint64, newOwner std.Address) {
 // Only toplevel DAOs are returned, to get SubDAOs use `GetSubDAO()`.
 func Get(daoID uint64) *commondao.CommonDAO {
 	assertCallerIsRealm() // TODO: Allow users to get DAOs using run TX?
-	assertCallerIsOwner(caller, daoID)
+	assertCallerIsOwner(daoID)
 
 	return mustGetDAO(daoID)
 }
@@ -122,14 +123,14 @@ func Get(daoID uint64) *commondao.CommonDAO {
 // It panics if caller doesn't have access ownership to the topmost DAO.
 func GetSubDAO(rootID uint64, path string) *commondao.CommonDAO {
 	assertCallerIsRealm() // TODO: Allow users to get DAOs using run TX?
-	assertCallerIsOwner(caller, rootID)
+	assertCallerIsOwner(rootID)
 
 	return mustGetSubDAO(rootID, path)
 }
 
 // GetSize returns the number of SubDAOs under a specified root DAO.
 func GetSize(rootID uint64) int {
-	assertCallerIsOwner(caller, rootID)
+	assertCallerIsOwner(rootID)
 
 	tree := getTree(rootID)
 	if tree == nil {
@@ -142,7 +143,7 @@ func GetSize(rootID uint64) int {
 // Iterate returns a SubDAO iterator.
 // An empty iterator is returned when root DAO is not found.
 func Iterate(rootID uint64, options ...IteratorOption) Iterator {
-	assertCallerIsOwner(caller, rootID)
+	assertCallerIsOwner(rootID)
 
 	tree := getTree(rootID)
 	if tree == nil {
