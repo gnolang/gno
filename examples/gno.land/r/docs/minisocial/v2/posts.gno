@@ -11,8 +11,6 @@ import (
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
-
-	"gno.land/r/demo/users"
 )
 
 var (
@@ -107,7 +105,7 @@ func DeletePost(id string) error {
 // Render renders the main page of threads
 func Render(path string) string {
 	out := md.H1("MiniSocial")
-
+	
 	if posts.Size() == 0 {
 		out += "No posts yet!\n\n"
 		return out
@@ -119,16 +117,7 @@ func Render(path string) string {
 	// Iterate over items in the page
 	for _, item := range page.Items {
 		post := item.Value.(*Post)
-
-		// Try resolving the address for a username
-		text := post.author.String()
-		user := users.GetUserByAddress(post.author)
-		if user != nil {
-			text = user.Name
-		}
-
-		out += md.H4(ufmt.Sprintf("Post #%d - @%s\n\n", int(post.id), text))
-
+		out += md.H4(ufmt.Sprintf("Post #%d\n\n", int(post.id)))
 		out += post.String()
 		out += md.HorizontalRule()
 	}

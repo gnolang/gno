@@ -16,7 +16,7 @@ type Post struct {
 
 // String stringifies a Post
 func (p Post) String() string {
-	out := "**" + p.text + "**"
+	out := p.text
 	out += "\n\n"
 	out += ufmt.Sprintf("_by %s_, ", p.author)
 	// We can use `ufmt` to format strings, and the built-in time library formatting function
