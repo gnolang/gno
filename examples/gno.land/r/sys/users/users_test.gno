@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/urequire"
 )
 
@@ -175,5 +176,7 @@ func TestUserRenderLink(t *testing.T) {
 	urequire.NoError(t, RegisterUser(alice, aliceAddr))
 
 	data, _ := ResolveName(alice)
-	uassert.Equal(t, data.RenderLink(), "/u/"+data.Name())
+	uassert.Equal(t, data.RenderLink(""), ufmt.Sprintf("[@%s](/u/%s)", alice, alice))
+	text := "my link text!"
+	uassert.Equal(t, data.RenderLink(text), ufmt.Sprintf("[%s](/u/%s)", text, alice))
 }

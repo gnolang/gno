@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ufmt"
 )
 
 var (
@@ -42,9 +43,13 @@ func (u UserData) IsDeleted() bool {
 }
 
 // RenderLink provides a render link to the user page on gnoweb
-// ufmt.Sprintf("[%s](%s)", userData.Name(), userData.RenderLink())
-func (u UserData) RenderLink() string {
-	return "/u/" + u.username
+// `linkText` is optional
+func (u UserData) RenderLink(linkText string) string {
+	if linkText == "" {
+		return ufmt.Sprintf("[@%s](/u/%s)", u.username, u.username)
+	}
+
+	return ufmt.Sprintf("[%s](/u/%s)", linkText, u.username)
 }
 
 // RegisterUser adds a new user to the system.
