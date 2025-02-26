@@ -27,6 +27,7 @@ type CrashCase struct {
 
 // TestResult holds the result of a fuzzing test, indicating if a panic occurred and any associated messages.
 type TestResult struct {
+	IsFailrue     bool   // indicates whether seeds made failrue
 	PanicOccurred bool   // Indicates whether a panic occurred during the test.
 	PanicMessage  string // The message associated with the panic.
 	Error         error  // The error encountered, if any.
@@ -34,7 +35,8 @@ type TestResult struct {
 
 // addCase adds a new crash case to the fuzzLogger based on the provided seed and testResult.
 // It assigns a unique hash number to the coverage and records the details of the failure.
-func (fl *FuzzLogger) AddCase(seed Seed, r TestResult) {
+func (fl *FuzzLogger) AddCase(seed Seed) {
+	r := seed.TestResult
 	var crashcase CrashCase
 	if r.Error == nil {
 		crashcase = CrashCase{
@@ -54,16 +56,17 @@ func (fl *FuzzLogger) AddCase(seed Seed, r TestResult) {
 			InputCount:   seed.Id,
 			IsPanic:      r.PanicOccurred,
 			PanicMessage: r.PanicMessage,
-			ErrorMsg:     strings.TrimSpace(r.Error.Error()),
+			ErrorMsg:     strings.TrimSpace(escapedToString(r.Error.Error())),
 		}
 	}
+
 	fl.Data = append(fl.Data, crashcase)
 }
 
-// reportLastFailingInput reports the most recent failing input to standard error.
-func (fl *FuzzLogger) ReportLastFailingInput() {
+// reportFirstFailingInput reports the first failing input to standard error.
+func (fl *FuzzLogger) ReportFirstFailingInput() {
 	log := fl.Data
-	lastCrashCase := log[len(log)-1]
+	lastCrashCase := log[0]
 	fmt.Fprintf(os.Stderr, "Found failing input %s at %d trials, coverage %d \n", escapedToString(lastCrashCase.Input), lastCrashCase.InputCount, int(lastCrashCase.HashNumber))
 	return
 }

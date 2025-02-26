@@ -41,8 +41,9 @@ func (m *Mutator) MutateSeed2Seeds(sampleSeed Seed, seedCount *uint) []Seed {
 	if !foundSample {
 		panic("Mutator could not find sample set by hash number. Possible logic or runtime error.")
 	}
-	boundarySamplePopularity := [8]uint64{2, 8, 32, 128, 512, 2048, 8096, 16192}
-	mappedGeneratingNumber := [8]int{1440, 1080, 720, 600, 480, 360, 240, 120}
+	const NumGenerateSetting = 8
+	boundarySamplePopularity := [NumGenerateSetting]uint64{2, 8, 32, 128, 512, 2048, 8096, 16192}
+	mappedGeneratingNumber := [NumGenerateSetting]int{1440, 1080, 720, 600, 480, 360, 240, 120}
 	genIdx := sort.Search(len(boundarySamplePopularity), func(i int) bool {
 		return mutationSample.samplePopularity <= boundarySamplePopularity[i]
 	})
@@ -52,8 +53,9 @@ func (m *Mutator) MutateSeed2Seeds(sampleSeed Seed, seedCount *uint) []Seed {
 	} else {
 		generatingNumber = 120
 	}
-	boundaryClusterPopularity := [4]uint64{32, 256, 4096, 259072}
-	mappedMutationStrength := [4]int{5, 4, 3, 2}
+	const NumStrengthSetting = 4
+	boundaryClusterPopularity := [NumStrengthSetting]uint64{32, 256, 4096, 259072}
+	mappedMutationStrength := [NumStrengthSetting]int{5, 4, 3, 2}
 	mutIdx := sort.Search(len(boundaryClusterPopularity), func(i int) bool {
 		return m.data[mutationSample.seed.HashNumber].ClusterPopularity <= boundaryClusterPopularity[i]
 	})
@@ -192,6 +194,15 @@ func buildArgsPowerListExceptNull(n int) [][]int {
 type MutSampleSet struct {
 	Samples           map[uint]*MutSample // ID-based dictionary of mutation samples
 	ClusterPopularity uint64              // Aggregate popularity score of the cluster
+}
+
+// GetAllSamplesList returns a slice containing all mutation samples in the set.
+func (mss *MutSampleSet) GetAllSamplesList() []*MutSample {
+	samples := make([]*MutSample, 0, len(mss.Samples))
+	for _, sample := range mss.Samples {
+		samples = append(samples, sample)
+	}
+	return samples
 }
 
 // FindSample retrieves a MutSample by its seed ID.
@@ -777,6 +788,10 @@ func (ms *MutSample) reflectMutationsInfo(mutInfoDict map[int]MutationInfo) {
 // PlusSamplePopularity increases the sample's popularity count.
 func (ms *MutSample) PlusSamplePopularity(delta int) {
 	ms.samplePopularity += uint64(delta)
+}
+
+func (ms *MutSample) SamplePopularity() uint64 {
+	return ms.samplePopularity
 }
 
 // UpdatePowerSetCache updates the cached cumulative sum array based on ArgPowerSetScores.

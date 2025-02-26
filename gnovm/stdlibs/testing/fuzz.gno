@@ -178,11 +178,12 @@ func (f *F) Fuzz(run Runner) {
 
 	// Format manager and mutator using corpus from f.Add.
 	for _, corp := range f.corpus {
-		corp = f.simulateFF(corp)
-		if f.failed {
-			f.handleFail()
+		f.embedTestResult(&corp)
+		if corp.TestResult.IsFailrue {
+			f.handleFailure(corp)
 			return
 		}
+
 		hashNumber := corp.HashNumber
 		f.manager.Inithashnumber = append(f.manager.Inithashnumber, hashNumber)
 		endInfo := f.manager.CoordinateSeed(corp)
@@ -191,7 +192,7 @@ func (f *F) Fuzz(run Runner) {
 		// Remove duplicate coverage entries and ensure each unique coverage retains a minimal self-referential structure.
 
 		if endInfo.CompleteTrials {
-			f.reportF()
+			f.reportSuccess()
 			return
 		}
 		if endInfo.MaxedCAPACITY {
@@ -241,37 +242,38 @@ func (f *F) Fuzz(run Runner) {
 	}
 }
 
-// simulateFF simulates the target function with the given seed.
-func (f *F) simulateFF(seed fuzzing.Seed) fuzzing.Seed {
+// embedTestResult test the target function with the given seed and embeds its result.
+func (f *F) embedTestResult(seed *fuzzing.Seed) {
 	coverage, err, isPanic, panicMsg := monitor(f.ff, seed.Content)
-
 	// Compute seed.hn
 	// This completes the status change of the seed before logging
 	hashNumber := f.hasher.RegisterCoverage2HashNumber(coverage)
 	seed.HashNumber = hashNumber
-	if isPanic {
-		tr := fuzzing.TestResult{
-			PanicOccurred: true,
-			PanicMessage:  panicMsg,
-			Error:         err,
+	// Handle failure scenarios
+
+	if isPanic || err != nil {
+		var testResult fuzzing.TestResult
+		if isPanic {
+			testResult = fuzzing.TestResult{
+				IsFailrue:     true,
+				PanicOccurred: true,
+				PanicMessage:  panicMsg,
+				Error:         nil,
+			}
 		}
-		f.logger.AddCase(seed, tr)
-		f.manager.CoordinateSeed(seed)
-		f.mutator.Coordinate2SampleSet(seed, 1)
-		f.Fail()
-	}
-	if err != nil {
-		tr := fuzzing.TestResult{
-			PanicOccurred: false,
-			PanicMessage:  "",
-			Error:         err,
+		if err != nil {
+			testResult = fuzzing.TestResult{
+				IsFailrue:     true,
+				PanicOccurred: false,
+				PanicMessage:  "",
+				Error:         err,
+			}
 		}
-		f.logger.AddCase(seed, tr)
-		f.manager.CoordinateSeed(seed)
-		f.mutator.Coordinate2SampleSet(seed, 1)
-		f.Fail()
+
+		seed.TestResult = testResult
+	} else {
+		seed.TestResult.IsFailrue = false
 	}
-	return seed
 }
 
 // monitor runs the target function and captures coverage, errors, and panics.
@@ -284,7 +286,6 @@ func monitor(run Runner, content []interface{}) (coverage fuzzing.Coverage, err 
 	coverage = fuzzing.Coverage{}
 	defer func() {
 		if r := recover(); r != nil {
-
 			// TODO: part 1
 			coverage = fuzzing.CoverageOfrunner(content)
 			isPanic = true
@@ -293,11 +294,9 @@ func monitor(run Runner, content []interface{}) (coverage fuzzing.Coverage, err 
 				return
 			}
 			if s, ok := r.(string); ok {
-
 				panicMsg = s
 				return
 			}
-
 			panicMsg = "unknown panic"
 		}
 	}()
@@ -375,30 +374,6 @@ func (f *F) logOrPanic(templet string, args ...interface{}) {
 	}
 }
 
-// handleFail handles a failure during fuzzing by logging and minimizing the input.
-func (f *F) handleFail() {
-	fmt.Fprintln(os.Stderr, "\n--- FAIL:")
-
-	f.logger.ReportLastFailingInput()
-	lastCrashCase := f.logger.LastCrashCase()
-	f.minimizeAndLogInput(lastCrashCase.RawContent)
-	f.logger.ReportLastCrashCase()
-	minimaizedCase := f.logger.LastCrashCase()
-	hn := minimaizedCase.HashNumber
-	coverage := f.hasher.HashNumber2Coverage(hn)
-	if f.verbose {
-		fmt.Fprintln(os.Stderr, "\n--- Trace:")
-		fmt.Fprintf(os.Stderr, "%s\n", coverageToString(coverage))
-	} else {
-		fmt.Fprintln(os.Stderr, "\n--- Trace:")
-		fmt.Fprintf(os.Stderr, "Last covered line: function \"%s\" in line %d\n", coverage[len(coverage)-1].CoName, coverage[len(coverage)-1].CoLine)
-	}
-	if f.verbose {
-		f.analyzeResult()
-	}
-	return
-}
-
 // analyzeResult performs analysis on the fuzzing results and logs the findings.
 func (f *F) analyzeResult() {
 	fmt.Fprintln(os.Stderr, "\n--- Analytics:")
@@ -406,7 +381,17 @@ func (f *F) analyzeResult() {
 
 		hashNumber := 0
 		for f.manager.HashNumber2Priority[hashNumber] != 0 {
-			fmt.Fprintf(os.Stdout, "coverage %d: [%d frequency | %d actual storage] \n", hashNumber, f.manager.HashNumber2Priority[hashNumber], len(f.manager.HashNumber2Seeds[hashNumber].Data))
+			sampleSet, foundSampleSet := f.mutator.FindMutSampleSet(fuzzing.HashNumber(hashNumber))
+			if !foundSampleSet {
+				panic("Logic error: Unable to find sampleSet based on hash number")
+			}
+
+			var totalReflectionCount uint64
+			samples := sampleSet.GetAllSamplesList()
+			for _, sample := range samples {
+				totalReflectionCount += (sample.SamplePopularity() - 1)
+			}
+			fmt.Fprintf(os.Stdout, "coverage %d: [%d frequency | %v reflected seeds | %d actual storage] \n", hashNumber, f.manager.HashNumber2Priority[hashNumber], totalReflectionCount, len(f.manager.HashNumber2Seeds[hashNumber].Data))
 			dataLen := len(f.manager.HashNumber2Seeds[hashNumber].Data)
 			sampleCount := getSampleCount(dataLen) // Determines sample count
 			fmt.Fprint(os.Stdout, "- ")
@@ -466,9 +451,9 @@ func coverageToString(coverage fuzzing.Coverage) string {
 	return sb.String()
 }
 
-// minimizeAndLogInput reduces seedContent to its minimal form while preserving error conditions.
-// It then executes a simulation with the minimized input and logs the result.
-func (f *F) minimizeAndLogInput(seedContent []interface{}) {
+// recordMinimizedSeed reduces seedContent to its minimal form while preserving failure conditions.
+// It then records the seed and result.
+func (f *F) recordMinimizedFailure(seedContent []interface{}) {
 	// Condition function: Checks if an input preserves an error or panic state.
 	cond := func(tester []interface{}) bool {
 		_, err, isPanic, _ := monitor(f.ff, tester)
@@ -480,15 +465,14 @@ func (f *F) minimizeAndLogInput(seedContent []interface{}) {
 		}
 		return false
 	}
-
 	candidate := f.minimizeByCond(seedContent, cond)
 
 	sampleSeed := fuzzing.Seed{
 		Content: candidate,
 	}
-	// Execute simulation with minimized input and log results.
-	f.simulateFF(sampleSeed)
-	fmt.Fprintln(os.Stderr, "\n--- Minimized input:")
+	f.embedTestResult(&sampleSeed)
+	// record the context for reporting a failure.
+	f.recordFailure(sampleSeed)
 }
 
 // minimizeByHashNumber minimizes seedContent while ensuring the resulting input
@@ -596,8 +580,48 @@ func generateCandidates(b []byte) [][]byte {
 	return candidates
 }
 
-// reportF reports the fuzzing results after successful completion.
-func (f *F) reportF() {
+// handleFaile records the failrue and report failure.
+func (f *F) handleFailure(seed fuzzing.Seed) {
+	f.recordFailure(seed)
+	f.recordMinimizedFailure(seed.Content)
+	f.reportFailure()
+	return
+}
+
+// recordFailure record the necessary context before reporting a failure.
+func (f *F) recordFailure(seed fuzzing.Seed) {
+	f.logger.AddCase(seed)
+	f.manager.CoordinateSeed(seed)
+	f.mutator.Coordinate2SampleSet(seed, 1)
+}
+
+// reportFailure reports a failure.
+func (f *F) reportFailure() {
+	// Reports the first detected failing input.
+	fmt.Fprintln(os.Stderr, "\n--- FAIL:")
+	f.logger.ReportFirstFailingInput()
+	// Reports the most recently minimized input.
+	fmt.Fprintln(os.Stderr, "\n--- Minimized input:")
+	f.logger.ReportLastCrashCase()
+	// Gets coverage of last crash case by its hashNumber
+	hn := f.logger.LastCrashCase().HashNumber
+	coverage := f.hasher.HashNumber2Coverage(hn)
+	// Reports trace of last crash case by its coverage
+	if f.verbose {
+		fmt.Fprintln(os.Stderr, "\n--- Trace:")
+		fmt.Fprintf(os.Stderr, "%s\n", coverageToString(coverage))
+	} else {
+		fmt.Fprintln(os.Stderr, "\n--- Trace:")
+		fmt.Fprintf(os.Stderr, "Last covered line: function \"%s\" in line %d\n", coverage[len(coverage)-1].CoName, coverage[len(coverage)-1].CoLine)
+	}
+	if f.verbose {
+		f.analyzeResult()
+	}
+	return
+}
+
+// reportSuccess reports the fuzzing results after successful completion.
+func (f *F) reportSuccess() {
 	fmt.Fprintln(os.Stderr, "\n--- PASS:")
 	fmt.Fprintf(os.Stderr, "Complete %d Trials\n", f.manager.InputCount)
 	fmt.Fprintf(os.Stderr, "Inspected %d coverage\n", (f.manager.InspectingHashNumbers))
@@ -637,14 +661,10 @@ func (f *F) updateMachines(parentSeed fuzzing.Seed) bool {
 	childSeeds := f.mutator.MutateSeed2Seeds(parentSeed, &f.seedCount)
 
 	seedsMap := make(map[fuzzing.HashNumber]*[]fuzzing.Seed)
-	// 2) Simulate and log evolved input to the target function
+	// 2) execute and log evolved input to the target function
 	// If failure occurs, log it and terminate
 	for _, child := range childSeeds {
-		child = f.simulateFF(child)
-		if f.failed {
-			f.handleFail()
-			return true
-		}
+		f.embedTestResult(&child)
 		hn := child.HashNumber
 		if _, exists := seedsMap[hn]; !exists {
 			seedsMap[hn] = &[]fuzzing.Seed{}
@@ -655,6 +675,11 @@ func (f *F) updateMachines(parentSeed fuzzing.Seed) bool {
 
 	// 3) Update fuzz manager with the new inputs.
 	for hn, seeds := range seedsMap {
+		// Quickly checks if the seed caused a failure and returns immediately if true.
+		if sampleSeed := (*seeds)[0]; sampleSeed.TestResult.IsFailrue {
+			f.handleFailure(sampleSeed)
+			return true
+		}
 		if !f.manager.IsCoordinatedHashNumber(hn) {
 			// If the hash number has not been coordinated yet,
 			// it coordinates the seed and directly adds it to the mutator.
@@ -693,8 +718,7 @@ func (f *F) updateMachines(parentSeed fuzzing.Seed) bool {
 			}
 		} else {
 			// If the hash number has already been coordinated,
-			// it is not stored directly. Instead, it is used to adjust the manager and mutator.
-
+			// it is not stored directly. Instead, it is used to update the manager and mutator.
 			seedArray := *(seeds)
 			sampleSeed := seedArray[0]
 			sampleSet, foundSampleSet := f.mutator.FindMutSampleSet(hn)
@@ -756,7 +780,7 @@ func (f *F) updateMachines(parentSeed fuzzing.Seed) bool {
 // handleEndInfo handles the endInfo returned by coordinateSeed or coordinateAbstraction.
 func (f *F) handleEndInfo(endInfo fuzzing.EndInfo) bool {
 	if endInfo.CompleteTrials {
-		f.reportF()
+		f.reportSuccess()
 		return true
 	}
 	if endInfo.MaxedCAPACITY {

@@ -115,7 +115,7 @@ type Seed struct {
 	Content        []interface{}        // Content represents the input values of the seed.
 	MutationsInfo  map[int]MutationInfo // MutationsInfo holds detailed information about how the seed has mutated from its original form.
 	ArgPowerSetIdx int                  // Refers to the index of argsPowerSet, indicating which subset has been selected.
-	Result         interface{}          // Result is the output produced by the program when the seed is used as input.
+	TestResult     TestResult           // TestResult is the result produced by the program.
 }
 
 // MutationInfo holds information about a mutation operation performed on an entity.
