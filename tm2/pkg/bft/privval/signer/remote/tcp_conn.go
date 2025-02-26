@@ -53,6 +53,11 @@ func ConfigureTCPConnection(
 		return nil, fmt.Errorf("%w: %w", ErrSecretConnFailed, err)
 	}
 
+	// Reset the deadline after the secret connection handshake.
+	if handshakeTimeout != 0 {
+		conn.SetDeadline(time.Time{})
+	}
+
 	// Check if the public key of the remote peer is authorized.
 	if err := checkAuthorizedKeys(sconn.RemotePubKey(), authorizedKeys); err != nil {
 		return nil, err
