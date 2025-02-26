@@ -20,6 +20,7 @@ var (
 	posts  = avl.NewTree()                  // seqid.ID.String() > *Post
 	pag    = pager.NewPager(posts, 5, true) // To help with pagination in rendering
 
+	// Errors
 	ErrEmptyPost           = errors.New("empty post text")
 	ErrPostNotFound        = errors.New("post not found")
 	ErrUpdateWindowExpired = errors.New("update window expired")
@@ -32,12 +33,19 @@ func CreatePost(text string) error {
 		return ErrEmptyPost
 	}
 
+	// Get the next ID
+	// seqid.IDs are sequentially stored in the AVL tree
+	// This provides chronological order when iterating
 	id := postID.Next()
+
+	// Set the key:value pair into the AVL tree:
+	// avl.Tree.Set takes a string for a key, and anything as a value.
+	// Stringify the key, and set the pointer to a new Post struct
 	posts.Set(id.String(), &Post{
-		id:        id,
-		text:      text,
-		author:    std.PreviousRealm().Address(),
-		createdAt: time.Now(),
+		id:        id,                            // Set the ID, used later for editing or deletion
+		text:      text,                          // Set the input text
+		author:    std.PreviousRealm().Address(), // The author of the address is the previous realm, the realm that called this one
+		createdAt: time.Now(),                    // Capture the time of the transaction, in this case the block timestamp
 		updatedAt: time.Now(),
 	})
 
@@ -70,6 +78,8 @@ func UpdatePost(id string, text string) error {
 	return nil
 }
 
+// DeletePost deletes a post with a specific id
+// Only the creator of a post can delete the post
 func DeletePost(id string) error {
 	// Try to get the post
 	raw, ok := posts.Get(id)
@@ -83,8 +93,11 @@ func DeletePost(id string) error {
 		return ErrUnauthorized
 	}
 
+	// Use avl.Tree.Remove
 	_, removed := posts.Remove(id)
 	if !removed {
+		// This shouldn't happen after all checks above
+		// If it does, discard any possible state changes
 		panic("failed to remove post")
 	}
 
@@ -107,6 +120,7 @@ func Render(path string) string {
 	for _, item := range page.Items {
 		post := item.Value.(*Post)
 
+		// Try resolving the address for a username
 		text := post.author.String()
 		user := users.GetUserByAddress(post.author)
 		if user != nil {
