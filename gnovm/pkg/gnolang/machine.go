@@ -388,8 +388,9 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		if m.Frames[i].IsCall() {
 			stm := m.Stmts[nextStmtIndex]
-			bs := stm.(*bodyStmt)
-			stm = bs.Body[bs.NextBodyIndex-1]
+			if bs, ok := stm.(*bodyStmt); ok {
+				stm = bs.Body[bs.NextBodyIndex-1]
+			}
 			calls = append(calls, StacktraceCall{
 				Stmt:  stm,
 				Frame: m.Frames[i],
@@ -683,10 +684,10 @@ func (m *Machine) RunFunc(fn Name) {
 		if r := recover(); r != nil {
 			switch r := r.(type) {
 			case UnhandledPanicError:
-				fmt.Printf("Machine.RunFunc(%q) panic: %s\nStacktrace: %s\n",
+				fmt.Printf("Machine.RunFunc(%q) panic: %s\nStacktrace:\n%s\n",
 					fn, r.Error(), m.ExceptionsStacktrace())
 			default:
-				fmt.Printf("Machine.RunFunc(%q) panic: %v\nMachine State:%s\nStacktrace: %s\n",
+				fmt.Printf("Machine.RunFunc(%q) panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
 					fn, r, m.String(), m.Stacktrace().String())
 			}
 			panic(r)
@@ -702,10 +703,10 @@ func (m *Machine) RunMain() {
 		if r != nil {
 			switch r := r.(type) {
 			case UnhandledPanicError:
-				fmt.Printf("Machine.RunMain() panic: %s\nStacktrace: %s\n",
+				fmt.Printf("Machine.RunMain() panic: %s\nStacktrace:\n%s\n",
 					r.Error(), m.ExceptionsStacktrace())
 			default:
-				fmt.Printf("Machine.RunMain() panic: %v\nMachine State:%s\nStacktrace: %s\n",
+				fmt.Printf("Machine.RunMain() panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
 					r, m.String(), m.Stacktrace())
 			}
 			panic(r)
