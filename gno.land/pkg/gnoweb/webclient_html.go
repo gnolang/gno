@@ -277,7 +277,7 @@ func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) e
 						urlPath := strings.TrimPrefix(importPath, "gno.land/")
 
 						// Create new span with link
-						replacement := fmt.Sprintf(`<span class="chroma-s"><a href="/%s$source" class="text-blue-600 hover:underline">&#34;%s&#34;</a></span>`,
+						replacement := fmt.Sprintf(`<span class="chroma-s"><a href="/%s$source" class="hover:underline">&#34;%s&#34;</a></span>`,
 							urlPath, importPath)
 
 						lines[i] = prefix + replacement + rest[end+len(`&#34;</span>`):]
