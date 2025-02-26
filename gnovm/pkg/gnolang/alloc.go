@@ -79,6 +79,10 @@ func NewAllocator(maxBytes int64, m *Machine) *Allocator {
 	}
 }
 
+func (alloc *Allocator) SetMachine(m *Machine) {
+	alloc.m = m
+}
+
 func (alloc *Allocator) MemStats() string {
 	if alloc == nil {
 		return "nil allocator"
@@ -123,7 +127,7 @@ func (alloc *Allocator) Allocate(size int64) {
 		if left, ok := alloc.m.GarbageCollect(); !ok {
 			panic("allocation limit exceeded")
 		} else { // retry
-			debug2.Printf2("%d left after GC: \n", left)
+			debug2.Printf2("%d left after GC, size: %d \n", left, size)
 			alloc.bytes += size
 			if alloc.bytes > alloc.maxBytes {
 				panic("allocation limit exceeded")
@@ -348,7 +352,7 @@ func (p *PackageValue) GetShallowSize() int64 {
 	return allocPackage
 }
 func (b *Block) GetShallowSize() int64 {
-	debug2.Println2("GetShallowSize: ", b)
+	//debug2.Println2("GetShallowSize: ", b)
 	return allocBlock
 }
 

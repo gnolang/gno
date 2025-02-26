@@ -29,6 +29,7 @@ type codeRecord struct {
 
 // It reads binary record, calcuate and output the statistics of operations
 func stats(binFile string) {
+	fmt.Printf("stats binFile: %s\n", binFile)
 	in, err := os.Open(binFile)
 	if err != nil {
 		panic("could not create benchmark file: " + err.Error())
@@ -48,9 +49,13 @@ func stats(binFile string) {
 				if !ok {
 					break
 				}
-				opName := gno.Op(record[0]).String()
-				if record[1] != 0 {
+				var opName string
+				if record[0] != 0 {
+					opName = gno.Op(record[0]).String()
+				} else if record[1] != 0 {
 					opName = bm.StoreCodeString(record[1])
+				} else if record[2] != 0 {
+					opName = bm.GCCodeString(record[2])
 				}
 
 				elapsedTime := binary.LittleEndian.Uint32(record[2:])

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"path/filepath"
 	"strings"
@@ -17,6 +18,7 @@ const (
 )
 
 func benchmarkOpCodes(bstore gno.Store, dir string) {
+	fmt.Println("Benchmarking opcodes, dir: ", dir)
 	opcodesPkgDir := filepath.Join(dir, "opcodes")
 
 	pv := addPackage(bstore, opcodesPkgDir, opcodesPkgPath)
@@ -26,6 +28,7 @@ func benchmarkOpCodes(bstore gno.Store, dir string) {
 }
 
 func callOpsBench(bstore gno.Store, pv *gno.PackageValue) {
+	fmt.Println("callOpsBench...")
 	// start
 	pb := pv.GetBlock(bstore)
 	for _, tv := range pb.Values {
@@ -33,6 +36,22 @@ func callOpsBench(bstore gno.Store, pv *gno.PackageValue) {
 			cx := gno.Call(fv.Name)
 			callFunc(bstore, pv, cx)
 		}
+	}
+}
+
+const (
+	gcPkgPath = "gno.land/r/x/benchmark/gc"
+	gcRounds  = 1000
+)
+
+func benchmarkGC(bstore gno.Store, dir string) {
+	fmt.Println("Benchmarking GC, dir: ", dir)
+	fmt.Println("alloc: ", bstore.GetAllocator(), bstore.GetAllocator() == nil)
+	opcodesPkgDir := filepath.Join(dir, "gc")
+
+	pv := addPackage(bstore, opcodesPkgDir, gcPkgPath)
+	for i := 0; i < gcRounds; i++ {
+		callOpsBench(bstore, pv)
 	}
 }
 
@@ -84,6 +103,9 @@ func callFunc(gstore gno.Store, pv *gno.PackageValue, cx gno.Expr) []gno.TypedVa
 			Output:  io.Discard,
 			Store:   gstore,
 		})
+
+	gstore.GetAllocator().SetMachine(m)
+	m.Alloc = gstore.GetAllocator()
 
 	defer m.Release()
 
