@@ -5,7 +5,12 @@ import (
 	"gno.land/p/nt/commondao"
 )
 
-func newIterator(tree rotree.IReadOnlyTree, options ...IteratorOption) Iterator {
+// Iterate returns a SubDAO iterator.
+func NewIterator(rootID uint64, options ...IteratorOption) Iterator {
+	assertCallerIsRealm() // TODO: Allow users to iterate SubDAOs using run TX?
+	assertCallerIsOwner(rootID)
+
+	tree := getTree(rootID)
 	if tree == nil {
 		return Iterator{}
 	}
@@ -15,12 +20,17 @@ func newIterator(tree rotree.IReadOnlyTree, options ...IteratorOption) Iterator 
 		apply(&it)
 	}
 
+	size := it.tree.Size()
 	if it.count > 0 {
 		it.maxIndex = it.current + it.count
+		if it.maxIndex > size {
+			it.maxIndex = size
+		}
 	} else {
-		it.maxIndex = it.tree.Size()
-		it.count = it.tree.Size()
+		it.maxIndex = size
 	}
+
+	it.count = it.maxIndex - it.current
 
 	return it
 }
@@ -45,7 +55,7 @@ func (it *Iterator) Next() bool {
 	}
 
 	path, v := it.tree.GetByIndex(it.current)
-	if v != nil {
+	if v == nil {
 		return false
 	}
 

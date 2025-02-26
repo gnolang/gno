@@ -55,7 +55,7 @@ func New(name string) *commondao.CommonDAO {
 
 // NewSubDAO creates a new SubDAO.
 func NewSubDAO(name, slug string, parent *commondao.CommonDAO) *commondao.CommonDAO {
-	assertCallerIsRealm() // TODO: Allow users to create DAOs using run TX?
+	assertCallerIsRealm() // TODO: Allow users to create SubDAOs using run TX?
 
 	if parent == nil {
 		panic("parent is required")
@@ -122,7 +122,7 @@ func Get(daoID uint64) *commondao.CommonDAO {
 // GetSubDAO returns a SubDAO searched by path.
 // It panics if caller doesn't have access ownership to the topmost DAO.
 func GetSubDAO(rootID uint64, path string) *commondao.CommonDAO {
-	assertCallerIsRealm() // TODO: Allow users to get DAOs using run TX?
+	assertCallerIsRealm() // TODO: Allow users to get SubDAOs using run TX?
 	assertCallerIsOwner(rootID)
 
 	return mustGetSubDAO(rootID, path)
@@ -138,19 +138,6 @@ func GetSize(rootID uint64) int {
 	}
 
 	return tree.Size()
-}
-
-// Iterate returns a SubDAO iterator.
-// An empty iterator is returned when root DAO is not found.
-func Iterate(rootID uint64, options ...IteratorOption) Iterator {
-	assertCallerIsOwner(rootID)
-
-	tree := getTree(rootID)
-	if tree == nil {
-		return Iterator{}
-	}
-
-	return newIterator(tree, options...)
 }
 
 // Vote submits a vote for a DAO proposal.
