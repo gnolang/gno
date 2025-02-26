@@ -376,7 +376,6 @@ func getContext() (
 	timeUnix int64, timeNano int64,
 )
 
-
 func setContext(
 	originCaller string,
 	originPkgAddress string,
@@ -393,13 +392,13 @@ func testIssueCoins(addr string, denom []string, amt []int64)
 func GetContext() Context {
 	originCaller, originPkgAddress, origSendDenoms, origSendAmounts, origSpendDenoms, origSpendAmounts, chainID, height, timeUnix, timeNano := getContext()
 	return Context{
-		OriginCaller: std.Address(originCaller),
+		OriginCaller:     std.Address(originCaller),
 		OriginPkgAddress: std.Address(originPkgAddress),
-		OriginSend: std.CompactNative(origSendDenoms, origSendAmounts),
-		OriginSpend: std.CompactNative(origSpendDenoms, origSpendAmounts),
-		ChainID: chainID,
-		Height: height,
-		Time: time.Unix(timeUnix, timeNano),
+		OriginSend:       std.CompactNative(origSendDenoms, origSendAmounts),
+		OriginSpend:      std.CompactNative(origSpendDenoms, origSpendAmounts),
+		ChainID:          chainID,
+		Height:           height,
+		Time:             time.Unix(timeUnix, timeNano),
 	}
 }
 
@@ -468,7 +467,7 @@ func SetRealm(rlm std.Realm) {
 func SkipHeights(count int64) {
 	ctx := GetContext()
 	toHeight := ctx.Height + count
-	toTime := ctx.Time.Add(time.Duration(count * 5) * time.Second)
+	toTime := ctx.Time.Add(time.Duration(count*5) * time.Second)
 	SetContext(Context{Height: toHeight, Time: toTime})
 }
 

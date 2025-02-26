@@ -77,7 +77,7 @@ func X_callerAt(m *gno.Machine, n int) string {
 		return ""
 	}
 	if n == m.NumFrames()-1 {
-		// This makes it consistent with OriginCaller and TestSetOriginCaller.
+		// This makes it consistent with OriginCaller and testing.SetOriginCaller.
 		ctx := m.Context.(*TestExecContext)
 		return string(ctx.OriginCaller)
 	}
