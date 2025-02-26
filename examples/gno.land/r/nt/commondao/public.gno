@@ -166,8 +166,6 @@ func Execute(daoID, proposalID uint64) {
 	}
 }
 
-// TODO: Implement Render()
-
 func checkOwnershipExists(addr std.Address) bool {
 	_, found := ownership.Get(addr.String())
 	return found
