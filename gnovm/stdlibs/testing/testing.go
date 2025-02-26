@@ -14,9 +14,39 @@ func X_unixNano() int64 {
 	return 0
 }
 
+func X_getContext(m *gno.Machine) (
+	originCaller string,
+	originPkgAddr string,
+	origSendDenoms []string, origSendAmounts []int64,
+	origSpendDenoms []string, origSpendAmounts []int64,
+	chainID string,
+	height int64,
+	timeUnix int64, timeNano int64,
+) {
+	ctx := m.Context.(*teststd.TestExecContext)
+
+	originCaller = ctx.OriginCaller.String()
+	originPkgAddr = ctx.OriginPkgAddr.String()
+
+	for _, coin := range ctx.OriginSend {
+		origSendDenoms = append(origSendDenoms, coin.Denom)
+		origSendAmounts = append(origSendAmounts, coin.Amount)
+	}
+
+	for _, coin := range *ctx.OriginSendSpent {
+		origSpendDenoms = append(origSpendDenoms, coin.Denom)
+		origSpendAmounts = append(origSpendAmounts, coin.Amount)
+	}
+
+	chainID = ctx.ChainID
+	height = ctx.Height
+	timeUnix = ctx.Timestamp
+	timeNano = ctx.TimestampNano
+	return
+}
+
 func X_setContext(
 	m *gno.Machine,
-	isOrigin bool,
 	originCaller string,
 	originPkgAddress string,
 	currRealmAddr string, currRealmPkgPath string,
@@ -28,29 +58,12 @@ func X_setContext(
 ) {
 	ctx := m.Context.(*teststd.TestExecContext)
 
-	if chainID != "" {
-		ctx.ChainID = chainID
-	}
-
-	if height != 0 {
-		ctx.Height = height
-	}
-
-	if timeUnix != 0 {
-		ctx.Timestamp = timeUnix
-	}
-
-	if timeNano != 0 {
-		ctx.TimestampNano = timeNano
-	}
-
-	if originCaller != "" {
-		ctx.OriginCaller = crypto.Bech32Address(originCaller)
-	}
-
-	if originPkgAddress != "" {
-		ctx.OriginPkgAddr = crypto.Bech32Address(originPkgAddress)
-	}
+	ctx.ChainID = chainID
+	ctx.Height = height
+	ctx.Timestamp = timeUnix
+	ctx.TimestampNano = timeNano
+	ctx.OriginCaller = crypto.Bech32Address(originCaller)
+	ctx.OriginPkgAddr = crypto.Bech32Address(originPkgAddress)
 
 	if currRealmAddr != "" {
 		// Associate the given Realm with the caller's frame.
@@ -76,14 +89,9 @@ func X_setContext(
 		}
 	}
 
-	if len(origSendDenoms) > 0 && len(origSendDenoms) == len(origSendAmounts) {
-		ctx.OriginSend = std.CompactCoins(origSendDenoms, origSendAmounts)
-	}
-
-	if len(origSpendDenoms) > 0 && len(origSpendDenoms) == len(origSpendAmounts) {
-		coins := std.CompactCoins(origSpendDenoms, origSpendAmounts)
-		ctx.OriginSendSpent = &coins
-	}
+	ctx.OriginSend = std.CompactCoins(origSendDenoms, origSendAmounts)
+	coins := std.CompactCoins(origSpendDenoms, origSpendAmounts)
+	ctx.OriginSendSpent = &coins
 
 	m.Context = ctx
 }

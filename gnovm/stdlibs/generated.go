@@ -820,28 +820,101 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"testing",
+		"getContext",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("string")},
+			{Name: gno.N("r1"), Type: gno.X("string")},
+			{Name: gno.N("r2"), Type: gno.X("[]string")},
+			{Name: gno.N("r3"), Type: gno.X("[]int64")},
+			{Name: gno.N("r4"), Type: gno.X("[]string")},
+			{Name: gno.N("r5"), Type: gno.X("[]int64")},
+			{Name: gno.N("r6"), Type: gno.X("string")},
+			{Name: gno.N("r7"), Type: gno.X("int64")},
+			{Name: gno.N("r8"), Type: gno.X("int64")},
+			{Name: gno.N("r9"), Type: gno.X("int64")},
+		},
+		true,
+		func(m *gno.Machine) {
+			r0, r1, r2, r3, r4, r5, r6, r7, r8, r9 := libs_testing.X_getContext(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r2).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r3).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r4).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r5).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r6).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r7).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r8).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r9).Elem(),
+			))
+		},
+	},
+	{
+		"testing",
 		"setContext",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("bool")},
+			{Name: gno.N("p0"), Type: gno.X("string")},
 			{Name: gno.N("p1"), Type: gno.X("string")},
 			{Name: gno.N("p2"), Type: gno.X("string")},
 			{Name: gno.N("p3"), Type: gno.X("string")},
-			{Name: gno.N("p4"), Type: gno.X("string")},
-			{Name: gno.N("p5"), Type: gno.X("[]string")},
-			{Name: gno.N("p6"), Type: gno.X("[]int64")},
-			{Name: gno.N("p7"), Type: gno.X("[]string")},
-			{Name: gno.N("p8"), Type: gno.X("[]int64")},
-			{Name: gno.N("p9"), Type: gno.X("string")},
+			{Name: gno.N("p4"), Type: gno.X("[]string")},
+			{Name: gno.N("p5"), Type: gno.X("[]int64")},
+			{Name: gno.N("p6"), Type: gno.X("[]string")},
+			{Name: gno.N("p7"), Type: gno.X("[]int64")},
+			{Name: gno.N("p8"), Type: gno.X("string")},
+			{Name: gno.N("p9"), Type: gno.X("int64")},
 			{Name: gno.N("p10"), Type: gno.X("int64")},
 			{Name: gno.N("p11"), Type: gno.X("int64")},
-			{Name: gno.N("p12"), Type: gno.X("int64")},
 		},
 		[]gno.FieldTypeExpr{},
 		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
-				p0   bool
+				p0   string
 				rp0  = reflect.ValueOf(&p0).Elem()
 				p1   string
 				rp1  = reflect.ValueOf(&p1).Elem()
@@ -849,24 +922,22 @@ var nativeFuncs = [...]NativeFunc{
 				rp2  = reflect.ValueOf(&p2).Elem()
 				p3   string
 				rp3  = reflect.ValueOf(&p3).Elem()
-				p4   string
+				p4   []string
 				rp4  = reflect.ValueOf(&p4).Elem()
-				p5   []string
+				p5   []int64
 				rp5  = reflect.ValueOf(&p5).Elem()
-				p6   []int64
+				p6   []string
 				rp6  = reflect.ValueOf(&p6).Elem()
-				p7   []string
+				p7   []int64
 				rp7  = reflect.ValueOf(&p7).Elem()
-				p8   []int64
+				p8   string
 				rp8  = reflect.ValueOf(&p8).Elem()
-				p9   string
+				p9   int64
 				rp9  = reflect.ValueOf(&p9).Elem()
 				p10  int64
 				rp10 = reflect.ValueOf(&p10).Elem()
 				p11  int64
 				rp11 = reflect.ValueOf(&p11).Elem()
-				p12  int64
-				rp12 = reflect.ValueOf(&p12).Elem()
 			)
 
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
@@ -881,11 +952,10 @@ var nativeFuncs = [...]NativeFunc{
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 9, "")).TV, rp9)
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 10, "")).TV, rp10)
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 11, "")).TV, rp11)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 12, "")).TV, rp12)
 
 			libs_testing.X_setContext(
 				m,
-				p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12)
+				p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11)
 		},
 	},
 	{

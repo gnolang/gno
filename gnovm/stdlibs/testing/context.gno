@@ -6,7 +6,6 @@ import (
 )
 
 type Context struct {
-	IsOrigin         bool
 	CurrentRealm     std.Realm
 	OriginCaller     std.Address
 	OriginPkgAddress std.Address
