@@ -19,6 +19,7 @@ func newIterator(tree rotree.IReadOnlyTree, options ...IteratorOption) Iterator 
 		it.maxIndex = it.current + it.count
 	} else {
 		it.maxIndex = it.tree.Size()
+		it.count = it.tree.Size()
 	}
 
 	return it
@@ -30,6 +31,11 @@ type Iterator struct {
 	count, current, maxIndex int
 	path                     string
 	dao                      *commondao.CommonDAO
+}
+
+// Count returns the number of DAOs to iterate.
+func (it Iterator) Count() int {
+	return it.count
 }
 
 // Next returns true when a new DAO is available.
