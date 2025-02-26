@@ -4,8 +4,6 @@ package commondao_test
 import (
 	"std"
 
-	pcommondao "gno.land/p/nt/commondao"
-
 	"gno.land/r/nt/commondao"
 )
 
