@@ -114,12 +114,19 @@ func (board *Board) Render(p *PaginationOpts) string {
 
 	sb.WriteString("# Board: " + board.GetName() + "\n")
 	sb.WriteString("> Created by _" + board.creator.String() + "_ ")
-	sb.WriteString("on " + board.createdAt.Format(dateFormat) + "\n\n")
+	sb.WriteString("on " + board.createdAt.Format(dateFormat))
+
+	if board.IsReadOnly() {
+		sb.WriteString("  \n> **Board is read-only**")
+	}
+	sb.WriteString("\n\n")
 
 	if board.threads.Size() == 0 {
-		url := board.GetPostFormURL()
 		sb.WriteString("### This board doesn't have any threads\n")
-		sb.WriteString("Do you want to [start a new conversation](" + url + ") in this board ?")
+		if !board.IsReadOnly() {
+			url := board.GetPostFormURL()
+			sb.WriteString("Do you want to [start a new conversation](" + url + ") in this board ?")
+		}
 		return sb.String()
 	}
 

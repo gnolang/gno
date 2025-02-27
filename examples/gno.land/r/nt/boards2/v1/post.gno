@@ -357,7 +357,7 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
 	if post.repostsCount > 0 {
 		sb.WriteString(", ")
 		sb.WriteString(strconv.FormatUint(post.repostsCount, 10))
-		sb.WriteString(" reposts")
+		sb.WriteString(" repost(s)")
 	}
 
 	sb.WriteString(" - ")

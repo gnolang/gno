@@ -39,15 +39,21 @@ func Render(path string) string {
 }
 
 func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
+	res.Write("# Boards\n\n")
 	renderBoardListMenu(res, req)
 
-	res.Write("These are all the boards of this realm:\n\n")
+	res.Write("### These are all the boards of this realm\n\n")
 	p := mustGetPagination(req.RawPath, boardsPageSize)
 	page := p.Iterate(&gBoardsByID, func(_ string, value interface{}) bool {
 		board := value.(*Board)
-		path := board.GetPath()
-		url := board.GetURL()
-		res.Write(" * " + newLink(path, url) + "\n")
+
+		res.Write(" * " + newLink(board.GetName(), board.GetURL()) + "  \n")
+		res.Write("_" + strconv.Itoa(board.threads.Size()) + " threads")
+		if board.IsReadOnly() {
+			res.Write(", board is read-only")
+		}
+
+		res.Write("_\n")
 		return false
 	})
 
@@ -58,25 +64,25 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderBoardListMenu(res *mux.ResponseWriter, req *mux.Request) {
-	res.Write(newButtonLink("Create Board", txlink.Call("CreateBoard")) + " - ")
+	res.Write(newLink("Create Board", txlink.Call("CreateBoard")) + " • ")
 
 	menu := getCurrentSubmenu(req.RawPath)
 	if menu == menuMembership {
 		res.Write("**Membership**")
 	} else {
-		res.Write(newButtonLink("Membership", submenuURL(menuMembership)))
+		res.Write(newLink("Membership", submenuURL(menuMembership)))
 	}
 
-	res.Write("\n\n")
+	res.Write("  \n")
 
 	if menu == menuMembership {
 		path := strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land")
 
 		res.Write("↳")
-		res.Write(newButtonLink("Invite", txlink.Call("InviteMember", "boardID", "0")) + " ")
-		res.Write(newButtonLink("Members", path+":members") + " ")
-		res.Write(newButtonLink("Remove Member", txlink.Call("RemoveMember", "boardID", "0")) + " ")
-		res.Write(newButtonLink("Change Member Role", txlink.Call("ChangeMemberRole", "boardID", "0")) + "\n\n")
+		res.Write(newLink("Invite", txlink.Call("InviteMember", "boardID", "0")) + " • ")
+		res.Write(newLink("Members", path+":members") + " • ")
+		res.Write(newLink("Remove Member", txlink.Call("RemoveMember", "boardID", "0")) + " • ")
+		res.Write(newLink("Change Member Role", txlink.Call("ChangeMemberRole", "boardID", "0")) + "\n\n")
 	}
 }
 
@@ -97,22 +103,22 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderBoardMenu(board *Board, res *mux.ResponseWriter, req *mux.Request) {
-	res.Write(newButtonLink("Start Thread", board.GetPostFormURL()) + " - ")
+	res.Write(newLink("Start Thread", board.GetPostFormURL()) + " • ")
 
 	menu := getCurrentSubmenu(req.RawPath)
 	if menu == menuMembership {
-		res.Write("**Membership** - ")
+		res.Write("**Membership** • ")
 	} else {
-		res.Write(newButtonLink("Membership", submenuURL(menuMembership)) + " - ")
+		res.Write(newLink("Membership", submenuURL(menuMembership)) + " • ")
 	}
 
 	if menu == menuAdmin {
 		res.Write("**Admin**")
 	} else {
-		res.Write(newButtonLink("Admin", submenuURL(menuAdmin)))
+		res.Write(newLink("Admin", submenuURL(menuAdmin)))
 	}
 
-	res.Write("\n\n")
+	res.Write("  \n")
 
 	if menu != "" {
 		res.Write("↳")
@@ -120,14 +126,14 @@ func renderBoardMenu(board *Board, res *mux.ResponseWriter, req *mux.Request) {
 
 	switch menu {
 	case menuAdmin:
-		res.Write(newButtonLink("Rename Board", board.GetRenameFormURL()) + " ")
-		res.Write(newButtonLink("Freeze", board.GetFreezeFormURL()) + " ")
-		res.Write(newButtonLink("Change Flagging Threshold", board.GetFlaggingThresholdFormURL()) + "\n\n")
+		res.Write(newLink("Rename Board", board.GetRenameFormURL()) + " • ")
+		res.Write(newLink("Freeze", board.GetFreezeFormURL()) + " • ")
+		res.Write(newLink("Change Flagging Threshold", board.GetFlaggingThresholdFormURL()) + "\n\n")
 	case menuMembership:
-		res.Write(newButtonLink("Invite", board.GetInviteMemberFormURL()) + " ")
-		res.Write(newButtonLink("Members", board.GetPath()+"/members") + " ")
-		res.Write(newButtonLink("Remove Member", board.GetRemoveMemberFormURL()) + " ")
-		res.Write(newButtonLink("Change Member Role", board.GetChangeMemberRoleFormURL()) + "\n\n")
+		res.Write(newLink("Invite", board.GetInviteMemberFormURL()) + " • ")
+		res.Write(newLink("Members", board.GetPath()+"/members") + " • ")
+		res.Write(newLink("Remove Member", board.GetRemoveMemberFormURL()) + " • ")
+		res.Write(newLink("Change Member Role", board.GetChangeMemberRoleFormURL()) + "\n\n")
 	}
 }
 
