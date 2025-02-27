@@ -51,9 +51,11 @@ func (oid ObjectID) MarshalAmino() (string, error) {
 
 func (oid *ObjectID) UnmarshalAmino(oids string) error {
 	parts := strings.Split(oids, ":")
+
 	if len(parts) != 2 {
 		return errors.New("invalid ObjectID %s", oids)
 	}
+
 	_, err := hex.Decode(oid.PkgID.Hashlet[:], []byte(parts[0]))
 	if err != nil {
 		return err
@@ -112,15 +114,16 @@ type Object interface {
 	SetIsDeleted(bool, uint64)
 	GetIsNewReal() bool
 	SetIsNewReal(bool)
+	GetBoundRealm() PkgID
+	SetBoundRealm(pkgID PkgID)
+	GetIsAttachingRef() bool
+	SetIsAttachingRef(bool)
+	GetPackage() *PackageValue
+	SetPackage(*PackageValue)
 	GetIsNewEscaped() bool
 	SetIsNewEscaped(bool)
 	GetIsNewDeleted() bool
 	SetIsNewDeleted(bool)
-	GetIsTransient() bool
-
-	// Saves to realm along the way if owned, and also (dirty
-	// or new).
-	// ValueImage(rlm *Realm, owned bool) *ValueImage
 }
 
 var (
@@ -143,6 +146,7 @@ type ObjectInfo struct {
 	IsEscaped bool `json:",omitempty"` // hash in iavl.
 
 	// MemRefCount int // consider for optimizations.
+
 	// Object has been modified and needs to be saved
 	isDirty bool
 
@@ -158,6 +162,23 @@ type ObjectInfo struct {
 	// Object is marked for deletion in current transaction
 	isNewDeleted bool
 
+	// If an object’s type is declared in a
+	// realm, it's considered bound to that
+	// realm, otherwise it zero
+	boundRealm PkgID
+
+	// This flag indicates whether the object is being
+	// attached as a base of reference or as itself.
+	// For example:
+	// - If the object being attached is a struct value
+	// whose type is declared in another realm, it should panic.
+	// - If the object being attached is a pointer to such
+	// a struct value, it is allowed.
+	isAttachingRef bool
+
+	// object’s package and realm info
+	pv *PackageValue
+
 	// XXX huh?
 	owner Object // mem reference to owner.
 }
@@ -166,17 +187,12 @@ type ObjectInfo struct {
 // Note that "owner" is nil.
 func (oi *ObjectInfo) Copy() ObjectInfo {
 	return ObjectInfo{
-		ID:           oi.ID,
-		Hash:         oi.Hash.Copy(),
-		OwnerID:      oi.OwnerID,
-		ModTime:      oi.ModTime,
-		RefCount:     oi.RefCount,
-		IsEscaped:    oi.IsEscaped,
-		isDirty:      oi.isDirty,
-		isDeleted:    oi.isDeleted,
-		isNewReal:    oi.isNewReal,
-		isNewEscaped: oi.isNewEscaped,
-		isNewDeleted: oi.isNewDeleted,
+		ID:        oi.ID,
+		Hash:      oi.Hash.Copy(),
+		OwnerID:   oi.OwnerID,
+		ModTime:   oi.ModTime,
+		RefCount:  oi.RefCount,
+		IsEscaped: oi.IsEscaped,
 	}
 }
 
@@ -323,6 +339,30 @@ func (oi *ObjectInfo) SetIsNewReal(x bool) {
 	oi.isNewReal = x
 }
 
+func (oi *ObjectInfo) GetBoundRealm() PkgID {
+	return oi.boundRealm
+}
+
+func (oi *ObjectInfo) SetBoundRealm(pkgId PkgID) {
+	oi.boundRealm = pkgId
+}
+
+func (oi *ObjectInfo) GetIsAttachingRef() bool {
+	return oi.isAttachingRef
+}
+
+func (oi *ObjectInfo) SetIsAttachingRef(ref bool) {
+	oi.isAttachingRef = ref
+}
+
+func (oi *ObjectInfo) GetPackage() *PackageValue {
+	return oi.pv
+}
+
+func (oi *ObjectInfo) SetPackage(pv *PackageValue) {
+	oi.pv = pv
+}
+
 func (oi *ObjectInfo) GetIsNewEscaped() bool {
 	return oi.isNewEscaped
 }
@@ -339,10 +379,7 @@ func (oi *ObjectInfo) SetIsNewDeleted(x bool) {
 	oi.isNewDeleted = x
 }
 
-func (oi *ObjectInfo) GetIsTransient() bool {
-	return false
-}
-
+// get first accessible object, maybe containing(parent) object, maybe itself.
 func (tv *TypedValue) GetFirstObject(store Store) Object {
 	switch cv := tv.V.(type) {
 	case PointerValue:
@@ -375,4 +412,66 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 	default:
 		return nil
 	}
+}
+
+func (tv *TypedValue) GetFirstObject2(store Store) Object {
+	obj := tv.GetFirstObject(store)
+
+	var path string
+	// infer original package using declared type
+	getPkgId := func(t Type) (pkgId PkgID) {
+		if dt, ok := t.(*DeclaredType); ok {
+			path = dt.GetPkgPath()
+			pkgId = PkgIDFromPkgPath(dt.GetPkgPath())
+		}
+		return
+	}
+
+	var boundRealm PkgID
+
+	switch cv := obj.(type) {
+	case *HeapItemValue:
+		boundRealm = getPkgId(cv.Value.T)
+	case *Block:
+		// assert to pointer value
+		if pv, ok := tv.V.(PointerValue); ok {
+			boundRealm = getPkgId(pv.TV.T)
+		}
+	case *BoundMethodValue:
+		// do nothing
+	case *MapValue, *StructValue, *ArrayValue:
+		// if it's a declared type, origin realm
+		// is deduced from type, otherwise zero.
+		boundRealm = getPkgId(tv.T)
+	default:
+		// do nothing
+	}
+
+	// set bound realm to object
+	if obj != nil {
+		// if the object is unreal but already owned,
+		// it means the object is bound to this realm
+		// and must be attached to it.
+		if !obj.GetIsReal() && obj.GetIsOwned() {
+			boundRealm = obj.GetOwnerID().PkgID
+		}
+
+		if !boundRealm.IsZero() {
+			obj.SetBoundRealm(boundRealm)
+		}
+
+		switch tv.V.(type) {
+		case *SliceValue, PointerValue:
+			obj.SetIsAttachingRef(true)
+		}
+
+		// attach package value to object
+		if path != "" {
+			pkg := store.GetPackage(path, false)
+			if pkg != nil {
+				obj.SetPackage(pkg)
+			}
+		}
+	}
+	return obj
 }

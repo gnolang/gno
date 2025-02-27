@@ -17,11 +17,11 @@ var f *fooer
 
 func main() {
 	f = &fooer{}
-	c := &container{f}
+	c := &container{f} // heapItemValue not real, so trying attach by value
 	crossrealm.SetFooer(c)
 	crossrealm.CallFooerFoo()
 	print(".")
 }
 
 // Error:
-// new escaped mark has no object ID
+// cannot attach a reference to an unattached object from an external realm
