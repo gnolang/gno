@@ -7,11 +7,9 @@ package fmt_test
 import (
 	"bytes"
 	. "fmt"
-	"internal/race"
 	"io"
 	"math"
 	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -112,8 +110,10 @@ func (p *P) String() string {
 	return "String(p)"
 }
 
-var barray = [5]renamedUint8{1, 2, 3, 4, 5}
-var bslice = barray[:]
+var (
+	barray = [5]renamedUint8{1, 2, 3, 4, 5}
+	bslice = barray[:]
+)
 
 type byteStringer byte
 
@@ -1140,8 +1140,8 @@ func TestSprintf(t *testing.T) {
 // TestComplexFormatting checks that a complex always formats to the same
 // thing as if done by hand with two singleton prints.
 func TestComplexFormatting(t *testing.T) {
-	var yesNo = []bool{true, false}
-	var values = []float64{1, 0, -1, posInf, negInf, NaN}
+	yesNo := []bool{true, false}
+	values := []float64{1, 0, -1, posInf, negInf, NaN}
 	for _, plus := range yesNo {
 		for _, zero := range yesNo {
 			for _, space := range yesNo {
@@ -1420,8 +1420,10 @@ func BenchmarkFprintIntNoAlloc(b *testing.B) {
 	}
 }
 
-var mallocBuf bytes.Buffer
-var mallocPointer *int // A pointer so we know the interface value won't allocate.
+var (
+	mallocBuf     bytes.Buffer
+	mallocPointer *int // A pointer so we know the interface value won't allocate.
+)
 
 var mallocTest = []struct {
 	count int
@@ -1453,10 +1455,6 @@ func TestCountMallocs(t *testing.T) {
 	switch {
 	case testing.Short():
 		t.Skip("skipping malloc count in short mode")
-	case runtime.GOMAXPROCS(0) > 1:
-		t.Skip("skipping; GOMAXPROCS>1")
-	case race.Enabled:
-		t.Skip("skipping malloc count under race detector")
 	}
 	for _, mt := range mallocTest {
 		mallocs := testing.AllocsPerRun(100, mt.fn)
@@ -1524,7 +1522,7 @@ func TestStructPrinter(t *testing.T) {
 	s.a = "abc"
 	s.b = "def"
 	s.c = 123
-	var tests = []struct {
+	tests := []struct {
 		fmt string
 		out string
 	}{
