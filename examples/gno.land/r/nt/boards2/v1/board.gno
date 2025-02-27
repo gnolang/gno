@@ -119,7 +119,7 @@ func (board *Board) Render(p *PaginationOpts) string {
 	if board.threads.Size() == 0 {
 		url := board.GetPostFormURL()
 		sb.WriteString("### This board doesn't have any threads\n")
-		sb.WriteString("Do you want to [create a new thread](" + url + ") in this board ?")
+		sb.WriteString("Do you want to [start a new conversation](" + url + ") in this board ?")
 		return sb.String()
 	}
 
