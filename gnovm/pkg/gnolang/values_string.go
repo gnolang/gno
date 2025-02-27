@@ -22,11 +22,18 @@ const (
 
 type seenValues struct {
 	values []Value
-	nc     int // nested counter, to limit recursivity
+	idMap  map[Value]int // Maps values to stable IDs
+	nextID int           // Next ID to assign
+	nc     int           // nested counter, to limit recursivity
 }
 
 func (sv *seenValues) Put(v Value) {
 	sv.values = append(sv.values, v)
+	// Assign an ID if not already assigned
+	if _, exists := sv.idMap[v]; !exists {
+		sv.idMap[v] = sv.nextID
+		sv.nextID++
+	}
 }
 
 func (sv *seenValues) Contains(v Value) bool {
@@ -37,6 +44,17 @@ func (sv *seenValues) Contains(v Value) bool {
 	}
 
 	return false
+}
+
+// GetID returns a stable, deterministic ID for a value
+func (sv *seenValues) GetID(v Value) int {
+	id, exists := sv.idMap[v]
+	if !exists {
+		id = sv.nextID
+		sv.idMap[v] = id
+		sv.nextID++
+	}
+	return id
 }
 
 // Pop should be called by using a defer after each Put.
@@ -77,7 +95,7 @@ func (av *ArrayValue) String() string {
 
 func (av *ArrayValue) ProtectedString(seen *seenValues) string {
 	if seen.Contains(av) {
-		return fmt.Sprintf("%p", av)
+		return fmt.Sprintf("ref@%d", seen.GetID(av))
 	}
 
 	seen.nc--
@@ -113,7 +131,7 @@ func (sv *SliceValue) ProtectedString(seen *seenValues) string {
 	}
 
 	if seen.Contains(sv) {
-		return fmt.Sprintf("%p", sv)
+		return fmt.Sprintf("ref@%d", seen.GetID(sv))
 	}
 
 	if ref, ok := sv.Base.(RefValue); ok {
@@ -143,7 +161,7 @@ func (pv PointerValue) String() string {
 
 func (pv PointerValue) ProtectedString(seen *seenValues) string {
 	if seen.Contains(pv) {
-		return fmt.Sprintf("%p", &pv)
+		return fmt.Sprintf("ref@%d", seen.GetID(&pv))
 	}
 
 	seen.Put(pv)
@@ -163,7 +181,7 @@ func (sv *StructValue) String() string {
 
 func (sv *StructValue) ProtectedString(seen *seenValues) string {
 	if seen.Contains(sv) {
-		return fmt.Sprintf("%p", sv)
+		return fmt.Sprintf("ref@%d", seen.GetID(sv))
 	}
 
 	seen.Put(sv)
@@ -216,7 +234,7 @@ func (mv *MapValue) ProtectedString(seen *seenValues) string {
 	}
 
 	if seen.Contains(mv) {
-		return fmt.Sprintf("%p", mv)
+		return fmt.Sprintf("ref@%d", seen.GetID(mv))
 	}
 
 	seen.Put(mv)
@@ -303,7 +321,8 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 
 func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType bool) string {
 	if seen.Contains(tv.V) {
-		return fmt.Sprintf("%p", tv)
+		//use deterministic identifier for pointers
+		return fmt.Sprintf("ref@%d", seen.GetID(tv.V))
 	}
 
 	// print declared type
