@@ -129,7 +129,7 @@ func (board *Board) Render(p *PaginationOpts) string {
 			return false
 		}
 
-		sb.WriteString("----------------------------------------\n")
+		sb.WriteString("---\n")
 		sb.WriteString(p.RenderSummary())
 		sb.WriteString("\n")
 		return false

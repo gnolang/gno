@@ -283,25 +283,19 @@ func (post *Post) GetFlagFormURL() string {
 
 func (post *Post) RenderSummary() string {
 	var (
-		s       string
+		b       strings.Builder
 		postURL = post.GetURL()
 	)
 
 	if post.title != "" {
-		s += "## " + newLink(summaryOf(post.title, 80), postURL) + "\n\n"
+		b.WriteString("## " + newLink(summaryOf(post.title, 80), postURL) + "\n\n")
 	}
 
-	s += post.GetSummary() + "\n"
-
-	repostBody, _ := post.renderSourcePost("")
-	s += repostBody
-
-	s += "\\- " + newUserLink(post.creator) + ","
-	s += " " + newLink(post.createdAt.Format(dateFormat), postURL)
-	s += " " + newButtonLink("x", post.GetDeleteFormURL())
-	s += " (" + strconv.Itoa(post.replies.Size()) + " replies)"
-	s += " (" + strconv.Itoa(post.reposts.Size()) + " reposts)" + "\n"
-	return s
+	b.WriteString("Created by " + newUserLink(post.creator) + " on " + post.createdAt.Format(dateFormat))
+	b.WriteString(" - " + newHelpButtonLink("x", post.GetDeleteFormURL(), "delete thread") + "  \n")
+	b.WriteString(strconv.Itoa(post.replies.Size()) + " replies • ")
+	b.WriteString(strconv.Itoa(post.reposts.Size()) + " reposts" + "\n")
+	return b.String()
 }
 
 func (post *Post) renderSourcePost(indent string) (string, *Post) {

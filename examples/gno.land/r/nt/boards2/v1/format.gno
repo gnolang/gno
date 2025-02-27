@@ -60,6 +60,11 @@ func newButtonLink(label, uri string) string {
 	return `[\[` + label + `\]](` + uri + ")"
 }
 
+// newHelpButtonLink returns a Makdown link with label wrapped in brackets that have a help text.
+func newHelpButtonLink(label, uri, help string) string {
+	return `[\[` + label + `\]](` + uri + " '" + help + "')"
+}
+
 // newUserLink returns a Markdown link for an account to the users realm.
 func newUserLink(addr std.Address) string {
 	user := users.GetUserByAddress(addr)
