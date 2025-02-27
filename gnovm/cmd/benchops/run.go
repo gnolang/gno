@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"path/filepath"
 	"strings"
@@ -18,7 +17,6 @@ const (
 )
 
 func benchmarkOpCodes(bstore gno.Store, dir string) {
-	fmt.Println("Benchmarking opcodes, dir: ", dir)
 	opcodesPkgDir := filepath.Join(dir, "opcodes")
 
 	pv := addPackage(bstore, opcodesPkgDir, opcodesPkgPath)
@@ -28,7 +26,6 @@ func benchmarkOpCodes(bstore gno.Store, dir string) {
 }
 
 func callOpsBench(bstore gno.Store, pv *gno.PackageValue) {
-	fmt.Println("callOpsBench...")
 	// start
 	pb := pv.GetBlock(bstore)
 	for _, tv := range pb.Values {
@@ -45,8 +42,6 @@ const (
 )
 
 func benchmarkGC(bstore gno.Store, dir string) {
-	fmt.Println("Benchmarking GC, dir: ", dir)
-	fmt.Println("alloc: ", bstore.GetAllocator(), bstore.GetAllocator() == nil)
 	opcodesPkgDir := filepath.Join(dir, "gc")
 
 	pv := addPackage(bstore, opcodesPkgDir, gcPkgPath)

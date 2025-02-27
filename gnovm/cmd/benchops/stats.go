@@ -29,7 +29,6 @@ type codeRecord struct {
 
 // It reads binary record, calcuate and output the statistics of operations
 func stats(binFile string) {
-	fmt.Printf("stats binFile: %s\n", binFile)
 	in, err := os.Open(binFile)
 	if err != nil {
 		panic("could not create benchmark file: " + err.Error())

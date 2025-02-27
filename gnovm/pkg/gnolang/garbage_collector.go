@@ -26,13 +26,8 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	}
 
 	debug2.Println2("=====GarbageCollect")
-	// XXX, This is a rough implementation that
-	// estimates consumption based on the number
-	// of allocation counts. A benchmark should
-	// be introduced for precise measurement, but
-	// that will be addressed in the future.
 	defer func() {
-		gasCPU := overflow.Mul64p(m.Alloc.allocCount, GasFactorCPU)
+		gasCPU := overflow.Mul64p(m.Alloc.visitCount, GasFactorCPU)
 		debug2.Println2("gasCPU:", gasCPU)
 		if m.GasMeter != nil { //  no gas meter for test
 			m.GasMeter.ConsumeGas(gasCPU, "GC")
@@ -114,7 +109,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 		// Add object size to alloc.
 		size := o.GetShallowSize()
 		fmt.Println("shallow size: ", size)
-		alloc.allocCount++ // count for gas calculation
+		alloc.visitCount++ // count for gas calculation
 		alloc.Allocate(size)
 		// Stop if alloc max exceeded.
 		maxBytes, curBytes := alloc.Status()

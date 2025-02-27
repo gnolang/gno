@@ -11,7 +11,7 @@ type Allocator struct {
 	m          *Machine
 	maxBytes   int64
 	bytes      int64
-	allocCount int64 // times allocation is triggered for garbage collection
+	visitCount int64 // times objects are visited for gc
 }
 
 // for gonative, which doesn't consider the allocator.

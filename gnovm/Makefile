@@ -72,6 +72,9 @@ build.bench.opcode:
 build.bench.storage:
 	go build -tags "benchmarkingstorage" -o build/gnobench ./cmd/benchops
 
+build.bench.gc:
+	go build -tags "benchmarkingGC" -o build/gnobench ./cmd/benchops
+
 # Extract the latest commit hash
 COMMIT_HASH := $(shell git rev-parse --short=7 HEAD)
 
@@ -82,6 +85,10 @@ run.bench.opcode: build.bench.opcode
 # Run target
 run.bench.storage: build.bench.storage
 	./build/gnobench -out store_results_$(COMMIT_HASH).csv
+
+# Run target
+run.bench.gc: build.bench.gc
+	./build/gnobench -out gc_results_$(COMMIT_HASH).csv
 
 
 ########################################

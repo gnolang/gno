@@ -1,7 +1,6 @@
 package benchops
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -9,7 +8,7 @@ const (
 	invalidCode = byte(0x00)
 )
 
-var measure *bench
+var measure bench
 
 type bench struct {
 	opCounts        [256]int64
@@ -34,17 +33,13 @@ type bench struct {
 }
 
 func InitMeasure() {
-	if measure != nil {
-		return
-	} else {
-		measure = &bench{
-			// this will be called to reset each benchmarking
-			isOpCodeStarted: false,
-			isGCCodeStarted: false,
-			curOpCode:       invalidCode,
-			curStoreCode:    invalidCode,
-			curGCCode:       invalidCode,
-		}
+	measure = bench{
+		// this will be called to reset each benchmarking
+		isOpCodeStarted: false,
+		isGCCodeStarted: false,
+		curOpCode:       invalidCode,
+		curStoreCode:    invalidCode,
+		curGCCode:       invalidCode,
 	}
 }
 
@@ -130,7 +125,6 @@ func StopStore(size int) {
 }
 
 func StartGCCode(code byte) {
-	fmt.Println("======StartGCCode, code: ", code)
 	if code == invalidCode {
 		panic("the GCCode is invalid")
 	}
@@ -140,10 +134,42 @@ func StartGCCode(code byte) {
 
 	measure.gcStartTime[code] = time.Now()
 	measure.gcCounts[code]++
-	fmt.Println("gcCounts[code]: ", measure.gcCounts[code])
 
 	measure.isGCCodeStarted = true
 	measure.curGCCode = code
+}
+
+// Pause current gc measurement
+func PauseGCCode() {
+	if measure.isGCCodeStarted == false {
+		return
+	}
+	if measure.curGCCode == invalidCode {
+		panic("Can not Pause timer of an invalid GCCode")
+	}
+	code := measure.curGCCode
+	if measure.gcStartTime[code] == measure.timeZero {
+		panic("Should not pause a stopped timer")
+	}
+	measure.gcAccumDur[code] += time.Since(measure.gcStartTime[code])
+	measure.gcStartTime[code] = measure.timeZero
+}
+
+// Resume resumes current gc measurement
+func ResumeGCCode() {
+	if measure.isGCCodeStarted == false {
+		return
+	}
+	if measure.curGCCode == invalidCode {
+		panic("Can not resume timer of an invalid GCCode")
+	}
+
+	code := measure.curGCCode
+
+	if measure.gcStartTime[code] != measure.timeZero {
+		panic("Should not resume a running timer")
+	}
+	measure.gcStartTime[code] = time.Now()
 }
 
 // Stop the current measurement

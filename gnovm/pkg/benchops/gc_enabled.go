@@ -1,4 +1,4 @@
-//go:build benchmarkingops
+//go:build benchmarkingGC
 
 package benchops
 
