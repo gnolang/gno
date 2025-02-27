@@ -321,7 +321,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 
 func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType bool) string {
 	if seen.Contains(tv.V) {
-		//use deterministic identifier for pointers
+		// use deterministic identifier for pointers
 		return fmt.Sprintf("ref@%d", seen.GetID(tv.V))
 	}
 
