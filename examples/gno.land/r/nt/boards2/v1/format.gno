@@ -67,9 +67,8 @@ func newHelpButtonLink(label, uri, help string) string {
 
 // newUserLink returns a Markdown link for an account to the users realm.
 func newUserLink(addr std.Address) string {
-	user := users.GetUserByAddress(addr)
-	if user == nil {
-		return newLink(addr.String(), "/r/demo/users:"+addr.String())
+	if user := users.GetUserByAddress(addr); user != nil {
+		return newLink("@"+user.Name, "/r/demo/users:"+user.Name)
 	}
-	return newLink("@"+user.Name, "/r/demo/users:"+user.Name)
+	return addr.String()
 }
