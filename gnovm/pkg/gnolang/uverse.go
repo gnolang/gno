@@ -144,6 +144,22 @@ func makeUverseNode() {
 	def("uint16", asValue(Uint16Type))
 	def("uint32", asValue(Uint32Type))
 	def("uint64", asValue(Uint64Type))
+	def("any", asValue(&InterfaceType{PkgPath: uversePkgPath}))
+	// NOTE on 'typeval': We can't call the type of a TypeValue a
+	// "type", even though we want to, because it conflicts with
+	// the pre-existing syntax for type-switching, `switch
+	// x.(type) {case SomeType:...}`, for if x.(type) were not a
+	// type-switch but a type-assertion, and the resulting value
+	// could be any type, such as an IntType; whereas as the .X of
+	// a SwitchStmt, the type of an IntType value is not IntType
+	// but always a TypeType (all types are of type TypeType).
+	//
+	// The ideal solution is to keep the syntax consistent for
+	// type-assertions, but for backwards compatibility, the
+	// keyword that represents the TypeType type is not "type" but
+	// "typeval".  The value of a "typeval" value is represented
+	// by a TypeValue.
+	def("typeval", asValue(gTypeType))
 	def("error", asValue(gErrorType))
 	def("any", asValue(&InterfaceType{}))
 
