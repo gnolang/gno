@@ -58,11 +58,10 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	}
 
 	// Visit frames
-	for i, frame := range m.Frames {
+	for _, frame := range m.Frames {
 		// XXX implement for frames.
 		// XXX Frame is not an object,
 		// so implement a custom method and pass in vis.
-		debug2.Printf2("===visit Frame[%d] is: %v \n", i, frame)
 		if bm.GCEnabled {
 			bm.StartGCCode(bm.VisitObject)
 		}
@@ -81,16 +80,14 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		return -1, false
 	}
 
-	debug2.Println2("m.Exceptions: ", m.Exceptions)
 	// Visit exceptions
-	for i, exception := range m.Exceptions {
+	for _, exception := range m.Exceptions {
 		if bm.GCEnabled {
 			bm.StartGCCode(bm.VisitObject)
 		}
 		// XXX implement for exceptions.
 		// XXX Exception is not an object,
 		// so implement a custom method and pass in vis.
-		debug2.Printf2("Exception[%d] is: %v \n", i, exception)
 		stop = exception.Visit(vis, m.Store)
 		if stop {
 			return -1, false
@@ -105,10 +102,18 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 // Returns a visitor that bumps the GcCycle counter
 // and stops if alloc is out of memory.
 func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
-	var vis func(Object) bool // Declare `vis` first
+	var vis func(Object) bool
 	vis = func(o Object) bool {
+		if o == nil || o == (*Block)(nil) {
+			if bm.GCEnabled {
+				bm.StopGCCode()
+			}
+			return false
+		}
+
 		debug2.Printf2("===visit o: %v (type: %v) \n", o, reflect.TypeOf(o))
 		debug2.Printf2("o.GetLastGCCycle: %d, GcCycle: %d\n", o.GetLastGCCycle(), gcCycle)
+
 		// Return if already measured.
 		if o.GetLastGCCycle() == gcCycle {
 			if bm.GCEnabled {
@@ -119,9 +124,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 
 		// Add object size to alloc.
 		size := o.GetShallowSize()
-		debug2.Println2("shallow size: ", size)
 		alloc.visitCount++ // count for gas calculation
-		debug2.Println2("visitCount: ", alloc.visitCount)
 
 		alloc.Allocate(size)
 		// Stop if alloc max exceeded.
@@ -147,22 +150,17 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 	return vis
 }
 
+// ---------------------------------------------------------------
+// visit associated
+
 func (av *ArrayValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
-	debug2.Println2("VisitAssociated, av: ", av)
 	// Visit each value.
 	for i := 0; i < len(av.List); i++ {
 		if bm.GCEnabled {
 			bm.StartGCCode(bm.VisitObject)
 		}
-
 		v := av.List[i].V
 		oo := unwrapObject(v, store)
-		if oo == nil {
-			if bm.GCEnabled {
-				bm.StopGCCode()
-			}
-			continue
-		}
 		stop = vis(oo)
 		if stop {
 			return
@@ -172,7 +170,6 @@ func (av *ArrayValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 }
 
 func (sv *StructValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
-	debug2.Println2("VisitAssociated, sv: ", sv)
 	// Visit each value.
 	for i := 0; i < len(sv.Fields); i++ {
 		if bm.GCEnabled {
@@ -180,12 +177,6 @@ func (sv *StructValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 		}
 		v := sv.Fields[i].V
 		oo := unwrapObject(v, store)
-		if oo == nil {
-			if bm.GCEnabled {
-				bm.StopGCCode()
-			}
-			continue
-		}
 		stop = vis(oo)
 		if stop {
 			return
@@ -195,7 +186,6 @@ func (sv *StructValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 }
 
 func (bmv *BoundMethodValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
-	debug2.Println2("VisitAssociated, bmv: ", bmv)
 	if bm.GCEnabled {
 		bm.StartGCCode(bm.VisitObject)
 	}
@@ -204,21 +194,11 @@ func (bmv *BoundMethodValue) VisitAssociated(vis Visitor, store Store) (stop boo
 
 	// Visit receiver.
 	oo := unwrapObject(bmv.Receiver.V, store)
-	if oo == nil {
-		if bm.GCEnabled {
-			bm.StopGCCode()
-		}
-		return
-	}
 	stop = vis(oo)
-	if stop {
-		return
-	}
 	return
 }
 
 func (mv *MapValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
-	debug2.Println2("VisitAssociated, mv: ", mv)
 	// Visit values.
 	// XXX visit mv.List.
 	// XXX do NOT visit mv.vmap.
@@ -228,12 +208,6 @@ func (mv *MapValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 		}
 		// vis key
 		oo := unwrapObject(cur.Key.V, store)
-		if oo == nil {
-			if bm.GCEnabled {
-				bm.StopGCCode()
-			}
-			continue
-		}
 		stop = vis(oo)
 		if stop {
 			return
@@ -244,12 +218,6 @@ func (mv *MapValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 		}
 		// vis value
 		oo = unwrapObject(cur.Value.V, store)
-		if oo == nil {
-			if bm.GCEnabled {
-				bm.StopGCCode()
-			}
-			continue
-		}
 		stop = vis(oo)
 		if stop {
 			return
@@ -260,7 +228,6 @@ func (mv *MapValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 }
 
 func (pv *PackageValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
-	debug2.Println2("VisitAssociated, pv: ", pv)
 	// XXX visit pv.Block
 	// XXX visit pv.FBlocks
 	// XXX do NOT visit Realm.
@@ -269,29 +236,16 @@ func (pv *PackageValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 		bm.StartGCCode(bm.VisitObject)
 	}
 	oo := unwrapObject(pv.Block, store)
-	if oo == nil {
-		if bm.GCEnabled {
-			bm.StopGCCode()
-		}
-		return
-	}
 	stop = vis(oo)
 	if stop {
 		return
 	}
 
 	for _, fb := range pv.FBlocks {
-		debug2.Printf2("fb: %v \n", fb)
 		if bm.GCEnabled {
 			bm.StartGCCode(bm.VisitObject)
 		}
 		oo := unwrapObject(fb, store)
-		if oo == nil {
-			if bm.GCEnabled {
-				bm.StopGCCode()
-			}
-			continue
-		}
 		stop = vis(oo)
 		if stop {
 			return
@@ -301,7 +255,6 @@ func (pv *PackageValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 }
 
 func (b *Block) VisitAssociated(vis Visitor, store Store) (stop bool) {
-	debug2.Println2("VisitAssociated, block: ", b)
 	// Visit each value.
 	for i := 0; i < len(b.Values); i++ {
 		if bm.GCEnabled {
@@ -309,12 +262,6 @@ func (b *Block) VisitAssociated(vis Visitor, store Store) (stop bool) {
 		}
 		v := b.Values[i].V
 		oo := unwrapObject(v, store)
-		if oo == nil {
-			if bm.GCEnabled {
-				bm.StopGCCode()
-			}
-			continue
-		}
 		stop = vis(oo)
 		if stop {
 			return
@@ -322,41 +269,22 @@ func (b *Block) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	}
 	// Visit parent.
 	if b.Parent != nil {
-		debug2.Println2("visit parent block: ", b.Parent)
 		if bm.GCEnabled {
 			bm.StartGCCode(bm.VisitObject)
 		}
 		oo := unwrapObject(b.Parent, store)
-		if oo == (*Block)(nil) {
-			if bm.GCEnabled {
-				bm.StopGCCode()
-			}
-			return
-		}
 		stop = vis(oo)
-		if stop {
-			return
-		}
+		return
 	}
 	return
 }
 
 func (hiv *HeapItemValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
-	debug2.Println2("VisitAssociated, hiv: ", hiv)
 	if bm.GCEnabled {
 		bm.StartGCCode(bm.VisitObject)
 	}
 	oo := unwrapObject(hiv.Value.V, store)
-	if oo == nil {
-		if bm.GCEnabled {
-			bm.StopGCCode()
-		}
-		return
-	}
 	stop = vis(oo)
-	if stop {
-		return
-	}
 	return
 }
 
@@ -367,52 +295,30 @@ func (fv *FuncValue) Visit(vis Visitor, store Store) (stop bool) {
 			bm.StartGCCode(bm.VisitObject)
 		}
 		oo := unwrapObject(tv.V, store)
-		debug2.Println2("vis capture, oo: ", oo)
-		if oo == nil {
-			if bm.GCEnabled {
-				bm.StopGCCode()
-			}
-			continue
-		} else {
-			stop = vis(oo)
-			if stop {
-				return
-			}
-		}
-	}
-	// visit FuncValue's closure
-	oo := unwrapObject(fv.Closure, store)
-	debug2.Println2("vis Closure, oo: ", oo, reflect.TypeOf(oo))
-
-	if oo == (*Block)(nil) {
-		if bm.GCEnabled {
-			bm.StopGCCode()
-			return
-		}
-	} else {
 		stop = vis(oo)
 		if stop {
 			return
 		}
 	}
-	return false
+
+	// visit FuncValue's closure
+	if bm.GCEnabled {
+		bm.StartGCCode(bm.VisitObject)
+	}
+	oo := unwrapObject(fv.Closure, store)
+
+	stop = vis(oo)
+	return
 }
 
 func (fr *Frame) Visit(vis Visitor, store Store) (stop bool) {
 	// vis receiver
 	oo := unwrapObject(fr.Receiver.V, store)
-	debug2.Println2("vis receiver oo: ", oo)
-	if oo == nil {
-		if bm.GCEnabled {
-			bm.StopGCCode()
-		}
+	stop = vis(oo)
+	if stop {
 		return
-	} else {
-		stop = vis(oo)
-		if stop {
-			return
-		}
 	}
+
 	// vis FuncValue
 	if fv := fr.Func; fv != nil {
 		stop = fv.Visit(vis, store)
@@ -420,9 +326,9 @@ func (fr *Frame) Visit(vis Visitor, store Store) (stop bool) {
 			return
 		}
 	}
+
 	// vis defer
 	for _, dfr := range fr.Defers {
-		debug2.Println2("vis defer: ", dfr)
 		// visit dfr.Func
 		stop = dfr.Func.Visit(vis, store)
 		if stop {
@@ -430,52 +336,36 @@ func (fr *Frame) Visit(vis Visitor, store Store) (stop bool) {
 		}
 
 		for _, arg := range dfr.Args {
-			debug2.Println2("vis arg: ", arg)
 			if bm.GCEnabled {
 				bm.StartGCCode(bm.VisitObject)
 			}
 			oo = unwrapObject(arg.V, store)
-			if oo == nil {
-				if bm.GCEnabled {
-					bm.StopGCCode()
-				}
+			stop = vis(oo)
+			if stop {
 				return
-			} else {
-				stop = vis(oo)
-				if stop {
-					return
-				}
 			}
 		}
-	}
-	return false
-}
-
-func (ex *Exception) Visit(vis Visitor, store Store) (stop bool) {
-	debug2.Println2("vis exception: ", ex)
-	// vis value
-	oo := unwrapObject(ex.Value.V, store)
-	if oo == nil {
-		if bm.GCEnabled {
-			bm.StopGCCode()
-		}
-		return
-	} else {
-		stop = vis(oo)
-		if stop {
-			return
-		}
-	}
-	// Max, this should be unnecessary
-	stop = ex.Frame.Visit(vis, store)
-	if stop {
-		return
 	}
 	return
 }
 
+func (ex *Exception) Visit(vis Visitor, store Store) (stop bool) {
+	// vis value
+	oo := unwrapObject(ex.Value.V, store)
+	stop = vis(oo)
+	if stop {
+		return
+	}
+
+	// Max, this should be unnecessary
+	if bm.GCEnabled {
+		bm.StartGCCode(bm.VisitObject)
+	}
+	stop = ex.Frame.Visit(vis, store)
+	return
+}
+
 func unwrapObject(v Value, store Store) Object {
-	//debug2.Println2("unwrapReference, v: ", v, reflect.TypeOf(v))
 	switch v := v.(type) {
 	case *SliceValue:
 		return v.GetBase(store)
