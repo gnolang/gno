@@ -224,7 +224,7 @@ func renderNFTMarket(path string) string {
 		}
 
 		if ticket.Status == "open" && !time.Now().After(ticket.ExpiresAt) {
-			details = append(details, "[Buy NFT]("+txlink.Call("FulfillTicket", "ticketID", ticket.ID)+")"+" | "+"[Cancel Ticket]("+txlink.Call("CancelTicket", "ticketID", ticket.ID)+")")
+			details = append(details, "[Buy NFT]("+txlink.Call("BuyNFT", "ticketID", ticket.ID)+")"+" | "+"[Cancel Ticket]("+txlink.Call("CancelTicket", "ticketID", ticket.ID)+")")
 		}
 
 		str += md.BulletList(details)
