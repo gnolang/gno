@@ -1,7 +1,7 @@
 // PKGPATH: gno.land/r/demo/groups_test
 package groups_test
 
-// SEND: 200000000ugnot
+// SEND: 1000000ugnot
 
 import (
 	"std"

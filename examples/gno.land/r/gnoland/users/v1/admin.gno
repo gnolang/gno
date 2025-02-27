@@ -62,3 +62,17 @@ func ProposeDeleteUser(addr std.Address) dao.Executor {
 
 	return bridge.GovDAO().NewGovDAOExecutor(cb)
 }
+
+// ProposeNewRegisterPrice allows GovDAO to update the price of registration
+func ProposeNewRegisterPrice(newPrice int64) dao.Executor {
+	if newPrice < 0 {
+		panic("invalid price")
+	}
+
+	cb := func() error {
+		registerPrice = newPrice
+		return nil
+	}
+
+	return bridge.GovDAO().NewGovDAOExecutor(cb)
+}

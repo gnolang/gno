@@ -1,8 +1,13 @@
 package users
 
-import "errors"
+import (
+	"errors"
+
+	"gno.land/p/demo/ufmt"
+)
 
 var (
-	ErrInvalidUsername = errors.New("r/gnoland/users: invalid username")
 	ErrPaused          = errors.New("r/gnoland/users: paused")
+	ErrInvalidPayment  = ufmt.Errorf("r/gnoland/users: you need to send exactly %s ugnot", registerPrice)
+	ErrInvalidUsername = errors.New("r/gnoland/users: invalid username")
 )

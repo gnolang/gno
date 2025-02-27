@@ -19,6 +19,7 @@ var (
 )
 
 func TestRegister_Valid(t *testing.T) {
+	std.TestSetOriginSend(std.NewCoins(std.NewCoin("ugnot", 1_000_000)), nil)
 	std.TestSetRealm(std.NewUserRealm(aliceAddr))
 	std.TestSetOriginCaller(aliceAddr)
 
@@ -33,6 +34,7 @@ func TestRegister_Valid(t *testing.T) {
 }
 
 func TestRegister_Invalid(t *testing.T) {
+	std.TestSetOriginSend(std.NewCoins(std.NewCoin("ugnot", 1_000_000)), nil)
 	std.TestSetRealm(std.NewUserRealm(bobAddr))
 	std.TestSetOriginCaller(bobAddr)
 
@@ -49,4 +51,12 @@ func TestRegister_Invalid(t *testing.T) {
 	// Name taken
 	urequire.NoError(t, Register(bob))
 	uassert.Error(t, Register(bob), susers.ErrNameTaken.Error())
+}
+
+func TestRegister_InvalidPayment(t *testing.T) {
+	std.TestSetRealm(std.NewUserRealm(bobAddr))
+	std.TestSetOriginCaller(bobAddr)
+
+	std.TestSetOriginSend(std.NewCoins(std.NewCoin("ugnot", 12)), nil) // invalid payment amount
+	uassert.Error(t, Register("alice"), ErrInvalidPayment.Error())     // vanity
 }

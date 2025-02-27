@@ -13,8 +13,9 @@ const (
 )
 
 var (
-	latestUsers = fifo.New(10) // Save the latest 10 users for rendering purposes
-	reUsername  = regexp.MustCompile(reValidUsername)
+	registerPrice = int64(1_000_000) // 1 GNOT
+	latestUsers   = fifo.New(10)     // Save the latest 10 users for rendering purposes
+	reUsername    = regexp.MustCompile(reValidUsername)
 )
 
 // Register registers a new username for the caller
@@ -27,6 +28,10 @@ func Register(username string) error {
 
 	if paused {
 		return ErrPaused
+	}
+
+	if std.OriginSend().AmountOf("ugnot") != registerPrice {
+		return ErrInvalidPayment
 	}
 
 	if matched := reUsername.MatchString(username); !matched {
