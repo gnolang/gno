@@ -2,11 +2,14 @@ package gnolang
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"go/ast"
 	"go/format"
 	"go/parser"
 	"go/token"
 	"go/types"
+	"math"
 	"path"
 	"slices"
 	"strings"
@@ -106,7 +109,12 @@ func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Pac
 	return result, err
 }
 
-func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*types.Package, error) {
+const MAX_FILESIZE_PERCENT_GROWTH_AFTER_FMT = 10.0 // Arbitrary value to tolerate newline removals et al.
+const failOnBloatedUnformattedFiles = true
+
+var ErrFilesizeBloatAfterFmt = errors.New("your file's size increased after formatting beyond the tolerable value")
+
+func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, shouldFmt bool) (*types.Package, error) {
 	// This map is used to allow for function re-definitions, which are allowed
 	// in Gno (testing context) but not in Go.
 	// This map links each function identifier with a closure to remove its
@@ -141,12 +149,25 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*t
 		}
 
 		// enforce formatting
-		if fmt {
+		if shouldFmt {
 			var buf bytes.Buffer
 			err = format.Node(&buf, fset, f)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 				continue
+			}
+
+			if failOnBloatedUnformattedFiles {
+				// TODO: Perhaps write a parser that on detecting even the simplest
+				// formatting change will fail immediately, instead of actually
+				// invoking format.Node all the way.
+				percentDiff := math.Abs(float64(len(file.Body)-buf.Len())/float64(len(file.Body))) * 100
+				if percentDiff >= MAX_FILESIZE_PERCENT_GROWTH_AFTER_FMT {
+					errs = multierr.Append(errs,
+						fmt.Errorf("%w: grew by %.2f%% yet max tolerable percentage growth is %.2f, please run go-fmt on it firstly",
+							ErrFilesizeBloatAfterFmt, percentDiff, MAX_FILESIZE_PERCENT_GROWTH_AFTER_FMT))
+					continue
+				}
 			}
 			file.Body = buf.String()
 		}
