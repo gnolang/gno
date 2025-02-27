@@ -58,13 +58,13 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderBoardListMenu(res *mux.ResponseWriter, req *mux.Request) {
-	res.Write(newButtonLink("create board", txlink.Call("CreateBoard")) + " - ")
+	res.Write(newButtonLink("Create Board", txlink.Call("CreateBoard")) + " - ")
 
 	menu := getCurrentSubmenu(req.RawPath)
 	if menu == menuMembership {
-		res.Write("**membership**")
+		res.Write("**Membership**")
 	} else {
-		res.Write(newButtonLink("membership", submenuURL(menuMembership)))
+		res.Write(newButtonLink("Membership", submenuURL(menuMembership)))
 	}
 
 	res.Write("\n\n")
@@ -73,10 +73,10 @@ func renderBoardListMenu(res *mux.ResponseWriter, req *mux.Request) {
 		path := strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land")
 
 		res.Write("↳")
-		res.Write(newButtonLink("invite", txlink.Call("InviteMember", "boardID", "0")) + " ")
-		res.Write(newButtonLink("members", path+":members") + " ")
-		res.Write(newButtonLink("remove member", txlink.Call("RemoveMember", "boardID", "0")) + " ")
-		res.Write(newButtonLink("change member role", txlink.Call("ChangeMemberRole", "boardID", "0")) + "\n\n")
+		res.Write(newButtonLink("Invite", txlink.Call("InviteMember", "boardID", "0")) + " ")
+		res.Write(newButtonLink("Members", path+":members") + " ")
+		res.Write(newButtonLink("Remove Member", txlink.Call("RemoveMember", "boardID", "0")) + " ")
+		res.Write(newButtonLink("Change Member Role", txlink.Call("ChangeMemberRole", "boardID", "0")) + "\n\n")
 	}
 }
 
@@ -97,19 +97,19 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderBoardMenu(board *Board, res *mux.ResponseWriter, req *mux.Request) {
-	res.Write(newButtonLink("post", board.GetPostFormURL()) + " - ")
+	res.Write(newButtonLink("Start Thread", board.GetPostFormURL()) + " - ")
 
 	menu := getCurrentSubmenu(req.RawPath)
 	if menu == menuMembership {
-		res.Write("**membership** - ")
+		res.Write("**Membership** - ")
 	} else {
-		res.Write(newButtonLink("membership", submenuURL(menuMembership)) + " - ")
+		res.Write(newButtonLink("Membership", submenuURL(menuMembership)) + " - ")
 	}
 
 	if menu == menuAdmin {
-		res.Write("**admin**")
+		res.Write("**Admin**")
 	} else {
-		res.Write(newButtonLink("admin", submenuURL(menuAdmin)))
+		res.Write(newButtonLink("Admin", submenuURL(menuAdmin)))
 	}
 
 	res.Write("\n\n")
@@ -120,14 +120,14 @@ func renderBoardMenu(board *Board, res *mux.ResponseWriter, req *mux.Request) {
 
 	switch menu {
 	case menuAdmin:
-		res.Write(newButtonLink("rename board", board.GetRenameFormURL()) + " ")
-		res.Write(newButtonLink("freeze", board.GetFreezeFormURL()) + " ")
-		res.Write(newButtonLink("change flagging threshold", board.GetFlaggingThresholdFormURL()) + "\n\n")
+		res.Write(newButtonLink("Rename Board", board.GetRenameFormURL()) + " ")
+		res.Write(newButtonLink("Freeze", board.GetFreezeFormURL()) + " ")
+		res.Write(newButtonLink("Change Flagging Threshold", board.GetFlaggingThresholdFormURL()) + "\n\n")
 	case menuMembership:
-		res.Write(newButtonLink("invite", board.GetInviteMemberFormURL()) + " ")
-		res.Write(newButtonLink("members", board.GetPath()+"/members") + " ")
-		res.Write(newButtonLink("remove member", board.GetRemoveMemberFormURL()) + " ")
-		res.Write(newButtonLink("change member role", board.GetChangeMemberRoleFormURL()) + "\n\n")
+		res.Write(newButtonLink("Invite", board.GetInviteMemberFormURL()) + " ")
+		res.Write(newButtonLink("Members", board.GetPath()+"/members") + " ")
+		res.Write(newButtonLink("Remove Member", board.GetRemoveMemberFormURL()) + " ")
+		res.Write(newButtonLink("Change Member Role", board.GetChangeMemberRoleFormURL()) + "\n\n")
 	}
 }
 

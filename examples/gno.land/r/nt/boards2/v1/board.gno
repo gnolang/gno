@@ -113,7 +113,7 @@ func (board *Board) Render(p *PaginationOpts) string {
 	var sb strings.Builder
 
 	sb.WriteString("# Board: " + board.GetName() + "\n")
-	sb.WriteString("> created by _" + board.creator.String() + "_ ")
+	sb.WriteString("> Created by _" + board.creator.String() + "_ ")
 	sb.WriteString("on " + board.createdAt.Format(dateFormat) + "\n\n")
 
 	if board.threads.Size() == 0 {
@@ -137,7 +137,7 @@ func (board *Board) Render(p *PaginationOpts) string {
 
 	if page != nil {
 		sb.WriteString("\n---\n")
-		sb.WriteString(page.Picker())
+		sb.WriteString("Pages " + page.Picker())
 	}
 
 	return sb.String()
