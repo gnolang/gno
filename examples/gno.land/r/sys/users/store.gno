@@ -3,7 +3,6 @@ package users
 import (
 	"regexp"
 	"std"
-	"strings"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
@@ -20,8 +19,6 @@ const (
 	RegisterUserEvent = "Registered"
 	UpdateNameEvent   = "Updated"
 	DeleteUserEvent   = "Deleted"
-
-	maxUsernameLen = 64
 )
 
 type UserData struct {
@@ -151,13 +148,11 @@ func (u *UserData) Delete() error {
 }
 
 // Validate validates username and address passed in
+// Most of the validation is done in the controllers
+// This provides more flexibility down the line
 func validateName(username string) error {
-	if strings.TrimSpace(username) == "" {
+	if username == "" {
 		return ErrEmptyUsername
-	}
-
-	if len(username) > maxUsernameLen {
-		return ErrNameTooLong
 	}
 
 	// Check if the username can be decoded or looks like a valid address

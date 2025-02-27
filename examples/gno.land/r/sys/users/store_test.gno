@@ -36,12 +36,7 @@ func TestRegister(t *testing.T) {
 	t.Run("invalid_inputs", func(t *testing.T) {
 		cleanStore(t)
 
-		uassert.ErrorContains(t, RegisterUser("   ", aliceAddr), ErrEmptyUsername.Error())
-		uassert.ErrorContains(t,
-			RegisterUser("65letterusername65letterusername65letterusername65letterusername0",
-				aliceAddr),
-			ErrNameTooLong.Error())
-
+		uassert.ErrorContains(t, RegisterUser("", aliceAddr), ErrEmptyUsername.Error())
 		uassert.ErrorContains(t, RegisterUser(alice, ""), ErrInvalidAddress.Error())
 		uassert.ErrorContains(t, RegisterUser(alice, "invalidaddress"), ErrInvalidAddress.Error())
 	})
@@ -139,10 +134,7 @@ func TestUpdateName(t *testing.T) {
 		urequire.NoError(t, RegisterUser(alice, aliceAddr))
 		data := ResolveAddress(aliceAddr)
 
-		uassert.ErrorContains(t, data.UpdateName("   "), ErrEmptyUsername.Error())
-		uassert.ErrorContains(t,
-			data.UpdateName("65letterusername65letterusername65letterusername65letterusername0"),
-			ErrNameTooLong.Error())
+		uassert.ErrorContains(t, data.UpdateName(""), ErrEmptyUsername.Error())
 	})
 
 	t.Run("address_lookalike", func(t *testing.T) {
