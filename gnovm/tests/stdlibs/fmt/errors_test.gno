@@ -7,7 +7,6 @@ package fmt_test
 import (
 	"errors"
 	"fmt"
-	"reflect"
 	"testing"
 )
 
@@ -86,7 +85,7 @@ func TestErrorf(t *testing.T) {
 		if got, want := errors.Unwrap(test.err), test.wantUnwrap; got != want {
 			t.Errorf("Formatted error: %v\nerrors.Unwrap() = %v, want %v", test.err, got, want)
 		}
-		if got, want := splitErr(test.err), test.wantSplit; !reflect.DeepEqual(got, want) {
+		if got, want := splitErr(test.err), test.wantSplit; got != want {
 			t.Errorf("Formatted error: %v\nUnwrap() []error = %v, want %v", test.err, got, want)
 		}
 		if got, want := test.err.Error(), test.wantText; got != want {

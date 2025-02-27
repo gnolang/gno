@@ -47,7 +47,6 @@ func Errorf(format string, a ...any) error {
 		}
 		err = &wrapErrors{s, errs}
 	}
-	p.free()
 	return err
 }
 
