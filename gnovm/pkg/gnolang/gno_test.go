@@ -253,6 +253,45 @@ func main() {
 		}`,
 			``,
 		},
+		{
+			`
+package test
+
+type Runner interface {
+	Run()
+}
+
+type Swimmer interface {
+	Swim()
+}
+
+func main() {
+	a := Runner(nil)
+	println(Swimmer(a))
+}`, `test/main.go:14:10: test.Runner does not implement test.Swimmer (missing method Swim)`,
+		},
+		{
+			`
+			package test
+type Writer interface {
+	Write([]byte) (int, error)
+}
+
+type Stringer interface {
+	String() string
+}
+
+func main() {
+	var x interface {
+		Writer
+		Stringer
+	}
+	var w Writer = Writer(x) // explicit conversion
+	println(w)
+}
+			`,
+			``,
+		},
 	}
 
 	for _, tc := range tests {
