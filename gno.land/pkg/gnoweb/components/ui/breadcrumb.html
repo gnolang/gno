@@ -1,23 +1,81 @@
 {{ define "ui/breadcrumb" }}
-<ol
-  data-role="header-breadcrumb-search"
-  class="peer-focus-within:hidden flex leading-snug text-gray-800 font-semibold bg-gray-100 after:absolute after:w-full after:top-0 after:left-0 after:h-full after:block after:bg-gray-100 after:pointer-events-none"
->
-  {{- range $index, $part := .Parts }} {{- if $index }}
-  <li class="flex z-1 before:content-['/'] before:px-[0.18rem] before:pt-0.5 before:text-gray-300 whitespace-nowrap">{{- else }}</li>
+  <form
+    method="GET"
+    action=""
+    class="peer-focus-within:hidden flex bg-gray-100 after:absolute after:w-full after:top-0 after:left-0 after:h-full after:block after:bg-gray-100 after:pointer-events-none"
+  >
+    <ol
+      data-role="header-breadcrumb-search"
+      class="flex leading-snug text-gray-800 font-semibold"
+    >
+      <!-- Path Part -->
+      {{- range $index, $part := .Parts }}
+        <li
+          class="{{ if $index }}
+            flex z-1 before:content-['/'] before:px-[0.18rem] before:pt-0.5
+            before:text-gray-300 whitespace-nowrap
+          {{ else }}
+            z-1 whitespace-nowrap
+          {{ end }}"
+        >
+          <a
+            class="hover:bg-green-600 border-2 border-transparent hover:text-light bg-light inline-block rounded-sm px-0.5"
+            href="{{ $part.URL }}"
+          >
+            {{ $part.Name }}
+          </a>
+        </li>
+      {{- end }}
 
-  <li class="z-1 whitespace-nowrap">
-    {{- end }}
-    <a class="hover:bg-green-600 border-2 border-transparent hover:text-light bg-light inline-block rounded-sm px-0.5" href="{{ $part.URL }}">{{ $part.Name }}</a>
-  </li>
-  {{- end }} {{- if .ArgParts }} {{- range $index, $arg := .ArgParts }}
-  <li class="flex z-1 {{ if eq $index 0 }} before:content-[':'] {{ else }} before:content-['/'] {{ end }} before:px-[0.18rem] before:pt-0.5 before:text-gray-300 whitespace-nowrap">
-    <a class="text-light border-2 border-transparent bg-gray-400 hover:bg-green-600 hover:text-light inline-block rounded-sm px-0.5" href="{{ $arg.URL }}">{{ $arg.Name }}</a>
-  </li>
-  {{- end }} {{- end }} {{- range $index, $query := .Queries }}
-  <li class="flex z-1 {{ if eq $index 0 }} before:content-['?'] {{ else }} before:content-['&'] {{ end }} before:px-[0.18rem] before:pt-0.5 before:text-gray-300 whitespace-nowrap">
-    <span class="text-gray-400 border-2 border-gray-400 inline-block rounded-sm px-1">{{ $query.Key }}{{- with $query.Value }}={{ . }}{{- end }}</span>
-  </li>
-  {{- end }}
-</ol>
+
+      <!-- Args Part -->
+      {{- if .ArgParts }}
+        {{- range $index, $arg := .ArgParts }}
+          <li
+            class="flex z-1 {{ if eq $index 0 }}
+              before:content-[':']
+            {{ else }}
+              before:content-['/']
+            {{ end }} before:px-[0.18rem] before:pt-0.5 before:text-gray-300 whitespace-nowrap"
+          >
+            <a
+              class="text-light border-2 border-transparent bg-gray-400 hover:bg-green-600 hover:text-light inline-block rounded-sm px-0.5"
+              href="{{ $arg.URL }}"
+            >
+              {{ $arg.Name }}
+            </a>
+          </li>
+        {{- end }}
+      {{- end }}
+
+
+      <!-- Queries Part -->
+      {{ $allQueries := .Queries }}
+      {{- range $index, $query := $allQueries }}
+        <li
+          class="flex z-1 {{ if eq $index 0 }}
+            before:content-['?']
+          {{ else }}
+            before:content-['&']
+          {{ end }} before:px-[0.18rem] before:pt-0.5 before:text-gray-300 whitespace-nowrap"
+        >
+          <label
+            for="{{ $query.Key }}"
+            class="relative w-full h-full text-gray-400 border-2 border-gray-400 inline-block rounded-sm px-1 no-scrollbar"
+          >
+            <input
+              class="absolute top-0 left-1 right-1 opacity-0 focus:opacity-100 outline-none bg-gray-100"
+              type="text"
+              id="{{ $query.Key }}"
+              name="{{ $query.Key }}"
+              value="{{ $query.Value }}"
+              onfocus="this.select()"
+            />
+            <span>{{ $query.Key }}={{ $query.Value }}</span>
+          </label>
+        </li>
+      {{- end }}
+    </ol>
+    <button type="submit" class="hidden">Update Breadcrumb</button>
+  </form>
 {{ end }}
