@@ -42,7 +42,7 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write("# Boards\n\n")
 	renderBoardListMenu(res, req)
 
-	res.Write("### These are all the boards of this realm\n\n")
+	res.Write("### These are the boards of this realm\n\n")
 	p := mustGetPagination(req.RawPath, boardsPageSize)
 	page := p.Iterate(&gBoardsByID, func(_ string, value interface{}) bool {
 		board := value.(*Board)
@@ -211,7 +211,7 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 	if name != "" {
 		v, found := gBoardsByName.Get(name)
 		if !found {
-			res.Write("Board does not exist: " + name)
+			res.Write("### Board not found")
 			return
 		}
 
@@ -222,6 +222,8 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 	} else {
 		res.Write("# Boards Members\n\n")
 	}
+
+	res.Write("### These are the board members\n\n")
 
 	p, err := pager.New(req.RawPath, perms.UsersCount())
 	if err != nil {
