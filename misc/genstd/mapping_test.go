@@ -134,7 +134,7 @@ func Test_linkFunctions_TypedValue(t *testing.T) {
 	assert.Len(t, mappings[1].Params, 0)
 	_ = assert.Len(t, mappings[1].Results, 1) &&
 		assert.Equal(t, true, mappings[1].Results[0].IsTypedValue) &&
-		assert.Equal(t, `gno.X("interface{S() map[int]Banker}")`, mappings[1].Results[0].GnoTypeExpression())
+		assert.Equal(t, `gno.AnyT()`, mappings[1].Results[0].GnoTypeExpression())
 
 	assert.Equal(t, true, mappings[2].MachineParam)
 	assert.Equal(t, "TVFull", mappings[2].GnoFunc)
