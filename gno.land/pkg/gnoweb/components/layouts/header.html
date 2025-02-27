@@ -8,7 +8,7 @@
       </a>
 
       <div class="relative w-full h-full overflow-scroll no-scrollbar">
-        <form class="js-header-searchbar relative overflow-scroll no-scrollbar md:pr-8 flex items-center bg-gray-100 dark:bg-gray-d100  has-[:focus-within]:border-gray-d300 dark:has-[:focus-within]:border-gray-d300 border h-full border-gray-100 p-1.5 rounded">
+        <form class="js-header-searchbar relative overflow-scroll no-scrollbar md:pr-8 flex items-center bg-gray-100 dark:bg-gray-d100  has-[:focus-within]:border-gray-d300 dark:has-[:focus-within]:border-gray-d300 border h-full border-gray-100 dark:border-gray-100 p-1.5 rounded">
           <input
             data-role="header-input-search"
             type="text"
@@ -37,7 +37,7 @@
         <label for="searchbar-server-popup-toggle" class="fixed z-max inset-0 flex items-center justify-center opacity-0 invisible peer-checked:opacity-100 peer-checked:visible"></label>
 
         <div class="z-max absolute top-0 right-0 opacity-0 invisible 0 peer-checked:opacity-100 peer-checked:visible" role="dialog" aria-labelledby="network-info-title" aria-modal="true">
-          <div class="px-4 py-2 w-72 fixed -translate-x-full rounded bg-light dark:bg-gray-d50 border-gray-100">
+          <div class="px-4 py-2 w-72 fixed -translate-x-full rounded bg-light dark:bg-dark border-gray-100 dark:border-gray-d100">
             <div class="w-full flex justify-between items-center pb-3">
               <span id="network-info-title" class="text-gray-600 dark:text-gray-d600 text-100 font-semibold">Network Info</span>
               <label for="searchbar-server-popup-toggle" class="absolute right-3 text-gray-400 hover:text-gray-900 dark:text-gray-d400 dark:hover:text-gray-d900 cursor-pointer" tabindex="0" role="button" aria-label="Close popup">
@@ -70,7 +70,7 @@
       </div>
     </div>
 
-    <form class="sidemenu col-span-3 flex justify-end lg:justify-start gap-3 sm:gap-6 h-full text-100 text-gray-400">  
+    <form class="sidemenu col-span-3 flex justify-end lg:justify-start gap-3 sm:gap-6 h-full text-100 text-gray-400 dark:text-gray-d400">  
 
       <!-- Theme Toggle Button -->
       <button 
@@ -81,7 +81,7 @@
         <svg class="w-5 h-5 text-gray-800 dark:hidden">
           <use href="#ico-moon"></use>
         </svg>
-        <svg class="w-5 h-5 text-gray-d600 hidden dark:block">
+        <svg class="w-5 h-5 text-gray-d800 hidden dark:block">
           <use href="#ico-sun"></use>
         </svg>
       </button>

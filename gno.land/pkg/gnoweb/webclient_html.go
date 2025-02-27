@@ -1,6 +1,7 @@
 package gnoweb
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -23,7 +24,10 @@ import (
 	"github.com/yuin/goldmark/text"
 )
 
-var chromaDefaultStyle = styles.Get("friendly")
+var (
+	chromaDefaultStyle = styles.Get("friendly")
+	chromaDarkStyle    = styles.Get("github-dark")
+)
 
 type HTMLWebClientConfig struct {
 	Domain            string
@@ -258,5 +262,38 @@ func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) e
 }
 
 func (s *HTMLWebClient) WriteFormatterCSS(w io.Writer) error {
-	return s.Formatter.WriteCSS(w, s.chromaStyle)
+	if err := s.Formatter.WriteCSS(w, s.chromaStyle); err != nil {
+		return err
+	}
+
+	// Generate CSS for chroma dark mode
+	var darkCSS bytes.Buffer
+	if err := s.Formatter.WriteCSS(&darkCSS, chromaDarkStyle); err != nil {
+		return err
+	}
+
+	darkCSSStr := darkCSS.String()
+	fmt.Fprintf(w, "\n/* Styles for dark mode */\n")
+
+	lines := strings.Split(darkCSSStr, "\n")
+	for i, line := range lines {
+		// Add .dark class to chroma styles
+		if strings.Contains(line, "{") && strings.Contains(line, ".chroma") {
+			parts := strings.SplitN(line, "{", 2)
+			if len(parts) != 2 {
+				continue
+			}
+
+			selectors := strings.Split(parts[0], ",")
+			for j, selector := range selectors {
+				selectors[j] = ".dark " + strings.TrimSpace(selector)
+			}
+
+			lines[i] = strings.Join(selectors, ", ") + " {" + parts[1]
+		}
+	}
+
+	fmt.Fprint(w, strings.Join(lines, "\n"))
+
+	return nil
 }

@@ -3,10 +3,10 @@
   {{ range .Items }}
   <li>
     <a 
-      class="flex items-center gap-2 line-clamp-2 hover:text-green-600 dark:hover:text-green-d400 text-gray-900 dark:text-gray-d600 hover:underline" 
+      class="flex items-center gap-2 line-clamp-2 hover:text-green-600 dark:hover:text-green-d600 text-gray-900 dark:text-gray-d900 hover:underline" 
       href="{{ .Link }}"
     >
-      <svg class="w-4 h-4 shrink-0 text-gray-900 dark:text-gray-d600">
+      <svg class="w-4 h-4 shrink-0 text-gray-900 dark:text-gray-d900">
         <use href="#ico-{{ $.Icon }}"></use>
       </svg>
       {{ .Text }}

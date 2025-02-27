@@ -33,7 +33,7 @@
   }
 
   html.dark {
-    @apply bg-gray-d100 text-gray-d600 text-200;
+    @apply bg-gray-d100 text-gray-d900 text-200;
   }
 
   svg {
@@ -159,7 +159,7 @@
     @apply list-decimal;
   }
 
-  /* Images et médias */
+  
   .realm-view img {
     @apply max-w-full my-8;
   }
@@ -270,11 +270,11 @@
   .dark .realm-view h2,
   .dark .realm-view h3,
   .dark .realm-view h4 {
-    @apply text-gray-d800;
+    @apply text-gray-d900;
   }
 
   .dark .realm-view strong {
-    @apply text-gray-d600;
+    @apply text-gray-d900;
   }
 
   .dark .realm-view blockquote {
@@ -409,7 +409,7 @@
 
    /* chroma */
   main :is(.source-code) > pre {
-    @apply !bg-light overflow-scroll dark:!bg-gray-d400 rounded py-4 md:py-8 px-1 md:px-3 font-mono text-100 md:text-200;
+    @apply !bg-light overflow-scroll dark:!bg-gray-d100 rounded py-4 md:py-8 px-1 md:px-3 font-mono text-100 md:text-200;
   }
   
   main .realm-view > pre a {
@@ -425,8 +425,7 @@
   main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-ln:target) .chroma-cl,
   main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-lnlinks:hover) .chroma-cl {
     @apply !bg-gray-100 dark:!bg-gray-d300 rounded;
-  }
-  
+  }  
   main :is(.realm-view, .source-code) > pre .chroma-ln {
     @apply scroll-mt-24;
   }

@@ -45,18 +45,18 @@ export default {
         d50: "#1A1A1A",    // Background color
         d100: "#2C2C2C",   // Title light color 
         d200: "#404040",   // Content color 
-        d300: "#5C5C5C",   // Muted color 
-        d400: "#777777",   // Border color 
-        d600: "#A0A0A0",   // Content color 
-        d800: "#D0D0D0",   // Background light color 
+        d300: "#949494",   // Muted color (updated to match SVG)
+        d400: "#777777",   // Border color
+        d600: "#A0A0A0",   // Content color
+        d800: "#D0D0D0",   // Background light color
         d900: "#F0F0F0"    
       },
       green: {
         400: "#2D8D72", // Primary dark color
         600: "#226C57", // Primary light color
-        // dark mode 
-        d400: "#ffffff", // Primary dark color
-        d600: "#a8a8a8",// Primary light color
+        // dark mode  
+        d400: "#ffffff", // Primary dark color (updated to match SVG)
+        d600: "#ffffff", // Primary light color (updated to match SVG)
       },
       transparent: "transparent",
       current: "currentColor",

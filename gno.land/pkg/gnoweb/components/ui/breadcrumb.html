@@ -9,13 +9,13 @@
   <li class="z-1 whitespace-nowrap">
     {{- end }}
     <a 
-      class="hover:bg-green-600 hover:text-light dark:hover:bg-green-d600 dark:hover:text-gray-d50 inline-block rounded-sm px-1 py-px" 
+      class="hover:bg-green-600 hover:text-light dark:hover:bg-green-d600 dark:hover:text-dark inline-block rounded-sm px-1 py-px" 
       href="{{ $part.URL }}"
     >{{ $part.Name }}</a>
   </li>
   {{- end }} {{- if .Args }}
   <li class="flex z-1 before:content-[':'] before:px-[0.18rem] before:text-gray-300 dark:before:text-gray-d300 whitespace-nowrap">
-    <a class="text-light bg-green-400 dark:bg-green-d400 dark:text-gray-d50 inline-block rounded-sm px-1 py-px">{{ .Args }}</a>
+    <a class="text-light bg-green-400 dark:text-dark dark:bg-green-d400 inline-block rounded-sm px-1 py-px">{{ .Args }}</a>
   </li>
   {{- end }}
 </ol>

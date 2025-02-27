@@ -18,10 +18,10 @@
         {{ $funcName := .FuncName }} 
         {{ range .Params }}
         <div class="flex flex-col gap-3 items-stretch text-gray-400 dark:text-gray-d400 mb-2">
-          <div class="group relative overflow-hidden flex w-full border rounded-sm has-[:focus]:border-gray-300 dark:has-[:focus]:border-gray-d400 hover:border-gray-300 dark:hover:border-gray-d400">
+          <div class="group relative overflow-hidden flex w-full border rounded-sm has-[:focus]:border-gray-300 dark:has-[:focus]:border-gray-d300 hover:border-gray-300 dark:hover:border-gray-d300">
             <label 
               for="func-{{ $funcName }}-param-{{ .Name }}" 
-              class="flex gap-3 items-center bg-gray-50 dark:bg-gray-d100 px-4 font-semibold text-gray-600 dark:text-gray-d600 text-100"
+              class="flex gap-3 items-center bg-gray-50 dark:bg-gray-d50 px-4 font-semibold text-gray-600 dark:text-gray-d600 text-100"
             >
               {{ .Name }}
             </label>
@@ -32,7 +32,7 @@
               id="func-{{ $funcName }}-param-{{ .Name }}"
               data-role="help-param-input"
               data-param="{{ .Name }}"
-              class="flex h-full bottom-1 w-full border-l p-2 focus:border-gray-300 dark:focus:border-gray-d300 group-hover:border-gray-300 text-gray-600 dark:text-gray-d600 outline-none font-mono bg-light dark:bg-gray-d50"
+              class="flex h-full bottom-1 w-full border-l p-2 focus:border-gray-300 dark:focus:border-gray-d300 group-hover:border-gray-300 dark:group-hover:border-gray-d300 text-gray-600 dark:text-gray-d600 outline-none font-mono bg-light dark:bg-dark"
             />
           </div>
         </div>
@@ -41,10 +41,10 @@
     </div>
   </div>
   <div>
-    <h3 class="text-gray-400 dark:text-gray-d300 text-50 mb-1">Command</h3>
-    <div class="relative rounded-sm text-100 bg-light dark:bg-gray-d50">
+    <h3 class="text-gray-400 dark:text-gray-d400 text-50 mb-1">Command</h3>
+    <div class="relative rounded-sm text-100 bg-light dark:bg-dark">
       <button 
-        class="js-copy-btn w-5 h-5 absolute top-2 right-2 text-gray-400 dark:text-gray-d300 hover:text-gray-600 dark:hover:text-gray-d400"
+        class="js-copy-btn w-5 h-5 absolute top-2 right-2 text-gray-400 dark:text-gray-d400 hover:text-gray-600 dark:hover:text-gray-d600"
         aria-label="Copy Command" 
         data-copy-btn="help-cmd-{{ .FuncName }}"
       >
