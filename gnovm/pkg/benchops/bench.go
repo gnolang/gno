@@ -183,3 +183,7 @@ func StopGCCode() {
 	measure.gcStartTime[code] = measure.timeZero // stop the timer
 	measure.isGCCodeStarted = false
 }
+
+func IsGCMeasureStarted() bool {
+	return measure.isGCCodeStarted
+}

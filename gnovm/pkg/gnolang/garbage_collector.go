@@ -29,7 +29,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	debug2.Println2("=====GarbageCollect")
 	defer func() {
 		gasCPU := overflow.Mul64p(m.Alloc.visitCount*VisitCpuFactor, GasFactorCPU)
-		debug2.Println2("gasCPU:", gasCPU)
+		//debug2.Println2("gasCPU:", gasCPU)
 		if m.GasMeter != nil { //  no gas meter for test
 			m.GasMeter.ConsumeGas(gasCPU, "GC")
 		}
@@ -48,9 +48,6 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 	// Visit blocks
 	for _, block := range m.Blocks {
-		if bm.GCEnabled {
-			bm.StartGCCode(bm.VisitObject)
-		}
 		stop := vis(block)
 		if stop {
 			return -1, false
@@ -62,19 +59,12 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		// XXX implement for frames.
 		// XXX Frame is not an object,
 		// so implement a custom method and pass in vis.
-		if bm.GCEnabled {
-			bm.StartGCCode(bm.VisitObject)
-		}
 		stop := frame.Visit(vis, m.Store)
 		if stop {
 			return -1, false
 		}
 	}
 
-	// Visit package
-	if bm.GCEnabled {
-		bm.StartGCCode(bm.VisitObject)
-	}
 	stop := vis(m.Package)
 	if stop {
 		return -1, false
@@ -82,9 +72,6 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 	// Visit exceptions
 	for _, exception := range m.Exceptions {
-		if bm.GCEnabled {
-			bm.StartGCCode(bm.VisitObject)
-		}
 		// XXX implement for exceptions.
 		// XXX Exception is not an object,
 		// so implement a custom method and pass in vis.
@@ -109,6 +96,12 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 				bm.StopGCCode()
 			}
 			return false
+		}
+
+		if bm.GCEnabled {
+			if !bm.IsGCMeasureStarted() {
+				bm.StartGCCode(bm.VisitObject)
+			}
 		}
 
 		debug2.Printf2("===visit o: %v (type: %v) \n", o, reflect.TypeOf(o))
@@ -156,11 +149,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 func (av *ArrayValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(av.List); i++ {
-		if bm.GCEnabled {
-			bm.StartGCCode(bm.VisitObject)
-		}
-		v := av.List[i].V
-		oo := unwrapObject(v, store)
+		oo := unwrapObject(av.List[i].V, store)
 		stop = vis(oo)
 		if stop {
 			return
@@ -172,11 +161,7 @@ func (av *ArrayValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 func (sv *StructValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(sv.Fields); i++ {
-		if bm.GCEnabled {
-			bm.StartGCCode(bm.VisitObject)
-		}
-		v := sv.Fields[i].V
-		oo := unwrapObject(v, store)
+		oo := unwrapObject(sv.Fields[i].V, store)
 		stop = vis(oo)
 		if stop {
 			return
@@ -186,9 +171,6 @@ func (sv *StructValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 }
 
 func (bmv *BoundMethodValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
-	if bm.GCEnabled {
-		bm.StartGCCode(bm.VisitObject)
-	}
 	// bmv.Func cannot be a closure, it must be a method.
 	// So we do not visit it (for garbage collection).
 
@@ -203,9 +185,6 @@ func (mv *MapValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	// XXX visit mv.List.
 	// XXX do NOT visit mv.vmap.
 	for cur := mv.List.Head; cur != nil; cur = cur.Next {
-		if bm.GCEnabled {
-			bm.StartGCCode(bm.VisitObject)
-		}
 		// vis key
 		oo := unwrapObject(cur.Key.V, store)
 		stop = vis(oo)
@@ -213,9 +192,6 @@ func (mv *MapValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 			return
 		}
 
-		if bm.GCEnabled {
-			bm.StartGCCode(bm.VisitObject)
-		}
 		// vis value
 		oo = unwrapObject(cur.Value.V, store)
 		stop = vis(oo)
@@ -232,9 +208,6 @@ func (pv *PackageValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	// XXX visit pv.FBlocks
 	// XXX do NOT visit Realm.
 
-	if bm.GCEnabled {
-		bm.StartGCCode(bm.VisitObject)
-	}
 	oo := unwrapObject(pv.Block, store)
 	stop = vis(oo)
 	if stop {
@@ -242,9 +215,6 @@ func (pv *PackageValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	}
 
 	for _, fb := range pv.FBlocks {
-		if bm.GCEnabled {
-			bm.StartGCCode(bm.VisitObject)
-		}
 		oo := unwrapObject(fb, store)
 		stop = vis(oo)
 		if stop {
@@ -257,11 +227,7 @@ func (pv *PackageValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 func (b *Block) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(b.Values); i++ {
-		if bm.GCEnabled {
-			bm.StartGCCode(bm.VisitObject)
-		}
-		v := b.Values[i].V
-		oo := unwrapObject(v, store)
+		oo := unwrapObject(b.Values[i].V, store)
 		stop = vis(oo)
 		if stop {
 			return
@@ -269,9 +235,6 @@ func (b *Block) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	}
 	// Visit parent.
 	if b.Parent != nil {
-		if bm.GCEnabled {
-			bm.StartGCCode(bm.VisitObject)
-		}
 		oo := unwrapObject(b.Parent, store)
 		stop = vis(oo)
 		return
@@ -280,9 +243,6 @@ func (b *Block) VisitAssociated(vis Visitor, store Store) (stop bool) {
 }
 
 func (hiv *HeapItemValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
-	if bm.GCEnabled {
-		bm.StartGCCode(bm.VisitObject)
-	}
 	oo := unwrapObject(hiv.Value.V, store)
 	stop = vis(oo)
 	return
@@ -291,9 +251,6 @@ func (hiv *HeapItemValue) VisitAssociated(vis Visitor, store Store) (stop bool) 
 func (fv *FuncValue) Visit(vis Visitor, store Store) (stop bool) {
 	// visit captures
 	for _, tv := range fv.Captures {
-		if bm.GCEnabled {
-			bm.StartGCCode(bm.VisitObject)
-		}
 		oo := unwrapObject(tv.V, store)
 		stop = vis(oo)
 		if stop {
@@ -302,9 +259,6 @@ func (fv *FuncValue) Visit(vis Visitor, store Store) (stop bool) {
 	}
 
 	// visit FuncValue's closure
-	if bm.GCEnabled {
-		bm.StartGCCode(bm.VisitObject)
-	}
 	oo := unwrapObject(fv.Closure, store)
 
 	stop = vis(oo)
@@ -336,9 +290,6 @@ func (fr *Frame) Visit(vis Visitor, store Store) (stop bool) {
 		}
 
 		for _, arg := range dfr.Args {
-			if bm.GCEnabled {
-				bm.StartGCCode(bm.VisitObject)
-			}
 			oo = unwrapObject(arg.V, store)
 			stop = vis(oo)
 			if stop {
@@ -358,14 +309,15 @@ func (ex *Exception) Visit(vis Visitor, store Store) (stop bool) {
 	}
 
 	// Max, this should be unnecessary
-	if bm.GCEnabled {
-		bm.StartGCCode(bm.VisitObject)
-	}
 	stop = ex.Frame.Visit(vis, store)
 	return
 }
 
 func unwrapObject(v Value, store Store) Object {
+	// start metric before unwrap
+	if bm.GCEnabled {
+		bm.StartGCCode(bm.VisitObject)
+	}
 	switch v := v.(type) {
 	case *SliceValue:
 		return v.GetBase(store)
