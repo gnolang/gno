@@ -22,29 +22,29 @@ func isOriginCall(m *gno.Machine) bool {
 	return n <= 2 && isMsgCall
 }
 
-func GetChainID(m *gno.Machine) string {
+func ChainID(m *gno.Machine) string {
 	return GetContext(m).ChainID
 }
 
-func GetChainDomain(m *gno.Machine) string {
+func ChainDomain(m *gno.Machine) string {
 	return GetContext(m).ChainDomain
 }
 
-func GetHeight(m *gno.Machine) int64 {
+func ChainHeight(m *gno.Machine) int64 {
 	return GetContext(m).Height
 }
 
-// getPrevFunctionNameFromTarget returns the last called function name (identifier) from the call stack.
-func getPrevFunctionNameFromTarget(m *gno.Machine, targetFunc string) string {
-	targetIndex := findTargetFuncIndex(m, targetFunc)
+// getPreviousFunctionNameFromTarget returns the last called function name (identifier) from the call stack.
+func getPreviousFunctionNameFromTarget(m *gno.Machine, targetFunc string) string {
+	targetIndex := findTargetFunctionIndex(m, targetFunc)
 	if targetIndex == -1 {
 		return ""
 	}
-	return findPrevFuncName(m, targetIndex)
+	return findPreviousFunctionName(m, targetIndex)
 }
 
-// findTargetFuncIndex finds and returns the index of the target function in the call stack.
-func findTargetFuncIndex(m *gno.Machine, targetFunc string) int {
+// findTargetFunctionIndex finds and returns the index of the target function in the call stack.
+func findTargetFunctionIndex(m *gno.Machine, targetFunc string) int {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		currFunc := m.Frames[i].Func
 		if currFunc != nil && currFunc.Name == gno.Name(targetFunc) {
@@ -54,8 +54,8 @@ func findTargetFuncIndex(m *gno.Machine, targetFunc string) int {
 	return -1
 }
 
-// findPrevFuncName returns the function name before the given index in the call stack.
-func findPrevFuncName(m *gno.Machine, targetIndex int) string {
+// findPreviousFunctionName returns the function name before the given index in the call stack.
+func findPreviousFunctionName(m *gno.Machine, targetIndex int) string {
 	for i := targetIndex - 1; i >= 0; i-- {
 		currFunc := m.Frames[i].Func
 		if currFunc != nil {
@@ -66,25 +66,25 @@ func findPrevFuncName(m *gno.Machine, targetIndex int) string {
 	panic("function name not found")
 }
 
-func X_origSend(m *gno.Machine) (denoms []string, amounts []int64) {
-	os := GetContext(m).OrigSend
+func X_originSend(m *gno.Machine) (denoms []string, amounts []int64) {
+	os := GetContext(m).OriginSend
 	return ExpandCoins(os)
 }
 
-func X_origCaller(m *gno.Machine) string {
-	return string(GetContext(m).OrigCaller)
+func X_originCaller(m *gno.Machine) string {
+	return string(GetContext(m).OriginCaller)
 }
 
-func X_origPkgAddr(m *gno.Machine) string {
-	return string(GetContext(m).OrigPkgAddr)
+func X_originPkgAddr(m *gno.Machine) string {
+	return string(GetContext(m).OriginPkgAddr)
 }
 
 func X_callerAt(m *gno.Machine, n int) string {
 	if n <= 0 {
-		m.Panic(typedString("GetCallerAt requires positive arg"))
+		m.Panic(typedString("CallerAt requires positive arg"))
 		return ""
 	}
-	// Add 1 to n to account for the GetCallerAt (gno fn) frame.
+	// Add 1 to n to account for the CallerAt (gno fn) frame.
 	n++
 	if n > m.NumFrames() {
 		// NOTE: the last frame's LastPackage
@@ -94,9 +94,9 @@ func X_callerAt(m *gno.Machine, n int) string {
 		return ""
 	}
 	if n == m.NumFrames() {
-		// This makes it consistent with GetOrigCaller.
+		// This makes it consistent with OriginCaller.
 		ctx := GetContext(m)
-		return string(ctx.OrigCaller)
+		return string(ctx.OriginCaller)
 	}
 	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
@@ -131,8 +131,8 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 		}
 	}
 
-	// Fallback case: return OrigCaller.
-	return string(ctx.OrigCaller), ""
+	// Fallback case: return OriginCaller.
+	return string(ctx.OriginCaller), ""
 }
 
 // currentRealm retrieves the current realm's address and pkgPath.
