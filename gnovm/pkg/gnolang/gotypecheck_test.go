@@ -45,7 +45,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 			}
 			want := len(ss) + 1
 			if len(errs) != want {
-				t.Errorf("expected %d errors, got %d", want, len(errs))
+				t.Errorf("expected %d errors, got %d\n%v", want, len(errs), errs)
 				return
 			}
 			assert.ErrorContains(t, errs[0], s0)
@@ -56,10 +56,11 @@ func TestTypeCheckMemPackage(t *testing.T) {
 	}
 
 	type testCase struct {
-		name   string
-		pkg    *gnovm.MemPackage
-		getter MemPackageGetter
-		check  func(*testing.T, error)
+		name      string
+		pkg       *gnovm.MemPackage
+		getter    MemPackageGetter
+		check     func(*testing.T, error)
+		shouldFmt bool
 	}
 	tt := []testCase{
 		{
@@ -80,6 +81,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 			},
 			nil,
 			nil,
+			false,
 		},
 		{
 			"WrongReturn",
@@ -99,6 +101,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 			},
 			nil,
 			errContains("cannot use 11"),
+			false,
 		},
 		{
 			"ParseError",
@@ -116,6 +119,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 			},
 			nil,
 			errContains("found '!'"),
+			false,
 		},
 		{
 			"MultiError",
@@ -136,6 +140,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 			},
 			nil,
 			errContains("assignment mismatch", "too many return values"),
+			false,
 		},
 		{
 			"TestsIgnored",
@@ -158,6 +163,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 			},
 			nil,
 			nil,
+			false,
 		},
 		{
 			"ImportFailed",
@@ -176,6 +182,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 			},
 			mockPackageGetter{},
 			errContains("import not found: std"),
+			false,
 		},
 		{
 			"ImportSucceeded",
@@ -207,6 +214,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 				},
 			},
 			nil,
+			false,
 		},
 		{
 			"ImportBadIdent",
@@ -238,6 +246,36 @@ func TestTypeCheckMemPackage(t *testing.T) {
 				},
 			},
 			errContains("undefined: std", "a_completely_different_identifier and not used"),
+			false,
+		},
+		{
+			"Invalid unformatted source",
+			&gnovm.MemPackage{
+				Name: "hello",
+				Path: "gno.land/p/demo/hello",
+				Files: []*gnovm.MemFile{
+					{
+						Name: "hello.gno",
+						Body: `package p;func H()int{return 1;println("aaaa")}`,
+					},
+				},
+			},
+			mockPackageGetter{
+				&gnovm.MemPackage{
+					Name: "a_completely_different_identifier",
+					Path: "std",
+					Files: []*gnovm.MemFile{
+						{
+							Name: "gnovm.gno",
+							Body: `
+								package a_completely_different_identifier
+								type Address string`,
+						},
+					},
+				},
+			},
+			errContains("your file's size increased after formatting beyond the tolerable value"),
+			true,
 		},
 	}
 
@@ -297,6 +335,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, map[string]int{"std": 1, "bye": 1}, cacheMpg.counts)
 		},
+		false,
 	})
 
 	for _, tc := range tt {
@@ -304,8 +343,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			format := false
-			err := TypeCheckMemPackage(tc.pkg, tc.getter, format)
+			err := TypeCheckMemPackage(tc.pkg, tc.getter, tc.shouldFmt)
 			if tc.check == nil {
 				assert.NoError(t, err)
 			} else {
