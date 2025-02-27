@@ -48,9 +48,14 @@ func AddMember(addr std.Address) {
 	}
 }
 
-func ExecuteProposal(pid proxy.ProposalID) {
-	if err := govDAO.PreExecuteProposal(pid); err != nil {
+func ExecuteProposal(pid proxy.ProposalID) bool {
+	execute, err := govDAO.PreExecuteProposal(pid)
+	if err != nil {
 		panic(err.Error())
+	}
+
+	if !execute {
+		return false
 	}
 
 	prop, err := proxy.GetProposal(pid)
@@ -61,4 +66,6 @@ func ExecuteProposal(pid proxy.ProposalID) {
 	if err := prop.Executor.Execute(); err != nil {
 		panic(err.Error())
 	}
+
+	return true
 }

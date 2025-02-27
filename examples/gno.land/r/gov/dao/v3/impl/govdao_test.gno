@@ -2,6 +2,7 @@ package impl
 
 import (
 	"std"
+	"strings"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -106,8 +107,10 @@ func TestCreateProposalAndVote(t *testing.T) {
 		ProposalID: proxy.ProposalID(0),
 	})
 
-	// TODO: check that output from render are correct
-	println(proxy.Render(""))
+	urequire.Equal(t,true,contains(proxy.Render(""),"Proposal open for votes"))
+	urequire.Equal(t,true,contains(proxy.Render(""),"15.789473684210526%"))
+	urequire.Equal(t,true,contains(proxy.Render(""),"52.63157894736842%"))
+
 
 	urequire.PanicsWithMessage(t, "proposal didn't reached supermajority yet: 66", func() {
 		ExecuteProposal(proxy.ProposalID(0))
@@ -120,11 +123,11 @@ func TestCreateProposalAndVote(t *testing.T) {
 		ProposalID: proxy.ProposalID(0),
 	})
 
-	ExecuteProposal(proxy.ProposalID(0))
+	accepted := ExecuteProposal(proxy.ProposalID(0))
+	urequire.Equal(t,false,accepted)
 
-	// TODO: check that output from render are correct
-	println(proxy.Render(""))
-
+	urequire.Equal(t,true,contains(proxy.Render(""),"**PROPOSAL HAS BEEN DENIED**"))
+	urequire.Equal(t,true,contains(proxy.Render(""),"NO PERCENT: 68.42105263157895%"))
 }
 
 func TestProposalPagination(t *testing.T) {
@@ -158,4 +161,17 @@ func TestProposalPagination(t *testing.T) {
 	urequire.Equal(t, int(pid), 6)
 
 
+	urequire.Equal(t,true,contains(proxy.Render(""),"## Proposal with id: 6"))
+	urequire.Equal(t,true,contains(proxy.Render(""),"## Proposal with id: 5"))
+	urequire.Equal(t,true,contains(proxy.Render(""),"## Proposal with id: 4"))
+
+	urequire.Equal(t,true,contains(proxy.Render("/?page=2"),"## Proposal with id: 3"))
+	urequire.Equal(t,true,contains(proxy.Render("/?page=2"),"## Proposal with id: 2"))
+	urequire.Equal(t,true,contains(proxy.Render("/?page=2"),"## Proposal with id: 1"))
+
+	urequire.Equal(t,true,contains(proxy.Render("/?page=3"),"## Proposal with id: 0"))
+}
+
+func contains(s, substr string) bool {
+	return strings.Index(s, substr) >= 0
 }

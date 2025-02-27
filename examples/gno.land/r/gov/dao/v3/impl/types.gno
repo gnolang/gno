@@ -48,6 +48,8 @@ type proposalStatus struct {
 	DeniedReason string
 
 	TiersAllowedToVote []string
+
+	TotalPower float64 // TotalPower is the power of all the members existing when this proposal was created.
 }
 
 func newProposalStatus(allowedToVote []string) *proposalStatus {
@@ -57,11 +59,12 @@ func newProposalStatus(allowedToVote []string) *proposalStatus {
 		AllVotes: memberstore.NewMembersByTier(),
 
 		TiersAllowedToVote: allowedToVote,
+
+		TotalPower: memberstore.Get().GetTotalPower(),
 	}
 }
 
 func (ps *proposalStatus) YesPercent() float64 {
-	tp := memberstore.Get().GetTotalPower()
 	var yp float64
 
 	memberstore.Tiers.Iterate("", "", func(tn string, ti interface{}) bool {
@@ -78,11 +81,10 @@ func (ps *proposalStatus) YesPercent() float64 {
 		return false
 	})
 
-	return (yp / tp) * 100
+	return (yp / ps.TotalPower) * 100
 }
 
 func (ps *proposalStatus) NoPercent() float64 {
-	tp := memberstore.Get().GetTotalPower()
 	var np float64
 
 	memberstore.Tiers.Iterate("", "", func(tn string, ti interface{}) bool {
@@ -98,7 +100,7 @@ func (ps *proposalStatus) NoPercent() float64 {
 		return false
 	})
 
-	return (np / tp) * 100
+	return (np / ps.TotalPower) * 100
 }
 
 func (ps *proposalStatus) IsAllowed(tier string) bool {

@@ -135,26 +135,27 @@ func (g *GovDAO) PostGetProposal(pid proxy.ProposalID, p *proxy.Proposal) error 
 	return nil
 }
 
-func (g *GovDAO) PreExecuteProposal(pid proxy.ProposalID) error {
+func (g *GovDAO) PreExecuteProposal(pid proxy.ProposalID) (bool,error) {
 	if !std.PrevRealm().IsUser() {
-		return errors.New("invalid non-user call")
+		return false, errors.New("invalid non-user call")
 	}
 
 	status := g.pss.GetStatus(pid)
 
 	if status.Denied || status.Accepted {
-		return errors.New("proposal already executed")
+		return false, errors.New(ufmt.Sprintf("proposal already executed. Accepted: %v", status.Accepted))
 	}
 
 	if status.YesPercent() >= law.Supermajority {
 		status.Accepted = true
 	} else if status.NoPercent() >= law.Supermajority {
 		status.Denied = true
+		return false, nil
 	} else {
-		return errors.New(ufmt.Sprintf("proposal didn't reached supermajority yet: %v", law.Supermajority))
+		return false, errors.New(ufmt.Sprintf("proposal didn't reached supermajority yet: %v", law.Supermajority))
 	}
 
-	return nil
+	return true, nil
 }
 
 func (g *GovDAO) renderActiveProposals(url string) string {
