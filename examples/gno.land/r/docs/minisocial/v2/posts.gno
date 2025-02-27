@@ -105,7 +105,7 @@ func DeletePost(id string) error {
 // Render renders the main page of threads
 func Render(path string) string {
 	out := md.H1("MiniSocial")
-	
+
 	if posts.Size() == 0 {
 		out += "No posts yet!\n\n"
 		return out
