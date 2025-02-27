@@ -70,7 +70,12 @@ func (sv *seenValues) Pop() {
 }
 
 func newSeenValues() *seenValues {
-	return &seenValues{values: make([]Value, 0, defaultSeenValuesSize), nc: nestedLimit}
+	return &seenValues{
+		values: make([]Value, 0, defaultSeenValuesSize),
+		idMap:  make(map[Value]int),
+		nextID: 1,
+		nc:     nestedLimit,
+	}
 }
 
 func (v StringValue) String() string {
