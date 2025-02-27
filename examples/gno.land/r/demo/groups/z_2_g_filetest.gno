@@ -14,7 +14,10 @@ import (
 var gid groups.GroupID
 
 func main() {
+	caller := std.OriginCaller()
+	std.TestSetRealm(std.NewUserRealm(caller))
 	users.Register("gnouser123")
+
 	gid = groups.CreateGroup("test_group")
 	println(gid)
 
@@ -28,4 +31,4 @@ func main() {
 }
 
 // Error:
-// user not found
+// unauthorized to delete group

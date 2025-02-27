@@ -4,6 +4,8 @@ package groups_test
 // SEND: 200000000ugnot
 
 import (
+	"std"
+
 	"gno.land/r/demo/groups"
 	users "gno.land/r/gnoland/users/v1"
 )
@@ -11,7 +13,10 @@ import (
 var gid groups.GroupID
 
 func main() {
+	caller := std.OriginCaller()
+	std.TestSetRealm(std.NewUserRealm(caller))
 	users.Register("gnouser123")
+
 	gid = groups.CreateGroup("test_group")
 	println(gid)
 	groups.AddMember(2, "g1vahx7atnv4erxh6lta047h6lta047h6ll85gpy", 55, "metadata3")
@@ -19,4 +24,4 @@ func main() {
 }
 
 // Error:
-// user not found
+// group id (2) does not exists
