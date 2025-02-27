@@ -350,9 +350,8 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
 		sb.WriteString("  \n" + indent)
 	}
 
-	sb.WriteString(newUserLink(post.creator))
-	sb.WriteString(", ")
-	sb.WriteString(post.createdAt.Format(dateFormat))
+	sb.WriteString("Created by " + newUserLink(post.creator))
+	sb.WriteString(" on " + post.createdAt.Format(dateFormat))
 
 	if post.repostsCount > 0 {
 		sb.WriteString(", ")
@@ -382,7 +381,7 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
 	sb.WriteString(newButtonLink("flag", post.GetFlagFormURL()))
 
 	sb.WriteString(" ")
-	sb.WriteString(newButtonLink("x", post.GetDeleteFormURL()))
+	sb.WriteString(newHelpButtonLink("x", post.GetDeleteFormURL(), "delete"))
 	sb.WriteString("\n")
 }
 
@@ -396,7 +395,7 @@ func (post *Post) Render(p *PaginationOpts, indent string, levels int) string {
 
 	if post.title != "" {
 		sb.WriteString(indent)
-		sb.WriteString("# ")
+		sb.WriteString("## ")
 		sb.WriteString(post.title)
 		sb.WriteString("\n")
 		sb.WriteString(indent)
