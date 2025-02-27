@@ -27,36 +27,7 @@
         "uid": "tempo"
       },
       "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "fillOpacity": 70,
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineWidth": 0,
-            "spanNulls": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
+        "defaults": {},
         "overrides": []
       },
       "gridPos": {
@@ -67,19 +38,17 @@
       },
       "id": 1,
       "options": {
-        "alignValue": "left",
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "mergeValues": true,
-        "rowHeight": 0.9,
-        "showValue": "auto",
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
+        "spanFilters": {
+          "criticalPathOnly": false,
+          "matchesOnly": false,
+          "serviceNameOperator": "=",
+          "spanNameOperator": "=",
+          "tags": [
+            {
+              "id": "f0dc25d4-ba5",
+              "operator": "="
+            }
+          ]
         }
       },
       "pluginVersion": "11.5.2",
@@ -103,7 +72,7 @@
         }
       ],
       "title": "Traces",
-      "type": "state-timeline"
+      "type": "traces"
     }
   ],
   "preload": false,
@@ -119,8 +88,8 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Gno Open Telemetry Tracing",
+  "title": "Gno Open Telemetry Traces",
   "uid": "dee7ykpziof0gf",
-  "version": 1,
+  "version": 3,
   "weekStart": ""
 }

@@ -10,7 +10,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/telemetry/config"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
-	"github.com/gnolang/gno/tm2/pkg/telemetry/tracing"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
 )
 
 var (
@@ -23,14 +23,14 @@ func MetricsEnabled() bool {
 	return globalConfig.MetricsEnabled
 }
 
-// TracingEnabled returns true if tracing has been initialized
-func TracingEnabled() bool {
-	return globalConfig.TracingEnabled
+// TracesEnabled returns true if traces have been initialized
+func TracesEnabled() bool {
+	return globalConfig.TracesEnabled
 }
 
 // Init initializes the global telemetry
 func Init(c config.Config, logger *slog.Logger) error {
-	anyTelemetryEnabled := c.MetricsEnabled || c.TracingEnabled
+	anyTelemetryEnabled := c.MetricsEnabled || c.TracesEnabled
 	if !anyTelemetryEnabled {
 		return nil
 	}
@@ -56,11 +56,11 @@ func Init(c config.Config, logger *slog.Logger) error {
 		logger.Info("Metrics initialized")
 	}
 
-	if c.TracingEnabled {
-		if err := tracing.Init(c); err != nil {
-			return fmt.Errorf("unable to initialize tracing, %w", err)
+	if c.TracesEnabled {
+		if err := traces.Init(c); err != nil {
+			return fmt.Errorf("unable to initialize traces, %w", err)
 		}
-		logger.Info("Tracing initialized")
+		logger.Info("Traces initialized")
 	}
 
 	return nil

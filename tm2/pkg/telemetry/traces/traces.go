@@ -1,4 +1,4 @@
-package tracing
+package traces
 
 import (
 	"context"
@@ -33,7 +33,7 @@ func Init(cfg config.Config) error {
 			otlptracehttp.WithEndpointURL(cfg.ExporterEndpoint),
 		)
 		if err != nil {
-			return fmt.Errorf("unable to create http tracing exporter, %w", err)
+			return fmt.Errorf("unable to create http traces exporter, %w", err)
 		}
 	default:
 		exp, err = otlptracegrpc.New(
@@ -42,19 +42,21 @@ func Init(cfg config.Config) error {
 			otlptracegrpc.WithInsecure(),
 		)
 		if err != nil {
-			return fmt.Errorf("unable to create grpc tracing exporter, %w", err)
+			return fmt.Errorf("unable to create grpc traces exporter, %w", err)
 		}
 	}
 
-	traceProvider := sdkTrace.NewTracerProvider(
+	provider := sdkTrace.NewTracerProvider(
 		sdkTrace.WithBatcher(exp),
 		sdkTrace.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceNameKey.String("tm2"),
+			semconv.ServiceNameKey.String(cfg.ServiceName),
+			semconv.ServiceVersionKey.String("1.0.0"),
+			semconv.ServiceInstanceIDKey.String(cfg.ServiceInstanceID),
 		)),
 	)
 
-	otel.SetTracerProvider(traceProvider)
+	otel.SetTracerProvider(provider)
 
 	return nil
 }
