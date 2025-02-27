@@ -1,0 +1,50 @@
+# ensure users get proper out of gas errors when they add packages
+
+# start a new node
+gnoland start
+
+! gnokey maketx addpkg -pkgdir $WORK/invalid -pkgpath gno.land/r/invalid -gas-fee 1000000ugnot -gas-wanted 60000 -broadcast -chainid=tendermint_test test1
+
+stderr '--= Error =--'
+stderr 'Data: invalid gno package; type check errors:'
+stderr 'gno.land/r/invalid/invalid.gno:3:11: expected operand, found .EOF.'
+stderr 'Msg Traces:'
+stderr '    0  /Users/moul/go/src/github.com/gnolang/gno/tm2/pkg/errors/errors.go:28 - deliver transaction failed: log:msg:0,success:false,log:--= Error =--'
+stderr 'Data: vm.TypeCheckError{abciError:vm.abciError{}, Errors:..string{"gno.land/r/invalid/invalid.gno:3:11: expected operand, found .EOF."}}'
+stderr 'Msg Traces:'
+stderr 'Stack Trace:'
+stderr '    0  /Users/moul/go/src/github.com/gnolang/gno/gno.land/pkg/sdk/vm/errors.go:69'
+stderr '    1  /Users/moul/go/src/github.com/gnolang/gno/gno.land/pkg/sdk/vm/keeper.go:354'
+stderr '    2  /Users/moul/go/src/github.com/gnolang/gno/gno.land/pkg/sdk/vm/handler.go:39'
+stderr '    3  /Users/moul/go/src/github.com/gnolang/gno/gno.land/pkg/sdk/vm/handler.go:26'
+stderr '    4  /Users/moul/go/src/github.com/gnolang/gno/tm2/pkg/sdk/baseapp.go:671'
+stderr '    5  /Users/moul/go/src/github.com/gnolang/gno/tm2/pkg/sdk/baseapp.go:860'
+stderr '    6  /Users/moul/go/src/github.com/gnolang/gno/tm2/pkg/sdk/helpers.go:21'
+stderr '    7  /Users/moul/go/src/github.com/gnolang/gno/tm2/pkg/sdk/baseapp.go:422'
+stderr '    8  /Users/moul/go/src/github.com/gnolang/gno/tm2/pkg/sdk/baseapp.go:399'
+stderr '    9  /Users/moul/go/src/github.com/gnolang/gno/tm2/pkg/bft/abci/client/local_client.go:180'
+stderr '   10  /Users/moul/go/src/github.com/gnolang/gno/tm2/pkg/bft/appconn/app_conn.go:144'
+stderr '   11  /Users/moul/go/src/github.com/gnolang/gno/tm2/pkg/bft/rpc/core/abci.go:59'
+stderr '   12  /Users/moul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.23.6.darwin-arm64/src/reflect/value.go:581'
+stderr '   13  /Users/moul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.23.6.darwin-arm64/src/reflect/value.go:365'
+stderr '   14  /Users/moul/go/src/github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/handlers.go:208'
+stderr '   15  /Users/moul/go/src/github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/handlers.go:162'
+stderr '   16  /Users/moul/go/src/github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/handlers.go:232'
+stderr '   17  /Users/moul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.23.6.darwin-arm64/src/net/http/server.go:2220'
+stderr '   18  /Users/moul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.23.6.darwin-arm64/src/net/http/server.go:2747'
+stderr '   19  /Users/moul/go/pkg/mod/github.com/rs/cors@v1.11.1/cors.go:289'
+stderr '   20  /Users/moul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.23.6.darwin-arm64/src/net/http/server.go:2220'
+stderr '   21  /Users/moul/go/src/github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/http_server.go:212'
+stderr '   22  /Users/moul/go/src/github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server/http_server.go:185'
+stderr '   23  /Users/moul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.23.6.darwin-arm64/src/net/http/server.go:2220'
+stderr '   24  /Users/moul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.23.6.darwin-arm64/src/net/http/server.go:3210'
+stderr '   25  /Users/moul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.23.6.darwin-arm64/src/net/http/server.go:2092'
+stderr '   26  /Users/moul/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.23.6.darwin-arm64/src/runtime/asm_arm64.s:1223'
+stderr '--= /Error =--'
+stderr ',events:..'
+stderr '--= /Error =--'
+
+-- invalid/invalid.gno --
+package invalid
+
+var Foo =
