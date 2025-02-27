@@ -20,7 +20,7 @@ type JSONDocumentation struct {
 	PackageDoc  string `json:"package_doc"`  // markdown of top-level package documentation
 	// https://pkg.go.dev/go/doc#Package.Markdown to render markdown
 
-	// These match each of the sections in a pkg.go.dev package documentationj
+	// These match each of the sections in a pkg.go.dev package documentation
 	Values []*JSONValueDecl `json:"values"` // constants and variables declared
 	Funcs  []*JSONFunc      `json:"funcs"`  // Funcs and methods
 	Types  []*JSONType      `json:"types"`
