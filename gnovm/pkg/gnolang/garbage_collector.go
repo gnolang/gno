@@ -1,12 +1,13 @@
 package gnolang
 
 import (
-	"fmt"
 	"reflect"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
+
+const VisitCpuFactor = 8 // calculated based on benchmark
 
 // Returns the amount of memory left over. If the allocator limit is exceeded
 // it returns false.  It doesn't actually garbage collect, but it recalculates
@@ -27,7 +28,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 	debug2.Println2("=====GarbageCollect")
 	defer func() {
-		gasCPU := overflow.Mul64p(m.Alloc.visitCount, GasFactorCPU)
+		gasCPU := overflow.Mul64p(m.Alloc.visitCount*VisitCpuFactor, GasFactorCPU)
 		debug2.Println2("gasCPU:", gasCPU)
 		if m.GasMeter != nil { //  no gas meter for test
 			m.GasMeter.ConsumeGas(gasCPU, "GC")
@@ -61,7 +62,10 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		// XXX implement for frames.
 		// XXX Frame is not an object,
 		// so implement a custom method and pass in vis.
-		fmt.Printf("===visit Frame[%d] is: %v \n", i, frame)
+		debug2.Printf2("===visit Frame[%d] is: %v \n", i, frame)
+		if bm.GCEnabled {
+			bm.StartGCCode(bm.VisitObject)
+		}
 		stop := frame.Visit(vis, m.Store)
 		if stop {
 			return -1, false
@@ -69,7 +73,9 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	}
 
 	// Visit package
-	bm.StartGCCode(bm.VisitObject)
+	if bm.GCEnabled {
+		bm.StartGCCode(bm.VisitObject)
+	}
 	stop := vis(m.Package)
 	if stop {
 		return -1, false
@@ -78,10 +84,13 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	debug2.Println2("m.Exceptions: ", m.Exceptions)
 	// Visit exceptions
 	for i, exception := range m.Exceptions {
+		if bm.GCEnabled {
+			bm.StartGCCode(bm.VisitObject)
+		}
 		// XXX implement for exceptions.
 		// XXX Exception is not an object,
 		// so implement a custom method and pass in vis.
-		fmt.Printf("Exception[%d] is: %v \n", i, exception)
+		debug2.Printf2("Exception[%d] is: %v \n", i, exception)
 		stop = exception.Visit(vis, m.Store)
 		if stop {
 			return -1, false
@@ -102,24 +111,32 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 		debug2.Printf2("o.GetLastGCCycle: %d, GcCycle: %d\n", o.GetLastGCCycle(), gcCycle)
 		// Return if already measured.
 		if o.GetLastGCCycle() == gcCycle {
-			bm.StopGCCode() // stop metric
-			return false    // but don't stop
+			if bm.GCEnabled {
+				bm.StopGCCode()
+			}
+			return false // but don't stop
 		}
 
 		// Add object size to alloc.
 		size := o.GetShallowSize()
-		fmt.Println("shallow size: ", size)
+		debug2.Println2("shallow size: ", size)
 		alloc.visitCount++ // count for gas calculation
+		debug2.Println2("visitCount: ", alloc.visitCount)
+
 		alloc.Allocate(size)
 		// Stop if alloc max exceeded.
 		maxBytes, curBytes := alloc.Status()
 		if maxBytes < curBytes {
-			bm.StopGCCode()
+			if bm.GCEnabled {
+				bm.StopGCCode()
+			}
 			return true
 		}
 
 		// stop metric for this visit.
-		bm.StopGCCode()
+		if bm.GCEnabled {
+			bm.StopGCCode()
+		}
 
 		// Invote the traverser on o.
 		stop := o.VisitAssociated(vis, alloc.m.Store)
@@ -383,12 +400,6 @@ func (fv *FuncValue) Visit(vis Visitor, store Store) (stop bool) {
 
 func (fr *Frame) Visit(vis Visitor, store Store) (stop bool) {
 	// vis receiver
-	// TODO: how about receiver define in other file
-	// also check gcCount...
-
-	if bm.GCEnabled {
-		bm.StartGCCode(bm.VisitObject)
-	}
 	oo := unwrapObject(fr.Receiver.V, store)
 	debug2.Println2("vis receiver oo: ", oo)
 	if oo == nil {
@@ -442,9 +453,6 @@ func (fr *Frame) Visit(vis Visitor, store Store) (stop bool) {
 
 func (ex *Exception) Visit(vis Visitor, store Store) (stop bool) {
 	debug2.Println2("vis exception: ", ex)
-	if bm.GCEnabled {
-		bm.StartGCCode(bm.VisitObject)
-	}
 	// vis value
 	oo := unwrapObject(ex.Value.V, store)
 	if oo == nil {
