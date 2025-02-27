@@ -807,8 +807,8 @@ func (p *pp) printValue(value valueInfo, verb rune, depth int) {
 			}
 		}
 		if p.fmt.sharpV {
-			p.buf.writeString(f.Type().String())
-			if f.Kind() == reflect.Slice && f.IsNil() {
+			p.buf.writeString(typeString(f.Origin))
+			if f.Kind == "slice" && getAddr(f.Base) == 0 {
 				p.buf.writeString(nilParenString)
 				return
 			}
