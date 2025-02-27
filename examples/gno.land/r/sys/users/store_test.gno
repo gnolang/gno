@@ -39,6 +39,12 @@ func TestRegister(t *testing.T) {
 		uassert.ErrorContains(t, RegisterUser("", aliceAddr), ErrEmptyUsername.Error())
 		uassert.ErrorContains(t, RegisterUser(alice, ""), ErrInvalidAddress.Error())
 		uassert.ErrorContains(t, RegisterUser(alice, "invalidaddress"), ErrInvalidAddress.Error())
+
+		uassert.ErrorContains(t, RegisterUser("username with a space", aliceAddr), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t,
+			RegisterUser("verylongusernameverylongusernameverylongusernameverylongusername1", aliceAddr),
+			ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, RegisterUser("namewith^&()", aliceAddr), ErrInvalidUsername.Error())
 	})
 
 	t.Run("addr_already_registered", func(t *testing.T) {
@@ -135,6 +141,11 @@ func TestUpdateName(t *testing.T) {
 		data := ResolveAddress(aliceAddr)
 
 		uassert.ErrorContains(t, data.UpdateName(""), ErrEmptyUsername.Error())
+		uassert.ErrorContains(t, data.UpdateName("username with a space"), ErrInvalidUsername.Error())
+		uassert.ErrorContains(t,
+			data.UpdateName("verylongusernameverylongusernameverylongusernameverylongusername1"),
+			ErrInvalidUsername.Error())
+		uassert.ErrorContains(t, data.UpdateName("namewith^&()"), ErrInvalidUsername.Error())
 	})
 
 	t.Run("address_lookalike", func(t *testing.T) {

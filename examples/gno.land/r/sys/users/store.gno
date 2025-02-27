@@ -13,6 +13,7 @@ var (
 	addressStore = avl.NewTree() // address > *UserData
 
 	reAddressLookalike = regexp.MustCompile(`^g1[a-z0-9]{20,38}$`)
+	reAlphanum         = regexp.MustCompile(`^[a-zA-Z0-9_]{1,64}$`)
 )
 
 const (
@@ -153,6 +154,10 @@ func (u *UserData) Delete() error {
 func validateName(username string) error {
 	if username == "" {
 		return ErrEmptyUsername
+	}
+
+	if !reAlphanum.MatchString(username) {
+		return ErrInvalidUsername
 	}
 
 	// Check if the username can be decoded or looks like a valid address
