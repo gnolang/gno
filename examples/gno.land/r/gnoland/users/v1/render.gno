@@ -71,6 +71,7 @@ will gain permission to deploy packages and realms to package paths with the pat
 
 	if !paused {
 		out += md.H3(ufmt.Sprintf(" [[Click here to register]](%s)", txlink.Call("Register")))
+		out += ufmt.Sprintf("Registration price: %f GNOT (%dugnot)\n\n", float64(registerPrice)/1_000_000, registerPrice)
 	}
 
 	out += md.HorizontalRule()
