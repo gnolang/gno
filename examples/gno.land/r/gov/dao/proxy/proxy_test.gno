@@ -8,10 +8,10 @@ import (
 	"gno.land/p/demo/urequire"
 )
 
-const v3 = "gno.land/r/gov/dao/v3"
-const v4 = "gno.land/r/gov/dao/v4"
-const v5 = "gno.land/r/gov/dao/v5"
-const v6 = "gno.land/r/gov/dao/v6"
+const v3 = "gno.land/r/gov/dao/v3/impl"
+const v4 = "gno.land/r/gov/dao/v4/impl"
+const v5 = "gno.land/r/gov/dao/v5/impl"
+const v6 = "gno.land/r/gov/dao/v6/impl"
 
 const invalid = "gno.land/r/invalid/dao"
 
@@ -20,7 +20,6 @@ var (
 )
 
 func TestProxy_Functions(t *testing.T) {
-
 	// invalid package cannot add a new dao in charge
 	std.TestSetRealm(std.NewCodeRealm(invalid))
 	urequire.PanicsWithMessage(t, "permission denied for prev realm: gno.land/r/invalid/dao", func() {
@@ -56,7 +55,7 @@ func TestProxy_Functions(t *testing.T) {
 
 	// not after removing himself from allowedDAOs list
 	std.TestSetRealm(std.NewCodeRealm(v3))
-	urequire.PanicsWithMessage(t, "permission denied for prev realm: gno.land/r/gov/dao/v3", func() {
+	urequire.PanicsWithMessage(t, "permission denied for prev realm: gno.land/r/gov/dao/v3/impl", func() {
 		UpdateImpl(UpdateRequest{
 			AllowedDAOs: []string{v3},
 		})
@@ -95,7 +94,7 @@ type dummyDao struct {
 }
 
 func (dd *dummyDao) PreCreateProposal(r ProposalRequest) (Author, error) {
-	return &dummyAuthor{std.GetOrigCaller()}, nil
+	return &dummyAuthor{std.OriginCaller()}, nil
 }
 
 func (dd *dummyDao) PostCreateProposal(r ProposalRequest, pid ProposalID) {

@@ -112,7 +112,7 @@ func GetProposal(pid ProposalID) (*Proposal, error) {
 // If AllowedDAOs field is not set correctly, the actual DAO
 // implementation wont be able to execute new Proposals!
 func UpdateImpl(r UpdateRequest) {
-	realm := std.PrevRealm().PkgPath()
+	realm := std.PreviousRealm().PkgPath()
 	if index(realm) < 0 {
 		panic("permission denied for prev realm: " + realm)
 	}

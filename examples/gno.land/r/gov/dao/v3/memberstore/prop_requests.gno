@@ -27,7 +27,7 @@ func changeTiersCallback(m proxy.Metadata) error {
 }
 
 func NewChangeTiersRequest(tiers TiersByName) proxy.ProposalRequest {
-	member, _ := Get().GetMember(std.GetOrigCaller())
+	member, _ := Get().GetMember(std.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}

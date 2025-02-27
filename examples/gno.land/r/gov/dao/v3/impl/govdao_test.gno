@@ -45,7 +45,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 
 	portfolio := "# This is my portfolio:\n\n- THINGS"
 
-	std.TestSetOrigCaller(noMember)
+	std.TestSetOriginCaller(noMember)
 	std.TestSetRealm(std.NewUserRealm(noMember))
 
 	nm1 := testutils.TestAddress("nm1")
@@ -58,7 +58,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 		proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
 	})
 
-	std.TestSetOrigCaller(m1)
+	std.TestSetOriginCaller(m1)
 	std.TestSetRealm(std.NewUserRealm(m1))
 
 	pid := proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
@@ -70,28 +70,28 @@ func TestCreateProposalAndVote(t *testing.T) {
 		ProposalID: proxy.ProposalID(0),
 	})
 
-	std.TestSetOrigCaller(m11)
+	std.TestSetOriginCaller(m11)
 	std.TestSetRealm(std.NewUserRealm(m11))
 	proxy.MustVoteOnProposal(proxy.VoteRequest{
 		Option:     proxy.NoVote,
 		ProposalID: proxy.ProposalID(0),
 	})
 
-	std.TestSetOrigCaller(m2)
+	std.TestSetOriginCaller(m2)
 	std.TestSetRealm(std.NewUserRealm(m2))
 	proxy.MustVoteOnProposal(proxy.VoteRequest{
 		Option:     proxy.NoVote,
 		ProposalID: proxy.ProposalID(0),
 	})
 
-	std.TestSetOrigCaller(m3)
+	std.TestSetOriginCaller(m3)
 	std.TestSetRealm(std.NewUserRealm(m3))
 	proxy.MustVoteOnProposal(proxy.VoteRequest{
 		Option:     proxy.NoVote,
 		ProposalID: proxy.ProposalID(0),
 	})
 
-	std.TestSetOrigCaller(m4)
+	std.TestSetOriginCaller(m4)
 	std.TestSetRealm(std.NewUserRealm(m4))
 	urequire.PanicsWithMessage(t, "member on specified tier is not allowed to vote on this proposal", func() {
 		proxy.MustVoteOnProposal(proxy.VoteRequest{
@@ -100,7 +100,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 		})
 	})
 
-	std.TestSetOrigCaller(m111)
+	std.TestSetOriginCaller(m111)
 	std.TestSetRealm(std.NewUserRealm(m111))
 	proxy.MustVoteOnProposal(proxy.VoteRequest{
 		Option:     proxy.NoVote,
@@ -116,7 +116,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 		ExecuteProposal(proxy.ProposalID(0))
 	})
 
-	std.TestSetOrigCaller(m1111)
+	std.TestSetOriginCaller(m1111)
 	std.TestSetRealm(std.NewUserRealm(m1111))
 	proxy.MustVoteOnProposal(proxy.VoteRequest{
 		Option:     proxy.NoVote,
@@ -134,7 +134,7 @@ func TestProposalPagination(t *testing.T) {
 	loadMembers()
 	portfolio := "### This is my portfolio:\n\n- THINGS"
 
-	std.TestSetOrigCaller(m1)
+	std.TestSetOriginCaller(m1)
 	std.TestSetRealm(std.NewUserRealm(m1))
 
 	nm1 := testutils.TestAddress("nm1")

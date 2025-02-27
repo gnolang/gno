@@ -79,7 +79,7 @@ func NewPostProposalRequest(slug, title, body, publicationDate, authors, tags st
 			PublicationDate: publicationDate,
 			Authors: authors,
 			Tags:tags,
-			Caller: std.PrevRealm().Addr(),
+			Caller: std.PreviousRealm().Address(),
 		},
 	}
 }

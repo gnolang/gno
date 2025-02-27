@@ -29,7 +29,7 @@ func changeLawCallback(m proxy.Metadata) error {
 }
 
 func NewChangeLawRequest(law *Law) proxy.ProposalRequest {
-	member, _ := memberstore.Get().GetMember(std.GetOrigCaller())
+	member, _ := memberstore.Get().GetMember(std.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
@@ -82,7 +82,7 @@ func NewAddMemberRequest(addr std.Address, tier string, portfolio string) proxy.
 		panic("A portfolio for the proposed member is required")
 	}
 
-	member, _ := memberstore.Get().GetMember(std.GetOrigCaller())
+	member, _ := memberstore.Get().GetMember(std.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}

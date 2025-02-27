@@ -76,7 +76,7 @@ func (e *executor) Execute() error {
 
 func securityWrapper(fn func(m Metadata) error) func(m Metadata) error {
 	return func(m Metadata) error {
-		if index(std.PrevRealm().PkgPath()) < 0 {
+		if index(std.PreviousRealm().PkgPath()) < 0 {
 			return ErrInvalidExecutorCaller
 		}
 

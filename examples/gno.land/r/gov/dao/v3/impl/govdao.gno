@@ -92,7 +92,7 @@ func (g *GovDAO) VoteOnProposal(r proxy.VoteRequest) error {
 		return errors.New("proposal voting must be done directly by a user")
 	}
 
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	mem, tie := memberstore.Get().GetMember(caller)
 	if mem == nil {
 		// return ErrMemberNotFound
@@ -136,7 +136,7 @@ func (g *GovDAO) PostGetProposal(pid proxy.ProposalID, p *proxy.Proposal) error 
 }
 
 func (g *GovDAO) PreExecuteProposal(pid proxy.ProposalID) (bool,error) {
-	if !std.PrevRealm().IsUser() {
+	if !std.PreviousRealm().IsUser() {
 		return false, errors.New("invalid non-user call")
 	}
 
@@ -227,7 +227,7 @@ type UserAuthor struct {
 
 func NewUserAuthor() *UserAuthor {
 	return &UserAuthor{
-		addr: std.GetOrigCaller().String(),
+		addr: std.OriginCaller().String(),
 	}
 }
 

@@ -96,7 +96,7 @@ func init() {
 
 // Get gets the Members store
 func Get() MembersByTier {
-	realm := std.PrevRealm().PkgPath()
+	realm := std.PreviousRealm().PkgPath()
 	if proxy.InAllowedDAOsIndex(realm) < 0 {
 		panic("this Realm is not allowed to get the Members data: " + realm)
 	}
