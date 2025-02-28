@@ -1,9 +1,16 @@
 package boards2
 
 import (
+	"regexp"
 	"std"
+	"strconv"
 	"strings"
 )
+
+// MaxBoardNameLength defines the maximum length allowed for board names.
+const MaxBoardNameLength = 50
+
+var reBoardName = regexp.MustCompile(`(?i)^[a-z0-9]+[a-z0-9_\-]{2,50}$`)
 
 // SetPermissions sets a permissions implementation for boards2 realm or a board.
 func SetPermissions(bid BoardID, p Permissions) {
@@ -42,7 +49,7 @@ func GetBoardIDFromName(name string) (_ BoardID, found bool) {
 // CreateBoard creates a new board.
 func CreateBoard(name string) BoardID {
 	name = strings.TrimSpace(name)
-	assertNameIsNotEmpty(name)
+	assertIsValidBoardName(name)
 	assertBoardNameNotExists(name)
 
 	caller := std.OriginCaller()
@@ -65,7 +72,7 @@ func CreateBoard(name string) BoardID {
 // Because of that boards are also accesible using previous name(s).
 func RenameBoard(name, newName string) {
 	newName = strings.TrimSpace(newName)
-	assertNameIsNotEmpty(newName)
+	assertIsValidBoardName(newName)
 	assertBoardNameNotExists(newName)
 
 	board := mustGetBoardByName(name)
@@ -434,9 +441,19 @@ func assertBoardIsNotFrozen(b *Board) {
 	}
 }
 
-func assertNameIsNotEmpty(name string) {
-	if name == "" {
-		panic("name is empty")
+func assertIsValidBoardName(name string) {
+	size := len(name)
+	if size == 0 {
+		panic("board name is empty")
+	}
+
+	if size > MaxBoardNameLength {
+		n := strconv.Itoa(MaxBoardNameLength)
+		panic("board name is too long, maximum allowed is " + n + " characters")
+	}
+
+	if !reBoardName.MatchString(name) {
+		panic("board name contains invalid characters")
 	}
 }
 
