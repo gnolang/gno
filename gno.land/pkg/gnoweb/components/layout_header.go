@@ -32,7 +32,7 @@ func StaticHeaderLinks(u weburl.GnoURL) []HeaderLink {
 		{
 			Label:    "Content",
 			URL:      contentURL.EncodeWebURL(),
-			Icon:     "ico-info",
+			Icon:     "ico-content",
 			IsActive: isActive(u.WebQuery, "Content"),
 		},
 		{
@@ -42,10 +42,10 @@ func StaticHeaderLinks(u weburl.GnoURL) []HeaderLink {
 			IsActive: isActive(u.WebQuery, "Source"),
 		},
 		{
-			Label:    "Docs",
+			Label:    "Helper",
 			URL:      helpURL.EncodeWebURL(),
-			Icon:     "ico-docs",
-			IsActive: isActive(u.WebQuery, "Docs"),
+			Icon:     "ico-helper",
+			IsActive: isActive(u.WebQuery, "Helper"),
 		},
 	}
 }
@@ -62,7 +62,7 @@ func isActive(webQuery url.Values, label string) bool {
 		return !(webQuery.Has("source") || webQuery.Has("help"))
 	case "Source":
 		return webQuery.Has("source")
-	case "Docs":
+	case "Helper":
 		return webQuery.Has("help")
 	default:
 		return false
