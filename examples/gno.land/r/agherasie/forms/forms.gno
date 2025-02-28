@@ -12,7 +12,6 @@ import (
 var db *forms.FormDB
 
 func init() {
-	hof.Register()
 	db = forms.NewDB()
 }
 
