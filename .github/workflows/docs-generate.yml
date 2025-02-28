@@ -26,6 +26,6 @@ jobs:
         run: |
           diff=$(git status --porcelain)
           if [[ $diff ]]; then
-              echo 'Please run `make build` to update the sidebar.js file!'
+              echo 'Please run `make gen` to embed newest assets into the docs.'
               exit 1
           fi
