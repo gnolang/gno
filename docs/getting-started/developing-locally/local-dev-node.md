@@ -190,7 +190,8 @@ transaction executing `Increment(42)` in the `counter` realm, which lives on the
 `gno.land/r/example/counter` package path on the local node.
 
 A detailed explanation how to use `gnokey` will be provided in an
-[upcoming tutorial](../interacting-with-gnoland.md).
+upcoming tutorial.
+
 :::
 
 

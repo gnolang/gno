@@ -64,7 +64,3 @@ in turn used as a reference for the namespace of the user.
 Once a username is registered, the `gno.land/r/sys/users` system mechanism enforces
 that only the address associated with the registered username can deploy code 
 under that namespace.
-
-Check out "[Registering a namespace](../getting-started/interacting-with-gnoland.md)"
-for a detailed guide on how to register a Gno namespace.
-
