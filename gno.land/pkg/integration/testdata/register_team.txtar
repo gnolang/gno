@@ -1,0 +1,84 @@
+# this testscript reproduce team register flow on https://github.com/gnolang/gno/issues/2195#issuecomment-2364056001
+
+loadpkg gno.land/r/sys/teams
+loadpkg gno.land/r/sys/users
+loadpkg gno.land/r/demo/users
+
+adduser admin
+
+adduser alice
+adduser bob
+
+patchpkg "g1manfred47kzduec920z88wfr64ylksmdcedlf5" $admin_user_addr # use our custom admin
+
+gnoland start
+
+# enable sys/users
+gnokey maketx call -pkgpath gno.land/r/sys/users -func AdminEnable -gas-fee 100000ugnot -gas-wanted 10000000 -broadcast -chainid tendermint_test admin
+stdout 'OK!'
+
+# Try to add a pkg an with unregistered user
+# alice addpkg -> gno.land/r/alice/foo
+! gnokey maketx addpkg -pkgdir $WORK/mypkg -pkgpath gno.land/r/alice/foo -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+stderr 'unauthorized user'
+
+# Test admin invites alice
+# admin call -> demo/users.Invite
+gnokey maketx call -pkgpath gno.land/r/demo/users -func Invite -gas-fee 1000000ugnot -gas-wanted 2500000 -broadcast -chainid=tendermint_test -args $alice_user_addr admin
+stdout 'OK!'
+
+# Alice register alice namespace
+# alice call -> demo/users.Register
+gnokey maketx call -pkgpath gno.land/r/demo/users -func Register -gas-fee 1000000ugnot -gas-wanted 2500000 -broadcast -chainid=tendermint_test -args $admin_user_addr -args 'alice' -args 'im alice' alice
+stdout 'OK!'
+
+# Alice try to add a pkg on alice namespace
+# alice addpkg -> gno.land/r/alice/foo
+gnokey maketx addpkg -pkgdir $WORK/mypkg -pkgpath gno.land/r/alice/foo -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+stdout 'OK!'
+
+# Bob try to add a pkg on alice namespace
+# bob addpkg -> gno.land/r/alice/bar
+! gnokey maketx addpkg -pkgdir $WORK/mypkg -pkgpath gno.land/r/alice/bar -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test bob
+stderr 'unauthorized user'
+
+# Alice try register a team on a random namespace, should fail
+# alice addpkg -> gno.land/r/alice/noop
+! gnokey maketx addpkg -pkgdir $WORK/alice/home -pkgpath gno.land/r/alice/noop -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+stderr 'must be called from r/<team>/home realm'
+
+# Alice try register a team on `home` namespace
+# alice addpkg -> gno.land/r/alice/home
+gnokey maketx addpkg -pkgdir $WORK/alice/home -pkgpath gno.land/r/alice/home -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test alice
+stdout 'OK!'
+
+# Bob try to add a pkg on alice namespace again
+# bob addpkg -> gno.land/r/alice/bar
+! gnokey maketx addpkg -pkgdir $WORK/mypkg -pkgpath gno.land/r/alice/bobpkg -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test bob
+stderr 'unauthorized user'
+
+# Alice add bob as member
+# alice call -> sys/teams.SetMember(bob)
+gnokey maketx call -pkgpath gno.land/r/sys/teams -func SetMember -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test -args $bob_user_addr -args add_package alice
+stdout 'OK!'
+
+# Bob add a pkg on alice namespace again, success !
+# bob addpkg -> gno.land/r/alice/bobpkg
+gnokey maketx addpkg -pkgdir $WORK/mypkg -pkgpath gno.land/r/alice/bobpkg -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test bob
+stdout 'OK!'
+
+-- alice/home/myteam.gno --
+package home
+
+import "gno.land/r/sys/teams"
+
+func init() {
+	teams.Register()
+}
+
+-- mypkg/mypkg.gno --
+package mypkg
+
+func Render(path string) string {
+	return "# Hello Mypkg"
+}
