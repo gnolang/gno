@@ -108,6 +108,25 @@ func IsBoardFrozen(boardID BoardID) bool {
 	return board.IsReadOnly()
 }
 
+// SetReplyFee sets the fee in ugnots charged to uninvited users when replying in public threads.
+func SetReplyFee(fee int64) {
+	if fee < 0 {
+		panic("fee must be greater or equal to 0")
+	}
+
+	if !gPerms.HasRole(std.OriginCaller(), RoleOwner) {
+		panic("only owners are allowed to change reply fee value")
+	}
+
+	gReplyFee = fee
+}
+
+// GetReplyFee returns the current fee in ugnots charged to uninvited users
+// when replying in public threads.
+func GetReplyFee() int64 {
+	return gReplyFee
+}
+
 // SetFlaggingThreshold sets the number of flags required to hide a thread or comment.
 //
 // Threshold is only applicable within the board where it's setted.
