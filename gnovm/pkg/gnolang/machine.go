@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"path"
@@ -53,6 +54,13 @@ type Machine struct {
 	// it is executed. It is reset to zero after the defer functions in the current
 	// scope have finished executing.
 	DeferPanicScope uint
+
+	runCtx context.Context
+}
+
+func (m *Machine) RunContext(ctx context.Context) {
+	m.runCtx = ctx
+	m.Run()
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -70,6 +78,12 @@ func NewMachine(pkgPath string, store Store) *Machine {
 			PkgPath: pkgPath,
 			Store:   store,
 		})
+}
+
+func (m *Machine) SetRunContext(ctx context.Context) {
+	if m != nil {
+		m.runCtx = ctx
+	}
 }
 
 // MachineOptions is used to pass options to [NewMachineWithOptions].
@@ -824,7 +838,11 @@ func (m *Machine) RunStatement(s Stmt) {
 	m.PushOp(OpHalt)
 	m.PushStmt(s)
 	m.PushOp(OpExec)
-	m.Run()
+	ctx := m.runCtx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	m.RunContext(ctx)
 }
 
 // Runs a declaration after preprocessing d.  If d was already
@@ -1178,6 +1196,12 @@ func (m *Machine) Run() {
 		if m.Debugger.enabled {
 			m.Debug()
 		}
+		if m.runCtx != nil {
+			if err := m.runCtx.Err(); err != nil {
+				panic(err)
+			}
+		}
+
 		op := m.PopOp()
 		if bm.OpsEnabled {
 			// benchmark the operation.
