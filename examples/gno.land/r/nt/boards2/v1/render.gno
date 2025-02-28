@@ -127,7 +127,10 @@ func renderBoardMenu(board *Board, res *mux.ResponseWriter, req *mux.Request) {
 	switch menu {
 	case menuAdmin:
 		res.Write(newLink("Rename Board", board.GetRenameFormURL()) + " • ")
-		res.Write(newLink("Freeze", board.GetFreezeFormURL()) + " • ")
+		if !board.IsReadOnly() {
+			res.Write(newLink("Freeze", board.GetFreezeFormURL()) + " • ")
+		}
+
 		res.Write(newLink("Change Flagging Threshold", board.GetFlaggingThresholdFormURL()) + "\n\n")
 	case menuMembership:
 		res.Write(newLink("Invite", board.GetInviteMemberFormURL()) + " • ")
