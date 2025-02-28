@@ -225,14 +225,16 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write("### These are the board members\n\n")
 
-	p, err := pager.New(req.RawPath, perms.UsersCount())
+	// Create a pager with a small page size to reduce
+	// the number of username lookups per page.
+	p, err := pager.New(req.RawPath, perms.UsersCount(), pager.WithPageSize(5))
 	if err != nil {
 		res.Write(err.Error())
 		return
 	}
 
 	perms.IterateUsers(p.Offset(), p.PageSize(), func(u User) bool {
-		res.Write("- " + u.Address.String() + " " + rolesToString(u.Roles) + "\n")
+		res.Write("- " + newUserLink(u.Address) + " : " + rolesToString(u.Roles) + "\n")
 		return false
 	})
 
