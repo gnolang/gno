@@ -10,7 +10,7 @@ import (
 // MaxBoardNameLength defines the maximum length allowed for board names.
 const MaxBoardNameLength = 50
 
-var reBoardName = regexp.MustCompile(`(?i)^[a-z0-9]+[a-z0-9_\-]{2,50}$`)
+var reBoardName = regexp.MustCompile(`(?i)^[a-z]+[a-z0-9_\-]{2,50}$`)
 
 // SetPermissions sets a permissions implementation for boards2 realm or a board.
 func SetPermissions(bid BoardID, p Permissions) {
