@@ -3,7 +3,7 @@ name: Docs Deploy - Build Docusaurus
 on:
   push:
     branches:
-      - main
+      - master
   pull_request:
     paths:
       - "docs/**"
