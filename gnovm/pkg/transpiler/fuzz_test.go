@@ -189,6 +189,8 @@ func FuzzTranspiling(f *testing.F) {
 				strings.Contains(sr, "expression in defer must be function call"),
 				strings.Contains(sr, "expected switch expression, found assignment"),
 				strings.Contains(sr, "missing ',' in type"),
+				strings.Contains(sr, "escape sequence is invalid Unicode code"),
+				strings.Contains(sr, "unexpected semicolon or newline before"),
 				strings.Contains(sr, "missing type parameter name"),
 				strings.Contains(sr, "cannot parenthesize embedded type"),
 				strings.Contains(sr, "missing ',' before newline in type argument list"),
