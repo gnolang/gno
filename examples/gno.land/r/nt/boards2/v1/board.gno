@@ -102,7 +102,7 @@ func (board *Board) AddThread(creator std.Address, title string, body string) *P
 func (board *Board) DeleteThread(pid PostID) {
 	_, removed := board.threads.Remove(pid.Key())
 	if !removed {
-		panic("thread does not exist with id " + pid.String())
+		panic("thread does not exist with ID " + pid.String())
 	}
 }
 
@@ -110,11 +110,26 @@ func (board *Board) DeleteThread(pid PostID) {
 //
 // Pager is used for pagination if it's not nil.
 func (board *Board) Render(p *PaginationOpts) string {
-	if board.threads.Size() == 0 {
-		return "*This board doesn't have any threads.*"
-	}
-
 	var sb strings.Builder
+
+	sb.WriteString("# Board: " + board.GetName() + "\n")
+	sb.WriteString("> Created by _" + newUserLink(board.creator) + "_ ")
+	sb.WriteString("on " + board.createdAt.Format(dateFormat))
+	sb.WriteString(", #" + board.id.String())
+
+	if board.IsReadOnly() {
+		sb.WriteString("  \n> **Board is read-only**")
+	}
+	sb.WriteString("\n\n")
+
+	if board.threads.Size() == 0 {
+		sb.WriteString("### This board doesn't have any threads\n")
+		if !board.IsReadOnly() {
+			url := board.GetPostFormURL()
+			sb.WriteString("Do you want to [start a new conversation](" + url + ") in this board ?")
+		}
+		return sb.String()
+	}
 
 	page := p.Iterate(&board.threads, func(_ string, v interface{}) bool {
 		p := v.(*Post)
@@ -122,7 +137,7 @@ func (board *Board) Render(p *PaginationOpts) string {
 			return false
 		}
 
-		sb.WriteString("----------------------------------------\n")
+		sb.WriteString("---\n")
 		sb.WriteString(p.RenderSummary())
 		sb.WriteString("\n")
 		return false
@@ -130,7 +145,7 @@ func (board *Board) Render(p *PaginationOpts) string {
 
 	if page != nil {
 		sb.WriteString("\n---\n")
-		sb.WriteString(page.Picker())
+		sb.WriteString("Pages " + page.Picker())
 	}
 
 	return sb.String()

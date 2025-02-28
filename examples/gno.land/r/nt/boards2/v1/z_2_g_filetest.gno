@@ -28,4 +28,4 @@ func main() {
 }
 
 // Error:
-// reply with ID: 2 was hidden
+// replying to a hidden reply is not allowed

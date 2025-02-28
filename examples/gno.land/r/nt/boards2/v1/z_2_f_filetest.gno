@@ -28,4 +28,4 @@ func main() {
 }
 
 // Error:
-// thread with ID: 1 was hidden
+// thread is hidden
