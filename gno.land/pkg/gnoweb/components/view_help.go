@@ -3,7 +3,8 @@ package components
 import (
 	"html/template"
 
-	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
+	// for error types
+	"github.com/gnolang/gno/gnovm/pkg/doc"
 )
 
 const HelpViewType ViewType = "help-view"
@@ -14,7 +15,7 @@ type HelpData struct {
 	SelectedArgs map[string]string
 
 	RealmName string
-	Functions []vm.FunctionSignature
+	Functions []*doc.JSONFunc
 	ChainId   string
 	Remote    string
 	PkgPath   string
@@ -37,7 +38,7 @@ type helpViewParams struct {
 }
 
 func registerHelpFuncs(funcs template.FuncMap) {
-	funcs["getSelectedArgValue"] = func(data HelpData, param vm.NamedType) (string, error) {
+	funcs["getSelectedArgValue"] = func(data HelpData, param *doc.JSONField) (string, error) {
 		if data.SelectedArgs == nil {
 			return "", nil
 		}
@@ -53,7 +54,7 @@ func HelpView(data HelpData) *View {
 	}
 
 	for i, fn := range data.Functions {
-		sig := fn.FuncName + "("
+		sig := fn.Name + "("
 		for j, param := range fn.Params {
 			if j > 0 {
 				sig += ", "
@@ -63,7 +64,7 @@ func HelpView(data HelpData) *View {
 		sig += ")"
 
 		tocData.Items[i] = HelpTocItem{
-			Link: "#func-" + fn.FuncName,
+			Link: "#func-" + fn.Name,
 			Text: sig,
 		}
 	}
