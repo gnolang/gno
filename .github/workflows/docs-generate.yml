@@ -26,6 +26,6 @@ jobs:
         run: |
           diff=$(git status --porcelain)
           if [[ $diff ]]; then
-              echo 'Please run `make gen` to embed newest assets into the docs.'
+              echo 'Please run `make gen` with docs/Makefile to embed newest assets into the docs.'
               exit 1
           fi

@@ -11,9 +11,11 @@ lint:
 	go build -C $(MISC_DOCS)/tools/linter -o ./build
 	$(MISC_DOCS)/tools/linter/build -path ../docs
 
+# Embeds up-to-date assets into the docs
 gen:
 	go run -modfile ../misc/devdeps/go.mod github.com/campoy/embedmd -w `find . -name "*.md"`
 
+# Starts local deployment of docusaurus
 dev:
 	cd $(MISC_DOCS)/docusaurus/ && yarn start
 
