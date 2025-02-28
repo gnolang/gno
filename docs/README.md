@@ -1,4 +1,4 @@
-# gno.land
+  # gno.land
 
 Welcome to the Official Documentation of gno.land. Get started with Gno below.
 
