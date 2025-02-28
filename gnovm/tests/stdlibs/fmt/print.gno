@@ -8,7 +8,6 @@ import (
 	"io"
 	"math"
 	"os"
-	"reflect"
 	"strconv"
 	"unicode/utf8"
 )
@@ -294,17 +293,6 @@ func Appendln(b []byte, a ...any) []byte {
 	return b
 }
 
-// getField gets the i'th field of the struct value.
-// If the field itself is a non-nil interface, return a value for
-// the thing inside the interface, not the interface itself.
-func getField(v reflect.Value, i int) reflect.Value {
-	val := v.Field(i)
-	if val.Kind() == reflect.Interface && !val.IsNil() {
-		val = val.Elem()
-	}
-	return val
-}
-
 // tooLarge reports whether the magnitude of the integer is
 // too large to be used as a formatting width or precision.
 func tooLarge(x int) bool {
@@ -347,7 +335,7 @@ func (p *pp) badVerb(verb rune) {
 		p.buf.writeString(typeString(p.arg))
 		p.buf.writeByte('=')
 		p.printArg(p.arg, 'v')
-	case p.value.IsValid():
+	case p.value.Origin != nil:
 		p.buf.writeString(typeString(p.value.Origin))
 		p.buf.writeByte('=')
 		p.printValue(p.value, 'v', 0)
@@ -669,8 +657,6 @@ func (p *pp) printArg(arg any, verb rune) {
 		p.fmtInteger(uint64(f), unsigned, verb)
 	case uint64:
 		p.fmtInteger(f, unsigned, verb)
-	case uintptr:
-		p.fmtInteger(uint64(f), unsigned, verb)
 	case string:
 		p.fmtString(f, verb)
 	case []byte:
@@ -723,8 +709,8 @@ func (p *pp) printValue(value valueInfo, verb rune, depth int) {
 		p.fmtString(value.Base.(string), verb)
 	case "map":
 		if p.fmt.sharpV {
-			p.buf.writeString(f.Type().String())
-			if f.IsNil() {
+			p.buf.writeString(typeString(f.Origin))
+			if getAddr(f.Base) == 0 {
 				p.buf.writeString(nilParenString)
 				return
 			}
@@ -732,7 +718,7 @@ func (p *pp) printValue(value valueInfo, verb rune, depth int) {
 		} else {
 			p.buf.writeString(mapString)
 		}
-		keys, vals := mapKeyValues(f)
+		keys, vals := mapKeyValues(f.Base)
 		for i, k := range keys {
 			if i > 0 {
 				if p.fmt.sharpV {
@@ -741,9 +727,9 @@ func (p *pp) printValue(value valueInfo, verb rune, depth int) {
 					p.buf.writeByte(' ')
 				}
 			}
-			p.printValue(k, verb, depth+1)
+			p.printValue(valueOf(k), verb, depth+1)
 			p.buf.writeByte(':')
-			p.printValue(vals[i], verb, depth+1)
+			p.printValue(valueOf(vals[i]), verb, depth+1)
 		}
 		if p.fmt.sharpV {
 			p.buf.writeByte('}')
@@ -752,10 +738,10 @@ func (p *pp) printValue(value valueInfo, verb rune, depth int) {
 		}
 	case "struct":
 		if p.fmt.sharpV {
-			p.buf.writeString(f.Type().String())
+			p.buf.writeString(typeString(f.Origin))
 		}
 		p.buf.writeByte('{')
-		for i := 0; i < f.NumField(); i++ {
+		for i := 0; i < f.Len; i++ {
 			if i > 0 {
 				if p.fmt.sharpV {
 					p.buf.writeString(commaSpaceString)
@@ -763,46 +749,33 @@ func (p *pp) printValue(value valueInfo, verb rune, depth int) {
 					p.buf.writeByte(' ')
 				}
 			}
-			if p.fmt.plusV || p.fmt.sharpV {
-				if name := f.Type().Field(i).Name; name != "" {
-					p.buf.writeString(name)
-					p.buf.writeByte(':')
-				}
+			name, val := fieldByIndex(f.Base, i)
+			if (p.fmt.plusV || p.fmt.sharpV) && name != "" {
+				p.buf.writeString(name)
+				p.buf.writeByte(':')
 			}
-			p.printValue(getField(f, i), verb, depth+1)
+			// XXX: go uses getField, I don't think it's needed in our case but
+			// might need to do something similar for interface values.
+			p.printValue(valueOf(val), verb, depth+1)
 		}
 		p.buf.writeByte('}')
 	case "interface":
-		value := f.Elem()
-		if !value.IsValid() {
+		value := f.Base
+		if value == nil {
 			if p.fmt.sharpV {
-				p.buf.writeString(f.Type().String())
+				p.buf.writeString(typeString(f.Origin))
 				p.buf.writeString(nilParenString)
 			} else {
 				p.buf.writeString(nilAngleString)
 			}
 		} else {
-			p.printValue(value, verb, depth+1)
+			p.printValue(valueOf(value), verb, depth+1)
 		}
 	case "array", "slice":
 		switch verb {
 		case 's', 'q', 'x', 'X':
-			// Handle byte and uint8 slices and arrays special for the above verbs.
-			t := f.Type()
-			if t.Elem().Kind() == reflect.Uint8 {
-				var bytes []byte
-				if f.Kind() == reflect.Slice || f.CanAddr() {
-					bytes = f.Bytes()
-				} else {
-					// We have an array, but we cannot Bytes() a non-addressable array,
-					// so we build a slice by hand. This is a rare case but it would be nice
-					// if reflection could help a little more.
-					bytes = make([]byte, f.Len())
-					for i := range bytes {
-						bytes[i] = byte(f.Index(i).Uint())
-					}
-				}
-				p.fmtBytes(bytes, verb, t.String())
+			if bs, ok := f.Base.([]byte); ok {
+				p.fmtBytes(bs, verb, typeString(f.Origin))
 				return
 			}
 		}
@@ -813,20 +786,20 @@ func (p *pp) printValue(value valueInfo, verb rune, depth int) {
 				return
 			}
 			p.buf.writeByte('{')
-			for i := 0; i < f.Len(); i++ {
+			for i := 0; i < f.Len; i++ {
 				if i > 0 {
 					p.buf.writeString(commaSpaceString)
 				}
-				p.printValue(f.Index(i), verb, depth+1)
+				p.printValue(valueOf(arrayIndex(f.Base, i)), verb, depth+1)
 			}
 			p.buf.writeByte('}')
 		} else {
 			p.buf.writeByte('[')
-			for i := 0; i < f.Len(); i++ {
+			for i := 0; i < f.Len; i++ {
 				if i > 0 {
 					p.buf.writeByte(' ')
 				}
-				p.printValue(f.Index(i), verb, depth+1)
+				p.printValue(valueOf(arrayIndex(f.Base, i)), verb, depth+1)
 			}
 			p.buf.writeByte(']')
 		}
@@ -1161,14 +1134,23 @@ type valueInfo struct {
 }
 
 func valueOf(v any) valueInfo {
-	k, dn, bytes, base := valueOfInternal(v)
-	return valueInfo{v, k, dn, bytes, base}
+	k, dn, bytes, base, xlen := valueOfInternal(v)
+	return valueInfo{v, k, dn, bytes, base, xlen}
 }
 
 func valueOfInternal(v any) (kind, declaredName string, bytes uint64, base any, xlen int)
 
+// numerical value of pointer.
 func getAddr(v any) uint64
 
+// dereference the pointer value at v.
 func getPtrElem(v any) any
 
+// keys and values of the map.
 func mapKeyValues(v any) ([]any, []any)
+
+// get the n'th element of the given array or slice.
+func arrayIndex(v any, n int) any
+
+// n'th field of the given struct.
+func fieldByIndex(v any, n int) (name string, value any)
