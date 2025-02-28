@@ -114,20 +114,18 @@ func (alloc *Allocator) Fork() *Allocator {
 }
 
 func (alloc *Allocator) Allocate(size int64) {
-	debug2.Printf2("Allocate, size: %d \n", size)
+	debug.Printf("Allocate, size: %d \n", size)
 	if alloc == nil {
 		// this can happen for map items just prior to assignment.
 		return
 	}
 
 	alloc.bytes += size
-	debug2.Printf2("after, Allocate, bytes: %d \n", alloc.bytes)
 	if alloc.bytes > alloc.maxBytes {
-		debug2.Printf2("exceed, bytes: %d, maxBytes: %d\n", alloc.bytes, alloc.maxBytes)
 		if left, ok := alloc.m.GarbageCollect(); !ok {
 			panic("allocation limit exceeded")
 		} else { // retry
-			debug2.Printf2("%d left after GC, size: %d \n", left, size)
+			debug.Printf("%d left after GC, size: %d \n", left, size)
 			alloc.bytes += size
 			if alloc.bytes > alloc.maxBytes {
 				panic("allocation limit exceeded")
@@ -153,7 +151,6 @@ func (alloc *Allocator) AllocateListArray(items int64) {
 }
 
 func (alloc *Allocator) AllocateSlice() {
-	debug2.Println2("Allocate slice")
 	alloc.Allocate(allocSlice)
 }
 
@@ -348,7 +345,6 @@ func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 // -----------------------------------------------
 
 func (p *PackageValue) GetShallowSize() int64 {
-	debug2.Println2("GetShallowSize: ", p)
 	return allocPackage
 }
 func (b *Block) GetShallowSize() int64 {
@@ -357,26 +353,21 @@ func (b *Block) GetShallowSize() int64 {
 }
 
 func (av *ArrayValue) GetShallowSize() int64 {
-	debug2.Printf2("GetShallowSize: %v, len: %d, cap: %d \n", av, av.GetLength(), av.GetCapacity())
 	return allocArray
 }
 
 func (sv *StructValue) GetShallowSize() int64 {
-	debug2.Println2("GetShallowSize: ", sv)
 	return allocStruct
 }
 
 func (mv *MapValue) GetShallowSize() int64 {
-	debug2.Println2("GetShallowSize: ", mv)
 	return allocMap
 }
 
 func (bmv *BoundMethodValue) GetShallowSize() int64 {
-	debug2.Println2("GetShallowSize: ", bmv)
 	return allocBoundMethod
 }
 
 func (hiv *HeapItemValue) GetShallowSize() int64 {
-	debug2.Println2("GetShallowSize: ", hiv)
 	return allocHeapItem
 }

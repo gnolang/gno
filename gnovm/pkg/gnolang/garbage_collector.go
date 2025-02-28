@@ -1,13 +1,16 @@
 package gnolang
 
 import (
-	"reflect"
-
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
+	"reflect"
 )
 
-const VisitCpuFactor = 8 // calculated based on benchmark
+// Represents the "time unit" cost for
+// a single garbage collection visit.
+// It's similar to "CPU cycles" and is
+// calculated based on benchmarking results.
+const VisitCpuFactor = 8
 
 // Returns the amount of memory left over. If the allocator limit is exceeded
 // it returns false.  It doesn't actually garbage collect, but it recalculates
@@ -26,7 +29,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		}()
 	}
 
-	debug2.Println2("=====GarbageCollect")
+	debug.Println("=====GarbageCollect")
 	defer func() {
 		gasCPU := overflow.Mul64p(m.Alloc.visitCount*VisitCpuFactor, GasFactorCPU)
 		//debug2.Println2("gasCPU:", gasCPU)
@@ -41,7 +44,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	// This is the only place where it's bumped.
 	m.GcCycle += 1
 
-	debug2.Println2("m.GcCycle: ", m.GcCycle)
+	debug.Println("m.GcCycle: ", m.GcCycle)
 
 	// Construct visitor callback.
 	vis := GCVisitorFn(m.GcCycle, m.Alloc)
@@ -91,6 +94,8 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 	var vis func(Object) bool
 	vis = func(o Object) bool {
+		debug.Printf("===visit o: %v (type: %v) \n", o, reflect.TypeOf(o))
+
 		if o == nil || o == (*Block)(nil) {
 			if bm.GCEnabled {
 				bm.StopGCCode()
@@ -104,8 +109,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 			}
 		}
 
-		debug2.Printf2("===visit o: %v (type: %v) \n", o, reflect.TypeOf(o))
-		debug2.Printf2("o.GetLastGCCycle: %d, GcCycle: %d\n", o.GetLastGCCycle(), gcCycle)
+		debug.Printf("o.GetLastGCCycle: %d, GcCycle: %d\n", o.GetLastGCCycle(), gcCycle)
 
 		// Return if already measured.
 		if o.GetLastGCCycle() == gcCycle {
@@ -129,11 +133,10 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 			return true
 		}
 
-		// stop metric for this visit.
+		// stop metric before next visit.
 		if bm.GCEnabled {
 			bm.StopGCCode()
 		}
-
 		// Invote the traverser on o.
 		stop := o.VisitAssociated(vis, alloc.m.Store)
 		// Finally bump cycle.
@@ -149,8 +152,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 func (av *ArrayValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(av.List); i++ {
-		oo := unwrapObject(av.List[i].V, store)
-		stop = vis(oo)
+		stop = visitChild(vis, av.List[i].V, store)
 		if stop {
 			return
 		}
@@ -161,8 +163,7 @@ func (av *ArrayValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 func (sv *StructValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(sv.Fields); i++ {
-		oo := unwrapObject(sv.Fields[i].V, store)
-		stop = vis(oo)
+		stop = visitChild(vis, sv.Fields[i].V, store)
 		if stop {
 			return
 		}
@@ -175,8 +176,7 @@ func (bmv *BoundMethodValue) VisitAssociated(vis Visitor, store Store) (stop boo
 	// So we do not visit it (for garbage collection).
 
 	// Visit receiver.
-	oo := unwrapObject(bmv.Receiver.V, store)
-	stop = vis(oo)
+	stop = visitChild(vis, bmv.Receiver.V, store)
 	return
 }
 
@@ -186,19 +186,16 @@ func (mv *MapValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	// XXX do NOT visit mv.vmap.
 	for cur := mv.List.Head; cur != nil; cur = cur.Next {
 		// vis key
-		oo := unwrapObject(cur.Key.V, store)
-		stop = vis(oo)
+		stop = visitChild(vis, cur.Key.V, store)
 		if stop {
 			return
 		}
 
 		// vis value
-		oo = unwrapObject(cur.Value.V, store)
-		stop = vis(oo)
+		stop = visitChild(vis, cur.Value.V, store)
 		if stop {
 			return
 		}
-
 	}
 	return
 }
@@ -208,15 +205,13 @@ func (pv *PackageValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	// XXX visit pv.FBlocks
 	// XXX do NOT visit Realm.
 
-	oo := unwrapObject(pv.Block, store)
-	stop = vis(oo)
+	stop = visitChild(vis, pv.Block, store)
 	if stop {
 		return
 	}
 
 	for _, fb := range pv.FBlocks {
-		oo := unwrapObject(fb, store)
-		stop = vis(oo)
+		stop = visitChild(vis, fb, store)
 		if stop {
 			return
 		}
@@ -227,48 +222,39 @@ func (pv *PackageValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 func (b *Block) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(b.Values); i++ {
-		oo := unwrapObject(b.Values[i].V, store)
-		stop = vis(oo)
+		stop = visitChild(vis, b.Values[i].V, store)
 		if stop {
 			return
 		}
 	}
+
 	// Visit parent.
-	if b.Parent != nil {
-		oo := unwrapObject(b.Parent, store)
-		stop = vis(oo)
-		return
-	}
+	stop = visitChild(vis, b.Parent, store)
 	return
 }
 
 func (hiv *HeapItemValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
-	oo := unwrapObject(hiv.Value.V, store)
-	stop = vis(oo)
+	stop = visitChild(vis, hiv.Value.V, store)
 	return
 }
 
 func (fv *FuncValue) Visit(vis Visitor, store Store) (stop bool) {
 	// visit captures
 	for _, tv := range fv.Captures {
-		oo := unwrapObject(tv.V, store)
-		stop = vis(oo)
+		stop = visitChild(vis, tv.V, store)
 		if stop {
 			return
 		}
 	}
 
 	// visit FuncValue's closure
-	oo := unwrapObject(fv.Closure, store)
-
-	stop = vis(oo)
+	stop = visitChild(vis, fv.Closure, store)
 	return
 }
 
 func (fr *Frame) Visit(vis Visitor, store Store) (stop bool) {
 	// vis receiver
-	oo := unwrapObject(fr.Receiver.V, store)
-	stop = vis(oo)
+	stop = visitChild(vis, fr.Receiver.V, store)
 	if stop {
 		return
 	}
@@ -290,8 +276,7 @@ func (fr *Frame) Visit(vis Visitor, store Store) (stop bool) {
 		}
 
 		for _, arg := range dfr.Args {
-			oo = unwrapObject(arg.V, store)
-			stop = vis(oo)
+			stop = visitChild(vis, arg.V, store)
 			if stop {
 				return
 			}
@@ -302,8 +287,7 @@ func (fr *Frame) Visit(vis Visitor, store Store) (stop bool) {
 
 func (ex *Exception) Visit(vis Visitor, store Store) (stop bool) {
 	// vis value
-	oo := unwrapObject(ex.Value.V, store)
-	stop = vis(oo)
+	stop = visitChild(vis, ex.Value.V, store)
 	if stop {
 		return
 	}
@@ -313,24 +297,24 @@ func (ex *Exception) Visit(vis Visitor, store Store) (stop bool) {
 	return
 }
 
-func unwrapObject(v Value, store Store) Object {
-	// start metric before unwrap
+func visitChild(vis Visitor, v Value, store Store) (stop bool) {
+	// start metric before unwrap,
+	// and ends metric in visit
 	if bm.GCEnabled {
 		bm.StartGCCode(bm.VisitObject)
 	}
+	var oo Object
 	switch v := v.(type) {
 	case *SliceValue:
-		return v.GetBase(store)
+		oo = v.GetBase(store)
 	case PointerValue:
-		return v.GetBase(store)
+		oo = v.GetBase(store)
 	case RefValue:
-		oo := store.GetObject(v.ObjectID)
-		return oo
+		oo = store.GetObject(v.ObjectID)
+	case Object:
+		oo = v
 	}
 
-	if o, ok := v.(Object); ok {
-		return o
-	}
-
-	return nil
+	stop = vis(oo)
+	return
 }
