@@ -1,7 +1,3 @@
----
-id: testnets
----
-
 # Gno Testnets
 
 This page documents all gno.land testnets, what their properties are, and how
@@ -31,14 +27,14 @@ is the `gnoweb` render of the Portal Loop testnet.
   - Transactions that are affected by breaking changes will be discarded
 - **Timeliness of code:**
   - Packages & realms which are available in the `examples/` folder on the [Gno
-monorepo](https://github.com/gnolang/gno) exist on the Portal Loop in matching
-state - they are refreshed with every new commit to the `master` branch.
+    monorepo](https://github.com/gnolang/gno) exist on the Portal Loop in matching
+    state - they are refreshed with every new commit to the `master` branch.
 - **Intended purpose**
   - Providing access the latest version of Gno for fast development & demoing
 - **Versioning strategy**:
   - Portal Loop infrastructure is managed within the
-[`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop) folder in the
-monorepo
+    [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop) folder in the
+    monorepo
 
 For more information on the Portal Loop, and how it can be best utilized,
 check out the [Portal Loop concept page](./portal-loop.md). Also, you can find
@@ -46,7 +42,7 @@ the Portal Loop faucet on [`gno.land/faucet`](https://gno.land/faucet).
 
 ## Test5
 
-Test5 a permanent multi-node testnet. It bumped the validator set from 7 to 17 
+Test5 a permanent multi-node testnet. It bumped the validator set from 7 to 17
 nodes, introduced GovDAO V2, and added lots of bug fixes and quality of life
 improvements.
 
@@ -56,7 +52,7 @@ Test5 was launched in November 2024.
   - State is fully persisted unless there are breaking changes in a new release,
     where persistence partly depends on implementing a migration strategy
 - **Timeliness of code:**
-  - Pre-deployed packages and realms are at monorepo commit [2e9f5ce](https://github.com/gnolang/gno/tree/2e9f5ce8ecc90ee81eb3ae41c06bab30ab926150) 
+  - Pre-deployed packages and realms are at monorepo commit [2e9f5ce](https://github.com/gnolang/gno/tree/2e9f5ce8ecc90ee81eb3ae41c06bab30ab926150)
 - **Intended purpose**
   - Running a full node, testing validator coordination, deploying stable Gno
     dApps, creating tools that require persisted state & transaction history
@@ -67,12 +63,13 @@ Test5 was launched in November 2024.
 
 These testnets are deprecated and currently serve as archives of previous progress.
 
-## Test4
+## Test4 (archive)
 
 Test4 is the first permanent multi-node testnet. Archived data for test4 can be found [here](https://github.com/gnolang/tx-exports/tree/main/test4.gno.land).
 
 Launch date: July 10th 2024
 Release commit: [194903d](https://github.com/gnolang/gno/commit/194903db0350ace7d57910e6c34125d3aa9817da)
+
 
 ### Test3 (archive)
 

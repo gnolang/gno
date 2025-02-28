@@ -1,10 +1,14 @@
-all: build lint
+build: ../misc/docs/docusaurus/static/sidebar.json
 
-# Build the linter
-build:
-	go run -modfile ../misc/devdeps/go.mod github.com/campoy/embedmd -w `find . -name "*.md"`
+docusaurus/static/sidebar.json: README.md
+	go run -C ../misc/docs/tools/tools/indexparser . -path ../../docs/README.md > docusaurus/static/sidebar.json
 
 # Run the linter for the docs/ folder
 lint:
-	go build -C ../misc/docs-linter -o ./build
-	../misc/docs-linter/build -path .
+	go run -C ../misc/docs/tools/linter . -path ../../docs/
+
+dev:
+	cd ../misc/docs/docusaurus/ && yarn start
+
+clean:
+	rm -f docusaurus/static/sidebar.json
