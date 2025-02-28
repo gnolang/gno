@@ -181,6 +181,7 @@ func FuzzTranspiling(f *testing.F) {
 				strings.Contains(sr, "illegal label declaration"),
 				strings.Contains(sr, "expected boolean or range expression"),
 				strings.Contains(sr, "expected type argument list"),
+				strings.Contains(sr, "unexpected comma; expecting"),
 				strings.Contains(sr, "expected boolean expression, found assignment"),
 				strings.Contains(sr, "missing ',' before newline in composite literal"),
 				strings.Contains(sr, "cannot parenthesize type in composite literal"),
