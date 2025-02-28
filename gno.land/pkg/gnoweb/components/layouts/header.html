@@ -7,16 +7,13 @@
       </a>
 
       <div class="relative w-full h-full overflow-scroll no-scrollbar">
-        <form class="js-header-searchbar relative overflow-scroll no-scrollbar md:pr-8 flex items-center bg-gray-100 has-[:focus-within]:border-gray-300 border h-full border-gray-100 p-1.5 rounded">
-          <input
-            data-role="header-input-search"
-            type="text"
-            value="{{ .RealmPath }}"
-            class="peer absolute w-full top-0 left-0 h-full bg-transparent p-1.5 md:pr-8 text-200 outline-none text-gray-600 font-medium"
-          />
+        <div class="relative overflow-scroll no-scrollbar md:pr-8 flex items-center bg-gray-100 has-[:focus-within]:border-gray-300 border h-full border-gray-100 p-1.5 rounded">
+          <form class="js-header-searchbar peer absolute w-full h-full top-0 left-0 p-1.5 md:pr-8 text-200 text-gray-600 font-medium">
+            <input data-role="header-input-search" type="text" value="{{ .RealmPath }}" class="relative h-full w-full bg-transparent outline-none" />
+          </form>
 
           {{ template "ui/breadcrumb" .Breadcrumb }}
-        </form>
+        </div>
 
         <!-- Network Info Popup -->
         <label
