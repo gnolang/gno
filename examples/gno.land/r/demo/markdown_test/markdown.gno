@@ -143,6 +143,64 @@ but that looks ugly.
       You just need to indent an additional four spaces.
 
 
+Columns
+=======
+
+Columns can be created using the ` + "`<gno-columns>`" + ` tag. The columns will be defined based on headings, with the first heading setting the level reference for the separator.
+
+Example using ` + "`<gno-columns>`" + `:
+
+<gno-columns>
+## Column 1
+
+content 1
+
+## Column 2
+
+content 2
+</gno-columns>
+
+You can also use ` + "`:::`" + ` as a shortcut for creating columns:
+
+:::
+## Column 1
+
+content 1
+
+## Column 2
+
+content 2
+:::
+
+Different heading levels can be used; the first one will be the reference:
+
+:::
+## Column 1
+
+content 1
+
+### Title 1
+
+content 2
+
+## Column 3
+
+content 3
+:::
+
+<gno-columns>
+----
+## Column 1
+
+content 1
+
+## Column 2
+
+content 2
+----
+</gno-columns>
+
+
 Even More
 =========
 

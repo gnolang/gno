@@ -245,6 +245,14 @@
   ::selection {
     @apply bg-green-600 text-light;
   }
+
+  /* MD components */
+  .realm-view .gno-cols {
+    @apply flex flex-wrap gap-x-10 xxl:gap-x-12;
+  }
+  .realm-view .gno-cols > * {
+    flex: 1 1 14rem;
+  }
 }
 
 @layer components {
