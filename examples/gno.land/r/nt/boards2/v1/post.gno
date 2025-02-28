@@ -32,6 +32,7 @@ type Post struct {
 	title         string // optional
 	body          string
 	isHidden      bool
+	isPublic      bool
 	replies       avl.Tree // Post.id -> *Post
 	repliesAll    avl.Tree // Post.id -> *Post (all replies, for top-level posts)
 	reposts       avl.Tree // Board.id -> Post.id
@@ -118,12 +119,25 @@ func (post *Post) FlagsCount() int {
 	return len(post.flags)
 }
 
-func (post *Post) SetVisible(isVisible bool) {
-	post.isHidden = !isVisible
+// SetVisible changes post's visibility.
+func (post *Post) SetVisible(visible bool) {
+	post.isHidden = !visible
 }
 
+// IsHidden checks if post is hidden.
 func (post *Post) IsHidden() bool {
 	return post.isHidden
+}
+
+// SetPublic allows making a post public.
+// Public posts can be commented by anyone.
+func (post *Post) SetPublic(public bool) {
+	post.isPublic = public
+}
+
+// IsPublic check if post is public.
+func (post *Post) IsPublic() bool {
+	return post.isPublic
 }
 
 func (post *Post) AddReply(creator std.Address, body string) *Post {

@@ -19,7 +19,7 @@ var (
 func init() {
 	std.TestSetOriginCaller(owner)
 	bid = boards2.CreateBoard("test-board")
-	pid = boards2.CreateThread(bid, "Foo", "bar")
+	pid = boards2.CreateThread(bid, "Foo", "bar", false)
 
 	// Call using a user that has not permission to delete threads
 	std.TestSetOriginCaller(user)
