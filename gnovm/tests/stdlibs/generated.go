@@ -7,6 +7,7 @@ import (
 	"reflect"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	testlibs_os "github.com/gnolang/gno/gnovm/tests/stdlibs/os"
 	testlibs_std "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	testlibs_testing "github.com/gnolang/gno/gnovm/tests/stdlibs/testing"
 	testlibs_unicode "github.com/gnolang/gno/gnovm/tests/stdlibs/unicode"
@@ -31,6 +32,100 @@ func (n *NativeFunc) HasMachineParam() bool {
 }
 
 var nativeFuncs = [...]NativeFunc{
+	{
+		"os",
+		"writeStderr",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("[]byte")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("int")},
+			{Name: gno.N("r1"), Type: gno.X("error")},
+		},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  []byte
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+
+			r0, r1 := testlibs_os.X_writeStderr(
+				m,
+				p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
+		"os",
+		"writeStdout",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("[]byte")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("int")},
+			{Name: gno.N("r1"), Type: gno.X("error")},
+		},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  []byte
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+
+			r0, r1 := testlibs_os.X_writeStdout(
+				m,
+				p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
+		"os",
+		"sleep",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("int64")},
+		},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  int64
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+
+			testlibs_os.X_sleep(
+				m,
+				p0)
+		},
+	},
 	{
 		"std",
 		"AssertOriginCall",
@@ -466,6 +561,8 @@ var nativeFuncs = [...]NativeFunc{
 }
 
 var initOrder = [...]string{
+	"fmt",
+	"os",
 	"std",
 	"testing",
 	"unicode",
