@@ -114,22 +114,14 @@ func TestKeeper_internal(t *testing.T) {
 	for i, kv := range kvs {
 		require.NotPanics(t, func() { keeper.getIfExists(ctx, "invalid", kv.ptr) }, "keeper.GetIfExists panics when no value exists, tc #%d", i)
 		require.Equal(t, kv.zero, indirect(kv.ptr), "keeper.GetIfExists unmarshalls when no value exists, tc #%d", i)
-		require.Panics(t, func() { keeper.get(ctx, "invalid", kv.ptr) }, "invalid keeper.Get not panics when no value exists, tc #%d", i)
-		require.Equal(t, kv.zero, indirect(kv.ptr), "invalid keeper.Get unmarshalls when no value exists, tc #%d", i)
-
 		require.NotPanics(t, func() { keeper.getIfExists(ctx, kv.key, kv.ptr) }, "keeper.GetIfExists panics, tc #%d", i)
 		require.Equal(t, kv.param, indirect(kv.ptr), "stored param not equal, tc #%d", i)
-		require.NotPanics(t, func() { keeper.get(ctx, kv.key, kv.ptr) }, "keeper.Get panics, tc #%d", i)
-		require.Equal(t, kv.param, indirect(kv.ptr), "stored param not equal, tc #%d", i)
-
-		require.Panics(t, func() { keeper.get(ctx, "invalid", kv.ptr) }, "invalid keeper.Get not panics when no value exists, tc #%d", i)
-		require.Equal(t, kv.param, indirect(kv.ptr), "invalid keeper.Get unmarshalls when no value existt, tc #%d", i)
-
-		require.Panics(t, func() { keeper.get(ctx, kv.key, nil) }, "invalid keeper.Get not panics when the pointer is nil, tc #%d", i)
+		require.Panics(t, func() { keeper.getIfExists(ctx, kv.key, nil) }, "invalid keeper.Get not panics when the pointer is nil, tc #%d", i)
 	}
 
 	for i, kv := range kvs {
-		bz := store.Get([]byte(kv.key))
+		vk := ValueStoreKey(kv.key)
+		bz := store.Get(vk)
 		require.NotNil(t, bz, "store.Get() returns nil, tc #%d", i)
 		err := amino.UnmarshalJSON(bz, kv.ptr)
 		require.NoError(t, err, "cdc.UnmarshalJSON() returns error, tc #%d", i)
@@ -152,12 +144,12 @@ func TestGetAndSetParams(t *testing.T) {
 	keeper := env.keeper
 	// SetParams
 	a := Params{p1: 1, p2: "a"}
-	err := keeper.SetParams(ctx, ModuleName, a)
+	err := keeper.SetParams(ctx, "", "p", a)
 	require.NoError(t, err)
 
 	// GetParams
 	a1 := Params{}
-	_, err1 := keeper.GetParams(ctx, ModuleName, &a1)
+	_, err1 := keeper.GetParams(ctx, "", "p", &a1)
 	require.NoError(t, err1)
 	require.True(t, amino.DeepEqual(a, a1), "a and a1 should equal")
 }

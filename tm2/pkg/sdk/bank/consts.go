@@ -1,5 +1,6 @@
 package bank
 
 const (
-	ModuleName = "bank"
+	ModuleName      = "bank"
+	lockTransferKey = "lockTransfer.string"
 )

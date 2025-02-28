@@ -22,6 +22,7 @@ var _ AccountKeeperI = AccountKeeper{}
 // Limited interface only needed for auth.
 type BankKeeperI interface {
 	SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error
+	SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error
 }
 
 type GasPriceKeeperI interface {
@@ -31,24 +32,3 @@ type GasPriceKeeperI interface {
 }
 
 var _ GasPriceKeeperI = GasPriceKeeper{}
-
-// GenesisState - all auth state that must be provided at genesis
-type GenesisState struct {
-	Params Params `json:"params"`
-}
-
-// NewGenesisState - Create a new genesis state
-func NewGenesisState(params Params) GenesisState {
-	return GenesisState{params}
-}
-
-// DefaultGenesisState - Return a default genesis state
-func DefaultGenesisState() GenesisState {
-	return NewGenesisState(DefaultParams())
-}
-
-// ValidateGenesis performs basic validation of auth genesis data returning an
-// error for any failed validation criteria.
-func ValidateGenesis(data GenesisState) error {
-	return data.Params.Validate()
-}
