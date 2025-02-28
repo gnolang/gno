@@ -1,6 +1,6 @@
 package main
 
-// SEND: 200000000ugnot
+// SEND: 1000000ugnot
 
 import (
 	"std"
@@ -8,15 +8,14 @@ import (
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
-	"gno.land/r/demo/users"
+	users "gno.land/r/gnoland/users/v1"
 )
 
 const admin = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 func main() {
-	caller := testutils.TestAddress("caller")
-	std.TestSetRealm(std.NewUserRealm(caller))
-	users.Register("", "gnouser", "my profile")
+	std.TestSetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	users.Register("gnouser123")
 	// create board via registered user
 	bid := boards.CreateBoard("test_board")
 	pid := boards.CreateThread(bid, "First Post (title)", "Body of the first post. (body)")
