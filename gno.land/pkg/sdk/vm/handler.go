@@ -68,12 +68,11 @@ func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
 
 // query paths
 const (
-	QueryPackage = "package"
-	QueryStore   = "store"
-	QueryRender  = "qrender"
-	QueryFuncs   = "qfuncs"
-	QueryEval    = "qeval"
-	QueryFile    = "qfile"
+	QueryRender = "qrender"
+	QueryFuncs  = "qfuncs"
+	QueryEval   = "qeval"
+	QueryFile   = "qfile"
+	QueryDoc    = "qdoc"
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQuery {
@@ -83,10 +82,6 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQ
 	)
 
 	switch path {
-	case QueryPackage:
-		res = vh.queryPackage(ctx, req)
-	case QueryStore:
-		res = vh.queryStore(ctx, req)
 	case QueryRender:
 		res = vh.queryRender(ctx, req)
 	case QueryFuncs:
@@ -95,6 +90,8 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQ
 		res = vh.queryEval(ctx, req)
 	case QueryFile:
 		res = vh.queryFile(ctx, req)
+	case QueryDoc:
+		res = vh.queryDoc(ctx, req)
 	default:
 		return sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
@@ -103,18 +100,6 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQ
 	}
 
 	return res
-}
-
-// queryPackage fetch a package's files.
-func (vh vmHandler) queryPackage(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	res.Data = []byte(fmt.Sprintf("TODO: parse parts get or make fileset..."))
-	return
-}
-
-// queryPackage fetch items from the store.
-func (vh vmHandler) queryStore(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	res.Data = []byte(fmt.Sprintf("TODO: fetch from store"))
-	return
 }
 
 // queryRender calls .Render(<path>) in readonly mode.
@@ -129,9 +114,13 @@ func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abc
 	expr := fmt.Sprintf("Render(%q)", path)
 	result, err := vh.vm.QueryEvalString(ctx, pkgPath, expr)
 	if err != nil {
+		if strings.Contains(err.Error(), "Render not declared") {
+			err = NoRenderDeclError{}
+		}
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
 	}
+
 	res.Data = []byte(result)
 	return
 }
@@ -194,6 +183,18 @@ func (vh vmHandler) queryFile(ctx sdk.Context, req abci.RequestQuery) (res abci.
 		return
 	}
 	res.Data = []byte(result)
+	return
+}
+
+// queryDoc returns the JSON of the doc for a given pkgpath, suitable for printing
+func (vh vmHandler) queryDoc(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	filepath := string(req.Data)
+	jsonDoc, err := vh.vm.QueryDoc(ctx, filepath)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(jsonDoc.JSON())
 	return
 }
 

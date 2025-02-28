@@ -10,6 +10,7 @@ import (
 
 var (
 	ErrClientPathNotFound = errors.New("package not found")
+	ErrRenderNotDeclared  = errors.New("render function not declared")
 	ErrClientBadRequest   = errors.New("bad request")
 	ErrClientResponse     = errors.New("node response error")
 )
@@ -19,11 +20,18 @@ type FileMeta struct {
 	SizeKb float64
 }
 
-type RealmMeta struct {
-	Toc md.Toc
+type HeadMeta struct {
+	Title       string
+	Description string
+	Canonical   string
 }
 
-// WebClient is an interface for interacting with package and node ressources.
+type RealmMeta struct {
+	Toc  md.Toc
+	Head HeadMeta
+}
+
+// WebClient is an interface for interacting with package and node resources.
 type WebClient interface {
 	// RenderRealm renders the content of a realm from a given path and
 	// arguments into the giver `writer`. The method should ensures the rendered

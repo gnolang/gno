@@ -344,13 +344,13 @@ func Float32bits(i float32) uint32
 
 func testfunc() {
 	println(Float32bits(3.14159))
-	std.AssertOriginCall()
+	std.ChainID()
 }
 
 func otherFunc() {
 	std := 1
 	// This is (incorrectly) changed for now.
-	std.AssertOriginCall()
+	std.ChainID()
 }
 `,
 			expectedOutput: `
@@ -363,13 +363,13 @@ import "github.com/gnolang/gno/gnovm/stdlibs/std"
 
 func testfunc() {
 	println(Float32bits(3.14159))
-	std.AssertOriginCall(nil)
+	std.ChainID(nil)
 }
 
 func otherFunc() {
 	std := 1
 	// This is (incorrectly) changed for now.
-	std.AssertOriginCall(nil)
+	std.ChainID(nil)
 }
 `,
 			expectedImports: []*ast.ImportSpec{
@@ -388,12 +388,12 @@ func otherFunc() {
 			source: `
 package std
 
-func AssertOriginCall()
-func origCaller() string
+func ChainID()
+func originCaller() string
 
 func testfunc() {
-	AssertOriginCall()
-	println(origCaller())
+	ChainID()
+	println(originCaller())
 }
 `,
 			expectedOutput: `
@@ -403,8 +403,8 @@ func testfunc() {
 package std
 
 func testfunc() {
-	AssertOriginCall(nil)
-	println(X_origCaller(nil))
+	ChainID(nil)
+	println(X_originCaller(nil))
 }
 `,
 		},
