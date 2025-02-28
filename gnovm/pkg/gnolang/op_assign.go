@@ -12,14 +12,6 @@ func (m *Machine) doOpDefine() {
 		nx := s.Lhs[i].(*NameExpr)
 		// Finally, define (or assign if loop block).
 		ptr := lb.GetPointerToMaybeHeapDefine(m.Store, nx)
-		// XXX HACK (until value persistence impl'd)
-		if m.ReadOnly {
-			if oo, ok := ptr.Base.(Object); ok {
-				if oo.GetIsReal() {
-					panic("readonly violation")
-				}
-			}
-		}
 		if !m.PreprocessorMode && isUntyped(rvs[i].T) && rvs[i].T.Kind() != BoolKind {
 			panic("untyped conversion should not happen at runtime")
 		}
@@ -36,14 +28,6 @@ func (m *Machine) doOpAssign() {
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
 		// Pop lhs value and desired type.
 		lv := m.PopAsPointer(s.Lhs[i])
-		// XXX HACK (until value persistence impl'd)
-		if m.ReadOnly {
-			if oo, ok := lv.Base.(Object); ok {
-				if oo.GetIsReal() {
-					panic("readonly violation")
-				}
-			}
-		}
 		if !m.PreprocessorMode && isUntyped(rvs[i].T) && rvs[i].T.Kind() != BoolKind {
 			panic("untyped conversion should not happen at runtime")
 		}
@@ -59,14 +43,6 @@ func (m *Machine) doOpAddAssign() {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
-	// XXX HACK (until value persistence impl'd)
-	if m.ReadOnly {
-		if oo, ok := lv.Base.(Object); ok {
-			if oo.GetIsReal() {
-				panic("readonly violation")
-			}
-		}
-	}
 	// add rv to lv.
 	addAssign(m.Alloc, lv.TV, rv)
 	if lv.Base != nil {
@@ -82,14 +58,6 @@ func (m *Machine) doOpSubAssign() {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
-	// XXX HACK (until value persistence impl'd)
-	if m.ReadOnly {
-		if oo, ok := lv.Base.(Object); ok {
-			if oo.GetIsReal() {
-				panic("readonly violation")
-			}
-		}
-	}
 	// sub rv from lv.
 	subAssign(lv.TV, rv)
 	if lv.Base != nil {
@@ -105,14 +73,6 @@ func (m *Machine) doOpMulAssign() {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
-	// XXX HACK (until value persistence impl'd)
-	if m.ReadOnly {
-		if oo, ok := lv.Base.(Object); ok {
-			if oo.GetIsReal() {
-				panic("readonly violation")
-			}
-		}
-	}
 	// lv *= rv
 	mulAssign(lv.TV, rv)
 	if lv.Base != nil {
@@ -128,14 +88,6 @@ func (m *Machine) doOpQuoAssign() {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
-	// XXX HACK (until value persistence impl'd)
-	if m.ReadOnly {
-		if oo, ok := lv.Base.(Object); ok {
-			if oo.GetIsReal() {
-				panic("readonly violation")
-			}
-		}
-	}
 	// lv /= rv
 	err := quoAssign(lv.TV, rv)
 	if err != nil {
@@ -155,14 +107,6 @@ func (m *Machine) doOpRemAssign() {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
-	// XXX HACK (until value persistence impl'd)
-	if m.ReadOnly {
-		if oo, ok := lv.Base.(Object); ok {
-			if oo.GetIsReal() {
-				panic("readonly violation")
-			}
-		}
-	}
 	// lv %= rv
 	err := remAssign(lv.TV, rv)
 	if err != nil {
@@ -182,14 +126,6 @@ func (m *Machine) doOpBandAssign() {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
-	// XXX HACK (until value persistence impl'd)
-	if m.ReadOnly {
-		if oo, ok := lv.Base.(Object); ok {
-			if oo.GetIsReal() {
-				panic("readonly violation")
-			}
-		}
-	}
 	// lv &= rv
 	bandAssign(lv.TV, rv)
 	if lv.Base != nil {
@@ -205,14 +141,6 @@ func (m *Machine) doOpBandnAssign() {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
-	// XXX HACK (until value persistence impl'd)
-	if m.ReadOnly {
-		if oo, ok := lv.Base.(Object); ok {
-			if oo.GetIsReal() {
-				panic("readonly violation")
-			}
-		}
-	}
 	// lv &^= rv
 	bandnAssign(lv.TV, rv)
 	if lv.Base != nil {
@@ -228,14 +156,6 @@ func (m *Machine) doOpBorAssign() {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
-	// XXX HACK (until value persistence impl'd)
-	if m.ReadOnly {
-		if oo, ok := lv.Base.(Object); ok {
-			if oo.GetIsReal() {
-				panic("readonly violation")
-			}
-		}
-	}
 	// lv |= rv
 	borAssign(lv.TV, rv)
 	if lv.Base != nil {
@@ -251,14 +171,6 @@ func (m *Machine) doOpXorAssign() {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
-	// XXX HACK (until value persistence impl'd)
-	if m.ReadOnly {
-		if oo, ok := lv.Base.(Object); ok {
-			if oo.GetIsReal() {
-				panic("readonly violation")
-			}
-		}
-	}
 	// lv ^= rv
 	xorAssign(lv.TV, rv)
 	if lv.Base != nil {
@@ -271,14 +183,6 @@ func (m *Machine) doOpShlAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 
-	// XXX HACK (until value persistence impl'd)
-	if m.ReadOnly {
-		if oo, ok := lv.Base.(Object); ok {
-			if oo.GetIsReal() {
-				panic("readonly violation")
-			}
-		}
-	}
 	// lv <<= rv
 	shlAssign(m, lv.TV, rv)
 	if lv.Base != nil {
@@ -291,14 +195,6 @@ func (m *Machine) doOpShrAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 
-	// XXX HACK (until value persistence impl'd)
-	if m.ReadOnly {
-		if oo, ok := lv.Base.(Object); ok {
-			if oo.GetIsReal() {
-				panic("readonly violation")
-			}
-		}
-	}
 	// lv >>= rv
 	shrAssign(m, lv.TV, rv)
 	if lv.Base != nil {
