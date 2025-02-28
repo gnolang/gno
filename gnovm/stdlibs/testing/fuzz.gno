@@ -1,284 +1,810 @@
 package testing
 
-import "strings"
+import (
+	"errors"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+	"testing/fuzzing"
+)
 
-type Fuzzer interface {
-	InsertDeleteMutate(p float64) Fuzzer
-	Mutate() Fuzzer
-	String() string
-}
+type (
+	// Runner is the type of the target function that f.Fuzz will execute.
+	Runner func(*T, ...interface{})
 
-type StringFuzzer struct {
-	Value string
-	f     *F
-}
+	// F is the structure used for fuzzing.
+	F struct {
+		manager              *fuzzing.FuzzManager // Maneger manages seed,hashNumber(coverage) and priority for fuzzing, sorting and organizing them to quickly find the next input candidate.
+		hasher               *fuzzing.FuzzHasher  // Hasher assigns unique hashNumbers to coverage used in fuzzing.
+		logger               *fuzzing.FuzzLogger  // Logger records and manages various messages from the fuzzer
+		mutator              *fuzzing.Mutator     // Mutator modifies and generates input values used for fuzzing
+		corpus               []fuzzing.Seed       // Copus are "Real seeds" added through f.Add.
+		msgs                 []string             // Msgs stores failing messages for reporting.
+		failed               bool                 // Failed indicates whether the fuzzing process has encountered a failure.
+		ff                   Runner               // Ff is the target function for f.Fuzz.
+		isFuzzed             bool                 // IsFuzzed monitors whether f.Fuzz has been called
+		seedCount            uint                 // SeedCount counts the number of seeds attempted.
+		stringByteCandidates []int                // StringByteCandidates records the indices of string and []byte arguments among Runner's args.
+		dur                  string               // Dur records the time taken for fuzzing.
 
-func NewStringFuzzer(value string) *StringFuzzer {
-	return &StringFuzzer{Value: value}
-}
+		// For command-line tests
+		verbose bool // verbose determines the frequency of logging based on CLI input.
+		trials  uint // trials is number of iterations to run the fuzzing process.
+	}
+)
 
-// Mutate changes a StringFuzzer's value by replacing a random character
-// with a random ASCII character.
-func (sf *StringFuzzer) Mutate() Fuzzer {
-	runes := []rune(sf.Value)
-	if len(runes) == 0 {
-		return sf
+// Add adds initial seeds to the f.corpus.
+// It prevents calling f.Add after f.Fuzz.
+func (f *F) Add(args ...interface{}) {
+	// Disallow calling f.Add after f.Fuzz.
+	if f.isFuzzed {
+		fmt.Fprintln(os.Stderr, "Add after Fuzz")
+		f.Fail()
+		return
 	}
 
-	index := randRange(0, len(runes)-1)
-	runes[index] = randomASCIIChar()
-
-	return NewStringFuzzer(string(runes))
-}
-
-func (sf *StringFuzzer) InsertDeleteMutate(p float64) Fuzzer {
-	value := InsertDelete(sf.Value, p)
-	return NewStringFuzzer(value)
-}
-
-func (sf *StringFuzzer) Fuzz() string {
-	if GenerateRandomBool(0.2) {
-		return InsertDelete(sf.Value, 0.1)
+	// Store the arguments received by f.Add
+	var values []interface{}
+	var types []fuzzing.SupportedType
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "zero-argument is denied")
+		f.Fail()
+		return
 	}
-
-	rs := []rune(sf.Value)
-	lrs := len(rs)
-
-	if lrs == 0 {
-		return sf.Value
-	}
-
-	index := randRange(0, lrs-1)
-	rs[index] = randomASCIIChar()
-
-	return string(rs)
-}
-
-func (sf *StringFuzzer) String() string {
-	return sf.Value
-}
-
-func randomASCIIChar() rune {
-	r := int(randRange(32, 126))
-
-	return rune(r)
-}
-
-// Individual represents a single individual in the population.
-type Individual struct {
-	Fuzzer  Fuzzer
-	Fitness int
-}
-
-func NewIndividual(fuzzer Fuzzer) *Individual {
-	return &Individual{Fuzzer: fuzzer}
-}
-
-func (ind *Individual) calculateFitness() {
-	ind.Fitness = len(ind.Fuzzer.String())
-}
-
-// Selection selects individuals from the population based on their fitness.
-//
-// Use roulette wheel selection to select individuals from the population.
-// ref: https://en.wikipedia.org/wiki/Fitness_proportionate_selection
-func Selection(population []*Individual) []*Individual {
-	totalFitness := calculateTotalFitness(population)
-	selected := make([]*Individual, len(population))
-
-	for i := range selected {
-		selected[i] = selectIndividual(population, totalFitness)
-	}
-
-	return selected
-}
-
-func calculateTotalFitness(population []*Individual) int {
-	totalFitness := 0
-
-	for _, ind := range population {
-		totalFitness += ind.Fitness
-	}
-
-	return totalFitness
-}
-
-func selectIndividual(population []*Individual, totalFitness int) *Individual {
-	pick := randRange(0, totalFitness-1)
-	sum := 0
-
-	for _, ind := range population {
-		sum += ind.Fitness
-		if uint64(sum) > uint64(pick) {
-			return ind
+	for i := range args {
+		t, e := typeof(args[i])
+		if e != nil {
+			fmt.Fprintln(os.Stderr, "not supported type")
+			f.Fail()
+			return
 		}
+		values = append(values, args[i])
+		types = append(types, t)
 	}
-
-	return nil
-}
-
-// Crossover takes two parents and creates two children by combining their genetic material.
-//
-// The pivot point is chosen randomly from the length of the shortest parent. after the pivot point selected,
-// the genetic material of the two parents is swapped to create the two children.
-func Crossover(parent1, parent2 *Individual) (*Individual, *Individual) {
-	p1Runes := []rune(parent1.Fuzzer.String())
-	p2Runes := []rune(parent2.Fuzzer.String())
-
-	p1Len := len(p1Runes)
-	p2Len := len(p2Runes)
-
-	point := 0
-	if p1Len >= p2Len {
-		point = int(randRange(0, p2Len-1))
+	// Initialize SeedType if not already set.
+	if f.manager.SeedType == nil {
+		f.manager.SeedType = types
+		// The mutator is initialized based on the types.
+		f.mutator = fuzzing.NewMutator(types)
 	} else {
-		point = int(randRange(0, p1Len-1))
+		// Ensure that all added arguments have the same type.
+		if !isSliceEqual(f.manager.SeedType, types) {
+			fmt.Fprintln(os.Stderr, "added arguments not equal together")
+			f.Fail()
+			return
+		}
 	}
-
-	child1 := append(append([]rune{}, p1Runes[:point]...), p2Runes[point:]...)
-	child2 := append(append([]rune{}, p2Runes[:point]...), p1Runes[point:]...)
-
-	updatedIdv1 := NewIndividual(NewStringFuzzer(string(child1)))
-	updatedIdv2 := NewIndividual(NewStringFuzzer(string(child2)))
-
-	return updatedIdv1, updatedIdv2
+	// Increment the seed count and add to corpus.
+	f.seedCount++
+	f.corpus = append(f.corpus, fuzzing.Seed{
+		Pid:           f.seedCount,
+		Id:            f.seedCount,
+		Gen:           1,
+		IsCoordinated: false,
+		Content:       values,
+	})
 }
 
-func (ind *Individual) Mutate() {
-	ind.Fuzzer = ind.Fuzzer.Mutate()
+// typeof takes an interface{} and returns its type and whether it is supported.
+func typeof(arg interface{}) (fuzzing.SupportedType, error) {
+	switch arg.(type) {
+	case []byte:
+		return fuzzing.ByteArray, nil
+	case string:
+		return fuzzing.String, nil
+	case bool:
+		return fuzzing.Bool, nil
+	// duduplication. uint8 and byte are of the same type.
+	// case byte:
+	// 	return fuzzing.Byte, nil
+	// deduplication because int32 and rune are of the same type
+	// case rune:
+	// 	return fuzzing.Rune, nil
+	case float32:
+		return fuzzing.Float32, nil
+	case float64:
+		return fuzzing.Float64, nil
+	case int:
+		return fuzzing.Int, nil
+	case int8:
+		return fuzzing.Int8, nil
+	case int16:
+		return fuzzing.Int16, nil
+	case int32:
+		return fuzzing.Int32, nil
+	case int64:
+		return fuzzing.Int64, nil
+	case uint:
+		return fuzzing.Uint, nil
+	case uint8:
+		return fuzzing.Uint8, nil
+	case uint16:
+		return fuzzing.Uint16, nil
+	case uint32:
+		return fuzzing.Uint32, nil
+	case uint64:
+		return fuzzing.Uint64, nil
+	default:
+		return "", errors.New("unsupported type:")
+	}
 }
 
-// InsertDelete randomly inserts or deletes a character from a string.
-func InsertDelete(s string, p float64) string {
-	rr := []rune(s)
-	l := len(rr)
+// isSliceEqual checks if two slices of supportedType are equal.
+func isSliceEqual(a, b []fuzzing.SupportedType) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
 
-	// Insert
-	if GenerateRandomBool(p) {
-		pos := randRange(0, l-1)
-		rr = append(rr, 0)
-
-		copy(rr[pos+1:], rr[pos:])
-
-		char := randomASCIIChar()
-		rr[pos] = char
+// Fuzz orchestrates input mutation and execution for fuzz testing.
+// It utilizes f.manager to manage inputs and f.mutator to generate variations
+// of seeds added via f.Add. The target function is executed using f.Fuzz.
+//
+// The fuzzing process follows these steps:
+// 1. Retrieve input from f.manager.
+// 2. Mutate the input using f.mutator, storing mutation details, including:
+//   - argumentsSet: Specifies the subset of arguments modified.
+//   - entity: Indicates which part of an argument was changed.
+//   - mutationStrategy: Describes the transformation applied.
+//
+// 3. Execute the mutated inputs.
+// 4. Update the hasher, manager, and mutator based on execution results:
+//   - The hasher records coverage data and maps it to hash values.
+//   - The manager clusters seeds with similar hash values and adjusts priority rankings.
+//   - The mutator refines mutation strategies using (execution results, original input, mutation strategy).
+//
+// 5. If an error occurs or the iteration limit is reached, the process outputs results and terminates.
+func (f *F) Fuzz(run Runner) {
+	if !f.isFuzzed {
+		f.isFuzzed = true
 	} else {
-		if l == 0 {
-			return s
-		}
-
-		pos := randRange(0, l-1)
-		rr = append(rr[:pos], rr[pos+1:]...)
+		fmt.Fprintln(os.Stderr, "fuzz called more than once")
+		return
+	}
+	// If f.Fatal or f.Fail was called in FuzzXXX, return immediately.
+	if f.failed {
+		return
 	}
 
-	return string(rr)
-}
+	// Initialize fuzzing by registering the target function.
+	f.ff = run
 
-type F struct {
-	corpus []string
-	failed bool     // Indicates whether the fuzzing has encountered a failure.
-	msgs   []string // Stores log messages for reporting.
-	iters  int      // Number of iterations to run the fuzzing process. TODO: CLI flag to set this.
-}
-
-// Runner is a type for the target function to fuzz.
-type Runner func(*T, ...interface{})
-
-// Fuzz applies the fuzzing process to the target function.
-func (f *F) Fuzz(run Runner, iter int) {
-	f.evolve(iter)
-
-	for _, input := range f.corpus {
-		args := make([]interface{}, len(f.corpus))
-		for i := range args {
-			args[i] = input
+	// Format manager and mutator using corpus from f.Add.
+	for _, corp := range f.corpus {
+		f.embedTestResult(&corp)
+		if corp.TestResult.IsFailrue {
+			f.handleFailure(corp)
+			return
 		}
 
-		run(nil, args...)
-	}
-}
+		hashNumber := corp.HashNumber
+		f.manager.Inithashnumber = append(f.manager.Inithashnumber, hashNumber)
+		endInfo := f.manager.CoordinateSeed(corp)
+		f.mutator.Coordinate2SampleSet(corp, 1)
+		// TODO: Add it as a self-referential structure.
+		// Remove duplicate coverage entries and ensure each unique coverage retains a minimal self-referential structure.
 
-// Add adds test values to initialize the corpus.
-func (f *F) Add(values ...interface{}) []Fuzzer {
-	fuzzers := make([]Fuzzer, len(values))
-
-	for i, v := range values {
-		str, ok := v.(string)
-		if !ok {
+		if endInfo.CompleteTrials {
+			f.reportSuccess()
+			return
+		}
+		if endInfo.MaxedCAPACITY {
+			f.migrateMachines()
 			continue
 		}
-		f.corpus = append(f.corpus, str)
-		fuzzers[i] = &StringFuzzer{Value: str}
 	}
 
-	return fuzzers
-}
+	// Guidelines for evolving seeds.
+	// Used by the mutator to determine mutation strategies.
+	// Strings and []byte inputs are parsed and analyzed to update mutation strategies accordingly.
 
-func (f *F) evolve(generations int) {
-	population := make([]*Individual, len(f.corpus))
-	for i, c := range f.corpus {
-		population[i] = &Individual{Fuzzer: &StringFuzzer{Value: c, f: f}}
-	}
-
-	for _, ind := range population {
-		ind.calculateFitness()
-	}
-
-	for gen := 0; gen < generations; gen++ {
-		population = Selection(population)
-		newPopulation := make([]*Individual, 0, len(population))
-
-		for i := 0; i < len(population); i += 2 {
-			if i+1 < len(population) {
-				child1, child2 := Crossover(population[i], population[i+1])
-				newPopulation = append(newPopulation, child1, child2)
-				continue
-			}
-
-			newPopulation = append(newPopulation, population[i])
+	stringByteCandidates := []int{}
+	for i, t := range f.manager.SeedType {
+		if t == fuzzing.String || t == fuzzing.ByteArray {
+			stringByteCandidates = append(stringByteCandidates, i)
 		}
-
-		var bestFitness int
-
-		for _, ind := range newPopulation {
-			if GenerateRandomBool(0.2) {
-				ind.Mutate()
-			}
-
-			if GenerateRandomBool(0.1) {
-				ind.Fuzzer = ind.Fuzzer.InsertDeleteMutate(0.3)
-			}
-
-			ind.calculateFitness()
-
-			if ind.Fitness > bestFitness {
-				bestFitness = ind.Fitness
-			}
-		}
-
-		population = newPopulation
 	}
 
-	f.corpus = make([]string, len(population))
-	for i, ind := range population {
-		f.corpus[i] = ind.Fuzzer.String()
+	f.stringByteCandidates = stringByteCandidates
+	fmt.Fprintln(os.Stderr, "Run trials...")
+	// Independently generate inputs from the initially formatted seeds.
+	// Ensures that all initial seeds are executed and mutated at least once.
+	// Inputs provided via f.Add are executed independently, regardless of priority.
+
+	for i := 0; i < len(f.corpus); i++ {
+		hn := f.manager.Inithashnumber[i]
+		initSeed := f.manager.PopInitSeedByHN(hn)
+		isEnd := f.updateMachines(initSeed)
+		if isEnd {
+			return
+		}
+	}
+	for {
+
+		// 1) Pop input from the manager
+		parentSeed := f.manager.PopSeed()
+		// 2) Generate evolved input from the retrieved input.
+		// 3) Simulate and log the evolved input when executing the target function.
+		// 4) Coordinate input management and repeatedly update the mutator.
+
+		isEnd := f.updateMachines(parentSeed)
+		// 5) If an error occurs or trials (iterations) are completed, output the result and terminate.
+		if isEnd {
+			return
+		}
 	}
 }
 
-// Fail marks the function as having failed bur continue execution.
+// embedTestResult test the target function with the given seed and embeds its result.
+func (f *F) embedTestResult(seed *fuzzing.Seed) {
+	coverage, err, isPanic, panicMsg := monitor(f.ff, seed.Content)
+	// Compute seed.hn
+	// This completes the status change of the seed before logging
+	hashNumber := f.hasher.RegisterCoverage2HashNumber(coverage)
+	seed.HashNumber = hashNumber
+	// Handle failure scenarios
+
+	if isPanic || err != nil {
+		var testResult fuzzing.TestResult
+		if isPanic {
+			testResult = fuzzing.TestResult{
+				IsFailrue:     true,
+				PanicOccurred: true,
+				PanicMessage:  panicMsg,
+				Error:         nil,
+			}
+		}
+		if err != nil {
+			testResult = fuzzing.TestResult{
+				IsFailrue:     true,
+				PanicOccurred: false,
+				PanicMessage:  "",
+				Error:         err,
+			}
+		}
+
+		seed.TestResult = testResult
+	} else {
+		seed.TestResult.IsFailrue = false
+	}
+}
+
+// monitor runs the target function and captures coverage, errors, and panics.
+// TODO: Make sure to revise coverage here!!!
+// It's hard-coded coverage according to the test results here. This will be corrected later!!
+func monitor(run Runner, content []interface{}) (coverage fuzzing.Coverage, err error, isPanic bool, panicMsg string) {
+	isPanic = false
+	panicMsg = ""
+	err = nil
+	coverage = fuzzing.Coverage{}
+	defer func() {
+		if r := recover(); r != nil {
+			// TODO: part 1
+			coverage = fuzzing.CoverageOfrunner(content)
+			isPanic = true
+			if err, ok := r.(error); ok {
+				panicMsg = err.Error()
+				return
+			}
+			if s, ok := r.(string); ok {
+				panicMsg = s
+				return
+			}
+			panicMsg = "unknown panic"
+		}
+	}()
+	t := NewT("fuzzing")
+	// Ensuring the immutability of content
+	copied := make([]interface{}, len(content))
+	for i, v := range content {
+		copied[i] = v
+	}
+	run(t, copied...)
+	info := t.GetResult()
+	if info.Failed {
+		err = errors.New(string(info.Output))
+	}
+	// TODO: part 2
+	// Modifying this function to get real coverage
+	// It's just pseudo-coverage of some function
+	coverage = fuzzing.CoverageOfrunner(content)
+
+	return coverage, err, isPanic, panicMsg
+}
+
+// Fail marks the function as having failed but continues execution.
 func (f *F) Fail() {
 	f.failed = true
 }
 
-// Fatal is equivalent to Log followed by FailNow.
-// It logs the message and marks the fuzzing as failed.
+// FailNow marks the fuzz test as failed and stops execution immediately.
+// It is primarily used within FuzzXXX functions. While it can be used inside f.Fuzz,
+// it is recommended to use the test framework's methods instead.
+func (f *F) FailNow() {
+	templet := "fuzzing: you called FailNow"
+	f.logOrPanic(templet)
+	f.failed = true
+}
+
+// Fatal logs the provided arguments and then calls FailNow.
+// It is equivalent to calling Log followed by FailNow.
+// While it can be used inside f.Fuzz, using the test framework's methods is preferred.
 func (f *F) Fatal(args ...interface{}) {
 	var sb strings.Builder
 
 	for _, arg := range args {
-		sb.WriteString(arg.(string))
+		sb.WriteString(fmt.Sprint(arg)) // Supports various types using fmt.Sprint
+		sb.WriteString(" ")             // Adds space between messages
 	}
 
-	f.msgs = append(f.msgs, sb.String())
+	message := sb.String()
+	f.msgs = append(f.msgs, message)
+
+	// Use the helper function to log and panic
+	f.logOrPanic("fuzzing: you called Fatal %d time(s) \"%v\"\n", len(f.msgs), f.msgs)
 	f.Fail()
+}
+
+// Fatalf logs a formatted message and then calls FailNow.
+// It functions similarly to Fatal but supports formatted strings.
+// While it can be used inside f.Fuzz, using the test framework's methods is preferred.
+func (f *F) Fatalf(format string, args ...interface{}) {
+	message := fmt.Sprintf(format, args...)
+	f.msgs = append(f.msgs, message)
+
+	f.logOrPanic("fuzzing: you called Fatalf %d time(s) \"%v\"\n", len(f.msgs), f.msgs)
+	f.Fail()
+}
+
+// logOrPanic is a helper function that logs the message or then panics.
+func (f *F) logOrPanic(templet string, args ...interface{}) {
+	// Log the message to stderr
+	fmt.Fprintf(os.Stderr, templet, args...)
+
+	// If already fuzzed, panic with the message
+	if f.isFuzzed {
+		panic(fmt.Sprintf(templet, args...))
+	}
+}
+
+// analyzeResult performs analysis on the fuzzing results and logs the findings.
+func (f *F) analyzeResult() {
+	fmt.Fprintln(os.Stderr, "\n--- Analytics:")
+	if f.verbose {
+
+		hashNumber := 0
+		for f.manager.HashNumber2Priority[hashNumber] != 0 {
+			sampleSet, foundSampleSet := f.mutator.FindMutSampleSet(fuzzing.HashNumber(hashNumber))
+			if !foundSampleSet {
+				panic("Logic error: Unable to find sampleSet based on hash number")
+			}
+
+			var totalReflectionCount uint64
+			samples := sampleSet.GetAllSamplesList()
+			for _, sample := range samples {
+				totalReflectionCount += (sample.SamplePopularity() - 1)
+			}
+			fmt.Fprintf(os.Stdout, "coverage %d: [%d frequency | %v reflected seeds | %d actual storage] \n", hashNumber, f.manager.HashNumber2Priority[hashNumber], totalReflectionCount, len(f.manager.HashNumber2Seeds[hashNumber].Data))
+			dataLen := len(f.manager.HashNumber2Seeds[hashNumber].Data)
+			sampleCount := getSampleCount(dataLen) // Determines sample count
+			fmt.Fprint(os.Stdout, "- ")
+			for j := 0; j < sampleCount; j++ {
+				index := j * (dataLen / sampleCount) // Selects indices at even intervals
+				s := f.manager.HashNumber2Seeds[hashNumber].Data[index]
+
+				if j > 0 {
+					fmt.Fprint(os.Stdout, ", ")
+				}
+				fmt.Fprintf(os.Stdout, "%v", fuzzing.ContentToString(s.Content))
+			}
+			fmt.Fprintln(os.Stdout) // Adds a newline
+
+			hashNumber++
+		}
+	}
+}
+
+// getSampleCount determines the number of samples based on input length.
+func getSampleCount(length int) int {
+	switch {
+	case length >= 4096:
+		return 5
+	case length >= 512:
+		return 4
+	case length >= 64:
+		return 3
+	case length >= 8:
+		return 2
+	default:
+		return 1
+	}
+}
+
+// coverageToString converts coverage data to a string representation.
+func coverageToString(coverage fuzzing.Coverage) string {
+	var sb strings.Builder
+	sb.WriteString("[")
+	count := 0
+	for i, line := range coverage {
+		sb.WriteString("{co_name: ")
+		sb.WriteString(line.CoName)
+		sb.WriteString(", co_line: ")
+		sb.WriteString(strconv.Itoa(line.CoLine))
+		sb.WriteString("}")
+		count++
+		if i < len(coverage)-1 {
+			if count%3 == 0 {
+				sb.WriteString(", \n")
+			} else {
+				sb.WriteString(", ")
+			}
+		}
+	}
+	sb.WriteString("]")
+	return sb.String()
+}
+
+// recordMinimizedSeed reduces seedContent to its minimal form while preserving failure conditions.
+// It then records the seed and result.
+func (f *F) recordMinimizedFailure(seedContent []interface{}) {
+	// Condition function: Checks if an input preserves an error or panic state.
+	cond := func(tester []interface{}) bool {
+		_, err, isPanic, _ := monitor(f.ff, tester)
+		if isPanic {
+			return true
+		}
+		if err != nil {
+			return true
+		}
+		return false
+	}
+	candidate := f.minimizeByCond(seedContent, cond)
+
+	sampleSeed := fuzzing.Seed{
+		Content: candidate,
+	}
+	f.embedTestResult(&sampleSeed)
+	// record the context for reporting a failure.
+	f.recordFailure(sampleSeed)
+}
+
+// minimizeByHashNumber minimizes seedContent while ensuring the resulting input
+// produces the same hash number (hn) when monitored.
+func (f *F) minimizeByHashNumber(seedContent []interface{}, hn fuzzing.HashNumber) []interface{} {
+	// Condition function: Ensures monitored output produces the same hash number.
+	cond := func(tester []interface{}) bool {
+		coverage, _, _, _ := monitor(f.ff, tester)
+		if f.hasher.IsExistingCoverage(coverage) {
+			newHn := f.hasher.RegisterCoverage2HashNumber(coverage)
+			return newHn == hn
+		} else {
+			return false
+		}
+	}
+
+	return f.minimizeByCond(seedContent, cond)
+}
+
+// minimizeByCond iteratively reduces seedContent while satisfying the given condition function.
+func (f *F) minimizeByCond(seedContent []interface{}, cond func([]interface{}) bool) []interface{} {
+	// Identify indices of minimizable elements (e.g., ByteArray, String).
+	var minimizableIndices []int
+	for i, t := range f.manager.SeedType {
+		if t == fuzzing.ByteArray || t == fuzzing.String {
+			minimizableIndices = append(minimizableIndices, i)
+		}
+	}
+	if len(minimizableIndices) < 1 {
+		return seedContent
+	}
+
+	// Create a copy of seedContent.
+	candidate := fuzzing.DeepCopyInterfaceList(seedContent)
+
+	// Iteratively minimize input.
+	for {
+		newCandidate, progressed, occurredPoint := f.checkProgressWithCond(candidate, minimizableIndices, cond)
+		if !progressed {
+			break
+		}
+		candidate = newCandidate
+		// Skip already processed minimizable indices.
+		minimizableIndices = minimizableIndices[occurredPoint:]
+	}
+
+	return candidate
+}
+
+// checkProgressWithCond attempts to reduce minimizable elements while preserving the given condition.
+// It returns the best minimized candidate, whether progress was made, and the index of the modified element.
+func (f *F) checkProgressWithCond(content []interface{}, minimizableIndices []int, cond func([]interface{}) bool) ([]interface{}, bool, int) {
+	for occurredPoint, idx := range minimizableIndices {
+		element := content[idx]
+		var candidates [][]byte
+		var isString bool
+
+		switch v := element.(type) {
+		case string:
+			if len(v) < 1 {
+				continue
+			}
+			isString = true
+			candidates = generateCandidates([]byte(v))
+		case []byte:
+			if len(v) < 1 {
+				continue
+			}
+			isString = false
+			candidates = generateCandidates(v)
+		default:
+			continue // Skip non-minimizable types.
+
+		}
+
+		// Test each candidate against the condition function.
+		for _, candidateBytes := range candidates {
+			tester := fuzzing.DeepCopyInterfaceList(content)
+
+			if isString {
+				tester[idx] = string(candidateBytes)
+			} else {
+				tester[idx] = candidateBytes
+			}
+
+			if cond(tester) {
+				// Return the minimized candidate if condition holds.
+				return tester, true, occurredPoint
+			}
+		}
+	}
+	return content, false, 0
+}
+
+// generateCandidates generates potential minimization candidates by removing one character at a time.
+func generateCandidates(b []byte) [][]byte {
+	candidates := make([][]byte, 0, len(b))
+	for i := 0; i < len(b); i++ {
+		// createSliceWithoutIndex generates a new slice with the character at the given index removed.
+
+		candidate := append([]byte{}, b[:i]...)
+		candidate = append(candidate, b[i+1:]...)
+		candidates = append(candidates, candidate)
+	}
+	return candidates
+}
+
+// handleFaile records the failrue and report failure.
+func (f *F) handleFailure(seed fuzzing.Seed) {
+	f.recordFailure(seed)
+	f.recordMinimizedFailure(seed.Content)
+	f.reportFailure()
+	return
+}
+
+// recordFailure record the necessary context before reporting a failure.
+func (f *F) recordFailure(seed fuzzing.Seed) {
+	f.logger.AddCase(seed)
+	f.manager.CoordinateSeed(seed)
+	f.mutator.Coordinate2SampleSet(seed, 1)
+}
+
+// reportFailure reports a failure.
+func (f *F) reportFailure() {
+	// Reports the first detected failing input.
+	fmt.Fprintln(os.Stderr, "\n--- FAIL:")
+	f.logger.ReportFirstFailingInput()
+	// Reports the most recently minimized input.
+	fmt.Fprintln(os.Stderr, "\n--- Minimized input:")
+	f.logger.ReportLastCrashCase()
+	// Gets coverage of last crash case by its hashNumber
+	hn := f.logger.LastCrashCase().HashNumber
+	coverage := f.hasher.HashNumber2Coverage(hn)
+	// Reports trace of last crash case by its coverage
+	if f.verbose {
+		fmt.Fprintln(os.Stderr, "\n--- Trace:")
+		fmt.Fprintf(os.Stderr, "%s\n", coverageToString(coverage))
+	} else {
+		fmt.Fprintln(os.Stderr, "\n--- Trace:")
+		fmt.Fprintf(os.Stderr, "Last covered line: function \"%s\" in line %d\n", coverage[len(coverage)-1].CoName, coverage[len(coverage)-1].CoLine)
+	}
+	if f.verbose {
+		f.analyzeResult()
+	}
+	return
+}
+
+// reportSuccess reports the fuzzing results after successful completion.
+func (f *F) reportSuccess() {
+	fmt.Fprintln(os.Stderr, "\n--- PASS:")
+	fmt.Fprintf(os.Stderr, "Complete %d Trials\n", f.manager.InputCount)
+	fmt.Fprintf(os.Stderr, "Inspected %d coverage\n", (f.manager.InspectingHashNumbers))
+	if f.verbose {
+		f.analyzeResult()
+	}
+}
+
+// migrateMachines abstracts the existing f.manager and relocates the f.manager.
+func (f *F) migrateMachines() {
+	// Abstract existing f.manager
+	summarizedSeeds := f.manager.SummarizeSeeds()
+
+	prevInputCount := f.manager.InputCount
+	substractedInputCount := int(prevInputCount) - len(summarizedSeeds)
+	prevSeedType := make([]fuzzing.SupportedType, len(f.manager.SeedType))
+	copy(prevSeedType, f.manager.SeedType)
+	prevInitHashNumber := f.manager.Inithashnumber
+	// Reinitialize f.manager while preserving relevant data.
+	f.manager = fuzzing.NewFuzzManager(f.trials, uint(substractedInputCount))
+	f.manager.Verbose = f.verbose
+	f.manager.SeedType = prevSeedType
+	f.manager.Inithashnumber = prevInitHashNumber
+	for _, seed := range summarizedSeeds {
+		f.manager.CoordinateSeed(seed)
+	}
+}
+
+// updateMachines performs the following steps:
+// 1) Generates mutated input from it's argument(parentSeed)
+// 2) Simulates and logs evolved input to the target function
+// 3) Coordinates input to the fuzzManager, updates the mutator,
+// and determines whether fuzzing should be terminated.
+func (f *F) updateMachines(parentSeed fuzzing.Seed) bool {
+	f.manager.CoordinateSeed(parentSeed)
+	// 1) Generate mutated input from the popped input by mutator.
+	childSeeds := f.mutator.MutateSeed2Seeds(parentSeed, &f.seedCount)
+
+	seedsMap := make(map[fuzzing.HashNumber]*[]fuzzing.Seed)
+	// 2) execute and log evolved input to the target function
+	// If failure occurs, log it and terminate
+	for _, child := range childSeeds {
+		f.embedTestResult(&child)
+		hn := child.HashNumber
+		if _, exists := seedsMap[hn]; !exists {
+			seedsMap[hn] = &[]fuzzing.Seed{}
+		}
+		seeds := seedsMap[hn]
+		*seeds = append(*seeds, child)
+	}
+
+	// 3) Update fuzz manager with the new inputs.
+	for hn, seeds := range seedsMap {
+		// Quickly checks if the seed caused a failure and returns immediately if true.
+		if sampleSeed := (*seeds)[0]; sampleSeed.TestResult.IsFailrue {
+			f.handleFailure(sampleSeed)
+			return true
+		}
+		if !f.manager.IsCoordinatedHashNumber(hn) {
+			// If the hash number has not been coordinated yet,
+			// it coordinates the seed and directly adds it to the mutator.
+
+			// TODO: Select "shortSeed" using an appropriate heuristic.
+			// The smaller the initial seed, the shorter the minimization time.
+
+			seedArray := *(seeds)
+			shortSeed := seedArray[0] // Sample seed for coordination
+			copiedContent := make([]interface{}, len(shortSeed.Content))
+			for i, v := range shortSeed.Content {
+				copiedContent[i] = v
+			}
+
+			minimizedContent := f.minimizeByHashNumber(copiedContent, hn)
+			minimizedSeed := fuzzing.Seed{
+				Pid:           shortSeed.Pid,
+				Id:            shortSeed.Id,
+				Gen:           shortSeed.Gen,
+				HashNumber:    shortSeed.HashNumber,
+				IsCoordinated: shortSeed.IsCoordinated,
+				Content:       minimizedContent,
+			}
+			abstractCount := len(seedArray)
+
+			abstractEndInfo := f.manager.CoordinateAbstraction(hn, uint(abstractCount))
+			flag1 := f.handleEndInfo(abstractEndInfo)
+			if flag1 {
+				return true
+			}
+			concreteEndInfo := f.manager.CoordinateSeed(minimizedSeed)
+			f.mutator.Coordinate2SampleSet(minimizedSeed, int(abstractCount+1))
+			flag2 := f.handleEndInfo(concreteEndInfo)
+			if flag2 {
+				return true
+			}
+		} else {
+			// If the hash number has already been coordinated,
+			// it is not stored directly. Instead, it is used to update the manager and mutator.
+			seedArray := *(seeds)
+			sampleSeed := seedArray[0]
+			sampleSet, foundSampleSet := f.mutator.FindMutSampleSet(hn)
+			if !foundSampleSet {
+				panic("Logic error: Unable to find sampleSet based on hash number")
+			}
+			if parentId, foundParent := sampleSet.FindParentID(sampleSeed.Pid); foundParent {
+				// If a mutated input returns to the parent's coverage,
+				// the parent's mutation strategy is updated accordingly.
+				// This creates a bias based on survivors, making future mutation strategies
+				// more likely to successfully pass program validation.
+
+				parentSample, foundParentSample := sampleSet.FindSample(parentId)
+				if !foundParentSample {
+					panic("logic error: Unable to find sample sample based on parent id")
+				}
+				for _, seed := range seedArray {
+					parentSample.ReflectSeed(seed)
+					sampleSet.PlusClusterPopularity(1)
+				}
+				abstractCount := len(seedArray)
+				abstractEndInfo := f.manager.CoordinateAbstraction(hn, uint(abstractCount))
+				flag := f.handleEndInfo(abstractEndInfo)
+				if flag {
+					return true
+				}
+			} else {
+				// Even if the mutated input reaches an already registered hash number,
+				// if the transformation results in a different hash number than the original,
+				// it is considered a special case and is directly inserted into the coordinator and mutator.
+
+				// TODO: Consider a better way to utilize "siblings."
+				// 1) Use sampleSet.FindSiblingID to find a sibling.
+				// 2) Infer structural similarity using an appropriate heuristic (e.g., length tracking).
+				//    If ID-based weighted operations are possible, it would be beneficial.
+				//    Be cautious, as direct weighted operations may cause merge conflicts when structural changes occur.
+				// TODO: Select "shortSeed" using an appropriate heuristic.
+				// The smaller the initial seed, the shorter the minimization time.
+				seedArray := *(seeds)
+				shortSeed := seedArray[0] // Sample seed for coordination
+				abstractCount := len(seedArray)
+				abstractEndInfo := f.manager.CoordinateAbstraction(hn, uint(abstractCount))
+				flag1 := f.handleEndInfo(abstractEndInfo)
+				if flag1 {
+					return true
+				}
+				concreteEndInfo := f.manager.CoordinateSeed(shortSeed)
+				f.mutator.Coordinate2SampleSet(shortSeed, int(abstractCount+1))
+				flag2 := f.handleEndInfo(concreteEndInfo)
+				if flag2 {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// handleEndInfo handles the endInfo returned by coordinateSeed or coordinateAbstraction.
+func (f *F) handleEndInfo(endInfo fuzzing.EndInfo) bool {
+	if endInfo.CompleteTrials {
+		f.reportSuccess()
+		return true
+	}
+	if endInfo.MaxedCAPACITY {
+		f.migrateMachines()
+		return false
+	}
+	return false
+}
+
+// NewF creates a new instance of F with the specified verbosity and number of trials.
+func NewF(verbose bool, trials uint) *F {
+	newManager := fuzzing.NewFuzzManager(trials, 0)
+	newManager.Verbose = verbose
+	newHasher := fuzzing.NewFuzzHasher()
+	newLogger := fuzzing.NewFuzzLogger()
+	return &F{
+		verbose: verbose,
+		manager: newManager,
+		hasher:  newHasher,
+		logger:  newLogger,
+		// The mutator is created after receiving the seed type via Add.
+		mutator:   nil,
+		isFuzzed:  false,
+		seedCount: 0,
+		trials:    trials,
+	}
 }
