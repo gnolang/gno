@@ -19,7 +19,9 @@ jobs:
           go-version: '1.22.7'
 
       - name: make build
-        run: make -C docs/ -B build
+        run:
+          cd docs/
+          make build -B
 
       - name: Check if there is a diff
         run: |
