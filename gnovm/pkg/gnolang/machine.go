@@ -680,10 +680,10 @@ func (m *Machine) RunFunc(fn Name) {
 		if r := recover(); r != nil {
 			switch r := r.(type) {
 			case UnhandledPanicError:
-				fmt.Printf("Machine.RunFunc(%q) panic: %s\nStacktrace: %s\n",
+				fmt.Printf("Machine.RunFunc(%q) panic: %s\nStacktrace:\n%s\n",
 					fn, r.Error(), m.ExceptionsStacktrace())
 			default:
-				fmt.Printf("Machine.RunFunc(%q) panic: %v\nMachine State:%s\nStacktrace: %s\n",
+				fmt.Printf("Machine.RunFunc(%q) panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
 					fn, r, m.String(), m.Stacktrace().String())
 			}
 			panic(r)
@@ -699,10 +699,10 @@ func (m *Machine) RunMain() {
 		if r != nil {
 			switch r := r.(type) {
 			case UnhandledPanicError:
-				fmt.Printf("Machine.RunMain() panic: %s\nStacktrace: %s\n",
+				fmt.Printf("Machine.RunMain() panic: %s\nStacktrace:\n%s\n",
 					r.Error(), m.ExceptionsStacktrace())
 			default:
-				fmt.Printf("Machine.RunMain() panic: %v\nMachine State:%s\nStacktrace: %s\n",
+				fmt.Printf("Machine.RunMain() panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
 					r, m.String(), m.Stacktrace())
 			}
 			panic(r)
@@ -2103,6 +2103,40 @@ func (m *Machine) Panic(ex TypedValue) {
 	m.PopUntilLastCallFrame()
 	m.PushOp(OpPanic2)
 	m.PushOp(OpReturnCallDefers)
+}
+
+// Recover is the underlying implementation of the recover() function in the
+// GnoVM. It returns nil if there was no exception to be recovered, otherwise
+// it returns the [Exception], which also contains the value passed into panic().
+func (m *Machine) Recover() *Exception {
+	if len(m.Exceptions) == 0 {
+		return nil
+	}
+
+	// If the exception is out of scope, this recover can't help; return nil.
+	if m.PanicScope <= m.DeferPanicScope {
+		return nil
+	}
+
+	exception := &m.Exceptions[len(m.Exceptions)-1]
+
+	// If the frame the exception occurred in is not popped, it's possible that
+	// the exception is still in scope and can be recovered.
+	if !exception.Frame.Popped {
+		// If the frame is not the current frame, the exception is not in scope; return nil.
+		// This retrieves the second most recent call frame because the first most recent
+		// is the call to recover itself.
+		if frame := m.LastCallFrame(2); frame == nil || frame != exception.Frame {
+			return nil
+		}
+	}
+
+	if isUntyped(exception.Value.T) {
+		ConvertUntypedTo(&exception.Value, nil)
+	}
+	// Recover complete; remove exceptions.
+	m.Exceptions = nil
+	return exception
 }
 
 //----------------------------------------
