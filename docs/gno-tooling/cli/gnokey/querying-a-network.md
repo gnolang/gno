@@ -197,24 +197,44 @@ data: {
   "package_doc": "Package valopers is designed around the permissionless lifecycle of valoper profiles. It also includes parts designed for govdao to propose valset changes based on registered valopers.\n",
   "values": [
     {
-      "signature": "var valopers *avl.Tree // Address -\u003e Valoper\n",
-      "doc": "valopers keeps track of all the active validator operators\n"
+      "name": "valopers",
+      "doc": "// Address -> Valoper\n",
+      "type": "*avl.Tree"
     }
     // other values
   ],
   "funcs": [
     {
       "type": "",
-      "name": "GovDAOProposal",
-      "signature": "func GovDAOProposal(address std.Address)",
-      "doc": "GovDAOProposal creates a proposal to the GovDAO for adding the given valoper to the validator set. This function is meant to serve as a helper for generating the govdao proposal\n"
+      "name": "GetByAddr",
+      "signature": "func GetByAddr(address std.Address) Valoper",
+      "doc": "GetByAddr fetches the valoper using the address, if present\n",
+      "params": [
+        {
+          "Name": "address",
+          "Type": "std.Address"
+        }
+      ],
+      "results": [
+        {
+          "Name": "",
+          "Type": "Valoper"
+        }
+      ]
     }
     // other funcs
     {
       "type": "Valoper",
       "name": "Render",
       "signature": "func (v Valoper) Render() string",
-      "doc": "Render renders a single valoper with their information\n"
+      "doc": "Render renders a single valoper with their information\n",
+      "params": [],
+      "results": [
+        {
+          "Name": "",
+          "Type": "string"
+        }
+      ]
     }
     // other methods (in this case of the Valoper type)
   ],
