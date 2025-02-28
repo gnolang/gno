@@ -1139,15 +1139,25 @@ func (p *pp) doPrintln(a []any) {
 	p.buf.writeByte('\n')
 }
 
+// internal mini reflection implementation.
+// -----------------------------------------------------------------------------
+
 // native function to get a string representation of the type of v.
 func typeString(v any) string
 
 type valueInfo struct {
-	Origin       any
-	Kind         string
+	// Original value passed to valueOf
+	Origin any
+	// Kind of the value.
+	Kind string
+	// if Origin is of a DeclaredType, the name of the type.
 	DeclaredName string
-	Bytes        uint64
-	Base         any
+	// Byte value for simple scalar types (integers, booleans).
+	Bytes uint64
+	// Original stripped of the type.
+	Base any
+	// Length of the array, slice, string, struct, interface or map.
+	Len int
 }
 
 func valueOf(v any) valueInfo {
@@ -1155,7 +1165,7 @@ func valueOf(v any) valueInfo {
 	return valueInfo{v, k, dn, bytes, base}
 }
 
-func valueOfInternal(v any) (kind, declaredName string, bytes uint64, base any)
+func valueOfInternal(v any) (kind, declaredName string, bytes uint64, base any, xlen int)
 
 func getAddr(v any) uint64
 

@@ -13,7 +13,12 @@ func X_typeString(v gnolang.TypedValue) string {
 	return v.T.String()
 }
 
-func X_valueOfInternal(v gnolang.TypedValue) (kind, declaredName string, bytes uint64, base gnolang.TypedValue) {
+func X_valueOfInternal(v gnolang.TypedValue) (
+	kind, declaredName string,
+	bytes uint64,
+	base gnolang.TypedValue,
+	xlen int,
+) {
 	if v.IsUndefined() {
 		kind = "nil"
 		return
@@ -31,7 +36,7 @@ func X_valueOfInternal(v gnolang.TypedValue) (kind, declaredName string, bytes u
 	case gnolang.BoolKind:
 		kind, bytes = "bool", v.GetUint64()&1
 	case gnolang.StringKind:
-		kind = "string"
+		kind, xlen = "string", v.GetLength()
 	case gnolang.IntKind:
 		kind, bytes = "int", v.GetUint64()
 	case gnolang.Int8Kind:
@@ -57,19 +62,21 @@ func X_valueOfInternal(v gnolang.TypedValue) (kind, declaredName string, bytes u
 	case gnolang.Float64Kind:
 		kind, bytes = "float64", v.GetUint64()
 	case gnolang.ArrayKind:
-		kind = "array"
+		kind, xlen = "array", v.GetLength()
 	case gnolang.SliceKind:
-		kind = "slice"
+		kind, xlen = "slice", v.GetLength()
 	case gnolang.PointerKind:
 		kind = "pointer"
 	case gnolang.StructKind:
-		kind = "struct"
+		kind, xlen = "struct", len(v.T.(*gnolang.StructType).Fields)
 	case gnolang.InterfaceKind:
-		kind = "interface"
+		kind, xlen = "interface", len(v.T.(*gnolang.InterfaceType).Methods)
 	case gnolang.FuncKind:
 		kind = "func"
 	case gnolang.MapKind:
-		kind = "map"
+		kind, xlen = "map", v.GetLength()
+	default:
+		panic("unexpected gnolang.Kind")
 	}
 	return
 }
