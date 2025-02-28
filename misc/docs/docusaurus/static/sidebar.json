@@ -15,7 +15,8 @@
               "getting-started/developing-locally/installation",
               "getting-started/developing-locally/running-testing-gno",
               "getting-started/developing-locally/creating-a-keypair",
-              "getting-started/developing-locally/local-dev-node"
+              "getting-started/developing-locally/local-dev-node",
+              "getting-started/developing-locally/minisocial"
             ],
             "link": {
               "type": "generated-index",
@@ -24,7 +25,6 @@
             "collapsed": true
           },
           "getting-started/deploying",
-          "getting-started/interacting-with-gnoland",
           "getting-started/becoming-a-gnome"
         ]
       },
