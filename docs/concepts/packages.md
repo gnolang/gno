@@ -1,113 +1,106 @@
----
-id: packages
----
+# Pure Packages
 
-# Packages
+Pure packages are Gno code meant to be reused by other Gno code, be it by other 
+pure packages or realms. Here are some defining features of pure packages:
+- Pure packages are stored on-chain under the `gno.land/p/` path, and can be
+  written & deployed to the chain by anyone, permissionlessly
+- Pure packages are meant to be imported from other packages & realms
+- Users cannot call functions in pure packages directly
+- Documentation for pure packages should be contained within package code itself,
+  in the form of comments, following the [Go doc standard](https://tip.golang.org/doc/comment).
 
-Packages aim to encompass functionalities that are more closely aligned with the characteristics and capabilities of realms, as opposed to standard libraries. As opposed to realms, they are stateless.
+## Commonly used `p/` packages
 
-The full list of pre-deployed available packages can be found under the [demo package](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo). Below are some of the most commonly used packages.
+To better understand how packages work, let's look at a few commonly
+used ones. Some of the most commonly used packages live in the
+[`examples`](https://github.com/gnolang/gno/tree/master/examples/)
+folder on the monorepo, and under the `gno.land/p/demo` on-chain path.
 
-## `avl`
+### Package `avl`
 
-In Go, the classic key/value data type is represented by the `map` construct. However, while Gno also supports the use of `map`, it is not a viable option as it lacks determinism due to its non-sequential nature.
- 
-To address this issue, Gno implements the [AVL Tree](https://en.wikipedia.org/wiki/AVL_tree) (Adelson-Velsky-Landis Tree) as a solution. The AVL Tree is a self-balancing binary search tree.
+Deployed under `gno.land/p/demo/avl`, the AVL package provides a tree structure
+for storing data. Currently, the AVL package is used to replace the functionality
+of the native `map` in Gno, as maps are not fully deterministic and thus do not
+work as expected in the language. Here is how using the AVL package from your
+realm might look like:
 
-The `avl` package comprises a set of functions that can manipulate the leaves and nodes of the AVL Tree.
-
-## `grc20`
-
-Gno includes an implementation of the `erc20` fungible token standard referred to as `grc20`. The interfaces of `grc20` are as follows:
-
-[embedmd]:# (../assets/explanation/packages/pkg-1.gno go)
 ```go
-func TotalSupply() uint64
-func BalanceOf(account std.Address) uint64
-func Transfer(to std.Address, amount uint64)
-func Approve(spender std.Address, amount uint64)
-func TransferFrom(from, to std.Address, amount uint64)
-func Allowance(owner, spender std.Address) uint64
-```
+package myrealm
 
-The role of each function is as follows:
+import (
+	"gno.land/p/demo/avl"
+)
 
-* `TotalSupply`: Returns the total supply of the token.
-* `BalanceOf`: Returns the balance of tokens of an account.
-* `Transfer`: Transfers specific `amount` of tokens from the `caller` of the function to the `to` address.
-* `Approve`: Grants the `spender`(also referred to as `operator`) with the ability to send specific `amount` of the `caller`'s (also referred to as `owner`) tokens on behalf of the `caller`.
-* `TransferFrom`: Can be called by the `operator` to send specific `amount` of `owner`'s tokens from the `owner`'s address to the `to` address.
-* `Allowance`: Returns the number of tokens approved to the `spender` by the `owner`.
+// This AVL tree will be persisted after transaction calls
+var tree *avl.Tree
 
-Two types of contracts exist in`grc20`:
+func Set(key string, value int) {
+	// tree.Set takes in a string key, and a value that can be of any type
+	tree.Set(key, value)
+}
 
-1. `Banker`
-   - Implements the token factory with `Helper` functions.
-   - The underlying struct should not be exposed to users. However, it can return a typecasted `Token` object using the `Token()` method.
-2. `Token`
-   - Implements the `GRC20` interface.
-   - The underlying struct can be exposed to users. Created with the `Token()` method of `Banker`.
-
-## `grc721`
-
-Gno includes an implementation of the `erc721` non-fungible token standard referred to as `grc721`. The interfaces of `grc721` are as follows:
-
-[embedmd]:# (../assets/explanation/packages/pkg-2.gno go)
-```go
-// functions that work similarly to those of grc20
-func BalanceOf(owner std.Address) (uint64, error)
-func Approve(approved std.Address, tid TokenID) error
-func TransferFrom(from, to std.Address, tid TokenID) error
-
-// functions unique to grc721
-func OwnerOf(tid TokenID) (std.Address, error)
-func SafeTransferFrom(from, to std.Address, tid TokenID) error
-func SetApprovalForAll(operator std.Address, approved bool) error
-func GetApproved(tid TokenID) (std.Address, error)
-func IsApprovedForAll(owner, operator std.Address) bool
-```
-
-`grc721` contains a new set of functions:
-
-* `OwnerOf`: Returns the `owner`'s address of a token specified by its `TokenID`.
-* `SafeTransferFrom`: Equivalent to the `TransferFrom` function of `grc20`.
-  * The `Safe` prefix indicates that the function runs a check to ensure that the `to` address is a valid address that can receive tokens.
-  * As you can see from the [code](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/demo/grc/grc721/basic_nft.gno#L341), the concept of `Safe` has yet to be implemented.
-* `SetApprovalForAll`: Approves all tokens owned by the `owner` to an `operator`.
-  * You may not set multiple `operator`s.
-* `GetApproved`: Returns the `address` of the `operator` for a token, specified with its `ID`.
-* `IsApprovedForAll`: Returns if all NFTs of the `owner` have been approved to the `operator`.
-
-## `testutils`
-
-The `testutils` package contains a set of functions that comes in handy when testing realms. The sample function below is the commonly used `TestAddress` function that generates a random address.
-
-[embedmd]:# (../assets/explanation/packages/pkg-3.gno go)
-```go
-func TestAddress(name string) std.Address {
-	if len(name) > std.RawAddressSize {
-		panic("address name cannot be greater than std.AddressSize bytes")
-	}
-	addr := std.RawAddress{}
-	// TODO: use strings.RepeatString or similar.
-	// NOTE: I miss python's "".Join().
-	blanks := "____________________"
-	copy(addr[:], []byte(blanks))
-	copy(addr[:], []byte(name))
-	return std.Address(std.EncodeBech32("g", addr))
+func Get(key string) int {
+  // tree.Get returns the value at given key in its raw form, 
+  // and a bool to signify the existence of the key-value pair
+  rawValue, exists := tree.Get(key)
+  if !exists {
+	  panic("value at given key does not exist")
+  }
+  
+  // rawValue needs to be converted into the proper type before returning it
+  return rawValue.(int)
 }
 ```
 
-The code takes the `name` as the input and creates a random address. Below is a list of examples where it's used in the test case of the `foo20` realm.
+View the package on the Portal Loop network [here](https://gno.land/p/demo/avl),
+or on GitHub, [here](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/avl).
 
-[embedmd]:# (../assets/explanation/packages/pkg-4.gno go)
+### Package `ufmt`
+
+Deployed under `gno.land/p/demo/ufmt`, the `ufmt` package is a minimal version of
+the `fmt` package. From [`ufmt.gno`](https://gno.land/p/demo/ufmt/ufmt.gno):
+
 ```go
-admin := users.AddressOrName("g1tntwtvzrkt2gex69f0pttan0fp05zmeg5yykv8")
-test2 := users.AddressOrName(testutils.TestAddress("test2"))
-recv := users.AddressOrName(testutils.TestAddress("recv"))
-normal := users.AddressOrName(testutils.TestAddress("normal"))
-owner := users.AddressOrName(testutils.TestAddress("owner"))
-spender := users.AddressOrName(testutils.TestAddress("spender"))
-recv2 := users.AddressOrName(testutils.TestAddress("recv2"))
-mibu := users.AddressOrName(testutils.TestAddress("mint_burn"))
+// Package ufmt provides utility functions for formatting strings, similarly
+// to the Go package "fmt", of which only a subset is currently supported
+// (hence the name µfmt - micro fmt).
+package ufmt
 ```
+
+View the package on the Portal Loop network [here](https://gno.land/p/demo/ufmt),
+or on GitHub, [here](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/ufmt).
+
+### Package `seqid`
+
+Deployed under `gno.land/p/demo/seqid`, the `seqid` package provides a simple
+way to have sequential IDs in Gno. Its encoding scheme is based on the `cford32`
+package. From [`seqid.gno`](https://gno.land/p/demo/seqid/seqid.gno):
+
+```go
+// Package seqid provides a simple way to have sequential IDs which will be
+// ordered correctly when inserted in an AVL tree.
+//
+// Sample usage:
+//
+//	var id seqid.ID
+//	var users avl.Tree
+//
+//	func NewUser() {
+//		users.Set(id.Next().String(), &User{ ... })
+//	}
+package seqid
+```
+
+View the package on the Portal Loop network [here](https://gno.land/p/demo/seqid),
+or on GitHub, [here](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/seqid).
+
+## Pure packages vs Standard Libraries
+
+Apart from pure packages, Gno, like Go, has standard libraries. To better
+understand the difference between these two concepts, let's compare a few
+specific points:
+- Pure packages can be written and deployed by anyone at any time, while standard
+  libraries require thorough battle-testing and reviews by the core team & community
+  before being added to the language
+- Standard libraries usually provide low-level necessities for the language,
+  while pure packages utilize them to create a broader range of functionality

@@ -1,10 +1,7 @@
----
-id: coin
----
-
 # Coin
 
-A Coin is a native Gno type that has a denomination and an amount. Coins can be issued by the [Banker](banker.md).  
+A Coin is a native Gno type that has a denomination and an amount. Coins can be 
+issued by the native Gno [Banker](banker.md).  
 
 A coin is defined by the following:
 
@@ -15,8 +12,8 @@ type Coin struct {
 }
 ```
 
-`Denom` is the denomination of the coin, i.e. `ugnot`, and `Amount` is a non-negative
-amount of the coin.
+`Denom` is the denomination of the coin, i.e. `ugnot`, and `Amount` is a 
+non-negative amount of the coin.
 
 Multiple coins can be bundled together into a `Coins` slice:
 
@@ -30,6 +27,6 @@ The `Coins` slice can be included in a transaction made by a user addresses or a
 Coins in this set are then available for access by specific types of Bankers,
 which can manipulate them depending on access rights.
 
-Read more about coins in the [Effective Gno](../effective-gno.md#coins) section. 
+Read more about coins in the [Effective Gno](../../misc/effective-gno.md) section. 
 
-The Coin(s) API can be found in under the `std` package [reference](../../reference/stdlibs/std/coin.md).
+The Coin(s) API can be found in under the `std` package [reference](../../reference/std.md#coin).

@@ -1,7 +1,3 @@
----
-id: events
----
-
 # Gno Events
 
 ## Overview
@@ -22,11 +18,11 @@ that happened is verifiable and accessible to off-chain services.
 To emit an event, you can use the `Emit()` function from the `std` package 
 provided in the Gno standard library. The `Emit()` function takes in a string 
 representing the type of event, and an even number of arguments after representing
-`key:value` pairs. 
+`key:value` pairs.
 
 Read more about events & `Emit()` in 
-[Effective Gno](../effective-gno.md#emit-gno-events-to-make-life-off-chain-easier),
-and the `Emit()` reference [here](../../reference/stdlibs/std/chain.md#emit).
+[Effective Gno](../../misc/effective-gno.md#emit-gno-events-to-make-life-off-chain-easier),
+and the `Emit()` reference [here](../../reference/std.md#emit).
 
 ## Data contained in a Gno Event
 
@@ -54,4 +50,3 @@ data:
 
 You can fetch the ABCI response of a specific block by using the `/block_results` 
 RPC endpoint.
-
