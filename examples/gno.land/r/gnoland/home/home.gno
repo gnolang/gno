@@ -40,9 +40,9 @@ func Render(_ string) string {
 
 	template := `# Welcome to gno.land
 
-**We’re building gno.land, set to become the leading open-source smart contract
-**platform, using Gno, an interpreted and fully deterministic variation of the
-**Go programming language for succinct and composable smart contracts.**
+We’re building gno.land, set to become the leading open-source smart contract
+platform, using Gno, an interpreted and fully deterministic variation of the
+Go programming language for succinct and composable smart contracts.
 
 With transparent and timeless code, gno.land is the next generation of smart
 contract platforms, serving as the “GitHub” of the ecosystem, with realms built
