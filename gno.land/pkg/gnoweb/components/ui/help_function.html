@@ -2,18 +2,19 @@
 {{ define "ui/help_function" }}
   {{ $data := . }}
   {{ range .Functions }}
-    <article class="bg-gray-100 rounded p-4 mb-3" data-func="{{ .FuncName }}">
+    <article class="bg-gray-100 rounded p-4 mb-3" data-func="{{ .Name }}">
       <h2
-        id="func-{{ .FuncName }}"
+        id="func-{{ .Name }}"
         class="text-gray-600 font-semibold text-200 mb-3 leading-tight"
       >
-        {{ .FuncName }}
+        {{ .Name }}
       </h2>
+      <h3 class="text-gray-600 text-50 mb-1">{{ .Doc }}</h3>
       <div class="mb-1">
         <div class="flex flex-col gap-1 items-stretch text-gray-400">
           <h3 class="mr-10 text-50">Params</h3>
           <form class="w-full text-100">
-            {{ $funcName := .FuncName }}
+            {{ $funcName := .Name }}
             {{ range .Params }}
               <div class="flex flex-col gap-3 items-stretch text-gray-400 mb-2">
                 <div
@@ -48,20 +49,20 @@
           <button
             class="js-copy-btn w-5 h-5 absolute top-2 right-2 text-gray-400 hover:text-gray-600"
             aria-label="Copy Command"
-            data-copy-btn="help-cmd-{{ .FuncName }}"
+            data-copy-btn="help-cmd-{{ .Name }}"
           >
             {{ template "ui/copy" }}
           </button>
           {{/* prettier-ignore-start */}}
           <pre
             class="font-mono text-gray-600 p-4 pr-10 whitespace-pre-wrap"
-          ><code><span data-code-mode="fast" class="hidden" data-copy-content="help-cmd-{{ .FuncName }}"># WARNING: This command is running in an INSECURE mode.
+          ><code><span data-code-mode="fast" class="hidden" data-copy-content="help-cmd-{{ .Name }}"># WARNING: This command is running in an INSECURE mode.
 # It is strongly recommended to use a hardware device for signing
 # and avoid trusting any computer connected to the internet,
 # as your private keys could be exposed.
 
-gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .FuncName }}"{{ range .Params }} -args "<span data-role="help-code-args" data-arg="{{ .Name }}" data-copy-content=""></span>"{{ end }} -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid "{{ $.ChainId }}" -remote "{{ $.Remote }}" <span data-role="help-code-address">ADDRESS</span></span><span data-code-mode="secure" class="inline">gnokey query -remote "{{ $.Remote }}" auth/accounts/<span data-role="help-code-address">ADDRESS</span>
-gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .FuncName }}" {{ range .Params }} -args "<span data-role="help-code-args" data-arg="{{ .Name }}"></span>"{{ end }} -gas-fee 1000000ugnot -gas-wanted 5000000 -send "" <span data-role="help-code-address">ADDRESS</span> > call.tx
+gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .Name }}"{{ range .Params }} -args "<span data-role="help-code-args" data-arg="{{ .Name }}" data-copy-content=""></span>"{{ end }} -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid "{{ $.ChainId }}" -remote "{{ $.Remote }}" <span data-role="help-code-address">ADDRESS</span></span><span data-code-mode="secure" class="inline">gnokey query -remote "{{ $.Remote }}" auth/accounts/<span data-role="help-code-address">ADDRESS</span>
+gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .Name }}" {{ range .Params }} -args "<span data-role="help-code-args" data-arg="{{ .Name }}"></span>"{{ end }} -gas-fee 1000000ugnot -gas-wanted 5000000 -send "" <span data-role="help-code-address">ADDRESS</span> > call.tx
 gnokey sign -tx-path call.tx -chainid "{{ $.ChainId }}" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-role="help-code-address">ADDRESS</span>
 gnokey broadcast -remote "{{ $.Remote }}" call.tx</span></code></pre>
           {{/* prettier-ignore-end */}}
