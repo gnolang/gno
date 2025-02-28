@@ -63,22 +63,6 @@ Test5 was launched in November 2024.
 - **Versioning strategy**:
   - Test5 is to be release-based, following releases of the Gno tech stack.
 
-
-## Staging
-
-Staging is a testnet that is reset once every 60 minutes.
-
-- **Persistence of state:**
-  - State is fully discarded
-- **Timeliness of code:**
-  - With every reset, the latest commit of the Gno tech stack is applied, including
-  the demo packages and realms
-- **Intended purpose**
-  - Demoing, single-use code in a staging environment, testing automation which
-  uploads code to the chain, etc.
-- **Versioning strategy**:
-  - Staging is reset every 60 minutes to match the latest monorepo commit
-
 ## TestX
 
 These testnets are deprecated and currently serve as archives of previous progress.
