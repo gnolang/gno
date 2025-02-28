@@ -115,8 +115,8 @@ func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
 			Name:      fun.Name,
 			Signature: mustFormatNode(d.pkgData.fset, fun.Decl),
 			Doc:       string(pkg.Markdown(fun.Doc)),
-			Params:    d.extractFuncParams(fun),
-			Results:   d.extractFuncResults(fun),
+			Params:    d.extractJSONFields(fun.Decl.Type.Params),
+			Results:   d.extractJSONFields(fun.Decl.Type.Results),
 		})
 	}
 
@@ -133,8 +133,8 @@ func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
 				Name:      fun.Name,
 				Signature: mustFormatNode(d.pkgData.fset, fun.Decl),
 				Doc:       string(pkg.Markdown(fun.Doc)),
-				Params:    d.extractFuncParams(fun),
-				Results:   d.extractFuncResults(fun),
+				Params:    d.extractJSONFields(fun.Decl.Type.Params),
+				Results:   d.extractJSONFields(fun.Decl.Type.Results),
 			})
 		}
 
@@ -144,8 +144,8 @@ func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
 				Name:      meth.Name,
 				Signature: mustFormatNode(d.pkgData.fset, meth.Decl),
 				Doc:       string(pkg.Markdown(meth.Doc)),
-				Params:    d.extractFuncParams(meth),
-				Results:   d.extractFuncResults(meth),
+				Params:    d.extractJSONFields(meth.Decl.Type.Params),
+				Results:   d.extractJSONFields(meth.Decl.Type.Results),
 			})
 		}
 	}
@@ -153,44 +153,26 @@ func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
 	return jsonDoc, nil
 }
 
-func (d *Documentable) extractFuncParams(fun *doc.Func) []*JSONField {
-	params := []*JSONField{}
-	for _, param := range fun.Decl.Type.Params.List {
-		// parameters can be of the format: (a, b int, c string)
-		// so we need to iterate over the names
-		for _, name := range param.Names {
-			field := &JSONField{
-				Name: name.Name,
-				Type: mustFormatNode(d.pkgData.fset, param.Type),
-			}
-
-			params = append(params, field)
-		}
-	}
-
-	return params
-}
-
-func (d *Documentable) extractFuncResults(fun *doc.Func) []*JSONField {
+func (d *Documentable) extractJSONFields(fieldList *ast.FieldList) []*JSONField {
 	results := []*JSONField{}
-	if fun.Decl.Type.Results != nil {
-		for _, result := range fun.Decl.Type.Results.List {
-			if len(result.Names) == 0 {
-				// if there are no names, then the result is an unnamed return
-				result := &JSONField{
+	if fieldList != nil {
+		for _, field := range fieldList.List {
+			if len(field.Names) == 0 {
+				// if there are no names, then the field is unnamed, but still has a type
+				f := &JSONField{
 					Name: "",
-					Type: mustFormatNode(d.pkgData.fset, result.Type),
+					Type: mustFormatNode(d.pkgData.fset, field.Type),
 				}
-				results = append(results, result)
+				results = append(results, f)
 			} else {
-				// results can be of the format: (a, b int, c string)
+				// fields can be of the format: (a, b int, c string)
 				// so we need to iterate over the names
-				for _, name := range result.Names {
-					result := &JSONField{
+				for _, name := range field.Names {
+					f := &JSONField{
 						Name: name.Name,
-						Type: mustFormatNode(d.pkgData.fset, result.Type),
+						Type: mustFormatNode(d.pkgData.fset, field.Type),
 					}
-					results = append(results, result)
+					results = append(results, f)
 				}
 			}
 		}
