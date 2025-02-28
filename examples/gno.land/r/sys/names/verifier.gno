@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	Ownable = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @moul > dropped in genesis via Enable
+	Ownable = ownable.NewWithAddress("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // dropped in genesis via Enable
 
 	enabled = false // set to true in genesis
 )
@@ -25,7 +25,6 @@ func IsAuthorizedAddressForName(address std.Address, name string) bool {
 // Enable enables the namespace check and drops centralized ownership of this realm.
 // The namespace check is disabled initially to ease txtar and other testing contexts,
 // but this function is meant to be called in the genesis of a chain.
-// This way, only GovDAO will be able to modify the namespace checking function.
 func Enable() {
 	Ownable.AssertCallerIsOwner()
 	enabled = true
