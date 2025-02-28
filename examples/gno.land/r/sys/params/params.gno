@@ -49,7 +49,7 @@ func newPropRequest(key string, fn func()) proxy.ProposalRequest {
 		std.Emit("set", "k", key)
 		return nil
 	}
-	
+
 	return proxy.ProposalRequest{
 		Title:       "Set new sys/params key",
 		Description: "This proposal wants to add a new key to sys/params: " + key,

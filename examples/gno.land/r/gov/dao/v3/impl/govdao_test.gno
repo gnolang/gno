@@ -12,15 +12,15 @@ import (
 )
 
 var (
-	m1   = testutils.TestAddress("m1")
-	m11  = testutils.TestAddress("m1.1")
-	m111 = testutils.TestAddress("m1.1.1")
+	m1    = testutils.TestAddress("m1")
+	m11   = testutils.TestAddress("m1.1")
+	m111  = testutils.TestAddress("m1.1.1")
 	m1111 = testutils.TestAddress("m1.1.1.1")
-	m2   = testutils.TestAddress("m2")
-	m3   = testutils.TestAddress("m3")
-	m4   = testutils.TestAddress("m4")
-	m5   = testutils.TestAddress("m5")
-	m6   = testutils.TestAddress("m6")
+	m2    = testutils.TestAddress("m2")
+	m3    = testutils.TestAddress("m3")
+	m4    = testutils.TestAddress("m4")
+	m5    = testutils.TestAddress("m5")
+	m6    = testutils.TestAddress("m6")
 
 	noMember = testutils.TestAddress("nm1")
 )
@@ -31,7 +31,6 @@ func loadMembers() {
 	memberstore.Get().SetMember(memberstore.T1, m11, memberByTier(memberstore.T1))
 	memberstore.Get().SetMember(memberstore.T1, m111, memberByTier(memberstore.T1))
 	memberstore.Get().SetMember(memberstore.T1, m1111, memberByTier(memberstore.T1))
-
 
 	memberstore.Get().SetMember(memberstore.T2, m2, memberByTier(memberstore.T2))
 	memberstore.Get().SetMember(memberstore.T2, m3, memberByTier(memberstore.T2))
@@ -107,10 +106,9 @@ func TestCreateProposalAndVote(t *testing.T) {
 		ProposalID: proxy.ProposalID(0),
 	})
 
-	urequire.Equal(t,true,contains(proxy.Render(""),"Proposal open for votes"))
-	urequire.Equal(t,true,contains(proxy.Render(""),"15.789473684210526%"))
-	urequire.Equal(t,true,contains(proxy.Render(""),"52.63157894736842%"))
-
+	urequire.Equal(t, true, contains(proxy.Render(""), "Proposal open for votes"))
+	urequire.Equal(t, true, contains(proxy.Render(""), "15.789473684210526%"))
+	urequire.Equal(t, true, contains(proxy.Render(""), "52.63157894736842%"))
 
 	urequire.PanicsWithMessage(t, "proposal didn't reached supermajority yet: 66", func() {
 		ExecuteProposal(proxy.ProposalID(0))
@@ -124,10 +122,10 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	accepted := ExecuteProposal(proxy.ProposalID(0))
-	urequire.Equal(t,false,accepted)
+	urequire.Equal(t, false, accepted)
 
-	urequire.Equal(t,true,contains(proxy.Render(""),"**PROPOSAL HAS BEEN DENIED**"))
-	urequire.Equal(t,true,contains(proxy.Render(""),"NO PERCENT: 68.42105263157895%"))
+	urequire.Equal(t, true, contains(proxy.Render(""), "**PROPOSAL HAS BEEN DENIED**"))
+	urequire.Equal(t, true, contains(proxy.Render(""), "NO PERCENT: 68.42105263157895%"))
 }
 
 func TestProposalPagination(t *testing.T) {
@@ -160,16 +158,15 @@ func TestProposalPagination(t *testing.T) {
 	pid = proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
 	urequire.Equal(t, int(pid), 6)
 
+	urequire.Equal(t, true, contains(proxy.Render(""), "## Proposal with id: 6"))
+	urequire.Equal(t, true, contains(proxy.Render(""), "## Proposal with id: 5"))
+	urequire.Equal(t, true, contains(proxy.Render(""), "## Proposal with id: 4"))
 
-	urequire.Equal(t,true,contains(proxy.Render(""),"## Proposal with id: 6"))
-	urequire.Equal(t,true,contains(proxy.Render(""),"## Proposal with id: 5"))
-	urequire.Equal(t,true,contains(proxy.Render(""),"## Proposal with id: 4"))
+	urequire.Equal(t, true, contains(proxy.Render("/?page=2"), "## Proposal with id: 3"))
+	urequire.Equal(t, true, contains(proxy.Render("/?page=2"), "## Proposal with id: 2"))
+	urequire.Equal(t, true, contains(proxy.Render("/?page=2"), "## Proposal with id: 1"))
 
-	urequire.Equal(t,true,contains(proxy.Render("/?page=2"),"## Proposal with id: 3"))
-	urequire.Equal(t,true,contains(proxy.Render("/?page=2"),"## Proposal with id: 2"))
-	urequire.Equal(t,true,contains(proxy.Render("/?page=2"),"## Proposal with id: 1"))
-
-	urequire.Equal(t,true,contains(proxy.Render("/?page=3"),"## Proposal with id: 0"))
+	urequire.Equal(t, true, contains(proxy.Render("/?page=3"), "## Proposal with id: 0"))
 }
 
 func contains(s, substr string) bool {

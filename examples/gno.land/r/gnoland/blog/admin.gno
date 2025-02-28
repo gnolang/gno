@@ -42,13 +42,13 @@ func AdminRemoveModerator(addr std.Address) {
 }
 
 type NewPostMetadata struct {
-	Slug string
-	Title string
-	Body string
+	Slug            string
+	Title           string
+	Body            string
 	PublicationDate string
-	Authors string
-	Tags string
-	Caller std.Address
+	Authors         string
+	Tags            string
+	Caller          std.Address
 }
 
 func (a *NewPostMetadata) IsMetadata() {}
@@ -73,13 +73,13 @@ func NewPostProposalRequest(slug, title, body, publicationDate, authors, tags st
 		Description: "This propoposal is looking to add a new post to gnoland blog",
 		Callback:    newPostCallback,
 		Metadata: &NewPostMetadata{
-			Slug: slug,
-			Title: title,
-			Body: body,
+			Slug:            slug,
+			Title:           title,
+			Body:            body,
 			PublicationDate: publicationDate,
-			Authors: authors,
-			Tags:tags,
-			Caller: std.PreviousRealm().Address(),
+			Authors:         authors,
+			Tags:            tags,
+			Caller:          std.PreviousRealm().Address(),
 		},
 	}
 }

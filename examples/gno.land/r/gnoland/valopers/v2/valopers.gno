@@ -165,7 +165,7 @@ func GovDAOProposal(address std.Address) {
 			},
 		}
 	}
-	
+
 	// Craft the proposal description
 	description := ufmt.Sprintf(
 		"Add valoper %s (Address: %s; PubKey: %s) to the valset",
@@ -175,7 +175,7 @@ func GovDAOProposal(address std.Address) {
 	)
 
 	// Create the request
-	request := validators.NewPropRequest(changesFn,description)
+	request := validators.NewPropRequest(changesFn, description)
 
 	proxy.MustCreateProposal(request)
 }

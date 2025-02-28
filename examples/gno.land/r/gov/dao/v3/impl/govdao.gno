@@ -135,7 +135,7 @@ func (g *GovDAO) PostGetProposal(pid proxy.ProposalID, p *proxy.Proposal) error 
 	return nil
 }
 
-func (g *GovDAO) PreExecuteProposal(pid proxy.ProposalID) (bool,error) {
+func (g *GovDAO) PreExecuteProposal(pid proxy.ProposalID) (bool, error) {
 	if !std.PreviousRealm().IsUser() {
 		return false, errors.New("invalid non-user call")
 	}
