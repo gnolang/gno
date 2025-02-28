@@ -25,19 +25,13 @@ jobs:
         working-directory: misc/devdeps
         run: go mod download
 
-      - name: Build docs
-        run: make -C docs/ build
-
-      - name: Check diff
-        run: git diff --exit-code || (echo "Some docs files are not formatted, please run 'make build'." && exit 1)
-
       - name: Set up Go (docs linter)
         uses: actions/setup-go@v5
         with:
-          go-version-file: misc/docs-linter/go.mod
+          go-version-file: misc/docs/tools/linter/go.mod
 
       - name: Install dependencies (docs linter)
-        working-directory: misc/docs-linter
+        working-directory: misc/docs/tools/linter
         run: go mod download
 
       - name: Run linter

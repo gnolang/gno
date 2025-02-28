@@ -1,0 +1,30 @@
+name: Update Sidebar
+
+on:
+  pull_request:
+    paths:
+      - 'docs/README.md'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.22.7'
+
+      - name: make build
+        run: make -B build
+
+      - name: Check if there is a diff
+        run: |
+          diff=$(git status --porcelain)
+          if [[ $diff ]]; then
+              echo 'Please run `make build` to update the sidebar.js file!'
+              exit 1
+          fi
