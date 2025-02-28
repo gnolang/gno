@@ -9,7 +9,7 @@ import (
 )
 
 // the byte size of a exported record
-const RecordSize int = 10
+const RecordSize int = 11
 
 var fileWriter *exporter
 
@@ -43,9 +43,9 @@ func (e *exporter) export(code Code, elapsedTime time.Duration, size int64) {
 		log.Fatalf("size %d out of uint32 range", size)
 	}
 
-	buf := []byte{code[0], code[1], 0, 0, 0, 0, 0, 0, 0, 0}
-	binary.LittleEndian.PutUint32(buf[2:], uint32(elapsedTime))
-	binary.LittleEndian.PutUint32(buf[6:], uint32(size))
+	buf := []byte{code[0], code[1], code[2], 0, 0, 0, 0, 0, 0, 0, 0}
+	binary.LittleEndian.PutUint32(buf[3:], uint32(elapsedTime))
+	binary.LittleEndian.PutUint32(buf[7:], uint32(size))
 	_, err := e.file.Write(buf)
 	if err != nil {
 		panic("could not write to benchmark file: " + err.Error())
@@ -66,10 +66,10 @@ func FinishStore() {
 		}
 		// check unstopped timer
 		if measure.storeStartTime[i] != measure.timeZero {
-			panic("timer should have stopped before FinishRun")
+			panic("timer should have stopped before FinishStore")
 		}
 
-		code := [2]byte{0x00, byte(i)}
+		code := [3]byte{0x00, byte(i), 0x00}
 
 		fileWriter.export(
 			code,
@@ -89,10 +89,26 @@ func FinishRun() {
 			panic("timer should have stopped before FinishRun")
 		}
 
-		code := [2]byte{byte(i), 0x00}
+		code := [3]byte{byte(i), 0x00, 0x00}
 		fileWriter.export(code, measure.opAccumDur[i]/time.Duration(measure.opCounts[i]), 0)
 	}
 	ResetRun()
+}
+
+func FinishGC() {
+	for i := 0; i < len(measure.gcCounts); i++ {
+		if measure.gcCounts[i] == 0 {
+			continue
+		}
+		// check unstopped timer
+		if measure.gcStartTime[i] != measure.timeZero {
+			panic("timer should have stopped before FinishGC")
+		}
+
+		code := [3]byte{0x00, 0x00, byte(i)}
+		fileWriter.export(code, measure.gcAccumDur[i]/time.Duration(measure.gcCounts[i]), 0)
+	}
+	ResetGC()
 }
 
 // It reset each machine Runs
@@ -102,6 +118,15 @@ func ResetRun() {
 	measure.opStartTime = [256]time.Time{}
 	measure.curOpCode = invalidCode
 	measure.isOpCodeStarted = false
+}
+
+// It reset each GC
+func ResetGC() {
+	measure.gcCounts = [2]int64{}
+	measure.gcAccumDur = [2]time.Duration{}
+	measure.gcStartTime = [2]time.Time{}
+	measure.curGCCode = invalidCode
+	measure.isGCCodeStarted = false
 }
 
 func Finish() {
