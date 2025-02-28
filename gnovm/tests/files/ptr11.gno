@@ -2,12 +2,13 @@ package main
 
 type S struct{}
 
-func (s S) String() string { return "hey" }
+func (s S) String() string { return "ossas" }
+
+type Stringer interface {
+	String() string
+}
 
 func main() {
 	v := (*S)(nil)
-	v.String()
+	Stringer(v).String()
 }
-
-// Error:
-// nil pointer dereference
