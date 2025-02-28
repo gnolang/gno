@@ -7,8 +7,13 @@ import (
 	"strings"
 )
 
-// MaxBoardNameLength defines the maximum length allowed for board names.
-const MaxBoardNameLength = 50
+const (
+	// MaxBoardNameLength defines the maximum length allowed for board names.
+	MaxBoardNameLength = 50
+
+	// MaxThreadTitleLength defines the maximum length allowed for thread titles.
+	MaxThreadTitleLength = 100
+)
 
 var reBoardName = regexp.MustCompile(`(?i)^[a-z]+[a-z0-9_\-]{2,50}$`)
 
@@ -169,7 +174,7 @@ func FlagThread(boardID BoardID, threadID PostID, reason string) {
 // CreateThread creates a new thread within a board.
 func CreateThread(boardID BoardID, title, body string) PostID {
 	title = strings.TrimSpace(title)
-	assertTitleIsNotEmpty(title)
+	assertTitleIsValid(title)
 
 	body = strings.TrimSpace(body)
 	assertBodyIsNotEmpty(body)
@@ -206,10 +211,12 @@ func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID 
 		reply = thread.AddReply(caller, body)
 	} else {
 		// Try to get parent reply and add a new child reply
-		post := mustGetReply(thread, replyID)
-		assertReplyVisible(post)
+		parent := mustGetReply(thread, replyID)
+		if parent.IsHidden() {
+			panic("replying to a hidden reply is not allowed")
+		}
 
-		reply = post.AddReply(caller, body)
+		reply = parent.AddReply(caller, body)
 	}
 	return reply.id
 }
@@ -247,6 +254,12 @@ func CreateRepost(boardID BoardID, threadID PostID, title, body string, dstBoard
 
 	board := mustGetBoard(boardID)
 	thread := mustGetThread(board, threadID)
+	assertThreadVisible(thread)
+
+	if thread.IsRepost() {
+		panic("reposting a thread that is a repost is not allowed")
+	}
+
 	repostId := dst.incGetPostID()
 	repost := newPost(dst, repostId, caller, title, body, repostId, thread.GetPostID(), thread.GetBoard().GetID())
 	thread.AddRepostTo(caller, repost, dst)
@@ -281,8 +294,6 @@ func DeleteReply(boardID BoardID, threadID, replyID PostID) {
 
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
-	assertReplyVisible(reply)
-
 	caller := std.OriginCaller()
 	if caller != reply.GetCreator() {
 		assertHasBoardPermission(board, caller, PermissionReplyDelete)
@@ -302,7 +313,7 @@ func DeleteReply(boardID BoardID, threadID, replyID PostID) {
 // Threads can be updated by the users who created them or otherwise by users with special permissions.
 func EditThread(boardID BoardID, threadID PostID, title, body string) {
 	title = strings.TrimSpace(title)
-	assertTitleIsNotEmpty(title)
+	assertTitleIsValid(title)
 
 	body = strings.TrimSpace(body)
 	assertBodyIsNotEmpty(body)
@@ -457,9 +468,14 @@ func assertIsValidBoardName(name string) {
 	}
 }
 
-func assertTitleIsNotEmpty(title string) {
+func assertTitleIsValid(title string) {
 	if title == "" {
 		panic("title is empty")
+	}
+
+	if len(title) > MaxThreadTitleLength {
+		n := strconv.Itoa(MaxThreadTitleLength)
+		panic("thread title is too long, maximum allowed is " + n + " characters")
 	}
 }
 
@@ -489,13 +505,13 @@ func assertReplyExists(thread *Post, replyID PostID) {
 
 func assertThreadVisible(thread *Post) {
 	if thread.IsHidden() {
-		panic("thread with ID: " + thread.GetPostID().String() + " was hidden")
+		panic("thread is hidden")
 	}
 }
 
 func assertReplyVisible(thread *Post) {
 	if thread.IsHidden() {
-		panic("reply with ID: " + thread.GetPostID().String() + " was hidden")
+		panic("reply is hidden")
 	}
 }
 

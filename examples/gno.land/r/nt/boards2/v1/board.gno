@@ -102,7 +102,7 @@ func (board *Board) AddThread(creator std.Address, title string, body string) *P
 func (board *Board) DeleteThread(pid PostID) {
 	_, removed := board.threads.Remove(pid.Key())
 	if !removed {
-		panic("thread does not exist with id " + pid.String())
+		panic("thread does not exist with ID " + pid.String())
 	}
 }
 

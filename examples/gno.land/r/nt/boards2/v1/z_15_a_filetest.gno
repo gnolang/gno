@@ -29,4 +29,4 @@ func main() {
 }
 
 // Error:
-// thread has been flagged as inappropriate
+// thread is hidden

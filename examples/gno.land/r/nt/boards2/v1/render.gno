@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	boardsPageSize  = 20
-	threadsPageSize = 30
+	boardsPageSize  = 6
+	threadsPageSize = 6
 	repliesPageSize = 30
 )
 
