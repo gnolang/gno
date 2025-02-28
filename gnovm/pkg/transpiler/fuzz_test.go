@@ -134,10 +134,19 @@ func FuzzTranspiling(f *testing.F) {
 				strings.Contains(sr, "operator") && strings.Contains(sr, "not defined on"),
 				strings.Contains(sr, "illegal rune literal"),
 				strings.Contains(sr, "DeclaredType method named"),
-				strings.Contains(sr, "unknown Go type *ast.GoStmt"),
 				strings.Contains(sr, "invalid line number"),
 				strings.Contains(sr, "missing ',' before newline in parameter list"),
-				strings.Contains(sr, "expected ';', found "):
+				strings.Contains(sr, "expected ';', found "),
+				strings.Contains(sr, "goroutines are not permitted"),
+				strings.Contains(sr, "method has no receiver"),
+				strings.Contains(sr, "more than one index"),
+				strings.Contains(sr, "unknown escape sequence"),
+				strings.Contains(sr, "expected '==', found '='"),
+				strings.Contains(sr, `curly quotation mark '“' (use neutral '"')`),
+				strings.Contains(sr, "invalid package name"),
+				strings.Contains(sr, "'p' exponent requires hexadecimal mantissa"),
+				strings.Contains(sr, "imaginaries are not supported"),
+				strings.Contains(sr, "escape sequence not terminated"):
 				return
 
 			default:
@@ -189,12 +198,23 @@ func FuzzTranspiling(f *testing.F) {
 				{Name: "a.gno", Body: gnoSrc},
 			},
 		}
-		if err := gnolang.TypeCheckMemPackage(memPkg, nil, false); err != nil {
+		if err := gnolang.TypeCheckMemPackage(memPkg, mockPackageGetter{}, false); err != nil {
 			isGnoTypeCheckError = true
 			return
 		}
 		m.RunMemPackage(memPkg, true)
 	})
+}
+
+type mockPackageGetter []*gnovm.MemPackage
+
+func (mi mockPackageGetter) GetMemPackage(path string) *gnovm.MemPackage {
+	for _, pkg := range mi {
+		if pkg.Path == path {
+			return pkg
+		}
+	}
+	return nil
 }
 
 func checkIfGoCompilesProgram(tb testing.TB, src string) error {
