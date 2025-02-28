@@ -115,6 +115,7 @@ func (board *Board) Render(p *PaginationOpts) string {
 	sb.WriteString("# Board: " + board.GetName() + "\n")
 	sb.WriteString("> Created by _" + newUserLink(board.creator) + "_ ")
 	sb.WriteString("on " + board.createdAt.Format(dateFormat))
+	sb.WriteString(", #" + board.id.String())
 
 	if board.IsReadOnly() {
 		sb.WriteString("  \n> **Board is read-only**")
