@@ -84,6 +84,7 @@ func TestBuiltinIdentifiersShadowing(t *testing.T) {
 		"error",
 		"true",
 		"false",
+		"any",
 	}
 
 	for _, name := range uverseNames {
