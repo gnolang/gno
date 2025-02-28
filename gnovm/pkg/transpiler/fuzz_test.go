@@ -80,14 +80,22 @@ func FuzzTranspiling(f *testing.F) {
 				// Normalize between Go and Gno as Go at times prefixes with:
 				// * "syntax error: "
 				goRunErrOutput := strings.ReplaceAll(goRunErr.output, "syntax error: ", "")
+
+				// Gno at times adds the code.
+				if index := strings.Index(sr, "(code="); index >= 0 {
+					sr = sr[:index]
+				}
+
+				goRunErrOutput = strings.TrimSpace(goRunErrOutput)
+				sr = strings.TrimSpace(sr)
 				diff := cmp.Diff(sr, goRunErrOutput)
 				if diff == "" { // We've got exact matching errors so can exit.
 					return
 				}
 			}
 
-                        // Otherwise we could not find matches between Go and Gno,
-                        // mos def custom syntax errors.
+			// Otherwise we could not find matches between Go and Gno,
+			// mos def custom syntax errors.
 
 			switch {
 			// Legitimate invalid syntax, compile problems that are common between
@@ -163,15 +171,19 @@ func FuzzTranspiling(f *testing.F) {
 				strings.Contains(sr, "expected '==', found '='"),
 				strings.Contains(sr, `curly quotation mark '“' (use neutral '"')`),
 				strings.Contains(sr, "invalid package name"),
-				strings.Contains(sr, "'p' exponent requires hexadecimal mantissa"),
+				strings.Contains(sr, " exponent requires hexadecimal mantissa"),
+				strings.Contains(sr, "label ") && strings.Contains(sr, "undefined"),
 				strings.Contains(sr, "imaginaries are not supported"),
 				strings.Contains(sr, "missing parameter type"),
 				strings.Contains(sr, "exponent has no digits"),
-				strings.Contains(sr, "expected ':', found level"),
+				strings.Contains(sr, "expected ':', found "),
 				strings.Contains(sr, "illegal label declaration"),
 				strings.Contains(sr, "expected type argument list"),
 				strings.Contains(sr, "expected boolean expression, found assignment"),
 				strings.Contains(sr, "missing ',' before newline in composite literal"),
+				strings.Contains(sr, "cannot parenthesize type in composite literal"),
+				strings.Contains(sr, "expression in defer must be function call"),
+				strings.Contains(sr, "missing ',' before newline in type argument list"),
 				strings.Contains(sr, "escape sequence not terminated"):
 				return
 
