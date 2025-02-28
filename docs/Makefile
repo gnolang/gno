@@ -1,16 +1,18 @@
-build: ../misc/docs/docusaurus/static/sidebar.json
+MISC_DOCS=../misc/docs
 
-../misc/docs/docusaurus/static/sidebar.json: README.md
-	go build -C ../misc/docs/tools/indexparser -o ./build
-	../misc/docs/tools/indexparser/build -path ../docs/README.md > ../misc/docs/docusaurus/static/sidebar.json
+build: $(MISC_DOCS)/docusaurus/static/sidebar.json
+
+$(MISC_DOCS)/docusaurus/static/sidebar.json: README.md
+	go build -C $(MISC_DOCS)/tools/indexparser -o ./build
+	$(MISC_DOCS)/tools/indexparser/build -path ../docs/README.md > $(MISC_DOCS)/docusaurus/static/sidebar.json
 
 # Run the linter for the docs/ folder
 lint:
-	go build -C ../misc/docs/tools/linter -o ./build
-	../misc/docs/tools/linter/build -path ../docs
+	go build -C $(MISC_DOCS)/tools/linter -o ./build
+	$(MISC_DOCS)/tools/linter/build -path ../docs
 
 dev:
-	cd ../misc/docs/docusaurus/ && yarn start
+	cd $(MISC_DOCS)/docusaurus/ && yarn start
 
 clean:
-	rm -f docusaurus/static/sidebar.json
+	rm -f $(MISC_DOCS)/docusaurus/static/sidebar.json
