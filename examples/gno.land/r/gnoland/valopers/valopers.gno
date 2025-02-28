@@ -111,38 +111,12 @@ func (v Valoper) Render() string {
 		output += ufmt.Sprintf("%s\n\n", v.Description)
 	}
 
-	if v.ProfileAddress != "" {
-		profile := profile.Render(ufmt.Sprintf("u/%s", v.ProfileAddress))
-		output += ufmt.Sprintf("%s\n\n", profile)
-	}
-
-	if v.OtherNetworks != "" {
-		output += ufmt.Sprintf("What networks are you currently validating?\n%s\n", v.OtherNetworks)
-	}
-
-	if v.DigitalPresence != "" {
-		output += ufmt.Sprintf("Digital presence?\n%s\n", v.DigitalPresence)
-	}
-
-	if v.AssetsManagement != "" {
-		output += ufmt.Sprintf("Assets under management?\n%s\n", v.AssetsManagement)
-	}
-
-	if v.ValidatingInterest != "" {
-		output += ufmt.Sprintf("Why are you interested in validating on gno.land?\n%s\n", v.ValidatingInterest)
-	}
-
-	if v.Contributions != "" {
-		output += ufmt.Sprintf("What contributions have you made to gno.land? Or what contributions are you willing to make to gno.land?\n%s\n", v.Contributions)
-	}
 	output += ufmt.Sprintf("- Address: %s\n", v.Address.String())
 	output += ufmt.Sprintf("- PubKey: %s\n", v.PubKey)
 	output += "- P2P Addresses: [\n"
 
 	if len(v.P2PAddresses) == 0 {
 		output += "]\n"
-
-		return output
 	}
 
 	for index, addr := range v.P2PAddresses {
@@ -155,6 +129,31 @@ func (v Valoper) Render() string {
 		}
 
 		output += ",\n"
+	}
+
+	if v.ProfileAddress != "" {
+		profile := profile.Render(ufmt.Sprintf("u/%s", v.ProfileAddress))
+		output += ufmt.Sprintf("%s\n", profile)
+	}
+
+	if v.OtherNetworks != "" {
+		output += ufmt.Sprintf("- What networks are you currently validating? %s\n", v.OtherNetworks)
+	}
+
+	if v.DigitalPresence != "" {
+		output += ufmt.Sprintf("- Digital presence? %s\n", v.DigitalPresence)
+	}
+
+	if v.AssetsManagement != "" {
+		output += ufmt.Sprintf("- Assets under management? %s\n", v.AssetsManagement)
+	}
+
+	if v.ValidatingInterest != "" {
+		output += ufmt.Sprintf("- Why are you interested in validating on gno.land? %s\n", v.ValidatingInterest)
+	}
+
+	if v.Contributions != "" {
+		output += ufmt.Sprintf("- What contributions have you made to gno.land? Or what contributions are you willing to make to gno.land? %s\n", v.Contributions)
 	}
 
 	return output
