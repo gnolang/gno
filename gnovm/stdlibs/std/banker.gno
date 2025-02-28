@@ -115,7 +115,7 @@ func (b banker) SendCoins(from, to Address, amt Coins) {
 		msg := `can only send coins from realm that created banker "` + b.pkgAddr + `", not "` + from + `"`
 		panic(msg)
 	}
-	denoms, amounts := amt.expandNative()
+	denoms, amounts := amt.ExpandNative()
 	bankerSendCoins(uint8(b.bt), string(from), string(to), denoms, amounts)
 }
 
