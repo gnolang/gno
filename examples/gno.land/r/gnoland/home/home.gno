@@ -40,17 +40,17 @@ func Render(_ string) string {
 
 	template := `# Welcome to gno.land
 
-**We’re building gno.land, set to become the leading open-source smart contract platform, using Gno, an interpreted and fully deterministic variation of the Go programming language for succinct and composable smart contracts.**
+**We’re building gno.land, set to become the leading open-source smart contract
+**platform, using Gno, an interpreted and fully deterministic variation of the
+**Go programming language for succinct and composable smart contracts.**
 
-With transparent and timeless code, gno.land is the next generation of smart contract platforms, serving as the “GitHub” of the ecosystem, with realms built using fully transparent, auditable code that anyone can inspect and reuse.
+With transparent and timeless code, gno.land is the next generation of smart
+contract platforms, serving as the “GitHub” of the ecosystem, with realms built
+using fully transparent, auditable code that anyone can inspect and reuse.
 
-
-Intuitive and easy to use, gno.land lowers the barrier to web3 and makes censorship-resistant platforms accessible to everyone. If you want to help lay the foundations of a fairer and freer world, join us today.
-
-<div class="jumbotron">
-
-<div class="columns-3">
-<div class="column">
+Intuitive and easy to use, gno.land lowers the barrier to web3 and makes
+censorship-resistant platforms accessible to everyone. If you want to help lay
+the foundations of a fairer and freer world, join us today. 
 
 ## Learn about gno.land
 
@@ -63,10 +63,6 @@ Intuitive and easy to use, gno.land lowers the barrier to web3 and makes censors
 - [Explore the Ecosystem](/ecosystem)
 - [Careers](https://jobs.ashbyhq.com/allinbits)
 
-</div><!-- end column-->
-
-<div class="column">
-
 ## Build with Gno
 
 - [Write Gno in the browser](https://play.gno.land)
@@ -76,9 +72,6 @@ Intuitive and easy to use, gno.land lowers the barrier to web3 and makes censors
 - [Efficient local development for Gno](https://docs.gno.land/gno-tooling/cli/gno-tooling-gnodev)
 - [Get testnet GNOTs](https://faucet.gno.land)
 
-</div><!-- end column-->
-<div class="column">
-
 ## Explore the universe
 
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
@@ -87,52 +80,32 @@ Intuitive and easy to use, gno.land lowers the barrier to web3 and makes censors
 - [Testnet 4](https://test4.gno.land/)
 - [Faucet Hub](https://faucet.gno.land)
 
-</div><!-- end column-->
-</div><!-- end columns-3-->
-</div><!-- /jumbotron -->
-
-<div class="columns-3">
-<div class="column">
-
 ## [Latest Blogposts](/r/gnoland/blog)
 
 :latest-blogposts:
 
-</div><!-- /column-->
-<div class="column">
-
 ## [Latest Events](/r/gnoland/events)
 
 :upcoming-events:
-</div><!-- /column-->
-<div class="column">
 
 ## [Hall of Fame](/r/leon/hof)
 
-
-</div><!-- /column-->
-</div><!-- /columns-3 -->
-
+:latest-hof:
 
 ---
 
 ## [Gno Playground](https://play.gno.land)
 
 
-Gno Playground is a web application designed for building, running, testing, and interacting
-with your Gno code, enhancing your understanding of the Gno language. With Gno Playground, you can share your code,
-execute tests, deploy your realms and packages to gno.land, and explore a multitude of other features.
+Gno Playground is a web application designed for building, running, testing, and
+interacting with your Gno code, enhancing your understanding of the Gno
+language. With Gno Playground, you can share your code, execute tests, deploy
+your realms and packages to gno.land, and explore a multitude of other features.
 
-
-Experience the convenience of code sharing and rapid experimentation with [Gno Playground](https://play.gno.land).
-
-
----
+Experience the convenience of code sharing and rapid experimentation with
+[Gno Playground](https://play.gno.land).
 
 ## Explore New Packages and Realms
-
-<div class="columns-3">
-<div class="column">
 
 ### [r/gnoland](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gnoland)
 
@@ -147,9 +120,6 @@ Experience the convenience of code sharing and rapid experimentation with [Gno P
 - [r/sys/names](r/sys/names)
 - [r/sys/rewards](r/sys/rewards)
 - [/r/sys/validators/v2](/r/sys/validators/v2)
-
-</div><!-- /column-->
-<div class="column">
 
 ### [r/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo)
 
@@ -166,9 +136,6 @@ Experience the convenience of code sharing and rapid experimentation with [Gno P
 - [r/demo/groups](r/demo/groups)
 - ...
 
-</div><!-- /column-->
-<div class="column">
-
 ### [p/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo)
 
 - [p/demo/avl](p/demo/avl)
@@ -183,21 +150,7 @@ Experience the convenience of code sharing and rapid experimentation with [Gno P
 - [p/demo/grc/grc721](p/demo/grc/grc721)
 - ...
 
-</div><!-- /column-->
-</div><!-- /columns-3 -->
-
-
 ---
-
-## Contributions (WorxDAO & GoR)
-
-coming soon
-
----
-
-
-<div class="columns-2">
-<div class="column">
 
 ## Socials
 
@@ -207,24 +160,15 @@ coming soon
 - [Youtube](https://www.youtube.com/@_gnoland)
 - [Telegram](https://t.me/gnoland)
 
-</div><!-- /column-->
-<div class="column">
-
-
 ## Quote of the ~Day~ Block#:chain-height:
 
 > :qotb:
-
-</div><!-- /column-->
-</div><!-- /columns-2 -->
-
 
 ---
 
 **This is a testnet.**
 Package names are not guaranteed to be available for production.
-
-</main>`
+`
 
 	if override != "" {
 		template = override
