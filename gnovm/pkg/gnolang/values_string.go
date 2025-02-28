@@ -288,7 +288,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 	}
 
 	// if implements .String(), return it.
-	if IsImplementedBy(gStringerType, tv.T) {
+	if IsImplementedBy(gStringerType, tv.T) && !tv.IsNilInterface() {
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
 		return res[0].GetString()
 	}

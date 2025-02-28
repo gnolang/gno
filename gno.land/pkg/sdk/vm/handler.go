@@ -72,6 +72,7 @@ const (
 	QueryFuncs  = "qfuncs"
 	QueryEval   = "qeval"
 	QueryFile   = "qfile"
+	QueryDoc    = "qdoc"
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQuery {
@@ -89,6 +90,8 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQ
 		res = vh.queryEval(ctx, req)
 	case QueryFile:
 		res = vh.queryFile(ctx, req)
+	case QueryDoc:
+		res = vh.queryDoc(ctx, req)
 	default:
 		return sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
@@ -180,6 +183,18 @@ func (vh vmHandler) queryFile(ctx sdk.Context, req abci.RequestQuery) (res abci.
 		return
 	}
 	res.Data = []byte(result)
+	return
+}
+
+// queryDoc returns the JSON of the doc for a given pkgpath, suitable for printing
+func (vh vmHandler) queryDoc(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	filepath := string(req.Data)
+	jsonDoc, err := vh.vm.QueryDoc(ctx, filepath)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(jsonDoc.JSON())
 	return
 }
 
