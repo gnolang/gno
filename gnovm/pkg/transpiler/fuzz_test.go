@@ -187,7 +187,10 @@ func FuzzTranspiling(f *testing.F) {
 				strings.Contains(sr, "missing ',' before newline in composite literal"),
 				strings.Contains(sr, "cannot parenthesize type in composite literal"),
 				strings.Contains(sr, "expression in defer must be function call"),
+				strings.Contains(sr, "expected switch expression, found assignment"),
 				strings.Contains(sr, "missing ',' in type"),
+				strings.Contains(sr, "missing type parameter name"),
+				strings.Contains(sr, "cannot parenthesize embedded type"),
 				strings.Contains(sr, "missing ',' before newline in type argument list"),
 				strings.Contains(sr, "escape sequence not terminated"):
 				return
