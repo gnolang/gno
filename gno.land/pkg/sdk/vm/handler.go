@@ -7,6 +7,13 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/traces"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+)
+
+var (
+	tracer = otel.Tracer("vm_handler")
 )
 
 type vmHandler struct {
@@ -21,6 +28,9 @@ func NewHandler(vm *VMKeeper) vmHandler {
 }
 
 func (vh vmHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
+	ctx, span := traces.StartSpan(ctx, tracer, "vm_handler.Process")
+	defer span.End()
+
 	switch msg := msg.(type) {
 	case MsgAddPackage:
 		return vh.handleMsgAddPackage(ctx, msg)
@@ -36,8 +46,13 @@ func (vh vmHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 
 // Handle MsgAddPackage.
 func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.Result {
+	ctx, span := traces.StartSpan(ctx, tracer, "handleMsgAddPackage")
+	span.SetAttributes(attribute.String("pkgPath", msg.Package.Path))
+	defer span.End()
+
 	err := vh.vm.AddPackage(ctx, msg)
 	if err != nil {
+		span.RecordError(err)
 		return abciResult(err)
 	}
 	return sdk.Result{}
@@ -45,8 +60,13 @@ func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.
 
 // Handle MsgCall.
 func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result) {
+	ctx, span := traces.StartSpan(ctx, tracer, "handleMsgCall")
+	span.SetAttributes(attribute.String("pkgPath", msg.PkgPath), attribute.String("func", msg.Func))
+	defer span.End()
+
 	resstr, err := vh.vm.Call(ctx, msg)
 	if err != nil {
+		span.RecordError(err)
 		return abciResult(err)
 	}
 	res.Data = []byte(resstr)
@@ -55,8 +75,13 @@ func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result)
 
 // Handle MsgRun.
 func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
+	ctx, span := traces.StartSpan(ctx, tracer, "handleMsgRun")
+	span.SetAttributes(attribute.String("pkgPath", msg.Package.Path))
+	defer span.End()
+
 	resstr, err := vh.vm.Run(ctx, msg)
 	if err != nil {
+		span.RecordError(err)
 		return abciResult(err)
 	}
 	res.Data = []byte(resstr)
