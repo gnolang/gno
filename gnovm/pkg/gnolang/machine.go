@@ -42,8 +42,6 @@ type Machine struct {
 
 	// Configuration
 	PreprocessorMode bool // this is used as a flag when const values are evaluated during preprocessing
-	ReadOnly         bool
-	MaxCycles        int64
 	Output           io.Writer
 	Store            Store
 	Context          interface{}
@@ -79,7 +77,6 @@ type MachineOptions struct {
 	// Active package of the given machine; must be set before execution.
 	PkgPath          string
 	PreprocessorMode bool
-	ReadOnly         bool
 	Debug            bool
 	Input            io.Reader // used for default debugger input only
 	Output           io.Writer // default os.Stdout
@@ -87,7 +84,6 @@ type MachineOptions struct {
 	Context          interface{}
 	Alloc            *Allocator // or see MaxAllocBytes.
 	MaxAllocBytes    int64      // or 0 for no limit.
-	MaxCycles        int64      // or 0 for no limit.
 	GasMeter         store.GasMeter
 }
 
@@ -111,8 +107,6 @@ var machinePool = sync.Pool{
 // [Machine.Release].
 func NewMachineWithOptions(opts MachineOptions) *Machine {
 	preprocessorMode := opts.PreprocessorMode
-	readOnly := opts.ReadOnly
-	maxCycles := opts.MaxCycles
 	vmGasMeter := opts.GasMeter
 
 	output := opts.Output
@@ -144,8 +138,6 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Package = pv
 	mm.Alloc = alloc
 	mm.PreprocessorMode = preprocessorMode
-	mm.ReadOnly = readOnly
-	mm.MaxCycles = maxCycles
 	mm.Output = output
 	mm.Store = store
 	mm.Context = context
@@ -392,8 +384,9 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		if m.Frames[i].IsCall() {
 			stm := m.Stmts[nextStmtIndex]
-			bs := stm.(*bodyStmt)
-			stm = bs.Body[bs.NextBodyIndex-1]
+			if bs, ok := stm.(*bodyStmt); ok {
+				stm = bs.Body[bs.NextBodyIndex-1]
+			}
 			calls = append(calls, StacktraceCall{
 				Stmt:  stm,
 				Frame: m.Frames[i],
@@ -642,13 +635,13 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 	if pv.IsRealm() {
 		rlm := pv.Realm
 		rlm.MarkNewReal(pv)
-		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+		rlm.FinalizeRealmTransaction(m.Store)
 		// save package realm info.
 		m.Store.SetPackageRealm(rlm)
 	} else { // use a throwaway realm.
 		rlm := NewRealm(pv.PkgPath)
 		rlm.MarkNewReal(pv)
-		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+		rlm.FinalizeRealmTransaction(m.Store)
 		throwaway = rlm
 	}
 	// save declared types.
@@ -672,11 +665,11 @@ func (m *Machine) resavePackageValues(rlm *Realm) {
 	pv := m.Package
 	if pv.IsRealm() {
 		rlm = pv.Realm
-		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+		rlm.FinalizeRealmTransaction(m.Store)
 		// re-save package realm info.
 		m.Store.SetPackageRealm(rlm)
 	} else { // use the throwaway realm.
-		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+		rlm.FinalizeRealmTransaction(m.Store)
 	}
 	// types were already saved, and should not change
 	// even after running the init function.
@@ -1025,13 +1018,9 @@ const GasFactorCPU int64 = 1
 func (m *Machine) incrCPU(cycles int64) {
 	if m.GasMeter != nil {
 		gasCPU := overflow.Mul64p(cycles, GasFactorCPU)
-		m.GasMeter.ConsumeGas(gasCPU, "CPUCycles")
+		m.GasMeter.ConsumeGas(gasCPU, "CPUCycles") // May panic if out of gas.
 	}
-
 	m.Cycles += cycles
-	if m.MaxCycles != 0 && m.Cycles > m.MaxCycles {
-		panic("CPU cycle overrun")
-	}
 }
 
 const (
