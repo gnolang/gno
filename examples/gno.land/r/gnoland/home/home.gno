@@ -2,10 +2,11 @@ package home
 
 import (
 	"std"
+	"strconv"
 
 	"gno.land/p/demo/ownable"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/ui"
+	"gno.land/p/moul/dynreplacer"
 	blog "gno.land/r/gnoland/blog"
 	events "gno.land/r/gnoland/events"
 	"gno.land/r/leon/hof"
@@ -17,234 +18,38 @@ import (
 
 var (
 	override string
-	admin    = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @moul
+	Admin    = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @moul
 )
 
 func Render(_ string) string {
-	if override != "" {
-		return override
-	}
+	r := dynreplacer.New()
+	r.RegisterCallback(":latest-blogposts:", func() string {
+		return blog.RenderLastPostsWidget(4)
+	})
+	r.RegisterCallback(":upcoming-events:", func() string {
+		out, _ := events.RenderEventWidget(events.MaxWidgetSize)
+		return out
+	})
+	r.RegisterCallback(":latest-hof:", func() string {
+		return hof.RenderExhibWidget(5)
+	})
+	r.RegisterCallback(":qotb:", quoteOfTheBlock)
+	r.RegisterCallback(":chain-height:", func() string {
+		return strconv.Itoa(int(std.ChainHeight()))
+	})
 
-	dom := ui.DOM{Prefix: "r/gnoland/home:"}
-	dom.Title = "Welcome to gno.land"
-	dom.Classes = []string{"gno-tmpl-section"}
+	template := `# Welcome to gno.land
 
-	// body
-	dom.Body.Append(introSection()...)
+**We’re building gno.land, set to become the leading open-source smart contract platform, using Gno, an interpreted and fully deterministic variation of the Go programming language for succinct and composable smart contracts.**
 
-	dom.Body.Append(ui.Jumbotron(discoverLinks()))
+With transparent and timeless code, gno.land is the next generation of smart contract platforms, serving as the “GitHub” of the ecosystem, with realms built using fully transparent, auditable code that anyone can inspect and reuse.
 
-	dom.Body.Append(
-		ui.Columns{3, []ui.Element{
-			lastBlogposts(4),
-			upcomingEvents(),
-			latestHOFItems(5),
-		}},
-	)
 
-	dom.Body.Append(ui.HR{})
-	dom.Body.Append(playgroundSection()...)
-	dom.Body.Append(ui.HR{})
-	dom.Body.Append(packageStaffPicks()...)
-	dom.Body.Append(ui.HR{})
-	dom.Body.Append(worxDAO()...)
-	dom.Body.Append(ui.HR{})
-	// footer
-	dom.Footer.Append(
-		ui.Columns{2, []ui.Element{
-			socialLinks(),
-			quoteOfTheBlock(),
-		}},
-	)
+Intuitive and easy to use, gno.land lowers the barrier to web3 and makes censorship-resistant platforms accessible to everyone. If you want to help lay the foundations of a fairer and freer world, join us today.
 
-	// Testnet disclaimer
-	dom.Footer.Append(
-		ui.HR{},
-		ui.Bold("This is a testnet."),
-		ui.Text("Package names are not guaranteed to be available for production."),
-	)
+<div class="jumbotron">
 
-	return dom.String()
-}
-
-func lastBlogposts(limit int) ui.Element {
-	posts := blog.RenderLastPostsWidget(limit)
-	return ui.Element{
-		ui.H2("[Latest Blogposts](/r/gnoland/blog)"),
-		ui.Text(posts),
-	}
-}
-
-func lastContributions(limit int) ui.Element {
-	return ui.Element{
-		ui.H2("Latest Contributions"),
-		// TODO: import r/gh to
-		ui.Link{Text: "View latest contributions", URL: "https://github.com/gnolang/gno/pulls"},
-	}
-}
-
-func upcomingEvents() ui.Element {
-	out, _ := events.RenderEventWidget(events.MaxWidgetSize)
-	return ui.Element{
-		ui.H2("[Latest Events](/r/gnoland/events)"),
-		ui.Text(out),
-	}
-}
-
-func latestHOFItems(num int) ui.Element {
-	submissions := hof.RenderExhibWidget(num)
-
-	return ui.Element{
-		ui.H2("[Hall of Fame](/r/leon/hof)"),
-		ui.Text(submissions),
-	}
-}
-
-func introSection() ui.Element {
-	return ui.Element{
-		ui.Text("**We’re building gno.land, set to become the leading open-source smart contract platform, using Gno, an interpreted and fully deterministic variation of the Go programming language for succinct and composable smart contracts.**"),
-		ui.Paragraph("With transparent and timeless code, gno.land is the next generation of smart contract platforms, serving as the “GitHub” of the ecosystem, with realms built using fully transparent, auditable code that anyone can inspect and reuse."),
-		ui.Paragraph("Intuitive and easy to use, gno.land lowers the barrier to web3 and makes censorship-resistant platforms accessible to everyone. If you want to help lay the foundations of a fairer and freer world, join us today."),
-	}
-}
-
-func worxDAO() ui.Element {
-	// WorxDAO
-	// XXX(manfred): please, let me finish a v0, then we can iterate
-	// highest level == highest responsibility
-	// teams are responsible for components they don't owne
-	// flag : realm maintainers VS facilitators
-	// teams
-	// committee of trustees to create the directory
-	// each directory is a name, has a parent and have groups
-	// homepage team - blocks aggregating events
-	// XXX: TODO
-	/*`
-	# Directory
-
-	* gno.land (owned by group)
-	  *
-	* gnovm
-	  * gnolang (language)
-	  * gnovm
-	    - current challenges / concerns / issues
-	* tm2
-	  * amino
-	  *
-
-	## Contributors
-	``*/
-	return ui.Element{
-		ui.H2("Contributions (WorxDAO & GoR)"),
-		// TODO: GoR dashboard + WorxDAO topics
-		ui.Text(`coming soon`),
-	}
-}
-
-func quoteOfTheBlock() ui.Element {
-	quotes := []string{
-		"Gno is for Truth.",
-		"Gno is for Social Coordination.",
-		"Gno is _not only_ for DeFi.",
-		"Now, you Gno.",
-		"Come for the Go, Stay for the Gno.",
-	}
-	height := std.ChainHeight()
-	idx := int(height) % len(quotes)
-	qotb := quotes[idx]
-
-	return ui.Element{
-		ui.H2(ufmt.Sprintf("Quote of the ~Day~ Block#%d", height)),
-		ui.Quote(qotb),
-	}
-}
-
-func socialLinks() ui.Element {
-	return ui.Element{
-		ui.H2("Socials"),
-		ui.BulletList{
-			// XXX: improve UI to support a nice GO api for such links
-			ui.Text("Check out our [community projects](https://github.com/gnolang/awesome-gno)"),
-			ui.Text("[Discord](https://discord.gg/S8nKUqwkPn)"),
-			ui.Text("[Twitter](https://twitter.com/_gnoland)"),
-			ui.Text("[Youtube](https://www.youtube.com/@_gnoland)"),
-			ui.Text("[Telegram](https://t.me/gnoland)"),
-		},
-	}
-}
-
-func playgroundSection() ui.Element {
-	return ui.Element{
-		ui.H2("[Gno Playground](https://play.gno.land)"),
-		ui.Paragraph(`Gno Playground is a web application designed for building, running, testing, and interacting
-with your Gno code, enhancing your understanding of the Gno language. With Gno Playground, you can share your code,
-execute tests, deploy your realms and packages to gno.land, and explore a multitude of other features.`),
-		ui.Paragraph("Experience the convenience of code sharing and rapid experimentation with [Gno Playground](https://play.gno.land)."),
-	}
-}
-
-func packageStaffPicks() ui.Element {
-	// XXX: make it modifiable from a DAO
-	return ui.Element{
-		ui.H2("Explore New Packages and Realms"),
-		ui.Columns{
-			3,
-			[]ui.Element{
-				{
-					ui.H3("[r/gnoland](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gnoland)"),
-					ui.BulletList{
-						ui.Link{URL: "r/gnoland/blog"},
-						ui.Link{URL: "r/gnoland/dao"},
-						ui.Link{URL: "r/gnoland/faucet"},
-						ui.Link{URL: "r/gnoland/home"},
-						ui.Link{URL: "r/gnoland/pages"},
-					},
-					ui.H3("[r/sys](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/sys)"),
-					ui.BulletList{
-						ui.Link{URL: "r/sys/names"},
-						ui.Link{URL: "r/sys/rewards"},
-						ui.Link{URL: "/r/sys/validators/v2"},
-					},
-				}, {
-					ui.H3("[r/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo)"),
-					ui.BulletList{
-						ui.Link{URL: "r/demo/boards"},
-						ui.Link{URL: "r/demo/users"},
-						ui.Link{URL: "r/demo/banktest"},
-						ui.Link{URL: "r/demo/foo20"},
-						ui.Link{URL: "r/demo/foo721"},
-						ui.Link{URL: "r/demo/microblog"},
-						ui.Link{URL: "r/demo/nft"},
-						ui.Link{URL: "r/demo/types"},
-						ui.Link{URL: "r/demo/art/gnoface"},
-						ui.Link{URL: "r/demo/art/millipede"},
-						ui.Link{URL: "r/demo/groups"},
-						ui.Text("..."),
-					},
-				}, {
-					ui.H3("[p/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo)"),
-					ui.BulletList{
-						ui.Link{URL: "p/demo/avl"},
-						ui.Link{URL: "p/demo/blog"},
-						ui.Link{URL: "p/demo/ui"},
-						ui.Link{URL: "p/demo/ufmt"},
-						ui.Link{URL: "p/demo/merkle"},
-						ui.Link{URL: "p/demo/bf"},
-						ui.Link{URL: "p/demo/flow"},
-						ui.Link{URL: "p/demo/gnode"},
-						ui.Link{URL: "p/demo/grc/grc20"},
-						ui.Link{URL: "p/demo/grc/grc721"},
-						ui.Text("..."),
-					},
-				},
-			},
-		},
-	}
-}
-
-func discoverLinks() ui.Element {
-	return ui.Element{
-		ui.Text(`<div class="columns-3">
+<div class="columns-3">
 <div class="column">
 
 ## Learn about gno.land
@@ -283,16 +88,175 @@ func discoverLinks() ui.Element {
 - [Faucet Hub](https://faucet.gno.land)
 
 </div><!-- end column-->
-</div><!-- end columns-3-->`),
+</div><!-- end columns-3-->
+</div><!-- /jumbotron -->
+
+<div class="columns-3">
+<div class="column">
+
+## [Latest Blogposts](/r/gnoland/blog)
+
+:latest-blogposts:
+
+</div><!-- /column-->
+<div class="column">
+
+## [Latest Events](/r/gnoland/events)
+
+:upcoming-events:
+</div><!-- /column-->
+<div class="column">
+
+## [Hall of Fame](/r/leon/hof)
+
+
+</div><!-- /column-->
+</div><!-- /columns-3 -->
+
+
+---
+
+## [Gno Playground](https://play.gno.land)
+
+
+Gno Playground is a web application designed for building, running, testing, and interacting
+with your Gno code, enhancing your understanding of the Gno language. With Gno Playground, you can share your code,
+execute tests, deploy your realms and packages to gno.land, and explore a multitude of other features.
+
+
+Experience the convenience of code sharing and rapid experimentation with [Gno Playground](https://play.gno.land).
+
+
+---
+
+## Explore New Packages and Realms
+
+<div class="columns-3">
+<div class="column">
+
+### [r/gnoland](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gnoland)
+
+- [r/gnoland/blog](r/gnoland/blog)
+- [r/gnoland/dao](r/gnoland/dao)
+- [r/gnoland/faucet](r/gnoland/faucet)
+- [r/gnoland/home](r/gnoland/home)
+- [r/gnoland/pages](r/gnoland/pages)
+
+### [r/sys](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/sys)
+
+- [r/sys/names](r/sys/names)
+- [r/sys/rewards](r/sys/rewards)
+- [/r/sys/validators/v2](/r/sys/validators/v2)
+
+</div><!-- /column-->
+<div class="column">
+
+### [r/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo)
+
+- [r/demo/boards](r/demo/boards)
+- [r/demo/users](r/demo/users)
+- [r/demo/banktest](r/demo/banktest)
+- [r/demo/foo20](r/demo/foo20)
+- [r/demo/foo721](r/demo/foo721)
+- [r/demo/microblog](r/demo/microblog)
+- [r/demo/nft](r/demo/nft)
+- [r/demo/types](r/demo/types)
+- [r/demo/art/gnoface](r/demo/art/gnoface)
+- [r/demo/art/millipede](r/demo/art/millipede)
+- [r/demo/groups](r/demo/groups)
+- ...
+
+</div><!-- /column-->
+<div class="column">
+
+### [p/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo)
+
+- [p/demo/avl](p/demo/avl)
+- [p/demo/blog](p/demo/blog)
+- [p/demo/ui](p/demo/ui)
+- [p/demo/ufmt](p/demo/ufmt)
+- [p/demo/merkle](p/demo/merkle)
+- [p/demo/bf](p/demo/bf)
+- [p/demo/flow](p/demo/flow)
+- [p/demo/gnode](p/demo/gnode)
+- [p/demo/grc/grc20](p/demo/grc/grc20)
+- [p/demo/grc/grc721](p/demo/grc/grc721)
+- ...
+
+</div><!-- /column-->
+</div><!-- /columns-3 -->
+
+
+---
+
+## Contributions (WorxDAO & GoR)
+
+coming soon
+
+---
+
+
+<div class="columns-2">
+<div class="column">
+
+## Socials
+
+- Check out our [community projects](https://github.com/gnolang/awesome-gno)
+- [Discord](https://discord.gg/S8nKUqwkPn)
+- [Twitter](https://twitter.com/_gnoland)
+- [Youtube](https://www.youtube.com/@_gnoland)
+- [Telegram](https://t.me/gnoland)
+
+</div><!-- /column-->
+<div class="column">
+
+
+## Quote of the ~Day~ Block#:chain-height:
+
+> :qotb:
+
+</div><!-- /column-->
+</div><!-- /columns-2 -->
+
+
+---
+
+**This is a testnet.**
+Package names are not guaranteed to be available for production.
+
+</main>`
+
+	if override != "" {
+		template = override
+	}
+	result := r.Replace(template)
+	return result
+}
+
+func latestHOFItems(num int) ui.Element {
+	submissions := hof.RenderExhibWidget(num)
+
+	return ui.Element{
+		ui.H2("[Hall of Fame](/r/leon/hof)"),
+		ui.Text(submissions),
 	}
 }
 
-func AdminSetOverride(content string) {
-	admin.AssertCallerIsOwner()
-	override = content
+func quoteOfTheBlock() string {
+	quotes := []string{
+		"Gno is for Truth.",
+		"Gno is for Social Coordination.",
+		"Gno is _not only_ for DeFi.",
+		"Now, you Gno.",
+		"Come for the Go, Stay for the Gno.",
+	}
+	height := std.ChainHeight()
+	idx := int(height) % len(quotes)
+	qotb := quotes[idx]
+	return qotb
 }
 
-func AdminTransferOwnership(newAdmin std.Address) {
-	admin.AssertCallerIsOwner()
-	admin.TransferOwnership(newAdmin)
+func AdminSetOverride(content string) {
+	Admin.AssertCallerIsOwner()
+	override = content
 }
