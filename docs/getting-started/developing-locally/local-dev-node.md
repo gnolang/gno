@@ -159,7 +159,7 @@ gnokey maketx call \
 -gas-fee 1000000ugnot \
 -gas-wanted 20000000 \
 -broadcast \
-main
+{MYKEY}
 ```
 
 After entering the keypair password, you should get a response similar to this:
@@ -199,8 +199,7 @@ A detailed explanation how to use `gnokey` will be provided in an
 That's it! 🎉
 
 We covered the main features of `gnodev`. Next, we will go onto a full development
-example, where we build a small forum application with a built-in tipping feature
-utilizing what we learned thus far.
+example, where we build a minimal social media app.
 
 [^1]: The default deployer address is `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`,
 a.k.a. `test1` - the mnemonic phrase for this address is publicly known.

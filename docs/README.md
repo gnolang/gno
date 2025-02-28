@@ -8,13 +8,13 @@ Get started with gno.land and Gno development. These tutorials are meant to be r
 
 - [2. Exploring gno.land](getting-started/exploring-gnoland.md) - Learn about how gno.land stores smart contracts and how you can browse them via gnoweb.
 - [3. Writing Gno code](getting-started/writing-gno.md) - Get a grasp on the basics of Gno syntax.
-- [4. Developing locally](getting-started/developing-locally/) - Learn how to develop with gno.land on local environment
+- [4. Developing locally](getting-started/developing-locally/) - Learn how to develop Gno locally.
   - [4.1 Setup & installation](getting-started/developing-locally/installation.md)
   - [4.2 Running & testing Gno code](getting-started/developing-locally/running-testing-gno.md)
   - [4.3 Creating a key pair with gnokey](getting-started/developing-locally/creating-a-keypair.md)
   - [4.4 Running a local development node](getting-started/developing-locally/local-dev-node.md)
+  - [4.5 Creating a mini social application](getting-started/developing-locally/minisocial.md)
 - [5. Deploying Gno code](getting-started/deploying.md) - Learn how to deploy code to a gno.land network.
-- [6. Interacting with gno.land](getting-started/interacting-with-gnoland.md) - Learn how to interact with the gno.land blockchain.
 - [7. Becoming a Gnome Contributor](getting-started/becoming-a-gnome.md) - Find out what makes a great gno.land contributor.
 
 ## Developer Guides
