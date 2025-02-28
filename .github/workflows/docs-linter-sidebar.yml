@@ -1,4 +1,4 @@
-name: Docs Sidebar
+name: Docs Linter - Sidebar
 
 on:
   pull_request:
