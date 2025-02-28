@@ -1,34 +1,14 @@
 package os
 
-import (
-	"fmt"
-	"os"
-	"time"
+import "github.com/gnolang/gno/gnovm/pkg/gnolang"
 
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
-)
-
-func X_writeStdout(m *gno.Machine, p []byte) (int, error) {
-	return fmt.Fprint(os.Stdout, p)
-}
-
-func X_writeStderr(m *gno.Machine, p []byte) (int, error) {
-	return fmt.Fprint(os.Stderr, p)
-}
-
-func X_sleep(m *gno.Machine, duration int64) {
-	arg0 := m.LastBlock().GetParams1().TV
-	d := arg0.GetInt64()
-	sec := d / int64(time.Second)
-	nano := d % int64(time.Second)
-	ctx := m.Context.(*teststd.TestExecContext)
-	ctx.Timestamp += sec
-	ctx.TimestampNano += nano
-	if ctx.TimestampNano >= int64(time.Second) {
-		ctx.Timestamp += 1
-		ctx.TimestampNano -= int64(time.Second)
+func X_write(m *gnolang.Machine, p []byte, isStderr bool) int {
+	if isStderr {
+		if w, ok := m.Output.(interface{ WriteStderr(p []byte) (int, error) }); ok {
+			n, _ := w.WriteStderr(p)
+			return n
+		}
 	}
-
-	m.Context = ctx
+	n, _ := m.Output.Write(p)
+	return n
 }

@@ -1,6 +1,9 @@
 package fmt
 
 import (
+	"fmt"
+	"math"
+	"sort"
 	"unsafe"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -68,9 +71,9 @@ func X_valueOfInternal(v gnolang.TypedValue) (
 	case gnolang.PointerKind:
 		kind = "pointer"
 	case gnolang.StructKind:
-		kind, xlen = "struct", len(v.T.(*gnolang.StructType).Fields)
+		kind, xlen = "struct", len(baseT.(*gnolang.StructType).Fields)
 	case gnolang.InterfaceKind:
-		kind, xlen = "interface", len(v.T.(*gnolang.InterfaceType).Methods)
+		kind, xlen = "interface", len(baseT.(*gnolang.InterfaceType).Methods)
 	case gnolang.FuncKind:
 		kind = "func"
 	case gnolang.MapKind:
@@ -88,7 +91,9 @@ func X_getAddr(m *gnolang.Machine, v gnolang.TypedValue) uint64 {
 		panic("invalid type")
 	}
 	switch v := v.V.(type) {
-	case *gnolang.PointerValue:
+	case nil:
+		return 0
+	case gnolang.PointerValue:
 		if v.TV == nil {
 			return 0
 		}
@@ -103,12 +108,12 @@ func X_getAddr(m *gnolang.Machine, v gnolang.TypedValue) uint64 {
 	case *gnolang.SliceValue:
 		return uint64(uintptr(unsafe.Pointer(v.GetBase(m.Store))))
 	default:
-		return 0
+		panic(fmt.Sprintf("unexpected value in getAddr: %T", v))
 	}
 }
 
 func X_getPtrElem(v gnolang.TypedValue) gnolang.TypedValue {
-	return v.V.(*gnolang.PointerValue).Deref()
+	return v.V.(gnolang.PointerValue).Deref()
 }
 
 var gSliceOfAny = &gnolang.SliceType{
@@ -117,7 +122,7 @@ var gSliceOfAny = &gnolang.SliceType{
 
 func X_mapKeyValues(v gnolang.TypedValue) (keys, values gnolang.TypedValue) {
 	if v.T.Kind() != gnolang.MapKind {
-		panic("invalid arg to mapKeyValues")
+		panic(fmt.Sprintf("invalid arg to mapKeyValues of kind: %s", v.T.Kind()))
 	}
 
 	mv := v.V.(*gnolang.MapValue)
@@ -127,7 +132,8 @@ func X_mapKeyValues(v gnolang.TypedValue) (keys, values gnolang.TypedValue) {
 		vs = append(vs, el.Value)
 	}
 
-	// TODO: should sort keys withs something similar to fmtsort.
+	sort.Sort(mapKV{ks, vs})
+
 	keys.T = gSliceOfAny
 	values.T = gSliceOfAny
 	keys.V = &gnolang.SliceValue{
@@ -143,6 +149,85 @@ func X_mapKeyValues(v gnolang.TypedValue) (keys, values gnolang.TypedValue) {
 		},
 		Length: len(vs),
 		Maxcap: len(vs),
+	}
+	return
+}
+
+// mapKV is the map key values for sorting them, similarly to internal/fmtsort.
+// it implements sort.Interface, as it has to work on two different slices.
+type mapKV struct {
+	keys   []gnolang.TypedValue
+	values []gnolang.TypedValue
+}
+
+func (m mapKV) Len() int { return len(m.keys) }
+func (m mapKV) Swap(i, j int) {
+	m.keys[i], m.keys[j] = m.keys[j], m.keys[i]
+	m.values[i], m.values[j] = m.values[j], m.values[i]
+}
+
+func (m mapKV) Less(i, j int) bool {
+	ki, kj := m.keys[i], m.keys[j]
+	return compareKeys(ki, kj)
+}
+
+func compareKeys(ki, kj gnolang.TypedValue) bool {
+	if ki.T.Kind() != kj.T.Kind() {
+		return false
+	}
+	switch ki.T.Kind() {
+	case gnolang.BoolKind:
+		bi, bj := ki.GetBool(), kj.GetBool()
+		if bi == bj {
+			return false
+		}
+		return bi == false && bj == true
+	case gnolang.Float32Kind:
+		return math.Float32frombits(ki.GetFloat32()) < math.Float32frombits(kj.GetFloat32())
+	case gnolang.Float64Kind:
+		return math.Float64frombits(ki.GetFloat64()) < math.Float64frombits(kj.GetFloat64())
+	case gnolang.StringKind:
+		return ki.GetString() < kj.GetString()
+	case gnolang.IntKind,
+		gnolang.Int8Kind,
+		gnolang.Int16Kind,
+		gnolang.Int32Kind,
+		gnolang.Int64Kind:
+		return ki.ConvertGetInt() < kj.ConvertGetInt()
+	case gnolang.UintKind,
+		gnolang.Uint8Kind,
+		gnolang.Uint16Kind,
+		gnolang.Uint32Kind,
+		gnolang.Uint64Kind:
+		return uint64(ki.ConvertGetInt()) < uint64(kj.ConvertGetInt())
+	default:
+		return false
+	}
+}
+
+// get the n'th element of the given array or slice.
+func X_arrayIndex(m *gnolang.Machine, v gnolang.TypedValue, n int) gnolang.TypedValue {
+	switch v.T.Kind() {
+	case gnolang.ArrayKind, gnolang.SliceKind:
+		tv := gnolang.TypedValue{T: gnolang.IntType}
+		tv.SetInt(int64(n))
+		res := v.GetPointerAtIndex(m.Alloc, m.Store, &tv)
+		return res.Deref()
+	default:
+		panic("invalid type to arrayIndex")
+	}
+}
+
+// n'th field of the given struct.
+func X_fieldByIndex(v gnolang.TypedValue, n int) (name string, value gnolang.TypedValue) {
+	if v.T.Kind() != gnolang.StructKind {
+		panic("invalid kind to fieldByIndex")
+	}
+	fldType := v.T.(*gnolang.StructType).Fields[n]
+	name = string(fldType.Name)
+	value.T = fldType.Type
+	if v.V != nil {
+		value = v.V.(*gnolang.StructValue).Fields[n]
 	}
 	return
 }

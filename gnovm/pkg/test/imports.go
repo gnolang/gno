@@ -86,6 +86,45 @@ func StoreWithOptions(
 			}
 		}
 
+		// gonative exceptions.
+		// These are values available using gonative; eventually they should all be removed.
+		switch pkgPath {
+		case "encoding/json":
+			pkg := gno.NewPackageNode("json", pkgPath, nil)
+			pkg.DefineGoNativeValue("Unmarshal", json.Unmarshal)
+			pkg.DefineGoNativeValue("Marshal", json.Marshal)
+			return pkg, pkg.NewPackage()
+		case "os_test":
+			pkg := gno.NewPackageNode("os_test", pkgPath, nil)
+			pkg.DefineNative("Sleep",
+				gno.Flds( // params
+					"d", gno.AnyT(), // NOTE: should be time.Duration
+				),
+				gno.Flds( // results
+				),
+				func(m *gno.Machine) {
+					// For testing purposes here, nanoseconds are separately kept track.
+					arg0 := m.LastBlock().GetParams1().TV
+					d := arg0.GetInt64()
+					sec := d / int64(time.Second)
+					nano := d % int64(time.Second)
+					ctx := m.Context.(*teststd.TestExecContext)
+					ctx.Timestamp += sec
+					ctx.TimestampNano += nano
+					if ctx.TimestampNano >= int64(time.Second) {
+						ctx.Timestamp += 1
+						ctx.TimestampNano -= int64(time.Second)
+					}
+					m.Context = ctx
+				},
+			)
+			return pkg, pkg.NewPackage()
+		case "math/big":
+			pkg := gno.NewPackageNode("big", pkgPath, nil)
+			pkg.DefineGoNativeValue("NewInt", big.NewInt)
+			return pkg, pkg.NewPackage()
+		}
+
 		// Load normal stdlib.
 		pn, pv = loadStdlib(rootDir, pkgPath, store, output, opts.PreprocessOnly)
 		if pn != nil {

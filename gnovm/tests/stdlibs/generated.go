@@ -7,6 +7,7 @@ import (
 	"reflect"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	testlibs_fmt "github.com/gnolang/gno/gnovm/tests/stdlibs/fmt"
 	testlibs_os "github.com/gnolang/gno/gnovm/tests/stdlibs/os"
 	testlibs_std "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	testlibs_testing "github.com/gnolang/gno/gnovm/tests/stdlibs/testing"
@@ -33,28 +34,47 @@ func (n *NativeFunc) HasMachineParam() bool {
 
 var nativeFuncs = [...]NativeFunc{
 	{
-		"os",
-		"writeStderr",
+		"fmt",
+		"typeString",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("[]byte")},
+			{Name: gno.N("p0"), Type: gno.X("any")},
 		},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("int")},
-			{Name: gno.N("r1"), Type: gno.X("error")},
+			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
-		true,
+		false,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
-			var (
-				p0  []byte
-				rp0 = reflect.ValueOf(&p0).Elem()
-			)
+			p0 := *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			r0 := testlibs_fmt.X_typeString(p0)
 
-			r0, r1 := testlibs_os.X_writeStderr(
-				m,
-				p0)
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"fmt",
+		"valueOfInternal",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("any")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("string")},
+			{Name: gno.N("r1"), Type: gno.X("string")},
+			{Name: gno.N("r2"), Type: gno.X("uint64")},
+			{Name: gno.N("r3"), Type: gno.X("any")},
+			{Name: gno.N("r4"), Type: gno.X("int")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			p0 := *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV)
+
+			r0, r1, r2, r3, r4 := testlibs_fmt.X_valueOfInternal(p0)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -66,29 +86,34 @@ var nativeFuncs = [...]NativeFunc{
 				m.Store,
 				reflect.ValueOf(&r1).Elem(),
 			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r2).Elem(),
+			))
+			m.PushValue(r3)
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r4).Elem(),
+			))
 		},
 	},
 	{
-		"os",
-		"writeStdout",
+		"fmt",
+		"getAddr",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("[]byte")},
+			{Name: gno.N("p0"), Type: gno.X("any")},
 		},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("int")},
-			{Name: gno.N("r1"), Type: gno.X("error")},
+			{Name: gno.N("r0"), Type: gno.X("uint64")},
 		},
 		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
-			var (
-				p0  []byte
-				rp0 = reflect.ValueOf(&p0).Elem()
-			)
+			p0 := *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-
-			r0, r1 := testlibs_os.X_writeStdout(
+			r0 := testlibs_fmt.X_getAddr(
 				m,
 				p0)
 
@@ -97,33 +122,140 @@ var nativeFuncs = [...]NativeFunc{
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
 			))
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r1).Elem(),
-			))
 		},
 	},
 	{
-		"os",
-		"sleep",
+		"fmt",
+		"getPtrElem",
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("int64")},
+			{Name: gno.N("p0"), Type: gno.X("any")},
 		},
-		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("any")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			p0 := *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV)
+
+			r0 := testlibs_fmt.X_getPtrElem(p0)
+
+			m.PushValue(r0)
+		},
+	},
+	{
+		"fmt",
+		"mapKeyValues",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("any")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("[]any")},
+			{Name: gno.N("r1"), Type: gno.X("[]any")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			p0 := *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV)
+
+			r0, r1 := testlibs_fmt.X_mapKeyValues(p0)
+
+			m.PushValue(r0)
+			m.PushValue(r1)
+		},
+	},
+	{
+		"fmt",
+		"arrayIndex",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("any")},
+			{Name: gno.N("p1"), Type: gno.X("int")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("any")},
+		},
 		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
-				p0  int64
+				p0  = *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV)
+				p1  int
+				rp1 = reflect.ValueOf(&p1).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+
+			r0 := testlibs_fmt.X_arrayIndex(
+				m,
+				p0, p1)
+
+			m.PushValue(r0)
+		},
+	},
+	{
+		"fmt",
+		"fieldByIndex",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("any")},
+			{Name: gno.N("p1"), Type: gno.X("int")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("string")},
+			{Name: gno.N("r1"), Type: gno.X("any")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  = *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV)
+				p1  int
+				rp1 = reflect.ValueOf(&p1).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+
+			r0, r1 := testlibs_fmt.X_fieldByIndex(p0, p1)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(r1)
+		},
+	},
+	{
+		"os",
+		"write",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("[]byte")},
+			{Name: gno.N("p1"), Type: gno.X("bool")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("int")},
+		},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  []byte
 				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  bool
+				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
 
-			testlibs_os.X_sleep(
+			r0 := testlibs_os.X_write(
 				m,
-				p0)
+				p0, p1)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
 		},
 	},
 	{
@@ -624,13 +756,7 @@ var nativeFuncs = [...]NativeFunc{
 	},
 }
 
-var initOrder = [...]string{
-	"fmt",
-	"os",
-	"std",
-	"testing",
-	"unicode",
-}
+var initOrder = [...]string{}
 
 // InitOrder returns the initialization order of the standard libraries.
 // This is calculated starting from the list of all standard libraries and
