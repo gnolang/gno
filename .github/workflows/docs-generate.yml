@@ -1,12 +1,12 @@
-name: Docs Sidebar
+name: Docs Generate
 
 on:
   pull_request:
     paths:
-      - 'docs/README.md'
+      - 'docs/**'
 
 jobs:
-  lint:
+  embed:
     runs-on: ubuntu-latest
 
     steps:
@@ -18,9 +18,9 @@ jobs:
         with:
           go-version: '1.22.7'
 
-      - name: make build
+      - name: make gen
         run:
-          cd docs/ && make build -B
+          cd docs/ && make gen -B
 
       - name: Check if there is a diff
         run: |

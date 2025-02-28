@@ -1,4 +1,4 @@
-name: Docs Linter
+name: Docs
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
       - "docs/**"
 
 jobs:
-  build:
+  lint-urls:
     runs-on: ubuntu-latest
 
     steps:
