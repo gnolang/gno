@@ -1,11 +1,13 @@
 build: ../misc/docs/docusaurus/static/sidebar.json
 
-docusaurus/static/sidebar.json: README.md
-	go run -C ../misc/docs/tools/tools/indexparser . -path ../../docs/README.md > docusaurus/static/sidebar.json
+../misc/docs/docusaurus/static/sidebar.json: README.md
+	go build -C ../misc/docs/tools/indexparser -o ./build
+	../misc/docs/tools/indexparser/build -path ../docs/README.md > ../misc/docs/docusaurus/static/sidebar.json
 
 # Run the linter for the docs/ folder
 lint:
-	go run -C ../misc/docs/tools/linter . -path ../../docs/
+	go build -C ../misc/docs/tools/linter -o ./build
+	../misc/docs/tools/linter/build -path ../docs
 
 dev:
 	cd ../misc/docs/docusaurus/ && yarn start
