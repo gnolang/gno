@@ -55,7 +55,12 @@
           {{/* prettier-ignore-start */}}
           <pre
             class="font-mono text-gray-600 p-4 pr-10 whitespace-pre-wrap"
-          ><code><span data-code-mode="fast" class="hidden" data-copy-content="help-cmd-{{ .FuncName }}">gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .FuncName }}"{{ range .Params }} -args "<span data-role="help-code-args" data-arg="{{ .Name }}" data-copy-content=""></span>"{{ end }} -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid "{{ $.ChainId }}" -remote "{{ $.Remote }}" <span data-role="help-code-address">ADDRESS</span></span><span data-code-mode="secure" class="inline">gnokey query -remote "{{ $.Remote }}" auth/accounts/<span data-role="help-code-address">ADDRESS</span>
+          ><code><span data-code-mode="fast" class="hidden" data-copy-content="help-cmd-{{ .FuncName }}"># WARNING: This command is running in an INSECURE mode.
+# It is strongly recommended to use a hardware device for signing
+# and avoid trusting any computer connected to the internet,
+# as your private keys could be exposed.
+
+gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .FuncName }}"{{ range .Params }} -args "<span data-role="help-code-args" data-arg="{{ .Name }}" data-copy-content=""></span>"{{ end }} -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid "{{ $.ChainId }}" -remote "{{ $.Remote }}" <span data-role="help-code-address">ADDRESS</span></span><span data-code-mode="secure" class="inline">gnokey query -remote "{{ $.Remote }}" auth/accounts/<span data-role="help-code-address">ADDRESS</span>
 gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .FuncName }}" {{ range .Params }} -args "<span data-role="help-code-args" data-arg="{{ .Name }}"></span>"{{ end }} -gas-fee 1000000ugnot -gas-wanted 5000000 -send "" <span data-role="help-code-address">ADDRESS</span> > call.tx
 gnokey sign -tx-path call.tx -chainid "{{ $.ChainId }}" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-role="help-code-address">ADDRESS</span>
 gnokey broadcast -remote "{{ $.Remote }}" call.tx</span></code></pre>
