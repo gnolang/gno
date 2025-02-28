@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -70,6 +72,23 @@ func FuzzTranspiling(f *testing.F) {
 			}
 
 			sr := fmt.Sprintf("%s", r)
+
+			// It recovered all good so one way that we can sort out common
+			// syntax issues is by substring matches between Go and Gno and if
+			// we have a strong match, we can return.
+			if goRunErr != nil {
+				// Normalize between Go and Gno as Go at times prefixes with:
+				// * "syntax error: "
+				goRunErrOutput := strings.ReplaceAll(goRunErr.output, "syntax error: ", "")
+				diff := cmp.Diff(sr, goRunErrOutput)
+				if diff == "" { // We've got exact matching errors so can exit.
+					return
+				}
+			}
+
+                        // Otherwise we could not find matches between Go and Gno,
+                        // mos def custom syntax errors.
+
 			switch {
 			// Legitimate invalid syntax, compile problems that are common between
 			// Go and Gno.
@@ -146,6 +165,13 @@ func FuzzTranspiling(f *testing.F) {
 				strings.Contains(sr, "invalid package name"),
 				strings.Contains(sr, "'p' exponent requires hexadecimal mantissa"),
 				strings.Contains(sr, "imaginaries are not supported"),
+				strings.Contains(sr, "missing parameter type"),
+				strings.Contains(sr, "exponent has no digits"),
+				strings.Contains(sr, "expected ':', found level"),
+				strings.Contains(sr, "illegal label declaration"),
+				strings.Contains(sr, "expected type argument list"),
+				strings.Contains(sr, "expected boolean expression, found assignment"),
+				strings.Contains(sr, "missing ',' before newline in composite literal"),
 				strings.Contains(sr, "escape sequence not terminated"):
 				return
 
@@ -176,7 +202,7 @@ func FuzzTranspiling(f *testing.F) {
 		}
 
 		// Next run the code to see if it can be ran.
-		fn, err := gnolang.ParseFile("a.go", string(gnoSourceCode))
+		fn, err := gnolang.ParseFile("main.go", string(gnoSourceCode))
 		if err != nil {
 			// TODO: it could be discrepancy that if it compiled alright that it later failed.
 			panic(err)
@@ -217,7 +243,7 @@ func (mi mockPackageGetter) GetMemPackage(path string) *gnovm.MemPackage {
 	return nil
 }
 
-func checkIfGoCompilesProgram(tb testing.TB, src string) error {
+func checkIfGoCompilesProgram(tb testing.TB, src string) *comparisonError {
 	tb.Helper()
 	dir := tb.TempDir()
 	path := filepath.Join(dir, "main.go")
@@ -232,10 +258,22 @@ func checkIfGoCompilesProgram(tb testing.TB, src string) error {
 	cmd := exec.CommandContext(ctx, "go", "tool", "compile", path)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		if strings.Contains(string(output), "not a main package") {
+		// Re-Trim the input to remove the path prefix.
+		normalizedOutput := strings.TrimSpace("main.go" + strings.TrimPrefix(string(output), path))
+		if strings.Contains(normalizedOutput, "not a main package") {
 			return nil
 		}
-		return fmt.Errorf("%w\n%s\n\033[31m%s\033[00m", err, output, src)
+		return &comparisonError{err, normalizedOutput, src}
 	}
 	return nil
+}
+
+type comparisonError struct {
+	cmdErr error
+	output string
+	src    string
+}
+
+func (ce *comparisonError) Error() string {
+	return fmt.Sprintf("%v\n%s\n%s", ce.cmdErr, ce.output, ce.src)
 }
