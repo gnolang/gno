@@ -1717,6 +1717,9 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			panic("should not happen")
 		}
 	case VPDerefValMethod:
+		if tv.V == nil {
+			panic(&Exception{Value: typedString("nil pointer dereference")})
+		}
 		dtv2 := tv.V.(PointerValue).TV
 		dtv = &TypedValue{ // In case method is called on converted type, like ((*othertype)x).Method().
 			T: tv.T.Elem(),
