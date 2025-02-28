@@ -2,6 +2,7 @@ package boards2
 
 import (
 	"std"
+	"strconv"
 	"strings"
 )
 
@@ -160,7 +161,7 @@ func FlagThread(boardID BoardID, threadID PostID, reason string) {
 }
 
 // CreateThread creates a new thread within a board.
-func CreateThread(boardID BoardID, title, body string) PostID {
+func CreateThread(boardID BoardID, title, body string, public bool) PostID {
 	title = strings.TrimSpace(title)
 	assertTitleIsNotEmpty(title)
 
@@ -174,6 +175,10 @@ func CreateThread(boardID BoardID, title, body string) PostID {
 	assertHasBoardPermission(board, caller, PermissionThreadCreate)
 
 	thread := board.AddThread(caller, title, body)
+	if public {
+		thread.SetPublic(public)
+	}
+
 	return thread.id
 }
 
@@ -187,11 +192,20 @@ func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID 
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
 
-	caller := std.OriginCaller()
-	assertHasBoardPermission(board, caller, PermissionReplyCreate)
-
 	thread := mustGetThread(board, threadID)
 	assertThreadVisible(thread)
+
+	caller := std.OriginCaller()
+	if thread.IsPublic() {
+		// Check that public reply fee has been sent when user is not an invited one
+		isMember := board.perms.HasUser(caller)
+		if !isMember && gReplyFee != 0 && std.OriginSend().AmountOf("ugnot") != gReplyFee {
+			panic("public replies require an exact fee of " + strconv.Itoa(int(gReplyFee)) + " ugnot")
+		}
+	} else {
+		// Check reply permission when thread is not public
+		assertHasBoardPermission(board, caller, PermissionReplyCreate)
+	}
 
 	var reply *Post
 	if replyID == 0 {

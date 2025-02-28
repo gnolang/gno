@@ -9,8 +9,9 @@ import (
 var (
 	gPerms        Permissions
 	gLastBoardID  BoardID
-	gBoardsByID   avl.Tree // string(id) -> *Board
-	gBoardsByName avl.Tree // string(name) -> *Board
+	gBoardsByID   avl.Tree                 // string(id) -> *Board
+	gBoardsByName avl.Tree                 // string(name) -> *Board
+	gReplyFee     int64    = 5 * 1_000_000 // Public reply fee in ugnot
 )
 
 func init() {

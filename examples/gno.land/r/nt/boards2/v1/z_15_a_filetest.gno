@@ -19,7 +19,7 @@ func init() {
 	srcBid = boards2.CreateBoard("src-board")
 	dstBid = boards2.CreateBoard("dst-board")
 
-	srcTid = boards2.CreateThread(srcBid, "Foo", "bar")
+	srcTid = boards2.CreateThread(srcBid, "Foo", "bar", false)
 	boards2.FlagThread(srcBid, srcTid, "idk")
 }
 

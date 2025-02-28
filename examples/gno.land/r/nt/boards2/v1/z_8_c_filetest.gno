@@ -21,7 +21,7 @@ func init() {
 }
 
 func main() {
-	boards2.CreateThread(bid, "Foo", "bar")
+	boards2.CreateThread(bid, "Foo", "bar", false)
 }
 
 // Error:

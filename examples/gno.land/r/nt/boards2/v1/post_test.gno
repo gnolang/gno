@@ -161,6 +161,8 @@ func TestNewThread(t *testing.T) {
 	uassert.Equal(t, title, thread.GetTitle())
 	uassert.Equal(t, body[:77]+"...", thread.GetSummary())
 	uassert.False(t, thread.HasReplies())
+	uassert.False(t, thread.IsHidden())
+	uassert.False(t, thread.IsPublic())
 	uassert.Equal(t, url, thread.GetURL())
 	uassert.Equal(t, replyURL, thread.GetReplyFormURL())
 	uassert.Equal(t, editURL, thread.GetEditFormURL())

@@ -12,23 +12,23 @@ const (
 )
 
 var (
-	srcBid boards2.BoardID
-	dstBid boards2.BoardID
-	srcTid boards2.PostID
+	bid boards2.BoardID
+	tid boards2.PostID
 )
 
 func init() {
 	std.TestSetOriginCaller(owner)
-	srcBid = boards2.CreateBoard("src-board")
-	dstBid = boards2.CreateBoard("dst-board")
+	bid = boards2.CreateBoard("test123")
 
-	srcTid = boards2.CreateThread(srcBid, "Foo", "bar", false)
+	// Create a public thread to allow uninvited users to add replies
+	tid = boards2.CreateThread(bid, "Foo", "bar", true)
+
 	std.TestSetOriginCaller(user)
 }
 
 func main() {
-	_ = boards2.CreateRepost(srcBid, srcTid, "foo", "bar", dstBid)
+	boards2.CreateReply(bid, tid, 0, "Test reply")
 }
 
 // Error:
-// unauthorized
+// public replies require an exact fee of 5000000 ugnot

@@ -22,7 +22,7 @@ func init() {
 }
 
 func main() {
-	pid := boards2.CreateThread(bid, title, body)
+	pid := boards2.CreateThread(bid, title, body, false)
 
 	// Ensure that returned ID is right
 	println(pid == 1)
