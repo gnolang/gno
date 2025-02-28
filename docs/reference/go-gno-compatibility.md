@@ -61,6 +61,7 @@ rune := rune('a')
 | `func (T1...) T2...`                          | full                   | full (needs more tests)                                    |
 | `*T` (pointers)                               | full                   | full\*                                                     |
 | `chan T` (channels)                           | missing (after launch) | missing (after launch)                                     |
+| `imag`                                        | unsupported            | unsupported                                                |
 
 **\*:** depends on `T`/`T1`/`T2`
 
