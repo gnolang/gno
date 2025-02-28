@@ -192,6 +192,9 @@ func FuzzTranspiling(f *testing.F) {
 				strings.Contains(sr, "escape sequence is invalid Unicode code"),
 				strings.Contains(sr, "unexpected semicolon or newline before"),
 				strings.Contains(sr, "missing type parameter name"),
+				strings.Contains(sr, "empty type parameter"),
+				strings.Contains(sr, "mixed named and unnamed"),
+				strings.Contains(sr, "unexpected newline, expecting"),
 				strings.Contains(sr, "cannot parenthesize embedded type"),
 				strings.Contains(sr, "missing ',' before newline in type argument list"),
 				strings.Contains(sr, "escape sequence not terminated"):
