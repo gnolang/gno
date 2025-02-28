@@ -188,15 +188,15 @@ chainID := std.ChainID() // dev | test5 | main ...
 ```
 ---
 
-### Height
+### ChainHeight
 ```go
-func Height() int64
+func ChainHeight() int64
 ```
 Returns the current block number (height).
 
 ##### Usage
 ```go
-height := std.Height()
+height := std.ChainHeight()
 ```
 ---
 
