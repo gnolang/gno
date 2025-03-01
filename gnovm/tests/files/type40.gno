@@ -10,7 +10,7 @@ type (
 	Pointer2 = Pointer
 
 	// Interface
-	Interface = interface{}
+	Interface = any
 	Interface2 = Interface
 
 	// S
