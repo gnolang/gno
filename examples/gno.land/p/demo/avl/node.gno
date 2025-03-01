@@ -5,12 +5,12 @@ package avl
 
 // Node represents a node in an AVL tree.
 type Node struct {
-	key       string      // key is the unique identifier for the node.
-	value     any // value is the data stored in the node.
-	height    int8        // height is the height of the node in the tree.
-	size      int         // size is the number of nodes in the subtree rooted at this node.
-	leftNode  *Node       // leftNode is the left child of the node.
-	rightNode *Node       // rightNode is the right child of the node.
+	key       string // key is the unique identifier for the node.
+	value     any    // value is the data stored in the node.
+	height    int8   // height is the height of the node in the tree.
+	size      int    // size is the number of nodes in the subtree rooted at this node.
+	leftNode  *Node  // leftNode is the left child of the node.
+	rightNode *Node  // rightNode is the right child of the node.
 }
 
 // NewNode creates a new node with the given key and value.
