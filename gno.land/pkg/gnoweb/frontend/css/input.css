@@ -47,10 +47,10 @@
     @apply bg-green-600 text-light;
   }
   .dark ::-moz-selection {
-    @apply bg-green-d600 text-light;
+    @apply bg-green-d600 text-dark;
   }
   .dark ::selection {
-    @apply bg-green-d600 text-light;
+    @apply bg-green-d600 text-dark;
   }
 
   form {
