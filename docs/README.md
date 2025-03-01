@@ -1,12 +1,28 @@
-  # gno.land
+# gno.land
 
-Welcome to the Official Documentation of gno.land. Get started with Gno below.
+Welcome to the official documentation of gno.land.
 
-## Getting Started
+## Discover gno.land
 
-Get started with gno.land and Gno development. These tutorials are meant to be read in sequence.
+TODO: what
+TODO: why
+TODO: roadmap
 
-- [2. Exploring gno.land](getting-started/exploring-gnoland.md) - Learn about how gno.land stores smart contracts and how you can browse them via gnoweb.
+## Use gno.land
+
+Get started with gno.land.
+
+- [Exploring gno.land](getting-started/exploring-gnoland.md) - Learn about how gno.land stores smart contracts and how you can browse them via gnoweb.
+- [gnokey](dev-guides/gnokey/) - Learn how to use gnokey binary, the gno.land CLI keychain and client.
+  - [Overview](dev-guides/gnokey/overview.md)
+  - [Making transactions](dev-guides/gnokey/making-transactions.md)
+  - [Querying a gno.land network](dev-guides/gnokey/querying-a-network.md)
+  - [Making an airgapped transaction](dev-guides/gnokey/full-security-tx.md)
+
+## Build on gno.land
+
+Get start with Gno development. Learn how to work with Gno tools, use Gno-specific features, connect to Gno apps with clients, and more.
+
 - [3. Writing Gno code](getting-started/writing-gno.md) - Get a grasp on the basics of Gno syntax.
 - [4. Developing locally](getting-started/developing-locally/) - Learn how to develop Gno locally.
   - [4.1 Setup & installation](getting-started/developing-locally/installation.md)
@@ -16,19 +32,9 @@ Get started with gno.land and Gno development. These tutorials are meant to be r
   - [4.5 Creating a mini social application](getting-started/developing-locally/minisocial.md)
 - [5. Deploying Gno code](getting-started/deploying.md) - Learn how to deploy code to a gno.land network.
 - [7. Becoming a Gnome Contributor](getting-started/becoming-a-gnome.md) - Find out what makes a great gno.land contributor.
-
-## Developer Guides
-
-Learn how to work with Gno tools, use Gno-specific features, connect to Gno apps with clients, and more.
-
-- [gnokey](dev-guides/gnokey/) - Learn how to use gnokey binary, the gno.land CLI keychain and client.
-  - [Overview](dev-guides/gnokey/overview.md)
-  - [Making transactions](dev-guides/gnokey/making-transactions.md)
-  - [Querying a gno.land network](dev-guides/gnokey/querying-a-network.md)
-  - [Making an airgapped transaction](dev-guides/gnokey/full-security-tx.md)
 - [Connecting a Go app to gno.land](dev-guides/connecting-from-go.md) - Learn how to interact with the gno.land blockchain from a Go program.
 
-## Concepts
+### Concepts
 
 Learn about core concepts found in gno.land & Gno.
 
