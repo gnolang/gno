@@ -13,6 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/pelletier/go-toml"
 )
@@ -77,11 +78,18 @@ func LoadGenesisParamsFile(path string) ([]Param, error) {
 	}
 
 	params := make([]Param, 0)
+	// By default parameters are grouped by modules. the module separator is ":"
+
 	for category, keys := range m {
+		separator := ":"
+		// the category prefixed with "vm:"  contains arbirary parameters
+		if strings.HasPrefix(category, "vm:") {
+			separator = "."
+		}
 		for key, kinds := range keys {
 			for kind, val := range kinds {
 				param := Param{
-					key:  category + "." + key,
+					key:  category + separator + key,
 					kind: kind,
 				}
 				switch kind {
@@ -200,7 +208,8 @@ func DefaultGenState() GnoGenesisState {
 		Balances: []Balance{},
 		Txs:      []TxWithMetadata{},
 		Auth:     authGen,
+		Bank:     bank.DefaultGenesisState(),
+		VM:       vmm.DefaultGenesisState(),
 	}
-
 	return gs
 }

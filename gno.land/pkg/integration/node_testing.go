@@ -16,6 +16,8 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/require"
 )
@@ -60,19 +62,17 @@ func TestingNodeConfig(t TestingTS, gnoroot string, additionalTxs ...gnoland.TxW
 	cfg := TestingMinimalNodeConfig(gnoroot)
 	cfg.SkipGenesisVerification = true
 
-	creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
-
 	params := LoadDefaultGenesisParamFile(t, gnoroot)
+	creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
 	balances := LoadDefaultGenesisBalanceFile(t, gnoroot)
 	txs := make([]gnoland.TxWithMetadata, 0)
 	txs = append(txs, LoadDefaultPackages(t, creator, gnoroot)...)
 	txs = append(txs, additionalTxs...)
-
-	cfg.Genesis.AppState = gnoland.GnoGenesisState{
-		Balances: balances,
-		Txs:      txs,
-		Params:   params,
-	}
+	ggs := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
+	ggs.Balances = balances
+	ggs.Txs = txs
+	ggs.Params = params
+	cfg.Genesis.AppState = ggs
 
 	return cfg, creator
 }
@@ -100,6 +100,20 @@ func TestingMinimalNodeConfig(gnoroot string) *gnoland.InMemoryNodeConfig {
 }
 
 func DefaultTestingGenesisConfig(gnoroot string, self crypto.PubKey, tmconfig *tmcfg.Config) *bft.GenesisDoc {
+	authGen := auth.DefaultGenesisState()
+	authGen.Params.UnrestrictedAddrs = []crypto.Address{crypto.MustAddressFromString(DefaultAccount_Address)}
+	authGen.Params.InitialGasPrice = std.GasPrice{Gas: 0, Price: std.Coin{Amount: 0, Denom: "ugnot"}}
+	genState := gnoland.DefaultGenState()
+	genState.Balances = []gnoland.Balance{
+		{
+			Address: crypto.MustAddressFromString(DefaultAccount_Address),
+			Amount:  std.MustParseCoins(ugnot.ValueString(10000000000000)),
+		},
+	}
+	genState.Txs = []gnoland.TxWithMetadata{}
+	genState.Params = []gnoland.Param{}
+	genState.Auth = authGen
+	genState.Bank = bank.DefaultGenesisState()
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
 		ChainID:     tmconfig.ChainID(),
@@ -119,16 +133,7 @@ func DefaultTestingGenesisConfig(gnoroot string, self crypto.PubKey, tmconfig *t
 				Name:    "self",
 			},
 		},
-		AppState: gnoland.GnoGenesisState{
-			Balances: []gnoland.Balance{
-				{
-					Address: crypto.MustAddressFromString(DefaultAccount_Address),
-					Amount:  std.MustParseCoins(ugnot.ValueString(10_000_000_000_000)),
-				},
-			},
-			Txs:    []gnoland.TxWithMetadata{},
-			Params: []gnoland.Param{},
-		},
+		AppState: genState,
 	}
 }
 
@@ -213,5 +218,8 @@ func GenerateTestingGenesisState(creator crypto.PrivKey, pkgs ...gnovm.MemPackag
 			Address: creator.PubKey().Address(),
 			Amount:  std.MustParseCoins(ugnot.ValueString(10_000_000_000_000)),
 		}},
+		Auth: auth.DefaultGenesisState(),
+		Bank: bank.DefaultGenesisState(),
+		VM:   vmm.DefaultGenesisState(),
 	}
 }

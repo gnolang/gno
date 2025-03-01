@@ -28,7 +28,7 @@ func TestBalances(t *testing.T) {
 	t.Parallel()
 
 	env := setupTestEnv()
-	h := NewHandler(env.bank)
+	h := NewHandler(env.bankk)
 	_, _, addr := tu.KeyTestPubAddr()
 
 	req := abci.RequestQuery{
@@ -58,7 +58,7 @@ func TestQuerierRouteNotFound(t *testing.T) {
 	t.Parallel()
 
 	env := setupTestEnv()
-	h := NewHandler(env.bank)
+	h := NewHandler(env.bankk)
 	req := abci.RequestQuery{
 		Path: "bank/notfound",
 		Data: []byte{},

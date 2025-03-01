@@ -6,6 +6,8 @@ func setParamInt64(key string, val int64)
 func setParamUint64(key string, val uint64)
 func setParamBytes(key string, val []byte)
 
+// SetParamXXX(k, v) are for setting arbitrary parameters that can be called from any realm.
+// It may or may not affect system behavior.
 func SetParamString(key string, val string) { setParamString(key, val) }
 func SetParamBool(key string, val bool)     { setParamBool(key, val) }
 func SetParamInt64(key string, val int64)   { setParamInt64(key, val) }

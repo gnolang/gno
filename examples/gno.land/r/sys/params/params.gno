@@ -19,9 +19,13 @@ package params
 
 import (
 	"std"
+	prms "sys/params"
 
 	"gno.land/p/demo/dao"
 	"gno.land/r/gov/dao/bridge"
+
+	// loads the latest DAO implementation in the bridge.
+	_ "gno.land/r/gov/dao/init"
 )
 
 func NewStringPropExecutor(key string, value string) dao.Executor {
@@ -44,6 +48,26 @@ func NewBytesPropExecutor(key string, value []byte) dao.Executor {
 	return newPropExecutor(key, func() { std.SetParamBytes(key, value) })
 }
 
+func NewPrefixedStringPropExecutor(keeperPrefix, key string, value string) dao.Executor {
+	return newPropExecutor(key, func() { prms.SetPrefixedString(keeperPrefix, key, value) })
+}
+
+func NewPrefixedInt64PropExecutor(keeperPrefix, key string, value int64) dao.Executor {
+	return newPropExecutor(key, func() { prms.SetPrefixedInt64(keeperPrefix, key, value) })
+}
+
+func NewPrefixedUint64PropExecutor(keeperPrefix, key string, value uint64) dao.Executor {
+	return newPropExecutor(key, func() { prms.SetPrefixedUint64(keeperPrefix, key, value) })
+}
+
+func NewPrefixedBoolPropExecutor(keeperPrefix, key string, value bool) dao.Executor {
+	return newPropExecutor(key, func() { prms.SetPrefixedBool(keeperPrefix, key, value) })
+}
+
+func NewPrefixedBytesPropExecutor(keeperPrefix, key string, value []byte) dao.Executor {
+	return newPropExecutor(keeperPrefix+key, func() { prms.SetPrefixedBytes(keeperPrefix, key, value) })
+}
+
 func newPropExecutor(key string, fn func()) dao.Executor {
 	callback := func() error {
 		fn()
@@ -51,4 +75,14 @@ func newPropExecutor(key string, fn func()) dao.Executor {
 		return nil
 	}
 	return bridge.GovDAO().NewGovDAOExecutor(callback)
+}
+func propose(exec dao.Executor, title, desc string) uint64 {
+	// The executor's callback function is executed only after the proposal has been voted on
+	// and approved by the GovDAO.
+	prop := dao.ProposalRequest{
+		Title:       title,
+		Description: desc,
+		Executor:    exec,
+	}
+	return bridge.GovDAO().Propose(prop)
 }

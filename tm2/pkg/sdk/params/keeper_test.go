@@ -76,13 +76,6 @@ func TestKeeper(t *testing.T) {
 	require.Equal(t, param3, uint64(12345))
 	require.Equal(t, param4, int64(1000))
 	require.Equal(t, param5, []byte("bye"))
-
-	// invalid sets
-	require.PanicsWithValue(t, `key should be like "<name>.string" (invalid.int64)`, func() { keeper.SetString(ctx, "invalid.int64", "hello") })
-	require.PanicsWithValue(t, `key should be like "<name>.int64" (invalid.string)`, func() { keeper.SetInt64(ctx, "invalid.string", int64(42)) })
-	require.PanicsWithValue(t, `key should be like "<name>.uint64" (invalid.int64)`, func() { keeper.SetUint64(ctx, "invalid.int64", uint64(42)) })
-	require.PanicsWithValue(t, `key should be like "<name>.bool" (invalid.int64)`, func() { keeper.SetBool(ctx, "invalid.int64", true) })
-	require.PanicsWithValue(t, `key should be like "<name>.bytes" (invalid.int64)`, func() { keeper.SetBytes(ctx, "invalid.int64", []byte("hello")) })
 }
 
 // adapted from TestKeeperSubspace from Cosmos SDK, but adapted to a subspace-less Keeper.
@@ -114,22 +107,14 @@ func TestKeeper_internal(t *testing.T) {
 	for i, kv := range kvs {
 		require.NotPanics(t, func() { keeper.getIfExists(ctx, "invalid", kv.ptr) }, "keeper.GetIfExists panics when no value exists, tc #%d", i)
 		require.Equal(t, kv.zero, indirect(kv.ptr), "keeper.GetIfExists unmarshalls when no value exists, tc #%d", i)
-		require.Panics(t, func() { keeper.get(ctx, "invalid", kv.ptr) }, "invalid keeper.Get not panics when no value exists, tc #%d", i)
-		require.Equal(t, kv.zero, indirect(kv.ptr), "invalid keeper.Get unmarshalls when no value exists, tc #%d", i)
-
 		require.NotPanics(t, func() { keeper.getIfExists(ctx, kv.key, kv.ptr) }, "keeper.GetIfExists panics, tc #%d", i)
 		require.Equal(t, kv.param, indirect(kv.ptr), "stored param not equal, tc #%d", i)
-		require.NotPanics(t, func() { keeper.get(ctx, kv.key, kv.ptr) }, "keeper.Get panics, tc #%d", i)
-		require.Equal(t, kv.param, indirect(kv.ptr), "stored param not equal, tc #%d", i)
-
-		require.Panics(t, func() { keeper.get(ctx, "invalid", kv.ptr) }, "invalid keeper.Get not panics when no value exists, tc #%d", i)
-		require.Equal(t, kv.param, indirect(kv.ptr), "invalid keeper.Get unmarshalls when no value existt, tc #%d", i)
-
-		require.Panics(t, func() { keeper.get(ctx, kv.key, nil) }, "invalid keeper.Get not panics when the pointer is nil, tc #%d", i)
+		require.Panics(t, func() { keeper.getIfExists(ctx, kv.key, nil) }, "invalid keeper.Get not panics when the pointer is nil, tc #%d", i)
 	}
 
 	for i, kv := range kvs {
-		bz := store.Get([]byte(kv.key))
+		vk := storeKey(kv.key)
+		bz := store.Get(vk)
 		require.NotNil(t, bz, "store.Get() returns nil, tc #%d", i)
 		err := amino.UnmarshalJSON(bz, kv.ptr)
 		require.NoError(t, err, "cdc.UnmarshalJSON() returns error, tc #%d", i)
@@ -146,18 +131,16 @@ type Params struct {
 	p2 string
 }
 
-func TestGetAndSetParams(t *testing.T) {
+func TestGetAndSetStruct(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.ctx
 	keeper := env.keeper
-	// SetParams
+	// SetStruct
 	a := Params{p1: 1, p2: "a"}
-	err := keeper.SetParams(ctx, ModuleName, a)
-	require.NoError(t, err)
+	keeper.SetStruct(ctx, "params_test:_", a)
 
-	// GetParams
+	// GetStruct
 	a1 := Params{}
-	_, err1 := keeper.GetParams(ctx, ModuleName, &a1)
-	require.NoError(t, err1)
+	keeper.GetStruct(ctx, "params_test:_", &a1)
 	require.True(t, amino.DeepEqual(a, a1), "a and a1 should equal")
 }

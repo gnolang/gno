@@ -36,4 +36,5 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	TooManySignaturesError{}, "TooManySignaturesError",
 	NoSignaturesError{}, "NoSignaturesError",
 	GasOverflowError{}, "GasOverflowError",
+	RestrictedTransferError{}, "RestrictedTransferError",
 ))

@@ -65,7 +65,7 @@ func TestAnteHandlerSigErrors(t *testing.T) {
 	// setup
 	env := setupTestEnv()
 	ctx := env.ctx
-	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
 
 	// keys and addresses
 	priv1, _, addr1 := tu.KeyTestPubAddr()
@@ -114,7 +114,7 @@ func TestAnteHandlerAccountNumbers(t *testing.T) {
 
 	// setup
 	env := setupTestEnv()
-	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
 	ctx := env.ctx
 
 	// keys and addresses
@@ -173,7 +173,7 @@ func TestAnteHandlerAccountNumbersAtBlockHeightZero(t *testing.T) {
 
 	// setup
 	env := setupTestEnv()
-	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
 	ctx := env.ctx
 	header := ctx.BlockHeader().(*bft.Header)
 	header.Height = 0
@@ -234,7 +234,7 @@ func TestAnteHandlerSequences(t *testing.T) {
 
 	// setup
 	env := setupTestEnv()
-	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
 	ctx := env.ctx
 
 	// keys and addresses
@@ -314,7 +314,7 @@ func TestAnteHandlerFees(t *testing.T) {
 	// setup
 	env := setupTestEnv()
 	ctx := env.ctx
-	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
 
 	// keys and addresses
 	priv1, _, addr1 := tu.KeyTestPubAddr()
@@ -338,7 +338,7 @@ func TestAnteHandlerFees(t *testing.T) {
 	env.acck.SetAccount(ctx, acc1)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.InsufficientFundsError{})
 
-	collector := env.bank.(DummyBankKeeper).acck.GetAccount(ctx, FeeCollectorAddress())
+	collector := env.bankk.(DummyBankKeeper).acck.GetAccount(ctx, FeeCollectorAddress())
 	require.Nil(t, collector)
 	require.Equal(t, env.acck.GetAccount(ctx, addr1).GetCoins().AmountOf("atom"), int64(149))
 
@@ -346,7 +346,7 @@ func TestAnteHandlerFees(t *testing.T) {
 	env.acck.SetAccount(ctx, acc1)
 	checkValidTx(t, anteHandler, ctx, tx, false)
 
-	require.Equal(t, env.bank.(DummyBankKeeper).acck.GetAccount(ctx, FeeCollectorAddress()).GetCoins().AmountOf("atom"), int64(150))
+	require.Equal(t, env.bankk.(DummyBankKeeper).acck.GetAccount(ctx, FeeCollectorAddress()).GetCoins().AmountOf("atom"), int64(150))
 	require.Equal(t, env.acck.GetAccount(ctx, addr1).GetCoins().AmountOf("atom"), int64(0))
 }
 
@@ -356,7 +356,7 @@ func TestAnteHandlerMemoGas(t *testing.T) {
 
 	// setup
 	env := setupTestEnv()
-	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
 	ctx := env.ctx
 
 	// keys and addresses
@@ -398,7 +398,7 @@ func TestAnteHandlerMultiSigner(t *testing.T) {
 
 	// setup
 	env := setupTestEnv()
-	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
 	ctx := env.ctx
 
 	// keys and addresses
@@ -450,7 +450,7 @@ func TestAnteHandlerBadSignBytes(t *testing.T) {
 
 	// setup
 	env := setupTestEnv()
-	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
 	ctx := env.ctx
 
 	// keys and addresses
@@ -538,7 +538,7 @@ func TestAnteHandlerSetPubKey(t *testing.T) {
 
 	// setup
 	env := setupTestEnv()
-	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
 	ctx := env.ctx
 
 	// keys and addresses
@@ -753,7 +753,7 @@ func TestAnteHandlerSigLimitExceeded(t *testing.T) {
 
 	// setup
 	env := setupTestEnv()
-	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
 	ctx := env.ctx
 
 	// keys and addresses
@@ -830,7 +830,7 @@ func TestCustomSignatureVerificationGasConsumer(t *testing.T) {
 	// setup
 	env := setupTestEnv()
 	// setup an ante handler that only accepts PubKeyEd25519
-	anteHandler := NewAnteHandler(env.acck, env.bank, func(meter store.GasMeter, sig []byte, pubkey crypto.PubKey, params Params) sdk.Result {
+	anteHandler := NewAnteHandler(env.acck, env.bankk, func(meter store.GasMeter, sig []byte, pubkey crypto.PubKey, params Params) sdk.Result {
 		switch pubkey := pubkey.(type) {
 		case ed25519.PubKeyEd25519:
 			meter.ConsumeGas(params.SigVerifyCostED25519, "ante verify: ed25519")

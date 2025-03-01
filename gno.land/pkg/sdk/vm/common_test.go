@@ -47,11 +47,15 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	ms.LoadLatestVersion()
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
-	prmk := paramsm.NewParamsKeeper(iavlCapKey, "params")
-	acck := authm.NewAccountKeeper(iavlCapKey, prmk, std.ProtoBaseAccount)
-	bank := bankm.NewBankKeeper(acck)
 
+	prmk := paramsm.NewParamsKeeper(iavlCapKey)
+	acck := authm.NewAccountKeeper(iavlCapKey, prmk, std.ProtoBaseAccount)
+	bank := bankm.NewBankKeeper(acck, prmk)
 	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, prmk)
+
+	prmk.Register(acck.GetParamfulKey(), acck)
+	prmk.Register(bank.GetParamfulKey(), bank)
+	prmk.Register(vmk.GetParamfulKey(), vmk)
 
 	mcw := ms.MultiCacheWrap()
 	vmk.Initialize(log.NewNoopLogger(), mcw)
