@@ -139,9 +139,6 @@ func (app *localClient) EchoSync(msg string) (abci.ResponseEcho, error) {
 }
 
 func (app *localClient) InfoSync(req abci.RequestInfo) (abci.ResponseInfo, error) {
-	app.mtx.Lock()
-	defer app.mtx.Unlock()
-
 	res := app.Application.Info(req)
 	return res, nil
 }
