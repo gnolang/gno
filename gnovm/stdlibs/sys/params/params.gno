@@ -1,20 +1,31 @@
 package params
 
-func setPrefixedString(keeperPrefix, key string, val string)
-func setPrefixedBool(keeperPrefix, key string, val bool)
-func setPrefixedInt64(keeperPrefix, key string, val int64)
-func setPrefixedUint64(keeperPrefix, key string, val uint64)
-func setPrefixedBytes(keeperPrefix, key string, val []byte)
+// SetSysParam*(module, k, v) is used for directly setting params in
+// ExecContext.Params, or SysParam.
+// Access to "sys/params" must be restricted.
 
-// SetPrefixedXXX(module, k, v) is used for module parameters and can be called only from the gno.land/r/sys/params realm.
-// It modifies an existing parameter predefined in the module and affects system behavior.
+func SetSysParamString(module, realm, key string, val string) {
+	setSysParamString(module, realm, key, val)
+}
 
-func SetPrefixedString(keeperPrefix, key string, val string) {
-	setPrefixedString(keeperPrefix, key, val)
+func SetSysParamBool(module, realm, key string, val bool) {
+	setSysParamBool(module, realm, key, val)
 }
-func SetPrefixedBool(keeperPrefix, key string, val bool)   { setPrefixedBool(keeperPrefix, key, val) }
-func SetPrefixedInt64(keeperPrefix, key string, val int64) { setPrefixedInt64(keeperPrefix, key, val) }
-func SetPrefixedUint64(keeperPrefix, key string, val uint64) {
-	setPrefixedUint64(keeperPrefix, key, val)
+
+func SetSysParamInt64(module, realm, key string, val int64) {
+	setSysParamInt64(module, realm, key, val)
 }
-func SetPrefixedBytes(keeperPrefix, key string, val []byte) { setPrefixedBytes(keeperPrefix, key, val) }
+
+func SetSysParamUint64(module, realm, key string, val uint64) {
+	setSysParamUint64(module, realm, key, val)
+}
+
+func SetSysParamBytes(module, realm, key string, val []byte) {
+	setSysParamBytes(module, realm, key, val)
+}
+
+func setSysParamString(module, realm, key string, val string)
+func setSysParamBool(module, realm, key string, val bool)
+func setSysParamInt64(module, realm, key string, val int64)
+func setSysParamUint64(module, realm, key string, val uint64)
+func setSysParamBytes(module, realm, key string, val []byte)
