@@ -124,6 +124,10 @@ type TestOptions struct {
 	Metrics bool
 	// Uses Error to print the events emitted.
 	Events bool
+	// Fuzz target function's name
+	FuzzName string
+	// Fuzz iters
+	FuzzIters int
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
@@ -282,8 +286,13 @@ func (opts *TestOptions) runTestFiles(
 			)
 		}
 	}()
-
-	tests := loadTestFuncs(memPkg.Name, files)
+	var testOrFuzz string
+	if opts.FuzzName != "" {
+		testOrFuzz = "Fuzz"
+	} else {
+		testOrFuzz = "Test"
+	}
+	tests := loadTestOrFuzz(memPkg.Name, files, testOrFuzz)
 
 	var alloc *gno.Allocator
 	if opts.Metrics {
@@ -321,6 +330,23 @@ func (opts *TestOptions) runTestFiles(
 		testingtv := gno.TypedValue{T: &gno.PackageType{}, V: testingpv}
 		testingcx := &gno.ConstExpr{TypedValue: testingtv}
 
+		calledFunction := gno.Sel(testingcx, fmt.Sprintf("Run%s", testOrFuzz)) // Call testing.RunTest or testing.RunFuzz
+		var params []interface{}
+		if testOrFuzz == "Fuzz" {
+			params = append(params, gno.Str(opts.FuzzName))                                // fuzz name
+			params = append(params, gno.Num(strconv.FormatInt(int64(opts.FuzzIters), 10))) // fuzz iters
+			params = append(params, gno.Nx(strconv.FormatBool(opts.Verbose)))              // is verbose?
+		} else {
+			params = append(params, gno.Str(opts.RunFlag))                    // run flag
+			params = append(params, gno.Nx(strconv.FormatBool(opts.Verbose))) // is verbose?
+		}
+		params = append(params, &gno.CompositeLitExpr{ // Last param, the testing.InternalTest or testing.InternalFuzz
+			Type: gno.Sel(testingcx, fmt.Sprintf("Internal%s", testOrFuzz)),
+			Elts: gno.KeyValueExprs{
+				{Key: gno.X("Name"), Value: gno.Str(tf.Name)},
+				{Key: gno.X("F"), Value: gno.Nx(tf.Name)}},
+		})
+
 		if opts.Debug {
 			fileContent := func(ppath, name string) string {
 				p := filepath.Join(opts.RootDir, ppath, name)
@@ -339,16 +365,8 @@ func (opts *TestOptions) runTestFiles(
 		}
 
 		eval := m.Eval(gno.Call(
-			gno.Sel(testingcx, "RunTest"),            // Call testing.RunTest
-			gno.Str(opts.RunFlag),                    // run flag
-			gno.Nx(strconv.FormatBool(opts.Verbose)), // is verbose?
-			&gno.CompositeLitExpr{ // Third param, the testing.InternalTest
-				Type: gno.Sel(testingcx, "InternalTest"),
-				Elts: gno.KeyValueExprs{
-					{Key: gno.X("Name"), Value: gno.Str(tf.Name)},
-					{Key: gno.X("F"), Value: gno.Nx(tf.Name)},
-				},
-			},
+			calledFunction,
+			params...,
 		))
 
 		if opts.Events {
@@ -416,12 +434,12 @@ type testFunc struct {
 	Name    string
 }
 
-func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
+func loadTestOrFuzz(pkgName string, tfiles *gno.FileSet, testOrFuzz string) (rt []testFunc) {
 	for _, tf := range tfiles.Files {
 		for _, d := range tf.Decls {
 			if fd, ok := d.(*gno.FuncDecl); ok {
 				fname := string(fd.Name)
-				if strings.HasPrefix(fname, "Test") {
+				if strings.HasPrefix(fname, testOrFuzz) {
 					tf := testFunc{
 						Package: pkgName,
 						Name:    fname,
