@@ -21,7 +21,7 @@
 
 @layer base {
   html {
-    @apply font-interVar text-gray-600 bg-light text-200;
+    @apply font-interVar text-gray-600 bg-light text-200 dark:bg-dark dark:text-gray-d600;
     font-feature-settings: "kern" on, "liga" on, "calt" on, "zero" on;
     -webkit-font-feature-settings: "kern" on, "liga" on, "calt" on, "zero" on;
     text-size-adjust: 100%;
@@ -33,7 +33,7 @@
   }
 
   html.dark {
-    @apply bg-gray-d100 text-gray-d900 text-200;
+    @apply bg-dark text-gray-d600;
   }
 
   svg {
@@ -41,16 +41,10 @@
   }
 
   ::-moz-selection {
-    @apply bg-green-600 text-light;
+    @apply bg-green-600 text-light dark:bg-green-d600 dark:text-dark;
   }
   ::selection {
-    @apply bg-green-600 text-light;
-  }
-  .dark ::-moz-selection {
-    @apply bg-green-d600 text-dark;
-  }
-  .dark ::selection {
-    @apply bg-green-d600 text-dark;
+    @apply bg-green-600 text-light dark:bg-green-d600 dark:text-dark;
   }
 
   form {
@@ -70,14 +64,14 @@
   }
 
   .realm-view a {
-    @apply text-green-600 font-medium hover:underline;
+    @apply text-green-600 font-medium hover:underline dark:text-green-d600;
   }
   
   .realm-view h1,
   .realm-view h2,
   .realm-view h3,
   .realm-view h4 {
-    @apply text-gray-900 mt-12 leading-tight;
+    @apply text-gray-900 mt-12 leading-tight dark:text-gray-d900;
   }
 
   .realm-view h2,
@@ -107,11 +101,11 @@
   }
 
   .realm-view h3 {
-    @apply text-400 text-gray-600 mt-10;
+    @apply text-400 text-gray-600 dark:text-gray-d600 mt-10;
   }
 
   .realm-view h4 {
-    @apply text-300 text-gray-600 font-medium my-6;
+    @apply text-300 text-gray-600 dark:text-gray-d600 font-medium my-6;
   }
 
   .realm-view p {
@@ -119,7 +113,7 @@
   }
 
   .realm-view strong {
-    @apply font-bold text-gray-900;
+    @apply font-bold text-gray-900 dark:text-gray-d900;
   }
 
   .realm-view strong * {
@@ -131,7 +125,7 @@
   }
 
   .realm-view blockquote {
-    @apply border-l-4 border-gray-300 pl-4 text-gray-600 italic-subtle my-4;
+    @apply border-l-4 border-gray-300 pl-4 text-gray-600 italic-subtle my-4 dark:border-gray-d300 dark:text-gray-d600;
   }
 
   .realm-view ul,
@@ -169,7 +163,7 @@
   }
 
   .realm-view figcaption {
-    @apply text-100 text-gray-600;
+    @apply text-100 text-gray-600 dark:text-gray-d600;
   }
 
   .realm-view video {
@@ -177,11 +171,11 @@
   }
 
   .realm-view :not(pre) > code {
-    @apply bg-gray-100 px-1 py-0.5 rounded-sm text-[.96em] font-mono;
+    @apply bg-gray-100 px-1 py-0.5 rounded-sm text-[.96em] font-mono dark:bg-gray-d100;
   }
 
   .realm-view pre {
-    @apply bg-gray-50 p-4 rounded overflow-x-auto font-mono;
+    @apply bg-gray-50 p-4 rounded overflow-x-auto font-mono dark:bg-gray-d50;
   }
 
   .realm-view a code {
@@ -194,15 +188,15 @@
 
   .realm-view th,
   .realm-view td {
-    @apply border px-4 py-2 break-words whitespace-normal;
+    @apply border px-4 py-2 break-words whitespace-normal dark:border-gray-d300;
   }
 
   .realm-view th {
-    @apply bg-gray-100 font-bold;
+    @apply bg-gray-100 font-bold dark:bg-gray-d100;
   }
 
   .realm-view caption {
-    @apply mt-2 text-100 text-gray-600 text-left;
+    @apply mt-2 text-100 text-gray-600 text-left dark:text-gray-d600;
   }
 
   .realm-view q {
@@ -251,109 +245,44 @@
 
   .realm-view input,
   .realm-view button {
-    @apply px-4 py-2 border border-gray-300;
+    @apply px-4 py-2 border border-gray-300 dark:border-gray-d300;
   }
 
   .realm-view hr {
-    @apply border-t border-gray-100 my-10;
-  }
-
-  .dark .realm-view {
-    color: theme('colors.gray.d800');
-  }
-
-  .dark .realm-view a {
-    @apply text-green-d600 hover:text-green-d400;
-  }
-
-  .dark .realm-view h1,
-  .dark .realm-view h2,
-  .dark .realm-view h3,
-  .dark .realm-view h4 {
-    @apply text-gray-d900;
-  }
-
-  .dark .realm-view strong {
-    @apply text-gray-d900;
-  }
-
-  .dark .realm-view blockquote {
-    @apply border-l-4 border-gray-d200 text-gray-d400;
-  }
-
-  .dark .realm-view :not(pre) > code {
-    @apply bg-gray-d100 text-gray-d400;
-  }
-
-  .dark .realm-view pre {
-    @apply bg-gray-d50;
-  }
-
-  .dark .realm-view th {
-    @apply bg-gray-d100;
-  }
-
-  .dark .realm-view table,
-  .dark .realm-view th,
-  .dark .realm-view td {
-    @apply border-gray-d200;
+    @apply border-t border-gray-100 my-10 dark:border-gray-d100;
   }
 }
 
 @layer components {
    /* header */
   .main-header {
-    @apply bg-light border-gray-100 text-gray-600;
-  }
-  
-  .dark .main-header {
-    @apply bg-dark border-gray-d100 text-gray-d400;
+    @apply bg-light border-gray-100 text-gray-600 dark:bg-dark dark:border-gray-d100 dark:text-gray-d600;
   }
 
   .sidemenu {
-    @apply text-gray-600;
-  }
-  
-  .dark .sidemenu {
-    @apply text-gray-d400;
+    @apply text-gray-600 dark:text-gray-d600;
   }
   
   .sidemenu .peer:checked + label > svg {
-    @apply text-green-600;
-  }
-
-  .dark .sidemenu .peer:checked + label > svg {
-    @apply text-green-d600;
+    @apply text-green-600 dark:text-green-d600;
   }
   
   /* main content */
   main {
-    @apply bg-light;
-  }
-  
-  .dark main {
-    @apply bg-dark;
+    @apply bg-light dark:bg-dark;
   }
 
   .dev-mode {
-    @apply bg-gray-50;
-  }
-  
-  .dark .dev-mode {
-    @apply bg-gray-d50;
+    @apply bg-gray-50 dark:bg-gray-d50;
   }
   
   /* toc */
   .dev-mode .toc-expend-btn {
-    @apply bg-gray-100 hover:bg-gray-50 cursor-pointer border lg:border-none lg:bg-transparent;
+    @apply bg-gray-100 hover:bg-gray-50 cursor-pointer border lg:border-none lg:bg-transparent dark:bg-gray-d100 dark:hover:bg-gray-d50 dark:lg:border-none dark:lg:bg-transparent;
   }
 
   .dev-mode #sidebar-summary {
-    @apply bg-light lg:bg-transparent;
-  }
-  
-  .dark .dev-mode #sidebar-summary {
-    @apply bg-gray-d100 lg:bg-transparent;
+    @apply bg-light lg:bg-transparent dark:bg-gray-d100 dark:lg:bg-transparent;
   }
   
   .dev-mode .toc-nav {
@@ -370,19 +299,11 @@
   }
   
   .toc-nav a {
-    @apply text-gray-900;
+    @apply text-gray-900 dark:text-gray-d900;
   }
   
   .toc-nav a:hover {
-    @apply text-green-600;
-  }
-  
-  .dark .toc-nav a {
-    @apply text-gray-d800;
-  }
-  
-  .dark .toc-nav a:hover {
-    @apply text-green-d400;
+    @apply text-green-600 dark:text-green-d600;
   }
 
   /* sidebar */
@@ -404,12 +325,12 @@
   }
   
   :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) + main #sidebar::before {
-    @apply absolute block content-[''] top-0 w-[50vw] h-full -left-7 bg-gray-100 z-min;
+    @apply absolute block content-[''] top-0 w-[50vw] h-full -left-7 bg-gray-100 z-min dark:bg-gray-d100;
   }
 
    /* chroma */
   main :is(.source-code) > pre {
-    @apply !bg-light overflow-scroll dark:!bg-gray-d100 rounded py-4 md:py-8 px-1 md:px-3 font-mono text-100 md:text-200;
+    @apply !bg-light overflow-scroll dark:!bg-dark rounded py-4 md:py-8 px-1 md:px-3 font-mono text-100 md:text-200;
   }
   
   main .realm-view > pre a {
@@ -443,7 +364,7 @@
 
   .quotes::before,
   .quotes::after {
-    @apply [content:open-quote] text-600 text-gray-300 mr-1 [vertical-align:-0.4rem];
+    @apply [content:open-quote] text-600 text-gray-300 mr-1 [vertical-align:-0.4rem] dark:text-gray-d300;
   }
 
   .quotes::after {

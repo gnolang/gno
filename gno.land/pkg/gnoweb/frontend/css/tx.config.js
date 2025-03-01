@@ -31,7 +31,7 @@ export default {
     },
     colors: {
       light: "#FFFFFF",
-      dark: "#282828",
+      dark: "#000000",
       gray: {
         50: "#F0F0F0", // Background color
         100: "#E2E2E2", // Title dark color
