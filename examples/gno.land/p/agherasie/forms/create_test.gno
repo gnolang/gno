@@ -10,7 +10,7 @@ import (
 
 func TestCreateForm(t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	std.TestSetOrigCaller(alice)
+	std.TestSetOriginCaller(alice)
 	db := NewDB()
 	title := "Simple Form"
 	description := "This is a form"
