@@ -38,7 +38,7 @@ type Account interface {
 	String() string
 }
 
-type AccountRestricter interface {
+type AccountUnrestricter interface {
 	IsUnrestricted() bool
 }
 

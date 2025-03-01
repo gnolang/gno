@@ -19,7 +19,7 @@ type AccountKeeper struct {
 	key store.StoreKey
 
 	// store module parameters
-	paramk params.ParamsKeeper
+	paramk params.ParamsKeeperI
 
 	// The prototypical Account constructor.
 	proto func() std.Account
@@ -28,7 +28,7 @@ type AccountKeeper struct {
 // NewAccountKeeper returns a new AccountKeeper that uses go-amino to
 // (binary) encode and decode concrete std.Accounts.
 func NewAccountKeeper(
-	key store.StoreKey, pk params.ParamsKeeper, proto func() std.Account,
+	key store.StoreKey, pk params.ParamsKeeperI, proto func() std.Account,
 ) AccountKeeper {
 	return AccountKeeper{
 		key:    key,

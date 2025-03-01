@@ -116,30 +116,16 @@ func (ak AccountKeeper) SetParams(ctx sdk.Context, params Params) error {
 	if err := params.Validate(); err != nil {
 		return err
 	}
-	err := ak.paramk.SetParams(ctx, ModuleName, paramsKey, params)
-	return err
+	ak.paramk.SetStruct(ctx, "_", params)
+	return nil
 }
 
 func (ak AccountKeeper) GetParams(ctx sdk.Context) Params {
-	params := &Params{}
-	// NOTE: important to not use local cached fields unless they are synchronously stored to the underlying store.
-	// this optimization generally only belongs in paramk.GetParams(), not here. users of paramk.GetParams()
-	// generally should not cache anything and instead rely on the efficiency of paramk.GetParams().
-
-	_, err := ak.paramk.GetParams(ctx, ModuleName, paramsKey, params)
-	if err != nil {
-		panic(err)
-	}
-
-	return *params
+	params := Params{}
+	ak.paramk.GetStruct(ctx, "_", &params)
+	return params
 }
 
-func (ak AccountKeeper) GetParamfulKey() string {
-	return ModuleName
-}
-
-// WillSetParam checks if the key contains the module's parameter key prefix and updates the module parameter accordingly.
 func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
-	// TODO: add parameter settings here.
-	panic("setting params for auth is not supported yet")
+	// XXX validate input?
 }

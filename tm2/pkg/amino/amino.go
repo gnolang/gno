@@ -162,6 +162,17 @@ func GetTypeURL(o interface{}) string {
 	return gcdc.GetTypeURL(o)
 }
 
+// Returns a new TypeInfo instance.
+// NOTE: it uses a new codec for security's sake.
+// (*TypeInfo of gcdc should not be exposed)
+// Therefore it may be inefficient.  If you need efficiency, implement with a
+// new method that takes as argument a non-global codec instance.
+func GetTypeInfo(rt reflect.Type) (info *TypeInfo, err error) {
+	cdc := NewCodec().WithPBBindings().Autoseal()
+	ti, err := cdc.GetTypeInfo(rt)
+	return ti, err
+}
+
 // ----------------------------------------
 // Typ3
 

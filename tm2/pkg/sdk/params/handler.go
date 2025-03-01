@@ -32,7 +32,7 @@ func (bh paramsHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 func (bh paramsHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	prefix, paramKey := parseParamKey(req.Path)
 	if prefix != "" {
-		if bh.params.PrefixExists(prefix) == false {
+		if bh.params.ModuleExists(prefix) == false {
 			res = sdk.ABCIResponseQueryFromError(
 				std.ErrUnknownRequest(fmt.Sprintf("unknown params query endpoint %q", prefix)))
 			return

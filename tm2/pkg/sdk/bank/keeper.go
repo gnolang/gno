@@ -37,11 +37,11 @@ type BankKeeper struct {
 
 	acck auth.AccountKeeper
 	// The keeper used to store parameters
-	paramk params.ParamsKeeper
+	paramk params.ParamsKeeperI
 }
 
 // NewBankKeeper returns a new BankKeeper.
-func NewBankKeeper(acck auth.AccountKeeper, pk params.ParamsKeeper) BankKeeper {
+func NewBankKeeper(acck auth.AccountKeeper, pk params.ParamsKeeperI) BankKeeper {
 	return BankKeeper{
 		ViewKeeper: NewViewKeeper(acck),
 		acck:       acck,
@@ -49,51 +49,9 @@ func NewBankKeeper(acck auth.AccountKeeper, pk params.ParamsKeeper) BankKeeper {
 	}
 }
 
-func (bank BankKeeper) AddRestrictedDenoms(ctx sdk.Context, restrictedDenoms ...string) {
-	if len(restrictedDenoms) == 0 {
-		return
-	}
-	params := bank.GetParams(ctx)
-	rdSet := toSet(params.RestrictedDenoms)
-	for _, denom := range restrictedDenoms {
-		rdSet[denom] = struct{}{}
-	}
-
-	ds := make([]string, 0, len(rdSet))
-	for d := range rdSet {
-		ds = append(ds, d)
-	}
-	params.RestrictedDenoms = ds
-	if err := bank.SetParams(ctx, params); err != nil {
-		panic(err)
-	}
-}
-
-func (bank BankKeeper) DelRestrictedDenoms(ctx sdk.Context, restrictedDenoms ...string) {
-	params := bank.GetParams(ctx)
-
-	rdSet := toSet(params.RestrictedDenoms)
-	for _, denom := range restrictedDenoms {
-		delete(rdSet, denom)
-	}
-	ds := make([]string, 0, len(rdSet))
-	for d := range rdSet {
-		ds = append(ds, d)
-	}
-	params.RestrictedDenoms = ds
-	if err := bank.SetParams(ctx, params); err != nil {
-		panic(err)
-	}
-}
-
-func (bank BankKeeper) DelAllRestrictedDenoms(ctx sdk.Context) {
-	params := bank.GetParams(ctx)
-	params.RestrictedDenoms = []string{}
-
-	err := bank.paramk.SetParams(ctx, ModuleName, paramsKey, params)
-	if err != nil {
-		panic(err)
-	}
+func (bank BankKeeper) WillSetRestrictedDenoms(ctx sdk.Context, restrictedDenoms string) {
+	// XXX nothing to do yet, nothing cached.
+	// XXX validate input.
 }
 
 func (bank BankKeeper) RestrictedDenoms(ctx sdk.Context) []string {
@@ -167,10 +125,11 @@ func (bank BankKeeper) canSendCoins(ctx sdk.Context, addr crypto.Address, amt st
 	}
 	if amt.ContainOneOfDenom(toSet(rds)) {
 		acc := bank.acck.GetAccount(ctx, addr)
-		accr := acc.(std.AccountRestricter)
-		if acc != nil && !accr.IsUnrestricted() {
-			return false
+		accr, ok := acc.(std.AccountUnrestricter)
+		if ok && accr.IsUnrestricted() {
+			return true
 		}
+		return false
 	}
 	return true
 }
