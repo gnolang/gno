@@ -64,7 +64,7 @@ func (db *FormDB) CreateForm(title string, description string, openAt string, cl
 	// Creating the form
 	form := Form{
 		ID:          id,
-		Owner:       std.PrevRealm().Addr(),
+		Owner:       std.PreviousRealm().Address(),
 		Title:       title,
 		Description: description,
 		CreatedAt:   time.Now(),

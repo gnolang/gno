@@ -14,7 +14,7 @@ func (db *FormDB) SubmitForm(formID string, answers string) {
 	}
 
 	// Check if form was already submitted by this user
-	previousAnswer, err := db.GetAnswer(formID, std.PrevRealm().Addr())
+	previousAnswer, err := db.GetAnswer(formID, std.PreviousRealm().Address())
 	if previousAnswer != nil {
 		panic(errAlreadySubmitted)
 	}
@@ -33,7 +33,7 @@ func (db *FormDB) SubmitForm(formID string, answers string) {
 	answer := Submission{
 		FormID:      formID,
 		Answers:     answers,
-		Author:      std.PrevRealm().Addr(),
+		Author:      std.PreviousRealm().Address(),
 		SubmittedAt: time.Now(),
 	}
 	db.Answers = append(db.Answers, &answer)
