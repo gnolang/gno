@@ -200,6 +200,8 @@ func FuzzTranspiling(f *testing.F) {
 				strings.Contains(sr, "imports must appear before"),
 				strings.Contains(sr, "missing condition in"),
 				strings.Contains(sr, "method has multiple receivers"),
+				strings.Contains(sr, "expected 'chan', found"),
+				strings.Contains(sr, "missing type constraint"),
 				strings.Contains(sr, "cannot parenthesize embedded type"),
 				strings.Contains(sr, "method must have no type parameters"),
 				strings.Contains(sr, "missing ',' before newline in type argument list"),
