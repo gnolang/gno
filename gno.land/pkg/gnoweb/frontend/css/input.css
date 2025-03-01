@@ -332,7 +332,7 @@
   }
   
   .dark main {
-    @apply bg-gray-d100;
+    @apply bg-dark;
   }
 
   .dev-mode {
@@ -424,8 +424,9 @@
   main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-lnlinks:hover),
   main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-ln:target) .chroma-cl,
   main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-lnlinks:hover) .chroma-cl {
-    @apply !bg-gray-100 dark:!bg-gray-d300 rounded;
+    @apply !bg-gray-100 dark:!bg-gray-d100 rounded;
   }  
+
   main :is(.realm-view, .source-code) > pre .chroma-ln {
     @apply scroll-mt-24;
   }
