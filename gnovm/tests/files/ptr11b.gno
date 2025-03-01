@@ -4,9 +4,13 @@ type S struct{}
 
 func (s S) String() string { return "hey" }
 
+type Stringer interface {
+	String() string
+}
+
 func main() {
 	v := (*S)(nil)
-	v.String()
+	println(Stringer(v).String())
 }
 
 // Error:
