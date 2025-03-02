@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 )
 
 func X_write(m *gnolang.Machine, p []byte, isStderr bool) int {
@@ -17,7 +18,7 @@ func X_write(m *gnolang.Machine, p []byte, isStderr bool) int {
 	return n
 }
 
-func X_sleep(m *gno.Machine, duration int64) {
+func X_sleep(m *gnolang.Machine, duration int64) {
 	arg0 := m.LastBlock().GetParams1().TV
 	d := arg0.GetInt64()
 	sec := d / int64(time.Second)
