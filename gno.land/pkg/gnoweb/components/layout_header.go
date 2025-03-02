@@ -22,17 +22,17 @@ type HeaderData struct {
 	Remote     string
 }
 
-func StaticHeaderLinks(u weburl.GnoURL) []HeaderLink {
+func StaticHeaderLinks(u weburl.GnoURL, handle string) []HeaderLink {
 	contentURL, sourceURL, helpURL := u, u, u
 	contentURL.WebQuery = url.Values{}
 	sourceURL.WebQuery = url.Values{"source": {""}}
 	helpURL.WebQuery = url.Values{"help": {""}}
 
-	return []HeaderLink{
+	links := []HeaderLink{
 		{
 			Label:    "Content",
 			URL:      contentURL.EncodeWebURL(),
-			Icon:     "ico-info",
+			Icon:     "ico-content",
 			IsActive: isActive(u.WebQuery, "Content"),
 		},
 		{
@@ -41,18 +41,36 @@ func StaticHeaderLinks(u weburl.GnoURL) []HeaderLink {
 			Icon:     "ico-code",
 			IsActive: isActive(u.WebQuery, "Source"),
 		},
-		{
-			Label:    "Docs",
-			URL:      helpURL.EncodeWebURL(),
-			Icon:     "ico-docs",
-			IsActive: isActive(u.WebQuery, "Docs"),
-		},
 	}
+
+	switch handle {
+	case "p":
+		// Will have docs soon
+
+	default:
+		links = append(links, HeaderLink{
+			Label:    "Actions",
+			URL:      helpURL.EncodeWebURL(),
+			Icon:     "ico-helper",
+			IsActive: isActive(u.WebQuery, "Actions"),
+		})
+	}
+
+	return links
 }
 
 func EnrichHeaderData(data HeaderData) HeaderData {
 	data.RealmPath = data.RealmURL.EncodeURL()
-	data.Links = StaticHeaderLinks(data.RealmURL)
+
+	var handle string
+	if len(data.Breadcrumb.Parts) > 0 {
+		handle = data.Breadcrumb.Parts[0].Name
+	} else {
+		handle = ""
+	}
+
+	data.Links = StaticHeaderLinks(data.RealmURL, handle)
+
 	return data
 }
 
@@ -62,7 +80,7 @@ func isActive(webQuery url.Values, label string) bool {
 		return !(webQuery.Has("source") || webQuery.Has("help"))
 	case "Source":
 		return webQuery.Has("source")
-	case "Docs":
+	case "Actions":
 		return webQuery.Has("help")
 	default:
 		return false

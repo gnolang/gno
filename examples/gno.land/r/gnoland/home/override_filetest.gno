@@ -8,10 +8,12 @@ import (
 )
 
 func main() {
-	std.TestSetOriginCaller("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+	var admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+	std.TestSetOriginCaller(admin)
 	home.AdminSetOverride("Hello World!")
+	println("---")
 	println(home.Render(""))
-	home.AdminTransferOwnership(testutils.TestAddress("newAdmin"))
+	home.Admin.TransferOwnership(testutils.TestAddress("newAdmin"))
 	defer func() {
 		r := recover()
 		println("r: ", r)
@@ -20,5 +22,6 @@ func main() {
 }
 
 // Output:
+// ---
 // Hello World!
 // r:  ownable: caller is not owner

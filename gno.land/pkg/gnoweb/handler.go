@@ -175,13 +175,13 @@ func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL, indexData *components.I
 	if meta.Head.Title != "" {
 		indexData.Title = meta.Head.Title + " - " + h.Static.Domain
 	} else {
-		indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path
+		indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path + " Realm"
 	}
 
 	if meta.Head.Description != "" {
 		indexData.Description = meta.Head.Description
 	} else {
-		indexData.Description = "Render of the Gno Realm " + gnourl.Path + " from " + h.Static.Domain + "."
+		indexData.Description = "Explore the " + gnourl.Path + " realm on " + h.Static.Domain + "."
 	}
 
 	return http.StatusOK, components.RealmView(components.RealmData{
@@ -203,8 +203,8 @@ func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL, indexData *components.In
 	}
 
 	// HTML Head metadata
-	indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path + " docs and realm interactions"
-	indexData.Description = "Read the Realm " + gnourl.Path + " functions an interact with them from " + h.Static.Domain + "."
+	indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path + " reference and interactions"
+	indexData.Description = "Explore " + gnourl.Path + " realm functions, and learn how to interact with them on " + h.Static.Domain + "."
 
 	// Get selected function
 	selArgs := make(map[string]string)
@@ -269,8 +269,8 @@ func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL, indexData *components.
 	}
 
 	// HTML Head metadata
-	indexData.HeadData.Title = h.Static.Domain + " - " + fileName + " source code from " + gnourl.Path
-	indexData.Description = "Check " + fileName + " source code from " + gnourl.Path + " on " + h.Static.Domain + "."
+	indexData.HeadData.Title = h.Static.Domain + " - " + fileName + " source code in " + gnourl.Path
+	indexData.Description = "Explore the " + fileName + " source code in the " + gnourl.Path + " file on " + h.Static.Domain + "."
 
 	fileSizeStr := fmt.Sprintf("%.2f Kb", meta.SizeKb)
 	return http.StatusOK, components.SourceView(components.SourceData{
@@ -298,8 +298,8 @@ func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL, indexData *componen
 	}
 
 	// HTML Head metadata
-	indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path + " files directory"
-	indexData.Description = "Browse the " + gnourl.Path + " directory on " + h.Static.Domain + "."
+	indexData.HeadData.Title = h.Static.Domain + " - Browse " + gnourl.Path + " directory"
+	indexData.Description = "Explore the directory structure, files, and subdirectories of " + gnourl.Path + " on " + h.Static.Domain + ", and discover its source code and documentation."
 
 	return http.StatusOK, components.DirectoryView(components.DirData{
 		PkgPath:     gnourl.Path,
