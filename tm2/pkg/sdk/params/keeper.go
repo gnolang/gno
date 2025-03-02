@@ -26,19 +26,21 @@ type ParamsKeeperI interface {
 	GetUint64(ctx sdk.Context, key string, ptr *uint64)
 	GetBool(ctx sdk.Context, key string, ptr *bool)
 	GetBytes(ctx sdk.Context, key string, ptr *[]byte)
+	GetStrings(ctx sdk.Context, key string, ptr *[]string)
 
 	SetString(ctx sdk.Context, key string, value string)
 	SetInt64(ctx sdk.Context, key string, value int64)
 	SetUint64(ctx sdk.Context, key string, value uint64)
 	SetBool(ctx sdk.Context, key string, value bool)
 	SetBytes(ctx sdk.Context, key string, value []byte)
+	SetStrings(ctx sdk.Context, key string, value []string)
 
 	Has(ctx sdk.Context, key string) bool
 	GetRaw(ctx sdk.Context, key string) []byte
 	SetRaw(ctx sdk.Context, key string, value []byte)
 
-	GetStruct(ctx sdk.Context, key string, paramPtr interface{})
-	SetStruct(ctx sdk.Context, key string, param interface{})
+	GetStruct(ctx sdk.Context, key string, strctPtr interface{})
+	SetStruct(ctx sdk.Context, key string, strct interface{})
 }
 
 type ParamfulKeeper interface {
@@ -120,6 +122,10 @@ func (pk ParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) {
 	pk.getIfExists(ctx, key, ptr)
 }
 
+func (pk ParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) {
+	pk.getIfExists(ctx, key, ptr)
+}
+
 func (pk ParamsKeeper) SetString(ctx sdk.Context, key, value string) {
 	pk.set(ctx, key, value)
 }
@@ -140,6 +146,10 @@ func (pk ParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte) {
 	pk.set(ctx, key, value)
 }
 
+func (pk ParamsKeeper) SetStrings(ctx sdk.Context, key string, value []string) {
+	pk.set(ctx, key, value)
+}
+
 func (pk ParamsKeeper) GetRaw(ctx sdk.Context, key string) []byte {
 	stor := ctx.Store(pk.key)
 	return stor.Get(storeKey(key))
@@ -150,7 +160,7 @@ func (pk ParamsKeeper) SetRaw(ctx sdk.Context, key string, value []byte) {
 	stor.Set(storeKey(key), value)
 }
 
-func (pk ParamsKeeper) GetStruct(ctx sdk.Context, key string, paramPtr interface{}) {
+func (pk ParamsKeeper) GetStruct(ctx sdk.Context, key string, strctPtr interface{}) {
 	parts := strings.Split(key, ":")
 	if len(parts) != 2 {
 		panic("struct key expected format <module>:<struct name>")
@@ -164,11 +174,11 @@ func (pk ParamsKeeper) GetStruct(ctx sdk.Context, key string, paramPtr interface
 		panic("the only supported struct name is _")
 	}
 	stor := ctx.Store(pk.key)
-	kvz := getStructFieldsFromStore(paramPtr, stor, storeKey(key))
-	decodeStructFields(paramPtr, kvz)
+	kvz := getStructFieldsFromStore(strctPtr, stor, storeKey(key))
+	decodeStructFields(strctPtr, kvz)
 }
 
-func (pk ParamsKeeper) SetStruct(ctx sdk.Context, key string, param interface{}) {
+func (pk ParamsKeeper) SetStruct(ctx sdk.Context, key string, strct interface{}) {
 	parts := strings.Split(key, ":")
 	if len(parts) != 2 {
 		panic("struct key expected format <module>:<struct name>")
@@ -182,7 +192,7 @@ func (pk ParamsKeeper) SetStruct(ctx sdk.Context, key string, param interface{})
 		panic("the only supported struct name is _")
 	}
 	stor := ctx.Store(pk.key)
-	kvz := encodeStructFields(param)
+	kvz := encodeStructFields(strct)
 	for _, kv := range kvz {
 		stor.Set(storeKey(key+":"+string(kv.Key)), kv.Value)
 	}
@@ -262,6 +272,10 @@ func (ppk prefixParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte)
 	ppk.pk.GetBytes(ctx, ppk.prefixed(key), ptr)
 }
 
+func (ppk prefixParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) {
+	ppk.pk.GetStrings(ctx, ppk.prefixed(key), ptr)
+}
+
 func (ppk prefixParamsKeeper) SetString(ctx sdk.Context, key string, value string) {
 	ppk.pk.SetString(ctx, ppk.prefixed(key), value)
 }
@@ -280,6 +294,10 @@ func (ppk prefixParamsKeeper) SetBool(ctx sdk.Context, key string, value bool) {
 
 func (ppk prefixParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte) {
 	ppk.pk.SetBytes(ctx, ppk.prefixed(key), value)
+}
+
+func (ppk prefixParamsKeeper) SetStrings(ctx sdk.Context, key string, value []string) {
+	ppk.pk.SetStrings(ctx, ppk.prefixed(key), value)
 }
 
 func (ppk prefixParamsKeeper) Has(ctx sdk.Context, key string) bool {
