@@ -160,31 +160,25 @@ const (
 	ATTR_GLOBAL
 )
 
+var attr_strs = [...]string{
+	ATTR_PREPROCESSED:    "ATTR_PREPROCESSED",
+	ATTR_PREDEFINED:      "ATTR_PREDEFINED",
+	ATTR_TYPE_VALUE:      "ATTR_TYPE_VALUE",
+	ATTR_IOTA:            "ATTR_IOTA",
+	ATTR_LOOP_DEFINES:    "ATTR_LOOP_DEFINES",
+	ATTR_LOOP_USES:       "ATTR_LOOP_USES",
+	ATTR_SHIFT_RHS:       "ATTR_SHIFT_RHS",
+	ATTR_LAST_BLOCK_STMT: "ATTR_LAST_BLOCK_STMT",
+	ATTR_GLOBAL:          "ATTR_GLOBAL",
+}
+
 func (ga GnoAttribute) String() string {
-	switch ga {
-	case ATTR_PREPROCESSED:
-		return "ATTR_PREPROCESSED"
-	case ATTR_PREDEFINED:
-		return "ATTR_PREDEFINED"
-	case ATTR_TYPE_VALUE:
-		return "ATTR_TYPE_VALUE"
-	case ATTR_TYPEOF_VALUE:
-		return "ATTR_TYPEOF_VALUE"
-	case ATTR_IOTA:
-		return "ATTR_IOTA"
-	case ATTR_LOOP_DEFINES:
-		return "ATTR_LOOP_DEFINES" // []Name defined within loops.
-	case ATTR_LOOP_USES:
-		return "ATTR_LOOP_USES" // []Name loop defines actually used.
-	case ATTR_SHIFT_RHS:
-		return "ATTR_SHIFT_RHS"
-	case ATTR_LAST_BLOCK_STMT:
-		return "ATTR_LAST_BLOCK_STMT"
-	case ATTR_GLOBAL:
-		return "ATTR_GLOBAL"
-	default:
+	iga := int(ga)
+	if iga < 0 || iga >= len(attr_strs) {
 		panic(fmt.Sprintf("Unknown attribute: %d", ga))
 	}
+
+	return attr_strs[iga]
 }
 
 type Attributes struct {
@@ -196,7 +190,7 @@ type Attributes struct {
 	// to say more than 100 (rough guess), you can then
 	// consider using a map for it instead of a slice
 	// Please see https://github.com/gnolang/gno/issues/3436
-	data []*attrKV // not persisted
+	data [ATTR_GLOBAL - ATTR_PREPROCESSED]any
 }
 
 func (attr *Attributes) GetLine() int {
@@ -224,8 +218,8 @@ func (attr *Attributes) SetLabel(label Name) {
 }
 
 func (attr *Attributes) HasAttribute(key GnoAttribute) bool {
-	_, _, ok := attr.getAttribute(key)
-	return ok
+	val, _, ok := attr.getAttribute(key)
+	return ok && val != nil
 }
 
 // GnoAttribute must not be user provided / arbitrary,
@@ -236,12 +230,11 @@ func (attr *Attributes) GetAttribute(key GnoAttribute) interface{} {
 }
 
 func (attr *Attributes) getAttribute(key GnoAttribute) (any, int, bool) {
-	for i, kv := range attr.data {
-		if kv.key == key {
-			return kv.value, i, true
-		}
+	i := int(key)
+	if i < 0 || i >= len(attr.data) {
+		return nil, -1, false
 	}
-	return nil, -1, false
+	return attr.data[i], i, true
 }
 
 type attrKV struct {
@@ -250,28 +243,16 @@ type attrKV struct {
 }
 
 func (attr *Attributes) SetAttribute(key GnoAttribute, value interface{}) {
-	for _, kv := range attr.data {
-		if kv.key == key {
-			kv.value = value
-			return
-		}
+	i := int(key)
+	if i >= 0 && i < len(attr.data) {
+		attr.data[i] = value
 	}
-
-	attr.data = append(attr.data, &attrKV{key, value})
 }
 
 func (attr *Attributes) DelAttribute(key GnoAttribute) {
-	_, index, _ := attr.getAttribute(key)
-	if index < 0 {
-		return
-	}
-
-	if index == 0 {
-		attr.data = attr.data[1:]
-	} else if index == len(attr.data)-1 {
-		attr.data = attr.data[:len(attr.data)-1]
-	} else {
-		attr.data = append(attr.data[:index], attr.data[index+1:]...)
+	i := int(key)
+	if i >= 0 && i < len(attr_strs) {
+		attr.data[i] = nil
 	}
 }
 
