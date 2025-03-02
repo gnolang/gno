@@ -20,6 +20,7 @@ import (
 
 type testCfg struct {
 	verbose             bool
+	failfast            bool
 	rootDir             string
 	run                 string
 	timeout             time.Duration
@@ -102,6 +103,13 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		"v",
 		false,
 		"verbose output when running",
+	)
+
+	fs.BoolVar(
+		&c.failfast,
+		"failfast",
+		false,
+		"disables running additional tests after any test fails",
 	)
 
 	fs.BoolVar(
@@ -258,6 +266,10 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			}
 			io.ErrPrintfln("FAIL    %s \t%s", pkg.Dir, dstr)
 			testErrCount++
+			if cfg.failfast {
+				io.ErrPrintfln("FAIL")
+				return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
+			}
 		} else {
 			io.ErrPrintfln("ok      %s \t%s", pkg.Dir, dstr)
 		}
