@@ -167,28 +167,26 @@ func (m *mockAuthKeeper) GetParams(ctx sdk.Context) auth.Params                 
 
 type mockParamsKeeper struct{}
 
-func (m *mockParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) {}
-func (m *mockParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64)   {}
-func (m *mockParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) {}
-func (m *mockParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool)     {}
-func (m *mockParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte)  {}
+func (m *mockParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string)    {}
+func (m *mockParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64)      {}
+func (m *mockParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64)    {}
+func (m *mockParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool)        {}
+func (m *mockParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte)     {}
+func (m *mockParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) {}
 
-func (m *mockParamsKeeper) SetString(ctx sdk.Context, key string, value string) {}
-func (m *mockParamsKeeper) SetInt64(ctx sdk.Context, key string, value int64)   {}
-func (m *mockParamsKeeper) SetUint64(ctx sdk.Context, key string, value uint64) {}
-func (m *mockParamsKeeper) SetBool(ctx sdk.Context, key string, value bool)     {}
-func (m *mockParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte)  {}
+func (m *mockParamsKeeper) SetString(ctx sdk.Context, key string, value string)    {}
+func (m *mockParamsKeeper) SetInt64(ctx sdk.Context, key string, value int64)      {}
+func (m *mockParamsKeeper) SetUint64(ctx sdk.Context, key string, value uint64)    {}
+func (m *mockParamsKeeper) SetBool(ctx sdk.Context, key string, value bool)        {}
+func (m *mockParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte)     {}
+func (m *mockParamsKeeper) SetStrings(ctx sdk.Context, key string, value []string) {}
 
-func (m *mockParamsKeeper) Has(ctx sdk.Context, key string) bool      { return false }
-func (m *mockParamsKeeper) GetRaw(ctx sdk.Context, key string) []byte { return nil }
+func (m *mockParamsKeeper) Has(ctx sdk.Context, key string) bool             { return false }
+func (m *mockParamsKeeper) GetRaw(ctx sdk.Context, key string) []byte        { return nil }
+func (m *mockParamsKeeper) SetRaw(ctx sdk.Context, key string, value []byte) {}
 
-func (m *mockParamsKeeper) GetParams(ctx sdk.Context, prefixKey string, key string, target interface{}) (bool, error) {
-	return true, nil
-}
-
-func (m *mockParamsKeeper) SetParams(ctx sdk.Context, prefixKey string, key string, params interface{}) error {
-	return nil
-}
+func (m *mockParamsKeeper) GetStruct(ctx sdk.Context, key string, strctPtr interface{}) {}
+func (m *mockParamsKeeper) SetStruct(ctx sdk.Context, key string, strct interface{})    {}
 
 type mockGasPriceKeeper struct{}
 

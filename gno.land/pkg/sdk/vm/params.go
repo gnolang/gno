@@ -65,26 +65,19 @@ func (vm *VMKeeper) SetParams(ctx sdk.Context, params Params) error {
 	if err := params.Validate(); err != nil {
 		return err
 	}
-	err := vm.prmk.SetParams(ctx, ModuleName, paramsKey, params)
-	return err
+	vm.prmk.SetStruct(ctx, "vm:_", params) // prmk is root.
+	return nil
 }
 
 func (vm *VMKeeper) GetParams(ctx sdk.Context) Params {
-	params := &Params{}
-	// NOTE: important to not use local cached fields unless they are synchronously stored to the underlying store.
-	// this optimization generally only belongs in paramk.GetParams(), not here. users of paramk.GetParams() generally
-	// should not cache anything and instead rely on the efficiency of paramk.GetParams().
-	_, err := vm.prmk.GetParams(ctx, ModuleName, paramsKey, params)
-	if err != nil {
-		panic(err)
-	}
-
-	return *params
+	params := Params{}
+	vm.prmk.GetStruct(ctx, "vm:_", &params) // prmk is root.
+	return params
 }
 
 const (
-	sysUsersPkgParamPath = "vm:users_pkgpath.string"
-	chainDomainParamPath = "vm:chain_domain.string"
+	sysUsersPkgParamPath = "vm:_:sysusers_pkgpath"
+	chainDomainParamPath = "vm:_:chain_domain"
 )
 
 func (vm *VMKeeper) getChainDomainParam(ctx sdk.Context) string {
@@ -99,37 +92,6 @@ func (vm *VMKeeper) getSysUsersPkgParam(ctx sdk.Context) string {
 	return sysUsersPkg
 }
 
-func (vm *VMKeeper) GetParamfulKey() string {
-	return ModuleName
-}
-
-// WillSetParam checks if the key contains the module's parameter key prefix and updates the
-// module parameter accordingly.The key is in the format (<realm>.)?<key>. If <realm> is present,
-// the key is an arbitrary key; otherwise, the key is a module key and needs to be checked against
-// the module's parameter keys.
 func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
-	params := vm.GetParams(ctx)
-	realm := gno.ReRealmPath.FindString(key)
-	var err error
-	if realm == "" { // module parameters
-		switch key {
-		case "sysusers_pkgpath.string":
-			params.SysUsersPkgPath = value.(string)
-			err = vm.SetParams(ctx, params)
-		case "chain_domain.string":
-			params.ChainDomain = value.(string)
-			err = vm.SetParams(ctx, params)
-		default:
-			panic(fmt.Sprintf("unknown parameter key: %s\n", key))
-		}
-	}
-	if err != nil {
-		panic(err)
-	}
-	// TODO: Check for duplicate parameter key names between individual fields and the fields
-	// of the Params struct.
-	err = vm.prmk.SetParams(ctx, ModuleName, key, value)
-	if err != nil {
-		panic(err)
-	}
+	// XXX validate input?
 }

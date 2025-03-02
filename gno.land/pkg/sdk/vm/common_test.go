@@ -9,9 +9,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	authm "github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	bankm "github.com/gnolang/gno/tm2/pkg/sdk/bank"
-	paramsm "github.com/gnolang/gno/tm2/pkg/sdk/params"
+	pm "github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
@@ -19,11 +20,12 @@ import (
 )
 
 type testEnv struct {
-	ctx  sdk.Context
-	vmk  *VMKeeper
-	bank bankm.BankKeeper
-	acck authm.AccountKeeper
-	vmh  vmHandler
+	ctx   sdk.Context
+	vmk   *VMKeeper
+	bankk bankm.BankKeeper
+	acck  authm.AccountKeeper
+	prmk  pm.ParamsKeeper
+	vmh   vmHandler
 }
 
 func setupTestEnv() testEnv {
@@ -48,14 +50,14 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
 
-	prmk := paramsm.NewParamsKeeper(iavlCapKey)
-	acck := authm.NewAccountKeeper(iavlCapKey, prmk, std.ProtoBaseAccount)
-	bank := bankm.NewBankKeeper(acck, prmk)
-	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, prmk)
+	prmk := pm.NewParamsKeeper(iavlCapKey)
+	acck := authm.NewAccountKeeper(iavlCapKey, prmk.ForModule(authm.ModuleName), std.ProtoBaseAccount)
+	bankk := bankm.NewBankKeeper(acck, prmk.ForModule(bankm.ModuleName))
+	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bankk, prmk)
 
-	prmk.Register(acck.GetParamfulKey(), acck)
-	prmk.Register(bank.GetParamfulKey(), bank)
-	prmk.Register(vmk.GetParamfulKey(), vmk)
+	prmk.Register(auth.ModuleName, acck)
+	prmk.Register(bankm.ModuleName, bankk)
+	prmk.Register(ModuleName, vmk)
 
 	mcw := ms.MultiCacheWrap()
 	vmk.Initialize(log.NewNoopLogger(), mcw)
@@ -70,5 +72,5 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	mcw.MultiWrite()
 	vmh := NewHandler(vmk)
 
-	return testEnv{ctx: ctx, vmk: vmk, bank: bank, acck: acck, vmh: vmh}
+	return testEnv{ctx: ctx, vmk: vmk, bankk: bankk, acck: acck, prmk: prmk, vmh: vmh}
 }

@@ -216,11 +216,11 @@ func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
 	// call initchainer
 	cfg := InitChainerConfig{
 		StdlibDir:       stdlibDir,
-		vmKpr:           mock,
-		acctKpr:         &mockAuthKeeper{},
-		bankKpr:         &mockBankKeeper{},
-		paramsKpr:       &mockParamsKeeper{},
-		gpKpr:           &mockGasPriceKeeper{},
+		vmk:             mock,
+		acctk:           &mockAuthKeeper{},
+		bankk:           &mockBankKeeper{},
+		paramsk:         &mockParamsKeeper{},
+		gpk:             &mockGasPriceKeeper{},
 		CacheStdlibLoad: cached,
 	}
 
@@ -830,18 +830,18 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
 
 	// Construct keepers.
-	paramsKpr := params.NewParamsKeeper(mainKey)
-	acctKpr := auth.NewAccountKeeper(mainKey, paramsKpr, ProtoGnoAccount)
-	gpKpr := auth.NewGasPriceKeeper(mainKey)
-	bankKpr := bank.NewBankKeeper(acctKpr, paramsKpr)
-	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, paramsKpr)
-	paramsKpr.Register(acctKpr.GetParamfulKey(), acctKpr)
-	paramsKpr.Register(bankKpr.GetParamfulKey(), bankKpr)
-	paramsKpr.Register(vmk.GetParamfulKey(), vmk)
+	paramsk := params.NewParamsKeeper(mainKey)
+	acctk := auth.NewAccountKeeper(mainKey, paramsk.ForModule(auth.ModuleName), ProtoGnoAccount)
+	gpk := auth.NewGasPriceKeeper(mainKey)
+	bankk := bank.NewBankKeeper(acctk, paramsk.ForModule(bank.ModuleName))
+	vmk := vm.NewVMKeeper(baseKey, mainKey, acctk, bankk, paramsk)
+	paramsk.Register(auth.ModuleName, acctk)
+	paramsk.Register(bank.ModuleName, bankk)
+	paramsk.Register(vm.ModuleName, vmk)
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
 	icc.baseApp = baseApp
-	icc.acctKpr, icc.bankKpr, icc.vmKpr, icc.gpKpr = acctKpr, bankKpr, vmk, gpKpr
+	icc.acctk, icc.bankk, icc.vmk, icc.gpk = acctk, bankk, vmk, gpk
 	baseApp.SetInitChainer(icc.InitChainer)
 
 	// Set AnteHandler
@@ -851,10 +851,10 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 			newCtx sdk.Context, res sdk.Result, abort bool,
 		) {
 			// Add last gas price in the context
-			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpKpr.LastGasPrice(ctx))
+			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpk.LastGasPrice(ctx))
 
 			// Override auth params.
-			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acctKpr.GetParams(ctx))
+			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acctk.GetParams(ctx))
 			// Continue on with default auth ante handler.
 			if ctx.IsCheckTx() {
 				res := auth.EnsureSufficientMempoolFees(ctx, tx.Fee)
@@ -885,16 +885,16 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	baseApp.SetEndBlocker(
 		EndBlocker(
 			c,
-			acctKpr,
-			gpKpr,
+			acctk,
+			gpk,
 			nil,
 			baseApp,
 		),
 	)
 
 	// Set a handler Route.
-	baseApp.Router().AddRoute("auth", auth.NewHandler(acctKpr))
-	baseApp.Router().AddRoute("bank", bank.NewHandler(bankKpr))
+	baseApp.Router().AddRoute("auth", auth.NewHandler(acctk))
+	baseApp.Router().AddRoute("bank", bank.NewHandler(bankk))
 	baseApp.Router().AddRoute(
 		testutils.RouteMsgCounter,
 		newTestHandler(

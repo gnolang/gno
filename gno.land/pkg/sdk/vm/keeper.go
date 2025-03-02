@@ -74,6 +74,8 @@ type VMKeeper struct {
 }
 
 // NewVMKeeper returns a new VMKeeper.
+// NOTE: prmk must be the root ParamsKeeper such that
+// ExecContext.Params may set any module's parameter.
 func NewVMKeeper(
 	baseKey store.StoreKey,
 	iavlKey store.StoreKey,
@@ -276,7 +278,7 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 		OriginPkgAddr:   pkgAddr.Bech32(),
 		// XXX: should we remove the banker ?
 		Banker:      NewSDKBanker(vm, ctx),
-		Params:      NewSDKParams(&vm.prmk, ctx),
+		Params:      NewSDKParams(vm.prmk, ctx),
 		EventLogger: ctx.EventLogger(),
 	}
 
@@ -381,7 +383,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		OriginSendSpent: new(std.Coins),
 		OriginPkgAddr:   pkgAddr.Bech32(),
 		Banker:          NewSDKBanker(vm, ctx),
-		Params:          NewSDKParams(&vm.prmk, ctx),
+		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
 	}
 	// Parse and run the files, construct *PV.
@@ -472,7 +474,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		OriginSendSpent: new(std.Coins),
 		OriginPkgAddr:   pkgAddr.Bech32(),
 		Banker:          NewSDKBanker(vm, ctx),
-		Params:          NewSDKParams(&vm.prmk, ctx),
+		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
 	}
 	// Construct machine and evaluate.
@@ -604,7 +606,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		OriginSendSpent: new(std.Coins),
 		OriginPkgAddr:   pkgAddr.Bech32(),
 		Banker:          NewSDKBanker(vm, ctx),
-		Params:          NewSDKParams(&vm.prmk, ctx),
+		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
 	}
 
@@ -787,7 +789,7 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 		// OrigSendSpent: nil,
 		OriginPkgAddr: pkgAddr.Bech32(),
 		Banker:        NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
-		Params:        NewSDKParams(&vm.prmk, ctx),
+		Params:        NewSDKParams(vm.prmk, ctx),
 		EventLogger:   ctx.EventLogger(),
 	}
 	m := gno.NewMachineWithOptions(

@@ -15,9 +15,9 @@ import (
 )
 
 type testEnv struct {
-	ctx  sdk.Context
-	acck auth.AccountKeeper
-	bank bank.BankKeeper
+	ctx   sdk.Context
+	acck  auth.AccountKeeper
+	bankk bank.BankKeeper
 }
 
 func setupTestEnv() testEnv {
@@ -29,10 +29,10 @@ func setupTestEnv() testEnv {
 	ms.MountStoreWithDB(authCapKey, iavl.StoreConstructor, db)
 	ms.LoadLatestVersion()
 	paramk := params.NewParamsKeeper(authCapKey)
-	acck := auth.NewAccountKeeper(authCapKey, paramk, ProtoGnoAccount)
-	bank := bank.NewBankKeeper(acck, paramk)
-	paramk.Register(acck.GetParamfulKey(), acck)
-	paramk.Register(bank.GetParamfulKey(), bank)
+	acck := auth.NewAccountKeeper(authCapKey, paramk.ForModule(auth.ModuleName), ProtoGnoAccount)
+	bankk := bank.NewBankKeeper(acck, paramk.ForModule(bank.ModuleName))
+	paramk.Register(auth.ModuleName, acck)
+	paramk.Register(bank.ModuleName, bankk)
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{Height: 1, ChainID: "test-chain-id"}, log.NewNoopLogger())
 
@@ -49,5 +49,5 @@ func setupTestEnv() testEnv {
 		},
 	})
 
-	return testEnv{ctx: ctx, acck: acck, bank: bank}
+	return testEnv{ctx: ctx, acck: acck, bankk: bankk}
 }
