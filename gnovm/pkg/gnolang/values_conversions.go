@@ -54,7 +54,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 
 	validate := func(from Kind, to Kind, cmp func() bool) {
 		if isConst {
-			msg := fmt.Sprintf("cannot convert constant of type %s to %s\n", from, to)
+			msg := fmt.Sprintf("cannot convert constant of type %s to %s", from, to)
 			if cmp != nil && cmp() {
 				return
 			}

@@ -20,8 +20,15 @@ type FileMeta struct {
 	SizeKb float64
 }
 
+type HeadMeta struct {
+	Title       string
+	Description string
+	Canonical   string
+}
+
 type RealmMeta struct {
-	Toc md.Toc
+	Toc  md.Toc
+	Head HeadMeta
 }
 
 // WebClient is an interface for interacting with package and node resources.

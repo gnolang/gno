@@ -1,20 +1,20 @@
 package os
 
 import (
-	"fmt"
-	"os"
 	"time"
 
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
-func X_writeStdout(m *gno.Machine, p []byte) (int, error) {
-	return fmt.Fprint(os.Stdout, p)
-}
-
-func X_writeStderr(m *gno.Machine, p []byte) (int, error) {
-	return fmt.Fprint(os.Stderr, p)
+func X_write(m *gnolang.Machine, p []byte, isStderr bool) int {
+	if isStderr {
+		if w, ok := m.Output.(interface{ WriteStderr(p []byte) (int, error) }); ok {
+			n, _ := w.WriteStderr(p)
+			return n
+		}
+	}
+	n, _ := m.Output.Write(p)
+	return n
 }
 
 func X_sleep(m *gno.Machine, duration int64) {
