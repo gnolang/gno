@@ -379,24 +379,17 @@ func destar(x Expr) Expr {
 // Stacktrace returns the stack trace of the machine.
 // It collects the executions and frames from the machine's frames and statements.
 func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
-	if len(m.Frames) == 0 || len(m.Stmts) == 0 {
+	if len(m.Frames) == 0 {
 		return
 	}
 
-	calls := make([]StacktraceCall, 0, len(m.Stmts))
-	nextStmtIndex := len(m.Stmts) - 1
+	calls := make([]StacktraceCall, 0, len(m.Frames))
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		if m.Frames[i].IsCall() {
-			stm := m.Stmts[nextStmtIndex]
-			bs := stm.(*bodyStmt)
-			stm = bs.Body[bs.NextBodyIndex-1]
 			calls = append(calls, StacktraceCall{
-				Stmt:  stm,
 				Frame: m.Frames[i],
 			})
 		}
-		// if the frame is a call, the next statement is the last statement of the frame.
-		nextStmtIndex = m.Frames[i].NumStmts - 1
 	}
 
 	// if the stacktrace is too long, we trim it down to maxStacktraceSize

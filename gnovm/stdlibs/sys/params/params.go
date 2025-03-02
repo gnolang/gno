@@ -30,6 +30,11 @@ func X_setSysParamBytes(m *gno.Machine, module, realm, key string, val []byte) {
 	std.GetContext(m).Params.SetBytes(pk, val)
 }
 
+func X_setSysParamStrings(m *gno.Machine, module, realm, key string, val []string) {
+	pk := paramskey(module, realm, key)
+	std.GetContext(m).Params.SetStrings(pk, val)
+}
+
 func paramskey(module, realm, key string) string {
 	if realm != "" {
 		return module + ":" + realm + ":" + key

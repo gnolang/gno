@@ -101,8 +101,8 @@ type Defer struct {
 	PanicScope uint
 }
 
+// XXX Remove this unnecessary struct.
 type StacktraceCall struct {
-	Stmt  Stmt
 	Frame *Frame
 }
 type Stacktrace struct {
@@ -126,7 +126,7 @@ func (s Stacktrace) String() string {
 			fmt.Fprintf(&builder, "    gonative:%s.%s\n", call.Frame.Func.NativePkg, call.Frame.Func.NativeName)
 		case call.Frame.Func != nil:
 			fmt.Fprintf(&builder, "%s\n", toExprTrace(cx))
-			fmt.Fprintf(&builder, "    %s/%s:%d\n", call.Frame.Func.PkgPath, call.Frame.Func.FileName, call.Stmt.GetLine())
+			fmt.Fprintf(&builder, "    %s/%s:%d\n", call.Frame.Func.PkgPath, call.Frame.Func.FileName, call.Frame.Source.GetLine())
 		case call.Frame.GoFunc != nil:
 			fmt.Fprintf(&builder, "%s\n", toExprTrace(cx))
 			fmt.Fprintf(&builder, "    gofunction:%s\n", call.Frame.GoFunc.Value.Type())

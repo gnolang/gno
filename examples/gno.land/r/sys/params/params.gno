@@ -28,47 +28,83 @@ import (
 	_ "gno.land/r/gov/dao/init"
 )
 
+// XXX What is the point of this realm local parameter?
 func NewStringPropExecutor(key string, value string) dao.Executor {
 	return newPropExecutor(key, func() { std.SetParamString(key, value) })
 }
 
+// XXX What is the point of this realm local parameter?
 func NewInt64PropExecutor(key string, value int64) dao.Executor {
 	return newPropExecutor(key, func() { std.SetParamInt64(key, value) })
 }
 
+// XXX What is the point of this realm local parameter?
 func NewUint64PropExecutor(key string, value uint64) dao.Executor {
 	return newPropExecutor(key, func() { std.SetParamUint64(key, value) })
 }
 
+// XXX What is the point of this realm local parameter?
 func NewBoolPropExecutor(key string, value bool) dao.Executor {
 	return newPropExecutor(key, func() { std.SetParamBool(key, value) })
 }
 
+// XXX What is the point of this realm local parameter?
 func NewBytesPropExecutor(key string, value []byte) dao.Executor {
 	return newPropExecutor(key, func() { std.SetParamBytes(key, value) })
 }
 
-func NewPrefixedStringPropExecutor(keeperPrefix, key string, value string) dao.Executor {
-	return newPropExecutor(key, func() { prms.SetPrefixedString(keeperPrefix, key, value) })
+func syskey(module, realm, key string) string {
+	if realm == "" {
+		return module + ":" + key
+	} else {
+		return module + ":" + realm + ":" + key
+	}
 }
 
-func NewPrefixedInt64PropExecutor(keeperPrefix, key string, value int64) dao.Executor {
-	return newPropExecutor(key, func() { prms.SetPrefixedInt64(keeperPrefix, key, value) })
+func NewSysParamStringPropExecutor(module, realm, key string, value string) dao.Executor {
+	return newPropExecutor(
+		syskey(module, realm, key),
+		func() { prms.SetSysParamString(module, realm, key, value) },
+	)
 }
 
-func NewPrefixedUint64PropExecutor(keeperPrefix, key string, value uint64) dao.Executor {
-	return newPropExecutor(key, func() { prms.SetPrefixedUint64(keeperPrefix, key, value) })
+func NewSysParamInt64PropExecutor(module, realm, key string, value int64) dao.Executor {
+	return newPropExecutor(
+		syskey(module, realm, key),
+		func() { prms.SetSysParamInt64(module, realm, key, value) },
+	)
 }
 
-func NewPrefixedBoolPropExecutor(keeperPrefix, key string, value bool) dao.Executor {
-	return newPropExecutor(key, func() { prms.SetPrefixedBool(keeperPrefix, key, value) })
+func NewSysParamUint64PropExecutor(module, realm, key string, value uint64) dao.Executor {
+	return newPropExecutor(
+		syskey(module, realm, key),
+		func() { prms.SetSysParamUint64(module, realm, key, value) },
+	)
 }
 
-func NewPrefixedBytesPropExecutor(keeperPrefix, key string, value []byte) dao.Executor {
-	return newPropExecutor(keeperPrefix+key, func() { prms.SetPrefixedBytes(keeperPrefix, key, value) })
+func NewSysParamBoolPropExecutor(module, realm, key string, value bool) dao.Executor {
+	return newPropExecutor(
+		syskey(module, realm, key),
+		func() { prms.SetSysParamBool(module, realm, key, value) },
+	)
+}
+
+func NewSysParamBytesPropExecutor(module, realm, key string, value []byte) dao.Executor {
+	return newPropExecutor(
+		syskey(module, realm, key),
+		func() { prms.SetSysParamBytes(module, realm, key, value) },
+	)
+}
+
+func NewSysParamStringsPropExecutor(module, realm, key string, value []string) dao.Executor {
+	return newPropExecutor(
+		syskey(module, realm, key),
+		func() { prms.SetSysParamStrings(module, realm, key, value) },
+	)
 }
 
 func newPropExecutor(key string, fn func()) dao.Executor {
+	// XXX move elsewhere.
 	callback := func() error {
 		fn()
 		std.Emit("set", "k", key)

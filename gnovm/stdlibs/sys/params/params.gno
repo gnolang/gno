@@ -24,8 +24,16 @@ func SetSysParamBytes(module, realm, key string, val []byte) {
 	setSysParamBytes(module, realm, key, val)
 }
 
+func SetSysParamStrings(module, realm, key string, val []string) {
+	if val == nil {
+		val = []string{}
+	}
+	setSysParamStrings(module, realm, key, val)
+}
+
 func setSysParamString(module, realm, key string, val string)
 func setSysParamBool(module, realm, key string, val bool)
 func setSysParamInt64(module, realm, key string, val int64)
 func setSysParamUint64(module, realm, key string, val uint64)
 func setSysParamBytes(module, realm, key string, val []byte)
+func setSysParamStrings(module, realm, key string, val []string)
