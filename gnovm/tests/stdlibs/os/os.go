@@ -1,6 +1,11 @@
 package os
 
-import "github.com/gnolang/gno/gnovm/pkg/gnolang"
+import (
+	"time"
+
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
+)
 
 func X_write(m *gnolang.Machine, p []byte, isStderr bool) int {
 	if isStderr {
@@ -11,4 +16,20 @@ func X_write(m *gnolang.Machine, p []byte, isStderr bool) int {
 	}
 	n, _ := m.Output.Write(p)
 	return n
+}
+
+func X_sleep(m *gnolang.Machine, duration int64) {
+	arg0 := m.LastBlock().GetParams1().TV
+	d := arg0.GetInt64()
+	sec := d / int64(time.Second)
+	nano := d % int64(time.Second)
+	ctx := m.Context.(*teststd.TestExecContext)
+	ctx.Timestamp += sec
+	ctx.TimestampNano += nano
+	if ctx.TimestampNano >= int64(time.Second) {
+		ctx.Timestamp += 1
+		ctx.TimestampNano -= int64(time.Second)
+	}
+
+	m.Context = ctx
 }
