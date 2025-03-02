@@ -21,7 +21,7 @@
 
 @layer base {
   html {
-    @apply font-interVar text-gray-600 bg-light text-200 dark:bg-dark dark:text-gray-d600;
+    @apply font-interVar text-gray-600 bg-light text-200;
     font-feature-settings: "kern" on, "liga" on, "calt" on, "zero" on;
     -webkit-font-feature-settings: "kern" on, "liga" on, "calt" on, "zero" on;
     text-size-adjust: 100%;
@@ -30,10 +30,12 @@
     font-variant-ligatures: contextual common-ligatures;
     font-kerning: normal;
     text-rendering: optimizeLegibility;
+    color-scheme: light;
   }
 
   html.dark {
     @apply bg-dark text-gray-d600;
+    color-scheme: dark;
   }
 
   svg {
@@ -333,6 +335,7 @@
     @apply !bg-light overflow-scroll dark:!bg-dark rounded py-4 md:py-8 px-1 md:px-3 font-mono text-100 md:text-200;
   }
   
+
   main .realm-view > pre a {
     @apply hover:no-underline;
   }
