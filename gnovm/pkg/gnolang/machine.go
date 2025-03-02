@@ -403,6 +403,17 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 
 	stacktrace.Calls = calls
 
+	// XXX move to machine.LastLine()?
+	if len(m.Exprs) > 0 {
+		stacktrace.LastLine = m.PeekExpr(1).GetLine()
+	} else if len(m.Stmts) > 0 {
+		stmt := m.PeekStmt(1)
+		if bs, ok := stmt.(*bodyStmt); ok {
+			stmt = bs.Body[bs.NextBodyIndex-1]
+		}
+		stacktrace.LastLine = stmt.GetLine()
+	}
+
 	return
 }
 
