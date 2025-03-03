@@ -11,7 +11,7 @@ type Once struct {
 	done    bool
 	err     error
 	paniced bool
-	value   interface{} // stores the result of the execution
+	value   any // stores the result of the execution
 }
 
 // New creates a new Once instance
@@ -48,7 +48,7 @@ func (o *Once) DoOrPanic(fn func()) {
 }
 
 // DoValue executes fn only once and returns its value, subsequent calls return the cached value
-func (o *Once) DoValue(fn func() interface{}) interface{} {
+func (o *Once) DoValue(fn func() any) any {
 	if o.done {
 		return o.value
 	}
@@ -59,7 +59,7 @@ func (o *Once) DoValue(fn func() interface{}) interface{} {
 
 // DoValueErr executes fn only once and returns its value and error
 // Subsequent calls return the cached value and error
-func (o *Once) DoValueErr(fn func() (interface{}, error)) (interface{}, error) {
+func (o *Once) DoValueErr(fn func() (any, error)) (any, error) {
 	if o.done {
 		return o.value, o.err
 	}
@@ -92,7 +92,7 @@ var (
 )
 
 // Value returns the stored value and an error if not executed yet
-func (o *Once) Value() (interface{}, error) {
+func (o *Once) Value() (any, error) {
 	if !o.done {
 		return nil, ErrNotExecuted
 	}
