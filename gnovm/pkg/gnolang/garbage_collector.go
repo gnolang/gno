@@ -185,7 +185,6 @@ func (mv *MapValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 }
 
 func (pv *PackageValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
-
 	// visit pv.Block
 	stop = visitChild(vis, pv.Block, store)
 	if stop {

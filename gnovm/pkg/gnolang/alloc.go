@@ -1,7 +1,9 @@
 package gnolang
 
-import "reflect"
-import "fmt"
+import (
+	"fmt"
+	"reflect"
+)
 
 // Keeps track of in-memory allocations.
 // In the future, allocations within realm boundaries will be
@@ -347,6 +349,7 @@ func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 func (p *PackageValue) GetShallowSize() int64 {
 	return allocPackage
 }
+
 func (b *Block) GetShallowSize() int64 {
 	return allocBlock
 }
