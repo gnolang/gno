@@ -3,121 +3,67 @@
 gnoland start
 
 # query before adding the package
-gnokey query params/gno.land/r/sys/params.foo.string
+gnokey query params/vm:gno.land/r/myrealm:foo
 stdout 'data: $'
-gnokey query params/gno.land/r/sys/params.bar.bool
+gnokey query params/vm:gno.land/r/myrealm:bar
 stdout 'data: $'
-gnokey query params/gno.land/r/sys/params.baz.int64
+gnokey query params/vm:gno.land/r/myrealm:baz
 stdout 'data: $'
 
-# ---- 1 Test std.SetParamXXX when called from gno.land/r/sys/params
-
-gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/sys/params -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+# add params to gno.land/r/myrealm
+gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/myrealm -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
 
 # query after adding the package, but before setting values
-gnokey query params/vm:gno.land/r/sys/params.foo.string
+gnokey query params/vm:gno.land/r/myrealm:foo
 stdout 'data: $'
-gnokey query params/vm:gno.land/r/sys/params.bar.bool
+gnokey query params/vm:gno.land/r/myrealm:bar
 stdout 'data: $'
-gnokey query params/vm:gno.land/r/sys/params.baz.int64
+gnokey query params/vm:gno.land/r/myrealm:baz
 stdout 'data: $'
-
-
-## set foo (string)
-gnokey maketx call -pkgpath gno.land/r/sys/params -func SetFoo -args foo1 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-gnokey query params/vm:gno.land/r/sys/params.foo.string
-stdout 'data: "foo1"'
-
-# override foo
-gnokey maketx call -pkgpath gno.land/r/sys/params -func SetFoo -args foo2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-gnokey query params/vm:gno.land/r/sys/params.foo.string
-stdout 'data: "foo2"'
-
-
-# set bar (bool)
-gnokey maketx call -pkgpath gno.land/r/sys/params -func SetBar -args true -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-gnokey query params/vm:gno.land/r/sys/params.bar.bool
-stdout 'data: true'
-
-# override bar
-gnokey maketx call -pkgpath gno.land/r/sys/params -func SetBar -args false -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-gnokey query params/vm:gno.land/r/sys/params.bar.bool
-stdout 'data: false'
-
-
-# set baz (int64)
-gnokey maketx call -pkgpath gno.land/r/sys/params -func SetBaz -args 1337 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-gnokey query params/vm:gno.land/r/sys/params.baz.int64
-stdout 'data: "1337"'
-
-# override baz
-gnokey maketx call -pkgpath gno.land/r/sys/params -func SetBaz -args -31337 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-gnokey query params/vm:gno.land/r/sys/params.baz.int64
-stdout 'data: "-31337"'
-
-# set uint64
-gnokey maketx call -pkgpath gno.land/r/sys/params -func SetBaz -args 31337 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-gnokey query params/vm:gno.land/r/sys/params.baz.int64
-stdout 'data: "31337"'
-
-# set uint64
-gnokey maketx call -pkgpath gno.land/r/sys/params -func SetBaz -args -31337 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-gnokey query params/vm:gno.land/r/sys/params.baz.int64
-stdout 'data: "-31337"'
-
-
-# It is impossible to call std.SetParamXXX with a pararmeter key in the <key_prefix>:<key> format (e.g. "bank:Transfer.string") because it is an invalid key.
-! gnokey maketx call -pkgpath gno.land/r/sys/params -func SetLockTransfer -args ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-stderr 'invalid parameter key: bank:lockTransfer.string'
-
-
-# ---- 2 Test std.SetParamXXX when called outside of gno.land/r/sys/params
-
-gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/myrealm -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
 
 ## set foo (string)
 gnokey maketx call -pkgpath gno.land/r/myrealm -func SetFoo -args foo1 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-gnokey query params/vm:gno.land/r/myrealm.foo.string
+gnokey query params/vm:gno.land/r/myrealm:foo
 stdout 'data: "foo1"'
 
 # override foo
 gnokey maketx call -pkgpath gno.land/r/myrealm -func SetFoo -args foo2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-gnokey query params/vm:gno.land/r/myrealm.foo.string
+gnokey query params/vm:gno.land/r/myrealm:foo
 stdout 'data: "foo2"'
 
 
 # set bar (bool)
 gnokey maketx call -pkgpath gno.land/r/myrealm -func SetBar -args true -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-gnokey query params/vm:gno.land/r/myrealm.bar.bool
+gnokey query params/vm:gno.land/r/myrealm:bar
 stdout 'data: true'
 
 # override bar
 gnokey maketx call -pkgpath gno.land/r/myrealm -func SetBar -args false -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-gnokey query params/vm:gno.land/r/myrealm.bar.bool
+gnokey query params/vm:gno.land/r/myrealm:bar
 stdout 'data: false'
 
 
 # set baz (int64)
 gnokey maketx call -pkgpath gno.land/r/myrealm -func SetBaz -args 1337 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-gnokey query params/vm:gno.land/r/myrealm.baz.int64
+gnokey query params/vm:gno.land/r/myrealm:baz
 stdout 'data: "1337"'
 
 # override baz
 gnokey maketx call -pkgpath gno.land/r/myrealm -func SetBaz -args -31337 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-gnokey query params/vm:gno.land/r/myrealm.baz.int64
+gnokey query params/vm:gno.land/r/myrealm:baz
 stdout 'data: "-31337"'
 
-# It is impossible to call std.SetParamXXX with a parameter key in the <prefix>:<key> format (e.g. "bank:Transfer.string") because it is an invalid key.
+# It is impossible to call std.SetParamXXX with a param key in the <prefix>:<key> format (e.g. "bank:_:lockTransfer") because it is an invalid key.
 ! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetLockTransfer -args ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-stderr 'Data: invalid parameter key: bank:lockTransfer.string'
+stderr 'Data: invalid param key: bank:_:lockTransfer'
 
-# <prefix>.<key> is invalid (e.g., "bank.Transfer.string")
+# <prefix>.<key> is invalid (e.g., "bank.lockTransfer")
 ! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetInvalidString -args ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-stderr 'Data: invalid parameter key: bank.lockTransfer.string'
+stderr 'Data: invalid param key: bank:_:lockTransfer'
 
-# <key_name>.<type> (e.g., "bank_Transfer.string") is a valid name.
+# <key_name>.<type> (e.g., "bank_lockTransfer") is a valid name.
 gnokey maketx call -pkgpath gno.land/r/myrealm -func SetValidString -args ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-gnokey query params/vm:gno.land/r/myrealm.bank_lockTransfer.string
+gnokey query params/vm:gno.land/r/myrealm:bank_lockTransfer
 stdout 'data: "ugnot"'
 
 
@@ -128,12 +74,12 @@ import (
 	"std"
 )
 
-func SetFoo(newFoo string) { std.SetParamString("foo.string", newFoo) }
-func SetBar(newBar bool)   { std.SetParamBool("bar.bool", newBar) }
-func SetBaz(newBaz int64)  { std.SetParamInt64("baz.int64", newBaz) }
-func SetUint64(newBaz uint64)  { std.SetParamUint64("baz.uint64", newBaz) }
-func SetBytes()  { std.SetParamBytes("baz.bytes", []byte{255,255}) }
+func SetFoo(newFoo string) { std.SetParamString("foo", newFoo) }
+func SetBar(newBar bool)   { std.SetParamBool("bar", newBar) }
+func SetBaz(newBaz int64)  { std.SetParamInt64("baz", newBaz) }
+func SetUint64(newBaz uint64)  { std.SetParamUint64("baz", newBaz) }
+func SetBytes()  { std.SetParamBytes("baz", []byte{255,255}) }
 
-func SetLockTransfer(denom string)  { std.SetParamString("bank:lockTransfer.string", denom) }
-func SetInvalidString(denom string)  { std.SetParamString("bank.lockTransfer.string", denom) }
-func SetValidString(denom string)  { std.SetParamString("bank_lockTransfer.string", denom) }
+func SetLockTransfer(denom string)  { std.SetParamString("bank:_:lockTransfer", denom) }
+func SetInvalidString(denom string)  { std.SetParamString("bank:_:lockTransfer", denom) }
+func SetValidString(denom string)  { std.SetParamString("bank_lockTransfer", denom) }

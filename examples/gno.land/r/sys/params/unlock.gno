@@ -2,17 +2,17 @@ package params
 
 const (
 	bankModulePrefix    = "bank"
-	lockTransferKey     = "lockTransfer"
+	restrictedDenomsKey = "restricted_denoms"
 	unlockTransferTitle = "Proposal to unlock the transfer of ugnot."
 	lockTransferTitle   = "Proposal to lock the transfer of ugnot."
 )
 
 func ProposeUnlockTransfer() uint64 {
-	exe := NewSysParamStringsPropExecutor(bankModulePrefix, "_", lockTransferKey, []string{})
+	exe := NewSysParamStringsPropExecutor(bankModulePrefix, "_", restrictedDenomsKey, []string{})
 	return propose(exe, unlockTransferTitle, "")
 }
 
 func ProposeLockTransfer() uint64 {
-	exe := NewSysParamStringsPropExecutor(bankModulePrefix, "_", lockTransferKey, []string{"ugnot"})
+	exe := NewSysParamStringsPropExecutor(bankModulePrefix, "_", restrictedDenomsKey, []string{"ugnot"})
 	return propose(exe, lockTransferTitle, "")
 }

@@ -2,6 +2,7 @@ package std
 
 import (
 	"fmt"
+	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
@@ -53,6 +54,9 @@ func X_setParamStrings(m *gno.Machine, key string, val []string) {
 func pkey(m *gno.Machine, key string) string {
 	if len(key) == 0 {
 		m.Panic(typedString("empty param key"))
+	}
+	if strings.Contains(key, ":") {
+		m.Panic(typedString("invalid param key: " + key))
 	}
 	_, rlmPath := currentRealm(m)
 	return fmt.Sprintf("vm:%s:%s", rlmPath, key)
