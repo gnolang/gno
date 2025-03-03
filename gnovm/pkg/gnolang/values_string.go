@@ -196,9 +196,9 @@ func (v *BoundMethodValue) String() string {
 	)
 	if ft, ok := v.Func.Type.(*FuncType); ok {
 		recvT = ft.Params[0].Type.String()
-		params = FieldTypeList(ft.Params).StringWithCommas()
+		params = FieldTypeList(ft.Params).String()
 		if len(results) > 0 {
-			results = FieldTypeList(ft.Results).StringWithCommas()
+			results = FieldTypeList(ft.Results).String()
 			results = "(" + results + ")"
 		}
 	}
