@@ -158,12 +158,14 @@ const (
 	ATTR_SHIFT_RHS
 	ATTR_LAST_BLOCK_STMT
 	ATTR_GLOBAL
+	attr_dummy_terminal
 )
 
 var attr_strs = [...]string{
 	ATTR_PREPROCESSED:    "ATTR_PREPROCESSED",
 	ATTR_PREDEFINED:      "ATTR_PREDEFINED",
 	ATTR_TYPE_VALUE:      "ATTR_TYPE_VALUE",
+	ATTR_TYPEOF_VALUE:    "ATTR_TYPEOF_VALUE",
 	ATTR_IOTA:            "ATTR_IOTA",
 	ATTR_LOOP_DEFINES:    "ATTR_LOOP_DEFINES",
 	ATTR_LOOP_USES:       "ATTR_LOOP_USES",
@@ -190,7 +192,7 @@ type Attributes struct {
 	// to say more than 100 (rough guess), you can then
 	// consider using a map for it instead of a slice
 	// Please see https://github.com/gnolang/gno/issues/3436
-	data [ATTR_GLOBAL - ATTR_PREPROCESSED]any
+	data [attr_dummy_terminal - ATTR_PREPROCESSED]any
 }
 
 func (attr *Attributes) GetLine() int {
@@ -235,11 +237,6 @@ func (attr *Attributes) getAttribute(key GnoAttribute) (any, int, bool) {
 		return nil, -1, false
 	}
 	return attr.data[i], i, true
-}
-
-type attrKV struct {
-	key   GnoAttribute
-	value any
 }
 
 func (attr *Attributes) SetAttribute(key GnoAttribute, value interface{}) {

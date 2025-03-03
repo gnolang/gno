@@ -71,7 +71,6 @@ func BenchmarkAttributesSetGetDel(b *testing.B) {
 	for i := 0; i < n; i++ {
 		keys = append(keys, gnolang.GnoAttribute(i))
 	}
-
 	attrCommon := gnolang.ATTR_TYPEOF_VALUE
 
 	b.ReportAllocs()
@@ -93,8 +92,9 @@ func BenchmarkAttributesSetGetDel(b *testing.B) {
 
 		for _, key := range keys {
 			sink = attrs.GetAttribute(key)
-			attrs.GetAttribute(key)
 		}
+
+		sink = attrs
 	}
 
 	if sink == nil {
