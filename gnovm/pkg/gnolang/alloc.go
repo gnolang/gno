@@ -1,14 +1,19 @@
 package gnolang
 
-import "reflect"
+import (
+	"fmt"
+	"reflect"
+)
 
 // Keeps track of in-memory allocations.
 // In the future, allocations within realm boundaries will be
 // (optionally?) condensed (objects to be GC'd will be discarded),
 // but for now, allocations strictly increment across the whole tx.
 type Allocator struct {
-	maxBytes int64
-	bytes    int64
+	m          *Machine
+	maxBytes   int64
+	bytes      int64
+	visitCount int64 // times objects are visited for gc
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -24,10 +29,11 @@ const (
 	_allocStructValue      = 152
 	_allocArrayValue       = 176
 	_allocSliceValue       = 40
-	_allocFuncValue        = 136
+	_allocFuncValue        = 196
 	_allocMapValue         = 144
 	_allocBoundMethodValue = 176
-	_allocBlock            = 464
+	_allocBlock            = 472
+	_allocPackageValue     = 240
 	_allocNativeValue      = 48
 	_allocTypeValue        = 16
 	_allocTypedValue       = 40
@@ -59,18 +65,31 @@ const (
 	allocNative      = _allocBase + _allocPointer + _allocNativeValue
 	allocType        = _allocBase + _allocPointer + _allocType
 	// allocDataByte    = 1
-	// allocPackge = 1
+	allocPackage   = _allocBase + _allocPointer + _allocPackageValue
 	allocAmino     = _allocBase + _allocPointer + _allocAny
 	allocAminoByte = 10 // XXX
 	allocHeapItem  = _allocBase + _allocPointer + _allocTypedValue
 )
 
-func NewAllocator(maxBytes int64) *Allocator {
+func NewAllocator(maxBytes int64, m *Machine) *Allocator {
 	if maxBytes == 0 {
 		return nil
 	}
 	return &Allocator{
 		maxBytes: maxBytes,
+		m:        m,
+	}
+}
+
+func (alloc *Allocator) SetMachine(m *Machine) {
+	alloc.m = m
+}
+
+func (alloc *Allocator) MemStats() string {
+	if alloc == nil {
+		return "nil allocator"
+	} else {
+		return fmt.Sprintf("Allocator{maxBytes:%d, bytes:%d}", alloc.maxBytes, alloc.bytes)
 	}
 }
 
@@ -97,6 +116,7 @@ func (alloc *Allocator) Fork() *Allocator {
 }
 
 func (alloc *Allocator) Allocate(size int64) {
+	debug.Printf("Allocate, size: %d \n", size)
 	if alloc == nil {
 		// this can happen for map items just prior to assignment.
 		return
@@ -104,7 +124,15 @@ func (alloc *Allocator) Allocate(size int64) {
 
 	alloc.bytes += size
 	if alloc.bytes > alloc.maxBytes {
-		panic("allocation limit exceeded")
+		if left, ok := alloc.m.GarbageCollect(); !ok {
+			panic("allocation limit exceeded")
+		} else { // retry
+			debug.Printf("%d left after GC, size: %d \n", left, size)
+			alloc.bytes += size
+			if alloc.bytes > alloc.maxBytes {
+				panic("allocation limit exceeded")
+			}
+		}
 	}
 }
 
@@ -314,4 +342,34 @@ func (alloc *Allocator) NewType(t Type) Type {
 func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 	alloc.AllocateHeapItem()
 	return &HeapItemValue{Value: tv}
+}
+
+// -----------------------------------------------
+
+func (p *PackageValue) GetShallowSize() int64 {
+	return allocPackage
+}
+
+func (b *Block) GetShallowSize() int64 {
+	return allocBlock
+}
+
+func (av *ArrayValue) GetShallowSize() int64 {
+	return allocArray
+}
+
+func (sv *StructValue) GetShallowSize() int64 {
+	return allocStruct
+}
+
+func (mv *MapValue) GetShallowSize() int64 {
+	return allocMap
+}
+
+func (bmv *BoundMethodValue) GetShallowSize() int64 {
+	return allocBoundMethod
+}
+
+func (hiv *HeapItemValue) GetShallowSize() int64 {
+	return allocHeapItem
 }

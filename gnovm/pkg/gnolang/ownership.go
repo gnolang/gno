@@ -119,16 +119,18 @@ type Object interface {
 	GetIsNewDeleted() bool
 	SetIsNewDeleted(bool)
 	GetIsTransient() bool
-	GetShalowSize() int64
+	GetShallowSize() int64
+	GetLastGCCycle() int64
+	SetLastGCCycle(int64)
 
 	// Visit visits all reachable associated values.
 	// It is used primarily for GC.
 	// The caller must provide a callback visitor
 	// which knows how to break cycles, otherwise
 	// the Visit function may recurse infinitely.
-	// (the GC does this with gcCycle)
+	// (the GC does this with GcCycle)
 	// It does not call the visitor on itself.
-	VisitAssociated(tr Visitor) (stop bool) // for GC
+	VisitAssociated(tr Visitor, store Store) (stop bool) // for GC
 
 	// Saves to realm along the way if owned, and also (dirty
 	// or new).

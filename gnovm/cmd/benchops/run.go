@@ -36,6 +36,20 @@ func callOpsBench(bstore gno.Store, pv *gno.PackageValue) {
 	}
 }
 
+const (
+	gcPkgPath = "gno.land/r/x/benchmark/gc"
+	gcRounds  = 1000
+)
+
+func benchmarkGC(bstore gno.Store, dir string) {
+	opcodesPkgDir := filepath.Join(dir, "gc")
+
+	pv := addPackage(bstore, opcodesPkgDir, gcPkgPath)
+	for i := 0; i < gcRounds; i++ {
+		callOpsBench(bstore, pv)
+	}
+}
+
 const storagePkgPath = "gno.land/r/x/benchmark/storage"
 
 func benchmarkStorage(bstore BenchStore, dir string) {
@@ -84,6 +98,9 @@ func callFunc(gstore gno.Store, pv *gno.PackageValue, cx gno.Expr) []gno.TypedVa
 			Output:  io.Discard,
 			Store:   gstore,
 		})
+
+	gstore.GetAllocator().SetMachine(m)
+	m.Alloc = gstore.GetAllocator()
 
 	defer m.Release()
 

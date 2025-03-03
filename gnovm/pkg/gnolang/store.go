@@ -401,6 +401,10 @@ func (ds *defaultStore) GetObject(oid ObjectID) Object {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
 	}
+	if bm.GCEnabled {
+		bm.PauseGCCode()
+		defer bm.ResumeGCCode()
+	}
 	oo := ds.GetObjectSafe(oid)
 	if oo == nil {
 		panic(fmt.Sprintf("unexpected object with id %s", oid.String()))
