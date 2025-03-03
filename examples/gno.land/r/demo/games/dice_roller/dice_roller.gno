@@ -62,7 +62,7 @@ func NewGame(addr std.Address) int {
 	}
 
 	games.Set(gameId.Next().String(), &game{
-		player1: std.PrevRealm().Addr(),
+		player1: std.PreviousRealm().Address(),
 		player2: addr,
 	})
 
@@ -79,7 +79,7 @@ func Play(idx int) int {
 	roll := rollDice() // Random the player's dice roll
 
 	// Play the game and update the player's roll
-	if err := g.play(std.PrevRealm().Addr(), roll); err != nil {
+	if err := g.play(std.PreviousRealm().Address(), roll); err != nil {
 		panic(err)
 	}
 
@@ -272,7 +272,7 @@ func getPlayer(addr std.Address) *player {
 // getLeaderBoard generates a leaderboard sorted by points
 func getLeaderBoard() leaderBoard {
 	board := leaderBoard{}
-	players.Iterate("", "", func(key string, value interface{}) bool {
+	players.Iterate("", "", func(key string, value any) bool {
 		player := value.(*player)
 		board = append(board, *player)
 		return false

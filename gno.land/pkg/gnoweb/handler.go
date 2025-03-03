@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"path/filepath"
+	"path"
 	"strings"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // For error types
 )
 
@@ -74,6 +75,7 @@ func (h *WebHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Add("Content-Type", "text/html; charset=utf-8")
 	h.Get(w, r)
 }
 
@@ -111,7 +113,7 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // prepareIndexBodyView prepares the data and main view for the index.
 func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
-	gnourl, err := ParseGnoURL(r.URL)
+	gnourl, err := weburl.ParseGnoURL(r.URL)
 	if err != nil {
 		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "error", err)
 		return http.StatusNotFound, components.StatusErrorComponent("invalid path")
@@ -120,14 +122,15 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 	breadcrumb := generateBreadcrumbPaths(gnourl)
 	indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path
 	indexData.HeaderData = components.HeaderData{
-		RealmPath:  gnourl.Encode(EncodePath | EncodeArgs | EncodeQuery | EncodeNoEscape),
 		Breadcrumb: breadcrumb,
-		WebQuery:   gnourl.WebQuery,
+		RealmURL:   *gnourl,
+		ChainId:    h.Static.ChainId,
+		Remote:     h.Static.RemoteHelp,
 	}
 
 	switch {
 	case gnourl.IsRealm(), gnourl.IsPure():
-		return h.GetPackageView(gnourl)
+		return h.GetPackageView(gnourl, indexData)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
 		return http.StatusBadRequest, components.StatusErrorComponent("invalid path")
@@ -135,27 +138,27 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 }
 
 // GetPackageView handles package pages.
-func (h *WebHandler) GetPackageView(gnourl *GnoURL) (int, *components.View) {
+func (h *WebHandler) GetPackageView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	// Handle Help page
 	if gnourl.WebQuery.Has("help") {
-		return h.GetHelpView(gnourl)
+		return h.GetHelpView(gnourl, indexData)
 	}
 
 	// Handle Source page
 	if gnourl.WebQuery.Has("source") || gnourl.IsFile() {
-		return h.GetSourceView(gnourl)
+		return h.GetSourceView(gnourl, indexData)
 	}
 
 	// Handle Source page
 	if gnourl.IsDir() || gnourl.IsPure() {
-		return h.GetDirectoryView(gnourl)
+		return h.GetDirectoryView(gnourl, indexData)
 	}
 
 	// Ultimately get realm view
-	return h.GetRealmView(gnourl)
+	return h.GetRealmView(gnourl, indexData)
 }
 
-func (h *WebHandler) GetRealmView(gnourl *GnoURL) (int, *components.View) {
+func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	var content bytes.Buffer
 
 	meta, err := h.Client.RenderRealm(&content, gnourl.Path, gnourl.EncodeArgs())
@@ -166,6 +169,19 @@ func (h *WebHandler) GetRealmView(gnourl *GnoURL) (int, *components.View) {
 
 		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusPage(gnourl, err)
+	}
+
+	// HTML Head metadata
+	if meta.Head.Title != "" {
+		indexData.Title = meta.Head.Title + " - " + h.Static.Domain
+	} else {
+		indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path + " Realm"
+	}
+
+	if meta.Head.Description != "" {
+		indexData.Description = meta.Head.Description
+	} else {
+		indexData.Description = "Explore the " + gnourl.Path + " realm on " + h.Static.Domain + "."
 	}
 
 	return http.StatusOK, components.RealmView(components.RealmData{
@@ -179,12 +195,16 @@ func (h *WebHandler) GetRealmView(gnourl *GnoURL) (int, *components.View) {
 	})
 }
 
-func (h *WebHandler) GetHelpView(gnourl *GnoURL) (int, *components.View) {
+func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	fsigs, err := h.Client.Functions(gnourl.Path)
 	if err != nil {
 		h.Logger.Error("unable to fetch path functions", "error", err)
 		return GetClientErrorStatusPage(gnourl, err)
 	}
+
+	// HTML Head metadata
+	indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path + " reference and interactions"
+	indexData.Description = "Explore " + gnourl.Path + " realm functions, and learn how to interact with them on " + h.Static.Domain + "."
 
 	// Get selected function
 	selArgs := make(map[string]string)
@@ -204,20 +224,20 @@ func (h *WebHandler) GetHelpView(gnourl *GnoURL) (int, *components.View) {
 		}
 	}
 
-	realmName := filepath.Base(gnourl.Path)
+	realmName := path.Base(gnourl.Path)
 	return http.StatusOK, components.HelpView(components.HelpData{
 		SelectedFunc: selFn,
 		SelectedArgs: selArgs,
 		RealmName:    realmName,
 		// TODO: get chain domain and use that.
 		ChainId:   h.Static.ChainId,
-		PkgPath:   filepath.Join(h.Static.Domain, gnourl.Path),
+		PkgPath:   path.Join(h.Static.Domain, gnourl.Path),
 		Remote:    h.Static.RemoteHelp,
 		Functions: fsigs,
 	})
 }
 
-func (h *WebHandler) GetSourceView(gnourl *GnoURL) (int, *components.View) {
+func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	pkgPath := gnourl.Path
 	files, err := h.Client.Sources(pkgPath)
 	if err != nil {
@@ -248,6 +268,10 @@ func (h *WebHandler) GetSourceView(gnourl *GnoURL) (int, *components.View) {
 		return GetClientErrorStatusPage(gnourl, err)
 	}
 
+	// HTML Head metadata
+	indexData.HeadData.Title = h.Static.Domain + " - " + fileName + " source code in " + gnourl.Path
+	indexData.Description = "Explore the " + fileName + " source code in the " + gnourl.Path + " file on " + h.Static.Domain + "."
+
 	fileSizeStr := fmt.Sprintf("%.2f Kb", meta.SizeKb)
 	return http.StatusOK, components.SourceView(components.SourceData{
 		PkgPath:     gnourl.Path,
@@ -260,7 +284,7 @@ func (h *WebHandler) GetSourceView(gnourl *GnoURL) (int, *components.View) {
 	})
 }
 
-func (h *WebHandler) GetDirectoryView(gnourl *GnoURL) (int, *components.View) {
+func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
 	files, err := h.Client.Sources(pkgPath)
 	if err != nil {
@@ -273,6 +297,10 @@ func (h *WebHandler) GetDirectoryView(gnourl *GnoURL) (int, *components.View) {
 		return http.StatusOK, components.StatusErrorComponent("no files available")
 	}
 
+	// HTML Head metadata
+	indexData.HeadData.Title = h.Static.Domain + " - Browse " + gnourl.Path + " directory"
+	indexData.Description = "Explore the directory structure, files, and subdirectories of " + gnourl.Path + " on " + h.Static.Domain + ", and discover its source code and documentation."
+
 	return http.StatusOK, components.DirectoryView(components.DirData{
 		PkgPath:     gnourl.Path,
 		Files:       files,
@@ -280,7 +308,7 @@ func (h *WebHandler) GetDirectoryView(gnourl *GnoURL) (int, *components.View) {
 	})
 }
 
-func GetClientErrorStatusPage(_ *GnoURL, err error) (int, *components.View) {
+func GetClientErrorStatusPage(_ *weburl.GnoURL, err error) (int, *components.View) {
 	if err == nil {
 		return http.StatusOK, nil
 	}
@@ -297,7 +325,7 @@ func GetClientErrorStatusPage(_ *GnoURL, err error) (int, *components.View) {
 	}
 }
 
-func generateBreadcrumbPaths(url *GnoURL) components.BreadcrumbData {
+func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
 	split := strings.Split(url.Path, "/")
 
 	var data components.BreadcrumbData

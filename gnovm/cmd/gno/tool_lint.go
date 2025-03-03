@@ -97,9 +97,9 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 
 	hasError := false
 
-	bs, ts := test.Store(
-		rootDir, false,
-		nopReader{}, goio.Discard, goio.Discard,
+	bs, ts := test.StoreWithOptions(
+		rootDir, nopReader{}, goio.Discard, goio.Discard,
+		test.StoreOptions{PreprocessOnly: true},
 	)
 
 	for _, pkgPath := range pkgPaths {
@@ -159,16 +159,14 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 				io.ErrPrintfln("%s: module is draft, skipping type check", pkgPath)
 			}
 
-			tm := test.Machine(gs, goio.Discard, memPkg.Path)
+			tm := test.Machine(gs, goio.Discard, memPkg.Path, false)
+
 			defer tm.Release()
 
-			// Check package
-			tm.RunMemPackage(memPkg, true)
-
 			// Check test files
-			testFiles := lintTestFiles(memPkg)
+			packageFiles := sourceAndTestFileset(memPkg)
 
-			tm.RunFiles(testFiles.Files...)
+			tm.PreprocessFiles(memPkg.Name, memPkg.Path, packageFiles, false, false)
 		})
 		if hasRuntimeErr {
 			hasError = true
@@ -221,20 +219,21 @@ func lintTypeCheck(io commands.IO, memPkg *gnovm.MemPackage, testStore gno.Store
 	return true, nil
 }
 
-func lintTestFiles(memPkg *gnovm.MemPackage) *gno.FileSet {
+func sourceAndTestFileset(memPkg *gnovm.MemPackage) *gno.FileSet {
 	testfiles := &gno.FileSet{}
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // Skip non-GNO files
 		}
 
-		n, _ := gno.ParseFile(mfile.Name, mfile.Body)
+		n := gno.MustParseFile(mfile.Name, mfile.Body)
 		if n == nil {
 			continue // Skip empty files
 		}
 
 		// XXX: package ending with `_test` is not supported yet
-		if strings.HasSuffix(mfile.Name, "_test.gno") && !strings.HasSuffix(string(n.PkgName), "_test") {
+		if !strings.HasSuffix(mfile.Name, "_filetest.gno") &&
+			!strings.HasSuffix(string(n.PkgName), "_test") {
 			// Keep only test files
 			testfiles.AddFiles(n)
 		}

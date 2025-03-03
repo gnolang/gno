@@ -1332,12 +1332,13 @@ func ReadMemPackageFromList(list []string, pkgPath string) (*gnovm.MemPackage, e
 			})
 	}
 
+	memPkg.Name = string(pkgName)
+
 	// If no .gno files are present, package simply does not exist.
 	if !memPkg.IsEmpty() {
 		if err := validatePkgName(string(pkgName)); err != nil {
 			return nil, err
 		}
-		memPkg.Name = string(pkgName)
 	}
 
 	return memPkg, nil
@@ -2118,10 +2119,26 @@ func (x *PackageNode) SetBody(b Body) {
 // such as those for *DeclaredType methods or *StructType fields,
 // see tests/selector_test.go.
 type ValuePath struct {
-	Type  VPType // see VPType* consts.
+	Type VPType // see VPType* consts.
+	// Warning: Use SetDepth() to set Depth.
 	Depth uint8  // see doc for ValuePath.
 	Index uint16 // index of value, field, or method.
 	Name  Name   // name of value, field, or method.
+}
+
+// Maximum depth of a ValuePath.
+const MaxValuePathDepth = 127
+
+func (vp ValuePath) validateDepth() {
+	if vp.Depth > MaxValuePathDepth {
+		panic(fmt.Sprintf("exceeded maximum %s depth (%d)", vp.Type, MaxValuePathDepth))
+	}
+}
+
+func (vp *ValuePath) SetDepth(d uint8) {
+	vp.Depth = d
+
+	vp.validateDepth()
 }
 
 type VPType uint8
@@ -2202,6 +2219,8 @@ func NewValuePathNative(n Name) ValuePath {
 }
 
 func (vp ValuePath) Validate() {
+	vp.validateDepth()
+
 	switch vp.Type {
 	case VPUverse:
 		if vp.Depth != 0 {
