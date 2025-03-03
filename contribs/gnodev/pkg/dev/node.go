@@ -398,7 +398,6 @@ func (n *Node) getBlockStoreState(ctx context.Context) ([]gnoland.TxWithMetadata
 	genesis := n.GenesisDoc().AppState.(gnoland.GnoGenesisState)
 
 	initialTxs := genesis.Txs[n.loadedPackages:] // ignore previously loaded packages
-
 	state := append([]gnoland.TxWithMetadata{}, initialTxs...)
 
 	lastBlock := n.getLatestBlockNumber()
