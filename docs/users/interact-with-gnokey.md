@@ -4,6 +4,39 @@ XXX: gnokey intro paragraph
 XXX: getting started: install, query, create a key, use faucet, perform a transaction
 XXX: advanced (everything advanced)
 
+## Install
+
+# Installation
+
+XXX: add right now, or maybe just add a comment to show how to install gnokey alternatively, like by downloading official releases
+
+## Prerequisites
+
+- **Git**
+- **`make` (for running Makefiles)**
+- **Go 1.22+**
+- **[A properly configured](https://go.dev/doc/install) Go environment**[^1]
+
+## 1. Cloning the repository
+
+To get started with a local gno.land development environment, you must clone the
+GitHub repository somewhere on disk:
+
+```bash
+git clone https://github.com/gnolang/gno.git
+```
+
+To install all three  tools, simply run the following in the root of the repo:
+```bash
+make install
+```
+
+To verify that the `gnokey` binary is installed system-wide, you can run:
+
+```bash
+gnokey --help
+```
+
 ## Creating a key pair
 
 - `gnokey` set up. See [Installation](installation.md).

@@ -1,5 +1,7 @@
 # Installation
 
+XXX: add right now, or maybe just add a comment to show how to install gnokey alternatively, like by downloading official releases
+
 ## Overview
 
 In this tutorial, you will learn how to set up the Gno development environment

@@ -1,4 +1,7 @@
-# 4.5 Creating a mini social app
+# Example `minisocial` dApp
+
+XXX: explain that this is a more complex example showing how to get further, but that there is a simpler exmample available at ./example-counter.md
+XXX: this example should show unit tests, having dependencies
 
 ## Prerequisites
 
