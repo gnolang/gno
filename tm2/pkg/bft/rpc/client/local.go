@@ -106,14 +106,6 @@ func (c *Local) Health() (*ctypes.ResultHealth, error) {
 	return core.Health(c.ctx)
 }
 
-func (c *Local) DialSeeds(seeds []string) (*ctypes.ResultDialSeeds, error) {
-	return core.UnsafeDialSeeds(c.ctx, seeds)
-}
-
-func (c *Local) DialPeers(peers []string, persistent bool) (*ctypes.ResultDialPeers, error) {
-	return core.UnsafeDialPeers(c.ctx, peers, persistent)
-}
-
 func (c *Local) BlockchainInfo(minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
 	return core.BlockchainInfo(c.ctx, minHeight, maxHeight)
 }

@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// main/files/var22.gno:8:6: missing init expr for c<VPUverse(0)>
+// main/files/var22.gno:8:6: missing init expr for c<!VPUverse(0)>

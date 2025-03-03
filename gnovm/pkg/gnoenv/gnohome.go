@@ -29,7 +29,5 @@ func HomeDir() string {
 	}
 	gnoHome := filepath.Join(dir, "gno")
 
-	// XXX: added april 2023 as a transitory measure - remove after test4
-	fixOldDefaultGnoHome(gnoHome)
 	return gnoHome
 }

@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// main/files/recursive6a.gno:1:1: invalid recursive type: SelfReferencing -> SelfReferencing
+// main/files/recursive6a.gno:3:6: invalid recursive type: SelfReferencing -> SelfReferencing

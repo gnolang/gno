@@ -8,17 +8,17 @@ import (
 	"gno.land/r/demo/users"
 )
 
-const admin = std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
+const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func main() {
-	caller := std.GetOrigCaller() // main
-	std.TestSetOrigCaller(admin)
+	std.TestSetOriginCaller(admin)
+	caller := std.OriginCaller() // main
 	// add restricted name
 	users.AdminAddRestrictedName("superrestricted")
 	// grant invite to caller
 	users.Invite(caller.String())
 	// set back caller
-	std.TestSetOrigCaller(caller)
+	std.TestSetOriginCaller(caller)
 	// register restricted name with admin invite
 	users.Register(admin, "superrestricted", "my profile")
 	println("done")

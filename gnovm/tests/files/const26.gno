@@ -1,15 +1,15 @@
 package main
 
-const (
-	d = "hello"
-	m
-)
+import "fmt"
 
-func main() {
-	println(d)
-	println(m)
+func v() string {
+	return ""
 }
 
-// Output:
-// hello
-// hello
+func main() {
+	const t = v()
+	fmt.Println(t)
+}
+
+// Error:
+// main/files/const26.gno:10:8: v<VPBlock(3,0)>() (value of type string) is not constant

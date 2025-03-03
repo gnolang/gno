@@ -1,21 +1,16 @@
 package main
 
-type Value struct {
-	String string
+import "fmt"
+
+func v() string {
+	return ""
 }
-
-type S string
-
-const (
-	s S = "hello"
-	g   = "world"
-)
 
 func main() {
-	v := Value{String: "hello"}
-	b := v.String == g
-	println(b)
+	var i any = 1
+	const t, ok = i.(int)
+	fmt.Println(t, ok)
 }
 
-// Output:
-// false
+// Error:
+// main/files/const27.gno:11:8: i<VPBlock(1,0)>.((const-type int)) (comma, ok expression of type (const-type int)) is not constant

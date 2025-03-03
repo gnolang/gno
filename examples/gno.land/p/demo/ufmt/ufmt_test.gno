@@ -16,55 +16,86 @@ func TestSprintf(t *testing.T) {
 	tru := true
 	cases := []struct {
 		format         string
-		values         []interface{}
+		values         []any
 		expectedOutput string
 	}{
-		{"hello %s!", []interface{}{"planet"}, "hello planet!"},
-		{"hi %%%s!", []interface{}{"worl%d"}, "hi %worl%d!"},
-		{"%s %c %d %t", []interface{}{"foo", 'α', 421, true}, "foo α 421 true"},
-		{"string [%s]", []interface{}{"foo"}, "string [foo]"},
-		{"int [%d]", []interface{}{int(42)}, "int [42]"},
-		{"int8 [%d]", []interface{}{int8(8)}, "int8 [8]"},
-		{"int16 [%d]", []interface{}{int16(16)}, "int16 [16]"},
-		{"int32 [%d]", []interface{}{int32(32)}, "int32 [32]"},
-		{"int64 [%d]", []interface{}{int64(64)}, "int64 [64]"},
-		{"uint [%d]", []interface{}{uint(42)}, "uint [42]"},
-		{"uint8 [%d]", []interface{}{uint8(8)}, "uint8 [8]"},
-		{"uint16 [%d]", []interface{}{uint16(16)}, "uint16 [16]"},
-		{"uint32 [%d]", []interface{}{uint32(32)}, "uint32 [32]"},
-		{"uint64 [%d]", []interface{}{uint64(64)}, "uint64 [64]"},
-		{"bool [%t]", []interface{}{true}, "bool [true]"},
-		{"bool [%t]", []interface{}{false}, "bool [false]"},
+		{"hello %s!", []any{"planet"}, "hello planet!"},
+		{"hello %v!", []any{"planet"}, "hello planet!"},
+		{"hi %%%s!", []any{"worl%d"}, "hi %worl%d!"},
+		{"%s %c %d %t", []any{"foo", 'α', 421, true}, "foo α 421 true"},
+		{"string [%s]", []any{"foo"}, "string [foo]"},
+		{"int [%d]", []any{int(42)}, "int [42]"},
+		{"int [%v]", []any{int(42)}, "int [42]"},
+		{"int8 [%d]", []any{int8(8)}, "int8 [8]"},
+		{"int8 [%v]", []any{int8(8)}, "int8 [8]"},
+		{"int16 [%d]", []any{int16(16)}, "int16 [16]"},
+		{"int16 [%v]", []any{int16(16)}, "int16 [16]"},
+		{"int32 [%d]", []any{int32(32)}, "int32 [32]"},
+		{"int32 [%v]", []any{int32(32)}, "int32 [32]"},
+		{"int64 [%d]", []any{int64(64)}, "int64 [64]"},
+		{"int64 [%v]", []any{int64(64)}, "int64 [64]"},
+		{"uint [%d]", []any{uint(42)}, "uint [42]"},
+		{"uint [%v]", []any{uint(42)}, "uint [42]"},
+		{"uint8 [%d]", []any{uint8(8)}, "uint8 [8]"},
+		{"uint8 [%v]", []any{uint8(8)}, "uint8 [8]"},
+		{"uint16 [%d]", []any{uint16(16)}, "uint16 [16]"},
+		{"uint16 [%v]", []any{uint16(16)}, "uint16 [16]"},
+		{"uint32 [%d]", []any{uint32(32)}, "uint32 [32]"},
+		{"uint32 [%v]", []any{uint32(32)}, "uint32 [32]"},
+		{"uint64 [%d]", []any{uint64(64)}, "uint64 [64]"},
+		{"uint64 [%v]", []any{uint64(64)}, "uint64 [64]"},
+		{"float64 [%e]", []any{float64(64.1)}, "float64 [6.41e+01]"},
+		{"float64 [%E]", []any{float64(64.1)}, "float64 [6.41E+01]"},
+		{"float64 [%f]", []any{float64(64.1)}, "float64 [64.100000]"},
+		{"float64 [%F]", []any{float64(64.1)}, "float64 [64.100000]"},
+		{"float64 [%g]", []any{float64(64.1)}, "float64 [64.1]"},
+		{"float64 [%G]", []any{float64(64.1)}, "float64 [64.1]"},
+		{"bool [%t]", []any{true}, "bool [true]"},
+		{"bool [%v]", []any{true}, "bool [true]"},
+		{"bool [%t]", []any{false}, "bool [false]"},
+		{"bool [%v]", []any{false}, "bool [false]"},
 		{"no args", nil, "no args"},
 		{"finish with %", nil, "finish with %"},
-		{"stringer [%s]", []interface{}{stringer{}}, "stringer [I'm a stringer]"},
+		{"stringer [%s]", []any{stringer{}}, "stringer [I'm a stringer]"},
 		{"â", nil, "â"},
 		{"Hello, World! 😊", nil, "Hello, World! 😊"},
-		{"unicode formatting: %s", []interface{}{"😊"}, "unicode formatting: 😊"},
+		{"unicode formatting: %s", []any{"😊"}, "unicode formatting: 😊"},
+		{"invalid hex [%x]", []any{"invalid"}, "invalid hex [(unhandled)]"},
+		{"rune as character [%c]", []any{rune('A')}, "rune as character [A]"},
+		{"int as character [%c]", []any{int('B')}, "int as character [B]"},
+		{"quoted string [%q]", []any{"hello"}, "quoted string [\"hello\"]"},
+		{"quoted string with escape [%q]", []any{"\thello\nworld\\"}, "quoted string with escape [\"\\thello\\nworld\\\\\"]"},
+		{"invalid quoted string [%q]", []any{123}, "invalid quoted string [(unhandled)]"},
+		{"type of bool [%T]", []any{true}, "type of bool [bool]"},
+		{"type of int [%T]", []any{123}, "type of int [int]"},
+		{"type of string [%T]", []any{"hello"}, "type of string [string]"},
+		{"type of []byte [%T]", []any{[]byte{1, 2, 3}}, "type of []byte [[]byte]"},
+		{"type of []rune [%T]", []any{[]rune{'a', 'b', 'c'}}, "type of []rune [[]rune]"},
+		{"type of unknown [%T]", []any{struct{}{}}, "type of unknown [unknown]"},
 		// mismatch printing
-		{"%s", []interface{}{nil}, "%!s(<nil>)"},
-		{"%s", []interface{}{421}, "%!s(int=421)"},
-		{"%s", []interface{}{"z"}, "z"},
-		{"%s", []interface{}{tru}, "%!s(bool=true)"},
-		{"%s", []interface{}{'z'}, "%!s(int32=122)"},
+		{"%s", []any{nil}, "%!s(<nil>)"},
+		{"%s", []any{421}, "%!s(int=421)"},
+		{"%s", []any{"z"}, "z"},
+		{"%s", []any{tru}, "%!s(bool=true)"},
+		{"%s", []any{'z'}, "%!s(int32=122)"},
 
-		{"%c", []interface{}{nil}, "%!c(<nil>)"},
-		{"%c", []interface{}{421}, "ƥ"},
-		{"%c", []interface{}{"z"}, "%!c(string=z)"},
-		{"%c", []interface{}{tru}, "%!c(bool=true)"},
-		{"%c", []interface{}{'z'}, "z"},
+		{"%c", []any{nil}, "%!c(<nil>)"},
+		{"%c", []any{421}, "ƥ"},
+		{"%c", []any{"z"}, "%!c(string=z)"},
+		{"%c", []any{tru}, "%!c(bool=true)"},
+		{"%c", []any{'z'}, "z"},
 
-		{"%d", []interface{}{nil}, "%!d(<nil>)"},
-		{"%d", []interface{}{421}, "421"},
-		{"%d", []interface{}{"z"}, "%!d(string=z)"},
-		{"%d", []interface{}{tru}, "%!d(bool=true)"},
-		{"%d", []interface{}{'z'}, "122"},
+		{"%d", []any{nil}, "%!d(<nil>)"},
+		{"%d", []any{421}, "421"},
+		{"%d", []any{"z"}, "%!d(string=z)"},
+		{"%d", []any{tru}, "%!d(bool=true)"},
+		{"%d", []any{'z'}, "122"},
 
-		{"%t", []interface{}{nil}, "%!t(<nil>)"},
-		{"%t", []interface{}{421}, "%!t(int=421)"},
-		{"%t", []interface{}{"z"}, "%!t(string=z)"},
-		{"%t", []interface{}{tru}, "true"},
-		{"%t", []interface{}{'z'}, "%!t(int32=122)"},
+		{"%t", []any{nil}, "%!t(<nil>)"},
+		{"%t", []any{421}, "%!t(int=421)"},
+		{"%t", []any{"z"}, "%!t(string=z)"},
+		{"%t", []any{tru}, "true"},
+		{"%t", []any{'z'}, "%!t(int32=122)"},
 	}
 
 	for _, tc := range cases {
@@ -82,37 +113,37 @@ func TestErrorf(t *testing.T) {
 	tests := []struct {
 		name     string
 		format   string
-		args     []interface{}
+		args     []any
 		expected string
 	}{
 		{
 			name:     "simple string",
 			format:   "error: %s",
-			args:     []interface{}{"something went wrong"},
+			args:     []any{"something went wrong"},
 			expected: "error: something went wrong",
 		},
 		{
 			name:     "integer value",
 			format:   "value: %d",
-			args:     []interface{}{42},
+			args:     []any{42},
 			expected: "value: 42",
 		},
 		{
 			name:     "boolean value",
 			format:   "success: %t",
-			args:     []interface{}{true},
+			args:     []any{true},
 			expected: "success: true",
 		},
 		{
 			name:     "multiple values",
 			format:   "error %d: %s (success=%t)",
-			args:     []interface{}{123, "failure occurred", false},
+			args:     []any{123, "failure occurred", false},
 			expected: "error 123: failure occurred (success=false)",
 		},
 		{
 			name:     "literal percent",
 			format:   "literal %%",
-			args:     []interface{}{},
+			args:     []any{},
 			expected: "literal %",
 		},
 	}
@@ -140,32 +171,32 @@ func TestPrintErrors(t *testing.T) {
 func TestPrintln(t *testing.T) {
 	tests := []struct {
 		name     string
-		args     []interface{}
+		args     []any
 		expected string
 	}{
 		{
 			name:     "Empty args",
-			args:     []interface{}{},
+			args:     []any{},
 			expected: "",
 		},
 		{
 			name:     "String args",
-			args:     []interface{}{"Hello", "World"},
+			args:     []any{"Hello", "World"},
 			expected: "Hello World",
 		},
 		{
 			name:     "Integer args",
-			args:     []interface{}{1, 2, 3},
+			args:     []any{1, 2, 3},
 			expected: "1 2 3",
 		},
 		{
 			name:     "Mixed args",
-			args:     []interface{}{"Hello", 42, true, false, "World"},
+			args:     []any{"Hello", 42, true, false, "World"},
 			expected: "Hello 42 true false World",
 		},
 		{
 			name:     "Unhandled type",
-			args:     []interface{}{"Hello", 3.14, []int{1, 2, 3}},
+			args:     []any{"Hello", 3.14, []int{1, 2, 3}},
 			expected: "Hello (unhandled) (unhandled)",
 		},
 	}

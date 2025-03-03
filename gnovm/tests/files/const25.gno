@@ -1,14 +1,11 @@
 package main
 
-const (
-	d, e = 1, "hello"
-	m
-)
+import "fmt"
 
 func main() {
-	println(d, e)
-	println(m)
+	const t = []string{"1"}
+	fmt.Println(t)
 }
 
 // Error:
-// main/files/const25.gno:5:2: assignment mismatch: 1 variable(s) but 2 value(s)
+// main/files/const25.gno:6:8: [](const-type string){(const ("1" string))} (variable of type []string) is not constant

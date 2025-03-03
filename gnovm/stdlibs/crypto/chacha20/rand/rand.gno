@@ -191,7 +191,7 @@ func New() *RNG {
 // Global versions of each RNG method, leveraging a pool of RNGs.
 
 var rngpool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return New()
 	},
 }

@@ -1,7 +1,7 @@
 package main
 
 func main() {
-	var i interface{}
+	var i any
 
 	switch a := i.(type) {
 	case string:
@@ -14,4 +14,4 @@ func main() {
 }
 
 // Error:
-// main/files/switch13.gno:0:0: i<VPBlock(2,0)> is not a type
+// main/files/switch13.gno:8:0: i<VPBlock(2,0)> is not a type

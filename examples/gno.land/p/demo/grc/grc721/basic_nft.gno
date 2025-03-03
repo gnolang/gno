@@ -2,6 +2,7 @@ package grc721
 
 import (
 	"std"
+	"strconv"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
@@ -80,7 +81,7 @@ func (s *basicNFT) SetTokenURI(tid TokenID, tURI TokenURI) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	if caller != owner {
 		return false, ErrCallerIsNotOwner
 	}
@@ -114,14 +115,18 @@ func (s *basicNFT) Approve(to std.Address, tid TokenID) error {
 		return ErrApprovalToCurrentOwner
 	}
 
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	if caller != owner && !s.IsApprovedForAll(owner, caller) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
 
 	s.tokenApprovals.Set(string(tid), to.String())
-	event := ApprovalEvent{owner, to, tid}
-	emit(&event)
+	std.Emit(
+		ApprovalEvent,
+		"owner", string(owner),
+		"to", string(to),
+		"tokenId", string(tid),
+	)
 
 	return nil
 }
@@ -142,7 +147,7 @@ func (s *basicNFT) SetApprovalForAll(operator std.Address, approved bool) error 
 		return ErrInvalidAddress
 	}
 
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	return s.setApprovalForAll(caller, operator, approved)
 }
 
@@ -150,7 +155,7 @@ func (s *basicNFT) SetApprovalForAll(operator std.Address, approved bool) error 
 // contract recipients are aware of the GRC721 protocol to prevent
 // tokens from being forever locked.
 func (s *basicNFT) SafeTransferFrom(from, to std.Address, tid TokenID) error {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	if !s.isApprovedOrOwner(caller, tid) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -169,7 +174,7 @@ func (s *basicNFT) SafeTransferFrom(from, to std.Address, tid TokenID) error {
 
 // Transfers `tokenId` token from `from` to `to`.
 func (s *basicNFT) TransferFrom(from, to std.Address, tid TokenID) error {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	if !s.isApprovedOrOwner(caller, tid) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -219,8 +224,11 @@ func (s *basicNFT) Burn(tid TokenID) error {
 	s.balances.Set(owner.String(), balance)
 	s.owners.Remove(string(tid))
 
-	event := TransferEvent{owner, zeroAddress, tid}
-	emit(&event)
+	std.Emit(
+		BurnEvent,
+		"from", string(owner),
+		"tokenId", string(tid),
+	)
 
 	s.afterTokenTransfer(owner, zeroAddress, tid, 1)
 
@@ -238,8 +246,12 @@ func (s *basicNFT) setApprovalForAll(owner, operator std.Address, approved bool)
 	key := owner.String() + ":" + operator.String()
 	s.operatorApprovals.Set(key, approved)
 
-	event := ApprovalForAllEvent{owner, operator, approved}
-	emit(&event)
+	std.Emit(
+		ApprovalForAllEvent,
+		"owner", string(owner),
+		"to", string(operator),
+		"approved", strconv.FormatBool(approved),
+	)
 
 	return nil
 }
@@ -291,8 +303,12 @@ func (s *basicNFT) transfer(from, to std.Address, tid TokenID) error {
 	s.balances.Set(to.String(), toBalance)
 	s.owners.Set(string(tid), to)
 
-	event := TransferEvent{from, to, tid}
-	emit(&event)
+	std.Emit(
+		TransferEvent,
+		"from", string(from),
+		"to", string(to),
+		"tokenId", string(tid),
+	)
 
 	s.afterTokenTransfer(from, to, tid, 1)
 
@@ -324,8 +340,11 @@ func (s *basicNFT) mint(to std.Address, tid TokenID) error {
 	s.balances.Set(to.String(), toBalance)
 	s.owners.Set(string(tid), to)
 
-	event := TransferEvent{zeroAddress, to, tid}
-	emit(&event)
+	std.Emit(
+		MintEvent,
+		"to", string(to),
+		"tokenId", string(tid),
+	)
 
 	s.afterTokenTransfer(zeroAddress, to, tid, 1)
 

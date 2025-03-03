@@ -105,7 +105,7 @@ func Parse(file string, data []byte) (*File, error) {
 					Err:      fmt.Errorf("unknown block type: %s", strings.Join(x.Token, " ")),
 				})
 				continue
-			case "module", "require", "replace":
+			case "module", "replace":
 				for _, l := range x.Line {
 					f.add(&errs, x, l, x.Token[0], l.Token)
 				}
@@ -179,26 +179,6 @@ func (f *File) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modf
 			return
 		}
 		f.Module.Mod = module.Version{Path: s}
-
-	case "require":
-		if len(args) != 2 {
-			errorf("usage: %s module/path v1.2.3", verb)
-			return
-		}
-		s, err := parseString(&args[0])
-		if err != nil {
-			errorf("invalid quoted string: %v", err)
-			return
-		}
-		v, err := parseVersion(verb, s, &args[1])
-		if err != nil {
-			wrapError(err)
-			return
-		}
-		f.Require = append(f.Require, &modfile.Require{
-			Mod:    module.Version{Path: s, Version: v},
-			Syntax: line,
-		})
 
 	case "replace":
 		replace, wrappederr := parseReplace(f.Syntax.Name, line, verb, args)

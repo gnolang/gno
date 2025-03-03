@@ -31,22 +31,16 @@ package gnolang
 */
 
 import (
-	"bytes"
 	"fmt"
 	"go/ast"
-	"go/format"
 	"go/parser"
 	"go/token"
-	"go/types"
 	"os"
 	"reflect"
 	"strconv"
-	"strings"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/std"
-	"go.uber.org/multierr"
 )
 
 func MustReadFile(path string) *FileNode {
@@ -132,7 +126,6 @@ func ParseFile(filename string, body string) (fn *FileNode, err error) {
 	}()
 	// parse with Go2Gno.
 	fn = Go2Gno(fs, f).(*FileNode)
-	//fmt.Println("---fn after transpile: ", fn)
 	fn.Name = Name(filename)
 	return fn, nil
 }
@@ -156,6 +149,13 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			}
 		}()
 	}
+
+	panicWithPos := func(fmtStr string, args ...any) {
+		pos := fs.Position(gon.Pos())
+		loc := fmt.Sprintf("%s:%d:%d", pos.Filename, pos.Line, pos.Column)
+		panic(fmt.Errorf("%s: %v", loc, fmt.Sprintf(fmtStr, args...)))
+	}
+
 	switch gon := gon.(type) {
 	case *ast.ParenExpr:
 		return toExpr(fs, gon.X)
@@ -232,6 +232,8 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		}
 	case *ast.FuncLit:
 		type_ := Go2Gno(fs, gon.Type).(*FuncTypeExpr)
+		type_.IsClosure = true
+
 		return &FuncLitExpr{
 			Type: *type_,
 			Body: toBody(fs, gon.Body),
@@ -250,10 +252,10 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 				Tag:  toExpr(fs, gon.Tag),
 			}
 		} else {
-			panic(fmt.Sprintf(
+			panicWithPos(
 				"expected a Go Field with 1 name but got %v.\n"+
-						"maybe call toFields",
-				gon.Names))
+					"maybe call toFields",
+				gon.Names)
 		}
 	case *ast.ArrayType:
 		if _, ok := gon.Len.(*ast.Ellipsis); ok {
@@ -335,7 +337,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		if cx, ok := gon.X.(*ast.CallExpr); ok {
 			if ix, ok := cx.Fun.(*ast.Ident); ok && ix.Name == "panic" {
 				if len(cx.Args) != 1 {
-					panic("expected panic statement to have single exception value")
+					panicWithPos("expected panic statement to have single exception value")
 				}
 				return &PanicStmt{
 					Exception: toExpr(fs, cx.Args[0]),
@@ -409,7 +411,6 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 				VarName:      toName(as.Lhs[0].(*ast.Ident)),
 			}
 		case *ast.ExprStmt:
-			println("---ExprStmt")
 			return &SwitchStmt{
 				Init:         toStmt(fs, gon.Init),
 				X:            toExpr(fs, as.X.(*ast.TypeAssertExpr).X),
@@ -418,9 +419,8 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 				VarName:      "",
 			}
 		default:
-			panic(fmt.Sprintf(
-				"unexpected *ast.TypeSwitchStmt.Assign type %s",
-				reflect.TypeOf(gon.Assign).String()))
+			panicWithPos("unexpected *ast.TypeSwitchStmt.Assign type %s",
+				reflect.TypeOf(gon.Assign).String())
 		}
 	case *ast.SwitchStmt:
 		x := toExpr(fs, gon.Tag)
@@ -439,7 +439,10 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		recv := FieldTypeExpr{}
 		if isMethod {
 			if len(gon.Recv.List) > 1 {
-				panic("*ast.FuncDecl cannot have multiple receivers")
+				panicWithPos("method has multiple receivers")
+			}
+			if len(gon.Recv.List) == 0 {
+				panicWithPos("method has no receiver")
 			}
 			recv = *Go2Gno(fs, gon.Recv.List[0]).(*FieldTypeExpr)
 		}
@@ -457,9 +460,9 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Body:     body,
 		}
 	case *ast.GenDecl:
-		panic("unexpected *ast.GenDecl; use toDecls(fs,) instead")
+		panicWithPos("unexpected *ast.GenDecl; use toDecls(fs,) instead")
 	case *ast.File:
-		//println("---ast.File")
+		// println("---ast.File")
 		pkgName := Name(gon.Name.Name)
 		decls := make([]Decl, 0, len(gon.Decls))
 		for _, d := range gon.Decls {
@@ -474,126 +477,23 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			PkgName: pkgName,
 			Decls:   decls,
 		}
+	case *ast.EmptyStmt:
+		return &EmptyStmt{}
+	case *ast.IndexListExpr:
+		if len(gon.Indices) > 1 {
+			panicWithPos("invalid operation: more than one index")
+		}
+		panicWithPos("invalid operation: indexList is not permitted in Gno")
+	case *ast.GoStmt:
+		panicWithPos("goroutines are not permitted")
 	default:
-		panic(fmt.Sprintf("unknown Go type %v: %s\n",
+		panicWithPos("unknown Go type %v: %s\n",
 			reflect.TypeOf(gon),
 			spew.Sdump(gon),
-		))
-	}
-}
-
-//----------------------------------------
-// type checking (using go/types)
-// XXX move to gotypecheck.go.
-
-// MemPackageGetter implements the GetMemPackage() method. It is a subset of
-// [Store], separated for ease of testing.
-type MemPackageGetter interface {
-	GetMemPackage(path string) *std.MemPackage
-}
-
-// TypeCheckMemPackage performs type validation and checking on the given
-// mempkg. To retrieve dependencies, it uses getter.
-//
-// The syntax checking is performed entirely using Go's go/types package.
-//
-// If format is true, the code will be automatically updated with the
-// formatted source code.
-func TypeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter, format bool) error {
-	var errs error
-	imp := &gnoImporter{
-		getter: getter,
-		cache:  map[string]gnoImporterResult{},
-		cfg: &types.Config{
-			Error: func(err error) {
-				errs = multierr.Append(errs, err)
-			},
-		},
-	}
-	imp.cfg.Importer = imp
-
-	_, err := imp.parseCheckMemPackage(mempkg, format)
-	// prefer to return errs instead of err:
-	// err will generally contain only the first error encountered.
-	if errs != nil {
-		return errs
-	}
-	return err
-}
-
-type gnoImporterResult struct {
-	pkg *types.Package
-	err error
-}
-
-type gnoImporter struct {
-	getter MemPackageGetter
-	cache  map[string]gnoImporterResult
-	cfg    *types.Config
-}
-
-// Unused, but satisfies the Importer interface.
-func (g *gnoImporter) Import(path string) (*types.Package, error) {
-	return g.ImportFrom(path, "", 0)
-}
-
-type importNotFoundError string
-
-func (e importNotFoundError) Error() string { return "import not found: " + string(e) }
-
-// ImportFrom returns the imported package for the given import
-// path when imported by a package file located in dir.
-func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Package, error) {
-	if pkg, ok := g.cache[path]; ok {
-		return pkg.pkg, pkg.err
-	}
-	mpkg := g.getter.GetMemPackage(path)
-	if mpkg == nil {
-		err := importNotFoundError(path)
-		g.cache[path] = gnoImporterResult{err: err}
-		return nil, err
-	}
-	fmt := false
-	result, err := g.parseCheckMemPackage(mpkg, fmt)
-	g.cache[path] = gnoImporterResult{pkg: result, err: err}
-	return result, err
-}
-
-func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage, fmt bool) (*types.Package, error) {
-	fset := token.NewFileSet()
-	files := make([]*ast.File, 0, len(mpkg.Files))
-	var errs error
-	for _, file := range mpkg.Files {
-		if !strings.HasSuffix(file.Name, ".gno") ||
-				endsWith(file.Name, []string{"_test.gno", "_filetest.gno"}) {
-			continue // skip spurious file.
-		}
-
-		const parseOpts = parser.ParseComments | parser.DeclarationErrors | parser.SkipObjectResolution
-		f, err := parser.ParseFile(fset, file.Name, file.Body, parseOpts)
-		if err != nil {
-			errs = multierr.Append(errs, err)
-			continue
-		}
-
-		// enforce formatting
-		if fmt {
-			var buf bytes.Buffer
-			err = format.Node(&buf, fset, f)
-			if err != nil {
-				errs = multierr.Append(errs, err)
-				continue
-			}
-			file.Body = buf.String()
-		}
-
-		files = append(files, f)
-	}
-	if errs != nil {
-		return nil, errs
+		)
 	}
 
-	return g.cfg.Check(mpkg.Path, fset, files, nil)
+	return
 }
 
 //----------------------------------------
@@ -757,11 +657,13 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 			name := toName(s.Name)
 			tipe := toExpr(fs, s.Type)
 			alias := s.Assign != 0
-			ds = append(ds, &TypeDecl{
+			td := &TypeDecl{
 				NameExpr: NameExpr{Name: name},
 				Type:     tipe,
 				IsAlias:  alias,
-			})
+			}
+			setLoc(fs, s.Pos(), td)
+			ds = append(ds, td)
 		case *ast.ValueSpec:
 			if gd.Tok == token.CONST {
 				var names []NameExpr
@@ -770,36 +672,14 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 				for _, id := range s.Names {
 					names = append(names, *Nx(toName(id)))
 				}
-				//fmt.Println("gd: ", gd)
-				//fmt.Printf("before, go2gno, const, lastType: %v (type: %v) \n", lastType, reflect.TypeOf(lastType))
-				//
-				//fmt.Println("names: ", names)
-				//fmt.Println("s.Type: ", s.Type)
-				//fmt.Println("s.Values: ", s.Values)
-				//
-				//for i, v := range s.Values {
-				//	fmt.Printf("s.values[%d]: %v \n", i, v)
-				//}
 
 				if s.Type == nil && s.Values == nil { // inherit declared type
-					//println("...1")
 					tipe = lastType
-					//fmt.Println("tipe type: ", tipe)
 				} else {
-					//println("...2")
 					lastType = toExpr(fs, s.Type)
 				}
 
 				tipe = lastType
-
-				//fmt.Printf("after, go2gno, const, lastType: %v (type: %v) \n", lastType, reflect.TypeOf(lastType))
-				//if nx, ok := lastType.(*NameExpr); ok {
-				//	fmt.Println("---nx: ", nx)
-				//	if !isPrimitiveType(string(nx.Name)) {
-				//		fmt.Println("===inherit type from previous...")
-				//		tipe = lastType
-				//	}
-				//}
 
 				if s.Values == nil {
 					// inherit type from last values
@@ -948,20 +828,4 @@ func toSwitchClauseStmt(fs *token.FileSet, cc *ast.CaseClause) SwitchClauseStmt 
 		Cases: toExprs(fs, cc.List),
 		Body:  toStmts(fs, cc.Body),
 	}
-}
-func isPrimitiveType(typeStr string) bool {
-	// List of primitive type prefixes
-	primitiveTypes := []string{
-		"int", "int8", "int16", "int32", "int64",
-		"uint", "uint8", "uint16", "uint32", "uint64",
-		"float32", "float64", "string", "bool",
-	}
-
-	for _, t := range primitiveTypes {
-		if strings.HasPrefix(typeStr, t) {
-			return true
-		}
-	}
-
-	return false
 }

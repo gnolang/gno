@@ -1,13 +1,12 @@
 package main
 
-const (
-	MaxU      int32 = 1<<3 - 1
-	MaxUint64       = 18 < 64-1
-)
+import "fmt"
 
 func main() {
-	println(MaxUint64)
+	var s []string = []string{"1"}
+	const t, ok = s[0]
+	fmt.Println(t, ok)
 }
 
-// Output:
-// true
+// Error:
+// main/files/const28.gno:7:8: s<VPBlock(1,0)>[(const (0 int))] (variable of type string) is not constant
