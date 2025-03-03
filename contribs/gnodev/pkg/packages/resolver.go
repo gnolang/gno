@@ -9,6 +9,9 @@ import (
 	"log/slog"
 	"strings"
 	"time"
+
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/stdlibs"
 )
 
 var (
@@ -230,5 +233,20 @@ func PackageCheckerMiddleware(logger *slog.Logger) MiddlewareHandler {
 		}
 
 		return pkg, nil
+	}
+}
+
+func EmbeddedStdlibsMiddleware() MiddlewareHandler {
+	return func(fset *token.FileSet, path string, next Resolver) (*Package, error) {
+		if !gnolang.IsStdlib(path) {
+			return next.Resolve(fset, path)
+		}
+
+		pkg := stdlibs.EmbeddedMemPackage(path)
+		if pkg == nil {
+			return nil, fmt.Errorf("%q is not in stdlibs", path)
+		}
+
+		return &Package{MemPackage: *pkg, Kind: PackageKindStdlib}, nil
 	}
 }

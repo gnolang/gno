@@ -262,7 +262,7 @@ func Render(_ string) string { return strconv.Itoa(i) }
 	}
 
 	node, emitter := newTestingDevNode(t, &fooPkg)
-	assert.Len(t, node.ListPkgs(), 1)
+	assert.Len(t, node.ListPkgs(), 7) // strconv pulls 6 stdlibs in
 
 	// Test rendering
 	render, err := testingRenderRealm(t, node, "gno.land/r/dev/foo")
@@ -565,7 +565,7 @@ func newTestingNodeConfig(pkgs ...*gnovm.MemPackage) *NodeConfig {
 
 	loader.Resolver = packages.MiddlewareResolver(
 		packages.NewMockResolver(pkgs...),
-		packages.FilterStdlibs)
+		packages.EmbeddedStdlibsMiddleware())
 	cfg := DefaultNodeConfig(gnoenv.RootDir(), "gno.land")
 	cfg.TMConfig = integration.DefaultTestingTMConfig(gnoroot)
 	cfg.Loader = &loader

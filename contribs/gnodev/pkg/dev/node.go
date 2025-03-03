@@ -20,7 +20,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -316,10 +315,6 @@ func (n *Node) Reset(ctx context.Context) error {
 	// Reset starting time
 	startTime := time.Now()
 
-	// Load stdlibs
-	stdlibsDeployer := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1, FIXME: replace
-	stdlibsTxs := gnoland.LoadEmbeddedStdlibs(stdlibsDeployer, DefaultFee)
-
 	// Generate a new genesis state based on the current packages
 	pkgs, err := n.loader.Load(n.paths...)
 	if err != nil {
@@ -328,7 +323,7 @@ func (n *Node) Reset(ctx context.Context) error {
 
 	// Append initialTxs
 	pkgsTxs := n.generateTxs(DefaultFee, pkgs)
-	txs := append(stdlibsTxs, append(pkgsTxs, n.initialState...)...)
+	txs := append(pkgsTxs, n.initialState...)
 
 	genesis := gnoland.DefaultGenState()
 	genesis.Balances = n.config.BalancesList
@@ -402,8 +397,7 @@ func (n *Node) getBlockStoreState(ctx context.Context) ([]gnoland.TxWithMetadata
 	// get current genesis state
 	genesis := n.GenesisDoc().AppState.(gnoland.GnoGenesisState)
 
-	numStdLibs := len(stdlibs.InitOrder()) - 1              // stdlibs count minus testing lib
-	initialTxs := genesis.Txs[n.loadedPackages+numStdLibs:] // ignore previously loaded packages
+	initialTxs := genesis.Txs[n.loadedPackages:] // ignore previously loaded packages
 
 	state := append([]gnoland.TxWithMetadata{}, initialTxs...)
 
