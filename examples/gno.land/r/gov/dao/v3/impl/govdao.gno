@@ -37,11 +37,11 @@ func NewGovDAO() *GovDAO {
 		rw.Write(d.renderActiveProposals(req.RawPath))
 	})
 
-	r.HandleFunc("/{pid}", func(rw *mux.ResponseWriter, req *mux.Request) {
+	r.HandleFunc("{pid}", func(rw *mux.ResponseWriter, req *mux.Request) {
 		rw.Write(d.renderProposal(req.GetVar("pid")))
 	})
 
-	r.HandleFunc("/{pid}/votes", func(rw *mux.ResponseWriter, req *mux.Request) {
+	r.HandleFunc("{pid}/votes", func(rw *mux.ResponseWriter, req *mux.Request) {
 		rw.Write(d.renderVotesForProposal(req.GetVar("pid")))
 	})
 
@@ -190,7 +190,7 @@ func (g *GovDAO) renderProposal(sPid string) string {
 	out += StringifyProposal(p)
 	out += "\n\n"
 	out += ps.String()
-	out += ufmt.Sprintf("- [Go to votes list](/%v/votes).", sPid)
+	out += ufmt.Sprintf("- [Go to votes list](:%v/votes).", sPid)
 	out += "\n\n"
 
 	return out
@@ -204,7 +204,7 @@ func (g *GovDAO) renderVotesForProposal(sPid string) string {
 	ps := g.pss.GetStatus(proxy.ProposalID(pid))
 
 	out := ""
-	out += ufmt.Sprintf("## Proposal with id: %v\n\n", sPid)
+	out += ufmt.Sprintf("## Voters for Proposal with id: %v\n\n", sPid)
 	out += StringifyVotes(ps)
 
 	return out

@@ -148,6 +148,10 @@ func StringifyVotes(ps *proposalStatus) string {
 	writeVotes(&sb, ps.YesVotes, "### Voting YES")
 	writeVotes(&sb, ps.NoVotes, "### Voting NO")
 
+	if sb.String() == "" {
+		return "No one voted yet."
+	}
+
 	return sb.String()
 }
 
