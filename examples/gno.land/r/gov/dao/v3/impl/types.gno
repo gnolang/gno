@@ -13,6 +13,10 @@ type Law struct {
 	Supermajority float64
 }
 
+func (l *Law) String() string {
+	return ufmt.Sprintf("This law contains the following data:\n\n- Supermajority: %v%%", l.Supermajority)
+}
+
 // ProposalsStatuses contains the status of all the proposals indexed by the proposal ID.
 type ProposalsStatuses struct {
 	*avl.Tree // map[int]*proposalStatus
