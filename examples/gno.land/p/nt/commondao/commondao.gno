@@ -24,26 +24,17 @@ var (
 	ErrVotingDeadlineNotMet = errors.New("voting deadline not met")
 )
 
-type (
-	// CommonDAO defines a DAO.
-	CommonDAO struct {
-		id       uint64
-		slug     string
-		name     string
-		parent   *CommonDAO
-		members  *addrset.Set
-		genID    seqid.ID
-		active   *avl.Tree // string(proposal ID) -> *Proposal
-		finished *avl.Tree // string(proposal ID) -> *Proposal
-	}
-
-	// Stats contains proposal voting stats.
-	Stats struct {
-		YayVotes  int
-		NayVotes  int
-		Abstained int
-	}
-)
+// CommonDAO defines a DAO.
+type CommonDAO struct {
+	id       uint64
+	slug     string
+	name     string
+	parent   *CommonDAO
+	members  *addrset.Set
+	genID    seqid.ID
+	active   *avl.Tree // string(proposal ID) -> *Proposal
+	finished *avl.Tree // string(proposal ID) -> *Proposal
+}
 
 // New creates a new common DAO.
 func New(options ...Option) *CommonDAO {
