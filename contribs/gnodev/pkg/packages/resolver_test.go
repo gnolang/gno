@@ -2,7 +2,6 @@ package packages
 
 import (
 	"bytes"
-	"errors"
 	"go/token"
 	"log/slog"
 	"path/filepath"
@@ -100,10 +99,10 @@ func TestCacheMiddleware(t *testing.T) {
 	})
 }
 
-func TestFilterStdlibsMiddleware(t *testing.T) {
+func TestEmbeddedStdlibsMiddleware(t *testing.T) {
 	t.Parallel()
 
-	middleware := FilterStdlibs
+	middleware := EmbeddedStdlibsMiddleware()
 	mockResolver := NewMockResolver(&gnovm.MemPackage{
 		Path: "abc.xy/pkg",
 		Name: "pkg",
@@ -111,21 +110,30 @@ func TestFilterStdlibsMiddleware(t *testing.T) {
 			{Name: "file.gno", Body: "package pkg"},
 		},
 	})
-	filteredResolver := MiddlewareResolver(mockResolver, middleware)
+	resolverWithStdlibs := MiddlewareResolver(mockResolver, middleware)
 
-	t.Run("filters stdlib paths", func(t *testing.T) {
+	t.Run("load stdlib paths", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := filteredResolver.Resolve(token.NewFileSet(), "fmt")
-		require.Error(t, err)
-		require.True(t, errors.Is(err, ErrResolverPackageSkip))
-		require.Equal(t, 0, mockResolver.resolveCalls["fmt"])
+		pkg, err := resolverWithStdlibs.Resolve(token.NewFileSet(), "math/bits")
+		require.NoError(t, err)
+		require.NotNil(t, pkg)
+		require.Equal(t, 0, mockResolver.resolveCalls["math/bits"])
 	})
 
-	t.Run("allows non-stdlib paths", func(t *testing.T) {
+	t.Run("load unknown stdlib paths", func(t *testing.T) {
 		t.Parallel()
 
-		pkg, err := filteredResolver.Resolve(token.NewFileSet(), "abc.xy/pkg")
+		pkg, err := resolverWithStdlibs.Resolve(token.NewFileSet(), "notexists")
+		require.ErrorContains(t, err, `"notexists" is not in stdlibs`)
+		require.Nil(t, pkg)
+		require.Equal(t, 0, mockResolver.resolveCalls["notexists"])
+	})
+
+	t.Run("pass non-stdlib paths", func(t *testing.T) {
+		t.Parallel()
+
+		pkg, err := resolverWithStdlibs.Resolve(token.NewFileSet(), "abc.xy/pkg")
 		require.NoError(t, err)
 		require.NotNil(t, pkg)
 		require.Equal(t, 1, mockResolver.resolveCalls["abc.xy/pkg"])

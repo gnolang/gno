@@ -168,31 +168,6 @@ func CacheMiddleware(shouldCache ShouldCacheFunc) MiddlewareHandler {
 	}
 }
 
-// FilterPathHandler defines the function signature for filter handlers.
-type FilterPathHandler func(path string) bool
-
-func FilterPathMiddleware(name string, filter FilterPathHandler) MiddlewareHandler {
-	return func(fset *token.FileSet, path string, next Resolver) (*Package, error) {
-		if filter(path) {
-			return nil, fmt.Errorf("filter %q: %w", name, ErrResolverPackageSkip)
-		}
-
-		return next.Resolve(fset, path)
-	}
-}
-
-var FilterStdlibs = FilterPathMiddleware("stdlibs", isStdPath)
-
-func isStdPath(path string) bool {
-	if i := strings.IndexRune(path, '/'); i > 0 {
-		if j := strings.IndexRune(path[:i], '.'); j >= 0 {
-			return false
-		}
-	}
-
-	return true
-}
-
 // PackageCheckerMiddleware creates a middleware handler for post-processing syntax.
 func PackageCheckerMiddleware(logger *slog.Logger) MiddlewareHandler {
 	return func(fset *token.FileSet, path string, next Resolver) (*Package, error) {
@@ -202,7 +177,7 @@ func PackageCheckerMiddleware(logger *slog.Logger) MiddlewareHandler {
 			return nil, err
 		}
 
-		if err := pkg.Validate(false); err != nil {
+		if err := pkg.Validate(true); err != nil {
 			return nil, fmt.Errorf("invalid package %q: %w", path, err)
 		}
 
