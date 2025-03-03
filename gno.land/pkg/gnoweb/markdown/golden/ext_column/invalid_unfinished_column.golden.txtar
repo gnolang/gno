@@ -6,13 +6,8 @@ content 1
 content 2
 
 -- output.html --
-<div class="gno-cols">
-<!-- Column 1 -->
-<div>
+<!-- gno-columns error: invalid columns format: columns hasn't been closed -->
 <h2>Title 1</h2>
 <p>content 1</p>
-</div>
-<!-- Column 2 -->
-<div>
 <h2>Title 2</h2>
 <p>content 2</p>
