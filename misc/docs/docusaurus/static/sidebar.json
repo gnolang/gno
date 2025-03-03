@@ -1,0 +1,11 @@
+{
+  "tutorialSidebar": [
+    "README",
+    [
+      {
+        "type": "category",
+        "label": "Discover gno.land"
+      }
+    ]
+  ]
+}
