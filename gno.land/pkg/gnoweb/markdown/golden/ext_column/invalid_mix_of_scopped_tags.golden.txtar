@@ -1,13 +1,24 @@
 -- input.md --
-:::
+<gno-columns>
 ## title 1
 
 content 1
 
 ## title 2
 
-content 2
+:::
+## sub-title 1
 
+content
+
+## sub-title 2
+
+content 2
+:::
+
+## title 3
+
+content 3
 </gno-columns>
 
 -- output.html --
@@ -20,7 +31,16 @@ content 2
 <!-- Column 2 -->
 <div>
 <h2>title 2</h2>
+</div>
+</div>
+<h2>sub-title 1</h2>
+<p>content</p>
+<h2>sub-title 2</h2>
 <p>content 2</p>
+<div class="gno-cols">
+<!-- Column 1 -->
+<div>
+<h2>title 3</h2>
+<p>content 3</p>
 </div>
 </div>
-

@@ -6,9 +6,7 @@
 </gno-columns>
 
 -- output.html --
-<div class="gno-cols">
-<!-- Column 0 -->
-<div>
+<!-- gno-columns error: invalid columns format: open tag should be followed by heading separtor -->
 <ul>
 <li>
 <h2>title 1</h2>
@@ -20,6 +18,3 @@
 <h2>title 3</h2>
 </li>
 </ul>
-</div>
-</div>
-
