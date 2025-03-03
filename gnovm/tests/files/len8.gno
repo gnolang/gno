@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// unexpected type for len(): struct{A int;B int}
+// unexpected type for len(): struct {A int;B int}

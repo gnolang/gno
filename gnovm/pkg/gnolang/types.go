@@ -753,7 +753,7 @@ func (st *StructType) TypeID() TypeID {
 }
 
 func (st *StructType) String() string {
-	return fmt.Sprintf("struct{%s}",
+	return fmt.Sprintf("struct {%s}",
 		FieldTypeList(st.Fields).String())
 }
 
