@@ -3,7 +3,6 @@ package main
 
 import "runtime"
 
-// GC does not reclaim enough memory
 func main() {
 	data := make([]byte, 100*1024*1024) // >100 MB
 	data = nil
@@ -12,4 +11,4 @@ func main() {
 }
 
 // Output:
-// MemStats after GC:  Allocator{maxBytes:110000000, bytes:3784}
+// MemStats after GC:  Allocator{maxBytes:110000000, bytes:4112}

@@ -3,7 +3,6 @@ package gnolang
 import (
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
-	"reflect"
 )
 
 // Represents the "time unit" cost for
@@ -29,11 +28,10 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 		}()
 	}
 
-	debug.Println("=====GarbageCollect")
 	defer func() {
 		gasCPU := overflow.Mul64p(m.Alloc.visitCount*VisitCpuFactor, GasFactorCPU)
-		//debug2.Println2("gasCPU:", gasCPU)
-		if m.GasMeter != nil { //  no gas meter for test
+		m.Alloc.visitCount = 0
+		if m.GasMeter != nil {
 			m.GasMeter.ConsumeGas(gasCPU, "GC")
 		}
 	}()
@@ -43,8 +41,6 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 	// This is the only place where it's bumped.
 	m.GcCycle += 1
-
-	debug.Println("m.GcCycle: ", m.GcCycle)
 
 	// Construct visitor callback.
 	vis := GCVisitorFn(m.GcCycle, m.Alloc)
@@ -59,15 +55,13 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 	// Visit frames
 	for _, frame := range m.Frames {
-		// XXX implement for frames.
-		// XXX Frame is not an object,
-		// so implement a custom method and pass in vis.
 		stop := frame.Visit(vis, m.Store)
 		if stop {
 			return -1, false
 		}
 	}
 
+	// Visit package
 	stop := vis(m.Package)
 	if stop {
 		return -1, false
@@ -94,22 +88,13 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 	var vis func(Object) bool
 	vis = func(o Object) bool {
-		debug.Printf("===visit o: %v (type: %v) \n", o, reflect.TypeOf(o))
-
-		if o == nil || o == (*Block)(nil) {
-			if bm.GCEnabled {
-				bm.StopGCCode()
-			}
-			return false
-		}
-
 		if bm.GCEnabled {
+			// The metric may either be initialized at this stage
+			// or during the previous unwrap step, depending on the flow.
 			if !bm.IsGCMeasureStarted() {
 				bm.StartGCCode(bm.VisitObject)
 			}
 		}
-
-		debug.Printf("o.GetLastGCCycle: %d, GcCycle: %d\n", o.GetLastGCCycle(), gcCycle)
 
 		// Return if already measured.
 		if o.GetLastGCCycle() == gcCycle {
@@ -182,8 +167,7 @@ func (bmv *BoundMethodValue) VisitAssociated(vis Visitor, store Store) (stop boo
 
 func (mv *MapValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	// Visit values.
-	// XXX visit mv.List.
-	// XXX do NOT visit mv.vmap.
+	// visit mv.List.
 	for cur := mv.List.Head; cur != nil; cur = cur.Next {
 		// vis key
 		stop = visitChild(vis, cur.Key.V, store)
@@ -201,21 +185,23 @@ func (mv *MapValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 }
 
 func (pv *PackageValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
-	// XXX visit pv.Block
-	// XXX visit pv.FBlocks
-	// XXX do NOT visit Realm.
 
+	// visit pv.Block
 	stop = visitChild(vis, pv.Block, store)
 	if stop {
 		return
 	}
 
+	// visit pv.FBlocks
 	for _, fb := range pv.FBlocks {
 		stop = visitChild(vis, fb, store)
 		if stop {
 			return
 		}
 	}
+
+	// do NOT visit Realm.
+
 	return
 }
 
@@ -281,7 +267,19 @@ func (fr *Frame) Visit(vis Visitor, store Store) (stop bool) {
 				return
 			}
 		}
+
+		stop = visitChild(vis, dfr.Parent, store)
+		if stop {
+			return
+		}
 	}
+
+	// vis last package
+	stop = visitChild(vis, fr.LastPackage, store)
+	if stop {
+		return
+	}
+
 	return
 }
 
@@ -292,7 +290,9 @@ func (ex *Exception) Visit(vis Visitor, store Store) (stop bool) {
 		return
 	}
 
-	// Max, this should be unnecessary
+	// the frame should've been
+	// visited in other places
+	// this ensures integrity.
 	stop = ex.Frame.Visit(vis, store)
 	return
 }
@@ -313,6 +313,13 @@ func visitChild(vis Visitor, v Value, store Store) (stop bool) {
 		oo = store.GetObject(v.ObjectID)
 	case Object:
 		oo = v
+	}
+
+	if oo == nil || oo == (*Block)(nil) || oo == (*PackageValue)(nil) {
+		if bm.GCEnabled {
+			bm.StopGCCode()
+		}
+		return false
 	}
 
 	stop = vis(oo)

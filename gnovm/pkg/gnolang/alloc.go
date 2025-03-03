@@ -27,10 +27,10 @@ const (
 	_allocStructValue      = 152
 	_allocArrayValue       = 176
 	_allocSliceValue       = 40
-	_allocFuncValue        = 136 // Max, 196
+	_allocFuncValue        = 196
 	_allocMapValue         = 144
 	_allocBoundMethodValue = 176
-	_allocBlock            = 464 // Max, should be 472
+	_allocBlock            = 472
 	_allocPackageValue     = 240
 	_allocNativeValue      = 48
 	_allocTypeValue        = 16
@@ -63,7 +63,7 @@ const (
 	allocNative      = _allocBase + _allocPointer + _allocNativeValue
 	allocType        = _allocBase + _allocPointer + _allocType
 	// allocDataByte    = 1
-	allocPackage   = _allocBase + _allocPointer + _allocPackageValue // Max why pointer?
+	allocPackage   = _allocBase + _allocPointer + _allocPackageValue
 	allocAmino     = _allocBase + _allocPointer + _allocAny
 	allocAminoByte = 10 // XXX
 	allocHeapItem  = _allocBase + _allocPointer + _allocTypedValue
@@ -348,7 +348,6 @@ func (p *PackageValue) GetShallowSize() int64 {
 	return allocPackage
 }
 func (b *Block) GetShallowSize() int64 {
-	//debug2.Println2("GetShallowSize: ", b)
 	return allocBlock
 }
 
