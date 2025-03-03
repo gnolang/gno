@@ -7,9 +7,11 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
+	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -101,6 +103,26 @@ func (pl *PkgsLoader) LoadAllPackagesFromDir(path string) error {
 }
 
 func (pl *PkgsLoader) LoadPackage(modroot string, path, name string) error {
+	fmt.Println("load package", modroot, path, name)
+
+	addImports := func(currentPkg *gnomod.Pkg, memPkg *gnovm.MemPackage) error {
+		importsMap, err := packages.Imports(memPkg, nil)
+		if err != nil {
+			return fmt.Errorf("unable to load package imports in %q: %w", currentPkg.Dir, err)
+		}
+		imports := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest)
+		for _, imp := range imports {
+			if imp.PkgPath == currentPkg.Name {
+				continue
+			}
+			if teststdlibs.IsInjectedGoLib(imp.PkgPath) {
+				continue
+			}
+			currentPkg.Imports = append(currentPkg.Imports, imp.PkgPath)
+		}
+		return nil
+	}
+
 	// Initialize a queue with the root package
 	queue := []gnomod.Pkg{{Dir: path, Name: name}}
 
@@ -130,17 +152,20 @@ func (pl *PkgsLoader) LoadPackage(modroot string, path, name string) error {
 			if err != nil {
 				return fmt.Errorf("unable to read package at %q: %w", currentPkg.Dir, err)
 			}
-			importsMap, err := packages.Imports(pkg, nil)
-			if err != nil {
-				return fmt.Errorf("unable to load package imports in %q: %w", currentPkg.Dir, err)
+
+			if err := addImports(&currentPkg, pkg); err != nil {
+				return err
 			}
-			imports := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest)
-			for _, imp := range imports {
-				if imp.PkgPath == currentPkg.Name || gnolang.IsStdlib(imp.PkgPath) {
-					continue
-				}
-				currentPkg.Imports = append(currentPkg.Imports, imp.PkgPath)
+		} else if gnolang.IsStdlib(currentPkg.Name) {
+			pkg := teststdlibs.EmbeddedMemPackage(currentPkg.Name)
+			if pkg == nil {
+				return fmt.Errorf("%q is not in stdlibs", currentPkg.Name)
 			}
+
+			if err := addImports(&currentPkg, pkg); err != nil {
+				return err
+			}
+
 		}
 
 		if currentPkg.Draft {
@@ -154,6 +179,11 @@ func (pl *PkgsLoader) LoadPackage(modroot string, path, name string) error {
 
 		// Add requirements to the queue
 		for _, pkgPath := range currentPkg.Imports {
+			if gnolang.IsStdlib(pkgPath) {
+				queue = append(queue, gnomod.Pkg{Name: pkgPath})
+				continue
+			}
+
 			fullPath := filepath.Join(modroot, pkgPath)
 			queue = append(queue, gnomod.Pkg{Dir: fullPath})
 		}

@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/stdlibs"
@@ -166,12 +168,23 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]TxWith
 
 // LoadPackage loads a single package into a `std.Tx`
 func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.Coins) (std.Tx, error) {
-	var tx std.Tx
+	var (
+		tx     std.Tx
+		memPkg *gnovm.MemPackage
+		err    error
+	)
 
-	// Open files in directory as MemPackage.
-	memPkg := gno.MustReadMemPackage(pkg.Dir, pkg.Name)
-	err := memPkg.Validate(true)
-	if err != nil {
+	if gnolang.IsStdlib(pkg.Name) {
+		memPkg = stdlibs.EmbeddedMemPackage(pkg.Name)
+	} else {
+		// Open files in directory as MemPackage.
+		memPkg, err = gno.ReadMemPackage(pkg.Dir, pkg.Name)
+		if err != nil {
+			return tx, err
+		}
+	}
+
+	if err := memPkg.Validate(true); err != nil {
 		return tx, fmt.Errorf("invalid package: %w", err)
 	}
 
