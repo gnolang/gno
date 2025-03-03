@@ -58,7 +58,9 @@ var nativeFuncs = [...]NativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.Fill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
 
 			testlibs_std.TestSkipHeights(
 				m,
@@ -82,7 +84,9 @@ var nativeFuncs = [...]NativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.Fill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
 
 			r0 := testlibs_std.X_callerAt(
 				m,
@@ -110,7 +114,9 @@ var nativeFuncs = [...]NativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.Fill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
 
 			testlibs_std.X_testSetOriginCaller(
 				m,
@@ -132,7 +138,9 @@ var nativeFuncs = [...]NativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.Fill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
 
 			testlibs_std.X_testSetOriginPkgAddr(
 				m,
@@ -157,8 +165,12 @@ var nativeFuncs = [...]NativeFunc{
 				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.Fill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.Fill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
 
 			testlibs_std.X_testSetRealm(
 				m,
@@ -189,10 +201,18 @@ var nativeFuncs = [...]NativeFunc{
 				rp3 = reflect.ValueOf(&p3).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV, rp2)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV, rp3)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.Fill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.Fill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.Fill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
+			tv3.Fill(m.Store)
+			gno.Gno2GoValue(tv3, rp3)
 
 			testlibs_std.X_testSetOriginSend(
 				m,
@@ -220,9 +240,15 @@ var nativeFuncs = [...]NativeFunc{
 				rp2 = reflect.ValueOf(&p2).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV, rp2)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.Fill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.Fill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.Fill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
 
 			testlibs_std.X_testIssueCoins(
 				m,
@@ -247,7 +273,9 @@ var nativeFuncs = [...]NativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.Fill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
 
 			r0, r1 := testlibs_std.X_getRealm(
 				m,
@@ -282,7 +310,9 @@ var nativeFuncs = [...]NativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.Fill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
 
 			r0 := testlibs_std.X_isRealm(
 				m,
@@ -334,8 +364,12 @@ var nativeFuncs = [...]NativeFunc{
 				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.Fill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.Fill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
 
 			r0, r1 := testlibs_testing.X_matchString(p0, p1)
 
@@ -368,7 +402,9 @@ var nativeFuncs = [...]NativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.Fill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
 
 			r0 := testlibs_unicode.IsPrint(p0)
 
@@ -396,7 +432,9 @@ var nativeFuncs = [...]NativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.Fill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
 
 			r0 := testlibs_unicode.IsGraphic(p0)
 
@@ -424,7 +462,9 @@ var nativeFuncs = [...]NativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.Fill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
 
 			r0 := testlibs_unicode.SimpleFold(p0)
 
@@ -452,7 +492,9 @@ var nativeFuncs = [...]NativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.Fill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
 
 			r0 := testlibs_unicode.IsUpper(p0)
 

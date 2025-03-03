@@ -409,7 +409,9 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 	} else if len(m.Stmts) > 0 {
 		stmt := m.PeekStmt(1)
 		if bs, ok := stmt.(*bodyStmt); ok {
-			stmt = bs.Body[bs.NextBodyIndex-1]
+			if 0 <= bs.NextBodyIndex-1 {
+				stmt = bs.Body[bs.NextBodyIndex-1]
+			}
 		}
 		stacktrace.LastLine = stmt.GetLine()
 	}

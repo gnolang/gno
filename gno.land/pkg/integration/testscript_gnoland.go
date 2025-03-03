@@ -313,6 +313,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			priv := ts.Value(envKeyPrivValKey).(ed25519.PrivKeyEd25519)
 			nodep := setupNode(ts, ctx, &ProcessNodeConfig{
 				ValidatorKey: priv,
+				Verbose:      false,
 				DBDir:        dbdir,
 				RootDir:      gnoRootDir,
 				TMConfig:     cfg.TMConfig,

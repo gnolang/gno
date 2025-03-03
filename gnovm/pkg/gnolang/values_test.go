@@ -15,6 +15,10 @@ func (m *mockTypedValueStruct) String() string {
 	return fmt.Sprintf("MockTypedValueStruct(%d)", m.field)
 }
 
+func (m *mockTypedValueStruct) Fill(store Store) Value {
+	return m
+}
+
 func TestGetLengthPanic(t *testing.T) {
 	tests := []struct {
 		name     string
