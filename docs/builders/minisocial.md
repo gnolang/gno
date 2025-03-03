@@ -53,7 +53,7 @@ We will import two packages:
 - `std` - the [Gno standard package](../../reference/std.md) which provides chain-related functionality
 - `time` - which allows us to handle time
 
-[embedmd]:# (../../assets/getting-started/developing-locally/minisocial/types-1.gno go)
+[embedmd]:# (../assets/getting-started/developing-locally/minisocial/types-1.gno go)
 ```go
 package minisocial
 
@@ -79,7 +79,7 @@ In this file, we will define the main functions for creating, updating, and dele
 posts. Let's start with top level variables - they are the anchor points of our
 app, as they are persisted to storage after each transaction:
 
-[embedmd]:# (../../assets/getting-started/developing-locally/minisocial/posts-0.gno go)
+[embedmd]:# (../assets/getting-started/developing-locally/minisocial/posts-0.gno go)
 ```go
 package minisocial
 
@@ -92,7 +92,7 @@ Next, in the same file, let's create a function to create new posts. This functi
 will be [exported](https://go.dev/tour/basics/3), meaning it will be callable via 
 a transaction by anyone.
 
-[embedmd]:# (../../assets/getting-started/developing-locally/minisocial/posts-1.gno go /\/\/ CreatePost/ $)
+[embedmd]:# (../assets/getting-started/developing-locally/minisocial/posts-1.gno go /\/\/ CreatePost/ $)
 ```go
 // CreatePost creates a new post
 func CreatePost(text string) error {
@@ -117,9 +117,9 @@ A few things to note:
   best practices: return early in your code and modify state only after you are sure all
   security checks in your code have passed. To discard (revert) state changes, 
   use `panic()`.
-- To get the caller of `CreatePost`, we need to import package `std`, the [Gno standard package](../../reference/std.md),
-and use `std.PreviousRealm.Address()`. Check out the [realm concept page](../../concepts/realms.md)
-& the [std package](../../reference/std.md) reference page for more info.
+- To get the caller of `CreatePost`, we need to import package `std`, the [Gno standard package](../reference/std.md),
+and use `std.PreviousRealm.Address()`. Check out the [realm concept page](../concepts/realms.md)
+& the [std package](../reference/std.md) reference page for more info.
 - In Gno, `time.Now()` returns the timestamp of the block the transaction was 
 included in, instead of the system time.
 
@@ -180,7 +180,7 @@ should get `MiniSocial`  rendered as a Header 1 in `gnoweb` 🎉
 
 Let's start by slowly adding more and more functionality:
 
-[embedmd]:# (../../assets/getting-started/developing-locally/minisocial/render-0.gno go)
+[embedmd]:# (../assets/getting-started/developing-locally/minisocial/render-0.gno go)
 ```go
 package minisocial
 
@@ -223,7 +223,7 @@ header.
 We can make this a bit prettier by introducing a custom `String()` method on
 the `Post` struct, in `types.gno`:
 
-[embedmd]:# (../../assets/getting-started/developing-locally/minisocial/types-2.gno go /\/\/ String/ $)
+[embedmd]:# (../assets/getting-started/developing-locally/minisocial/types-2.gno go /\/\/ String/ $)
 ```go
 // String stringifies a Post
 func (p Post) String() string {
@@ -242,7 +242,7 @@ be imported via with `gno.land/p/demo/ufmt`.
 
 With this, we can expand our `Render()` function in `posts.gno` as follows:
 
-[embedmd]:# (../../assets/getting-started/developing-locally/minisocial/render-1.gno go)
+[embedmd]:# (../assets/getting-started/developing-locally/minisocial/render-1.gno go)
 ```go
 package minisocial
 
@@ -281,7 +281,7 @@ using Table-Driven Tests (TDT), a pattern commonly used in Go.
 
 Let's create a `post_test.gno` file, and add the following code:
 
-[embedmd]:# (../../assets/getting-started/developing-locally/minisocial/posts_test-0.gno go)
+[embedmd]:# (../assets/getting-started/developing-locally/minisocial/posts_test-0.gno go)
 ```go
 package minisocial
 
@@ -317,7 +317,7 @@ func TestCreatePostSingle(t *testing.T) {
 
 We can add the following test showcasing how TDT works in Gno:
 
-[embedmd]:# (../../assets/getting-started/developing-locally/minisocial/posts_test-1.gno go /func TestCreatePostMultiple/ $)
+[embedmd]:# (../assets/getting-started/developing-locally/minisocial/posts_test-1.gno go /func TestCreatePostMultiple/ $)
 ```go
 func TestCreatePostMultiple(t *testing.T) {
 	// Initialize a slice to hold the test posts and their authors
@@ -384,7 +384,7 @@ registered in the [gno.land user registry](https://gno.land/r/gnoland/users).
 We can import the `gno.land/r/sys/users` realm which provides user data and use 
 it to try to resolve the address:
 
-[embedmd]:# (../../assets/getting-started/developing-locally/minisocial/types-2-bonus.gno go /\/\/ String/ $)  
+[embedmd]:# (../assets/getting-started/developing-locally/minisocial/types-2-bonus.gno go /\/\/ String/ $)  
 ```go
 // String stringifies a Post
 func (p Post) String() string {
