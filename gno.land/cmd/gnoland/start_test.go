@@ -116,7 +116,7 @@ func TestStart_Lazy(t *testing.T) {
 	io.SetErr(commands.WriteNopCloser(mockErr))
 
 	// Create and run the command
-	ctx, cancelFn := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFn()
 
 	// Set up the command ctx
@@ -128,7 +128,7 @@ func TestStart_Lazy(t *testing.T) {
 	})
 
 	// Set up the retry ctx
-	retryCtx, retryCtxCancelFn := context.WithTimeout(ctx, 10*time.Second)
+	retryCtx, retryCtxCancelFn := context.WithTimeout(ctx, 5*time.Second)
 	defer retryCtxCancelFn()
 
 	// This is a very janky way to verify the node has started.
