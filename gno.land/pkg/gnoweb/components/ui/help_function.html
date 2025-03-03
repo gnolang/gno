@@ -1,10 +1,8 @@
+<!-- @prettier -->
 {{ define "ui/help_function" }} 
 {{ $data := . }} 
 {{ range .Functions }}
-<article 
-  class="bg-gray-100 dark:bg-gray-d100 rounded p-4 mb-3" 
-  data-func="{{ .FuncName }}"
->
+<article class="bg-gray-100 dark:bg-gray-d100 rounded p-4 mb-3" data-func="{{ .FuncName }}">
   <h2 
     id="func-{{ .FuncName }}" 
     class="text-gray-600 dark:text-gray-d600 font-semibold text-200 mb-3 leading-tight"
@@ -18,7 +16,9 @@
         {{ $funcName := .FuncName }} 
         {{ range .Params }}
         <div class="flex flex-col gap-3 items-stretch text-gray-400 dark:text-gray-d400 mb-2">
-          <div class="group relative overflow-hidden flex w-full border rounded-sm has-[:focus]:border-gray-300 dark:has-[:focus]:border-gray-d300 hover:border-gray-300 dark:hover:border-gray-d300">
+          <div 
+          class="group relative overflow-hidden flex w-full border rounded-sm has-[:focus]:border-gray-300 dark:has-[:focus]:border-gray-d300 hover:border-gray-300 dark:hover:border-gray-d300"
+          >
             <label 
               for="func-{{ $funcName }}-param-{{ .Name }}" 
               class="flex gap-3 items-center bg-gray-50 dark:bg-gray-d50 px-4 font-semibold text-gray-600 dark:text-gray-d600 text-100"
@@ -27,7 +27,9 @@
             </label>
             <input
               type="text"
-              {{- if eq $data.SelectedFunc $funcName }}value="{{ getSelectedArgValue $data . }}"{{- end }}
+              {{- if eq $data.SelectedFunc $funcName }}
+                value="{{ getSelectedArgValue $data . }}"
+              {{- end }}
               placeholder="parameter"
               id="func-{{ $funcName }}-param-{{ .Name }}"
               data-role="help-param-input"
@@ -50,14 +52,21 @@
       >
         {{ template "ui/copy" }}
       </button>
+      {{/* prettier-ignore-start */}}
       <pre
         class="font-mono text-gray-600 dark:text-gray-d600 p-4 pr-10 whitespace-pre-wrap"
-      ><code><span data-code-mode="fast" class="inline" data-copy-content="help-cmd-{{ .FuncName }}">gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .FuncName }}" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid "{{ $.ChainId }}"{{ range .Params }} -args "<span data-role="help-code-args" data-arg="{{ .Name }}" data-copy-content=""></span>"{{ end }} -remote "{{ $.Remote }}" <span data-role="help-code-address">ADDRESS</span></span><span data-code-mode="secure" class="hidden">gnokey query -remote "{{ $.Remote }}" auth/accounts/<span data-role="help-code-address">ADDRESS</span>
-gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .FuncName }}" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "" {{ range .Params }} -args "<span data-role="help-code-args" data-arg="{{ .Name }}"></span>"{{ end }} <span data-role="help-code-address">ADDRESS</span> > call.tx
+      ><code><span data-code-mode="fast" class="hidden" data-copy-content="help-cmd-{{ .FuncName }}"># WARNING: This command is running in an INSECURE mode.
+# It is strongly recommended to use a hardware device for signing
+# and avoid trusting any computer connected to the internet,
+# as your private keys could be exposed.
+
+gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .FuncName }}"{{ range .Params }} -args "<span data-role="help-code-args" data-arg="{{ .Name }}" data-copy-content=""></span>"{{ end }} -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid "{{ $.ChainId }}" -remote "{{ $.Remote }}" <span data-role="help-code-address">ADDRESS</span></span><span data-code-mode="secure" class="inline">gnokey query -remote "{{ $.Remote }}" auth/accounts/<span data-role="help-code-address">ADDRESS</span>
+gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .FuncName }}" {{ range .Params }} -args "<span data-role="help-code-args" data-arg="{{ .Name }}"></span>"{{ end }} -gas-fee 1000000ugnot -gas-wanted 5000000 -send "" <span data-role="help-code-address">ADDRESS</span> > call.tx
 gnokey sign -tx-path call.tx -chainid "{{ $.ChainId }}" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-role="help-code-address">ADDRESS</span>
 gnokey broadcast -remote "{{ $.Remote }}" call.tx</span></code></pre>
-    </div>
-  </div>
-</article>
-{{ end }} 
+          {{/* prettier-ignore-end */}}
+        </div>
+      </div>
+    </article>
+  {{ end }}
 {{ end }}
