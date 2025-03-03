@@ -391,6 +391,9 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	return
 }
 
+// used for direct comparison to error types
+var tError = reflect.TypeOf(new(error)).Elem()
+
 // If recursive is false, this function is like go2GnoValue() but less lazy
 // (but still not recursive/eager). When recursive is false, it is for
 // converting Go types to Gno types upon an explicit conversion (via
@@ -468,7 +471,16 @@ func go2GnoValue2(alloc *Allocator, store Store, rv reflect.Value, recursive boo
 	case reflect.Func:
 		panic("not yet implemented")
 	case reflect.Interface:
-		panic("not yet implemented")
+		// special case for errors, which are very often used especially in
+		// native bindings
+		if rv.Type() == tError {
+			tv.T = gErrorType
+			//if !rv.IsNil() {
+			//	//tv.V = NewErrorInterfaceValue(alloc, rv)
+			//}
+			return
+		}
+		panic("reflect.Interface yet implemented")
 	case reflect.Map:
 		panic("not yet implemented")
 	case reflect.Ptr:
