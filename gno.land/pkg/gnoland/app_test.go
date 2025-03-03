@@ -321,7 +321,7 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 					{
 						// Make sure the deployer account has a balance
 						Address: key.PubKey().Address(),
-						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+						Amount:  std.NewCoins(std.NewCoin("ugnot", 200_000_000)),
 					},
 				}),
 			})
