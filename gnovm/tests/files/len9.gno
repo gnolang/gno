@@ -1,11 +1,9 @@
 package main
 
-import "fmt"
-
 func main() {
-	v := any(0)
+	var a map[string]string
 
-	fmt.Println(v)
+	println(len(a))
 }
 
 // Output:

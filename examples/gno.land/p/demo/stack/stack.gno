@@ -6,7 +6,7 @@ type Stack struct {
 }
 
 type node struct {
-	value interface{}
+	value any
 	prev  *node
 }
 
@@ -18,14 +18,14 @@ func (s *Stack) Len() int {
 	return s.length
 }
 
-func (s *Stack) Top() interface{} {
+func (s *Stack) Top() any {
 	if s.length == 0 {
 		return nil
 	}
 	return s.top.value
 }
 
-func (s *Stack) Pop() interface{} {
+func (s *Stack) Pop() any {
 	if s.length == 0 {
 		return nil
 	}
@@ -36,7 +36,7 @@ func (s *Stack) Pop() interface{} {
 	return node.value
 }
 
-func (s *Stack) Push(value interface{}) {
+func (s *Stack) Push(value any) {
 	node := &node{value, s.top}
 	s.top = node
 	s.length += 1

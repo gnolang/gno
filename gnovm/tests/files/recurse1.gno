@@ -1,9 +1,9 @@
 package main
 
 func main() {
-	var x interface{}
+	var x any
 	for i := 0; i < 10000; i++ {
-		x = [1]interface{}{x}
+		x = [1]any{x}
 	}
 	println(x)
 }
