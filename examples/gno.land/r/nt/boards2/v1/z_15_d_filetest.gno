@@ -21,7 +21,7 @@ func init() {
 	srcBid = boards2.CreateBoard("src-board")
 	dstBid = boards2.CreateBoard("dst-board")
 
-	srcTid = boards2.CreateThread(srcBid, "original title", "original text")
+	srcTid = boards2.CreateThread(srcBid, "original title", "original text", false)
 }
 
 func main() {
