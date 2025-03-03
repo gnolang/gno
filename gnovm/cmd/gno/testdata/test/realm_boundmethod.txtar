@@ -7,8 +7,8 @@ env GNOROOT=$WORK
 
 gno test -v ./examples/gno.land/r/demo/realm2
 
-stderr '=== RUN   TestDo'
-stderr '--- PASS: TestDo.*'
+stdout '=== RUN   TestDo'
+stdout '--- PASS: TestDo.*'
 
 stderr '=== RUN   file/realm2_filetest.gno'
 stderr '--- PASS: file/realm2_filetest.*'

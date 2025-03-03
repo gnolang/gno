@@ -9,11 +9,11 @@ env GNOROOT=$WORK
 
 gno test -v ./examples/gno.land/p/demo/hello
 
-stderr '=== RUN   TestHello'
-stderr '--- PASS: TestHello.*'
+stdout '=== RUN   TestHello'
+stdout '--- PASS: TestHello.*'
 
-stderr '=== RUN   TestHullo'
-stderr '--- PASS: TestHullo.*'
+stdout '=== RUN   TestHullo'
+stdout '--- PASS: TestHullo.*'
 
 stderr '=== RUN   file/z0_filetest.*'
 

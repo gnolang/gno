@@ -2,11 +2,10 @@
 
 gno test -v .
 
-! stdout .+
-stderr 'Hey'
-stderr 'I.m on strike!'
-! stderr 'this shouldn.t print'
-stderr '--- SKIP: TestSkip'
+stdout 'Hey'
+stdout 'I.m on strike!'
+! stdout 'this shouldn.t print'
+stdout '--- SKIP: TestSkip'
 stderr 'ok  '
 
 -- skip.gno --
