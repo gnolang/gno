@@ -133,7 +133,7 @@ func Render(path string) string {
 		out += md.HorizontalRule()
 	}
 
-	out += page.Picker()
+	out += page.Picker(path)
 	out += "\n\n"
 	out += "Page " + strconv.Itoa(page.PageNumber) + " of " + strconv.Itoa(page.TotalPages) + "\n\n"
 
