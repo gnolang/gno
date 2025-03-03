@@ -131,7 +131,9 @@ func (pl *PkgsLoader) LoadPackage(modroot string, path, name string) error {
 		currentPkg := queue[0]
 		queue = queue[1:]
 
-		if currentPkg.Dir == "" {
+		isStdlib := currentPkg.Name != "" && gnolang.IsStdlib(currentPkg.Name)
+
+		if !isStdlib && currentPkg.Dir == "" {
 			return fmt.Errorf("no path specified for package")
 		}
 
@@ -156,7 +158,7 @@ func (pl *PkgsLoader) LoadPackage(modroot string, path, name string) error {
 			if err := addImports(&currentPkg, pkg); err != nil {
 				return err
 			}
-		} else if gnolang.IsStdlib(currentPkg.Name) {
+		} else if isStdlib {
 			pkg := teststdlibs.EmbeddedMemPackage(currentPkg.Name)
 			if pkg == nil {
 				return fmt.Errorf("%q is not in stdlibs", currentPkg.Name)
