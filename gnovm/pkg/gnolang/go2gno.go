@@ -478,6 +478,13 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		}
 	case *ast.EmptyStmt:
 		return &EmptyStmt{}
+	case *ast.IndexListExpr:
+		if len(gon.Indices) > 1 {
+			panicWithPos("invalid operation: more than one index")
+		}
+		panicWithPos("invalid operation: indexList is not permitted in Gno")
+	case *ast.GoStmt:
+		panicWithPos("goroutines are not permitted")
 	default:
 		panicWithPos("unknown Go type %v: %s\n",
 			reflect.TypeOf(gon),
