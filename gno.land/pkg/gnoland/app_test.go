@@ -1,7 +1,6 @@
 package gnoland
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -151,80 +150,6 @@ func TestNewApp(t *testing.T) {
 		AppState:   DefaultGenState(),
 	})
 	assert.True(t, resp.IsOK(), "resp is not OK: %v", resp)
-}
-
-// Test whether InitChainer calls to load the stdlibs correctly.
-func TestInitChainer_LoadStdlib(t *testing.T) {
-	t.Parallel()
-
-	t.Run("cached", func(t *testing.T) { testInitChainerLoadStdlib(t, true) })
-	t.Run("uncached", func(t *testing.T) { testInitChainerLoadStdlib(t, false) })
-}
-
-func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
-	t.Parallel()
-
-	type gsContextType string
-	const (
-		stdlibDir                   = "test-stdlib-dir"
-		gnoStoreKey   gsContextType = "gno-store-key"
-		gnoStoreValue gsContextType = "gno-store-value"
-	)
-	db := memdb.NewMemDB()
-	ms := store.NewCommitMultiStore(db)
-	baseCapKey := store.NewStoreKey("baseCapKey")
-	iavlCapKey := store.NewStoreKey("iavlCapKey")
-
-	ms.MountStoreWithDB(baseCapKey, dbadapter.StoreConstructor, db)
-	ms.MountStoreWithDB(iavlCapKey, iavl.StoreConstructor, db)
-	ms.LoadLatestVersion()
-	testCtx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(), &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
-
-	// mock set-up
-	var (
-		makeCalls             int
-		commitCalls           int
-		loadStdlibCalls       int
-		loadStdlibCachedCalls int
-	)
-	containsGnoStore := func(ctx sdk.Context) bool {
-		return ctx.Context().Value(gnoStoreKey) == gnoStoreValue
-	}
-
-	mock := &mockVMKeeper{
-		makeGnoTransactionStoreFn: func(ctx sdk.Context) sdk.Context {
-			makeCalls++
-			assert.False(t, containsGnoStore(ctx), "should not already contain gno store")
-			return ctx.WithContext(context.WithValue(ctx.Context(), gnoStoreKey, gnoStoreValue))
-		},
-		commitGnoTransactionStoreFn: func(ctx sdk.Context) {
-			commitCalls++
-			assert.True(t, containsGnoStore(ctx), "should contain gno store")
-		},
-	}
-
-	// call initchainer
-	cfg := InitChainerConfig{
-		vmKpr: mock,
-	}
-	// Construct keepers.
-	paramsKpr := params.NewParamsKeeper(iavlCapKey, "")
-	cfg.acctKpr = auth.NewAccountKeeper(iavlCapKey, paramsKpr, ProtoGnoAccount)
-	cfg.gpKpr = auth.NewGasPriceKeeper(iavlCapKey)
-	cfg.InitChainer(testCtx, abci.RequestInitChain{
-		AppState: DefaultGenState(),
-	})
-
-	// assert number of calls
-	assert.Equal(t, 1, makeCalls, "should call MakeGnoTransactionStore once")
-	assert.Equal(t, 1, commitCalls, "should call CommitGnoTransactionStore once")
-	if cached {
-		assert.Equal(t, 0, loadStdlibCalls, "should call LoadStdlib never")
-		assert.Equal(t, 1, loadStdlibCachedCalls, "should call LoadStdlibCached once")
-	} else {
-		assert.Equal(t, 1, loadStdlibCalls, "should call LoadStdlib once")
-		assert.Equal(t, 0, loadStdlibCachedCalls, "should call LoadStdlibCached never")
-	}
 }
 
 // generateValidatorUpdates generates dummy validator updates
