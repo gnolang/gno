@@ -252,7 +252,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		} else {
 			panic(fmt.Sprintf(
 				"expected a Go Field with 1 name but got %v.\n"+
-					"maybe call toFields",
+						"maybe call toFields",
 				gon.Names))
 		}
 	case *ast.ArrayType:
@@ -565,7 +565,7 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage, fmt bool) (*typ
 	var errs error
 	for _, file := range mpkg.Files {
 		if !strings.HasSuffix(file.Name, ".gno") ||
-			endsWith(file.Name, []string{"_test.gno", "_filetest.gno"}) {
+				endsWith(file.Name, []string{"_test.gno", "_filetest.gno"}) {
 			continue // skip spurious file.
 		}
 
@@ -770,17 +770,36 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 				for _, id := range s.Names {
 					names = append(names, *Nx(toName(id)))
 				}
+				//fmt.Println("gd: ", gd)
+				//fmt.Printf("before, go2gno, const, lastType: %v (type: %v) \n", lastType, reflect.TypeOf(lastType))
+				//
+				//fmt.Println("names: ", names)
+				//fmt.Println("s.Type: ", s.Type)
+				//fmt.Println("s.Values: ", s.Values)
+				//
+				//for i, v := range s.Values {
+				//	fmt.Printf("s.values[%d]: %v \n", i, v)
+				//}
+
 				if s.Type == nil && s.Values == nil { // inherit declared type
+					//println("...1")
 					tipe = lastType
+					//fmt.Println("tipe type: ", tipe)
 				} else {
+					//println("...2")
 					lastType = toExpr(fs, s.Type)
 				}
 
-				if nx, ok := lastType.(*NameExpr); ok {
-					if !isPrimitiveType(string(nx.Name)) {
-						tipe = lastType
-					}
-				}
+				tipe = lastType
+
+				//fmt.Printf("after, go2gno, const, lastType: %v (type: %v) \n", lastType, reflect.TypeOf(lastType))
+				//if nx, ok := lastType.(*NameExpr); ok {
+				//	fmt.Println("---nx: ", nx)
+				//	if !isPrimitiveType(string(nx.Name)) {
+				//		fmt.Println("===inherit type from previous...")
+				//		tipe = lastType
+				//	}
+				//}
 
 				if s.Values == nil {
 					// inherit type from last values
