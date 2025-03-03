@@ -175,7 +175,7 @@ func (m *MembStore) Members(offset, count uint64) []Member {
 	m.members.IterateByOffset(
 		int(offset),
 		int(count),
-		func(_ string, val interface{}) bool {
+		func(_ string, val any) bool {
 			member := val.(Member)
 
 			// Save the member

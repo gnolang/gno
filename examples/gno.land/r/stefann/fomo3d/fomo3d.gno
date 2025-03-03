@@ -164,7 +164,7 @@ func BuyKeys() {
 	// Distribute dividends to all key holders
 	if players.Size() > 0 && gameState.TotalKeys > 0 {
 		dividendPerKey := dividendShare / gameState.TotalKeys
-		players.Iterate("", "", func(key string, value interface{}) bool {
+		players.Iterate("", "", func(key string, value any) bool {
 			playerInfo := value.(PlayerInfo)
 			playerInfo.Dividends += playerInfo.Keys * dividendPerKey
 			players.Set(key, playerInfo)

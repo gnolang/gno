@@ -136,7 +136,7 @@ func GetAddressByHandle(handle string) string {
 func Render(_ string) string {
 	result := "{"
 	var appendComma bool
-	handleToAddressMap.Iterate("", "", func(handle string, address interface{}) bool {
+	handleToAddressMap.Iterate("", "", func(handle string, address any) bool {
 		if appendComma {
 			result += ","
 		}

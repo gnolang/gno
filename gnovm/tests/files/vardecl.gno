@@ -1,7 +1,7 @@
 package main
 
 func main() {
-	var i interface{} = 1
+	var i any = 1
 	var a, ok = i.(int)
 	println(a, ok)
 

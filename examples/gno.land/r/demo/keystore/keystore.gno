@@ -146,7 +146,7 @@ func Render(p string) string {
 		if data.Size() == 0 {
 			return StatusNoDatabases
 		}
-		data.Iterate("", "", func(key string, value interface{}) bool {
+		data.Iterate("", "", func(key string, value any) bool {
 			ks := value.(*KeyStore)
 			response += ufmt.Sprintf("- [%s](%s:%s) (%d keys)\n", ks.Owner, BaseURL, ks.Owner, ks.Data.Size())
 			return false
@@ -160,7 +160,7 @@ func Render(p string) string {
 		ks := keystoreInterface.(*KeyStore)
 		i := 0
 		response += ufmt.Sprintf("# %s database\n\n", ks.Owner)
-		ks.Data.Iterate("", "", func(key string, value interface{}) bool {
+		ks.Data.Iterate("", "", func(key string, value any) bool {
 			response += ufmt.Sprintf("- %d [%s](%s:%s:get:%s)\n", i, key, BaseURL, ks.Owner, key)
 			i++
 			return false

@@ -1,15 +1,15 @@
 package main
 
-var a [2]interface{}
-var c [2]interface{}
+var a [2]any
+var c [2]any
 
-func gen() interface{} {
+func gen() any {
 	return 1
 }
 
 func main() {
-	a = [2]interface{}{gen(), gen()}
-	c = [2]interface{}{gen(), gen()}
+	a = [2]any{gen(), gen()}
+	c = [2]any{gen(), gen()}
 	println(a == c)
 }
 

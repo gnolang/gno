@@ -6,7 +6,7 @@ import (
 
 type MapEntry struct {
 	Key   Hashable
-	Value interface{}
+	Value any
 }
 
 func (m *MapEntry) Equals(other Equatable) bool {

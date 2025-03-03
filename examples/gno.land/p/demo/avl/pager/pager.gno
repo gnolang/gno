@@ -33,7 +33,7 @@ type Page struct {
 // Item represents a key-value pair in the AVL tree.
 type Item struct {
 	Key   string
-	Value interface{}
+	Value any
 }
 
 // NewPager creates a new Pager with default values.
@@ -90,12 +90,12 @@ func (p *Pager) GetPageWithSize(pageNumber, pageSize int) *Page {
 	items := []Item{}
 
 	if p.Reversed {
-		p.Tree.ReverseIterateByOffset(startIndex, endIndex-startIndex, func(key string, value interface{}) bool {
+		p.Tree.ReverseIterateByOffset(startIndex, endIndex-startIndex, func(key string, value any) bool {
 			items = append(items, Item{Key: key, Value: value})
 			return false
 		})
 	} else {
-		p.Tree.IterateByOffset(startIndex, endIndex-startIndex, func(key string, value interface{}) bool {
+		p.Tree.IterateByOffset(startIndex, endIndex-startIndex, func(key string, value any) bool {
 			items = append(items, Item{Key: key, Value: value})
 			return false
 		})

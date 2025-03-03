@@ -5,7 +5,7 @@ type A interface {
 }
 
 func main() {
-	var v interface{}
+	var v any
 	v = 9
 
 	if _, ok := v.(A); !ok {

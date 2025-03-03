@@ -27,7 +27,7 @@ func (b Blog) RenderLastPostsWidget(limit int) string {
 
 	output := ""
 	i := 0
-	b.PostsPublished.ReverseIterate("", "", func(key string, value interface{}) bool {
+	b.PostsPublished.ReverseIterate("", "", func(key string, value any) bool {
 		p := value.(*Post)
 		output += ufmt.Sprintf("- [%s](%s)\n", p.Title, p.URL())
 		i++
@@ -47,7 +47,7 @@ func (b Blog) RenderHome(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	res.Write("<div class='columns-3'>")
-	b.PostsPublished.ReverseIterate("", "", func(key string, value interface{}) bool {
+	b.PostsPublished.ReverseIterate("", "", func(key string, value any) bool {
 		post := value.(*Post)
 		res.Write(post.RenderListItem())
 		return false
@@ -81,7 +81,7 @@ func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write("<details><summary>Comment section</summary>\n\n")
 
 	// comments
-	p.Comments.ReverseIterate("", "", func(key string, value interface{}) bool {
+	p.Comments.ReverseIterate("", "", func(key string, value any) bool {
 		comment := value.(*Comment)
 		res.Write(comment.RenderListItem())
 		return false
@@ -109,7 +109,7 @@ func (b Blog) RenderTag(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	nb := 0
-	b.Posts.Iterate("", "", func(key string, value interface{}) bool {
+	b.Posts.Iterate("", "", func(key string, value any) bool {
 		post := value.(*Post)
 		if !post.HasTag(slug) {
 			return false

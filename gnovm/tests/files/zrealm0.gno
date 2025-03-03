@@ -1,7 +1,7 @@
 // PKGPATH: gno.land/r/test
 package test
 
-var root interface{}
+var root any
 
 func main() {
 	println(root)

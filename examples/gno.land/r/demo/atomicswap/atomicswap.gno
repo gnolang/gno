@@ -141,7 +141,7 @@ func Render(path string) string {
 		output := ""
 		size := swaps.Size()
 		max := 10
-		swaps.ReverseIterateByOffset(size-max, max, func(key string, value interface{}) bool {
+		swaps.ReverseIterateByOffset(size-max, max, func(key string, value any) bool {
 			swap := value.(*Swap)
 			output += ufmt.Sprintf("- %s: %s -(%s)> %s - %s\n",
 				key, swap.sender, swap.amountStr, swap.recipient, swap.Status())

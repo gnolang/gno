@@ -5,7 +5,7 @@ import (
 	"std"
 )
 
-var node interface{}
+var node any
 
 func init() {
 	node = std.ChainHeight

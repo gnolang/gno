@@ -1,7 +1,7 @@
 package main
 
 var a int
-var b interface{}
+var b any
 
 func main() {
 	println(b + a)

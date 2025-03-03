@@ -12,7 +12,7 @@ import (
 // Println formats using the default formats for its operands and writes to standard output.
 // Println writes the given arguments to standard output with spaces between arguments
 // and a newline at the end.
-func Println(args ...interface{}) {
+func Println(args ...any) {
 	var strs []string
 	for _, arg := range args {
 		switch v := arg.(type) {
@@ -73,7 +73,7 @@ func Println(args ...interface{}) {
 //		%T: formats the type of the value.
 //	     %v: formats the value with a default representation appropriate for the value's type
 //		%%: outputs a literal %. Does not consume an argument.
-func Sprintf(format string, args ...interface{}) string {
+func Sprintf(format string, args ...any) string {
 	// we use runes to handle multi-byte characters
 	sTor := []rune(format)
 	end := len(sTor)
@@ -306,7 +306,7 @@ func Sprintf(format string, args ...interface{}) string {
 //
 //	fallback("s", 8) -> "%!s(int=8)"
 //	fallback("d", nil) -> "%!d(<nil>)", and so on.
-func fallback(verb string, arg interface{}) string {
+func fallback(verb string, arg any) string {
 	var s string
 	switch v := arg.(type) {
 	case string:
@@ -342,7 +342,7 @@ func fallback(verb string, arg interface{}) string {
 // Get the name of the type of `v` as a string.
 // The recognized type of v is currently limited to native non-composite types.
 // An error is returned otherwise.
-func typeToString(v interface{}) (string, error) {
+func typeToString(v any) (string, error) {
 	switch v.(type) {
 	case string:
 		return "string", nil
@@ -406,6 +406,6 @@ func (e *errMsg) Error() string {
 //	    Currently supports only uint, uint64, int, int64.
 //	%t: formats a boolean value to "true" or "false".
 //	%%: outputs a literal %. Does not consume an argument.
-func Errorf(format string, args ...interface{}) error {
+func Errorf(format string, args ...any) error {
 	return &errMsg{Sprintf(format, args...)}
 }

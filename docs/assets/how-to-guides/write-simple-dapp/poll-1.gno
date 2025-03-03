@@ -59,7 +59,7 @@ func (p *Poll) HasVoted(address std.Address) (bool, bool) {
 func (p Poll) VoteCount() (int, int) {
 	var yay int
 
-	p.Voters().Iterate("", "", func(key string, value interface{}) bool {
+	p.Voters().Iterate("", "", func(key string, value any) bool {
 		vote := value.(bool)
 		if vote == true {
 			yay = yay + 1

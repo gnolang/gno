@@ -1,7 +1,7 @@
 package main
 
 func main() {
-	var i interface{}
+	var i any
 	i = 5
 	println(&i.(int))
 }

@@ -2,7 +2,7 @@ package main
 
 func main() {
 	b := 2
-	var a interface{} = 5 + b
+	var a any = 5 + b
 	println(a.(int))
 }
 

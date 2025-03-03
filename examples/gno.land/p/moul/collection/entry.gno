@@ -5,7 +5,7 @@ import "gno.land/p/demo/ufmt"
 // Entry represents a single object in the collection with its ID
 type Entry struct {
 	ID  string
-	Obj interface{}
+	Obj any
 }
 
 // String returns a string representation of the Entry
@@ -22,7 +22,7 @@ type EntryIterator struct {
 	indexName  string
 	key        string
 	currentID  string
-	currentObj interface{}
+	currentObj any
 	err        error
 	closed     bool
 

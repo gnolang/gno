@@ -14,7 +14,7 @@ func main() {
 	lit := []int{1}
 	var (
 		pit *int = &vit
-		v   interface{}
+		v   any
 	)
 	b := true
 	v = 1

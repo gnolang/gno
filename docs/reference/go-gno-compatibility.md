@@ -54,7 +54,7 @@ rune := rune('a')
 | `uintptr`, `unsafe.Pointer`                   | missing                | missing                                                    |
 | `string`                                      | full                   | full                                                       |
 | `rune`                                        | full                   | full                                                       |
-| `interface{}`                                 | full                   | full                                                       |
+| `interface{}` / `any`                         | full                   | full                                                       |
 | `[]T` (slices)                                | full                   | full\*                                                     |
 | `[N]T` (arrays)                               | full                   | full\*                                                     |
 | `map[T1]T2`                                   | full                   | full\*                                                     |

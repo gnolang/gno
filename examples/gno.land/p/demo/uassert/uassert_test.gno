@@ -120,8 +120,8 @@ func TestEqual(t *testing.T) {
 	mockT := new(mockTestingT)
 
 	cases := []struct {
-		expected interface{}
-		actual   interface{}
+		expected any
+		actual   any
 		result   bool
 		remark   string
 	}{
@@ -161,8 +161,8 @@ func TestNotEqual(t *testing.T) {
 	mockT := new(mockTestingT)
 
 	cases := []struct {
-		expected interface{}
-		actual   interface{}
+		expected any
+		actual   any
 		result   bool
 		remark   string
 	}{
@@ -211,7 +211,7 @@ func TestEmpty(t *testing.T) {
 	mockT := new(mockTestingT)
 
 	cases := []struct {
-		obj           interface{}
+		obj           any
 		expectedEmpty bool
 	}{
 		// expected to be empty
@@ -329,7 +329,7 @@ func TestNotEmpty(t *testing.T) {
 	mockT := new(mockTestingT)
 
 	cases := []struct {
-		obj              interface{}
+		obj              any
 		expectedNotEmpty bool
 	}{
 		// expected to be empty

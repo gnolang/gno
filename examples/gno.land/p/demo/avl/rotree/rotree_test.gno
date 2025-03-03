@@ -33,7 +33,7 @@ func TestExample(t *testing.T) {
 	// Define a makeEntrySafeFn that:
 	// 1. Creates a defensive copy of the User struct
 	// 2. Omits sensitive internal data
-	makeEntrySafeFn := func(v interface{}) interface{} {
+	makeEntrySafeFn := func(v any) any {
 		originalUser := v.(*User)
 		return &User{
 			ID:       originalUser.ID,
@@ -77,7 +77,7 @@ func TestExample(t *testing.T) {
 	// Test iterating over users
 	t.Run("Iterate Users", func(t *testing.T) {
 		count := 0
-		roTree.Iterate("", "", func(key string, value interface{}) bool {
+		roTree.Iterate("", "", func(key string, value any) bool {
 			user := value.(*User)
 			// Verify each user has empty Internal field
 			if user.Internal != "" {
@@ -112,7 +112,7 @@ func TestExample(t *testing.T) {
 
 func TestReadOnlyTree(t *testing.T) {
 	// Example of a makeEntrySafeFn that appends "_readonly" to demonstrate transformation
-	makeEntrySafeFn := func(value interface{}) interface{} {
+	makeEntrySafeFn := func(value any) any {
 		return value.(string) + "_readonly"
 	}
 
@@ -126,7 +126,7 @@ func TestReadOnlyTree(t *testing.T) {
 	tests := []struct {
 		name     string
 		key      string
-		expected interface{}
+		expected any
 		exists   bool
 	}{
 		{"ExistingKey1", "key1", "value1_readonly", true},
@@ -152,18 +152,18 @@ func TestMakeEntrySafeFnVariants(t *testing.T) {
 
 	tests := []struct {
 		name            string
-		makeEntrySafeFn func(interface{}) interface{}
+		makeEntrySafeFn func(any) any
 		key             string
-		validate        func(t *testing.T, value interface{})
+		validate        func(t *testing.T, value any)
 	}{
 		{
 			name: "Defensive Copy Slice",
-			makeEntrySafeFn: func(v interface{}) interface{} {
+			makeEntrySafeFn: func(v any) any {
 				original := v.([]int)
 				return append([]int{}, original...)
 			},
 			key: "slice",
-			validate: func(t *testing.T, value interface{}) {
+			validate: func(t *testing.T, value any) {
 				slice := value.([]int)
 				// Modify the returned slice
 				slice[0] = 999
@@ -212,7 +212,7 @@ func TestNilMakeEntrySafeFn(t *testing.T) {
 	}
 
 	// Test through iteration as well
-	roTree.Iterate("", "", func(key string, value interface{}) bool {
+	roTree.Iterate("", "", func(key string, value any) bool {
 		retrievedSlice := value.([]int)
 		if &retrievedSlice[0] != &originalValue[0] {
 			t.Error("Expected to get back the original slice reference in iteration")

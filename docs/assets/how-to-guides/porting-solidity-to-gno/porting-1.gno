@@ -1,4 +1,4 @@
-func shouldEqual(t *testing.T, got interface{}, expected interface{}) {
+func shouldEqual(t *testing.T, got any, expected any) {
 	t.Helper()
 
 	if got != expected {

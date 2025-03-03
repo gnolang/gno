@@ -44,7 +44,7 @@ func Render(path string) string {
 		// TODO: add pagination
 		s := ""
 		count := 0
-		registry.Iterate("", "", func(key string, tokenI interface{}) bool {
+		registry.Iterate("", "", func(key string, tokenI any) bool {
 			count++
 			tokenGetter := tokenI.(grc20.TokenGetter)
 			token := tokenGetter()

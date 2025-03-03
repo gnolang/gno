@@ -4,7 +4,7 @@ func main() {
 	_ = &getSlice().([]int)
 }
 
-func getSlice() interface{} {
+func getSlice() any {
 	return []int{1}
 }
 

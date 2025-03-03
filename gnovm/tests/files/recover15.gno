@@ -7,7 +7,7 @@ func main() {
     		println("recover:", r)
     }()
 
-    var i interface{} = "hello"
+    var i any = "hello"
     _ = i.(int) // Panics because i holds a string, not an int
 }
 

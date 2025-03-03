@@ -182,14 +182,14 @@ type F struct {
 }
 
 // Runner is a type for the target function to fuzz.
-type Runner func(*T, ...interface{})
+type Runner func(*T, ...any)
 
 // Fuzz applies the fuzzing process to the target function.
 func (f *F) Fuzz(run Runner, iter int) {
 	f.evolve(iter)
 
 	for _, input := range f.corpus {
-		args := make([]interface{}, len(f.corpus))
+		args := make([]any, len(f.corpus))
 		for i := range args {
 			args[i] = input
 		}
@@ -199,7 +199,7 @@ func (f *F) Fuzz(run Runner, iter int) {
 }
 
 // Add adds test values to initialize the corpus.
-func (f *F) Add(values ...interface{}) []Fuzzer {
+func (f *F) Add(values ...any) []Fuzzer {
 	fuzzers := make([]Fuzzer, len(values))
 
 	for i, v := range values {
@@ -272,7 +272,7 @@ func (f *F) Fail() {
 
 // Fatal is equivalent to Log followed by FailNow.
 // It logs the message and marks the fuzzing as failed.
-func (f *F) Fatal(args ...interface{}) {
+func (f *F) Fatal(args ...any) {
 	var sb strings.Builder
 
 	for _, arg := range args {

@@ -161,6 +161,7 @@ func makeUverseNode() {
 	// by a TypeValue.
 	def("typeval", asValue(gTypeType))
 	def("error", asValue(gErrorType))
+	def("any", asValue(&InterfaceType{}))
 
 	// Values
 	def("true", untypedBool(true))

@@ -173,7 +173,7 @@ func (g *ManagedGroup) MembersWithOffset(offset, count int) []string {
 // sliceWithOffset is a helper function to iterate over an avl.Tree with an offset and count.
 func sliceWithOffset(t *avl.Tree, offset, count int) []string {
 	var result []string
-	t.IterateByOffset(offset, count, func(k string, _ interface{}) bool {
+	t.IterateByOffset(offset, count, func(k string, _ any) bool {
 		if k == "" {
 			return true
 		}

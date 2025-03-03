@@ -83,7 +83,7 @@ func (z *Uint) Dec() string {
 	return string(out[pos-len(buf):])
 }
 
-func (z *Uint) Scan(src interface{}) error {
+func (z *Uint) Scan(src any) error {
 	if src == nil {
 		z.Clear()
 		return nil

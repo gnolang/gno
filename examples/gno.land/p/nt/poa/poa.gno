@@ -95,7 +95,7 @@ func (p *PoA) GetValidator(address std.Address) (validators.Validator, error) {
 func (p *PoA) GetValidators() []validators.Validator {
 	vals := make([]validators.Validator, 0, p.validators.Size())
 
-	p.validators.Iterate("", "", func(_ string, value interface{}) bool {
+	p.validators.Iterate("", "", func(_ string, value any) bool {
 		validator := value.(validators.Validator)
 		vals = append(vals, validator)
 

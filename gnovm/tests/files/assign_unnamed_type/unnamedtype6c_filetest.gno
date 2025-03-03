@@ -1,18 +1,18 @@
 package main
 
-type nat []interface{}
+type nat []any
 
-func (n nat) zero() interface{} {
-	return []interface{}{0}
+func (n nat) zero() any {
+	return []any{0}
 }
 
-func (n nat) one() interface{} {
+func (n nat) one() any {
 	return nat{1}
 }
 
 func main() {
 	var a nat
-	a = []interface{}{}
+	a = []any{}
 
 	println(a.zero())
 	println(a.one())

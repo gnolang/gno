@@ -180,7 +180,7 @@ Below is a test case helper that will help implement each condition.
 
 [embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-1.gno go)
 ```go
-func shouldEqual(t *testing.T, got interface{}, expected interface{}) {
+func shouldEqual(t *testing.T, got any, expected any) {
 	t.Helper()
 
 	if got != expected {

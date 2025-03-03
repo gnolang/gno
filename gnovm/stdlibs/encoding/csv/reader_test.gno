@@ -500,7 +500,7 @@ func isErr(err, match error) bool {
 }
 
 // XXX: substitute for reflect.DeepEqual
-func deepEqual(v, x interface{}) bool {
+func deepEqual(v, x any) bool {
 	if v == nil {
 		return x == nil
 	}

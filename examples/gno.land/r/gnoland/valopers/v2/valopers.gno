@@ -90,7 +90,7 @@ func Render(_ string) string {
 	}
 
 	output := "Valset changes to apply:\n"
-	valopers.Iterate("", "", func(_ string, value interface{}) bool {
+	valopers.Iterate("", "", func(_ string, value any) bool {
 		valoper := value.(Valoper)
 
 		output += valoper.Render()

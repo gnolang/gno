@@ -9,7 +9,7 @@ func main() {
 	println("x == nil", x == nil)
 	println("nil == x", nil == x)
 
-	var y interface{} = (*S)(nil)
+	var y any = (*S)(nil)
 	println("y == y", y == y)
 	println("y == nil", y == nil)
 	println("nil == y", nil == y)

@@ -43,7 +43,7 @@ var bigtest = testpair{
 	"KR3WC4ZAMJZGS3DMNFTSYIDBNZSCA5DIMUQHG3DJORUHSIDUN53GK4Y=",
 }
 
-func testEqual(t *testing.T, msg string, args ...interface{}) bool {
+func testEqual(t *testing.T, msg string, args ...any) bool {
 	t.Helper()
 	if args[len(args)-2] != args[len(args)-1] {
 		t.Errorf(msg, args...)
@@ -218,53 +218,77 @@ func TestIssue20044(t *testing.T) {
 		dbuflen int
 	}{
 		// Check valid input data accompanied by an error is processed and the error is propagated.
-		{r: badReader{data: []byte("MY======"), errs: []error{badErr}},
-			res: "f", err: badErr},
+		{
+			r:   badReader{data: []byte("MY======"), errs: []error{badErr}},
+			res: "f", err: badErr,
+		},
 		// Check a read error accompanied by input data consisting of newlines only is propagated.
-		{r: badReader{data: []byte("\n\n\n\n\n\n\n\n"), errs: []error{badErr, nil}},
-			res: "", err: badErr},
+		{
+			r:   badReader{data: []byte("\n\n\n\n\n\n\n\n"), errs: []error{badErr, nil}},
+			res: "", err: badErr,
+		},
 		// Reader will be called twice.  The first time it will return 8 newline characters.  The
 		// second time valid base32 encoded data and an error.  The data should be decoded
 		// correctly and the error should be propagated.
-		{r: badReader{data: []byte("\n\n\n\n\n\n\n\nMY======"), errs: []error{nil, badErr}},
-			res: "f", err: badErr, dbuflen: 8},
+		{
+			r:   badReader{data: []byte("\n\n\n\n\n\n\n\nMY======"), errs: []error{nil, badErr}},
+			res: "f", err: badErr, dbuflen: 8,
+		},
 		// Reader returns invalid input data (too short) and an error.  Verify the reader
 		// error is returned.
-		{r: badReader{data: []byte("MY====="), errs: []error{badErr}},
-			res: "", err: badErr},
+		{
+			r:   badReader{data: []byte("MY====="), errs: []error{badErr}},
+			res: "", err: badErr,
+		},
 		// Reader returns invalid input data (too short) but no error.  Verify io.ErrUnexpectedEOF
 		// is returned.
-		{r: badReader{data: []byte("MY====="), errs: []error{nil}},
-			res: "", err: io.ErrUnexpectedEOF},
+		{
+			r:   badReader{data: []byte("MY====="), errs: []error{nil}},
+			res: "", err: io.ErrUnexpectedEOF,
+		},
 		// Reader returns invalid input data and an error.  Verify the reader and not the
 		// decoder error is returned.
-		{r: badReader{data: []byte("Ma======"), errs: []error{badErr}},
-			res: "", err: badErr},
+		{
+			r:   badReader{data: []byte("Ma======"), errs: []error{badErr}},
+			res: "", err: badErr,
+		},
 		// Reader returns valid data and io.EOF.  Check data is decoded and io.EOF is propagated.
-		{r: badReader{data: []byte("MZXW6YTB"), errs: []error{io.EOF}},
-			res: "fooba", err: io.EOF},
+		{
+			r:   badReader{data: []byte("MZXW6YTB"), errs: []error{io.EOF}},
+			res: "fooba", err: io.EOF,
+		},
 		// Check errors are properly reported when decoder.Read is called multiple times.
 		// decoder.Read will be called 8 times, badReader.Read will be called twice, returning
 		// valid data both times but an error on the second call.
-		{r: badReader{data: []byte("NRSWC43VOJSS4==="), errs: []error{nil, badErr}},
-			res: "leasure.", err: badErr, dbuflen: 1},
+		{
+			r:   badReader{data: []byte("NRSWC43VOJSS4==="), errs: []error{nil, badErr}},
+			res: "leasure.", err: badErr, dbuflen: 1,
+		},
 		// Check io.EOF is properly reported when decoder.Read is called multiple times.
 		// decoder.Read will be called 8 times, badReader.Read will be called twice, returning
 		// valid data both times but io.EOF on the second call.
-		{r: badReader{data: []byte("NRSWC43VOJSS4==="), errs: []error{nil, io.EOF}},
-			res: "leasure.", err: io.EOF, dbuflen: 1},
+		{
+			r:   badReader{data: []byte("NRSWC43VOJSS4==="), errs: []error{nil, io.EOF}},
+			res: "leasure.", err: io.EOF, dbuflen: 1,
+		},
 		// The following two test cases check that errors are propagated correctly when more than
 		// 8 bytes are read at a time.
-		{r: badReader{data: []byte("NRSWC43VOJSS4==="), errs: []error{io.EOF}},
-			res: "leasure.", err: io.EOF, dbuflen: 11},
-		{r: badReader{data: []byte("NRSWC43VOJSS4==="), errs: []error{badErr}},
-			res: "leasure.", err: badErr, dbuflen: 11},
+		{
+			r:   badReader{data: []byte("NRSWC43VOJSS4==="), errs: []error{io.EOF}},
+			res: "leasure.", err: io.EOF, dbuflen: 11,
+		},
+		{
+			r:   badReader{data: []byte("NRSWC43VOJSS4==="), errs: []error{badErr}},
+			res: "leasure.", err: badErr, dbuflen: 11,
+		},
 		// Check that errors are correctly propagated when the reader returns valid bytes in
 		// groups that are not divisible by 8.  The first read will return 11 bytes and no
 		// error.  The second will return 7 and an error.  The data should be decoded correctly
 		// and the error should be propagated.
-		{r: badReader{data: []byte("NRSWC43VOJSS4==="), errs: []error{nil, badErr}, limit: 11},
-			res: "leasure.", err: badErr},
+		{
+			r:   badReader{data: []byte("NRSWC43VOJSS4==="), errs: []error{nil, badErr}, limit: 11},
+			res: "leasure.", err: badErr,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -738,7 +762,7 @@ func TestBufferedDecodingPadding(t *testing.T) {
 }
 
 func TestEncodedLen(t *testing.T) {
-	var rawStdEncoding = StdEncoding.WithPadding(NoPadding)
+	rawStdEncoding := StdEncoding.WithPadding(NoPadding)
 	type test struct {
 		enc  *Encoding
 		n    int
@@ -776,7 +800,7 @@ func TestEncodedLen(t *testing.T) {
 }
 
 func TestDecodedLen(t *testing.T) {
-	var rawStdEncoding = StdEncoding.WithPadding(NoPadding)
+	rawStdEncoding := StdEncoding.WithPadding(NoPadding)
 	type test struct {
 		enc  *Encoding
 		n    int

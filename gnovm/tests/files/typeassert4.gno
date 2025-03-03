@@ -16,7 +16,7 @@ func (s *ValueSetter) Set(value string) {
 	s.value = value
 }
 
-func cmpSetter(i interface{}) {
+func cmpSetter(i any) {
 	if _, ok := i.(Setter); ok {
 		println("ok")
 	} else {
@@ -26,7 +26,7 @@ func cmpSetter(i interface{}) {
 
 func main() {
 	var (
-		i              interface{}
+		i              any
 		setter         Setter
 		setterClone    SetterClone
 		valueSetter    ValueSetter

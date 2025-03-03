@@ -2,11 +2,11 @@ package main
 
 type nat [1]int
 
-func (n nat) zero() interface{} {
+func (n nat) zero() any {
 	return [1]int{0}
 }
 
-func (n nat) one() interface{} {
+func (n nat) one() any {
 	return nat{1}
 }
 
