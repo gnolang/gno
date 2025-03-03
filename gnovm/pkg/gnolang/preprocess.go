@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"sync/atomic"
 
@@ -1360,6 +1361,113 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// Func type evaluation.
 				var ft *FuncType
 				ift := evalStaticTypeOf(store, last, n.Func)
+				var fn string
+				const (
+					BuiltinLen  = "len"
+					BuiltinCap  = "cap"
+					BuiltinMake = "make"
+				)
+				if callExpr, ok := n.Func.(*ConstExpr); ok {
+					if constExpr, ok := callExpr.Source.(*NameExpr); ok {
+						fn = string(constExpr.Name)
+					}
+
+					if fn == BuiltinLen || fn == BuiltinCap || fn == BuiltinMake {
+						argT := evalStaticTypeOfRaw(store, last, n.Args[0])
+						if argT == nil {
+							panic(fmt.Sprintf("invalid argument: nil for built-in %s", fn))
+						}
+						tp := baseOf(argT)
+						if fn == BuiltinLen {
+							switch tp := tp.(type) {
+							case PrimitiveType:
+								if tp.Kind() != StringKind || tp != UntypedStringType {
+									panic(fmt.Sprintf("invalid argument: %s for built-in %s", tp.String(), fn))
+								}
+							case *MapType, *SliceType, *ArrayType, *ChanType:
+								break
+							default:
+								panic(fmt.Sprintf("invalid argument: %s for built-in %s", tp.String(), fn))
+							}
+						}
+
+						if fn == BuiltinCap {
+							if tuple, ok := argT.(*tupleType); ok {
+								if st, ok := tuple.Elts[0].(*SliceType); ok {
+									tp = st
+								}
+							}
+
+							if callExpr, ok := n.Args[0].(*CallExpr); ok {
+								if nameExpr, ok := callExpr.Func.(*NameExpr); ok && nameExpr.Name == "make" {
+									tp = evalStaticType(store, last, callExpr.Args[0])
+								}
+							}
+							switch tp.(type) {
+							case *SliceType, *ChanType, *ArrayType:
+								break
+							default:
+								panic(fmt.Sprintf("invalid argument: %s for built-in %s", tp.String(), fn))
+							}
+						}
+
+						if fn == BuiltinMake {
+							if len(n.Args) < 2 || len(n.Args) > 3 {
+								panic(fmt.Sprintf("make requires 2 or 3 arguments, got %d", len(n.Args)))
+							}
+
+							tp = evalStaticType(store, last, n.Args[0])
+							var length int
+
+							if _, ok := tp.(*SliceType); ok {
+								if arg2, ok := n.Args[1].(*ConstExpr); ok {
+									if basicLit, ok := arg2.Source.(*BasicLitExpr); ok {
+										ln, err := strconv.Atoi(basicLit.Value)
+										if err != nil {
+											panic(fmt.Sprintf("cannot convert length: %v to type int", basicLit.Value))
+										}
+										if ln < 0 {
+											panic(fmt.Sprintf("invalid argument: length (%d) must not be negative", ln))
+										}
+										length = ln
+									} else {
+										panic(fmt.Sprintf("invalid argument: index %d (constant of type int) must not be negative", arg2.V))
+									}
+								} else {
+									panic("make requires a constant integer for length")
+								}
+
+								if len(n.Args) == 3 {
+									if arg3, ok := n.Args[2].(*ConstExpr); ok {
+										if basicLit, ok := arg3.Source.(*BasicLitExpr); ok {
+											cp, err := strconv.Atoi(basicLit.Value)
+											if err != nil {
+												panic(fmt.Sprintf("cannot convert capacity: %v to type int", basicLit.Value))
+											}
+											if cp < 0 {
+												panic(fmt.Sprintf("invalid argument: capacity (%d) must not be negative", cp))
+											}
+											if cp < length {
+												panic(fmt.Sprintf("invalid argument: capacity (%d) must not be less than length (%d)", cp, length))
+											}
+										}
+									} else {
+										panic("make requires a constant integer for capacity")
+									}
+								} else {
+								}
+							}
+
+							// Validate supported types
+							switch tp.(type) {
+							case *SliceType, *MapType, *ChanType:
+								break
+							default:
+								panic(fmt.Sprintf("invalid argument: %s for built-in %s", tp.String(), fn))
+							}
+						}
+					}
+				}
 				switch cft := baseOf(ift).(type) {
 				case *FuncType:
 					ft = cft
@@ -1372,11 +1480,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					n.NumArgs = 1
 					ct := evalStaticType(store, last, n.Func)
 					at := evalStaticTypeOf(store, last, n.Args[0])
-
 					if _, isIface := baseOf(ct).(*InterfaceType); isIface {
 						assertAssignableTo(n, at, ct, false)
 					}
-
 					var constConverted bool
 					switch arg0 := n.Args[0].(type) {
 					case *ConstExpr:
@@ -4827,7 +4933,10 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 			panic("cannot import stdlib internal/ package outside of standard library")
 		}
 
-		base, isInternal := IsInternalPath(d.PkgPath)
+		// Restrict imports to /internal packages to a package rooted at base.
+		base, suff, isInternal := strings.Cut(d.PkgPath, "/internal")
+		// /internal should be either at the end, or be a part: /internal/
+		isInternal = isInternal && (suff == "" || suff[0] == '/')
 		if isInternal &&
 			pkg.PkgPath != base &&
 			!strings.HasPrefix(pkg.PkgPath, base+"/") {
