@@ -1,4 +1,20 @@
-# Gno Testnets
+# Gno networks
+
+## Network configurations
+
+| Network     | RPC Endpoint                     | Chain ID      | 
+|-------------|----------------------------------|---------------|
+| Portal Loop | https://rpc.gno.land:443         | `portal-loop` |
+| Test5       | https://rpc.test5.gno.land:443   | `test5`       |
+
+### WebSocket endpoints
+All networks follow the same pattern for websocket connections:
+
+```shell
+wss://<rpc-endpoint:port>/websocket
+```
+
+## Gno Testnets
 
 This page documents all gno.land testnets, what their properties are, and how
 they are meant to be used. For testnet configuration, visit the
@@ -16,7 +32,7 @@ gno.land testnets are categorized by 4 main points:
 
 Below you can find a breakdown of each existing testnet by these categories.
 
-## Portal Loop
+### Portal Loop
 
 Portal Loop is an always up-to-date rolling testnet. It is meant to be used as
 a nightly build of the Gno tech stack. The home page of [gno.land](https://gno.land)
@@ -40,7 +56,7 @@ For more information on the Portal Loop, and how it can be best utilized,
 check out the [Portal Loop concept page](./portal-loop.md). Also, you can find
 the Portal Loop faucet on [`gno.land/faucet`](https://gno.land/faucet).
 
-## Test5
+### Test5
 
 Test5 a permanent multi-node testnet. It bumped the validator set from 7 to 17
 nodes, introduced GovDAO V2, and added lots of bug fixes and quality of life
@@ -59,7 +75,7 @@ Test5 was launched in November 2024.
 - **Versioning strategy**:
   - Test5 is to be release-based, following releases of the Gno tech stack.
 
-## TestX
+### TestX
 
 These testnets are deprecated and currently serve as archives of previous progress.
 

@@ -1,4 +1,4 @@
-# 7. Becoming a Gnome Contributor
+# Becoming a Gnome Contributor
 
 In gno.land, contributors are critical to everything—helping to build the 
 project and shape the ecosystem. Becoming a Gnome isn't just about coding or

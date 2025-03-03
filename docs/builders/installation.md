@@ -1,4 +1,4 @@
-# 4.1 Installation
+# Installation
 
 ## Overview
 

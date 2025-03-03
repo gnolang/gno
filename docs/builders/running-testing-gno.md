@@ -1,4 +1,4 @@
-# 4.2 Running & testing Gno code
+# Running & testing Gno code
 
 ## Prerequisites
 

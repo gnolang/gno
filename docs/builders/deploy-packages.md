@@ -1,4 +1,4 @@
-# 5. Deploying Gno code
+# Deploying Gno code
 
 ## Prerequisites
 
