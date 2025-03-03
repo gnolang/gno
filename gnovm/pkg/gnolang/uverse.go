@@ -129,7 +129,6 @@ func makeUverseNode() {
 	def("._", undefined)   // special, path is zero.
 	def("iota", undefined) // special
 	def("nil", undefined)
-	def("bigint", asValue(BigintType))
 	def("bool", asValue(BoolType))
 	def("byte", asValue(Uint8Type))
 	def("float32", asValue(Float32Type))
@@ -1051,6 +1050,9 @@ func makeUverseNode() {
 				}
 			}
 
+			if isUntyped(exception.Value.T) {
+				ConvertUntypedTo(&exception.Value, nil)
+			}
 			m.PushValue(exception.Value)
 			// Recover complete; remove exceptions.
 			m.Exceptions = nil

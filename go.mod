@@ -1,8 +1,8 @@
 module github.com/gnolang/gno
 
-go 1.22.0
+go 1.23
 
-toolchain go1.22.10
+toolchain go1.23.6
 
 require (
 	dario.cat/mergo v1.0.1
@@ -48,6 +48,7 @@ require (
 	golang.org/x/term v0.28.0
 	golang.org/x/tools v0.29.0
 	google.golang.org/protobuf v1.36.3
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -71,5 +72,4 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20250115164207-1a7da9e5054f // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250115164207-1a7da9e5054f // indirect
 	google.golang.org/grpc v1.69.4 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

@@ -16,10 +16,11 @@ const PathSeparator = "/"
 
 var (
 	ErrInvalidVoteChoice    = errors.New("invalid vote choice")
+	ErrLowParticipation     = errors.New("low participation")
+	ErrNoConcensus          = errors.New("no concensus")
 	ErrNotMember            = errors.New("account is not a member of the DAO")
 	ErrOverflow             = errors.New("next ID overflows uint64")
 	ErrProposalNotFound     = errors.New("proposal not found")
-	ErrStatusIsNotActive    = errors.New("proposal status is not active")
 	ErrVotingDeadlineNotMet = errors.New("voting deadline not met")
 )
 
@@ -154,6 +155,7 @@ func (dao CommonDAO) GetFinishedProposal(proposalID uint64) (_ *Proposal, found 
 
 // Vote submits a new vote for a proposal.
 func (dao *CommonDAO) Vote(member std.Address, proposalID uint64, c VoteChoice) error {
+	// TODO: Support other voting options though the proposal definition
 	if c != ChoiceYes && c != ChoiceNo && c != ChoiceAbstain {
 		return ErrInvalidVoteChoice
 	}
@@ -169,30 +171,20 @@ func (dao *CommonDAO) Vote(member std.Address, proposalID uint64, c VoteChoice) 
 	return p.record.AddVote(member, c)
 }
 
-func (dao *CommonDAO) Tally(p *Proposal) Stats {
-	// Initialize stats considering only yes/no votes
+func (dao *CommonDAO) Tally(p *Proposal) error {
+	// TODO: Support other voting options though the proposal definition
 	record := p.VotingRecord()
-	stats := Stats{
-		YayVotes: record.VoteCount(ChoiceYes),
-		NayVotes: record.VoteCount(ChoiceNo),
-	}
-	votesCount := stats.YayVotes + stats.NayVotes
+	votesCount := record.VoteCount(ChoiceYes) + record.VoteCount(ChoiceNo) // Only consider YES/NO votes
 	membersCount := dao.Members().Size()
-	stats.Abstained = membersCount - votesCount
-
 	percentage := float64(votesCount) / float64(membersCount)
 	if percentage < p.Quorum() {
-		p.status = StatusFailed
-		p.statusReason = "low participation"
-		return stats
+		return ErrLowParticipation
 	}
 
 	if !p.Definition().Tally(record, membersCount) {
-		p.status = StatusFailed
-		p.statusReason = "no consensus"
+		return ErrNoConcensus
 	}
-
-	return stats
+	return nil
 }
 
 // Execute executes a proposal.
@@ -210,26 +202,18 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 		return ErrVotingDeadlineNotMet
 	}
 
-	// Validate proposal before executing it
-	def := p.Definition()
-	err := def.Validate()
+	// From this point any error results in execution success and proposal failure
+	err := p.Validate()
+	if err == nil {
+		err = dao.executeProposal(p)
+	}
+
+	// Proposal fails if there is any error during validation and execution process
 	if err != nil {
 		p.status = StatusFailed
 		p.statusReason = err.Error()
 	} else {
-		// Tally votes and update proposal status
-		dao.Tally(p)
-
-		// Execute proposal only when the majority vote wins
-		if p.Status() != StatusFailed {
-			err = def.Execute()
-			if err != nil {
-				p.status = StatusFailed
-				p.statusReason = err.Error()
-			} else {
-				p.status = StatusExecuted
-			}
-		}
+		p.status = StatusExecuted
 	}
 
 	// Whichever the outcome of the validation, tallying
@@ -237,7 +221,22 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 	key := makeProposalKey(p.id)
 	dao.active.Remove(key)
 	dao.finished.Set(key, p)
-	return err
+	return nil
+}
+
+func (dao *CommonDAO) executeProposal(p *Proposal) error {
+	if p.Status() != StatusActive {
+		return ErrStatusIsNotActive
+	}
+
+	if err := dao.Tally(p); err != nil {
+		return err
+	}
+
+	if e, ok := p.Definition().(Executable); ok {
+		return e.Execute()
+	}
+	return nil
 }
 
 func makeProposalKey(id uint64) string {
