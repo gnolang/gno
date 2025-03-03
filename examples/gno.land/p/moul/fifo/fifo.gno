@@ -33,7 +33,7 @@ package fifo
 
 // node represents a single element in the linked list
 type node struct {
-	value interface{}
+	value any
 	next  *node
 }
 
@@ -54,7 +54,7 @@ func New(maxSize int) *List {
 
 // Prepend adds a new entry at the start of the list. If the list exceeds maxSize,
 // the last entry is automatically removed.
-func (l *List) Prepend(entry interface{}) {
+func (l *List) Prepend(entry any) {
 	if l.maxSize == 0 {
 		return
 	}
@@ -94,7 +94,7 @@ func (l *List) Prepend(entry interface{}) {
 
 // Append adds a new entry at the end of the list. If the list exceeds maxSize,
 // the first entry is automatically removed.
-func (l *List) Append(entry interface{}) {
+func (l *List) Append(entry any) {
 	if l.maxSize == 0 {
 		return
 	}
@@ -120,7 +120,7 @@ func (l *List) Append(entry interface{}) {
 
 // Get returns the entry at the specified index.
 // Index 0 is the oldest entry, Size()-1 is the newest.
-func (l *List) Get(index int) interface{} {
+func (l *List) Get(index int) any {
 	if index < 0 || index >= l.size {
 		return nil
 	}
@@ -143,8 +143,8 @@ func (l *List) MaxSize() int {
 }
 
 // Entries returns all current entries as a slice
-func (l *List) Entries() []interface{} {
-	entries := make([]interface{}, l.size)
+func (l *List) Entries() []any {
+	entries := make([]any, l.size)
 	current := l.head
 	for i := 0; i < l.size; i++ {
 		entries[i] = current.value
@@ -155,9 +155,9 @@ func (l *List) Entries() []interface{} {
 
 // Iterator returns a function that can be used to iterate over the entries
 // from oldest to newest. Returns nil when there are no more entries.
-func (l *List) Iterator() func() interface{} {
+func (l *List) Iterator() func() any {
 	current := l.head
-	return func() interface{} {
+	return func() any {
 		if current == nil {
 			return nil
 		}
@@ -169,7 +169,7 @@ func (l *List) Iterator() func() interface{} {
 
 // Latest returns the most recent entry.
 // Returns nil if the list is empty.
-func (l *List) Latest() interface{} {
+func (l *List) Latest() any {
 	if l.tail == nil {
 		return nil
 	}
