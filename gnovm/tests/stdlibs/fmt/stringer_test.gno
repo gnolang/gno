@@ -20,7 +20,6 @@ type (
 	TU16 uint16
 	TU32 uint32
 	TU64 uint64
-	TUI  uintptr
 	TF   float64
 	TF32 float32
 	TF64 float64
@@ -38,7 +37,6 @@ func (v TU8) String() string  { return fmt.Sprintf("U8: %d", uint8(v)) }
 func (v TU16) String() string { return fmt.Sprintf("U16: %d", uint16(v)) }
 func (v TU32) String() string { return fmt.Sprintf("U32: %d", uint32(v)) }
 func (v TU64) String() string { return fmt.Sprintf("U64: %d", uint64(v)) }
-func (v TUI) String() string  { return fmt.Sprintf("UI: %d", uintptr(v)) }
 func (v TF) String() string   { return fmt.Sprintf("F: %f", float64(v)) }
 func (v TF32) String() string { return fmt.Sprintf("F32: %f", float32(v)) }
 func (v TF64) String() string { return fmt.Sprintf("F64: %f", float64(v)) }
@@ -54,8 +52,8 @@ func check(t *testing.T, got, want string) {
 func TestStringer(t *testing.T) {
 	s := fmt.Sprintf("%v %v %v %v %v", TI(0), TI8(1), TI16(2), TI32(3), TI64(4))
 	check(t, s, "I: 0 I8: 1 I16: 2 I32: 3 I64: 4")
-	s = fmt.Sprintf("%v %v %v %v %v %v", TU(5), TU8(6), TU16(7), TU32(8), TU64(9), TUI(10))
-	check(t, s, "U: 5 U8: 6 U16: 7 U32: 8 U64: 9 UI: 10")
+	s = fmt.Sprintf("%v %v %v %v %v", TU(5), TU8(6), TU16(7), TU32(8), TU64(9))
+	check(t, s, "U: 5 U8: 6 U16: 7 U32: 8 U64: 9")
 	s = fmt.Sprintf("%v %v %v", TF(1.0), TF32(2.0), TF64(3.0))
 	check(t, s, "F: 1.000000 F32: 2.000000 F64: 3.000000")
 	s = fmt.Sprintf("%v %v", TB(true), TS("x"))

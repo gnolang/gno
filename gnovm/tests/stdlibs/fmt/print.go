@@ -41,29 +41,29 @@ func X_valueOfInternal(v gnolang.TypedValue) (
 	case gnolang.StringKind:
 		kind, xlen = "string", v.GetLength()
 	case gnolang.IntKind:
-		kind, bytes = "int", v.GetUint64()
+		kind, bytes = "int", uint64(v.GetInt())
 	case gnolang.Int8Kind:
-		kind, bytes = "int8", v.GetUint64()&0xFF
+		kind, bytes = "int8", uint64(v.GetInt8())
 	case gnolang.Int16Kind:
-		kind, bytes = "int16", v.GetUint64()&0xFFFF
+		kind, bytes = "int16", uint64(v.GetInt16())
 	case gnolang.Int32Kind:
-		kind, bytes = "int32", v.GetUint64()&(1<<32-1)
+		kind, bytes = "int32", uint64(v.GetInt32())
 	case gnolang.Int64Kind:
-		kind, bytes = "int64", v.GetUint64()
+		kind, bytes = "int64", uint64(v.GetInt64())
 	case gnolang.UintKind:
-		kind, bytes = "uint", v.GetUint64()
+		kind, bytes = "uint", v.GetUint()
 	case gnolang.Uint8Kind:
-		kind, bytes = "uint8", v.GetUint64()&0xFF
+		kind, bytes = "uint8", uint64(v.GetUint8())
 	case gnolang.Uint16Kind:
-		kind, bytes = "uint16", v.GetUint64()&0xFFFF
+		kind, bytes = "uint16", uint64(v.GetUint16())
 	case gnolang.Uint32Kind:
-		kind, bytes = "uint32", v.GetUint64()&(1<<32-1)
+		kind, bytes = "uint32", uint64(v.GetUint32())
 	case gnolang.Uint64Kind:
 		kind, bytes = "uint64", v.GetUint64()
 	case gnolang.Float32Kind:
-		kind, bytes = "float32", v.GetUint64()&(1<<32-1)
+		kind, bytes = "float32", uint64(v.GetFloat32())
 	case gnolang.Float64Kind:
-		kind, bytes = "float64", v.GetUint64()
+		kind, bytes = "float64", v.GetFloat64()
 	case gnolang.ArrayKind:
 		kind, xlen = "array", v.GetLength()
 	case gnolang.SliceKind:
@@ -124,6 +124,11 @@ func X_mapKeyValues(v gnolang.TypedValue) (keys, values gnolang.TypedValue) {
 	if v.T.Kind() != gnolang.MapKind {
 		panic(fmt.Sprintf("invalid arg to mapKeyValues of kind: %s", v.T.Kind()))
 	}
+	keys.T = gSliceOfAny
+	values.T = gSliceOfAny
+	if v.V == nil {
+		return
+	}
 
 	mv := v.V.(*gnolang.MapValue)
 	ks, vs := make([]gnolang.TypedValue, 0, mv.GetLength()), make([]gnolang.TypedValue, 0, mv.GetLength())
@@ -134,8 +139,6 @@ func X_mapKeyValues(v gnolang.TypedValue) (keys, values gnolang.TypedValue) {
 
 	sort.Sort(mapKV{ks, vs})
 
-	keys.T = gSliceOfAny
-	values.T = gSliceOfAny
 	keys.V = &gnolang.SliceValue{
 		Base: &gnolang.ArrayValue{
 			List: ks,
@@ -230,4 +233,31 @@ func X_fieldByIndex(v gnolang.TypedValue, n int) (name string, value gnolang.Typ
 		value = v.V.(*gnolang.StructValue).Fields[n]
 	}
 	return
+}
+
+func X_asByteSlice(v gnolang.TypedValue) (gnolang.TypedValue, bool) {
+	switch {
+	case v.T.Kind() == gnolang.SliceKind && v.T.Elem().Kind() == gnolang.Uint8Kind:
+		return gnolang.TypedValue{
+			T: &gnolang.SliceType{
+				Elt: gnolang.Uint8Type,
+			},
+			V: v.V,
+		}, true
+	case v.T.Kind() == gnolang.ArrayKind && v.T.Elem().Kind() == gnolang.Uint8Kind:
+		arrt := v.T.(*gnolang.ArrayType)
+		return gnolang.TypedValue{
+			T: &gnolang.SliceType{
+				Elt: gnolang.Uint8Type,
+			},
+			V: &gnolang.SliceValue{
+				Base:   v.V,
+				Offset: 0,
+				Length: arrt.Len,
+				Maxcap: arrt.Len,
+			},
+		}, true
+	default:
+		return gnolang.TypedValue{}, false
+	}
 }

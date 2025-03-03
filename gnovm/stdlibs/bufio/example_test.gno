@@ -23,16 +23,15 @@ func ExampleWriter() {
 */
 
 // The simplest use of a Scanner, to read standard input as a set of lines.
-// XXX stdin not defined
-//func ExampleScanner_lines() {
-//	scanner := bufio.NewScanner(os.Stdin)
-//	for scanner.Scan() {
-//		fmt.Println(scanner.Text()) // Println will add back the final '\n'
-//	}
-//	if err := scanner.Err(); err != nil {
-//		fmt.Fprintln(os.Stderr, "reading standard input:", err)
-//	}
-//}
+func ExampleScanner_lines() {
+	scanner := bufio.NewScanner(strings.NewReader("hello\nworld\n"))
+	for scanner.Scan() {
+		fmt.Println(scanner.Text()) // Println will add back the final '\n'
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintln(os.Stderr, "reading buffer:", err)
+	}
+}
 
 // Return the most recent call to Scan as a []byte.
 func ExampleScanner_Bytes() {

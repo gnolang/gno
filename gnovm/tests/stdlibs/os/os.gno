@@ -18,10 +18,5 @@ func (w *stderrWriter) Write(p []byte) (n int, err error) {
 	return write(p, true), nil
 }
 
-func Sleep(duration int64) {
-	return sleep(duration)
-}
-
 // native bindings
 func write(p []byte, isStderr bool) int
-func sleep(duration int64)

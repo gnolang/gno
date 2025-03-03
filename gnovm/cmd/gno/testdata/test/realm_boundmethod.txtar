@@ -1,5 +1,4 @@
 # Set up GNOROOT in the current directory.
-mkdir $WORK/gnovm
 mkdir $WORK/gnovm/tests
 symlink $WORK/gnovm/stdlibs -> $GNOROOT/gnovm/stdlibs
 symlink $WORK/gnovm/tests/stdlibs -> $GNOROOT/gnovm/tests/stdlibs

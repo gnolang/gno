@@ -774,7 +774,7 @@ func (p *pp) printValue(value valueInfo, verb rune, depth int) {
 	case "array", "slice":
 		switch verb {
 		case 's', 'q', 'x', 'X':
-			if bs, ok := f.Base.([]byte); ok {
+			if bs, ok := asByteSlice(f.Base); ok {
 				p.fmtBytes(bs, verb, typeString(f.Origin))
 				return
 			}
@@ -1154,3 +1154,7 @@ func arrayIndex(v any, n int) any
 
 // n'th field of the given struct.
 func fieldByIndex(v any, n int) (name string, value any)
+
+// asByteSlice converts v into a []byte. Argument can be a byte array, which
+// would be converted, or a byte slice, where this function is idempotent.
+func asByteSlice(v any) ([]byte, bool)

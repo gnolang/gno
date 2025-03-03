@@ -196,9 +196,9 @@ func (bmv *BoundMethodValue) String() string {
 	)
 	if ft, ok := bmv.Func.Type.(*FuncType); ok {
 		recvT = ft.Params[0].Type.String()
-		params = FieldTypeList(ft.Params).StringForFunc()
+		params = FieldTypeList(ft.Params).String()
 		if len(results) > 0 {
-			results = FieldTypeList(ft.Results).StringForFunc()
+			results = FieldTypeList(ft.Results).String()
 			results = "(" + results + ")"
 		}
 	}

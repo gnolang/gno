@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// main/files/const31.gno:10:8: (const (v func() (string, string)))() (variable of type (string,string)) is not constant
+// main/files/const31.gno:10:8: (const (v func()(string, string)))() (variable of type (string,string)) is not constant

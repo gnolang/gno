@@ -36,7 +36,7 @@ Integer:
 	%X	base 16, with upper-case letters for A-F
 	%U	Unicode format: U+1234; same as "U+%04X"
 
-Floating-point and complex constituents:
+Floating-point  constituents:
 
 	%b	decimalless scientific notation with exponent a power of two,
 		in the manner of strconv.FormatFloat with the 'b' format,
@@ -72,7 +72,7 @@ The default format for %v is:
 	bool:                    %t
 	int, int8 etc.:          %d
 	uint, uint8 etc.:        %d, %#x if printed with %#v
-	float32, complex64, etc: %g
+	float32, etc:            %g
 	string:                  %s
 	chan:                    %p
 	pointer:                 %p
@@ -121,10 +121,6 @@ digits (trailing zeros are removed). For example, given 12.345 the format
 %6.3f prints 12.345 while %.3g prints 12.3. The default precision for %e, %f
 and %#g is 6; for %g it is the smallest number of digits necessary to identify
 the value uniquely.
-
-For complex numbers, the width and precision apply to the two
-components independently and the result is parenthesized, so %f applied
-to 1.2+3.4i produces (1.200000+3.400000i).
 
 When formatting a single integer code point or a rune string (type []rune)
 with %q, invalid Unicode code points are changed to the Unicode replacement
@@ -324,7 +320,7 @@ The verbs behave analogously to those of [Printf].
 For example, %x will scan an integer as a hexadecimal number,
 and %v will scan the default representation format for the value.
 The [Printf] verbs %p and %T and the flags # and + are not implemented.
-For floating-point and complex values, all valid formatting verbs
+For floating-point values, all valid formatting verbs
 (%b %e %E %f %F %g %G %x %X and %v) are equivalent and accept
 both decimal and hexadecimal notation (for example: "2.3e+7", "0x4.5p-8")
 and digit-separating underscores (for example: "3.14159_26535_89793").

@@ -225,6 +225,31 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
+		"fmt",
+		"asByteSlice",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("any")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("[]byte")},
+			{Name: gno.N("r1"), Type: gno.X("bool")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			p0 := *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV)
+
+			r0, r1 := testlibs_fmt.X_asByteSlice(p0)
+
+			m.PushValue(r0)
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
 		"os",
 		"write",
 		[]gno.FieldTypeExpr{
@@ -256,28 +281,6 @@ var nativeFuncs = [...]NativeFunc{
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
 			))
-		},
-	},
-	{
-		"os",
-		"sleep",
-		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("int64")},
-		},
-		[]gno.FieldTypeExpr{},
-		true,
-		func(m *gno.Machine) {
-			b := m.LastBlock()
-			var (
-				p0  int64
-				rp0 = reflect.ValueOf(&p0).Elem()
-			)
-
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-
-			testlibs_os.X_sleep(
-				m,
-				p0)
 		},
 	},
 	{

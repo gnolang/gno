@@ -30,4 +30,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_type_assertion_c.gno:23:2: interface {IsSet func() bool} does not implement interface {IsNotSet func() bool} (missing method IsNotSet)
+// main/files/types/assign_type_assertion_c.gno:23:2: interface {func()(bool)} does not implement interface {func()(bool)} (missing method IsNotSet)
