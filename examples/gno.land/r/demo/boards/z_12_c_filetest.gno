@@ -5,6 +5,7 @@ package boards_test
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
@@ -13,7 +14,7 @@ import (
 
 func main() {
 	caller := testutils.TestAddress("caller")
-	std.TestSetRealm(std.NewUserRealm(caller))
+	testing.SetRealm(std.NewUserRealm(caller))
 	users.Register("", "gnouser", "my profile")
 	bid1 := boards.CreateBoard("test_board1")
 	boards.CreateThread(bid1, "First Post (title)", "Body of the first post. (body)")

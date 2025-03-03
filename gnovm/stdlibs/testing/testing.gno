@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"std"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // ----------------------------------------
@@ -362,4 +364,114 @@ func tRunner(t *T, fn testingFunc, verbose bool) {
 	}
 
 	fn(t)
+}
+
+func getContext() (
+	originCaller string,
+	originPkgAddress string,
+	origSendDenoms []string, origSendAmounts []int64,
+	origSpendDenoms []string, origSpendAmounts []int64,
+	chainID string,
+	height int64,
+	timeUnix int64, timeNano int64,
+)
+
+func setContext(
+	originCaller string,
+	originPkgAddress string,
+	currRealmAddr string, currRealmPkgPath string,
+	origSendDenoms []string, origSendAmounts []int64,
+	origSpendDenoms []string, origSpendAmounts []int64,
+	chainID string,
+	height int64,
+	timeUnix int64, timeNano int64,
+)
+
+func testIssueCoins(addr string, denom []string, amt []int64)
+
+func GetContext() Context {
+	originCaller, originPkgAddress, origSendDenoms, origSendAmounts, origSpendDenoms, origSpendAmounts, chainID, height, timeUnix, timeNano := getContext()
+	return Context{
+		OriginCaller:     std.Address(originCaller),
+		OriginPkgAddress: std.Address(originPkgAddress),
+		OriginSend:       std.CompactNative(origSendDenoms, origSendAmounts),
+		OriginSpend:      std.CompactNative(origSpendDenoms, origSpendAmounts),
+		ChainID:          chainID,
+		Height:           height,
+		Time:             time.Unix(timeUnix, timeNano),
+	}
+}
+
+func SetContext(ctx Context) {
+	originSendDenom, originSendAmount := ctx.OriginSend.ExpandNative()
+	originSpendDenom, originSpendAmount := ctx.OriginSpend.ExpandNative()
+
+	var timestamp, timestampNano int64 = 0, 0
+
+	if !ctx.Time.IsZero() {
+		timestamp = ctx.Time.Unix()
+		timestampNano = 0
+	}
+
+	setContext(
+		ctx.OriginCaller.String(),
+		ctx.OriginPkgAddress.String(),
+		ctx.CurrentRealm.Address().String(), ctx.CurrentRealm.PkgPath(),
+		originSendDenom, originSendAmount,
+		originSpendDenom, originSpendAmount,
+		ctx.ChainID,
+		ctx.Height,
+		timestamp, timestampNano,
+	)
+}
+
+func SetOriginCaller(origCaller std.Address) {
+	ctx := GetContext()
+	ctx.OriginCaller = origCaller
+	SetContext(ctx)
+}
+
+func SetOriginSend(send std.Coins) {
+	ctx := GetContext()
+	ctx.OriginSend = send
+	SetContext(ctx)
+}
+
+func SetOriginSpend(spend std.Coins) {
+	ctx := GetContext()
+	ctx.OriginSpend = spend
+	SetContext(ctx)
+}
+
+func SetOriginPkgAddress(addr std.Address) {
+	ctx := GetContext()
+	ctx.OriginPkgAddress = addr
+	SetContext(ctx)
+}
+
+func SetHeight(height int64) {
+	ctx := GetContext()
+	ctx.Height = height
+	SetContext(ctx)
+}
+
+// SetRealm sets the realm for the current frame.
+// After calling SetRealm, calling CurrentRealm() in the test function will yield the value of
+// rlm, while if a realm function is called, using PrevRealm() will yield rlm.
+func SetRealm(rlm std.Realm) {
+	ctx := GetContext()
+	ctx.CurrentRealm = rlm
+	SetContext(ctx)
+}
+
+func SkipHeights(count int64) {
+	ctx := GetContext()
+	toHeight := ctx.Height + count
+	toTime := ctx.Time.Add(time.Duration(count*5) * time.Second)
+	SetContext(Context{Height: toHeight, Time: toTime})
+}
+
+func IssueCoins(addr std.Address, coins std.Coins) {
+	denom, amt := coins.ExpandNative()
+	testIssueCoins(addr.String(), denom, amt)
 }

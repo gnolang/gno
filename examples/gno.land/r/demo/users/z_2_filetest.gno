@@ -4,6 +4,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/users"
@@ -15,15 +16,15 @@ func main() {
 	caller := std.OriginCaller() // main
 	users.Register("", "gnouser", "my profile")
 	// as admin, grant invites to gnouser
-	std.TestSetOriginCaller(admin)
+	testing.SetOriginCaller(admin)
 	users.GrantInvites(caller.String() + ":1")
 	// switch back to caller
-	std.TestSetOriginCaller(caller)
+	testing.SetOriginCaller(caller)
 	// invite another addr
 	test1 := testutils.TestAddress("test1")
 	users.Invite(test1.String())
 	// switch to test1
-	std.TestSetOriginCaller(test1)
+	testing.SetOriginCaller(test1)
 	users.Register(caller, "satoshi", "my other profile")
 	println("done")
 }

@@ -1,9 +1,8 @@
 package membstore
 
 import (
-	"testing"
-
 	"std"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
@@ -155,7 +154,7 @@ func TestMembStore_AddMember(t *testing.T) {
 			r          = std.NewCodeRealm(daoPkgPath)
 		)
 
-		std.TestSetRealm(r)
+		testing.SetRealm(r)
 
 		// Create a non-empty store
 		members := generateMembers(t, 1)
@@ -174,7 +173,7 @@ func TestMembStore_AddMember(t *testing.T) {
 			r          = std.NewCodeRealm(daoPkgPath)
 		)
 
-		std.TestSetRealm(r)
+		testing.SetRealm(r)
 
 		// Create an empty store
 		members := generateMembers(t, 1)
@@ -234,7 +233,7 @@ func TestMembStore_UpdateMember(t *testing.T) {
 			r          = std.NewCodeRealm(daoPkgPath)
 		)
 
-		std.TestSetRealm(r)
+		testing.SetRealm(r)
 
 		// Create an empty store
 		members := generateMembers(t, 1)
@@ -253,7 +252,7 @@ func TestMembStore_UpdateMember(t *testing.T) {
 			r          = std.NewCodeRealm(daoPkgPath)
 		)
 
-		std.TestSetRealm(r)
+		testing.SetRealm(r)
 
 		// Create a non-empty store
 		members := generateMembers(t, 2)
@@ -272,7 +271,7 @@ func TestMembStore_UpdateMember(t *testing.T) {
 			r          = std.NewCodeRealm(daoPkgPath)
 		)
 
-		std.TestSetRealm(r)
+		testing.SetRealm(r)
 
 		// Create a non-empty store
 		members := generateMembers(t, 1)
@@ -299,7 +298,7 @@ func TestMembStore_UpdateMember(t *testing.T) {
 			r          = std.NewCodeRealm(daoPkgPath)
 		)
 
-		std.TestSetRealm(r)
+		testing.SetRealm(r)
 
 		// Create a non-empty store
 		members := generateMembers(t, 1)
