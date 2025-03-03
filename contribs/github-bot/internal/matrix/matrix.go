@@ -113,7 +113,7 @@ func getPRListFromEvent(gh *client.GitHub, actionCtx *githubactions.GitHubContex
 
 	// Event triggered by an issue / PR comment being created / edited / deleted
 	// or any update on a PR.
-	case utils.EventIssueComment, utils.EventPullRequest, utils.EventPullRequestTarget:
+	case utils.EventIssueComment, utils.EventPullRequest, utils.EventPullRequestReview, utils.EventPullRequestTarget:
 		// For these events, retrieve the number of the associated PR from the context.
 		prNum, err := utils.GetPRNumFromActionsCtx(actionCtx)
 		if err != nil {

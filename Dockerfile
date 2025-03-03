@@ -1,5 +1,5 @@
 # build gno
-FROM        golang:1.22-alpine AS build-gno
+FROM        golang:1.23-alpine AS build-gno
 RUN         go env -w GOMODCACHE=/root/.cache/go-build
 WORKDIR     /gnoroot
 ENV         GNOROOT="/gnoroot"
@@ -11,7 +11,7 @@ RUN         --mount=type=cache,target=/root/.cache/go-build       go build -o ./
 RUN         --mount=type=cache,target=/root/.cache/go-build       go build -o ./build/gno       ./gnovm/cmd/gno
 
 # build misc binaries
-FROM        golang:1.22-alpine AS build-misc
+FROM        golang:1.23-alpine AS build-misc
 RUN         go env -w GOMODCACHE=/root/.cache/go-build
 WORKDIR     /gnoroot
 ENV         GNOROOT="/gnoroot"
@@ -52,7 +52,6 @@ ENTRYPOINT  ["/usr/bin/gno"]
 # gnoweb
 FROM        base AS gnoweb
 COPY        --from=build-gno /gnoroot/build/gnoweb /usr/bin/gnoweb
-COPY        --from=build-gno /opt/gno/src/gno.land/cmd/gnoweb /opt/gno/src/gnoweb
 EXPOSE      8888
 ENTRYPOINT  ["/usr/bin/gnoweb"]
 

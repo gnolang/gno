@@ -12,7 +12,7 @@ import (
 var registry = avl.NewTree() // rlmPath[.slug] -> TokenGetter (slug is optional)
 
 func Register(tokenGetter grc20.TokenGetter, slug string) {
-	rlmPath := std.PrevRealm().PkgPath()
+	rlmPath := std.PreviousRealm().PkgPath()
 	key := fqname.Construct(rlmPath, slug)
 	registry.Set(key, tokenGetter)
 	std.Emit(
@@ -44,7 +44,7 @@ func Render(path string) string {
 		// TODO: add pagination
 		s := ""
 		count := 0
-		registry.Iterate("", "", func(key string, tokenI interface{}) bool {
+		registry.Iterate("", "", func(key string, tokenI any) bool {
 			count++
 			tokenGetter := tokenI.(grc20.TokenGetter)
 			token := tokenGetter()

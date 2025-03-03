@@ -14,13 +14,13 @@ stdout 'g1myq5smwnzr0qcsa6kecqcy4pjjwt776yp6hmqv'
 gnoland start
 
 ## check users initial balance
-gnokey query bank/balances/${USER_ADDR_user1}
+gnokey query bank/balances/$user1_user_addr
 stdout '10000000ugnot'
 
 gnokey query bank/balances/g16svw053j5fqlq7tpjug6x87ezyn5qy2nzmdlal
 stdout '10000000ugnot'
 
-gnokey query auth/accounts/${USER_ADDR_user3}
+gnokey query auth/accounts/$user3_user_addr
 stdout 'height: 0'
 stdout 'data: {'
 stdout '  "BaseAccount": {'

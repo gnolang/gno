@@ -9,7 +9,6 @@ import (
 	"io"
 	"math"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime/debug"
 	"strconv"
@@ -52,17 +51,17 @@ func Context(pkgPath string, send std.Coins) *teststd.TestExecContext {
 		},
 	}
 	ctx := stdlibs.ExecContext{
-		ChainID:       "dev",
-		ChainDomain:   "tests.gno.land",
-		Height:        DefaultHeight,
-		Timestamp:     DefaultTimestamp,
-		OrigCaller:    DefaultCaller,
-		OrigPkgAddr:   pkgAddr.Bech32(),
-		OrigSend:      send,
-		OrigSendSpent: new(std.Coins),
-		Banker:        banker,
-		Params:        newTestParams(),
-		EventLogger:   sdk.NewEventLogger(),
+		ChainID:         "dev",
+		ChainDomain:     "tests.gno.land",
+		Height:          DefaultHeight,
+		Timestamp:       DefaultTimestamp,
+		OriginCaller:    DefaultCaller,
+		OriginPkgAddr:   pkgAddr.Bech32(),
+		OriginSend:      send,
+		OriginSendSpent: new(std.Coins),
+		Banker:          banker,
+		Params:          newTestParams(),
+		EventLogger:     sdk.NewEventLogger(),
 	}
 	return &teststd.TestExecContext{
 		ExecContext: ctx,
@@ -71,11 +70,12 @@ func Context(pkgPath string, send std.Coins) *teststd.TestExecContext {
 }
 
 // Machine is a minimal machine, set up with just the Store, Output and Context.
-func Machine(testStore gno.Store, output io.Writer, pkgPath string) *gno.Machine {
+func Machine(testStore gno.Store, output io.Writer, pkgPath string, debug bool) *gno.Machine {
 	return gno.NewMachineWithOptions(gno.MachineOptions{
 		Store:   testStore,
 		Output:  output,
 		Context: Context(pkgPath, nil),
+		Debug:   debug,
 	})
 }
 
@@ -108,6 +108,8 @@ type TestOptions struct {
 	Output io.Writer
 	// Used for os.Stderr, and for printing errors.
 	Error io.Writer
+	// Debug enables the interactive debugger on gno tests.
+	Debug bool
 
 	// Not set by NewTestOptions:
 
@@ -140,10 +142,7 @@ func NewTestOptions(rootDir string, stdin io.Reader, stdout, stderr io.Writer) *
 		Output:  stdout,
 		Error:   stderr,
 	}
-	opts.BaseStore, opts.TestStore = Store(
-		rootDir, false,
-		stdin, opts.WriterForStore(), stderr,
-	)
+	opts.BaseStore, opts.TestStore = Store(rootDir, stdin, opts.WriterForStore(), stderr)
 	return opts
 }
 
@@ -182,6 +181,11 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 
 	var errs error
 
+	// Eagerly load imports.
+	if err := LoadImports(opts.TestStore, memPkg); err != nil {
+		return err
+	}
+
 	// Stands for "test", "integration test", and "filetest".
 	// "integration test" are the test files with `package xxx_test` (they are
 	// not necessarily integration tests, it's just for our internal reference.)
@@ -193,7 +197,7 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 		// tests. This allows us to "export" symbols from the pkg tests and
 		// import them from the `pkg_test` tests.
 		cw := opts.BaseStore.CacheWrap()
-		gs := opts.TestStore.BeginTransaction(cw, cw)
+		gs := opts.TestStore.BeginTransaction(cw, cw, nil)
 
 		// Run test files in pkg.
 		if len(tset.Files) > 0 {
@@ -288,9 +292,8 @@ func (opts *TestOptions) runTestFiles(
 	// reset store ops, if any - we only need them for some filetests.
 	opts.TestStore.SetLogStoreOps(false)
 
-	// Check if we already have the package - it may have been eagerly
-	// loaded.
-	m = Machine(gs, opts.WriterForStore(), memPkg.Path)
+	// Check if we already have the package - it may have been eagerly loaded.
+	m = Machine(gs, opts.WriterForStore(), memPkg.Path, opts.Debug)
 	m.Alloc = alloc
 	if opts.TestStore.GetMemPackage(memPkg.Path) == nil {
 		m.RunMemPackage(memPkg, true)
@@ -310,13 +313,30 @@ func (opts *TestOptions) runTestFiles(
 		// - Run the test files before this for loop (but persist it to store;
 		//   RunFiles doesn't do that currently)
 		// - Wrap here.
-		m = Machine(gs, opts.Output, memPkg.Path)
-		m.Alloc = alloc
+		m = Machine(gs, opts.Output, memPkg.Path, opts.Debug)
+		m.Alloc = alloc.Reset()
 		m.SetActivePackage(pv)
 
 		testingpv := m.Store.GetPackage(stdlibs.TestingLib, false)
 		testingtv := gno.TypedValue{T: &gno.PackageType{}, V: testingpv}
 		testingcx := &gno.ConstExpr{TypedValue: testingtv}
+
+		if opts.Debug {
+			fileContent := func(ppath, name string) string {
+				p := filepath.Join(opts.RootDir, ppath, name)
+				b, err := os.ReadFile(p)
+				if err != nil {
+					p = filepath.Join(opts.RootDir, "gnovm", "stdlibs", ppath, name)
+					b, err = os.ReadFile(p)
+				}
+				if err != nil {
+					p = filepath.Join(opts.RootDir, "examples", ppath, name)
+					b, err = os.ReadFile(p)
+				}
+				return string(b)
+			}
+			m.Debugger.Enable(os.Stdin, os.Stdout, fileContent)
+		}
 
 		eval := m.Eval(gno.Call(
 			gno.Sel(testingcx, "RunTest"),            // Call testing.RunTest
@@ -422,10 +442,6 @@ func parseMemPackageTests(store gno.Store, memPkg *gnovm.MemPackage) (tset, itse
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // skip this file.
-		}
-
-		if err := LoadImports(store, path.Join(memPkg.Path, mfile.Name), []byte(mfile.Body)); err != nil {
-			errs = multierr.Append(errs, err)
 		}
 
 		n, err := gno.ParseFile(mfile.Name, mfile.Body)

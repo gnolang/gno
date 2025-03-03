@@ -9,72 +9,60 @@ import (
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
-	pusers "gno.land/p/demo/users"
 	"gno.land/r/demo/grc20reg"
-	"gno.land/r/demo/users"
 )
 
 var (
 	Token, privateLedger = grc20.NewToken("Foo", "FOO", 4)
 	UserTeller           = Token.CallerTeller()
-	owner                = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @manfred
+	Ownable              = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @manfred
 )
 
 func init() {
-	privateLedger.Mint(owner.Owner(), 1_000_000*10_000) // @privateLedgeristrator (1M)
-	getter := func() *grc20.Token { return Token }
-	grc20reg.Register(getter, "")
+	privateLedger.Mint(Ownable.Owner(), 1_000_000*10_000) // @privateLedgeristrator (1M)
+	grc20reg.Register(Token.Getter(), "")
 }
 
 func TotalSupply() uint64 {
 	return UserTeller.TotalSupply()
 }
 
-func BalanceOf(owner pusers.AddressOrName) uint64 {
-	ownerAddr := users.Resolve(owner)
-	return UserTeller.BalanceOf(ownerAddr)
+func BalanceOf(owner std.Address) uint64 {
+	return UserTeller.BalanceOf(owner)
 }
 
-func Allowance(owner, spender pusers.AddressOrName) uint64 {
-	ownerAddr := users.Resolve(owner)
-	spenderAddr := users.Resolve(spender)
-	return UserTeller.Allowance(ownerAddr, spenderAddr)
+func Allowance(owner, spender std.Address) uint64 {
+	return UserTeller.Allowance(owner, spender)
 }
 
-func Transfer(to pusers.AddressOrName, amount uint64) {
-	toAddr := users.Resolve(to)
-	checkErr(UserTeller.Transfer(toAddr, amount))
+func Transfer(to std.Address, amount uint64) {
+	checkErr(UserTeller.Transfer(to, amount))
 }
 
-func Approve(spender pusers.AddressOrName, amount uint64) {
-	spenderAddr := users.Resolve(spender)
-	checkErr(UserTeller.Approve(spenderAddr, amount))
+func Approve(spender std.Address, amount uint64) {
+	checkErr(UserTeller.Approve(spender, amount))
 }
 
-func TransferFrom(from, to pusers.AddressOrName, amount uint64) {
-	fromAddr := users.Resolve(from)
-	toAddr := users.Resolve(to)
-	checkErr(UserTeller.TransferFrom(fromAddr, toAddr, amount))
+func TransferFrom(from, to std.Address, amount uint64) {
+	checkErr(UserTeller.TransferFrom(from, to, amount))
 }
 
 // Faucet is distributing foo20 tokens without restriction (unsafe).
 // For a real token faucet, you should take care of setting limits are asking payment.
 func Faucet() {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	amount := uint64(1_000 * 10_000) // 1k
 	checkErr(privateLedger.Mint(caller, amount))
 }
 
-func Mint(to pusers.AddressOrName, amount uint64) {
-	owner.AssertCallerIsOwner()
-	toAddr := users.Resolve(to)
-	checkErr(privateLedger.Mint(toAddr, amount))
+func Mint(to std.Address, amount uint64) {
+	Ownable.AssertCallerIsOwner()
+	checkErr(privateLedger.Mint(to, amount))
 }
 
-func Burn(from pusers.AddressOrName, amount uint64) {
-	owner.AssertCallerIsOwner()
-	fromAddr := users.Resolve(from)
-	checkErr(privateLedger.Burn(fromAddr, amount))
+func Burn(from std.Address, amount uint64) {
+	Ownable.AssertCallerIsOwner()
+	checkErr(privateLedger.Burn(from, amount))
 }
 
 func Render(path string) string {
@@ -85,9 +73,8 @@ func Render(path string) string {
 	case path == "":
 		return Token.RenderHome()
 	case c == 2 && parts[0] == "balance":
-		owner := pusers.AddressOrName(parts[1])
-		ownerAddr := users.Resolve(owner)
-		balance := UserTeller.BalanceOf(ownerAddr)
+		owner := std.Address(parts[1])
+		balance := UserTeller.BalanceOf(owner)
 		return ufmt.Sprintf("%d\n", balance)
 	default:
 		return "404\n"

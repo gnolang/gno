@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/overflow"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
 // -----------------------------------------------------------------------------

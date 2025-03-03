@@ -18,12 +18,11 @@ var (
 )
 
 func init() {
-	getter := func() *grc20.Token { return Token }
-	grc20reg.Register(getter, "")
+	grc20reg.Register(Token.Getter(), "")
 }
 
 func Faucet() string {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	if err := adm.Mint(caller, 1_000_000); err != nil {
 		return "error: " + err.Error()
 	}

@@ -175,7 +175,7 @@ func (m *MembStore) Members(offset, count uint64) []Member {
 	m.members.IterateByOffset(
 		int(offset),
 		int(count),
-		func(_ string, val interface{}) bool {
+		func(_ string, val any) bool {
 			member := val.(Member)
 
 			// Save the member
@@ -205,5 +205,5 @@ func (m *MembStore) TotalPower() uint64 {
 // the API of the member store is public and callable
 // by anyone who has a reference to the member store instance.
 func (m *MembStore) isCallerDAORealm() bool {
-	return m.daoPkgPath == "" || std.CurrentRealm().PkgPath() == m.daoPkgPath
+	return m.daoPkgPath != "" && std.CurrentRealm().PkgPath() == m.daoPkgPath
 }
