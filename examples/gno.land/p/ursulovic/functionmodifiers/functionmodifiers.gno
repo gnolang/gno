@@ -122,10 +122,6 @@ func (registry *ModifierRegistry) EditModifierApprovalPercentage(name string, ne
 	registry.AssertOwnersInitialized()
 	registry.AssertIsOwner(caller)
 
-	if name == "" {
-		panic("Must provide a non-empty name")
-	}
-
 	if newApprovalPercentage <= 0 || newApprovalPercentage > 1 {
 		panic("New approval percentage value must be greater than 0 and less or equal to 1!")
 	}
@@ -159,9 +155,6 @@ func (registry *ModifierRegistry) EditModifierApprovalPercentage(name string, ne
 }
 
 func (registry *ModifierRegistry) ApproveModifier(name string) {
-	if name == "" {
-		panic("Name of the modifier cannot be empty!")
-	}
 
 	caller := std.OriginCaller()
 
