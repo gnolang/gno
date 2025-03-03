@@ -194,7 +194,7 @@ func Render(_ string) string { return strconv.Itoa(value) }
 func testingContext(t *testing.T) context.Context {
 	t.Helper()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*7)
 	t.Cleanup(cancel)
 	return ctx
 }
