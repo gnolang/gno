@@ -452,7 +452,7 @@ func (tv *TypedValue) GetFirstObject2(store Store) Object {
 		// if the object is unreal but already owned,
 		// it means the object is bound to this realm
 		// and must be attached to it.
-		if !obj.GetIsReal() && obj.GetIsOwned() {
+		if boundRealm.IsZero() && !obj.GetIsReal() && obj.GetIsOwned() {
 			boundRealm = obj.GetOwnerID().PkgID
 		}
 

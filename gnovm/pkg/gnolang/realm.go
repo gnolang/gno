@@ -229,7 +229,7 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 			}
 			// If it's not escaped, mark as newly escaped item.
 			if !co.GetIsEscaped() {
-				checkCrossRealm(rlm, store, co, nil)
+				checkCrossRealm(rlm, store, co, &[]Object{})
 				rlm.MarkNewEscaped(co)
 			}
 		} else {
@@ -240,7 +240,7 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 				rlm.MarkNewReal(co)
 			}
 			// check cross realm for non escaped objects
-			checkCrossRealm(rlm, store, co, nil)
+			checkCrossRealm(rlm, store, co, &[]Object{})
 		}
 	}
 
@@ -256,29 +256,21 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 	}
 }
 
-// checkCrossRealm2 checks cross realm recursively.
-func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, seenObjs []Object) {
-	if debug {
-		debug.Printf("checkCrossRealm2, tv: %v (type: %v) \n", tv, reflect.TypeOf(tv.V))
-	}
-	fillValueTV(store, tv)
-	oo2 := tv.GetFirstObject2(store)
-	if oo2 != nil {
-		// if it is checking a pointer, and it
-		// has a base in current realm, implies
-		// the current realm is finalizing,
-		// just skip the next recursive step.
-		if slices.Contains(seenObjs, oo2) {
-			seenObjs = nil
-			return
-		}
-		seenObjs = append(seenObjs, oo2)
-		checkCrossRealm(rlm, store, oo2, seenObjs)
-	}
-}
-
 // checkCrossRealm performs a deep crawl to determine if cross-realm conditions exist.
-func checkCrossRealm(rlm *Realm, store Store, oo Object, seenObjs []Object) {
+func checkCrossRealm(rlm *Realm, store Store, oo Object, seenObjs *[]Object) {
+	// if it is checking a pointer, and it
+	// has a base in current realm, implies
+	// the current realm is finalizing,
+	// just skip the next recursive step.
+	if slices.Contains(*seenObjs, oo) {
+		return
+	}
+	*seenObjs = append(*seenObjs, oo)
+
+	defer func() {
+		*seenObjs = (*seenObjs)[:len(*seenObjs)-1]
+	}()
+
 	if debug {
 		debug.Printf(
 			"checkCrossRealm, oo: %v (type: %v) | GetIsReal: %t | oo.GetBoundRealm: %v | rlm.ID: %v | isAttachingRef: %t\n",
@@ -325,8 +317,20 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, seenObjs []Object) {
 	}
 }
 
+// checkCrossRealm2 checks cross realm recursively.
+func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, seenObjs *[]Object) {
+	if debug {
+		debug.Printf("checkCrossRealm2, tv: %v (type: %v) \n", tv, reflect.TypeOf(tv.V))
+	}
+	fillValueTV(store, tv)
+	oo2 := tv.GetFirstObject2(store)
+	if oo2 != nil {
+		checkCrossRealm(rlm, store, oo2, seenObjs)
+	}
+}
+
 // checkCrossRealmChildren check if children is crossing realm
-func checkCrossRealmChildren(rlm *Realm, store Store, oo Object, seenObjs []Object) {
+func checkCrossRealmChildren(rlm *Realm, store Store, oo Object, seenObjs *[]Object) {
 	switch v := oo.(type) {
 	case *StructValue:
 		for _, fv := range v.Fields {
@@ -484,13 +488,13 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 	}
 	if readonly {
 		if true ||
-			len(rlm.newCreated) > 0 ||
-			len(rlm.newEscaped) > 0 ||
-			len(rlm.newDeleted) > 0 ||
-			len(rlm.created) > 0 ||
-			len(rlm.updated) > 0 ||
-			len(rlm.deleted) > 0 ||
-			len(rlm.escaped) > 0 {
+				len(rlm.newCreated) > 0 ||
+				len(rlm.newEscaped) > 0 ||
+				len(rlm.newDeleted) > 0 ||
+				len(rlm.created) > 0 ||
+				len(rlm.updated) > 0 ||
+				len(rlm.deleted) > 0 ||
+				len(rlm.escaped) > 0 {
 			panic("realm updates in readonly transaction")
 		}
 		return
@@ -501,9 +505,9 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 		ensureUniq(rlm.newDeleted)
 		ensureUniq(rlm.updated)
 		if false ||
-			rlm.created != nil ||
-			rlm.deleted != nil ||
-			rlm.escaped != nil {
+				rlm.created != nil ||
+				rlm.deleted != nil ||
+				rlm.escaped != nil {
 			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
@@ -567,7 +571,7 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 			// from package block, recursively
 			if pv, ok := oo.(*PackageValue); ok {
 				if IsRealmPath(pv.PkgPath) {
-					checkCrossRealm(rlm, store, pv.Block.(Object), nil)
+					checkCrossRealm(rlm, store, pv.Block.(Object), &[]Object{})
 				}
 			}
 			rlm.incRefCreatedDescendants(store, oo)
@@ -882,9 +886,9 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		}
 		// deleted objects should not have gotten here.
 		if false ||
-			oo.GetRefCount() <= 0 ||
-			oo.GetIsNewDeleted() ||
-			oo.GetIsDeleted() {
+				oo.GetRefCount() <= 0 ||
+				oo.GetIsNewDeleted() ||
+				oo.GetIsDeleted() {
 			panic("cannot save deleted objects")
 		}
 	}
