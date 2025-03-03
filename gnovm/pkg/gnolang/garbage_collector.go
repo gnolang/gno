@@ -69,9 +69,6 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 	// Visit exceptions
 	for _, exception := range m.Exceptions {
-		// XXX implement for exceptions.
-		// XXX Exception is not an object,
-		// so implement a custom method and pass in vis.
 		stop = exception.Visit(vis, m.Store)
 		if stop {
 			return -1, false
