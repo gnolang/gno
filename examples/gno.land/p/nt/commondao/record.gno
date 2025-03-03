@@ -2,6 +2,7 @@ package commondao
 
 import (
 	"errors"
+	"math"
 	"std"
 
 	"gno.land/p/demo/avl"
@@ -19,6 +20,9 @@ type (
 
 	// ReadOnlyVotingRecord defines an interface for read only voting records.
 	ReadOnlyVotingRecord interface {
+		// Size returns the total number of votes that record contains.
+		Size() int
+
 		// VoteChoices returns the voting choices that has been voted.
 		VoteChoices() []VoteChoice
 
@@ -42,6 +46,11 @@ type (
 type VotingRecord struct {
 	votes avl.Tree // string(address) -> VoteChoice
 	count avl.Tree // string(choice) -> int
+}
+
+// Size returns the total number of votes that record contains.
+func (r VotingRecord) Size() int {
+	return r.votes.Size()
 }
 
 // VoteChoices returns the voting choices that has been voted.
@@ -115,9 +124,9 @@ func (r VotingRecord) GetProvableMajorityChoice() VoteChoice {
 // SelectChoiceByAbsoluteMajority select the vote choice by absolute majority.
 // Vote choice is a majority when chosen by more than half of the votes.
 // Absolute majority considers abstentions when counting votes.
-func SelectChoiceByAbsoluteMajority(r ReadOnlyVotingRecord, memberCount int) (VoteChoice, bool) {
+func SelectChoiceByAbsoluteMajority(r ReadOnlyVotingRecord, membersCount int) (VoteChoice, bool) {
 	choice := r.GetProvableMajorityChoice()
-	if r.VoteCount(choice) > int(memberCount/2) {
+	if r.VoteCount(choice) > int(membersCount/2) {
 		return choice, true
 	}
 	return "", false
@@ -125,20 +134,13 @@ func SelectChoiceByAbsoluteMajority(r ReadOnlyVotingRecord, memberCount int) (Vo
 
 // SelectChoiceBySuperMajority select the vote choice by super majority using a 2/3s threshold.
 // Abstentions are not considered when calculating the super majority choice.
-func SelectChoiceBySuperMajority(r ReadOnlyVotingRecord) (VoteChoice, bool) {
-	var count int
-	for _, v := range r.Votes() {
-		if v.Choice != ChoiceAbstain {
-			count++
-		}
-	}
-
-	if count < 3 {
+func SelectChoiceBySuperMajority(r ReadOnlyVotingRecord, membersCount int) (VoteChoice, bool) {
+	if membersCount < 3 {
 		return "", false
 	}
 
 	choice := r.GetProvableMajorityChoice()
-	if r.VoteCount(choice) >= int((2*count)/3) {
+	if r.VoteCount(choice) >= int(math.Ceil((2*float64(membersCount))/3)) {
 		return choice, true
 	}
 	return "", false
