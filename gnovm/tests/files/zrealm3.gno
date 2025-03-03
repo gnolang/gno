@@ -3,7 +3,7 @@ package test
 
 var root *Node
 
-type Key interface{}
+type Key any
 
 type Node struct {
 	Key   Key

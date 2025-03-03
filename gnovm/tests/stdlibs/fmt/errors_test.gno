@@ -7,7 +7,6 @@ package fmt_test
 import (
 	"errors"
 	"fmt"
-	"reflect"
 	"testing"
 )
 
@@ -83,16 +82,36 @@ func TestErrorf(t *testing.T) {
 		wantText:   "%!w(<nil>)",
 		wantUnwrap: nil, // still nil
 	}} {
-		if got, want := errors.Unwrap(test.err), test.wantUnwrap; got != want {
+		if got, want := errorUnwrap(test.err), test.wantUnwrap; got != want {
 			t.Errorf("Formatted error: %v\nerrors.Unwrap() = %v, want %v", test.err, got, want)
 		}
-		if got, want := splitErr(test.err), test.wantSplit; !reflect.DeepEqual(got, want) {
+		if got, want := splitErr(test.err), test.wantSplit; !equalErrorSlices(got, want) {
 			t.Errorf("Formatted error: %v\nUnwrap() []error = %v, want %v", test.err, got, want)
 		}
 		if got, want := test.err.Error(), test.wantText; got != want {
 			t.Errorf("err.Error() = %q, want %q", got, want)
 		}
 	}
+}
+
+func equalErrorSlices(e1, e2 []error) bool {
+	if len(e1) != len(e2) {
+		return false
+	}
+	for i := 0; i < len(e1); i++ {
+		if e1[i] != e2[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// should eventually be errors.Unwrap
+func errorUnwrap(e error) error {
+	if e, ok := e.(interface{ Unwrap() error }); ok {
+		return e.Unwrap()
+	}
+	return nil
 }
 
 func splitErr(err error) []error {

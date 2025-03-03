@@ -144,7 +144,7 @@ func (s *SimpleDAO) Proposals(offset, count uint64) []dao.Proposal {
 	s.proposals.Iterate(
 		getProposalID(startIndex),
 		getProposalID(endIndex),
-		func(_ string, val interface{}) bool {
+		func(_ string, val any) bool {
 			prop := val.(*proposal)
 
 			// Save the proposal

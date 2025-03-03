@@ -19,7 +19,7 @@ func assertInt() {
 		fmt.Println(r)
 	}()
 
-	var v interface{} = 1
+	var v any = 1
 	println(v.(string))
 }
 
@@ -29,7 +29,7 @@ func assertNil() {
 		fmt.Println(r)
 	}()
 
-	var v interface{}
+	var v any
 	println(v.(string))
 }
 
@@ -45,5 +45,5 @@ func assertValue() {
 
 // Output:
 // int is not of type string
-// interface{} is not of type string
-// *github.com/gnolang/gno/_test/net/http/httptest.ResponseRecorder doesn't implement interface{Push func(string;*github.com/gnolang/gno/_test/net/http.PushOptions)(.uverse.error)} (missing method Push)
+// interface {} is not of type string
+// *github.com/gnolang/gno/_test/net/http/httptest.ResponseRecorder doesn't implement interface {func(string;*github.com/gnolang/gno/_test/net/http.PushOptions)(.uverse.error)} (missing method Push)

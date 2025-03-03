@@ -5,10 +5,9 @@
 package fmt
 
 import (
-	"internal/fmtsort"
 	"io"
+	"math"
 	"os"
-	"reflect"
 	"strconv"
 	"unicode/utf8"
 )
@@ -29,7 +28,7 @@ const (
 	badWidthString    = "%!(BADWIDTH)"
 	badPrecString     = "%!(BADPREC)"
 	noVerbString      = "%!(NOVERB)"
-	invReflectString  = "<invalid reflect.Value>"
+	invReflectString  = "<invalid valueInfo>"
 )
 
 // State represents the printer state passed to custom formatters.
@@ -123,7 +122,7 @@ type pp struct {
 	arg any
 
 	// value is used instead of arg for reflect values.
-	value reflect.Value
+	value valueInfo
 
 	// fmt is used to format basic items such as integers or strings.
 	fmt fmt
@@ -294,17 +293,6 @@ func Appendln(b []byte, a ...any) []byte {
 	return b
 }
 
-// getField gets the i'th field of the struct value.
-// If the field itself is a non-nil interface, return a value for
-// the thing inside the interface, not the interface itself.
-func getField(v reflect.Value, i int) reflect.Value {
-	val := v.Field(i)
-	if val.Kind() == reflect.Interface && !val.IsNil() {
-		val = val.Elem()
-	}
-	return val
-}
-
 // tooLarge reports whether the magnitude of the integer is
 // too large to be used as a formatting width or precision.
 func tooLarge(x int) bool {
@@ -327,13 +315,13 @@ func parsenum(s string, start, end int) (num int, isnum bool, newi int) {
 	return
 }
 
-func (p *pp) unknownType(v reflect.Value) {
-	if !v.IsValid() {
+func (p *pp) unknownType(v valueInfo) {
+	if v.Kind == "nil" {
 		p.buf.writeString(nilAngleString)
 		return
 	}
 	p.buf.writeByte('?')
-	p.buf.writeString(v.Type().String())
+	p.buf.writeString(typeString(v.Origin))
 	p.buf.writeByte('?')
 }
 
@@ -344,11 +332,11 @@ func (p *pp) badVerb(verb rune) {
 	p.buf.writeByte('(')
 	switch {
 	case p.arg != nil:
-		p.buf.writeString(reflect.TypeOf(p.arg).String())
+		p.buf.writeString(typeString(p.arg))
 		p.buf.writeByte('=')
 		p.printArg(p.arg, 'v')
-	case p.value.IsValid():
-		p.buf.writeString(p.value.Type().String())
+	case p.value.Origin != nil:
+		p.buf.writeString(typeString(p.value.Origin))
 		p.buf.writeByte('=')
 		p.printValue(p.value, 'v', 0)
 	default:
@@ -480,15 +468,15 @@ func (p *pp) fmtBytes(v []byte, verb rune, typeString string) {
 	case 'q':
 		p.fmt.fmtQ(string(v))
 	default:
-		p.printValue(reflect.ValueOf(v), verb, 0)
+		p.printValue(valueOf(v), verb, 0)
 	}
 }
 
-func (p *pp) fmtPointer(value reflect.Value, verb rune) {
-	var u uintptr
-	switch value.Kind() {
-	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.Slice, reflect.UnsafePointer:
-		u = uintptr(value.UnsafePointer())
+func (p *pp) fmtPointer(value valueInfo, verb rune) {
+	var u uint64
+	switch value.Kind {
+	case "func", "map", "pointer", "slice":
+		u = getAddr(value.Base)
 	default:
 		p.badVerb(verb)
 		return
@@ -498,7 +486,7 @@ func (p *pp) fmtPointer(value reflect.Value, verb rune) {
 	case 'v':
 		if p.fmt.sharpV {
 			p.buf.writeByte('(')
-			p.buf.writeString(value.Type().String())
+			p.buf.writeString(typeString(value.Origin))
 			p.buf.writeString(")(")
 			if u == 0 {
 				p.buf.writeString(nilString)
@@ -527,7 +515,7 @@ func (p *pp) catchPanic(arg any, verb rune, method string) {
 		// If it's a nil pointer, just say "<nil>". The likeliest causes are a
 		// Stringer that fails to guard against nil or a nil pointer for a
 		// value receiver, and in either case, "<nil>" is a nice result.
-		if v := reflect.ValueOf(arg); v.Kind() == reflect.Pointer && v.IsNil() {
+		if v := valueOf(arg); v.Kind == "pointer" && getAddr(v.Base) == 0 {
 			p.buf.writeString(nilAngleString)
 			return
 		}
@@ -618,7 +606,7 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
 
 func (p *pp) printArg(arg any, verb rune) {
 	p.arg = arg
-	p.value = reflect.Value{}
+	p.value = valueInfo{}
 
 	if arg == nil {
 		switch verb {
@@ -634,10 +622,10 @@ func (p *pp) printArg(arg any, verb rune) {
 	// %T (the value's type) and %p (its address) are special; we always do them first.
 	switch verb {
 	case 'T':
-		p.fmt.fmtS(reflect.TypeOf(arg).String())
+		p.fmt.fmtS(typeString(arg))
 		return
 	case 'p':
-		p.fmtPointer(reflect.ValueOf(arg), 'p')
+		p.fmtPointer(valueOf(arg), 'p')
 		return
 	}
 
@@ -669,17 +657,15 @@ func (p *pp) printArg(arg any, verb rune) {
 		p.fmtInteger(uint64(f), unsigned, verb)
 	case uint64:
 		p.fmtInteger(f, unsigned, verb)
-	case uintptr:
-		p.fmtInteger(uint64(f), unsigned, verb)
 	case string:
 		p.fmtString(f, verb)
 	case []byte:
 		p.fmtBytes(f, verb, "[]byte")
-	case reflect.Value:
+	case valueInfo:
 		// Handle extractable values with special methods
 		// since printValue does not handle them at depth 0.
-		if f.IsValid() && f.CanInterface() {
-			p.arg = f.Interface()
+		if f.Origin != nil {
+			p.arg = f.Origin
 			if p.handleMethods(verb) {
 				return
 			}
@@ -690,17 +676,17 @@ func (p *pp) printArg(arg any, verb rune) {
 		if !p.handleMethods(verb) {
 			// Need to use reflection, since the type had no
 			// interface methods that could be used for formatting.
-			p.printValue(reflect.ValueOf(f), verb, 0)
+			p.printValue(valueOf(f), verb, 0)
 		}
 	}
 }
 
 // printValue is similar to printArg but starts with a reflect value, not an interface{} value.
 // It does not handle 'p' and 'T' verbs because these should have been already handled by printArg.
-func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
+func (p *pp) printValue(value valueInfo, verb rune, depth int) {
 	// Handle values with special methods if not already handled by printArg (depth == 0).
-	if depth > 0 && value.IsValid() && value.CanInterface() {
-		p.arg = value.Interface()
+	if depth > 0 && value.Origin != nil {
+		p.arg = value.Origin
 		if p.handleMethods(verb) {
 			return
 		}
@@ -708,34 +694,23 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 	p.arg = nil
 	p.value = value
 
-	switch f := value; value.Kind() {
-	case reflect.Invalid:
-		if depth == 0 {
-			p.buf.writeString(invReflectString)
-		} else {
-			switch verb {
-			case 'v':
-				p.buf.writeString(nilAngleString)
-			default:
-				p.badVerb(verb)
-			}
-		}
-	case reflect.Bool:
-		p.fmtBool(f.Bool(), verb)
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		p.fmtInteger(uint64(f.Int()), signed, verb)
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		p.fmtInteger(f.Uint(), unsigned, verb)
-	case reflect.Float32:
-		p.fmtFloat(f.Float(), 32, verb)
-	case reflect.Float64:
-		p.fmtFloat(f.Float(), 64, verb)
-	case reflect.String:
-		p.fmtString(f.String(), verb)
-	case reflect.Map:
+	switch f := value; value.Kind {
+	case "bool":
+		p.fmtBool(f.Bytes == 1, verb)
+	case "int", "int8", "int16", "int32", "int64":
+		p.fmtInteger(f.Bytes, signed, verb)
+	case "uint", "uint8", "uint16", "uint32", "uint64":
+		p.fmtInteger(f.Bytes, unsigned, verb)
+	case "float32":
+		p.fmtFloat(float64(math.Float32frombits(uint32(f.Bytes))), 32, verb)
+	case "float64":
+		p.fmtFloat(math.Float64frombits(uint64(f.Bytes)), 64, verb)
+	case "string":
+		p.fmtString(value.Base.(string), verb)
+	case "map":
 		if p.fmt.sharpV {
-			p.buf.writeString(f.Type().String())
-			if f.IsNil() {
+			p.buf.writeString(typeString(f.Origin))
+			if getAddr(f.Base) == 0 {
 				p.buf.writeString(nilParenString)
 				return
 			}
@@ -743,8 +718,8 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 		} else {
 			p.buf.writeString(mapString)
 		}
-		sorted := fmtsort.Sort(f)
-		for i, m := range sorted {
+		keys, vals := mapKeyValues(f.Base)
+		for i, k := range keys {
 			if i > 0 {
 				if p.fmt.sharpV {
 					p.buf.writeString(commaSpaceString)
@@ -752,21 +727,21 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 					p.buf.writeByte(' ')
 				}
 			}
-			p.printValue(m.Key, verb, depth+1)
+			p.printValue(valueOf(k), verb, depth+1)
 			p.buf.writeByte(':')
-			p.printValue(m.Value, verb, depth+1)
+			p.printValue(valueOf(vals[i]), verb, depth+1)
 		}
 		if p.fmt.sharpV {
 			p.buf.writeByte('}')
 		} else {
 			p.buf.writeByte(']')
 		}
-	case reflect.Struct:
+	case "struct":
 		if p.fmt.sharpV {
-			p.buf.writeString(f.Type().String())
+			p.buf.writeString(typeString(f.Origin))
 		}
 		p.buf.writeByte('{')
-		for i := 0; i < f.NumField(); i++ {
+		for i := 0; i < f.Len; i++ {
 			if i > 0 {
 				if p.fmt.sharpV {
 					p.buf.writeString(commaSpaceString)
@@ -774,86 +749,73 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 					p.buf.writeByte(' ')
 				}
 			}
-			if p.fmt.plusV || p.fmt.sharpV {
-				if name := f.Type().Field(i).Name; name != "" {
-					p.buf.writeString(name)
-					p.buf.writeByte(':')
-				}
+			name, val := fieldByIndex(f.Base, i)
+			if (p.fmt.plusV || p.fmt.sharpV) && name != "" {
+				p.buf.writeString(name)
+				p.buf.writeByte(':')
 			}
-			p.printValue(getField(f, i), verb, depth+1)
+			// XXX: go uses getField, I don't think it's needed in our case but
+			// might need to do something similar for interface values.
+			p.printValue(valueOf(val), verb, depth+1)
 		}
 		p.buf.writeByte('}')
-	case reflect.Interface:
-		value := f.Elem()
-		if !value.IsValid() {
+	case "interface":
+		value := f.Base
+		if value == nil {
 			if p.fmt.sharpV {
-				p.buf.writeString(f.Type().String())
+				p.buf.writeString(typeString(f.Origin))
 				p.buf.writeString(nilParenString)
 			} else {
 				p.buf.writeString(nilAngleString)
 			}
 		} else {
-			p.printValue(value, verb, depth+1)
+			p.printValue(valueOf(value), verb, depth+1)
 		}
-	case reflect.Array, reflect.Slice:
+	case "array", "slice":
 		switch verb {
 		case 's', 'q', 'x', 'X':
-			// Handle byte and uint8 slices and arrays special for the above verbs.
-			t := f.Type()
-			if t.Elem().Kind() == reflect.Uint8 {
-				var bytes []byte
-				if f.Kind() == reflect.Slice || f.CanAddr() {
-					bytes = f.Bytes()
-				} else {
-					// We have an array, but we cannot Bytes() a non-addressable array,
-					// so we build a slice by hand. This is a rare case but it would be nice
-					// if reflection could help a little more.
-					bytes = make([]byte, f.Len())
-					for i := range bytes {
-						bytes[i] = byte(f.Index(i).Uint())
-					}
-				}
-				p.fmtBytes(bytes, verb, t.String())
+			if bs, ok := asByteSlice(f.Base); ok {
+				p.fmtBytes(bs, verb, typeString(f.Origin))
 				return
 			}
 		}
 		if p.fmt.sharpV {
-			p.buf.writeString(f.Type().String())
-			if f.Kind() == reflect.Slice && f.IsNil() {
+			p.buf.writeString(typeString(f.Origin))
+			if f.Kind == "slice" && getAddr(f.Base) == 0 {
 				p.buf.writeString(nilParenString)
 				return
 			}
 			p.buf.writeByte('{')
-			for i := 0; i < f.Len(); i++ {
+			for i := 0; i < f.Len; i++ {
 				if i > 0 {
 					p.buf.writeString(commaSpaceString)
 				}
-				p.printValue(f.Index(i), verb, depth+1)
+				p.printValue(valueOf(arrayIndex(f.Base, i)), verb, depth+1)
 			}
 			p.buf.writeByte('}')
 		} else {
 			p.buf.writeByte('[')
-			for i := 0; i < f.Len(); i++ {
+			for i := 0; i < f.Len; i++ {
 				if i > 0 {
 					p.buf.writeByte(' ')
 				}
-				p.printValue(f.Index(i), verb, depth+1)
+				p.printValue(valueOf(arrayIndex(f.Base, i)), verb, depth+1)
 			}
 			p.buf.writeByte(']')
 		}
-	case reflect.Pointer:
+	case "pointer":
 		// pointer to array or slice or struct? ok at top level
 		// but not embedded (avoid loops)
-		if depth == 0 && f.UnsafePointer() != nil {
-			switch a := f.Elem(); a.Kind() {
-			case reflect.Array, reflect.Slice, reflect.Struct, reflect.Map:
+		if depth == 0 && getAddr(f.Base) != 0 {
+			switch a := valueOf(getPtrElem(f.Base)); a.Kind {
+			case "array", "slice", "struct", "map":
 				p.buf.writeByte('&')
 				p.printValue(a, verb, depth+1)
 				return
 			}
 		}
 		fallthrough
-	case reflect.Chan, reflect.Func, reflect.UnsafePointer:
+	case "func":
 		p.fmtPointer(f, verb)
 	default:
 		p.unknownType(f)
@@ -867,15 +829,13 @@ func intFromArg(a []any, argNum int) (num int, isInt bool, newArgNum int) {
 		num, isInt = a[argNum].(int) // Almost always OK.
 		if !isInt {
 			// Work harder.
-			switch v := reflect.ValueOf(a[argNum]); v.Kind() {
-			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				n := v.Int()
-				if int64(int(n)) == n {
-					num = int(n)
-					isInt = true
-				}
-			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-				n := v.Uint()
+			switch v := valueOf(a[argNum]); v.Kind {
+			case "int", "int8", "int16", "int32", "int64":
+				n := int64(v.Bytes)
+				num = int(n)
+				isInt = true
+			case "uint", "uint8", "uint16", "uint32", "uint64":
+				n := v.Bytes
 				if int64(n) >= 0 && uint64(int(n)) == n {
 					num = int(n)
 					isInt = true
@@ -1118,7 +1078,7 @@ formatLoop:
 			if arg == nil {
 				p.buf.writeString(nilAngleString)
 			} else {
-				p.buf.writeString(reflect.TypeOf(arg).String())
+				p.buf.writeString(typeString(arg))
 				p.buf.writeByte('=')
 				p.printArg(arg, 'v')
 			}
@@ -1130,7 +1090,7 @@ formatLoop:
 func (p *pp) doPrint(a []any) {
 	prevString := false
 	for argNum, arg := range a {
-		isString := arg != nil && reflect.TypeOf(arg).Kind() == reflect.String
+		isString := arg != nil && valueOf(arg).Kind == "string"
 		// Add a space between two non-string arguments.
 		if argNum > 0 && !isString && !prevString {
 			p.buf.writeByte(' ')
@@ -1151,3 +1111,50 @@ func (p *pp) doPrintln(a []any) {
 	}
 	p.buf.writeByte('\n')
 }
+
+// internal mini reflection implementation.
+// -----------------------------------------------------------------------------
+
+// native function to get a string representation of the type of v.
+func typeString(v any) string
+
+type valueInfo struct {
+	// Original value passed to valueOf
+	Origin any
+	// Kind of the value.
+	Kind string
+	// if Origin is of a DeclaredType, the name of the type.
+	DeclaredName string
+	// Byte value for simple scalar types (integers, booleans).
+	Bytes uint64
+	// Original stripped of the type.
+	Base any
+	// Length of the array, slice, string, struct, interface or map.
+	Len int
+}
+
+func valueOf(v any) valueInfo {
+	k, dn, bytes, base, xlen := valueOfInternal(v)
+	return valueInfo{v, k, dn, bytes, base, xlen}
+}
+
+func valueOfInternal(v any) (kind, declaredName string, bytes uint64, base any, xlen int)
+
+// numerical value of pointer.
+func getAddr(v any) uint64
+
+// dereference the pointer value at v.
+func getPtrElem(v any) any
+
+// keys and values of the map.
+func mapKeyValues(v any) ([]any, []any)
+
+// get the n'th element of the given array or slice.
+func arrayIndex(v any, n int) any
+
+// n'th field of the given struct.
+func fieldByIndex(v any, n int) (name string, value any)
+
+// asByteSlice converts v into a []byte. Argument can be a byte array, which
+// would be converted, or a byte slice, where this function is idempotent.
+func asByteSlice(v any) ([]byte, bool)

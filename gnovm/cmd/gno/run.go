@@ -92,9 +92,9 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 	stderr := io.Err()
 
 	// init store and machine
+	output := test.OutputWithError(stdout, stderr)
 	_, testStore := test.Store(
-		cfg.rootDir,
-		stdin, stdout, stderr)
+		cfg.rootDir, output)
 	if cfg.verbose {
 		testStore.SetLogStoreOps(true)
 	}
@@ -118,7 +118,7 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 	ctx := test.Context(pkgPath, send)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath: pkgPath,
-		Output:  stdout,
+		Output:  output,
 		Input:   stdin,
 		Store:   testStore,
 		Context: ctx,

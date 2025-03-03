@@ -6,7 +6,7 @@ package fmt
 
 import (
 	"errors"
-	"slices"
+	"sort"
 )
 
 // Errorf formats according to a format specifier and returns the string as a
@@ -34,7 +34,7 @@ func Errorf(format string, a ...any) error {
 		err = w
 	default:
 		if p.reordered {
-			slices.Sort(p.wrappedErrs)
+			sort.Ints(p.wrappedErrs)
 		}
 		var errs []error
 		for i, argNum := range p.wrappedErrs {
@@ -47,7 +47,6 @@ func Errorf(format string, a ...any) error {
 		}
 		err = &wrapErrors{s, errs}
 	}
-	p.free()
 	return err
 }
 
