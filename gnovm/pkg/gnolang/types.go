@@ -453,7 +453,7 @@ func (l FieldTypeList) HasUnexported() bool {
 }
 
 func (l FieldTypeList) String() string {
-	return l.string(true, ";")
+	return l.string(true, "; ")
 }
 
 // StringForFunc returns a list of the fields, suitable for functions.
@@ -753,7 +753,10 @@ func (st *StructType) TypeID() TypeID {
 }
 
 func (st *StructType) String() string {
-	return fmt.Sprintf("struct {%s}",
+	if len(st.Fields) == 0 {
+		return "struct {}"
+	}
+	return fmt.Sprintf("struct { %s }",
 		FieldTypeList(st.Fields).String())
 }
 
@@ -934,12 +937,15 @@ func (it *InterfaceType) TypeID() TypeID {
 }
 
 func (it *InterfaceType) String() string {
-	if it.Generic != "" {
+	switch {
+	case it.Generic != "":
 		return fmt.Sprintf("<%s>{%s}",
 			it.Generic,
 			FieldTypeList(it.Methods).String())
-	} else {
-		return fmt.Sprintf("interface {%s}",
+	case len(it.Methods) == 0:
+		return "interface {}"
+	default:
+		return fmt.Sprintf("interface { %s }",
 			FieldTypeList(it.Methods).String())
 	}
 }
