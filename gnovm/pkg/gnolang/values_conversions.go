@@ -75,6 +75,11 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 GNO_CASE:
 	// special case for interface target
 	if t.Kind() == InterfaceKind {
+		if tv.IsUndefined() && tv.T == nil {
+			if _, ok := t.(*NativeType); !ok { // no support for native now
+				tv.T = t
+			}
+		}
 		return
 	}
 	// special case for undefined/nil source
@@ -96,7 +101,7 @@ GNO_CASE:
 
 	validate := func(from Kind, to Kind, cmp func() bool) {
 		if isConst {
-			msg := fmt.Sprintf("cannot convert constant of type %s to %s\n", from, to)
+			msg := fmt.Sprintf("cannot convert constant of type %s to %s", from, to)
 			if cmp != nil && cmp() {
 				return
 			}
@@ -1311,28 +1316,14 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 	}
 	switch tv.T {
 	case UntypedBoolType:
-		if debug {
-			if t.Kind() != BoolKind {
-				panic("untyped bool can only be converted to bool kind")
-			}
-		}
 		tv.T = t
 	case UntypedRuneType:
 		ConvertUntypedRuneTo(tv, t)
 	case UntypedBigintType:
-		if preprocessing.Load() == 0 {
-			panic("untyped Bigint conversion should not happen during interpretation")
-		}
 		ConvertUntypedBigintTo(tv, tv.V.(BigintValue), t)
 	case UntypedBigdecType:
-		if preprocessing.Load() == 0 {
-			panic("untyped Bigdec conversion should not happen during interpretation")
-		}
 		ConvertUntypedBigdecTo(tv, tv.V.(BigdecValue), t)
 	case UntypedStringType:
-		if preprocessing.Load() == 0 {
-			panic("untyped String conversion should not happen during interpretation")
-		}
 		if t.Kind() == StringKind {
 			tv.T = t
 			return
