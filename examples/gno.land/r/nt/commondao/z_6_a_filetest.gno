@@ -40,11 +40,11 @@ func init() {
 	std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 
 	// Invite a user to be able to start creating DAOs
-	std.TestSetOrigCaller(owner)
+	std.TestSetOriginCaller(owner)
 	commondao.Invite(user1)
 
 	// Create a new DAO which gives ownership to `commondao_test`
-	std.TestSetOrigCaller(user1)
+	std.TestSetOriginCaller(user1)
 	dao = commondao.New("Foo")
 
 	// Configure DAO
@@ -59,7 +59,7 @@ func init() {
 	commondao.Vote(dao.ID(), proposal.ID(), pcommondao.ChoiceYes)
 
 	// Submit user2 vote
-	std.TestSetOrigCaller(user2)
+	std.TestSetOriginCaller(user2)
 	commondao.Vote(dao.ID(), proposal.ID(), pcommondao.ChoiceYes)
 }
 

@@ -17,7 +17,7 @@ var reSlug = regexp.MustCompile("^[a-zA-Z]+[a-zA-Z0-9-]*$")
 // A user invitation is required to start creating new DAOs.
 func Invite(invitee std.Address) {
 	// TODO: Use an authority to restrict inviters when `p/moul/authz` is available
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	invites.Set(invitee.String(), caller.String())
 }
 
@@ -33,9 +33,9 @@ func New(name string) *commondao.CommonDAO {
 	name = strings.TrimSpace(name)
 	assertNameIsNotEmpty(name)
 
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	if !checkOwnershipExists(caller) {
-		orig := std.GetOrigCaller()
+		orig := std.OriginCaller()
 		assertIsInvited(orig)
 		invites.Remove(orig.String())
 	}
@@ -97,7 +97,7 @@ func IsOwner(addr std.Address, daoID uint64) bool {
 func TransferOwnership(daoID uint64, newOwner std.Address) {
 	assertCallerIsOwner(daoID)
 
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	ids := getOwnership(caller)
 	for i, id := range ids {
 		if id == daoID {
@@ -143,7 +143,7 @@ func GetSize(rootID uint64) int {
 // Vote submits a vote for a DAO proposal.
 func Vote(daoID, proposalID uint64, vote commondao.VoteChoice) {
 	dao := mustGetDAO(daoID)
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	assertCallerIsMember(caller, dao)
 
 	err := dao.Vote(caller, proposalID, vote)
@@ -155,10 +155,8 @@ func Vote(daoID, proposalID uint64, vote commondao.VoteChoice) {
 // Execute executes a DAO proposal.
 func Execute(daoID, proposalID uint64) {
 	dao := mustGetDAO(daoID)
-	caller := std.PrevRealm().Addr()
-	if !dao.Members().Has(caller) {
-		panic("caller is not a DAO member")
-	}
+	caller := std.OriginCaller()
+	assertCallerIsMember(caller, dao)
 
 	err := dao.Execute(proposalID)
 	if err != nil {
@@ -192,7 +190,7 @@ func assertIsInvited(addr std.Address) {
 }
 
 func assertCallerIsRealm() {
-	if std.PrevRealm().PkgPath() == "" {
+	if std.PreviousRealm().PkgPath() == "" {
 		panic("caller is not a realm")
 	}
 }
@@ -204,7 +202,7 @@ func assertIsOwner(addr std.Address, daoID uint64) {
 }
 
 func assertCallerIsOwner(daoID uint64) {
-	assertIsOwner(std.PrevRealm().Addr(), daoID)
+	assertIsOwner(std.PreviousRealm().Address(), daoID)
 }
 
 func assertNameIsNotEmpty(name string) {

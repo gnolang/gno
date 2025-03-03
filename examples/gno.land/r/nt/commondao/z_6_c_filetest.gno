@@ -18,11 +18,11 @@ func init() {
 	std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 
 	// Invite a user to be able to start creating DAOs
-	std.TestSetOrigCaller(owner)
+	std.TestSetOriginCaller(owner)
 	commondao.Invite(user)
 
 	// Create a new DAO which gives ownership to `commondao_test`
-	std.TestSetOrigCaller(user)
+	std.TestSetOriginCaller(user)
 	daoID = commondao.New("Foo").ID()
 }
 

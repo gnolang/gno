@@ -16,12 +16,12 @@ var rootID uint64
 
 func init() {
 	// Invite a user to be able to start creating DAOs
-	std.TestSetOrigCaller(owner)
+	std.TestSetOriginCaller(owner)
 	commondao.Invite(user)
 
 	// The origin must be the invited user where invitation
 	// is removed after the first user call to create a DAO
-	std.TestSetOrigCaller(user)
+	std.TestSetOriginCaller(user)
 
 	// Create root DAO with subDAOs
 	rootDAO := commondao.New("Root DAO")

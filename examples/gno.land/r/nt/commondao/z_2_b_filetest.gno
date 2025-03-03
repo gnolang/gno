@@ -13,11 +13,11 @@ const (
 
 func init() {
 	// Invite a user to be able to start creating DAOs
-	std.TestSetOrigCaller(owner)
+	std.TestSetOriginCaller(owner)
 	commondao.Invite(user)
 
 	// The origin must be the invited user
-	std.TestSetOrigCaller(user)
+	std.TestSetOriginCaller(user)
 }
 
 func main() {

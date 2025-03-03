@@ -17,11 +17,11 @@ var daoID uint64
 
 func init() {
 	// Invite a user to be able to start creating DAOs
-	std.TestSetOrigCaller(owner)
+	std.TestSetOriginCaller(owner)
 	commondao.Invite(user)
 
 	// Create a couple of DAOs
-	std.TestSetOrigCaller(user)
+	std.TestSetOriginCaller(user)
 	commondao.New("A")
 	daoID = commondao.New(name).ID()
 	commondao.New("C")

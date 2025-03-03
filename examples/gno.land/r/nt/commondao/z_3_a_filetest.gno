@@ -20,14 +20,14 @@ var (
 
 func init() {
 	// Init `commondao_test` realm address
-	realm = std.CurrentRealm().Addr()
+	realm = std.CurrentRealm().Address()
 
 	// Invite a user to be able to start creating DAOs
-	std.TestSetOrigCaller(owner)
+	std.TestSetOriginCaller(owner)
 	commondao.Invite(user)
 
 	// Create a new DAO which gives ownership to `commondao_test`
-	std.TestSetOrigCaller(user)
+	std.TestSetOriginCaller(user)
 	daoID = commondao.New("Foo").ID()
 }
 

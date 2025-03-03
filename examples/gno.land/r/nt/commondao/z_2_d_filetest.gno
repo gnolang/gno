@@ -11,7 +11,7 @@ const user = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
 
 func init() {
 	// Calling with a user that was not invited
-	std.TestSetOrigCaller(user)
+	std.TestSetOriginCaller(user)
 }
 
 func main() {
