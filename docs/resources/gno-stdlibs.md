@@ -8,7 +8,7 @@ handle blockchain-related functionality, such as fetching the last caller,
 fetching coins sent along with a transaction, getting the block timestamp and height, and more. 
 
 Standard libraries differ from on-chain packages in terms of their import path structure.
-Unlike on-chain [packages](../packages.md), standard libraries do not incorporate
+Unlike on-chain [packages](./gno-packages.md), standard libraries do not incorporate
 a domain-like format at the beginning of their import path. For example:
 - `import "strings"` refers to a standard library
 - `import "gno.land/p/demo/avl"` refers to an on-chain package.

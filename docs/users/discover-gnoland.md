@@ -22,7 +22,7 @@ To interact with gno.land (sending transactions, deploying contracts, etc.), you
 
 - [Portal Loop](https://gno.land) - The main testnet for exploring gno.land
 - [Faucet Hub](https://faucet.gno.land) - Get testnet tokens for experimenting
-- [Awesome Gno](../resources/awesome-gno.md) - A curated list of tools, tutorials, and projects
+- [Awesome Gno](https://github.com/gnolang/awesome-gno) - A curated list of tools, tutorials, and projects
 
 ## The gno.land Ecosystem
 

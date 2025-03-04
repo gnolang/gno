@@ -70,8 +70,9 @@ After genesis has been replayed, the chain continues working as normal.
 ### Using the Portal Loop
 
 The Portal Loop deployment can be found at [gno.land](https://gno.land), while
-the exposed RPC endpoints can be found on `https://rpc.gno.land:443`. The RPC endpoint
-list can be found in the [reference section](../reference/rpc-endpoints.md).
+the exposed RPC endpoints can be found on `https://rpc.gno.land:443`.
+
+XXX: list or link to the list of available RPC endpoints.
 
 #### A warning note
 
@@ -98,12 +99,7 @@ get merged into `examples/`.
 The above mechanism is also how the `examples/` on the Portal Loop
 get collaboratively iterated upon, which is its main mission.
 
-
 ## Gno Testnets
-
-This page documents all gno.land testnets, what their properties are, and how
-they are meant to be used. For testnet configuration, visit the
-[reference section](../reference/network-config.md).
 
 gno.land testnets are categorized by 4 main points:
 - **Persistence of state**

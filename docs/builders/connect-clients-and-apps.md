@@ -125,7 +125,7 @@ if err != nil {
 ```
 
 A list of gno.land network endpoints & chain IDs can be found in the
-[Gno RPC endpoints](../reference/network-config.md) page.
+[Networks documentation](../resources/gnoland-networks.md).
 
 With this, we can initialize the `gnoclient.Client` struct:
 
@@ -388,3 +388,13 @@ to query account info, send a transaction, and read on-chain state.
 
 To see a real-world example CLI tool use `gnoclient`,
 check out [gnoblog-cli](https://github.com/gnolang/blog/tree/main/cmd/gnoblog-cli).
+
+## Understanding gno.land's RPC Interface
+
+gno.land networks expose several RPC endpoints that allow you to:
+
+1. **Query blockchain state** - Retrieve account information, package data, and more
+2. **Submit transactions** - Send GNOT tokens, call realm functions, and deploy code
+3. **Subscribe to events** - Get real-time updates about blockchain activity
+
+All RPC endpoints for each network can be found in the [Networks documentation](../resources/gnoland-networks.md).

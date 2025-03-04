@@ -14,7 +14,7 @@ remote gno.land network.
 
 This tutorial will show you how to use gnodev, 
 a local development solution stack offering a built-in gno.land node with a 
-hot-reload feature for packages and realms, as well as a built-in instance of [gnoweb](../exploring-gnoland.md#gnoweb).
+hot-reload feature for packages and realms, as well as a built-in instance of [gnoweb](../users/explore-with-gnoweb.md).
 
 ## Primary features 
 
@@ -193,6 +193,12 @@ A detailed explanation how to use `gnokey` will be provided in an
 upcoming tutorial.
 
 :::
+
+After running gnodev, you can access several components:
+
+1. A local version of [gnoweb](../users/explore-with-gnoweb.md)
+2. A local blockchain instance for testing
+3. The web-based gnodev UI to monitor your node
 
 ## Conclusion
 

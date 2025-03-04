@@ -26,14 +26,10 @@ make install
 
 Coming soon.
 
-## Creating a key pair
-
-- `gnokey` set up. See [Installation](../users/interact-with-gnokey.md).
-
-## Overview
+## Managing key pairs
 
 In this tutorial, you will learn how to create your Gno key pair using 
-[gnokey](../../dev-guides/gnokey/overview.md). A key pair is required to send
+[gnokey](./interact-with-gnokey.md). A key pair is required to send
 transactions to the blockchain, including deploying code, interacting with 
 existing applications, and more.
 
@@ -83,24 +79,7 @@ is visible in the caller stack of an application, it is included in each
 transaction you create with your key pair, and anyone who knows your address can
 send you [coins](../../concepts/stdlibs/coin.md), etc.
 
-## Conclusion
-
-That's it 🎉
-
-You've successfully created your first Gno key pair. Next, we will learn how to 
-spin up a local develoment node and interact with it using your fresh key pair.  
-
-If you wish to learn more about `gnokey` specifically, check out the 
-[gnokey developer guides](../../dev-guides/gnokey/overview.md).
-
-
 ## Making transactions
-
-## Prerequisites
-
-- `gnokey` installed. Reference the [Installation](../users/interact-with-gnokey.md) guide for steps
-
-## Overview
 
 In Gno, there are four types of messages that can change on-chain state:
 - `AddPackage` - adds new code to the chain
@@ -551,22 +530,7 @@ func main() {
 Finally, we can call methods that are on top-level objects in case they exist, 
 which is not currently possible with the `Call` message.
 
-## Conclusion
-
-That's it! 🎉
-
-In this tutorial, you've learned to use `gnokey` for sending multiple types of 
-state-changing calls to a gno.land chain. 
-
-
-
 ## Making an airgapped transaction
-
-## Prerequisites
-
-- `gnokey` installed. Reference the [Installation](../users/interact-with-gnokey.md) guide for steps
-
-## Overview
 
 `gnokey` provides a way to create a transaction, sign it, and later
 broadcast it to a chain in the most secure fashion. This approach, while more 
@@ -683,23 +647,7 @@ Make sure the signature is in the `hex` format.
 gnokey verify -docpath userbook.tx mykey <signature>
 ```
 
-## Conclusion
-
-That's it! 🎉
-
-In this tutorial, you've learned to use `gnokey` for creating maximum-security
-transactions in an airgapped manner.
-
-
-
-
 # Querying a gno.land network
-
-## Prerequisites
-
-- `gnokey` installed. Reference the [Installation](../users/interact-with-gnokey.md) guide for steps
-
-## Overview
 
 gno.land and `gnokey` support ABCI queries. Using ABCI queries, you can query the state of 
 a gno.land network without spending any gas. All queries need to be pointed towards 
