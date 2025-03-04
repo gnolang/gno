@@ -1,15 +1,14 @@
 # Exploring gno.land with gnoweb
 
-TODO: avoid using "in this tutorial"
-TODO: give a link to the main instance of gnoweb, portal loop; and give a link to "see other available networks" as an external link
-TODO: move the "code organization" for the devs section
+`gnoweb` is gno.land's universal web interface that lets you browse applications and source code on any gno.land network. This guide explains how to use gnoweb to explore the blockchain ecosystem.
 
--------------------------
+## Networks
 
-In this tutorial you will learn how you can view any gno.land application and its
-source code via gno.land's universal web frontend - `gnoweb`.
+The main gnoweb instance is available at [gno.land](https://gno.land), which serves the Portal Loop network.
 
-## Code organization
+For a complete list of all available networks (testnets and more), see [Networks](../resources/gnoland-networks.md).
+
+## Understanding Code Organization
 
 Before diving into `gnoweb`, we need to cover a fundamental concept in gno.land:
 code organization.
@@ -17,7 +16,7 @@ code organization.
 gno.land can host two types of code: [realms](../concepts/realms.md) (smart contracts),
 and [pure packages](../concepts/packages.md) (libraries). Realms can
 contain and manage state, while pure packages are used for creating reusable
-functionality, hence _pure_.[^1]
+functionality, hence _pure_.
 
 gno.land employs a storage system which is similar to a classic file system - each
 package lives on a specific package path. A typical gno.land package path, such
@@ -40,23 +39,13 @@ Let's break it down:
 - `package name` represents the name of the package found on the path. This part has
   to match the top-level package declaration in Gno files.
 
-Read more about package paths and namespaces in the Concepts section.
+## Viewing Rendered Content
 
-## gnoweb
+Realms can implement a special `Render()` function that returns HTML-like content:
 
 `gnoweb` is a minimalistic web server that serves as a unified frontend for all
 realms in gno.land. It uses ABCI queries to get the latest state of a specific 
 realm from the gno.land network.
-
-While anyone can run a `gnoweb` instance, gno.land provides official deployments
-of `gnoweb` for its networks:
-- [gno.land](https://gno.land) - Portal Loop
-- [test5.gno.land](https://test5.gno.land) - Test5
-
-The links above are an alias to the `gno.land/r/gnoland/home` realm on their
-respective networks, as indicated in the upper-left corner of the page. In other
-words, `gnoweb` is fetching the state of the `r/gnoland/home` realm and displaying
-it in your browser.
 
 Let's dive into how this works.
 
@@ -102,14 +91,3 @@ by design.
 
 Visit the [`gno.land/r/docs/source`](https://gno.land/r/docs/source) realm to learn
 how you can do this.
-
-## Conclusion
-
-In this tutorial we've covered a few key gno.land concepts - code organization,
-`gnoweb` and the `Render()` function. We've also introduced gno.land's fully 
-transparent and open-source design choices, providing all a completely verifiable 
-blockchain environment.
-
-Get started writing Gno code by visiting the next tutorial.
-
-[^1]: gno.land also has a standard library, which is [built directly into the GnoVM](https://github.com/gnolang/gno/tree/master/gnovm/stdlibs).
