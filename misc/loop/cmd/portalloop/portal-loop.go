@@ -18,7 +18,7 @@ func StartPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, f
 	dockerHandler := portalLoopHandler.dockerHandler
 
 	// 1. Pull latest docker image
-	isNew, err := dockerHandler.NeedsPullNewMasterImage(ctx)
+	isNew, err := dockerHandler.CheckPulledMasterImage(ctx)
 	if err != nil {
 		return err
 	}
@@ -32,7 +32,7 @@ func StartPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, f
 	l.WithField("containers", containers).Info("Get containers")
 
 	if len(containers) == 0 {
-		logrus.Info("No portal loop instance found, starting one")
+		l.Info("No portal loop instance found, starting one")
 		// Portal loop isn't running, Starting it
 		container, err := dockerHandler.StartGnoPortalLoopContainer(
 			ctx,
@@ -43,42 +43,40 @@ func StartPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, f
 			return err
 		}
 		containers = []types.Container{*container}
-		force = true
+		force = true // force performing all the steps
 	}
 
 	portalLoopHandler.currentRpcUrl = dockerHandler.GetPublishedRPCPort(containers[0])
 	portalLoopHandler.SwitchTraefikPortalLoopUrl()
+	l.WithField("portal.url", portalLoopHandler.currentRpcUrl).Info("Current portal loop container:")
 
-	l.Info("Current portal loop container:")
-	l = l.WithFields(logrus.Fields{"portal.url": portalLoopHandler.currentRpcUrl})
-
-	// 3. Check if there is a new image
+	// 3. Check image or options. DO not proceed, if not any new docker image AND not forced loop
 	if !isNew && !force {
 		return nil
 	}
 
-	l.Info("Set read only mode")
-	// 4. Set traefik in READ ONLY mode
+	// 4. Set Traefik in READ ONLY mode
+	l.Info("Setting read only mode")
 	err = portalLoopHandler.SwitchTraefikMode(true)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		l.Info("Unset read only mode")
+		l.Info("Unsetting read only mode")
 		err = portalLoopHandler.SwitchTraefikMode(false)
 		if err != nil {
 			logrus.WithError(err).Error()
 		}
 	}()
 
-	l.Info("Backup txs")
 	// 5. Backup TXs
+	l.Info("Backup txs")
 	err = portalLoopHandler.BackupTXs(ctx)
 	if err != nil {
 		return err
 	}
 
-	// 6. Start a new portal loop
+	// 6. Start a new portal loop instance
 	dockerContainer, err := dockerHandler.StartGnoPortalLoopContainer(
 		ctx,
 		portalLoopHandler.containerName,
@@ -87,22 +85,17 @@ func StartPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, f
 	if err != nil {
 		return err
 	}
-
 	portalLoopHandler.currentRpcUrl = dockerHandler.GetPublishedRPCPort(*dockerContainer)
-	l = l.WithFields(logrus.Fields{
-		"new_portal.url": portalLoopHandler.currentRpcUrl,
-	})
-	l.Info("setup new portal loop")
+	l.WithField("portal.url", portalLoopHandler.currentRpcUrl).Info("Set up new portal loop container")
 
 	// 7. Wait 5 blocks new portal loop to be ready
-	err = waitStartedLoop(portalLoopHandler.currentRpcUrl)
-	if err != nil {
+	if err = waitStartedLoop(portalLoopHandler.currentRpcUrl); err != nil {
 		return err
 	}
 
-	l.Info("update traefik portal loop url")
 	// 8. Update traefik portal loop rpc url
-	if err := portalLoopHandler.SwitchTraefikPortalLoopUrl(); err != nil {
+	l.Info("Updating Traefik portal loop url")
+	if err = portalLoopHandler.SwitchTraefikPortalLoopUrl(); err != nil {
 		return err
 	}
 
@@ -112,42 +105,12 @@ func StartPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, f
 
 // Waits for the Loop to get started
 func waitStartedLoop(url string) error {
-	l := logrus.WithFields(logrus.Fields{})
 	now := time.Now()
-
 	for {
-		if time.Since(now) > time.Second*120 {
+		if time.Since(now) > time.Second*180 {
 			return fmt.Errorf("timeout getting latest block")
 		}
-		err := func() error {
-			resp, err := http.Get(url + "/status")
-			if err != nil {
-				return err
-			}
-			defer resp.Body.Close()
-
-			tmStatus := struct {
-				Result struct {
-					SyncInfo struct {
-						LatestBlockHeight string `json:"latest_block_height"`
-					} `json:"sync_info"`
-				} `json:"result"`
-			}{}
-			if err := json.NewDecoder(resp.Body).Decode(&tmStatus); err != nil {
-				return err
-			}
-
-			currentBlock, err := strconv.Atoi(tmStatus.Result.SyncInfo.LatestBlockHeight)
-			if err != nil {
-				return err
-			}
-			l.WithField("new_portal.current_block", currentBlock)
-
-			if currentBlock >= 5 {
-				return nil
-			}
-			return fmt.Errorf("blocks: %d/5", currentBlock)
-		}()
+		err := checkCurrentBlock(url)
 		if err == nil {
 			break
 		}
@@ -158,4 +121,29 @@ func waitStartedLoop(url string) error {
 		time.Sleep(time.Second * 2)
 	}
 	return nil
+}
+
+// Gets Current Block from /status endpoint
+func checkCurrentBlock(url string) error {
+	resp, err := http.Get(url + "/status")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	tmStatus := TendermintStatus{}
+	if err := json.NewDecoder(resp.Body).Decode(&tmStatus); err != nil {
+		return err
+	}
+
+	currentBlock, err := strconv.Atoi(tmStatus.Result.SyncInfo.LatestBlockHeight)
+	if err != nil {
+		return err
+	}
+	logrus.WithField("current block", currentBlock)
+
+	if currentBlock >= 5 {
+		return nil
+	}
+	return fmt.Errorf("blocks: %d/5", currentBlock)
 }

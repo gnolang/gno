@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"time"
 
+	dockerClient "github.com/docker/docker/client"
 	"github.com/gnolang/tx-archive/backup"
 	"github.com/gnolang/tx-archive/backup/client/rpc"
 	"github.com/gnolang/tx-archive/backup/writer/standard"
@@ -36,6 +37,11 @@ func NewPortalLoopHandler(cfg *cfg.CmdCfg) (*PortalLoopHandler, error) {
 	timenow := time.Now()
 	now := fmt.Sprintf("%s_%v", timenow.Format("2006-01-02_"), timenow.UnixNano())
 
+	dockerClient_, err := dockerClient.NewClientWithOpts(dockerClient.FromEnv)
+	if err != nil {
+		return nil, err
+	}
+
 	backupFile, err := filepath.Abs(cfg.MasterBackupFile)
 	if err != nil {
 		return nil, err
@@ -44,9 +50,12 @@ func NewPortalLoopHandler(cfg *cfg.CmdCfg) (*PortalLoopHandler, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return &PortalLoopHandler{
-		cfg:                cfg,
-		dockerHandler:      &docker.DockerHandler{},
+		cfg: cfg,
+		dockerHandler: &docker.DockerHandler{
+			DockerClient: dockerClient_,
+		},
 		containerName:      "gno-" + now,
 		backupFile:         backupFile,
 		instanceBackupFile: instanceBackupFile,
@@ -139,4 +148,16 @@ func (plh *PortalLoopHandler) SwitchTraefikMode(readOnly bool) error {
 		mode = setReadOnly
 	}
 	return plh.replaceRegexpInFile(regExp, (string)(mode))
+}
+
+// Proxies the request to the Docker handler to remove existing Portal Lopp containers
+func (plh *PortalLoopHandler) ProxyRemoveContainers(ctx context.Context) error {
+	containers, err := plh.dockerHandler.GetActiveGnoPortalLoopContainers(ctx)
+	if err != nil {
+		return err
+	}
+	if len(containers) == 0 {
+		return nil
+	}
+	return plh.dockerHandler.RemoveContainersWithVolumes(ctx, containers)
 }

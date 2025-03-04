@@ -17,14 +17,14 @@ import (
 )
 
 type DockerHandler struct {
-	dockerClient *client.Client
+	DockerClient *client.Client
 }
 
 const GnoOfficialImage string = "ghcr.io/gnolang/gno/gnoland:master"
 
-// Checks if a new version of Master image should be pulled
-func (dh *DockerHandler) NeedsPullNewMasterImage(ctx context.Context) (bool, error) {
-	reader, err := dh.dockerClient.ImagePull(ctx, GnoOfficialImage, types.ImagePullOptions{})
+// Checks if a fresh pull of Master image corresponds to a new version
+func (dh *DockerHandler) CheckPulledMasterImage(ctx context.Context) (bool, error) {
+	reader, err := dh.DockerClient.ImagePull(ctx, GnoOfficialImage, types.ImagePullOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -41,7 +41,7 @@ func (dh *DockerHandler) NeedsPullNewMasterImage(ctx context.Context) (bool, err
 
 // Gather the list of current running containter of
 func (dh *DockerHandler) GetActiveGnoPortalLoopContainers(ctx context.Context) ([]types.Container, error) {
-	containers, err := dh.dockerClient.ContainerList(ctx, container.ListOptions{})
+	containers, err := dh.DockerClient.ContainerList(ctx, container.ListOptions{})
 	if err != nil {
 		return []types.Container{}, err
 	}
@@ -59,7 +59,7 @@ func (dh *DockerHandler) GetActiveGnoPortalLoopContainers(ctx context.Context) (
 // Starts the Gno Portal Loop Container
 func (dh *DockerHandler) StartGnoPortalLoopContainer(ctx context.Context, containerName string, hostPwd string) (*types.Container, error) {
 	// Create Docker volume
-	volume, err := dh.dockerClient.VolumeCreate(ctx, volume.CreateOptions{
+	volume, err := dh.DockerClient.VolumeCreate(ctx, volume.CreateOptions{
 		Name: containerName,
 	})
 	if err != nil {
@@ -67,7 +67,7 @@ func (dh *DockerHandler) StartGnoPortalLoopContainer(ctx context.Context, contai
 	}
 
 	// Run Docker container
-	dockerContainer, err := dh.dockerClient.ContainerCreate(ctx, &container.Config{
+	dockerContainer, err := dh.DockerClient.ContainerCreate(ctx, &container.Config{
 		Image: "ghcr.io/gnolang/gno/gnoland:master",
 		Labels: map[string]string{
 			"the-portal-loop": containerName,
@@ -100,12 +100,12 @@ func (dh *DockerHandler) StartGnoPortalLoopContainer(ctx context.Context, contai
 		return nil, err
 	}
 
-	err = dh.dockerClient.NetworkConnect(ctx, "portal-loop", dockerContainer.ID, nil)
+	err = dh.DockerClient.NetworkConnect(ctx, "portal-loop", dockerContainer.ID, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := dh.dockerClient.ContainerStart(ctx, dockerContainer.ID, types.ContainerStartOptions{}); err != nil {
+	if err := dh.DockerClient.ContainerStart(ctx, dockerContainer.ID, types.ContainerStartOptions{}); err != nil {
 		return nil, err
 	}
 	time.Sleep(time.Second * 5)
@@ -136,14 +136,12 @@ func (dh *DockerHandler) GetPublishedRPCPort(dockerContainer types.Container) st
 
 // Removes the given containers and the linked volumes
 func (dh *DockerHandler) RemoveContainersWithVolumes(ctx context.Context, containers []types.Container) error {
-	l := logrus.WithFields(logrus.Fields{})
-
 	for _, c := range containers {
-		l.WithFields(logrus.Fields{
+		logrus.WithFields(logrus.Fields{
 			"container.id":    c.ID,
 			"container.ports": c.Ports,
 		}).Infof("remove container")
-		err := dh.dockerClient.ContainerRemove(ctx, c.ID, container.RemoveOptions{
+		err := dh.DockerClient.ContainerRemove(ctx, c.ID, container.RemoveOptions{
 			Force:         true,  // Force the removal of a running container
 			RemoveVolumes: true,  // Remove the volumes associated with the container
 			RemoveLinks:   false, // Remove the specified link and not the underlying container
@@ -153,7 +151,7 @@ func (dh *DockerHandler) RemoveContainersWithVolumes(ctx context.Context, contai
 		}
 		for _, mount := range c.Mounts {
 			if mount.Type == "volume" {
-				err = dh.dockerClient.VolumeRemove(ctx, mount.Name, true)
+				err = dh.DockerClient.VolumeRemove(ctx, mount.Name, true)
 				if err != nil {
 					return err
 				}
