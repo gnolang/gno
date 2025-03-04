@@ -152,7 +152,7 @@ var reNamespace = regexp.MustCompile(`^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/(?:r|p)/([\.
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
-	// disable check during genesis for stdlibs. TODO: MsgAddStdlib?
+	// disable check during genesis for stdlibs
 	if ctx.BlockHeight() == 0 && gno.IsStdlib(pkgPath) {
 		return nil
 	}
