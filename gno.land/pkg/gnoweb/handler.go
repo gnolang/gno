@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"go/token"
 	"log/slog"
 	"net/http"
 	"path"
@@ -209,11 +210,7 @@ func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL, indexData *components.In
 	// Get public non-method funcs
 	fsigs := []*doc.JSONFunc{}
 	for _, fun := range jdoc.Funcs {
-		if fun.Type != "" {
-			continue
-		}
-		first := fun.Name[0:1]
-		if strings.ToUpper(first) != first {
+		if !(fun.Type == "" && token.IsExported(fun.Name)) {
 			continue
 		}
 
