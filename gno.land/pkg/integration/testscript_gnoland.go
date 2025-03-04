@@ -166,7 +166,8 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		env.Setenv(DefaultAccount_Name+"_user_addr", DefaultAccount_Address)
 
 		// New private key
-		env.Values[envKeyPrivValKey] = ed25519.GenPrivKey()
+		privKey := ed25519.GenPrivKey()
+		env.Values[envKeyPrivValKey] = privKey
 
 		// Set gno dbdir
 		env.Setenv("GNO_DBDIR", dbdir)
@@ -186,13 +187,17 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		balanceFile := LoadDefaultGenesisBalanceFile(t, gnoRootDir)
 		genesisParamFile := LoadDefaultGenesisParamFile(t, gnoRootDir)
 
+		// Keep in sync with gno.land/cmd/start.go
+		genesisDeployFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+		stdlibsTxs := gnoland.LoadEmbeddedStdlibs(defaultPK.PubKey().Address(), genesisDeployFee)
+
 		// Track new user balances added via the `adduser`
 		// command and packages added with the `loadpkg` command.
 		// This genesis will be use when node is started.
 		genesis := &gnoland.GnoGenesisState{
 			Balances: balanceFile,
 			Params:   genesisParamFile,
-			Txs:      []gnoland.TxWithMetadata{},
+			Txs:      stdlibsTxs,
 		}
 
 		env.Values[envKeyGenesis] = genesis
@@ -286,7 +291,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 
 			cfg := TestingMinimalNodeConfig(gnoRootDir)
 			genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
-			genesis.Txs = append(pkgsTxs, genesis.Txs...)
+			genesis.Txs = append(genesis.Txs, pkgsTxs...)
 
 			cfg.Genesis.AppState = *genesis
 			if *nonVal {

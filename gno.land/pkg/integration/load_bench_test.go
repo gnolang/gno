@@ -6,10 +6,10 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	tm2Log "github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/stretchr/testify/require"
 )
 
 func BenchmarkTestingNodeInit(b *testing.B) {
@@ -22,21 +22,23 @@ func BenchmarkTestingNodeInit(b *testing.B) {
 		Txs:      []gnoland.TxWithMetadata{},
 	}
 	logger := tm2Log.NewNoopLogger()
-	pkgs := newPkgsLoader()
+	pkgs := NewPkgsLoader()
 
 	b.StartTimer()
 
-	creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
+	privKey, err := GeneratePrivKeyFromMnemonic(DefaultAccount_Seed, "", 0, 0)
+	require.NoError(b, err)
+
 	defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 
 	// get packages
-	pkgsTxs, err := pkgs.LoadPackages(creator, defaultFee, nil)
+	pkgsTxs, err := pkgs.LoadPackages(privKey, defaultFee, nil)
 	if err != nil {
 		b.Fatalf("unable to load packages txs: %s", err)
 	}
 
 	// Generate config and node
-	cfg := TestingMinimalNodeConfig(b, gnoRootDir)
+	cfg := TestingMinimalNodeConfig(gnoRootDir)
 	genesis.Txs = pkgsTxs
 
 	// setup genesis state
