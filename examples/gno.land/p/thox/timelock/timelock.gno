@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"gno.land/p/demo/accesscontrol"
+	"gno.land/p/thox/accesscontrol"
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
