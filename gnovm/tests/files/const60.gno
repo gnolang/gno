@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// main/files/const54.gno:4:6: bigint underflows target kind
+// main/files/const60.gno:4:6: bigint underflows target kind

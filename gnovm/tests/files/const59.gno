@@ -5,6 +5,7 @@ const (
 	B = ^1
 	C = int8(^1)
 	D = ^uint8(1)
+	E = int8(3) + 
 )
 
 func main() {
