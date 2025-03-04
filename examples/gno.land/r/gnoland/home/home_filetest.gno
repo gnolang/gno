@@ -83,13 +83,12 @@ func main() {
 // - [r/gnoland/faucet](r/gnoland/faucet)
 // - [r/gnoland/home](r/gnoland/home)
 // - [r/gnoland/pages](r/gnoland/pages)
-// - [r/gnoland/users](r/gnoland/users)
 //
 // ### [r/sys](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/sys)
 //
-// - [r/sys/names](r/sys/names)
-// - [r/sys/users](r/sys/users)
-// - [r/sys/rewards](r/sys/rewards)
+// - [r/sys/names](/r/sys/names)
+// - [r/sys/users](/r/sys/users)
+// - [r/sys/rewards](/r/sys/rewards)
 // - [/r/sys/validators/v2](/r/sys/validators/v2)
 //
 // ### [r/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo)

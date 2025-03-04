@@ -39,8 +39,8 @@ func TestDefaultVerifier(t *testing.T) {
 }
 
 func TestEnable(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
-	std.TestSetOriginCaller("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+	std.TestSetRealm(std.NewUserRealm("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"))
+	std.TestSetOriginCaller("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 	uassert.NotPanics(t, func() {
 		Enable()
