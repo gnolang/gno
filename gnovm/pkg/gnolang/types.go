@@ -753,10 +753,7 @@ func (st *StructType) TypeID() TypeID {
 }
 
 func (st *StructType) String() string {
-	if len(st.Fields) == 0 {
-		return "struct {}"
-	}
-	return fmt.Sprintf("struct { %s }",
+	return fmt.Sprintf("struct{%s}",
 		FieldTypeList(st.Fields).String())
 }
 
@@ -937,15 +934,12 @@ func (it *InterfaceType) TypeID() TypeID {
 }
 
 func (it *InterfaceType) String() string {
-	switch {
-	case it.Generic != "":
+	if it.Generic != "" {
 		return fmt.Sprintf("<%s>{%s}",
 			it.Generic,
 			FieldTypeList(it.Methods).String())
-	case len(it.Methods) == 0:
-		return "interface {}"
-	default:
-		return fmt.Sprintf("interface { %s }",
+	} else {
+		return fmt.Sprintf("interface{%s}",
 			FieldTypeList(it.Methods).String())
 	}
 }

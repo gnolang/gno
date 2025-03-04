@@ -9,4 +9,4 @@ func main() {
 }
 
 // Output:
-// map{(true bool):(struct{} struct {})}
+// map{(true bool):(struct{} struct{})}
