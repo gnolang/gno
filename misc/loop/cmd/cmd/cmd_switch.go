@@ -23,11 +23,13 @@ func NewSwitchCmd(_ commands.IO) *commands.Command {
 	)
 }
 
-func execSwitch(ctx context.Context, cfg *cfg.CmdCfg) error {
-	portalLoopHandler, err := portalloop.NewPortalLoopHandler(cfg)
-	if err != nil {
-		return err
-	}
+func execSwitch(ctx context.Context, cfg_ *cfg.CmdCfg) error {
+	return ExecAll(
+		ctx,
+		cfg_,
+		func(ctx context.Context, cfg *cfg.CmdCfg, portalLoopHandler *portalloop.PortalLoopHandler) error {
+			return portalloop.StartPortalLoop(ctx, *portalLoopHandler, true)
 
-	return portalloop.StartPortalLoop(ctx, *portalLoopHandler, true)
+		},
+	)
 }

@@ -23,16 +23,17 @@ func NewBackupCmd(_ commands.IO) *commands.Command {
 	)
 }
 
-func execBackup(ctx context.Context, cfg *cfg.CmdCfg) error {
-	portalLoopHandler, err := portalloop.NewPortalLoopHandler(cfg)
-	if err != nil {
-		return err
-	}
+func execBackup(ctx context.Context, cfg_ *cfg.CmdCfg) error {
+	return ExecAll(
+		ctx,
+		cfg_,
+		func(ctx context.Context, cfg *cfg.CmdCfg, portalLoopHandler *portalloop.PortalLoopHandler) error {
+			err := portalloop.StartPortalLoop(ctx, *portalLoopHandler, false)
+			if err != nil {
+				return err
+			}
 
-	err = portalloop.StartPortalLoop(ctx, *portalLoopHandler, false)
-	if err != nil {
-		return err
-	}
-
-	return portalLoopHandler.BackupTXs(ctx)
+			return portalLoopHandler.BackupTXs(ctx)
+		},
+	)
 }
