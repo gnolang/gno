@@ -16,7 +16,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func Init(cfg config.Config) error {
+func Init(cfg config.Config) (*sdkTrace.TracerProvider, error) {
 	var (
 		ctx = context.Background()
 		exp sdkTrace.SpanExporter
@@ -24,7 +24,7 @@ func Init(cfg config.Config) error {
 
 	u, err := url.Parse(cfg.ExporterEndpoint)
 	if err != nil {
-		return fmt.Errorf("error parsing tracer exporter endpoint: %s, %w", cfg.ExporterEndpoint, err)
+		return nil, fmt.Errorf("error parsing tracer exporter endpoint: %s, %w", cfg.ExporterEndpoint, err)
 	}
 
 	// Use oltp metric exporter with http/https or grpc
@@ -35,7 +35,7 @@ func Init(cfg config.Config) error {
 			otlptracehttp.WithEndpointURL(cfg.ExporterEndpoint),
 		)
 		if err != nil {
-			return fmt.Errorf("unable to create http traces exporter, %w", err)
+			return nil, fmt.Errorf("unable to create http traces exporter, %w", err)
 		}
 	default:
 		exp, err = otlptracegrpc.New(
@@ -44,7 +44,7 @@ func Init(cfg config.Config) error {
 			otlptracegrpc.WithInsecure(),
 		)
 		if err != nil {
-			return fmt.Errorf("unable to create grpc traces exporter, %w", err)
+			return nil, fmt.Errorf("unable to create grpc traces exporter, %w", err)
 		}
 	}
 
@@ -60,7 +60,7 @@ func Init(cfg config.Config) error {
 
 	otel.SetTracerProvider(provider)
 
-	return nil
+	return provider, nil
 }
 
 func StartSpan(ctx sdk.Context, tracer trace.Tracer, spanName string, opts ...trace.SpanStartOption) (sdk.Context, trace.Span) {
