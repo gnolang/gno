@@ -1,41 +1,30 @@
 # Interacting with gno.land using gnokey
 
-XXX: gnokey intro paragraph
-XXX: getting started: install, query, create a key, use faucet, perform a transaction
-XXX: advanced (everything advanced)
+`gnokey` is the official command-line wallet and utility for interacting with gno.land networks. It allows you to manage keys, query the blockchain, send transactions, and deploy smart contracts. This guide will help you get started with the essential operations.
 
-## Install
+## Installing gnokey
 
-# Installation
+You can install `gnokey` through various methods:
 
-XXX: add right now, or maybe just add a comment to show how to install gnokey alternatively, like by downloading official releases
+### Option 1: Install from source
 
-## Prerequisites
-
-- **Git**
-- **`make` (for running Makefiles)**
-- **Go 1.22+**
-- **[A properly configured](https://go.dev/doc/install) Go environment**[^1]
-
-## 1. Cloning the repository
-
-To get started with a local gno.land development environment, you must clone the
-GitHub repository somewhere on disk:
+To build and install from source, you'll need:
+- Git
+- Go 1.22+
+- Make
 
 ```bash
+# Clone the repository
 git clone https://github.com/gnolang/gno.git
-```
+cd gno
 
-To install all three  tools, simply run the following in the root of the repo:
-```bash
+# Install gnokey
 make install
 ```
 
-To verify that the `gnokey` binary is installed system-wide, you can run:
+### Option 2: Download prebuilt binaries
 
-```bash
-gnokey --help
-```
+Coming soon.
 
 ## Creating a key pair
 
