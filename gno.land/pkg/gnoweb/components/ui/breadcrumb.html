@@ -2,7 +2,7 @@
   <form
     method="GET"
     action=""
-    class="peer-focus-within:hidden flex bg-gray-100 after:absolute after:w-full after:top-0 after:left-0 after:h-full after:block after:bg-gray-100 after:pointer-events-none"
+    class=" p-0 peer-focus-within:hidden flex bg-gray-100 after:absolute after:w-full after:top-0 after:left-0 after:h-full after:block after:bg-gray-100 after:pointer-events-none"
   >
     <ol
       data-role="header-breadcrumb-search"
@@ -13,13 +13,13 @@
         <li
           class="{{ if $index }}
             flex z-1 before:content-['/'] before:px-[0.18rem] before:pt-0.5
-            before:text-gray-300 whitespace-nowrap
+            before:leading-normal before:text-gray-400 whitespace-nowrap
           {{ else }}
             z-1 whitespace-nowrap
           {{ end }}"
         >
           <a
-            class="hover:bg-green-600 border-2 border-transparent hover:text-light bg-light inline-block rounded-sm px-0.5"
+            class="hover:bg-green-600 border border-transparent hover:text-light bg-light inline-block rounded-sm p-0.5 min-w-4 text-center"
             href="{{ $part.URL }}"
           >
             {{ $part.Name }}
@@ -36,10 +36,10 @@
               before:content-[':']
             {{ else }}
               before:content-['/']
-            {{ end }} before:px-[0.18rem] before:pt-0.5 before:text-gray-300 whitespace-nowrap"
+            {{ end }} before:px-[0.18rem] before:pt-0.5 before:leading-normal before:text-gray-400 whitespace-nowrap"
           >
             <a
-              class="text-light border-2 border-transparent bg-gray-400 hover:bg-green-600 hover:text-light inline-block rounded-sm px-0.5"
+              class="text-light border border-transparent bg-gray-400 hover:bg-green-600 hover:text-light inline-block rounded-sm p-0.5 min-w-4 text-center"
               href="{{ $arg.URL }}"
             >
               {{ $arg.Name }}
@@ -57,14 +57,14 @@
             before:content-['?']
           {{ else }}
             before:content-['&']
-          {{ end }} before:px-[0.18rem] before:pt-0.5 before:text-gray-300 whitespace-nowrap"
+          {{ end }} before:px-[0.18rem] before:pt-0.5 before:leading-normal before:text-gray-400 whitespace-nowrap"
         >
           <label
             for="{{ $query.Key }}"
-            class="relative w-full h-full text-gray-400 border-2 border-gray-400 inline-block rounded-sm px-1 no-scrollbar"
+            class="relative w-full h-full text-gray-600 border focus-within:border-gray-400 hover:border-gray-400 bg-gray-50 inline-block rounded-sm py-0.5 px-1 no-scrollbar min-w-4 text-center"
           >
             <input
-              class="absolute top-0 left-1 right-1 opacity-0 focus:opacity-100 outline-none bg-gray-100"
+              class="absolute top-0.5 left-1 right-1 opacity-0 focus:opacity-100 outline-none bg-gray-50"
               type="text"
               id="{{ $query.Key }}"
               name="{{ $query.Key }}"
