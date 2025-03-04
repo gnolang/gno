@@ -24,6 +24,7 @@ import (
 // the first string is set to the new generated content of the file.
 func (opts *TestOptions) RunFiletest(filename string, source []byte) (string, error) {
 	opts.outWriter.w = opts.Output
+	opts.outWriter.errW = opts.Error
 
 	return opts.runFiletest(filename, source)
 }

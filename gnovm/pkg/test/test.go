@@ -79,6 +79,21 @@ func Machine(testStore gno.Store, output io.Writer, pkgPath string, debug bool) 
 	})
 }
 
+// OutputWithError returns an io.Writer that can be used as a [gno.Machine.Output],
+// where the test standard libraries will write to errWriter when using
+// os.Stderr.
+func OutputWithError(output, errWriter io.Writer) io.Writer {
+	return &outputWithError{output, errWriter}
+}
+
+type outputWithError struct {
+	w    io.Writer
+	errW io.Writer
+}
+
+func (o outputWithError) Write(p []byte) (int, error)       { return o.w.Write(p) }
+func (o outputWithError) StderrWrite(p []byte) (int, error) { return o.errW.Write(p) }
+
 // ----------------------------------------
 // testParams
 
@@ -136,37 +151,53 @@ func (opts *TestOptions) WriterForStore() io.Writer {
 }
 
 // NewTestOptions sets up TestOptions, filling out all "required" parameters.
-func NewTestOptions(rootDir string, stdin io.Reader, stdout, stderr io.Writer) *TestOptions {
+func NewTestOptions(rootDir string, stdout, stderr io.Writer) *TestOptions {
 	opts := &TestOptions{
 		RootDir: rootDir,
 		Output:  stdout,
 		Error:   stderr,
 	}
-	opts.BaseStore, opts.TestStore = Store(rootDir, stdin, opts.WriterForStore(), stderr)
+	opts.BaseStore, opts.TestStore = Store(rootDir, opts.WriterForStore())
 	return opts
 }
 
 // proxyWriter is a simple wrapper around a io.Writer, it exists so that the
 // underlying writer can be swapped with another when necessary.
 type proxyWriter struct {
-	w io.Writer
+	w    io.Writer
+	errW io.Writer
 }
 
 func (p *proxyWriter) Write(b []byte) (int, error) {
 	return p.w.Write(b)
 }
 
+// StderrWrite implements the interface specified in tests/stdlibs/os/os.go,
+// which if found in Machine.Output allows to write to stderr from Gno.
+func (p *proxyWriter) StderrWrite(b []byte) (int, error) {
+	return p.errW.Write(b)
+}
+
 // tee temporarily appends the writer w to an underlying MultiWriter, which
 // should then be reverted using revert().
 func (p *proxyWriter) tee(w io.Writer) (revert func()) {
-	save := p.w
+	rev := tee(&p.w, w)
+	revErr := tee(&p.errW, w)
+	return func() {
+		rev()
+		revErr()
+	}
+}
+
+func tee(ptr *io.Writer, dst io.Writer) (revert func()) {
+	save := *ptr
 	if save == io.Discard {
-		p.w = w
+		*ptr = dst
 	} else {
-		p.w = io.MultiWriter(save, w)
+		*ptr = io.MultiWriter(save, dst)
 	}
 	return func() {
-		p.w = save
+		*ptr = save
 	}
 }
 
@@ -178,6 +209,7 @@ func (p *proxyWriter) tee(w io.Writer) (revert func()) {
 // tests; you can use [NewTestOptions] for a common base configuration.
 func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 	opts.outWriter.w = opts.Output
+	opts.outWriter.errW = opts.Error
 
 	var errs error
 
@@ -313,7 +345,7 @@ func (opts *TestOptions) runTestFiles(
 		// - Run the test files before this for loop (but persist it to store;
 		//   RunFiles doesn't do that currently)
 		// - Wrap here.
-		m = Machine(gs, opts.Output, memPkg.Path, opts.Debug)
+		m = Machine(gs, opts.WriterForStore(), memPkg.Path, opts.Debug)
 		m.Alloc = alloc.Reset()
 		m.SetActivePackage(pv)
 

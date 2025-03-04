@@ -82,7 +82,7 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 		{input: []byte(`gno.land/r/hello.myStructInst`), expectedResult: `(struct{(1000 int)} gno.land/r/hello.myStruct)`},
 		{input: []byte(`gno.land/r/hello.myStructInst.Foo()`), expectedResult: `("myStruct.Foo" string)`},
 		{input: []byte(`gno.land/r/hello.myStruct`), expectedResultMatch: `\(typeval{gno.land/r/hello.myStruct \(0x.*\)} type{}\)`},
-		{input: []byte(`gno.land/r/hello.Inc`), expectedResult: `(Inc func()( int))`},
+		{input: []byte(`gno.land/r/hello.Inc`), expectedResult: `(Inc func()(int))`},
 		{input: []byte(`gno.land/r/hello.fn()("hi")`), expectedResult: `("echo:hi" string)`},
 		{input: []byte(`gno.land/r/hello.sl`), expectedResultMatch: `(slice[ref(.*)] []int)`},    // XXX: should return the actual value
 		{input: []byte(`gno.land/r/hello.sl[1]`), expectedResultMatch: `(slice[ref(.*)] []int)`}, // XXX: should return the actual value
@@ -168,7 +168,7 @@ func pvEcho(msg string) string { return "pvecho:"+msg }
 				if tc.expectedErrorMatch == "" {
 					assert.True(t, res.IsOK(), "should not have error")
 					if tc.expectedResult != "" {
-						assert.Equal(t, string(res.Data), tc.expectedResult)
+						assert.Equal(t, tc.expectedResult, string(res.Data))
 					}
 					if tc.expectedResultMatch != "" {
 						assert.Regexp(t, tc.expectedResultMatch, string(res.Data))

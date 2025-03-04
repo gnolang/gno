@@ -456,21 +456,9 @@ func (l FieldTypeList) String() string {
 	ll := len(l)
 	s := ""
 	for i, ft := range l {
-		s += string(ft.Name) + " " + ft.Type.TypeID().String()
+		s += ft.Type.TypeID().String()
 		if i != ll-1 {
-			s += ";"
-		}
-	}
-	return s
-}
-
-func (l FieldTypeList) StringWithCommas() string {
-	ll := len(l)
-	s := ""
-	for i, ft := range l {
-		s += string(ft.Name) + " " + ft.Type.String()
-		if i != ll-1 {
-			s += ","
+			s += ", "
 		}
 	}
 	return s
@@ -937,7 +925,7 @@ func (it *InterfaceType) String() string {
 			it.Generic,
 			FieldTypeList(it.Methods).String())
 	} else {
-		return fmt.Sprintf("interface{%s}",
+		return fmt.Sprintf("interface {%s}",
 			FieldTypeList(it.Methods).String())
 	}
 }
@@ -1305,9 +1293,13 @@ func (ft *FuncType) TypeID() TypeID {
 }
 
 func (ft *FuncType) String() string {
+	if len(ft.Results) == 0 {
+		return fmt.Sprintf("func(%s)",
+			FieldTypeList(ft.Params).String())
+	}
 	return fmt.Sprintf("func(%s)(%s)",
-		FieldTypeList(ft.Params).StringWithCommas(),
-		FieldTypeList(ft.Results).StringWithCommas())
+		FieldTypeList(ft.Params).String(),
+		FieldTypeList(ft.Results).String())
 }
 
 func (ft *FuncType) Elem() Type {

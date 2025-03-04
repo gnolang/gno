@@ -28,8 +28,7 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 	bout := bytes.NewBufferString("")
 	berr := bytes.NewBufferString("")
 	stdin := bytes.NewBufferString(in)
-	stdout := writeNopCloser{bout}
-	stderr := writeNopCloser{berr}
+	output := test.OutputWithError(writeNopCloser{bout}, writeNopCloser{berr})
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -39,14 +38,14 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 		err = strings.TrimSpace(strings.ReplaceAll(err, "../../tests/files/", "files/"))
 	}()
 
-	_, testStore := test.Store(gnoenv.RootDir(), stdin, stdout, stderr)
+	_, testStore := test.Store(gnoenv.RootDir(), output)
 
 	f := gnolang.MustReadFile(file)
 
 	m := gnolang.NewMachineWithOptions(gnolang.MachineOptions{
 		PkgPath: string(f.PkgName),
 		Input:   stdin,
-		Output:  stdout,
+		Output:  output,
 		Store:   testStore,
 		Context: test.Context(string(f.PkgName), nil),
 		Debug:   true,
