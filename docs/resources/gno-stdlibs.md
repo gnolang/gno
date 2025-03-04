@@ -104,7 +104,9 @@ The `Coins` slice can be included in a transaction made by a user addresses or a
 Coins in this set are then available for access by specific types of Bankers,
 which can manipulate them depending on access rights.
 
-Read more about coins in the [Effective Gno](../effective-gno.md) section. 
+Read more about coins in the [Effective Gno](./effective-gno.md) section. 
+
+The Coin(s) API can be found in the `std` package.
 
 ## Banker
 
@@ -167,12 +169,9 @@ data:
 You can fetch the ABCI response of a specific block by using the `/block_results` 
 RPC endpoint.
 
+<!-- XXX: remove everything after this and use automatically generated package doc -->
 
---------------------------
-
-XXX: consider keeping, or not the previous std.md
-
-# Package `std`
+## Package `std`
 
 [//]: <> (todo: autogenerate from godoc.)
 
@@ -723,7 +722,7 @@ coins.Add(otherCoins)
 
 ## Realm
 
-`Realm` is the structure representing a realm in Gno. See concept page [here](../concepts/realms.md).
+`Realm` is the structure representing a realm in Gno. See our [realm documentation](./realms.md) for more details.
 
 ```go
 type Realm struct {
@@ -781,7 +780,6 @@ denom := r.CoinDenom("blgcoin") // /gno.land/r/gnoland/blog:blgcoin
 ```
 
 ---
-
 
 ## Testing
 

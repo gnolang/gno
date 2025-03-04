@@ -28,7 +28,7 @@ Coming soon.
 
 ## Creating a key pair
 
-- `gnokey` set up. See [Installation](installation.md).
+- `gnokey` set up. See [Installation](../users/interact-with-gnokey.md).
 
 ## Overview
 
@@ -98,7 +98,7 @@ If you wish to learn more about `gnokey` specifically, check out the
 
 ## Prerequisites
 
-- `gnokey` installed. Reference the [Local Setup](../../getting-started/developing-locally/installation.md#2-installing-the-required-tools) guide for steps
+- `gnokey` installed. Reference the [Installation](../users/interact-with-gnokey.md) guide for steps
 
 ## Overview
 
@@ -564,7 +564,7 @@ state-changing calls to a gno.land chain.
 
 ## Prerequisites
 
-- `gnokey` installed. Reference the [Local Setup](../../getting-started/developing-locally/installation.md#2-installing-the-required-tools) guide for steps
+- `gnokey` installed. Reference the [Installation](../users/interact-with-gnokey.md) guide for steps
 
 ## Overview
 
@@ -697,7 +697,7 @@ transactions in an airgapped manner.
 
 ## Prerequisites
 
-- `gnokey` installed. Reference the [Local Setup](../../getting-started/developing-locally/installation.md#2-installing-the-required-tools) guide for steps
+- `gnokey` installed. Reference the [Installation](../users/interact-with-gnokey.md) guide for steps
 
 ## Overview
 

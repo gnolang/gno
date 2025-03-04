@@ -1,6 +1,6 @@
 # Example `minisocial` dApp
 
-We will create a MiniSocial [realm](../references/packages.md#realms),
+We will create a MiniSocial [realm](../resources/realms.md),
 a minimalist social media application. This tutorial will showcase a full local
 development flow for Gno, using all the tools covered in previous tutorials.
 
@@ -8,7 +8,7 @@ Find the full app on [this link](https://gno.land/r/docs/minisocial/v1).
 
 ## Prerequisites
 
-XXX: this: ./local-dev-with-gnodev.md
+See [Local Development with gnodev](./local-dev-with-gnodev.md) for setup instructions.
 
 ## Setup
 

@@ -1,11 +1,11 @@
 # Realms
 
 In gno.land, realms are entities that are addressable and identifiable by a
-[Gno address](../reference/std.md#address). These can be user
+[Gno address](./gno-stdlibs.md#address). These can be user
 realms (EOAs), as well as smart contract realms. Realms have several
 properties:
-- They can own, receive & send [Coins](./stdlibs/coin.md) through the
-  [Banker](./stdlibs/banker.md) module
+- They can own, receive & send [Coins](./gno-stdlibs.md#coin) through the
+  [Banker](./gno-stdlibs.md#banker) module
 - They can be part of a transaction call stack, as a caller or a callee
 - They can be with or without code - smart contracts, or EOAs
 
@@ -90,8 +90,7 @@ std.PrevRealm() => Realm {
 }
 std.CurrentRealm() => Realm {
     addr:    `g17m4ga9t9dxn8uf06p3cahdavzfexe33ecg8v2s`
-    pkgPath: `gno.land/r/demo/users`
-}
+    pkgPath: `gno.land/r/demo/users`}
 ```
 
 #### 2. EOA calling a sequence of realms
@@ -151,3 +150,4 @@ std.CurrentRealm() => Realm {
 For more information about realms and how they fit into the gno.land ecosystem, see the [Package Path Structure](./gno-packages.md#package-path-structure) documentation.
 
 To learn how to develop your own realms, check out the [Anatomy of a Gno Package](../builders/anatomy-of-a-gno-package.md) and [Example Minisocial dApp](../builders/example-minisocial-dapp.md) guides.
+

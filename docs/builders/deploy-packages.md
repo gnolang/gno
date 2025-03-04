@@ -30,7 +30,7 @@ gas units spent for executing the transaction.
 
 ### Getting testnet GNOT
 
-When working with [remote networks](../concepts/testnets.md), users need to get
+When working with [remote networks](../resources/gnoland-networks.md), users need to get
 testnet `ugnot` manually.
 
 `ugnot` for development on remote networks can be obtained via the [Gno Faucet Hub](https://faucet.gno.land).
@@ -51,7 +51,7 @@ counter/
     ├─ counter_test.gno
 ```
 
-Let's deploy the `Counter` realm to the [Portal Loop](../concepts/testnets.md#portal-loop) 
+Let's deploy the `Counter` realm to the [Portal Loop](../resources/gnoland-networks.md#portal-loop) 
 network. For this, we can use the `gnokey maketx addpkg` subcommand, which
 executes a package deployment transaction.
 
@@ -138,10 +138,10 @@ a third-party web extension wallet, such as Adena.
 
 :::
 
-[^1]: Read more about package paths [here](../concepts/pkg-paths.md).
-[^2]: Other network configurations can be found [here](../reference/network-config.md).
-[^3]: Address namespaces ([PA namespaces](../concepts/pkg-paths.md#gno-namespaces)) are automatically granted to 
-users. Users can register a username using the [gno.land user registry](https://gno.land/r/gnoland/users), 
+[^1]: Read more about package paths [here](../resources/gno-packages.md).
+[^2]: Other network configurations can be found [here](../resources/gnoland-networks.md).
+[^3]: Address namespaces ([PA namespaces](../resources/gno-packages.md#package-path-structure)) are automatically granted to 
+users. Users can register a username using the [gno.land user registry](https://gno.land/r/demo/users), 
 which will grant them access to a matching namespace for that specific network.
 [^4]: Automatic gas estimation is being worked on for `gnokey`. Follow progress 
 [here](https://github.com/gnolang/gno/pull/3330).

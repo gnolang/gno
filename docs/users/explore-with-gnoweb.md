@@ -13,8 +13,8 @@ For a complete list of all available networks (testnets and more), see [Networks
 Before diving into `gnoweb`, we need to cover a fundamental concept in gno.land:
 code organization.
 
-gno.land can host two types of code: [realms](../concepts/realms.md) (smart contracts),
-and [pure packages](../concepts/packages.md) (libraries). Realms can
+gno.land can host two types of code: [realms](../resources/realms.md) (smart contracts),
+and [pure packages](../resources/gno-packages.md) (libraries). Realms can
 contain and manage state, while pure packages are used for creating reusable
 functionality, hence _pure_.
 

@@ -2,13 +2,13 @@
 
 ## Prerequisites
 
-- `gno` set up. See [Installation](installation.md).
+- `gno` set up. See [Installation](../builders/installation.md).
 
 ## Overview
 
 In this tutorial, you will learn how to run and test your Gno code locally, by 
 using the `gno` binary. For this example, we will use the `Counter` code from a
-[previous tutorial](../writing-gno.md).
+[previous tutorial](../builders/anatomy-of-a-gno-package.md).
 
 ## Setup
 
