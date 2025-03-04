@@ -2,7 +2,7 @@
 
 Welcome to the official documentation of gno.land.
 
-Gno.land is a smart contract platform built on a novel interpretation of Go (Golang) for blockchain, created to enable powerful, modular, and secure decentralized applications with a minimalist approach and excellent developer experience.
+gno.land is a smart contract platform built on a novel interpretation of Go (Golang) for blockchain, created to enable powerful, modular, and secure decentralized applications with a minimalist approach and excellent developer experience.
 
 ## Use gno.land
 
