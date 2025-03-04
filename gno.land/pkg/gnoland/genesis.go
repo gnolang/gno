@@ -7,7 +7,6 @@ import (
 
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/stdlibs"
@@ -174,7 +173,7 @@ func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.C
 		err    error
 	)
 
-	if gnolang.IsStdlib(pkg.Name) {
+	if gno.IsStdlib(pkg.Name) {
 		memPkg = stdlibs.EmbeddedMemPackage(pkg.Name)
 	} else {
 		// Open files in directory as MemPackage.
