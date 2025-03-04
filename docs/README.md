@@ -33,6 +33,7 @@ Learn about core concepts found in gno.land & Gno.
 
 - [Awesome Gno](resources/awesome-gno.md) - Curated list of Gno freshness.
 - [Packages](resources/gno-packages.md) - Learn about realms, pure packages, smart contracts, dApps and how they're organized in the gno.land ecosystem.
+- [Users and Teams](resources/users-and-teams.md) - Understand user registration, namespace ownership, and team collaboration in the gno.land ecosystem.
 - [Networks](resources/gnoland-networks.md) - Discover different gno.land networks (testnets, devnets) and their purposes, including network configurations.
 - [Standard libraries](resources/gno-stdlibs.md) - An overview of the standard libraries found in the Gno language and how they enhance blockchain functionality.
 - [Effective Gno](resources/effective-gno.md) - Learn how to write Gno following best practices, including counter-intuitive good practices specific to blockchain development.
