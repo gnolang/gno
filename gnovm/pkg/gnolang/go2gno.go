@@ -462,7 +462,6 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 	case *ast.GenDecl:
 		panicWithPos("unexpected *ast.GenDecl; use toDecls(fs,) instead")
 	case *ast.File:
-		// println("---ast.File")
 		pkgName := Name(gon.Name.Name)
 		decls := make([]Decl, 0, len(gon.Decls))
 		for _, d := range gon.Decls {
@@ -673,7 +672,9 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 					names = append(names, *Nx(toName(id)))
 				}
 
-				if s.Type == nil && s.Values == nil { // inherit declared type
+				// Inherit the last type when
+				// both type and value are nil
+				if s.Type == nil && s.Values == nil {
 					tipe = lastType
 				} else {
 					lastType = toExpr(fs, s.Type)
@@ -682,9 +683,7 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 				tipe = lastType
 
 				if s.Values == nil {
-					// inherit type from last values
 					values = copyExprs(lastValues)
-					// if lastType is declaredType, inherit it
 				} else {
 					values = toExprs(fs, s.Values)
 					lastValues = values

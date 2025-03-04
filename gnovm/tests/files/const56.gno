@@ -1,15 +1,19 @@
 package main
 
 const (
-	d = "hello"
-	m
+	d, e = "hello", 1
+	m, n
+	a string = "a"
+	k        = 1 << iota
 )
 
 func main() {
-	println(d)
-	println(m)
+	println(d, e)
+	println(m, n)
+	println(k)
 }
 
 // Output:
-// hello
-// hello
+// hello 1
+// hello 1
+// 8

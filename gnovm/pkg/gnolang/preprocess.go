@@ -2564,12 +2564,10 @@ func parseAssignFromExprList(
 			checkOrConvertType(store, bn, n, &valueExprs[i], nt, false)
 		}
 	} else if isConst {
-		if valueExprs != nil {
-			// Derive static type from values.
-			for i, vx := range valueExprs {
-				vt := evalStaticTypeOf(store, bn, vx)
-				sts[i] = vt
-			}
+		// Derive static type from values.
+		for i, vx := range valueExprs {
+			vt := evalStaticTypeOf(store, bn, vx)
+			sts[i] = vt
 		}
 	} else { // T is nil, n not const => same as AssignStmt DEFINE
 		// Convert n.Value to default type.
