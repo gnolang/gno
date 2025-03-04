@@ -1,0 +1,20 @@
+-- input.md --
+<gno-columns>
+- ## title 1
+- ## title 2
+- ## title 3
+</gno-columns>
+
+-- output.html --
+<!-- gno-columns error: invalid columns format: open tag should be followed by heading separtor -->
+<ul>
+<li>
+<h2>title 1</h2>
+</li>
+<li>
+<h2>title 2</h2>
+</li>
+<li>
+<h2>title 3</h2>
+</li>
+</ul>
