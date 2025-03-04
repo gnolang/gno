@@ -2,16 +2,18 @@
 
 # Set up GNOROOT in the current directory.
 mkdir $WORK/gnovm
+mkdir $WORK/gnovm/tests
 symlink $WORK/gnovm/stdlibs -> $GNOROOT/gnovm/stdlibs
+symlink $WORK/gnovm/tests/stdlibs -> $GNOROOT/gnovm/tests/stdlibs
 env GNOROOT=$WORK
 
 gno test -v ./examples/gno.land/p/demo/hello
 
-stderr '=== RUN   TestHello'
-stderr '--- PASS: TestHello.*'
+stdout '=== RUN   TestHello'
+stdout '--- PASS: TestHello.*'
 
-stderr '=== RUN   TestHullo'
-stderr '--- PASS: TestHullo.*'
+stdout '=== RUN   TestHullo'
+stdout '--- PASS: TestHullo.*'
 
 stderr '=== RUN   file/z0_filetest.*'
 

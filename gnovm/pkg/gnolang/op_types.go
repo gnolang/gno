@@ -342,20 +342,6 @@ func (m *Machine) doOpStaticTypeOf() {
 					t2 := cxt.GetStaticValueAt(path).T
 					m.PushValue(asValue(t2))
 					return
-				case *NativeType:
-					rt := cxt.Type
-					mt, ok := rt.MethodByName(string(x.Sel))
-					if !ok {
-						if debug {
-							panic(fmt.Sprintf(
-								"native type %s has no method %s",
-								rt.String(), x.Sel))
-						}
-						panic("unknown native method selector")
-					}
-					t2 := go2GnoType(mt.Type)
-					m.PushValue(asValue(t2))
-					return
 				default:
 					panic(fmt.Sprintf(
 						"unexpected selector base typeval: %s of kind %s",
@@ -398,61 +384,7 @@ func (m *Machine) doOpStaticTypeOf() {
 			_, _, _, ft, _ := findEmbeddedFieldType(dxt.GetPkgPath(), dxt, path.Name, nil)
 			m.PushValue(asValue(ft))
 		case VPNative:
-			// if dxt is *PointerType, convert to *NativeType.
-			if pt, ok := dxt.(*PointerType); ok {
-				net, ok := pt.Elt.(*NativeType)
-				if !ok {
-					panic(fmt.Sprintf(
-						"VPNative access on pointer to non-native value %v", pt.Elt))
-				}
-				dxt = &NativeType{
-					Type: reflect.PointerTo(net.Type),
-				}
-			}
-			// switch on type and maybe match field.
-			rt := dxt.(*NativeType).Type
-			if rt.Kind() == reflect.Ptr {
-				if rt.Elem().Kind() == reflect.Struct {
-					ert := rt.Elem()
-					rft, ok := ert.FieldByName(string(x.Sel))
-					if ok {
-						ft := go2GnoType(rft.Type)
-						m.PushValue(asValue(ft))
-						return
-					}
-				}
-				// keep rt as is.
-			} else if rt.Kind() == reflect.Interface {
-				// keep rt as is.
-			} else if rt.Kind() == reflect.Struct {
-				rft, ok := rt.FieldByName(string(x.Sel))
-				if ok {
-					ft := go2GnoType(rft.Type)
-					m.PushValue(asValue(ft))
-					return
-				}
-				// make rt ptr.
-				rt = reflect.PointerTo(rt)
-			} else {
-				// make rt ptr.
-				rt = reflect.PointerTo(rt)
-			}
-			// match method.
-			rmt, ok := rt.MethodByName(string(x.Sel))
-			if ok {
-				mt := m.Store.Go2GnoType(rmt.Type).(*FuncType)
-				if rt.Kind() == reflect.Interface {
-					m.PushValue(asValue(mt))
-					return
-				} else {
-					bmt := mt.BoundType()
-					m.PushValue(asValue(bmt))
-					return
-				}
-			}
-			panic(fmt.Sprintf(
-				"native type %s has no method or field %s",
-				dxt.String(), x.Sel))
+			panic("should not happen, there are not native types anymore")
 		default:
 			panic(fmt.Sprintf(
 				"unknown value path type %v in selector %s (path %s)",

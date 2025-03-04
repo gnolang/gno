@@ -2,9 +2,9 @@
 
 ! gno test -v .
 
-! stdout .+
-stderr '=== RUN   TestAlwaysFailing'
-stderr '--- FAIL: TestAlwaysFailing'
+
+stdout '=== RUN   TestAlwaysFailing'
+stdout '--- FAIL: TestAlwaysFailing'
 stderr 'FAIL: 0 build errors, 1 test errors'
 
 -- failing.gno --
