@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/p/thox/accesscontrol"
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/uassert"
+	"gno.land/p/thox/accesscontrol"
 )
 
 func TestTimelock(t *testing.T) {
