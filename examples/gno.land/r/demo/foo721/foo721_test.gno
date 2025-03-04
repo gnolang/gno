@@ -15,13 +15,13 @@ func TestFoo721(t *testing.T) {
 
 	for _, tc := range []struct {
 		name     string
-		expected interface{}
-		fn       func() interface{}
+		expected any
+		fn       func() any
 	}{
-		{"BalanceOf(admin)", uint64(10), func() interface{} { return BalanceOf(admin) }},
-		{"BalanceOf(hariom)", uint64(5), func() interface{} { return BalanceOf(hariom) }},
-		{"OwnerOf(0)", users.Resolve(admin), func() interface{} { return OwnerOf(grc721.TokenID("0")) }},
-		{"IsApprovedForAll(admin, hariom)", false, func() interface{} { return IsApprovedForAll(admin, hariom) }},
+		{"BalanceOf(admin)", uint64(10), func() any { return BalanceOf(admin) }},
+		{"BalanceOf(hariom)", uint64(5), func() any { return BalanceOf(hariom) }},
+		{"OwnerOf(0)", users.Resolve(admin), func() any { return OwnerOf(grc721.TokenID("0")) }},
+		{"IsApprovedForAll(admin, hariom)", false, func() any { return IsApprovedForAll(admin, hariom) }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := tc.fn()

@@ -38,18 +38,18 @@ var (
 func init() {
 	presentations = collection.New()
 	// for /view and /slides
-	presentations.AddIndex("slug", func(v interface{}) string {
+	presentations.AddIndex("slug", func(v any) string {
 		return v.(*Presentation).Slug
 	}, collection.UniqueIndex)
 
 	// for table sorting
-	presentations.AddIndex("date", func(v interface{}) string {
+	presentations.AddIndex("date", func(v any) string {
 		return v.(*Presentation).Date.String()
 	}, collection.DefaultIndex)
-	presentations.AddIndex("author", func(v interface{}) string {
+	presentations.AddIndex("author", func(v any) string {
 		return v.(*Presentation).Author
 	}, collection.DefaultIndex)
-	presentations.AddIndex("title", func(v interface{}) string {
+	presentations.AddIndex("title", func(v any) string {
 		return v.(*Presentation).Title
 	}, collection.DefaultIndex)
 
