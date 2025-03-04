@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 
+	cmd_ "loop/cmd/cmd"
+
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
@@ -21,9 +23,9 @@ func main() {
 	)
 
 	cmd.AddSubCommands(
-		newServeCmd(cliIO),
-		newBackupCmd(cliIO),
-		newSwitchCmd(cliIO),
+		cmd_.NewBackupCmd(cliIO),
+		cmd_.NewServeCmd(cliIO),
+		cmd_.NewSwitchCmd(cliIO),
 	)
 
 	cmd.Execute(context.Background(), os.Args[1:])
