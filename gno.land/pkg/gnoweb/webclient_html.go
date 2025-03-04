@@ -1,7 +1,7 @@
 package gnoweb
 
 import (
-	"bytes"
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -289,34 +289,20 @@ func (s *HTMLWebClient) WriteFormatterCSS(w io.Writer) error {
 		return err
 	}
 
-	// Generate CSS for chroma dark mode
-	var darkCSS bytes.Buffer
+	// Generate CSS for dark mode
+	var darkCSS strings.Builder
 	if err := s.Formatter.WriteCSS(&darkCSS, chromaDarkStyle); err != nil {
 		return err
 	}
 
-	darkCSSStr := darkCSS.String()
-	fmt.Fprintf(w, "\n/* Styles for dark mode */\n")
-
-	lines := strings.Split(darkCSSStr, "\n")
-	for i, line := range lines {
-		// Add .dark class to chroma styles
-		if strings.Contains(line, "{") && strings.Contains(line, ".chroma") {
-			parts := strings.SplitN(line, "{", 2)
-			if len(parts) != 2 {
-				continue
-			}
-
-			selectors := strings.Split(parts[0], ",")
-			for j, selector := range selectors {
-				selectors[j] = ".dark " + strings.TrimSpace(selector)
-			}
-
-			lines[i] = strings.Join(selectors, ", ") + " {" + parts[1]
+	scanner := bufio.NewScanner(strings.NewReader(darkCSS.String()))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, ".chroma") {
+			line = ".dark " + strings.TrimSpace(line)
 		}
+		fmt.Fprintln(w, line)
 	}
 
-	fmt.Fprint(w, strings.Join(lines, "\n"))
-
-	return nil
+	return scanner.Err()
 }
