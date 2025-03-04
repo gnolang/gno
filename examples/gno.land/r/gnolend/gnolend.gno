@@ -6,6 +6,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/r/gnoswap/v1/pool"
 	"std"
+	"gno.land/r/gnoswap/v1/common"
 )
 
 // State variables
@@ -132,7 +133,11 @@ func Supply(marketId string, assets, shares int64) {
 	market.TotalSupplyAssets += assets
 	markets.Set(marketId, market)
 
-	// TODO: Handle token transfer using GRC20 interface
+	// Handle token transfer using GRC20 interface
+	token := common.GetTokenTeller(market.LoanToken)
+	if err := token.TransferFrom(caller, std.CurrentRealm().Address(), uint64(assets)); err != nil {
+		panic(err)
+	}
 
 	// Emit supply event
 	emitDeposit(marketId, caller, assets)

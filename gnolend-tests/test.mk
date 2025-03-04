@@ -47,7 +47,7 @@ supply-assets-gns-wugnot:
 		-pkgpath gno.land/r/gnolend \
 		-func Supply \
 		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns" \
-		-args 1000000000 \
+		-args 1000000 \
 		-args 0 \
 		-insecure-password-stdin=true \
 		-remote $(GNOLAND_RPC_URL) \
