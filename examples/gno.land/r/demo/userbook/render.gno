@@ -35,6 +35,6 @@ func Render(path string) string {
 
 	out += "---\n\n"
 	out += "**Page " + strconv.Itoa(page.PageNumber) + " of " + strconv.Itoa(page.TotalPages) + "**\n\n"
-	out += page.Picker()
+	out += page.Picker(path)
 	return out
 }
