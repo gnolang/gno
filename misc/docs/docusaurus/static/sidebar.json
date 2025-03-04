@@ -4,7 +4,52 @@
     [
       {
         "type": "category",
-        "label": "Discover gno.land"
+        "label": "Use gno.land",
+        "items": [
+          "users/exploring-gnoland",
+          "users/using-gnoweb",
+          "users/using-gnokey",
+          "users/example-boards",
+          "users/third-party-wallets",
+          "users/power-users"
+        ]
+      },
+      {
+        "type": "category",
+        "label": "Build on gno.land",
+        "items": [
+          "builders/what-is-gnolang",
+          "builders/anatomy-of-a-gno-package",
+          "builders/work-locally-with-gnodev",
+          "builders/example-minisocial-dapp",
+          "builders/deploy-packages",
+          "builders/connect-clients-and-apps",
+          "builders/becoming-a-gnome"
+        ]
+      },
+      {
+        "type": "category",
+        "label": "Resources",
+        "items": [
+          "resources/awesome-gno",
+          "resources/packages",
+          "resources/networks",
+          "resources/stdlibs",
+          "resources/effective-gno",
+          "resources/glossary",
+          "resources/gno-testing",
+          "resources/go-gno-compatibility",
+          {
+            "type": "link",
+            "label": "Gno Examples",
+            "href": "https://github.com/gnolang/gno/tree/master/examples"
+          },
+          {
+            "type": "link",
+            "label": "Gno Workshops",
+            "href": "https://github.com/gnolang/workshops"
+          }
+        ]
       }
     ]
   ]
