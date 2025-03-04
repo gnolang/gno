@@ -190,7 +190,9 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		stdlibsDeployer := ed25519.GenPrivKey()
 		genesisDeployFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 		stdlibsTxs := gnoland.LoadEmbeddedStdlibs(stdlibsDeployer.PubKey().Address(), genesisDeployFee)
-		gnoland.SignGenesisTxs(stdlibsTxs, stdlibsDeployer, "tendermint_test")
+		if err := gnoland.SignGenesisTxs(stdlibsTxs, stdlibsDeployer, "tendermint_test"); err != nil {
+			return fmt.Errorf("sign stdlibs txs: %w", err)
+		}
 		balanceFile = append(balanceFile, gnoland.Balance{
 			Address: stdlibsDeployer.PubKey().Address(),
 			Amount:  std.MustParseCoins(ugnot.ValueString(10_000_000_000_000)),
