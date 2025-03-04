@@ -677,10 +677,9 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 				if s.Type == nil && s.Values == nil {
 					tipe = lastType
 				} else {
-					lastType = toExpr(fs, s.Type)
+					tipe = toExpr(fs, s.Type)
+					lastType = tipe
 				}
-
-				tipe = lastType
 
 				if s.Values == nil {
 					values = copyExprs(lastValues)
