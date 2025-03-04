@@ -52,6 +52,11 @@ bytes
   reader.gno
   reader_test.gno
 crypto
+  bech32
+    bech32.gno
+    bech32_test.gno
+    error.gno
+    version.gno
   chacha20
     chacha
       README.md
@@ -75,12 +80,23 @@ crypto
     sha256.go
     sha256_test.gno
 encoding
+  base32
+    base32.gno
+    base32_test.gno
+    example_test.gno
   base64
     base64.gno
     base64_test.gno
   binary
     binary.gno
     binary_test.gno
+    varint.gno
+    varint_test.gno
+  csv
+    reader.gno
+    reader_test.gno
+    writer.gno
+    writer_test.gno
   encoding.gno
   hex
     hex.gno
@@ -110,6 +126,7 @@ internal
     indexbyte_generic.gno
 io
   example_test.gno
+  export_test.gno
   io.gno
   io_test.gno
   multi.gno
@@ -271,6 +288,7 @@ strings
   compare.gno
   example_test.gno
   export_test.gno
+  printtrie_impl_test.gno
   printtrie_test.gno
   reader.gno
   reader_test.gno
