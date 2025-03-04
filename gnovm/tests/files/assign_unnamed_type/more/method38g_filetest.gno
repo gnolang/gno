@@ -5,13 +5,13 @@ type (
 	Word uint
 )
 
-func (n nat) add(ws []Word) interface{} {
+func (n nat) add(ws []Word) any {
 	println(ws)
 
 	return ws
 }
 
-func (n nat) add2(ws nat) interface{} {
+func (n nat) add2(ws nat) any {
 	println(ws)
 
 	return ws
