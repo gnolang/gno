@@ -130,7 +130,7 @@ A series of words (usually 12 or 24) that can regenerate a private key. Also kno
 ## N
 
 ### Namespace
-A unique identifier that allows users to exclusively deploy contracts under their own name, similar to usernames on GitHub. Namespaces are registered through the user registry and provide exclusive rights to deploy under that path. See [Package Paths](../resources/gno-packages.md).
+A unique identifier that allows users to exclusively deploy contracts under their own name, similar to usernames on GitHub. See [Users and Teams](./users-and-teams.md).
 
 ## P
 
@@ -188,7 +188,7 @@ A state-changing action on the gno.land blockchain, such as transferring tokens 
 The smallest unit of GNOT. 1 GNOT = 1,000,000 ugnot (micro-GNOT).
 
 ### User Registry
-A system realm that allows users to register usernames and claim matching namespaces for deploying code. Found at `gno.land/r/demo/users`.
+A system realm that allows users to register usernames and claim matching namespaces for deploying code. Found at `gno.land/r/demo/users`. See [Users and Teams](./users-and-teams.md) for details.
 
 ### wugnot
 Wrapped version of `ugnot`, following the GRC20 standard.

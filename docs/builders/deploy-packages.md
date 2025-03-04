@@ -1,11 +1,15 @@
-# Deploying Gno code
+# Deploying Gno Packages to a Network
+
+Once you've developed and tested your Gno packages locally, the next step is deploying them to a gno.land network. This guide explains how to deploy both realms and pure packages using `gnokey`.
 
 ## Prerequisites
 
-- A Gno address in `gnokey`. For setting up `gnokey`, see
-  [Installation](developing-locally/installation.md).
+Before deploying, you need:
 
-## Overview
+1. A working version of your package or realm
+2. A gno.land account with sufficient GNOT for gas fees
+3. The `gnokey` utility installed and configured
+4. (Optional) A registered namespace for deploying under your own path
 
 In this tutorial, you will learn how to deploy Gno code to a gno.land network via
 the CLI using `gnokey`. We will be reusing code from a 
@@ -90,13 +94,29 @@ EVENTS:     []
 TX HASH:    11fWJtYXQlyFcHY12HU1ECYs2GPo/e2z/Fdw6I8rwNs=
 ```
 
+## Choosing a Package Path
+
+When deploying to gno.land, you need to specify a package path. You have two options:
+
+1. **Use your registered username** - If you've registered a username, you can deploy under `gno.land/[r|p]/YOUR_USERNAME/...` 
+2. **Use your address namespace** - Without a username, you can deploy under `gno.land/[r|p]/YOUR_ADDRESS/...`
+
+For more information on registering usernames and namespace ownership, see the [Users and Teams documentation](../resources/users-and-teams.md).
+
+## Registering a Namespace
+
+For production packages, you'll want your own namespace:
+
+1. Follow the [Username Registration](../resources/users-and-teams.md#registration-process) instructions
+2. Once registered, deploy under `gno.land/[r|p]/YOUR_USERNAME/...`
+
+This gives you a more human-readable package path and establishes your identity in the ecosystem.
+
 ## Conclusion
 
 Congratulations! If everything went as expected, you've successfully deployed a 
 realm to the Portal Loop network. To see it on `gnoweb` for the Portal Loop,
 append `r/<your_address>/counter` to https://gno.land in your browser.
-
-If you wish to learn more about `gnokey`, check out the [gnokey developer guides](../dev-guides/gnokey/overview.md).
 
 :::info
 

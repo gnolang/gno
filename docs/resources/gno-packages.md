@@ -60,7 +60,7 @@ Two important facts about package paths:
 
 ## Namespaces
 
-Namespaces provide users with the exclusive ability to publish code under their designated identifiers, similar to GitHub's user and organization model.
+Namespaces provide users with the exclusive ability to publish code under their designated identifiers, similar to GitHub's user and organization model. For detailed information on how to register and use namespaces, see [Users and Teams](./users-and-teams.md).
 
 Initially, all users are granted a default namespace with their address - a pseudo-anonymous (PA) namespace - to which the associated address can deploy. This namespace has the following format:
 ```
