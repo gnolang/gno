@@ -300,7 +300,7 @@ func (post *Post) RenderSummary() string {
 	b.WriteString("## " + newLink(summaryOf(title, 80), postURL) + "\n\n")
 	b.WriteString("Created by " + newUserLink(post.creator) + " on " + post.createdAt.Format(dateFormat))
 	b.WriteString(" - " + newHelpButtonLink("x", post.GetDeleteFormURL(), "delete thread") + "  \n")
-	b.WriteString(strconv.Itoa(post.replies.Size()) + " replies • ")
+	b.WriteString(strconv.Itoa(post.repliesAll.Size()) + " replies • ")
 	b.WriteString(strconv.Itoa(post.reposts.Size()) + " reposts" + "\n")
 	return b.String()
 }
