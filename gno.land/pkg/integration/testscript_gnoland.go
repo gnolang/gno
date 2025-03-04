@@ -166,8 +166,7 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		env.Setenv(DefaultAccount_Name+"_user_addr", DefaultAccount_Address)
 
 		// New private key
-		privKey := ed25519.GenPrivKey()
-		env.Values[envKeyPrivValKey] = privKey
+		env.Values[envKeyPrivValKey] = ed25519.GenPrivKey()
 
 		// Set gno dbdir
 		env.Setenv("GNO_DBDIR", dbdir)
