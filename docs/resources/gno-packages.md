@@ -1,197 +1,109 @@
-# Packages / Smart Contracts
+# Understanding Gno Packages
 
-XXX: generic intro about packages
-XXX: short diff between pure and realms
-XXX: link to ./stdlibs.md
+In gno.land, code is organized into packages that are stored on-chain. This guide explains the different types of packages, how they're organized, and how to work with them.
 
-Apart from pure packages, Gno, like Go, has standard libraries. To better
-understand the difference between these two concepts, let's compare a few
-specific points:
-- Pure packages can be written and deployed by anyone at any time, while standard
-  libraries require thorough battle-testing and reviews by the core team & community
-  before being added to the language
-- Standard libraries usually provide low-level necessities for the language,
-  while pure packages utilize them to create a broader range of functionality
+## Package Types
 
+Gno has two fundamental package types:
 
-## Realms
+### Pure Packages (`/p/`)
 
-In gno.land, realms are entities that are addressable and identifiable by a
-[Gno address](../reference/std.md#address). These can be user
-realms (EOAs), as well as smart contract realms. Realms have several
-properties:
-- They can own, receive & send [Coins](./stdlibs/coin.md) through the
-  [Banker](./stdlibs/banker.md) module
-- They can be part of a transaction call stack, as a caller or a callee
-- They can be with or without code - smart contracts, or EOAs
+Pure packages are stateless Gno libraries meant to be reused by other Gno code. Here are the defining features of pure packages:
+- Don't maintain state between calls
+- Can be imported by both realms and other pure packages
+- Are stored under paths beginning with `/p/`
+- Can be written & deployed to the chain by anyone, permissionlessly
+- Users cannot call functions in pure packages directly 
+- Documentation should be contained within package code as comments, following the [Go doc standard](https://tip.golang.org/doc/comment)
 
-Realms are represented by a `Realm` type in Gno:
+Example: `gno.land/p/demo/avl` (An AVL tree implementation)
+
+### Realms (`/r/`)
+
+[Realms](./realms.md) are stateful applications (smart contracts) that can:
+- Maintain persistent state between transactions
+- Expose functions for interaction
+- Render web content
+- Import pure packages and use their functionality
+- Are stored under paths beginning with `/r/`
+
+Example: `gno.land/r/demo/boards` (A discussion forum application)
+
+For more details on realms, see the dedicated [Realms](./realms.md) documentation.
+
+## Package Path Structure
+
+A package path is a unique identifier for any package that lives on the gno.land blockchain. It consists of multiple parts separated with `/` and follows this structure:
+
+```
+gno.land/[r|p]/[namespace]/[package-name]
+          │      │          │
+          │      │          └── Name of the package
+          │      └── Namespace (often a username)
+          └── Type (realm or pure package)
+```
+
+For example:
+- `gno.land/r/gnoland/home` is the gno.land home realm
+- `gno.land/r/leon/hof` is the Hall of Fame realm
+- `gno.land/p/demo/avl` is the AVL tree package
+
+The components of these paths are:
+- `gno.land` is the chain domain. Currently, only `gno.land` is supported, but the ecosystem may expand in the future.
+- `p` or `r` declare the type of package found at the path. `p` stands for pure package, while `r` represents [realm](./realms.md).
+- `demo`, `gnoland`, etc., represent namespaces as described below.
+- `home`, `hof`, `avl`, etc., represent the package name found at the path. This part must match the package name declaration in the `.gno` files.
+
+Two important facts about package paths:
+- The maximum length of a package path is `256` characters.
+- A realm's address is directly derived from its package path, by using [`std.DerivePkgAddr()`](../reference/std.md#derivepkgaddr)
+
+## Namespaces
+
+Namespaces provide users with the exclusive ability to publish code under their designated identifiers, similar to GitHub's user and organization model.
+
+Initially, all users are granted a default namespace with their address - a pseudo-anonymous (PA) namespace - to which the associated address can deploy. This namespace has the following format:
+```
+gno.land/{p,r}/{std.Address}/**
+```
+
+For example, for address `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`, all the following paths are valid for deployments:
+
+- `gno.land/p/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/mypackage` 
+- `gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/myrealm`
+- `gno.land/p/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/mypackage/subpackage/package` 
+- `gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/subpackage/realm`
+
+Apart from package names, developers can define subpackages to further organize their code, as seen in the example above. Packages can have any varying level of depth as long as the full package path doesn't exceed `256` characters.
+
+### Registering a custom namespace
+
+To register a custom namespace:
+
+1. Register a username at `gno.land/r/demo/users`
+2. Once registered, you can deploy packages under that namespace
+3. Only you can deploy to your namespace
+
+This prevents impersonation and name squatting, ensuring package path authenticity.
+
+## Importing Packages
+
+Gno packages can import other packages using standard Go import syntax:
+
 ```go
-type Realm struct {
-    addr    Address // Gno address in the bech32 format
-    pkgPath string  // realm's path on-chain
-}
+import (
+    "gno.land/p/demo/avl"        // Pure package import
+    "gno.land/r/demo/users"      // Realm import (access exported functions)
+)
 ```
 
-The full Realm API can be found under the
-[reference section](../reference/std.md#realm).
+## Commonly Used Pure Packages
 
-### Smart Contract Realms
+To better understand how packages work, let's look at a few commonly used ones from the [`examples`](https://github.com/gnolang/gno/tree/master/examples/) folder, available under the `gno.land/p/demo` path.
 
-Often simply called `realms`, Gno smart contracts contain Gno code and exist
-on-chain at a specific [package path](pkg-paths.md). A package path is the 
-defining identifier of a realm, while its address is derived from it.
+### Package `avl`
 
-As opposed to [pure packages](./packages.md), realms are stateful, meaning they
-keep their state between transaction calls. In practice, global variables used in realms 
-are automatically persisted after a transaction has been executed. Thanks to this,
-Gno developers do not need to bother with the intricacies of state management 
-and persistence, like they do with other languages.
-
-### Externally Owned Accounts (EOAs)
-
-EOAs, or simply `user realms`, are Gno addresses generated from a BIP39 mnemonic
-phrase in a key management application, such as
-[gnokey](../dev-guides/gnokey/managing-keypairs.md), and web wallets, such as
-[Adena](https://adena.app).
-
-Currently, EOAs are the only realms that can initiate a transaction. They can do
-this by calling any of the possible messages in gno.land, which can be 
-found [here](../dev-guides/gnokey/making-transactions.md#overview).
-
-### Working with realms
-
-In Gno, each transaction contains a realm call stack. Every item in the stack and
-its properties can be accessed via different functions defined in the `std` 
-package in Gno:
-- `std.GetOrigCaller()` - returns the address of the original signer of the
-  transaction
-- `std.PrevRealm()` - returns the previous realm instance, which can be a user realm
-  or a smart contract realm
-- `std.CurrentRealm()` - returns the instance of the realm that has called it
-
-Let's look at the return values of these functions in two distinct situations:
-1. EOA calling a realm
-2. EOA calling a sequence of realms
-
-#### 1. EOA calling a realm
-
-Take these two actors in the call stack:
-```
-EOA:
-    addr: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
-    pkgPath: "" // empty as this is a user realm
-
-Realm A:
-    addr: g17m4ga9t9dxn8uf06p3cahdavzfexe33ecg8v2s
-    pkgPath: gno.land/r/demo/users
-    
-        ┌─────────────────────┐      ┌─────────────────────────┐
-        │         EOA         │      │         Realm A         │
-        │                     │      │                         │
-        │  addr:              │      │  addr:                  │
-        │  g1jg...sqf5        ├──────►  g17m...8v2s            │
-        │                     │      │                         │
-        │  pkgPath:           │      │  pkgPath:               │
-        │  ""                 │      │  gno.land/r/demo/users  │
-        └─────────────────────┘      └─────────────────────────┘
-```
-
-Let's look at return values for each of the methods, called from within `Realm A`:
-```
-std.GetOrigCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
-std.PrevRealm() => Realm {
-    addr:    `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
-    pkgPath: ``
-}
-std.CurrentRealm() => Realm {
-    addr:    `g17m4ga9t9dxn8uf06p3cahdavzfexe33ecg8v2s`
-    pkgPath: `gno.land/r/demo/users`
-}
-```
-
-#### 2. EOA calling a sequence of realms
-
-Take these three actors in the call stack:
-```
-EOA:
-    addr: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
-    pkgPath: "" // empty as this is a user realm
-
-Realm A:
-    addr: g1dvqd8qgvavqayxklzfdmccd2eps263p43pu2c6
-    pkgPath: gno.land/r/demo/a
-    
-Realm B:
-    addr: g1rsk9cwv034cw3s6csjeun2jqypj0ztpecqcm3v
-    pkgPath: gno.land/r/demo/b
-
-┌─────────────────────┐   ┌──────────────────────┐   ┌─────────────────────┐
-│         EOA         │   │       Realm A        │   │       Realm B       │
-│                     │   │                      │   │                     │
-│  addr:              │   │  addr:               │   │  addr:              │
-│  g1jg...sqf5        ├───►  g17m...8v2s         ├───►  g1rs...cm3v        │
-│                     │   │                      │   │                     │
-│  pkgPath:           │   │  pkgPath:            │   │  pkgPath:           │
-│  ""                 │   │  gno.land/r/demo/a   │   │  gno.land/r/demo/b  │
-└─────────────────────┘   └──────────────────────┘   └─────────────────────┘
-```
-
-Depending on which realm the methods are called in, the values will change. For
-`Realm A`:
-```
-std.GetOrigCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
-std.PrevRealm() => Realm {
-    addr:    `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
-    pkgPath: ``
-}
-std.CurrentRealm() => Realm {
-    addr:    `g1dvqd8qgvavqayxklzfdmccd2eps263p43pu2c6`
-    pkgPath: `gno.land/r/demo/a`
-}
-```
-
-For `Realm B`:
-```
-std.GetOrigCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
-std.PrevRealm() => Realm {
-    addr:    `g1dvqd8qgvavqayxklzfdmccd2eps263p43pu2c6`
-    pkgPath: `gno.land/r/demo/a`
-}
-std.CurrentRealm() => Realm {
-    addr:    `g1rsk9cwv034cw3s6csjeun2jqypj0ztpecqcm3v`
-    pkgPath: `gno.land/r/demo/b`
-}
-```
-
-Check out the realm reference page [here](../reference/std.md#realm).
-
-
-## Pure Packages
-
-Pure packages are Gno code meant to be reused by other Gno code, be it by other 
-pure packages or realms. Here are some defining features of pure packages:
-- Pure packages are stored on-chain under the `gno.land/p/` path, and can be
-  written & deployed to the chain by anyone, permissionlessly
-- Pure packages are meant to be imported from other packages & realms
-- Users cannot call functions in pure packages directly
-- Documentation for pure packages should be contained within package code itself,
-  in the form of comments, following the [Go doc standard](https://tip.golang.org/doc/comment).
-
-### Commonly used `p/` packages
-
-To better understand how packages work, let's look at a few commonly
-used ones. Some of the most commonly used packages live in the
-[`examples`](https://github.com/gnolang/gno/tree/master/examples/)
-folder on the monorepo, and under the `gno.land/p/demo` on-chain path.
-
-#### Package `avl`
-
-Deployed under `gno.land/p/demo/avl`, the AVL package provides a tree structure
-for storing data. Currently, the AVL package is used to replace the functionality
-of the native `map` in Gno, as maps are not fully deterministic and thus do not
-work as expected in the language. Here is how using the AVL package from your
-realm might look like:
+Deployed under `gno.land/p/demo/avl`, the AVL package provides a tree structure for storing data. It replaces the functionality of the native `map` in Gno, as maps are not fully deterministic. Usage example:
 
 ```go
 package myrealm
@@ -221,13 +133,11 @@ func Get(key string) int {
 }
 ```
 
-View the package on the Portal Loop network [here](https://gno.land/p/demo/avl),
-or on GitHub, [here](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/avl).
+View the package on the [Portal Loop network](https://gno.land/p/demo/avl) or on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/avl).
 
-#### Package `ufmt`
+### Package `ufmt`
 
-Deployed under `gno.land/p/demo/ufmt`, the `ufmt` package is a minimal version of
-the `fmt` package. From [`ufmt.gno`](https://gno.land/p/demo/ufmt/ufmt.gno):
+Deployed under `gno.land/p/demo/ufmt`, this package is a minimal version of the `fmt` package:
 
 ```go
 // Package ufmt provides utility functions for formatting strings, similarly
@@ -236,14 +146,11 @@ the `fmt` package. From [`ufmt.gno`](https://gno.land/p/demo/ufmt/ufmt.gno):
 package ufmt
 ```
 
-View the package on the Portal Loop network [here](https://gno.land/p/demo/ufmt),
-or on GitHub, [here](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/ufmt).
+View the package on the [Portal Loop network](https://gno.land/p/demo/ufmt) or on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/ufmt).
 
-#### Package `seqid`
+### Package `seqid`
 
-Deployed under `gno.land/p/demo/seqid`, the `seqid` package provides a simple
-way to have sequential IDs in Gno. Its encoding scheme is based on the `cford32`
-package. From [`seqid.gno`](https://gno.land/p/demo/seqid/seqid.gno):
+Deployed under `gno.land/p/demo/seqid`, this package provides a simple way to have sequential IDs in Gno:
 
 ```go
 // Package seqid provides a simple way to have sequential IDs which will be
@@ -260,75 +167,19 @@ package. From [`seqid.gno`](https://gno.land/p/demo/seqid/seqid.gno):
 package seqid
 ```
 
-View the package on the Portal Loop network [here](https://gno.land/p/demo/seqid),
-or on GitHub, [here](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/seqid).
+View the package on the [Portal Loop network](https://gno.land/p/demo/seqid) or on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/seqid).
 
+## Exploring Deployed Packages
 
+You can explore all deployed packages using gnoweb.
 
+<!--XXX: link to package listing when the feature will be released.-->
 
-## Package Paths
+This provides transparency and allows you to learn from existing code.
 
-A package path is a unique identifier for any package that lives on the gno.land
-blockchain. It consists of multiple parts separated with `/`. 
-It is generally used to refer to a specific realm or pure package, through a
-[call transaction](../dev-guides/gnokey/making-transactions.md#call),
-an ABCI query, or a Gno import statement.
+## Building Your Own Packages
 
-Let's take a look at a few examples of package paths:
+For detailed instructions on creating your own packages:
 
-- The gno.land home realm - [gno.land/r/gnoland/home](https://gno.land/r/gnoland/home)
-- The Hall of Fame realm - [gno.land/r/leon/hof](https://gno.land/r/leon/hof)
-- The AVL tree package - [gno.land/p/demo/avl](https://gno.land/p/demo/avl)
-
-The above paths have similarities and differences. Let's break their parts down 
-one by one:
-
-- `gno.land` is the chain domain. Currently, only `gno.land` is supported, but
-the ecosystem may expand in the future and other chain domains might become available.
-- `p` or `r` declare the type of package found at the path. `p` stands for
-[`pure` (packages)](packages.md), while `r` represents [`realm`](realms.md).
-- `demo`, `gnoland`, etc., represent namespaces. Read more about Gno namespaces
-[below](#gno-namespaces).
-- `home`, `hof`, `avl`, etc., represent the package name found at the path. This 
-part must match the package name declaration found in `.gno` files inside.
-
-Two more important facts about package paths are the following:
-- The maximum length of a package path is `256` characters.
-- A realm's address is directly derived from its package path, by using 
-[`std.DerivePkgAddr()`](../reference/std.md#derivepkgaddr)
-
-### Gno Namespaces
-
-Gno Namespaces provide users with the exclusive ability to publish code under
-their designated namespaces, similar to GitHub's user and organization model.
-
-Initially, all users are granted a default namespace with their address - a 
-pseudo-anonymous (PA) namespace - to which the associated address can deploy.
-This namespace has the following format:
-```
-gno.land/{p,r}/{std.Address}/**
-```
-
-For example, for address `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`, all the
-following paths are valid for deployments:
-
-- `gno.land/p/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/mypackage` 
-- `gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/myrealm`
-- `gno.land/p/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/mypackage/subpackage/package` 
-- `gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/subpackage/realm`
-- etc.
-
-Apart from package names, developers can define subpackages to further organize 
-their code, as seen in the example above. Packages can have any varying level of 
-depth as long as the full package path doesn't exceed `256` characters. 
-
-### Registering a custom namespace
-
-To register a custom namespace, users need to use the 
-[`gno.land/r/demo/users`](https://gno.land/r/demo/users) realm.
-It allows users to register a username for a fee of `200 GNOT`, which is
-in turn used as a reference for the namespace of the user.
-
-Once a username is registered, the `gno.land/r/sys/users` system mechanism enforces
-that only the address associated with the registered username can deploy code 
-under that namespace.
+- For realms, see [Example Minisocial dApp](../builders/example-minisocial-dapp.md)
+- For deployment, see [Deploying Gno Packages](../builders/deploy-packages.md)
