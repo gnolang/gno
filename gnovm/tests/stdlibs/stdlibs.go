@@ -2,8 +2,6 @@
 package stdlibs
 
 import (
-	"slices"
-
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 )
@@ -17,10 +15,4 @@ func NativeResolver(pkgPath string, name gno.Name) func(*gno.Machine) {
 		}
 	}
 	return stdlibs.NativeResolver(pkgPath, name)
-}
-
-var injectedGoLibs = []string{"fmt", "os", "encoding/json"}
-
-func IsInjectedGoLib(pkgPath string) bool {
-	return slices.Contains(injectedGoLibs, pkgPath)
 }
