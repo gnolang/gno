@@ -6,74 +6,77 @@ gno test ./run_test.gno
 
 gno test -v .
 
-stdout '=== RUN   TestRun/hello'
-stdout '=== RUN   TestRun/hi_you'
-stdout '=== RUN   TestRun/hi_me'
-stdout '=== RUN   TestRun'
-stdout '--- PASS: TestRun'
+! stdout .+
+stderr '=== RUN   TestRun/hello'
+stderr '=== RUN   TestRun/hi_you'
+stderr '=== RUN   TestRun/hi_me'
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
 
 gno test -v -run .* .
 
-stdout '=== RUN   TestRun/hello'
-stdout '=== RUN   TestRun/hi_you'
-stdout '=== RUN   TestRun/hi_me'
-stdout '=== RUN   TestRun'
-stdout '--- PASS: TestRun'
+! stdout .+
+stderr '=== RUN   TestRun/hello'
+stderr '=== RUN   TestRun/hi_you'
+stderr '=== RUN   TestRun/hi_me'
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
 
 gno test -v -run NotExists .
 
-! stdout '=== RUN   TestRun'
+! stdout .+
+! stderr '=== RUN   TestRun'
 
 gno test -v -run .*/hello .
 
-
-stdout '=== RUN   TestRun/hello'
-! stdout '=== RUN   TestRun/hi_you'
-! stdout '=== RUN   TestRun/hi_me'
-stdout '=== RUN   TestRun'
-stdout '--- PASS: TestRun'
+! stdout .+
+stderr '=== RUN   TestRun/hello'
+! stderr '=== RUN   TestRun/hi_you'
+! stderr '=== RUN   TestRun/hi_me'
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
 
 gno test -v -run .*/hi .
 
-
-! stdout '=== RUN   TestRun/hello'
-stdout '=== RUN   TestRun/hi_you'
-stdout '=== RUN   TestRun/hi_me'
-stdout '=== RUN   TestRun'
-stdout '--- PASS: TestRun'
+! stdout .+
+! stderr '=== RUN   TestRun/hello'
+stderr '=== RUN   TestRun/hi_you'
+stderr '=== RUN   TestRun/hi_me'
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
 
 gno test -v -run .*/NotExists .
 
-
-stdout '=== RUN   TestRun'
-stdout '--- PASS: TestRun'
+! stdout .+
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
 
 gno test -v -run Run/.* .
 
-
-stdout '=== RUN   TestRun/hello'
-stdout '=== RUN   TestRun/hi_you'
-stdout '=== RUN   TestRun/hi_me'
-stdout '=== RUN   TestRun'
-stdout '--- PASS: TestRun'
+! stdout .+
+stderr '=== RUN   TestRun/hello'
+stderr '=== RUN   TestRun/hi_you'
+stderr '=== RUN   TestRun/hi_me'
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
 
 gno test -v -run Run/ .
 
-
-stdout '=== RUN   TestRun/hello'
-stdout '=== RUN   TestRun/hi_you'
-stdout '=== RUN   TestRun/hi_me'
-stdout '=== RUN   TestRun'
-stdout '--- PASS: TestRun'
+! stdout .+
+stderr '=== RUN   TestRun/hello'
+stderr '=== RUN   TestRun/hi_you'
+stderr '=== RUN   TestRun/hi_me'
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
 
 gno test -v -run Run/hello .
 
-
-stdout '=== RUN   TestRun/hello'
-! stdout '=== RUN   TestRun/hi_you'
-! stdout '=== RUN   TestRun/hi_me'
-stdout '=== RUN   TestRun'
-stdout '--- PASS: TestRun'
+! stdout .+
+stderr '=== RUN   TestRun/hello'
+! stderr '=== RUN   TestRun/hi_you'
+! stderr '=== RUN   TestRun/hi_me'
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
 
 -- run.gno --
 package run

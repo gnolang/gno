@@ -2,26 +2,26 @@
 
 gno test -v -run 'TestRecover$' .
 
-
-stdout 'recovered bad panic!'
-stdout '--- PASS'
+! stdout .+
+stderr 'recovered bad panic!'
+stderr '--- PASS'
 stderr 'ok  '
 
 gno test -v -run 'TestRecoverSkip$' .
 
-
-stdout 'skipped'
-! stdout 'recovered.*testing.Recover'
-stdout '--- SKIP'
+! stdout .+
+stderr 'skipped'
+! stderr 'recovered.*testing.Recover'
+stderr '--- SKIP'
 stderr 'ok  '
 
 gno test -v -run 'TestBadRecoverSkip$' .
 
-
+! stdout .+
 # should contain warning about using testing.Recover
-stdout 'recovered.*testing.Recover'
+stderr 'recovered.*testing.Recover'
 # the test will still be marked as skipped
-stdout '--- SKIP'
+stderr '--- SKIP'
 stderr 'ok  '
 
 -- recov.gno --
