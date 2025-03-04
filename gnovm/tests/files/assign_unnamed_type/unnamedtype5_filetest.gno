@@ -34,8 +34,8 @@ func main() {
 
 // Output:
 // 1 (inc main.op)
-// 0 func(n int)( int){...}
+// 0 func(int) int{...}
 // -1 dec
-// 0 (func(n int)( int){...} main.op)
+// 0 (func(int) int{...} main.op)
 // -1 dec
 // 1 inc
