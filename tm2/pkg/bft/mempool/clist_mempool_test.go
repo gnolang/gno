@@ -33,6 +33,7 @@ func newMempoolWithApp(cc proxy.ClientCreator) (*CListMempool, cleanupFunc) {
 	return newMempoolWithAppAndConfig(cc, cfg.TestMempoolConfig())
 }
 
+// pravi se novi mempool koji ima abci client koji moze da salje requeste na app
 func newMempoolWithAppAndConfig(cc proxy.ClientCreator, config *cfg.MempoolConfig) (*CListMempool, cleanupFunc) {
 	appConnMem, _ := cc.NewABCIClient()
 	appConnMem.SetLogger(log.NewNoopLogger().With("module", "abci-client", "connection", "mempool"))
@@ -49,6 +50,7 @@ func newMempoolWithAppAndConfig(cc proxy.ClientCreator, config *cfg.MempoolConfi
 	}
 }
 
+// Proverava da li nema fire-a u kanalu koji smo otvorili sa EnableTxsAvailable()
 func ensureNoFire(t *testing.T, ch <-chan struct{}, timeoutMS int) {
 	t.Helper()
 
@@ -60,6 +62,7 @@ func ensureNoFire(t *testing.T, ch <-chan struct{}, timeoutMS int) {
 	}
 }
 
+// Proverava da li ce fire-ati u kanalu koji smo otvorili sa EnableTxsAvailable()
 func ensureFire(t *testing.T, ch <-chan struct{}, timeoutMS int) {
 	t.Helper()
 
@@ -71,19 +74,20 @@ func ensureFire(t *testing.T, ch <-chan struct{}, timeoutMS int) {
 	}
 }
 
+// Vraca odrdejen broj validnih tx-ova, ako je failOnCheckTxError true, onda ce se test zaustaviti ako dobije error a ako je false, onda ce se test nastaviti
 func checkTxs(t *testing.T, mempool Mempool, count int, peerID uint16, failOnCheckTxError bool) types.Txs {
 	t.Helper()
 
-	txs := make(types.Txs, count)
-	txInfo := TxInfo{SenderID: peerID}
+	txs := make(types.Txs, count)      // pravi se niz tx-ova
+	txInfo := TxInfo{SenderID: peerID} // pravi se txInfo sa senderID
 	for i := 0; i < count; i++ {
-		txBytes := make([]byte, 20)
+		txBytes := make([]byte, 20) // pravi se txBytes duzine 20
 		txs[i] = txBytes
 		_, err := rand.Read(txBytes)
 		if err != nil {
 			t.Error(err)
 		}
-		if err := mempool.CheckTxWithInfo(txBytes, nil, txInfo); err != nil {
+		if err := mempool.CheckTxWithInfo(txBytes, nil, txInfo); err != nil { // proverava da li je tx validan
 			if failOnCheckTxError {
 				t.Fatalf("CheckTx failed: %v while checking #%d tx", err, i)
 			} else {
@@ -94,14 +98,15 @@ func checkTxs(t *testing.T, mempool Mempool, count int, peerID uint16, failOnChe
 	return txs
 }
 
+// Testira ocekivani broj tx-ova koji ce se dobiti iz mempoola za razlicite vrednosti maxDataBytes i maxGas
 func TestReapMaxBytesMaxGas(t *testing.T) {
-	app := kvstore.NewKVStoreApplication()
-	cc := proxy.NewLocalClientCreator(app)
-	mempool, cleanup := newMempoolWithApp(cc)
+	app := kvstore.NewKVStoreApplication()    // kvstore je abci app sa parom kljuc vrednost
+	cc := proxy.NewLocalClientCreator(app)    // proxy je abci client koji moze da salje requeste na app
+	mempool, cleanup := newMempoolWithApp(cc) // mempool je mempool koji koristi ovaj abci client
 	defer cleanup()
 
 	// Ensure gas calculation behaves as expected
-	checkTxs(t, mempool, 1, UnknownPeerID, true)
+	checkTxs(t, mempool, 1, UnknownPeerID, true) // proverava da li je gas wanted = 1 za jednu transakciju
 	tx0 := mempool.TxsFront().Value.(*mempoolTx)
 	// assert that kv store has gas wanted = 1.
 	require.Equal(t, app.CheckTx(abci.RequestCheckTx{Tx: tx0.tx}).GasWanted, int64(1), "KVStore had a gas value neq to 1")
@@ -135,8 +140,8 @@ func TestReapMaxBytesMaxGas(t *testing.T) {
 		14: {20, 20000, 30, 20},
 	}
 	for tcIndex, tt := range tests {
-		checkTxs(t, mempool, tt.numTxsToCreate, UnknownPeerID, false)
-		got := mempool.ReapMaxBytesMaxGas(tt.maxDataBytes, tt.maxGas)
+		checkTxs(t, mempool, tt.numTxsToCreate, UnknownPeerID, false) //proverava da li su tx-ovi validni
+		got := mempool.ReapMaxBytesMaxGas(tt.maxDataBytes, tt.maxGas) // vraca odrdejen broj tx-ova koji mogu da se doda u mempool za razlicite vrednosti maxDataBytes i maxGas
 		assert.Equal(t, tt.expectedNumTxs, len(got), "Got %d txs, expected %d, tc #%d",
 			len(got), tt.expectedNumTxs, tcIndex)
 		mempool.Flush()
@@ -216,6 +221,9 @@ func TestMempoolUpdate(t *testing.T) {
 	}
 }
 
+// Kada stignu nove transakcije na istoj visini a vec je fire-an, onda nece fire-ati ponovo
+// Kada jednom fire-an, sledeci put nece fire-ati sve dok se ne update-uje mempool sa novim height-om
+// Ovo sluzi da bi mempool javio consensus-u da su nove transakcije stigle, a da ne salje sve transakcije svaki put kada stignu
 func TestTxsAvailable(t *testing.T) {
 	app := kvstore.NewKVStoreApplication()
 	cc := proxy.NewLocalClientCreator(app)
@@ -260,6 +268,7 @@ func TestTxsAvailable(t *testing.T) {
 	ensureNoFire(t, mempool.TxsAvailable(), timeoutMS)
 }
 
+// Proverava ponasanje mempoola kada se transakcije serialno izbacuju iz mempoola commit-ovanjem bloka
 func TestSerialReap(t *testing.T) {
 	app := counter.NewCounterApplication(true)
 	app.SetOption(abci.RequestSetOption{Key: "serial", Value: "on"})
@@ -370,6 +379,9 @@ func TestSerialReap(t *testing.T) {
 	reapCheck(600)
 }
 
+// Proverava da li se WAL file ispravno zatvara i da li se ne moze pisati na njega nakon zatvaranja
+// WAL je kao neki backup za slucaj da se node restartuje i WAL se cuvaju tx-ovi koji su vec u mempoolu
+// U ovom testu se proverava da li se WAL file ispravno zatvara i da li se ne moze pisati na njega nakon zatvaranja tako sto proverava checksum-e
 func TestMempoolCloseWAL(t *testing.T) {
 	// 1. Create the temporary directory for mempool and WAL testing.
 	rootDir := t.TempDir()
@@ -415,6 +427,7 @@ func TestMempoolCloseWAL(t *testing.T) {
 	require.Equal(t, 1, len(m3), "expecting the wal match in")
 }
 
+// Proverava da li se mempool pravilno ogranicava velicinu transakcija
 func TestMempoolMaxMsgSize(t *testing.T) {
 	app := kvstore.NewKVStoreApplication()
 	cc := proxy.NewLocalClientCreator(app)
@@ -459,6 +472,8 @@ func TestMempoolMaxMsgSize(t *testing.T) {
 	}
 }
 
+// Proverava da li mempool pravilno ogranicava broj transakcija
+// Kada se posalje Update sa praznom listom transakcija, onda se radi recheck-ovanje transakcija i proverava da li su neke transakcije commit-ovane i izbacuje ih iz mempoola
 func TestMempoolMaxPendingTxsBytes(t *testing.T) {
 	app := kvstore.NewKVStoreApplication()
 	cc := proxy.NewLocalClientCreator(app)

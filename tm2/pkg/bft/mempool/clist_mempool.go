@@ -108,6 +108,7 @@ func NewCListMempool(
 	return mempool
 }
 
+// Otvara kanal za slanje signala da postoje tx-ovi u mempoolu
 // NOTE: not thread safe - should only be called once, on startup
 func (mem *CListMempool) EnableTxsAvailable() {
 	mem.txsAvailable = make(chan struct{}, 1)
@@ -214,6 +215,7 @@ func (mem *CListMempool) CheckTx(tx types.Tx, cb func(abci.Response)) (err error
 	return mem.CheckTxWithInfo(tx, cb, TxInfo{SenderID: UnknownPeerID})
 }
 
+// Proverava da li je tx validan i da li moze da se doda u mempool
 func (mem *CListMempool) CheckTxWithInfo(tx types.Tx, cb func(abci.Response), txInfo TxInfo) (err error) {
 	mem.mtx.Lock()
 	// use defer to unlock mutex because application (*local client*) might panic
@@ -465,6 +467,7 @@ func (mem *CListMempool) notifyTxsAvailable() {
 	}
 }
 
+// Proverava da li je gas wanted validan za svaku transakciju u mempoolu i da li je totalna velicina transakcija u mempoolu manja od maxDataBytes
 func (mem *CListMempool) ReapMaxBytesMaxGas(maxDataBytes, maxGas int64) types.Txs {
 	mem.mtx.Lock()
 	defer mem.mtx.Unlock()
@@ -526,6 +529,10 @@ func (mem *CListMempool) ReapMaxTxs(maxVal int) types.Txs {
 	return txs
 }
 
+// Kada se novi blok izmajnuje proverava da li su transakcije koje se cuvaju u tom bloku validne
+// Ako su validne dodaje ih u cache ako nisu validne brise ih iz cache i iz mempoola da se moze ponovo poslati tx
+// Ako je tx vec u cache ne dodaje u cache ni u mempool da bi sprecio duplikate
+// Update ce kasnije sluziti da svi cvorovi update cache i mempoola sa tx-ovima novog bloka
 func (mem *CListMempool) Update(
 	height int64,
 	txs types.Txs,
