@@ -1,7 +1,9 @@
 package params
 
 import (
+	"fmt"
 	"log/slog"
+	"reflect"
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -41,6 +43,10 @@ type ParamsKeeperI interface {
 
 	GetStruct(ctx sdk.Context, key string, strctPtr interface{})
 	SetStruct(ctx sdk.Context, key string, strct interface{})
+
+	// NOTE: GetAny and SetAny don't work on structs.
+	GetAny(ctx sdk.Context, key string) interface{}
+	SetAny(ctx sdk.Context, key string, value interface{})
 }
 
 type ParamfulKeeper interface {
@@ -198,6 +204,29 @@ func (pk ParamsKeeper) SetStruct(ctx sdk.Context, key string, strct interface{})
 	}
 }
 
+func (pk ParamsKeeper) GetAny(ctx sdk.Context, key string) interface{} {
+	panic("not yet implemented")
+}
+
+func (pk ParamsKeeper) SetAny(ctx sdk.Context, key string, value interface{}) {
+	switch value := value.(type) {
+	case string:
+		pk.SetString(ctx, key, value)
+	case int64:
+		pk.SetInt64(ctx, key, value)
+	case uint64:
+		pk.SetUint64(ctx, key, value)
+	case bool:
+		pk.SetBool(ctx, key, value)
+	case []byte:
+		pk.SetBytes(ctx, key, value)
+	case []string:
+		pk.SetStrings(ctx, key, value)
+	default:
+		panic(fmt.Sprintf("unexected value type for SetAny: %v", reflect.TypeOf(value)))
+	}
+}
+
 func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr interface{}) {
 	stor := ctx.Store(pk.key)
 	bz := stor.Get(storeKey(key))
@@ -318,4 +347,12 @@ func (ppk prefixParamsKeeper) GetStruct(ctx sdk.Context, key string, paramPtr in
 
 func (ppk prefixParamsKeeper) SetStruct(ctx sdk.Context, key string, param interface{}) {
 	ppk.pk.SetStruct(ctx, ppk.prefixed(key), param)
+}
+
+func (ppk prefixParamsKeeper) GetAny(ctx sdk.Context, key string) interface{} {
+	return ppk.pk.GetAny(ctx, ppk.prefixed(key))
+}
+
+func (ppk prefixParamsKeeper) SetAny(ctx sdk.Context, key string, value interface{}) {
+	ppk.pk.SetAny(ctx, ppk.prefixed(key), value)
 }

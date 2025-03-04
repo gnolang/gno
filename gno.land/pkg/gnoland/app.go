@@ -339,11 +339,6 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 			panic(err)
 		}
 	}
-
-	// Apply genesis params.
-	for _, param := range state.Params {
-		param.register(ctx, cfg.paramsk)
-	}
 	// The account keeper's initial genesis state must be set after genesis
 	// accounts are created in account keeeper with genesis balances
 	cfg.acctk.InitGenesis(ctx, state.Auth)

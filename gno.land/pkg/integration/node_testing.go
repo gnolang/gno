@@ -62,7 +62,6 @@ func TestingNodeConfig(t TestingTS, gnoroot string, additionalTxs ...gnoland.TxW
 	cfg := TestingMinimalNodeConfig(gnoroot)
 	cfg.SkipGenesisVerification = true
 
-	params := LoadDefaultGenesisParamFile(t, gnoroot)
 	creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
 	balances := LoadDefaultGenesisBalanceFile(t, gnoroot)
 	txs := make([]gnoland.TxWithMetadata, 0)
@@ -71,7 +70,7 @@ func TestingNodeConfig(t TestingTS, gnoroot string, additionalTxs ...gnoland.TxW
 	ggs := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
 	ggs.Balances = balances
 	ggs.Txs = txs
-	ggs.Params = params
+	LoadDefaultGenesisParamFile(t, gnoroot, &ggs)
 	cfg.Genesis.AppState = ggs
 
 	return cfg, creator
@@ -99,6 +98,7 @@ func TestingMinimalNodeConfig(gnoroot string) *gnoland.InMemoryNodeConfig {
 	}
 }
 
+// XXX shouldn't this use GenerateTestingGenesisState?
 func DefaultTestingGenesisConfig(gnoroot string, self crypto.PubKey, tmconfig *tmcfg.Config) *bft.GenesisDoc {
 	authGen := auth.DefaultGenesisState()
 	authGen.Params.UnrestrictedAddrs = []crypto.Address{crypto.MustAddressFromString(DefaultAccount_Address)}
@@ -111,9 +111,9 @@ func DefaultTestingGenesisConfig(gnoroot string, self crypto.PubKey, tmconfig *t
 		},
 	}
 	genState.Txs = []gnoland.TxWithMetadata{}
-	genState.Params = []gnoland.Param{}
 	genState.Auth = authGen
 	genState.Bank = bank.DefaultGenesisState()
+	genState.VM = vmm.DefaultGenesisState()
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
 		ChainID:     tmconfig.ChainID(),
@@ -159,13 +159,11 @@ func LoadDefaultGenesisBalanceFile(t TestingTS, gnoroot string) []gnoland.Balanc
 }
 
 // LoadDefaultGenesisParamFile loads the default genesis balance file for testing.
-func LoadDefaultGenesisParamFile(t TestingTS, gnoroot string) []gnoland.Param {
+func LoadDefaultGenesisParamFile(t TestingTS, gnoroot string, ggs *gnoland.GnoGenesisState) {
 	paramFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_params.toml")
 
-	genesisParams, err := gnoland.LoadGenesisParamsFile(paramFile)
+	err := gnoland.LoadGenesisParamsFile(paramFile, ggs)
 	require.NoError(t, err)
-
-	return genesisParams
 }
 
 // LoadDefaultGenesisTXsFile loads the default genesis transactions file for testing.

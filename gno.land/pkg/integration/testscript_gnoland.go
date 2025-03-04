@@ -189,9 +189,9 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 
 		genesis := gnoland.DefaultGenState()
 		genesis.Balances = LoadDefaultGenesisBalanceFile(t, gnoRootDir)
-		genesis.Params = LoadDefaultGenesisParamFile(t, gnoRootDir)
 		genesis.Auth.Params.InitialGasPrice = std.GasPrice{Gas: 0, Price: std.Coin{Amount: 0, Denom: "ugnot"}}
 		genesis.Txs = []gnoland.TxWithMetadata{}
+		LoadDefaultGenesisParamFile(t, gnoRootDir, &genesis)
 
 		env.Values[envKeyGenesis] = &genesis
 		env.Values[envKeyPkgsLoader] = NewPkgsLoader()
@@ -288,10 +288,10 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			genesis := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
 			genesis.Txs = append(genesis.Txs, append(pkgsTxs, tsGenesis.Txs...)...)
 			genesis.Balances = append(genesis.Balances, tsGenesis.Balances...)
-			genesis.Params = append(genesis.Params, tsGenesis.Params...)
 			if *lockTransfer {
 				genesis.Bank.Params.RestrictedDenoms = []string{"ugnot"}
 			}
+			genesis.VM.RealmParams = append(genesis.VM.RealmParams, tsGenesis.VM.RealmParams...)
 
 			cfg.Genesis.AppState = genesis
 			if *nonVal {

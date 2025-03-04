@@ -7,6 +7,9 @@ import (
 	"gno.land/p/demo/simpledao"
 	"gno.land/p/demo/urequire"
 	"gno.land/r/gov/dao/bridge"
+
+	// loads the latest DAO implementation in the bridge.
+	_ "gno.land/r/gov/dao/init"
 )
 
 func TestProUnlockTransfer(t *testing.T) {

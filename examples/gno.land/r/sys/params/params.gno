@@ -23,35 +23,7 @@ import (
 
 	"gno.land/p/demo/dao"
 	"gno.land/r/gov/dao/bridge"
-
-	// loads the latest DAO implementation in the bridge.
-	_ "gno.land/r/gov/dao/init"
 )
-
-// XXX What is the point of this realm local parameter?
-func NewStringPropExecutor(key string, value string) dao.Executor {
-	return newPropExecutor(key, func() { std.SetParamString(key, value) })
-}
-
-// XXX What is the point of this realm local parameter?
-func NewInt64PropExecutor(key string, value int64) dao.Executor {
-	return newPropExecutor(key, func() { std.SetParamInt64(key, value) })
-}
-
-// XXX What is the point of this realm local parameter?
-func NewUint64PropExecutor(key string, value uint64) dao.Executor {
-	return newPropExecutor(key, func() { std.SetParamUint64(key, value) })
-}
-
-// XXX What is the point of this realm local parameter?
-func NewBoolPropExecutor(key string, value bool) dao.Executor {
-	return newPropExecutor(key, func() { std.SetParamBool(key, value) })
-}
-
-// XXX What is the point of this realm local parameter?
-func NewBytesPropExecutor(key string, value []byte) dao.Executor {
-	return newPropExecutor(key, func() { std.SetParamBytes(key, value) })
-}
 
 func syskey(module, realm, key string) string {
 	if realm == "" {
@@ -104,17 +76,16 @@ func NewSysParamStringsPropExecutor(module, realm, key string, value []string) d
 }
 
 func newPropExecutor(key string, fn func()) dao.Executor {
-	// XXX move elsewhere.
 	callback := func() error {
 		fn()
-		std.Emit("set", "k", key)
+		std.Emit("set", "key", key) // TODO document, make const, make consistent. 'k'??
 		return nil
 	}
 	return bridge.GovDAO().NewGovDAOExecutor(callback)
 }
 func propose(exec dao.Executor, title, desc string) uint64 {
-	// The executor's callback function is executed only after the proposal has been voted on
-	// and approved by the GovDAO.
+	// The executor's callback function is executed only after the proposal
+	// has been voted on and approved by the GovDAO.
 	prop := dao.ProposalRequest{
 		Title:       title,
 		Description: desc,

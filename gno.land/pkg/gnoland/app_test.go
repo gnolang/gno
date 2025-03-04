@@ -64,12 +64,13 @@ func TestNewAppWithOptions(t *testing.T) {
 			},
 		},
 	}
-	appState.Params = []Param{
-		{key: "foo", kind: "string", value: "hello"},
-		{key: "foo", kind: "int64", value: int64(-42)},
-		{key: "foo", kind: "uint64", value: uint64(1337)},
-		{key: "foo", kind: "bool", value: true},
-		{key: "foo", kind: "bytes", value: []byte{0x48, 0x69, 0x21}},
+	appState.VM.RealmParams = []params.Param{
+		params.NewParam("gno.land/r/sys/testrealm:bar_string", "hello"),
+		params.NewParam("gno.land/r/sys/testrealm:bar_int64", int64(-42)),
+		params.NewParam("gno.land/r/sys/testrealm:bar_uint64", uint64(1337)),
+		params.NewParam("gno.land/r/sys/testrealm:bar_bool", true),
+		params.NewParam("gno.land/r/sys/testrealm:bar_strings", []string{"some", "strings"}),
+		params.NewParam("gno.land/r/sys/testrealm:bar_bytes", []byte{0x48, 0x69, 0x21}),
 	}
 
 	resp := bapp.InitChain(abci.RequestInitChain{
@@ -108,11 +109,12 @@ func TestNewAppWithOptions(t *testing.T) {
 		path        string
 		expectedVal string
 	}{
-		{"params/foo.string", `"hello"`},
-		{"params/foo.int64", `"-42"`},
-		{"params/foo.uint64", `"1337"`},
-		{"params/foo.bool", `true`},
-		{"params/foo.bytes", `"SGkh"`}, // XXX: make this test more readable
+		{"params/vm:gno.land/r/sys/testrealm:bar_string", `"hello"`},
+		{"params/vm:gno.land/r/sys/testrealm:bar_int64", `"-42"`},
+		{"params/vm:gno.land/r/sys/testrealm:bar_uint64", `"1337"`},
+		{"params/vm:gno.land/r/sys/testrealm:bar_bool", `true`},
+		{"params/vm:gno.land/r/sys/testrealm:bar_strings", `["some","strings"]`},
+		{"params/vm:gno.land/r/sys/testrealm:bar_bytes", `"SGkh"`}, // XXX: make this test more readable
 	}
 
 	for _, tc := range tcs {

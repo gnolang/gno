@@ -188,6 +188,9 @@ func (m *mockParamsKeeper) SetRaw(ctx sdk.Context, key string, value []byte) {}
 func (m *mockParamsKeeper) GetStruct(ctx sdk.Context, key string, strctPtr interface{}) {}
 func (m *mockParamsKeeper) SetStruct(ctx sdk.Context, key string, strct interface{})    {}
 
+func (m *mockParamsKeeper) GetAny(ctx sdk.Context, key string) interface{}        { return nil }
+func (m *mockParamsKeeper) SetAny(ctx sdk.Context, key string, value interface{}) {}
+
 type mockGasPriceKeeper struct{}
 
 func (m *mockGasPriceKeeper) LastGasPrice(ctx sdk.Context) std.GasPrice    { return std.GasPrice{} }

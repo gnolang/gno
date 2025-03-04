@@ -14,6 +14,7 @@ import (
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/pelletier/go-toml"
 )
@@ -63,50 +64,82 @@ func LoadGenesisBalancesFile(path string) (Balances, error) {
 	return balances, nil
 }
 
+func splitTypedName(typedName string) (name string, type_ string) {
+	parts := strings.Split(typedName, ".")
+	if len(parts) == 1 {
+		return typedName, ""
+	} else if len(parts) == 2 {
+		return parts[0], parts[1]
+	} else {
+		panic("malforumed typed name: expected <name> or <name>.<type> but got " + typedName)
+	}
+}
+
 // LoadGenesisParamsFile loads genesis params from the provided file path.
-func LoadGenesisParamsFile(path string) ([]Param, error) {
-	// each param is in the form: key.kind=value
+func LoadGenesisParamsFile(path string, ggs *GnoGenesisState) error {
 	content, err := osm.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	m := map[string] /*category*/ map[string] /*key*/ map[string] /*kind*/ interface{} /*value*/ {}
+	// Parameters are grouped by modules (or module:realm if realm exists).
+	// The realm is "_" for keeper param structs.
+	// While the vm module uses 'realm' for realm package paths,
+	// other keepers may use the realm portion for non-realm sub-modules.
+	// TODO just rename "realm" to submodule in the path spec.
+	m := map[string] /* <module>(:<realm>)? */ map[string] /* <name> */ interface{} /* <value> */ {}
 	err = toml.Unmarshal(content, &m)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	params := make([]Param, 0)
-	// By default parameters are grouped by modules. the module separator is ":"
+	// XXX Write onto ggs for other keeper params.
 
-	for category, keys := range m {
-		separator := ":"
-		// the category prefixed with "vm:"  contains arbirary parameters
-		if strings.HasPrefix(category, "vm:") {
-			separator = "."
-		}
-		for key, kinds := range keys {
-			for kind, val := range kinds {
-				param := Param{
-					key:  category + separator + key,
-					kind: kind,
-				}
-				switch kind {
-				case "uint64": // toml
-					param.value = uint64(val.(int64))
-				default:
-					param.value = val
-				}
-				if err := param.Verify(); err != nil {
-					return nil, err
-				}
-				params = append(params, param)
+	// Write onto ggs.VM.Params.
+	if vmparams, ok := m["vm"]; ok {
+		for name, value := range vmparams {
+			name, _ := splitTypedName(name)
+			switch name {
+			case "chain_domain":
+				ggs.VM.Params.ChainDomain = value.(string)
+			case "sysusers_pkgpath":
+				ggs.VM.Params.SysUsersPkgPath = value.(string)
+			default:
+				return errors.New("unexpected vm parameter " + name)
 			}
 		}
 	}
 
-	return params, nil
+	// Write onto ggs.VM.RealmParams.
+	for modrlm, values := range m {
+		if !strings.HasPrefix(modrlm, "vm:") {
+			continue
+		}
+		parts := strings.Split(modrlm, ":")
+		numparts := len(parts)
+		if numparts == 1 {
+			// keeper param struct (sys param). skip
+		} else if numparts == 2 {
+			realm := parts[1]
+			// XXX validate realm part.
+			for name, value := range values {
+				name, type_ := splitTypedName(name)
+				if type_ == "strings" {
+					vz := value.([]interface{})
+					sz := make([]string, len(vz))
+					for i, v := range vz {
+						sz[i] = v.(string)
+					}
+					value = sz
+				}
+				param := params.NewParam(realm+":"+name, value)
+				ggs.VM.RealmParams = append(ggs.VM.RealmParams, param)
+			}
+		} else {
+			return errors.New("invalid key " + modrlm + ", expected format <module>(:<realm>)?")
+		}
+	}
+	return nil
 }
 
 // LoadGenesisTxsFile loads genesis transactions from the provided file path.
