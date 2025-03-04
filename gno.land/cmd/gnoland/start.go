@@ -423,6 +423,9 @@ func generateGenesisFile(genesisFile string, privKey crypto.PrivKey, c *startCfg
 		return fmt.Errorf("unable to load genesis balances file %q: %w", c.genesisBalancesFile, err)
 	}
 
+	// Load embedded stdlibs
+	stdlibsTxs := gnoland.LoadEmbeddedStdlibs(txSender, genesisDeployFee)
+
 	// Load examples folder
 	examplesDir := filepath.Join(c.gnoRootDir, "examples")
 	pkgsTxs, err := gnoland.LoadPackagesFromDir(examplesDir, txSender, genesisDeployFee)
@@ -440,7 +443,7 @@ func generateGenesisFile(genesisFile string, privKey crypto.PrivKey, c *startCfg
 		}
 	}
 
-	genesisTxs = append(pkgsTxs, genesisTxs...)
+	genesisTxs = append(stdlibsTxs, append(pkgsTxs, genesisTxs...)...)
 
 	// Sign genesis transactions, with the default key (test1)
 	if err = gnoland.SignGenesisTxs(genesisTxs, privKey, c.chainID); err != nil {

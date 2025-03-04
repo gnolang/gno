@@ -18,6 +18,7 @@ const (
 	PackageKindOther  = iota
 	PackageKindRemote = iota
 	PackageKindFS
+	PackageKindStdlib
 )
 
 type Package struct {

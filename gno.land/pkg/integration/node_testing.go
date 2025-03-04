@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
@@ -15,6 +16,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/require"
@@ -94,12 +96,13 @@ func TestingMinimalNodeConfig(gnoroot string) *gnoland.InMemoryNodeConfig {
 		DB:            memdb.NewMemDB(),
 		InitChainerConfig: gnoland.InitChainerConfig{
 			GenesisTxResultHandler: gnoland.PanicOnFailingTxResultHandler,
-			CacheStdlibLoad:        true,
 		},
 	}
 }
 
 func DefaultTestingGenesisConfig(gnoroot string, self crypto.PubKey, tmconfig *tmcfg.Config) *bft.GenesisDoc {
+	stdlibsDeployerBalance, stdlibsTxs := testingGenesisStdlibs()
+
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
 		ChainID:     tmconfig.ChainID(),
@@ -125,22 +128,39 @@ func DefaultTestingGenesisConfig(gnoroot string, self crypto.PubKey, tmconfig *t
 					Address: crypto.MustAddressFromString(DefaultAccount_Address),
 					Amount:  std.MustParseCoins(ugnot.ValueString(10_000_000_000_000)),
 				},
+				stdlibsDeployerBalance,
 			},
-			Txs:    []gnoland.TxWithMetadata{},
+			Txs:    stdlibsTxs,
 			Params: []gnoland.Param{},
 		},
 	}
 }
+
+var testingGenesisStdlibs = sync.OnceValues(func() (gnoland.Balance, []gnoland.TxWithMetadata) {
+	stdlibsDeployer := ed25519.GenPrivKey()
+	stdlibsTxs := gnoland.LoadEmbeddedStdlibs(stdlibsDeployer.PubKey().Address(), std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000))))
+	gnoland.SignGenesisTxs(stdlibsTxs, stdlibsDeployer, "tendermint_test")
+
+	balance := gnoland.Balance{
+		Address: stdlibsDeployer.PubKey().Address(),
+		Amount:  std.MustParseCoins(ugnot.ValueString(10_000_000_000_000)),
+	}
+
+	return balance, stdlibsTxs
+})
 
 // LoadDefaultPackages loads the default packages for testing using a given creator address and gnoroot directory.
 func LoadDefaultPackages(t TestingTS, creator bft.Address, gnoroot string) []gnoland.TxWithMetadata {
 	examplesDir := filepath.Join(gnoroot, "examples")
 
 	defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
-	txs, err := gnoland.LoadPackagesFromDir(examplesDir, creator, defaultFee)
+
+	stdlibsTxs := gnoland.LoadEmbeddedStdlibs(creator, defaultFee)
+
+	examplesTxs, err := gnoland.LoadPackagesFromDir(examplesDir, creator, defaultFee)
 	require.NoError(t, err)
 
-	return txs
+	return append(stdlibsTxs, examplesTxs...)
 }
 
 // LoadDefaultGenesisBalanceFile loads the default genesis balance file for testing.

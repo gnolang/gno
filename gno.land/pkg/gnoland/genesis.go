@@ -8,6 +8,7 @@ import (
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -169,7 +170,7 @@ func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.C
 
 	// Open files in directory as MemPackage.
 	memPkg := gno.MustReadMemPackage(pkg.Dir, pkg.Name)
-	err := memPkg.Validate()
+	err := memPkg.Validate(false)
 	if err != nil {
 		return tx, fmt.Errorf("invalid package: %w", err)
 	}
@@ -203,4 +204,30 @@ func DefaultGenState() GnoGenesisState {
 	}
 
 	return gs
+}
+
+func LoadEmbeddedStdlibs(deployer crypto.Address, fee std.Fee) []TxWithMetadata {
+	pkgs := stdlibs.EmbeddedMemPackages()
+	stdlibsTxs := make([]TxWithMetadata, 0, len(pkgs)-1)
+
+	for _, memPkg := range pkgs {
+		if memPkg.Path == stdlibs.TestingLib {
+			continue
+		}
+
+		tx := TxWithMetadata{Tx: std.Tx{
+			Fee: fee,
+			Msgs: []std.Msg{
+				vmm.MsgAddPackage{
+					Creator: deployer,
+					Package: memPkg,
+				},
+			},
+		}}
+
+		tx.Tx.Signatures = make([]std.Signature, len(tx.Tx.GetSigners()))
+		stdlibsTxs = append(stdlibsTxs, tx)
+	}
+
+	return stdlibsTxs
 }

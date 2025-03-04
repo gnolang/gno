@@ -160,7 +160,7 @@ func Render(_ string) string { return strconv.Itoa(value) }
 
 	// Call NewDevNode with no package should work
 	node, emitter := newTestingDevNode(t, &counterPkg)
-	assert.Len(t, node.ListPkgs(), 1)
+	assert.Len(t, node.ListPkgs(), 7)
 
 	// Test rendering
 	render, err := testingRenderRealm(t, node, testCounterRealm)

@@ -7,7 +7,6 @@ import (
 	"go/token"
 	"io"
 	"math/big"
-	"os"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
@@ -71,7 +70,7 @@ func StoreWithOptions(
 	}
 	getPackage := func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
 		if pkgPath == "" {
-			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))
+			panic(errors.New("invalid zero package path in testStore().pkgGetter"))
 		}
 
 		if opts.WithExtern {
@@ -163,7 +162,7 @@ func StoreWithOptions(
 		}
 
 		// Load normal stdlib.
-		pn, pv = loadStdlib(rootDir, pkgPath, store, stdout, opts.PreprocessOnly)
+		pn, pv = loadStdlib(pkgPath, store, stdout, opts.PreprocessOnly)
 		if pn != nil {
 			return
 		}
@@ -197,36 +196,12 @@ func StoreWithOptions(
 	return
 }
 
-func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer, preprocessOnly bool) (*gno.PackageNode, *gno.PackageValue) {
-	dirs := [...]string{
-		// Normal stdlib path.
-		filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath),
-		// Override path. Definitions here override the previous if duplicate.
-		filepath.Join(rootDir, "gnovm", "tests", "stdlibs", pkgPath),
-	}
-	files := make([]string, 0, 32) // pre-alloc 32 as a likely high number of files
-	for _, path := range dirs {
-		dl, err := os.ReadDir(path)
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			panic(fmt.Errorf("could not access dir %q: %w", path, err))
-		}
-
-		for _, f := range dl {
-			// NOTE: RunMemPackage has other rules; those should be mostly useful
-			// for on-chain packages (ie. include README and gno.mod).
-			if !f.IsDir() && strings.HasSuffix(f.Name(), ".gno") {
-				files = append(files, filepath.Join(path, f.Name()))
-			}
-		}
-	}
-	if len(files) == 0 {
+func loadStdlib(pkgPath string, store gno.Store, stdout io.Writer, preprocessOnly bool) (*gno.PackageNode, *gno.PackageValue) {
+	memPkg := teststdlibs.EmbeddedMemPackage(pkgPath)
+	if memPkg == nil || memPkg.IsEmpty() {
 		return nil, nil
 	}
 
-	memPkg := gno.MustReadMemPackageFromList(files, pkgPath)
 	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 		// NOTE: see also pkgs/sdk/vm/builtins.go
 		// Needs PkgPath != its name because TestStore.getPackage is the package
