@@ -7,9 +7,11 @@ import (
 	"gno.land/p/moul/md"
 )
 
-func Render(path string) string {
-	banker := std.NewBanker(std.BankerTypeReadonly)
+var (
+	banker = std.NewBanker(std.BankerTypeReadonly)
+)
 
+func Render(path string) string {
 	parts := strings.Split(path, "/")
 
 	switch {
