@@ -2,11 +2,10 @@ package pollrealm
 
 import (
 	"bytes"
+	"std"
 	"strconv"
 	"strings"
 	"time"
-
-	"std"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/poll"
@@ -39,7 +38,7 @@ func CreatePoll(
 	maxChoices int,
 	deadlineStr string,
 ) string {
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 
 	deadline, err := time.Parse(time.RFC3339, deadlineStr)
 	if err != nil {
@@ -68,7 +67,7 @@ func EditPoll(
 		panic("invalid deadline format; please use RFC3339 format (e.g., 2025-12-31T23:59:59Z)")
 	}
 	p := getPoll(id)
-	p.Edit(std.GetOrigCaller(), newTitle, newDescription, newDeadline, newMaxChoices)
+	p.Edit(std.OriginCaller(), newTitle, newDescription, newDeadline, newMaxChoices)
 	polls.Set(id, p)
 	return ufmt.Sprintf("Poll #%s edited successfully!", id)
 }
@@ -77,7 +76,7 @@ func EditPoll(
 func AddOption(id string, optionText string) string {
 	p := getPoll(id)
 	// Only the creator can add options
-	if p.Creator != std.GetOrigCaller() {
+	if p.Creator != std.OriginCaller() {
 		panic("only the poll creator can add options")
 	}
 	// Disallow if any votes have been cast
@@ -95,7 +94,7 @@ func AddOption(id string, optionText string) string {
 func EditOption(id string, optionIndex int, newText string) string {
 	p := getPoll(id)
 	// Only the creator can edit
-	if p.Creator != std.GetOrigCaller() {
+	if p.Creator != std.OriginCaller() {
 		panic("only the poll creator can edit options")
 	}
 	p.EditOption(optionIndex, newText)
@@ -107,7 +106,7 @@ func EditOption(id string, optionIndex int, newText string) string {
 func DeleteOption(id string, optionIndex int) string {
 	p := getPoll(id)
 	// Only the creator can delete
-	if p.Creator != std.GetOrigCaller() {
+	if p.Creator != std.OriginCaller() {
 		panic("only the poll creator can delete options")
 	}
 	// Disallow deleting if any votes have been cast
@@ -126,7 +125,7 @@ func Vote(id string, choices string) string {
 	choiceIndices := parseChoices(choices)
 
 	p := getPoll(id)
-	p.Vote(std.GetOrigCaller(), choiceIndices)
+	p.Vote(std.OriginCaller(), choiceIndices)
 	polls.Set(id, p)
 
 	return ufmt.Sprintf("Successfully voted on poll #%s!", id)
