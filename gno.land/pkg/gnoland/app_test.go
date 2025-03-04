@@ -219,7 +219,7 @@ func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
 	cfg := InitChainerConfig{
 		StdlibDir:       stdlibDir,
 		vmk:             mock,
-		acctk:           &mockAuthKeeper{},
+		acck:            &mockAuthKeeper{},
 		bankk:           &mockBankKeeper{},
 		paramsk:         &mockParamsKeeper{},
 		gpk:             &mockGasPriceKeeper{},
@@ -833,17 +833,17 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 
 	// Construct keepers.
 	paramsk := params.NewParamsKeeper(mainKey)
-	acctk := auth.NewAccountKeeper(mainKey, paramsk.ForModule(auth.ModuleName), ProtoGnoAccount)
+	acck := auth.NewAccountKeeper(mainKey, paramsk.ForModule(auth.ModuleName), ProtoGnoAccount)
 	gpk := auth.NewGasPriceKeeper(mainKey)
-	bankk := bank.NewBankKeeper(acctk, paramsk.ForModule(bank.ModuleName))
-	vmk := vm.NewVMKeeper(baseKey, mainKey, acctk, bankk, paramsk)
-	paramsk.Register(auth.ModuleName, acctk)
+	bankk := bank.NewBankKeeper(acck, paramsk.ForModule(bank.ModuleName))
+	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, paramsk)
+	paramsk.Register(auth.ModuleName, acck)
 	paramsk.Register(bank.ModuleName, bankk)
 	paramsk.Register(vm.ModuleName, vmk)
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
 	icc.baseApp = baseApp
-	icc.acctk, icc.bankk, icc.vmk, icc.gpk = acctk, bankk, vmk, gpk
+	icc.acck, icc.bankk, icc.vmk, icc.gpk = acck, bankk, vmk, gpk
 	baseApp.SetInitChainer(icc.InitChainer)
 
 	// Set AnteHandler
@@ -856,7 +856,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpk.LastGasPrice(ctx))
 
 			// Override auth params.
-			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acctk.GetParams(ctx))
+			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
 			// Continue on with default auth ante handler.
 			if ctx.IsCheckTx() {
 				res := auth.EnsureSufficientMempoolFees(ctx, tx.Fee)
@@ -887,7 +887,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	baseApp.SetEndBlocker(
 		EndBlocker(
 			c,
-			acctk,
+			acck,
 			gpk,
 			nil,
 			baseApp,
@@ -895,7 +895,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	)
 
 	// Set a handler Route.
-	baseApp.Router().AddRoute("auth", auth.NewHandler(acctk))
+	baseApp.Router().AddRoute("auth", auth.NewHandler(acck))
 	baseApp.Router().AddRoute("bank", bank.NewHandler(bankk))
 	baseApp.Router().AddRoute(
 		testutils.RouteMsgCounter,

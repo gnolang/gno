@@ -59,7 +59,7 @@ var nativeFuncs = [...]NativeFunc{
 			)
 
 			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.Fill(m.Store)
+			tv0.DeepFill(m.Store)
 			gno.Gno2GoValue(tv0, rp0)
 
 			testlibs_std.TestSkipHeights(
@@ -85,7 +85,7 @@ var nativeFuncs = [...]NativeFunc{
 			)
 
 			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.Fill(m.Store)
+			tv0.DeepFill(m.Store)
 			gno.Gno2GoValue(tv0, rp0)
 
 			r0 := testlibs_std.X_callerAt(
@@ -115,7 +115,7 @@ var nativeFuncs = [...]NativeFunc{
 			)
 
 			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.Fill(m.Store)
+			tv0.DeepFill(m.Store)
 			gno.Gno2GoValue(tv0, rp0)
 
 			testlibs_std.X_testSetOriginCaller(
@@ -139,7 +139,7 @@ var nativeFuncs = [...]NativeFunc{
 			)
 
 			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.Fill(m.Store)
+			tv0.DeepFill(m.Store)
 			gno.Gno2GoValue(tv0, rp0)
 
 			testlibs_std.X_testSetOriginPkgAddr(
@@ -166,10 +166,10 @@ var nativeFuncs = [...]NativeFunc{
 			)
 
 			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.Fill(m.Store)
+			tv0.DeepFill(m.Store)
 			gno.Gno2GoValue(tv0, rp0)
 			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
-			tv1.Fill(m.Store)
+			tv1.DeepFill(m.Store)
 			gno.Gno2GoValue(tv1, rp1)
 
 			testlibs_std.X_testSetRealm(
@@ -202,16 +202,16 @@ var nativeFuncs = [...]NativeFunc{
 			)
 
 			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.Fill(m.Store)
+			tv0.DeepFill(m.Store)
 			gno.Gno2GoValue(tv0, rp0)
 			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
-			tv1.Fill(m.Store)
+			tv1.DeepFill(m.Store)
 			gno.Gno2GoValue(tv1, rp1)
 			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
-			tv2.Fill(m.Store)
+			tv2.DeepFill(m.Store)
 			gno.Gno2GoValue(tv2, rp2)
 			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
-			tv3.Fill(m.Store)
+			tv3.DeepFill(m.Store)
 			gno.Gno2GoValue(tv3, rp3)
 
 			testlibs_std.X_testSetOriginSend(
@@ -241,13 +241,13 @@ var nativeFuncs = [...]NativeFunc{
 			)
 
 			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.Fill(m.Store)
+			tv0.DeepFill(m.Store)
 			gno.Gno2GoValue(tv0, rp0)
 			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
-			tv1.Fill(m.Store)
+			tv1.DeepFill(m.Store)
 			gno.Gno2GoValue(tv1, rp1)
 			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
-			tv2.Fill(m.Store)
+			tv2.DeepFill(m.Store)
 			gno.Gno2GoValue(tv2, rp2)
 
 			testlibs_std.X_testIssueCoins(
@@ -274,7 +274,7 @@ var nativeFuncs = [...]NativeFunc{
 			)
 
 			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.Fill(m.Store)
+			tv0.DeepFill(m.Store)
 			gno.Gno2GoValue(tv0, rp0)
 
 			r0, r1 := testlibs_std.X_getRealm(
@@ -311,7 +311,7 @@ var nativeFuncs = [...]NativeFunc{
 			)
 
 			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.Fill(m.Store)
+			tv0.DeepFill(m.Store)
 			gno.Gno2GoValue(tv0, rp0)
 
 			r0 := testlibs_std.X_isRealm(
@@ -365,10 +365,10 @@ var nativeFuncs = [...]NativeFunc{
 			)
 
 			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.Fill(m.Store)
+			tv0.DeepFill(m.Store)
 			gno.Gno2GoValue(tv0, rp0)
 			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
-			tv1.Fill(m.Store)
+			tv1.DeepFill(m.Store)
 			gno.Gno2GoValue(tv1, rp1)
 
 			r0, r1 := testlibs_testing.X_matchString(p0, p1)
@@ -403,7 +403,7 @@ var nativeFuncs = [...]NativeFunc{
 			)
 
 			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.Fill(m.Store)
+			tv0.DeepFill(m.Store)
 			gno.Gno2GoValue(tv0, rp0)
 
 			r0 := testlibs_unicode.IsPrint(p0)
@@ -433,7 +433,7 @@ var nativeFuncs = [...]NativeFunc{
 			)
 
 			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.Fill(m.Store)
+			tv0.DeepFill(m.Store)
 			gno.Gno2GoValue(tv0, rp0)
 
 			r0 := testlibs_unicode.IsGraphic(p0)
@@ -463,7 +463,7 @@ var nativeFuncs = [...]NativeFunc{
 			)
 
 			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.Fill(m.Store)
+			tv0.DeepFill(m.Store)
 			gno.Gno2GoValue(tv0, rp0)
 
 			r0 := testlibs_unicode.SimpleFold(p0)
@@ -493,7 +493,7 @@ var nativeFuncs = [...]NativeFunc{
 			)
 
 			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.Fill(m.Store)
+			tv0.DeepFill(m.Store)
 			gno.Gno2GoValue(tv0, rp0)
 
 			r0 := testlibs_unicode.IsUpper(p0)

@@ -98,20 +98,20 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Construct keepers.
 
 	paramsk := params.NewParamsKeeper(mainKey)
-	acctk := auth.NewAccountKeeper(mainKey, paramsk.ForModule(auth.ModuleName), ProtoGnoAccount)
-	bankk := bank.NewBankKeeper(acctk, paramsk.ForModule(bank.ModuleName))
+	acck := auth.NewAccountKeeper(mainKey, paramsk.ForModule(auth.ModuleName), ProtoGnoAccount)
+	bankk := bank.NewBankKeeper(acck, paramsk.ForModule(bank.ModuleName))
 	gpk := auth.NewGasPriceKeeper(mainKey)
-	vmk := vm.NewVMKeeper(baseKey, mainKey, acctk, bankk, paramsk)
+	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, paramsk)
 	vmk.Output = cfg.VMOutput
 
-	paramsk.Register(auth.ModuleName, acctk)
+	paramsk.Register(auth.ModuleName, acck)
 	paramsk.Register(bank.ModuleName, bankk)
 	paramsk.Register(vm.ModuleName, vmk)
 
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
 	icc.baseApp = baseApp
-	icc.acctk, icc.bankk, icc.vmk, icc.paramsk, icc.gpk = acctk, bankk, vmk, paramsk, gpk
+	icc.acck, icc.bankk, icc.vmk, icc.paramsk, icc.gpk = acck, bankk, vmk, paramsk, gpk
 	baseApp.SetInitChainer(icc.InitChainer)
 
 	// Set AnteHandler
@@ -119,7 +119,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		VerifyGenesisSignatures: !cfg.SkipGenesisVerification,
 	}
 	authAnteHandler := auth.NewAnteHandler(
-		acctk, bankk, auth.DefaultSigVerificationGasConsumer, authOptions)
+		acck, bankk, auth.DefaultSigVerificationGasConsumer, authOptions)
 	baseApp.SetAnteHandler(
 		// Override default AnteHandler with custom logic.
 		func(ctx sdk.Context, tx std.Tx, simulate bool) (
@@ -128,7 +128,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			// Add last gas price in the context
 			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpk.LastGasPrice(ctx))
 			// Override auth params.
-			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acctk.GetParams(ctx))
+			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
 			// Continue on with default auth ante handler.
 			newCtx, res, abort = authAnteHandler(ctx, tx, simulate)
 			return
@@ -159,7 +159,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	baseApp.SetEndBlocker(
 		EndBlocker(
 			c,
-			acctk,
+			acck,
 			gpk,
 			vmk,
 			baseApp,
@@ -167,7 +167,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	)
 
 	// Set a handler Route.
-	baseApp.Router().AddRoute("auth", auth.NewHandler(acctk))
+	baseApp.Router().AddRoute("auth", auth.NewHandler(acck))
 	baseApp.Router().AddRoute("bank", bank.NewHandler(bankk))
 	baseApp.Router().AddRoute("params", params.NewHandler(paramsk))
 	baseApp.Router().AddRoute("vm", vm.NewHandler(vmk))
@@ -267,7 +267,7 @@ type InitChainerConfig struct {
 	// configurable by end-users.
 	baseApp *sdk.BaseApp
 	vmk     vm.VMKeeperI
-	acctk   auth.AccountKeeperI
+	acck    auth.AccountKeeperI
 	bankk   bank.BankKeeperI
 	paramsk params.ParamsKeeperI
 	gpk     auth.GasPriceKeeperI
@@ -332,8 +332,8 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 	cfg.bankk.InitGenesis(ctx, state.Bank)
 	// Apply genesis balances.
 	for _, bal := range state.Balances {
-		acc := cfg.acctk.NewAccountWithAddress(ctx, bal.Address)
-		cfg.acctk.SetAccount(ctx, acc)
+		acc := cfg.acck.NewAccountWithAddress(ctx, bal.Address)
+		cfg.acck.SetAccount(ctx, acc)
 		err := cfg.bankk.SetCoins(ctx, bal.Address, bal.Amount)
 		if err != nil {
 			panic(err)
@@ -341,21 +341,21 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 	}
 	// The account keeper's initial genesis state must be set after genesis
 	// accounts are created in account keeeper with genesis balances
-	cfg.acctk.InitGenesis(ctx, state.Auth)
+	cfg.acck.InitGenesis(ctx, state.Auth)
 
 	// The unrestricted address must have been created as one of the genesis accounts.
 	// Otherwise, we cannot verify the unrestricted address in the genesis state.
 
 	for _, addr := range state.Auth.Params.UnrestrictedAddrs {
-		acc := cfg.acctk.GetAccount(ctx, addr)
+		acc := cfg.acck.GetAccount(ctx, addr)
 		accr := acc.(*GnoAccount)
 		accr.SetUnrestricted()
-		cfg.acctk.SetAccount(ctx, acc)
+		cfg.acck.SetAccount(ctx, acc)
 	}
 
 	cfg.vmk.InitGenesis(ctx, state.VM)
 
-	params := cfg.acctk.GetParams(ctx)
+	params := cfg.acck.GetParams(ctx)
 	ctx = ctx.WithValue(auth.AuthParamsContextKey{}, params)
 	auth.InitChainer(ctx, cfg.gpk, params.InitialGasPrice)
 
@@ -420,7 +420,7 @@ type endBlockerApp interface {
 // validator set changes
 func EndBlocker(
 	collector *collector[validatorUpdate],
-	acctk auth.AccountKeeperI,
+	acck auth.AccountKeeperI,
 	gpk auth.GasPriceKeeperI,
 	vmk vm.VMKeeperI,
 	app endBlockerApp,
@@ -431,10 +431,10 @@ func EndBlocker(
 	return func(ctx sdk.Context, _ abci.RequestEndBlock) abci.ResponseEndBlock {
 		// set the auth params value in the ctx.  The EndBlocker will use InitialGasPrice in
 		// the params to calculate the updated gas price.
-		if acctk != nil {
-			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acctk.GetParams(ctx))
+		if acck != nil {
+			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
 		}
-		if acctk != nil && gpk != nil {
+		if acck != nil && gpk != nil {
 			auth.EndBlocker(ctx, gpk)
 		}
 		// Check if there was a valset change

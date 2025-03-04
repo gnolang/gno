@@ -80,7 +80,7 @@ func NewSDKParams(pmk params.ParamsKeeper, ctx sdk.Context) *SDKParams {
 	}
 }
 
-// The key has the format <module>:(<realm>:)<paramname>.
+// The key has the format <module>:(<realm>:)?<paramname>.
 func (prm *SDKParams) SetString(key string, value string) {
 	prm.willSetKeeperParams(prm.ctx, key, value)
 	prm.pmk.SetString(prm.ctx, key, value)

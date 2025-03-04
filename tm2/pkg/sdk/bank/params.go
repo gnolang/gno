@@ -8,9 +8,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// XXX delete or change to "_".
-const paramsKey = "p"
-
 type BankParamsContextKey struct{}
 
 // Params defines the parameters for the bank module.
@@ -64,7 +61,7 @@ func (bank BankKeeper) GetParams(ctx sdk.Context) Params {
 
 func (bank BankKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
 	switch key {
-	case lockTransferKey:
+	case "_:restricted_denoms": // XXX test
 		bank.WillSetRestrictedDenoms(ctx, value.([]string))
 	default:
 		// Allow setting non-existent key.

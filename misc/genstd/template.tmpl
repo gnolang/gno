@@ -64,7 +64,7 @@ var nativeFuncs = [...]NativeFunc{
 				{{ range $pn, $pv := $m.Params -}}
 					{{- if not $pv.IsTypedValue }}
 						tv{{ $pn }} := b.GetPointerTo(nil, gno.NewValuePathBlock(1, {{ $pn }}, "")).TV
-						tv{{ $pn }}.Fill(m.Store)
+						tv{{ $pn }}.DeepFill(m.Store)
 						gno.Gno2GoValue(tv{{ $pn }}, rp{{ $pn }})
 					{{- end -}}
 				{{ end }}

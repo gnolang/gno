@@ -21,17 +21,17 @@ type Value interface {
 	assertValue()
 	String() string // for debugging
 
-	// Fill returns the same value, filled.
+	// DeepFill returns the same value, filled.
 	//
 	// NOTE NOT LAZY (and potentially expensive)
-	// Fill() is only used for synchronous recursive
+	// DeepFill() is only used for synchronous recursive
 	// filling before running genstd generated native bindings
 	// which use Gno2GoValue().  All other filling functionality is
 	// lazy, so avoid using this, and keep the logic lazy.
 	//
 	// NOTE must use the return value since PointerValue isn't a pointer
 	// receiver, and RefValue returns another type entirely.
-	Fill(store Store) Value
+	DeepFill(store Store) Value
 }
 
 // Fixed size primitive types are represented in TypedValue.N
@@ -2333,11 +2333,11 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) T
 	}
 }
 
-// Convenience for Value.Fill.
+// Convenience for Value.DeepFill.
 // NOTE: NOT LAZY (and potentially expensive)
-func (tv *TypedValue) Fill(store Store) {
+func (tv *TypedValue) DeepFill(store Store) {
 	if tv.V != nil {
-		tv.V = tv.V.Fill(store)
+		tv.V = tv.V.DeepFill(store)
 	}
 }
 

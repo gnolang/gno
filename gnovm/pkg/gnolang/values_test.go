@@ -15,7 +15,7 @@ func (m *mockTypedValueStruct) String() string {
 	return fmt.Sprintf("MockTypedValueStruct(%d)", m.field)
 }
 
-func (m *mockTypedValueStruct) Fill(store Store) Value {
+func (m *mockTypedValueStruct) DeepFill(store Store) Value {
 	return m
 }
 

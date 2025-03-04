@@ -1,23 +1,23 @@
 package gnolang
 
-func (sv StringValue) Fill(store Store) Value {
+func (sv StringValue) DeepFill(store Store) Value {
 	return sv
 }
 
-func (biv BigintValue) Fill(store Store) Value {
+func (biv BigintValue) DeepFill(store Store) Value {
 	return biv
 }
 
-func (bdv BigdecValue) Fill(store Store) Value {
+func (bdv BigdecValue) DeepFill(store Store) Value {
 	return bdv
 }
 
-func (dbv DataByteValue) Fill(store Store) Value {
-	dbv.Base.Fill(store)
+func (dbv DataByteValue) DeepFill(store Store) Value {
+	dbv.Base.DeepFill(store)
 	return dbv
 }
 
-func (pv PointerValue) Fill(store Store) Value {
+func (pv PointerValue) DeepFill(store Store) Value {
 	if pv.Key != nil {
 		// only used transiently for assignment!
 		panic("should not happen")
@@ -28,7 +28,7 @@ func (pv PointerValue) Fill(store Store) Value {
 	if pv.Base != nil {
 		return PointerValue{
 			TV:    pv.TV,
-			Base:  pv.Base.Fill(store),
+			Base:  pv.Base.DeepFill(store),
 			Index: pv.Index,
 			Key:   nil,
 		}
@@ -36,51 +36,51 @@ func (pv PointerValue) Fill(store Store) Value {
 	return pv
 }
 
-func (av *ArrayValue) Fill(store Store) Value {
+func (av *ArrayValue) DeepFill(store Store) Value {
 	if av.List != nil {
 		for i := range len(av.List) {
 			tv := &av.List[i]
 			if tv.V != nil {
-				tv.V = tv.V.Fill(store)
+				tv.V = tv.V.DeepFill(store)
 			}
 		}
 	}
 	return av
 }
 
-func (sv *SliceValue) Fill(store Store) Value {
+func (sv *SliceValue) DeepFill(store Store) Value {
 	if sv.Base != nil {
-		sv.Base = sv.Base.Fill(store)
+		sv.Base = sv.Base.DeepFill(store)
 	}
 	return sv
 }
 
-func (sv *StructValue) Fill(store Store) Value {
+func (sv *StructValue) DeepFill(store Store) Value {
 	for i := range len(sv.Fields) {
 		tv := &sv.Fields[i]
 		if tv.V != nil {
-			tv.V = tv.V.Fill(store)
+			tv.V = tv.V.DeepFill(store)
 		}
 	}
 	return sv
 }
 
 // XXX implement these too
-func (fv *FuncValue) Fill(store Store) Value         { panic("not yet implemented") }
-func (mv *MapValue) Fill(store Store) Value          { panic("not yet implemented") }
-func (bmv *BoundMethodValue) Fill(store Store) Value { panic("not yet implemented") }
-func (tv TypeValue) Fill(store Store) Value          { panic("not yet implemented") }
-func (pv *PackageValue) Fill(store Store) Value      { panic("not yet implemented") }
-func (nv *NativeValue) Fill(store Store) Value       { panic("not yet implemented") }
-func (b *Block) Fill(store Store) Value              { panic("not yet implemented") }
+func (fv *FuncValue) DeepFill(store Store) Value         { panic("not yet implemented") }
+func (mv *MapValue) DeepFill(store Store) Value          { panic("not yet implemented") }
+func (bmv *BoundMethodValue) DeepFill(store Store) Value { panic("not yet implemented") }
+func (tv TypeValue) DeepFill(store Store) Value          { panic("not yet implemented") }
+func (pv *PackageValue) DeepFill(store Store) Value      { panic("not yet implemented") }
+func (nv *NativeValue) DeepFill(store Store) Value       { panic("not yet implemented") }
+func (b *Block) DeepFill(store Store) Value              { panic("not yet implemented") }
 
-func (rv RefValue) Fill(store Store) Value {
+func (rv RefValue) DeepFill(store Store) Value {
 	return store.GetObject(rv.ObjectID)
 }
 
-func (hiv *HeapItemValue) Fill(store Store) Value {
+func (hiv *HeapItemValue) DeepFill(store Store) Value {
 	if hiv.Value.V != nil {
-		hiv.Value.V = hiv.Value.V.Fill(store)
+		hiv.Value.V = hiv.Value.V.DeepFill(store)
 	}
 	return hiv
 }
