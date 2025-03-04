@@ -3,6 +3,8 @@ package testing
 import (
 	"regexp"
 	"time"
+
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
 func X_unixNano() int64 {
@@ -15,4 +17,12 @@ func X_matchString(pat, str string) (result bool, err error) {
 		return
 	}
 	return matchRe.MatchString(str), nil
+}
+
+func X_recoverWithStacktrace(m *gnolang.Machine) (gnolang.TypedValue, string) {
+	exception := m.Recover()
+	if exception == nil {
+		return gnolang.TypedValue{}, ""
+	}
+	return exception.Value, exception.Stacktrace.String()
 }

@@ -2,7 +2,7 @@ package main
 
 type nat []int
 
-func x() interface{} {
+func x() any {
 	a := nat{0}
 	return a
 }
