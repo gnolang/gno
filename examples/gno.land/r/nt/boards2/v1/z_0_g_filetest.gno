@@ -2,19 +2,22 @@ package main
 
 import (
 	"std"
+	"strings"
 
 	boards2 "gno.land/r/nt/boards2/v1"
 )
 
 const owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 
+var name = strings.Repeat("X", boards2.MaxBoardNameLength+1)
+
 func init() {
 	std.TestSetOriginCaller(owner)
 }
 
 func main() {
-	boards2.CreateBoard("short")
+	boards2.CreateBoard(name)
 }
 
 // Error:
-// the minimum allowed board name length is 6 characters
+// board name is too long, maximum allowed is 50 characters

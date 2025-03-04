@@ -61,9 +61,13 @@ func newPost(board *Board, id PostID, creator std.Address, title, body string, t
 	}
 }
 
+func (post *Post) IsRepost() bool {
+	return post.repostBoardID != 0
+}
+
 func (post *Post) IsThread() bool {
 	// repost threads also have parent ID
-	return post.parentID == 0 || post.repostBoardID != 0
+	return post.parentID == 0 || post.IsRepost()
 }
 
 func (post *Post) GetBoard() *Board {
@@ -163,10 +167,6 @@ func (thread *Post) GetReply(pid PostID) (_ *Post, found bool) {
 func (post *Post) AddRepostTo(creator std.Address, repost *Post, dst *Board) {
 	if !post.IsThread() {
 		panic("cannot repost non-thread post")
-	}
-
-	if post.isHidden {
-		panic("thread has been flagged as inappropriate")
 	}
 
 	post.repostsCount++
@@ -283,29 +283,30 @@ func (post *Post) GetFlagFormURL() string {
 
 func (post *Post) RenderSummary() string {
 	var (
-		s       string
+		b       strings.Builder
 		postURL = post.GetURL()
+		title   = post.title
 	)
 
-	if post.title != "" {
-		s += "## " + newLink(summaryOf(post.title, 80), postURL) + "\n\n"
+	// Thread reposts might not have a title, if so get title from source thread
+	if post.IsRepost() && title == "" {
+		if board, ok := getBoard(post.repostBoardID); ok {
+			if src, ok := board.GetThread(post.parentID); ok {
+				title = src.GetTitle()
+			}
+		}
 	}
 
-	s += post.GetSummary() + "\n"
-
-	repostBody, _ := post.renderSourcePost("")
-	s += repostBody
-
-	s += "\\- " + newUserLink(post.creator) + ","
-	s += " " + newLink(post.createdAt.Format(dateFormat), postURL)
-	s += " " + newButtonLink("x", post.GetDeleteFormURL())
-	s += " (" + strconv.Itoa(post.replies.Size()) + " replies)"
-	s += " (" + strconv.Itoa(post.reposts.Size()) + " reposts)" + "\n"
-	return s
+	b.WriteString("## " + newLink(summaryOf(title, 80), postURL) + "\n\n")
+	b.WriteString("Created by " + newUserLink(post.creator) + " on " + post.createdAt.Format(dateFormat))
+	b.WriteString(" - " + newHelpButtonLink("x", post.GetDeleteFormURL(), "delete thread") + "  \n")
+	b.WriteString(strconv.Itoa(post.repliesAll.Size()) + " replies • ")
+	b.WriteString(strconv.Itoa(post.reposts.Size()) + " reposts" + "\n")
+	return b.String()
 }
 
 func (post *Post) renderSourcePost(indent string) (string, *Post) {
-	if post.repostBoardID == 0 {
+	if !post.IsRepost() {
 		return "", nil
 	}
 
@@ -314,16 +315,16 @@ func (post *Post) renderSourcePost(indent string) (string, *Post) {
 	// TODO: figure out a way to decouple posts from a global storage.
 	board, ok := getBoard(post.repostBoardID)
 	if !ok {
-		return indentBody(indent, "*Source board is not available*\n\n"), nil
+		return indentBody(indent, "*⚠ Source board is not available*\n\n"), nil
 	}
 
 	srcPost, ok := board.GetThread(post.parentID)
 	if !ok {
-		return indentBody(indent, "*Source post is not available*\n\n"), nil
+		return indentBody(indent, "*⚠ Source post is not available*\n\n"), nil
 	}
 
 	if srcPost.isHidden {
-		return indentBody(indent, "*Source post has been flagged as inappropriate*\n\n"), nil
+		return indentBody(indent, "*⚠ Source post has been flagged as inappropriate*\n\n"), nil
 	}
 
 	return indentBody(indent, srcPost.GetSummary()) + "\n\n", srcPost
@@ -335,7 +336,7 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
 	if post.isHidden {
 		// Flagged comment should be hidden, but replies still visible (see: #3480)
 		// Flagged threads will be hidden by render function caller.
-		sb.WriteString(indentBody(indent, "_Reply is hidden as it has been flagged as inappropriate_"))
+		sb.WriteString(indentBody(indent, "_⚠ Reply is hidden as it has been flagged as inappropriate_"))
 		sb.WriteString("\n")
 		return
 	}
@@ -356,24 +357,16 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
 		sb.WriteString("  \n" + indent)
 	}
 
-	sb.WriteString(newUserLink(post.creator))
-	sb.WriteString(", ")
-	sb.WriteString(post.createdAt.Format(dateFormat))
+	sb.WriteString("Created by " + newUserLink(post.creator))
+	sb.WriteString(" on " + post.createdAt.Format(dateFormat))
 
 	if post.repostsCount > 0 {
 		sb.WriteString(", ")
 		sb.WriteString(strconv.FormatUint(post.repostsCount, 10))
-		sb.WriteString(" reposts")
+		sb.WriteString(" repost(s)")
 	}
 
 	sb.WriteString(" - ")
-
-	if srcPost != nil {
-		sb.WriteString(" ")
-		sb.WriteString(newButtonLink("see source post", srcPost.GetURL()))
-	}
-
-	sb.WriteString(" ")
 	sb.WriteString(newButtonLink("reply", post.GetReplyFormURL()))
 
 	if post.IsThread() {
@@ -388,8 +381,12 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
 	sb.WriteString(newButtonLink("flag", post.GetFlagFormURL()))
 
 	sb.WriteString(" ")
-	sb.WriteString(newButtonLink("x", post.GetDeleteFormURL()))
-	sb.WriteString("\n")
+	sb.WriteString(newHelpButtonLink("x", post.GetDeleteFormURL(), "delete"))
+	sb.WriteString("  \n")
+
+	if post.IsRepost() {
+		sb.WriteString("This thread is a repost of [another thread](" + srcPost.GetURL() + ")\n")
+	}
 }
 
 func (post *Post) Render(p *PaginationOpts, indent string, levels int) string {
@@ -400,14 +397,19 @@ func (post *Post) Render(p *PaginationOpts, indent string, levels int) string {
 	// TODO: pass a builder as arg into Render.
 	var sb strings.Builder
 
-	if post.title != "" {
-		sb.WriteString(indent)
-		sb.WriteString("# ")
-		sb.WriteString(post.title)
-		sb.WriteString("\n")
-		sb.WriteString(indent)
-		sb.WriteString("\n")
+	// Thread reposts might not have a title, if so get title from source thread
+	title := post.title
+	if post.IsRepost() && title == "" {
+		if board, ok := getBoard(post.repostBoardID); ok {
+			if src, ok := board.GetThread(post.parentID); ok {
+				title = src.GetTitle()
+			}
+		}
 	}
+
+	sb.WriteString(indent)
+	sb.WriteString("## " + title + "\n")
+	sb.WriteString(indent + "\n")
 
 	post.renderPostContent(&sb, indent)
 
@@ -455,7 +457,7 @@ func (post *Post) RenderInner() string {
 	s := "_" + newLink("see thread", post.board.GetURLFromThreadID(threadID)) + "_\n\n"
 
 	// Fully render parent if it's not a repost.
-	if post.repostBoardID == 0 {
+	if !post.IsRepost() {
 		var (
 			parent   *Post
 			parentID = post.parentID
