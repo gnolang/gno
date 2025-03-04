@@ -13,8 +13,8 @@ func TestFoo721(t *testing.T) {
 
 	for _, tc := range []struct {
 		name     string
-		expected interface{}
-		fn       func() interface{}
+		expected any
+		fn       func() any
 	}{
 		{"BalanceOf(admin)", uint64(10), func() interface{} { return BalanceOf(admin) }},
 		{"BalanceOf(hariom)", uint64(5), func() interface{} { return BalanceOf(hariom) }},

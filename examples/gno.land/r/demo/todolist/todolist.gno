@@ -121,7 +121,7 @@ func renderHomepage() string {
 	}
 
 	// Iterate through AVL tree
-	todolistTree.Iterate("", "", func(key string, value interface{}) bool {
+	todolistTree.Iterate("", "", func(key string, value any) bool {
 		// cast raw data from tree into Todolist struct
 		tl := value.(*todolist.TodoList)
 

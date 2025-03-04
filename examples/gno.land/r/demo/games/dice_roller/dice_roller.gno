@@ -273,7 +273,7 @@ func getPlayer(addr std.Address) *player {
 // getLeaderBoard generates a leaderboard sorted by points
 func getLeaderBoard() leaderBoard {
 	board := leaderBoard{}
-	players.Iterate("", "", func(key string, value interface{}) bool {
+	players.Iterate("", "", func(key string, value any) bool {
 		player := value.(*player)
 		board = append(board, *player)
 		return false

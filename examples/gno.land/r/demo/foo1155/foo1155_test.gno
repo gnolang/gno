@@ -14,12 +14,12 @@ func TestFoo721(t *testing.T) {
 
 	for _, tc := range []struct {
 		name     string
-		expected interface{}
-		fn       func() interface{}
+		expected any
+		fn       func() any
 	}{
-		{"BalanceOf(admin, tid1)", uint64(100), func() interface{} { return BalanceOf(admin, tid1) }},
-		{"BalanceOf(bob, tid1)", uint64(0), func() interface{} { return BalanceOf(bob, tid1) }},
-		{"IsApprovedForAll(admin, bob)", false, func() interface{} { return IsApprovedForAll(admin, bob) }},
+		{"BalanceOf(admin, tid1)", uint64(100), func() any { return BalanceOf(admin, tid1) }},
+		{"BalanceOf(bob, tid1)", uint64(0), func() any { return BalanceOf(bob, tid1) }},
+		{"IsApprovedForAll(admin, bob)", false, func() any { return IsApprovedForAll(admin, bob) }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := tc.fn()
