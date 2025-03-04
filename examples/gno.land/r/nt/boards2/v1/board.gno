@@ -112,14 +112,15 @@ func (board *Board) DeleteThread(pid PostID) {
 func (board *Board) Render(p *PaginationOpts) string {
 	var sb strings.Builder
 
-	sb.WriteString("# Board: " + board.GetName() + "\n")
-	sb.WriteString("> Created by _" + newUserLink(board.creator) + "_ ")
+	sb.WriteString("# " + board.GetName() + "  \n")
+	sb.WriteString("_Board created by " + newUserLink(board.creator) + " ")
 	sb.WriteString("on " + board.createdAt.Format(dateFormat))
-	sb.WriteString(", #" + board.id.String())
+	sb.WriteString(", #" + board.id.String() + "_")
 
 	if board.IsReadOnly() {
-		sb.WriteString("  \n> **Board is read-only**")
+		sb.WriteString("  \n_**Starting new threads and commenting is disabled**_")
 	}
+	sb.WriteString("\n\n---")
 	sb.WriteString("\n\n")
 
 	if board.threads.Size() == 0 {
@@ -137,7 +138,6 @@ func (board *Board) Render(p *PaginationOpts) string {
 			return false
 		}
 
-		sb.WriteString("---\n")
 		sb.WriteString(p.RenderSummary())
 		sb.WriteString("\n")
 		return false
