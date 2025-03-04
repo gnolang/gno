@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- `gno` set up. See [Installation](../builders/installation.md).
+- `gno` set up. See [Installation](../users/interact-with-gnokey.md).
 
 ## Overview
 

@@ -48,7 +48,7 @@ from the chain.
 
 First, let's declare a `Post` struct that will hold all the data of a single post.
 We will import two packages:
-- `std` - the [Gno standard package](../references/stdlibs.md) which provides chain-related functionality
+- `std` - the [Gno standard package](../resources/gno-stdlibs.md) which provides chain-related functionality
 - `time` - which allows us to handle time
 
 [embedmd]:# (../assets/getting-started/developing-locally/minisocial/types-1.gno go)
@@ -69,7 +69,7 @@ type Post struct {
 ```
 
 Standard libraries such as `time` are ported over directly from Go. Check out the
-[Go-Gno Compatability](../../reference/go-gno-compatibility.md) page for more info.
+[Go-Gno Compatability](../resources/go-gno-compatibility.md) page for more info.
 
 ### `posts.gno`
 
@@ -115,9 +115,9 @@ A few things to note:
   best practices: return early in your code and modify state only after you are sure all
   security checks in your code have passed. To discard (revert) state changes, 
   use `panic()`.
-- To get the caller of `CreatePost`, we need to import package `std`, the [Gno standard package](../reference/std.md),
-and use `std.PreviousRealm.Address()`. Check out the [realm concept page](../concepts/realms.md)
-& the [std package](../reference/std.md) reference page for more info.
+- To get the caller of `CreatePost`, we need to import package `std`, the [Gno standard package](../resources/gno-stdlibs.md),
+and use `std.PreviousRealm.Address()`. Check out the [realm concept page](../resources/realms.md)
+& the [std package](../resources/gno-stdlibs.md) reference page for more info.
 - In Gno, `time.Now()` returns the timestamp of the block the transaction was 
 included in, instead of the system time.
 
@@ -135,7 +135,7 @@ Let's start building the "front end" of our app.
 One of the core features of Gno is that developers can simply provide a Markdown
 view of their realm state directly in Gno, removing the need for using complex
 frontend frameworks, languages, and clients. To learn more about this, check out
-[Exploring gno.land](../exploring-gnoland.md#gnoweb).
+[Exploring gno.land](../users/explore-with-gnoweb.md).
 
 The easiest way to develop this part of our Gno app is to run `gnodev`, which
 contains a built-in gno.land node, a built-in instance of `gnoweb`, fast hot 

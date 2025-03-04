@@ -37,7 +37,7 @@ Power up your gno.land journey with these tools:
 ## Educational Resources
 
 - [Game of Realms](https://github.com/gnolang/game-of-realms) - Learn through gamified challenges
-- [Awesome Gno](../resources/awesome-gno.md) - Curated list of gno.land resources
+- [Awesome Gno](https://github.com/gnoverse/awesome-gno) - Curated list of gno.land resources
 - [Workshops Repository](https://github.com/gnolang/workshops) - Past workshop materials
 
 ## Transitioning from User to Builder

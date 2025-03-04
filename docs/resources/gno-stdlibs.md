@@ -78,7 +78,7 @@ export GNOROOT=$HOME/gno
 ## Coin
 
 A Coin is a native Gno type that has a denomination and an amount. Coins can be 
-issued by the native Gno [Banker](banker.md).  
+issued by the native Gno Banker.  
 
 A coin is defined by the following:
 
@@ -208,7 +208,6 @@ stringAddr := addr.String()
 ---
 
 ## Banker
-View concept page [here](../concepts/stdlibs/banker.md).
 
 ```go
 type BankerType uint8
@@ -413,7 +412,7 @@ addr := std.OriginPkgAddress()
 ```go
 func CurrentRealm() Realm
 ```
-Returns current [Realm](../concepts/realms.md) object.
+Returns current [Realm](./realms.md) object.
 
 ##### Usage
 ```go
@@ -425,7 +424,7 @@ currentRealm := std.CurrentRealm()
 ```go
 func PreviousRealm() Realm
 ```
-Returns the previous caller [realm](../concepts/realms.md) (can be code or user realm). If caller is a
+Returns the previous caller [realm](./realms.md) (can be code or user realm). If caller is a
 user realm, `pkgpath` will be empty.
 
 ##### Usage

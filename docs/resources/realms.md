@@ -18,7 +18,7 @@ type Realm struct {
 ```
 
 The full Realm API can be found under the
-[reference section](../reference/std.md#realm).
+[reference section](./gno-stdlibs.md).
 
 ### Smart Contract Realms
 

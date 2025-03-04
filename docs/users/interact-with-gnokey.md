@@ -77,7 +77,7 @@ key pairs. The keybase directory path is stored under the `-home` flag in `gnoke
 Your **Gno address** is like your unique identifier on the network; an address
 is visible in the caller stack of an application, it is included in each
 transaction you create with your key pair, and anyone who knows your address can
-send you [coins](../../concepts/stdlibs/coin.md), etc.
+send you [coins](../resources/gno-stdlibs.md#coin), etc.
 
 ## Making transactions
 
@@ -112,7 +112,7 @@ gnokey maketx addpkg
 ```
 
 To understand how to use this subcommand better, let's write a simple "Hello world"
-[pure package](../../concepts/packages.md). First, let's create a folder which will
+[pure package](../resources/gno-packages.md). First, let's create a folder which will
 store our example code.
 
 ```bash
@@ -165,7 +165,7 @@ subcommand, while `-broadcast`, `-gas-wanted`, `-gas-fee`, `-chain-id`, and
 will be repeated throughout the tutorial.
 
 Next, let's configure the `addpkg` subcommand to publish this package to the
-[Portal Loop](../../concepts/portal-loop.md) testnet. Assuming we are in
+[Portal Loop](../resources/gnoland-networks.md) testnet. Assuming we are in
 the `example/p/` folder, the command will look like this:
 
 ```bash
@@ -180,8 +180,7 @@ gnokey maketx addpkg \
 -remote "https://rpc.gno.land:443"
 ```
 
-Once we have added a desired [namespace](../../concepts/pkg-paths.md#gno-namespaces)
-to upload the package to, we can specify a key pair name to use to execute the
+Once we have added a desired [namespace](../resources/users-and-teams.md) to upload the package to, we can specify a key pair name to use to execute the
 transaction:
 
 ```bash
@@ -213,12 +212,12 @@ Let's analyze the output, which is standard for any `gnokey` transaction:
 - `GAS WANTED: 200000` - the original amount of gas specified for the transaction
 - `GAS USED:   117564` - the gas used to execute the transaction
 - `HEIGHT:     3990` - the block number at which the transaction was executed at
-- `EVENTS:     []` - [Gno events](../../concepts/stdlibs/events.md) emitted by the transaction, in this case, none
+- `EVENTS:     []` - [Gno events](../resources/gno-stdlibs.md#events) emitted by the transaction, in this case, none
 - `TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=` - the hash of the transaction
 
 Congratulations! You have just uploaded a pure package to the Portal Loop network.
 If you wish to deploy to a different network, find the list of all network 
-configurations in the [Network Configuration](../../reference/network-config.md) section.
+configurations in the [Network Configuration](../resources/gnoland-networks.md) section.
 
 ## `Call`
 
@@ -233,14 +232,14 @@ gnokey maketx call
 
 Using `Call` to call an exported function will use up gas, even if the function
 does not modify on-chain state. If you are calling such a function, you can use
-the [`query` functionality](querying-a-network.md) for a read-only call which
+the `query` functionality for a read-only call which
 does not use gas.
 
 :::
 
 For this example, we will call the `wugnot` realm, which wraps GNOTs to a
 GRC20-compatible token called `wugnot`. We can find this realm deployed on the
-[Portal Loop](../../concepts/portal-loop.md) testnet, under the `gno.land/r/demo/wugnot` path.
+[Portal Loop](../resources/gnoland-networks.md) testnet, under the `gno.land/r/demo/wugnot` path.
 
 We will wrap `1000ugnot` into the equivalent in `wugnot`. To do this, we can call
 the `Deposit()` function found in the `wugnot` realm. As previously, we will
@@ -278,7 +277,7 @@ TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
 ```
 
 In this case, we can see that the `Deposit()` function emitted an 
-[event](../../concepts/stdlibs/events.md) that tells us more about what
+[event](../resources/gno-stdlibs.md#events) that tells us more about what
 happened during the transaction.
 
 After broadcasting the transaction, we can verify that we have the amount of `wugnot` we expect. We
@@ -317,11 +316,11 @@ type of the return argument.
 In this case, we used `maketx call` to call a read-only function, which simply
 checks the `wugnot` balance of a specific address. This is discouraged, as
 `maketx call` actually uses gas. To call a read-only function without spending gas,
-check out the `vm/qeval` query in the [Querying a network](querying-a-network.md#vmqeval) section.
+check out the `vm/qeval` query section.
 
 ## `Send`
 
-We can use the `Send` message type to access the TM2 [Banker](../../concepts/stdlibs/banker.md)
+We can use the `Send` message type to access the TM2 [Banker](../resources/gno-stdlibs.md#banker)
 directly and transfer coins from one Gno address to another.
 
 Coins, such as GNOTs, are always formatted in the following way:
@@ -711,7 +710,7 @@ to hold account data. It contains the following information:
 
 ## `bank/balances`
 
-With this query, we can fetch [coin](../../concepts/stdlibs/coin.md) balances
+With this query, we can fetch [coin](../resources/gno-stdlibs.md#coin) balances
 of a specific account. To call it, we can run the following command:
 
 ```bash

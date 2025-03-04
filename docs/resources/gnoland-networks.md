@@ -133,10 +133,6 @@ is the `gnoweb` render of the Portal Loop testnet.
     [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop) folder in the
     monorepo
 
-For more information on the Portal Loop, and how it can be best utilized,
-check out the [Portal Loop concept page](./portal-loop.md). Also, you can find
-the Portal Loop faucet on [`gno.land/faucet`](https://gno.land/faucet).
-
 ### Test5
 
 Test5 a permanent multi-node testnet. It bumped the validator set from 7 to 17
