@@ -251,7 +251,7 @@
     @apply flex flex-wrap gap-x-10 xxl:gap-x-12;
   }
   .realm-view .gno-cols > * {
-    flex: 1 1 14rem;
+    @apply grow shrink basis-52 lg:basis-44;
   }
 }
 
