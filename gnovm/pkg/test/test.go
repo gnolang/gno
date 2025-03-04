@@ -189,7 +189,7 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 	// Stands for "test", "integration test", and "filetest".
 	// "integration test" are the test files with `package xxx_test` (they are
 	// not necessarily integration tests, it's just for our internal reference.)
-	tset, itset, itfiles, ftfiles := parseMemPackageTests(opts.TestStore, memPkg)
+	tset, itset, itfiles, ftfiles := parseMemPackageTests(memPkg)
 
 	// Testing with *_test.gno
 	if len(tset.Files)+len(itset.Files) > 0 {
@@ -201,7 +201,7 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 
 		// Run test files in pkg.
 		if len(tset.Files) > 0 {
-			err := opts.runTestFiles(memPkg, tset, cw, gs)
+			err := opts.runTestFiles(memPkg, tset, gs)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -215,7 +215,7 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 				Files: itfiles,
 			}
 
-			err := opts.runTestFiles(itPkg, itset, cw, gs)
+			err := opts.runTestFiles(itPkg, itset, gs)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -267,7 +267,7 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 func (opts *TestOptions) runTestFiles(
 	memPkg *gnovm.MemPackage,
 	files *gno.FileSet,
-	cw storetypes.Store, gs gno.TransactionStore,
+	gs gno.TransactionStore,
 ) (errs error) {
 	var m *gno.Machine
 	defer func() {
@@ -295,7 +295,7 @@ func (opts *TestOptions) runTestFiles(
 	// Check if we already have the package - it may have been eagerly loaded.
 	m = Machine(gs, opts.WriterForStore(), memPkg.Path, opts.Debug)
 	m.Alloc = alloc
-	if opts.TestStore.GetMemPackage(memPkg.Path) == nil {
+	if gs.GetMemPackage(memPkg.Path) == nil {
 		m.RunMemPackage(memPkg, true)
 	} else {
 		m.SetActivePackage(gs.GetPackage(memPkg.Path, false))
@@ -435,7 +435,7 @@ func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
 }
 
 // parseMemPackageTests parses test files (skipping filetests) in the memPkg.
-func parseMemPackageTests(store gno.Store, memPkg *gnovm.MemPackage) (tset, itset *gno.FileSet, itfiles, ftfiles []*gnovm.MemFile) {
+func parseMemPackageTests(memPkg *gnovm.MemPackage) (tset, itset *gno.FileSet, itfiles, ftfiles []*gnovm.MemFile) {
 	tset = &gno.FileSet{}
 	itset = &gno.FileSet{}
 	var errs error
