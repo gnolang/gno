@@ -202,6 +202,7 @@ func FuzzTranspiling(f *testing.F) {
 				strings.Contains(sr, "method has multiple receivers"),
 				strings.Contains(sr, "expected 'chan', found"),
 				strings.Contains(sr, "missing type constraint"),
+				strings.Contains(sr, "expected at most 2 expressions"),
 				strings.Contains(sr, "expression in defer must not be parenthesized"),
 				strings.Contains(sr, "not yet implemented"),
 				strings.Contains(sr, "expected boolean expression, found"),
