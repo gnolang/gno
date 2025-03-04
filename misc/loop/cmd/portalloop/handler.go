@@ -14,6 +14,7 @@ import (
 	"github.com/gnolang/tx-archive/backup"
 	"github.com/gnolang/tx-archive/backup/client/rpc"
 	"github.com/gnolang/tx-archive/backup/writer/standard"
+	"go.uber.org/zap"
 )
 
 type TraefikMode string
@@ -25,6 +26,7 @@ const (
 
 type PortalLoopHandler struct {
 	cfg           *cfg.CmdCfg
+	logger        *zap.Logger
 	dockerHandler *docker.DockerHandler
 	containerName string
 	currentRpcUrl string
@@ -33,7 +35,7 @@ type PortalLoopHandler struct {
 	instanceBackupFile string
 }
 
-func NewPortalLoopHandler(cfg *cfg.CmdCfg) (*PortalLoopHandler, error) {
+func NewPortalLoopHandler(cfg *cfg.CmdCfg, logger *zap.Logger) (*PortalLoopHandler, error) {
 	timenow := time.Now()
 	now := fmt.Sprintf("%s_%v", timenow.Format("2006-01-02_"), timenow.UnixNano())
 
@@ -52,9 +54,11 @@ func NewPortalLoopHandler(cfg *cfg.CmdCfg) (*PortalLoopHandler, error) {
 	}
 
 	return &PortalLoopHandler{
-		cfg: cfg,
+		cfg:    cfg,
+		logger: logger,
 		dockerHandler: &docker.DockerHandler{
 			DockerClient: dockerClient_,
+			Logger:       logger,
 		},
 		containerName:      "gno-" + now,
 		backupFile:         backupFile,

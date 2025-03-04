@@ -13,11 +13,12 @@ import (
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 type DockerHandler struct {
 	DockerClient *client.Client
+	Logger       *zap.Logger
 }
 
 const GnoOfficialImage string = "ghcr.io/gnolang/gno/gnoland:master"
@@ -137,10 +138,10 @@ func (dh *DockerHandler) GetPublishedRPCPort(dockerContainer types.Container) st
 // Removes the given containers and the linked volumes
 func (dh *DockerHandler) RemoveContainersWithVolumes(ctx context.Context, containers []types.Container) error {
 	for _, c := range containers {
-		logrus.WithFields(logrus.Fields{
-			"container.id":    c.ID,
-			"container.ports": c.Ports,
-		}).Infof("remove container")
+		dh.Logger.Info("removing container",
+			zap.String("container.id", c.ID),
+			zap.Reflect("container.ports", c.Ports),
+		)
 		err := dh.DockerClient.ContainerRemove(ctx, c.ID, container.RemoveOptions{
 			Force:         true,  // Force the removal of a running container
 			RemoveVolumes: true,  // Remove the volumes associated with the container

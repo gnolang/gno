@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 func NewServeCmd(_ commands.IO) *commands.Command {
@@ -32,7 +32,7 @@ func execServe(ctx context.Context, cfg_ *cfg.CmdCfg) error {
 		cfg_,
 		func(ctx context.Context, cfg *cfg.CmdCfg, portalLoopHandler *portalloop.PortalLoopHandler) error {
 			var wg sync.WaitGroup
-			logger := logrus.New()
+			logger, _ := zap.NewProduction()
 
 			for {
 				wg.Add(1)
