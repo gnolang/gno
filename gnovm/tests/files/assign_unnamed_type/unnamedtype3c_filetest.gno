@@ -4,11 +4,11 @@ type nat struct {
 	num int
 }
 
-func (n nat) zero() interface{} {
+func (n nat) zero() any {
 	return struct{ num int }{0}
 }
 
-func (n nat) one() interface{} {
+func (n nat) one() any {
 	return nat{1}
 }
 
