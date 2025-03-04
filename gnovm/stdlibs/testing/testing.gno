@@ -336,7 +336,7 @@ func unixNano() int64
 func recoverWithStacktrace() (interface{}, string)
 
 // used to filter tests, we can't directly use regexp here due to a cyclic import; only present in testing stdlibs
-func matchString(pat, str string) (result bool, err error)
+func matchString(pat, str string) bool
 
 func tRunner(t *T, fn testingFunc, verbose bool) {
 	if !t.shouldRun(t.name) {
