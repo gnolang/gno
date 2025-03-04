@@ -1119,7 +1119,7 @@ func (p *pp) doPrintln(a []any) {
 func typeString(v any) string
 
 type valueInfo struct {
-	// Original value passed to valueOf
+	// Original value passed to valueOf.
 	Origin any
 	// Kind of the value.
 	Kind string
@@ -1127,7 +1127,7 @@ type valueInfo struct {
 	DeclaredName string
 	// Byte value for simple scalar types (integers, booleans).
 	Bytes uint64
-	// Original stripped of the type.
+	// Base value stripped of the declared type.
 	Base any
 	// Length of the array, slice, string, struct, interface or map.
 	Len int

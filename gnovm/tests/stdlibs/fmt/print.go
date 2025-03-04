@@ -37,7 +37,10 @@ func X_valueOfInternal(v gnolang.TypedValue) (
 	}
 	switch baseT.Kind() {
 	case gnolang.BoolKind:
-		kind, bytes = "bool", v.GetUint64()&1
+		kind = "bool"
+		if v.GetBool() {
+			bytes = 1
+		}
 	case gnolang.StringKind:
 		kind, xlen = "string", v.GetLength()
 	case gnolang.IntKind:
@@ -137,7 +140,9 @@ func X_mapKeyValues(v gnolang.TypedValue) (keys, values gnolang.TypedValue) {
 		vs = append(vs, el.Value)
 	}
 
-	sort.Sort(mapKV{ks, vs})
+	// use stable to maintain the same order when we have weird map keys,
+	// like interfaces allowing for different concrete values.
+	sort.Stable(mapKV{ks, vs})
 
 	keys.V = &gnolang.SliceValue{
 		Base: &gnolang.ArrayValue{
@@ -181,9 +186,7 @@ func compareKeys(ki, kj gnolang.TypedValue) bool {
 	switch ki.T.Kind() {
 	case gnolang.BoolKind:
 		bi, bj := ki.GetBool(), kj.GetBool()
-		if bi == bj {
-			return false
-		}
+		// use == just to make it more explicit
 		return bi == false && bj == true
 	case gnolang.Float32Kind:
 		return math.Float32frombits(ki.GetFloat32()) < math.Float32frombits(kj.GetFloat32())
