@@ -187,9 +187,14 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		balanceFile := LoadDefaultGenesisBalanceFile(t, gnoRootDir)
 		genesisParamFile := LoadDefaultGenesisParamFile(t, gnoRootDir)
 
-		// Keep in sync with gno.land/cmd/start.go
+		stdlibsDeployer := ed25519.GenPrivKey()
 		genesisDeployFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
-		stdlibsTxs := gnoland.LoadEmbeddedStdlibs(defaultPK.PubKey().Address(), genesisDeployFee)
+		stdlibsTxs := gnoland.LoadEmbeddedStdlibs(stdlibsDeployer.PubKey().Address(), genesisDeployFee)
+		gnoland.SignGenesisTxs(stdlibsTxs, stdlibsDeployer, "tendermint_test")
+		balanceFile = append(balanceFile, gnoland.Balance{
+			Address: stdlibsDeployer.PubKey().Address(),
+			Amount:  std.MustParseCoins(ugnot.ValueString(10_000_000_000_000)),
+		})
 
 		// Track new user balances added via the `adduser`
 		// command and packages added with the `loadpkg` command.

@@ -15,6 +15,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/require"
@@ -99,6 +100,10 @@ func TestingMinimalNodeConfig(gnoroot string) *gnoland.InMemoryNodeConfig {
 }
 
 func DefaultTestingGenesisConfig(gnoroot string, self crypto.PubKey, tmconfig *tmcfg.Config) *bft.GenesisDoc {
+	stdlibsDeployer := ed25519.GenPrivKey()
+	stdlibsTxs := gnoland.LoadEmbeddedStdlibs(stdlibsDeployer.PubKey().Address(), std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000))))
+	gnoland.SignGenesisTxs(stdlibsTxs, stdlibsDeployer, "tendermint_test")
+
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
 		ChainID:     tmconfig.ChainID(),
@@ -124,8 +129,12 @@ func DefaultTestingGenesisConfig(gnoroot string, self crypto.PubKey, tmconfig *t
 					Address: crypto.MustAddressFromString(DefaultAccount_Address),
 					Amount:  std.MustParseCoins(ugnot.ValueString(10_000_000_000_000)),
 				},
+				{
+					Address: stdlibsDeployer.PubKey().Address(),
+					Amount:  std.MustParseCoins(ugnot.ValueString(10_000_000_000_000)),
+				},
 			},
-			Txs:    []gnoland.TxWithMetadata{},
+			Txs:    stdlibsTxs,
 			Params: []gnoland.Param{},
 		},
 	}
