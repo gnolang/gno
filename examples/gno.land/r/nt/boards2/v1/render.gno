@@ -41,16 +41,26 @@ func Render(path string) string {
 func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write("# Boards\n\n")
 	renderBoardListMenu(res, req)
+	res.Write("\n\n---\n")
 
-	res.Write("### These are the boards of this realm\n\n")
-	p := mustGetPagination(req.RawPath, boardsPageSize, false)
+	if gBoardsByID.Size() == 0 {
+		res.Write("### Currently there are no boards\n")
+		res.Write("Be the first to " + newLink("create a new board", txlink.Call("CreateBoard")) + " !")
+
+		return
+	}
+
+	p := mustGetPagination(req.RawPath, boardsPageSize, true)
 	page := p.Iterate(&gBoardsByID, func(_ string, value interface{}) bool {
 		board := value.(*Board)
 
-		res.Write(" * " + newLink(board.GetName(), board.GetURL()) + "  \n")
+		res.Write("## " + newLink(board.GetName(), board.GetURL()) + "  \n")
+		res.Write("_Created by " + newUserLink(board.creator) + " ")
+		res.Write("on " + board.createdAt.Format(dateFormat))
+		res.Write(", #" + board.id.String() + "_  \n")
 		res.Write("_" + strconv.Itoa(board.threads.Size()) + " threads")
 		if board.IsReadOnly() {
-			res.Write(", board is read-only")
+			res.Write(", **read-only**")
 		}
 
 		res.Write("_\n")
@@ -59,7 +69,7 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 
 	if page != nil {
 		res.Write("\n---\n")
-		res.Write(page.Picker())
+		res.Write("Pages " + page.Picker())
 	}
 }
 

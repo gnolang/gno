@@ -120,8 +120,8 @@ func (board *Board) Render(p *PaginationOpts) string {
 	if board.IsReadOnly() {
 		sb.WriteString("  \n_**Starting new threads and commenting is disabled**_")
 	}
-	sb.WriteString("\n\n---")
-	sb.WriteString("\n\n")
+
+	sb.WriteString("\n\n---\n")
 
 	if board.threads.Size() == 0 {
 		sb.WriteString("### This board doesn't have any threads\n")
