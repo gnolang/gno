@@ -104,10 +104,7 @@ The `Coins` slice can be included in a transaction made by a user addresses or a
 Coins in this set are then available for access by specific types of Bankers,
 which can manipulate them depending on access rights.
 
-Read more about coins in the [Effective Gno](../../misc/effective-gno.md) section. 
-
-The Coin(s) API can be found in under the `std` package [reference](../../reference/std.md#coin).
-
+Read more about coins in the [Effective Gno](../effective-gno.md) section. 
 
 ## Banker
 
@@ -123,8 +120,6 @@ functionalities and safety features within your packages and realms.
 2. `BankerTypeOriginSend` - full access to coins sent with the transaction that called the banker
 3. `BankerTypeRealmSend` - full access to coins that the realm itself owns, including the ones sent with the transaction
 4. `BankerTypeRealmIssue` - able to issue new coins
-
-The Banker API can be found under the `std` package [reference](../../reference/std.md#banker).
 
 ## Events
 
@@ -145,8 +140,7 @@ representing the type of event, and an even number of arguments after representi
 `key:value` pairs.
 
 Read more about events & `Emit()` in 
-[Effective Gno](../../misc/effective-gno.md#emit-gno-events-to-make-life-off-chain-easier),
-and the `Emit()` reference [here](../../reference/std.md#emit).
+[Effective Gno](./effective-gno.md#emit-gno-events-to-make-life-off-chain-easier).
 
 An event contained in an ABCI response of a block will include the following
 data:
@@ -491,7 +485,6 @@ denom := std.CoinDenom("gno.land/r/demo/blog", "blgcoin") // /gno.land/r/demo/bl
 ---
 
 ## Coin
-View concept page [here](../concepts/stdlibs/coin.md).
 
 ```go
 type Coin struct {
