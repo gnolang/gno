@@ -1,0 +1,1 @@
+XXX: this page is about showing a specific realm (boards, or something else), and showing how much we can start our journey by using gnoweb, then interacting using the docs page with gnokey or third party wallet.

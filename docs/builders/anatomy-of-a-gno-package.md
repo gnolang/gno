@@ -1,32 +1,8 @@
-# Writing Gno code
-
-XXX: intro explaining that this example is very simple, and that there is a more complex example at ./minisocial.md
-XXX: invite to use gno playground, or the gno binary locally, or to use gnodev (ideally by linking to external docs to stay focused)
-XXX: this example can stay very simple, maybe not including a unit test, so we invite people to discover gno here, and then to spend more time with miniscial
+# Anatomy of a Gno package
 
 In this tutorial, you will learn to make a simple `Counter` application in Gno.
 We will cover the basics of the Gno language which will help you get started
 writing smart contracts for gno.land. 
-
-## About Gno
-
-Gno is an interpreted version of Go - a programming language that has been around
-since the year 2009. Due to this, there are many high-quality resources online
-for learning Go, which are almost always applicable to Gno, due to the design
-of the language.
-
-While there are some features that are currently not supported, such as 
-goroutines and generics, Gno developers have access to the same language characteristics
-and standard libraries as Go, making common developer tasks simple. Check out the
-[Go-Gno compatibility page](../reference/go-gno-compatibility.md) for more information.
-
-:::info
-
-This short tutorial includes interactive code editors where you can run and test 
-Gno code directly in your browser. Local development is covered in the next
-section.
-
-:::
 
 ## Language basics
 
@@ -149,8 +125,3 @@ Common testing patterns found in Go, such as [TDT](https://go.dev/wiki/TableDriv
 can also be used for Gno. We recommend checking out some of the many examples 
 found online.
 :::
-
-## Conclusion
-
-Congratulations! You've just created your first Gno application, along with tests
-to confirm it's working properly.

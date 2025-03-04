@@ -1,4 +1,14 @@
-# How to connect a Go app to gno.land
+XXX: this page is about connecting external apps with Gno; first start with a general intro, then speak about RPC etc
+XXX: then we can make one section per language (go, js, tm2), and if more, link to the users/awesome-gno.md#tools
+
+
+
+  - [gnoclient](https://gnolang.github.io/gno/github.com/gnolang/gno/gno.land/pkg/gnoclient.html)
+  - [gno-js-client](https://github.com/gnolang/gno-js-client)
+  - [tm2-js-client](https://github.com/gnolang/tm2-js-client)
+
+
+## How to connect a Go app to gno.land
 
 This guide will show you how to connect to a gno.land network from your Go application,
 using the [gnoclient](https://gnolang.github.io/gno/github.com/gnolang/gno/gno.land/pkg/gnoclient.html)

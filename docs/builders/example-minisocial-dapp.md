@@ -1,25 +1,20 @@
 # Example `minisocial` dApp
 
-XXX: explain that this is a more complex example showing how to get further, but that there is a simpler exmample available at ./example-counter.md
-XXX: this example should show unit tests, having dependencies
-
-## Prerequisites
-
-- `gno`, `gnokey`, & `gnodev` set up. See [Installation](installation.md).
-
-## Overview
-
-In this tutorial, we will create a MiniSocial [realm](../../concepts/realms.md),
+We will create a MiniSocial [realm](../references/packages.md#realms),
 a minimalist social media application. This tutorial will showcase a full local
 development flow for Gno, using all the tools covered in previous tutorials.
 
 Find the full app on [this link](https://gno.land/r/docs/minisocial/v1).
 
+## Prerequisites
+
+XXX: this: ./local-dev-with-gnodev.md
+
 ## Setup
 
 Start by creating a folder that will contain your Gno code:
 
-```
+```sh
 mkdir minisocial
 cd minisocial
 ```
@@ -27,7 +22,7 @@ cd minisocial
 Next, initialize a `gno.mod` file. This file declares the package path of your 
 realm and is used by Gno tools. Run the following command to create a `gno.mod` file:
 
-```
+```sh
 gno mod init gno.land/r/example/minisocial
 ```
 
@@ -36,7 +31,7 @@ the namespace of your liking later.
 
 Next, in the same folder, start by creating three files:
 
-```
+```sh
 touch types.gno minisocial.gno render.gno
 ```
 
@@ -53,7 +48,7 @@ from the chain.
 
 First, let's declare a `Post` struct that will hold all the data of a single post.
 We will import two packages:
-- `std` - the [Gno standard package](../../reference/std.md) which provides chain-related functionality
+- `std` - the [Gno standard package](../references/stdlibs.md) which provides chain-related functionality
 - `time` - which allows us to handle time
 
 [embedmd]:# (../assets/getting-started/developing-locally/minisocial/types-1.gno go)
@@ -208,7 +203,7 @@ func Render(_ string) string {
 We can now use `gnokey` to call the `CreatePost` function and see how our posts 
 look rendered on `gnoweb`. Let's use the [Docs] page to obtain the `gnokey` command:
 
-```
+```sh
 gnokey maketx call \
 -pkgpath "gno.land/r/example/minisocial" \
 -func "CreatePost" \
@@ -362,7 +357,7 @@ func TestCreatePostMultiple(t *testing.T) {
 
 Running `gno test . -v` in the `minisocial/` folder should show the tests passing:
 
-```
+```console
 ❯ gno test . -v 
 === RUN   TestCreatePostSingle
 --- PASS: TestCreatePostSingle (0.00s)
@@ -406,6 +401,5 @@ func (p Post) String() string {
 	return out
 }
 ```
-
 
 
