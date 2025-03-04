@@ -21,6 +21,7 @@ import (
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	mempl "github.com/gnolang/gno/tm2/pkg/bft/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
+	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/store"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -78,7 +79,11 @@ func NewValidatorStub(privValidator types.PrivValidator, valIndex int) *validato
 }
 
 func (vs *validatorStub) signVote(voteType types.SignedMsgType, hash []byte, header types.PartSetHeader) (*types.Vote, error) {
-	addr := vs.PrivValidator.GetPubKey().Address()
+	pk, err := vs.PrivValidator.PubKey()
+	if err != nil {
+		return nil, err
+	}
+	addr := pk.Address()
 	vote := &types.Vote{
 		ValidatorIndex:   vs.Index,
 		ValidatorAddress: addr,
@@ -88,7 +93,7 @@ func (vs *validatorStub) signVote(voteType types.SignedMsgType, hash []byte, hea
 		Type:             voteType,
 		BlockID:          types.BlockID{Hash: hash, PartsHeader: header},
 	}
-	err := vs.PrivValidator.SignVote(config.ChainID(), vote)
+	err = vs.PrivValidator.SignVote(config.ChainID(), vote)
 	return vote, err
 }
 
@@ -128,7 +133,16 @@ func (vss ValidatorStubsByAddress) Len() int {
 }
 
 func (vss ValidatorStubsByAddress) Less(i, j int) bool {
-	return vss[i].GetPubKey().Address().Compare(vss[j].GetPubKey().Address()) == -1
+	pvi, err := vss[i].PubKey()
+	if err != nil {
+		panic(err)
+	}
+	pvj, err := vss[j].PubKey()
+	if err != nil {
+		panic(err)
+	}
+
+	return pvi.Address().Compare(pvj.Address()) == -1
 }
 
 func (vss ValidatorStubsByAddress) Swap(i, j int) {
@@ -181,7 +195,11 @@ func signAddVotes(to *ConsensusState, voteType types.SignedMsgType, hash []byte,
 
 func validatePrevote(cs *ConsensusState, round int, privVal *validatorStub, blockHash []byte) {
 	prevotes := cs.Votes.Prevotes(round)
-	address := privVal.GetPubKey().Address()
+	pvPubKey, err := privVal.PubKey()
+	if err != nil {
+		panic(err)
+	}
+	address := pvPubKey.Address()
 	var vote *types.Vote
 	if vote = prevotes.GetByAddress(address); vote == nil {
 		panic("Failed to find prevote from validator")
@@ -199,7 +217,11 @@ func validatePrevote(cs *ConsensusState, round int, privVal *validatorStub, bloc
 
 func validateLastPrecommit(cs *ConsensusState, privVal *validatorStub, blockHash []byte) {
 	votes := cs.LastCommit
-	address := privVal.GetPubKey().Address()
+	pvPubKey, err := privVal.PubKey()
+	if err != nil {
+		panic(err)
+	}
+	address := pvPubKey.Address()
 	var vote *types.Vote
 	if vote = votes.GetByAddress(address); vote == nil {
 		panic("Failed to find precommit from validator")
@@ -211,7 +233,11 @@ func validateLastPrecommit(cs *ConsensusState, privVal *validatorStub, blockHash
 
 func validatePrecommit(_ *testing.T, cs *ConsensusState, thisRound, lockRound int, privVal *validatorStub, votedBlockHash, lockedBlockHash []byte) {
 	precommits := cs.Votes.Precommits(thisRound)
-	address := privVal.GetPubKey().Address()
+	pvPubKey, err := privVal.PubKey()
+	if err != nil {
+		panic(err)
+	}
+	address := pvPubKey.Address()
 	var vote *types.Vote
 	if vote = precommits.GetByAddress(address); vote == nil {
 		panic("Failed to find precommit from validator")
@@ -302,12 +328,23 @@ func newConsensusStateWithConfigAndBlockStore(thisConfig *cfg.Config, state sm.S
 	return cs
 }
 
-func loadPrivValidator(config *cfg.Config) *privval.FilePV {
-	privValidatorKeyFile := config.PrivValidatorKeyFile()
+func loadPrivValidator(config *cfg.Config) *privval.PrivValidator {
+	privValidatorKeyFile := config.PrivValidator.LocalSignerPath()
 	ensureDir(filepath.Dir(privValidatorKeyFile), 0o700)
-	privValidatorStateFile := config.PrivValidatorStateFile()
-	privValidator := privval.LoadOrGenFilePV(privValidatorKeyFile, privValidatorStateFile)
-	privValidator.Reset()
+	fileSigner, err := signer.NewLocalSigner(privValidatorKeyFile)
+	if err != nil {
+		panic(err)
+	}
+	privValidatorStateFile := config.PrivValidator.SignStatePath()
+	if osm.FileExists(privValidatorStateFile) {
+		if err := os.Remove(privValidatorStateFile); err != nil {
+			panic(err)
+		}
+	}
+	privValidator, err := privval.NewPrivValidator(fileSigner, privValidatorStateFile)
+	if err != nil {
+		panic(err)
+	}
 	return privValidator
 }
 
@@ -638,7 +675,22 @@ func randConsensusNetWithPeers(nValidators, nPeers int, testName string, tickerF
 				panic(err)
 			}
 
-			privVal = privval.GenFilePV(tempKeyFile.Name(), tempStateFile.Name())
+			// Remove both temps files so constructors won't try to restore invalide files
+			if err := os.Remove(tempKeyFile.Name()); err != nil {
+				panic(err)
+			}
+			if err := os.Remove(tempStateFile.Name()); err != nil {
+				panic(err)
+			}
+
+			fileSigner, err := signer.NewLocalSigner(tempKeyFile.Name())
+			if err != nil {
+				panic(err)
+			}
+			privVal, err = privval.NewPrivValidator(fileSigner, tempStateFile.Name())
+			if err != nil {
+				panic(err)
+			}
 		}
 
 		app := appFunc(path.Join(config.DBDir(), fmt.Sprintf("%s_%d", testName, i)))
