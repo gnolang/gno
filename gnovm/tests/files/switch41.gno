@@ -7,7 +7,7 @@ func (s) hello() string {
 }
 
 func main() {
-	var v interface{}
+	var v any
 	v = s{}
 	switch v := v.(type) {
 	case interface{ hello() string }:

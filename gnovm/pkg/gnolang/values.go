@@ -2093,6 +2093,8 @@ func (tv *TypedValue) GetLength() int {
 			return bt.Len
 		case *SliceType:
 			return 0
+		case *MapType:
+			return 0
 		case *PointerType:
 			if at, ok := bt.Elt.(*ArrayType); ok {
 				return at.Len
