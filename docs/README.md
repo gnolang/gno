@@ -32,11 +32,13 @@ Get started with Gno development. Learn how to work with Gno tools, use Gno-spec
 Learn about core concepts found in gno.land & Gno.
 
 - [Awesome Gno](resources/awesome-gno.md) - Curated list of Gno freshness.
+- [Effective Gno](resources/effective-gno.md) - Learn how to write Gno following best practices, including counter-intuitive good practices specific to blockchain
 - [Packages](resources/gno-packages.md) - Learn about realms, pure packages, smart contracts, dApps and how they're organized in the gno.land ecosystem.
-- [Users and Teams](resources/users-and-teams.md) - Understand user registration, namespace ownership, and team collaboration in the gno.land ecosystem.
 - [Networks](resources/gnoland-networks.md) - Discover different gno.land networks (testnets, devnets) and their purposes, including network configurations.
+- [Users and Teams](resources/users-and-teams.md) - Understand user registration, namespace ownership, and team collaboration in the gno.land ecosystem.
+- [Gas Fees](resources/gas-fees.md) - Learn about gas pricing, estimation, and optimization strategies in gno.land.
 - [Standard libraries](resources/gno-stdlibs.md) - An overview of the standard libraries found in the Gno language and how they enhance blockchain functionality.
-- [Effective Gno](resources/effective-gno.md) - Learn how to write Gno following best practices, including counter-intuitive good practices specific to blockchain development.
+development.
 - [Glossary of Gno terms](resources/glossary.md) - List of common terms found in the gno.land ecosystem, from technical concepts to tools and components.
 - [Testing Gno](resources/gno-testing.md) - Learn how to run and test Gno code locally using the built-in testing framework.
 - [Go - Gno compatibility](resources/go-gno-compatibility.md) - A detailed compatibility list between Go and Gno features, including supported keywords, types, and standard libraries.

@@ -986,9 +986,28 @@ gnokey query vm/qrender --data "gno.land/r/demo/wugnot:balance/g125em6arxsnj49vx
 To see how this was achieved, check out `wugnot`'s `Render()` function.
 :::
 
+### Gas parameters
+
+When using `gnokey` to send transactions, you'll need to specify gas parameters:
+
+```bash
+gnokey maketx call \
+  --pkgpath "gno.land/r/demo/boards" \
+  --func "CreateBoard" \
+  --args "MyBoard" "Board description" \
+  --gas-fee 1000000ugnot \
+  --gas-wanted 2000000 \
+  --remote https://rpc.gno.land:443 \
+  --chainid portal-loop \
+  YOUR_KEY_NAME
+```
+
+For detailed information about gas fees, including recommended values and optimization strategies, see the [Gas Fees documentation](../resources/gas-fees.md).
+
 ## Conclusion
 
 That's it! 🎉
 
 In this tutorial, you've learned to use `gnokey` to query a gno.land
 network.
+

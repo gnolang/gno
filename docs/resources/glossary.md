@@ -63,7 +63,7 @@ A web service that provides test tokens for gno.land testnets, allowing develope
 ## G
 
 ### Gas
-The computational cost unit for executing operations on gno.land. Each operation consumes a specific amount of gas, and users pay fees based on the total gas used.
+A unit that measures the computational and storage resources required to execute operations on the blockchain. Used to calculate transaction fees and prevent spam. See [Gas Fees](./gas-fees.md) for detailed information.
 
 ### Gas Fee
 The amount paid per unit of gas, denominated in ugnot. For example, "1000000ugnot" means 1 GNOT per unit of gas.

@@ -2,6 +2,16 @@
 
 Ready to take your gno.land journey to the next level? This guide collects resources, tools, and communities for users who want to dive deeper into the gno.land ecosystem.
 
+## Establishing Your Identity
+
+To get the most out of gno.land, consider registering a unique username:
+
+1. A username provides a more human-readable identity than a blockchain address
+2. It gives you exclusive rights to deploy code under that namespace
+3. It improves your experience across various dApps in the ecosystem
+
+For detailed instructions on registering a username and understanding namespaces, see the [Users and Teams](../resources/users-and-teams.md) documentation.
+
 ## Community & Social Networks
 
 Stay updated and connected with the gno.land community:

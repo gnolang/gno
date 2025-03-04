@@ -112,6 +112,18 @@ For production packages, you'll want your own namespace:
 
 This gives you a more human-readable package path and establishes your identity in the ecosystem.
 
+## Understanding Deployment Parameters
+
+- `--pkgpath` - The on-chain path where your code will be stored
+- `--pkgdir` - The local directory containing your code
+- `--deposit` - The amount of GNOT to deposit (typically 100 GNOT)
+- `--gas-fee` - The fee per unit of gas (typically 1 GNOT) 
+- `--gas-wanted` - Maximum gas units for the transaction
+- `--remote` - The RPC endpoint for the network
+- `--chainid` - The ID of the blockchain network
+
+For more details on gas fees and optimization strategies, see the [Gas Fees documentation](../resources/gas-fees.md).
+
 ## Conclusion
 
 Congratulations! If everything went as expected, you've successfully deployed a 
