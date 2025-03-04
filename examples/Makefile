@@ -43,6 +43,10 @@ build:
 test:
 	go run ../gnovm/cmd/gno test -v ./...
 
+.PHONY: test.fast
+test:
+	go run ../gnovm/cmd/gno test -failfast -v  ./... 
+
 .PHONY: lint
 lint:
 	go run ../gnovm/cmd/gno tool lint -v $(OFFICIAL_PACKAGES)
