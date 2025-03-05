@@ -306,12 +306,12 @@ func (post *Post) renderSourcePost(indent string) (string, *Post) {
 	// TODO: figure out a way to decouple posts from a global storage.
 	board, ok := getBoard(post.repostBoardID)
 	if !ok {
-		return indentBody(indent, "*⚠ Source board is not available*\n\n"), nil
+		return indentBody(indent, "*⚠ Source board has been deleted*\n\n"), nil
 	}
 
 	srcPost, ok := board.GetThread(post.parentID)
 	if !ok {
-		return indentBody(indent, "*⚠ Source post is not available*\n\n"), nil
+		return indentBody(indent, "*⚠ Source post has been deleted*\n\n"), nil
 	}
 
 	if srcPost.isHidden {
@@ -334,6 +334,7 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
 
 	srcContent, srcPost := post.renderSourcePost(indent)
 	sb.WriteString(srcContent)
+	sb.WriteString("\n")
 	sb.WriteString(indentBody(indent, post.body))
 	sb.WriteString("\n")
 
@@ -375,7 +376,7 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
 	sb.WriteString(newHelpButtonLink("x", post.GetDeleteFormURL(), "delete"))
 	sb.WriteString("  \n")
 
-	if post.IsRepost() {
+	if post.IsRepost() && srcPost != nil {
 		sb.WriteString("This thread is a repost of [another thread](" + srcPost.GetURL() + ")\n")
 	}
 }
