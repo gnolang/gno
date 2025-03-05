@@ -288,15 +288,6 @@ func (post *Post) RenderSummary() string {
 		title   = post.title
 	)
 
-	// Thread reposts might not have a title, if so get title from source thread
-	if post.IsRepost() && title == "" {
-		if board, ok := getBoard(post.repostBoardID); ok {
-			if src, ok := board.GetThread(post.parentID); ok {
-				title = src.GetTitle()
-			}
-		}
-	}
-
 	b.WriteString("## " + newLink(summaryOf(title, 80), postURL) + "\n\n")
 	b.WriteString("Created by " + newUserLink(post.creator) + " on " + post.createdAt.Format(dateFormat))
 	b.WriteString(" - " + newHelpButtonLink("x", post.GetDeleteFormURL(), "delete thread") + "  \n")

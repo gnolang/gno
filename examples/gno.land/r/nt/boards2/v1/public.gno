@@ -247,6 +247,9 @@ func FlagReply(boardID BoardID, threadID, replyID PostID, reason string) {
 
 // CreateRepost reposts a thread into another board.
 func CreateRepost(boardID BoardID, threadID PostID, title, body string, dstBoardID BoardID) PostID {
+	title = strings.TrimSpace(title)
+	assertTitleIsValid(title)
+
 	caller := std.OriginCaller()
 	dst := mustGetBoard(dstBoardID)
 	assertBoardIsNotFrozen(dst)
@@ -261,6 +264,7 @@ func CreateRepost(boardID BoardID, threadID PostID, title, body string, dstBoard
 	}
 
 	repostId := dst.incGetPostID()
+	body = strings.TrimSpace(body)
 	repost := newPost(dst, repostId, caller, title, body, repostId, thread.GetPostID(), thread.GetBoard().GetID())
 	thread.AddRepostTo(caller, repost, dst)
 	return repostId
@@ -279,7 +283,7 @@ func DeleteThread(boardID BoardID, threadID PostID) {
 		assertHasBoardPermission(board, caller, PermissionThreadDelete)
 	}
 
-	// TODO: Discuss how to deal with thread deletion (should we hide instead?)
+	// Hard delete thread and all its replies
 	board.DeleteThread(threadID)
 }
 
