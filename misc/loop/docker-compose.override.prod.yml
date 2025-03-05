@@ -1,4 +1,4 @@
 services:
   
   portalloopd:
-    image: ghcr.io/gnolang/gno/portalloopd:latest
+    image: sw360cab/portalloopd:latest
