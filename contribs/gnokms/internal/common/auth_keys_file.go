@@ -31,7 +31,7 @@ type AuthKeysFile struct {
 var (
 	errInvalidPrivateKey    = errors.New("invalid private key")
 	errPublicKeyMismatch    = errors.New("public key does not match private key derivation")
-	errInvalidPublicKey     = errors.New("invalid public key en")
+	errInvalidPublicKey     = errors.New("invalid public key")
 	errInvalidPublicKeyType = errors.New("not an ed25519 public key")
 	errFilePathNotSet       = errors.New("filePath not set")
 )

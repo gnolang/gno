@@ -18,7 +18,7 @@ type RemoteSignerClientConfig struct {
 	ServerAddress string `json:"server_address" toml:"server_address" comment:"Address of the remote signer to dial (UNIX or TCP). If set, the local signer is disabled"`
 
 	// Network dial and timeout options.
-	DialMaxRetries    int           `json:"dial_max_retries" toml:"dial_max_retries" comment:"Maximum number of retries to dial the remote signer"`
+	DialMaxRetries    int           `json:"dial_max_retries" toml:"dial_max_retries" comment:"Maximum number of retries to dial the remote signer. If set to -1, will retry indefinitely"`
 	DialRetryInterval time.Duration `json:"dial_retry_interval" toml:"dial_retry_interval" comment:"Interval between retries to dial the remote signer"`
 	DialTimeout       time.Duration `json:"dial_timeout" toml:"dial_timeout" comment:"Timeout to dial the remote signer"`
 	RequestTimeout    time.Duration `json:"request_timeout" toml:"request_timeout" comment:"Timeout for requests to the remote signer"`
