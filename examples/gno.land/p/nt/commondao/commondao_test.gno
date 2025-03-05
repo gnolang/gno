@@ -149,7 +149,7 @@ func TestCommonDAOPropose(t *testing.T) {
 			name: "proposal ID overflow",
 			setup: func() *CommonDAO {
 				dao := New()
-				dao.genID = seqid.ID(1<<64 - 1)
+				dao.propIDs = seqid.ID(1<<64 - 1)
 				return dao
 			},
 			creator: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
