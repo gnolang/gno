@@ -28,14 +28,14 @@ func setupTestEnv() testEnv {
 	ms := store.NewCommitMultiStore(db)
 	ms.MountStoreWithDB(authCapKey, iavl.StoreConstructor, db)
 	ms.LoadLatestVersion()
-	paramk := params.NewParamsKeeper(authCapKey)
+	prmk := params.NewParamsKeeper(authCapKey)
 
-	acck := NewAccountKeeper(authCapKey, paramk.ForModule(ModuleName), std.ProtoBaseAccount)
-	bankk := NewDummyBankKeeper(acck, paramk.ForModule("dummybank"))
+	acck := NewAccountKeeper(authCapKey, prmk.ForModule(ModuleName), std.ProtoBaseAccount)
+	bankk := NewDummyBankKeeper(acck, prmk.ForModule("dummybank"))
 	gk := NewGasPriceKeeper(authCapKey)
 
-	paramk.Register(ModuleName, acck)
-	paramk.Register("dummybank", bankk)
+	prmk.Register(ModuleName, acck)
+	prmk.Register("dummybank", bankk)
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{Height: 1, ChainID: "test-chain-id"}, log.NewNoopLogger())
 	ctx = ctx.WithValue(AuthParamsContextKey{}, DefaultParams())
@@ -62,7 +62,7 @@ type DummyBankKeeper struct {
 }
 
 // NewDummyBankKeeper creates a DummyBankKeeper instance
-func NewDummyBankKeeper(acck AccountKeeper, paramk params.ParamsKeeperI) DummyBankKeeper {
+func NewDummyBankKeeper(acck AccountKeeper, prmk params.ParamsKeeperI) DummyBankKeeper {
 	return DummyBankKeeper{acck}
 }
 

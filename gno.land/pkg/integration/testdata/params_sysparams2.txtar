@@ -1,4 +1,4 @@
-# test set sysparam (paramskeeper) keys
+# test set sysparam (ParamKeeper)
 
 gnoland start
 
@@ -16,16 +16,16 @@ gnokey maketx call -pkgpath gno.land/r/sys/params -func SetLockTransfer -args ""
 gnokey query params/bank:p:restricted_denoms
 stdout 'data: \[""\]'
 
-# set non-existing module params key
+# set non-existing module param
 gnokey maketx call -pkgpath gno.land/r/sys/params -func SetBankArbitrary -args "foo" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-#stderr 'invalid bank parameter key: newkey'
+#stderr 'invalid bank parameter name: newkey'
 
 gnokey query params/bank:p:newkey
 stdout 'data: "foo"'
 
 # set invalid key
 ! gnokey maketx call -pkgpath gno.land/r/sys/params -func SetInvalidKey -args "ugnot" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-stderr 'invalid param key: bank:restricted_denoms'
+stderr 'invalid param name: bank:restricted_denoms'
 
 gnokey query params/bank:p:restricted_denoms
 stdout 'data: \[""\]' # still the same.

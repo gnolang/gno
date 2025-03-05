@@ -7,39 +7,39 @@ import (
 	"github.com/gnolang/gno/gnovm/stdlibs/std"
 )
 
-func X_setSysParamString(m *gno.Machine, module, realm, key, val string) {
+func X_setSysParamString(m *gno.Machine, module, submodule, name, val string) {
 	assertSysParamsRealm(m)
-	pk := paramskey(module, realm, key)
+	pk := prmkey(module, submodule, name)
 	std.GetContext(m).Params.SetString(pk, val)
 }
 
-func X_setSysParamBool(m *gno.Machine, module, realm, key string, val bool) {
+func X_setSysParamBool(m *gno.Machine, module, submodule, name string, val bool) {
 	assertSysParamsRealm(m)
-	pk := paramskey(module, realm, key)
+	pk := prmkey(module, submodule, name)
 	std.GetContext(m).Params.SetBool(pk, val)
 }
 
-func X_setSysParamInt64(m *gno.Machine, module, realm, key string, val int64) {
+func X_setSysParamInt64(m *gno.Machine, module, submodule, name string, val int64) {
 	assertSysParamsRealm(m)
-	pk := paramskey(module, realm, key)
+	pk := prmkey(module, submodule, name)
 	std.GetContext(m).Params.SetInt64(pk, val)
 }
 
-func X_setSysParamUint64(m *gno.Machine, module, realm, key string, val uint64) {
+func X_setSysParamUint64(m *gno.Machine, module, submodule, name string, val uint64) {
 	assertSysParamsRealm(m)
-	pk := paramskey(module, realm, key)
+	pk := prmkey(module, submodule, name)
 	std.GetContext(m).Params.SetUint64(pk, val)
 }
 
-func X_setSysParamBytes(m *gno.Machine, module, realm, key string, val []byte) {
+func X_setSysParamBytes(m *gno.Machine, module, submodule, name string, val []byte) {
 	assertSysParamsRealm(m)
-	pk := paramskey(module, realm, key)
+	pk := prmkey(module, submodule, name)
 	std.GetContext(m).Params.SetBytes(pk, val)
 }
 
-func X_setSysParamStrings(m *gno.Machine, module, realm, key string, val []string) {
+func X_setSysParamStrings(m *gno.Machine, module, submodule, name string, val []string) {
 	assertSysParamsRealm(m)
-	pk := paramskey(module, realm, key)
+	pk := prmkey(module, submodule, name)
 	std.GetContext(m).Params.SetStrings(pk, val)
 }
 
@@ -57,13 +57,13 @@ func assertSysParamsRealm(m *gno.Machine) {
 	}
 }
 
-func paramskey(module, realm, key string) string {
+func prmkey(module, submodule, name string) string {
 	// XXX consolidate validation
-	if strings.Contains(key, ":") {
-		panic("invalid param key: " + key)
+	if strings.Contains(name, ":") {
+		panic("invalid param name: " + name)
 	}
-	if realm != "" {
-		return module + ":" + realm + ":" + key
+	if submodule == "" {
+		panic("submodule cannot be empty")
 	}
-	return module + ":" + key
+	return module + ":" + submodule + ":" + name
 }

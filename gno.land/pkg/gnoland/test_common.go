@@ -28,11 +28,11 @@ func setupTestEnv() testEnv {
 	ms := store.NewCommitMultiStore(db)
 	ms.MountStoreWithDB(authCapKey, iavl.StoreConstructor, db)
 	ms.LoadLatestVersion()
-	paramk := params.NewParamsKeeper(authCapKey)
-	acck := auth.NewAccountKeeper(authCapKey, paramk.ForModule(auth.ModuleName), ProtoGnoAccount)
-	bankk := bank.NewBankKeeper(acck, paramk.ForModule(bank.ModuleName))
-	paramk.Register(auth.ModuleName, acck)
-	paramk.Register(bank.ModuleName, bankk)
+	prmk := params.NewParamsKeeper(authCapKey)
+	acck := auth.NewAccountKeeper(authCapKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount)
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
+	prmk.Register(auth.ModuleName, acck)
+	prmk.Register(bank.ModuleName, bankk)
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{Height: 1, ChainID: "test-chain-id"}, log.NewNoopLogger())
 

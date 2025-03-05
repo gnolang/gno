@@ -8,14 +8,14 @@ gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/sys/params -gas-fe
 
 ## before set lock transfer
 gnokey query params/bank:p:restricted_denoms
-stdout 'data: \[\]\n'
+stdout 'data: null\n'
 
 ## lock transfer
 gnokey maketx call -pkgpath gno.land/r/sys/params -func SetLockTransfer -args "ugnot" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 
 ## query bank module
 gnokey query params/bank:p:restricted_denoms
-stdout 'data: "ugnot"\n'
+stdout 'data: \["ugnot"\]\n'
 
 ## query vm module
 gnokey query params/vm:p:sysusers_pkgpath
@@ -37,4 +37,4 @@ import (
 )
 
 // This should succeed if it is called from gno.land/r/sys/params
-func SetLockTransfer(denom string) { params.SetSysParamString("bank","p", "restricted_denoms", denom) }
+func SetLockTransfer(denom string) { params.SetSysParamStrings("bank","p", "restricted_denoms", []string{denom}) }

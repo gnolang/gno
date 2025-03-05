@@ -37,7 +37,7 @@ type BankKeeper struct {
 
 	acck auth.AccountKeeper
 	// The keeper used to store parameters
-	paramk params.ParamsKeeperI
+	prmk params.ParamsKeeperI
 }
 
 // NewBankKeeper returns a new BankKeeper.
@@ -45,7 +45,7 @@ func NewBankKeeper(acck auth.AccountKeeper, pk params.ParamsKeeperI) BankKeeper 
 	return BankKeeper{
 		ViewKeeper: NewViewKeeper(acck),
 		acck:       acck,
-		paramk:     pk,
+		prmk:     pk,
 	}
 }
 
@@ -53,7 +53,7 @@ func NewBankKeeper(acck auth.AccountKeeper, pk params.ParamsKeeperI) BankKeeper 
 // Useful for testing and initchain setup.
 // The ParamKeeper will call WillSetRestrictedDenoms() before writing.
 func (bank BankKeeper) SetRestrictedDenoms(ctx sdk.Context, restrictedDenoms []string) {
-	bank.paramk.SetStrings(ctx, "p:restricted_denoms", restrictedDenoms)
+	bank.prmk.SetStrings(ctx, "p:restricted_denoms", restrictedDenoms)
 }
 
 // This will get called whenever the restricted denoms parameter is changed.

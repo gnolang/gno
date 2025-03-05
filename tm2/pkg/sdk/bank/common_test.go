@@ -19,7 +19,7 @@ type testEnv struct {
 	ctx    sdk.Context
 	bankk  BankKeeper
 	acck   auth.AccountKeeper
-	paramk params.ParamsKeeper
+	prmk params.ParamsKeeper
 }
 
 func setupTestEnv() testEnv {
@@ -32,12 +32,12 @@ func setupTestEnv() testEnv {
 	ms.LoadLatestVersion()
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
 
-	paramk := params.NewParamsKeeper(authCapKey)
-	acck := auth.NewAccountKeeper(authCapKey, paramk.ForModule(auth.ModuleName), std.ProtoBaseAccount)
-	bankk := NewBankKeeper(acck, paramk.ForModule(ModuleName))
+	prmk := params.NewParamsKeeper(authCapKey)
+	acck := auth.NewAccountKeeper(authCapKey, prmk.ForModule(auth.ModuleName), std.ProtoBaseAccount)
+	bankk := NewBankKeeper(acck, prmk.ForModule(ModuleName))
 
-	paramk.Register(auth.ModuleName, acck)
-	paramk.Register(ModuleName, bankk)
+	prmk.Register(auth.ModuleName, acck)
+	prmk.Register(ModuleName, bankk)
 
-	return testEnv{ctx: ctx, bankk: bankk, acck: acck, paramk: paramk}
+	return testEnv{ctx: ctx, bankk: bankk, acck: acck, prmk: prmk}
 }

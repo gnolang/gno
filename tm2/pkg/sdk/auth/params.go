@@ -114,13 +114,13 @@ func (ak AccountKeeper) SetParams(ctx sdk.Context, params Params) error {
 	if err := params.Validate(); err != nil {
 		return err
 	}
-	ak.paramk.SetStruct(ctx, "p", params)
+	ak.prmk.SetStruct(ctx, "p", params)
 	return nil
 }
 
 func (ak AccountKeeper) GetParams(ctx sdk.Context) Params {
 	params := Params{}
-	ak.paramk.GetStruct(ctx, "p", &params)
+	ak.prmk.GetStruct(ctx, "p", &params)
 	return params
 }
 

@@ -24,9 +24,9 @@ func setupTestEnv() testEnv {
 	ms.MountStoreWithDB(paramsCapKey, iavl.StoreConstructor, db)
 	ms.LoadLatestVersion()
 
-	paramk := NewParamsKeeper(paramsCapKey)
-	dk := NewDummyKeeper(paramk.ForModule(dummyModuleName))
-	paramk.Register(dummyModuleName, dk)
+	prmk := NewParamsKeeper(paramsCapKey)
+	dk := NewDummyKeeper(prmk.ForModule(dummyModuleName))
+	prmk.Register(dummyModuleName, dk)
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{Height: 1, ChainID: "test-chain-id"}, log.NewNoopLogger())
 	// XXX: context key?
@@ -44,7 +44,7 @@ func setupTestEnv() testEnv {
 	})
 
 	stor := ctx.Store(paramsCapKey)
-	return testEnv{ctx: ctx, store: stor, keeper: paramk}
+	return testEnv{ctx: ctx, store: stor, keeper: prmk}
 }
 
 const dummyModuleName = "params_test"

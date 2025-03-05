@@ -49,13 +49,13 @@ func (bank BankKeeper) SetParams(ctx sdk.Context, params Params) error {
 	if err := params.Validate(); err != nil {
 		return err
 	}
-	bank.paramk.SetStruct(ctx, "p", params)
+	bank.prmk.SetStruct(ctx, "p", params)
 	return nil
 }
 
 func (bank BankKeeper) GetParams(ctx sdk.Context) Params {
 	params := Params{}
-	bank.paramk.GetStruct(ctx, "p", &params)
+	bank.prmk.GetStruct(ctx, "p", &params)
 	return params
 }
 

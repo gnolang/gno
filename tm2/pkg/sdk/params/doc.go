@@ -15,9 +15,9 @@
 //
 //
 // NOTE: important to not use local cached fields unless they are synchronously
-// stored to the underlying store. This optimization generally only belongs in paramk.GetParams().
-// users of paramk.GetParams() generally should not cache anything and
-// instead rely on the efficiency of paramk.GetParams().
+// stored to the underlying store. This optimization generally only belongs in prmk.GetParams().
+// users of prmk.GetParams() generally should not cache anything and
+// instead rely on the efficiency of prmk.GetParams().
 //
 // In other words, ParamKeeper is the only component responsible for caching and storing parameters.
 // Other keepers should neither cache nor maintain these parameters as state variables.

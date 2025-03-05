@@ -19,7 +19,7 @@ type AccountKeeper struct {
 	key store.StoreKey
 
 	// store module parameters
-	paramk params.ParamsKeeperI
+	prmk params.ParamsKeeperI
 
 	// The prototypical Account constructor.
 	proto func() std.Account
@@ -32,7 +32,7 @@ func NewAccountKeeper(
 ) AccountKeeper {
 	return AccountKeeper{
 		key:    key,
-		paramk: pk,
+		prmk: pk,
 		proto:  proto,
 	}
 }

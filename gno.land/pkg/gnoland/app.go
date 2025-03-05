@@ -97,21 +97,21 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	// Construct keepers.
 
-	paramsk := params.NewParamsKeeper(mainKey)
-	acck := auth.NewAccountKeeper(mainKey, paramsk.ForModule(auth.ModuleName), ProtoGnoAccount)
-	bankk := bank.NewBankKeeper(acck, paramsk.ForModule(bank.ModuleName))
+	prmk := params.NewParamsKeeper(mainKey)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount)
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
 	gpk := auth.NewGasPriceKeeper(mainKey)
-	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, paramsk)
+	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, prmk)
 	vmk.Output = cfg.VMOutput
 
-	paramsk.Register(auth.ModuleName, acck)
-	paramsk.Register(bank.ModuleName, bankk)
-	paramsk.Register(vm.ModuleName, vmk)
+	prmk.Register(auth.ModuleName, acck)
+	prmk.Register(bank.ModuleName, bankk)
+	prmk.Register(vm.ModuleName, vmk)
 
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
 	icc.baseApp = baseApp
-	icc.acck, icc.bankk, icc.vmk, icc.paramsk, icc.gpk = acck, bankk, vmk, paramsk, gpk
+	icc.acck, icc.bankk, icc.vmk, icc.prmk, icc.gpk = acck, bankk, vmk, prmk, gpk
 	baseApp.SetInitChainer(icc.InitChainer)
 
 	// Set AnteHandler
@@ -169,7 +169,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Set a handler Route.
 	baseApp.Router().AddRoute("auth", auth.NewHandler(acck))
 	baseApp.Router().AddRoute("bank", bank.NewHandler(bankk))
-	baseApp.Router().AddRoute("params", params.NewHandler(paramsk))
+	baseApp.Router().AddRoute("params", params.NewHandler(prmk))
 	baseApp.Router().AddRoute("vm", vm.NewHandler(vmk))
 
 	// Load latest version.
@@ -269,7 +269,7 @@ type InitChainerConfig struct {
 	vmk     vm.VMKeeperI
 	acck    auth.AccountKeeperI
 	bankk   bank.BankKeeperI
-	paramsk params.ParamsKeeperI
+	prmk    params.ParamsKeeperI
 	gpk     auth.GasPriceKeeperI
 }
 

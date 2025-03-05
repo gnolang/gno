@@ -1,5 +1,7 @@
 package params
 
+// XXX Rename ParamsKeeper to ParamKeeper, like AccountKeeper is singular.
+
 import (
 	"fmt"
 	"log/slog"

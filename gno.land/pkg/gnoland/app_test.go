@@ -221,7 +221,7 @@ func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
 		vmk:             mock,
 		acck:            &mockAuthKeeper{},
 		bankk:           &mockBankKeeper{},
-		paramsk:         &mockParamsKeeper{},
+		prmk:            &mockParamsKeeper{},
 		gpk:             &mockGasPriceKeeper{},
 		CacheStdlibLoad: cached,
 	}
@@ -832,14 +832,14 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
 
 	// Construct keepers.
-	paramsk := params.NewParamsKeeper(mainKey)
-	acck := auth.NewAccountKeeper(mainKey, paramsk.ForModule(auth.ModuleName), ProtoGnoAccount)
+	prmk := params.NewParamsKeeper(mainKey)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount)
 	gpk := auth.NewGasPriceKeeper(mainKey)
-	bankk := bank.NewBankKeeper(acck, paramsk.ForModule(bank.ModuleName))
-	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, paramsk)
-	paramsk.Register(auth.ModuleName, acck)
-	paramsk.Register(bank.ModuleName, bankk)
-	paramsk.Register(vm.ModuleName, vmk)
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
+	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, prmk)
+	prmk.Register(auth.ModuleName, acck)
+	prmk.Register(bank.ModuleName, bankk)
+	prmk.Register(vm.ModuleName, vmk)
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
 	icc.baseApp = baseApp
