@@ -27,7 +27,7 @@ func (propDef) Execute() error                                  { return nil }
 var (
 	daoID    uint64
 	proposal *pcommondao.Proposal
-	vote     = pcommondao.ChoiceYes
+	vote     pcommondao.VoteChoice = pcommondao.ChoiceYes
 )
 
 func init() {
