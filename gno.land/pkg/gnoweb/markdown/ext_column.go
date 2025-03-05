@@ -250,10 +250,10 @@ func columnRender(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast
 		fmt.Fprintln(w, "<div>")
 
 	case ColumnTagClose:
-		prev, ok := cnode.PreviousSibling().(*ColumnNode)
-		if !ok || prev.Tag != ColumnTagOpen {
+		if cnode.Index > 0 { // at last one separator
 			fmt.Fprintln(w, "</div>")
 		}
+
 		fmt.Fprintln(w, "</div>")
 
 	default:
