@@ -286,7 +286,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 
 		pv.TV.Assign(alloc, tv2, cu)
 
-		oo2 := pv.TV.GetFirstObject2(store)
+		oo2 := pv.TV.GetFirstObjectAndAttach(store)
 
 		rlm.DidUpdate(store, pv.Base.(Object), oo1, oo2)
 	} else {

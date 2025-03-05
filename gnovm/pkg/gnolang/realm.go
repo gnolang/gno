@@ -323,7 +323,7 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, seenObjs *[]Objec
 		debug.Printf("checkCrossRealm2, tv: %v (type: %v) \n", tv, reflect.TypeOf(tv.V))
 	}
 	fillValueTV(store, tv)
-	oo2 := tv.GetFirstObject2(store)
+	oo2 := tv.GetFirstObjectAndAttach(store)
 	if oo2 != nil {
 		checkCrossRealm(rlm, store, oo2, seenObjs)
 	}
