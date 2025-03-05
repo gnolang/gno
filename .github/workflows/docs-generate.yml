@@ -1,4 +1,4 @@
-name: Docs Generate
+name: "Docs Generate & Lint"
 
 on:
   pull_request:
@@ -10,22 +10,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v4
+      - name: Install Go
+        uses: actions/setup-go@v5
         with:
-          go-version: '1.22.7'
+          go-version-file: ./misc/devdeps/go.mod
 
-      - name: make gen
-        run:
-          cd docs/ && make gen -B
+      - name: make generate
+        working-directory: docs/
+        run: make generate -B
 
       - name: Check if there is a diff
         run: |
           diff=$(git status --porcelain)
           if [[ $diff ]]; then
-              echo 'Please run `make gen` with docs/Makefile to embed newest assets into the docs.'
+              echo 'Please run `make generate` in docs/.'
               exit 1
           fi
+
+      - name: make lint
+        lint: |
+          working-directory: docs/
+          run: make lint
