@@ -13,7 +13,7 @@ func TestLayeredProxyListBasicOperations(t *testing.T) {
 	source.Append(1, 2, 3)
 
 	// Create proxy list with a simple multiplier migrator
-	migrator := func(v interface{}) interface{} {
+	migrator := func(v any) any {
 		return v.(int) * 2
 	}
 	proxy := NewLayeredProxyList(source, migrator)
@@ -29,7 +29,7 @@ func TestLayeredProxyListBasicOperations(t *testing.T) {
 	// Test Get with migration
 	tests := []struct {
 		index int
-		want  interface{}
+		want  any
 	}{
 		{0, 2}, // 1 * 2
 		{1, 4}, // 2 * 2
@@ -98,8 +98,8 @@ func TestLayeredProxyListIteration(t *testing.T) {
 	}
 
 	// Test IteratorByOffset with positive count
-	var values []interface{}
-	proxy.IteratorByOffset(1, 3, func(index int, value interface{}) bool {
+	var values []any
+	proxy.IteratorByOffset(1, 3, func(index int, value any) bool {
 		values = append(values, value)
 		return false
 	})
@@ -181,7 +181,7 @@ func TestLayeredProxyListChaining(t *testing.T) {
 	source.Append(v1{namev1: "object1"}, v1{namev1: "object2"})
 
 	// Migration function from v1 to v2
-	v1Tov2 := func(v interface{}) interface{} {
+	v1Tov2 := func(v any) any {
 		obj := v.(v1)
 		return v2{namev2: obj.namev1 + "_v2"}
 	}
@@ -191,7 +191,7 @@ func TestLayeredProxyListChaining(t *testing.T) {
 	proxyV2.Append(v2{namev2: "direct_v2"})
 
 	// Migration function from v2 to v3
-	v2Tov3 := func(v interface{}) interface{} {
+	v2Tov3 := func(v any) any {
 		obj := v.(v2)
 		return v3{namev3: obj.namev2 + "_v3"}
 	}

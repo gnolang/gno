@@ -33,7 +33,7 @@
 //	)
 //
 //	// Define migration function from V1 to V2
-//	migrateUserV1ToV2 := func(v interface{}) interface{} {
+//	migrateUserV1ToV2 := func(v any) any {
 //	    user := v.(UserV1)
 //	    return UserV2{
 //	        FullName: user.Name,  // Name field renamed to FullName
@@ -51,7 +51,7 @@
 //	// All access through proxy returns data in V2 format
 //	for i := 0; i < proxy.Size(); i++ {
 //	    user := proxy.Get(i).(UserV2)
-//	    println("User: %s, Age: %d, Active: %t\n", user.FullName, user.Age, user.Active)
+//	    fmt.Printf("User: %s, Age: %d, Active: %t\n", user.FullName, user.Age, user.Active)
 //	}
 package lplist
 
@@ -62,7 +62,7 @@ import (
 )
 
 // MigratorFn is a function type that lazily converts values from source to target
-type MigratorFn func(interface{}) interface{}
+type MigratorFn func(any) any
 
 // LayeredProxyList represents a wrapper around an existing List that handles migration
 type LayeredProxyList struct {
@@ -86,7 +86,7 @@ func NewLayeredProxyList(source ulist.IList, migrator MigratorFn) *LayeredProxyL
 
 // Get retrieves the value at the specified index
 // Uses sourceHeight to efficiently route requests
-func (l *LayeredProxyList) Get(index int) interface{} {
+func (l *LayeredProxyList) Get(index int) any {
 	if index < l.sourceHeight {
 		// Direct access to source for indices below sourceHeight
 		val := l.source.Get(index)
@@ -105,7 +105,7 @@ func (l *LayeredProxyList) Get(index int) interface{} {
 }
 
 // Append adds one or more values to the target list
-func (l *LayeredProxyList) Append(values ...interface{}) {
+func (l *LayeredProxyList) Append(values ...any) {
 	l.target.Append(values...)
 }
 
@@ -148,7 +148,7 @@ func (l *LayeredProxyList) MustDelete(indices ...int) {
 }
 
 // MustGet retrieves a value, panicking if not found
-func (l *LayeredProxyList) MustGet(index int) interface{} {
+func (l *LayeredProxyList) MustGet(index int) any {
 	val := l.Get(index)
 	if val == nil {
 		panic(ulist.ErrDeleted)
@@ -159,7 +159,7 @@ func (l *LayeredProxyList) MustGet(index int) interface{} {
 // GetRange returns elements between start and end indices
 func (l *LayeredProxyList) GetRange(start, end int) []ulist.Entry {
 	var entries []ulist.Entry
-	l.Iterator(start, end, func(index int, value interface{}) bool {
+	l.Iterator(start, end, func(index int, value any) bool {
 		entries = append(entries, ulist.Entry{Index: index, Value: value})
 		return false
 	})
@@ -169,7 +169,7 @@ func (l *LayeredProxyList) GetRange(start, end int) []ulist.Entry {
 // GetRangeByOffset returns elements starting from offset
 func (l *LayeredProxyList) GetRangeByOffset(offset int, count int) []ulist.Entry {
 	var entries []ulist.Entry
-	l.IteratorByOffset(offset, count, func(index int, value interface{}) bool {
+	l.IteratorByOffset(offset, count, func(index int, value any) bool {
 		entries = append(entries, ulist.Entry{Index: index, Value: value})
 		return false
 	})
@@ -255,7 +255,7 @@ func (l *LayeredProxyList) IteratorByOffset(offset int, count int, cb ulist.Iter
 		remaining = -remaining
 	}
 
-	wrapper := func(index int, value interface{}) bool {
+	wrapper := func(index int, value any) bool {
 		if remaining <= 0 {
 			wrapperReturned = true
 			return true
@@ -272,7 +272,7 @@ func (l *LayeredProxyList) IteratorByOffset(offset int, count int, cb ulist.Iter
 }
 
 // Set updates the value at the specified index
-func (l *LayeredProxyList) Set(index int, value interface{}) error {
+func (l *LayeredProxyList) Set(index int, value any) error {
 	if index < l.sourceHeight {
 		// Cannot modify source list directly
 		return errors.New("cannot modify source list directly")
@@ -284,7 +284,7 @@ func (l *LayeredProxyList) Set(index int, value interface{}) error {
 }
 
 // MustSet updates the value at the specified index, panicking on error
-func (l *LayeredProxyList) MustSet(index int, value interface{}) {
+func (l *LayeredProxyList) MustSet(index int, value any) {
 	if err := l.Set(index, value); err != nil {
 		panic(err)
 	}
@@ -293,7 +293,7 @@ func (l *LayeredProxyList) MustSet(index int, value interface{}) {
 // GetByOffset returns elements starting from offset with count determining direction
 func (l *LayeredProxyList) GetByOffset(offset int, count int) []ulist.Entry {
 	var entries []ulist.Entry
-	l.IteratorByOffset(offset, count, func(index int, value interface{}) bool {
+	l.IteratorByOffset(offset, count, func(index int, value any) bool {
 		entries = append(entries, ulist.Entry{Index: index, Value: value})
 		return false
 	})
