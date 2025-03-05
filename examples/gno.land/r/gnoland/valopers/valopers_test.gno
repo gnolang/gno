@@ -8,6 +8,8 @@ import (
 	"gno.land/p/demo/uassert"
 )
 
+const testPubKey = "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqg8dnu7u3qwe952azxe2sw0zvu45cclk523m9qfjq8zzuw620vjeyaqyv3a"
+
 func TestValopers_Register(t *testing.T) {
 	t.Parallel()
 
@@ -19,6 +21,7 @@ func TestValopers_Register(t *testing.T) {
 
 		v := Valoper{
 			Address: testutils.TestAddress("valoper"),
+			PubKey:  testPubKey,
 		}
 
 		// Add the valoper
@@ -38,7 +41,7 @@ func TestValopers_Register(t *testing.T) {
 		v := Valoper{
 			Address: testutils.TestAddress("valoper"),
 			Name:    "new valoper",
-			PubKey:  "pub key",
+			PubKey:  testPubKey,
 		}
 
 		uassert.NotPanics(t, func() {
@@ -64,7 +67,10 @@ func TestValopers_Update(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
-		v := Valoper{}
+		v := Valoper{
+			Address: testutils.TestAddress("missing"),
+			PubKey:  testPubKey,
+		}
 
 		// Update the valoper
 		uassert.PanicsWithMessage(t, ErrValoperMissing, func() {
@@ -80,6 +86,7 @@ func TestValopers_Update(t *testing.T) {
 
 		one := Valoper{
 			Address: testutils.TestAddress("valoper 1"),
+			PubKey:  testPubKey,
 		}
 
 		// Add the valoper
@@ -90,6 +97,7 @@ func TestValopers_Update(t *testing.T) {
 		initialAddress := testutils.TestAddress("valoper 2")
 		two := Valoper{
 			Address: initialAddress,
+			PubKey:  testPubKey,
 		}
 
 		// Add the valoper
@@ -101,6 +109,7 @@ func TestValopers_Update(t *testing.T) {
 		// so it overlaps
 		two = Valoper{
 			Address: one.Address,
+			PubKey:  testPubKey,
 		}
 
 		// Update the valoper
@@ -120,7 +129,7 @@ func TestValopers_Update(t *testing.T) {
 			v    = Valoper{
 				Address: testutils.TestAddress("valoper"),
 				Name:    name,
-				PubKey:  "pub key",
+				PubKey:  testPubKey,
 			}
 		)
 
