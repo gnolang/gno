@@ -5,6 +5,7 @@ package valopers
 import (
 	"crypto/bech32"
 	"std"
+	"strings"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
@@ -12,10 +13,14 @@ import (
 )
 
 const (
-	ErrValoperExists        = "valoper already exists"
-	ErrValoperMissing       = "valoper does not exist"
-	ErrInvalidAddressUpdate = "valoper updated address exists"
-	ErrValoperNotCaller     = "valoper is not the caller"
+	ErrValoperExists       = "valoper already exists"
+	ErrValoperMissing      = "valoper does not exist"
+	ErrInvalidAddress      = "valoper updated address exists"
+	ErrValoperNotCaller    = "valoper is not the caller"
+	ErrInvalidMoniker      = "moniker cannot be empty"
+	ErrInvalidDescription  = "description cannot be empty"
+	ErrInvalidPubKey       = "invalid public key"
+	ErrInvalidP2PAddresses = "invalid P2P addresses"
 )
 
 // valopers keeps track of all the active validator operators
@@ -23,30 +28,35 @@ var valopers *avl.Tree // Address -> Valoper
 
 // Valoper represents a validator operator profile
 type Valoper struct {
-	Name               string // the display name of the valoper
-	Description        string // the description of the valoper
-	ProfileAddress     string // The address of the r/demo/profile you want to link to
-	OtherNetworks      string // What networks are you currently validating?
-	DigitalPresence    string // Website, social links, contact details
-	AssetsManagement   string // How do you manage your assets?
-	ValidatingInterest string // Why are you interested in validating on gno.land?
-	Contributions      string // What contributions have you made to gno.land? Or what contributions are you willing to make to gno.land?
+	Moniker     string // Human-readable name
+	Description string // Description and details about the valoper
 
-	Address      std.Address // The bech32 gno address of the validator
-	PubKey       string      // the bech32 public key of the validator
-	P2PAddresses []string    // the publicly reachable P2P addresses of the validator
-	Active       bool        // flag indicating if the valoper is active
+	Address std.Address // The bech32 gno address of the validator
+	PubKey  string      // the bech32 public key of the validator
+	Active  bool        // flag indicating if the valoper is active
+
+	Caller std.Address // The address of the caller
 }
 
 // Register registers a new valoper
-func Register(v Valoper) {
-	if err := v.Validate(); err != nil {
-		panic(err)
+func Register(moniker string, description string, address std.Address, pubKey string, active bool) {
+>>>>>>> 8a4a916ec (feat: use Description to reply questions)
+	// Check if the valoper is already registered
+	if isValoper(address) {
+		panic(ErrValoperExists)
 	}
 
-	// Check if the valoper is already registered
-	if isValoper(v.Address) {
-		panic(ErrValoperExists)
+	v := Valoper{
+		Moniker:     moniker,
+		Description: description,
+		Address:     address,
+		PubKey:      pubKey,
+		Active:      active,
+		Caller:      std.PreviousRealm().Address(),
+	}
+
+	if err := v.Validate(); err != nil {
+		panic(err)
 	}
 
 	// TODO add address derivation from public key
@@ -58,20 +68,22 @@ func Register(v Valoper) {
 
 // Update updates an existing valoper
 func Update(address std.Address, v Valoper) {
-	if err := v.Validate(); err != nil {
-		panic(err)
-	}
+	old := GetByAddr(address)
 
-	// Check if the valoper is present
-	if !isValoper(address) {
-		panic(ErrValoperMissing)
+	// Check that the caller is the valoper
+	if old.Caller != std.PreviousRealm().Address() {
+		panic(ErrValoperNotCaller)
 	}
 
 	// Check that the valoper wouldn't be
 	// overwriting an existing one
 	isAddressUpdate := address != v.Address
 	if isAddressUpdate && isValoper(v.Address) {
-		panic(ErrInvalidAddressUpdate)
+		panic(ErrInvalidAddress)
+	}
+
+	if err := v.Validate(); err != nil {
+		panic(err)
 	}
 
 	// Remove the old valoper info
@@ -82,6 +94,142 @@ func Update(address std.Address, v Valoper) {
 
 	// Save the new valoper info
 	valopers.Set(v.Address.String(), v)
+}
+
+// UpdateMoniker updates an existing valoper's moniker
+func UpdateMoniker(address std.Address, moniker string) {
+	v := GetByAddr(address)
+
+	// Check that the caller is the valoper
+	if v.Caller != std.PreviousRealm().Address() {
+		panic(ErrValoperNotCaller)
+	}
+
+	// Check that the moniker is not empty
+	if moniker == "" {
+		panic(ErrInvalidMoniker)
+	}
+
+	// Update the moniker
+	v.Moniker = moniker
+
+	// Save the valoper info
+	valopers.Set(address.String(), v)
+}
+
+// UpdateDescription updates an existing valoper's description
+func UpdateDescription(address std.Address, description string) {
+	v := GetByAddr(address)
+
+	// Check that the caller is the valoper
+	if v.Caller != std.PreviousRealm().Address() {
+		panic(ErrValoperNotCaller)
+	}
+
+	// Check that the description is not empty
+	if description == "" {
+		panic(ErrInvalidDescription)
+	}
+
+	// Update the description
+	v.Description = description
+
+	// Save the valoper info
+	valopers.Set(address.String(), v)
+}
+
+// UpdateAddress updates an existing valoper's address
+func UpdateAddress(address std.Address, newAddress std.Address) {
+	// Check that the new address is different
+	if address == newAddress {
+		panic(ErrInvalidAddress)
+	}
+
+	v := GetByAddr(address)
+
+	// Check that the caller is the valoper
+	if v.Caller != std.PreviousRealm().Address() {
+		panic(ErrValoperNotCaller)
+	}
+
+	// Check that the address is valid
+	if err := validateAddress(newAddress); err != nil {
+		panic(ErrInvalidAddress)
+	}
+
+	// Check that the new address wouldn't be
+	// overwriting an existing one
+	if isValoper(newAddress) {
+		panic(ErrInvalidAddress)
+	}
+
+	// Update the address
+	v.Address = newAddress
+
+	// Remove the old valoper info
+	valopers.Remove(address.String())
+
+	// Save the new valoper info
+	valopers.Set(newAddress.String(), v)
+}
+
+// UpdatePubKey updates an existing valoper's public key
+func UpdatePubKey(address std.Address, pubKey string) {
+	v := GetByAddr(address)
+
+	// Check that the caller is the valoper
+	if v.Caller != std.PreviousRealm().Address() {
+		panic(ErrValoperNotCaller)
+	}
+
+	// Check that the pubKey is valid
+	if err := validatePubKey(pubKey); err != nil {
+		panic(ErrInvalidPubKey)
+	}
+
+	// Update the description
+	v.PubKey = pubKey
+
+	// Save the valoper info
+	valopers.Set(address.String(), v)
+}
+
+// UpdateActive updates an existing valoper's active status
+func UpdateActive(address std.Address, active bool) {
+	v := GetByAddr(address)
+
+	// Check that the caller is the valoper
+	if v.Caller != std.PreviousRealm().Address() {
+		panic(ErrValoperNotCaller)
+	}
+
+	// Update active status
+	v.Active = active
+
+	// Save the valoper info
+	valopers.Set(address.String(), v)
+}
+
+// UpdateP2PAddresses updates an existing valoper's P2P addresses
+// p2pAddresses is a comma-separated list of P2P addresses
+func UpdateP2PAddresses(address std.Address, p2pAddresses string) {
+	v := GetByAddr(address)
+
+	// Check that the caller is the valoper
+	if v.Caller != std.PreviousRealm().Address() {
+		panic(ErrValoperNotCaller)
+	}
+
+	// Split the P2P addresses
+	addresses := strings.Split(p2pAddresses, ",")
+	if len(addresses) == 0 {
+		panic(ErrInvalidP2PAddresses)
+	}
+
+	// Update the P2P addresses
+	v.P2PAddresses = p2pAddresses
+	// Save the valoper info
+	valopers.Set(address.String(), v)
 }
 
 // GetByAddr fetches the valoper using the address, if present
