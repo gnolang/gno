@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 4,
+  "id": 2,
   "links": [],
   "panels": [
     {
@@ -56,8 +56,8 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 21,
+        "h": 19,
+        "w": 23,
         "x": 0,
         "y": 0
       },
@@ -89,7 +89,7 @@
             }
           ],
           "limit": 20,
-          "query": "{ .service.name = \"tm2\" }",
+          "query": "{name=~\"NewHeight: .*${height}.*\"}",
           "queryType": "traceql",
           "refId": "A",
           "tableType": "traces"
@@ -97,53 +97,6 @@
       ],
       "title": "Traces",
       "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "tempo",
-        "uid": "tempo"
-      },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 11,
-        "w": 21,
-        "x": 0,
-        "y": 8
-      },
-      "id": 2,
-      "options": {
-        "spanFilters": {
-          "criticalPathOnly": false,
-          "matchesOnly": false,
-          "serviceNameOperator": "=",
-          "spanNameOperator": "=",
-          "tags": [
-            {
-              "id": "09220ee2-169",
-              "operator": "="
-            }
-          ]
-        }
-      },
-      "pluginVersion": "11.5.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "tempo",
-            "uid": "tempo"
-          },
-          "limit": 20,
-          "query": "${traceId}",
-          "queryType": "traceql",
-          "refId": "A",
-          "tableType": "traces"
-        }
-      ],
-      "title": "Tracing",
-      "type": "traces"
     }
   ],
   "preload": false,
@@ -157,8 +110,8 @@
           "text": "",
           "value": ""
         },
-        "label": "Trade ID",
-        "name": "traceId",
+        "label": "BlockHeight",
+        "name": "height",
         "options": [],
         "query": "",
         "type": "custom"
@@ -173,6 +126,6 @@
   "timezone": "browser",
   "title": "Gno Open Telemetry Traces",
   "uid": "dee7ykpziof0gf",
-  "version": 5,
+  "version": 4,
   "weekStart": ""
 }

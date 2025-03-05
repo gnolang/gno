@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"reflect"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,6 +30,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -513,14 +515,26 @@ func (cs *ConsensusState) reconstructLastCommit(state sm.State) {
 // Updates ConsensusState and increments height to match that of state.
 // The round becomes 0 and cs.Step becomes cstypes.RoundStepNewHeight.
 func (cs *ConsensusState) updateToState(state sm.State) {
+	// Here we start a new height, round 0 and RoundStepNewHeight and hence
+	// start the new trace context and new root span
+	var span trace.Span
+
+	if telemetry.TracesEnabled() {
+		cs.traceCtx, span = tracer.Start(context.Background(), fmt.Sprintf("NewHeight: %v", state.LastBlockHeight+1))
+		span.SetAttributes(attribute.Int64("csHeight", state.LastBlockHeight+1))
+		span.SetAttributes(attribute.Int64("csRound", 0))
+		span.SetAttributes(attribute.Int64("csStep", int64(cstypes.RoundStepNewHeight)))
+		defer span.End()
+	}
+
 	if cs.CommitRound > -1 && 0 < cs.Height && cs.Height != state.LastBlockHeight {
-		panic(fmt.Sprintf("updateToState() expected state height of %v but found %v",
+		cs.panicWithTrace(span, fmt.Sprintf("updateToState() expected state height of %v but found %v",
 			cs.Height, state.LastBlockHeight))
 	}
 	if !cs.state.IsEmpty() && cs.state.LastBlockHeight+1 != cs.Height {
 		// This might happen when someone else is mutating cs.state.
 		// Someone forgot to pass in state.Copy() somewhere?!
-		panic(fmt.Sprintf("Inconsistent cs.state.LastBlockHeight+1 %v vs cs.Height %v",
+		cs.panicWithTrace(span, fmt.Sprintf("Inconsistent cs.state.LastBlockHeight+1 %v vs cs.Height %v",
 			cs.state.LastBlockHeight+1, cs.Height))
 	}
 
@@ -540,7 +554,7 @@ func (cs *ConsensusState) updateToState(state sm.State) {
 	lastPrecommits := (*types.VoteSet)(nil)
 	if cs.CommitRound > -1 && cs.Votes != nil {
 		if !cs.Votes.Precommits(cs.CommitRound).HasTwoThirdsMajority() {
-			panic("updateToState(state) called but last Precommit round didn't have +2/3")
+			cs.panicWithTrace(span, "updateToState(state) called but last Precommit round didn't have +2/3")
 		}
 		lastPrecommits = cs.Votes.Precommits(cs.CommitRound)
 	}
@@ -551,15 +565,6 @@ func (cs *ConsensusState) updateToState(state sm.State) {
 	// RoundState fields
 	cs.updateHeight(height)
 	cs.updateRoundStep(0, cstypes.RoundStepNewHeight)
-
-	// Here we start a new height, round 0 and RoundStepNewHeight and hence
-	// start the new trace context and new root span
-	if telemetry.TracesEnabled() {
-		var span trace.Span
-		cs.traceCtx, span = tracer.Start(context.Background(), fmt.Sprintf("updateToState(%v)", height))
-		span.SetAttributes(attribute.Int64("height", height))
-		defer span.End()
-	}
 
 	if cs.CommitTime.IsZero() {
 		// "Now" makes it easier to sync up dev nodes.
@@ -686,7 +691,8 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 
 // state transitions on complete-proposal, 2/3-any, 2/3-one
 func (cs *ConsensusState) handleMsg(mi msgInfo) {
-	if span := cs.addTrace("handleMsg"); span != nil {
+	span := cs.addTrace(fmt.Sprintf("handleMsg(peerID:%s)", mi.PeerID))
+	if span != nil {
 		defer span.End()
 	}
 
@@ -737,7 +743,7 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 		// the peer is sending us CatchupCommit precommits.
 		// We could make note of this and help filter in broadcastHasVoteMessage().
 	default:
-		cs.Logger.Error("Unknown msg type", "type", reflect.TypeOf(msg))
+		cs.logErrorWithTrace(span, fmt.Sprintf("Unknown msg type: %v", reflect.TypeOf(msg)))
 		return
 	}
 
@@ -750,7 +756,8 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 }
 
 func (cs *ConsensusState) handleTimeout(ti timeoutInfo, rs cstypes.RoundState) {
-	if span := cs.addTrace("handleTimeout"); span != nil {
+	span := cs.addTrace("handleTimeout")
+	if span != nil {
 		defer span.End()
 	}
 
@@ -784,7 +791,7 @@ func (cs *ConsensusState) handleTimeout(ti timeoutInfo, rs cstypes.RoundState) {
 		cs.enterPrecommit(ti.Height, ti.Round)
 		cs.enterNewRound(ti.Height, ti.Round+1)
 	default:
-		panic(fmt.Sprintf("Invalid timeout step: %v", ti.Step))
+		cs.panicWithTrace(span, fmt.Sprintf("Invalid timeout step: %v", ti.Step))
 	}
 }
 
@@ -959,7 +966,8 @@ func (cs *ConsensusState) isProposer(address crypto.Address) bool {
 }
 
 func (cs *ConsensusState) defaultDecideProposal(height int64, round int) {
-	if span := cs.addTrace("defaultDecideProposal"); span != nil {
+	span := cs.addTrace(fmt.Sprintf("defaultDecideProposal(%v,%v)", height, round))
+	if span != nil {
 		defer span.End()
 	}
 
@@ -1001,7 +1009,10 @@ func (cs *ConsensusState) defaultDecideProposal(height int64, round int) {
 			"proposal timestamp", proposal.Timestamp.Unix(),
 		)
 	} else if !cs.replayMode {
-		cs.Logger.Error("enterPropose: Error signing proposal", "height", height, "round", round, "err", err)
+		cs.logErrorWithTrace(
+			span,
+			fmt.Sprintf("enterPropose: Error signing proposal: height %v, round %v, err %v", height, round, err),
+		)
 	}
 }
 
@@ -1082,7 +1093,8 @@ func (cs *ConsensusState) enterPrevote(height int64, round int) {
 }
 
 func (cs *ConsensusState) defaultDoPrevote(height int64, round int) {
-	if span := cs.addTrace("defaultDoPrevote"); span != nil {
+	span := cs.addTrace(fmt.Sprintf("defaultDoPrevote(%v,%v)", height, round))
+	if span != nil {
 		defer span.End()
 	}
 
@@ -1106,7 +1118,7 @@ func (cs *ConsensusState) defaultDoPrevote(height int64, round int) {
 	err := cs.state.ValidateBlock(cs.ProposalBlock)
 	if err != nil {
 		// ProposalBlock is invalid, prevote nil.
-		logger.Error("enterPrevote: ProposalBlock is invalid", "err", err)
+		cs.logErrorWithTrace(span, fmt.Sprintf("enterPrevote: ProposalBlock is invalid: %v", err))
 		cs.signAddVote(types.PrevoteType, nil, types.PartSetHeader{})
 		return
 	}
@@ -1120,7 +1132,8 @@ func (cs *ConsensusState) defaultDoPrevote(height int64, round int) {
 
 // Enter: any +2/3 prevotes at next round.
 func (cs *ConsensusState) enterPrevoteWait(height int64, round int) {
-	if span := cs.addTrace("enterPrevoteWait"); span != nil {
+	span := cs.addTrace(fmt.Sprintf("enterPrevoteWait(%v,%v)", height, round))
+	if span != nil {
 		defer span.End()
 	}
 
@@ -1131,7 +1144,7 @@ func (cs *ConsensusState) enterPrevoteWait(height int64, round int) {
 		return
 	}
 	if !cs.Votes.Prevotes(round).HasTwoThirdsAny() {
-		panic(fmt.Sprintf("enterPrevoteWait(%v/%v), but Prevotes does not have any +2/3 votes", height, round))
+		cs.panicWithTrace(span, fmt.Sprintf("enterPrevoteWait(%v/%v), but Prevotes does not have any +2/3 votes", height, round))
 	}
 	logger.Info(fmt.Sprintf("enterPrevoteWait(%v/%v). Current: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
 
@@ -1152,7 +1165,8 @@ func (cs *ConsensusState) enterPrevoteWait(height int64, round int) {
 // else, unlock an existing lock and precommit nil if +2/3 of prevotes were nil,
 // else, precommit nil otherwise.
 func (cs *ConsensusState) enterPrecommit(height int64, round int) {
-	if span := cs.addTrace(fmt.Sprintf("enterPrecommit(%v,%v)", height, round)); span != nil {
+	span := cs.addTrace(fmt.Sprintf("enterPrecommit(%v,%v)", height, round))
+	if span != nil {
 		defer span.End()
 	}
 
@@ -1191,7 +1205,7 @@ func (cs *ConsensusState) enterPrecommit(height int64, round int) {
 	// the latest POLRound should be this round.
 	polRound, _ := cs.Votes.POLInfo()
 	if polRound < round {
-		panic(fmt.Sprintf("This POLRound should be %v but got %v", round, polRound))
+		cs.panicWithTrace(span, fmt.Sprintf("This POLRound should be %v but got %v", round, polRound))
 	}
 
 	// +2/3 prevoted nil. Unlock and precommit nil.
@@ -1225,7 +1239,7 @@ func (cs *ConsensusState) enterPrecommit(height int64, round int) {
 		logger.Info("enterPrecommit: +2/3 prevoted proposal block. Locking", "hash", blockID.Hash)
 		// Validate the block.
 		if err := cs.state.ValidateBlock(cs.ProposalBlock); err != nil {
-			panic(fmt.Sprintf("enterPrecommit: +2/3 prevoted for an invalid block: %v", err))
+			cs.panicWithTrace(span, fmt.Sprintf("enterPrecommit: +2/3 prevoted for an invalid block: %v", err))
 		}
 		cs.LockedRound = round
 		cs.LockedBlock = cs.ProposalBlock
@@ -1252,7 +1266,8 @@ func (cs *ConsensusState) enterPrecommit(height int64, round int) {
 
 // Enter: any +2/3 precommits for next round.
 func (cs *ConsensusState) enterPrecommitWait(height int64, round int) {
-	if span := cs.addTrace("enterPrecommitWait"); span != nil {
+	span := cs.addTrace(fmt.Sprintf("enterPrecommitWait(%v,%v)", height, round))
+	if span != nil {
 		defer span.End()
 	}
 
@@ -1267,7 +1282,7 @@ func (cs *ConsensusState) enterPrecommitWait(height int64, round int) {
 		return
 	}
 	if !cs.Votes.Precommits(round).HasTwoThirdsAny() {
-		panic(fmt.Sprintf("enterPrecommitWait(%v/%v), but Precommits does not have any +2/3 votes", height, round))
+		cs.panicWithTrace(span, fmt.Sprintf("enterPrecommitWait(%v/%v), but Precommits does not have any +2/3 votes", height, round))
 	}
 	logger.Info(fmt.Sprintf("enterPrecommitWait(%v/%v). Current: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
 
@@ -1284,7 +1299,8 @@ func (cs *ConsensusState) enterPrecommitWait(height int64, round int) {
 
 // Enter: +2/3 precommits for block
 func (cs *ConsensusState) enterCommit(height int64, commitRound int) {
-	if span := cs.addTrace("enterCommit"); span != nil {
+	span := cs.addTrace(fmt.Sprintf("enterCommit(%v,%v)", height, commitRound))
+	if span != nil {
 		defer span.End()
 	}
 
@@ -1310,7 +1326,7 @@ func (cs *ConsensusState) enterCommit(height int64, commitRound int) {
 
 	blockID, ok := cs.Votes.Precommits(commitRound).TwoThirdsMajority()
 	if !ok {
-		panic("RunActionCommit() expects +2/3 precommits")
+		cs.panicWithTrace(span, "RunActionCommit() expects +2/3 precommits")
 	}
 
 	// The Locked* fields no longer matter.
@@ -1340,19 +1356,20 @@ func (cs *ConsensusState) enterCommit(height int64, commitRound int) {
 
 // If we have the block AND +2/3 commits for it, finalize.
 func (cs *ConsensusState) tryFinalizeCommit(height int64) {
-	if span := cs.addTrace("tryFinalizeCommit"); span != nil {
+	span := cs.addTrace(fmt.Sprintf("tryFinalizeCommit(%v)", height))
+	if span != nil {
 		defer span.End()
 	}
 
 	logger := cs.Logger.With("height", height)
 
 	if cs.Height != height {
-		panic(fmt.Sprintf("tryFinalizeCommit() cs.Height: %v vs height: %v", cs.Height, height))
+		cs.panicWithTrace(span, fmt.Sprintf("tryFinalizeCommit() cs.Height: %v vs height: %v", cs.Height, height))
 	}
 
 	blockID, ok := cs.Votes.Precommits(cs.CommitRound).TwoThirdsMajority()
 	if !ok || len(blockID.Hash) == 0 {
-		logger.Error("Attempt to finalize failed. There was no +2/3 majority, or +2/3 was for <nil>.")
+		cs.logErrorWithTrace(span, "Attempt to finalize failed. There was no +2/3 majority, or +2/3 was for <nil>.")
 		return
 	}
 	if !cs.ProposalBlock.HashesTo(blockID.Hash) {
@@ -1368,7 +1385,8 @@ func (cs *ConsensusState) tryFinalizeCommit(height int64) {
 
 // Increment height and goto cstypes.RoundStepNewHeight
 func (cs *ConsensusState) finalizeCommit(height int64) {
-	if span := cs.addTrace("finalizeCommit"); span != nil {
+	span := cs.addTrace(fmt.Sprintf("finalizeCommit(%v)", height))
+	if span != nil {
 		defer span.End()
 	}
 
@@ -1381,16 +1399,16 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 	block, blockParts := cs.ProposalBlock, cs.ProposalBlockParts
 
 	if !ok {
-		panic("Cannot finalizeCommit, commit does not have two thirds majority")
+		cs.panicWithTrace(span, "Cannot finalizeCommit, commit does not have two thirds majority")
 	}
 	if !blockParts.HasHeader(blockID.PartsHeader) {
-		panic("Expected ProposalBlockParts header to be commit header")
+		cs.panicWithTrace(span, "Expected ProposalBlockParts header to be commit header")
 	}
 	if !block.HashesTo(blockID.Hash) {
-		panic("Cannot finalizeCommit, ProposalBlock does not hash to commit hash")
+		cs.panicWithTrace(span, "Cannot finalizeCommit, ProposalBlock does not hash to commit hash")
 	}
 	if err := cs.state.ValidateBlock(block); err != nil {
-		panic(fmt.Sprintf("+2/3 committed an invalid block: %v", err))
+		cs.panicWithTrace(span, fmt.Sprintf("+2/3 committed an invalid block: %v", err))
 	}
 
 	cs.Logger.Info(
@@ -1432,7 +1450,7 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 	// restart).
 	meta := walm.MetaMessage{Height: height + 1}
 	if err := cs.wal.WriteMetaSync(meta); err != nil { // NOTE: fsync
-		panic(fmt.Sprintf("Failed to write %v msg to consensus wal due to %v. Check your FS and restart the node", meta, err))
+		cs.panicWithTrace(span, fmt.Sprintf("Failed to write %v msg to consensus wal due to %v. Check your FS and restart the node", meta, err))
 	}
 
 	fail.Fail() // XXX
@@ -1445,10 +1463,10 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 	var err error
 	stateCopy, err = cs.blockExec.ApplyBlock(stateCopy, types.BlockID{Hash: block.Hash(), PartsHeader: blockParts.Header()}, block)
 	if err != nil {
-		cs.Logger.Error("Error on ApplyBlock. Did the application crash? Please restart tendermint", "err", err)
+		cs.logErrorWithTrace(span, fmt.Sprintf("Error on ApplyBlock. Did the application crash? Please restart. Err: %v", err))
 		err := osm.Kill()
 		if err != nil {
-			cs.Logger.Error("Failed to kill this process - please do so manually", "err", err)
+			cs.logErrorWithTrace(span, fmt.Sprintf("Failed to kill this process - please do so manually. Err: %v", err))
 		}
 		return
 	}
@@ -1476,7 +1494,8 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 // -----------------------------------------------------------------------------
 
 func (cs *ConsensusState) defaultSetProposal(proposal *types.Proposal) error {
-	if span := cs.addTrace("defaultSetProposal"); span != nil {
+	span := cs.addTrace(fmt.Sprintf("defaultSetProposal(%v,%v)", proposal.Height, proposal.Round))
+	if span != nil {
 		defer span.End()
 	}
 
@@ -1525,7 +1544,7 @@ func (cs *ConsensusState) defaultSetProposal(proposal *types.Proposal) error {
 // NOTE: block is not necessarily valid.
 // Asynchronously triggers either enterPrevote (before we timeout of propose) or tryFinalizeCommit, once we have the full block.
 func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2pTypes.ID) (added bool, err error) {
-	if span := cs.addTrace(fmt.Sprintf("addProposalBlockPart(%v,%v,%v)", msg.Height, msg.Round, peerID)); span != nil {
+	if span := cs.addTrace(fmt.Sprintf("addProposalBlockPart(%v,%v,peerID:%v)", msg.Height, msg.Round, peerID)); span != nil {
 		defer span.End()
 	}
 
@@ -1599,7 +1618,7 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 
 // Attempt to add the vote. if its a duplicate signature, dupeout the validator
 func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2pTypes.ID) (bool, error) {
-	if span := cs.addTrace("tryAddVote"); span != nil {
+	if span := cs.addTrace(fmt.Sprintf("tryAddVote(vote:%v,peerID:%s)", vote.Type, peerID)); span != nil {
 		defer span.End()
 	}
 
@@ -1636,7 +1655,8 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2pTypes.ID) (bool
 // -----------------------------------------------------------------------------
 
 func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2pTypes.ID) (added bool, err error) {
-	if span := cs.addTrace("addVote"); span != nil {
+	span := cs.addTrace(fmt.Sprintf("addVote(vote:%v,peerID:%s)", vote.Type, peerID))
+	if span != nil {
 		defer span.End()
 	}
 
@@ -1786,7 +1806,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2pTypes.ID) (added b
 		}
 
 	default:
-		panic(fmt.Sprintf("Unexpected vote type %X", vote.Type)) // go-amino should prevent this.
+		cs.panicWithTrace(span, fmt.Sprintf("Unexpected vote type %X", vote.Type)) // go-amino should prevent this.
 	}
 
 	return added, err
@@ -1837,7 +1857,8 @@ func (cs *ConsensusState) voteTime() time.Time {
 
 // sign the vote and publish on internalMsgQueue
 func (cs *ConsensusState) signAddVote(type_ types.SignedMsgType, hash []byte, header types.PartSetHeader) *types.Vote {
-	if span := cs.addTrace("signAddVote"); span != nil {
+	span := cs.addTrace("signAddVote")
+	if span != nil {
 		defer span.End()
 	}
 
@@ -1863,8 +1884,9 @@ func (cs *ConsensusState) signAddVote(type_ types.SignedMsgType, hash []byte, he
 
 		return vote
 	}
+
 	// if !cs.replayMode {
-	cs.Logger.Error("Error signing vote", "height", cs.Height, "round", cs.Round, "vote", vote, "err", err)
+	cs.logErrorWithTrace(span, fmt.Sprintf("Error signing vote: height: %v round: %v vote: %v err: %v", cs.Height, cs.Round, vote, err))
 	// }
 	return nil
 }
@@ -1893,18 +1915,38 @@ func (cs *ConsensusState) logTelemetry(block *types.Block) {
 	metrics.BlockSizeBytes.Record(context.Background(), int64(block.Size()))
 }
 
+func (cs *ConsensusState) logErrorWithTrace(span trace.Span, msg string) {
+	if span != nil {
+		span.RecordError(errors.New(msg))
+		span.SetStatus(codes.Error, msg)
+	}
+	cs.Logger.Error(msg)
+}
+
+func (cs *ConsensusState) panicWithTrace(span trace.Span, msg string) {
+	if span != nil {
+		span.RecordError(errors.New(msg))
+		span.SetStatus(codes.Error, msg)
+	}
+	panic(msg)
+}
+
 func (cs *ConsensusState) addTrace(spanName string, opts ...trace.SpanStartOption) trace.Span {
 	var span trace.Span
 
 	if telemetry.TracesEnabled() {
 		var ctx context.Context
-		spanNameWithInfo := fmt.Sprintf("%s - cs(h:%v r:%v s:%v)", spanName, cs.Height, cs.Round, cs.Step)
+		spanNameWithInfo := fmt.Sprintf("%s - CS(%v/%v/%v)", spanName, cs.Height, cs.Round, cs.Step)
+		spanNameWithInfo = strings.ReplaceAll(spanNameWithInfo, "RoundStep", "RS")
 
-		ctx, span = tracer.Start(cs.traceCtx, spanNameWithInfo, append(opts, trace.WithAttributes(
-			attribute.Int64("csHeight", cs.Height),
-			attribute.Int("csRound", cs.Round),
-			attribute.Int("csStep", int(cs.Step)),
-		))...)
+		ctx, span = tracer.Start(cs.traceCtx, spanNameWithInfo, opts...)
+		if span.IsRecording() {
+			span.SetAttributes(
+				attribute.Int64("csHeight", cs.Height),
+				attribute.Int("csRound", cs.Round),
+				attribute.Int("csStep", int(cs.Step)),
+			)
+		}
 		cs.traceCtx = ctx
 	}
 
