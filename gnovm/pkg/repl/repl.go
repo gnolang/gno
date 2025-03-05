@@ -125,7 +125,7 @@ func NewRepl(opts ...ReplOption) *Repl {
 	r.stderr = &b
 
 	r.storeFunc = func() gno.Store {
-		_, st := test.Store(gnoenv.RootDir(), false, r.stdin, r.stdout, r.stderr)
+		_, st := test.Store(gnoenv.RootDir(), r.stdin, r.stdout, r.stderr)
 		return st
 	}
 
@@ -156,7 +156,7 @@ func (r *Repl) Process(input string) (out string, err error) {
 	r.state.id++
 
 	if r.debug {
-		r.state.machine.Debugger.Enable(os.Stdin, os.Stdout, func(file string) string {
+		r.state.machine.Debugger.Enable(os.Stdin, os.Stdout, func(ppath, file string) string {
 			return r.state.files[file]
 		})
 		r.debug = false

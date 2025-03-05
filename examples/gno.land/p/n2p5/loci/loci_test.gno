@@ -8,11 +8,6 @@ import (
 )
 
 func TestLociStore(t *testing.T) {
-	t.Parallel()
-
-	u1 := testutils.TestAddress("u1")
-	u2 := testutils.TestAddress("u1")
-
 	t.Run("TestSet", func(t *testing.T) {
 		t.Parallel()
 		store := New()
@@ -20,7 +15,7 @@ func TestLociStore(t *testing.T) {
 
 		m1 := []byte("hello")
 		m2 := []byte("world")
-		std.TestSetOrigCaller(u1)
+		std.TestSetOriginCaller(u1)
 
 		// Ensure that the value is nil before setting it.
 		r1 := store.Get(u1)
@@ -52,11 +47,11 @@ func TestLociStore(t *testing.T) {
 		m2 := []byte("world")
 		m3 := []byte("goodbye")
 
-		std.TestSetOrigCaller(u1)
+		std.TestSetOriginCaller(u1)
 		store.Set(m1)
-		std.TestSetOrigCaller(u2)
+		std.TestSetOriginCaller(u2)
 		store.Set(m2)
-		std.TestSetOrigCaller(u3)
+		std.TestSetOriginCaller(u3)
 		store.Set(m3)
 
 		// Ensure that the value is correct after setting it.

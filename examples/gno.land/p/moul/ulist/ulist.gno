@@ -5,6 +5,17 @@
 // determined by the binary representation of the index. This provides automatic balancing
 // for append operations without requiring any balancing logic.
 //
+// Unlike the AVL tree-based list implementation (p/demo/avl/list), ulist is specifically
+// designed for append-only operations and does not require rebalancing. This makes it more
+// efficient for sequential inserts but less flexible for general-purpose list operations.
+//
+// Key differences from AVL list:
+// * Append-only design (no arbitrary inserts)
+// * No tree rebalancing needed
+// * Simpler implementation
+// * More memory efficient for sequential operations
+// * Less flexible than AVL (no arbitrary inserts/reordering)
+//
 // Key characteristics:
 // * O(log n) append and access operations
 // * Perfect balance for power-of-2 sizes
@@ -19,6 +30,7 @@ package ulist
 // TODO: Make avl/pager compatible in some way. Explain the limitations (not always 10 items because of nil ones).
 // TODO: Use this ulist in moul/collection for the primary index.
 // TODO: Consider adding a "compact" method that removes nil nodes.
+// TODO: Benchmarks.
 
 import (
 	"errors"
@@ -35,12 +47,12 @@ type List struct {
 // and Value is the stored data
 type Entry struct {
 	Index int
-	Value interface{}
+	Value any
 }
 
 // treeNode represents a node in the binary tree
 type treeNode struct {
-	data  interface{}
+	data  any
 	left  *treeNode
 	right *treeNode
 }
@@ -58,7 +70,7 @@ func New() *List {
 
 // Append adds one or more values to the end of the list.
 // Values are added sequentially, and the list grows automatically.
-func (l *List) Append(values ...interface{}) {
+func (l *List) Append(values ...any) {
 	for _, value := range values {
 		index := l.totalSize
 		node := l.findNode(index, true)
@@ -70,7 +82,7 @@ func (l *List) Append(values ...interface{}) {
 
 // Get retrieves the value at the specified index.
 // Returns nil if the index is out of bounds or if the element was deleted.
-func (l *List) Get(index int) interface{} {
+func (l *List) Get(index int) any {
 	node := l.findNode(index, false)
 	if node == nil {
 		return nil
@@ -105,6 +117,32 @@ func (l *List) Delete(indices ...int) error {
 	return nil
 }
 
+// Set updates or restores a value at the specified index if within bounds
+// Returns ErrOutOfBounds if the index is invalid
+func (l *List) Set(index int, value any) error {
+	if l == nil || index < 0 || index >= l.totalSize {
+		return ErrOutOfBounds
+	}
+
+	node := l.findNode(index, false)
+	if node == nil {
+		return ErrOutOfBounds
+	}
+
+	// If this is restoring a deleted element
+	if value != nil && node.data == nil {
+		l.activeSize++
+	}
+
+	// If this is deleting an element
+	if value == nil && node.data != nil {
+		l.activeSize--
+	}
+
+	node.data = value
+	return nil
+}
+
 // Size returns the number of active (non-deleted) elements in the list
 func (l *List) Size() int {
 	if l == nil {
@@ -124,7 +162,7 @@ func (l *List) TotalSize() int {
 
 // IterCbFn is a callback function type used in iteration methods.
 // Return true to stop iteration, false to continue.
-type IterCbFn func(index int, value interface{}) bool
+type IterCbFn func(index int, value any) bool
 
 // Iterator performs iteration between start and end indices, calling cb for each entry.
 // If start > end, iteration is performed in reverse order.
@@ -210,7 +248,7 @@ func (l *List) IteratorByOffset(offset int, count int, cb IterCbFn) bool {
 
 	// Wrap the callback to limit iterations
 	remaining := abs(count)
-	wrapper := func(index int, value interface{}) bool {
+	wrapper := func(index int, value any) bool {
 		if remaining <= 0 {
 			wrapperReturned = true
 			return true
@@ -233,7 +271,31 @@ func abs(x int) int {
 	return x
 }
 
-// Add this helper method to the List struct
+// findNode locates or creates a node at the given index in the binary tree.
+// The tree is structured such that the path to a node is determined by the binary
+// representation of the index. For example, a tree with 15 elements would look like:
+//
+//	          0
+//	       /      \
+//	     1         2
+//	   /   \     /   \
+//	  3    4    5     6
+//	 / \  / \  / \   / \
+//	7  8 9 10 11 12 13 14
+//
+// To find index 13 (binary 1101):
+// 1. Start at root (0)
+// 2. Calculate bits needed (4 bits for index 13)
+// 3. Skip the highest bit position and start from bits-2
+// 4. Read bits from left to right:
+//   - 1 -> go right to 2
+//   - 1 -> go right to 6
+//   - 0 -> go left to 13
+//
+// Special cases:
+// - Index 0 always returns the root node
+// - For create=true, missing nodes are created along the path
+// - For create=false, returns nil if any node is missing
 func (l *List) findNode(index int, create bool) *treeNode {
 	// For read operations, check bounds strictly
 	if !create && (l == nil || index < 0 || index >= l.totalSize) {
@@ -305,7 +367,7 @@ func (l *List) MustDelete(indices ...int) {
 
 // MustGet retrieves the value at the specified index.
 // Panics if the index is out of bounds or if the element was deleted.
-func (l *List) MustGet(index int) interface{} {
+func (l *List) MustGet(index int) any {
 	if l == nil || index < 0 || index >= l.totalSize {
 		panic(ErrOutOfBounds)
 	}
@@ -316,48 +378,57 @@ func (l *List) MustGet(index int) interface{} {
 	return value
 }
 
+// MustSet updates or restores a value at the specified index.
+// Panics if the index is out of bounds.
+func (l *List) MustSet(index int, value any) {
+	if err := l.Set(index, value); err != nil {
+		panic(err)
+	}
+}
+
 // GetRange returns a slice of Entry containing elements between start and end indices.
 // If start > end, elements are returned in reverse order.
 // Deleted elements are skipped.
 func (l *List) GetRange(start, end int) []Entry {
 	var entries []Entry
-	l.Iterator(start, end, func(index int, value interface{}) bool {
+	l.Iterator(start, end, func(index int, value any) bool {
 		entries = append(entries, Entry{Index: index, Value: value})
 		return false
 	})
 	return entries
 }
 
-// GetRangeByOffset returns a slice of Entry starting from offset for count elements.
+// GetByOffset returns a slice of Entry starting from offset for count elements.
 // If count is positive, returns elements forward; if negative, returns elements backward.
 // The operation stops after abs(count) elements or when reaching list bounds.
 // Deleted elements are skipped.
-func (l *List) GetRangeByOffset(offset int, count int) []Entry {
+func (l *List) GetByOffset(offset int, count int) []Entry {
 	var entries []Entry
-	l.IteratorByOffset(offset, count, func(index int, value interface{}) bool {
+	l.IteratorByOffset(offset, count, func(index int, value any) bool {
 		entries = append(entries, Entry{Index: index, Value: value})
 		return false
 	})
 	return entries
 }
 
-// IList defines the interface for list operations.
-// It provides methods for appending, accessing, deleting, and iterating over elements.
+// IList defines the interface for an ulist.List compatible structure.
 type IList interface {
 	// Basic operations
-	Append(values ...interface{})
-	Get(index int) interface{}
+	Append(values ...any)
+	Get(index int) any
 	Delete(indices ...int) error
 	Size() int
 	TotalSize() int
+	Set(index int, value any) error
 
 	// Must variants that panic instead of returning errors
 	MustDelete(indices ...int)
-	MustGet(index int) interface{}
+	MustGet(index int) any
+	MustSet(index int, value any)
 
 	// Range operations
 	GetRange(start, end int) []Entry
-	GetRangeByOffset(offset int, count int) []Entry
+	GetByOffset(offset int, count int) []Entry
 
 	// Iterator operations
 	Iterator(start, end int, cb IterCbFn) bool

@@ -38,11 +38,9 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 
 	out += "<div class='columns-2'>\n\n"
 
-	page := pager.NewPager(e.itemsSorted, pageSize, false).MustGetPageByPath(path)
+	page := pager.NewPager(e.itemsSorted, pageSize, true).MustGetPageByPath(path)
 
-	for i := len(page.Items) - 1; i >= 0; i-- {
-		item := page.Items[i]
-
+	for _, item := range page.Items {
 		out += "<div>\n\n"
 		id, _ := seqid.FromString(item.Key)
 		out += ufmt.Sprintf("### Submission #%d\n\n", int(id))
@@ -63,7 +61,7 @@ func (i Item) Render(dashboard bool) string {
 	out += ufmt.Sprintf("[View realm](%s)\n\n", strings.TrimPrefix(i.pkgpath, "gno.land")) // gno.land/r/leon/home > /r/leon/home
 	out += ufmt.Sprintf("Submitted at Block #%d\n\n", i.blockNum)
 
-	out += ufmt.Sprintf("#### [%d👍](%s) - [%d👎](%s)\n\n",
+	out += ufmt.Sprintf("**[%d👍](%s) - [%d👎](%s)**\n\n",
 		i.upvote.Size(), txlink.Call("Upvote", "pkgpath", i.pkgpath),
 		i.downvote.Size(), txlink.Call("Downvote", "pkgpath", i.pkgpath),
 	)
@@ -100,7 +98,7 @@ func RenderExhibWidget(itemsToRender int) string {
 
 	out := ""
 	i := 0
-	exhibition.items.Iterate("", "", func(key string, value interface{}) bool {
+	exhibition.items.Iterate("", "", func(key string, value any) bool {
 		item := value.(*Item)
 
 		out += ufmt.Sprintf("- %s\n", fqname.RenderLink(item.pkgpath, ""))

@@ -13,7 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/p2p"
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -66,7 +66,7 @@ func TestSecrets_Get_All(t *testing.T) {
 
 		// Get the node key
 		nodeKeyPath := filepath.Join(tempDir, defaultNodeKeyName)
-		nodeKey, err := readSecretData[p2p.NodeKey](nodeKeyPath)
+		nodeKey, err := readSecretData[types.NodeKey](nodeKeyPath)
 		require.NoError(t, err)
 
 		// Get the validator private key

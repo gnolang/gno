@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	ios_test "internal/os_test"
+	ios_test "os_test"
 )
 
 // XXX ugh, I can't even sleep milliseconds.
