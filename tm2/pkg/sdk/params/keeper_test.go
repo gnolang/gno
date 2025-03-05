@@ -13,24 +13,24 @@ func TestKeeper(t *testing.T) {
 	ctx, store, keeper := env.ctx, env.store, env.keeper
 	_ = store // XXX: add store tests?
 
-	require.False(t, keeper.Has(ctx, "param1.string"))
-	require.False(t, keeper.Has(ctx, "param2.bool"))
-	require.False(t, keeper.Has(ctx, "param3.uint64"))
-	require.False(t, keeper.Has(ctx, "param4.int64"))
-	require.False(t, keeper.Has(ctx, "param5.bytes"))
+	require.False(t, keeper.Has(ctx, "param1"))
+	require.False(t, keeper.Has(ctx, "param2"))
+	require.False(t, keeper.Has(ctx, "param3"))
+	require.False(t, keeper.Has(ctx, "param4"))
+	require.False(t, keeper.Has(ctx, "param5"))
 
 	// initial set
-	require.NotPanics(t, func() { keeper.SetString(ctx, "param1.string", "foo") })
-	require.NotPanics(t, func() { keeper.SetBool(ctx, "param2.bool", true) })
-	require.NotPanics(t, func() { keeper.SetUint64(ctx, "param3.uint64", 42) })
-	require.NotPanics(t, func() { keeper.SetInt64(ctx, "param4.int64", -1337) })
-	require.NotPanics(t, func() { keeper.SetBytes(ctx, "param5.bytes", []byte("hello world!")) })
+	require.NotPanics(t, func() { keeper.SetString(ctx, "param1", "foo") })
+	require.NotPanics(t, func() { keeper.SetBool(ctx, "param2", true) })
+	require.NotPanics(t, func() { keeper.SetUint64(ctx, "param3", 42) })
+	require.NotPanics(t, func() { keeper.SetInt64(ctx, "param4", -1337) })
+	require.NotPanics(t, func() { keeper.SetBytes(ctx, "param5", []byte("hello world!")) })
 
-	require.True(t, keeper.Has(ctx, "param1.string"))
-	require.True(t, keeper.Has(ctx, "param2.bool"))
-	require.True(t, keeper.Has(ctx, "param3.uint64"))
-	require.True(t, keeper.Has(ctx, "param4.int64"))
-	require.True(t, keeper.Has(ctx, "param5.bytes"))
+	require.True(t, keeper.Has(ctx, "param1"))
+	require.True(t, keeper.Has(ctx, "param2"))
+	require.True(t, keeper.Has(ctx, "param3"))
+	require.True(t, keeper.Has(ctx, "param4"))
+	require.True(t, keeper.Has(ctx, "param5"))
 
 	var (
 		param1 string
@@ -40,11 +40,11 @@ func TestKeeper(t *testing.T) {
 		param5 []byte
 	)
 
-	require.NotPanics(t, func() { keeper.GetString(ctx, "param1.string", &param1) })
-	require.NotPanics(t, func() { keeper.GetBool(ctx, "param2.bool", &param2) })
-	require.NotPanics(t, func() { keeper.GetUint64(ctx, "param3.uint64", &param3) })
-	require.NotPanics(t, func() { keeper.GetInt64(ctx, "param4.int64", &param4) })
-	require.NotPanics(t, func() { keeper.GetBytes(ctx, "param5.bytes", &param5) })
+	require.NotPanics(t, func() { keeper.GetString(ctx, "param1", &param1) })
+	require.NotPanics(t, func() { keeper.GetBool(ctx, "param2", &param2) })
+	require.NotPanics(t, func() { keeper.GetUint64(ctx, "param3", &param3) })
+	require.NotPanics(t, func() { keeper.GetInt64(ctx, "param4", &param4) })
+	require.NotPanics(t, func() { keeper.GetBytes(ctx, "param5", &param5) })
 
 	require.Equal(t, param1, "foo")
 	require.Equal(t, param2, true)
@@ -53,23 +53,23 @@ func TestKeeper(t *testing.T) {
 	require.Equal(t, param5, []byte("hello world!"))
 
 	// reset
-	require.NotPanics(t, func() { keeper.SetString(ctx, "param1.string", "bar") })
-	require.NotPanics(t, func() { keeper.SetBool(ctx, "param2.bool", false) })
-	require.NotPanics(t, func() { keeper.SetUint64(ctx, "param3.uint64", 12345) })
-	require.NotPanics(t, func() { keeper.SetInt64(ctx, "param4.int64", 1000) })
-	require.NotPanics(t, func() { keeper.SetBytes(ctx, "param5.bytes", []byte("bye")) })
+	require.NotPanics(t, func() { keeper.SetString(ctx, "param1", "bar") })
+	require.NotPanics(t, func() { keeper.SetBool(ctx, "param2", false) })
+	require.NotPanics(t, func() { keeper.SetUint64(ctx, "param3", 12345) })
+	require.NotPanics(t, func() { keeper.SetInt64(ctx, "param4", 1000) })
+	require.NotPanics(t, func() { keeper.SetBytes(ctx, "param5", []byte("bye")) })
 
-	require.True(t, keeper.Has(ctx, "param1.string"))
-	require.True(t, keeper.Has(ctx, "param2.bool"))
-	require.True(t, keeper.Has(ctx, "param3.uint64"))
-	require.True(t, keeper.Has(ctx, "param4.int64"))
-	require.True(t, keeper.Has(ctx, "param5.bytes"))
+	require.True(t, keeper.Has(ctx, "param1"))
+	require.True(t, keeper.Has(ctx, "param2"))
+	require.True(t, keeper.Has(ctx, "param3"))
+	require.True(t, keeper.Has(ctx, "param4"))
+	require.True(t, keeper.Has(ctx, "param5"))
 
-	require.NotPanics(t, func() { keeper.GetString(ctx, "param1.string", &param1) })
-	require.NotPanics(t, func() { keeper.GetBool(ctx, "param2.bool", &param2) })
-	require.NotPanics(t, func() { keeper.GetUint64(ctx, "param3.uint64", &param3) })
-	require.NotPanics(t, func() { keeper.GetInt64(ctx, "param4.int64", &param4) })
-	require.NotPanics(t, func() { keeper.GetBytes(ctx, "param5.bytes", &param5) })
+	require.NotPanics(t, func() { keeper.GetString(ctx, "param1", &param1) })
+	require.NotPanics(t, func() { keeper.GetBool(ctx, "param2", &param2) })
+	require.NotPanics(t, func() { keeper.GetUint64(ctx, "param3", &param3) })
+	require.NotPanics(t, func() { keeper.GetInt64(ctx, "param4", &param4) })
+	require.NotPanics(t, func() { keeper.GetBytes(ctx, "param5", &param5) })
 
 	require.Equal(t, param1, "bar")
 	require.Equal(t, param2, false)

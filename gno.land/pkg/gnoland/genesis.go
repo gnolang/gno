@@ -82,12 +82,11 @@ func LoadGenesisParamsFile(path string, ggs *GnoGenesisState) error {
 		return err
 	}
 
-	// Parameters are grouped by modules (or module:realm if realm exists).
-	// The realm is "_" for keeper param structs.
-	// While the vm module uses 'realm' for realm package paths,
-	// other keepers may use the realm portion for non-realm sub-modules.
-	// TODO just rename "realm" to submodule in the path spec.
-	m := map[string] /* <module>(:<realm>)? */ map[string] /* <name> */ interface{} /* <value> */ {}
+	// Parameters are grouped by modules (or more specifically module:submodule).
+	// The vm module uses the submodule for realm package paths.
+	// If only the module is specified, the submodule is assumed to be "p"
+	// for keeper param structs.
+	m := map[string] /* <module>(:<submodule>)? */ map[string] /* <name> */ interface{} /* <value> */ {}
 	err = toml.Unmarshal(content, &m)
 	if err != nil {
 		return err
@@ -136,7 +135,7 @@ func LoadGenesisParamsFile(path string, ggs *GnoGenesisState) error {
 				ggs.VM.RealmParams = append(ggs.VM.RealmParams, param)
 			}
 		} else {
-			return errors.New("invalid key " + modrlm + ", expected format <module>(:<realm>)?")
+			return errors.New("invalid key " + modrlm + ", expected format <module>:<realm>:<name>")
 		}
 	}
 	return nil

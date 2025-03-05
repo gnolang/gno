@@ -21,14 +21,16 @@ var (
 )
 
 const (
-	// unrestricted allows unrestricted transfers.
-	unrestricted BitSet = 1 << iota
+	// XXX rename these to flagXyz.
 
-	// TODO: validatorAccount marks an account as validator.
-	validatorAccount
+	// flagUnrestricted allows flagUnrestricted transfers.
+	flagUnrestricted BitSet = 1 << iota
 
-	// TODO: realmAccount marks an account as realm.
-	realmAccount
+	// TODO: flagValidatorAccount marks an account as validator.
+	flagValidatorAccount
+
+	// TODO: flagRealmAccount marks an account as realm.
+	flagRealmAccount
 )
 
 // bitSet represents a set of flags stored in a 64-bit unsigned integer.
@@ -47,7 +49,7 @@ type GnoAccount struct {
 }
 
 // validFlags defines the set of all valid flags that can be used with BitSet.
-var validFlags = unrestricted | validatorAccount | realmAccount
+var validFlags = flagUnrestricted | flagValidatorAccount | flagRealmAccount
 
 func (ga *GnoAccount) setFlag(flag BitSet) {
 	if !isValidFlag(flag) {
@@ -80,12 +82,12 @@ func isValidFlag(flag BitSet) bool {
 // SetUnrestricted allows the account to bypass global transfer locking restrictions.
 // By default, accounts are restricted when global transfer locking is enabled.
 func (ga *GnoAccount) SetUnrestricted() {
-	ga.setFlag(unrestricted)
+	ga.setFlag(flagUnrestricted)
 }
 
-// IsUnrestricted checks whether the account is unrestricted.
+// IsUnrestricted checks whether the account is flagUnrestricted.
 func (ga *GnoAccount) IsUnrestricted() bool {
-	return ga.hasFlag(unrestricted)
+	return ga.hasFlag(flagUnrestricted)
 }
 
 // String implements fmt.Stringer
