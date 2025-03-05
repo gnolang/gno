@@ -1,7 +1,9 @@
-package ulist
+package lplist
 
 import (
 	"errors"
+
+	"gno.land/p/moul/ulist"
 )
 
 // MigratorFn is a function type that lazily converts values from source to target
@@ -9,17 +11,16 @@ type MigratorFn func(interface{}) interface{}
 
 // LayeredProxyList represents a wrapper around an existing List that handles migration
 type LayeredProxyList struct {
-	source       IList
-	target       *List
+	source       ulist.IList
+	target       *ulist.List
 	migrator     MigratorFn
 	sourceHeight int // Store initial source size to optimize lookups
 }
 
 // NewLayeredProxyList creates a new LayeredProxyList instance that wraps an existing List
-func NewLayeredProxyList(source IList, migrator MigratorFn) *LayeredProxyList {
+func NewLayeredProxyList(source ulist.IList, migrator MigratorFn) *LayeredProxyList {
 	sourceHeight := source.TotalSize()
-	target := New()
-	target.totalSize = sourceHeight
+	target := ulist.New()
 	return &LayeredProxyList{
 		source:       source,
 		target:       target,
@@ -43,8 +44,9 @@ func (l *LayeredProxyList) Get(index int) interface{} {
 		}
 		return val
 	}
-	// Access target list directly for new indices
-	return l.target.Get(index)
+	// For indices >= sourceHeight, adjust index to be relative to target list starting at 0
+	targetIndex := index - l.sourceHeight
+	return l.target.Get(targetIndex)
 }
 
 // Append adds one or more values to the target list
@@ -56,10 +58,21 @@ func (l *LayeredProxyList) Append(values ...interface{}) {
 func (l *LayeredProxyList) Delete(indices ...int) error {
 	for _, index := range indices {
 		if index < l.sourceHeight {
-			return errors.New("cannot delete from source list")
+			err := l.source.Delete(index)
+			if err != nil {
+				return err
+			}
 		}
 	}
-	return l.target.Delete(indices...)
+
+	for _, index := range indices {
+		targetIndex := index - l.sourceHeight
+		err := l.target.Delete(targetIndex)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Size returns the total number of active elements
@@ -67,9 +80,9 @@ func (l *LayeredProxyList) Size() int {
 	return l.source.Size() + l.target.Size()
 }
 
-// TotalSize returns the total number of elements ever added
+// TotalSize returns the total number of elements in the list
 func (l *LayeredProxyList) TotalSize() int {
-	return l.target.TotalSize()
+	return l.sourceHeight + l.target.TotalSize()
 }
 
 // MustDelete deletes elements, panicking on error
@@ -83,33 +96,33 @@ func (l *LayeredProxyList) MustDelete(indices ...int) {
 func (l *LayeredProxyList) MustGet(index int) interface{} {
 	val := l.Get(index)
 	if val == nil {
-		panic(ErrDeleted)
+		panic(ulist.ErrDeleted)
 	}
 	return val
 }
 
 // GetRange returns elements between start and end indices
-func (l *LayeredProxyList) GetRange(start, end int) []Entry {
-	var entries []Entry
+func (l *LayeredProxyList) GetRange(start, end int) []ulist.Entry {
+	var entries []ulist.Entry
 	l.Iterator(start, end, func(index int, value interface{}) bool {
-		entries = append(entries, Entry{Index: index, Value: value})
+		entries = append(entries, ulist.Entry{Index: index, Value: value})
 		return false
 	})
 	return entries
 }
 
 // GetRangeByOffset returns elements starting from offset
-func (l *LayeredProxyList) GetRangeByOffset(offset int, count int) []Entry {
-	var entries []Entry
+func (l *LayeredProxyList) GetRangeByOffset(offset int, count int) []ulist.Entry {
+	var entries []ulist.Entry
 	l.IteratorByOffset(offset, count, func(index int, value interface{}) bool {
-		entries = append(entries, Entry{Index: index, Value: value})
+		entries = append(entries, ulist.Entry{Index: index, Value: value})
 		return false
 	})
 	return entries
 }
 
 // Iterator performs iteration between start and end indices
-func (l *LayeredProxyList) Iterator(start, end int, cb IterCbFn) bool {
+func (l *LayeredProxyList) Iterator(start, end int, cb ulist.IterCbFn) bool {
 	// For empty list or invalid range
 	if start < 0 && end < 0 {
 		return false
@@ -157,7 +170,7 @@ func (l *LayeredProxyList) Iterator(start, end int, cb IterCbFn) bool {
 }
 
 // IteratorByOffset performs iteration starting from offset
-func (l *LayeredProxyList) IteratorByOffset(offset int, count int, cb IterCbFn) bool {
+func (l *LayeredProxyList) IteratorByOffset(offset int, count int, cb ulist.IterCbFn) bool {
 	if count == 0 {
 		return false
 	}
@@ -180,7 +193,13 @@ func (l *LayeredProxyList) IteratorByOffset(offset int, count int, cb IterCbFn) 
 	}
 
 	wrapperReturned := false
-	remaining := abs(count)
+
+	// Calculate absolute value manually instead of using abs function
+	remaining := count
+	if remaining < 0 {
+		remaining = -remaining
+	}
+
 	wrapper := func(index int, value interface{}) bool {
 		if remaining <= 0 {
 			wrapperReturned = true
@@ -197,5 +216,34 @@ func (l *LayeredProxyList) IteratorByOffset(offset int, count int, cb IterCbFn) 
 	return ret
 }
 
+// Set updates the value at the specified index
+func (l *LayeredProxyList) Set(index int, value interface{}) error {
+	if index < l.sourceHeight {
+		// Cannot modify source list directly
+		return errors.New("cannot modify source list directly")
+	}
+
+	// Adjust index to be relative to target list starting at 0
+	targetIndex := index - l.sourceHeight
+	return l.target.Set(targetIndex, value)
+}
+
+// MustSet updates the value at the specified index, panicking on error
+func (l *LayeredProxyList) MustSet(index int, value interface{}) {
+	if err := l.Set(index, value); err != nil {
+		panic(err)
+	}
+}
+
+// GetByOffset returns elements starting from offset with count determining direction
+func (l *LayeredProxyList) GetByOffset(offset int, count int) []ulist.Entry {
+	var entries []ulist.Entry
+	l.IteratorByOffset(offset, count, func(index int, value interface{}) bool {
+		entries = append(entries, ulist.Entry{Index: index, Value: value})
+		return false
+	})
+	return entries
+}
+
 // Verify that LayeredProxyList implements IList
-var _ IList = (*LayeredProxyList)(nil)
+var _ ulist.IList = (*LayeredProxyList)(nil)
