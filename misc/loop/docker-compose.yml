@@ -52,7 +52,7 @@ services:
       - portal-loop
     labels:
       - traefik.enable=true
-      - traefik.http.routers.gnoweb.entrypoints="web,websecure"
+      - traefik.http.routers.gnoweb.entrypoints=web,websecure
       - traefik.http.routers.gnoweb.rule=Host(`gno.land`) || Host(`www.gno.land`) || Host(`portal-loop.gnoteam.com`) || Host(`private-loop.gnoteam.com`)
       - traefik.http.routers.gnoweb.tls=true
       - traefik.http.routers.gnoweb.tls.certresolver=le
