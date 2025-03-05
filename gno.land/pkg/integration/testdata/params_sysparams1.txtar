@@ -8,7 +8,7 @@ gnokey maketx addpkg -pkgdir $WORK/params -pkgpath gno.land/r/sys/params -gas-fe
 
 ## before set lock transfer
 gnokey query params/bank:p:restricted_denoms
-stdout 'data: null\n'
+stdout 'data: \[\]\n'
 
 ## lock transfer
 gnokey maketx call -pkgpath gno.land/r/sys/params -func SetLockTransfer -args "ugnot" -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
