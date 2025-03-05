@@ -31,11 +31,11 @@ func TestArbitraryParamsQuery(t *testing.T) {
 		path     string
 		expected string
 	}{
-		{path: "params/foo/bar.string", expected: `"baz"`},
-		{path: "params/foo/bar.int64", expected: `"-12345"`},
-		{path: "params/foo/bar.uint64", expected: `"4242"`},
-		{path: "params/foo/bar.bool", expected: "true"},
-		{path: "params/foo/bar.bytes", expected: `"YmF6"`},
+		{path: "params/" + dummyModuleName + ":bar_string", expected: `"baz"`},
+		{path: "params/" + dummyModuleName + ":bar_int64", expected: `"-12345"`},
+		{path: "params/" + dummyModuleName + ":bar_uint64", expected: `"4242"`},
+		{path: "params/" + dummyModuleName + ":bar_bool", expected: "true"},
+		{path: "params/" + dummyModuleName + ":bar_bytes", expected: `"YmF6"`},
 	}
 
 	for _, tc := range tcs {
@@ -48,11 +48,11 @@ func TestArbitraryParamsQuery(t *testing.T) {
 		require.Nil(t, res.Data)
 	}
 
-	env.keeper.SetString(env.ctx, "foo/bar.string", "baz")
-	env.keeper.SetInt64(env.ctx, "foo/bar.int64", -12345)
-	env.keeper.SetUint64(env.ctx, "foo/bar.uint64", 4242)
-	env.keeper.SetBool(env.ctx, "foo/bar.bool", true)
-	env.keeper.SetBytes(env.ctx, "foo/bar.bytes", []byte("baz"))
+	env.keeper.SetString(env.ctx, dummyModuleName+":bar_string", "baz")
+	env.keeper.SetInt64(env.ctx, dummyModuleName+":bar_int64", -12345)
+	env.keeper.SetUint64(env.ctx, dummyModuleName+":bar_uint64", 4242)
+	env.keeper.SetBool(env.ctx, dummyModuleName+":bar_bool", true)
+	env.keeper.SetBytes(env.ctx, dummyModuleName+":bar_bytes", []byte("baz"))
 
 	for _, tc := range tcs {
 		req := abci.RequestQuery{

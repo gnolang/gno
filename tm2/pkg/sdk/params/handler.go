@@ -3,9 +3,9 @@ package params
 import (
 	"fmt"
 	"strings"
-	"unicode"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -30,22 +30,39 @@ func (bh paramsHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 // - params/prefix:key for a prefixed module parameter key.
 // - params/key for an arbitrary parameter key.
 func (bh paramsHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	prefix, paramKey := parseParamKey(req.Path)
-	if prefix != "" {
-		if bh.params.ModuleExists(prefix) == false {
-			res = sdk.ABCIResponseQueryFromError(
-				std.ErrUnknownRequest(fmt.Sprintf("unknown params query endpoint %q", prefix)))
+	parts := strings.SplitN(req.Path, "/", 2)
+	var path, rest string
+	if len(parts) == 0 {
+		// return helpful instructions.
+	} else if len(parts) == 1 {
+		path = parts[0]
+		rest = ""
+	} else {
+		path = parts[0]
+		rest = parts[1]
+	}
+	switch path {
+	case "params":
+		module, err := moduleOf(rest)
+		if err != nil {
+			res = sdk.ABCIResponseQueryFromError(err)
 			return
 		}
-	}
-	if paramKey == "" {
-		res = sdk.ABCIResponseQueryFromError(
-			std.ErrUnknownRequest("param key is empty"))
+		if !bh.params.ModuleExists(module) {
+			res = sdk.ABCIResponseQueryFromError(
+				std.ErrUnknownRequest(fmt.Sprintf("module not registered: %q", module)))
+			return
+		}
+		val := bh.params.GetRaw(ctx, rest)
+		res.Data = val
 		return
+
+	default:
+		res = sdk.ABCIResponseQueryFromError(
+			std.ErrUnknownRequest(fmt.Sprintf("unknown params query endpoint %q", path)))
+		return
+
 	}
-	val := bh.params.GetRaw(ctx, paramKey)
-	res.Data = val
-	return
 }
 
 //----------------------------------------
@@ -55,34 +72,16 @@ func abciResult(err error) sdk.Result {
 	return sdk.ABCIResultFromError(err)
 }
 
-// paramKey may include a prefix in the format "<prefix:>" if a prefix is detected.
-func parseParamKey(path string) (prefix, key string) {
-	parts := strings.SplitN(path, "/", 2)
+// extracts the module portion of a key
+// of the format <module>:<submodule>:<name>
+func moduleOf(key string) (module string, err error) {
+	parts := strings.SplitN(key, ":", 2)
 	if len(parts) < 2 {
-		return "", ""
+		return "", errors.New("expected param key format <module>:<rest>, but got %q", key)
 	}
-	remainder := parts[1]
-	// Look for the first colon.
-	colonIndex := strings.Index(remainder, ":")
-	if colonIndex == -1 {
-		// No colon found: treat entire remainder as the key.
-		return "", remainder
+	module = parts[0]
+	if len(module) == 0 {
+		return "", errors.New("expected param key format <module>:<rest>, but got %q", key)
 	}
-
-	candidatePrefix := remainder[:colonIndex]
-	// If candidatePrefix , it is not considered a valid module prefix.
-
-	isPrefix := true
-	for _, char := range candidatePrefix {
-		if !unicode.IsLetter(char) && !unicode.IsDigit(char) && char != '_' {
-			isPrefix = false
-		}
-	}
-
-	if isPrefix == false {
-		return "", remainder
-	}
-
-	// Otherwise, candidatePrefix is valid.
-	return candidatePrefix, remainder
+	return module, nil
 }
