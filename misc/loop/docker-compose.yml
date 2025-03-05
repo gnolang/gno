@@ -56,11 +56,10 @@ services:
       - traefik.http.routers.gnoweb.rule=Host(`gno.land`) || Host(`www.gno.land`) || Host(`portal-loop.gnoteam.com`) || Host(`private-loop.gnoteam.com`)
       - traefik.http.routers.gnoweb.tls=true
       - traefik.http.routers.gnoweb.tls.certresolver=le
+      - com.centurylinklabs.watchtower.enable=true
 
   gnofaucet:
     image: ghcr.io/gnolang/gno/gnofaucet:master
-    networks:
-      - portal-loop
     command:
       - serve
       - --listen-address=0.0.0.0:5050
@@ -71,6 +70,8 @@ services:
       - --remote=http://traefik:26657
       - --captcha-secret=${CAPTCHA_SECRET_KEY}
     env_file: .env
+    networks:
+      - portal-loop
     labels:
       - traefik.enable=true
       - traefik.http.routers.gnofaucet-api.entrypoints=websecure
@@ -83,14 +84,14 @@ services:
 
   tx-indexer:
     image: ghcr.io/gnolang/tx-indexer:latest
-    networks:
-      - portal-loop
     command:
       - start
       - -http-rate-limit=500
       - -listen-address=0.0.0.0:8546
       - -max-slots=2000
       - -remote=http://traefik:26657
+    networks:
+      - portal-loop
     labels:
       - traefik.enable=true
       - traefik.http.routers.tx-indexer.entrypoints=websecure
@@ -114,8 +115,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - portal-loop
-    ports:
-      - 9090:9090
     environment:
       - HOST_PWD=$PWD
       - SNAPSHOTS_DIR=/backups/snapshots
