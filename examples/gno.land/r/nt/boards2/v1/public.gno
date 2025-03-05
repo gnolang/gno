@@ -319,13 +319,15 @@ func EditThread(boardID BoardID, threadID PostID, title, body string) {
 	title = strings.TrimSpace(title)
 	assertTitleIsValid(title)
 
-	body = strings.TrimSpace(body)
-	assertBodyIsNotEmpty(body)
-
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
 
 	thread := mustGetThread(board, threadID)
+	body = strings.TrimSpace(body)
+	if !thread.IsRepost() {
+		assertBodyIsNotEmpty(body)
+	}
+
 	caller := std.OriginCaller()
 	if caller != thread.GetCreator() {
 		assertHasBoardPermission(board, caller, PermissionThreadEdit)
