@@ -32,7 +32,7 @@ Power up your gno.land journey with these tools:
 ## Monitoring & Analytics
 
 - [Block Explorer](https://gnoscan.io/) - Transaction history and block details
-- [Network Status](https://status.gno.land/) - Health and status of gno.land networks
+- [Network Status](https://status.gnoteam.com/) - Health and status of gno.land networks
 
 ## Educational Resources
 

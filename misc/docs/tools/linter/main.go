@@ -15,7 +15,8 @@ import (
 )
 
 type cfg struct {
-	docsPath string
+	docsPath       string
+	treatUrlsAsErr bool
 }
 
 func main() {
@@ -47,6 +48,13 @@ func (c *cfg) RegisterFlags(fs *flag.FlagSet) {
 		"path",
 		"./",
 		"path to dir to walk for .md files",
+	)
+
+	fs.BoolVar(
+		&c.treatUrlsAsErr,
+		"treat-urls-as-err",
+		true,
+		"treat URL 404s as errors instead of warnings",
 	)
 }
 
@@ -110,12 +118,10 @@ func execLint(cfg *cfg, ctx context.Context) (string, error) {
 	})
 
 	g.Go(func() error {
-		res, err := lintURLs(filepathToURLs, ctx)
-		if err != nil {
-			writeLock.Lock()
-			output.WriteString(res)
-			writeLock.Unlock()
-		}
+		res, err := lintURLs(ctx, filepathToURLs, cfg.treatUrlsAsErr)
+		writeLock.Lock()
+		output.WriteString(res)
+		writeLock.Unlock()
 
 		return err
 	})

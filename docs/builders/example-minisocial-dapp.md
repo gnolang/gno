@@ -377,7 +377,7 @@ Full code of this app can be found on the Portal Loop network, on
 ## Bonus - resolving usernames
 
 Let's make our MiniSocial app even better by resolving addresses to potential usernames
-registered in the [gno.land user registry](https://gno.land/r/gnoland/users).
+registered in the [gno.land user registry](https://gno.land/demo/users).
 
 We can import the `gno.land/r/sys/users` realm which provides user data and use 
 it to try to resolve the address:

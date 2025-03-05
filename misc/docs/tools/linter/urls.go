@@ -44,14 +44,14 @@ func extractUrls(fileContent []byte) []string {
 	return urls
 }
 
-func lintURLs(filepathToURLs map[string][]string, ctx context.Context) (string, error) {
+func lintURLs(ctx context.Context, filepathToURLs map[string][]string, treatAsError bool) (string, error) {
 	// Setup parallel checking for links
 	g, _ := errgroup.WithContext(ctx)
 
 	var (
-		lock   sync.Mutex
-		output bytes.Buffer
-		found  bool
+		lock            sync.Mutex
+		output          bytes.Buffer
+		hasInvalidLinks bool
 	)
 
 	for filePath, urls := range filepathToURLs {
@@ -61,9 +61,9 @@ func lintURLs(filepathToURLs map[string][]string, ctx context.Context) (string, 
 			g.Go(func() error {
 				if err := checkUrl(url); err != nil {
 					lock.Lock()
-					if !found {
+					if !hasInvalidLinks {
 						output.WriteString("Remote links that need checking:\n")
-						found = true
+						hasInvalidLinks = true
 					}
 
 					output.WriteString(fmt.Sprintf(">>> %s (found in file: %s)\n", url, filePath))
@@ -80,7 +80,10 @@ func lintURLs(filepathToURLs map[string][]string, ctx context.Context) (string, 
 		return "", err
 	}
 
-	if found {
+	if !treatAsError {
+		errFound404Links = nil
+	}
+	if hasInvalidLinks {
 		return output.String(), errFound404Links
 	}
 
