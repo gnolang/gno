@@ -1,131 +1,24 @@
-name: Docs Deploy - Build Docusaurus
-
+# This workflow triggers a cross-repo workflow call,
+# that deploys the monorepo docs on Netlify, using Docusaurus
+name: Deploy the Documentation
 on:
   push:
     branches:
       - master
-  pull_request:
     paths:
       - "docs/**"
-      - "misc/docs/docusaurus/*"
-  workflow_dispatch:
 
 jobs:
-  pick-s3-folder:
+  trigger-netlify-docs-deploy:
     runs-on: ubuntu-latest
-    outputs:
-      s3-folder: ${{ steps.set-s3-folder.outputs.s3-folder }}
     steps:
-      # Define S3 folder name
-      - name: Detect Github Event
-        id: set-s3-folder
-        run: |
-          DEFAULT_BRANCH=$(jq -r '.repository.default_branch' < "$GITHUB_EVENT_PATH")
-          if [[ $GITHUB_EVENT_NAME == "pull_request" ]]; then
-              BASE_SHA=$(jq -r '.pull_request.base.sha' < "$GITHUB_EVENT_PATH")
-              echo "Using as output dir $BASE_SHA"
-              echo "s3-folder=$BASE_SHA" >> $GITHUB_OUTPUT
-          elif [[ $GITHUB_REF == "refs/heads/"$DEFAULT_BRANCH ]]; then
-            echo "Using as output prod"
-            echo "s3-folder=" >> $GITHUB_OUTPUT
-          else
-            echo "fallback to dev"
-            echo "s3-folder=dev" >> $GITHUB_OUTPUT
-          fi
-
-  build_docs:
-    runs-on: ubuntu-latest
-    needs: pick-s3-folder
-    defaults:
-      run:
-        working-directory: docusaurus
-    steps:
-      # Checkout
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      # Node setup
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/github-script@v7
         with:
-          node-version: '20'
-
-      # Yarn Cache
-      - name: Yarn Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            docusaurus/node_modules
-          # **/.yarn/cache
-          # **/.pnp.*
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-
-
-      # Arrange base url endpoint
-      - name: Fix Base URL inplace
-        run: |
-          S3_FOLDER="${{ needs.pick-s3-folder.outputs.s3-folder }}"
-          if [ -z "$S3_FOLDER" ]; then
-            echo "Skipping substitution"
-            exit 0
-          fi
-          sed -ie "s#baseUrl\:\ \"\/\",#baseUrl: \"/docs.gno.land/${S3_FOLDER}/\",#" docusaurus.config.js
-
-      # Install - finally using Cache
-      - name: Install Docusaurus Dependencies
-        run: yarn install
-
-      # Build Doc
-      - name: Build Docusaurus Docs
-        run: yarn build
-
-      # Output for next Job
-      - name: Store generated doc for next job
-        uses: actions/upload-artifact@v4
-        with:
-          name: gno-doc
-          path: docusaurus/build/
-
-  web_preview:
-    runs-on: ubuntu-latest
-    permissions:
-      deployments: write
-    needs: [pick-s3-folder, build_docs]
-    steps:
-      - name: Download generated doc
-        uses: actions/download-artifact@v4
-        with:
-          name: gno-doc
-
-      # Deployment setup
-      - uses: chrnorm/deployment-action@v2
-        name: Create GitHub deployment
-        id: deploydoc
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          description: 'Preview of doc'
-          environment: preview
-          environment-url: https://s3.eu-west-1.amazonaws.com/docs.gno.land/${{ needs.pick-s3-folder.outputs.s3-folder }}/index.html
-
-      # Upload to S3
-      - uses: shallwefootball/s3-upload-action@master
-        name: Upload S3
-        id: S3
-        with:
-          aws_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
-          aws_bucket: docs.gno.land
-          source_dir: .
-          destination_dir: ${{ needs.pick-s3-folder.outputs.s3-folder }}
-
-      # Update deployment status
-      - name: Update deployment status (success)
-        if: success()
-        uses: chrnorm/deployment-status@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          # Env url should be the same as in: ${{ steps.deploydoc.outputs.environment_url }}
-          environment-url: https://s3.eu-west-1.amazonaws.com/docs.gno.land/${{steps.S3.outputs.object_key}}/index.html
-          deployment-id: ${{ steps.deploydoc.outputs.deployment_id }}
-          state: 'success'
+          github-token: ${{ secrets.DOCS_DEPLOY_PAT }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+                owner: 'gnolang',
+                repo: 'docs.gno.land',
+                workflow_id: 'netlify.yml',
+                ref: 'main'
+            })

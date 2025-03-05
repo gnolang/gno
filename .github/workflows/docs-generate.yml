@@ -31,6 +31,5 @@ jobs:
           fi
 
       - name: make lint
-        lint: |
-          working-directory: docs/
-          run: make lint
+        working-directory: docs/
+        run: make lint
