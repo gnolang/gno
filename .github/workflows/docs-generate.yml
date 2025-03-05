@@ -16,7 +16,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: ./misc/devdeps/go.mod
+          go-version-file: ./go.mod
 
       - name: make generate
         working-directory: docs/
