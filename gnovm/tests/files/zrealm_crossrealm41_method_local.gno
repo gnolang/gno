@@ -15,7 +15,7 @@ func main() {
 }
 
 // Output:
-// <*gno.land/r/crossrealm_test.MyStruct>.M(sv *gno.land/r/crossrealm_test.MyStruct)( string)
+// <*gno.land/r/crossrealm_test.MyStruct>.M(*gno.land/r/crossrealm_test.MyStruct)(string)
 
 // Realm:
 // switchrealm["gno.land/r/crossrealm_test"]

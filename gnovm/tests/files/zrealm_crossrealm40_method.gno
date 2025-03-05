@@ -11,4 +11,4 @@ func main() {
 }
 
 // Output:
-// <*gno.land/r/demo/tests/crossrealm/func.MyStruct>.M(sv *gno.land/r/demo/tests/crossrealm/func.MyStruct)( string)
+// <*gno.land/r/demo/tests/crossrealm/func.MyStruct>.M(*gno.land/r/demo/tests/crossrealm/func.MyStruct)(string)
