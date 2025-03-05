@@ -36,8 +36,8 @@ func renderHomepage() string {
 		md.Paragraph("This realm provides information about coins on the Gno.land blockchain.") +
 		md.H2("Usage") +
 		md.Paragraph("View coin supply: `/r/gnoland/coins:<denom>`\n\n"+
-			"Check address balance: `/r/gnoland/coins:<denom>/<address>`\n\n"+
-			"[Check total ugnot supply](/r/gnoland/coins:ugnot)")
+			"Check address balance: `/r/gnoland/coins:<denom>/<address>`\n\n") +
+		md.Link("Check total ugnot supply", "/r/gnoland/coins:ugnot")
 }
 
 func renderCoinInfo(banker std.Banker, denom string) string {
@@ -46,7 +46,7 @@ func renderCoinInfo(banker std.Banker, denom string) string {
 
 	return md.H1("Coin Information: "+denom) +
 		//"Total Supply: " + std.NewCoin(denom, total).String() + "\n\n" +
-		md.Paragraph("[← Back to homepage](/r/gnoland/coins)")
+		md.Link("← Back to homepage", "/r/gnoland/coins")
 }
 
 func renderAddressBalance(banker std.Banker, denom string, addrStr string) string {
@@ -57,6 +57,6 @@ func renderAddressBalance(banker std.Banker, denom string, addrStr string) strin
 	return md.H1("Address Balance") +
 		md.Paragraph("Address: **"+addrStr+"**") +
 		md.Paragraph("Balance: **"+std.NewCoin(denom, balance).String()+"**") +
-		md.Paragraph("[← Back to coin info](/r/gnoland/coins:"+denom+")") +
-		md.Paragraph("[← Back to homepage](/r/gnoland/coins)")
+		md.Link("← Coin info", "/r/gnoland/coins:"+denom) + "\n\n" +
+		md.Link("← Back to homepage", "/r/gnoland/coins")
 }
