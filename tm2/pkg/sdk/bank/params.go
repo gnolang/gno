@@ -49,19 +49,19 @@ func (bank BankKeeper) SetParams(ctx sdk.Context, params Params) error {
 	if err := params.Validate(); err != nil {
 		return err
 	}
-	bank.paramk.SetStruct(ctx, "_", params)
+	bank.paramk.SetStruct(ctx, "p", params)
 	return nil
 }
 
 func (bank BankKeeper) GetParams(ctx sdk.Context) Params {
 	params := Params{}
-	bank.paramk.GetStruct(ctx, "_", &params)
+	bank.paramk.GetStruct(ctx, "p", &params)
 	return params
 }
 
 func (bank BankKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
 	switch key {
-	case "_:restricted_denoms": // XXX test
+	case "p:restricted_denoms": // XXX test
 		bank.WillSetRestrictedDenoms(ctx, value.([]string))
 	default:
 		// Allow setting non-existent key.

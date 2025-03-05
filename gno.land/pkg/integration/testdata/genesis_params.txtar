@@ -7,7 +7,7 @@ gnoland start
 # default initialization of "gnoland" provides the expected default values.
 
 # Verify the default chain domain parameter for Gno.land
-gnokey query params/vm:_:chain_domain
+gnokey query params/vm:p:chain_domain
 stdout 'data: "gno.land"$'
 
 # Test custom parameters to confirm they return the expected values and types.

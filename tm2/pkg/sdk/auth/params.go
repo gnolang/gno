@@ -22,8 +22,6 @@ const (
 
 	DefaultGasPricesChangeCompressor int64 = 10
 	DefaultTargetGasRatio            int64 = 70 //  70% of the MaxGas in a block
-
-	paramsKey = "p"
 )
 
 // Params defines the parameters for the auth module.
@@ -116,13 +114,13 @@ func (ak AccountKeeper) SetParams(ctx sdk.Context, params Params) error {
 	if err := params.Validate(); err != nil {
 		return err
 	}
-	ak.paramk.SetStruct(ctx, "_", params)
+	ak.paramk.SetStruct(ctx, "p", params)
 	return nil
 }
 
 func (ak AccountKeeper) GetParams(ctx sdk.Context) Params {
 	params := Params{}
-	ak.paramk.GetStruct(ctx, "_", &params)
+	ak.paramk.GetStruct(ctx, "p", &params)
 	return params
 }
 

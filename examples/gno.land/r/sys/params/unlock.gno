@@ -8,11 +8,11 @@ const (
 )
 
 func ProposeUnlockTransfer() uint64 {
-	exe := NewSysParamStringsPropExecutor(bankModulePrefix, "_", restrictedDenomsKey, []string{})
+	exe := NewSysParamStringsPropExecutor(bankModulePrefix, "p", restrictedDenomsKey, []string{})
 	return propose(exe, unlockTransferTitle, "")
 }
 
 func ProposeLockTransfer() uint64 {
-	exe := NewSysParamStringsPropExecutor(bankModulePrefix, "_", restrictedDenomsKey, []string{"ugnot"})
+	exe := NewSysParamStringsPropExecutor(bankModulePrefix, "p", restrictedDenomsKey, []string{"ugnot"})
 	return propose(exe, lockTransferTitle, "")
 }

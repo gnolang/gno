@@ -110,10 +110,10 @@ func TestWillSetParam(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.shouldPanic {
 				assert.Panics(t, func() {
-					prmk.SetString(ctx, "vm:_:"+tt.key, tt.value)
+					prmk.SetString(ctx, "vm:p:"+tt.key, tt.value)
 				}, "expected panic for test: %s", tt.name)
 			} else {
-				prmk.SetString(ctx, "vm:_:"+tt.key, tt.value)
+				prmk.SetString(ctx, "vm:p:"+tt.key, tt.value)
 				if tt.getExpectedValue != nil {
 					prms := vmk.GetParams(ctx)
 					if tt.isUpdated {

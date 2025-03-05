@@ -137,10 +137,10 @@ func TestGetAndSetStruct(t *testing.T) {
 	keeper := env.keeper
 	// SetStruct
 	a := Params{p1: 1, p2: "a"}
-	keeper.SetStruct(ctx, "params_test:_", a)
+	keeper.SetStruct(ctx, "params_test:p", a)
 
 	// GetStruct
 	a1 := Params{}
-	keeper.GetStruct(ctx, "params_test:_", &a1)
+	keeper.GetStruct(ctx, "params_test:p", &a1)
 	require.True(t, amino.DeepEqual(a, a1), "a and a1 should equal")
 }

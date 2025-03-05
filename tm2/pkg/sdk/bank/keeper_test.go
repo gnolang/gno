@@ -168,19 +168,19 @@ func TestSetRestrictedDenoms(t *testing.T) {
 	bankk := env.bankk
 	paramk := env.paramk
 	// Add a single denom
-	paramk.SetStrings(ctx, "bank:_:restricted_denoms", []string{"foo"})
+	paramk.SetStrings(ctx, "bank:p:restricted_denoms", []string{"foo"})
 	params := bankk.GetParams(ctx)
 	require.Contains(t, params.RestrictedDenoms, "foo")
 
 	// Add multiple denoms
-	paramk.SetStrings(ctx, "bank:_:restricted_denoms", []string{"goo", "bar"})
+	paramk.SetStrings(ctx, "bank:p:restricted_denoms", []string{"goo", "bar"})
 	params = bankk.GetParams(ctx)
 	require.NotContains(t, params.RestrictedDenoms, "foo")
 	require.Contains(t, params.RestrictedDenoms, "goo")
 	require.Contains(t, params.RestrictedDenoms, "bar")
 
 	// Add empty list
-	paramk.SetStrings(ctx, "bank:_:restricted_denoms", []string{})
+	paramk.SetStrings(ctx, "bank:p:restricted_denoms", []string{})
 	params = bankk.GetParams(ctx)
 	require.Empty(t, params.RestrictedDenoms)
 }

@@ -53,13 +53,13 @@ gnokey maketx call -pkgpath gno.land/r/myrealm -func SetBaz -args -31337 -gas-fe
 gnokey query params/vm:gno.land/r/myrealm:baz
 stdout 'data: "-31337"'
 
-# It is impossible to call std.SetParamXXX with a param key in the <prefix>:<key> format (e.g. "bank:_:lockTransfer") because it is an invalid key.
+# It is impossible to call std.SetParamXXX with a param key in the <prefix>:<key> format (e.g. "bank:p:lockTransfer") because it is an invalid key.
 ! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetLockTransfer -args ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-stderr 'Data: invalid param key: bank:_:lockTransfer'
+stderr 'Data: invalid param key: bank:p:lockTransfer'
 
 # <prefix>.<key> is invalid (e.g., "bank.lockTransfer")
 ! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetInvalidString -args ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-stderr 'Data: invalid param key: bank:_:lockTransfer'
+stderr 'Data: invalid param key: bank:p:lockTransfer'
 
 # <key_name>.<type> (e.g., "bank_lockTransfer") is a valid name.
 gnokey maketx call -pkgpath gno.land/r/myrealm -func SetValidString -args ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
@@ -80,6 +80,6 @@ func SetBaz(newBaz int64)  { std.SetParamInt64("baz", newBaz) }
 func SetUint64(newBaz uint64)  { std.SetParamUint64("baz", newBaz) }
 func SetBytes()  { std.SetParamBytes("baz", []byte{255,255}) }
 
-func SetLockTransfer(denom string)  { std.SetParamString("bank:_:lockTransfer", denom) }
-func SetInvalidString(denom string)  { std.SetParamString("bank:_:lockTransfer", denom) }
+func SetLockTransfer(denom string)  { std.SetParamString("bank:p:lockTransfer", denom) }
+func SetInvalidString(denom string)  { std.SetParamString("bank:p:lockTransfer", denom) }
 func SetValidString(denom string)  { std.SetParamString("bank_lockTransfer", denom) }

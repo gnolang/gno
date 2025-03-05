@@ -47,8 +47,7 @@ func TestTestdata(t *testing.T) {
 	if flagInMemoryTS && !flagNoSeqTS {
 		testscript.RunT(tSeqShim{t}, p)
 	} else {
-		testscript.RunT(tSeqShim{t}, p)
-		//testscript.Run(t, p)
+		testscript.Run(t, p)
 	}
 }
 

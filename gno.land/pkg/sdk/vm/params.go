@@ -13,7 +13,6 @@ import (
 const (
 	sysUsersPkgDefault = "gno.land/r/sys/users"
 	chainDomainDefault = "gno.land"
-	paramsKey          = "p"
 )
 
 var ASCIIDomain = regexp.MustCompile(`^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$`)
@@ -65,19 +64,19 @@ func (vm *VMKeeper) SetParams(ctx sdk.Context, params Params) error {
 	if err := params.Validate(); err != nil {
 		return err
 	}
-	vm.prmk.SetStruct(ctx, "vm:_", params) // prmk is root.
+	vm.prmk.SetStruct(ctx, "vm:p", params) // prmk is root.
 	return nil
 }
 
 func (vm *VMKeeper) GetParams(ctx sdk.Context) Params {
 	params := Params{}
-	vm.prmk.GetStruct(ctx, "vm:_", &params) // prmk is root.
+	vm.prmk.GetStruct(ctx, "vm:p", &params) // prmk is root.
 	return params
 }
 
 const (
-	sysUsersPkgParamPath = "vm:_:sysusers_pkgpath"
-	chainDomainParamPath = "vm:_:chain_domain"
+	sysUsersPkgParamPath = "vm:p:sysusers_pkgpath"
+	chainDomainParamPath = "vm:p:chain_domain"
 )
 
 func (vm *VMKeeper) getChainDomainParam(ctx sdk.Context) string {

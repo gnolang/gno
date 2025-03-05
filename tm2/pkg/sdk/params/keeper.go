@@ -172,12 +172,12 @@ func (pk ParamsKeeper) GetStruct(ctx sdk.Context, key string, strctPtr interface
 		panic("struct key expected format <module>:<struct name>")
 	}
 	moduleName := parts[0]
-	structName := parts[1]
+	structName := parts[1] // <submodule>
 	if !pk.IsRegistered(moduleName) {
 		panic("unregistered module name")
 	}
-	if structName != "_" {
-		panic("the only supported struct name is _")
+	if structName != "p" {
+		panic("the only supported struct name is 'p'")
 	}
 	stor := ctx.Store(pk.key)
 	kvz := getStructFieldsFromStore(strctPtr, stor, storeKey(key))
@@ -190,12 +190,12 @@ func (pk ParamsKeeper) SetStruct(ctx sdk.Context, key string, strct interface{})
 		panic("struct key expected format <module>:<struct name>")
 	}
 	moduleName := parts[0]
-	structName := parts[1]
+	structName := parts[1] // <submodule>
 	if !pk.IsRegistered(moduleName) {
 		panic("unregistered module name")
 	}
-	if structName != "_" {
-		panic("the only supported struct name is _")
+	if structName != "p" {
+		panic("the only supported struct name is 'p'")
 	}
 	stor := ctx.Store(pk.key)
 	kvz := encodeStructFields(strct)

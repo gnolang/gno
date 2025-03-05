@@ -13,8 +13,8 @@
 //
 // Example usage:
 //
-//	executor := params.NewStringPropExecutor("exampleKey", "exampleValue")
 //	// This executor can be used in a governance proposal to set the parameter.
+//	executor := params.NewStringsPropExecutor("bank", "p", "restricted_denoms")
 package params
 
 import (
@@ -25,53 +25,50 @@ import (
 	"gno.land/r/gov/dao/bridge"
 )
 
-func syskey(module, realm, key string) string {
-	if realm == "" {
-		return module + ":" + key
-	} else {
-		return module + ":" + realm + ":" + key
-	}
+// this is only used for emitting events.
+func syskey(module, submodule, name string) string {
+	return module + ":" + submodule + ":" + name
 }
 
-func NewSysParamStringPropExecutor(module, realm, key string, value string) dao.Executor {
+func NewSysParamStringPropExecutor(module, submodule, name string, value string) dao.Executor {
 	return newPropExecutor(
-		syskey(module, realm, key),
-		func() { prms.SetSysParamString(module, realm, key, value) },
+		syskey(module, submodule, name),
+		func() { prms.SetSysParamString(module, submodule, name, value) },
 	)
 }
 
-func NewSysParamInt64PropExecutor(module, realm, key string, value int64) dao.Executor {
+func NewSysParamInt64PropExecutor(module, submodule, name string, value int64) dao.Executor {
 	return newPropExecutor(
-		syskey(module, realm, key),
-		func() { prms.SetSysParamInt64(module, realm, key, value) },
+		syskey(module, submodule, name),
+		func() { prms.SetSysParamInt64(module, submodule, name, value) },
 	)
 }
 
-func NewSysParamUint64PropExecutor(module, realm, key string, value uint64) dao.Executor {
+func NewSysParamUint64PropExecutor(module, submodule, name string, value uint64) dao.Executor {
 	return newPropExecutor(
-		syskey(module, realm, key),
-		func() { prms.SetSysParamUint64(module, realm, key, value) },
+		syskey(module, submodule, name),
+		func() { prms.SetSysParamUint64(module, submodule, name, value) },
 	)
 }
 
-func NewSysParamBoolPropExecutor(module, realm, key string, value bool) dao.Executor {
+func NewSysParamBoolPropExecutor(module, submodule, name string, value bool) dao.Executor {
 	return newPropExecutor(
-		syskey(module, realm, key),
-		func() { prms.SetSysParamBool(module, realm, key, value) },
+		syskey(module, submodule, name),
+		func() { prms.SetSysParamBool(module, submodule, name, value) },
 	)
 }
 
-func NewSysParamBytesPropExecutor(module, realm, key string, value []byte) dao.Executor {
+func NewSysParamBytesPropExecutor(module, submodule, name string, value []byte) dao.Executor {
 	return newPropExecutor(
-		syskey(module, realm, key),
-		func() { prms.SetSysParamBytes(module, realm, key, value) },
+		syskey(module, submodule, name),
+		func() { prms.SetSysParamBytes(module, submodule, name, value) },
 	)
 }
 
-func NewSysParamStringsPropExecutor(module, realm, key string, value []string) dao.Executor {
+func NewSysParamStringsPropExecutor(module, submodule, name string, value []string) dao.Executor {
 	return newPropExecutor(
-		syskey(module, realm, key),
-		func() { prms.SetSysParamStrings(module, realm, key, value) },
+		syskey(module, submodule, name),
+		func() { prms.SetSysParamStrings(module, submodule, name, value) },
 	)
 }
 
