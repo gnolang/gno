@@ -1,12 +1,26 @@
-XXX: this page is about connecting external apps with Gno; first start with a general intro, then speak about RPC etc
-XXX: then we can make one section per language (go, js, tm2), and if more, link to the users/awesome-gno.md#tools
+# Connecting Clients and Applications to gno.land
 
+This guide explains how to connect external applications to gno.land networks using clients in different languages. You'll learn how to use the RPC endpoints to query the blockchain and submit transactions.
 
+## Available Clients
 
-  - [gnoclient](https://gnolang.github.io/gno/github.com/gnolang/gno/gno.land/pkg/gnoclient.html)
-  - [gno-js-client](https://github.com/gnolang/gno-js-client)
-  - [tm2-js-client](https://github.com/gnolang/tm2-js-client)
+gno.land provides several client libraries to interact with the blockchain:
 
+- **[gnoclient](https://gnolang.github.io/gno/github.com/gnolang/gno/gno.land/pkg/gnoclient.html)** - The official Go client for connecting to gno.land networks
+- **[gno-js-client](https://github.com/gnolang/gno-js-client)** - A JavaScript client for building web applications
+- **[tm2-js-client](https://github.com/gnolang/tm2-js-client)** - A lower-level JavaScript client for direct RPC access
+
+## Understanding gno.land's RPC Interface
+
+gno.land networks expose several RPC endpoints that allow you to:
+
+1. **Query blockchain state** - Retrieve account information, package data, and more
+2. **Submit transactions** - Send GNOT tokens, call realm functions, and deploy code
+3. **Subscribe to events** - Get real-time updates about blockchain activity
+
+All RPC endpoints for each network can be found in the [Networks documentation](../resources/gnoland-networks.md).
+<!-- XXX: move RPC doc from networks.md to this file. -->
+<!-- XXX: per-language examples should exist in their READMEs, not in the monorepo's docs/ folder -->
 
 ## How to connect a Go app to gno.land
 
@@ -20,12 +34,11 @@ For this guide, we will build a small Go app that will:
 - Broadcast a state-changing transaction
 - Read on-chain state with ABCI queries
 
-## Prerequisites
+### Prerequisites
 
-- A local gno.land keypair generated using
-[gnokey](gnokey/overview.md)
+- A local gno.land keypair generated using gnokey
 
-## Setup
+### Setup
 
 To get started, create a new Go project. In a clean directory, run the following:
 ```bash
@@ -52,7 +65,7 @@ Finally, add the `gnoclient` package by running the following command:
 go get github.com/gnolang/gno/gno.land/pkg/gnoclient
 ```
 
-## Main components
+### Main components
 
 The `gnoclient` package exposes a `Client` struct containing a `Signer` and
 `RPCClient` connector. `Client` exposes all available functionality for talking
@@ -65,21 +78,19 @@ type Client struct {
 }
 ```
 
-### Signer
+#### Signer
 
 The `Signer` provides functionality to sign transactions with a gno.land keypair.
 The keypair can be accessed from a local keybase, or it can be generated
 in-memory from a BIP39 mnemonic.
 
-:::info
 The keybase directory path is set with the `gnokey --home` flag.
-:::
 
-### RPCClient
+#### RPCClient
 
 The `RPCCLient` provides connectivity to a gno.land network via HTTP or WebSockets.
 
-## Initialize the Signer
+### Initialize the Signer
 
 For this example, we will initialize the `Signer` from a local keybase:
 
@@ -113,7 +124,7 @@ A few things to note:
 [`SignerFromBip39`](https://gnolang.github.io/gno/github.com/gnolang/gno@v0.0.0/gno.land/pkg/gnoclient.html#SignerFromBip39)
 function.
 
-## Initialize the RPC connection & Client
+### Initialize the RPC connection & Client
 
 You can initialize the RPC Client used to connect to the gno.land network with
 the following line:
@@ -167,7 +178,7 @@ func main() {
 We can now communicate with the gno.land chain. Let's explore some of the functionality
 `gnoclient` provides.
 
-## Query account info from a chain
+### Query account info from a chain
 
 To send transactions to the chain, we need to know the account number (ID) and
 sequence (nonce). We can get this information by querying the chain with the
@@ -203,7 +214,7 @@ fmt.Println(accountRes)
 
 We are now ready to send a transaction to the chain.
 
-## Sending a transaction
+### Sending a transaction
 
 A gno.land transaction consists of two main parts:
 - A set of base transaction fields, such as a gas price, gas limit, account &
@@ -258,12 +269,11 @@ Before running your code, make sure your keypair has enough funds to send the
 transaction.
 
 If everything went well, you've just sent a state-changing transaction to a
-gno.land chain!
+gno.land network!
 
-## Reading on-chain state
+## Connecting a JavaScript Application
 
-To read on-chain state, you can use the `QEval()` function. This functionality
-allows you to evaluate a query expression on a realm, without having to spend gas.
+JavaScript applications can connect to gno.land using either `gno-js-client` for application-level interactions or `tm2-js-client` for lower-level RPC access.
 
 Let's fetch the balance of wrapped ugnot for our address:
 ```go

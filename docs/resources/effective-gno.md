@@ -788,6 +788,7 @@ See also: https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo/wu
 
 <!-- TODO:
 
+- suggested file names: types.gno, render.gno, admin.gno, etc.
 - packages and realms versioning
 - code generation
 - unit tests, fuzzing tests, example tests, txtar
