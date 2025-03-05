@@ -7,7 +7,7 @@ func Render(path string) string {
 		b.WriteString("### No active polls currently!")
 		return b.String()
 	}
-	polls.Iterate("", "", func(key string, value interface{}) bool {
+	polls.Iterate("", "", func(key string, value any) bool {
 
 		// cast raw data from tree into Poll struct
 		p := value.(*poll.Poll)
@@ -50,7 +50,7 @@ func Render(path string) string {
 		dropdown = "<br><details>\n<summary>Vote details</summary>"
 		b.WriteString(dropdown)
 
-		p.Voters().Iterate("", "", func(key string, value interface{}) bool {
+		p.Voters().Iterate("", "", func(key string, value any) bool {
 
 			voter := key
 			vote := value.(bool)
