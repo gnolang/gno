@@ -61,15 +61,15 @@ func (akf *AuthKeysFile) validate() (err error) {
 		return errPublicKeyMismatch
 	}
 
-	// Make sure the address is derived from the public key.
+	// Sort and deduplicate the list of authorized keys.
+	akf.ClientAuthorizedKeys = SortAndDuplicate(akf.ClientAuthorizedKeys)
+
+	// Validate the list of authorized keys.
 	for _, authorizedKey := range akf.ClientAuthorizedKeys {
 		if err := ValidateAuthorizedKey(authorizedKey); err != nil {
 			return fmt.Errorf("%w: %w", errInvalidPublicKey, err)
 		}
 	}
-
-	// Sort and deduplicate the authorized keys.
-	akf.ClientAuthorizedKeys = SortAndDuplicate(akf.ClientAuthorizedKeys)
 
 	// Check if the file path is set.
 	if akf.filePath == "" {
