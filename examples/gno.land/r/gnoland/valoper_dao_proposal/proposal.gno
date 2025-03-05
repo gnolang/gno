@@ -13,9 +13,7 @@ import (
 
 // MakeProposal creates a proposal to the GovDAO
 // for adding the given valoper to the validator set.
-func MakeProposal(strAddress string) {
-	address := std.Address(strAddress)
-
+func MakeProposal(address std.Address) {
 	var (
 		valoper     = valopers.GetByAddr(address)
 		votingPower = uint64(1)
