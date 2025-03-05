@@ -72,36 +72,21 @@ func go2GnoBaseType(rt reflect.Type) Type {
 		return Float32Type
 	case reflect.Float64:
 		return Float64Type
+	case reflect.Array:
+		return &ArrayType{
+			Elt: go2GnoType(rt.Elem()),
+			Len: rt.Len(),
+			Vrd: false,
+		}
 	case reflect.Slice:
 		return &SliceType{
 			Elt: go2GnoType(rt.Elem()),
 			Vrd: false,
 		}
-	case reflect.Chan:
-		panic("not yet implemented")
-	case reflect.Func:
-		return getFuncType(rt)
-	case reflect.Interface:
-		it := &InterfaceType{}
-		nm := rt.NumMethod()
-		fs := make([]FieldType, nm)
-		for i := 0; i < nm; i++ {
-			mthd := rt.Method(i)
-			fs[i] = FieldType{
-				Name: Name(mthd.Name),
-				Type: go2GnoBaseType(mthd.Type), // recursive
-			}
+	case reflect.Ptr:
+		return &PointerType{
+			Elt: go2GnoType(rt.Elem()), // recursive
 		}
-		it.PkgPath = rt.PkgPath()
-		it.Methods = fs
-		fmt.Println("here")
-		return it
-	// case reflect.Map:
-	//	return &NativeType{Type: rt}
-	// case reflect.Ptr:
-	//	return &NativeType{Type: rt}
-	// case reflect.Struct:
-	//	return &NativeType{Type: rt}
 	case reflect.UnsafePointer:
 		panic("not yet implemented")
 	default:
@@ -258,15 +243,8 @@ func (ds *defaultStore) Go2GnoType(rt reflect.Type) (t Type) {
 // to gno types, (to preserve the original native types).
 func (ds *defaultStore) go2GnoFuncType(rt reflect.Type) *FuncType {
 	// predefine func type
-	ft := getFuncType(rt)
-	ds.cacheNativeTypes[rt] = ft
-
-	return ft
-}
-
-func getFuncType(rt reflect.Type) *FuncType {
-	// predefine func type
 	ft := &FuncType{}
+	ds.cacheNativeTypes[rt] = ft
 	// define func type
 	hasVargs := rt.IsVariadic()
 	ins := make([]FieldType, rt.NumIn())
@@ -299,11 +277,6 @@ func getFuncType(rt reflect.Type) *FuncType {
 // NOTE: used by vm module.  Recursively converts.
 func Go2GnoValue(alloc *Allocator, store Store, rv reflect.Value) (tv TypedValue) {
 	return go2GnoValue2(alloc, store, rv, true)
-}
-
-// NOTE: used by vm module. Shallow, preserves native namedness.
-func Go2GnoNativeValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
-	return go2GnoValue(alloc, rv)
 }
 
 // NOTE: used by imports_test.go TestSetOriginCaller.
@@ -800,30 +773,6 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 			tv.T.String()))
 	}
 	return
-}
-
-// ----------------------------------------
-// PackageNode methods
-
-func (x *PackageNode) DefineGoNativeValue(name Name, nv interface{}) {
-	x.defineGoNativeValue(false, name, nv)
-}
-
-func (x *PackageNode) DefineGoNativeConstValue(name Name, nv interface{}) {
-	x.defineGoNativeValue(true, name, nv)
-}
-
-func (x *PackageNode) defineGoNativeValue(isConst bool, n Name, nv interface{}) {
-	if debug {
-		debug.Printf("*PackageNode.defineGoNativeValue(%s)\n", reflect.ValueOf(nv).String())
-	}
-	rv := reflect.ValueOf(nv)
-	// rv is not settable, so create something that is.
-	rt := rv.Type()
-	rv2 := reflect.New(rt).Elem()
-	rv2.Set(rv)
-	tv := go2GnoValue(nilAllocator, rv2)
-	x.Define2(isConst, n, tv.T, tv)
 }
 
 // ----------------------------------------
