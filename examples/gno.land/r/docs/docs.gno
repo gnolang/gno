@@ -1,7 +1,17 @@
 package docs
 
+func frontMatter() string {
+	return `---
+Title: Welcome to the Gno examples documentation index 
+Description: Welcome to the Gno examples documentation index. Explore various examples to learn more about Gno functionality and usage.
+---`
+}
+
 func Render(_ string) string {
-	return `# Gno Examples Documentation
+	content := ""
+	content += frontMatter()
+	content += `
+# Gno Examples Documentation
 
 Welcome to the Gno examples documentation index.
 Explore various examples to learn more about Gno functionality and usage.
@@ -24,4 +34,5 @@ Explore various examples to learn more about Gno functionality and usage.
 
 - [Official documentation](https://github.com/gnolang/gno/tree/master/docs) <!-- should be /docs with gnoweb embedding the docs/ folder. -->
 `
+	return content
 }

@@ -2,11 +2,11 @@ package main
 
 import "fmt"
 
-var myerr interface{} = fmt.Errorf("bar")
+var myerr any = fmt.Errorf("bar")
 
-func ferr() interface{} { return myerr }
+func ferr() any { return myerr }
 
-func foo() ([]string, interface{}) {
+func foo() ([]string, any) {
 	return nil, ferr()
 }
 
