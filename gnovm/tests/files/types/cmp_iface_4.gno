@@ -12,7 +12,7 @@ func (e Error) Error() string {
 
 // both not const, and both interface
 func main() {
-	var l interface{}
+	var l any
 	if l == Error(0) {
 		println("what the firetruck?")
 	} else {
