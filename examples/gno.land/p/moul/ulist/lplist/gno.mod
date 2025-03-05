@@ -1,1 +1,1 @@
-gno.land/p/moul/ulist/lplist
+module gno.land/p/moul/ulist/lplist
