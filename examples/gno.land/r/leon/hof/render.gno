@@ -111,7 +111,7 @@ func RenderExhibWidget(itemsToRender int) string {
 
 	out := ""
 	i := 0
-	exhibition.items.Iterate("", "", func(key string, value interface{}) bool {
+	exhibition.items.Iterate("", "", func(key string, value any) bool {
 		item := value.(*Item)
 
 		out += ufmt.Sprintf("- %s\n", fqname.RenderLink(item.pkgpath, ""))
