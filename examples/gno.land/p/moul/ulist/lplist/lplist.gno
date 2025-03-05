@@ -51,7 +51,7 @@
 //	// All access through proxy returns data in V2 format
 //	for i := 0; i < proxy.Size(); i++ {
 //	    user := proxy.Get(i).(UserV2)
-//	    fmt.Printf("User: %s, Age: %d, Active: %t\n", user.FullName, user.Age, user.Active)
+//	    println("User: %s, Age: %d, Active: %t\n", user.FullName, user.Age, user.Active)
 //	}
 package lplist
 
