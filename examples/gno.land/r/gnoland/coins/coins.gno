@@ -46,7 +46,6 @@ func renderCoinInfo(banker std.Banker, denom string) string {
 
 	return md.H1("Coin Information: "+denom) +
 		//"Total Supply: " + std.NewCoin(denom, total).String() + "\n\n" +
-		md.Link("← Back to homepage", "/r/gnoland/coins")
 }
 
 func renderAddressBalance(banker std.Banker, denom string, addrStr string) string {
@@ -58,5 +57,4 @@ func renderAddressBalance(banker std.Banker, denom string, addrStr string) strin
 		md.Paragraph("Address: **"+addrStr+"**") +
 		md.Paragraph("Balance: **"+std.NewCoin(denom, balance).String()+"**") +
 		md.Link("← Coin info", "/r/gnoland/coins:"+denom) + "\n\n" +
-		md.Link("← Back to homepage", "/r/gnoland/coins")
 }
