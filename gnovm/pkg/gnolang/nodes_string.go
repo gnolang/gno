@@ -257,10 +257,6 @@ func (x StructTypeExpr) String() string {
 	return fmt.Sprintf("struct { %v }", x.Fields)
 }
 
-func (x MaybeNativeTypeExpr) String() string {
-	return fmt.Sprintf("maybenative(%s)", x.Type.String())
-}
-
 func (x AssignStmt) String() string {
 	return fmt.Sprintf("%v %s %v", x.Lhs, x.Op.TokenString(), x.Rhs)
 }

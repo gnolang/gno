@@ -346,11 +346,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 				return
 			}
 		}
-	case *MaybeNativeTypeExpr:
-		cnn.Type = transcribe(t, nns, TRANS_MAYBENATIVETYPE_TYPE, 0, cnn.Type, &c).(Expr)
-		if isStopOrSkip(nc, c) {
-			return
-		}
 	case *AssignStmt:
 		for idx := range cnn.Lhs {
 			cnn.Lhs[idx] = transcribe(t, nns, TRANS_ASSIGN_LHS, idx, cnn.Lhs[idx], &c).(Expr)

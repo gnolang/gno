@@ -170,7 +170,7 @@ func makeUverseNode() {
 	defNative("append",
 		Flds( // params
 			"x", GenT("X", nil), // args[0]
-			"args", MaybeNativeT(Vrd(GenT("X.Elem()", nil))), // args[1]
+			"args", Vrd(GenT("X.Elem()", nil)), // args[1]
 		),
 		Flds( // results
 			"res", GenT("X", nil), // res

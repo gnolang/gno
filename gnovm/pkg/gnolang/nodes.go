@@ -236,58 +236,57 @@ type Node interface {
 }
 
 // non-pointer receiver to help make immutable.
-func (x *NameExpr) assertNode()            {}
-func (x *BasicLitExpr) assertNode()        {}
-func (x *BinaryExpr) assertNode()          {}
-func (x *CallExpr) assertNode()            {}
-func (x *IndexExpr) assertNode()           {}
-func (x *SelectorExpr) assertNode()        {}
-func (x *SliceExpr) assertNode()           {}
-func (x *StarExpr) assertNode()            {}
-func (x *RefExpr) assertNode()             {}
-func (x *TypeAssertExpr) assertNode()      {}
-func (x *UnaryExpr) assertNode()           {}
-func (x *CompositeLitExpr) assertNode()    {}
-func (x *KeyValueExpr) assertNode()        {}
-func (x *FuncLitExpr) assertNode()         {}
-func (x *ConstExpr) assertNode()           {}
-func (x *FieldTypeExpr) assertNode()       {}
-func (x *ArrayTypeExpr) assertNode()       {}
-func (x *SliceTypeExpr) assertNode()       {}
-func (x *InterfaceTypeExpr) assertNode()   {}
-func (x *ChanTypeExpr) assertNode()        {}
-func (x *FuncTypeExpr) assertNode()        {}
-func (x *MapTypeExpr) assertNode()         {}
-func (x *StructTypeExpr) assertNode()      {}
-func (x *constTypeExpr) assertNode()       {}
-func (x *MaybeNativeTypeExpr) assertNode() {}
-func (x *AssignStmt) assertNode()          {}
-func (x *BlockStmt) assertNode()           {}
-func (x *BranchStmt) assertNode()          {}
-func (x *DeclStmt) assertNode()            {}
-func (x *DeferStmt) assertNode()           {}
-func (x *ExprStmt) assertNode()            {}
-func (x *ForStmt) assertNode()             {}
-func (x *GoStmt) assertNode()              {}
-func (x *IfStmt) assertNode()              {}
-func (x *IfCaseStmt) assertNode()          {}
-func (x *IncDecStmt) assertNode()          {}
-func (x *RangeStmt) assertNode()           {}
-func (x *ReturnStmt) assertNode()          {}
-func (x *PanicStmt) assertNode()           {}
-func (x *SelectStmt) assertNode()          {}
-func (x *SelectCaseStmt) assertNode()      {}
-func (x *SendStmt) assertNode()            {}
-func (x *SwitchStmt) assertNode()          {}
-func (x *SwitchClauseStmt) assertNode()    {}
-func (x *EmptyStmt) assertNode()           {}
-func (x *bodyStmt) assertNode()            {}
-func (x *FuncDecl) assertNode()            {}
-func (x *ImportDecl) assertNode()          {}
-func (x *ValueDecl) assertNode()           {}
-func (x *TypeDecl) assertNode()            {}
-func (x *FileNode) assertNode()            {}
-func (x *PackageNode) assertNode()         {}
+func (x *NameExpr) assertNode()          {}
+func (x *BasicLitExpr) assertNode()      {}
+func (x *BinaryExpr) assertNode()        {}
+func (x *CallExpr) assertNode()          {}
+func (x *IndexExpr) assertNode()         {}
+func (x *SelectorExpr) assertNode()      {}
+func (x *SliceExpr) assertNode()         {}
+func (x *StarExpr) assertNode()          {}
+func (x *RefExpr) assertNode()           {}
+func (x *TypeAssertExpr) assertNode()    {}
+func (x *UnaryExpr) assertNode()         {}
+func (x *CompositeLitExpr) assertNode()  {}
+func (x *KeyValueExpr) assertNode()      {}
+func (x *FuncLitExpr) assertNode()       {}
+func (x *ConstExpr) assertNode()         {}
+func (x *FieldTypeExpr) assertNode()     {}
+func (x *ArrayTypeExpr) assertNode()     {}
+func (x *SliceTypeExpr) assertNode()     {}
+func (x *InterfaceTypeExpr) assertNode() {}
+func (x *ChanTypeExpr) assertNode()      {}
+func (x *FuncTypeExpr) assertNode()      {}
+func (x *MapTypeExpr) assertNode()       {}
+func (x *StructTypeExpr) assertNode()    {}
+func (x *constTypeExpr) assertNode()     {}
+func (x *AssignStmt) assertNode()        {}
+func (x *BlockStmt) assertNode()         {}
+func (x *BranchStmt) assertNode()        {}
+func (x *DeclStmt) assertNode()          {}
+func (x *DeferStmt) assertNode()         {}
+func (x *ExprStmt) assertNode()          {}
+func (x *ForStmt) assertNode()           {}
+func (x *GoStmt) assertNode()            {}
+func (x *IfStmt) assertNode()            {}
+func (x *IfCaseStmt) assertNode()        {}
+func (x *IncDecStmt) assertNode()        {}
+func (x *RangeStmt) assertNode()         {}
+func (x *ReturnStmt) assertNode()        {}
+func (x *PanicStmt) assertNode()         {}
+func (x *SelectStmt) assertNode()        {}
+func (x *SelectCaseStmt) assertNode()    {}
+func (x *SendStmt) assertNode()          {}
+func (x *SwitchStmt) assertNode()        {}
+func (x *SwitchClauseStmt) assertNode()  {}
+func (x *EmptyStmt) assertNode()         {}
+func (x *bodyStmt) assertNode()          {}
+func (x *FuncDecl) assertNode()          {}
+func (x *ImportDecl) assertNode()        {}
+func (x *ValueDecl) assertNode()         {}
+func (x *TypeDecl) assertNode()          {}
+func (x *FileNode) assertNode()          {}
+func (x *PackageNode) assertNode()       {}
 
 var (
 	_ Node = &NameExpr{}
@@ -314,7 +313,6 @@ var (
 	_ Node = &MapTypeExpr{}
 	_ Node = &StructTypeExpr{}
 	_ Node = &constTypeExpr{}
-	_ Node = &MaybeNativeTypeExpr{}
 	_ Node = &AssignStmt{}
 	_ Node = &BlockStmt{}
 	_ Node = &BranchStmt{}
@@ -633,16 +631,15 @@ type TypeExpr interface {
 const typeExprAddressability = "the addressability method should not be called on Type Expressions"
 
 // non-pointer receiver to help make immutable.
-func (x *FieldTypeExpr) assertTypeExpr()       {}
-func (x *ArrayTypeExpr) assertTypeExpr()       {}
-func (x *SliceTypeExpr) assertTypeExpr()       {}
-func (x *InterfaceTypeExpr) assertTypeExpr()   {}
-func (x *ChanTypeExpr) assertTypeExpr()        {}
-func (x *FuncTypeExpr) assertTypeExpr()        {}
-func (x *MapTypeExpr) assertTypeExpr()         {}
-func (x *StructTypeExpr) assertTypeExpr()      {}
-func (x *constTypeExpr) assertTypeExpr()       {}
-func (x *MaybeNativeTypeExpr) assertTypeExpr() {}
+func (x *FieldTypeExpr) assertTypeExpr()     {}
+func (x *ArrayTypeExpr) assertTypeExpr()     {}
+func (x *SliceTypeExpr) assertTypeExpr()     {}
+func (x *InterfaceTypeExpr) assertTypeExpr() {}
+func (x *ChanTypeExpr) assertTypeExpr()      {}
+func (x *FuncTypeExpr) assertTypeExpr()      {}
+func (x *MapTypeExpr) assertTypeExpr()       {}
+func (x *StructTypeExpr) assertTypeExpr()    {}
+func (x *constTypeExpr) assertTypeExpr()     {}
 
 var (
 	_ TypeExpr = &FieldTypeExpr{}
@@ -654,7 +651,6 @@ var (
 	_ TypeExpr = &MapTypeExpr{}
 	_ TypeExpr = &StructTypeExpr{}
 	_ TypeExpr = &constTypeExpr{}
-	_ TypeExpr = &MaybeNativeTypeExpr{}
 )
 
 type FieldTypeExpr struct {
@@ -782,16 +778,6 @@ type constTypeExpr struct {
 }
 
 func (x *constTypeExpr) addressability() addressabilityStatus {
-	panic(typeExprAddressability)
-}
-
-// Only used for native func arguments
-type MaybeNativeTypeExpr struct {
-	Attributes
-	Type Expr
-}
-
-func (x *MaybeNativeTypeExpr) addressability() addressabilityStatus {
 	panic(typeExprAddressability)
 }
 

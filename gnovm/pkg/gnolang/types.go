@@ -61,24 +61,23 @@ func typeidf(f string, args ...interface{}) (tid TypeID) {
 // of the language to enable mass scale persistence, we
 // cannot use pointer equality to test for type equality.
 // Instead, for checking equality use the TypeID.
-func (PrimitiveType) assertType()   {}
-func (*PointerType) assertType()    {}
-func (FieldType) assertType()       {}
-func (*ArrayType) assertType()      {}
-func (*SliceType) assertType()      {}
-func (*StructType) assertType()     {}
-func (*FuncType) assertType()       {}
-func (*MapType) assertType()        {}
-func (*InterfaceType) assertType()  {}
-func (*TypeType) assertType()       {}
-func (*DeclaredType) assertType()   {}
-func (*PackageType) assertType()    {}
-func (*ChanType) assertType()       {}
-func (blockType) assertType()       {}
-func (heapItemType) assertType()    {}
-func (*tupleType) assertType()      {}
-func (RefType) assertType()         {}
-func (MaybeNativeType) assertType() {}
+func (PrimitiveType) assertType()  {}
+func (*PointerType) assertType()   {}
+func (FieldType) assertType()      {}
+func (*ArrayType) assertType()     {}
+func (*SliceType) assertType()     {}
+func (*StructType) assertType()    {}
+func (*FuncType) assertType()      {}
+func (*MapType) assertType()       {}
+func (*InterfaceType) assertType() {}
+func (*TypeType) assertType()      {}
+func (*DeclaredType) assertType()  {}
+func (*PackageType) assertType()   {}
+func (*ChanType) assertType()      {}
+func (blockType) assertType()      {}
+func (heapItemType) assertType()   {}
+func (*tupleType) assertType()     {}
+func (RefType) assertType()        {}
 
 // ----------------------------------------
 // Primitive types
@@ -1221,15 +1220,6 @@ func (ft *FuncType) Specify(store Store, n Node, argTVs []TypedValue, isVarg boo
 	pfts := make([]FieldType, len(ft.Params))
 	rfts := make([]FieldType, len(ft.Results))
 	for i, pft := range ft.Params {
-		// special case for maybenative, just take the native type.
-		if mnpft, ok := pft.Type.(*MaybeNativeType); ok {
-			pt, _ := applySpecifics(lookup, mnpft.Type)
-			pfts[i] = FieldType{
-				Name: pft.Name,
-				Type: pt,
-			}
-			continue
-		}
 		// default case.
 		pt, _ := applySpecifics(lookup, pft.Type)
 		pfts[i] = FieldType{
@@ -1302,12 +1292,6 @@ func (ft *FuncType) HasVarg() bool {
 		lpt := ft.Params[numParams-1].Type
 		if lat, ok := lpt.(*SliceType); ok {
 			return lat.Vrd
-		} else if mnt, ok := lpt.(*MaybeNativeType); ok {
-			if lat, ok := mnt.Type.(*SliceType); ok {
-				return lat.Vrd
-			} else {
-				return false
-			}
 		} else {
 			return false
 		}
@@ -1838,40 +1822,6 @@ func (rt RefType) IsNamed() bool {
 }
 
 // ----------------------------------------
-// MaybeNativeType
-
-// MaybeNativeType wraps an underlying gno type
-// and allows the generic matching of spec to gno type,
-// or go2GnoType2(spec) to gno type if spec is native.
-type MaybeNativeType struct {
-	Type
-}
-
-func (mn MaybeNativeType) Kind() Kind {
-	return mn.Type.Kind()
-}
-
-func (mn MaybeNativeType) TypeID() TypeID {
-	panic("MaybeNativeType type has no type id")
-}
-
-func (mn MaybeNativeType) String() string {
-	return fmt.Sprintf("MaybeNativeType{%s}", mn.Type.String())
-}
-
-func (mn MaybeNativeType) Elem() Type {
-	return mn.Type.Elem()
-}
-
-func (mn MaybeNativeType) GetPkgPath() string {
-	return mn.Type.GetPkgPath()
-}
-
-func (mn MaybeNativeType) IsNamed() bool {
-	return mn.Type.IsNamed()
-}
-
-// ----------------------------------------
 // Kind
 
 type Kind uint
@@ -1986,8 +1936,6 @@ func KindOf(t Type) Kind {
 		return TupleKind
 	case RefType:
 		return RefTypeKind
-	case MaybeNativeType:
-		return t.Kind()
 	default:
 		panic(fmt.Sprintf("unexpected type %#v", t))
 	}
@@ -2290,8 +2238,6 @@ func specifyType(store Store, n Node, lookup map[Name]Type, tmpl Type, spec Type
 			// TODO: handle generics in method signatures
 			return // nothing to do
 		}
-	case *MaybeNativeType:
-		specifyType(store, n, lookup, ct.Type, baseOf(spec), nil)
 	default:
 		// ignore, no generics.
 	}
@@ -2403,8 +2349,6 @@ func isGeneric(t Type) bool {
 	case *InterfaceType:
 		// TODO: handle generics in method signatures
 		return ct.Generic != ""
-	case *MaybeNativeType:
-		return isGeneric(ct.Type)
 	default:
 		return false
 	}

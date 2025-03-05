@@ -4144,11 +4144,6 @@ func findUndefinedGlobal(store Store, last BlockNode, x Expr, t Type) (un Name) 
 				return
 			}
 		}
-	case *MaybeNativeTypeExpr:
-		un = findUndefinedGlobal(store, last, cx.Type, nil)
-		if un != "" {
-			return
-		}
 	case *CallExpr:
 		un = findUndefinedGlobal(store, last, cx.Func, nil)
 		if un != "" {
@@ -4353,11 +4348,6 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type, skipPredefined 
 			if un != "" {
 				return
 			}
-		}
-	case *MaybeNativeTypeExpr:
-		un = findUndefined2(store, last, cx.Type, nil, skipPredefined)
-		if un != "" {
-			return
 		}
 	case *CallExpr:
 		cx.Func.SetAttribute(ATTR_GLOBAL, cx.GetAttribute(ATTR_GLOBAL))
