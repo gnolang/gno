@@ -3,6 +3,7 @@
 package valopers
 
 import (
+	"crypto/bech32"
 	"std"
 
 	"gno.land/p/demo/avl"
@@ -39,6 +40,10 @@ type Valoper struct {
 
 // Register registers a new valoper
 func Register(v Valoper) {
+	if err := v.Validate(); err != nil {
+		panic(err)
+	}
+
 	// Check if the valoper is already registered
 	if isValoper(v.Address) {
 		panic(ErrValoperExists)
@@ -53,6 +58,10 @@ func Register(v Valoper) {
 
 // Update updates an existing valoper
 func Update(address std.Address, v Valoper) {
+	if err := v.Validate(); err != nil {
+		panic(err)
+	}
+
 	// Check if the valoper is present
 	if !isValoper(address) {
 		panic(ErrValoperMissing)
@@ -101,6 +110,18 @@ func Render(_ string) string {
 	})
 
 	return output
+}
+
+// Validate checks if the fields of the Valoper are valid
+func (v *Valoper) Validate() error {
+	if _, _, err := bech32.Decode(v.Address.String()); err != nil {
+		return ufmt.Errorf("Valoper Address must be bech32 \"%s\": %s", v.Address.String(), err)
+	}
+	if _, _, err := bech32.DecodeNoLimit(v.PubKey); err != nil {
+		return ufmt.Errorf("Valoper PubKey must be bech32: \"%s\": %s", v.PubKey, err)
+	}
+
+	return nil
 }
 
 // Render renders a single valoper with their information
