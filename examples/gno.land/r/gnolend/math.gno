@@ -1,79 +1,61 @@
 package gnolend
 
-// Virtual amounts for share/asset calculations
-// These values are used to prevent share price manipulation when pools are empty or nearly empty
-// They create a minimum pool size that exists from the start
-// Higher values make manipulation more expensive but also require more gas for calculations
-const (
-	// VIRTUAL_SHARES represents the minimum number of shares that exist in a pool
-	// This creates a buffer that makes share price manipulation more expensive
-	VIRTUAL_SHARES int64 = 1000000000 // 1 billion shares
-
-	// VIRTUAL_ASSETS represents the minimum number of assets that exist in a pool
-	// This matches VIRTUAL_SHARES to maintain 1:1 initial share ratio
-	VIRTUAL_ASSETS int64 = 1000000000 // 1 billion base units
+import (
+	"gno.land/p/demo/uint256"
 )
 
-// MulDivDown performs multiplication and division while rounding down
-func MulDivDown(x, y, denominator int64) int64 {
-	if denominator == 0 {
-		panic(ErrDivisionByZero)
-	}
-	return (x * y) / denominator
+// WAD represents a decimal with 18 decimals (i.e. 1e18)
+var WAD = uint256.NewInt(1000000000000000000)
+
+// WMulDown returns (x * y) / WAD rounded down
+func WMulDown(x, y *uint256.Uint) *uint256.Uint {
+	return MulDivDown(x, y, WAD)
 }
 
-// MulDivUp performs multiplication and division while rounding up
-func MulDivUp(x, y, denominator int64) int64 {
-	if denominator == 0 {
-		panic(ErrDivisionByZero)
-	}
-	result := (x * y) / denominator
-	if (x*y)%denominator > 0 {
-		result++
-	}
-	return result
+// WDivDown returns (x * WAD) / y rounded down
+func WDivDown(x, y *uint256.Uint) *uint256.Uint {
+	return MulDivDown(x, WAD, y)
 }
 
-// ToSharesDown converts assets to shares, rounding down (used for supply)
-// This is used when a user supplies assets and we need to calculate how many shares they receive
-// We round down to ensure the protocol cannot be exploited
-func ToSharesDown(assets, totalAssets, totalShares int64) int64 {
-	return MulDivDown(
-		assets,
-		totalShares+VIRTUAL_SHARES,
-		totalAssets+VIRTUAL_ASSETS,
-	)
+// WDivUp returns (x * WAD) / y rounded up
+func WDivUp(x, y *uint256.Uint) *uint256.Uint {
+	return MulDivUp(x, WAD, y)
 }
 
-// ToSharesUp converts assets to shares, rounding up (used for borrow)
-// This is used when a user borrows assets and we need to calculate how many shares they need
-// We round up to ensure the protocol cannot be exploited
-func ToSharesUp(assets, totalAssets, totalShares int64) int64 {
-	return MulDivUp(
-		assets,
-		totalShares+VIRTUAL_SHARES,
-		totalAssets+VIRTUAL_ASSETS,
-	)
+// MulDivDown returns (x * y) / d rounded down
+func MulDivDown(x, y, d *uint256.Uint) *uint256.Uint {
+	// Multiply
+	mul := new(uint256.Uint).Mul(x, y)
+	// Divide and round down
+	return new(uint256.Uint).Div(mul, d)
 }
 
-// ToAssetsDown converts shares to assets, rounding down (used for withdraw)
-// This is used when a user withdraws shares and we need to calculate how many assets they receive
-// We round down to ensure the protocol cannot be exploited
-func ToAssetsDown(shares, totalAssets, totalShares int64) int64 {
-	return MulDivDown(
-		shares,
-		totalAssets+VIRTUAL_ASSETS,
-		totalShares+VIRTUAL_SHARES,
-	)
+// MulDivUp returns (x * y) / d rounded up
+func MulDivUp(x, y, d *uint256.Uint) *uint256.Uint {
+	// Multiply
+	mul := new(uint256.Uint).Mul(x, y)
+	// Add (d - 1) for rounding up
+	dMinusOne := new(uint256.Uint).Sub(d, uint256.NewInt(1))
+	mulPlusD := new(uint256.Uint).Add(mul, dMinusOne)
+	// Divide and round up
+	return new(uint256.Uint).Div(mulPlusD, d)
 }
 
-// ToAssetsUp converts shares to assets, rounding up (used for borrow)
-// This is used when a user specifies shares to borrow and we need to calculate how many assets they'll receive
-// We round up to ensure the protocol cannot be exploited
-func ToAssetsUp(shares, totalAssets, totalShares int64) int64 {
-	return MulDivUp(
-		shares,
-		totalAssets+VIRTUAL_ASSETS,
-		totalShares+VIRTUAL_SHARES,
-	)
+// WTaylorCompounded returns the sum of the first three non-zero terms of a Taylor expansion of e^(nx) - 1
+// Used to approximate a continuous compound interest rate
+func WTaylorCompounded(x, n *uint256.Uint) *uint256.Uint {
+	// First term: x * n
+	firstTerm := new(uint256.Uint).Mul(x, n)
+
+	// Second term: (firstTerm * firstTerm) / (2 * WAD)
+	twoWad := new(uint256.Uint).Mul(uint256.NewInt(2), WAD)
+	secondTerm := MulDivDown(firstTerm, firstTerm, twoWad)
+
+	// Third term: (secondTerm * firstTerm) / (3 * WAD)
+	threeWad := new(uint256.Uint).Mul(uint256.NewInt(3), WAD)
+	thirdTerm := MulDivDown(secondTerm, firstTerm, threeWad)
+
+	// Sum all terms
+	sum := new(uint256.Uint).Add(firstTerm, secondTerm)
+	return new(uint256.Uint).Add(sum, thirdTerm)
 }

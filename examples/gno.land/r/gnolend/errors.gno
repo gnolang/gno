@@ -5,15 +5,28 @@ import (
 )
 
 var (
+	// Market errors
 	ErrMarketNotCreated      = errors.New("market not created")
 	ErrMarketAlreadyCreated  = errors.New("market already created")
 	ErrTokenPairNotInGnoswap = errors.New("token pair not in gnoswap pools")
 	ErrZeroAddress           = errors.New("zero address")
 	ErrSameToken             = errors.New("loan and collateral tokens cannot be the same")
+	ErrIRMNotEnabled        = errors.New("IRM not enabled")
+	ErrLLTVNotEnabled       = errors.New("LLTV not enabled")
+	ErrMaxFeeExceeded       = errors.New("max fee exceeded")
+	ErrNotOwner             = errors.New("not owner")
+	ErrAlreadySet           = errors.New("already set")
 
 	// Supply/Withdraw errors
 	ErrInconsistentAmount  = errors.New("must specify either assets or shares, not both")
 	ErrInsufficientBalance = errors.New("insufficient token balance")
 	ErrInsufficientShares  = errors.New("insufficient shares")
 	ErrDivisionByZero      = errors.New("division by zero")
+
+	// Borrow errors
+	ErrInsufficientCollateral = errors.New("insufficient collateral for borrow")
+	ErrExceedsLTV            = errors.New("borrow would exceed maximum LTV")
+	ErrInsufficientLiquidity = errors.New("insufficient liquidity in market")
+	ErrZeroBorrow            = errors.New("borrow amount must be greater than zero")
+	ErrNoCollateral          = errors.New("must deposit collateral before borrowing")
 )

@@ -1,0 +1,108 @@
+package gnolend
+
+import (
+	u256 "gno.land/p/demo/uint256"
+)
+
+// Virtual amounts for share/asset calculations
+// These values are used to prevent share price manipulation when pools are empty or nearly empty
+// They create a minimum pool size that exists from the start
+// Higher values make manipulation more expensive but also require more gas for calculations
+var (
+	// VIRTUAL_SHARES represents the minimum number of shares that exist in a pool
+	// This creates a buffer that makes share price manipulation more expensive
+	VIRTUAL_SHARES = u256.NewInt(1000000000) // 1 billion shares
+
+	// VIRTUAL_ASSETS represents the minimum number of assets that exist in a pool
+	// This matches VIRTUAL_SHARES to maintain 1:1 initial share ratio
+	VIRTUAL_ASSETS = u256.NewInt(1000000000) // 1 billion base units
+)
+
+// MulDivDown performs multiplication and division while rounding down
+func MulDivDown(x, y, denominator *u256.Uint) *u256.Uint {
+	if denominator.IsZero() {
+		panic(ErrDivisionByZero)
+	}
+	// First multiply
+	product := new(u256.Uint).Mul(x, y)
+	// Then divide, rounding down (default behavior of Div)
+	return new(u256.Uint).Div(product, denominator)
+}
+
+// MulDivUp performs multiplication and division while rounding up
+func MulDivUp(x, y, denominator *u256.Uint) *u256.Uint {
+	if denominator.IsZero() {
+		panic(ErrDivisionByZero)
+	}
+	// First multiply
+	product := new(u256.Uint).Mul(x, y)
+	// Check if there's a remainder
+	remainder := new(u256.Uint).Mod(product, denominator)
+	// Divide
+	result := new(u256.Uint).Div(product, denominator)
+	// If there was a remainder, add 1 to round up
+	if !remainder.IsZero() {
+		result.Add(result, u256.NewInt(1))
+	}
+	return result
+}
+
+// ToSharesDown converts assets to shares, rounding down (used for supply)
+// This is used when a user supplies assets and we need to calculate how many shares they receive
+// We round down to ensure the protocol cannot be exploited
+func ToSharesDown(assets, totalAssets, totalShares *u256.Uint) *u256.Uint {
+	// Add virtual amounts
+	totalSharesWithVirtual := new(u256.Uint).Add(totalShares, VIRTUAL_SHARES)
+	totalAssetsWithVirtual := new(u256.Uint).Add(totalAssets, VIRTUAL_ASSETS)
+	
+	return MulDivDown(
+		assets,
+		totalSharesWithVirtual,
+		totalAssetsWithVirtual,
+	)
+}
+
+// ToSharesUp converts assets to shares, rounding up (used for borrow)
+// This is used when a user borrows assets and we need to calculate how many shares they need
+// We round up to ensure the protocol cannot be exploited
+func ToSharesUp(assets, totalAssets, totalShares *u256.Uint) *u256.Uint {
+	// Add virtual amounts
+	totalSharesWithVirtual := new(u256.Uint).Add(totalShares, VIRTUAL_SHARES)
+	totalAssetsWithVirtual := new(u256.Uint).Add(totalAssets, VIRTUAL_ASSETS)
+	
+	return MulDivUp(
+		assets,
+		totalSharesWithVirtual,
+		totalAssetsWithVirtual,
+	)
+}
+
+// ToAssetsDown converts shares to assets, rounding down (used for withdraw)
+// This is used when a user withdraws shares and we need to calculate how many assets they receive
+// We round down to ensure the protocol cannot be exploited
+func ToAssetsDown(shares, totalAssets, totalShares *u256.Uint) *u256.Uint {
+	// Add virtual amounts
+	totalSharesWithVirtual := new(u256.Uint).Add(totalShares, VIRTUAL_SHARES)
+	totalAssetsWithVirtual := new(u256.Uint).Add(totalAssets, VIRTUAL_ASSETS)
+	
+	return MulDivDown(
+		shares,
+		totalAssetsWithVirtual,
+		totalSharesWithVirtual,
+	)
+}
+
+// ToAssetsUp converts shares to assets, rounding up (used for borrow)
+// This is used when a user specifies shares to borrow and we need to calculate how many assets they'll receive
+// We round up to ensure the protocol cannot be exploited
+func ToAssetsUp(shares, totalAssets, totalShares *u256.Uint) *u256.Uint {
+	// Add virtual amounts
+	totalSharesWithVirtual := new(u256.Uint).Add(totalShares, VIRTUAL_SHARES)
+	totalAssetsWithVirtual := new(u256.Uint).Add(totalAssets, VIRTUAL_ASSETS)
+	
+	return MulDivUp(
+		shares,
+		totalAssetsWithVirtual,
+		totalSharesWithVirtual,
+	)
+}

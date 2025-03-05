@@ -4,6 +4,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/u256"
 )
 
 // Event names
@@ -45,12 +46,12 @@ func emitCreateMarket(marketId string, loanToken string, collateralToken string)
 	)
 }
 
-func emitDeposit(marketId string, user std.Address, amount int64) {
+func emitDeposit(marketId string, user std.Address, amount *u256.Uint) {
 	std.Emit(
 		DepositEvent,
 		EventMarketIDKey, marketId,
 		EventUserKey, user.String(),
-		EventAmountKey, ufmt.Sprintf("%d", amount),
+		EventAmountKey, amount.String(),
 	)
 }
 
@@ -63,12 +64,12 @@ func emitWithdraw(marketId string, user std.Address, amount int64) {
 	)
 }
 
-func emitBorrow(marketId string, user std.Address, amount int64) {
+func emitBorrow(marketId string, user std.Address, amount *u256.Uint) {
 	std.Emit(
 		BorrowEvent,
 		EventMarketIDKey, marketId,
 		EventUserKey, user.String(),
-		EventAmountKey, ufmt.Sprintf("%d", amount),
+		EventAmountKey, amount.String(),
 	)
 }
 
@@ -89,5 +90,14 @@ func emitLiquidate(marketId string, liquidator std.Address, borrower std.Address
 		EventBorrowerKey, borrower.String(),
 		EventLiquidatedAmtKey, ufmt.Sprintf("%d", liquidatedAmt),
 		EventCollateralAmtKey, ufmt.Sprintf("%d", collateralAmt),
+	)
+}
+
+func emitAccrueInterest(marketId string, borrowRate, interest *u256.Uint) {
+	std.Emit(
+		"AccrueInterest",
+		"market_id", marketId,
+		"borrow_rate", borrowRate.String(),
+		"interest", interest.String(),
 	)
 }
