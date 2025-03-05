@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/version"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -202,7 +203,9 @@ func (vh vmHandler) queryDoc(ctx sdk.Context, req abci.RequestQuery) (res abci.R
 // misc
 
 func abciResult(err error) sdk.Result {
-	return sdk.ABCIResultFromError(err)
+	res := sdk.ABCIResultFromError(err)
+	res.Info += "vm.version=" + version.Version
+	return res
 }
 
 // returns the second component of a path.

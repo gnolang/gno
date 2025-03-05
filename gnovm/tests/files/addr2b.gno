@@ -10,7 +10,7 @@ type Email struct {
 	Addr  string
 }
 
-func f(s string, r interface{}) interface{} {
+func f(s string, r any) any {
 	return json.Unmarshal([]byte(s), &r)
 }
 
