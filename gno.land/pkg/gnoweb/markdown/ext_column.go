@@ -95,7 +95,6 @@ func isPreviousNodeTag(node ast.Node, tag ColumnTag) bool {
 		return false
 	}
 
-	fmt.Println(node.Kind())
 	if cnode, ok := node.(*ColumnNode); ok {
 		return cnode.Tag == tag
 	}
