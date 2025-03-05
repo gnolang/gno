@@ -12,7 +12,6 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/combinederr"
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/profile"
 )
 
 var (
@@ -158,7 +157,7 @@ func UpdateAddress(address std.Address, newAddress std.Address) {
 	}
 
 	// Check that the address is valid
-	if err := validateBech32(newAddress); err != nil {
+	if err := validateBech32(newAddress.String()); err != nil {
 		panic(ufmt.Errorf("Valoper Address must be bech32 \"%s\": %s", newAddress.String(), err))
 	}
 
@@ -278,13 +277,13 @@ func Render(_ string) string {
 func (v *Valoper) Validate() error {
 	errs := &combinederr.CombinedError{}
 
-	errs = errs.Add(validateMoniker(v.Moniker))
-	errs = errs.Add(validateDescription(v.Description))
-	errs = errs.Add(validateBech32(v.Address))
-	errs = errs.Add(validatePubKey(v.PubKey))
+	errs.Add(validateMoniker(v.Moniker))
+	errs.Add(validateDescription(v.Description))
+	errs.Add(validateBech32(v.Address.String()))
+	errs.Add(validatePubKey(v.PubKey))
 
 	for _, addr := range v.P2PAddresses {
-		errs = errs.Add(validateP2PAddress(addr))
+		errs.Add(validateP2PAddress(addr))
 	}
 
 	if errs.Size() == 0 {
@@ -296,7 +295,7 @@ func (v *Valoper) Validate() error {
 
 // Render renders a single valoper with their information
 func (v Valoper) Render() string {
-	output := ufmt.Sprintf("## %s\n", v.Name)
+	output := ufmt.Sprintf("## %s\n", v.Moniker)
 
 	if v.Description != "" {
 		output += ufmt.Sprintf("%s\n\n", v.Description)
@@ -304,17 +303,17 @@ func (v Valoper) Render() string {
 
 	output += ufmt.Sprintf("- Address: %s\n", v.Address.String())
 	output += ufmt.Sprintf("- PubKey: %s\n", v.PubKey)
-	output += "- P2P Addresses: [\n"
+	output += "- P2P Addresses: [\n\n"
 
 	if len(v.P2PAddresses) == 0 {
-		output += "]\n"
+		output += "]\n\n"
 	}
 
 	for index, addr := range v.P2PAddresses {
-		output += addr
+		output += "\t- " + addr
 
 		if index == len(v.P2PAddresses)-1 {
-			output += "]\n"
+			output += "\n\n]\n\n"
 
 			continue
 		}
@@ -322,30 +321,7 @@ func (v Valoper) Render() string {
 		output += ",\n"
 	}
 
-	if v.ProfileAddress != "" {
-		profile := profile.Render(ufmt.Sprintf("u/%s", v.ProfileAddress))
-		output += ufmt.Sprintf("%s\n", profile)
-	}
-
-	if v.OtherNetworks != "" {
-		output += ufmt.Sprintf("- What networks are you currently validating? %s\n", v.OtherNetworks)
-	}
-
-	if v.DigitalPresence != "" {
-		output += ufmt.Sprintf("- Digital presence? %s\n", v.DigitalPresence)
-	}
-
-	if v.AssetsManagement != "" {
-		output += ufmt.Sprintf("- Assets under management? %s\n", v.AssetsManagement)
-	}
-
-	if v.ValidatingInterest != "" {
-		output += ufmt.Sprintf("- Why are you interested in validating on gno.land? %s\n", v.ValidatingInterest)
-	}
-
-	if v.Contributions != "" {
-		output += ufmt.Sprintf("- What contributions have you made to gno.land? Or what contributions are you willing to make to gno.land? %s\n", v.Contributions)
-	}
+	output += ufmt.Sprintf("[Profile link](/r/demo/profile:u/%s)\n", v.Address)
 
 	return output
 }

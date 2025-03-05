@@ -40,7 +40,7 @@ func MakeProposal(address std.Address) {
 	// Craft the proposal title
 	title := ufmt.Sprintf(
 		"Add valoper %s (Address: %s; PubKey: %s) to the valset",
-		valoper.Name,
+		valoper.Moniker,
 		valoper.Address.String(),
 		valoper.PubKey,
 	)
