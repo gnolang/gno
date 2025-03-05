@@ -156,3 +156,63 @@ func TestValopers_Update(t *testing.T) {
 		})
 	})
 }
+
+func TestValopers_RegisterBadAddress(t *testing.T) {
+	v := Valoper{
+		Address: "bad address",
+		PubKey:  testPubKey,
+	}
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Register with bad Address should panic")
+		}
+	}()
+
+	Register(v)
+}
+
+func TestValopers_UpdateBadAddress(t *testing.T) {
+	v := Valoper{
+		Address: "bad address",
+		PubKey:  testPubKey,
+	}
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Update with bad Address should panic")
+		}
+	}()
+
+	Update(testutils.TestAddress("valoper"), v)
+}
+
+func TestValopers_RegisterBadPubKey(t *testing.T) {
+	v := Valoper{
+		Address: testutils.TestAddress("valoper"),
+		PubKey:  "bad PubKey",
+	}
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Register with bad PubKey should panic")
+		}
+	}()
+
+	Register(v)
+}
+
+func TestValopers_UpdateBadPubKey(t *testing.T) {
+	v := Valoper{
+		Address: testutils.TestAddress("valoper"),
+		PubKey:  "bad PubKey",
+	}
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Update with bad PubKey should panic")
+		}
+	}()
+
+	Update(testutils.TestAddress("valoper"), v)
+}
