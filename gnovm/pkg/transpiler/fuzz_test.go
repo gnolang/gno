@@ -205,6 +205,8 @@ func FuzzTranspiling(f *testing.F) {
 				strings.Contains(sr, "expected at most 2 expressions"),
 				strings.Contains(sr, "expression in defer must not be parenthesized"),
 				strings.Contains(sr, "not yet implemented"),
+				strings.Contains(sr, "builtin identifiers cannot be shadowed"),
+				strings.Contains(sr, "var declaration not allowed in if"),
 				strings.Contains(sr, "EmptyStmt not supported"),
 				strings.Contains(sr, "expected boolean expression, found"),
 				strings.Contains(sr, "cannot parenthesize embedded type"),
