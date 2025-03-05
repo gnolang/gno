@@ -75,7 +75,7 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.gnofaucet-api.entrypoints=websecure
-      - traefik.http.routers.gnofaucet-api.rule=Host(`faucet-api.gno.land`) || Host(`faucet-api.portal-loop.gnoteam.comd`) || Host(`faucet-api.private-loop.gnoteam.com`)
+      - traefik.http.routers.gnofaucet-api.rule=Host(`faucet-api.gno.land`) || Host(`faucet-api.portal-loop.gnoteam.com`) || Host(`faucet-api.private-loop.gnoteam.com`)
       - traefik.http.routers.gnofaucet-api.tls=true
       - traefik.http.routers.gnofaucet-api.tls.certresolver=le
       - traefik.http.middlewares.gnofaucet-ratelimit.ratelimit.average=6
