@@ -1,3 +1,58 @@
+// Package lplist provides a layered proxy implementation for lists that allows transparent
+// migration of data between different schema versions.
+//
+// LayeredProxyList wraps an existing list (source) with a new list (target) and optionally
+// applies migrations to source data when it's accessed. This enables schema evolution without
+// requiring upfront migration of all data, making it ideal for large datasets or when
+// preserving original data is important.
+//
+// Key features:
+// - Lazy migration: Data is only transformed when accessed, not stored in migrated form
+// - Append-only source: Source data is treated as immutable to preserve original data
+// - Chaining: Multiple LayeredProxyLists can be stacked for multi-step migrations
+//
+// Example usage:
+//
+//	// Define data types for different schema versions
+//	type UserV1 struct {
+//	    Name string
+//	    Age int
+//	}
+//
+//	type UserV2 struct {
+//	    FullName string
+//	    Age int
+//	    Active bool
+//	}
+//
+//	// Create source list with old schema
+//	sourceList := ulist.New()
+//	sourceList.Append(
+//	    UserV1{Name: "Alice", Age: 30},
+//	    UserV1{Name: "Bob", Age: 25},
+//	)
+//
+//	// Define migration function from V1 to V2
+//	migrateUserV1ToV2 := func(v interface{}) interface{} {
+//	    user := v.(UserV1)
+//	    return UserV2{
+//	        FullName: user.Name,  // Name field renamed to FullName
+//	        Age: user.Age,
+//	        Active: true,         // New field with default value
+//	    }
+//	}
+//
+//	// Create layered proxy with migration
+//	proxy := NewLayeredProxyList(sourceList, migrateUserV1ToV2)
+//
+//	// Add new data directly in V2 format
+//	proxy.Append(UserV2{FullName: "Charlie", Age: 40, Active: false})
+//
+//	// All access through proxy returns data in V2 format
+//	for i := 0; i < proxy.Size(); i++ {
+//	    user := proxy.Get(i).(UserV2)
+//	    fmt.Printf("User: %s, Age: %d, Active: %t\n", user.FullName, user.Age, user.Active)
+//	}
 package lplist
 
 import (
