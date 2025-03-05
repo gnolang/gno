@@ -13,6 +13,7 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
+// ErrInvalidColumnFormat indicates an invalid columns format.
 var ErrInvalidColumnFormat = errors.New("invalid columns format")
 
 // Define NodeKind for Column
@@ -39,11 +40,7 @@ type ColumnNode struct {
 	ast.BaseBlock
 	Index int
 	Tag   ColumnTag
-
-	// Context bewteen block is uniq.
-	// A block is composed of an opening, some potential separator and a
-	// closing.
-	ctx *columnContext
+	ctx   *columnContext // context between blocks is unique.
 }
 
 // Dump implements Node.Dump.
@@ -95,20 +92,16 @@ func isPreviousNodeTag(node ast.Node, tag ColumnTag) bool {
 		return false
 	}
 
-	if cnode, ok := node.(*ColumnNode); ok {
-		return cnode.Tag == tag
-	}
-
-	return false
+	cnode, ok := node.(*ColumnNode)
+	return ok && cnode.Tag == tag
 }
 
 func getColumnContext(pc parser.Context) *columnContext {
 	cctx, ok := pc.Get(columnContextKey).(*columnContext)
 	if !ok || cctx.IsClose || cctx.Error != nil {
 		cctx = &columnContext{} // new context
+		pc.Set(columnContextKey, cctx)
 	}
-
-	pc.Set(columnContextKey, cctx)
 	return cctx
 }
 
@@ -142,7 +135,7 @@ func parseLineTag(ctx *columnContext, line []byte) ColumnTag {
 func (p *columnParser) Open(self ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	const MaxHeading = 6
 
-	// Columns tag cannot be a children
+	// Columns tag cannot be a child of another node
 	if self.Parent() != nil {
 		return nil, parser.NoChildren
 	}
@@ -242,7 +235,6 @@ func columnRender(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast
 		if cnode.Tag == ColumnTagOpen {
 			fmt.Fprintf(w, "<!-- gno-columns error: %s -->\n", err.Error())
 		}
-
 		return ast.WalkContinue, nil
 	}
 
@@ -254,7 +246,6 @@ func columnRender(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast
 		if cnode.Index > 1 {
 			fmt.Fprintln(w, "</div>")
 		}
-
 		fmt.Fprintf(w, "<!-- Column %d -->\n", cnode.Index)
 		fmt.Fprintln(w, "<div>")
 
@@ -263,7 +254,6 @@ func columnRender(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast
 		if !ok || prev.Tag != ColumnTagOpen {
 			fmt.Fprintln(w, "</div>")
 		}
-
 		fmt.Fprintln(w, "</div>")
 
 	default:
@@ -287,18 +277,17 @@ func (a *columnASTTransformer) Transform(node *ast.Document, reader text.Reader,
 			continue
 		}
 
-		// Check if columns block is correctly close
+		// Check if columns block is correctly closed
 		if !col.ctx.IsClose {
 			col.ctx.Error = fmt.Errorf(
 				"%w: columns hasn't been closed", ErrInvalidColumnFormat,
 			)
-
 		}
 
-		// Check if first sperator is followed by any tag
+		// Check if first separator is followed by any tag
 		if next := n.NextSibling(); next.Kind() != KindColumn {
 			col.ctx.Error = fmt.Errorf(
-				"%w: open tag should be followed by heading separtor", ErrInvalidColumnFormat,
+				"%w: open tag should be followed by heading separator", ErrInvalidColumnFormat,
 			)
 		}
 	}
@@ -314,6 +303,7 @@ func (r *columnRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) 
 // column struct is used to extend the markdown with column functionality.
 type column struct{}
 
+// Column is an instance of column for extending markdown.
 var Column = &column{}
 
 // Extend extends the markdown with column functionality.
