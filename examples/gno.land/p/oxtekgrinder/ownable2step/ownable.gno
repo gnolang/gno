@@ -15,7 +15,7 @@ type Ownable2Step struct {
 
 func New() *Ownable2Step {
 	return &Ownable2Step{
-		owner:        std.PrevRealm().Addr(),
+		owner:        std.PreviousRealm().Address(),
 		pendingOwner: "",
 	}
 }
@@ -45,7 +45,7 @@ func (o *Ownable2Step) AcceptOwnership() error {
 	if o.pendingOwner.String() == "" {
 		return ErrNoPendingOwner
 	}
-	if std.PrevRealm().Addr() != o.pendingOwner {
+	if std.PreviousRealm().Address() != o.pendingOwner {
 		return ErrPendingUnauthorized
 	}
 
@@ -87,12 +87,12 @@ func (o *Ownable2Step) PendingOwner() std.Address {
 
 // CallerIsOwner checks if the caller of the function is the Realm's owner
 func (o *Ownable2Step) CallerIsOwner() bool {
-	return std.PrevRealm().Addr() == o.owner
+	return std.PreviousRealm().Address() == o.owner
 }
 
 // AssertCallerIsOwner panics if the caller is not the owner
 func (o *Ownable2Step) AssertCallerIsOwner() {
-	if std.PrevRealm().Addr() != o.owner {
+	if std.PreviousRealm().Address() != o.owner {
 		panic(ErrUnauthorized)
 	}
 }

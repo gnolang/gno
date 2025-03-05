@@ -42,7 +42,6 @@ type Machine struct {
 
 	// Configuration
 	PreprocessorMode bool // this is used as a flag when const values are evaluated during preprocessing
-	ReadOnly         bool
 	Output           io.Writer
 	Store            Store
 	Context          interface{}
@@ -78,7 +77,6 @@ type MachineOptions struct {
 	// Active package of the given machine; must be set before execution.
 	PkgPath          string
 	PreprocessorMode bool
-	ReadOnly         bool
 	Debug            bool
 	Input            io.Reader // used for default debugger input only
 	Output           io.Writer // default os.Stdout
@@ -109,7 +107,6 @@ var machinePool = sync.Pool{
 // [Machine.Release].
 func NewMachineWithOptions(opts MachineOptions) *Machine {
 	preprocessorMode := opts.PreprocessorMode
-	readOnly := opts.ReadOnly
 	vmGasMeter := opts.GasMeter
 
 	output := opts.Output
@@ -141,7 +138,6 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Package = pv
 	mm.Alloc = alloc
 	mm.PreprocessorMode = preprocessorMode
-	mm.ReadOnly = readOnly
 	mm.Output = output
 	mm.Store = store
 	mm.Context = context
@@ -388,8 +384,9 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		if m.Frames[i].IsCall() {
 			stm := m.Stmts[nextStmtIndex]
-			bs := stm.(*bodyStmt)
-			stm = bs.Body[bs.NextBodyIndex-1]
+			if bs, ok := stm.(*bodyStmt); ok {
+				stm = bs.Body[bs.NextBodyIndex-1]
+			}
 			calls = append(calls, StacktraceCall{
 				Stmt:  stm,
 				Frame: m.Frames[i],
@@ -638,13 +635,13 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 	if pv.IsRealm() {
 		rlm := pv.Realm
 		rlm.MarkNewReal(pv)
-		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+		rlm.FinalizeRealmTransaction(m.Store)
 		// save package realm info.
 		m.Store.SetPackageRealm(rlm)
 	} else { // use a throwaway realm.
 		rlm := NewRealm(pv.PkgPath)
 		rlm.MarkNewReal(pv)
-		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+		rlm.FinalizeRealmTransaction(m.Store)
 		throwaway = rlm
 	}
 	// save declared types.
@@ -668,11 +665,11 @@ func (m *Machine) resavePackageValues(rlm *Realm) {
 	pv := m.Package
 	if pv.IsRealm() {
 		rlm = pv.Realm
-		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+		rlm.FinalizeRealmTransaction(m.Store)
 		// re-save package realm info.
 		m.Store.SetPackageRealm(rlm)
 	} else { // use the throwaway realm.
-		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+		rlm.FinalizeRealmTransaction(m.Store)
 	}
 	// types were already saved, and should not change
 	// even after running the init function.
@@ -683,10 +680,10 @@ func (m *Machine) RunFunc(fn Name) {
 		if r := recover(); r != nil {
 			switch r := r.(type) {
 			case UnhandledPanicError:
-				fmt.Printf("Machine.RunFunc(%q) panic: %s\nStacktrace: %s\n",
+				fmt.Printf("Machine.RunFunc(%q) panic: %s\nStacktrace:\n%s\n",
 					fn, r.Error(), m.ExceptionsStacktrace())
 			default:
-				fmt.Printf("Machine.RunFunc(%q) panic: %v\nMachine State:%s\nStacktrace: %s\n",
+				fmt.Printf("Machine.RunFunc(%q) panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
 					fn, r, m.String(), m.Stacktrace().String())
 			}
 			panic(r)
@@ -702,10 +699,10 @@ func (m *Machine) RunMain() {
 		if r != nil {
 			switch r := r.(type) {
 			case UnhandledPanicError:
-				fmt.Printf("Machine.RunMain() panic: %s\nStacktrace: %s\n",
+				fmt.Printf("Machine.RunMain() panic: %s\nStacktrace:\n%s\n",
 					r.Error(), m.ExceptionsStacktrace())
 			default:
-				fmt.Printf("Machine.RunMain() panic: %v\nMachine State:%s\nStacktrace: %s\n",
+				fmt.Printf("Machine.RunMain() panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
 					r, m.String(), m.Stacktrace())
 			}
 			panic(r)
@@ -2106,6 +2103,40 @@ func (m *Machine) Panic(ex TypedValue) {
 	m.PopUntilLastCallFrame()
 	m.PushOp(OpPanic2)
 	m.PushOp(OpReturnCallDefers)
+}
+
+// Recover is the underlying implementation of the recover() function in the
+// GnoVM. It returns nil if there was no exception to be recovered, otherwise
+// it returns the [Exception], which also contains the value passed into panic().
+func (m *Machine) Recover() *Exception {
+	if len(m.Exceptions) == 0 {
+		return nil
+	}
+
+	// If the exception is out of scope, this recover can't help; return nil.
+	if m.PanicScope <= m.DeferPanicScope {
+		return nil
+	}
+
+	exception := &m.Exceptions[len(m.Exceptions)-1]
+
+	// If the frame the exception occurred in is not popped, it's possible that
+	// the exception is still in scope and can be recovered.
+	if !exception.Frame.Popped {
+		// If the frame is not the current frame, the exception is not in scope; return nil.
+		// This retrieves the second most recent call frame because the first most recent
+		// is the call to recover itself.
+		if frame := m.LastCallFrame(2); frame == nil || frame != exception.Frame {
+			return nil
+		}
+	}
+
+	if isUntyped(exception.Value.T) {
+		ConvertUntypedTo(&exception.Value, nil)
+	}
+	// Recover complete; remove exceptions.
+	m.Exceptions = nil
+	return exception
 }
 
 //----------------------------------------

@@ -478,7 +478,7 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 // writes them into the underlying [Store]. OpReturn calls this when exiting a
 // realm transaction; additionally, this is called by the machine itself in
 // [Machine.RunMemPackage].
-func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
+func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	// TODO: check cross realm, that might be objects not attached
 	// to a realm gets attached here, which should panic.
 
@@ -486,19 +486,7 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
 	}
-	if readonly {
-		if true ||
-			len(rlm.newCreated) > 0 ||
-			len(rlm.newEscaped) > 0 ||
-			len(rlm.newDeleted) > 0 ||
-			len(rlm.created) > 0 ||
-			len(rlm.updated) > 0 ||
-			len(rlm.deleted) > 0 ||
-			len(rlm.escaped) > 0 {
-			panic("realm updates in readonly transaction")
-		}
-		return
-	}
+
 	if debug {
 		ensureUniq(rlm.newCreated)
 		ensureUniq(rlm.newEscaped)

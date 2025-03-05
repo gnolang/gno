@@ -16,7 +16,7 @@ func init() {
 func Reset(optionalName string) string {
 	name := optionalName
 	if name == "" {
-		height := std.GetHeight()
+		height := std.ChainHeight()
 		name = ufmt.Sprintf("gnome#%d", height)
 	}
 
