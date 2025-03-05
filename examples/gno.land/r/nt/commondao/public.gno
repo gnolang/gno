@@ -16,8 +16,12 @@ var reSlug = regexp.MustCompile("^[a-zA-Z]+[a-zA-Z0-9-]*$")
 // Invite invites a user to the realm.
 // A user invitation is required to start creating new DAOs.
 func Invite(invitee std.Address) {
-	// TODO: Use an authority to restrict inviters when `p/moul/authz` is available
-	caller := std.PreviousRealm().Address()
+	dao := mustGetDAO(CommonDAOID)
+	caller := std.OriginCaller()
+	if !dao.Members().Has(caller) {
+		panic("unauthorized")
+	}
+
 	invites.Set(invitee.String(), caller.String())
 }
 

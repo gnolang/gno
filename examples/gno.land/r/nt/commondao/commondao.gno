@@ -10,6 +10,9 @@ import (
 
 // TODO: Use a trie tree to store hierarchical DAOs
 
+// CommonDAOID is the ID of the realm's DAO.
+const CommonDAOID uint64 = 1
+
 var (
 	daoID     seqid.ID
 	daos      = avl.NewTree() // string(ID) -> *commondao.CommonDAO
