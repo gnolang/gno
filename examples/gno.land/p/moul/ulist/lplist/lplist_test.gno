@@ -162,3 +162,81 @@ func TestLayeredProxyListEmpty(t *testing.T) {
 		t.Errorf("GetRange on empty list returned %v entries, want 0", len(entries))
 	}
 }
+
+// TestLayeredProxyListChaining tests chaining of layered proxies with struct migrations
+func TestLayeredProxyListChaining(t *testing.T) {
+	// Define struct types for different versions
+	type v1 struct {
+		namev1 string
+	}
+	type v2 struct {
+		namev2 string
+	}
+	type v3 struct {
+		namev3 string
+	}
+
+	// Create source list with v1 objects
+	source := ulist.New()
+	source.Append(v1{namev1: "object1"}, v1{namev1: "object2"})
+
+	// Migration function from v1 to v2
+	v1Tov2 := func(v interface{}) interface{} {
+		obj := v.(v1)
+		return v2{namev2: obj.namev1 + "_v2"}
+	}
+
+	// Create first proxy with v1->v2 migration
+	proxyV2 := NewLayeredProxyList(source, v1Tov2)
+	proxyV2.Append(v2{namev2: "direct_v2"})
+
+	// Migration function from v2 to v3
+	v2Tov3 := func(v interface{}) interface{} {
+		obj := v.(v2)
+		return v3{namev3: obj.namev2 + "_v3"}
+	}
+
+	// Create second proxy with v2->v3 migration, using the first proxy as source
+	proxyV3 := NewLayeredProxyList(proxyV2, v2Tov3)
+	proxyV3.Append(v3{namev3: "direct_v3"})
+
+	// Verify sizes
+	if got := proxyV3.Size(); got != 4 {
+		t.Errorf("proxyV3.Size() = %v, want 4", got)
+	}
+
+	// Test that all objects are correctly migrated when accessed through proxyV3
+	expected := []struct {
+		index int
+		name  string
+	}{
+		{0, "object1_v2_v3"}, // v1 -> v2 -> v3
+		{1, "object2_v2_v3"}, // v1 -> v2 -> v3
+		{2, "direct_v2_v3"},  // v2 -> v3
+		{3, "direct_v3"},     // v3 (no migration)
+	}
+
+	for _, tt := range expected {
+		obj := proxyV3.Get(tt.index).(v3)
+		if obj.namev3 != tt.name {
+			t.Errorf("proxyV3.Get(%d).namev3 = %v, want %v", tt.index, obj.namev3, tt.name)
+		}
+	}
+
+	// Verify getting items from middle layer (proxyV2)
+	middleExpected := []struct {
+		index int
+		name  string
+	}{
+		{0, "object1_v2"}, // v1 -> v2
+		{1, "object2_v2"}, // v1 -> v2
+		{2, "direct_v2"},  // v2 (no migration)
+	}
+
+	for _, tt := range middleExpected {
+		obj := proxyV2.Get(tt.index).(v2)
+		if obj.namev2 != tt.name {
+			t.Errorf("proxyV2.Get(%d).namev2 = %v, want %v", tt.index, obj.namev2, tt.name)
+		}
+	}
+}
