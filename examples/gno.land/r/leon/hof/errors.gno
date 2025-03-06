@@ -2,6 +2,7 @@ package hof
 
 import (
 	"errors"
+
 	"gno.land/p/leon/pkgerr"
 )
 
