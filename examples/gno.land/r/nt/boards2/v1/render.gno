@@ -17,15 +17,12 @@ const (
 	repliesPageSize = 30
 )
 
-const (
-	menuAdmin      = "admin"
-	menuMembership = "membership"
-)
+const menuMembership = "membership"
 
 func Render(path string) string {
 	router := mux.NewRouter()
 	router.HandleFunc("", renderBoardsList)
-	router.HandleFunc("members", renderMembers)
+	router.HandleFunc("adminUsers", renderMembers)
 	router.HandleFunc("{board}", renderBoard)
 	router.HandleFunc("{board}/members", renderMembers)
 	router.HandleFunc("{board}/{thread}", renderThread)
@@ -74,26 +71,12 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderBoardListMenu(res *mux.ResponseWriter, req *mux.Request) {
-	res.Write(newLink("Create Board", txlink.Call("CreateBoard")) + " • ")
+	path := strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land")
 
-	menu := getCurrentSubmenu(req.RawPath)
-	if menu == menuMembership {
-		res.Write("**Membership**")
-	} else {
-		res.Write(newLink("Membership", submenuURL(menuMembership)))
-	}
-
-	res.Write("  \n")
-
-	if menu == menuMembership {
-		path := strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land")
-
-		res.Write("↳")
-		res.Write(newLink("Invite", txlink.Call("InviteMember", "boardID", "0")) + " • ")
-		res.Write(newLink("Members", path+":members") + " • ")
-		res.Write(newLink("Remove Member", txlink.Call("RemoveMember", "boardID", "0")) + " • ")
-		res.Write(newLink("Change Member Role", txlink.Call("ChangeMemberRole", "boardID", "0")) + "\n\n")
-	}
+	res.Write(newLink("Create Board", txlink.Call("CreateBoard")))
+	res.Write(" • ")
+	res.Write(newLink("List Admin Users", path+":adminUsers"))
+	res.Write("\n\n")
 }
 
 func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
@@ -113,40 +96,28 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderBoardMenu(board *Board, res *mux.ResponseWriter, req *mux.Request) {
-	res.Write(newLink("Start Thread", board.GetPostFormURL()) + " • ")
+	res.Write(newLink("Start Thread", board.GetPostFormURL()))
+	res.Write(" • ")
 
 	menu := getCurrentSubmenu(req.RawPath)
 	if menu == menuMembership {
-		res.Write("**Membership** • ")
+		res.Write("**Manage Board Membership**")
 	} else {
-		res.Write(newLink("Membership", submenuURL(menuMembership)) + " • ")
-	}
-
-	if menu == menuAdmin {
-		res.Write("**Admin**")
-	} else {
-		res.Write(newLink("Admin", submenuURL(menuAdmin)))
+		res.Write(newLink("Manage Board Membership", submenuURL(menuMembership)))
 	}
 
 	res.Write("  \n")
 
-	if menu != "" {
+	if menu == menuMembership {
 		res.Write("↳")
-	}
-
-	switch menu {
-	case menuAdmin:
-		res.Write(newLink("Rename Board", board.GetRenameFormURL()) + " • ")
-		if !board.IsReadOnly() {
-			res.Write(newLink("Freeze", board.GetFreezeFormURL()) + " • ")
-		}
-
-		res.Write(newLink("Change Flagging Threshold", board.GetFlaggingThresholdFormURL()) + "\n\n")
-	case menuMembership:
-		res.Write(newLink("Invite", board.GetInviteMemberFormURL()) + " • ")
-		res.Write(newLink("Members", board.GetPath()+"/members") + " • ")
-		res.Write(newLink("Remove Member", board.GetRemoveMemberFormURL()) + " • ")
-		res.Write(newLink("Change Member Role", board.GetChangeMemberRoleFormURL()) + "\n\n")
+		res.Write(newLink("Invite", board.GetInviteMemberFormURL()))
+		res.Write(" • ")
+		res.Write(newLink("List Members", board.GetPath()+"/members"))
+		res.Write(" • ")
+		res.Write(newLink("Remove Member", board.GetRemoveMemberFormURL()))
+		res.Write(" • ")
+		res.Write(newLink("Change Member Role", board.GetChangeMemberRoleFormURL()))
+		res.Write("\n\n")
 	}
 }
 
@@ -231,12 +202,12 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 		board := v.(*Board)
 		perms = board.perms
 
-		res.Write("# Board Members: " + board.GetName() + "\n\n")
+		res.Write("# " + board.GetName() + " Members\n")
+		res.Write("### These are the board members\n\n")
 	} else {
-		res.Write("# Boards Members\n\n")
+		res.Write("# Admin Users\n")
+		res.Write("### These are the admin users of the realm\n\n")
 	}
-
-	res.Write("### These are the board members\n\n")
 
 	// Create a pager with a small page size to reduce
 	// the number of username lookups per page.
