@@ -22,10 +22,13 @@ func init() {
 }
 
 func main() {
-	pid := boards2.CreateThread(bid, title, body)
+	tid := boards2.CreateThread(bid, title, body)
 
 	// Ensure that returned ID is right
-	println(pid == 1)
+	println(tid == 1)
+
+	// Thread should not be frozen by default
+	println(boards2.IsThreadFrozen(bid, tid))
 
 	// Render content must contains thread's title and body
 	content := boards2.Render(path)
@@ -35,5 +38,6 @@ func main() {
 
 // Output:
 // true
+// false
 // true
 // true
