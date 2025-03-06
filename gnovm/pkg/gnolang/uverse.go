@@ -145,21 +145,6 @@ func makeUverseNode() {
 	def("uint16", asValue(Uint16Type))
 	def("uint32", asValue(Uint32Type))
 	def("uint64", asValue(Uint64Type))
-	// NOTE on 'typeval': We can't call the type of a TypeValue a
-	// "type", even though we want to, because it conflicts with
-	// the pre-existing syntax for type-switching, `switch
-	// x.(type) {case SomeType:...}`, for if x.(type) were not a
-	// type-switch but a type-assertion, and the resulting value
-	// could be any type, such as an IntType; whereas as the .X of
-	// a SwitchStmt, the type of an IntType value is not IntType
-	// but always a TypeType (all types are of type TypeType).
-	//
-	// The ideal solution is to keep the syntax consistent for
-	// type-assertions, but for backwards compatibility, the
-	// keyword that represents the TypeType type is not "type" but
-	// "typeval".  The value of a "typeval" value is represented
-	// by a TypeValue.
-	def("typeval", asValue(gTypeType))
 	def("error", asValue(gErrorType))
 	def("any", asValue(&InterfaceType{}))
 
@@ -642,8 +627,6 @@ func makeUverseNode() {
 			return
 		},
 	)
-	def("close", undefined)
-	def("complex", undefined)
 	defNative("copy",
 		Flds( // params
 			"dst", GenT("X", nil),
@@ -1026,37 +1009,12 @@ func makeUverseNode() {
 			"exception", AnyT(),
 		),
 		func(m *Machine) {
-			if len(m.Exceptions) == 0 {
+			exception := m.Recover()
+			if exception == nil {
 				m.PushValue(TypedValue{})
-				return
+			} else {
+				m.PushValue(exception.Value)
 			}
-
-			// If the exception is out of scope, this recover can't help; return nil.
-			if m.PanicScope <= m.DeferPanicScope {
-				m.PushValue(TypedValue{})
-				return
-			}
-
-			exception := &m.Exceptions[len(m.Exceptions)-1]
-
-			// If the frame the exception occurred in is not popped, it's possible that
-			// the exception is still in scope and can be recovered.
-			if !exception.Frame.Popped {
-				// If the frame is not the current frame, the exception is not in scope; return nil.
-				// This retrieves the second most recent call frame because the first most recent
-				// is the call to recover itself.
-				if frame := m.LastCallFrame(2); frame == nil || (frame != nil && frame != exception.Frame) {
-					m.PushValue(TypedValue{})
-					return
-				}
-			}
-
-			if isUntyped(exception.Value.T) {
-				ConvertUntypedTo(&exception.Value, nil)
-			}
-			m.PushValue(exception.Value)
-			// Recover complete; remove exceptions.
-			m.Exceptions = nil
 		},
 	)
 	uverseValue = uverseNode.NewPackage()

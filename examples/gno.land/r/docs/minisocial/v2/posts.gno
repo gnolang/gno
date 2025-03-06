@@ -124,10 +124,10 @@ func Render(path string) string {
 		text := post.author.String()
 		user := users.GetUserByAddress(post.author)
 		if user != nil {
-			text = user.Name
+			text = ufmt.Sprintf("[@%s](/r/demo/users:%s)", user.Name, user.Name)
 		}
 
-		out += md.H4(ufmt.Sprintf("Post #%d - @%s\n\n", int(post.id), text))
+		out += md.H4(ufmt.Sprintf("Post #%d - %s\n\n", int(post.id), text))
 
 		out += post.String()
 		out += md.HorizontalRule()
