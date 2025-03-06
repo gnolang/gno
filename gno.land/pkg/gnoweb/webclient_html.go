@@ -287,26 +287,28 @@ func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) e
 		// Find and process string spans containing gno.land imports
 		lines := strings.Split(formatted, "\n")
 		for i, line := range lines {
-			if strings.Contains(line, "gno.land/") {
-				// Look for chroma string spans
-				start := strings.Index(line, `<span class="chroma-s">&#34;gno.land/`)
-				if start != -1 {
-					prefix := line[:start]
-					rest := line[start:]
-					end := strings.Index(rest, `&#34;</span>`)
-					if end != -1 {
-						// Extract the path of gnoland import
-						importPath := rest[len(`<span class="chroma-s">&#34;`):end]
-						urlPath := strings.TrimPrefix(importPath, "gno.land/")
-
-						// Create new span with link
-						replacement := fmt.Sprintf(`<span class="chroma-s"><a href="/%s$source" class="hover:underline">&#34;%s&#34;</a></span>`,
-							urlPath, importPath)
-
-						lines[i] = prefix + replacement + rest[end+len(`&#34;</span>`):]
-					}
-				}
+			// Look for chroma string spans
+			start := strings.Index(line, `<span class="chroma-s">&#34;gno.land/`)
+			if start == -1 {
+				continue
 			}
+
+			prefix := line[:start]
+			rest := line[start:]
+			end := strings.Index(rest, `&#34;</span>`)
+			if end == -1 {
+				continue
+			}
+
+			// Extract the path of gnoland import
+			importPath := rest[len(`<span class="chroma-s">&#34;`):end]
+			urlPath := strings.TrimPrefix(importPath, "gno.land/")
+
+			// Create new span with link
+			replacement := fmt.Sprintf(`<span class="chroma-s"><a href="/%s$source" class="hover:underline">&#34;%s&#34;</a></span>`,
+				urlPath, importPath)
+
+			lines[i] = prefix + replacement + rest[end+len(`&#34;</span>`):]
 		}
 		formatted = strings.Join(lines, "\n")
 	}
