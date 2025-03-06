@@ -28,12 +28,17 @@
             <form
               class="js-header-searchbar peer absolute w-full h-full top-0 left-0 p-1.5 md:pr-8 text-200 text-gray-600 font-medium"
             >
+              <label for="header-input-search" class="sr-only">
+                gno.land Search
+              </label>
               <input
+                id="header-input-search"
                 data-role="header-input-search"
                 type="text"
                 value="{{ .RealmPath }}"
                 class="relative h-full w-full bg-transparent outline-none"
               />
+              <button type="submit" class="sr-only">Search</button>
             </form>
 
             {{ template "ui/breadcrumb" .Breadcrumb }}
