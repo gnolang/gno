@@ -35,15 +35,23 @@ func execServe(ctx context.Context, cfg_ *cfg.CmdCfg) error {
 			logger, _ := zap.NewProduction()
 
 			for {
+				var err_ error
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
-					portalloop.RunPortalLoop(ctx, *portalLoopHandler, false)
+					err_ = portalloop.RunPortalLoop(ctx, *portalLoopHandler, false)
+					if err_ != nil {
+						logger.Error("Portal Loop Run ended with error", zap.Error(err_))
+						return
+					}
 					// Wait for a new round
 					logger.Info("Waiting 3 min before new loop attempt")
 					time.Sleep(3 * time.Minute)
 				}()
 				wg.Wait()
+				if err_ != nil {
+					return err_
+				}
 			}
 		},
 	)

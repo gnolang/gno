@@ -125,6 +125,29 @@ services:
       - host.docker.internal:host-gateway
     labels:
       - com.centurylinklabs.watchtower.enable=true
+    healthcheck:
+      test: [ "CMD-SHELL", 
+        "[ $$(curl -s traefik:26657/status | jq -r '.result.sync_info.latest_block_height') -ge 1 ] \
+            && grep -q 'middlewares: \\[\\]' /etc/traefik/configs/gno.yml" ]
+      interval: 20s
+      timeout: 3s
+      retries: 5
+      start_period: 60s
+
+  portalloopd-notify:
+    image: containrrr/shoutrrr
+    env_file: .env
+    command: 
+      - send
+      - --url
+      - ${WATCHTOWER_NOTIFICATION_URL}
+      - --message
+      - "Portal Loop is Healthy"
+    labels:
+      - com.centurylinklabs.watchtower.depends-on=portalloopd
+    depends_on:
+      portalloopd:
+        condition: service_healthy
 
   watchtower:
     image: containrrr/watchtower

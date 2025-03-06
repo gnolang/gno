@@ -1,10 +1,8 @@
 package docker
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"strings"
 	"time"
 
@@ -21,23 +19,34 @@ type DockerHandler struct {
 	Logger       *zap.Logger
 }
 
-const GnoOfficialImage string = "ghcr.io/gnolang/gno/gnoland:master"
+const (
+	GnoOfficialImage string = "ghcr.io/gnolang/gno/gnoland:master"
+)
 
 // Checks if a fresh pull of Master image corresponds to a new version
 func (dh *DockerHandler) CheckPulledMasterImage(ctx context.Context) (bool, error) {
-	reader, err := dh.DockerClient.ImagePull(ctx, GnoOfficialImage, types.ImagePullOptions{})
+	localImage, _, err := dh.DockerClient.ImageInspectWithRaw(ctx, GnoOfficialImage)
+	if err != nil {
+		dh.DockerClient.ImagePull(ctx, GnoOfficialImage, types.ImagePullOptions{})
+		return true, nil
+	}
+
+	// Get local image digest
+	if len(localImage.RepoDigests) < 0 {
+		return false, fmt.Errorf("Unable to get a local digest")
+	}
+	// local digest include full repository name
+	localDigestPrefix := strings.ReplaceAll(GnoOfficialImage, ":master", "")
+	localDigest := strings.ReplaceAll(localImage.RepoDigests[0], fmt.Sprintf("%s@", localDigestPrefix), "")
+
+	// Get remote image digest
+	remoteImage, err := dh.DockerClient.DistributionInspect(ctx, GnoOfficialImage, "")
+
 	if err != nil {
 		return false, err
 	}
-	defer reader.Close()
-
-	var b bytes.Buffer
-	_, err = io.Copy(&b, reader)
-	if err != nil {
-		return false, err
-	}
-
-	return !strings.Contains(b.String(), "Image is up to date"), nil
+	remoteDigest := remoteImage.Descriptor.Digest.String()
+	return localDigest != remoteDigest, nil
 }
 
 // Gather the list of current running containter of
@@ -58,13 +67,21 @@ func (dh *DockerHandler) GetActiveGnoPortalLoopContainers(ctx context.Context) (
 }
 
 // Starts the Gno Portal Loop Container
-func (dh *DockerHandler) StartGnoPortalLoopContainer(ctx context.Context, containerName string, hostPwd string) (*types.Container, error) {
+func (dh *DockerHandler) StartGnoPortalLoopContainer(ctx context.Context, containerName, hostPwd string, pullImage bool) (*types.Container, error) {
 	// Create Docker volume
 	volume, err := dh.DockerClient.VolumeCreate(ctx, volume.CreateOptions{
 		Name: containerName,
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	// force pull image
+	if pullImage {
+		_, err := dh.DockerClient.ImagePull(ctx, GnoOfficialImage, types.ImagePullOptions{})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Run Docker container

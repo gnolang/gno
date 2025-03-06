@@ -144,14 +144,19 @@ func (plh *PortalLoopHandler) SwitchTraefikPortalLoopUrl() error {
 }
 
 // Replaces Traefik Mode attribute - set/unset ReadOnly mode
-func (plh *PortalLoopHandler) SwitchTraefikMode(readOnly bool) error {
+func (plh *PortalLoopHandler) switchTraefikAccess(mode TraefikMode) error {
 	regExp := `middlewares: \[.*\]`
-
-	var mode TraefikMode = unsetReadOnly
-	if readOnly {
-		mode = setReadOnly
-	}
 	return plh.replaceRegexpInFile(regExp, (string)(mode))
+}
+
+// Unsets ReadOnly mode
+func (plh *PortalLoopHandler) UnlockTraefikAccess() error {
+	return plh.switchTraefikAccess(unsetReadOnly)
+}
+
+// Sets ReadOnly mode
+func (plh *PortalLoopHandler) LockTraefikAccess() error {
+	return plh.switchTraefikAccess(setReadOnly)
 }
 
 // Proxies the request to the Docker handler to remove existing Portal Lopp containers
