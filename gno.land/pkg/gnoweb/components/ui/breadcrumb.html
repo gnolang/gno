@@ -65,17 +65,22 @@
         >
           <label
             for="{{ $query.Key }}"
-            class="relative w-full h-full text-gray-600 border focus-within:border-gray-400 hover:border-gray-400 bg-gray-50 inline-block rounded-sm py-0.5 px-1 no-scrollbar min-w-4 text-center"
+            class="relative w-full h-full text-gray-600 border focus-within:border-gray-400 hover:border-gray-400 bg-gray-50 inline-flex rounded-sm py-0.5 px-1 min-w-4 text-center cursor-text"
           >
+            <span class="">{{ $query.Key }}=</span>
             <input
-              class="absolute top-0.5 left-1 right-1 opacity-0 focus:opacity-100 outline-none bg-gray-50"
+              class="peer field-content focus:opacity-100 w-0 focus:w-min focus-no-field-sizing:w-20 opacity-0 outline-none bg-gray-50 order-3"
               type="text"
               id="{{ $query.Key }}"
               name="{{ $query.Key }}"
-              value="{{ $query.Value }}"
+              value=""
               onfocus="this.select()"
             />
-            <span>{{ $query.Key }}={{ $query.Value }}</span>
+            <span
+              class="peer-focus:hidden peer-placeholder-shown:hidden order-2"
+            >
+              {{ $query.Value }}
+            </span>
           </label>
         </li>
       {{- end }}
