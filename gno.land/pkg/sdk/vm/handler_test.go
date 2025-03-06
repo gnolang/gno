@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/gnovm/pkg/doc"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -81,7 +82,7 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 		{input: []byte(`gno.land/r/hello.myStructInst`), expectedResult: `(struct{(1000 int)} gno.land/r/hello.myStruct)`},
 		{input: []byte(`gno.land/r/hello.myStructInst.Foo()`), expectedResult: `("myStruct.Foo" string)`},
 		{input: []byte(`gno.land/r/hello.myStruct`), expectedResultMatch: `\(typeval{gno.land/r/hello.myStruct \(0x.*\)} type{}\)`},
-		{input: []byte(`gno.land/r/hello.Inc`), expectedResult: `(Inc func()( int))`},
+		{input: []byte(`gno.land/r/hello.Inc`), expectedResult: `(Inc func() int)`},
 		{input: []byte(`gno.land/r/hello.fn()("hi")`), expectedResult: `("echo:hi" string)`},
 		{input: []byte(`gno.land/r/hello.sl`), expectedResultMatch: `(slice[ref(.*)] []int)`},    // XXX: should return the actual value
 		{input: []byte(`gno.land/r/hello.sl[1]`), expectedResultMatch: `(slice[ref(.*)] []int)`}, // XXX: should return the actual value
@@ -167,7 +168,7 @@ func pvEcho(msg string) string { return "pvecho:"+msg }
 				if tc.expectedErrorMatch == "" {
 					assert.True(t, res.IsOK(), "should not have error")
 					if tc.expectedResult != "" {
-						assert.Equal(t, string(res.Data), tc.expectedResult)
+						assert.Equal(t, tc.expectedResult, string(res.Data))
 					}
 					if tc.expectedResultMatch != "" {
 						assert.Regexp(t, tc.expectedResultMatch, string(res.Data))
@@ -318,6 +319,121 @@ func TestVmHandlerQuery_File(t *testing.T) {
 				}
 				if tc.expectedResultMatch != "" {
 					assert.Regexp(t, tc.expectedResultMatch, string(res.Data))
+				}
+			} else {
+				assert.False(t, res.IsOK(), "should have an error")
+				errmsg := res.Error.Error()
+				assert.Regexp(t, tc.expectedErrorMatch, errmsg)
+			}
+		})
+	}
+}
+
+func TestVmHandlerQuery_Doc(t *testing.T) {
+	expected := &doc.JSONDocumentation{
+		PackagePath: "gno.land/r/hello",
+		PackageLine: "package hello // import \"hello\"",
+		PackageDoc:  "hello is a package for testing\n",
+		Values: []*doc.JSONValueDecl{
+			{
+				Signature: "const prefix = \"Hello\"",
+				Const:     true,
+				Doc:       "The prefix for the hello message\n",
+				Values: []*doc.JSONValue{
+					{
+						Name: "prefix",
+						Doc:  "",
+						Type: "",
+					},
+				},
+			},
+		},
+		Funcs: []*doc.JSONFunc{
+			{
+				Type:      "",
+				Name:      "Hello",
+				Signature: "func Hello(msg string) (res string)",
+				Doc:       "",
+				Params: []*doc.JSONField{
+					{Name: "msg", Type: "string"},
+				},
+				Results: []*doc.JSONField{
+					{Name: "res", Type: "string"},
+				},
+			},
+			{
+				Type:      "myStruct",
+				Name:      "Foo",
+				Signature: "func (ms myStruct) Foo() string",
+				Doc:       "",
+				Params:    []*doc.JSONField{},
+				Results: []*doc.JSONField{
+					{Name: "", Type: "string"},
+				},
+			},
+		},
+		Types: []*doc.JSONType{
+			{
+				Name:      "myStruct",
+				Signature: "type myStruct struct{ a int }",
+				Doc:       "myStruct is a struct for testing\n",
+			},
+		},
+	}
+
+	tt := []struct {
+		input              []byte
+		expectedResult     string
+		expectedErrorMatch string
+	}{
+		// valid queries
+		{input: []byte(`gno.land/r/hello`), expectedResult: expected.JSON()},
+		{input: []byte(`gno.land/r/doesnotexist`), expectedErrorMatch: `invalid package path`},
+	}
+
+	for _, tc := range tt {
+		name := string(tc.input)
+		t.Run(name, func(t *testing.T) {
+			env := setupTestEnv()
+			ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+			vmHandler := env.vmh
+
+			// Give "addr1" some gnots.
+			addr := crypto.AddressFromPreimage([]byte("addr1"))
+			acc := env.acck.NewAccountWithAddress(ctx, addr)
+			env.acck.SetAccount(ctx, acc)
+			env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+			assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+
+			// Create test package.
+			files := []*gnovm.MemFile{
+				{Name: "hello.gno", Body: `
+// hello is a package for testing
+package hello
+
+// myStruct is a struct for testing
+type myStruct struct{a int}
+func (ms myStruct) Foo() string { return "myStruct.Foo" }
+// The prefix for the hello message
+const prefix = "Hello"
+func Hello(msg string) (res string) { res = prefix+" "+msg; return }
+`},
+			}
+			pkgPath := "gno.land/r/hello"
+			msg1 := NewMsgAddPackage(addr, pkgPath, files)
+			err := env.vmk.AddPackage(ctx, msg1)
+			assert.NoError(t, err)
+
+			req := abci.RequestQuery{
+				Path: "vm/qdoc",
+				Data: tc.input,
+			}
+
+			res := vmHandler.Query(env.ctx, req)
+			if tc.expectedErrorMatch == "" {
+				assert.True(t, res.IsOK(), "should not have error")
+				if tc.expectedResult != "" {
+					assert.Equal(t, tc.expectedResult, string(res.Data))
 				}
 			} else {
 				assert.False(t, res.IsOK(), "should have an error")

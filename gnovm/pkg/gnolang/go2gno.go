@@ -478,6 +478,13 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		}
 	case *ast.EmptyStmt:
 		return &EmptyStmt{}
+	case *ast.IndexListExpr:
+		if len(gon.Indices) > 1 {
+			panicWithPos("invalid operation: more than one index")
+		}
+		panicWithPos("invalid operation: indexList is not permitted in Gno")
+	case *ast.GoStmt:
+		panicWithPos("goroutines are not permitted")
 	default:
 		panicWithPos("unknown Go type %v: %s\n",
 			reflect.TypeOf(gon),
@@ -664,12 +671,16 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 				for _, id := range s.Names {
 					names = append(names, *Nx(toName(id)))
 				}
-				if s.Type == nil {
+
+				// Inherit the last type when
+				// both type and value are nil
+				if s.Type == nil && s.Values == nil {
 					tipe = lastType
 				} else {
 					tipe = toExpr(fs, s.Type)
 					lastType = tipe
 				}
+
 				if s.Values == nil {
 					values = copyExprs(lastValues)
 				} else {
