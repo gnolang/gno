@@ -273,9 +273,13 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, seenObjs *[]Object) {
 
 	if debug {
 		debug.Printf(
-			"checkCrossRealm, oo: %v (type: %v) | GetIsReal: %t | oo.GetBoundRealm: %v | rlm.ID: %v | isAttachingRef: %t\n",
-			oo, reflect.TypeOf(oo), oo.GetIsReal(), oo.GetBoundRealm(), rlm.ID, oo.GetIsAttachingRef(),
+			"checkCrossRealm, oo: %v (type: %v) | GetIsReal: %t | GetIsEscaped: %t | oo.GetBoundRealm: %v | rlm.ID: %v | isAttachingRef: %t\n",
+			oo, reflect.TypeOf(oo), oo.GetIsReal(), oo.GetIsEscaped(), oo.GetBoundRealm(), rlm.ID, oo.GetIsAttachingRef(),
 		)
+	}
+
+	if oo.GetIsEscaped() {
+		return
 	}
 
 	// object from pure package is ok
@@ -322,7 +326,6 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, seenObjs *[]Objec
 	if debug {
 		debug.Printf("checkCrossRealm2, tv: %v (type: %v) \n", tv, reflect.TypeOf(tv.V))
 	}
-	fillValueTV(store, tv)
 	oo2 := tv.GetFirstObject2(store)
 	if oo2 != nil {
 		checkCrossRealm(rlm, store, oo2, seenObjs)
