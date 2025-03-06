@@ -345,7 +345,7 @@ func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
 	// Add args
 	if url.Args != "" {
 		argSplit := strings.Split(url.Args, "/")
-		var nonEmptyArgs []string = slices.DeleteFunc(argSplit, func(a string) bool {
+		nonEmptyArgs := slices.DeleteFunc(argSplit, func(a string) bool {
 			return a == ""
 		})
 
