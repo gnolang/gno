@@ -1,10 +1,13 @@
 # Gas Fees in gno.land
 
-This document explains how gas works in the gno.land ecosystem, including gas pricing, estimation, and optimization.
+This document explains how gas works in the gno.land ecosystem, including gas
+pricing, estimation, and optimization. 
 
 ## What is Gas?
 
-Gas is a measure of computational and storage resources required to execute operations on the blockchain. Every transaction on gno.land consumes gas based on:
+Gas is a measure of computational and storage resources required to execute
+operations on the blockchain. Every transaction on gno.land consumes gas based
+on: 
 
 1. The complexity of the operation being performed
 2. The amount of data being stored
@@ -21,11 +24,15 @@ When submitting transactions to gno.land, you need to specify two gas-related pa
 
 ### Gas Wanted
 
-`--gas-wanted` specifies the maximum amount of gas your transaction is allowed to consume. If your transaction requires more gas than this limit, it will fail with an "out of gas" error, but will still consume the gas up to that point.
+`--gas-wanted` specifies the maximum amount of gas your transaction is allowed
+to consume. If your transaction requires more gas than this limit, it will fail
+with an "out of gas" error, but will still consume the gas up to that point. 
 
 ### Gas Fee
 
-`--gas-fee` specifies how much you're willing to pay per unit of gas. This is typically expressed in `ugnot` (micro-GNOT). For example, `1000000ugnot` means you're willing to pay 1 GNOT per unit of gas.
+`--gas-fee` specifies how much you're willing to pay per unit of gas. This is
+typically expressed in `ugnot` (micro-GNOT). For example, `1000000ugnot` means
+you're willing to pay 1 GNOT per unit of gas. 
 
 The total maximum fee you might pay is calculated as:
 ```
@@ -45,7 +52,8 @@ Here are some recommended gas values for common operations:
 | Deploying a small package | 5,000,000 | 1000000ugnot |
 | Deploying a complex realm | 10,000,000+ | 1000000ugnot |
 
-These values may vary based on network conditions and the specific implementation of your code.
+These values may vary based on network conditions and the specific
+implementation of your code. 
 
 ## Gas Estimation
 

@@ -1,6 +1,8 @@
 # Exploring gno.land with gnoweb
 
-`gnoweb` is gno.land's universal web interface that lets you browse applications and source code on any gno.land network. This guide explains how to use gnoweb to explore the blockchain ecosystem.
+`gnoweb` is gno.land's universal web interface that lets you browse applications
+and source code on any gno.land network. This guide explains how to use gnoweb
+to explore the blockchain ecosystem. 
 
 ## Networks
 

@@ -1,6 +1,8 @@
 # Deploying Gno Packages to a Network
 
-Once you've developed and tested your Gno packages locally, the next step is deploying them to a gno.land network. This guide explains how to deploy both realms and pure packages using `gnokey`.
+Once you've developed and tested your Gno packages locally, the next step is
+deploying them to a gno.land network. This guide explains how to deploy both
+realms and pure packages using `gnokey`. 
 
 ## Prerequisites
 
@@ -11,34 +13,37 @@ Before deploying, you need:
 3. The `gnokey` utility installed and configured
 4. (Optional) A registered namespace for deploying under your own path
 
-In this tutorial, you will learn how to deploy Gno code to a gno.land network via
-the CLI using `gnokey`. We will be reusing code from a 
+In this tutorial, you will learn how to deploy Gno code to a gno.land network
+via the CLI using `gnokey`. We will be reusing code from a 
 [previous tutorial](developing-locally/running-testing-gno.md#setup).
 
 ### A word about gas
 
-For any state-changing call on the gno.land network, which includes code deployment,
-users must pay an execution fee, commonly known as a transaction fee. This 
-mechanism prevents DoS attacks and is integral to most blockchain networks.
+For any state-changing call on the gno.land network, which includes code
+deployment, users must pay an execution fee, commonly known as a transaction
+fee. This mechanism prevents DoS attacks and is integral to most blockchain
+networks.
 
 Transaction fees on the gno.land network are paid with gno.land's native coin, 
 GNOT, denominated as `ugnot` (micro-GNOT, `1 GNOT = 1_000_000 ugnot`). 
 
-The transaction fee is calculated as `gas-fee * gas-wanted`, where `gas-fee` is 
-the current price of a unit of gas in `ugnot`, and `gas-wanted` is the total number of 
-gas units spent for executing the transaction.
+The transaction fee is calculated as `gas-fee * gas-wanted`, where `gas-fee` is
+the current price of a unit of gas in `ugnot`, and `gas-wanted` is the total
+number of gas units spent for executing the transaction.
 
 ### Getting testnet GNOT
 
-When working with [remote networks](../resources/gnoland-networks.md), users need to get
-testnet `ugnot` manually.
+When working with [remote networks](../resources/gnoland-networks.md), users
+need to get testnet `ugnot` manually.
 
-`ugnot` for development on remote networks can be obtained via the [Gno Faucet Hub](https://faucet.gno.land).
-Select your desired network, input a Gno address to which you want to receive
-GNOT, complete the captcha and request tokens. Soon you should have a GNOT balance.
+`ugnot` for development on remote networks can be obtained via the
+[Gno Faucet Hub](https://faucet.gno.land). Select your desired network, input a
+Gno address to which you want to receive GNOT, complete the captcha and request
+tokens. Soon you should have a GNOT balance.
 
-If you don't have a Gno address, check out [Creating a key pair](developing-locally/creating-a-keypair.md),
-or create one via a third-party web extension wallet, such as Adena.
+If you don't have a Gno address, check out
+[Creating a key pair](developing-locally/creating-a-keypair.md), or create one
+via a third-party web extension wallet, such as Adena.
 
 ## Deploying with `gnokey`
 
@@ -51,9 +56,10 @@ counter/
     ├─ counter_test.gno
 ```
 
-Let's deploy the `Counter` realm to the [Portal Loop](../resources/gnoland-networks.md#portal-loop) 
-network. For this, we can use the `gnokey maketx addpkg` subcommand, which
-executes a package deployment transaction.
+Let's deploy the `Counter` realm to the 
+[Portal Loop](../resources/gnoland-networks.md#portal-loop) network. For this,
+we can use the `gnokey maketx addpkg` subcommand, which executes a package
+deployment transaction. 
 
 We need to tell `gnokey` a couple of things:
 - `pkgpath`[^1] to which we want to deploy to on the chain,
@@ -96,12 +102,14 @@ TX HASH:    11fWJtYXQlyFcHY12HU1ECYs2GPo/e2z/Fdw6I8rwNs=
 
 ## Choosing a Package Path
 
-When deploying to gno.land, you need to specify a package path. You have two options:
+When deploying to gno.land, you need to specify a package path. You have two
+options:
 
 1. **Use your registered username** - If you've registered a username, you can deploy under `gno.land/[r|p]/YOUR_USERNAME/...` 
 2. **Use your address namespace** - Without a username, you can deploy under `gno.land/[r|p]/YOUR_ADDRESS/...`
 
-For more information on registering usernames and namespace ownership, see the [Users and Teams documentation](../resources/users-and-teams.md).
+For more information on registering usernames and namespace ownership, see the
+[Users and Teams documentation](../resources/users-and-teams.md). 
 
 ## Registering a Namespace
 
@@ -122,11 +130,12 @@ This gives you a more human-readable package path and establishes your identity 
 - `--remote` - The RPC endpoint for the network
 - `--chainid` - The ID of the blockchain network
 
-For more details on gas fees and optimization strategies, see the [Gas Fees documentation](../resources/gas-fees.md).
+For more details on gas fees and optimization strategies, see the [Gas Fees
+documentation](../resources/gas-fees.md). 
 
 ## Conclusion
 
-Congratulations! If everything went as expected, you've successfully deployed a 
+Congratulations! If everything went as expected, you've successfully deployed a
 realm to the Portal Loop network. To see it on `gnoweb` for the Portal Loop,
 append `r/<your_address>/counter` to https://gno.land in your browser.
 

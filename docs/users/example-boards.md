@@ -1,10 +1,16 @@
 # Using the Boards Application on gno.land
 
-The Boards realm is one of the first applications on gno.land, offering a decentralized discussion forum where anyone can create and participate in conversations. This guide will walk you through discovering, exploring, and interacting with the Boards realm.
+The Boards realm is one of the first applications on gno.land, offering a
+decentralized discussion forum where anyone can create and participate in
+conversations. This guide will walk you through discovering, exploring, and
+interacting with the Boards realm.
 
 ## Finding Boards
 
-The main Boards application can be found at [gno.land/r/demo/boards](https://gno.land/r/demo/boards). When you visit this URL, you'll see the rendered output of the Boards realm's `Render()` function, which displays the current state of the forum.
+The main Boards application can be found at
+[gno.land/r/demo/boards](https://gno.land/r/demo/boards). When you visit this
+URL, you'll see the rendered output of the Boards realm's `Render()` function,
+which displays the current state of the forum. 
 
 ## Exploring Boards
 
@@ -14,22 +20,29 @@ The Boards realm organizes content into:
 2. **Threads** - Individual discussion topics within boards
 3. **Posts** - Individual messages within threads
 
-You can navigate between these levels by clicking on the links in the rendered output. Each level presents different information and options for interaction.
+You can navigate between these levels by clicking on the links in the rendered
+output. Each level presents different information and options for interaction. 
 
-For more details on browsing through realms and their content, see [Exploring with gnoweb](./explore-with-gnoweb.md).
+For more details on browsing through realms and their content, see
+[Exploring with gnoweb](./explore-with-gnoweb.md). 
 
 ## Interacting with Boards
 
-To interact with the Boards application (creating boards, threads, or posts), you'll need:
+To interact with the Boards application (creating boards, threads, or posts),
+you'll need: 
 
 1. A gno.land account with some GNOT tokens
 2. A way to sign and send transactions to the gno.land network
 
-You can interact with Boards through the command line using `gnokey`. For detailed instructions on sending transactions to realms, see [Interacting with gnokey](./interact-with-gnokey.md).
+You can interact with Boards through the command line using `gnokey`. For
+detailed instructions on sending transactions to realms, see
+[Interacting with gnokey](./interact-with-gnokey.md). 
 
 ## Viewing Your Contributions
 
-After interacting with the Boards realm, you can view your contributions by navigating to the board where you posted and finding your thread or post in the list.
+After interacting with the Boards realm, you can view your contributions by
+navigating to the board where you posted and finding your thread or post in the
+list. 
 
 ## Building Your Own Board
 
@@ -39,4 +52,6 @@ Inspired by the Boards realm? You can create your own version by:
 2. Deploying a modified version to your own namespace
 3. Adding your own features and improvements
 
-The Boards application showcases many of Gno's powerful features including state persistence, rendered UI, and interactive functionality - making it an excellent example to learn from.
+The Boards application showcases many of Gno's powerful features including state
+persistence, rendered UI, and interactive functionality - making it an excellent
+example to learn from. 

@@ -1,6 +1,9 @@
 # Interacting with gno.land using gnokey
 
-`gnokey` is the official command-line wallet and utility for interacting with gno.land networks. It allows you to manage keys, query the blockchain, send transactions, and deploy smart contracts. This guide will help you get started with the essential operations.
+`gnokey` is the official command-line wallet and utility for interacting with
+gno.land networks. It allows you to manage keys, query the blockchain, send
+transactions, and deploy smart contracts. This guide will help you get started
+with the essential operations.
 
 ## Installing gnokey
 

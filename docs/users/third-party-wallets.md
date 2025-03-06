@@ -1,10 +1,13 @@
 # Using an External Wallet on gno.land
 
-While gno.land provides its own command-line wallet (`gnokey`), you may prefer using a more user-friendly browser extension or mobile wallet. This page covers available third-party wallets that support gno.land networks.
+While gno.land provides its own command-line wallet (`gnokey`), you may prefer
+using a more user-friendly browser extension or mobile wallet. This page covers
+available third-party wallets that support gno.land networks. 
 
 ## GnoConnect Integration
 
-gno.land uses GnoConnect, a protocol that allows external wallets to integrate with gno-powered blockchains. This provides a standardized way for wallets to:
+gno.land uses GnoConnect, a protocol that allows external wallets to integrate
+with gno-powered blockchains. This provides a standardized way for wallets to: 
 
 - Connect to gno.land networks
 - Sign and broadcast transactions
@@ -13,7 +16,8 @@ gno.land uses GnoConnect, a protocol that allows external wallets to integrate w
 
 ## Compatible Wallets
 
-- [Adena](https://adena.app) is a browser extension wallet specifically designed for gno.land. It's the most feature-complete wallet currently available.
+- [Adena](https://adena.app) is a browser extension wallet specifically designed
+  for gno.land. It's the most feature-complete wallet currently available. 
 
 ## Choosing a Wallet
 
@@ -24,7 +28,8 @@ When selecting a wallet, consider these factors:
 - **User Experience:** Is it easy to use and understand?
 - **Maintenance:** Is it actively maintained and updated?
 
-For beginners, we recommend starting with Adena as it provides the most complete support for gno.land features and has undergone security audits.
+For beginners, we recommend starting with Adena as it provides the most complete
+support for gno.land features and has undergone security audits. 
 
 ## Getting Started
 

@@ -123,9 +123,10 @@ is the `gnoweb` render of the Portal Loop testnet.
   - State is kept on a best-effort basis
   - Transactions that are affected by breaking changes will be discarded
 - **Timeliness of code:**
-  - Packages & realms which are available in the `examples/` folder on the [Gno
-    monorepo](https://github.com/gnolang/gno) exist on the Portal Loop in matching
-    state - they are refreshed with every new commit to the `master` branch.
+  - Packages & realms which are available in the `examples/` folder on the 
+    [Gno monorepo](https://github.com/gnolang/gno) exist on the Portal Loop in
+    matching state - they are refreshed with every new commit to the `master`
+    branch.
 - **Intended purpose**
   - Providing access the latest version of Gno for fast development & demoing
 - **Versioning strategy**:
@@ -158,11 +159,11 @@ These testnets are deprecated and currently serve as archives of previous progre
 
 ## Test4 (archive)
 
-Test4 is the first permanent multi-node testnet. Archived data for test4 can be found [here](https://github.com/gnolang/tx-exports/tree/main/test4.gno.land).
+Test4 is the first permanent multi-node testnet. Archived data for test4 can be
+found [here](https://github.com/gnolang/tx-exports/tree/main/test4.gno.land).
 
 Launch date: July 10th 2024
 Release commit: [194903d](https://github.com/gnolang/gno/commit/194903db0350ace7d57910e6c34125d3aa9817da)
-
 
 ### Test3 (archive)
 

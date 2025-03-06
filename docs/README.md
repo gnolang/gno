@@ -2,11 +2,15 @@
 
 Welcome to the official documentation of gno.land.
 
-gno.land is a smart contract platform built on a novel interpretation of Go (Golang) for blockchain, created to enable powerful, modular, and secure decentralized applications with a minimalist approach and excellent developer experience.
+gno.land is a smart contract platform built on a novel interpretation of Go
+(Golang) for blockchain, created to enable powerful, modular, and secure
+decentralized applications with a minimalist approach and excellent developer
+experience.
 
 ## Use gno.land
 
-Start exploring and using gno.land. Setup essential tools, interact with the chain and its dApps.
+Start exploring and using gno.land. Setup essential tools, interact with the
+chain and its dApps. 
 
 - [Discover gno.land](users/discover-gnoland.md) - Discover the gno.land ecosystem and explore available tools for interacting with the blockchain.
 - [Using the `gnoweb` interface](users/explore-with-gnoweb.md) - Learn how to use `gnoweb` to browse realm code, view rendered content, and explore the gno.land ecosystem.
@@ -17,7 +21,8 @@ Start exploring and using gno.land. Setup essential tools, interact with the cha
 
 ## Build on gno.land
 
-Get started with Gno development. Learn how to work with Gno tools, use Gno-specific features, connect to Gno apps with clients, and more.
+Get started with Gno development. Learn how to work with Gno tools, use
+Gno-specific features, connect to Gno apps with clients, and more. 
 
 - [What is Gno](builders/what-is-gnolang.md) - An introduction to Gno, a blockchain implementation of Go created by Cosmos co-founder Jae Kwon, highlighting its similarities to Go, security features, and advantages over other smart contract languages.
 - [Writing Gno code](builders/anatomy-of-a-gno-package.md) - Get a grasp on the basics of Gno syntax by building a simple Counter application and understanding the core language features.
@@ -38,7 +43,6 @@ Learn about core concepts found in gno.land & Gno.
 - [Users and Teams](resources/users-and-teams.md) - Understand user registration, namespace ownership, and team collaboration in the gno.land ecosystem.
 - [Gas Fees](resources/gas-fees.md) - Learn about gas pricing, estimation, and optimization strategies in gno.land.
 - [Standard libraries](resources/gno-stdlibs.md) - An overview of the standard libraries found in the Gno language and how they enhance blockchain functionality.
-development.
 - [Glossary of Gno terms](resources/glossary.md) - List of common terms found in the gno.land ecosystem, from technical concepts to tools and components.
 - [Testing Gno](resources/gno-testing.md) - Learn how to run and test Gno code locally using the built-in testing framework.
 - [Go - Gno compatibility](resources/go-gno-compatibility.md) - A detailed compatibility list between Go and Gno features, including supported keywords, types, and standard libraries.

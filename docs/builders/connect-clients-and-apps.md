@@ -1,6 +1,8 @@
 # Connecting Clients and Applications to gno.land
 
-This guide explains how to connect external applications to gno.land networks using clients in different languages. You'll learn how to use the RPC endpoints to query the blockchain and submit transactions.
+This guide explains how to connect external applications to gno.land networks
+using clients in different languages. You'll learn how to use the RPC endpoints
+to query the blockchain and submit transactions.
 
 ## Available Clients
 
@@ -19,5 +21,6 @@ gno.land networks expose several RPC endpoints that allow you to:
 3. **Subscribe to events** - Get real-time updates about blockchain activity
 
 All RPC endpoints for each network can be found in the [Networks documentation](../resources/gnoland-networks.md).
+
 <!-- XXX: move RPC doc from networks.md to this file. -->
 <!-- XXX: per-language examples should exist in their READMEs, not in the monorepo's docs/ folder -->

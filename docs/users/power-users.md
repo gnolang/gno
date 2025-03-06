@@ -1,6 +1,8 @@
 # Becoming a gno.land Power User
 
-Ready to take your gno.land journey to the next level? This guide collects resources, tools, and communities for users who want to dive deeper into the gno.land ecosystem.
+Ready to take your gno.land journey to the next level? This guide collects
+resources, tools, and communities for users who want to dive deeper into the
+gno.land ecosystem. 
 
 ## Establishing Your Identity
 
@@ -10,7 +12,9 @@ To get the most out of gno.land, consider registering a unique username:
 2. It gives you exclusive rights to deploy code under that namespace
 3. It improves your experience across various dApps in the ecosystem
 
-For detailed instructions on registering a username and understanding namespaces, see the [Users and Teams](../resources/users-and-teams.md) documentation.
+For detailed instructions on registering a username and understanding
+namespaces, see the [Users and Teams](../resources/users-and-teams.md)
+documentation. 
 
 ## Community & Social Networks
 
@@ -50,6 +54,8 @@ Ready to contribute? Here are pathways to level up your involvement:
 4. **Documentation** - Help improve these docs and educational content
 5. **Community Building** - Organize events or create content
 
-Check out the [Become a Gnome](../builders/become-a-gnome.md) guide for more details on contributing to the ecosystem.
+Check out the [Become a Gnome](../builders/become-a-gnome.md) guide for more
+details on contributing to the ecosystem. 
 
-Remember, the best power users eventually become builders. As you grow more comfortable with gno.land, consider how you can help shape its future!
+Remember, the best power users eventually become builders. As you grow more
+comfortable with gno.land, consider how you can help shape its future! 

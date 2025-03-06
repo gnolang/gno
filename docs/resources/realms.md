@@ -26,11 +26,12 @@ Often simply called `realms`, Gno smart contracts contain Gno code and exist
 on-chain at a specific [package path](gno-packages.md). A package path is the 
 defining identifier of a realm, while its address is derived from it.
 
-As opposed to [pure packages](./gno-packages.md#pure-packages-p), realms are stateful, meaning they
-keep their state between transaction calls. In practice, global variables used in realms 
-are automatically persisted after a transaction has been executed. Thanks to this,
-Gno developers do not need to bother with the intricacies of state management 
-and persistence, like they do with other languages.
+As opposed to [pure packages](./gno-packages.md#pure-packages-p), realms are
+stateful, meaning they keep their state between transaction calls. In practice,
+global variables used in realms are automatically persisted after a transaction
+has been executed. Thanks to this, Gno developers do not need to bother with the
+intricacies of state management and persistence, like they do with other
+languages.
 
 ### Externally Owned Accounts (EOAs)
 
@@ -147,7 +148,10 @@ std.CurrentRealm() => Realm {
 }
 ```
 
-For more information about realms and how they fit into the gno.land ecosystem, see the [Package Path Structure](./gno-packages.md#package-path-structure) documentation.
+For more information about realms and how they fit into the gno.land ecosystem,
+see the [Package Path Structure](./gno-packages.md#package-path-structure)
+documentation. 
 
-To learn how to develop your own realms, check out the [Anatomy of a Gno Package](../builders/anatomy-of-a-gno-package.md) and [Example Minisocial dApp](../builders/example-minisocial-dapp.md) guides.
-
+To learn how to develop your own realms, check out the
+[Anatomy of a Gno Package](../builders/anatomy-of-a-gno-package.md) and 
+[Example Minisocial dApp](../builders/example-minisocial-dapp.md) guides.

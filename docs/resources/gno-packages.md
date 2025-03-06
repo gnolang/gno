@@ -1,6 +1,8 @@
 # Understanding Gno Packages
 
-In gno.land, code is organized into packages that are stored on-chain. This guide explains the different types of packages, how they're organized, and how to work with them.
+In gno.land, code is organized into packages that are stored on-chain. This
+guide explains the different types of packages, how they're organized, and how
+to work with them. 
 
 ## Package Types
 
@@ -8,7 +10,8 @@ Gno has two fundamental package types:
 
 ### Pure Packages (`/p/`)
 
-Pure packages are stateless Gno libraries meant to be reused by other Gno code. Here are the defining features of pure packages:
+Pure packages are stateless Gno libraries meant to be reused by other Gno
+code. Here are the defining features of pure packages: 
 - Don't maintain state between calls
 - Can be imported by both realms and other pure packages
 - Are stored under paths beginning with `/p/`
@@ -33,7 +36,9 @@ For more details on realms, see the dedicated [Realms](./realms.md) documentatio
 
 ## Package Path Structure
 
-A package path is a unique identifier for any package that lives on the gno.land blockchain. It consists of multiple parts separated with `/` and follows this structure:
+A package path is a unique identifier for any package that lives on the gno.land
+blockchain. It consists of multiple parts separated with `/` and follows this
+structure: 
 
 ```
 gno.land/[r|p]/[namespace]/[package-name]
@@ -60,21 +65,29 @@ Two important facts about package paths:
 
 ## Namespaces
 
-Namespaces provide users with the exclusive ability to publish code under their designated identifiers, similar to GitHub's user and organization model. For detailed information on how to register and use namespaces, see [Users and Teams](./users-and-teams.md).
+Namespaces provide users with the exclusive ability to publish code under their
+designated identifiers, similar to GitHub's user and organization model. For
+detailed information on how to register and use namespaces,
+see [Users and Teams](./users-and-teams.md).
 
-Initially, all users are granted a default namespace with their address - a pseudo-anonymous (PA) namespace - to which the associated address can deploy. This namespace has the following format:
+Initially, all users are granted a default namespace with their address - a
+pseudo-anonymous (PA) namespace - to which the associated address can
+deploy. This namespace has the following format: 
 ```
 gno.land/{p,r}/{std.Address}/**
 ```
 
-For example, for address `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`, all the following paths are valid for deployments:
+For example, for address `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`, all the
+following paths are valid for deployments: 
 
 - `gno.land/p/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/mypackage` 
 - `gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/myrealm`
 - `gno.land/p/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/mypackage/subpackage/package` 
 - `gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/subpackage/realm`
 
-Apart from package names, developers can define subpackages to further organize their code, as seen in the example above. Packages can have any varying level of depth as long as the full package path doesn't exceed `256` characters.
+Apart from package names, developers can define subpackages to further organize
+their code, as seen in the example above. Packages can have any varying level of
+depth as long as the full package path doesn't exceed `256` characters. 
 
 ### Registering a custom namespace
 
@@ -99,11 +112,15 @@ import (
 
 ## Commonly Used Pure Packages
 
-To better understand how packages work, let's look at a few commonly used ones from the [`examples`](https://github.com/gnolang/gno/tree/master/examples/) folder, available under the `gno.land/p/demo` path.
+To better understand how packages work, let's look at a few commonly used ones
+from the [`examples`](https://github.com/gnolang/gno/tree/master/examples/)
+folder, available under the `gno.land/p/demo` path. 
 
 ### Package `avl`
 
-Deployed under `gno.land/p/demo/avl`, the AVL package provides a tree structure for storing data. It replaces the functionality of the native `map` in Gno, as maps are not fully deterministic. Usage example:
+Deployed under `gno.land/p/demo/avl`, the AVL package provides a tree structure
+for storing data. It replaces the functionality of the native `map` in Gno, as
+maps are not fully deterministic. Usage example: 
 
 ```go
 package myrealm
@@ -133,11 +150,13 @@ func Get(key string) int {
 }
 ```
 
-View the package on the [Portal Loop network](https://gno.land/p/demo/avl) or on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/avl).
+View the package on the [Portal Loop network](https://gno.land/p/demo/avl)
+or on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/avl).
 
 ### Package `ufmt`
 
-Deployed under `gno.land/p/demo/ufmt`, this package is a minimal version of the `fmt` package:
+Deployed under `gno.land/p/demo/ufmt`, this package is a minimal version of the
+`fmt` package: 
 
 ```go
 // Package ufmt provides utility functions for formatting strings, similarly
@@ -146,11 +165,13 @@ Deployed under `gno.land/p/demo/ufmt`, this package is a minimal version of the 
 package ufmt
 ```
 
-View the package on the [Portal Loop network](https://gno.land/p/demo/ufmt) or on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/ufmt).
+View the package on the [Portal Loop network](https://gno.land/p/demo/ufmt) or 
+on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/ufmt).
 
 ### Package `seqid`
 
-Deployed under `gno.land/p/demo/seqid`, this package provides a simple way to have sequential IDs in Gno:
+Deployed under `gno.land/p/demo/seqid`, this package provides a simple way to
+have sequential IDs in Gno:
 
 ```go
 // Package seqid provides a simple way to have sequential IDs which will be
@@ -167,7 +188,8 @@ Deployed under `gno.land/p/demo/seqid`, this package provides a simple way to ha
 package seqid
 ```
 
-View the package on the [Portal Loop network](https://gno.land/p/demo/seqid) or on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/seqid).
+View the package on the [Portal Loop network](https://gno.land/p/demo/seqid) or 
+on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/seqid).
 
 ## Exploring Deployed Packages
 
