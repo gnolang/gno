@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/sirupsen/logrus"
 
 	"go.uber.org/zap"
 )
@@ -29,6 +30,12 @@ func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, for
 		zap.Bool("is_forced", force),
 	)
 
+	// - Backup existing txs using an existing Gno container / create new one
+	// - Kill the existing container
+	// - Create a new instance of instance of Gno container that start using backup as txs in genesis file
+	// - Wait genesis txs to be committed
+	// - Update reference to looped RPC
+
 	// 2. Get existing portal loop
 	containers, err := dockerHandler.GetActiveGnoPortalLoopContainers(ctx)
 	if err != nil {
@@ -45,6 +52,7 @@ func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, for
 			ctx,
 			portalLoopHandler.containerName,
 			portalLoopHandler.cfg.HostPWD,
+			false, // do not pull new image
 		)
 		if err != nil {
 			return err
@@ -66,13 +74,13 @@ func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, for
 
 	// 4. Set Traefik in READ ONLY mode
 	logger.Info("Setting read only mode")
-	err = portalLoopHandler.SwitchTraefikMode(true)
+	err = portalLoopHandler.LockTraefikAccess()
 	if err != nil {
 		return err
 	}
 	defer func() {
 		logger.Info("Unsetting read only mode")
-		err = portalLoopHandler.SwitchTraefikMode(false)
+		err = portalLoopHandler.UnlockTraefikAccess()
 		if err != nil {
 			logrus.WithError(err).Error()
 		}
@@ -90,6 +98,7 @@ func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, for
 		ctx,
 		portalLoopHandler.containerName,
 		portalLoopHandler.cfg.HostPWD,
+		true, // always pull new image
 	)
 	if err != nil {
 		return err
@@ -99,8 +108,9 @@ func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, for
 		zap.String("portal.url", portalLoopHandler.currentRpcUrl),
 	)
 
-	// 7. Wait 5 blocks new portal loop to be ready
-	if err = waitStartedLoop(portalLoopHandler.currentRpcUrl); err != nil {
+	// 7. Wait first blocks meaning new portal loop to be ready
+	// Backups will be restored from genesis file
+	if err = waitStartedLoop(portalLoopHandler.currentRpcUrl, portalLoopHandler.logger); err != nil {
 		return err
 	}
 
@@ -110,12 +120,12 @@ func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, for
 		return err
 	}
 
-	// 9. Remove old portal loop --- Should be performed by WatchTower
+	// 9. Remove old portal loop
 	return dockerHandler.RemoveContainersWithVolumes(ctx, containers)
 }
 
 // Waits for the Loop to get started
-func waitStartedLoop(url string) error {
+func waitStartedLoop(url string, logger *zap.Logger) error {
 	now := time.Now()
 	for {
 		if time.Since(now) > time.Second*180 {
@@ -123,18 +133,19 @@ func waitStartedLoop(url string) error {
 		}
 		err := checkCurrentBlock(url)
 		if err == nil {
+			logger.Info("Loop is finished")
 			break
 		}
 
 		if !strings.HasPrefix(err.Error(), "blocks: ") {
-			logrus.WithError(err).Error()
+			logger.Error("Error fetching blocks", zap.Error(err))
 		}
 		time.Sleep(time.Second * 2)
 	}
 	return nil
 }
 
-// Gets Current Block from /status endpoint
+// Gets Current Block from /status endpoint in RPC node
 func checkCurrentBlock(url string) error {
 	resp, err := http.Get(url + "/status")
 	if err != nil {
@@ -151,7 +162,6 @@ func checkCurrentBlock(url string) error {
 	if err != nil {
 		return err
 	}
-	logrus.WithField("current block", currentBlock)
 
 	if currentBlock >= 5 {
 		return nil
