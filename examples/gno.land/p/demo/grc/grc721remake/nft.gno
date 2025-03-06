@@ -3,7 +3,6 @@ package grc721remake
 import (
 	"std"
 	"strconv"
-
 )
 
 // NewNFT creates a new NFT.
@@ -80,12 +79,12 @@ func (led *PrivateLedger) SetTokenURI(tid TokenID, tURI TokenURI) error {
 	if err != nil {
 		return err
 	}
-	
+
 	caller := std.PreviousRealm().Address()
 	if caller != owner {
 		return ErrCallerIsNotOwner
 	}
-	
+
 	led.tokenURIs.Set(string(tid), string(tURI))
 	return nil
 }
@@ -141,25 +140,25 @@ func (led *PrivateLedger) SetApprovalForAll(caller std.Address, operator std.Add
 
 // Transfer transfers a token directly from the caller to another address
 func (led *PrivateLedger) Transfer(from, to std.Address, tid TokenID) error {
-    if err := isValidAddress(from); err != nil {
-        return err
-    }
-    if err := isValidAddress(to); err != nil {
-        return err
-    }
-    if from == to {
-        return ErrCannotTransferToSelf
-    }
+	if err := isValidAddress(from); err != nil {
+		return err
+	}
+	if err := isValidAddress(to); err != nil {
+		return err
+	}
+	if from == to {
+		return ErrCannotTransferToSelf
+	}
 
-    owner, err := led.ownerOf(tid)
-    if err != nil {
-        return err
-    }
-    if owner != from {
-        return ErrTransferFromIncorrectOwner
-    }
-    
-    return led.transferToken(from, to, tid)
+	owner, err := led.ownerOf(tid)
+	if err != nil {
+		return err
+	}
+	if owner != from {
+		return ErrTransferFromIncorrectOwner
+	}
+
+	return led.transferToken(from, to, tid)
 }
 
 // TransferFrom transfers a token from one address to another
@@ -186,7 +185,7 @@ func (led *PrivateLedger) TransferFrom(caller, from, to std.Address, tid TokenID
 	if owner != from {
 		return ErrTransferFromIncorrectOwner
 	}
-	
+
 	return led.transferToken(from, to, tid)
 }
 
@@ -199,7 +198,7 @@ func (led *PrivateLedger) Mint(to std.Address, tid TokenID) error {
 	if led.exists(tid) {
 		return ErrTokenIdAlreadyExists
 	}
-	
+
 	return led.mintToken(to, tid)
 }
 
@@ -213,74 +212,73 @@ func (led *PrivateLedger) Burn(tid TokenID) error {
 	return err
 }
 
-
 // BatchTransferFrom transfers multiple tokens from one address to another
 func (led *PrivateLedger) BatchTransferFrom(caller, from, to std.Address, tids []TokenID) error {
-    if len(tids) == 0 {
-        return ErrEmptyTokenIDList
-    }
-    
-    var err error
-    for _, tid := range tids {
-        err = led.TransferFrom(caller, from, to, tid)
-        if err != nil {
-            return err
-        }
-    }
-    
-    return nil
+	if len(tids) == 0 {
+		return ErrEmptyTokenIDList
+	}
+
+	var err error
+	for _, tid := range tids {
+		err = led.TransferFrom(caller, from, to, tid)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // BatchMint creates multiple new tokens
 func (led *PrivateLedger) BatchMint(to std.Address, tids []TokenID) error {
-    if len(tids) == 0 {
-        return ErrEmptyTokenIDList
-    }
+	if len(tids) == 0 {
+		return ErrEmptyTokenIDList
+	}
 
 	var err error
-    for _, tid := range tids {
-        err = led.Mint(to, tid)
+	for _, tid := range tids {
+		err = led.Mint(to, tid)
 		if err != nil {
 			return err
 		}
-    }
-    
-    return nil
+	}
+
+	return nil
 }
 
 // BatchBurn destroys multiple tokens
 func (led *PrivateLedger) BatchBurn(tids []TokenID) error {
-    if len(tids) == 0 {
-        return ErrEmptyTokenIDList
-    }
-    
-    var err error
-    for _, tid := range tids {
-        err = led.Burn(tid)
-        if err != nil {
-            return err
-        }
-    }
-    
-    return nil
+	if len(tids) == 0 {
+		return ErrEmptyTokenIDList
+	}
+
+	var err error
+	for _, tid := range tids {
+		err = led.Burn(tid)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // BatchTransfer transfers multiple tokens to another address
 func (led *PrivateLedger) BatchTransfer(caller std.Address, to std.Address, tids []TokenID) error {
-    if len(tids) == 0 {
-        return ErrEmptyTokenIDList
-    }
-    
-    var err error
-    
-    for _, tid := range tids {
-        err = led.Transfer(caller, to, tid)
-        if err != nil {
-            return err
-        }
-    }
-    
-    return nil
+	if len(tids) == 0 {
+		return ErrEmptyTokenIDList
+	}
+
+	var err error
+
+	for _, tid := range tids {
+		err = led.Transfer(caller, to, tid)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Helper functions
@@ -338,68 +336,68 @@ func (led PrivateLedger) isApprovedForAll(owner, operator std.Address) bool {
 
 // Private helper function to transfer a single token
 func (led *PrivateLedger) transferToken(from, to std.Address, tid TokenID) error {
-    led.tokenApprovals.Remove(string(tid))
-    
-    led.owners.Set(string(tid), to)
-    
-    fromBalance, _ := led.balanceOf(from)
-    toBalance, _ := led.balanceOf(to)
-    fromBalance -= 1
-    toBalance += 1
-    led.balances.Set(from.String(), fromBalance)
-    led.balances.Set(to.String(), toBalance)
-    
-    std.Emit(
-        TransferEvent,
-        "from", string(from),
-        "to", string(to),
-        "tokenId", string(tid),
-    )
-    
-    return nil
+	led.tokenApprovals.Remove(string(tid))
+
+	led.owners.Set(string(tid), to)
+
+	fromBalance, _ := led.balanceOf(from)
+	toBalance, _ := led.balanceOf(to)
+	fromBalance -= 1
+	toBalance += 1
+	led.balances.Set(from.String(), fromBalance)
+	led.balances.Set(to.String(), toBalance)
+
+	std.Emit(
+		TransferEvent,
+		"from", string(from),
+		"to", string(to),
+		"tokenId", string(tid),
+	)
+
+	return nil
 }
 
 // Private helper function to mint a single token
 func (led *PrivateLedger) mintToken(to std.Address, tid TokenID) error {
-    led.owners.Set(string(tid), to)
-    
-    toBalance, _ := led.balanceOf(to)
-    toBalance += 1
-    led.balances.Set(to.String(), toBalance)
-    
-    std.Emit(
-        MintEvent,
-        "to", string(to),
-        "tokenId", string(tid),
-    )
-    
-    return nil
+	led.owners.Set(string(tid), to)
+
+	toBalance, _ := led.balanceOf(to)
+	toBalance += 1
+	led.balances.Set(to.String(), toBalance)
+
+	std.Emit(
+		MintEvent,
+		"to", string(to),
+		"tokenId", string(tid),
+	)
+
+	return nil
 }
 
 // Private helper function to burn a single token
 func (led *PrivateLedger) burnToken(tid TokenID) (std.Address, error) {
-    owner, err := led.ownerOf(tid)
-    if err != nil {
-        return "", err
-    }
-    
-    led.tokenApprovals.Remove(string(tid))
-    
-    led.owners.Remove(string(tid))
-    
-    led.tokenURIs.Remove(string(tid))
-    
-    balance, _ := led.balanceOf(owner)
-    balance -= 1
-    led.balances.Set(owner.String(), balance)
-    
-    std.Emit(
-        BurnEvent,
-        "from", string(owner),
-        "tokenId", string(tid),
-    )
-    
-    return owner, nil
+	owner, err := led.ownerOf(tid)
+	if err != nil {
+		return "", err
+	}
+
+	led.tokenApprovals.Remove(string(tid))
+
+	led.owners.Remove(string(tid))
+
+	led.tokenURIs.Remove(string(tid))
+
+	balance, _ := led.balanceOf(owner)
+	balance -= 1
+	led.balances.Set(owner.String(), balance)
+
+	std.Emit(
+		BurnEvent,
+		"from", string(owner),
+		"tokenId", string(tid),
+	)
+
+	return owner, nil
 }
 
 // exists checks if a token exists
@@ -434,4 +432,3 @@ func isValidAddress(addr std.Address) error {
 	}
 	return nil
 }
-

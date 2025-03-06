@@ -53,7 +53,7 @@ type NFTTeller interface {
 
 	// BatchTransferFrom transfers multiple tokens from one address to another.
 	BatchTransferFrom(from, to std.Address, tids []TokenID) error
-	
+
 	// BatchTransfer transfers multiple tokens owned by the caller to another address.
 	BatchTransfer(to std.Address, tids []TokenID) error
 }
@@ -136,4 +136,4 @@ type fnNFTTeller struct {
 }
 
 // Ensure fnNFTTeller implements NFTTeller
-var _ NFTTeller = (*fnNFTTeller)(nil) 
+var _ NFTTeller = (*fnNFTTeller)(nil)

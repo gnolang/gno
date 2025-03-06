@@ -107,7 +107,7 @@ func (ft *fnNFTTeller) Approve(to std.Address, tid TokenID) error {
 	if ft.accountFn == nil {
 		return ErrReadOnly
 	}
-	
+
 	caller := ft.accountFn()
 	return ft.NFT.ledger.Approve(caller, to, tid)
 }
@@ -117,7 +117,7 @@ func (ft *fnNFTTeller) SetApprovalForAll(operator std.Address, approved bool) er
 	if ft.accountFn == nil {
 		return ErrReadOnly
 	}
-	
+
 	caller := ft.accountFn()
 	return ft.NFT.ledger.SetApprovalForAll(caller, operator, approved)
 }
@@ -137,7 +137,7 @@ func (ft *fnNFTTeller) TransferFrom(from, to std.Address, tid TokenID) error {
 	if ft.accountFn == nil {
 		return ErrReadOnly
 	}
-	
+
 	caller := ft.accountFn()
 	return ft.NFT.ledger.TransferFrom(caller, from, to, tid)
 }
@@ -147,7 +147,7 @@ func (ft *fnNFTTeller) BatchTransfer(to std.Address, tids []TokenID) error {
 	if ft.accountFn == nil {
 		return ErrReadOnly
 	}
-	
+
 	caller := ft.accountFn()
 	return ft.NFT.ledger.BatchTransfer(caller, to, tids)
 }
@@ -157,11 +157,10 @@ func (ft *fnNFTTeller) BatchTransferFrom(from, to std.Address, tids []TokenID) e
 	if ft.accountFn == nil {
 		return ErrReadOnly
 	}
-	
+
 	caller := ft.accountFn()
 	return ft.NFT.ledger.BatchTransferFrom(caller, from, to, tids)
 }
-
 
 // helpers
 
@@ -173,4 +172,4 @@ func accountSlugAddr(addr std.Address, slug string) std.Address {
 	}
 	key := addr.String() + "/" + slug
 	return std.DerivePkgAddr(key) // temporarily using this helper
-} 
+}
