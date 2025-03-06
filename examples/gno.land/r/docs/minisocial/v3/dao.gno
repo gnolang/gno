@@ -1,32 +1,18 @@
 package minisocial
 
 import (
-	"std"
-	"time"
-
+	"github.com/gnolang/gno/gnovm/stdlibs/std"
 	"gno.land/p/nt/commondao"
-
 	cmndao "gno.land/r/nt/commondao"
 )
 
-var DAO = cmndao.New("Minisocial DAO")
+var DAO = cmndao.New("My DAO")
 
 func init() {
-	DAO.Members().Add(Ownable.Owner())
+	DAO.Members().Add("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // @leohhhn
 }
 
-func ProposePostRemoval(id, reason string) error {
-	if _, err := DAO.Propose(std.PreviousRealm().Address(), RemovePostProp{
-		postToRemoveID: id,
-		reason:         reason,
-	}); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// Implements ProposalDefinition
+// RemovePostProp implements ProposalDefinition
 type RemovePostProp struct {
 	postToRemoveID string
 	reason         string
@@ -51,8 +37,20 @@ func (p RemovePostProp) Execute() error {
 	return nil
 }
 
+func ProposePostRemoval(id, reason string) error {
+	if _, err := DAO.Propose(std.PreviousRealm().Address(), RemovePostProp{
+		postToRemoveID: id,
+		reason:         reason,
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (RemovePostProp) Quorum() float64 { return 0.67 } // two thirds
 
+// Tally how do i as a user define this readonly votingt record?
 func (p RemovePostProp) Tally(r commondao.ReadOnlyVotingRecord, membersCount int) bool {
 	_, success := commondao.SelectChoiceByAbsoluteMajority(r, membersCount)
 	return success

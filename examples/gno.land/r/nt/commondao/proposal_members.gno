@@ -1,5 +1,7 @@
 package commondao
 
+/// file coulod be named propmembers.gno or similar
+// it should be obvious that you define a prop to add members
 import (
 	"errors"
 	"std"

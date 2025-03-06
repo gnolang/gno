@@ -13,6 +13,11 @@ import (
 
 var reSlug = regexp.MustCompile("^[a-zA-Z]+[a-zA-Z0-9-]*$")
 
+// all of this code should all be in commondao.gno imho
+// also organized by what a user of the realm/pkg would do first
+// ie, i would like to call New() to create a dao first
+// 
+
 // Invite invites a user to the realm.
 // A user invitation is required to start creating new DAOs.
 func Invite(invitee std.Address) {

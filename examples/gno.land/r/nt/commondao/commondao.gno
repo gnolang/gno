@@ -18,6 +18,12 @@ var (
 	trees     = avl.NewTree() // string(root ID) -> avl.Tree(string(path) -> *commondao.CommonDAO)
 )
 
+// i get the public.gno file, but imho its outdated per r/demo/boards
+// let's try leaving the main logic of the package in the same file name as the package, ie commondao.gno
+// when i look into the commondao.gno i expect to see the main functions of the package
+// as a user i still want to understand whats going on, and not look at some public.gno to 
+// s ee only the functions that i can call
+
 func getDAO(daoID uint64) *commondao.CommonDAO {
 	key := makeIDKey(daoID)
 	if v, found := daos.Get(key); found {
