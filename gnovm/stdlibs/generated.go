@@ -782,6 +782,26 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"testing",
+		"recoverWithStacktrace",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.AnyT()},
+			{Name: gno.N("r1"), Type: gno.X("string")},
+		},
+		false,
+		func(m *gno.Machine) {
+			r0, r1 := libs_testing.X_recoverWithStacktrace()
+
+			m.PushValue(r0)
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
+		"testing",
 		"matchString",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("string")},

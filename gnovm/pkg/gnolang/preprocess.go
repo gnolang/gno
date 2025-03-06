@@ -1372,6 +1372,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					n.NumArgs = 1
 					ct := evalStaticType(store, last, n.Func)
 					at := evalStaticTypeOf(store, last, n.Args[0])
+
+					if _, isIface := baseOf(ct).(*InterfaceType); isIface {
+						assertAssignableTo(n, at, ct, false)
+					}
+
 					var constConverted bool
 					switch arg0 := n.Args[0].(type) {
 					case *ConstExpr:
@@ -4822,10 +4827,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 			panic("cannot import stdlib internal/ package outside of standard library")
 		}
 
-		// Restrict imports to /internal packages to a package rooted at base.
-		base, suff, isInternal := strings.Cut(d.PkgPath, "/internal")
-		// /internal should be either at the end, or be a part: /internal/
-		isInternal = isInternal && (suff == "" || suff[0] == '/')
+		base, isInternal := IsInternalPath(d.PkgPath)
 		if isInternal &&
 			pkg.PkgPath != base &&
 			!strings.HasPrefix(pkg.PkgPath, base+"/") {

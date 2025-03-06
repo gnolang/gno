@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/gnovm/pkg/doc"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -544,7 +545,7 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 			// Common unhandled panic error, skip machine state.
 			*e = errors.Wrapf(
 				errors.New(up.Descriptor),
-				"VM panic: %s\nStacktrace: %s\n",
+				"VM panic: %s\nStacktrace:\n%s\n",
 				up.Descriptor, m.ExceptionsStacktrace(),
 			)
 			return
@@ -552,7 +553,7 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 	}
 	*e = errors.Wrapf(
 		fmt.Errorf("%v", r),
-		"VM panic: %v\nMachine State:%s\nStacktrace: %s\n",
+		"VM panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
 		r, m.String(), m.Stacktrace().String(),
 	)
 }
@@ -825,6 +826,22 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 		}
 		return res, nil
 	}
+}
+
+func (vm *VMKeeper) QueryDoc(ctx sdk.Context, pkgPath string) (*doc.JSONDocumentation, error) {
+	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+
+	memPkg := store.GetMemPackage(pkgPath)
+	if memPkg == nil {
+		err := ErrInvalidPkgPath(fmt.Sprintf(
+			"package not found: %s", pkgPath))
+		return nil, err
+	}
+	d, err := doc.NewDocumentableFromMemPkg(memPkg, true, "", "")
+	if err != nil {
+		return nil, err
+	}
+	return d.WriteJSONDocumentation()
 }
 
 // logTelemetry logs the VM processing telemetry
