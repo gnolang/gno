@@ -96,28 +96,35 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderBoardMenu(board *Board, res *mux.ResponseWriter, req *mux.Request) {
-	res.Write(newLink("Start Thread", board.GetPostFormURL()))
-	res.Write(" • ")
+	boardMembersURL := board.GetPath() + "/members"
 
-	menu := getCurrentSubmenu(req.RawPath)
-	if menu == menuMembership {
-		res.Write("**Manage Board Membership**")
+	if board.IsReadOnly() {
+		res.Write(newLink("List Board Members", boardMembersURL))
+		res.Write("\n")
 	} else {
-		res.Write(newLink("Manage Board Membership", submenuURL(menuMembership)))
-	}
+		res.Write(newLink("Start Thread", board.GetPostFormURL()))
+		res.Write(" • ")
 
-	res.Write("  \n")
+		menu := getCurrentSubmenu(req.RawPath)
+		if menu == menuMembership {
+			res.Write("**Manage Board Membership**")
+		} else {
+			res.Write(newLink("Manage Board Membership", submenuURL(menuMembership)))
+		}
 
-	if menu == menuMembership {
-		res.Write("↳")
-		res.Write(newLink("Invite", board.GetInviteMemberFormURL()))
-		res.Write(" • ")
-		res.Write(newLink("List Members", board.GetPath()+"/members"))
-		res.Write(" • ")
-		res.Write(newLink("Remove Member", board.GetRemoveMemberFormURL()))
-		res.Write(" • ")
-		res.Write(newLink("Change Member Role", board.GetChangeMemberRoleFormURL()))
-		res.Write("\n\n")
+		res.Write("  \n")
+
+		if menu == menuMembership {
+			res.Write("↳")
+			res.Write(newLink("List Members", boardMembersURL))
+			res.Write(" • ")
+			res.Write(newLink("Invite", board.GetInviteMemberFormURL()))
+			res.Write(" • ")
+			res.Write(newLink("Remove Member", board.GetRemoveMemberFormURL()))
+			res.Write(" • ")
+			res.Write(newLink("Change Member Role", board.GetChangeMemberRoleFormURL()))
+			res.Write("\n\n")
+		}
 	}
 }
 
