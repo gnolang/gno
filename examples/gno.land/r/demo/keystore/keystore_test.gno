@@ -11,10 +11,6 @@ import (
 )
 
 func TestRender(t *testing.T) {
-	// https://github.com/gnolang/gno/pull/3375 changed const -> var :
-	// For some reason non native functions fails on constants with
-	// constant overflows (code=2), this does not happens when using a variable
-	// TODO: check this issue after and if this PR is merged
 	var (
 		author1 std.Address = testutils.TestAddress("author1")
 		author2 std.Address = testutils.TestAddress("author2")
@@ -60,13 +56,13 @@ func TestRender(t *testing.T) {
 		p := ""
 		if len(tc.ps) > 0 {
 			p = tc.owner.String()
-			for i, psv := range tc.ps {
+			for _, psv := range tc.ps {
 				p += ":" + psv
 			}
 		}
 		p = strings.TrimSuffix(p, ":")
 		t.Run(p, func(t *testing.T) {
-			std.TestSetOrigCaller(tc.caller)
+			std.TestSetOriginCaller(tc.caller)
 			var act string
 			if len(tc.ps) > 0 && tc.ps[0] == "set" {
 				act = strings.TrimSpace(Set(tc.ps[1], tc.ps[2]))

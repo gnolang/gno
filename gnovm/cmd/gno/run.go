@@ -32,7 +32,7 @@ func newRunCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "run",
 			ShortUsage: "run [flags] <file> [<file>...]",
-			ShortHelp:  "runs the specified gno files",
+			ShortHelp:  "run gno packages",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -93,7 +93,7 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 
 	// init store and machine
 	_, testStore := test.Store(
-		cfg.rootDir, false,
+		cfg.rootDir,
 		stdin, stdout, stderr)
 	if cfg.verbose {
 		testStore.SetLogStoreOps(true)
@@ -195,10 +195,10 @@ func runExpr(m *gno.Machine, expr string) {
 		if r := recover(); r != nil {
 			switch r := r.(type) {
 			case gno.UnhandledPanicError:
-				fmt.Printf("panic running expression %s: %v\nStacktrace: %s\n",
+				fmt.Printf("panic running expression %s: %v\nStacktrace:\n%s\n",
 					expr, r.Error(), m.ExceptionsStacktrace())
 			default:
-				fmt.Printf("panic running expression %s: %v\nMachine State:%s\nStacktrace: %s\n",
+				fmt.Printf("panic running expression %s: %v\nMachine State:%s\nStacktrace:\n%s\n",
 					expr, r, m.String(), m.Stacktrace().String())
 			}
 			panic(r)

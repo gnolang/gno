@@ -192,6 +192,9 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	if co != nil {
 		co.IncRefCount()
 		if co.GetRefCount() > 1 {
+			if co.GetIsReal() {
+				rlm.MarkDirty(co)
+			}
 			if co.GetIsEscaped() {
 				// already escaped
 			} else {
@@ -211,6 +214,8 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 			if xo.GetIsReal() {
 				rlm.MarkNewDeleted(xo)
 			}
+		} else if xo.GetIsReal() {
+			rlm.MarkDirty(xo)
 		}
 	}
 }
@@ -316,24 +321,12 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 // transactions
 
 // OpReturn calls this when exiting a realm transaction.
-func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
+func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
 	}
-	if readonly {
-		if true ||
-			len(rlm.newCreated) > 0 ||
-			len(rlm.newEscaped) > 0 ||
-			len(rlm.newDeleted) > 0 ||
-			len(rlm.created) > 0 ||
-			len(rlm.updated) > 0 ||
-			len(rlm.deleted) > 0 ||
-			len(rlm.escaped) > 0 {
-			panic("realm updates in readonly transaction")
-		}
-		return
-	}
+
 	if debug {
 		// * newCreated - may become created unless ancestor is deleted
 		// * newDeleted - may become deleted unless attached to new-real owner
@@ -464,6 +457,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 				child.SetIsNewReal(true)
 			}
 		} else if rc > 1 {
+			rlm.MarkDirty(child)
 			if child.GetIsEscaped() {
 				// already escaped, do nothing.
 			} else {
@@ -537,7 +531,7 @@ func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 		if rc == 0 {
 			rlm.decRefDeletedDescendants(store, child)
 		} else if rc > 0 {
-			// do nothing
+			rlm.MarkDirty(child)
 		} else {
 			panic("deleted descendants should not have a reference count of less than zero")
 		}

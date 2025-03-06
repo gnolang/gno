@@ -12,11 +12,17 @@ type protectedStringer interface {
 	ProtectedString(*seenValues) string
 }
 
-// This indicates the maximum anticipated depth of the stack when printing a Value type.
-const defaultSeenValuesSize = 32
+const (
+	// defaultSeenValuesSize indicates the maximum anticipated depth of the stack when printing a Value type.
+	defaultSeenValuesSize = 32
+
+	// nestedLimit indicates the maximum nested level when printing a deeply recursive value.
+	nestedLimit = 10
+)
 
 type seenValues struct {
 	values []Value
+	nc     int // nested counter, to limit recursivity
 }
 
 func (sv *seenValues) Put(v Value) {
@@ -46,7 +52,7 @@ func (sv *seenValues) Pop() {
 }
 
 func newSeenValues() *seenValues {
-	return &seenValues{values: make([]Value, 0, defaultSeenValuesSize)}
+	return &seenValues{values: make([]Value, 0, defaultSeenValuesSize), nc: nestedLimit}
 }
 
 func (v StringValue) String() string {
@@ -74,6 +80,10 @@ func (av *ArrayValue) ProtectedString(seen *seenValues) string {
 		return fmt.Sprintf("%p", av)
 	}
 
+	seen.nc--
+	if seen.nc < 0 {
+		return "..."
+	}
 	seen.Put(av)
 	defer seen.Pop()
 
@@ -186,9 +196,9 @@ func (v *BoundMethodValue) String() string {
 	)
 	if ft, ok := v.Func.Type.(*FuncType); ok {
 		recvT = ft.Params[0].Type.String()
-		params = FieldTypeList(ft.Params).StringWithCommas()
+		params = FieldTypeList(ft.Params).StringForFunc()
 		if len(results) > 0 {
-			results = FieldTypeList(ft.Results).StringWithCommas()
+			results = FieldTypeList(ft.Results).StringForFunc()
 			results = "(" + results + ")"
 		}
 	}
@@ -278,7 +288,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 	}
 
 	// if implements .String(), return it.
-	if IsImplementedBy(gStringerType, tv.T) {
+	if IsImplementedBy(gStringerType, tv.T) && !tv.IsNilInterface() {
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
 		return res[0].GetString()
 	}
@@ -343,9 +353,9 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 			return fmt.Sprintf("%v", math.Float32frombits(tv.GetFloat32()))
 		case Float64Type:
 			return fmt.Sprintf("%v", math.Float64frombits(tv.GetFloat64()))
-		case UntypedBigintType, BigintType:
+		case UntypedBigintType:
 			return tv.V.(BigintValue).V.String()
-		case UntypedBigdecType, BigdecType:
+		case UntypedBigdecType:
 			return tv.V.(BigdecValue).V.String()
 		default:
 			panic("should not happen")

@@ -246,14 +246,12 @@ func CopyFromCachedStore(destStore, cachedStore Store, cachedBase, cachedIavl st
 		ds.iavlStore.Set(iter.Key(), iter.Value())
 	}
 
-	ss.cacheTypes.Iterate()(func(k TypeID, v Type) bool {
+	for k, v := range ss.cacheTypes.Iterate() {
 		ds.cacheTypes.Set(k, v)
-		return true
-	})
-	ss.cacheNodes.Iterate()(func(k Location, v BlockNode) bool {
+	}
+	for k, v := range ss.cacheNodes.Iterate() {
 		ds.cacheNodes.Set(k, v)
-		return true
-	})
+	}
 }
 
 func (ds *defaultStore) GetAllocator() *Allocator {
@@ -519,7 +517,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 	}
 	ds.cacheObjects[oid] = oo
 	// make store op log entry
-	if ds.opslog != nil {
+	if _, ok := oo.(*Block); !ok && ds.opslog != nil {
 		var op StoreOpType
 		if oo.GetIsNewReal() {
 			op = StoreOpNew
@@ -560,7 +558,7 @@ func (ds *defaultStore) DelObject(oo Object) {
 		ds.baseStore.Delete([]byte(key))
 	}
 	// make realm op log entry
-	if ds.opslog != nil {
+	if _, ok := oo.(*Block); !ok && ds.opslog != nil {
 		ds.opslog = append(ds.opslog,
 			StoreOp{Type: StoreOpDel, Object: oo})
 	}
@@ -1028,7 +1026,7 @@ func InitStoreCaches(store Store) {
 		StringType, UntypedStringType,
 		IntType, Int8Type, Int16Type, Int32Type, Int64Type, UntypedRuneType,
 		UintType, Uint8Type, Uint16Type, Uint32Type, Uint64Type,
-		BigintType, UntypedBigintType,
+		UntypedBigintType,
 		gTypeType,
 		gPackageType,
 		blockType{},

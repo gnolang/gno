@@ -23,9 +23,11 @@ type webCfg struct {
 	bind       string
 	faucetURL  string
 	assetsDir  string
+	timeout    time.Duration
 	analytics  bool
 	json       bool
 	html       bool
+	noStrict   bool
 	verbose    bool
 }
 
@@ -33,6 +35,7 @@ var defaultWebOptions = webCfg{
 	chainid: "dev",
 	remote:  "127.0.0.1:26657",
 	bind:    ":8888",
+	timeout: time.Minute,
 }
 
 func main() {
@@ -127,7 +130,14 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.analytics,
 		"with-analytics",
 		defaultWebOptions.analytics,
-		"nable privacy-first analytics",
+		"enable privacy-first analytics",
+	)
+
+	fs.BoolVar(
+		&c.noStrict,
+		"no-strict",
+		defaultWebOptions.noStrict,
+		"allow cross-site resource forgery and disable https enforcement",
 	)
 
 	fs.BoolVar(
@@ -135,6 +145,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"v",
 		defaultWebOptions.verbose,
 		"verbose logging mode",
+	)
+
+	fs.DurationVar(
+		&c.timeout,
+		"timeout",
+		defaultWebOptions.timeout,
+		"set read/write/idle timeout for server connections",
 	)
 }
 
@@ -144,7 +161,6 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	if cfg.verbose {
 		level = zapcore.DebugLevel
 	}
-
 	var zapLogger *zap.Logger
 	if cfg.json {
 		zapLogger = log.NewZapJSONLogger(io.Out(), level)
@@ -155,23 +171,24 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 	logger := log.ZapLoggerToSlog(zapLogger)
 
+	// Setup app
 	appcfg := gnoweb.NewDefaultAppConfig()
 	appcfg.ChainID = cfg.chainid
 	appcfg.NodeRemote = cfg.remote
 	appcfg.RemoteHelp = cfg.remoteHelp
+	if appcfg.RemoteHelp == "" {
+		appcfg.RemoteHelp = appcfg.NodeRemote
+	}
 	appcfg.Analytics = cfg.analytics
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
 	appcfg.AssetsDir = cfg.assetsDir
-	if appcfg.RemoteHelp == "" {
-		appcfg.RemoteHelp = appcfg.NodeRemote
-	}
-
 	app, err := gnoweb.NewRouter(logger, appcfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start gnoweb app: %w", err)
 	}
 
+	// Resolve binding address
 	bindaddr, err := net.ResolveTCPAddr("tcp", cfg.bind)
 	if err != nil {
 		return nil, fmt.Errorf("unable to resolve listener %q: %w", cfg.bind, err)
@@ -179,18 +196,60 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 	logger.Info("Running", "listener", bindaddr.String())
 
+	// Setup security headers
+	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict)
+
+	// Setup server
 	server := &http.Server{
-		Handler:           app,
+		Handler:           secureHandler,
 		Addr:              bindaddr.String(),
-		ReadHeaderTimeout: 60 * time.Second,
+		ReadTimeout:       cfg.timeout, // Time to read the request
+		WriteTimeout:      cfg.timeout, // Time to write the entire response
+		IdleTimeout:       cfg.timeout, // Time to keep idle connections open
+		ReadHeaderTimeout: time.Minute, // Time to read request headers
 	}
 
 	return func() error {
 		if err := server.ListenAndServe(); err != nil {
-			logger.Error("HTTP server stopped", " error:", err)
+			logger.Error("HTTP server stopped", "error", err)
 			return commands.ExitCodeError(1)
 		}
 
 		return nil
 	}, nil
+}
+
+func SecureHeadersMiddleware(next http.Handler, strict bool) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Prevent MIME type sniffing by browsers. This ensures that the browser
+		// does not interpret files as a different MIME type than declared.
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+
+		// Prevent the page from being embedded in an iframe. This mitigates
+		// clickjacking attacks by ensuring the page cannot be loaded in a frame.
+		w.Header().Set("X-Frame-Options", "DENY")
+
+		// Control the amount of referrer information sent in the Referer header.
+		// 'no-referrer' ensures that no referrer information is sent, which
+		// enhances privacy and prevents leakage of sensitive URLs.
+		w.Header().Set("Referrer-Policy", "no-referrer")
+
+		// In `strict` mode, prevent cross-site ressources forgery and enforce https
+		if strict {
+			// Define a Content Security Policy (CSP) to restrict the sources of
+			// scripts, styles, images, and other resources. This helps prevent
+			// cross-site scripting (XSS) and other code injection attacks.
+			// - 'self' allows resources from the same origin.
+			// - 'data:' allows inline images (e.g., base64-encoded images).
+			// - 'https://gnolang.github.io' allows images from this specific domain - used by gno.land. TODO: use a proper generic whitelisted service
+			w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src 'self' data: https://gnolang.github.io  https://sa.gno.services; font-src 'self'")
+
+			// Enforce HTTPS by telling browsers to only access the site over HTTPS
+			// for a specified duration (1 year in this case). This also applies to
+			// subdomains and allows preloading into the browser's HSTS list.
+			w.Header().Set("Strict-Transport-Security", "max-age=31536000")
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }

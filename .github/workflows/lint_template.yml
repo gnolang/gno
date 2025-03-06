@@ -22,6 +22,5 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           working-directory: ${{ inputs.modulepath }}
-          args:
-            --config=${{ github.workspace }}/.github/golangci.yml
-          version: v1.62 # sync with misc/devdeps
+          args: --config=${{ github.workspace }}/.github/golangci.yml
+          version: v1.64 # sync with misc/devdeps

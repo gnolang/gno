@@ -2,126 +2,52 @@ package gnoweb
 
 import (
 	"errors"
-	"fmt"
 	"io"
-	"log/slog"
-	"path/filepath"
-	"strings"
 
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
-	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
-	"github.com/gnolang/gno/tm2/pkg/amino"
-	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/parser"
-	"github.com/yuin/goldmark/text"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 )
 
-type WebClient struct {
-	logger *slog.Logger
-	client *client.RPCClient
-	md     goldmark.Markdown
+var (
+	ErrClientPathNotFound = errors.New("package not found")
+	ErrRenderNotDeclared  = errors.New("render function not declared")
+	ErrClientBadRequest   = errors.New("bad request")
+	ErrClientResponse     = errors.New("node response error")
+)
+
+type FileMeta struct {
+	Lines  int
+	SizeKb float64
 }
 
-func NewWebClient(log *slog.Logger, cl *client.RPCClient, m goldmark.Markdown) *WebClient {
-	m.Parser().AddOptions(parser.WithAutoHeadingID())
-	return &WebClient{
-		logger: log,
-		client: cl,
-		md:     m,
-	}
+type HeadMeta struct {
+	Title       string
+	Description string
+	Canonical   string
 }
 
-func (s *WebClient) Functions(pkgPath string) ([]vm.FunctionSignature, error) {
-	const qpath = "vm/qfuncs"
-
-	args := fmt.Sprintf("gno.land/%s", strings.Trim(pkgPath, "/"))
-	res, err := s.query(qpath, []byte(args))
-	if err != nil {
-		return nil, fmt.Errorf("unable query funcs list: %w", err)
-	}
-
-	var fsigs vm.FunctionSignatures
-	if err := amino.UnmarshalJSON(res, &fsigs); err != nil {
-		s.logger.Warn("unable to unmarshal fsigs, client is probably outdated ?")
-		return nil, fmt.Errorf("unable to unamarshal fsigs: %w", err)
-	}
-
-	return fsigs, nil
+type RealmMeta struct {
+	Toc  md.Toc
+	Head HeadMeta
 }
 
-func (s *WebClient) SourceFile(path, fileName string) ([]byte, error) {
-	const qpath = "vm/qfile"
+// WebClient is an interface for interacting with package and node resources.
+type WebClient interface {
+	// RenderRealm renders the content of a realm from a given path and
+	// arguments into the giver `writer`. The method should ensures the rendered
+	// content is safely handled and formatted.
+	RenderRealm(w io.Writer, path string, args string) (*RealmMeta, error)
 
-	fileName = strings.TrimSpace(fileName) // sanitize filename
-	if fileName == "" {
-		return nil, errors.New("empty filename given") // XXX -> ErrXXX
-	}
+	// SourceFile fetches and writes the source file from a given
+	// package path and file name. The method should ensures the source
+	// file's content is safely handled and formatted.
+	SourceFile(w io.Writer, pkgPath, fileName string) (*FileMeta, error)
 
-	// XXX: move this into gnoclient ?
-	path = fmt.Sprintf("gno.land/%s", strings.Trim(path, "/"))
-	path = filepath.Join(path, fileName)
-	return s.query(qpath, []byte(path))
-}
+	// Functions retrieves a list of function signatures from a
+	// specified package path.
+	Functions(path string) ([]vm.FunctionSignature, error)
 
-func (s *WebClient) Sources(path string) ([]string, error) {
-	const qpath = "vm/qfile"
-
-	// XXX: move this into gnoclient
-	path = fmt.Sprintf("gno.land/%s", strings.Trim(path, "/"))
-	res, err := s.query(qpath, []byte(path))
-	if err != nil {
-		return nil, err
-	}
-
-	files := strings.Split(string(res), "\n")
-	return files, nil
-}
-
-type Metadata struct {
-	*md.Toc
-}
-
-func (s *WebClient) Render(w io.Writer, pkgPath string, args string) (*Metadata, error) {
-	const qpath = "vm/qrender"
-
-	data := []byte(gnoPath(pkgPath, args))
-	rawres, err := s.query(qpath, data)
-	if err != nil {
-		return nil, err
-	}
-
-	doc := s.md.Parser().Parse(text.NewReader(rawres))
-	if err := s.md.Renderer().Render(w, rawres, doc); err != nil {
-		return nil, fmt.Errorf("unable render real %q: %w", data, err)
-	}
-
-	var meta Metadata
-	meta.Toc, err = md.TocInspect(doc, rawres, md.TocOptions{MaxDepth: 6, MinDepth: 2})
-	if err != nil {
-		s.logger.Warn("unable to inspect for toc elements", "err", err)
-	}
-
-	return &meta, nil
-}
-
-func (s *WebClient) query(qpath string, data []byte) ([]byte, error) {
-	s.logger.Info("query", "qpath", qpath, "data", string(data))
-
-	qres, err := s.client.ABCIQuery(qpath, data)
-	if err != nil {
-		s.logger.Error("request error", "path", qpath, "data", string(data), "error", err)
-		return nil, fmt.Errorf("unable to query path %q: %w", qpath, err)
-	}
-	if qres.Response.Error != nil {
-		s.logger.Error("response error", "path", qpath, "log", qres.Response.Log)
-		return nil, qres.Response.Error
-	}
-
-	return qres.Response.Data, nil
-}
-
-func gnoPath(pkgPath, args string) string {
-	pkgPath = strings.Trim(pkgPath, "/")
-	return fmt.Sprintf("gno.land/%s:%s", pkgPath, args)
+	// Sources lists all source files available in a specified
+	// package path.
+	Sources(path string) ([]string, error)
 }

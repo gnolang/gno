@@ -1,7 +1,17 @@
 package docs
 
+func frontMatter() string {
+	return `---
+Title: Welcome to the Gno examples documentation index 
+Description: Welcome to the Gno examples documentation index. Explore various examples to learn more about Gno functionality and usage.
+---`
+}
+
 func Render(_ string) string {
-	return `# Gno Examples Documentation
+	content := ""
+	content += frontMatter()
+	content += `
+# Gno Examples Documentation
 
 Welcome to the Gno examples documentation index.
 Explore various examples to learn more about Gno functionality and usage.
@@ -13,7 +23,10 @@ Explore various examples to learn more about Gno functionality and usage.
 - [Source](/r/docs/source) - View realm source code.
 - [Buttons](/r/docs/buttons) - Add buttons to your realm's render.
 - [AVL Pager](/r/docs/avl_pager) - Paginate through AVL tree items.  
+- [AVL Pager + Render paths](/r/docs/avl_pager_params) - Handle render arguments with pagination.
 - [Img Embed](/r/docs/img_embed) - Demonstrates how to embed an image.
+- [Optional Render](/r/docs/optional_render) - Render() is optional in realms.
+- [MiniSocial](/r/docs/minisocial) - Minimalistic social media app for learning purposes.
 - ...
 <!-- meta issue with suggestions: https://github.com/gnolang/gno/issues/3292 -->
 
@@ -21,4 +34,5 @@ Explore various examples to learn more about Gno functionality and usage.
 
 - [Official documentation](https://github.com/gnolang/gno/tree/master/docs) <!-- should be /docs with gnoweb embedding the docs/ folder. -->
 `
+	return content
 }
