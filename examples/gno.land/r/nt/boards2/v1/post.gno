@@ -383,7 +383,7 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
 		sb.WriteString(newButtonLink("repost", post.GetRepostFormURL()))
 	}
 
-	isReadOnly := post.GetBoard().IsReadOnly()
+	isReadOnly := post.IsReadOnly() || post.GetBoard().IsReadOnly()
 	if !isReadOnly {
 		sb.WriteString(" ")
 		sb.WriteString(newButtonLink("reply", post.GetReplyFormURL()))
