@@ -70,7 +70,7 @@ func (n *NFT) Getter() NFTGetter {
 }
 
 // SetTokenURI sets the URI for a token
-func (led *PrivateLedger) SetTokenURI(tid TokenID, tURI TokenURI) error {
+func (led *PrivateLedger) SetTokenURI(caller std.Address, tid TokenID, tURI TokenURI) error {
 	if !led.exists(tid) {
 		return ErrInvalidTokenId
 	}
@@ -80,7 +80,6 @@ func (led *PrivateLedger) SetTokenURI(tid TokenID, tURI TokenURI) error {
 		return err
 	}
 
-	caller := std.PreviousRealm().Address()
 	if caller != owner {
 		return ErrCallerIsNotOwner
 	}
@@ -203,11 +202,6 @@ func (led *PrivateLedger) Mint(to std.Address, tid TokenID) error {
 }
 
 func (led *PrivateLedger) Burn(tid TokenID) error {
-	caller := std.PreviousRealm().Address()
-	if !led.isApprovedOrOwner(caller, tid) {
-		return ErrCallerIsNotOwnerOrApproved
-	}
-
 	_, err := led.burnToken(tid)
 	return err
 }

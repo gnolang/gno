@@ -33,6 +33,9 @@ type NFTTeller interface {
 	// Returns the URI for a given token ID.
 	TokenURI(tid TokenID) (string, error)
 
+	// Sets the URI for a token
+	SetTokenURI(tid TokenID, tURI TokenURI) error
+
 	// Returns the approved address for a token ID, or an error if no approval exists.
 	GetApproved(tid TokenID) (std.Address, error)
 

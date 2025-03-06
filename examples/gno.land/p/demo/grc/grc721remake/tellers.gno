@@ -100,9 +100,15 @@ func (ledger *PrivateLedger) ImpersonateTeller(addr std.Address) NFTTeller {
 }
 
 // Generic tellers methods implementation
-//
 
-// Approve implements the NFTTeller interface
+func (ft *fnNFTTeller) SetTokenURI(tid TokenID, tURI TokenURI) error {
+	if ft.accountFn == nil {
+		return ErrReadOnly
+	}
+
+	caller := ft.accountFn()
+	return ft.NFT.ledger.SetTokenURI(caller, tid, tURI)
+}
 func (ft *fnNFTTeller) Approve(to std.Address, tid TokenID) error {
 	if ft.accountFn == nil {
 		return ErrReadOnly
@@ -112,7 +118,6 @@ func (ft *fnNFTTeller) Approve(to std.Address, tid TokenID) error {
 	return ft.NFT.ledger.Approve(caller, to, tid)
 }
 
-// SetApprovalForAll implements the NFTTeller interface
 func (ft *fnNFTTeller) SetApprovalForAll(operator std.Address, approved bool) error {
 	if ft.accountFn == nil {
 		return ErrReadOnly
@@ -122,7 +127,6 @@ func (ft *fnNFTTeller) SetApprovalForAll(operator std.Address, approved bool) er
 	return ft.NFT.ledger.SetApprovalForAll(caller, operator, approved)
 }
 
-// Transfer implements the NFTTeller interface
 func (ft *fnNFTTeller) Transfer(to std.Address, tid TokenID) error {
 	if ft.accountFn == nil {
 		return ErrReadOnly
@@ -132,7 +136,6 @@ func (ft *fnNFTTeller) Transfer(to std.Address, tid TokenID) error {
 	return ft.NFT.ledger.Transfer(caller, to, tid)
 }
 
-// TransferFrom implements the NFTTeller interface
 func (ft *fnNFTTeller) TransferFrom(from, to std.Address, tid TokenID) error {
 	if ft.accountFn == nil {
 		return ErrReadOnly
@@ -142,7 +145,6 @@ func (ft *fnNFTTeller) TransferFrom(from, to std.Address, tid TokenID) error {
 	return ft.NFT.ledger.TransferFrom(caller, from, to, tid)
 }
 
-// BatchTransfer implements the NFTTeller interface
 func (ft *fnNFTTeller) BatchTransfer(to std.Address, tids []TokenID) error {
 	if ft.accountFn == nil {
 		return ErrReadOnly
@@ -152,7 +154,6 @@ func (ft *fnNFTTeller) BatchTransfer(to std.Address, tids []TokenID) error {
 	return ft.NFT.ledger.BatchTransfer(caller, to, tids)
 }
 
-// BatchTransferFrom implements the NFTTeller interface
 func (ft *fnNFTTeller) BatchTransferFrom(from, to std.Address, tids []TokenID) error {
 	if ft.accountFn == nil {
 		return ErrReadOnly
