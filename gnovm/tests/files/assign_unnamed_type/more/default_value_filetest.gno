@@ -27,5 +27,5 @@ func main() {
 // (nil main.nat)
 // (nil map[int]int)
 // (nil main.nmap)
-// nil func()()
+// nil func()
 // (nil main.nfunc)
