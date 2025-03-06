@@ -3,9 +3,9 @@ package main
 import (
 	"std"
 
-	pcommondao "gno.land/p/nt/commondao"
+	pcommondao "gno.land/p/gnoland/commondao"
 
-	"gno.land/r/nt/commondao"
+	"gno.land/r/gnoland/commondao"
 )
 
 const user = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1

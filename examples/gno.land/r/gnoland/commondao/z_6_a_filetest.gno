@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"gno.land/p/demo/testutils"
-	pcommondao "gno.land/p/nt/commondao"
+	pcommondao "gno.land/p/gnoland/commondao"
 
-	"gno.land/r/nt/commondao"
+	"gno.land/r/gnoland/commondao"
 )
 
 const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx

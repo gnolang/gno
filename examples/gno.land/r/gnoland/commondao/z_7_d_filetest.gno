@@ -4,9 +4,9 @@ package commondao_test
 import (
 	"std"
 
-	pcommondao "gno.land/p/nt/commondao"
+	pcommondao "gno.land/p/gnoland/commondao"
 
-	"gno.land/r/nt/commondao"
+	"gno.land/r/gnoland/commondao"
 )
 
 const (

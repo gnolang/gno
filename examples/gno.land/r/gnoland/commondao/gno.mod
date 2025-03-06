@@ -1,1 +1,1 @@
-module gno.land/r/nt/commondao
+module gno.land/r/gnoland/commondao

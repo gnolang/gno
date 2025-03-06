@@ -3,7 +3,7 @@ package main
 import (
 	"std"
 
-	"gno.land/r/nt/commondao"
+	"gno.land/r/gnoland/commondao"
 )
 
 const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
