@@ -81,7 +81,7 @@ var columnContextKey = parser.NewContextKey()
 
 // columnContext struct and its methods are used for handling column context.
 type columnContext struct {
-	IsClose, IsOpen bool
+	IsOpen          bool
 	Error           error
 	Index           int
 	RefHeadingLevel int // serves as a level reference for separators
@@ -96,23 +96,13 @@ func isPreviousNodeTag(node ast.Node, tag ColumnTag) bool {
 	return ok && cnode.Tag == tag
 }
 
-func getColumnContext(pc parser.Context) *columnContext {
-	cctx, ok := pc.Get(columnContextKey).(*columnContext)
-	if !ok || cctx.IsClose || cctx.Error != nil {
-		cctx = &columnContext{} // new context
-		pc.Set(columnContextKey, cctx)
-	}
-	return cctx
-}
-
 // parseLineTag checks if the line starts with any of the tag.
 func parseLineTag(ctx *columnContext, line []byte) ColumnTag {
 	line = util.TrimRightSpace(util.TrimLeftSpace(line))
-	if len(line) == 0 {
-		return ColumnTagUndefined
-	}
 
 	switch string(line) {
+	case "": // empty line
+		return ColumnTagUndefined
 	case "<gno-columns>":
 		return ColumnTagOpen
 	case "</gno-columns>":
@@ -131,7 +121,7 @@ func parseLineTag(ctx *columnContext, line []byte) ColumnTag {
 	return ColumnTagUndefined
 }
 
-// Open opens a new column node based on the separator kind.
+// Open create a column node based on line tag.
 func (p *columnParser) Open(self ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	const MaxHeading = 6
 
@@ -140,10 +130,11 @@ func (p *columnParser) Open(self ast.Node, reader text.Reader, pc parser.Context
 		return nil, parser.NoChildren
 	}
 
-	cctx := getColumnContext(pc)
-	if cctx.Error != nil {
-		// Don't bother with malformed block
-		return nil, parser.NoChildren
+	// Get column context
+	cctx, ok := pc.Get(columnContextKey).(*columnContext)
+	if !ok || !cctx.IsOpen {
+		cctx = &columnContext{} // new context
+		pc.Set(columnContextKey, cctx)
 	}
 
 	line, segment := reader.PeekLine()
@@ -198,8 +189,8 @@ func (p *columnParser) Open(self ast.Node, reader text.Reader, pc parser.Context
 		}
 
 	case ColumnTagClose:
-		if cctx.IsOpen && !cctx.IsClose {
-			cctx.IsClose = true
+		if cctx.IsOpen {
+			cctx.IsOpen = false
 			return node, parser.NoChildren
 		}
 	}
@@ -278,7 +269,7 @@ func (a *columnASTTransformer) Transform(node *ast.Document, reader text.Reader,
 		}
 
 		// Check if columns block is correctly closed
-		if !col.ctx.IsClose {
+		if col.ctx.IsOpen {
 			col.ctx.Error = fmt.Errorf(
 				"%w: columns hasn't been closed", ErrInvalidColumnFormat,
 			)
