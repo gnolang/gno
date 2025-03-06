@@ -145,26 +145,54 @@ func (loc Location) IsZero() bool {
 // even after preprocessing.  Temporary attributes (e.g. those
 // for preprocessing) are stored in .data.
 
-type GnoAttribute string
+type GnoAttribute int
 
 const (
-	ATTR_PREPROCESSED    GnoAttribute = "ATTR_PREPROCESSED"
-	ATTR_PREDEFINED      GnoAttribute = "ATTR_PREDEFINED"
-	ATTR_TYPE_VALUE      GnoAttribute = "ATTR_TYPE_VALUE"
-	ATTR_TYPEOF_VALUE    GnoAttribute = "ATTR_TYPEOF_VALUE"
-	ATTR_IOTA            GnoAttribute = "ATTR_IOTA"
-	ATTR_LOOP_DEFINES    GnoAttribute = "ATTR_LOOP_DEFINES" // []Name defined within loops.
-	ATTR_LOOP_USES       GnoAttribute = "ATTR_LOOP_USES"    // []Name loop defines actually used.
-	ATTR_SHIFT_RHS       GnoAttribute = "ATTR_SHIFT_RHS"
-	ATTR_LAST_BLOCK_STMT GnoAttribute = "ATTR_LAST_BLOCK_STMT"
-	ATTR_GLOBAL          GnoAttribute = "ATTR_GLOBAL"
+	ATTR_PREPROCESSED GnoAttribute = iota
+	ATTR_PREDEFINED
+	ATTR_TYPE_VALUE
+	ATTR_TYPEOF_VALUE
+	ATTR_IOTA
+	ATTR_LOOP_DEFINES
+	ATTR_LOOP_USES
+	ATTR_SHIFT_RHS
+	ATTR_LAST_BLOCK_STMT
+	ATTR_GLOBAL
+	attr_dummy_terminal
 )
+
+var attr_strs = [...]string{
+	ATTR_PREPROCESSED:    "ATTR_PREPROCESSED",
+	ATTR_PREDEFINED:      "ATTR_PREDEFINED",
+	ATTR_TYPE_VALUE:      "ATTR_TYPE_VALUE",
+	ATTR_TYPEOF_VALUE:    "ATTR_TYPEOF_VALUE",
+	ATTR_IOTA:            "ATTR_IOTA",
+	ATTR_LOOP_DEFINES:    "ATTR_LOOP_DEFINES",
+	ATTR_LOOP_USES:       "ATTR_LOOP_USES",
+	ATTR_SHIFT_RHS:       "ATTR_SHIFT_RHS",
+	ATTR_LAST_BLOCK_STMT: "ATTR_LAST_BLOCK_STMT",
+	ATTR_GLOBAL:          "ATTR_GLOBAL",
+}
+
+func (ga GnoAttribute) String() string {
+	iga := int(ga)
+	if iga < 0 || iga >= len(attr_strs) {
+		panic(fmt.Sprintf("Unknown attribute: %d", ga))
+	}
+
+	return attr_strs[iga]
+}
 
 type Attributes struct {
 	Line   int
 	Column int
 	Label  Name
-	data   map[GnoAttribute]interface{} // not persisted
+
+	// TODO: if ever the number of attributes ATTR_* grows
+	// to say more than 100 (rough guess), you can then
+	// consider using a map for it instead of a slice
+	// Please see https://github.com/gnolang/gno/issues/3436
+	data [attr_dummy_terminal - ATTR_PREPROCESSED]any
 }
 
 func (attr *Attributes) GetLine() int {
@@ -192,28 +220,37 @@ func (attr *Attributes) SetLabel(label Name) {
 }
 
 func (attr *Attributes) HasAttribute(key GnoAttribute) bool {
-	_, ok := attr.data[key]
-	return ok
+	val, _, ok := attr.getAttribute(key)
+	return ok && val != nil
 }
 
 // GnoAttribute must not be user provided / arbitrary,
 // otherwise will create potential exploits.
 func (attr *Attributes) GetAttribute(key GnoAttribute) interface{} {
-	return attr.data[key]
+	val, _, _ := attr.getAttribute(key)
+	return val
+}
+
+func (attr *Attributes) getAttribute(key GnoAttribute) (any, int, bool) {
+	i := int(key)
+	if i < 0 || i >= len(attr.data) {
+		return nil, -1, false
+	}
+	return attr.data[i], i, true
 }
 
 func (attr *Attributes) SetAttribute(key GnoAttribute, value interface{}) {
-	if attr.data == nil {
-		attr.data = make(map[GnoAttribute]interface{})
+	i := int(key)
+	if i >= 0 && i < len(attr.data) {
+		attr.data[i] = value
 	}
-	attr.data[key] = value
 }
 
 func (attr *Attributes) DelAttribute(key GnoAttribute) {
-	if debug && attr.data == nil {
-		panic("should not happen, attribute is expected to be non-empty.")
+	i := int(key)
+	if i >= 0 && i < len(attr_strs) {
+		attr.data[i] = nil
 	}
-	delete(attr.data, key)
 }
 
 // ----------------------------------------
