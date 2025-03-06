@@ -414,8 +414,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	if pv == nil {
 		panic("RunFiles requires Machine.Package")
 	}
-	const overrides = false
-	updates := m.runFileDecls(overrides, fns...)
+	updates := m.runFileDecls(IsStdlib(pv.PkgPath), fns...)
 	m.runInitFromUpdates(pv, updates)
 }
 
