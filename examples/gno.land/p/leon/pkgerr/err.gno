@@ -1,5 +1,5 @@
 // Package pkgerr provides a custom error wrapper that prepends the realm link to your error
-// This is useful for identifying the source of the error.
+// This is useful for identifying the source package of the error.
 //
 // Usage:
 //
@@ -23,10 +23,11 @@ type PkgErr struct {
 
 // New creates a new PkgErr with the given error. The returned error will include
 // the current realm link in its message.
-func New(err error) *PkgErr {
-	return &PkgErr{
-		originalErr: err,
+func New(err error) error {
+	if err == nil {
+		return nil
 	}
+	return &PkgErr{originalErr: err}
 }
 
 // Error implements the `error` interface for PkgErr.
