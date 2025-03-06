@@ -1,10 +1,9 @@
-gnoland start
+# https://github.com/gnolang/gno/issues/2763
 
-# add contract
-gnokey maketx addpkg -pkgdir $WORK/foo -pkgpath gno.land/r/demo/foo -gas-fee 1000000ugnot -gas-wanted 16000000 -broadcast -chainid=tendermint_test test1
-stdout OK!
+! gno test .
+stderr 'redeclarations for identifiers.*add2'
 
--- foo/foo.gno --
+-- foo.gno --
 package foo
 
 func Add(a, b int) int {
@@ -15,8 +14,7 @@ func add2(a, b int) int {
 	return a + b
 }
 
-
--- foo/foo_test.gno --
+-- foo_test.gno --
 package foo
 
 import (

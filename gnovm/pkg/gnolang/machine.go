@@ -251,11 +251,6 @@ func (m *Machine) RunMemPackageWithOverrides(memPkg *gnovm.MemPackage, save bool
 func (m *Machine) runMemPackage(memPkg *gnovm.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
 	// parse files.
 	files := ParseMemPackage(memPkg)
-	if !overrides {
-		if err := checkDuplicates(files); err != nil {
-			panic(fmt.Errorf("running package %q: %w", memPkg.Path, err))
-		}
-	}
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)
@@ -271,7 +266,7 @@ func (m *Machine) runMemPackage(memPkg *gnovm.MemPackage, save, overrides bool) 
 	}
 	m.SetActivePackage(pv)
 	// run files.
-	updates := m.runFileDecls(files.Files...)
+	updates := m.runFileDecls(overrides, files.Files...)
 	// save package value and mempackage.
 	// XXX save condition will be removed once gonative is removed.
 	var throwaway *Realm
@@ -419,7 +414,8 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	if pv == nil {
 		panic("RunFiles requires Machine.Package")
 	}
-	updates := m.runFileDecls(fns...)
+	const overrides = false
+	updates := m.runFileDecls(overrides, fns...)
 	m.runInitFromUpdates(pv, updates)
 }
 
@@ -471,7 +467,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 // Add files to the package's *FileSet and run decls in them.
 // This will also run each init function encountered.
 // Returns the updated typed values of package.
-func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
+func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValue {
 	// Files' package names must match the machine's active one.
 	// if there is one.
 	for _, fn := range fns {
@@ -499,6 +495,11 @@ func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
 		}
 		// add fns to pre-existing fileset.
 		pn.FileSet.AddFiles(fns...)
+	}
+	if !withOverrides {
+		if err := checkDuplicates(pn.FileSet); err != nil {
+			panic(fmt.Errorf("running package %q: %w", pv.PkgPath, err))
+		}
 	}
 
 	// Predefine declarations across all files.
