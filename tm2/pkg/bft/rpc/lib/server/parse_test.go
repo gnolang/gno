@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 )
@@ -219,19 +220,25 @@ func TestParseURINonJSON(t *testing.T) {
 
 	// Iterate over test cases for non-JSON encoded parameters
 	for idx, tc := range nonJSONCases {
-		i := strconv.Itoa(idx)
-		url := fmt.Sprintf("test.com/method?height=%v&name=%v&hash=%v", tc.raw[0], tc.raw[1], url.QueryEscape(tc.raw[2]))
-		req, err := http.NewRequest("GET", url, nil)
+		t.Run(fmt.Sprintf("case %d", idx), func(t *testing.T) {
+			t.Parallel()
 
-		assert.NoError(t, err)
+			i := strconv.Itoa(idx)
+			url := fmt.Sprintf("test.com/method?height=%v&name=%v&hash=%v", tc.raw[0], tc.raw[1], url.QueryEscape(tc.raw[2]))
+			req, err := http.NewRequest("GET", url, nil)
 
-		// Invoke httpParamsToArgs to parse the request and convert to reflect.Values
-		vals, err := httpParamsToArgs(call, req)
+			assert.NoError(t, err)
 
-		// Check for expected errors or successful parsing
-		if tc.fail {
-			assert.NotNil(t, err, i)
-		} else {
+			// Invoke httpParamsToArgs to parse the request and convert to reflect.Values
+			vals, err := httpParamsToArgs(call, req)
+
+			// Check for expected errors or successful parsing
+			if tc.fail {
+				assert.NotNil(t, err, i)
+
+				return
+			}
+
 			assert.Nil(t, err, "%s: %+v", i, err)
 			// Assert the parsed values match the expected height, name, and data
 
@@ -241,7 +248,7 @@ func TestParseURINonJSON(t *testing.T) {
 				assert.Equal(t, len(tc.hash), len(vals[2].Bytes()), i)
 				assert.True(t, bytes.Equal(tc.hash, vals[2].Bytes()), i)
 			}
-		}
+		})
 	}
 }
 
@@ -291,9 +298,10 @@ func TestParseURI_JSON(t *testing.T) {
 			}
 
 			assert.Nil(t, err, " %+v", err)
+
 			// Assert the parsed values match the expected data
-			_ = assert.Len(t, vals, 1) &&
-				assert.Equal(t, tc.data, vals[0].Interface())
+			require.Len(t, vals, 1)
+			assert.Equal(t, tc.data, vals[0].Interface())
 		})
 	}
 }

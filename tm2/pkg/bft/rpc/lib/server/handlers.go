@@ -10,9 +10,9 @@ import (
 	"log/slog"
 	"net/http"
 	"reflect"
-	"regexp"
 	"runtime/debug"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -355,8 +355,6 @@ func makeHTTPHandler(rpcFunc *RPCFunc, logger *slog.Logger) http.HandlerFunc {
 	}
 }
 
-var reInt = regexp.MustCompile(`^-?[0-9]+$`)
-
 // Convert an http query to a list of properly typed values.
 // To be properly decoded the arg must be a concrete type from tendermint (if its an interface).
 func httpParamsToArgs(rpcFunc *RPCFunc, r *http.Request) ([]reflect.Value, error) {
@@ -366,6 +364,7 @@ func httpParamsToArgs(rpcFunc *RPCFunc, r *http.Request) ([]reflect.Value, error
 	for _, argName := range rpcFunc.argNames {
 		arg := GetParam(r, argName)
 		if arg == "" {
+			// Empty param
 			continue
 		}
 
@@ -373,12 +372,12 @@ func httpParamsToArgs(rpcFunc *RPCFunc, r *http.Request) ([]reflect.Value, error
 		if strings.HasPrefix(arg, "0x") {
 			decoded, err := hex.DecodeString(arg[2:])
 			if err != nil {
-				return nil, errors.Wrap(err, "error decoding hex string")
+				return nil, fmt.Errorf("unable to decode hex string: %w", err)
 			}
 
 			data, err := amino.MarshalJSON(decoded)
 			if err != nil {
-				return nil, errors.Wrap(err, "error marshaling argument to JSON")
+				return nil, fmt.Errorf("unable to marshal argument to JSON: %w", err)
 			}
 
 			paramsMap[argName] = data
@@ -388,15 +387,16 @@ func httpParamsToArgs(rpcFunc *RPCFunc, r *http.Request) ([]reflect.Value, error
 
 		// Handle integer string by adding quotes to ensure it is treated as a JSON string.
 		// This is required by Amino JSON to unmarshal values into integers.
-		if reInt.Match([]byte(arg)) {
-			arg = fmt.Sprintf("%q", arg)
+		if _, err := strconv.Atoi(arg); err == nil {
+			// arg is a number, wrap it
+			arg = "\"" + arg + "\""
 		}
 
 		// Handle invalid JSON: ensure it's wrapped as a JSON-encoded string
 		if !json.Valid([]byte(arg)) {
 			data, err := amino.MarshalJSON(arg)
 			if err != nil {
-				return nil, errors.Wrap(err, "error marshaling argument to JSON")
+				return nil, fmt.Errorf("unable to marshal argument to JSON: %w", err)
 			}
 
 			paramsMap[argName] = data
