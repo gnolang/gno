@@ -19,7 +19,7 @@ func main() {
 	var ok bool
 
 	// Perform the assertion and assign the result to assertedErr
-	assertedErr, ok = err.(interface{ IsSet() bool })
+	assertedErr, ok = err.(interface { IsSet() bool })
 	if ok {
 		fmt.Println("Assertion succeeded:", ok)
 		fmt.Println("IsSet:", assertedErr.IsSet())
@@ -29,4 +29,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_type_assertion_b.gno:22:2: cannot use interface {func()(bool)} as int
+// main/files/types/assign_type_assertion_b.gno:22:2: cannot use interface {IsSet func() bool} as int

@@ -12,7 +12,7 @@ func (s myIntSlice) Len() int {
 
 func main() {
 	var a Foo
-	var b interface{ Len() int }
+	var b interface { Len() int }
 
 	var i myIntSlice
 
@@ -23,7 +23,7 @@ func main() {
 
 	println(a)
 
-	b = interface{ Len() int }(a)
+	b = interface { Len() int }(a)
 
 	a = b
 

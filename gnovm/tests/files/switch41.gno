@@ -10,7 +10,7 @@ func main() {
 	var v any
 	v = s{}
 	switch v := v.(type) {
-	case interface{ hello() string }:
+	case interface { hello() string }:
 		println(v.hello())
 	default:
 		panic("should not happen")
