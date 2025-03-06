@@ -38,7 +38,7 @@ func execServe(ctx context.Context, cfg_ *cfg.CmdCfg) error {
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
-					portalloop.StartPortalLoop(ctx, *portalLoopHandler, false)
+					portalloop.RunPortalLoop(ctx, *portalLoopHandler, false)
 					// Wait for a new round
 					logger.Info("Waiting 3 min before new loop attempt")
 					time.Sleep(3 * time.Minute)

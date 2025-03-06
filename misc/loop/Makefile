@@ -20,7 +20,7 @@ docker.rm: # Stop the portal loop
 switch: portalloopd.switch
 
 portalloopd.switch: # Force switch the portal loop with latest image
-	docker compose exec portalloopd switch
+	docker compose exec portalloopd portalloopd switch
 
 prepare-exports:
 	chmod +x $(PULL_GH_SCRIPT) && ./$(PULL_GH_SCRIPT)

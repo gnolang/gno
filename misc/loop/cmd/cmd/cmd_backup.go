@@ -28,7 +28,7 @@ func execBackup(ctx context.Context, cfg_ *cfg.CmdCfg) error {
 		ctx,
 		cfg_,
 		func(ctx context.Context, cfg *cfg.CmdCfg, portalLoopHandler *portalloop.PortalLoopHandler) error {
-			err := portalloop.StartPortalLoop(ctx, *portalLoopHandler, false)
+			err := portalloop.RunPortalLoop(ctx, *portalLoopHandler, false)
 			if err != nil {
 				return err
 			}

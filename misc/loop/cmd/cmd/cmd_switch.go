@@ -28,7 +28,7 @@ func execSwitch(ctx context.Context, cfg_ *cfg.CmdCfg) error {
 		ctx,
 		cfg_,
 		func(ctx context.Context, cfg *cfg.CmdCfg, portalLoopHandler *portalloop.PortalLoopHandler) error {
-			return portalloop.StartPortalLoop(ctx, *portalLoopHandler, true)
+			return portalloop.RunPortalLoop(ctx, *portalLoopHandler, true)
 		},
 	)
 }

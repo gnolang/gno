@@ -10,11 +10,13 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/sirupsen/logrus"
+
+	"go.uber.org/zap"
 )
 
-func StartPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, force bool) error {
-	l := logrus.WithFields(logrus.Fields{})
+// Runs a Portal Loop routine
+func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, force bool) error {
+	logger := portalLoopHandler.logger
 	dockerHandler := portalLoopHandler.dockerHandler
 
 	// 1. Pull latest docker image
@@ -22,17 +24,22 @@ func StartPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, f
 	if err != nil {
 		return err
 	}
-	l.WithField("is_new", isNew).Info("Starting the Portal Loop")
+	logger.Info("Starting the Portal Loop",
+		zap.Bool("is_new", isNew),
+		zap.Bool("is_forced", force),
+	)
 
 	// 2. Get existing portal loop
 	containers, err := dockerHandler.GetActiveGnoPortalLoopContainers(ctx)
 	if err != nil {
 		return err
 	}
-	l.WithField("containers", containers).Info("Get containers")
+	logger.Info("Get containers",
+		zap.Reflect("container", containers),
+	)
 
 	if len(containers) == 0 {
-		l.Info("No portal loop instance found, starting one")
+		logger.Info("No portal loop instance found, starting one")
 		// Portal loop isn't running, Starting it
 		container, err := dockerHandler.StartGnoPortalLoopContainer(
 			ctx,
@@ -48,7 +55,9 @@ func StartPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, f
 
 	portalLoopHandler.currentRpcUrl = dockerHandler.GetPublishedRPCPort(containers[0])
 	portalLoopHandler.SwitchTraefikPortalLoopUrl()
-	l.WithField("portal.url", portalLoopHandler.currentRpcUrl).Info("Current portal loop container:")
+	logger.Info("Current portal loop container",
+		zap.String("portal.url", portalLoopHandler.currentRpcUrl),
+	)
 
 	// 3. Check image or options. DO not proceed, if not any new docker image AND not forced loop
 	if !isNew && !force {
@@ -56,13 +65,13 @@ func StartPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, f
 	}
 
 	// 4. Set Traefik in READ ONLY mode
-	l.Info("Setting read only mode")
+	logger.Info("Setting read only mode")
 	err = portalLoopHandler.SwitchTraefikMode(true)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		l.Info("Unsetting read only mode")
+		logger.Info("Unsetting read only mode")
 		err = portalLoopHandler.SwitchTraefikMode(false)
 		if err != nil {
 			logrus.WithError(err).Error()
@@ -70,7 +79,7 @@ func StartPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, f
 	}()
 
 	// 5. Backup TXs
-	l.Info("Backup txs")
+	logger.Info("Backup txs")
 	err = portalLoopHandler.BackupTXs(ctx)
 	if err != nil {
 		return err
@@ -86,7 +95,9 @@ func StartPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, f
 		return err
 	}
 	portalLoopHandler.currentRpcUrl = dockerHandler.GetPublishedRPCPort(*dockerContainer)
-	l.WithField("portal.url", portalLoopHandler.currentRpcUrl).Info("Set up new portal loop container")
+	logger.Info("Set up new portal loop container",
+		zap.String("portal.url", portalLoopHandler.currentRpcUrl),
+	)
 
 	// 7. Wait 5 blocks new portal loop to be ready
 	if err = waitStartedLoop(portalLoopHandler.currentRpcUrl); err != nil {
@@ -94,7 +105,7 @@ func StartPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, f
 	}
 
 	// 8. Update traefik portal loop rpc url
-	l.Info("Updating Traefik portal loop url")
+	logger.Info("Updating Traefik portal loop url")
 	if err = portalLoopHandler.SwitchTraefikPortalLoopUrl(); err != nil {
 		return err
 	}
