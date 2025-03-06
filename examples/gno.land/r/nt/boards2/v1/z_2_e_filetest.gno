@@ -16,7 +16,7 @@ var (
 func init() {
 	std.TestSetOriginCaller(owner)
 	bid = boards2.CreateBoard("test123")
-	tid = boards2.CreateThread(bid, "Foo", "bar")
+	tid = boards2.CreateThread(bid, "Foo", "bar", false)
 
 	// Hide thread by flagging it so reply can't be submitted
 	boards2.FlagThread(bid, tid, "reason")

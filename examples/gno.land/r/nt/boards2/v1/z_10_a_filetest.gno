@@ -24,7 +24,7 @@ func init() {
 	boards2.InviteMember(bid, moderator, boards2.RoleModerator)
 
 	// Create a new thread as a moderator
-	pid = boards2.CreateThread(bid, "Foo", "bar")
+	pid = boards2.CreateThread(bid, "Foo", "bar", false)
 }
 
 func main() {

@@ -1,5 +1,7 @@
 package main
 
+// SEND: 5000000ugnot
+
 import (
 	"std"
 	"strings"
@@ -9,6 +11,7 @@ import (
 
 const (
 	owner   = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+	user    = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
 	path    = "test-board/1/2"
 	comment = "Test comment"
 )
@@ -21,7 +24,11 @@ var (
 func init() {
 	std.TestSetOriginCaller(owner)
 	bid = boards2.CreateBoard("test-board")
-	tid = boards2.CreateThread(bid, "Foo", "bar", false)
+
+	// Create a public thread to allow uninvited users to add replies
+	tid = boards2.CreateThread(bid, "Foo", "bar", true)
+
+	std.TestSetOriginCaller(user)
 }
 
 func main() {

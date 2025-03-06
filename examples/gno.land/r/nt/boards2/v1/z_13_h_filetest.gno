@@ -25,7 +25,7 @@ func init() {
 	boards2.SetFlaggingThreshold(bid, 2)
 
 	// Create a reply so the realm owner can flag and hide it with a single flag
-	tid = boards2.CreateThread(bid, "Foo", "bar")
+	tid = boards2.CreateThread(bid, "Foo", "bar", false)
 	rid = boards2.CreateReply(bid, tid, 0, "body")
 }
 

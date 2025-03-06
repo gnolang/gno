@@ -19,7 +19,7 @@ var (
 func init() {
 	std.TestSetOriginCaller(owner)
 	bid = boards2.CreateBoard("test-board")
-	pid = boards2.CreateThread(bid, "Foo", "bar")
+	pid = boards2.CreateThread(bid, "Foo", "bar", false)
 
 	// Invite a member using a role with permission to delete threads
 	boards2.InviteMember(bid, member, boards2.RoleAdmin)

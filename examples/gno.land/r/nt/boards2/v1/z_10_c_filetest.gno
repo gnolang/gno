@@ -19,7 +19,7 @@ var (
 func init() {
 	std.TestSetOriginCaller(owner)
 	bid = boards2.CreateBoard("test-board")
-	pid = boards2.CreateThread(bid, "Foo", "bar")
+	pid = boards2.CreateThread(bid, "Foo", "bar", false)
 
 	// Make the next call as an uninvited user
 	std.TestSetOriginCaller(user)

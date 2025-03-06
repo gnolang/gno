@@ -2,6 +2,7 @@ package boards2
 
 import (
 	"std"
+	"strconv"
 	"strings"
 )
 
@@ -100,6 +101,25 @@ func UnfreezeBoard(boardID BoardID) {
 func IsBoardFrozen(boardID BoardID) bool {
 	board := mustGetBoard(boardID)
 	return board.IsReadOnly()
+}
+
+// SetReplyFee sets the fee in ugnots charged to uninvited users when replying in public threads.
+func SetReplyFee(fee int64) {
+	if fee < 0 {
+		panic("fee must be greater or equal to 0")
+	}
+
+	if !gPerms.HasRole(std.OriginCaller(), RoleOwner) {
+		panic("only owners are allowed to change reply fee value")
+	}
+
+	gReplyFee = fee
+}
+
+// GetReplyFee returns the current fee in ugnots charged to uninvited users
+// when replying in public threads.
+func GetReplyFee() int64 {
+	return gReplyFee
 }
 
 // FreezeThread freezes a thread so thread cannot be replied, modified or deleted.
@@ -237,7 +257,7 @@ func FlagThread(boardID BoardID, threadID PostID, reason string) {
 }
 
 // CreateThread creates a new thread within a board.
-func CreateThread(boardID BoardID, title, body string) PostID {
+func CreateThread(boardID BoardID, title, body string, public bool) PostID {
 	title = strings.TrimSpace(title)
 	assertTitleIsNotEmpty(title)
 
@@ -251,6 +271,10 @@ func CreateThread(boardID BoardID, title, body string) PostID {
 	assertHasBoardPermission(board, caller, PermissionThreadCreate)
 
 	thread := board.AddThread(caller, title, body)
+	if public {
+		thread.SetPublic(public)
+	}
+
 	return thread.id
 }
 
@@ -264,12 +288,21 @@ func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID 
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
 
-	caller := std.OriginCaller()
-	assertHasBoardPermission(board, caller, PermissionReplyCreate)
-
 	thread := mustGetThread(board, threadID)
 	assertThreadVisible(thread)
 	assertThreadIsNotFrozen(thread)
+
+	caller := std.OriginCaller()
+	if thread.IsPublic() {
+		// Check that public reply fee has been sent when user is not an invited one
+		isMember := board.perms.HasUser(caller)
+		if !isMember && gReplyFee != 0 && std.OriginSend().AmountOf("ugnot") != gReplyFee {
+			panic("public replies require an exact fee of " + strconv.Itoa(int(gReplyFee)) + " ugnot")
+		}
+	} else {
+		// Check reply permission when thread is not public
+		assertHasBoardPermission(board, caller, PermissionReplyCreate)
+	}
 
 	var reply *Post
 	if replyID == 0 {
