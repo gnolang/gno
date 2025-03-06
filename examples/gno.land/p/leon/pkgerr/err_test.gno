@@ -23,10 +23,3 @@ func TestNew_NilError(t *testing.T) {
 		t.Errorf("expected nil, got %v", err)
 	}
 }
-
-func TestUnwrap(t *testing.T) {
-	origErr := errors.New("original error")
-	err := New(origErr)
-
-	err.Error()
-}
