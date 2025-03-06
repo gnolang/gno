@@ -5,4 +5,4 @@ func main() {
 }
 
 // Error:
-// unexpected type for cap(): struct{int}
+// unexpected type for cap(): struct{A int}

@@ -453,15 +453,29 @@ func (l FieldTypeList) HasUnexported() bool {
 }
 
 func (l FieldTypeList) String() string {
-	ll := len(l)
-	s := ""
+	return l.string(true, "; ")
+}
+
+// StringForFunc returns a list of the fields, suitable for functions.
+// Compared to [FieldTypeList.String], this method does not return field names,
+// and separates the fields using ", ".
+func (l FieldTypeList) StringForFunc() string {
+	return l.string(false, ", ")
+}
+
+func (l FieldTypeList) string(withName bool, sep string) string {
+	var bld strings.Builder
 	for i, ft := range l {
-		s += ft.Type.TypeID().String()
-		if i != ll-1 {
-			s += ", "
+		if i != 0 {
+			bld.WriteString(sep)
 		}
+		if withName {
+			bld.WriteString(string(ft.Name))
+			bld.WriteByte(' ')
+		}
+		bld.WriteString(ft.Type.String())
 	}
-	return s
+	return bld.String()
 }
 
 // Like TypeID() but without considering field names;
@@ -1293,13 +1307,18 @@ func (ft *FuncType) TypeID() TypeID {
 }
 
 func (ft *FuncType) String() string {
-	if len(ft.Results) == 0 {
-		return fmt.Sprintf("func(%s)",
-			FieldTypeList(ft.Params).String())
+	switch len(ft.Results) {
+	case 0:
+		return fmt.Sprintf("func(%s)", FieldTypeList(ft.Params).StringForFunc())
+	case 1:
+		return fmt.Sprintf("func(%s) %s",
+			FieldTypeList(ft.Params).StringForFunc(),
+			ft.Results[0].Type.String())
+	default:
+		return fmt.Sprintf("func(%s) (%s)",
+			FieldTypeList(ft.Params).StringForFunc(),
+			FieldTypeList(ft.Results).StringForFunc())
 	}
-	return fmt.Sprintf("func(%s)(%s)",
-		FieldTypeList(ft.Params).String(),
-		FieldTypeList(ft.Results).String())
 }
 
 func (ft *FuncType) Elem() Type {
