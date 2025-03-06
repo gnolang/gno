@@ -144,7 +144,7 @@ func UnfreezeThread(boardID BoardID, threadID PostID) {
 func IsThreadFrozen(boardID BoardID, threadID PostID) bool {
 	board := mustGetBoard(boardID)
 	thread := mustGetThread(board, threadID)
-	assertThreadVisible(thread)
+	assertThreadIsVisible(thread)
 
 	return board.IsReadOnly() || thread.IsReadOnly()
 }
@@ -155,10 +155,10 @@ func IsThreadFrozen(boardID BoardID, threadID PostID) bool {
 func IsReplyFrozen(boardID BoardID, threadID, replyID PostID) bool {
 	board := mustGetBoard(boardID)
 	thread := mustGetThread(board, threadID)
-	assertThreadVisible(thread)
+	assertThreadIsVisible(thread)
 
 	reply := mustGetReply(thread, replyID)
-	assertReplyVisible(reply)
+	assertReplyIsVisible(reply)
 
 	return board.IsReadOnly() || thread.IsReadOnly() || reply.IsReadOnly()
 }
@@ -280,7 +280,7 @@ func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID 
 	assertHasBoardPermission(board, caller, PermissionReplyCreate)
 
 	thread := mustGetThread(board, threadID)
-	assertThreadVisible(thread)
+	assertThreadIsVisible(thread)
 	assertThreadIsNotFrozen(thread)
 
 	var reply *Post
@@ -344,7 +344,7 @@ func CreateRepost(boardID BoardID, threadID PostID, title, body string, dstBoard
 
 	board := mustGetBoard(boardID)
 	thread := mustGetThread(board, threadID)
-	assertThreadVisible(thread)
+	assertThreadIsVisible(thread)
 
 	if thread.IsRepost() {
 		panic("reposting a thread that is a repost is not allowed")
@@ -389,7 +389,7 @@ func DeleteReply(boardID BoardID, threadID, replyID PostID) {
 	assertThreadIsNotFrozen(thread)
 
 	reply := mustGetReply(thread, replyID)
-	assertReplyVisible(reply)
+	assertReplyIsVisible(reply)
 	assertReplyIsNotFrozen(reply)
 
 	caller := std.OriginCaller()
@@ -446,7 +446,7 @@ func EditReply(boardID BoardID, threadID, replyID PostID, body string) {
 	assertThreadIsNotFrozen(thread)
 
 	reply := mustGetReply(thread, replyID)
-	assertReplyVisible(reply)
+	assertReplyIsVisible(reply)
 	assertReplyIsNotFrozen(reply)
 
 	if std.OriginCaller() != reply.GetCreator() {
@@ -626,13 +626,13 @@ func assertReplyExists(thread *Post, replyID PostID) {
 	}
 }
 
-func assertThreadVisible(thread *Post) {
+func assertThreadIsVisible(thread *Post) {
 	if thread.IsHidden() {
 		panic("thread is hidden")
 	}
 }
 
-func assertReplyVisible(thread *Post) {
+func assertReplyIsVisible(thread *Post) {
 	if thread.IsHidden() {
 		panic("reply is hidden")
 	}
