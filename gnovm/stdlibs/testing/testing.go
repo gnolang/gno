@@ -18,28 +18,3 @@ func X_matchString(pat, str string) (result bool, err error) {
 func X_recoverWithStacktrace() (gnolang.TypedValue, string) {
 	panic("only available in testing stdlibs")
 }
-
-func X_getContext() (
-	originCaller string,
-	originPkgAddress string,
-	origSendDenoms []string, origSendAmounts []int64,
-	origSpendDenoms []string, origSpendAmounts []int64,
-	chainID string,
-	height int64,
-	timeUnix int64, timeNano int64,
-) {
-	panic("only available in testing stdlibs")
-}
-
-func X_setContext(
-	originCaller string,
-	originPkgAddress string,
-	currRealmAddr string, currRealmPkgPath string,
-	origSendDenoms []string, origSendAmounts []int64,
-	origSpendDenoms []string, origSpendAmounts []int64,
-	chainID string,
-	height int64,
-	timeUnix int64, timeNano int64,
-) {
-	panic("only available in testing stdlibs")
-}

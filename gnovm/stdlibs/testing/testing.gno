@@ -368,26 +368,3 @@ func tRunner(t *T, fn testingFunc, verbose bool) {
 
 	fn(t)
 }
-
-// used to get the test execution context; only present in testing stdlibs
-func getContext() (
-	originCaller string,
-	originPkgAddress string,
-	origSendDenoms []string, origSendAmounts []int64,
-	origSpendDenoms []string, origSpendAmounts []int64,
-	chainID string,
-	height int64,
-	timeUnix int64, timeNano int64,
-)
-
-// used to manipulate the test execution context; only present in testing stdlibs
-func setContext(
-	originCaller string,
-	originPkgAddress string,
-	currRealmAddr string, currRealmPkgPath string,
-	origSendDenoms []string, origSendAmounts []int64,
-	origSpendDenoms []string, origSpendAmounts []int64,
-	chainID string,
-	height int64,
-	timeUnix int64, timeNano int64,
-)

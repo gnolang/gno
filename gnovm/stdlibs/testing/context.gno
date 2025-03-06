@@ -1,9 +1,8 @@
 package testing
 
 import (
-	"time"
-
 	"std"
+	"time"
 )
 
 type Context struct {
