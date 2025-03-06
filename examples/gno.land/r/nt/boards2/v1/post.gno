@@ -334,7 +334,12 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
 
 	srcContent, srcPost := post.renderSourcePost(indent)
 	sb.WriteString(srcContent)
-	sb.WriteString("\n")
+
+	if post.IsRepost() && srcPost == nil && len(post.body) > 0 {
+		// Add a newline to separate source deleted message from repost body content
+		sb.WriteString("\n")
+	}
+
 	sb.WriteString(indentBody(indent, post.body))
 	sb.WriteString("\n")
 
