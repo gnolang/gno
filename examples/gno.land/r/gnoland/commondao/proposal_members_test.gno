@@ -6,8 +6,8 @@ import (
 
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
-	"gno.land/p/moul/addrset"
 	"gno.land/p/gnoland/commondao"
+	"gno.land/p/moul/addrset"
 )
 
 func TestMembersPropDefinitionNew(t *testing.T) {

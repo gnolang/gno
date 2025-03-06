@@ -4,8 +4,8 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/p/moul/addrset"
 	"gno.land/p/gnoland/commondao"
+	"gno.land/p/moul/addrset"
 )
 
 // CreateMembersUpdateProposal creates a new proposal to add and/or remove DAO members.

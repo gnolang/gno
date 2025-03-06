@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/moul/addrset"
 	"gno.land/p/gnoland/commondao"
+	"gno.land/p/moul/addrset"
 )
 
 // TODO: Support optional parent DAO mechanics to add/remove direct SubDAO members
