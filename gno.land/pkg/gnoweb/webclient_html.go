@@ -52,6 +52,7 @@ func NewDefaultHTMLWebClientConfig(client *client.RPCClient) *HTMLWebClientConfi
 			),
 			extension.Strikethrough,
 			extension.Table,
+			md.GnoExtension,
 		),
 	}
 
