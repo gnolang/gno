@@ -54,7 +54,7 @@ rune := rune('a')
 | `uintptr`, `unsafe.Pointer`                   | missing                | missing                                                    |
 | `string`                                      | full                   | full                                                       |
 | `rune`                                        | full                   | full                                                       |
-| `interface{}`                                 | full                   | full                                                       |
+| `interface{}` / `any`                         | full                   | full                                                       |
 | `[]T` (slices)                                | full                   | full\*                                                     |
 | `[N]T` (arrays)                               | full                   | full\*                                                     |
 | `map[T1]T2`                                   | full                   | full\*                                                     |
@@ -272,7 +272,7 @@ Legend:
 [^1]: `builtin` is a "fake" package that exists to document the behaviour of
   some builtin functions. The "fake" package does not currently exist in Gno,
   but [all functions up to Go 1.17 exist](https://pkg.go.dev/builtin@go1.17),
-  except for those relating to complex or channel types.
+  except for those relating to complex (real or imag) or channel types.
 [^2]: `crypto/sha1` and `crypto/md5` implement "deprecated" hashing
   algorithms, widely considered unsafe for cryptographic hashing. Decision on
   whether to include these as part of the official standard libraries is still

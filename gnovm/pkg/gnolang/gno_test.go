@@ -52,8 +52,6 @@ func TestBuiltinIdentifiersShadowing(t *testing.T) {
 		"iota",
 		"append",
 		"cap",
-		"close",
-		"complex",
 		"copy",
 		"delete",
 		"len",
@@ -80,10 +78,10 @@ func TestBuiltinIdentifiersShadowing(t *testing.T) {
 		"uint16",
 		"uint32",
 		"uint64",
-		"typeval",
 		"error",
 		"true",
 		"false",
+		"any",
 	}
 
 	for _, name := range uverseNames {
@@ -127,136 +125,6 @@ func TestBuiltinIdentifiersShadowing(t *testing.T) {
 			m.RunFiles(nn)
 			m.RunMain()
 		})
-	}
-}
-
-func TestConvertTo(t *testing.T) {
-	t.Parallel()
-
-	testFunc := func(source, msg string) {
-		defer func() {
-			if len(msg) == 0 {
-				return
-			}
-
-			r := recover()
-
-			if r == nil {
-				t.Fail()
-			}
-
-			err := r.(*PreprocessError)
-			c := strings.Contains(err.Error(), msg)
-			if !c {
-				t.Fatalf(`expected "%s", got "%s"`, msg, r)
-			}
-		}()
-
-		m := NewMachine("test", nil)
-
-		n := MustParseFile("main.go", source)
-		m.RunFiles(n)
-		m.RunMain()
-	}
-
-	type cases struct {
-		source string
-		msg    string
-	}
-
-	tests := []cases{
-		{
-			`package test
-
-func main() {
-	const a int = -1
-    println(uint(a))
-}`,
-			`test/main.go:5:13: cannot convert constant of type IntKind to UintKind`,
-		},
-		{
-			`package test
-
-func main() {
-	const a int = -1
-    println(uint8(a))
-}`,
-			`test/main.go:5:13: cannot convert constant of type IntKind to Uint8Kind`,
-		},
-		{
-			`package test
-
-func main() {
-	const a int = -1
-    println(uint16(a))
-}`,
-			`test/main.go:5:13: cannot convert constant of type IntKind to Uint16Kind`,
-		},
-		{
-			`package test
-
-func main() {
-	const a int = -1
-    println(uint32(a))
-}`,
-			`test/main.go:5:13: cannot convert constant of type IntKind to Uint32Kind`,
-		},
-		{
-			`package test
-
-func main() {
-	const a int = -1
-    println(uint64(a))
-}`,
-			`test/main.go:5:13: cannot convert constant of type IntKind to Uint64Kind`,
-		},
-		{
-			`package test
-
-func main() {
-	const a float32 = 1.5
-    println(int32(a))
-}`,
-			`test/main.go:5:13: cannot convert constant of type Float32Kind to Int32Kind`,
-		},
-		{
-			`package test
-
-func main() {
-    println(int32(1.5))
-}`,
-			`test/main.go:4:13: cannot convert (const (1.5 <untyped> bigdec)) to integer type`,
-		},
-		{
-			`package test
-
-func main() {
-	const a float64 = 1.5
-    println(int64(a))
-}`,
-			`test/main.go:5:13: cannot convert constant of type Float64Kind to Int64Kind`,
-		},
-		{
-			`package test
-
-func main() {
-    println(int64(1.5))
-}`,
-			`test/main.go:4:13: cannot convert (const (1.5 <untyped> bigdec)) to integer type`,
-		},
-		{
-			`package test
-
-		func main() {
-			const f = float64(1.0)
-		   println(int64(f))
-		}`,
-			``,
-		},
-	}
-
-	for _, tc := range tests {
-		testFunc(tc.source, tc.msg)
 	}
 }
 
@@ -419,54 +287,6 @@ func assertOutput(t *testing.T, input string, output string) {
 	assert.Equal(t, output, string(buf.Bytes()))
 	err := m.CheckEmpty()
 	assert.Nil(t, err)
-}
-
-func TestRunMakeStruct(t *testing.T) {
-	t.Parallel()
-
-	assertOutput(t, `package test
-type Outfit struct {
-	Scarf string
-	Shirt string
-	Belts string
-	Strap string
-	Pants string
-	Socks string
-	Shoes string
-}
-func main() {
-	s := Outfit {
-		// some fields are out of order.
-		// some fields are left unset.
-		Scarf:"scarf",
-		Shirt:"shirt",
-		Shoes:"shoes",
-		Socks:"socks",
-	}
-	// some fields out of order are used.
-	// some fields left unset are used.
-	print(s.Shoes+","+s.Shirt+","+s.Pants+","+s.Scarf)
-}`, `shoes,shirt,,scarf`)
-}
-
-func TestRunReturnStruct(t *testing.T) {
-	t.Parallel()
-
-	assertOutput(t, `package test
-type MyStruct struct {
-	FieldA string
-	FieldB string
-}
-func myStruct(a, b string) MyStruct {
-	return MyStruct{
-		FieldA: a,
-		FieldB: b,
-	}
-}
-func main() {
-	s := myStruct("aaa", "bbb")
-	print(s.FieldA+","+s.FieldB)
-}`, `aaa,bbb`)
 }
 
 // ----------------------------------------

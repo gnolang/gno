@@ -1,6 +1,6 @@
 package main
 
-func x1() interface{} {
+func x1() any {
 	a := "1"
 	return a
 }

@@ -5,7 +5,7 @@ type S struct {
 }
 
 func main() {
-	var i interface{}
+	var i any
 	i = S{a: 9}
 	println(&i.(S).a)
 }

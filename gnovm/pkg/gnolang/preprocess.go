@@ -1372,6 +1372,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					n.NumArgs = 1
 					ct := evalStaticType(store, last, n.Func)
 					at := evalStaticTypeOf(store, last, n.Args[0])
+
+					if _, isIface := baseOf(ct).(*InterfaceType); isIface {
+						assertAssignableTo(n, at, ct, false)
+					}
+
 					var constConverted bool
 					switch arg0 := n.Args[0].(type) {
 					case *ConstExpr:
@@ -2899,7 +2904,7 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 							idx := addHeapCapture(dbn, fle, n.Name)
 							// adjust NameExpr type.
 							n.Type = NameExprTypeHeapUse
-							n.Path.Depth = uint8(depth)
+							n.Path.SetDepth(uint8(depth))
 							n.Path.Index = idx
 						} else {
 							if ftype == TRANS_REF_X {
@@ -2995,7 +3000,7 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, name Name) (idx uint16) {
 
 	// add name to fle.HeapCaptures.
 	vp := fle.GetPathForName(nil, name)
-	vp.Depth -= 1 // minus 1 for fle itself.
+	vp.SetDepth(vp.Depth - 1) // minus 1 for fle itself.
 	ne := NameExpr{
 		Path: vp,
 		Name: name,
@@ -4674,7 +4679,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 
 	// recursively predefine dependencies.
 	for {
-		un := tryPredefine(store, last, d)
+		un := tryPredefine(store, pkg, last, d)
 		if un != "" {
 			// check circularity.
 			for _, n := range *stack {
@@ -4801,7 +4806,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 // side effects.  This function works for all block nodes and
 // must be called for name declarations within (non-file,
 // non-package) stmt bodies.
-func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
+func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Name) {
 	if d.GetAttribute(ATTR_PREDEFINED) == true {
 		panic(fmt.Sprintf("decl node already predefined! %v", d))
 	}
@@ -4817,6 +4822,18 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 	// so value paths cannot be used here.
 	switch d := d.(type) {
 	case *ImportDecl:
+		// stdlib internal package
+		if strings.HasPrefix(d.PkgPath, "internal/") && !IsStdlib(pkg.PkgPath) {
+			panic("cannot import stdlib internal/ package outside of standard library")
+		}
+
+		base, isInternal := IsInternalPath(d.PkgPath)
+		if isInternal &&
+			pkg.PkgPath != base &&
+			!strings.HasPrefix(pkg.PkgPath, base+"/") {
+			panic("internal/ packages can only be imported by packages rooted at the parent of \"internal\"")
+		}
+
 		pv := store.GetPackage(d.PkgPath, true)
 		if pv == nil {
 			panic(fmt.Sprintf(
@@ -4980,7 +4997,6 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			}
 			// define package-level function.
 			ft := &FuncType{}
-			pkg := skipFile(last).(*PackageNode)
 			// define a FuncValue w/ above type as d.Name.
 			// fill in later during *FuncDecl:BLOCK.
 			// The body may get altered during preprocessing later.
@@ -5079,7 +5095,8 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 					break
 				}
 			}
-			path.Depth += uint8(i)
+			path.SetDepth(path.Depth + uint8(i))
+			path.Validate()
 			nx.Path = path
 			return
 		}
