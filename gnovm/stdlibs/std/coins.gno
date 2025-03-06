@@ -177,8 +177,8 @@ func (cz Coins) Add(b Coins) Coins {
 	return c
 }
 
-// ExpandNative expands for usage within natively bound functions.
-func (cz Coins) ExpandNative() (denoms []string, amounts []int64) {
+// expandNative expands for usage within natively bound functions.
+func (cz Coins) expandNative() (denoms []string, amounts []int64) {
 	denoms = make([]string, len(cz))
 	amounts = make([]int64, len(cz))
 	for i, coin := range cz {
@@ -187,13 +187,4 @@ func (cz Coins) ExpandNative() (denoms []string, amounts []int64) {
 	}
 
 	return denoms, amounts
-}
-
-// CompactNative compacts coins for usage within natively bound functions.
-func CompactNative(denoms []string, amounts []int64) Coins {
-	coins := make(Coins, len(denoms))
-	for i := range coins {
-		coins[i] = Coin{Denom: denoms[i], Amount: amounts[i]}
-	}
-	return coins
 }

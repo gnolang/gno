@@ -397,8 +397,8 @@ func GetContext() Context {
 	return Context{
 		OriginCaller:     std.Address(originCaller),
 		OriginPkgAddress: std.Address(originPkgAddress),
-		OriginSend:       std.CompactNative(origSendDenoms, origSendAmounts),
-		OriginSpend:      std.CompactNative(origSpendDenoms, origSpendAmounts),
+		OriginSend:       compactNative(origSendDenoms, origSendAmounts),
+		OriginSpend:      compactNative(origSpendDenoms, origSpendAmounts),
 		ChainID:          chainID,
 		Height:           height,
 		Time:             time.Unix(timeUnix, timeNano),
@@ -406,8 +406,8 @@ func GetContext() Context {
 }
 
 func SetContext(ctx Context) {
-	originSendDenom, originSendAmount := ctx.OriginSend.ExpandNative()
-	originSpendDenom, originSpendAmount := ctx.OriginSpend.ExpandNative()
+	originSendDenom, originSendAmount := expandNative(ctx.OriginSend)
+	originSpendDenom, originSpendAmount := expandNative(ctx.OriginSpend)
 
 	var timestamp, timestampNano int64 = 0, 0
 
@@ -475,6 +475,6 @@ func SkipHeights(count int64) {
 }
 
 func IssueCoins(addr std.Address, coins std.Coins) {
-	denom, amt := coins.ExpandNative()
+	denom, amt := expandNative(coins)
 	testIssueCoins(addr.String(), denom, amt)
 }
