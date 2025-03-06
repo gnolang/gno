@@ -1,7 +1,6 @@
 package home
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
