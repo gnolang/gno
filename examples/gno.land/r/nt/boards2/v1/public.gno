@@ -151,12 +151,12 @@ func GetFlaggingThreshold(boardID BoardID) int {
 // the number of flags reaches a pre-defined flagging threshold.
 func FlagThread(boardID BoardID, threadID PostID, reason string) {
 	board := mustGetBoard(boardID)
-	assertBoardIsNotFrozen(board)
 
-	// Check permission to flag when caller is not a realm owner
+	// Realm owners should be able to flag without permissions even when board is frozen
 	caller := std.OriginCaller()
 	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
 	if !isRealmOwner {
+		assertBoardIsNotFrozen(board)
 		assertHasBoardPermission(board, caller, PermissionThreadFlag)
 	}
 
@@ -233,12 +233,12 @@ func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID 
 // when the number of flags reaches a pre-defined flagging threshold.
 func FlagReply(boardID BoardID, threadID, replyID PostID, reason string) {
 	board := mustGetBoard(boardID)
-	assertBoardIsNotFrozen(board)
 
-	// Check permission to flag when caller is not a realm owner
+	// Realm owners should be able to flag without permissions even when board is frozen
 	caller := std.OriginCaller()
 	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
 	if !isRealmOwner {
+		assertBoardIsNotFrozen(board)
 		assertHasBoardPermission(board, caller, PermissionReplyFlag)
 	}
 
