@@ -854,11 +854,9 @@ var nativeFuncs = [...]NativeFunc{
 			{Name: gno.N("r8"), Type: gno.X("int64")},
 			{Name: gno.N("r9"), Type: gno.X("int64")},
 		},
-		true,
+		false,
 		func(m *gno.Machine) {
-			r0, r1, r2, r3, r4, r5, r6, r7, r8, r9 := libs_testing.X_getContext(
-				m,
-			)
+			r0, r1, r2, r3, r4, r5, r6, r7, r8, r9 := libs_testing.X_getContext()
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -930,7 +928,7 @@ var nativeFuncs = [...]NativeFunc{
 			{Name: gno.N("p11"), Type: gno.X("int64")},
 		},
 		[]gno.FieldTypeExpr{},
-		true,
+		false,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -973,39 +971,7 @@ var nativeFuncs = [...]NativeFunc{
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 10, "")).TV, rp10)
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 11, "")).TV, rp11)
 
-			libs_testing.X_setContext(
-				m,
-				p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11)
-		},
-	},
-	{
-		"testing",
-		"testIssueCoins",
-		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("string")},
-			{Name: gno.N("p1"), Type: gno.X("[]string")},
-			{Name: gno.N("p2"), Type: gno.X("[]int64")},
-		},
-		[]gno.FieldTypeExpr{},
-		true,
-		func(m *gno.Machine) {
-			b := m.LastBlock()
-			var (
-				p0  string
-				rp0 = reflect.ValueOf(&p0).Elem()
-				p1  []string
-				rp1 = reflect.ValueOf(&p1).Elem()
-				p2  []int64
-				rp2 = reflect.ValueOf(&p2).Elem()
-			)
-
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV, rp2)
-
-			libs_testing.X_testIssueCoins(
-				m,
-				p0, p1, p2)
+			libs_testing.X_setContext(p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11)
 		},
 	},
 	{
