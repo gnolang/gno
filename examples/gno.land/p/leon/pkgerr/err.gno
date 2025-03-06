@@ -16,7 +16,8 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-// PkgErr is a custom error type that prepends the current realm link to the original error message.
+// PkgErr is a custom error type that prepends the current
+// realm link to the original error message.
 type PkgErr struct {
 	originalErr error
 }
@@ -27,6 +28,7 @@ func New(err error) error {
 	if err == nil {
 		return nil
 	}
+
 	return &PkgErr{originalErr: err}
 }
 

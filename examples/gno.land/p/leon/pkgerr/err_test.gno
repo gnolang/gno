@@ -2,6 +2,7 @@ package pkgerr
 
 import (
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -14,6 +15,10 @@ func TestNew_ErrorMessage(t *testing.T) {
 
 	if err.Error() == "" {
 		t.Errorf("expected non-empty error message, got empty string")
+	}
+
+	if !strings.Contains(err.Error(), origErr.Error()) {
+		t.Errorf("expected to find the realm path in the error")
 	}
 }
 
