@@ -12,20 +12,17 @@ import (
 )
 
 const (
-	boardsPageSize  = 20
-	threadsPageSize = 30
+	boardsPageSize  = 6
+	threadsPageSize = 6
 	repliesPageSize = 30
 )
 
-const (
-	menuAdmin      = "admin"
-	menuMembership = "membership"
-)
+const menuMembership = "membership"
 
 func Render(path string) string {
 	router := mux.NewRouter()
 	router.HandleFunc("", renderBoardsList)
-	router.HandleFunc("members", renderMembers)
+	router.HandleFunc("adminUsers", renderMembers)
 	router.HandleFunc("{board}", renderBoard)
 	router.HandleFunc("{board}/members", renderMembers)
 	router.HandleFunc("{board}/{thread}", renderThread)
@@ -39,94 +36,95 @@ func Render(path string) string {
 }
 
 func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
+	res.Write("# Boards\n\n")
 	renderBoardListMenu(res, req)
+	res.Write("\n\n---\n")
 
-	res.Write("These are all the boards of this realm:\n\n")
-	p := mustGetPagination(req.RawPath, boardsPageSize)
+	if gBoardsByID.Size() == 0 {
+		res.Write("### Currently there are no boards\n")
+		res.Write("Be the first to " + newLink("create a new board", txlink.Call("CreateBoard")) + " !")
+
+		return
+	}
+
+	p := mustGetPagination(req.RawPath, boardsPageSize, true)
 	page := p.Iterate(&gBoardsByID, func(_ string, value interface{}) bool {
 		board := value.(*Board)
-		path := board.GetPath()
-		url := board.GetURL()
-		res.Write(" * " + newLink(path, url) + "\n")
+
+		res.Write("## " + newLink(board.GetName(), board.GetURL()) + "  \n")
+		res.Write("_Created by " + newUserLink(board.creator) + " ")
+		res.Write("on " + board.createdAt.Format(dateFormat))
+		res.Write(", #" + board.id.String() + "_  \n")
+		res.Write("_" + strconv.Itoa(board.threads.Size()) + " threads")
+		if board.IsReadOnly() {
+			res.Write(", **read-only**")
+		}
+
+		res.Write("_\n")
 		return false
 	})
 
 	if page != nil {
 		res.Write("\n---\n")
-		res.Write(page.Picker())
+		res.Write("Pages " + page.Picker())
 	}
 }
 
 func renderBoardListMenu(res *mux.ResponseWriter, req *mux.Request) {
-	res.Write(newButtonLink("create board", txlink.Call("CreateBoard")) + " - ")
+	path := strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land")
 
-	menu := getCurrentSubmenu(req.RawPath)
-	if menu == menuMembership {
-		res.Write("**membership**")
-	} else {
-		res.Write(newButtonLink("membership", submenuURL(menuMembership)))
-	}
-
+	res.Write(newLink("Create Board", txlink.Call("CreateBoard")))
+	res.Write(" • ")
+	res.Write(newLink("List Admin Users", path+":adminUsers"))
 	res.Write("\n\n")
-
-	if menu == menuMembership {
-		path := strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land")
-
-		res.Write("↳")
-		res.Write(newButtonLink("invite", txlink.Call("InviteMember", "boardID", "0")) + " ")
-		res.Write(newButtonLink("members", path+":members") + " ")
-		res.Write(newButtonLink("remove member", txlink.Call("RemoveMember", "boardID", "0")) + " ")
-		res.Write(newButtonLink("change member role", txlink.Call("ChangeMemberRole", "boardID", "0")) + "\n\n")
-	}
 }
 
 func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
 	v, found := gBoardsByName.Get(name)
 	if !found {
-		res.Write("Board does not exist: " + name)
+		res.Write("### The board you are looking for does not exist\n")
+		res.Write("Do you want to [create a new board](" + txlink.Call("CreateBoard") + ") ?")
 		return
 	}
 
 	board := v.(*Board)
 	renderBoardMenu(board, res, req)
 
-	p := mustGetPagination(req.RawPath, threadsPageSize)
+	p := mustGetPagination(req.RawPath, threadsPageSize, true)
 	res.Write(board.Render(p))
 }
 
 func renderBoardMenu(board *Board, res *mux.ResponseWriter, req *mux.Request) {
-	res.Write(newButtonLink("post", board.GetPostFormURL()) + " - ")
+	boardMembersURL := board.GetPath() + "/members"
 
-	menu := getCurrentSubmenu(req.RawPath)
-	if menu == menuMembership {
-		res.Write("**membership** - ")
+	if board.IsReadOnly() {
+		res.Write(newLink("List Board Members", boardMembersURL))
+		res.Write("\n")
 	} else {
-		res.Write(newButtonLink("membership", submenuURL(menuMembership)) + " - ")
-	}
+		res.Write(newLink("Start Thread", board.GetPostFormURL()))
+		res.Write(" • ")
 
-	if menu == menuAdmin {
-		res.Write("**admin**")
-	} else {
-		res.Write(newButtonLink("admin", submenuURL(menuAdmin)))
-	}
+		menu := getCurrentSubmenu(req.RawPath)
+		if menu == menuMembership {
+			res.Write("**Manage Board Membership**")
+		} else {
+			res.Write(newLink("Manage Board Membership", submenuURL(menuMembership)))
+		}
 
-	res.Write("\n\n")
+		res.Write("  \n")
 
-	if menu != "" {
-		res.Write("↳")
-	}
-
-	switch menu {
-	case menuAdmin:
-		res.Write(newButtonLink("rename board", board.GetRenameFormURL()) + " ")
-		res.Write(newButtonLink("freeze", board.GetFreezeFormURL()) + " ")
-		res.Write(newButtonLink("change flagging threshold", board.GetFlaggingThresholdFormURL()) + "\n\n")
-	case menuMembership:
-		res.Write(newButtonLink("invite", board.GetInviteMemberFormURL()) + " ")
-		res.Write(newButtonLink("members", board.GetPath()+"/members") + " ")
-		res.Write(newButtonLink("remove member", board.GetRemoveMemberFormURL()) + " ")
-		res.Write(newButtonLink("change member role", board.GetChangeMemberRoleFormURL()) + "\n\n")
+		if menu == menuMembership {
+			res.Write("↳")
+			res.Write(newLink("List Members", boardMembersURL))
+			res.Write(" • ")
+			res.Write(newLink("Invite", board.GetInviteMemberFormURL()))
+			res.Write(" • ")
+			res.Write(newLink("Remove Member", board.GetRemoveMemberFormURL()))
+			res.Write(" • ")
+			res.Write(newLink("Change Member Role", board.GetChangeMemberRoleFormURL()))
+			res.Write("\n\n")
+		}
 	}
 }
 
@@ -152,7 +150,7 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 	} else if thread.IsHidden() {
 		res.Write("Thread with ID: " + rawID + " has been flagged as inappropriate")
 	} else {
-		p := mustGetPagination(req.RawPath, repliesPageSize)
+		p := mustGetPagination(req.RawPath, repliesPageSize, true)
 		res.Write(thread.Render(p, "", 5))
 	}
 }
@@ -204,26 +202,30 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 	if name != "" {
 		v, found := gBoardsByName.Get(name)
 		if !found {
-			res.Write("Board does not exist: " + name)
+			res.Write("### Board not found")
 			return
 		}
 
 		board := v.(*Board)
 		perms = board.perms
 
-		res.Write("# Board Members: " + board.GetName() + "\n\n")
+		res.Write("# " + board.GetName() + " Members\n")
+		res.Write("### These are the board members\n\n")
 	} else {
-		res.Write("# Boards Members\n\n")
+		res.Write("# Admin Users\n")
+		res.Write("### These are the admin users of the realm\n\n")
 	}
 
-	p, err := pager.New(req.RawPath, perms.UsersCount())
+	// Create a pager with a small page size to reduce
+	// the number of username lookups per page.
+	p, err := pager.New(req.RawPath, perms.UsersCount(), pager.WithPageSize(5))
 	if err != nil {
 		res.Write(err.Error())
 		return
 	}
 
 	perms.IterateUsers(p.Offset(), p.PageSize(), func(u User) bool {
-		res.Write("- " + u.Address.String() + " " + rolesToString(u.Roles) + "\n")
+		res.Write("- " + newUserLink(u.Address) + " : " + rolesToString(u.Roles) + "\n")
 		return false
 	})
 

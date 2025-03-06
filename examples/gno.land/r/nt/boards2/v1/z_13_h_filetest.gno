@@ -27,6 +27,8 @@ func init() {
 	// Create a reply so the realm owner can flag and hide it with a single flag
 	tid = boards2.CreateThread(bid, "Foo", "bar")
 	rid = boards2.CreateReply(bid, tid, 0, "body")
+	// Also freeze board to make sure that realm owner can still flag the reply
+	boards2.FreezeBoard(bid)
 }
 
 func main() {
@@ -34,7 +36,7 @@ func main() {
 
 	// Render content must contain a message about the hidden reply
 	content := boards2.Render("test-board/1/2")
-	println(strings.Contains(content, "\n> _Reply is hidden as it has been flagged as inappropriate_\n"))
+	println(strings.Contains(content, "> _⚠ Reply is hidden as it has been flagged as inappropriate_"))
 }
 
 // Output:
