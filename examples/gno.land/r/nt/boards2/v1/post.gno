@@ -290,7 +290,7 @@ func (post *Post) RenderSummary() string {
 
 	b.WriteString("## " + newLink(summaryOf(title, 80), postURL) + "\n\n")
 	b.WriteString("Created by " + newUserLink(post.creator) + " on " + post.createdAt.Format(dateFormat))
-	b.WriteString(" - " + newHelpButtonLink("x", post.GetDeleteFormURL(), "delete thread") + "  \n")
+	b.WriteString("  \n")
 	b.WriteString(strconv.Itoa(post.repliesAll.Size()) + " replies • ")
 	b.WriteString(strconv.Itoa(post.reposts.Size()) + " reposts" + "\n")
 	return b.String()
@@ -351,11 +351,14 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
 	// Buttons & counters
 	sb.WriteString(indent)
 	if !post.IsThread() {
-		sb.WriteString("  \n" + indent)
+		sb.WriteString("  \n")
+		sb.WriteString(indent)
 	}
 
-	sb.WriteString("Created by " + newUserLink(post.creator))
-	sb.WriteString(" on " + post.createdAt.Format(dateFormat))
+	sb.WriteString("Created by ")
+	sb.WriteString(newUserLink(post.creator))
+	sb.WriteString(" on ")
+	sb.WriteString(post.createdAt.Format(dateFormat))
 
 	if post.repostsCount > 0 {
 		sb.WriteString(", ")
@@ -363,27 +366,29 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
 		sb.WriteString(" repost(s)")
 	}
 
-	sb.WriteString(" - ")
-	sb.WriteString(newButtonLink("reply", post.GetReplyFormURL()))
+	sb.WriteString(" • ")
+	sb.WriteString(newButtonLink("flag", post.GetFlagFormURL()))
 
 	if post.IsThread() {
 		sb.WriteString(" ")
 		sb.WriteString(newButtonLink("repost", post.GetRepostFormURL()))
 	}
 
-	sb.WriteString(" ")
-	sb.WriteString(newButtonLink("edit", post.GetEditFormURL()))
-
-	sb.WriteString(" ")
-	sb.WriteString(newButtonLink("flag", post.GetFlagFormURL()))
-
-	sb.WriteString(" ")
-	sb.WriteString(newHelpButtonLink("x", post.GetDeleteFormURL(), "delete"))
-	sb.WriteString("  \n")
+	isReadOnly := post.GetBoard().IsReadOnly()
+	if !isReadOnly {
+		sb.WriteString(" ")
+		sb.WriteString(newButtonLink("reply", post.GetReplyFormURL()))
+		sb.WriteString(" ")
+		sb.WriteString(newButtonLink("edit", post.GetEditFormURL()))
+		sb.WriteString(" • ")
+		sb.WriteString(newButtonLink("delete", post.GetDeleteFormURL()))
+	}
 
 	if post.IsRepost() && srcPost != nil {
-		sb.WriteString("This thread is a repost of [another thread](" + srcPost.GetURL() + ")\n")
+		sb.WriteString("  \nThis thread is a repost of [another thread](" + srcPost.GetURL() + ")")
 	}
+
+	sb.WriteString("\n")
 }
 
 func (post *Post) Render(p *PaginationOpts, indent string, levels int) string {
