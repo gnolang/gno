@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"path"
+	"slices"
 	"strings"
 	"time"
 
@@ -344,12 +345,10 @@ func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
 	// Add args
 	if url.Args != "" {
 		argSplit := strings.Split(url.Args, "/")
-		var nonEmptyArgs []string
-		for _, a := range argSplit {
-			if a != "" {
-				nonEmptyArgs = append(nonEmptyArgs, a)
-			}
-		}
+		var nonEmptyArgs []string = slices.DeleteFunc(argSplit, func(a string) bool {
+			return a == ""
+		})
+
 		for i := range nonEmptyArgs {
 			data.ArgParts = append(data.ArgParts, components.BreadcrumbPart{
 				Name: nonEmptyArgs[i],
