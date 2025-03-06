@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// running package "main": redeclarations for identifiers: "a<VPUverse(0)>.method"
+// main/files/redeclaration9.gno:7:1: redeclaration of method a.method
