@@ -1,0 +1,9 @@
+version: v2
+plugins:
+  - local: [go, run, -modfile, ../../../../go.mod, google.golang.org/protobuf/cmd/protoc-gen-go]
+    out: .
+    opt: paths=source_relative
+    
+  - local: [go, run, -modfile, ../../../../go.mod, connectrpc.com/connect/cmd/protoc-gen-connect-go]
+    out: .
+    opt: paths=source_relative

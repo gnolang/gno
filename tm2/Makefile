@@ -61,3 +61,7 @@ _test.pkg.db:;      go test $(GOTEST_FLAGS) ./pkg/db/... ./pkg/iavl/benchmarks/.
 generate:
 	go generate -x ./...
 	$(MAKE) fmt
+
+.PHONY: generate.grpc
+generate.grpc:
+	cd pkg/bft/node && buf generate
