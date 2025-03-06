@@ -6,16 +6,25 @@ import (
 	boards2 "gno.land/r/nt/boards2/v1"
 )
 
-const user = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
+const owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+
+var (
+	bid boards2.BoardID
+	tid boards2.PostID
+)
 
 func init() {
-	// Call as a user that is not a member of the boards realm
-	std.TestSetOriginCaller(user)
+	std.TestSetOriginCaller(owner)
+	bid = boards2.CreateBoard("test123")
+	tid = boards2.CreateThread(bid, "foo", "bar", false)
 }
 
 func main() {
-	boards2.SetReplyFee(0)
+	println(boards2.IsThreadFrozen(bid, tid))
+	boards2.FreezeThread(bid, tid)
+	println(boards2.IsThreadFrozen(bid, tid))
 }
 
-// Error:
-// only owners are allowed to change reply fee value
+// Output:
+// false
+// true

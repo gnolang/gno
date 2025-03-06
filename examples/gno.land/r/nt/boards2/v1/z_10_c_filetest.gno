@@ -21,6 +21,7 @@ func init() {
 	bid = boards2.CreateBoard("test-board")
 	pid = boards2.CreateThread(bid, "Foo", "bar", false)
 
+	// Make the next call as an uninvited user
 	std.TestSetOriginCaller(user)
 }
 

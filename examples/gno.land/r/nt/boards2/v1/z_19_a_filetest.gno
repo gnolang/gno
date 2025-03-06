@@ -6,21 +6,25 @@ import (
 	boards2 "gno.land/r/nt/boards2/v1"
 )
 
-const (
-	owner       = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
-	fee   int64 = 9999999
+const owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
+
+var (
+	bid boards2.BoardID
+	tid boards2.PostID
 )
 
 func init() {
 	std.TestSetOriginCaller(owner)
+	bid = boards2.CreateBoard("test123")
+	tid = boards2.CreateThread(bid, "foo", "bar", false)
+
+	boards2.FreezeBoard(bid)
 }
 
 func main() {
-	boards2.SetReplyFee(fee)
-
-	// Ensure current reply fee is right
-	println(boards2.GetReplyFee() == fee)
+	// Attempt to freeze a thread on frozen board
+	boards2.FreezeThread(bid, tid)
 }
 
-// Output:
-// true
+// Error:
+// board is frozen

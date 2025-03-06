@@ -33,6 +33,7 @@ type Post struct {
 	body          string
 	isHidden      bool
 	isPublic      bool
+	isReadOnly    bool
 	replies       avl.Tree // Post.id -> *Post
 	repliesAll    avl.Tree // Post.id -> *Post (all replies, for top-level posts)
 	reposts       avl.Tree // Board.id -> Post.id
@@ -138,6 +139,14 @@ func (post *Post) SetPublic(public bool) {
 // IsPublic check if post is public.
 func (post *Post) IsPublic() bool {
 	return post.isPublic
+}
+
+func (post *Post) SetReadOnly(isReadOnly bool) {
+	post.isReadOnly = isReadOnly
+}
+
+func (post *Post) IsReadOnly() bool {
+	return post.isReadOnly
 }
 
 func (post *Post) AddReply(creator std.Address, body string) *Post {
