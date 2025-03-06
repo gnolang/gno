@@ -71,16 +71,16 @@ func TestAsExpr(t *testing.T) {
 		name     string
 		baseExpr Expr
 		as       Expr
-		want     bool
+		want     int
 	}{
 		{
 			name:     "seen the value",
 			baseExpr: compositeLitExpr,
 			as:       &BinaryExpr{},
-			want:     false,
+			want:     0,
 		},
 		{
-			name: "nested search true",
+			name: "nested found",
 			baseExpr: &BinaryExpr{
 				Left: &CallExpr{
 					Func: &FuncLitExpr{
@@ -108,10 +108,10 @@ func TestAsExpr(t *testing.T) {
 				},
 			},
 			as:   &TypeAssertExpr{},
-			want: true,
+			want: 1,
 		},
 		{
-			name: "nested search false",
+			name: "nested not found",
 			baseExpr: &BinaryExpr{
 				Left: &CallExpr{
 					Func: &FuncLitExpr{
@@ -139,42 +139,42 @@ func TestAsExpr(t *testing.T) {
 				},
 			},
 			as:   &StructTypeExpr{},
-			want: false,
+			want: 0,
 		},
 		{
-			name: "basic literal search true",
+			name: "basic literal found",
 			baseExpr: &BasicLitExpr{
 				Value: "test",
 			},
 			as:   &BasicLitExpr{},
-			want: true,
+			want: 1,
 		},
 		{
-			name: "basic literal search false",
+			name: "basic literal not found",
 			baseExpr: &BasicLitExpr{
 				Value: "test",
 			},
 			as:   &NameExpr{},
-			want: false,
+			want: 0,
 		},
 		{
-			name: "unary expression search true",
+			name: "unary expression found",
 			baseExpr: &UnaryExpr{
 				X: &NameExpr{},
 			},
 			as:   &UnaryExpr{},
-			want: true,
+			want: 1,
 		},
 		{
-			name: "unary expression search false",
+			name: "unary expression not found",
 			baseExpr: &UnaryExpr{
 				X: &NameExpr{},
 			},
 			as:   &BinaryExpr{},
-			want: false,
+			want: 0,
 		},
 		{
-			name: "composite literal search true",
+			name: "composite literal found",
 			baseExpr: &CompositeLitExpr{
 				Type: &MaybeNativeTypeExpr{},
 				Elts: KeyValueExprs{
@@ -185,10 +185,10 @@ func TestAsExpr(t *testing.T) {
 				},
 			},
 			as:   &CompositeLitExpr{},
-			want: true,
+			want: 1,
 		},
 		{
-			name: "composite literal search false",
+			name: "composite literal not found",
 			baseExpr: &CompositeLitExpr{
 				Type: &MaybeNativeTypeExpr{},
 				Elts: KeyValueExprs{
@@ -199,46 +199,46 @@ func TestAsExpr(t *testing.T) {
 				},
 			},
 			as:   &FuncLitExpr{},
-			want: false,
+			want: 0,
 		},
 		{
-			name: "selector expression search true",
+			name: "selector expression found",
 			baseExpr: &SelectorExpr{
 				X:   &NameExpr{},
 				Sel: "test",
 			},
 			as:   &SelectorExpr{},
-			want: true,
+			want: 1,
 		},
 		{
-			name: "selector expression search false",
+			name: "selector expression not found",
 			baseExpr: &SelectorExpr{
 				X:   &NameExpr{},
 				Sel: "test",
 			},
 			as:   &NameExpr{},
-			want: false,
+			want: 0,
 		},
 		{
-			name: "index expression search true",
+			name: "index expression found",
 			baseExpr: &IndexExpr{
 				X:     &NameExpr{},
 				Index: &ConstExpr{},
 			},
 			as:   &IndexExpr{},
-			want: true,
+			want: 1,
 		},
 		{
-			name: "index expression search false",
+			name: "index expression not found",
 			baseExpr: &IndexExpr{
 				X:     &NameExpr{},
 				Index: &ConstExpr{},
 			},
 			as:   &BinaryExpr{},
-			want: false,
+			want: 0,
 		},
 		{
-			name: "slice expression search true",
+			name: "slice expression found",
 			baseExpr: &SliceExpr{
 				X:    &NameExpr{},
 				Low:  &ConstExpr{},
@@ -246,10 +246,10 @@ func TestAsExpr(t *testing.T) {
 				Max:  &ConstExpr{},
 			},
 			as:   &SliceExpr{},
-			want: true,
+			want: 1,
 		},
 		{
-			name: "slice expression search false",
+			name: "slice expression not found",
 			baseExpr: &SliceExpr{
 				X:    &NameExpr{},
 				Low:  &ConstExpr{},
@@ -257,210 +257,210 @@ func TestAsExpr(t *testing.T) {
 				Max:  &ConstExpr{},
 			},
 			as:   &BinaryExpr{},
-			want: false,
+			want: 0,
 		},
 		{
-			name: "star expression search true",
+			name: "star expression found",
 			baseExpr: &StarExpr{
 				X: &NameExpr{},
 			},
 			as:   &StarExpr{},
-			want: true,
+			want: 1,
 		},
 		{
-			name: "star expression search false",
+			name: "star expression not found",
 			baseExpr: &StarExpr{
 				X: &NameExpr{},
 			},
 			as:   &BinaryExpr{},
-			want: false,
+			want: 0,
 		},
 		{
-			name: "ref expression search true",
+			name: "ref expression found",
 			baseExpr: &RefExpr{
 				X: &NameExpr{},
 			},
 			as:   &RefExpr{},
-			want: true,
+			want: 1,
 		},
 		{
-			name: "ref expression search false",
+			name: "ref expression not found",
 			baseExpr: &RefExpr{
 				X: &NameExpr{},
 			},
 			as:   &BinaryExpr{},
-			want: false,
+			want: 0,
 		},
 		{
-			name: "field type expression search true",
+			name: "field type expression found",
 			baseExpr: &FieldTypeExpr{
 				Type: &NameExpr{},
 				Tag:  &ConstExpr{},
 			},
 			as:   &FieldTypeExpr{},
-			want: true,
+			want: 1,
 		},
 		{
-			name: "field type expression search false",
+			name: "field type expression not found",
 			baseExpr: &FieldTypeExpr{
 				Type: &NameExpr{},
 				Tag:  &ConstExpr{},
 			},
 			as:   &BinaryExpr{},
-			want: false,
+			want: 0,
 		},
 		{
-			name: "array type expression search true",
+			name: "array type expression found",
 			baseExpr: &ArrayTypeExpr{
 				Len: &ConstExpr{},
 				Elt: &NameExpr{},
 			},
 			as:   &ArrayTypeExpr{},
-			want: true,
+			want: 1,
 		},
 		{
-			name: "array type expression search false",
+			name: "array type expression not found",
 			baseExpr: &ArrayTypeExpr{
 				Len: &ConstExpr{},
 				Elt: &NameExpr{},
 			},
 			as:   &BinaryExpr{},
-			want: false,
+			want: 0,
 		},
 		{
-			name: "slice type expression search true",
+			name: "slice type expression found",
 			baseExpr: &SliceTypeExpr{
 				Elt: &NameExpr{},
 			},
 			as:   &SliceTypeExpr{},
-			want: true,
+			want: 1,
 		},
 		{
-			name: "slice type expression search false",
+			name: "slice type expression not found",
 			baseExpr: &SliceTypeExpr{
 				Elt: &NameExpr{},
 			},
 			as:   &BinaryExpr{},
-			want: false,
+			want: 0,
 		},
 		{
-			name:     "interface type expression search true",
+			name:     "interface type expression found",
 			baseExpr: &InterfaceTypeExpr{},
 			as:       &InterfaceTypeExpr{},
-			want:     true,
+			want:     1,
 		},
 		{
-			name:     "interface type expression search false",
+			name:     "interface type expression not found",
 			baseExpr: &InterfaceTypeExpr{},
 			as:       &BinaryExpr{},
-			want:     false,
+			want:     0,
 		},
 		{
-			name: "chan type expression search true",
+			name: "chan type expression found",
 			baseExpr: &ChanTypeExpr{
 				Value: &NameExpr{},
 			},
 			as:   &ChanTypeExpr{},
-			want: true,
+			want: 1,
 		},
 		{
-			name: "chan type expression search false",
+			name: "chan type expression not found",
 			baseExpr: &ChanTypeExpr{
 				Value: &NameExpr{},
 			},
 			as:   &BinaryExpr{},
-			want: false,
+			want: 0,
 		},
 		{
-			name:     "func type expression search true",
+			name:     "func type expression found",
 			baseExpr: &FuncTypeExpr{},
 			as:       &FuncTypeExpr{},
-			want:     true,
+			want:     1,
 		},
 		{
-			name:     "func type expression search false",
+			name:     "func type expression not found",
 			baseExpr: &FuncTypeExpr{},
 			as:       &BinaryExpr{},
-			want:     false,
+			want:     0,
 		},
 		{
-			name: "map type expression search true",
+			name: "map type expression found",
 			baseExpr: &MapTypeExpr{
 				Key:   &NameExpr{},
 				Value: &ConstExpr{},
 			},
 			as:   &MapTypeExpr{},
-			want: true,
+			want: 1,
 		},
 		{
-			name: "map type expression search false",
+			name: "map type expression not found",
 			baseExpr: &MapTypeExpr{
 				Key:   &NameExpr{},
 				Value: &ConstExpr{},
 			},
 			as:   &BinaryExpr{},
-			want: false,
+			want: 0,
 		},
 		{
-			name:     "struct type expression search true",
+			name:     "struct type expression found",
 			baseExpr: &StructTypeExpr{},
 			as:       &StructTypeExpr{},
-			want:     true,
+			want:     1,
 		},
 		{
-			name:     "struct type expression search false",
+			name:     "struct type expression not found",
 			baseExpr: &StructTypeExpr{},
 			as:       &BinaryExpr{},
-			want:     false,
+			want:     0,
 		},
 		{
-			name: "const type expression search true",
+			name: "const type expression found",
 			baseExpr: &constTypeExpr{
 				Source: &CompositeLitExpr{},
 			},
 			as:   &constTypeExpr{},
-			want: true,
+			want: 1,
 		},
 		{
-			name: "const type expression search false",
+			name: "const type expression not found",
 			baseExpr: &constTypeExpr{
 				Source: &CompositeLitExpr{},
 			},
 			as:   &BinaryExpr{},
-			want: false,
+			want: 0,
 		},
 		{
-			name: "maybe native type expression search true",
+			name: "maybe native type expression found",
 			baseExpr: &MaybeNativeTypeExpr{
 				Type: &NameExpr{},
 			},
 			as:   &MaybeNativeTypeExpr{},
-			want: true,
+			want: 1,
 		},
 		{
-			name: "maybe native type expression search false",
+			name: "maybe native type expression not found",
 			baseExpr: &MaybeNativeTypeExpr{
 				Type: &NameExpr{},
 			},
 			as:   &BinaryExpr{},
-			want: false,
+			want: 0,
 		},
 		{
-			name: "func lit expression search true",
+			name: "func lit expression found",
 			baseExpr: &FuncLitExpr{
 				Type:         FuncTypeExpr{},
 				HeapCaptures: NameExprs{{Name: "test"}},
 			},
 			as:   &FuncLitExpr{},
-			want: true,
+			want: 1,
 		},
 		{
-			name: "func lit expression search false",
+			name: "func lit expression not found",
 			baseExpr: &FuncLitExpr{
 				Type: FuncTypeExpr{},
 			},
 			as:   &BinaryExpr{},
-			want: false,
+			want: 0,
 		},
 	}
 
@@ -468,9 +468,9 @@ func TestAsExpr(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := AsExpr(tt.baseExpr, tt.as, &seen[Expr]{})
-			if got != tt.want {
-				t.Errorf("ExprAsExpr() = %v, want %v", got, tt.want)
+			got := getExpr(tt.baseExpr, tt.as, &seen[Expr]{})
+			if len(got) != tt.want {
+				t.Errorf("len(getExpr()) = %v, want %v", len(got), tt.want)
 			}
 		})
 	}
