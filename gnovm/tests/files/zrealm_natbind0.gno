@@ -5,19 +5,19 @@ import (
 	"std"
 )
 
-var node interface{}
+var node any
 
 func init() {
-	node = std.GetHeight
+	node = std.ChainHeight
 }
 
 func main() {
-	// NOTE: this test uses GetHeight and GetChainID, which are "pure"
+	// NOTE: this test uses ChainHeight and ChainID, which are "pure"
 	// natively bound functions (ie. not indirections through a wrapper fn,
 	// to convert the types to builtin go/gno identifiers).
 	f := node.(func() int64)
 	println(f())
-	node = std.GetChainID
+	node = std.ChainID
 	g := node.(func() string)
 	println(g())
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log/slog"
+	gopath "path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -103,5 +104,5 @@ func guessPath(cfg *AppConfig, dir string) (path string) {
 	}
 
 	rname := reInvalidChar.ReplaceAllString(filepath.Base(dir), "-")
-	return filepath.Join(cfg.chainDomain, "/r/dev/", rname)
+	return gopath.Join(cfg.chainDomain, "/r/dev/", rname)
 }

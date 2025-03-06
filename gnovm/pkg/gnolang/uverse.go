@@ -129,7 +129,6 @@ func makeUverseNode() {
 	def("._", undefined)   // special, path is zero.
 	def("iota", undefined) // special
 	def("nil", undefined)
-	def("bigint", asValue(BigintType))
 	def("bool", asValue(BoolType))
 	def("byte", asValue(Uint8Type))
 	def("float32", asValue(Float32Type))
@@ -162,6 +161,7 @@ func makeUverseNode() {
 	// by a TypeValue.
 	def("typeval", asValue(gTypeType))
 	def("error", asValue(gErrorType))
+	def("any", asValue(&InterfaceType{}))
 
 	// Values
 	def("true", untypedBool(true))
@@ -637,7 +637,7 @@ func makeUverseNode() {
 				T: IntType,
 				V: nil,
 			}
-			res0.SetInt(arg0.TV.GetCapacity())
+			res0.SetInt(int64(arg0.TV.GetCapacity()))
 			m.PushValue(res0)
 			return
 		},
@@ -693,7 +693,7 @@ func makeUverseNode() {
 						T: IntType,
 						V: nil,
 					}
-					res0.SetInt(minl)
+					res0.SetInt(int64(minl))
 					m.PushValue(res0)
 					return
 				case *SliceType:
@@ -719,7 +719,7 @@ func makeUverseNode() {
 						T: IntType,
 						V: nil,
 					}
-					res0.SetInt(minl)
+					res0.SetInt(int64(minl))
 					m.PushValue(res0)
 					return
 				case *NativeType:
@@ -791,7 +791,7 @@ func makeUverseNode() {
 				T: IntType,
 				V: nil,
 			}
-			res0.SetInt(arg0.TV.GetLength())
+			res0.SetInt(int64(arg0.TV.GetLength()))
 			m.PushValue(res0)
 			return
 		},
@@ -814,7 +814,7 @@ func makeUverseNode() {
 				et := bt.Elem()
 				if vargsl == 1 {
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
-					li := lv.ConvertGetInt()
+					li := int(lv.ConvertGetInt())
 					if et.Kind() == Uint8Kind {
 						arrayValue := m.Alloc.NewDataArray(li)
 						m.PushValue(TypedValue{
@@ -840,9 +840,9 @@ func makeUverseNode() {
 					}
 				} else if vargsl == 2 {
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
-					li := lv.ConvertGetInt()
+					li := int(lv.ConvertGetInt())
 					cv := vargs.TV.GetPointerAtIndexInt(m.Store, 1).Deref()
-					ci := cv.ConvertGetInt()
+					ci := int(cv.ConvertGetInt())
 
 					if ci < li {
 						panic(&Exception{Value: typedString(`makeslice: cap out of range`)})
@@ -896,7 +896,7 @@ func makeUverseNode() {
 					return
 				} else if vargsl == 1 {
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
-					li := lv.ConvertGetInt()
+					li := int(lv.ConvertGetInt())
 					m.PushValue(TypedValue{
 						T: tt,
 						V: m.Alloc.NewMap(li),
@@ -926,7 +926,7 @@ func makeUverseNode() {
 						return
 					} else if vargsl == 1 {
 						sv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
-						si := sv.ConvertGetInt()
+						si := int(sv.ConvertGetInt())
 						m.PushValue(TypedValue{
 							T: tt,
 							V: m.Alloc.NewNative(
@@ -1026,34 +1026,12 @@ func makeUverseNode() {
 			"exception", AnyT(),
 		),
 		func(m *Machine) {
-			if len(m.Exceptions) == 0 {
+			exception := m.Recover()
+			if exception == nil {
 				m.PushValue(TypedValue{})
-				return
+			} else {
+				m.PushValue(exception.Value)
 			}
-
-			// If the exception is out of scope, this recover can't help; return nil.
-			if m.PanicScope <= m.DeferPanicScope {
-				m.PushValue(TypedValue{})
-				return
-			}
-
-			exception := &m.Exceptions[len(m.Exceptions)-1]
-
-			// If the frame the exception occurred in is not popped, it's possible that
-			// the exception is still in scope and can be recovered.
-			if !exception.Frame.Popped {
-				// If the frame is not the current frame, the exception is not in scope; return nil.
-				// This retrieves the second most recent call frame because the first most recent
-				// is the call to recover itself.
-				if frame := m.LastCallFrame(2); frame == nil || (frame != nil && frame != exception.Frame) {
-					m.PushValue(TypedValue{})
-					return
-				}
-			}
-
-			m.PushValue(exception.Value)
-			// Recover complete; remove exceptions.
-			m.Exceptions = nil
 		},
 	)
 	uverseValue = uverseNode.NewPackage()

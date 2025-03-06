@@ -10,7 +10,7 @@ type Email struct {
 	Addr  string
 }
 
-func f(s string, r interface{}) error {
+func f(s string, r any) error {
 	return xml.Unmarshal([]byte(s), &r)
 }
 

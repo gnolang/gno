@@ -61,7 +61,7 @@ func init() {
 }
 
 func Render(path string) string {
-	height := std.GetHeight()
+	height := std.ChainHeight()
 
 	output := "# " + config.Title + "\n\n"
 

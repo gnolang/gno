@@ -9,11 +9,11 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
-func TestPrevRealmIsOrigin(t *testing.T) {
+func TestPreviousRealmIsOrigin(t *testing.T) {
 	var (
 		user = gno.DerivePkgAddr("user1.gno").Bech32()
 		ctx  = ExecContext{
-			OrigCaller: user,
+			OriginCaller: user,
 		}
 		msgCallFrame = &gno.Frame{LastPackage: &gno.PackageValue{PkgPath: "main"}}
 		msgRunFrame  = &gno.Frame{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/g1337/run"}}

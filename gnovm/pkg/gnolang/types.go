@@ -108,9 +108,7 @@ const (
 	Float32Type
 	Float64Type
 	UntypedBigintType
-	BigintType
 	UntypedBigdecType
-	BigdecType
 	// UintptrType
 )
 
@@ -153,20 +151,16 @@ func (pt PrimitiveType) Specificity() int {
 		return 0
 	case Float64Type:
 		return 0
-	case BigintType:
-		return 1
-	case BigdecType:
-		return 2
 	case UntypedBigdecType:
-		return 3
+		return 1
 	case UntypedStringType:
-		return 4
+		return 2
 	case UntypedBigintType:
-		return 4
+		return 2
 	case UntypedRuneType:
-		return 5
+		return 3
 	case UntypedBoolType:
-		return 6
+		return 4
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %v", pt))
 	}
@@ -204,9 +198,9 @@ func (pt PrimitiveType) Kind() Kind {
 		return Float32Kind
 	case Float64Type:
 		return Float64Kind
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		return BigintKind
-	case BigdecType, UntypedBigdecType:
+	case UntypedBigdecType:
 		return BigdecKind
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %v", pt))
@@ -256,12 +250,8 @@ func (pt PrimitiveType) TypeID() TypeID {
 		return typeid("float64")
 	case UntypedBigintType:
 		return typeid("<untyped> bigint")
-	case BigintType:
-		return typeid("bigint")
 	case UntypedBigdecType:
 		return typeid("<untyped> bigdec")
-	case BigdecType:
-		return typeid("bigdec")
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %v", pt))
 	}
@@ -309,12 +299,8 @@ func (pt PrimitiveType) String() string {
 		return string("float64")
 	case UntypedBigintType:
 		return string("<untyped> bigint")
-	case BigintType:
-		return string("bigint")
 	case UntypedBigdecType:
 		return string("<untyped> bigdec")
-	case BigdecType:
-		return string("bigdec")
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %d", pt))
 	}
@@ -467,27 +453,29 @@ func (l FieldTypeList) HasUnexported() bool {
 }
 
 func (l FieldTypeList) String() string {
-	ll := len(l)
-	s := ""
-	for i, ft := range l {
-		s += string(ft.Name) + " " + ft.Type.TypeID().String()
-		if i != ll-1 {
-			s += ";"
-		}
-	}
-	return s
+	return l.string(true, "; ")
 }
 
-func (l FieldTypeList) StringWithCommas() string {
-	ll := len(l)
-	s := ""
+// StringForFunc returns a list of the fields, suitable for functions.
+// Compared to [FieldTypeList.String], this method does not return field names,
+// and separates the fields using ", ".
+func (l FieldTypeList) StringForFunc() string {
+	return l.string(false, ", ")
+}
+
+func (l FieldTypeList) string(withName bool, sep string) string {
+	var bld strings.Builder
 	for i, ft := range l {
-		s += string(ft.Name) + " " + ft.Type.String()
-		if i != ll-1 {
-			s += ","
+		if i != 0 {
+			bld.WriteString(sep)
 		}
+		if withName {
+			bld.WriteString(string(ft.Name))
+			bld.WriteByte(' ')
+		}
+		bld.WriteString(ft.Type.String())
 	}
-	return s
+	return bld.String()
 }
 
 // Like TypeID() but without considering field names;
@@ -698,7 +686,7 @@ func (pt *PointerType) FindEmbeddedFieldType(callerPath string, n Name, m map[Ty
 					case 1:
 						// *DeclaredType > *StructType.Field has depth 1 (& type VPField).
 						// *PointerType > *DeclaredType > *StructType.Field has depth 2.
-						trail[0].Depth = 2
+						trail[0].SetDepth(2)
 						/*
 							// If trail[-1].Type == VPPtrMethod, set VPDerefPtrMethod.
 							if len(trail) > 1 && trail[1].Type == VPPtrMethod {
@@ -1319,9 +1307,18 @@ func (ft *FuncType) TypeID() TypeID {
 }
 
 func (ft *FuncType) String() string {
-	return fmt.Sprintf("func(%s)(%s)",
-		FieldTypeList(ft.Params).StringWithCommas(),
-		FieldTypeList(ft.Results).StringWithCommas())
+	switch len(ft.Results) {
+	case 0:
+		return fmt.Sprintf("func(%s)", FieldTypeList(ft.Params).StringForFunc())
+	case 1:
+		return fmt.Sprintf("func(%s) %s",
+			FieldTypeList(ft.Params).StringForFunc(),
+			ft.Results[0].Type.String())
+	default:
+		return fmt.Sprintf("func(%s) (%s)",
+			FieldTypeList(ft.Params).StringForFunc(),
+			FieldTypeList(ft.Results).StringForFunc())
+	}
 }
 
 func (ft *FuncType) Elem() Type {
@@ -1602,7 +1599,7 @@ func (dt *DeclaredType) GetPathForName(n Name) ValuePath {
 	}
 	// Otherwise it is underlying.
 	path := dt.Base.(ValuePather).GetPathForName(n)
-	path.Depth += 1
+	path.SetDepth(path.Depth + 1)
 	return path
 }
 
@@ -1672,7 +1669,8 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 				panic("should not happen")
 			}
 		}
-		trail[0].Depth += 1
+
+		trail[0].SetDepth(trail[0].Depth + 1)
 		return trail, hasPtr, rcvr, ft, false
 	default:
 		panic("should not happen")
@@ -2206,9 +2204,9 @@ func KindOf(t Type) Kind {
 			return Float32Kind
 		case Float64Type:
 			return Float64Kind
-		case BigintType, UntypedBigintType:
+		case UntypedBigintType:
 			return BigintKind
-		case BigdecType, UntypedBigdecType:
+		case UntypedBigdecType:
 			return BigdecKind
 		default:
 			panic(fmt.Sprintf("unexpected primitive type %s", t.String()))
@@ -2401,12 +2399,6 @@ func fillEmbeddedName(ft *FieldType) {
 			ft.Name = Name("float32")
 		case Float64Type:
 			ft.Name = Name("float64")
-		case BigintType:
-			ft.Name = Name("bigint")
-		case BigdecType:
-			ft.Name = Name("bigdec")
-		default:
-			panic("should not happen")
 		}
 	case *NativeType:
 		panic("native type cannot be embedded")
