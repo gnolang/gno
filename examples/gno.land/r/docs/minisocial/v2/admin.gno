@@ -2,6 +2,7 @@ package minisocial
 
 import (
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/seqid"
 )
@@ -13,4 +14,5 @@ func ResetPosts() {
 	Ownable.AssertCallerIsOwner()
 	posts = avl.NewTree()
 	postID = seqid.ID(0)
+	pag = pager.NewPager(posts, 5, true)
 }
