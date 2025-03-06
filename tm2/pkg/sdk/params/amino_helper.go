@@ -21,7 +21,7 @@ func encodeStructFields(prm interface{}) (res []std.KVPair) {
 		rv := rvPrm.Field(i)
 		name := field.JSONName
 		value := amino.MustMarshalJSON(rv.Interface())
-		res = append(res, std.KVPair{[]byte(name), value})
+		res = append(res, std.KVPair{Key: []byte(name), Value: value})
 	}
 	return res
 }
@@ -70,11 +70,11 @@ func getStructFieldsFromStore(prmPtr interface{}, store sm.Store, key []byte) (r
 	fields := tinfo.StructInfo.Fields
 	for _, field := range fields {
 		name := field.JSONName
-		value := store.Get([]byte(string(key) + ":" + string(name)))
+		value := store.Get([]byte(string(key) + ":" + name))
 		if value == nil {
 			continue
 		}
-		res = append(res, std.KVPair{[]byte(name), value})
+		res = append(res, std.KVPair{Key: []byte(name), Value: value})
 	}
 	return res
 }

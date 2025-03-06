@@ -91,26 +91,26 @@ type BigintValue struct {
 	V *big.Int
 }
 
-func (bv BigintValue) MarshalAmino() (string, error) {
-	bz, err := bv.V.MarshalText()
+func (biv BigintValue) MarshalAmino() (string, error) {
+	bz, err := biv.V.MarshalText()
 	if err != nil {
 		return "", err
 	}
 	return string(bz), nil
 }
 
-func (bv *BigintValue) UnmarshalAmino(s string) error {
+func (biv *BigintValue) UnmarshalAmino(s string) error {
 	vv := big.NewInt(0)
 	err := vv.UnmarshalText([]byte(s))
 	if err != nil {
 		return err
 	}
-	bv.V = vv
+	biv.V = vv
 	return nil
 }
 
-func (bv BigintValue) Copy(alloc *Allocator) BigintValue {
-	return BigintValue{V: big.NewInt(0).Set(bv.V)}
+func (biv BigintValue) Copy(alloc *Allocator) BigintValue {
+	return BigintValue{V: big.NewInt(0).Set(biv.V)}
 }
 
 // ----------------------------------------
@@ -120,27 +120,27 @@ type BigdecValue struct {
 	V *apd.Decimal
 }
 
-func (bv BigdecValue) MarshalAmino() (string, error) {
-	bz, err := bv.V.MarshalText()
+func (bdv BigdecValue) MarshalAmino() (string, error) {
+	bz, err := bdv.V.MarshalText()
 	if err != nil {
 		return "", err
 	}
 	return string(bz), nil
 }
 
-func (bv *BigdecValue) UnmarshalAmino(s string) error {
+func (bdv *BigdecValue) UnmarshalAmino(s string) error {
 	vv := apd.New(0, 0)
 	err := vv.UnmarshalText([]byte(s))
 	if err != nil {
 		return err
 	}
-	bv.V = vv
+	bdv.V = vv
 	return nil
 }
 
-func (bv BigdecValue) Copy(alloc *Allocator) BigdecValue {
+func (bdv BigdecValue) Copy(alloc *Allocator) BigdecValue {
 	cp := apd.New(0, 0)
-	_, err := apd.BaseContext.Add(cp, cp, bv.V)
+	_, err := apd.BaseContext.Add(cp, cp, bdv.V)
 	if err != nil {
 		panic("should not happen")
 	}

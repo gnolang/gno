@@ -377,13 +377,8 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 	calls := make([]StacktraceCall, 0, len(m.Frames))
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		if m.Frames[i].IsCall() {
-			stm := m.Stmts[nextStmtIndex]
-			if bs, ok := stm.(*bodyStmt); ok {
-				stm = bs.Body[bs.NextBodyIndex-1]
-			}
 			calls = append(calls, StacktraceCall{
 				Frame: m.Frames[i],
-        Stmt: stm,
 			})
 		}
 	}

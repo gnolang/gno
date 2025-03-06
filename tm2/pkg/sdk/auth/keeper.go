@@ -31,9 +31,9 @@ func NewAccountKeeper(
 	key store.StoreKey, pk params.ParamsKeeperI, proto func() std.Account,
 ) AccountKeeper {
 	return AccountKeeper{
-		key:    key,
-		prmk: pk,
-		proto:  proto,
+		key:   key,
+		prmk:  pk,
+		proto: proto,
 	}
 }
 

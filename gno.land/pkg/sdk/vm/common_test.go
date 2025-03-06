@@ -9,7 +9,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
-	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	authm "github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	bankm "github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	pm "github.com/gnolang/gno/tm2/pkg/sdk/params"
@@ -55,7 +54,7 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	bankk := bankm.NewBankKeeper(acck, prmk.ForModule(bankm.ModuleName))
 	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bankk, prmk)
 
-	prmk.Register(auth.ModuleName, acck)
+	prmk.Register(authm.ModuleName, acck)
 	prmk.Register(bankm.ModuleName, bankk)
 	prmk.Register(ModuleName, vmk)
 

@@ -16,10 +16,10 @@ import (
 )
 
 type testEnv struct {
-	ctx    sdk.Context
-	bankk  BankKeeper
-	acck   auth.AccountKeeper
-	prmk params.ParamsKeeper
+	ctx   sdk.Context
+	bankk BankKeeper
+	acck  auth.AccountKeeper
+	prmk  params.ParamsKeeper
 }
 
 func setupTestEnv() testEnv {

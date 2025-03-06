@@ -45,7 +45,7 @@ func NewBankKeeper(acck auth.AccountKeeper, pk params.ParamsKeeperI) BankKeeper 
 	return BankKeeper{
 		ViewKeeper: NewViewKeeper(acck),
 		acck:       acck,
-		prmk:     pk,
+		prmk:       pk,
 	}
 }
 
