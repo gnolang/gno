@@ -31,4 +31,4 @@ func main() {
 }
 
 // Error:
-// replying to a hidden reply is not allowed
+// replying to a hidden or frozen reply is not allowed
