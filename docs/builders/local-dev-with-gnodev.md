@@ -12,20 +12,20 @@ node, users can simulate the blockchain environment locally on their machines,
 allowing them to easily see how their code behaves before deploying it to a
 remote gno.land network.
 
-This tutorial will show you how to use gnodev, 
-a local development solution stack offering a built-in gno.land node with a 
+This tutorial will show you how to use gnodev,
+a local development solution stack offering a built-in gno.land node with a
 hot-reload feature for packages and realms, as well as a built-in instance of [gnoweb](../users/explore-with-gnoweb.md).
 
-## Primary features 
+## Primary features
 
 Apart from providing a built-in gno.land node and a `gnoweb` instance, `gnodev`
-also provides an array of other useful features. Let's explore the three most 
+also provides an array of other useful features. Let's explore the three most
 prominent ones:
 1. Automatic package deployment
 2. Premining balances
 3. Hot reload
 
-If you're familiar with the features above, jump to the [practical example 
+If you're familiar with the features above, jump to the [practical example
 section](#practical-example).
 
 `gnodev` also provides many useful features such as loading genesis transactions,
@@ -43,7 +43,7 @@ via the `-deploy-key` flag.
 
 #### Detecting package paths
 
-If the current working directory contains a `gno.mod` file, `gnodev` deploys the 
+If the current working directory contains a `gno.mod` file, `gnodev` deploys the
 package to the `pkgpath` specified inside.
 
 If no `gno.mod` file is found, `gnodev` searches for a `.gno` file containing a
@@ -54,13 +54,13 @@ package name and deploys it under `gno.land/r/dev/<pkgname>`.
 In addition to your working directory, `gnodev` automatically deploys all packages
 and realms located in the [examples/ folder](https://github.com/gnolang/gno/tree/master/examples)
 from the monorepo it was installed from. This makes all packages in the `examples/`
-folder available for use during development. `gnodev` also provides the option 
+folder available for use during development. `gnodev` also provides the option
 to resolve packages from a remote testnet, which can be set via the `-resolver` flag. // XX should we include this here?
 
 ### 2. Premining balances
 
-`gnodev` automatically detects your Gno keys from the local `gnokey` keybase, and 
-pre-mines a large amount of testnet GNOT to all of your addresses, which can 
+`gnodev` automatically detects your Gno keys from the local `gnokey` keybase, and
+pre-mines a large amount of testnet GNOT to all of your addresses, which can
 then be used for testing applications.
 
 You can verify the balance of your addresses by pressing `A` when `gnodev` is running:
@@ -84,7 +84,7 @@ your code, and automatically reloads the built-in node, while trying to replay
 previous transactions to maintain the state of your smart contracts between
 code changes.
 
-Directory watching, as well as transaction replaying, can be disabled with the 
+Directory watching, as well as transaction replaying, can be disabled with the
 `-no-watch` and `-no-replay` flags, respectively.
 
 With the main features of `gnodev` out of the way, let's dive into a practical
@@ -128,7 +128,7 @@ Current counter value: 0
 
 ### Modifying `Render()`
 
-Let's modify the `Render()` function inside `counter.gno` as follows, importing 
+Let's modify the `Render()` function inside `counter.gno` as follows, importing
 the `strconv` package:
 
 ```go
@@ -146,8 +146,8 @@ My amazing counter value: 0
 
 ### Interacting with the realm
 
-To interact with our `counter` realm, let's create a simple transaction calling 
-the `Increment()` function with `gnokey`, using the key we created in the 
+To interact with our `counter` realm, let's create a simple transaction calling
+the `Increment()` function with `gnokey`, using the key we created in the
 [previous tutorial](creating-a-keypair.md). Running the following command
 in your terminal will execute the transaction:
 
@@ -185,7 +185,7 @@ My amazing counter value: 42
 
 :::info
 
-The above section showcases a simple `gnokey` command that will execute a 
+The above section showcases a simple `gnokey` command that will execute a
 transaction executing `Increment(42)` in the `counter` realm, which lives on the
 `gno.land/r/example/counter` package path on the local node.
 

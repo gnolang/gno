@@ -31,26 +31,26 @@ Coming soon.
 
 ## Managing key pairs
 
-In this tutorial, you will learn how to create your Gno key pair using 
+In this tutorial, you will learn how to create your Gno key pair using
 [gnokey](./interact-with-gnokey.md). A key pair is required to send
-transactions to the blockchain, including deploying code, interacting with 
+transactions to the blockchain, including deploying code, interacting with
 existing applications, and more.
 
 ## A word about key pairs
 
-Key pairs are the foundation of how users interact with blockchains; and Gno is 
+Key pairs are the foundation of how users interact with blockchains; and Gno is
 no exception. By using a 12-word or 24-word [mnemonic phrase](https://www.zimperium.com/glossary/mnemonic-seed/)
 as a source of randomness, users can derive a private and a public key.
 These two keys can then be used further; a public key derives an address which is
 a unique identifier of a user on the blockchain, while a private key is used for
-signing messages and transactions for the aforementioned address, proving a user 
-has ownership over it. 
+signing messages and transactions for the aforementioned address, proving a user
+has ownership over it.
 
 Let's see how we can use `gnokey` to generate a Gno key pair locally.
 
 ## Generating a key pair
 
-The `gnokey add` command allows you to generate a new key pair locally. Simply 
+The `gnokey add` command allows you to generate a new key pair locally. Simply
 run the command, while adding a name for your key pair:
 
 ```bash
@@ -70,7 +70,7 @@ to derive the same key pairs. This is why it is crucial to store it in a safe,
 offline place - writing the phrase on a piece of paper and hiding it is highly
 recommended. **If it gets lost, it is unrecoverable.**
 
-::: 
+:::
 
 `gnokey` will generate a keybase in which it will store information about your
 key pairs. The keybase directory path is stored under the `-home` flag in `gnokey`.
@@ -162,8 +162,8 @@ The `addpkg` subcommmand uses the following flags and arguments:
 - `-chain-id` - id of the chain that we are sending the transaction to
 - `-remote` - specifies the remote node RPC listener address
 
-The `-pkgpath`, `-pkgdir`, and `-deposit` flags are unique to the `addpkg` 
-subcommand, while `-broadcast`, `-gas-wanted`, `-gas-fee`, `-chain-id`, and 
+The `-pkgpath`, `-pkgdir`, and `-deposit` flags are unique to the `addpkg`
+subcommand, while `-broadcast`, `-gas-wanted`, `-gas-fee`, `-chain-id`, and
 `-remote` are used for setting the base transaction configuration. These flags
 will be repeated throughout the tutorial.
 
@@ -172,7 +172,7 @@ Next, let's configure the `addpkg` subcommand to publish this package to the
 the `example/p/` folder, the command will look like this:
 
 ```bash
-gnokey maketx addpkg \                                                                                                                                                                                          
+gnokey maketx addpkg \
 -pkgpath "gno.land/p/<your_namespace>/hello_world" \
 -pkgdir "." \
 -deposit "" \
@@ -187,7 +187,7 @@ Once we have added a desired [namespace](../resources/users-and-teams.md) to upl
 transaction:
 
 ```bash
-gnokey maketx addpkg \                                                                                                                                                                                          
+gnokey maketx addpkg \
 -pkgpath "gno.land/p/examplenamespace/hello_world" \
 -pkgdir "." \
 -send "" \
@@ -199,7 +199,7 @@ gnokey maketx addpkg \
 mykey
 ```
 
-If the transaction was successful, you will get an output from `gnokey` that is 
+If the transaction was successful, you will get an output from `gnokey` that is
 similar to the following:
 
 ```console
@@ -219,7 +219,7 @@ Let's analyze the output, which is standard for any `gnokey` transaction:
 - `TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=` - the hash of the transaction
 
 Congratulations! You have just uploaded a pure package to the Portal Loop network.
-If you wish to deploy to a different network, find the list of all network 
+If you wish to deploy to a different network, find the list of all network
 configurations in the [Network Configuration](../resources/gnoland-networks.md) section.
 
 ## `Call`
@@ -279,7 +279,7 @@ EVENTS:     [{"type":"Transfer","attrs":[{"key":"from","value":""},{"key":"to","
 TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
 ```
 
-In this case, we can see that the `Deposit()` function emitted an 
+In this case, we can see that the `Deposit()` function emitted an
 [event](../resources/gno-stdlibs.md#events) that tells us more about what
 happened during the transaction.
 
@@ -299,7 +299,7 @@ gnokey maketx call \
 mykey
 ```
 
-If everything was successful, we should get something similar to the following 
+If everything was successful, we should get something similar to the following
 output:
 
 ```
@@ -417,7 +417,7 @@ Specifically, the above example could have been replaced with a simple `maketx c
 call. The full potential of run comes out in three specific cases:
 1. Calling realm functions multiple times in a loop
 2. Calling functions with non-primitive input arguments
-3. Calling methods on exported variables 
+3. Calling methods on exported variables
 
 Let's look at each of these cases in detail. To demonstrate, we'll make a call
 to the following example realm:
@@ -496,7 +496,7 @@ package main
 
 import (
   "strconv"
-  
+
   "gno.land/r/docs/examples/run/foo"
 )
 
@@ -529,23 +529,23 @@ func main() {
 }
 ```
 
-Finally, we can call methods that are on top-level objects in case they exist, 
+Finally, we can call methods that are on top-level objects in case they exist,
 which is not currently possible with the `Call` message.
 
 ## Making an airgapped transaction
 
 `gnokey` provides a way to create a transaction, sign it, and later
-broadcast it to a chain in the most secure fashion. This approach, while more 
+broadcast it to a chain in the most secure fashion. This approach, while more
 complicated than the standard approach shown [in a previous tutorial](making-transactions.md),
 grants full control and provides [airgap](https://en.wikipedia.org/wiki/Air_gap_(networking))
-support. 
+support.
 
 By separating the signing and the broadcasting steps of submitting a transaction,
 users can make sure that the signing happens in a secure, offline environment,
-keeping private keys away from possible exposure to attacks coming from the 
+keeping private keys away from possible exposure to attacks coming from the
 internet.
 
-The intended purpose of this functionality is to provide maximum security when 
+The intended purpose of this functionality is to provide maximum security when
 signing and broadcasting a transaction. In practice, this procedure should take
 place on two separate machines controlled by the holder of the keys, one with
 access to the internet (`Machine A`), and the other one without (`Machine B`),
@@ -651,8 +651,8 @@ gnokey verify -docpath userbook.tx mykey <signature>
 
 # Querying a gno.land network
 
-gno.land and `gnokey` support ABCI queries. Using ABCI queries, you can query the state of 
-a gno.land network without spending any gas. All queries need to be pointed towards 
+gno.land and `gnokey` support ABCI queries. Using ABCI queries, you can query the state of
+a gno.land network without spending any gas. All queries need to be pointed towards
 a specific remote address from which the state will be retrieved.
 
 To send ABCI queries, you can use the `gnokey query` subcommand, and provide it
@@ -765,8 +765,8 @@ data: [
 
 ## `vm/qfile`
 
-With the `vm/qfile` query, we can fetch files and their content found on a 
-specific package path. To specify the path we want to query, we can use the 
+With the `vm/qfile` query, we can fetch files and their content found on a
+specific package path. To specify the path we want to query, we can use the
 `-data` flag:
 
 ```bash
@@ -790,7 +790,7 @@ of the file will be retrieved:
 gnokey query vm/qfile -data "gno.land/r/demo/wugnot/wugnot.gno" -remote https://rpc.gno.land:443
 ```
 
-Output: 
+Output:
 ```bash
 height: 0
 data: package wugnot
@@ -893,7 +893,7 @@ data: {
 in read-only mode. For example:
 
 ```bash
-gnokey query vm/qeval -remote https://rpc.gno.land:443 -data "gno.land/r/demo/wugnot.BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")" 
+gnokey query vm/qeval -remote https://rpc.gno.land:443 -data "gno.land/r/demo/wugnot.BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
 ```
 
 This command will return the `wugnot` balance of the above address without using gas.
@@ -924,13 +924,13 @@ data: # wrapped GNOT ($wugnot)
 
 :::info Specifying a path to `Render()`
 
-To call the `vm/qrender` query with a specific path, use the `<pkgpath>:<renderpath>` syntax. 
+To call the `vm/qrender` query with a specific path, use the `<pkgpath>:<renderpath>` syntax.
 For example, the `wugnot` realm provides a way to display the balance of a specific
-address in its `Render()` function. We can fetch the balance of an account by 
+address in its `Render()` function. We can fetch the balance of an account by
 providing the following custom pattern to the `wugnot` realm:
 
 ```bash
-gnokey query vm/qrender --data "gno.land/r/demo/wugnot:balance/g125em6arxsnj49vx35f0n0z34putv5ty3376fg5" -remote https://rpc.gno.land:443 
+gnokey query vm/qrender --data "gno.land/r/demo/wugnot:balance/g125em6arxsnj49vx35f0n0z34putv5ty3376fg5" -remote https://rpc.gno.land:443
 ```
 
 To see how this was achieved, check out `wugnot`'s `Render()` function.

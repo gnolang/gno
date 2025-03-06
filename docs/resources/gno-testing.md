@@ -6,7 +6,7 @@
 
 ## Overview
 
-In this tutorial, you will learn how to run and test your Gno code locally, by 
+In this tutorial, you will learn how to run and test your Gno code locally, by
 using the `gno` binary. For this example, we will use the `Counter` code from a
 [previous tutorial](../builders/anatomy-of-a-gno-package.md).
 
@@ -30,7 +30,7 @@ You can enter your username under `<namespace>`. In this case, let's use `exampl
 This will create a file with the following content:
 
 ```
-module gno.land/r/example/counter 
+module gno.land/r/example/counter
 ```
 
 Then, in the same folder, create two files- `counter.gno` & `counter_test.gno`:
@@ -70,10 +70,10 @@ func TestIncrement(t *testing.T) {
 	if count != 0 {
 		t.Fatalf("Expected 0, got %d", count)
 	}
-	
-	// Call Increment 
+
+	// Call Increment
 	value := Increment(42)
-	
+
 	// Check result
 	if value != 42 {
 		t.Fatalf("Expected 42, got %d", count)
@@ -83,19 +83,19 @@ func TestIncrement(t *testing.T) {
 
 ## Testing
 
-To run package tests, we can simply use the `gno test` subcommand, passing it the 
-directory that contains the tests. From inside the `counter/` directory, we 
+To run package tests, we can simply use the `gno test` subcommand, passing it the
+directory that contains the tests. From inside the `counter/` directory, we
 can run the following:
 
 ```
-$ gno test .   
+$ gno test .
 ok      .       0.81s
 ```
 
 To see a detailed list of tests that were executed, we can add the verbose flag:
 
 ```
-$ gno test . -v     
+$ gno test . -v
 === RUN   TestIncrement
 --- PASS: TestIncrement (0.00s)
 ok      .       0.81s
@@ -107,7 +107,7 @@ test timeout, checking performance metrics, etc.
 :::info Mocked testing & running environment
 The `gno` binary mocks a blockchain environment when running & testing code.
 See [Final remarks](#final-remarks).
-::: 
+:::
 
 ## Running Gno code
 
@@ -117,10 +117,10 @@ Under the hood, the Gno Virtual Machine evaluates the given expression and simpl
 returns the value, without any permanent changes to contract storage.
 
 This can be an easy way to quickly evaluate a function during development, without
-having to spin up a full blockchain environment. 
+having to spin up a full blockchain environment.
 
 The GnoVM won't automatically print out return values upon evaluating expressions,
-which is why we need to include a `println()` somewhere- either in the function 
+which is why we need to include a `println()` somewhere- either in the function
 body itself, or modify the expression itself:
 
 ```
@@ -146,25 +146,25 @@ func Render(_ string) string {
 }
 ```
 
-The `run` subcommand also supports a full GnoVM debugger, which can be started 
+The `run` subcommand also supports a full GnoVM debugger, which can be started
 with the `-debug` flag. Read more about it [here](https://gno.land/r/gnoland/blog:p/gno-debugger).
 
 ## Final remarks
 
 Note that executing and testing code as shown in this tutorial  utilizes a local,
 mocked execution environment. During testing and expression evaluation, the GnoVM
-is simply running as a language interpreter, with no connection to a real blockchain. 
+is simply running as a language interpreter, with no connection to a real blockchain.
 
-No real on-chain transactions occur, and the state changes are purely in-memory 
-for testing and development purposes. You might notice this if you run the same 
+No real on-chain transactions occur, and the state changes are purely in-memory
+for testing and development purposes. You might notice this if you run the same
 expression modifying a state variable twice, with the actual value staying unchanged.
 
-All possible imports in your code are resolved from the GnoVM's installation folder. 
+All possible imports in your code are resolved from the GnoVM's installation folder.
 
 ## Conclusion
 
 That's it 🎉
 
-You've successfully run local tests and expressions using the `gno` binary. 
+You've successfully run local tests and expressions using the `gno` binary.
 Next, let's jump into how to create a Gno key pair, which is crucial to deploying
 your code and interacting with the gno.land blockchain.

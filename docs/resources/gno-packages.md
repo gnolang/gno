@@ -2,7 +2,7 @@
 
 In gno.land, code is organized into packages that are stored on-chain. This
 guide explains the different types of packages, how they're organized, and how
-to work with them. 
+to work with them.
 
 ## Package Types
 
@@ -11,12 +11,12 @@ Gno has two fundamental package types:
 ### Pure Packages (`/p/`)
 
 Pure packages are stateless Gno libraries meant to be reused by other Gno
-code. Here are the defining features of pure packages: 
+code. Here are the defining features of pure packages:
 - Don't maintain state between calls
 - Can be imported by both realms and other pure packages
 - Are stored under paths beginning with `/p/`
 - Can be written & deployed to the chain by anyone, permissionlessly
-- Users cannot call functions in pure packages directly 
+- Users cannot call functions in pure packages directly
 - Documentation should be contained within package code as comments, following the [Go doc standard](https://tip.golang.org/doc/comment)
 
 Example: `gno.land/p/demo/avl` (An AVL tree implementation)
@@ -38,7 +38,7 @@ For more details on realms, see the dedicated [Realms](./realms.md) documentatio
 
 A package path is a unique identifier for any package that lives on the gno.land
 blockchain. It consists of multiple parts separated with `/` and follows this
-structure: 
+structure:
 
 ```
 gno.land/[r|p]/[namespace]/[package-name]
@@ -72,22 +72,22 @@ see [Users and Teams](./users-and-teams.md).
 
 Initially, all users are granted a default namespace with their address - a
 pseudo-anonymous (PA) namespace - to which the associated address can
-deploy. This namespace has the following format: 
+deploy. This namespace has the following format:
 ```
 gno.land/{p,r}/{std.Address}/**
 ```
 
 For example, for address `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`, all the
-following paths are valid for deployments: 
+following paths are valid for deployments:
 
-- `gno.land/p/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/mypackage` 
+- `gno.land/p/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/mypackage`
 - `gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/myrealm`
-- `gno.land/p/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/mypackage/subpackage/package` 
+- `gno.land/p/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/mypackage/subpackage/package`
 - `gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/subpackage/realm`
 
 Apart from package names, developers can define subpackages to further organize
 their code, as seen in the example above. Packages can have any varying level of
-depth as long as the full package path doesn't exceed `256` characters. 
+depth as long as the full package path doesn't exceed `256` characters.
 
 ### Registering a custom namespace
 
@@ -114,13 +114,13 @@ import (
 
 To better understand how packages work, let's look at a few commonly used ones
 from the [`examples`](https://github.com/gnolang/gno/tree/master/examples/)
-folder, available under the `gno.land/p/demo` path. 
+folder, available under the `gno.land/p/demo` path.
 
 ### Package `avl`
 
 Deployed under `gno.land/p/demo/avl`, the AVL package provides a tree structure
 for storing data. It replaces the functionality of the native `map` in Gno, as
-maps are not fully deterministic. Usage example: 
+maps are not fully deterministic. Usage example:
 
 ```go
 package myrealm
@@ -138,13 +138,13 @@ func Set(key string, value int) {
 }
 
 func Get(key string) int {
-  // tree.Get returns the value at given key in its raw form, 
+  // tree.Get returns the value at given key in its raw form,
   // and a bool to signify the existence of the key-value pair
   rawValue, exists := tree.Get(key)
   if !exists {
 	  panic("value at given key does not exist")
   }
-  
+
   // rawValue needs to be converted into the proper type before returning it
   return rawValue.(int)
 }
@@ -156,7 +156,7 @@ or on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/de
 ### Package `ufmt`
 
 Deployed under `gno.land/p/demo/ufmt`, this package is a minimal version of the
-`fmt` package: 
+`fmt` package:
 
 ```go
 // Package ufmt provides utility functions for formatting strings, similarly
@@ -165,7 +165,7 @@ Deployed under `gno.land/p/demo/ufmt`, this package is a minimal version of the
 package ufmt
 ```
 
-View the package on the [Portal Loop network](https://gno.land/p/demo/ufmt) or 
+View the package on the [Portal Loop network](https://gno.land/p/demo/ufmt) or
 on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/ufmt).
 
 ### Package `seqid`
@@ -188,7 +188,7 @@ have sequential IDs in Gno:
 package seqid
 ```
 
-View the package on the [Portal Loop network](https://gno.land/p/demo/seqid) or 
+View the package on the [Portal Loop network](https://gno.land/p/demo/seqid) or
 on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/seqid).
 
 ## Exploring Deployed Packages

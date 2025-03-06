@@ -16,7 +16,7 @@ package counter
 
 A package is an organizational unit of code; it can contain multiple files, and
 as mentioned in previous tutorials, it lives on a specific package path once
-deployed to the network. 
+deployed to the network.
 
 Next, let us declare a top level variable of type `int`:
 
@@ -28,7 +28,7 @@ var count int
 
 In Gno, all top-level variables will automatically be persisted to the network's
 state after a successful transaction modifying them. Here, you can define
-variables that will store your smart contract's data. 
+variables that will store your smart contract's data.
 
 In our case, we have defined a variable which will store the counter's state.
 
@@ -52,7 +52,7 @@ The `Increment()` function has a few important features:
   package are allowed - be it from off-chain clients or from other Gno programs
 - It takes an argument of type `int`, called `change`. This is how the caller
   will provide a specific number which will be used to increment the `counter`
-- Returns the value of `count` after a successful call 
+- Returns the value of `count` after a successful call
 
 Next, to make our application more user-friendly, we should define a `Render()`
 function. This function will help users see the current state of the Counter
@@ -92,7 +92,7 @@ func Render(path string) string {
 ## Writing unit tests
 
 Following best practices, developers should test their Gno applications to avoid
-bugs and other problems down the line. 
+bugs and other problems down the line.
 
 Let's see how we can write a simple test for the `Increment()` function.
 
@@ -106,10 +106,10 @@ func TestIncrement(t *testing.T) {
 	if count != 0 {
 		t.Fatalf("Expected 0, got %d", count)
 	}
-	
-	// Call Increment 
+
+	// Call Increment
 	value := Increment(42)
-	
+
 	// Check result
 	if value != 42 {
 		t.Fatalf("Expected 42, got %d", count)
@@ -118,10 +118,10 @@ func TestIncrement(t *testing.T) {
 ```
 
 By using the `testing` package from the standard library, we can access the
-`testing.T` object that exposes methods which can help us terminate tests in specific cases. 
+`testing.T` object that exposes methods which can help us terminate tests in specific cases.
 
-:::info 
+:::info
 Common testing patterns found in Go, such as [TDT](https://go.dev/wiki/TableDrivenTests),
-can also be used for Gno. We recommend checking out some of the many examples 
+can also be used for Gno. We recommend checking out some of the many examples
 found online.
 :::

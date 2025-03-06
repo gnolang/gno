@@ -12,7 +12,7 @@ In gno.land, users can register a unique username that:
 To register a username:
 
 1. Visit the user registry realm at [`gno.land/r/demo/users`](https://gno.land/r/demo/users)
-2. Check if your desired username is available 
+2. Check if your desired username is available
 3. Register using the following command:
 
 ```bash
@@ -34,7 +34,7 @@ The registration costs 200 GNOT, which serves as an anti-spam measure and ensure
 Once registered, a username is permanently linked to the registering address. This address:
 
 - Has exclusive rights to deploy packages under that namespace
-- Can manage that username's profile and 
+- Can manage that username's profile and
 <!-- - XXX: Can transfer ownership, when we decide how we want to propose this -->
 
 ### Namespace Access

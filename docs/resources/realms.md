@@ -23,7 +23,7 @@ The full Realm API can be found under the
 ### Smart Contract Realms
 
 Often simply called `realms`, Gno smart contracts contain Gno code and exist
-on-chain at a specific [package path](gno-packages.md). A package path is the 
+on-chain at a specific [package path](gno-packages.md). A package path is the
 defining identifier of a realm, while its address is derived from it.
 
 As opposed to [pure packages](./gno-packages.md#pure-packages-p), realms are
@@ -41,13 +41,13 @@ phrase in a key management application, such as
 [Adena](../users/third-party-wallets.md).
 
 Currently, EOAs are the only realms that can initiate a transaction. They can do
-this by calling any of the possible messages in gno.land, which can be 
+this by calling any of the possible messages in gno.land, which can be
 found [here](../users/interact-with-gnokey.md#making-transactions).
 
 ### Working with realms
 
 In Gno, each transaction contains a realm call stack. Every item in the stack and
-its properties can be accessed via different functions defined in the `std` 
+its properties can be accessed via different functions defined in the `std`
 package in Gno:
 - `std.GetOrigCaller()` - returns the address of the original signer of the
   transaction
@@ -70,7 +70,7 @@ EOA:
 Realm A:
     addr: g17m4ga9t9dxn8uf06p3cahdavzfexe33ecg8v2s
     pkgPath: gno.land/r/demo/users
-    
+
         ┌─────────────────────┐      ┌─────────────────────────┐
         │         EOA         │      │         Realm A         │
         │                     │      │                         │
@@ -105,7 +105,7 @@ EOA:
 Realm A:
     addr: g1dvqd8qgvavqayxklzfdmccd2eps263p43pu2c6
     pkgPath: gno.land/r/demo/a
-    
+
 Realm B:
     addr: g1rsk9cwv034cw3s6csjeun2jqypj0ztpecqcm3v
     pkgPath: gno.land/r/demo/b
@@ -150,8 +150,8 @@ std.CurrentRealm() => Realm {
 
 For more information about realms and how they fit into the gno.land ecosystem,
 see the [Package Path Structure](./gno-packages.md#package-path-structure)
-documentation. 
+documentation.
 
 To learn how to develop your own realms, check out the
-[Anatomy of a Gno Package](../builders/anatomy-of-a-gno-package.md) and 
+[Anatomy of a Gno Package](../builders/anatomy-of-a-gno-package.md) and
 [Example Minisocial dApp](../builders/example-minisocial-dapp.md) guides.

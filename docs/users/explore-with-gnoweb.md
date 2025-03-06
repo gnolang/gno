@@ -2,7 +2,7 @@
 
 `gnoweb` is gno.land's universal web interface that lets you browse applications
 and source code on any gno.land network. This guide explains how to use gnoweb
-to explore the blockchain ecosystem. 
+to explore the blockchain ecosystem.
 
 ## Networks
 
@@ -46,7 +46,7 @@ Let's break it down:
 Realms can implement a special `Render()` function that returns HTML-like content:
 
 `gnoweb` is a minimalistic web server that serves as a unified frontend for all
-realms in gno.land. It uses ABCI queries to get the latest state of a specific 
+realms in gno.land. It uses ABCI queries to get the latest state of a specific
 realm from the gno.land network.
 
 Let's dive into how this works.
@@ -67,7 +67,7 @@ func Render(path string) string {
 	if path == "" {
 		return "# Hello, 世界！"
 	}
-	
+
 	return "# Hello, " + path
 }
 ```

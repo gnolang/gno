@@ -10,7 +10,7 @@ experience.
 ## Use gno.land
 
 Start exploring and using gno.land. Setup essential tools, interact with the
-chain and its dApps. 
+chain and its dApps.
 
 - [Discover gno.land](users/discover-gnoland.md) - Discover the gno.land ecosystem and explore available tools for interacting with the blockchain.
 - [Using the `gnoweb` interface](users/explore-with-gnoweb.md) - Learn how to use `gnoweb` to browse realm code, view rendered content, and explore the gno.land ecosystem.
@@ -22,7 +22,7 @@ chain and its dApps.
 ## Build on gno.land
 
 Get started with Gno development. Learn how to work with Gno tools, use
-Gno-specific features, connect to Gno apps with clients, and more. 
+Gno-specific features, connect to Gno apps with clients, and more.
 
 - [What is Gno](builders/what-is-gnolang.md) - An introduction to Gno, a blockchain implementation of Go created by Cosmos co-founder Jae Kwon, highlighting its similarities to Go, security features, and advantages over other smart contract languages.
 - [Writing Gno code](builders/anatomy-of-a-gno-package.md) - Get a grasp on the basics of Gno syntax by building a simple Counter application and understanding the core language features.

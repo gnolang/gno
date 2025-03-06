@@ -2,7 +2,7 @@
 
 Ready to take your gno.land journey to the next level? This guide collects
 resources, tools, and communities for users who want to dive deeper into the
-gno.land ecosystem. 
+gno.land ecosystem.
 
 ## Establishing Your Identity
 
@@ -14,7 +14,7 @@ To get the most out of gno.land, consider registering a unique username:
 
 For detailed instructions on registering a username and understanding
 namespaces, see the [Users and Teams](../resources/users-and-teams.md)
-documentation. 
+documentation.
 
 ## Community & Social Networks
 
@@ -55,7 +55,7 @@ Ready to contribute? Here are pathways to level up your involvement:
 5. **Community Building** - Organize events or create content
 
 Check out the [Become a Gnome](../builders/become-a-gnome.md) guide for more
-details on contributing to the ecosystem. 
+details on contributing to the ecosystem.
 
 Remember, the best power users eventually become builders. As you grow more
-comfortable with gno.land, consider how you can help shape its future! 
+comfortable with gno.land, consider how you can help shape its future!

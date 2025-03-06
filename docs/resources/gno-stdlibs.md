@@ -3,9 +3,9 @@
 Gno comes with a set of standard libraries which are included to ease development
 and provide extended functionality to the language. These include:
 - standard libraries as we know them in classic Go, i.e. `strings`, `testing`, etc.
-- a special `std` package, which contains types, interfaces, and APIs created to 
-handle blockchain-related functionality, such as fetching the last caller, 
-fetching coins sent along with a transaction, getting the block timestamp and height, and more. 
+- a special `std` package, which contains types, interfaces, and APIs created to
+handle blockchain-related functionality, such as fetching the last caller,
+fetching coins sent along with a transaction, getting the block timestamp and height, and more.
 
 Standard libraries differ from on-chain packages in terms of their import path structure.
 Unlike on-chain [packages](./gno-packages.md), standard libraries do not incorporate
@@ -18,9 +18,9 @@ see the reference section.
 
 ## Accessing documentation
 
-Apart from the official documentation you are currently reading, you can also 
-access documentation for the standard libraries in several other different ways. 
-You can obtain a list of all the available standard libraries with the 
+Apart from the official documentation you are currently reading, you can also
+access documentation for the standard libraries in several other different ways.
+You can obtain a list of all the available standard libraries with the
 following commands:
 
 ```console
@@ -77,8 +77,8 @@ export GNOROOT=$HOME/gno
 
 ## Coin
 
-A Coin is a native Gno type that has a denomination and an amount. Coins can be 
-issued by the native Gno Banker.  
+A Coin is a native Gno type that has a denomination and an amount. Coins can be
+issued by the native Gno Banker.
 
 A coin is defined by the following:
 
@@ -89,7 +89,7 @@ type Coin struct {
 }
 ```
 
-`Denom` is the denomination of the coin, i.e. `ugnot`, and `Amount` is a 
+`Denom` is the denomination of the coin, i.e. `ugnot`, and `Amount` is a
 non-negative amount of the coin.
 
 Multiple coins can be bundled together into a `Coins` slice:
@@ -100,18 +100,18 @@ type Coins []Coin
 
 This slice behaves like a mathematical set - it cannot contain duplicate `Coin` instances.
 
-The `Coins` slice can be included in a transaction made by a user addresses or a realm. 
+The `Coins` slice can be included in a transaction made by a user addresses or a realm.
 Coins in this set are then available for access by specific types of Bankers,
 which can manipulate them depending on access rights.
 
-Read more about coins in the [Effective Gno](./effective-gno.md) section. 
+Read more about coins in the [Effective Gno](./effective-gno.md) section.
 
 The Coin(s) API can be found in the `std` package.
 
 ## Banker
 
-The Banker's main purpose is to handle balance changes of [native coins](coin.md) 
-within Gno chains. This includes issuance, transfers, and burning of coins. 
+The Banker's main purpose is to handle balance changes of [native coins](coin.md)
+within Gno chains. This includes issuance, transfers, and burning of coins.
 
 The Banker module can be cast into 4 subtypes of bankers that expose different
 functionalities and safety features within your packages and realms.
@@ -126,22 +126,22 @@ functionalities and safety features within your packages and realms.
 ## Events
 
 Events in Gno are a fundamental aspect of interacting with and monitoring
-on-chain applications. They serve as a bridge between the on-chain environment 
-and off-chain services, making it simpler for developers, analytics tools, and 
+on-chain applications. They serve as a bridge between the on-chain environment
+and off-chain services, making it simpler for developers, analytics tools, and
 monitoring services to track and respond to activities happening in gno.land.
 
-Gno events are pieces of data that log specific activities or changes occurring 
+Gno events are pieces of data that log specific activities or changes occurring
 within the state of an on-chain app. These activities are user-defined; they might
 be token transfers, changes in ownership, updates in user profiles, and more.
-Each event is recorded in the ABCI results of each block, ensuring that action 
-that happened is verifiable and accessible to off-chain services. 
+Each event is recorded in the ABCI results of each block, ensuring that action
+that happened is verifiable and accessible to off-chain services.
 
-To emit an event, you can use the `Emit()` function from the `std` package 
-provided in the Gno standard library. The `Emit()` function takes in a string 
+To emit an event, you can use the `Emit()` function from the `std` package
+provided in the Gno standard library. The `Emit()` function takes in a string
 representing the type of event, and an even number of arguments after representing
 `key:value` pairs.
 
-Read more about events & `Emit()` in 
+Read more about events & `Emit()` in
 [Effective Gno](./effective-gno.md#emit-gno-events-to-make-life-off-chain-easier).
 
 An event contained in an ABCI response of a block will include the following
@@ -166,7 +166,7 @@ data:
 }
 ```
 
-You can fetch the ABCI response of a specific block by using the `/block_results` 
+You can fetch the ABCI response of a specific block by using the `/block_results`
 RPC endpoint.
 
 <!-- XXX: remove everything after this and use automatically generated package doc -->
@@ -446,7 +446,7 @@ currentRealm := std.CallerAt(1)      // returns address of current realm
 previousRealm := std.CallerAt(2)     // returns address of previous realm/caller
 std.CallerAt(0)                      // error, n must be > 0
 ```
---- 
+---
 
 ### DerivePkgAddr
 ```go
@@ -465,10 +465,10 @@ realmAddr := std.DerivePkgAddr("gno.land/r/demo/tamagotchi") //  g1a3tu874agjlkr
 ```go
 func CoinDenom(pkgPath, coinName string) string
 ```
-Composes a qualified denomination string from the realm's `pkgPath` and the 
-provided coin name, e.g. `/gno.land/r/demo/blog:blgcoin`. This method should be 
-used to get fully qualified denominations of coins when interacting with the 
-`Banker` module. It can also be used as a method of the `Realm` object. 
+Composes a qualified denomination string from the realm's `pkgPath` and the
+provided coin name, e.g. `/gno.land/r/demo/blog:blgcoin`. This method should be
+used to get fully qualified denominations of coins when interacting with the
+`Banker` module. It can also be used as a method of the `Realm` object.
 Read more[here](#coindenom-1).
 
 #### Parameters
@@ -591,7 +591,7 @@ will result in subtraction.
 coin1 := std.NewCoin("ugnot", 150)
 coin2 := std.NewCoin("ugnot", 100)
 
-coin3 := coin1.Add(coin2) 
+coin3 := coin1.Add(coin2)
 coin3.String() // 250ugnot
 ```
 ---
@@ -610,7 +610,7 @@ will result in addition.
 coin1 := std.NewCoin("ugnot", 150)
 coin2 := std.NewCoin("ugnot", 100)
 
-coin3 := coin1.Sub(coin2) 
+coin3 := coin1.Sub(coin2)
 coin3.String() // 50ugnot
 ```
 ---
@@ -763,9 +763,9 @@ if r.IsUser() {...}
 
 ### CoinDenom
 
-Composes a qualified denomination string from the realm's `pkgPath` and the 
-provided coin name, e.g. `/gno.land/r/demo/blog:blgcoin`. This method should be 
-used to get fully qualified denominations of coins when interacting with the 
+Composes a qualified denomination string from the realm's `pkgPath` and the
+provided coin name, e.g. `/gno.land/r/demo/blog:blgcoin`. This method should be
+used to get fully qualified denominations of coins when interacting with the
 `Banker` module.
 
 #### Parameters
@@ -883,7 +883,7 @@ Should be used in combination with [`NewUserRealm`](#newuserrealm) &
 ```go
 addr := std.Address("g1ecely4gjy0yl6s9kt409ll330q9hk2lj9ls3ec")
 std.TestSetRealm(std.NewUserRealm(""))
-// or 
+// or
 std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/users"))
 ```
 
