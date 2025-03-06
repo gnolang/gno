@@ -1288,7 +1288,6 @@ func isBlankIdentifier(x Expr) bool {
 }
 
 func getExpr(base Expr, expr Expr, seen *seen[Expr]) (res []Expr) {
-
 	if seen.Contains(base) {
 		return
 	}
