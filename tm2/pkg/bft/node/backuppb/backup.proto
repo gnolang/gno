@@ -1,0 +1,18 @@
+syntax = "proto3";
+package tm;
+
+option go_package = "github.com/gnolang/gno/tm2/pkg/bft/node/backuppb;backup";
+
+service BackupService {
+    rpc StreamBlocks (StreamBlocksRequest) returns (stream StreamBlocksResponse);
+}
+
+message StreamBlocksRequest {
+    int64 start_height = 1;
+    int64 end_height = 2;
+}
+
+message StreamBlocksResponse {
+    int64 height = 1;
+    bytes data = 2;
+}
