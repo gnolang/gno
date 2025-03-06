@@ -1,11 +1,9 @@
-package grc721-remake
+package grc721remake
 
 import (
-	"errors"
 	"std"
 	"strconv"
 
-	"gno.land/p/demo/avl"
 )
 
 // NewNFT creates a new NFT.
@@ -93,7 +91,7 @@ func (led *PrivateLedger) SetTokenURI(tid TokenID, tURI TokenURI) error {
 }
 
 // Approve approves an address to transfer a specific token
-func (led *PrivateLedger) Approve(to std.Address, tid TokenID) error {
+func (led *PrivateLedger) Approve(caller std.Address, to std.Address, tid TokenID) error {
 	if err := isValidAddress(to); err != nil {
 		return err
 	}
@@ -102,12 +100,7 @@ func (led *PrivateLedger) Approve(to std.Address, tid TokenID) error {
 	if err != nil {
 		return err
 	}
-	
-	if owner == to {
-		return ErrApprovalToCurrentOwner
-	}
 
-	caller := std.PreviousRealm().Address()
 	if caller != owner && !led.isApprovedForAll(owner, caller) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -124,12 +117,11 @@ func (led *PrivateLedger) Approve(to std.Address, tid TokenID) error {
 }
 
 // SetApprovalForAll approves or removes an operator to transfer all tokens
-func (led *PrivateLedger) SetApprovalForAll(operator std.Address, approved bool) error {
+func (led *PrivateLedger) SetApprovalForAll(caller std.Address, operator std.Address, approved bool) error {
 	if err := isValidAddress(operator); err != nil {
 		return ErrInvalidAddress
 	}
 
-	caller := std.PreviousRealm().Address()
 	if caller == operator {
 		return ErrApprovalToCurrentOwner
 	}
@@ -147,8 +139,31 @@ func (led *PrivateLedger) SetApprovalForAll(operator std.Address, approved bool)
 	return nil
 }
 
+// Transfer transfers a token directly from the caller to another address
+func (led *PrivateLedger) Transfer(from, to std.Address, tid TokenID) error {
+    if err := isValidAddress(from); err != nil {
+        return err
+    }
+    if err := isValidAddress(to); err != nil {
+        return err
+    }
+    if from == to {
+        return ErrCannotTransferToSelf
+    }
+
+    owner, err := led.ownerOf(tid)
+    if err != nil {
+        return err
+    }
+    if owner != from {
+        return ErrTransferFromIncorrectOwner
+    }
+    
+    return led.transferToken(from, to, tid)
+}
+
 // TransferFrom transfers a token from one address to another
-func (led *PrivateLedger) TransferFrom(from, to std.Address, tid TokenID) error {
+func (led *PrivateLedger) TransferFrom(caller, from, to std.Address, tid TokenID) error {
 	if err := isValidAddress(from); err != nil {
 		return err
 	}
@@ -160,7 +175,6 @@ func (led *PrivateLedger) TransferFrom(from, to std.Address, tid TokenID) error 
 		return ErrCannotTransferToSelf
 	}
 
-	caller := std.PreviousRealm().Address()
 	if !led.isApprovedOrOwner(caller, tid) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -201,14 +215,14 @@ func (led *PrivateLedger) Burn(tid TokenID) error {
 
 
 // BatchTransferFrom transfers multiple tokens from one address to another
-func (led *PrivateLedger) BatchTransferFrom(from, to std.Address, tids []TokenID) error {
+func (led *PrivateLedger) BatchTransferFrom(caller, from, to std.Address, tids []TokenID) error {
     if len(tids) == 0 {
         return ErrEmptyTokenIDList
     }
     
     var err error
     for _, tid := range tids {
-        err = led.TransferFrom(from, to, tid)
+        err = led.TransferFrom(caller, from, to, tid)
         if err != nil {
             return err
         }
@@ -252,16 +266,15 @@ func (led *PrivateLedger) BatchBurn(tids []TokenID) error {
 }
 
 // BatchTransfer transfers multiple tokens to another address
-func (led *PrivateLedger) BatchTransfer(to std.Address, tids []TokenID) error {
+func (led *PrivateLedger) BatchTransfer(caller std.Address, to std.Address, tids []TokenID) error {
     if len(tids) == 0 {
         return ErrEmptyTokenIDList
     }
     
-    caller := std.PreviousRealm().Address()
     var err error
     
     for _, tid := range tids {
-        err = led.TransferFrom(caller, to, tid)
+        err = led.Transfer(caller, to, tid)
         if err != nil {
             return err
         }

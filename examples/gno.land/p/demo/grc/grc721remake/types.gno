@@ -45,20 +45,14 @@ type NFTTeller interface {
 	// Sets or unsets the approval of a given operator for all tokens owned by the caller.
 	SetApprovalForAll(operator std.Address, approved bool) error
 
+	// Transfers a token from the caller to another address.
+	Transfer(to std.Address, tid TokenID) error
+
 	// Transfers a token from one address to another.
 	TransferFrom(from, to std.Address, tid TokenID) error
 
-	// Safely transfers a token from one address to another, checking recipient compatibility.
-	SafeTransferFrom(from, to std.Address, tid TokenID) error
-	
 	// BatchTransferFrom transfers multiple tokens from one address to another.
 	BatchTransferFrom(from, to std.Address, tids []TokenID) error
-	
-	// BatchMint creates multiple new tokens.
-	BatchMint(to std.Address, tids []TokenID) error
-	
-	// BatchBurn destroys multiple tokens.
-	BatchBurn(tids []TokenID) error
 	
 	// BatchTransfer transfers multiple tokens owned by the caller to another address.
 	BatchTransfer(to std.Address, tids []TokenID) error
@@ -131,6 +125,7 @@ var (
 	ErrTransferFromIncorrectOwner  = errors.New("transfer from incorrect owner")
 	ErrTokenIdAlreadyExists        = errors.New("token id already exists")
 	ErrEmptyTokenIDList            = errors.New("empty token ID list")
+	ErrReadOnly                    = errors.New("teller is readonly")
 )
 
 var zeroAddress std.Address
