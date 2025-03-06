@@ -5,6 +5,7 @@ go 1.23.0
 toolchain go1.24.1
 
 require (
+	connectrpc.com/connect v1.18.1
 	dario.cat/mergo v1.0.1
 	github.com/alecthomas/chroma/v2 v2.15.0
 	github.com/bendory/conway-hebrew-calendar v0.0.0-20210829020739-dcc34210ce9b
@@ -33,6 +34,7 @@ require (
 	github.com/sig-0/insertion-queue v0.0.0-20241004125609-6b3ca841346b
 	github.com/stretchr/testify v1.11.1
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
+	github.com/ulikunitz/xz v0.5.12
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/yuin/goldmark v1.7.8
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc

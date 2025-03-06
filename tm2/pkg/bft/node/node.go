@@ -15,11 +15,14 @@ import (
 	"github.com/rs/cors"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
-	"github.com/gnolang/gno/tm2/pkg/bft/privval"
+	"github.com/gnolang/gno/tm2/pkg/bft/node/backuppb/backupconnect"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/discovery"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
+	"github.com/rs/cors"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	bc "github.com/gnolang/gno/tm2/pkg/bft/blockchain"
@@ -596,6 +599,17 @@ func (n *Node) OnStart() error {
 		}
 		n.rpcListeners = listeners
 	}
+
+	// start backup service
+	backupServ := &backupServer{store: n.blockStore}
+	mux := http.NewServeMux()
+	path, handler := backupconnect.NewBackupServiceHandler(backupServ)
+	mux.Handle(path, handler)
+	go http.ListenAndServe(
+		"localhost:4242",
+		// Use h2c so we can serve HTTP/2 without TLS.
+		h2c.NewHandler(mux, &http2.Server{}),
+	)
 
 	// Start the transport.
 	// The listen address for the transport needs to be an address within reach of the machine NIC
