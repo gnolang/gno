@@ -1,0 +1,186 @@
+package grc721remake
+
+import (
+	"std"
+)
+
+// CallerTeller returns a GRC721 compatible teller that checks the PreviousRealm
+// caller for each call. It's usually safe to expose it publicly to let users
+// manage their NFTs directly, or for realms to use their approvals.
+func (nft *NFT) CallerTeller() NFTTeller {
+	if nft == nil {
+		panic("NFT cannot be nil")
+	}
+
+	return &fnNFTTeller{
+		accountFn: func() std.Address {
+			caller := std.PreviousRealm().Address()
+			return caller
+		},
+		NFT: nft,
+	}
+}
+
+// ReadonlyTeller is a GRC721 compatible teller that panics for any write operation.
+// This is useful for providing read-only access to NFT information.
+func (nft *NFT) ReadonlyTeller() NFTTeller {
+	if nft == nil {
+		panic("NFT cannot be nil")
+	}
+
+	return &fnNFTTeller{
+		accountFn: nil,
+		NFT:       nft,
+	}
+}
+
+// RealmTeller returns a GRC721 compatible teller that will store the
+// caller realm permanently. Calling anything through this teller will
+// result in approval or ownership changes for the realm that initialized the teller.
+// The initializer of this teller should usually never share the resulting NFTTeller from
+// this method except maybe for advanced delegation flows such as a DAO treasury
+// management.
+func (nft *NFT) RealmTeller() NFTTeller {
+	if nft == nil {
+		panic("NFT cannot be nil")
+	}
+
+	caller := std.PreviousRealm().Address()
+
+	return &fnNFTTeller{
+		accountFn: func() std.Address {
+			return caller
+		},
+		NFT: nft,
+	}
+}
+
+// RealmSubTeller is like RealmTeller but uses the provided slug to derive a
+// subaccount.
+func (nft *NFT) RealmSubTeller(slug string) NFTTeller {
+	if nft == nil {
+		panic("NFT cannot be nil")
+	}
+
+	caller := std.PreviousRealm().Address()
+	account := accountSlugAddr(caller, slug)
+
+	return &fnNFTTeller{
+		accountFn: func() std.Address {
+			return account
+		},
+		NFT: nft,
+	}
+}
+
+// ImpersonateTeller returns a GRC721 compatible teller that impersonates as a
+// specified address. This allows operations to be performed as if they were
+// executed by the given address, enabling the caller to manipulate NFTs on
+// behalf of that address.
+//
+// It is particularly useful in scenarios where a contract needs to perform
+// actions on behalf of a user or another account, without exposing the
+// underlying logic or requiring direct access to the user's account. The
+// returned teller will use the provided address for all operations, effectively
+// masking the original caller.
+//
+// This method should be used with caution, as it allows for potentially
+// sensitive operations to be performed under the guise of another address.
+func (ledger *PrivateLedger) ImpersonateTeller(addr std.Address) NFTTeller {
+	if ledger == nil {
+		panic("Ledger cannot be nil")
+	}
+
+	return &fnNFTTeller{
+		accountFn: func() std.Address {
+			return addr
+		},
+		NFT: ledger.nft,
+	}
+}
+
+// Generic tellers methods implementation
+//
+
+// Approve implements the NFTTeller interface
+func (ft *fnNFTTeller) Approve(to std.Address, tid TokenID) error {
+	if ft.accountFn == nil {
+		return errors.New("readonly teller cannot approve")
+	}
+	
+	caller := ft.accountFn()
+	return ft.NFT.ledger.Approve(to, tid)
+}
+
+// SetApprovalForAll implements the NFTTeller interface
+func (ft *fnNFTTeller) SetApprovalForAll(operator std.Address, approved bool) error {
+	if ft.accountFn == nil {
+		return errors.New("readonly teller cannot set approval for all")
+	}
+	
+	caller := ft.accountFn()
+	return ft.NFT.ledger.SetApprovalForAll(operator, approved)
+}
+
+// TransferFrom implements the NFTTeller interface
+func (ft *fnNFTTeller) TransferFrom(from, to std.Address, tid TokenID) error {
+	if ft.accountFn == nil {
+		return errors.New("readonly teller cannot transfer")
+	}
+	
+	caller := ft.accountFn()
+	return ft.NFT.ledger.TransferFrom(from, to, tid)
+}
+
+// BatchTransferFrom implements the NFTTeller interface
+func (ft *fnNFTTeller) BatchTransferFrom(from, to std.Address, tids []TokenID) error {
+	if ft.accountFn == nil {
+		return errors.New("readonly teller cannot batch transfer")
+	}
+	
+	caller := ft.accountFn()
+	return ft.NFT.ledger.BatchTransferFrom(from, to, tids)
+}
+
+// BatchMint implements the NFTTeller interface
+func (ft *fnNFTTeller) BatchMint(to std.Address, tids []TokenID) error {
+	if ft.accountFn == nil {
+		return errors.New("readonly teller cannot batch mint")
+	}
+	
+	caller := ft.accountFn()
+	return ft.NFT.ledger.BatchMint(to, tids)
+}
+
+// BatchBurn implements the NFTTeller interface
+func (ft *fnNFTTeller) BatchBurn(tids []TokenID) error {
+	if ft.accountFn == nil {
+		return errors.New("readonly teller cannot batch burn")
+	}
+	
+	caller := ft.accountFn()
+	return ft.NFT.ledger.BatchBurn(tids)
+}
+
+// BatchTransfer implements the NFTTeller interface
+func (ft *fnNFTTeller) BatchTransfer(to std.Address, tids []TokenID) error {
+	if ft.accountFn == nil {
+		return errors.New("readonly teller cannot batch transfer")
+	}
+	
+	caller := ft.accountFn()
+	from := caller
+	return ft.NFT.ledger.BatchTransferFrom(from, to, tids)
+}
+
+// helpers
+
+// accountSlugAddr returns the address derived from the specified address and slug.
+func accountSlugAddr(addr std.Address, slug string) std.Address {
+	// XXX: use a new `std.XXX` call for this.
+	if slug == "" {
+		return addr
+	}
+	key := addr.String() + "/" + slug
+	return std.DerivePkgAddr(key) // temporarily using this helper
+} 
