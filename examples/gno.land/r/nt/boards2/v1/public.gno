@@ -153,8 +153,12 @@ func FlagThread(boardID BoardID, threadID PostID, reason string) {
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
 
+	// Check permission to flag when caller is not a realm owner
 	caller := std.OriginCaller()
-	assertHasBoardPermission(board, caller, PermissionThreadFlag)
+	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
+	if !isRealmOwner {
+		assertHasBoardPermission(board, caller, PermissionThreadFlag)
+	}
 
 	t, ok := board.GetThread(threadID)
 	if !ok {
@@ -165,8 +169,10 @@ func FlagThread(boardID BoardID, threadID PostID, reason string) {
 		User:   caller,
 		Reason: reason,
 	}
+
+	// Realm owners can hide with a single flag
 	hide := flagItem(t, f, getFlaggingThreshold(boardID))
-	if hide {
+	if hide || isRealmOwner {
 		t.SetVisible(false)
 	}
 }
@@ -229,8 +235,12 @@ func FlagReply(boardID BoardID, threadID, replyID PostID, reason string) {
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
 
+	// Check permission to flag when caller is not a realm owner
 	caller := std.OriginCaller()
-	assertHasBoardPermission(board, caller, PermissionThreadFlag)
+	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
+	if !isRealmOwner {
+		assertHasBoardPermission(board, caller, PermissionReplyFlag)
+	}
 
 	thread := mustGetThread(board, threadID)
 	reply := mustGetReply(thread, replyID)
@@ -239,8 +249,10 @@ func FlagReply(boardID BoardID, threadID, replyID PostID, reason string) {
 		User:   caller,
 		Reason: reason,
 	}
+
+	// Realm owners can hide with a single flag
 	hide := flagItem(reply, f, getFlaggingThreshold(boardID))
-	if hide {
+	if hide || isRealmOwner {
 		reply.SetVisible(false)
 	}
 }
