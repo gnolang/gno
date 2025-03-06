@@ -1,6 +1,8 @@
 gnoland start
 
 # add contract
+# Note: addpkg does not add *_test.gno files, so it works as expected without
+# causing any redeclaration issues.
 gnokey maketx addpkg -pkgdir $WORK/foo -pkgpath gno.land/r/demo/foo -gas-fee 1000000ugnot -gas-wanted 16000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
