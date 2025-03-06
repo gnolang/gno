@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/gnovm/pkg/doc"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -266,13 +267,13 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	// Parse and run the files, construct *PV.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	msgCtx := stdlibs.ExecContext{
-		ChainID:       ctx.ChainID(),
-		ChainDomain:   chainDomain,
-		Height:        ctx.BlockHeight(),
-		Timestamp:     ctx.BlockTime().Unix(),
-		OrigCaller:    creator.Bech32(),
-		OrigSendSpent: new(std.Coins),
-		OrigPkgAddr:   pkgAddr.Bech32(),
+		ChainID:         ctx.ChainID(),
+		ChainDomain:     chainDomain,
+		Height:          ctx.BlockHeight(),
+		Timestamp:       ctx.BlockTime().Unix(),
+		OriginCaller:    creator.Bech32(),
+		OriginSendSpent: new(std.Coins),
+		OriginPkgAddr:   pkgAddr.Bech32(),
 		// XXX: should we remove the banker ?
 		Banker:      NewSDKBanker(vm, ctx),
 		Params:      NewSDKParams(vm, ctx),
@@ -371,17 +372,17 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
-		ChainID:       ctx.ChainID(),
-		ChainDomain:   chainDomain,
-		Height:        ctx.BlockHeight(),
-		Timestamp:     ctx.BlockTime().Unix(),
-		OrigCaller:    creator.Bech32(),
-		OrigSend:      deposit,
-		OrigSendSpent: new(std.Coins),
-		OrigPkgAddr:   pkgAddr.Bech32(),
-		Banker:        NewSDKBanker(vm, ctx),
-		Params:        NewSDKParams(vm, ctx),
-		EventLogger:   ctx.EventLogger(),
+		ChainID:         ctx.ChainID(),
+		ChainDomain:     chainDomain,
+		Height:          ctx.BlockHeight(),
+		Timestamp:       ctx.BlockTime().Unix(),
+		OriginCaller:    creator.Bech32(),
+		OriginSend:      deposit,
+		OriginSendSpent: new(std.Coins),
+		OriginPkgAddr:   pkgAddr.Bech32(),
+		Banker:          NewSDKBanker(vm, ctx),
+		Params:          NewSDKParams(vm, ctx),
+		EventLogger:     ctx.EventLogger(),
 	}
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
@@ -462,17 +463,17 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	// could it be safely partially memoized?
 	chainDomain := vm.getChainDomainParam(ctx)
 	msgCtx := stdlibs.ExecContext{
-		ChainID:       ctx.ChainID(),
-		ChainDomain:   chainDomain,
-		Height:        ctx.BlockHeight(),
-		Timestamp:     ctx.BlockTime().Unix(),
-		OrigCaller:    caller.Bech32(),
-		OrigSend:      send,
-		OrigSendSpent: new(std.Coins),
-		OrigPkgAddr:   pkgAddr.Bech32(),
-		Banker:        NewSDKBanker(vm, ctx),
-		Params:        NewSDKParams(vm, ctx),
-		EventLogger:   ctx.EventLogger(),
+		ChainID:         ctx.ChainID(),
+		ChainDomain:     chainDomain,
+		Height:          ctx.BlockHeight(),
+		Timestamp:       ctx.BlockTime().Unix(),
+		OriginCaller:    caller.Bech32(),
+		OriginSend:      send,
+		OriginSendSpent: new(std.Coins),
+		OriginPkgAddr:   pkgAddr.Bech32(),
+		Banker:          NewSDKBanker(vm, ctx),
+		Params:          NewSDKParams(vm, ctx),
+		EventLogger:     ctx.EventLogger(),
 	}
 	// Construct machine and evaluate.
 	m := gno.NewMachineWithOptions(
@@ -544,7 +545,7 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 			// Common unhandled panic error, skip machine state.
 			*e = errors.Wrapf(
 				errors.New(up.Descriptor),
-				"VM panic: %s\nStacktrace: %s\n",
+				"VM panic: %s\nStacktrace:\n%s\n",
 				up.Descriptor, m.ExceptionsStacktrace(),
 			)
 			return
@@ -552,7 +553,7 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 	}
 	*e = errors.Wrapf(
 		fmt.Errorf("%v", r),
-		"VM panic: %v\nMachine State:%s\nStacktrace: %s\n",
+		"VM panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
 		r, m.String(), m.Stacktrace().String(),
 	)
 }
@@ -594,17 +595,17 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
-		ChainID:       ctx.ChainID(),
-		ChainDomain:   chainDomain,
-		Height:        ctx.BlockHeight(),
-		Timestamp:     ctx.BlockTime().Unix(),
-		OrigCaller:    caller.Bech32(),
-		OrigSend:      send,
-		OrigSendSpent: new(std.Coins),
-		OrigPkgAddr:   pkgAddr.Bech32(),
-		Banker:        NewSDKBanker(vm, ctx),
-		Params:        NewSDKParams(vm, ctx),
-		EventLogger:   ctx.EventLogger(),
+		ChainID:         ctx.ChainID(),
+		ChainDomain:     chainDomain,
+		Height:          ctx.BlockHeight(),
+		Timestamp:       ctx.BlockTime().Unix(),
+		OriginCaller:    caller.Bech32(),
+		OriginSend:      send,
+		OriginSendSpent: new(std.Coins),
+		OriginPkgAddr:   pkgAddr.Bech32(),
+		Banker:          NewSDKBanker(vm, ctx),
+		Params:          NewSDKParams(vm, ctx),
+		EventLogger:     ctx.EventLogger(),
 	}
 
 	buf := new(bytes.Buffer)
@@ -781,13 +782,13 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 		ChainDomain: chainDomain,
 		Height:      ctx.BlockHeight(),
 		Timestamp:   ctx.BlockTime().Unix(),
-		// OrigCaller:    caller,
-		// OrigSend:      send,
-		// OrigSendSpent: nil,
-		OrigPkgAddr: pkgAddr.Bech32(),
-		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
-		Params:      NewSDKParams(vm, ctx),
-		EventLogger: ctx.EventLogger(),
+		// OriginCaller:    caller,
+		// OriginSend:      send,
+		// OriginSendSpent: nil,
+		OriginPkgAddr: pkgAddr.Bech32(),
+		Banker:        NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
+		Params:        NewSDKParams(vm, ctx),
+		EventLogger:   ctx.EventLogger(),
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
@@ -825,6 +826,22 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 		}
 		return res, nil
 	}
+}
+
+func (vm *VMKeeper) QueryDoc(ctx sdk.Context, pkgPath string) (*doc.JSONDocumentation, error) {
+	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+
+	memPkg := store.GetMemPackage(pkgPath)
+	if memPkg == nil {
+		err := ErrInvalidPkgPath(fmt.Sprintf(
+			"package not found: %s", pkgPath))
+		return nil, err
+	}
+	d, err := doc.NewDocumentableFromMemPkg(memPkg, true, "", "")
+	if err != nil {
+		return nil, err
+	}
+	return d.WriteJSONDocumentation()
 }
 
 // logTelemetry logs the VM processing telemetry

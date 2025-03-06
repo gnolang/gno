@@ -1,6 +1,6 @@
 package main
 
-const a = interface{}(nil)
+const a = any(nil)
 
 func main() {
 	println("ok")

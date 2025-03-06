@@ -414,8 +414,14 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 	}
 }
 
-func (tv *TypedValue) GetFirstObject2(store Store) Object {
+// GetFirstObjectAndAttach returns the value of [TypedValue.GetFirstObject], but
+// additionally sets its boundRealm
+func (tv *TypedValue) GetFirstObjectAndAttach(store Store) Object {
 	obj := tv.GetFirstObject(store)
+	if obj == nil {
+		// no object to set the bound realm to..
+		return nil
+	}
 
 	var path string
 	// infer original package using declared type
@@ -447,30 +453,28 @@ func (tv *TypedValue) GetFirstObject2(store Store) Object {
 		// do nothing
 	}
 
-	// set bound realm to object
-	if obj != nil {
-		// if the object is unreal but already owned,
-		// it means the object is bound to this realm
-		// and must be attached to it.
-		if boundRealm.IsZero() && !obj.GetIsReal() && obj.GetIsOwned() {
-			boundRealm = obj.GetOwnerID().PkgID
-		}
+	// set bound realm to object.
+	// if the object is unreal but already owned,
+	// it means the object is bound to this realm
+	// and must be attached to it.
+	if boundRealm.IsZero() && !obj.GetIsReal() && obj.GetIsOwned() {
+		boundRealm = obj.GetOwnerID().PkgID
+	}
 
-		if !boundRealm.IsZero() {
-			obj.SetBoundRealm(boundRealm)
-		}
+	if !boundRealm.IsZero() {
+		obj.SetBoundRealm(boundRealm)
+	}
 
-		switch tv.V.(type) {
-		case *SliceValue, PointerValue:
-			obj.SetIsAttachingRef(true)
-		}
+	switch tv.V.(type) {
+	case *SliceValue, PointerValue:
+		obj.SetIsAttachingRef(true)
+	}
 
-		// attach package value to object
-		if path != "" {
-			pkg := store.GetPackage(path, false)
-			if pkg != nil {
-				obj.SetPackage(pkg)
-			}
+	// attach package value to object
+	if path != "" {
+		pkg := store.GetPackage(path, false)
+		if pkg != nil {
+			obj.SetPackage(pkg)
 		}
 	}
 	return obj

@@ -326,7 +326,7 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, seenObjs *[]Objec
 	if debug {
 		debug.Printf("checkCrossRealm2, tv: %v (type: %v) \n", tv, reflect.TypeOf(tv.V))
 	}
-	oo2 := tv.GetFirstObject2(store)
+	oo2 := tv.GetFirstObjectAndAttach(store)
 	if oo2 != nil {
 		checkCrossRealm(rlm, store, oo2, seenObjs)
 	}
@@ -481,7 +481,7 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 // writes them into the underlying [Store]. OpReturn calls this when exiting a
 // realm transaction; additionally, this is called by the machine itself in
 // [Machine.RunMemPackage].
-func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
+func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	// TODO: check cross realm, that might be objects not attached
 	// to a realm gets attached here, which should panic.
 
@@ -489,28 +489,16 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
 	}
-	if readonly {
-		if true ||
-			len(rlm.newCreated) > 0 ||
-			len(rlm.newEscaped) > 0 ||
-			len(rlm.newDeleted) > 0 ||
-			len(rlm.created) > 0 ||
-			len(rlm.updated) > 0 ||
-			len(rlm.deleted) > 0 ||
-			len(rlm.escaped) > 0 {
-			panic("realm updates in readonly transaction")
-		}
-		return
-	}
+
 	if debug {
 		ensureUniq(rlm.newCreated)
 		ensureUniq(rlm.newEscaped)
 		ensureUniq(rlm.newDeleted)
 		ensureUniq(rlm.updated)
 		if false ||
-			rlm.created != nil ||
-			rlm.deleted != nil ||
-			rlm.escaped != nil {
+				rlm.created != nil ||
+				rlm.deleted != nil ||
+				rlm.escaped != nil {
 			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
@@ -889,9 +877,9 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		}
 		// deleted objects should not have gotten here.
 		if false ||
-			oo.GetRefCount() <= 0 ||
-			oo.GetIsNewDeleted() ||
-			oo.GetIsDeleted() {
+				oo.GetRefCount() <= 0 ||
+				oo.GetIsNewDeleted() ||
+				oo.GetIsDeleted() {
 			panic("cannot save deleted objects")
 		}
 	}

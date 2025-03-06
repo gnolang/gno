@@ -89,7 +89,7 @@ func (p *Poll) HasVoted(address std.Address) (bool, bool) {
 func (p Poll) VoteCount() (int, int) {
 	var yay int
 
-	p.Voters().Iterate("", "", func(key string, value interface{}) bool {
+	p.Voters().Iterate("", "", func(key string, value any) bool {
 		vote := value.(bool)
 		if vote == true {
 			yay = yay + 1
@@ -156,7 +156,7 @@ func init() {
 // NewPoll - Creates a new Poll instance
 func NewPoll(title, description string, deadline int64) string {
 	// get block height
-	if deadline <= std.GetHeight() {
+	if deadline <= std.ChainHeight() {
 		panic("deadline has to be in the future")
 	}
 
@@ -174,7 +174,7 @@ func NewPoll(title, description string, deadline int64) string {
 // yes - true, no - false
 func Vote(id string, vote bool) string {
 	// get txSender
-	txSender := std.GetOrigCaller()
+	txSender := std.OriginCaller()
 
 	// get specific Poll from AVL tree
 	pollRaw, exists := polls.Get(id)
@@ -191,7 +191,7 @@ func Vote(id string, vote bool) string {
 		panic("you've already voted!")
 	}
 
-	if poll.Deadline() <= std.GetHeight() {
+	if poll.Deadline() <= std.ChainHeight() {
 		panic("voting for this poll is closed")
 	}
 
@@ -229,7 +229,7 @@ func Render(path string) string {
 		b.WriteString("### No active polls currently!")
 		return b.String()
 	}
-	polls.Iterate("", "", func(key string, value interface{}) bool {
+	polls.Iterate("", "", func(key string, value any) bool {
 
 		// cast raw data from tree into Poll struct
 		p := value.(*poll.Poll)
@@ -272,7 +272,7 @@ func Render(path string) string {
 		dropdown = "<br><details>\n<summary>Vote details</summary>"
 		b.WriteString(dropdown)
 
-		p.Voters().Iterate("", "", func(key string, value interface{}) bool {
+		p.Voters().Iterate("", "", func(key string, value any) bool {
 
 			voter := key
 			vote := value.(bool)
