@@ -57,7 +57,7 @@ The components of these paths are:
 - `gno.land` is the chain domain. Currently, only `gno.land` is supported, but the ecosystem may expand in the future.
 - `p` or `r` declare the type of package found at the path. `p` stands for pure package, while `r` represents [realm](./realms.md).
 - `demo`, `gnoland`, etc., represent namespaces as described below.
-- `home`, `hof`, `avl`, etc., represent the package name found at the path. This part must match the package name declaration in the `.gno` files.
+- `home`, `hof`, `avl`, etc., represent the package name found at the path.
 
 Two important facts about package paths:
 - The maximum length of a package path is `256` characters.
