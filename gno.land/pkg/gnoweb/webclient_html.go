@@ -253,6 +253,13 @@ func (s *HTMLWebClient) query(qpath string, data []byte) ([]byte, error) {
 func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) error {
 	var lexer chroma.Lexer
 
+	const (
+		chromaSpanPrefix   = `<span class="chroma-s">&#34;`
+		chromaSpanSuffix   = `&#34;</span>`
+		gnolandPrefix      = "gno.land/"
+		chromaLinkTemplate = `<span class="chroma-s"><a href="/%s$source" class="hover:underline">&#34;%s&#34;</a></span>`
+	)
+
 	// Determine the lexer to be used based on the file extension.
 	switch strings.ToLower(gopath.Ext(fileName)) {
 	case ".gno":
@@ -262,7 +269,7 @@ func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) e
 	case ".mod":
 		lexer = lexers.Get("gomod")
 	default:
-		lexer = lexers.Get("txt") // Unsupoorted file type, default to plain text.
+		lexer = lexers.Get("txt") // Unsupported file type, default to plain text.
 	}
 
 	if lexer == nil {
@@ -284,32 +291,31 @@ func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) e
 
 	// Process .gno files to add links
 	if strings.HasSuffix(fileName, ".gno") {
-		// Find and process string spans containing gno.land imports
 		lines := strings.Split(formatted, "\n")
+
 		for i, line := range lines {
-			// Look for chroma string spans
-			start := strings.Index(line, `<span class="chroma-s">&#34;gno.land/`)
+			start := strings.Index(line, chromaSpanPrefix+gnolandPrefix)
 			if start == -1 {
 				continue
 			}
 
 			prefix := line[:start]
 			rest := line[start:]
-			end := strings.Index(rest, `&#34;</span>`)
+			end := strings.Index(rest, chromaSpanSuffix)
 			if end == -1 {
 				continue
 			}
 
 			// Extract the path of gnoland import
-			importPath := rest[len(`<span class="chroma-s">&#34;`):end]
-			urlPath := strings.TrimPrefix(importPath, "gno.land/")
+			importPath := rest[len(chromaSpanPrefix):end]
+			urlPath := strings.TrimPrefix(importPath, gnolandPrefix)
 
 			// Create new span with link
-			replacement := fmt.Sprintf(`<span class="chroma-s"><a href="/%s$source" class="hover:underline">&#34;%s&#34;</a></span>`,
-				urlPath, importPath)
+			replacement := fmt.Sprintf(chromaLinkTemplate, urlPath, importPath)
 
-			lines[i] = prefix + replacement + rest[end+len(`&#34;</span>`):]
+			lines[i] = prefix + replacement + rest[end+len(chromaSpanSuffix):]
 		}
+
 		formatted = strings.Join(lines, "\n")
 	}
 
