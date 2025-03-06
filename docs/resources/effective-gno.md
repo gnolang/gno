@@ -55,12 +55,12 @@ var counter int
 
 // public getter endpoint.
 func GetCounter() int {
-    return counter
+	return counter
 }
 
 // public setter endpoint.
 func IncCounter() {
-    counter++
+	counter++
 }
 ```
 
@@ -111,11 +111,11 @@ that could lead to user frustration or the need to fork the code.
 import "std"
 
 func Foobar() {
-    caller := std.PreviousRealm().Address()
-    if caller != "g1xxxxx" {
-        panic("permission denied")
-    }
-    // ...
+	caller := std.PreviousRealm().Address()
+	if caller != "g1xxxxx" {
+		panic("permission denied")
+	}
+	// ...
 }
 ```
 
@@ -134,15 +134,15 @@ you start a program, in Gno, `init()` is executed once in a realm's lifetime.
 
 In Gno, `init()` primarily serves two purposes:
 1. It establishes the initial state, specifically, setting up global variables.
-    - Note: global variables can often be set up just by assigning their initial value when you're declaring them. See below for an example! \
-      Deciding when to initialise the variable directly, and when to set it up in `init` can be non-straightforward. As a rule of thumb, though, `init` visually marks the code as executing only when the realm is started, while assigning the variables can be less straightforward.
+	- Note: global variables can often be set up just by assigning their initial value when you're declaring them. See below for an example! \
+	  Deciding when to initialise the variable directly, and when to set it up in `init` can be non-straightforward. As a rule of thumb, though, `init` visually marks the code as executing only when the realm is started, while assigning the variables can be less straightforward.
 2. It communicates with another realm, for example, to register itself in a registry.
 
 ```go
 import "gno.land/r/some/registry"
 
 func init() {
-    registry.Register("myID", myCallback)
+	registry.Register("myID", myCallback)
 }
 
 func myCallback(a, b string) { /* ... */ }
@@ -153,25 +153,25 @@ package.
 
 ```go
 import (
-    "std"
-    "time"
+	"std"
+	"time"
 )
 
 var (
-    created time.Time
-    admin   std.Address
-    list    = []string{"foo", "bar", time.Now().Format("15:04:05")}
+	created time.Time
+	admin   std.Address
+	list	= []string{"foo", "bar", time.Now().Format("15:04:05")}
 )
 
 func init() {
-    created = time.Now()
-    // std.OriginCaller in the context of realm initialisation is,
-    // of course, the publisher of the realm :)
-    // This can be better than hardcoding an admin address as a constant.
-    admin = std.OriginCaller()
-    // list is already initialized, so it will already contain "foo", "bar" and
-    // the current time as existing items.
-    list = append(list, admin.String())
+	created = time.Now()
+	// std.OriginCaller in the context of realm initialisation is,
+	// of course, the publisher of the realm :)
+	// This can be better than hardcoding an admin address as a constant.
+	admin = std.OriginCaller()
+	// list is already initialized, so it will already contain "foo", "bar" and
+	// the current time as existing items.
+	list = append(list, admin.String())
 }
 ```
 
@@ -233,36 +233,36 @@ efficient, and trustworthy Gno contracts.
 
 ```go
 import (
-    "gno.land/p/finance/tokens"
-    "gno.land/p/finance/exchange"
-    "gno.land/p/finance/wallet"
-    "gno.land/p/utils/permissions"
+	"gno.land/p/finance/tokens"
+	"gno.land/p/finance/exchange"
+	"gno.land/p/finance/wallet"
+	"gno.land/p/utils/permissions"
 )
 
 var (
-    myWallet wallet.Wallet
-    myToken tokens.Token
-    myExchange exchange.Exchange
+	myWallet wallet.Wallet
+	myToken tokens.Token
+	myExchange exchange.Exchange
 )
 
 func init() {
-    myWallet = wallet.NewWallet()
-    myToken = tokens.NewToken("MyToken", "MTK")
-    myExchange = exchange.NewExchange(myToken)
+	myWallet = wallet.NewWallet()
+	myToken = tokens.NewToken("MyToken", "MTK")
+	myExchange = exchange.NewExchange(myToken)
 }
 
 func BuyTokens(amount int) {
-    caller := permissions.GetCaller()
-    permissions.CheckPermission(caller, "buy")
-    myWallet.Debit(caller, amount)
-    myExchange.Buy(caller, amount)
+	caller := permissions.GetCaller()
+	permissions.CheckPermission(caller, "buy")
+	myWallet.Debit(caller, amount)
+	myExchange.Buy(caller, amount)
 }
 
 func SellTokens(amount int) {
-    caller := permissions.GetCaller()
-    permissions.CheckPermission(caller, "sell")
-    myWallet.Credit(caller, amount)
-    myExchange.Sell(caller, amount)
+	caller := permissions.GetCaller()
+	permissions.CheckPermission(caller, "sell")
+	myWallet.Credit(caller, amount)
+	myExchange.Sell(caller, amount)
 }
 ```
 
@@ -465,8 +465,8 @@ certain operations.
 import "std"
 
 func PublicMethod(nb int) {
-    caller := std.PreviousRealm().Address()
-    privateMethod(caller, nb)
+	caller := std.PreviousRealm().Address()
+	privateMethod(caller, nb)
 }
 
 func privateMethod(caller std.Address, nb int) { /* ... */ }
@@ -582,11 +582,11 @@ import "std"
 var admin std.Address = "g1xxxxx"
 
 func AdminOnlyFunction() {
-    caller := std.PreviousRealm().Address()
-    if caller != admin {
-        panic("permission denied")
-    }
-    // ...
+	caller := std.PreviousRealm().Address()
+	if caller != admin {
+		panic("permission denied")
+	}
+	// ...
 }
 
 // func UpdateAdminAddress(newAddr std.Address) { /* ... */ }
@@ -609,11 +609,11 @@ Here's an example:
 import "std"
 
 func TransferTokens(to std.Address, amount int64) {
-    caller := std.PreviousRealm().Address()
-    if caller != admin {
-        panic("permission denied")
-    }
-    // ...
+	caller := std.PreviousRealm().Address()
+	if caller != admin {
+		panic("permission denied")
+	}
+	// ...
 }
 ```
 
@@ -650,11 +650,11 @@ import "avl"
 var tree avl.Tree
 
 func GetPost(id string) *Post {
-    return tree.Get(id).(*Post)
+	return tree.Get(id).(*Post)
 }
 
 func AddPost(id string, post *Post) {
-    tree.Set(id, post)
+	tree.Set(id, post)
 }
 ```
 
@@ -692,25 +692,25 @@ usage completely.
 
 ```go
 type MySafeStruct {
-    counter nb
-    admin std.Address
+	counter nb
+	admin std.Address
 }
 
 func NewSafeStruct() *MySafeStruct {
-    caller := std.PreviousRealm().Address()
-    return &MySafeStruct{
-        counter: 0,
-        admin: caller,
-    }
+	caller := std.PreviousRealm().Address()
+	return &MySafeStruct{
+		counter: 0,
+		admin: caller,
+	}
 }
 
 func (s *MySafeStruct) Counter() int { return s.counter }
 func (s *MySafeStruct) Inc() {
-    caller := std.PreviousRealm().Address()
-    if caller != s.admin {
-        panic("permission denied")
-    }
-    s.counter++
+	caller := std.PreviousRealm().Address()
+	if caller != s.admin {
+		panic("permission denied")
+	}
+	s.counter++
 }
 ```
 
@@ -721,8 +721,8 @@ realms can access the object, but still following your own rules.
 import "gno.land/r/otherrealm"
 
 func init() {
-    mySafeObj := NewSafeStruct()
-    otherrealm.Register(mySafeObject)
+	mySafeObj := NewSafeStruct()
+	otherrealm.Register(mySafeObject)
 }
 
 // then, other realm can call the public functions but won't be the "owner" of
@@ -770,8 +770,8 @@ import "gno.land/p/demo/grc/grc20"
 var fooToken = grc20.NewBanker("Foo Token", "FOO", 4)
 
 func MyBalance() uint64 {
-caller := std.PreviousRealm().Address()
-return fooToken.BalanceOf(caller)
+	caller := std.PreviousRealm().Address()
+	return fooToken.BalanceOf(caller)
 }
 ```
 
