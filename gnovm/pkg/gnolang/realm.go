@@ -496,9 +496,9 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 		ensureUniq(rlm.newDeleted)
 		ensureUniq(rlm.updated)
 		if false ||
-				rlm.created != nil ||
-				rlm.deleted != nil ||
-				rlm.escaped != nil {
+			rlm.created != nil ||
+			rlm.deleted != nil ||
+			rlm.escaped != nil {
 			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
@@ -877,9 +877,9 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		}
 		// deleted objects should not have gotten here.
 		if false ||
-				oo.GetRefCount() <= 0 ||
-				oo.GetIsNewDeleted() ||
-				oo.GetIsDeleted() {
+			oo.GetRefCount() <= 0 ||
+			oo.GetIsNewDeleted() ||
+			oo.GetIsDeleted() {
 			panic("cannot save deleted objects")
 		}
 	}
