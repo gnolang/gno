@@ -7,6 +7,8 @@ import (
 	"github.com/gnolang/gno/gnovm/stdlibs/std"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
 func X_unixNano() int64 {
@@ -106,4 +108,8 @@ func X_testIssueCoins(m *gno.Machine, addr string, denom []string, amt []int64) 
 
 func X_matchString(pat, str string) (result bool, err error) {
 	return false, errors.New("only implemented in testing stdlibs")
+}
+
+func X_recoverWithStacktrace() (gnolang.TypedValue, string) {
+	panic("only available in testing stdlibs")
 }

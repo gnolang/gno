@@ -23,7 +23,7 @@ type stringer interface {
 //   - Numbers: int, int8-64, uint, uint8-64, float32, float64
 //   - Special: time.Time, std.Address, []byte
 //   - Slices: []T for most basic types
-//   - Maps: map[string]string, map[string]interface{}
+//   - Maps: map[string]string, map[string]any
 //   - Interface: types implementing String() string
 //
 // Example usage:
@@ -34,7 +34,7 @@ type stringer interface {
 //	    "a": "1",
 //	    "b": "2",
 //	})
-func ToString(val interface{}) string {
+func ToString(val any) string {
 	if val == nil {
 		return ""
 	}
@@ -136,7 +136,7 @@ func ToString(val interface{}) string {
 		return join(v)
 	case []float64:
 		return join(v)
-	case []interface{}:
+	case []any:
 		return join(v)
 	case []time.Time:
 		return joinTimes(v)
@@ -148,16 +148,16 @@ func ToString(val interface{}) string {
 		return joinBytes(v)
 
 	// Map types with various key types
-	case map[interface{}]interface{}, map[string]interface{}, map[string]string, map[string]int:
+	case map[any]any, map[string]any, map[string]string, map[string]int:
 		var b strings.Builder
 		b.WriteString("map[")
 		first := true
 
 		switch m := v.(type) {
-		case map[interface{}]interface{}:
+		case map[any]any:
 			// Convert all keys to strings for consistent ordering
 			keys := make([]string, 0)
-			keyMap := make(map[string]interface{})
+			keyMap := make(map[string]any)
 
 			for k := range m {
 				keyStr := ToString(k)
@@ -177,7 +177,7 @@ func ToString(val interface{}) string {
 				first = false
 			}
 
-		case map[string]interface{}:
+		case map[string]any:
 			keys := make([]string, 0)
 			for k := range m {
 				keys = append(keys, k)
@@ -237,7 +237,7 @@ func ToString(val interface{}) string {
 	}
 }
 
-func join(slice interface{}) string {
+func join(slice any) string {
 	if IsZero(slice) {
 		return "[]"
 	}
@@ -314,7 +314,7 @@ func joinBytes(slice [][]byte) string {
 //   - Slices/Maps: empty is false, non-empty is true
 //   - nil: always false
 //   - bool: direct value
-func ToBool(val interface{}) bool {
+func ToBool(val any) bool {
 	if IsZero(val) {
 		return false
 	}
@@ -337,7 +337,7 @@ func ToBool(val interface{}) bool {
 //   - bool: false
 //   - time.Time: IsZero()
 //   - std.Address: empty string
-func IsZero(val interface{}) bool {
+func IsZero(val any) bool {
 	if val == nil {
 		return true
 	}
@@ -414,7 +414,7 @@ func IsZero(val interface{}) bool {
 		return len(v) == 0
 	case []float64:
 		return len(v) == 0
-	case []interface{}:
+	case []any:
 		return len(v) == 0
 	case []time.Time:
 		return len(v) == 0
@@ -428,7 +428,7 @@ func IsZero(val interface{}) bool {
 	// Maps (check if empty)
 	case map[string]string:
 		return len(v) == 0
-	case map[string]interface{}:
+	case map[string]any:
 		return len(v) == 0
 
 	default:
@@ -436,49 +436,49 @@ func IsZero(val interface{}) bool {
 	}
 }
 
-// ToInterfaceSlice converts various slice types to []interface{}
-func ToInterfaceSlice(val interface{}) []interface{} {
+// ToInterfaceSlice converts various slice types to []any
+func ToInterfaceSlice(val any) []any {
 	switch v := val.(type) {
-	case []interface{}:
+	case []any:
 		return v
 	case []string:
-		result := make([]interface{}, len(v))
+		result := make([]any, len(v))
 		for i, s := range v {
 			result[i] = s
 		}
 		return result
 	case []int:
-		result := make([]interface{}, len(v))
+		result := make([]any, len(v))
 		for i, n := range v {
 			result[i] = n
 		}
 		return result
 	case []int32:
-		result := make([]interface{}, len(v))
+		result := make([]any, len(v))
 		for i, n := range v {
 			result[i] = n
 		}
 		return result
 	case []int64:
-		result := make([]interface{}, len(v))
+		result := make([]any, len(v))
 		for i, n := range v {
 			result[i] = n
 		}
 		return result
 	case []float32:
-		result := make([]interface{}, len(v))
+		result := make([]any, len(v))
 		for i, n := range v {
 			result[i] = n
 		}
 		return result
 	case []float64:
-		result := make([]interface{}, len(v))
+		result := make([]any, len(v))
 		for i, n := range v {
 			result[i] = n
 		}
 		return result
 	case []bool:
-		result := make([]interface{}, len(v))
+		result := make([]any, len(v))
 		for i, b := range v {
 			result[i] = b
 		}
@@ -488,12 +488,12 @@ func ToInterfaceSlice(val interface{}) []interface{} {
 	}
 }
 
-// ToMapStringInterface converts a map with string keys and any value type to map[string]interface{}
-func ToMapStringInterface(m interface{}) (map[string]interface{}, error) {
-	result := make(map[string]interface{})
+// ToMapStringInterface converts a map with string keys and any value type to map[string]any
+func ToMapStringInterface(m any) (map[string]any, error) {
+	result := make(map[string]any)
 
 	switch v := m.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		return v, nil
 	case map[string]string:
 		for k, val := range v {
@@ -523,11 +523,11 @@ func ToMapStringInterface(m interface{}) (map[string]interface{}, error) {
 		for k, val := range v {
 			result[k] = ToInterfaceSlice(val)
 		}
-	case map[string][]interface{}:
+	case map[string][]any:
 		for k, val := range v {
 			result[k] = val
 		}
-	case map[string]map[string]interface{}:
+	case map[string]map[string]any:
 		for k, val := range v {
 			result[k] = val
 		}
@@ -546,12 +546,12 @@ func ToMapStringInterface(m interface{}) (map[string]interface{}, error) {
 	return result, nil
 }
 
-// ToMapIntInterface converts a map with int keys and any value type to map[int]interface{}
-func ToMapIntInterface(m interface{}) (map[int]interface{}, error) {
-	result := make(map[int]interface{})
+// ToMapIntInterface converts a map with int keys and any value type to map[int]any
+func ToMapIntInterface(m any) (map[int]any, error) {
+	result := make(map[int]any)
 
 	switch v := m.(type) {
-	case map[int]interface{}:
+	case map[int]any:
 		return v, nil
 	case map[int]string:
 		for k, val := range v {
@@ -581,15 +581,15 @@ func ToMapIntInterface(m interface{}) (map[int]interface{}, error) {
 		for k, val := range v {
 			result[k] = ToInterfaceSlice(val)
 		}
-	case map[int][]interface{}:
+	case map[int][]any:
 		for k, val := range v {
 			result[k] = val
 		}
-	case map[int]map[string]interface{}:
+	case map[int]map[string]any:
 		for k, val := range v {
 			result[k] = val
 		}
-	case map[int]map[int]interface{}:
+	case map[int]map[int]any:
 		for k, val := range v {
 			result[k] = val
 		}
@@ -601,11 +601,11 @@ func ToMapIntInterface(m interface{}) (map[int]interface{}, error) {
 }
 
 // ToStringSlice converts various slice types to []string
-func ToStringSlice(val interface{}) []string {
+func ToStringSlice(val any) []string {
 	switch v := val.(type) {
 	case []string:
 		return v
-	case []interface{}:
+	case []any:
 		result := make([]string, len(v))
 		for i, item := range v {
 			result[i] = ToString(item)

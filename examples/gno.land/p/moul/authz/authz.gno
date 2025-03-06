@@ -53,7 +53,7 @@ type Authorizer struct {
 type Authority interface {
 	// Authorize executes a privileged action if the caller is authorized
 	// Additional args can be provided for context (e.g., for proposal creation)
-	Authorize(title string, action PrivilegedAction, args ...interface{}) error
+	Authorize(title string, action PrivilegedAction, args ...any) error
 
 	// String returns a human-readable description of the authority
 	String() string
@@ -95,7 +95,7 @@ func (a *Authorizer) Transfer(newAuthority Authority) error {
 }
 
 // Do executes a privileged action through the current authority
-func (a *Authorizer) Do(title string, action PrivilegedAction, args ...interface{}) error {
+func (a *Authorizer) Do(title string, action PrivilegedAction, args ...any) error {
 	return a.current.Authorize(title, action, args...)
 }
 
@@ -117,7 +117,7 @@ func NewMemberAuthority(members ...std.Address) *MemberAuthority {
 	return auth
 }
 
-func (a *MemberAuthority) Authorize(title string, action PrivilegedAction, args ...interface{}) error {
+func (a *MemberAuthority) Authorize(title string, action PrivilegedAction, args ...any) error {
 	caller := std.PreviousRealm().Address()
 	if !a.members.Has(caller) {
 		return errors.New("unauthorized")
@@ -199,7 +199,7 @@ func NewRestrictedContractAuthority(path string, handler PrivilegedActionHandler
 	}
 }
 
-func (a *ContractAuthority) Authorize(title string, action PrivilegedAction, args ...interface{}) error {
+func (a *ContractAuthority) Authorize(title string, action PrivilegedAction, args ...any) error {
 	if a.contractHandler == nil {
 		return errors.New("contract handler is not set")
 	}
@@ -237,7 +237,7 @@ func NewAutoAcceptAuthority() *AutoAcceptAuthority {
 	return &AutoAcceptAuthority{}
 }
 
-func (a *AutoAcceptAuthority) Authorize(title string, action PrivilegedAction, args ...interface{}) error {
+func (a *AutoAcceptAuthority) Authorize(title string, action PrivilegedAction, args ...any) error {
 	return action()
 }
 
@@ -252,7 +252,7 @@ func NewDroppedAuthority() Authority {
 	return &droppedAuthority{}
 }
 
-func (a *droppedAuthority) Authorize(title string, action PrivilegedAction, args ...interface{}) error {
+func (a *droppedAuthority) Authorize(title string, action PrivilegedAction, args ...any) error {
 	return errors.New("dropped authority: all actions are denied")
 }
 

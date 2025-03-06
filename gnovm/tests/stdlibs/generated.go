@@ -196,6 +196,28 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
+		"testing",
+		"recoverWithStacktrace",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.AnyT()},
+			{Name: gno.N("r1"), Type: gno.X("string")},
+		},
+		true,
+		func(m *gno.Machine) {
+			r0, r1 := testlibs_testing.X_recoverWithStacktrace(
+				m,
+			)
+
+			m.PushValue(r0)
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
 		"unicode",
 		"IsPrint",
 		[]gno.FieldTypeExpr{

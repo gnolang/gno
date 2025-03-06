@@ -77,7 +77,7 @@ var bigtest = testpair{
 	"AHVP2WS0C9S6JV3CD5KJR831DSJ20X38CMG76V39EHM7J83MDXV6AWR",
 }
 
-func testEqual(t *testing.T, msg string, args ...interface{}) bool {
+func testEqual(t *testing.T, msg string, args ...any) bool {
 	t.Helper()
 	if args[len(args)-2] != args[len(args)-1] {
 		t.Errorf(msg, args...)
