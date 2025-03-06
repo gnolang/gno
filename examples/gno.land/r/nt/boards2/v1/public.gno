@@ -173,6 +173,7 @@ func UnfreezeReply(boardID BoardID, threadID, replyID PostID) {
 		replyID:  replyID,
 	}
 
+	// XXX: Is there a use case for also freezing replies?
 	setReplyReadOnly(args, false)
 }
 

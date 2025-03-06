@@ -210,9 +210,11 @@ func createDefaultBoardPermissions(owner std.Address) *DefaultPermissions {
 		PermissionThreadDelete,
 		PermissionThreadRepost,
 		PermissionThreadFlag,
+		PermissionThreadFreeze,
 		PermissionReplyCreate,
 		PermissionReplyDelete,
 		PermissionReplyFlag,
+		PermissionReplyFreeze,
 		PermissionRoleChange,
 	)
 	perms.AddRole(
