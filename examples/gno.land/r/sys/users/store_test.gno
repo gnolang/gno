@@ -189,8 +189,9 @@ func TestDelete(t *testing.T) {
 		data := ResolveAddress(aliceAddr)
 		uassert.NoError(t, data.Delete())
 
-		//resolved, _ := ResolveName(alice)
-		//uassert.Equal(t, nil, resolved)
+		resolved1, _ := ResolveName(alice)
+		uassert.Equal(t, nil, resolved1)
+		uassert.Equal(t, nil, ResolveAddress(aliceAddr))
 	})
 }
 
