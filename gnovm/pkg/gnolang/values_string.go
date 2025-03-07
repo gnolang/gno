@@ -55,16 +55,16 @@ func newSeenValues() *seenValues {
 	return &seenValues{values: make([]Value, 0, defaultSeenValuesSize), nc: nestedLimit}
 }
 
-func (v StringValue) String() string {
-	return strconv.Quote(string(v))
+func (sv StringValue) String() string {
+	return strconv.Quote(string(sv))
 }
 
-func (bv BigintValue) String() string {
-	return bv.V.String()
+func (biv BigintValue) String() string {
+	return biv.V.String()
 }
 
-func (bv BigdecValue) String() string {
-	return bv.V.String()
+func (bdv BigdecValue) String() string {
+	return bdv.V.String()
 }
 
 func (dbv DataByteValue) String() string {
@@ -187,18 +187,18 @@ func (fv *FuncValue) String() string {
 	return name
 }
 
-func (v *BoundMethodValue) String() string {
-	name := v.Func.Name
+func (bmv *BoundMethodValue) String() string {
+	name := bmv.Func.Name
 	var (
 		recvT   string = "?"
 		params  string = "?"
 		results string = "(?)"
 	)
-	if ft, ok := v.Func.Type.(*FuncType); ok {
+	if ft, ok := bmv.Func.Type.(*FuncType); ok {
 		recvT = ft.Params[0].Type.String()
-		params = FieldTypeList(ft.Params).StringWithCommas()
+		params = FieldTypeList(ft.Params).StringForFunc()
 		if len(results) > 0 {
-			results = FieldTypeList(ft.Results).StringWithCommas()
+			results = FieldTypeList(ft.Results).StringForFunc()
 			results = "(" + results + ")"
 		}
 	}
@@ -233,19 +233,19 @@ func (mv *MapValue) ProtectedString(seen *seenValues) string {
 	return "map{" + strings.Join(ss, ",") + "}"
 }
 
-func (v TypeValue) String() string {
+func (tv TypeValue) String() string {
 	ptr := ""
-	if reflect.TypeOf(v.Type).Kind() == reflect.Ptr {
-		ptr = fmt.Sprintf(" (%p)", v.Type)
+	if reflect.TypeOf(tv.Type).Kind() == reflect.Ptr {
+		ptr = fmt.Sprintf(" (%p)", tv.Type)
 	}
 	/*
 		mthds := ""
-		if d, ok := v.Type.(*DeclaredType); ok {
+		if d, ok := tv.Type.(*DeclaredType); ok {
 			mthds = fmt.Sprintf(" %v", d.Methods)
 		}
 	*/
 	return fmt.Sprintf("typeval{%s%s}",
-		v.Type.String(), ptr)
+		tv.Type.String(), ptr)
 }
 
 func (pv *PackageValue) String() string {
@@ -263,18 +263,18 @@ func (nv *NativeValue) String() string {
 	*/
 }
 
-func (v RefValue) String() string {
-	if v.PkgPath == "" {
+func (rv RefValue) String() string {
+	if rv.PkgPath == "" {
 		return fmt.Sprintf("ref(%v)",
-			v.ObjectID)
+			rv.ObjectID)
 	}
 	return fmt.Sprintf("ref(%s)",
-		v.PkgPath)
+		rv.PkgPath)
 }
 
-func (v *HeapItemValue) String() string {
+func (hiv *HeapItemValue) String() string {
 	return fmt.Sprintf("heapitem(%v)",
-		v.Value)
+		hiv.Value)
 }
 
 // ----------------------------------------
