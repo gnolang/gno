@@ -16,24 +16,24 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-// PkgErr is a custom error type that prepends the current
+// pkgErr is a custom error type that prepends the current
 // realm link to the original error message.
-type PkgErr struct {
+type pkgErr struct {
 	originalErr error
 }
 
-// New creates a new PkgErr with the given error. The returned error will include
+// New creates a new pkgErr with the given error. The returned error will include
 // the current realm link in its message.
 func New(err error) error {
 	if err == nil {
 		return nil
 	}
 
-	return &PkgErr{originalErr: err}
+	return &pkgErr{originalErr: err}
 }
 
-// Error implements the `error` interface for PkgErr.
-func (e *PkgErr) Error() string {
+// Error implements the `error` interface for pkgErr.
+func (e *pkgErr) Error() string {
 	return ufmt.Sprintf("%s: %s",
 		strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land/"),
 		e.originalErr)
