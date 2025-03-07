@@ -53,7 +53,7 @@ var nativeFuncs = [...]NativeFunc{
 				var (
 				{{- range $pn, $pv := $m.Params -}}
 					{{- if $pv.IsTypedValue }}
-						p{{ $pn }} = gno.NewValuePathBlock(1, {{ $pn }}, "")).TV
+						p{{ $pn }} = *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, {{ $pn }}, "")).TV)
 					{{- else }}
 						p{{ $pn }} {{ $pv.GoQualifiedName }}
 						rp{{ $pn }} = reflect.ValueOf(&p{{ $pn }}).Elem()
