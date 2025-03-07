@@ -38,13 +38,13 @@ var valopers *avl.Tree // Address -> Valoper
 
 // Valoper represents a validator operator profile
 type Valoper struct {
-	Moniker     string // Human-readable name
-	Description string // Description and details about the valoper
+	Moniker     string // A human-readable name
+	Description string // A description and details about the valoper
 
 	Address      std.Address // The bech32 gno address of the validator
-	PubKey       string      // the bech32 public key of the validator
-	Active       bool        // flag indicating if the valoper is active
-	P2PAddresses []string    // the publicly reachable P2P addresses of the validator
+	PubKey       string      // The bech32 public key of the validator
+	Active       bool        // Flag indicating if the valoper is active
+	P2PAddresses []string    // The publicly reachable P2P addresses of the validator
 
 	Caller std.Address // The address of the caller
 }
