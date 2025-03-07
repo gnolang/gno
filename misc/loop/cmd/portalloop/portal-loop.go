@@ -2,12 +2,6 @@ package portalloop
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/sirupsen/logrus"
@@ -62,10 +56,13 @@ func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, for
 	}
 
 	portalLoopHandler.currentRpcUrl = dockerHandler.GetPublishedRPCPort(containers[0])
-	portalLoopHandler.SwitchTraefikPortalLoopUrl()
 	logger.Info("Current portal loop container",
 		zap.String("portal.url", portalLoopHandler.currentRpcUrl),
 	)
+	logger.Info("Updating Traefik portal loop url")
+	if err := portalLoopHandler.UpdateTraefikPortalLoopUrl(); err != nil {
+		return err
+	}
 
 	// 3. Check image or options. DO not proceed, if not any new docker image AND not forced loop
 	if !isNew && !force {
@@ -87,6 +84,9 @@ func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, for
 	}()
 
 	// 5. Backup TXs
+	if err = portalLoopHandler.WaitStartedLoop(); err != nil {
+		return err
+	}
 	logger.Info("Backup txs")
 	err = portalLoopHandler.BackupTXs(ctx)
 	if err != nil {
@@ -104,67 +104,22 @@ func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, for
 		return err
 	}
 	portalLoopHandler.currentRpcUrl = dockerHandler.GetPublishedRPCPort(*dockerContainer)
-	logger.Info("Set up new portal loop container",
+	logger.Info("Updated portal loop container",
 		zap.String("portal.url", portalLoopHandler.currentRpcUrl),
 	)
 
 	// 7. Wait first blocks meaning new portal loop to be ready
 	// Backups will be restored from genesis file
-	if err = waitStartedLoop(portalLoopHandler.currentRpcUrl, portalLoopHandler.logger); err != nil {
+	if err = portalLoopHandler.WaitStartedLoop(); err != nil {
 		return err
 	}
 
 	// 8. Update traefik portal loop rpc url
 	logger.Info("Updating Traefik portal loop url")
-	if err = portalLoopHandler.SwitchTraefikPortalLoopUrl(); err != nil {
+	if err = portalLoopHandler.UpdateTraefikPortalLoopUrl(); err != nil {
 		return err
 	}
 
 	// 9. Remove old portal loop
 	return dockerHandler.RemoveContainersWithVolumes(ctx, containers)
-}
-
-// Waits for the Loop to get started
-func waitStartedLoop(url string, logger *zap.Logger) error {
-	now := time.Now()
-	for {
-		if time.Since(now) > time.Second*180 {
-			return fmt.Errorf("timeout getting latest block")
-		}
-		err := checkCurrentBlock(url)
-		if err == nil {
-			logger.Info("Loop is finished")
-			break
-		}
-
-		if !strings.HasPrefix(err.Error(), "blocks: ") {
-			logger.Error("Error fetching blocks", zap.Error(err))
-		}
-		time.Sleep(time.Second * 2)
-	}
-	return nil
-}
-
-// Gets Current Block from /status endpoint in RPC node
-func checkCurrentBlock(url string) error {
-	resp, err := http.Get(url + "/status")
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	tmStatus := TendermintStatus{}
-	if err := json.NewDecoder(resp.Body).Decode(&tmStatus); err != nil {
-		return err
-	}
-
-	currentBlock, err := strconv.Atoi(tmStatus.Result.SyncInfo.LatestBlockHeight)
-	if err != nil {
-		return err
-	}
-
-	if currentBlock >= 5 {
-		return nil
-	}
-	return fmt.Errorf("blocks: %d/5", currentBlock)
 }
