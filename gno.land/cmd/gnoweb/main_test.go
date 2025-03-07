@@ -30,7 +30,7 @@ func TestSetupWeb(t *testing.T) {
 // Dummy handler to simulate the processing chain.
 // It now returns a more detailed message in the response body.
 func dummyHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("OK: response from dummy handler with detailed information"))
+	w.Write([]byte("OK"))
 }
 
 func TestSecureHeadersMiddlewareStrict(t *testing.T) {
@@ -64,7 +64,7 @@ func TestSecureHeadersMiddlewareStrict(t *testing.T) {
 
 	// Optionally, verify the response body.
 	body := rec.Body.String()
-	if !strings.Contains(body, "OK: response from dummy handler with detailed information") {
+	if !strings.Contains(body, "OK") {
 		t.Errorf("Unexpected response body: %s", body)
 	}
 }
@@ -99,7 +99,7 @@ func TestSecureHeadersMiddlewareNonStrict(t *testing.T) {
 
 	// Optionally, verify the response body.
 	body := rec.Body.String()
-	if !strings.Contains(body, "OK: response from dummy handler with detailed information") {
+	if !strings.Contains(body, "OK") {
 		t.Errorf("Unexpected response body: %s", body)
 	}
 }
