@@ -302,7 +302,7 @@ func renderHome(path string) string {
     return ufmt.Sprintf("%s\n\nNo valopers to display.", instructions)
 	}
 
-	page := pager.NewPager(valopers, 2, false).MustGetPageByPath(path)
+	page := pager.NewPager(valopers, 50, false).MustGetPageByPath(path)
 
   output := ""
 
@@ -314,7 +314,7 @@ func renderHome(path string) string {
 	for _, item := range page.Items {
 		v := item.Value.(Valoper)
 		output += ufmt.Sprintf(" * [%s](/r/gnoland/valopers:%s) - [profile](/r/demo/profile:u/%s)\n",
-			v.Moniker, v.Address, v.Address)
+			v.Moniker, v.Address, v.Caller)
 	}
 
 	output += "\n"
