@@ -517,7 +517,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 	}
 	ds.cacheObjects[oid] = oo
 	// make store op log entry
-	if _, ok := oo.(*Block); !ok && ds.opslog != nil {
+	if ds.opslog != nil {
 		var op StoreOpType
 		if oo.GetIsNewReal() {
 			op = StoreOpNew
