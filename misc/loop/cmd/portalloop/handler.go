@@ -2,12 +2,16 @@ package portalloop
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"loop/cmd/cfg"
 	"loop/cmd/docker"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	dockerClient "github.com/docker/docker/client"
@@ -138,7 +142,7 @@ func (plh *PortalLoopHandler) replaceRegexpInFile(regExp string, replaceStr stri
 }
 
 // Replaces URL of Gno Portal Loop
-func (plh *PortalLoopHandler) SwitchTraefikPortalLoopUrl() error {
+func (plh *PortalLoopHandler) UpdateTraefikPortalLoopUrl() error {
 	regExp := `http://.*:[0-9]+`
 	return plh.replaceRegexpInFile(regExp, plh.currentRpcUrl)
 }
@@ -169,4 +173,57 @@ func (plh *PortalLoopHandler) ProxyRemoveContainers(ctx context.Context) error {
 		return nil
 	}
 	return plh.dockerHandler.RemoveContainersWithVolumes(ctx, containers)
+}
+
+// Waits for the Loop to get started
+func (plh *PortalLoopHandler) WaitStartedLoop() error {
+	done := make(chan struct{})
+
+	go func() {
+		for {
+			err := plh.checkCurrentBlock()
+			if err == nil {
+				close(done)
+				break
+			}
+
+			if strings.HasPrefix(err.Error(), "blocks: ") {
+				plh.logger.Error("Fetched blocks", zap.Error(err))
+			} else {
+				plh.logger.Error("Error fetching blocks", zap.Error(err))
+			}
+			time.Sleep(2 * time.Second)
+		}
+	}()
+
+	select {
+	case <-done:
+		return nil
+	case <-time.After(2 * time.Minute):
+		return fmt.Errorf("timeout getting latest block")
+	}
+}
+
+// Gets Current Block from /status endpoint in RPC node
+func (plh *PortalLoopHandler) checkCurrentBlock() error {
+	resp, err := http.Get(plh.currentRpcUrl + "/status")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	tmStatus := TendermintStatus{}
+	if err := json.NewDecoder(resp.Body).Decode(&tmStatus); err != nil {
+		return err
+	}
+
+	currentBlock, err := strconv.Atoi(tmStatus.Result.SyncInfo.LatestBlockHeight)
+	if err != nil {
+		return err
+	}
+
+	if currentBlock >= 5 {
+		return nil
+	}
+	return fmt.Errorf("%d/5", currentBlock)
 }
