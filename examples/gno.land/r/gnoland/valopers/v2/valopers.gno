@@ -90,7 +90,7 @@ func Render(_ string) string {
 	}
 
 	output := "Valset changes to apply:\n"
-	valopers.Iterate("", "", func(_ string, value interface{}) bool {
+	valopers.Iterate("", "", func(_ string, value any) bool {
 		valoper := value.(Valoper)
 
 		output += valoper.Render()
@@ -148,7 +148,7 @@ func GovDAOProposal(address std.Address) {
 	)
 
 	// Make sure the valoper is the caller
-	if std.GetOrigCaller() != address {
+	if std.OriginCaller() != address {
 		panic(errValoperNotCaller)
 	}
 

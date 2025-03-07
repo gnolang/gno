@@ -83,7 +83,7 @@ func StartGame() {
 	}
 
 	gameState.CurrentRound++
-	gameState.StartBlock = std.GetHeight()
+	gameState.StartBlock = std.ChainHeight()
 	gameState.EndBlock = gameState.StartBlock + TIME_EXTENSION // Initial 24h window
 	gameState.LastKeyBlock = gameState.StartBlock
 	gameState.Jackpot = gameState.NextPot
@@ -109,13 +109,13 @@ func BuyKeys() {
 		panic(ErrGameEnded.Error())
 	}
 
-	currentBlock := std.GetHeight()
+	currentBlock := std.ChainHeight()
 	if currentBlock > gameState.EndBlock {
 		panic(ErrGameTimeExpired.Error())
 	}
 
 	// Get sent coins
-	sent := std.GetOrigSend()
+	sent := std.OriginSend()
 	if len(sent) != 1 || sent[0].Denom != "ugnot" {
 		panic(ErrInvalidPayment.Error())
 	}
@@ -131,7 +131,7 @@ func BuyKeys() {
 	excess := payment - actualCost
 
 	// Update buyer's info
-	buyer := std.PrevRealm().Addr()
+	buyer := std.PreviousRealm().Address()
 	var buyerInfo PlayerInfo
 	if info, exists := players.Get(buyer.String()); exists {
 		buyerInfo = info.(PlayerInfo)
@@ -153,9 +153,9 @@ func BuyKeys() {
 
 	// Return excess payment to buyer if any
 	if excess > 0 {
-		banker := std.GetBanker(std.BankerTypeOrigSend)
+		banker := std.NewBanker(std.BankerTypeOriginSend)
 		banker.SendCoins(
-			std.CurrentRealm().Addr(),
+			std.CurrentRealm().Address(),
 			buyer,
 			std.NewCoins(std.NewCoin("ugnot", excess)),
 		)
@@ -164,7 +164,7 @@ func BuyKeys() {
 	// Distribute dividends to all key holders
 	if players.Size() > 0 && gameState.TotalKeys > 0 {
 		dividendPerKey := dividendShare / gameState.TotalKeys
-		players.Iterate("", "", func(key string, value interface{}) bool {
+		players.Iterate("", "", func(key string, value any) bool {
 			playerInfo := value.(PlayerInfo)
 			playerInfo.Dividends += playerInfo.Keys * dividendPerKey
 			players.Set(key, playerInfo)
@@ -192,7 +192,7 @@ func BuyKeys() {
 
 // ClaimDividends allows players to withdraw their earned dividends
 func ClaimDividends() {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 
 	info, exists := players.Get(caller.String())
 	if !exists {
@@ -209,9 +209,9 @@ func ClaimDividends() {
 	playerInfo.Dividends = 0
 	players.Set(caller.String(), playerInfo)
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(
-		std.CurrentRealm().Addr(),
+		std.CurrentRealm().Address(),
 		caller,
 		std.NewCoins(std.NewCoin("ugnot", amount)),
 	)
@@ -230,9 +230,9 @@ func ClaimOwnerFee() {
 	amount := gameState.OwnerFee
 	gameState.OwnerFee = 0
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(
-		std.CurrentRealm().Addr(),
+		std.CurrentRealm().Address(),
 		Ownable.Owner(),
 		std.NewCoins(std.NewCoin("ugnot", amount)),
 	)
@@ -246,7 +246,7 @@ func EndGame() {
 		panic(ErrGameEnded.Error())
 	}
 
-	currentBlock := std.GetHeight()
+	currentBlock := std.ChainHeight()
 	if currentBlock <= gameState.EndBlock {
 		panic(ErrGameNotInProgress.Error())
 	}
@@ -258,9 +258,9 @@ func EndGame() {
 	gameState.Ended = true
 
 	// Send jackpot to winner
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(
-		std.CurrentRealm().Addr(),
+		std.CurrentRealm().Address(),
 		gameState.LastBuyer,
 		std.NewCoins(std.NewCoin("ugnot", gameState.Jackpot)),
 	)
