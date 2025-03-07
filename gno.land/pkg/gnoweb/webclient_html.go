@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	gopath "path"
+	"regexp"
 	"strings"
 
 	"github.com/alecthomas/chroma/v2"
@@ -253,12 +254,7 @@ func (s *HTMLWebClient) query(qpath string, data []byte) ([]byte, error) {
 func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) error {
 	var lexer chroma.Lexer
 
-	const (
-		chromaSpanPrefix   = `<span class="chroma-s">&#34;`
-		chromaSpanSuffix   = `&#34;</span>`
-		gnolandPrefix      = "gno.land/"
-		chromaLinkTemplate = `<span class="chroma-s"><a href="/%s$source" class="hover:underline">&#34;%s&#34;</a></span>`
-	)
+	const gnolandPrefix = "gno.land/"
 
 	// Determine the lexer to be used based on the file extension.
 	switch strings.ToLower(gopath.Ext(fileName)) {
@@ -291,32 +287,21 @@ func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) e
 
 	// Process .gno files to add links
 	if strings.HasSuffix(fileName, ".gno") {
-		lines := strings.Split(formatted, "\n")
+		pattern := `(<span class="chroma-s">&#34;)(gno\.land/[^&#34;]+)(&#34;</span>)`
+		re := regexp.MustCompile(pattern)
 
-		for i, line := range lines {
-			start := strings.Index(line, chromaSpanPrefix+gnolandPrefix)
-			if start == -1 {
-				continue
+		formatted = re.ReplaceAllStringFunc(formatted, func(match string) string {
+			submatch := re.FindStringSubmatch(match)
+			if len(submatch) < 4 {
+				return match
 			}
 
-			prefix := line[:start]
-			rest := line[start:]
-			end := strings.Index(rest, chromaSpanSuffix)
-			if end == -1 {
-				continue
-			}
-
-			// Extract the path of gnoland import
-			importPath := rest[len(chromaSpanPrefix):end]
+			importPath := submatch[2]
 			urlPath := strings.TrimPrefix(importPath, gnolandPrefix)
 
-			// Create new span with link
-			replacement := fmt.Sprintf(chromaLinkTemplate, urlPath, importPath)
-
-			lines[i] = prefix + replacement + rest[end+len(chromaSpanSuffix):]
-		}
-
-		formatted = strings.Join(lines, "\n")
+			return fmt.Sprintf(`<span class="chroma-s"><a href="/%s$source" class="hover:underline">&#34;%s&#34;</a></span>`,
+				urlPath, importPath)
+		})
 	}
 
 	_, err = w.Write([]byte(formatted))
