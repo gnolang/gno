@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"io"
 	"reflect"
 	"slices"
 	"strconv"
@@ -16,6 +17,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/utils"
 	stringz "github.com/gnolang/gno/tm2/pkg/strings"
+	"github.com/pmezard/go-difflib/difflib"
 )
 
 // PackageGetter specifies how the store may retrieve packages which are not
@@ -67,8 +69,7 @@ type Store interface {
 	ClearObjectCache()                                    // run before processing a message
 	SetNativeResolver(NativeResolver)                     // for "new" natives XXX
 	GetNative(pkgPath string, name Name) func(m *Machine) // for "new" natives XXX
-	SetLogStoreOps(enabled bool)
-	SprintStoreOps() string
+	SetLogStoreOps(dst io.Writer)
 	LogSwitchRealm(rlmpath string) // to mark change of realm boundaries
 	Print()
 }
@@ -142,7 +143,7 @@ type defaultStore struct {
 	nativeResolver   NativeResolver        // for injecting natives
 
 	// transient
-	opslog  []StoreOp // for debugging and testing.
+	opslog  io.Writer // for logging store operations.
 	current []string  // for detecting import cycles.
 
 	// gas
@@ -493,6 +494,41 @@ func (ds *defaultStore) SetObject(oo Object) {
 		panic("should not happen")
 	}
 	oo.SetHash(ValueHash{hash})
+	// make store op log entry
+	if ds.opslog != nil {
+		obj := o2.(Object)
+		if oo.GetIsNewReal() {
+			fmt.Fprintf(ds.opslog, "c[%v]=%s\n",
+				obj.GetObjectID(),
+				prettyJSON(amino.MustMarshalJSON(obj)))
+		} else {
+			old := ds.loadForLog(oid)
+			old.SetHash(ValueHash{})
+
+			// need to do this marshal+unmarshal dance to ensure we get as close
+			// as possible the output of amino that we'll get of MustMarshalJSON(old),
+			// ie. empty slices should be null, not [].
+			var pureNew Object
+			amino.MustUnmarshalAny(amino.MustMarshalAny(obj), &pureNew)
+
+			s, err := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
+				A:        difflib.SplitLines(string(prettyJSON(amino.MustMarshalJSON(old)))),
+				FromFile: "old",
+				B:        difflib.SplitLines(string(prettyJSON(amino.MustMarshalJSON(pureNew)))),
+				ToFile:   "new",
+				Context:  3,
+			})
+			if err != nil {
+				panic(err)
+			}
+			if s == "" {
+				fmt.Fprintf(ds.opslog, "u[%v]=(noop)\n", obj.GetObjectID())
+			} else {
+				s = "    " + strings.TrimSpace(strings.ReplaceAll(s, "\n", "\n    "))
+				fmt.Fprintf(ds.opslog, "u[%v]=\n%s\n", obj.GetObjectID(), s)
+			}
+		}
+	}
 	// save bytes to backend.
 	if ds.baseStore != nil {
 		key := backendObjectKey(oid)
@@ -516,17 +552,6 @@ func (ds *defaultStore) SetObject(oo Object) {
 		}
 	}
 	ds.cacheObjects[oid] = oo
-	// make store op log entry
-	if ds.opslog != nil {
-		var op StoreOpType
-		if oo.GetIsNewReal() {
-			op = StoreOpNew
-		} else {
-			op = StoreOpMod
-		}
-		ds.opslog = append(ds.opslog,
-			StoreOp{Type: op, Object: o2.(Object)})
-	}
 	// if escaped, add hash to iavl.
 	if oo.GetIsEscaped() && ds.iavlStore != nil {
 		var key, value []byte
@@ -534,6 +559,18 @@ func (ds *defaultStore) SetObject(oo Object) {
 		value = hash.Bytes()
 		ds.iavlStore.Set(key, value)
 	}
+}
+
+func (ds *defaultStore) loadForLog(oid ObjectID) Object {
+	key := backendObjectKey(oid)
+	hashbz := ds.baseStore.Get([]byte(key))
+	if hashbz == nil {
+		return nil
+	}
+	bz := hashbz[HashSize:]
+	var oo Object
+	amino.MustUnmarshal(bz, &oo)
+	return oo
 }
 
 func (ds *defaultStore) DelObject(oo Object) {
@@ -558,9 +595,8 @@ func (ds *defaultStore) DelObject(oo Object) {
 		ds.baseStore.Delete([]byte(key))
 	}
 	// make realm op log entry
-	if _, ok := oo.(*Block); !ok && ds.opslog != nil {
-		ds.opslog = append(ds.opslog,
-			StoreOp{Type: StoreOpDel, Object: oo})
+	if ds.opslog != nil {
+		fmt.Fprintf(ds.opslog, "d[%v]\n", oo.GetObjectID())
 	}
 }
 
@@ -892,72 +928,19 @@ func (ds *defaultStore) GetNative(pkgPath string, name Name) func(m *Machine) {
 	return nil
 }
 
-// ----------------------------------------
-// StoreOp
-
-type StoreOpType uint8
-
-const (
-	StoreOpNew StoreOpType = iota
-	StoreOpMod
-	StoreOpDel
-	StoreOpSwitchRealm
-)
-
-type StoreOp struct {
-	Type    StoreOpType
-	Object  Object // ref'd objects
-	RlmPath string // for StoreOpSwitchRealm
-}
-
-// used by the tests/file_test system to check
-// veracity of realm operations.
-func (sop StoreOp) String() string {
-	switch sop.Type {
-	case StoreOpNew:
-		return fmt.Sprintf("c[%v]=%s",
-			sop.Object.GetObjectID(),
-			prettyJSON(amino.MustMarshalJSON(sop.Object)))
-	case StoreOpMod:
-		return fmt.Sprintf("u[%v]=%s",
-			sop.Object.GetObjectID(),
-			prettyJSON(amino.MustMarshalJSON(sop.Object)))
-	case StoreOpDel:
-		return fmt.Sprintf("d[%v]",
-			sop.Object.GetObjectID())
-	case StoreOpSwitchRealm:
-		return fmt.Sprintf("switchrealm[%q]",
-			sop.RlmPath)
-	default:
-		panic("should not happen")
-	}
-}
-
-func (ds *defaultStore) SetLogStoreOps(enabled bool) {
+// Set to nil to disable.
+func (ds *defaultStore) SetLogStoreOps(buf io.Writer) {
 	if enabled {
-		ds.ResetStoreOps()
+		ds.opslog = buf
 	} else {
 		ds.opslog = nil
 	}
 }
 
-// resets .realmops.
-func (ds *defaultStore) ResetStoreOps() {
-	ds.opslog = make([]StoreOp, 0, 1024)
-}
-
-// for test/file_test.go, to test realm changes.
-func (ds *defaultStore) SprintStoreOps() string {
-	ss := make([]string, 0, len(ds.opslog))
-	for _, sop := range ds.opslog {
-		ss = append(ss, sop.String())
-	}
-	return strings.Join(ss, "\n")
-}
-
 func (ds *defaultStore) LogSwitchRealm(rlmpath string) {
-	ds.opslog = append(ds.opslog,
-		StoreOp{Type: StoreOpSwitchRealm, RlmPath: rlmpath})
+	if ds.opslog != nil {
+		fmt.Fprintf(ds.opslog, "switchrealm[%q]\n", rlmpath)
+	}
 }
 
 // for debugging

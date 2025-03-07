@@ -192,70 +192,56 @@ func main() {
 //         }
 //     }
 // }
-// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:6]={
-//     "Fields": [
-//         {
-//             "T": {
-//                 "@type": "/gno.PointerType",
-//                 "Elt": {
-//                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/demo/avl.Node"
-//                 }
-//             },
-//             "V": {
-//                 "@type": "/gno.PointerValue",
-//                 "Base": {
-//                     "@type": "/gno.RefValue",
-//                     "Hash": "a919087d0eba652876f9a8df18b30ec5ddc8c26e",
-//                     "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:7"
-//                 },
-//                 "Index": "0",
-//                 "TV": null
-//             }
-//         }
-//     ],
-//     "ObjectInfo": {
-//         "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:6",
-//         "ModTime": "6",
-//         "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:5",
-//         "RefCount": "1"
-//     }
-// }
-// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:5]={
-//     "Fields": [
-//         {
-//             "T": {
-//                 "@type": "/gno.PrimitiveType",
-//                 "value": "16"
-//             },
-//             "V": {
-//                 "@type": "/gno.StringValue",
-//                 "value": "First Plot"
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.RefType",
-//                 "ID": "gno.land/p/demo/avl.Tree"
-//             },
-//             "V": {
-//                 "@type": "/gno.RefValue",
-//                 "Hash": "dfdeb7ed80c5b030c3a5e9701d00c66203de6f57",
-//                 "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:6"
-//             }
-//         },
-//         {
-//             "N": "AQAAAAAAAAA=",
-//             "T": {
-//                 "@type": "/gno.PrimitiveType",
-//                 "value": "32"
-//             }
-//         }
-//     ],
-//     "ObjectInfo": {
-//         "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:5",
-//         "ModTime": "6",
-//         "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:4",
-//         "RefCount": "1"
-//     }
-// }
+// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:6]=
+//     --- old
+//     +++ new
+//     @@ -7,12 +7,22 @@
+//                          "@type": "/gno.RefType",
+//                          "ID": "gno.land/p/demo/avl.Node"
+//                      }
+//     +            },
+//     +            "V": {
+//     +                "@type": "/gno.PointerValue",
+//     +                "Base": {
+//     +                    "@type": "/gno.RefValue",
+//     +                    "Hash": "a919087d0eba652876f9a8df18b30ec5ddc8c26e",
+//     +                    "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:7"
+//     +                },
+//     +                "Index": "0",
+//     +                "TV": null
+//                  }
+//              }
+//          ],
+//          "ObjectInfo": {
+//              "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:6",
+//     -        "ModTime": "0",
+//     +        "ModTime": "6",
+//              "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:5",
+//              "RefCount": "1"
+//          }
+// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:5]=
+//     --- old
+//     +++ new
+//     @@ -17,11 +17,12 @@
+//                  },
+//                  "V": {
+//                      "@type": "/gno.RefValue",
+//     -                "Hash": "56a1f8857b80bef7ca5a1c4c2c2d222d3338662d",
+//     +                "Hash": "dfdeb7ed80c5b030c3a5e9701d00c66203de6f57",
+//                      "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:6"
+//                  }
+//              },
+//              {
+//     +            "N": "AQAAAAAAAAA=",
+//                  "T": {
+//                      "@type": "/gno.PrimitiveType",
+//                      "value": "32"
+//     @@ -30,7 +31,7 @@
+//          ],
+//          "ObjectInfo": {
+//              "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:5",
+//     -        "ModTime": "0",
+//     +        "ModTime": "6",
+//              "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:4",
+//              "RefCount": "1"
+//          }
