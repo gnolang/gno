@@ -1,15 +1,15 @@
 package main
 
-import (
-	"fmt"
-	"math/big"
-)
+//import (
+//	"fmt"
+//	"math/big"
+//)
 
 var ctr = 0
-
+/// XXX: uncomment when math/big is implemented
 func main() {
 	// 157 bit n = pq with p ~= 78 bits
-	n := big.NewInt(0)
+/*	n := big.NewInt(0)
 	n.SetString("273966616513101251352941655302036077733021013991", 10)
 
 	i := big.NewInt(0)
@@ -34,8 +34,5 @@ func main() {
 		}
 
 		i.Add(i, two)
-	}
+	}*/
 }
-
-// Output:
-// 496968652506233122158689

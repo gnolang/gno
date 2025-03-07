@@ -1170,7 +1170,6 @@ var nativeFuncs = [...]NativeFunc{
 		},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("bool")},
-			{Name: gno.N("r1"), Type: gno.X("error")},
 		},
 		false,
 		func(m *gno.Machine) {
@@ -1189,17 +1188,12 @@ var nativeFuncs = [...]NativeFunc{
 			tv1.DeepFill(m.Store)
 			gno.Gno2GoValue(tv1, rp1)
 
-			r0, r1 := libs_testing.X_matchString(p0, p1)
+			r0 := libs_testing.X_matchString(p0, p1)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
-			))
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r1).Elem(),
 			))
 		},
 	},

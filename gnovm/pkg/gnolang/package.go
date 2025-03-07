@@ -73,7 +73,6 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	MapTypeExpr{},
 	StructTypeExpr{},
 	constTypeExpr{},
-	MaybeNativeTypeExpr{},
 	AssignStmt{},
 	BlockStmt{},
 	BranchStmt{},
