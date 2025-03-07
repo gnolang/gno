@@ -5,6 +5,7 @@ package boards_test
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
@@ -15,7 +16,7 @@ var dstBoard boards.BoardID
 
 func init() {
 	caller := testutils.TestAddress("caller")
-	std.TestSetRealm(std.NewUserRealm(caller))
+	testing.SetRealm(std.NewUserRealm(caller))
 	users.Register("", "gnouser", "my profile")
 
 	dstBoard = boards.CreateBoard("dst_board")

@@ -4,6 +4,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/users"
@@ -15,19 +16,19 @@ func main() {
 	caller := std.OriginCaller() // main
 	users.Register("", "gnouser", "my profile")
 	// as admin, grant invites to gnouser
-	std.TestSetOriginCaller(admin)
-	std.TestSetRealm(std.NewUserRealm(admin))
+	testing.SetOriginCaller(admin)
+	testing.SetRealm(std.NewUserRealm(admin))
 	users.GrantInvites(caller.String() + ":1")
 	// switch back to caller
-	std.TestSetOriginCaller(caller)
-	std.TestSetRealm(std.NewUserRealm(caller))
+	testing.SetOriginCaller(caller)
+	testing.SetRealm(std.NewUserRealm(caller))
 	// invite another addr
 	test1 := testutils.TestAddress("test1")
 	users.Invite(test1.String())
 	// switch to test1
-	std.TestSetOriginCaller(test1)
-	std.TestSetRealm(std.NewUserRealm(test1))
-	std.TestSetOriginSend(std.Coins{{"dontcare", 1}}, nil)
+	testing.SetOriginCaller(test1)
+	testing.SetRealm(std.NewUserRealm(test1))
+	testing.SetOriginSend(std.Coins{{"dontcare", 1}})
 	users.Register(caller, "satoshi", "my other profile")
 	println(users.Render(""))
 	println("========================================")
