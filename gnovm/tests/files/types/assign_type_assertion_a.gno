@@ -15,11 +15,11 @@ func (e MyError) IsSet() bool {
 func main() {
 	var err error = MyError{}
 
-	var assertedErr interface { IsSet() bool } // Define a variable of the interface type
+	var assertedErr interface{ IsSet() bool } // Define a variable of the interface type
 	var ok bool
 
 	// Perform the assertion and assign the result to assertedErr
-	assertedErr, ok = err.(interface { IsSet() bool })
+	assertedErr, ok = err.(interface{ IsSet() bool })
 	if ok {
 		fmt.Println("Assertion succeeded:", ok)
 		fmt.Println("IsSet:", assertedErr.IsSet())

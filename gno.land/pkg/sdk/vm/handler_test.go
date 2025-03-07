@@ -82,7 +82,7 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 		{input: []byte(`gno.land/r/hello.myStructInst`), expectedResult: `(struct{(1000 int)} gno.land/r/hello.myStruct)`},
 		{input: []byte(`gno.land/r/hello.myStructInst.Foo()`), expectedResult: `("myStruct.Foo" string)`},
 		{input: []byte(`gno.land/r/hello.myStruct`), expectedResultMatch: `\(typeval{gno.land/r/hello.myStruct \(0x.*\)} type{}\)`},
-		{input: []byte(`gno.land/r/hello.Inc`), expectedResult: `(Inc func()(int))`},
+		{input: []byte(`gno.land/r/hello.Inc`), expectedResult: `(Inc func() int)`},
 		{input: []byte(`gno.land/r/hello.fn()("hi")`), expectedResult: `("echo:hi" string)`},
 		{input: []byte(`gno.land/r/hello.sl`), expectedResultMatch: `(slice[ref(.*)] []int)`},    // XXX: should return the actual value
 		{input: []byte(`gno.land/r/hello.sl[1]`), expectedResultMatch: `(slice[ref(.*)] []int)`}, // XXX: should return the actual value
@@ -402,8 +402,8 @@ func TestVmHandlerQuery_Doc(t *testing.T) {
 			addr := crypto.AddressFromPreimage([]byte("addr1"))
 			acc := env.acck.NewAccountWithAddress(ctx, addr)
 			env.acck.SetAccount(ctx, acc)
-			env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
-			assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+			env.bankk.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+			assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 			// Create test package.
 			files := []*gnovm.MemFile{

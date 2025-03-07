@@ -118,7 +118,7 @@ func (b *buffer) writeRune(r rune) {
 type pp struct {
 	buf buffer
 
-	// arg holds the current item, as an interface {}.
+	// arg holds the current item, as an interface{}.
 	arg any
 
 	// value is used instead of arg for reflect values.
@@ -681,7 +681,7 @@ func (p *pp) printArg(arg any, verb rune) {
 	}
 }
 
-// printValue is similar to printArg but starts with a reflect value, not an interface {} value.
+// printValue is similar to printArg but starts with a reflect value, not an interface{} value.
 // It does not handle 'p' and 'T' verbs because these should have been already handled by printArg.
 func (p *pp) printValue(value valueInfo, verb rune, depth int) {
 	// Handle values with special methods if not already handled by printArg (depth == 0).

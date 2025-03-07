@@ -196,9 +196,9 @@ func (bmv *BoundMethodValue) String() string {
 	)
 	if ft, ok := bmv.Func.Type.(*FuncType); ok {
 		recvT = ft.Params[0].Type.String()
-		params = FieldTypeList(ft.Params).String()
+		params = FieldTypeList(ft.Params).StringForFunc()
 		if len(results) > 0 {
-			results = FieldTypeList(ft.Results).String()
+			results = FieldTypeList(ft.Results).StringForFunc()
 			results = "(" + results + ")"
 		}
 	}
@@ -252,8 +252,8 @@ func (pv *PackageValue) String() string {
 	return fmt.Sprintf("package(%s %s)", pv.PkgName, pv.PkgPath)
 }
 
-func (v RefValue) String() string {
-	if v.PkgPath == "" {
+func (rv RefValue) String() string {
+	if rv.PkgPath == "" {
 		return fmt.Sprintf("ref(%v)",
 			rv.ObjectID)
 	}

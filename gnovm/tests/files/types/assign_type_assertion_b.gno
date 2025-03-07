@@ -19,7 +19,7 @@ func main() {
 	var ok bool
 
 	// Perform the assertion and assign the result to assertedErr
-	assertedErr, ok = err.(interface { IsSet() bool })
+	assertedErr, ok = err.(interface{ IsSet() bool })
 	if ok {
 		fmt.Println("Assertion succeeded:", ok)
 		fmt.Println("IsSet:", assertedErr.IsSet())

@@ -30,7 +30,7 @@ func nextStatus(m *Monitor) Status {
 		if s := m.Status(); s.Samples != samples {
 			return s
 		}
-		ios_test.Sleep(int64(5 * time.Millisecond))
+		ios_test.Sleep(5 * time.Millisecond)
 	}
 	return m.Status()
 }
@@ -70,7 +70,7 @@ func TestReader(t *testing.T) {
 
 	// 2nd read of 10 bytes blocks until the next sample
 	// r.SetBlocking(true)
-	ios_test.Sleep(int64(100 * time.Millisecond))
+	ios_test.Sleep(100 * time.Millisecond)
 	if n, err := r.Read(b[10:]); n != 10 {
 		t.Fatalf("r.Read(b[10:]) expected 10 (<nil>); got %v", n)
 	} else if err != nil {
@@ -137,7 +137,7 @@ func _TestWriter(t *testing.T) {
 	// XXX and it returns ErrLimit after 20. What we want is to keep waiting until 80 is returned,
 	// XXX but blocking isn't supported. Sleeping 800 shouldn't be sufficient either (its a burst).
 	// XXX This limits the usage of Limiter and m.Limit().
-	ios_test.Sleep(int64(800 * time.Millisecond))
+	ios_test.Sleep(800 * time.Millisecond)
 	if n, err := w.Write(b[20:]); n < 80 {
 	} else if n != 80 || err != nil {
 		t.Fatalf("w.Write(b[20:]) expected 80 (<nil>); got %v (%v)", n, err.Error())
