@@ -1,5 +1,4 @@
 // Package valopers is designed around the permissionless lifecycle of valoper profiles.
-// It also includes parts designed for govdao to propose valset changes based on registered valopers.
 package valopers
 
 import (
@@ -35,6 +34,7 @@ var (
 
 // valopers keeps track of all the active validator operators
 var valopers *avl.Tree // Address -> Valoper
+var instructions string // markdown instructions for valoper's registration
 
 // Valoper represents a validator operator profile
 type Valoper struct {
@@ -274,7 +274,7 @@ func Render(fullPath string) string {
 	if path == "" {
 		return renderHome(fullPath)
 	} else {
-		if path[:2] != "g1" {
+		if len(path) < 2 || path[:2] != "g1" {
 			return "invalid address " + path
 		}
 		valoperRaw, exists := valopers.Get(path)
@@ -282,18 +282,25 @@ func Render(fullPath string) string {
 			return "unknown address " + path
 		}
 		v := valoperRaw.(Valoper)
-		return "Valset changes to apply:\n" + v.Render()
+		return "Valoper's details:\n" + v.Render()
 	}
 }
 
 func renderHome(path string) string {
+  // if there are no valopers, display instructions
 	if valopers.Size() == 0 {
-		return "No valopers to display."
+    return ufmt.Sprintf("%s\n\nNo valopers to display.", instructions)
 	}
 
-	page := pager.NewPager(valopers, 50, false).MustGetPageByPath(path)
+	page := pager.NewPager(valopers, 2, false).MustGetPageByPath(path)
 
-	output := ""
+  output := ""
+
+  // if we are on the first page, display instructions
+  if page.PageNumber == 1 {
+    output += ufmt.Sprintf("%s\n\n", instructions)
+  }
+
 	for _, item := range page.Items {
 		v := item.Value.(Valoper)
 		output += ufmt.Sprintf(" * [%s](/r/gnoland/valopers:%s) - [profile](/r/demo/profile:u/%s)\n",
