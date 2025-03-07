@@ -8,14 +8,14 @@ import (
 
 	"github.com/gnolang/gno/contribs/gnokms/internal/common"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/google/uuid"
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/require"
 )
 
 func createAuthKeysFile(t *testing.T) (string, *common.AuthKeysFile) {
 	t.Helper()
 
-	filePath := filepath.Join(t.TempDir(), uuid.New().String())
+	filePath := filepath.Join(t.TempDir(), xid.New().String())
 	authKeys, err := common.GeneratePersistedAuthKeysFile(filePath)
 	require.NotNil(t, authKeys)
 	require.NoError(t, err)

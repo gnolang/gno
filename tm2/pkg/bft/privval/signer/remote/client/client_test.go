@@ -15,7 +15,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
-	"github.com/google/uuid"
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,7 +24,7 @@ const unixSocketPath = "/tmp/test_tm2_remote_signer"
 func testUnixSocket(t *testing.T) string {
 	t.Helper()
 
-	return fmt.Sprintf("unix://%s/%s.sock", unixSocketPath, uuid.New().String())
+	return fmt.Sprintf("unix://%s/%s.sock", unixSocketPath, xid.New().String())
 }
 
 func newRemoteSignerClient(t *testing.T, address string) *RemoteSignerClient {
