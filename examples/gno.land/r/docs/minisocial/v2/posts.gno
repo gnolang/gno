@@ -11,6 +11,8 @@ import (
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
+
+	"gno.land/r/demo/users"
 )
 
 var (
@@ -117,7 +119,16 @@ func Render(path string) string {
 	// Iterate over items in the page
 	for _, item := range page.Items {
 		post := item.Value.(*Post)
-		out += md.H4(ufmt.Sprintf("Post #%d\n\n", int(post.id)))
+
+		// Try resolving the address for a username
+		text := post.author.String()
+		user := users.GetUserByAddress(post.author)
+		if user != nil {
+			text = ufmt.Sprintf("[@%s](/r/demo/users:%s)", user.Name, user.Name)
+		}
+
+		out += md.H4(ufmt.Sprintf("Post #%d - %s\n\n", int(post.id), text))
+
 		out += post.String()
 		out += md.HorizontalRule()
 	}

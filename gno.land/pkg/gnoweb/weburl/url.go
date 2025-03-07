@@ -126,7 +126,7 @@ func (gnoURL GnoURL) EncodeArgs() string {
 // EncodeURL encodes the path, arguments, and query parameters into a string.
 // This function provides the full representation of the URL without the web query.
 func (gnoURL GnoURL) EncodeURL() string {
-	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeQuery)
+	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeQuery | EncodeNoEscape)
 }
 
 // EncodeWebURL encodes the path, package arguments, web query, and query into a string.
