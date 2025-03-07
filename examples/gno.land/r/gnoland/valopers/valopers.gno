@@ -7,6 +7,7 @@ import (
 	"errors"
 	"regexp"
 	"std"
+	"strconv"
 	"strings"
 
 	"gno.land/p/demo/avl"
@@ -18,8 +19,10 @@ import (
 var (
 	ErrValoperExists       = errors.New("valoper already exists")
 	ErrValoperMissing      = errors.New("valoper does not exist")
-	ErrInvalidAddress      = errors.New("valoper updated address exists")
-	ErrValoperNotCaller    = errors.New("valoper is not the caller")
+	ErrAddressExists       = errors.New("valoper updated address exists")
+  ErrSameAddress         = errors.New("valoper updated address is the same")
+	ErrInvalidAddress      = errors.New("invalid address")
+	ErrOriginCaller        = errors.New("origin call is not the same")
 	ErrInvalidMoniker      = errors.New("moniker cannot be empty")
 	ErrInvalidDescription  = errors.New("description cannot be empty")
 	ErrInvalidPubKey       = errors.New("invalid public key")
@@ -77,14 +80,14 @@ func Update(address std.Address, v Valoper) {
 
 	// Check that the caller is the valoper
 	if old.Caller != std.PreviousRealm().Address() {
-		panic(ErrValoperNotCaller)
+		panic(ErrOriginCaller)
 	}
 
 	// Check that the valoper wouldn't be
 	// overwriting an existing one
 	isAddressUpdate := address != v.Address
 	if isAddressUpdate && isValoper(v.Address) {
-		panic(ErrInvalidAddress)
+		panic(ErrAddressExists)
 	}
 
 	if err := v.Validate(); err != nil {
@@ -107,7 +110,7 @@ func UpdateMoniker(address std.Address, moniker string) {
 
 	// Check that the caller is the valoper
 	if v.Caller != std.PreviousRealm().Address() {
-		panic(ErrValoperNotCaller)
+		panic(ErrOriginCaller)
 	}
 
 	// Check that the moniker is not empty
@@ -128,7 +131,7 @@ func UpdateDescription(address std.Address, description string) {
 
 	// Check that the caller is the valoper
 	if v.Caller != std.PreviousRealm().Address() {
-		panic(ErrValoperNotCaller)
+		panic(ErrOriginCaller)
 	}
 
 	// Check that the description is not empty
@@ -147,25 +150,25 @@ func UpdateDescription(address std.Address, description string) {
 func UpdateAddress(address std.Address, newAddress std.Address) {
 	// Check that the new address is different
 	if address == newAddress {
-		panic(ErrInvalidAddress)
+		panic(ErrSameAddress)
 	}
 
 	v := GetByAddr(address)
 
 	// Check that the caller is the valoper
 	if v.Caller != std.PreviousRealm().Address() {
-		panic(ErrValoperNotCaller)
+		panic(ErrOriginCaller)
 	}
 
 	// Check that the address is valid
 	if err := validateBech32(newAddress.String()); err != nil {
-		panic(ufmt.Errorf("Valoper Address must be bech32 \"%s\": %s", newAddress.String(), err))
+		panic(ErrInvalidAddress)
 	}
 
 	// Check that the new address wouldn't be
 	// overwriting an existing one
 	if isValoper(newAddress) {
-		panic(ErrInvalidAddress)
+		panic(ErrAddressExists)
 	}
 
 	// Update the address
@@ -184,12 +187,12 @@ func UpdatePubKey(address std.Address, pubKey string) {
 
 	// Check that the caller is the valoper
 	if v.Caller != std.PreviousRealm().Address() {
-		panic(ErrValoperNotCaller)
+		panic(ErrOriginCaller)
 	}
 
 	// Check that the pubKey is valid
 	if err := validatePubKey(pubKey); err != nil {
-		panic(err)
+		panic(ErrInvalidPubKey)
 	}
 
 	// Update the description
@@ -205,7 +208,7 @@ func UpdateActive(address std.Address, active bool) {
 
 	// Check that the caller is the valoper
 	if v.Caller != std.PreviousRealm().Address() {
-		panic(ErrValoperNotCaller)
+		panic(ErrOriginCaller)
 	}
 
 	// Update active status
@@ -222,7 +225,7 @@ func UpdateP2PAddresses(address std.Address, p2pAddresses string) {
 
 	// Check that the caller is the valoper
 	if v.Caller != std.PreviousRealm().Address() {
-		panic(ErrValoperNotCaller)
+		panic(ErrOriginCaller)
 	}
 
 	// Split the P2P addresses
@@ -235,7 +238,7 @@ func UpdateP2PAddresses(address std.Address, p2pAddresses string) {
 	// Check addresses
 	for _, addr := range addresses {
 		if err := validateP2PAddress(addr); err != nil {
-			panic(ErrInvalidP2PAddress)
+			panic(err)
 		}
 	}
 
@@ -399,42 +402,15 @@ func validateBech32(address string) error {
 // validatePubKey checks if the public key is valid
 func validatePubKey(pubKey string) error {
 	if _, _, err := bech32.DecodeNoLimit(pubKey); err != nil {
-		return ufmt.Errorf("Valoper PubKey must be bech32: \"%s\": %s", pubKey, err)
+		return err
 	}
 
 	return nil
 }
 
-func isValidIPv4(ip string) bool {
-	ipRegex := regexp.MustCompile("^([0-9]{1,3}\\.){3}[0-9]{1,3}(\\/([0-9]|[1-2][0-9]|3[0-2]))?$")
-	return ipRegex.MatchString(ip)
-}
-
-func isValidIPv6(ip string) bool {
-	ipRegex := regexp.MustCompile(`^s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]d|1dd|[1-9]?d)(.(25[0-5]|2[0-4]d|1dd|[1-9]?d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]d|1dd|[1-9]?d)(.(25[0-5]|2[0-4]d|1dd|[1-9]?d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]d|1dd|[1-9]?d)(.(25[0-5]|2[0-4]d|1dd|[1-9]?d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]d|1dd|[1-9]?d)(.(25[0-5]|2[0-4]d|1dd|[1-9]?d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]d|1dd|[1-9]?d)(.(25[0-5]|2[0-4]d|1dd|[1-9]?d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]d|1dd|[1-9]?d)(.(25[0-5]|2[0-4]d|1dd|[1-9]?d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]d|1dd|[1-9]?d)(.(25[0-5]|2[0-4]d|1dd|[1-9]?d)){3}))|:)))(%.+)?s*(\/([0-9]|[1-9][0-9]|1[0-1][0-9]|12[0-8]))?$`)
-	return ipRegex.MatchString(ip)
-}
-
-// isValidIP checks both IPv4 and IPv6
-func isValidIP(ip string) bool {
-	return isValidIPv4(ip) || isValidIPv6(ip)
-}
-
-func isValidHostname(hostname string) bool {
-	// Validation rules for a hostname:
-	// 1. Total length max of 255 characters
-	// 2. Each label (part between dots):
-	//    - Max 63 characters
-	//    - Starts and ends with an alphanumeric character
-	//    - Contains only alphanumeric characters and hyphens
-	if len(hostname) > 255 {
-		return false
-	}
-
-	// Regular expression to validate hostname labels
-	hostnameRegex := regexp.MustCompile(`^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])(\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9]))*$`)
-
-	return hostnameRegex.MatchString(hostname)
+func validateListeningAddress(addr string) bool {
+	re := regexp.MustCompile(`^\w+://[\w\.-]+:\d+$`)
+	return re.MatchString(addr)
 }
 
 // validateP2PAddress checks if the P2P address is valid
@@ -443,17 +419,16 @@ func validateP2PAddress(p2pAddress string) error {
 	parts := strings.Split(p2pAddress, "@")
 
 	if len(parts) != 2 {
-		return ufmt.Errorf("P2P Address must be of the form <ID>@<HOSTNAME> or <ID>@<IP>: %s", p2pAddress)
+		return ErrInvalidP2PAddress
 	}
 
 	// test part 1 which is the ID
 	if err := validateBech32(parts[0]); err != nil {
-		return ufmt.Errorf("ID is not a valid bech32 address: %s", p2pAddress)
+		return ErrInvalidP2PAddress
 	}
 
-	// test part 2 which is the hostname or IP
-	if !isValidIP(parts[1]) && !isValidHostname(parts[1]) {
-		return ufmt.Errorf("Invalid IP/hostname: %s", p2pAddress)
+	if !validateListeningAddress(parts[1]) {
+		return ErrInvalidP2PAddress
 	}
 
 	return nil
