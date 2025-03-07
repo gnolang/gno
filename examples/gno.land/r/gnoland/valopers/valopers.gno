@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/combinederr"
 	"gno.land/p/demo/ufmt"
 )
@@ -255,22 +256,53 @@ func GetByAddr(address std.Address) Valoper {
 	return valoperRaw.(Valoper)
 }
 
-// Render renders the current valoper set
-func Render(_ string) string {
+// Render renders the current valoper set.
+// "/r/gnoland/valopers" lists all valopers, paginated.
+// "/r/gnoland/valopers:addr" shows the detail for the valoper with the addr.
+func Render(fullPath string) string {
+	path, _ := splitPathAndQuery(fullPath)
+	if path == "" {
+		return renderHome(fullPath)
+	} else {
+		if path[:2] != "g1" {
+			return "invalid address " + path
+		}
+		valoperRaw, exists := valopers.Get(path)
+		if !exists {
+			return "unknown address " + path
+		}
+		v := valoperRaw.(Valoper)
+		return "Valset changes to apply:\n" + v.Render()
+	}
+}
+
+func renderHome(path string) string {
 	if valopers.Size() == 0 {
 		return "No valopers to display."
 	}
 
-	output := "Valset changes to apply:\n"
-	valopers.Iterate("", "", func(_ string, value any) bool {
-		valoper := value.(Valoper)
+	page := pager.NewPager(valopers, 50, false).MustGetPageByPath(path)
 
-		output += valoper.Render()
+	output := ""
+	for _, item := range page.Items {
+		v := item.Value.(Valoper)
+		output += ufmt.Sprintf(" * [%s](/r/gnoland/valopers:%s) - [profile](/r/demo/profile:u/%s)\n",
+			v.Moniker, v.Address, v.Address)
+	}
 
-		return false
-	})
-
+	output += "\n"
+	output += page.Picker()
 	return output
+}
+
+func splitPathAndQuery(fullPath string) (string, string) {
+	parts := strings.SplitN(fullPath, "?", 2)
+	path := parts[0]
+	queryString := ""
+	if len(parts) > 1 {
+		queryString = "?" + parts[1]
+	}
+	return path, queryString
 }
 
 // Validate checks if the fields of the Valoper are valid
