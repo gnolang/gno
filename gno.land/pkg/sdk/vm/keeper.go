@@ -54,6 +54,7 @@ type VMKeeperI interface {
 	LoadStdlibCached(ctx sdk.Context, stdlibDir string)
 	MakeGnoTransactionStore(ctx sdk.Context) sdk.Context
 	CommitGnoTransactionStore(ctx sdk.Context)
+	InitGenesis(ctx sdk.Context, data GenesisState)
 }
 
 var _ VMKeeperI = &VMKeeper{}
@@ -276,7 +277,7 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 		OriginPkgAddr:   pkgAddr.Bech32(),
 		// XXX: should we remove the banker ?
 		Banker:      NewSDKBanker(vm, ctx),
-		Params:      NewSDKParams(vm, ctx),
+		Params:      NewSDKParams(&vm.prmk, ctx),
 		EventLogger: ctx.EventLogger(),
 	}
 
@@ -381,7 +382,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		OriginSendSpent: new(std.Coins),
 		OriginPkgAddr:   pkgAddr.Bech32(),
 		Banker:          NewSDKBanker(vm, ctx),
-		Params:          NewSDKParams(vm, ctx),
+		Params:          NewSDKParams(&vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
 	}
 	// Parse and run the files, construct *PV.
@@ -472,7 +473,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		OriginSendSpent: new(std.Coins),
 		OriginPkgAddr:   pkgAddr.Bech32(),
 		Banker:          NewSDKBanker(vm, ctx),
-		Params:          NewSDKParams(vm, ctx),
+		Params:          NewSDKParams(&vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
 	}
 	// Construct machine and evaluate.
@@ -604,7 +605,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		OriginSendSpent: new(std.Coins),
 		OriginPkgAddr:   pkgAddr.Bech32(),
 		Banker:          NewSDKBanker(vm, ctx),
-		Params:          NewSDKParams(vm, ctx),
+		Params:          NewSDKParams(&vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
 	}
 
@@ -782,12 +783,12 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 		ChainDomain: chainDomain,
 		Height:      ctx.BlockHeight(),
 		Timestamp:   ctx.BlockTime().Unix(),
-		// OriginCaller:    caller,
-		// OriginSend:      send,
-		// OriginSendSpent: nil,
+		// OrigCaller:    caller,
+		// OrigSend:      send,
+		// OrigSendSpent: nil,
 		OriginPkgAddr: pkgAddr.Bech32(),
 		Banker:        NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
-		Params:        NewSDKParams(vm, ctx),
+		Params:        NewSDKParams(&vm.prmk, ctx),
 		EventLogger:   ctx.EventLogger(),
 	}
 	m := gno.NewMachineWithOptions(

@@ -17,8 +17,10 @@ import (
 type AccountKeeper struct {
 	// The (unexposed) key used to access the store from the Context.
 	key store.StoreKey
-	// The keeper used to store auth parameters
+
+	// store module parameters
 	paramk params.ParamsKeeper
+
 	// The prototypical Account constructor.
 	proto func() std.Account
 }

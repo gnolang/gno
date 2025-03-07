@@ -730,3 +730,23 @@ func TestMarshalJSONCoins(t *testing.T) {
 		})
 	}
 }
+
+func TestContainOneOfDenom(t *testing.T) {
+	restrictList := map[string]struct{}{
+		"baz": {},
+		"foo": {},
+	}
+	amt := Coins{
+		{"foo", int64(1)},
+		{"bar", int64(1)},
+	}
+	require.True(t, amt.ContainOneOfDenom(restrictList))
+
+	zero := Coins{
+		{"foo", int64(0)},
+		{"bar", int64(1)},
+	}
+
+	// only return true when the value is posible
+	require.False(t, zero.ContainOneOfDenom(restrictList))
+}

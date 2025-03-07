@@ -108,12 +108,13 @@ func TestNewAppWithOptions(t *testing.T) {
 		path        string
 		expectedVal string
 	}{
-		{"params/vm/foo.string", `"hello"`},
-		{"params/vm/foo.int64", `"-42"`},
-		{"params/vm/foo.uint64", `"1337"`},
-		{"params/vm/foo.bool", `true`},
-		{"params/vm/foo.bytes", `"SGkh"`}, // XXX: make this test more readable
+		{"params/foo.string", `"hello"`},
+		{"params/foo.int64", `"-42"`},
+		{"params/foo.uint64", `"1337"`},
+		{"params/foo.bool", `true`},
+		{"params/foo.bytes", `"SGkh"`}, // XXX: make this test more readable
 	}
+
 	for _, tc := range tcs {
 		qres := bapp.Query(abci.RequestQuery{
 			Path: tc.path,
@@ -216,12 +217,13 @@ func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
 	cfg := InitChainerConfig{
 		StdlibDir:       stdlibDir,
 		vmKpr:           mock,
+		acctKpr:         &mockAuthKeeper{},
+		bankKpr:         &mockBankKeeper{},
+		paramsKpr:       &mockParamsKeeper{},
+		gpKpr:           &mockGasPriceKeeper{},
 		CacheStdlibLoad: cached,
 	}
-	// Construct keepers.
-	paramsKpr := params.NewParamsKeeper(iavlCapKey, "")
-	cfg.acctKpr = auth.NewAccountKeeper(iavlCapKey, paramsKpr, ProtoGnoAccount)
-	cfg.gpKpr = auth.NewGasPriceKeeper(iavlCapKey)
+
 	cfg.InitChainer(testCtx, abci.RequestInitChain{
 		AppState: DefaultGenState(),
 	})
@@ -311,6 +313,9 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 				},
 				// Make sure the deployer account has a balance
 				Balances: balances,
+				Auth:     auth.DefaultGenesisState(),
+				Bank:     bank.DefaultGenesisState(),
+				VM:       vm.DefaultGenesisState(),
 			}
 		}
 
@@ -322,6 +327,9 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 					},
 				},
 				Balances: balances,
+				Auth:     auth.DefaultGenesisState(),
+				Bank:     bank.DefaultGenesisState(),
+				VM:       vm.DefaultGenesisState(),
 			}
 		}
 	)
@@ -822,12 +830,14 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
 
 	// Construct keepers.
-	paramsKpr := params.NewParamsKeeper(mainKey, "")
+	paramsKpr := params.NewParamsKeeper(mainKey)
 	acctKpr := auth.NewAccountKeeper(mainKey, paramsKpr, ProtoGnoAccount)
 	gpKpr := auth.NewGasPriceKeeper(mainKey)
-	bankKpr := bank.NewBankKeeper(acctKpr)
+	bankKpr := bank.NewBankKeeper(acctKpr, paramsKpr)
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, paramsKpr)
-
+	paramsKpr.Register(acctKpr.GetParamfulKey(), acctKpr)
+	paramsKpr.Register(bankKpr.GetParamfulKey(), bankKpr)
+	paramsKpr.Register(vmk.GetParamfulKey(), vmk)
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
 	icc.baseApp = baseApp
@@ -950,6 +960,10 @@ func gnoGenesisState(t *testing.T) GnoGenesisState {
     }
   }`)
 	err := amino.UnmarshalJSON(genBytes, &gen)
+
+	gen.Bank = bank.DefaultGenesisState()
+	gen.VM = vm.DefaultGenesisState()
+
 	if err != nil {
 		t.Fatalf("failed to create genesis state: %v", err)
 	}
