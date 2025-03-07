@@ -41,8 +41,6 @@ func main() {
 // Realm:
 // switchrealm["gno.land/r/test"]
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:5]=
-//     --- old
-//     +++ new
 //     @@ -8,16 +8,6 @@
 //                          "@type": "/gno.RefType",
 //                          "ID": "gno.land/r/test.B"
@@ -85,8 +83,6 @@ func main() {
 //              "RefCount": "1"
 //          }
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:9]=
-//     --- old
-//     +++ new
 //     @@ -3,8 +3,8 @@
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:9",
@@ -99,8 +95,6 @@ func main() {
 //          "Parent": {
 //              "@type": "/gno.RefValue",
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4]=
-//     --- old
-//     +++ new
 //     @@ -7,22 +7,12 @@
 //                          "@type": "/gno.RefType",
 //                          "ID": "gno.land/r/test.S"
@@ -126,8 +120,6 @@ func main() {
 //              "RefCount": "1"
 //          }
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7]=
-//     --- old
-//     +++ new
 //     @@ -2,8 +2,8 @@
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
@@ -140,8 +132,6 @@ func main() {
 //          "Value": {
 //              "T": {
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3]=
-//     --- old
-//     +++ new
 //     @@ -3,7 +3,7 @@
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
 //              "IsEscaped": true,
@@ -161,8 +151,6 @@ func main() {
 //              }
 //          }
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:6]=
-//     --- old
-//     +++ new
 //     @@ -4,7 +4,7 @@
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
 //              "IsEscaped": true,

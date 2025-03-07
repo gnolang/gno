@@ -512,11 +512,9 @@ func (ds *defaultStore) SetObject(oo Object) {
 			amino.MustUnmarshalAny(amino.MustMarshalAny(obj), &pureNew)
 
 			s, err := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
-				A:        difflib.SplitLines(string(prettyJSON(amino.MustMarshalJSON(old)))),
-				FromFile: "old",
-				B:        difflib.SplitLines(string(prettyJSON(amino.MustMarshalJSON(pureNew)))),
-				ToFile:   "new",
-				Context:  3,
+				A:       difflib.SplitLines(string(prettyJSON(amino.MustMarshalJSON(old)))),
+				B:       difflib.SplitLines(string(prettyJSON(amino.MustMarshalJSON(pureNew)))),
+				Context: 3,
 			})
 			if err != nil {
 				panic(err)

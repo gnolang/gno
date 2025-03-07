@@ -98,8 +98,6 @@ func main() {
 //     }
 // }
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:5]=
-//     --- old
-//     +++ new
 //     @@ -21,7 +21,7 @@
 //                  }
 //              },
@@ -134,8 +132,6 @@ func main() {
 //              "RefCount": "1"
 //          }
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4]=
-//     --- old
-//     +++ new
 //     @@ -1,7 +1,7 @@
 //      {
 //          "ObjectInfo": {
@@ -155,8 +151,6 @@ func main() {
 //              }
 //          }
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2]=
-//     --- old
-//     +++ new
 //     @@ -3,7 +3,7 @@
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",

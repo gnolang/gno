@@ -193,8 +193,6 @@ func main() {
 //     }
 // }
 // u[1ffd45e074aa1b8df562907c95ad97526b7ca187:6]=
-//     --- old
-//     +++ new
 //     @@ -7,12 +7,22 @@
 //                          "@type": "/gno.RefType",
 //                          "ID": "gno.land/p/demo/avl.Node"
@@ -220,8 +218,6 @@ func main() {
 //              "RefCount": "1"
 //          }
 // u[1ffd45e074aa1b8df562907c95ad97526b7ca187:5]=
-//     --- old
-//     +++ new
 //     @@ -17,11 +17,12 @@
 //                  },
 //                  "V": {

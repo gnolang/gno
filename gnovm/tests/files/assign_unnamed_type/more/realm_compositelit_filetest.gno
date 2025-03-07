@@ -90,8 +90,6 @@ func main() {
 //     }
 // }
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2]=
-//     --- old
-//     +++ new
 //     @@ -65,6 +65,16 @@
 //                          "@type": "/gno.RefType",
 //                          "ID": "gno.land/r/test.Int"
