@@ -1,4 +1,4 @@
-package valoper_dao_proposal
+package valopers_proposal
 
 import (
 	"std"
