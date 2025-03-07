@@ -182,7 +182,7 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	}
 
 	// Initialize the logger
-	zapLogger, err := log.InitializeLogger(io.Out(), c.logLevel, c.logFormat)
+	zapLogger, err := log.InitializeZapLogger(io.Out(), c.logLevel, c.logFormat)
 	if err != nil {
 		return fmt.Errorf("unable to initialize zap logger, %w", err)
 	}

@@ -13,7 +13,7 @@ type logFlusher func()
 
 func LoggerFromServerFlags(serverFlags *ServerFlags, io commands.IO) (*slog.Logger, logFlusher, error) {
 	// Initialize the zap logger.
-	zapLogger, err := log.InitializeLogger(
+	zapLogger, err := log.InitializeZapLogger(
 		io.Out(),
 		serverFlags.LogLevel,
 		serverFlags.LogFormat,

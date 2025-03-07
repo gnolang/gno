@@ -27,9 +27,9 @@ func GetZapLoggerFn(format Format) NewZapLoggerFn {
 	}
 }
 
-// InitializeLogger initializes the zap logger using the given format and log level,
+// InitializeZapLogger initializes the zap logger using the given format and log level,
 // outputting to the given IO
-func InitializeLogger(io io.WriteCloser, logLevel, logFormat string) (*zap.Logger, error) {
+func InitializeZapLogger(io io.WriteCloser, logLevel, logFormat string) (*zap.Logger, error) {
 	// Initialize the log level
 	level, err := zapcore.ParseLevel(logLevel)
 	if err != nil {
