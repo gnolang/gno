@@ -168,18 +168,9 @@ func TestValopers_Update(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
-		v := Valoper{
-			Moniker:      validMoniker,
-			Description:  validDescription,
-			Address:      validAddress,
-			PubKey:       validPubKey,
-			P2PAddresses: validP2PAddresses,
-			Active:       true,
-		}
-
 		// Update the valoper
 		uassert.PanicsWithMessage(t, ErrValoperMissing.Error(), func() {
-			Update(v.Address, v)
+			Update(validAddress, validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","), true)
 		})
 	})
 
@@ -204,20 +195,9 @@ func TestValopers_Update(t *testing.T) {
 			Register(validMoniker, validDescription, initialAddress, validPubKey, strings.Join(validP2PAddresses, ","))
 		})
 
-		// Update the valoper address
-		// so it overlaps
-		two := Valoper{
-			Moniker:      validMoniker,
-			Description:  validDescription,
-			Address:      validAddress, // address updated
-			PubKey:       validPubKey,
-			P2PAddresses: validP2PAddresses,
-			Active:       true,
-		}
-
 		// Update the valoper
 		uassert.PanicsWithMessage(t, ErrAddressExists.Error(), func() {
-			Update(initialAddress, two)
+			Update(initialAddress, validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","), true)
 		})
 	})
 
@@ -241,23 +221,13 @@ func TestValopers_Update(t *testing.T) {
     // Change the origin caller
 		std.TestSetOriginCaller(test2Address)
 
-    // Update the moniker
-		two := Valoper{
-			Moniker:      "new moniker",
-			Description:  validDescription,
-			Address:      validAddress,
-			PubKey:       validPubKey,
-			P2PAddresses: validP2PAddresses,
-			Active:       true,
-		}
-
 		// Update the valoper
 		uassert.PanicsWithMessage(t, ErrOriginCaller.Error(), func() {
-			Update(validAddress, two)
+			Update(validAddress, validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","), true)
 		})
 	})
 
-	t.Run("successful update", func(t *testing.T) {
+	t.Run("successful update same address", func(t *testing.T) {
 		t.Parallel()
 
 		// Clear the set for the test
@@ -273,27 +243,45 @@ func TestValopers_Update(t *testing.T) {
 			Register(moniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
 		})
 
-		// Update the valoper name
-		v := Valoper{
-			Moniker:      validMoniker, // updated moniker
-			Description:  validDescription,
-			Address:      validAddress,
-			PubKey:       validPubKey,
-			P2PAddresses: validP2PAddresses,
-			Active:       false, // updated
-		}
-
-		// Update the valoper
+		// Update the valoper's moniker
 		uassert.NotPanics(t, func() {
-			Update(v.Address, v)
+			Update(validAddress, validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","), true)
 		})
 
 		// Make sure the valoper is updated
 		uassert.NotPanics(t, func() {
-			valoper := GetByAddr(v.Address)
+			valoper := GetByAddr(validAddress)
 
-			uassert.Equal(t, v.Moniker, valoper.Moniker)
-			uassert.Equal(t, v.Active, valoper.Active)
+			uassert.Equal(t, validMoniker, valoper.Moniker)
+		})
+	})
+
+	t.Run("successful update different address", func(t *testing.T) {
+		t.Parallel()
+
+		// Clear the set for the test
+		valopers = avl.NewTree()
+
+		moniker := "new valoper"
+
+    // Send coins
+    std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+
+		// Add the valoper
+		uassert.NotPanics(t, func() {
+			Register(moniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
+		})
+
+		// Update the valoper's moniker and address
+		uassert.NotPanics(t, func() {
+			Update(validAddress, validMoniker, validDescription, test1Address, validPubKey, strings.Join(validP2PAddresses, ","), true)
+		})
+
+		// Make sure the valoper is updated
+		uassert.NotPanics(t, func() {
+			valoper := GetByAddr(test1Address)
+
+			uassert.Equal(t, validMoniker, valoper.Moniker)
 		})
 	})
 }

@@ -82,7 +82,7 @@ func Register(moniker string, description string, address std.Address, pubKey st
 }
 
 // Update updates an existing valoper
-func Update(address std.Address, v Valoper) {
+func Update(address std.Address, moniker string, description string, newAddress std.Address, pubKey string, p2pAddresses string, active bool) {
 	old := GetByAddr(address)
 
 	// Check that the caller is the valoper
@@ -92,10 +92,20 @@ func Update(address std.Address, v Valoper) {
 
 	// Check that the valoper wouldn't be
 	// overwriting an existing one
-	isAddressUpdate := address != v.Address
-	if isAddressUpdate && isValoper(v.Address) {
+	isAddressUpdate := address != newAddress
+	if isAddressUpdate && isValoper(newAddress) {
 		panic(ErrAddressExists)
 	}
+
+  v := Valoper{
+    Moniker:      moniker,
+    Description:  description,
+    Address:      newAddress,
+    PubKey:       pubKey,
+    Active:       active,
+    P2PAddresses: splitP2PAddresses(p2pAddresses),
+    Caller:       std.PreviousRealm().Address(),
+  }
 
 	if err := v.Validate(); err != nil {
 		panic(err)
@@ -103,7 +113,7 @@ func Update(address std.Address, v Valoper) {
 
 	// Remove the old valoper info
 	// in case the address changed
-	if address != v.Address {
+	if address != newAddress {
 		valopers.Remove(address.String())
 	}
 
