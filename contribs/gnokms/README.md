@@ -77,7 +77,7 @@ Bech32 format:
   address: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 ```
 
-If you need to manually edit a genesis file to include these infos, you can copy and paste the `Genesis format` part of the output. If it better suits your needs, you can also use the `Bech32 format` part in conjunction with the [gnogenesis](../gnogenesis) command:
+If you need to manually edit a genesis file to include these info, you can copy and paste the `Genesis format` part of the output. If it better suits your needs, you can also use the `Bech32 format` part in conjunction with the [gnogenesis](../gnogenesis) command:
 
 ```shell
 $ gnogenesis validator add \
@@ -96,7 +96,7 @@ In the case of a TCP connection, the connection is encrypted. It can also be mut
 
 ```shell
 $ gnokms auth generate
-Generated auth keys file at path: "/Users/aeddi/Library/Application Support/gnokms/auth_keys.json"
+Generated auth keys file at path: "/home/gnome/.config/gnokms/auth_keys.json"
 ```
 
 2. Note the public key of the `gnokms` server displayed by the command:
