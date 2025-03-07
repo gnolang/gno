@@ -46,7 +46,7 @@ func GetReadOnlyNameStore() *rotree.ReadOnlyTree {
 	return rotree.Wrap(nameStore, makeUserDataSafe)
 }
 
-func makeUserDataSafe(data interface{}) interface{} {
+func makeUserDataSafe(data any) any {
 	cpy := new(UserData)
 	*cpy = *(data.(*UserData))
 	if cpy.deleted {
