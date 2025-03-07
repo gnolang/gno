@@ -1,11 +1,11 @@
 package hof
 
 import (
-	"errors"
+	"gno.land/p/leon/pkgerr"
 )
 
 var (
-	ErrNoSuchItem     = errors.New("hof: no such item exists")
-	ErrDoubleUpvote   = errors.New("hof: cannot upvote twice")
-	ErrDoubleDownvote = errors.New("hof: cannot downvote twice")
+	ErrNoSuchItem     = pkgerr.New("no such item exists")
+	ErrDoubleUpvote   = pkgerr.New("cannot upvote twice")
+	ErrDoubleDownvote = pkgerr.New("cannot downvote twice")
 )
