@@ -300,7 +300,7 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	m.SetActivePackage(mpv)
 	m.RunDeclaration(gno.ImportD("names", sysNamesPkg))
 	x := gno.Call(
-		gno.Sel(gno.Nx("names"), "IsAuthorizedAddressForName"),
+		gno.Sel(gno.Nx("names"), "IsAuthorizedAddressForNamespace"),
 		gno.Str(creator.String()),
 		gno.Str(namespace),
 	)
