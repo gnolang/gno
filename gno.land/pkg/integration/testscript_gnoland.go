@@ -186,13 +186,16 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		balanceFile := LoadDefaultGenesisBalanceFile(t, gnoRootDir)
 		genesisParamFile := LoadDefaultGenesisParamFile(t, gnoRootDir)
 
+		stdlibsDeployerBalance, stdlibsTxs := testingGenesisStdlibs()
+		balanceFile = append(balanceFile, stdlibsDeployerBalance)
+
 		// Track new user balances added via the `adduser`
 		// command and packages added with the `loadpkg` command.
 		// This genesis will be use when node is started.
 		genesis := &gnoland.GnoGenesisState{
 			Balances: balanceFile,
 			Params:   genesisParamFile,
-			Txs:      []gnoland.TxWithMetadata{},
+			Txs:      stdlibsTxs,
 		}
 
 		env.Values[envKeyGenesis] = genesis
@@ -286,7 +289,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 
 			cfg := TestingMinimalNodeConfig(gnoRootDir)
 			genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
-			genesis.Txs = append(pkgsTxs, genesis.Txs...)
+			genesis.Txs = append(genesis.Txs, pkgsTxs...)
 
 			cfg.Genesis.AppState = *genesis
 			if *nonVal {

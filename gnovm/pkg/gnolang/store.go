@@ -768,7 +768,7 @@ func (ds *defaultStore) AddMemPackage(memPkg *gnovm.MemPackage) {
 			bm.StopStore(size)
 		}()
 	}
-	memPkg.Validate() // NOTE: duplicate validation.
+	memPkg.Validate(false) // NOTE: duplicate validation.
 	ctr := ds.incGetPackageIndexCounter()
 	idxkey := []byte(backendPackageIndexKey(ctr))
 	bz := amino.MustMarshal(memPkg)

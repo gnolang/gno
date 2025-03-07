@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -52,8 +51,6 @@ func TestAppOptions(db dbm.DB) *AppOptions {
 		EventSwitch: events.NewEventSwitch(),
 		InitChainerConfig: InitChainerConfig{
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
-			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
-			CacheStdlibLoad:        true,
 		},
 		SkipGenesisVerification: true,
 	}
@@ -212,7 +209,6 @@ func NewApp(
 		EventSwitch: evsw,
 		InitChainerConfig: InitChainerConfig{
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
-			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
 		},
 		MinGasPrices:            minGasPrices,
 		SkipGenesisVerification: genesisCfg.SkipSigVerification,
@@ -252,14 +248,6 @@ type InitChainerConfig struct {
 	// Handles the results of each genesis transaction.
 	GenesisTxResultHandler
 
-	// Standard library directory.
-	StdlibDir string
-	// Whether to keep a record of the DB operations to load standard libraries,
-	// so they can be quickly replicated on additional genesis executions.
-	// This should be used for integration testing, where InitChainer will be
-	// called several times.
-	CacheStdlibLoad bool
-
 	// These fields are passed directly by NewAppWithOptions, and should not be
 	// configurable by end-users.
 	baseApp   *sdk.BaseApp
@@ -274,12 +262,6 @@ type InitChainerConfig struct {
 func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
 	start := time.Now()
 	ctx.Logger().Debug("InitChainer: started")
-
-	// load standard libraries; immediately committed to store so that they are
-	// available for use when processing the genesis transactions below.
-	cfg.loadStdlibs(ctx)
-	ctx.Logger().Debug("InitChainer: standard libraries loaded",
-		"elapsed", time.Since(start))
 
 	// load app state. AppState may be nil mostly in some minimal testing setups;
 	// so log a warning when that happens.
@@ -300,24 +282,6 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 		Validators:  req.Validators,
 		TxResponses: txResponses,
 	}
-}
-
-func (cfg InitChainerConfig) loadStdlibs(ctx sdk.Context) {
-	// cache-wrapping is necessary for non-validator nodes; in the tm2 BaseApp,
-	// this is done using BaseApp.cacheTxContext; so we replicate it here.
-	ms := ctx.MultiStore()
-	msCache := ms.MultiCacheWrap()
-
-	stdlibCtx := cfg.vmKpr.MakeGnoTransactionStore(ctx)
-	stdlibCtx = stdlibCtx.WithMultiStore(msCache)
-	if cfg.CacheStdlibLoad {
-		cfg.vmKpr.LoadStdlibCached(stdlibCtx, cfg.StdlibDir)
-	} else {
-		cfg.vmKpr.LoadStdlib(stdlibCtx, cfg.StdlibDir)
-	}
-	cfg.vmKpr.CommitGnoTransactionStore(stdlibCtx)
-
-	msCache.MultiWrite()
 }
 
 func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci.ResponseDeliverTx, error) {

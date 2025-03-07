@@ -9,10 +9,8 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gnolang/gno/gnovm"
@@ -20,16 +18,13 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
-	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
@@ -50,8 +45,6 @@ type VMKeeperI interface {
 	Call(ctx sdk.Context, msg MsgCall) (res string, err error)
 	QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error)
 	Run(ctx sdk.Context, msg MsgRun) (res string, err error)
-	LoadStdlib(ctx sdk.Context, stdlibDir string)
-	LoadStdlibCached(ctx sdk.Context, stdlibDir string)
 	MakeGnoTransactionStore(ctx sdk.Context) sdk.Context
 	CommitGnoTransactionStore(ctx sdk.Context)
 }
@@ -128,83 +121,6 @@ func (vm *VMKeeper) Initialize(
 	}
 }
 
-type stdlibCache struct {
-	dir  string
-	base store.Store
-	iavl store.Store
-	gno  gno.Store
-}
-
-var (
-	cachedStdlibOnce sync.Once
-	cachedStdlib     stdlibCache
-)
-
-// LoadStdlib loads the Gno standard library into the given store.
-func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
-	cachedStdlibOnce.Do(func() {
-		cachedStdlib = stdlibCache{
-			dir:  stdlibDir,
-			base: dbadapter.StoreConstructor(memdb.NewMemDB(), types.StoreOptions{}),
-			iavl: dbadapter.StoreConstructor(memdb.NewMemDB(), types.StoreOptions{}),
-		}
-
-		gs := gno.NewStore(nil, cachedStdlib.base, cachedStdlib.iavl)
-		gs.SetNativeResolver(stdlibs.NativeResolver)
-		loadStdlib(gs, stdlibDir)
-		cachedStdlib.gno = gs
-	})
-
-	if stdlibDir != cachedStdlib.dir {
-		panic(fmt.Sprintf(
-			"cannot load cached stdlib: cached stdlib is in dir %q; wanted to load stdlib in dir %q",
-			cachedStdlib.dir, stdlibDir))
-	}
-
-	gs := vm.getGnoTransactionStore(ctx)
-	gno.CopyFromCachedStore(gs, cachedStdlib.gno, cachedStdlib.base, cachedStdlib.iavl)
-}
-
-// LoadStdlib loads the Gno standard library into the given store.
-func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
-	gs := vm.getGnoTransactionStore(ctx)
-	loadStdlib(gs, stdlibDir)
-}
-
-func loadStdlib(store gno.Store, stdlibDir string) {
-	stdlibInitList := stdlibs.InitOrder()
-	for _, lib := range stdlibInitList {
-		if lib == "testing" {
-			// XXX: testing is skipped for now while it uses testing-only packages
-			// like fmt and encoding/json
-			continue
-		}
-		loadStdlibPackage(lib, stdlibDir, store)
-	}
-}
-
-func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
-	stdlibPath := filepath.Join(stdlibDir, pkgPath)
-	if !osm.DirExists(stdlibPath) {
-		// does not exist.
-		panic(fmt.Sprintf("failed loading stdlib %q: does not exist", pkgPath))
-	}
-	memPkg := gno.MustReadMemPackage(stdlibPath, pkgPath)
-	if memPkg.IsEmpty() {
-		// no gno files are present
-		panic(fmt.Sprintf("failed loading stdlib %q: not a valid MemPackage", pkgPath))
-	}
-
-	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		// XXX: gno.land, vm.domain, other?
-		PkgPath: "gno.land/r/stdlibs/" + pkgPath,
-		// PkgPath: pkgPath, XXX why?
-		Store: store,
-	})
-	defer m.Release()
-	m.RunMemPackage(memPkg, true)
-}
-
 type gnoStoreContextKeyType struct{}
 
 var gnoStoreContextKey gnoStoreContextKeyType
@@ -236,6 +152,11 @@ var reNamespace = regexp.MustCompile(`^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/(?:r|p)/([\.
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
+	// disable check during genesis for stdlibs
+	if ctx.BlockHeight() == 0 && gno.IsStdlib(pkgPath) {
+		return nil
+	}
+
 	sysUsersPkg := vm.getSysUsersPkgParam(ctx)
 	if sysUsersPkg == "" {
 		return nil
@@ -336,10 +257,11 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if creatorAcc == nil {
 		return std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", creator))
 	}
-	if err := msg.Package.Validate(); err != nil {
+	allowStdlib := ctx.BlockHeight() == 0
+	if err := msg.Package.Validate(allowStdlib); err != nil {
 		return ErrInvalidPkgPath(err.Error())
 	}
-	if !strings.HasPrefix(pkgPath, chainDomain+"/") {
+	if !gno.IsStdlib(pkgPath) && !strings.HasPrefix(pkgPath, chainDomain+"/") {
 		return ErrInvalidPkgPath("invalid domain: " + pkgPath)
 	}
 	if pv := gnostore.GetPackage(pkgPath, false); pv != nil {
@@ -577,7 +499,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	if callerAcc == nil {
 		return "", std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", caller))
 	}
-	if err := msg.Package.Validate(); err != nil {
+	if err := msg.Package.Validate(false); err != nil {
 		return "", ErrInvalidPkgPath(err.Error())
 	}
 

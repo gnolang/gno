@@ -1,9 +1,11 @@
 package gnolang
 
 import (
+	"errors"
 	"fmt"
 	"go/parser"
 	"go/token"
+	"io/fs"
 	"math"
 	"os"
 	"path/filepath"
@@ -1247,18 +1249,23 @@ func MustPackageNameFromFileBody(name, body string) Name {
 	return pkgName
 }
 
-// ReadMemPackage initializes a new MemPackage by reading the OS directory
+// ReadMemPackage is a wrapper around [ReadMemPackageFromFS] using an OS filesystem rooted at dir
+func ReadMemPackage(dir string, pkgPath string) (*gnovm.MemPackage, error) {
+	return ReadMemPackageFromFS(os.DirFS(dir), ".", pkgPath)
+}
+
+// ReadMemPackageFromFS initializes a new MemPackage by reading the [fs.FS] directory
 // at dir, and saving it with the given pkgPath (import path).
 // The resulting MemPackage will contain the names and content of all *.gno files,
 // and additionally README.md, LICENSE.
 //
-// ReadMemPackage does not perform validation aside from the package's name;
+// ReadMemPackageFromFS does not perform validation aside from the package's name;
 // the files are not parsed but their contents are merely stored inside a MemFile.
 //
 // NOTE: panics if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
-func ReadMemPackage(dir string, pkgPath string) (*gnovm.MemPackage, error) {
-	files, err := os.ReadDir(dir)
+func ReadMemPackageFromFS(fsys fs.FS, dir string, pkgPath string) (*gnovm.MemPackage, error) {
+	files, err := fs.ReadDir(fsys, dir)
 	if err != nil {
 		return nil, err
 	}
@@ -1288,7 +1295,7 @@ func ReadMemPackage(dir string, pkgPath string) (*gnovm.MemPackage, error) {
 		}
 		list = append(list, filepath.Join(dir, file.Name()))
 	}
-	return ReadMemPackageFromList(list, pkgPath)
+	return ReadMemPackageFromList([]fs.FS{fsys}, list, pkgPath)
 }
 
 // MustReadMemPackage is a wrapper around [ReadMemPackage] that panics on error.
@@ -1306,14 +1313,27 @@ func MustReadMemPackage(dir string, pkgPath string) *gnovm.MemPackage {
 //
 // NOTE: errors out if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
-func ReadMemPackageFromList(list []string, pkgPath string) (*gnovm.MemPackage, error) {
+func ReadMemPackageFromList(fss []fs.FS, list []string, pkgPath string) (*gnovm.MemPackage, error) {
+	if len(fss) == 0 {
+		return nil, errors.New("no filesystems provided")
+	}
 	memPkg := &gnovm.MemPackage{Path: pkgPath}
 	var pkgName Name
 	for _, fpath := range list {
 		fname := filepath.Base(fpath)
-		bz, err := os.ReadFile(fpath)
-		if err != nil {
-			return nil, err
+		var (
+			bz  []byte
+			err error
+		)
+		for i, fsys := range fss {
+			bz, err = fs.ReadFile(fsys, fpath)
+			if i != len(fss)-1 && os.IsNotExist(err) {
+				continue
+			}
+			if err != nil {
+				return nil, fmt.Errorf("read %q in fsys #%d: %w", fpath, i, err)
+			}
+			break
 		}
 		// XXX: should check that all pkg names are the same (else package is invalid)
 		if pkgName == "" && strings.HasSuffix(fname, ".gno") {
@@ -1345,8 +1365,8 @@ func ReadMemPackageFromList(list []string, pkgPath string) (*gnovm.MemPackage, e
 }
 
 // MustReadMemPackageFromList is a wrapper around [ReadMemPackageFromList] that panics on error.
-func MustReadMemPackageFromList(list []string, pkgPath string) *gnovm.MemPackage {
-	pkg, err := ReadMemPackageFromList(list, pkgPath)
+func MustReadMemPackageFromList(fss []fs.FS, list []string, pkgPath string) *gnovm.MemPackage {
+	pkg, err := ReadMemPackageFromList(fss, list, pkgPath)
 	if err != nil {
 		panic(err)
 	}

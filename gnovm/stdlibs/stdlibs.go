@@ -7,6 +7,8 @@ import (
 	libsstd "github.com/gnolang/gno/gnovm/stdlibs/std"
 )
 
+const TestingLib = "testing"
+
 type ExecContext = libsstd.ExecContext
 
 func GetContext(m *gno.Machine) ExecContext {
