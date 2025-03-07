@@ -939,7 +939,7 @@ func (it *InterfaceType) String() string {
 			it.Generic,
 			FieldTypeList(it.Methods).String())
 	} else {
-		return fmt.Sprintf("interface{%s}",
+		return fmt.Sprintf("interface {%s}",
 			FieldTypeList(it.Methods).String())
 	}
 }
