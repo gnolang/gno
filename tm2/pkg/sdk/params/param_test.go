@@ -1,4 +1,4 @@
-package gnoland
+package params
 
 import (
 	"testing"
@@ -14,11 +14,12 @@ func TestParam_Parse(t *testing.T) {
 		expected  Param
 		expectErr bool
 	}{
-		{"valid string", "foo.string=hello", Param{key: "foo", kind: "string", value: "hello"}, false},
-		{"valid int64", "foo.int64=-1337", Param{key: "foo", kind: "int64", value: int64(-1337)}, false},
-		{"valid uint64", "foo.uint64=42", Param{key: "foo", kind: "uint64", value: uint64(42)}, false},
-		{"valid bool", "foo.bool=true", Param{key: "foo", kind: "bool", value: true}, false},
-		{"valid bytes", "foo.bytes=AAAA", Param{key: "foo", kind: "bytes", value: []byte{0xaa, 0xaa}}, false},
+		{"valid string", "foo.string=hello", Param{Key: "foo", Type: "string", Value: "hello"}, false},
+		{"valid int64", "foo.int64=-1337", Param{Key: "foo", Type: "int64", Value: int64(-1337)}, false},
+		{"valid uint64", "foo.uint64=42", Param{Key: "foo", Type: "uint64", Value: uint64(42)}, false},
+		{"valid bool", "foo.bool=true", Param{Key: "foo", Type: "bool", Value: true}, false},
+		{"valid bytes", "foo.bytes=AAAA", Param{Key: "foo", Type: "bytes", Value: []byte{0xaa, 0xaa}}, false},
+		{"valid strings", "foo.strings=some,strings", Param{Key: "foo", Type: "strings", Value: []string{"some", "strings"}}, false},
 		{"invalid key", "invalidkey=foo", Param{}, true},
 		{"invalid kind", "invalid.kind=foo", Param{}, true},
 		{"invalid int64", "invalid.int64=foobar", Param{}, true},

@@ -102,12 +102,12 @@ type Defer struct {
 }
 
 type StacktraceCall struct {
-	Stmt  Stmt
 	Frame *Frame
 }
 type Stacktrace struct {
 	Calls           []StacktraceCall
 	NumFramesElided int
+	LastLine        int
 }
 
 func (s Stacktrace) String() string {
@@ -116,6 +116,12 @@ func (s Stacktrace) String() string {
 	for i := 0; i < len(s.Calls); i++ {
 		if s.NumFramesElided > 0 && i == maxStacktraceSize/2 {
 			fmt.Fprintf(&builder, "...%d frame(s) elided...\n", s.NumFramesElided)
+		}
+		var line int
+		if i == 0 {
+			line = s.LastLine
+		} else {
+			line = s.Calls[i-1].Frame.Source.GetLine()
 		}
 
 		call := s.Calls[i]
@@ -126,7 +132,7 @@ func (s Stacktrace) String() string {
 			fmt.Fprintf(&builder, "    gonative:%s.%s\n", call.Frame.Func.NativePkg, call.Frame.Func.NativeName)
 		case call.Frame.Func != nil:
 			fmt.Fprintf(&builder, "%s\n", toExprTrace(cx))
-			fmt.Fprintf(&builder, "    %s/%s:%d\n", call.Frame.Func.PkgPath, call.Frame.Func.FileName, call.Stmt.GetLine())
+			fmt.Fprintf(&builder, "    %s/%s:%d\n", call.Frame.Func.PkgPath, call.Frame.Func.FileName, line)
 		case call.Frame.GoFunc != nil:
 			fmt.Fprintf(&builder, "%s\n", toExprTrace(cx))
 			fmt.Fprintf(&builder, "    gofunction:%s\n", call.Frame.GoFunc.Value.Type())
