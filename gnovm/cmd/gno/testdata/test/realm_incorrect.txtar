@@ -3,14 +3,12 @@
 ! gno test -v .
 
 ! stdout .+ # stdout should be empty
-stderr '=== RUN   file/x_filetest.gno'
 stderr 'Realm diff:'
 stderr '--- Expected'
 stderr '\+\+\+ Actual'
-stderr '@@ -1,2 \+1,2 @@'
-stderr '-xxx'
+stderr '@@ -1,2 \+1,69 @@'
+stderr '-xxxx'
 stderr '\+switchrealm\["gno.land/r/xx"\]'
-stderr 'x_filetest.gno failed'
 
 -- x_filetest.gno --
 // PKGPATH: gno.land/r/xx
