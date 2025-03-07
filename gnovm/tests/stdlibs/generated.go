@@ -183,7 +183,9 @@ var nativeFuncs = [...]NativeFunc{
 				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
 
 			r0 := testlibs_fmt.X_arrayIndex(
 				m,
@@ -212,7 +214,9 @@ var nativeFuncs = [...]NativeFunc{
 				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
 
 			r0, r1 := testlibs_fmt.X_fieldByIndex(p0, p1)
 
@@ -269,8 +273,12 @@ var nativeFuncs = [...]NativeFunc{
 				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
 
 			r0 := testlibs_os.X_write(
 				m,
