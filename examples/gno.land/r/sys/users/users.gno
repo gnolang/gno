@@ -7,7 +7,7 @@ import (
 )
 
 // ResolveName returns the latest UserData of a specific user by name or alias
-func ResolveName(name string) (data *UserData, isLatest bool) {
+func ResolveName(name string) (data *UserData, isCurrent bool) {
 	raw, ok := nameStore.Get(name)
 	if !ok {
 		return nil, false
