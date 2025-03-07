@@ -335,7 +335,7 @@ func renderHome(path string) string {
 		doc += " * [" + user.Name + "](/r/demo/users:" + user.Name + ")\n"
 	}
 	doc += "\n"
-	doc += page.Picker()
+	doc += page.Picker(path)
 	return doc
 }
 
