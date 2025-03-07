@@ -12,16 +12,16 @@ require (
 	github.com/cockroachdb/apd/v3 v3.2.1
 	github.com/cosmos/ledger-cosmos-go v0.14.0
 	github.com/davecgh/go-spew v1.1.1
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0
 	github.com/fortytw2/leaktest v1.3.0
-	github.com/google/go-cmp v0.6.0
+	github.com/google/go-cmp v0.7.0
 	github.com/google/gofuzz v1.2.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/libp2p/go-buffer-pool v0.1.0
 	github.com/pelletier/go-toml v1.9.5
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pmezard/go-difflib v1.0.0
-	github.com/rogpeppe/go-internal v1.13.1
+	github.com/rogpeppe/go-internal v1.14.1
 	github.com/rs/cors v1.11.1
 	github.com/rs/xid v1.6.0
 	github.com/sig-0/insertion-queue v0.0.0-20241004125609-6b3ca841346b
@@ -30,7 +30,7 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/yuin/goldmark v1.7.8
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc
-	go.etcd.io/bbolt v1.3.11
+	go.etcd.io/bbolt v1.4.0
 	go.opentelemetry.io/otel v1.34.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.34.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.34.0
@@ -47,7 +47,7 @@ require (
 	golang.org/x/sync v0.10.0
 	golang.org/x/term v0.28.0
 	golang.org/x/tools v0.29.0
-	google.golang.org/protobuf v1.36.3
+	google.golang.org/protobuf v1.36.5
 	gopkg.in/yaml.v3 v3.0.1
 )
 
