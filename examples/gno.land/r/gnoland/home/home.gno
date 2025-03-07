@@ -1,15 +1,10 @@
 package home
 
 import (
-	"std"
-	"strconv"
-
 	"gno.land/p/demo/ownable"
-	"gno.land/p/demo/ui"
 	"gno.land/p/moul/dynreplacer"
 	blog "gno.land/r/gnoland/blog"
 	events "gno.land/r/gnoland/events"
-	"gno.land/r/leon/hof"
 )
 
 // XXX: p/demo/ui API is crappy, we need to make it more idiomatic
@@ -30,144 +25,220 @@ func Render(_ string) string {
 		out, _ := events.RenderEventWidget(events.MaxWidgetSize)
 		return out
 	})
-	r.RegisterCallback(":latest-hof:", func() string {
-		return hof.RenderExhibWidget(5)
-	})
-	r.RegisterCallback(":qotb:", quoteOfTheBlock)
-	r.RegisterCallback(":chain-height:", func() string {
-		return strconv.Itoa(int(std.ChainHeight()))
-	})
 
 	template := `# Welcome to gno.land
 
-We’re building gno.land, set to become the leading open-source smart contract
-platform, using Gno, an interpreted and fully deterministic variation of the
-Go programming language for succinct and composable smart contracts.
+## We're building a user-owned internet where governance is fair, development is open, and innovation is rewarded.
 
-With transparent and timeless code, gno.land is the next generation of smart
-contract platforms, serving as the “GitHub” of the ecosystem, with realms built
-using fully transparent, auditable code that anyone can inspect and reuse.
+[/about](/about) &nbsp;&nbsp;&nbsp; [/github](/github) &nbsp;&nbsp;&nbsp; [/try gno](/try-gno) 
 
-Intuitive and easy to use, gno.land lowers the barrier to web3 and makes
-censorship-resistant platforms accessible to everyone. If you want to help lay
-the foundations of a fairer and freer world, join us today. 
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus ultricies ultricies risus. Cras libero est, congue vitae ex nec, sodales rutrum leo. Quisque a blandit ex, at viverra ex.Donec nulla risus, ullamcorper rutrum sapien ut, varius interdum quam. Donec non sapien varius, iaculis nibh at, placerat risus. 
 
-## Learn about gno.land
+Proin placerat quis odio id maximus.
 
-- [About](/about)
-- [GitHub](https://github.com/gnolang)
-- [Blog](/blog)
-- [Events](/events)
-- Tokenomics (soon)
-- [Partners, Fund, Grants](/partners)
-- [Explore the Ecosystem](/ecosystem)
-- [Careers](https://jobs.ashbyhq.com/allinbits)
+---
 
-## Build with Gno
+Why Gno?
 
-- [Write Gno in the browser](https://play.gno.land)
-- [Read about the Gno Language](/gnolang)
-- [Visit the official documentation](https://docs.gno.land)
-- [Gno by Example](https://gno-by-example.com/)
-- [Efficient local development for Gno](https://docs.gno.land/gno-tooling/cli/gno-tooling-gnodev)
-- [Get testnet GNOTs](https://faucet.gno.land)
+## A new decentralized operating system (dOS) to power the Internet of Everyone
 
-## Explore the universe
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus ultricies ultricies risus. Cras libero est, congue vitae ex nec, sodales rutrum leo.
 
-- [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
-- [Gnoscan](https://gnoscan.io)
-- [Portal Loop](https://docs.gno.land/concepts/portal-loop)
-- [Testnet 4](https://test4.gno.land/)
-- [Faucet Hub](https://faucet.gno.land)
+<gno-columns>
 
-## [Latest Blogposts](/r/gnoland/blog)
+####
+
+![Social coordination & community](#)
+
+### Social coordination & community
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida. 
+
+- [Lorem ipsum dolor](/)
+- [Lorem ipsum dolor](/)
+
+####
+
+![Governance & organization](#)
+
+### Governance & Organization
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida. 
+
+- [Lorem ipsum dolor](/)
+- [Lorem ipsum dolor](/)
+
+####
+
+![New-Economic-Model](#)
+
+### New Economic Model
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida. 
+
+- [Lorem ipsum dolor](/)
+- [Lorem ipsum dolor](/)
+
+####
+
+![The next killer app](#)
+
+### The next killer app
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida. 
+
+- [Lorem ipsum dolor](/)
+- [Lorem ipsum dolor](/)
+
+</gno-columns>
+
+---
+
+Ecosystem
+
+## Discover the gno.land universe
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus ultricies ultricies risus. 
+
+[/the universe ](#)
+
+
+<gno-columns>
+
+####
+
+![Wallet](#)
+
+### Wallet
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida. 
+
+- [Lorem ipsum dolor](/)
+- [Lorem ipsum dolor](/)
+
+####
+
+![Explorers](#)
+
+### Explorers
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida. 
+
+- [Lorem ipsum dolor](/)
+- [Lorem ipsum dolor](/)
+
+####
+
+![Defi](#)
+
+### Defi
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida. 
+
+- [Lorem ipsum dolor](/)
+- [Lorem ipsum dolor](/)
+
+####
+
+![Social dApps](#)
+
+### Social dApps
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida. 
+
+- [Lorem ipsum dolor](/)
+- [Lorem ipsum dolor](/)
+
+</gno-columns>
+
+## A community of gnomes
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus ultricies ultricies risus. Cras libero est, congue vitae ex nec, sodales rutrum leo. Quisque a blandit ex, at viverra ex.
+
+<gno-columns>
+##
+
+![Blog](#)
+
+### Our Blog 
 
 :latest-blogposts:
 
-## [Latest Events](/r/gnoland/events)
+##
+
+![Events](#)
+
+### Past Events
 
 :upcoming-events:
 
-## [Hall of Fame](/r/leon/hof)
-
-:latest-hof:
+</gno-columns>
 
 ---
 
-## [Gno Playground](https://play.gno.land)
+Builders
 
+## Build on gno.land
 
-Gno Playground is a web application designed for building, running, testing, and
-interacting with your Gno code, enhancing your understanding of the Gno
-language. With Gno Playground, you can share your code, execute tests, deploy
-your realms and packages to gno.land, and explore a multitude of other features.
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus ultricies ultricies risus. Cras libero est, congue vitae ex nec, sodales rutrum leo. Quisque a blandit ex, at viverra ex. Maecenas quis neque quis augue laoreet ultrices. Integer posuere hendrerit feugiat.
 
-Experience the convenience of code sharing and rapid experimentation with
-[Gno Playground](https://play.gno.land).
+[/read the documentation](docs.gno.land)
 
-## Explore New Packages and Realms
+<gno-columns>
 
-### [r/gnoland](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gnoland)
+### Builder Portal
 
-- [r/gnoland/blog](r/gnoland/blog)
-- [r/gnoland/dao](r/gnoland/dao)
-- [r/gnoland/faucet](r/gnoland/faucet)
-- [r/gnoland/home](r/gnoland/home)
-- [r/gnoland/pages](r/gnoland/pages)
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida. 
 
-### [r/sys](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/sys)
+[/read more](/)
 
-- [r/sys/names](r/sys/names)
-- [r/sys/rewards](r/sys/rewards)
-- [/r/sys/validators/v2](/r/sys/validators/v2)
+### Bounties
 
-### [r/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo)
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida. 
 
-- [r/demo/boards](r/demo/boards)
-- [r/demo/users](r/demo/users)
-- [r/demo/banktest](r/demo/banktest)
-- [r/demo/foo20](r/demo/foo20)
-- [r/demo/foo721](r/demo/foo721)
-- [r/demo/microblog](r/demo/microblog)
-- [r/demo/nft](r/demo/nft)
-- [r/demo/types](r/demo/types)
-- [r/demo/art/gnoface](r/demo/art/gnoface)
-- [r/demo/art/millipede](r/demo/art/millipede)
-- [r/demo/groups](r/demo/groups)
-- ...
+[/read more](/)
 
-### [p/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo)
+### gno.land grants
 
-- [p/demo/avl](p/demo/avl)
-- [p/demo/blog](p/demo/blog)
-- [p/demo/ui](p/demo/ui)
-- [p/demo/ufmt](p/demo/ufmt)
-- [p/demo/merkle](p/demo/merkle)
-- [p/demo/bf](p/demo/bf)
-- [p/demo/flow](p/demo/flow)
-- [p/demo/gnode](p/demo/gnode)
-- [p/demo/grc/grc20](p/demo/grc/grc20)
-- [p/demo/grc/grc721](p/demo/grc/grc721)
-- ...
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida. 
+
+[/read more](/)
+
+</gno-columns>
 
 ---
 
-## Socials
+<gno-columns>
 
-- Check out our [community projects](https://github.com/gnolang/awesome-gno)
-- [Discord](https://discord.gg/S8nKUqwkPn)
-- [Twitter](https://twitter.com/_gnoland)
-- [Youtube](https://www.youtube.com/@_gnoland)
-- [Telegram](https://t.me/gnoland)
+### General
 
-## Quote of the ~Day~ Block#:chain-height:
+- [About](#)
+- [Events](#)
+- [Blog](#)
+- [Carreer](#)
 
-> :qotb:
+### Advanced
 
----
+- [Builder Guides](#)
+- [Tokenomics](#)
+- [Demo list](#)
+- [Docs](#)
 
-**This is a testnet.**
-Package names are not guaranteed to be available for production.
+### Explore
+
+- [Faucet](#)
+- [Ecosystem](#)
+- [Partners](#)
+- [Gnops](#)
+
+### Social
+
+- [GitHub](#)
+- [Discord](#)
+- [YouTube](#)
+- [Twitter](#)
+
+</gno-columns>
 `
 
 	if override != "" {
@@ -175,29 +246,6 @@ Package names are not guaranteed to be available for production.
 	}
 	result := r.Replace(template)
 	return result
-}
-
-func latestHOFItems(num int) ui.Element {
-	submissions := hof.RenderExhibWidget(num)
-
-	return ui.Element{
-		ui.H2("[Hall of Fame](/r/leon/hof)"),
-		ui.Text(submissions),
-	}
-}
-
-func quoteOfTheBlock() string {
-	quotes := []string{
-		"Gno is for Truth.",
-		"Gno is for Social Coordination.",
-		"Gno is _not only_ for DeFi.",
-		"Now, you Gno.",
-		"Come for the Go, Stay for the Gno.",
-	}
-	height := std.ChainHeight()
-	idx := int(height) % len(quotes)
-	qotb := quotes[idx]
-	return qotb
 }
 
 func AdminSetOverride(content string) {
