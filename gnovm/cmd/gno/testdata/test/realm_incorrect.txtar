@@ -9,6 +9,7 @@ stderr '\+\+\+ Actual'
 stderr '@@ -1,2 \+1,69 @@'
 stderr '-xxxx'
 stderr '\+switchrealm\["gno.land/r/xx"\]'
+stderr 'x_filetest.gno failed'
 
 -- x_filetest.gno --
 // PKGPATH: gno.land/r/xx
