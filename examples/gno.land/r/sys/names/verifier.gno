@@ -17,9 +17,10 @@ var (
 	enabled = false
 )
 
-// IsAuthorizedAddressForName ensures that the given address has ownership of the given name.
-func IsAuthorizedAddressForName(address std.Address, name string) bool {
-	return verifier(enabled, address, name)
+// IsAuthorizedAddressForNamespace ensures that the given address has ownership of the given name.
+// A user's name found in r/sys/users is equivalent to their namespace.
+func IsAuthorizedAddressForNamespace(address std.Address, namespace string) bool {
+	return verifier(enabled, address, namespace)
 }
 
 // Enable enables the namespace check and drops centralized ownership of this realm.
@@ -36,25 +37,26 @@ func IsEnabled() bool {
 }
 
 // verifier checks the store to see that the
-// user has properly registered a given name.
-// This function considers as valid an `address` that matches the `name` (PA namespaces)
-func verifier(enabled bool, address std.Address, name string) bool {
+// user has properly registered a given name/namespace.
+// This function considers as valid an `address` that matches the `namespace` (PA namespaces)
+func verifier(enabled bool, address std.Address, namespace string) bool {
 	if !enabled {
 		return true // only in pre-genesis cases
 	}
 
-	if strings.TrimSpace(address.String()) == "" || strings.TrimSpace(name) == "" {
+	if strings.TrimSpace(address.String()) == "" || strings.TrimSpace(namespace) == "" {
 		return false
 	}
 
-	// Allow user with their own address as name
+	// Allow user with their own address as namespace
 	// This enables pseudo-anon namespaces
-	if address.String() == name {
+	// ie gno.land/{p,r}/{ADDRESS}/**
+	if address.String() == namespace {
 		return true
 	}
 
-	// Can be a registered name or an alias
-	userData, _ := users.ResolveName(name)
+	// Can be a registered namespace or an alias
+	userData, _ := users.ResolveName(namespace)
 	if userData == nil || userData.IsDeleted() {
 		return false
 	}

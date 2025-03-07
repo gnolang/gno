@@ -259,7 +259,7 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	default:
 		panic("invalid pattern while matching pkgpath")
 	}
-	username := match[1]
+	namespace := match[1]
 
 	// if `sysUsersPkg` does not exist -> skip validation.
 	usersPkg := store.GetPackage(sysNamesPkg, false)
@@ -302,7 +302,7 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	x := gno.Call(
 		gno.Sel(gno.Nx("names"), "IsAuthorizedAddressForName"),
 		gno.Str(creator.String()),
-		gno.Str(username),
+		gno.Str(namespace),
 	)
 
 	ret := m.Eval(x)
@@ -316,7 +316,11 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	}
 
 	if isAuthorized := useraddress.GetBool(); !isAuthorized {
-		return ErrUnauthorizedUser(username)
+		return ErrUnauthorizedUser(
+			fmt.Sprintf("%s is not authorized to deploy packages to namespace `%s`",
+				creator.String(),
+				namespace,
+			))
 	}
 
 	return nil
