@@ -69,9 +69,66 @@ func TestValopers_Register(t *testing.T) {
 		// Add the valoper
 		valopers.Set(v.Address.String(), v)
 
+    // Send coins
+    std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+
 		uassert.PanicsWithMessage(t, ErrValoperExists.Error(), func() {
 			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
 		})
+	})
+
+	t.Run("no coins deposit", func(t *testing.T) {
+		t.Parallel()
+
+		// Clear the set for the test
+		valopers = avl.NewTree()
+
+         defer func() {
+               if r := recover(); r == nil {
+                       t.Errorf("Register without coins deposit should panic")
+               }
+       }()
+
+    // Send no coins
+    std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", 0)}, nil)
+
+			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
+	})
+
+	t.Run("insufficient coins amount deposit", func(t *testing.T) {
+		t.Parallel()
+
+		// Clear the set for the test
+		valopers = avl.NewTree()
+
+	   // Send invalid coins
+	   std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee - 1)}, nil)
+
+	        defer func() {
+	              if r := recover(); r == nil {
+	                      t.Errorf("Register with less than minimal coins deposit should panic")
+	              }
+	      }()
+
+			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
+	})
+
+	t.Run("to much coins amount deposit", func(t *testing.T) {
+		t.Parallel()
+
+		// Clear the set for the test
+		valopers = avl.NewTree()
+
+	   // Send invalid coins
+	   std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", maxFeeMult * minFee + 1)}, nil)
+
+	        defer func() {
+	              if r := recover(); r == nil {
+	                      t.Errorf("Register with more than maximal coins deposit should panic")
+	              }
+	      }()
+
+			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
 	})
 
 	t.Run("successful registration", func(t *testing.T) {
@@ -79,6 +136,9 @@ func TestValopers_Register(t *testing.T) {
 
 		// Clear the set for the test
 		valopers = avl.NewTree()
+
+    // Send coins
+    std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
 
 		uassert.NotPanics(t, func() {
 			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
@@ -129,6 +189,9 @@ func TestValopers_Update(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+    // Send coins
+    std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+
 		// Add the valoper
 		uassert.NotPanics(t, func() {
 			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
@@ -167,6 +230,9 @@ func TestValopers_Update(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+    // Send coins
+    std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+
 		// Add the valoper
 		uassert.NotPanics(t, func() {
 			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
@@ -198,6 +264,9 @@ func TestValopers_Update(t *testing.T) {
 		valopers = avl.NewTree()
 
 		moniker := "new valoper"
+
+    // Send coins
+    std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -253,6 +322,9 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+    // Send coins
+    std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+
 		// Add the valoper
 		uassert.NotPanics(t, func() {
 			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
@@ -273,6 +345,9 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+    // Send coins
+    std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+
 		// Add the valoper
 		uassert.NotPanics(t, func() {
 			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
@@ -289,6 +364,9 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 
 		// Clear the set for the test
 		valopers = avl.NewTree()
+
+    // Send coins
+    std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -334,6 +412,9 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+    // Send coins
+    std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+
 		// Add the valoper
 		uassert.NotPanics(t, func() {
 			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
@@ -354,6 +435,9 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+    // Send coins
+    std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+
 		// Add the valoper
 		uassert.NotPanics(t, func() {
 			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
@@ -370,6 +454,9 @@ func TestValopers_UpdateDescription(t *testing.T) {
 
 		// Clear the set for the test
 		valopers = avl.NewTree()
+
+    // Send coins
+    std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -415,6 +502,9 @@ func TestValopers_UpdateAddress(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+    // Send coins
+    std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+
 		// Add the valoper
 		uassert.NotPanics(t, func() {
 			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
@@ -437,6 +527,9 @@ func TestValopers_UpdateAddress(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+    // Send coins
+    std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+
 		// Add the valoper
 		uassert.NotPanics(t, func() {
 			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
@@ -454,6 +547,9 @@ func TestValopers_UpdateAddress(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+    // Send coins
+    std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+
 		// Add the valoper
 		uassert.NotPanics(t, func() {
 			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
@@ -470,6 +566,9 @@ func TestValopers_UpdateAddress(t *testing.T) {
 
 		// Clear the set for the test
 		valopers = avl.NewTree()
+
+    // Send coins
+    std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -512,6 +611,9 @@ func TestValopers_UpdatePubKey(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+    // Send coins
+    std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+
 		// Add the valoper
 		uassert.NotPanics(t, func() {
 			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
@@ -532,6 +634,9 @@ func TestValopers_UpdatePubKey(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+    // Send coins
+    std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+
 		// Add the valoper
 		uassert.NotPanics(t, func() {
 			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
@@ -548,6 +653,9 @@ func TestValopers_UpdatePubKey(t *testing.T) {
 
 		// Clear the set for the test
 		valopers = avl.NewTree()
+
+    // Send coins
+    std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -592,6 +700,9 @@ func TestValopers_UpdateP2PAddresses(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+    // Send coins
+    std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+
 		// Add the valoper
 		uassert.NotPanics(t, func() {
 			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
@@ -611,6 +722,9 @@ func TestValopers_UpdateP2PAddresses(t *testing.T) {
 
 		// Clear the set for the test
 		valopers = avl.NewTree()
+
+    // Send coins
+    std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -637,6 +751,9 @@ func TestValopers_UpdateP2PAddresses(t *testing.T) {
 
 		// Clear the set for the test
 		valopers = avl.NewTree()
+
+    // Send coins
+    std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
