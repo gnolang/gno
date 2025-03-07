@@ -14,7 +14,7 @@ import (
 var (
 	Ownable = ownable.NewWithAddress("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // dropped in genesis via Enable
 
-	enabled = false // set to true in genesis
+	enabled = false
 )
 
 // IsAuthorizedAddressForName ensures that the given address has ownership of the given name.
@@ -35,9 +35,9 @@ func IsEnabled() bool {
 	return enabled
 }
 
-// defaultVerifyFunction checks the store to see that the
-// user has properly registered the given name.
-// This function considers as valid an `address` that matches the `name`.
+// verifier checks the store to see that the
+// user has properly registered a given name.
+// This function considers as valid an `address` that matches the `name` (PA namespaces)
 func verifier(enabled bool, address std.Address, name string) bool {
 	if !enabled {
 		return true // only in pre-genesis cases
