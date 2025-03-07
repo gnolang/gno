@@ -78,11 +78,10 @@ func main() {
 //
 // ### [r/gnoland](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gnoland)
 //
-// - [r/gnoland/blog](r/gnoland/blog)
-// - [r/gnoland/dao](r/gnoland/dao)
-// - [r/gnoland/faucet](r/gnoland/faucet)
-// - [r/gnoland/home](r/gnoland/home)
-// - [r/gnoland/pages](r/gnoland/pages)
+// - [r/gnoland/blog](/r/gnoland/blog)
+// - [r/gnoland/blog](/r/gnoland/users)
+// - [r/gnoland/home](/r/gnoland/home)
+// - [r/gnoland/pages](/r/gnoland/pages)
 //
 // ### [r/sys](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/sys)
 //
