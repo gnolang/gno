@@ -1,61 +1,61 @@
 <!-- @prettier -->
-{{ define "ui/help_function" }}
-  {{ $data := . }}
-  {{ range .Functions }}
-    <article class="bg-gray-100 rounded p-4 mb-3" data-func="{{ .FuncName }}">
-      <h2
-        id="func-{{ .FuncName }}"
-        class="text-gray-600 font-semibold text-200 mb-3 leading-tight"
-      >
-        {{ .FuncName }}
-      </h2>
-      <div class="mb-1">
-        <div class="flex flex-col gap-1 items-stretch text-gray-400">
-          <h3 class="mr-10 text-50">Params</h3>
-          <form class="w-full text-100">
-            {{ $funcName := .FuncName }}
-            {{ range .Params }}
-              <div class="flex flex-col gap-3 items-stretch text-gray-400 mb-2">
-                <div
-                  class="group relative overflow-hidden flex w-full border rounded-sm has-[:focus]:border-gray-300 hover:border-gray-300"
-                >
-                  <label
-                    for="func-{{ $funcName }}-param-{{ .Name }}"
-                    class="flex gap-3 items-center bg-gray-50 px-4 font-semibold text-gray-600 text-100"
-                  >
-                    {{ .Name }}
-                  </label>
-                  <input
-                    type="text"
-                    {{- if eq $data.SelectedFunc $funcName }}
-                      value="{{ getSelectedArgValue $data . }}"
-                    {{- end }}
-                    placeholder="parameter"
-                    id="func-{{ $funcName }}-param-{{ .Name }}"
-                    data-role="help-param-input"
-                    data-param="{{ .Name }}"
-                    class="flex h-full bottom-1 w-full border-l p-2 focus:border-gray-300 group-hover:border-gray-300 text-gray-600 outline-none font-mono"
-                  />
-                </div>
-              </div>
-            {{ end }}
-          </form>
-        </div>
-      </div>
-      <div>
-        <h3 class="text-gray-400 text-50 mb-1">Command</h3>
-        <div class="relative rounded-sm text-100 bg-light">
-          <button
-            class="js-copy-btn w-5 h-5 absolute top-2 right-2 text-gray-400 hover:text-gray-600"
-            aria-label="Copy Command"
-            data-copy-btn="help-cmd-{{ .FuncName }}"
+{{ define "ui/help_function" }} 
+{{ $data := . }} 
+{{ range .Functions }}
+<article class="bg-gray-100 dark:bg-gray-d100 rounded p-4 mb-3" data-func="{{ .FuncName }}">
+  <h2 
+    id="func-{{ .FuncName }}" 
+    class="text-gray-600 dark:text-gray-d600 font-semibold text-200 mb-3 leading-tight"
+  >
+    {{ .FuncName }}
+  </h2>
+  <div class="mb-1">
+    <div class="flex flex-col gap-1 items-stretch text-gray-400 dark:text-gray-d400">
+      <h3 class="mr-10 text-50">Params</h3>
+      <form class="w-full text-100">
+        {{ $funcName := .FuncName }} 
+        {{ range .Params }}
+        <div class="flex flex-col gap-3 items-stretch text-gray-400 dark:text-gray-d400 mb-2">
+          <div 
+          class="group relative overflow-hidden flex w-full border rounded-sm has-[:focus]:border-gray-300 dark:has-[:focus]:border-gray-d300 hover:border-gray-300 dark:hover:border-gray-d300"
           >
-            {{ template "ui/copy" }}
-          </button>
-          {{/* prettier-ignore-start */}}
-          <pre
-            class="font-mono text-gray-600 p-4 pr-10 whitespace-pre-wrap"
-          ><code><span data-code-mode="fast" class="hidden" data-copy-content="help-cmd-{{ .FuncName }}"># WARNING: This command is running in an INSECURE mode.
+            <label 
+              for="func-{{ $funcName }}-param-{{ .Name }}" 
+              class="flex gap-3 items-center bg-gray-50 dark:bg-gray-d50 px-4 font-semibold text-gray-600 dark:text-gray-d600 text-100"
+            >
+              {{ .Name }}
+            </label>
+            <input
+              type="text"
+              {{- if eq $data.SelectedFunc $funcName }}
+                value="{{ getSelectedArgValue $data . }}"
+              {{- end }}
+              placeholder="parameter"
+              id="func-{{ $funcName }}-param-{{ .Name }}"
+              data-role="help-param-input"
+              data-param="{{ .Name }}"
+              class="flex h-full bottom-1 w-full border-l p-2 focus:border-gray-300 dark:focus:border-gray-d300 group-hover:border-gray-300 dark:group-hover:border-gray-d300 text-gray-600 dark:text-gray-d600 outline-none font-mono bg-light dark:bg-dark"
+            />
+          </div>
+        </div>
+        {{ end }}
+      </form>
+    </div>
+  </div>
+  <div>
+    <h3 class="text-gray-400 dark:text-gray-d400 text-50 mb-1">Command</h3>
+    <div class="relative rounded-sm text-100 bg-light dark:bg-dark">
+      <button 
+        class="js-copy-btn w-5 h-5 absolute top-2 right-2 text-gray-400 dark:text-gray-d400 hover:text-gray-600 dark:hover:text-gray-d600"
+        aria-label="Copy Command" 
+        data-copy-btn="help-cmd-{{ .FuncName }}"
+      >
+        {{ template "ui/copy" }}
+      </button>
+      {{/* prettier-ignore-start */}}
+      <pre
+        class="font-mono text-gray-600 dark:text-gray-d600 p-4 pr-10 whitespace-pre-wrap"
+      ><code><span data-code-mode="fast" class="hidden" data-copy-content="help-cmd-{{ .FuncName }}"># WARNING: This command is running in an INSECURE mode.
 # It is strongly recommended to use a hardware device for signing
 # and avoid trusting any computer connected to the internet,
 # as your private keys could be exposed.
