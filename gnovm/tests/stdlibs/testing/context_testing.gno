@@ -47,8 +47,9 @@ func SetContext(ctx Context) {
 	var timestamp, timestampNano int64
 
 	if !ctx.Time.IsZero() {
-		timestamp = ctx.Time.Unix()
-		timestampNano = 0
+		unixNano := ctx.Time.UnixNano()
+		timestamp = unixNano / int64(time.Second)
+		timestampNano = unixNano % int64(time.Second)
 	}
 
 	setContext(
