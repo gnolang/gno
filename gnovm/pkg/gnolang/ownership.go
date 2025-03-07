@@ -382,7 +382,8 @@ func (oi *ObjectInfo) SetIsNewDeleted(x bool) {
 	oi.isNewDeleted = x
 }
 
-// get first accessible object, maybe containing(parent) object, maybe itself.
+// GetFirstObject returns the first accessible object, maybe containing(parent)
+// object, maybe itself.
 func (tv *TypedValue) GetFirstObject(store Store) Object {
 	switch cv := tv.V.(type) {
 	case PointerValue:
