@@ -142,7 +142,7 @@ services:
       - --url
       - ${WATCHTOWER_NOTIFICATION_URL}
       - --message
-      - "Portal Loop is Healthy"
+      - "Portal Loop is healthy again"
     labels:
       - com.centurylinklabs.watchtower.depends-on=portalloopd
     depends_on:
