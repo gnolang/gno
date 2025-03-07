@@ -3810,7 +3810,7 @@ func convertConst(store Store, last BlockNode, n Node, cx *ConstExpr, t Type) {
 		setConstAttrs(cx)
 	} else if t != nil {
 		// e.g. a named type or uint8 type to int for indexing.
-		ConvertTo(nil, nilAllocator, store, &cx.TypedValue, t, true)
+		ConvertTo(nilAllocator, store, &cx.TypedValue, t, true)
 		setConstAttrs(cx)
 	}
 }

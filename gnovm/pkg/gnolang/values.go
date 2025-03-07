@@ -1213,7 +1213,7 @@ func (tv *TypedValue) SetInt(n int64) {
 
 func (tv *TypedValue) ConvertGetInt() int64 {
 	var store Store = nil // not used
-	ConvertTo(nil, nilAllocator, store, tv, IntType, false)
+	ConvertTo(nilAllocator, store, tv, IntType, false)
 	return tv.GetInt()
 }
 

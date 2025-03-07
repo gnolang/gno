@@ -800,6 +800,6 @@ func (m *Machine) doOpFuncLit() {
 func (m *Machine) doOpConvert() {
 	xv := m.PopValue()
 	t := m.PopValue().GetType()
-	ConvertTo(m, m.Alloc, m.Store, xv, t, false)
+	ConvertTo(m.Alloc, m.Store, xv, t, m.PreprocessorMode)
 	m.PushValue(*xv)
 }
