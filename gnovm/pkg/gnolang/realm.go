@@ -185,7 +185,7 @@ func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
 		if co != nil {
 			debug.Printf(
 				"co: %v (type: %v) | GetBoundRealm: %v | GetIsRef: %v | GetRefCount: %v | GetIsReal: %v\n",
-				co, reflect.TypeOf(co), co.GetBoundRealm(), co.GetIsAttachingRef(), co.GetRefCount(), co.GetIsReal(),
+				co, reflect.TypeOf(co), co.GetBoundRealm(), co.GetIsAttachingAsBase(), co.GetRefCount(), co.GetIsReal(),
 			)
 		}
 	}
@@ -273,8 +273,8 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, seenObjs *[]Object) {
 
 	if debug {
 		debug.Printf(
-			"checkCrossRealm, oo: %v (type: %v) | GetIsReal: %t | GetIsEscaped: %t | oo.GetBoundRealm: %v | rlm.ID: %v | isAttachingRef: %t\n",
-			oo, reflect.TypeOf(oo), oo.GetIsReal(), oo.GetIsEscaped(), oo.GetBoundRealm(), rlm.ID, oo.GetIsAttachingRef(),
+			"checkCrossRealm, oo: %v (type: %v) | GetIsReal: %t | GetIsEscaped: %t | oo.GetBoundRealm: %v | rlm.ID: %v | isAttachingAsBase: %t\n",
+			oo, reflect.TypeOf(oo), oo.GetIsReal(), oo.GetIsEscaped(), oo.GetBoundRealm(), rlm.ID, oo.GetIsAttachingAsBase(),
 		)
 	}
 
@@ -297,7 +297,7 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, seenObjs *[]Object) {
 
 	// if object does not have a bound realm
 	if oo.GetBoundRealm().IsZero() {
-		if oo.GetIsReal() && oo.GetIsAttachingRef() {
+		if oo.GetIsReal() && oo.GetIsAttachingAsBase() {
 			return
 		} else {
 			checkCrossRealmChildren(rlm, store, oo, seenObjs)
@@ -309,7 +309,7 @@ func checkCrossRealm(rlm *Realm, store Store, oo Object, seenObjs *[]Object) {
 		// When attaching a reference, ensure that the base object is real.
 		// The child objects do not need to be real at this stage;
 		// they can be attached(real) after.
-		if oo.GetIsAttachingRef() {
+		if oo.GetIsAttachingAsBase() {
 			if !oo.GetIsReal() {
 				panic("cannot attach a reference to an unattached object from an external realm")
 			} else {
@@ -593,7 +593,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 		return
 	}
 	rlm.assignNewObjectID(oo)
-	rlm.created = append(rlm.created, oo) // XXX, here it becomes real.
+	rlm.created = append(rlm.created, oo) // here it becomes real.
 	// RECURSE GUARD END
 
 	// recurse for children.

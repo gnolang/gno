@@ -43,3 +43,79 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
+// u[f5a516808f8976c33939133293d598ce3bca4e8d:2]={
+//     "Blank": {},
+//     "ObjectInfo": {
+//         "ID": "f5a516808f8976c33939133293d598ce3bca4e8d:2",
+//         "IsEscaped": true,
+//         "ModTime": "3",
+//         "RefCount": "2"
+//     },
+//     "Parent": null,
+//     "Source": {
+//         "@type": "/gno.RefNode",
+//         "BlockNode": null,
+//         "Location": {
+//             "Column": "0",
+//             "File": "",
+//             "Line": "0",
+//             "PkgPath": "gno.land/r/crossrealm_test"
+//         }
+//     },
+//     "Values": [
+//         {
+//             "T": {
+//                 "@type": "/gno.ArrayType",
+//                 "Elt": {
+//                     "@type": "/gno.PrimitiveType",
+//                     "value": "32"
+//                 },
+//                 "Len": "2",
+//                 "Vrd": false
+//             },
+//             "V": {
+//                 "@type": "/gno.RefValue",
+//                 "Hash": "60e55de1dc175c564e18670046b4780b5d9c4f83",
+//                 "ObjectID": "f5a516808f8976c33939133293d598ce3bca4e8d:4"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "IsClosure": false,
+//                 "Params": [],
+//                 "Results": []
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "f5a516808f8976c33939133293d598ce3bca4e8d:3"
+//                 },
+//                 "FileName": "files/zrealm_crossrealm28_array.gno",
+//                 "IsMethod": false,
+//                 "Name": "main",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/crossrealm_test",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "files/zrealm_crossrealm28_array.gno",
+//                         "Line": "10",
+//                         "PkgPath": "gno.land/r/crossrealm_test"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "IsClosure": false,
+//                     "Params": [],
+//                     "Results": []
+//                 }
+//             }
+//         }
+//     ]
+// }

@@ -116,8 +116,8 @@ type Object interface {
 	SetIsNewReal(bool)
 	GetBoundRealm() PkgID
 	SetBoundRealm(pkgID PkgID)
-	GetIsAttachingRef() bool
-	SetIsAttachingRef(bool)
+	GetIsAttachingAsBase() bool
+	SetIsAttachingAsBase(bool)
 	GetPackage() *PackageValue
 	SetPackage(*PackageValue)
 	GetIsNewEscaped() bool
@@ -163,8 +163,11 @@ type ObjectInfo struct {
 	isNewDeleted bool
 
 	// If an object’s type is declared in a
-	// realm, it's considered bound to that
-	// realm, otherwise it zero
+	// realm, it's considered bound to that realm;
+	// If the object is unreal but already owned,
+	// it means the object is bound to this realm
+	// and must be attached to it.
+	// otherwise it zero
 	boundRealm PkgID
 
 	// This flag indicates whether the object is being
@@ -174,7 +177,7 @@ type ObjectInfo struct {
 	// whose type is declared in another realm, it should panic.
 	// - If the object being attached is a pointer to such
 	// a struct value, it is allowed.
-	isAttachingRef bool
+	isAttachingAsBase bool
 
 	// object’s package and realm info
 	pv *PackageValue
@@ -347,12 +350,12 @@ func (oi *ObjectInfo) SetBoundRealm(pkgId PkgID) {
 	oi.boundRealm = pkgId
 }
 
-func (oi *ObjectInfo) GetIsAttachingRef() bool {
-	return oi.isAttachingRef
+func (oi *ObjectInfo) GetIsAttachingAsBase() bool {
+	return oi.isAttachingAsBase
 }
 
-func (oi *ObjectInfo) SetIsAttachingRef(ref bool) {
-	oi.isAttachingRef = ref
+func (oi *ObjectInfo) SetIsAttachingAsBase(ref bool) {
+	oi.isAttachingAsBase = ref
 }
 
 func (oi *ObjectInfo) GetPackage() *PackageValue {
@@ -419,7 +422,7 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 func (tv *TypedValue) GetFirstObjectAndAttach(store Store) Object {
 	obj := tv.GetFirstObject(store)
 	if obj == nil {
-		// no object to set the bound realm to..
+		// no object to set the bound realm to.
 		return nil
 	}
 
@@ -467,7 +470,7 @@ func (tv *TypedValue) GetFirstObjectAndAttach(store Store) Object {
 
 	switch tv.V.(type) {
 	case *SliceValue, PointerValue:
-		obj.SetIsAttachingRef(true)
+		obj.SetIsAttachingAsBase(true)
 	}
 
 	// attach package value to object
