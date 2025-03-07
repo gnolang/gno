@@ -44,7 +44,7 @@ func SetContext(ctx Context) {
 	originSendDenom, originSendAmount := expandNative(ctx.OriginSend)
 	originSpendDenom, originSpendAmount := expandNative(ctx.OriginSpend)
 
-	var timestamp, timestampNano int64 = 0, 0
+	var timestamp, timestampNano int64
 
 	if !ctx.Time.IsZero() {
 		timestamp = ctx.Time.Unix()
