@@ -30,7 +30,7 @@ func TestSetupWeb(t *testing.T) {
 // Dummy handler to simulate the processing chain.
 // It now returns a more detailed message in the response body.
 func dummyHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("OK"))
+	w.Write([]byte("OK: response from dummy handler with detailed information"))
 }
 
 func TestSecureHeadersMiddlewareStrict(t *testing.T) {
