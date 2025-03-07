@@ -15,7 +15,7 @@ func main() {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
-			LongHelp:   "Gno Key Management System used to securely manage and control cryptographic keys.",
+			LongHelp:   "Gno Key Management System used to securely manage and control node validator signing keys.",
 		},
 		commands.NewEmptyConfig(),
 		commands.HelpExec,
