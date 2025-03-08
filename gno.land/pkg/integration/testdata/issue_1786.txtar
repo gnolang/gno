@@ -81,3 +81,4 @@ func ProxyUnwrap(wugnotAmount uint64) {
 	banker := std.NewBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(std.CurrentRealm().Address(), std.OriginCaller(), std.Coins{{"ugnot", int64(wugnotAmount)}})
 }
+

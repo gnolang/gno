@@ -21,7 +21,7 @@ type GnoURL struct {
 	// gno.land/r/demo/users/render.gno:jae$help&a=b?c=d
 
 	Domain   string     // gno.land
-	Path     string     // /r/demo/users
+	Path     string     // /r/gnoland/users/v1
 	Args     string     // jae
 	WebQuery url.Values // help&a=b
 	Query    url.Values // c=d
