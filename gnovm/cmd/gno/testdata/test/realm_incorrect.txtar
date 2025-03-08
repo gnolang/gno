@@ -1,5 +1,4 @@
 # Test Realm instruction incorrect
-
 ! gno test -v .
 
 ! stdout .+ # stdout should be empty
@@ -15,12 +14,9 @@ stderr 'x_filetest.gno failed'
 -- x_filetest.gno --
 // PKGPATH: gno.land/r/xx
 package xx
-
 var x int
-
 func main() {
 	x = 1
 }
-
 // Realm:
 // xxxx

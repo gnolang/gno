@@ -157,6 +157,3 @@ func main() {
 // switchrealm["gno.land/r/demo/tests/crossrealm_b"]
 // switchrealm["gno.land/r/demo/tests/crossrealm"]
 // switchrealm["gno.land/r/crossrealm_test"]
-
-// Error:
-//

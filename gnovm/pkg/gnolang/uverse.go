@@ -323,6 +323,7 @@ func makeUverseNode() {
 										list[arg0Offset+arg0Length+i] = newElem
 
 										m.Realm.DidUpdate(
+											m.Store,
 											arg0Base,
 											oldElem.GetFirstObject(m.Store),
 											newElem.GetFirstObject(m.Store),
@@ -333,7 +334,7 @@ func makeUverseNode() {
 										list[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
 										arg1Base.Data[arg1Offset:arg1Offset+arg1Length],
 										arg0Type.Elem())
-									m.Realm.DidUpdate(arg1Base, nil, nil)
+									m.Realm.DidUpdate(m.Store, arg1Base, nil, nil)
 								}
 							} else {
 								// append(*SliceValue.Data, *SliceValue) ---------
@@ -342,7 +343,7 @@ func makeUverseNode() {
 									copyListToData(
 										data[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
 										arg1Base.List[arg1Offset:arg1Offset+arg1Length])
-									m.Realm.DidUpdate(arg0Base, nil, nil)
+									m.Realm.DidUpdate(m.Store, arg0Base, nil, nil)
 								} else {
 									copy(
 										data[arg0Offset+arg0Length:arg0Offset+arg0Length+arg1Length],
@@ -740,11 +741,11 @@ func makeUverseNode() {
 				if m.Realm != nil {
 					// mark key as deleted
 					keyObj := itv.GetFirstObject(m.Store)
-					m.Realm.DidUpdate(mv, keyObj, nil)
+					m.Realm.DidUpdate(m.Store, mv, keyObj, nil)
 
 					// mark value as deleted
 					valObj := val.GetFirstObject(m.Store)
-					m.Realm.DidUpdate(mv, valObj, nil)
+					m.Realm.DidUpdate(m.Store, mv, valObj, nil)
 				}
 
 				return
