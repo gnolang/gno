@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/urequire"
 )
 
@@ -169,14 +168,15 @@ func TestROStores(t *testing.T) {
 	})
 }
 
-func TestUserRenderLink(t *testing.T) {
-	std.TestSetOriginCaller(whitelistedCallerAddr)
-	cleanStore(t)
-
-	urequire.NoError(t, RegisterUser(alice, aliceAddr))
-
-	data, _ := ResolveName(alice)
-	uassert.Equal(t, data.RenderLink(""), ufmt.Sprintf("[@%s](/u/%s)", alice, alice))
-	text := "my link text!"
-	uassert.Equal(t, data.RenderLink(text), ufmt.Sprintf("[%s](/u/%s)", text, alice))
-}
+// TODO Uncomment after gnoweb /u/ page.
+//func TestUserRenderLink(t *testing.T) {
+//	std.TestSetOriginCaller(whitelistedCallerAddr)
+//	cleanStore(t)
+//
+//	urequire.NoError(t, RegisterUser(alice, aliceAddr))
+//
+//	data, _ := ResolveName(alice)
+//	uassert.Equal(t, data.RenderLink(""), ufmt.Sprintf("[@%s](/u/%s)", alice, alice))
+//	text := "my link text!"
+//	uassert.Equal(t, data.RenderLink(text), ufmt.Sprintf("[%s](/u/%s)", text, alice))
+//}
