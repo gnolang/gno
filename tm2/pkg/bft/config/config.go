@@ -12,6 +12,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cns "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	mem "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
+	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	rpc "github.com/gnolang/gno/tm2/pkg/bft/rpc/config"
 	eventstore "github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/types"
 	"github.com/gnolang/gno/tm2/pkg/db"
@@ -23,15 +24,12 @@ import (
 )
 
 var (
-	errInvalidMoniker                    = errors.New("moniker not set")
-	errInvalidDBBackend                  = errors.New("invalid DB backend")
-	errInvalidDBPath                     = errors.New("invalid DB path")
-	errInvalidPrivValidatorKeyPath       = errors.New("invalid private validator key path")
-	errInvalidPrivValidatorStatePath     = errors.New("invalid private validator state file path")
-	errInvalidABCIMechanism              = errors.New("invalid ABCI mechanism")
-	errInvalidPrivValidatorListenAddress = errors.New("invalid PrivValidator listen address")
-	errInvalidProfListenAddress          = errors.New("invalid profiling server listen address")
-	errInvalidNodeKeyPath                = errors.New("invalid p2p node key path")
+	errInvalidMoniker           = errors.New("moniker not set")
+	errInvalidDBBackend         = errors.New("invalid DB backend")
+	errInvalidDBPath            = errors.New("invalid DB path")
+	errInvalidABCIMechanism     = errors.New("invalid ABCI mechanism")
+	errInvalidProfListenAddress = errors.New("invalid profiling server listen address")
+	errInvalidNodeKeyPath       = errors.New("invalid p2p node key path")
 )
 
 const (
@@ -50,26 +48,28 @@ type Config struct {
 	BaseConfig `toml:",squash"`
 
 	// Options for services
-	RPC          *rpc.RPCConfig       `json:"rpc" toml:"rpc" comment:"##### rpc server configuration options #####"`
-	P2P          *p2p.P2PConfig       `json:"p2p" toml:"p2p" comment:"##### peer to peer configuration options #####"`
-	Mempool      *mem.MempoolConfig   `json:"mempool" toml:"mempool" comment:"##### mempool configuration options #####"`
-	Consensus    *cns.ConsensusConfig `json:"consensus" toml:"consensus" comment:"##### consensus configuration options #####"`
-	TxEventStore *eventstore.Config   `json:"tx_event_store" toml:"tx_event_store" comment:"##### event store #####"`
-	Telemetry    *telemetry.Config    `json:"telemetry" toml:"telemetry" comment:"##### node telemetry #####"`
-	Application  *sdk.AppConfig       `json:"application" toml:"application" comment:"##### app settings #####"`
+	RPC           *rpc.RPCConfig               `json:"rpc" toml:"rpc" comment:"##### rpc server configuration options #####"`
+	P2P           *p2p.P2PConfig               `json:"p2p" toml:"p2p" comment:"##### peer to peer configuration options #####"`
+	PrivValidator *privval.PrivValidatorConfig `json:"priv_validator" toml:"priv_validator" comment:"##### private validator configuration options #####"`
+	Mempool       *mem.MempoolConfig           `json:"mempool" toml:"mempool" comment:"##### mempool configuration options #####"`
+	Consensus     *cns.ConsensusConfig         `json:"consensus" toml:"consensus" comment:"##### consensus configuration options #####"`
+	TxEventStore  *eventstore.Config           `json:"tx_event_store" toml:"tx_event_store" comment:"##### event store #####"`
+	Telemetry     *telemetry.Config            `json:"telemetry" toml:"telemetry" comment:"##### node telemetry #####"`
+	Application   *sdk.AppConfig               `json:"application" toml:"application" comment:"##### app settings #####"`
 }
 
 // DefaultConfig returns a default configuration for a Tendermint node
 func DefaultConfig() *Config {
 	return &Config{
-		BaseConfig:   DefaultBaseConfig(),
-		RPC:          rpc.DefaultRPCConfig(),
-		P2P:          p2p.DefaultP2PConfig(),
-		Mempool:      mem.DefaultMempoolConfig(),
-		Consensus:    cns.DefaultConsensusConfig(),
-		TxEventStore: eventstore.DefaultEventStoreConfig(),
-		Telemetry:    telemetry.DefaultTelemetryConfig(),
-		Application:  sdk.DefaultAppConfig(),
+		BaseConfig:    DefaultBaseConfig(),
+		RPC:           rpc.DefaultRPCConfig(),
+		P2P:           p2p.DefaultP2PConfig(),
+		PrivValidator: privval.DefaultPrivValidatorConfig(),
+		Mempool:       mem.DefaultMempoolConfig(),
+		Consensus:     cns.DefaultConsensusConfig(),
+		TxEventStore:  eventstore.DefaultEventStoreConfig(),
+		Telemetry:     telemetry.DefaultTelemetryConfig(),
+		Application:   sdk.DefaultAppConfig(),
 	}
 }
 
@@ -179,14 +179,15 @@ func testP2PConfig() *p2p.P2PConfig {
 // TestConfig returns a configuration that can be used for testing
 func TestConfig() *Config {
 	return &Config{
-		BaseConfig:   testBaseConfig(),
-		RPC:          rpc.TestRPCConfig(),
-		P2P:          testP2PConfig(),
-		Mempool:      mem.TestMempoolConfig(),
-		Consensus:    cns.TestConsensusConfig(),
-		TxEventStore: eventstore.DefaultEventStoreConfig(),
-		Telemetry:    telemetry.DefaultTelemetryConfig(),
-		Application:  sdk.DefaultAppConfig(),
+		BaseConfig:    testBaseConfig(),
+		RPC:           rpc.TestRPCConfig(),
+		P2P:           testP2PConfig(),
+		PrivValidator: privval.TestPrivValidatorConfig(),
+		Mempool:       mem.TestMempoolConfig(),
+		Consensus:     cns.TestConsensusConfig(),
+		TxEventStore:  eventstore.DefaultEventStoreConfig(),
+		Telemetry:     telemetry.DefaultTelemetryConfig(),
+		Application:   sdk.DefaultAppConfig(),
 	}
 }
 
@@ -195,6 +196,7 @@ func (cfg *Config) SetRootDir(root string) *Config {
 	cfg.BaseConfig.RootDir = root
 	cfg.RPC.RootDir = root
 	cfg.P2P.RootDir = root
+	cfg.PrivValidator.RootDir = (filepath.Join(root, DefaultSecretsDir))
 	cfg.Mempool.RootDir = root
 	cfg.Consensus.RootDir = root
 
@@ -236,6 +238,9 @@ func (cfg *Config) ValidateBasic() error {
 	if err := cfg.P2P.ValidateBasic(); err != nil {
 		return errors.Wrap(err, "Error in [p2p] section")
 	}
+	if err := cfg.PrivValidator.ValidateBasic(); err != nil {
+		return errors.Wrap(err, "Error in [priv_validator] section")
+	}
 	if err := cfg.Mempool.ValidateBasic(); err != nil {
 		return errors.Wrap(err, "Error in [mempool] section")
 	}
@@ -255,15 +260,11 @@ var (
 	DefaultConfigDir  = "config"
 	DefaultSecretsDir = "secrets"
 
-	DefaultConfigFileName   = "config.toml"
-	defaultNodeKeyName      = "node_key.json"
-	defaultPrivValKeyName   = "priv_validator_key.json"
-	defaultPrivValStateName = "priv_validator_state.json"
+	DefaultConfigFileName = "config.toml"
+	defaultNodeKeyName    = "node_key.json"
 
-	defaultConfigPath       = filepath.Join(DefaultConfigDir, DefaultConfigFileName)
-	defaultPrivValKeyPath   = filepath.Join(DefaultSecretsDir, defaultPrivValKeyName)
-	defaultPrivValStatePath = filepath.Join(DefaultSecretsDir, defaultPrivValStateName)
-	defaultNodeKeyPath      = filepath.Join(DefaultSecretsDir, defaultNodeKeyName)
+	defaultConfigPath  = filepath.Join(DefaultConfigDir, DefaultConfigFileName)
+	defaultNodeKeyPath = filepath.Join(DefaultSecretsDir, defaultNodeKeyName)
 )
 
 // BaseConfig defines the base configuration for a Tendermint node.
@@ -317,16 +318,6 @@ type BaseConfig struct {
 	// Database directory
 	DBPath string `toml:"db_dir" comment:"Database directory"`
 
-	// Path to the JSON file containing the private key to use as a validator in the consensus protocol
-	PrivValidatorKey string `toml:"priv_validator_key_file" comment:"Path to the JSON file containing the private key to use as a validator in the consensus protocol"`
-
-	// Path to the JSON file containing the last sign state of a validator
-	PrivValidatorState string `toml:"priv_validator_state_file" comment:"Path to the JSON file containing the last sign state of a validator"`
-
-	// TCP or UNIX socket address for Tendermint to listen on for
-	// connections from an external PrivValidator process
-	PrivValidatorListenAddr string `toml:"priv_validator_laddr" comment:"TCP or UNIX socket address for Tendermint to listen on for\n connections from an external PrivValidator process"`
-
 	// A JSON file containing the private key to use for p2p authenticated encryption
 	NodeKey string `toml:"node_key_file" comment:"Path to the JSON file containing the private key to use for node authentication in the p2p protocol"`
 
@@ -340,16 +331,14 @@ type BaseConfig struct {
 // DefaultBaseConfig returns a default base configuration for a Tendermint node
 func DefaultBaseConfig() BaseConfig {
 	return BaseConfig{
-		PrivValidatorKey:   defaultPrivValKeyPath,
-		PrivValidatorState: defaultPrivValStatePath,
-		NodeKey:            defaultNodeKeyPath,
-		Moniker:            defaultMoniker,
-		ProxyApp:           "tcp://127.0.0.1:26658",
-		ABCI:               SocketABCI,
-		ProfListenAddress:  "",
-		FastSyncMode:       true,
-		DBBackend:          db.GoLevelDBBackend.String(),
-		DBPath:             DefaultDBDir,
+		NodeKey:           defaultNodeKeyPath,
+		Moniker:           defaultMoniker,
+		ProxyApp:          "tcp://127.0.0.1:26658",
+		ABCI:              SocketABCI,
+		ProfListenAddress: "",
+		FastSyncMode:      true,
+		DBBackend:         db.GoLevelDBBackend.String(),
+		DBPath:            DefaultDBDir,
 	}
 }
 
@@ -365,16 +354,6 @@ func testBaseConfig() BaseConfig {
 
 func (cfg BaseConfig) ChainID() string {
 	return cfg.chainID
-}
-
-// PrivValidatorKeyFile returns the full path to the priv_validator_key.json file
-func (cfg BaseConfig) PrivValidatorKeyFile() string {
-	return filepath.Join(cfg.RootDir, cfg.PrivValidatorKey)
-}
-
-// PrivValidatorStateFile returns the full path to the priv_validator_state.json file
-func (cfg BaseConfig) PrivValidatorStateFile() string {
-	return filepath.Join(cfg.RootDir, cfg.PrivValidatorState)
 }
 
 // NodeKeyFile returns the full path to the node_key.json file
@@ -422,22 +401,6 @@ func (cfg BaseConfig) ValidateBasic() error {
 	// Verify the DB path is set
 	if cfg.DBPath == "" {
 		return errInvalidDBPath
-	}
-
-	// Verify the validator private key path is set
-	if cfg.PrivValidatorKey == "" {
-		return errInvalidPrivValidatorKeyPath
-	}
-
-	// Verify the validator state file path is set
-	if cfg.PrivValidatorState == "" {
-		return errInvalidPrivValidatorStatePath
-	}
-
-	// Verify the PrivValidator listen address
-	if cfg.PrivValidatorListenAddr != "" &&
-		!tcpUnixAddressRegex.MatchString(cfg.PrivValidatorListenAddr) {
-		return errInvalidPrivValidatorListenAddress
 	}
 
 	// Verify the p2p private key exists

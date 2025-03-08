@@ -32,11 +32,6 @@ type InMemoryNodeConfig struct {
 	InitChainerConfig
 }
 
-// NewMockedPrivValidator generate a new key
-func NewMockedPrivValidator() bft.PrivValidator {
-	return bft.NewMockPVWithParams(ed25519.GenPrivKey(), false, false)
-}
-
 // NewDefaultGenesisConfig creates a default configuration for an in-memory node.
 func NewDefaultGenesisConfig(chainid, chaindomain string) *bft.GenesisDoc {
 	return &bft.GenesisDoc{

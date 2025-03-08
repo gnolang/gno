@@ -1,0 +1,54 @@
+package auth
+
+import (
+	"context"
+	"path/filepath"
+	"testing"
+
+	"github.com/gnolang/gno/contribs/gnokms/internal/common"
+	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/stretchr/testify/require"
+)
+
+func TestIdentity(t *testing.T) {
+	t.Parallel()
+
+	t.Run("non-existent auth key file", func(t *testing.T) {
+		t.Parallel()
+
+		// Create the command flags with a non-existent auth key file.
+		flags := &common.AuthFlags{
+			AuthKeysFile: filepath.Join(t.TempDir(), "non-existent"),
+		}
+
+		// Create the command.
+		cmd := newAuthIdentityCmd(flags, commands.NewTestIO())
+
+		// Run the command.
+		cmdErr := cmd.ParseAndRun(context.Background(), []string{})
+		require.Error(t, cmdErr)
+	})
+
+	t.Run("valid auth key file", func(t *testing.T) {
+		t.Parallel()
+
+		// Create the auth key file and a buffered command output.
+		filePath, authKeysFile := createAuthKeysFile(t)
+		buffer, io := createBufferedCmdOutput(t)
+
+		// Create the command flags with the auth key file.
+		flags := &common.AuthFlags{
+			AuthKeysFile: filePath,
+		}
+
+		// Create the command.
+		cmd := newAuthIdentityCmd(flags, io)
+
+		// Run the command.
+		cmdErr := cmd.ParseAndRun(context.Background(), []string{})
+		require.NoError(t, cmdErr)
+
+		// Check the command output.
+		require.Contains(t, buffer.String(), authKeysFile.ServerIdentity.PubKey)
+	})
+}
