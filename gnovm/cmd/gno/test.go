@@ -214,6 +214,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	opts.Metrics = cfg.printRuntimeMetrics
 	opts.Events = cfg.printEvents
 	opts.Debug = cfg.debug
+	opts.FailfastFlag = cfg.failfast
 
 	buildErrCount := 0
 	testErrCount := 0

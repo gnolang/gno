@@ -131,6 +131,8 @@ type TestOptions struct {
 
 	// Flag to filter tests to run.
 	RunFlag string
+	// Flag to stop executing as soon a test fails.
+	FailfastFlag bool
 	// Whether to update filetest directives.
 	Sync bool
 	// Uses Error to print when starting a test, and prints test output directly,
@@ -415,6 +417,9 @@ func (opts *TestOptions) runTestFiles(
 		if rep.Failed {
 			err := fmt.Errorf("failed: %q", tf.Name)
 			errs = multierr.Append(errs, err)
+			if opts.FailfastFlag {
+				return errs
+			}
 		}
 
 		if opts.Metrics {
