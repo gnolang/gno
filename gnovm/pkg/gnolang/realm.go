@@ -332,7 +332,7 @@ func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, seenObjs *[]Objec
 	}
 }
 
-// checkCrossRealmChildren check if children is crossing realm
+// checkCrossRealmChildren checks if any children of oo is crossing realm.
 func checkCrossRealmChildren(rlm *Realm, store Store, oo Object, seenObjs *[]Object) {
 	switch v := oo.(type) {
 	case *StructValue:
