@@ -1,0 +1,27 @@
+# Test -failfast flag
+
+! gno test -failfast ./...
+
+! stdout .+
+stderr '--- FAIL: TestFail'
+stderr 'someError'
+! stderr 'secondError'
+
+
+-- failfast.gno --
+package failfast
+
+-- failfast_test.gno --
+package failfast
+
+import (
+	"testing"
+)
+
+func TestFail(t *testing.T) {
+	t.Error("someError")
+}
+
+func TestFail2(t *testing.T) {
+	t.Error("secondError")
+}
