@@ -60,7 +60,7 @@ func TestDec(t *testing.T) {
 func TestUint_Scan(t *testing.T) {
 	tests := []struct {
 		name    string
-		input   interface{}
+		input   any
 		want    *Uint
 		wantErr bool
 	}{

@@ -52,8 +52,6 @@ func TestBuiltinIdentifiersShadowing(t *testing.T) {
 		"iota",
 		"append",
 		"cap",
-		"close",
-		"complex",
 		"copy",
 		"delete",
 		"len",
@@ -80,10 +78,10 @@ func TestBuiltinIdentifiersShadowing(t *testing.T) {
 		"uint16",
 		"uint32",
 		"uint64",
-		"typeval",
 		"error",
 		"true",
 		"false",
+		"any",
 	}
 
 	for _, name := range uverseNames {
