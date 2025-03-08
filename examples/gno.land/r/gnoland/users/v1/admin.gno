@@ -9,7 +9,7 @@ import (
 	susers "gno.land/r/sys/users"
 )
 
-var paused = false // until a DAO can be owner of ownable/pausable
+var paused = false // XXX: replace with p/moul/authz
 
 // NewSetPausedExecutor allows GovDAO to pause or unpause this realm
 func NewSetPausedExecutor(newPausedValue bool) dao.Executor {

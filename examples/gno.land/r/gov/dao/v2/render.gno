@@ -45,7 +45,7 @@ func Render(path string) string {
 			user := users.ResolveAddress(prop.Author())
 			authorDisplayText := prop.Author().String()
 			if user != nil {
-				authorDisplayText = ufmt.Sprintf("[%s](/r/sys/users:%s)", user.Name(), user.Name())
+				authorDisplayText = user.RenderLink("")
 			}
 
 			out += ufmt.Sprintf("**Author: %s**\n\n", authorDisplayText)
