@@ -29,7 +29,7 @@ func main() {
 		// Check if the odd number is a divisor of n
 		temp.Mod(n, i)
 		if temp.Sign() == 0 {
-			fmt.Println(i)
+			fmt.Println(i.String())
 			break
 		}
 
