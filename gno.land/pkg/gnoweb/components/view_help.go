@@ -19,6 +19,7 @@ type HelpData struct {
 	ChainId   string
 	Remote    string
 	PkgPath   string
+	Doc       string `json:"package_doc"`
 }
 
 type HelpTocData struct {

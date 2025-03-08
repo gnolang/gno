@@ -1,16 +1,35 @@
-<!-- @prettier -->
 {{ define "ui/help_function" }}
   {{ $data := . }}
+
+  {{ with .Doc }}
+    <div class="mt-2 mb-8">
+      <h2 class="text-400 text-gray-800 font-semibold mb-1" id="overview">
+        Overview
+      </h2>
+      <p class="text-300">{{ . }}</p>
+    </div>
+  {{ end }}
+
+
+  <h2 class="text-400 text-gray-800 font-semibold mb-4">Functions</h2>
   {{ range .Functions }}
     <article class="bg-gray-100 rounded p-4 mb-3" data-func="{{ .Name }}">
-      <h2
-        id="func-{{ .Name }}"
-        class="text-gray-600 font-semibold text-200 mb-3 leading-tight"
-      >
-        {{ .Name }}
-      </h2>
-      <h3 class="text-gray-600 text-50 mb-1">{{ .Doc }}</h3>
-      <div class="mb-1">
+      <span class="flex gap-x-4 gap-y-1 items-baseline flex-wrap mb-4">
+        <h2
+          id="func-{{ .Name }}"
+          class="text-gray-800 font-semibold text-300 leading-tight"
+        >
+          {{ .Name }}
+        </h2>
+        <code class="text-50 text-gray-600 font-bold">
+          {{ .Signature }}
+        </code>
+      </span>
+
+      {{ with .Doc }}
+        <p class="text-gray-600 text-200">{{ . }}</p>
+      {{ end }}
+      <div class="mb-1 mt-6">
         <div class="flex flex-col gap-1 items-stretch text-gray-400">
           <h3 class="mr-10 text-50">Params</h3>
           <form class="w-full text-100">
@@ -28,7 +47,11 @@
                   </label>
                   <input
                     type="text"
-                    {{- if eq $data.SelectedFunc $funcName }}
+                    {{- if
+                      eq
+                      $data.SelectedFunc
+                      $funcName
+                    }}
                       value="{{ getSelectedArgValue $data . }}"
                     {{- end }}
                     placeholder="parameter"
@@ -54,9 +77,9 @@
             {{ template "ui/copy" }}
           </button>
           {{/* prettier-ignore-start */}}
-          <pre
-            class="font-mono text-gray-600 p-4 pr-10 whitespace-pre-wrap"
-          ><code><span data-code-mode="fast" class="hidden" data-copy-content="help-cmd-{{ .Name }}"># WARNING: This command is running in an INSECURE mode.
+      <pre
+        class="font-mono text-gray-600 p-4 pr-10 whitespace-pre-wrap"
+      ><code><span data-code-mode="fast" class="hidden" data-copy-content="help-cmd-{{ .Name }}"># WARNING: This command is running in an INSECURE mode.
 # It is strongly recommended to use a hardware device for signing
 # and avoid trusting any computer connected to the internet,
 # as your private keys could be exposed.
