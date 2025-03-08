@@ -128,7 +128,10 @@ func (u *UserData) UpdateName(newName string) error {
 	u.username = newName
 	nameStore.Set(newName, u)
 
-	std.Emit(UpdateNameEvent, "alias", newName, "address", u.addr.String())
+	std.Emit(UpdateNameEvent,
+		"alias", newName,
+		"address", u.addr.String(),
+	)
 	return nil
 }
 
