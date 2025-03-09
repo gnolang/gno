@@ -2,8 +2,8 @@
   {{ $data := . }}
 
   {{ with .Doc }}
-    <div class="mt-2 mb-8">
-      <h2 class="text-400 text-gray-800 font-semibold mb-1" id="overview">
+    <div class="mb-12">
+      <h2 class="text-400 text-gray-800 font-bold mb-1" id="overview">
         Overview
       </h2>
       <p class="text-300">{{ . }}</p>
@@ -11,27 +11,54 @@
   {{ end }}
 
 
-  <h2 class="text-400 text-gray-800 font-semibold mb-4">Functions</h2>
+  <h2 class="text-400 text-gray-800 font-bold mb-4">
+    Function{{- if gt (len .Functions) 1 }}s{{- end }}
+  </h2>
   {{ range .Functions }}
     <article class="bg-gray-100 rounded p-4 mb-3" data-func="{{ .Name }}">
-      <span class="flex gap-x-4 gap-y-1 items-baseline flex-wrap mb-4">
-        <h2
-          id="func-{{ .Name }}"
-          class="text-gray-800 font-semibold text-300 leading-tight"
+      <div class="flex justify-between items-top mb-4">
+        <span class="flex gap-x-6 gap-y-1 items-baseline flex-wrap">
+          <h2
+            id="func-{{ .Name }}"
+            class="text-gray-800 font-semibold text-300 leading-tight"
+          >
+            {{ .Name }}
+          </h2>
+          <span>
+            <code
+              class="lg:text-50 text-100 text-gray-600 font-bold"
+              data-copy-content="func-{{ .Name }}"
+            >
+              {{ .Signature }}
+            </code>
+            <button
+              class="js-copy-btn mr-2 text-gray-400 hover:text-gray-600"
+              aria-label="Copy Function"
+              data-copy-btn="func-{{ .Name }}"
+            >
+              {{ template "ui/copy" }}
+            </button>
+          </span>
+        </span>
+        <a
+          href="#func-{{ .Name }}"
+          class="text-300 text-gray-400 hover:text-gray-600"
+          title="Function anchor link"
         >
-          {{ .Name }}
-        </h2>
-        <code class="text-50 text-gray-600 font-bold">
-          {{ .Signature }}
-        </code>
-      </span>
+          <svg class="w-5 h-5 shrink-0 inline-block" data-copy-icon>
+            <use href="#ico-link"></use>
+          </svg>
+        </a>
+      </div>
 
       {{ with .Doc }}
         <p class="text-gray-600 text-200">{{ . }}</p>
       {{ end }}
       <div class="mb-1 mt-6">
         <div class="flex flex-col gap-1 items-stretch text-gray-400">
-          <h3 class="mr-10 text-50">Params</h3>
+          <h3 class="mr-10 text-50">
+            Param{{- if gt (len .Params) 1 }}s{{ end }}
+          </h3>
           <form class="w-full text-100">
             {{ $funcName := .Name }}
             {{ range .Params }}
@@ -70,7 +97,7 @@
         <h3 class="text-gray-400 text-50 mb-1">Command</h3>
         <div class="relative rounded-sm text-100 bg-light">
           <button
-            class="js-copy-btn w-5 h-5 absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+            class="js-copy-btn absolute top-2 right-2 text-gray-400 hover:text-gray-600"
             aria-label="Copy Command"
             data-copy-btn="help-cmd-{{ .Name }}"
           >
