@@ -251,11 +251,6 @@ func (m *Machine) RunMemPackageWithOverrides(memPkg *gnovm.MemPackage, save bool
 func (m *Machine) runMemPackage(memPkg *gnovm.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
 	// parse files.
 	files := ParseMemPackage(memPkg)
-	if !overrides {
-		if err := checkDuplicates(files); err != nil {
-			panic(fmt.Errorf("running package %q: %w", memPkg.Path, err))
-		}
-	}
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)
@@ -271,7 +266,7 @@ func (m *Machine) runMemPackage(memPkg *gnovm.MemPackage, save, overrides bool) 
 	}
 	m.SetActivePackage(pv)
 	// run files.
-	updates := m.runFileDecls(files.Files...)
+	updates := m.runFileDecls(overrides, files.Files...)
 	// save package value and mempackage.
 	// XXX save condition will be removed once gonative is removed.
 	var throwaway *Realm
@@ -375,25 +370,17 @@ func destar(x Expr) Expr {
 // Stacktrace returns the stack trace of the machine.
 // It collects the executions and frames from the machine's frames and statements.
 func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
-	if len(m.Frames) == 0 || len(m.Stmts) == 0 {
+	if len(m.Frames) == 0 {
 		return
 	}
 
-	calls := make([]StacktraceCall, 0, len(m.Stmts))
-	nextStmtIndex := len(m.Stmts) - 1
+	calls := make([]StacktraceCall, 0, len(m.Frames))
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		if m.Frames[i].IsCall() {
-			stm := m.Stmts[nextStmtIndex]
-			if bs, ok := stm.(*bodyStmt); ok {
-				stm = bs.Body[bs.NextBodyIndex-1]
-			}
 			calls = append(calls, StacktraceCall{
-				Stmt:  stm,
 				Frame: m.Frames[i],
 			})
 		}
-		// if the frame is a call, the next statement is the last statement of the frame.
-		nextStmtIndex = m.Frames[i].NumStmts - 1
 	}
 
 	// if the stacktrace is too long, we trim it down to maxStacktraceSize
@@ -407,6 +394,19 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 
 	stacktrace.Calls = calls
 
+	// XXX move to machine.LastLine()?
+	if len(m.Exprs) > 0 {
+		stacktrace.LastLine = m.PeekExpr(1).GetLine()
+	} else if len(m.Stmts) > 0 {
+		stmt := m.PeekStmt(1)
+		if bs, ok := stmt.(*bodyStmt); ok {
+			if 0 <= bs.NextBodyIndex-1 {
+				stmt = bs.Body[bs.NextBodyIndex-1]
+			}
+		}
+		stacktrace.LastLine = stmt.GetLine()
+	}
+
 	return
 }
 
@@ -419,7 +419,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	if pv == nil {
 		panic("RunFiles requires Machine.Package")
 	}
-	updates := m.runFileDecls(fns...)
+	updates := m.runFileDecls(IsStdlib(pv.PkgPath), fns...)
 	m.runInitFromUpdates(pv, updates)
 }
 
@@ -471,7 +471,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 // Add files to the package's *FileSet and run decls in them.
 // This will also run each init function encountered.
 // Returns the updated typed values of package.
-func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
+func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValue {
 	// Files' package names must match the machine's active one.
 	// if there is one.
 	for _, fn := range fns {
@@ -499,6 +499,11 @@ func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
 		}
 		// add fns to pre-existing fileset.
 		pn.FileSet.AddFiles(fns...)
+	}
+	if !withOverrides {
+		if err := checkDuplicates(pn.FileSet); err != nil {
+			panic(fmt.Errorf("running package %q: %w", pv.PkgPath, err))
+		}
 	}
 
 	// Predefine declarations across all files.
@@ -680,10 +685,10 @@ func (m *Machine) RunFunc(fn Name) {
 		if r := recover(); r != nil {
 			switch r := r.(type) {
 			case UnhandledPanicError:
-				fmt.Printf("Machine.RunFunc(%q) panic: %s\nStacktrace: %s\n",
+				fmt.Printf("Machine.RunFunc(%q) panic: %s\nStacktrace:\n%s\n",
 					fn, r.Error(), m.ExceptionsStacktrace())
 			default:
-				fmt.Printf("Machine.RunFunc(%q) panic: %v\nMachine State:%s\nStacktrace: %s\n",
+				fmt.Printf("Machine.RunFunc(%q) panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
 					fn, r, m.String(), m.Stacktrace().String())
 			}
 			panic(r)
@@ -699,10 +704,10 @@ func (m *Machine) RunMain() {
 		if r != nil {
 			switch r := r.(type) {
 			case UnhandledPanicError:
-				fmt.Printf("Machine.RunMain() panic: %s\nStacktrace: %s\n",
+				fmt.Printf("Machine.RunMain() panic: %s\nStacktrace:\n%s\n",
 					r.Error(), m.ExceptionsStacktrace())
 			default:
-				fmt.Printf("Machine.RunMain() panic: %v\nMachine State:%s\nStacktrace: %s\n",
+				fmt.Printf("Machine.RunMain() panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
 					r, m.String(), m.Stacktrace())
 			}
 			panic(r)
@@ -2103,6 +2108,40 @@ func (m *Machine) Panic(ex TypedValue) {
 	m.PopUntilLastCallFrame()
 	m.PushOp(OpPanic2)
 	m.PushOp(OpReturnCallDefers)
+}
+
+// Recover is the underlying implementation of the recover() function in the
+// GnoVM. It returns nil if there was no exception to be recovered, otherwise
+// it returns the [Exception], which also contains the value passed into panic().
+func (m *Machine) Recover() *Exception {
+	if len(m.Exceptions) == 0 {
+		return nil
+	}
+
+	// If the exception is out of scope, this recover can't help; return nil.
+	if m.PanicScope <= m.DeferPanicScope {
+		return nil
+	}
+
+	exception := &m.Exceptions[len(m.Exceptions)-1]
+
+	// If the frame the exception occurred in is not popped, it's possible that
+	// the exception is still in scope and can be recovered.
+	if !exception.Frame.Popped {
+		// If the frame is not the current frame, the exception is not in scope; return nil.
+		// This retrieves the second most recent call frame because the first most recent
+		// is the call to recover itself.
+		if frame := m.LastCallFrame(2); frame == nil || frame != exception.Frame {
+			return nil
+		}
+	}
+
+	if isUntyped(exception.Value.T) {
+		ConvertUntypedTo(&exception.Value, nil)
+	}
+	// Recover complete; remove exceptions.
+	m.Exceptions = nil
+	return exception
 }
 
 //----------------------------------------
