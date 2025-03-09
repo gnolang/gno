@@ -285,15 +285,11 @@ func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) e
 }
 
 func (s *HTMLWebClient) WriteFormatterCSS(w io.Writer) error {
-	if err := s.Formatter.WriteCSS(w, s.chromaStyle); err != nil {
-		return err
-	}
+	s.Formatter.WriteCSS(w, s.chromaStyle)
 
 	// Generate CSS for dark mode
 	var darkCSS strings.Builder
-	if err := s.Formatter.WriteCSS(&darkCSS, chromaDarkStyle); err != nil {
-		return err
-	}
+	s.Formatter.WriteCSS(&darkCSS, chromaDarkStyle)
 
 	scanner := bufio.NewScanner(strings.NewReader(darkCSS.String()))
 	for scanner.Scan() {
