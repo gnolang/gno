@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// main/files/const34.gno:3:7: func func(){ (const (println func(xs ...interface{})()))((const ("hey" string))) } (variable of type func()()) is not constant
+// main/files/const34.gno:3:7: func func(){ (const (println func(...interface {})))((const ("hey" string))) } (variable of type func()) is not constant

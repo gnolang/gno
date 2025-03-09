@@ -12,11 +12,17 @@ type protectedStringer interface {
 	ProtectedString(*seenValues) string
 }
 
-// This indicates the maximum anticipated depth of the stack when printing a Value type.
-const defaultSeenValuesSize = 32
+const (
+	// defaultSeenValuesSize indicates the maximum anticipated depth of the stack when printing a Value type.
+	defaultSeenValuesSize = 32
+
+	// nestedLimit indicates the maximum nested level when printing a deeply recursive value.
+	nestedLimit = 10
+)
 
 type seenValues struct {
 	values []Value
+	nc     int // nested counter, to limit recursivity
 }
 
 func (sv *seenValues) Put(v Value) {
@@ -46,19 +52,19 @@ func (sv *seenValues) Pop() {
 }
 
 func newSeenValues() *seenValues {
-	return &seenValues{values: make([]Value, 0, defaultSeenValuesSize)}
+	return &seenValues{values: make([]Value, 0, defaultSeenValuesSize), nc: nestedLimit}
 }
 
-func (v StringValue) String() string {
-	return strconv.Quote(string(v))
+func (sv StringValue) String() string {
+	return strconv.Quote(string(sv))
 }
 
-func (bv BigintValue) String() string {
-	return bv.V.String()
+func (biv BigintValue) String() string {
+	return biv.V.String()
 }
 
-func (bv BigdecValue) String() string {
-	return bv.V.String()
+func (bdv BigdecValue) String() string {
+	return bdv.V.String()
 }
 
 func (dbv DataByteValue) String() string {
@@ -74,6 +80,10 @@ func (av *ArrayValue) ProtectedString(seen *seenValues) string {
 		return fmt.Sprintf("%p", av)
 	}
 
+	seen.nc--
+	if seen.nc < 0 {
+		return "..."
+	}
 	seen.Put(av)
 	defer seen.Pop()
 
@@ -177,18 +187,18 @@ func (fv *FuncValue) String() string {
 	return name
 }
 
-func (v *BoundMethodValue) String() string {
-	name := v.Func.Name
+func (bmv *BoundMethodValue) String() string {
+	name := bmv.Func.Name
 	var (
 		recvT   string = "?"
 		params  string = "?"
 		results string = "(?)"
 	)
-	if ft, ok := v.Func.Type.(*FuncType); ok {
+	if ft, ok := bmv.Func.Type.(*FuncType); ok {
 		recvT = ft.Params[0].Type.String()
-		params = FieldTypeList(ft.Params).StringWithCommas()
+		params = FieldTypeList(ft.Params).StringForFunc()
 		if len(results) > 0 {
-			results = FieldTypeList(ft.Results).StringWithCommas()
+			results = FieldTypeList(ft.Results).StringForFunc()
 			results = "(" + results + ")"
 		}
 	}
@@ -223,19 +233,19 @@ func (mv *MapValue) ProtectedString(seen *seenValues) string {
 	return "map{" + strings.Join(ss, ",") + "}"
 }
 
-func (v TypeValue) String() string {
+func (tv TypeValue) String() string {
 	ptr := ""
-	if reflect.TypeOf(v.Type).Kind() == reflect.Ptr {
-		ptr = fmt.Sprintf(" (%p)", v.Type)
+	if reflect.TypeOf(tv.Type).Kind() == reflect.Ptr {
+		ptr = fmt.Sprintf(" (%p)", tv.Type)
 	}
 	/*
 		mthds := ""
-		if d, ok := v.Type.(*DeclaredType); ok {
+		if d, ok := tv.Type.(*DeclaredType); ok {
 			mthds = fmt.Sprintf(" %v", d.Methods)
 		}
 	*/
 	return fmt.Sprintf("typeval{%s%s}",
-		v.Type.String(), ptr)
+		tv.Type.String(), ptr)
 }
 
 func (pv *PackageValue) String() string {
@@ -253,18 +263,18 @@ func (nv *NativeValue) String() string {
 	*/
 }
 
-func (v RefValue) String() string {
-	if v.PkgPath == "" {
+func (rv RefValue) String() string {
+	if rv.PkgPath == "" {
 		return fmt.Sprintf("ref(%v)",
-			v.ObjectID)
+			rv.ObjectID)
 	}
 	return fmt.Sprintf("ref(%s)",
-		v.PkgPath)
+		rv.PkgPath)
 }
 
-func (v *HeapItemValue) String() string {
+func (hiv *HeapItemValue) String() string {
 	return fmt.Sprintf("heapitem(%v)",
-		v.Value)
+		hiv.Value)
 }
 
 // ----------------------------------------
@@ -278,7 +288,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 	}
 
 	// if implements .String(), return it.
-	if IsImplementedBy(gStringerType, tv.T) {
+	if IsImplementedBy(gStringerType, tv.T) && !tv.IsNilInterface() {
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
 		return res[0].GetString()
 	}
@@ -343,9 +353,9 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 			return fmt.Sprintf("%v", math.Float32frombits(tv.GetFloat32()))
 		case Float64Type:
 			return fmt.Sprintf("%v", math.Float64frombits(tv.GetFloat64()))
-		case UntypedBigintType, BigintType:
+		case UntypedBigintType:
 			return tv.V.(BigintValue).V.String()
-		case UntypedBigdecType, BigdecType:
+		case UntypedBigdecType:
 			return tv.V.(BigdecValue).V.String()
 		default:
 			panic("should not happen")

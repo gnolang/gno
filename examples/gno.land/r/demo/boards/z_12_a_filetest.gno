@@ -1,20 +1,19 @@
 // PKGPATH: gno.land/r/demo/boards_test
 package boards_test
 
-// SEND: 200000000ugnot
+// SEND: 1000000ugnot
 
 import (
 	"std"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
-	"gno.land/r/demo/users"
+	users "gno.land/r/gnoland/users/v1"
 )
 
 func main() {
-	caller := testutils.TestAddress("caller")
-	std.TestSetRealm(std.NewUserRealm(caller))
-	users.Register("", "gnouser", "my profile")
+	std.TestSetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	users.Register("gnouser123")
 	// create a post via registered user
 	bid1 := boards.CreateBoard("test_board1")
 	pid := boards.CreateThread(bid1, "First Post (title)", "Body of the first post. (body)")
@@ -22,8 +21,8 @@ func main() {
 
 	// create a repost via anon user
 	test2 := testutils.TestAddress("test2")
-	std.TestSetOrigCaller(test2)
-	std.TestSetOrigSend(std.Coins{{"ugnot", 9000000}}, nil)
+	std.TestSetOriginCaller(test2)
+	std.TestSetOriginSend(std.Coins{{"ugnot", 9000000}}, nil)
 
 	rid := boards.CreateRepost(bid1, pid, "", "Check this out", bid2)
 	println(rid)

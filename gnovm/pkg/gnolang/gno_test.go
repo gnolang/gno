@@ -52,8 +52,6 @@ func TestBuiltinIdentifiersShadowing(t *testing.T) {
 		"iota",
 		"append",
 		"cap",
-		"close",
-		"complex",
 		"copy",
 		"delete",
 		"len",
@@ -64,7 +62,6 @@ func TestBuiltinIdentifiersShadowing(t *testing.T) {
 		"println",
 		"recover",
 		"nil",
-		"bigint",
 		"bool",
 		"byte",
 		"float32",
@@ -81,10 +78,10 @@ func TestBuiltinIdentifiersShadowing(t *testing.T) {
 		"uint16",
 		"uint32",
 		"uint64",
-		"typeval",
 		"error",
 		"true",
 		"false",
+		"any",
 	}
 
 	for _, name := range uverseNames {
@@ -584,54 +581,6 @@ func assertOutput(t *testing.T, input string, output string) {
 	assert.Equal(t, output, string(buf.Bytes()))
 	err := m.CheckEmpty()
 	assert.Nil(t, err)
-}
-
-func TestRunMakeStruct(t *testing.T) {
-	t.Parallel()
-
-	assertOutput(t, `package test
-type Outfit struct {
-	Scarf string
-	Shirt string
-	Belts string
-	Strap string
-	Pants string
-	Socks string
-	Shoes string
-}
-func main() {
-	s := Outfit {
-		// some fields are out of order.
-		// some fields are left unset.
-		Scarf:"scarf",
-		Shirt:"shirt",
-		Shoes:"shoes",
-		Socks:"socks",
-	}
-	// some fields out of order are used.
-	// some fields left unset are used.
-	print(s.Shoes+","+s.Shirt+","+s.Pants+","+s.Scarf)
-}`, `shoes,shirt,,scarf`)
-}
-
-func TestRunReturnStruct(t *testing.T) {
-	t.Parallel()
-
-	assertOutput(t, `package test
-type MyStruct struct {
-	FieldA string
-	FieldB string
-}
-func myStruct(a, b string) MyStruct {
-	return MyStruct{
-		FieldA: a,
-		FieldB: b,
-	}
-}
-func main() {
-	s := myStruct("aaa", "bbb")
-	print(s.FieldA+","+s.FieldB)
-}`, `aaa,bbb`)
 }
 
 // ----------------------------------------

@@ -1,6 +1,6 @@
 package testutils
 
-// For testing std.GetCallerAt().
+// For testing std.CallerAt().
 func WrapCall(fn func()) {
 	fn()
 }
