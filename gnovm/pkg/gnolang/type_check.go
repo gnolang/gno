@@ -294,7 +294,7 @@ Main:
 											return n, TRANS_CONTINUE
 										}
 
-										// check if it is a string constant
+										// check for string
 										assertValidConstValue(store, last, clxp.Args[0])
 										return n, TRANS_CONTINUE
 									}
