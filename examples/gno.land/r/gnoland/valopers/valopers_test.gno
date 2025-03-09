@@ -36,13 +36,14 @@ var (
 		"http://example.com:80",
 		"https://secure.com:443",
 		"ws://localhost:8080",
+    "without-protocol.com:443",
   }	
 
   invalidListeningAddresses = []string{
 		"bad-format", 
-    "invalid_format.com:443",  // Invalid (missing protocol)
 		"ftp://127.0.0.1",         // Invalid (missing port)
 		"https://:443",            // Invalid (missing host)
+		":443",                    // Invalid (missing host)
 	}
 
 	validP2PAddresses   = []string{ufmt.Sprintf("%s@%s", validAddress, validListeningAddresses[0]), ufmt.Sprintf("%s@%s", validAddress, validListeningAddresses[1])}

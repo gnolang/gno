@@ -448,7 +448,7 @@ func validatePubKey(pubKey string) error {
 }
 
 func validateListeningAddress(addr string) bool {
-	re := regexp.MustCompile(`^\w+://[\w\.-]+:\d+$`)
+	re := regexp.MustCompile(`^(?:\w+://)?[\w\.-]+:\d+$`)
 	return re.MatchString(addr)
 }
 
