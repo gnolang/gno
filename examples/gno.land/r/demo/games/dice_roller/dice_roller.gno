@@ -12,7 +12,8 @@ import (
 	"gno.land/p/demo/entropy"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/users"
+
+	"gno.land/r/sys/users"
 )
 
 type (
@@ -222,9 +223,9 @@ The top players are ranked by performance. Games played against oneself are not 
 
 // shortName returns a shortened name for the given address
 func shortName(addr std.Address) string {
-	user := users.GetUserByAddress(addr)
+	user := users.ResolveAddress(addr)
 	if user != nil {
-		return user.Name
+		return user.Name()
 	}
 	if len(addr) < 10 {
 		return string(addr)
