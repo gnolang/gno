@@ -28,5 +28,5 @@ func main() {
 }
 
 // Output:
-// int64
+// main.Error
 // what the firetruck?
