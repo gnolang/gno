@@ -1,22 +1,22 @@
 package valopers
 
 import (
-  "gno.land/p/moul/authz"
+	"gno.land/p/moul/authz"
 )
 
 var auth *authz.Authorizer
 
 func Auth() *authz.Authorizer {
-  return auth
+	return auth
 }
 
 func UpdateInstructions(newInstructions string) {
-  err := auth.Do("update-instructions", func() error {
-    instructions = newInstructions
-    return nil
-  })
+	err := auth.Do("update-instructions", func() error {
+		instructions = newInstructions
+		return nil
+	})
 
-  if err != nil {
-    panic(err)
-  }
+	if err != nil {
+		panic(err)
+	}
 }

@@ -1,10 +1,10 @@
 package valopers
 
 import (
-  "std"
+	"std"
 
-  "gno.land/p/demo/avl"
-  "gno.land/p/moul/authz"
+	"gno.land/p/demo/avl"
+	"gno.land/p/moul/authz"
 )
 
 const initialMember = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
@@ -15,7 +15,7 @@ func init() {
 	memberAuth := authz.NewMemberAuthority(std.Address(initialMember))
 	auth = authz.NewWithAuthority(memberAuth)
 
-  instructions = `
+	instructions = `
 # Welcome to the **Valopers** realm
 
 ## 📌 Purpose of this Contract
@@ -34,7 +34,7 @@ To add your validator node to the registry, use the **Register** function with t
 - **Description**: A detailed introduction in Markdown, including answers to the questions below.
 - **Validator Address**: The address of your validator node.
 - **Validator Public Key**: Your validator node’s public key.
-- **P2P Addresses**: A comma-separated list of peer-to-peer addresses in the format **<nodeID>@<listeningAddress>:<port>**
+- **P2P Addresses**: A comma-separated list of peer-to-peer addresses in the format **[nodeID]@[listeningAddress]:[port]**
 
 ### ✍️ Required Information for the Description
 

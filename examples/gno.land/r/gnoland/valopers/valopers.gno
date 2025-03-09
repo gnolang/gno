@@ -19,7 +19,7 @@ var (
 	ErrValoperExists       = errors.New("valoper already exists")
 	ErrValoperMissing      = errors.New("valoper does not exist")
 	ErrAddressExists       = errors.New("valoper updated address exists")
-  ErrSameAddress         = errors.New("valoper updated address is the same")
+	ErrSameAddress         = errors.New("valoper updated address is the same")
 	ErrInvalidAddress      = errors.New("invalid address")
 	ErrOriginCaller        = errors.New("origin call is not the same")
 	ErrInvalidMoniker      = errors.New("moniker cannot be empty")
@@ -28,12 +28,12 @@ var (
 	ErrInvalidP2PAddress   = errors.New("invalid P2P address")
 	ErrP2PAddressesMissing = errors.New("P2P addresses cannot be empty")
 
-	minFee     int64    = 20 * 1_000_000 // minimum gnot must be paid to register.
-	maxFeeMult int64    = 10             // maximum multiples of minFee accepted.
+	minFee     int64 = 20 * 1_000_000 // minimum gnot must be paid to register.
+	maxFeeMult int64 = 10             // maximum multiples of minFee accepted.
 )
 
 // valopers keeps track of all the active validator operators
-var valopers *avl.Tree // Address -> Valoper
+var valopers *avl.Tree  // Address -> Valoper
 var instructions string // markdown instructions for valoper's registration
 
 // Valoper represents a validator operator profile
@@ -56,9 +56,9 @@ func Register(moniker string, description string, address std.Address, pubKey st
 		panic(ErrValoperExists)
 	}
 
-  if err := validateSentCoins(); err != nil {
-    panic(err)
-  }
+	if err := validateSentCoins(); err != nil {
+		panic(err)
+	}
 
 	v := Valoper{
 		Moniker:      moniker,
@@ -97,15 +97,15 @@ func Update(address std.Address, moniker string, description string, newAddress 
 		panic(ErrAddressExists)
 	}
 
-  v := Valoper{
-    Moniker:      moniker,
-    Description:  description,
-    Address:      newAddress,
-    PubKey:       pubKey,
-    Active:       active,
-    P2PAddresses: splitP2PAddresses(p2pAddresses),
-    Caller:       std.PreviousRealm().Address(),
-  }
+	v := Valoper{
+		Moniker:      moniker,
+		Description:  description,
+		Address:      newAddress,
+		PubKey:       pubKey,
+		Active:       active,
+		P2PAddresses: splitP2PAddresses(p2pAddresses),
+		Caller:       std.PreviousRealm().Address(),
+	}
 
 	if err := v.Validate(); err != nil {
 		panic(err)
@@ -297,19 +297,19 @@ func Render(fullPath string) string {
 }
 
 func renderHome(path string) string {
-  // if there are no valopers, display instructions
+	// if there are no valopers, display instructions
 	if valopers.Size() == 0 {
-    return ufmt.Sprintf("%s\n\nNo valopers to display.", instructions)
+		return ufmt.Sprintf("%s\n\nNo valopers to display.", instructions)
 	}
 
 	page := pager.NewPager(valopers, 50, false).MustGetPageByPath(path)
 
-  output := ""
+	output := ""
 
-  // if we are on the first page, display instructions
-  if page.PageNumber == 1 {
-    output += ufmt.Sprintf("%s\n\n", instructions)
-  }
+	// if we are on the first page, display instructions
+	if page.PageNumber == 1 {
+		output += ufmt.Sprintf("%s\n\n", instructions)
+	}
 
 	for _, item := range page.Items {
 		v := item.Value.(Valoper)
@@ -396,15 +396,15 @@ func validateSentCoins() error {
 	sentCoins := std.OriginSend()
 	minCoin := std.NewCoin("ugnot", minFee)
 
-  if len(sentCoins) == 1 && sentCoins[0].IsGTE(minCoin) {
-    if sentCoins[0].Amount > minFee*maxFeeMult {
-      return errors.New("payment must not be greater than " + strconv.Itoa(int(minFee*maxFeeMult)))
-    } else {
-      return nil
-    }
-  } else {
-    return errors.New("payment must not be less than " + strconv.Itoa(int(minFee)))
-  }
+	if len(sentCoins) == 1 && sentCoins[0].IsGTE(minCoin) {
+		if sentCoins[0].Amount > minFee*maxFeeMult {
+			return errors.New("payment must not be greater than " + strconv.Itoa(int(minFee*maxFeeMult)))
+		} else {
+			return nil
+		}
+	} else {
+		return errors.New("payment must not be less than " + strconv.Itoa(int(minFee)))
+	}
 }
 
 func splitP2PAddresses(p2pAddresses string) []string {
