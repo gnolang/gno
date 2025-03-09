@@ -9,29 +9,29 @@ import (
 )
 
 type protectedStringer interface {
-	ProtectedString(*seen[Value]) string
+	ProtectedString(*seenValues) string
 }
 
 const (
-	// defaultSeenSize indicates the maximum anticipated depth of the stack when printing a Value type.
-	defaultSeenSize = 32
+	// defaultSeenValuesSize indicates the maximum anticipated depth of the stack when printing a Value type.
+	defaultSeenValuesSize = 32
 
 	// nestedLimit indicates the maximum nested level when printing a deeply recursive value.
 	nestedLimit = 10
 )
 
-type seen[T any] struct {
-	items []T
-	nc    int // nested counter, to limit recursivity
+type seenValues struct {
+	values []Value
+	nc     int // nested counter, to limit recursivity
 }
 
-func (sv *seen[T]) Put(v T) {
-	sv.items = append(sv.items, v)
+func (sv *seenValues) Put(v Value) {
+	sv.values = append(sv.values, v)
 }
 
-func (sv *seen[T]) Contains(v T) bool {
-	for _, vv := range sv.items {
-		if reflect.DeepEqual(vv, v) {
+func (sv *seenValues) Contains(v Value) bool {
+	for _, vv := range sv.values {
+		if vv == v {
 			return true
 		}
 	}
@@ -47,12 +47,12 @@ func (sv *seen[T]) Contains(v T) bool {
 //     struct.ProtectedString in the array.ProtectedString loop will not result in the value
 //     being printed if the value has already been print
 //   - this is NOT recursion and SHOULD be printed
-func (sv *seen[T]) Pop() {
-	sv.items = sv.items[:len(sv.items)-1]
+func (sv *seenValues) Pop() {
+	sv.values = sv.values[:len(sv.values)-1]
 }
 
-func newSeenValues() *seen[Value] {
-	return &seen[Value]{items: make([]Value, 0, defaultSeenSize), nc: nestedLimit}
+func newSeenValues() *seenValues {
+	return &seenValues{values: make([]Value, 0, defaultSeenValuesSize), nc: nestedLimit}
 }
 
 func (v StringValue) String() string {
@@ -75,7 +75,7 @@ func (av *ArrayValue) String() string {
 	return av.ProtectedString(newSeenValues())
 }
 
-func (av *ArrayValue) ProtectedString(seen *seen[Value]) string {
+func (av *ArrayValue) ProtectedString(seen *seenValues) string {
 	if seen.Contains(av) {
 		return fmt.Sprintf("%p", av)
 	}
@@ -107,7 +107,7 @@ func (sv *SliceValue) String() string {
 	return sv.ProtectedString(newSeenValues())
 }
 
-func (sv *SliceValue) ProtectedString(seen *seen[Value]) string {
+func (sv *SliceValue) ProtectedString(seen *seenValues) string {
 	if sv.Base == nil {
 		return "nil-slice"
 	}
@@ -141,7 +141,7 @@ func (pv PointerValue) String() string {
 	return pv.ProtectedString(newSeenValues())
 }
 
-func (pv PointerValue) ProtectedString(seen *seen[Value]) string {
+func (pv PointerValue) ProtectedString(seen *seenValues) string {
 	if seen.Contains(pv) {
 		return fmt.Sprintf("%p", &pv)
 	}
@@ -161,7 +161,7 @@ func (sv *StructValue) String() string {
 	return sv.ProtectedString(newSeenValues())
 }
 
-func (sv *StructValue) ProtectedString(seen *seen[Value]) string {
+func (sv *StructValue) ProtectedString(seen *seenValues) string {
 	if seen.Contains(sv) {
 		return fmt.Sprintf("%p", sv)
 	}
@@ -210,7 +210,7 @@ func (mv *MapValue) String() string {
 	return mv.ProtectedString(newSeenValues())
 }
 
-func (mv *MapValue) ProtectedString(seen *seen[Value]) string {
+func (mv *MapValue) ProtectedString(seen *seenValues) string {
 	if mv.List == nil {
 		return "zero-map"
 	}
@@ -301,7 +301,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 	return tv.ProtectedSprint(newSeenValues(), true)
 }
 
-func (tv *TypedValue) ProtectedSprint(seen *seen[Value], considerDeclaredType bool) string {
+func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType bool) string {
 	if seen.Contains(tv.V) {
 		return fmt.Sprintf("%p", tv)
 	}
@@ -424,7 +424,7 @@ func (tv TypedValue) String() string {
 	return tv.ProtectedString(newSeenValues())
 }
 
-func (tv TypedValue) ProtectedString(seen *seen[Value]) string {
+func (tv TypedValue) ProtectedString(seen *seenValues) string {
 	if tv.IsUndefined() {
 		return "(undefined)"
 	}

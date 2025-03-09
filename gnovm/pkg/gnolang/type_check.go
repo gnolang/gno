@@ -268,29 +268,41 @@ Main:
 						switch fv.Name {
 						case "len", "cap":
 							at := evalStaticTypeOf(store, last, currExpr.Args[0])
-							exps := getExpr(currExpr.Args[0], &CallExpr{}, &seen[Expr]{})
-							for _, exp := range exps {
-								cx := exp.(*CallExpr)
-
-								ift := evalStaticTypeOf(store, last, cx.Func)
-								if _, ok := baseOf(ift).(*FuncType); !ok {
-									continue
+							Transcribe(currExpr, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+								if ftype == TRANS_FUNCLIT_BODY {
+									return n, TRANS_SKIP
 								}
 
-								if cx, ok := cx.Func.(*ConstExpr); ok {
+								if stage != TRANS_LEAVE {
+									return n, TRANS_CONTINUE
+								}
+
+								clxp, ok := n.(*CallExpr)
+								if !ok {
+									return n, TRANS_CONTINUE
+								}
+
+								ift := evalStaticTypeOf(store, last, clxp.Func)
+								if _, ok := baseOf(ift).(*FuncType); !ok {
+									return n, TRANS_CONTINUE
+								}
+
+								if cx, ok := clxp.Func.(*ConstExpr); ok {
 									if fv, ok := cx.V.(*FuncValue); ok && fv.PkgPath == uversePkgPath {
-										continue
+										at := evalStaticTypeOf(store, last, clxp.Args[0])
+										if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
+											return n, TRANS_CONTINUE
+										}
+
+										// check if it is a string constant
+										assertValidConstValue(store, last, clxp.Args[0])
+										return n, TRANS_CONTINUE
 									}
 								}
 
 								panic(fmt.Sprintf("%s (value of type %s) is not constant", currExpr.String(), at))
-							}
+							})
 
-							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
-								// ok
-								break Main
-							}
-							assertValidConstValue(store, last, currExpr.Args[0])
 							break Main
 						}
 					}
@@ -1285,193 +1297,4 @@ func isBlankIdentifier(x Expr) bool {
 		return nx.Name == blankIdentifier
 	}
 	return false
-}
-
-func getExpr(base Expr, expr Expr, seen *seen[Expr]) (res []Expr) {
-	if seen.Contains(base) {
-		return
-	}
-
-	seen.Put(base)
-	defer seen.Pop()
-
-	switch base := base.(type) {
-	case *NameExpr:
-		_, ok := expr.(*NameExpr)
-		if ok {
-			res = append(res, base)
-		}
-	case *BasicLitExpr:
-		_, ok := expr.(*BasicLitExpr)
-		if ok {
-			res = append(res, base)
-		}
-	case *BinaryExpr:
-		_, ok := expr.(*BinaryExpr)
-		if ok {
-			res = append(res, base)
-		}
-		res = append(res, getExpr(base.Left, expr, seen)...)
-		res = append(res, getExpr(base.Right, expr, seen)...)
-	case *CallExpr:
-		_, ok := expr.(*CallExpr)
-		if ok {
-			res = append(res, base)
-		}
-		res = append(res, getExpr(base.Func, expr, seen)...)
-		for _, arg := range base.Args {
-			res = append(res, getExpr(arg, expr, seen)...)
-		}
-
-	case *IndexExpr:
-		_, ok := expr.(*IndexExpr)
-		if ok {
-			res = append(res, base)
-		}
-		res = append(res, getExpr(base.X, expr, seen)...)
-		res = append(res, getExpr(base.Index, expr, seen)...)
-	case *SelectorExpr:
-		_, ok := expr.(*SelectorExpr)
-		if ok {
-			res = append(res, base)
-		}
-
-	case *SliceExpr:
-		_, ok := expr.(*SliceExpr)
-		if ok {
-			res = append(res, base)
-		}
-		res = append(res, getExpr(base.X, expr, seen)...)
-		res = append(res, getExpr(base.Low, expr, seen)...)
-		res = append(res, getExpr(base.High, expr, seen)...)
-		res = append(res, getExpr(base.Max, expr, seen)...)
-	case *StarExpr:
-		_, ok := expr.(*StarExpr)
-		if ok {
-			res = append(res, base)
-		}
-
-		res = append(res, getExpr(base.X, expr, seen)...)
-	case *RefExpr:
-		_, ok := expr.(*RefExpr)
-		if ok {
-			res = append(res, base)
-		}
-
-		res = append(res, getExpr(base.X, expr, seen)...)
-	case *TypeAssertExpr:
-		_, ok := expr.(*TypeAssertExpr)
-		if ok {
-			res = append(res, base)
-		}
-
-		res = append(res, getExpr(base.X, expr, seen)...)
-		res = append(res, getExpr(base.Type, expr, seen)...)
-	case *UnaryExpr:
-		_, ok := expr.(*UnaryExpr)
-		if ok {
-			res = append(res, base)
-		}
-
-		res = append(res, getExpr(base.X, expr, seen)...)
-
-		return res
-	case *CompositeLitExpr:
-		_, ok := expr.(*CompositeLitExpr)
-		if ok {
-			res = append(res, base)
-		}
-		res = append(res, getExpr(base.Type, expr, seen)...)
-		for _, elt := range base.Elts {
-			res = append(res, getExpr(&elt, expr, seen)...)
-		}
-		return res
-	case *KeyValueExpr:
-		_, ok := expr.(*KeyValueExpr)
-		if ok {
-			res = append(res, base)
-		}
-		res = append(res, getExpr(base.Key, expr, seen)...)
-		res = append(res, getExpr(base.Value, expr, seen)...)
-		return res
-	case *FuncLitExpr:
-		_, ok := expr.(*FuncLitExpr)
-		if ok {
-			res = append(res, base)
-		}
-		res = append(res, getExpr(&base.Type, expr, seen)...)
-		for _, exp := range base.HeapCaptures {
-			res = append(res, getExpr(&exp, expr, seen)...)
-		}
-		return res
-	case *ConstExpr:
-		_, ok := expr.(*ConstExpr)
-		if ok {
-			res = append(res, base)
-		}
-
-		return res
-	case *FieldTypeExpr:
-		_, ok := expr.(*FieldTypeExpr)
-		if ok {
-			res = append(res, base)
-		}
-		res = append(res, getExpr(base.Tag, expr, seen)...)
-		res = append(res, getExpr(base.Type, expr, seen)...)
-	case *ArrayTypeExpr:
-		_, ok := expr.(*ArrayTypeExpr)
-		if ok {
-			res = append(res, base)
-		}
-		res = append(res, getExpr(base.Len, expr, seen)...)
-		res = append(res, getExpr(base.Elt, expr, seen)...)
-	case *SliceTypeExpr:
-		_, ok := expr.(*SliceTypeExpr)
-		if ok {
-			res = append(res, base)
-		}
-		res = append(res, getExpr(base.Elt, expr, seen)...)
-	case *InterfaceTypeExpr:
-		_, ok := expr.(*InterfaceTypeExpr)
-		if ok {
-			res = append(res, base)
-		}
-	case *ChanTypeExpr:
-		_, ok := expr.(*ChanTypeExpr)
-		if ok {
-			res = append(res, base)
-		}
-		res = append(res, getExpr(base.Value, expr, seen)...)
-	case *FuncTypeExpr:
-		_, ok := expr.(*FuncTypeExpr)
-		if ok {
-			res = append(res, base)
-		}
-	case *MapTypeExpr:
-		_, ok := expr.(*MapTypeExpr)
-		if ok {
-			res = append(res, base)
-		}
-		res = append(res, getExpr(base.Key, expr, seen)...)
-		res = append(res, getExpr(base.Value, expr, seen)...)
-	case *StructTypeExpr:
-		_, ok := expr.(*StructTypeExpr)
-		if ok {
-			res = append(res, base)
-		}
-	case *constTypeExpr:
-		_, ok := expr.(*constTypeExpr)
-		if ok {
-			res = append(res, base)
-		}
-		res = append(res, getExpr(base.Source, expr, seen)...)
-	case *MaybeNativeTypeExpr:
-		_, ok := expr.(*MaybeNativeTypeExpr)
-		if ok {
-			res = append(res, base)
-		}
-		res = append(res, getExpr(base.Type, expr, seen)...)
-	}
-
-	return
 }
