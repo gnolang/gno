@@ -1,6 +1,10 @@
 package uint256
 
-import "testing"
+import (
+	"testing"
+
+	"gno.land/p/demo/uassert"
+)
 
 type logicOpTest struct {
 	name string
@@ -40,12 +44,7 @@ func TestOr(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			res := new(Uint).Or(&tt.x, &tt.y)
-			if *res != tt.want {
-				t.Errorf(
-					"Or(%s, %s) = %s, want %s",
-					tt.x.String(), tt.y.String(), res.String(), (tt.want).String(),
-				)
-			}
+			uassert.Equal(t, res.String(), tt.want.String())
 		})
 	}
 }
@@ -99,12 +98,7 @@ func TestAnd(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			res := new(Uint).And(&tt.x, &tt.y)
-			if *res != tt.want {
-				t.Errorf(
-					"And(%s, %s) = %s, want %s",
-					tt.x.String(), tt.y.String(), res.String(), (tt.want).String(),
-				)
-			}
+			uassert.Equal(t, res.String(), tt.want.String())
 		})
 	}
 }
@@ -135,12 +129,7 @@ func TestNot(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			res := new(Uint).Not(&tt.x)
-			if *res != tt.want {
-				t.Errorf(
-					"Not(%s) = %s, want %s",
-					tt.x.String(), res.String(), (tt.want).String(),
-				)
-			}
+			uassert.Equal(t, res.String(), tt.want.String())
 		})
 	}
 }
@@ -194,12 +183,7 @@ func TestAndNot(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			res := new(Uint).AndNot(&tt.x, &tt.y)
-			if *res != tt.want {
-				t.Errorf(
-					"AndNot(%s, %s) = %s, want %s",
-					tt.x.String(), tt.y.String(), res.String(), (tt.want).String(),
-				)
-			}
+			uassert.Equal(t, res.String(), tt.want.String())
 		})
 	}
 }
@@ -253,12 +237,7 @@ func TestXor(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			res := new(Uint).Xor(&tt.x, &tt.y)
-			if *res != tt.want {
-				t.Errorf(
-					"Xor(%s, %s) = %s, want %s",
-					tt.x.String(), tt.y.String(), res.String(), (tt.want).String(),
-				)
-			}
+			uassert.Equal(t, res.String(), tt.want.String())
 		})
 	}
 }
@@ -306,13 +285,11 @@ func TestLsh(t *testing.T) {
 
 	for _, tt := range tests {
 		x := MustFromDecimal(tt.x)
-		want := MustFromDecimal(tt.want)
 
+		want := MustFromDecimal(tt.want)
 		got := new(Uint).Lsh(x, tt.y)
 
-		if got.Neq(want) {
-			t.Errorf("Lsh(%s, %d) = %s, want %s", tt.x, tt.y, got.String(), want.String())
-		}
+		uassert.Equal(t, got.String(), want.String())
 	}
 }
 
@@ -356,9 +333,7 @@ func TestRsh(t *testing.T) {
 		want := MustFromDecimal(tt.want)
 		got := new(Uint).Rsh(x, tt.y)
 
-		if got.Neq(want) {
-			t.Errorf("Rsh(%s, %d) = %s, want %s", tt.x, tt.y, got.String(), want.String())
-		}
+		uassert.Equal(t, got.String(), want.String())
 	}
 }
 
@@ -413,11 +388,8 @@ func TestSRsh(t *testing.T) {
 	for _, tt := range tests {
 		x := MustFromHex(tt.x)
 		want := MustFromHex(tt.want)
-
 		got := new(Uint).SRsh(x, tt.y)
 
-		if !got.Eq(want) {
-			t.Errorf("SRsh(%s, %d) = %s, want %s", tt.x, tt.y, got.String(), want.String())
-		}
+		uassert.Equal(t, got.String(), want.String())
 	}
 }
