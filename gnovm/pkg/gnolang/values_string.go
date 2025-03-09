@@ -17,44 +17,27 @@ const (
 	defaultSeenValuesSize = 32
 
 	// nestedLimit indicates the maximum nested level when printing a deeply recursive value.
+	// if this increases significantly a map should be used instead
 	nestedLimit = 10
 )
 
 type seenValues struct {
 	values []Value
-	idMap  map[Value]int // Maps values to stable IDs
-	nextID int           // Next ID to assign
-	nc     int           // nested counter, to limit recursivity
+	nc     int // nested counter, to limit recursivity
 }
 
 func (sv *seenValues) Put(v Value) {
 	sv.values = append(sv.values, v)
-	// Assign an ID if not already assigned
-	if _, exists := sv.idMap[v]; !exists {
-		sv.idMap[v] = sv.nextID
-		sv.nextID++
-	}
 }
 
-func (sv *seenValues) Contains(v Value) bool {
-	for _, vv := range sv.values {
+func (sv *seenValues) IndexOf(v Value) int {
+	for i, vv := range sv.values {
 		if vv == v {
-			return true
+			return i
 		}
 	}
 
-	return false
-}
-
-// GetID returns a stable, deterministic ID for a value
-func (sv *seenValues) GetID(v Value) int {
-	id, exists := sv.idMap[v]
-	if !exists {
-		id = sv.nextID
-		sv.idMap[v] = id
-		sv.nextID++
-	}
-	return id
+	return -1
 }
 
 // Pop should be called by using a defer after each Put.
@@ -72,8 +55,6 @@ func (sv *seenValues) Pop() {
 func newSeenValues() *seenValues {
 	return &seenValues{
 		values: make([]Value, 0, defaultSeenValuesSize),
-		idMap:  make(map[Value]int),
-		nextID: 1,
 		nc:     nestedLimit,
 	}
 }
@@ -99,8 +80,8 @@ func (av *ArrayValue) String() string {
 }
 
 func (av *ArrayValue) ProtectedString(seen *seenValues) string {
-	if seen.Contains(av) {
-		return fmt.Sprintf("ref@%d", seen.GetID(av))
+	if i := seen.IndexOf(av); i != -1 {
+		return fmt.Sprintf("ref@%d", i)
 	}
 
 	seen.nc--
@@ -135,8 +116,8 @@ func (sv *SliceValue) ProtectedString(seen *seenValues) string {
 		return "nil-slice"
 	}
 
-	if seen.Contains(sv) {
-		return fmt.Sprintf("ref@%d", seen.GetID(sv))
+	if i := seen.IndexOf(sv); i != -1 {
+		return fmt.Sprintf("ref@%d", i)
 	}
 
 	if ref, ok := sv.Base.(RefValue); ok {
@@ -165,8 +146,8 @@ func (pv PointerValue) String() string {
 }
 
 func (pv PointerValue) ProtectedString(seen *seenValues) string {
-	if seen.Contains(pv) {
-		return fmt.Sprintf("ref@%d", seen.GetID(&pv))
+	if i := seen.IndexOf(pv); i != -1 {
+		return fmt.Sprintf("ref@%d", i)
 	}
 
 	seen.Put(pv)
@@ -185,8 +166,8 @@ func (sv *StructValue) String() string {
 }
 
 func (sv *StructValue) ProtectedString(seen *seenValues) string {
-	if seen.Contains(sv) {
-		return fmt.Sprintf("ref@%d", seen.GetID(sv))
+	if i := seen.IndexOf(sv); i != -1 {
+		return fmt.Sprintf("ref@%d", i)
 	}
 
 	seen.Put(sv)
@@ -238,8 +219,8 @@ func (mv *MapValue) ProtectedString(seen *seenValues) string {
 		return "zero-map"
 	}
 
-	if seen.Contains(mv) {
-		return fmt.Sprintf("ref@%d", seen.GetID(mv))
+	if i := seen.IndexOf(mv); i != -1 {
+		return fmt.Sprintf("ref@%d", i)
 	}
 
 	seen.Put(mv)
@@ -325,9 +306,8 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 }
 
 func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType bool) string {
-	if seen.Contains(tv.V) {
-		// use deterministic identifier for pointers
-		return fmt.Sprintf("ref@%d", seen.GetID(tv.V))
+	if i := seen.IndexOf(tv.V); i != -1 {
+		return fmt.Sprintf("ref@%d", i)
 	}
 
 	// print declared type
