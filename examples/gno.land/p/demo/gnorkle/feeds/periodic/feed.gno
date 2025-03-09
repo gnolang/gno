@@ -1,53 +1,59 @@
-package static
+package periodic
 
 import (
 	"errors"
+	"time"
 
 	"gno.land/p/demo/gnorkle/feed"
 	"gno.land/p/demo/gnorkle/gnorkle"
-	"gno.land/p/demo/gnorkle/ingesters/single"
+	"gno.land/p/demo/gnorkle/ingesters/multi"
 	"gno.land/p/demo/gnorkle/message"
 	"gno.land/p/demo/gnorkle/storage/simple"
 )
 
-// Feed is a static feed.
+// Feed is a periodic feed.
 type Feed struct {
-	id            string
-	isLocked      bool
-	valueDataType string
-	ingester      gnorkle.Ingester
-	storage       gnorkle.Storage
-	tasks         []feed.Task
+	id                string
+	valueDataType     string
+	timeBetweenCommit int64
+	lastCommitTime    int64
+	ingester          gnorkle.Ingester
+	storage           gnorkle.Storage
+	tasks             []feed.Task
 }
 
-// NewFeed creates a new static feed.
+// NewFeed creates a new periodic feed.
 func NewFeed(
 	id string,
 	valueDataType string,
+	timeBetweenCommit int64,
 	ingester gnorkle.Ingester,
 	storage gnorkle.Storage,
 	tasks ...feed.Task,
 ) *Feed {
 	return &Feed{
-		id:            id,
-		valueDataType: valueDataType,
-		ingester:      ingester,
-		storage:       storage,
-		tasks:         tasks,
+		id:                id,
+		valueDataType:     valueDataType,
+		timeBetweenCommit: timeBetweenCommit,
+		ingester:          ingester,
+		storage:           storage,
+		tasks:             tasks,
 	}
 }
 
-// NewSingleValueFeed is a convenience function  for creating a static feed
-// that autocommits a value after a single ingestion.
-func NewSingleValueFeed(
+// NewMultiValueFeed is a convenience function  for creating a periodic feed
+// that commits values every x times.
+func NewMultiValueFeed(
 	id string,
 	valueDataType string,
+	timeBetweenCommit int64,
 	tasks ...feed.Task,
 ) *Feed {
 	return NewFeed(
 		id,
 		valueDataType,
-		&single.ValueIngester{},
+		timeBetweenCommit,
+		&multi.ValueIngester{},
 		simple.NewStorage(1),
 		tasks...,
 	)
@@ -60,7 +66,7 @@ func (f Feed) ID() string {
 
 // Type returns the feed's type.
 func (f Feed) Type() feed.Type {
-	return feed.TypeStatic
+	return feed.TypePeriodic
 }
 
 // Ingest ingests a message into the feed. It either adds the value to the ingester's
@@ -70,31 +76,25 @@ func (f *Feed) Ingest(funcType message.FuncType, msg, providerAddress string) er
 		return feed.ErrUndefined
 	}
 
-	if f.isLocked {
-		return errors.New("feed locked")
-	}
-
 	switch funcType {
 	case message.FuncTypeIngest:
-		// Autocommit the ingester's value if it's a single value ingester
-		// because this is a static feed and this is the only value it will ever have.
-		if canAutoCommit, err := f.ingester.Ingest(msg, providerAddress); canAutoCommit && err == nil {
-			if err := f.ingester.CommitValue(f.storage, providerAddress); err != nil {
-				return err
-			}
-
-			f.isLocked = true
-		} else if err != nil {
+		_, err := f.ingester.Ingest(msg, providerAddress)
+		if err != nil {
 			return err
 		}
 
 	case message.FuncTypeCommit:
+		// Commits the value to the storage only after x times has passed since last commit exception for first commit.
+		currentTs := time.Now().Unix()
+		if (f.storage.GetLatest() != feed.Value{} && f.lastCommitTime+f.timeBetweenCommit > currentTs) {
+			return errors.New("time between commit not reached")
+		}
+
 		if err := f.ingester.CommitValue(f.storage, providerAddress); err != nil {
 			return err
 		}
 
-		f.isLocked = true
-
+		f.lastCommitTime = currentTs
 	default:
 		return errors.New("invalid message function " + string(funcType))
 	}
@@ -103,11 +103,10 @@ func (f *Feed) Ingest(funcType message.FuncType, msg, providerAddress string) er
 }
 
 // Value returns the feed's latest value, it's data type, and whether or not it can
-// be safely consumed. In this case it uses `f.isLocked` because, this being a static
-// feed, it will only ever have one value; once that value is committed the feed is locked
-// and there is a valid, non-empty value to consume.
+// be safely consumed. In this case it can be consumed because it's a periodic feed.
 func (f Feed) Value() (feed.Value, string, bool) {
-	return f.storage.GetLatest(), f.valueDataType, f.isLocked
+	lastValue := f.storage.GetLatest()
+	return lastValue, f.valueDataType, lastValue == feed.Value{}
 }
 
 // Tasks returns the feed's tasks. This allows task consumers to extract task
@@ -118,5 +117,5 @@ func (f Feed) Tasks() []feed.Task {
 
 // IsActive returns true if the feed is accepting ingestion requests from agents.
 func (f Feed) IsActive() bool {
-	return !f.isLocked
+	return true
 }
