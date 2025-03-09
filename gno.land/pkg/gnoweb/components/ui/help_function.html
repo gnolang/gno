@@ -6,7 +6,7 @@
       <h2 class="text-400 text-gray-800 font-bold mb-1" id="overview">
         Overview
       </h2>
-      <p class="text-300">{{ . }}</p>
+      <p class="text-200">{{ . }}</p>
     </div>
   {{ end }}
 
@@ -17,7 +17,7 @@
   {{ range .Functions }}
     <article class="bg-gray-100 rounded p-4 mb-3" data-func="{{ .Name }}">
       <div class="flex justify-between items-top mb-4">
-        <span class="flex gap-x-6 gap-y-1 items-baseline flex-wrap">
+        <span class="flex gap-x-4 gap-y-1 items-baseline flex-wrap">
           <h2
             id="func-{{ .Name }}"
             class="text-gray-800 font-semibold text-300 leading-tight"
@@ -56,9 +56,11 @@
       {{ end }}
       <div class="mb-1 mt-6">
         <div class="flex flex-col gap-1 items-stretch text-gray-400">
-          <h3 class="mr-10 text-50">
-            Param{{- if gt (len .Params) 1 }}s{{ end }}
-          </h3>
+          {{- with .Params }}
+            <h3 class="mr-10 text-50">
+              Param{{- if gt (len .) 1 }}s{{ end }}
+            </h3>
+          {{ end }}
           <form class="w-full text-100">
             {{ $funcName := .Name }}
             {{ range .Params }}
