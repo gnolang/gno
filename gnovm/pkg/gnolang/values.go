@@ -20,6 +20,17 @@ import (
 type Value interface {
 	assertValue()
 	String() string // for debugging
+	GetShallowSize() int64
+	GetLastGCCycle() int64
+	SetLastGCCycle(int64)
+	// Visit visits all reachable associated values.
+	// It is used primarily for GC.
+	// The caller must provide a callback visitor
+	// which knows how to break cycles, otherwise
+	// the Visit function may recurse infinitely.
+	// (the GC does this with GcCycle)
+	// It does not call the visitor on itself.
+	VisitAssociated(tr Visitor) (stop bool) // for GC
 }
 
 // Fixed size primitive types are represented in TypedValue.N
@@ -48,7 +59,7 @@ const (
 )
 
 var (
-	_ Value = StringValue("")
+	_ Value = StringValue{s: ""}
 	_ Value = BigintValue{}
 	_ Value = BigdecValue{}
 	_ Value = DataByteValue{}
@@ -70,13 +81,21 @@ var (
 // ----------------------------------------
 // StringValue
 
-type StringValue string
+type StringValue struct {
+	s           string
+	lastGCCycle int64
+}
+
+func NewStringValue(s string) StringValue {
+	return StringValue{s: s}
+}
 
 // ----------------------------------------
 // BigintValue
 
 type BigintValue struct {
-	V *big.Int
+	V           *big.Int
+	lastGCCycle int64
 }
 
 func (bv BigintValue) MarshalAmino() (string, error) {
@@ -105,7 +124,8 @@ func (bv BigintValue) Copy(alloc *Allocator) BigintValue {
 // BigdecValue
 
 type BigdecValue struct {
-	V *apd.Decimal
+	V           *apd.Decimal
+	lastGCCycle int64
 }
 
 func (bv BigdecValue) MarshalAmino() (string, error) {
@@ -139,9 +159,10 @@ func (bv BigdecValue) Copy(alloc *Allocator) BigdecValue {
 // DataByteValue
 
 type DataByteValue struct {
-	Base     *ArrayValue // base array.
-	Index    int         // base.Data index.
-	ElemType Type        // is Uint8Kind.
+	Base        *ArrayValue // base array.
+	Index       int         // base.Data index.
+	ElemType    Type        // is Uint8Kind.
+	lastGCCycle int64
 }
 
 func (dbv DataByteValue) GetByte() byte {
@@ -179,10 +200,11 @@ func (dbv DataByteValue) SetByte(b byte) {
 // Since PointerValue is used internally for assignment etc,
 // it MUST stay minimal for computational efficiency.
 type PointerValue struct {
-	TV    *TypedValue // escape val if pointer to var.
-	Base  Value       // array/struct/block, or heapitem.
-	Index int         // list/fields/values index, or -1 or -2 (see below).
-	Key   *TypedValue `json:",omitempty"` // for maps.
+	TV          *TypedValue // escape val if pointer to var.
+	Base        Value       // array/struct/block, or heapitem.
+	Index       int         // list/fields/values index, or -1 or -2 (see below).
+	Key         *TypedValue `json:",omitempty"` // for maps.
+	lastGCCycle int64
 }
 
 const (
@@ -314,8 +336,9 @@ func (pv PointerValue) Deref() (tv TypedValue) {
 
 type ArrayValue struct {
 	ObjectInfo
-	List []TypedValue
-	Data []byte
+	List        []TypedValue
+	Data        []byte
+	lastGCCycle int64
 }
 
 // NOTE: Result should not be written to,
@@ -402,10 +425,11 @@ func (av *ArrayValue) Copy(alloc *Allocator) *ArrayValue {
 // SliceValue
 
 type SliceValue struct {
-	Base   Value
-	Offset int
-	Length int
-	Maxcap int
+	Base        Value
+	Offset      int
+	Length      int
+	Maxcap      int
+	lastGCCycle int64
 }
 
 func (sv *SliceValue) GetBase(store Store) *ArrayValue {
@@ -456,7 +480,8 @@ func (sv *SliceValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 
 type StructValue struct {
 	ObjectInfo
-	Fields []TypedValue
+	Fields      []TypedValue
+	lastGCCycle int64
 }
 
 // TODO handle unexported fields in debug, and also ensure in the preprocessor.
@@ -539,7 +564,7 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 // makes construction TypedValue{T:*FuncType{},V:*FuncValue{}}
 // faster.
 type FuncValue struct {
-	Type       Type         // includes unbound receiver(s)
+	Type       Type         // includes unbound receiver(S)
 	IsMethod   bool         // is an (unbound) method
 	Source     BlockNode    // for block mem allocation
 	Name       Name         // name of function/method
@@ -550,8 +575,9 @@ type FuncValue struct {
 	NativePkg  string // for native bindings through NativeResolver
 	NativeName Name   // not redundant with Name; this cannot be changed in userspace
 
-	body       []Stmt         // function body
-	nativeBody func(*Machine) // alternative to Body
+	body        []Stmt         // function body
+	nativeBody  func(*Machine) // alternative to Body
+	lastGCCycle int64
 }
 
 func (fv *FuncValue) IsNative() bool {
@@ -669,7 +695,8 @@ type BoundMethodValue struct {
 
 	// This becomes the first arg.
 	// The type is .Func.Type.Params[0].
-	Receiver TypedValue
+	Receiver    TypedValue
+	lastGCCycle int64
 }
 
 // ----------------------------------------
@@ -679,7 +706,8 @@ type MapValue struct {
 	ObjectInfo
 	List *MapList
 
-	vmap map[MapKey]*MapListItem // nil if uninitialized
+	vmap        map[MapKey]*MapListItem // nil if uninitialized
+	lastGCCycle int64
 }
 
 type MapKey string
@@ -819,7 +847,8 @@ func (mv *MapValue) DeleteForKey(store Store, key *TypedValue) {
 
 // The type itself as a value.
 type TypeValue struct {
-	Type Type
+	Type        Type
+	lastGCCycle int64
 }
 
 // ----------------------------------------
@@ -835,7 +864,8 @@ type PackageValue struct {
 	Realm      *Realm `json:"-"` // if IsRealmPath(PkgPath), otherwise nil.
 	// NOTE: Realm is persisted separately.
 
-	fBlocksMap map[Name]*Block
+	fBlocksMap  map[Name]*Block
+	lastGCCycle int64
 }
 
 // IsRealm returns true if pv represents a realm.
@@ -946,8 +976,9 @@ func (pv *PackageValue) GetPkgAddr() crypto.Address {
 // NativeValue
 
 type NativeValue struct {
-	Value reflect.Value `json:"-"`
-	Bytes []byte        // XXX is this used?
+	Value       reflect.Value `json:"-"`
+	Bytes       []byte        // XXX is this used?
+	lastGCCycle int64
 }
 
 func (nv *NativeValue) Copy(alloc *Allocator) *NativeValue {
@@ -1187,7 +1218,7 @@ func (tv *TypedValue) GetString() string {
 	if tv.V == nil {
 		return ""
 	}
-	return string(tv.V.(StringValue))
+	return string(tv.V.(StringValue).s)
 }
 
 func (tv *TypedValue) SetInt(n int) {
@@ -2108,7 +2139,7 @@ func (tv *TypedValue) GetLength() int {
 	}
 	switch cv := tv.V.(type) {
 	case StringValue:
-		return len(cv)
+		return len(cv.s)
 	case *ArrayValue:
 		return cv.GetLength()
 	case *SliceValue:
@@ -2346,11 +2377,12 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) T
 // TODO rename to BlockValue.
 type Block struct {
 	ObjectInfo
-	Source   BlockNode
-	Values   []TypedValue
-	Parent   Value
-	Blank    TypedValue // captures "_" // XXX remove and replace with global instance.
-	bodyStmt bodyStmt   // XXX expose for persistence, not needed for MVP.
+	Source      BlockNode
+	Values      []TypedValue
+	Parent      Value
+	Blank       TypedValue // captures "_" // XXX remove and replace with global instance.
+	bodyStmt    bodyStmt   // XXX expose for persistence, not needed for MVP.
+	lastGCCycle int64
 }
 
 // NOTE: for allocation, use *Allocator.NewBlock.
@@ -2568,10 +2600,11 @@ func (b *Block) ExpandToSize(alloc *Allocator, size uint16) {
 
 // NOTE: RefValue Object methods declared in ownership.go
 type RefValue struct {
-	ObjectID ObjectID  `json:",omitempty"`
-	Escaped  bool      `json:",omitempty"`
-	PkgPath  string    `json:",omitempty"`
-	Hash     ValueHash `json:",omitempty"`
+	ObjectID    ObjectID  `json:",omitempty"`
+	Escaped     bool      `json:",omitempty"`
+	PkgPath     string    `json:",omitempty"`
+	Hash        ValueHash `json:",omitempty"`
+	lastGCCycle int64
 }
 
 // Base for a detached singleton (e.g. new(int) or &struct{})
@@ -2580,7 +2613,8 @@ type RefValue struct {
 // See also note in realm.go about auto-unwrapping.
 type HeapItemValue struct {
 	ObjectInfo
-	Value TypedValue
+	Value       TypedValue
+	lastGCCycle int64
 }
 
 // ----------------------------------------
@@ -2673,7 +2707,7 @@ func typedRune(r rune) TypedValue {
 // NOTE: does not allocate; used for panics.
 func typedString(s string) TypedValue {
 	tv := TypedValue{T: StringType}
-	tv.V = StringValue(s)
+	tv.V = StringValue{s: s}
 	return tv
 }
 

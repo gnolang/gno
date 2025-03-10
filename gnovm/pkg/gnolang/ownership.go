@@ -84,8 +84,6 @@ func (oid ObjectID) IsZero() bool {
 	return oid.PkgID.IsZero()
 }
 
-type Visitor func(o Object) (stop bool)
-
 type Object interface {
 	Value
 	GetObjectInfo() *ObjectInfo
@@ -119,18 +117,6 @@ type Object interface {
 	GetIsNewDeleted() bool
 	SetIsNewDeleted(bool)
 	GetIsTransient() bool
-	GetShallowSize() int64
-	GetLastGCCycle() int64
-	SetLastGCCycle(int64)
-
-	// Visit visits all reachable associated values.
-	// It is used primarily for GC.
-	// The caller must provide a callback visitor
-	// which knows how to break cycles, otherwise
-	// the Visit function may recurse infinitely.
-	// (the GC does this with GcCycle)
-	// It does not call the visitor on itself.
-	VisitAssociated(tr Visitor, store Store) (stop bool) // for GC
 
 	// Saves to realm along the way if owned, and also (dirty
 	// or new).
@@ -159,7 +145,6 @@ type ObjectInfo struct {
 	isNewReal    bool
 	isNewEscaped bool
 	isNewDeleted bool
-	lastGCCycle  int64
 	owner        Object // mem reference to owner.
 }
 
@@ -178,7 +163,6 @@ func (oi *ObjectInfo) Copy() ObjectInfo {
 		isNewReal:    oi.isNewReal,
 		isNewEscaped: oi.isNewEscaped,
 		isNewDeleted: oi.isNewDeleted,
-		lastGCCycle:  oi.lastGCCycle,
 	}
 }
 
@@ -333,14 +317,6 @@ func (oi *ObjectInfo) GetIsNewDeleted() bool {
 
 func (oi *ObjectInfo) SetIsNewDeleted(x bool) {
 	oi.isNewDeleted = x
-}
-
-func (oi *ObjectInfo) GetLastGCCycle() int64 {
-	return oi.lastGCCycle
-}
-
-func (oi *ObjectInfo) SetLastGCCycle(c int64) {
-	oi.lastGCCycle = c
 }
 
 func (oi *ObjectInfo) GetIsTransient() bool {

@@ -1,7 +1,7 @@
 package gnolang
 
 import (
-	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
+	"fmt"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
@@ -10,6 +10,8 @@ import (
 // It's similar to "CPU cycles" and is
 // calculated based on benchmarking results.
 const VisitCpuFactor = 8
+
+type Visitor func(v Value) (stop bool)
 
 // Returns the amount of memory left over. If the allocator limit is exceeded
 // it returns false.  It doesn't actually garbage collect, but it recalculates
@@ -22,12 +24,7 @@ const VisitCpuFactor = 8
 //
 // XXX: make sure tv.T isn't bumped from allocation either.
 func (m *Machine) GarbageCollect() (left int64, ok bool) {
-	if bm.GCEnabled {
-		defer func() {
-			bm.FinishGC()
-		}()
-	}
-
+	fmt.Println("===GarbageCollect===")
 	defer func() {
 		gasCPU := overflow.Mul64p(m.Alloc.visitCount*VisitCpuFactor, GasFactorCPU)
 		m.Alloc.visitCount = 0
@@ -83,46 +80,36 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 // Returns a visitor that bumps the GcCycle counter
 // and stops if alloc is out of memory.
 func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
-	var vis func(Object) bool
-	vis = func(o Object) bool {
-		if bm.GCEnabled {
-			// The metric may either be initialized at this stage
-			// or during the previous unwrap step, depending on the flow.
-			if !bm.IsGCMeasureStarted() {
-				bm.StartGCCode(bm.VisitObject)
-			}
-		}
+	var vis func(value Value) bool
 
+	vis = func(v Value) bool {
+		switch v.(type) {
+		case *SliceValue, *ArrayValue, *MapValue, *StructValue, *Block, *FuncValue,
+			*BoundMethodValue, *HeapItemValue, *PackageValue, PointerValue:
+		default:
+			return false
+		}
+	
 		// Return if already measured.
-		if o.GetLastGCCycle() == gcCycle {
-			if bm.GCEnabled {
-				bm.StopGCCode()
-			}
+		if v.GetLastGCCycle() == gcCycle {
 			return false // but don't stop
 		}
 
 		// Add object size to alloc.
-		size := o.GetShallowSize()
+		size := v.GetShallowSize()
 		alloc.visitCount++ // count for gas calculation
 
 		alloc.Allocate(size)
 		// Stop if alloc max exceeded.
 		maxBytes, curBytes := alloc.Status()
 		if maxBytes < curBytes {
-			if bm.GCEnabled {
-				bm.StopGCCode()
-			}
 			return true
 		}
 
-		// stop metric before next visit.
-		if bm.GCEnabled {
-			bm.StopGCCode()
-		}
 		// Invote the traverser on o.
-		stop := o.VisitAssociated(vis, alloc.m.Store)
+		stop := v.VisitAssociated(vis)
 		// Finally bump cycle.
-		o.SetLastGCCycle(gcCycle)
+		v.SetLastGCCycle(gcCycle)
 		return stop
 	}
 	return vis
@@ -131,10 +118,15 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 // ---------------------------------------------------------------
 // visit associated
 
-func (av *ArrayValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
+func (sv *SliceValue) VisitAssociated(vis Visitor) (stop bool) {
+	stop = vis(sv.Base)
+	return stop
+}
+
+func (av *ArrayValue) VisitAssociated(vis Visitor) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(av.List); i++ {
-		stop = visitChild(vis, av.List[i].V, store)
+		stop = vis(av.List[i].V)
 		if stop {
 			return
 		}
@@ -142,10 +134,24 @@ func (av *ArrayValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	return
 }
 
-func (sv *StructValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
+func (fv *FuncValue) VisitAssociated(vis Visitor) (stop bool) {
+	// visit captures
+	for _, tv := range fv.Captures {
+		stop = vis(tv.V)
+		if stop {
+			return
+		}
+	}
+
+	// visit FuncValue's closure
+	stop = vis(fv.Closure)
+	return
+}
+
+func (sv *StructValue) VisitAssociated(vis Visitor) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(sv.Fields); i++ {
-		stop = visitChild(vis, sv.Fields[i].V, store)
+		stop = vis(sv.Fields[i].V)
 		if stop {
 			return
 		}
@@ -153,27 +159,27 @@ func (sv *StructValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	return
 }
 
-func (bmv *BoundMethodValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
+func (bmv *BoundMethodValue) VisitAssociated(vis Visitor) (stop bool) {
 	// bmv.Func cannot be a closure, it must be a method.
 	// So we do not visit it (for garbage collection).
 
 	// Visit receiver.
-	stop = visitChild(vis, bmv.Receiver.V, store)
+	stop = vis(bmv.Receiver.V)
 	return
 }
 
-func (mv *MapValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
+func (mv *MapValue) VisitAssociated(vis Visitor) (stop bool) {
 	// Visit values.
 	// visit mv.List.
 	for cur := mv.List.Head; cur != nil; cur = cur.Next {
 		// vis key
-		stop = visitChild(vis, cur.Key.V, store)
+		stop = vis(cur.Key.V)
 		if stop {
 			return
 		}
 
 		// vis value
-		stop = visitChild(vis, cur.Value.V, store)
+		stop = vis(cur.Value.V)
 		if stop {
 			return
 		}
@@ -181,16 +187,16 @@ func (mv *MapValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	return
 }
 
-func (pv *PackageValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
+func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
 	// visit pv.Block
-	stop = visitChild(vis, pv.Block, store)
+	stop = vis(pv.Block)
 	if stop {
 		return
 	}
 
 	// visit pv.FBlocks
 	for _, fb := range pv.FBlocks {
-		stop = visitChild(vis, fb, store)
+		stop = vis(fb)
 		if stop {
 			return
 		}
@@ -201,49 +207,69 @@ func (pv *PackageValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
 	return
 }
 
-func (b *Block) VisitAssociated(vis Visitor, store Store) (stop bool) {
+func (b *Block) VisitAssociated(vis Visitor) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(b.Values); i++ {
-		stop = visitChild(vis, b.Values[i].V, store)
+		stop = vis(b.Values[i].V)
 		if stop {
 			return
 		}
 	}
 
 	// Visit parent.
-	stop = visitChild(vis, b.Parent, store)
+	stop = vis(b.Parent)
 	return
 }
 
-func (hiv *HeapItemValue) VisitAssociated(vis Visitor, store Store) (stop bool) {
-	stop = visitChild(vis, hiv.Value.V, store)
+func (hiv *HeapItemValue) VisitAssociated(vis Visitor) (stop bool) {
+	stop = vis(hiv.Value.V)
 	return
 }
 
-func (fv *FuncValue) Visit(vis Visitor, store Store) (stop bool) {
-	// visit captures
-	for _, tv := range fv.Captures {
-		stop = visitChild(vis, tv.V, store)
-		if stop {
-			return
-		}
-	}
-
-	// visit FuncValue's closure
-	stop = visitChild(vis, fv.Closure, store)
+func (pv PointerValue) VisitAssociated(vis Visitor) (stop bool) {
+	stop = vis(pv.Base)
 	return
 }
+
+func (sv StringValue) VisitAssociated(vis Visitor) (stop bool) {
+	return false
+}
+func (bv BigintValue) VisitAssociated(vis Visitor) (stop bool) {
+	return false
+}
+
+func (bv BigdecValue) VisitAssociated(vis Visitor) (stop bool) {
+	return false
+}
+
+func (dbv DataByteValue) VisitAssociated(vis Visitor) (stop bool) {
+	return false
+}
+
+func (nv *NativeValue) VisitAssociated(vis Visitor) (stop bool) {
+	return false
+}
+
+func (rv RefValue) VisitAssociated(vis Visitor) (stop bool) {
+	return false
+}
+func (tv TypeValue) VisitAssociated(vis Visitor) (stop bool) {
+	return false
+}
+
+// -------------------------------------------------------------------
+// custom visit methods
 
 func (fr *Frame) Visit(vis Visitor, store Store) (stop bool) {
 	// vis receiver
-	stop = visitChild(vis, fr.Receiver.V, store)
+	stop = vis(fr.Receiver.V)
 	if stop {
 		return
 	}
 
 	// vis FuncValue
 	if fv := fr.Func; fv != nil {
-		stop = fv.Visit(vis, store)
+		stop = vis(fv)
 		if stop {
 			return
 		}
@@ -252,26 +278,26 @@ func (fr *Frame) Visit(vis Visitor, store Store) (stop bool) {
 	// vis defer
 	for _, dfr := range fr.Defers {
 		// visit dfr.Func
-		stop = dfr.Func.Visit(vis, store)
+		stop = vis(dfr.Func)
 		if stop {
 			return
 		}
 
 		for _, arg := range dfr.Args {
-			stop = visitChild(vis, arg.V, store)
+			stop = vis(arg.V)
 			if stop {
 				return
 			}
 		}
 
-		stop = visitChild(vis, dfr.Parent, store)
+		stop = vis(dfr.Parent)
 		if stop {
 			return
 		}
 	}
 
 	// vis last package
-	stop = visitChild(vis, fr.LastPackage, store)
+	stop = vis(fr.LastPackage)
 	if stop {
 		return
 	}
@@ -281,7 +307,7 @@ func (fr *Frame) Visit(vis Visitor, store Store) (stop bool) {
 
 func (ex *Exception) Visit(vis Visitor, store Store) (stop bool) {
 	// vis value
-	stop = visitChild(vis, ex.Value.V, store)
+	stop = vis(ex.Value.V)
 	if stop {
 		return
 	}
@@ -293,31 +319,41 @@ func (ex *Exception) Visit(vis Visitor, store Store) (stop bool) {
 	return
 }
 
-func visitChild(vis Visitor, v Value, store Store) (stop bool) {
-	// start metric before unwrap,
-	// and ends metric in visit
-	if bm.GCEnabled {
-		bm.StartGCCode(bm.VisitObject)
-	}
-	var oo Object
-	switch v := v.(type) {
-	case *SliceValue:
-		oo = v.GetBase(store)
-	case PointerValue:
-		oo = v.GetBase(store)
-	case RefValue:
-		oo = store.GetObject(v.ObjectID)
-	case Object:
-		oo = v
-	}
+// -------------------------------------------------------------
+// gc cycle
 
-	if oo == nil || oo == (*Block)(nil) || oo == (*PackageValue)(nil) {
-		if bm.GCEnabled {
-			bm.StopGCCode()
-		}
-		return false
-	}
+func (sv StringValue) GetLastGCCycle() int64        { return sv.lastGCCycle }
+func (bv BigintValue) GetLastGCCycle() int64        { return bv.lastGCCycle }
+func (bv BigdecValue) GetLastGCCycle() int64        { return bv.lastGCCycle }
+func (dbv DataByteValue) GetLastGCCycle() int64     { return dbv.lastGCCycle }
+func (pv PointerValue) GetLastGCCycle() int64       { return pv.lastGCCycle }
+func (av *ArrayValue) GetLastGCCycle() int64        { return av.lastGCCycle }
+func (sv *SliceValue) GetLastGCCycle() int64        { return sv.lastGCCycle }
+func (sv *StructValue) GetLastGCCycle() int64       { return sv.lastGCCycle }
+func (fv *FuncValue) GetLastGCCycle() int64         { return fv.lastGCCycle }
+func (mv *MapValue) GetLastGCCycle() int64          { return mv.lastGCCycle }
+func (bmv *BoundMethodValue) GetLastGCCycle() int64 { return bmv.lastGCCycle }
+func (pv *PackageValue) GetLastGCCycle() int64      { return pv.lastGCCycle }
+func (nv *NativeValue) GetLastGCCycle() int64       { return nv.lastGCCycle }
+func (b *Block) GetLastGCCycle() int64              { return b.lastGCCycle }
+func (rv RefValue) GetLastGCCycle() int64           { return rv.lastGCCycle }
+func (hiv *HeapItemValue) GetLastGCCycle() int64    { return hiv.lastGCCycle }
+func (tv TypeValue) GetLastGCCycle() int64          { return tv.lastGCCycle }
 
-	stop = vis(oo)
-	return
-}
+func (sv StringValue) SetLastGCCycle(cycle int64)        { sv.lastGCCycle = cycle }
+func (bv BigintValue) SetLastGCCycle(cycle int64)        { bv.lastGCCycle = cycle }
+func (bv BigdecValue) SetLastGCCycle(cycle int64)        { bv.lastGCCycle = cycle }
+func (dbv DataByteValue) SetLastGCCycle(cycle int64)     { dbv.lastGCCycle = cycle }
+func (pv PointerValue) SetLastGCCycle(cycle int64)       { pv.lastGCCycle = cycle }
+func (av *ArrayValue) SetLastGCCycle(cycle int64)        { av.lastGCCycle = cycle }
+func (sv *SliceValue) SetLastGCCycle(cycle int64)        { sv.lastGCCycle = cycle }
+func (sv *StructValue) SetLastGCCycle(cycle int64)       { sv.lastGCCycle = cycle }
+func (fv *FuncValue) SetLastGCCycle(cycle int64)         { fv.lastGCCycle = cycle }
+func (mv *MapValue) SetLastGCCycle(cycle int64)          { mv.lastGCCycle = cycle }
+func (bmv *BoundMethodValue) SetLastGCCycle(cycle int64) { bmv.lastGCCycle = cycle }
+func (pv *PackageValue) SetLastGCCycle(cycle int64)      { pv.lastGCCycle = cycle }
+func (nv *NativeValue) SetLastGCCycle(cycle int64)       { nv.lastGCCycle = cycle }
+func (b *Block) SetLastGCCycle(cycle int64)              { b.lastGCCycle = cycle }
+func (rv RefValue) SetLastGCCycle(cycle int64)           { rv.lastGCCycle = cycle }
+func (hiv *HeapItemValue) SetLastGCCycle(cycle int64)    { hiv.lastGCCycle = cycle }
+func (tv TypeValue) SetLastGCCycle(cycle int64)          { tv.lastGCCycle = cycle }

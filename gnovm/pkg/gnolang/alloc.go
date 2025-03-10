@@ -37,6 +37,7 @@ const (
 	_allocNativeValue      = 48
 	_allocTypeValue        = 16
 	_allocTypedValue       = 40
+	_allocRefValue         = 72
 	_allocBigint           = 200 // XXX
 	_allocBigdec           = 200 // XXX
 	_allocType             = 200 // XXX
@@ -63,12 +64,13 @@ const (
 	allocBlock       = _allocBase + _allocPointer + _allocBlock
 	allocBlockItem   = _allocTypedValue
 	allocNative      = _allocBase + _allocPointer + _allocNativeValue
+	allocRefValue    = _allocBase + +_allocRefValue
 	allocType        = _allocBase + _allocPointer + _allocType
-	// allocDataByte    = 1
-	allocPackage   = _allocBase + _allocPointer + _allocPackageValue
-	allocAmino     = _allocBase + _allocPointer + _allocAny
-	allocAminoByte = 10 // XXX
-	allocHeapItem  = _allocBase + _allocPointer + _allocTypedValue
+	allocDataByte    = 1
+	allocPackage     = _allocBase + _allocPointer + _allocPackageValue
+	allocAmino       = _allocBase + _allocPointer + _allocAny
+	allocAminoByte   = 10 // XXX
+	allocHeapItem    = _allocBase + _allocPointer + _allocTypedValue
 )
 
 func NewAllocator(maxBytes int64, m *Machine) *Allocator {
@@ -124,15 +126,17 @@ func (alloc *Allocator) Allocate(size int64) {
 
 	alloc.bytes += size
 	if alloc.bytes > alloc.maxBytes {
-		if left, ok := alloc.m.GarbageCollect(); !ok {
-			panic("allocation limit exceeded")
-		} else { // retry
-			debug.Printf("%d left after GC, size: %d \n", left, size)
-			alloc.bytes += size
-			if alloc.bytes > alloc.maxBytes {
-				panic("allocation limit exceeded")
-			}
-		}
+		panic("allocation limit exceeded")
+
+		//if left, ok := alloc.m.GarbageCollect(); !ok {
+		//	panic("allocation limit exceeded")
+		//} else { // retry
+		//	//debug.Printf("%d left after GC, size: %d \n", left, size)
+		//	alloc.bytes += size
+		//	if alloc.bytes > alloc.maxBytes {
+		//		panic("allocation limit exceeded")
+		//	}
+		//}
 	}
 }
 
@@ -218,7 +222,7 @@ func (alloc *Allocator) AllocateHeapItem() {
 
 func (alloc *Allocator) NewString(s string) StringValue {
 	alloc.AllocateString(int64(len(s)))
-	return StringValue(s)
+	return StringValue{s: s}
 }
 
 func (alloc *Allocator) NewListArray(n int) *ArrayValue {
@@ -346,30 +350,70 @@ func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 
 // -----------------------------------------------
 
-func (p *PackageValue) GetShallowSize() int64 {
+func (*PackageValue) GetShallowSize() int64 {
 	return allocPackage
 }
 
-func (b *Block) GetShallowSize() int64 {
+func (*Block) GetShallowSize() int64 {
 	return allocBlock
 }
 
-func (av *ArrayValue) GetShallowSize() int64 {
+func (*ArrayValue) GetShallowSize() int64 {
 	return allocArray
 }
 
-func (sv *StructValue) GetShallowSize() int64 {
+func (*StructValue) GetShallowSize() int64 {
 	return allocStruct
 }
 
-func (mv *MapValue) GetShallowSize() int64 {
+func (*MapValue) GetShallowSize() int64 {
 	return allocMap
 }
 
-func (bmv *BoundMethodValue) GetShallowSize() int64 {
+func (*BoundMethodValue) GetShallowSize() int64 {
 	return allocBoundMethod
 }
 
-func (hiv *HeapItemValue) GetShallowSize() int64 {
+func (*HeapItemValue) GetShallowSize() int64 {
 	return allocHeapItem
+}
+
+func (RefValue) GetShallowSize() int64 {
+	return allocRefValue
+}
+
+func (PointerValue) GetShallowSize() int64 {
+	return allocPointer
+}
+
+func (*SliceValue) GetShallowSize() int64 {
+	return allocSlice
+}
+func (*FuncValue) GetShallowSize() int64 {
+	return allocFunc
+}
+
+func (StringValue) GetShallowSize() int64 {
+	return allocString
+}
+
+func (*NativeValue) GetShallowSize() int64 {
+	return allocNative
+}
+
+func (BigintValue) GetShallowSize() int64 {
+	return allocBigint
+}
+func (BigdecValue) GetShallowSize() int64 {
+	return allocBigdec
+}
+
+func (DataByteValue) GetShallowSize() int64 {
+	return allocDataByte
+}
+
+// Not actually used by GC, type should be pre-exist
+// or cached.
+func (TypeValue) GetShallowSize() int64 {
+	return allocType
 }
