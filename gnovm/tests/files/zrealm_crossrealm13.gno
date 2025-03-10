@@ -12,7 +12,7 @@ func main() {
 	PrintRealm()
 	println(pad("CurrentRealm:"), std.CurrentRealm())
 	println(pad("PreviousRealm:"), std.PreviousRealm())
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/gnoland/users/v1"))
+	std.TestSetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
 	PrintRealm()
 	println(pad("CurrentRealm:"), std.CurrentRealm())
 	println(pad("PreviousRealm:"), std.PreviousRealm())
