@@ -14,6 +14,7 @@ func TestAirdropChecker(t *testing.T) {
 
 	realm := std.CurrentRealm()
 	testDenom := realm.CoinDenom("test")
+	test2Denom := realm.CoinDenom("test2")
 
 	tests := []struct {
 		name      string
@@ -26,20 +27,22 @@ func TestAirdropChecker(t *testing.T) {
 			name: "homepage shows supported tokens",
 			path: "",
 			setupFunc: func(banker std.Banker) {
-				banker.IssueCoin(addr1, testDenom, 1000)
-				banker.IssueCoin(addr2, testDenom, 1000)
+				banker.IssueCoin(addr1, test2Denom, 1000)
+				banker.IssueCoin(addr2, test2Denom, 1000)
 			},
 			expected: `# Gno.land Coins`,
 		},
-		// {
-		// 	name: "show total supply for test token",
-		// 	path: "test",
-		// 	setupFunc: func(banker std.Banker) {
-		// 		banker.IssueCoin(addr1, testDenom, 1000000)
-		// 		banker.IssueCoin(addr2, testDenom, 500000)
-		// 	},
-		// 	expected: `- Total Supply: 1500000test`,
-		// },
+		{
+			name: "show total supply for test token",
+			path: "test",
+			setupFunc: func(banker std.Banker) {
+				banker.IssueCoin(addr1, testDenom, 1000000)
+				banker.IssueCoin(addr2, testDenom, 500000)
+
+				println("setup amount", banker.TotalCoin(testDenom))
+			},
+			expected: `1500000test`,
+		},
 	}
 
 	for _, tt := range tests {

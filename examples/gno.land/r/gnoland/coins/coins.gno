@@ -31,7 +31,9 @@ func TotalSupply(banker std.Banker, denom string) int64 {
 	if denom == "" {
 		panic("empty denom")
 	}
-	return banker.TotalCoin(denom)
+	realm := std.CurrentRealm()
+	qualifiedDenom := realm.CoinDenom(denom)
+	return banker.TotalCoin(qualifiedDenom)
 }
 
 // AddressBalance returns the balance of the specified token for the given address
