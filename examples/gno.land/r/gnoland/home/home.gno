@@ -32,9 +32,15 @@ func Render(_ string) string {
 
 [/about](/about) &nbsp;&nbsp;&nbsp; [/github](/github) &nbsp;&nbsp;&nbsp; [/try gno](/try-gno) 
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus ultricies ultricies risus. Cras libero est, congue vitae ex nec, sodales rutrum leo. Quisque a blandit ex, at viverra ex.Donec nulla risus, ullamcorper rutrum sapien ut, varius interdum quam. Donec non sapien varius, iaculis nibh at, placerat risus. 
+We’re building gno.land, set to be the leading open-source smart contract platform for the Internet of the future. At its core, gno.land is powered by Gno, an interpreted and fully deterministic variation of the Go programming language, designed for succinct and composable smart contracts.
 
-Proin placerat quis odio id maximus.
+The gno.land blockchain is the first experiment showcasing what’s possible with Gno, providing a secure, auditable, and reusable architecture for building and iterating on decentralized applications. With transparent and timeless code, gno.land serves as the “GitHub” of the Gno ecosystem, enabling anyone to inspect, reuse, and contribute to the development of Gno-based dApps. Intuitive and easy to use, gno.land makes anti-censorship-resistant web3 applications the standard for the future. Join us in building an open-source-first, fairer, and freer Internet for everyone
+
+- Reusability - smart contracts built with Gno are designed to encourage reusability, composability, and forkability when needed. 
+- Open and transparent - all smart contracts and applications are fully open-source and auditable, ensuring verifiability. 
+- Decentralized Governance – governance is maintained by trusted contributors and the community. 
+- Developer-Friendly – Go developers can easily transition to Gno and start building without learning a new, restrictive language.
+
 
 ---
 
@@ -42,7 +48,7 @@ Why Gno?
 
 ## A new decentralized operating system (dOS) to power the Internet of Everyone
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus ultricies ultricies risus. Cras libero est, congue vitae ex nec, sodales rutrum leo.
+We are building an operating system and network for everyone who wants to contribute and change the way the human component of the web currently operates. Find out more how gno.land is making this happen. 
 
 <gno-columns>
 
@@ -52,10 +58,8 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus ultricies ultri
 
 ### Social coordination & community
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida. 
+Censorship-resistant, community-organized social impact platforms that provide coordination, conversation, conflict resolution, and a builder-owned governance sstructure. 
 
-- [Lorem ipsum dolor](/)
-- [Lorem ipsum dolor](/)
 
 ####
 
@@ -63,10 +67,7 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida.
 
 ### Governance & Organization
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida. 
-
-- [Lorem ipsum dolor](/)
-- [Lorem ipsum dolor](/)
+Redefining governance frameworks, negotiation systems, and decentralized autonomous organizations (DAOs) to prioritize a common ecosystem alignment, active participation and ownership, and application specific implementations in lieu of a solely capital-based control system.
 
 ####
 
@@ -74,10 +75,7 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida.
 
 ### New Economic Model
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida. 
-
-- [Lorem ipsum dolor](/)
-- [Lorem ipsum dolor](/)
+A contribution-driven economic model that incentivizes creators, innovators, moderators, and maintainers to ensure a sustainable, builder-aligned governance and organizational framework for an alternative model to the current speculation or advertising based internet. 
 
 ####
 
@@ -85,12 +83,23 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida.
 
 ### The next killer app
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida. 
+A reusable technical architecture for everyone to build the killer applications of the future that attract the next wave of builders and users to the Internet of Everyone.   
 
-- [Lorem ipsum dolor](/)
-- [Lorem ipsum dolor](/)
 
 </gno-columns>
+
+TODO: Add 'Beta Mainnet Coming Soon!' section
+
+Stay tuned for the first phase of gno.land's launch, the beta mainnet release, and airdrop distribution. [Road to Mainnet and Beyond](https://gno.land/r/gnoland/blog:p/road-to-mainnet)
+
+TODO: Include the gno.land roadmap dynamic infographic
+
+**A moment in time (May 20th, 2020)*: Cosmos snapshot 
+**Milestone complete (July 2024)**: A multi-node, permanent and stable testnet with 1st implementation of the GovDAO
+**Milestone complete (November 2024)**: Extended validator set, testnet improvements and GovDAO v2
+**Milestone 'Beta Mainnet Release' (March 2025)**: GovDAO v3, r/Boards, Token distribution, Security audit complete
+**Milestone 'Build the Future' (2025)**: Bridging Cosmos and gno.land, the foundations of a network of everyone
+**Milestone 'Mainnet' (2025)**: A complete mainnet with token transfers and Cosmos bridge with ICS and IBC
 
 ---
 
@@ -98,7 +107,7 @@ Ecosystem
 
 ## Discover the gno.land universe
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus ultricies ultricies risus. 
+Explore gno.land's expanding ecosystem of applications, wallets, and explorers.
 
 [/the universe ](#)
 
@@ -109,12 +118,12 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus ultricies ultri
 
 ![Wallet](#)
 
-### Wallet
+### Wallets
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida. 
+Execute transactions on gno.land using wallets, or a CLI keychain and client tool.
 
-- [Lorem ipsum dolor](/)
-- [Lorem ipsum dolor](/)
+- [Adena Wallet](https://www.adena.app/)
+- [gnokey](https://docs.gno.land/gno-tooling/cli/gnokey/)
 
 ####
 
@@ -122,38 +131,42 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida.
 
 ### Explorers
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida. 
+Monitor and track the status of on-chain transactions in real time. 
 
-- [Lorem ipsum dolor](/)
-- [Lorem ipsum dolor](/)
+- [gnoscan](https://gnoscan.io/)
+
 
 ####
 
 ![Defi](#)
 
-### Defi
+### Defi and Games
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida. 
+Try out the DeFi platforms and gaming applications on gno.land. 
 
-- [Lorem ipsum dolor](/)
-- [Lorem ipsum dolor](/)
+- [gnoswap - a gno.land DEX](http://beta.gnoswap.io/)
+- [gnochess](TODO)
+- [Flippando](https://flippando.xyz/#)
+- [Shifumi] (TODO)
+- [Conway's Game of Life](TODO)
 
 ####
 
 ![Social dApps](#)
 
-### Social dApps
+### Social and Community dApps
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida. 
+Register your gno.land username and be a part of the conversation happening on gno.land social network, r/Boards.  
 
-- [Lorem ipsum dolor](/)
-- [Lorem ipsum dolor](/)
+- [r/users - gno.land's user name registry](https://gno.land/r/gnoland/users/v1)
+- [r/Boards - gno.land's social network](TODO)
+
 
 </gno-columns>
 
 ## A community of gnomes
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus ultricies ultricies risus. Cras libero est, congue vitae ex nec, sodales rutrum leo. Quisque a blandit ex, at viverra ex.
+gno.land is a contribution-driven network and community where gnomes, its dedicated contributors, serve as the builders, guardians, and pioneers of a future Internet of Everyone.
 
 <gno-columns>
 ##
@@ -180,7 +193,7 @@ Builders
 
 ## Build on gno.land
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus ultricies ultricies risus. Cras libero est, congue vitae ex nec, sodales rutrum leo. Quisque a blandit ex, at viverra ex. Maecenas quis neque quis augue laoreet ultrices. Integer posuere hendrerit feugiat.
+gno.land builders are at the center of creating a user-owned network where applications remain open and reusable, governance aligns with contributors, and innovation extends beyond financial speculation.
 
 [/read the documentation](docs.gno.land)
 
@@ -188,21 +201,21 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus ultricies ultri
 
 ### Builder Portal
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida. 
+The Builder Portal is a collection of educational resources and tools to help you learn, experiment, and develop your Gno skills. 
 
-[/read more](/)
+[TODO](/)
 
 ### Bounties
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida. 
+The Gno bounty program is a good way to find interesting challenges in Gno, and get rewarded for helping us advance the project. 
 
-[/read more](/)
+[/read more](https://github.com/gnolang/bounties)
 
 ### gno.land grants
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec gravida gravida. 
+gno.land grants program provides financial support to developers interested in exploring new blockchain technology, and/or are already actively contributing to gno.land.
 
-[/read more](/)
+[/read more](https://github.com/gnolang/grants)
 
 </gno-columns>
 
