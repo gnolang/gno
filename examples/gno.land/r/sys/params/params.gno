@@ -46,7 +46,7 @@ func NewBytesPropRequest(key string, value []byte) proxy.ProposalRequest {
 func newPropRequest(key string, fn func()) proxy.ProposalRequest {
 	callback := func(proxy.Metadata) error {
 		fn()
-		std.Emit("set", "k", key)
+		std.Emit("set", "key", key) // TODO document, make const, make consistent. 'k'??
 		return nil
 	}
 
@@ -55,4 +55,14 @@ func newPropRequest(key string, fn func()) proxy.ProposalRequest {
 		Description: "This proposal wants to add a new key to sys/params: " + key,
 		Callback:    callback,
 	}
+}
+func propose(exec dao.Executor, title, desc string) uint64 {
+	// The executor's callback function is executed only after the proposal
+	// has been voted on and approved by the GovDAO.
+	prop := dao.ProposalRequest{
+		Title:       title,
+		Description: desc,
+		Executor:    exec,
+	}
+	return bridge.GovDAO().Propose(prop)
 }
