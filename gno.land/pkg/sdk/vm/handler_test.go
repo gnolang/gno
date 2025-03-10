@@ -51,7 +51,7 @@ func Test_parseQueryEval_panic(t *testing.T) {
 	t.Parallel()
 
 	assert.PanicsWithValue(t, panicInvalidQueryEvalData, func() {
-		parseQueryEvalData("gno.land/r/demo/users")
+		parseQueryEvalData("gno.land/r/sys/users")
 	})
 }
 

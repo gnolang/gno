@@ -93,7 +93,7 @@ depth as long as the full package path doesn't exceed `256` characters.
 
 To register a custom namespace:
 
-1. Register a username at `gno.land/r/demo/users`
+1. Register a username at `gno.land/r/gnoland/users`
 2. Once registered, you can deploy packages under that namespace
 3. Only you can deploy to your namespace
 
