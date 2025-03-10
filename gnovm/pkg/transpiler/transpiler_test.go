@@ -145,7 +145,7 @@ func hello() string {
 			source: `
 package foo
 
-import "gno.land/r/demo/users"
+import "gno.land/r/gnoland/users"
 
 func foo()  { _ = users.Register}
 `,
@@ -155,7 +155,7 @@ func foo()  { _ = users.Register}
 //line foo.gno:1:1
 package foo
 
-import "github.com/gnolang/gno/examples/gno.land/r/demo/users"
+import "github.com/gnolang/gno/examples/gno.land/r/gnoland/users"
 
 func foo() { _ = users.Register }
 `,
@@ -164,7 +164,7 @@ func foo() { _ = users.Register }
 					Path: &ast.BasicLit{
 						ValuePos: 21,
 						Kind:     9,
-						Value:    `"github.com/gnolang/gno/examples/gno.land/r/demo/users"`,
+						Value:    `"github.com/gnolang/gno/examples/gno.land/r/gnoland/users"`,
 					},
 				},
 			},
