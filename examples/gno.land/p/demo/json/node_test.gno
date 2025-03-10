@@ -85,7 +85,7 @@ func TestNode_Value(t *testing.T) {
 		name        string
 		data        []byte
 		_type       ValueType
-		expected    interface{}
+		expected    any
 		errExpected bool
 	}{
 		{name: "null", data: []byte("null"), _type: Null, expected: nil},

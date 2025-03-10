@@ -11,6 +11,7 @@ import (
 	libs_crypto_sha256 "github.com/gnolang/gno/gnovm/stdlibs/crypto/sha256"
 	libs_math "github.com/gnolang/gno/gnovm/stdlibs/math"
 	libs_std "github.com/gnolang/gno/gnovm/stdlibs/std"
+	libs_sys_params "github.com/gnolang/gno/gnovm/stdlibs/sys/params"
 	libs_testing "github.com/gnolang/gno/gnovm/stdlibs/testing"
 	libs_time "github.com/gnolang/gno/gnovm/stdlibs/time"
 )
@@ -57,9 +58,15 @@ var nativeFuncs = [...]NativeFunc{
 				rp2 = reflect.ValueOf(&p2).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV, rp2)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
 
 			r0 := libs_crypto_ed25519.X_verify(p0, p1, p2)
 
@@ -87,7 +94,9 @@ var nativeFuncs = [...]NativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
 
 			r0 := libs_crypto_sha256.X_sum256(p0)
 
@@ -115,7 +124,9 @@ var nativeFuncs = [...]NativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
 
 			r0 := libs_math.Float32bits(p0)
 
@@ -143,7 +154,9 @@ var nativeFuncs = [...]NativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
 
 			r0 := libs_math.Float32frombits(p0)
 
@@ -171,7 +184,9 @@ var nativeFuncs = [...]NativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
 
 			r0 := libs_math.Float64bits(p0)
 
@@ -199,7 +214,9 @@ var nativeFuncs = [...]NativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
 
 			r0 := libs_math.Float64frombits(p0)
 
@@ -231,8 +248,12 @@ var nativeFuncs = [...]NativeFunc{
 				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
 
 			r0, r1 := libs_std.X_bankerGetCoins(
 				m,
@@ -277,11 +298,21 @@ var nativeFuncs = [...]NativeFunc{
 				rp4 = reflect.ValueOf(&p4).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV, rp2)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV, rp3)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 4, "")).TV, rp4)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
+			tv3.DeepFill(m.Store)
+			gno.Gno2GoValue(tv3, rp3)
+			tv4 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 4, "")).TV
+			tv4.DeepFill(m.Store)
+			gno.Gno2GoValue(tv4, rp4)
 
 			libs_std.X_bankerSendCoins(
 				m,
@@ -308,8 +339,12 @@ var nativeFuncs = [...]NativeFunc{
 				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
 
 			r0 := libs_std.X_bankerTotalCoin(
 				m,
@@ -346,10 +381,18 @@ var nativeFuncs = [...]NativeFunc{
 				rp3 = reflect.ValueOf(&p3).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV, rp2)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV, rp3)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
+			tv3.DeepFill(m.Store)
+			gno.Gno2GoValue(tv3, rp3)
 
 			libs_std.X_bankerIssueCoin(
 				m,
@@ -380,10 +423,18 @@ var nativeFuncs = [...]NativeFunc{
 				rp3 = reflect.ValueOf(&p3).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV, rp2)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV, rp3)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
+			tv3.DeepFill(m.Store)
+			gno.Gno2GoValue(tv3, rp3)
 
 			libs_std.X_bankerRemoveCoin(
 				m,
@@ -408,8 +459,12 @@ var nativeFuncs = [...]NativeFunc{
 				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
 
 			libs_std.X_emit(
 				m,
@@ -571,7 +626,9 @@ var nativeFuncs = [...]NativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
 
 			r0 := libs_std.X_callerAt(
 				m,
@@ -602,7 +659,9 @@ var nativeFuncs = [...]NativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
 
 			r0, r1 := libs_std.X_getRealm(
 				m,
@@ -650,8 +709,12 @@ var nativeFuncs = [...]NativeFunc{
 				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
 
 			libs_std.X_setParamString(
 				m,
@@ -676,8 +739,12 @@ var nativeFuncs = [...]NativeFunc{
 				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
 
 			libs_std.X_setParamBool(
 				m,
@@ -702,8 +769,12 @@ var nativeFuncs = [...]NativeFunc{
 				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
 
 			libs_std.X_setParamInt64(
 				m,
@@ -728,8 +799,12 @@ var nativeFuncs = [...]NativeFunc{
 				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
 
 			libs_std.X_setParamUint64(
 				m,
@@ -754,12 +829,298 @@ var nativeFuncs = [...]NativeFunc{
 				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
 
 			libs_std.X_setParamBytes(
 				m,
 				p0, p1)
+		},
+	},
+	{
+		"std",
+		"setParamStrings",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("string")},
+			{Name: gno.N("p1"), Type: gno.X("[]string")},
+		},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  []string
+				rp1 = reflect.ValueOf(&p1).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+
+			libs_std.X_setParamStrings(
+				m,
+				p0, p1)
+		},
+	},
+	{
+		"sys/params",
+		"setSysParamString",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("string")},
+			{Name: gno.N("p1"), Type: gno.X("string")},
+			{Name: gno.N("p2"), Type: gno.X("string")},
+			{Name: gno.N("p3"), Type: gno.X("string")},
+		},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  string
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  string
+				rp2 = reflect.ValueOf(&p2).Elem()
+				p3  string
+				rp3 = reflect.ValueOf(&p3).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
+			tv3.DeepFill(m.Store)
+			gno.Gno2GoValue(tv3, rp3)
+
+			libs_sys_params.X_setSysParamString(
+				m,
+				p0, p1, p2, p3)
+		},
+	},
+	{
+		"sys/params",
+		"setSysParamBool",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("string")},
+			{Name: gno.N("p1"), Type: gno.X("string")},
+			{Name: gno.N("p2"), Type: gno.X("string")},
+			{Name: gno.N("p3"), Type: gno.X("bool")},
+		},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  string
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  string
+				rp2 = reflect.ValueOf(&p2).Elem()
+				p3  bool
+				rp3 = reflect.ValueOf(&p3).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
+			tv3.DeepFill(m.Store)
+			gno.Gno2GoValue(tv3, rp3)
+
+			libs_sys_params.X_setSysParamBool(
+				m,
+				p0, p1, p2, p3)
+		},
+	},
+	{
+		"sys/params",
+		"setSysParamInt64",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("string")},
+			{Name: gno.N("p1"), Type: gno.X("string")},
+			{Name: gno.N("p2"), Type: gno.X("string")},
+			{Name: gno.N("p3"), Type: gno.X("int64")},
+		},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  string
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  string
+				rp2 = reflect.ValueOf(&p2).Elem()
+				p3  int64
+				rp3 = reflect.ValueOf(&p3).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
+			tv3.DeepFill(m.Store)
+			gno.Gno2GoValue(tv3, rp3)
+
+			libs_sys_params.X_setSysParamInt64(
+				m,
+				p0, p1, p2, p3)
+		},
+	},
+	{
+		"sys/params",
+		"setSysParamUint64",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("string")},
+			{Name: gno.N("p1"), Type: gno.X("string")},
+			{Name: gno.N("p2"), Type: gno.X("string")},
+			{Name: gno.N("p3"), Type: gno.X("uint64")},
+		},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  string
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  string
+				rp2 = reflect.ValueOf(&p2).Elem()
+				p3  uint64
+				rp3 = reflect.ValueOf(&p3).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
+			tv3.DeepFill(m.Store)
+			gno.Gno2GoValue(tv3, rp3)
+
+			libs_sys_params.X_setSysParamUint64(
+				m,
+				p0, p1, p2, p3)
+		},
+	},
+	{
+		"sys/params",
+		"setSysParamBytes",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("string")},
+			{Name: gno.N("p1"), Type: gno.X("string")},
+			{Name: gno.N("p2"), Type: gno.X("string")},
+			{Name: gno.N("p3"), Type: gno.X("[]byte")},
+		},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  string
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  string
+				rp2 = reflect.ValueOf(&p2).Elem()
+				p3  []byte
+				rp3 = reflect.ValueOf(&p3).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
+			tv3.DeepFill(m.Store)
+			gno.Gno2GoValue(tv3, rp3)
+
+			libs_sys_params.X_setSysParamBytes(
+				m,
+				p0, p1, p2, p3)
+		},
+	},
+	{
+		"sys/params",
+		"setSysParamStrings",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("string")},
+			{Name: gno.N("p1"), Type: gno.X("string")},
+			{Name: gno.N("p2"), Type: gno.X("string")},
+			{Name: gno.N("p3"), Type: gno.X("[]string")},
+		},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  string
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  string
+				rp2 = reflect.ValueOf(&p2).Elem()
+				p3  []string
+				rp3 = reflect.ValueOf(&p3).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
+			tv3.DeepFill(m.Store)
+			gno.Gno2GoValue(tv3, rp3)
+
+			libs_sys_params.X_setSysParamStrings(
+				m,
+				p0, p1, p2, p3)
 		},
 	},
 	{
@@ -777,6 +1138,26 @@ var nativeFuncs = [...]NativeFunc{
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"testing",
+		"recoverWithStacktrace",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.AnyT()},
+			{Name: gno.N("r1"), Type: gno.X("string")},
+		},
+		false,
+		func(m *gno.Machine) {
+			r0, r1 := libs_testing.X_recoverWithStacktrace()
+
+			m.PushValue(r0)
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
 			))
 		},
 	},
@@ -801,8 +1182,12 @@ var nativeFuncs = [...]NativeFunc{
 				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
 
 			r0, r1 := libs_testing.X_matchString(p0, p1)
 
@@ -868,7 +1253,9 @@ var nativeFuncs = [...]NativeFunc{
 				rp0 = reflect.ValueOf(&p0).Elem()
 			)
 
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
 
 			r0, r1 := libs_time.X_loadFromEmbeddedTZData(p0)
 
@@ -922,6 +1309,7 @@ var initOrder = [...]string{
 	"regexp/syntax",
 	"regexp",
 	"std",
+	"sys/params",
 	"testing",
 	"time",
 	"unicode/utf16",
