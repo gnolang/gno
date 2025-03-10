@@ -34,7 +34,7 @@ func (m simpleMatch) matches(name []string) (ok, partial bool) {
 		if i >= len(m) {
 			break
 		}
-		if ok, _ := matchString(m[i], s); !ok {
+		if ok := matchString(m[i], s); !ok {
 			return false, false
 		}
 	}
@@ -47,7 +47,8 @@ func (m simpleMatch) verify(name string) error {
 	}
 	// Verify filters before doing any processing.
 	for i, s := range m {
-		if _, err := matchString(s, "non-empty"); err != nil {
+		err := verifyRegex(s)
+		if err != "" {
 			return fmt.Errorf("element %d of %s (%q): %s", i, name, s, err)
 		}
 	}

@@ -153,12 +153,6 @@ func Recv(n, t interface{}) FieldTypeExpr {
 	}
 }
 
-func MaybeNativeT(tx interface{}) *MaybeNativeTypeExpr {
-	return &MaybeNativeTypeExpr{
-		Type: X(tx),
-	}
-}
-
 // FuncD creates a new function declaration.
 //
 // There is a difference between passing nil to body or passing []Stmt{}:
