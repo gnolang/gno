@@ -372,8 +372,6 @@ func (m *Machine) doOpStaticTypeOf() {
 		case VPInterface:
 			_, _, _, ft, _ := findEmbeddedFieldType(dxt.GetPkgPath(), dxt, path.Name, nil)
 			m.PushValue(asValue(ft))
-		case VPNative:
-			panic("should not happen, there are not native types anymore")
 		default:
 			panic(fmt.Sprintf(
 				"unknown value path type %v in selector %s (path %s)",

@@ -88,8 +88,6 @@ func (vp ValuePath) String() string {
 		return fmt.Sprintf("VPDerefPtrMethod(%d,%s)", vp.Index, vp.Name)
 	case VPDerefInterface:
 		return fmt.Sprintf("VPDerefInterface(%s)", vp.Name)
-	case VPNative:
-		return fmt.Sprintf("VPNative(%s)", vp.Name)
 	default:
 		panic("illegal_value_type")
 	}

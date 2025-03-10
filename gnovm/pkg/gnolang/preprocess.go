@@ -1524,7 +1524,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						n.Addressability = addressabilityStatusUnsatisfied
 					}
 				case MapKind:
-					mt := baseOf(gnoTypeOf(store, dt)).(*MapType)
+					mt := baseOf(dt).(*MapType)
 					checkOrConvertType(store, last, n, &n.Index, mt.Key, false)
 					n.Addressability = addressabilityStatusUnsatisfied
 				default:
@@ -3051,11 +3051,6 @@ func getType(x Expr) Type {
 			x.String(),
 		))
 	}
-}
-
-// If t is a native type, returns the gno type.
-func gnoTypeOf(store Store, t Type) Type {
-	return t
 }
 
 // Unlike evalStaticType, x is not expected to be a typeval,

@@ -18,7 +18,7 @@ import (
 type Type interface {
 	assertType()
 
-	Kind() Kind     // penetrates *DeclaredType & *NativeType
+	Kind() Kind     // penetrates *DeclaredType
 	TypeID() TypeID // deterministic
 	String() string // for dev/debugging
 	Elem() Type     // for TODO... types

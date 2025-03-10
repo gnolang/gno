@@ -2139,7 +2139,6 @@ const (
 	VPDerefValMethod VPType = 0x13 // 0x10 + VPValMethod
 	VPDerefPtrMethod VPType = 0x14 // 0x10 + VPPtrMethod
 	VPDerefInterface VPType = 0x15 // 0x10 + VPInterface
-	VPNative         VPType = 0x20
 	// 0x3X, 0x5X, 0x7X, 0x9X, 0xAX, 0xCX, 0xEX reserved.
 )
 
@@ -2198,10 +2197,6 @@ func NewValuePathDerefInterface(n Name) ValuePath {
 	return NewValuePath(VPDerefInterface, 0, 0, n)
 }
 
-func NewValuePathNative(n Name) ValuePath {
-	return NewValuePath(VPNative, 0, 0, n)
-}
-
 func (vp ValuePath) Validate() {
 	vp.validateDepth()
 
@@ -2253,13 +2248,6 @@ func (vp ValuePath) Validate() {
 		}
 		if vp.Name == "" {
 			panic("(deref) interface value path must have name")
-		}
-	case VPNative:
-		if vp.Depth != 0 {
-			panic("native value path must have depth 0")
-		}
-		if vp.Name == "" {
-			panic("native value path must have name")
 		}
 	default:
 		panic(fmt.Sprintf(

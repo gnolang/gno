@@ -342,13 +342,11 @@ func _() {
 	_ = x[VPDerefValMethod-19]
 	_ = x[VPDerefPtrMethod-20]
 	_ = x[VPDerefInterface-21]
-	_ = x[VPNative-32]
 }
 
 const (
 	_VPType_name_0 = "VPUverseVPBlockVPFieldVPValMethodVPPtrMethodVPInterfaceVPSubrefField"
 	_VPType_name_1 = "VPDerefFieldVPDerefValMethodVPDerefPtrMethodVPDerefInterface"
-	_VPType_name_2 = "VPNative"
 )
 
 var (
@@ -363,8 +361,6 @@ func (i VPType) String() string {
 	case 18 <= i && i <= 21:
 		i -= 18
 		return _VPType_name_1[_VPType_index_1[i]:_VPType_index_1[i+1]]
-	case i == 32:
-		return _VPType_name_2
 	default:
 		return "VPType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
