@@ -1,10 +1,8 @@
-all: build lint
+lint:
+	go run -C ../misc/docs/tools/linter . -path "$(PWD)" -treat-urls-as-err=true
 
-# Build the linter
-build:
+generate:
 	go run -modfile ../misc/devdeps/go.mod github.com/campoy/embedmd -w `find . -name "*.md"`
 
-# Run the linter for the docs/ folder
-lint:
-	go build -C ../misc/docs-linter -o ./build
-	../misc/docs-linter/build -path .
+test:
+	@echo "Nothing to do."

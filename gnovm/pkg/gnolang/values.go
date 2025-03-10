@@ -20,6 +20,18 @@ import (
 type Value interface {
 	assertValue()
 	String() string // for debugging
+
+	// DeepFill returns the same value, filled.
+	//
+	// NOTE NOT LAZY (and potentially expensive)
+	// DeepFill() is only used for synchronous recursive
+	// filling before running genstd generated native bindings
+	// which use Gno2GoValue().  All other filling functionality is
+	// lazy, so avoid using this, and keep the logic lazy.
+	//
+	// NOTE must use the return value since PointerValue isn't a pointer
+	// receiver, and RefValue returns another type entirely.
+	DeepFill(store Store) Value
 }
 
 // Fixed size primitive types are represented in TypedValue.N
@@ -79,26 +91,26 @@ type BigintValue struct {
 	V *big.Int
 }
 
-func (bv BigintValue) MarshalAmino() (string, error) {
-	bz, err := bv.V.MarshalText()
+func (biv BigintValue) MarshalAmino() (string, error) {
+	bz, err := biv.V.MarshalText()
 	if err != nil {
 		return "", err
 	}
 	return string(bz), nil
 }
 
-func (bv *BigintValue) UnmarshalAmino(s string) error {
+func (biv *BigintValue) UnmarshalAmino(s string) error {
 	vv := big.NewInt(0)
 	err := vv.UnmarshalText([]byte(s))
 	if err != nil {
 		return err
 	}
-	bv.V = vv
+	biv.V = vv
 	return nil
 }
 
-func (bv BigintValue) Copy(alloc *Allocator) BigintValue {
-	return BigintValue{V: big.NewInt(0).Set(bv.V)}
+func (biv BigintValue) Copy(alloc *Allocator) BigintValue {
+	return BigintValue{V: big.NewInt(0).Set(biv.V)}
 }
 
 // ----------------------------------------
@@ -108,27 +120,27 @@ type BigdecValue struct {
 	V *apd.Decimal
 }
 
-func (bv BigdecValue) MarshalAmino() (string, error) {
-	bz, err := bv.V.MarshalText()
+func (bdv BigdecValue) MarshalAmino() (string, error) {
+	bz, err := bdv.V.MarshalText()
 	if err != nil {
 		return "", err
 	}
 	return string(bz), nil
 }
 
-func (bv *BigdecValue) UnmarshalAmino(s string) error {
+func (bdv *BigdecValue) UnmarshalAmino(s string) error {
 	vv := apd.New(0, 0)
 	err := vv.UnmarshalText([]byte(s))
 	if err != nil {
 		return err
 	}
-	bv.V = vv
+	bdv.V = vv
 	return nil
 }
 
-func (bv BigdecValue) Copy(alloc *Allocator) BigdecValue {
+func (bdv BigdecValue) Copy(alloc *Allocator) BigdecValue {
 	cp := apd.New(0, 0)
-	_, err := apd.BaseContext.Add(cp, cp, bv.V)
+	_, err := apd.BaseContext.Add(cp, cp, bdv.V)
 	if err != nil {
 		panic("should not happen")
 	}
@@ -1717,6 +1729,9 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			panic("should not happen")
 		}
 	case VPDerefValMethod:
+		if tv.V == nil {
+			panic(&Exception{Value: typedString("nil pointer dereference")})
+		}
 		dtv2 := tv.V.(PointerValue).TV
 		dtv = &TypedValue{ // In case method is called on converted type, like ((*othertype)x).Method().
 			T: tv.T.Elem(),
@@ -2090,6 +2105,8 @@ func (tv *TypedValue) GetLength() int {
 			return bt.Len
 		case *SliceType:
 			return 0
+		case *MapType:
+			return 0
 		case *PointerType:
 			if at, ok := bt.Elt.(*ArrayType); ok {
 				return at.Len
@@ -2318,6 +2335,14 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) T
 	default:
 		panic(fmt.Sprintf("unexpected type for GetSlice2(): %s",
 			tv.T.String()))
+	}
+}
+
+// Convenience for Value.DeepFill.
+// NOTE: NOT LAZY (and potentially expensive)
+func (tv *TypedValue) DeepFill(store Store) {
+	if tv.V != nil {
+		tv.V = tv.V.DeepFill(store)
 	}
 }
 
