@@ -28,7 +28,7 @@ func initSetup(admin std.Address) *Roles {
 func TestCreateRole(t *testing.T) {
 	roles := initSetup(admin)
 
-	std.TestSetOriginCaller(admin)
+	testing.SetOriginCaller(admin)
 
 	role, err := roles.CreateRole(roleName)
 	uassert.NoError(t, err)
@@ -42,7 +42,7 @@ func TestCreateRole(t *testing.T) {
 func TestGrantRole(t *testing.T) {
 	roles := initSetup(admin)
 
-	std.TestSetOriginCaller(admin)
+	testing.SetOriginCaller(admin)
 
 	_, err := roles.CreateRole(roleName)
 	uassert.NoError(t, err)
@@ -62,11 +62,11 @@ func TestGrantRole(t *testing.T) {
 func TestGrantRoleByNonOwner(t *testing.T) {
 	roles := initSetup(admin)
 
-	std.TestSetOriginCaller(admin)
+	testing.SetOriginCaller(admin)
 	_, err := roles.CreateRole(roleName)
 	uassert.NoError(t, err)
 
-	std.TestSetOriginCaller(user2)
+	testing.SetOriginCaller(user2)
 	roles.Ownable.TransferOwnership(user2)
 	err = roles.GrantRole(roleName, user1)
 	uassert.Error(t, err, "non-owner should not be able to grant roles")
@@ -77,7 +77,7 @@ func TestGrantRoleByNonOwner(t *testing.T) {
 func TestRevokeRole(t *testing.T) {
 	roles := initSetup(admin)
 
-	std.TestSetOriginCaller(admin)
+	testing.SetOriginCaller(admin)
 
 	_, err := roles.CreateRole(roleName)
 	uassert.NoError(t, err)
@@ -100,7 +100,7 @@ func TestRevokeRole(t *testing.T) {
 func TestRenounceRole(t *testing.T) {
 	roles := initSetup(admin)
 
-	std.TestSetOriginCaller(admin)
+	testing.SetOriginCaller(admin)
 
 	role, err := roles.CreateRole(roleName)
 	uassert.NoError(t, err)
@@ -108,7 +108,7 @@ func TestRenounceRole(t *testing.T) {
 	uassert.NoError(t, err)
 
 	// Pas besoin de transférer la propriété pour renoncer à un rôle
-	std.TestSetOriginCaller(user1)
+	testing.SetOriginCaller(user1)
 	err = roles.RenounceRole(roleName)
 	uassert.NoError(t, err)
 
@@ -120,7 +120,7 @@ func TestRenounceRole(t *testing.T) {
 func TestSetRoleAdmin(t *testing.T) {
 	roles := initSetup(admin)
 
-	std.TestSetOriginCaller(admin)
+	testing.SetOriginCaller(admin)
 
 	role, err := roles.CreateRole(roleName)
 	uassert.NoError(t, err)
@@ -128,17 +128,17 @@ func TestSetRoleAdmin(t *testing.T) {
 	err = role.SetRoleAdmin(newAdmin)
 	uassert.NoError(t, err, "admin change should succeed")
 
-	std.TestSetOriginCaller(newAdmin)
+	testing.SetOriginCaller(newAdmin)
 	uassert.Equal(t, role.Ownable.Owner(), newAdmin, "the new admin should be newAdmin")
 
-	std.TestSetOriginCaller(admin)
+	testing.SetOriginCaller(admin)
 	uassert.NotEqual(t, role.Ownable.Owner(), admin, "the old admin should no longer be the owner")
 }
 
 func TestCreateRoleInvalidName(t *testing.T) {
 	roles := initSetup(admin)
 
-	std.TestSetOriginCaller(admin)
+	testing.SetOriginCaller(admin)
 
 	_, err := roles.CreateRole("")
 	uassert.Error(t, err, "should fail on empty role name")
@@ -151,14 +151,14 @@ func TestCreateRoleInvalidName(t *testing.T) {
 func TestRevokeRoleByNonOwner(t *testing.T) {
 	roles := initSetup(admin)
 
-	std.TestSetOriginCaller(admin)
+	testing.SetOriginCaller(admin)
 
 	_, err := roles.CreateRole(roleName)
 	uassert.NoError(t, err)
 	err = roles.GrantRole(roleName, user1)
 	uassert.NoError(t, err)
 
-	std.TestSetOriginCaller(user2)
+	testing.SetOriginCaller(user2)
 	err = roles.RevokeRole(roleName, user1)
 	uassert.Error(t, err, "non-owner should not be able to revoke roles")
 }
@@ -166,7 +166,7 @@ func TestRevokeRoleByNonOwner(t *testing.T) {
 func TestGrantRoleToNonExistentRole(t *testing.T) {
 	roles := initSetup(admin)
 
-	std.TestSetOriginCaller(admin)
+	testing.SetOriginCaller(admin)
 
 	err := roles.GrantRole("NonExistentRole", user1)
 	uassert.Error(t, err, "should fail when granting non-existent role")
@@ -175,7 +175,7 @@ func TestGrantRoleToNonExistentRole(t *testing.T) {
 func TestRevokeRoleFromNonExistentRole(t *testing.T) {
 	roles := initSetup(admin)
 
-	std.TestSetOriginCaller(admin)
+	testing.SetOriginCaller(admin)
 
 	err := roles.RevokeRole("NonExistentRole", user1)
 	uassert.Error(t, err, "should fail when revoking non-existent role")
@@ -184,7 +184,7 @@ func TestRevokeRoleFromNonExistentRole(t *testing.T) {
 func TestRenounceNonExistentRole(t *testing.T) {
 	roles := initSetup(admin)
 
-	std.TestSetOriginCaller(user1)
+	testing.SetOriginCaller(user1)
 
 	err := roles.RenounceRole("NonExistentRole")
 	uassert.Error(t, err, "should fail when renouncing non-existent role")
@@ -193,7 +193,7 @@ func TestRenounceNonExistentRole(t *testing.T) {
 func TestDeleteRole(t *testing.T) {
 	roles := initSetup(admin)
 
-	std.TestSetOriginCaller(admin)
+	testing.SetOriginCaller(admin)
 
 	role, err := roles.CreateRole(roleName)
 	uassert.NoError(t, err)
@@ -207,7 +207,7 @@ func TestDeleteRole(t *testing.T) {
 func TestUserToRolesWithMultipleRoles(t *testing.T) {
 	roles := initSetup(admin)
 
-	std.TestSetOriginCaller(admin)
+	testing.SetOriginCaller(admin)
 
 	roleName1 := "Role1"
 	roleName2 := "Role2"

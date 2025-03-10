@@ -2,7 +2,6 @@ package haystack
 
 import (
 	"encoding/hex"
-	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -31,14 +30,14 @@ func TestHaystack(t *testing.T) {
 		n2, _ := genNeedleHex(2)
 		n3, _ := genNeedleHex(3)
 
-		std.TestSetOriginCaller(u1)
+		testing.SetOriginCaller(u1)
 		urequire.NotPanics(t, func() { Add(n1) })
 		urequire.PanicsWithMessage(t,
 			haystack.ErrorDuplicateNeedle.Error(),
 			func() {
 				Add(n1)
 			})
-		std.TestSetOriginCaller(u2)
+		testing.SetOriginCaller(u2)
 		urequire.NotPanics(t, func() { Add(n2) })
 		urequire.NotPanics(t, func() { Add(n3) })
 	})
@@ -49,14 +48,14 @@ func TestHaystack(t *testing.T) {
 		n1, h1 := genNeedleHex(4)
 		_, h2 := genNeedleHex(5)
 
-		std.TestSetOriginCaller(u1)
+		testing.SetOriginCaller(u1)
 		urequire.NotPanics(t, func() { Add(n1) })
 		urequire.NotPanics(t, func() {
 			result := Get(h1)
 			urequire.Equal(t, n1, result)
 		})
 
-		std.TestSetOriginCaller(u2)
+		testing.SetOriginCaller(u2)
 		urequire.NotPanics(t, func() {
 			result := Get(h1)
 			urequire.Equal(t, n1, result)

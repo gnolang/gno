@@ -817,7 +817,7 @@ Sets the current caller of the transaction to **addr**.
 
 #### Usage
 ```go
-std.TestSetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+testing.SetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 ```
 ---
 
@@ -844,7 +844,7 @@ Sets the sent & spent coins for the current context.
 
 #### Usage
 ```go
-std.TestSetOriginSend(sent, spent Coins)
+testing.SetOriginSend(sent, spent Coins)
 ```
 ---
 
@@ -882,9 +882,9 @@ Should be used in combination with [`NewUserRealm`](#newuserrealm) &
 #### Usage
 ```go
 addr := std.Address("g1ecely4gjy0yl6s9kt409ll330q9hk2lj9ls3ec")
-std.TestSetRealm(std.NewUserRealm(""))
+testing.SetRealm(std.NewUserRealm(""))
 // or
-std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/users"))
+testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/users"))
 ```
 
 ---
