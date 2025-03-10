@@ -27,14 +27,14 @@ var (
 	ErrInvalidPubKey       = errors.New("invalid public key")
 	ErrInvalidP2PAddress   = errors.New("invalid P2P address")
 	ErrP2PAddressesMissing = errors.New("P2P addresses cannot be empty")
-
-	minFee     int64 = 20 * 1_000_000 // minimum gnot must be paid to register.
-	maxFeeMult int64 = 10             // maximum multiples of minFee accepted.
 )
 
-// valopers keeps track of all the active validator operators
-var valopers *avl.Tree  // Address -> Valoper
-var instructions string // markdown instructions for valoper's registration
+var (
+	valopers     *avl.Tree                  // valopers keeps track of all the active validator operators. Address -> Valoper
+	instructions string                     // markdown instructions for valoper's registration
+	minFee       int64     = 20 * 1_000_000 // minimum gnot must be paid to register.
+	minCoin                = std.NewCoin("ugnot", minFee)
+)
 
 // Valoper represents a validator operator profile
 type Valoper struct {
@@ -394,17 +394,11 @@ func isValoper(address std.Address) bool {
 
 func validateSentCoins() error {
 	sentCoins := std.OriginSend()
-	minCoin := std.NewCoin("ugnot", minFee)
 
 	if len(sentCoins) == 1 && sentCoins[0].IsGTE(minCoin) {
-		if sentCoins[0].Amount > minFee*maxFeeMult {
-			return errors.New("payment must not be greater than " + strconv.Itoa(int(minFee*maxFeeMult)))
-		} else {
-			return nil
-		}
-	} else {
-		return errors.New("payment must not be less than " + strconv.Itoa(int(minFee)))
+		return nil
 	}
+	return errors.New("payment must not be less than " + strconv.Itoa(int(minFee)))
 }
 
 func splitP2PAddresses(p2pAddresses string) []string {

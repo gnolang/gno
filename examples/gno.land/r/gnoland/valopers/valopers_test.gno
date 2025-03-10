@@ -71,7 +71,7 @@ func TestValopers_Register(t *testing.T) {
 		valopers.Set(v.Address.String(), v)
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
 		uassert.PanicsWithMessage(t, ErrValoperExists.Error(), func() {
 			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
@@ -114,24 +114,6 @@ func TestValopers_Register(t *testing.T) {
 		Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
 	})
 
-	t.Run("to much coins amount deposit", func(t *testing.T) {
-		t.Parallel()
-
-		// Clear the set for the test
-		valopers = avl.NewTree()
-
-		// Send invalid coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", maxFeeMult*minFee+1)}, nil)
-
-		defer func() {
-			if r := recover(); r == nil {
-				t.Errorf("Register with more than maximal coins deposit should panic")
-			}
-		}()
-
-		Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
-	})
-
 	t.Run("successful registration", func(t *testing.T) {
 		t.Parallel()
 
@@ -139,7 +121,7 @@ func TestValopers_Register(t *testing.T) {
 		valopers = avl.NewTree()
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
 		uassert.NotPanics(t, func() {
 			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
@@ -182,7 +164,7 @@ func TestValopers_Update(t *testing.T) {
 		valopers = avl.NewTree()
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -212,7 +194,7 @@ func TestValopers_Update(t *testing.T) {
 		valopers = avl.NewTree()
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -237,7 +219,7 @@ func TestValopers_Update(t *testing.T) {
 		moniker := "new valoper"
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -266,7 +248,7 @@ func TestValopers_Update(t *testing.T) {
 		moniker := "new valoper"
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -312,7 +294,7 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		valopers = avl.NewTree()
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -335,7 +317,7 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		valopers = avl.NewTree()
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -355,7 +337,7 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		valopers = avl.NewTree()
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -402,7 +384,7 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		valopers = avl.NewTree()
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -425,7 +407,7 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		valopers = avl.NewTree()
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -445,7 +427,7 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		valopers = avl.NewTree()
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -492,7 +474,7 @@ func TestValopers_UpdateAddress(t *testing.T) {
 		valopers = avl.NewTree()
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -517,7 +499,7 @@ func TestValopers_UpdateAddress(t *testing.T) {
 		valopers = avl.NewTree()
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -537,7 +519,7 @@ func TestValopers_UpdateAddress(t *testing.T) {
 		valopers = avl.NewTree()
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -557,7 +539,7 @@ func TestValopers_UpdateAddress(t *testing.T) {
 		valopers = avl.NewTree()
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -601,7 +583,7 @@ func TestValopers_UpdatePubKey(t *testing.T) {
 		valopers = avl.NewTree()
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -624,7 +606,7 @@ func TestValopers_UpdatePubKey(t *testing.T) {
 		valopers = avl.NewTree()
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -644,7 +626,7 @@ func TestValopers_UpdatePubKey(t *testing.T) {
 		valopers = avl.NewTree()
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -690,7 +672,7 @@ func TestValopers_UpdateP2PAddresses(t *testing.T) {
 		valopers = avl.NewTree()
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -713,7 +695,7 @@ func TestValopers_UpdateP2PAddresses(t *testing.T) {
 		valopers = avl.NewTree()
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -742,7 +724,7 @@ func TestValopers_UpdateP2PAddresses(t *testing.T) {
 		valopers = avl.NewTree()
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee)}, nil)
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
