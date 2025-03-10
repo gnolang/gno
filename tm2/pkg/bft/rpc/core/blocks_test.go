@@ -11,11 +11,11 @@ func TestBlockchainInfo(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		min, max     int64
-		height       int64
-		limit        int64
-		resultLength int64
-		wantErr      bool
+		minVal, maxVal int64
+		height         int64
+		limit          int64
+		resultLength   int64
+		wantErr        bool
 	}{
 		// min > max
 		{0, 0, 0, 10, 0, true},  // min set to 1
@@ -46,12 +46,12 @@ func TestBlockchainInfo(t *testing.T) {
 
 	for i, c := range cases {
 		caseString := fmt.Sprintf("test %d failed", i)
-		min, max, err := filterMinMax(c.height, c.min, c.max, c.limit)
+		minVal, maxVal, err := filterMinMax(c.height, c.minVal, c.maxVal, c.limit)
 		if c.wantErr {
 			require.Error(t, err, caseString)
 		} else {
 			require.NoError(t, err, caseString)
-			require.Equal(t, 1+max-min, c.resultLength, caseString)
+			require.Equal(t, 1+maxVal-minVal, c.resultLength, caseString)
 		}
 	}
 }
@@ -62,7 +62,7 @@ func TestGetHeight(t *testing.T) {
 	cases := []struct {
 		currentHeight int64
 		heightPtr     *int64
-		min           int64
+		minVal        int64
 		res           int64
 		wantErr       bool
 	}{
@@ -79,7 +79,7 @@ func TestGetHeight(t *testing.T) {
 
 	for i, c := range cases {
 		caseString := fmt.Sprintf("test %d failed", i)
-		res, err := getHeightWithMin(c.currentHeight, c.heightPtr, c.min)
+		res, err := getHeightWithMin(c.currentHeight, c.heightPtr, c.minVal)
 		if c.wantErr {
 			require.Error(t, err, caseString)
 		} else {

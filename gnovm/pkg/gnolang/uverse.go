@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 )
 
 // ----------------------------------------
@@ -61,26 +63,58 @@ var gStringerType = &DeclaredType{
 var (
 	uverseNode  *PackageNode
 	uverseValue *PackageValue
+	uverseInit  = uverseUninitialized
 )
+
+const (
+	uverseUninitialized = iota
+	uverseInitializing
+	uverseInitialized
+)
+
+func init() {
+	// Skip Uverse init during benchmarking to load stdlibs in the benchmark main function.
+	if !(bm.OpsEnabled || bm.StorageEnabled) {
+		// Call Uverse() so we initialize the Uverse node ahead of any calls to the package.
+		Uverse()
+	}
+}
 
 const uversePkgPath = ".uverse"
 
-// Always returns a new copy from the latest state of source.
+// UverseNode returns the uverse PackageValue.
+// If called while initializing the UverseNode itself, it will return an empty
+// PackageValue.
 func Uverse() *PackageValue {
-	if uverseValue == nil {
-		pn := UverseNode()
-		uverseValue = pn.NewPackage()
+	switch uverseInit {
+	case uverseUninitialized:
+		uverseInit = uverseInitializing
+		makeUverseNode()
+		uverseInit = uverseInitialized
+	case uverseInitializing:
+		return &PackageValue{}
 	}
+
 	return uverseValue
 }
 
-// Always returns the same instance with possibly differing completeness.
+// UverseNode returns the uverse PackageNode.
+// If called while initializing the UverseNode itself, it will return an empty
+// PackageNode.
 func UverseNode() *PackageNode {
-	// Global is singleton.
-	if uverseNode != nil {
-		return uverseNode
+	switch uverseInit {
+	case uverseUninitialized:
+		uverseInit = uverseInitializing
+		makeUverseNode()
+		uverseInit = uverseInitialized
+	case uverseInitializing:
+		return &PackageNode{}
 	}
 
+	return uverseNode
+}
+
+func makeUverseNode() {
 	// NOTE: uverse node is hidden, thus the leading dot in pkgPath=".uverse".
 	uverseNode = NewPackageNode("uverse", uversePkgPath, nil)
 
@@ -95,7 +129,6 @@ func UverseNode() *PackageNode {
 	def("._", undefined)   // special, path is zero.
 	def("iota", undefined) // special
 	def("nil", undefined)
-	def("bigint", asValue(BigintType))
 	def("bool", asValue(BoolType))
 	def("byte", asValue(Uint8Type))
 	def("float32", asValue(Float32Type))
@@ -112,22 +145,8 @@ func UverseNode() *PackageNode {
 	def("uint16", asValue(Uint16Type))
 	def("uint32", asValue(Uint32Type))
 	def("uint64", asValue(Uint64Type))
-	// NOTE on 'typeval': We can't call the type of a TypeValue a
-	// "type", even though we want to, because it conflicts with
-	// the pre-existing syntax for type-switching, `switch
-	// x.(type) {case SomeType:...}`, for if x.(type) were not a
-	// type-switch but a type-assertion, and the resulting value
-	// could be any type, such as an IntType; whereas as the .X of
-	// a SwitchStmt, the type of an IntType value is not IntType
-	// but always a TypeType (all types are of type TypeType).
-	//
-	// The ideal solution is to keep the syntax consistent for
-	// type-assertions, but for backwards compatibility, the
-	// keyword that represents the TypeType type is not "type" but
-	// "typeval".  The value of a "typeval" value is represented
-	// by a TypeValue.
-	def("typeval", asValue(gTypeType))
 	def("error", asValue(gErrorType))
+	def("any", asValue(&InterfaceType{}))
 
 	// Values
 	def("true", untypedBool(true))
@@ -603,13 +622,11 @@ func UverseNode() *PackageNode {
 				T: IntType,
 				V: nil,
 			}
-			res0.SetInt(arg0.TV.GetCapacity())
+			res0.SetInt(int64(arg0.TV.GetCapacity()))
 			m.PushValue(res0)
 			return
 		},
 	)
-	def("close", undefined)
-	def("complex", undefined)
 	defNative("copy",
 		Flds( // params
 			"dst", GenT("X", nil),
@@ -659,7 +676,7 @@ func UverseNode() *PackageNode {
 						T: IntType,
 						V: nil,
 					}
-					res0.SetInt(minl)
+					res0.SetInt(int64(minl))
 					m.PushValue(res0)
 					return
 				case *SliceType:
@@ -685,7 +702,7 @@ func UverseNode() *PackageNode {
 						T: IntType,
 						V: nil,
 					}
-					res0.SetInt(minl)
+					res0.SetInt(int64(minl))
 					m.PushValue(res0)
 					return
 				case *NativeType:
@@ -757,7 +774,7 @@ func UverseNode() *PackageNode {
 				T: IntType,
 				V: nil,
 			}
-			res0.SetInt(arg0.TV.GetLength())
+			res0.SetInt(int64(arg0.TV.GetLength()))
 			m.PushValue(res0)
 			return
 		},
@@ -780,7 +797,7 @@ func UverseNode() *PackageNode {
 				et := bt.Elem()
 				if vargsl == 1 {
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
-					li := lv.ConvertGetInt()
+					li := int(lv.ConvertGetInt())
 					if et.Kind() == Uint8Kind {
 						arrayValue := m.Alloc.NewDataArray(li)
 						m.PushValue(TypedValue{
@@ -806,9 +823,14 @@ func UverseNode() *PackageNode {
 					}
 				} else if vargsl == 2 {
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
-					li := lv.ConvertGetInt()
+					li := int(lv.ConvertGetInt())
 					cv := vargs.TV.GetPointerAtIndexInt(m.Store, 1).Deref()
-					ci := cv.ConvertGetInt()
+					ci := int(cv.ConvertGetInt())
+
+					if ci < li {
+						panic(&Exception{Value: typedString(`makeslice: cap out of range`)})
+					}
+
 					if et.Kind() == Uint8Kind {
 						arrayValue := m.Alloc.NewDataArray(ci)
 						m.PushValue(TypedValue{
@@ -857,7 +879,7 @@ func UverseNode() *PackageNode {
 					return
 				} else if vargsl == 1 {
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
-					li := lv.ConvertGetInt()
+					li := int(lv.ConvertGetInt())
 					m.PushValue(TypedValue{
 						T: tt,
 						V: m.Alloc.NewMap(li),
@@ -887,7 +909,7 @@ func UverseNode() *PackageNode {
 						return
 					} else if vargsl == 1 {
 						sv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
-						si := sv.ConvertGetInt()
+						si := int(sv.ConvertGetInt())
 						m.PushValue(TypedValue{
 							T: tt,
 							V: m.Alloc.NewNative(
@@ -987,37 +1009,15 @@ func UverseNode() *PackageNode {
 			"exception", AnyT(),
 		),
 		func(m *Machine) {
-			if len(m.Exceptions) == 0 {
+			exception := m.Recover()
+			if exception == nil {
 				m.PushValue(TypedValue{})
-				return
+			} else {
+				m.PushValue(exception.Value)
 			}
-
-			// If the exception is out of scope, this recover can't help; return nil.
-			if m.PanicScope <= m.DeferPanicScope {
-				m.PushValue(TypedValue{})
-				return
-			}
-
-			exception := &m.Exceptions[len(m.Exceptions)-1]
-
-			// If the frame the exception occurred in is not popped, it's possible that
-			// the exception is still in scope and can be recovered.
-			if !exception.Frame.Popped {
-				// If the frame is not the current frame, the exception is not in scope; return nil.
-				// This retrieves the second most recent call frame because the first most recent
-				// is the call to recover itself.
-				if frame := m.LastCallFrame(2); frame == nil || (frame != nil && frame != exception.Frame) {
-					m.PushValue(TypedValue{})
-					return
-				}
-			}
-
-			m.PushValue(exception.Value)
-			// Recover complete; remove exceptions.
-			m.Exceptions = nil
 		},
 	)
-	return uverseNode
+	uverseValue = uverseNode.NewPackage()
 }
 
 func copyDataToList(dst []TypedValue, data []byte, et Type) {

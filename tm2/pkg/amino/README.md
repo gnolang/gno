@@ -45,8 +45,7 @@ This is experimental and subject to change.
 
 ## Amino in the Wild
 
-* Amino:binary spec in [Tendermint](
-https://github.com/tendermint/tendermint/blob/master/docs/spec/blockchain/encoding.md)
+* Amino:binary spec in [Tendermint](https://github.com/tendermint/tendermint/blob/main/spec/core/encoding.md)
 
 
 # Amino Spec
@@ -85,8 +84,8 @@ var Package = amino.RegisterPackage(
 )
 ```
 
-You can still override global registrations with local \*amino.Codec state.
-This is used by genproto.P3Context, which may help development while writing
+You can still override global registrations with local `*amino.Codec` state.
+This is used by `genproto.P3Context`, which may help development while writing
 migration scripts.  Feedback welcome in the issues section.
 
 ## Unsupported types

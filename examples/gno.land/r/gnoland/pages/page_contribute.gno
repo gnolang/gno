@@ -19,9 +19,7 @@ A good place where to start are the issues tagged ["good first issue"](https://g
 
 ## Gno Bounties
 
-Additionally, you can look out to help on specific issues labeled as bounties. All contributions will then concur to form your profile for Game of Realms.
-
-The Gno bounty program is a good way to find interesting challenges in Gno, and get rewarded for helping us advance the project. We will maintain open and rewardable bounties in the gnolang/gno repository, and you can search all available bounties by using the ["bounty" label](https://github.com/gnolang/gno/labels/bounty).
+Additionally, you can look out to help on specific issues labeled as bounties. The Gno bounty program is a good way to find interesting challenges in Gno, and get rewarded for helping us advance the project. We will maintain open and rewardable bounties in the gnolang/gno repository, and you can search all available bounties by using the ["bounty" label](https://github.com/gnolang/gno/labels/bounty). For more detals on the categories and types of bounties, we have a [bounties README](https://github.com/gnolang/bounties).  
 
 Recommendations on participating in the gno.land Bounty Program:
 
@@ -45,7 +43,7 @@ Don't fear your work being "stolen": if a submission is the result of multiple p
 	- If you, for instance, cannot complete the entirety of the task or, as a non-developer, can only contribute a part of the specification/implementation, you may still be awarded a bounty for your input in the contribution.
 - If Alice makes a PR that aside from implementing what's required, also undertakes creating useful tools among the way, she may qualify for an "outstanding contribution"; and may be awarded up to 25% more of the original bounty's value. Or she may also ask if the team would be willing to offer a different bounty for the implementation of the tools.
 
-Participants in the gno.land Bounty Program must meet the legal Terms and Conditions referenced [here](https://docs.google.com/document/d/1aXrZ6japdAykB5FLmHCCeBZTo-2tbZQHSQi79ITaTK0).
+Participants in the gno.land Bounty Program must meet the legal Terms and Conditions referenced [here](https://docs.google.com/document/d/e/2PACX-1vSUF-JwIXGscrNsc5QBD7Pa6i83mXUGogAEIf1wkeb_w42UgL3Lj6jFKMlNTdwEMUnhsLkjRlhe25K4/pub).
 
 ### Bounty sizes
 
@@ -80,7 +78,7 @@ _[3XL]_ \*   | $ 32000
 
 The gno.land grants program is to encourage and support the growth of the gno.land contributor community, and build out the usability of the platform and smart contract library. The program provides financial resources to contributors to explore the Gno tech stack, and build dApps, tooling, infrastructure, products, and smart contract libraries in gno.land.
 
-<!-- TODO: Add link to new repo -->
+For more details on gno.land grants, suggested topics, and how to apply, visit our grants [repository](https://github.com/gnolang/grants). 
 
 ## Join Game of Realms
 

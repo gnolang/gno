@@ -1,11 +1,11 @@
 package main
 
 func main() {
-	var i interface{}
+	var i any
 	i = 4
 	var j int
 	j, nil = i.(int)
 }
 
 // Error:
-// main/files/types/assign_nil.gno:7:2: cannot assign to (const (undefined))
+// main/files/types/assign_nil.gno:7:2: cannot assign to uverse nil

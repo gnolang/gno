@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"math"
 	"strings"
 )
 
@@ -101,12 +102,12 @@ type Defer struct {
 }
 
 type StacktraceCall struct {
-	Stmt  Stmt
 	Frame *Frame
 }
 type Stacktrace struct {
 	Calls           []StacktraceCall
 	NumFramesElided int
+	LastLine        int
 }
 
 func (s Stacktrace) String() string {
@@ -115,6 +116,12 @@ func (s Stacktrace) String() string {
 	for i := 0; i < len(s.Calls); i++ {
 		if s.NumFramesElided > 0 && i == maxStacktraceSize/2 {
 			fmt.Fprintf(&builder, "...%d frame(s) elided...\n", s.NumFramesElided)
+		}
+		var line int
+		if i == 0 {
+			line = s.LastLine
+		} else {
+			line = s.Calls[i-1].Frame.Source.GetLine()
 		}
 
 		call := s.Calls[i]
@@ -125,7 +132,7 @@ func (s Stacktrace) String() string {
 			fmt.Fprintf(&builder, "    gonative:%s.%s\n", call.Frame.Func.NativePkg, call.Frame.Func.NativeName)
 		case call.Frame.Func != nil:
 			fmt.Fprintf(&builder, "%s\n", toExprTrace(cx))
-			fmt.Fprintf(&builder, "    %s/%s:%d\n", call.Frame.Func.PkgPath, call.Frame.Func.FileName, call.Stmt.GetLine())
+			fmt.Fprintf(&builder, "    %s/%s:%d\n", call.Frame.Func.PkgPath, call.Frame.Func.FileName, line)
 		case call.Frame.GoFunc != nil:
 			fmt.Fprintf(&builder, "%s\n", toExprTrace(cx))
 			fmt.Fprintf(&builder, "    gofunction:%s\n", call.Frame.GoFunc.Value.Type())
@@ -207,11 +214,38 @@ func toConstExpTrace(cte *ConstExpr) string {
 		case Uint64Type:
 			return fmt.Sprintf("%d", tv.GetUint64())
 		case Float32Type:
-			return fmt.Sprintf("%v", tv.GetFloat32())
+			return fmt.Sprintf("%v", math.Float32frombits(tv.GetFloat32()))
 		case Float64Type:
-			return fmt.Sprintf("%v", tv.GetFloat64())
+			return fmt.Sprintf("%v", math.Float64frombits(tv.GetFloat64()))
 		}
 	}
 
 	return tv.T.String()
+}
+
+//----------------------------------------
+// Exception
+
+// Exception represents a panic that originates from a gno program.
+type Exception struct {
+	// Value is the value passed to panic.
+	Value TypedValue
+	// Frame is used to reference the frame a panic occurred in so that recover() knows if the
+	// currently executing deferred function is able to recover from the panic.
+	Frame *Frame
+
+	Stacktrace Stacktrace
+}
+
+func (e Exception) Sprint(m *Machine) string {
+	return e.Value.Sprint(m)
+}
+
+// UnhandledPanicError represents an error thrown when a panic is not handled in the realm.
+type UnhandledPanicError struct {
+	Descriptor string // Description of the unhandled panic.
+}
+
+func (e UnhandledPanicError) Error() string {
+	return e.Descriptor
 }

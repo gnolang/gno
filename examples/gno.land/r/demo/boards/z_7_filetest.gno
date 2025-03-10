@@ -1,16 +1,19 @@
 // PKGPATH: gno.land/r/demo/boards_test
 package boards_test
 
-// SEND: 200000000ugnot
+// SEND: 1000000ugnot
 
 import (
+	"std"
+
 	"gno.land/r/demo/boards"
-	"gno.land/r/demo/users"
+	users "gno.land/r/gnoland/users/v1"
 )
 
 func init() {
 	// register
-	users.Register("", "gnouser", "my profile")
+	std.TestSetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	users.Register("gnouser123")
 
 	// create board and post
 	bid := boards.CreateBoard("test_board")
@@ -22,10 +25,12 @@ func main() {
 }
 
 // Output:
-// \[[post](/r/demo/boards?help&__func=CreateThread&bid=1&body.type=textarea)]
+// \[[post](/r/demo/boards$help&func=CreateThread&bid=1)]
 //
 // ----------------------------------------
 // ## [First Post (title)](/r/demo/boards:test_board/1)
 //
 // Body of the first post. (body)
-// \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm UTC](/r/demo/boards:test_board/1) \[[x](/r/demo/boards?help&__func=DeletePost&bid=1&threadid=1&postid=1)] (0 replies) (0 reposts)
+// \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm UTC](/r/demo/boards:test_board/1) \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=1&threadid=1)] (0 replies) (0 reposts)
+//
+//

@@ -15,7 +15,7 @@ type Hi interface {
 func (r *Root) Hello() string { return "Hello " + r.Name }
 
 func main() {
-	var one interface{} = &One{Root{Name: "test2"}}
+	var one any = &One{Root{Name: "test2"}}
 	println(one.(Hi).Hello())
 }
 

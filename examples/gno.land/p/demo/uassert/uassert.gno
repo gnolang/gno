@@ -108,7 +108,7 @@ func NotPanics(t TestingT, f func(), msgs ...string) bool {
 }
 
 // Equal asserts that two objects are equal.
-func Equal(t TestingT, expected, actual interface{}, msgs ...string) bool {
+func Equal(t TestingT, expected, actual any, msgs ...string) bool {
 	t.Helper()
 
 	if expected == nil || actual == nil {
@@ -246,7 +246,7 @@ func Equal(t TestingT, expected, actual interface{}, msgs ...string) bool {
 }
 
 // NotEqual asserts that two objects are not equal.
-func NotEqual(t TestingT, expected, actual interface{}, msgs ...string) bool {
+func NotEqual(t TestingT, expected, actual any, msgs ...string) bool {
 	t.Helper()
 
 	if expected == nil || actual == nil {
@@ -266,7 +266,7 @@ func NotEqual(t TestingT, expected, actual interface{}, msgs ...string) bool {
 		if av, ok := actual.(string); ok {
 			notEqual = ev != av
 			ok_ = true
-			es, as = ev, as
+			es, as = ev, av
 		}
 	case std.Address:
 		if av, ok := actual.(std.Address); ok {
@@ -379,7 +379,7 @@ func NotEqual(t TestingT, expected, actual interface{}, msgs ...string) bool {
 	return true
 }
 
-func isNumberEmpty(n interface{}) (isNumber, isEmpty bool) {
+func isNumberEmpty(n any) (isNumber, isEmpty bool) {
 	switch n := n.(type) {
 	// NOTE: the cases are split individually, so that n becomes of the
 	// asserted type; the type of '0' was correctly inferred and converted
@@ -411,7 +411,7 @@ func isNumberEmpty(n interface{}) (isNumber, isEmpty bool) {
 	}
 	return false, false
 }
-func Empty(t TestingT, obj interface{}, msgs ...string) bool {
+func Empty(t TestingT, obj any, msgs ...string) bool {
 	t.Helper()
 
 	isNumber, isEmpty := isNumberEmpty(obj)
@@ -437,7 +437,7 @@ func Empty(t TestingT, obj interface{}, msgs ...string) bool {
 	return true
 }
 
-func NotEmpty(t TestingT, obj interface{}, msgs ...string) bool {
+func NotEmpty(t TestingT, obj any, msgs ...string) bool {
 	t.Helper()
 	isNumber, isEmpty := isNumberEmpty(obj)
 	if isNumber {
