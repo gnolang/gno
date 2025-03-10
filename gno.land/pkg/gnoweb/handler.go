@@ -358,7 +358,7 @@ func (h *WebHandler) GetSourceDownload(gnourl *weburl.GnoURL, w http.ResponseWri
 		return
 	}
 
-	// Send raw file as attachment for downlaod (without HTML formating)
+	// Send raw file as attachment for download (without HTML formating)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
 	w.WriteHeader(http.StatusOK)
