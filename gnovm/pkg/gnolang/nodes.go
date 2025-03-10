@@ -1545,9 +1545,7 @@ func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 	}
 }
 
-// DefineNativeFunc defines a native function. This is not the
-// same as DefineGoNativeValue, which DOES NOT give access to
-// the running machine.
+// DefineNativeFunc defines a native function.
 func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
 	if debug {
 		debug.Printf("*PackageNode.DefineNative(%s,...)\n", n)

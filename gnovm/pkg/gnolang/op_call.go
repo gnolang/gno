@@ -370,11 +370,8 @@ func (m *Machine) doOpDefer() {
 	// Pop func
 	ftv := m.PopValue()
 	// Push defer.
-	// NOTE: we let type be FuncValue and value NativeValue,
-	// because native funcs can't be converted to gno anyways.
 	switch cv := ftv.V.(type) {
 	case *FuncValue:
-		// TODO what if value is NativeValue?
 		cfr.PushDefer(Defer{
 			Func:       cv,
 			Args:       args,

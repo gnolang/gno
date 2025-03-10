@@ -26,7 +26,6 @@ const (
 	_allocMapValue         = 144
 	_allocBoundMethodValue = 176
 	_allocBlock            = 464
-	_allocNativeValue      = 48
 	_allocTypeValue        = 16
 	_allocTypedValue       = 40
 	_allocBigint           = 200 // XXX
@@ -54,7 +53,6 @@ const (
 	allocBoundMethod = _allocBase + _allocPointer + _allocBoundMethodValue
 	allocBlock       = _allocBase + _allocPointer + _allocBlock
 	allocBlockItem   = _allocTypedValue
-	allocNative      = _allocBase + _allocPointer + _allocNativeValue
 	allocType        = _allocBase + _allocPointer + _allocType
 	// allocDataByte    = 1
 	// allocPackge = 1
@@ -157,11 +155,6 @@ func (alloc *Allocator) AllocateBlock(items int64) {
 
 func (alloc *Allocator) AllocateBlockItems(items int64) {
 	alloc.Allocate(allocBlockItem * items)
-}
-
-// NOTE: does not allocate for the underlying value.
-func (alloc *Allocator) AllocateNative() {
-	alloc.Allocate(allocNative)
 }
 
 /* NOTE: Not used, account for with AllocatePointer.

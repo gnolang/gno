@@ -28,7 +28,6 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	&BoundMethodValue{},
 	TypeValue{},
 	&PackageValue{},
-	// &NativeValue{},
 	&Block{},
 	RefValue{},
 	&HeapItemValue{},
