@@ -45,6 +45,6 @@ func Register(username string) {
 		panic(err)
 	}
 
-	latestUsers.Append(username) // for display purposes
+	latestUsers.Append(username)
 	std.Emit("Registeration", "address", registrant.String(), "name", username)
 }
