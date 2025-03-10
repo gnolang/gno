@@ -1,6 +1,5 @@
 package testing
 
-// comment these imports when running go generate
 import (
 	"std"
 	"time"
