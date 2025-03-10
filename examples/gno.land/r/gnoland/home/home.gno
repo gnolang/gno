@@ -8,13 +8,9 @@ import (
 	"gno.land/p/demo/ui"
 	"gno.land/p/moul/dynreplacer"
 	blog "gno.land/r/gnoland/blog"
-	events "gno.land/r/gnoland/events"
+	"gno.land/r/gnoland/events"
 	"gno.land/r/leon/hof"
 )
-
-// XXX: p/demo/ui API is crappy, we need to make it more idiomatic
-// XXX: use an updatable block system to update content from a DAO
-// XXX: var blocks avl.Tree
 
 var (
 	override string
@@ -109,22 +105,21 @@ Experience the convenience of code sharing and rapid experimentation with
 
 ### [r/gnoland](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gnoland)
 
-- [r/gnoland/blog](r/gnoland/blog)
-- [r/gnoland/dao](r/gnoland/dao)
-- [r/gnoland/faucet](r/gnoland/faucet)
-- [r/gnoland/home](r/gnoland/home)
-- [r/gnoland/pages](r/gnoland/pages)
+- [r/gnoland/blog](/r/gnoland/blog)
+- [r/gnoland/blog](/r/gnoland/users)
+- [r/gnoland/home](/r/gnoland/home)
+- [r/gnoland/pages](/r/gnoland/pages)
 
 ### [r/sys](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/sys)
 
-- [r/sys/names](r/sys/names)
-- [r/sys/rewards](r/sys/rewards)
+- [r/sys/names](/r/sys/names)
+- [r/sys/users](/r/sys/users)
+- [r/sys/rewards](/r/sys/rewards)
 - [/r/sys/validators/v2](/r/sys/validators/v2)
 
 ### [r/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo)
 
 - [r/demo/boards](r/demo/boards)
-- [r/demo/users](r/demo/users)
 - [r/demo/banktest](r/demo/banktest)
 - [r/demo/foo20](r/demo/foo20)
 - [r/demo/foo721](r/demo/foo721)

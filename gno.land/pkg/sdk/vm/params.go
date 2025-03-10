@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	sysUsersPkgDefault = "gno.land/r/sys/users"
+	sysNamesPkgDefault = "gno.land/r/sys/names"
 	chainDomainDefault = "gno.land"
 )
 
@@ -19,35 +19,35 @@ var ASCIIDomain = regexp.MustCompile(`^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-
 
 // Params defines the parameters for the bank module.
 type Params struct {
-	SysUsersPkgPath string `json:"sysusers_pkgpath" yaml:"sysusers_pkgpath"`
+	SysNamesPkgPath string `json:"sysnames_pkgpath" yaml:"sysnames_pkgpath"`
 	ChainDomain     string `json:"chain_domain" yaml:"chain_domain"`
 }
 
 // NewParams creates a new Params object
-func NewParams(userPkgPath, chainDomain string) Params {
+func NewParams(namesPkgPath, chainDomain string) Params {
 	return Params{
-		SysUsersPkgPath: userPkgPath,
+		SysNamesPkgPath: namesPkgPath,
 		ChainDomain:     chainDomain,
 	}
 }
 
 // DefaultParams returns a default set of parameters.
 func DefaultParams() Params {
-	return NewParams(sysUsersPkgDefault, chainDomainDefault)
+	return NewParams(sysNamesPkgDefault, chainDomainDefault)
 }
 
 // String implements the stringer interface.
 func (p Params) String() string {
 	var sb strings.Builder
 	sb.WriteString("Params: \n")
-	sb.WriteString(fmt.Sprintf("SysUsersPkgPath: %q\n", p.SysUsersPkgPath))
+	sb.WriteString(fmt.Sprintf("SysUsersPkgPath: %q\n", p.SysNamesPkgPath))
 	sb.WriteString(fmt.Sprintf("ChainDomain: %q\n", p.ChainDomain))
 	return sb.String()
 }
 
 func (p Params) Validate() error {
-	if p.SysUsersPkgPath != "" && !gno.ReRealmPath.MatchString(p.SysUsersPkgPath) {
-		return fmt.Errorf("invalid package/realm path %q, failed to match %q", p.SysUsersPkgPath, gno.ReRealmPath)
+	if p.SysNamesPkgPath != "" && !gno.ReRealmPath.MatchString(p.SysNamesPkgPath) {
+		return fmt.Errorf("invalid package/realm path %q, failed to match %q", p.SysNamesPkgPath, gno.ReRealmPath)
 	}
 	if p.ChainDomain != "" && !ASCIIDomain.MatchString(p.ChainDomain) {
 		return fmt.Errorf("invalid chain domain %q, failed to match %q", p.ChainDomain, ASCIIDomain)
@@ -75,7 +75,7 @@ func (vm *VMKeeper) GetParams(ctx sdk.Context) Params {
 }
 
 const (
-	sysUsersPkgParamPath = "vm:p:sysusers_pkgpath"
+	sysUsersPkgParamPath = "vm:p:sysnames_pkgpath"
 	chainDomainParamPath = "vm:p:chain_domain"
 )
 
@@ -85,10 +85,10 @@ func (vm *VMKeeper) getChainDomainParam(ctx sdk.Context) string {
 	return chainDomain
 }
 
-func (vm *VMKeeper) getSysUsersPkgParam(ctx sdk.Context) string {
-	sysUsersPkg := sysUsersPkgDefault
-	vm.prmk.GetString(ctx, sysUsersPkgParamPath, &sysUsersPkg)
-	return sysUsersPkg
+func (vm *VMKeeper) getSysNamesPkgParam(ctx sdk.Context) string {
+	sysNamesPkg := sysNamesPkgDefault
+	vm.prmk.GetString(ctx, sysUsersPkgParamPath, &sysNamesPkg)
+	return sysNamesPkg
 }
 
 func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {

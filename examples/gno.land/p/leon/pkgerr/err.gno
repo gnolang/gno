@@ -5,7 +5,7 @@
 //
 // To wrap an error with realm and chain domain information, use the `New` function:
 //
-//	err := pkgerr.New(errors.New("my error message")) // in gno.land/r/leon/example
+//	err := pkgerr.New("my error message") // in gno.land/r/leon/example
 //	fmt.Println(err.Error()) // Output: "r/leon/example: my error message"
 package pkgerr
 

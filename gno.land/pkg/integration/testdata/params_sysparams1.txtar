@@ -18,8 +18,8 @@ gnokey query params/bank:p:restricted_denoms
 stdout 'data: \["ugnot"\]\n'
 
 ## query vm module
-gnokey query params/vm:p:sysusers_pkgpath
-stdout 'data: "gno.land/r/sys/users"\n'
+gnokey query params/vm:p:sysnames_pkgpath
+stdout 'data: "gno.land/r/sys/names"\n'
 gnokey query params/vm:p:chain_domain
 stdout 'data: "gno.land"\n'
 
