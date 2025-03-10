@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/uassert"
 )
 
 func TestAirdropChecker(t *testing.T) {
@@ -17,10 +16,10 @@ func TestAirdropChecker(t *testing.T) {
 	testDenom := realm.CoinDenom("test")
 
 	tests := []struct {
-		name string
-		path string
+		name      string
+		path      string
 		setupFunc func(std.Banker)
-		expected string
+		expected  string
 		wantPanic bool
 	}{
 		{
@@ -37,7 +36,7 @@ func TestAirdropChecker(t *testing.T) {
 		// 	path: "test",
 		// 	setupFunc: func(banker std.Banker) {
 		// 		banker.IssueCoin(addr1, testDenom, 1000000)
-        //         banker.IssueCoin(addr2, testDenom, 500000)
+		//         banker.IssueCoin(addr2, testDenom, 500000)
 		// 	},
 		// 	expected: `- Total Supply: 1500000test`,
 		// },
@@ -63,4 +62,3 @@ func TestAirdropChecker(t *testing.T) {
 		}
 	}
 }
-
