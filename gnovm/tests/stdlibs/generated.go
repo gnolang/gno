@@ -670,7 +670,7 @@ var nativeFuncs = [...]NativeFunc{
 			{Name: gno.N("p0"), Type: gno.X("string")},
 		},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("bool")},
+			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
 		false,
 		func(m *gno.Machine) {

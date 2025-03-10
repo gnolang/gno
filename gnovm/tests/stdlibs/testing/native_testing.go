@@ -19,9 +19,12 @@ func X_matchString(pat, str string) bool {
 	return matchRe.MatchString(str)
 }
 
-func X_verifyRegex(pat string) (ok bool) {
+func X_verifyRegex(pat string) string {
 	_, err := regexp.Compile(pat)
-	return err == nil
+	if err != nil {
+		return err.Error()
+	}
+	return ""
 }
 
 func X_recoverWithStacktrace(m *gnolang.Machine) (gnolang.TypedValue, string) {

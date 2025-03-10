@@ -47,8 +47,9 @@ func (m simpleMatch) verify(name string) error {
 	}
 	// Verify filters before doing any processing.
 	for i, s := range m {
-		if !verifyRegex(s) {
-			return fmt.Errorf("element %d of %s (%q)", i, name, s)
+		err := verifyRegex(s)
+		if err != "" {
+			return fmt.Errorf("element %d of %s (%q): %s", i, name, s, err)
 		}
 	}
 	return nil

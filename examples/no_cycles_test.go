@@ -17,10 +17,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// XXX: move this into `gno lint`
-
-var injectedTestingLibs = []string{"encoding/json", "fmt", "os"}
-
 // TestNoCycles checks that there is no import cycles in stdlibs and non-draft examples
 func TestNoCycles(t *testing.T) {
 	// find stdlibs
@@ -101,9 +97,6 @@ func detectCycles(root testPkg, pkgs []testPkg, visited map[string]bool) error {
 // visitImports resolves and visits imports by kinds
 func visitImports(kinds []packages.FileKind, root testPkg, pkgs []testPkg, visited map[string]bool, stack []string) error {
 	for _, imp := range root.Imports.Merge(kinds...) {
-		if slices.Contains(injectedTestingLibs, imp.PkgPath) {
-			continue
-		}
 		idx := slices.IndexFunc(pkgs, func(p testPkg) bool { return p.PkgPath == imp.PkgPath })
 		if idx == -1 {
 			return fmt.Errorf("import %q not found for %q tests", imp.PkgPath, root.PkgPath)

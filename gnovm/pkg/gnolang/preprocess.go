@@ -1284,10 +1284,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						atBase := baseOf(at)
 
 						_, isCTInterface := ctBase.(*InterfaceType)
-						_, isCTNative := ctBase.(*NativeType)
 						_, isATInterface := atBase.(*InterfaceType)
 
-						if (!isCTInterface && !isCTNative) && isATInterface {
+						if !isCTInterface && isATInterface {
 							panic(fmt.Sprintf("cannot convert %v to %v: need type assertion", at.TypeID(), ct.TypeID()))
 						}
 					}
