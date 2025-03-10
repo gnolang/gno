@@ -36,7 +36,7 @@ func TestAirdropChecker(t *testing.T) {
 		// 	path: "test",
 		// 	setupFunc: func(banker std.Banker) {
 		// 		banker.IssueCoin(addr1, testDenom, 1000000)
-		//         banker.IssueCoin(addr2, testDenom, 500000)
+		// 		banker.IssueCoin(addr2, testDenom, 500000)
 		// 	},
 		// 	expected: `- Total Supply: 1500000test`,
 		// },

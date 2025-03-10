@@ -78,9 +78,6 @@ func Render(path string) string {
 
 func renderHomepage() string {
 	return `# Gno.land Coins
-
-[Coin Info](/r/gnoland/coins:ugnot) - shows the total supply and info about the ugnot coin
-[Address Balance](/r/gnoland/coins:ugnot/g1...) - shows the ugnot balance of a specific address
 `
 }
 
