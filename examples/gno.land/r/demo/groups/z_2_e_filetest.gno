@@ -6,6 +6,7 @@ package groups_test
 import (
 	"std"
 	"testing"
+
 	"gno.land/r/demo/groups"
 	users "gno.land/r/gnoland/users/v1"
 )

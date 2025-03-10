@@ -5,6 +5,7 @@ package main
 import (
 	"std"
 	"testing"
+
 	"gno.land/p/demo/dao"
 	"gno.land/p/demo/testutils"
 

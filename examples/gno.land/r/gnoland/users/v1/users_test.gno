@@ -57,6 +57,6 @@ func TestRegister_InvalidPayment(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(bobAddr))
 	testing.SetOriginCaller(bobAddr)
 
-	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 12))) // invalid payment amount
-	uassert.Error(t, Register("alice"), ErrInvalidPayment.Error())     // vanity
+	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 12)))  // invalid payment amount
+	uassert.Error(t, Register("alice"), ErrInvalidPayment.Error()) // vanity
 }

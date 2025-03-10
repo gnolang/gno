@@ -1,7 +1,6 @@
 package users
 
 import (
-	"std"
 	"strconv"
 	"testing"
 
