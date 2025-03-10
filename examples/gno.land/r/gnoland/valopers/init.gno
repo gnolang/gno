@@ -1,19 +1,21 @@
 package valopers
 
 import (
-	"std"
-
 	"gno.land/p/demo/avl"
 	"gno.land/p/moul/authz"
 )
 
-const initialMember = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
-
 func init() {
 	valopers = avl.NewTree()
 
-	memberAuth := authz.NewMemberAuthority(std.Address(initialMember))
-	auth = authz.NewWithAuthority(memberAuth)
+	auth = authz.NewWithAuthority(
+		authz.NewContractAuthority(
+			"gno.land/r/gov/dao/v2",
+			func(title string, action authz.PrivilegedAction) error {
+				return action()
+			},
+		),
+	)
 
 	instructions = `
 # Welcome to the **Valopers** realm
