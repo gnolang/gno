@@ -2,10 +2,17 @@
   {{ $data := . }}
   <!-- Help Settings-->
   <header
-    class="mt-10 row-span-1 lg:row-start-1 lg:col-span-7 flex flex-col xl:flex-row gap-3 lg:justify-between xl:items-center mb-8 lg:mb-4"
+    class="mt-10 row-span-1 lg:row-start-1 lg:col-span-7 flex flex-col xl:flex-row gap-3 lg:justify-between xl:items-center mb-8 lg:mb-6"
   >
     <div class="flex items-center gap-8">
-      <h1 class="text-600 font-bold text-gray-900">{{ .RealmName }}</h1>
+      <h1 class="text-600 font-bold text-gray-900 flex gap-3 items-center">
+        <span>{{ .RealmName }}</span>
+        <span
+          class="flex items-center gap-2 text-50 font-mono text-gray-600 px-2 py-px rounded-full border"
+        >
+          package
+        </span>
+      </h1>
     </div>
     <form class="flex flex-col lg:flex-row gap-x-3 gap-y-2 text-gray-300">
       <div
