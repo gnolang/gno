@@ -31,8 +31,8 @@ func TotalSupply(banker std.Banker, denom string) int64 {
 	if denom == "" {
 		panic("empty denom")
 	}
-	realm := std.CurrentRealm()
-	qualifiedDenom := realm.CoinDenom(denom)
+	// make the coin's denom to follow the correct format
+	qualifiedDenom := std.CurrentRealm().CoinDenom(denom)
 	return banker.TotalCoin(qualifiedDenom)
 }
 
