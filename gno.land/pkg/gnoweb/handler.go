@@ -102,8 +102,28 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
+	// Parse the URL
+	gnourl, err := weburl.ParseGnoURL(r.URL)
+	if err != nil {
+		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "error", err)
+
+		indexData.HeadData.Title = "gno.land — invalid path"
+		indexData.BodyView = components.StatusErrorComponent("invalid path")
+		w.WriteHeader(http.StatusNotFound)
+		if err := components.IndexLayout(indexData).Render(w); err != nil {
+			h.Logger.Error("failed to render error view", "error", err)
+		}
+		return
+	}
+
+	// Handle download request outside of component rendering flow.
+	if gnourl.WebQuery.Has("download") {
+		h.GetSourceDownload(gnourl, w, r)
+		return
+	}
+
 	var status int
-	status, indexData.BodyView = h.prepareIndexBodyView(r, &indexData)
+	status, indexData.BodyView = h.prepareIndexBodyView(gnourl, &indexData)
 
 	// Render the final page with the rendered body
 	w.WriteHeader(status)
@@ -113,13 +133,7 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 // prepareIndexBodyView prepares the data and main view for the index.
-func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
-	gnourl, err := weburl.ParseGnoURL(r.URL)
-	if err != nil {
-		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "error", err)
-		return http.StatusNotFound, components.StatusErrorComponent("invalid path")
-	}
-
+func (h *WebHandler) prepareIndexBodyView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	breadcrumb := generateBreadcrumbPaths(gnourl)
 	indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path
 	indexData.HeaderData = components.HeaderData{
@@ -263,7 +277,7 @@ func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL, indexData *components.
 	}
 
 	var source bytes.Buffer
-	meta, err := h.Client.SourceFile(&source, pkgPath, fileName)
+	meta, err := h.Client.SourceFile(&source, pkgPath, fileName, false)
 	if err != nil {
 		h.Logger.Error("unable to get source file", "file", fileName, "error", err)
 		return GetClientErrorStatusPage(gnourl, err)
@@ -275,13 +289,14 @@ func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL, indexData *components.
 
 	fileSizeStr := fmt.Sprintf("%.2f Kb", meta.SizeKb)
 	return http.StatusOK, components.SourceView(components.SourceData{
-		PkgPath:     gnourl.Path,
-		Files:       files,
-		FileName:    fileName,
-		FileCounter: len(files),
-		FileLines:   meta.Lines,
-		FileSize:    fileSizeStr,
-		FileSource:  components.NewReaderComponent(&source),
+		PkgPath:      gnourl.Path,
+		Files:        files,
+		FileName:     fileName,
+		FileCounter:  len(files),
+		FileLines:    meta.Lines,
+		FileSize:     fileSizeStr,
+		FileDownload: gnourl.Path + "$download&file=" + fileName,
+		FileSource:   components.NewReaderComponent(&source),
 	})
 }
 
@@ -307,6 +322,47 @@ func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL, indexData *componen
 		Files:       files,
 		FileCounter: len(files),
 	})
+}
+
+func (h *WebHandler) GetSourceDownload(gnourl *weburl.GnoURL, w http.ResponseWriter, r *http.Request) {
+	pkgPath := gnourl.Path
+	files, err := h.Client.Sources(pkgPath)
+	if err != nil {
+		h.Logger.Error("unable to list sources file", "path", gnourl.Path, "error", err)
+		return
+	}
+
+	if len(files) == 0 {
+		h.Logger.Debug("no files available", "path", gnourl.Path)
+		http.Error(w, "no source files available", http.StatusNotFound)
+		return
+	}
+
+	var fileName string
+	if gnourl.IsFile() { // check path file from path first
+		fileName = gnourl.File
+	} else if file := gnourl.WebQuery.Get("file"); file != "" {
+		fileName = file
+	}
+
+	if fileName == "" {
+		fileName = files[0] // fallback on the first file
+	}
+
+	// Get source file
+	var source bytes.Buffer
+	_, err = h.Client.SourceFile(&source, pkgPath, fileName, true)
+	if err != nil {
+		h.Logger.Error("unable to get source file", "file", fileName, "error", err)
+		http.Error(w, "unable to get source file", http.StatusInternalServerError)
+		return
+	}
+
+	// Send raw file as attachment for downlaod (without HTML formating)
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
+	w.WriteHeader(http.StatusOK)
+	source.WriteTo(w)
 }
 
 func GetClientErrorStatusPage(_ *weburl.GnoURL, err error) (int, *components.View) {
