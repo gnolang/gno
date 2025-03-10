@@ -11,23 +11,24 @@ In gno.land, users can register a unique username that:
 
 To register a username:
 
-1. Visit the user registry realm at [`gno.land/r/demo/users`](https://gno.land/r/gnoland/users)
-2. Check if your desired username is available
+1. Visit the user registry realm at [`gno.land/r/gnoland/users`](https://gno.land/r/gnoland/users)
+2. Check if your desired username is available by 
 3. Register using the following command:
 
 ```bash
 gnokey maketx call \
-  --pkgpath "gno.land/r/demo/users" \
+  --pkgpath "gno.land/r/gnoland/users/v1" \
   --func "Register" \
   --args "YOUR_USERNAME" \
   --gas-fee 1000000ugnot \
   --gas-wanted 2000000 \
+  --send "1000000ugnot" \
   --remote https://rpc.gno.land:443 \
   --chainid portal-loop \
   YOUR_KEY_NAME
 ```
 
-The registration costs 200 GNOT, which serves as an anti-spam measure and ensures users value their identities.
+The registration costs 1 GNOT, which serves as an anti-spam measure and ensures users value their identities.
 
 ## Username Ownership
 
@@ -46,7 +47,7 @@ gno.land/p/YOUR_USERNAME/...  # Pure packages
 gno.land/r/YOUR_USERNAME/...  # Realms
 ```
 
-For example, a user with username "alice" could deploy:
+For example, a user with the username "alice" could deploy:
 - `gno.land/r/alice/blog` - A personal blog realm
 - `gno.land/p/alice/utils` - A utility package
 
