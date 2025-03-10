@@ -13,7 +13,7 @@ func init() {
 }
 
 func main() {
-	boards2.CreateThread(404, "Foo", "bar")
+	boards2.CreateThread(404, "Foo", "bar", false)
 }
 
 // Error:

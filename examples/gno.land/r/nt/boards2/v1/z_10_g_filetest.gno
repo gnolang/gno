@@ -28,7 +28,7 @@ func init() {
 
 	// Create a new thread and flag it as a moderator
 	std.TestSetOriginCaller(moderator)
-	pid = boards2.CreateThread(bid, "Foo", "bar")
+	pid = boards2.CreateThread(bid, "Foo", "bar", false)
 	boards2.FlagThread(bid, pid, "")
 }
 
