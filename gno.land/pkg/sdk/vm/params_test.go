@@ -10,14 +10,14 @@ import (
 // TestParamsString verifies the output of the String method.
 func TestParamsString(t *testing.T) {
 	p := Params{
-		SysUsersPkgPath: "gno.land/r/sys/users", // XXX what is this really for now
+		SysNamesPkgPath: "gno.land/r/sys/names", // XXX what is this really for now
 		ChainDomain:     "example.com",
 	}
 	result := p.String()
 
 	// Construct the expected string.
 	expected := "Params: \n" +
-		fmt.Sprintf("SysUsersPkgPath: %q\n", p.SysUsersPkgPath) +
+		fmt.Sprintf("SysUsersPkgPath: %q\n", p.SysNamesPkgPath) +
 		fmt.Sprintf("ChainDomain: %q\n", p.ChainDomain)
 
 	// Assert: check if the result matches the expected string.
@@ -43,11 +43,11 @@ func TestWillSetParam(t *testing.T) {
 		isEqual          bool
 	}{
 		{
-			name:  "update sysusers_pkgpath",
-			key:   "sysusers_pkgpath",
+			name:  "update sysnames_pkgpath",
+			key:   "sysnames_pkgpath",
 			value: "gno.land/r/foo",
 			getExpectedValue: func(prms Params) string {
-				return prms.SysUsersPkgPath
+				return prms.SysNamesPkgPath
 			},
 			shouldPanic: false,
 			isUpdated:   true,
@@ -77,10 +77,10 @@ func TestWillSetParam(t *testing.T) {
 		*/
 		{
 			name:  "non-empty realm does not update params",
-			key:   "gno.land/r/sys/params.sysusers_pkgpath",
+			key:   "gno.land/r/sys/params.sysnames_pkgpath",
 			value: "gno.land/r/foo",
 			getExpectedValue: func(prms Params) string {
-				return prms.SysUsersPkgPath // Expect unchanged value
+				return prms.SysNamesPkgPath // Expect unchanged value
 			},
 			shouldPanic: false,
 			isUpdated:   false,
