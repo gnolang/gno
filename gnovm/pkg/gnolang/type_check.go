@@ -260,34 +260,56 @@ Main:
 		ift := evalStaticTypeOf(store, last, currExpr.Func)
 		switch baseOf(ift).(type) {
 		case *FuncType:
-			tup := evalStaticTypeOfRaw(store, last, currExpr).(*tupleType)
-
 			// check for built-in functions
 			if cx, ok := currExpr.Func.(*ConstExpr); ok {
 				if fv, ok := cx.V.(*FuncValue); ok {
 					if fv.PkgPath == uversePkgPath {
 						// TODO: should support min, max, real, imag
-						switch {
-						case fv.Name == "len":
+						switch fv.Name {
+						case "len", "cap":
 							at := evalStaticTypeOf(store, last, currExpr.Args[0])
-							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
-								// ok
-								break Main
-							}
-							assertValidConstValue(store, last, currExpr.Args[0])
-							break Main
-						case fv.Name == "cap":
-							at := evalStaticTypeOf(store, last, currExpr.Args[0])
-							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
-								// ok
-								break Main
-							}
-							assertValidConstValue(store, last, currExpr.Args[0])
+							Transcribe(currExpr, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+								if ftype == TRANS_FUNCLIT_BODY {
+									return n, TRANS_SKIP
+								}
+
+								if stage != TRANS_LEAVE {
+									return n, TRANS_CONTINUE
+								}
+
+								clxp, ok := n.(*CallExpr)
+								if !ok {
+									return n, TRANS_CONTINUE
+								}
+
+								ift := evalStaticTypeOf(store, last, clxp.Func)
+								if _, ok := baseOf(ift).(*FuncType); !ok {
+									return n, TRANS_CONTINUE
+								}
+
+								if cx, ok := clxp.Func.(*ConstExpr); ok {
+									if fv, ok := cx.V.(*FuncValue); ok && fv.PkgPath == uversePkgPath {
+										at := evalStaticTypeOf(store, last, clxp.Args[0])
+										if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
+											return n, TRANS_CONTINUE
+										}
+
+										// check for string
+										assertValidConstValue(store, last, clxp.Args[0])
+										return n, TRANS_CONTINUE
+									}
+								}
+
+								panic(fmt.Sprintf("%s (value of type %s) is not constant", currExpr.String(), at))
+							})
+
 							break Main
 						}
 					}
 				}
 			}
+
+			tup := evalStaticTypeOfRaw(store, last, currExpr).(*tupleType)
 
 			switch {
 			case len(tup.Elts) == 0:
