@@ -14,7 +14,7 @@ type Node struct {
 	next     map[string]*Node // next is the child nodes of the current node.
 	key      *string          // key holds the key of the current node in the parent node.
 	data     []byte           // byte slice of JSON data
-	value    interface{}      // value holds the value of the current node.
+	value    any              // value holds the value of the current node.
 	nodeType ValueType        // NodeType holds the type of the current node. (Object, Array, String, Number, Boolean, Null)
 	index    *int             // index holds the index of the current node in the parent array node.
 	borders  [2]int           // borders stores the start and end index of the current node in the data.
@@ -57,7 +57,7 @@ func NewNode(prev *Node, b *buffer, typ ValueType, key **string) (*Node, error) 
 }
 
 // load retrieves the value of the current node.
-func (n *Node) load() interface{} {
+func (n *Node) load() any {
 	return n.value
 }
 
@@ -165,7 +165,7 @@ func (n *Node) Type() ValueType {
 //	}
 //
 //	result: "value"
-func (n *Node) Value() (value interface{}, err error) {
+func (n *Node) Value() (value any, err error) {
 	value = n.load()
 
 	if value == nil {
@@ -554,7 +554,7 @@ func (n *Node) root() *Node {
 //	if val != nil {
 //		t.Errorf("GetNull returns wrong result: %v", val)
 //	}
-func (n *Node) GetNull() (interface{}, error) {
+func (n *Node) GetNull() (any, error) {
 	if n == nil {
 		return nil, errNilNode
 	}
@@ -569,7 +569,7 @@ func (n *Node) GetNull() (interface{}, error) {
 // MustNull returns the null value if current node is null type.
 //
 // It panics if the current node is not null type.
-func (n *Node) MustNull() interface{} {
+func (n *Node) MustNull() any {
 	v, err := n.GetNull()
 	if err != nil {
 		panic(err)
