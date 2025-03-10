@@ -14,7 +14,7 @@ func TestUpdateInstructions(t *testing.T) {
 		UpdateInstructions(instructions)
 	})
 
-	std.TestSetOriginCaller(std.DerivePkgAddr("gno.land/r/gov/dao/v2"))
+	std.TestSetOriginCaller(std.DerivePkgAddr("gno.land/r/gov/dao/bridge"))
 
 	uassert.NotPanics(t, func() {
 		UpdateInstructions(instructions)

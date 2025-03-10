@@ -10,7 +10,7 @@ func init() {
 
 	auth = authz.NewWithAuthority(
 		authz.NewContractAuthority(
-			"gno.land/r/gov/dao/v2",
+			"gno.land/r/gov/dao/bridge",
 			func(title string, action authz.PrivilegedAction) error {
 				return action()
 			},
