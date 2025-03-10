@@ -11,8 +11,8 @@ import (
 
 var paused = false // XXX: replace with p/moul/authz
 
-// NewSetPausedExecutor allows GovDAO to pause or unpause this realm
-func NewSetPausedExecutor(newPausedValue bool) dao.Executor {
+// ProposeNewPausedValue allows GovDAO to pause or unpause this realm
+func ProposeNewPausedValue(newPausedValue bool) dao.Executor {
 	cb := func() error {
 		paused = newPausedValue
 		return nil
