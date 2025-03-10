@@ -1303,7 +1303,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 		ConvertUntypedTo(tv, gnot)
 		// then convert to native value.
 		// NOTE: this should only be called during preprocessing, so no alloc needed.
-		ConvertTo(nilAllocator, nil, tv, t, false)
+		ConvertTo(nilAllocator, nil, tv, t, true)
 	}
 	// special case: simple conversion
 	if t != nil && tv.T.Kind() == t.Kind() {
@@ -1328,7 +1328,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 			tv.T = t
 			return
 		} else {
-			ConvertTo(nilAllocator, nil, tv, t, false)
+			ConvertTo(nilAllocator, nil, tv, t, true)
 		}
 	default:
 		panic(fmt.Sprintf(
