@@ -9,7 +9,7 @@ func X_unixNano() int64 {
 	return 0
 }
 
-func X_matchString(pat, str string) bool {
+func X_matchString(pat, str string) (bool, string) {
 	panic("only implemented in testing stdlibs")
 }
 
