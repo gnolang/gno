@@ -22,6 +22,8 @@ func init() {
 
 	// Create a thread so the realm owner can flag and hide it with a single flag
 	pid = boards2.CreateThread(bid, "Foo", "bar")
+	// Also freeze board to make sure that realm owner can still flag the thread
+	boards2.FreezeBoard(bid)
 }
 
 func main() {

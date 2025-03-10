@@ -9,24 +9,24 @@ import (
 const owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 
 var (
-	srcBid boards2.BoardID
-	dstBid boards2.BoardID
-	srcTid boards2.PostID
+	srcBID boards2.BoardID
+	dstBID boards2.BoardID
+	srcTID boards2.PostID
 )
 
 func init() {
 	std.TestSetOriginCaller(owner)
-	srcBid = boards2.CreateBoard("src-board")
-	dstBid = boards2.CreateBoard("dst-board")
+	srcBID = boards2.CreateBoard("src-board")
+	dstBID = boards2.CreateBoard("dst-board")
 
-	srcTid = boards2.CreateThread(srcBid, "Foo", "bar")
-	boards2.FlagThread(srcBid, srcTid, "idk")
+	srcTID = boards2.CreateThread(srcBID, "Foo", "bar")
+	boards2.FlagThread(srcBID, srcTID, "idk")
 }
 
 func main() {
 	// Repost should fail if source thread is flagged
-	_ = boards2.CreateRepost(srcBid, srcTid, "foo", "bar", dstBid)
+	boards2.CreateRepost(srcBID, srcTID, "foo", "bar", dstBID)
 }
 
 // Error:
-// thread has been flagged as inappropriate
+// thread is hidden

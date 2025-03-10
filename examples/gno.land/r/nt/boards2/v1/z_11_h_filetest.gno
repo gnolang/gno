@@ -2,6 +2,7 @@ package main
 
 import (
 	"std"
+	"strings"
 
 	boards2 "gno.land/r/nt/boards2/v1"
 )
@@ -9,8 +10,9 @@ import (
 const owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 
 var (
-	bid boards2.BoardID
-	pid boards2.PostID
+	bid   boards2.BoardID
+	pid   boards2.PostID
+	title = strings.Repeat("X", boards2.MaxThreadTitleLength+1)
 )
 
 func init() {
@@ -20,8 +22,8 @@ func init() {
 }
 
 func main() {
-	boards2.EditThread(bid, pid, "Foo", "")
+	boards2.EditThread(bid, pid, title, "bar")
 }
 
 // Error:
-// body is empty
+// thread title is too long, maximum allowed is 100 characters

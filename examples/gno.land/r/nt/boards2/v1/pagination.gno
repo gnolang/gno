@@ -5,6 +5,8 @@ import (
 	"gno.land/p/demo/avl/pager"
 )
 
+// TODO: Find and implement a different pagination pattern when render is not tight to Board and Post types
+
 type PaginationOpts struct {
 	pager      pager.Pager
 	pageNumber int
@@ -33,10 +35,11 @@ func (opts *PaginationOpts) Iterate(tree *avl.Tree, cb func(k string, val interf
 	return nil
 }
 
-func mustGetPagination(rawPath string, pageSize int) *PaginationOpts {
+func mustGetPagination(rawPath string, pageSize int, reversed bool) *PaginationOpts {
 	p := pager.Pager{
 		PageQueryParam:  "page",
 		DefaultPageSize: pageSize,
+		Reversed:        reversed,
 	}
 
 	pageNumber, _, err := p.ParseQuery(rawPath)
