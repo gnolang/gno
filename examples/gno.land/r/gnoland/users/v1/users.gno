@@ -18,33 +18,33 @@ var (
 	reUsername    = regexp.MustCompile(reValidUsername)
 )
 
-// Register registers a new username for the caller
+// Register registers a new username for the caller.
 // A valid username must start with a minimum of 3 letters,
 // end with a minimum of 3 numbers, and be less than 20 chars long.
 // All letters must be lowercase, and the only valid special char is `_`.
 // Only calls from EOAs are supported.
-func Register(username string) error {
-	std.AssertOriginCall()
+func Register(username string) {
+	if !std.PreviousRealm().IsUser() {
+		panic(ErrNonUserCall)
+	}
 
 	if paused {
-		return ErrPaused
+		panic(ErrPaused)
 	}
 
 	if std.OriginSend().AmountOf("ugnot") != registerPrice {
-		return ErrInvalidPayment
+		panic(ErrInvalidPayment)
 	}
 
 	if matched := reUsername.MatchString(username); !matched {
-		return ErrInvalidUsername
+		panic(ErrInvalidUsername)
 	}
 
 	registrant := std.PreviousRealm().Address()
 	if err := susers.RegisterUser(username, registrant); err != nil {
-		return err
+		panic(err)
 	}
 
-	latestUsers.Append(username)
+	latestUsers.Append(username) // for display purposes
 	std.Emit("Registeration", "address", registrant.String(), "name", username)
-
-	return nil
 }
