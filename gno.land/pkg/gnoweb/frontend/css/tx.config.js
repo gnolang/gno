@@ -31,7 +31,7 @@ export default {
     },
     colors: {
       light: "#FFFFFF",
-      dark: "#000000",
+      dark: "#1E1E1E",
       gray: {
         50: "#F0F0F0", // Background color
         100: "#E2E2E2", // Title dark color
@@ -42,14 +42,14 @@ export default {
         800: "#131313", // Background dark color
         900: "#080809", // Title color
         // dark mode grays
-        d50: "#1A1A1A",    // Background color
-        d100: "#2C2C2C",   // Title light color 
-        d200: "#404040",   // Content color 
-        d300: "#949494",   // Muted color (updated to match dark logo)
-        d400: "#777777",   // Border color
-        d600: "#A0A0A0",   // Content color
-        d800: "#D0D0D0",   // Background light color
-        d900: "#F0F0F0"    
+        d50: "#121212",    // Softer than pure black for backgrounds
+        d100: "#2A2A2A",   // Subtle elevation color
+        d200: "#3D3D3D",   // Secondary elevation
+        d300: "#949494",   // Muted text (good)
+        d400: "#777777",   // Border color (good)
+        d600: "#ADADAD",   // Primary text - slightly higher contrast
+        d800: "#E0E0E0",   // High contrast text
+        d900: "#F5F5F5"    // Brightest text (headers)
       },
       green: {
         400: "#2D8D72", // Primary dark color

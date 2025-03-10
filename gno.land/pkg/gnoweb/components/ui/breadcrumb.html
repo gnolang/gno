@@ -2,7 +2,7 @@
   <form
     method="GET"
     action=""
-    class=" p-0 peer-focus-within:hidden flex bg-gray-100 dark:bg-gray-d100 after:absolute after:w-full after:top-0 after:left-0 after:h-full after:block after:bg-gray-100 after:pointer-events-none"
+    class=" p-0 peer-focus-within:hidden flex bg-gray-100 dark:bg-gray-d100 after:absolute after:w-full after:top-0 after:left-0 after:h-full after:block after:bg-gray-100 dark:after:bg-gray-d100 after:pointer-events-none"
   >
     <ol
       data-role="header-breadcrumb-search"
@@ -22,7 +22,7 @@
             class="{{ if eq $index 0 }}
               pointer-events-none
             {{ else }}
-              hover:bg-green-600 dark:hover:bg-green-600
+              hover:bg-green-600 dark:hover:bg-green-d600
             {{ end }} border border-transparent hover:text-light dark:hover:text-dark bg-light dark:bg-dark inline-block rounded-sm p-0.5 min-w-4 text-center"
             href="{{ $part.URL }}"
           >
