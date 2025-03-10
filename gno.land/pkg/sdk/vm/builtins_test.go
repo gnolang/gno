@@ -2,8 +2,8 @@ package vm
 
 import (
 	"testing"
-  
-  "github.com/gnolang/gno/tm2/pkg/crypto"
+
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 
 	"github.com/stretchr/testify/assert"
@@ -12,7 +12,7 @@ import (
 
 func TestParamsKeeper(t *testing.T) {
 	env := setupTestEnv()
-	params := NewSDKParams(env.vmk.prmk, env.ctx)
+	params := NewSDKParams(env.prmk, env.ctx)
 
 	testCases := []struct {
 		name        string
@@ -81,11 +81,11 @@ func TestSDKBankerTotalCoin(t *testing.T) {
 
 	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
 	env.acck.SetAccount(ctx, acc1)
-	env.bank.SetCoins(ctx, addr1, std.MustParseCoins("1000ugnot,500atom"))
+	env.bankk.SetCoins(ctx, addr1, std.MustParseCoins("1000ugnot,500atom"))
 
 	acc2 := env.acck.NewAccountWithAddress(ctx, addr2)
 	env.acck.SetAccount(ctx, acc2)
-	env.bank.SetCoins(ctx, addr2, std.MustParseCoins("2000ugnot,1500atom"))
+	env.bankk.SetCoins(ctx, addr2, std.MustParseCoins("2000ugnot,1500atom"))
 
 	tests := []struct {
 		name      string
