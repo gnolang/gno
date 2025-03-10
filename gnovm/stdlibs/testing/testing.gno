@@ -2,7 +2,6 @@
 package testing
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -218,6 +217,18 @@ type Report struct {
 	Skipped bool
 }
 
+func (r *Report) marshal() string {
+	failed := "false"
+	skipped := "false"
+	if r.Failed {
+		failed = "true"
+	}
+	if r.Skipped {
+		skipped = "true"
+	}
+	return `{"Failed":` + failed + `,"Skipped":` + skipped + `}`
+}
+
 func (t *T) report() Report {
 	return Report{
 		Failed:  t.Failed(),
@@ -303,8 +314,7 @@ func RunTest(runFlag string, verbose bool, test InternalTest) (ret string) {
 	}
 
 	report := t.report()
-	out, _ := json.Marshal(report)
-	return string(out)
+	return report.marshal()
 }
 
 func formatDur(dur int64) string {
@@ -326,7 +336,7 @@ func unixNano() int64
 func recoverWithStacktrace() (interface{}, string)
 
 // used to filter tests, we can't directly use regexp here due to a cyclic import; only present in testing stdlibs
-func matchString(pat, str string) (result bool, err error)
+func matchString(pat, str string) (bool, string)
 
 func tRunner(t *T, fn testingFunc, verbose bool) {
 	if !t.shouldRun(t.name) {
