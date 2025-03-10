@@ -234,12 +234,16 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 		startedAt := time.Now()
 		runtimeError := catchRuntimeError(gnoPkgPath, io.Err(), func() {
-			foundErr, lintErr := lintTypeCheck(io, memPkg, opts.TestStore)
-			if lintErr != nil {
-				io.ErrPrintln(lintErr)
-				hasError = true
-			} else if foundErr {
-				hasError = true
+			if modfile == nil || !modfile.Draft {
+				foundErr, lintErr := lintTypeCheck(io, memPkg, opts.TestStore)
+				if lintErr != nil {
+					io.ErrPrintln(lintErr)
+					hasError = true
+				} else if foundErr {
+					hasError = true
+				}
+			} else if cfg.verbose {
+				io.ErrPrintfln("%s: module is draft, skipping type check", gnoPkgPath)
 			}
 			err = test.Test(memPkg, pkg.Dir, opts)
 		})
