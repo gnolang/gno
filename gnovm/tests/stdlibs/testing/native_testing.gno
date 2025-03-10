@@ -2,8 +2,6 @@ package testing
 
 func unixNano() int64
 
-func matchString(pat, str string) bool
-
-func verifyRegex(pat string) string
+func matchString(pat, str string) (bool, string)
 
 func recoverWithStacktrace() (interface{}, string)

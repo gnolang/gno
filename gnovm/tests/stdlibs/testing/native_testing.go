@@ -11,20 +11,12 @@ func X_unixNano() int64 {
 	return time.Now().UnixNano()
 }
 
-func X_matchString(pat, str string) bool {
+func X_matchString(pat, str string) (bool, string) {
 	matchRe, err := regexp.Compile(pat)
 	if err != nil {
-		panic(err)
+		return false, err.Error()
 	}
-	return matchRe.MatchString(str)
-}
-
-func X_verifyRegex(pat string) string {
-	_, err := regexp.Compile(pat)
-	if err != nil {
-		return err.Error()
-	}
-	return ""
+	return matchRe.MatchString(str), ""
 }
 
 func X_recoverWithStacktrace(m *gnolang.Machine) (gnolang.TypedValue, string) {
