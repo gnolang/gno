@@ -36,7 +36,7 @@ Let's break it down:
 - `type` represents the type of package found on this path. There are two available
   options - `p` & `r` - pure packages and realms, respectively.
 - `namespace` is the namespace of the package. Namespaces can be registered using
-  the `gno.land/r/demo/users` realm, granting a user permission to deploy under
+  the `gno.land/r/gnoland/users` realms, granting a user permission to deploy under
   that specific namespace.
 - `package name` represents the name of the package found on the path. This part has
   to match the top-level package declaration in Gno files.
