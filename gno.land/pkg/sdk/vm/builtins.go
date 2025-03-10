@@ -37,7 +37,19 @@ func (bnk *SDKBanker) SendCoins(b32from, b32to crypto.Bech32Address, amt std.Coi
 }
 
 func (bnk *SDKBanker) TotalCoin(denom string) int64 {
-	panic("not yet implemented")
+	if denom == "" {
+		panic("empty denom")
+	}
+	accounts := bnk.vmk.acck.GetAllAccounts(bnk.ctx)
+	var totalAmount int64
+
+	for _, acc := range accounts {
+		if acc == nil {
+			continue
+		}
+		totalAmount += acc.GetCoins().AmountOf(denom)
+	}
+	return totalAmount
 }
 
 func (bnk *SDKBanker) IssueCoin(b32addr crypto.Bech32Address, denom string, amount int64) {

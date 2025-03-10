@@ -21,7 +21,29 @@
 //	/r/gnoland/coins:ugnot/g1... - shows the ugnot balance of a specific address
 package coins
 
-import "std"
+import (
+	"std"
+	"strings"
+)
+
+// TotalSupply returns the total supply of the specified denomination
+func TotalSupply(banker std.Banker, denom string) int64 {
+	if denom == "" {
+		panic("empty denom")
+	}
+	return banker.TotalCoin(denom)
+}
+
+// AddressBalance returns the balance of the specified token for the given address
+func AddressBalance(banker std.Banker, denom string, address std.Address) int64 {
+	if denom == "" {
+		panic("empty denom")
+	}
+	if !address.IsValid() {
+		panic("invalid address")
+	}
+	return banker.GetCoins(address).AmountOf(denom)
+}
 
 // Path parsing logic:
 // - Empty path: Show homepage with general info and usage instructions
@@ -30,8 +52,62 @@ import "std"
 func Render(path string) string {
 	banker := std.NewBanker(std.BankerTypeReadonly)
 
+	if path == "" {
+		return renderHomepage()
+	}
+
+	if !strings.Contains(path, "/") {
+		denom := path
+		totalSupply := TotalSupply(banker, denom)
+		return renderCoinInfo(denom, totalSupply)
+	}
+
+	parts := strings.Split(path, "/")
+	if len(parts) != 2 {
+		panic("invalid path")
+	}
+
+	denom, addr := parts[0], parts[1]
+	return renderAddressBalance(banker, denom, std.Address(addr))
+
 	// TODO: implement an explanatory homepage that shows usage instructions
 	// TODO: implement a coin info page showing total supply, and other metrics if we have them
 	// TODO: implement an address page showing balance for specified coin
 	// TODO: create navigation links between pages to enable intuitive exploration without typing URLs
+}
+
+func renderHomepage() string {
+	return `# Gno.land Coins
+
+[Coin Info](/r/gnoland/coins:ugnot) - shows the total supply and info about the ugnot coin
+[Address Balance](/r/gnoland/coins:ugnot/g1...) - shows the ugnot balance of a specific address
+`
+}
+
+func renderCoinInfo(denom string, totalSupply int64) string {
+	return `# Coin Info
+
+## Denom
+` + denom + `
+
+## Total Supply
+` + std.NewCoin(denom, totalSupply).String() + `
+
+[Back to Home](/r/gnoland/coins:)
+`
+}
+
+func renderAddressBalance(banker std.Banker, denom string, address std.Address) string {
+	balance := AddressBalance(banker, denom, address)
+	return `# Address Balance
+
+## Address
+` + address.String() + `
+
+## Balance
+` + std.NewCoin(denom, balance).String() + `
+
+[Back to Coin Info](/r/gnoland/coins:` + denom + `)
+[Back to Home](/r/gnoland/coins:)
+`
 }
