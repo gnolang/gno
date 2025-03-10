@@ -1,16 +1,14 @@
 // PKGPATH: gno.land/r/demo/boards_test
 package boards_test
 
-// SEND: 200000000ugnot
-
+// SEND: 1000000ugnot
 import (
 	"std"
 	"strconv"
 	"testing"
 
-	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
-	"gno.land/r/demo/users"
+	users "gno.land/r/gnoland/users/v1"
 )
 
 var (
@@ -19,17 +17,14 @@ var (
 )
 
 func init() {
-	caller := testutils.TestAddress("caller")
-	testing.SetRealm(std.NewUserRealm(caller))
-	users.Register("", "gnouser", "my profile")
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	users.Register("gnouser123")
 
 	bid = boards.CreateBoard("test_board")
 	pid = boards.CreateThread(bid, "First Post in (title)", "Body of the first post. (body)")
 }
 
 func main() {
-	caller := testutils.TestAddress("caller")
-	testing.SetRealm(std.NewUserRealm(caller))
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
 	// boardId 2 not exist
 	boards.DeletePost(2, pid, pid, "")
@@ -38,4 +33,4 @@ func main() {
 }
 
 // Error:
-// board not exist
+// invalid non-user call

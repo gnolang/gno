@@ -33,7 +33,7 @@ func TestSign(t *testing.T) {
 }
 
 func TestSign_FromRealm(t *testing.T) {
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/users"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoland/users/v1"))
 
 	defer func() {
 		rec := recover()

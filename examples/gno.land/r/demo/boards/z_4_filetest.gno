@@ -1,16 +1,15 @@
 // PKGPATH: gno.land/r/demo/boards_test
 package boards_test
 
-// SEND: 200000000ugnot
+// SEND: 1000000ugnot
 
 import (
 	"std"
 	"strconv"
 	"testing"
 
-	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
-	"gno.land/r/demo/users"
+	users "gno.land/r/gnoland/users/v1"
 )
 
 var (
@@ -19,9 +18,8 @@ var (
 )
 
 func init() {
-	caller := testutils.TestAddress("caller")
-	testing.SetRealm(std.NewUserRealm(caller))
-	users.Register("", "gnouser", "my profile")
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	users.Register("gnouser123")
 
 	bid = boards.CreateBoard("test_board")
 	boards.CreateThread(bid, "First Post (title)", "Body of the first post. (body)")
@@ -31,8 +29,7 @@ func init() {
 }
 
 func main() {
-	caller := testutils.TestAddress("caller")
-	testing.SetRealm(std.NewUserRealm(caller))
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
 	rid2 := boards.CreateReply(bid, pid, pid, "Second reply of the second post")
 	println(rid2)
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
@@ -44,17 +41,18 @@ func main() {
 // # Second Post (title)
 //
 // Body of the second post. (body)
-// \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&postid=2&threadid=2)] \[[repost](/r/demo/boards$help&func=CreateRepost&bid=1&postid=2)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=2&threadid=2)]
+// \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&postid=2&threadid=2)] \[[repost](/r/demo/boards$help&func=CreateRepost&bid=1&postid=2)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=2&threadid=2)]
 //
 // > Reply of the second post
-// > \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/3) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&postid=3&threadid=2)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=3&threadid=2)]
+// > \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/3) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&postid=3&threadid=2)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=3&threadid=2)]
 //
 // > Second reply of the second post
-// > \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/4) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&postid=4&threadid=2)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=4&threadid=2)]
+// > \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/4) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&postid=4&threadid=2)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=4&threadid=2)]
 //
 
 // Realm:
-// switchrealm["gno.land/r/demo/users"]
+// switchrealm["gno.land/r/sys/users"]
+// switchrealm["gno.land/r/sys/users"]
 // switchrealm["gno.land/r/demo/boards"]
 // u[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:111]={
 //     "ObjectInfo": {
@@ -912,8 +910,14 @@ func main() {
 //     }
 // }
 // switchrealm["gno.land/r/demo/boards"]
-// switchrealm["gno.land/r/demo/users"]
-// switchrealm["gno.land/r/demo/users"]
-// switchrealm["gno.land/r/demo/users"]
+// switchrealm["gno.land/r/sys/users"]
+// switchrealm["gno.land/r/sys/users"]
+// switchrealm["gno.land/r/sys/users"]
+// switchrealm["gno.land/r/sys/users"]
+// switchrealm["gno.land/r/sys/users"]
+// switchrealm["gno.land/r/sys/users"]
+// switchrealm["gno.land/r/sys/users"]
+// switchrealm["gno.land/r/sys/users"]
+// switchrealm["gno.land/r/sys/users"]
 // switchrealm["gno.land/r/demo/boards"]
 // switchrealm["gno.land/r/demo/boards_test"]

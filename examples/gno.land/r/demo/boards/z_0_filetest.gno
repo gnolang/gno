@@ -1,23 +1,21 @@
 // PKGPATH: gno.land/r/demo/boards_test
 package boards_test
 
-// SEND: 20000000ugnot
+// SEND: 1000000ugnot
 
 import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
-	"gno.land/r/demo/users"
+	users "gno.land/r/gnoland/users/v1"
 )
 
 var bid boards.BoardID
 
 func init() {
-	caller := testutils.TestAddress("caller")
-	testing.SetRealm(std.NewUserRealm(caller))
-	users.Register("", "gnouser", "my profile")
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	err := users.Register("gnouser123")
 
 	bid = boards.CreateBoard("test_board")
 	boards.CreateThread(bid, "First Post (title)", "Body of the first post. (body)")
@@ -36,12 +34,12 @@ func main() {
 // ## [First Post (title)](/r/demo/boards:test_board/1)
 //
 // Body of the first post. (body)
-// \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm UTC](/r/demo/boards:test_board/1) \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=1&threadid=1)] (0 replies) (0 reposts)
+// \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm UTC](/r/demo/boards:test_board/1) \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=1&threadid=1)] (0 replies) (0 reposts)
 //
 // ----------------------------------------
 // ## [Second Post (title)](/r/demo/boards:test_board/2)
 //
 // Body of the second post. (body)
-// \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm UTC](/r/demo/boards:test_board/2) \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=2&threadid=2)] (1 replies) (0 reposts)
+// \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm UTC](/r/demo/boards:test_board/2) \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=2&threadid=2)] (1 replies) (0 reposts)
 //
 //
