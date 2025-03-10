@@ -3,13 +3,14 @@ package components
 const SourceViewType ViewType = "source-view"
 
 type SourceData struct {
-	PkgPath     string
-	Files       []string
-	FileName    string
-	FileSize    string
-	FileLines   int
-	FileCounter int
-	FileSource  Component
+	PkgPath      string
+	Files        []string
+	FileName     string
+	FileSize     string
+	FileLines    int
+	FileCounter  int
+	FileDownload string
+	FileSource   Component
 }
 
 type SourceTocData struct {
@@ -30,6 +31,7 @@ type sourceViewParams struct {
 	FileLines    int
 	FileCounter  int
 	PkgPath      string
+	FileDownload string
 	ComponentTOC Component
 }
 
@@ -60,6 +62,7 @@ func SourceView(data SourceData) *View {
 		FileLines:    data.FileLines,
 		FileCounter:  data.FileCounter,
 		PkgPath:      data.PkgPath,
+		FileDownload: data.FileDownload,
 	}
 
 	return NewTemplateView(SourceViewType, "renderSource", viewData)
