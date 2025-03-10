@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-type fm map[string]interface{}
+type fm map[string]any
 
 type foo struct{}
 
@@ -13,7 +13,7 @@ func main() {
 	a["foo"] = &foo{}
 	fmt.Println(a["foo"])
 
-	b := make(map[string]interface{})
+	b := make(map[string]any)
 	b["foo"] = &foo{}
 	fmt.Println(b["foo"])
 }
