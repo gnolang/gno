@@ -22,9 +22,9 @@ func init() {
 
 ## 📌 Purpose of this Contract
 
-The **Valopers** contract is designed to maintain a registry of **validator node** applications. This registry provides essential information to **GovDAO members**, enabling them to make informed decisions when voting on the inclusion of new validators into the **valset**.
+The **Valopers** contract is designed to maintain a registry of **validator profiles**. This registry provides essential information to **GovDAO members**, enabling them to make informed decisions when voting on the inclusion of new validators into the **valset**.
 
-By registering your validator node, you contribute to a transparent and well-informed governance process within **gno.land**.
+By registering your validator profile, you contribute to a transparent and well-informed governance process within **gno.land**.
 
 ---
 
