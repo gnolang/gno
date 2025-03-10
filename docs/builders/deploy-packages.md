@@ -150,7 +150,7 @@ a third-party web extension wallet, such as Adena.
 [^1]: Read more about package paths [here](../resources/gno-packages.md).
 [^2]: Other network configurations can be found [here](../resources/gnoland-networks.md).
 [^3]: Address namespaces ([PA namespaces](../resources/gno-packages.md#package-path-structure)) are automatically granted to
-users. Users can register a username using the [gno.land user registry](https://gno.land/r/demo/users),
+users. Users can register a username using the [gno.land user registry](https://gno.land/r/gnoland/users),
 which will grant them access to a matching namespace for that specific network.
 [^4]: Automatic gas estimation is being worked on for `gnokey`. Follow progress
 [here](https://github.com/gnolang/gno/pull/3330).
