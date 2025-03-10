@@ -16,7 +16,7 @@ var gid groups.GroupID
 
 func main() {
 	caller := std.OriginCaller()
-	std.TestSetRealm(std.NewUserRealm(caller))
+	testing.SetRealm(std.NewUserRealm(caller))
 	users.Register("gnouser123")
 
 	gid = groups.CreateGroup("test_group")

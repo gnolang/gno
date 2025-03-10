@@ -10,7 +10,7 @@ import (
 )
 
 func TestResolveName(t *testing.T) {
-	std.TestSetOriginCaller(whitelistedCallerAddr)
+	testing.SetOriginCaller(whitelistedCallerAddr)
 
 	t.Run("single_name", func(t *testing.T) {
 		cleanStore(t)
@@ -65,7 +65,7 @@ func TestResolveName(t *testing.T) {
 }
 
 func TestResolveAddress(t *testing.T) {
-	std.TestSetOriginCaller(whitelistedCallerAddr)
+	testing.SetOriginCaller(whitelistedCallerAddr)
 
 	t.Run("single_name", func(t *testing.T) {
 		cleanStore(t)
@@ -115,7 +115,7 @@ func TestResolveAddress(t *testing.T) {
 }
 
 func TestROStores(t *testing.T) {
-	std.TestSetOriginCaller(whitelistedCallerAddr)
+	testing.SetOriginCaller(whitelistedCallerAddr)
 	cleanStore(t)
 
 	urequire.NoError(t, RegisterUser(alice, aliceAddr))
@@ -170,7 +170,7 @@ func TestROStores(t *testing.T) {
 
 // TODO Uncomment after gnoweb /u/ page.
 //func TestUserRenderLink(t *testing.T) {
-//	std.TestSetOriginCaller(whitelistedCallerAddr)
+//	testing.SetOriginCaller(whitelistedCallerAddr)
 //	cleanStore(t)
 //
 //	urequire.NoError(t, RegisterUser(alice, aliceAddr))

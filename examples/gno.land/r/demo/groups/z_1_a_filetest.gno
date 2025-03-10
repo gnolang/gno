@@ -18,7 +18,7 @@ const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func main() {
 	caller := std.OriginCaller() // main
-	std.TestSetRealm(std.NewUserRealm(caller))
+	testing.SetRealm(std.NewUserRealm(caller))
 	users.Register("main123")
 
 	test1 := testutils.TestAddress("gnouser1")

@@ -4,7 +4,7 @@ package main
 
 import (
 	"std"
-
+	"testing"
 	"gno.land/p/demo/dao"
 	"gno.land/p/demo/testutils"
 
@@ -21,13 +21,13 @@ func init() {
 	alice := testutils.TestAddress("alice")
 
 	// Register alice
-	std.TestSetOriginCaller(alice)
-	std.TestSetRealm(std.NewUserRealm(alice))
+	testing.SetOriginCaller(alice)
+	testing.SetRealm(std.NewUserRealm(alice))
 	users.Register("alice123")
 
 	// Prop to change name
-	std.TestSetOriginCaller(c)
-	std.TestSetRealm(std.NewUserRealm(c))
+	testing.SetOriginCaller(c)
+	testing.SetRealm(std.NewUserRealm(c))
 	ex := users.ProposeDeleteUser(alice)
 
 	// Create a proposal

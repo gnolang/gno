@@ -61,7 +61,7 @@ func X_setContext(
 	if currRealmAddr != "" {
 		// Associate the given Realm with the caller's frame.
 		var frame *gno.Frame
-		// NOTE: the frames are different from when calling std.TestSetRealm (has been refactored to this code)
+		// NOTE: the frames are different from when calling testing.SetRealm (has been refactored to this code)
 		//
 		// When calling this function from Gno, the 3 top frames are the following:
 		// #7: [FRAME FUNC:setContext RECV:(undefined) (15 args) 11/3/0/6/4 LASTPKG:testing ...]

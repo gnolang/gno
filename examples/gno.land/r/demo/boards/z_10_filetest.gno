@@ -27,7 +27,7 @@ func init() {
 
 func main() {
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
-	std.TestSetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
 	boards.DeletePost(bid, pid, pid, "")
 	println("----------------------------------------------------")
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))
