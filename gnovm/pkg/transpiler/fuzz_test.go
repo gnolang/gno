@@ -211,6 +211,7 @@ func FuzzTranspiling(f *testing.F) {
 				strings.Contains(sr, "expected boolean expression, found"),
 				strings.Contains(sr, "cannot parenthesize embedded type"),
 				strings.Contains(sr, "method must have no type parameters"),
+				strings.Contains(sr, "function type must have no type parameters"),
 				strings.Contains(sr, "missing ',' before newline in type argument list"),
 				strings.Contains(sr, "escape sequence not terminated"):
 				return
