@@ -1,7 +1,6 @@
 package forms
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
