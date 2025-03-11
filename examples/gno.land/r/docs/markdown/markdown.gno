@@ -1,180 +1,280 @@
 package markdown
 
+import "strings"
+
 // this package can be used to test markdown rendering engines.
 
 func Render(path string) string {
-	output := `_imported from https://github.com/markedjs/marked/blob/master/docs/demo/quickref.md_
+	output := `# Markdown on Gno
 
-Markdown Quick Reference
-========================
+## Introduction
 
-This guide is a very brief overview, with examples, of the syntax that [Markdown] supports. It is itself written in Markdown and you can copy the samples over to the left-hand pane for experimentation. It's shown as *text* and not *rendered HTML*.
+Markdown on Gno is based on standard markdown, but also has some unique features, making it the Gno Flavored Markdown. This document describes the current markdown support in Gno, demonstrating both the syntax and its rendered output.
 
-[Markdown]: http://daringfireball.net/projects/markdown/
+> [!NOTE]
+> Markdown support in Gno is still evolving. New features and improvements will be added in future releases.
 
+## Basic Syntax
 
-Simple Text Formatting
-======================
+### Headings
 
-First thing is first. You can use *stars* or _underscores_ for italics. **Double stars** and __double underscores__ for bold. ***Three together*** for ___both___.
+Headings are created using hash symbols (#). The number of hash symbols indicates the heading level.
 
-Paragraphs are pretty easy too. Just have a blank line between chunks of text.
+±±±markdown
+# Heading 1
+## Heading 2
+### Heading 3
+#### Heading 4
+##### Heading 5
+###### Heading 6
+±±±
 
-> This chunk of text is in a block quote. Its multiple lines will all be
-> indented a bit from the rest of the text.
->
-> > Multiple levels of block quotes also work.
+# Heading 1
+## Heading 2
+### Heading 3
+#### Heading 4
+##### Heading 5
+###### Heading 6
 
-Sometimes you want to include code, such as when you are explaining how ` + "`<h1>`" + ` HTML tags work, or maybe you are a programmer and you are discussing ` + "`someMethod()`" + `.
+### Text Formatting
 
-If you want to include code and have new
-lines preserved, indent the line with a tab
-or at least four spaces:
+You can format text using the following syntax:
 
-    Extra spaces work here too.
-    This is also called preformatted text and it is useful for showing examples.
-    The text will stay as text, so any *markdown* or <u>HTML</u> you add will
-    not show up formatted. This way you can show markdown examples in a
-    markdown document.
+±±±markdown
+**Bold text**
+*Italic text*
+~~Strikethrough text~~
+**Bold and _nested italic_**
+***All bold and italic***
+±±±
 
->     You can also use preformatted text with your blockquotes
->     as long as you add at least five spaces.
+**Bold text**  
+*Italic text*  
+~~Strikethrough text~~  
+**Bold and _nested italic_**  
+***All bold and italic***  
 
+### Links
 
-Headings
-========
+Links can be created using the following syntax:
 
-There are a couple of ways to make headings. Using three or more equals signs on a line under a heading makes it into an "h1" style. Three or more hyphens under a line makes it "h2" (slightly smaller). You can also use multiple pound symbols (` + "`#`" + `) before and after a heading. Pounds after the title are ignored. Here are some examples:
+±±±markdown
+[Link text](https://example.com)
+[Link with title](https://example.com "Link title")
+±±±
 
-This is H1
-==========
+[Link text](https://example.com)  
+[Link with title](https://example.com "Link title")
 
-This is H2
-----------
+XXX: custom CSS for internal/external links and if possible for "in the same realm/namespace".
 
-# This is H1
-## This is H2
-### This is H3 with some extra pounds ###
-#### You get the idea ####
-##### I don't need extra pounds at the end
-###### H6 is the max
+### Lists
 
+Unordered lists use asterisks, plus signs, or hyphens:
 
-Links
-=====
+±±±markdown
+* Item 1
+* Item 2
+  * Nested item 1
+  * Nested item 2
+±±±
 
-Let's link to a few sites. First, let's use the bare URL, like <https://www.github.com>. Great for text, but ugly for HTML.
-Next is an inline link to [Google](https://www.google.com). A little nicer.
-This is a reference-style link to [Wikipedia] [1].
-Lastly, here's a pretty link to [Yahoo]. The reference-style and pretty links both automatically use the links defined below, but they could be defined *anywhere* in the markdown and are removed from the HTML. The names are also case insensitive, so you can use [YaHoO] and have it link properly.
+* Item 1
+* Item 2
+  * Nested item 1
+  * Nested item 2
 
-[1]: https://www.wikipedia.org
-[Yahoo]: https://www.yahoo.com
+Ordered lists use numbers:
 
-Title attributes may be added to links by adding text after a link.
-This is the [inline link](https://www.bing.com "Bing") with a "Bing" title.
-You can also go to [W3C] [2] and maybe visit a [friend].
+±±±markdown
+1. First item
+2. Second item
+   1. Nested item 1
+   2. Nested item 2
+±±±
 
-[2]: https://w3c.org (The W3C puts out specs for web-based things)
-[Friend]: https://facebook.com "Facebook!"
+1. First item
+2. Second item
+   1. Nested item 1
+   2. Nested item 2
 
-Email addresses in plain text are not linked: test@example.com.
-Email addresses wrapped in angle brackets are linked: <test@example.com>.
-They are also obfuscated so that email harvesting spam robots hopefully won't get them.
+### Blockquotes
 
+Blockquotes are created using the > character:
 
-Lists
-=====
+±±±markdown
+> This is a blockquote
+> 
+> It can span multiple lines
+±±±
 
-* This is a bulleted list
-* Great for shopping lists
-- You can also use hyphens
-+ Or plus symbols
+> This is a blockquote
+> 
+> It can span multiple lines
 
-The above is an "unordered" list. Now, on for a bit of order.
+### Code
 
-1. Numbered lists are also easy
-2. Just start with a number
-3738762. However, the actual number doesn't matter when converted to HTML.
-1. This will still show up as 4.
+Inline code uses single backticks:
 
-You might want a few advanced lists:
+±±±markdown
+Use ±func main()± to define the entry point.
+±±±
 
-- This top-level list is wrapped in paragraph tags
-- This generates an extra space between each top-level item.
+Use ±func main()± to define the entry point.
 
-- You do it by adding a blank line
+Code blocks use triple backticks with an optional language identifier:
 
-- This nested list also has blank lines between the list items.
+<!-- XXX: make the example with 'gno' instead of 'go' -->
 
-- How to create nested lists
-  1. Start your regular list
-  2. Indent nested lists with two spaces
-  3. Further nesting means you should indent with two more spaces
-    * This line is indented with four spaces.
+±±±markdown
+±±±go
+package main
 
-- List items can be quite lengthy. You can keep typing and either continue
-them on the next line with no indentation.
+func main() {
+    println("Hello, Gno!")
+}
+±±±
 
-- Alternately, if that looks ugly, you can also
-  indent the next line a bit for a prettier look.
+±±±go
+package main
 
-- You can put large blocks of text in your list by just indenting with two spaces.
+func main() {
+    println("Hello, Gno!")
+}
+±±±
 
-  This is formatted the same as code, but you can inspect the HTML
-  and find that it's just wrapped in a ` + "`<p>`" + ` tag and *won't* be shown
-  as preformatted text.
+### Horizontal Rules
 
-  You can keep adding more and more paragraphs to a single
-  list item by adding the traditional blank line and then keep
-  on indenting the paragraphs with two spaces.
+Horizontal rules are created using three or more asterisks, hyphens, or underscores:
 
-  You really only need to indent the first line,
-but that looks ugly.
-
-- Lists support blockquotes
-
-  > Just like this example here. By the way, you can
-  > nest lists inside blockquotes!
-  > - Fantastic!
-
-- Lists support preformatted text
-
-      You just need to indent an additional four spaces.
-
-
-Even More
-=========
-
-Horizontal Rule
----------------
-
-If you need a horizontal rule you just need to put at least three hyphens, asterisks, or underscores on a line by themselves. You can also even put spaces between the characters.
+±±±markdown
+---
+±±±
 
 ---
-****************************
-_ _ _ _ _ _ _
 
-Those three all produced horizontal lines. Keep in mind that three hyphens under any text turns that text into a heading, so add a blank like if you use hyphens.
+<!-- XXX: add again this feature that was removed -->
+<!--
+### Task Lists
 
-Images
-------
+Gno supports task lists for tracking to-do items:
 
-Images work exactly like links, but they have exclamation points in front. They work with references and titles too.
+±±±markdown
+- [x] Completed task
+- [ ] Pending task
+±±±
 
-![Google Logo](https://www.google.com/images/errors/logo_sm.gif) and ![Happy].
+- [x] Completed task
+- [ ] Pending task
+-->
 
-[Happy]: https://wpclipart.com/smiley/happy/simple_colors/smiley_face_simple_green_small.png ("Smiley face")
+## Tables
 
+Tables are created using pipes and hyphens:
 
-Inline HTML
------------
+±±±markdown
+| Header 1 | Header 2 |
+| -------- | -------- |
+| Cell 1   | Cell 2   |
+| Cell 3   | Cell 4   |
+±±±
 
-If markdown is too limiting, you can just insert your own <strike>crazy</strike> HTML. Span-level HTML <u>can *still* use markdown</u>. Block level elements must be separated from text by a blank line and must not have any spaces before the opening and closing HTML.
+| Header 1 | Header 2 |
+| -------- | -------- |
+| Cell 1   | Cell 2   |
+| Cell 3   | Cell 4   |
 
-<div style='font-family: "Comic Sans MS", "Comic Sans", cursive;'>
-It is a pity, but markdown does **not** work in here for most markdown parsers.
-[Marked] handles it pretty well.
-</div>`
+## Images
+
+Images can be included using the following syntax:
+
+±±±markdown
+![Alt text](/public/imgs/gnoland.svg "Optional title")
+±±±
+
+![Alt text](/public/imgs/gnoland.svg "Optional title")
+
+## Gno-Specific Features
+
+### HTML Support
+
+By design, most typical HTML support is disabled in Gno's markdown implementation. This is an intentional decision for both security and ecosystem cohesion.
+
+While traditional markdown often allows arbitrary HTML tags, Gno Flavored Markdown takes a more controlled approach:
+
+- We may progressively whitelist certain HTML components or add custom ones over time
+- Our priority is to enhance our flavored markdown to natively support all essential components
+- We aim to eventually support all the initially HTML-supported features, but with syntax that is:
+  - More readable when viewing the source directly
+  - More integrable with custom browsers such as gnobro in CLI
+
+This approach allows for a more consistent rendering experience across different Gno interfaces while maintaining security and readability as core principles.
+
+### Columns
+
+XXX: in progress in https://github.com/gnolang/gno/pull/3763
+
+### Usernames
+
+XXX: TODO (add again this feature that was removed)
+
+<!--
+±±±markdown
+@username
+@dev123
+±±±
+
+@username
+@dev123
+-->
+
+### Bech32 Addresses
+
+XXX: TODO
+
+Gno markdown can automatically recognize and render Bech32 addresses.
+
+±±±markdown
+g1jg955hm9a6f0yen878c2hur6q7stqz7rzpyrwpe
+±±±
+
+g1jg955hm9a6f0yen878c2hur6q7stqz7rzpyrwpe
+
+### Smart Contract Integration
+
+XXX: TODO
+
+±±±markdown
+gno.land/r/boards
+gno.land/r/boards:foo/bar
+gno.land/r/docs/markdown$source
+±±±
+
+gno.land/r/boards
+gno.land/r/boards:foo/bar
+gno.land/r/docs/markdown$source
+
+### And more...
+
+XXX: TODO
+
+## Future Enhancements
+
+The markdown support in Gno is being actively developed. Future enhancements may include:
+
+- Extended support for custom components
+- Interactive elements specific to blockchain functions
+- Rich rendering of on-chain data
+- Better integration with Gno's package system
+
+[Read more](https://github.com/gnolang/gno/issues/3255)
+
+## Conclusion
+
+Markdown on Gno provides a familiar syntax for developers who have experience with GitHub Flavored Markdown, while adding blockchain-specific extensions that make it more powerful in the context of the Gno platform.
+
+As the Gno ecosystem grows, expect the markdown capabilities to expand accordingly, providing even richer formatting and interactive elements for documentation and user interfaces.
+`
+	output = strings.ReplaceAll(output, "±", "`")
 	return output
 }
