@@ -27,3 +27,8 @@ stderr 'panic: valoper does not exist'
 # make a proposal
 gnokey maketx call -pkgpath gno.land/r/gnoland/valopers_proposal -func MakeProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -send 100000000ugnot -args g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl -broadcast -chainid=tendermint_test test1
 stdout OK!
+
+# see the valoper in gov/dao Render
+gnokey maketx call -pkgpath gno.land/r/gov/dao/v2 -func Render -gas-fee 1000000ugnot -gas-wanted 10000000 -args "" -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'Add valoper berty'
