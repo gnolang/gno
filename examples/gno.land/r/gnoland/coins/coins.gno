@@ -24,6 +24,7 @@ package coins
 import (
 	"errors"
 	"std"
+	"strconv"
 	"strings"
 )
 
@@ -41,6 +42,11 @@ func TotalSupply(denom string) int64 {
 	// make the coin's denom to follow the correct format
 	qualifiedDenom := std.CurrentRealm().CoinDenom(denom)
 	return std.NewBanker(std.BankerTypeReadonly).TotalCoin(qualifiedDenom)
+}
+
+// IsEligible checks if an address is eligible for the airdrop
+func IsEligible(denom string, addr std.Address) bool {
+	return AddressBalance(denom, addr) > 0
 }
 
 // AddressBalance returns the balance of the specified token for the given address
@@ -87,6 +93,18 @@ func Render(path string) string {
 
 func renderHomepage() string {
 	return `# Gno.land Coins
+
+This realm provides an interface to query coin information on the Gno.land blockchain.
+
+## Usage
+
+You can query information using the following URL patterns:
+
+- [/r/gnoland/coins:ugnot](/r/gnoland/coins:ugnot) - Check total supply of ugnot
+- /r/gnoland/coins:ugnot/{address} - Check ugnot balance of a specific address
+
+## Supported Coins
+- [ugnot](/r/gnoland/coins:ugnot) - The native token of Gno.land
 `
 }
 
@@ -97,16 +115,25 @@ func renderCoinInfo(denom string, totalSupply int64) string {
 ` + denom + `
 
 ## Total Supply
-` + std.NewCoin(denom, totalSupply).String() + `\n`
+` + std.NewCoin(denom, totalSupply).String() + `
+## Statistics
+- Total Supply: ` + std.NewCoin(denom, totalSupply).String() + `
+- Chain ID: ` + std.ChainID() + `
+- Current Block Height: ` + strconv.Itoa(int(std.ChainHeight())) + `\n`
 }
 
 func renderAddressBalance(denom string, address std.Address) string {
 	balance := AddressBalance(denom, address)
+	isEligible := IsEligible(denom, address)
 	return `# Address Balance
 
 ## Address
 ` + address.String() + `
 
 ## Balance
-` + std.NewCoin(denom, balance).String()
+` + std.NewCoin(denom, balance).String() + `
+
+## Eligibility
+` + (map[bool]string{true: "Eligible", false: "Not Eligible"}[isEligible]) + `
+`
 }
