@@ -374,9 +374,10 @@ func (opts *TestOptions) runTestFiles(
 		}
 
 		eval := m.Eval(gno.Call(
-			gno.Sel(testingcx, "RunTest"),            // Call testing.RunTest
-			gno.Str(opts.RunFlag),                    // run flag
-			gno.Nx(strconv.FormatBool(opts.Verbose)), // is verbose?
+			gno.Sel(testingcx, "RunTest"),                 // Call testing.RunTest
+			gno.Str(opts.RunFlag),                         // run flag
+			gno.Nx(strconv.FormatBool(opts.Verbose)),      // is verbose?
+			gno.Nx(strconv.FormatBool(opts.FailfastFlag)), // stop as soon as a test fails
 			&gno.CompositeLitExpr{ // Third param, the testing.InternalTest
 				Type: gno.Sel(testingcx, "InternalTest"),
 				Elts: gno.KeyValueExprs{

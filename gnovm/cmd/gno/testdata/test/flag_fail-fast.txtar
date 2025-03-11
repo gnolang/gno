@@ -19,9 +19,12 @@ import (
 )
 
 func TestFail(t *testing.T) {
-	t.Error("someError")
+	t.Run("TestFail1",func(t *testing.T){
+		t.Error("someError")
+	})
+
+	t.Run("TestFail2",func(t *testing.T){
+		t.Error("secondError")
+	})
 }
 
-func TestFail2(t *testing.T) {
-	t.Error("secondError")
-}
