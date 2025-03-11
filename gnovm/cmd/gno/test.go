@@ -109,7 +109,7 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.failfast,
 		"failfast",
 		false,
-		"disables running additional tests after any test fails",
+		"do not start new tests after the first test failure",
 	)
 
 	fs.BoolVar(
