@@ -8,8 +8,8 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/users"
 	"gno.land/r/leon/hof"
+	"gno.land/r/sys/users"
 
 	"gno.land/r/stefann/registry"
 )
@@ -168,7 +168,7 @@ func (s SponsorSlice) Swap(i, j int) {
 func GetTopSponsors() []Sponsor {
 	var sponsorSlice SponsorSlice
 
-	sponsorship.sponsors.Iterate("", "", func(key string, value interface{}) bool {
+	sponsorship.sponsors.Iterate("", "", func(key string, value any) bool {
 		addr := std.Address(key)
 		amount := value.(std.Coins)
 		sponsorSlice = append(sponsorSlice, Sponsor{Address: addr, Amount: amount})
@@ -181,7 +181,7 @@ func GetTopSponsors() []Sponsor {
 
 func GetTotalDonations() int {
 	total := 0
-	sponsorship.sponsors.Iterate("", "", func(key string, value interface{}) bool {
+	sponsorship.sponsors.Iterate("", "", func(key string, value any) bool {
 		total += int(value.(std.Coins).AmountOf("ugnot"))
 		return false
 	})
@@ -231,8 +231,8 @@ func formatAddress(address string) string {
 }
 
 func getDisplayName(addr std.Address) string {
-	if user := users.GetUserByAddress(addr); user != nil {
-		return user.Name
+	if user := users.ResolveAddress(addr); user != nil {
+		return user.Name()
 	}
 	return formatAddress(addr.String())
 }

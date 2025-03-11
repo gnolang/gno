@@ -13,42 +13,80 @@
 //
 // Example usage:
 //
-//	executor := params.NewStringPropExecutor("exampleKey", "exampleValue")
 //	// This executor can be used in a governance proposal to set the parameter.
+//	executor := params.NewStringsPropExecutor("bank", "p", "restricted_denoms")
 package params
 
 import (
 	"std"
+	prms "sys/params"
 
 	"gno.land/p/demo/dao"
 	"gno.land/r/gov/dao/bridge"
 )
 
-func NewStringPropExecutor(key string, value string) dao.Executor {
-	return newPropExecutor(key, func() { std.SetParamString(key, value) })
+// this is only used for emitting events.
+func syskey(module, submodule, name string) string {
+	return module + ":" + submodule + ":" + name
 }
 
-func NewInt64PropExecutor(key string, value int64) dao.Executor {
-	return newPropExecutor(key, func() { std.SetParamInt64(key, value) })
+func NewSysParamStringPropExecutor(module, submodule, name string, value string) dao.Executor {
+	return newPropExecutor(
+		syskey(module, submodule, name),
+		func() { prms.SetSysParamString(module, submodule, name, value) },
+	)
 }
 
-func NewUint64PropExecutor(key string, value uint64) dao.Executor {
-	return newPropExecutor(key, func() { std.SetParamUint64(key, value) })
+func NewSysParamInt64PropExecutor(module, submodule, name string, value int64) dao.Executor {
+	return newPropExecutor(
+		syskey(module, submodule, name),
+		func() { prms.SetSysParamInt64(module, submodule, name, value) },
+	)
 }
 
-func NewBoolPropExecutor(key string, value bool) dao.Executor {
-	return newPropExecutor(key, func() { std.SetParamBool(key, value) })
+func NewSysParamUint64PropExecutor(module, submodule, name string, value uint64) dao.Executor {
+	return newPropExecutor(
+		syskey(module, submodule, name),
+		func() { prms.SetSysParamUint64(module, submodule, name, value) },
+	)
 }
 
-func NewBytesPropExecutor(key string, value []byte) dao.Executor {
-	return newPropExecutor(key, func() { std.SetParamBytes(key, value) })
+func NewSysParamBoolPropExecutor(module, submodule, name string, value bool) dao.Executor {
+	return newPropExecutor(
+		syskey(module, submodule, name),
+		func() { prms.SetSysParamBool(module, submodule, name, value) },
+	)
+}
+
+func NewSysParamBytesPropExecutor(module, submodule, name string, value []byte) dao.Executor {
+	return newPropExecutor(
+		syskey(module, submodule, name),
+		func() { prms.SetSysParamBytes(module, submodule, name, value) },
+	)
+}
+
+func NewSysParamStringsPropExecutor(module, submodule, name string, value []string) dao.Executor {
+	return newPropExecutor(
+		syskey(module, submodule, name),
+		func() { prms.SetSysParamStrings(module, submodule, name, value) },
+	)
 }
 
 func newPropExecutor(key string, fn func()) dao.Executor {
 	callback := func() error {
 		fn()
-		std.Emit("set", "k", key)
+		std.Emit("set", "key", key) // TODO document, make const, make consistent. 'k'??
 		return nil
 	}
 	return bridge.GovDAO().NewGovDAOExecutor(callback)
+}
+func propose(exec dao.Executor, title, desc string) uint64 {
+	// The executor's callback function is executed only after the proposal
+	// has been voted on and approved by the GovDAO.
+	prop := dao.ProposalRequest{
+		Title:       title,
+		Description: desc,
+		Executor:    exec,
+	}
+	return bridge.GovDAO().Propose(prop)
 }

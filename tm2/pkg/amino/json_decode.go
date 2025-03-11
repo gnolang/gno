@@ -315,13 +315,20 @@ func (cdc *Codec) decodeReflectJSONSlice(bz []byte, info *TypeInfo, rv reflect.V
 			return
 		}
 
-		// Special case when length is 0.
-		// NOTE: We prefer nil slices.
-		length := len(rawSlice)
-		if length == 0 {
+		// Special case when rawSlice is nil.
+		// This happens when the JSON was 'null'.
+		if rawSlice == nil {
 			rv.Set(info.ZeroValue)
-			return
 		}
+
+		length := len(rawSlice)
+		// NOTE: While we prefer nil slices for binary decoding,
+		// we prefer empty slices for json "[]".
+		// This is also how json.Unmarshal() behaves.
+		// if length == 0 {
+		//	rv.Set(info.ZeroValue)
+		//	return
+		// }
 
 		// Read into a new slice.
 		esrt := reflect.SliceOf(ert) // TODO could be optimized.
