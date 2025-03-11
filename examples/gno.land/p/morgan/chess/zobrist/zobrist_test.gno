@@ -48,7 +48,7 @@ func NewBoard() Board {
 }
 
 func TestInitialPosition(t *testing.T) {
-	h := Hash(NewBoard(),false, 0, 255)
+	h := Hash(NewBoard(), false, 0, 255)
 	if h != InitialPosition {
 		t.Fatalf("InitialPosition is invalid: set to %d, should be %d", InitialPosition, h)
 	}
