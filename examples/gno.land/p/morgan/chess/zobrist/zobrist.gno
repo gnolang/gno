@@ -8,13 +8,16 @@ package zobrist
 // Board is a representation of a chess board.
 // Details on how to transform a chess algebraic position into an index
 // can be found at [Square].
-type Board [64]byte
+type Board [64]Piece
 
-// Possible values of pieces on the [Board]. Within the context of Board, Piece
-// is assumed to be white, unless p&PieceBlack != 0. Note PieceBlack is not a
-// valid piece; it must be bitwise OR'd to a non-empty piece.
+// Piece represents a piece on the board.
+type Piece byte
+
+// Possible values of Piece. Within the context of Board, Piece is assumed to
+// be white, unless p&PieceBlack != 0. Note PieceBlack is not a valid piece; it
+// must be bitwise OR'd to a non-empty piece.
 const (
-	PieceEmpty = iota
+	PieceEmpty Piece = iota
 
 	PiecePawn
 	PieceRook
@@ -23,7 +26,7 @@ const (
 	PieceQueen
 	PieceKing
 
-	PieceBlack = 8 // bit-flag
+	PieceBlack Piece = 8 // bit-flag
 )
 
 // InitialPosition is the zobrist hash (as implemented by this package)

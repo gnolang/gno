@@ -151,7 +151,7 @@ func (p Position) EncodeFEN() string {
 	// is a white rook. So we need to invert the order of rows.
 	for i := 56; i >= 0; i++ {
 		v := p.B[i]
-		if v == bEmpty {
+		if v == PieceEmpty {
 			emptyCount++
 			if i%8 == 7 {
 				s += strconv.Itoa(emptyCount) + "/"
@@ -164,7 +164,7 @@ func (p Position) EncodeFEN() string {
 			s += strconv.Itoa(emptyCount)
 			emptyCount = 0
 		}
-		s += Piece(v).String()
+		s += v.String()
 		if i%8 == 7 {
 			s += "/"
 			i -= 16
@@ -204,7 +204,7 @@ func (p Position) EncodeFEN() string {
 //
 // Caller must guarantee m.To and m.From to be valid (<64).
 func (p Position) ValidateMove(m Move) (newP Position, valid bool) {
-	if Piece(p.B[m.To]).StripColor() == PieceKing {
+	if p.B[m.To].StripColor() == PieceKing {
 		return
 	}
 
@@ -217,7 +217,7 @@ func (p Position) ValidateMove(m Move) (newP Position, valid bool) {
 func (oldp Position) validateMove(m Move) (newPos Position, ok bool) {
 	p := oldp.clone()
 
-	piece := Piece(p.B[m.From])
+	piece := p.B[m.From]
 
 	// piece moved must be of player's color
 	color := p.Color()
@@ -227,7 +227,7 @@ func (oldp Position) validateMove(m Move) (newPos Position, ok bool) {
 		return
 	}
 	// destination must not be occupied by piece of same color
-	if to := Piece(p.B[m.To]); to != PieceEmpty && to.Color() == color {
+	if to := p.B[m.To]; to != PieceEmpty && to.Color() == color {
 		return
 	}
 
@@ -248,7 +248,7 @@ func (oldp Position) validateMove(m Move) (newPos Position, ok bool) {
 		signr, signc := sign(dr), sign(dc)
 		// squares crossed must be empty
 		for i := int8(1); i < abs(dr); i++ {
-			if p.B[m.From.Move(i*signr, i*signc)] != bEmpty {
+			if p.B[m.From.Move(i*signr, i*signc)] != PieceEmpty {
 				return false
 			}
 		}
@@ -261,12 +261,12 @@ func (oldp Position) validateMove(m Move) (newPos Position, ok bool) {
 		}
 		// squares crossed must be empty
 		for i := int8(1); i < abs(dr); i++ {
-			if p.B[m.From.Move(i*sign(dr), 0)] != bEmpty {
+			if p.B[m.From.Move(i*sign(dr), 0)] != PieceEmpty {
 				return false
 			}
 		}
 		for i := int8(1); i < abs(dc); i++ {
-			if p.B[m.From.Move(0, i*sign(dc))] != bEmpty {
+			if p.B[m.From.Move(0, i*sign(dc))] != PieceEmpty {
 				return false
 			}
 		}
@@ -366,7 +366,7 @@ func (oldp Position) validateMove(m Move) (newPos Position, ok bool) {
 		switch {
 		case dc == 0 && dr == dir: // 1sq up
 			// destination must be empty (no captures allowed)
-			if p.B[m.To] != bEmpty {
+			if p.B[m.To] != PieceEmpty {
 				return
 			}
 		case dc == 0 && dr == dir*2: // 2sq up (only from starting row)
@@ -376,18 +376,18 @@ func (oldp Position) validateMove(m Move) (newPos Position, ok bool) {
 			}
 			// check starting row, and that two squares are empty
 			if (m.From>>3) != wantRow ||
-				p.B[m.From.Move(int8(dir), 0)] != bEmpty ||
-				p.B[m.To] != bEmpty {
+				p.B[m.From.Move(int8(dir), 0)] != PieceEmpty ||
+				p.B[m.To] != PieceEmpty {
 				return
 			}
 			_, col := m.To.Split()
 			newFlags |= EnPassant | PositionFlags(col)
 		case abs(dc) == 1 && dr == dir: // capture on diag
 			// must be a capture
-			if p.B[m.To] == bEmpty {
+			if p.B[m.To] == PieceEmpty {
 				if sq := p.checkEnPassant(color, m.To); sq != SquareInvalid {
 					// remove other pawn
-					p.B[sq] = bEmpty
+					p.B[sq] = PieceEmpty
 					break
 				}
 				return
@@ -405,7 +405,7 @@ func (oldp Position) validateMove(m Move) (newPos Position, ok bool) {
 			case 0:
 				// m.To is a king? then this is a pseudo-move check.
 				// assume queen in that case.
-				if Piece(p.B[m.To]).StripColor() != PieceKing {
+				if p.B[m.To].StripColor() != PieceKing {
 					// no promotion given, invalid
 					return
 				}
@@ -415,7 +415,7 @@ func (oldp Position) validateMove(m Move) (newPos Position, ok bool) {
 				return
 			}
 			promoted = true
-			p.B[m.From] = byte(m.Promotion | color.Piece())
+			p.B[m.From] = m.Promotion | color.Piece()
 		}
 	}
 
@@ -424,15 +424,15 @@ func (oldp Position) validateMove(m Move) (newPos Position, ok bool) {
 		return
 	}
 
-	if Piece(p.B[m.To]).StripColor() == PieceKing {
+	if p.B[m.To].StripColor() == PieceKing {
 		// King captures don't check for our own king in check;
 		// these are only "theoretical" moves.
 		return Position{}, true
 	}
 
 	// perform board mutation
-	capture := p.B[m.To] != bEmpty
-	p.B[m.From], p.B[m.To] = bEmpty, p.B[m.From]
+	capture := p.B[m.To] != PieceEmpty
+	p.B[m.From], p.B[m.To] = PieceEmpty, p.B[m.From]
 	p.Flags = newFlags
 	p.Moves = append([]Move{}, p.Moves...)
 	p.Moves = append(p.Moves, m)
@@ -496,7 +496,7 @@ func (b Board) InCheck(color Color) bool {
 	}
 
 	for sq, piece := range b {
-		if piece == bEmpty || Piece(piece).Color() == color {
+		if piece == PieceEmpty || piece.Color() == color {
 			continue
 		}
 		_, ok := pos.validateMove(Move{
@@ -517,9 +517,7 @@ func (b Board) InCheck(color Color) bool {
 // Board is a representation of a chess board.
 // Details on how to transform a chess algebraic position into an index
 // can be found at [Square].
-//
-// Each byte of the Board is a [Piece].
-type Board [64]byte
+type Board [64]Piece
 
 // NewBoard returns a Board normally set up at the initial position for standard
 // chess.
@@ -548,9 +546,8 @@ func NewBoard() Board {
 }
 
 func (b Board) findPiece(pWant Piece) Square {
-	want := byte(pWant)
 	for sq, p := range b {
-		if p == want {
+		if p == pWant {
 			return Square(sq)
 		}
 	}
@@ -562,9 +559,9 @@ func (p Position) checkCastlingSetup(typ byte) bool {
 	c := p.Color()
 	b := p.B
 	var fg Square
-	var pfg byte
+	var pfg Piece
 	if c == Black {
-		fg, pfg = 7<<3, bBlack
+		fg, pfg = 7<<3, PieceBlack
 	}
 
 	// cross are the squares that the king starts from,
@@ -573,19 +570,19 @@ func (p Position) checkCastlingSetup(typ byte) bool {
 	var cross [3]Square
 
 	if typ == 'K' {
-		if !(b[fg|4] == pfg|bKing &&
-			b[fg|5] == bEmpty &&
-			b[fg|6] == bEmpty &&
-			b[fg|7] == pfg|bRook) {
+		if !(b[fg|4] == pfg|PieceKing &&
+			b[fg|5] == PieceEmpty &&
+			b[fg|6] == PieceEmpty &&
+			b[fg|7] == pfg|PieceRook) {
 			return false
 		}
 		cross = [3]Square{fg | 4, fg | 5, fg | 6}
 	} else {
-		if !(b[fg|4] == pfg|bKing &&
-			b[fg|3] == bEmpty &&
-			b[fg|2] == bEmpty &&
-			b[fg|1] == bEmpty &&
-			b[fg|0] == pfg|bRook) {
+		if !(b[fg|4] == pfg|PieceKing &&
+			b[fg|3] == PieceEmpty &&
+			b[fg|2] == PieceEmpty &&
+			b[fg|1] == PieceEmpty &&
+			b[fg|0] == pfg|PieceRook) {
 			return false
 		}
 		cross = [3]Square{fg | 4, fg | 3, fg | 2}
@@ -593,11 +590,11 @@ func (p Position) checkCastlingSetup(typ byte) bool {
 
 	testb := p.B
 	for _, sq := range cross {
-		testb[sq] = pfg | bKing
+		testb[sq] = pfg | PieceKing
 		if testb.InCheck(c) {
 			return false
 		}
-		testb[sq] = bEmpty
+		testb[sq] = PieceEmpty
 	}
 
 	return true
@@ -605,15 +602,15 @@ func (p Position) checkCastlingSetup(typ byte) bool {
 
 func (b Board) castleRookMove(c Color, typ byte) Board {
 	var fg Square
-	var pfg byte
+	var pfg Piece
 	if c == Black {
-		fg, pfg = 7<<3, bBlack
+		fg, pfg = 7<<3, PieceBlack
 	}
 
 	if typ == 'K' {
-		b[fg|7], b[fg|5] = bEmpty, bRook|pfg
+		b[fg|7], b[fg|5] = PieceEmpty, PieceRook|pfg
 	} else {
-		b[fg|0], b[fg|3] = bEmpty, bRook|pfg
+		b[fg|0], b[fg|3] = PieceEmpty, PieceRook|pfg
 	}
 	return b
 }
@@ -684,7 +681,7 @@ func (bd Board) InsufficientMaterial() bool {
 	)
 	var w, b byte
 	for _, p := range bd {
-		strip := Piece(p).StripColor()
+		strip := p.StripColor()
 		switch strip {
 		case PieceQueen, PiecePawn, PieceRook:
 			return false
@@ -693,7 +690,7 @@ func (bd Board) InsufficientMaterial() bool {
 		}
 		// strip is one of PieceBishop PieceKnight
 		t := &w
-		if Piece(p).Color() == Black {
+		if p.Color() == Black {
 			t = &b
 		}
 		if strip == PieceBishop {
@@ -736,8 +733,7 @@ func (bd Board) InsufficientMaterial() bool {
 // If cb returns an error, it is returned without processing further moves.
 func (p Position) GenMoves(cb func(Position, Move) error) error {
 	color := p.Color()
-	for sq, pieceRaw := range p.B {
-		piece := Piece(pieceRaw)
+	for sq, piece := range p.B {
 		if piece == PieceEmpty || piece.Color() != color {
 			continue
 		}
@@ -765,7 +761,7 @@ func (p Position) GenMoves(cb func(Position, Move) error) error {
 				To:   from.Apply(delta),
 			}
 			if m.To == SquareInvalid ||
-				(p.B[m.To] != bEmpty && Piece(p.B[m.To]).Color() == color) {
+				(p.B[m.To] != PieceEmpty && p.B[m.To].Color() == color) {
 				return deltaGenStopLinear
 			}
 
@@ -789,7 +785,7 @@ func (p Position) GenMoves(cb func(Position, Move) error) error {
 			}
 
 			for _, promPiece := range [...]Piece{PieceRook, PieceKnight, PieceBishop} {
-				newp.B[m.To] = byte(promPiece | color.Piece())
+				newp.B[m.To] = promPiece | color.Piece()
 				m.Promotion = promPiece
 				if err = cb(newp, m); err != nil {
 					return deltaGenStop
@@ -978,39 +974,39 @@ type Piece byte
 // White pieces are uppercase, and black pieces are lowercase.
 // If a piece is invalid, PieceInvalid is returned.
 func PieceFromChar(b byte) Piece {
-	return Piece(p[b])
+	return p[b]
 }
 
 // piece character to internal piece
-var p = [256]byte{
-	'P': bPawn,
-	'R': bRook,
-	'N': bKnight,
-	'B': bBishop,
-	'Q': bQueen,
-	'K': bKing,
+var p = [256]Piece{
+	'P': PiecePawn,
+	'R': PieceRook,
+	'N': PieceKnight,
+	'B': PieceBishop,
+	'Q': PieceQueen,
+	'K': PieceKing,
 
-	'p': bBlack | bPawn,
-	'r': bBlack | bRook,
-	'n': bBlack | bKnight,
-	'b': bBlack | bBishop,
-	'q': bBlack | bQueen,
-	'k': bBlack | bKing,
+	'p': PieceBlack | PiecePawn,
+	'r': PieceBlack | PieceRook,
+	'n': PieceBlack | PieceKnight,
+	'b': PieceBlack | PieceBishop,
+	'q': PieceBlack | PieceQueen,
+	'k': PieceBlack | PieceKing,
 }
 
-var pstring = [bBlack | bKing + 1]byte{
-	bPawn:            'P',
-	bRook:            'R',
-	bKnight:          'N',
-	bBishop:          'B',
-	bQueen:           'Q',
-	bKing:            'K',
-	bBlack | bPawn:   'p',
-	bBlack | bRook:   'r',
-	bBlack | bKnight: 'n',
-	bBlack | bBishop: 'b',
-	bBlack | bQueen:  'q',
-	bBlack | bKing:   'k',
+var pstring = [PieceBlack | PieceKing + 1]byte{
+	PiecePawn:                'P',
+	PieceRook:                'R',
+	PieceKnight:              'N',
+	PieceBishop:              'B',
+	PieceQueen:               'Q',
+	PieceKing:                'K',
+	PieceBlack | PiecePawn:   'p',
+	PieceBlack | PieceRook:   'r',
+	PieceBlack | PieceKnight: 'n',
+	PieceBlack | PieceBishop: 'b',
+	PieceBlack | PieceQueen:  'q',
+	PieceBlack | PieceKing:   'k',
 }
 
 func (p Piece) String() string {
@@ -1038,18 +1034,6 @@ const (
 	PieceKing
 
 	PieceBlack Piece = 8 // bit-flag
-)
-
-// untyped values for the board and others.
-const (
-	bEmpty = iota
-	bPawn
-	bRook
-	bKnight
-	bBishop
-	bQueen
-	bKing
-	bBlack = 8 // bit-flag
 )
 
 // Color returns the color of the piece.
