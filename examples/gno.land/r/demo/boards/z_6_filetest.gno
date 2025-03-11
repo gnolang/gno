@@ -6,6 +6,7 @@ package boards_test
 import (
 	"std"
 	"strconv"
+	"testing"
 
 	"gno.land/r/demo/boards"
 	users "gno.land/r/gnoland/users/v1"
@@ -18,7 +19,7 @@ var (
 )
 
 func init() {
-	std.TestSetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
 	users.Register("gnouser123")
 
 	bid = boards.CreateBoard("test_board")
@@ -28,7 +29,7 @@ func init() {
 }
 
 func main() {
-	std.TestSetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
 	boards.CreateReply(bid, pid, pid, "Second reply of the second post\n")
 	boards.CreateReply(bid, pid, rid, "First reply of the first reply\n")
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid))))

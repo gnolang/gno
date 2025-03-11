@@ -2,6 +2,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/tests"
@@ -14,7 +15,7 @@ func main() {
 		eoa        = testutils.TestAddress("someone")
 		rTestsAddr = std.DerivePkgAddr("gno.land/r/demo/tests")
 	)
-	std.TestSetOriginCaller(eoa)
+	testing.SetOriginCaller(eoa)
 	println("tests.GetPreviousRealm().Address(): ", tests.GetPreviousRealm().Address())
 	println("tests.GetRSubtestsPreviousRealm().Address(): ", tests.GetRSubtestsPreviousRealm().Address())
 }
