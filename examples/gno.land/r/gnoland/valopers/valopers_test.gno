@@ -9,6 +9,7 @@ import (
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/ownable/exts/authorizable"
 )
 
 const (
@@ -205,7 +206,7 @@ func TestValopers_Update(t *testing.T) {
 		std.TestSetOriginCaller(test2Address)
 
 		// Update the valoper
-		uassert.PanicsWithMessage(t, ErrOriginCaller.Error(), func() {
+		uassert.PanicsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
 			Update(validAddress, validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","), true)
 		})
 	})
@@ -305,7 +306,7 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		std.TestSetOriginCaller(test2Address)
 
 		// Update the valoper
-		uassert.PanicsWithMessage(t, ErrOriginCaller.Error(), func() {
+		uassert.PanicsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
 			UpdateMoniker(validAddress, "new moniker")
 		})
 	})
@@ -395,7 +396,7 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		std.TestSetOriginCaller(test2Address)
 
 		// Update the valoper
-		uassert.PanicsWithMessage(t, ErrOriginCaller.Error(), func() {
+		uassert.PanicsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
 			UpdateDescription(validAddress, "new description")
 		})
 	})
@@ -487,7 +488,7 @@ func TestValopers_UpdateAddress(t *testing.T) {
 		std.TestSetOriginCaller(test2Address)
 
 		// Update the valoper
-		uassert.PanicsWithMessage(t, ErrOriginCaller.Error(), func() {
+		uassert.PanicsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
 			UpdateAddress(validAddress, newAddress)
 		})
 	})
@@ -594,7 +595,7 @@ func TestValopers_UpdatePubKey(t *testing.T) {
 		std.TestSetOriginCaller(test2Address)
 
 		// Update the valoper
-		uassert.PanicsWithMessage(t, ErrOriginCaller.Error(), func() {
+		uassert.PanicsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
 			UpdatePubKey(validAddress, validPubKey2)
 		})
 	})
@@ -683,7 +684,7 @@ func TestValopers_UpdateP2PAddresses(t *testing.T) {
 		std.TestSetOriginCaller(test2Address)
 
 		// Update the valoper
-		uassert.PanicsWithMessage(t, ErrOriginCaller.Error(), func() {
+		uassert.PanicsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
 			UpdateP2PAddresses(validAddress, strings.Join(validP2PAddresses, ","))
 		})
 	})
