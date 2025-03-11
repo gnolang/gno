@@ -110,7 +110,7 @@ type Stacktrace struct {
 	LastLine        int
 }
 
-func (s Stacktrace) String() string {
+func (s Stacktrace) String(m *Machine) string {
 	var builder strings.Builder
 
 	for i := 0; i < len(s.Calls); i++ {
@@ -128,13 +128,13 @@ func (s Stacktrace) String() string {
 		cx := call.Frame.Source.(*CallExpr)
 		switch {
 		case call.Frame.Func != nil && call.Frame.Func.IsNative():
-			fmt.Fprintf(&builder, "%s\n", toExprTrace(cx))
+			fmt.Fprintf(&builder, "%s\n", toExprTrace(m, cx))
 			fmt.Fprintf(&builder, "    gonative:%s.%s\n", call.Frame.Func.NativePkg, call.Frame.Func.NativeName)
 		case call.Frame.Func != nil:
-			fmt.Fprintf(&builder, "%s\n", toExprTrace(cx))
+			fmt.Fprintf(&builder, "%s\n", toExprTrace(m, cx))
 			fmt.Fprintf(&builder, "    %s/%s:%d\n", call.Frame.Func.PkgPath, call.Frame.Func.FileName, line)
 		case call.Frame.GoFunc != nil:
-			fmt.Fprintf(&builder, "%s\n", toExprTrace(cx))
+			fmt.Fprintf(&builder, "%s\n", toExprTrace(m, cx))
 			fmt.Fprintf(&builder, "    gofunction:%s\n", call.Frame.GoFunc.Value.Type())
 		default:
 			panic("StacktraceCall has a non-call Frame")
@@ -143,44 +143,44 @@ func (s Stacktrace) String() string {
 	return builder.String()
 }
 
-func toExprTrace(ex Expr) string {
+func toExprTrace(m *Machine, ex Expr) string {
 	switch ex := ex.(type) {
 	case *CallExpr:
 		s := make([]string, len(ex.Args))
 		for i, arg := range ex.Args {
-			s[i] = toExprTrace(arg)
+			s[i] = toExprTrace(m, arg)
 		}
-		return fmt.Sprintf("%s(%s)", toExprTrace(ex.Func), strings.Join(s, ","))
+		return fmt.Sprintf("%s(%s)", toExprTrace(m, ex.Func), strings.Join(s, ","))
 	case *BinaryExpr:
-		return fmt.Sprintf("%s %s %s", toExprTrace(ex.Left), ex.Op.TokenString(), toExprTrace(ex.Right))
+		return fmt.Sprintf("%s %s %s", toExprTrace(m, ex.Left), ex.Op.TokenString(), toExprTrace(m, ex.Right))
 	case *UnaryExpr:
-		return fmt.Sprintf("%s%s", ex.Op.TokenString(), toExprTrace(ex.X))
+		return fmt.Sprintf("%s%s", ex.Op.TokenString(), toExprTrace(m, ex.X))
 	case *SelectorExpr:
-		return fmt.Sprintf("%s.%s", toExprTrace(ex.X), ex.Sel)
+		return fmt.Sprintf("%s.%s", toExprTrace(m, ex.X), ex.Sel)
 	case *IndexExpr:
-		return fmt.Sprintf("%s[%s]", toExprTrace(ex.X), toExprTrace(ex.Index))
+		return fmt.Sprintf("%s[%s]", toExprTrace(m, ex.X), toExprTrace(m, ex.Index))
 	case *StarExpr:
-		return fmt.Sprintf("*%s", toExprTrace(ex.X))
+		return fmt.Sprintf("*%s", toExprTrace(m, ex.X))
 	case *RefExpr:
-		return fmt.Sprintf("&%s", toExprTrace(ex.X))
+		return fmt.Sprintf("&%s", toExprTrace(m, ex.X))
 	case *CompositeLitExpr:
 		lenEl := len(ex.Elts)
 		if ex.Type == nil {
 			return fmt.Sprintf("<elided><len=%d>", lenEl)
 		}
 
-		return fmt.Sprintf("%s<len=%d>", toExprTrace(ex.Type), lenEl)
+		return fmt.Sprintf("%s<len=%d>", toExprTrace(m, ex.Type), lenEl)
 	case *FuncLitExpr:
-		return fmt.Sprintf("%s{ ... }", toExprTrace(&ex.Type))
+		return fmt.Sprintf("%s{ ... }", toExprTrace(m, &ex.Type))
 	case *TypeAssertExpr:
-		return fmt.Sprintf("%s.(%s)", toExprTrace(ex.X), toExprTrace(ex.Type))
+		return fmt.Sprintf("%s.(%s)", toExprTrace(m, ex.X), toExprTrace(m, ex.Type))
 	case *ConstExpr:
 		return toConstExpTrace(ex)
 	case *NameExpr, *BasicLitExpr, *SliceExpr:
-		return ex.String()
+		return ex.String(m)
 	}
 
-	return ex.String()
+	return ex.String(m)
 }
 
 func toConstExpTrace(cte *ConstExpr) string {

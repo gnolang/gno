@@ -142,7 +142,7 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 			match(dir, evtstr)
 		case DirectivePreprocessed:
 			pn := m.Store.GetBlockNode(gno.PackageNodeLocation(pkgPath))
-			pre := pn.(*gno.PackageNode).FileSet.Files[0].String() + "\n"
+			pre := pn.(*gno.PackageNode).FileSet.Files[0].String(m) + "\n"
 			match(dir, pre)
 		case DirectiveStacktrace:
 			match(dir, result.GnoStacktrace)
@@ -219,7 +219,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 				rr.GnoStacktrace = m.ExceptionsStacktrace()
 			default:
 				rr.Error = fmt.Sprint(v)
-				rr.GnoStacktrace = m.Stacktrace().String()
+				rr.GnoStacktrace = m.Stacktrace().String(m)
 			}
 		}
 	}()
@@ -273,7 +273,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 
 	return runResult{
 		Output:        opts.filetestBuffer.String(),
-		GnoStacktrace: m.Stacktrace().String(),
+		GnoStacktrace: m.Stacktrace().String(m),
 	}
 }
 

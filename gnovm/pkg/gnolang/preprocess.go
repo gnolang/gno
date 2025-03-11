@@ -149,7 +149,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		defer doRecover(stack, n)
 		if debug {
-			debug.Printf("initStaticBlocks %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			debug.Printf("initStaticBlocks %s (%v) stage:%v\n", n.String(nil), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -474,7 +474,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 		defer doRecover(stack, n)
 		if debug {
-			debug.Printf("Preprocess %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			debug.Printf("Preprocess %s (%v) stage:%v\n", n.String(nil), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -1389,7 +1389,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								if !isInteger(bd.V) {
 									panic(fmt.Sprintf(
 										"cannot convert %s to integer type",
-										arg0))
+										arg0.String(nil)))
 								}
 							}
 							if isNumeric(at) {
@@ -1561,7 +1561,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						if numArgs != len(ft.Params) {
 							panic(fmt.Sprintf(
 								"wrong argument count in call to %s; want %d got %d (with embedded call expr as arg)",
-								n.Func.String(),
+								n.Func.String(nil),
 								len(ft.Params),
 								numArgs,
 							))
@@ -1570,7 +1570,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						if numArgs < len(ft.Params)-1 {
 							panic(fmt.Sprintf(
 								"not enough arguments in call to %s; want %d (besides variadic) got %d (with embedded call expr as arg)",
-								n.Func.String(),
+								n.Func.String(nil),
 								len(ft.Params)-1,
 								numArgs))
 						}
@@ -1580,7 +1580,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if len(n.Args) != len(ft.Params) {
 						panic(fmt.Sprintf(
 							"wrong argument count in call to %s; want %d got %d",
-							n.Func.String(),
+							n.Func.String(nil),
 							len(ft.Params),
 							len(n.Args),
 						))
@@ -1590,7 +1590,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if len(n.Args) < len(ft.Params)-1 {
 						panic(fmt.Sprintf(
 							"not enough arguments in call to %s; want %d (besides variadic) got %d",
-							n.Func.String(),
+							n.Func.String(nil),
 							len(ft.Params)-1,
 							len(n.Args)))
 					}
@@ -1599,7 +1599,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if len(n.Args) != len(ft.Params) {
 						panic(fmt.Sprintf(
 							"not enough arguments in call to %s; want %d (including variadic) got %d",
-							n.Func.String(),
+							n.Func.String(nil),
 							len(ft.Params),
 							len(n.Args)))
 					}
@@ -1714,7 +1714,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				t := evalStaticTypeOf(store, last, n.X)
 				if t.Kind() == ArrayKind {
 					if n.X.addressability() == addressabilityStatusUnsatisfied {
-						panic(fmt.Sprintf("cannot take address of %s", n.X.String()))
+						panic(fmt.Sprintf("cannot take address of %s", n.X.String(nil)))
 					}
 				}
 
@@ -1751,7 +1751,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					panic(
 						fmt.Sprintf(
 							"invalid operation: %s (variable of type %s) is not an interface",
-							n.X.String(),
+							n.X.String(nil),
 							t.String(),
 						),
 					)
@@ -1880,7 +1880,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					panic(fmt.Sprintf("invalid operation: cannot indirect nil"))
 				}
 				if xt.Kind() != PointerKind && xt.Kind() != TypeKind {
-					panic(fmt.Sprintf("invalid operation: cannot indirect %s (variable of type %s)", n.X.String(), xt.String()))
+					panic(fmt.Sprintf("invalid operation: cannot indirect %s (variable of type %s)", n.X.String(nil), xt.String()))
 				}
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
@@ -1986,7 +1986,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						if !ok {
 							panic(fmt.Sprintf(
 								"missing package in selector expr %s",
-								n.String()))
+								n.String(nil)))
 						}
 						pv = pv_
 					}
@@ -2482,7 +2482,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				tt := evalStaticTypeOf(store, last, n.X)
 
 				if ft, is_func := tt.(*FuncType); (is_func && !ft.IsClosure) || xIsRef || n.X.addressability() == addressabilityStatusUnsatisfied {
-					panic(fmt.Sprintf("cannot take address of %s", n.X.String()))
+					panic(fmt.Sprintf("cannot take address of %s", n.X.String(nil)))
 				}
 			}
 			// end type switch statement
@@ -2556,7 +2556,7 @@ func parseAssignFromExprList(
 		if cx, ok := v.(*CallExpr); ok {
 			tt, ok := evalStaticTypeOfRaw(store, bn, cx).(*tupleType)
 			if ok && len(tt.Elts) > 1 {
-				panic(fmt.Sprintf("multiple-value %s (value of type %s) in single-value context", cx.Func.String(), tt.Elts))
+				panic(fmt.Sprintf("multiple-value %s (value of type %s) in single-value context", cx.Func.String(nil), tt.Elts))
 			}
 		}
 	}
@@ -2672,7 +2672,7 @@ func parseMultipleAssignFromOneExpr(
 			fmt.Sprintf(
 				"assignment mismatch: %d variable(s) but %s returns %d value(s)",
 				numNames,
-				valueExpr.String(),
+				valueExpr.String(nil),
 				numValues,
 			),
 		)
@@ -2692,7 +2692,7 @@ func parseMultipleAssignFromOneExpr(
 				panic(
 					fmt.Sprintf(
 						"cannot use %v (value of type %s) as %s value in assignment",
-						valueExpr.String(),
+						valueExpr.String(nil),
 						tt.String(),
 						st.String(),
 					),
@@ -2722,7 +2722,7 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 		defer doRecover(stack, n)
 
 		if debug {
-			debug.Printf("findGotoLoopDefines %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			debug.Printf("findGotoLoopDefines %s (%v) stage:%v\n", n.String(nil), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -2880,7 +2880,7 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 		defer doRecover(stack, n)
 
 		if debug {
-			debug.Printf("findLoopUses1 %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			debug.Printf("findLoopUses1 %s (%v) stage:%v\n", n.String(nil), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -3073,7 +3073,7 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 		defer doRecover(stack, n)
 
 		if debug {
-			debug.Printf("findLoopUses2 %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			debug.Printf("findLoopUses2 %s (%v) stage:%v\n", n.String(nil), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -3236,7 +3236,7 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 	tv := m.EvalStatic(last, x)
 	m.Release()
 	if _, ok := tv.V.(TypeValue); !ok {
-		panic(fmt.Sprintf("%s is not a type", x.String()))
+		panic(fmt.Sprintf("%s is not a type", x.String(nil)))
 	}
 	t := tv.GetType()
 	x.SetAttribute(ATTR_TYPE_VALUE, t)
@@ -3253,7 +3253,7 @@ func getType(x Expr) Type {
 	} else {
 		panic(fmt.Sprintf(
 			"getType() called on expr not yet evaluated with evalStaticType(store,): %s",
-			x.String(),
+			x.String(nil),
 		))
 	}
 }
@@ -3327,7 +3327,7 @@ func getTypeOf(x Expr) Type {
 	} else {
 		panic(fmt.Sprintf(
 			"getTypeOf() called on expr not yet evaluated with evalStaticTypeOf(): %s",
-			x.String(),
+			x.String(nil),
 		))
 	}
 }
@@ -3376,7 +3376,7 @@ func getResultTypedValues(cx *CallExpr) []TypedValue {
 	} else {
 		panic(fmt.Sprintf(
 			"getResultTypedValues() called on call expr not yet evaluated: %s",
-			cx.String(),
+			cx.String(nil),
 		))
 	}
 }
@@ -4786,7 +4786,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 				if ft.TypeID() != ft2.TypeID() {
 					panic(fmt.Sprintf(
 						"Redefinition (%s) cannot change .T; was %v, new %v",
-						cd, ft, ft2))
+						cd.String(nil), ft, ft2))
 				}
 				// keep the orig type.
 			} else {
@@ -4957,7 +4957,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 					panic(fmt.Sprintf(
 						"unknown package name %s in %s",
 						pkgName,
-						tx.String(),
+						tx.String(nil),
 					))
 				}
 				// check package node for name.
@@ -5043,7 +5043,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 	default:
 		panic(fmt.Sprintf(
 			"unexpected declaration type %v",
-			d.String()))
+			d.String(nil)))
 	}
 	return ""
 }

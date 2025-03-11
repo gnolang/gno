@@ -38,7 +38,7 @@ func (m *Machine) doOpBinary1() {
 	default:
 		panic(fmt.Sprintf(
 			"unexpected binary(1) expr %s",
-			bx.String()))
+			bx.String(m)))
 	}
 }
 

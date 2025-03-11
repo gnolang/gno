@@ -670,7 +670,7 @@ func makeUverseNode() {
 					for i := 0; i < minl; i++ {
 						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
 						srcev := src.TV.GetPointerAtIndexInt(m.Store, i)
-						dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+						dstev.Assign2(m, m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
 					}
 					res0 := TypedValue{
 						T: IntType,
@@ -696,7 +696,7 @@ func makeUverseNode() {
 					for i := 0; i < minl; i++ {
 						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
 						srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
-						dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
+						dstev.Assign2(m, m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
 					}
 					res0 := TypedValue{
 						T: IntType,

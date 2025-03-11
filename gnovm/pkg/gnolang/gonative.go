@@ -385,7 +385,7 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 //
 // NOTE It doesn't even call m.DidUpdate(), so it can't be used for anything
 // involving realm persistence.
-func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
+func go2GnoValueUpdate(m *Machine, alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv reflect.Value) {
 	// Special case if nil:
 	if tv.IsUndefined() {
 		return // do nothing
@@ -481,7 +481,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 				if etv.V == nil {
 					etv.V = defaultValue(alloc, et)
 				}
-				go2GnoValueUpdate(alloc, rlm, lvl+1, etv, erv)
+				go2GnoValueUpdate(m, alloc, rlm, lvl+1, etv, erv)
 			}
 		} else {
 			for i := 0; i < rvl; i++ {
@@ -521,7 +521,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 				if etv.V == nil {
 					etv.V = defaultValue(alloc, et)
 				}
-				go2GnoValueUpdate(alloc, rlm, lvl+1, etv, erv)
+				go2GnoValueUpdate(m, alloc, rlm, lvl+1, etv, erv)
 			}
 		} else {
 			for i := 0; i < rvl; i++ {
@@ -536,7 +536,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 		pv := tv.V.(PointerValue)
 		etv := pv.TV
 		erv := rv.Elem()
-		go2GnoValueUpdate(alloc, rlm, lvl+1, etv, erv)
+		go2GnoValueUpdate(m, alloc, rlm, lvl+1, etv, erv)
 	case StructKind:
 		st := baseOf(tv.T).(*StructType)
 		sv := tv.V.(*StructValue)
@@ -551,7 +551,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 				ftv.V = defaultValue(alloc, ft)
 			}
 			frv := rv.Field(i)
-			go2GnoValueUpdate(alloc, rlm, lvl+1, ftv, frv)
+			go2GnoValueUpdate(m, alloc, rlm, lvl+1, ftv, frv)
 		}
 	case PackageKind:
 		panic("not yet implemented")
@@ -597,7 +597,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 				// XXX remove key from mv
 				panic("not yet implemented")
 			} else {
-				go2GnoValueUpdate(alloc, rlm, lvl+1, vtv, vrv)
+				go2GnoValueUpdate(m, alloc, rlm, lvl+1, vtv, vrv)
 			}
 			// Delete from rv2
 			rv2.SetMapIndex(krv, reflect.Value{})
@@ -616,7 +616,7 @@ func go2GnoValueUpdate(alloc *Allocator, rlm *Realm, lvl int, tv *TypedValue, rv
 					panic("should not happen")
 				}
 			}
-			ptr.Assign2(alloc, nil, rlm, vtv, false) // document false
+			ptr.Assign2(m, alloc, nil, rlm, vtv, false) // document false
 		}
 	case TypeKind:
 		panic("not yet implemented")
@@ -1400,7 +1400,7 @@ func (m *Machine) doOpCallGoNative() {
 		ptv := &ptvs[i]
 		prv := prvs[i]
 		if !ptv.IsUndefined() {
-			go2GnoValueUpdate(m.Alloc, m.Realm, 0, ptv, prv)
+			go2GnoValueUpdate(m, m.Alloc, m.Realm, 0, ptv, prv)
 		}
 	}
 	// cleanup

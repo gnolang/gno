@@ -60,7 +60,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 				if !rv.Type().ConvertibleTo(nt.Type) {
 					panic(fmt.Sprintf(
 						"cannot convert %s to %s",
-						tv.String(), nt.String()))
+						tv.String(nil), nt.String()))
 				}
 			}
 			*tv = TypedValue{
@@ -1286,7 +1286,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 			} else {
 				panic(fmt.Sprintf(
 					"ConvertUntypedTo expects more specific target for %v but got %s",
-					tv.String(),
+					tv.String(nil),
 					t.String()))
 			}
 		}
