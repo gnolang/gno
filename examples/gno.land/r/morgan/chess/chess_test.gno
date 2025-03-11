@@ -116,7 +116,7 @@ var commandTests = [...]string{
 		resign white
 		newgame
 		# contains "white":"g1black" "black":"g1white"
-		#id equal 000000002
+		#id equal 0000002
 	`,
 	// Otherwise, invert from p1's history.
 	`	name ColoursInvert3p
@@ -126,7 +126,7 @@ var commandTests = [...]string{
 		newgame p1 p3 # contains "white":"g1p3" "black":"g1p1"
 	`,
 	`	name ScholarsMate
-		newgame #id equal 000000001
+		newgame #id equal 0000001
 		move white e2e4
 		move black e7e5
 		move white f1c4

@@ -4,10 +4,10 @@ package chess
 import (
 	"errors"
 	"std"
-	"strconv"
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/seqid"
 	"gno.land/p/morgan/chess"
 )
 
@@ -15,7 +15,7 @@ import (
 var (
 	// (not "games" because that's too useful a variable name)
 	gameStore     avl.Tree // string (game ID) -> *Game
-	gameIDCounter uint64
+	gameIDCounter seqid.ID
 
 	// Value must be sorted by game ID, descending
 	user2Games avl.Tree // std.Address -> []*Game
@@ -171,10 +171,8 @@ func newGame(caller, opponent std.Address, seconds, increment int) *Game {
 
 	isBlack := determineColor(games, caller, opponent)
 
-	// Set up Game struct. Save in gameStore and user2games.
-	gameIDCounter++
 	// id is zero-padded to work well with avl's alphabetic order.
-	id := zeroPad9(strconv.FormatUint(gameIDCounter, 10))
+	id := gameIDCounter.Next().String()
 	g := &Game{
 		ID:        id,
 		White:     caller,
@@ -194,17 +192,6 @@ func newGame(caller, opponent std.Address, seconds, increment int) *Game {
 	addToUser2Games(opponent, g)
 
 	return g
-}
-
-const zeroes = "000000000"
-
-// zeroPad9 pads s to the left with zeroes until it's at least 9 bytes long.
-func zeroPad9(s string) string {
-	n := 9 - len(s)
-	if n < 0 {
-		return s
-	}
-	return zeroes[:n] + s
 }
 
 func addToUser2Games(addr std.Address, game *Game) {
