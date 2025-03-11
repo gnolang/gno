@@ -24,7 +24,7 @@ var (
 	ErrInvalidAddress      = errors.New("invalid address")
 	ErrOriginCaller        = errors.New("origin call is not the same")
 	ErrInvalidMoniker      = errors.New("moniker is not valid")
-	ErrInvalidDescription  = errors.New("description cannot be empty")
+	ErrInvalidDescription  = errors.New("description is not valid")
 	ErrInvalidPubKey       = errors.New("invalid public key")
 	ErrInvalidP2PAddress   = errors.New("invalid P2P address")
 	ErrP2PAddressesMissing = errors.New("P2P addresses cannot be empty")
@@ -35,6 +35,11 @@ var (
 	instructions string                     // markdown instructions for valoper's registration
 	minFee       int64     = 20 * 1_000_000 // minimum gnot must be paid to register.
 	minCoin                = std.NewCoin("ugnot", minFee)
+)
+
+const (
+  MonikerMaxLength     = 32
+  DescriptionMaxLength = 1024
 )
 
 // Valoper represents a validator operator profile
@@ -418,12 +423,13 @@ func validateMoniker(moniker string) error {
 		return ErrInvalidMoniker
 	}
 
-	if len(moniker) > 32 {
+	if len(moniker) > MonikerMaxLength {
 		return ErrInvalidMoniker
 	}
 
 	// 32 characters, including spaces, hyphens or underscores in the middle
-	regex := regexp.MustCompile(`^[a-zA-Z0-9][\w -]{0,30}[a-zA-Z0-9]$`)
+  monikerMaxLengthMiddle := ufmt.Sprintf("%d", MonikerMaxLength - 2)
+	regex := regexp.MustCompile(`^[a-zA-Z0-9][\w -]{0,` + monikerMaxLengthMiddle + `}[a-zA-Z0-9]$`)
 	if !regex.MatchString(moniker) {
 		return ErrInvalidMoniker
 	}
@@ -434,6 +440,10 @@ func validateMoniker(moniker string) error {
 // validateDescription checks if the description is valid
 func validateDescription(description string) error {
 	if description == "" {
+		return ErrInvalidDescription
+	}
+
+	if len(description) > DescriptionMaxLength {
 		return ErrInvalidDescription
 	}
 

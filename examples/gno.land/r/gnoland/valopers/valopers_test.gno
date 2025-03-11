@@ -438,6 +438,26 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		}
 	})
 
+	t.Run("too long moniker", func(t *testing.T) {
+		t.Parallel()
+
+		// Clear the set for the test
+		valopers = avl.NewTree()
+
+		// Send coins
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
+
+		// Add the valoper
+		uassert.NotPanics(t, func() {
+			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
+		})
+
+		// Update the valoper
+		uassert.PanicsWithMessage(t, ErrInvalidMoniker.Error(), func() {
+			UpdateMoniker(validAddress, strings.Repeat("a", MonikerMaxLength+1))
+		})
+	})
+
 	t.Run("successful update", func(t *testing.T) {
 		t.Parallel()
 
@@ -525,6 +545,26 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		// Update the valoper
 		uassert.PanicsWithMessage(t, ErrInvalidDescription.Error(), func() {
 			UpdateDescription(validAddress, invalidDescription)
+		})
+	})
+
+	t.Run("too long description", func(t *testing.T) {
+		t.Parallel()
+
+		// Clear the set for the test
+		valopers = avl.NewTree()
+
+		// Send coins
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
+
+		// Add the valoper
+		uassert.NotPanics(t, func() {
+			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
+		})
+
+		// Update the valoper
+		uassert.PanicsWithMessage(t, ErrInvalidDescription.Error(), func() {
+			UpdateDescription(validAddress, strings.Repeat("a", DescriptionMaxLength+1))
 		})
 	})
 
