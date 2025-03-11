@@ -964,23 +964,16 @@ const (
 	OpFuncLit      Op = 0x51 // func(T){Body}
 	OpConvert      Op = 0x52 // Y(X)
 
-	/* Native operators */
-	OpArrayLitGoNative  Op = 0x60
-	OpSliceLitGoNative  Op = 0x61
-	OpStructLitGoNative Op = 0x62
-	OpCallGoNative      Op = 0x63
-
 	/* Type operators */
-	OpFieldType       Op = 0x70 // Name: X `tag`
-	OpArrayType       Op = 0x71 // [X]Y{}
-	OpSliceType       Op = 0x72 // []X{}
-	OpPointerType     Op = 0x73 // *X
-	OpInterfaceType   Op = 0x74 // interface{...}
-	OpChanType        Op = 0x75 // [<-]chan[<-]X
-	OpFuncType        Op = 0x76 // func(params...)results...
-	OpMapType         Op = 0x77 // map[X]Y
-	OpStructType      Op = 0x78 // struct{...}
-	OpMaybeNativeType Op = 0x79 // maybenative{X}
+	OpFieldType     Op = 0x70 // Name: X `tag`
+	OpArrayType     Op = 0x71 // [X]Y{}
+	OpSliceType     Op = 0x72 // []X{}
+	OpPointerType   Op = 0x73 // *X
+	OpInterfaceType Op = 0x74 // interface{...}
+	OpChanType      Op = 0x75 // [<-]chan[<-]X
+	OpFuncType      Op = 0x76 // func(params...)results...
+	OpMapType       Op = 0x77 // map[X]Y
+	OpStructType    Op = 0x78 // struct{...}
 
 	/* Statement operators */
 	OpAssign      Op = 0x80 // Lhs = Rhs
@@ -1105,23 +1098,16 @@ const (
 	OpCPUFuncLit      = 61
 	OpCPUConvert      = 16
 
-	/* Native operators */
-	OpCPUArrayLitGoNative  = 137
-	OpCPUSliceLitGoNative  = 183
-	OpCPUStructLitGoNative = 179
-	OpCPUCallGoNative      = 256
-
 	/* Type operators */
-	OpCPUFieldType       = 59
-	OpCPUArrayType       = 57
-	OpCPUSliceType       = 55
-	OpCPUPointerType     = 1 // Not yet implemented
-	OpCPUInterfaceType   = 75
-	OpCPUChanType        = 57
-	OpCPUFuncType        = 81
-	OpCPUMapType         = 59
-	OpCPUStructType      = 174
-	OpCPUMaybeNativeType = 67
+	OpCPUFieldType     = 59
+	OpCPUArrayType     = 57
+	OpCPUSliceType     = 55
+	OpCPUPointerType   = 1 // Not yet implemented
+	OpCPUInterfaceType = 75
+	OpCPUChanType      = 57
+	OpCPUFuncType      = 81
+	OpCPUMapType       = 59
+	OpCPUStructType    = 174
 
 	/* Statement operators */
 	OpCPUAssign      = 79
@@ -1400,19 +1386,6 @@ func (m *Machine) Run() {
 		case OpConvert:
 			m.incrCPU(OpCPUConvert)
 			m.doOpConvert()
-		/* GoNative Operators */
-		case OpArrayLitGoNative:
-			m.incrCPU(OpCPUArrayLitGoNative)
-			m.doOpArrayLitGoNative()
-		case OpSliceLitGoNative:
-			m.incrCPU(OpCPUSliceLitGoNative)
-			m.doOpSliceLitGoNative()
-		case OpStructLitGoNative:
-			m.incrCPU(OpCPUStructLitGoNative)
-			m.doOpStructLitGoNative()
-		case OpCallGoNative:
-			m.incrCPU(OpCPUCallGoNative)
-			m.doOpCallGoNative()
 		/* Type operators */
 		case OpFieldType:
 			m.incrCPU(OpCPUFieldType)
@@ -1438,9 +1411,6 @@ func (m *Machine) Run() {
 		case OpInterfaceType:
 			m.incrCPU(OpCPUInterfaceType)
 			m.doOpInterfaceType()
-		case OpMaybeNativeType:
-			m.incrCPU(OpCPUMaybeNativeType)
-			m.doOpMaybeNativeType()
 		/* Statement operators */
 		case OpAssign:
 			m.incrCPU(OpCPUAssign)
@@ -1785,7 +1755,6 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 		NumStmts:    len(m.Stmts),
 		NumBlocks:   len(m.Blocks),
 		Func:        fv,
-		GoFunc:      nil,
 		Receiver:    recv,
 		NumArgs:     cx.NumArgs,
 		IsVarg:      cx.Varg,
@@ -1826,30 +1795,6 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	if rlm != nil && m.Realm != rlm {
 		m.Realm = rlm // enter new realm
 	}
-}
-
-func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *NativeValue) {
-	fr := &Frame{
-		Source:      cx,
-		NumOps:      m.NumOps,
-		NumValues:   m.NumValues - cx.NumArgs - 1,
-		NumExprs:    len(m.Exprs),
-		NumStmts:    len(m.Stmts),
-		NumBlocks:   len(m.Blocks),
-		Func:        nil,
-		GoFunc:      fv,
-		Receiver:    TypedValue{},
-		NumArgs:     cx.NumArgs,
-		IsVarg:      cx.Varg,
-		Defers:      nil,
-		LastPackage: m.Package,
-		LastRealm:   m.Realm,
-	}
-	if debug {
-		m.Printf("+F %#v\n", fr)
-	}
-	m.Frames = append(m.Frames, fr)
-	// keep m.Package the same.
 }
 
 func (m *Machine) PopFrame() Frame {
