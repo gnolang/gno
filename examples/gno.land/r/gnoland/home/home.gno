@@ -94,7 +94,7 @@ Stay tuned for the first phase of gno.land's launch, the beta mainnet release, a
 
 TODO: Include the gno.land roadmap dynamic infographic
 
-**A moment in time (May 20th, 2020)*: Cosmos snapshot 
+**A moment in time (May 20th, 2022)*: Cosmos snapshot 
 **Milestone complete (July 2024)**: A multi-node, permanent and stable testnet with 1st implementation of the GovDAO
 **Milestone complete (November 2024)**: Extended validator set, testnet improvements and GovDAO v2
 **Milestone 'Beta Mainnet Release' (March 2025)**: GovDAO v3, r/Boards, Token distribution, Security audit complete
