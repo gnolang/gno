@@ -40,10 +40,15 @@ func ProposeControllerAdditionAndRemoval(toAdd, toRemove std.Address) dao.Execut
 	cb := func() error {
 		err := addToWhitelist(toAdd)
 		if err != nil {
-			return err
+			panic(err)
 		}
 
-		return deleteFromwhitelist(toRemove)
+		err = deleteFromwhitelist(toRemove)
+		if err != nil {
+			panic(err)
+		}
+
+		return nil
 	}
 
 	return bridge.GovDAO().NewGovDAOExecutor(cb)
