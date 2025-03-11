@@ -4451,6 +4451,7 @@ func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
 
 func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bool) {
 	pkg := packageOf(last)
+	stackLen := len(*stack)
 	// pre-register d.GetName() to detect circular definition.
 	for _, dn := range d.GetDeclNames() {
 		if isUverseName(dn) {
@@ -4458,6 +4459,11 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 				"builtin identifiers cannot be shadowed: %s", dn))
 		}
 		*stack = append(*stack, dn)
+	}
+	if stackLen != len(*stack) {
+		defer func() {
+			*stack = (*stack)[:stackLen]
+		}()
 	}
 
 	// check type decl cycle
@@ -4471,10 +4477,8 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 		un := tryPredefine(store, pkg, last, d)
 		if un != "" {
 			// check circularity.
-			for _, n := range *stack {
-				if n == un {
-					panic(fmt.Sprintf("constant definition loop with %s", un))
-				}
+			if slices.Contains(*stack, un) {
+				panic(fmt.Sprintf("constant definition loop with %s", un))
 			}
 			// look up dependency declaration from fileset.
 			file, decl := pkg.FileSet.GetDeclFor(un)
