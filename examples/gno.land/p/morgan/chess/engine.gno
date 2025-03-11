@@ -466,7 +466,11 @@ func (oldp Position) validateMove(m Move) (newPos Position, ok bool) {
 }
 
 func toZobristBoard(src Board) zobrist.Board {
-	return zobrist.Board([64]byte(src))
+	var zb zobrist.Board
+	for pos, piece := range src {
+		zb[pos] = zobrist.Piece(piece)
+	}
+	return zb
 }
 
 // used by InCheck to simulate a move by black player.

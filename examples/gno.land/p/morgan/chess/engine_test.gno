@@ -554,7 +554,7 @@ func fenBoard(boardStr string) (Board, bool) {
 				continue
 			}
 			piece := p[byte(ch)]
-			if piece == bEmpty || file >= 8 {
+			if piece == PieceEmpty || file >= 8 {
 				return b, false
 			}
 			b[rank|file] = piece
