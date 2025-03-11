@@ -8,7 +8,7 @@ import (
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/ufmt"
 
-	"gno.land/r/demo/users"
+	"gno.land/r/sys/users"
 )
 
 // RenderHome renders the main game state
@@ -53,7 +53,7 @@ func RenderHome() string {
 		} else {
 			builder.WriteString("🟢 **Game Status:** Active\n\n")
 			builder.WriteString(ufmt.Sprintf("🔄 **Round:** %d\n\n", gameState.CurrentRound))
-			builder.WriteString(ufmt.Sprintf("⏱️ **Time Remaining:** %d blocks\n\n", gameState.EndBlock-std.GetHeight()))
+			builder.WriteString(ufmt.Sprintf("⏱️ **Time Remaining:** %d blocks\n\n", gameState.EndBlock-std.ChainHeight()))
 		}
 		builder.WriteString(ufmt.Sprintf("💰 **Jackpot:** %d ugnot\n\n", gameState.Jackpot))
 		builder.WriteString(ufmt.Sprintf("🔑 **Key Price:** %d ugnot\n\n", gameState.KeyPrice))
@@ -123,8 +123,8 @@ func RenderPlayer(addr std.Address, keys int64, dividends int64) string {
 
 // Helper to get display name - just returns namespace if exists, otherwise address
 func getDisplayName(addr std.Address) string {
-	if user := users.GetUserByAddress(addr); user != nil {
-		return user.Name
+	if user := users.ResolveAddress(addr); user != nil {
+		return user.Name()
 	}
 	return addr.String()
 }

@@ -8,24 +8,24 @@ import (
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/groups"
-	"gno.land/r/demo/users"
+	users "gno.land/r/gnoland/users/v1"
 )
 
 var gid groups.GroupID
 
 func main() {
-	users.Register("", "gnouser", "my profile")
+	users.Register("gnouser123")
 	gid = groups.CreateGroup("test_group")
 	println(gid)
 
 	// delete member via anon user
 	test2 := testutils.TestAddress("test2")
-	std.TestSetOrigCaller(test2)
-	std.TestSetOrigSend(std.Coins{{"ugnot", 9000000}}, nil)
+	std.TestSetOriginCaller(test2)
+	std.TestSetOriginSend(std.Coins{{"ugnot", 9000000}}, nil)
 
 	groups.DeleteMember(gid, 0)
 	println(groups.Render(""))
 }
 
 // Error:
-// unauthorized to delete member
+// r/gnoland/users: non-user call

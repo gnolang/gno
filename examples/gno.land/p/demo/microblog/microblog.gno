@@ -36,7 +36,7 @@ func (m *Microblog) GetPages() []*Page {
 		index = 0
 	)
 
-	m.Pages.Iterate("", "", func(key string, value interface{}) bool {
+	m.Pages.Iterate("", "", func(key string, value any) bool {
 		pages[index] = value.(*Page)
 		index++
 		return false
@@ -48,7 +48,7 @@ func (m *Microblog) GetPages() []*Page {
 }
 
 func (m *Microblog) NewPost(text string) error {
-	author := std.GetOrigCaller()
+	author := std.OriginCaller()
 	_, found := m.Pages.Get(author.String())
 	if !found {
 		// make a new page for the new author
@@ -103,7 +103,7 @@ func (p *Page) NewPost(text string) error {
 func (p *Page) GetPosts() []*Post {
 	posts := make([]*Post, p.Posts.Size())
 	i := 0
-	p.Posts.ReverseIterate("", "", func(key string, value interface{}) bool {
+	p.Posts.ReverseIterate("", "", func(key string, value any) bool {
 		postParsed := value.(*Post)
 		posts[i] = postParsed
 		i++

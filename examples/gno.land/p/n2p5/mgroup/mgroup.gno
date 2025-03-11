@@ -74,7 +74,7 @@ func (g *ManagedGroup) RemoveBackupOwner(addr std.Address) error {
 // If the caller is not a backup owner, an error is returned.
 // The caller is automatically added as a member of the group.
 func (g *ManagedGroup) ClaimOwnership() error {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	// already owner, skip
 	if caller == g.Owner() {
 		return nil
@@ -173,7 +173,7 @@ func (g *ManagedGroup) MembersWithOffset(offset, count int) []string {
 // sliceWithOffset is a helper function to iterate over an avl.Tree with an offset and count.
 func sliceWithOffset(t *avl.Tree, offset, count int) []string {
 	var result []string
-	t.IterateByOffset(offset, count, func(k string, _ interface{}) bool {
+	t.IterateByOffset(offset, count, func(k string, _ any) bool {
 		if k == "" {
 			return true
 		}
