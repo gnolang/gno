@@ -60,11 +60,12 @@ func newButtonLink(label, uri string) string {
 	return `[\[` + label + `\]](` + uri + ")"
 }
 
-// newUserLink returns a Markdown link for an account to the users realm.
+// newUserLink returns a Markdown link for an account to the users
+// realm or the address as string when a user is not registered.
 func newUserLink(addr std.Address) string {
 	user := users.ResolveAddress(addr)
-	if user == nil {
-		return newLink(addr.String(), "/r/sys/users:"+addr.String())
+	if user != nil {
+		return user.RenderLink("")
 	}
-	return newLink("@"+user.Name(), "/r/sys/users:"+user.Name())
+	return addr.String()
 }
