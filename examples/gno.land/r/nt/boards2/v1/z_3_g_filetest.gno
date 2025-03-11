@@ -1,11 +1,11 @@
 package main
 
-// SEND: 200000000ugnot
+// SEND: 1000000ugnot
 
 import (
 	"std"
 
-	"gno.land/r/demo/users"
+	users "gno.land/r/gnoland/users/v1"
 	boards2 "gno.land/r/nt/boards2/v1"
 )
 
@@ -28,7 +28,7 @@ func init() {
 	// Test1 is the boards owner and its address has a user already registered
 	// so a new member must register a user with the new board name.
 	std.TestSetOriginCaller(member)
-	users.Register("", newName, "")
+	users.Register(newName)
 
 	// Invite a new member that doesn't own the user that matches the new board name
 	boards2.InviteMember(bid, member2, boards2.RoleOwner)
