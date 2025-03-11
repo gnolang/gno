@@ -1,7 +1,7 @@
 package chess
 
 import (
-	"internal/os_test"
+	"os"
 	"std"
 	"testing"
 	"time"
@@ -11,10 +11,10 @@ import (
 
 func TestLobbyJoin(t *testing.T) {
 	cleanup()
-	std.TestSetOrigCaller(white)
+	std.TestSetRealm(std.NewUserRealm(white))
 	LobbyJoin(10*60, 5)
-	os_test.Sleep(time.Second * 5)
-	std.TestSetOrigCaller(black)
+	os.Sleep(time.Second * 5)
+	std.TestSetRealm(std.NewUserRealm(black))
 	LobbyJoin(10*60, 5)
 	res := LobbyGameFound()
 	if res == "null" {
@@ -38,7 +38,7 @@ func TestLobbyGameFound(t *testing.T) {
 			}
 		}
 	}
-	ids := func(ids ...string) func(t *testing.T) {
+	ids := func(ids ...std.Address) func(t *testing.T) {
 		return func(t *testing.T) {
 			if len(ids) != len(lobby[0]) {
 				t.Errorf("lobby doesn't match expected ids: lobby: %v, newIDs: %v", sublobbyToIDs(lobby[0]), ids)
@@ -152,7 +152,7 @@ func TestLobbyGameFound(t *testing.T) {
 				})
 			}
 
-			std.TestSetOrigCaller(tc.caller)
+			std.TestSetRealm(std.NewUserRealm(tc.caller))
 			game := LobbyGameFound()
 
 			if tc.check != nil {
@@ -174,7 +174,7 @@ func TestLobbyJoin_HasOpenGames(t *testing.T) {
 	addToUser2Games(white, g)
 	addToUser2Games(black, g)
 
-	std.TestSetOrigCaller(white)
+	std.TestSetRealm(std.NewUserRealm(white))
 	LobbyJoin(10*60, 5)
 	if g.State != GameStateAborted {
 		t.Errorf("state wrong: want %d got %d", GameStateAborted, g.State)

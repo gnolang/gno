@@ -10,14 +10,14 @@ import (
 
 	"gno.land/p/morgan/chess"
 	"gno.land/p/morgan/chess/glicko2"
-	"gno.land/r/demo/users"
+	"gno.land/r/sys/users"
 )
 
 // This file contains a bunch of JSON marshalers.
 // These should disappear eventually!
 // https://github.com/gnolang/gno/issues/1655
 
-func (g Game) MarshalJSON() (_ []byte, err error) {
+func (g Game) MarshalJSON() (retBytes []byte, err error) {
 	var b bytes.Buffer
 	b.WriteByte('{')
 
@@ -135,7 +135,7 @@ func (tc *TimeControl) MarshalJSON() ([]byte, error) {
 }
 
 func (p Player) MarshalJSON() ([]byte, error) {
-	u := users.GetUserByAddress(p.Address)
+	u := users.ResolveAddress(p.Address)
 
 	var buf bytes.Buffer
 	buf.WriteByte('{')

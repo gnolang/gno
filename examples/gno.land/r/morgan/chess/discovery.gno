@@ -12,7 +12,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/morgan/chess/glicko2"
-	"gno.land/r/demo/users"
+	"gno.land/r/sys/users"
 )
 
 type Category byte
@@ -420,13 +420,13 @@ func parsePlayer(s string) std.Address {
 	case s == "":
 		panic("invalid address/user")
 	case s == "caller":
-		return std.PrevRealm().Addr()
+		return std.PreviousRealm().Address()
 	case s[0] == '@':
-		u := users.GetUserByName(s[1:])
+		u, _ := users.ResolveName(s[1:])
 		if u == nil {
 			panic("user not found: " + s[1:])
 		}
-		return u.Address()
+		return u.Addr()
 	case s[0] == 'g':
 		return std.Address(s)
 	default:

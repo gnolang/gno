@@ -2,17 +2,16 @@ package chess
 
 import (
 	"fmt"
+	"os"
 	"std"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"internal/os_test"
-
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/chess"
-	"gno.land/p/demo/chess/glicko2"
+	"gno.land/p/morgan/chess"
+	"gno.land/p/morgan/chess/glicko2"
 )
 
 func cleanup() {
@@ -265,7 +264,7 @@ func newTestCommandColorID(fn func(string) string, s string, addr string) testCo
 }
 
 func (tc *testCommandColorID) Run(t *testing.T, bufs map[string]string) {
-	std.TestSetOrigCaller(tc.addr)
+	std.TestSetRealm(std.NewUserRealm(tc.addr))
 	bufs["result"] = tc.fn(bufs["id"])
 }
 
@@ -275,7 +274,7 @@ type testCommandNewGame struct {
 }
 
 func (tc *testCommandNewGame) Run(t *testing.T, bufs map[string]string) {
-	std.TestSetOrigCaller(tc.w)
+	std.TestSetRealm(std.NewUserRealm(tc.w))
 	res := xNewGame(string(tc.b), tc.seconds, tc.incr)
 	bufs["result"] = res
 
@@ -296,7 +295,7 @@ type testCommandMove struct {
 }
 
 func (tc *testCommandMove) Run(t *testing.T, bufs map[string]string) {
-	std.TestSetOrigCaller(tc.addr)
+	std.TestSetRealm(std.NewUserRealm(tc.addr))
 	bufs["result"] = MakeMove(bufs["id"], tc.from, tc.to, tc.promotion)
 }
 
@@ -333,7 +332,7 @@ type testCommandSleep struct {
 }
 
 func (tc *testCommandSleep) Run(t *testing.T, bufs map[string]string) {
-	os_test.Sleep(tc.dur)
+	os.Sleep(tc.dur)
 }
 
 type testChecker struct {

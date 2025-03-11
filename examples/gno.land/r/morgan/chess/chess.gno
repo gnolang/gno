@@ -133,7 +133,7 @@ func xNewGame(opponentRaw string, seconds, increment int) string {
 	}
 
 	opponent := parsePlayer(opponentRaw)
-	caller := std.GetOrigCaller()
+	caller := std.PreviousRealm().Address()
 	assertUserNotInLobby(caller)
 
 	return newGame(caller, opponent, seconds, increment).json()
@@ -141,7 +141,6 @@ func xNewGame(opponentRaw string, seconds, increment int) string {
 
 func getUserGames(user std.Address) []*Game {
 	val, exist := user2Games.Get(user.String())
-	var games []*Game
 	if !exist {
 		return nil
 	}
@@ -272,7 +271,7 @@ func MakeMove(gameID, from, to string, promote chess.Piece) string {
 	// determine if this is a black move
 	isBlack := len(g.Position.Moves)%2 == 1
 
-	caller := std.GetOrigCaller()
+	caller := std.PreviousRealm().Address()
 	if (isBlack && g.Black != caller) ||
 		(!isBlack && g.White != caller) {
 		// either not a player involved; or not the caller's turn.
@@ -417,7 +416,7 @@ func abort(g *Game) error {
 		return errors.New("game can no longer be aborted; if you wish to quit, resign")
 	}
 
-	caller := std.GetOrigCaller()
+	caller := std.PreviousRealm().Address()
 	if caller != g.White && caller != g.Black {
 		return errors.New("you are not involved in this game")
 	}
@@ -444,7 +443,7 @@ func resign(g *Game) error {
 	if len(g.Position.Moves) < 2 {
 		return abort(g)
 	}
-	caller := std.GetOrigCaller()
+	caller := std.PreviousRealm().Address()
 	switch caller {
 	case g.Black:
 		g.State = GameStateResigned
@@ -467,7 +466,7 @@ func DrawOffer(gameID string) string {
 	assertOriginCall()
 
 	g := getGame(gameID, true)
-	caller := std.GetOrigCaller()
+	caller := std.PreviousRealm().Address()
 
 	switch {
 	case caller != g.Black && caller != g.White:
@@ -485,7 +484,7 @@ func DrawRefuse(gameID string) string {
 	assertOriginCall()
 
 	g := getGame(gameID, true)
-	caller := std.GetOrigCaller()
+	caller := std.PreviousRealm().Address()
 
 	switch {
 	case caller != g.Black && caller != g.White:
@@ -510,7 +509,7 @@ func Draw(gameID string) string {
 
 	g := getGame(gameID, true)
 
-	caller := std.GetOrigCaller()
+	caller := std.PreviousRealm().Address()
 	if caller != g.Black && caller != g.White {
 		panic("you are not involved in this game")
 	}
@@ -552,10 +551,10 @@ func checkErr(err error) {
 	}
 }
 
-// Replacement for OriginCall using std.PrevRealm().
+// Replacement for OriginCall using std.PreviousRealm().
 // See: https://github.com/gnolang/gno/pull/1048
 func assertOriginCall() {
-	if !std.PrevRealm().IsUser() {
+	if !std.PreviousRealm().IsUser() {
 		panic("invalid non-origin call")
 	}
 }

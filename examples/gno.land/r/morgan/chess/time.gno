@@ -1,8 +1,6 @@
 package chess
 
 import (
-	"bytes"
-	"strconv"
 	"time"
 )
 
