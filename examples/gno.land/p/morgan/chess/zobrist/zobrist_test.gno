@@ -5,7 +5,7 @@ import (
 )
 
 // piece character to internal piece
-var p = [256]Piece{
+var p = [256]byte{
 	'P': PiecePawn,
 	'R': PieceRook,
 	'N': PieceKnight,
@@ -48,7 +48,7 @@ func NewBoard() Board {
 }
 
 func TestInitialPosition(t *testing.T) {
-	h := Hash(NewBoard(),false, 0, 255)
+	h := Hash(NewBoard(), false, 0, 255)
 	if h != InitialPosition {
 		t.Fatalf("InitialPosition is invalid: set to %d, should be %d", InitialPosition, h)
 	}
