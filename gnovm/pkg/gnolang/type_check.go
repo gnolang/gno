@@ -155,7 +155,7 @@ func assertComparable2(dt Type) {
 	case PrimitiveType:
 	case *ArrayType:
 		switch baseOf(cdt.Elem()).(type) {
-		case PrimitiveType, *PointerType, *InterfaceType, *NativeType, *ArrayType, *StructType, *ChanType:
+		case PrimitiveType, *PointerType, *InterfaceType, *ArrayType, *StructType, *ChanType:
 			assertComparable2(cdt.Elem())
 		default:
 			panic(fmt.Sprintf("%v is not comparable", dt))
@@ -163,7 +163,7 @@ func assertComparable2(dt Type) {
 	case *StructType:
 		for _, f := range cdt.Fields {
 			switch cft := baseOf(f.Type).(type) {
-			case PrimitiveType, *PointerType, *InterfaceType, *NativeType, *ArrayType, *StructType:
+			case PrimitiveType, *PointerType, *InterfaceType, *ArrayType, *StructType:
 				assertComparable2(cft)
 			default:
 				panic(fmt.Sprintf("%v is not comparable", dt))
@@ -172,26 +172,15 @@ func assertComparable2(dt Type) {
 	case *PointerType: // &a == &b
 	case *InterfaceType:
 	case *SliceType, *FuncType, *MapType:
-	case *NativeType:
-		if !cdt.Type.Comparable() {
-			panic(fmt.Sprintf("%v is not comparable", dt))
-		}
 	default:
 		panic(fmt.Sprintf("%v is not comparable", dt))
 	}
 }
 
 func maybeNil(t Type) bool {
-	switch cxt := baseOf(t).(type) {
+	switch baseOf(t).(type) {
 	case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType, *ChanType: //  we don't have unsafePointer
 		return true
-	case *NativeType:
-		switch nk := cxt.Type.Kind(); nk {
-		case reflect.Slice, reflect.Func, reflect.Map, reflect.Interface, reflect.Pointer:
-			return true
-		default:
-			return false
-		}
 	default:
 		return false
 	}
@@ -218,19 +207,12 @@ func assertAssignableTo(n Node, xt, dt Type, autoNative bool) {
 func assertValidConstExpr(store Store, last BlockNode, n *ValueDecl, expr Expr) {
 	if n.Type != nil {
 		nt := evalStaticType(store, last, n.Type)
-		if xnt, ok := nt.(*NativeType); ok {
-			nt = go2GnoBaseType(xnt.Type)
-		}
-
 		if _, ok := baseOf(nt).(PrimitiveType); !ok {
 			panic(fmt.Sprintf("invalid constant type %s", nt.String()))
 		}
 	}
 
 	nt := evalStaticTypeOf(store, last, expr)
-	if xnt, ok := nt.(*NativeType); ok {
-		nt = go2GnoBaseType(xnt.Type)
-	}
 
 	if nt == nil {
 		panic(fmt.Sprintf("%s (variable of type nil) is not constant", expr))
@@ -301,10 +283,6 @@ Main:
 			for _, arg := range currExpr.Args {
 				assertValidConstValue(store, last, arg)
 			}
-		case *NativeType:
-			// Todo: should add a test after the fix of https://github.com/gnolang/gno/issues/3006
-			ty := evalStaticType(store, last, currExpr.Func)
-			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), ty))
 		default:
 			panic(fmt.Sprintf(
 				"unexpected func type %v (%v)",
@@ -340,7 +318,7 @@ Main:
 
 			tt := pv.GetBlock(store).Source.GetStaticTypeOf(store, currExpr.Sel)
 			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), tt))
-		case *PointerType, *DeclaredType, *StructType, *InterfaceType, *TypeType, *NativeType:
+		case *PointerType, *DeclaredType, *StructType, *InterfaceType, *TypeType:
 			ty := evalStaticTypeOf(store, last, currExpr)
 			if _, ok := ty.(*TypeType); ok {
 				ty = evalStaticType(store, last, currExpr)
@@ -472,71 +450,8 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) error {
 					dt.String(),
 					err.Error())
 			}
-		} else if ndt, ok := baseOf(dt).(*NativeType); ok {
-			nidt := ndt.Type
-			if nidt.NumMethod() == 0 {
-				// if dt is an empty Go native interface, ditto.
-				return nil // ok
-			} else if nxt, ok := baseOf(xt).(*NativeType); ok {
-				// if xt has native base, do the naive native.
-				if nxt.Type.AssignableTo(nidt) {
-					return nil // ok
-				} else {
-					return errors.New(
-						"cannot use %s as %s",
-						nxt.String(),
-						nidt.String())
-				}
-			} else if pxt, ok := baseOf(xt).(*PointerType); ok {
-				nxt, ok := pxt.Elt.(*NativeType)
-				if !ok {
-					return errors.New(
-						"pointer to non-native type cannot satisfy non-empty native interface; %s doesn't implement %s",
-						pxt.String(),
-						nidt.String())
-				}
-				// if xt has native base, do the naive native.
-				if reflect.PtrTo(nxt.Type).AssignableTo(nidt) {
-					return nil // ok
-				} else {
-					return errors.New(
-						"cannot use %s as %s",
-						pxt.String(),
-						nidt.String())
-				}
-			} else if xdt, ok := xt.(*DeclaredType); ok {
-				if gno2GoTypeMatches(baseOf(xdt), ndt.Type) {
-					return nil
-				} // not check against native interface
-			} else {
-				return errors.New(
-					"unexpected type pair: cannot use %s as %s",
-					xt.String(),
-					dt.String())
-			}
 		} else {
 			return errors.New("should not happen")
-		}
-	}
-
-	// case2
-	// Special case if xt or dt is *PointerType to *NativeType,
-	// convert to *NativeType of pointer kind.
-	if pxt, ok := xt.(*PointerType); ok {
-		// *gonative{x} is gonative{*x}
-		//nolint:misspell
-		if enxt, ok := pxt.Elt.(*NativeType); ok {
-			xt = &NativeType{
-				Type: reflect.PtrTo(enxt.Type),
-			}
-		}
-	}
-	if pdt, ok := dt.(*PointerType); ok {
-		// *gonative{x} is gonative{*x}
-		if endt, ok := pdt.Elt.(*NativeType); ok {
-			dt = &NativeType{
-				Type: reflect.PtrTo(endt.Type),
-			}
 		}
 	}
 
@@ -715,23 +630,6 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) error {
 		if xt.TypeID() == cdt.TypeID() {
 			return nil // ok
 		}
-	case *NativeType:
-		if !autoNative {
-			if debug {
-				debug.Printf("native type, xt.TypeID: %v, cdt.TypeID: %v \n", xt.TypeID(), cdt.TypeID())
-			}
-			if xt.TypeID() == cdt.TypeID() {
-				return nil // ok
-			}
-		} else {
-			// autoNative, so check whether matches.
-			// xt: any type but a *DeclaredType; could be native.
-			// cdt: actual concrete native target type.
-			// ie, if cdt can match against xt.
-			if gno2GoTypeMatches(xt, cdt.Type) {
-				return nil // ok
-			}
-		}
 	default:
 		return errors.New(
 			"unexpected type %s",
@@ -823,28 +721,6 @@ func (x *BinaryExpr) assertShiftExprCompatible2(t Type) {
 // Overall,it efficiently filters out incompatible expressions, stopping before the next
 // checkOrConvertType() operation to optimize performance.
 func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
-	// native type will be converted to gno in latter logic,
-	// this check logic will be conduct again from trans_leave *BinaryExpr.
-	lnt, lin := lt.(*NativeType)
-	rnt, rin := rt.(*NativeType)
-	if lin && rin {
-		if lt.TypeID() != rt.TypeID() {
-			panic(fmt.Sprintf(
-				"incompatible operands in binary expression: %s %s %s",
-				lt.TypeID(), x.Op, rt.TypeID()))
-		}
-	}
-	if lin {
-		if _, ok := go2GnoBaseType(lnt.Type).(PrimitiveType); ok {
-			return
-		}
-	}
-	if rin {
-		if _, ok := go2GnoBaseType(rnt.Type).(PrimitiveType); ok {
-			return
-		}
-	}
-
 	xt, dt := lt, rt
 	if shouldSwapOnSpecificity(lt, rt) {
 		xt, dt = dt, xt
@@ -911,11 +787,6 @@ func (x *BinaryExpr) checkCompatibility(n Node, xt, dt Type, checker func(t Type
 }
 
 func (x *UnaryExpr) AssertCompatible(t Type) {
-	if nt, ok := t.(*NativeType); ok {
-		if _, ok := go2GnoBaseType(nt.Type).(PrimitiveType); ok {
-			return
-		}
-	}
 	// check compatible
 	if checker, ok := unaryChecker[x.Op]; ok {
 		if !checker(t) {
@@ -927,11 +798,6 @@ func (x *UnaryExpr) AssertCompatible(t Type) {
 }
 
 func (x *IncDecStmt) AssertCompatible(t Type) {
-	if nt, ok := t.(*NativeType); ok {
-		if _, ok := go2GnoBaseType(nt.Type).(PrimitiveType); ok {
-			return
-		}
-	}
 	// check compatible
 	if checker, ok := IncDecStmtChecker[x.Op]; ok {
 		if !checker(t) {
