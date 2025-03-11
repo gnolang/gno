@@ -59,7 +59,7 @@ const (
 )
 
 var (
-	_ Value = StringValue{s: ""}
+	_ Value = StringValue("")
 	_ Value = BigintValue{}
 	_ Value = BigdecValue{}
 	_ Value = DataByteValue{}
@@ -81,21 +81,13 @@ var (
 // ----------------------------------------
 // StringValue
 
-type StringValue struct {
-	s           string
-	lastGCCycle int64
-}
-
-func NewStringValue(s string) StringValue {
-	return StringValue{s: s}
-}
+type StringValue string
 
 // ----------------------------------------
 // BigintValue
 
 type BigintValue struct {
-	V           *big.Int
-	lastGCCycle int64
+	V *big.Int
 }
 
 func (bv BigintValue) MarshalAmino() (string, error) {
@@ -124,8 +116,7 @@ func (bv BigintValue) Copy(alloc *Allocator) BigintValue {
 // BigdecValue
 
 type BigdecValue struct {
-	V           *apd.Decimal
-	lastGCCycle int64
+	V *apd.Decimal
 }
 
 func (bv BigdecValue) MarshalAmino() (string, error) {
@@ -159,10 +150,9 @@ func (bv BigdecValue) Copy(alloc *Allocator) BigdecValue {
 // DataByteValue
 
 type DataByteValue struct {
-	Base        *ArrayValue // base array.
-	Index       int         // base.Data index.
-	ElemType    Type        // is Uint8Kind.
-	lastGCCycle int64
+	Base     *ArrayValue // base array.
+	Index    int         // base.Data index.
+	ElemType Type        // is Uint8Kind.
 }
 
 func (dbv DataByteValue) GetByte() byte {
@@ -200,11 +190,10 @@ func (dbv DataByteValue) SetByte(b byte) {
 // Since PointerValue is used internally for assignment etc,
 // it MUST stay minimal for computational efficiency.
 type PointerValue struct {
-	TV          *TypedValue // escape val if pointer to var.
-	Base        Value       // array/struct/block, or heapitem.
-	Index       int         // list/fields/values index, or -1 or -2 (see below).
-	Key         *TypedValue `json:",omitempty"` // for maps.
-	lastGCCycle int64
+	TV    *TypedValue // escape val if pointer to var.
+	Base  Value       // array/struct/block, or heapitem.
+	Index int         // list/fields/values index, or -1 or -2 (see below).
+	Key   *TypedValue `json:",omitempty"` // for maps.
 }
 
 const (
@@ -706,8 +695,7 @@ type MapValue struct {
 	ObjectInfo
 	List *MapList
 
-	vmap        map[MapKey]*MapListItem // nil if uninitialized
-	lastGCCycle int64
+	vmap map[MapKey]*MapListItem // nil if uninitialized
 }
 
 type MapKey string
@@ -847,8 +835,7 @@ func (mv *MapValue) DeleteForKey(store Store, key *TypedValue) {
 
 // The type itself as a value.
 type TypeValue struct {
-	Type        Type
-	lastGCCycle int64
+	Type Type
 }
 
 // ----------------------------------------
@@ -976,9 +963,8 @@ func (pv *PackageValue) GetPkgAddr() crypto.Address {
 // NativeValue
 
 type NativeValue struct {
-	Value       reflect.Value `json:"-"`
-	Bytes       []byte        // XXX is this used?
-	lastGCCycle int64
+	Value reflect.Value `json:"-"`
+	Bytes []byte        // XXX is this used?
 }
 
 func (nv *NativeValue) Copy(alloc *Allocator) *NativeValue {
@@ -1218,7 +1204,7 @@ func (tv *TypedValue) GetString() string {
 	if tv.V == nil {
 		return ""
 	}
-	return string(tv.V.(StringValue).s)
+	return string(tv.V.(StringValue))
 }
 
 func (tv *TypedValue) SetInt(n int) {
@@ -2139,7 +2125,7 @@ func (tv *TypedValue) GetLength() int {
 	}
 	switch cv := tv.V.(type) {
 	case StringValue:
-		return len(cv.s)
+		return len(cv)
 	case *ArrayValue:
 		return cv.GetLength()
 	case *SliceValue:
@@ -2600,11 +2586,10 @@ func (b *Block) ExpandToSize(alloc *Allocator, size uint16) {
 
 // NOTE: RefValue Object methods declared in ownership.go
 type RefValue struct {
-	ObjectID    ObjectID  `json:",omitempty"`
-	Escaped     bool      `json:",omitempty"`
-	PkgPath     string    `json:",omitempty"`
-	Hash        ValueHash `json:",omitempty"`
-	lastGCCycle int64
+	ObjectID ObjectID  `json:",omitempty"`
+	Escaped  bool      `json:",omitempty"`
+	PkgPath  string    `json:",omitempty"`
+	Hash     ValueHash `json:",omitempty"`
 }
 
 // Base for a detached singleton (e.g. new(int) or &struct{})
@@ -2707,7 +2692,7 @@ func typedRune(r rune) TypedValue {
 // NOTE: does not allocate; used for panics.
 func typedString(s string) TypedValue {
 	tv := TypedValue{T: StringType}
-	tv.V = StringValue{s: s}
+	tv.V = StringValue(s)
 	return tv
 }
 

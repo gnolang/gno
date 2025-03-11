@@ -27,7 +27,7 @@ type RealmOverride struct {
 
 func AssertOriginCall(m *gno.Machine) {
 	if !isOriginCall(m) {
-		m.Panic(typedString(gno.NewStringValue("invalid non-origin call")))
+		m.Panic(typedString("invalid non-origin call"))
 	}
 }
 
@@ -71,7 +71,7 @@ func TestSkipHeights(m *gno.Machine, count int64) {
 
 func X_callerAt(m *gno.Machine, n int) string {
 	if n <= 0 {
-		m.Panic(typedString(gno.NewStringValue("GetCallerAt requires positive arg")))
+		m.Panic(typedString("GetCallerAt requires positive arg"))
 		return ""
 	}
 	// Add 1 to n to account for the GetCallerAt (gno fn) frame.
@@ -80,7 +80,7 @@ func X_callerAt(m *gno.Machine, n int) string {
 		// NOTE: the last frame's LastPackage
 		// is set to the original non-frame
 		// package, so need this check.
-		m.Panic(typedString(gno.NewStringValue("frame not found")))
+		m.Panic(typedString("frame not found"))
 		return ""
 	}
 	if n == m.NumFrames()-1 {

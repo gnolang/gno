@@ -126,17 +126,15 @@ func (alloc *Allocator) Allocate(size int64) {
 
 	alloc.bytes += size
 	if alloc.bytes > alloc.maxBytes {
-		panic("allocation limit exceeded")
-
-		//if left, ok := alloc.m.GarbageCollect(); !ok {
-		//	panic("allocation limit exceeded")
-		//} else { // retry
-		//	//debug.Printf("%d left after GC, size: %d \n", left, size)
-		//	alloc.bytes += size
-		//	if alloc.bytes > alloc.maxBytes {
-		//		panic("allocation limit exceeded")
-		//	}
-		//}
+		if left, ok := alloc.m.GarbageCollect(); !ok {
+			panic("allocation limit exceeded")
+		} else { // retry
+			debug.Printf("%d left after GC, size: %d \n", left, size)
+			alloc.bytes += size
+			if alloc.bytes > alloc.maxBytes {
+				panic("allocation limit exceeded")
+			}
+		}
 	}
 }
 
@@ -222,7 +220,7 @@ func (alloc *Allocator) AllocateHeapItem() {
 
 func (alloc *Allocator) NewString(s string) StringValue {
 	alloc.AllocateString(int64(len(s)))
-	return StringValue{s: s}
+	return StringValue(s)
 }
 
 func (alloc *Allocator) NewListArray(n int) *ArrayValue {

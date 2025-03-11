@@ -150,7 +150,7 @@ func X_assertCallerIsRealm(m *gno.Machine) {
 
 func typedString(s string) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.StringType}
-	tv.SetString(gno.NewStringValue(s))
+	tv.SetString(gno.StringValue(s))
 	return tv
 }
 
