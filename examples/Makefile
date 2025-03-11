@@ -37,7 +37,7 @@ test:
 	go run ../gnovm/cmd/gno test -v ./...
 
 .PHONY: test.fast
-test:
+test.fast:
 	go run ../gnovm/cmd/gno test -failfast -v  ./... 
 
 .PHONY: lint
