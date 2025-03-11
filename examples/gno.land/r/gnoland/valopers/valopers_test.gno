@@ -152,6 +152,102 @@ func TestValopers_Register(t *testing.T) {
 	})
 }
 
+func TestValopers_UpdateAuthMembers(t *testing.T) {
+	t.Parallel()
+
+	t.Run("unauthorized member adds member", func(t *testing.T) {
+		t.Parallel()
+
+		// Clear the set for the test
+		valopers = avl.NewTree()
+
+		// Send coins
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
+
+    std.TestSetRealm(std.NewUserRealm(test1Address))
+    std.TestSetOriginCaller(test1Address) // TODO(bug, issue #2371): should not be needed
+
+		// Add the valoper
+		uassert.NotPanics(t, func() {
+			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
+		})
+
+    std.TestSetRealm(std.NewUserRealm(validAddress))
+    std.TestSetOriginCaller(validAddress) // TODO(bug, issue #2371): should not be needed
+
+    // try to add member without being authorized
+		uassert.PanicsWithMessage(t, authorizable.ErrNotSuperuser.Error(), func() {
+      AddToAuthList(validAddress, test2Address)
+		})
+	})
+
+	t.Run("unauthorized member deletes member", func(t *testing.T) {
+		t.Parallel()
+
+		// Clear the set for the test
+		valopers = avl.NewTree()
+
+		// Send coins
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
+
+    std.TestSetRealm(std.NewUserRealm(test1Address))
+    std.TestSetOriginCaller(test1Address) // TODO(bug, issue #2371): should not be needed
+
+		// Add the valoper
+		uassert.NotPanics(t, func() {
+			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
+		})
+
+		uassert.NotPanics(t, func() {
+      AddToAuthList(validAddress, test2Address)
+		})
+
+    std.TestSetRealm(std.NewUserRealm(validAddress))
+    std.TestSetOriginCaller(validAddress) // TODO(bug, issue #2371): should not be needed
+
+    // try to add member without being authorized
+		uassert.PanicsWithMessage(t, authorizable.ErrNotSuperuser.Error(), func() {
+      DeleteFromAuthList(validAddress, test2Address)
+		})
+	})
+
+	t.Run("authorized member adds member", func(t *testing.T) {
+		t.Parallel()
+
+		// Clear the set for the test
+		valopers = avl.NewTree()
+
+		// Send coins
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
+
+    std.TestSetRealm(std.NewUserRealm(test1Address))
+    std.TestSetOriginCaller(test1Address) // TODO(bug, issue #2371): should not be needed
+
+		// Add the valoper
+		uassert.NotPanics(t, func() {
+			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
+		})
+
+		uassert.NotPanics(t, func() {
+      AddToAuthList(validAddress, test2Address)
+		})
+
+    std.TestSetRealm(std.NewUserRealm(test2Address))
+    std.TestSetOriginCaller(test2Address) // TODO(bug, issue #2371): should not be needed
+
+		newMoniker := "new moniker"
+		// Update the valoper
+		uassert.NotPanics(t, func() {
+			UpdateMoniker(validAddress, newMoniker)
+		})
+
+		uassert.NotPanics(t, func() {
+      valoper := GetByAddr(validAddress)
+      uassert.Equal(t, newMoniker, valoper.Moniker)
+		})
+	})
+}
+
 func TestValopers_Update(t *testing.T) {
 	t.Parallel()
 
