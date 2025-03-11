@@ -166,7 +166,6 @@ type ContractAuthority struct {
 	contractAddr    std.Address
 	contractHandler PrivilegedActionHandler
 	proposer        Authority // controls who can create proposals
-	executionOnce   once.Once
 }
 
 func NewContractAuthority(path string, handler PrivilegedActionHandler) *ContractAuthority {
@@ -175,7 +174,6 @@ func NewContractAuthority(path string, handler PrivilegedActionHandler) *Contrac
 		contractAddr:    std.DerivePkgAddr(path),
 		contractHandler: handler,
 		proposer:        NewAutoAcceptAuthority(), // default: anyone can propose
-		executionOnce:   once.Once{},              // initialize execution once
 	}
 }
 
@@ -195,7 +193,6 @@ func NewRestrictedContractAuthority(path string, handler PrivilegedActionHandler
 		contractAddr:    std.DerivePkgAddr(path),
 		contractHandler: handler,
 		proposer:        proposer,
-		executionOnce:   once.Once{},
 	}
 }
 
@@ -204,13 +201,16 @@ func (a *ContractAuthority) Authorize(title string, action PrivilegedAction, arg
 		return errors.New("contract handler is not set")
 	}
 
+  // setup a once instance to ensure the action is executed only once
+  executionOnce := once.Once{}
+
 	// Wrap the action to ensure it can only be executed by the contract
 	wrappedAction := func() error {
 		caller := std.PreviousRealm().Address()
 		if caller != a.contractAddr {
 			return errors.New("action can only be executed by the contract")
 		}
-		return a.executionOnce.DoErr(func() error {
+		return executionOnce.DoErr(func() error {
 			return action()
 		})
 	}
