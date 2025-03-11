@@ -16,6 +16,11 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
+const (
+  MonikerMaxLength     = 32
+  DescriptionMaxLength = 1024
+)
+
 var (
 	ErrValoperExists       = errors.New("valoper already exists")
 	ErrValoperMissing      = errors.New("valoper does not exist")
@@ -35,11 +40,10 @@ var (
 	instructions string                     // markdown instructions for valoper's registration
 	minFee       int64     = 20 * 1_000_000 // minimum gnot must be paid to register.
 	minCoin                = std.NewCoin("ugnot", minFee)
-)
 
-const (
-  MonikerMaxLength     = 32
-  DescriptionMaxLength = 1024
+  monikerMaxLengthMiddle = ufmt.Sprintf("%d", MonikerMaxLength - 2)
+	validateMonikerRe = regexp.MustCompile(`^[a-zA-Z0-9][\w -]{0,` + monikerMaxLengthMiddle + `}[a-zA-Z0-9]$`)
+	validateListeningAddressRe = regexp.MustCompile(`^(?:\w+://)?[\w\.-]+:\d+$`)
 )
 
 // Valoper represents a validator operator profile
@@ -92,7 +96,7 @@ func Register(moniker string, description string, address std.Address, pubKey st
 		Address:      address,
 		PubKey:       pubKey,
 		Active:       true,
-		P2PAddresses: splitP2PAddresses(p2pAddresses),
+		P2PAddresses: strings.Split(p2pAddresses, ","),
 		auth:         authorizable.NewAuthorizable(),
 	}
 
@@ -127,7 +131,7 @@ func Update(address std.Address, moniker string, description string, newAddress 
 		Address:      newAddress,
 		PubKey:       pubKey,
 		Active:       active,
-		P2PAddresses: splitP2PAddresses(p2pAddresses),
+		P2PAddresses: strings.Split(p2pAddresses, ","),
 		auth:         old.Auth(),
 	}
 
@@ -196,7 +200,7 @@ func UpdateAddress(address std.Address, newAddress std.Address) {
 	v.Auth().AssertOnAuthList()
 
 	// Check that the address is valid
-	if err := validateBech32(newAddress.String()); err != nil {
+	if err := validateBech32(newAddress); err != nil {
 		panic(ErrInvalidAddress)
 	}
 
@@ -258,7 +262,7 @@ func UpdateP2PAddresses(address std.Address, p2pAddresses string) {
 	v.Auth().AssertOnAuthList()
 
 	// Split the P2P addresses
-	addresses := splitP2PAddresses(p2pAddresses)
+	addresses := strings.Split(p2pAddresses, ",")
 
 	if len(addresses) == 0 {
 		panic(ErrP2PAddressesMissing)
@@ -350,7 +354,7 @@ func (v *Valoper) Validate() error {
 
 	errs.Add(validateMoniker(v.Moniker))
 	errs.Add(validateDescription(v.Description))
-	errs.Add(validateBech32(v.Address.String()))
+	errs.Add(validateBech32(v.Address))
 	errs.Add(validatePubKey(v.PubKey))
 
 	for _, addr := range v.P2PAddresses {
@@ -413,10 +417,6 @@ func validateSentCoins() error {
 	return errors.New("payment must not be less than " + strconv.Itoa(int(minFee)))
 }
 
-func splitP2PAddresses(p2pAddresses string) []string {
-	return strings.Split(p2pAddresses, ",")
-}
-
 // validateMoniker checks if the moniker is valid
 func validateMoniker(moniker string) error {
 	if moniker == "" {
@@ -428,9 +428,7 @@ func validateMoniker(moniker string) error {
 	}
 
 	// 32 characters, including spaces, hyphens or underscores in the middle
-  monikerMaxLengthMiddle := ufmt.Sprintf("%d", MonikerMaxLength - 2)
-	regex := regexp.MustCompile(`^[a-zA-Z0-9][\w -]{0,` + monikerMaxLengthMiddle + `}[a-zA-Z0-9]$`)
-	if !regex.MatchString(moniker) {
+	if !validateMonikerRe.MatchString(moniker) {
 		return ErrInvalidMoniker
 	}
 
@@ -451,9 +449,9 @@ func validateDescription(description string) error {
 }
 
 // validateBech32 checks if the value is a valid bech32 address
-func validateBech32(address string) error {
-	if _, _, err := bech32.Decode(address); err != nil {
-		return err
+func validateBech32(address std.Address) error {
+	if !std.Address.IsValid(address) {
+		return ErrInvalidAddress
 	}
 
 	return nil
@@ -468,11 +466,6 @@ func validatePubKey(pubKey string) error {
 	return nil
 }
 
-func validateListeningAddress(addr string) bool {
-	re := regexp.MustCompile(`^(?:\w+://)?[\w\.-]+:\d+$`)
-	return re.MatchString(addr)
-}
-
 // validateP2PAddress checks if the P2P address is valid
 // address is of the form: <ID>@<HOSTNAME> or <ID>@<IP>
 func validateP2PAddress(p2pAddress string) error {
@@ -483,11 +476,11 @@ func validateP2PAddress(p2pAddress string) error {
 	}
 
 	// test part 1 which is the ID
-	if err := validateBech32(parts[0]); err != nil {
+	if err := validateBech32(std.Address(parts[0])); err != nil {
 		return ErrInvalidP2PAddress
 	}
 
-	if !validateListeningAddress(parts[1]) {
+	if !validateListeningAddressRe.MatchString(parts[1]) {
 		return ErrInvalidP2PAddress
 	}
 
