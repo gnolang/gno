@@ -108,8 +108,5 @@ func renderAddressBalance(denom string, address std.Address) string {
 ` + address.String() + `
 
 ## Balance
-` + std.NewCoin(denom, balance).String() + `
-
-[Back to Coin Info](/r/gnoland/coins:` + denom + `)
-`
+` + std.NewCoin(denom, balance).String()
 }
