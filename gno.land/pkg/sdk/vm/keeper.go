@@ -19,6 +19,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -881,4 +882,68 @@ func logTelemetry(
 		gasUsed,
 		metric.WithAttributes(attributes...),
 	)
+}
+
+type AirdropKeeper struct {
+	key   store.StoreKey
+	bankk bank.BankKeeperI
+}
+
+func NewAirdropKeeper(key store.StoreKey, bankk bank.BankKeeperI) AirdropKeeper {
+	return AirdropKeeper{
+		key:   key,
+		bankk: bankk,
+	}
+}
+
+func (k AirdropKeeper) IsEligible(ctx sdk.Context, addr crypto.Address) (bool, std.Coins) {
+	store := ctx.Store(k.key)
+	// ref: `vm:` prefix
+	key := append([]byte("airdrop:"), addr.Bytes()...)
+
+	var airdropInfo AirdropInfo
+	bz := store.Get(key)
+	if bz == nil {
+		return false, std.Coins{}
+	}
+
+	amino.MustUnmarshal(bz, &airdropInfo)
+	if airdropInfo.Claimed {
+		return false, std.Coins{}
+	}
+
+	return true, airdropInfo.Amount
+}
+
+func (k AirdropKeeper) Claim(ctx sdk.Context, addr crypto.Address) error {
+	eligible, amount := k.IsEligible(ctx, addr)
+	if !eligible {
+		return std.ErrUnauthorized("address not eligible for airdrop or already claimed")
+	}
+
+	// transfer token
+	err := k.bankk.SendCoins(ctx, auth.FeeCollectorAddress(), addr, amount)
+	if err != nil {
+		return err
+	}
+
+	// update claim state
+	store := ctx.Store(k.key)
+	key := append([]byte("airdrop:"), addr.Bytes()...)
+
+	var airdropInfo AirdropInfo
+	amino.MustUnmarshal(store.Get(key), &airdropInfo)
+	airdropInfo.Claimed = true
+
+	store.Set(key, amino.MustMarshal(airdropInfo))
+	return nil
+}
+
+// Initialize airdrop data
+func (k AirdropKeeper) InitGenesis(ctx sdk.Context, data GenesisState) {
+	store := ctx.Store(k.key)
+	for _, airdrop := range data.Airdrops {
+		key := append([]byte("airdrop:"), airdrop.Address.Bytes()...)
+		store.Set(key, amino.MustMarshal(airdrop))
+	}
 }
