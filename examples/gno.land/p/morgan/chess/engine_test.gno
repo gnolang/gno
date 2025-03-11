@@ -373,6 +373,9 @@ func TestPerft(t *testing.T) {
 	moves := make([]Move, 0, 10)
 	for n, res := range perfResults {
 		t.Run(fmt.Sprintf("n%d", n), func(t *testing.T) {
+			if testing.Short() {
+				t.Skip("skipping perft in short tests")
+			}
 			res.pos.Moves = append(moves[:0], res.pos.Moves...)
 			counts := make([]int, len(res.nodesPerDepth))
 			CountMoves(res.pos.Position, len(res.nodesPerDepth), counts)
@@ -523,7 +526,8 @@ func decodeFEN(fen string) (p Position, err error) {
 		p.Flags |= f
 	}
 
-	p.HalfMoveClock, _ = strconv.Atoi(parts[4])
+	halfMove, _ := strconv.Atoi(parts[4])
+	p.HalfMoveClock = uint16(halfMove)
 
 	// parts[5]: full move counter, probably never implementing
 
@@ -550,7 +554,7 @@ func fenBoard(boardStr string) (Board, bool) {
 				continue
 			}
 			piece := p[byte(ch)]
-			if piece == PieceEmpty || file >= 8 {
+			if piece == bEmpty || file >= 8 {
 				return b, false
 			}
 			b[rank|file] = piece

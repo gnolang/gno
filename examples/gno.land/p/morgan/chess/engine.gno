@@ -214,7 +214,7 @@ func (p Position) ValidateMove(m Move) (newP Position, valid bool) {
 // validateMove allows for m to be a "king-capture" move, which is illegal in
 // chess, but it is useful for InCheck.
 // This is commonly known in chess programming as a "pseudo-legal" move.
-func (oldp Position) validateMove(m Move) (_ Position, ok bool) {
+func (oldp Position) validateMove(m Move) (newPos Position, ok bool) {
 	p := oldp.clone()
 
 	piece := Piece(p.B[m.From])
