@@ -11,7 +11,11 @@ func Render(path string) string {
 
 	// Default render
 	if path == "" {
-		out += "Add `:{name OR address}` to the search bar to check for a name or address!"
+		out += "Add `:{name OR address}` to the search bar to check for a name or address!\n\n"
+		out += "Here are some examples:\n\n"
+		out += "- [@test1](/r/docs/users:test1)\n"
+		out += "- [g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5](/r/docs/users:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5)\n"
+
 		return out
 	}
 
