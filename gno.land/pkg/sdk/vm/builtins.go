@@ -44,15 +44,14 @@ func (bnk *SDKBanker) TotalCoin(denom string) int64 {
 	if denom == "" {
 		panic("empty denom")
 	}
-	accounts := bnk.vmk.acck.GetAllAccounts(bnk.ctx)
-	var totalAmount int64
 
-	for _, acc := range accounts {
-		if acc == nil {
-			continue
+	var totalAmount int64
+	bnk.vmk.acck.IterateAccounts(bnk.ctx, func(acc std.Account) bool {
+		if acc != nil {
+			totalAmount += acc.GetCoins().AmountOf(denom)
 		}
-		totalAmount += acc.GetCoins().AmountOf(denom)
-	}
+		return false // continue iteration
+	})
 	return totalAmount
 }
 
