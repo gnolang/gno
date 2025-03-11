@@ -552,7 +552,6 @@ func checkErr(err error) {
 }
 
 // Replacement for OriginCall using std.PreviousRealm().
-// See: https://github.com/gnolang/gno/pull/1048
 func assertOriginCall() {
 	if !std.PreviousRealm().IsUser() {
 		panic("invalid non-origin call")

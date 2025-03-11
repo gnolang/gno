@@ -3,7 +3,6 @@ package chess
 import (
 	"bytes"
 	"errors"
-	"math"
 	"std"
 	"strconv"
 	"time"
@@ -176,29 +175,9 @@ type jsonPlayerRating struct{ *glicko2.PlayerRating }
 func (p jsonPlayerRating) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	buf.WriteByte('{')
-	buf.WriteString(`"rating":` + formatFloat(p.Rating, 5) + `,`)
-	buf.WriteString(`"deviation":` + formatFloat(p.RatingDeviation, 5) + `,`)
-	buf.WriteString(`"volatility":` + formatFloat(p.RatingVolatility, 5))
+	buf.WriteString(`"rating":` + strconv.FormatFloat(p.Rating, 'f', 5, 64) + `,`)
+	buf.WriteString(`"deviation":` + strconv.FormatFloat(p.RatingDeviation, 'f', 5, 64) + `,`)
+	buf.WriteString(`"volatility":` + strconv.FormatFloat(p.RatingVolatility, 'f', 5, 64))
 	buf.WriteByte('}')
 	return buf.Bytes(), nil
-}
-
-// XXX: dumb formatFloat implementation while we don't have strconv.FormatFloat
-// https://github.com/gnolang/gno/pull/1464
-func formatFloat(f float64, decimals int) string {
-	if decimals > 10 {
-		decimals = 10
-	}
-	neg := ""
-	if f < 0 {
-		f *= -1
-		neg = "-"
-	}
-	const zeroes = "0000000000" // 10 zeroes
-	whole := math.Floor(f)
-	fractional := f - whole
-	leading := strconv.Itoa(int(whole))
-	trailing := strconv.Itoa(int(fractional * 1e10))
-	trailing = zeroes[:10-len(trailing)] + trailing
-	return neg + leading + "." + trailing
 }

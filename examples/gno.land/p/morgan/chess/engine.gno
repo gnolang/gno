@@ -81,17 +81,6 @@ func NewPosition() Position {
 	}
 }
 
-func (p Position) clone() Position {
-	// from bugs:
-	// https://github.com/gnolang/gno/issues/1096
-	// https://github.com/gnolang/gno/issues/1097
-	// ideally, since we're always using Position as a value, not a reference,
-	// we don't need this.
-
-	b, m, f, hmc, h := p.B, p.Moves, p.Flags, p.HalfMoveClock, p.Hashes
-	return Position{b, m, f, hmc, h}
-}
-
 // Color of the "next" move after p.Moves. (White for even len(p.Moves),
 // Black otherwise)
 func (p Position) Color() Color { return Color(len(p.Moves)&1 == 1) }
@@ -215,7 +204,7 @@ func (p Position) ValidateMove(m Move) (newP Position, valid bool) {
 // chess, but it is useful for InCheck.
 // This is commonly known in chess programming as a "pseudo-legal" move.
 func (oldp Position) validateMove(m Move) (newPos Position, ok bool) {
-	p := oldp.clone()
+	p := oldp
 
 	piece := p.B[m.From]
 

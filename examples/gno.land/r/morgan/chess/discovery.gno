@@ -164,19 +164,11 @@ func getPlayer(addr std.Address) *Player {
 		p.CategoryInfo[cat] = CategoryInfo{
 			PlayerRating: pr,
 		}
-		// https://github.com/gnolang/gno/pull/1170
-		prs := append([]*glicko2.PlayerRating{}, playerRatings[cat]...)
-		playerRatings[cat] = append(prs, pr)
+		playerRatings[cat] = append(playerRatings[cat], pr)
 	}
 	playerStore.Set(addr.String(), p)
-	// XXX: This assignment is not needed, but it seems to mark to the realm store
-	// that we we "need" this value and it should not be deleted,
-	// removing the "unexpected object with id" panic.
-	_xxPlayer = p
 	return p
 }
-
-var _xxPlayer *Player
 
 type lbEntry struct {
 	addr  std.Address
@@ -362,9 +354,6 @@ func parseFilters(filters string) (r listGamesFilters) {
 		if idx < 0 {
 			panic("invalid filter: " + part)
 		}
-		// TODO: this is likely to misbehave due to https://github.com/gnolang/gno/issues/1135
-		// This is unlikely to cause much of an issue here, as we can expect player/white/black/finished
-		// to only exist once, though it should be kept in mind if/when adding additional filters.
 		filt, pred := part[:idx+1], part[idx+1:]
 		switch filt {
 		case "player:":
