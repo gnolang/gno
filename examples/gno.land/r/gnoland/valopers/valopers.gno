@@ -12,8 +12,8 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/combinederr"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/ownable/exts/authorizable"
+	"gno.land/p/demo/ufmt"
 )
 
 var (
@@ -23,7 +23,7 @@ var (
 	ErrSameAddress         = errors.New("valoper updated address is the same")
 	ErrInvalidAddress      = errors.New("invalid address")
 	ErrOriginCaller        = errors.New("origin call is not the same")
-	ErrInvalidMoniker      = errors.New("moniker cannot be empty")
+	ErrInvalidMoniker      = errors.New("moniker is not valid")
 	ErrInvalidDescription  = errors.New("description cannot be empty")
 	ErrInvalidPubKey       = errors.New("invalid public key")
 	ErrInvalidP2PAddress   = errors.New("invalid P2P address")
@@ -47,7 +47,7 @@ type Valoper struct {
 	Active       bool        // Flag indicating if the valoper is active
 	P2PAddresses []string    // The publicly reachable P2P addresses of the validator
 
-	Auth *authorizable.Authorizable    // The authorizer system for the valoper
+	Auth *authorizable.Authorizable // The authorizer system for the valoper
 }
 
 // Register registers a new valoper
@@ -87,7 +87,7 @@ func Update(address std.Address, moniker string, description string, newAddress 
 	old := GetByAddr(address)
 
 	// Check that the caller has permissions
-  old.Auth.AssertOnAuthList()
+	old.Auth.AssertOnAuthList()
 
 	// Check that the valoper wouldn't be
 	// overwriting an existing one
@@ -103,7 +103,7 @@ func Update(address std.Address, moniker string, description string, newAddress 
 		PubKey:       pubKey,
 		Active:       active,
 		P2PAddresses: splitP2PAddresses(p2pAddresses),
-		Auth:       old.Auth,
+		Auth:         old.Auth,
 	}
 
 	if err := v.Validate(); err != nil {
@@ -125,7 +125,7 @@ func UpdateMoniker(address std.Address, moniker string) {
 	v := GetByAddr(address)
 
 	// Check that the caller has permissions
-  v.Auth.AssertOnAuthList()
+	v.Auth.AssertOnAuthList()
 
 	// Check that the moniker is not empty
 	if err := validateMoniker(moniker); err != nil {
@@ -144,7 +144,7 @@ func UpdateDescription(address std.Address, description string) {
 	v := GetByAddr(address)
 
 	// Check that the caller has permissions
-  v.Auth.AssertOnAuthList()
+	v.Auth.AssertOnAuthList()
 
 	// Check that the description is not empty
 	if err := validateDescription(description); err != nil {
@@ -168,7 +168,7 @@ func UpdateAddress(address std.Address, newAddress std.Address) {
 	v := GetByAddr(address)
 
 	// Check that the caller has permissions
-  v.Auth.AssertOnAuthList()
+	v.Auth.AssertOnAuthList()
 
 	// Check that the address is valid
 	if err := validateBech32(newAddress.String()); err != nil {
@@ -196,7 +196,7 @@ func UpdatePubKey(address std.Address, pubKey string) {
 	v := GetByAddr(address)
 
 	// Check that the caller has permissions
-  v.Auth.AssertOnAuthList()
+	v.Auth.AssertOnAuthList()
 
 	// Check that the pubKey is valid
 	if err := validatePubKey(pubKey); err != nil {
@@ -215,7 +215,7 @@ func UpdateActive(address std.Address, active bool) {
 	v := GetByAddr(address)
 
 	// Check that the caller has permissions
-  v.Auth.AssertOnAuthList()
+	v.Auth.AssertOnAuthList()
 
 	// Update active status
 	v.Active = active
@@ -230,7 +230,7 @@ func UpdateP2PAddresses(address std.Address, p2pAddresses string) {
 	v := GetByAddr(address)
 
 	// Check that the caller has permissions
-  v.Auth.AssertOnAuthList()
+	v.Auth.AssertOnAuthList()
 
 	// Split the P2P addresses
 	addresses := splitP2PAddresses(p2pAddresses)
@@ -395,6 +395,16 @@ func splitP2PAddresses(p2pAddresses string) []string {
 // validateMoniker checks if the moniker is valid
 func validateMoniker(moniker string) error {
 	if moniker == "" {
+		return ErrInvalidMoniker
+	}
+
+	if len(moniker) > 32 {
+		return ErrInvalidMoniker
+	}
+
+	// 32 characters, including spaces, hyphens or underscores in the middle
+	regex := regexp.MustCompile(`^[a-zA-Z0-9][\w -]{0,30}[a-zA-Z0-9]$`)
+	if !regex.MatchString(moniker) {
 		return ErrInvalidMoniker
 	}
 

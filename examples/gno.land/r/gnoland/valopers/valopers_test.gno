@@ -6,15 +6,14 @@ import (
 	"testing"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ownable/exts/authorizable"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/demo/ownable/exts/authorizable"
 )
 
 const (
-	validMoniker   = "test-1"
-	invalidMoniker = ""
+	validMoniker = "test-1"
 
 	validDescription   = "test-1's description"
 	invalidDescription = ""
@@ -28,6 +27,16 @@ const (
 )
 
 var (
+	invalidMonikers = []string{
+		"",     // Empty
+		"    ", // Whitespace
+		"a",    // Too short
+		"a very long moniker that is longer than 32 characters", // Too long
+		"!@#$%^&*()+{}|:<>?/.,;'",                               // Invalid characters
+		" space in front",
+		"space in back ",
+	}
+
 	test1Address = testutils.TestAddress("test1")
 	test2Address = testutils.TestAddress("test2")
 
@@ -325,10 +334,12 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
 		})
 
-		// Update the valoper
-		uassert.PanicsWithMessage(t, ErrInvalidMoniker.Error(), func() {
-			UpdateMoniker(validAddress, invalidMoniker)
-		})
+		for _, invalidMoniker := range invalidMonikers {
+			// Update the valoper
+			uassert.PanicsWithMessage(t, ErrInvalidMoniker.Error(), func() {
+				UpdateMoniker(validAddress, invalidMoniker)
+			})
+		}
 	})
 
 	t.Run("successful update", func(t *testing.T) {
