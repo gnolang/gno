@@ -201,8 +201,8 @@ func (a *ContractAuthority) Authorize(title string, action PrivilegedAction, arg
 		return errors.New("contract handler is not set")
 	}
 
-  // setup a once instance to ensure the action is executed only once
-  executionOnce := once.Once{}
+	// setup a once instance to ensure the action is executed only once
+	executionOnce := once.Once{}
 
 	// Wrap the action to ensure it can only be executed by the contract
 	wrappedAction := func() error {

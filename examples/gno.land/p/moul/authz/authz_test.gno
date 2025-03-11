@@ -200,7 +200,7 @@ func TestContractAuthorityExecutionTwice(t *testing.T) {
 	executed := 0
 
 	contractAuth := NewContractAuthority("gno.land/r/test", func(title string, action PrivilegedAction) error {
-    return action()
+		return action()
 	})
 
 	// Set caller to contract address
@@ -216,7 +216,7 @@ func TestContractAuthorityExecutionTwice(t *testing.T) {
 	uassert.True(t, err == nil, "handler execution should succeed")
 	uassert.True(t, executed == 1, "handler should have executed once")
 
-  // A new action, even with the same title, should be executed
+	// A new action, even with the same title, should be executed
 	err = contractAuth.Authorize("test_action", func() error {
 		executed++
 		return nil
