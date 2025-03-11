@@ -571,8 +571,6 @@ func loadUserEnv(ts *testscript.TestScript, remote string) error {
 		return fmt.Errorf("unable create rpc client %q: %w", remote, err)
 	}
 
-	st, err := cli.ABCIInfo()
-	fmt.Printf("statuss: %+v\n", st)
 	batch := cli.NewBatch()
 	for _, account := range accounts {
 		accountPath := filepath.Join(path, account.GetAddress().String())

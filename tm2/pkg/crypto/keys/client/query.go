@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"flag"
-	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -89,10 +88,8 @@ func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 		return nil, errors.Wrap(err, "new http client")
 	}
 
-	fmt.Println("cfg.Path", cfg.Path)
 	qres, err := cli.ABCIQueryWithOptions(
 		cfg.Path, data, opts2)
-	fmt.Printf("qres: %+v\n", qres.Response)
 	if err != nil {
 		return nil, errors.Wrap(err, "querying")
 	}
