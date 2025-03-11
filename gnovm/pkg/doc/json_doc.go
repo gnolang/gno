@@ -40,8 +40,8 @@ type JSONValue struct {
 }
 
 type JSONField struct {
-	Name string
-	Type string
+	Name string `json:"name"`
+	Type string `json:"type"`
 }
 
 type JSONFunc struct {
