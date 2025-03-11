@@ -7,7 +7,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/nt/commondao"
 
-	"gno.land/r/demo/users"
+	"gno.land/r/sys/users"
 )
 
 // DefaultPermissions manages users, roles and permissions.
@@ -266,8 +266,8 @@ func assertValidBoardNameLength(name string) {
 func assertBoardNameBelongsToCaller(name string) {
 	// When the board name is the name of a registered user
 	// check that caller is the owner of the name.
-	user := users.GetUserByName(name)
-	if user != nil && user.Address != std.OriginCaller() {
+	user, _ := users.ResolveName(name)
+	if user != nil && user.Addr() != std.OriginCaller() {
 		panic("board name is a user name registered to a different user")
 	}
 }

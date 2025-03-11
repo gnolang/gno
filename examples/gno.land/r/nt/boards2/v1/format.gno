@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/r/demo/users"
+	"gno.land/r/sys/users"
 )
 
 func padLeft(s string, length int) string {
@@ -62,9 +62,9 @@ func newButtonLink(label, uri string) string {
 
 // newUserLink returns a Markdown link for an account to the users realm.
 func newUserLink(addr std.Address) string {
-	user := users.GetUserByAddress(addr)
+	user := users.ResolveAddress(addr)
 	if user == nil {
-		return newLink(addr.String(), "/r/demo/users:"+addr.String())
+		return newLink(addr.String(), "/r/sys/users:"+addr.String())
 	}
-	return newLink("@"+user.Name, "/r/demo/users:"+user.Name)
+	return newLink("@"+user.Name(), "/r/sys/users:"+user.Name())
 }
