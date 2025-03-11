@@ -47,13 +47,6 @@ type WebHandler struct {
 	Client WebClient
 }
 
-// PageData groups layout, component, and dev mode information.
-type PageData struct {
-	Layout       string
-	Component    string
-	IsDevmodView bool
-}
-
 // NewWebHandler creates a new WebHandler.
 func NewWebHandler(logger *slog.Logger, cfg WebHandlerConfig) (*WebHandler, error) {
 	if err := cfg.validate(); err != nil {
@@ -127,6 +120,7 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 		RealmURL:   *gnourl,
 		ChainId:    h.Static.ChainId,
 		Remote:     h.Static.RemoteHelp,
+		IsDevMenu:  !IsHomePath(gnourl.Path), // Hide dev menu on home
 	}
 
 	switch {

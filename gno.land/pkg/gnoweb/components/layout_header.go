@@ -20,6 +20,7 @@ type HeaderData struct {
 	Links      []HeaderLink
 	ChainId    string
 	Remote     string
+	IsDevMenu  bool
 }
 
 func StaticHeaderLinks(u weburl.GnoURL, handle string) []HeaderLink {
