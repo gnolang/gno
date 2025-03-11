@@ -12,7 +12,6 @@ import (
 type GenesisState struct {
 	Params      Params         `json:"params" yaml:"params"`
 	RealmParams []params.Param `json:"realm_params" yaml:"realm_params"`
-	Airdrops    []AirdropInfo  `json:"airdrops" yaml:"airdrops"`
 }
 
 // NewGenesisState - Create a new genesis state

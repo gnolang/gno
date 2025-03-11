@@ -5,9 +5,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/version"
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -64,115 +62,6 @@ func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
 	}
 	res.Data = []byte(resstr)
 	return
-}
-
-// ----------------------------------------
-// Airdrop Handler
-
-type MsgClaimAirdrop struct {
-	Address crypto.Address `json:"address"`
-}
-
-var _ std.Msg = (*MsgClaimAirdrop)(nil)
-
-func (msg MsgClaimAirdrop) Route() string {
-	return ModuleName
-}
-
-func (msg MsgClaimAirdrop) Type() string {
-	return "claim_airdrop"
-}
-
-func (msg MsgClaimAirdrop) ValidateBasic() error {
-	if msg.Address.IsZero() {
-		return std.ErrInvalidAddress("invalid address")
-	}
-	return nil
-}
-
-func (msg MsgClaimAirdrop) GetSignBytes() []byte {
-	return std.MustSortJSON(amino.MustMarshalJSON(msg))
-}
-
-func (msg MsgClaimAirdrop) GetSigners() []crypto.Address {
-	return []crypto.Address{msg.Address}
-}
-
-type airdropHandler struct {
-	keeper AirdropKeeper
-}
-
-var _ sdk.Handler = (*airdropHandler)(nil)
-
-func NewAirdropHandler(k AirdropKeeper) sdk.Handler {
-	return airdropHandler{keeper: k}
-}
-
-func (h airdropHandler) handleMsgClaimAirdrop(ctx sdk.Context, msg MsgClaimAirdrop) sdk.Result {
-	eligible, _ := h.keeper.IsEligible(ctx, msg.Address)
-	if !eligible {
-		return sdk.ABCIResultFromError(
-			std.ErrUnauthorized("address not eligible for airdrop or already claimed"),
-		)
-	}
-
-	// handle airdrop claim
-	err := h.keeper.Claim(ctx, msg.Address)
-	if err != nil {
-		return sdk.ABCIResultFromError(err)
-	}
-
-	// TODO: event?
-
-	return sdk.Result{}
-}
-
-func (h airdropHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQuery {
-	switch path := req.Path; {
-	case strings.HasPrefix(path, "/airdrop/eligible/"):
-		return h.queryEligible(ctx, req)
-	default:
-		return sdk.ABCIResponseQueryFromError(
-			std.ErrUnknownRequest(fmt.Sprintf("unknown airdrop query endpoint %s", path)),
-		)
-	}
-}
-
-func (h airdropHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
-	switch msg := msg.(type) {
-	case MsgClaimAirdrop:
-		return h.handleMsgClaimAirdrop(ctx, msg)
-	default:
-		return abciResult(std.ErrUnknownRequest(fmt.Sprintf("unrecognized airdrop message type: %T", msg)))
-	}
-}
-
-func (h airdropHandler) queryEligible(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQuery {
-	addr, err := crypto.AddressFromBech32(strings.TrimPrefix(req.Path, "/airdrop/eligible/"))
-	if err != nil {
-		return sdk.ABCIResponseQueryFromError(err)
-	}
-
-	eligible, amount := h.keeper.IsEligible(ctx, addr)
-
-	res := struct {
-		Eligible bool   `json:"eligible"`
-		Amount   string `json:"amount"`
-	}{
-		Eligible: eligible,
-		Amount:   amount.String(),
-	}
-
-	bz, err := amino.MarshalJSON(res)
-	if err != nil {
-		return sdk.ABCIResponseQueryFromError(
-			std.ErrInternal(fmt.Sprintf("failed to marshal response: %v", err)),
-		)
-	}
-
-	return abci.ResponseQuery{
-		Value: bz,
-	}
 }
 
 // ----------------------------------------
