@@ -22,29 +22,38 @@
 package coins
 
 import (
+	"errors"
 	"std"
 	"strings"
 )
 
+var (
+	errEmptyDenom     = errors.New("empty denom")
+	errInvalidAddress = errors.New("invalid address")
+	errInvalidPath    = errors.New("invalid path")
+)
+
 // TotalSupply returns the total supply of the specified denomination
-func TotalSupply(banker std.Banker, denom string) int64 {
+func TotalSupply(denom string) int64 {
 	if denom == "" {
-		panic("empty denom")
+		panic(errEmptyDenom)
 	}
 	// make the coin's denom to follow the correct format
 	qualifiedDenom := std.CurrentRealm().CoinDenom(denom)
-	return banker.TotalCoin(qualifiedDenom)
+	return std.NewBanker(std.BankerTypeReadonly).TotalCoin(qualifiedDenom)
 }
 
 // AddressBalance returns the balance of the specified token for the given address
-func AddressBalance(banker std.Banker, denom string, address std.Address) int64 {
+func AddressBalance(denom string, address std.Address) int64 {
 	if denom == "" {
-		panic("empty denom")
+		panic(errEmptyDenom)
 	}
 	if !address.IsValid() {
-		panic("invalid address")
+		panic(errInvalidAddress)
 	}
-	return banker.GetCoins(address).AmountOf(denom)
+	return std.NewBanker(std.BankerTypeReadonly).
+		GetCoins(address).
+		AmountOf(denom)
 }
 
 // Path parsing logic:
@@ -52,25 +61,23 @@ func AddressBalance(banker std.Banker, denom string, address std.Address) int64 
 // - "<denom>": Show total supply and info about the specified coin
 // - "<denom>/<address>": Show specific address balance for the given coin
 func Render(path string) string {
-	banker := std.NewBanker(std.BankerTypeReadonly)
-
 	if path == "" {
 		return renderHomepage()
 	}
 
 	if !strings.Contains(path, "/") {
 		denom := path
-		totalSupply := TotalSupply(banker, denom)
+		totalSupply := TotalSupply(denom)
 		return renderCoinInfo(denom, totalSupply)
 	}
 
 	parts := strings.Split(path, "/")
 	if len(parts) != 2 {
-		panic("invalid path")
+		panic(errInvalidPath)
 	}
 
 	denom, addr := parts[0], parts[1]
-	return renderAddressBalance(banker, denom, std.Address(addr))
+	return renderAddressBalance(denom, std.Address(addr))
 
 	// TODO: implement an explanatory homepage that shows usage instructions
 	// TODO: implement a coin info page showing total supply, and other metrics if we have them
@@ -90,14 +97,11 @@ func renderCoinInfo(denom string, totalSupply int64) string {
 ` + denom + `
 
 ## Total Supply
-` + std.NewCoin(denom, totalSupply).String() + `
-
-[Back to Home](/r/gnoland/coins:)
-`
+` + std.NewCoin(denom, totalSupply).String() + `\n`
 }
 
-func renderAddressBalance(banker std.Banker, denom string, address std.Address) string {
-	balance := AddressBalance(banker, denom, address)
+func renderAddressBalance(denom string, address std.Address) string {
+	balance := AddressBalance(denom, address)
 	return `# Address Balance
 
 ## Address
@@ -107,6 +111,5 @@ func renderAddressBalance(banker std.Banker, denom string, address std.Address) 
 ` + std.NewCoin(denom, balance).String() + `
 
 [Back to Coin Info](/r/gnoland/coins:` + denom + `)
-[Back to Home](/r/gnoland/coins:)
 `
 }

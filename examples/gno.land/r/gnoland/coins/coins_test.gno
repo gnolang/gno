@@ -8,7 +8,7 @@ import (
 	"gno.land/p/demo/testutils"
 )
 
-func TestAirdropChecker(t *testing.T) {
+func TestBalanceChecker(t *testing.T) {
 	addr1 := testutils.TestAddress("addr1")
 	addr2 := testutils.TestAddress("addr2")
 
@@ -19,14 +19,15 @@ func TestAirdropChecker(t *testing.T) {
 	tests := []struct {
 		name      string
 		path      string
-		setupFunc func(std.Banker)
+		setupFunc func()
 		expected  string
 		wantPanic bool
 	}{
 		{
 			name: "homepage shows supported tokens",
 			path: "",
-			setupFunc: func(banker std.Banker) {
+			setupFunc: func() {
+				banker := std.NewBanker(std.BankerTypeRealmIssue)
 				banker.IssueCoin(addr1, test2Denom, 1000)
 				banker.IssueCoin(addr2, test2Denom, 1000)
 			},
@@ -35,19 +36,19 @@ func TestAirdropChecker(t *testing.T) {
 		{
 			name: "show total supply for test token",
 			path: "test",
-			setupFunc: func(banker std.Banker) {
+			setupFunc: func() {
+				banker := std.NewBanker(std.BankerTypeRealmIssue)
 				banker.IssueCoin(addr1, testDenom, 1000000)
 				banker.IssueCoin(addr2, testDenom, 500000)
-
-				println("setup amount", banker.TotalCoin(testDenom))
 			},
 			expected: `1500000test`,
 		},
 	}
 
 	for _, tt := range tests {
-		banker := std.NewBanker(std.BankerTypeRealmIssue)
-		tt.setupFunc(banker)
+		if tt.setupFunc != nil {
+			tt.setupFunc()
+		}
 
 		if tt.wantPanic {
 			defer func() {
