@@ -41,6 +41,7 @@ var (
 type Store struct {
 	tree Tree
 	opts types.StoreOptions
+	mux  sync.Mutex
 }
 
 func UnsafeNewStore(tree *iavl.MutableTree, opts types.StoreOptions) *Store {
@@ -57,7 +58,10 @@ func UnsafeNewStore(tree *iavl.MutableTree, opts types.StoreOptions) *Store {
 // been pruned, an error will be returned. Any mutable operations executed will
 // result in a panic.
 func (st *Store) GetImmutable(version int64) (*Store, error) {
-	if !st.VersionExists(version) {
+	st.mux.Lock()
+	defer st.mux.Unlock()
+
+	if !st.versionExists(version) {
 		return nil, iavl.ErrVersionDoesNotExist
 	}
 
@@ -77,6 +81,9 @@ func (st *Store) GetImmutable(version int64) (*Store, error) {
 
 // Implements Committer.
 func (st *Store) Commit() types.CommitID {
+	st.mux.Lock()
+	defer st.mux.Unlock()
+
 	// Save a new version.
 	hash, version, err := st.tree.SaveVersion()
 	if err != nil {
@@ -104,6 +111,9 @@ func (st *Store) Commit() types.CommitID {
 
 // Implements Committer.
 func (st *Store) LastCommitID() types.CommitID {
+	st.mux.Lock()
+	defer st.mux.Unlock()
+
 	return types.CommitID{
 		Version: st.tree.Version(),
 		Hash:    st.tree.Hash(),
@@ -122,12 +132,22 @@ func (st *Store) SetStoreOptions(opts2 types.StoreOptions) {
 
 // Implements Committer.
 func (st *Store) LoadLatestVersion() error {
+	st.mux.Lock()
+	defer st.mux.Unlock()
+
 	version := st.tree.LatestVersion()
-	return st.LoadVersion(version)
+	return st.loadVersion(version)
+}
+
+func (st *Store) LoadVersion(ver int64) error {
+	st.mux.Lock()
+	defer st.mux.Unlock()
+
+	return st.loadVersion(ver)
 }
 
 // Implements Committer.
-func (st *Store) LoadVersion(ver int64) error {
+func (st *Store) loadVersion(ver int64) error {
 	if st.opts.Immutable {
 		immutTree, err := st.tree.(*iavl.MutableTree).GetImmutable(ver)
 		if err != nil {
@@ -149,6 +169,13 @@ func (st *Store) LoadVersion(ver int64) error {
 
 // VersionExists returns whether or not a given version is stored.
 func (st *Store) VersionExists(version int64) bool {
+	st.mux.Lock()
+	defer st.mux.Unlock()
+
+	return st.versionExists(version)
+}
+
+func (st *Store) versionExists(version int64) bool {
 	return st.tree.VersionExists(version)
 }
 
@@ -164,23 +191,35 @@ func (st *Store) Write() {
 
 // Implements types.Store.
 func (st *Store) Set(key, value []byte) {
+	st.mux.Lock()
+	defer st.mux.Unlock()
+
 	types.AssertValidValue(value)
 	st.tree.Set(key, value)
 }
 
 // Implements types.Store.
 func (st *Store) Get(key []byte) (value []byte) {
+	st.mux.Lock()
+	defer st.mux.Unlock()
+
 	_, v := st.tree.Get(key)
 	return v
 }
 
 // Implements types.Store.
 func (st *Store) Has(key []byte) (exists bool) {
+	st.mux.Lock()
+	defer st.mux.Unlock()
+
 	return st.tree.Has(key)
 }
 
 // Implements types.Store.
 func (st *Store) Delete(key []byte) {
+	st.mux.Lock()
+	defer st.mux.Unlock()
+
 	st.tree.Remove(key)
 }
 
@@ -200,6 +239,9 @@ func (st *Store) Iterator(start, end []byte) types.Iterator {
 
 // Implements types.Store.
 func (st *Store) ReverseIterator(start, end []byte) types.Iterator {
+	st.mux.Lock()
+	defer st.mux.Unlock()
+
 	var iTree *iavl.ImmutableTree
 
 	switch tree := st.tree.(type) {
@@ -234,6 +276,9 @@ func getHeight(tree Tree, req abci.RequestQuery) int64 {
 // if you care to have the latest data to see a tx results, you must
 // explicitly set the height you want to see
 func (st *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
+	st.mux.Lock()
+	defer st.mux.Unlock()
+
 	if len(req.Data) == 0 {
 		msg := "Query cannot be zero length"
 		res.Error = serrors.ErrTxDecode(msg)
@@ -251,7 +296,7 @@ func (st *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 		key := req.Data // data holds the key bytes
 
 		res.Key = key
-		if !st.VersionExists(res.Height) {
+		if !st.versionExists(res.Height) {
 			res.Log = errors.Wrap(iavl.ErrVersionDoesNotExist, "").Error()
 			break
 		}
