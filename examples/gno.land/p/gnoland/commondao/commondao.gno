@@ -171,20 +171,17 @@ func (dao *CommonDAO) Vote(member std.Address, proposalID uint64, c VoteChoice) 
 	return p.record.AddVote(member, c)
 }
 
-func (dao *CommonDAO) Tally(p *Proposal) error {
-	// TODO: Support other voting options though the proposal definition
-	record := p.VotingRecord()
-	votesCount := record.VoteCount(ChoiceYes) + record.VoteCount(ChoiceNo) // Only consider YES/NO votes
-	membersCount := dao.Members().Size()
-	percentage := float64(votesCount) / float64(membersCount)
-	if percentage < p.Quorum() {
-		return ErrLowParticipation
+func (dao *CommonDAO) Tally(proposalID uint64) error { // TODO: Rethink or refactor tally to return the winning choice
+	p, found := dao.GetActiveProposal(proposalID)
+	if !found {
+		return ErrProposalNotFound
 	}
 
-	if !p.Definition().Tally(record, membersCount) {
-		return ErrNoConcensus
+	if p.Status() != StatusActive {
+		return ErrStatusIsNotActive
 	}
-	return nil
+
+	return dao.tallyProposal(p)
 }
 
 // Execute executes a proposal.
@@ -224,12 +221,28 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 	return nil
 }
 
+func (dao *CommonDAO) tallyProposal(p *Proposal) error {
+	// TODO: Support other voting options though the proposal definition
+	record := p.VotingRecord()
+	votesCount := record.VoteCount(ChoiceYes) + record.VoteCount(ChoiceNo) // Only consider YES/NO votes
+	membersCount := dao.Members().Size()
+	percentage := float64(votesCount) / float64(membersCount)
+	if percentage < p.Quorum() {
+		return ErrLowParticipation
+	}
+
+	if !p.Definition().Tally(record, membersCount) {
+		return ErrNoConcensus
+	}
+	return nil
+}
+
 func (dao *CommonDAO) executeProposal(p *Proposal) error {
 	if p.Status() != StatusActive {
 		return ErrStatusIsNotActive
 	}
 
-	if err := dao.Tally(p); err != nil {
+	if err := dao.tallyProposal(p); err != nil {
 		return err
 	}
 

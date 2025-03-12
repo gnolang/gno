@@ -298,12 +298,12 @@ func TestCommonDAOTally(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			p, _ := NewProposal(1, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", majorityPropDef{})
+			p, _ := tc.dao.Propose("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", majorityPropDef{})
 			for _, v := range tc.votes {
-				p.record.AddVote(v.Address, v.Choice)
+				tc.dao.Vote(v.Address, p.ID(), v.Choice)
 			}
 
-			err := tc.dao.Tally(p)
+			err := tc.dao.Tally(p.ID())
 
 			if tc.err != nil {
 				uassert.Error(t, err, "expect an error")
