@@ -112,44 +112,6 @@ func Register(moniker string, description string, address std.Address, pubKey st
 	valopers.Set(v.Address.String(), v)
 }
 
-// Update updates an existing valoper
-func Update(address std.Address, moniker string, description string, newAddress std.Address, pubKey string, p2pAddresses string, active bool) {
-	old := GetByAddr(address)
-
-	// Check that the caller has permissions
-	old.Auth().AssertOnAuthList()
-
-	// Check that the valoper wouldn't be
-	// overwriting an existing one
-	isAddressUpdate := address != newAddress
-	if isAddressUpdate && isValoper(newAddress) {
-		panic(ErrAddressExists)
-	}
-
-	v := Valoper{
-		Moniker:      moniker,
-		Description:  description,
-		Address:      newAddress,
-		PubKey:       pubKey,
-		Active:       active,
-		P2PAddresses: strings.Split(p2pAddresses, ","),
-		auth:         old.Auth(),
-	}
-
-	if err := v.Validate(); err != nil {
-		panic(err)
-	}
-
-	// Remove the old valoper info
-	// in case the address changed
-	if address != newAddress {
-		valopers.Remove(address.String())
-	}
-
-	// Save the new valoper info
-	valopers.Set(v.Address.String(), v)
-}
-
 // UpdateMoniker updates an existing valoper's moniker
 func UpdateMoniker(address std.Address, moniker string) {
 	v := GetByAddr(address)
