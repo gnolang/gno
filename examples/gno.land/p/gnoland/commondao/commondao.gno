@@ -144,6 +144,15 @@ func (dao CommonDAO) GetFinishedProposal(proposalID uint64) (_ *Proposal, found 
 	return nil, false
 }
 
+// GetProposal returns an proposal.
+func (dao CommonDAO) GetProposal(proposalID uint64) (p *Proposal, found bool) {
+	p, found = dao.GetActiveProposal(proposalID)
+	if !found {
+		return dao.GetFinishedProposal(proposalID)
+	}
+	return p, found
+}
+
 // Vote submits a new vote for a proposal.
 func (dao *CommonDAO) Vote(member std.Address, proposalID uint64, c VoteChoice) error {
 	// TODO: Support other voting options though the proposal definition

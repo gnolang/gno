@@ -388,7 +388,7 @@ func TestCommonDAOExecute(t *testing.T) {
 			setup: func() *CommonDAO {
 				member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
 				dao := New(WithMember(member))
-				p, _ := dao.Propose(member, testPropDef{})
+				dao.Propose(member, testPropDef{})
 				return dao
 			},
 			proposalID:   1,
