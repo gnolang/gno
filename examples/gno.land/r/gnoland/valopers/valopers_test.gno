@@ -53,11 +53,7 @@ var (
 )
 
 func TestValopers_Register(t *testing.T) {
-	t.Parallel()
-
 	t.Run("already a valoper", func(t *testing.T) {
-		t.Parallel()
-
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
@@ -82,8 +78,6 @@ func TestValopers_Register(t *testing.T) {
 	})
 
 	t.Run("no coins deposited", func(t *testing.T) {
-		t.Parallel()
-
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
@@ -96,8 +90,6 @@ func TestValopers_Register(t *testing.T) {
 	})
 
 	t.Run("insufficient coins amount deposited", func(t *testing.T) {
-		t.Parallel()
-
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
@@ -110,8 +102,6 @@ func TestValopers_Register(t *testing.T) {
 	})
 
 	t.Run("successful registration", func(t *testing.T) {
-		t.Parallel()
-
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
@@ -138,11 +128,7 @@ func TestValopers_Register(t *testing.T) {
 }
 
 func TestValopers_UpdateAuthMembers(t *testing.T) {
-	t.Parallel()
-
 	t.Run("unauthorized member adds member", func(t *testing.T) {
-		t.Parallel()
-
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
@@ -167,8 +153,6 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 	})
 
 	t.Run("unauthorized member deletes member", func(t *testing.T) {
-		t.Parallel()
-
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
@@ -197,8 +181,6 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 	})
 
 	t.Run("authorized member adds member", func(t *testing.T) {
-		t.Parallel()
-
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
@@ -234,11 +216,7 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 }
 
 func TestValopers_UpdateMoniker(t *testing.T) {
-	t.Parallel()
-
 	t.Run("non-existing valoper", func(t *testing.T) {
-		t.Parallel()
-
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
@@ -249,8 +227,6 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 	})
 
 	t.Run("invalid caller", func(t *testing.T) {
-		t.Parallel()
-
 		// Set the origin caller
 		std.TestSetOriginCaller(test1Address)
 
@@ -275,8 +251,6 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 	})
 
 	t.Run("invalid moniker", func(t *testing.T) {
-		t.Parallel()
-
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
@@ -297,8 +271,6 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 	})
 
 	t.Run("too long moniker", func(t *testing.T) {
-		t.Parallel()
-
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
@@ -317,8 +289,6 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 	})
 
 	t.Run("successful update", func(t *testing.T) {
-		t.Parallel()
-
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
@@ -346,11 +316,7 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 }
 
 func TestValopers_UpdateDescription(t *testing.T) {
-	t.Parallel()
-
 	t.Run("non-existing valoper", func(t *testing.T) {
-		t.Parallel()
-
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
@@ -361,8 +327,6 @@ func TestValopers_UpdateDescription(t *testing.T) {
 	})
 
 	t.Run("invalid caller", func(t *testing.T) {
-		t.Parallel()
-
 		// Set the origin caller
 		std.TestSetOriginCaller(test1Address)
 
@@ -387,8 +351,6 @@ func TestValopers_UpdateDescription(t *testing.T) {
 	})
 
 	t.Run("empty description", func(t *testing.T) {
-		t.Parallel()
-
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
@@ -408,8 +370,6 @@ func TestValopers_UpdateDescription(t *testing.T) {
 	})
 
 	t.Run("too long description", func(t *testing.T) {
-		t.Parallel()
-
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
@@ -428,8 +388,6 @@ func TestValopers_UpdateDescription(t *testing.T) {
 	})
 
 	t.Run("successful update", func(t *testing.T) {
-		t.Parallel()
-
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
@@ -457,11 +415,7 @@ func TestValopers_UpdateDescription(t *testing.T) {
 }
 
 func TestValopers_UpdateP2PAddresses(t *testing.T) {
-	t.Parallel()
-
 	t.Run("non-existing valoper", func(t *testing.T) {
-		t.Parallel()
-
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
@@ -472,8 +426,6 @@ func TestValopers_UpdateP2PAddresses(t *testing.T) {
 	})
 
 	t.Run("invalid caller", func(t *testing.T) {
-		t.Parallel()
-
 		// Set the origin caller
 		std.TestSetOriginCaller(test1Address)
 
@@ -498,8 +450,6 @@ func TestValopers_UpdateP2PAddresses(t *testing.T) {
 	})
 
 	t.Run("invalid P2PAddresses", func(t *testing.T) {
-		t.Parallel()
-
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
@@ -528,8 +478,6 @@ func TestValopers_UpdateP2PAddresses(t *testing.T) {
 	})
 
 	t.Run("successful update", func(t *testing.T) {
-		t.Parallel()
-
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
