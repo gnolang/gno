@@ -150,58 +150,6 @@ func UpdateDescription(address std.Address, description string) {
 	valopers.Set(address.String(), v)
 }
 
-// UpdateAddress updates an existing valoper's address
-func UpdateAddress(address std.Address, newAddress std.Address) {
-	// Check that the address is valid
-	if err := validateBech32(newAddress); err != nil {
-		panic(ErrInvalidAddress)
-	}
-
-	// Check that the new address is different
-	if address == newAddress {
-		panic(ErrSameAddress)
-	}
-
-	// Check that the new address wouldn't be
-	// overwriting an existing one
-	if isValoper(newAddress) {
-		panic(ErrAddressExists)
-	}
-
-	v := GetByAddr(address)
-
-	// Check that the caller has permissions
-	v.Auth().AssertOnAuthList()
-
-	// Update the address
-	v.Address = newAddress
-
-	// Remove the old valoper info
-	valopers.Remove(address.String())
-
-	// Save the new valoper info
-	valopers.Set(newAddress.String(), v)
-}
-
-// UpdatePubKey updates an existing valoper's public key
-func UpdatePubKey(address std.Address, pubKey string) {
-	// Check that the pubKey is valid
-	if err := validatePubKey(pubKey); err != nil {
-		panic(ErrInvalidPubKey)
-	}
-
-	v := GetByAddr(address)
-
-	// Check that the caller has permissions
-	v.Auth().AssertOnAuthList()
-
-	// Update the description
-	v.PubKey = pubKey
-
-	// Save the valoper info
-	valopers.Set(address.String(), v)
-}
-
 // UpdateActive updates an existing valoper's active status
 func UpdateActive(address std.Address, active bool) {
 	v := GetByAddr(address)
