@@ -27,32 +27,30 @@ func NewServeCmd(_ commands.IO) *commands.Command {
 }
 
 func execServe(ctx context.Context, cfg_ *cfg.CmdCfg) error {
-	return ExecAll(
-		ctx,
-		cfg_,
-		func(ctx context.Context, cfg *cfg.CmdCfg, portalLoopHandler *portalloop.PortalLoopHandler) error {
-			var wg sync.WaitGroup
-			logger, _ := zap.NewProduction()
+	var wg sync.WaitGroup
+	logger, _ := zap.NewProduction()
+	portalLoopHandler, err := portalloop.NewPortalLoopHandler(cfg_, logger)
+	if err != nil {
+		return err
+	}
 
-			for {
-				var err_ error
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					err_ = portalloop.RunPortalLoop(ctx, *portalLoopHandler, false)
-					if err_ != nil {
-						logger.Error("Portal Loop Run ended with error", zap.Error(err_))
-						return
-					}
-					// Wait for a new round
-					logger.Info("Waiting 3 min before new loop attempt")
-					time.Sleep(3 * time.Minute)
-				}()
-				wg.Wait()
-				if err_ != nil {
-					return err_
-				}
+	for {
+		var err_ error
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err_ = portalloop.RunPortalLoop(ctx, *portalLoopHandler, false)
+			if err_ != nil {
+				logger.Error("Portal Loop Run ended with error", zap.Error(err_))
+				return
 			}
-		},
-	)
+			// Wait for a new round
+			logger.Info("Waiting 3 min before new loop attempt")
+			time.Sleep(3 * time.Minute)
+		}()
+		wg.Wait()
+		if err_ != nil {
+			return err_
+		}
+	}
 }
