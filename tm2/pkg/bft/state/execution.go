@@ -317,7 +317,7 @@ func getBeginBlockLastCommitInfo(block *types.Block, stateDB dbm.DB) abci.LastCo
 func filterValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
 	params abci.ValidatorParams, logger *slog.Logger,
 ) []abci.ValidatorUpdate {
-	validUpdates := make([]abci.ValidatorUpdate, 0, len(abciUpdates))
+	filteredUpdates := make([]abci.ValidatorUpdate, 0, len(abciUpdates))
 
 	for _, valUpdate := range abciUpdates {
 		if valUpdate.Power < 0 {
@@ -328,7 +328,7 @@ func filterValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
 		} else if valUpdate.Power == 0 {
 			// continue, since this is deleting the validator, and thus there is no
 			// pubkey to check
-			validUpdates = append(validUpdates, valUpdate)
+			filteredUpdates = append(filteredUpdates, valUpdate)
 			continue
 		}
 
@@ -341,9 +341,9 @@ func filterValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
 			continue
 		}
 
-		validUpdates = append(validUpdates, valUpdate)
+		filteredUpdates = append(filteredUpdates, valUpdate)
 	}
-	return validUpdates
+	return filteredUpdates
 }
 
 // updateState returns a new State updated according to the header and responses.
