@@ -35,11 +35,11 @@ type (
 		// Size returns the total number of votes that record contains.
 		Size() int
 
-		// VoteChoices returns the voting choices that has been voted.
-		VoteChoices() []VoteChoice
-
 		// Iterate iterates voting record votes.
 		Iterate(fn VoteIterFn) (stopped bool)
+
+		// Choices returns the voting choices that has been voted.
+		Choices() []VoteChoice
 
 		// VoteCount returns the number of votes for a single voting choice.
 		VoteCount(VoteChoice) int
@@ -65,8 +65,8 @@ func (r VotingRecord) Size() int {
 	return r.votes.Size()
 }
 
-// VoteChoices returns the voting choices that has been voted.
-func (r VotingRecord) VoteChoices() []VoteChoice {
+// Choices returns the voting choices that has been voted.
+func (r VotingRecord) Choices() []VoteChoice {
 	var choices []VoteChoice
 	r.count.Iterate("", "", func(k string, v any) bool {
 		choices = append(choices, VoteChoice(k))
@@ -167,7 +167,7 @@ func SelectChoiceByPlurality(r ReadOnlyVotingRecord) (VoteChoice, bool) {
 		isMajority   bool
 	)
 
-	for _, c := range r.VoteChoices() {
+	for _, c := range r.Choices() {
 		if c == ChoiceAbstain {
 			continue
 		}
