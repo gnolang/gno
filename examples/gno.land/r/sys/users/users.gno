@@ -52,5 +52,8 @@ func makeUserDataSafe(data any) any {
 	if cpy.deleted {
 		return nil
 	}
+
+	// Note: when requesting data from this AVL tree, (exists bool) will be true
+	// Even if the data is "deleted". This is currently unavoidable
 	return cpy
 }
