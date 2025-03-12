@@ -88,18 +88,11 @@ A reusable technical architecture for everyone to build the killer applications 
 
 </gno-columns>
 
-TODO: Add 'Beta Mainnet Coming Soon!' section
+Beta Mainnet Coming Soon!
 
-Stay tuned for the first phase of gno.land's launch, the beta mainnet release, and airdrop distribution. [Road to Mainnet and Beyond](https://gno.land/r/gnoland/blog:p/road-to-mainnet)
+Stay tuned for the first phase of gno.land's launch, the beta mainnet release.  
+- [Road to Mainnet and Beyond](https://gno.land/r/gnoland/blog:p/road-to-mainnet)
 
-TODO: Include the gno.land roadmap dynamic infographic
-
-**A moment in time (May 20th, 2022)*: Cosmos snapshot 
-**Milestone complete (July 2024)**: A multi-node, permanent and stable testnet with 1st implementation of the GovDAO
-**Milestone complete (November 2024)**: Extended validator set, testnet improvements and GovDAO v2
-**Milestone 'Beta Mainnet Release' (March 2025)**: GovDAO v3, r/Boards, Token distribution, Security audit complete
-**Milestone 'Build the Future' (2025)**: Bridging Cosmos and gno.land, the foundations of a network of everyone
-**Milestone 'Mainnet' (2025)**: A complete mainnet with token transfers and Cosmos bridge with ICS and IBC
 
 ---
 
@@ -145,10 +138,7 @@ Monitor and track the status of on-chain transactions in real time.
 Try out the DeFi platforms and gaming applications on gno.land. 
 
 - [gnoswap - a gno.land DEX](http://beta.gnoswap.io/)
-- [gnochess](TODO)
-- [Flippando](https://flippando.xyz/#)
-- [Shifumi] (TODO)
-- [Conway's Game of Life](TODO)
+- More coming soon!
 
 ####
 
@@ -159,7 +149,9 @@ Try out the DeFi platforms and gaming applications on gno.land.
 Register your gno.land username and be a part of the conversation happening on gno.land social network, r/Boards.  
 
 - [r/users - gno.land's user name registry](https://gno.land/r/gnoland/users/v1)
-- [r/Boards - gno.land's social network](TODO)
+- [r/Boards - gno.land's social network](coming soon!)
+- [Hall of Fame](https://gno.land/r/leon/hof) 
+- [Gno.me - gno.land's educational and community development platform](Coming soon!)
 
 
 </gno-columns>
@@ -203,7 +195,7 @@ gno.land builders are at the center of creating a user-owned network where appli
 
 The Builder Portal is a collection of educational resources and tools to help you learn, experiment, and develop your Gno skills. 
 
-[TODO](/)
+[Coming soon!](/)
 
 ### Bounties
 
