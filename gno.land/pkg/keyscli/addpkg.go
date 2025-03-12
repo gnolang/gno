@@ -4,11 +4,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"go/format"
 	"go/parser"
 	"go/token"
 	"os"
-	"strings"
 
 	"go.uber.org/multierr"
 
@@ -156,7 +154,6 @@ func validateThatAllFilesAreFormatted(dir, pkg string) error {
 	}
 
 	parseOpts := parser.ParseComments | parser.DeclarationErrors | parser.SkipObjectResolution
-	var buf strings.Builder
 	var errs error
 	for _, path := range manifest {
 		fset := token.NewFileSet()
@@ -169,17 +166,8 @@ func validateThatAllFilesAreFormatted(dir, pkg string) error {
 			return fmt.Errorf("invalid parsing of %q: %w", path, err)
 		}
 
-		buf.Reset()
-		if err := format.Node(&buf, fset, f); err != nil {
-			return err
-		}
-
-		if g, w := buf.Len(), len(srcCode); g > w {
-			errs = multierr.Append(errs, fmt.Errorf("%s is not go-fmt'd", path))
-			continue
-		}
-		if buf.String() != srcCode {
-			errs = multierr.Append(errs, fmt.Errorf("%s is not go-fmt'd", path))
+		if _, err := gno.FormatSource(fset, f, string(srcCode), true); err != nil {
+			errs = multierr.Append(errs, fmt.Errorf("%s: %w", path, err))
 		}
 	}
 
