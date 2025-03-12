@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/config"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -13,7 +12,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdkTrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
-	"go.opentelemetry.io/otel/trace"
 )
 
 func Init(cfg config.Config) (*sdkTrace.TracerProvider, error) {
@@ -61,11 +59,4 @@ func Init(cfg config.Config) (*sdkTrace.TracerProvider, error) {
 	otel.SetTracerProvider(provider)
 
 	return provider, nil
-}
-
-func StartSpan(ctx sdk.Context, tracer trace.Tracer, spanName string, opts ...trace.SpanStartOption) (sdk.Context, trace.Span) {
-	tracerCtx, span := tracer.Start(ctx.Context(), spanName, opts...)
-	ctx = ctx.WithContext(tracerCtx)
-
-	return ctx, span
 }
