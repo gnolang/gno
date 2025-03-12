@@ -3,11 +3,6 @@
 // adapted for the Gno programming language with a focus on core functionality
 // and idiomatic usage patterns.
 //
-// Key features:
-//   - Combine multiple errors into a single error
-//   - Append errors together preserving order
-//   - Zero allocations for single errors
-//
 // Example usage:
 //
 //	err1 := doSomething()
