@@ -46,11 +46,6 @@ func TotalSupply(denom string) int64 {
 	return std.NewBanker(std.BankerTypeReadonly).TotalCoin(qualifiedDenom)
 }
 
-// IsEligible checks if an address is eligible for the airdrop
-func IsEligible(denom string, addr std.Address) bool {
-	return AddressBalance(denom, addr) > 0
-}
-
 // AddressBalance returns the balance of the specified token for the given address
 func AddressBalance(denom string, address std.Address) int64 {
 	if denom == "" {
@@ -87,9 +82,6 @@ func Render(path string) string {
 	denom, addr := parts[0], parts[1]
 	return renderAddressBalance(denom, std.Address(addr))
 
-	// TODO: implement an explanatory homepage that shows usage instructions
-	// TODO: implement a coin info page showing total supply, and other metrics if we have them
-	// TODO: implement an address page showing balance for specified coin
 	// TODO: create navigation links between pages to enable intuitive exploration without typing URLs
 }
 
@@ -97,7 +89,7 @@ func renderHomepage() string {
 	var sb strings.Builder
 
 	sb.WriteString(md.H1("Gno.land Coins"))
-	sb.WriteString(md.Paragraph("This realm provides an interface to query coin information on the Gno.land blockchain."))
+	sb.WriteString(md.Paragraph("This realm provides an interface to query coin information on the Gno.land chain."))
 
 	sb.WriteString(md.H2("Usage"))
 	sb.WriteString(md.Paragraph("You can query information using the following URL patterns:"))
@@ -136,15 +128,12 @@ func renderCoinInfo(denom string, totalSupply int64) string {
 	}
 	sb.WriteString(md.BulletList(stats))
 
-	sb.WriteString(md.Paragraph(md.Link("Back to Home", "/r/gnoland/coins")))
-
 	return sb.String()
 }
 
 func renderAddressBalance(denom string, address std.Address) string {
 	var sb strings.Builder
 	balance := AddressBalance(denom, address)
-	isEligible := IsEligible(denom, address)
 
 	sb.WriteString(md.H1("Address Balance Information"))
 
@@ -153,19 +142,6 @@ func renderAddressBalance(denom string, address std.Address) string {
 
 	sb.WriteString(md.H2("Balance"))
 	sb.WriteString(md.Paragraph(std.NewCoin(denom, balance).String()))
-
-	sb.WriteString(md.H2("Additional Information"))
-	info := []string{
-		"Airdrop Eligibility: " + (map[bool]string{true: "Eligible", false: "Not Eligible"})[isEligible],
-	}
-	sb.WriteString(md.BulletList(info))
-
-	sb.WriteString(md.H2("Links"))
-	links := []string{
-		md.Link("Back to Coin Information", "/r/gnoland/coins:"+denom),
-		md.Link("Back to Home", "/r/gnoland/coins"),
-	}
-	sb.WriteString(md.BulletList(links))
 
 	return sb.String()
 }

@@ -13,6 +13,7 @@ var (
 	errInsufficientSupply = errors.New("insufficient supply")
 )
 
+// SupplyKeeper is an interface for managing supply of a token
 type SupplyKeeper interface {
 	GetSupply(store types.Store, denom string) int64
 	SetSupply(store types.Store, denom string, amount int64)
@@ -20,11 +21,13 @@ type SupplyKeeper interface {
 	SubtractSupply(store types.Store, denom string, amount int64)
 }
 
+// Supply stores the total supply of a each token
 type Supply struct {
 	Denom  string `json:"denom"`
 	Amount int64  `json:"amount"`
 }
 
+// SupplyStore manages the actual supply data
 type SupplyStore struct {
 	store types.Store
 }
@@ -33,16 +36,17 @@ func NewSupplyStore(store types.Store) *SupplyStore {
 	return &SupplyStore{store: store}
 }
 
-func getSupplyKey(denom string) []byte {
+func generateSupplyKey(denom string) []byte {
 	return fmt.Appendf(nil, "supply:%s", denom)
 }
 
+// GetSupply returns the total supply of a specific token
 func (s *SupplyStore) GetSupply(store types.Store, denom string) (int64, error) {
 	if denom == "" {
 		return 0, errEmptyDenom
 	}
 
-	key := getSupplyKey(denom)
+	key := generateSupplyKey(denom)
 	bz := store.Get(key)
 	if bz == nil {
 		return 0, nil
@@ -54,12 +58,13 @@ func (s *SupplyStore) GetSupply(store types.Store, denom string) (int64, error) 
 	return amount, nil
 }
 
+// SetSupply sets the total supply of a specific token
 func (s *SupplyStore) SetSupply(store types.Store, denom string, amount int64) error {
 	if denom == "" {
 		return errEmptyDenom
 	}
 
-	key := getSupplyKey(denom)
+	key := generateSupplyKey(denom)
 	bz, err := amino.Marshal(amount)
 	if err != nil {
 		return err
@@ -69,6 +74,7 @@ func (s *SupplyStore) SetSupply(store types.Store, denom string, amount int64) e
 	return nil
 }
 
+// AddSupply increases the total supply of a specific token
 func (s *SupplyStore) AddSupply(store types.Store, denom string, amount int64) error {
 	current, err := s.GetSupply(store, denom)
 	if err != nil {
@@ -77,6 +83,7 @@ func (s *SupplyStore) AddSupply(store types.Store, denom string, amount int64) e
 	return s.SetSupply(store, denom, current+amount)
 }
 
+// SubtractSupply decreases the total supply of a specific token
 func (s *SupplyStore) SubtractSupply(store types.Store, denom string, amount int64) error {
 	current, err := s.GetSupply(store, denom)
 	if err != nil {
