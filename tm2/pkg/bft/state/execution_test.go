@@ -144,7 +144,7 @@ func TestValidateValidatorUpdates(t *testing.T) {
 			},
 			validatorParams: defaultValidatorParams,
 			expectedLen:     0,
-			expectedPowers:  []int64{},
+			expectedPowers:  []int64(nil),
 		},
 		{
 			name: "mixed valid and invalid validators",
@@ -195,7 +195,7 @@ func TestValidateValidatorUpdates(t *testing.T) {
 				"filtered updates length mismatch")
 
 			// Check powers of remaining validators
-			var powers = []int64{}
+			var powers []int64
 			for _, update := range filteredUpdates {
 				powers = append(powers, update.Power)
 			}
