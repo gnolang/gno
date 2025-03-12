@@ -128,6 +128,70 @@ func TestSDKBankerTotalCoin(t *testing.T) {
 	}
 }
 
+func TestSDKBankerIssueCoin(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	store := ctx.Store(env.supplyKey)
+	banker := &SDKBanker{
+		vmk:         env.vmk,
+		ctx:         ctx,
+		supplyStore: bank.NewSupplyStore(store),
+		store:       store,
+	}
+
+	addr1 := crypto.AddressFromPreimage([]byte("addr1"))
+	b32addr1 := crypto.Bech32Address(addr1.String())
+
+	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
+	env.acck.SetAccount(ctx, acc1)
+
+	banker.IssueCoin(b32addr1, "ugnot", 1000)
+
+	// check balance
+	coins := banker.GetCoins(b32addr1)
+	expectedCoins := std.MustParseCoins("1000ugnot")
+	assert.Equal(t, expectedCoins, coins, "IssueCoin should add the correct amount of coins")
+
+	// check total supply
+	totalSupply := banker.TotalCoin("ugnot")
+	assert.Equal(t, int64(1000), totalSupply, "Total supply should match issued amount")
+}
+
+func TestSDKBankerRemoveCoin(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	store := ctx.Store(env.supplyKey)
+	banker := &SDKBanker{
+		vmk:         env.vmk,
+		ctx:         ctx,
+		supplyStore: bank.NewSupplyStore(store),
+		store:       store,
+	}
+
+	addr1 := crypto.AddressFromPreimage([]byte("addr1"))
+	b32addr1 := crypto.Bech32Address(addr1.String())
+
+	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
+	env.acck.SetAccount(ctx, acc1)
+
+	banker.IssueCoin(b32addr1, "ugnot", 1000)
+	banker.RemoveCoin(b32addr1, "ugnot", 500)
+
+	// check balance
+	coins := banker.GetCoins(b32addr1)
+	expectedCoins := std.MustParseCoins("500ugnot")
+	assert.Equal(t, expectedCoins, coins, "RemoveCoin should subtract the correct amount of coins")
+
+	// check total supply
+	totalSupply := banker.TotalCoin("ugnot")
+	assert.Equal(t, int64(500), totalSupply, "Total supply should be reduced after removal")
+
+	// insufficient balance test
+	assert.Panics(t, func() {
+		banker.RemoveCoin(b32addr1, "ugnot", 1000)
+	}, "RemoveCoin should panic when trying to remove more coins than available")
+}
+
 func BenchmarkSDKBankerTotal(b *testing.B) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
