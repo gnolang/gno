@@ -79,6 +79,8 @@ func (av *ArrayValue) String(m *Machine) string {
 	return av.ProtectedString(m, newSeenValues())
 }
 
+const CPUCYCLES = "CPUCycles"
+
 func (av *ArrayValue) ProtectedString(m *Machine, seen *seenValues) string {
 	if i := seen.IndexOf(av); i != -1 {
 		return fmt.Sprintf("ref@%d", i)
@@ -94,11 +96,13 @@ func (av *ArrayValue) ProtectedString(m *Machine, seen *seenValues) string {
 	ss := make([]string, len(av.List))
 	if av.Data == nil {
 		for i, e := range av.List {
+			m.GasMeter.ConsumeGas(OpCPUAssign, CPUCYCLES)
 			ss[i] = e.ProtectedString(m, seen)
 		}
 		// NOTE: we may want to unify the representation,
 		// but for now tests expect this to be different.
 		// This may be helpful for testing implementation behavior.
+		m.GasMeter.ConsumeGas(OpCPUAssign, CPUCYCLES)
 		return "array[" + strings.Join(ss, ",") + "]"
 	}
 	if len(av.Data) > 256 {
