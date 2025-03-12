@@ -10,6 +10,13 @@ import (
 )
 
 // Runs a Portal Loop routine
+// Steps performed:
+// - Check for an updated Gnoland Docker image (if not skip)
+// - Backup existing txs using an existing Gnoland container / create new one
+// - Kill the existing container
+// - Create a new instance of Gnoland container that starts using the previous backup as txs in its genesis file
+// - Wait genesis txs to be committed
+// - Update reference to looped RPC node
 func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, force bool) error {
 	logger := portalLoopHandler.logger
 	dockerHandler := portalLoopHandler.dockerHandler
@@ -23,12 +30,6 @@ func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, for
 		zap.Bool("is_new", isNew),
 		zap.Bool("is_forced", force),
 	)
-
-	// - Backup existing txs using an existing Gno container / create new one
-	// - Kill the existing container
-	// - Create a new instance of instance of Gno container that start using backup as txs in genesis file
-	// - Wait genesis txs to be committed
-	// - Update reference to looped RPC
 
 	// 2. Get existing portal loop
 	containers, err := dockerHandler.GetActiveGnoPortalLoopContainers(ctx)
@@ -44,7 +45,7 @@ func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, for
 		// Portal loop isn't running, Starting it
 		container, err := dockerHandler.StartGnoPortalLoopContainer(
 			ctx,
-			portalLoopHandler.containerName,
+			portalLoopHandler.GetContainerName(),
 			portalLoopHandler.cfg.HostPWD,
 			false, // do not pull new image
 		)
@@ -56,7 +57,7 @@ func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, for
 	}
 
 	portalLoopHandler.currentRpcUrl = dockerHandler.GetPublishedRPCPort(containers[0])
-	logger.Info("Current portal loop container",
+	logger.Info("Current  loop container",
 		zap.String("portal.url", portalLoopHandler.currentRpcUrl),
 	)
 	logger.Info("Updating Traefik portal loop url")
@@ -96,7 +97,7 @@ func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, for
 	// 6. Start a new portal loop instance
 	dockerContainer, err := dockerHandler.StartGnoPortalLoopContainer(
 		ctx,
-		portalLoopHandler.containerName,
+		portalLoopHandler.GetContainerName(),
 		portalLoopHandler.cfg.HostPWD,
 		true, // always pull new image
 	)

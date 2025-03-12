@@ -29,20 +29,21 @@ const (
 )
 
 type PortalLoopHandler struct {
-	cfg           *cfg.CmdCfg
-	logger        *zap.Logger
-	dockerHandler *docker.DockerHandler
-	containerName string
-	currentRpcUrl string
-
+	cfg                *cfg.CmdCfg
+	logger             *zap.Logger
+	dockerHandler      *docker.DockerHandler
+	currentRpcUrl      string
 	backupFile         string
 	instanceBackupFile string
 }
 
-func NewPortalLoopHandler(cfg *cfg.CmdCfg, logger *zap.Logger) (*PortalLoopHandler, error) {
+// Gets formatted current time
+func getFormattedTimestamp() string {
 	timenow := time.Now()
-	now := fmt.Sprintf("%s_%v", timenow.Format("2006-01-02_"), timenow.UnixNano())
+	return fmt.Sprintf("%s_%v", timenow.Format("2006-01-02_"), timenow.UnixNano())
+}
 
+func NewPortalLoopHandler(cfg *cfg.CmdCfg, logger *zap.Logger) (*PortalLoopHandler, error) {
 	dockerClient_, err := dockerClient.NewClientWithOpts(dockerClient.FromEnv)
 	if err != nil {
 		return nil, err
@@ -52,7 +53,7 @@ func NewPortalLoopHandler(cfg *cfg.CmdCfg, logger *zap.Logger) (*PortalLoopHandl
 	if err != nil {
 		return nil, err
 	}
-	instanceBackupFile, err := filepath.Abs(fmt.Sprintf("%s/backup_%s.jsonl", cfg.SnapshotsDir, now))
+	instanceBackupFile, err := filepath.Abs(fmt.Sprintf("%s/backup_%s.jsonl", cfg.SnapshotsDir, getFormattedTimestamp()))
 	if err != nil {
 		return nil, err
 	}
@@ -64,10 +65,14 @@ func NewPortalLoopHandler(cfg *cfg.CmdCfg, logger *zap.Logger) (*PortalLoopHandl
 			DockerClient: dockerClient_,
 			Logger:       logger,
 		},
-		containerName:      "gno-" + now,
 		backupFile:         backupFile,
 		instanceBackupFile: instanceBackupFile,
 	}, nil
+}
+
+// Gets a container name from current time
+func (plh PortalLoopHandler) GetContainerName() string {
+	return "gno" + getFormattedTimestamp()
 }
 
 // Backups all the active transactions
