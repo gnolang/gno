@@ -328,6 +328,7 @@ func filterValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
 		} else if valUpdate.Power == 0 {
 			// continue, since this is deleting the validator, and thus there is no
 			// pubkey to check
+			validUpdates = append(validUpdates, valUpdate)
 			continue
 		}
 

@@ -195,7 +195,7 @@ func TestValidateValidatorUpdates(t *testing.T) {
 				"filtered updates length mismatch")
 
 			// Check powers of remaining validators
-			var powers []int64
+			var powers = []int64{}
 			for _, update := range filteredUpdates {
 				powers = append(powers, update.Power)
 			}
