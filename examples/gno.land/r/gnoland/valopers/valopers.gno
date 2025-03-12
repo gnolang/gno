@@ -14,6 +14,7 @@ import (
 	"gno.land/p/demo/combinederr"
 	"gno.land/p/demo/ownable/exts/authorizable"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/realmpath"
 )
 
 const (
@@ -296,16 +297,17 @@ func GetByAddr(address std.Address) Valoper {
 // "/r/gnoland/valopers" lists all valopers, paginated.
 // "/r/gnoland/valopers:addr" shows the detail for the valoper with the addr.
 func Render(fullPath string) string {
-	path, _ := splitPathAndQuery(fullPath)
-	if path == "" {
+	req := realmpath.Parse(fullPath)
+	if req.Path == "" {
 		return renderHome(fullPath)
 	} else {
-		if len(path) < 2 || path[:2] != "g1" {
-			return "invalid address " + path
+		addr := req.Path
+		if len(addr) < 2 || addr[:2] != "g1" {
+			return "invalid address " + addr
 		}
-		valoperRaw, exists := valopers.Get(path)
+		valoperRaw, exists := valopers.Get(addr)
 		if !exists {
-			return "unknown address " + path
+			return "unknown address " + addr
 		}
 		v := valoperRaw.(Valoper)
 		return "Valoper's details:\n" + v.Render()
@@ -336,16 +338,6 @@ func renderHome(path string) string {
 	output += "\n"
 	output += page.Picker()
 	return output
-}
-
-func splitPathAndQuery(fullPath string) (string, string) {
-	parts := strings.SplitN(fullPath, "?", 2)
-	path := parts[0]
-	queryString := ""
-	if len(parts) > 1 {
-		queryString = "?" + parts[1]
-	}
-	return path, queryString
 }
 
 // Validate checks if the fields of the Valoper are valid
