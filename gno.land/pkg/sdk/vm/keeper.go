@@ -64,11 +64,12 @@ type VMKeeper struct {
 	// Needs to be explicitly set, like in the case of gnodev.
 	Output io.Writer
 
-	baseKey store.StoreKey
-	iavlKey store.StoreKey
-	acck    auth.AccountKeeper
-	bank    bank.BankKeeper
-	prmk    params.ParamsKeeper
+	baseKey   store.StoreKey
+	iavlKey   store.StoreKey
+	supplyKey store.StoreKey
+	acck      auth.AccountKeeper
+	bank      bank.BankKeeper
+	prmk      params.ParamsKeeper
 
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
@@ -80,16 +81,18 @@ type VMKeeper struct {
 func NewVMKeeper(
 	baseKey store.StoreKey,
 	iavlKey store.StoreKey,
+	supplyKey store.StoreKey,
 	acck auth.AccountKeeper,
 	bank bank.BankKeeper,
 	prmk params.ParamsKeeper,
 ) *VMKeeper {
 	vmk := &VMKeeper{
-		baseKey: baseKey,
-		iavlKey: iavlKey,
-		acck:    acck,
-		bank:    bank,
-		prmk:    prmk,
+		baseKey:   baseKey,
+		iavlKey:   iavlKey,
+		supplyKey: supplyKey,
+		acck:      acck,
+		bank:      bank,
+		prmk:      prmk,
 	}
 
 	return vmk

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 
 	"github.com/stretchr/testify/assert"
@@ -72,8 +73,15 @@ func TestParamsKeeper(t *testing.T) {
 
 func TestSDKBankerTotalCoin(t *testing.T) {
 	env := setupTestEnv()
+
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
-	banker := NewSDKBanker(env.vmk, ctx)
+	store := ctx.Store(env.supplyKey)
+	banker := &SDKBanker{
+		vmk:         env.vmk,
+		ctx:         ctx,
+		supplyStore: bank.NewSupplyStore(store),
+		store:       store,
+	}
 
 	// create test accounts and set coins
 	addr1 := crypto.AddressFromPreimage([]byte("addr1"))
@@ -87,6 +95,12 @@ func TestSDKBankerTotalCoin(t *testing.T) {
 	env.acck.SetAccount(ctx, acc2)
 	env.bankk.SetCoins(ctx, addr2, std.MustParseCoins("2000ugnot,1500atom"))
 
+	// initialize supply
+	err := banker.supplyStore.SetSupply(banker.store, "ugnot", 3000)
+	require.NoError(t, err)
+	err = banker.supplyStore.SetSupply(banker.store, "atom", 2000)
+	require.NoError(t, err)
+
 	tests := []struct {
 		name      string
 		denom     string
@@ -95,7 +109,7 @@ func TestSDKBankerTotalCoin(t *testing.T) {
 	}{
 		{"ugnot total", "ugnot", 3000, false},
 		{"atom total", "atom", 2000, false},
-		{"non-existent denom", "foo", 0, false},
+		{"non-existent denom", "non-existent", 0, false},
 		{"zero balance accounts included", "ugnot", 3000, false},
 		{"empty string denom", "", 0, true},
 	}
@@ -109,6 +123,56 @@ func TestSDKBankerTotalCoin(t *testing.T) {
 			} else {
 				total := banker.TotalCoin(tt.denom)
 				assert.Equal(t, tt.expected, total)
+			}
+		})
+	}
+}
+
+func BenchmarkSDKBankerTotal(b *testing.B) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	store := ctx.Store(env.supplyKey)
+	banker := &SDKBanker{
+		vmk:         env.vmk,
+		ctx:         ctx,
+		supplyStore: bank.NewSupplyStore(store),
+		store:       store,
+	}
+
+	denoms := []string{"ugnot", "atom", "foo", "bar"}
+	supplies := map[string]int64{
+		"ugnot": 1_000_000,
+		"atom":  2_000_000,
+		"foo":   5_000_000,
+		"bar":   100_000,
+	}
+
+	if len(denoms) != len(supplies) {
+		b.Fatalf("len(denoms) != len(supplies)")
+	}
+
+	for _, denom := range denoms {
+		err := banker.supplyStore.SetSupply(banker.store, denom, supplies[denom])
+		require.NoError(b, err)
+	}
+
+	benchs := []struct {
+		name  string
+		denom string
+	}{
+		{"ExistingDenom_Small", "bar"},
+		{"ExistingDenom_Medium", "atom"},
+		{"ExistingDenom_Large", "ugnot"},
+		{"NonExistentDenom", "foo"},
+		{"NonExistentDenom", "non-existent"},
+	}
+
+	for _, bb := range benchs {
+		b.Run(bb.name, func(b *testing.B) {
+			b.ResetTimer()
+
+			for i := 0; i < b.N; i++ {
+				banker.TotalCoin(bb.denom)
 			}
 		})
 	}
