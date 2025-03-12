@@ -6,6 +6,7 @@ import (
 	"loop/cmd/portalloop"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"go.uber.org/zap"
 )
 
 func NewBackupCmd(_ commands.IO) *commands.Command {
@@ -24,16 +25,15 @@ func NewBackupCmd(_ commands.IO) *commands.Command {
 }
 
 func execBackup(ctx context.Context, cfg_ *cfg.CmdCfg) error {
-	return ExecAll(
-		ctx,
-		cfg_,
-		func(ctx context.Context, cfg *cfg.CmdCfg, portalLoopHandler *portalloop.PortalLoopHandler) error {
-			err := portalloop.RunPortalLoop(ctx, *portalLoopHandler, false)
-			if err != nil {
-				return err
-			}
+	logger, _ := zap.NewProduction()
+	portalLoopHandler, err := portalloop.NewPortalLoopHandler(cfg_, logger)
+	if err != nil {
+		return err
+	}
+	err = portalloop.RunPortalLoop(ctx, *portalLoopHandler, false)
+	if err != nil {
+		return err
+	}
 
-			return portalLoopHandler.BackupTXs(ctx)
-		},
-	)
+	return portalLoopHandler.BackupTXs(ctx)
 }

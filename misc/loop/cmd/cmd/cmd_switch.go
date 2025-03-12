@@ -6,6 +6,7 @@ import (
 	"loop/cmd/portalloop"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"go.uber.org/zap"
 )
 
 func NewSwitchCmd(_ commands.IO) *commands.Command {
@@ -24,11 +25,10 @@ func NewSwitchCmd(_ commands.IO) *commands.Command {
 }
 
 func execSwitch(ctx context.Context, cfg_ *cfg.CmdCfg) error {
-	return ExecAll(
-		ctx,
-		cfg_,
-		func(ctx context.Context, cfg *cfg.CmdCfg, portalLoopHandler *portalloop.PortalLoopHandler) error {
-			return portalloop.RunPortalLoop(ctx, *portalLoopHandler, true)
-		},
-	)
+	logger, _ := zap.NewProduction()
+	portalLoopHandler, err := portalloop.NewPortalLoopHandler(cfg_, logger)
+	if err != nil {
+		return err
+	}
+	return portalloop.RunPortalLoop(ctx, *portalLoopHandler, true)
 }
