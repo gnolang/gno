@@ -89,6 +89,9 @@ func (ms *multiStore) MountStoreWithDB(key types.StoreKey, cons types.CommitStor
 
 // Implements CommitMultiStore.
 func (ms *multiStore) GetCommitStore(key types.StoreKey) types.CommitStore {
+	ms.mux.Lock()
+	defer ms.mux.Unlock()
+
 	return ms.stores[key]
 }
 
@@ -215,6 +218,9 @@ func (ms *multiStore) Commit() types.CommitID {
 
 // Implements MultiStore.
 func (ms *multiStore) MultiCacheWrap() types.MultiStore {
+	ms.mux.Lock()
+	defer ms.mux.Unlock()
+
 	stores := make(map[types.StoreKey]types.Store)
 	for k, v := range ms.stores {
 		stores[k] = v
@@ -230,6 +236,9 @@ func (ms *multiStore) MultiWrite() {
 
 // Implements CommitMultiStore.
 func (ms *multiStore) MultiImmutableCacheWrapWithVersion(version int64) (types.MultiStore, error) {
+	ms.mux.Lock()
+	defer ms.mux.Unlock()
+
 	ims := &multiStore{
 		db:           dbm.NewImmutableDB(ms.db),
 		storeOpts:    ms.storeOpts,
@@ -251,6 +260,9 @@ func (ms *multiStore) MultiImmutableCacheWrapWithVersion(version int64) (types.M
 // Implements MultiStore.
 // If the store does not exist, panics.
 func (ms *multiStore) GetStore(key types.StoreKey) types.Store {
+	ms.mux.Lock()
+	defer ms.mux.Unlock()
+
 	store := ms.stores[key]
 	if store == nil {
 		panic("Could not load store " + key.String())

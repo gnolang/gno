@@ -181,6 +181,9 @@ func (st *Store) versionExists(version int64) bool {
 
 // Implements Store.
 func (st *Store) CacheWrap() types.Store {
+	st.mux.Lock()
+	defer st.mux.Unlock()
+
 	return cache.New(st)
 }
 

@@ -5,6 +5,7 @@ import (
 	goerrors "errors"
 	"fmt"
 	"path/filepath"
+	"sync"
 
 	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/db"
@@ -25,7 +26,8 @@ func init() {
 var _ db.DB = (*GoLevelDB)(nil)
 
 type GoLevelDB struct {
-	db *leveldb.DB
+	db  *leveldb.DB
+	mux sync.Mutex
 }
 
 func NewGoLevelDB(name string, dir string) (*GoLevelDB, error) {
@@ -46,6 +48,9 @@ func NewGoLevelDBWithOpts(name string, dir string, o *opt.Options) (*GoLevelDB, 
 
 // Implements DB.
 func (db *GoLevelDB) Get(key []byte) []byte {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
 	key = internal.NonNilBytes(key)
 	res, err := db.db.Get(key, nil)
 	if err != nil {
@@ -64,6 +69,9 @@ func (db *GoLevelDB) Has(key []byte) bool {
 
 // Implements DB.
 func (db *GoLevelDB) Set(key []byte, value []byte) {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
 	key = internal.NonNilBytes(key)
 	value = internal.NonNilBytes(value)
 	err := db.db.Put(key, value, nil)
@@ -74,6 +82,9 @@ func (db *GoLevelDB) Set(key []byte, value []byte) {
 
 // Implements DB.
 func (db *GoLevelDB) SetSync(key []byte, value []byte) {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
 	key = internal.NonNilBytes(key)
 	value = internal.NonNilBytes(value)
 	err := db.db.Put(key, value, &opt.WriteOptions{Sync: true})
@@ -84,6 +95,9 @@ func (db *GoLevelDB) SetSync(key []byte, value []byte) {
 
 // Implements DB.
 func (db *GoLevelDB) Delete(key []byte) {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
 	key = internal.NonNilBytes(key)
 	err := db.db.Delete(key, nil)
 	if err != nil {
@@ -93,6 +107,8 @@ func (db *GoLevelDB) Delete(key []byte) {
 
 // Implements DB.
 func (db *GoLevelDB) DeleteSync(key []byte) {
+	db.mux.Lock()
+	defer db.mux.Unlock()
 	key = internal.NonNilBytes(key)
 	err := db.db.Delete(key, &opt.WriteOptions{Sync: true})
 	if err != nil {
