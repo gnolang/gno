@@ -21,12 +21,6 @@ type SupplyKeeper interface {
 	SubtractSupply(store types.Store, denom string, amount int64)
 }
 
-// Supply stores the total supply of a each token
-type Supply struct {
-	Denom  string `json:"denom"`
-	Amount int64  `json:"amount"`
-}
-
 // SupplyStore manages the actual supply data
 type SupplyStore struct {
 	store types.Store
