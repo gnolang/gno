@@ -4,8 +4,6 @@ import (
 	"errors"
 	"math"
 	"std"
-
-	"gno.land/p/demo/avl"
 )
 
 // ErrVoteExists indicates that a user already voted.
@@ -29,70 +27,16 @@ type (
 		// Context can store any custom voting values related to the vote.
 		Context any
 	}
-
-	// ReadOnlyVotingRecord defines an interface for read only voting records.
-	ReadOnlyVotingRecord interface {
-		// Size returns the total number of votes that record contains.
-		Size() int
-
-		// Iterate iterates voting record votes.
-		Iterate(fn VoteIterFn) (stopped bool)
-
-		// Choices returns the voting choices that has been voted.
-		Choices() []VoteChoice
-
-		// VoteCount returns the number of votes for a single voting choice.
-		VoteCount(VoteChoice) int
-
-		// HasVoted checks if an account already voted.
-		HasVoted(std.Address) bool
-
-		// GetProvableMajorityChoice returns the choice voted by the majority.
-		// The result is only valid if there is a majority.
-		// Caller must validate that the returned choice represents a majority.
-		GetProvableMajorityChoice() VoteChoice
-	}
 )
 
 // VotingRecord stores accounts that voted and vote choices.
 type VotingRecord struct {
-	votes avl.Tree // string(address) -> Vote
-	count avl.Tree // string(choice) -> int
+	ReadOnlyVotingRecord
 }
 
-// Size returns the total number of votes that record contains.
-func (r VotingRecord) Size() int {
-	return r.votes.Size()
-}
-
-// Choices returns the voting choices that has been voted.
-func (r VotingRecord) Choices() []VoteChoice {
-	var choices []VoteChoice
-	r.count.Iterate("", "", func(k string, v any) bool {
-		choices = append(choices, VoteChoice(k))
-		return false
-	})
-	return choices
-}
-
-// Iterate iterates voting record votes.
-func (r VotingRecord) Iterate(fn VoteIterFn) bool {
-	return r.votes.Iterate("", "", func(k string, v any) bool {
-		return fn(v.(Vote))
-	})
-}
-
-// VoteCount returns the number of votes for a single voting choice.
-func (r VotingRecord) VoteCount(c VoteChoice) int {
-	if v, found := r.count.Get(string(c)); found {
-		return v.(int)
-	}
-	return 0
-}
-
-// HasVoted checks if an account already voted.
-func (r VotingRecord) HasVoted(user std.Address) bool {
-	return r.votes.Has(user.String())
+// ReadOnly returns a read only voting record.
+func (r VotingRecord) ReadOnly() ReadOnlyVotingRecord {
+	return r.ReadOnlyVotingRecord
 }
 
 // AddVote adds a vote to the voting record.
@@ -115,16 +59,16 @@ func (r *VotingRecord) AddVote(vote Vote) (updated bool) {
 // GetProvableMajorityChoice returns the choice voted by the majority.
 // The result is only valid if there is a majority.
 // Caller must validate that the returned choice represents a majority.
-func (r VotingRecord) GetProvableMajorityChoice() VoteChoice {
+func GetProvableMajorityChoice(r ReadOnlyVotingRecord) VoteChoice { // TODO: Rethink this function
 	var (
 		choice       VoteChoice
 		currentCount int
 	)
 
-	r.count.Iterate("", "", func(k string, v any) bool {
+	r.count.Iterate("", "", func(c string, v any) bool {
 		count := v.(int)
 		if currentCount < count {
-			choice = VoteChoice(k)
+			choice = VoteChoice(c)
 			currentCount = count
 		}
 		return false
@@ -136,7 +80,7 @@ func (r VotingRecord) GetProvableMajorityChoice() VoteChoice {
 // Vote choice is a majority when chosen by more than half of the votes.
 // Absolute majority considers abstentions when counting votes.
 func SelectChoiceByAbsoluteMajority(r ReadOnlyVotingRecord, membersCount int) (VoteChoice, bool) {
-	choice := r.GetProvableMajorityChoice()
+	choice := GetProvableMajorityChoice(r)
 	if r.VoteCount(choice) > int(membersCount/2) {
 		return choice, true
 	}
@@ -150,7 +94,7 @@ func SelectChoiceBySuperMajority(r ReadOnlyVotingRecord, membersCount int) (Vote
 		return "", false
 	}
 
-	choice := r.GetProvableMajorityChoice()
+	choice := GetProvableMajorityChoice(r)
 	if r.VoteCount(choice) >= int(math.Ceil((2*float64(membersCount))/3)) {
 		return choice, true
 	}
@@ -168,7 +112,7 @@ func SelectChoiceByPlurality(r ReadOnlyVotingRecord) (VoteChoice, bool) {
 	)
 
 	for _, c := range r.Choices() {
-		if c == ChoiceAbstain {
+		if c == ChoiceAbstain || c == ChoiceNone {
 			continue
 		}
 
