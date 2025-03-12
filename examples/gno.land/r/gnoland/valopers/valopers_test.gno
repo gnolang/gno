@@ -87,16 +87,12 @@ func TestValopers_Register(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
-		defer func() {
-			if r := recover(); r == nil {
-				t.Errorf("Register without coins deposited should panic")
-			}
-		}()
-
 		// Send no coins
 		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", 0)}, nil)
 
-		Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
+		uassert.PanicsWithMessage(t, ufmt.Sprintf("payment must not be less than %d", minFee), func() {
+      Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
+		})
 	})
 
 	t.Run("insufficient coins amount deposited", func(t *testing.T) {
@@ -108,13 +104,9 @@ func TestValopers_Register(t *testing.T) {
 		// Send invalid coins
 		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee-1)}, nil)
 
-		defer func() {
-			if r := recover(); r == nil {
-				t.Errorf("Register with less than minimal coins deposited should panic")
-			}
-		}()
-
-		Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
+		uassert.PanicsWithMessage(t, ufmt.Sprintf("payment must not be less than %d", minFee), func() {
+      Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
+		})
 	})
 
 	t.Run("successful registration", func(t *testing.T) {
