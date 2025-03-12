@@ -64,7 +64,7 @@ func TestValopers_Register(t *testing.T) {
 			Address:      validAddress,
 			PubKey:       validPubKey,
 			P2PAddresses: validP2PAddresses,
-			Active:       true,
+			KeepRunning:       true,
 		}
 
 		// Add the valoper
@@ -123,7 +123,7 @@ func TestValopers_Register(t *testing.T) {
 			for i, p2pAddress := range validP2PAddresses {
 				uassert.Equal(t, p2pAddress, valoper.P2PAddresses[i])
 			}
-			uassert.Equal(t, true, valoper.Active)
+			uassert.Equal(t, true, valoper.KeepRunning)
 		})
 	})
 }
@@ -504,5 +504,66 @@ func TestValopers_UpdateP2PAddresses(t *testing.T) {
 				uassert.Equal(t, fullAddress, valoper.P2PAddresses[0])
 			})
 		}
+	})
+}
+
+func TestValopers_UpdateKeepRunning(t *testing.T) {
+	t.Run("non-existing valoper", func(t *testing.T) {
+		// Clear the set for the test
+		valopers = avl.NewTree()
+
+		// Update the valoper
+		uassert.PanicsWithMessage(t, ErrValoperMissing.Error(), func() {
+			UpdateKeepRunning(validAddress, false)
+		})
+	})
+
+	t.Run("invalid caller", func(t *testing.T) {
+		// Set the origin caller
+		std.TestSetOriginCaller(test1Address)
+
+		// Clear the set for the test
+		valopers = avl.NewTree()
+
+		// Send coins
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
+
+		// Add the valoper
+		uassert.NotPanics(t, func() {
+			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
+		})
+
+		// Change the origin caller
+		std.TestSetOriginCaller(test2Address)
+
+		// Update the valoper
+		uassert.PanicsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
+			UpdateKeepRunning(validAddress, false)
+		})
+	})
+
+	t.Run("successful update", func(t *testing.T) {
+		// Clear the set for the test
+		valopers = avl.NewTree()
+
+		// Send coins
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
+
+		// Add the valoper
+		uassert.NotPanics(t, func() {
+			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
+		})
+
+		// Update the valoper
+		uassert.NotPanics(t, func() {
+			UpdateKeepRunning(validAddress, false)
+		})
+
+		// Make sure the valoper is updated
+		uassert.NotPanics(t, func() {
+			valoper := GetByAddr(validAddress)
+
+			uassert.Equal(t, false, valoper.KeepRunning)
+		})
 	})
 }

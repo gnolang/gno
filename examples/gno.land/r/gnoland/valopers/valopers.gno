@@ -37,7 +37,7 @@ var (
 )
 
 var (
-	valopers     *avl.Tree                  // valopers keeps track of all the active validator operators. Address -> Valoper
+	valopers     *avl.Tree                  // valopers keeps track of all the valoper profiles. Address -> Valoper
 	instructions string                     // markdown instructions for valoper's registration
 	minFee       int64     = 20 * 1_000_000 // minimum gnot must be paid to register.
 	minCoin                = std.NewCoin("ugnot", minFee)
@@ -54,7 +54,7 @@ type Valoper struct {
 
 	Address      std.Address // The bech32 gno address of the validator
 	PubKey       string      // The bech32 public key of the validator
-	Active       bool        // Flag indicating if the valoper is active
+	KeepRunning   bool        // Flag indicating if the owner wants to keep the validator running
 	P2PAddresses []string    // The publicly reachable P2P addresses of the validator
 
 	auth *authorizable.Authorizable // The authorizer system for the valoper
@@ -96,7 +96,7 @@ func Register(moniker string, description string, address std.Address, pubKey st
 		Description:  description,
 		Address:      address,
 		PubKey:       pubKey,
-		Active:       true,
+		KeepRunning:       true,
 		P2PAddresses: strings.Split(p2pAddresses, ","),
 		auth:         authorizable.NewAuthorizable(),
 	}
@@ -150,15 +150,15 @@ func UpdateDescription(address std.Address, description string) {
 	valopers.Set(address.String(), v)
 }
 
-// UpdateActive updates an existing valoper's active status
-func UpdateActive(address std.Address, active bool) {
+// UpdateKeepRunning updates an existing valoper's active status
+func UpdateKeepRunning(address std.Address, keepRunning bool) {
 	v := GetByAddr(address)
 
 	// Check that the caller has permissions
 	v.Auth().AssertOnAuthList()
 
-	// Update active status
-	v.Active = active
+	// Update status
+	v.KeepRunning = keepRunning
 
 	// Save the valoper info
 	valopers.Set(address.String(), v)

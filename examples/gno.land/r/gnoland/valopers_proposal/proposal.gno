@@ -20,7 +20,7 @@ func MakeProposal(address std.Address) {
 	)
 
 	// Determine the voting power
-	if !valoper.Active {
+	if !valoper.KeepRunning {
 		votingPower = uint64(0)
 	}
 
