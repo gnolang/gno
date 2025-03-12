@@ -124,7 +124,7 @@ func TestVotingRecordGetProvableMajorityChoice(t *testing.T) {
 	}{
 		{
 			name:   "no votes",
-			choice: ChoiceAbstain,
+			choice: ChoiceNone,
 		},
 		{
 			name: "one vote",
@@ -177,7 +177,7 @@ func TestSelectChoiceByAbsoluteMajority(t *testing.T) {
 	}{
 		{
 			name:         "no votes",
-			choice:       "",
+			choice:       ChoiceNone,
 			membersCount: 3,
 			success:      false,
 		},
@@ -241,7 +241,7 @@ func TestSelectChoiceBySuperMajority(t *testing.T) {
 	}{
 		{
 			name:         "no votes",
-			choice:       "",
+			choice:       ChoiceNone,
 			membersCount: 3,
 			success:      false,
 		},
@@ -304,7 +304,7 @@ func TestSelectChoiceByPlurality(t *testing.T) {
 	}{
 		{
 			name:    "no votes",
-			choice:  ChoiceAbstain,
+			choice:  ChoiceNone,
 			success: false,
 		},
 		{

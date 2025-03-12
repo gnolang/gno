@@ -209,6 +209,7 @@ func TestCommonDAOVote(t *testing.T) {
 			name:   "not a member",
 			setup:  func() *CommonDAO { return New() },
 			member: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+			choice: ChoiceAbstain,
 			err:    ErrNotMember,
 		},
 		{
@@ -217,6 +218,7 @@ func TestCommonDAOVote(t *testing.T) {
 				return New(WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"))
 			},
 			member:     "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+			choice:     ChoiceAbstain,
 			proposalID: 42,
 			err:        ErrProposalNotFound,
 		},

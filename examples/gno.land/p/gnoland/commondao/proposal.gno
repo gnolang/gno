@@ -16,9 +16,10 @@ const (
 )
 
 const (
-	ChoiceAbstain VoteChoice = ""
+	ChoiceNone    VoteChoice = ""
 	ChoiceYes                = "YES"
 	ChoiceNo                 = "NO"
+	ChoiceAbstain            = "ABSTAIN"
 )
 
 var (
