@@ -36,5 +36,5 @@ func main() {
 }
 
 // Output:
-// int doesn't implement interface{Do func(string)} (missing method Do)
-// *int doesn't implement interface{Do func(string)} (missing method Do)
+// int doesn't implement interface {Do func(string)} (missing method Do)
+// *int doesn't implement interface {Do func(string)} (missing method Do)
