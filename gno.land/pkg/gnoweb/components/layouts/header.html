@@ -2,10 +2,10 @@
   <header class="main-header sticky top-0 bg-light border-b text-100 z-max">
     <nav
       aria-label="Realm navigation"
-      class="max-w-screen-max mx-auto px-4 md:px-10 grid grid-cols-10 grid-flow-dense gap-4 md:gap-x-8 lg:gap-x-20 xxl:gap-x-32 items-center"
+      class="max-w-screen-max mx-auto px-4 md:px-10 flex lg:grid grid-cols-10 grid-flow-dense gap-4 md:gap-x-8 lg:gap-x-20 xxl:gap-x-32 items-stretch"
     >
       <div
-        class="main-navigation flex items-center gap-1 col-span-7 max-w-screen-max h-full py-2"
+        class="main-navigation flex-auto min-w-0 flex items-stretch gap-1 col-span-7 w-full h-full py-2"
       >
         <a
           href="/"
@@ -20,7 +20,7 @@
         </a>
 
         <div
-          class="relative w-full h-full overflow-scroll no-scrollbar text-gray-100 has-[[data-role='header-input-search']:focus-within]:text-gray-50"
+          class="relative h-auto w-full overflow-scroll no-scrollbar text-gray-100 has-[[data-role='header-input-search']:focus-within]:text-gray-50"
         >
           <div
             class="relative overflow-scroll no-scrollbar md:pr-8 flex items-center bg-current has-[[data-role='header-input-search']:focus-within]:border-gray-300 border h-full border-gray-100 px-1.5 py-0 rounded"
@@ -124,16 +124,43 @@
         </div>
       </div>
 
-      <form
-        class="sidemenu col-span-3 flex justify-end lg:justify-start gap-3 sm:gap-6 h-full text-100 text-gray-400"
+      <div
+        class="sidemenu col-span-3 h-auto flex flex-grow-0 flex-shrink-0 basis-auto"
       >
-        {{ if .IsDevMenu }}
-          {{ range .Links }}{{ template "ui/header_link" . }}{{ end }}
-        {{ else }}
-          <!-- Set default links here-->
+        {{ if not .HasDevMenu }}
+          <label
+            for="header-input-devmode"
+            class="order-3 ml-auto flex items-center cursor-pointer"
+          >
+            <svg class="w-5 h-5 ml-4 lg:ml-2">
+              <title>Developer menu switch</title>
+              <use href="#ico-more"></use>
+            </svg>
+          </label>
         {{ end }}
+        <input
+          id="header-input-devmode"
+          type="checkbox"
+          name="devmode"
+          class="peer sr-only"
+          {{ if .HasDevMenu }}checked{{ end }}
+        />
+        <div
+          role="menu"
+          class="peer-checked:flex hidden justify-end lg:justify-start h-full"
+        >
+          {{ range .Links.Dev }}{{ template "ui/header_link" . }}{{ end }}
+        </div>
 
-      </form>
+        {{ if not .HasDevMenu }}
+          <div
+            role="menu"
+            class="peer-checked:hidden flex justify-end lg:justify-start h-full"
+          >
+            {{ range .Links.General }}{{ template "ui/header_link" . }}{{ end }}
+          </div>
+        {{ end }}
+      </div>
     </nav>
   </header>
 {{ end }}

@@ -113,6 +113,8 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 		return http.StatusNotFound, components.StatusErrorComponent("invalid path")
 	}
 
+	hasDevMenu :=
+		!IsHomePath(gnourl.Path) || (gnourl.WebQuery.Has("source") || gnourl.WebQuery.Has("help"))
 	breadcrumb := generateBreadcrumbPaths(gnourl)
 	indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path
 	indexData.HeaderData = components.HeaderData{
@@ -120,7 +122,7 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 		RealmURL:   *gnourl,
 		ChainId:    h.Static.ChainId,
 		Remote:     h.Static.RemoteHelp,
-		IsDevMenu:  !IsHomePath(gnourl.Path), // Hide dev menu on home
+		HasDevMenu: hasDevMenu,
 	}
 
 	switch {

@@ -13,17 +13,40 @@ type HeaderLink struct {
 	IsActive bool
 }
 
+type HeaderLinks struct {
+	General []HeaderLink
+	Dev     []HeaderLink
+}
+
 type HeaderData struct {
 	RealmPath  string
 	RealmURL   weburl.GnoURL
 	Breadcrumb BreadcrumbData
-	Links      []HeaderLink
+	Links      HeaderLinks
 	ChainId    string
 	Remote     string
-	IsDevMenu  bool
+	HasDevMenu bool
 }
 
-func StaticHeaderLinks(u weburl.GnoURL, handle string) []HeaderLink {
+func StaticHeaderGeneralLinks() []HeaderLink {
+	links := []HeaderLink{
+		{
+			Label: "About",
+			URL:   "https://gno.land/about",
+		},
+		{
+			Label: "Docs",
+			URL:   "https://docs.gno.land/",
+		},
+		{
+			Label: "GitHub",
+			URL:   "https://github.com/gnolang",
+		},
+	}
+	return links
+}
+
+func StaticHeaderDevLinks(u weburl.GnoURL, handle string) []HeaderLink {
 	contentURL, sourceURL, helpURL := u, u, u
 	contentURL.WebQuery = url.Values{}
 	sourceURL.WebQuery = url.Values{"source": {""}}
@@ -60,7 +83,7 @@ func StaticHeaderLinks(u weburl.GnoURL, handle string) []HeaderLink {
 	return links
 }
 
-func EnrichHeaderData(data HeaderData) HeaderData {
+func EnrichHeaderData(data HeaderData, hasDevMenu bool) HeaderData {
 	data.RealmPath = data.RealmURL.EncodeURL()
 
 	var handle string
@@ -70,7 +93,13 @@ func EnrichHeaderData(data HeaderData) HeaderData {
 		handle = ""
 	}
 
-	data.Links = StaticHeaderLinks(data.RealmURL, handle)
+	data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, handle)
+
+	if hasDevMenu {
+		data.Links.General = nil
+	} else {
+		data.Links.General = StaticHeaderGeneralLinks()
+	}
 
 	return data
 }
