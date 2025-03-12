@@ -1,6 +1,8 @@
 package state
 
 import (
+	"log/slog"
+
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
@@ -32,8 +34,8 @@ func UpdateState(
 
 // ValidateValidatorUpdates is an alias for validateValidatorUpdates exported
 // from execution.go, exclusively and explicitly for testing.
-func ValidateValidatorUpdates(abciUpdates []abci.ValidatorUpdate, params abci.ValidatorParams) error {
-	return validateValidatorUpdates(abciUpdates, params)
+func FilterValidatorUpdates(abciUpdates []abci.ValidatorUpdate, params abci.ValidatorParams, logger *slog.Logger) []abci.ValidatorUpdate {
+	return filterValidatorUpdates(abciUpdates, params, logger)
 }
 
 // CalcValidatorsKey is an alias for the private calcValidatorsKey method in

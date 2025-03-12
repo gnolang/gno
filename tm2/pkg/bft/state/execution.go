@@ -118,10 +118,7 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 
 	// validate the validator updates and convert to tendermint types
 	abciValUpdates := abciResponses.EndBlock.ValidatorUpdates
-	err = validateValidatorUpdates(abciValUpdates, *state.ConsensusParams.Validator)
-	if err != nil {
-		return state, fmt.Errorf("Error in validator updates: %w", err)
-	}
+	abciValUpdates = filterValidatorUpdates(abciValUpdates, *state.ConsensusParams.Validator, blockExec.logger)
 	if len(abciValUpdates) > 0 {
 		blockExec.logger.Info("Updates to validators", "updates", abciValUpdates)
 	}
@@ -317,12 +314,17 @@ func getBeginBlockLastCommitInfo(block *types.Block, stateDB dbm.DB) abci.LastCo
 	return commitInfo
 }
 
-func validateValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
-	params abci.ValidatorParams,
-) error {
+func filterValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
+	params abci.ValidatorParams, logger *slog.Logger,
+) []abci.ValidatorUpdate {
+	validUpdates := make([]abci.ValidatorUpdate, 0, len(abciUpdates))
+
 	for _, valUpdate := range abciUpdates {
 		if valUpdate.Power < 0 {
-			return fmt.Errorf("voting power can't be negative %v", valUpdate)
+			logger.Error("Invalid voting power - ignoring validator update",
+				"validator", valUpdate.Address,
+				"power", valUpdate.Power)
+			continue
 		} else if valUpdate.Power == 0 {
 			// continue, since this is deleting the validator, and thus there is no
 			// pubkey to check
@@ -332,11 +334,15 @@ func validateValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
 		// Check if validator's pubkey matches an ABCI type in the consensus params
 		pubkeyTypeURL := amino.GetTypeURL(valUpdate.PubKey)
 		if !params.IsValidPubKeyTypeURL(pubkeyTypeURL) {
-			return fmt.Errorf("validator %v is using pubkey %s, which is unsupported for consensus",
-				valUpdate, pubkeyTypeURL)
+			logger.Error("Unsupported pubkey type - ignoring validator update",
+				"validator", valUpdate.Address,
+				"pubkeyTypeURL", pubkeyTypeURL)
+			continue
 		}
+
+		validUpdates = append(validUpdates, valUpdate)
 	}
-	return nil
+	return validUpdates
 }
 
 // updateState returns a new State updated according to the header and responses.

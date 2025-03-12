@@ -1,6 +1,8 @@
 package state_test
 
 import (
+	"io"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -113,58 +115,66 @@ func TestValidateValidatorUpdates(t *testing.T) {
 
 	pubkey1 := ed25519.GenPrivKey().PubKey()
 	pubkey2 := ed25519.GenPrivKey().PubKey()
-
 	secpKey := secp256k1.GenPrivKey().PubKey()
 
-	defaultValidatorParams := abci.ValidatorParams{PubKeyTypeURLs: []string{amino.GetTypeURL(ed25519.PubKeyEd25519{})}}
+	defaultValidatorParams := abci.ValidatorParams{
+		PubKeyTypeURLs: []string{amino.GetTypeURL(ed25519.PubKeyEd25519{})},
+	}
 
 	testCases := []struct {
-		name string
-
+		name            string
 		abciUpdates     []abci.ValidatorUpdate
 		validatorParams abci.ValidatorParams
-
-		shouldErr bool
+		expectedLen     int
+		expectedPowers  []int64
 	}{
 		{
-			"adding a validator is OK",
-
-			[]abci.ValidatorUpdate{{PubKey: (pubkey2), Power: 20}},
-			defaultValidatorParams,
-
-			false,
+			name: "valid ed25519 validator is kept",
+			abciUpdates: []abci.ValidatorUpdate{
+				{PubKey: pubkey2, Power: 20},
+			},
+			validatorParams: defaultValidatorParams,
+			expectedLen:     1,
+			expectedPowers:  []int64{20},
 		},
 		{
-			"updating a validator is OK",
-
-			[]abci.ValidatorUpdate{{PubKey: (pubkey1), Power: 20}},
-			defaultValidatorParams,
-
-			false,
+			name: "invalid secp256k1 validator is filtered out",
+			abciUpdates: []abci.ValidatorUpdate{
+				{PubKey: secpKey, Power: 20},
+			},
+			validatorParams: defaultValidatorParams,
+			expectedLen:     0,
+			expectedPowers:  []int64{},
 		},
 		{
-			"removing a validator is OK",
-
-			[]abci.ValidatorUpdate{{PubKey: (pubkey2), Power: 0}},
-			defaultValidatorParams,
-
-			false,
+			name: "mixed valid and invalid validators",
+			abciUpdates: []abci.ValidatorUpdate{
+				{PubKey: pubkey1, Power: 10},
+				{PubKey: secpKey, Power: 20},
+				{PubKey: pubkey2, Power: 30},
+			},
+			validatorParams: defaultValidatorParams,
+			expectedLen:     2,
+			expectedPowers:  []int64{10, 30},
 		},
 		{
-			"adding a validator with negative power results in error",
-
-			[]abci.ValidatorUpdate{{PubKey: (pubkey2), Power: -100}},
-			defaultValidatorParams,
-
-			true,
+			name: "negative power validator is filtered out",
+			abciUpdates: []abci.ValidatorUpdate{
+				{PubKey: pubkey1, Power: -10},
+				{PubKey: pubkey2, Power: 30},
+			},
+			validatorParams: defaultValidatorParams,
+			expectedLen:     1,
+			expectedPowers:  []int64{30},
 		},
 		{
-			"adding a validator with pubkey thats not in validator params results in error",
-
-			[]abci.ValidatorUpdate{{PubKey: (secpKey), Power: -100}},
-			defaultValidatorParams,
-
-			true,
+			name: "zero power validator (deletion) is kept",
+			abciUpdates: []abci.ValidatorUpdate{
+				{PubKey: pubkey1, Power: 0},
+			},
+			validatorParams: defaultValidatorParams,
+			expectedLen:     1,
+			expectedPowers:  []int64{0},
 		},
 	}
 
@@ -172,13 +182,25 @@ func TestValidateValidatorUpdates(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-			err := sm.ValidateValidatorUpdates(tc.abciUpdates, tc.validatorParams)
-			if tc.shouldErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
+			filteredUpdates := sm.FilterValidatorUpdates(
+				tc.abciUpdates,
+				tc.validatorParams,
+				logger,
+			)
+
+			// Check length matches
+			assert.Equal(t, tc.expectedLen, len(filteredUpdates),
+				"filtered updates length mismatch")
+
+			// Check powers of remaining validators
+			var powers []int64
+			for _, update := range filteredUpdates {
+				powers = append(powers, update.Power)
 			}
+			assert.Equal(t, tc.expectedPowers, powers,
+				"filtered updates powers mismatch")
 		})
 	}
 }
