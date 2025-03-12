@@ -40,8 +40,8 @@ type JSONValue struct {
 }
 
 type JSONField struct {
-	Name string
-	Type string
+	Name string `json:"name"`
+	Type string `json:"type"`
 }
 
 type JSONFunc struct {
@@ -126,6 +126,24 @@ func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
 			Signature: mustFormatNode(d.pkgData.fset, typ.Decl),
 			Doc:       string(pkg.Markdown(typ.Doc)),
 		})
+
+		// values of this type
+		for _, c := range typ.Consts {
+			jsonDoc.Values = append(jsonDoc.Values, &JSONValueDecl{
+				Signature: mustFormatNode(d.pkgData.fset, c.Decl),
+				Const:     true,
+				Values:    d.extractValueSpecs(pkg, c.Decl.Specs),
+				Doc:       string(pkg.Markdown(c.Doc)),
+			})
+		}
+		for _, v := range typ.Vars {
+			jsonDoc.Values = append(jsonDoc.Values, &JSONValueDecl{
+				Signature: mustFormatNode(d.pkgData.fset, v.Decl),
+				Const:     false,
+				Values:    d.extractValueSpecs(pkg, v.Decl.Specs),
+				Doc:       string(pkg.Markdown(v.Doc)),
+			})
+		}
 
 		// constructors for this type
 		for _, fun := range typ.Funcs {

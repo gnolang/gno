@@ -12,7 +12,7 @@ import (
 // propX_filetest.gno files.
 
 func TestNewStringPropExecutor(t *testing.T) {
-	executor := NewStringPropExecutor("foo", "bar")
+	executor := NewSysParamStringPropExecutor("foo", "bar", "baz", "qux")
 	if executor == nil {
 		t.Errorf("executor shouldn't be nil")
 	}
