@@ -56,7 +56,7 @@ functionality. See [Example Boards](../users/example-boards.md).
 ## C
 
 ### Chain ID
-A unique identifier for a blockchain network (e.g., "portal-loop" for the main
+A unique identifier for a blockchain network (e.g., "staging" for the main
 gno.land testnet).
 
 ### Coins vs Tokens
@@ -203,8 +203,8 @@ A unique identifier of code on the gno.land blockchain, following the format:
 `gno.land/[r|p]/[namespace]/[name]`. The package path determines where the code
 is stored and how it can be imported or accessed.
 
-### Portal Loop
-The main gno.land testnet, accessible at [gno.land](https://gno.land).
+### Staging network
+The main gno.land chain for testing, accessible at [gno.land](https://gno.land).
 
 ### Pure Package
 A stateless, importable, and reusable code (library) on the gno.land

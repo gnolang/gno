@@ -25,7 +25,7 @@ you'll need a wallet:
 
 ### Useful Resources
 
-- [Portal Loop](https://gno.land) - The main testnet for exploring gno.land
+- [Staging network](https://gno.land) - The main chain for exploring gno.land
 - [Faucet Hub](https://faucet.gno.land) - Get testnet tokens for experimenting
 - [Awesome Gno](https://github.com/gnolang/awesome-gno) - A curated list of tools, tutorials, and projects
 
