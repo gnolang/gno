@@ -4,6 +4,8 @@ import (
 	"errors"
 	"std"
 	"time"
+
+	"gno.land/p/demo/avl"
 )
 
 // DefaultQuorum defines the default quorum required to tally proposal votes.
@@ -43,6 +45,7 @@ type (
 		creator        std.Address
 		record         *VotingRecord
 		statusReason   string
+		voteChoices    *avl.Tree // string(VoteChoice) -> struct{}
 		votingDeadline time.Time
 		createdAt      time.Time
 	}
@@ -86,6 +89,15 @@ type (
 		// Execute executes the proposal.
 		Execute() error
 	}
+
+	// CustomizableVoteChoices defines an interface for proposal definitions that want
+	// to customize the list of allowed voting choices.
+	CustomizableVoteChoices interface {
+		// CustomVoteChoices returns a list of valid voting choices.
+		// Choices are considered valid only when there are at least two possible choices
+		// otherwise proposal defaults to using YES, NO and ABSTAIN as valid choices.
+		CustomVoteChoices() []VoteChoice
+	}
 )
 
 // NewProposal creates a new DAO proposal.
@@ -99,15 +111,31 @@ func NewProposal(id uint64, creator std.Address, d ProposalDefinition) (*Proposa
 	}
 
 	now := time.Now()
-	return &Proposal{
+	p := &Proposal{
 		id:             id,
 		status:         StatusActive,
 		definition:     d,
 		creator:        creator,
 		record:         &VotingRecord{},
+		voteChoices:    avl.NewTree(),
 		votingDeadline: now.Add(d.VotingPeriod()),
 		createdAt:      now,
-	}, nil
+	}
+
+	if v, ok := d.(CustomizableVoteChoices); ok {
+		for _, c := range v.CustomVoteChoices() {
+			p.voteChoices.Set(string(c), struct{}{})
+		}
+	}
+
+	// Use default voting choices when the definition returns none or a single vote choice
+	if p.voteChoices.Size() < 2 {
+		p.voteChoices.Set(string(ChoiceYes), struct{}{})
+		p.voteChoices.Set(string(ChoiceNo), struct{}{})
+		p.voteChoices.Set(string(ChoiceAbstain), struct{}{})
+	}
+
+	return p, nil
 }
 
 // ID returns the unique proposal identifies.
@@ -161,6 +189,21 @@ func (p Proposal) VotingDeadline() time.Time {
 	return p.votingDeadline
 }
 
+// VoteChoices returns the list of vote choices allowed for the proposal.
+func (p Proposal) VoteChoices() []VoteChoice {
+	var (
+		i       int
+		choices = make([]VoteChoice, p.voteChoices.Size())
+	)
+
+	p.voteChoices.Iterate("", "", func(c string, _ any) bool {
+		choices[i] = VoteChoice(c)
+		i++
+		return false
+	})
+	return choices
+}
+
 // Validate validates that a proposal is valid for the current state.
 // Validation is done when proposal status is active and when the definition supports validation.
 func (p Proposal) Validate() error {
@@ -172,4 +215,9 @@ func (p Proposal) Validate() error {
 		return v.Validate()
 	}
 	return nil
+}
+
+// IsValidVoteChoice checks if a vote choice is valid for the proposal.
+func (p Proposal) IsValidVoteChoice(c VoteChoice) bool {
+	return p.voteChoices.Has(string(c))
 }

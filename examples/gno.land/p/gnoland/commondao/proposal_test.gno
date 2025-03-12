@@ -6,9 +6,10 @@ import (
 	"time"
 
 	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/urequire"
 )
 
-func TestProposalDefaults(t *testing.T) {
+func TestProposalNew(t *testing.T) {
 	id := uint64(1)
 	creator := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	votingPeriod := time.Minute * 10
@@ -27,10 +28,50 @@ func TestProposalDefaults(t *testing.T) {
 	uassert.True(t, p.VotingDeadline() == p.CreatedAt().Add(votingPeriod))
 }
 
+func TestProposalVoteChoices(t *testing.T) {
+	cases := []struct {
+		name       string
+		definition ProposalDefinition
+		choices    []VoteChoice
+	}{
+		{
+			name:       "custom choices",
+			definition: testPropDef{voteChoices: []VoteChoice{"FOO", "BAR", "BAZ"}},
+			choices:    []VoteChoice{"BAR", "BAZ", "FOO"},
+		},
+		{
+			name:       "defaults because of empty custom choice list",
+			definition: testPropDef{voteChoices: []VoteChoice{}},
+			choices:    []VoteChoice{ChoiceAbstain, ChoiceNo, ChoiceYes},
+		},
+		{
+			name:       "defaults because of single custom choice list",
+			definition: testPropDef{voteChoices: []VoteChoice{"FOO"}},
+			choices:    []VoteChoice{ChoiceAbstain, ChoiceNo, ChoiceYes},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p, _ := NewProposal(1, "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", testPropDef{
+				voteChoices: tc.choices,
+			})
+
+			choices := p.VoteChoices()
+
+			urequire.Equal(t, len(choices), len(tc.choices), "expect vote choice count to match")
+			for i, c := range choices {
+				urequire.True(t, tc.choices[i] == c, "expect vote choice to match")
+			}
+		})
+	}
+}
+
 type testPropDef struct {
 	votingPeriod                time.Duration
 	tallyResult                 bool
 	validationErr, executionErr error
+	voteChoices                 []VoteChoice
 }
 
 func (testPropDef) Title() string                          { return "" }
@@ -40,3 +81,10 @@ func (d testPropDef) VotingPeriod() time.Duration          { return d.votingPeri
 func (d testPropDef) Validate() error                      { return d.validationErr }
 func (d testPropDef) Tally(ReadOnlyVotingRecord, int) bool { return d.tallyResult }
 func (d testPropDef) Execute() error                       { return d.executionErr }
+
+func (d testPropDef) CustomVoteChoices() []VoteChoice {
+	if len(d.voteChoices) > 0 {
+		return d.voteChoices
+	}
+	return []VoteChoice{ChoiceYes, ChoiceNo, ChoiceAbstain}
+}

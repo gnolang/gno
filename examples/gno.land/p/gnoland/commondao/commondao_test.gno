@@ -129,7 +129,7 @@ func TestCommonDAOPropose(t *testing.T) {
 		err     error
 	}{
 		{
-			name:    "ok",
+			name:    "success",
 			setup:   func() *CommonDAO { return New() },
 			creator: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
 			def:     testPropDef{},
@@ -188,7 +188,7 @@ func TestCommonDAOVote(t *testing.T) {
 		err        error
 	}{
 		{
-			name: "ok",
+			name: "success",
 			setup: func() *CommonDAO {
 				member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
 				dao := New(WithMember(member))
@@ -200,10 +200,31 @@ func TestCommonDAOVote(t *testing.T) {
 			proposalID: 1,
 		},
 		{
-			name:   "invalid vote choice",
-			setup:  func() *CommonDAO { return New() },
-			choice: VoteChoice("invalid"),
-			err:    ErrInvalidVoteChoice,
+			name: "success with custom vote choice",
+			setup: func() *CommonDAO {
+				member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
+				dao := New(WithMember(member))
+				dao.Propose(member, testPropDef{
+					voteChoices: []VoteChoice{"FOO", "BAR"},
+				})
+				return dao
+			},
+			member:     "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+			choice:     VoteChoice("BAR"),
+			proposalID: 1,
+		},
+		{
+			name: "invalid vote choice",
+			setup: func() *CommonDAO {
+				member := std.Address("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn")
+				dao := New(WithMember(member))
+				dao.Propose(member, testPropDef{})
+				return dao
+			},
+			member:     "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+			choice:     VoteChoice("invalid"),
+			proposalID: 1,
+			err:        ErrInvalidVoteChoice,
 		},
 		{
 			name:   "not a member",
@@ -249,10 +270,11 @@ func TestCommonDAOVote(t *testing.T) {
 
 func TestCommonDAOTally(t *testing.T) {
 	cases := []struct {
-		name  string
-		dao   *CommonDAO
-		votes []Vote
-		err   error
+		name       string
+		dao        *CommonDAO
+		definition ProposalDefinition
+		votes      []Vote
+		err        error
 	}{
 		{
 			name: "pass",
@@ -261,15 +283,32 @@ func TestCommonDAOTally(t *testing.T) {
 				WithMember("g1w4ek2u3jta047h6lta047h6lta047h6l9huexc"),
 				WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			),
+			definition: majorityPropDef{},
 			votes: []Vote{
 				{Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", Choice: ChoiceYes},
 				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes},
 			},
 		},
 		{
-			name: "no votes",
-			dao:  New(),
-			err:  ErrLowParticipation,
+			name: "pass with custom vote choices",
+			dao: New(
+				WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"),
+				WithMember("g1w4ek2u3jta047h6lta047h6lta047h6l9huexc"),
+				WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			),
+			definition: majorityPropDef{
+				testPropDef{voteChoices: []VoteChoice{"FOO", "BAR"}},
+			},
+			votes: []Vote{
+				{Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", Choice: VoteChoice("FOO")},
+				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: VoteChoice("FOO")},
+			},
+		},
+		{
+			name:       "no votes",
+			dao:        New(),
+			definition: majorityPropDef{},
+			err:        ErrLowParticipation,
 		},
 		{
 			name: "no quorum",
@@ -278,8 +317,24 @@ func TestCommonDAOTally(t *testing.T) {
 				WithMember("g1w4ek2u3jta047h6lta047h6lta047h6l9huexc"),
 				WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			),
+			definition: majorityPropDef{},
 			votes: []Vote{
 				{Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", Choice: ChoiceYes},
+			},
+			err: ErrLowParticipation,
+		},
+		{
+			name: "no quorum with custom vote choices",
+			dao: New(
+				WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"),
+				WithMember("g1w4ek2u3jta047h6lta047h6lta047h6l9huexc"),
+				WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			),
+			definition: majorityPropDef{
+				testPropDef{voteChoices: []VoteChoice{"FOO", "BAR"}},
+			},
+			votes: []Vote{
+				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: VoteChoice("FOO")},
 			},
 			err: ErrLowParticipation,
 		},
@@ -290,9 +345,26 @@ func TestCommonDAOTally(t *testing.T) {
 				WithMember("g1w4ek2u3jta047h6lta047h6lta047h6l9huexc"),
 				WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 			),
+			definition: majorityPropDef{},
 			votes: []Vote{
 				{Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", Choice: ChoiceYes},
 				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceNo},
+			},
+			err: ErrNoConcensus,
+		},
+		{
+			name: "no consensus with custom vote choices",
+			dao: New(
+				WithMember("g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"),
+				WithMember("g1w4ek2u3jta047h6lta047h6lta047h6l9huexc"),
+				WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
+			),
+			definition: majorityPropDef{
+				testPropDef{voteChoices: []VoteChoice{"FOO", "BAR"}},
+			},
+			votes: []Vote{
+				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: VoteChoice("FOO")},
+				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: VoteChoice("BAR")},
 			},
 			err: ErrNoConcensus,
 		},
@@ -300,7 +372,7 @@ func TestCommonDAOTally(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			p, _ := tc.dao.Propose("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", majorityPropDef{})
+			p, _ := tc.dao.Propose("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", tc.definition)
 			for _, v := range tc.votes {
 				tc.dao.Vote(v.Address, p.ID(), v.Choice, "")
 			}
@@ -328,7 +400,7 @@ func TestCommonDAOExecute(t *testing.T) {
 		err          error
 	}{
 		{
-			name: "ok",
+			name: "success",
 			setup: func() *CommonDAO {
 				members := []std.Address{
 					"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",

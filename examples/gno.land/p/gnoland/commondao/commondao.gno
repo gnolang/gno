@@ -155,11 +155,6 @@ func (dao CommonDAO) GetProposal(proposalID uint64) (p *Proposal, found bool) {
 
 // Vote submits a new vote for a proposal.
 func (dao *CommonDAO) Vote(member std.Address, proposalID uint64, c VoteChoice, reason string) error {
-	// TODO: Support other voting options though the proposal definition
-	if c != ChoiceYes && c != ChoiceNo && c != ChoiceAbstain {
-		return ErrInvalidVoteChoice
-	}
-
 	if !dao.Members().Has(member) {
 		return ErrNotMember
 	}
@@ -167,6 +162,10 @@ func (dao *CommonDAO) Vote(member std.Address, proposalID uint64, c VoteChoice, 
 	p, found := dao.GetActiveProposal(proposalID)
 	if !found {
 		return ErrProposalNotFound
+	}
+
+	if !p.IsValidVoteChoice(c) {
+		return ErrInvalidVoteChoice
 	}
 
 	p.record.AddVote(Vote{
@@ -228,9 +227,17 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 }
 
 func (dao *CommonDAO) tallyProposal(p *Proposal) error {
-	// TODO: Support other voting options though the proposal definition
+	votesCount := 0
 	record := p.VotingRecord()
-	votesCount := record.VoteCount(ChoiceYes) + record.VoteCount(ChoiceNo) // Only consider YES/NO votes
+	for _, c := range p.VoteChoices() {
+		// Don't count explicit abstentions or invalid votes
+		if c == ChoiceNone || c == ChoiceAbstain {
+			continue
+		}
+
+		votesCount += record.VoteCount(c)
+	}
+
 	membersCount := dao.Members().Size()
 	percentage := float64(votesCount) / float64(membersCount)
 	if percentage < p.Quorum() {

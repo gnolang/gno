@@ -50,7 +50,7 @@ func init() {
 }
 
 func main() {
-	commondao.Vote(daoID, 404, "invalid", "")
+	commondao.Vote(daoID, proposal.ID(), "invalid", "")
 }
 
 // Error:
