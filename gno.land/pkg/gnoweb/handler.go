@@ -47,13 +47,6 @@ type WebHandler struct {
 	Client WebClient
 }
 
-// PageData groups layout, component, and dev mode information.
-type PageData struct {
-	Layout       string
-	Component    string
-	IsDevmodView bool
-}
-
 // NewWebHandler creates a new WebHandler.
 func NewWebHandler(logger *slog.Logger, cfg WebHandlerConfig) (*WebHandler, error) {
 	if err := cfg.validate(); err != nil {
@@ -120,6 +113,7 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 		return http.StatusNotFound, components.StatusErrorComponent("invalid path")
 	}
 
+	IsHome := IsHomePath(r.RequestURI)
 	breadcrumb := generateBreadcrumbPaths(gnourl)
 	indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path
 	indexData.HeaderData = components.HeaderData{
@@ -127,6 +121,7 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 		RealmURL:   *gnourl,
 		ChainId:    h.Static.ChainId,
 		Remote:     h.Static.RemoteHelp,
+		IsHome:     IsHome,
 	}
 
 	switch {
