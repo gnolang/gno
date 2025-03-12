@@ -40,6 +40,7 @@ var (
 		"https://secure.com:443",
 		"ws://localhost:8080",
 		"without-protocol.com:443",
+    "devx-sen-1.test5.gnodevx.network:26656",
 	}
 
 	invalidListeningAddresses = []string{
