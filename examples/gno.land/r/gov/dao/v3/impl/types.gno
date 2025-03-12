@@ -160,27 +160,28 @@ func StringifyVotes(ps *proposalStatus) string {
 }
 
 func writeVotes(sb *strings.Builder, t memberstore.MembersByTier, title string) {
-	if t.Size() != 0 {
-		t.Iterate("", "", func(tn string, value interface{}) bool {
-			tier, ok := memberstore.Tiers.GetTier(tn)
-			if !ok {
-				panic("tier not found")
-			}
+	if t.Size() == 0 { 
+		return 
+	}
+	t.Iterate("", "", func(tn string, value interface{}) bool {
+		tier, ok := memberstore.Tiers.GetTier(tn)
+		if !ok {
+			panic("tier not found")
+		}
 
-			power := tier.PowerHandler(memberstore.Get(), memberstore.Tiers)
+		power := tier.PowerHandler(memberstore.Get(), memberstore.Tiers)
 
-			sb.WriteString(ufmt.Sprintf("%v from %v (VPPM %v):\n", title, tn, power))
-			ms, _ := value.(*avl.Tree)
-			ms.Iterate("", "", func(addr string, _ interface{}) bool {
-				sb.WriteString("\n")
-				sb.WriteString("- " + string(addr) + "\n")
-
-				return false
-			})
+		sb.WriteString(ufmt.Sprintf("%v from %v (VPPM %v):\n", title, tn, power))
+		ms, _ := value.(*avl.Tree)
+		ms.Iterate("", "", func(addr string, _ interface{}) bool {
+			sb.WriteString("\n")
+			sb.WriteString("- " + string(addr) + "\n")
 
 			return false
 		})
-	}
+
+		return false
+	})
 }
 
 func StringifyProposal(p *dao.Proposal) string {

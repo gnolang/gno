@@ -3,9 +3,16 @@ package dao
 import (
 	"errors"
 	"std"
+
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ufmt"
 )
 
-type ProposalID int
+type ProposalID int64
+
+func (pid ProposalID) String() string {
+	return ufmt.Sprintf("%v", int64(pid))
+} 
 
 // VoteOption is the limited voting option for a DAO proposal
 // New govDAOs can create their own VoteOptions if needed in the
@@ -120,6 +127,32 @@ func (p *Proposal) AllowedDAOs() []string {
 	return p.allowedDAOs
 }
 
+type Proposals struct {
+	seq int64
+	*avl.Tree // *avl.Tree[ProposalID]*Proposal
+}
+
+func NewProposals() Proposals {
+	return Proposals{Tree:avl.NewTree()}
+}
+
+func (ps Proposals) SetProposal(p *Proposal) ProposalID{
+	pid := ProposalID(ps.seq)
+	ps.Set(pid.String(), p)
+	ps.seq++
+
+	return pid
+}
+
+func (ps Proposals) GetProposal(pid ProposalID) *Proposal {
+	pv, ok := ps.Get(pid.String())
+	if !ok {
+		return nil
+	}
+
+	return pv.(*Proposal)
+}
+
 // Author is an interface returned by the current govDAO implementation
 // representing the creator of a proposal. It is an interface
 // because we don't really know who/what will be allowed to create proposals
@@ -155,6 +188,7 @@ func (e *executor) Execute() error {
 
 func securityWrapper(fn func(m Metadata) error) func(m Metadata) error {
 	return func(m Metadata) error {
+		// check if the caller is an allowed DAO from the AllowedDAOs list
 		if index(std.PreviousRealm().PkgPath()) < 0 {
 			return ErrInvalidExecutorCaller
 		}

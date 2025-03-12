@@ -34,7 +34,7 @@ func NewChangeTiersRequest(tiers TiersByName) dao.ProposalRequest {
 
 	return dao.
 		NewProposalRequestBuilder("Change Tiers Proposal").
-		WithDescription("This prpoposal is looking to change the existing Tiers in memberstore").
+		WithDescription("This proposal is looking to change the existing Tiers in memberstore").
 		WithCallback(changeTiersCallback).
 		WithMetadata(&ChangeTiersMetadata{
 			Tiers: tiers,

@@ -35,7 +35,7 @@ func NewChangeLawRequest(law *Law) dao.ProposalRequest {
 	}
 
 	return dao.NewProposalRequestBuilder("Change Law Proposal").
-	WithDescription("This prpoposal is looking to change the actual govDAO Law").
+	WithDescription("This proposal is looking to change the actual govDAO Law").
 	WithCallback(changeLawCallback).
 	WithMetadata(&ChangeLawMetadata{
 		Law: law,
@@ -89,8 +89,8 @@ func NewAddMemberRequest(addr std.Address, tier string, portfolio string) dao.Pr
 		panic("proposer does not have enough invitation points for inviting new people to the board")
 	}
 
-	return dao.NewProposalRequestBuilder("New Member porposal").
-	WithDescription("This prpoposal is looking to add a new member to the board.").
+	return dao.NewProposalRequestBuilder("New Member Prorposal").
+	WithDescription("This proposal is looking to add a new member to the board.").
 	WithCallback(addMemberCallback).
 	WithMetadata(&AddMemberMetadata{
 		Member:    memberByTier(tier),
@@ -134,7 +134,7 @@ func NewWithdrawMemberRequest(addr std.Address, reason string) dao.ProposalReque
 	}
 
 	return dao.NewProposalRequestBuilder("Member Withdrawn").
-	WithDescription("This prpoposal is looking to remove a member from the board.").
+	WithDescription("This proposal is looking to remove a member from the board.").
 	WithCallback(removeMemberCallback).
 	WithMetadata(&RemoveMemberMetadata{
 		Addr:   addr,
@@ -175,7 +175,7 @@ func promoteMemberCallback(m dao.Metadata) error {
 
 func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) dao.ProposalRequest {
 	return dao.NewProposalRequestBuilder("Member Promotion").
-	WithDescription("This prpoposal is looking to promote a member to an upper tier.").
+	WithDescription("This proposal is looking to promote a member to an upper tier.").
 	WithCallback(promoteMemberCallback).
 	WithMetadata(&PromoteMemberMetadata{
 		Addr:     addr,

@@ -9,7 +9,8 @@ import (
 	"gno.land/p/demo/urequire"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/init"
-	"gno.land/r/gov/dao/v3/memberstore")
+	"gno.land/r/gov/dao/v3/memberstore"
+)
 
 func init() {
 	loadMembers()
@@ -51,7 +52,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 	portfolio := "# This is my portfolio:\n\n- THINGS"
 
 	std.TestSetOriginCaller(noMember)
-	std.TestSetRealm(std.NewUserRealm(noMember))
+	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 
 	nm1 := testutils.TestAddress("nm1")
 
@@ -64,7 +65,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	std.TestSetOriginCaller(m1)
-	std.TestSetRealm(std.NewUserRealm(m1))
+	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 
 	pid := dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
 	urequire.Equal(t, int(pid), 0)
@@ -76,28 +77,32 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	std.TestSetOriginCaller(m11)
-	std.TestSetRealm(std.NewUserRealm(m11))
+	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.NoVote,
 		ProposalID: dao.ProposalID(0),
 	})
 
 	std.TestSetOriginCaller(m2)
-	std.TestSetRealm(std.NewUserRealm(m2))
+	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.NoVote,
 		ProposalID: dao.ProposalID(0),
 	})
 
 	std.TestSetOriginCaller(m3)
-	std.TestSetRealm(std.NewUserRealm(m3))
+	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.NoVote,
 		ProposalID: dao.ProposalID(0),
 	})
 
 	std.TestSetOriginCaller(m4)
-	std.TestSetRealm(std.NewUserRealm(m4))
+	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+
 	urequire.PanicsWithMessage(t, "member on specified tier is not allowed to vote on this proposal", func() {
 		dao.MustVoteOnProposal(dao.VoteRequest{
 			Option:     dao.NoVote,
@@ -106,7 +111,8 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	std.TestSetOriginCaller(m111)
-	std.TestSetRealm(std.NewUserRealm(m111))
+	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.NoVote,
 		ProposalID: dao.ProposalID(0),
@@ -121,7 +127,8 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	std.TestSetOriginCaller(m1111)
-	std.TestSetRealm(std.NewUserRealm(m1111))
+	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.NoVote,
 		ProposalID: dao.ProposalID(0),
@@ -139,7 +146,7 @@ func TestProposalPagination(t *testing.T) {
 	portfolio := "### This is my portfolio:\n\n- THINGS"
 
 	std.TestSetOriginCaller(m1)
-	std.TestSetRealm(std.NewUserRealm(m1))
+	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 
 	nm1 := testutils.TestAddress("nm1")
 

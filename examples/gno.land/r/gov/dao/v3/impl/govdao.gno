@@ -51,11 +51,15 @@ func NewGovDAO() *GovDAO {
 }
 
 func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (dao.Author, error) {
-	// TODO validate that the caller is a member
+	if !g.isValidCall() {
+		return nil, errors.New("proposal execution must be done directly by a user")
+	}
+
 	return NewUserAuthor(), nil
 }
 
 func (g *GovDAO) PostCreateProposal(r dao.ProposalRequest, pid dao.ProposalID) {
+	// Tiers Allowed to Vote
 	tatv := []string{memberstore.T1, memberstore.T2, memberstore.T3}
 	switch v := r.Metadata().(type) {
 	case *AddMemberMetadata:
@@ -76,11 +80,6 @@ func (g *GovDAO) PostCreateProposal(r dao.ProposalRequest, pid dao.ProposalID) {
 		if v.ToTier == memberstore.T2 {
 			tatv = []string{memberstore.T1, memberstore.T2}
 		}
-	case *RemoveMemberMetadata:
-		if v.Tier == memberstore.T1 {
-
-		}
-
 	}
 
 	pids := ufmt.Sprintf("%v", int(pid))
@@ -95,14 +94,14 @@ func (g *GovDAO) VoteOnProposal(r dao.VoteRequest) error {
 	caller := std.OriginCaller()
 	mem, tie := memberstore.Get().GetMember(caller)
 	if mem == nil {
-		// return ErrMemberNotFound
-		// TODO not returning error because of a bug: test pkg: panic: interface conversion: gnolang.Value is gnolang.RefValue, not *gnolang.StructValue
-		return nil
+		return ErrMemberNotFound
 	}
 
 	status := g.pss.GetStatus(r.ProposalID)
 
-	// TODO check if proposal status is accepted or rejected already
+	if status.Denied || status.Accepted {
+		return errors.New(ufmt.Sprintf("proposal already executed. Accepted: %v", status.Accepted))
+	}
 
 	if !status.IsAllowed(tie) {
 		return errors.New("member on specified tier is not allowed to vote on this proposal")
@@ -136,34 +135,29 @@ func (g *GovDAO) PostGetProposal(pid dao.ProposalID, p *dao.Proposal) error {
 }
 
 func (g *GovDAO) PreExecuteProposal(pid dao.ProposalID) (bool, error) {
-	println("1111")
-
 	if !g.isValidCall() {
 		return false, errors.New("proposal execution must be done directly by a user")
 	}
-	println("2222")
 	status := g.pss.GetStatus(pid)
-	println("3333")
 	if status.Denied || status.Accepted {
 		return false, errors.New(ufmt.Sprintf("proposal already executed. Accepted: %v", status.Accepted))
 	}
-	println("4444")
+
 	if status.YesPercent() >= law.Supermajority {
-		println("44441")
 		status.Accepted = true
-		println("44442")
-	} else if status.NoPercent() >= law.Supermajority {
+		return true, nil
+	}
+	
+	if status.NoPercent() >= law.Supermajority {
 		status.Denied = true
 		return false, nil
-	} else {
-		return false, errors.New(ufmt.Sprintf("proposal didn't reached supermajority yet: %v", law.Supermajority))
 	}
-	println("5555")
-	return true, nil
+	
+	return false, errors.New(ufmt.Sprintf("proposal didn't reach supermajority yet: %v", law.Supermajority))
 }
 
 func (g *GovDAO) renderActiveProposals(url string) string {
-	out := "# Active Propoposals:\n"
+	out := "# Active Proposals:\n"
 
 	page, err := g.pssPager.GetPageByPath(url)
 	if err != nil {
@@ -220,9 +214,7 @@ func (g *GovDAO) Render(path string) string {
 
 func (g *GovDAO) isValidCall() bool {
 	// only calls from the dao proxy are allowed
-	// TODO: we need a fix for #1155 and #3802
-	// return std.GetOrigPkgAddr() == std.DerivePkgAddr("gno.land/r/gov/dao")
-	return true
+	return std.OriginPkgAddress() == std.DerivePkgAddr("gno.land/r/gov/dao")
 }
 
 type UserAuthor struct {

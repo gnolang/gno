@@ -39,7 +39,7 @@ func init() {
 		InvitationPoints: 2,
 		Payment:          90000,
 		MaxSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
-			return membersByTier.GetTierSize(T1) * 4
+			return membersByTier.GetTierSize(T1) * 2
 		},
 		MinSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
 			return membersByTier.GetTierSize(T1) / 4

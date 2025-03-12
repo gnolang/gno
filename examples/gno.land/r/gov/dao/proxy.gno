@@ -12,9 +12,8 @@ var dao DAO
 // executed to remove all previous govDAOs implementations and leave the last one.
 var AllowedDAOs []string
 
-// TODO: change to use another structure instead of a slice to avoid storage problems.
 // proposals contains all the proposals in history.
-var proposals []*Proposal
+var proposals Proposals = NewProposals()
 
 // Render calls directly to Render's DAO implementation.
 // This allows to have this realm as the main entry point for everything.
@@ -55,7 +54,6 @@ func ExecuteProposal(pid ProposalID) bool {
 // CreateProposal will try to create a new proposal, that will be validated by the actual
 // govDAO implementation. If the proposal cannot be created, an error will be returned.
 func CreateProposal(r ProposalRequest) (ProposalID, error) {
-	//TODO: get prev realm here and remove the author coming from the govDAO impl
 	author, err := dao.PreCreateProposal(r)
 	if err != nil {
 		return -1, err
@@ -69,9 +67,7 @@ func CreateProposal(r ProposalRequest) (ProposalID, error) {
 		allowedDAOs: AllowedDAOs,
 	}
 
-	pid := ProposalID(len(proposals))
-
-	proposals = append(proposals, p)
+	pid := proposals.SetProposal(p)
 
 	dao.PostCreateProposal(r, pid)
 
@@ -106,23 +102,18 @@ func GetProposal(pid ProposalID) (*Proposal, error) {
 		return nil, err
 	}
 
-	ipid := int(pid)
-	if len(proposals) <= ipid {
-		return nil, nil
-	}
-
-	prop := proposals[ipid]
+	prop := proposals.GetProposal(pid)
 
 	if err := dao.PostGetProposal(pid, prop); err != nil {
 		return nil, err
 	}
 
-	return proposals[ipid], nil
+	return prop, nil
 }
 
 // UpdateImpl is a method intended to be used on a proposal.
 // This method will update the current govDAO implementation
-// to a new one. newDAOUpdaters are a list of realms that can
+// to a new one. AllowedDAOs are a list of realms that can
 // call this method, in case the new DAO implementation had
 // a breaking bug. Any value set as nil will be ignored.
 // If AllowedDAOs field is not set correctly, the actual DAO
