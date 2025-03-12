@@ -14,16 +14,9 @@ import (
 
 const (
 	validMoniker = "test-1"
-
 	validDescription   = "test-1's description"
-	invalidDescription = ""
-
 	validAddress   = std.Address("g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h")
-	invalidAddress = std.Address("1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // missing prefix
-
 	validPubKey   = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p"
-	validPubKey2  = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpcyx3ne8m28jxyw6nc96szc2seq3w6zfdylawm5aa7mcy9q88cfn8jsm7p"
-	invalidPubKey = "1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj" // missing prefix
 )
 
 var (
@@ -401,7 +394,7 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		})
 	})
 
-	t.Run("invalid description", func(t *testing.T) {
+	t.Run("empty description", func(t *testing.T) {
 		t.Parallel()
 
 		// Clear the set for the test
@@ -415,9 +408,10 @@ func TestValopers_UpdateDescription(t *testing.T) {
 			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
 		})
 
+    emptyDescription := ""
 		// Update the valoper
 		uassert.PanicsWithMessage(t, ErrInvalidDescription.Error(), func() {
-			UpdateDescription(validAddress, invalidDescription)
+			UpdateDescription(validAddress, emptyDescription)
 		})
 	})
 
@@ -525,6 +519,7 @@ func TestValopers_UpdateP2PAddresses(t *testing.T) {
 			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
 		})
 
+    invalidAddress := std.Address("1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // missing prefix
 		// Update the valoper with invalid address
 		invalidP2PAddress := ufmt.Sprintf("%s@%s", invalidAddress, validListeningAddresses[0])
 		uassert.PanicsWithMessage(t, ErrInvalidP2PAddress.Error(), func() {
