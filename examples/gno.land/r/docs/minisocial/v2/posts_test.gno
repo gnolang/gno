@@ -66,4 +66,38 @@ func TestCreatePostMultiple(t *testing.T) {
 	}
 }
 
+func TestReset(t *testing.T) {
+	aliceAddr := testutils.TestAddress("alice")
+	std.TestSetRealm(std.NewUserRealm(aliceAddr))
+
+	text1 := "Hello World!"
+	_ = CreatePost(text1)
+
+	got := Render("")
+	if !strings.Contains(got, text1) {
+		t.Fatal("expected render to contain text1")
+	}
+
+	// Set admin
+	std.TestSetRealm(std.NewUserRealm(Ownable.Owner()))
+	ResetPosts()
+
+	got = Render("")
+	if strings.Contains(got, text1) {
+		t.Fatal("expected render to not contain text1")
+	}
+
+	text2 := "Some other Text!!"
+	_ = CreatePost(text2)
+
+	got = Render("")
+	if strings.Contains(got, text1) {
+		t.Fatal("expected render to not contain text1")
+	}
+
+	if !strings.Contains(got, text2) {
+		t.Fatal("expected render to contain text2")
+	}
+}
+
 // TODO: Add tests for Update & Delete
