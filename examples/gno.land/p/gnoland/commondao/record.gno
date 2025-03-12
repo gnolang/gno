@@ -14,9 +14,17 @@ var ErrVoteExists = errors.New("user already voted")
 type (
 	// Vote defines a single vote.
 	Vote struct {
+		// Address is the address of the user that this vote belons to.
 		Address std.Address
-		Choice  VoteChoice
-		Reason  string
+
+		// Choice contains the voted choice.
+		Choice VoteChoice
+
+		// Reason contains the reason for the vote.
+		Reason string
+
+		// Context can store any custom voting values related to the vote.
+		Context any
 	}
 
 	// ReadOnlyVotingRecord defines an interface for read only voting records.
@@ -57,7 +65,7 @@ func (r VotingRecord) Size() int {
 // VoteChoices returns the voting choices that has been voted.
 func (r VotingRecord) VoteChoices() []VoteChoice {
 	var choices []VoteChoice
-	r.count.Iterate("", "", func(k string, v interface{}) bool {
+	r.count.Iterate("", "", func(k string, v any) bool {
 		choices = append(choices, VoteChoice(k))
 		return false
 	})
@@ -67,7 +75,7 @@ func (r VotingRecord) VoteChoices() []VoteChoice {
 // Votes returns the list of all votes.
 func (r VotingRecord) Votes() []Vote {
 	var votes []Vote
-	r.votes.Iterate("", "", func(k string, v interface{}) bool {
+	r.votes.Iterate("", "", func(k string, v any) bool {
 		votes = append(votes, v.(Vote))
 		return false
 	})
@@ -113,7 +121,7 @@ func (r VotingRecord) GetProvableMajorityChoice() VoteChoice {
 		currentCount int
 	)
 
-	r.count.Iterate("", "", func(k string, v interface{}) bool {
+	r.count.Iterate("", "", func(k string, v any) bool {
 		count := v.(int)
 		if currentCount < count {
 			choice = VoteChoice(k)
