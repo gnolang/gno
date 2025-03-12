@@ -154,7 +154,7 @@ func (dao CommonDAO) GetProposal(proposalID uint64) (p *Proposal, found bool) {
 }
 
 // Vote submits a new vote for a proposal.
-func (dao *CommonDAO) Vote(member std.Address, proposalID uint64, c VoteChoice) error {
+func (dao *CommonDAO) Vote(member std.Address, proposalID uint64, c VoteChoice, reason string) error {
 	// TODO: Support other voting options though the proposal definition
 	if c != ChoiceYes && c != ChoiceNo && c != ChoiceAbstain {
 		return ErrInvalidVoteChoice
@@ -168,7 +168,13 @@ func (dao *CommonDAO) Vote(member std.Address, proposalID uint64, c VoteChoice) 
 	if !found {
 		return ErrProposalNotFound
 	}
-	return p.record.AddVote(member, c)
+
+	p.record.AddVote(Vote{
+		Address: member,
+		Choice:  c,
+		Reason:  reason,
+	})
+	return nil
 }
 
 func (dao *CommonDAO) Tally(proposalID uint64) error { // TODO: Rethink or refactor tally to return the winning choice

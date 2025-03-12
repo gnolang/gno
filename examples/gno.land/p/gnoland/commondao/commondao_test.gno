@@ -226,7 +226,7 @@ func TestCommonDAOVote(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			dao := tc.setup()
 
-			err := dao.Vote(tc.member, tc.proposalID, tc.choice)
+			err := dao.Vote(tc.member, tc.proposalID, tc.choice, "")
 
 			if tc.err != nil {
 				urequire.ErrorIs(t, err, tc.err)
@@ -300,7 +300,7 @@ func TestCommonDAOTally(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			p, _ := tc.dao.Propose("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", majorityPropDef{})
 			for _, v := range tc.votes {
-				tc.dao.Vote(v.Address, p.ID(), v.Choice)
+				tc.dao.Vote(v.Address, p.ID(), v.Choice, "")
 			}
 
 			err := tc.dao.Tally(p.ID())
@@ -335,8 +335,8 @@ func TestCommonDAOExecute(t *testing.T) {
 				}
 				dao := New(WithMember(members[0]), WithMember(members[1]), WithMember(members[2]))
 				p, _ := dao.Propose(members[0], testPropDef{tallyResult: true})
-				p.record.AddVote(members[0], ChoiceYes)
-				p.record.AddVote(members[1], ChoiceYes)
+				p.record.AddVote(Vote{Address: members[0], Choice: ChoiceYes})
+				p.record.AddVote(Vote{Address: members[1], Choice: ChoiceYes})
 				return dao
 			},
 			status:     StatusExecuted,
@@ -408,8 +408,8 @@ func TestCommonDAOExecute(t *testing.T) {
 					tallyResult:  true,
 					executionErr: errExecution,
 				})
-				p.record.AddVote(members[0], ChoiceYes)
-				p.record.AddVote(members[1], ChoiceYes)
+				p.record.AddVote(Vote{Address: members[0], Choice: ChoiceYes})
+				p.record.AddVote(Vote{Address: members[1], Choice: ChoiceYes})
 				return dao
 			},
 			proposalID:   1,

@@ -28,7 +28,7 @@ func TestVotingRecordAddVote(t *testing.T) {
 		setup                           func(*VotingRecord)
 		votes                           []Vote
 		yesCount, noCount, abstainCount int
-		err                             error
+		updated                         bool
 	}{
 		{
 			name: "single vote",
@@ -73,17 +73,19 @@ func TestVotingRecordAddVote(t *testing.T) {
 				},
 			},
 			setup: func(r *VotingRecord) {
-				r.AddVote("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", ChoiceAbstain)
+				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceAbstain})
 			},
-			err: ErrVoteExists,
+			yesCount:     1,
+			abstainCount: 0,
+			updated:      true,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var (
-				err    error
-				record VotingRecord
+				record  VotingRecord
+				updated bool
 			)
 
 			if tc.setup != nil {
@@ -91,29 +93,21 @@ func TestVotingRecordAddVote(t *testing.T) {
 			}
 
 			for _, v := range tc.votes {
-				err = record.AddVote(v.Address, v.Choice)
-				if err != nil {
-					break
-				}
+				updated = updated || record.AddVote(v)
 			}
 
-			if tc.err != nil {
-				urequire.ErrorIs(t, err, tc.err)
-				return
-			}
-
-			urequire.NoError(t, err)
-			urequire.Equal(t, record.Size(), len(tc.votes), "unexpected record size")
-			urequire.Equal(t, len(record.Votes()), len(tc.votes), "unexpected number of votes")
+			urequire.Equal(t, updated, tc.updated, "expect vote to be updated")
+			urequire.Equal(t, record.Size(), len(tc.votes), "expect record size to match")
+			urequire.Equal(t, len(record.Votes()), len(tc.votes), "expect number of votes to match")
 			for i, v := range record.Votes() {
 				uassert.Equal(t, v.Address, tc.votes[i].Address)
 				uassert.Equal(t, string(v.Choice), string(tc.votes[i].Choice))
 				uassert.True(t, record.HasVoted(v.Address))
 			}
 
-			uassert.Equal(t, record.VoteCount(ChoiceYes), tc.yesCount)
-			uassert.Equal(t, record.VoteCount(ChoiceNo), tc.noCount)
-			uassert.Equal(t, record.VoteCount(ChoiceAbstain), tc.abstainCount)
+			uassert.Equal(t, record.VoteCount(ChoiceYes), tc.yesCount, "expect YES vote count to match")
+			uassert.Equal(t, record.VoteCount(ChoiceNo), tc.noCount, "expect NO vote count to match")
+			uassert.Equal(t, record.VoteCount(ChoiceAbstain), tc.abstainCount, "expect ABSTAIN vote count to match")
 		})
 	}
 }
@@ -131,24 +125,24 @@ func TestVotingRecordGetProvableMajorityChoice(t *testing.T) {
 		{
 			name: "one vote",
 			setup: func(r *VotingRecord) {
-				r.AddVote("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", ChoiceYes)
+				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
 			},
 			choice: ChoiceYes,
 		},
 		{
 			name: "majority",
 			setup: func(r *VotingRecord) {
-				r.AddVote("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", ChoiceYes)
-				r.AddVote("g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", ChoiceYes)
-				r.AddVote("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", ChoiceNo)
+				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
+				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceYes})
+				r.AddVote(Vote{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Choice: ChoiceNo})
 			},
 			choice: ChoiceYes,
 		},
 		{
 			name: "invalid because no majority",
 			setup: func(r *VotingRecord) {
-				r.AddVote("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", ChoiceYes)
-				r.AddVote("g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", ChoiceNo)
+				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
+				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceNo})
 			},
 			choice: ChoiceNo,
 		},
@@ -186,9 +180,9 @@ func TestSelectChoiceByAbsoluteMajority(t *testing.T) {
 		{
 			name: "majority",
 			setup: func(r *VotingRecord) {
-				r.AddVote("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", ChoiceYes)
-				r.AddVote("g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", ChoiceYes)
-				r.AddVote("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", ChoiceNo)
+				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
+				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceYes})
+				r.AddVote(Vote{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Choice: ChoiceNo})
 			},
 			choice:       ChoiceYes,
 			membersCount: 3,
@@ -197,8 +191,8 @@ func TestSelectChoiceByAbsoluteMajority(t *testing.T) {
 		{
 			name: "no majority",
 			setup: func(r *VotingRecord) {
-				r.AddVote("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", ChoiceYes)
-				r.AddVote("g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", ChoiceNo)
+				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
+				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceNo})
 			},
 			choice:       "",
 			membersCount: 3,
@@ -207,9 +201,9 @@ func TestSelectChoiceByAbsoluteMajority(t *testing.T) {
 		{
 			name: "majority with abstain vote",
 			setup: func(r *VotingRecord) {
-				r.AddVote("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", ChoiceYes)
-				r.AddVote("g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", ChoiceYes)
-				r.AddVote("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", ChoiceAbstain)
+				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
+				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceYes})
+				r.AddVote(Vote{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Choice: ChoiceAbstain})
 			},
 			choice:       ChoiceYes,
 			membersCount: 3,
@@ -250,9 +244,9 @@ func TestSelectChoiceBySuperMajority(t *testing.T) {
 		{
 			name: "majority",
 			setup: func(r *VotingRecord) {
-				r.AddVote("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", ChoiceYes)
-				r.AddVote("g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", ChoiceYes)
-				r.AddVote("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", ChoiceNo)
+				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
+				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceYes})
+				r.AddVote(Vote{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Choice: ChoiceNo})
 			},
 			choice:       ChoiceYes,
 			membersCount: 3,
@@ -261,8 +255,8 @@ func TestSelectChoiceBySuperMajority(t *testing.T) {
 		{
 			name: "no majority",
 			setup: func(r *VotingRecord) {
-				r.AddVote("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", ChoiceYes)
-				r.AddVote("g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", ChoiceNo)
+				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
+				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceNo})
 			},
 			choice:       "",
 			membersCount: 3,
@@ -271,9 +265,9 @@ func TestSelectChoiceBySuperMajority(t *testing.T) {
 		{
 			name: "majority with abstain vote",
 			setup: func(r *VotingRecord) {
-				r.AddVote("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", ChoiceYes)
-				r.AddVote("g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", ChoiceYes)
-				r.AddVote("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", ChoiceAbstain)
+				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
+				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceYes})
+				r.AddVote(Vote{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Choice: ChoiceAbstain})
 			},
 			choice:       ChoiceYes,
 			membersCount: 3,
@@ -312,9 +306,9 @@ func TestSelectChoiceByPlurality(t *testing.T) {
 		{
 			name: "plurality",
 			setup: func(r *VotingRecord) {
-				r.AddVote("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", ChoiceYes)
-				r.AddVote("g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", ChoiceYes)
-				r.AddVote("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", ChoiceNo)
+				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
+				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceYes})
+				r.AddVote(Vote{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Choice: ChoiceNo})
 			},
 			choice:  ChoiceYes,
 			success: true,
@@ -322,8 +316,8 @@ func TestSelectChoiceByPlurality(t *testing.T) {
 		{
 			name: "no plurality",
 			setup: func(r *VotingRecord) {
-				r.AddVote("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", ChoiceYes)
-				r.AddVote("g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", ChoiceNo)
+				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
+				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceNo})
 			},
 			choice:  "",
 			success: false,
@@ -331,10 +325,10 @@ func TestSelectChoiceByPlurality(t *testing.T) {
 		{
 			name: "plurality with abstain vote",
 			setup: func(r *VotingRecord) {
-				r.AddVote("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", ChoiceYes)
-				r.AddVote("g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", ChoiceYes)
-				r.AddVote("g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5", ChoiceNo)
-				r.AddVote("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", ChoiceAbstain)
+				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
+				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceYes})
+				r.AddVote(Vote{Address: "g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5", Choice: ChoiceNo})
+				r.AddVote(Vote{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Choice: ChoiceAbstain})
 			},
 			choice:  ChoiceYes,
 			success: true,

@@ -16,6 +16,7 @@ type (
 	Vote struct {
 		Address std.Address
 		Choice  VoteChoice
+		Reason  string
 	}
 
 	// ReadOnlyVotingRecord defines an interface for read only voting records.
@@ -44,7 +45,7 @@ type (
 
 // VotingRecord stores accounts that voted and vote choices.
 type VotingRecord struct {
-	votes avl.Tree // string(address) -> VoteChoice
+	votes avl.Tree // string(address) -> Vote
 	count avl.Tree // string(choice) -> int
 }
 
@@ -67,10 +68,7 @@ func (r VotingRecord) VoteChoices() []VoteChoice {
 func (r VotingRecord) Votes() []Vote {
 	var votes []Vote
 	r.votes.Iterate("", "", func(k string, v interface{}) bool {
-		votes = append(votes, Vote{
-			Address: std.Address(k),
-			Choice:  v.(VoteChoice),
-		})
+		votes = append(votes, v.(Vote))
 		return false
 	})
 	return votes
@@ -89,16 +87,21 @@ func (r VotingRecord) HasVoted(user std.Address) bool {
 	return r.votes.Has(user.String())
 }
 
-// AddVote adds a vote.
-// Users are allowd to vote only once.
-func (r *VotingRecord) AddVote(user std.Address, c VoteChoice) error {
-	if r.HasVoted(user) {
-		return ErrVoteExists
+// AddVote adds a vote to the voting record.
+// If a vote for the same user already exists is overwritten.
+func (r *VotingRecord) AddVote(vote Vote) (updated bool) {
+	// Get previous member vote if it exists
+	v, _ := r.votes.Get(vote.Address.String())
+
+	// When a previous vote exists update counter for the previous choice
+	updated = r.votes.Set(vote.Address.String(), vote)
+	if updated {
+		prev := v.(Vote)
+		r.count.Set(string(prev.Choice), r.VoteCount(prev.Choice)-1)
 	}
 
-	r.votes.Set(user.String(), c)
-	r.count.Set(string(c), r.VoteCount(c)+1)
-	return nil
+	r.count.Set(string(vote.Choice), r.VoteCount(vote.Choice)+1)
+	return
 }
 
 // GetProvableMajorityChoice returns the choice voted by the majority.
