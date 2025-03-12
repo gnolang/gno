@@ -19,13 +19,13 @@ type HeaderLinks struct {
 }
 
 type HeaderData struct {
-	RealmPath  string
-	RealmURL   weburl.GnoURL
-	Breadcrumb BreadcrumbData
-	Links      HeaderLinks
-	ChainId    string
-	Remote     string
-	HasDevMenu bool
+	RealmPath      string
+	RealmURL       weburl.GnoURL
+	Breadcrumb     BreadcrumbData
+	Links          HeaderLinks
+	ChainId        string
+	Remote         string
+	HasGeneralMenu bool
 }
 
 func StaticHeaderGeneralLinks() []HeaderLink {
@@ -83,7 +83,7 @@ func StaticHeaderDevLinks(u weburl.GnoURL, handle string) []HeaderLink {
 	return links
 }
 
-func EnrichHeaderData(data HeaderData, hasDevMenu bool) HeaderData {
+func EnrichHeaderData(data HeaderData, hasGeneralMenu bool) HeaderData {
 	data.RealmPath = data.RealmURL.EncodeURL()
 
 	var handle string
@@ -95,10 +95,10 @@ func EnrichHeaderData(data HeaderData, hasDevMenu bool) HeaderData {
 
 	data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, handle)
 
-	if hasDevMenu {
-		data.Links.General = nil
-	} else {
+	if hasGeneralMenu {
 		data.Links.General = StaticHeaderGeneralLinks()
+	} else {
+		data.Links.General = nil
 	}
 
 	return data

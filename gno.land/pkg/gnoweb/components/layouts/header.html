@@ -127,7 +127,7 @@
       <div
         class="sidemenu col-span-3 h-auto flex flex-grow-0 flex-shrink-0 basis-auto"
       >
-        {{ if not .HasDevMenu }}
+        {{ if .HasGeneralMenu }}
           <label
             for="header-input-devmode"
             class="order-3 ml-auto flex items-center cursor-pointer"
@@ -143,7 +143,7 @@
           type="checkbox"
           name="devmode"
           class="peer sr-only"
-          {{ if .HasDevMenu }}checked{{ end }}
+          {{ if not .HasGeneralMenu }}checked{{ end }}
         />
         <div
           role="menu"
@@ -152,7 +152,7 @@
           {{ range .Links.Dev }}{{ template "ui/header_link" . }}{{ end }}
         </div>
 
-        {{ if not .HasDevMenu }}
+        {{ if .HasGeneralMenu }}
           <div
             role="menu"
             class="peer-checked:hidden flex justify-end lg:justify-start h-full"
