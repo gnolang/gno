@@ -6,9 +6,8 @@ import (
 )
 
 type CmdCfg struct {
-	HostPWD        string
-	TraefikGnoFile string
-
+	HostPWD          string
+	TraefikGnoFile   string
 	MasterBackupFile string
 	SnapshotsDir     string
 }
