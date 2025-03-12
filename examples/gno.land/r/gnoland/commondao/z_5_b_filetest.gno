@@ -15,7 +15,7 @@ func init() {
 }
 
 func main() {
-	commondao.Vote(404, 1, pcommondao.ChoiceYes)
+	commondao.Vote(404, 1, pcommondao.ChoiceYes, "")
 }
 
 // Error:

@@ -12,6 +12,9 @@ import (
 var ErrVoteExists = errors.New("user already voted")
 
 type (
+	// VoteIterFn defines a callback to iterate votes.
+	VoteIterFn func(Vote) (stop bool)
+
 	// Vote defines a single vote.
 	Vote struct {
 		// Address is the address of the user that this vote belons to.
@@ -35,8 +38,8 @@ type (
 		// VoteChoices returns the voting choices that has been voted.
 		VoteChoices() []VoteChoice
 
-		// Votes returns the list of all votes.
-		Votes() []Vote
+		// Iterate iterates voting record votes.
+		Iterate(fn VoteIterFn) (stopped bool)
 
 		// VoteCount returns the number of votes for a single voting choice.
 		VoteCount(VoteChoice) int
@@ -72,14 +75,11 @@ func (r VotingRecord) VoteChoices() []VoteChoice {
 	return choices
 }
 
-// Votes returns the list of all votes.
-func (r VotingRecord) Votes() []Vote {
-	var votes []Vote
-	r.votes.Iterate("", "", func(k string, v any) bool {
-		votes = append(votes, v.(Vote))
-		return false
+// Iterate iterates voting record votes.
+func (r VotingRecord) Iterate(fn VoteIterFn) bool {
+	return r.votes.Iterate("", "", func(k string, v any) bool {
+		return fn(v.(Vote))
 	})
-	return votes
 }
 
 // VoteCount returns the number of votes for a single voting choice.

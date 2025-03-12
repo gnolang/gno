@@ -29,7 +29,7 @@ func init() {
 }
 
 func main() {
-	commondao.Vote(daoID, 1, pcommondao.ChoiceYes)
+	commondao.Vote(daoID, 1, pcommondao.ChoiceYes, "")
 }
 
 // Error:

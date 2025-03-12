@@ -56,11 +56,11 @@ func init() {
 	proposal, _ = dao.Propose(user1, propDef{})
 
 	// Submit user1 vote
-	commondao.Vote(dao.ID(), proposal.ID(), pcommondao.ChoiceYes)
+	commondao.Vote(dao.ID(), proposal.ID(), pcommondao.ChoiceYes, "")
 
 	// Submit user2 vote
 	std.TestSetOriginCaller(user2)
-	commondao.Vote(dao.ID(), proposal.ID(), pcommondao.ChoiceYes)
+	commondao.Vote(dao.ID(), proposal.ID(), pcommondao.ChoiceYes, "")
 }
 
 func main() {

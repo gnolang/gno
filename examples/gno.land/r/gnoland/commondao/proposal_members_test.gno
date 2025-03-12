@@ -183,7 +183,7 @@ func TestMembersPropDefinitionTally(t *testing.T) {
 			)
 
 			for _, v := range tc.votes {
-				r.AddVote(v.Address, v.Choice)
+				r.AddVote(v)
 			}
 
 			success := p.Tally(r, tc.memberCount)

@@ -54,19 +54,19 @@ func init() {
 }
 
 func main() {
-	commondao.Vote(daoID, proposal.ID(), vote)
+	commondao.Vote(daoID, proposal.ID(), vote, "")
 
 	record := proposal.VotingRecord()
-	if len(record.Votes()) != 1 {
+	if record.Size() != 1 {
 		panic("expected a single vote")
 	}
 
 	println(record.HasVoted(user))
-	println(record.Votes()[0].Choice == vote)
-	println(record.Votes()[0].Choice == vote)
+	record.Iterate(func(v pcommondao.Vote) bool {
+		println(v.Choice == vote)
+	})
 }
 
 // Output:
-// true
 // true
 // true

@@ -145,12 +145,12 @@ func GetSize(rootID uint64) int {
 }
 
 // Vote submits a vote for a DAO proposal.
-func Vote(daoID, proposalID uint64, vote commondao.VoteChoice) {
+func Vote(daoID, proposalID uint64, vote commondao.VoteChoice, reason string) {
 	dao := mustGetDAO(daoID)
 	caller := std.OriginCaller()
 	assertCallerIsMember(caller, dao)
 
-	err := dao.Vote(caller, proposalID, vote)
+	err := dao.Vote(caller, proposalID, vote, reason)
 	if err != nil {
 		panic(err)
 	}
