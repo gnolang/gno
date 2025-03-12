@@ -81,7 +81,7 @@ func TestValopers_Register(t *testing.T) {
 		})
 	})
 
-	t.Run("no coins deposit", func(t *testing.T) {
+	t.Run("no coins deposited", func(t *testing.T) {
 		t.Parallel()
 
 		// Clear the set for the test
@@ -89,7 +89,7 @@ func TestValopers_Register(t *testing.T) {
 
 		defer func() {
 			if r := recover(); r == nil {
-				t.Errorf("Register without coins deposit should panic")
+				t.Errorf("Register without coins deposited should panic")
 			}
 		}()
 
@@ -99,7 +99,7 @@ func TestValopers_Register(t *testing.T) {
 		Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
 	})
 
-	t.Run("insufficient coins amount deposit", func(t *testing.T) {
+	t.Run("insufficient coins amount deposited", func(t *testing.T) {
 		t.Parallel()
 
 		// Clear the set for the test
@@ -110,7 +110,7 @@ func TestValopers_Register(t *testing.T) {
 
 		defer func() {
 			if r := recover(); r == nil {
-				t.Errorf("Register with less than minimal coins deposit should panic")
+				t.Errorf("Register with less than minimal coins deposited should panic")
 			}
 		}()
 
