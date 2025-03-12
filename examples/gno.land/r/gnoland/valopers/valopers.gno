@@ -167,27 +167,34 @@ func UpdateKeepRunning(address std.Address, keepRunning bool) {
 // UpdateP2PAddresses updates an existing valoper's P2P addresses
 // p2pAddresses is a comma-separated list of P2P addresses
 func UpdateP2PAddresses(address std.Address, p2pAddresses string) {
-	// Split the P2P addresses
-	addresses := strings.Split(p2pAddresses, ",")
-
-	if len(addresses) == 0 {
-		panic(ErrP2PAddressesMissing)
-	}
-
-	// Check addresses
-	for _, addr := range addresses {
-		if err := validateP2PAddress(addr); err != nil {
-			panic(err)
-		}
-	}
+  var addresses []string
 
 	v := GetByAddr(address)
 
+  if p2pAddresses == "" {
+    if v.KeepRunning {
+      panic(ErrP2PAddressesMissing)
+    }
+
+    // Update the P2P addresses
+    v.P2PAddresses = []string{}
+  } else {
+    // Split the P2P addresses
+    addresses = strings.Split(p2pAddresses, ",")
+
+    // Check that the P2P addresses are different
+    for _, addr := range addresses {
+      if err := validateP2PAddress(addr); err != nil {
+        panic(err)
+      }
+    }
+
+    // Update the P2P addresses
+    v.P2PAddresses = addresses
+  }
+
 	// Check that the caller has permissions
 	v.Auth().AssertOnAuthList()
-
-	// Update the P2P addresses
-	v.P2PAddresses = addresses
 
 	// Save the valoper info
 	valopers.Set(address.String(), v)

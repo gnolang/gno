@@ -450,6 +450,34 @@ func TestValopers_UpdateP2PAddresses(t *testing.T) {
 		})
 	})
 
+	t.Run("empty P2PAddresses", func(t *testing.T) {
+		// Clear the set for the test
+		valopers = avl.NewTree()
+
+		// Send coins
+		std.TestSetOriginSend(std.Coins{minCoin}, nil)
+
+		// Add the valoper
+		uassert.NotPanics(t, func() {
+			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
+		})
+
+		// Update the valoper with empty address
+		uassert.PanicsWithMessage(t, ErrP2PAddressesMissing.Error(), func() {
+			UpdateP2PAddresses(validAddress, "")
+		})
+
+    // set the valoper's KeepRunning off
+		uassert.NotPanics(t, func() {
+			UpdateKeepRunning(validAddress, false)
+		})
+
+		// Update the valoper with empty address
+		uassert.NotPanics(t, func() {
+			UpdateP2PAddresses(validAddress, "")
+		})
+	})
+
 	t.Run("invalid P2PAddresses", func(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
