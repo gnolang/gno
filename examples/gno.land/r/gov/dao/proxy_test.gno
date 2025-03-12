@@ -1,4 +1,4 @@
-package proxy
+package dao
 
 import (
 	"std"
@@ -20,6 +20,12 @@ var (
 )
 
 func TestProxy_Functions(t *testing.T) {
+	// initialize tests
+	UpdateImpl(UpdateRequest{
+		DAO: &dummyDao{},
+		AllowedDAOs: []string{v3},
+	})
+
 	// invalid package cannot add a new dao in charge
 	std.TestSetRealm(std.NewCodeRealm(invalid))
 	urequire.PanicsWithMessage(t, "permission denied for prev realm: gno.land/r/invalid/dao", func() {
@@ -41,7 +47,7 @@ func TestProxy_Functions(t *testing.T) {
 	urequire.NotPanics(t, func() {
 		UpdateImpl(UpdateRequest{
 			DAO:         &dummyDao{},
-			AllowedDAOs: []string{v3},
+			AllowedDAOs: []string{v3,v5},
 		})
 	})
 
@@ -64,14 +70,12 @@ func TestProxy_Functions(t *testing.T) {
 	var pid ProposalID
 	std.TestSetRealm(std.NewUserRealm(alice))
 	urequire.NotPanics(t, func() {
-		pid = MustCreateProposal(ProposalRequest{
-			Title:       "Proposal Title",
-			Description: "Description",
-			Callback: func(m Metadata) error {
+		pid = MustCreateProposal(
+			NewProposalRequestBuilder("Proposal Title").
+			WithDescription("Description").
+			WithCallback(func(m Metadata) error {
 				return nil
-			},
-			Metadata: nil,
-		})
+			}).Build())
 	})
 
 	p := MustGetProposal(1000)
@@ -80,14 +84,21 @@ func TestProxy_Functions(t *testing.T) {
 	}
 
 	p = MustGetProposal(pid)
-	urequire.Equal(t, "Proposal Title", p.Title)
-	urequire.Equal(t, p.Author.ID(), "user:g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")
+	urequire.Equal(t, "Proposal Title", p.Title())
+	urequire.Equal(t, p.Author().ID(), "user:g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")
 
 	urequire.Equal(
 		t,
 		"Render: test",
 		Render("test"),
 	)
+
+	// reset state
+	std.TestSetRealm(std.NewCodeRealm(v4))
+	UpdateImpl(UpdateRequest{
+		DAO: &dummyDao{},
+		AllowedDAOs: []string{},
+	})
 }
 
 type dummyDao struct {
@@ -111,6 +122,10 @@ func (dd *dummyDao) PreGetProposal(pid ProposalID) error {
 
 func (dd *dummyDao) PostGetProposal(pid ProposalID, p *Proposal) error {
 	return nil
+}
+
+func (dd *dummyDao) PreExecuteProposal(pid ProposalID) (bool, error) {
+	return true, nil
 }
 
 func (dd *dummyDao) Render(i string) string {

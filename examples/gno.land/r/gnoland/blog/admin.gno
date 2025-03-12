@@ -6,7 +6,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/gov/dao/proxy"
+	"gno.land/r/gov/dao"
 )
 
 var (
@@ -56,7 +56,7 @@ func (a *NewPostMetadata) String() string {
 	return ufmt.Sprintf("- Post Title: %v\n- Post Publication Date: %v\n- Authors: %v\n- Tags: %v", a.Title, a.PublicationDate, a.Authors, a.Tags)
 }
 
-func newPostCallback(m proxy.Metadata) error {
+func newPostCallback(m dao.Metadata) error {
 	amm, ok := m.(*NewPostMetadata)
 	if !ok {
 		panic("wrong metadata type")
@@ -67,12 +67,12 @@ func newPostCallback(m proxy.Metadata) error {
 	return nil
 }
 
-func NewPostProposalRequest(slug, title, body, publicationDate, authors, tags string) proxy.ProposalRequest {
-	return proxy.ProposalRequest{
-		Title:       "Add new post to gnoland blog",
-		Description: "This propoposal is looking to add a new post to gnoland blog",
-		Callback:    newPostCallback,
-		Metadata: &NewPostMetadata{
+func NewPostProposalRequest(slug, title, body, publicationDate, authors, tags string) dao.ProposalRequest {
+	return dao.
+		NewProposalRequestBuilder("Add new post to gnoland blog").
+		WithDescription("This propoposal is looking to add a new post to gnoland blog").
+		WithCallback(newPostCallback).
+		WithMetadata(&NewPostMetadata{
 			Slug:            slug,
 			Title:           title,
 			Body:            body,
@@ -80,8 +80,7 @@ func NewPostProposalRequest(slug, title, body, publicationDate, authors, tags st
 			Authors:         authors,
 			Tags:            tags,
 			Caller:          std.PreviousRealm().Address(),
-		},
-	}
+		}).Build()
 }
 
 func ModAddPost(slug, title, body, publicationDate, authors, tags string) {

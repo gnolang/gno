@@ -3,7 +3,6 @@ package impl
 import (
 	"std"
 
-	"gno.land/r/gov/dao/proxy"
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
@@ -14,11 +13,6 @@ func init() {
 	law = &Law{
 		Supermajority: 66,
 	}
-
-	proxy.UpdateImpl(proxy.UpdateRequest{
-		DAO:         govDAO,
-		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
-	})
 }
 
 func Render(in string) string {
@@ -48,24 +42,3 @@ func AddMember(addr std.Address) {
 	}
 }
 
-func ExecuteProposal(pid proxy.ProposalID) bool {
-	execute, err := govDAO.PreExecuteProposal(pid)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	if !execute {
-		return false
-	}
-
-	prop, err := proxy.GetProposal(pid)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	if err := prop.Executor.Execute(); err != nil {
-		panic(err.Error())
-	}
-
-	return true
-}

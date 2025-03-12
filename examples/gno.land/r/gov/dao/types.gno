@@ -1,4 +1,4 @@
-package proxy
+package dao
 
 import (
 	"errors"
@@ -24,21 +24,100 @@ type VoteRequest struct {
 	Metadata   Metadata
 }
 
+
+type ProposalRequestBuilder struct {
+	title string
+	description string
+	callback func(Metadata) error
+	metadata Metadata
+}
+
+func NewProposalRequestBuilder(title string) *ProposalRequestBuilder {
+	return &ProposalRequestBuilder{
+		title:title,
+	}
+}
+
+func (prb *ProposalRequestBuilder) WithDescription(desc string) *ProposalRequestBuilder {
+	prb.description = desc
+	return prb
+}
+
+func (prb *ProposalRequestBuilder) WithMetadata(md Metadata) *ProposalRequestBuilder {
+	prb.metadata = md
+	return prb
+}
+
+func (prb *ProposalRequestBuilder) WithCallback(cb func(Metadata) error) *ProposalRequestBuilder {
+	prb.callback = cb
+	return prb
+}
+
+func (prb *ProposalRequestBuilder) Build() ProposalRequest {
+	return ProposalRequest {
+		title: prb.title,
+		description: prb.description,
+		callback: prb.callback,
+		metadata: prb.metadata,
+	}	
+}
+
 type ProposalRequest struct {
-	Title       string
-	Description string
-	Callback    func(Metadata) error
-	Metadata    Metadata
+	title       string
+	description string
+	callback    func(Metadata) error
+	metadata    Metadata
+}
+
+func (p *ProposalRequest) Title() string {
+	return p.title
+}
+
+func (p *ProposalRequest) Description() string {
+	return p.description
+}
+
+func (p *ProposalRequest) Callback() func(Metadata)error {
+	return p.callback
+}
+
+func (p *ProposalRequest) Metadata() Metadata {
+	return p.metadata
 }
 
 type Proposal struct {
-	Author Author
+	author Author
 
-	Title       string
-	Description string
+	title       string
+	description string
 
-	Executor    *executor
-	AllowedDAOs []string
+	executor    *executor
+	allowedDAOs []string
+}
+
+func (p *Proposal) Author() Author {
+	return p.author
+}
+
+func (p *Proposal) Title() string {
+	return p.title
+}
+
+func (p *Proposal) Description() string {
+	return p.description
+}
+
+func (p *Proposal) ExecutorString() string {
+	if p.executor != nil {
+		return p.executor.String()
+	}
+
+	return ""
+}
+
+
+func (p *Proposal) AllowedDAOs() []string {
+	return p.allowedDAOs
 }
 
 // Author is an interface returned by the current govDAO implementation
@@ -119,6 +198,10 @@ type DAO interface {
 	// used by govDAO implementations if they need to check Proposal data to know if
 	// the caller is allowed to get that kind of Proposal or not.
 	PostGetProposal(pid ProposalID, p *Proposal) error
+
+	// PreExecuteProposal is called when someone is trying to execute a proposal by ID.
+	// Is intended to be used to validate who can trigger the proposal execution.
+	PreExecuteProposal(pid ProposalID) (bool, error)
 
 	// Render will return a human-readable string in markdown format that
 	// will be used to show new data through the dao proxy entrypoint.

@@ -4,7 +4,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/gov/dao/proxy"
+	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
@@ -17,7 +17,7 @@ func (a *ChangeLawMetadata) String() string {
 	return ufmt.Sprintf("A new Law is proposed:\n %v", a.Law)
 }
 
-func changeLawCallback(m proxy.Metadata) error {
+func changeLawCallback(m dao.Metadata) error {
 	amm, ok := m.(*ChangeLawMetadata)
 	if !ok {
 		panic("metadata type for changing the law is wrong")
@@ -28,20 +28,18 @@ func changeLawCallback(m proxy.Metadata) error {
 	return nil
 }
 
-func NewChangeLawRequest(law *Law) proxy.ProposalRequest {
+func NewChangeLawRequest(law *Law) dao.ProposalRequest {
 	member, _ := memberstore.Get().GetMember(std.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
 
-	return proxy.ProposalRequest{
-		Title:       "Change Law Proposal",
-		Description: "This prpoposal is looking to change the actual govDAO Law",
-		Callback:    changeLawCallback,
-		Metadata: &ChangeLawMetadata{
-			Law: law,
-		},
-	}
+	return dao.NewProposalRequestBuilder("Change Law Proposal").
+	WithDescription("This prpoposal is looking to change the actual govDAO Law").
+	WithCallback(changeLawCallback).
+	WithMetadata(&ChangeLawMetadata{
+		Law: law,
+	}).Build()
 }
 
 type AddMemberMetadata struct {
@@ -57,7 +55,7 @@ func (a *AddMemberMetadata) String() string {
 	return ufmt.Sprintf("A new member with address %v is proposed to be on tier %v. Provided Portfolio information:\n\n%v", a.Addr, a.Tier, a.Portfolio)
 }
 
-func addMemberCallback(m proxy.Metadata) error {
+func addMemberCallback(m dao.Metadata) error {
 	amm, ok := m.(*AddMemberMetadata)
 	if !ok {
 		panic("metadata type for adding a member is wrong")
@@ -68,7 +66,7 @@ func addMemberCallback(m proxy.Metadata) error {
 	return memberstore.Get().SetMember(amm.Tier, amm.Addr, amm.Member)
 }
 
-func NewAddMemberRequest(addr std.Address, tier string, portfolio string) proxy.ProposalRequest {
+func NewAddMemberRequest(addr std.Address, tier string, portfolio string) dao.ProposalRequest {
 	_, ok := memberstore.Tiers.GetTier(tier)
 	if !ok {
 		panic("provided tier does not exists")
@@ -91,18 +89,16 @@ func NewAddMemberRequest(addr std.Address, tier string, portfolio string) proxy.
 		panic("proposer does not have enough invitation points for inviting new people to the board")
 	}
 
-	return proxy.ProposalRequest{
-		Title:       "New Member porposal",
-		Description: "This prpoposal is looking to add a new member to the board.",
-		Callback:    addMemberCallback,
-		Metadata: &AddMemberMetadata{
-			Member:    memberByTier(tier),
-			Portfolio: portfolio,
-			Tier:      tier,
-			Addr:      addr,
-			Caller:    member,
-		},
-	}
+	return dao.NewProposalRequestBuilder("New Member porposal").
+	WithDescription("This prpoposal is looking to add a new member to the board.").
+	WithCallback(addMemberCallback).
+	WithMetadata(&AddMemberMetadata{
+		Member:    memberByTier(tier),
+		Portfolio: portfolio,
+		Tier:      tier,
+		Addr:      addr,
+		Caller:    member,
+	}).Build()
 }
 
 type RemoveMemberMetadata struct {
@@ -116,7 +112,7 @@ func (a *RemoveMemberMetadata) String() string {
 	return ufmt.Sprintf("Member with address %v will be withdrawn.\n\n REASON: %v.", a.Addr, a.Reason)
 }
 
-func removeMemberCallback(m proxy.Metadata) error {
+func removeMemberCallback(m dao.Metadata) error {
 	rmm, ok := m.(*RemoveMemberMetadata)
 	if !ok {
 		panic("metadata type for removing a member is wrong")
@@ -127,7 +123,7 @@ func removeMemberCallback(m proxy.Metadata) error {
 	return nil
 }
 
-func NewWithdrawMemberRequest(addr std.Address, reason string) proxy.ProposalRequest {
+func NewWithdrawMemberRequest(addr std.Address, reason string) dao.ProposalRequest {
 	member, tier := memberstore.Get().GetMember(addr)
 	if member == nil {
 		panic("user we want to remove not found")
@@ -137,16 +133,14 @@ func NewWithdrawMemberRequest(addr std.Address, reason string) proxy.ProposalReq
 		panic("T1 user removals must contains a reason.")
 	}
 
-	return proxy.ProposalRequest{
-		Title:       "Member Withdrawn",
-		Description: "This prpoposal is looking to remove a member from the board.",
-		Callback:    removeMemberCallback,
-		Metadata: &RemoveMemberMetadata{
-			Addr:   addr,
-			Tier:   tier,
-			Reason: reason,
-		},
-	}
+	return dao.NewProposalRequestBuilder("Member Withdrawn").
+	WithDescription("This prpoposal is looking to remove a member from the board.").
+	WithCallback(removeMemberCallback).
+	WithMetadata(&RemoveMemberMetadata{
+		Addr:   addr,
+		Tier:   tier,
+		Reason: reason,
+	}).Build()
 }
 
 type PromoteMemberMetadata struct {
@@ -161,7 +155,7 @@ func (a *PromoteMemberMetadata) String() string {
 	return ufmt.Sprintf("A new member with address %v will be promoted from tier %v to tier %v.", a.Addr, a.FromTier, a.ToTier)
 }
 
-func promoteMemberCallback(m proxy.Metadata) error {
+func promoteMemberCallback(m dao.Metadata) error {
 	pmm, ok := m.(*PromoteMemberMetadata)
 	if !ok {
 		panic("metadata type for promoting a member is wrong")
@@ -179,18 +173,16 @@ func promoteMemberCallback(m proxy.Metadata) error {
 	return memberstore.Get().SetMember(pmm.ToTier, pmm.Addr, pmm.Member)
 }
 
-func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) proxy.ProposalRequest {
-	return proxy.ProposalRequest{
-		Title:       "Member Promotion",
-		Description: "This prpoposal is looking to promote a member to an upper tier.",
-		Callback:    promoteMemberCallback,
-		Metadata: &PromoteMemberMetadata{
-			Addr:     addr,
-			FromTier: fromTier,
-			ToTier:   toTier,
-			Member:   memberByTier(toTier),
-		},
-	}
+func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) dao.ProposalRequest {
+	return dao.NewProposalRequestBuilder("Member Promotion").
+	WithDescription("This prpoposal is looking to promote a member to an upper tier.").
+	WithCallback(promoteMemberCallback).
+	WithMetadata(&PromoteMemberMetadata{
+		Addr:     addr,
+		FromTier: fromTier,
+		ToTier:   toTier,
+		Member:   memberByTier(toTier),
+	}).Build()
 }
 
 func memberByTier(tier string) *memberstore.Member {

@@ -1,68 +1,86 @@
-// Package params provides functions for creating parameter proposal requests that
+// Package params provides functions for creating parameter executors that
 // interface with the Params Keeper.
 //
 // This package enables setting various parameter types (such as strings,
 // integers, booleans, and byte slices) through the GovDAO proposal mechanism.
-// Each function returns an ProposalRequest that, when called, sets the specified
+// Each function returns an executor that, when called, sets the specified
 // parameter in the Params Keeper.
 //
-// The proposal requests are designed to be used within governance proposals to modify
+// The executors are designed to be used within governance proposals to modify
 // parameters dynamically. The integration with the GovDAO allows for parameter
 // changes to be proposed and executed in a controlled manner, ensuring that
 // modifications are subject to governance processes.
 //
 // Example usage:
 //
-//	pr := params.NewStringPropRequest("exampleKey", "exampleValue")
-//	// This proposal request can be used in a governance proposal to create a proposal that will set a parameter if approved.
+//	// This executor can be used in a governance proposal to set the parameter.
+//	pr := params.NewSysParamStringPropExecutor("bank", "p", "restricted_denoms")
 package params
 
 import (
 	"std"
+	prms "sys/params"
 
-	"gno.land/r/gov/dao/proxy"
+	"gno.land/r/gov/dao"
 )
 
-func NewStringPropRequest(key string, value string) proxy.ProposalRequest {
-	return newPropRequest(key, func() { std.SetParamString(key, value) })
+// this is only used for emitting events.
+func syskey(module, submodule, name string) string {
+	return module + ":" + submodule + ":" + name
 }
 
-func NewInt64PropRequest(key string, value int64) proxy.ProposalRequest {
-	return newPropRequest(key, func() { std.SetParamInt64(key, value) })
+func NewSysParamStringPropRequest(module, submodule, name string, value string) dao.ProposalRequest {
+	return newPropRequest(
+		syskey(module, submodule, name),
+		func() { prms.SetSysParamString(module, submodule, name, value) },
+	)
 }
 
-func NewUint64PropRequest(key string, value uint64) proxy.ProposalRequest {
-	return newPropRequest(key, func() { std.SetParamUint64(key, value) })
+func NewSysParamInt64PropRequest(module, submodule, name string, value int64) dao.ProposalRequest {
+	return newPropRequest(
+		syskey(module, submodule, name),
+		func() { prms.SetSysParamInt64(module, submodule, name, value) },
+	)
 }
 
-func NewBoolPropRequest(key string, value bool) proxy.ProposalRequest {
-	return newPropRequest(key, func() { std.SetParamBool(key, value) })
+func NewSysParamUint64PropRequest(module, submodule, name string, value uint64) dao.ProposalRequest {
+	return newPropRequest(
+		syskey(module, submodule, name),
+		func() { prms.SetSysParamUint64(module, submodule, name, value) },
+	)
 }
 
-func NewBytesPropRequest(key string, value []byte) proxy.ProposalRequest {
-	return newPropRequest(key, func() { std.SetParamBytes(key, value) })
+func NewSysParamBoolPropRequest(module, submodule, name string, value bool) dao.ProposalRequest {
+	return newPropRequest(
+		syskey(module, submodule, name),
+		func() { prms.SetSysParamBool(module, submodule, name, value) },
+	)
 }
 
-func newPropRequest(key string, fn func()) proxy.ProposalRequest {
-	callback := func(proxy.Metadata) error {
+func NewSysParamBytesPropRequest(module, submodule, name string, value []byte) dao.ProposalRequest {
+	return newPropRequest(
+		syskey(module, submodule, name),
+		func() { prms.SetSysParamBytes(module, submodule, name, value) },
+	)
+}
+
+func NewSysParamStringsPropRequest(module, submodule, name string, value []string) dao.ProposalRequest {
+	return newPropRequest(
+		syskey(module, submodule, name),
+		func() { prms.SetSysParamStrings(module, submodule, name, value) },
+	)
+}
+
+func newPropRequest(key string, fn func()) dao.ProposalRequest {
+	callback := func(dao.Metadata) error {
 		fn()
 		std.Emit("set", "key", key) // TODO document, make const, make consistent. 'k'??
 		return nil
 	}
-
-	return proxy.ProposalRequest{
-		Title:       "Set new sys/params key",
-		Description: "This proposal wants to add a new key to sys/params: " + key,
-		Callback:    callback,
-	}
+	return dao.NewProposalRequestBuilder("Set new sys/params key").
+		WithDescription("This proposal wants to add a new key to sys/params: " + key).
+		WithCallback(callback).Build()
 }
-func propose(exec dao.Executor, title, desc string) uint64 {
-	// The executor's callback function is executed only after the proposal
-	// has been voted on and approved by the GovDAO.
-	prop := dao.ProposalRequest{
-		Title:       title,
-		Description: desc,
-		Executor:    exec,
-	}
-	return bridge.GovDAO().Propose(prop)
+func propose(pr dao.ProposalRequest) dao.ProposalID {
+	return dao.MustCreateProposal(pr)
 }

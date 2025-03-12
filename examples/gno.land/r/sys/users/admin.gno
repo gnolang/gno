@@ -3,10 +3,8 @@ package users
 import (
 	"std"
 
-	"gno.land/p/demo/dao"
 	"gno.land/p/moul/addrset"
-
-	"gno.land/r/gov/dao/bridge"
+	"gno.land/r/gov/dao"
 )
 
 const gusersv1 = "gno.land/r/gnoland/users/v1" // preregistered with store write perms
@@ -18,21 +16,21 @@ func init() {
 }
 
 // ProposeNewController allows GovDAO to add a whitelisted caller
-func ProposeNewController(addr std.Address) dao.Executor {
-	cb := func() error {
+func ProposeNewController(addr std.Address) dao.ProposalRequest {
+	cb := func(dao.Metadata) error {
 		return addToWhitelist(addr)
 	}
 
-	return bridge.GovDAO().NewGovDAOExecutor(cb)
+	return dao.NewProposalRequestBuilder("Add a new whitelisted caller at sys/users realm").WithCallback(cb).Build()
 }
 
 // ProposeControllerRemoval allows GovDAO to add a whitelisted caller
-func ProposeControllerRemoval(addr std.Address) dao.Executor {
-	cb := func() error {
+func ProposeControllerRemoval(addr std.Address) dao.ProposalRequest {
+	cb := func(dao.Metadata) error {
 		return deleteFromwhitelist(addr)
 	}
 
-	return bridge.GovDAO().NewGovDAOExecutor(cb)
+	return dao.NewProposalRequestBuilder("Remove a whitelisted caller from sys/users realm").WithCallback(cb).Build()
 }
 
 // Helpers

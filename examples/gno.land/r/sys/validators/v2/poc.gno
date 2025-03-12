@@ -4,7 +4,7 @@ import (
 	"std"
 
 	"gno.land/p/sys/validators"
-	"gno.land/r/gov/dao/proxy"
+	"gno.land/r/gov/dao"
 )
 
 const errNoChangesProposed = "no set changes proposed"
@@ -12,12 +12,12 @@ const errNoChangesProposed = "no set changes proposed"
 // NewPropRequest creates a new proposal request that wraps a changes closure
 // proposal. This wrapper is required to ensure the GovDAO Realm actually
 // executed the callback.
-func NewPropRequest(changesFn func() []validators.Validator, description string) proxy.ProposalRequest {
+func NewPropRequest(changesFn func() []validators.Validator, description string) dao.ProposalRequest {
 	if changesFn == nil {
 		panic(errNoChangesProposed)
 	}
 
-	callback := func(proxy.Metadata) error {
+	callback := func(dao.Metadata) error {
 		for _, change := range changesFn() {
 			if change.VotingPower == 0 {
 				// This change request is to remove the validator
@@ -33,11 +33,11 @@ func NewPropRequest(changesFn func() []validators.Validator, description string)
 		return nil
 	}
 
-	return proxy.ProposalRequest{
-		Title:       "Validator Change Request",
-		Description: description,
-		Callback:    callback,
-	}
+	return dao.
+	NewProposalRequestBuilder("Validator Change Request").
+	WithDescription(description).
+	WithCallback(callback).
+	Build()
 }
 
 // IsValidator returns a flag indicating if the given bech32 address

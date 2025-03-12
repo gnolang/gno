@@ -8,7 +8,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
 	pVals "gno.land/p/sys/validators"
-	"gno.land/r/gov/dao/proxy"
+	"gno.land/r/gov/dao"
 	validators "gno.land/r/sys/validators/v2"
 )
 
@@ -177,5 +177,5 @@ func GovDAOProposal(address std.Address) {
 	// Create the request
 	request := validators.NewPropRequest(changesFn, description)
 
-	proxy.MustCreateProposal(request)
+	dao.MustCreateProposal(request)
 }

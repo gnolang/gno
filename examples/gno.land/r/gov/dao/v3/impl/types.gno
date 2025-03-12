@@ -5,7 +5,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/gov/dao/proxy"
+	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
@@ -26,7 +26,7 @@ func NewProposalsStatuses() ProposalsStatuses {
 	return ProposalsStatuses{avl.NewTree()}
 }
 
-func (pss ProposalsStatuses) GetStatus(id proxy.ProposalID) *proposalStatus {
+func (pss ProposalsStatuses) GetStatus(id dao.ProposalID) *proposalStatus {
 	pids := ufmt.Sprintf("%v", int(id))
 	psv, ok := pss.Get(pids)
 	if !ok {
@@ -183,7 +183,7 @@ func writeVotes(sb *strings.Builder, t memberstore.MembersByTier, title string) 
 	}
 }
 
-func StringifyProposal(p *proxy.Proposal) string {
+func StringifyProposal(p *dao.Proposal) string {
 	return ufmt.Sprintf(`
 ### Title: %s
 
@@ -193,5 +193,5 @@ func StringifyProposal(p *proxy.Proposal) string {
 
 This proposal contains the following metadata:
 
-%s`, p.Title, p.Author, p.Description, p.Executor.String())
+%s`, p.Title(), p.Author(), p.Description(), p.ExecutorString())
 }

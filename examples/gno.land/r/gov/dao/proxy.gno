@@ -1,4 +1,4 @@
-package proxy
+package dao
 
 import "std"
 
@@ -12,12 +12,9 @@ var dao DAO
 // executed to remove all previous govDAOs implementations and leave the last one.
 var AllowedDAOs []string
 
+// TODO: change to use another structure instead of a slice to avoid storage problems.
 // proposals contains all the proposals in history.
 var proposals []*Proposal
-
-func init() {
-	AllowedDAOs = []string{"gno.land/r/gov/dao/v3/impl"}
-}
 
 // Render calls directly to Render's DAO implementation.
 // This allows to have this realm as the main entry point for everything.
@@ -36,6 +33,25 @@ func MustCreateProposal(r ProposalRequest) ProposalID {
 	return pid
 }
 
+func ExecuteProposal(pid ProposalID) bool {
+	execute, err := dao.PreExecuteProposal(pid)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	if !execute {
+		return false
+	}
+	prop, err := GetProposal(pid)
+	if err != nil {
+		panic(err.Error())
+	}
+	if err := prop.executor.Execute(); err != nil {
+		panic(err.Error())
+	}
+	return true
+}
+
 // CreateProposal will try to create a new proposal, that will be validated by the actual
 // govDAO implementation. If the proposal cannot be created, an error will be returned.
 func CreateProposal(r ProposalRequest) (ProposalID, error) {
@@ -46,11 +62,11 @@ func CreateProposal(r ProposalRequest) (ProposalID, error) {
 	}
 
 	p := &Proposal{
-		Author:      author,
-		Title:       r.Title,
-		Description: r.Description,
-		Executor:    newExecutor(r.Callback, r.Metadata),
-		AllowedDAOs: AllowedDAOs,
+		author:      author,
+		title:       r.title,
+		description: r.description,
+		executor:    newExecutor(r.callback, r.metadata),
+		allowedDAOs: AllowedDAOs,
 	}
 
 	pid := ProposalID(len(proposals))
@@ -131,6 +147,10 @@ func InAllowedDAOsIndex(pkg string) int {
 }
 
 func index(pkg string) int {
+	if len(AllowedDAOs) == 0 {
+		return 0 // corner case for initialization
+	}
+
 	for i, d := range AllowedDAOs {
 		if pkg == d {
 			return i

@@ -3,7 +3,7 @@ package memberstore
 import (
 	"std"
 
-	"gno.land/r/gov/dao/proxy"
+	"gno.land/r/gov/dao"
 )
 
 type ChangeTiersMetadata struct {
@@ -15,7 +15,7 @@ func (a *ChangeTiersMetadata) String() string {
 	return "New set of tiers proposed."
 }
 
-func changeTiersCallback(m proxy.Metadata) error {
+func changeTiersCallback(m dao.Metadata) error {
 	amm, ok := m.(*ChangeTiersMetadata)
 	if !ok {
 		panic("metadata type for changing tiers is wrong")
@@ -26,18 +26,18 @@ func changeTiersCallback(m proxy.Metadata) error {
 	return nil
 }
 
-func NewChangeTiersRequest(tiers TiersByName) proxy.ProposalRequest {
+func NewChangeTiersRequest(tiers TiersByName) dao.ProposalRequest {
 	member, _ := Get().GetMember(std.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
 
-	return proxy.ProposalRequest{
-		Title:       "Change Tiers Proposal",
-		Description: "This prpoposal is looking to change the existing Tiers in memberstore",
-		Callback:    changeTiersCallback,
-		Metadata: &ChangeTiersMetadata{
+	return dao.
+		NewProposalRequestBuilder("Change Tiers Proposal").
+		WithDescription("This prpoposal is looking to change the existing Tiers in memberstore").
+		WithCallback(changeTiersCallback).
+		WithMetadata(&ChangeTiersMetadata{
 			Tiers: tiers,
-		},
-	}
+		}).
+		Build()
 }

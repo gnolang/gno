@@ -5,12 +5,10 @@ package main
 import (
 	"std"
 
-	"gno.land/p/demo/dao"
 	"gno.land/p/demo/testutils"
-
 	users "gno.land/r/gnoland/users/v1"
-	_ "gno.land/r/gov/dao/init" // so that the govdao.GovDAO initializer is executed
-	govdao "gno.land/r/gov/dao/v2"
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/init"
 	susers "gno.land/r/sys/users"
 )
 
@@ -18,6 +16,8 @@ import (
 
 func init() {
 	c := std.OriginCaller()
+	init.InitWithUsers(c)
+	
 	alice := testutils.TestAddress("alice")
 
 	// Register alice
@@ -28,31 +28,27 @@ func init() {
 	// Prop to change name
 	std.TestSetOriginCaller(c)
 	std.TestSetRealm(std.NewUserRealm(c))
-	ex := users.ProposeDeleteUser(alice)
+	pr := users.ProposeDeleteUser(alice, "Change alice's name!")
 
-	// Create a proposal
-	prop := dao.ProposalRequest{
-		Title:       "Change alice's name!",
-		Description: "",
-		Executor:    ex,
-	}
-
-	govdao.GovDAO.Propose(prop)
+	dao.MustCreateProposal(pr)
 }
 
 func main() {
 	println("--")
-	println(govdao.Render(""))
+	println(dao.Render(""))
 	println("--")
-	println(govdao.Render("0"))
+	println(dao.Render("0"))
 	println("--")
-	govdao.GovDAO.VoteOnProposal(0, "YES")
+	dao.MustVoteOnProposal(dao.VoteRequest{
+		Option:     dao.YesVote,
+		ProposalID: dao.ProposalID(0),
+	})
 	println("--")
-	println(govdao.Render("0"))
+	println(dao.Render("0"))
 	println("--")
-	govdao.GovDAO.ExecuteProposal(0)
+	dao.ExecuteProposal(dao.ProposalID(0))
 	println("--")
-	println(govdao.Render("0"))
+	println(dao.Render("0"))
 
 	data, _ := susers.ResolveName("alice123")
 	if data == nil {

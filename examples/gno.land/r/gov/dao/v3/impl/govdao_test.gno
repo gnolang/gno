@@ -7,9 +7,15 @@ import (
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/urequire"
-	"gno.land/r/gov/dao/proxy"
-	"gno.land/r/gov/dao/v3/memberstore"
-)
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/init"
+	"gno.land/r/gov/dao/v3/memberstore")
+
+func init() {
+	loadMembers()
+	init.Init()
+}
+
 
 var (
 	m1    = testutils.TestAddress("m1")
@@ -50,82 +56,82 @@ func TestCreateProposalAndVote(t *testing.T) {
 	nm1 := testutils.TestAddress("nm1")
 
 	urequire.PanicsWithMessage(t, "Only T1 and T2 members must be added by proposal. To add a T3 member use AddMember function directly.", func() {
-		proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T3, portfolio))
+		dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T3, portfolio))
 	})
 
 	urequire.PanicsWithMessage(t, "proposer is not a member", func() {
-		proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
+		dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
 	})
 
 	std.TestSetOriginCaller(m1)
 	std.TestSetRealm(std.NewUserRealm(m1))
 
-	pid := proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
+	pid := dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
 	urequire.Equal(t, int(pid), 0)
 
 	// m1 votes yes because that member is interested on it
-	proxy.MustVoteOnProposal(proxy.VoteRequest{
-		Option:     proxy.YesVote,
-		ProposalID: proxy.ProposalID(0),
+	dao.MustVoteOnProposal(dao.VoteRequest{
+		Option:     dao.YesVote,
+		ProposalID: dao.ProposalID(0),
 	})
 
 	std.TestSetOriginCaller(m11)
 	std.TestSetRealm(std.NewUserRealm(m11))
-	proxy.MustVoteOnProposal(proxy.VoteRequest{
-		Option:     proxy.NoVote,
-		ProposalID: proxy.ProposalID(0),
+	dao.MustVoteOnProposal(dao.VoteRequest{
+		Option:     dao.NoVote,
+		ProposalID: dao.ProposalID(0),
 	})
 
 	std.TestSetOriginCaller(m2)
 	std.TestSetRealm(std.NewUserRealm(m2))
-	proxy.MustVoteOnProposal(proxy.VoteRequest{
-		Option:     proxy.NoVote,
-		ProposalID: proxy.ProposalID(0),
+	dao.MustVoteOnProposal(dao.VoteRequest{
+		Option:     dao.NoVote,
+		ProposalID: dao.ProposalID(0),
 	})
 
 	std.TestSetOriginCaller(m3)
 	std.TestSetRealm(std.NewUserRealm(m3))
-	proxy.MustVoteOnProposal(proxy.VoteRequest{
-		Option:     proxy.NoVote,
-		ProposalID: proxy.ProposalID(0),
+	dao.MustVoteOnProposal(dao.VoteRequest{
+		Option:     dao.NoVote,
+		ProposalID: dao.ProposalID(0),
 	})
 
 	std.TestSetOriginCaller(m4)
 	std.TestSetRealm(std.NewUserRealm(m4))
 	urequire.PanicsWithMessage(t, "member on specified tier is not allowed to vote on this proposal", func() {
-		proxy.MustVoteOnProposal(proxy.VoteRequest{
-			Option:     proxy.NoVote,
-			ProposalID: proxy.ProposalID(0),
+		dao.MustVoteOnProposal(dao.VoteRequest{
+			Option:     dao.NoVote,
+			ProposalID: dao.ProposalID(0),
 		})
 	})
 
 	std.TestSetOriginCaller(m111)
 	std.TestSetRealm(std.NewUserRealm(m111))
-	proxy.MustVoteOnProposal(proxy.VoteRequest{
-		Option:     proxy.NoVote,
-		ProposalID: proxy.ProposalID(0),
+	dao.MustVoteOnProposal(dao.VoteRequest{
+		Option:     dao.NoVote,
+		ProposalID: dao.ProposalID(0),
 	})
 
-	urequire.Equal(t, true, contains(proxy.Render(""), "Proposal open for votes"))
-	urequire.Equal(t, true, contains(proxy.Render(""), "15.789473684210526%"))
-	urequire.Equal(t, true, contains(proxy.Render(""), "52.63157894736842%"))
+	urequire.Equal(t, true, contains(dao.Render(""), "Proposal open for votes"))
+	urequire.Equal(t, true, contains(dao.Render(""), "15.789473684210526%"))
+	urequire.Equal(t, true, contains(dao.Render(""), "52.63157894736842%"))
 
 	urequire.PanicsWithMessage(t, "proposal didn't reached supermajority yet: 66", func() {
-		ExecuteProposal(proxy.ProposalID(0))
+		dao.ExecuteProposal(dao.ProposalID(0))
 	})
 
 	std.TestSetOriginCaller(m1111)
 	std.TestSetRealm(std.NewUserRealm(m1111))
-	proxy.MustVoteOnProposal(proxy.VoteRequest{
-		Option:     proxy.NoVote,
-		ProposalID: proxy.ProposalID(0),
+	dao.MustVoteOnProposal(dao.VoteRequest{
+		Option:     dao.NoVote,
+		ProposalID: dao.ProposalID(0),
 	})
 
-	accepted := ExecuteProposal(proxy.ProposalID(0))
+	accepted := dao.ExecuteProposal(dao.ProposalID(0))
 	urequire.Equal(t, false, accepted)
 
-	urequire.Equal(t, true, contains(proxy.Render(""), "**PROPOSAL HAS BEEN DENIED**"))
-	urequire.Equal(t, true, contains(proxy.Render(""), "NO PERCENT: 68.42105263157895%"))
+	urequire.Equal(t, true, contains(dao.Render(""), "**PROPOSAL HAS BEEN DENIED**"))
+	urequire.Equal(t, true, contains(dao.Render(""), "NO PERCENT: 68.42105263157895%"))
 }
 
 func TestProposalPagination(t *testing.T) {
@@ -137,36 +143,36 @@ func TestProposalPagination(t *testing.T) {
 
 	nm1 := testutils.TestAddress("nm1")
 
-	var pid proxy.ProposalID
+	var pid dao.ProposalID
 
-	pid = proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
+	pid = dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
 	// TODO: tests keep the same vm state: https://github.com/gnolang/gno/issues/1982
 	urequire.Equal(t, int(pid), 1)
 
-	pid = proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
+	pid = dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
 	urequire.Equal(t, int(pid), 2)
 
-	pid = proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
+	pid = dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
 	urequire.Equal(t, int(pid), 3)
 
-	pid = proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
+	pid = dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
 	urequire.Equal(t, int(pid), 4)
 
-	pid = proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
+	pid = dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
 	urequire.Equal(t, int(pid), 5)
 
-	pid = proxy.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
+	pid = dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
 	urequire.Equal(t, int(pid), 6)
 
-	urequire.Equal(t, true, contains(proxy.Render(""), "## Proposal with id: 6"))
-	urequire.Equal(t, true, contains(proxy.Render(""), "## Proposal with id: 5"))
-	urequire.Equal(t, true, contains(proxy.Render(""), "## Proposal with id: 4"))
+	urequire.Equal(t, true, contains(dao.Render(""), "## Proposal with id: 6"))
+	urequire.Equal(t, true, contains(dao.Render(""), "## Proposal with id: 5"))
+	urequire.Equal(t, true, contains(dao.Render(""), "## Proposal with id: 4"))
 
-	urequire.Equal(t, true, contains(proxy.Render("/?page=2"), "## Proposal with id: 3"))
-	urequire.Equal(t, true, contains(proxy.Render("/?page=2"), "## Proposal with id: 2"))
-	urequire.Equal(t, true, contains(proxy.Render("/?page=2"), "## Proposal with id: 1"))
+	urequire.Equal(t, true, contains(dao.Render("/?page=2"), "## Proposal with id: 3"))
+	urequire.Equal(t, true, contains(dao.Render("/?page=2"), "## Proposal with id: 2"))
+	urequire.Equal(t, true, contains(dao.Render("/?page=2"), "## Proposal with id: 1"))
 
-	urequire.Equal(t, true, contains(proxy.Render("/?page=3"), "## Proposal with id: 0"))
+	urequire.Equal(t, true, contains(dao.Render("/?page=3"), "## Proposal with id: 0"))
 }
 
 func contains(s, substr string) bool {

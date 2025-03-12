@@ -1,5 +1,7 @@
 package params
 
+import "gno.land/r/gov/dao"
+
 const (
 	bankModulePrefix    = "bank"
 	restrictedDenomsKey = "restricted_denoms"
@@ -7,12 +9,12 @@ const (
 	lockTransferTitle   = "Proposal to lock the transfer of ugnot."
 )
 
-func ProposeUnlockTransfer() uint64 {
-	exe := NewSysParamStringsPropExecutor(bankModulePrefix, "p", restrictedDenomsKey, []string{})
-	return propose(exe, unlockTransferTitle, "")
+func ProposeUnlockTransfer() dao.ProposalID {
+	req := NewSysParamStringPropRequest(bankModulePrefix, "p", restrictedDenomsKey, "")
+	return propose(req)
 }
 
-func ProposeLockTransfer() uint64 {
-	exe := NewSysParamStringsPropExecutor(bankModulePrefix, "p", restrictedDenomsKey, []string{"ugnot"})
-	return propose(exe, lockTransferTitle, "")
+func ProposeLockTransfer() dao.ProposalID {
+	req := NewSysParamStringPropRequest(bankModulePrefix, "p", restrictedDenomsKey, "ugnot")
+	return propose(req)
 }

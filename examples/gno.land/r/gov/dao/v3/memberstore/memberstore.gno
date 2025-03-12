@@ -4,7 +4,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
-	"gno.land/r/gov/dao/proxy"
+	"gno.land/r/gov/dao"
 )
 
 var members MembersByTier
@@ -97,7 +97,7 @@ func init() {
 // Get gets the Members store
 func Get() MembersByTier {
 	realm := std.PreviousRealm().PkgPath()
-	if proxy.InAllowedDAOsIndex(realm) < 0 {
+	if dao.InAllowedDAOsIndex(realm) < 0 {
 		panic("this Realm is not allowed to get the Members data: " + realm)
 	}
 

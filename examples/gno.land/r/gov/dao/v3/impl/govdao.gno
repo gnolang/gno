@@ -8,7 +8,7 @@ import (
 	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/gov/dao/proxy"
+	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
@@ -50,14 +50,14 @@ func NewGovDAO() *GovDAO {
 	return d
 }
 
-func (g *GovDAO) PreCreateProposal(r proxy.ProposalRequest) (proxy.Author, error) {
+func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (dao.Author, error) {
 	// TODO validate that the caller is a member
 	return NewUserAuthor(), nil
 }
 
-func (g *GovDAO) PostCreateProposal(r proxy.ProposalRequest, pid proxy.ProposalID) {
+func (g *GovDAO) PostCreateProposal(r dao.ProposalRequest, pid dao.ProposalID) {
 	tatv := []string{memberstore.T1, memberstore.T2, memberstore.T3}
-	switch v := r.Metadata.(type) {
+	switch v := r.Metadata().(type) {
 	case *AddMemberMetadata:
 		// only members from T1 are allowed to vote when adding new members to T1
 		if v.Tier == memberstore.T1 {
@@ -87,7 +87,7 @@ func (g *GovDAO) PostCreateProposal(r proxy.ProposalRequest, pid proxy.ProposalI
 	g.pss.Set(pids, newProposalStatus(tatv))
 }
 
-func (g *GovDAO) VoteOnProposal(r proxy.VoteRequest) error {
+func (g *GovDAO) VoteOnProposal(r dao.VoteRequest) error {
 	if !g.isValidCall() {
 		return errors.New("proposal voting must be done directly by a user")
 	}
@@ -114,10 +114,10 @@ func (g *GovDAO) VoteOnProposal(r proxy.VoteRequest) error {
 	}
 
 	switch r.Option {
-	case proxy.YesVote:
+	case dao.YesVote:
 		status.AllVotes.SetMember(tie, caller, mem)
 		status.YesVotes.SetMember(tie, caller, mem)
-	case proxy.NoVote:
+	case dao.NoVote:
 		status.AllVotes.SetMember(tie, caller, mem)
 		status.NoVotes.SetMember(tie, caller, mem)
 	default:
@@ -127,34 +127,38 @@ func (g *GovDAO) VoteOnProposal(r proxy.VoteRequest) error {
 	return nil
 }
 
-func (g *GovDAO) PreGetProposal(pid proxy.ProposalID) error {
+func (g *GovDAO) PreGetProposal(pid dao.ProposalID) error {
 	return nil
 }
 
-func (g *GovDAO) PostGetProposal(pid proxy.ProposalID, p *proxy.Proposal) error {
+func (g *GovDAO) PostGetProposal(pid dao.ProposalID, p *dao.Proposal) error {
 	return nil
 }
 
-func (g *GovDAO) PreExecuteProposal(pid proxy.ProposalID) (bool, error) {
-	if !std.PreviousRealm().IsUser() {
-		return false, errors.New("invalid non-user call")
+func (g *GovDAO) PreExecuteProposal(pid dao.ProposalID) (bool, error) {
+	println("1111")
+
+	if !g.isValidCall() {
+		return false, errors.New("proposal execution must be done directly by a user")
 	}
-
+	println("2222")
 	status := g.pss.GetStatus(pid)
-
+	println("3333")
 	if status.Denied || status.Accepted {
 		return false, errors.New(ufmt.Sprintf("proposal already executed. Accepted: %v", status.Accepted))
 	}
-
+	println("4444")
 	if status.YesPercent() >= law.Supermajority {
+		println("44441")
 		status.Accepted = true
+		println("44442")
 	} else if status.NoPercent() >= law.Supermajority {
 		status.Denied = true
 		return false, nil
 	} else {
 		return false, errors.New(ufmt.Sprintf("proposal didn't reached supermajority yet: %v", law.Supermajority))
 	}
-
+	println("5555")
 	return true, nil
 }
 
@@ -181,9 +185,9 @@ func (g *GovDAO) renderProposal(sPid string) string {
 	if err != nil {
 		panic(err.Error())
 	}
-	ps := g.pss.GetStatus(proxy.ProposalID(pid))
+	ps := g.pss.GetStatus(dao.ProposalID(pid))
 
-	p := proxy.MustGetProposal(proxy.ProposalID(pid))
+	p := dao.MustGetProposal(dao.ProposalID(pid))
 
 	out := ""
 	out += ufmt.Sprintf("## Proposal with id: %v", sPid)
@@ -201,7 +205,7 @@ func (g *GovDAO) renderVotesForProposal(sPid string) string {
 	if err != nil {
 		panic(err.Error())
 	}
-	ps := g.pss.GetStatus(proxy.ProposalID(pid))
+	ps := g.pss.GetStatus(dao.ProposalID(pid))
 
 	out := ""
 	out += ufmt.Sprintf("## Voters for Proposal with id: %v\n\n", sPid)
@@ -215,9 +219,9 @@ func (g *GovDAO) Render(path string) string {
 }
 
 func (g *GovDAO) isValidCall() bool {
-	// only calls from the proxy are allowed
+	// only calls from the dao proxy are allowed
 	// TODO: we need a fix for #1155 and #3802
-	// return std.GetOrigPkgAddr() == std.DerivePkgAddr("gno.land/r/gov/dao/proxy")
+	// return std.GetOrigPkgAddr() == std.DerivePkgAddr("gno.land/r/gov/dao")
 	return true
 }
 
