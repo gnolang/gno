@@ -37,7 +37,7 @@ type indexLayoutParams struct {
 
 func IndexLayout(data IndexData) Component {
 	data.FooterData = EnrichFooterData(data.FooterData)
-	data.HeaderData = EnrichHeaderData(data.HeaderData, data.HasGeneralMenu)
+	data.HeaderData = EnrichHeaderData(data.HeaderData, data.IsHome)
 
 	dataLayout := indexLayoutParams{
 		IndexData: data,

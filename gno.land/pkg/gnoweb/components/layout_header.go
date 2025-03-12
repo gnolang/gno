@@ -19,13 +19,13 @@ type HeaderLinks struct {
 }
 
 type HeaderData struct {
-	RealmPath      string
-	RealmURL       weburl.GnoURL
-	Breadcrumb     BreadcrumbData
-	Links          HeaderLinks
-	ChainId        string
-	Remote         string
-	HasGeneralMenu bool
+	RealmPath  string
+	RealmURL   weburl.GnoURL
+	Breadcrumb BreadcrumbData
+	Links      HeaderLinks
+	ChainId    string
+	Remote     string
+	IsHome     bool
 }
 
 func StaticHeaderGeneralLinks() []HeaderLink {

@@ -60,5 +60,5 @@ func AliasAndRedirectMiddleware(next http.Handler, analytics bool) http.Handler 
 
 // IsHomePath checks if the given path is the home path.
 func IsHomePath(path string) bool {
-	return path == "/" || path == HomeAlias
+	return path == "/"
 }
