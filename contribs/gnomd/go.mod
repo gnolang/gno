@@ -1,4 +1,4 @@
-module github.com/gnolang/gno/contribs/gnomd
+module github.com/gnolang/gno/contribs/tm2backup
 
 go 1.22
 
@@ -24,3 +24,5 @@ require (
 	golang.org/x/net v0.34.0 // indirect
 	golang.org/x/sys v0.29.0 // indirect
 )
+
+replace github.com/gnolang/gno => ../..

@@ -27,7 +27,6 @@ func newRootCmd(io commands.IO) *commands.Command {
 		newStartCmd(io),
 		newSecretsCmd(io),
 		newConfigCmd(io),
-		newBackupCmd(io),
 	)
 
 	return cmd
