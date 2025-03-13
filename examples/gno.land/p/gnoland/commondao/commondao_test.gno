@@ -518,7 +518,7 @@ func TestCommonDAOExecute(t *testing.T) {
 
 type majorityPropDef struct{ testPropDef }
 
-func (majorityPropDef) Tally(r ReadOnlyVotingRecord, membersCount int) bool {
+func (majorityPropDef) Tally(r ReadonlyVotingRecord, membersCount int) bool {
 	_, success := SelectChoiceByAbsoluteMajority(r, membersCount)
 	return success
 }

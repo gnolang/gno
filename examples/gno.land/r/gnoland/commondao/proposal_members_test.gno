@@ -186,7 +186,7 @@ func TestMembersPropDefinitionTally(t *testing.T) {
 				r.AddVote(v)
 			}
 
-			success := p.Tally(r.ReadOnly(), tc.memberCount)
+			success := p.Tally(r.Readonly(), tc.memberCount)
 
 			uassert.Equal(t, tc.success, success, "expect tally success to match")
 		})

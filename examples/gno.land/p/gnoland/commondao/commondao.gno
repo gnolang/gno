@@ -26,14 +26,15 @@ var (
 
 // CommonDAO defines a DAO.
 type CommonDAO struct {
-	id       uint64
-	slug     string
-	name     string
-	parent   *CommonDAO
-	members  *addrset.Set
-	genID    seqid.ID
-	active   *avl.Tree // string(proposal ID) -> *Proposal
-	finished *avl.Tree // string(proposal ID) -> *Proposal
+	id        uint64
+	slug      string
+	name      string
+	parent    *CommonDAO
+	members   *addrset.Set
+	groupings Groupings
+	genID     seqid.ID
+	active    *avl.Tree // string(proposal ID) -> *Proposal
+	finished  *avl.Tree // string(proposal ID) -> *Proposal
 }
 
 // New creates a new common DAO.
@@ -99,12 +100,17 @@ func (dao CommonDAO) Members() *addrset.Set {
 	return dao.members
 }
 
+// TODO: Document member groups
+func (dao CommonDAO) MemberGroups() Groupings {
+	return dao.groupings
+}
+
 // ActiveProposals returns all active DAO proposals.
 func (dao CommonDAO) ActiveProposals() rotree.IReadOnlyTree {
 	return dao.active
 }
 
-// FinishedProposalsi returns all finished DAO proposals.
+// FinishedProposals returns all finished DAO proposals.
 func (dao CommonDAO) FinishedProposals() rotree.IReadOnlyTree {
 	return dao.finished
 }
@@ -244,7 +250,7 @@ func (dao *CommonDAO) tallyProposal(p *Proposal) error {
 		return ErrLowParticipation
 	}
 
-	if !p.Definition().Tally(record.ReadOnly(), membersCount) {
+	if !p.Definition().Tally(record.Readonly(), membersCount) {
 		return ErrNoConcensus
 	}
 	return nil

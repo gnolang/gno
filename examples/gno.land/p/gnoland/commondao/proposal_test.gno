@@ -79,7 +79,7 @@ func (testPropDef) Body() string                           { return "" }
 func (testPropDef) Quorum() float64                        { return 0 }
 func (d testPropDef) VotingPeriod() time.Duration          { return d.votingPeriod }
 func (d testPropDef) Validate() error                      { return d.validationErr }
-func (d testPropDef) Tally(ReadOnlyVotingRecord, int) bool { return d.tallyResult }
+func (d testPropDef) Tally(ReadonlyVotingRecord, int) bool { return d.tallyResult }
 func (d testPropDef) Execute() error                       { return d.executionErr }
 
 func (d testPropDef) CustomVoteChoices() []VoteChoice {

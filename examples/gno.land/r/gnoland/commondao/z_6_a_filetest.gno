@@ -19,7 +19,7 @@ func (propDef) Body() string                                    { return "" }
 func (propDef) Quorum() float64                                 { return 0 }
 func (propDef) VotingPeriod() time.Duration                     { return 0 }
 func (propDef) Validate() error                                 { return nil }
-func (propDef) Tally(pcommondao.ReadOnlyVotingRecord, int) bool { return true }
+func (propDef) Tally(pcommondao.ReadonlyVotingRecord, int) bool { return true }
 
 func (propDef) Execute() error {
 	executed = true
