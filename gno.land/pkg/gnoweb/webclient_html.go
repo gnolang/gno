@@ -285,20 +285,22 @@ func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) e
 }
 
 func (s *HTMLWebClient) WriteFormatterCSS(w io.Writer) error {
+	// Write light mode CSS
 	s.Formatter.WriteCSS(w, s.chromaStyle)
 
-	// Generate CSS for dark mode
+	// Start media query block for dark mode
+	fmt.Fprintln(w, "@media (prefers-color-scheme: dark) {")
+
+	// Generate dark mode CSS for Chroma
 	var darkCSS strings.Builder
 	s.Formatter.WriteCSS(&darkCSS, chromaDarkStyle)
 
 	scanner := bufio.NewScanner(strings.NewReader(darkCSS.String()))
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.Contains(line, ".chroma") {
-			line = ".dark " + strings.TrimSpace(line)
-		}
-		fmt.Fprintln(w, line)
+		fmt.Fprintln(w, "  "+line) // Add indentation for readability
 	}
+	fmt.Fprintln(w, "}")
 
 	return scanner.Err()
 }
