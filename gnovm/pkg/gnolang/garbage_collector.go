@@ -25,7 +25,7 @@ type Visitor func(v Value) (stop bool)
 //
 // XXX: make sure tv.T isn't bumped from allocation either.
 func (m *Machine) GarbageCollect() (left int64, ok bool) {
-	//fmt.Println("===GarbageCollect===")
+	// fmt.Println("===GarbageCollect===")
 	defer func() {
 		gasCPU := overflow.Mul64p(m.Alloc.visitCount*VisitCpuFactor, GasFactorCPU)
 		m.Alloc.visitCount = 0
@@ -45,7 +45,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 	// Visit blocks
 	for _, block := range m.Blocks {
-		//fmt.Println("======visit block i: ", i)
+		// fmt.Println("======visit block i: ", i)
 		stop := vis(block)
 		if stop {
 			return -1, false
@@ -54,7 +54,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 	// Visit frames
 	for _, frame := range m.Frames {
-		//fmt.Println("======visit frame i: ", i)
+		// fmt.Println("======visit frame i: ", i)
 		stop := frame.Visit(vis, m.Store)
 		if stop {
 			return -1, false
@@ -62,7 +62,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	}
 
 	// Visit package
-	//fmt.Println("======visit package value")
+	// fmt.Println("======visit package value")
 	stop := vis(m.Package)
 	if stop {
 		return -1, false
@@ -70,7 +70,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 	// Visit exceptions
 	for _, exception := range m.Exceptions {
-		//fmt.Println("======visit exception i: ", i)
+		// fmt.Println("======visit exception i: ", i)
 		stop = exception.Visit(vis, m.Store)
 		if stop {
 			return -1, false
@@ -92,12 +92,12 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 			return false
 		}
 
-		//fmt.Printf("Visit, v: %v (type: %v) \n", v, reflect.TypeOf(v))
+		// fmt.Printf("Visit, v: %v (type: %v) \n", v, reflect.TypeOf(v))
 
 		oo, isObject := v.(Object)
 
 		if isObject {
-			//fmt.Printf("v.GetLastGCCycle: %d, gcCycle: %d\n", oo.GetLastGCCycle(), gcCycle)
+			// fmt.Printf("v.GetLastGCCycle: %d, gcCycle: %d\n", oo.GetLastGCCycle(), gcCycle)
 			// Return if already measured.
 			if oo.GetLastGCCycle() == gcCycle {
 				return false // but don't stop
@@ -106,7 +106,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 
 		// Add object size to alloc.
 		size := v.GetShallowSize()
-		//fmt.Println("shallow size: ", size)
+		// fmt.Println("shallow size: ", size)
 		alloc.visitCount++ // count for gas calculation
 
 		alloc.Allocate(size)
@@ -125,7 +125,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 		// Finally bump cycle.
 		if isObject {
 			oo.SetLastGCCycle(gcCycle)
-			//fmt.Printf("after bump, gcCycle for %v is %d\n", v, oo.GetLastGCCycle())
+			// fmt.Printf("after bump, gcCycle for %v is %d\n", v, oo.GetLastGCCycle())
 		}
 
 		return stop
