@@ -116,6 +116,8 @@ func (sv *SliceValue) String(m *Machine) string {
 }
 
 func (sv *SliceValue) ProtectedString(m *Machine, seen *seenValues) string {
+	m.GasMeter.ConsumeGas(OpCPUAssign, CPUCYCLES)
+
 	if sv.Base == nil {
 		return "nil-slice"
 	}
@@ -125,20 +127,30 @@ func (sv *SliceValue) ProtectedString(m *Machine, seen *seenValues) string {
 	}
 
 	if ref, ok := sv.Base.(RefValue); ok {
+		m.GasMeter.ConsumeGas(OpCPUAssign, CPUCYCLES)
 		return fmt.Sprintf("slice[%v]", ref)
 	}
 
+	m.GasMeter.ConsumeGas(OpCPUAssign, CPUCYCLES)
 	seen.Put(sv)
 	defer seen.Pop()
 
 	vbase := sv.Base.(*ArrayValue)
 	if vbase.Data == nil {
+		m.GasMeter.ConsumeGas(int64(sv.Length*OpCPUAssign), CPUCYCLES)
 		ss := make([]string, sv.Length)
 		for i, e := range vbase.List[sv.Offset : sv.Offset+sv.Length] {
+			m.GasMeter.ConsumeGas(OpCPUAssign, CPUCYCLES)
 			ss[i] = e.ProtectedString(m, seen)
 		}
+		m.GasMeter.ConsumeGas(int64(sv.Length*OpCPUAssign), CPUCYCLES)
 		return "slice[" + strings.Join(ss, ",") + "]"
 	}
+
+	defer func() {
+		m.GasMeter.ConsumeGas(OpCPUSlice, CPUCYCLES)
+	}()
+
 	if sv.Length > 256 {
 		return fmt.Sprintf("slice[0x%X...(%d)]", vbase.Data[sv.Offset:sv.Offset+256], sv.Length)
 	}
@@ -154,6 +166,7 @@ func (pv PointerValue) ProtectedString(m *Machine, seen *seenValues) string {
 		return fmt.Sprintf("ref@%d", i)
 	}
 
+	m.GasMeter.ConsumeGas(OpCPUAssign, CPUCYCLES)
 	seen.Put(pv)
 	defer seen.Pop()
 
@@ -162,6 +175,7 @@ func (pv PointerValue) ProtectedString(m *Machine, seen *seenValues) string {
 		return "&<nil>"
 	}
 
+	m.GasMeter.ConsumeGas(OpCPUAssign, CPUCYCLES)
 	return fmt.Sprintf("&%s", pv.TV.ProtectedString(m, seen))
 }
 
@@ -174,13 +188,17 @@ func (sv *StructValue) ProtectedString(m *Machine, seen *seenValues) string {
 		return fmt.Sprintf("ref@%d", i)
 	}
 
+	m.GasMeter.ConsumeGas(OpCPUAssign, CPUCYCLES)
 	seen.Put(sv)
 	defer seen.Pop()
 
+	m.GasMeter.ConsumeGas(int64(len(sv.Fields)*OpCPUAssign), CPUCYCLES)
 	ss := make([]string, len(sv.Fields))
 	for i, f := range sv.Fields {
+		m.GasMeter.ConsumeGas(OpCPUAssign, CPUCYCLES)
 		ss[i] = f.ProtectedString(m, seen)
 	}
+	m.GasMeter.ConsumeGas(int64(len(sv.Fields)*OpCPUAssign), CPUCYCLES)
 	return "struct{" + strings.Join(ss, ",") + "}"
 }
 
@@ -219,6 +237,8 @@ func (mv *MapValue) String(m *Machine) string {
 }
 
 func (mv *MapValue) ProtectedString(m *Machine, seen *seenValues) string {
+	m.GasMeter.ConsumeGas(OpCPUAssign, CPUCYCLES)
+
 	if mv.List == nil {
 		return "zero-map"
 	}
@@ -227,17 +247,23 @@ func (mv *MapValue) ProtectedString(m *Machine, seen *seenValues) string {
 		return fmt.Sprintf("ref@%d", i)
 	}
 
+	m.GasMeter.ConsumeGas(OpCPUAssign, CPUCYCLES)
 	seen.Put(mv)
 	defer seen.Pop()
 
+	m.GasMeter.ConsumeGas(int64(mv.GetLength()*OpCPUAssign), CPUCYCLES)
 	ss := make([]string, 0, mv.GetLength())
 	next := mv.List.Head
 	for next != nil {
+		// cost for key value is double
+		m.GasMeter.ConsumeGas(OpCPUAssign*2, CPUCYCLES)
 		ss = append(ss,
 			next.Key.ProtectedString(m, seen)+":"+
 				next.Value.ProtectedString(m, seen))
 		next = next.Next
 	}
+
+	m.GasMeter.ConsumeGas(int64(len(ss)*OpCPUAssign), CPUCYCLES)
 	return "map{" + strings.Join(ss, ",") + "}"
 }
 
@@ -426,6 +452,8 @@ func (tv TypedValue) String(m *Machine) string {
 }
 
 func (tv TypedValue) ProtectedString(m *Machine, seen *seenValues) string {
+	m.GasMeter.ConsumeGas(OpCPUAssign, CPUCYCLES)
+
 	if tv.IsUndefined() {
 		return "(undefined)"
 	}
