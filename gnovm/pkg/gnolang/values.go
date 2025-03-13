@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
+	"math/rand/v2"
 	"reflect"
 	"strconv"
 	"strings"
@@ -1458,6 +1459,23 @@ func (tv *TypedValue) AssertNonNegative(msg string) {
 	}
 }
 
+// uvnan is the unsigned value of NaN. It can be contructed by applying the following:
+// { var nan = math.NaN(); var uvnan = *(*uint64)(unsafe.Pointer(&nan)) }
+const uvnan = 0x7FF8000000000001
+
+// randNaN returns an uint64 representation of NaN with a random payload.
+func randNaN() uint64 {
+	return rand.Uint64()&^uvnan | uvnan
+}
+
+// IsNaN reports wether tv is an IEEE 754 "not a number" value.
+func (tv *TypedValue) IsNaN() bool {
+	if tv.HasKind(Float64Kind) {
+		return uvnan == tv.GetFloat64()&uvnan
+	}
+	return false
+}
+
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 	// Special case when nil: has no separator.
 	if tv.T == nil {
@@ -1476,6 +1494,10 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 	}
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
+		if tv.IsNaN() {
+			// if NaN, generate a random payload to ensure key uniqueness.
+			tv.SetFloat64(randNaN())
+		}
 		pbz := tv.PrimitiveBytes()
 		bz = append(bz, pbz...)
 	case *PointerType:
