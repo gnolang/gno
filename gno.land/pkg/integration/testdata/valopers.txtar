@@ -21,14 +21,32 @@ stdout OK!
 stdout '\* \[berty\]'
 
 # make a proposal for a non-existing valoper
-! gnokey maketx call -pkgpath gno.land/r/gnoland/valopers_proposal -func MakeProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -send 100000000ugnot -args g1juz2yxmdsa6audkp6ep9vfv80c8p5u76e03vvh -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/gnoland/valopers_proposal -func ProposeNewValidator -gas-fee 1000000ugnot -gas-wanted 20000000 -send 100000000ugnot -args g1juz2yxmdsa6audkp6ep9vfv80c8p5u76e03vvh -broadcast -chainid=tendermint_test test1
 stderr 'panic: valoper does not exist'
 
 # make a proposal
-gnokey maketx call -pkgpath gno.land/r/gnoland/valopers_proposal -func MakeProposal -gas-fee 1000000ugnot -gas-wanted 20000000 -send 100000000ugnot -args g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gnoland/valopers_proposal -func ProposeNewValidator -gas-fee 1000000ugnot -gas-wanted 20000000 -send 100000000ugnot -args g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # see the valoper in gov/dao Render
 gnokey maketx call -pkgpath gno.land/r/gov/dao/v2 -func Render -gas-fee 1000000ugnot -gas-wanted 10000000 -args "" -broadcast -chainid=tendermint_test test1
 stdout OK!
-stdout 'Add valoper berty'
+stdout 'Add valoper \[berty\]'
+
+# make a proposal for updating instructions
+gnokey maketx call -pkgpath gno.land/r/gnoland/valopers_proposal -func ProposeNewInstructions -gas-fee 1000000ugnot -gas-wanted 20000000 -send 100000000ugnot -args "new instructions" -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# see the instructions in gov/dao proposition Render
+gnokey maketx call -pkgpath gno.land/r/gov/dao/v2 -func Render -gas-fee 1000000ugnot -gas-wanted 10000000 -args "1" -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'new instructions'
+
+# make a proposal for updating minimum fee
+gnokey maketx call -pkgpath gno.land/r/gnoland/valopers_proposal -func ProposeNewMinFee -gas-fee 1000000ugnot -gas-wanted 20000000 -send 100000000ugnot -args "1000000" -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# see the instructions in gov/dao proposition Render
+gnokey maketx call -pkgpath gno.land/r/gov/dao/v2 -func Render -gas-fee 1000000ugnot -gas-wanted 10000000 -args "2" -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'Update the minimum register fee to: 1000000 ugnot'

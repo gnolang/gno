@@ -46,6 +46,11 @@ func IsValidator(addr std.Address) bool {
 	return vp.IsValidator(addr)
 }
 
+// GetValidator returns the typed validator
+func GetValidator(addr std.Address) (validators.Validator, error) {
+	return vp.GetValidator(addr)
+}
+
 // GetValidators returns the typed validator set
 func GetValidators() []validators.Validator {
 	return vp.GetValidators()

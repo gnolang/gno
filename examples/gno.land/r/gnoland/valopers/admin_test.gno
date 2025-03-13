@@ -11,7 +11,7 @@ import (
 func TestUpdateInstructions(t *testing.T) {
 	auth = authz.NewWithAuthority(
 		authz.NewContractAuthority(
-			"gno.land/r/gov/dao/bridge",
+			"gno.land/r/gov/dao/v2",
 			func(title string, action authz.PrivilegedAction) error {
 				return action()
 			},
@@ -21,13 +21,13 @@ func TestUpdateInstructions(t *testing.T) {
 	newInstructions := "new instructions"
 
 	uassert.PanicsWithMessage(t, "action can only be executed by the contract", func() {
-		UpdateInstructions(newInstructions)
+		updateInstructions(newInstructions)
 	})
 
-	std.TestSetOriginCaller(std.DerivePkgAddr("gno.land/r/gov/dao/bridge"))
+	std.TestSetOriginCaller(std.DerivePkgAddr("gno.land/r/gov/dao/v2"))
 
 	uassert.NotPanics(t, func() {
-		UpdateInstructions(newInstructions)
+		updateInstructions(newInstructions)
 	})
 
 	uassert.Equal(t, newInstructions, instructions)
@@ -36,7 +36,7 @@ func TestUpdateInstructions(t *testing.T) {
 func TestUpdateMinFee(t *testing.T) {
 	auth = authz.NewWithAuthority(
 		authz.NewContractAuthority(
-			"gno.land/r/gov/dao/bridge",
+			"gno.land/r/gov/dao/v2",
 			func(title string, action authz.PrivilegedAction) error {
 				return action()
 			},
@@ -46,13 +46,13 @@ func TestUpdateMinFee(t *testing.T) {
 	newMinFee := int64(100)
 
 	uassert.PanicsWithMessage(t, "action can only be executed by the contract", func() {
-		UpdateMinFee(newMinFee)
+		updateMinFee(newMinFee)
 	})
 
-	std.TestSetOriginCaller(std.DerivePkgAddr("gno.land/r/gov/dao/bridge"))
+	std.TestSetOriginCaller(std.DerivePkgAddr("gno.land/r/gov/dao/v2"))
 
 	uassert.NotPanics(t, func() {
-		UpdateMinFee(newMinFee)
+		updateMinFee(newMinFee)
 	})
 
 	uassert.Equal(t, newMinFee, minFee)

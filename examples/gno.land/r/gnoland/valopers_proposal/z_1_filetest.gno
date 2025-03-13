@@ -1,7 +1,7 @@
 // PKGPATH: gno.land/r/gnoland/valopers_proposal_test
 package valopers_proposal_test
 
-// SEND: 20000000ugnot
+// SEND: 100000000ugnot
 
 import (
 	"std"
@@ -37,7 +37,7 @@ var (
 func init() {
 	// Register a validator and add the proposal
 	valopers.Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
-	valopers_proposal.MakeProposal(validAddress)
+	valopers_proposal.ProposeNewValidator(validAddress)
 }
 
 func main() {
@@ -47,7 +47,7 @@ func main() {
 // Output:
 // # GovDAO Proposals
 //
-// ## [Prop #0 - Add valoper test-1 (Address: g1sp8v98h2g...](/r/gov/dao/v2:0)
+// ## [Prop #0 - Add valoper [test-1](/r/gnoland/valopers...](/r/gov/dao/v2:0)
 //
 // **Status: ACTIVE**
 //

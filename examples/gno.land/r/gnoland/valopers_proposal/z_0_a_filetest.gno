@@ -45,7 +45,7 @@ func main() {
 		r := recover()
 		println("r: ", r)
 	}()
-	valopers_proposal.MakeProposal(otherAddress)
+	valopers_proposal.ProposeNewValidator(otherAddress)
 }
 
 // Output:
