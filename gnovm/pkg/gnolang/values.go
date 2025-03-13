@@ -1465,8 +1465,7 @@ const uvnan = 0x7FF8000000000001
 
 // randNaN returns an uint64 representation of NaN with a random payload of 53 bits.
 func randNaN() uint64 {
-	//nolint: gosec
-	return rand.Uint64()&^uvnan | uvnan
+	return rand.Uint64()&^uvnan | uvnan //nolint:gosec
 }
 
 // IsNaN reports wether tv is an IEEE 754 "not a number" value.
