@@ -19,7 +19,7 @@ import (
 
 const (
 	MonikerMaxLength     = 32
-	DescriptionMaxLength = 1024
+	DescriptionMaxLength = 2048
 )
 
 var (
