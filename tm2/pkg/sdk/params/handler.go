@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -24,35 +25,43 @@ func (bh paramsHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 	return abciResult(std.ErrUnknownRequest(errMsg))
 }
 
-//----------------------------------------
-// Query
-
+// ----------------------------------------
+// Query:
+// - params/prefix:key for a prefixed module parameter key.
+// - params/key for an arbitrary parameter key.
 func (bh paramsHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	switch secondPart(req.Path) {
-	case bh.params.prefix:
-		return bh.queryParam(ctx, req)
+	parts := strings.SplitN(req.Path, "/", 2)
+	var path, rest string
+	if len(parts) == 0 {
+		// return helpful instructions.
+	} else if len(parts) == 1 {
+		path = parts[0]
+		rest = ""
+	} else {
+		path = parts[0]
+		rest = parts[1]
+	}
+	switch path {
+	case "params":
+		module, err := moduleOf(rest)
+		if err != nil {
+			res = sdk.ABCIResponseQueryFromError(err)
+			return
+		}
+		if !bh.params.ModuleExists(module) {
+			res = sdk.ABCIResponseQueryFromError(
+				std.ErrUnknownRequest(fmt.Sprintf("module not registered: %q", module)))
+			return
+		}
+		val := bh.params.GetRaw(ctx, rest)
+		res.Data = val
+		return
+
 	default:
 		res = sdk.ABCIResponseQueryFromError(
-			std.ErrUnknownRequest("unknown params query endpoint"))
+			std.ErrUnknownRequest(fmt.Sprintf("unknown params query endpoint %q", path)))
 		return
 	}
-}
-
-// queryParam returns param for a key.
-func (bh paramsHandler) queryParam(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	// parse key from path.
-	key := thirdPartWithSlashes(req.Path)
-	if key == "" {
-		res = sdk.ABCIResponseQueryFromError(
-			std.ErrUnknownRequest("param key is empty"))
-	}
-
-	// XXX: validate?
-
-	val := bh.params.GetRaw(ctx, key)
-
-	res.Data = val
-	return
 }
 
 //----------------------------------------
@@ -62,18 +71,16 @@ func abciResult(err error) sdk.Result {
 	return sdk.ABCIResultFromError(err)
 }
 
-// returns the second component of a path.
-func secondPart(path string) string {
-	parts := strings.SplitN(path, "/", 3)
+// extracts the module portion of a key
+// of the format <module>:<submodule>:<name>
+func moduleOf(key string) (module string, err error) {
+	parts := strings.SplitN(key, ":", 2)
 	if len(parts) < 2 {
-		return ""
-	} else {
-		return parts[1]
+		return "", errors.New("expected param key format <module>:<rest>, but got %q", key)
 	}
-}
-
-// returns the third component of a path, including other slashes.
-func thirdPartWithSlashes(path string) string {
-	split := strings.SplitN(path, "/", 3)
-	return split[2]
+	module = parts[0]
+	if len(module) == 0 {
+		return "", errors.New("expected param key format <module>:<rest>, but got %q", key)
+	}
+	return module, nil
 }
