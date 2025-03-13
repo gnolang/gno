@@ -113,6 +113,10 @@ func execDoc(cfg *docCfg, args []string, io commands.IO) error {
 	if err != nil {
 		io.Printfln("warning: error parsing some candidate packages:\n%v", err)
 	}
+	docCopy, err := doc.ResolveDocumentable(dirs, modDirs, args, cfg.unexported)
+	if err != nil {
+		io.Printfln("warning: error parsing some candidate packages:\n%v", err)
+	}
 	return res.WriteDocumentation(
 		io.Out(),
 		&doc.WriteDocumentationOptions{
@@ -121,6 +125,7 @@ func execDoc(cfg *docCfg, args []string, io commands.IO) error {
 			Unexported: cfg.unexported,
 			Short:      false,
 		},
+		docCopy,
 	)
 }
 

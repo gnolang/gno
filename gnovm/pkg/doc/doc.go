@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
-	"go/doc"
 	"go/token"
 	"io"
 	"log"
@@ -43,7 +42,7 @@ type Documentable struct {
 	pkgData    *pkgData
 }
 
-func (d *Documentable) WriteDocumentation(w io.Writer, o *WriteDocumentationOptions) error {
+func (d *Documentable) WriteDocumentation(w io.Writer, o *WriteDocumentationOptions, docCopy *Documentable) error {
 	if o == nil {
 		o = &WriteDocumentationOptions{}
 	}
@@ -64,27 +63,65 @@ func (d *Documentable) WriteDocumentation(w io.Writer, o *WriteDocumentationOpti
 		return err
 	}
 
+	// d.pkgData.docPackage modifies d.pkgData, so we have to use the separate docCopy for WriteJSONDocumentation.
+	// When we only use WriteJSONDocumentation (and don't call docPackage), then we can remove docCopy.
+	if docCopy.pkgData == nil {
+		docCopy.pkgData, err = newPkgData(d.bfsDir, o.Unexported)
+		if err != nil {
+			return err
+		}
+	}
+	jsonDoc, err := docCopy.WriteJSONDocumentation()
+	if err != nil {
+		return err
+	}
+
 	// copied from go source - map vars, constants and constructors to their respective types.
-	typedValue := make(map[*doc.Value]bool)
-	constructor := make(map[*doc.Func]bool)
+	typedValue := make(map[string]string)
+	constructor := make(map[string]string)
 	for _, typ := range pkg.Types {
 		pkg.Consts = append(pkg.Consts, typ.Consts...)
 		pkg.Vars = append(pkg.Vars, typ.Vars...)
 		pkg.Funcs = append(pkg.Funcs, typ.Funcs...)
-		if !o.Unexported && !token.IsExported(typ.Name) {
+	}
+	types := make(map[string]bool)
+	for _, typ := range jsonDoc.Types {
+		types[typ.Name] = true
+	}
+
+	for _, decl := range jsonDoc.Values {
+		for _, val := range decl.Values {
+			typeName := strings.Replace(val.Type, "*", "", -1)
+			if !types[typeName] {
+				// We only care about types defined in this package
+				typeName = ""
+			}
+			if typeName == "" || (!o.Unexported && !token.IsExported(typeName)) {
+				// We don't count it as a value bound to the type if the type itself is not exported
+				continue
+			}
+			typedValue[val.Name] = typeName
+		}
+	}
+
+	for _, fun := range jsonDoc.Funcs {
+		if fun.Type != "" {
+			// Constructors are not methods
 			continue
 		}
-		for _, value := range typ.Consts {
-			typedValue[value] = true
+		returnType := ""
+		if len(fun.Results) == 1 {
+			returnType = strings.Replace(fun.Results[0].Type, "*", "", -1)
+			if !types[returnType] {
+				// We only care about types defined in this package
+				returnType = ""
+			}
 		}
-		for _, value := range typ.Vars {
-			typedValue[value] = true
+		if returnType == "" || (!o.Unexported && !token.IsExported(returnType)) {
+			// We don't count it as a constructor bound to the type if the type itself is not exported
+			continue
 		}
-		for _, fun := range typ.Funcs {
-			// We don't count it as a constructor bound to the type
-			// if the type itself is not exported.
-			constructor[fun] = true
-		}
+		constructor[fun.Name] = returnType
 	}
 
 	pp := &pkgPrinter{
@@ -97,6 +134,7 @@ func (d *Documentable) WriteDocumentation(w io.Writer, o *WriteDocumentationOpti
 		fs:          d.pkgData.fset,
 		opt:         o,
 		importPath:  d.importPath,
+		jsonDoc:     jsonDoc,
 	}
 	pp.buf.pkg = pp
 
@@ -125,6 +163,8 @@ func (d *Documentable) output(pp *pkgPrinter) (err error) {
 
 	switch {
 	case d.symbol == "" && d.accessible == "":
+		pp.pkg = nil // Debug: Set to nil to show that only jsonDoc is used
+		pp.doc = nil // Debug: Set to nil to show that only jsonDoc is used
 		if pp.opt.ShowAll {
 			pp.allDoc()
 			return

@@ -151,16 +151,18 @@ func TestDocument(t *testing.T) {
 	tt := []struct {
 		name     string
 		d        *Documentable
+		docCopy  *Documentable // Note: We don't need this when WriteDocumentation only uses WriteJSONDocumentation
 		opts     *WriteDocumentationOptions
 		contains []string
 	}{
-		{"base", &Documentable{bfsDir: dir}, nil, []string{"func Crypto", "!Crypto symbol", "func NewRand", "!unexp", "type Flag", "!Name"}},
-		{"func", &Documentable{bfsDir: dir, symbol: "crypto"}, nil, []string{"Crypto symbol", "func Crypto", "!func NewRand", "!type Flag"}},
-		{"funcWriter", &Documentable{bfsDir: dir, symbol: "NewWriter"}, nil, []string{"func NewWriter() io.Writer", "!func Crypto"}},
-		{"tp", &Documentable{bfsDir: dir, symbol: "Rand"}, nil, []string{"type Rand", "comment1", "!func Crypto", "!unexp  ", "!comment4", "Has unexported"}},
-		{"tpField", &Documentable{bfsDir: dir, symbol: "Rand", accessible: "Value"}, nil, []string{"type Rand", "!comment1", "comment2", "!func Crypto", "!unexp", "elided"}},
+		{"base", &Documentable{bfsDir: dir}, &Documentable{bfsDir: dir}, nil, []string{"func Crypto", "!Crypto symbol", "func NewRand", "!unexp", "type Flag", "!Name"}},
+		{"func", &Documentable{bfsDir: dir, symbol: "crypto"}, &Documentable{bfsDir: dir, symbol: "crypto"}, nil, []string{"Crypto symbol", "func Crypto", "!func NewRand", "!type Flag"}},
+		{"funcWriter", &Documentable{bfsDir: dir, symbol: "NewWriter"}, &Documentable{bfsDir: dir, symbol: "NewWriter"}, nil, []string{"func NewWriter() io.Writer", "!func Crypto"}},
+		{"tp", &Documentable{bfsDir: dir, symbol: "Rand"}, &Documentable{bfsDir: dir, symbol: "Rand"}, nil, []string{"type Rand", "comment1", "!func Crypto", "!unexp  ", "!comment4", "Has unexported"}},
+		{"tpField", &Documentable{bfsDir: dir, symbol: "Rand", accessible: "Value"}, &Documentable{bfsDir: dir, symbol: "Rand", accessible: "Value"}, nil, []string{"type Rand", "!comment1", "comment2", "!func Crypto", "!unexp", "elided"}},
 		{
 			"tpUnexp",
+			&Documentable{bfsDir: dir, symbol: "Rand"},
 			&Documentable{bfsDir: dir, symbol: "Rand"},
 			&WriteDocumentationOptions{Unexported: true},
 			[]string{"type Rand", "comment1", "!func Crypto", "unexp  ", "comment4", "!Has unexported"},
@@ -168,11 +170,13 @@ func TestDocument(t *testing.T) {
 		{
 			"symUnexp",
 			&Documentable{bfsDir: dir, symbol: "unexp"},
+			&Documentable{bfsDir: dir, symbol: "unexp"},
 			&WriteDocumentationOptions{Unexported: true},
 			[]string{"var unexp", "!type Rand", "!comment1", "!comment4", "!func Crypto", "!Has unexported"},
 		},
 		{
 			"fieldUnexp",
+			&Documentable{bfsDir: dir, symbol: "Rand", accessible: "unexp"},
 			&Documentable{bfsDir: dir, symbol: "Rand", accessible: "unexp"},
 			&WriteDocumentationOptions{Unexported: true},
 			[]string{"type Rand", "!comment1", "comment4", "!func Crypto", "elided", "!Has unexported"},
@@ -184,7 +188,7 @@ func TestDocument(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			buf.Reset()
-			err := tc.d.WriteDocumentation(buf, tc.opts)
+			err := tc.d.WriteDocumentation(buf, tc.opts, tc.docCopy)
 			require.NoError(t, err)
 			s := buf.String()
 			for _, c := range tc.contains {
