@@ -23,7 +23,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/google/gofuzz v1.2.0
 	github.com/gorilla/websocket v1.5.3
-	github.com/hashicorp/golang-lru/v2 v2.0.7
+	github.com/klauspost/compress v1.18.0
 	github.com/libp2p/go-buffer-pool v0.1.0
 	github.com/pelletier/go-toml v1.9.5
 	github.com/peterbourgon/ff/v3 v3.4.0
@@ -34,7 +34,6 @@ require (
 	github.com/sig-0/insertion-queue v0.0.0-20241004125609-6b3ca841346b
 	github.com/stretchr/testify v1.11.1
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	github.com/ulikunitz/xz v0.5.12
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/yuin/goldmark v1.7.8
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc
