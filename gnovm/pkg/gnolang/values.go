@@ -1459,12 +1459,13 @@ func (tv *TypedValue) AssertNonNegative(msg string) {
 	}
 }
 
-// uvnan is the unsigned value of NaN. It can be contructed by applying the following:
+// uvnan is the unsigned value of NaN. It can be obtained by applying the following:
 // { var nan = math.NaN(); var uvnan = *(*uint64)(unsafe.Pointer(&nan)) }
 const uvnan = 0x7FF8000000000001
 
-// randNaN returns an uint64 representation of NaN with a random payload.
+// randNaN returns an uint64 representation of NaN with a random payload of 53 bits.
 func randNaN() uint64 {
+	//nolint: gosec
 	return rand.Uint64()&^uvnan | uvnan
 }
 
