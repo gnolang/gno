@@ -8,7 +8,7 @@ gnoland start
 
 
 gnokey maketx call -pkgpath gno.land/r/gc -func Alloc -gas-fee 100000ugnot -gas-wanted 3000000 -simulate skip -broadcast -chainid tendermint_test test1
-stdout 'GAS USED:   517986'
+stdout 'GAS USED:   576890'
 
 
 -- r/gc/gc.gno --
