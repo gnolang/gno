@@ -102,6 +102,18 @@ func TestValopers_Register(t *testing.T) {
 		})
 	})
 
+        t.Run("coin amount deposited is not ugnot", func(t *testing.T) {
+		// Clear the set for the test
+		valopers = avl.NewTree()
+
+		// Send invalid coins
+                std.TestSetOriginSend(std.Coins{std.NewCoin("gnogno", minFee)}, nil)
+
+		uassert.PanicsWithMessage(t, "incompatible coin denominations: gnogno, ugnot", func() {
+      Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
+                })
+        })
+
 	t.Run("successful registration", func(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
