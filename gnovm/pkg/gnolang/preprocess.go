@@ -5021,7 +5021,7 @@ func constInt(source Expr, i int) *ConstExpr {
 func constUntypedBigint(source Expr, i64 int64) *ConstExpr {
 	cx := &ConstExpr{Source: source}
 	cx.T = UntypedBigintType
-	cx.V = BigintValue{V: big.NewInt(i64)}
+	cx.V = BigintValue{big.NewInt(i64)}
 	cx.SetAttribute(ATTR_PREPROCESSED, true)
 	return cx
 }

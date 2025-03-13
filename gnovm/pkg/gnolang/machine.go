@@ -854,7 +854,6 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 }
 
 func (m *Machine) RunStatement(s Stmt) {
-	fmt.Println("===Running statement... s: ", s)
 	sn := m.LastBlock().GetSource(m.Store)
 	s = Preprocess(m.Store, sn, s).(Stmt)
 	m.PushOp(OpHalt)

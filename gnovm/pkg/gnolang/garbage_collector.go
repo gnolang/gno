@@ -1,15 +1,15 @@
 package gnolang
 
 import (
-	"fmt"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
-	"reflect"
 )
 
 // Represents the "time unit" cost for
 // a single garbage collection visit.
 // It's similar to "CPU cycles" and is
-// calculated based on benchmarking results.
+// calculated based on a rough benchmarking
+// results.
+// TODO: more accurate benchmark.
 const VisitCpuFactor = 8
 
 type Visitor func(v Value) (stop bool)
@@ -25,7 +25,7 @@ type Visitor func(v Value) (stop bool)
 //
 // XXX: make sure tv.T isn't bumped from allocation either.
 func (m *Machine) GarbageCollect() (left int64, ok bool) {
-	fmt.Println("===GarbageCollect===")
+	//fmt.Println("===GarbageCollect===")
 	defer func() {
 		gasCPU := overflow.Mul64p(m.Alloc.visitCount*VisitCpuFactor, GasFactorCPU)
 		m.Alloc.visitCount = 0
@@ -44,8 +44,8 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	vis := GCVisitorFn(m.GcCycle, m.Alloc)
 
 	// Visit blocks
-	for i, block := range m.Blocks {
-		fmt.Println("======visit block i: ", i)
+	for _, block := range m.Blocks {
+		//fmt.Println("======visit block i: ", i)
 		stop := vis(block)
 		if stop {
 			return -1, false
@@ -53,8 +53,8 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	}
 
 	// Visit frames
-	for i, frame := range m.Frames {
-		fmt.Println("======visit frame i: ", i)
+	for _, frame := range m.Frames {
+		//fmt.Println("======visit frame i: ", i)
 		stop := frame.Visit(vis, m.Store)
 		if stop {
 			return -1, false
@@ -62,15 +62,15 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	}
 
 	// Visit package
-	fmt.Println("======visit package value")
+	//fmt.Println("======visit package value")
 	stop := vis(m.Package)
 	if stop {
 		return -1, false
 	}
 
 	// Visit exceptions
-	for i, exception := range m.Exceptions {
-		fmt.Println("======visit exception i: ", i)
+	for _, exception := range m.Exceptions {
+		//fmt.Println("======visit exception i: ", i)
 		stop = exception.Visit(vis, m.Store)
 		if stop {
 			return -1, false
@@ -92,12 +92,12 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 			return false
 		}
 
-		fmt.Printf("Visit, v: %v (type: %v) \n", v, reflect.TypeOf(v))
+		//fmt.Printf("Visit, v: %v (type: %v) \n", v, reflect.TypeOf(v))
 
 		oo, isObject := v.(Object)
 
 		if isObject {
-			fmt.Printf("v.GetLastGCCycle: %d, gcCycle: %d\n", oo.GetLastGCCycle(), gcCycle)
+			//fmt.Printf("v.GetLastGCCycle: %d, gcCycle: %d\n", oo.GetLastGCCycle(), gcCycle)
 			// Return if already measured.
 			if oo.GetLastGCCycle() == gcCycle {
 				return false // but don't stop
@@ -106,11 +106,14 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 
 		// Add object size to alloc.
 		size := v.GetShallowSize()
-		fmt.Println("shallow size: ", size)
+		//fmt.Println("shallow size: ", size)
 		alloc.visitCount++ // count for gas calculation
 
 		alloc.Allocate(size)
 		// Stop if alloc max exceeded.
+		// NOTE: Unlikely to occur, but keep it here for
+		// now to handle potential edge cases.
+		// Consider removing it later if no issues arise.
 		maxBytes, curBytes := alloc.Status()
 		if maxBytes < curBytes {
 			return true
@@ -122,7 +125,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 		// Finally bump cycle.
 		if isObject {
 			oo.SetLastGCCycle(gcCycle)
-			fmt.Printf("after bump, gcCycle for %v is %d\n", v, oo.GetLastGCCycle())
+			//fmt.Printf("after bump, gcCycle for %v is %d\n", v, oo.GetLastGCCycle())
 		}
 
 		return stop
@@ -134,6 +137,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 // visit associated
 
 func (sv *SliceValue) VisitAssociated(vis Visitor) (stop bool) {
+	// Visit base.
 	stop = vis(sv.Base)
 	return stop
 }
@@ -149,8 +153,8 @@ func (av *ArrayValue) VisitAssociated(vis Visitor) (stop bool) {
 	return
 }
 
+// FuncValue is visited only when it's closure.
 func (fv *FuncValue) VisitAssociated(vis Visitor) (stop bool) {
-	//fmt.Println("===func value, visit associated...")
 	// visit captures
 	for _, tv := range fv.Captures {
 		stop = vis(tv.V)
@@ -159,8 +163,7 @@ func (fv *FuncValue) VisitAssociated(vis Visitor) (stop bool) {
 		}
 	}
 
-	// visit FuncValue's closure
-	//stop = vis(fv.Closure)
+	// do Not visit FuncValue's Closure.
 	return
 }
 
@@ -185,7 +188,6 @@ func (bmv *BoundMethodValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (mv *MapValue) VisitAssociated(vis Visitor) (stop bool) {
-	// Visit values.
 	// visit mv.List.
 	for cur := mv.List.Head; cur != nil; cur = cur.Next {
 		// vis key
@@ -250,6 +252,7 @@ func (pv PointerValue) VisitAssociated(vis Visitor) (stop bool) {
 func (sv StringValue) VisitAssociated(vis Visitor) (stop bool) {
 	return false
 }
+
 func (bv BigintValue) VisitAssociated(vis Visitor) (stop bool) {
 	return false
 }
@@ -269,6 +272,8 @@ func (nv *NativeValue) VisitAssociated(vis Visitor) (stop bool) {
 func (rv RefValue) VisitAssociated(vis Visitor) (stop bool) {
 	return false
 }
+
+// Do not count the TypeValue, neither shallowly nor deeply.
 func (tv TypeValue) VisitAssociated(vis Visitor) (stop bool) {
 	return false
 }
@@ -328,9 +333,8 @@ func (ex *Exception) Visit(vis Visitor, store Store) (stop bool) {
 		return
 	}
 
-	// the frame should've been
-	// visited in other places
-	// this ensures integrity.
+	// The frame should have been visited elsewhere.
+	// This ensures integrity and improves readability.
 	stop = ex.Frame.Visit(vis, store)
 	return
 }

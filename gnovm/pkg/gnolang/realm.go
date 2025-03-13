@@ -328,13 +328,13 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 	}
 	if readonly {
 		if true ||
-			len(rlm.newCreated) > 0 ||
-			len(rlm.newEscaped) > 0 ||
-			len(rlm.newDeleted) > 0 ||
-			len(rlm.created) > 0 ||
-			len(rlm.updated) > 0 ||
-			len(rlm.deleted) > 0 ||
-			len(rlm.escaped) > 0 {
+				len(rlm.newCreated) > 0 ||
+				len(rlm.newEscaped) > 0 ||
+				len(rlm.newDeleted) > 0 ||
+				len(rlm.created) > 0 ||
+				len(rlm.updated) > 0 ||
+				len(rlm.deleted) > 0 ||
+				len(rlm.escaped) > 0 {
 			panic("realm updates in readonly transaction")
 		}
 		return
@@ -349,9 +349,9 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 		ensureUniq(rlm.newDeleted)
 		ensureUniq(rlm.updated)
 		if false ||
-			rlm.created != nil ||
-			rlm.deleted != nil ||
-			rlm.escaped != nil {
+				rlm.created != nil ||
+				rlm.deleted != nil ||
+				rlm.escaped != nil {
 			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
@@ -722,9 +722,9 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		}
 		// deleted objects should not have gotten here.
 		if false ||
-			oo.GetRefCount() <= 0 ||
-			oo.GetIsNewDeleted() ||
-			oo.GetIsDeleted() {
+				oo.GetRefCount() <= 0 ||
+				oo.GetIsNewDeleted() ||
+				oo.GetIsDeleted() {
 			panic("cannot save deleted objects")
 		}
 	}
@@ -742,7 +742,7 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		// save created object.
 		if debug {
 			if oo.GetIsDirty() {
-				//panic("cannot save dirty new real object")
+				panic("cannot save dirty new real object")
 			}
 		}
 		rlm.saveObject(store, oo)
@@ -1098,7 +1098,6 @@ func copyTypeWithRefs(typ Type) Type {
 // Also checks for integrity of immediate children -- they must already be
 // persistent (real), and not dirty, or else this function panics.
 func copyValueWithRefs(val Value) Value {
-	//fmt.Println("===copy value with refs, val: ", val, reflect.TypeOf(val))
 	switch cv := val.(type) {
 	case nil:
 		return nil
@@ -1546,8 +1545,7 @@ func ensureUniq(oozz ...[]Object) {
 	for _, ooz := range oozz {
 		for _, uo := range ooz {
 			if _, ok := om[uo]; ok {
-				fmt.Println("===duplicate oo")
-				//panic(fmt.Sprintf("duplicate object: %v", uo))
+				panic(fmt.Sprintf("duplicate object: %v", uo))
 			} else {
 				om[uo] = struct{}{}
 			}
@@ -1556,7 +1554,6 @@ func ensureUniq(oozz ...[]Object) {
 }
 
 func refOrCopyValue(tv TypedValue) TypedValue {
-	//fmt.Printf("refOrCopyValue %v\n", tv)
 	if tv.T != nil {
 		tv.T = refOrCopyType(tv.T)
 	}

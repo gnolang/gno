@@ -26,14 +26,15 @@ const (
 	// gno types
 	_allocSlice            = 24
 	_allocPointerValue     = 40
-	_allocStructValue      = 152
-	_allocArrayValue       = 176
+	_allocStringValue      = 24
+	_allocStructValue      = 160
+	_allocArrayValue       = 184
 	_allocSliceValue       = 40
 	_allocFuncValue        = 196
-	_allocMapValue         = 144
-	_allocBoundMethodValue = 176
-	_allocBlock            = 472
-	_allocPackageValue     = 240
+	_allocMapValue         = 152
+	_allocBoundMethodValue = 184
+	_allocBlock            = 480
+	_allocPackageValue     = 248
 	_allocNativeValue      = 48
 	_allocTypeValue        = 16
 	_allocTypedValue       = 40
@@ -45,7 +46,7 @@ const (
 )
 
 const (
-	allocString      = _allocBase
+	allocString      = _allocBase + _allocPointer + _allocStringValue
 	allocStringByte  = 1
 	allocBigint      = _allocBase + _allocPointer + _allocBigint
 	allocBigintByte  = 1
@@ -227,11 +228,6 @@ func (alloc *Allocator) NewString(s string) *StringValue {
 	return &StringValue{s: s}
 }
 
-func (alloc *Allocator) NewStringShallow() *StringValue {
-	alloc.AllocateStringShallow()
-	return &StringValue{}
-}
-
 func (alloc *Allocator) NewListArray(n int) *ArrayValue {
 	if n < 0 {
 		panic(&Exception{Value: typedString("len out of range")})
@@ -396,15 +392,18 @@ func (PointerValue) GetShallowSize() int64 {
 func (*SliceValue) GetShallowSize() int64 {
 	return allocSlice
 }
+
+// Only count for closures.
 func (fv *FuncValue) GetShallowSize() int64 {
 	if fv.isClosure {
-		println("===is closure")
 		return allocFunc
 	}
 	return 0
 }
 
-// xxx
+// NOTE: Not always shallow. If the underlying data of the String
+// is newly allocated, include its size in the count. If it's reused,
+// do not count its size.
 func (sv *StringValue) GetShallowSize() int64 {
 	if sv.isNewBase {
 		return allocString + allocStringByte*int64(len(sv.s))
@@ -419,6 +418,7 @@ func (*NativeValue) GetShallowSize() int64 {
 func (BigintValue) GetShallowSize() int64 {
 	return allocBigint
 }
+
 func (BigdecValue) GetShallowSize() int64 {
 	return allocBigdec
 }
@@ -427,9 +427,8 @@ func (DataByteValue) GetShallowSize() int64 {
 	return allocDataByte
 }
 
-// Not actually used by GC, type should be pre-exist
-// or cached.
+// Do not count during recalculation,
+// as the type should  pre-exist.
 func (TypeValue) GetShallowSize() int64 {
-	//return allocType
 	return 0
 }

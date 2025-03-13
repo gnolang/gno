@@ -266,7 +266,6 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 
 // Gets package from cache, or loads it from baseStore, or gets it from package getter.
 func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue {
-	//fmt.Println("===GetPackage, pkgPath: ", pkgPath)
 	// helper to detect circular imports
 	if isImport {
 		if slices.Contains(ds.current, pkgPath) {
@@ -287,9 +286,7 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 	if ds.baseStore != nil {
 		if oo := ds.loadObjectSafe(oid); oo != nil {
 			pv := oo.(*PackageValue)
-			//fmt.Println("===pv: ", pv)
 			_ = pv.GetBlock(ds) // preload
-			//fmt.Println("===pv...Values: ", pv.Block.(*Block).Values)
 			// get package associated realm if nil.
 			if pv.IsRealm() && pv.Realm == nil {
 				rlm := ds.GetPackageRealm(pkgPath)
@@ -433,7 +430,6 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 // loads and caches an object.
 // CONTRACT: object isn't already in the cache.
 func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
-	//fmt.Println("===loadObjectSafe: ", oid)
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -453,7 +449,6 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		size = len(hashbz)
 		hash := hashbz[:HashSize]
 		bz := hashbz[HashSize:]
-		//fmt.Printf("======bz: %x\n", bz)
 		var oo Object
 		ds.alloc.AllocateAmino(int64(len(bz)))
 		gas := overflow.Mul64p(ds.gasConfig.GasGetObject, store.Gas(len(bz)))
@@ -465,7 +460,6 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 					oid, oo.GetObjectID()))
 			}
 		}
-		//fmt.Println("---oo after unmarshal...", oo)
 		oo.SetHash(ValueHash{NewHashlet(hash)})
 		ds.cacheObjects[oid] = oo
 		_ = fillTypesOfValue(ds, oo)

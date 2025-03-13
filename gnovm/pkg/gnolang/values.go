@@ -81,7 +81,7 @@ var (
 
 type StringValue struct {
 	s         string
-	isNewBase bool
+	isNewBase bool // if the underlying data is new allocated or not.
 }
 
 func NewStringValue(s string) *StringValue {
@@ -275,7 +275,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 								panic("should not happen")
 							}
 							if nv, ok := tv2.V.(*NativeValue); !ok ||
-									nv.Value.Kind() != reflect.Func {
+								nv.Value.Kind() != reflect.Func {
 								panic("should not happen")
 							}
 						}
@@ -2450,7 +2450,7 @@ func (b *Block) GetParent(store Store) *Block {
 }
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
-	//fmt.Println("===GetPointerToInt, b, index: ", b, index)
+	// fmt.Println("===GetPointerToInt, b, index: ", b, index)
 	vv := fillValueTV(store, &b.Values[index])
 	return PointerValue{
 		TV:    vv,
@@ -2460,8 +2460,8 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 }
 
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
-	//fmt.Println("===GetPointerTo, b: ", b)
-	//fmt.Println("===GetPointerTo, path: ", path)
+	// fmt.Println("===GetPointerTo, b: ", b)
+	// fmt.Println("===GetPointerTo, path: ", path)
 	if path.IsBlockBlankPath() {
 		if debug {
 			if path.Name != blankIdentifier {
@@ -2707,7 +2707,7 @@ func typedString(s string) TypedValue {
 }
 
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
-	//fmt.Println("---fillValueTV, tv: ", tv, reflect.TypeOf(tv.V))
+	// fmt.Println("---fillValueTV, tv: ", tv, reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case RefValue:
 		if cv.PkgPath != "" { // load package

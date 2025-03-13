@@ -167,6 +167,7 @@ func (oi *ObjectInfo) Copy() ObjectInfo {
 		isNewReal:    oi.isNewReal,
 		isNewEscaped: oi.isNewEscaped,
 		isNewDeleted: oi.isNewDeleted,
+		lastGCCycle:  oi.lastGCCycle,
 	}
 }
 
@@ -323,15 +324,16 @@ func (oi *ObjectInfo) SetIsNewDeleted(x bool) {
 	oi.isNewDeleted = x
 }
 
-func (oi *ObjectInfo) GetIsTransient() bool {
-	return false
-}
-
 func (oi *ObjectInfo) GetLastGCCycle() int64 {
 	return oi.lastGCCycle
 }
+
 func (oi *ObjectInfo) SetLastGCCycle(c int64) {
 	oi.lastGCCycle = c
+}
+
+func (oi *ObjectInfo) GetIsTransient() bool {
+	return false
 }
 
 func (tv *TypedValue) GetFirstObject(store Store) Object {

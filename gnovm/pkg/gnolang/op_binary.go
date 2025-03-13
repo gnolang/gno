@@ -2,10 +2,11 @@ package gnolang
 
 import (
 	"fmt"
-	"github.com/cockroachdb/apd/v3"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"math"
 	"math/big"
+
+	"github.com/cockroachdb/apd/v3"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 )
 
 // ----------------------------------------
@@ -689,10 +690,8 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
 	case StringType, UntypedStringType:
-		//fmt.Printf("---before, addr of underlying array: %p \n", unsafe.StringData(lv.V.(*StringValue).s))
 		lv.V = alloc.NewString(lv.GetString() + rv.GetString())
 		lv.V.(*StringValue).isNewBase = true
-		//fmt.Printf("---after, addr of underlying array: %p \n", unsafe.StringData(lv.V.(*StringValue).s))
 	case IntType:
 		lv.SetInt(lv.GetInt() + rv.GetInt())
 	case Int8Type:
