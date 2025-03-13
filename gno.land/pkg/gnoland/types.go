@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -18,8 +20,82 @@ var (
 	ErrBalanceEmptyAmount  = errors.New("balance amount is empty")
 )
 
+const (
+	// XXX rename these to flagXyz.
+
+	// flagUnrestricted allows flagUnrestricted transfers.
+	flagUnrestricted BitSet = 1 << iota
+
+	// TODO: flagValidatorAccount marks an account as validator.
+	flagValidatorAccount
+
+	// TODO: flagRealmAccount marks an account as realm.
+	flagRealmAccount
+)
+
+// bitSet represents a set of flags stored in a 64-bit unsigned integer.
+// Each bit in the BitSet corresponds to a specific flag.
+type BitSet uint64
+
+func (bs BitSet) String() string {
+	return fmt.Sprintf("0x%016X", uint64(bs)) // Show all 64 bits
+}
+
+var _ std.AccountUnrestricter = &GnoAccount{}
+
 type GnoAccount struct {
 	std.BaseAccount
+	Attributes BitSet `json:"attributes" yaml:"attributes"`
+}
+
+// validFlags defines the set of all valid flags that can be used with BitSet.
+var validFlags = flagUnrestricted | flagValidatorAccount | flagRealmAccount
+
+func (ga *GnoAccount) setFlag(flag BitSet) {
+	if !isValidFlag(flag) {
+		panic(fmt.Sprintf("setFlag: invalid flag %d (binary: %b). Valid flags: %b", flag, flag, validFlags))
+	}
+	ga.Attributes |= flag
+}
+
+func (ga *GnoAccount) clearFlag(flag BitSet) {
+	if !isValidFlag(flag) {
+		panic(fmt.Sprintf("clearFlag: invalid flag %d (binary: %b). Valid flags: %b", flag, flag, validFlags))
+	}
+	ga.Attributes &= ^flag
+}
+
+func (ga *GnoAccount) hasFlag(flag BitSet) bool {
+	if !isValidFlag(flag) {
+		panic(fmt.Sprintf("hasFlag: invalid flag %d (binary: %b). Valid flags: %b", flag, flag, validFlags))
+	}
+	return ga.Attributes&flag != 0
+}
+
+// isValidFlag ensures that a given BitSet uses only the allowed subset of bits
+// as defined in validFlags. This prevents accidentally setting invalid flags,
+// especially since BitSet can represent all 64 bits of a uint64.
+func isValidFlag(flag BitSet) bool {
+	return flag&^validFlags == 0 && flag != 0
+}
+
+// SetUnrestricted allows the account to bypass global transfer locking restrictions.
+// By default, accounts are restricted when global transfer locking is enabled.
+func (ga *GnoAccount) SetUnrestricted() {
+	ga.setFlag(flagUnrestricted)
+}
+
+// IsUnrestricted checks whether the account is flagUnrestricted.
+func (ga *GnoAccount) IsUnrestricted() bool {
+	return ga.hasFlag(flagUnrestricted)
+}
+
+// String implements fmt.Stringer
+func (ga *GnoAccount) String() string {
+	return fmt.Sprintf("%s\n  Attributes:	 %s",
+		ga.BaseAccount.String(),
+		ga.Attributes.String(),
+	)
 }
 
 func ProtoGnoAccount() std.Account {
@@ -29,8 +105,9 @@ func ProtoGnoAccount() std.Account {
 type GnoGenesisState struct {
 	Balances []Balance         `json:"balances"`
 	Txs      []TxWithMetadata  `json:"txs"`
-	Params   []Param           `json:"params"`
 	Auth     auth.GenesisState `json:"auth"`
+	Bank     bank.GenesisState `json:"bank"`
+	VM       vm.GenesisState   `json:"vm"`
 }
 
 type TxWithMetadata struct {

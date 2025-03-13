@@ -8,7 +8,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/seqid"
 
-	"gno.land/r/demo/users"
+	"gno.land/r/sys/users"
 )
 
 const (
@@ -109,9 +109,9 @@ Actions:
 }
 
 func shortName(addr std.Address) string {
-	user := users.GetUserByAddress(addr)
+	user := users.ResolveAddress(addr)
 	if user != nil {
-		return user.Name
+		return user.Name()
 	}
 	if len(addr) < 10 {
 		return string(addr)

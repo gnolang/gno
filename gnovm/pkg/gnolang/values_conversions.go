@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"reflect"
 	"strconv"
 
 	"github.com/cockroachdb/apd/v3"
@@ -29,56 +28,10 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			panic("should not happen")
 		}
 	}
-	// special case for go-native conversions
-	ntv, tvIsNat := tv.T.(*NativeType)
-	nt, tIsNat := t.(*NativeType)
-	if tvIsNat {
-		if tIsNat {
-			// both NativeType, use reflect to assert.
-			if debug {
-				if !ntv.Type.ConvertibleTo(nt.Type) {
-					panic(fmt.Sprintf(
-						"cannot convert %s to %s",
-						ntv.String(), nt.String()))
-				}
-			}
-			tv.T = t
-			return
-		} else {
-			// both NativeType, use reflect to assert.
-			// convert go-native to gno type (shallow).
-			*tv = go2GnoValue2(alloc, store, tv.V.(*NativeValue).Value, false)
-			ConvertTo(alloc, store, tv, t, isConst)
-			return
-		}
-	} else {
-		if tIsNat {
-			// convert gno to go-native type.
-			rv := reflect.New(nt.Type).Elem()
-			rv = gno2GoValue(tv, rv)
-			if debug {
-				if !rv.Type().ConvertibleTo(nt.Type) {
-					panic(fmt.Sprintf(
-						"cannot convert %s to %s",
-						tv.String(), nt.String()))
-				}
-			}
-			*tv = TypedValue{
-				T: t,
-				V: alloc.NewNative(rv),
-			}
-			return
-		} else {
-			goto GNO_CASE
-		}
-	}
-GNO_CASE:
 	// special case for interface target
 	if t.Kind() == InterfaceKind {
 		if tv.IsUndefined() && tv.T == nil {
-			if _, ok := t.(*NativeType); !ok { // no support for native now
-				tv.T = t
-			}
+			tv.T = t
 		}
 		return
 	}
@@ -101,7 +54,7 @@ GNO_CASE:
 
 	validate := func(from Kind, to Kind, cmp func() bool) {
 		if isConst {
-			msg := fmt.Sprintf("cannot convert constant of type %s to %s\n", from, to)
+			msg := fmt.Sprintf("cannot convert constant of type %s to %s", from, to)
 			if cmp != nil && cmp() {
 				return
 			}
@@ -1291,20 +1244,6 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 			}
 		}
 	}
-	// special case: native
-	if nt, ok := t.(*NativeType); ok {
-		// first convert untyped to typed gno value.
-		gnot := go2GnoBaseType(nt.Type)
-		if debug {
-			if _, ok := gnot.(*NativeType); ok {
-				panic("should not happen")
-			}
-		}
-		ConvertUntypedTo(tv, gnot)
-		// then convert to native value.
-		// NOTE: this should only be called during preprocessing, so no alloc needed.
-		ConvertTo(nilAllocator, nil, tv, t, false)
-	}
 	// special case: simple conversion
 	if t != nil && tv.T.Kind() == t.Kind() {
 		tv.T = t
@@ -1316,28 +1255,14 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 	}
 	switch tv.T {
 	case UntypedBoolType:
-		if debug {
-			if t.Kind() != BoolKind {
-				panic("untyped bool can only be converted to bool kind")
-			}
-		}
 		tv.T = t
 	case UntypedRuneType:
 		ConvertUntypedRuneTo(tv, t)
 	case UntypedBigintType:
-		if preprocessing.Load() == 0 {
-			panic("untyped Bigint conversion should not happen during interpretation")
-		}
 		ConvertUntypedBigintTo(tv, tv.V.(BigintValue), t)
 	case UntypedBigdecType:
-		if preprocessing.Load() == 0 {
-			panic("untyped Bigdec conversion should not happen during interpretation")
-		}
 		ConvertUntypedBigdecTo(tv, tv.V.(BigdecValue), t)
 	case UntypedStringType:
-		if preprocessing.Load() == 0 {
-			panic("untyped String conversion should not happen during interpretation")
-		}
 		if t.Kind() == StringKind {
 			tv.T = t
 			return

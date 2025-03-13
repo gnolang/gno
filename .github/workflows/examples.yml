@@ -6,9 +6,9 @@ on:
       - master
   pull_request:
     paths:
-      - gnovm/**/*.gno
-      - examples/**/*.gno
-      - examples/**/gno.mod
+      # any change to gnovm code can make examples fail
+      - gnovm/**
+      - examples/**
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -89,7 +89,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.23.x" ]
+        go-version: ["1.23.x"]
         # unittests: TODO: matrix with contracts
     runs-on: ubuntu-latest
     timeout-minutes: 10

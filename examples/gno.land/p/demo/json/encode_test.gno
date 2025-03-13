@@ -98,7 +98,7 @@ func TestMarshal_Object(t *testing.T) {
 	}
 }
 
-func valueNode(prev *Node, key string, typ ValueType, val interface{}) *Node {
+func valueNode(prev *Node, key string, typ ValueType, val any) *Node {
 	curr := &Node{
 		prev:     prev,
 		data:     nil,
