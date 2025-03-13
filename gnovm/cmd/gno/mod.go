@@ -276,20 +276,6 @@ func execModInit(args []string) error {
 	return nil
 }
 
-var invalidChars = map[rune]bool{
-	'`':  true,
-	'"':  true,
-	'\\': true,
-	'?':  true,
-	'*':  true,
-	':':  true,
-	'<':  true,
-	'>':  true,
-	'|':  true,
-	'[':  true,
-	']':  true,
-}
-
 type modTidyCfg struct {
 	verbose   bool
 	recursive bool
