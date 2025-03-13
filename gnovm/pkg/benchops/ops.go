@@ -54,18 +54,14 @@ var storeCodeNames = []string{
 	"FinalizeTx",
 }
 
-type Code [3]byte
+type Code [2]byte
 
 func VMOpCode(opCode byte) Code {
-	return [3]byte{opCode, 0x00, 0x00}
+	return [2]byte{opCode, 0x00}
 }
 
 func StoreCode(storeCode byte) Code {
-	return [3]byte{0x00, storeCode, 0x00}
-}
-
-func GCCode(gcCode byte) Code {
-	return [3]byte{0x00, 0x00, gcCode}
+	return [2]byte{0x00, storeCode}
 }
 
 func StoreCodeString(storeCode byte) string {
@@ -73,23 +69,4 @@ func StoreCodeString(storeCode byte) string {
 		return invalidStoreCode
 	}
 	return storeCodeNames[storeCode]
-}
-
-// gc code
-const (
-	invalidGCCode string = "GCInvalid"
-	VisitObject   byte   = 0x01
-)
-
-// the index of the code string should match with the constant code number above.
-var gcCodeNames = []string{
-	invalidGCCode,
-	"VisitObject",
-}
-
-func GCCodeString(gcCode byte) string {
-	if int(gcCode) >= len(gcCodeNames) {
-		return invalidStoreCode
-	}
-	return gcCodeNames[gcCode]
 }

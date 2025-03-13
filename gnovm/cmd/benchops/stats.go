@@ -48,17 +48,13 @@ func stats(binFile string) {
 				if !ok {
 					break
 				}
-				var opName string
-				if record[0] != 0 {
-					opName = gno.Op(record[0]).String()
-				} else if record[1] != 0 {
+				opName := gno.Op(record[0]).String()
+				if record[1] != 0 {
 					opName = bm.StoreCodeString(record[1])
-				} else if record[2] != 0 {
-					opName = bm.GCCodeString(record[2])
 				}
 
-				elapsedTime := binary.LittleEndian.Uint32(record[3:])
-				size := binary.LittleEndian.Uint32(record[7:])
+				elapsedTime := binary.LittleEndian.Uint32(record[2:])
+				size := binary.LittleEndian.Uint32(record[6:])
 				outputCh <- codeRecord{opName, elapsedTime, size}
 			}
 			wg.Done()

@@ -477,16 +477,16 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				return false
 			}
 			if lfv.Source.GetLocation() !=
-					rfv.Source.GetLocation() {
+				rfv.Source.GetLocation() {
 				return false
 			}
 			return lfv.GetClosure(store) ==
-					rfv.GetClosure(store)
+				rfv.GetClosure(store)
 		}
 	case PointerKind:
 		if lv.T != rv.T &&
-				lv.T.Elem() != DataByteType &&
-				lv.T.TypeID() != rv.T.TypeID() {
+			lv.T.Elem() != DataByteType &&
+			lv.T.TypeID() != rv.T.TypeID() {
 			return false
 		}
 

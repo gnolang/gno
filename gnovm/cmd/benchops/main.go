@@ -43,15 +43,9 @@ func main() {
 	if bm.OpsEnabled {
 		benchmarkOpCodes(bstore.gnoStore, dir)
 	}
-
-	if bm.GCEnabled {
-		benchmarkGC(bstore.gnoStore, dir)
-	}
-
 	if bm.StorageEnabled {
 		benchmarkStorage(bstore, dir)
 	}
-
 	bm.Finish()
 	stats(tmpFile)
 	err = os.Remove(tmpFile)
