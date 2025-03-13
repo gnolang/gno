@@ -142,6 +142,10 @@ func (alloc *Allocator) AllocateString(size int64) {
 	alloc.Allocate(allocString + allocStringByte*size)
 }
 
+func (alloc *Allocator) AllocateStringShallow() {
+	alloc.Allocate(allocString)
+}
+
 func (alloc *Allocator) AllocatePointer() {
 	alloc.Allocate(allocPointer)
 }
@@ -218,9 +222,14 @@ func (alloc *Allocator) AllocateHeapItem() {
 //----------------------------------------
 // constructor utilities.
 
-func (alloc *Allocator) NewString(s string) StringValue {
+func (alloc *Allocator) NewString(s string) *StringValue {
 	alloc.AllocateString(int64(len(s)))
-	return StringValue(s)
+	return &StringValue{s: s}
+}
+
+func (alloc *Allocator) NewStringShallow() *StringValue {
+	alloc.AllocateStringShallow()
+	return &StringValue{}
 }
 
 func (alloc *Allocator) NewListArray(n int) *ArrayValue {
@@ -387,11 +396,19 @@ func (PointerValue) GetShallowSize() int64 {
 func (*SliceValue) GetShallowSize() int64 {
 	return allocSlice
 }
-func (*FuncValue) GetShallowSize() int64 {
-	return allocFunc
+func (fv *FuncValue) GetShallowSize() int64 {
+	if fv.isClosure {
+		println("===is closure")
+		return allocFunc
+	}
+	return 0
 }
 
-func (StringValue) GetShallowSize() int64 {
+// xxx
+func (sv *StringValue) GetShallowSize() int64 {
+	if sv.isNewBase {
+		return allocString + allocStringByte*int64(len(sv.s))
+	}
 	return allocString
 }
 
@@ -413,5 +430,6 @@ func (DataByteValue) GetShallowSize() int64 {
 // Not actually used by GC, type should be pre-exist
 // or cached.
 func (TypeValue) GetShallowSize() int64 {
-	return allocType
+	//return allocType
+	return 0
 }

@@ -92,17 +92,16 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 			return false
 		}
 
-		// for some values like TypeValue,
-		// not count
-		if v.GetLastGCCycle() == -1 {
-			return false
-		}
-
 		fmt.Printf("Visit, v: %v (type: %v) \n", v, reflect.TypeOf(v))
-		fmt.Printf("v.GetLastGCCycle: %d, gcCycle: %d\n", v.GetLastGCCycle(), gcCycle)
-		// Return if already measured.
-		if v.GetLastGCCycle() == gcCycle {
-			return false // but don't stop
+
+		oo, isObject := v.(Object)
+
+		if isObject {
+			fmt.Printf("v.GetLastGCCycle: %d, gcCycle: %d\n", oo.GetLastGCCycle(), gcCycle)
+			// Return if already measured.
+			if oo.GetLastGCCycle() == gcCycle {
+				return false // but don't stop
+			}
 		}
 
 		// Add object size to alloc.
@@ -119,9 +118,13 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 
 		// Invote the traverser on o.
 		stop := v.VisitAssociated(vis)
+
 		// Finally bump cycle.
-		v.SetLastGCCycle(gcCycle)
-		fmt.Printf("after bump, gcCycle for %v is %d\n", v, v.GetLastGCCycle())
+		if isObject {
+			oo.SetLastGCCycle(gcCycle)
+			fmt.Printf("after bump, gcCycle for %v is %d\n", v, oo.GetLastGCCycle())
+		}
+
 		return stop
 	}
 	return vis
@@ -147,6 +150,7 @@ func (av *ArrayValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (fv *FuncValue) VisitAssociated(vis Visitor) (stop bool) {
+	//fmt.Println("===func value, visit associated...")
 	// visit captures
 	for _, tv := range fv.Captures {
 		stop = vis(tv.V)
@@ -330,54 +334,3 @@ func (ex *Exception) Visit(vis Visitor, store Store) (stop bool) {
 	stop = ex.Frame.Visit(vis, store)
 	return
 }
-
-// -------------------------------------------------------------
-// gc cycle
-
-// always 0
-func (sv StringValue) GetLastGCCycle() int64 {
-	return 0
-}
-
-func (av *ArrayValue) GetLastGCCycle() int64        { return av.lastGCCycle }
-func (sv *StructValue) GetLastGCCycle() int64       { return sv.lastGCCycle }
-func (bmv *BoundMethodValue) GetLastGCCycle() int64 { return bmv.lastGCCycle }
-func (pv *PackageValue) GetLastGCCycle() int64      { return pv.lastGCCycle }
-func (b *Block) GetLastGCCycle() int64              { return b.lastGCCycle }
-func (hiv *HeapItemValue) GetLastGCCycle() int64    { return hiv.lastGCCycle }
-func (tv TypeValue) GetLastGCCycle() int64          { return -1 }
-func (bv BigintValue) GetLastGCCycle() int64        { return 0 }
-func (bv BigdecValue) GetLastGCCycle() int64        { return 0 }
-func (dbv DataByteValue) GetLastGCCycle() int64     { return 0 }
-func (pv PointerValue) GetLastGCCycle() int64       { return 0 }
-func (sv *SliceValue) GetLastGCCycle() int64        { return sv.lastGCCycle }
-func (fv *FuncValue) GetLastGCCycle() int64         { return fv.lastGCCycle }
-func (mv *MapValue) GetLastGCCycle() int64          { return 0 }
-func (nv *NativeValue) GetLastGCCycle() int64       { return 0 }
-func (rv RefValue) GetLastGCCycle() int64           { return 0 }
-
-func (sv StringValue) SetLastGCCycle(cycle int64) {
-	// do nothing
-}
-
-func (av *ArrayValue) SetLastGCCycle(cycle int64)        { av.lastGCCycle = cycle }
-func (sv *StructValue) SetLastGCCycle(cycle int64)       { sv.lastGCCycle = cycle }
-func (bmv *BoundMethodValue) SetLastGCCycle(cycle int64) { bmv.lastGCCycle = cycle }
-func (pv *PackageValue) SetLastGCCycle(cycle int64)      { pv.lastGCCycle = cycle }
-func (b *Block) SetLastGCCycle(cycle int64)              { b.lastGCCycle = cycle }
-func (hiv *HeapItemValue) SetLastGCCycle(cycle int64)    { hiv.lastGCCycle = cycle }
-func (tv TypeValue) SetLastGCCycle(cycle int64)          {}
-func (bv BigintValue) SetLastGCCycle(cycle int64)        {}
-func (bv BigdecValue) SetLastGCCycle(cycle int64)        {}
-func (dbv DataByteValue) SetLastGCCycle(cycle int64)     {}
-func (pv PointerValue) SetLastGCCycle(cycle int64)       {}
-func (sv *SliceValue) SetLastGCCycle(cycle int64)        { sv.lastGCCycle = cycle }
-
-func (fv *FuncValue) SetLastGCCycle(cycle int64) {
-	fmt.Println("---bump gc cycle for fv")
-	fv.lastGCCycle = cycle
-}
-
-func (mv *MapValue) SetLastGCCycle(cycle int64)    {}
-func (nv *NativeValue) SetLastGCCycle(cycle int64) {}
-func (rv RefValue) SetLastGCCycle(cycle int64)     {}

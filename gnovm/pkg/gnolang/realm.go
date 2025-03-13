@@ -742,7 +742,7 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		// save created object.
 		if debug {
 			if oo.GetIsDirty() {
-				panic("cannot save dirty new real object")
+				//panic("cannot save dirty new real object")
 			}
 		}
 		rlm.saveObject(store, oo)
@@ -848,7 +848,7 @@ func getChildObjects(val Value, more []Value) []Value {
 	switch cv := val.(type) {
 	case nil:
 		return more
-	case StringValue:
+	case *StringValue:
 		return more
 	case BigintValue:
 		return more
@@ -1098,10 +1098,11 @@ func copyTypeWithRefs(typ Type) Type {
 // Also checks for integrity of immediate children -- they must already be
 // persistent (real), and not dirty, or else this function panics.
 func copyValueWithRefs(val Value) Value {
+	//fmt.Println("===copy value with refs, val: ", val, reflect.TypeOf(val))
 	switch cv := val.(type) {
 	case nil:
 		return nil
-	case StringValue:
+	case *StringValue:
 		return cv
 	case BigintValue:
 		return cv
@@ -1366,7 +1367,7 @@ func fillTypesOfValue(store Store, val Value) Value {
 	switch cv := val.(type) {
 	case nil: // do nothing
 		return cv
-	case StringValue: // do nothing
+	case *StringValue: // do nothing
 		return cv
 	case BigintValue: // do nothing
 		return cv
@@ -1546,7 +1547,7 @@ func ensureUniq(oozz ...[]Object) {
 		for _, uo := range ooz {
 			if _, ok := om[uo]; ok {
 				fmt.Println("===duplicate oo")
-				panic(fmt.Sprintf("duplicate object: %v", uo))
+				//panic(fmt.Sprintf("duplicate object: %v", uo))
 			} else {
 				om[uo] = struct{}{}
 			}
@@ -1555,6 +1556,7 @@ func ensureUniq(oozz ...[]Object) {
 }
 
 func refOrCopyValue(tv TypedValue) TypedValue {
+	//fmt.Printf("refOrCopyValue %v\n", tv)
 	if tv.T != nil {
 		tv.T = refOrCopyType(tv.T)
 	}

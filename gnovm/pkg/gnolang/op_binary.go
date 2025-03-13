@@ -2,11 +2,10 @@ package gnolang
 
 import (
 	"fmt"
-	"math"
-	"math/big"
-
 	"github.com/cockroachdb/apd/v3"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
+	"math"
+	"math/big"
 )
 
 // ----------------------------------------
@@ -478,16 +477,16 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				return false
 			}
 			if lfv.Source.GetLocation() !=
-				rfv.Source.GetLocation() {
+					rfv.Source.GetLocation() {
 				return false
 			}
 			return lfv.GetClosure(store) ==
-				rfv.GetClosure(store)
+					rfv.GetClosure(store)
 		}
 	case PointerKind:
 		if lv.T != rv.T &&
-			lv.T.Elem() != DataByteType &&
-			lv.T.TypeID() != rv.T.TypeID() {
+				lv.T.Elem() != DataByteType &&
+				lv.T.TypeID() != rv.T.TypeID() {
 			return false
 		}
 
@@ -690,7 +689,10 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
 	case StringType, UntypedStringType:
+		//fmt.Printf("---before, addr of underlying array: %p \n", unsafe.StringData(lv.V.(*StringValue).s))
 		lv.V = alloc.NewString(lv.GetString() + rv.GetString())
+		lv.V.(*StringValue).isNewBase = true
+		//fmt.Printf("---after, addr of underlying array: %p \n", unsafe.StringData(lv.V.(*StringValue).s))
 	case IntType:
 		lv.SetInt(lv.GetInt() + rv.GetInt())
 	case Int8Type:

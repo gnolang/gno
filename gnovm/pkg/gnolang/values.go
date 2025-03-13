@@ -21,8 +21,6 @@ type Value interface {
 	assertValue()
 	String() string // for debugging
 	GetShallowSize() int64
-	GetLastGCCycle() int64
-	SetLastGCCycle(int64)
 	// Visit visits all reachable associated values.
 	// It is used primarily for GC.
 	// The caller must provide a callback visitor
@@ -35,11 +33,11 @@ type Value interface {
 
 // Fixed size primitive types are represented in TypedValue.N
 // for performance.
-func (StringValue) assertValue()       {}
 func (BigintValue) assertValue()       {}
 func (BigdecValue) assertValue()       {}
 func (DataByteValue) assertValue()     {}
 func (PointerValue) assertValue()      {}
+func (*StringValue) assertValue()      {}
 func (*ArrayValue) assertValue()       {}
 func (*SliceValue) assertValue()       {}
 func (*StructValue) assertValue()      {}
@@ -59,7 +57,7 @@ const (
 )
 
 var (
-	_ Value = StringValue("")
+	_ Value = &StringValue{s: ""}
 	_ Value = BigintValue{}
 	_ Value = BigdecValue{}
 	_ Value = DataByteValue{}
@@ -81,7 +79,23 @@ var (
 // ----------------------------------------
 // StringValue
 
-type StringValue string
+type StringValue struct {
+	s         string
+	isNewBase bool
+}
+
+func NewStringValue(s string) *StringValue {
+	return &StringValue{s: s}
+}
+
+func (sv StringValue) MarshalAmino() (string, error) {
+	return sv.s, nil
+}
+
+func (sv *StringValue) UnmarshalAmino(s string) error {
+	sv.s = s
+	return nil
+}
 
 // ----------------------------------------
 // BigintValue
@@ -190,10 +204,11 @@ func (dbv DataByteValue) SetByte(b byte) {
 // Since PointerValue is used internally for assignment etc,
 // it MUST stay minimal for computational efficiency.
 type PointerValue struct {
-	TV    *TypedValue // escape val if pointer to var.
-	Base  Value       // array/struct/block, or heapitem.
-	Index int         // list/fields/values index, or -1 or -2 (see below).
-	Key   *TypedValue `json:",omitempty"` // for maps.
+	TV          *TypedValue // escape val if pointer to var.
+	Base        Value       // array/struct/block, or heapitem.
+	Index       int         // list/fields/values index, or -1 or -2 (see below).
+	Key         *TypedValue `json:",omitempty"` // for maps.
+	lastGcCycle int64
 }
 
 const (
@@ -567,6 +582,7 @@ type FuncValue struct {
 	body        []Stmt         // function body
 	nativeBody  func(*Machine) // alternative to Body
 	lastGCCycle int64
+	isClosure   bool
 }
 
 func (fv *FuncValue) IsNative() bool {
@@ -1182,7 +1198,7 @@ func (tv *TypedValue) GetBool() bool {
 	return *(*bool)(unsafe.Pointer(&tv.N))
 }
 
-func (tv *TypedValue) SetString(s StringValue) {
+func (tv *TypedValue) SetString(s *StringValue) {
 	if debug {
 		if tv.T.Kind() != StringKind || isNative(tv.T) {
 			panic(fmt.Sprintf(
@@ -1204,7 +1220,7 @@ func (tv *TypedValue) GetString() string {
 	if tv.V == nil {
 		return ""
 	}
-	return string(tv.V.(StringValue))
+	return tv.V.(*StringValue).s
 }
 
 func (tv *TypedValue) SetInt(n int) {
@@ -2124,8 +2140,8 @@ func (tv *TypedValue) GetLength() int {
 		}
 	}
 	switch cv := tv.V.(type) {
-	case StringValue:
-		return len(cv)
+	case *StringValue:
+		return len(cv.s)
 	case *ArrayValue:
 		return cv.GetLength()
 	case *SliceValue:
@@ -2442,6 +2458,7 @@ func (b *Block) GetParent(store Store) *Block {
 }
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
+	//fmt.Println("===GetPointerToInt, b, index: ", b, index)
 	vv := fillValueTV(store, &b.Values[index])
 	return PointerValue{
 		TV:    vv,
@@ -2451,6 +2468,8 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 }
 
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
+	//fmt.Println("===GetPointerTo, b: ", b)
+	//fmt.Println("===GetPointerTo, path: ", path)
 	if path.IsBlockBlankPath() {
 		if debug {
 			if path.Name != blankIdentifier {
@@ -2692,11 +2711,12 @@ func typedRune(r rune) TypedValue {
 // NOTE: does not allocate; used for panics.
 func typedString(s string) TypedValue {
 	tv := TypedValue{T: StringType}
-	tv.V = StringValue(s)
+	tv.V = &StringValue{s: s}
 	return tv
 }
 
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
+	//fmt.Println("---fillValueTV, tv: ", tv, reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case RefValue:
 		if cv.PkgPath != "" { // load package
