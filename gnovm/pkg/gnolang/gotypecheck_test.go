@@ -256,7 +256,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 				Files: []*gnovm.MemFile{
 					{
 						Name: "hello.gno",
-						Body: `package p;func H()int{return 1;println("aaaa")}`,
+						Body: "package p;func H()int{println(\"aaaa\")\n_=(1+(2+(3+(4))))\nreturn 1}",
 					},
 				},
 			},

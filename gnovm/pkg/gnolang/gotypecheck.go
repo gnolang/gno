@@ -163,7 +163,7 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, shouldFmt boo
 }
 
 const (
-	MAX_FILESIZE_PERCENT_GROWTH_AFTER_FMT = 10.0 // Arbitrary value to tolerate newline removals et al.
+	MAX_FILESIZE_PERCENT_GROWTH_AFTER_FMT = 15.0 // Arbitrary value to tolerate newline removals et al.
 	failOnBloatedUnformattedFiles         = true
 )
 
