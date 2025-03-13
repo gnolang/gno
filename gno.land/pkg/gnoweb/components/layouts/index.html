@@ -1,7 +1,7 @@
 {{ define "index" -}}
 
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
     {{ template "layouts/head" .IndexData.HeadData -}}
     <body class="min-h-screen flex flex-col">
         {{ template "ui/icons" -}}
@@ -10,7 +10,7 @@
         {{ template "layouts/header" .IndexData.HeaderData -}}
 
         <!-- main -->
-        <main class="w-full grow-[2] {{ if .IsDevmodView }}dev-mode bg-gray-50{{ else }}bg-light{{ end }}">
+        <main class="w-full grow-[2] {{ if .IsDevmodView }}dev-mode bg-gray-50 dark:bg-gray-d50{{ else }}bg-light dark:bg-dark{{ end }}">
             <section class="max-w-screen-max mx-auto grid grid-flow-dense items-start min-h-full
                 {{ if eq .Layout "sidebar" }}
                     px-4 md:px-10 grid-cols-1 lg:grid-cols-10 xl:grid-cols-10 gap-x-20 xxl:gap-x-32
