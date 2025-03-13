@@ -160,7 +160,7 @@ func TestGetProvableMajorityChoice(t *testing.T) {
 				tc.setup(&record)
 			}
 
-			choice := GetProvableMajorityChoice(record.ReadOnly())
+			choice := GetProvableMajorityChoice(record.Readonly())
 
 			uassert.Equal(t, string(choice), string(tc.choice))
 		})
@@ -223,7 +223,7 @@ func TestSelectChoiceByAbsoluteMajority(t *testing.T) {
 				tc.setup(&record)
 			}
 
-			choice, success := SelectChoiceByAbsoluteMajority(record.ReadOnly(), tc.membersCount)
+			choice, success := SelectChoiceByAbsoluteMajority(record.Readonly(), tc.membersCount)
 
 			uassert.Equal(t, string(tc.choice), string(choice), "choice")
 			uassert.Equal(t, tc.success, success, "success")
@@ -287,7 +287,7 @@ func TestSelectChoiceBySuperMajority(t *testing.T) {
 				tc.setup(&record)
 			}
 
-			choice, success := SelectChoiceBySuperMajority(record.ReadOnly(), tc.membersCount)
+			choice, success := SelectChoiceBySuperMajority(record.Readonly(), tc.membersCount)
 
 			uassert.Equal(t, string(tc.choice), string(choice), "choice")
 			uassert.Equal(t, tc.success, success, "success")
@@ -347,7 +347,7 @@ func TestSelectChoiceByPlurality(t *testing.T) {
 				tc.setup(&record)
 			}
 
-			choice, success := SelectChoiceByPlurality(record.ReadOnly())
+			choice, success := SelectChoiceByPlurality(record.Readonly())
 
 			uassert.Equal(t, string(tc.choice), string(choice), "choice")
 			uassert.Equal(t, tc.success, success, "success")

@@ -73,7 +73,7 @@ type (
 
 		// Tally counts the number of votes and verifies that there is consensus.
 		// Tally fails when none of the vote choices wins over the others.
-		Tally(r ReadOnlyVotingRecord, memberCount int) (success bool)
+		Tally(r ReadonlyVotingRecord, memberCount int) (success bool)
 	}
 
 	// Validable defines an interface for proposal definitions that require state validation.

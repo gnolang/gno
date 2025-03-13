@@ -7,7 +7,7 @@ import (
 	"gno.land/p/moul/addrset"
 )
 
-// ReadOnlyMemberGroup stores multiple members as a readonly group.
+// ReadonlyMemberGroup stores multiple members as a readonly group.
 // Member groups can be useful in different situations,
 // for example to organize users in different tiers or groups.
 type ReadonlyMemberGroup struct {

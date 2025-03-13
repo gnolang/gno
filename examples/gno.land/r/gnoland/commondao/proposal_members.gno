@@ -96,7 +96,7 @@ func (p MembersPropDefinition) Validate() error {
 	return err
 }
 
-func (MembersPropDefinition) Tally(r commondao.ReadOnlyVotingRecord, membersCount int) bool {
+func (MembersPropDefinition) Tally(r commondao.ReadonlyVotingRecord, membersCount int) bool {
 	// When DAO has one or two members succeed when there is a YES vote, otherwise
 	// tally requires at least three votes to be able to tally by 2/3s super majority
 	if membersCount < 3 {

@@ -24,7 +24,7 @@ type MemberGroup struct {
 	ReadonlyMemberGroup
 }
 
-func (g MemberGroup) ReadOnly() ReadonlyMemberGroup {
+func (g MemberGroup) Readonly() ReadonlyMemberGroup {
 	return g.ReadonlyMemberGroup
 }
 

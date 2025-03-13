@@ -250,7 +250,7 @@ func (dao *CommonDAO) tallyProposal(p *Proposal) error {
 		return ErrLowParticipation
 	}
 
-	if !p.Definition().Tally(record.ReadOnly(), membersCount) {
+	if !p.Definition().Tally(record.Readonly(), membersCount) {
 		return ErrNoConcensus
 	}
 	return nil
