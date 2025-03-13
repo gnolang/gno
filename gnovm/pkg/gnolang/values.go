@@ -204,11 +204,10 @@ func (dbv DataByteValue) SetByte(b byte) {
 // Since PointerValue is used internally for assignment etc,
 // it MUST stay minimal for computational efficiency.
 type PointerValue struct {
-	TV          *TypedValue // escape val if pointer to var.
-	Base        Value       // array/struct/block, or heapitem.
-	Index       int         // list/fields/values index, or -1 or -2 (see below).
-	Key         *TypedValue `json:",omitempty"` // for maps.
-	lastGcCycle int64
+	TV    *TypedValue // escape val if pointer to var.
+	Base  Value       // array/struct/block, or heapitem.
+	Index int         // list/fields/values index, or -1 or -2 (see below).
+	Key   *TypedValue `json:",omitempty"` // for maps.
 }
 
 const (
@@ -276,7 +275,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 								panic("should not happen")
 							}
 							if nv, ok := tv2.V.(*NativeValue); !ok ||
-								nv.Value.Kind() != reflect.Func {
+									nv.Value.Kind() != reflect.Func {
 								panic("should not happen")
 							}
 						}
@@ -340,9 +339,8 @@ func (pv PointerValue) Deref() (tv TypedValue) {
 
 type ArrayValue struct {
 	ObjectInfo
-	List        []TypedValue
-	Data        []byte
-	lastGCCycle int64
+	List []TypedValue
+	Data []byte
 }
 
 // NOTE: Result should not be written to,
@@ -429,11 +427,10 @@ func (av *ArrayValue) Copy(alloc *Allocator) *ArrayValue {
 // SliceValue
 
 type SliceValue struct {
-	Base        Value
-	Offset      int
-	Length      int
-	Maxcap      int
-	lastGCCycle int64
+	Base   Value
+	Offset int
+	Length int
+	Maxcap int
 }
 
 func (sv *SliceValue) GetBase(store Store) *ArrayValue {
@@ -484,8 +481,7 @@ func (sv *SliceValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 
 type StructValue struct {
 	ObjectInfo
-	Fields      []TypedValue
-	lastGCCycle int64
+	Fields []TypedValue
 }
 
 // TODO handle unexported fields in debug, and also ensure in the preprocessor.
@@ -579,10 +575,9 @@ type FuncValue struct {
 	NativePkg  string // for native bindings through NativeResolver
 	NativeName Name   // not redundant with Name; this cannot be changed in userspace
 
-	body        []Stmt         // function body
-	nativeBody  func(*Machine) // alternative to Body
-	lastGCCycle int64
-	isClosure   bool
+	body       []Stmt         // function body
+	nativeBody func(*Machine) // alternative to Body
+	isClosure  bool
 }
 
 func (fv *FuncValue) IsNative() bool {
@@ -700,8 +695,7 @@ type BoundMethodValue struct {
 
 	// This becomes the first arg.
 	// The type is .Func.Type.Params[0].
-	Receiver    TypedValue
-	lastGCCycle int64
+	Receiver TypedValue
 }
 
 // ----------------------------------------
@@ -867,8 +861,7 @@ type PackageValue struct {
 	Realm      *Realm `json:"-"` // if IsRealmPath(PkgPath), otherwise nil.
 	// NOTE: Realm is persisted separately.
 
-	fBlocksMap  map[Name]*Block
-	lastGCCycle int64
+	fBlocksMap map[Name]*Block
 }
 
 // IsRealm returns true if pv represents a realm.
@@ -2379,12 +2372,11 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) T
 // TODO rename to BlockValue.
 type Block struct {
 	ObjectInfo
-	Source      BlockNode
-	Values      []TypedValue
-	Parent      Value
-	Blank       TypedValue // captures "_" // XXX remove and replace with global instance.
-	bodyStmt    bodyStmt   // XXX expose for persistence, not needed for MVP.
-	lastGCCycle int64
+	Source   BlockNode
+	Values   []TypedValue
+	Parent   Value
+	Blank    TypedValue // captures "_" // XXX remove and replace with global instance.
+	bodyStmt bodyStmt   // XXX expose for persistence, not needed for MVP.
 }
 
 // NOTE: for allocation, use *Allocator.NewBlock.
@@ -2617,8 +2609,7 @@ type RefValue struct {
 // See also note in realm.go about auto-unwrapping.
 type HeapItemValue struct {
 	ObjectInfo
-	Value       TypedValue
-	lastGCCycle int64
+	Value TypedValue
 }
 
 // ----------------------------------------
