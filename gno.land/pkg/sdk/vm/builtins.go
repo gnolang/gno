@@ -6,22 +6,29 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 // ----------------------------------------
 // SDKBanker
 
 type SDKBanker struct {
-	vmk *VMKeeper
-	ctx sdk.Context
+	vmk         *VMKeeper
+	ctx         sdk.Context
+	supplyStore *bank.SupplyStore
+	store       types.Store
 }
 
 func NewSDKBanker(vmk *VMKeeper, ctx sdk.Context) *SDKBanker {
+	store := ctx.Store(vmk.supplyKey)
 	return &SDKBanker{
-		vmk: vmk,
-		ctx: ctx,
+		vmk:         vmk,
+		ctx:         ctx,
+		supplyStore: bank.NewSupplyStore(store),
+		store:       store,
 	}
 }
 
@@ -41,7 +48,15 @@ func (bnk *SDKBanker) SendCoins(b32from, b32to crypto.Bech32Address, amt std.Coi
 }
 
 func (bnk *SDKBanker) TotalCoin(denom string) int64 {
-	panic("not yet implemented")
+	if denom == "" {
+		panic("empty denom")
+	}
+
+	supply, err := bnk.supplyStore.GetSupply(bnk.store, denom)
+	if err != nil {
+		panic(err)
+	}
+	return supply
 }
 
 func (bnk *SDKBanker) IssueCoin(b32addr crypto.Bech32Address, denom string, amount int64) {
@@ -50,6 +65,7 @@ func (bnk *SDKBanker) IssueCoin(b32addr crypto.Bech32Address, denom string, amou
 	if err != nil {
 		panic(err)
 	}
+	bnk.supplyStore.AddSupply(bnk.store, denom, amount)
 }
 
 func (bnk *SDKBanker) RemoveCoin(b32addr crypto.Bech32Address, denom string, amount int64) {
@@ -58,6 +74,7 @@ func (bnk *SDKBanker) RemoveCoin(b32addr crypto.Bech32Address, denom string, amo
 	if err != nil {
 		panic(err)
 	}
+	bnk.supplyStore.SubtractSupply(bnk.store, denom, amount)
 }
 
 // ----------------------------------------
