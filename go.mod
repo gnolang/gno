@@ -23,7 +23,6 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/google/gofuzz v1.2.0
 	github.com/gorilla/websocket v1.5.3
-	github.com/klauspost/compress v1.18.0
 	github.com/libp2p/go-buffer-pool v0.1.0
 	github.com/pelletier/go-toml v1.9.5
 	github.com/peterbourgon/ff/v3 v3.4.0
