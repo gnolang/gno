@@ -6,7 +6,6 @@ package valopers_proposal_test
 import (
 	"std"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/r/gnoland/valopers"
 	"gno.land/r/gnoland/valopers_proposal"
 	_ "gno.land/r/gov/dao/init" // so that the govdao initializer is executed

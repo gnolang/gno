@@ -40,11 +40,11 @@ func TestValopers_Register(t *testing.T) {
 		valopers = avl.NewTree()
 
 		v := Valoper{
-			Moniker:      validMoniker,
-			Description:  validDescription,
-			Address:      validAddress,
-			PubKey:       validPubKey,
-			KeepRunning:  true,
+			Moniker:     validMoniker,
+			Description: validDescription,
+			Address:     validAddress,
+			PubKey:      validPubKey,
+			KeepRunning: true,
 		}
 
 		// Add the valoper

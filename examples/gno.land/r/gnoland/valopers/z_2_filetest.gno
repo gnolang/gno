@@ -6,7 +6,6 @@ package valopers_test
 import (
 	"std"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/r/gnoland/valopers"
 )
 

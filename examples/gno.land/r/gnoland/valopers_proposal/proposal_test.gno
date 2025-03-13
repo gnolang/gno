@@ -22,7 +22,7 @@ const (
 )
 
 var (
-	test1Address    = testutils.TestAddress("test1")
+	test1Address = testutils.TestAddress("test1")
 )
 
 func TestValopers_ProposeNewValidator(t *testing.T) {
@@ -79,11 +79,11 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		proposal, err := propStore.ProposalByID(uint64(currentSize)) // index starts from 0
 		uassert.NoError(t, err, "proposal not found")
 
-      description := ufmt.Sprintf("Valoper profile: [%s](/r/gnoland/valopers:%s)\n\n%s",
-      valoper.Moniker,
-      valoper.Address,
-      valoper.Render(),
-    )
+		description := ufmt.Sprintf("Valoper profile: [%s](/r/gnoland/valopers:%s)\n\n%s",
+			valoper.Moniker,
+			valoper.Address,
+			valoper.Render(),
+		)
 
 		// Check that the proposal is correct
 		uassert.Equal(t, description, proposal.Description())

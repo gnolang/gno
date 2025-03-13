@@ -22,15 +22,15 @@ const (
 )
 
 var (
-	ErrValoperExists       = errors.New("valoper already exists")
-	ErrValoperMissing      = errors.New("valoper does not exist")
-	ErrAddressExists       = errors.New("valoper updated address exists")
-	ErrSameAddress         = errors.New("valoper updated address is the same")
-	ErrInvalidAddress      = errors.New("invalid address")
-	ErrOriginCaller        = errors.New("origin call is not the same")
-	ErrInvalidMoniker      = errors.New("moniker is not valid")
-	ErrInvalidDescription  = errors.New("description is not valid")
-	ErrInvalidPubKey       = errors.New("invalid public key")
+	ErrValoperExists      = errors.New("valoper already exists")
+	ErrValoperMissing     = errors.New("valoper does not exist")
+	ErrAddressExists      = errors.New("valoper updated address exists")
+	ErrSameAddress        = errors.New("valoper updated address is the same")
+	ErrInvalidAddress     = errors.New("invalid address")
+	ErrOriginCaller       = errors.New("origin call is not the same")
+	ErrInvalidMoniker     = errors.New("moniker is not valid")
+	ErrInvalidDescription = errors.New("description is not valid")
+	ErrInvalidPubKey      = errors.New("invalid public key")
 )
 
 var (
@@ -49,9 +49,9 @@ type Valoper struct {
 	Moniker     string // A human-readable name
 	Description string // A description and details about the valoper
 
-	Address      std.Address // The bech32 gno address of the validator
-	PubKey       string      // The bech32 public key of the validator
-	KeepRunning  bool        // Flag indicating if the owner wants to keep the validator running
+	Address     std.Address // The bech32 gno address of the validator
+	PubKey      string      // The bech32 public key of the validator
+	KeepRunning bool        // Flag indicating if the owner wants to keep the validator running
 
 	auth *authorizable.Authorizable // The authorizer system for the valoper
 }
@@ -88,12 +88,12 @@ func Register(moniker string, description string, address std.Address, pubKey st
 	}
 
 	v := Valoper{
-		Moniker:      moniker,
-		Description:  description,
-		Address:      address,
-		PubKey:       pubKey,
-		KeepRunning:  true,
-		auth:         authorizable.NewAuthorizable(),
+		Moniker:     moniker,
+		Description: description,
+		Address:     address,
+		PubKey:      pubKey,
+		KeepRunning: true,
+		auth:        authorizable.NewAuthorizable(),
 	}
 
 	if err := v.Validate(); err != nil {

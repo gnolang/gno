@@ -59,11 +59,11 @@ func ProposeNewValidator(address std.Address) {
 		valoper.Moniker,
 	)
 
-  description := ufmt.Sprintf("Valoper profile: [%s](/r/gnoland/valopers:%s)\n\n%s",
+	description := ufmt.Sprintf("Valoper profile: [%s](/r/gnoland/valopers:%s)\n\n%s",
 		valoper.Moniker,
-    valoper.Address,
-    valoper.Render(),
-  )
+		valoper.Address,
+		valoper.Render(),
+	)
 
 	prop := dao.ProposalRequest{
 		Title:       title,
