@@ -66,11 +66,12 @@ func main() {
 //
 // Please provide detailed answers to the following questions to ensure transparency and improve your chances of being accepted:
 //
-// 1. Which networks are you currently validating?
-// 2. Provide links to your **digital presence** (website, social media, contact details, etc.).
-// 3. What assets do you manage?
-// 4. Why are you interested in validating on **gno.land**?
-// 5. What contributions have you made or are willing to make to **gno.land**?
+// 1. The name of your validator
+// 2. Networks you are currently validating and your total AuM (assets under management)
+// 3. Links to your **digital presence** (website, social media, etc.).
+// 4. Contact details
+// 5. Why are you interested in validating on **gno.land**?
+// 6. What contributions have you made or are willing to make to **gno.land**?
 //
 // ---
 //
