@@ -55,14 +55,19 @@ func ProposeNewValidator(address std.Address) {
 
 	// Craft the proposal title
 	title := ufmt.Sprintf(
-		"Add valoper [%s](/r/gnoland/valopers:%s) to the valset",
+		"Add valoper %s to the valset",
 		valoper.Moniker,
-		valoper.Address.String(),
 	)
+
+  description := ufmt.Sprintf("Valoper profile: [%s](/r/gnoland/valopers:%s)\n\n%s",
+		valoper.Moniker,
+    valoper.Address,
+    valoper.Render(),
+  )
 
 	prop := dao.ProposalRequest{
 		Title:       title,
-		Description: valoper.Render(),
+		Description: description,
 		Executor:    executor,
 	}
 

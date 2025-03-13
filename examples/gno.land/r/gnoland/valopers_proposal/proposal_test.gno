@@ -23,7 +23,6 @@ const (
 
 var (
 	test1Address    = testutils.TestAddress("test1")
-	validP2PAddress = ufmt.Sprintf("%s@127.0.0.1:26656", test1Address)
 )
 
 func TestValopers_ProposeNewValidator(t *testing.T) {
@@ -32,7 +31,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)}, nil)
 
 		uassert.NotPanics(t, func() {
-			valopers.Register(moniker, description, test1Address, pubKey, validP2PAddress)
+			valopers.Register(moniker, description, test1Address, pubKey)
 			valopers.UpdateKeepRunning(test1Address, false)
 		})
 
@@ -80,8 +79,14 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		proposal, err := propStore.ProposalByID(uint64(currentSize)) // index starts from 0
 		uassert.NoError(t, err, "proposal not found")
 
+      description := ufmt.Sprintf("Valoper profile: [%s](/r/gnoland/valopers:%s)\n\n%s",
+      valoper.Moniker,
+      valoper.Address,
+      valoper.Render(),
+    )
+
 		// Check that the proposal is correct
-		uassert.Equal(t, valoper.Render(), proposal.Description())
+		uassert.Equal(t, description, proposal.Description())
 	})
 
 	t.Run("try to update a validator with the same values", func(t *testing.T) {

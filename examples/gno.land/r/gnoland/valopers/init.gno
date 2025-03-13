@@ -36,7 +36,6 @@ To add your validator node to the registry, use the **Register** function with t
 - **Description**: A detailed introduction in Markdown, including answers to the questions below.
 - **Validator Address**: The address of your validator node.
 - **Validator Public Key**: Your validator node’s public key.
-- **P2P Addresses**: A comma-separated list of peer-to-peer addresses in the format **[nodeID]@[listeningAddress]:[port]**
 
 ### ✍️ Required Information for the Description
 

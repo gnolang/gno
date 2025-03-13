@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"std"
 	"strconv"
-	"strings"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/avl/pager"
@@ -32,8 +31,6 @@ var (
 	ErrInvalidMoniker      = errors.New("moniker is not valid")
 	ErrInvalidDescription  = errors.New("description is not valid")
 	ErrInvalidPubKey       = errors.New("invalid public key")
-	ErrInvalidP2PAddress   = errors.New("invalid P2P address")
-	ErrP2PAddressesMissing = errors.New("P2P addresses cannot be empty")
 )
 
 var (
@@ -55,7 +52,6 @@ type Valoper struct {
 	Address      std.Address // The bech32 gno address of the validator
 	PubKey       string      // The bech32 public key of the validator
 	KeepRunning  bool        // Flag indicating if the owner wants to keep the validator running
-	P2PAddresses []string    // The publicly reachable P2P addresses of the validator
 
 	auth *authorizable.Authorizable // The authorizer system for the valoper
 }
@@ -81,7 +77,7 @@ func DeleteFromAuthList(address std.Address, member std.Address) {
 }
 
 // Register registers a new valoper
-func Register(moniker string, description string, address std.Address, pubKey string, p2pAddresses string) {
+func Register(moniker string, description string, address std.Address, pubKey string) {
 	if err := validateSentCoins(); err != nil {
 		panic(err)
 	}
@@ -97,7 +93,6 @@ func Register(moniker string, description string, address std.Address, pubKey st
 		Address:      address,
 		PubKey:       pubKey,
 		KeepRunning:  true,
-		P2PAddresses: strings.Split(p2pAddresses, ","),
 		auth:         authorizable.NewAuthorizable(),
 	}
 
@@ -159,42 +154,6 @@ func UpdateKeepRunning(address std.Address, keepRunning bool) {
 
 	// Update status
 	v.KeepRunning = keepRunning
-
-	// Save the valoper info
-	valopers.Set(address.String(), v)
-}
-
-// UpdateP2PAddresses updates an existing valoper's P2P addresses
-// p2pAddresses is a comma-separated list of P2P addresses
-func UpdateP2PAddresses(address std.Address, p2pAddresses string) {
-	var addresses []string
-
-	v := GetByAddr(address)
-
-	if p2pAddresses == "" {
-		if v.KeepRunning {
-			panic(ErrP2PAddressesMissing)
-		}
-
-		// Update the P2P addresses
-		v.P2PAddresses = []string{}
-	} else {
-		// Split the P2P addresses
-		addresses = strings.Split(p2pAddresses, ",")
-
-		// Check that the P2P addresses are different
-		for _, addr := range addresses {
-			if err := validateP2PAddress(addr); err != nil {
-				panic(err)
-			}
-		}
-
-		// Update the P2P addresses
-		v.P2PAddresses = addresses
-	}
-
-	// Check that the caller has permissions
-	v.Auth().AssertOnAuthList()
 
 	// Save the valoper info
 	valopers.Set(address.String(), v)
@@ -266,10 +225,6 @@ func (v *Valoper) Validate() error {
 	errs.Add(validateBech32(v.Address))
 	errs.Add(validatePubKey(v.PubKey))
 
-	for _, addr := range v.P2PAddresses {
-		errs.Add(validateP2PAddress(addr))
-	}
-
 	if errs.Size() == 0 {
 		return nil
 	}
@@ -286,25 +241,7 @@ func (v Valoper) Render() string {
 	}
 
 	output += ufmt.Sprintf("- Address: %s\n", v.Address.String())
-	output += ufmt.Sprintf("- PubKey: %s\n", v.PubKey)
-	output += "- P2P Addresses: [\n\n"
-
-	if len(v.P2PAddresses) == 0 {
-		output += "]\n\n"
-	}
-
-	for index, addr := range v.P2PAddresses {
-		output += "\t- " + addr
-
-		if index == len(v.P2PAddresses)-1 {
-			output += "\n\n]\n\n"
-
-			continue
-		}
-
-		output += ",\n"
-	}
-
+	output += ufmt.Sprintf("- PubKey: %s\n\n", v.PubKey)
 	output += ufmt.Sprintf("[Profile link](/r/demo/profile:u/%s)\n", v.Address)
 
 	return output
@@ -369,27 +306,6 @@ func validateBech32(address std.Address) error {
 func validatePubKey(pubKey string) error {
 	if _, _, err := bech32.DecodeNoLimit(pubKey); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-// validateP2PAddress checks if the P2P address is valid
-// address is of the form: <ID>@<HOSTNAME> or <ID>@<IP>
-func validateP2PAddress(p2pAddress string) error {
-	parts := strings.Split(p2pAddress, "@")
-
-	if len(parts) != 2 {
-		return ErrInvalidP2PAddress
-	}
-
-	// test part 1 which is the ID
-	if err := validateBech32(std.Address(parts[0])); err != nil {
-		return ErrInvalidP2PAddress
-	}
-
-	if !validateListeningAddressRe.MatchString(parts[1]) {
-		return ErrInvalidP2PAddress
 	}
 
 	return nil
