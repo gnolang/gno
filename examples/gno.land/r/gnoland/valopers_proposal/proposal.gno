@@ -1,8 +1,8 @@
 package valopers_proposal
 
 import (
-	"std"
 	"errors"
+	"std"
 
 	"gno.land/p/demo/dao"
 	"gno.land/p/demo/ufmt"
@@ -13,8 +13,8 @@ import (
 )
 
 var (
-  ErrValidatorMissing = errors.New("the validator is missing")
-  ErrSameValues = errors.New("the valoper has the same voting power and pubkey")
+	ErrValidatorMissing = errors.New("the validator is missing")
+	ErrSameValues       = errors.New("the valoper has the same voting power and pubkey")
 )
 
 // ProposeNewValidator creates a proposal to the GovDAO
@@ -25,20 +25,20 @@ func ProposeNewValidator(address std.Address) {
 		votingPower = uint64(1)
 	)
 
-  validator, err := validators.GetValidator(address)
-  exist := err == nil
+	validator, err := validators.GetValidator(address)
+	exist := err == nil
 
 	// Determine the voting power
 	if !valoper.KeepRunning {
-    if !exist {
-      panic(ErrValidatorMissing)
-    }
+		if !exist {
+			panic(ErrValidatorMissing)
+		}
 		votingPower = uint64(0)
 	}
 
-  if exist && validator.VotingPower == votingPower && validator.PubKey == valoper.PubKey {
-    panic(ErrSameValues)
-  }
+	if exist && validator.VotingPower == votingPower && validator.PubKey == valoper.PubKey {
+		panic(ErrSameValues)
+	}
 
 	changesFn := func() []pVals.Validator {
 		return []pVals.Validator{

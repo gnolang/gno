@@ -18,8 +18,8 @@ import (
 )
 
 const (
-  MonikerMaxLength     = 32
-  DescriptionMaxLength = 1024
+	MonikerMaxLength     = 32
+	DescriptionMaxLength = 1024
 )
 
 var (
@@ -42,9 +42,9 @@ var (
 	minFee       int64     = 20 * 1_000_000 // minimum gnot must be paid to register.
 	minCoin                = std.NewCoin("ugnot", minFee)
 
-  monikerMaxLengthMiddle = ufmt.Sprintf("%d", MonikerMaxLength - 2)
-	validateMonikerRe = regexp.MustCompile(`^[a-zA-Z0-9][\w -]{0,` + monikerMaxLengthMiddle + `}[a-zA-Z0-9]$`) // 32 characters, including spaces, hyphens or underscores in the middle
-	validateListeningAddressRe = regexp.MustCompile(`^(?:\w+://)?[\w\.-]+:\d+$`) // <protocol>://<hostname>:<port> where <protocol> is optional
+	monikerMaxLengthMiddle     = ufmt.Sprintf("%d", MonikerMaxLength-2)
+	validateMonikerRe          = regexp.MustCompile(`^[a-zA-Z0-9][\w -]{0,` + monikerMaxLengthMiddle + `}[a-zA-Z0-9]$`) // 32 characters, including spaces, hyphens or underscores in the middle
+	validateListeningAddressRe = regexp.MustCompile(`^(?:\w+://)?[\w\.-]+:\d+$`)                                        // <protocol>://<hostname>:<port> where <protocol> is optional
 )
 
 // Valoper represents a validator operator profile
@@ -54,30 +54,30 @@ type Valoper struct {
 
 	Address      std.Address // The bech32 gno address of the validator
 	PubKey       string      // The bech32 public key of the validator
-	KeepRunning   bool        // Flag indicating if the owner wants to keep the validator running
+	KeepRunning  bool        // Flag indicating if the owner wants to keep the validator running
 	P2PAddresses []string    // The publicly reachable P2P addresses of the validator
 
 	auth *authorizable.Authorizable // The authorizer system for the valoper
 }
 
 func (v Valoper) Auth() *authorizable.Authorizable {
-  return v.auth
+	return v.auth
 }
 
 func AddToAuthList(address std.Address, member std.Address) {
 	v := GetByAddr(address)
 
-  if err := v.Auth().AddToAuthList(member); err != nil {
-    panic(err)
-  }
+	if err := v.Auth().AddToAuthList(member); err != nil {
+		panic(err)
+	}
 }
 
 func DeleteFromAuthList(address std.Address, member std.Address) {
 	v := GetByAddr(address)
 
-  if err := v.Auth().DeleteFromAuthList(member); err != nil {
-    panic(err)
-  }
+	if err := v.Auth().DeleteFromAuthList(member); err != nil {
+		panic(err)
+	}
 }
 
 // Register registers a new valoper
@@ -96,7 +96,7 @@ func Register(moniker string, description string, address std.Address, pubKey st
 		Description:  description,
 		Address:      address,
 		PubKey:       pubKey,
-		KeepRunning:       true,
+		KeepRunning:  true,
 		P2PAddresses: strings.Split(p2pAddresses, ","),
 		auth:         authorizable.NewAuthorizable(),
 	}
@@ -167,31 +167,31 @@ func UpdateKeepRunning(address std.Address, keepRunning bool) {
 // UpdateP2PAddresses updates an existing valoper's P2P addresses
 // p2pAddresses is a comma-separated list of P2P addresses
 func UpdateP2PAddresses(address std.Address, p2pAddresses string) {
-  var addresses []string
+	var addresses []string
 
 	v := GetByAddr(address)
 
-  if p2pAddresses == "" {
-    if v.KeepRunning {
-      panic(ErrP2PAddressesMissing)
-    }
+	if p2pAddresses == "" {
+		if v.KeepRunning {
+			panic(ErrP2PAddressesMissing)
+		}
 
-    // Update the P2P addresses
-    v.P2PAddresses = []string{}
-  } else {
-    // Split the P2P addresses
-    addresses = strings.Split(p2pAddresses, ",")
+		// Update the P2P addresses
+		v.P2PAddresses = []string{}
+	} else {
+		// Split the P2P addresses
+		addresses = strings.Split(p2pAddresses, ",")
 
-    // Check that the P2P addresses are different
-    for _, addr := range addresses {
-      if err := validateP2PAddress(addr); err != nil {
-        panic(err)
-      }
-    }
+		// Check that the P2P addresses are different
+		for _, addr := range addresses {
+			if err := validateP2PAddress(addr); err != nil {
+				panic(err)
+			}
+		}
 
-    // Update the P2P addresses
-    v.P2PAddresses = addresses
-  }
+		// Update the P2P addresses
+		v.P2PAddresses = addresses
+	}
 
 	// Check that the caller has permissions
 	v.Auth().AssertOnAuthList()

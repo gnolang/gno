@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	validMoniker = "test-1"
-	validDescription   = "test-1's description"
-	validAddress   = std.Address("g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h")
-	validPubKey   = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p"
+	validMoniker     = "test-1"
+	validDescription = "test-1's description"
+	validAddress     = std.Address("g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h")
+	validPubKey      = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p"
 )
 
 var (
@@ -40,7 +40,7 @@ var (
 		"https://secure.com:443",
 		"ws://localhost:8080",
 		"without-protocol.com:443",
-    "devx-sen-1.test5.gnodevx.network:26656",
+		"devx-sen-1.test5.gnodevx.network:26656",
 	}
 
 	invalidListeningAddresses = []string{
@@ -64,7 +64,7 @@ func TestValopers_Register(t *testing.T) {
 			Address:      validAddress,
 			PubKey:       validPubKey,
 			P2PAddresses: validP2PAddresses,
-			KeepRunning:       true,
+			KeepRunning:  true,
 		}
 
 		// Add the valoper
@@ -86,7 +86,7 @@ func TestValopers_Register(t *testing.T) {
 		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", 0)}, nil)
 
 		uassert.PanicsWithMessage(t, ufmt.Sprintf("payment must not be less than %d", minFee), func() {
-      Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
+			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
 		})
 	})
 
@@ -98,21 +98,21 @@ func TestValopers_Register(t *testing.T) {
 		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee-1)}, nil)
 
 		uassert.PanicsWithMessage(t, ufmt.Sprintf("payment must not be less than %d", minFee), func() {
-      Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
+			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
 		})
 	})
 
-        t.Run("coin amount deposited is not ugnot", func(t *testing.T) {
+	t.Run("coin amount deposited is not ugnot", func(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
 		// Send invalid coins
-                std.TestSetOriginSend(std.Coins{std.NewCoin("gnogno", minFee)}, nil)
+		std.TestSetOriginSend(std.Coins{std.NewCoin("gnogno", minFee)}, nil)
 
 		uassert.PanicsWithMessage(t, "incompatible coin denominations: gnogno, ugnot", func() {
-      Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
-                })
-        })
+			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
+		})
+	})
 
 	t.Run("successful registration", func(t *testing.T) {
 		// Clear the set for the test
@@ -148,20 +148,20 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 		// Send coins
 		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
-    std.TestSetRealm(std.NewUserRealm(test1Address))
-    std.TestSetOriginCaller(test1Address) // TODO(bug, issue #2371): should not be needed
+		std.TestSetRealm(std.NewUserRealm(test1Address))
+		std.TestSetOriginCaller(test1Address) // TODO(bug, issue #2371): should not be needed
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
 			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
 		})
 
-    std.TestSetRealm(std.NewUserRealm(validAddress))
-    std.TestSetOriginCaller(validAddress) // TODO(bug, issue #2371): should not be needed
+		std.TestSetRealm(std.NewUserRealm(validAddress))
+		std.TestSetOriginCaller(validAddress) // TODO(bug, issue #2371): should not be needed
 
-    // try to add member without being authorized
+		// try to add member without being authorized
 		uassert.PanicsWithMessage(t, authorizable.ErrNotSuperuser.Error(), func() {
-      AddToAuthList(validAddress, test2Address)
+			AddToAuthList(validAddress, test2Address)
 		})
 	})
 
@@ -172,8 +172,8 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 		// Send coins
 		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
-    std.TestSetRealm(std.NewUserRealm(test1Address))
-    std.TestSetOriginCaller(test1Address) // TODO(bug, issue #2371): should not be needed
+		std.TestSetRealm(std.NewUserRealm(test1Address))
+		std.TestSetOriginCaller(test1Address) // TODO(bug, issue #2371): should not be needed
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -181,15 +181,15 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 		})
 
 		uassert.NotPanics(t, func() {
-      AddToAuthList(validAddress, test2Address)
+			AddToAuthList(validAddress, test2Address)
 		})
 
-    std.TestSetRealm(std.NewUserRealm(validAddress))
-    std.TestSetOriginCaller(validAddress) // TODO(bug, issue #2371): should not be needed
+		std.TestSetRealm(std.NewUserRealm(validAddress))
+		std.TestSetOriginCaller(validAddress) // TODO(bug, issue #2371): should not be needed
 
-    // try to add member without being authorized
+		// try to add member without being authorized
 		uassert.PanicsWithMessage(t, authorizable.ErrNotSuperuser.Error(), func() {
-      DeleteFromAuthList(validAddress, test2Address)
+			DeleteFromAuthList(validAddress, test2Address)
 		})
 	})
 
@@ -200,8 +200,8 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 		// Send coins
 		std.TestSetOriginSend(std.Coins{minCoin}, nil)
 
-    std.TestSetRealm(std.NewUserRealm(test1Address))
-    std.TestSetOriginCaller(test1Address) // TODO(bug, issue #2371): should not be needed
+		std.TestSetRealm(std.NewUserRealm(test1Address))
+		std.TestSetOriginCaller(test1Address) // TODO(bug, issue #2371): should not be needed
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -209,11 +209,11 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 		})
 
 		uassert.NotPanics(t, func() {
-      AddToAuthList(validAddress, test2Address)
+			AddToAuthList(validAddress, test2Address)
 		})
 
-    std.TestSetRealm(std.NewUserRealm(test2Address))
-    std.TestSetOriginCaller(test2Address) // TODO(bug, issue #2371): should not be needed
+		std.TestSetRealm(std.NewUserRealm(test2Address))
+		std.TestSetOriginCaller(test2Address) // TODO(bug, issue #2371): should not be needed
 
 		newMoniker := "new moniker"
 		// Update the valoper
@@ -222,8 +222,8 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 		})
 
 		uassert.NotPanics(t, func() {
-      valoper := GetByAddr(validAddress)
-      uassert.Equal(t, newMoniker, valoper.Moniker)
+			valoper := GetByAddr(validAddress)
+			uassert.Equal(t, newMoniker, valoper.Moniker)
 		})
 	})
 }
@@ -375,7 +375,7 @@ func TestValopers_UpdateDescription(t *testing.T) {
 			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
 		})
 
-    emptyDescription := ""
+		emptyDescription := ""
 		// Update the valoper
 		uassert.PanicsWithMessage(t, ErrInvalidDescription.Error(), func() {
 			UpdateDescription(validAddress, emptyDescription)
@@ -479,7 +479,7 @@ func TestValopers_UpdateP2PAddresses(t *testing.T) {
 			UpdateP2PAddresses(validAddress, "")
 		})
 
-    // set the valoper's KeepRunning off
+		// set the valoper's KeepRunning off
 		uassert.NotPanics(t, func() {
 			UpdateKeepRunning(validAddress, false)
 		})
@@ -502,7 +502,7 @@ func TestValopers_UpdateP2PAddresses(t *testing.T) {
 			Register(validMoniker, validDescription, validAddress, validPubKey, strings.Join(validP2PAddresses, ","))
 		})
 
-    invalidAddress := std.Address("1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // missing prefix
+		invalidAddress := std.Address("1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // missing prefix
 		// Update the valoper with invalid address
 		invalidP2PAddress := ufmt.Sprintf("%s@%s", invalidAddress, validListeningAddresses[0])
 		uassert.PanicsWithMessage(t, ErrInvalidP2PAddress.Error(), func() {
