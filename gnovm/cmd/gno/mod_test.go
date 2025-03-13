@@ -1,7 +1,6 @@
 package main
 
 import (
-	"regexp"
 	"testing"
 )
 
@@ -292,87 +291,4 @@ func TestExecModInit(t *testing.T) {
 	}
 
 	testMainCaseRun(t, tc)
-}
-
-func TestValidateModulePath(t *testing.T) {
-	tests := []struct {
-		name         string
-		path         string
-		wantErrRegex string
-	}{
-		{
-			name: "valid path",
-			path: "example.com/myproject",
-		},
-		{
-			name: "valid gno.land path",
-			path: "gno.land/p/demo/avl",
-		},
-		{
-			name:         "empty path",
-			path:         "",
-			wantErrRegex: `^module path cannot be empty$`,
-		},
-		{
-			name:         "invalid UTF8 character",
-			path:         string([]byte{0xFF, 0xFE, 0xFD}),
-			wantErrRegex: `^invalid character '.*' in module path at position 0$`,
-		},
-		{
-			name:         "space in path",
-			path:         "example com/myproject",
-			wantErrRegex: `^invalid character ' ' in module path at position 7$`,
-		},
-		{
-			name:         "question mark in path",
-			path:         "example?.com/myproject",
-			wantErrRegex: `^invalid character '\?' in module path at position 7$`,
-		},
-		{
-			name:         "asterisk in path",
-			path:         "example*.com/myproject",
-			wantErrRegex: `^invalid character '\*' in module path at position 7$`,
-		},
-		{
-			name:         "backslash in path",
-			path:         "example\\com/myproject",
-			wantErrRegex: `^invalid character '\\' in module path at position 7$`,
-		},
-		{
-			name:         "quote in path",
-			path:         "example\"com/myproject",
-			wantErrRegex: `^invalid character '"' in module path at position 7$`,
-		},
-		{
-			name:         "backtick in path",
-			path:         "example`com/myproject",
-			wantErrRegex: "^invalid character '`' in module path at position 7$",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := validateModulePath(tt.path)
-			if tt.wantErrRegex == "" {
-				if err != nil {
-					t.Errorf("validateModulePath() error = %v, expected no error", err)
-				}
-				return
-			}
-
-			if err == nil {
-				t.Errorf("validateModulePath() expected error matching %q, got nil", tt.wantErrRegex)
-				return
-			}
-
-			// using a regex due to avoid encoding issues.
-			re, regexErr := regexp.Compile(tt.wantErrRegex)
-			if regexErr != nil {
-				t.Fatalf("invalid regex pattern: %v", regexErr)
-			}
-			if !re.MatchString(err.Error()) {
-				t.Errorf("validateModulePath() error = %q, want error matching %q", err.Error(), tt.wantErrRegex)
-			}
-		})
-	}
 }

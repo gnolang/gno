@@ -237,3 +237,217 @@ func TestParseGnoMod(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateModulePath(t *testing.T) {
+	tests := []struct {
+		name    string
+		path    string
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "valid path",
+			path:    "gno.land/p/demo/foo",
+			wantErr: false,
+		},
+		{
+			name:    "valid path with version",
+			path:    "gno.land/p/demo/foo/v2",
+			wantErr: false,
+		},
+		{
+			name:    "valid path with numbers and underscores",
+			path:    "gno.land/p/demo/foo_123",
+			wantErr: false,
+		},
+		{
+			name:    "empty path",
+			path:    "",
+			wantErr: true,
+			errMsg:  "module path cannot be empty",
+		},
+		{
+			name:    "path with space",
+			path:    "gno.land/p/demo/ foo",
+			wantErr: true,
+			errMsg:  "invalid character ' ' in module path",
+		},
+		{
+			name:    "path with double quote",
+			path:    "gno.land/p/demo/\"foo",
+			wantErr: true,
+			errMsg:  "invalid character '\"' in module path",
+		},
+		{
+			name:    "path with backtick",
+			path:    "gno.land/p/demo/`foo",
+			wantErr: true,
+			errMsg:  "invalid character '`' in module path",
+		},
+		{
+			name:    "path with backslash",
+			path:    "gno.land/p/demo\\foo",
+			wantErr: true,
+			errMsg:  "invalid character '\\' in module path",
+		},
+		{
+			name:    "path with question mark",
+			path:    "gno.land/p/demo/foo?",
+			wantErr: true,
+			errMsg:  "invalid character '?' in module path",
+		},
+		{
+			name:    "path with asterisk",
+			path:    "gno.land/p/demo/*foo",
+			wantErr: true,
+			errMsg:  "invalid character '*' in module path",
+		},
+		{
+			name:    "path with colon",
+			path:    "gno.land/p/demo:foo",
+			wantErr: true,
+			errMsg:  "invalid character ':' in module path",
+		},
+		{
+			name:    "path with less than",
+			path:    "gno.land/p/demo/<foo",
+			wantErr: true,
+			errMsg:  "invalid character '<' in module path",
+		},
+		{
+			name:    "path with greater than",
+			path:    "gno.land/p/demo/>foo",
+			wantErr: true,
+			errMsg:  "invalid character '>' in module path",
+		},
+		{
+			name:    "path with pipe",
+			path:    "gno.land/p/demo/|foo",
+			wantErr: true,
+			errMsg:  "invalid character '|' in module path",
+		},
+		{
+			name:    "path with square brackets",
+			path:    "gno.land/p/demo/[foo]",
+			wantErr: true,
+			errMsg:  "invalid character '[' in module path",
+		},
+		{
+			name:    "path with non-printable ASCII",
+			path:    "gno.land/p/demo/foo\u0007",
+			wantErr: true,
+			errMsg:  "invalid character",
+		},
+		{
+			name:    "path with Unicode character",
+			path:    "gno.land/p/demo/foo한글",
+			wantErr: true,
+			errMsg:  "invalid character",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateModulePath(tt.path)
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errMsg != "" {
+					assert.Contains(t, err.Error(), tt.errMsg)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestParseWithInvalidModulePath tests that Parse correctly rejects gno.mod files
+// with invalid module paths.
+func TestParseWithInvalidModulePath(t *testing.T) {
+	tests := []struct {
+		name    string
+		modData string
+		errMsg  string
+	}{
+		{
+			name:    "valid module path",
+			modData: "module gno.land/p/demo/foo",
+			errMsg:  "",
+		},
+		{
+			name:    "module path with space",
+			modData: "module \"gno.land/p/demo/ foo\"",
+			errMsg:  "invalid module path: invalid character ' '",
+		},
+		{
+			name:    "module path with Unicode",
+			modData: "module gno.land/p/demo/한글",
+			errMsg:  "invalid module path: invalid character",
+		},
+		{
+			name:    "module path with invalid character",
+			modData: "module gno.land/p/demo/foo*bar",
+			errMsg:  "invalid module path: invalid character '*'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Parse("gno.mod", []byte(tt.modData))
+			if tt.errMsg != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestCreateGnoModFileWithInvalidPath tests that CreateGnoModFile correctly rejects
+// invalid module paths.
+func TestCreateGnoModFileWithInvalidPath(t *testing.T) {
+	tests := []struct {
+		name    string
+		modPath string
+		errMsg  string
+	}{
+		{
+			name:    "valid module path",
+			modPath: "gno.land/p/demo/foo",
+			errMsg:  "",
+		},
+		{
+			name:    "module path with space",
+			modPath: "gno.land/p/demo/ foo",
+			errMsg:  "malformed import path \"gno.land/p/demo/ foo\": invalid char ' '",
+		},
+		{
+			name:    "module path with Unicode",
+			modPath: "gno.land/p/demo/한글",
+			errMsg:  "malformed import path \"gno.land/p/demo/한글\": invalid char '한'",
+		},
+		{
+			name:    "module path with invalid character",
+			modPath: "gno.land/p/demo/foo*bar",
+			errMsg:  "malformed import path \"gno.land/p/demo/foo*bar\": invalid char '*'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir, cleanUpFn := testutils.NewTestCaseDir(t)
+			defer cleanUpFn()
+
+			err := CreateGnoModFile(tempDir, tt.modPath)
+			if tt.errMsg != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+			} else {
+				if err != nil && !assert.Contains(t, err.Error(), "dir") {
+					t.Errorf("unexpected error: %v", err)
+				}
+			}
+		})
+	}
+}

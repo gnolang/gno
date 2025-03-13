@@ -7,8 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload"
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload/rpcpkgfetcher"
@@ -266,10 +264,6 @@ func execModInit(args []string) error {
 	var modPath string
 	if len(args) == 1 {
 		modPath = args[0]
-
-		if err := validateModulePath(modPath); err != nil {
-			return fmt.Errorf("invalid module path: %w", err)
-		}
 	}
 	dir, err := os.Getwd()
 	if err != nil {
@@ -294,33 +288,6 @@ var invalidChars = map[rune]bool{
 	'|':  true,
 	'[':  true,
 	']':  true,
-}
-
-// validateModulePath checks if the given module path contains only valid characters.
-// It returns an error if the path is empty or contains invalid characters such as:
-// non-printable ASCII characters, Unicode characters, spaces, or special characters
-// (`, ", \, ?, *, :, <, >, |, [, ]).
-func validateModulePath(path string) error {
-	if path == "" {
-		return errors.New("module path cannot be empty")
-	}
-
-	if i := strings.IndexFunc(path, func(r rune) bool {
-		if r >= utf8.RuneSelf || !unicode.IsPrint(r) {
-			return true
-		}
-		if invalidChars[r] {
-			return true
-		}
-		if unicode.IsSpace(r) {
-			return true
-		}
-		return false
-	}); i != -1 {
-		return fmt.Errorf("invalid character '%c' in module path at position %d", path[i], i)
-	}
-
-	return nil
 }
 
 type modTidyCfg struct {
