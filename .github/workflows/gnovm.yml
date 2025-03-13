@@ -8,6 +8,10 @@ on:
     paths:
       - gnovm/**
       - tm2/** # GnoVM has a dependency on TM2 types
+      - examples/** # gnovm has some tests that depend on examples
+      # We trigger the testing workflow for changes to the main go.mod,
+      # since this can affect test results
+      - go.mod
   workflow_dispatch:
 
 jobs:

@@ -33,9 +33,9 @@ func TestRoutes(t *testing.T) {
 		{"/r/gnoland/blog$help&func=Render", ok, "Render(path)"},
 		{"/r/gnoland/blog$help&func=Render&path=foo/bar", ok, `value="foo/bar"`},
 		// {"/r/gnoland/blog$help&func=NonExisting", ok, "NonExisting not found"}, // XXX(TODO)
-		{"/r/demo/users:administrator", ok, "address"},
-		{"/r/demo/users", ok, "moul"},
-		{"/r/demo/users/users.gno", ok, "// State"},
+		{"/r/gnoland/users/v1:archives", ok, "Address"},
+		{"/r/gnoland/users/v1", ok, "registry"},
+		{"/r/gnoland/users/v1/users.gno", ok, "reValidUsername"},
 		{"/r/demo/deep/very/deep", ok, "it works!"},
 		{"/r/demo/deep/very/deep?arg1=val1&arg2=val2", ok, "hi ?arg1=val1&amp;arg2=val2"},
 		{"/r/demo/deep/very/deep:bob", ok, "hi bob"},
@@ -47,6 +47,7 @@ func TestRoutes(t *testing.T) {
 		{"/game-of-realms", found, "/contribute"},
 		{"/gor", found, "/contribute"},
 		{"/blog", found, "/r/gnoland/blog"},
+		{"/r/docs/optional_render", http.StatusOK, "No Render"},
 		{"/r/not/found/", notFound, ""},
 		{"/404/not/found", notFound, ""},
 		{"/아스키문자가아닌경로", notFound, ""},
@@ -64,6 +65,7 @@ func TestRoutes(t *testing.T) {
 	}
 
 	rootdir := gnoenv.RootDir()
+	println(rootdir)
 	genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
 	config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewTestingLogger(t), config)
@@ -106,7 +108,7 @@ func TestAnalytics(t *testing.T) {
 		// Realm, source, help page
 		"/r/gnoland/blog",
 		"/r/gnoland/blog/admin.gno",
-		"/r/demo/users:administrator",
+		"/r/gnoland/users/v1",
 		"/r/gnoland/blog$help",
 
 		// Special pages

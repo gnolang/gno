@@ -24,6 +24,7 @@ import (
 // the first string is set to the new generated content of the file.
 func (opts *TestOptions) RunFiletest(filename string, source []byte) (string, error) {
 	opts.outWriter.w = opts.Output
+	opts.outWriter.errW = opts.Error
 
 	return opts.runFiletest(filename, source)
 }
@@ -63,6 +64,7 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 		Store:         opts.TestStore.BeginTransaction(cw, cw, nil),
 		Context:       ctx,
 		MaxAllocBytes: maxAlloc,
+		Debug:         opts.Debug,
 	})
 	defer m.Release()
 	result := opts.runTest(m, pkgPath, filename, source)
@@ -103,6 +105,11 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 		// The Error directive (and many others) will have one trailing newline,
 		// which is not in the output - so add it there.
 		match(errDirective, result.Error+"\n")
+	} else if result.Output != "" {
+		outputDirective := dirs.First(DirectiveOutput)
+		if outputDirective == nil {
+			return "", fmt.Errorf("unexpected output:\n%s", result.Output)
+		}
 	} else {
 		err = m.CheckEmpty()
 		if err != nil {

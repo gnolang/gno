@@ -2,7 +2,6 @@ package gnolang
 
 import (
 	"fmt"
-	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -54,7 +53,6 @@ type Store interface {
 	SetBlockNode(BlockNode)
 
 	// UNSTABLE
-	Go2GnoType(rt reflect.Type) Type
 	GetAllocator() *Allocator
 	NumMemPackages() int64
 	// Upon restart, all packages will be re-preprocessed; This
@@ -65,8 +63,8 @@ type Store interface {
 	GetMemFile(path string, name string) *gnovm.MemFile
 	IterMemPackage() <-chan *gnovm.MemPackage
 	ClearObjectCache()                                    // run before processing a message
-	SetNativeResolver(NativeResolver)                     // for "new" natives XXX
-	GetNative(pkgPath string, name Name) func(m *Machine) // for "new" natives XXX
+	SetNativeResolver(NativeResolver)                     // for native functions
+	GetNative(pkgPath string, name Name) func(m *Machine) // for native functions
 	SetLogStoreOps(enabled bool)
 	SprintStoreOps() string
 	LogSwitchRealm(rlmpath string) // to mark change of realm boundaries
@@ -137,9 +135,8 @@ type defaultStore struct {
 	alloc        *Allocator                     // for accounting for cached items
 
 	// store configuration; cannot be modified in a transaction
-	pkgGetter        PackageGetter         // non-realm packages
-	cacheNativeTypes map[reflect.Type]Type // reflect doc: reflect.Type are comparable
-	nativeResolver   NativeResolver        // for injecting natives
+	pkgGetter      PackageGetter  // non-realm packages
+	nativeResolver NativeResolver // for injecting natives
 
 	// transient
 	opslog  []StoreOp // for debugging and testing.
@@ -162,10 +159,9 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		cacheNodes:   txlog.GoMap[Location, BlockNode](map[Location]BlockNode{}),
 
 		// store configuration
-		pkgGetter:        nil,
-		cacheNativeTypes: make(map[reflect.Type]Type),
-		nativeResolver:   nil,
-		gasConfig:        DefaultGasConfig(),
+		pkgGetter:      nil,
+		nativeResolver: nil,
+		gasConfig:      DefaultGasConfig(),
 	}
 	InitStoreCaches(ds)
 	return ds
@@ -191,9 +187,8 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gasMe
 		alloc:        ds.alloc.Fork().Reset(),
 
 		// store configuration
-		pkgGetter:        ds.pkgGetter,
-		cacheNativeTypes: ds.cacheNativeTypes,
-		nativeResolver:   ds.nativeResolver,
+		pkgGetter:      ds.pkgGetter,
+		nativeResolver: ds.nativeResolver,
 
 		// gas meter
 		gasMeter:  gasMeter,
@@ -246,14 +241,12 @@ func CopyFromCachedStore(destStore, cachedStore Store, cachedBase, cachedIavl st
 		ds.iavlStore.Set(iter.Key(), iter.Value())
 	}
 
-	ss.cacheTypes.Iterate()(func(k TypeID, v Type) bool {
+	for k, v := range ss.cacheTypes.Iterate() {
 		ds.cacheTypes.Set(k, v)
-		return true
-	})
-	ss.cacheNodes.Iterate()(func(k Location, v BlockNode) bool {
+	}
+	for k, v := range ss.cacheNodes.Iterate() {
 		ds.cacheNodes.Set(k, v)
-		return true
-	})
+	}
 }
 
 func (ds *defaultStore) GetAllocator() *Allocator {
@@ -1028,7 +1021,7 @@ func InitStoreCaches(store Store) {
 		StringType, UntypedStringType,
 		IntType, Int8Type, Int16Type, Int32Type, Int64Type, UntypedRuneType,
 		UintType, Uint8Type, Uint16Type, Uint32Type, Uint64Type,
-		BigintType, UntypedBigintType,
+		UntypedBigintType,
 		gTypeType,
 		gPackageType,
 		blockType{},

@@ -63,7 +63,7 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/replace_with_module",
 			simulateExternalRepo: true,
-			stderrShouldContain:  "gno: downloading gno.land/p/demo/users",
+			stderrShouldContain:  "gno: downloading gno.land/p/demo/seqid",
 		},
 		{
 			args:                 []string{"mod", "download"},
@@ -211,6 +211,34 @@ func TestModApp(t *testing.T) {
 
 # gno.land/p/demo/avl
 valid.gno
+`,
+		},
+
+		// test `gno mod graph`
+		{
+			args:                 []string{"mod", "graph"},
+			testDir:              "../../tests/integ/minimalist_gnomod",
+			simulateExternalRepo: true,
+			stdoutShouldBe:       ``,
+		},
+		{
+			args:                 []string{"mod", "graph"},
+			testDir:              "../../tests/integ/valid1",
+			simulateExternalRepo: true,
+			stdoutShouldBe:       ``,
+		},
+		{
+			args:                 []string{"mod", "graph"},
+			testDir:              "../../tests/integ/valid2",
+			simulateExternalRepo: true,
+			stdoutShouldBe: `gno.land/p/integ/valid gno.land/p/demo/avl
+`,
+		},
+		{
+			args:                 []string{"mod", "graph"},
+			testDir:              "../../tests/integ/require_remote_module",
+			simulateExternalRepo: true,
+			stdoutShouldBe: `gno.land/tests/importavl gno.land/p/demo/avl
 `,
 		},
 	}
