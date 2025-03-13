@@ -44,5 +44,12 @@
   <!-- wallet integrations -->
   <meta name="gnoconnect:rpc" content="{{ .Remote }}" />
   <meta name="gnoconnect:chainid" content="{{ .ChainId }}" />
+
+  <!-- color Scheme Support -->
+  <meta name="color-scheme" content="light dark" />
+
+  <!-- mobile Theme Color -->
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
 </head>
 {{ end }}

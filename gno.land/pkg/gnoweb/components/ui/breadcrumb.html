@@ -2,18 +2,18 @@
   <form
     method="GET"
     action=""
-    class=" p-0 peer-focus-within:hidden flex bg-gray-100 after:absolute after:w-full after:top-0 after:left-0 after:h-full after:block after:bg-gray-100 after:pointer-events-none"
+    class=" p-0 peer-focus-within:hidden flex bg-gray-100 dark:bg-gray-d100 after:absolute after:w-full after:top-0 after:left-0 after:h-full after:block after:bg-gray-100 dark:after:bg-gray-d100 after:pointer-events-none"
   >
     <ol
       data-role="header-breadcrumb-search"
-      class="flex leading-snug text-gray-800 font-semibold"
+      class="flex leading-snug text-gray-800 dark:text-gray-d800 font-semibold"
     >
       <!-- Path Part -->
       {{- range $index, $part := .Parts }}
         <li
           class="{{ if $index }}
             flex z-1 before:content-['/'] before:px-[0.18rem] before:pt-0.5
-            before:leading-normal before:text-gray-400 whitespace-nowrap
+            before:leading-normal before:text-gray-400 dark:text-gray-d400 whitespace-nowrap
           {{ else }}
             z-1 whitespace-nowrap
           {{ end }}"
@@ -22,8 +22,8 @@
             class="{{ if eq $index 0 }}
               pointer-events-none
             {{ else }}
-              hover:bg-green-600
-            {{ end }} border border-transparent hover:text-light bg-light inline-block rounded-sm p-0.5 min-w-4 text-center"
+              hover:bg-green-600 dark:hover:bg-green-d600
+            {{ end }} border border-transparent hover:text-light dark:hover:text-dark bg-light dark:bg-dark inline-block rounded-sm p-0.5 min-w-4 text-center"
             href="{{ $part.URL }}"
           >
             {{ $part.Name }}
@@ -61,15 +61,15 @@
             before:content-['?']
           {{ else }}
             before:content-['&']
-          {{ end }} before:px-[0.18rem] before:pt-0.5 before:leading-normal before:text-gray-400 whitespace-nowrap"
+          {{ end }} before:px-[0.18rem] before:pt-0.5 before:leading-normal before:text-gray-400 dark:before:text-gray-d400 whitespace-nowrap"
         >
           <label
             for="{{ $query.Key }}"
-            class="relative w-full h-full text-gray-600 border focus-within:border-gray-400 hover:border-gray-400 bg-gray-50 inline-flex rounded-sm py-0.5 px-1 min-w-4 text-center cursor-text"
+            class="relative w-full h-full text-gray-600 dark:text-gray-d600 border focus-within:border-gray-400 dark:focus-within:border-gray-d400 hover:border-gray-400 dark:hover:border-gray-d400 bg-gray-50 dark:bg-gray-d50 inline-flex rounded-sm py-0.5 px-1 min-w-4 text-center cursor-text"
           >
             <span class="">{{ $query.Key }}=</span>
             <input
-              class="peer field-content focus:opacity-100 w-0 focus:w-min focus-no-field-sizing:w-20 opacity-0 outline-none bg-gray-50 order-3"
+              class="peer field-content focus:opacity-100 w-0 focus:w-min focus-no-field-sizing:w-20 opacity-0 outline-none bg-gray-50 dark:bg-gray-d50 order-3"
               type="text"
               id="{{ $query.Key }}"
               name="{{ $query.Key }}"

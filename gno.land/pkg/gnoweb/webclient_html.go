@@ -1,6 +1,7 @@
 package gnoweb
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -23,7 +24,10 @@ import (
 	"github.com/yuin/goldmark/text"
 )
 
-var chromaDefaultStyle = styles.Get("friendly")
+var (
+	chromaDefaultStyle = styles.Get("friendly")
+	chromaDarkStyle    = styles.Get("github-dark")
+)
 
 type HTMLWebClientConfig struct {
 	Domain            string
@@ -281,5 +285,20 @@ func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) e
 }
 
 func (s *HTMLWebClient) WriteFormatterCSS(w io.Writer) error {
-	return s.Formatter.WriteCSS(w, s.chromaStyle)
+	s.Formatter.WriteCSS(w, s.chromaStyle)
+
+	// Generate CSS for dark mode
+	var darkCSS strings.Builder
+	s.Formatter.WriteCSS(&darkCSS, chromaDarkStyle)
+
+	scanner := bufio.NewScanner(strings.NewReader(darkCSS.String()))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, ".chroma") {
+			line = ".dark " + strings.TrimSpace(line)
+		}
+		fmt.Fprintln(w, line)
+	}
+
+	return scanner.Err()
 }

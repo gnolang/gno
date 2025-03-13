@@ -1,5 +1,5 @@
 {{ define "layouts/header" }}
-  <header class="main-header sticky top-0 bg-light border-b text-100 z-max">
+  <header class="main-header sticky top-0 bg-light dark:bg-dark border-b text-100 z-max">
     <nav
       aria-label="Realm navigation"
       class="max-w-screen-max mx-auto px-4 md:px-10 grid grid-cols-10 grid-flow-dense gap-4 md:gap-x-8 lg:gap-x-20 xxl:gap-x-32 items-center"
@@ -9,24 +9,31 @@
       >
         <a
           href="/"
-          class="rounded border border-gray-100 cursor-pointer h-10 w-10 shrink-0"
+          class="rounded border border-gray-100 dark:border-gray-d100  h-10 w-10 shrink-0"
         >
           <img
             src="/public/imgs/gnoland.svg"
+            class="dark:hidden"
             alt="Gno username profile pic"
             width="40px"
             height="40px"
           />
+          <img
+            src="/public/imgs/gnoland-dark.svg"
+            class="hidden dark:block"
+            alt="Gno username profile dark pic"
+            width="40px"
+            height="40px"
+          />
         </a>
-
         <div
-          class="relative w-full h-full overflow-scroll no-scrollbar text-gray-100 has-[[data-role='header-input-search']:focus-within]:text-gray-50"
+          class="relative w-full h-full overflow-scroll no-scrollbar text-gray-100 dark:text-gray-d100 has-[[data-role='header-input-search']:focus-within]:text-gray-50 dark:has-[[data-role='header-input-search']:focus-within]:text-gray-d50"
         >
           <div
-            class="relative overflow-scroll no-scrollbar md:pr-8 flex items-center bg-current has-[[data-role='header-input-search']:focus-within]:border-gray-300 border h-full border-gray-100 px-1.5 py-0 rounded"
+            class="relative overflow-scroll no-scrollbar md:pr-8 flex items-center bg-current has-[[data-role='header-input-search']:focus-within]:border-gray-300 dark:has-[[data-role='header-input-search']:focus-within]:border-gray-d300 border h-full border-gray-100 dark:border-gray-d100 px-1.5 py-0 rounded"
           >
             <form
-              class="js-header-searchbar peer absolute w-full h-full top-0 left-0 p-1.5 md:pr-8 text-200 text-gray-600 font-medium"
+              class="js-header-searchbar peer absolute w-full h-full top-0 left-0 p-1.5 md:pr-8 text-200 text-gray-600 dark:text-gray-d600 font-medium"
             >
               <label for="header-input-search" class="sr-only">
                 gno.land Search
@@ -52,7 +59,7 @@
             role="button"
             aria-controls="network-info-popup"
           >
-            <svg class="w-5 h-5 text-gray-400 hover:text-gray-600">
+            <svg class="w-5 h-5 text-gray-400 hover:text-gray-600 dark:text-gray-d400 dark:hover:text-gray-d600">
               <title>Network Info</title>
               <use href="#ico-earth"></use>
             </svg>
@@ -76,17 +83,17 @@
             aria-modal="true"
           >
             <div
-              class="px-4 py-2 w-72 fixed -translate-x-full rounded bg-light border border-gray-100"
+              class="px-4 py-2 w-72 fixed -translate-x-full rounded bg-light dark:bg-dark border border-gray-100 dark:border-gray-d100"
             >
               <div class="w-full flex justify-between items-center pb-3">
                 <span
                   id="network-info-title"
-                  class="text-gray-600 text-100 font-semibold"
+                  class="text-gray-600 dark:text-gray-600 text-100 font-semibold"
                   >Network Info</span
                 >
                 <label
                   for="searchbar-server-popup-toggle"
-                  class="absolute right-3 text-gray-400 hover:text-gray-900 cursor-pointer"
+                  class="absolute right-3 text-gray-400 hover:text-gray-900 dark:text-gray-d400 dark:hover:text-gray-d900 cursor-pointer"
                   tabindex="0"
                   role="button"
                   aria-label="Close popup"
@@ -97,7 +104,7 @@
                   </svg>
                 </label>
               </div>
-              <div class="flex gap-1 items-start w-full py-2 text-gray-400">
+              <div class="flex gap-1 items-start w-full py-2 text-gray-400 dark:text-gray-d400">
                 <svg class="w-4 h-4" aria-hidden="true">
                   <use href="#ico-chain"></use>
                 </svg>
@@ -124,10 +131,24 @@
         </div>
       </div>
 
-      <form
-        class="sidemenu col-span-3 flex justify-end lg:justify-start gap-3 sm:gap-6 h-full text-100 text-gray-400"
-      >
-        {{ range .Links }}{{ template "ui/header_link" . }}{{ end }}
+      <form 
+        class="sidemenu col-span-3 flex justify-end lg:justify-start gap-3 sm:gap-6 h-full text-100 text-gray-400 dark:text-gray-d400"
+      >  
+        <!-- Theme Toggle Button -->
+        <button 
+        type="button" 
+        class="js-theme-toggle flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-d100 self-center"
+        aria-label="Toggle dark mode"
+        >
+          <svg class="w-5 h-5 text-gray-800 dark:hidden">
+            <use href="#ico-moon"></use>
+          </svg>
+          <svg class="w-5 h-5 text-gray-d800 hidden dark:block">
+            <use href="#ico-sun"></use>
+          </svg>
+        </button>
+        
+        {{ range .Links }} {{ template "ui/header_link" . }} {{ end }}
       </form>
     </nav>
   </header>
