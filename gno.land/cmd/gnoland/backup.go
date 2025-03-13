@@ -13,7 +13,7 @@ import (
 	backup "github.com/gnolang/gno/tm2/pkg/bft/node/backuppb"
 	"github.com/gnolang/gno/tm2/pkg/bft/node/backuppb/backupconnect"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/ulikunitz/xz"
+	"github.com/klauspost/compress/zstd"
 )
 
 type backupCfg struct {
@@ -71,29 +71,30 @@ func execBackup(ctx context.Context, c *backupCfg, io commands.IO) error {
 	height := 1
 	chunkStart := height
 
-	latestFP := filepath.Join(outdir, "latest.tar.xz")
+	latestFP := filepath.Join(outdir, "latest.tar.zst")
 	outFile, err := os.OpenFile(latestFP, os.O_RDWR|os.O_TRUNC|os.O_CREATE, 0o664)
 	if err != nil {
 		return err
 	}
-	xzw, err := xz.NewWriter(outFile)
+	zstw, err := zstd.NewWriter(outFile)
 	if err != nil {
 		return err
 	}
-	w := tar.NewWriter(xzw)
+	w := tar.NewWriter(zstw)
 
 	finalizeChunk := func(last bool) error {
 		if err := w.Close(); err != nil {
 			return err
 		}
-		if err := xzw.Close(); err != nil {
+		if err := zstw.Close(); err != nil {
 			return err
 		}
 		if err := outFile.Close(); err != nil {
 			return err
 		}
 
-		if err := os.Rename(latestFP, filepath.Join(outdir, fmt.Sprintf("%d-%d.tm2blocks.tar.xz", chunkStart, height-1))); err != nil {
+		chunkFP := filepath.Join(outdir, fmt.Sprintf("%019d-%019d.tm2blocks.tar.zst", chunkStart, height-1))
+		if err := os.Rename(latestFP, chunkFP); err != nil {
 			return err
 		}
 
@@ -107,11 +108,11 @@ func execBackup(ctx context.Context, c *backupCfg, io commands.IO) error {
 		if err != nil {
 			return err
 		}
-		xzw, err = xz.NewWriter(outFile)
+		zstw, err = zstd.NewWriter(outFile)
 		if err != nil {
 			return err
 		}
-		w = tar.NewWriter(xzw)
+		w = tar.NewWriter(zstw)
 
 		chunkStart = height
 
