@@ -12,20 +12,18 @@ import (
 	_ "gno.land/r/gov/dao/init" // so that the govdao initializer is executed
 )
 
-const (
-	registerMinFee int64 = 20 * 1_000_000 // minimum gnot must be paid to register.
-	proposalMinFee int64 = 100 * 1_000_000
-
-	moniker     string = "moniker"
-	description string = "description"
-	pubKey             = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p"
-)
-
-var (
-	test1Address = testutils.TestAddress("test1")
-)
-
 func TestValopers_ProposeNewValidator(t *testing.T) {
+	const (
+		registerMinFee int64 = 20 * 1_000_000 // minimum gnot must be paid to register.
+		proposalMinFee int64 = 100 * 1_000_000
+
+		moniker     string = "moniker"
+		description string = "description"
+		pubKey             = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p"
+	)
+
+	test1Address := testutils.TestAddress("test1")
+
 	t.Run("remove an unexisting validator", func(t *testing.T) {
 		// Send coins to be able to register a valoper
 		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)}, nil)
@@ -124,6 +122,8 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 }
 
 func TestValopers_ProposeNewInstructions(t *testing.T) {
+	const proposalMinFee int64 = 100 * 1_000_000
+
 	newInstructions := "new instructions"
 	description := ufmt.Sprintf("Update the instructions to: \n\n%s", newInstructions)
 
@@ -148,6 +148,7 @@ func TestValopers_ProposeNewInstructions(t *testing.T) {
 }
 
 func TestValopers_ProposeNewMinFee(t *testing.T) {
+	const proposalMinFee int64 = 100 * 1_000_000
 	newMinFee := int64(10)
 	description := ufmt.Sprintf("Update the minimum register fee to: %d ugnot", newMinFee)
 

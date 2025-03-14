@@ -35,12 +35,12 @@ func ProposeNewValidator(address std.Address) {
 		votingPower = uint64(0)
 	}
 
-  if exist {
-    validator := validators.GetValidator(address)
-    if validator.VotingPower == votingPower && validator.PubKey == valoper.PubKey {
-      panic(ErrSameValues)
-    }
-  }
+	if exist {
+		validator := validators.GetValidator(address)
+		if validator.VotingPower == votingPower && validator.PubKey == valoper.PubKey {
+			panic(ErrSameValues)
+		}
+	}
 
 	changesFn := func() []pVals.Validator {
 		return []pVals.Validator{
