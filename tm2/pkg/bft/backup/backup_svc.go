@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -29,7 +30,7 @@ func NewServer(conf *Config, store blockStore) *http.Server {
 	mux := http.NewServeMux()
 	path, handler := backuppbconnect.NewBackupServiceHandler(backupServ)
 	mux.Handle(path, handler)
-	return &http.Server{Addr: conf.ListenAddress, Handler: h2c.NewHandler(mux, &http2.Server{})}
+	return &http.Server{Addr: conf.ListenAddress, Handler: h2c.NewHandler(mux, &http2.Server{}), ReadHeaderTimeout: time.Second * 5}
 }
 
 type backupServer struct {
