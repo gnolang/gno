@@ -55,5 +55,5 @@ func TestUpdateMinFee(t *testing.T) {
 		updateMinFee(newMinFee)
 	})
 
-	uassert.Equal(t, newMinFee, minFee)
+	uassert.Equal(t, newMinFee, minFee.Amount)
 }

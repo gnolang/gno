@@ -34,10 +34,9 @@ var (
 )
 
 var (
-	valopers     *avl.Tree                  // valopers keeps track of all the valoper profiles. Address -> Valoper
-	instructions string                     // markdown instructions for valoper's registration
-	minFee       int64     = 20 * 1_000_000 // minimum gnot must be paid to register.
-	minCoin                = std.NewCoin("ugnot", minFee)
+	valopers     *avl.Tree                            // valopers keeps track of all the valoper profiles. Address -> Valoper
+	instructions string                               // markdown instructions for valoper's registration
+	minFee       = std.NewCoin("ugnot", 20*1_000_000) // minimum gnot must be paid to register.
 
 	monikerMaxLengthMiddle     = ufmt.Sprintf("%d", MonikerMaxLength-2)
 	validateMonikerRe          = regexp.MustCompile(`^[a-zA-Z0-9][\w -]{0,` + monikerMaxLengthMiddle + `}[a-zA-Z0-9]$`) // 32 characters, including spaces, hyphens or underscores in the middle
@@ -257,10 +256,10 @@ func isValoper(address std.Address) bool {
 func validateSentCoins() error {
 	sentCoins := std.OriginSend()
 
-	if len(sentCoins) == 1 && sentCoins[0].IsGTE(minCoin) {
+	if len(sentCoins) == 1 && sentCoins[0].IsGTE(minFee) {
 		return nil
 	}
-	return errors.New("payment must not be less than " + strconv.Itoa(int(minFee)))
+	return errors.New("payment must not be less than " + strconv.Itoa(int(minFee.Amount)))
 }
 
 // validateMoniker checks if the moniker is valid

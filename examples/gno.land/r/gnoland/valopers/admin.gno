@@ -27,8 +27,7 @@ func updateInstructions(newInstructions string) {
 
 func updateMinFee(newMinFee int64) {
 	err := auth.Do("update-min-fee", func() error {
-		minFee = newMinFee
-		minCoin = std.NewCoin("ugnot", minFee)
+		minFee = std.NewCoin("ugnot", newMinFee)
 		return nil
 	})
 
