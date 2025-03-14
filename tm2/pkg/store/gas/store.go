@@ -1,6 +1,8 @@
 package gas
 
 import (
+	"sync"
+
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/gnolang/gno/tm2/pkg/store/utils"
@@ -14,6 +16,7 @@ type Store struct {
 	gasMeter  types.GasMeter
 	gasConfig types.GasConfig
 	parent    types.Store
+	mux       sync.Mutex
 }
 
 // New returns a reference to a new GasStore.
@@ -28,6 +31,9 @@ func New(parent types.Store, gasMeter types.GasMeter, gasConfig types.GasConfig)
 
 // Implements Store.
 func (gs *Store) Get(key []byte) (value []byte) {
+	gs.mux.Lock()
+	defer gs.mux.Unlock()
+
 	gs.gasMeter.ConsumeGas(gs.gasConfig.ReadCostFlat, types.GasReadCostFlatDesc)
 	value = gs.parent.Get(key)
 
@@ -39,6 +45,9 @@ func (gs *Store) Get(key []byte) (value []byte) {
 
 // Implements Store.
 func (gs *Store) Set(key []byte, value []byte) {
+	gs.mux.Lock()
+	defer gs.mux.Unlock()
+
 	types.AssertValidValue(value)
 	gs.gasMeter.ConsumeGas(gs.gasConfig.WriteCostFlat, types.GasWriteCostFlatDesc)
 
@@ -49,12 +58,18 @@ func (gs *Store) Set(key []byte, value []byte) {
 
 // Implements Store.
 func (gs *Store) Has(key []byte) bool {
+	gs.mux.Lock()
+	defer gs.mux.Unlock()
+
 	gs.gasMeter.ConsumeGas(gs.gasConfig.HasCost, types.GasHasDesc)
 	return gs.parent.Has(key)
 }
 
 // Implements Store.
 func (gs *Store) Delete(key []byte) {
+	gs.mux.Lock()
+	defer gs.mux.Unlock()
+
 	// charge gas to prevent certain attack vectors even though space is being freed
 	gs.gasMeter.ConsumeGas(gs.gasConfig.DeleteCost, types.GasDeleteDesc)
 	gs.parent.Delete(key)
@@ -64,6 +79,9 @@ func (gs *Store) Delete(key []byte) {
 // incurs a flat gas cost for seeking to the first key/value pair and a variable
 // gas cost based on the current value's length if the iterator is valid.
 func (gs *Store) Iterator(start, end []byte) types.Iterator {
+	gs.mux.Lock()
+	defer gs.mux.Unlock()
+
 	return gs.iterator(start, end, true)
 }
 
@@ -72,6 +90,9 @@ func (gs *Store) Iterator(start, end []byte) types.Iterator {
 // and a variable gas cost based on the current value's length if the iterator
 // is valid.
 func (gs *Store) ReverseIterator(start, end []byte) types.Iterator {
+	gs.mux.Lock()
+	defer gs.mux.Unlock()
+
 	return gs.iterator(start, end, false)
 }
 
