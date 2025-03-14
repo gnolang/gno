@@ -31,4 +31,4 @@ func main() {
 }
 
 // Error:
-// reply with ID: 2 was hidden
+// reply is hidden

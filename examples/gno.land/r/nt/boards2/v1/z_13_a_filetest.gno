@@ -26,7 +26,7 @@ func main() {
 
 	// Render content must contain a message about the hidden reply
 	content := boards2.Render("test-board/1/2")
-	println(strings.Contains(content, "\n> _Reply is hidden as it has been flagged as inappropriate_\n"))
+	println(strings.Contains(content, "\n> _⚠ Reply is hidden as it has been flagged as inappropriate_\n"))
 }
 
 // Output:

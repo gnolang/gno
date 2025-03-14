@@ -12,22 +12,22 @@ const (
 )
 
 var (
-	srcBid boards2.BoardID
-	dstBid boards2.BoardID
-	srcTid boards2.PostID
+	srcBID boards2.BoardID
+	dstBID boards2.BoardID
+	srcTID boards2.PostID
 )
 
 func init() {
 	std.TestSetOriginCaller(owner)
-	srcBid = boards2.CreateBoard("src-board")
-	dstBid = boards2.CreateBoard("dst-board")
+	srcBID = boards2.CreateBoard("src-board")
+	dstBID = boards2.CreateBoard("dst-board")
 
-	srcTid = boards2.CreateThread(srcBid, "Foo", "bar")
+	srcTID = boards2.CreateThread(srcBID, "Foo", "bar")
 	std.TestSetOriginCaller(user)
 }
 
 func main() {
-	_ = boards2.CreateRepost(srcBid, srcTid, "foo", "bar", dstBid)
+	boards2.CreateRepost(srcBID, srcTID, "foo", "bar", dstBID)
 }
 
 // Error:

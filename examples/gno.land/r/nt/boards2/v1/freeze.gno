@@ -24,11 +24,11 @@ func (args freezeArgs) getReply() (*Post, *Board) {
 	assertBoardIsNotFrozen(board)
 
 	thread := mustGetThread(board, args.threadID)
-	assertThreadVisible(thread)
+	assertThreadIsVisible(thread)
 	assertThreadIsNotFrozen(thread)
 
 	reply := mustGetReply(thread, args.replyID)
-	assertReplyVisible(reply)
+	assertReplyIsVisible(reply)
 	return reply, board
 }
 

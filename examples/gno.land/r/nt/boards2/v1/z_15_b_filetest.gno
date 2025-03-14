@@ -9,20 +9,20 @@ import (
 const owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 
 var (
-	srcBid boards2.BoardID
-	dstBid boards2.BoardID
-	srcTid boards2.PostID = 1024
+	srcBID boards2.BoardID
+	dstBID boards2.BoardID
+	srcTID boards2.PostID = 1024
 )
 
 func init() {
 	std.TestSetOriginCaller(owner)
-	srcBid = boards2.CreateBoard("src-board")
-	dstBid = boards2.CreateBoard("dst-board")
+	srcBID = boards2.CreateBoard("src-board")
+	dstBID = boards2.CreateBoard("dst-board")
 }
 
 func main() {
 	// Repost should fail if source thread doesn't exist
-	_ = boards2.CreateRepost(srcBid, srcTid, "foo", "bar", dstBid)
+	boards2.CreateRepost(srcBID, srcTID, "foo", "bar", dstBID)
 }
 
 // Error:

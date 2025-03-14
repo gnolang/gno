@@ -35,7 +35,7 @@ func main() {
 
 	// Render content must contains thread's title and body
 	content := boards2.Render(path)
-	println(strings.HasPrefix(content, "# "+title))
+	println(strings.HasPrefix(content, "## "+title))
 	println(strings.Contains(content, body))
 }
 

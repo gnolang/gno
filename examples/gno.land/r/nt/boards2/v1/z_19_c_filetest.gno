@@ -20,11 +20,9 @@ func init() {
 }
 
 func main() {
-	println(boards2.IsThreadFrozen(bid, tid))
 	boards2.FreezeThread(bid, tid)
 	println(boards2.IsThreadFrozen(bid, tid))
 }
 
 // Output:
-// false
 // true

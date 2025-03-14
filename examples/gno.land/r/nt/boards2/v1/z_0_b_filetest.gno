@@ -17,4 +17,4 @@ func main() {
 }
 
 // Error:
-// name is empty
+// board name is empty
