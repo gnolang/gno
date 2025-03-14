@@ -848,7 +848,7 @@ func getChildObjects(val Value, more []Value) []Value {
 	switch cv := val.(type) {
 	case nil:
 		return more
-	case StringValue:
+	case *StringValue:
 		return more
 	case BigintValue:
 		return more
@@ -1101,7 +1101,7 @@ func copyValueWithRefs(val Value) Value {
 	switch cv := val.(type) {
 	case nil:
 		return nil
-	case StringValue:
+	case *StringValue:
 		return cv
 	case BigintValue:
 		return cv
@@ -1366,7 +1366,7 @@ func fillTypesOfValue(store Store, val Value) Value {
 	switch cv := val.(type) {
 	case nil: // do nothing
 		return cv
-	case StringValue: // do nothing
+	case *StringValue: // do nothing
 		return cv
 	case BigintValue: // do nothing
 		return cv
@@ -1545,7 +1545,7 @@ func ensureUniq(oozz ...[]Object) {
 	for _, ooz := range oozz {
 		for _, uo := range ooz {
 			if _, ok := om[uo]; ok {
-				panic("duplicate object")
+				panic(fmt.Sprintf("duplicate object: %v", uo))
 			} else {
 				om[uo] = struct{}{}
 			}

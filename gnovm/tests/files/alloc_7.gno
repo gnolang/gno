@@ -1,0 +1,18 @@
+// MAXALLOC: 100000000
+package main
+
+import "runtime"
+
+var s = "hello world"
+
+//const s2 = "abcd"
+
+func main() {
+	s += "!" // underlying array changes
+	s1 := s  //  another string value, underlying array same
+	runtime.GC()
+	println("MemStats: ", runtime.MemStats())
+}
+
+// Output:
+// MemStats:  Allocator{maxBytes:100000000, bytes:4500}

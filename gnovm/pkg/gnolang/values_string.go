@@ -49,8 +49,8 @@ func newSeenValues() *seenValues {
 	return &seenValues{values: make([]Value, 0, defaultSeenValuesSize)}
 }
 
-func (v StringValue) String() string {
-	return strconv.Quote(string(v))
+func (v *StringValue) String() string {
+	return strconv.Quote(v.s)
 }
 
 func (bv BigintValue) String() string {

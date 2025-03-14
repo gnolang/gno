@@ -1,14 +1,19 @@
 package gnolang
 
-import "reflect"
+import (
+	"fmt"
+	"reflect"
+)
 
 // Keeps track of in-memory allocations.
 // In the future, allocations within realm boundaries will be
 // (optionally?) condensed (objects to be GC'd will be discarded),
 // but for now, allocations strictly increment across the whole tx.
 type Allocator struct {
-	maxBytes int64
-	bytes    int64
+	m          *Machine
+	maxBytes   int64
+	bytes      int64
+	visitCount int64 // times objects are visited for gc
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -21,16 +26,19 @@ const (
 	// gno types
 	_allocSlice            = 24
 	_allocPointerValue     = 40
-	_allocStructValue      = 152
-	_allocArrayValue       = 176
+	_allocStringValue      = 24
+	_allocStructValue      = 160
+	_allocArrayValue       = 184
 	_allocSliceValue       = 40
-	_allocFuncValue        = 136
-	_allocMapValue         = 144
-	_allocBoundMethodValue = 176
-	_allocBlock            = 464
+	_allocFuncValue        = 196
+	_allocMapValue         = 152
+	_allocBoundMethodValue = 184
+	_allocBlock            = 480
+	_allocPackageValue     = 248
 	_allocNativeValue      = 48
 	_allocTypeValue        = 16
 	_allocTypedValue       = 40
+	_allocRefValue         = 72
 	_allocBigint           = 200 // XXX
 	_allocBigdec           = 200 // XXX
 	_allocType             = 200 // XXX
@@ -38,7 +46,7 @@ const (
 )
 
 const (
-	allocString      = _allocBase
+	allocString      = _allocBase + _allocPointer + _allocStringValue
 	allocStringByte  = 1
 	allocBigint      = _allocBase + _allocPointer + _allocBigint
 	allocBigintByte  = 1
@@ -57,20 +65,30 @@ const (
 	allocBlock       = _allocBase + _allocPointer + _allocBlock
 	allocBlockItem   = _allocTypedValue
 	allocNative      = _allocBase + _allocPointer + _allocNativeValue
+	allocRefValue    = _allocBase + +_allocRefValue
 	allocType        = _allocBase + _allocPointer + _allocType
-	// allocDataByte    = 1
-	// allocPackge = 1
-	allocAmino     = _allocBase + _allocPointer + _allocAny
-	allocAminoByte = 10 // XXX
-	allocHeapItem  = _allocBase + _allocPointer + _allocTypedValue
+	allocDataByte    = 1
+	allocPackage     = _allocBase + _allocPointer + _allocPackageValue
+	allocAmino       = _allocBase + _allocPointer + _allocAny
+	allocAminoByte   = 10 // XXX
+	allocHeapItem    = _allocBase + _allocPointer + _allocTypedValue
 )
 
-func NewAllocator(maxBytes int64) *Allocator {
+func NewAllocator(maxBytes int64, m *Machine) *Allocator {
 	if maxBytes == 0 {
 		return nil
 	}
 	return &Allocator{
 		maxBytes: maxBytes,
+		m:        m,
+	}
+}
+
+func (alloc *Allocator) MemStats() string {
+	if alloc == nil {
+		return "nil allocator"
+	} else {
+		return fmt.Sprintf("Allocator{maxBytes:%d, bytes:%d}", alloc.maxBytes, alloc.bytes)
 	}
 }
 
@@ -104,7 +122,17 @@ func (alloc *Allocator) Allocate(size int64) {
 
 	alloc.bytes += size
 	if alloc.bytes > alloc.maxBytes {
-		panic("allocation limit exceeded")
+		if left, ok := alloc.m.GarbageCollect(); !ok {
+			panic("should not happen, allocation limit exceeded while gc.")
+		} else { // retry
+			if debug {
+				debug.Printf("%d left after GC, required size: %d\n", left, size)
+			}
+			alloc.bytes += size
+			if alloc.bytes > alloc.maxBytes {
+				panic("allocation limit exceeded")
+			}
+		}
 	}
 }
 
@@ -188,9 +216,9 @@ func (alloc *Allocator) AllocateHeapItem() {
 //----------------------------------------
 // constructor utilities.
 
-func (alloc *Allocator) NewString(s string) StringValue {
+func (alloc *Allocator) NewString(s string) *StringValue {
 	alloc.AllocateString(int64(len(s)))
-	return StringValue(s)
+	return &StringValue{s: s}
 }
 
 func (alloc *Allocator) NewListArray(n int) *ArrayValue {
@@ -314,4 +342,87 @@ func (alloc *Allocator) NewType(t Type) Type {
 func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 	alloc.AllocateHeapItem()
 	return &HeapItemValue{Value: tv}
+}
+
+// -----------------------------------------------
+
+func (pv *PackageValue) GetShallowSize() int64 {
+	return allocPackage
+}
+
+func (b *Block) GetShallowSize() int64 {
+	return allocBlock
+}
+
+func (av *ArrayValue) GetShallowSize() int64 {
+	return allocArray
+}
+
+func (sv *StructValue) GetShallowSize() int64 {
+	return allocStruct
+}
+
+func (mv *MapValue) GetShallowSize() int64 {
+	return allocMap
+}
+
+func (bmv *BoundMethodValue) GetShallowSize() int64 {
+	return allocBoundMethod
+}
+
+func (hiv *HeapItemValue) GetShallowSize() int64 {
+	return allocHeapItem
+}
+
+func (rv RefValue) GetShallowSize() int64 {
+	return allocRefValue
+}
+
+func (pv PointerValue) GetShallowSize() int64 {
+	return allocPointer
+}
+
+func (sv *SliceValue) GetShallowSize() int64 {
+	return allocSlice
+}
+
+// Only count for closures.
+func (fv *FuncValue) GetShallowSize() int64 {
+	if fv.isClosure {
+		return allocFunc
+	}
+	return 0
+}
+
+// NOTE: Not always shallow. If the underlying data of the String
+// is newly allocated, include its size in the count. If it's reused,
+// do not count its size.
+func (sv *StringValue) GetShallowSize() int64 {
+	if sv.isNewBase {
+		sv.isNewBase = false // mark no longer new
+		return allocString + allocStringByte*int64(len(sv.s))
+	}
+	return allocString
+}
+
+func (nv *NativeValue) GetShallowSize() int64 {
+	return allocNative
+}
+
+func (bv BigintValue) GetShallowSize() int64 {
+	return allocBigint
+}
+
+func (bv BigdecValue) GetShallowSize() int64 {
+	return allocBigdec
+}
+
+func (dbv DataByteValue) GetShallowSize() int64 {
+	return allocDataByte
+}
+
+// Do not count during recalculation,
+// as the type should  pre-exist.
+func (tv TypeValue) GetShallowSize() int64 {
+	return 0
 }

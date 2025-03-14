@@ -20,15 +20,17 @@ import (
 type Value interface {
 	assertValue()
 	String() string // for debugging
+	GetShallowSize() int64
+	VisitAssociated(tr Visitor) (stop bool) // for GC
 }
 
 // Fixed size primitive types are represented in TypedValue.N
 // for performance.
-func (StringValue) assertValue()       {}
 func (BigintValue) assertValue()       {}
 func (BigdecValue) assertValue()       {}
 func (DataByteValue) assertValue()     {}
 func (PointerValue) assertValue()      {}
+func (*StringValue) assertValue()      {}
 func (*ArrayValue) assertValue()       {}
 func (*SliceValue) assertValue()       {}
 func (*StructValue) assertValue()      {}
@@ -48,7 +50,7 @@ const (
 )
 
 var (
-	_ Value = StringValue("")
+	_ Value = &StringValue{s: ""}
 	_ Value = BigintValue{}
 	_ Value = BigdecValue{}
 	_ Value = DataByteValue{}
@@ -70,7 +72,23 @@ var (
 // ----------------------------------------
 // StringValue
 
-type StringValue string
+type StringValue struct {
+	s         string
+	isNewBase bool // if the underlying data is new allocated or not.
+}
+
+func NewStringValue(s string) *StringValue {
+	return &StringValue{s: s}
+}
+
+func (sv StringValue) MarshalAmino() (string, error) {
+	return sv.s, nil
+}
+
+func (sv *StringValue) UnmarshalAmino(s string) error {
+	sv.s = s
+	return nil
+}
 
 // ----------------------------------------
 // BigintValue
@@ -552,6 +570,7 @@ type FuncValue struct {
 
 	body       []Stmt         // function body
 	nativeBody func(*Machine) // alternative to Body
+	isClosure  bool
 }
 
 func (fv *FuncValue) IsNative() bool {
@@ -1165,7 +1184,7 @@ func (tv *TypedValue) GetBool() bool {
 	return *(*bool)(unsafe.Pointer(&tv.N))
 }
 
-func (tv *TypedValue) SetString(s StringValue) {
+func (tv *TypedValue) SetString(s *StringValue) {
 	if debug {
 		if tv.T.Kind() != StringKind || isNative(tv.T) {
 			panic(fmt.Sprintf(
@@ -1187,7 +1206,7 @@ func (tv *TypedValue) GetString() string {
 	if tv.V == nil {
 		return ""
 	}
-	return string(tv.V.(StringValue))
+	return tv.V.(*StringValue).s
 }
 
 func (tv *TypedValue) SetInt(n int) {
@@ -2107,8 +2126,8 @@ func (tv *TypedValue) GetLength() int {
 		}
 	}
 	switch cv := tv.V.(type) {
-	case StringValue:
-		return len(cv)
+	case *StringValue:
+		return len(cv.s)
 	case *ArrayValue:
 		return cv.GetLength()
 	case *SliceValue:
@@ -2673,7 +2692,7 @@ func typedRune(r rune) TypedValue {
 // NOTE: does not allocate; used for panics.
 func typedString(s string) TypedValue {
 	tv := TypedValue{T: StringType}
-	tv.V = StringValue(s)
+	tv.V = &StringValue{s: s}
 	return tv
 }
 
