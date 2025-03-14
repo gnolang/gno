@@ -21,13 +21,6 @@ type Value interface {
 	assertValue()
 	String() string // for debugging
 	GetShallowSize() int64
-	// Visit visits all reachable associated values.
-	// It is used primarily for GC.
-	// The caller must provide a callback visitor
-	// which knows how to break cycles, otherwise
-	// the Visit function may recurse infinitely.
-	// (the GC does this with GCCycle)
-	// It does not call the visitor on itself.
 	VisitAssociated(tr Visitor) (stop bool) // for GC
 }
 
@@ -2450,7 +2443,6 @@ func (b *Block) GetParent(store Store) *Block {
 }
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
-	// fmt.Println("===GetPointerToInt, b, index: ", b, index)
 	vv := fillValueTV(store, &b.Values[index])
 	return PointerValue{
 		TV:    vv,

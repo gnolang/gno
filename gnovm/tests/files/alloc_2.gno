@@ -5,7 +5,7 @@ import "runtime"
 
 // GC does not reclaim enough memory
 func main() {
-	data := make([]byte, 100*1024*1024) // >100 MB
+	data := make([]byte, 100*1024*1024) // > 100000000
 	println("MemStats: ", runtime.MemStats())
 }
 

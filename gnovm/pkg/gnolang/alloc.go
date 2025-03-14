@@ -140,10 +140,6 @@ func (alloc *Allocator) AllocateString(size int64) {
 	alloc.Allocate(allocString + allocStringByte*size)
 }
 
-func (alloc *Allocator) AllocateStringShallow() {
-	alloc.Allocate(allocString)
-}
-
 func (alloc *Allocator) AllocatePointer() {
 	alloc.Allocate(allocPointer)
 }

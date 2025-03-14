@@ -4,7 +4,7 @@ package main
 import "runtime"
 
 func main() {
-	data := make([]byte, 100*1024*1024) // >100 MB
+	data := make([]byte, 100*1024*1024) // < 110000000
 	data = nil
 	runtime.GC()
 	println("MemStats after GC: ", runtime.MemStats())

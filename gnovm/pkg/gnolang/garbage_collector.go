@@ -14,6 +14,13 @@ import (
 // TODO: more accurate benchmark.
 const VisitCpuFactor = 8
 
+// Visit visits all reachable associated values.
+// It is used primarily for GC.
+// The caller must provide a callback visitor
+// which knows how to break cycles, otherwise
+// the Visit function may recurse infinitely.
+// (the GC does this with GCCycle)
+// It does not call the visitor on itself.
 type Visitor func(v Value) (stop bool)
 
 // Returns the amount of memory left over. If the allocator limit is exceeded
@@ -159,7 +166,8 @@ func (fv *FuncValue) VisitAssociated(vis Visitor) (stop bool) {
 		}
 	}
 
-	// do Not visit FuncValue's Closure.
+	// do Not visit FuncValue's
+	// Closure to avoid cycle.
 	return
 }
 
@@ -241,10 +249,12 @@ func (hiv *HeapItemValue) VisitAssociated(vis Visitor) (stop bool) {
 }
 
 func (pv PointerValue) VisitAssociated(vis Visitor) (stop bool) {
+	// NOTE: *TV and Key will be visited along with base.
 	stop = vis(pv.Base)
 	return
 }
 
+// No more visit
 func (sv StringValue) VisitAssociated(vis Visitor) (stop bool) {
 	return false
 }

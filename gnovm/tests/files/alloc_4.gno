@@ -14,8 +14,9 @@ func main() {
 	xyz() // first gc happens in xyz(), and m.Package is main
 	println("memstats in main after first GC: ", runtime.MemStats())
 
-	// first GC happens in xyz(), more allocations
-	// happens, after second gc, more garbage collected.
+	// first GC happens in xyz(), then more allocations
+	// happens.
+	// after second gc, more garbage collected.
 	runtime.GC()
 	println("memstats in main after second GC: ", runtime.MemStats())
 }
