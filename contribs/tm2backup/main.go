@@ -100,13 +100,13 @@ func execBackup(ctx context.Context, c *backupCfg, io commands.IO) error {
 		return fmt.Errorf("failed to read next height: %w", err)
 	}
 
+	if c.endHeight != 0 && int64(c.endHeight) < nextHeight {
+		return fmt.Errorf("invalid input: requested end height is smaller than the next height in output directory (%d), use a different output directory or a valid end height", nextHeight)
+	}
+
 	height, err := getStartHeight(int64(c.startHeight), nextHeight)
 	if err != nil {
 		return fmt.Errorf("failed to decide start height: %w", err)
-	}
-
-	if c.endHeight != 0 && int64(c.endHeight) < nextHeight {
-		return fmt.Errorf("invalid input: requested end height is smaller than the next height in output directory (%d), use a different output directory or a valid end height", nextHeight)
 	}
 
 	prefix := "starting"
