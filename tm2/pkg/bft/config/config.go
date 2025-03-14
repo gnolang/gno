@@ -72,6 +72,7 @@ func DefaultConfig() *Config {
 		TxEventStore: eventstore.DefaultEventStoreConfig(),
 		Telemetry:    telemetry.DefaultTelemetryConfig(),
 		Application:  sdk.DefaultAppConfig(),
+		Backup:       backup.DefaultConfig(),
 	}
 }
 
