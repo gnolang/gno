@@ -601,7 +601,7 @@ func (n *Node) OnStart() error {
 	}
 
 	// start backup server if requested
-	if n.config.Backup.ListenAddress != "" {
+	if n.config.Backup != nil && n.config.Backup.ListenAddress != "" {
 		n.backupServer = backup.NewServer(n.config.Backup, n.blockStore)
 		go func() {
 			if err := n.backupServer.ListenAndServe(); err != nil {
