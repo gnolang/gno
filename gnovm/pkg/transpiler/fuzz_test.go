@@ -57,6 +57,8 @@ func FuzzTranspiling(f *testing.F) {
 }
 
 func addGnoExamplesAsSeedsToFuzzer(f *testing.F) {
+	f.Helper()
+
 	ffs := os.DirFS(filepath.Join(gnoenv.RootDir(), "examples"))
 	fs.WalkDir(ffs, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
