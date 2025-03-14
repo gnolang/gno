@@ -22,9 +22,18 @@ const (
 	ChoiceAbstain               = "ABSTAIN"
 )
 
+const (
+	QuorumOneThird     float64 = 0.33 // percentage
+	QuorumHalf                 = 0.5
+	QuorumTwoThirds            = 0.66
+	QuorumThreeFourths         = 0.75
+	QuorumFull                 = 1
+)
+
 var (
 	ErrInvalidCreatorAddress      = errors.New("invalid proposal creator address")
 	ErrProposalDefinitionRequired = errors.New("proposal definition is required")
+	ErrNoQuorum                   = errors.New("no quorum")
 	ErrStatusIsNotActive          = errors.New("proposal status is not active")
 )
 
@@ -203,4 +212,24 @@ func (p Proposal) Validate() error {
 // IsValidVoteChoice checks if a vote choice is valid for the proposal.
 func (p Proposal) IsValidVoteChoice(c VoteChoice) bool {
 	return p.voteChoices.Has(string(c))
+}
+
+// IsQuorumReached checks if a participation quorum is reach.
+func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members MemberSet) bool {
+	if members.Size() <= 0 || quorum < 0 {
+		return false
+	}
+
+	var votesCount int
+	for _, c := range r.Choices() {
+		// Don't count explicit abstentions or invalid votes
+		if c == ChoiceNone || c == ChoiceAbstain {
+			continue
+		}
+
+		votesCount += r.VoteCount(c)
+	}
+
+	percentage := float64(votesCount) / float64(members.Size())
+	return percentage >= quorum
 }

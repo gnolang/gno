@@ -7,7 +7,7 @@ import (
 )
 
 // NewMemberSet creates a new readonly memberset.
-func NewMemberSet(members addrset.Set) MemberSet {
+func NewMemberSet(members addrset.Set) MemberSet { // TODO: Use an interface instead of addrset.Set
 	return MemberSet{members}
 }
 
