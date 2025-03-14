@@ -34,7 +34,6 @@ func FuzzTranspiling(f *testing.F) {
 
 	// 2. Run the fuzzer.
 	f.Fuzz(func(t *testing.T, gnoSourceCode []byte) {
-		gnoSrc := string(gnoSourceCode)
 		// 3. Add timings to ensure that if transpiling takes a long time
 		// to run, that we report this as problematic.
 		doneCh := make(chan bool, 1)
@@ -57,7 +56,7 @@ func FuzzTranspiling(f *testing.F) {
 	})
 }
 
-func addGnoExamplesAsSeedsToFuzzer(f *testing.T) {
+func addGnoExamplesAsSeedsToFuzzer(f *testing.F) {
 	ffs := os.DirFS(filepath.Join(gnoenv.RootDir(), "examples"))
 	fs.WalkDir(ffs, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -93,8 +92,6 @@ func FuzzTypecheckThenGnoRunMemPackageVsCompileGo(f *testing.F) {
 		gnoSrc := string(gnoSourceCode)
 		// 3. Add timings to ensure that if transpiling takes a long time
 		// to run, that we report this as problematic.
-		doneCh := make(chan bool, 1)
-		readyCh := make(chan bool)
 		isGnoTypeCheckError := false
 		defer func() {
 			goRunErr := checkIfGoCompilesProgram(t, gnoSrc)
