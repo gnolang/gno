@@ -4,9 +4,8 @@ func init() {
 	path := "testnets"
 	title := "gno.land Testnet List"
 	body := `
-- [Portal Loop](https://docs.gno.land/concepts/portal-loop) - a rolling testnet
-- [staging.gno.land](https://staging.gno.land) - wiped every commit to monorepo master
-- _[test4.gno.land](https://test4.gno.land) (latest)_
+- [Staging](https://docs.gno.land/concepts/portal-loop) - a rolling testnet
+- _[test5.gno.land](https://test5.gno.land) (latest)_
 
 For a list of RPC endpoints, see the [reference documentation](https://docs.gno.land/reference/rpc-endpoints).
 

@@ -168,7 +168,7 @@ subcommand, while `-broadcast`, `-gas-wanted`, `-gas-fee`, `-chain-id`, and
 will be repeated throughout the tutorial.
 
 Next, let's configure the `addpkg` subcommand to publish this package to the
-[Portal Loop](../resources/gnoland-networks.md) testnet. Assuming we are in
+[Staging](../resources/gnoland-networks.md) chain. Assuming we are in
 the `example/p/` folder, the command will look like this:
 
 ```bash
@@ -179,7 +179,7 @@ gnokey maketx addpkg \
 -gas-fee 10000000ugnot \
 -gas-wanted 8000000 \
 -broadcast \
--chainid portal-loop \
+-chainid staging \
 -remote "https://rpc.gno.land:443"
 ```
 
@@ -194,7 +194,7 @@ gnokey maketx addpkg \
 -gas-fee 10000000ugnot \
 -gas-wanted 200000 \
 -broadcast \
--chainid portal-loop \
+-chainid staging \
 -remote "https://rpc.gno.land:443"
 mykey
 ```
@@ -218,7 +218,7 @@ Let's analyze the output, which is standard for any `gnokey` transaction:
 - `EVENTS:     []` - [Gno events](../resources/gno-stdlibs.md#events) emitted by the transaction, in this case, none
 - `TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=` - the hash of the transaction
 
-Congratulations! You have just uploaded a pure package to the Portal Loop network.
+Congratulations! You have just uploaded a pure package to the Staging network.
 If you wish to deploy to a different network, find the list of all network
 configurations in the [Network Configuration](../resources/gnoland-networks.md) section.
 
@@ -242,7 +242,7 @@ does not use gas.
 
 For this example, we will call the `wugnot` realm, which wraps GNOTs to a
 GRC20-compatible token called `wugnot`. We can find this realm deployed on the
-[Portal Loop](../resources/gnoland-networks.md) testnet, under the `gno.land/r/demo/wugnot` path.
+[Staging](../resources/gnoland-networks.md) chain, under the `gno.land/r/demo/wugnot` path.
 
 We will wrap `1000ugnot` into the equivalent in `wugnot`. To do this, we can call
 the `Deposit()` function found in the `wugnot` realm. As previously, we will
@@ -256,7 +256,7 @@ gnokey maketx call \
 -gas-fee 10000000ugnot \
 -gas-wanted 2000000 \
 -broadcast \
--chainid portal-loop \
+-chainid staging \
 -remote "https://rpc.gno.land:443" \
 mykey
 ```
@@ -266,8 +266,8 @@ In this command, we have specified three main things:
 - The function that we want to call on the realm with the `-func` flag
 - The amount of `ugnot` we want to send to be wrapped, using the `-send` flag
 
-Apart from this, we have also specified the Portal Loop chain ID, `portal-loop`,
-as well as the Portal Loop remote address, `https://rpc.gno.land:443`.
+Apart from this, we have also specified the Staging chain ID, `staging`,
+as well as the Staging remote address, `https://rpc.gno.land:443`.
 
 After running the command, we can expect an output similar to the following:
 ```bash
@@ -294,7 +294,7 @@ gnokey maketx call \
 -gas-fee 10000000ugnot \
 -gas-wanted 2000000 \
 -broadcast \
--chainid portal-loop \
+-chainid staging \
 -remote "https://rpc.gno.land:443" \
 mykey
 ```
@@ -342,7 +342,7 @@ gnokey maketx send \
 -gas-fee 10000000ugnot \
 -gas-wanted 2000000 \
 -broadcast \
--chainid portal-loop \
+-chainid staging \
 -remote "https://rpc.gno.land:443" \
 mykey
 ```
@@ -402,7 +402,7 @@ gnokey maketx run \
 -gas-fee 1000000ugnot \
 -gas-wanted 20000000 \
 -broadcast \
--chainid portal-loop \
+-chainid staging \
 -remote "https://rpc.gno.land:443" \
 mykey ./script.gno
 ```
@@ -465,7 +465,7 @@ func Render(_ string) string {
 ```
 
 This realm is deployed to [`gno.land/r/docs/examples/run/foo`](https://gno.land/r/docs/examples/run/foo/package.gno)
-on the Portal Loop testnet.
+on the Staging testnet.
 
 1. Calling realm functions multiple times in a loop:
 ```go
@@ -613,7 +613,7 @@ To sign, we must set the correct flags for the subcommand:
 ```bash
 gnokey sign \
 -tx-path userbook.tx \
--chainid "portal-loop" \
+-chainid "staging" \
 -account-number 468 \
 -account-sequence 0 \
 mykey
@@ -679,7 +679,7 @@ we can run the following command:
 gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.gno.land:443
 ```
 
-With this, we are asking the Portal Loop network to deliver information about the
+With this, we are asking the Staging network to deliver information about the
 specified address. If everything went correctly, we should get output similar to the following:
 
 ```bash
@@ -948,7 +948,7 @@ gnokey maketx call \
   --gas-fee 1000000ugnot \
   --gas-wanted 2000000 \
   --remote https://rpc.gno.land:443 \
-  --chainid portal-loop \
+  --chainid staging \
   YOUR_KEY_NAME
 ```
 
