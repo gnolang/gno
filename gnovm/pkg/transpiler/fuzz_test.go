@@ -35,25 +35,6 @@ func FuzzTranspiling(f *testing.F) {
 	// 2. Run the fuzzer.
 	f.Fuzz(func(t *testing.T, gnoSourceCode []byte) {
 		gnoSrc := string(gnoSourceCode)
-		// 2.5. Some bugs are not yet fixed in Gno and halting fuzzing
-		// before they are fixed is not acceptable so we should go on.
-		defer func() {
-			r := recover()
-			if r == nil {
-				return
-			}
-
-			serr := fmt.Sprintf("%v", r)
-			switch {
-			case strings.Contains(serr, "import not found"),
-				strings.Contains(serr, "invalid import path "),
-				strings.Contains(serr, "undefined: "):
-				return
-			default:
-				t.Fatalf("%v\n\n\033[31m%s\033[00m", serr, gnoSrc)
-			}
-		}()
-
 		fn, err := gnolang.ParseFile("main.go", string(gnoSourceCode))
 		if err != nil {
 			// TODO: it could be discrepancy that if it compiled alright that it later failed.
@@ -71,7 +52,9 @@ func FuzzTranspiling(f *testing.F) {
 			},
 		}
 		if err := gnolang.TypeCheckMemPackage(memPkg, mockPackageGetter{}, false); err != nil {
-			panic(err)
+			// Confirmed that the code won't comnpile in Go either. This step is crucial
+			// as we were advised that before gnokey, we use this type checker.
+			return
 		}
 
 		// 3. Add timings to ensure that if transpiling takes a long time
