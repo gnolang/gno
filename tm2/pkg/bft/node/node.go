@@ -609,7 +609,7 @@ func (n *Node) OnStart() error {
 		n.backupServer = backup.NewServer(n.config.Backup, n.blockStore)
 		go func() {
 			if err := n.backupServer.ListenAndServe(); err != nil {
-				n.Logger.Error("Backup server", "err", err)
+				n.Logger.Info("Backup server stopped", "err", err)
 			}
 		}()
 	}
