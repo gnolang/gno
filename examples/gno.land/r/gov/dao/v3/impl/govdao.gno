@@ -46,9 +46,12 @@ func NewGovDAO() *GovDAO {
 	})
 
 	d.router = r
+	_govdao = d
 
 	return d
 }
+
+var _govdao *GovDAO
 
 func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (dao.Author, error) {
 	if !g.isValidCall() {
@@ -147,12 +150,12 @@ func (g *GovDAO) PreExecuteProposal(pid dao.ProposalID) (bool, error) {
 		status.Accepted = true
 		return true, nil
 	}
-	
+
 	if status.NoPercent() >= law.Supermajority {
 		status.Denied = true
 		return false, nil
 	}
-	
+
 	return false, errors.New(ufmt.Sprintf("proposal didn't reach supermajority yet: %v", law.Supermajority))
 }
 
