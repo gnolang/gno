@@ -62,6 +62,6 @@ generate:
 	go generate -x ./...
 	$(MAKE) fmt
 
-.PHONY: generate.grpc
-generate.grpc:
-	cd pkg/bft/node && buf generate
+.PHONY: generate.backup-grpc
+generate.backup-grpc:
+	cd pkg/bft/backup && buf generate
