@@ -79,7 +79,7 @@ func (d testPropDef) VotingPeriod() time.Duration { return d.votingPeriod }
 func (d testPropDef) Validate() error             { return d.validationErr }
 func (d testPropDef) Execute() error              { return d.executionErr }
 
-func (d testPropDef) Tally(ReadOnlyVotingRecord, MemberSet) (bool, error) {
+func (d testPropDef) Tally(ReadonlyVotingRecord, MemberSet) (bool, error) {
 	return d.tallyResult, d.tallyErr
 }
 

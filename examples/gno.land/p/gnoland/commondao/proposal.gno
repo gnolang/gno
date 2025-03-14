@@ -65,7 +65,7 @@ type (
 		VotingPeriod() time.Duration
 
 		// Tally counts the number of votes and verifies if proposal passes.
-		Tally(r ReadOnlyVotingRecord, members MemberSet) (passes bool, _ error)
+		Tally(r ReadonlyVotingRecord, members MemberSet) (passes bool, _ error)
 	}
 
 	// Validable defines an interface for proposal definitions that require state validation.
