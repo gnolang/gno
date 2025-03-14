@@ -36,7 +36,7 @@ type backupServer struct {
 	store blockStore
 }
 
-// StreamBlocks implements backupconnect.BackupServiceHandler.
+// StreamBlocks implements backuppbconnect.BackupServiceHandler.
 func (b *backupServer) StreamBlocks(_ context.Context, req *connect.Request[backuppb.StreamBlocksRequest], stream *connect.ServerStream[backuppb.StreamBlocksResponse]) error {
 	startHeight := req.Msg.StartHeight
 	if startHeight == 0 {
