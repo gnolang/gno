@@ -56,49 +56,53 @@ func (r *VotingRecord) AddVote(vote Vote) (updated bool) {
 	return
 }
 
-// GetProvableMajorityChoice returns the choice voted by the majority.
-// The result is only valid if there is a majority.
-// Caller must validate that the returned choice represents a majority.
-func GetProvableMajorityChoice(r ReadonlyVotingRecord) VoteChoice { // TODO: Rethink this function
+// FindMostVotedChoice returns the most voted choice.
+// ChoiceNone is returned when there is a tie between different
+// voting choices or when the voting record has are no votes.
+func FindMostVotedChoice(r ReadonlyVotingRecord) VoteChoice {
 	var (
-		choice       VoteChoice
-		currentCount int
+		choice                  VoteChoice
+		currentCount, prevCount int
 	)
 
-	r.count.Iterate("", "", func(c string, v any) bool {
-		count := v.(int)
-		if currentCount < count {
-			choice = VoteChoice(c)
+	for _, c := range r.Choices() {
+		count := r.VoteCount(c)
+		if currentCount <= count {
+			choice = c
+			prevCount = currentCount
 			currentCount = count
 		}
-		return false
-	})
-	return choice
+	}
+
+	if prevCount < currentCount {
+		return choice
+	}
+	return ChoiceNone
 }
 
 // SelectChoiceByAbsoluteMajority select the vote choice by absolute majority.
 // Vote choice is a majority when chosen by more than half of the votes.
 // Absolute majority considers abstentions when counting votes.
 func SelectChoiceByAbsoluteMajority(r ReadonlyVotingRecord, membersCount int) (VoteChoice, bool) {
-	choice := GetProvableMajorityChoice(r)
-	if r.VoteCount(choice) > int(membersCount/2) {
+	choice := FindMostVotedChoice(r)
+	if choice != ChoiceNone && r.VoteCount(choice) > int(membersCount/2) {
 		return choice, true
 	}
-	return "", false
+	return ChoiceNone, false
 }
 
 // SelectChoiceBySuperMajority select the vote choice by super majority using a 2/3s threshold.
 // Abstentions are not considered when calculating the super majority choice.
 func SelectChoiceBySuperMajority(r ReadonlyVotingRecord, membersCount int) (VoteChoice, bool) {
 	if membersCount < 3 {
-		return "", false
+		return ChoiceNone, false
 	}
 
-	choice := GetProvableMajorityChoice(r)
-	if r.VoteCount(choice) >= int(math.Ceil((2*float64(membersCount))/3)) {
+	choice := FindMostVotedChoice(r)
+	if choice != ChoiceNone && r.VoteCount(choice) >= int(math.Ceil((2*float64(membersCount))/3)) {
 		return choice, true
 	}
-	return "", false
+	return ChoiceNone, false
 }
 
 // SelectChoiceByPlurality selects the vote choice by plurality.
@@ -129,5 +133,5 @@ func SelectChoiceByPlurality(r ReadonlyVotingRecord) (VoteChoice, bool) {
 	if isMajority {
 		return choice, true
 	}
-	return "", false
+	return ChoiceNone, false
 }

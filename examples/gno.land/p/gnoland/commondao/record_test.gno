@@ -116,7 +116,7 @@ func TestVotingRecordAddVote(t *testing.T) {
 	}
 }
 
-func TestGetProvableMajorityChoice(t *testing.T) {
+func TestFindMostVotedChoice(t *testing.T) {
 	cases := []struct {
 		name   string
 		setup  func(*VotingRecord)
@@ -134,21 +134,21 @@ func TestGetProvableMajorityChoice(t *testing.T) {
 			choice: ChoiceYes,
 		},
 		{
-			name: "majority",
+			name: "multiple votes",
 			setup: func(r *VotingRecord) {
-				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
+				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceNo})
 				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceYes})
 				r.AddVote(Vote{Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", Choice: ChoiceNo})
 			},
-			choice: ChoiceYes,
+			choice: ChoiceNo,
 		},
 		{
-			name: "invalid because no majority",
+			name: "tie",
 			setup: func(r *VotingRecord) {
 				r.AddVote(Vote{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes})
 				r.AddVote(Vote{Address: "g12chzmwxw8sezcxe9h2csp0tck76r4ptwdlyyqk", Choice: ChoiceNo})
 			},
-			choice: ChoiceNo,
+			choice: ChoiceNone,
 		},
 	}
 
@@ -160,7 +160,7 @@ func TestGetProvableMajorityChoice(t *testing.T) {
 				tc.setup(&record)
 			}
 
-			choice := GetProvableMajorityChoice(record.Readonly())
+			choice := FindMostVotedChoice(record.Readonly())
 
 			uassert.Equal(t, string(choice), string(tc.choice))
 		})
