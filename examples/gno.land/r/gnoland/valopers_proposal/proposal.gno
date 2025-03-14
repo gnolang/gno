@@ -25,8 +25,7 @@ func ProposeNewValidator(address std.Address) {
 		votingPower = uint64(1)
 	)
 
-	validator, err := validators.GetValidator(address)
-	exist := err == nil
+	exist := validators.IsValidator(address)
 
 	// Determine the voting power
 	if !valoper.KeepRunning {
@@ -36,9 +35,12 @@ func ProposeNewValidator(address std.Address) {
 		votingPower = uint64(0)
 	}
 
-	if exist && validator.VotingPower == votingPower && validator.PubKey == valoper.PubKey {
-		panic(ErrSameValues)
-	}
+  if exist {
+    validator := validators.GetValidator(address)
+    if validator.VotingPower == votingPower && validator.PubKey == valoper.PubKey {
+      panic(ErrSameValues)
+    }
+  }
 
 	changesFn := func() []pVals.Validator {
 		return []pVals.Validator{
