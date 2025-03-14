@@ -41,9 +41,17 @@ func main() {
 	println(dao.Name() == name)
 	println(dao.Slug() == slug)
 	println(dao.Parent().ID() == rootDAO.ID())
+
+	// Check that SubDAO is added as a child to the parent DAO
+	if v := dao.Parent().Children().Get(0); v != nil {
+		if subDAO, ok := v.(*pcommondao.CommonDAO); ok {
+			println(subDAO.Slug() == slug)
+		}
+	}
 }
 
 // Output:
+// true
 // true
 // true
 // true

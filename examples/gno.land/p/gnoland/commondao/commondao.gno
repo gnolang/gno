@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl/list"
 	"gno.land/p/demo/avl/rotree"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/moul/addrset"
@@ -25,20 +26,23 @@ var (
 
 // CommonDAO defines a DAO.
 type CommonDAO struct {
-	id       uint64
-	slug     string
-	name     string
-	parent   *CommonDAO
-	members  *addrset.Set
-	genID    seqid.ID
-	active   *avl.Tree // string(proposal ID) -> *Proposal
-	finished *avl.Tree // string(proposal ID) -> *Proposal
+	id          uint64
+	slug        string
+	name        string
+	description string
+	parent      *CommonDAO
+	children    list.IList
+	members     *addrset.Set
+	genID       seqid.ID
+	active      *avl.Tree // string(proposal ID) -> *Proposal
+	finished    *avl.Tree // string(proposal ID) -> *Proposal
 }
 
 // New creates a new common DAO.
 func New(options ...Option) *CommonDAO {
 	dao := &CommonDAO{
 		members:  &addrset.Set{},
+		children: &list.List{},
 		active:   avl.NewTree(),
 		finished: avl.NewTree(),
 	}
@@ -63,6 +67,11 @@ func (dao CommonDAO) Name() string {
 	return dao.name
 }
 
+// Description returns DAO's description.
+func (dao CommonDAO) Description() string {
+	return dao.description
+}
+
 // Path returns the full path to the DAO.
 // Paths are normally used when working with hierarchical
 // DAOs and is created by concatenating DAO slugs.
@@ -81,6 +90,12 @@ func (dao CommonDAO) Path() string {
 // Null can be returned when DAO has no parent assigned.
 func (dao CommonDAO) Parent() *CommonDAO {
 	return dao.parent
+}
+
+// Children returns a list with the direct DAO children.
+// Each item in the list is a reference to a CommonDAO instance.
+func (dao CommonDAO) Children() list.IList {
+	return dao.children
 }
 
 // TopParent returns the topmost parent DAO.

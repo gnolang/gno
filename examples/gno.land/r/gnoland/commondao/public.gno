@@ -88,6 +88,7 @@ func NewSubDAO(name, slug string, parent *commondao.CommonDAO) *commondao.Common
 	}
 
 	tree.Set(path, dao)
+	parent.Children().Append(dao)
 
 	return dao
 }
