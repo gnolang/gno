@@ -2,13 +2,13 @@
 //
 // Source: backuppb/backup.proto
 
-package backupconnect
+package backuppbconnect
 
 import (
 	connect "connectrpc.com/connect"
 	context "context"
 	errors "errors"
-	backuppb "github.com/gnolang/gno/tm2/pkg/bft/node/backuppb"
+	backuppb "github.com/gnolang/gno/tm2/pkg/bft/backup/backuppb"
 	http "net/http"
 	strings "strings"
 )
