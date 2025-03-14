@@ -1,7 +1,7 @@
 const pxToRem = (px) => px / 16;
 
 export default {
-  darkMode: 'class',
+  darkMode: 'media',
   content: ["./components/**/*.{html,ts}"],
   theme: {
     screens: {
@@ -31,7 +31,7 @@ export default {
     },
     colors: {
       light: "#FFFFFF",
-      dark: "#1E1E1E",
+      dark: "#000000",
       gray: {
         50: "#F0F0F0", // Background color
         100: "#E2E2E2", // Title dark color

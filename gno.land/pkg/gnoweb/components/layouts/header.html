@@ -134,20 +134,7 @@
       <form 
         class="sidemenu col-span-3 flex justify-end lg:justify-start gap-3 sm:gap-6 h-full text-100 text-gray-400 dark:text-gray-d400"
       >  
-        <!-- Theme Toggle Button -->
-        <button 
-        type="button" 
-        class="js-theme-toggle flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-d100 self-center"
-        aria-label="Toggle dark mode"
-        >
-          <svg class="w-5 h-5 text-gray-800 dark:hidden">
-            <use href="#ico-moon"></use>
-          </svg>
-          <svg class="w-5 h-5 text-gray-d800 hidden dark:block">
-            <use href="#ico-sun"></use>
-          </svg>
-        </button>
-        
+         
         {{ range .Links }} {{ template "ui/header_link" . }} {{ end }}
       </form>
     </nav>

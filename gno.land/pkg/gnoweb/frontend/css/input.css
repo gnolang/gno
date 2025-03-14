@@ -3,9 +3,8 @@
   font-style: normal;
   font-weight: 900;
   font-display: swap;
-  src:
-    url("./fonts/roboto/roboto-mono-normal.woff2") format("woff2"),
-    url("./fonts/roboto/roboto-mono-normal.woff") format("woff");
+  src: url("./fonts/roboto/roboto-mono-normal.woff2") format("woff2"),
+       url("./fonts/roboto/roboto-mono-normal.woff") format("woff");
 }
 
 @font-face {
@@ -39,12 +38,14 @@
     font-variant-ligatures: contextual common-ligatures;
     font-kerning: normal;
     text-rendering: optimizeLegibility;
-    color-scheme: light;
+    color-scheme: light dark;
   }
 
-  html.dark {
-    @apply bg-dark text-gray-d600;
-    color-scheme: dark;
+  @media (prefers-color-scheme: dark) {
+    html {
+      @apply bg-dark text-gray-d600;
+      color-scheme: dark;
+    }
   }
 
   svg {
@@ -52,10 +53,19 @@
   }
 
   ::-moz-selection {
-    @apply bg-green-600 text-light dark:bg-green-d600 dark:text-dark;
+    @apply bg-green-600 text-light;
   }
   ::selection {
-    @apply bg-green-600 text-light dark:bg-green-d600 dark:text-dark;
+    @apply bg-green-600 text-light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    ::-moz-selection {
+      @apply bg-green-d600 text-dark;
+    }
+    ::selection {
+      @apply bg-green-d600 text-dark;
+    }
   }
 
   form {
@@ -75,14 +85,29 @@
   }
 
   .realm-view a {
-    @apply text-green-600 font-medium hover:underline dark:text-green-d600;
+    @apply text-green-600 font-medium hover:underline;
   }
-  
+
+  @media (prefers-color-scheme: dark) {
+    .realm-view a {
+      @apply text-green-d600;
+    }
+  }
+
   .realm-view h1,
   .realm-view h2,
   .realm-view h3,
   .realm-view h4 {
-    @apply text-gray-900 mt-12 leading-tight dark:text-gray-d900;
+    @apply text-gray-900 mt-12 leading-tight;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .realm-view h1,
+    .realm-view h2,
+    .realm-view h3,
+    .realm-view h4 {
+      @apply text-gray-d900;
+    }
   }
 
   .realm-view h2,
@@ -112,11 +137,23 @@
   }
 
   .realm-view h3 {
-    @apply text-400 text-gray-600 dark:text-gray-d600 mt-10;
+    @apply text-400 text-gray-600 mt-10;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .realm-view h3 {
+      @apply text-gray-d600;
+    }
   }
 
   .realm-view h4 {
-    @apply text-300 text-gray-600 dark:text-gray-d600 font-medium my-6;
+    @apply text-300 text-gray-600 font-medium my-6;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .realm-view h4 {
+      @apply text-gray-d600;
+    }
   }
 
   .realm-view p {
@@ -124,7 +161,13 @@
   }
 
   .realm-view strong {
-    @apply font-bold text-gray-900 dark:text-gray-d900;
+    @apply font-bold text-gray-900;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .realm-view strong {
+      @apply text-gray-d900;
+    }
   }
 
   .realm-view strong * {
@@ -136,7 +179,13 @@
   }
 
   .realm-view blockquote {
-    @apply border-l-4 border-gray-300 pl-4 text-gray-600 italic-subtle my-4 dark:border-gray-d300 dark:text-gray-d600;
+    @apply border-l-4 border-gray-300 pl-4 text-gray-600 italic-subtle my-4;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .realm-view blockquote {
+      @apply border-gray-d300 text-gray-d600;
+    }
   }
 
   .realm-view ul,
@@ -164,7 +213,6 @@
     @apply list-decimal;
   }
 
-  
   .realm-view img {
     @apply max-w-full my-8;
   }
@@ -174,7 +222,13 @@
   }
 
   .realm-view figcaption {
-    @apply text-100 text-gray-600 dark:text-gray-d600;
+    @apply text-100 text-gray-600;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .realm-view figcaption {
+      @apply text-gray-d600;
+    }
   }
 
   .realm-view video {
@@ -182,11 +236,23 @@
   }
 
   .realm-view :not(pre) > code {
-    @apply bg-gray-100 px-1 py-0.5 rounded-sm text-[.96em] font-mono dark:bg-gray-d100;
+    @apply bg-gray-100 px-1 py-0.5 rounded-sm text-[.96em] font-mono;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .realm-view :not(pre) > code {
+      @apply bg-gray-d100;
+    }
   }
 
   .realm-view pre {
-    @apply bg-gray-50 p-4 rounded overflow-x-auto font-mono dark:bg-gray-d50;
+    @apply bg-gray-50 p-4 rounded overflow-x-auto font-mono;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .realm-view pre {
+      @apply bg-gray-d50;
+    }
   }
 
   .realm-view a code {
@@ -199,15 +265,27 @@
 
   .realm-view th,
   .realm-view td {
-    @apply border px-4 py-2 break-words whitespace-normal dark:border-gray-d300;
+    @apply border px-4 py-2 break-words whitespace-normal;
   }
 
   .realm-view th {
-    @apply bg-gray-100 font-bold dark:bg-gray-d100;
+    @apply bg-gray-100 font-bold;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .realm-view th {
+      @apply bg-gray-d100;
+    }
   }
 
   .realm-view caption {
-    @apply mt-2 text-100 text-gray-600 text-left dark:text-gray-d600;
+    @apply mt-2 text-100 text-gray-600 text-left;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .realm-view caption {
+      @apply text-gray-d600;
+    }
   }
 
   .realm-view q {
@@ -256,37 +334,26 @@
 
   .realm-view input,
   .realm-view button {
-    @apply px-4 py-2 border border-gray-300 dark:border-gray-d300;
+    @apply px-4 py-2 border border-gray-300;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .realm-view input,
+    .realm-view button {
+      @apply border-gray-d300;
+    }
   }
 
   .realm-view hr {
-    @apply border-t border-gray-100 my-10 dark:border-gray-d100;
-  }
-}
-
-@layer components {
-   /* header */
-  .main-header {
-    @apply bg-light border-gray-100 text-gray-600 dark:bg-dark dark:border-gray-d100 dark:text-gray-d600;
+    @apply border-t border-gray-100 my-10;
   }
 
-  .sidemenu {
-    @apply text-gray-600 dark:text-gray-d600;
-  }
-  
-  .sidemenu .peer:checked + label > svg {
-    @apply text-green-600 dark:text-green-d600;
-  }
-  
-  /* main content */
-  main {
-    @apply bg-light dark:bg-dark;
+  @media (prefers-color-scheme: dark) {
+    .realm-view hr {
+      @apply border-gray-d100;
+    }
   }
 
-  .dev-mode {
-    @apply bg-gray-50 dark:bg-gray-d50;
-  }
-  
   /* toc */
   .dev-mode .toc-expend-btn {
     @apply bg-gray-100 hover:bg-gray-50 cursor-pointer border lg:border-none lg:bg-transparent dark:bg-gray-d100 dark:hover:bg-gray-d50 dark:lg:border-none dark:lg:bg-transparent;
@@ -295,26 +362,45 @@
   .dev-mode #sidebar-summary {
     @apply bg-light lg:bg-transparent dark:bg-gray-d100 dark:lg:bg-transparent;
   }
-  
+
   .dev-mode .toc-nav {
     @apply font-mono;
   }
 
-    /* toc */
+  @media (prefers-color-scheme: dark) {
+    .dev-mode .toc-expend-btn {
+      @apply bg-gray-d100 hover:bg-gray-d50 lg:border-none lg:bg-transparent;
+    }
+
+    .dev-mode #sidebar-summary {
+      @apply bg-gray-d100 lg:bg-transparent;
+    }
+  }
+
   .toc-expend-btn:has(#toc-expend:checked) + nav {
     @apply block;
   }
-  
+
   .toc-expend-btn:has(#toc-expend:checked) .toc-expend-btn_ico {
     @apply rotate-180;
   }
-  
+
   .toc-nav a {
     @apply text-gray-900 dark:text-gray-d900;
   }
-  
+
   .toc-nav a:hover {
     @apply text-green-600 dark:text-green-d600;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .toc-nav a {
+      @apply text-gray-d900;
+    }
+
+    .toc-nav a:hover {
+      @apply text-green-d600;
+    }
   }
 
   /* sidebar */
@@ -362,15 +448,26 @@
     )
     + main
     #sidebar::before {
-    @apply absolute block content-[''] top-0 w-[50vw] h-full -left-7 bg-gray-100 dark:bg-gray-d100 z-min;
+    @apply absolute block content-[''] top-0 w-[50vw] h-full -left-7 bg-gray-100 z-min;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :is(
+        .main-header:has(#sidemenu-source:checked),
+        .main-header:has(#sidemenu-docs:checked),
+        .main-header:has(#sidemenu-meta:checked)
+      )
+      + main
+      #sidebar::before {
+      @apply bg-gray-d100;
+    }
   }
 
    /* chroma */
   main :is(.source-code) > pre {
-    @apply !bg-light overflow-scroll dark:!bg-dark rounded py-4 md:py-8 px-1 md:px-3 font-mono text-100 md:text-200;
+    @apply !bg-light overflow-scroll rounded py-4 md:py-8 px-1 md:px-3 font-mono text-100 md:text-200;
   }
   
-
   main .realm-view > pre a {
     @apply hover:no-underline;
   }
@@ -394,10 +491,35 @@
     > pre
     .chroma-line:has(.chroma-lnlinks:hover)
     .chroma-cl {
-    @apply !bg-gray-100 dark:!bg-gray-d100 rounded;
+    @apply !bg-gray-100 rounded;
   }
   main :is(.realm-view, .source-code) > pre .chroma-ln {
     @apply scroll-mt-24;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    main :is(.source-code) > pre {
+      @apply !bg-dark;
+    }
+
+    main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-ln:target),
+    main
+      :is(.realm-view, .source-code)
+      > pre
+      .chroma-line:has(.chroma-lnlinks:hover),
+    main
+      :is(.realm-view, .source-code)
+      > pre
+      .chroma-line:has(.chroma-ln:target)
+      .chroma-cl,
+    main
+      :is(.realm-view, .source-code)
+      > pre
+      .chroma-line:has(.chroma-lnlinks:hover)
+      .chroma-cl {
+      @apply !bg-gray-d100;
+    }
+
   }
 }
 
@@ -412,7 +534,7 @@
 
   .quotes::before,
   .quotes::after {
-    @apply [content:open-quote] text-600 text-gray-300 mr-1 [vertical-align:-0.4rem] dark:text-gray-d300;
+    @apply [content:open-quote] text-600 text-gray-300 mr-1 [vertical-align:-0.4rem];
   }
 
   .quotes::after {
@@ -435,6 +557,13 @@
 
   .field-content {
     field-sizing: content;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .quotes::before,
+    .quotes::after {
+      @apply text-gray-d300;
+    }
   }
 }
 
