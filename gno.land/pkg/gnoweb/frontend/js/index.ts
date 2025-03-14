@@ -17,6 +17,10 @@
       selector: ".js-header-searchbar",
       path: "/public/js/searchbar.js",
     },
+    theme: {
+      selector: ".js-theme-toggle",
+      path: "/public/js/theme.js",
+    },
   };
 
   const loadModuleIfExists = async ({ selector, path }: Module): Promise<void> => {

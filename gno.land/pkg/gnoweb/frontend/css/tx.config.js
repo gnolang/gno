@@ -1,6 +1,7 @@
 const pxToRem = (px) => px / 16;
 
 export default {
+  darkMode: 'class',
   content: ["./components/**/*.{html,ts}"],
   theme: {
     screens: {
@@ -30,6 +31,7 @@ export default {
     },
     colors: {
       light: "#FFFFFF",
+      dark: "#1E1E1E",
       gray: {
         50: "#F0F0F0", // Background color
         100: "#E2E2E2", // Title dark color
@@ -39,10 +41,22 @@ export default {
         600: "#54595D", // Content color
         800: "#131313", // Background dark color
         900: "#080809", // Title color
+        // dark mode grays
+        d50: "#121212",    // Softer than pure black for backgrounds
+        d100: "#2A2A2A",   // Subtle elevation color
+        d200: "#3D3D3D",   // Secondary elevation
+        d300: "#949494",   // Muted text (good)
+        d400: "#777777",   // Border color (good)
+        d600: "#ADADAD",   // Primary text - slightly higher contrast
+        d800: "#E0E0E0",   // High contrast text
+        d900: "#F5F5F5"    // Brightest text (headers)
       },
       green: {
         400: "#2D8D72", // Primary dark color
         600: "#226C57", // Primary light color
+        // dark mode  
+        d400: "#ffffff", // Primary dark color (updated to match dark logo)
+        d600: "#ffffff", // Primary light color 
       },
       transparent: "transparent",
       current: "currentColor",
