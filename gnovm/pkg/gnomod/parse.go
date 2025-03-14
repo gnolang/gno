@@ -1,7 +1,6 @@
 package gnomod
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,8 +10,6 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
-
-var errEmptyModulePath = errors.New("module path cannot be empty")
 
 // ParseAt parses, validates and returns a gno.mod file located at dir or at
 // dir's parents.
@@ -195,18 +192,4 @@ func (f *File) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modf
 		}
 		f.Replace = append(f.Replace, replace)
 	}
-}
-
-var invalidChars = map[rune]bool{
-	'`':  true,
-	'"':  true,
-	'\\': true,
-	'?':  true,
-	'*':  true,
-	':':  true,
-	'<':  true,
-	'>':  true,
-	'|':  true,
-	'[':  true,
-	']':  true,
 }
