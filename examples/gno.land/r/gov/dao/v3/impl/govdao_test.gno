@@ -122,7 +122,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 	urequire.Equal(t, true, contains(dao.Render(""), "15.789473684210526%"))
 	urequire.Equal(t, true, contains(dao.Render(""), "52.63157894736842%"))
 
-	urequire.PanicsWithMessage(t, "proposal didn't reached supermajority yet: 66", func() {
+	urequire.PanicsWithMessage(t, "proposal didn't reach supermajority yet: 66", func() {
 		dao.ExecuteProposal(dao.ProposalID(0))
 	})
 
