@@ -20,6 +20,10 @@ type Config struct {
 	ListenAddress string `json:"laddr" toml:"laddr" comment:"Address for the backup server to listen on. Empty means disabled."`
 }
 
+func DefaultConfig() *Config {
+	return &Config{}
+}
+
 type blockStore interface {
 	Height() int64
 	LoadBlock(height int64) *types.Block
