@@ -216,7 +216,7 @@ func (p Proposal) IsValidVoteChoice(c VoteChoice) bool {
 
 // IsQuorumReached checks if a participation quorum is reach.
 func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members MemberSet) bool {
-	if members.Size() <= 0 || quorum < 0 {
+	if members.Size() <= 0 || quorum <= 0 {
 		return false
 	}
 

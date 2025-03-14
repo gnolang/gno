@@ -7,6 +7,7 @@ import (
 
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
+	"gno.land/p/moul/addrset"
 )
 
 func TestProposalNew(t *testing.T) {
@@ -61,6 +62,197 @@ func TestProposalVoteChoices(t *testing.T) {
 			urequire.Equal(t, len(choices), len(tc.choices), "expect vote choice count to match")
 			for i, c := range choices {
 				urequire.True(t, tc.choices[i] == c, "expect vote choice to match")
+			}
+		})
+	}
+}
+
+func TestIsQuorumReached(t *testing.T) {
+	cases := []struct {
+		name    string
+		quorum  float64
+		members []std.Address
+		votes   []Vote
+		fail    bool
+	}{
+		{
+			name:   "one third",
+			quorum: QuorumOneThird,
+			members: []std.Address{
+				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
+			},
+			votes: []Vote{
+				{Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", Choice: ChoiceYes},
+			},
+		},
+		{
+			name:   "one third no quorum",
+			quorum: QuorumOneThird,
+			members: []std.Address{
+				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
+			},
+			fail: true,
+		},
+		{
+			name:   "half",
+			quorum: QuorumHalf,
+			members: []std.Address{
+				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
+				"g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt",
+			},
+			votes: []Vote{
+				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes},
+				{Address: "g1w4ek2u3jta047h6lta047h6lta047h6l9huexc", Choice: ChoiceNo},
+			},
+		},
+		{
+			name:   "half no quorum",
+			quorum: QuorumHalf,
+			members: []std.Address{
+				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
+				"g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt",
+			},
+			votes: []Vote{
+				{Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", Choice: ChoiceYes},
+			},
+			fail: true,
+		},
+		{
+			name:   "two thirds",
+			quorum: QuorumTwoThirds,
+			members: []std.Address{
+				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
+			},
+			votes: []Vote{
+				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes},
+				{Address: "g1w4ek2u3jta047h6lta047h6lta047h6l9huexc", Choice: ChoiceNo},
+			},
+		},
+		{
+			name:   "two thirds no quorum",
+			quorum: QuorumTwoThirds,
+			members: []std.Address{
+				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
+			},
+			votes: []Vote{
+				{Address: "g1w4ek2u3jta047h6lta047h6lta047h6l9huexc", Choice: ChoiceNo},
+			},
+			fail: true,
+		},
+		{
+			name:   "three fourths",
+			quorum: QuorumThreeFourths,
+			members: []std.Address{
+				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
+				"g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt",
+			},
+			votes: []Vote{
+				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes},
+				{Address: "g1w4ek2u3jta047h6lta047h6lta047h6l9huexc", Choice: ChoiceNo},
+				{Address: "g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt", Choice: ChoiceNo},
+			},
+		},
+		{
+			name:   "three fourths no quorum",
+			quorum: QuorumThreeFourths,
+			members: []std.Address{
+				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+				"g1w4ek2u3jta047h6lta047h6lta047h6l9huexc",
+				"g125t352u4pmdrr57emc4pe04y40sknr5ztng5mt",
+			},
+			votes: []Vote{
+				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceYes},
+			},
+			fail: true,
+		},
+		{
+			name:   "full",
+			quorum: QuorumFull,
+			members: []std.Address{
+				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+			},
+			votes: []Vote{
+				{Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", Choice: ChoiceNo},
+				{Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", Choice: ChoiceNo},
+			},
+		},
+		{
+			name:   "full no quorum",
+			quorum: QuorumFull,
+			members: []std.Address{
+				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+			},
+			votes: []Vote{
+				{Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", Choice: ChoiceNo},
+			},
+			fail: true,
+		},
+		{
+			name:   "no quorum with empty vote",
+			quorum: QuorumHalf,
+			members: []std.Address{
+				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+			},
+			votes: []Vote{
+				{Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", Choice: ChoiceNone},
+			},
+			fail: true,
+		},
+		{
+			name:   "no quorum with abstention",
+			quorum: QuorumHalf,
+			members: []std.Address{
+				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+				"g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn",
+			},
+			votes: []Vote{
+				{Address: "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn", Choice: ChoiceAbstain},
+			},
+			fail: true,
+		},
+		{
+			name:   "invalid quorum percentage",
+			quorum: -1,
+			fail:   true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var members addrset.Set
+			for _, m := range tc.members {
+				members.Add(m)
+			}
+
+			var record VotingRecord
+			for _, v := range tc.votes {
+				record.AddVote(v)
+			}
+
+			success := IsQuorumReached(tc.quorum, record.Readonly(), NewMemberSet(members))
+
+			if tc.fail {
+				uassert.False(t, success, "expect quorum to fail")
+			} else {
+				uassert.True(t, success, "expect quorum to succeed")
 			}
 		})
 	}
