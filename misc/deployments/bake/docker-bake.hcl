@@ -1,3 +1,7 @@
+#########################################
+############### VARIABLES ###############
+#########################################
+
 variable "TAG" {
   default = "chain-test6"
 }
@@ -18,9 +22,42 @@ variable "VERSION" {
   default = "1.0.0"
 }
 
+#########################################
+################ GROUPS #################
+#########################################
+
 group "default" {
-  targets = ["gnoland", "gnokey", "gnoweb"]
+  targets = [
+    "gno",
+    "gnoland",
+    "gnokey",
+    "gnoweb", 
+    "gnofaucet"
+  ]
 }
+
+group "contribs" {
+  targets = [
+    "gnodev",
+    "gnocontribs"
+  ]
+}
+
+group "misc" {
+  targets = ["portalloopd", "autocounterd"]
+}
+
+group "_gno" { # overlaps the gno single target
+    targets = ["default", "contribs"]
+}
+
+group "_all" {
+    targets = ["gno", "misc"]
+}
+
+#########################################
+############### TARGETS #################
+#########################################
 
 target "common" {
   attest = [
@@ -34,12 +71,13 @@ target "common" {
     "org.opencontainers.image.title" = "${PROJECT_NAME}"
     "org.opencontainers.image.revision" = "${FULL_COMMIT}"
     "org.opencontainers.image.version" = "${VERSION}"
+    "org.opencontainers.image.authors" = "Gno Core Team"
   }
   platforms = [
     "linux/amd64",
     "linux/arm64"
   ] 
-  output = ["type=image,push=true"] # Push to registry
+  output = ["type=image"] # ,push=true -> Pushes to registry
 }
 
 target "gnoland" {
@@ -67,11 +105,76 @@ target "gnokey" {
 target "gnoweb" {
   inherits = ["common"]
   target = "gnoweb"
-  # context = "https://github.com/alexiscolin/gno.git#refactor/gnoland-home"
   tags = [
     "ghcr.io/gnolang/gno/gnoweb:gnoland-home"
   ]
   labels = {
     "org.opencontainers.image.title" = "${PROJECT_NAME}/gnoweb"
+  }
+}
+
+target "gnofaucet" {
+  inherits = ["common"]
+  target = "gnofaucet"
+  tags = [
+    "ghcr.io/gnolang/gno/mygnofaucet"
+  ]
+  labels = {
+    "org.opencontainers.image.title" = "${PROJECT_NAME}/gnofaucet"
+  }
+}
+
+target "gno" {
+  inherits = ["common"]
+  target = "gno"
+  tags = [
+    "ghcr.io/gnolang/gno"
+  ]
+  labels = {
+    "org.opencontainers.image.title" = "${PROJECT_NAME}/gno"
+  }
+}
+
+target "gnodev" {
+  inherits = ["common"]
+  target = "gnodev"
+  tags = [
+    "ghcr.io/gnolang/gno/gnodev"
+  ]
+  labels = {
+    "org.opencontainers.image.title" = "${PROJECT_NAME}/gnodev"
+  }
+}
+
+target "gnocontribs" {
+  inherits = ["common"]
+  target = "gnocontribs"
+  tags = [
+    "ghcr.io/gnolang/gno/gnocontribs"
+  ]
+  labels = {
+    "org.opencontainers.image.title" = "${PROJECT_NAME}/gnocontribs"
+  }
+}
+
+target "portalloopd" {
+  inherits = ["common"]
+  target = "portalloopd"
+  tags = [
+    "ghcr.io/gnolang/gno/portalloopd"
+  ]
+  labels = {
+    "org.opencontainers.image.title" = "${PROJECT_NAME}/portalloopd"
+  }
+}
+
+target "autocounterd" {
+  inherits = ["common"]
+  target = "autocounterd"
+  tags = [
+    "ghcr.io/gnolang/gno/autocounterd"
+  ]
+  labels = {
+    "org.opencontainers.image.title" = "${PROJECT_NAME}/autocounterd"
   }
 }
