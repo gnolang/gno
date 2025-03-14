@@ -32,10 +32,21 @@ By registering your validator profile, you contribute to a transparent and well-
 
 To add your validator node to the registry, use the **Register** function with the following parameters:
 
-- **Moniker**: A human-readable name for your validator.
-- **Description**: A detailed introduction in Markdown, including answers to the questions below.
-- **Validator Address**: The address of your validator node.
-- **Validator Public Key**: Your validator node’s public key.
+- **Moniker** (Validator Name)
+  - Must be **human-readable**
+  - **Max length**: **32 characters**
+  - **Allowed characters**: Letters, numbers, spaces, hyphens (**-**), and underscores (**_**)
+  - **No special characters** at the beginning or end
+
+- **Description** (Introduction & Validator Details)
+  - **Max length**: **2048 characters**
+  - Must include answers to the questions listed below
+
+- **Validator Address**
+  - Your validator node’s address
+
+- **Validator Public Key**
+  - Your validator node’s public key
 
 ### ✍️ Required Information for the Description
 
