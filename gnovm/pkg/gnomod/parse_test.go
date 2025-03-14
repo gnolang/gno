@@ -81,7 +81,7 @@ func TestModuleDeprecated(t *testing.T) {
 		{
 			desc: "deprecated_paragraph_space",
 			in: `// Deprecated: the next line has a space
-			// 
+			//
 			// c
 			module m`,
 			expected: "the next line has a space",
@@ -238,129 +238,6 @@ func TestParseGnoMod(t *testing.T) {
 	}
 }
 
-func TestValidateModulePath(t *testing.T) {
-	tests := []struct {
-		name    string
-		path    string
-		wantErr bool
-		errMsg  string
-	}{
-		{
-			name:    "valid path",
-			path:    "gno.land/p/demo/foo",
-			wantErr: false,
-		},
-		{
-			name:    "valid path with version",
-			path:    "gno.land/p/demo/foo/v2",
-			wantErr: false,
-		},
-		{
-			name:    "valid path with numbers and underscores",
-			path:    "gno.land/p/demo/foo_123",
-			wantErr: false,
-		},
-		{
-			name:    "empty path",
-			path:    "",
-			wantErr: true,
-			errMsg:  "module path cannot be empty",
-		},
-		{
-			name:    "path with space",
-			path:    "gno.land/p/demo/ foo",
-			wantErr: true,
-			errMsg:  "invalid character ' ' in module path",
-		},
-		{
-			name:    "path with double quote",
-			path:    "gno.land/p/demo/\"foo",
-			wantErr: true,
-			errMsg:  "invalid character '\"' in module path",
-		},
-		{
-			name:    "path with backtick",
-			path:    "gno.land/p/demo/`foo",
-			wantErr: true,
-			errMsg:  "invalid character '`' in module path",
-		},
-		{
-			name:    "path with backslash",
-			path:    "gno.land/p/demo\\foo",
-			wantErr: true,
-			errMsg:  "invalid character '\\' in module path",
-		},
-		{
-			name:    "path with question mark",
-			path:    "gno.land/p/demo/foo?",
-			wantErr: true,
-			errMsg:  "invalid character '?' in module path",
-		},
-		{
-			name:    "path with asterisk",
-			path:    "gno.land/p/demo/*foo",
-			wantErr: true,
-			errMsg:  "invalid character '*' in module path",
-		},
-		{
-			name:    "path with colon",
-			path:    "gno.land/p/demo:foo",
-			wantErr: true,
-			errMsg:  "invalid character ':' in module path",
-		},
-		{
-			name:    "path with less than",
-			path:    "gno.land/p/demo/<foo",
-			wantErr: true,
-			errMsg:  "invalid character '<' in module path",
-		},
-		{
-			name:    "path with greater than",
-			path:    "gno.land/p/demo/>foo",
-			wantErr: true,
-			errMsg:  "invalid character '>' in module path",
-		},
-		{
-			name:    "path with pipe",
-			path:    "gno.land/p/demo/|foo",
-			wantErr: true,
-			errMsg:  "invalid character '|' in module path",
-		},
-		{
-			name:    "path with square brackets",
-			path:    "gno.land/p/demo/[foo]",
-			wantErr: true,
-			errMsg:  "invalid character '[' in module path",
-		},
-		{
-			name:    "path with non-printable ASCII",
-			path:    "gno.land/p/demo/foo\u0007",
-			wantErr: true,
-			errMsg:  "invalid character",
-		},
-		{
-			name:    "path with Unicode character",
-			path:    "gno.land/p/demo/foo한글",
-			wantErr: true,
-			errMsg:  "invalid character",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := validateModulePath(tt.path)
-			if tt.wantErr {
-				assert.Error(t, err)
-				if tt.errMsg != "" {
-					assert.Contains(t, err.Error(), tt.errMsg)
-				}
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
 // TestParseWithInvalidModulePath tests that Parse correctly rejects gno.mod files
 // with invalid module paths.
 func TestParseWithInvalidModulePath(t *testing.T) {
@@ -377,17 +254,17 @@ func TestParseWithInvalidModulePath(t *testing.T) {
 		{
 			name:    "module path with space",
 			modData: "module \"gno.land/p/demo/ foo\"",
-			errMsg:  "invalid module path: invalid character ' '",
+			errMsg:  "malformed import path \"gno.land/p/demo/ foo\": invalid char ' '",
 		},
 		{
 			name:    "module path with Unicode",
 			modData: "module gno.land/p/demo/한글",
-			errMsg:  "invalid module path: invalid character",
+			errMsg:  "malformed import path \"gno.land/p/demo/한글\": invalid char '한'",
 		},
 		{
 			name:    "module path with invalid character",
 			modData: "module gno.land/p/demo/foo*bar",
-			errMsg:  "invalid module path: invalid character '*'",
+			errMsg:  "malformed import path \"gno.land/p/demo/foo*bar\": invalid char '*'",
 		},
 	}
 

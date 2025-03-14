@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -183,7 +181,7 @@ func (f *File) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modf
 			errorf("invalid quoted string: %v", err)
 			return
 		}
-		if err := validateModulePath(s); err != nil {
+		if err := module.CheckImportPath(s); err != nil {
 			errorf("invalid module path: %v", err)
 			return
 		}
@@ -211,31 +209,4 @@ var invalidChars = map[rune]bool{
 	'|':  true,
 	'[':  true,
 	']':  true,
-}
-
-// validateModulePath checks if the given module path contains only valid characters.
-// It returns an error if the path is empty or contains invalid characters such as:
-// non-printable ASCII characters, Unicode characters, spaces, or special characters
-// (`, ", \, ?, *, :, <, >, |, [, ]).
-func validateModulePath(path string) error {
-	if path == "" {
-		return errEmptyModulePath
-	}
-
-	if i := strings.IndexFunc(path, func(r rune) bool {
-		if r >= utf8.RuneSelf || !unicode.IsPrint(r) {
-			return true
-		}
-		if invalidChars[r] {
-			return true
-		}
-		if unicode.IsSpace(r) {
-			return true
-		}
-		return false
-	}); i != -1 {
-		return fmt.Errorf("invalid character '%c' in module path at position %d", path[i], i)
-	}
-
-	return nil
 }
