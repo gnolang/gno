@@ -2,6 +2,7 @@ package boards2
 
 import (
 	"std"
+	"strconv"
 	"strings"
 )
 
@@ -21,12 +22,23 @@ func SetPermissions(bid BoardID, p Permissions) {
 		// When board ID is zero it means that realm permissions are being updated
 		if bid == 0 {
 			gPerms = p
+
+			std.Emit(
+				"RealmPermissionsUpdated",
+				"caller", caller.String(),
+			)
 			return
 		}
 
 		// Otherwise update the permissions of a single board
 		board := mustGetBoard(bid)
 		board.perms = p
+
+		std.Emit(
+			"BoardPermissionsUpdated",
+			"caller", caller.String(),
+			"boardID", bid.String(),
+		)
 	})
 }
 
@@ -55,6 +67,13 @@ func CreateBoard(name string) BoardID {
 		board := newBoard(id, name, caller, perms)
 		gBoardsByID.Set(id.Key(), board)
 		gBoardsByName.Set(name, board)
+
+		std.Emit(
+			"BoardCreated",
+			"caller", caller.String(),
+			"boardID", id.String(),
+			"name", name,
+		)
 	})
 	return id
 }
@@ -83,6 +102,14 @@ func RenameBoard(name, newName string) {
 
 		// Index board for the new name keeping previous indexes for older names
 		gBoardsByName.Set(newName, board)
+
+		std.Emit(
+			"BoardRenamed",
+			"caller", caller.String(),
+			"boardID", bid.String(),
+			"name", name,
+			"newName", newName,
+		)
 	})
 }
 
@@ -194,6 +221,12 @@ func SetFlaggingThreshold(boardID BoardID, threshold int) {
 		assertBoardExists(boardID)
 
 		gFlaggingThresholds.Set(boardID.String(), threshold)
+		std.Emit(
+			"FlaggingThresholdUpdated",
+			"caller", caller.String(),
+			"boardID", boardID.String(),
+			"threshold", strconv.Itoa(threshold),
+		)
 	})
 }
 
@@ -234,6 +267,14 @@ func FlagThread(boardID BoardID, threadID PostID, reason string) {
 	if hide || isRealmOwner {
 		t.SetVisible(false)
 	}
+
+	std.Emit(
+		"ThreadFlagged",
+		"caller", caller.String(),
+		"boardID", boardID.String(),
+		"threadID", threadID.String(),
+		"reason", reason,
+	)
 }
 
 // CreateThread creates a new thread within a board.
@@ -251,6 +292,15 @@ func CreateThread(boardID BoardID, title, body string) PostID {
 	assertHasBoardPermission(board, caller, PermissionThreadCreate)
 
 	thread := board.AddThread(caller, title, body)
+
+	std.Emit(
+		"ThreadCreated",
+		"caller", caller.String(),
+		"boardID", boardID.String(),
+		"threadID", thread.GetPostID().String(),
+		"title", title,
+	)
+
 	return thread.id
 }
 
@@ -283,6 +333,15 @@ func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID 
 
 		reply = post.AddReply(caller, body)
 	}
+
+	std.Emit(
+		"ReplyCreate",
+		"caller", caller.String(),
+		"boardID", boardID.String(),
+		"threadID", threadID.String(),
+		"replyID", reply.GetPostID().String(),
+	)
+
 	return reply.id
 }
 
@@ -317,6 +376,15 @@ func FlagReply(boardID BoardID, threadID, replyID PostID, reason string) {
 	if hide || isRealmOwner {
 		reply.SetVisible(false)
 	}
+
+	std.Emit(
+		"ReplyFlagged",
+		"caller", caller.String(),
+		"boardID", boardID.String(),
+		"threadID", threadID.String(),
+		"replyID", replyID.String(),
+		"reason", reason,
+	)
 }
 
 // CreateRepost reposts a thread into another board.
@@ -331,6 +399,16 @@ func CreateRepost(boardID BoardID, threadID PostID, title, body string, dstBoard
 	repostId := dst.incGetPostID()
 	repost := newPost(dst, repostId, caller, title, body, repostId, thread.GetPostID(), thread.GetBoard().GetID())
 	thread.AddRepostTo(caller, repost, dst)
+
+	std.Emit(
+		"Repost",
+		"caller", caller.String(),
+		"boardID", boardID.String(),
+		"threadID", threadID.String(),
+		"destinationBoardID", dstBoardID.String(),
+		"title", title,
+	)
+
 	return repostId
 }
 
@@ -351,6 +429,13 @@ func DeleteThread(boardID BoardID, threadID PostID) {
 
 	// TODO: Discuss how to deal with thread deletion (should we hide instead?)
 	board.DeleteThread(threadID)
+
+	std.Emit(
+		"ThreadDeleted",
+		"caller", caller.String(),
+		"boardID", boardID.String(),
+		"threadID", threadID.String(),
+	)
 }
 
 // DeleteReply deletes a reply from a thread.
@@ -381,6 +466,14 @@ func DeleteReply(boardID BoardID, threadID, replyID PostID) {
 	} else {
 		thread.DeleteReply(replyID)
 	}
+
+	std.Emit(
+		"ReplyDeleted",
+		"caller", caller.String(),
+		"boardID", boardID.String(),
+		"threadID", threadID.String(),
+		"replyID", replyID.String(),
+	)
 }
 
 // EditThread updates the title and body of thread.
@@ -405,6 +498,14 @@ func EditThread(boardID BoardID, threadID PostID, title, body string) {
 	}
 
 	thread.Update(title, body)
+
+	std.Emit(
+		"ThreadEdited",
+		"caller", caller.String(),
+		"boardID", boardID.String(),
+		"threadID", threadID.String(),
+		"title", title,
+	)
 }
 
 // EditReply updates the body of comment or reply.
@@ -424,11 +525,21 @@ func EditReply(boardID BoardID, threadID, replyID PostID, body string) {
 	assertReplyVisible(reply)
 	assertReplyIsNotFrozen(reply)
 
-	if std.OriginCaller() != reply.GetCreator() {
+	caller := std.OriginCaller()
+	if caller != reply.GetCreator() {
 		panic("only the reply creator is allowed to edit it")
 	}
 
 	reply.Update("", body)
+
+	std.Emit(
+		"ReplyEdited",
+		"caller", caller.String(),
+		"boardID", boardID.String(),
+		"threadID", threadID.String(),
+		"replyID", replyID.String(),
+		"body", body,
+	)
 }
 
 // InviteMember adds a member to the realm or to a boards.
@@ -448,6 +559,14 @@ func InviteMember(boardID BoardID, user std.Address, role Role) {
 		if err := perms.AddUser(user, role); err != nil {
 			panic(err)
 		}
+
+		std.Emit(
+			"MemberInvited",
+			"caller", caller.String(),
+			"boardID", boardID.String(),
+			"member", user.String(),
+			"role", string(role),
+		)
 	})
 }
 
@@ -466,6 +585,13 @@ func RemoveMember(boardID BoardID, user std.Address) {
 		if !perms.RemoveUser(user) {
 			panic("member not found")
 		}
+
+		std.Emit(
+			"MemberRemoved",
+			"caller", caller.String(),
+			"boardID", boardID.String(),
+			"member", user.String(),
+		)
 	})
 }
 
@@ -511,6 +637,14 @@ func ChangeMemberRole(boardID BoardID, member std.Address, role Role) {
 		if err := perms.SetUserRoles(member, role); err != nil {
 			panic(err)
 		}
+
+		std.Emit(
+			"RoleChanged",
+			"caller", caller.String(),
+			"boardID", boardID.String(),
+			"member", member.String(),
+			"newRole", string(role),
+		)
 	})
 }
 
