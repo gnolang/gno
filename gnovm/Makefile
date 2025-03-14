@@ -83,6 +83,7 @@ run.bench.opcode: build.bench.opcode
 run.bench.storage: build.bench.storage
 	./build/gnobench -out store_results_$(COMMIT_HASH).csv
 
+
 ########################################
 # Test suite
 .PHONY: test

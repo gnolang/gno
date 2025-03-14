@@ -26,7 +26,7 @@ type Value interface {
 	// The caller must provide a callback visitor
 	// which knows how to break cycles, otherwise
 	// the Visit function may recurse infinitely.
-	// (the GC does this with GcCycle)
+	// (the GC does this with GCCycle)
 	// It does not call the visitor on itself.
 	VisitAssociated(tr Visitor) (stop bool) // for GC
 }
@@ -564,7 +564,7 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 // makes construction TypedValue{T:*FuncType{},V:*FuncValue{}}
 // faster.
 type FuncValue struct {
-	Type       Type         // includes unbound receiver(S)
+	Type       Type         // includes unbound receiver(s)
 	IsMethod   bool         // is an (unbound) method
 	Source     BlockNode    // for block mem allocation
 	Name       Name         // name of function/method
@@ -2460,8 +2460,6 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 }
 
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
-	// fmt.Println("===GetPointerTo, b: ", b)
-	// fmt.Println("===GetPointerTo, path: ", path)
 	if path.IsBlockBlankPath() {
 		if debug {
 			if path.Name != blankIdentifier {
@@ -2707,7 +2705,6 @@ func typedString(s string) TypedValue {
 }
 
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
-	// fmt.Println("---fillValueTV, tv: ", tv, reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case RefValue:
 		if cv.PkgPath != "" { // load package

@@ -39,10 +39,10 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	m.Alloc.Reset()
 
 	// This is the only place where it's bumped.
-	m.GcCycle += 1
+	m.GCCycle += 1
 
 	// Construct visitor callback.
-	vis := GCVisitorFn(m.GcCycle, m.Alloc)
+	vis := GCVisitorFn(m.GCCycle, m.Alloc)
 
 	// Visit blocks
 	for _, block := range m.Blocks {
@@ -79,7 +79,7 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	return maxBytes - bytes, true
 }
 
-// Returns a visitor that bumps the GcCycle counter
+// Returns a visitor that bumps the GCCycle counter
 // and stops if alloc is out of memory.
 func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 	var vis func(value Value) bool
