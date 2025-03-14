@@ -10,6 +10,8 @@ import (
 	"gno.land/p/moul/addrset"
 )
 
+var _ commondao.ProposalDefinition = (*MembersPropDefinition)(nil)
+
 func TestMembersPropDefinitionNew(t *testing.T) {
 	cases := []struct {
 		name     string
