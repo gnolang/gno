@@ -80,8 +80,10 @@ func (c *backupCfg) RegisterFlags(fs *flag.FlagSet) {
 
 // XXX: versioning of output directory
 
-const nextHeightFilename = "next-height.txt"
-const chunkSize = 100
+const (
+	nextHeightFilename = "next-height.txt"
+	chunkSize          = 100
+)
 
 func execBackup(ctx context.Context, c *backupCfg, io commands.IO) error {
 	if err := validateInput(c); err != nil {
