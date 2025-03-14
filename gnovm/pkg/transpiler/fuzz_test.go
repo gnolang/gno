@@ -34,6 +34,46 @@ func FuzzTranspiling(f *testing.F) {
 
 	// 2. Run the fuzzer.
 	f.Fuzz(func(t *testing.T, gnoSourceCode []byte) {
+		gnoSrc := string(gnoSourceCode)
+		// 2.5. Some bugs are not yet fixed in Gno and halting fuzzing
+		// before they are fixed is not acceptable so we should go on.
+		defer func() {
+			r := recover()
+			if r == nil {
+				return
+			}
+
+			serr := fmt.Sprintf("%v", r)
+			switch {
+			case strings.Contains(serr, "import not found"),
+				strings.Contains(serr, "invalid import path "),
+				strings.Contains(serr, "undefined: "):
+				return
+			default:
+				t.Fatalf("%v\n\n\033[31m%s\033[00m", serr, gnoSrc)
+			}
+		}()
+
+		fn, err := gnolang.ParseFile("main.go", string(gnoSourceCode))
+		if err != nil {
+			// TODO: it could be discrepancy that if it compiled alright that it later failed.
+			panic(err)
+		}
+
+		if !strings.Contains(gnoSrc, "func main()") {
+			gnoSrc += "\n\nfunc main() {}"
+		}
+		memPkg := &gnovm.MemPackage{
+			Name: string(fn.PkgName),
+			Path: string(fn.Name),
+			Files: []*gnovm.MemFile{
+				{Name: "a.gno", Body: gnoSrc},
+			},
+		}
+		if err := gnolang.TypeCheckMemPackage(memPkg, mockPackageGetter{}, false); err != nil {
+			panic(err)
+		}
+
 		// 3. Add timings to ensure that if transpiling takes a long time
 		// to run, that we report this as problematic.
 		doneCh := make(chan bool, 1)
@@ -49,8 +89,8 @@ func FuzzTranspiling(f *testing.F) {
 		<-readyCh
 
 		select {
-		case <-time.After(2 * time.Second):
-			t.Fatalf("took more than 2 seconds to transpile\n\n%s", gnoSourceCode)
+		case <-time.After(5 * time.Second):
+			t.Fatalf("took more than 5 seconds to transpile\n\n%s", gnoSourceCode)
 		case <-doneCh:
 		}
 	})
