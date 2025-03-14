@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	changelog = releases.NewChangelog("r/gnoland/users")
 	cd        = std.ChainDomain()
+	changelog = releases.NewChangelog("r/gnoland/users")
 )
 
 const usersPrefix = "gno.land/r/gnoland/users/"

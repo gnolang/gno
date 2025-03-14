@@ -33,6 +33,25 @@ func ProposeControllerRemoval(addr std.Address) dao.ProposalRequest {
 	return dao.NewProposalRequestBuilder("Remove a whitelisted caller from sys/users realm").WithCallback(cb).Build()
 }
 
+// ProposeControllerAdditionAndRemoval allows GovDAO to add a new caller and remove an old caller in the same proposal.
+func ProposeControllerAdditionAndRemoval(toAdd, toRemove std.Address) dao.Executor {
+	cb := func() error {
+		err := addToWhitelist(toAdd)
+		if err != nil {
+			panic(err)
+		}
+
+		err = deleteFromwhitelist(toRemove)
+		if err != nil {
+			panic(err)
+		}
+
+		return nil
+	}
+
+	return bridge.GovDAO().NewGovDAOExecutor(cb)
+}
+
 // Helpers
 
 func deleteFromwhitelist(addr std.Address) error {

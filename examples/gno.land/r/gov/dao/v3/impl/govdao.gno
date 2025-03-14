@@ -51,6 +51,7 @@ func NewGovDAO() *GovDAO {
 	return d
 }
 
+// Setting this to a global variable forces attaching the GovDAO struct to this realm.
 var _govdao *GovDAO
 
 func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (dao.Author, error) {
