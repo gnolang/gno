@@ -18,6 +18,8 @@ func validValidatorInfo(t *testing.T) struct {
 	Address     std.Address
 	PubKey      string
 } {
+	t.Helper()
+
 	return struct {
 		Moniker     string
 		Description string
@@ -36,11 +38,13 @@ func TestValopers_Register(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+		info := validValidatorInfo(t)
+
 		v := Valoper{
-			Moniker:     validValidatorInfo(t).Moniker,
-			Description: validValidatorInfo(t).Description,
-			Address:     validValidatorInfo(t).Address,
-			PubKey:      validValidatorInfo(t).PubKey,
+			Moniker:     info.Moniker,
+			Description: info.Description,
+			Address:     info.Address,
+			PubKey:      info.PubKey,
 			KeepRunning: true,
 		}
 
@@ -51,7 +55,7 @@ func TestValopers_Register(t *testing.T) {
 		std.TestSetOriginSend(std.Coins{minFee}, nil)
 
 		uassert.PanicsWithMessage(t, ErrValoperExists.Error(), func() {
-			Register(validValidatorInfo(t).Moniker, validValidatorInfo(t).Description, validValidatorInfo(t).Address, validValidatorInfo(t).PubKey)
+			Register(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 	})
 
@@ -59,11 +63,13 @@ func TestValopers_Register(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+		info := validValidatorInfo(t)
+
 		// Send no coins
 		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", 0)}, nil)
 
 		uassert.PanicsWithMessage(t, ufmt.Sprintf("payment must not be less than %d", minFee.Amount), func() {
-			Register(validValidatorInfo(t).Moniker, validValidatorInfo(t).Description, validValidatorInfo(t).Address, validValidatorInfo(t).PubKey)
+			Register(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 	})
 
@@ -71,11 +77,13 @@ func TestValopers_Register(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+		info := validValidatorInfo(t)
+
 		// Send invalid coins
 		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee.Amount-1)}, nil)
 
 		uassert.PanicsWithMessage(t, ufmt.Sprintf("payment must not be less than %d", minFee.Amount), func() {
-			Register(validValidatorInfo(t).Moniker, validValidatorInfo(t).Description, validValidatorInfo(t).Address, validValidatorInfo(t).PubKey)
+			Register(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 	})
 
@@ -83,11 +91,13 @@ func TestValopers_Register(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+		info := validValidatorInfo(t)
+
 		// Send invalid coins
 		std.TestSetOriginSend(std.Coins{std.NewCoin("gnogno", minFee.Amount)}, nil)
 
 		uassert.PanicsWithMessage(t, "incompatible coin denominations: gnogno, ugnot", func() {
-			Register(validValidatorInfo(t).Moniker, validValidatorInfo(t).Description, validValidatorInfo(t).Address, validValidatorInfo(t).PubKey)
+			Register(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 	})
 
@@ -95,20 +105,22 @@ func TestValopers_Register(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+		info := validValidatorInfo(t)
+
 		// Send coins
 		std.TestSetOriginSend(std.Coins{minFee}, nil)
 
 		uassert.NotPanics(t, func() {
-			Register(validValidatorInfo(t).Moniker, validValidatorInfo(t).Description, validValidatorInfo(t).Address, validValidatorInfo(t).PubKey)
+			Register(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
 		uassert.NotPanics(t, func() {
-			valoper := GetByAddr(validValidatorInfo(t).Address)
+			valoper := GetByAddr(info.Address)
 
-			uassert.Equal(t, validValidatorInfo(t).Moniker, valoper.Moniker)
-			uassert.Equal(t, validValidatorInfo(t).Description, valoper.Description)
-			uassert.Equal(t, validValidatorInfo(t).Address, valoper.Address)
-			uassert.Equal(t, validValidatorInfo(t).PubKey, valoper.PubKey)
+			uassert.Equal(t, info.Moniker, valoper.Moniker)
+			uassert.Equal(t, info.Description, valoper.Description)
+			uassert.Equal(t, info.Address, valoper.Address)
+			uassert.Equal(t, info.PubKey, valoper.PubKey)
 			uassert.Equal(t, true, valoper.KeepRunning)
 		})
 	})
@@ -122,6 +134,8 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+		info := validValidatorInfo(t)
+
 		// Send coins
 		std.TestSetOriginSend(std.Coins{minFee}, nil)
 
@@ -130,15 +144,15 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
-			Register(validValidatorInfo(t).Moniker, validValidatorInfo(t).Description, validValidatorInfo(t).Address, validValidatorInfo(t).PubKey)
+			Register(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
-		std.TestSetRealm(std.NewUserRealm(validValidatorInfo(t).Address))
-		std.TestSetOriginCaller(validValidatorInfo(t).Address) // TODO(bug, issue #2371): should not be needed
+		std.TestSetRealm(std.NewUserRealm(info.Address))
+		std.TestSetOriginCaller(info.Address) // TODO(bug, issue #2371): should not be needed
 
 		// try to add member without being authorized
 		uassert.PanicsWithMessage(t, authorizable.ErrNotSuperuser.Error(), func() {
-			AddToAuthList(validValidatorInfo(t).Address, test2Address)
+			AddToAuthList(info.Address, test2Address)
 		})
 	})
 
@@ -146,6 +160,8 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+		info := validValidatorInfo(t)
+
 		// Send coins
 		std.TestSetOriginSend(std.Coins{minFee}, nil)
 
@@ -154,19 +170,19 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
-			Register(validValidatorInfo(t).Moniker, validValidatorInfo(t).Description, validValidatorInfo(t).Address, validValidatorInfo(t).PubKey)
+			Register(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
 		uassert.NotPanics(t, func() {
-			AddToAuthList(validValidatorInfo(t).Address, test2Address)
+			AddToAuthList(info.Address, test2Address)
 		})
 
-		std.TestSetRealm(std.NewUserRealm(validValidatorInfo(t).Address))
-		std.TestSetOriginCaller(validValidatorInfo(t).Address) // TODO(bug, issue #2371): should not be needed
+		std.TestSetRealm(std.NewUserRealm(info.Address))
+		std.TestSetOriginCaller(info.Address) // TODO(bug, issue #2371): should not be needed
 
 		// try to add member without being authorized
 		uassert.PanicsWithMessage(t, authorizable.ErrNotSuperuser.Error(), func() {
-			DeleteFromAuthList(validValidatorInfo(t).Address, test2Address)
+			DeleteFromAuthList(info.Address, test2Address)
 		})
 	})
 
@@ -174,6 +190,8 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+		info := validValidatorInfo(t)
+
 		// Send coins
 		std.TestSetOriginSend(std.Coins{minFee}, nil)
 
@@ -182,11 +200,11 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
-			Register(validValidatorInfo(t).Moniker, validValidatorInfo(t).Description, validValidatorInfo(t).Address, validValidatorInfo(t).PubKey)
+			Register(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
 		uassert.NotPanics(t, func() {
-			AddToAuthList(validValidatorInfo(t).Address, test2Address)
+			AddToAuthList(info.Address, test2Address)
 		})
 
 		std.TestSetRealm(std.NewUserRealm(test2Address))
@@ -195,11 +213,11 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 		newMoniker := "new moniker"
 		// Update the valoper
 		uassert.NotPanics(t, func() {
-			UpdateMoniker(validValidatorInfo(t).Address, newMoniker)
+			UpdateMoniker(info.Address, newMoniker)
 		})
 
 		uassert.NotPanics(t, func() {
-			valoper := GetByAddr(validValidatorInfo(t).Address)
+			valoper := GetByAddr(info.Address)
 			uassert.Equal(t, newMoniker, valoper.Moniker)
 		})
 	})
@@ -213,9 +231,11 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+		info := validValidatorInfo(t)
+
 		// Update the valoper
 		uassert.PanicsWithMessage(t, ErrValoperMissing.Error(), func() {
-			UpdateMoniker(validValidatorInfo(t).Address, "new moniker")
+			UpdateMoniker(info.Address, "new moniker")
 		})
 	})
 
@@ -226,12 +246,14 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+		info := validValidatorInfo(t)
+
 		// Send coins
 		std.TestSetOriginSend(std.Coins{minFee}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
-			Register(validValidatorInfo(t).Moniker, validValidatorInfo(t).Description, validValidatorInfo(t).Address, validValidatorInfo(t).PubKey)
+			Register(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
 		// Change the origin caller
@@ -239,7 +261,7 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 
 		// Update the valoper
 		uassert.PanicsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
-			UpdateMoniker(validValidatorInfo(t).Address, "new moniker")
+			UpdateMoniker(info.Address, "new moniker")
 		})
 	})
 
@@ -257,18 +279,20 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+		info := validValidatorInfo(t)
+
 		// Send coins
 		std.TestSetOriginSend(std.Coins{minFee}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
-			Register(validValidatorInfo(t).Moniker, validValidatorInfo(t).Description, validValidatorInfo(t).Address, validValidatorInfo(t).PubKey)
+			Register(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
 		for _, invalidMoniker := range invalidMonikers {
 			// Update the valoper
 			uassert.PanicsWithMessage(t, ErrInvalidMoniker.Error(), func() {
-				UpdateMoniker(validValidatorInfo(t).Address, invalidMoniker)
+				UpdateMoniker(info.Address, invalidMoniker)
 			})
 		}
 	})
@@ -277,17 +301,19 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+		info := validValidatorInfo(t)
+
 		// Send coins
 		std.TestSetOriginSend(std.Coins{minFee}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
-			Register(validValidatorInfo(t).Moniker, validValidatorInfo(t).Description, validValidatorInfo(t).Address, validValidatorInfo(t).PubKey)
+			Register(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
 		// Update the valoper
 		uassert.PanicsWithMessage(t, ErrInvalidMoniker.Error(), func() {
-			UpdateMoniker(validValidatorInfo(t).Address, strings.Repeat("a", MonikerMaxLength+1))
+			UpdateMoniker(info.Address, strings.Repeat("a", MonikerMaxLength+1))
 		})
 	})
 
@@ -295,23 +321,25 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+		info := validValidatorInfo(t)
+
 		// Send coins
 		std.TestSetOriginSend(std.Coins{minFee}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
-			Register(validValidatorInfo(t).Moniker, validValidatorInfo(t).Description, validValidatorInfo(t).Address, validValidatorInfo(t).PubKey)
+			Register(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
 		newMoniker := "new moniker"
 		// Update the valoper
 		uassert.NotPanics(t, func() {
-			UpdateMoniker(validValidatorInfo(t).Address, newMoniker)
+			UpdateMoniker(info.Address, newMoniker)
 		})
 
 		// Make sure the valoper is updated
 		uassert.NotPanics(t, func() {
-			valoper := GetByAddr(validValidatorInfo(t).Address)
+			valoper := GetByAddr(info.Address)
 
 			uassert.Equal(t, newMoniker, valoper.Moniker)
 		})
@@ -336,6 +364,8 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		// Set the origin caller
 		std.TestSetOriginCaller(test1Address)
 
+		info := validValidatorInfo(t)
+
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
@@ -344,7 +374,7 @@ func TestValopers_UpdateDescription(t *testing.T) {
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
-			Register(validValidatorInfo(t).Moniker, validValidatorInfo(t).Description, validValidatorInfo(t).Address, validValidatorInfo(t).PubKey)
+			Register(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
 		// Change the origin caller
@@ -352,7 +382,7 @@ func TestValopers_UpdateDescription(t *testing.T) {
 
 		// Update the valoper
 		uassert.PanicsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
-			UpdateDescription(validValidatorInfo(t).Address, "new description")
+			UpdateDescription(info.Address, "new description")
 		})
 	})
 
@@ -360,18 +390,20 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+		info := validValidatorInfo(t)
+
 		// Send coins
 		std.TestSetOriginSend(std.Coins{minFee}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
-			Register(validValidatorInfo(t).Moniker, validValidatorInfo(t).Description, validValidatorInfo(t).Address, validValidatorInfo(t).PubKey)
+			Register(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
 		emptyDescription := ""
 		// Update the valoper
 		uassert.PanicsWithMessage(t, ErrInvalidDescription.Error(), func() {
-			UpdateDescription(validValidatorInfo(t).Address, emptyDescription)
+			UpdateDescription(info.Address, emptyDescription)
 		})
 	})
 
@@ -379,17 +411,19 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+		info := validValidatorInfo(t)
+
 		// Send coins
 		std.TestSetOriginSend(std.Coins{minFee}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
-			Register(validValidatorInfo(t).Moniker, validValidatorInfo(t).Description, validValidatorInfo(t).Address, validValidatorInfo(t).PubKey)
+			Register(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
 		// Update the valoper
 		uassert.PanicsWithMessage(t, ErrInvalidDescription.Error(), func() {
-			UpdateDescription(validValidatorInfo(t).Address, strings.Repeat("a", DescriptionMaxLength+1))
+			UpdateDescription(info.Address, strings.Repeat("a", DescriptionMaxLength+1))
 		})
 	})
 
@@ -397,23 +431,25 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+		info := validValidatorInfo(t)
+
 		// Send coins
 		std.TestSetOriginSend(std.Coins{minFee}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
-			Register(validValidatorInfo(t).Moniker, validValidatorInfo(t).Description, validValidatorInfo(t).Address, validValidatorInfo(t).PubKey)
+			Register(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
 		newDescription := "new description"
 		// Update the valoper
 		uassert.NotPanics(t, func() {
-			UpdateDescription(validValidatorInfo(t).Address, newDescription)
+			UpdateDescription(info.Address, newDescription)
 		})
 
 		// Make sure the valoper is updated
 		uassert.NotPanics(t, func() {
-			valoper := GetByAddr(validValidatorInfo(t).Address)
+			valoper := GetByAddr(info.Address)
 
 			uassert.Equal(t, newDescription, valoper.Description)
 		})
@@ -441,12 +477,14 @@ func TestValopers_UpdateKeepRunning(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+		info := validValidatorInfo(t)
+
 		// Send coins
 		std.TestSetOriginSend(std.Coins{minFee}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
-			Register(validValidatorInfo(t).Moniker, validValidatorInfo(t).Description, validValidatorInfo(t).Address, validValidatorInfo(t).PubKey)
+			Register(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
 		// Change the origin caller
@@ -454,7 +492,7 @@ func TestValopers_UpdateKeepRunning(t *testing.T) {
 
 		// Update the valoper
 		uassert.PanicsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
-			UpdateKeepRunning(validValidatorInfo(t).Address, false)
+			UpdateKeepRunning(info.Address, false)
 		})
 	})
 
@@ -462,22 +500,24 @@ func TestValopers_UpdateKeepRunning(t *testing.T) {
 		// Clear the set for the test
 		valopers = avl.NewTree()
 
+		info := validValidatorInfo(t)
+
 		// Send coins
 		std.TestSetOriginSend(std.Coins{minFee}, nil)
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
-			Register(validValidatorInfo(t).Moniker, validValidatorInfo(t).Description, validValidatorInfo(t).Address, validValidatorInfo(t).PubKey)
+			Register(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
 		// Update the valoper
 		uassert.NotPanics(t, func() {
-			UpdateKeepRunning(validValidatorInfo(t).Address, false)
+			UpdateKeepRunning(info.Address, false)
 		})
 
 		// Make sure the valoper is updated
 		uassert.NotPanics(t, func() {
-			valoper := GetByAddr(validValidatorInfo(t).Address)
+			valoper := GetByAddr(info.Address)
 
 			uassert.Equal(t, false, valoper.KeepRunning)
 		})

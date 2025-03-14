@@ -51,6 +51,7 @@ func GetValidator(addr std.Address) validators.Validator {
 	if validator, err := vp.GetValidator(addr); err == nil {
 		return validator
 	}
+
 	panic("validator not found")
 }
 
