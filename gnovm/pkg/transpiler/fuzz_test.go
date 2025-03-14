@@ -30,6 +30,34 @@ func FuzzTranspiling(f *testing.F) {
 	}
 
 	// 1. Derive the seeds from our seedGnoFiles.
+	addGnoExamplesAsSeedsToFuzzer(f)
+
+	// 2. Run the fuzzer.
+	f.Fuzz(func(t *testing.T, gnoSourceCode []byte) {
+		gnoSrc := string(gnoSourceCode)
+		// 3. Add timings to ensure that if transpiling takes a long time
+		// to run, that we report this as problematic.
+		doneCh := make(chan bool, 1)
+		readyCh := make(chan bool)
+
+		go func() {
+			close(readyCh)
+			defer close(doneCh)
+			_, _ = transpiler.Transpile(string(gnoSourceCode), "gno", "in.gno")
+			doneCh <- true
+		}()
+
+		<-readyCh
+
+		select {
+		case <-time.After(2 * time.Second):
+			t.Fatalf("took more than 2 seconds to transpile\n\n%s", gnoSourceCode)
+		case <-doneCh:
+		}
+	})
+}
+
+func addGnoExamplesAsSeedsToFuzzer(f *testing.T) {
 	ffs := os.DirFS(filepath.Join(gnoenv.RootDir(), "examples"))
 	fs.WalkDir(ffs, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -50,6 +78,15 @@ func FuzzTranspiling(f *testing.F) {
 		f.Add(blob)
 		return nil
 	})
+}
+
+func FuzzTypecheckThenGnoRunMemPackageVsCompileGo(f *testing.F) {
+	if testing.Short() {
+		f.Skip("Running in -short mode")
+	}
+
+	// 1. Derive the seeds from our seedGnoFiles.
+	addGnoExamplesAsSeedsToFuzzer(f)
 
 	// 2. Run the fuzzers.
 	f.Fuzz(func(t *testing.T, gnoSourceCode []byte) {
@@ -224,23 +261,6 @@ func FuzzTranspiling(f *testing.F) {
 				panic(fmt.Sprintf("%s\n\nfailure due to:\n\033[31m%s\033[00m", sr, gnoSrc))
 			}
 		}()
-
-		go func() {
-			close(readyCh)
-			defer close(doneCh)
-			if false {
-				_, _ = transpiler.Transpile(string(gnoSourceCode), "gno", "in.gno")
-			}
-			doneCh <- true
-		}()
-
-		<-readyCh
-
-		select {
-		case <-time.After(2 * time.Second):
-			t.Fatalf("took more than 2 seconds to transpile\n\n%s", gnoSourceCode)
-		case <-doneCh:
-		}
 
 		// Next run the code to see if it can be ran.
 		fn, err := gnolang.ParseFile("main.go", string(gnoSourceCode))
