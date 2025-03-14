@@ -16,10 +16,9 @@ const PathSeparator = "/"
 
 var (
 	ErrInvalidVoteChoice    = errors.New("invalid vote choice")
-	ErrLowParticipation     = errors.New("low participation")
-	ErrNoConcensus          = errors.New("no concensus")
 	ErrNotMember            = errors.New("account is not a member of the DAO")
 	ErrOverflow             = errors.New("next ID overflows uint64")
+	ErrProposalFailed       = errors.New("proposal failed to pass")
 	ErrProposalNotFound     = errors.New("proposal not found")
 	ErrVotingDeadlineNotMet = errors.New("voting deadline not met")
 )
@@ -126,6 +125,15 @@ func (dao *CommonDAO) Propose(creator std.Address, d ProposalDefinition) (*Propo
 	return p, nil
 }
 
+// MustPropose creates a new DAO proposal or panics on error.
+func (dao *CommonDAO) MustPropose(creator std.Address, d ProposalDefinition) *Proposal {
+	p, err := dao.Propose(creator, d)
+	if err != nil {
+		panic(err)
+	}
+	return p
+}
+
 // GetActiveProposal returns an active proposal.
 func (dao CommonDAO) GetActiveProposal(proposalID uint64) (_ *Proposal, found bool) {
 	key := makeProposalKey(proposalID)
@@ -176,17 +184,25 @@ func (dao *CommonDAO) Vote(member std.Address, proposalID uint64, c VoteChoice, 
 	return nil
 }
 
-func (dao *CommonDAO) Tally(proposalID uint64) error { // TODO: Rethink or refactor tally to return the winning choice
+// Tally counts votes and validates if a proposal passes.
+func (dao *CommonDAO) Tally(proposalID uint64) (passes bool, _ error) {
 	p, found := dao.GetActiveProposal(proposalID)
 	if !found {
-		return ErrProposalNotFound
+		return false, ErrProposalNotFound
 	}
 
 	if p.Status() != StatusActive {
-		return ErrStatusIsNotActive
+		return false, ErrStatusIsNotActive
 	}
 
-	return dao.tallyProposal(p)
+	if err := dao.checkProposalPasses(p); err != nil {
+		// Don't return an error if proposal failed to pass when tallying
+		if err == ErrProposalFailed {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 // Execute executes a proposal.
@@ -204,10 +220,18 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 		return ErrVotingDeadlineNotMet
 	}
 
-	// From this point any error results in execution success and proposal failure
+	// From this point any error results in a proposal failure and successful execution
 	err := p.Validate()
+
 	if err == nil {
-		err = dao.executeProposal(p)
+		err = dao.checkProposalPasses(p)
+	}
+
+	if err == nil {
+		// Execute proposal only if it's executable
+		if e, ok := p.Definition().(Executable); ok {
+			err = e.Execute()
+		}
 	}
 
 	// Proposal fails if there is any error during validation and execution process
@@ -215,7 +239,7 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 		p.status = StatusFailed
 		p.statusReason = err.Error()
 	} else {
-		p.status = StatusExecuted
+		p.status = StatusPassed
 	}
 
 	// Whichever the outcome of the validation, tallying
@@ -226,41 +250,16 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 	return nil
 }
 
-func (dao *CommonDAO) tallyProposal(p *Proposal) error {
-	votesCount := 0
-	record := p.VotingRecord()
-	for _, c := range p.VoteChoices() {
-		// Don't count explicit abstentions or invalid votes
-		if c == ChoiceNone || c == ChoiceAbstain {
-			continue
-		}
-
-		votesCount += record.VoteCount(c)
-	}
-
-	membersCount := dao.Members().Size()
-	percentage := float64(votesCount) / float64(membersCount)
-	if percentage < p.Quorum() {
-		return ErrLowParticipation
-	}
-
-	if !p.Definition().Tally(record.ReadOnly(), membersCount) {
-		return ErrNoConcensus
-	}
-	return nil
-}
-
-func (dao *CommonDAO) executeProposal(p *Proposal) error {
-	if p.Status() != StatusActive {
-		return ErrStatusIsNotActive
-	}
-
-	if err := dao.tallyProposal(p); err != nil {
+func (dao *CommonDAO) checkProposalPasses(p *Proposal) error {
+	record := p.VotingRecord().Readonly()
+	members := NewMemberSet(*dao.Members())
+	passes, err := p.Definition().Tally(record, members)
+	if err != nil {
 		return err
 	}
 
-	if e, ok := p.Definition().(Executable); ok {
-		return e.Execute()
+	if !passes {
+		return ErrProposalFailed
 	}
 	return nil
 }

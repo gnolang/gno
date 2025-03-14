@@ -128,13 +128,19 @@ func TestMembersPropDefinitionValidate(t *testing.T) {
 
 func TestMembersPropDefinitionTally(t *testing.T) {
 	cases := []struct {
-		name        string
-		votes       []commondao.Vote
-		memberCount int
-		success     bool
+		name    string
+		members []std.Address
+		votes   []commondao.Vote
+		err     error
+		success bool
 	}{
 		{
 			name: "succeed",
+			members: []std.Address{
+				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
+			},
 			votes: []commondao.Vote{
 				{
 					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
@@ -145,49 +151,89 @@ func TestMembersPropDefinitionTally(t *testing.T) {
 					Choice:  commondao.ChoiceYes,
 				},
 			},
-			memberCount: 3,
-			success:     true,
+			success: true,
 		},
 		{
 			name: "fail",
+			members: []std.Address{
+				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
+			},
+			votes: []commondao.Vote{
+				{
+					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+					Choice:  commondao.ChoiceNo,
+				},
+				{
+					Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+					Choice:  commondao.ChoiceNo,
+				},
+			},
+		},
+		{
+			name: "no quorum",
+			members: []std.Address{
+				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+				"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
+			},
 			votes: []commondao.Vote{
 				{
 					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 					Choice:  commondao.ChoiceYes,
 				},
 			},
-			memberCount: 3,
+			err: commondao.ErrNoQuorum,
 		},
 		{
 			name: "succeed with two members",
+			members: []std.Address{
+				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+			},
 			votes: []commondao.Vote{
 				{
 					Address: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
 					Choice:  commondao.ChoiceYes,
 				},
 			},
-			memberCount: 2,
-			success:     true,
+			success: true,
 		},
 		{
-			name:        "fail with two members",
-			memberCount: 2,
+			name: "fail with two members",
+			members: []std.Address{
+				"g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+				"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+			},
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var (
-				r commondao.VotingRecord
-				p MembersPropDefinition
+				p       MembersPropDefinition
+				record  commondao.VotingRecord
+				members addrset.Set
 			)
 
-			for _, v := range tc.votes {
-				r.AddVote(v)
+			for _, m := range tc.members {
+				members.Add(m)
 			}
 
-			success := p.Tally(r.ReadOnly(), tc.memberCount)
+			for _, v := range tc.votes {
+				record.AddVote(v)
+			}
 
+			success, err := p.Tally(record.Readonly(), commondao.NewMemberSet(members))
+
+			if tc.err != nil {
+				urequire.ErrorIs(t, err, tc.err, "expect an error")
+				uassert.False(t, success, "expect tally to fail")
+				return
+			}
+
+			urequire.NoError(t, err, "expect no error")
 			uassert.Equal(t, tc.success, success, "expect tally success to match")
 		})
 	}

@@ -31,12 +31,12 @@ type (
 
 // VotingRecord stores accounts that voted and vote choices.
 type VotingRecord struct {
-	ReadOnlyVotingRecord
+	ReadonlyVotingRecord
 }
 
-// ReadOnly returns a read only voting record.
-func (r VotingRecord) ReadOnly() ReadOnlyVotingRecord {
-	return r.ReadOnlyVotingRecord
+// Readonly returns a read only voting record.
+func (r VotingRecord) Readonly() ReadonlyVotingRecord {
+	return r.ReadonlyVotingRecord
 }
 
 // AddVote adds a vote to the voting record.
@@ -59,7 +59,7 @@ func (r *VotingRecord) AddVote(vote Vote) (updated bool) {
 // GetProvableMajorityChoice returns the choice voted by the majority.
 // The result is only valid if there is a majority.
 // Caller must validate that the returned choice represents a majority.
-func GetProvableMajorityChoice(r ReadOnlyVotingRecord) VoteChoice { // TODO: Rethink this function
+func GetProvableMajorityChoice(r ReadonlyVotingRecord) VoteChoice { // TODO: Rethink this function
 	var (
 		choice       VoteChoice
 		currentCount int
@@ -79,7 +79,7 @@ func GetProvableMajorityChoice(r ReadOnlyVotingRecord) VoteChoice { // TODO: Ret
 // SelectChoiceByAbsoluteMajority select the vote choice by absolute majority.
 // Vote choice is a majority when chosen by more than half of the votes.
 // Absolute majority considers abstentions when counting votes.
-func SelectChoiceByAbsoluteMajority(r ReadOnlyVotingRecord, membersCount int) (VoteChoice, bool) {
+func SelectChoiceByAbsoluteMajority(r ReadonlyVotingRecord, membersCount int) (VoteChoice, bool) {
 	choice := GetProvableMajorityChoice(r)
 	if r.VoteCount(choice) > int(membersCount/2) {
 		return choice, true
@@ -89,7 +89,7 @@ func SelectChoiceByAbsoluteMajority(r ReadOnlyVotingRecord, membersCount int) (V
 
 // SelectChoiceBySuperMajority select the vote choice by super majority using a 2/3s threshold.
 // Abstentions are not considered when calculating the super majority choice.
-func SelectChoiceBySuperMajority(r ReadOnlyVotingRecord, membersCount int) (VoteChoice, bool) {
+func SelectChoiceBySuperMajority(r ReadonlyVotingRecord, membersCount int) (VoteChoice, bool) {
 	if membersCount < 3 {
 		return "", false
 	}
@@ -104,7 +104,7 @@ func SelectChoiceBySuperMajority(r ReadOnlyVotingRecord, membersCount int) (Vote
 // SelectChoiceByPlurality selects the vote choice by plurality.
 // The choice will be considered a majority if it has votes and if there is no other
 // choice with the same number of votes. A tie won't be considered majority.
-func SelectChoiceByPlurality(r ReadOnlyVotingRecord) (VoteChoice, bool) {
+func SelectChoiceByPlurality(r ReadonlyVotingRecord) (VoteChoice, bool) {
 	var (
 		choice       VoteChoice
 		currentCount int

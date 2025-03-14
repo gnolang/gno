@@ -8,25 +8,32 @@ import (
 	"gno.land/p/demo/avl"
 )
 
-// DefaultQuorum defines the default quorum required to tally proposal votes.
-const DefaultQuorum = 0.34 // 34%
-
 const (
-	StatusActive   ProposalStatus = "active"
-	StatusFailed                  = "failed"
-	StatusExecuted                = "executed"
+	StatusActive ProposalStatus = "active"
+	StatusFailed                = "failed"
+	StatusPassed                = "passed"
 )
 
 const (
-	ChoiceNone    VoteChoice = ""
-	ChoiceYes                = "YES"
-	ChoiceNo                 = "NO"
-	ChoiceAbstain            = "ABSTAIN"
+	ChoiceNone       VoteChoice = ""
+	ChoiceYes                   = "YES"
+	ChoiceNo                    = "NO"
+	ChoiceNoWithVeto            = "NO WITH VETO"
+	ChoiceAbstain               = "ABSTAIN"
+)
+
+const (
+	QuorumOneThird     float64 = 0.33 // percentage
+	QuorumHalf                 = 0.5
+	QuorumTwoThirds            = 0.66
+	QuorumThreeFourths         = 0.75
+	QuorumFull                 = 1
 )
 
 var (
 	ErrInvalidCreatorAddress      = errors.New("invalid proposal creator address")
 	ErrProposalDefinitionRequired = errors.New("proposal definition is required")
+	ErrNoQuorum                   = errors.New("no quorum")
 	ErrStatusIsNotActive          = errors.New("proposal status is not active")
 )
 
@@ -66,14 +73,8 @@ type (
 		// the voting deadline from the proposal's creationd date.
 		VotingPeriod() time.Duration
 
-		// Quorum returns the percentage of members that must vote to be able to pass a proposal.
-		// This is an optional value. DAOs use a default value when quorum is zero or invalid.
-		// Its value must be between 0 and 1, being 1 = 100% of member votes.
-		Quorum() float64
-
-		// Tally counts the number of votes and verifies that there is consensus.
-		// Tally fails when none of the vote choices wins over the others.
-		Tally(r ReadOnlyVotingRecord, memberCount int) (success bool)
+		// Tally counts the number of votes and verifies if proposal passes.
+		Tally(r ReadonlyVotingRecord, members MemberSet) (passes bool, _ error)
 	}
 
 	// Validable defines an interface for proposal definitions that require state validation.
@@ -149,15 +150,6 @@ func (p Proposal) Definition() ProposalDefinition {
 	return p.definition
 }
 
-// Quorum returns the percentage of members that must vote to be able to pass a proposal.
-func (p Proposal) Quorum() float64 {
-	quorum := p.definition.Quorum()
-	if quorum <= 0 || quorum > 1 {
-		quorum = DefaultQuorum
-	}
-	return quorum
-}
-
 // Status returns the current proposal status.
 func (p Proposal) Status() ProposalStatus {
 	return p.status
@@ -220,4 +212,24 @@ func (p Proposal) Validate() error {
 // IsValidVoteChoice checks if a vote choice is valid for the proposal.
 func (p Proposal) IsValidVoteChoice(c VoteChoice) bool {
 	return p.voteChoices.Has(string(c))
+}
+
+// IsQuorumReached checks if a participation quorum is reach.
+func IsQuorumReached(quorum float64, r ReadonlyVotingRecord, members MemberSet) bool {
+	if members.Size() <= 0 || quorum <= 0 {
+		return false
+	}
+
+	var votesCount int
+	for _, c := range r.Choices() {
+		// Don't count explicit abstentions or invalid votes
+		if c == ChoiceNone || c == ChoiceAbstain {
+			continue
+		}
+
+		votesCount += r.VoteCount(c)
+	}
+
+	percentage := float64(votesCount) / float64(members.Size())
+	return percentage >= quorum
 }
