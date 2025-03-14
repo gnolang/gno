@@ -1,4 +1,4 @@
-# Gno
+# Gno [![Go Reference](https://pkg.go.dev/badge/hey/google)](https://gnolang.github.io/gno/github.com/gnolang/gno.html)
 
 > At first, there was Bitcoin, out of entropy soup of the greater All.
 > Then, there was Ethereum, which was created in the likeness of Bitcoin,
@@ -110,9 +110,4 @@ repository offers more resources to dig into. We are eager to see your first PR!
 
   * [![Go Report Card](https://goreportcard.com/badge/github.com/gnolang/gno)](https://goreportcard.com/report/github.com/gnolang/gno)
   * tm2, gnovm, gno.land: TODO (blocked by tm2 split, because we need go mod workspaces)
-
-  Pkg.go.dev
-
-  * [![Go Reference](https://pkg.go.dev/badge/hey/google)](https://gnolang.github.io/gno/github.com/gnolang/gno.html) \
-    (pkg.go.dev will not show our repository as it has a license it doesn't recognise)
 </details>
