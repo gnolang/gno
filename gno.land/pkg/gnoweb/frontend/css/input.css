@@ -189,7 +189,7 @@
   .realm-view ul ol,
   .realm-view ol ul,
   .realm-view ol ol {
-    @apply mt-3 mb-2 pl-4;
+    @apply my-2 pl-4;
   }
 
   .realm-view ul {

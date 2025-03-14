@@ -88,8 +88,6 @@ func (vp ValuePath) String() string {
 		return fmt.Sprintf("VPDerefPtrMethod(%d,%s)", vp.Index, vp.Name)
 	case VPDerefInterface:
 		return fmt.Sprintf("VPDerefInterface(%s)", vp.Name)
-	case VPNative:
-		return fmt.Sprintf("VPNative(%s)", vp.Name)
 	default:
 		panic("illegal_value_type")
 	}
@@ -255,10 +253,6 @@ func (x MapTypeExpr) String() string {
 
 func (x StructTypeExpr) String() string {
 	return fmt.Sprintf("struct { %v }", x.Fields)
-}
-
-func (x MaybeNativeTypeExpr) String() string {
-	return fmt.Sprintf("maybenative(%s)", x.Type.String())
 }
 
 func (x AssignStmt) String() string {

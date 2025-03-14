@@ -256,17 +256,6 @@ func (pv *PackageValue) String() string {
 	return fmt.Sprintf("package(%s %s)", pv.PkgName, pv.PkgPath)
 }
 
-func (nv *NativeValue) String() string {
-	return fmt.Sprintf("gonative{%v}",
-		nv.Value.Interface())
-	/*
-		return fmt.Sprintf("gonative{%v (%s)}",
-			v.Value.Interface(),
-			v.Value.Type().String(),
-		)
-	*/
-}
-
 func (rv RefValue) String() string {
 	if rv.PkgPath == "" {
 		return fmt.Sprintf("ref(%v)",
