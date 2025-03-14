@@ -19,7 +19,6 @@ func TestProposalNew(t *testing.T) {
 	uassert.NoError(t, err)
 	uassert.Equal(t, p.ID(), id)
 	uassert.NotEqual(t, p.Definition(), nil)
-	uassert.Equal(t, p.Quorum(), DefaultQuorum)
 	uassert.True(t, p.Status() == StatusActive)
 	uassert.Equal(t, p.Creator(), creator)
 	uassert.False(t, p.CreatedAt().IsZero())
@@ -68,19 +67,21 @@ func TestProposalVoteChoices(t *testing.T) {
 }
 
 type testPropDef struct {
-	votingPeriod                time.Duration
-	tallyResult                 bool
-	validationErr, executionErr error
-	voteChoices                 []VoteChoice
+	votingPeriod                          time.Duration
+	tallyResult                           bool
+	validationErr, tallyErr, executionErr error
+	voteChoices                           []VoteChoice
 }
 
-func (testPropDef) Title() string                          { return "" }
-func (testPropDef) Body() string                           { return "" }
-func (testPropDef) Quorum() float64                        { return 0 }
-func (d testPropDef) VotingPeriod() time.Duration          { return d.votingPeriod }
-func (d testPropDef) Validate() error                      { return d.validationErr }
-func (d testPropDef) Tally(ReadOnlyVotingRecord, int) bool { return d.tallyResult }
-func (d testPropDef) Execute() error                       { return d.executionErr }
+func (testPropDef) Title() string                 { return "" }
+func (testPropDef) Body() string                  { return "" }
+func (d testPropDef) VotingPeriod() time.Duration { return d.votingPeriod }
+func (d testPropDef) Validate() error             { return d.validationErr }
+func (d testPropDef) Execute() error              { return d.executionErr }
+
+func (d testPropDef) Tally(ReadOnlyVotingRecord, MemberSet) (bool, error) {
+	return d.tallyResult, d.tallyErr
+}
 
 func (d testPropDef) CustomVoteChoices() []VoteChoice {
 	if len(d.voteChoices) > 0 {

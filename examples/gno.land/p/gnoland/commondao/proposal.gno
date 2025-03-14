@@ -8,20 +8,18 @@ import (
 	"gno.land/p/demo/avl"
 )
 
-// DefaultQuorum defines the default quorum required to tally proposal votes.
-const DefaultQuorum = 0.34 // 34%
-
 const (
-	StatusActive   ProposalStatus = "active"
-	StatusFailed                  = "failed"
-	StatusExecuted                = "executed"
+	StatusActive ProposalStatus = "active"
+	StatusFailed                = "failed"
+	StatusPassed                = "passed"
 )
 
 const (
-	ChoiceNone    VoteChoice = ""
-	ChoiceYes                = "YES"
-	ChoiceNo                 = "NO"
-	ChoiceAbstain            = "ABSTAIN"
+	ChoiceNone       VoteChoice = ""
+	ChoiceYes                   = "YES"
+	ChoiceNo                    = "NO"
+	ChoiceNoWithVeto            = "NO WITH VETO"
+	ChoiceAbstain               = "ABSTAIN"
 )
 
 var (
@@ -66,14 +64,8 @@ type (
 		// the voting deadline from the proposal's creationd date.
 		VotingPeriod() time.Duration
 
-		// Quorum returns the percentage of members that must vote to be able to pass a proposal.
-		// This is an optional value. DAOs use a default value when quorum is zero or invalid.
-		// Its value must be between 0 and 1, being 1 = 100% of member votes.
-		Quorum() float64
-
-		// Tally counts the number of votes and verifies that there is consensus.
-		// Tally fails when none of the vote choices wins over the others.
-		Tally(r ReadOnlyVotingRecord, memberCount int) (success bool)
+		// Tally counts the number of votes and verifies if proposal passes.
+		Tally(r ReadOnlyVotingRecord, members MemberSet) (passes bool, _ error)
 	}
 
 	// Validable defines an interface for proposal definitions that require state validation.
@@ -147,15 +139,6 @@ func (p Proposal) ID() uint64 {
 // Proposal definitions define proposal content and behavior.
 func (p Proposal) Definition() ProposalDefinition {
 	return p.definition
-}
-
-// Quorum returns the percentage of members that must vote to be able to pass a proposal.
-func (p Proposal) Quorum() float64 {
-	quorum := p.definition.Quorum()
-	if quorum <= 0 || quorum > 1 {
-		quorum = DefaultQuorum
-	}
-	return quorum
 }
 
 // Status returns the current proposal status.
