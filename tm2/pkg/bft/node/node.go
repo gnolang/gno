@@ -4,6 +4,7 @@ package node
 // is enabled by the user by setting a profiling address
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -15,14 +16,12 @@ import (
 	"github.com/rs/cors"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
-	"github.com/gnolang/gno/tm2/pkg/bft/node/backuppb/backupconnect"
+	"github.com/gnolang/gno/tm2/pkg/bft/backup"
+	privval "github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/discovery"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
-	"github.com/rs/cors"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	bc "github.com/gnolang/gno/tm2/pkg/bft/blockchain"
@@ -193,7 +192,8 @@ type Node struct {
 	eventStoreService *eventstore.Service
 	firstBlockSignal  <-chan struct{}
 
-	earlyStart bool // start RPC+P2P before genesis time, defer only consensus
+	earlyStart   bool // start RPC+P2P before genesis time, defer only consensus
+	backupServer *http.Server
 }
 
 func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.BlockStore, stateDB dbm.DB, err error) {
@@ -618,16 +618,15 @@ func (n *Node) OnStart() error {
 		n.rpcListeners = listeners
 	}
 
-	// start backup service
-	backupServ := &backupServer{store: n.blockStore}
-	mux := http.NewServeMux()
-	path, handler := backupconnect.NewBackupServiceHandler(backupServ)
-	mux.Handle(path, handler)
-	go http.ListenAndServe(
-		"localhost:4242",
-		// Use h2c so we can serve HTTP/2 without TLS.
-		h2c.NewHandler(mux, &http2.Server{}),
-	)
+	// start backup server if requested
+	if n.config.Backup.ListenAddress != "" {
+		n.backupServer = backup.NewServer(n.config.Backup, n.blockStore)
+		go func() {
+			if err := n.backupServer.ListenAndServe(); err != nil {
+				n.Logger.Error("Backup server", "err", err)
+			}
+		}()
+	}
 
 	// Start the transport.
 	// The listen address for the transport needs to be an address within reach of the machine NIC
@@ -713,6 +712,15 @@ func (n *Node) OnStop() {
 	}
 
 	n.isListening = false
+
+	// stop the backup server if started
+	if n.backupServer != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+		defer cancel()
+		if err := n.backupServer.Shutdown(ctx); err != nil {
+			n.Logger.Error("Error closing backup server", "err", err)
+		}
+	}
 
 	// finally stop the listeners / external services
 	for _, l := range n.rpcListeners {

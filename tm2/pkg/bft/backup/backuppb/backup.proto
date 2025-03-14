@@ -1,7 +1,7 @@
 syntax = "proto3";
 package tm;
 
-option go_package = "github.com/gnolang/gno/tm2/pkg/bft/node/backuppb;backup";
+option go_package = "github.com/gnolang/gno/tm2/pkg/bft/backup/backuppb;backuppb";
 
 service BackupService {
     rpc StreamBlocks (StreamBlocksRequest) returns (stream StreamBlocksResponse);
