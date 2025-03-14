@@ -1,6 +1,9 @@
 package boards2
 
-import "std"
+import (
+	"std"
+	"strconv"
+)
 
 type freezeArgs struct {
 	boardID  BoardID
@@ -42,6 +45,15 @@ func setReplyReadOnly(args freezeArgs, isReadOnly bool) {
 	board.perms.WithPermission(caller, PermissionReplyFreeze, permArgs, func(Args) {
 		reply, _ := args.getReply()
 		reply.SetReadOnly(isReadOnly)
+
+		std.Emit(
+			"ReplyFreeze",
+			"caller", caller.String(),
+			"boardID", args.boardID.String(),
+			"threadID", args.threadID.String(),
+			"replyID", args.replyID.String(),
+			"frozen", strconv.FormatBool(isReadOnly),
+		)
 	})
 }
 
@@ -58,6 +70,14 @@ func setThreadReadOnly(args freezeArgs, isReadOnly bool) {
 	board.perms.WithPermission(caller, PermissionThreadFreeze, permArgs, func(Args) {
 		thread, _ := args.getThread()
 		thread.SetReadOnly(isReadOnly)
+
+		std.Emit(
+			"ThreadFreeze",
+			"caller", caller.String(),
+			"boardID", args.boardID.String(),
+			"threadID", args.threadID.String(),
+			"frozen", strconv.FormatBool(isReadOnly),
+		)
 	})
 }
 
@@ -72,5 +92,12 @@ func setBoardReadOnly(boardID BoardID, isReadOnly bool) {
 	board.perms.WithPermission(caller, PermissionBoardFreeze, args, func(Args) {
 		board := mustGetBoard(boardID)
 		board.SetReadOnly(isReadOnly)
+
+		std.Emit(
+			"BoardFreeze",
+			"caller", caller.String(),
+			"boardID", boardID.String(),
+			"frozen", strconv.FormatBool(isReadOnly),
+		)
 	})
 }
