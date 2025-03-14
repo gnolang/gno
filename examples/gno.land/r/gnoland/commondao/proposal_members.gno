@@ -12,6 +12,7 @@ import (
 
 // TODO: Support optional parent DAO mechanics to add/remove direct SubDAO members
 
+// NewMembersUpdateProposal creates a new proposal definition for adding/removing DAO members.
 func NewMembersPropDefinition(dao *commondao.CommonDAO, add, remove addrset.Set) MembersPropDefinition {
 	if dao == nil {
 		panic("DAO is required")
@@ -32,6 +33,7 @@ func NewMembersPropDefinition(dao *commondao.CommonDAO, add, remove addrset.Set)
 	}
 }
 
+// MembersUpdateProposal defines a proposal type for adding/removing DAO members.
 type MembersPropDefinition struct {
 	dao             *commondao.CommonDAO
 	toAdd, toRemove addrset.Set
