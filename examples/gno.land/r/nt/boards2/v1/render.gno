@@ -1,0 +1,262 @@
+package boards2
+
+import (
+	"net/url"
+	"std"
+	"strconv"
+	"strings"
+
+	"gno.land/p/demo/mux"
+	"gno.land/p/jeronimoalbi/pager"
+	"gno.land/p/moul/txlink"
+)
+
+const (
+	boardsPageSize  = 6
+	threadsPageSize = 6
+	repliesPageSize = 30
+)
+
+const menuMembership = "membership"
+
+func Render(path string) string {
+	router := mux.NewRouter()
+	router.HandleFunc("", renderBoardsList)
+	router.HandleFunc("adminUsers", renderMembers)
+	router.HandleFunc("{board}", renderBoard)
+	router.HandleFunc("{board}/members", renderMembers)
+	router.HandleFunc("{board}/{thread}", renderThread)
+	router.HandleFunc("{board}/{thread}/{reply}", renderReply)
+
+	router.NotFoundHandler = func(res *mux.ResponseWriter, _ *mux.Request) {
+		res.Write("Path not found")
+	}
+
+	return router.Render(path)
+}
+
+func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
+	res.Write("# Boards\n\n")
+	renderBoardListMenu(res, req)
+	res.Write("\n\n---\n")
+
+	if gBoardsByID.Size() == 0 {
+		res.Write("### Currently there are no boards\n")
+		res.Write("Be the first to " + newLink("create a new board", txlink.Call("CreateBoard")) + " !")
+
+		return
+	}
+
+	p := mustGetPagination(req.RawPath, boardsPageSize, true)
+	page := p.Iterate(&gBoardsByID, func(_ string, value interface{}) bool {
+		board := value.(*Board)
+
+		res.Write("## " + newLink(board.GetName(), board.GetURL()) + "  \n")
+		res.Write("_Created by " + newUserLink(board.creator) + " ")
+		res.Write("on " + board.createdAt.Format(dateFormat))
+		res.Write(", #" + board.id.String() + "_  \n")
+		res.Write("_" + strconv.Itoa(board.threads.Size()) + " threads")
+		if board.IsReadOnly() {
+			res.Write(", **read-only**")
+		}
+
+		res.Write("_\n")
+		return false
+	})
+
+	if page != nil {
+		res.Write("\n---\n")
+		res.Write("Pages " + page.Picker())
+	}
+}
+
+func renderBoardListMenu(res *mux.ResponseWriter, req *mux.Request) {
+	path := strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land")
+
+	res.Write(newLink("Create Board", txlink.Call("CreateBoard")))
+	res.Write(" • ")
+	res.Write(newLink("List Admin Users", path+":adminUsers"))
+	res.Write("\n\n")
+}
+
+func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
+	name := req.GetVar("board")
+	v, found := gBoardsByName.Get(name)
+	if !found {
+		res.Write("### The board you are looking for does not exist\n")
+		res.Write("Do you want to [create a new board](" + txlink.Call("CreateBoard") + ") ?")
+		return
+	}
+
+	board := v.(*Board)
+	renderBoardMenu(board, res, req)
+
+	p := mustGetPagination(req.RawPath, threadsPageSize, true)
+	res.Write(board.Render(p))
+}
+
+func renderBoardMenu(board *Board, res *mux.ResponseWriter, req *mux.Request) {
+	boardMembersURL := board.GetPath() + "/members"
+
+	if board.IsReadOnly() {
+		res.Write(newLink("List Board Members", boardMembersURL))
+		res.Write("\n")
+	} else {
+		res.Write(newLink("Start Thread", board.GetPostFormURL()))
+		res.Write(" • ")
+
+		menu := getCurrentSubmenu(req.RawPath)
+		if menu == menuMembership {
+			res.Write("**Manage Board Membership**")
+		} else {
+			res.Write(newLink("Manage Board Membership", submenuURL(menuMembership)))
+		}
+
+		res.Write("  \n")
+
+		if menu == menuMembership {
+			res.Write("↳")
+			res.Write(newLink("List Members", boardMembersURL))
+			res.Write(" • ")
+			res.Write(newLink("Invite", board.GetInviteMemberFormURL()))
+			res.Write(" • ")
+			res.Write(newLink("Remove Member", board.GetRemoveMemberFormURL()))
+			res.Write(" • ")
+			res.Write(newLink("Change Member Role", board.GetChangeMemberRoleFormURL()))
+			res.Write("\n\n")
+		}
+	}
+}
+
+func renderThread(res *mux.ResponseWriter, req *mux.Request) {
+	name := req.GetVar("board")
+	v, found := gBoardsByName.Get(name)
+	if !found {
+		res.Write("Board does not exist: " + name)
+		return
+	}
+
+	rawID := req.GetVar("thread")
+	tID, err := strconv.Atoi(rawID)
+	if err != nil {
+		res.Write("Invalid thread ID: " + rawID)
+		return
+	}
+
+	board := v.(*Board)
+	thread, found := board.GetThread(PostID(tID))
+	if !found {
+		res.Write("Thread does not exist with ID: " + rawID)
+	} else if thread.IsHidden() {
+		res.Write("Thread with ID: " + rawID + " has been flagged as inappropriate")
+	} else {
+		p := mustGetPagination(req.RawPath, repliesPageSize, true)
+		res.Write(thread.Render(p, "", 5))
+	}
+}
+
+func renderReply(res *mux.ResponseWriter, req *mux.Request) {
+	name := req.GetVar("board")
+	v, found := gBoardsByName.Get(name)
+	if !found {
+		res.Write("Board does not exist: " + name)
+		return
+	}
+
+	rawID := req.GetVar("thread")
+	tID, err := strconv.Atoi(rawID)
+	if err != nil {
+		res.Write("Invalid thread ID: " + rawID)
+		return
+	}
+
+	rawID = req.GetVar("reply")
+	rID, err := strconv.Atoi(rawID)
+	if err != nil {
+		res.Write("Invalid reply ID: " + rawID)
+		return
+	}
+
+	board := v.(*Board)
+	thread, found := board.GetThread(PostID(tID))
+	if !found {
+		res.Write("Thread does not exist with ID: " + req.GetVar("thread"))
+		return
+	}
+
+	reply, found := thread.GetReply(PostID(rID))
+	if !found {
+		res.Write("Reply does not exist with ID: " + rawID)
+		return
+	}
+
+	// Call render even for hidden replies to display children.
+	// Original comment content will be hidden under the hood.
+	// See: #3480
+	res.Write(reply.RenderInner())
+}
+
+func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
+	perms := gPerms
+	name := req.GetVar("board")
+	if name != "" {
+		v, found := gBoardsByName.Get(name)
+		if !found {
+			res.Write("### Board not found")
+			return
+		}
+
+		board := v.(*Board)
+		perms = board.perms
+
+		res.Write("# " + board.GetName() + " Members\n")
+		res.Write("### These are the board members\n\n")
+	} else {
+		res.Write("# Admin Users\n")
+		res.Write("### These are the admin users of the realm\n\n")
+	}
+
+	// Create a pager with a small page size to reduce
+	// the number of username lookups per page.
+	p, err := pager.New(req.RawPath, perms.UsersCount(), pager.WithPageSize(5))
+	if err != nil {
+		res.Write(err.Error())
+		return
+	}
+
+	perms.IterateUsers(p.Offset(), p.PageSize(), func(u User) bool {
+		res.Write("- " + newUserLink(u.Address) + " : " + rolesToString(u.Roles) + "\n")
+		return false
+	})
+
+	if p.HasPages() {
+		res.Write("\n\n" + pager.Picker(p))
+	}
+}
+
+func rolesToString(roles []Role) string {
+	if len(roles) == 0 {
+		return ""
+	}
+
+	names := make([]string, len(roles))
+	for i, r := range roles {
+		names[i] = string(r)
+	}
+	return strings.Join(names, ", ")
+}
+
+func submenuURL(name string) string {
+	// TODO: Submenu URL works because no other GET arguments are being used
+	return "?submenu=" + name
+}
+
+func getCurrentSubmenu(rawURL string) string {
+	_, rawQuery, found := strings.Cut(rawURL, "?")
+	if !found {
+		return ""
+	}
+
+	query, _ := url.ParseQuery(rawQuery)
+	return query.Get("submenu")
+}

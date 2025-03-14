@@ -1,0 +1,781 @@
+package boards2
+
+import (
+	"regexp"
+	"std"
+	"strconv"
+	"strings"
+)
+
+const (
+	// MaxBoardNameLength defines the maximum length allowed for board names.
+	MaxBoardNameLength = 50
+
+	// MaxThreadTitleLength defines the maximum length allowed for thread titles.
+	MaxThreadTitleLength = 100
+)
+
+var reBoardName = regexp.MustCompile(`(?i)^[a-z]+[a-z0-9_\-]{2,50}$`)
+
+// SetPermissions sets a permissions implementation for boards2 realm or a board.
+func SetPermissions(bid BoardID, p Permissions) {
+	if p == nil {
+		panic("permissions is required")
+	}
+
+	if bid != 0 {
+		assertBoardExists(bid)
+	}
+
+	caller := std.OriginCaller()
+	args := Args{bid}
+	gPerms.WithPermission(caller, PermissionPermissionsUpdate, args, func(Args) {
+		// When board ID is zero it means that realm permissions are being updated
+		if bid == 0 {
+			gPerms = p
+
+			std.Emit(
+				"RealmPermissionsUpdated",
+				"caller", caller.String(),
+			)
+			return
+		}
+
+		// Otherwise update the permissions of a single board
+		board := mustGetBoard(bid)
+		board.perms = p
+
+		std.Emit(
+			"BoardPermissionsUpdated",
+			"caller", caller.String(),
+			"boardID", bid.String(),
+		)
+	})
+}
+
+// GetBoardIDFromName searches a board by name and returns it's ID.
+func GetBoardIDFromName(name string) (_ BoardID, found bool) {
+	v, found := gBoardsByName.Get(name)
+	if !found {
+		return 0, false
+	}
+	return v.(*Board).id, true
+}
+
+// CreateBoard creates a new board.
+func CreateBoard(name string) BoardID {
+	name = strings.TrimSpace(name)
+	assertIsValidBoardName(name)
+	assertBoardNameNotExists(name)
+
+	caller := std.OriginCaller()
+	id := incGetBoardID()
+	args := Args{name, id}
+	gPerms.WithPermission(caller, PermissionBoardCreate, args, func(Args) {
+		assertBoardNameNotExists(name)
+
+		perms := createDefaultBoardPermissions(caller)
+		board := newBoard(id, name, caller, perms)
+		gBoardsByID.Set(id.Key(), board)
+		gBoardsByName.Set(name, board)
+
+		std.Emit(
+			"BoardCreated",
+			"caller", caller.String(),
+			"boardID", id.String(),
+			"name", name,
+		)
+	})
+	return id
+}
+
+// RenameBoard changes the name of an existing board.
+//
+// A history of previous board names is kept when boards are renamed.
+// Because of that boards are also accesible using previous name(s).
+func RenameBoard(name, newName string) {
+	newName = strings.TrimSpace(newName)
+	assertIsValidBoardName(newName)
+	assertBoardNameNotExists(newName)
+
+	board := mustGetBoardByName(name)
+	assertBoardIsNotFrozen(board)
+
+	bid := board.GetID()
+	caller := std.OriginCaller()
+	args := Args{bid, name, newName}
+	board.perms.WithPermission(caller, PermissionBoardRename, args, func(Args) {
+		assertBoardNameNotExists(newName)
+
+		board := mustGetBoard(bid)
+		board.aliases = append(board.aliases, board.name)
+		board.name = newName
+
+		// Index board for the new name keeping previous indexes for older names
+		gBoardsByName.Set(newName, board)
+
+		std.Emit(
+			"BoardRenamed",
+			"caller", caller.String(),
+			"boardID", bid.String(),
+			"name", name,
+			"newName", newName,
+		)
+	})
+}
+
+// FreezeBoard freezes a board so no more threads and comments can be created or modified.
+func FreezeBoard(boardID BoardID) {
+	setBoardReadOnly(boardID, true)
+}
+
+// UnfreezeBoard removes frozen status from a board.
+func UnfreezeBoard(boardID BoardID) {
+	setBoardReadOnly(boardID, false)
+}
+
+// IsBoardFrozen checks if a board has been frozen.
+func IsBoardFrozen(boardID BoardID) bool {
+	board := mustGetBoard(boardID)
+	return board.IsReadOnly()
+}
+
+// FreezeThread freezes a thread so thread cannot be replied, modified or deleted.
+//
+// Fails if board is frozen.
+func FreezeThread(boardID BoardID, threadID PostID) {
+	args := freezeArgs{
+		boardID:  boardID,
+		threadID: threadID,
+	}
+
+	setThreadReadOnly(args, true)
+}
+
+// UnfreezeThread removes frozen status from a thread.
+//
+// Fails if board is frozen.
+func UnfreezeThread(boardID BoardID, threadID PostID) {
+	args := freezeArgs{
+		boardID:  boardID,
+		threadID: threadID,
+	}
+
+	setThreadReadOnly(args, false)
+}
+
+// IsThreadFrozen checks if a thread has been frozen.
+//
+// Returns true if board is frozen.
+func IsThreadFrozen(boardID BoardID, threadID PostID) bool {
+	board := mustGetBoard(boardID)
+	thread := mustGetThread(board, threadID)
+	assertThreadIsVisible(thread)
+
+	return board.IsReadOnly() || thread.IsReadOnly()
+}
+
+// IsReplyFrozen checks if a thread reply has been frozen.
+//
+// Returns true when board or a parent thread is frozen.
+func IsReplyFrozen(boardID BoardID, threadID, replyID PostID) bool {
+	board := mustGetBoard(boardID)
+	thread := mustGetThread(board, threadID)
+	assertThreadIsVisible(thread)
+
+	reply := mustGetReply(thread, replyID)
+	assertReplyIsVisible(reply)
+
+	return board.IsReadOnly() || thread.IsReadOnly() || reply.IsReadOnly()
+}
+
+// UnfreezeReply removes frozen status from a reply.
+//
+// Fails when parent thread or board are frozen.
+func UnfreezeReply(boardID BoardID, threadID, replyID PostID) {
+	args := freezeArgs{
+		boardID:  boardID,
+		threadID: threadID,
+		replyID:  replyID,
+	}
+
+	// XXX: Is there a use case for also freezing replies?
+	setReplyReadOnly(args, false)
+}
+
+// FreezeReply freezes a thread reply so it cannot be modified or deleted.
+//
+// Fails when parent thread or board are frozen.
+func FreezeReply(boardID BoardID, threadID, replyID PostID) {
+	args := freezeArgs{
+		boardID:  boardID,
+		threadID: threadID,
+		replyID:  replyID,
+	}
+
+	setReplyReadOnly(args, true)
+}
+
+// SetFlaggingThreshold sets the number of flags required to hide a thread or comment.
+//
+// Threshold is only applicable within the board where it's setted.
+func SetFlaggingThreshold(boardID BoardID, threshold int) {
+	if threshold < 1 {
+		panic("invalid flagging threshold")
+	}
+
+	board := mustGetBoard(boardID)
+	assertBoardIsNotFrozen(board)
+
+	caller := std.OriginCaller()
+	args := Args{boardID, threshold}
+	board.perms.WithPermission(caller, PermissionBoardFlaggingUpdate, args, func(Args) {
+		assertBoardExists(boardID)
+
+		gFlaggingThresholds.Set(boardID.String(), threshold)
+		std.Emit(
+			"FlaggingThresholdUpdated",
+			"caller", caller.String(),
+			"boardID", boardID.String(),
+			"threshold", strconv.Itoa(threshold),
+		)
+	})
+}
+
+// GetFlaggingThreshold returns the number of flags required to hide a thread or comment within a board.
+func GetFlaggingThreshold(boardID BoardID) int {
+	assertBoardExists(boardID)
+	return getFlaggingThreshold(boardID)
+}
+
+// FlagThread adds a new flag to a thread.
+//
+// Flagging requires special permissions and hides the thread when
+// the number of flags reaches a pre-defined flagging threshold.
+func FlagThread(boardID BoardID, threadID PostID, reason string) {
+	board := mustGetBoard(boardID)
+
+	// Realm owners should be able to flag without permissions even when board is frozen
+	caller := std.OriginCaller()
+	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
+	if !isRealmOwner {
+		assertBoardIsNotFrozen(board)
+		assertHasBoardPermission(board, caller, PermissionThreadFlag)
+	}
+
+	t, ok := board.GetThread(threadID)
+	if !ok {
+		panic("post doesn't exist")
+	}
+	assertThreadIsNotFrozen(t)
+
+	f := Flag{
+		User:   caller,
+		Reason: reason,
+	}
+
+	// Realm owners can hide with a single flag
+	hide := flagItem(t, f, getFlaggingThreshold(boardID))
+	if hide || isRealmOwner {
+		t.SetVisible(false)
+	}
+
+	std.Emit(
+		"ThreadFlagged",
+		"caller", caller.String(),
+		"boardID", boardID.String(),
+		"threadID", threadID.String(),
+		"reason", reason,
+	)
+}
+
+// CreateThread creates a new thread within a board.
+func CreateThread(boardID BoardID, title, body string) PostID {
+	title = strings.TrimSpace(title)
+	assertTitleIsValid(title)
+
+	body = strings.TrimSpace(body)
+	assertBodyIsNotEmpty(body)
+
+	board := mustGetBoard(boardID)
+	assertBoardIsNotFrozen(board)
+
+	caller := std.OriginCaller()
+	assertHasBoardPermission(board, caller, PermissionThreadCreate)
+
+	thread := board.AddThread(caller, title, body)
+
+	std.Emit(
+		"ThreadCreated",
+		"caller", caller.String(),
+		"boardID", boardID.String(),
+		"threadID", thread.GetPostID().String(),
+		"title", title,
+	)
+
+	return thread.id
+}
+
+// CreateReply creates a new comment or reply within a thread.
+//
+// The value of `replyID` is only required when creating a reply of another reply.
+func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID {
+	body = strings.TrimSpace(body)
+	assertBodyIsNotEmpty(body)
+
+	board := mustGetBoard(boardID)
+	assertBoardIsNotFrozen(board)
+
+	caller := std.OriginCaller()
+	assertHasBoardPermission(board, caller, PermissionReplyCreate)
+
+	thread := mustGetThread(board, threadID)
+	assertThreadIsVisible(thread)
+	assertThreadIsNotFrozen(thread)
+
+	var reply *Post
+	if replyID == 0 {
+		// When the parent reply is the thread just add reply to thread
+		reply = thread.AddReply(caller, body)
+	} else {
+		// Try to get parent reply and add a new child reply
+		parent := mustGetReply(thread, replyID)
+		if parent.IsHidden() || parent.IsReadOnly() {
+			panic("replying to a hidden or frozen reply is not allowed")
+		}
+
+		reply = parent.AddReply(caller, body)
+	}
+
+	std.Emit(
+		"ReplyCreate",
+		"caller", caller.String(),
+		"boardID", boardID.String(),
+		"threadID", threadID.String(),
+		"replyID", reply.GetPostID().String(),
+	)
+
+	return reply.id
+}
+
+// FlagReply adds a new flag to a comment or reply.
+//
+// Flagging requires special permissions and hides the comment or reply
+// when the number of flags reaches a pre-defined flagging threshold.
+func FlagReply(boardID BoardID, threadID, replyID PostID, reason string) {
+	board := mustGetBoard(boardID)
+
+	// Realm owners should be able to flag without permissions even when board is frozen
+	caller := std.OriginCaller()
+	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
+	if !isRealmOwner {
+		assertBoardIsNotFrozen(board)
+		assertHasBoardPermission(board, caller, PermissionReplyFlag)
+	}
+
+	thread := mustGetThread(board, threadID)
+	assertThreadIsNotFrozen(thread)
+
+	reply := mustGetReply(thread, replyID)
+	assertReplyIsNotFrozen(thread)
+
+	f := Flag{
+		User:   caller,
+		Reason: reason,
+	}
+
+	// Realm owners can hide with a single flag
+	hide := flagItem(reply, f, getFlaggingThreshold(boardID))
+	if hide || isRealmOwner {
+		reply.SetVisible(false)
+	}
+
+	std.Emit(
+		"ReplyFlagged",
+		"caller", caller.String(),
+		"boardID", boardID.String(),
+		"threadID", threadID.String(),
+		"replyID", replyID.String(),
+		"reason", reason,
+	)
+}
+
+// CreateRepost reposts a thread into another board.
+func CreateRepost(boardID BoardID, threadID PostID, title, body string, dstBoardID BoardID) PostID {
+	title = strings.TrimSpace(title)
+	assertTitleIsValid(title)
+
+	caller := std.OriginCaller()
+	dst := mustGetBoard(dstBoardID)
+	assertBoardIsNotFrozen(dst)
+	assertHasBoardPermission(dst, caller, PermissionThreadRepost)
+
+	board := mustGetBoard(boardID)
+	thread := mustGetThread(board, threadID)
+	assertThreadIsVisible(thread)
+
+	if thread.IsRepost() {
+		panic("reposting a thread that is a repost is not allowed")
+	}
+
+	repostId := dst.incGetPostID()
+	body = strings.TrimSpace(body)
+	repost := newPost(dst, repostId, caller, title, body, repostId, thread.GetPostID(), thread.GetBoard().GetID())
+	thread.AddRepostTo(caller, repost, dst)
+
+	std.Emit(
+		"Repost",
+		"caller", caller.String(),
+		"boardID", boardID.String(),
+		"threadID", threadID.String(),
+		"destinationBoardID", dstBoardID.String(),
+		"title", title,
+	)
+
+	return repostId
+}
+
+// DeleteThread deletes a thread from a board.
+//
+// Threads can be deleted by the users who created them or otherwise by users with special permissions.
+func DeleteThread(boardID BoardID, threadID PostID) {
+	board := mustGetBoard(boardID)
+	assertBoardIsNotFrozen(board)
+
+	caller := std.OriginCaller()
+	thread := mustGetThread(board, threadID)
+	assertThreadIsNotFrozen(thread)
+
+	if caller != thread.GetCreator() {
+		assertHasBoardPermission(board, caller, PermissionThreadDelete)
+	}
+
+	// Hard delete thread and all its replies
+	board.DeleteThread(threadID)
+
+	std.Emit(
+		"ThreadDeleted",
+		"caller", caller.String(),
+		"boardID", boardID.String(),
+		"threadID", threadID.String(),
+	)
+}
+
+// DeleteReply deletes a reply from a thread.
+//
+// Replies can be deleted by the users who created them or otherwise by users with special permissions.
+// Soft deletion is used when the deleted reply contains sub replies, in which case the reply content
+// is replaced by a text informing that reply has been deleted to avoid deleting sub-replies.
+func DeleteReply(boardID BoardID, threadID, replyID PostID) {
+	board := mustGetBoard(boardID)
+	assertBoardIsNotFrozen(board)
+
+	thread := mustGetThread(board, threadID)
+	assertThreadIsNotFrozen(thread)
+
+	reply := mustGetReply(thread, replyID)
+	assertReplyIsVisible(reply)
+	assertReplyIsNotFrozen(reply)
+
+	caller := std.OriginCaller()
+	if caller != reply.GetCreator() {
+		assertHasBoardPermission(board, caller, PermissionReplyDelete)
+	}
+
+	// Soft delete reply by changing its body when it contains
+	// sub-replies, otherwise hard delete it.
+	if reply.HasReplies() {
+		reply.Update(reply.GetTitle(), "This reply has been deleted")
+	} else {
+		thread.DeleteReply(replyID)
+	}
+
+	std.Emit(
+		"ReplyDeleted",
+		"caller", caller.String(),
+		"boardID", boardID.String(),
+		"threadID", threadID.String(),
+		"replyID", replyID.String(),
+	)
+}
+
+// EditThread updates the title and body of thread.
+//
+// Threads can be updated by the users who created them or otherwise by users with special permissions.
+func EditThread(boardID BoardID, threadID PostID, title, body string) {
+	title = strings.TrimSpace(title)
+	assertTitleIsValid(title)
+
+	board := mustGetBoard(boardID)
+	assertBoardIsNotFrozen(board)
+
+	thread := mustGetThread(board, threadID)
+	assertThreadIsNotFrozen(thread)
+
+	body = strings.TrimSpace(body)
+	if !thread.IsRepost() {
+		assertBodyIsNotEmpty(body)
+	}
+
+	caller := std.OriginCaller()
+	if caller != thread.GetCreator() {
+		assertHasBoardPermission(board, caller, PermissionThreadEdit)
+	}
+
+	thread.Update(title, body)
+
+	std.Emit(
+		"ThreadEdited",
+		"caller", caller.String(),
+		"boardID", boardID.String(),
+		"threadID", threadID.String(),
+		"title", title,
+	)
+}
+
+// EditReply updates the body of comment or reply.
+//
+// Replies can be updated only by the users who created them.
+func EditReply(boardID BoardID, threadID, replyID PostID, body string) {
+	body = strings.TrimSpace(body)
+	assertBodyIsNotEmpty(body)
+
+	board := mustGetBoard(boardID)
+	assertBoardIsNotFrozen(board)
+
+	thread := mustGetThread(board, threadID)
+	assertThreadIsNotFrozen(thread)
+
+	reply := mustGetReply(thread, replyID)
+	assertReplyIsVisible(reply)
+	assertReplyIsNotFrozen(reply)
+
+	caller := std.OriginCaller()
+	if caller != reply.GetCreator() {
+		panic("only the reply creator is allowed to edit it")
+	}
+
+	reply.Update("", body)
+
+	std.Emit(
+		"ReplyEdited",
+		"caller", caller.String(),
+		"boardID", boardID.String(),
+		"threadID", threadID.String(),
+		"replyID", replyID.String(),
+		"body", body,
+	)
+}
+
+// InviteMember adds a member to the realm or to a boards.
+//
+// A role can optionally be specified to be assigned to the new member.
+// Board ID is only required when inviting a member to a board.
+func InviteMember(boardID BoardID, user std.Address, role Role) {
+	if boardID != 0 {
+		board := mustGetBoard(boardID)
+		assertBoardIsNotFrozen(board)
+	}
+
+	perms := mustGetPermissions(boardID)
+	caller := std.OriginCaller()
+	args := Args{user, role}
+	perms.WithPermission(caller, PermissionMemberInvite, args, func(Args) {
+		if err := perms.AddUser(user, role); err != nil {
+			panic(err)
+		}
+
+		std.Emit(
+			"MemberInvited",
+			"caller", caller.String(),
+			"boardID", boardID.String(),
+			"member", user.String(),
+			"role", string(role),
+		)
+	})
+}
+
+// RemoveMember removes a member from the realm or a boards.
+//
+// Board ID is only required when removing a member from board.
+func RemoveMember(boardID BoardID, user std.Address) {
+	if boardID != 0 {
+		board := mustGetBoard(boardID)
+		assertBoardIsNotFrozen(board)
+	}
+
+	perms := mustGetPermissions(boardID)
+	caller := std.OriginCaller()
+	perms.WithPermission(caller, PermissionMemberRemove, Args{user}, func(Args) {
+		if !perms.RemoveUser(user) {
+			panic("member not found")
+		}
+
+		std.Emit(
+			"MemberRemoved",
+			"caller", caller.String(),
+			"boardID", boardID.String(),
+			"member", user.String(),
+		)
+	})
+}
+
+// IsMember checks if an user is a member of the realm or a board.
+//
+// Board ID is only required when checking if a user is a member of a board.
+func IsMember(boardID BoardID, user std.Address) bool {
+	if boardID != 0 {
+		board := mustGetBoard(boardID)
+		assertBoardIsNotFrozen(board)
+	}
+
+	perms := mustGetPermissions(boardID)
+	return perms.HasUser(user)
+}
+
+// HasMemberRole checks if a realm or board member has a specific role assigned.
+//
+// Board ID is only required when checking a member of a board.
+func HasMemberRole(boardID BoardID, member std.Address, role Role) bool {
+	if boardID != 0 {
+		board := mustGetBoard(boardID)
+		assertBoardIsNotFrozen(board)
+	}
+
+	perms := mustGetPermissions(boardID)
+	return perms.HasRole(member, role)
+}
+
+// ChangeMemberRole changes the role of a realm or board member.
+//
+// Board ID is only required when changing the role for a member of a board.
+func ChangeMemberRole(boardID BoardID, member std.Address, role Role) {
+	if boardID != 0 {
+		board := mustGetBoard(boardID)
+		assertBoardIsNotFrozen(board)
+	}
+
+	perms := mustGetPermissions(boardID)
+	caller := std.OriginCaller()
+	args := Args{boardID, member, role}
+	perms.WithPermission(caller, PermissionRoleChange, args, func(Args) {
+		if err := perms.SetUserRoles(member, role); err != nil {
+			panic(err)
+		}
+
+		std.Emit(
+			"RoleChanged",
+			"caller", caller.String(),
+			"boardID", boardID.String(),
+			"member", member.String(),
+			"newRole", string(role),
+		)
+	})
+}
+
+func assertHasBoardPermission(b *Board, user std.Address, p Permission) {
+	if !b.perms.HasPermission(user, p) {
+		panic("unauthorized")
+	}
+}
+
+func assertBoardExists(id BoardID) {
+	if _, found := getBoard(id); !found {
+		panic("board not found: " + id.String())
+	}
+}
+
+func assertBoardIsNotFrozen(b *Board) {
+	if b.IsReadOnly() {
+		panic("board is frozen")
+	}
+}
+
+func assertIsValidBoardName(name string) {
+	size := len(name)
+	if size == 0 {
+		panic("board name is empty")
+	}
+
+	if size > MaxBoardNameLength {
+		n := strconv.Itoa(MaxBoardNameLength)
+		panic("board name is too long, maximum allowed is " + n + " characters")
+	}
+
+	if !reBoardName.MatchString(name) {
+		panic("board name contains invalid characters")
+	}
+}
+
+func assertThreadIsNotFrozen(t *Post) {
+	if t.IsReadOnly() {
+		panic("thread is frozen")
+	}
+}
+
+func assertReplyIsNotFrozen(r *Post) {
+	if r.IsReadOnly() {
+		panic("reply is frozen")
+	}
+}
+
+func assertNameIsNotEmpty(name string) {
+	if name == "" {
+		panic("name is empty")
+	}
+}
+
+func assertTitleIsValid(title string) {
+	if title == "" {
+		panic("title is empty")
+	}
+
+	if len(title) > MaxThreadTitleLength {
+		n := strconv.Itoa(MaxThreadTitleLength)
+		panic("thread title is too long, maximum allowed is " + n + " characters")
+	}
+}
+
+func assertBodyIsNotEmpty(body string) {
+	if body == "" {
+		panic("body is empty")
+	}
+}
+
+func assertBoardNameNotExists(name string) {
+	if gBoardsByName.Has(name) {
+		panic("board already exists")
+	}
+}
+
+func assertThreadExists(b *Board, threadID PostID) {
+	if _, found := b.GetThread(threadID); !found {
+		panic("thread not found: " + threadID.String())
+	}
+}
+
+func assertReplyExists(thread *Post, replyID PostID) {
+	if _, found := thread.GetReply(replyID); !found {
+		panic("reply not found: " + replyID.String())
+	}
+}
+
+func assertThreadIsVisible(thread *Post) {
+	if thread.IsHidden() {
+		panic("thread is hidden")
+	}
+}
+
+func assertReplyIsVisible(thread *Post) {
+	if thread.IsHidden() {
+		panic("reply is hidden")
+	}
+}
+
+func mustGetPermissions(bid BoardID) Permissions {
+	if bid != 0 {
+		board := mustGetBoard(bid)
+		return board.perms
+	}
+	return gPerms
+}
