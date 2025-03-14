@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/testutils"
-	pcommondao "gno.land/p/gnoland/commondao"
+	pdao "gno.land/p/gnoland/commondao"
 
 	"gno.land/r/gnoland/commondao"
 )
@@ -14,12 +14,11 @@ const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
 type propDef struct{}
 
-func (propDef) Title() string                                   { return "" }
-func (propDef) Body() string                                    { return "" }
-func (propDef) Quorum() float64                                 { return 0 }
-func (propDef) VotingPeriod() time.Duration                     { return 0 }
-func (propDef) Validate() error                                 { return nil }
-func (propDef) Tally(pcommondao.ReadonlyVotingRecord, int) bool { return true }
+func (propDef) Title() string                                                 { return "" }
+func (propDef) Body() string                                                  { return "" }
+func (propDef) VotingPeriod() time.Duration                                   { return 0 }
+func (propDef) Validate() error                                               { return nil }
+func (propDef) Tally(pdao.ReadonlyVotingRecord, pdao.MemberSet) (bool, error) { return true, nil }
 
 func (propDef) Execute() error {
 	executed = true
@@ -27,8 +26,8 @@ func (propDef) Execute() error {
 }
 
 var (
-	dao      *pcommondao.CommonDAO
-	proposal *pcommondao.Proposal
+	dao      *pdao.CommonDAO
+	proposal *pdao.Proposal
 	executed bool
 	user1    = testutils.TestAddress("user1")
 	user2    = testutils.TestAddress("user2")
@@ -56,11 +55,11 @@ func init() {
 	proposal, _ = dao.Propose(user1, propDef{})
 
 	// Submit user1 vote
-	commondao.Vote(dao.ID(), proposal.ID(), pcommondao.ChoiceYes, "")
+	commondao.Vote(dao.ID(), proposal.ID(), pdao.ChoiceYes, "")
 
 	// Submit user2 vote
 	std.TestSetOriginCaller(user2)
-	commondao.Vote(dao.ID(), proposal.ID(), pcommondao.ChoiceYes, "")
+	commondao.Vote(dao.ID(), proposal.ID(), pdao.ChoiceYes, "")
 }
 
 func main() {
@@ -71,7 +70,7 @@ func main() {
 		panic("expected proposal to be finished")
 	}
 
-	println(p.Status() == pcommondao.StatusExecuted)
+	println(p.Status() == pdao.StatusPassed)
 	println(executed)
 }
 

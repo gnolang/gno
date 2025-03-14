@@ -4,7 +4,7 @@ import (
 	"std"
 	"time"
 
-	pcommondao "gno.land/p/gnoland/commondao"
+	pdao "gno.land/p/gnoland/commondao"
 
 	"gno.land/r/gnoland/commondao"
 )
@@ -16,18 +16,17 @@ const (
 
 type propDef struct{}
 
-func (propDef) Title() string                                   { return "" }
-func (propDef) Body() string                                    { return "" }
-func (propDef) Quorum() float64                                 { return 0 }
-func (propDef) VotingPeriod() time.Duration                     { return 0 }
-func (propDef) Validate() error                                 { return nil }
-func (propDef) Tally(pcommondao.ReadonlyVotingRecord, int) bool { return false }
-func (propDef) Execute() error                                  { return nil }
+func (propDef) Title() string                                                 { return "" }
+func (propDef) Body() string                                                  { return "" }
+func (propDef) VotingPeriod() time.Duration                                   { return 0 }
+func (propDef) Validate() error                                               { return nil }
+func (propDef) Tally(pdao.ReadonlyVotingRecord, pdao.MemberSet) (bool, error) { return false, nil }
+func (propDef) Execute() error                                                { return nil }
 
 var (
 	daoID    uint64
-	proposal *pcommondao.Proposal
-	vote     pcommondao.VoteChoice = pcommondao.ChoiceYes
+	proposal *pdao.Proposal
+	vote     pdao.VoteChoice = pdao.ChoiceYes
 )
 
 func init() {
@@ -62,7 +61,7 @@ func main() {
 	}
 
 	println(record.HasVoted(user))
-	record.Iterate(func(v pcommondao.Vote) bool {
+	record.Iterate(func(v pdao.Vote) bool {
 		println(v.Choice == vote)
 	})
 }
