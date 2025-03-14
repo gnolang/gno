@@ -176,7 +176,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		return // do nothing.
 	}
 	if po.GetObjectID().PkgID != rlm.ID {
-		panic("cannot modify external-realm or non-realm object")
+		panic(&Exception{Value: typedString("cannot modify external-realm or non-realm object")})
 	}
 
 	// XXX check if this boosts performance
