@@ -13,8 +13,8 @@ import (
 	"strconv"
 
 	"connectrpc.com/connect"
-	backup "github.com/gnolang/gno/tm2/pkg/bft/node/backuppb"
-	"github.com/gnolang/gno/tm2/pkg/bft/node/backuppb/backupconnect"
+	backup "github.com/gnolang/gno/tm2/pkg/bft/backup/backuppb"
+	"github.com/gnolang/gno/tm2/pkg/bft/backup/backuppb/backuppbconnect"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gofrs/flock"
 	"github.com/klauspost/compress/zstd"
@@ -115,7 +115,7 @@ func execBackup(ctx context.Context, c *backupCfg, io commands.IO) error {
 	}
 	io.Println(prefix, "at height", height)
 
-	client := backupconnect.NewBackupServiceClient(
+	client := backuppbconnect.NewBackupServiceClient(
 		http.DefaultClient,
 		c.remote,
 		connect.WithGRPC(),
