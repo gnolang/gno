@@ -65,3 +65,5 @@ generate:
 .PHONY: generate.backup-grpc
 generate.backup-grpc:
 	cd pkg/bft/backup && buf generate
+	go run -modfile ../misc/devdeps/go.mod mvdan.cc/gofumpt -w pkg/bft/backup
+	go run -modfile ../misc/devdeps/go.mod golang.org/x/tools/cmd/goimports -w pkg/bft/backup
