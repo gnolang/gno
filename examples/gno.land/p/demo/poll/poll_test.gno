@@ -10,7 +10,7 @@ func TestNewPoll(t *testing.T) {
 	creator := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	now := time.Now()
 	deadline := now.Add(time.Hour * 24) // 1 day from now
-	
+
 	p := NewPoll(
 		"Favorite Color",
 		"What is your favorite color?",
@@ -72,11 +72,11 @@ func TestVoting(t *testing.T) {
 
 	// Test single vote
 	p.Vote(voter, []int{1})
-	
+
 	if !p.HasVoted(voter) {
 		t.Error("expected HasVoted to return true")
 	}
-	
+
 	tally := p.Tally()
 	if tally[1] != 1 {
 		t.Errorf("expected tally[1] = 1, got %d", tally[1])
@@ -108,7 +108,7 @@ func TestOptionManagement(t *testing.T) {
 	// Test adding options
 	p.AddOption("Option 1")
 	p.AddOption("Option 2")
-	
+
 	if len(p.Options) != 2 {
 		t.Errorf("expected 2 options, got %d", len(p.Options))
 	}
@@ -205,4 +205,4 @@ func TestVoterCount(t *testing.T) {
 	if count := p.VoterCount(); count != 2 {
 		t.Errorf("expected voter count 2, got %d", count)
 	}
-} 
+}
