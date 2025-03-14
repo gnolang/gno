@@ -1,0 +1,51 @@
+-- input.md --
+
+# Title 1
+
+<gno-columns>
+## Sub-Title 1.1
+content 1.1
+## Sub-Title 1.1
+
+content 1.1
+
+</gno-columns>
+
+# Title 2
+
+<gno-columns>
+## Sub-Title 2.1
+content 2.1
+## Sub-Title 2.2
+
+content 2.2
+
+</gno-columns>
+
+-- output.html --
+<h1>Title 1</h1>
+<div class="gno-cols">
+<!-- Column 1 -->
+<div>
+<h2>Sub-Title 1.1</h2>
+<p>content 1.1</p>
+</div>
+<!-- Column 2 -->
+<div>
+<h2>Sub-Title 1.1</h2>
+<p>content 1.1</p>
+</div>
+</div>
+<h1>Title 2</h1>
+<div class="gno-cols">
+<!-- Column 1 -->
+<div>
+<h2>Sub-Title 2.1</h2>
+<p>content 2.1</p>
+</div>
+<!-- Column 2 -->
+<div>
+<h2>Sub-Title 2.2</h2>
+<p>content 2.2</p>
+</div>
+</div>

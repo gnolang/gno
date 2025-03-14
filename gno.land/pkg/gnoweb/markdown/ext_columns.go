@@ -43,7 +43,7 @@ type ColumnNode struct {
 	ctx   *columnContext // context between blocks is unique.
 }
 
-// Dump implements Node.Dump.
+// Dump implements Node.Dump for debug representation.
 func (n *ColumnNode) Dump(source []byte, level int) {
 	kv := map[string]string{
 		"tag":      columnTagNames[n.Tag],
@@ -69,6 +69,10 @@ func NewColumn(ctx *columnContext, index int, tag ColumnTag) *ColumnNode {
 	return &ColumnNode{ctx: ctx, Index: index, Tag: tag}
 }
 
+// columnParser implement BlockParser.
+// See https://pkg.go.dev/github.com/yuin/goldmark/parser#BlockParser
+var _ parser.BlockParser = (*columnParser)(nil)
+
 // columnParser struct and its methods are used for parsing columns.
 type columnParser struct{}
 
@@ -87,35 +91,22 @@ type columnContext struct {
 	RefHeadingLevel int // serves as a level reference for separators
 }
 
-func isPreviousNodeTag(node ast.Node, tag ColumnTag) bool {
-	if node == nil {
-		return false
-	}
-
-	cnode, ok := node.(*ColumnNode)
-	return ok && cnode.Tag == tag
-}
-
 // parseLineTag checks if the line starts with any of the tag.
-func parseLineTag(ctx *columnContext, line []byte) ColumnTag {
+func parseLineTag(line []byte) ColumnTag {
+	const MaxHeading = 6
+
 	line = util.TrimRightSpace(util.TrimLeftSpace(line))
 
+	// Check if line is a valid heading to treat it as a separator
+	if len(line) > 0 && line[0] == '#' && len(line) <= MaxHeading {
+		return ColumnTagSep
+	}
+
 	switch string(line) {
-	case "": // empty line
-		return ColumnTagUndefined
 	case "<gno-columns>":
 		return ColumnTagOpen
 	case "</gno-columns>":
 		return ColumnTagClose
-	case ":::":
-		if ctx.IsOpen {
-			return ColumnTagClose
-		}
-		return ColumnTagOpen
-	}
-
-	if line[0] == '#' {
-		return ColumnTagSep
 	}
 
 	return ColumnTagUndefined
@@ -123,8 +114,6 @@ func parseLineTag(ctx *columnContext, line []byte) ColumnTag {
 
 // Open create a column node based on line tag.
 func (p *columnParser) Open(self ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
-	const MaxHeading = 6
-
 	// Columns tag cannot be a child of another node
 	if self.Parent() != nil {
 		return nil, parser.NoChildren
@@ -139,7 +128,7 @@ func (p *columnParser) Open(self ast.Node, reader text.Reader, pc parser.Context
 
 	line, segment := reader.PeekLine()
 
-	tagKind := parseLineTag(cctx, line)
+	tagKind := parseLineTag(line)
 	if tagKind == ColumnTagUndefined {
 		return nil, parser.NoChildren
 	}
@@ -151,15 +140,12 @@ func (p *columnParser) Open(self ast.Node, reader text.Reader, pc parser.Context
 			return nil, parser.NoChildren
 		}
 
-		level, maxLevel := 1, min(len(line), MaxHeading+1)
-		for level < maxLevel && line[level] == '#' {
+		level := 1
+		for level < len(line) && line[level] == '#' {
 			level++
 		}
 
 		switch {
-		case level >= MaxHeading:
-			// Level is beyond the maximum one, ignore this heading
-			return nil, parser.NoChildren
 		case cctx.RefHeadingLevel == 0:
 			// Register first header as reference
 			cctx.RefHeadingLevel = level
@@ -205,15 +191,27 @@ func (*columnParser) Continue(n ast.Node, reader text.Reader, _ parser.Context) 
 
 func (*columnParser) Close(_ ast.Node, reader text.Reader, _ parser.Context) {}
 
+// CanInterruptParagraph should return true if the parser can interrupt paragraphs.
 func (*columnParser) CanInterruptParagraph() bool {
 	return true
 }
 
+// CanAcceptIndentedLine should return true if the parser can open new node when
+// the given line is being indented more than 3 spaces.
 func (*columnParser) CanAcceptIndentedLine() bool {
 	return false
 }
 
-func (*columnParser) CloseBlock(_ ast.Node, _ parser.Context) {}
+// columnRenderer implement NodeRenderer
+// see https://pkg.go.dev/github.com/yuin/goldmark/renderer#NodeRenderer
+var _ renderer.NodeRenderer = (*columnRenderer)(nil)
+
+type columnRenderer struct{}
+
+// RegisterFuncs adds AST objects to Renderer.
+func (r *columnRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
+	reg.Register(KindColumn, columnRender)
+}
 
 // columnRender function is used to render the column node.
 func columnRender(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
@@ -237,6 +235,7 @@ func columnRender(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast
 		if cnode.Index > 1 {
 			fmt.Fprintln(w, "</div>")
 		}
+
 		fmt.Fprintf(w, "<!-- Column %d -->\n", cnode.Index)
 		fmt.Fprintln(w, "<div>")
 
@@ -253,6 +252,10 @@ func columnRender(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast
 
 	return ast.WalkContinue, nil
 }
+
+// columnASTTransformer implement ASTTransformer.
+// See https://pkg.go.dev/github.com/yuin/goldmark/parser#ASTTransformer
+var _ parser.ASTTransformer = (*columnASTTransformer)(nil)
 
 type columnASTTransformer struct{}
 
@@ -284,15 +287,11 @@ func (a *columnASTTransformer) Transform(node *ast.Document, reader text.Reader,
 	}
 }
 
-type columnRenderer struct{}
-
-// RegisterFuncs adds AST objects to Renderer.
-func (r *columnRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
-	reg.Register(KindColumn, columnRender)
-}
-
 // column struct is used to extend the markdown with column functionality.
 type column struct{}
+
+// GnoExtension is a goldmark Extender
+var _ goldmark.Extender = (*column)(nil)
 
 // Column is an instance of column for extending markdown.
 var Column = &column{}
