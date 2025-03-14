@@ -1,10 +1,21 @@
 package boards2
 
 import (
+	"regexp"
 	"std"
 	"strconv"
 	"strings"
 )
+
+const (
+	// MaxBoardNameLength defines the maximum length allowed for board names.
+	MaxBoardNameLength = 50
+
+	// MaxThreadTitleLength defines the maximum length allowed for thread titles.
+	MaxThreadTitleLength = 100
+)
+
+var reBoardName = regexp.MustCompile(`(?i)^[a-z]+[a-z0-9_\-]{2,50}$`)
 
 // SetPermissions sets a permissions implementation for boards2 realm or a board.
 func SetPermissions(bid BoardID, p Permissions) {
@@ -54,7 +65,7 @@ func GetBoardIDFromName(name string) (_ BoardID, found bool) {
 // CreateBoard creates a new board.
 func CreateBoard(name string) BoardID {
 	name = strings.TrimSpace(name)
-	assertNameIsNotEmpty(name)
+	assertIsValidBoardName(name)
 	assertBoardNameNotExists(name)
 
 	caller := std.OriginCaller()
@@ -84,7 +95,7 @@ func CreateBoard(name string) BoardID {
 // Because of that boards are also accesible using previous name(s).
 func RenameBoard(name, newName string) {
 	newName = strings.TrimSpace(newName)
-	assertNameIsNotEmpty(newName)
+	assertIsValidBoardName(newName)
 	assertBoardNameNotExists(newName)
 
 	board := mustGetBoardByName(name)
@@ -159,7 +170,7 @@ func UnfreezeThread(boardID BoardID, threadID PostID) {
 func IsThreadFrozen(boardID BoardID, threadID PostID) bool {
 	board := mustGetBoard(boardID)
 	thread := mustGetThread(board, threadID)
-	assertThreadVisible(thread)
+	assertThreadIsVisible(thread)
 
 	return board.IsReadOnly() || thread.IsReadOnly()
 }
@@ -170,10 +181,10 @@ func IsThreadFrozen(boardID BoardID, threadID PostID) bool {
 func IsReplyFrozen(boardID BoardID, threadID, replyID PostID) bool {
 	board := mustGetBoard(boardID)
 	thread := mustGetThread(board, threadID)
-	assertThreadVisible(thread)
+	assertThreadIsVisible(thread)
 
 	reply := mustGetReply(thread, replyID)
-	assertReplyVisible(reply)
+	assertReplyIsVisible(reply)
 
 	return board.IsReadOnly() || thread.IsReadOnly() || reply.IsReadOnly()
 }
@@ -188,6 +199,7 @@ func UnfreezeReply(boardID BoardID, threadID, replyID PostID) {
 		replyID:  replyID,
 	}
 
+	// XXX: Is there a use case for also freezing replies?
 	setReplyReadOnly(args, false)
 }
 
@@ -242,12 +254,12 @@ func GetFlaggingThreshold(boardID BoardID) int {
 // the number of flags reaches a pre-defined flagging threshold.
 func FlagThread(boardID BoardID, threadID PostID, reason string) {
 	board := mustGetBoard(boardID)
-	assertBoardIsNotFrozen(board)
 
-	// Check permission to flag when caller is not a realm owner
+	// Realm owners should be able to flag without permissions even when board is frozen
 	caller := std.OriginCaller()
 	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
 	if !isRealmOwner {
+		assertBoardIsNotFrozen(board)
 		assertHasBoardPermission(board, caller, PermissionThreadFlag)
 	}
 
@@ -280,7 +292,7 @@ func FlagThread(boardID BoardID, threadID PostID, reason string) {
 // CreateThread creates a new thread within a board.
 func CreateThread(boardID BoardID, title, body string) PostID {
 	title = strings.TrimSpace(title)
-	assertTitleIsNotEmpty(title)
+	assertTitleIsValid(title)
 
 	body = strings.TrimSpace(body)
 	assertBodyIsNotEmpty(body)
@@ -318,7 +330,7 @@ func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID 
 	assertHasBoardPermission(board, caller, PermissionReplyCreate)
 
 	thread := mustGetThread(board, threadID)
-	assertThreadVisible(thread)
+	assertThreadIsVisible(thread)
 	assertThreadIsNotFrozen(thread)
 
 	var reply *Post
@@ -327,11 +339,12 @@ func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID 
 		reply = thread.AddReply(caller, body)
 	} else {
 		// Try to get parent reply and add a new child reply
-		post := mustGetReply(thread, replyID)
-		assertReplyVisible(post)
-		assertReplyIsNotFrozen(post)
+		parent := mustGetReply(thread, replyID)
+		if parent.IsHidden() || parent.IsReadOnly() {
+			panic("replying to a hidden or frozen reply is not allowed")
+		}
 
-		reply = post.AddReply(caller, body)
+		reply = parent.AddReply(caller, body)
 	}
 
 	std.Emit(
@@ -351,12 +364,12 @@ func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID 
 // when the number of flags reaches a pre-defined flagging threshold.
 func FlagReply(boardID BoardID, threadID, replyID PostID, reason string) {
 	board := mustGetBoard(boardID)
-	assertBoardIsNotFrozen(board)
 
-	// Check permission to flag when caller is not a realm owner
+	// Realm owners should be able to flag without permissions even when board is frozen
 	caller := std.OriginCaller()
 	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
 	if !isRealmOwner {
+		assertBoardIsNotFrozen(board)
 		assertHasBoardPermission(board, caller, PermissionReplyFlag)
 	}
 
@@ -389,6 +402,9 @@ func FlagReply(boardID BoardID, threadID, replyID PostID, reason string) {
 
 // CreateRepost reposts a thread into another board.
 func CreateRepost(boardID BoardID, threadID PostID, title, body string, dstBoardID BoardID) PostID {
+	title = strings.TrimSpace(title)
+	assertTitleIsValid(title)
+
 	caller := std.OriginCaller()
 	dst := mustGetBoard(dstBoardID)
 	assertBoardIsNotFrozen(dst)
@@ -396,7 +412,14 @@ func CreateRepost(boardID BoardID, threadID PostID, title, body string, dstBoard
 
 	board := mustGetBoard(boardID)
 	thread := mustGetThread(board, threadID)
+	assertThreadIsVisible(thread)
+
+	if thread.IsRepost() {
+		panic("reposting a thread that is a repost is not allowed")
+	}
+
 	repostId := dst.incGetPostID()
+	body = strings.TrimSpace(body)
 	repost := newPost(dst, repostId, caller, title, body, repostId, thread.GetPostID(), thread.GetBoard().GetID())
 	thread.AddRepostTo(caller, repost, dst)
 
@@ -427,7 +450,7 @@ func DeleteThread(boardID BoardID, threadID PostID) {
 		assertHasBoardPermission(board, caller, PermissionThreadDelete)
 	}
 
-	// TODO: Discuss how to deal with thread deletion (should we hide instead?)
+	// Hard delete thread and all its replies
 	board.DeleteThread(threadID)
 
 	std.Emit(
@@ -451,7 +474,7 @@ func DeleteReply(boardID BoardID, threadID, replyID PostID) {
 	assertThreadIsNotFrozen(thread)
 
 	reply := mustGetReply(thread, replyID)
-	assertReplyVisible(reply)
+	assertReplyIsVisible(reply)
 	assertReplyIsNotFrozen(reply)
 
 	caller := std.OriginCaller()
@@ -481,16 +504,18 @@ func DeleteReply(boardID BoardID, threadID, replyID PostID) {
 // Threads can be updated by the users who created them or otherwise by users with special permissions.
 func EditThread(boardID BoardID, threadID PostID, title, body string) {
 	title = strings.TrimSpace(title)
-	assertTitleIsNotEmpty(title)
-
-	body = strings.TrimSpace(body)
-	assertBodyIsNotEmpty(body)
+	assertTitleIsValid(title)
 
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
 
 	thread := mustGetThread(board, threadID)
 	assertThreadIsNotFrozen(thread)
+
+	body = strings.TrimSpace(body)
+	if !thread.IsRepost() {
+		assertBodyIsNotEmpty(body)
+	}
 
 	caller := std.OriginCaller()
 	if caller != thread.GetCreator() {
@@ -522,7 +547,7 @@ func EditReply(boardID BoardID, threadID, replyID PostID, body string) {
 	assertThreadIsNotFrozen(thread)
 
 	reply := mustGetReply(thread, replyID)
-	assertReplyVisible(reply)
+	assertReplyIsVisible(reply)
 	assertReplyIsNotFrozen(reply)
 
 	caller := std.OriginCaller()
@@ -666,6 +691,22 @@ func assertBoardIsNotFrozen(b *Board) {
 	}
 }
 
+func assertIsValidBoardName(name string) {
+	size := len(name)
+	if size == 0 {
+		panic("board name is empty")
+	}
+
+	if size > MaxBoardNameLength {
+		n := strconv.Itoa(MaxBoardNameLength)
+		panic("board name is too long, maximum allowed is " + n + " characters")
+	}
+
+	if !reBoardName.MatchString(name) {
+		panic("board name contains invalid characters")
+	}
+}
+
 func assertThreadIsNotFrozen(t *Post) {
 	if t.IsReadOnly() {
 		panic("thread is frozen")
@@ -684,9 +725,14 @@ func assertNameIsNotEmpty(name string) {
 	}
 }
 
-func assertTitleIsNotEmpty(title string) {
+func assertTitleIsValid(title string) {
 	if title == "" {
 		panic("title is empty")
+	}
+
+	if len(title) > MaxThreadTitleLength {
+		n := strconv.Itoa(MaxThreadTitleLength)
+		panic("thread title is too long, maximum allowed is " + n + " characters")
 	}
 }
 
@@ -714,15 +760,15 @@ func assertReplyExists(thread *Post, replyID PostID) {
 	}
 }
 
-func assertThreadVisible(thread *Post) {
+func assertThreadIsVisible(thread *Post) {
 	if thread.IsHidden() {
-		panic("thread with ID: " + thread.GetPostID().String() + " was hidden")
+		panic("thread is hidden")
 	}
 }
 
-func assertReplyVisible(thread *Post) {
+func assertReplyIsVisible(thread *Post) {
 	if thread.IsHidden() {
-		panic("reply with ID: " + thread.GetPostID().String() + " was hidden")
+		panic("reply is hidden")
 	}
 }
 
