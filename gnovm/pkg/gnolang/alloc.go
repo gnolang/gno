@@ -84,10 +84,6 @@ func NewAllocator(maxBytes int64, m *Machine) *Allocator {
 	}
 }
 
-func (alloc *Allocator) SetMachine(m *Machine) {
-	alloc.m = m
-}
-
 func (alloc *Allocator) MemStats() string {
 	if alloc == nil {
 		return "nil allocator"
@@ -119,7 +115,6 @@ func (alloc *Allocator) Fork() *Allocator {
 }
 
 func (alloc *Allocator) Allocate(size int64) {
-	debug.Printf("Allocate, size: %d \n", size)
 	if alloc == nil {
 		// this can happen for map items just prior to assignment.
 		return
@@ -128,9 +123,11 @@ func (alloc *Allocator) Allocate(size int64) {
 	alloc.bytes += size
 	if alloc.bytes > alloc.maxBytes {
 		if left, ok := alloc.m.GarbageCollect(); !ok {
-			panic("allocation limit exceeded")
+			panic("should not happen, allocation limit exceeded while gc.")
 		} else { // retry
-			debug.Printf("%d left after GC, size: %d \n", left, size)
+			if debug {
+				debug.Printf("%d left after GC, required size: %d\n", left, size)
+			}
 			alloc.bytes += size
 			if alloc.bytes > alloc.maxBytes {
 				panic("allocation limit exceeded")
@@ -353,43 +350,43 @@ func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 
 // -----------------------------------------------
 
-func (*PackageValue) GetShallowSize() int64 {
+func (pv *PackageValue) GetShallowSize() int64 {
 	return allocPackage
 }
 
-func (*Block) GetShallowSize() int64 {
+func (b *Block) GetShallowSize() int64 {
 	return allocBlock
 }
 
-func (*ArrayValue) GetShallowSize() int64 {
+func (av *ArrayValue) GetShallowSize() int64 {
 	return allocArray
 }
 
-func (*StructValue) GetShallowSize() int64 {
+func (sv *StructValue) GetShallowSize() int64 {
 	return allocStruct
 }
 
-func (*MapValue) GetShallowSize() int64 {
+func (mv *MapValue) GetShallowSize() int64 {
 	return allocMap
 }
 
-func (*BoundMethodValue) GetShallowSize() int64 {
+func (bmv *BoundMethodValue) GetShallowSize() int64 {
 	return allocBoundMethod
 }
 
-func (*HeapItemValue) GetShallowSize() int64 {
+func (hiv *HeapItemValue) GetShallowSize() int64 {
 	return allocHeapItem
 }
 
-func (RefValue) GetShallowSize() int64 {
+func (rv RefValue) GetShallowSize() int64 {
 	return allocRefValue
 }
 
-func (PointerValue) GetShallowSize() int64 {
+func (pv PointerValue) GetShallowSize() int64 {
 	return allocPointer
 }
 
-func (*SliceValue) GetShallowSize() int64 {
+func (sv *SliceValue) GetShallowSize() int64 {
 	return allocSlice
 }
 
@@ -406,29 +403,30 @@ func (fv *FuncValue) GetShallowSize() int64 {
 // do not count its size.
 func (sv *StringValue) GetShallowSize() int64 {
 	if sv.isNewBase {
+		sv.isNewBase = false // mark no longer new
 		return allocString + allocStringByte*int64(len(sv.s))
 	}
 	return allocString
 }
 
-func (*NativeValue) GetShallowSize() int64 {
+func (nv *NativeValue) GetShallowSize() int64 {
 	return allocNative
 }
 
-func (BigintValue) GetShallowSize() int64 {
+func (bv BigintValue) GetShallowSize() int64 {
 	return allocBigint
 }
 
-func (BigdecValue) GetShallowSize() int64 {
+func (bv BigdecValue) GetShallowSize() int64 {
 	return allocBigdec
 }
 
-func (DataByteValue) GetShallowSize() int64 {
+func (dbv DataByteValue) GetShallowSize() int64 {
 	return allocDataByte
 }
 
 // Do not count during recalculation,
 // as the type should  pre-exist.
-func (TypeValue) GetShallowSize() int64 {
+func (tv TypeValue) GetShallowSize() int64 {
 	return 0
 }

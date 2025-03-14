@@ -3,7 +3,6 @@ package main
 
 import "runtime"
 
-// GC does not reclaim enough memory
 func main() {
 	var a = func() int {
 		return 1

@@ -6,17 +6,20 @@ import "runtime"
 var s = "hello"
 
 func xyz() {
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 110; i++ {
 		s += "world!!!"
 	}
 }
 func main() {
-	xyz()
-	println("memstats in main before GC: ", runtime.MemStats())
+	xyz() // first gc happens in xyz(), and m.Package is main
+	println("memstats in main after first GC: ", runtime.MemStats())
+
+	// first GC happens in xyz(), more allocations
+	// happens, after second gc, more garbage collected.
 	runtime.GC()
-	println("memstats in main after GC: ", runtime.MemStats())
+	println("memstats in main after second GC: ", runtime.MemStats())
 }
 
 // Output:
-// memstats in main before GC:  Allocator{maxBytes:50000, bytes:49180}
-// memstats in main after GC:  Allocator{maxBytes:50000, bytes:5237}
+// memstats in main after first GC:  Allocator{maxBytes:50000, bytes:13330}
+// memstats in main after second GC:  Allocator{maxBytes:50000, bytes:5317}
