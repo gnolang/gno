@@ -1,15 +1,14 @@
 // PKGPATH: gno.land/r/demo/boards_test
 package boards_test
 
-// SEND: 200000000ugnot
+// SEND: 1000000ugnot
 
 import (
 	"std"
 	"strconv"
 
-	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
-	"gno.land/r/demo/users"
+	users "gno.land/r/gnoland/users/v1"
 )
 
 var (
@@ -19,9 +18,8 @@ var (
 )
 
 func init() {
-	caller := testutils.TestAddress("caller")
-	std.TestSetRealm(std.NewUserRealm(caller))
-	users.Register("", "gnouser", "my profile")
+	std.TestSetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	users.Register("gnouser123")
 
 	firstBoard = boards.CreateBoard("first_board")
 	secondBoard = boards.CreateBoard("second_board")
@@ -38,5 +36,5 @@ func main() {
 // # First Post in (title)
 //
 // Body of the first post. (body)
-// \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:second_board/1/1) \[[reply](/r/demo/boards$help&func=CreateReply&bid=2&postid=1&threadid=1)] \[[x](/r/demo/boards$help&func=DeletePost&bid=2&postid=1&threadid=1)]
+// \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/demo/boards:second_board/1/1) \[[reply](/r/demo/boards$help&func=CreateReply&bid=2&postid=1&threadid=1)] \[[x](/r/demo/boards$help&func=DeletePost&bid=2&postid=1&threadid=1)]
 //

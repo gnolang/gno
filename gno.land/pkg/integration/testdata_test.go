@@ -14,7 +14,7 @@ func TestTestdata(t *testing.T) {
 	t.Parallel()
 
 	flagInMemoryTS, _ := strconv.ParseBool(os.Getenv("INMEMORY_TS"))
-	flagNoSeqTS, _ := strconv.ParseBool(os.Getenv("NO_SEQ_TS"))
+	flagSeqTS, _ := strconv.ParseBool(os.Getenv("SEQ_TS"))
 
 	p := gno_integration.NewTestingParams(t, "testdata")
 
@@ -44,7 +44,7 @@ func TestTestdata(t *testing.T) {
 		return nil
 	}
 
-	if flagInMemoryTS && !flagNoSeqTS {
+	if flagInMemoryTS || flagSeqTS {
 		testscript.RunT(tSeqShim{t}, p)
 	} else {
 		testscript.Run(t, p)

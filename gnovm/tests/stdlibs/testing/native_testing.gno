@@ -2,4 +2,6 @@ package testing
 
 func unixNano() int64
 
-func matchString(pat, str string) (result bool, err error)
+func matchString(pat, str string) (bool, string)
+
+func recoverWithStacktrace() (interface{}, string)
