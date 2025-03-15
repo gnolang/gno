@@ -5,6 +5,7 @@
 ! stdout .+
 stderr '--- FAIL: TestFail'
 stderr 'someError'
+! stderr '.*TestFail2'
 ! stderr 'secondError'
 
 
@@ -26,5 +27,9 @@ func TestFail(t *testing.T) {
 	t.Run("TestFail2",func(t *testing.T){
 		t.Error("secondError")
 	})
+}
+
+func TestFail2(t *testing.T) {
+	t.Error("secondError")
 }
 
