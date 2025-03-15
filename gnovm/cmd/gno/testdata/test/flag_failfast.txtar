@@ -5,8 +5,9 @@
 ! stdout .+
 stderr '--- FAIL: TestFail'
 stderr 'someError'
-! stderr '.*TestFail2'
+! stderr 'TestTopLevel'
 ! stderr 'secondError'
+! stderr 'topLevelError'
 
 
 -- failfast.gno --
@@ -29,7 +30,7 @@ func TestFail(t *testing.T) {
 	})
 }
 
-func TestFail2(t *testing.T) {
-	t.Error("secondError")
+func TestTopLevel(t *testing.T) {
+	t.Error("topLevelError")
 }
 
