@@ -274,11 +274,11 @@ func getStartHeight(requestedStartHeight int64, outputDirNextHeight int64) (int6
 		height = outputDirNextHeight
 	}
 
-	// align: 4 -> 1, 100 -> 1, 101 -> 101, 150 -> 101
+	// align: 4 -> 1, 100 -> 1, 101 -> 101, 150 -> 101 (with chunkSize == 100)
 	// we simply overwrite the latest chunk if it is partial because it's not expensive
 	height -= (height - 1) % chunkSize
 
-	if height < 1 || height%100 != 1 {
+	if height < 1 || height%chunkSize != 1 {
 		return 0, fmt.Errorf("unexpected start height %d", height)
 	}
 
