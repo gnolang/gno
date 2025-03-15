@@ -1233,17 +1233,7 @@ func MustPackageNameFromFileBody(name, body string) Name {
 	return pkgName
 }
 
-// ReadMemPackage initializes a new MemPackage by reading the OS directory
-// at dir, and saving it with the given pkgPath (import path).
-// The resulting MemPackage will contain the names and content of all *.gno files,
-// and additionally README.md, LICENSE.
-//
-// ReadMemPackage does not perform validation aside from the package's name;
-// the files are not parsed but their contents are merely stored inside a MemFile.
-//
-// NOTE: panics if package name is invalid (characters must be alphanumeric or _,
-// lowercase, and must start with a letter).
-func ReadMemPackage(dir string, pkgPath string) (*gnovm.MemPackage, error) {
+func TraverseDirForGnoMemPackageFiles(dir, pkgPath string) ([]string, error) {
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -1273,6 +1263,24 @@ func ReadMemPackage(dir string, pkgPath string) (*gnovm.MemPackage, error) {
 			continue
 		}
 		list = append(list, filepath.Join(dir, file.Name()))
+	}
+	return list, nil
+}
+
+// ReadMemPackage initializes a new MemPackage by reading the OS directory
+// at dir, and saving it with the given pkgPath (import path).
+// The resulting MemPackage will contain the names and content of all *.gno files,
+// and additionally README.md, LICENSE.
+//
+// ReadMemPackage does not perform validation aside from the package's name;
+// the files are not parsed but their contents are merely stored inside a MemFile.
+//
+// NOTE: panics if package name is invalid (characters must be alphanumeric or _,
+// lowercase, and must start with a letter).
+func ReadMemPackage(dir string, pkgPath string) (*gnovm.MemPackage, error) {
+	list, err := TraverseDirForGnoMemPackageFiles(dir, pkgPath)
+	if err != nil {
+		return nil, err
 	}
 	return ReadMemPackageFromList(list, pkgPath)
 }

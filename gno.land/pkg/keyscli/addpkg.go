@@ -4,6 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"go/parser"
+	"go/token"
+	"os"
+
+	"go.uber.org/multierr"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -101,6 +106,11 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 		panic(err)
 	}
 
+	// TODO: depending on the files parsed, we should get the gas fees increased.
+	if err := validateThatAllFilesAreFormatted(cfg.PkgDir, cfg.PkgPath); err != nil {
+		return err
+	}
+
 	// open files in directory as MemPackage.
 	memPkg := gno.MustReadMemPackage(cfg.PkgDir, cfg.PkgPath)
 	if memPkg.IsEmpty() {
@@ -135,4 +145,31 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 		io.Println(string(amino.MustMarshalJSON(tx)))
 	}
 	return nil
+}
+
+func validateThatAllFilesAreFormatted(dir, pkg string) error {
+	manifest, err := gno.TraverseDirForGnoMemPackageFiles(dir, pkg)
+	if err != nil {
+		return err
+	}
+
+	parseOpts := parser.ParseComments | parser.DeclarationErrors | parser.SkipObjectResolution
+	var errs error
+	for _, path := range manifest {
+		fset := token.NewFileSet()
+		srcCode, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		f, err := parser.ParseFile(fset, path, srcCode, parseOpts)
+		if err != nil {
+			return fmt.Errorf("invalid parsing of %q: %w", path, err)
+		}
+
+		if _, err := gno.FormatSource(fset, f, string(srcCode), true); err != nil {
+			errs = multierr.Append(errs, fmt.Errorf("%s: %w", path, err))
+		}
+	}
+
+	return errs
 }
