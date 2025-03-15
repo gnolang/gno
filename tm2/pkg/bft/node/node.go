@@ -4,6 +4,7 @@ package node
 // is enabled by the user by setting a profiling address
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
+	"github.com/gnolang/gno/tm2/pkg/bft/backup"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/discovery"
@@ -171,6 +173,7 @@ type Node struct {
 	txEventStore      eventstore.TxEventStore
 	eventStoreService *eventstore.Service
 	firstBlockSignal  <-chan struct{}
+	backupServer      *http.Server
 }
 
 func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.BlockStore, stateDB dbm.DB, err error) {
@@ -601,6 +604,16 @@ func (n *Node) OnStart() error {
 		n.rpcListeners = listeners
 	}
 
+	// start backup server if requested
+	if n.config.Backup != nil && n.config.Backup.ListenAddress != "" {
+		n.backupServer = backup.NewServer(n.config.Backup, n.blockStore)
+		go func() {
+			if err := n.backupServer.ListenAndServe(); err != nil {
+				n.Logger.Info("Backup server stopped", "err", err)
+			}
+		}()
+	}
+
 	// Start the transport.
 	// The listen address for the transport needs to be an address within reach of the machine NIC
 	listenAddress := p2pTypes.NetAddressString(n.nodeKey.ID(), n.config.P2P.ListenAddress)
@@ -671,6 +684,15 @@ func (n *Node) OnStop() {
 	}
 
 	n.isListening = false
+
+	// stop the backup server if started
+	if n.backupServer != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+		defer cancel()
+		if err := n.backupServer.Shutdown(ctx); err != nil {
+			n.Logger.Error("Error closing backup server", "err", err)
+		}
+	}
 
 	// finally stop the listeners / external services
 	for _, l := range n.rpcListeners {

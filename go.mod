@@ -5,6 +5,7 @@ go 1.23
 toolchain go1.23.6
 
 require (
+	connectrpc.com/connect v1.18.1
 	dario.cat/mergo v1.0.1
 	github.com/alecthomas/chroma/v2 v2.15.0
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4
