@@ -5,7 +5,8 @@
 // flexible arguments, allowing users to build dynamic links that integrate
 // seamlessly with various Gno clients.
 //
-// The package offers two ways to generate URLs:
+// The package offers two ways to generate markdown links for
+// transaction functions in the current "relative realm":
 //
 //  1. Using a builder pattern for more structured URLs (recommended):
 //     txlink.NewLink("MyFunc").
