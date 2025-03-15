@@ -28,6 +28,7 @@ func TestCall(t *testing.T) {
 		{"test", []string{"key", "hello world"}, "$help&func=test&key=hello+world", ""},
 		{"test", []string{"key", "a&b=c"}, "$help&func=test&key=a%26b%3Dc", ""},
 		{"test", []string{"key", ""}, "$help&func=test&key=", ""},
+		{"testSend", []string{"key", "hello world", ".send", "1000000ugnot"}, "$help&func=testSend&.send=1000000ugnot&key=hello+world", ""},
 	}
 
 	for _, tt := range tests {
@@ -35,6 +36,218 @@ func TestCall(t *testing.T) {
 		t.Run(title, func(t *testing.T) {
 			got := tt.realm.Call(tt.fn, tt.args...)
 			urequire.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestBuilder(t *testing.T) {
+	cases := []struct {
+		name     string
+		build    func() string
+		expected string
+	}{
+		// Basic functionality tests
+		{
+			name: "empty_function",
+			build: func() string {
+				return NewLink("").URL()
+			},
+			expected: "",
+		},
+		{
+			name: "function_without_args",
+			build: func() string {
+				return NewLink("MyFunc").URL()
+			},
+			expected: "$help&func=MyFunc",
+		},
+		{
+			name: "function_with_one_arg",
+			build: func() string {
+				return NewLink("MyFunc").
+					AddArg("key", "value").
+					URL()
+			},
+			expected: "$help&func=MyFunc&key=value",
+		},
+
+		// Realm tests
+		{
+			name: "gnoland_realm",
+			build: func() string {
+				return Realm("gno.land/r/demo").
+					NewLink("MyFunc").
+					AddArg("key", "value").
+					URL()
+			},
+			expected: "/r/demo$help&func=MyFunc&key=value",
+		},
+		{
+			name: "external_realm",
+			build: func() string {
+				return Realm("gno.world/r/demo").
+					NewLink("MyFunc").
+					AddArg("key", "value").
+					URL()
+			},
+			expected: "https://gno.world/r/demo$help&func=MyFunc&key=value",
+		},
+		{
+			name: "empty_realm",
+			build: func() string {
+				return Realm("").
+					NewLink("func").
+					AddArg("key", "value").
+					URL()
+			},
+			expected: "$help&func=func&key=value",
+		},
+
+		// URL encoding tests
+		{
+			name: "url_encoding_with_spaces",
+			build: func() string {
+				return NewLink("test").
+					AddArg("key", "hello world").
+					URL()
+			},
+			expected: "$help&func=test&key=hello+world",
+		},
+		{
+			name: "url_encoding_with_special_chars",
+			build: func() string {
+				return NewLink("test").
+					AddArg("key", "a&b=c").
+					URL()
+			},
+			expected: "$help&func=test&key=a%26b%3Dc",
+		},
+		{
+			name: "url_encoding_with_unicode",
+			build: func() string {
+				return NewLink("func").
+					AddArg("key", "🌟").
+					URL()
+			},
+			expected: "$help&func=func&key=%F0%9F%8C%9F",
+		},
+		{
+			name: "url_encoding_with_special_chars_in_key",
+			build: func() string {
+				return NewLink("func").
+					AddArg("my/key", "value").
+					URL()
+			},
+			expected: "$help&func=func&my%2Fkey=value",
+		},
+
+		// AddArgs tests
+		{
+			name: "addargs_with_multiple_pairs",
+			build: func() string {
+				return NewLink("MyFunc").
+					AddArgs("key1", "value1", "key2", "value2").
+					URL()
+			},
+			expected: "$help&func=MyFunc&key1=value1&key2=value2",
+		},
+		{
+			name: "addargs_with_odd_number_of_args",
+			build: func() string {
+				return NewLink("MyFunc").
+					AddArgs("key1", "value1", "orphan").
+					URL()
+			},
+			expected: "$help&func=MyFunc&error=odd+number+of+arguments",
+		},
+
+		// Empty values tests
+		{
+			name: "empty_key_should_be_ignored",
+			build: func() string {
+				return NewLink("func").
+					AddArg("", "value").
+					URL()
+			},
+			expected: "$help&func=func",
+		},
+		{
+			name: "empty_value_should_be_kept",
+			build: func() string {
+				return NewLink("func").
+					AddArg("key", "").
+					URL()
+			},
+			expected: "$help&func=func&key=",
+		},
+
+		// Send tests
+		{
+			name: "send_via_addsend_method",
+			build: func() string {
+				return NewLink("MyFunc").
+					AddArg("key", "value").
+					AddSend("1000000ugnot").
+					URL()
+			},
+			expected: "$help&func=MyFunc&.send=1000000ugnot&key=value",
+		},
+		{
+			name: "send_via_addarg_method",
+			build: func() string {
+				return NewLink("MyFunc").
+					AddArg(".send", "1000000ugnot").
+					URL()
+			},
+			expected: "$help&func=MyFunc&.send=1000000ugnot",
+		},
+		{
+			name: "addsend_should_override_previous_addsend",
+			build: func() string {
+				return NewLink("MyFunc").
+					AddSend("1000000ugnot").
+					AddSend("2000000ugnot").
+					URL()
+			},
+			expected: "$help&func=MyFunc&.send=2000000ugnot",
+		},
+		{
+			name: "addsend_should_not_be_overridden_by_addarg",
+			build: func() string {
+				return NewLink("func").
+					AddSend("2000000ugnot").
+					AddArg(".send", "1000000ugnot").
+					URL()
+			},
+			expected: "$help&func=func&.send=2000000ugnot",
+		},
+		{
+			name: "addsend_should_override_addarg",
+			build: func() string {
+				return NewLink("func").
+					AddArg(".send", "1000000ugnot").
+					AddSend("2000000ugnot").
+					URL()
+			},
+			expected: "$help&func=func&.send=2000000ugnot",
+		},
+		{
+			name: "addsend_should_override_all_sends",
+			build: func() string {
+				return NewLink("func").
+					AddArgs("key", "value", ".send", "1000000ugnot").
+					AddSend("3000000ugnot").
+					AddArg(".send", "2000000ugnot").
+					URL()
+			},
+			expected: "$help&func=func&.send=3000000ugnot&key=value",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tc.build()
+			urequire.Equal(t, tc.expected, got)
 		})
 	}
 }
