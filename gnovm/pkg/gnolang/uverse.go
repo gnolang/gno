@@ -744,7 +744,7 @@ func makeUverseNode() {
 			for i := 0; i < xvl; i++ {
 				ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
 				ss[i] = ev.Sprint(m)
-				m.incrCPU(OpCPUPrinln * int64(len(ss[i])))
+				m.incrCPU(OpCPUPrintln * int64(len(ss[i])))
 			}
 			rs := strings.Join(ss, " ") + "\n"
 			if debug {

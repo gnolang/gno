@@ -1141,8 +1141,8 @@ const (
 	OpCPUReturnCallDefers  = 78
 
 	/* Print */
-	OpCPUPrinln = 1
-	OpCPUPrint  = 1
+	OpCPUPrintln = 1
+	OpCPUPrint   = 1
 )
 
 //----------------------------------------
