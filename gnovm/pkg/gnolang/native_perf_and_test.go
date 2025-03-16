@@ -89,7 +89,7 @@ func TestGnoPrintAndPrintln(t *testing.T) {
 		{
 			"println with no args",
 			"println()",
-			"",
+			"\n",
 		},
 		{
 			"print with 1 arg",

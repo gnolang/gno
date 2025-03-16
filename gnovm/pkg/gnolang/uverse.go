@@ -756,10 +756,6 @@ func makeUverseNode() {
 			arg0 := m.LastBlock().GetParams1()
 			xv := arg0
 			xvl := xv.TV.GetLength()
-			if xvl == 0 {
-				// Mimick Go in which invoking println() does nothing.
-				return
-			}
 
 			switch debug {
 			case true:
