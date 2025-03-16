@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
@@ -718,16 +719,32 @@ func makeUverseNode() {
 			arg0 := m.LastBlock().GetParams1()
 			xv := arg0
 			xvl := xv.TV.GetLength()
-			ss := make([]string, xvl)
-			for i := 0; i < xvl; i++ {
-				ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
-				ss[i] = ev.Sprint(m)
+			if xvl == 0 {
+				// Mimick Go in which invoking print() does nothing.
+				return
 			}
-			rs := strings.Join(ss, " ")
-			if debug {
+
+			switch debug {
+			case true:
+				ss := make([]string, xvl)
+				for i := 0; i < xvl; i++ {
+					ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
+					ss[i] = ev.Sprint(m)
+				}
+				rs := strings.Join(ss, " ")
 				print(rs)
+				io.WriteString(m.Output, rs)
+
+			default:
+				nMax := xvl - 1
+				for i := 0; i < xvl; i++ {
+					ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
+					io.WriteString(m.Output, ev.Sprint(m))
+					if i < nMax { // Not the last item.
+						io.WriteString(m.Output, " ")
+					}
+				}
 			}
-			m.Output.Write([]byte(rs))
 		},
 	)
 	defNative("println",
@@ -739,16 +756,33 @@ func makeUverseNode() {
 			arg0 := m.LastBlock().GetParams1()
 			xv := arg0
 			xvl := xv.TV.GetLength()
-			ss := make([]string, xvl)
-			for i := 0; i < xvl; i++ {
-				ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
-				ss[i] = ev.Sprint(m)
+			if xvl == 0 {
+				// Mimick Go in which invoking println() does nothing.
+				return
 			}
-			rs := strings.Join(ss, " ") + "\n"
-			if debug {
+
+			switch debug {
+			case true:
+				ss := make([]string, xvl)
+				for i := 0; i < xvl; i++ {
+					ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
+					ss[i] = ev.Sprint(m)
+				}
+				rs := strings.Join(ss, " ") + "\n"
 				println("DEBUG/stdout: " + rs)
+				io.WriteString(m.Output, rs)
+
+			default:
+				nMax := xvl - 1
+				for i := 0; i < xvl; i++ {
+					ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
+					io.WriteString(m.Output, ev.Sprint(m))
+					if i < nMax { // Not the last item.
+						io.WriteString(m.Output, " ")
+					}
+				}
+				io.WriteString(m.Output, "\n")
 			}
-			m.Output.Write([]byte(rs))
 		},
 	)
 	defNative("recover",
