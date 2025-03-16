@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	boardsPageSize  = 6
-	threadsPageSize = 6
-	repliesPageSize = 30
+	pageSizeBoards  = 6
+	pageSizeThreads = 6
+	pageSizeReplies = 10
 )
 
 const menuMembership = "membership"
@@ -47,9 +47,13 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	p := mustGetPagination(req.RawPath, boardsPageSize, true)
-	page := p.Iterate(&gBoardsByID, func(_ string, value interface{}) bool {
-		board := value.(*Board)
+	p, err := pager.New(req.RawPath, gBoardsByID.Size(), pager.WithPageSize(pageSizeBoards))
+	if err != nil {
+		panic(err)
+	}
+
+	gBoardsByID.ReverseIterateByOffset(p.Offset(), p.PageSize(), func(_ string, v any) bool {
+		board := v.(*Board)
 
 		res.Write("## " + newLink(board.GetName(), board.GetURL()) + "  \n")
 		res.Write("_Created by " + newUserLink(board.creator) + " ")
@@ -64,9 +68,9 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 		return false
 	})
 
-	if page != nil {
+	if p.HasPages() {
 		res.Write("\n---\n")
-		res.Write("Pages " + page.Picker())
+		res.Write(pager.Picker(p))
 	}
 }
 
@@ -91,8 +95,7 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	board := v.(*Board)
 	renderBoardMenu(board, res, req)
 
-	p := mustGetPagination(req.RawPath, threadsPageSize, true)
-	res.Write(board.Render(p))
+	res.Write(board.Render(req.RawPath))
 }
 
 func renderBoardMenu(board *Board, res *mux.ResponseWriter, req *mux.Request) {
@@ -150,8 +153,7 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 	} else if thread.IsHidden() {
 		res.Write("Thread with ID: " + rawID + " has been flagged as inappropriate")
 	} else {
-		p := mustGetPagination(req.RawPath, repliesPageSize, true)
-		res.Write(thread.Render(p, "", 5))
+		res.Write(thread.Render(req.RawPath, "", 5))
 	}
 }
 
