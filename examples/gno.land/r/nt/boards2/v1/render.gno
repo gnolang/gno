@@ -95,8 +95,7 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	board := v.(*Board)
 	renderBoardMenu(board, res, req)
 
-	p := mustGetPagination(req.RawPath, threadsPageSize, true)
-	res.Write(board.Render(p))
+	res.Write(board.Render(req.RawPath))
 }
 
 func renderBoardMenu(board *Board, res *mux.ResponseWriter, req *mux.Request) {

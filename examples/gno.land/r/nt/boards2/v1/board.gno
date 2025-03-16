@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/nt/commondao"
 )
@@ -107,9 +108,7 @@ func (board *Board) DeleteThread(pid PostID) {
 }
 
 // Render renders a board into Markdown.
-//
-// Pager is used for pagination if it's not nil.
-func (board *Board) Render(p *PaginationOpts) string {
+func (board *Board) Render(path string) string {
 	var sb strings.Builder
 
 	sb.WriteString("# " + board.GetName() + "  \n")
@@ -132,20 +131,25 @@ func (board *Board) Render(p *PaginationOpts) string {
 		return sb.String()
 	}
 
-	page := p.Iterate(&board.threads, func(_ string, v interface{}) bool {
-		p := v.(*Post)
-		if p.isHidden {
+	p, err := pager.New(path, board.threads.Size(), pager.WithPageSize(threadsPageSize))
+	if err != nil {
+		panic(err)
+	}
+
+	board.threads.ReverseIterateByOffset(p.Offset(), p.PageSize(), func(_ string, v any) bool {
+		thread := v.(*Post)
+		if thread.isHidden {
 			return false
 		}
 
-		sb.WriteString(p.RenderSummary())
+		sb.WriteString(thread.RenderSummary())
 		sb.WriteString("\n")
 		return false
 	})
 
-	if page != nil {
+	if p.HasPages() {
 		sb.WriteString("\n---\n")
-		sb.WriteString("Pages " + page.Picker())
+		sb.WriteString(pager.Picker(p))
 	}
 
 	return sb.String()
