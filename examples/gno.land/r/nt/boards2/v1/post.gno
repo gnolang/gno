@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/txlink"
 )
 
@@ -400,7 +401,7 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
 	sb.WriteString("\n")
 }
 
-func (post *Post) Render(p *PaginationOpts, indent string, levels int) string {
+func (post *Post) Render(path string, indent string, levels int) string {
 	if post == nil {
 		return "nil post"
 	}
@@ -437,22 +438,58 @@ func (post *Post) Render(p *PaginationOpts, indent string, levels int) string {
 		return sb.String()
 	}
 
-	commentsIndent := indent + "> "
-	page := p.Iterate(&post.replies, func(_ string, value interface{}) bool {
-		reply := value.(*Post)
+	if path != "" {
+		sb.WriteString(post.renderTopLevelReplies(path, indent, levels-1))
+	} else {
+		sb.WriteString(post.renderSubReplies(indent, levels-1))
+	}
+	return sb.String()
+}
 
-		sb.WriteString(indent)
-		sb.WriteString("\n")
-		sb.WriteString(reply.Render(nil, commentsIndent, levels-1))
+func (post *Post) renderTopLevelReplies(path, indent string, levels int) string {
+	p, err := pager.New(path, post.replies.Size(), pager.WithPageSize(pageSizeReplies))
+	if err != nil {
+		panic(err)
+	}
+
+	var (
+		b              strings.Builder
+		commentsIndent = indent + "> "
+	)
+
+	post.replies.ReverseIterateByOffset(p.Offset(), p.PageSize(), func(_ string, v any) bool {
+		reply := v.(*Post)
+
+		b.WriteString(indent)
+		b.WriteString("\n")
+		b.WriteString(reply.Render("", commentsIndent, levels-1))
 		return false
 	})
 
-	if page != nil {
-		sb.WriteString("\n---\n")
-		sb.WriteString(page.Picker())
+	if p.HasPages() {
+		b.WriteString("\n---\n")
+		b.WriteString(pager.Picker(p))
 	}
 
-	return sb.String()
+	return b.String()
+}
+
+func (post *Post) renderSubReplies(indent string, levels int) string {
+	var (
+		b              strings.Builder
+		commentsIndent = indent + "> "
+	)
+
+	post.replies.Iterate("", "", func(_ string, v any) bool {
+		reply := v.(*Post)
+
+		b.WriteString(indent)
+		b.WriteString("\n")
+		b.WriteString(reply.Render("", commentsIndent, levels-1))
+		return false
+	})
+
+	return b.String()
 }
 
 func (post *Post) RenderInner() string {
@@ -480,9 +517,9 @@ func (post *Post) RenderInner() string {
 			parent, _ = thread.GetReply(parentID)
 		}
 
-		s += parent.Render(nil, "", 0) + "\n"
+		s += parent.Render("", "", 0) + "\n"
 	}
 
-	s += post.Render(nil, "> ", 5)
+	s += post.Render("", "> ", 5)
 	return s
 }
