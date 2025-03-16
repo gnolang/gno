@@ -398,8 +398,7 @@ func (fv *FuncValue) GetShallowSize() int64 {
 // is newly allocated, include its size in the count. If it's reused,
 // do not count its size.
 func (sv *StringValue) GetShallowSize() int64 {
-	if sv.isNewBase {
-		sv.isNewBase = false // mark no longer new
+	if sv.isNewBase && sv.refCount == 0 {
 		return allocString + allocStringByte*int64(len(sv.s))
 	}
 	return allocString

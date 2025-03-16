@@ -75,6 +75,7 @@ var (
 type StringValue struct {
 	s         string
 	isNewBase bool // if the underlying data is new allocated or not.
+	refCount  int64
 }
 
 func NewStringValue(s string) *StringValue {
@@ -1063,6 +1064,14 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	case *NativeValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc)
+	case *StringValue:
+		cp.T = tv.T
+		cv2 := &StringValue{
+			s:         cv.s,
+			isNewBase: cv.isNewBase,
+		}
+		cv2.refCount = cv.refCount + 1
+		cp.V = cv2
 	default:
 		cp = tv
 	}

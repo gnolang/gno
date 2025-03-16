@@ -123,7 +123,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 			return true
 		}
 
-		// Invote the traverser on o.
+		// Invoke the traverser on v.
 		stop := v.VisitAssociated(vis)
 
 		// Finally bump cycle.
