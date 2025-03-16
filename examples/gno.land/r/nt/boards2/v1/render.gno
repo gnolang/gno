@@ -47,9 +47,13 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	p := mustGetPagination(req.RawPath, boardsPageSize, true)
-	page := p.Iterate(&gBoardsByID, func(_ string, value interface{}) bool {
-		board := value.(*Board)
+	p, err := pager.New(req.RawPath, gBoardsByID.Size(), pager.WithPageSize(boardsPageSize))
+	if err != nil {
+		panic(err)
+	}
+
+	gBoardsByID.ReverseIterateByOffset(p.Offset(), p.PageSize(), func(_ string, v any) bool {
+		board := v.(*Board)
 
 		res.Write("## " + newLink(board.GetName(), board.GetURL()) + "  \n")
 		res.Write("_Created by " + newUserLink(board.creator) + " ")
@@ -64,9 +68,9 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 		return false
 	})
 
-	if page != nil {
+	if p.HasPages() {
 		res.Write("\n---\n")
-		res.Write("Pages " + page.Picker())
+		res.Write(pager.Picker(p))
 	}
 }
 
