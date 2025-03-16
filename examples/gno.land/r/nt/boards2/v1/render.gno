@@ -14,7 +14,7 @@ import (
 const (
 	boardsPageSize  = 6
 	threadsPageSize = 6
-	repliesPageSize = 30
+	repliesPageSize = 10
 )
 
 const menuMembership = "membership"
@@ -153,8 +153,7 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 	} else if thread.IsHidden() {
 		res.Write("Thread with ID: " + rawID + " has been flagged as inappropriate")
 	} else {
-		p := mustGetPagination(req.RawPath, repliesPageSize, true)
-		res.Write(thread.Render(p, "", 5))
+		res.Write(thread.Render(req.RawPath, "", 5))
 	}
 }
 
