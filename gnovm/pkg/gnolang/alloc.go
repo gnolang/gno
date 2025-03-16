@@ -26,7 +26,7 @@ const (
 	// gno types
 	_allocSlice            = 24
 	_allocPointerValue     = 40
-	_allocStringValue      = 24
+	_allocStringValue      = 16
 	_allocStructValue      = 160
 	_allocArrayValue       = 184
 	_allocSliceValue       = 40
@@ -218,7 +218,8 @@ func (alloc *Allocator) AllocateHeapItem() {
 
 func (alloc *Allocator) NewString(s string) *StringValue {
 	alloc.AllocateString(int64(len(s)))
-	return &StringValue{s: s}
+	//return &StringValue{s: s}
+	return NewStringValue(s)
 }
 
 func (alloc *Allocator) NewListArray(n int) *ArrayValue {
@@ -394,13 +395,7 @@ func (fv *FuncValue) GetShallowSize() int64 {
 	return 0
 }
 
-// NOTE: Not always shallow. If the underlying data of the String
-// is newly allocated, include its size in the count. If it's reused,
-// do not count its size.
 func (sv *StringValue) GetShallowSize() int64 {
-	if sv.isNewBase && sv.refCount == 0 {
-		return allocString + allocStringByte*int64(len(sv.s))
-	}
 	return allocString
 }
 

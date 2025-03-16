@@ -50,7 +50,8 @@ const (
 )
 
 var (
-	_ Value = &StringValue{s: ""}
+	//_ Value = &StringValue{s: ""}
+	_ Value = &StringValue{}
 	_ Value = BigintValue{}
 	_ Value = BigdecValue{}
 	_ Value = DataByteValue{}
@@ -72,22 +73,39 @@ var (
 // ----------------------------------------
 // StringValue
 
+// TODO: alloc this properly.
 type StringValue struct {
-	s         string
 	isNewBase bool // if the underlying data is new allocated or not.
-	refCount  int64
+	Base      *ArrayValue
 }
 
 func NewStringValue(s string) *StringValue {
-	return &StringValue{s: s}
+	bz := []byte(s)
+	sv := &StringValue{
+		Base: &ArrayValue{
+			Data: make([]byte, len(bz)),
+		},
+	}
+	copy(sv.Base.Data, bz)
+	return sv
 }
 
 func (sv StringValue) MarshalAmino() (string, error) {
-	return sv.s, nil
+	if sv.Base == nil {
+		sv.Base = &ArrayValue{}
+	}
+	return string(sv.Base.Data), nil
 }
 
 func (sv *StringValue) UnmarshalAmino(s string) error {
-	sv.s = s
+	bz := []byte(s)
+	if sv.Base == nil {
+		sv.Base = &ArrayValue{
+			Data: make([]byte, len(bz)),
+		}
+	}
+	copy(sv.Base.Data, bz)
+
 	return nil
 }
 
@@ -269,7 +287,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 								panic("should not happen")
 							}
 							if nv, ok := tv2.V.(*NativeValue); !ok ||
-								nv.Value.Kind() != reflect.Func {
+									nv.Value.Kind() != reflect.Func {
 								panic("should not happen")
 							}
 						}
@@ -1064,14 +1082,6 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	case *NativeValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc)
-	case *StringValue:
-		cp.T = tv.T
-		cv2 := &StringValue{
-			s:         cv.s,
-			isNewBase: cv.isNewBase,
-		}
-		cv2.refCount = cv.refCount + 1
-		cp.V = cv2
 	default:
 		cp = tv
 	}
@@ -1215,7 +1225,7 @@ func (tv *TypedValue) GetString() string {
 	if tv.V == nil {
 		return ""
 	}
-	return tv.V.(*StringValue).s
+	return string(tv.V.(*StringValue).Base.Data)
 }
 
 func (tv *TypedValue) SetInt(n int) {
@@ -2136,7 +2146,8 @@ func (tv *TypedValue) GetLength() int {
 	}
 	switch cv := tv.V.(type) {
 	case *StringValue:
-		return len(cv.s)
+		//return len(cv.s)
+		return len(cv.Base.Data)
 	case *ArrayValue:
 		return cv.GetLength()
 	case *SliceValue:
@@ -2701,7 +2712,8 @@ func typedRune(r rune) TypedValue {
 // NOTE: does not allocate; used for panics.
 func typedString(s string) TypedValue {
 	tv := TypedValue{T: StringType}
-	tv.V = &StringValue{s: s}
+	//tv.V = &StringValue{s: s}
+	tv.V = NewStringValue(s)
 	return tv
 }
 

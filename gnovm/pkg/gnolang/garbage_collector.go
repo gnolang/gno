@@ -104,6 +104,9 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 
 		if isObject {
 			// Return if already measured.
+			if debug {
+				debug.Printf("oo.GetLastGCCycle: %d, gcCycle: %d\n", oo.GetLastGCCycle(), gcCycle)
+			}
 			if oo.GetLastGCCycle() == gcCycle {
 				return false // but don't stop
 			}
@@ -111,6 +114,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 
 		// Add object size to alloc.
 		size := v.GetShallowSize()
+
 		alloc.visitCount++ // Count operations for gas calculation
 
 		alloc.Allocate(size)
@@ -254,8 +258,17 @@ func (pv PointerValue) VisitAssociated(vis Visitor) (stop bool) {
 	return
 }
 
-// No more visit
+// If the underlying data of the String
+// is newly allocated, include its size in the count. If it's reused,
+// do not count its size.
+// NOTE: this ignores the items of array, should count bytes.
 func (sv StringValue) VisitAssociated(vis Visitor) (stop bool) {
+	if sv.isNewBase {
+		stop = vis(sv.Base)
+		if stop {
+			return
+		}
+	}
 	return false
 }
 
