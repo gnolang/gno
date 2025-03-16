@@ -106,7 +106,6 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 		panic(err)
 	}
 
-	// TODO: depending on the files parsed, we should get the gas fees increased.
 	if err := validateThatAllFilesAreFormatted(cfg.PkgDir, cfg.PkgPath); err != nil {
 		return err
 	}
@@ -163,7 +162,7 @@ func validateThatAllFilesAreFormatted(dir, pkg string) error {
 		}
 		f, err := parser.ParseFile(fset, path, srcCode, parseOpts)
 		if err != nil {
-			return fmt.Errorf("invalid parsing of %q: %w", path, err)
+			return &vm.TypeCheckError{Errors: []string{err.Error()}}
 		}
 
 		if _, err := gno.FormatSource(fset, f, string(srcCode), true); err != nil {

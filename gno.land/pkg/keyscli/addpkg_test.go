@@ -23,6 +23,11 @@ func TestRejectUnformattedFiles(t *testing.T) {
 			"fmted",
 			"",
 		},
+		{
+			"invalid",
+			"invalid",
+			"expected operand, found 'EOF",
+		},
 	}
 
 	for _, tt := range tests {
