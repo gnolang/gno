@@ -131,7 +131,7 @@ func (board *Board) Render(path string) string {
 		return sb.String()
 	}
 
-	p, err := pager.New(path, board.threads.Size(), pager.WithPageSize(threadsPageSize))
+	p, err := pager.New(path, board.threads.Size(), pager.WithPageSize(pageSizeThreads))
 	if err != nil {
 		panic(err)
 	}

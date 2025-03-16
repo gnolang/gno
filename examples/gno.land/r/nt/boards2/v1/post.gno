@@ -447,7 +447,7 @@ func (post *Post) Render(path string, indent string, levels int) string {
 }
 
 func (post *Post) renderTopLevelReplies(path, indent string, levels int) string {
-	p, err := pager.New(path, post.replies.Size(), pager.WithPageSize(repliesPageSize))
+	p, err := pager.New(path, post.replies.Size(), pager.WithPageSize(pageSizeReplies))
 	if err != nil {
 		panic(err)
 	}

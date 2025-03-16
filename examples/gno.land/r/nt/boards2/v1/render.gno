@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	boardsPageSize  = 6
-	threadsPageSize = 6
-	repliesPageSize = 10
+	pageSizeBoards  = 6
+	pageSizeThreads = 6
+	pageSizeReplies = 10
 )
 
 const menuMembership = "membership"
@@ -47,7 +47,7 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	p, err := pager.New(req.RawPath, gBoardsByID.Size(), pager.WithPageSize(boardsPageSize))
+	p, err := pager.New(req.RawPath, gBoardsByID.Size(), pager.WithPageSize(pageSizeBoards))
 	if err != nil {
 		panic(err)
 	}
