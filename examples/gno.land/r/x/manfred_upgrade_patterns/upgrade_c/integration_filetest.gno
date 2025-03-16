@@ -2,8 +2,8 @@ package main
 
 import (
 	"gno.land/r/x/manfred_upgrade_patterns/upgrade_c/root"
-	"gno.land/r/x/manfred_upgrade_patterns/upgrade_c/v1"
-	"gno.land/r/x/manfred_upgrade_patterns/upgrade_c/v2"
+	v1 "gno.land/r/x/manfred_upgrade_patterns/upgrade_c/v1"
+	v2 "gno.land/r/x/manfred_upgrade_patterns/upgrade_c/v2"
 )
 
 func main() {
