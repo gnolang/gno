@@ -157,6 +157,7 @@ func (av *ArrayValue) VisitAssociated(vis Visitor) (stop bool) {
 			return
 		}
 	}
+	// Maxwell: just alloc for byte here?
 	return
 }
 

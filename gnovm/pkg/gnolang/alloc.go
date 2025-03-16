@@ -218,7 +218,6 @@ func (alloc *Allocator) AllocateHeapItem() {
 
 func (alloc *Allocator) NewString(s string) *StringValue {
 	alloc.AllocateString(int64(len(s)))
-	//return &StringValue{s: s}
 	return NewStringValue(s)
 }
 

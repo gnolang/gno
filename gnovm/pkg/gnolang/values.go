@@ -73,7 +73,6 @@ var (
 // ----------------------------------------
 // StringValue
 
-// TODO: alloc this properly.
 type StringValue struct {
 	isNewBase bool // if the underlying data is new allocated or not.
 	Base      *ArrayValue
@@ -287,7 +286,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 								panic("should not happen")
 							}
 							if nv, ok := tv2.V.(*NativeValue); !ok ||
-									nv.Value.Kind() != reflect.Func {
+								nv.Value.Kind() != reflect.Func {
 								panic("should not happen")
 							}
 						}
@@ -1222,7 +1221,7 @@ func (tv *TypedValue) GetString() string {
 				tv.T.String()))
 		}
 	}
-	if tv.V == nil {
+	if tv.V == nil || tv.V.(*StringValue).Base == nil {
 		return ""
 	}
 	return string(tv.V.(*StringValue).Base.Data)
@@ -2146,7 +2145,7 @@ func (tv *TypedValue) GetLength() int {
 	}
 	switch cv := tv.V.(type) {
 	case *StringValue:
-		//return len(cv.s)
+		// return len(cv.s)
 		return len(cv.Base.Data)
 	case *ArrayValue:
 		return cv.GetLength()
@@ -2712,7 +2711,7 @@ func typedRune(r rune) TypedValue {
 // NOTE: does not allocate; used for panics.
 func typedString(s string) TypedValue {
 	tv := TypedValue{T: StringType}
-	//tv.V = &StringValue{s: s}
+	// tv.V = &StringValue{s: s}
 	tv.V = NewStringValue(s)
 	return tv
 }
