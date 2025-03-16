@@ -1139,6 +1139,10 @@ const (
 	OpCPURangeIterMap      = 48
 	OpCPURangeIterArrayPtr = 46
 	OpCPUReturnCallDefers  = 78
+
+	/* Print */
+	OpCPUPrinln = 1
+	OpCPUPrint  = 1
 )
 
 //----------------------------------------
