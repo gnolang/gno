@@ -50,7 +50,6 @@ const (
 )
 
 var (
-	//_ Value = &StringValue{s: ""}
 	_ Value = &StringValue{}
 	_ Value = BigintValue{}
 	_ Value = BigdecValue{}
@@ -75,35 +74,45 @@ var (
 
 type StringValue struct {
 	isNewBase bool // if the underlying data is new allocated or not.
-	Base      *ArrayValue
+	Base      *SliceValue
 }
 
 func NewStringValue(s string) *StringValue {
 	bz := []byte(s)
 	sv := &StringValue{
-		Base: &ArrayValue{
-			Data: make([]byte, len(bz)),
+		Base: &SliceValue{
+			Base: &ArrayValue{
+				Data: bz,
+			},
+			Offset: 0,
+			Length: len(bz),
+			Maxcap: cap(bz),
 		},
 	}
-	copy(sv.Base.Data, bz)
 	return sv
 }
 
 func (sv StringValue) MarshalAmino() (string, error) {
 	if sv.Base == nil {
-		sv.Base = &ArrayValue{}
+		return "", nil
 	}
-	return string(sv.Base.Data), nil
+	return string(sv.Base.Base.(*ArrayValue).Data), nil
 }
 
 func (sv *StringValue) UnmarshalAmino(s string) error {
 	bz := []byte(s)
-	if sv.Base == nil {
-		sv.Base = &ArrayValue{
-			Data: make([]byte, len(bz)),
-		}
+
+	sv.Base = &SliceValue{
+		Base: &ArrayValue{
+			Data: bz,
+		},
+		Offset: 0,
+		Length: len(bz),
+		Maxcap: cap(bz),
 	}
-	copy(sv.Base.Data, bz)
+
+	// XXX, consider this
+	sv.isNewBase = true
 
 	return nil
 }
@@ -1224,7 +1233,7 @@ func (tv *TypedValue) GetString() string {
 	if tv.V == nil || tv.V.(*StringValue).Base == nil {
 		return ""
 	}
-	return string(tv.V.(*StringValue).Base.Data)
+	return string(tv.V.(*StringValue).Base.Base.(*ArrayValue).Data)
 }
 
 func (tv *TypedValue) SetInt(n int) {
@@ -2145,8 +2154,7 @@ func (tv *TypedValue) GetLength() int {
 	}
 	switch cv := tv.V.(type) {
 	case *StringValue:
-		// return len(cv.s)
-		return len(cv.Base.Data)
+		return len(cv.Base.Base.(*ArrayValue).Data)
 	case *ArrayValue:
 		return cv.GetLength()
 	case *SliceValue:
@@ -2711,7 +2719,6 @@ func typedRune(r rune) TypedValue {
 // NOTE: does not allocate; used for panics.
 func typedString(s string) TypedValue {
 	tv := TypedValue{T: StringType}
-	// tv.V = &StringValue{s: s}
 	tv.V = NewStringValue(s)
 	return tv
 }

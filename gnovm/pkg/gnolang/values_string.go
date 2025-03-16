@@ -50,7 +50,7 @@ func newSeenValues() *seenValues {
 }
 
 func (v *StringValue) String() string {
-	return strconv.Quote(string(v.Base.Data))
+	return strconv.Quote(string(v.Base.Base.(*ArrayValue).Data))
 }
 
 func (bv BigintValue) String() string {

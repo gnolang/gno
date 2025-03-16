@@ -259,10 +259,9 @@ func (pv PointerValue) VisitAssociated(vis Visitor) (stop bool) {
 	return
 }
 
-// If the underlying data of the String
-// is newly allocated, include its size in the count. If it's reused,
-// do not count its size.
-// NOTE: this ignores the items of array, should count bytes.
+// If the underlying data of the String is newly allocated,
+// include its size in the count. If it's reused, do not count its size.
+// NOTE: this ignores the items of array, should count bytes?
 func (sv StringValue) VisitAssociated(vis Visitor) (stop bool) {
 	if sv.isNewBase {
 		stop = vis(sv.Base)
