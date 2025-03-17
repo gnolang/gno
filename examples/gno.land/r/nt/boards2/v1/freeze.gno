@@ -40,7 +40,7 @@ func setReplyReadOnly(args freezeArgs, isReadOnly bool) {
 		assertReplyIsNotFrozen(reply)
 	}
 
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 	permArgs := Args{args.boardID, args.threadID, args.replyID}
 	board.perms.WithPermission(caller, PermissionReplyFreeze, permArgs, func(Args) {
 		reply, _ := args.getReply()
@@ -65,7 +65,7 @@ func setThreadReadOnly(args freezeArgs, isReadOnly bool) {
 		assertThreadIsNotFrozen(thread)
 	}
 
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 	permArgs := Args{args.boardID, args.threadID}
 	board.perms.WithPermission(caller, PermissionThreadFreeze, permArgs, func(Args) {
 		thread, _ := args.getThread()
@@ -87,7 +87,7 @@ func setBoardReadOnly(boardID BoardID, isReadOnly bool) {
 		assertBoardIsNotFrozen(board)
 	}
 
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 	args := Args{boardID}
 	board.perms.WithPermission(caller, PermissionBoardFreeze, args, func(Args) {
 		board := mustGetBoard(boardID)

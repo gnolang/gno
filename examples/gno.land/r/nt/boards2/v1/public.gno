@@ -37,7 +37,7 @@ func SetPermissions(bid BoardID, p Permissions) {
 		assertBoardExists(bid)
 	}
 
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 	args := Args{bid}
 	gPerms.WithPermission(caller, PermissionPermissionsUpdate, args, func(Args) {
 		// When board ID is zero it means that realm permissions are being updated
@@ -78,7 +78,7 @@ func CreateBoard(name string) BoardID {
 	assertIsValidBoardName(name)
 	assertBoardNameNotExists(name)
 
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 	id := incGetBoardID()
 	args := Args{name, id}
 	gPerms.WithPermission(caller, PermissionBoardCreate, args, func(Args) {
@@ -112,7 +112,7 @@ func RenameBoard(name, newName string) {
 	assertBoardIsNotFrozen(board)
 
 	bid := board.GetID()
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 	args := Args{bid, name, newName}
 	board.perms.WithPermission(caller, PermissionBoardRename, args, func(Args) {
 		assertBoardNameNotExists(newName)
@@ -237,7 +237,7 @@ func SetFlaggingThreshold(boardID BoardID, threshold int) {
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
 
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 	args := Args{boardID, threshold}
 	board.perms.WithPermission(caller, PermissionBoardFlaggingUpdate, args, func(Args) {
 		assertBoardExists(boardID)
@@ -266,7 +266,7 @@ func FlagThread(boardID BoardID, threadID PostID, reason string) {
 	board := mustGetBoard(boardID)
 
 	// Realm owners should be able to flag without permissions even when board is frozen
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
 	if !isRealmOwner {
 		assertBoardIsNotFrozen(board)
@@ -310,7 +310,7 @@ func CreateThread(boardID BoardID, title, body string) PostID {
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
 
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 	assertHasBoardPermission(board, caller, PermissionThreadCreate)
 
 	thread := board.AddThread(caller, title, body)
@@ -336,7 +336,7 @@ func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID 
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
 
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 	assertHasBoardPermission(board, caller, PermissionReplyCreate)
 
 	thread := mustGetThread(board, threadID)
@@ -376,7 +376,7 @@ func FlagReply(boardID BoardID, threadID, replyID PostID, reason string) {
 	board := mustGetBoard(boardID)
 
 	// Realm owners should be able to flag without permissions even when board is frozen
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
 	if !isRealmOwner {
 		assertBoardIsNotFrozen(board)
@@ -415,7 +415,7 @@ func CreateRepost(boardID BoardID, threadID PostID, title, body string, dstBoard
 	title = strings.TrimSpace(title)
 	assertTitleIsValid(title)
 
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 	dst := mustGetBoard(dstBoardID)
 	assertBoardIsNotFrozen(dst)
 	assertHasBoardPermission(dst, caller, PermissionThreadRepost)
@@ -452,7 +452,7 @@ func DeleteThread(boardID BoardID, threadID PostID) {
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
 
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 	thread := mustGetThread(board, threadID)
 	assertThreadIsNotFrozen(thread)
 
@@ -487,7 +487,7 @@ func DeleteReply(boardID BoardID, threadID, replyID PostID) {
 	assertReplyIsVisible(reply)
 	assertReplyIsNotFrozen(reply)
 
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 	if caller != reply.GetCreator() {
 		assertHasBoardPermission(board, caller, PermissionReplyDelete)
 	}
@@ -527,7 +527,7 @@ func EditThread(boardID BoardID, threadID PostID, title, body string) {
 		assertBodyIsNotEmpty(body)
 	}
 
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 	if caller != thread.GetCreator() {
 		assertHasBoardPermission(board, caller, PermissionThreadEdit)
 	}
@@ -560,7 +560,7 @@ func EditReply(boardID BoardID, threadID, replyID PostID, body string) {
 	assertReplyIsVisible(reply)
 	assertReplyIsNotFrozen(reply)
 
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 	if caller != reply.GetCreator() {
 		panic("only the reply creator is allowed to edit it")
 	}
@@ -588,7 +588,7 @@ func InviteMember(boardID BoardID, user std.Address, role Role) {
 	}
 
 	perms := mustGetPermissions(boardID)
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 	args := Args{user, role}
 	perms.WithPermission(caller, PermissionMemberInvite, args, func(Args) {
 		if err := perms.AddUser(user, role); err != nil {
@@ -615,7 +615,7 @@ func RemoveMember(boardID BoardID, user std.Address) {
 	}
 
 	perms := mustGetPermissions(boardID)
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 	perms.WithPermission(caller, PermissionMemberRemove, Args{user}, func(Args) {
 		if !perms.RemoveUser(user) {
 			panic("member not found")
@@ -666,7 +666,7 @@ func ChangeMemberRole(boardID BoardID, member std.Address, role Role) {
 	}
 
 	perms := mustGetPermissions(boardID)
-	caller := std.OriginCaller()
+	caller := std.PreviousRealm().Address()
 	args := Args{boardID, member, role}
 	perms.WithPermission(caller, PermissionRoleChange, args, func(Args) {
 		if err := perms.SetUserRoles(member, role); err != nil {
