@@ -610,3 +610,48 @@ func TestConcurrentCheckTx(t *testing.T) {
 	assert.Equal(t, numGoroutines*txsPerGoroutine, mempool.Size(),
 		"Expected all transactions to be added to the mempool")
 }
+
+func TestMempoolFullBehavior(t *testing.T) {
+	app := kvstore.NewKVStoreApplication()
+	cc := proxy.NewLocalClientCreator(app)
+
+	// Create a mempool with a small size limit
+	config := cfg.TestMempoolConfig()
+	config.Size = 10
+	mempool, cleanup := newMempoolWithAppAndConfig(cc, config)
+	defer cleanup()
+
+	// Add transactions up to the limit
+	for i := 0; i < config.Size; i++ {
+		tx := make([]byte, 8)
+		binary.BigEndian.PutUint64(tx, uint64(i))
+		err := mempool.CheckTx(tx, nil)
+		require.NoError(t, err, "Expected CheckTx to succeed for tx %d", i)
+	}
+
+	// Verify mempool is full
+	assert.Equal(t, config.Size, mempool.Size(), "Expected mempool to be full")
+
+	// Try to add one more transaction, should fail with MempoolIsFullError
+	tx := make([]byte, 8)
+	binary.BigEndian.PutUint64(tx, uint64(config.Size))
+	err := mempool.CheckTx(tx, nil)
+	require.Error(t, err, "Expected CheckTx to fail when mempool is full")
+	assert.IsType(t, MempoolIsFullError{}, err, "Expected MempoolIsFullError")
+
+	// Remove a transaction by simulating a block commit
+	firstTx := make([]byte, 8)
+	binary.BigEndian.PutUint64(firstTx, uint64(0))
+	err = mempool.Update(1, []types.Tx{firstTx}, abciResponses(1, nil), nil, 0)
+	require.NoError(t, err, "Expected Update to succeed")
+
+	// Verify mempool has one less transaction
+	assert.Equal(t, config.Size-1, mempool.Size(), "Expected mempool to have one less transaction")
+
+	// Now we should be able to add a new transaction
+	err = mempool.CheckTx(tx, nil)
+	require.NoError(t, err, "Expected CheckTx to succeed after removing a transaction")
+
+	// Verify mempool is full again
+	assert.Equal(t, config.Size, mempool.Size(), "Expected mempool to be full again")
+}
