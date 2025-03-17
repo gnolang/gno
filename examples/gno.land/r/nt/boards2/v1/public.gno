@@ -13,9 +13,19 @@ const (
 
 	// MaxThreadTitleLength defines the maximum length allowed for thread titles.
 	MaxThreadTitleLength = 100
+
+	// MaxReplyLength defines the maximum length allowed for replies.
+	MaxReplyLength = 300
 )
 
-var reBoardName = regexp.MustCompile(`(?i)^[a-z]+[a-z0-9_\-]{2,50}$`)
+var (
+	reBoardName = regexp.MustCompile(`(?i)^[a-z]+[a-z0-9_\-]{2,50}$`)
+
+	// Minimalistic Markdown line prefix checks that if allowed would
+	// break the current UI when submitting a reply. It denies replies
+	// with headings, blockquotes or horizontal lines.
+	reDeniedReplyLinePrefixes = regexp.MustCompile(`(?m)^\s*(#|---|>)+`)
+)
 
 // SetPermissions sets a permissions implementation for boards2 realm or a board.
 func SetPermissions(bid BoardID, p Permissions) {
@@ -321,7 +331,7 @@ func CreateThread(boardID BoardID, title, body string) PostID {
 // The value of `replyID` is only required when creating a reply of another reply.
 func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID {
 	body = strings.TrimSpace(body)
-	assertBodyIsNotEmpty(body)
+	assertReplyBodyIsValid(body)
 
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
@@ -538,7 +548,7 @@ func EditThread(boardID BoardID, threadID PostID, title, body string) {
 // Replies can be updated only by the users who created them.
 func EditReply(boardID BoardID, threadID, replyID PostID, body string) {
 	body = strings.TrimSpace(body)
-	assertBodyIsNotEmpty(body)
+	assertReplyBodyIsValid(body)
 
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
@@ -769,6 +779,19 @@ func assertThreadIsVisible(thread *Post) {
 func assertReplyIsVisible(thread *Post) {
 	if thread.IsHidden() {
 		panic("reply is hidden")
+	}
+}
+
+func assertReplyBodyIsValid(body string) {
+	assertBodyIsNotEmpty(body)
+
+	if len(body) > MaxReplyLength {
+		n := strconv.Itoa(MaxReplyLength)
+		panic("reply is too long, maximum allowed is " + n + " characters")
+	}
+
+	if reDeniedReplyLinePrefixes.MatchString(body) {
+		panic("using Markdown headings, blockquotes or horizontal lines is not allowed in replies")
 	}
 }
 
