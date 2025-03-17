@@ -154,24 +154,14 @@ func IsBoardFrozen(boardID BoardID) bool {
 //
 // Fails if board is frozen.
 func FreezeThread(boardID BoardID, threadID PostID) {
-	args := freezeArgs{
-		boardID:  boardID,
-		threadID: threadID,
-	}
-
-	setThreadReadOnly(args, true)
+	setThreadReadOnly(boardID, threadID, true)
 }
 
 // UnfreezeThread removes frozen status from a thread.
 //
 // Fails if board is frozen.
 func UnfreezeThread(boardID BoardID, threadID PostID) {
-	args := freezeArgs{
-		boardID:  boardID,
-		threadID: threadID,
-	}
-
-	setThreadReadOnly(args, false)
+	setThreadReadOnly(boardID, threadID, false)
 }
 
 // IsThreadFrozen checks if a thread has been frozen.
@@ -203,27 +193,15 @@ func IsReplyFrozen(boardID BoardID, threadID, replyID PostID) bool {
 //
 // Fails when parent thread or board are frozen.
 func UnfreezeReply(boardID BoardID, threadID, replyID PostID) {
-	args := freezeArgs{
-		boardID:  boardID,
-		threadID: threadID,
-		replyID:  replyID,
-	}
-
 	// XXX: Is there a use case for also freezing replies?
-	setReplyReadOnly(args, false)
+	setReplyReadOnly(boardID, threadID, replyID, false)
 }
 
 // FreezeReply freezes a thread reply so it cannot be modified or deleted.
 //
 // Fails when parent thread or board are frozen.
 func FreezeReply(boardID BoardID, threadID, replyID PostID) {
-	args := freezeArgs{
-		boardID:  boardID,
-		threadID: threadID,
-		replyID:  replyID,
-	}
-
-	setReplyReadOnly(args, true)
+	setReplyReadOnly(boardID, threadID, replyID, true)
 }
 
 // SetFlaggingThreshold sets the number of flags required to hide a thread or comment.
