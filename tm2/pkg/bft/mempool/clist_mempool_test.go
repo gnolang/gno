@@ -20,6 +20,7 @@ import (
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/random"
 )
@@ -684,4 +685,52 @@ func TestRemoveTxOnError(t *testing.T) {
 
 	// Verify it's back in the mempool
 	assert.Equal(t, 1, mempool.Size())
+}
+
+func TestPreCheckFunction(t *testing.T) {
+	app := kvstore.NewKVStoreApplication()
+	cc := proxy.NewLocalClientCreator(app)
+	mempool, cleanup := newMempoolWithApp(cc)
+	defer cleanup()
+
+	// Define a precheck function that rejects transactions with odd length
+	preCheck := func(tx types.Tx) error {
+		if len(tx)%2 != 0 {
+			return errors.New("odd length transaction rejected")
+		}
+		return nil
+	}
+
+	// Set the precheck function
+	mempool.preCheck = preCheck
+
+	// Try to add a transaction with even length (should pass precheck)
+	txEven := []byte("even") // length = 4
+	err := mempool.CheckTx(txEven, nil)
+	require.NoError(t, err)
+
+	// Try to add a transaction with odd length (should fail precheck)
+	txOdd := []byte("odd") // length = 3
+	err = mempool.CheckTx(txOdd, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "odd length transaction rejected")
+
+	// Verify only the even transaction is in the mempool
+	assert.Equal(t, 1, mempool.Size())
+
+	// Update the precheck function via Update
+	newPreCheck := func(tx types.Tx) error {
+		// Accept all transactions
+		return nil
+	}
+
+	err = mempool.Update(1, nil, nil, newPreCheck, 0)
+	require.NoError(t, err)
+
+	// Now the odd transaction should be accepted
+	err = mempool.CheckTx(txOdd, nil)
+	require.NoError(t, err)
+
+	// Verify both transactions are in the mempool
+	assert.Equal(t, 2, mempool.Size())
 }
