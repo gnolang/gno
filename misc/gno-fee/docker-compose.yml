@@ -44,6 +44,7 @@ services:
       - traefik.http.routers.gnoweb.rule=Host(`fees.gnoteam.com`)
       - traefik.http.routers.gnoweb.tls=true
       - traefik.http.routers.gnoweb.tls.certresolver=le
+      - com.centurylinklabs.watchtower.enable=true
       - com.centurylinklabs.watchtower.depends-on=gnoland-val
 
   tx-indexer:
