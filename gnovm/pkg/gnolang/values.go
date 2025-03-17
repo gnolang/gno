@@ -20,15 +20,17 @@ import (
 type Value interface {
 	assertValue()
 	String() string // for debugging
+	GetShallowSize() int64
+	VisitAssociated(tr Visitor) (stop bool) // for GC
 }
 
 // Fixed size primitive types are represented in TypedValue.N
 // for performance.
-func (StringValue) assertValue()       {}
 func (BigintValue) assertValue()       {}
 func (BigdecValue) assertValue()       {}
 func (DataByteValue) assertValue()     {}
 func (PointerValue) assertValue()      {}
+func (*StringValue) assertValue()      {}
 func (*ArrayValue) assertValue()       {}
 func (*SliceValue) assertValue()       {}
 func (*StructValue) assertValue()      {}
@@ -48,7 +50,7 @@ const (
 )
 
 var (
-	_ Value = StringValue("")
+	_ Value = &StringValue{}
 	_ Value = BigintValue{}
 	_ Value = BigdecValue{}
 	_ Value = DataByteValue{}
@@ -70,7 +72,51 @@ var (
 // ----------------------------------------
 // StringValue
 
-type StringValue string
+// StringValue represents a string.
+// Base is an *ArrayValue that holds
+// the string’s bytes, and isNewBase
+// is a flag set when the Base is
+// newly allocated.
+// If the Base is not newly allocated
+// at runtime, it can be considered as
+// reusing the original memory allocated
+// during preprocessing. In this case,
+// it does not count towards garbage
+// collection because it is not a new
+// allocation.
+type StringValue struct {
+	isNewBase bool // if the underlying data is new allocated or not.
+	Base      *ArrayValue
+}
+
+func NewStringValue(s string) *StringValue {
+	bz := []byte(s)
+	sv := &StringValue{
+		Base: &ArrayValue{
+			Data: bz,
+		},
+	}
+	return sv
+}
+
+func (sv StringValue) MarshalAmino() (string, error) {
+	if sv.Base == nil {
+		return "", nil
+	}
+	return string(sv.Base.Data), nil
+}
+
+func (sv *StringValue) UnmarshalAmino(s string) error {
+	bz := []byte(s)
+
+	sv.Base = &ArrayValue{
+		Data: bz,
+	}
+	// XXX, consider this
+	sv.isNewBase = true
+
+	return nil
+}
 
 // ----------------------------------------
 // BigintValue
@@ -552,6 +598,7 @@ type FuncValue struct {
 
 	body       []Stmt         // function body
 	nativeBody func(*Machine) // alternative to Body
+	isClosure  bool
 }
 
 func (fv *FuncValue) IsNative() bool {
@@ -1165,7 +1212,7 @@ func (tv *TypedValue) GetBool() bool {
 	return *(*bool)(unsafe.Pointer(&tv.N))
 }
 
-func (tv *TypedValue) SetString(s StringValue) {
+func (tv *TypedValue) SetString(s *StringValue) {
 	if debug {
 		if tv.T.Kind() != StringKind || isNative(tv.T) {
 			panic(fmt.Sprintf(
@@ -1184,10 +1231,10 @@ func (tv *TypedValue) GetString() string {
 				tv.T.String()))
 		}
 	}
-	if tv.V == nil {
+	if tv.V == nil || tv.V.(*StringValue).Base == nil {
 		return ""
 	}
-	return string(tv.V.(StringValue))
+	return string(tv.V.(*StringValue).Base.Data)
 }
 
 func (tv *TypedValue) SetInt(n int) {
@@ -2107,8 +2154,8 @@ func (tv *TypedValue) GetLength() int {
 		}
 	}
 	switch cv := tv.V.(type) {
-	case StringValue:
-		return len(cv)
+	case *StringValue:
+		return len(cv.Base.Data)
 	case *ArrayValue:
 		return cv.GetLength()
 	case *SliceValue:
@@ -2673,7 +2720,7 @@ func typedRune(r rune) TypedValue {
 // NOTE: does not allocate; used for panics.
 func typedString(s string) TypedValue {
 	tv := TypedValue{T: StringType}
-	tv.V = StringValue(s)
+	tv.V = NewStringValue(s)
 	return tv
 }
 
