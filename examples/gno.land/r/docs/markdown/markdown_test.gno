@@ -7,7 +7,7 @@ import (
 
 func TestRender(t *testing.T) {
 	output := Render("")
-	if !strings.Contains(output, "\nMarkdown Quick Reference\n") {
+	if !strings.Contains(output, "Gno Flavored Markdown") {
 		t.Errorf("invalid output")
 	}
 }
