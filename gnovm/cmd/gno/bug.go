@@ -11,6 +11,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/gnolang/gno/gnovm/pkg/version"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
@@ -23,9 +24,10 @@ Describe your issue in as much detail as possible here
 
 ### Your environment
 
-* Go version: {{.GoVersion}}
-* OS and CPU architecture: {{.Os}}/{{.Arch}}
-* Gno commit hash causing the issue: {{.Commit}}
+* Gno version: {{ .GnoVersion }}
+* Go version: {{ .GoVersion }}
+* OS and CPU architecture: {{ .Os }}/{{ .Arch }}
+* Gno commit hash causing the issue: {{ .Commit }}
 
 ### Steps to reproduce
 
@@ -61,12 +63,13 @@ func newBugCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "bug",
 			ShortUsage: "bug",
-			ShortHelp:  "Start a bug report",
-			LongHelp: `opens https://github.com/gnolang/gno/issues in a browser. 
+			ShortHelp:  "start a bug report",
+			LongHelp: `opens https://github.com/gnolang/gno/issues in a browser.
 
 The new issue body is prefilled for you with the following information:
 
-- Go version (example: go1.22.4)
+- Gno version (the output of "gno version")
+- Go version (example: go1.23.4)
 - OS and CPU architecture (example: linux/amd64)
 - Gno commit hash causing the issue (example: f24690e7ebf325bffcfaf9e328c3df8e6b21e50c)
 
@@ -96,10 +99,11 @@ func execBug(cfg *bugCfg, args []string, io commands.IO) error {
 	}
 
 	bugReportEnv := struct {
-		Os, Arch, GoVersion, Commit string
+		Os, Arch, GnoVersion, GoVersion, Commit string
 	}{
 		runtime.GOOS,
 		runtime.GOARCH,
+		version.Version,
 		runtime.Version(),
 		getCommitHash(),
 	}

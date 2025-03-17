@@ -13,12 +13,11 @@ func main() {
 	banktestAddr := std.DerivePkgAddr("gno.land/r/demo/banktest")
 
 	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
-	std.TestSetOrigCaller(mainaddr)
+	std.TestSetOriginCaller(mainaddr)
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	banker := std.NewBanker(std.BankerTypeRealmSend)
 	send := std.Coins{{"ugnot", 123}}
 	banker.SendCoins(banktestAddr, mainaddr, send)
-
 }
 
 // Error:

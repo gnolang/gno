@@ -1,8 +1,8 @@
 module github.com/gnolang/gno
 
-go 1.22.0
+go 1.23
 
-toolchain go1.22.10
+toolchain go1.23.6
 
 require (
 	dario.cat/mergo v1.0.1
@@ -27,6 +27,7 @@ require (
 	github.com/sig-0/insertion-queue v0.0.0-20241004125609-6b3ca841346b
 	github.com/stretchr/testify v1.10.0
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
+	github.com/valyala/bytebufferpool v1.0.0
 	github.com/yuin/goldmark v1.7.8
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc
 	go.etcd.io/bbolt v1.3.11
@@ -47,6 +48,7 @@ require (
 	golang.org/x/term v0.28.0
 	golang.org/x/tools v0.29.0
 	google.golang.org/protobuf v1.36.3
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -70,5 +72,4 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20250115164207-1a7da9e5054f // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250115164207-1a7da9e5054f // indirect
 	google.golang.org/grpc v1.69.4 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

@@ -2,11 +2,11 @@ package main
 
 type nat map[string]int
 
-func (n nat) zero() interface{} {
+func (n nat) zero() any {
 	return map[string]int{"zero": 0}
 }
 
-func (n nat) one() interface{} {
+func (n nat) one() any {
 	return nat{"one": 1}
 }
 

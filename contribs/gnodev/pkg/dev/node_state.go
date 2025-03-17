@@ -84,14 +84,10 @@ func (n *Node) MoveBy(ctx context.Context, x int) error {
 	}
 
 	// Load genesis packages
-	pkgsTxs, err := n.pkgs.Load(DefaultFee, n.startTime)
-	if err != nil {
-		return fmt.Errorf("unable to load pkgs: %w", err)
-	}
-
-	newState := n.state[:newIndex]
+	pkgsTxs := n.generateTxs(DefaultFee, n.pkgs)
 
 	// Create genesis with loaded pkgs + previous state
+	newState := n.state[:newIndex]
 	genesis := gnoland.DefaultGenState()
 	genesis.Balances = n.config.BalancesList
 	genesis.Txs = append(pkgsTxs, newState...)
@@ -131,7 +127,6 @@ func (n *Node) ExportStateAsGenesis(ctx context.Context) (*bft.GenesisDoc, error
 
 	// Get current blockstore state
 	doc := *n.Node.GenesisDoc() // copy doc
-
 	genState := doc.AppState.(gnoland.GnoGenesisState)
 	genState.Balances = n.config.BalancesList
 	genState.Txs = state
