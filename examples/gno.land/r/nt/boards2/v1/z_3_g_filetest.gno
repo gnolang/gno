@@ -14,7 +14,7 @@ const (
 	member  = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj") // @test2
 	member2 = std.Address("g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5")
 	name    = "foo123"
-	newName = "barbaz"
+	newName = "barbaz123"
 )
 
 var bid boards2.BoardID // Operate on board DAO
