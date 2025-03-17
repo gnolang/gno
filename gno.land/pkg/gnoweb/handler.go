@@ -329,12 +329,14 @@ func (h *WebHandler) GetSourceDownload(gnourl *weburl.GnoURL, w http.ResponseWri
 	files, err := h.Client.Sources(pkgPath)
 	if err != nil {
 		h.Logger.Error("unable to list sources file", "path", gnourl.Path, "error", err)
+		status, _ := GetClientErrorStatusPage(gnourl, err)
+		http.Error(w, "not found", status)
 		return
 	}
 
 	if len(files) == 0 {
 		h.Logger.Debug("no files available", "path", gnourl.Path)
-		http.Error(w, "no source files available", http.StatusNotFound)
+		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
 
@@ -346,7 +348,8 @@ func (h *WebHandler) GetSourceDownload(gnourl *weburl.GnoURL, w http.ResponseWri
 	}
 
 	if fileName == "" {
-		fileName = files[0] // fallback on the first file
+		http.Error(w, "not found", http.StatusNotFound)
+		return
 	}
 
 	// Get source file
@@ -354,7 +357,8 @@ func (h *WebHandler) GetSourceDownload(gnourl *weburl.GnoURL, w http.ResponseWri
 	_, err = h.Client.SourceFile(&source, pkgPath, fileName, true)
 	if err != nil {
 		h.Logger.Error("unable to get source file", "file", fileName, "error", err)
-		http.Error(w, "unable to get source file", http.StatusInternalServerError)
+		status, _ := GetClientErrorStatusPage(gnourl, err)
+		http.Error(w, "not found", status)
 		return
 	}
 
