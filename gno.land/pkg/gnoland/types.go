@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -43,9 +44,166 @@ func (bs BitSet) String() string {
 
 var _ std.AccountUnrestricter = &GnoAccount{}
 
+// GnoSession extends BaseSession with ACL capabilities
+type GnoSession struct {
+	std.BaseSession
+	// Access Control Lists
+	CanManageOtherSessions bool      `json:"can_manage_other_sessions" yaml:"can_manage_other_sessions"`
+	ExpirationTime         time.Time `json:"expiration_time" yaml:"expiration_time"`
+	CoinsTransferCapacity  std.Coins `json:"coins_transfer_capacity" yaml:"coins_transfer_capacity"`
+	RealmsWhitelist        []string  `json:"realms_whitelist" yaml:"realms_whitelist"`
+	CanManagePackages      bool      `json:"can_manage_packages" yaml:"can_manage_packages"`
+}
+
+// NewGnoSession creates a new GnoSession with default ACL settings
+func NewGnoSession(
+	accountAddress crypto.Address,
+	pubKey crypto.PubKey,
+	sequence uint64,
+	expirationTime time.Time,
+) *GnoSession {
+	return &GnoSession{
+		BaseSession:            *std.NewBaseSession(accountAddress, pubKey, sequence),
+		CanManageOtherSessions: false,
+		ExpirationTime:         expirationTime,
+		CoinsTransferCapacity:  std.Coins{},
+		RealmsWhitelist:        []string{},
+		CanManagePackages:      false,
+	}
+}
+
+// IsExpired checks if the session has expired
+func (s *GnoSession) IsExpired() bool {
+	return !s.ExpirationTime.IsZero() && time.Now().After(s.ExpirationTime)
+}
+
+// HasRealmAccess checks if the session has access to a specific realm
+func (s *GnoSession) HasRealmAccess(realm string) bool {
+	if len(s.RealmsWhitelist) == 0 {
+		return true // Empty whitelist means access to all realms
+	}
+	for _, r := range s.RealmsWhitelist {
+		if r == realm {
+			return true
+		}
+	}
+	return false
+}
+
+// CanTransferAmount checks if the session has sufficient transfer capacity
+func (s *GnoSession) CanTransferAmount(amount std.Coins) bool {
+	if s.CoinsTransferCapacity.IsZero() {
+		return true // Zero capacity means unlimited transfers
+	}
+	return s.CoinsTransferCapacity.IsGTE(amount)
+}
+
+// String implements fmt.Stringer
+func (s *GnoSession) String() string {
+	return fmt.Sprintf(`%s
+  CanManageOtherSessions: %t
+  ExpirationTime:         %s
+  CoinsTransferCapacity:  %s
+  RealmsWhitelist:        %v
+  CanManagePackages:      %t`,
+		s.BaseSession.String(),
+		s.CanManageOtherSessions,
+		s.ExpirationTime,
+		s.CoinsTransferCapacity,
+		s.RealmsWhitelist,
+		s.CanManagePackages,
+	)
+}
+
+// Modify GnoAccount to work with GnoSessions
 type GnoAccount struct {
 	std.BaseAccount
-	Attributes BitSet `json:"attributes" yaml:"attributes"`
+	Attributes BitSet       `json:"attributes" yaml:"attributes"`
+	Sessions   []GnoSession `json:"sessions" yaml:"sessions"`
+}
+
+// CreateSession implements Account interface with GnoSession specifics
+func (ga *GnoAccount) CreateSession(
+	pubKey crypto.PubKey,
+	expirationTime time.Time,
+	options SessionOptions,
+) (std.Session, error) {
+	// Check if a session with this pubKey already exists
+	for _, session := range ga.Sessions {
+		if session.GetPubKey().Equals(pubKey) {
+			return nil, errors.New("session with this public key already exists")
+		}
+	}
+
+	session := NewGnoSession(ga.Address, pubKey, 0, expirationTime)
+
+	// Apply options
+	session.CanManageOtherSessions = options.CanManageOtherSessions
+	session.CoinsTransferCapacity = options.CoinsTransferCapacity
+	session.RealmsWhitelist = options.RealmsWhitelist
+	session.CanManagePackages = options.CanManagePackages
+
+	ga.Sessions = append(ga.Sessions, *session)
+	return session, nil
+}
+
+// SessionOptions contains the configuration for a new session
+type SessionOptions struct {
+	CanManageOtherSessions bool
+	CoinsTransferCapacity  std.Coins
+	RealmsWhitelist        []string
+	CanManagePackages      bool
+}
+
+// GetSessions returns all non-expired sessions
+func (ga *GnoAccount) GetSessions() []std.Session {
+	var activeSessions []std.Session
+	now := time.Now()
+
+	for _, session := range ga.Sessions {
+		if session.ExpirationTime.IsZero() || now.Before(session.ExpirationTime) {
+			activeSessions = append(activeSessions, &session)
+		}
+	}
+	return activeSessions
+}
+
+// RevokeSession implements Account interface with expiration check
+func (ga *GnoAccount) RevokeSession(pubKey crypto.PubKey) error {
+	for i, session := range ga.Sessions {
+		if session.GetPubKey().Equals(pubKey) {
+			// Remove session at index i
+			ga.Sessions = append(ga.Sessions[:i], ga.Sessions[i+1:]...)
+			return nil
+		}
+	}
+	return errors.New("session not found")
+}
+
+// RevokeOtherSessions implements Account interface with permission check
+func (ga *GnoAccount) RevokeOtherSessions(currentPubKey crypto.PubKey) error {
+	var currentSession *GnoSession
+	newSessions := make([]GnoSession, 0, 1)
+
+	// Find current session
+	for _, session := range ga.Sessions {
+		if session.GetPubKey().Equals(currentPubKey) {
+			currentSession = &session
+			newSessions = append(newSessions, session)
+			break
+		}
+	}
+
+	if currentSession == nil {
+		return errors.New("current session not found")
+	}
+
+	if !currentSession.CanManageOtherSessions {
+		return errors.New("current session does not have permission to manage other sessions")
+	}
+
+	ga.Sessions = newSessions
+	return nil
 }
 
 // validFlags defines the set of all valid flags that can be used with BitSet.
