@@ -95,7 +95,7 @@ func TestPage_PickerQueryParamPreservation(t *testing.T) {
 			pageNumber: 2,
 			path:       "/test?foo=bar&baz=qux",
 			// Updated expected value to match actual output order
-			expected:   "[1](?page=1&baz=qux&foo=bar) | **2** | [3](?page=3&baz=qux&foo=bar)",
+			expected: "[1](?page=1&baz=qux&foo=bar) | **2** | [3](?page=3&baz=qux&foo=bar)",
 		},
 		{
 			name:       "overwrite existing page param",
@@ -158,9 +158,9 @@ func TestPager_ParseQuery(t *testing.T) {
 	pager := NewPager(tree, 10, false)
 
 	tests := []struct {
-		rawURL        string
-		expectedPage  int
-		expectedSize  int
+		rawURL       string
+		expectedPage int
+		expectedSize int
 	}{
 		{"/r/foo:bar/baz?size=2&page=1", 1, 2},
 		{"/r/foo:bar/baz?size=3&page=2", 2, 3},
