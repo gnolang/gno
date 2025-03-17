@@ -42,7 +42,6 @@ func AddToCounter(add int)  {
  	counter = counter + add
 }
 
-
 func Render(_ string) string {
 	return "counter: "+strconv.Itoa(counter)
 }
