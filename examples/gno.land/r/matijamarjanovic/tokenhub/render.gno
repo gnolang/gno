@@ -32,11 +32,6 @@ func Render(path string) string {
 
 	case strings.HasPrefix(path, mt):
 		out = renderMT(path)
-
-	default:
-		out = md.H1("404 Not Found")
-		out += md.Paragraph("The requested page does not exist.")
-		out += "[Back to home](/r/matijamarjanovic/tokenhub)"
 	}
 
 	return out
@@ -61,7 +56,6 @@ func renderToken(path string) string {
 	var tokenItems []string
 
 	tokenPager := pager.NewPager(grc20reg.GetRegistry(), pageSize, false)
-
 	page := tokenPager.MustGetPageByPath(path)
 
 	for _, item := range page.Items {
@@ -73,20 +67,7 @@ func renderToken(path string) string {
 			md.InlineCode(item.Key)))
 	}
 
-	if len(tokenItems) > 0 {
-		out += md.BulletList(tokenItems)
-		out += "\n"
-
-		if picker := page.Picker(); picker != "" {
-			out += md.HorizontalRule()
-			out += md.Paragraph(picker)
-		} else {
-			out += md.HorizontalRule()
-		}
-	} else {
-		out += md.Italic("No tokens registered yet")
-		out += "\n"
-	}
+	out += renderItemsList(tokenItems, page, "No tokens registered yet")
 	out += renderFooter()
 	return out
 }
@@ -112,20 +93,7 @@ func renderNFT(path string) string {
 			md.InlineCode(item.Key)))
 	}
 
-	if len(nftItems) > 0 {
-		out += md.BulletList(nftItems)
-		out += "\n"
-
-		if picker := page.Picker(); picker != "" {
-			out += md.HorizontalRule()
-			out += md.Paragraph(picker)
-		} else {
-			out += md.HorizontalRule()
-		}
-	} else {
-		out += md.Italic("No NFTs registered yet")
-		out += "\n"
-	}
+	out += renderItemsList(nftItems, page, "No NFTs registered yet")
 	out += renderFooter()
 	return out
 }
@@ -135,7 +103,6 @@ func renderMT(path string) string {
 	var mtItems []string
 
 	mtPager := pager.NewPager(registeredMTs, pageSize, false)
-
 	page := mtPager.MustGetPageByPath(path)
 
 	for _, item := range page.Items {
@@ -146,25 +113,33 @@ func renderMT(path string) string {
 			md.InlineCode(item.Key)))
 	}
 
-	if len(mtItems) > 0 {
-		out += md.BulletList(mtItems)
-		out += "\n"
-
-		if picker := page.Picker(); picker != "" {
-			out += md.HorizontalRule()
-			out += md.Paragraph(picker)
-		} else {
-			out += md.HorizontalRule()
-		}
-	} else {
-		out += md.Italic("No multi-tokens registered yet")
-		out += "\n"
-	}
+	out += renderItemsList(mtItems, page, "No multi-tokens registered yet")
 	out += renderFooter()
 	return out
 }
+
+func renderItemsList(items []string, page *pager.Page, emptyMessage string) string {
+	var out string
+	if len(items) == 0 {
+		out += md.Italic(emptyMessage)
+		out += "\n"
+		return out
+	}
+
+	out += md.BulletList(items)
+	out += "\n"
+	out += md.HorizontalRule()
+
+	picker := page.Picker()
+	if picker != "" {
+		out += md.Paragraph(picker)
+	}
+
+	return out
+}
+
 func renderFooter() string {
 	out := "\n"
-	out += md.Link("Back to home", "http://localhost:8888/r/matijamarjanovic/tokenhub")
+	out += md.Link("Back to home", "/r/matijamarjanovic/tokenhub")
 	return out
 }
