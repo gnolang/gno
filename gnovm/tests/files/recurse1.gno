@@ -9,4 +9,4 @@ func main() {
 }
 
 // Output:
-// array[(array[(array[(array[(array[(array[(array[(array[(array[(array[(... [1]interface{})] [1]interface{})] [1]interface{})] [1]interface{})] [1]interface{})] [1]interface{})] [1]interface{})] [1]interface{})] [1]interface{})] [1]interface{})]
+// array[(array[(array[(array[(array[(array[(array[(array[(array[(array[(... [1]interface {})] [1]interface {})] [1]interface {})] [1]interface {})] [1]interface {})] [1]interface {})] [1]interface {})] [1]interface {})] [1]interface {})] [1]interface {})]

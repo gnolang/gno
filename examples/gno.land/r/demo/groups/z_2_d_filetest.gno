@@ -8,13 +8,13 @@ import (
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/groups"
-	"gno.land/r/demo/users"
+	users "gno.land/r/gnoland/users/v1"
 )
 
 var gid groups.GroupID
 
 func main() {
-	users.Register("", "gnouser", "my profile")
+	users.Register("gnouser123")
 	gid = groups.CreateGroup("test_group")
 	println(gid)
 
@@ -28,4 +28,4 @@ func main() {
 }
 
 // Error:
-// unauthorized to delete member
+// r/gnoland/users: non-user call

@@ -24,9 +24,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
-	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
-	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
-	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
@@ -54,6 +51,7 @@ type VMKeeperI interface {
 	LoadStdlibCached(ctx sdk.Context, stdlibDir string)
 	MakeGnoTransactionStore(ctx sdk.Context) sdk.Context
 	CommitGnoTransactionStore(ctx sdk.Context)
+	InitGenesis(ctx sdk.Context, data GenesisState)
 }
 
 var _ VMKeeperI = &VMKeeper{}
@@ -65,21 +63,23 @@ type VMKeeper struct {
 
 	baseKey store.StoreKey
 	iavlKey store.StoreKey
-	acck    auth.AccountKeeper
-	bank    bank.BankKeeper
-	prmk    params.ParamsKeeper
+	acck    AccountKeeperI
+	bank    BankKeeperI
+	prmk    ParamsKeeperI
 
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
 }
 
 // NewVMKeeper returns a new VMKeeper.
+// NOTE: prmk must be the root ParamsKeeper such that
+// ExecContext.Params may set any module's parameter.
 func NewVMKeeper(
 	baseKey store.StoreKey,
 	iavlKey store.StoreKey,
-	acck auth.AccountKeeper,
-	bank bank.BankKeeper,
-	prmk params.ParamsKeeper,
+	acck AccountKeeperI,
+	bank BankKeeperI,
+	prmk ParamsKeeperI,
 ) *VMKeeper {
 	vmk := &VMKeeper{
 		baseKey: baseKey,
@@ -236,8 +236,8 @@ var reNamespace = regexp.MustCompile(`^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/(?:r|p)/([\.
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
-	sysUsersPkg := vm.getSysUsersPkgParam(ctx)
-	if sysUsersPkg == "" {
+	sysNamesPkg := vm.getSysNamesPkgParam(ctx)
+	if sysNamesPkg == "" {
 		return nil
 	}
 	chainDomain := vm.getChainDomainParam(ctx)
@@ -256,10 +256,10 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	default:
 		panic("invalid pattern while matching pkgpath")
 	}
-	username := match[1]
+	namespace := match[1]
 
 	// if `sysUsersPkg` does not exist -> skip validation.
-	usersPkg := store.GetPackage(sysUsersPkg, false)
+	usersPkg := store.GetPackage(sysNamesPkg, false)
 	if usersPkg == nil {
 		return nil
 	}
@@ -276,7 +276,7 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 		OriginPkgAddr:   pkgAddr.Bech32(),
 		// XXX: should we remove the banker ?
 		Banker:      NewSDKBanker(vm, ctx),
-		Params:      NewSDKParams(vm, ctx),
+		Params:      NewSDKParams(vm.prmk, ctx),
 		EventLogger: ctx.EventLogger(),
 	}
 
@@ -291,15 +291,15 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 		})
 	defer m.Release()
 
-	// call $sysUsersPkg.IsAuthorizedAddressForName("<user>")
-	// We only need to check by name here, as address have already been check
+	// call sysNamesPkg.IsAuthorizedAddressForName("<user>")
+	// We only need to check by name here, as addresses have already been checked
 	mpv := gno.NewPackageNode("main", "main", nil).NewPackage()
 	m.SetActivePackage(mpv)
-	m.RunDeclaration(gno.ImportD("users", sysUsersPkg))
+	m.RunDeclaration(gno.ImportD("names", sysNamesPkg))
 	x := gno.Call(
-		gno.Sel(gno.Nx("users"), "IsAuthorizedAddressForName"),
+		gno.Sel(gno.Nx("names"), "IsAuthorizedAddressForNamespace"),
 		gno.Str(creator.String()),
-		gno.Str(username),
+		gno.Str(namespace),
 	)
 
 	ret := m.Eval(x)
@@ -313,7 +313,11 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	}
 
 	if isAuthorized := useraddress.GetBool(); !isAuthorized {
-		return ErrUnauthorizedUser(username)
+		return ErrUnauthorizedUser(
+			fmt.Sprintf("%s is not authorized to deploy packages to namespace `%s`",
+				creator.String(),
+				namespace,
+			))
 	}
 
 	return nil
@@ -381,7 +385,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		OriginSendSpent: new(std.Coins),
 		OriginPkgAddr:   pkgAddr.Bech32(),
 		Banker:          NewSDKBanker(vm, ctx),
-		Params:          NewSDKParams(vm, ctx),
+		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
 	}
 	// Parse and run the files, construct *PV.
@@ -472,7 +476,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		OriginSendSpent: new(std.Coins),
 		OriginPkgAddr:   pkgAddr.Bech32(),
 		Banker:          NewSDKBanker(vm, ctx),
-		Params:          NewSDKParams(vm, ctx),
+		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
 	}
 	// Construct machine and evaluate.
@@ -604,7 +608,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		OriginSendSpent: new(std.Coins),
 		OriginPkgAddr:   pkgAddr.Bech32(),
 		Banker:          NewSDKBanker(vm, ctx),
-		Params:          NewSDKParams(vm, ctx),
+		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
 	}
 
@@ -782,12 +786,12 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 		ChainDomain: chainDomain,
 		Height:      ctx.BlockHeight(),
 		Timestamp:   ctx.BlockTime().Unix(),
-		// OriginCaller:    caller,
-		// OriginSend:      send,
-		// OriginSendSpent: nil,
+		// OrigCaller:    caller,
+		// OrigSend:      send,
+		// OrigSendSpent: nil,
 		OriginPkgAddr: pkgAddr.Bech32(),
 		Banker:        NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
-		Params:        NewSDKParams(vm, ctx),
+		Params:        NewSDKParams(vm.prmk, ctx),
 		EventLogger:   ctx.EventLogger(),
 	}
 	m := gno.NewMachineWithOptions(
