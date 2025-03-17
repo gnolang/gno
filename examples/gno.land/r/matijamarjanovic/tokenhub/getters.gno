@@ -9,7 +9,7 @@ import (
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/demo/grc20reg"
-	"gno.land/r/demo/users"
+	"gno.land/r/sys/users"
 )
 
 // GetUserTokenBalances returns a string of all the grc20 tokens the user owns
@@ -208,8 +208,8 @@ func getAddressForUsername(addrOrName string) std.Address {
 		return addr
 	}
 
-	if user := users.GetUserByName(addrOrName); user != nil {
-		return user.Address
+	if userData, _ := users.ResolveName(addrOrName); userData != nil {
+		return userData.Addr()
 	}
 
 	return ""
