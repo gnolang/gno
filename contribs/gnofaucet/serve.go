@@ -147,7 +147,7 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.Int64Var(
 		&c.maxBalance,
 		"max-balance",
-		10000000, // 10 ugnot
+		10000000, // 10 gnot
 		"limit of tokens the user can possess to be eligible to claim the faucet",
 	)
 
