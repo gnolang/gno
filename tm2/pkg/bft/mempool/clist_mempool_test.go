@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -564,4 +565,48 @@ func abciResponses(n int, err abci.Error) []abci.ResponseDeliverTx {
 		})
 	}
 	return responses
+}
+
+func TestConcurrentCheckTx(t *testing.T) {
+	app := kvstore.NewKVStoreApplication()
+	cc := proxy.NewLocalClientCreator(app)
+	mempool, cleanup := newMempoolWithApp(cc)
+	defer cleanup()
+
+	// Number of concurrent goroutines
+	numGoroutines := 10
+	// Number of transactions per goroutine
+	txsPerGoroutine := 100
+
+	var wg sync.WaitGroup
+	wg.Add(numGoroutines)
+
+	// Create a function to check transactions concurrently
+	checkTxsConcurrently := func(id int) {
+		defer wg.Done()
+
+		for i := 0; i < txsPerGoroutine; i++ {
+			// Create unique tx for each goroutine and iteration
+			tx := make([]byte, 8)
+			binary.BigEndian.PutUint64(tx, uint64(id*txsPerGoroutine+i))
+
+			err := mempool.CheckTx(tx, nil)
+			if err != nil && err != ErrTxInCache {
+				t.Errorf("Error checking tx: %v", err)
+			}
+		}
+	}
+
+	// Start goroutines
+	for i := 0; i < numGoroutines; i++ {
+		go checkTxsConcurrently(i)
+	}
+
+	// Wait for all goroutines to finish
+	wg.Wait()
+
+	// Verify that all transactions were added to the mempool
+	// We expect numGoroutines * txsPerGoroutine transactions
+	assert.Equal(t, numGoroutines*txsPerGoroutine, mempool.Size(),
+		"Expected all transactions to be added to the mempool")
 }
