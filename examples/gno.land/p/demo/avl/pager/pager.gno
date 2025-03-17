@@ -137,18 +137,14 @@ func (p *Page) Picker(path string) string {
 	u, _ := url.Parse(path)
 	query := u.Query()
 
-	baseQuery := ""
-	for key, values := range query {
-		if key != p.Pager.PageQueryParam {
-			for _, value := range values {
-				if baseQuery != "" {
-					baseQuery += "&"
-				}
-				baseQuery += key + "=" + url.QueryEscape(value)
-			}
-		}
-	}
+	// Remove existing page query parameter
+	query.Del(p.Pager.PageQueryParam)
 
+	// Encode remaining query parameters
+	baseQuery := query.Encode()
+	if baseQuery != "" {
+		baseQuery = "&" + baseQuery
+	}
 	md := ""
 
 	if p.HasPrev {
