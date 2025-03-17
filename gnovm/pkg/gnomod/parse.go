@@ -178,6 +178,10 @@ func (f *File) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modf
 			errorf("invalid quoted string: %v", err)
 			return
 		}
+		if err := module.CheckImportPath(s); err != nil {
+			errorf("invalid module path: %v", err)
+			return
+		}
 		f.Module.Mod = module.Version{Path: s}
 
 	case "replace":
