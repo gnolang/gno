@@ -5,18 +5,15 @@
 // flexible arguments, allowing users to build dynamic links that integrate
 // seamlessly with various Gno clients.
 //
-// The package offers two ways to generate markdown links for
+// The package offers a way to generate markdown links for
 // transaction functions in the current "relative realm":
 //
-//  1. Using a builder pattern for more structured URLs (recommended):
+//  Using a builder pattern for more structured URLs:
 //     txlink.NewLink("MyFunc").
 //         AddArg("key", "value").      // add arguments one by one
 //         AddArgs("k1", "v1", "k2", "v2"). // or multiple at once
-//         AddSend("1000000ugnot").
+//         SetSend("1000000ugnot").
 //         URL()
-//
-//  2. Using the Call function with variadic arguments:
-//     txlink.Call("MyFunc", "key", "value", ".send", "1000000ugnot")
 //
 // The builder pattern (TxBuilder) provides a fluent interface for constructing
 // transaction URLs in the current "relative realm". Like Call, it supports both
@@ -72,12 +69,9 @@ func (b *TxBuilder) AddArg(key, value string) *TxBuilder {
 		return b
 	}
 
-	// Special case: ".send" is a reserved keyword.
-	if key == ".send" {
-		if b.send == "" {
-			return b.AddSend(value)
-		}
-		return b
+	// Special case: "." prefix is for reserved keywords.
+	if strings.HasPrefix(key, ".") {
+		panic("invalid key")
 	}
 
 	b.args = append(b.args, key, value)
@@ -102,8 +96,8 @@ func (b *TxBuilder) AddArgs(args ...string) *TxBuilder {
 	return b
 }
 
-// AddSend adds a send amount. (Only one send amount can be specified.)
-func (b *TxBuilder) AddSend(amount string) *TxBuilder {
+// SetSend adds a send amount. (Only one send amount can be specified.)
+func (b *TxBuilder) SetSend(amount string) *TxBuilder {
 	if b == nil {
 		return nil
 	}

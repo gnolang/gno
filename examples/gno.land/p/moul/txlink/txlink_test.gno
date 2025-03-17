@@ -187,60 +187,37 @@ func TestBuilder(t *testing.T) {
 			build: func() string {
 				return NewLink("MyFunc").
 					AddArg("key", "value").
-					AddSend("1000000ugnot").
+					SetSend("1000000ugnot").
 					URL()
 			},
 			expected: "$help&func=MyFunc&.send=1000000ugnot&key=value",
 		},
 		{
-			name: "send_via_addarg_method",
+			name: "send_via_addarg_method_panic",
 			build: func() string {
-				return NewLink("MyFunc").
-					AddArg(".send", "1000000ugnot").
-					URL()
+				defer func() {
+					if r := recover(); r != nil {
+						if r != "invalid key" {
+							t.Errorf("expected panic with message 'invalid key', got: %v", r)
+						}
+					} else {
+						t.Errorf("expected panic for .send key, but did not panic")
+					}
+				}()
+				NewLink("MyFunc").AddArg(".send", "1000000ugnot")
+				return "no panic occurred"
 			},
-			expected: "$help&func=MyFunc&.send=1000000ugnot",
+			expected: "",
 		},
 		{
 			name: "addsend_should_override_previous_addsend",
 			build: func() string {
 				return NewLink("MyFunc").
-					AddSend("1000000ugnot").
-					AddSend("2000000ugnot").
+					SetSend("1000000ugnot").
+					SetSend("2000000ugnot").
 					URL()
 			},
 			expected: "$help&func=MyFunc&.send=2000000ugnot",
-		},
-		{
-			name: "addsend_should_not_be_overridden_by_addarg",
-			build: func() string {
-				return NewLink("func").
-					AddSend("2000000ugnot").
-					AddArg(".send", "1000000ugnot").
-					URL()
-			},
-			expected: "$help&func=func&.send=2000000ugnot",
-		},
-		{
-			name: "addsend_should_override_addarg",
-			build: func() string {
-				return NewLink("func").
-					AddArg(".send", "1000000ugnot").
-					AddSend("2000000ugnot").
-					URL()
-			},
-			expected: "$help&func=func&.send=2000000ugnot",
-		},
-		{
-			name: "addsend_should_override_all_sends",
-			build: func() string {
-				return NewLink("func").
-					AddArgs("key", "value", ".send", "1000000ugnot").
-					AddSend("3000000ugnot").
-					AddArg(".send", "2000000ugnot").
-					URL()
-			},
-			expected: "$help&func=func&.send=3000000ugnot&key=value",
 		},
 	}
 
