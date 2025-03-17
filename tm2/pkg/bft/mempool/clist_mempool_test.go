@@ -655,3 +655,33 @@ func TestMempoolFullBehavior(t *testing.T) {
 	// Verify mempool is full again
 	assert.Equal(t, config.Size, mempool.Size(), "Expected mempool to be full again")
 }
+
+// Pitaj milosa da li je ovo ponasanje ispravno?
+func TestRemoveTxOnError(t *testing.T) {
+	app := kvstore.NewKVStoreApplication()
+	cc := proxy.NewLocalClientCreator(app)
+	mempool, cleanup := newMempoolWithApp(cc)
+	defer cleanup()
+
+	// Add a transaction
+	tx := []byte("test_tx")
+	err := mempool.CheckTx(tx, nil)
+	require.NoError(t, err)
+
+	// Verify it's in the mempool
+	assert.Equal(t, 1, mempool.Size())
+
+	// Update with an error response for this transaction
+	err = mempool.Update(1, []types.Tx{tx}, abciResponses(1, abci.StringError("test error")), nil, 0)
+	require.NoError(t, err)
+
+	// Verify the transaction was removed from the mempool
+	assert.Equal(t, 0, mempool.Size())
+
+	// Verify it was also removed from the cache
+	err = mempool.CheckTx(tx, nil)
+	require.NoError(t, err, "Transaction should be accepted again after being removed from cache")
+
+	// Verify it's back in the mempool
+	assert.Equal(t, 1, mempool.Size())
+}
