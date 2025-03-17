@@ -10,7 +10,7 @@ func TestRender(t *testing.T) {
 	expected := `# Paginated Items
 Page 1 of 10
 
-**1** | [2](?page=2&sort=name&order=asc) | [3](?page=3&sort=name&order=asc) | … | [10](?page=10&sort=name&order=asc)
+**1** | [2](?page=2&order=asc&sort=name) | [3](?page=3&order=asc&sort=name) | … | [10](?page=10&order=asc&sort=name)
 
 - Item1: Value of Item1
 - Item10: Value of Item10
@@ -23,7 +23,7 @@ Page 1 of 10
 - Item16: Value of Item16
 - Item17: Value of Item17
 
-**1** | [2](?page=2&sort=name&order=asc) | [3](?page=3&sort=name&order=asc) | … | [10](?page=10&sort=name&order=asc)`
+**1** | [2](?page=2&order=asc&sort=name) | [3](?page=3&order=asc&sort=name) | … | [10](?page=10&order=asc&sort=name)`
 	if output != expected {
 		t.Errorf("Render(%q) failed, got:\n%s\nwant:\n%s", req, output, expected)
 	}
@@ -35,7 +35,7 @@ func TestRender_page2(t *testing.T) {
 	expected := `# Paginated Items
 Page 2 of 10
 
-[1](?page=1&size=10&sort=name&order=asc) | **2** | [3](?page=3&size=10&sort=name&order=asc) | [4](?page=4&size=10&sort=name&order=asc) | … | [10](?page=10&size=10&sort=name&order=asc)
+[1](?page=1&order=asc&size=10&sort=name) | **2** | [3](?page=3&order=asc&size=10&sort=name) | [4](?page=4&order=asc&size=10&sort=name) | … | [10](?page=10&order=asc&size=10&sort=name)
 
 - Item18: Value of Item18
 - Item19: Value of Item19
@@ -48,7 +48,7 @@ Page 2 of 10
 - Item25: Value of Item25
 - Item26: Value of Item26
 
-[1](?page=1&size=10&sort=name&order=asc) | **2** | [3](?page=3&size=10&sort=name&order=asc) | [4](?page=4&size=10&sort=name&order=asc) | … | [10](?page=10&size=10&sort=name&order=asc)`
+[1](?page=1&order=asc&size=10&sort=name) | **2** | [3](?page=3&order=asc&size=10&sort=name) | [4](?page=4&order=asc&size=10&sort=name) | … | [10](?page=10&order=asc&size=10&sort=name)`
 	if output != expected {
 		t.Errorf("Render(%q) failed, got:\n%s\nwant:\n%s", req, output, expected)
 	}
