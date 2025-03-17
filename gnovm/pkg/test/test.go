@@ -343,9 +343,6 @@ func (opts *TestOptions) runTestFiles(
 	}()
 
 	tests := loadTestFuncs(memPkg.Name, files)
-	if len(tests) == 0 {
-		return nil
-	}
 
 	var alloc *gno.Allocator
 	if opts.Metrics {
