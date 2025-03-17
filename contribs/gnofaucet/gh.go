@@ -60,8 +60,7 @@ func getGithubMiddleware(clientID, secret string, cooldown time.Duration) func(n
 					return
 				}
 
-				// Possibility to have more conditions like accountAge, commits, pullRequest etc
-
+				// Possibility to have more conditions like accountAge, commits, pullRequest, etc.
 				next.ServeHTTP(w, r)
 			},
 		)
