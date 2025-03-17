@@ -71,7 +71,6 @@ func (mv *MapValue) DeepFill(store Store) Value          { panic("not yet implem
 func (bmv *BoundMethodValue) DeepFill(store Store) Value { panic("not yet implemented") }
 func (tv TypeValue) DeepFill(store Store) Value          { panic("not yet implemented") }
 func (pv *PackageValue) DeepFill(store Store) Value      { panic("not yet implemented") }
-func (nv *NativeValue) DeepFill(store Store) Value       { panic("not yet implemented") }
 func (b *Block) DeepFill(store Store) Value              { panic("not yet implemented") }
 
 func (rv RefValue) DeepFill(store Store) Value {
