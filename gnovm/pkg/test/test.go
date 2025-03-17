@@ -140,6 +140,8 @@ type TestOptions struct {
 	Metrics bool
 	// Uses Error to print the events emitted.
 	Events bool
+	// Whether to disable test result caching
+	NoCache bool
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
@@ -271,7 +273,34 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 				fmt.Fprintf(opts.Error, "=== RUN   %s\n", testName)
 			}
 
-			changed, err := opts.runFiletest(testFileName, []byte(testFile.Body))
+			// Try to load from cache first
+			cache, err := loadTestCache(testFilePath, []byte(testFile.Body))
+			if err != nil {
+				fmt.Fprintf(opts.Error, "Warning: failed to load cache: %v\n", err)
+			}
+
+			var changed string
+			if !opts.NoCache && cache != nil && !opts.Sync {
+				// Use cached result
+				duration := cache.Duration
+				if opts.Verbose {
+					fmt.Fprintf(opts.Error, "=== CACHED %s (%s)\n", testName, fmtDuration(duration))
+					fmt.Fprint(opts.Error, cache.Output)
+				}
+				continue
+			}
+
+			// Run the test and cache the result
+			changed, err = opts.runFiletest(testFileName, []byte(testFile.Body))
+			duration := time.Since(startedAt)
+
+			if err == nil && !opts.NoCache && !opts.Sync {
+				// Cache successful test results
+				if cacheErr := saveTestCache(testFilePath, []byte(testFile.Body), opts.filetestBuffer.String(), duration); cacheErr != nil {
+					fmt.Fprintf(opts.Error, "Warning: failed to save cache: %v\n", cacheErr)
+				}
+			}
+
 			if changed != "" {
 				// Note: changed always == "" if opts.Sync == false.
 				err = os.WriteFile(testFilePath, []byte(changed), 0o644)
@@ -280,7 +309,6 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 				}
 			}
 
-			duration := time.Since(startedAt)
 			dstr := fmtDuration(duration)
 			if err != nil {
 				fmt.Fprintf(opts.Error, "--- FAIL: %s (%s)\n", testName, dstr)
@@ -289,8 +317,6 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 			} else if opts.Verbose {
 				fmt.Fprintf(opts.Error, "--- PASS: %s (%s)\n", testName, dstr)
 			}
-
-			// XXX: add per-test metrics
 		}
 	}
 
@@ -317,6 +343,9 @@ func (opts *TestOptions) runTestFiles(
 	}()
 
 	tests := loadTestFuncs(memPkg.Name, files)
+	if len(tests) == 0 {
+		return nil
+	}
 
 	var alloc *gno.Allocator
 	if opts.Metrics {

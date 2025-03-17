@@ -28,6 +28,7 @@ type testCfg struct {
 	printEvents         bool
 	debug               bool
 	debugAddr           string
+	noCache             bool
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -159,6 +160,13 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"enable interactive debugger using tcp address in the form [host]:port",
 	)
+
+	fs.BoolVar(
+		&c.noCache,
+		"no-cache",
+		false,
+		"disable test result caching",
+	)
 }
 
 func execTest(cfg *testCfg, args []string, io commands.IO) error {
@@ -206,6 +214,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	opts.Metrics = cfg.printRuntimeMetrics
 	opts.Events = cfg.printEvents
 	opts.Debug = cfg.debug
+	opts.NoCache = cfg.noCache
 
 	buildErrCount := 0
 	testErrCount := 0
