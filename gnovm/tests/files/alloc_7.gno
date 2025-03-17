@@ -5,8 +5,6 @@ import "runtime"
 
 var s = "hello world"
 
-//const s2 = "abcd"
-
 func main() {
 	s += "!" // underlying array re-allocated
 	s1 := s  //  another string value, underlying array same
@@ -15,4 +13,4 @@ func main() {
 }
 
 // Output:
-// MemStats:  Allocator{maxBytes:100000000, bytes:4832}
+// MemStats:  Allocator{maxBytes:100000000, bytes:4688}

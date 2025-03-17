@@ -72,21 +72,28 @@ var (
 // ----------------------------------------
 // StringValue
 
+// StringValue represents a string.
+// Base is an *ArrayValue that holds
+// the string’s bytes, and isNewBase
+// is a flag set when the Base is
+// newly allocated.
+// If the Base is not newly allocated
+// at runtime, it can be considered as
+// reusing the original memory allocated
+// during preprocessing. In this case,
+// it does not count towards garbage
+// collection because it is not a new
+// allocation.
 type StringValue struct {
 	isNewBase bool // if the underlying data is new allocated or not.
-	Base      *SliceValue
+	Base      *ArrayValue
 }
 
 func NewStringValue(s string) *StringValue {
 	bz := []byte(s)
 	sv := &StringValue{
-		Base: &SliceValue{
-			Base: &ArrayValue{
-				Data: bz,
-			},
-			Offset: 0,
-			Length: len(bz),
-			Maxcap: cap(bz),
+		Base: &ArrayValue{
+			Data: bz,
 		},
 	}
 	return sv
@@ -96,21 +103,15 @@ func (sv StringValue) MarshalAmino() (string, error) {
 	if sv.Base == nil {
 		return "", nil
 	}
-	return string(sv.Base.Base.(*ArrayValue).Data), nil
+	return string(sv.Base.Data), nil
 }
 
 func (sv *StringValue) UnmarshalAmino(s string) error {
 	bz := []byte(s)
 
-	sv.Base = &SliceValue{
-		Base: &ArrayValue{
-			Data: bz,
-		},
-		Offset: 0,
-		Length: len(bz),
-		Maxcap: cap(bz),
+	sv.Base = &ArrayValue{
+		Data: bz,
 	}
-
 	// XXX, consider this
 	sv.isNewBase = true
 
@@ -1233,7 +1234,7 @@ func (tv *TypedValue) GetString() string {
 	if tv.V == nil || tv.V.(*StringValue).Base == nil {
 		return ""
 	}
-	return string(tv.V.(*StringValue).Base.Base.(*ArrayValue).Data)
+	return string(tv.V.(*StringValue).Base.Data)
 }
 
 func (tv *TypedValue) SetInt(n int) {
@@ -2154,7 +2155,7 @@ func (tv *TypedValue) GetLength() int {
 	}
 	switch cv := tv.V.(type) {
 	case *StringValue:
-		return len(cv.Base.Base.(*ArrayValue).Data)
+		return len(cv.Base.Data)
 	case *ArrayValue:
 		return cv.GetLength()
 	case *SliceValue:

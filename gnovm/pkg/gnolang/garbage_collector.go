@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
@@ -34,6 +35,7 @@ type Visitor func(v Value) (stop bool)
 //
 // XXX: make sure tv.T isn't bumped from allocation either.
 func (m *Machine) GarbageCollect() (left int64, ok bool) {
+	fmt.Println("===Garbage Collect start===")
 	defer func() {
 		gasCPU := overflow.Mul64p(m.Alloc.visitCount*VisitCpuFactor, GasFactorCPU)
 		m.Alloc.visitCount = 0
@@ -47,6 +49,8 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 	// This is the only place where it's bumped.
 	m.GCCycle += 1
+
+	fmt.Println("===GCCycle: ", m.GCCycle)
 
 	// Construct visitor callback.
 	vis := GCVisitorFn(m.GCCycle, m.Alloc)
@@ -99,14 +103,17 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 		if debug {
 			debug.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
 		}
+		fmt.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
 
 		oo, isObject := v.(Object)
 
 		if isObject {
+			fmt.Println("===oo: ", oo)
 			// Return if already measured.
 			if debug {
 				debug.Printf("oo.GetLastGCCycle: %d, gcCycle: %d\n", oo.GetLastGCCycle(), gcCycle)
 			}
+			fmt.Printf("oo.GetLastGCCycle: %d, gcCycle: %d\n", oo.GetLastGCCycle(), gcCycle)
 			if oo.GetLastGCCycle() == gcCycle {
 				return false // but don't stop
 			}
@@ -114,6 +121,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 
 		// Add object size to alloc.
 		size := v.GetShallowSize()
+		fmt.Println("shallow size: ", size)
 
 		alloc.visitCount++ // Count operations for gas calculation
 
@@ -133,6 +141,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 		// Finally bump cycle.
 		if isObject {
 			oo.SetLastGCCycle(gcCycle)
+			fmt.Println("===gcCycle after bump: ", oo.GetLastGCCycle())
 		}
 
 		return stop
