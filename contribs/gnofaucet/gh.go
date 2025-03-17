@@ -11,6 +11,17 @@ import (
 	"github.com/google/go-github/v64/github"
 )
 
+// getGithubMiddleware sets up authentication middleware for GitHub OAuth.
+// If clientID and secret are empty, the middleware does nothing.
+//
+// Parameters:
+// - clientID: The OAuth client ID issued by GitHub when registering the application.
+// - secret: The OAuth client secret used to securely authenticate API requests.
+// - cooldown: A cooldown duration to prevent several claims from the same user.
+//
+// GitHub OAuth applications require a client ID and secret to authenticate users securely.
+// These credentials are obtained when registering an application on GitHub at:
+// https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authenticating-to-the-rest-api-with-an-oauth-app#registering-your-app
 func getGithubMiddleware(clientID, secret string, cooldown time.Duration) func(next http.Handler) http.Handler {
 	coolDownLimiter := NewCooldownLimiter(cooldown)
 	return func(next http.Handler) http.Handler {
@@ -24,6 +35,13 @@ func getGithubMiddleware(clientID, secret string, cooldown time.Duration) func(n
 					return
 				}
 
+				// Extracts the authorization code returned by the GitHub OAuth flow.
+				//
+				// When a user successfully authenticates via GitHub OAuth, GitHub redirects them
+				// to the registered callback URL with a `code` query parameter. This code is then
+				// exchanged for an access token.
+				//
+				// Reference: https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#2-users-are-redirected-back-to-your-site-by-github
 				code := r.URL.Query().Get("code")
 				if code == "" {
 					http.Error(w, "missing code", http.StatusBadRequest)

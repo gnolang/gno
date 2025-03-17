@@ -219,8 +219,8 @@ func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
 	middlewares := []faucet.Middleware{
 		getIPMiddleware(cfg.isBehindProxy, st),
 		getCaptchaMiddleware(cfg.captchaSecret),
-		getGithubMiddleware(cfg.ghClientID, cfg.ghClientSecret, 1*time.Hour),
 		getAccountBalanceMiddleware(cli, cfg.maxBalance),
+		getGithubMiddleware(cfg.ghClientID, cfg.ghClientSecret, 1*time.Hour),
 	}
 
 	// Create a new faucet with

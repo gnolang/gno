@@ -8,7 +8,7 @@ import (
 // CooldownLimiter is a Limiter using an in-memory map
 type CooldownLimiter struct {
 	cooldowns    map[string]time.Time
-	mu           sync.Mutex
+	mu           sync.RWMutex
 	cooldownTime time.Duration
 }
 
@@ -22,15 +22,23 @@ func NewCooldownLimiter(cooldown time.Duration) *CooldownLimiter {
 
 // CheckCooldown checks if a key has done some action before the cooldown period has passed
 func (rl *CooldownLimiter) CheckCooldown(key string) bool {
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
-	if lastClaim, found := rl.cooldowns[key]; found {
-		if time.Since(lastClaim) < rl.cooldownTime {
-			return false // Deny claim if within cooldown period
-		}
+	lastClaim := rl.get(key)
+	if time.Since(lastClaim) < rl.cooldownTime {
+		return false // Deny claim if within cooldown period
 	}
 
-	rl.cooldowns[key] = time.Now()
+	rl.set(key, time.Now())
 	return true
+}
+
+func (rl *CooldownLimiter) get(key string) time.Time {
+	rl.mu.RLock()
+	defer rl.mu.RUnlock()
+	return rl.cooldowns[key]
+}
+
+func (rl *CooldownLimiter) set(key string, value time.Time) {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	rl.cooldowns[key] = value
 }

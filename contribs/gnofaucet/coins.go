@@ -17,14 +17,18 @@ func getAccountBalanceMiddleware(tm2Client *tm2Client.Client, maxBalance int64) 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
-				var data request
 				body, err := io.ReadAll(r.Body)
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusBadRequest)
 					return
 				}
 
+				var data request
 				err = json.Unmarshal(body, &data)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadRequest)
+					return
+				}
 				r.Body = io.NopCloser(bytes.NewBuffer(body))
 				balance, err := checkAccountBalance(tm2Client, data.To)
 				if err != nil {
