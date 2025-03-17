@@ -204,7 +204,7 @@ func TestContractAuthorityExecutionTwice(t *testing.T) {
 	})
 
 	// Set caller to contract address
-	std.TestSetOriginCaller(std.DerivePkgAddr("gno.land/r/test"))
+	testing.SetOriginCaller(std.DerivePkgAddr("gno.land/r/test"))
 
 	testArgs := []any{"proposal_id", 42, "metadata", map[string]string{"key": "value"}}
 
