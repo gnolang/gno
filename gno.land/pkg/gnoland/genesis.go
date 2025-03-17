@@ -119,6 +119,9 @@ func LoadGenesisParamsFile(path string, ggs *GnoGenesisState) error {
 				if err != nil {
 					return fmt.Errorf("unable to parse fee collector: %w", err)
 				}
+
+				ggs.Auth.Params.FeeCollector = addr
+
 			default:
 				return errors.New("unexpected vm parameter " + name)
 			}
