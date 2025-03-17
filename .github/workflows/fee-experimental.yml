@@ -31,6 +31,7 @@ jobs:
       
       - name: Extract metadata
         uses: docker/metadata-action@v5
+        id: meta
         with:
           images: ghcr.io/${{ github.repository }}/gnoland
           tags: |
