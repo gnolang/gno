@@ -109,11 +109,28 @@ func LoadGenesisParamsFile(path string, ggs *GnoGenesisState) error {
 		}
 	}
 
+	// Write onto ggs.VM.Params.
+	if vmparams, ok := m["auth"]; ok {
+		for name, value := range vmparams {
+			name, _ := splitTypedName(name)
+			switch name {
+			case "fee_collector":
+				addr, err := crypto.AddressFromString(value.(string))
+				if err != nil {
+					return fmt.Errorf("unable to parse fee collector: %w", err)
+				}
+			default:
+				return errors.New("unexpected vm parameter " + name)
+			}
+		}
+	}
+
 	// Write onto ggs.VM.RealmParams.
 	for modrlm, values := range m {
 		if !strings.HasPrefix(modrlm, "vm:") {
 			continue
 		}
+
 		parts := strings.Split(modrlm, ":")
 		numparts := len(parts)
 		if numparts == 1 {
