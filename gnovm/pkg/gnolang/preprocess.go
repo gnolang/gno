@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -175,13 +176,6 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 			case *ImportDecl:
 				nx := &n.NameExpr
 				nn := nx.Name
-				loc := last.GetLocation()
-				// NOTE: imports from "pure packages" are actually sometimes
-				// allowed, most notably in MsgRun and filetests; IsPurePackagePath
-				// returns false in these cases.
-				if IsPurePackagePath(loc.PkgPath) && IsRealmPath(n.PkgPath) {
-					panic(fmt.Sprintf("pure package path %q cannot import realm path %q", loc.PkgPath, n.PkgPath))
-				}
 				if nn == "." {
 					panic("dot imports not allowed in gno")
 				}
@@ -4451,6 +4445,7 @@ func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
 
 func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bool) {
 	pkg := packageOf(last)
+	stackLen := len(*stack)
 	// pre-register d.GetName() to detect circular definition.
 	for _, dn := range d.GetDeclNames() {
 		if isUverseName(dn) {
@@ -4458,6 +4453,11 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 				"builtin identifiers cannot be shadowed: %s", dn))
 		}
 		*stack = append(*stack, dn)
+	}
+	if stackLen != len(*stack) {
+		defer func() {
+			*stack = (*stack)[:stackLen]
+		}()
 	}
 
 	// check type decl cycle
@@ -4471,10 +4471,8 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 		un := tryPredefine(store, pkg, last, d)
 		if un != "" {
 			// check circularity.
-			for _, n := range *stack {
-				if n == un {
-					panic(fmt.Sprintf("constant definition loop with %s", un))
-				}
+			if slices.Contains(*stack, un) {
+				panic(fmt.Sprintf("constant definition loop with %s", un))
 			}
 			// look up dependency declaration from fileset.
 			file, decl := pkg.FileSet.GetDeclFor(un)
@@ -4623,6 +4621,13 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 			panic("internal/ packages can only be imported by packages rooted at the parent of \"internal\"")
 		}
 
+		// NOTE: imports from "pure packages" are actually sometimes
+		// allowed, most notably in MsgRun and filetests; IsPurePackagePath
+		// returns false in these cases.
+		if IsPurePackagePath(pkg.PkgPath) && IsRealmPath(d.PkgPath) {
+			panic(fmt.Sprintf("pure package path %q cannot import realm path %q", pkg.PkgPath, d.PkgPath))
+		}
+
 		pv := store.GetPackage(d.PkgPath, true)
 		if pv == nil {
 			panic(fmt.Sprintf(
@@ -4630,6 +4635,16 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 				d.PkgPath))
 		}
 		if d.Name == "" { // use default
+			exp, ok := expectedPkgName(d.PkgPath)
+			if !ok {
+				// should not happen, because the package exists in the store.
+				panic(fmt.Sprintf("invalid pkg path: %q", d.PkgPath))
+			}
+			if exp != string(pv.PkgName) {
+				panic(fmt.Sprintf(
+					"package name for %q (%q) doesn't match its expected identifier %q; "+
+						"the import declaration must specify an identifier", pv.PkgPath, pv.PkgName, exp))
+			}
 			d.Name = pv.PkgName
 		} else if d.Name == blankIdentifier { // no definition
 			return
@@ -4826,6 +4841,22 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 			d.String()))
 	}
 	return ""
+}
+
+var reExpectedPkgName = regexp.MustCompile(`(?:^|/)([^/]+)(?:/v\d+)?$`)
+
+// expectedPkgName returns the expected default package name from the given
+// package path, given its pkgpath.
+//
+// This is the last part of the pkgpath, ignoring any version specifier at the
+// end of the path; for instance, the expected pkg name of net/url is "url";
+// the expected pkg name of math/rand/v2 is "rand".
+func expectedPkgName(path string) (string, bool) {
+	res := reExpectedPkgName.FindStringSubmatch(path)
+	if res == nil {
+		return "", false
+	}
+	return res[1], true
 }
 
 func constInt(source Expr, i int64) *ConstExpr {

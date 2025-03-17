@@ -14,7 +14,7 @@ var bid boards.BoardID
 
 func init() {
 	std.TestSetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
-	err := users.Register("gnouser123")
+	users.Register("gnouser123")
 
 	bid = boards.CreateBoard("test_board")
 	boards.CreateThread(bid, "First Post (title)", "Body of the first post. (body)")
