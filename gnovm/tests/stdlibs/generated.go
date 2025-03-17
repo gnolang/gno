@@ -292,6 +292,30 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
+		"os",
+		"sleep",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("int64")},
+		},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  int64
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+
+			testlibs_os.X_sleep(
+				m,
+				p0)
+		},
+	},
+	{
 		"std",
 		"AssertOriginCall",
 		[]gno.FieldTypeExpr{},
@@ -632,7 +656,7 @@ var nativeFuncs = [...]NativeFunc{
 		},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("bool")},
-			{Name: gno.N("r1"), Type: gno.X("error")},
+			{Name: gno.N("r1"), Type: gno.X("string")},
 		},
 		false,
 		func(m *gno.Machine) {

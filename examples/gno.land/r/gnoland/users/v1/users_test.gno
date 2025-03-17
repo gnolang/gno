@@ -23,7 +23,10 @@ func TestRegister_Valid(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(aliceAddr))
 	testing.SetOriginCaller(aliceAddr)
 
-	uassert.NoError(t, Register(alice))
+	uassert.NotPanics(t, func() {
+		Register(alice)
+	})
+
 	res, latest := susers.ResolveName(alice)
 
 	uassert.NotEqual(t, nil, res)
@@ -39,24 +42,55 @@ func TestRegister_Invalid(t *testing.T) {
 	testing.SetOriginCaller(bobAddr)
 
 	// Invalid usernames
-	uassert.Error(t, Register("alice"), ErrInvalidUsername.Error())      // vanity
-	uassert.Error(t, Register(""), ErrInvalidUsername.Error())           // empty
-	uassert.Error(t, Register("   "), ErrInvalidUsername.Error())        // empty
-	uassert.Error(t, Register("123"), ErrInvalidUsername.Error())        // only numbers
-	uassert.Error(t, Register("alice&#($)"), ErrInvalidUsername.Error()) // non-allowed chars
-	uassert.Error(t, Register("Alice123"), ErrInvalidUsername.Error())   // upper-case
-	uassert.Error(t, Register("toolongusernametoolongusernametoolongusername123"),
-		ErrInvalidUsername.Error()) // too long
+	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
+		Register("alice") // vanity
+	})
+
+	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
+		Register("") // empty
+	})
+
+	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
+		Register("    ") // empty
+	})
+
+	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
+		Register("123") // empty
+	})
+
+	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
+		Register("123") // only numbers
+	})
+
+	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
+		Register("alice&#($)") // non-allowed chars
+	})
+
+	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
+		Register("Alice123") // upper-case
+	})
+
+	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
+		Register("toolongusernametoolongusernametoolongusername123") // too long
+	})
 
 	// Name taken
-	urequire.NoError(t, Register(bob))
-	uassert.Error(t, Register(bob), susers.ErrNameTaken.Error())
+	urequire.NotPanics(t, func() {
+		Register(bob)
+	})
+
+	uassert.PanicsWithMessage(t, susers.ErrNameTaken.Error(), func() {
+		Register(bob) // already registered
+	})
 }
 
 func TestRegister_InvalidPayment(t *testing.T) {
 	testing.SetRealm(std.NewUserRealm(bobAddr))
 	testing.SetOriginCaller(bobAddr)
 
-	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 12)))  // invalid payment amount
-	uassert.Error(t, Register("alice"), ErrInvalidPayment.Error()) // vanity
+	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 12))) // invalid payment amount
+
+	uassert.PanicsWithMessage(t, ErrInvalidPayment.Error(), func() {
+		Register(alice)
+	})
 }

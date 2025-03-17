@@ -29,4 +29,4 @@ func main() {
 }
 
 // Error:
-// user not found
+// r/gnoland/users: non-user call
