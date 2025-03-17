@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/require"
 )
@@ -78,6 +79,7 @@ func TestNewParams(t *testing.T) {
 	sigVerifyCostSecp256k1 := int64(200)
 	gasPricesChangeCompressor := int64(50)
 	targetGasRatio := int64(75)
+	feeCollector := crypto.AddressFromPreimage([]byte("test_collector"))
 
 	// Call NewParams with the values
 	params := NewParams(
@@ -88,6 +90,7 @@ func TestNewParams(t *testing.T) {
 		sigVerifyCostSecp256k1,
 		gasPricesChangeCompressor,
 		targetGasRatio,
+		feeCollector,
 	)
 
 	// Create an expected Params struct with the same values
@@ -99,6 +102,7 @@ func TestNewParams(t *testing.T) {
 		SigVerifyCostSecp256k1:    sigVerifyCostSecp256k1,
 		GasPricesChangeCompressor: gasPricesChangeCompressor,
 		TargetGasRatio:            targetGasRatio,
+		FeeCollector:              feeCollector,
 	}
 
 	// Check if the returned params struct matches the expected struct

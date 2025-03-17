@@ -43,6 +43,7 @@ type Params struct {
 // NewParams creates a new Params object
 func NewParams(maxMemoBytes, txSigLimit, txSizeCostPerByte,
 	sigVerifyCostED25519, sigVerifyCostSecp256k1, gasPricesChangeCompressor, targetGasRatio int64,
+	feeCollector crypto.Address,
 ) Params {
 	return Params{
 		MaxMemoBytes:              maxMemoBytes,
@@ -52,7 +53,7 @@ func NewParams(maxMemoBytes, txSigLimit, txSizeCostPerByte,
 		SigVerifyCostSecp256k1:    sigVerifyCostSecp256k1,
 		GasPricesChangeCompressor: gasPricesChangeCompressor,
 		TargetGasRatio:            targetGasRatio,
-		FeeCollector:              crypto.AddressFromPreimage([]byte(DefaultFeeCollectorName)),
+		FeeCollector:              feeCollector,
 	}
 }
 
@@ -71,6 +72,7 @@ func DefaultParams() Params {
 		DefaultSigVerifyCostSecp256k1,
 		DefaultGasPricesChangeCompressor,
 		DefaultTargetGasRatio,
+		crypto.AddressFromPreimage([]byte(DefaultFeeCollectorName)),
 	)
 }
 
