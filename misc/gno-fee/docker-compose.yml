@@ -4,6 +4,7 @@
 services:
   gnoland-val:
     image: ghcr.io/gnolang/gno/gnoland:gno-fee-experimental
+    container_name: gnoland-val # needed by watchtower
     networks:
       - gnoland-net
     entrypoint:
@@ -43,7 +44,6 @@ services:
       - traefik.http.routers.gnoweb.rule=Host(`fees.gnoteam.com`)
       - traefik.http.routers.gnoweb.tls=true
       - traefik.http.routers.gnoweb.tls.certresolver=le
-      - com.centurylinklabs.watchtower.enable=true
       - com.centurylinklabs.watchtower.depends-on=gnoland-val
 
   tx-indexer:
@@ -63,7 +63,6 @@ services:
       - traefik.http.routers.tx-indexer.tls=true
       - traefik.http.routers.tx-indexer.tls.certresolver=le
       - traefik.http.services.tx-indexer.loadbalancer.server.port=8546
-      - com.centurylinklabs.watchtower.enable=true
       - com.centurylinklabs.watchtower.depends-on=gnoland-val
 
   traefik:

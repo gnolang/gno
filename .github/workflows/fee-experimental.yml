@@ -1,4 +1,4 @@
-name: Fee Experimental image build
+name: Build and push image for GnoFee experimental
 
 on:
   push:
