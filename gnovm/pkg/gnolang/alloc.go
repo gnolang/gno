@@ -1,7 +1,5 @@
 package gnolang
 
-import "reflect"
-
 // Keeps track of in-memory allocations.
 // In the future, allocations within realm boundaries will be
 // (optionally?) condensed (objects to be GC'd will be discarded),
@@ -28,7 +26,6 @@ const (
 	_allocMapValue         = 144
 	_allocBoundMethodValue = 176
 	_allocBlock            = 464
-	_allocNativeValue      = 48
 	_allocTypeValue        = 16
 	_allocTypedValue       = 40
 	_allocBigint           = 200 // XXX
@@ -56,7 +53,6 @@ const (
 	allocBoundMethod = _allocBase + _allocPointer + _allocBoundMethodValue
 	allocBlock       = _allocBase + _allocPointer + _allocBlock
 	allocBlockItem   = _allocTypedValue
-	allocNative      = _allocBase + _allocPointer + _allocNativeValue
 	allocType        = _allocBase + _allocPointer + _allocType
 	// allocDataByte    = 1
 	// allocPackge = 1
@@ -159,11 +155,6 @@ func (alloc *Allocator) AllocateBlock(items int64) {
 
 func (alloc *Allocator) AllocateBlockItems(items int64) {
 	alloc.Allocate(allocBlockItem * items)
-}
-
-// NOTE: does not allocate for the underlying value.
-func (alloc *Allocator) AllocateNative() {
-	alloc.Allocate(allocNative)
 }
 
 /* NOTE: Not used, account for with AllocatePointer.
@@ -297,13 +288,6 @@ func (alloc *Allocator) NewMap(size int) *MapValue {
 func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {
 	alloc.AllocateBlock(int64(source.GetNumNames()))
 	return NewBlock(source, parent)
-}
-
-func (alloc *Allocator) NewNative(rv reflect.Value) *NativeValue {
-	alloc.AllocateNative()
-	return &NativeValue{
-		Value: rv,
-	}
 }
 
 func (alloc *Allocator) NewType(t Type) Type {
