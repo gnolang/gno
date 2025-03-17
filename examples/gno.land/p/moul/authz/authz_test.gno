@@ -46,7 +46,7 @@ func TestAuthorizerAuthorize(t *testing.T) {
 
 	// Test successful action with args
 	executed := false
-	args := []interface{}{"test_arg", 123}
+	args := []any{"test_arg", 123}
 	err := auth.Do("test_action", func() error {
 		executed = true
 		return nil
@@ -163,10 +163,9 @@ func TestAuthorizerWithDroppedAuthority(t *testing.T) {
 	uassert.True(t, err != nil, "expected error when transferring from dropped authority")
 }
 
-func TestContractAuthorityExecutionOnce(t *testing.T) {
+func TestContractAuthorityHandlerExecutionOnce(t *testing.T) {
 	attempts := 0
 	executed := 0
-	var capturedArgs []interface{}
 
 	contractAuth := NewContractAuthority("gno.land/r/test", func(title string, action PrivilegedAction) error {
 		// Try to execute the action twice in the same handler
@@ -186,7 +185,7 @@ func TestContractAuthorityExecutionOnce(t *testing.T) {
 	// Set caller to contract address
 	std.TestSetOriginCaller(std.DerivePkgAddr("gno.land/r/test"))
 
-	testArgs := []interface{}{"proposal_id", 42, "metadata", map[string]string{"key": "value"}}
+	testArgs := []any{"proposal_id", 42, "metadata", map[string]string{"key": "value"}}
 	err := contractAuth.Authorize("test_action", func() error {
 		executed++
 		return nil
@@ -195,6 +194,36 @@ func TestContractAuthorityExecutionOnce(t *testing.T) {
 	uassert.True(t, err == nil, "handler execution should succeed")
 	uassert.True(t, attempts == 2, "handler should have attempted execution twice")
 	uassert.True(t, executed == 1, "handler should have executed once")
+}
+
+func TestContractAuthorityExecutionTwice(t *testing.T) {
+	executed := 0
+
+	contractAuth := NewContractAuthority("gno.land/r/test", func(title string, action PrivilegedAction) error {
+		return action()
+	})
+
+	// Set caller to contract address
+	std.TestSetOriginCaller(std.DerivePkgAddr("gno.land/r/test"))
+
+	testArgs := []any{"proposal_id", 42, "metadata", map[string]string{"key": "value"}}
+
+	err := contractAuth.Authorize("test_action", func() error {
+		executed++
+		return nil
+	}, testArgs...)
+
+	uassert.True(t, err == nil, "handler execution should succeed")
+	uassert.True(t, executed == 1, "handler should have executed once")
+
+	// A new action, even with the same title, should be executed
+	err = contractAuth.Authorize("test_action", func() error {
+		executed++
+		return nil
+	}, testArgs...)
+
+	uassert.True(t, err == nil, "handler execution should succeed")
+	uassert.True(t, executed == 2, "handler should have executed twice")
 }
 
 func TestContractAuthorityWithProposer(t *testing.T) {
@@ -213,7 +242,7 @@ func TestContractAuthorityWithProposer(t *testing.T) {
 
 	// Test authorized member
 	std.TestSetOriginCaller(testAddr)
-	testArgs := []interface{}{"proposal_metadata", "test value"}
+	testArgs := []any{"proposal_metadata", "test value"}
 	err := contractAuth.Authorize("test_action", func() error {
 		actionExecuted = true
 		return nil
@@ -269,7 +298,7 @@ func TestAutoAcceptAuthorityWithArgs(t *testing.T) {
 
 	// Test that any action is authorized with args
 	executed := false
-	testArgs := []interface{}{"arg1", 42, "arg3"}
+	testArgs := []any{"arg1", 42, "arg3"}
 	err := auth.Authorize("test_action", func() error {
 		executed = true
 		return nil
@@ -309,7 +338,7 @@ func TestMemberAuthorityMultipleMembers(t *testing.T) {
 
 	// Verify both members are in the tree
 	found := make(map[std.Address]bool)
-	tree.Iterate("", "", func(key string, _ interface{}) bool {
+	tree.Iterate("", "", func(key string, _ any) bool {
 		found[std.Address(key)] = true
 		return false
 	})

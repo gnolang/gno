@@ -3,8 +3,8 @@ package main
 import "fmt"
 
 func main() {
-	println(interface{}(nil) == (*int)(nil))
-	fmt.Printf("%T\n", interface{}(nil))
+	println(any(nil) == (*int)(nil))
+	fmt.Printf("%T\n", any(nil))
 }
 
 // Output:
