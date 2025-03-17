@@ -148,31 +148,18 @@ func (p *Page) Picker(path string) string {
 	md := ""
 
 	if p.HasPrev {
-
-		if baseQuery != "" {
-			md += ufmt.Sprintf("[%d](?%s=%d&%s) | ", 1, p.Pager.PageQueryParam, 1, baseQuery)
-		} else {
-			md += ufmt.Sprintf("[%d](?%s=%d) | ", 1, p.Pager.PageQueryParam, 1)
-		}
+		md += ufmt.Sprintf("[%d](?%s=%d%s) | ", 1, p.Pager.PageQueryParam, 1, baseQuery)
 
 		if p.PageNumber > 4 {
 			md += "… | "
 		}
 
 		if p.PageNumber > 3 {
-			if baseQuery != "" {
-				md += ufmt.Sprintf("[%d](?%s=%d&%s) | ", p.PageNumber-2, p.Pager.PageQueryParam, p.PageNumber-2, baseQuery)
-			} else {
-				md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber-2, p.Pager.PageQueryParam, p.PageNumber-2)
-			}
+			md += ufmt.Sprintf("[%d](?%s=%d%s) | ", p.PageNumber-2, p.Pager.PageQueryParam, p.PageNumber-2, baseQuery)
 		}
 
 		if p.PageNumber > 2 {
-			if baseQuery != "" {
-				md += ufmt.Sprintf("[%d](?%s=%d&%s) | ", p.PageNumber-1, p.Pager.PageQueryParam, p.PageNumber-1, baseQuery)
-			} else {
-				md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber-1, p.Pager.PageQueryParam, p.PageNumber-1)
-			}
+			md += ufmt.Sprintf("[%d](?%s=%d%s) | ", p.PageNumber-1, p.Pager.PageQueryParam, p.PageNumber-1, baseQuery)
 		}
 	}
 
@@ -184,30 +171,18 @@ func (p *Page) Picker(path string) string {
 
 	if p.HasNext {
 		if p.PageNumber < p.TotalPages-1 {
-			if baseQuery != "" {
-				md += ufmt.Sprintf(" | [%d](?%s=%d&%s)", p.PageNumber+1, p.Pager.PageQueryParam, p.PageNumber+1, baseQuery)
-			} else {
-				md += ufmt.Sprintf(" | [%d](?%s=%d)", p.PageNumber+1, p.Pager.PageQueryParam, p.PageNumber+1)
-			}
+			md += ufmt.Sprintf(" | [%d](?%s=%d%s)", p.PageNumber+1, p.Pager.PageQueryParam, p.PageNumber+1, baseQuery)
 		}
 
 		if p.PageNumber < p.TotalPages-2 {
-			if baseQuery != "" {
-				md += ufmt.Sprintf(" | [%d](?%s=%d&%s)", p.PageNumber+2, p.Pager.PageQueryParam, p.PageNumber+2, baseQuery)
-			} else {
-				md += ufmt.Sprintf(" | [%d](?%s=%d)", p.PageNumber+2, p.Pager.PageQueryParam, p.PageNumber+2)
-			}
+			md += ufmt.Sprintf(" | [%d](?%s=%d%s)", p.PageNumber+2, p.Pager.PageQueryParam, p.PageNumber+2, baseQuery)
 		}
 
 		if p.PageNumber < p.TotalPages-3 {
 			md += " | …"
 		}
 
-		if baseQuery != "" {
-			md += ufmt.Sprintf(" | [%d](?%s=%d&%s)", p.TotalPages, p.Pager.PageQueryParam, p.TotalPages, baseQuery)
-		} else {
-			md += ufmt.Sprintf(" | [%d](?%s=%d)", p.TotalPages, p.Pager.PageQueryParam, p.TotalPages)
-		}
+		md += ufmt.Sprintf(" | [%d](?%s=%d%s)", p.TotalPages, p.Pager.PageQueryParam, p.TotalPages, baseQuery)
 	}
 
 	return md
