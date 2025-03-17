@@ -1,0 +1,114 @@
+# Inspired by 
+# - ./misc/telemetry
+# - ./misc/loop
+services:
+  gnoland-val:
+    image: ghcr.io/gnolang/gno/gnoland:gno-fee-experimental
+    networks:
+      - gnoland-net
+    entrypoint:
+      - sh
+      - -c
+      - |
+        rm -rf /gnoroot/gnoland-data/db/* /gnoroot/gnoland-data/wal/*
+        gnoland config init
+        gnoland config set consensus.timeout_commit 1s
+        gnoland config set rpc.laddr tcp://0.0.0.0:26657
+        gnoland config set moniker val000
+        gnoland start --lazy
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+      - traefik.enable=true
+      - traefik.http.routers.gnorpc.entrypoints=web,websecure
+      - traefik.http.routers.gnorpc.rule=Host(`rpc.fees.gnoteam.com`)
+      - traefik.http.routers.gnorpc.tls=true
+      - traefik.http.routers.gnorpc.tls.certresolver=le
+      - traefik.http.services.gnorpc.loadbalancer.server.port=26657
+
+  gnoweb:
+    image: ghcr.io/gnolang/gno/gnoweb:master
+    restart: unless-stopped
+    entrypoint:
+      - gnoweb
+      - --bind=0.0.0.0:8888
+      - --remote=gnoland-val:26657
+      - --chainid=dev
+      - --with-analytics
+      - --help-remote=https://rpc.gno.land:443
+    networks:
+      - gnoland-net
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.gnoweb.entrypoints=web,websecure
+      - traefik.http.routers.gnoweb.rule=Host(`fees.gnoteam.com`)
+      - traefik.http.routers.gnoweb.tls=true
+      - traefik.http.routers.gnoweb.tls.certresolver=le
+      - com.centurylinklabs.watchtower.enable=true
+      - com.centurylinklabs.watchtower.depends-on=gnoland-val
+
+  tx-indexer:
+    image: ghcr.io/gnolang/tx-indexer:latest
+    networks:
+      - gnoland-net
+    command:
+      - start
+      - -http-rate-limit=500
+      - -listen-address=0.0.0.0:8546
+      - -max-slots=2000
+      - -remote=http://gnoland-val:26657
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.tx-indexer.entrypoints=websecure
+      - traefik.http.routers.tx-indexer.rule=Host(`indexer.fees.gnoteam.com`)
+      - traefik.http.routers.tx-indexer.tls=true
+      - traefik.http.routers.tx-indexer.tls.certresolver=le
+      - traefik.http.services.tx-indexer.loadbalancer.server.port=8546
+      - com.centurylinklabs.watchtower.enable=true
+      - com.centurylinklabs.watchtower.depends-on=gnoland-val
+
+  traefik:
+    image: traefik:v3
+    restart: unless-stopped
+    command:
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+      - --entryPoints.web.forwardedHeaders.insecure
+      - --certificatesresolvers.le.acme.tlschallenge=true
+      - --certificatesresolvers.le.acme.email=dev@gno.land
+    networks:
+      - gnoland-net
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./traefik:/etc/traefik/configs
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  watchtower:
+    image: containrrr/watchtower
+    command: 
+      - --interval
+      - "30"
+      - --label-enable
+      - --http-api-metrics
+      - --http-api-update
+      - --http-api-periodic-polls
+      - --debug
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - $HOME/.docker/config.json:/config.json
+    environment:
+      - WATCHTOWER_HTTP_API_TOKEN=atoken
+    ports:
+      - "127.0.0.1:8080:8080"
+
+
+networks:
+  gnoland-net:
+    driver: bridge
