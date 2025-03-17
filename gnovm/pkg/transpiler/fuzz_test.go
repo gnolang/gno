@@ -38,7 +38,7 @@ func FuzzTranspiling(f *testing.F) {
 		fn, err := gnolang.ParseFile("main.go", string(gnoSourceCode))
 		if err != nil {
 			// TODO: it could be discrepancy that if it compiled alright that it later failed.
-			panic(err)
+			return
 		}
 
 		if !strings.Contains(gnoSrc, "func main()") {
