@@ -9,11 +9,11 @@ import (
 //
 // Threshold is only applicable within the board where it's setted.
 func SetFlaggingThreshold(boardID BoardID, threshold int) {
-	assertRealmIsNotLocked()
-
 	if threshold < 1 {
 		panic("invalid flagging threshold")
 	}
+
+	assertRealmIsNotLocked()
 
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
@@ -21,7 +21,10 @@ func SetFlaggingThreshold(boardID BoardID, threshold int) {
 	caller := std.PreviousRealm().Address()
 	args := Args{boardID, threshold}
 	board.perms.WithPermission(caller, PermissionBoardFlaggingUpdate, args, func(Args) {
-		assertBoardExists(boardID)
+		assertRealmIsNotLocked()
+
+		board := mustGetBoard(boardID)
+		assertBoardIsNotFrozen(board)
 
 		gFlaggingThresholds.Set(boardID.String(), threshold)
 		std.Emit(

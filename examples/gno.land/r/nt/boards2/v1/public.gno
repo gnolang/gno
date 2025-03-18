@@ -42,6 +42,8 @@ func SetPermissions(bid BoardID, p Permissions) {
 	caller := std.PreviousRealm().Address()
 	args := Args{bid}
 	gPerms.WithPermission(caller, PermissionPermissionsUpdate, args, func(Args) {
+		assertRealmIsNotLocked()
+
 		// When board ID is zero it means that realm permissions are being updated
 		if bid == 0 {
 			gPerms = p
@@ -102,6 +104,7 @@ func CreateBoard(name string) BoardID {
 	id := incGetBoardID()
 	args := Args{name, id}
 	gPerms.WithPermission(caller, PermissionBoardCreate, args, func(Args) {
+		assertRealmIsNotLocked()
 		assertBoardNameNotExists(name)
 
 		perms := createDefaultBoardPermissions(caller)
@@ -137,6 +140,7 @@ func RenameBoard(name, newName string) {
 	caller := std.PreviousRealm().Address()
 	args := Args{bid, name, newName}
 	board.perms.WithPermission(caller, PermissionBoardRename, args, func(Args) {
+		assertRealmIsNotLocked()
 		assertBoardNameNotExists(newName)
 
 		board := mustGetBoard(bid)
@@ -422,19 +426,14 @@ func EditReply(boardID BoardID, threadID, replyID PostID, body string) {
 // A role can optionally be specified to be assigned to the new member.
 // Board ID is only required when inviting a member to a board.
 func InviteMember(boardID BoardID, user std.Address, role Role) {
-	if boardID != 0 {
-		assertRealmIsNotLocked()
-
-		board := mustGetBoard(boardID)
-		assertBoardIsNotFrozen(board)
-	} else {
-		assertRealmMembersAreNotLocked()
-	}
+	assertMembersUpdateIsEnabled(boardID)
 
 	perms := mustGetPermissions(boardID)
 	caller := std.PreviousRealm().Address()
 	args := Args{user, role}
 	perms.WithPermission(caller, PermissionMemberInvite, args, func(Args) {
+		assertMembersUpdateIsEnabled(boardID)
+
 		if err := perms.AddUser(user, role); err != nil {
 			panic(err)
 		}
@@ -453,18 +452,13 @@ func InviteMember(boardID BoardID, user std.Address, role Role) {
 //
 // Board ID is only required when removing a member from board.
 func RemoveMember(boardID BoardID, user std.Address) {
-	if boardID != 0 {
-		assertRealmIsNotLocked()
-
-		board := mustGetBoard(boardID)
-		assertBoardIsNotFrozen(board)
-	} else {
-		assertRealmMembersAreNotLocked()
-	}
+	assertMembersUpdateIsEnabled(boardID)
 
 	perms := mustGetPermissions(boardID)
 	caller := std.PreviousRealm().Address()
 	perms.WithPermission(caller, PermissionMemberRemove, Args{user}, func(Args) {
+		assertMembersUpdateIsEnabled(boardID)
+
 		if !perms.RemoveUser(user) {
 			panic("member not found")
 		}
@@ -508,19 +502,14 @@ func HasMemberRole(boardID BoardID, member std.Address, role Role) bool {
 //
 // Board ID is only required when changing the role for a member of a board.
 func ChangeMemberRole(boardID BoardID, member std.Address, role Role) {
-	if boardID != 0 {
-		assertRealmIsNotLocked()
-
-		board := mustGetBoard(boardID)
-		assertBoardIsNotFrozen(board)
-	} else {
-		assertRealmMembersAreNotLocked()
-	}
+	assertMembersUpdateIsEnabled(boardID)
 
 	perms := mustGetPermissions(boardID)
 	caller := std.PreviousRealm().Address()
 	args := Args{boardID, member, role}
 	perms.WithPermission(caller, PermissionRoleChange, args, func(Args) {
+		assertMembersUpdateIsEnabled(boardID)
+
 		if err := perms.SetUserRoles(member, role); err != nil {
 			panic(err)
 		}
@@ -644,5 +633,18 @@ func assertReplyBodyIsValid(body string) {
 
 	if reDeniedReplyLinePrefixes.MatchString(body) {
 		panic("using Markdown headings, blockquotes or horizontal lines is not allowed in replies")
+	}
+}
+
+func assertMembersUpdateIsEnabled(boardID BoardID) {
+	// Realm members can be updated when realm members are not locked.
+	// Board members can be updated while the board is not locked or frozen.
+	if boardID != 0 {
+		assertRealmIsNotLocked()
+
+		board := mustGetBoard(boardID)
+		assertBoardIsNotFrozen(board)
+	} else {
+		assertRealmMembersAreNotLocked()
 	}
 }
