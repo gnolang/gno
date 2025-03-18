@@ -62,7 +62,7 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 
 	out += "</div><!-- /columns-2 -->\n\n"
 
-	out += page.Picker()
+	out += page.Picker(path)
 
 	return out
 }
