@@ -10,14 +10,13 @@ const owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 
 func init() {
 	std.TestSetOriginCaller(owner)
+	boards2.LockRealm(true)
 }
 
 func main() {
-	boards2.LockRealm(false)
-	println(boards2.IsRealmLocked())
-	println(boards2.AreRealmMembersLocked())
+	// Should fail because realm is already locked
+	boards2.LockRealm(true)
 }
 
-// Output:
-// true
-// false
+// Error:
+// realm and members are locked

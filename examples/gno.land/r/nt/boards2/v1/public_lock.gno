@@ -1,38 +1,43 @@
 package boards2
 
-import "std"
+import (
+	"std"
+	"strconv"
+)
 
 // LockRealm locks the realm making it readonly.
-// Warning, realm can't be unlocked once locked.
-// This only locks the realm leaving realm membership open for modifications.
-func LockRealm() {
-	assertRealmIsNotLocked()
+//
+// WARNING: Realm can't be unlocked once locked.
+//
+// Realm can also be locked without locking realm members.
+// Realm members can be locked when locking the realm or afterwards.
+// This is relevant for two reasons, one so members can be modified after lock.
+// The other is for realm owners, which can delete threads and comments after lock.
+func LockRealm(lockRealmMembers bool) {
+	assertRealmMembersAreNotLocked()
+
+	// If realm members are not being locked assert that realm is no locked.
+	// Members can be locked after locking the realm, in a second `LockRealm` call.
+	if !lockRealmMembers {
+		assertRealmIsNotLocked()
+	}
 
 	caller := std.PreviousRealm().Address()
 	gPerms.WithPermission(caller, PermissionRealmLock, nil, func(Args) {
 		gLocked.realm = true
+		gLocked.realmMembers = lockRealmMembers
 
-		std.Emit("RealmLocked", "caller", caller.String())
+		std.Emit(
+			"RealmLocked",
+			"caller", caller.String(),
+			"lockRealmMembers", strconv.FormatBool(lockRealmMembers),
+		)
 	})
 }
 
 // IsRealmLocked checks if boards realm has been locked.
 func IsRealmLocked() bool {
 	return gLocked.realm
-}
-
-// LockRealmMembers locks the realm and realm membership making them readonly.
-// Warning, realm can't be unlocked once locked.
-func LockRealmMembers() {
-	assertRealmMembersAreNotLocked()
-
-	caller := std.PreviousRealm().Address()
-	gPerms.WithPermission(caller, PermissionRealmMembersLock, nil, func(Args) {
-		gLocked.realm = true
-		gLocked.realmMembers = true
-
-		std.Emit("RealmMembersLocked", "caller", caller.String())
-	})
 }
 
 // AreRealmMembersLocked checks if realm members has been locked.
@@ -48,6 +53,6 @@ func assertRealmIsNotLocked() { // TODO: Add filtests for locked realm case to a
 
 func assertRealmMembersAreNotLocked() { // TODO: Add filtests for locked members case to all public member functions
 	if gLocked.realmMembers {
-		panic("realm and membership are locked")
+		panic("realm and members are locked")
 	}
 }
