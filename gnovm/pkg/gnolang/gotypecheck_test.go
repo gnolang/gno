@@ -743,7 +743,7 @@ func (d *debugPackageGetter) GetMemPackage(path string) *gnovm.MemPackage {
 }
 
 func (d *debugPackageGetter) GetImportedPackages() []string {
-	var pkgs []string
+	pkgs := make([]string, 0, len(d.importedPkgs))
 	for pkg := range d.importedPkgs {
 		pkgs = append(pkgs, pkg)
 	}
