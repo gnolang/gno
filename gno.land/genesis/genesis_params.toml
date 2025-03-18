@@ -6,7 +6,7 @@
 
 ["vm"]
   chain_domain = "gno.land"
-  sysusers_pkgpath = "gno.land/r/sys/users"
+  sysnames_pkgpath = "gno.land/r/sys/names"
   # TODO: Leverage toml unmarshaler to extract these into VM Params struct before writing to genesis
   # TODO: max_gas = 100_000_000
   # TODO: chain_tz = "UTC"
