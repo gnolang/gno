@@ -3,6 +3,7 @@ package awesomegno
 import (
 	"std"
 	"strconv"
+	"strings"
 	"time"
 
 	"gno.land/p/demo/avl"
@@ -23,6 +24,7 @@ var (
 
 func init() {
 	admins.Set("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y", true)
+	admins.Set(std.CurrentRealm().Address().String(), true)
 	admins.Set(std.PreviousRealm().Address().String(), true)
 }
 
@@ -156,7 +158,7 @@ func ListCategories() []Category {
 	return result
 }
 
-func ProposeNewDapp(title, description, url string, categoryNames []string) (uint64, error) {
+func ProposeNewDapp(title, description, url string, categoryNamesStr string) (uint64, error) {
 	caller := std.PreviousRealm().Address()
 
 	if title == "" {
@@ -167,6 +169,16 @@ func ProposeNewDapp(title, description, url string, categoryNames []string) (uin
 	}
 	if url == "" {
 		return 0, ufmt.Errorf("URL cannot be empty")
+	}
+
+	var categoryNames []string
+	if categoryNamesStr != "" {
+		for _, name := range strings.Split(categoryNamesStr, ",") {
+			trimmedName := strings.TrimSpace(name)
+			if trimmedName != "" {
+				categoryNames = append(categoryNames, trimmedName)
+			}
+		}
 	}
 
 	if len(categoryNames) > 0 {
@@ -348,7 +360,7 @@ func GetDappsByCategory(categoryName string) []Dapp {
 	return result
 }
 
-func UpdateDappCategories(dappID uint64, newCategories []string) error {
+func UpdateDappCategories(dappID uint64, newCategories string) error {
 	caller := std.PreviousRealm().Address()
 
 	if !isAdmin(caller) {
@@ -361,7 +373,7 @@ func UpdateDappCategories(dappID uint64, newCategories []string) error {
 	}
 
 	dapp := value.(Dapp)
-	for _, catName := range newCategories {
+	for _, catName := range strings.Split(newCategories, ",") {
 		_, found := GetCategory(catName)
 		if !found {
 			return ufmt.Errorf("category not found: %s", catName)
@@ -370,7 +382,7 @@ func UpdateDappCategories(dappID uint64, newCategories []string) error {
 
 	for _, oldCat := range dapp.Categories {
 		found := false
-		for _, newCat := range newCategories {
+		for _, newCat := range strings.Split(newCategories, ",") {
 			if oldCat == newCat {
 				found = true
 				break
@@ -384,7 +396,7 @@ func UpdateDappCategories(dappID uint64, newCategories []string) error {
 		}
 	}
 
-	for _, newCat := range newCategories {
+	for _, newCat := range strings.Split(newCategories, ",") {
 		found := false
 		for _, oldCat := range dapp.Categories {
 			if newCat == oldCat {
@@ -400,7 +412,7 @@ func UpdateDappCategories(dappID uint64, newCategories []string) error {
 		}
 	}
 
-	dapp.Categories = newCategories
+	dapp.Categories = strings.Split(newCategories, ",")
 	dapps.Set(strconv.FormatUint(dappID, 10), dapp)
 
 	return nil

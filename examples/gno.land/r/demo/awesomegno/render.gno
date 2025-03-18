@@ -303,26 +303,59 @@ func renderCategoriesPage(queryParams string) string {
 func renderContributePage() string {
 	out := md.H1("Contributing to Awesome Gno")
 
-	out += md.H2("Contributing")
+	out += md.H2("How to Submit a Resource")
+	out += "To submit a new resource to Awesome Gno, call the `ProposeNewDapp()` function with the following parameters:\n\n"
+	out += md.BulletList([]string{
+		"title: The name of your resource",
+		"description: A brief description of what it does",
+		"url: The URL where people can find your resource",
+		"categories: A comma-separated list of categories (e.g., \"Tools,DeFi,Games\")",
+	})
+
+	out += "\nExample using a realm import:\n"
+	out += md.LanguageCodeBlock("go", `// Submit a proposal for a new dApp
+awesomegno.ProposeNewDapp(
+    "My Awesome Tool", 
+    "A tool that helps developers build on Gno", 
+    "https://example.com/my-tool",
+    "Tools,Developer,Utility"
+)`)
+
+	out += "\nOr alternatively using `gnokey`:\n"
+	out += md.LanguageCodeBlock("bash", `gnokey maketx call \
+-pkgpath "gno.land/r/demo/awesomegno" \
+-func "ProposeNewDapp" \
+-args "My Awesome Tool" \
+-args "A tool that helps developers build on gno" \
+-args "https://example.com/my-tool" \
+-args "Tools,Developer,Utility" \
+-gas-fee 1000000ugnot \
+-gas-wanted 5000000 \
+-broadcast \
+-chainid "dev" \
+-remote "tcp://127.0.0.1:26657" \
+YOUR-ADDRESS`)
+
+	out += "\n"
+
+	out += md.H2("Contributing Guidelines")
 	out += "Your contributions are always welcome!\n\n"
 
 	out += md.H3("Guidelines")
 	out += md.BulletList([]string{
-		"Add one link per Pull Request.",
-		"Make sure the PR title is in the format of Add project-name.",
-		"Write down the reason why the link is awesome.",
-		"Add the link: * [project-name](http://example.com/) - A short description ends with a period.",
-		"Keep descriptions concise and short.",
-		"Add a section if needed.",
-		"Add the section description.",
-		"Add the section title to Table of Contents.",
-		"Search previous Pull Requests or Issues before making a new one, as yours may be a duplicate.",
-		"Don't mention Gno in the description as it's implied.",
-		"Check your spelling and grammar.",
-		"Remove any trailing whitespace.",
+		"Submit one resource at a time using the ProposeNewDapp() function",
+		"Provide a clear and concise title for your resource",
+		"Explain why your resource is valuable to the Gno ecosystem",
+		"Include a detailed description that ends with a period",
+		"Keep descriptions concise and informative",
+		"Select appropriate categories for your resource",
+		"Check if your resource already exists before submitting",
+		"Don't mention Gno in the description as it's implied",
+		"Ensure your submission has correct spelling and grammar",
+		"Provide a valid and working URL",
 	})
 
-	out += "\n\nFor more information, visit the " + md.Link("Awesome Gno GitHub repository", "https://github.com/gnoverse/awesome-gno") + ".\n\n"
+	out += "\n\nFor more information about the Awesome Gno project, visit the " + md.Link("Awesome Gno GitHub repository", "https://github.com/gnoverse/awesome-gno") + ".\n\n"
 
 	return out
 }

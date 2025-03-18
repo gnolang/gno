@@ -25,67 +25,67 @@ func MockData() {
 		title       string
 		description string
 		url         string
-		categories  []string
+		categories  string
 	}{
 		{
 			"GnoScan",
 			"Block explorer for the Gno.land blockchain",
 			"https://gno.land/r/demo/gnoscan",
-			[]string{"Tools", "Infrastructure"},
+			"Tools,Infrastructure",
 		},
 		{
 			"GnoSwap",
 			"Decentralized exchange for Gno tokens",
 			"https://gno.land/r/demo/gnoswap",
-			[]string{"DeFi", "Marketplaces"},
+			"DeFi,Marketplaces",
 		},
 		{
 			"GnoVote",
 			"On-chain voting and governance system",
 			"https://gno.land/r/demo/gnovote",
-			[]string{"Governance", "Infrastructure"},
+			"Governance,Infrastructure",
 		},
 		{
 			"CryptoGnomes",
 			"Collectible NFT game on Gno.land",
 			"https://gno.land/r/demo/cryptognomes",
-			[]string{"Games", "NFTs"},
+			"Games,NFTs",
 		},
 		{
 			"GnoLearn",
 			"Interactive tutorials for learning Gno",
 			"https://gno.land/r/demo/gnolearn",
-			[]string{"Education", "Tools"},
+			"Education,Tools",
 		},
 		{
 			"GnoChat",
 			"Decentralized messaging platform",
 			"https://gno.land/r/demo/gnochat",
-			[]string{"Social", "Utilities"},
+			"Social,Utilities",
 		},
 		{
 			"GnoLend",
 			"Lending and borrowing protocol",
 			"https://gno.land/r/demo/gnolend",
-			[]string{"DeFi"},
+			"DeFi",
 		},
 		{
 			"GnoDAO",
 			"DAO creation and management toolkit",
 			"https://gno.land/r/demo/gnodao",
-			[]string{"Governance", "Infrastructure"},
+			"Governance,Infrastructure",
 		},
 		{
 			"GnoMarket",
 			"P2P marketplace for digital goods",
 			"https://gno.land/r/demo/gnomarket",
-			[]string{"Marketplaces", "Utilities"},
+			"Marketplaces,Utilities",
 		},
 		{
 			"GnoStats",
 			"Analytics dashboard for Gno.land metrics",
 			"https://gno.land/r/demo/gnostats",
-			[]string{"Tools", "Infrastructure"},
+			"Tools,Infrastructure",
 		},
 	}
 
@@ -101,37 +101,37 @@ func MockData() {
 		title       string
 		description string
 		url         string
-		categories  []string
+		categories  string
 	}{
 		{
 			"GnoWallet",
 			"Secure wallet for managing Gno assets",
 			"https://gno.land/r/demo/gnowallet",
-			[]string{"Tools", "Utilities"},
+			"Tools,Utilities",
 		},
 		{
 			"GnoForum",
 			"Decentralized discussion forum",
 			"https://gno.land/r/demo/gnoforum",
-			[]string{"Social"},
+			"Social",
 		},
 		{
 			"GnoInsurance",
 			"Decentralized insurance protocol",
 			"https://gno.land/r/demo/gnoinsurance",
-			[]string{"DeFi"},
+			"DeFi",
 		},
 		{
 			"GnoQuest",
 			"RPG adventure game on Gno.land",
 			"https://gno.land/r/demo/gnoquest",
-			[]string{"Games"},
+			"Games",
 		},
 		{
 			"GnoIdentity",
 			"Self-sovereign identity solution",
 			"https://gno.land/r/demo/gnoidentity",
-			[]string{"Infrastructure", "Utilities"},
+			"Infrastructure,Utilities",
 		},
 	}
 
