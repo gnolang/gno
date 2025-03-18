@@ -211,7 +211,7 @@ func renderHome(path string) string {
 	}
 
 	output += "\n"
-	output += page.Picker()
+	output += page.Picker(path)
 	return output
 }
 
