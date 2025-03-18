@@ -34,7 +34,7 @@ func TestNewGnokeyCmd(t *testing.T) {
 		assert.Error(t, cmd.ParseAndRun(context.Background(), []string{"unknown"}))
 	})
 
-	t.Run("valid keyname", func(t *testing.T) {
+	t.Run("valid keyname with wrong address", func(t *testing.T) {
 		t.Parallel()
 
 		// Generate a keybase with a key.
