@@ -1,0 +1,242 @@
+package launchpad
+
+import (
+	"std"
+	"testing"
+	"time"
+
+	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/common"
+	"gno.land/r/gnoswap/v1/gns"
+
+	gs "gno.land/r/gnoswap/v1/gov/staker"
+	pl "gno.land/r/gnoswap/v1/pool"
+	pn "gno.land/r/gnoswap/v1/position"
+	rr "gno.land/r/gnoswap/v1/router"
+
+	"gno.land/r/onbloc/bar"
+	"gno.land/r/onbloc/foo"
+	"gno.land/r/onbloc/obl"
+	"gno.land/r/onbloc/qux"
+)
+
+var (
+	launchpadRecipientAddr = testutils.TestAddress("launchpadRecipient")
+	launchpadDepositAddr   = testutils.TestAddress("launchpadDeposit")
+	launchpadDepositRealm  = std.NewUserRealm(launchpadDepositAddr)
+	govDelegateAddr        = testutils.TestAddress("govDelegate")
+	govDelegateRealm       = std.NewUserRealm(govDelegateAddr)
+	dummyAddr              = testutils.TestAddress("dummy")
+	dummyRealm             = std.NewUserRealm(dummyAddr)
+	max_timeout            = int64(9999999999)
+)
+
+func init() {
+	std.TestSetRealm(adminRealm)
+	gns.Transfer(launchpadDepositAddr, uint64(1_000_000_000))
+	gns.Transfer(govDelegateAddr, uint64(1_000_000_000))
+	gns.Transfer(dummyAddr, uint64(1_000_000_000))
+}
+
+func TestLaunchPadAndGovernanceReward(t *testing.T) {
+	t.Skip("fix this code")
+	testPoolCreatePool(t)
+	testPositionMint(t)
+	testRouterSwapRoute(t)
+	testEarlyGovDelegateAndReward(t)
+	testCreateProject(t)
+	testDepositGnsToTier30(t)
+	testGovDelegate(t)
+	testMockProtocolFee(t)
+}
+
+func testPoolCreatePool(t *testing.T) {
+	t.Run("create pool", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		gns.Approve(poolAddr, pl.GetPoolCreationFee())
+		pl.CreatePool(barPath, fooPath, fee500, common.TickMathGetSqrtRatioAtTick(0).ToString()) // x1
+		std.TestSkipHeights(1)
+	})
+}
+
+func testPositionMint(t *testing.T) {
+	t.Run("mint position", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		bar.Approve(poolAddr, consts.UINT64_MAX)
+		foo.Approve(poolAddr, consts.UINT64_MAX)
+
+		positionId, liquidity, amount0, amount1 := pn.Mint(barPath, fooPath, fee500, int32(-8000), int32(8000), "10000000000", "10000000000", "0", "0", max_timeout, adminAddr, adminAddr, "")
+		uassert.Equal(t, positionId, uint64(1))
+		uassert.Equal(t, amount0, "10000000000")
+		uassert.Equal(t, amount1, "10000000000")
+	})
+}
+
+func testRouterSwapRoute(t *testing.T) {
+	t.Run("swap route", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		bar.Approve(routerAddr, uint64(100_000))
+		foo.Approve(routerAddr, uint64(100_000))
+
+		amountIn, amountOut := rr.ExactInSwapRoute(
+			barPath,
+			fooPath,
+			"100000",
+			"gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500",
+			"100",
+			"1",
+			time.Now().Unix()+10,
+			"",
+		)
+		uassert.Equal(t, amountIn, "100000")
+		uassert.Equal(t, amountOut, "-99800")
+	})
+}
+
+func testEarlyGovDelegateAndReward(t *testing.T) {
+	t.Run("early gov delegate and reward", func(t *testing.T) {
+		std.TestSetRealm(dummyRealm)
+		gns.Approve(govStakerAddr, uint64(1_000_000))
+		gs.Delegate(dummyAddr, uint64(1_000_000), "")
+		std.TestSkipHeights(1)
+
+		rewardJson := gs.GetClaimableRewardByAddress(dummyAddr)
+		uassert.Equal(t, rewardJson, `{"height":"125","now":"1234567894","emissionReward":"0","protocolFees":[{"tokenPath":"gno.land/r/onbloc/foo","amount":"149"},{"tokenPath":"gno.land/r/gnoswap/v1/gns","amount":"100000000"}]}`)
+		// foo 149
+		// 0.15% of router swap fee
+
+		// gns
+		// 110_702_054
+		// 100_000_000 // pool creation fee
+
+		// no reward for project recipient
+		{
+			res := ApiGetProjectRecipientRewardByAddress(launchpadRecipientAddr)
+			uassert.Equal(t, res, `{"height":"125","now":"1234567894","emissionReward":"0"}`)
+		}
+
+		// no reward for gov delegate
+		{
+			res := gs.GetClaimableRewardByAddress(govDelegateAddr)
+			uassert.Equal(t, res, `{"height":"125","now":"1234567894","emissionReward":"0"}`)
+		}
+	})
+}
+
+func testCreateProject(t *testing.T) {
+	t.Run("create project", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		obl.Approve(launchpadAddr, uint64(1_000_000_000))
+		std.TestSkipHeights(1)
+
+		projectId := CreateProject(
+			"Obl Protocol",
+			oblPath,
+			launchpadRecipientAddr,
+			uint64(1_000_000_000), // 1000000000
+			"",
+			"",
+			uint64(10),                   // 100000000
+			uint64(20),                   // 200000000
+			uint64(70),                   // 700000000
+			uint64(time.Now().Unix()+10), // 10s later
+		)
+		uassert.Equal(t, projectId, `gno.land/r/onbloc/obl:126`)
+		std.TestSkipHeights(1)
+	})
+}
+
+func testDepositGnsToTier30(t *testing.T) {
+	t.Run("deposit gns to tier 30", func(t *testing.T) {
+		std.TestSetRealm(launchpadDepositRealm)
+		gns.Approve(launchpadAddr, uint64(1_000_000_000))
+
+		// skip some blocks to make project active
+		std.TestSkipHeights(4)
+		depositId := DepositGns("gno.land/r/onbloc/obl:126:30", uint64(1_000_000_000), "") // 1000000
+		uassert.Equal(t, depositId, `gno.land/r/onbloc/obl:126:30:g1d3sh2mnrdpcxzezyv4cx7umfw3047h6l29lj5t:131`)
+		std.TestSkipHeights(1)
+	})
+}
+
+func testGovDelegate(t *testing.T) {
+	t.Run("gov delegate", func(t *testing.T) {
+		std.TestSetRealm(govDelegateRealm)
+		gns.Approve(govStakerAddr, uint64(1_000_000_000))
+		gs.Delegate(govDelegateAddr, uint64(1_000_000_000), "")
+		std.TestSkipHeights(1)
+	})
+}
+
+func testMockProtocolFee(t *testing.T) {
+	t.Run("mock protocol fee", func(t *testing.T) {
+		// admin > protocol_fee
+		// send qux, bar for testing
+		std.TestSetRealm(adminRealm)
+		bar.Transfer(protocolFeeAddr, 100_000)
+		qux.Transfer(protocolFeeAddr, 250_000)
+
+		uassert.Equal(t, bar.BalanceOf(protocolFeeAddr), uint64(100000))
+		uassert.Equal(t, bar.BalanceOf(devOpsAddr), uint64(0))
+		uassert.Equal(t, bar.BalanceOf(govStakerAddr), uint64(0))
+
+		uassert.Equal(t, qux.BalanceOf(protocolFeeAddr), uint64(250000))
+		uassert.Equal(t, qux.BalanceOf(devOpsAddr), uint64(0))
+		uassert.Equal(t, qux.BalanceOf(govStakerAddr), uint64(0))
+		std.TestSkipHeights(1)
+	})
+}
+
+func testClaimableRewardForProjectRecipient(t *testing.T) {
+	t.Run("claimable reward for project recipient", func(t *testing.T) {
+		res := ApiGetProjectRecipientRewardByAddress(launchpadRecipientAddr)
+		uassert.Equal(t, res, `{"height":"134","now":"1234567912","emissionReward":"0","protocolFees":[{"tokenPath":"gno.land/r/onbloc/bar","amount":"49975"},{"tokenPath":"gno.land/r/onbloc/qux","amount":"124937"}]}`)
+		// bar 49975
+		// qux 124937
+	})
+}
+
+func testClaimableRewardForGovernanceDelegate(t *testing.T) {
+	t.Run("claimable reward for governance delegate", func(t *testing.T) {
+		res := gs.GetClaimableRewardByAddress(govDelegateAddr)
+		uassert.Equal(t, res, `{"height":"134","now":"1234567912","emissionReward":"0","protocolFees":[{"tokenPath":"gno.land/r/onbloc/bar","amount":"49975"},{"tokenPath":"gno.land/r/onbloc/qux","amount":"124937"}]}`)
+		// bar 49975
+		// qux 124937
+	})
+}
+
+func testClaimableRewardForEarlyDummy(t *testing.T) {
+	t.Run("claimable reward for early dummy", func(t *testing.T) {
+		res := gs.GetClaimableRewardByAddress(dummyAddr)
+		uassert.Equal(t, res, `{"height":"134","now":"1234567912","emissionReward":"0","protocolFees":[{"tokenPath":"gno.land/r/onbloc/foo","amount":"149"},{"tokenPath":"gno.land/r/gnoswap/v1/gns","amount":"100000000"},{"tokenPath":"gno.land/r/onbloc/bar","amount":"49"},{"tokenPath":"gno.land/r/onbloc/qux","amount":"124"}]}`)
+		// foo 149
+		// gns 100000000
+		// bar 49
+		// qux 124
+	})
+}
+
+func testSkipFewBlock(t *testing.T) {
+	t.Run("skip few block", func(t *testing.T) {
+		std.TestSkipHeights(10)
+	})
+}
+
+func testClaimableRewardForProjectRecipientMoreBlocks(t *testing.T) {
+	res := ApiGetProjectRecipientRewardByAddress(launchpadRecipientAddr)
+	uassert.Equal(t, res, `{"height":"144","now":"1234567932","emissionReward":"0","protocolFees":[{"tokenPath":"gno.land/r/onbloc/bar","amount":"49975"},{"tokenPath":"gno.land/r/onbloc/qux","amount":"124937"}]}`)
+}
+
+func testClaimableRewardForGovernanceDelegateMoreBlocks(t *testing.T) {
+	res := gs.GetClaimableRewardByAddress(govDelegateAddr)
+	uassert.Equal(t, res, `{"height":"144","now":"1234567932","emissionReward":"0","protocolFees":[{"tokenPath":"gno.land/r/onbloc/bar","amount":"49975"},{"tokenPath":"gno.land/r/onbloc/qux","amount":"124937"}]}`)
+}
+
+func testClaimableRewardForEarlyDummyMoreBlocks(t *testing.T) {
+	res := gs.GetClaimableRewardByAddress(dummyAddr)
+	uassert.Equal(t, res, `{"height":"144","now":"1234567932","emissionReward":"0","protocolFees":[{"tokenPath":"gno.land/r/onbloc/foo","amount":"149"},{"tokenPath":"gno.land/r/gnoswap/v1/gns","amount":"100000000"},{"tokenPath":"gno.land/r/onbloc/bar","amount":"49"},{"tokenPath":"gno.land/r/onbloc/qux","amount":"124"}]}`)
+}

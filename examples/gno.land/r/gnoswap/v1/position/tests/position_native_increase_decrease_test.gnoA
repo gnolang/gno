@@ -1,0 +1,223 @@
+package position
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/common"
+
+	"gno.land/r/demo/wugnot"
+	"gno.land/r/gnoswap/v1/gns"
+
+	pl "gno.land/r/gnoswap/v1/pool"
+)
+
+func TestCoinIncreaseDecrease(t *testing.T) {
+	testPoolInitCreatePool(t)
+	testMintPosition(t)
+	testIncreaseLiquidity(t)
+	testDecreaseLiquidityWrapped(t)
+}
+
+func testPoolInitCreatePool(t *testing.T) {
+	t.Run("create pool", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		gns.Approve(poolAddr, pl.GetPoolCreationFee())
+		pl.CreatePool(consts.GNOT, consts.GNS_PATH, fee500, common.TickMathGetSqrtRatioAtTick(-10000).ToString())
+	})
+}
+
+func testMintPosition(t *testing.T) {
+	t.Run("mint position", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		gns.Approve(poolAddr, consts.UINT64_MAX)
+		wugnot.Approve(poolAddr, consts.UINT64_MAX)
+
+		wugnot.Approve(positionAddr, consts.UINT64_MAX) // WRAP
+
+		// prepare 50000005ugnot (5 for refund test)
+		std.TestIssueCoins(adminAddr, std.Coins{{"ugnot", 50000005}})
+		uassert.Equal(t, ugnotBalanceOf(t, adminAddr), uint64(50000005))
+
+		std.TestIssueCoins(positionAddr, std.Coins{{"ugnot", 200000000}})
+		uassert.Equal(t, ugnotBalanceOf(t, positionAddr), uint64(200000000))
+
+		// send & set orig send
+		banker := std.NewBanker(std.BankerTypeRealmIssue)
+		banker.SendCoins(adminAddr, positionAddr, std.Coins{{"ugnot", 50000005}})
+		std.TestSetOriginSend(std.Coins{{"ugnot", 50000005}}, nil)
+
+		uassert.Equal(t, ugnotBalanceOf(t, adminAddr), uint64(0))
+
+		adminOldWugnotBalance := wugnot.BalanceOf(adminAddr)
+		uassert.Equal(t, adminOldWugnotBalance, uint64(0))
+
+		positionId, liquidity, amount0, amount1 := Mint(
+			consts.GNS_PATH,
+			consts.GNOT,
+			fee500,
+			8000,
+			12000,
+			"50000000",
+			"50000000",
+			"0",
+			"0",
+			max_timeout,
+			adminAddr,
+			adminAddr,
+			"",
+		)
+
+		uassert.Equal(t, positionId, uint64(1))
+		uassert.Equal(t, GetNextId(), uint64(2))
+		uassert.Equal(t, amount0, "50000000")
+		uassert.Equal(t, amount1, "18394892")
+
+		position := MustGetPosition(positionId)
+		uassert.Equal(t, position.poolKey, "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:500")
+
+		// SPEND ALL WUGNOT
+		uassert.Equal(t, wugnot.BalanceOf(adminAddr), uint64(0))
+
+		uassert.Equal(t, ugnotBalanceOf(t, adminAddr), uint64(5))
+		// 1. 50000005 ugnot sent
+		// 2. 50000005 ugnot wrapped to wugnot
+		// 3. 50000000 wugnot spent to mint (amount)
+		// 4. refund 5 ugnot ( admin ugnot balance )
+	})
+}
+
+func testIncreaseLiquidity(t *testing.T) {
+	t.Run("increase liquidity", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		gns.Approve(poolAddr, consts.UINT64_MAX)
+		wugnot.Approve(poolAddr, consts.UINT64_MAX)
+
+		wugnot.Approve(positionAddr, consts.UINT64_MAX) // WRAP
+
+		pool := getPoolFromPositionId(t, uint64(1))
+		oldLiquidity := pool.Liquidity()
+
+		// prepare 10000005ugnot (5 for refund test)
+		std.TestIssueCoins(adminAddr, std.Coins{{"ugnot", 10000005}})
+		uassert.Equal(t, ugnotBalanceOf(t, adminAddr), uint64(10000010))
+		uassert.Equal(t, ugnotBalanceOf(t, positionAddr), uint64(200000000))
+
+		// send & set orig send
+		banker := std.NewBanker(std.BankerTypeRealmIssue)
+		banker.SendCoins(adminAddr, positionAddr, std.Coins{{"ugnot", 10000005}})
+		std.TestSetOriginSend(std.Coins{{"ugnot", 10000005}}, nil)
+
+		uassert.Equal(t, ugnotBalanceOf(t, adminAddr), uint64(5))
+		uassert.Equal(t, wugnot.BalanceOf(adminAddr), uint64(0))
+
+		_, _, m0, m1, _ := IncreaseLiquidity( // positionId, liq, a0, a1, poolPath
+			uint64(1),   // positionId
+			"10000000",  // amount0Desired
+			"10000000",  // amount1Desired
+			"0",         // amount0Min
+			"0",         // amount1Min
+			max_timeout, // deadline
+		)
+		uassert.Equal(t, m0, "10000000")
+		uassert.Equal(t, m1, "3678979")
+
+		newLiquidity := pool.Liquidity()
+
+		uassert.Equal(t, newLiquidity.Gt(oldLiquidity), true)
+
+		// SPEND ALL WUGNOT
+		uassert.Equal(t, wugnot.BalanceOf(adminAddr), uint64(0))
+
+		uassert.Equal(t, ugnotBalanceOf(t, adminAddr), uint64(10))
+		// 1. 10000005 ugnot sent
+		// 2. 10000005 ugnot wrapped to wugnot
+		// 3. 10000000 wugnot spent to mint (amount1)
+		// 4. refund 10000005 - 10000000 = 5
+		// 5. user already had 5 ugnot = 5 + 5 == 10
+	})
+}
+
+func testDecreaseLiquidityWrapped(t *testing.T) {
+	t.Run("decrease liquidity wrapped", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		oldLiquidity := getPoolFromPositionId(t, uint64(1)).Liquidity()
+
+		userWugnotBalance := wugnot.BalanceOf(adminAddr)
+		uassert.Equal(t, userWugnotBalance, uint64(0))
+
+		userUgnotBalance := ugnotBalanceOf(t, adminAddr)
+		uassert.Equal(t, userUgnotBalance, uint64(10))
+
+		_, _, _, _, a0, a1, _ := DecreaseLiquidity( // positionId, liquidity, fee0, fee1, amount0, amount1, poolPath
+			uint64(1),   // positionId
+			"19122263",  // liquidityRatio
+			"0",         // amount0Min
+			"0",         // amount1Min
+			max_timeout, // deadline
+			false,       // unwrapResult
+		)
+
+		userWugnotBalance = wugnot.BalanceOf(adminAddr) // wrapped result, so wunogt increased
+		uassert.Equal(t, uint64(2999999), userWugnotBalance)
+
+		userUgnotBalance = ugnotBalanceOf(t, adminAddr) // wrapped result, so ugnot didn't change
+		uassert.Equal(t, uint64(10), userUgnotBalance)
+
+		newLiquidity := getPoolFromPositionId(t, uint64(1)).Liquidity()
+		uassert.Equal(t, true, newLiquidity.Lt(oldLiquidity))
+
+		// check fee left
+		positionId, fee0, fee1, poolPath, _, _ := CollectFee(1, true)
+
+		uassert.Equal(t, positionId, uint64(1))
+		uassert.Equal(t, fee0, "0")
+		uassert.Equal(t, fee1, "0")
+	})
+}
+
+func testDecreaseLiquidityUnwrapped(t *testing.T) {
+	t.Run("decrease liquidity unwrapped", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		oldLiquidity := getPoolFromPositionId(t, uint64(1)).Liquidity()
+
+		userWugnotBalance := wugnot.BalanceOf(adminAddr)
+		uassert.Equal(t, userWugnotBalance, uint64(11999999))
+
+		userUgnotBalance := ugnotBalanceOf(t, adminAddr)
+		uassert.Equal(t, userUgnotBalance, uint64(10))
+
+		_, _, _, _, a0, a1, _ := DecreaseLiquidity( // positionId, liquidity, fee0, fee1, amount0, amount1, poolPath
+			uint64(1),   // positionId
+			"50",        // liquidityRatio
+			"0",         // amount0Min
+			"0",         // amount1Min
+			max_timeout, // deadline
+			true,        // unwrapResult
+		)
+
+		userWugnotBalance = wugnot.BalanceOf(adminAddr) // unwrapped result, so wugnot didn't change
+		uassert.Equal(t, userWugnotBalance, uint64(11999999))
+
+		userUgnotBalance = ugnotBalanceOf(t, adminAddr) // unwrapped result, so ugnot decreased
+		uassert.Equal(t, userUgnotBalance, uint64(24000009))
+
+		newLiquidity := getPoolFromPositionId(t, uint64(1)).Liquidity()
+		uassert.Equal(t, true, newLiquidity.Lt(oldLiquidity))
+
+		// check fee left
+		positionId, fee0, fee1, poolPath, _, _ := CollectFee(1, false)
+
+		uassert.Equal(t, positionId, uint64(1))
+		uassert.Equal(t, fee0, "0")
+		uassert.Equal(t, fee1, "0")
+	})
+}

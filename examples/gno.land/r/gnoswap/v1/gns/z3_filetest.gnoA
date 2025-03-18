@@ -1,0 +1,110 @@
+// change block avg time from 2s > 4s> 3s
+
+// PKGPATH: gno.land/r/gnoswap/v1/gns_test
+package gns_test
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/gns"
+
+	_ "gno.land/r/gnoswap/v1/emission"
+	_ "gno.land/r/gnoswap/v1/staker"
+
+	"gno.land/r/gnoswap/v1/access"
+)
+
+var t *testing.T
+
+var (
+	user01Addr  = testutils.TestAddress("user01Addr")
+	user01Realm = std.NewUserRealm(user01Addr)
+
+	adminAddr, _ = access.GetAddress(access.ROLE_ADMIN)
+)
+
+func main() {
+	skip50Blocks()
+	blockTime4000ms() // 4s
+	reachAboutHalfOfFirstHalving()
+	blockTime3000ms() // 3s
+	reachFirstHalving()
+	startSecondHalving()
+}
+
+func skip50Blocks() {
+	std.TestSkipHeights(50)
+	uassert.Equal(t, std.ChainHeight(), int64(173))
+
+	std.TestSetRealm(std.NewCodeRealm(consts.EMISSION_PATH))
+	gns.MintGns(user01Addr) // 14269406 * 50 = 71347030
+	uassert.Equal(t, uint64(713470300), gns.GetMintedEmissionAmount())
+}
+
+func blockTime4000ms() {
+	std.TestSetRealm(std.NewUserRealm(adminAddr))
+	gns.SetAvgBlockTimeInMsByAdmin(4000)
+
+	std.TestSkipHeights(1)
+	std.TestSetRealm(std.NewCodeRealm(consts.EMISSION_PATH))
+	gns.MintGns(user01Addr)                                                     // 2853881
+	uassert.Equal(t, uint64(713470300+28538812), gns.GetMintedEmissionAmount()) // 742009112
+
+	// next halving year start/end block
+	uassert.Equal(t, int64(7884149), gns.GetHalvingYearStartBlock(2))
+	uassert.Equal(t, int64(15768149), gns.GetHalvingYearEndBlock(2))
+}
+
+func reachAboutHalfOfFirstHalving() {
+	// current block = 174
+	// end block of first halving year = 7884148
+	// 7884148 - 174 = 7883974 // block left to next halving
+
+	std.TestSkipHeights(3941987)
+	std.TestSetRealm(std.NewCodeRealm(consts.EMISSION_PATH))
+	gns.MintGns(user01Addr)
+
+	// stil in first halving year
+	year := gns.GetHalvingYearByHeight(std.ChainHeight())
+	uassert.Equal(t, int64(1), year)
+}
+
+func blockTime3000ms() {
+	std.TestSetRealm(std.NewUserRealm(adminAddr))
+	gns.SetAvgBlockTimeInMsByAdmin(3000)
+	std.TestSkipHeights(1)
+}
+
+func reachFirstHalving() {
+	blockLeftUntilEndOfYear01 := gns.GetHalvingYearEndBlock(1) - std.ChainHeight()
+	std.TestSkipHeights(blockLeftUntilEndOfYear01)
+
+	std.TestSetRealm(std.NewCodeRealm(consts.EMISSION_PATH))
+	gns.MintGns(user01Addr)
+
+	// minted all amount for first halving year
+	uassert.Equal(t, gns.GetHalvingYearMaxAmount(1), gns.GetMintedEmissionAmount())
+
+	// we're at the end of first halving year
+	year := gns.GetHalvingYearByHeight(std.ChainHeight())
+	uassert.Equal(t, int64(1), year)
+}
+
+func startSecondHalving() {
+	std.TestSkipHeights(1)
+
+	year := gns.GetHalvingYearByHeight(std.ChainHeight())
+	uassert.Equal(t, int64(2), year)
+
+	amount := gns.GetAmountByHeight(std.ChainHeight())
+	uassert.Equal(t, uint64(14269406), amount)
+
+	std.TestSetRealm(std.NewCodeRealm(consts.EMISSION_PATH))
+	gns.MintGns(user01Addr)
+	uassert.Equal(t, uint64(225000000000000+14269406), gns.GetMintedEmissionAmount())
+}

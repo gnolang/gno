@@ -1,0 +1,83 @@
+package router
+
+import (
+	"std"
+	"testing"
+	"time"
+
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/common"
+
+	pl "gno.land/r/gnoswap/v1/pool"
+	pn "gno.land/r/gnoswap/v1/position"
+
+	"gno.land/r/onbloc/bar"
+	"gno.land/r/onbloc/baz"
+
+	"gno.land/r/gnoswap/v1/gns"
+)
+
+func TestCreatePool(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	gns.Approve(poolAddr, pl.GetPoolCreationFee())
+	pl.CreatePool(barPath, bazPath, fee500, common.TickMathGetSqrtRatioAtTick(1).ToString())
+}
+
+func TestPositionMint(t *testing.T) {
+	// bar_baz_500 by admin
+	std.TestSetRealm(adminRealm)
+	bar.Approve(poolAddr, 100000)
+	baz.Approve(poolAddr, 100000)
+
+	// Mint
+	positionId, liquidity, amount0, amount1 := pn.Mint(barPath, bazPath, fee500, int32(-6000), int32(6000), "100000", "100000", "0", "0", max_timeout, adminAddr, adminAddr, "")
+
+	uassert.Equal(t, positionId, uint64(1))
+	uassert.Equal(t, amount0, "99962")
+	uassert.Equal(t, amount1, "100000")
+
+	pool := pl.GetPool(barPath, bazPath, fee500)
+	poolLiq := pool.Liquidity()
+	uassert.Equal(t, poolLiq.ToString(), "385771")
+
+	poolPath := "gno.land/r/onbloc/bar:gno.land/r/onbloc/baz:500"
+	poolTick := pl.PoolGetSlot0Tick(poolPath)
+	uassert.Equal(t, poolTick, int32(1))
+}
+
+func TestSwapRouteBarBazExactIn(t *testing.T) {
+	poolPath := "gno.land/r/onbloc/bar:gno.land/r/onbloc/baz:500"
+
+	CreatePoolWithoutFee(t)
+	MakeForthMintPositionWithoutFee(t)
+
+	std.TestSetRealm(adminRealm)
+
+	bar.Approve(poolAddr, consts.UINT64_MAX)
+	baz.Approve(routerAddr, consts.UINT64_MAX) // ITS FOR 0.15% fee
+
+	// spend all baz in pool
+	amountIn, amountOut := ExactInSwapRoute(
+		barPath,  // inputToken
+		bazPath,  // outputToken
+		"140000", // amountSpecified
+		poolPath, // strRouteArr
+		"100",    // quoteArr
+		"0",      // tokenAmountLimit
+		time.Now().Add(time.Hour).Unix(),
+		"", // referrer
+	)
+
+	uassert.Equal(t, amountIn, "140000")
+	uassert.Equal(t, amountOut, "-105765")
+
+	pool := pl.GetPool(barPath, bazPath, fee500)
+	poolLiq := pool.Liquidity()
+	uassert.Equal(t, poolLiq.ToString(), "435768")
+
+	poolTick := pl.PoolGetSlot0Tick(poolPath)
+	uassert.Equal(t, poolTick, int32(-5569))
+}

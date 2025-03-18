@@ -1,0 +1,294 @@
+package position
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+
+	pl "gno.land/r/gnoswap/v1/pool"
+
+	"gno.land/r/onbloc/bar"
+	"gno.land/r/onbloc/foo"
+
+	"gno.land/r/gnoswap/v1/gns"
+)
+
+func init() {
+	// set pool create fee to 0 for testing
+	std.TestSetRealm(adminRealm)
+	pl.SetPoolCreationFeeByAdmin(0)
+}
+
+func TestPoolInitCreatePool(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+
+	gns.Approve(poolAddr, pl.GetPoolCreationFee())
+	pl.CreatePool(barPath, fooPath, fee500, "130621891405341611593710811006") // tick = 10000
+}
+
+func TestPoolBalanceInit(t *testing.T) {
+	poolBar := bar.BalanceOf(poolAddr)
+	poolFoo := foo.BalanceOf(poolAddr)
+
+	uassert.Equal(t, poolBar, uint64(0))
+	uassert.Equal(t, poolFoo, uint64(0))
+}
+
+func TestMintPosition01InRange(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	bar.Approve(poolAddr, consts.UINT64_MAX)
+	foo.Approve(poolAddr, consts.UINT64_MAX)
+
+	positionId, liquidity, amount0, amount1 := Mint(
+		barPath,
+		fooPath,
+		fee500,
+		8000,
+		12000,
+		"50000000",
+		"50000000",
+		"0",
+		"0",
+		max_timeout,
+		adminAddr,
+		adminAddr,
+		"",
+	)
+
+	uassert.Equal(t, positionId, uint64(1))
+	uassert.Equal(t, GetNextId(), uint64(2))
+	uassert.Equal(t, amount0, "18394892")
+	uassert.Equal(t, amount1, "50000000")
+}
+
+func TestPoolBalanceMint01(t *testing.T) {
+	poolBar := bar.BalanceOf(poolAddr)
+	poolFoo := foo.BalanceOf(poolAddr)
+
+	uassert.Equal(t, poolBar, uint64(18394892))
+	uassert.Equal(t, poolFoo, uint64(50000000))
+}
+
+func TestMintPosition02InRange(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	bar.Approve(poolAddr, consts.UINT64_MAX)
+	foo.Approve(poolAddr, consts.UINT64_MAX)
+
+	positionId, liquidity, amount0, amount1 := Mint(
+		barPath,
+		fooPath,
+		fee500,
+		9000,
+		11000,
+		"10000000",
+		"10000000",
+		"0",
+		"0",
+		max_timeout,
+		adminAddr,
+		adminAddr,
+		"",
+	)
+
+	uassert.Equal(t, positionId, uint64(2))
+	uassert.Equal(t, GetNextId(), uint64(3))
+	uassert.Equal(t, amount0, "3678979")
+	uassert.Equal(t, amount1, "10000000")
+}
+
+func TestPoolBalanceMint02(t *testing.T) {
+	poolBar := bar.BalanceOf(poolAddr)
+	poolFoo := foo.BalanceOf(poolAddr)
+
+	uassert.Equal(t, poolBar, uint64(22073871))
+	uassert.Equal(t, poolFoo, uint64(60000000))
+}
+
+func TestCollectFeeBeforeSwap(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	positionId, fee0, fee1, poolPath, _, _ := CollectFee(1, false)
+
+	uassert.Equal(t, positionId, uint64(1))
+	uassert.Equal(t, fee0, "0")
+	uassert.Equal(t, fee1, "0")
+	uassert.Equal(t, poolPath, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
+}
+
+func TestUnclaimedFee0(t *testing.T) {
+	amount0, amount1 := unclaimedFee(1)
+
+	uassert.Equal(t, amount0.ToString(), "0")
+	uassert.Equal(t, amount1.ToString(), "0")
+}
+
+func TestSwap1(t *testing.T) {
+	// printPoolBalance()
+	// token0: 22073871
+	// token1: 60000000
+
+	std.TestSetRealm(adminRealm)
+	bar.Approve(poolAddr, 1234567)
+
+	std.TestSetRealm(rouRealm)
+	amount0, amount1 := pl.Swap(
+		barPath,
+		fooPath,
+		fee500,
+		adminAddr,
+		true,
+		"1234567",
+		consts.MIN_PRICE,
+		adminAddr,
+	)
+
+	uassert.Equal(t, amount0, "1234567")
+	uassert.Equal(t, amount1, "-3338723")
+
+	// printPoolBalance()
+	// token0: 23308438 (22073871 + 1234567)
+	// token1: 56661277 (60000000 - 3338723)
+}
+
+func TestUnclaimedFeePos01Swap01(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	amount0, amount1 := unclaimedFee(1)
+
+	uassert.Equal(t, amount0.ToString(), "444") // if only one position, this should be 617
+	uassert.Equal(t, amount1.ToString(), "0")
+}
+
+func TestUnclaimedFeePos02Swap01(t *testing.T) {
+	amount0, amount1 := unclaimedFee(2)
+
+	uassert.Equal(t, amount0.ToString(), "173")
+	uassert.Equal(t, amount1.ToString(), "0")
+}
+
+func TestSwap2(t *testing.T) {
+	// printPoolBalance()
+	// token0: 23308438
+	// token1: 56661277
+
+	std.TestSetRealm(adminRealm)
+	bar.Approve(poolAddr, consts.UINT64_MAX)
+
+	std.TestSetRealm(rouRealm)
+	amount0, amount1 := pl.Swap(
+		barPath,
+		fooPath,
+		fee500,
+		adminAddr,
+		true,
+		"20000000", //
+		consts.MIN_PRICE,
+		adminAddr,
+	)
+
+	uassert.Equal(t, amount0, "20000000")
+	uassert.Equal(t, amount1, "-49951535")
+
+	// printPoolBalance()
+	// token0: 43308438 (23308438 + 20000000)
+	// token1: 6709742 (56661277 - 49951535)
+}
+
+func TestUnclaimedFeePos01Swap02(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	amount0, amount1 := unclaimedFee(1)
+
+	uassert.Equal(t, amount0.ToString(), "8683")
+	uassert.Equal(t, amount1.ToString(), "0")
+}
+
+func TestUnclaimedFeePos02Swap02(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	amount0, amount1 := unclaimedFee(2)
+
+	uassert.Equal(t, amount0.ToString(), "1935")
+	uassert.Equal(t, amount1.ToString(), "0")
+}
+
+func TestCollectFeePos01(t *testing.T) {
+	// printPoolBalance()
+	// token0: 43308438
+	// token1: 6709742
+
+	std.TestSetRealm(adminRealm)
+	positionId, fee0, fee1, poolPath, _, _ := CollectFee(1, true)
+
+	uassert.Equal(t, positionId, uint64(1))
+	uassert.Equal(t, fee0, "8597") // 99% of 8683, rest 1% is protocol fee
+	uassert.Equal(t, fee1, "0")
+	uassert.Equal(t, poolPath, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
+
+	// printPoolBalance()
+	// token0: 43299755 (43308438 - 8683)
+	// token1: 6709742
+}
+
+func TestDecreaseAllPos01(t *testing.T) {
+	// printPoolBalance()
+	// token0: 43299755
+	// token1: 6709742
+
+	std.TestSetRealm(adminRealm)
+	positionId, liquidity, fee0, fee1, amount0, amount1, poolPath := DecreaseLiquidity(
+		uint64(1),   // positionId
+		"318704392", // liquidity
+		"0",         // amount0Min
+		"0",         // amount1Min
+		max_timeout, // deadline
+		true,        // unwrapResult
+	)
+
+	uassert.Equal(t, positionId, uint64(1))
+	uassert.Equal(t, liquidity, "318704392")
+	uassert.Equal(t, fee0, "0")
+	uassert.Equal(t, fee1, "0")
+	uassert.Equal(t, amount0, "35751245")
+	uassert.Equal(t, amount1, "6709740")
+	uassert.Equal(t, poolPath, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
+
+	// printPoolBalance()
+	// token0: 7548510 (43299755 - 35751245)
+	// token1: 2 (6709742 - 6709740)
+}
+
+func TestDecreaseAllPos02(t *testing.T) {
+	// printPoolBalance()
+	// token0: 7548510
+	// token1: 2
+
+	std.TestSetRealm(adminRealm)
+	positionId, liquidity, fee0, fee1, amount0, amount1, poolPath := DecreaseLiquidity(
+		uint64(2),   // positionId
+		"124373229", // liquidityRatio
+		"0",         // amount0Min
+		"0",         // amount1Min
+		max_timeout, // deadline
+		true,        // unwrapResult
+	)
+
+	uassert.Equal(t, positionId, uint64(2))
+	uassert.Equal(t, liquidity, "124373229")
+	uassert.Equal(t, fee0, "1916") // 99% of 1935, rest 1% is protocol fee
+	uassert.Equal(t, fee1, "0")
+	uassert.Equal(t, amount0, "7546572")
+	uassert.Equal(t, amount1, "0")
+	uassert.Equal(t, poolPath, "gno.land/r/onbloc/bar:gno.land/r/onbloc/foo:500")
+
+	// printPoolBalance()
+	// token0: 3 (7548510 - 7546572 - 1935)
+	// token1: 2
+}
+
+func printPoolBalance() {
+	poolBar := bar.BalanceOf(poolAddr)
+	poolFoo := foo.BalanceOf(poolAddr)
+
+	println("pool token0 bar:", poolBar)
+	println("pool token1 foo:", poolFoo)
+}

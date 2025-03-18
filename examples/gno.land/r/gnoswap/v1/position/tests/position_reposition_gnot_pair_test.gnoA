@@ -1,0 +1,260 @@
+package position
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+	"gno.land/r/demo/wugnot"
+	"gno.land/r/gnoswap/v1/common"
+	"gno.land/r/gnoswap/v1/gnft"
+	"gno.land/r/gnoswap/v1/gns"
+	pl "gno.land/r/gnoswap/v1/pool"
+)
+
+func TestRepositionCoinPair(t *testing.T) {
+	testPoolInitCreatePool(t)
+	testMintPosition01InRange(t)
+	testSwap(t)
+	testUnclaimedFee01(t)
+	testCollectFee01(t)
+	testDecreaseLiquidityInPosition(t)
+	testReposition(t)
+}
+
+func testPoolInitCreatePool(t *testing.T) {
+	t.Run("create pool", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		gns.Approve(poolAddr, pl.GetPoolCreationFee())
+		pl.CreatePool(consts.GNOT, consts.GNS_PATH, fee500, common.TickMathGetSqrtRatioAtTick(10000).ToString()) // x2.71814592682522526700950038502924144268035888671875
+	})
+}
+
+func testMintPosition01InRange(t *testing.T) {
+	t.Run("mint position 01 in range", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		gns.Approve(poolAddr, consts.UINT64_MAX)
+		wugnot.Approve(poolAddr, consts.UINT64_MAX)
+
+		wugnot.Approve(positionAddr, consts.UINT64_MAX) // FOR WRAP
+
+		std.TestIssueCoins(adminAddr, std.Coins{{"ugnot", 50000005}})
+		uassert.Equal(t, ugnotBalanceOf(t, adminAddr), uint64(50000005))
+
+		std.TestIssueCoins(positionAddr, std.Coins{{"ugnot", 200000000}})
+		uassert.Equal(t, ugnotBalanceOf(t, positionAddr), uint64(200000000))
+
+		banker := std.NewBanker(std.BankerTypeRealmIssue)
+		banker.SendCoins(adminAddr, positionAddr, std.Coins{{"ugnot", 50000005}})
+		std.TestSetOriginSend(std.Coins{{"ugnot", 50000005}}, nil)
+		uassert.Equal(t, ugnotBalanceOf(t, adminAddr), uint64(0))
+
+		adminOldWugnotBalance := wugnot.BalanceOf(adminAddr)
+		uassert.Equal(t, adminOldWugnotBalance, uint64(0))
+
+		positionId, liquidity, amount0, amount1 := Mint(
+			consts.GNOT,
+			consts.GNS_PATH,
+			fee500,
+			8000,
+			12000,
+			"50000000",
+			"50000000",
+			"0",
+			"0",
+			max_timeout,
+			adminAddr,
+			adminAddr,
+			"",
+		)
+		std.TestSetOriginSend(std.Coins{{"ugnot", 0}}, nil)
+
+		uassert.Equal(t, positionId, uint64(1))
+		uassert.Equal(t, GetNextId(), uint64(2))
+		uassert.Equal(t, amount0, "18394892")
+		uassert.Equal(t, amount1, "50000000")
+
+		position := MustGetPosition(positionId)
+		uassert.Equal(t, position.nonce.ToString(), "0")
+		uassert.Equal(t, position.operator, consts.ZERO_ADDRESS)
+		uassert.Equal(t, position.poolKey, "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:500")
+		uassert.Equal(t, position.tickLower, int32(8000))
+		uassert.Equal(t, position.tickUpper, int32(12000))
+		uassert.Equal(t, position.liquidity.ToString(), "318704392")
+		uassert.Equal(t, position.feeGrowthInside0LastX128.ToString(), "0")
+		uassert.Equal(t, position.feeGrowthInside1LastX128.ToString(), "0")
+		uassert.Equal(t, position.tokensOwed0.ToString(), "0")
+		uassert.Equal(t, position.tokensOwed1.ToString(), "0")
+		uassert.Equal(t, position.burned, false)
+
+		// SPEND ALL WUGNOT
+		uassert.Equal(t, wugnot.BalanceOf(adminAddr), uint64(0))
+		uassert.Equal(t, ugnotBalanceOf(t, adminAddr), uint64(31605113)) // 81605113 - 31605113  = 50000000
+	})
+}
+
+func testSwap(t *testing.T) {
+	t.Run("swap", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		gns.Approve(poolAddr, consts.UINT64_MAX) // amountIn
+
+		std.TestSetRealm(rouRealm)
+		amount0, amount1 := pl.Swap(
+			consts.WUGNOT_PATH,
+			consts.GNS_PATH,
+			fee500,
+			adminAddr,
+			false,
+			"1234567",
+			consts.MAX_PRICE,
+			adminAddr,
+		)
+
+		uassert.Equal(t, amount0, "-452903")
+		uassert.Equal(t, amount1, "1234567")
+
+		position := MustGetPosition(uint64(1))
+		uassert.Equal(t, position.nonce.ToString(), "0")
+		uassert.Equal(t, position.operator, consts.ZERO_ADDRESS)
+		uassert.Equal(t, position.poolKey, "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:500")
+		uassert.Equal(t, position.tickLower, int32(8000))
+		uassert.Equal(t, position.tickUpper, int32(12000))
+		uassert.Equal(t, position.liquidity.ToString(), "318704392")
+		uassert.Equal(t, position.feeGrowthInside0LastX128.ToString(), "0")
+		uassert.Equal(t, position.feeGrowthInside1LastX128.ToString(), "0")
+		uassert.Equal(t, position.tokensOwed0.ToString(), "0")
+		uassert.Equal(t, position.tokensOwed1.ToString(), "0")
+		uassert.Equal(t, position.burned, false)
+	})
+}
+
+func testUnclaimedFee01(t *testing.T) {
+	t.Run("unclaimed fee 01", func(t *testing.T) {
+		amount0, amount1 := unclaimedFee(1)
+
+		uassert.Equal(t, amount0.ToString(), "0")
+		uassert.Equal(t, amount1.ToString(), "617")
+	})
+}
+
+func testCollectFee01(t *testing.T) {
+	t.Run("collect fee 01", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		positionId, tokensOwed0, tokensOwed1, poolPath, fee0, fee1 := CollectFee(1, false)
+		position := MustGetPosition(positionId)
+		uassert.Equal(t, position.tokensOwed0.ToString(), "0")
+		uassert.Equal(t, position.tokensOwed1.ToString(), "0")
+	})
+}
+
+func testDecreaseLiquidityInPosition(t *testing.T) {
+	t.Run("decrease liquidity in position", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		positionId := uint64(1)
+
+		ownerOfPosition, _ := gnft.OwnerOf(positionIdFrom(positionId))
+		uassert.Equal(t, ownerOfPosition, adminAddr)
+
+		// approve fee0, fee1 to pool
+		gns.Approve(poolAddr, consts.UINT64_MAX)
+		wugnot.Approve(poolAddr, consts.UINT64_MAX)
+
+		resultPositionId, liquidity, fee0, fee1, amount0, amount1, poolPath := DecreaseLiquidity(
+			positionId,
+			"318704392",
+			"0",
+			"0",
+			max_timeout,
+			false,
+		)
+
+		uassert.Equal(t, resultPositionId, positionId)
+		uassert.Equal(t, amount0, "17941988")
+		uassert.Equal(t, amount1, "51233948")
+
+		ownerOfPosition, _ = gnft.OwnerOf(positionIdFrom(resultPositionId))
+		uassert.Equal(t, ownerOfPosition, adminAddr)
+
+		position := MustGetPosition(resultPositionId)
+		uassert.Equal(t, position.nonce.ToString(), "0")
+		uassert.Equal(t, position.operator, consts.ZERO_ADDRESS)
+		uassert.Equal(t, position.poolKey, "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:500")
+		uassert.Equal(t, position.tickLower, int32(8000))
+		uassert.Equal(t, position.tickUpper, int32(12000))
+		uassert.Equal(t, position.liquidity.ToString(), "0")
+		uassert.Equal(t, position.feeGrowthInside0LastX128.ToString(), "0")
+		uassert.Equal(t, position.feeGrowthInside1LastX128.ToString(), "659841872392960215058365142934185")
+		uassert.Equal(t, position.tokensOwed0.ToString(), "0")
+		uassert.Equal(t, position.tokensOwed1.ToString(), "0")
+		uassert.Equal(t, position.burned, true)
+	})
+}
+
+func testReposition(t *testing.T) {
+	t.Run("reposition", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		positionId := uint64(1)
+
+		// check current state
+		position := MustGetPosition(positionId)
+		uassert.Equal(t, position.nonce.ToString(), "0")
+		uassert.Equal(t, position.operator, consts.ZERO_ADDRESS)
+		uassert.Equal(t, position.poolKey, "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:500")
+		uassert.Equal(t, position.tickLower, int32(8000))
+		uassert.Equal(t, position.tickUpper, int32(12000))
+		uassert.Equal(t, position.liquidity.ToString(), "0")
+		uassert.Equal(t, position.feeGrowthInside0LastX128.ToString(), "0")
+		uassert.Equal(t, position.feeGrowthInside1LastX128.ToString(), "659841872392960215058365142934185")
+		uassert.Equal(t, position.tokensOwed0.ToString(), "0")
+		uassert.Equal(t, position.tokensOwed1.ToString(), "0")
+		uassert.Equal(t, position.burned, true)
+
+		// user ugnot
+		std.TestIssueCoins(adminAddr, std.Coins{{"ugnot", 50000005}})
+		uassert.Equal(t, ugnotBalanceOf(t, adminAddr), uint64(81605118))
+
+		std.TestSetRealm(adminRealm)
+		banker := std.NewBanker(std.BankerTypeRealmIssue)
+		banker.SendCoins(adminAddr, positionAddr, std.Coins{{"ugnot", 5000}})
+		std.TestSetOriginSend(std.Coins{{"ugnot", 5000}}, nil)
+
+		std.TestSetRealm(adminRealm)
+		Reposition(
+			positionId, // positionId
+			-1000,      // tickLower
+			1000,       // tickUpper
+			"5000",     // amount0Desired
+			"5000",     // amount1Desired
+			"0",        // amount0Min
+			"0",        // amount1Min
+		)
+
+		// user ugnot
+		uassert.Equal(t, ugnotBalanceOf(t, adminAddr), uint64(81600118))
+
+		position = MustGetPosition(positionId)
+		uassert.Equal(t, position.nonce.ToString(), "0")
+		uassert.Equal(t, position.operator, consts.ZERO_ADDRESS)
+		uassert.Equal(t, position.poolKey, "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:500")
+		uassert.Equal(t, position.tickLower, int32(-1000))
+		uassert.Equal(t, position.tickUpper, int32(1000))
+		uassert.Equal(t, position.liquidity.ToString(), "49981")
+		uassert.Equal(t, position.feeGrowthInside0LastX128.ToString(), "0")
+		uassert.Equal(t, position.feeGrowthInside1LastX128.ToString(), "0")
+		uassert.Equal(t, position.tokensOwed0.ToString(), "0")
+		uassert.Equal(t, position.tokensOwed1.ToString(), "0")
+		uassert.Equal(t, position.burned, false)
+
+		unclaimedFee0, unclaimedFee1 := unclaimedFee(positionId)
+		uassert.Equal(t, unclaimedFee0.ToString(), "0")
+		uassert.Equal(t, unclaimedFee1.ToString(), "0")
+	})
+}

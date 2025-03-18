@@ -1,0 +1,319 @@
+package launchpad
+
+import (
+	"std"
+	"testing"
+	"time"
+
+	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
+
+	"gno.land/r/onbloc/bar"
+	"gno.land/r/onbloc/foo"
+	"gno.land/r/onbloc/obl"
+
+	"gno.land/r/gnoswap/v1/gns"
+)
+
+var (
+	user01      = testutils.TestAddress("user01")
+	user01Realm = std.NewUserRealm(user01)
+	refundAddr  = testutils.TestAddress("refundAddr")
+)
+
+func TestRefundEndedProjectWithTier30(t *testing.T) {
+	t.Skip("fix this code")
+	testCreateProject(t)
+	testDepositGnsToTier30(t)
+	testCollectRewardByProjectId(t)
+	// testCollectRewardByDepositId(t)
+	// testMoreBlocks(t)
+	// testMakeProjectEnd(t)
+	// testOneMoreBlock(t)
+}
+
+func testCreateProject(t *testing.T) {
+	t.Run("check before project create", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		obl.Approve(launchpadAddr, uint64(1_000_000_000))
+		std.TestSkipHeights(1)
+
+		// check before project create
+		uassert.Equal(t, len(projects), 0)
+		uassert.Equal(t, len(deposits), 0)
+		uassert.Equal(t, len(depositsByProject), 0)
+		uassert.Equal(t, len(depositsByUser), 0)
+	})
+
+	t.Run("create project", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		projectId := CreateProject(
+			"Obl Protocol",
+			oblPath,
+			projectAddr,
+			uint64(1_000_000_000), // 1000000000
+			"gno.land/r/onbloc/foo*PAD*gno.land/r/onbloc/bar",
+			"1*PAD*2",
+			uint64(10),                   // 100000000
+			uint64(20),                   // 200000000
+			uint64(70),                   // 700000000
+			uint64(time.Now().Unix()+10), // 10s later
+		)
+		uassert.Equal(t, projectId, `gno.land/r/onbloc/obl:124`)
+		std.TestSkipHeights(1)
+	})
+}
+
+func testDepositGnsToTier30(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	gns.Transfer(user01, uint64(1_000_000)) // to deposit
+
+	// transfer some grc20 tokens to bypass project condition
+	foo.Transfer(user01, uint64(10))
+	bar.Transfer(user01, uint64(10))
+
+	std.TestSetRealm(user01Realm)
+	gns.Approve(launchpadAddr, uint64(1_000_000))
+
+	t.Run("check before deposit", func(t *testing.T) {
+		// check before deposit
+		uassert.Equal(t, len(projects), 1)
+
+		project := projects[`gno.land/r/onbloc/obl:124`]
+		tier30 := project.tiers[30]
+
+		uassert.Equal(t, tier30.id, `gno.land/r/onbloc/obl:124:30`)
+		uassert.Equal(t, tier30.tierAmount, uint64(100000000))
+		uassert.NotEqual(t, tier30.tierAmountPerBlockX128.ToString(), `0`)
+		uassert.Equal(t, tier30.ended.time, project.started.time+TIMESTAMP_30DAYS)
+		uassert.Equal(t, tier30.actualDepositAmount, uint64(0))
+		uassert.Equal(t, tier30.actualParticipant, uint64(0))
+		uassert.Equal(t, tier30.userCollectedAmount, uint64(0))
+		uassert.Equal(t, tier30.calculatedAmount, uint64(0))
+
+		uassert.Equal(t, len(deposits), 0)
+		uassert.Equal(t, len(depositsByProject), 0)
+		uassert.Equal(t, len(depositsByUser), 0)
+	})
+
+	t.Run("make project active", func(t *testing.T) {
+		// skip some blocks to make project active
+		std.TestSkipHeights(4)
+		depositId := DepositGns("gno.land/r/onbloc/obl:124:30", uint64(1_000_000), "") // 1000000
+		uassert.Equal(t, depositId, `gno.land/r/onbloc/obl:124:30:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:129`)
+		std.TestSkipHeights(1)
+	})
+
+	t.Run("check tier after deposit", func(t *testing.T) {
+		// check after deposit
+		uassert.Equal(t, len(projects), 1)
+
+		project := projects[`gno.land/r/onbloc/obl:124`]
+
+		tier30 := project.tiers[30]
+		uassert.Equal(t, tier30.id, `gno.land/r/onbloc/obl:124:30`)
+		uassert.Equal(t, tier30.tierAmount, uint64(100000000))
+		uassert.NotEqual(t, tier30.tierAmountPerBlockX128.ToString(), `0`)
+		uassert.Equal(t, tier30.ended.time, project.started.time+TIMESTAMP_30DAYS)
+		uassert.Equal(t, tier30.userCollectedAmount, uint64(0))
+		uassert.Equal(t, tier30.calculatedAmount, uint64(0))
+		// uassert.Equal(t, tier30.actualDepositAmount, uint64(1000000))
+		// uassert.Equal(t, tier30.actualParticipant, uint64(1))
+		// uassert.Equal(t, tier30.collectWaitDuration, uint64(90))
+	})
+
+	t.Run("check deposit, after deposit", func(t *testing.T) {
+		uassert.Equal(t, len(deposits), 1)
+		deposit := deposits[`gno.land/r/onbloc/obl:124:30:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:129`]
+		uassert.Equal(t, deposit.id, `gno.land/r/onbloc/obl:124:30:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:129`)
+		uassert.Equal(t, deposit.projectId, `gno.land/r/onbloc/obl:124`)
+		uassert.Equal(t, deposit.tier, `30`)
+		uassert.Equal(t, deposit.depositor, user01)
+		uassert.Equal(t, deposit.amount, uint64(1000000))
+		uassert.Equal(t, deposit.depositHeight, uint64(129))
+		uassert.Equal(t, deposit.depositTime, uint64(1234567920))
+		uassert.Equal(t, deposit.depositCollectHeight, uint64(0))
+		uassert.Equal(t, deposit.depositCollectTime, uint64(0))
+		uassert.Equal(t, deposit.rewardCollectHeight, uint64(0))
+		uassert.Equal(t, deposit.rewardCollectTime, uint64(0))
+	})
+
+	t.Run("check deposits by project", func(t *testing.T) {
+		uassert.Equal(t, len(depositsByProject), 1)
+		uassert.Equal(t, depositsByProject[`gno.land/r/onbloc/obl:124`][`30`][0], `gno.land/r/onbloc/obl:124:30:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:129`)
+
+		uassert.Equal(t, len(depositsByUser), 1)
+		uassert.Equal(t, depositsByUser[`g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv`][0], `gno.land/r/onbloc/obl:124:30:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:129`)
+	})
+}
+
+func testCollectRewardByProjectId(t *testing.T) {
+	t.Run("collect reward by project id", func(t *testing.T) {
+		std.TestSetRealm(user01Realm)
+
+		// check tier30 before collect
+		project := projects[`gno.land/r/onbloc/obl:124`]
+		tier30 := project.tiers[30]
+		uassert.Equal(t, tier30.userCollectedAmount, uint64(0))
+		uassert.Equal(t, tier30.calculatedAmount, uint64(0))
+
+		// check deposit before collect
+		uassert.Equal(t, len(deposits), 1)
+		deposit := deposits[`gno.land/r/onbloc/obl:124:30:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:129`]
+
+		uassert.Equal(t, deposit.id, `gno.land/r/onbloc/obl:124:30:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:129`)
+		uassert.Equal(t, deposit.projectId, `gno.land/r/onbloc/obl:124`)
+		uassert.Equal(t, deposit.tier, `30`)
+		uassert.Equal(t, deposit.depositor, user01)
+		uassert.Equal(t, deposit.amount, uint64(1000000))
+		uassert.Equal(t, deposit.depositHeight, uint64(129))
+		uassert.Equal(t, deposit.depositTime, uint64(1234567902))
+		uassert.Equal(t, deposit.depositCollectHeight, uint64(0))
+		uassert.Equal(t, deposit.depositCollectTime, uint64(0))
+		uassert.Equal(t, deposit.rewardCollected, uint64(0))
+		uassert.Equal(t, deposit.rewardCollectHeight, uint64(0))
+		uassert.Equal(t, deposit.rewardCollectTime, uint64(0))
+
+		t.Run("claim after 3 days", func(t *testing.T) {
+			std.TestSkipHeights(int64(TIMESTAMP_3DAYS) / 2)
+			collected := CollectRewardByProjectId(`gno.land/r/onbloc/obl:124`)
+			uassert.Equal(t, collected, uint64(10111111))
+		})
+
+		// check tier30 after collect
+		project = projects[`gno.land/r/onbloc/obl:124`]
+		tier30 = project.tiers[30]
+		uassert.Equal(t, tier30.userCollectedAmount, uint64(10111111))
+		uassert.Equal(t, tier30.calculatedAmount, uint64(10111111))
+
+		// check deposit after collect
+		uassert.Equal(t, len(deposits), 1)
+		deposit = deposits[`gno.land/r/onbloc/obl:124:30:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:129`]
+		uassert.Equal(t, deposit.id, `gno.land/r/onbloc/obl:124:30:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:129`)
+		uassert.Equal(t, deposit.projectId, `gno.land/r/onbloc/obl:124`)
+		uassert.Equal(t, deposit.tier, `30`)
+		uassert.Equal(t, deposit.depositor, user01)
+		uassert.Equal(t, deposit.amount, uint64(1000000))
+		uassert.Equal(t, deposit.depositHeight, uint64(129))
+		uassert.Equal(t, deposit.depositTime, uint64(1234567902))
+		uassert.Equal(t, deposit.depositCollectHeight, uint64(0))
+		uassert.Equal(t, deposit.depositCollectTime, uint64(0))
+		uassert.Equal(t, deposit.rewardCollected, uint64(10111111))
+		uassert.Equal(t, deposit.rewardCollectHeight, uint64(220))
+		uassert.Equal(t, deposit.rewardCollectTime, uint64(1234568084))
+	})
+}
+
+func testCollectRewardByDepositId(t *testing.T) {
+	t.Run("collect reward by deposit id", func(t *testing.T) {
+		std.TestSetRealm(user01Realm)
+
+		// check tier30 before collect
+		project := projects[`gno.land/r/onbloc/obl:124`]
+		tier30 := project.tiers[30]
+		uassert.Equal(t, tier30.userCollectedAmount, uint64(10111111))
+		uassert.Equal(t, tier30.calculatedAmount, uint64(10111111))
+
+		// check deposit before collect
+		uassert.Equal(t, len(deposits), 1)
+		deposit := deposits[`gno.land/r/onbloc/obl:124:30:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:129`]
+		uassert.Equal(t, deposit.id, `gno.land/r/onbloc/obl:124:30:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:129`)
+		uassert.Equal(t, deposit.projectId, `gno.land/r/onbloc/obl:124`)
+		uassert.Equal(t, deposit.tier, `30`)
+		uassert.Equal(t, deposit.depositor, user01)
+		uassert.Equal(t, deposit.amount, uint64(1000000))
+		uassert.Equal(t, deposit.depositHeight, uint64(129))
+		uassert.Equal(t, deposit.depositTime, uint64(1234567902))
+		uassert.Equal(t, deposit.depositCollectHeight, uint64(0))
+		uassert.Equal(t, deposit.depositCollectTime, uint64(0))
+		uassert.Equal(t, deposit.rewardCollected, uint64(10111111))
+		uassert.Equal(t, deposit.rewardCollectHeight, uint64(220))
+		uassert.Equal(t, deposit.rewardCollectTime, uint64(1234568084))
+
+		// skip 100 blocks to make more reward
+		std.TestSkipHeights(100)
+		collected := CollectRewardByProjectId(`gno.land/r/onbloc/obl:124`)
+		uassert.Equal(t, collected, uint64(11111111))
+
+		// check tier30 after collect
+		project = projects[`gno.land/r/onbloc/obl:124`]
+		tier30 = project.tiers[30]
+		uassert.Equal(t, tier30.userCollectedAmount, uint64(21222222))
+		uassert.Equal(t, tier30.calculatedAmount, uint64(21222222))
+
+		// check deposit after collect
+		uassert.Equal(t, len(deposits), 1)
+		deposit = deposits[`gno.land/r/onbloc/obl:124:30:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:129`]
+		uassert.Equal(t, deposit.id, `gno.land/r/onbloc/obl:124:30:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:129`)
+		uassert.Equal(t, deposit.projectId, `gno.land/r/onbloc/obl:124`)
+		uassert.Equal(t, deposit.tier, `30`)
+		uassert.Equal(t, deposit.depositor, user01)
+		uassert.Equal(t, deposit.amount, uint64(1000000))
+		uassert.Equal(t, deposit.depositHeight, uint64(129))
+		uassert.Equal(t, deposit.depositTime, uint64(1234567902))
+		uassert.Equal(t, deposit.depositCollectHeight, uint64(0))
+		uassert.Equal(t, deposit.depositCollectTime, uint64(0))
+		uassert.Equal(t, deposit.rewardCollected, uint64(21222222))
+		uassert.Equal(t, deposit.rewardCollectHeight, uint64(320))
+		uassert.Equal(t, deposit.rewardCollectTime, uint64(1234568284))
+	})
+}
+
+func testMoreBlocks(t *testing.T) {
+	std.TestSkipHeights(10)
+
+	// check tier30
+	project := projects[`gno.land/r/onbloc/obl:124`]
+	tier30 := project.tiers[30]
+	uassert.Equal(t, tier30.userCollectedAmount, uint64(21222222))
+	uassert.Equal(t, tier30.calculatedAmount, uint64(22333333))
+}
+
+func testMakeProjectEnd(t *testing.T) {
+	t.Run("make project end", func(t *testing.T) {
+		user01OldOblBalance := obl.BalanceOf(user01)
+		uassert.Equal(t, user01OldOblBalance, uint64(21222222)) // already collected
+
+		refundOldOblBalance := obl.BalanceOf(refundAddr)
+		uassert.Equal(t, refundOldOblBalance, uint64(0))
+
+		std.TestSkipHeights(int64(TIMESTAMP_180DAYS) / 2)
+		std.TestSetRealm(adminRealm)
+		TransferLeftFromProjectByAdmin(`gno.land/r/onbloc/obl:124`, refundAddr)
+		std.TestSkipHeights(1)
+
+		user01NewOblBalance := obl.BalanceOf(user01)
+		uassert.Equal(t, user01NewOblBalance, uint64(21222222))
+
+		refundNewOblBalance := obl.BalanceOf(refundAddr)
+		uassert.Equal(t, refundNewOblBalance, uint64(900000001))
+	})
+}
+
+func testOneMoreBlock(t *testing.T) {
+	t.Run("one more block", func(t *testing.T) {
+
+		uassert.PanicsWithMessage(
+			t,
+			"[GNOSWAP-LAUNCHPAD-016] already refunded || launchpad_init.gno__TransferLeftFromProjectByAdmin() || projectId(gno.land/r/onbloc/obl:124) already refunded(height:5730)",
+			func() {
+				std.TestSetRealm(adminRealm)
+				TransferLeftFromProjectByAdmin(`gno.land/r/onbloc/obl:124`, refundAddr)
+			},
+		)
+	})
+}
+
+func testCollectRewardAfterProjectEndedAndRefunded(t *testing.T) {
+	// even project is ended & refunded, stil user can collect reward
+	std.TestSetRealm(user01Realm)
+	collected := CollectRewardByProjectId(`gno.land/r/onbloc/obl:124`)
+	uassert.Equal(t, collected, uint64(89992206))
+}
+
+func testCollectDepositGnsAfterProjectEndedAndRefunded(t *testing.T) {
+	// even project is ended & refunded, stil user can collect deposietd gns
+	std.TestSetRealm(user01Realm)
+	collected := CollectDepositGnsByProjectId(`gno.land/r/onbloc/obl:124`)
+	uassert.Equal(t, collected, uint64(1000000))
+}

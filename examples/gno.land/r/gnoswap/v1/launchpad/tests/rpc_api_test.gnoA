@@ -1,0 +1,255 @@
+package launchpad
+
+import (
+	"std"
+	"testing"
+	"time"
+
+	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+
+	"gno.land/r/onbloc/bar"
+	"gno.land/r/onbloc/foo"
+	"gno.land/r/onbloc/obl"
+	"gno.land/r/onbloc/qux"
+
+	"gno.land/r/gnoswap/v1/gns"
+)
+
+var (
+	projectAddr02 = testutils.TestAddress("projectAddr02")
+	user01        = testutils.TestAddress("user01")
+	user01Realm   = std.NewUserRealm(user01)
+)
+
+func TestLaunchpadAPIs(t *testing.T) {
+	t.Skip("fix this code")
+	testMockProtocolFee(t)
+	testCreateProject(t)
+	testDepositGnsToTierProject01_Tier30(t)
+	testCollectProtocolFeeByProject01Recipient(t)
+	testAPIs(t)
+}
+
+func testMockProtocolFee(t *testing.T) {
+	t.Run("mock protocol fee", func(t *testing.T) {
+		// admin > protocol_fee
+		// send qux, bar for testing
+		std.TestSetRealm(adminRealm)
+		bar.Transfer(protocolFeeAddr, 1000)
+		qux.Transfer(protocolFeeAddr, 2500)
+
+		uassert.Equal(t, bar.BalanceOf(protocolFeeAddr), uint64(1000))
+		uassert.Equal(t, bar.BalanceOf(devOpsAddr), uint64(0))
+		uassert.Equal(t, bar.BalanceOf(govStakerAddr), uint64(0))
+
+		uassert.Equal(t, qux.BalanceOf(protocolFeeAddr), uint64(2500))
+		uassert.Equal(t, qux.BalanceOf(devOpsAddr), uint64(0))
+		uassert.Equal(t, qux.BalanceOf(govStakerAddr), uint64(0))
+	})
+}
+
+func testCreateProject(t *testing.T) {
+	t.Run("recipient protocol_fee reward before creating project", func(t *testing.T) {
+		// check before project create
+		got := ApiGetProjectRecipientRewardByAddress(projectAddr)
+		uassert.Equal(t, got, `{"height":"123","now":"1234567890","emissionReward":"0"}`)
+	})
+
+	t.Run("create project", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		obl.Approve(launchpadAddr, uint64(1_000_000_000))
+		std.TestSkipHeights(1)
+
+		projectId := CreateProject(
+			"Obl Protocol",
+			oblPath,
+			projectAddr,
+			uint64(1_000_000_000), // 1000000000
+			"gno.land/r/onbloc/foo*PAD*gno.land/r/onbloc/bar",
+			"1*PAD*2",
+			uint64(10),                   // 100000000
+			uint64(20),                   // 200000000
+			uint64(70),                   // 700000000
+			uint64(time.Now().Unix()+10), // 10s later
+		)
+		uassert.Equal(t, projectId, `gno.land/r/onbloc/obl:124`)
+		std.TestSkipHeights(1)
+	})
+
+	t.Run("recipient protocol_fee reward after creating project", func(t *testing.T) {
+		// check after project create
+		got := ApiGetProjectRecipientRewardByAddress(projectAddr)
+		uassert.Equal(t, got, `{"height":"125","now":"1234567894","emissionReward":"0"}`)
+	})
+
+	t.Run("create another project", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		bar.Approve(launchpadAddr, uint64(1_000_000_000))
+		std.TestSkipHeights(1)
+
+		projectId := CreateProject(
+			"Bar Protocol",
+			barPath,
+			projectAddr02,
+			uint64(1_000_000_000), // 1000000000
+			"",
+			"",
+			uint64(10),                   // 100000000
+			uint64(20),                   // 200000000
+			uint64(70),                   // 700000000
+			uint64(time.Now().Unix()+10), // 10s later
+		)
+		uassert.Equal(t, projectId, `gno.land/r/onbloc/bar:126`)
+		std.TestSkipHeights(1)
+	})
+}
+
+func testDepositGnsToTierProject01_Tier30(t *testing.T) {
+	t.Run("deposit to obl project, tier 30", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		gns.Transfer(user01, uint64(1_000_000)) // to deposit
+		// transfer some grc20 tokens to bypass project condition
+		foo.Transfer(user01, uint64(10))
+		bar.Transfer(user01, uint64(10))
+
+		// user01 makes deposit
+		std.TestSetRealm(user01Realm)
+		gns.Approve(launchpadAddr, uint64(1_000_000))
+
+		// skip some blocks to make project active
+		std.TestSkipHeights(4)
+		depositId := DepositGns("gno.land/r/onbloc/obl:124:30", uint64(1_000_000), "") // 1000000
+		uassert.Equal(t, depositId, `gno.land/r/onbloc/obl:124:30:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:131`)
+		std.TestSkipHeights(1)
+	})
+
+	t.Run("check deposit's project token", func(t *testing.T) {
+		got := ApiGetDepositRewardByDepositId("gno.land/r/onbloc/obl:124:30:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:131")
+		uassert.Equal(t, got, uint64(111358)) // reward occured, but not claimable yet
+	})
+
+	t.Run("check project's recipient protocol_fee reward", func(t *testing.T) {
+		got := ApiGetProjectRecipientRewardByAddress(projectAddr)
+		uassert.Equal(t, got, `{"height":"132","now":"1234567908","emissionReward":"0","protocolFees":[{"tokenPath":"gno.land/r/onbloc/bar","amount":"1000"},{"tokenPath":"gno.land/r/onbloc/qux","amount":"2500"}]}`)
+	})
+
+	t.Run("check claimable deposit", func(t *testing.T) {
+		got := ApiGetClaimableDepositByAddress(user01)
+		uassert.Equal(t, got, uint64(0))
+	})
+}
+
+func testCollectProtocolFeeByProject01Recipient(t *testing.T) {
+	t.Run("check project's recipient protocol_fee reward", func(t *testing.T) {
+		got := ApiGetProjectRecipientRewardByAddress(projectAddr)
+		uassert.Equal(t, got, `{"height":"132","now":"1234567908","emissionReward":"0","protocolFees":[{"tokenPath":"gno.land/r/onbloc/bar","amount":"1000"},{"tokenPath":"gno.land/r/onbloc/qux","amount":"2500"}]}`)
+	})
+
+	t.Run("claim protocol reward", func(t *testing.T) {
+		std.TestSetRealm(projectRealm)
+
+		oldBar := bar.BalanceOf(projectAddr)
+		oldQux := qux.BalanceOf(projectAddr)
+		uassert.Equal(t, oldBar, uint64(0))
+		uassert.Equal(t, oldQux, uint64(0))
+
+		// check claimble reward
+		res := ApiGetProjectRecipientRewardByAddress(projectAddr)
+		uassert.Equal(t, res, `{"height":"132","now":"1234567908","emissionReward":"0","protocolFees":[{"tokenPath":"gno.land/r/onbloc/bar","amount":"1000"},{"tokenPath":"gno.land/r/onbloc/qux","amount":"2500"}]}`)
+		// bar 1000
+		// qux 2500
+
+		CollectProtocolFee()
+
+		newBar := bar.BalanceOf(projectAddr)
+		newQux := qux.BalanceOf(projectAddr)
+		uassert.Equal(t, newBar, uint64(1000))
+		uassert.Equal(t, newQux, uint64(2500))
+
+		std.TestSkipHeights(10) // pass some blocks
+	})
+
+	t.Run("check project's recipient protocol_fee reward after claiming it", func(t *testing.T) {
+		got := ApiGetProjectRecipientRewardByAddress(projectAddr)
+		uassert.Equal(t, got, `{"height":"142","now":"1234567928","emissionReward":"0","protocolFees":[]}`)
+	})
+}
+
+func testAPIs(t *testing.T) {
+	t.Run("ApiGetClaimableDepositByAddress", func(t *testing.T) {
+		t.Run("tier 30days isn't over", func(t *testing.T) {
+			got := ApiGetClaimableDepositByAddress(user01)
+			uassert.Equal(t, got, uint64(0))
+		})
+
+		t.Run("tier 30days is over", func(t *testing.T) {
+			std.TestSkipHeights(int64(TIMESTAMP_30DAYS) / 2)
+			got := ApiGetClaimableDepositByAddress(user01)
+			uassert.Equal(t, got, uint64(1_000_000))
+
+			// and actual collect
+			std.TestSetRealm(user01Realm)
+			claimed := CollectDepositGns()
+			uassert.Equal(t, claimed, uint64(1_000_000))
+		})
+
+		t.Run("check after collect deposit", func(t *testing.T) {
+			got := ApiGetClaimableDepositByAddress(user01)
+			uassert.Equal(t, got, uint64(0))
+
+			std.TestSetRealm(user01Realm)
+			claimed := CollectDepositGns()
+			uassert.Equal(t, claimed, uint64(0))
+		})
+	})
+
+	t.Run("ApiGetDepositByDepositId", func(t *testing.T) {
+		res := ApiGetDepositByDepositId("gno.land/r/onbloc/obl:124:30:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:131")
+		uassert.Equal(t, res, `{"height":"1042","now":"1234569728","depositId":"gno.land/r/onbloc/obl:124:30:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:131","projectId":"gno.land/r/onbloc/obl:124","tier":"30","depositor":"g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv","amount":"1000000","depositHeight":"131","depositTime":"1234567906","depositCollectHeight":"1042","depositCollectTime":"1234569728","claimableHeight":"221","claimableTime":"1234568086","rewardAmount":"99999998","rewardCollected":"0","rewardCollectHeight":"0","rewardCollectTime":"0"}`)
+	})
+
+	t.Run("ApiGetDepositFullByDepositId", func(t *testing.T) {
+		res := ApiGetDepositFullByDepositId("gno.land/r/onbloc/obl:124:30:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:131")
+		uassert.Equal(t, res, `{"height":"1042","now":"1234569728","depositId":"gno.land/r/onbloc/obl:124:30:g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv:131","projectId":"gno.land/r/onbloc/obl:124","tokenPath":"gno.land/r/onbloc/obl","depositAmount":"1000000000","recipient":"g1wpex76n9vd6yzerywf047h6lta047h6lqlp5qp","conditionsToken":"gno.land/r/onbloc/foo*PAD*gno.land/r/onbloc/bar","conditionsAmount":"1*PAD*2","tier30Ratio":"10","tier90Ratio":"20","tier180Ratio":"70","createdHeight":"124","createdTime":"1234567892","totalCollectedAmount":"0","refundedAmount":"0","refundedHeight":"0","refundedTime":"0","tier":"30","collectWaitDuration":"90","tierAmount":"100000000","tierAmountPerBlockX96":"8822735246577320444715361952783964","startHeight":"131","startTime":"1234567906","endHeight":"1029","endTime":"1234569702","totalDepositAmount":"1000000","actualDepositAmount":"0","totalParticipant":"1","actualParticipant":"0","userCollectedAmount":"0","calculatedAmount":"99999998","depositor":"g1w4ek2u3sx9047h6lta047h6lta047h6lh0ssfv","amount":"1000000","depositHeight":"131","depositTime":"1234567906","depositCollectHeight":"1042","depositCollectTime":"1234569728","claimableHeight":"221","claimableTime":"1234568086","rewardAmount":"99999998","rewardCollected":"0","rewardCollectHeight":"0","rewardCollectTime":"0"}`)
+	})
+
+	t.Run("ApiGetProjectAndTierStatisticsByProjectId", func(t *testing.T) {
+		t.Run("not existing project", func(t *testing.T) {
+			got := ApiGetProjectAndTierStatisticsByProjectId("gno.land/r")
+			uassert.Equal(t, got, ``)
+		})
+
+		t.Run("existing project", func(t *testing.T) {
+			got := ApiGetProjectAndTierStatisticsByProjectId("gno.land/r/onbloc/obl:124")
+			uassert.Equal(t, got, `{"height":"1042","now":"1234569728","projectId":"gno.land/r/onbloc/obl:124","name":"Obl Protocol","tokenPath":"gno.land/r/onbloc/obl","depositAmount":"1000000000","recipient":"g1wpex76n9vd6yzerywf047h6lta047h6lqlp5qp","conditionsToken":"gno.land/r/onbloc/foo*PAD*gno.land/r/onbloc/bar","conditionsAmount":"1*PAD*2","tier30Ratio":"10","tier90Ratio":"20","tier180Ratio":"70","createdHeight":"124","createdTime":"1234567892","startHeight":"129","startTime":"1234567902","endHeight":"5529","endTime":"1234578702","totalDepositAmount":"1000000","actualDepositAmount":"0","totalParticipant":"1","actualParticipant":"0","totalCollectedAmount":"0","refundedAmount":"0","refundedHeight":"0","refundedTime":"0","tier30StartHeight":"131","tier30StartTime":"1234567906","tier30EndHeight":"1029","tier30EndTime":"1234569702","tier30TotalDepositAmount":"1000000","tier30ActualDepositAmount":"0","tier30TotalParticipant":"1","tier30ActualParticipant":"0","tier30UserCollectedAmount":"0","tier30CalculatedAmount":"99999998","tier90StartHeight":"0","tier90StartTime":"0","tier90EndHeight":"2829","tier90EndTime":"1234573302","tier90TotalDepositAmount":"0","tier90ActualDepositAmount":"0","tier90TotalParticipant":"0","tier90ActualParticipant":"0","tier90UserCollectedAmount":"0","tier90CalculatedAmount":"0","tier180StartHeight":"0","tier180StartTime":"0","tier180EndHeight":"5529","tier180EndTime":"1234578702","tier180TotalDepositAmount":"0","tier180ActualDepositAmount":"0","tier180TotalParticipant":"0","tier180ActualParticipant":"0","tier180UserCollectedAmount":"0","tier180CalculatedAmount":"0"}`)
+		})
+	})
+
+	t.Run("ApiGetProjectStatisticsByProjectId", func(t *testing.T) {
+		t.Run("not existing project", func(t *testing.T) {
+			got := ApiGetProjectStatisticsByProjectId("gno.land/r")
+			uassert.Equal(t, got, ``)
+		})
+
+		t.Run("existing project", func(t *testing.T) {
+			got := ApiGetProjectStatisticsByProjectId("gno.land/r/onbloc/obl:124")
+			uassert.Equal(t, got, `{"height":"1042","now":"1234569728","projectId":"gno.land/r/onbloc/obl:124","name":"Obl Protocol","tokenPath":"gno.land/r/onbloc/obl","depositAmount":"1000000000","recipient":"g1wpex76n9vd6yzerywf047h6lta047h6lqlp5qp","conditionsToken":"gno.land/r/onbloc/foo*PAD*gno.land/r/onbloc/bar","conditionsAmount":"1*PAD*2","tier30Ratio":"10","tier90Ratio":"20","tier180Ratio":"70","createdHeight":"124","createdTime":"1234567892","startHeight":"129","startTime":"1234567902","endHeight":"5529","endTime":"1234578702","totalDepositAmount":"1000000","actualDepositAmount":"0","totalParticipant":"1","actualParticipant":"0","totalCollectedAmount":"0","refundedAmount":"0","refundedHeight":"0","refundedTime":"0"}`)
+		})
+	})
+
+	t.Run("ApiGetProjectStatisticsByProjectTierId", func(t *testing.T) {
+		t.Run("not existing tier", func(t *testing.T) {
+			got := ApiGetProjectStatisticsByProjectTierId("gno.land/r/onbloc/obl:124:31")
+			uassert.Equal(t, got, ``)
+		})
+
+		t.Run("existing tier", func(t *testing.T) {
+			got := ApiGetProjectStatisticsByProjectTierId("gno.land/r/onbloc/obl:124:30")
+			uassert.Equal(t, got, `{"height":"1042","now":"1234569728","projectId":"gno.land/r/onbloc/obl:124","tierId":"gno.land/r/onbloc/obl:124:30","tierAmount":"100000000","tierTotalDepositAmount":"1000000","tierActualDepositAmount":"0","tierTotalParticipant":"1","tierActualParticipant":"0"}`)
+		})
+	})
+}

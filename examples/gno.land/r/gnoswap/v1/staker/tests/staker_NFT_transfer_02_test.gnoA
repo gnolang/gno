@@ -1,0 +1,79 @@
+// User 'A' mints and stake NFT (with one click staking)
+// user 'A' can collect reward
+
+package staker
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+
+	pl "gno.land/r/gnoswap/v1/pool"
+
+	"gno.land/r/onbloc/bar"
+	"gno.land/r/onbloc/qux"
+)
+
+func TestNftTransfer02(t *testing.T) {
+	testInit(t)
+	testPoolCreatePool(t)
+	testStakerMintAndStake(t)
+	testCollectReward01(t)
+}
+
+func testInit(t *testing.T) {
+	t.Run("initial", func(t *testing.T) {
+		// set pool create fee to 0 for testing
+		std.TestSetRealm(adminRealm)
+		pl.SetPoolCreationFeeByAdmin(0)
+	})
+}
+
+func testPoolCreatePool(t *testing.T) {
+	t.Run("create pool", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		pl.CreatePool(barPath, quxPath, 500, "130621891405341611593710811006") // tick 10_000 ≈ x2.7
+		// tier 1
+		SetPoolTierByAdmin(`gno.land/r/onbloc/bar:gno.land/r/onbloc/qux:500`, 1)
+		std.TestSkipHeights(1)
+	})
+}
+
+func testStakerMintAndStake(t *testing.T) {
+	t.Run("mint and stake", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		bar.Approve(poolAddr, consts.UINT64_MAX)
+		qux.Approve(poolAddr, consts.UINT64_MAX)
+		std.TestSkipHeights(2)
+
+		positionId, _, _, _, _ := MintAndStake(
+			barPath, // token0
+			quxPath, // token1
+			500,     // fee
+			9000,    // tickLower
+			11000,   // tickUpper
+			"1000",  // amount0Desired
+			"1000",  // amount1Desired
+			"1",     // amount0Min
+			"1",     // amount1Min
+			max_timeout,
+		)
+	})
+}
+
+func testCollectReward01(t *testing.T) {
+	t.Run("collect reward", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		uassert.NotPanics(
+			t,
+			func() {
+				CollectReward(1, false)
+			},
+			`should not panic`,
+		)
+	})
+}

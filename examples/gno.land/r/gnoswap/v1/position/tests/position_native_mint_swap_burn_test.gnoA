@@ -1,0 +1,215 @@
+package position
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/common"
+
+	pl "gno.land/r/gnoswap/v1/pool"
+
+	"gno.land/r/demo/wugnot"
+	"gno.land/r/gnoswap/v1/gns"
+)
+
+func TestCoinMintSwapBurn(t *testing.T) {
+	testPoolInitCreatePool(t)
+	testMintPosition(t)
+	testUnclaimedFee(t)
+	testSwap(t)
+	testUnclaimedFeePos01Swap01(t)
+	testDecreaseWithNoUnwrap(t)
+	testDecreaseWithUnwrap(t)
+}
+
+func testPoolInitCreatePool(t *testing.T) {
+	t.Run("create pool", func(t *testing.T) {
+		// set pool create fee to 0 for testing
+		std.TestSetRealm(adminRealm)
+		pl.SetPoolCreationFeeByAdmin(0)
+
+		gns.Approve(poolAddr, pl.GetPoolCreationFee())
+		pl.CreatePool(consts.GNOT, consts.GNS_PATH, fee500, common.TickMathGetSqrtRatioAtTick(1).ToString())
+	})
+}
+
+func testMintPosition(t *testing.T) {
+	t.Run("mint position", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		gns.Approve(poolAddr, consts.UINT64_MAX)
+		wugnot.Approve(poolAddr, consts.UINT64_MAX)
+
+		wugnot.Approve(positionAddr, consts.UINT64_MAX) // FOR WRAP
+
+		std.TestIssueCoins(adminAddr, std.Coins{{"ugnot", 50000005}})
+		uassert.Equal(t, ugnotBalanceOf(t, adminAddr), uint64(50000005))
+
+		std.TestIssueCoins(positionAddr, std.Coins{{"ugnot", 200000000}})
+		uassert.Equal(t, ugnotBalanceOf(t, positionAddr), uint64(200000000))
+
+		banker := std.NewBanker(std.BankerTypeRealmIssue)
+		banker.SendCoins(adminAddr, positionAddr, std.Coins{{"ugnot", 50000005}})
+		std.TestSetOriginSend(std.Coins{{"ugnot", 50000005}}, nil)
+		uassert.Equal(t, ugnotBalanceOf(t, adminAddr), uint64(0))
+
+		adminOldWugnotBalance := wugnot.BalanceOf(adminAddr)
+		uassert.Equal(t, adminOldWugnotBalance, uint64(0))
+
+		positionId, liquidity, amount0, amount1 := Mint(
+			consts.GNOT,
+			consts.GNS_PATH,
+			fee500,
+			-8000,
+			8000,
+			"50000000",
+			"50000000",
+			"0",
+			"0",
+			max_timeout,
+			adminAddr,
+			adminAddr,
+			"",
+		)
+		std.TestSetOriginSend(std.Coins{{"ugnot", 0}}, nil)
+
+		uassert.Equal(t, positionId, uint64(1))
+		uassert.Equal(t, GetNextId(), uint64(2))
+		uassert.Equal(t, amount0, "49984837")
+		uassert.Equal(t, amount1, "50000000")
+
+		position := MustGetPosition(positionId)
+		uassert.Equal(t, position.nonce.ToString(), "0")
+		uassert.Equal(t, position.operator, consts.ZERO_ADDRESS)
+		uassert.Equal(t, position.poolKey, "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:500")
+		uassert.Equal(t, position.tickLower, int32(-8000))
+		uassert.Equal(t, position.tickUpper, int32(8000))
+		uassert.Equal(t, position.liquidity.ToString(), "151645407")
+		uassert.Equal(t, position.feeGrowthInside0LastX128.ToString(), "0")
+		uassert.Equal(t, position.feeGrowthInside1LastX128.ToString(), "0")
+		uassert.Equal(t, position.tokensOwed0.ToString(), "0")
+		uassert.Equal(t, position.tokensOwed1.ToString(), "0")
+		uassert.Equal(t, position.burned, false)
+
+		// SPEND ALL WUGNOT
+		uassert.Equal(t, wugnot.BalanceOf(adminAddr), uint64(0))
+		uassert.Equal(t, ugnotBalanceOf(t, adminAddr), uint64(15168))
+	})
+}
+
+func testUnclaimedFee(t *testing.T) {
+	t.Run("unclaimed fee", func(t *testing.T) {
+		amount0, amount1 := unclaimedFee(1)
+
+		uassert.Equal(t, amount0.ToString(), "0")
+		uassert.Equal(t, amount1.ToString(), "0")
+	})
+}
+
+func testSwap(t *testing.T) {
+	t.Run("swap", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		// wrap some ugnot
+		std.TestSetOriginSend(std.Coins{{"ugnot", 1234567}}, nil)
+		wugnot.Deposit()
+
+		wugnot.Approve(poolAddr, consts.UINT64_MAX)
+		wugnot.Approve(positionAddr, consts.UINT64_MAX)
+		wugnot.Approve(routerAddr, consts.UINT64_MAX)
+
+		std.TestSetRealm(rouRealm)
+		amount0, amount1 := pl.Swap(
+			consts.WUGNOT_PATH,
+			consts.GNS_PATH,
+			fee500,
+			adminAddr,
+			true,
+			"1234567",
+			consts.MIN_PRICE,
+			adminAddr,
+		)
+
+		uassert.Equal(t, amount0, "1234567")
+		uassert.Equal(t, amount1, "-1224110")
+
+		position := MustGetPosition(uint64(1))
+		uassert.Equal(t, position.nonce.ToString(), "0")
+		uassert.Equal(t, position.operator, consts.ZERO_ADDRESS)
+		uassert.Equal(t, position.poolKey, "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:500")
+		uassert.Equal(t, position.tickLower, int32(-8000))
+		uassert.Equal(t, position.tickUpper, int32(8000))
+		uassert.Equal(t, position.liquidity.ToString(), "151645407")
+		uassert.Equal(t, position.feeGrowthInside0LastX128.ToString(), "0")
+		uassert.Equal(t, position.feeGrowthInside1LastX128.ToString(), "0")
+		uassert.Equal(t, position.tokensOwed0.ToString(), "0")
+		uassert.Equal(t, position.tokensOwed1.ToString(), "0")
+		uassert.Equal(t, position.burned, false)
+	})
+}
+
+func testUnclaimedFeePos01Swap01(t *testing.T) {
+	t.Run("unclaimed fee pos 01 swap 01", func(t *testing.T) {
+		amount0, amount1 := unclaimedFee(1)
+
+		uassert.Equal(t, amount0.ToString(), "617")
+		uassert.Equal(t, amount1.ToString(), "0")
+	})
+}
+
+func testDecreaseWithNoUnwrap(t *testing.T) {
+	t.Run("decrease with no unwrap", func(t *testing.T) {
+		// no unwrap => receive with wugnot
+
+		oldWugnotBalance := wugnot.BalanceOf(adminAddr)
+		oldUgnotBalance := ugnotBalanceOf(t, adminAddr)
+		uassert.Equal(t, oldWugnotBalance, uint64(0))
+		uassert.Equal(t, oldUgnotBalance, uint64(15168))
+
+		std.TestSetRealm(adminRealm)
+		DecreaseLiquidity(
+			uint64(1),
+			"15164540",
+			"0",
+			"0",
+			int64(9999999999),
+			false,
+		)
+
+		newWugnotBalance := wugnot.BalanceOf(adminAddr)
+		newUgnotBalance := ugnotBalanceOf(t, adminAddr)
+
+		uassert.Equal(t, newWugnotBalance, uint64(5122489))
+		uassert.Equal(t, newUgnotBalance, uint64(15168)) // stays same, we didn't unwrap
+	})
+}
+
+func testDecreaseWithUnwrap(t *testing.T) {
+	t.Run("decrease with unwrap", func(t *testing.T) {
+		// unwrap => receive with ugnot
+
+		oldWugnotBalance := wugnot.BalanceOf(adminAddr)
+		oldUgnotBalance := ugnotBalanceOf(t, adminAddr)
+		uassert.Equal(t, oldWugnotBalance, uint64(5122489))
+		uassert.Equal(t, oldUgnotBalance, uint64(15168))
+
+		std.TestSetRealm(adminRealm)
+		DecreaseLiquidity(
+			uint64(1),
+			"13648086",
+			"0",
+			"0",
+			int64(9999999999),
+			true,
+		)
+
+		newWugnotBalance := wugnot.BalanceOf(adminAddr)
+		newUgnotBalance := ugnotBalanceOf(t, adminAddr)
+
+		uassert.Equal(t, newWugnotBalance, uint64(5122489))
+		uassert.Equal(t, newUgnotBalance, uint64(4624858))
+	})
+}

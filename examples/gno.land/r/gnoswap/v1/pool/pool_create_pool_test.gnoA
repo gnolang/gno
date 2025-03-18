@@ -1,0 +1,39 @@
+package pool
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/demo/uassert"
+
+	"gno.land/r/gnoswap/v1/common"
+
+	"gno.land/r/gnoswap/v1/gns"
+)
+
+func TestCreatePool(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	gns.Approve(poolAddr, poolCreationFee*10)
+
+	t.Run("succeeds for low fee pool", func(t *testing.T) {
+		CreatePool(barPath, fooPath, uint32(500), common.TickMathGetSqrtRatioAtTick(0).ToString())
+	})
+
+	t.Run("succeeds for medium fee pool", func(t *testing.T) {
+		CreatePool(barPath, fooPath, uint32(3000), common.TickMathGetSqrtRatioAtTick(0).ToString())
+	})
+
+	t.Run("succeeds for high fee pool", func(t *testing.T) {
+		CreatePool(barPath, fooPath, uint32(10000), common.TickMathGetSqrtRatioAtTick(0).ToString())
+	})
+
+	t.Run("fails if token a == token b", func(t *testing.T) {
+		uassert.PanicsWithMessage(
+			t,
+			`[GNOSWAP-POOL-011] same token used in single pool || expected token0Path(gno.land/r/onbloc/foo) != token1Path(gno.land/r/onbloc/foo)`,
+			func() {
+				CreatePool(fooPath, fooPath, uint32(500), common.TickMathGetSqrtRatioAtTick(0).ToString())
+			},
+		)
+	})
+}

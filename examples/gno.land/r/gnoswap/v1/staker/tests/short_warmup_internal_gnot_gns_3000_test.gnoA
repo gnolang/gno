@@ -1,0 +1,139 @@
+package staker
+
+import (
+	"math"
+	"std"
+	"testing"
+
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+	en "gno.land/r/gnoswap/v1/emission"
+	pl "gno.land/r/gnoswap/v1/pool"
+	pn "gno.land/r/gnoswap/v1/position"
+
+	"gno.land/r/gnoswap/v1/gnft"
+
+	"gno.land/r/demo/wugnot"
+	"gno.land/r/gnoswap/v1/gns"
+)
+
+func TestShortWarmUpInternalDefaultPoolCollect(t *testing.T) {
+	testInit(t)
+	testCreatePool(t)
+	testMintWugnotGnsPos01(t)
+	testStakeToken01(t)
+	testCollectReward01(t)
+}
+
+func testInit(t *testing.T) {
+	t.Run("init pool tiers", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		// override warm-up period for testing
+		changeWarmup(t, 0, 150)
+		changeWarmup(t, 1, 300)
+		changeWarmup(t, 2, 900)
+		changeWarmup(t, 3, math.MaxInt64)
+
+		// set unstaking fee to 0
+		SetUnStakingFeeByAdmin(0)
+
+		// set pool creation fee to 0
+		pl.SetPoolCreationFeeByAdmin(0)
+
+		// set community pool distribution to 0% (give it to devOps)
+		en.ChangeDistributionPctByAdmin(
+			1, 7500,
+			2, 2500,
+			3, 0,
+			4, 0,
+		)
+
+		// prepare wugnot
+		std.TestIssueCoins(adminAddr, std.Coins{{"ugnot", 100_000_000_000_000}})
+		banker := std.NewBanker(std.BankerTypeRealmSend)
+		banker.SendCoins(adminAddr, consts.WUGNOT_ADDR, std.Coins{{"ugnot", 50_000_000_000_000}})
+		std.TestSetOriginSend(std.Coins{{"ugnot", 50_000_000_000_000}}, nil)
+		wugnot.Deposit()
+		std.TestSetOriginSend(nil, nil)
+
+		std.TestSkipHeights(1)
+	})
+}
+
+func testCreatePool(t *testing.T) {
+	t.Run("create pool", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		pl.CreatePool(wugnotPath, gnsPath, fee3000, "79228162514264337593543950337") // current tier 1
+
+		std.TestSkipHeights(1)
+		// 1 block minted
+		// 75% of emission to staker (it is unclaimable amount, because we don't have any staked position)
+	})
+}
+
+func testMintWugnotGnsPos01(t *testing.T) {
+	t.Run("mint wugnot gns 3000", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		wugnot.Approve(poolAddr, consts.UINT64_MAX)
+		gns.Approve(poolAddr, consts.UINT64_MAX)
+
+		positionId, liquidity, amount0, amount1 := pn.Mint(
+			wugnotPath,   // token0
+			gnsPath,      // token1
+			fee3000,      // fee
+			int32(-1020), // tickLower
+			int32(1020),  // tickUpper
+			"50",         // amount0Desired
+			"50",         // amount1Desired
+			"1",          // amount0Min
+			"1",          // amount1Min
+			max_timeout,
+			adminAddr,
+			adminAddr,
+			"",
+		)
+
+		uassert.Equal(t, positionId, uint64(1))
+		uassert.Equal(t, gnft.MustOwnerOf(positionIdFrom(positionId)), adminAddr)
+
+		std.TestSkipHeights(1)
+		// 1 block minted
+		// 75% of emission to staker (it is unclaimable amount, because we don't have any staked position)
+	})
+}
+
+func testStakeToken01(t *testing.T) {
+	t.Run("stake token 1", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		gnft.Approve(stakerAddr, positionIdFrom(1))
+		StakeToken(1, "")
+		std.TestSkipHeights(1)
+		// 1 block staked
+		// 75% of emission to staker (it is unclaimable amount, because we don't have any staked position)
+	})
+}
+
+func testCollectReward01(t *testing.T) {
+	t.Run("collect reward", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		// 3 block of staker's emission reward == 32106164
+		// should be sent to community pool
+		// - it is duration when no position is staked
+
+		// 1 block of staker's emission reward == 10702055
+		// 30% as reward, 70% as penalty for position_01
+
+		gnsBefore := gns.BalanceOf(admin)
+		CollectReward(1, false)
+		gnsAfter := gns.BalanceOf(admin)
+
+		uassert.True(t, isInErrorRange(uint64(3210616), gnsAfter-gnsBefore))
+
+		std.TestSkipHeights(1)
+	})
+}
