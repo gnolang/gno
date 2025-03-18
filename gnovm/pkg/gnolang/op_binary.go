@@ -354,18 +354,6 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	if err := checkSame(lv.T, rv.T, ""); err != nil {
 		return false
 	}
-	if lnt, ok := lv.T.(*NativeType); ok {
-		if rnt, ok := rv.T.(*NativeType); ok {
-			if lnt.Type != rnt.Type {
-				return false
-			}
-			lrv := lv.V.(*NativeValue).Value.Interface()
-			rrv := rv.V.(*NativeValue).Value.Interface()
-			return lrv == rrv
-		} else {
-			return false
-		}
-	}
 	switch lv.T.Kind() {
 	case BoolKind:
 		return (lv.GetBool() == rv.GetBool())

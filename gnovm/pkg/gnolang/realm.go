@@ -1084,8 +1084,6 @@ func getChildObjects(val Value, more []Value) []Value {
 	case *HeapItemValue:
 		more = getSelfOrChildObjects(cv.Value.V, more)
 		return more
-	case *NativeValue:
-		panic("native values not supported")
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %v",
@@ -1239,8 +1237,6 @@ func copyTypeWithRefs(typ Type) Type {
 			Dir: ct.Dir,
 			Elt: refOrCopyType(ct.Elt),
 		}
-	case *NativeType:
-		panic("cannot copy native types")
 	case blockType:
 		return blockType{}
 	case *tupleType:
@@ -1430,8 +1426,6 @@ func copyValueWithRefs(val Value) Value {
 			Value:      refOrCopyValue(cv.Value),
 		}
 		return hiv
-	case *NativeValue:
-		panic("native values not supported")
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %v",
@@ -1509,8 +1503,6 @@ func fillType(store Store, typ Type) Type {
 	case *ChanType:
 		ct.Elt = fillType(store, ct.Elt)
 		return ct
-	case *NativeType:
-		panic("cannot fill native types")
 	case blockType:
 		return ct // nothing to do
 	case *tupleType:
@@ -1597,8 +1589,6 @@ func fillTypesOfValue(store Store, val Value) Value {
 			fillTypesTV(store, ctv)
 		}
 		return cv
-	case *NativeValue:
-		panic("native values not supported")
 	case RefValue: // do nothing
 		return cv
 	case *HeapItemValue:

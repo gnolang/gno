@@ -400,10 +400,6 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 		return cv
 	case *BoundMethodValue:
 		return cv
-	case *NativeValue:
-		// XXX allow PointerValue.Assign2 to pass nil for oo1/oo2.
-		// panic("realm logic for native values not supported")
-		return nil
 	case *Block:
 		return cv
 	case RefValue:

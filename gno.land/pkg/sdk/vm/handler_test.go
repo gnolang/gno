@@ -51,7 +51,7 @@ func Test_parseQueryEval_panic(t *testing.T) {
 	t.Parallel()
 
 	assert.PanicsWithValue(t, panicInvalidQueryEvalData, func() {
-		parseQueryEvalData("gno.land/r/demo/users")
+		parseQueryEvalData("gno.land/r/sys/users")
 	})
 }
 
@@ -114,8 +114,8 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 			addr := crypto.AddressFromPreimage([]byte("addr1"))
 			acc := env.acck.NewAccountWithAddress(ctx, addr)
 			env.acck.SetAccount(ctx, acc)
-			env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
-			assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+			env.bankk.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+			assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 			// Create test package.
 			files := []*gnovm.MemFile{
@@ -207,8 +207,8 @@ func TestVmHandlerQuery_Funcs(t *testing.T) {
 			addr := crypto.AddressFromPreimage([]byte("addr1"))
 			acc := env.acck.NewAccountWithAddress(ctx, addr)
 			env.acck.SetAccount(ctx, acc)
-			env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
-			assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+			env.bankk.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+			assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 			// Create test package.
 			files := []*gnovm.MemFile{
@@ -285,8 +285,8 @@ func TestVmHandlerQuery_File(t *testing.T) {
 			addr := crypto.AddressFromPreimage([]byte("addr1"))
 			acc := env.acck.NewAccountWithAddress(ctx, addr)
 			env.acck.SetAccount(ctx, acc)
-			env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
-			assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+			env.bankk.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+			assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 			// Create test package.
 			files := []*gnovm.MemFile{
@@ -402,8 +402,8 @@ func TestVmHandlerQuery_Doc(t *testing.T) {
 			addr := crypto.AddressFromPreimage([]byte("addr1"))
 			acc := env.acck.NewAccountWithAddress(ctx, addr)
 			env.acck.SetAccount(ctx, acc)
-			env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
-			assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+			env.bankk.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+			assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 			// Create test package.
 			files := []*gnovm.MemFile{
