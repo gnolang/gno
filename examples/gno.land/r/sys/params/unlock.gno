@@ -9,12 +9,10 @@ const (
 	lockTransferTitle   = "Proposal to lock the transfer of ugnot."
 )
 
-func ProposeUnlockTransfer() dao.ProposalID {
-	req := NewSysParamStringPropRequest(bankModulePrefix, "p", restrictedDenomsKey, "")
-	return propose(req)
+func ProposeUnlockTransferRequest() dao.ProposalRequest {
+	return NewSysParamStringPropRequestWithTitle(bankModulePrefix, "p", restrictedDenomsKey, "", unlockTransferTitle)
 }
 
-func ProposeLockTransfer() dao.ProposalID {
-	req := NewSysParamStringPropRequest(bankModulePrefix, "p", restrictedDenomsKey, "ugnot")
-	return propose(req)
+func ProposeLockTransferRequest() dao.ProposalRequest {
+	return NewSysParamStringPropRequestWithTitle(bankModulePrefix, "p", restrictedDenomsKey, "ugnot", lockTransferTitle)
 }

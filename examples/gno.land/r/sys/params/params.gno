@@ -33,6 +33,15 @@ func NewSysParamStringPropRequest(module, submodule, name string, value string) 
 	return newPropRequest(
 		syskey(module, submodule, name),
 		func() { prms.SetSysParamString(module, submodule, name, value) },
+		"",
+	)
+}
+
+func NewSysParamStringPropRequestWithTitle(module, submodule, name string, value string, title string) dao.ProposalRequest {
+	return newPropRequest(
+		syskey(module, submodule, name),
+		func() { prms.SetSysParamString(module, submodule, name, value) },
+		title,
 	)
 }
 
@@ -40,6 +49,7 @@ func NewSysParamInt64PropRequest(module, submodule, name string, value int64) da
 	return newPropRequest(
 		syskey(module, submodule, name),
 		func() { prms.SetSysParamInt64(module, submodule, name, value) },
+		"",
 	)
 }
 
@@ -47,6 +57,7 @@ func NewSysParamUint64PropRequest(module, submodule, name string, value uint64) 
 	return newPropRequest(
 		syskey(module, submodule, name),
 		func() { prms.SetSysParamUint64(module, submodule, name, value) },
+		"",
 	)
 }
 
@@ -54,6 +65,7 @@ func NewSysParamBoolPropRequest(module, submodule, name string, value bool) dao.
 	return newPropRequest(
 		syskey(module, submodule, name),
 		func() { prms.SetSysParamBool(module, submodule, name, value) },
+		"",
 	)
 }
 
@@ -61,6 +73,7 @@ func NewSysParamBytesPropRequest(module, submodule, name string, value []byte) d
 	return newPropRequest(
 		syskey(module, submodule, name),
 		func() { prms.SetSysParamBytes(module, submodule, name, value) },
+		"",
 	)
 }
 
@@ -68,19 +81,22 @@ func NewSysParamStringsPropRequest(module, submodule, name string, value []strin
 	return newPropRequest(
 		syskey(module, submodule, name),
 		func() { prms.SetSysParamStrings(module, submodule, name, value) },
+		"",
 	)
 }
 
-func newPropRequest(key string, fn func()) dao.ProposalRequest {
+func newPropRequest(key string, fn func(), title string) dao.ProposalRequest {
 	callback := func(dao.Metadata) error {
 		fn()
 		std.Emit("set", "key", key) // TODO document, make const, make consistent. 'k'??
 		return nil
 	}
-	return dao.NewProposalRequestBuilder("Set new sys/params key").
+
+	if title == "" {
+		title = "Set new sys/params key"
+	}
+
+	return dao.NewProposalRequestBuilder(title).
 		WithDescription("This proposal wants to add a new key to sys/params: " + key).
 		WithCallback(callback).Build()
-}
-func propose(pr dao.ProposalRequest) dao.ProposalID {
-	return dao.MustCreateProposal(pr)
 }

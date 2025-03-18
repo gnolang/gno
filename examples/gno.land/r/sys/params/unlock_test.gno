@@ -15,17 +15,21 @@ func init() {
 }
 
 func TestProUnlockTransfer(t *testing.T) {
-	id := ProposeUnlockTransfer()
+	pr := ProposeUnlockTransferRequest()
+	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+	id := dao.MustCreateProposal(pr)
 	p, err := dao.GetProposal(id)
 	urequire.NoError(t, err)
 	urequire.Equal(t, unlockTransferTitle, p.Title())
 }
 
 func TestFailUnlockTransfer(t *testing.T) {
-	id := ProposeUnlockTransfer()
+	pr := ProposeUnlockTransferRequest()
+	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+	id := dao.MustCreateProposal(pr)
 	urequire.PanicsWithMessage(
 		t,
-		"TODO",
+		"proposal didn't reach supermajority yet: 66",
 		func() {
 			dao.ExecuteProposal(id)
 		},
@@ -33,7 +37,9 @@ func TestFailUnlockTransfer(t *testing.T) {
 }
 
 func TestExeUnlockTransfer(t *testing.T) {
-	id := ProposeUnlockTransfer()
+	pr := ProposeUnlockTransferRequest()
+	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+	id := dao.MustCreateProposal(pr)
 	p, err := dao.GetProposal(id)
 	urequire.NoError(t, err)
 	// urequire.True(t, dao.Active == p.Status()) // TODO
