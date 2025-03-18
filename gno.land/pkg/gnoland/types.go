@@ -23,6 +23,11 @@ var (
 )
 
 const (
+	// MaxSessionsPerAccount is the maximum number of sessions allowed per account
+	MaxSessionsPerAccount = 64
+)
+
+const (
 	// XXX rename these to flagXyz.
 
 	// flagUnrestricted allows flagUnrestricted transfers.
@@ -64,8 +69,43 @@ type GnoAccount struct {
 	Sessions   []GnoSession `json:"sessions" yaml:"sessions"`
 }
 
+// gc (garbage collect) removes expired sessions from the account.
+// It returns the number of sessions that were removed.
+func (ga *GnoAccount) gc() int {
+	if len(ga.Sessions) == 0 {
+		return 0
+	}
+
+	now := time.Now()
+	initialCount := len(ga.Sessions)
+	validSessions := make([]GnoSession, 0, initialCount)
+
+	// Keep only non-expired sessions
+	for _, session := range ga.Sessions {
+		if session.ExpirationTime.IsZero() || now.Before(session.ExpirationTime) {
+			validSessions = append(validSessions, session)
+		}
+	}
+
+	// If we found expired sessions, update the slice
+	if len(validSessions) < initialCount {
+		ga.Sessions = validSessions
+		return initialCount - len(validSessions)
+	}
+
+	return 0 // No sessions were removed
+}
+
 // CreateSession implements Session interface with GnoSession specifics
 func (ga *GnoAccount) CreateSession(pubKey crypto.PubKey) (std.Session, error) {
+	// Clean up expired sessions before adding new ones
+	ga.gc()
+
+	// Check if we're at the maximum number of sessions
+	if len(ga.Sessions) >= MaxSessionsPerAccount {
+		return nil, fmt.Errorf("maximum number of sessions reached (%d)", MaxSessionsPerAccount)
+	}
+
 	// Check if a session with this pubKey already exists
 	for _, session := range ga.Sessions {
 		if session.GetPubKey().Equals(pubKey) {
