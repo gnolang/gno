@@ -16,6 +16,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/rs/xid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -78,7 +79,7 @@ func TestCloseState(t *testing.T) {
 
 		// Try to close it again.
 		require.Error(t, rsc.Close())
-		require.True(t, rsc.isClosed())
+		assert.True(t, rsc.isClosed())
 	})
 
 	t.Run("connection cleanup", func(t *testing.T) {
@@ -103,7 +104,7 @@ func TestCloseState(t *testing.T) {
 		require.NoError(t, rsc.Close())
 		require.True(t, rsc.isClosed())
 		rsc.connLock.RLock()
-		require.Nil(t, rsc.conn)
+		assert.Nil(t, rsc.conn)
 		rsc.connLock.RUnlock()
 	})
 }
@@ -242,7 +243,7 @@ func TestClientRequest(t *testing.T) {
 		rsc.Close()
 		remotePK, err = rsc.PubKey()
 		require.Nil(t, remotePK)
-		require.ErrorIs(t, err, ErrSendingRequestFailed)
+		assert.ErrorIs(t, err, ErrSendingRequestFailed)
 	})
 
 	t.Run("Sign request", func(t *testing.T) {
@@ -301,7 +302,7 @@ func TestClientRequest(t *testing.T) {
 		rsc.Close()
 		remoteSignature, err = rsc.Sign([]byte("sign bytes"))
 		require.Nil(t, remoteSignature)
-		require.ErrorIs(t, err, ErrSendingRequestFailed)
+		assert.ErrorIs(t, err, ErrSendingRequestFailed)
 	})
 
 	t.Run("Ping request", func(t *testing.T) {
@@ -338,7 +339,7 @@ func TestClientRequest(t *testing.T) {
 		// Test a failed Ping request.
 		rsc.Close()
 		err = rsc.Ping()
-		require.ErrorIs(t, err, ErrSendingRequestFailed)
+		assert.ErrorIs(t, err, ErrSendingRequestFailed)
 	})
 
 	t.Run("String method and cache", func(t *testing.T) {
@@ -362,7 +363,7 @@ func TestClientRequest(t *testing.T) {
 		require.NotNil(t, pk)
 		require.NoError(t, err)
 		require.Contains(t, rsc.String(), pk.Address().String())
-		require.Contains(t, rsc.addrCache, pk.Address().String())
+		assert.Contains(t, rsc.addrCache, pk.Address().String())
 		rss.Stop()
 		rsc.Close()
 	})
@@ -453,7 +454,7 @@ func TestClientConnection(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			require.NoError(t, rsc.ensureConnection())
+			assert.NoError(t, rsc.ensureConnection())
 		}()
 		time.Sleep(10 * time.Millisecond)
 		rsc.Close()
@@ -515,7 +516,7 @@ func TestClientConnection(t *testing.T) {
 		)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
-		require.NoError(t, rsc.ensureConnection())
+		assert.NoError(t, rsc.ensureConnection())
 		rss.Stop()
 		rsc.Close()
 	})
@@ -595,6 +596,6 @@ func TestClientConnection(t *testing.T) {
 		defer tcpConn.Close()
 		conn, err = r.ConfigureTCPConnection(tcpConn.(*net.TCPConn), ed25519.GenPrivKey(), nil, 0, 0)
 		require.Nil(t, conn)
-		require.ErrorIs(t, err, r.ErrSecretConnFailed)
+		assert.ErrorIs(t, err, r.ErrSecretConnFailed)
 	})
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
 )
@@ -52,7 +53,7 @@ func TestNewSignerServer(t *testing.T) {
 			log.NewNoopLogger(),
 		)
 		require.Nil(t, signerServer)
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("invalid auth keys file", func(t *testing.T) {
@@ -75,7 +76,7 @@ func TestNewSignerServer(t *testing.T) {
 			log.NewNoopLogger(),
 		)
 		require.Nil(t, signerServer)
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("valid auth keys file with valid authorized keys", func(t *testing.T) {
@@ -111,7 +112,7 @@ func TestNewSignerServer(t *testing.T) {
 			log.NewNoopLogger(),
 		)
 		require.NotNil(t, signerServer)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 }
 
@@ -121,19 +122,19 @@ func TestGenesisValidatorInfoFromSigner(t *testing.T) {
 	t.Run("nil signer", func(t *testing.T) {
 		t.Parallel()
 
-		require.Error(t, printValidatorInfo(nil, log.NewNoopLogger()))
+		assert.Error(t, printValidatorInfo(nil, log.NewNoopLogger()))
 	})
 
 	t.Run("erroring signer", func(t *testing.T) {
 		t.Parallel()
 
-		require.Error(t, printValidatorInfo(types.NewErroringMockSigner(), log.NewNoopLogger()))
+		assert.Error(t, printValidatorInfo(types.NewErroringMockSigner(), log.NewNoopLogger()))
 	})
 
 	t.Run("valid signer", func(t *testing.T) {
 		t.Parallel()
 
-		require.NoError(t, printValidatorInfo(types.NewMockSigner(), log.NewNoopLogger()))
+		assert.NoError(t, printValidatorInfo(types.NewMockSigner(), log.NewNoopLogger()))
 	})
 }
 
@@ -173,7 +174,7 @@ func TestRunSignerServer(t *testing.T) {
 			LogLevel: "invalid",
 		}
 
-		require.Error(t, RunSignerServer(
+		assert.Error(t, RunSignerServer(
 			serverFlags,
 			types.NewMockSigner(),
 			commands.NewTestIO(),
@@ -185,7 +186,7 @@ func TestRunSignerServer(t *testing.T) {
 
 		serverFlags := &ServerFlags{}
 
-		require.Error(t, RunSignerServer(
+		assert.Error(t, RunSignerServer(
 			serverFlags,
 			nil,
 			commands.NewTestIO(),
@@ -206,7 +207,7 @@ func TestRunSignerServer(t *testing.T) {
 			},
 		}
 
-		require.Error(t, RunSignerServer(
+		assert.Error(t, RunSignerServer(
 			serverFlags,
 			types.NewMockSigner(),
 			commands.NewDefaultIO(),
@@ -225,7 +226,7 @@ func TestRunSignerServer(t *testing.T) {
 		protocol, address := osm.ProtocolAndAddress(serverFlags.ListenAddresses)
 		net.Listen(protocol, address)
 
-		require.Error(t, RunSignerServer(
+		assert.Error(t, RunSignerServer(
 			serverFlags,
 			types.NewMockSigner(),
 			commands.NewDefaultIO(),
@@ -240,7 +241,7 @@ func TestRunSignerServer(t *testing.T) {
 			LogLevel:        zapcore.ErrorLevel.String(),
 		}
 
-		require.ErrorIs(t, RunSignerServer(
+		assert.ErrorIs(t, RunSignerServer(
 			serverFlags,
 			&mockSignerCloseFail{privKey: ed25519.GenPrivKey()},
 			commands.NewDefaultIO(),
@@ -263,7 +264,7 @@ func TestRunSignerServer(t *testing.T) {
 			syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 		}()
 
-		require.NoError(t, RunSignerServer(
+		assert.NoError(t, RunSignerServer(
 			serverFlags,
 			types.NewMockSigner(),
 			commands.NewDefaultIO(),

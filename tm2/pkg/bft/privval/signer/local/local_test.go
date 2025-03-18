@@ -5,6 +5,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,7 +16,7 @@ func TestStringer(t *testing.T) {
 	ls, err := NewLocalSigner(filePath)
 	require.NotNil(t, ls)
 	require.NoError(t, err)
-	require.Contains(t, ls.String(), ls.key.Address.String())
+	assert.Contains(t, ls.String(), ls.key.Address.String())
 }
 
 func TestNewLocalSigner(t *testing.T) {
@@ -36,7 +37,7 @@ func TestNewLocalSigner(t *testing.T) {
 
 		// Compare the loaded file key with the original.
 		require.Equal(t, ls.key, loaded.key)
-		require.Nil(t, ls.Close())
+		assert.Nil(t, ls.Close())
 	})
 
 	t.Run("read-only file path", func(t *testing.T) {
@@ -51,7 +52,7 @@ func TestNewLocalSigner(t *testing.T) {
 		ls, err := NewLocalSigner(filePath)
 		require.Nil(t, ls)
 		require.Error(t, err)
-		require.Nil(t, ls.Close())
+		assert.Nil(t, ls.Close())
 	})
 
 	t.Run("simple valid flow", func(t *testing.T) {
@@ -72,6 +73,6 @@ func TestNewLocalSigner(t *testing.T) {
 		require.NoError(t, err)
 
 		require.True(t, pk.VerifyBytes(signBytes, signature))
-		require.Nil(t, ls.Close())
+		assert.Nil(t, ls.Close())
 	})
 }

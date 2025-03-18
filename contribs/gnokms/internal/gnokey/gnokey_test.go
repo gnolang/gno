@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,7 +22,7 @@ func TestNewGnokeyCmd(t *testing.T) {
 		require.NotNil(t, cmd)
 		cmd.SetOutput(commands.WriteNopCloser(new(bytes.Buffer)))
 
-		require.Error(t, cmd.ParseAndRun(context.Background(), []string{}))
+		assert.Error(t, cmd.ParseAndRun(context.Background(), []string{}))
 	})
 
 	t.Run("unknown keyname", func(t *testing.T) {
@@ -30,7 +31,7 @@ func TestNewGnokeyCmd(t *testing.T) {
 		cmd := NewGnokeyCmd(commands.NewTestIO())
 		require.NotNil(t, cmd)
 
-		require.Error(t, cmd.ParseAndRun(context.Background(), []string{"unknown"}))
+		assert.Error(t, cmd.ParseAndRun(context.Background(), []string{"unknown"}))
 	})
 
 	t.Run("valid keyname", func(t *testing.T) {
@@ -45,7 +46,7 @@ func TestNewGnokeyCmd(t *testing.T) {
 		io.SetIn(strings.NewReader(fmt.Sprintf("%s\n", keyPassword)))
 
 		cmd := NewGnokeyCmd(io)
-		require.Error(
+		assert.Error(
 			t,
 			cmd.ParseAndRun(
 				context.Background(),

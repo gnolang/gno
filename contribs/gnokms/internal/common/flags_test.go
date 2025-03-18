@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,7 +16,7 @@ func TestRegistersDontPanic(t *testing.T) {
 	t.Run("auth flags", func(t *testing.T) {
 		t.Parallel()
 
-		require.NotPanics(t, func() {
+		assert.NotPanics(t, func() {
 			authFlags := &AuthFlags{}
 			authFlags.RegisterFlags(&flag.FlagSet{})
 		})
@@ -25,7 +26,7 @@ func TestRegistersDontPanic(t *testing.T) {
 		t.Parallel()
 
 		if _, err := os.Getwd(); err == nil {
-			require.NotPanics(t, func() {
+			assert.NotPanics(t, func() {
 				serverFlags := &ServerFlags{}
 				serverFlags.RegisterFlags(&flag.FlagSet{})
 			})
@@ -39,7 +40,7 @@ func TestDefaultAuthKeysFile(t *testing.T) {
 	t.Run("valid context", func(t *testing.T) {
 		t.Parallel()
 
-		require.NotEmpty(t, defaultAuthKeysFile())
+		assert.NotEmpty(t, defaultAuthKeysFile())
 	})
 
 	t.Run("no user directory", func(t *testing.T) {
@@ -51,7 +52,7 @@ func TestDefaultAuthKeysFile(t *testing.T) {
 
 		// Should fallback to the current directory.
 		if wd, err := os.Getwd(); err == nil {
-			require.Contains(t, defaultAuthKeysFile(), wd)
+			assert.Contains(t, defaultAuthKeysFile(), wd)
 		}
 	})
 
@@ -80,6 +81,6 @@ func TestDefaultAuthKeysFile(t *testing.T) {
 		require.Panics(t, func() { defaultAuthKeysFile() })
 
 		// Reset the working directory permission for cleanup.
-		require.NoError(t, os.Chmod(workingDir, 0o700))
+		assert.NoError(t, os.Chmod(workingDir, 0o700))
 	})
 }

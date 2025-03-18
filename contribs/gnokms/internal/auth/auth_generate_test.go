@@ -8,6 +8,7 @@ import (
 
 	"github.com/gnolang/gno/contribs/gnokms/internal/common"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,7 +34,7 @@ func TestGenerate(t *testing.T) {
 		require.NoError(t, cmdErr)
 
 		// Check the command output.
-		require.Contains(t, buffer.String(), flags.AuthKeysFile)
+		assert.Contains(t, buffer.String(), flags.AuthKeysFile)
 	})
 
 	t.Run("read-only auth key file path", func(t *testing.T) {
@@ -53,7 +54,7 @@ func TestGenerate(t *testing.T) {
 
 		// Run the command.
 		cmdErr := cmd.ParseAndRun(context.Background(), []string{})
-		require.Error(t, cmdErr)
+		assert.Error(t, cmdErr)
 	})
 
 	t.Run("existent auth key file path", func(t *testing.T) {
@@ -79,6 +80,6 @@ func TestGenerate(t *testing.T) {
 			&authGenerateFlags{auth: flags, overwrite: true},
 			commands.NewTestIO(),
 		)
-		require.NoError(t, cmdErr)
+		assert.NoError(t, cmdErr)
 	})
 }

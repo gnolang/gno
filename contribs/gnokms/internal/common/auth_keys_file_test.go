@@ -8,6 +8,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,7 +20,7 @@ func TestValidate(t *testing.T) {
 
 		akf := AuthKeysFile{}
 
-		require.ErrorIs(t, akf.validate(), errInvalidPrivateKey)
+		assert.ErrorIs(t, akf.validate(), errInvalidPrivateKey)
 	})
 
 	t.Run("public key mismatch", func(t *testing.T) {
@@ -32,7 +33,7 @@ func TestValidate(t *testing.T) {
 			},
 		}
 
-		require.ErrorIs(t, akf.validate(), errPublicKeyMismatch)
+		assert.ErrorIs(t, akf.validate(), errPublicKeyMismatch)
 	})
 
 	t.Run("invalid public key", func(t *testing.T) {
@@ -48,7 +49,7 @@ func TestValidate(t *testing.T) {
 			ClientAuthorizedKeys: []string{"invalid"},
 		}
 
-		require.ErrorIs(t, akf.validate(), errInvalidPublicKey)
+		assert.ErrorIs(t, akf.validate(), errInvalidPublicKey)
 	})
 
 	t.Run("file path not set", func(t *testing.T) {
@@ -64,7 +65,7 @@ func TestValidate(t *testing.T) {
 			ClientAuthorizedKeys: []string{privKey.PubKey().String()},
 		}
 
-		require.ErrorIs(t, akf.validate(), errFilePathNotSet)
+		assert.ErrorIs(t, akf.validate(), errFilePathNotSet)
 	})
 
 	t.Run("valid AuthKeysFile", func(t *testing.T) {
@@ -81,7 +82,7 @@ func TestValidate(t *testing.T) {
 			filePath:             "filePath",
 		}
 
-		require.NoError(t, akf.validate())
+		assert.NoError(t, akf.validate())
 	})
 }
 
@@ -93,7 +94,7 @@ func TestSave(t *testing.T) {
 
 		akf := AuthKeysFile{}
 
-		require.Error(t, akf.Save())
+		assert.Error(t, akf.Save())
 	})
 
 	t.Run("invalid parent dir", func(t *testing.T) {
@@ -121,7 +122,7 @@ func TestSave(t *testing.T) {
 		require.Error(t, akf.Save())
 
 		// Restore the permissions for cleanup.
-		require.NoError(t, os.Chmod(basePath, 0o700))
+		assert.NoError(t, os.Chmod(basePath, 0o700))
 	})
 
 	t.Run("valid auth keys file", func(t *testing.T) {
@@ -138,7 +139,7 @@ func TestSave(t *testing.T) {
 			filePath:             filepath.Join(t.TempDir(), "file"),
 		}
 
-		require.NoError(t, akf.Save())
+		assert.NoError(t, akf.Save())
 	})
 }
 
@@ -149,7 +150,7 @@ func TestBech32ToEd25519PubKey(t *testing.T) {
 		t.Parallel()
 
 		_, err := Bech32ToEd25519PubKey("invalid")
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("invalid public key type", func(t *testing.T) {
@@ -158,7 +159,7 @@ func TestBech32ToEd25519PubKey(t *testing.T) {
 		privKey := secp256k1.GenPrivKey()
 
 		_, err := Bech32ToEd25519PubKey(privKey.PubKey().String())
-		require.ErrorIs(t, err, errInvalidPublicKeyType)
+		assert.ErrorIs(t, err, errInvalidPublicKeyType)
 	})
 
 	t.Run("valid public key type", func(t *testing.T) {
@@ -167,7 +168,7 @@ func TestBech32ToEd25519PubKey(t *testing.T) {
 		privKey := ed25519.GenPrivKey()
 
 		_, err := Bech32ToEd25519PubKey(privKey.PubKey().String())
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 }
 
@@ -181,7 +182,7 @@ func TestLoadAuthKeysFile(t *testing.T) {
 
 		authKeysFile, err := LoadAuthKeysFile(filePath)
 		require.Nil(t, authKeysFile)
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("invalid file", func(t *testing.T) {
@@ -193,7 +194,7 @@ func TestLoadAuthKeysFile(t *testing.T) {
 
 		authKeysFile, err := LoadAuthKeysFile(filePath)
 		require.Nil(t, authKeysFile)
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("valid file with invalid authorized keys", func(t *testing.T) {
@@ -216,7 +217,7 @@ func TestLoadAuthKeysFile(t *testing.T) {
 
 		authKeysFile, err := LoadAuthKeysFile(akf.filePath)
 		require.Nil(t, authKeysFile)
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("valid file", func(t *testing.T) {
@@ -239,7 +240,7 @@ func TestLoadAuthKeysFile(t *testing.T) {
 
 		authKeysFile, err := LoadAuthKeysFile(akf.filePath)
 		require.NotNil(t, authKeysFile)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 }
 
@@ -255,7 +256,7 @@ func TestAuthorizedKeys(t *testing.T) {
 
 		authorizedKeys, err := akf.AuthorizedKeys()
 		require.Nil(t, authorizedKeys)
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("valid authorized keys", func(t *testing.T) {
@@ -270,7 +271,7 @@ func TestAuthorizedKeys(t *testing.T) {
 		require.NotNil(t, authorizedKeys)
 		require.NoError(t, err)
 		require.Len(t, authorizedKeys, 1)
-		require.Equal(t, privKey.PubKey(), authorizedKeys[0])
+		assert.Equal(t, privKey.PubKey(), authorizedKeys[0])
 	})
 }
 
@@ -287,7 +288,7 @@ func TestGeneratePersistedAuthKeysFile(t *testing.T) {
 		require.Error(t, err)
 
 		// Restore the permissions for cleanup.
-		require.NoError(t, os.Chmod(basePath, 0o700))
+		assert.NoError(t, os.Chmod(basePath, 0o700))
 	})
 
 	t.Run("valid auth keys file", func(t *testing.T) {
@@ -297,6 +298,6 @@ func TestGeneratePersistedAuthKeysFile(t *testing.T) {
 			filepath.Join(t.TempDir(), "file"),
 		)
 		require.NotNil(t, authKeysFile)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 }

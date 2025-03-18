@@ -9,6 +9,7 @@ import (
 	"github.com/gnolang/gno/contribs/gnokms/internal/common"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,7 +29,7 @@ func TestAuthorizedAdd(t *testing.T) {
 
 		// Run the command.
 		cmdErr := cmd.ParseAndRun(context.Background(), []string{})
-		require.Error(t, cmdErr)
+		assert.Error(t, cmdErr)
 	})
 
 	t.Run("valid auth key file", func(t *testing.T) {
@@ -70,7 +71,7 @@ func TestAuthorizedAdd(t *testing.T) {
 		authKeysFile, err = common.LoadAuthKeysFile(flags.AuthKeysFile)
 		require.NotNil(t, authKeysFile)
 		require.NoError(t, err)
-		require.Equal(t, 1, len(authKeysFile.ClientAuthorizedKeys))
+		assert.Equal(t, 1, len(authKeysFile.ClientAuthorizedKeys))
 	})
 
 	t.Run("valid auth key file with invalid argument", func(t *testing.T) {
@@ -89,7 +90,7 @@ func TestAuthorizedAdd(t *testing.T) {
 
 		// Run exec authorized key argument.
 		err := execAuthAuthorizedAdd(flags, []string{authorizedKey}, commands.NewTestIO())
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("valid auth key file stored in read-only directory", func(t *testing.T) {
@@ -114,7 +115,7 @@ func TestAuthorizedAdd(t *testing.T) {
 		require.Error(t, err)
 
 		// Turn it back to read-write for cleanup.
-		require.NoError(t, os.Chmod(filepath.Dir(filePath), 0o700))
+		assert.NoError(t, os.Chmod(filepath.Dir(filePath), 0o700))
 	})
 }
 
@@ -134,7 +135,7 @@ func TestAuthorizedRemove(t *testing.T) {
 
 		// Run the command.
 		cmdErr := cmd.ParseAndRun(context.Background(), []string{})
-		require.Error(t, cmdErr)
+		assert.Error(t, cmdErr)
 	})
 
 	t.Run("valid auth key file", func(t *testing.T) {
@@ -183,7 +184,7 @@ func TestAuthorizedRemove(t *testing.T) {
 		authKeysFile, err = common.LoadAuthKeysFile(flags.AuthKeysFile)
 		require.NotNil(t, authKeysFile)
 		require.NoError(t, err)
-		require.Equal(t, 0, len(authKeysFile.ClientAuthorizedKeys))
+		assert.Equal(t, 0, len(authKeysFile.ClientAuthorizedKeys))
 	})
 
 	t.Run("valid auth key file with invalid argument", func(t *testing.T) {
@@ -202,7 +203,7 @@ func TestAuthorizedRemove(t *testing.T) {
 
 		// Run exec authorized key argument.
 		err := execAuthAuthorizedRemove(flags, []string{authorizedKey}, commands.NewTestIO())
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("valid auth key file stored in read-only directory", func(t *testing.T) {
@@ -227,7 +228,7 @@ func TestAuthorizedRemove(t *testing.T) {
 		require.Error(t, err)
 
 		// Turn it back to read-write for cleanup.
-		require.NoError(t, os.Chmod(filepath.Dir(filePath), 0o700))
+		assert.NoError(t, os.Chmod(filepath.Dir(filePath), 0o700))
 	})
 }
 
@@ -247,7 +248,7 @@ func TestAuthorizedList(t *testing.T) {
 
 		// Run the command.
 		cmdErr := cmd.ParseAndRun(context.Background(), []string{})
-		require.Error(t, cmdErr)
+		assert.Error(t, cmdErr)
 	})
 
 	t.Run("valid auth key file without authorized keys", func(t *testing.T) {
@@ -270,7 +271,7 @@ func TestAuthorizedList(t *testing.T) {
 		require.NoError(t, cmdErr)
 
 		// Check the command output.
-		require.Contains(t, buffer.String(), "No authorized keys found.")
+		assert.Contains(t, buffer.String(), "No authorized keys found.")
 	})
 
 	t.Run("valid auth key file with authorized keys", func(t *testing.T) {
@@ -312,5 +313,5 @@ func TestAuthorizedList(t *testing.T) {
 func TestAuthorizedCmd(t *testing.T) {
 	t.Parallel()
 
-	require.NotNil(t, newAuthAuthorizedCmd(nil, commands.NewTestIO()))
+	assert.NotNil(t, newAuthAuthorizedCmd(nil, commands.NewTestIO()))
 }

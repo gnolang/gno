@@ -10,6 +10,7 @@ import (
 	fstate "github.com/gnolang/gno/tm2/pkg/bft/privval/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,7 +25,7 @@ func TestPubKey(t *testing.T) {
 		pv := &PrivValidator{signer: types.NewMockSigner()}
 		pk, err := pv.PubKey()
 		require.NotNil(t, pk)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 
 	t.Run("signer failed", func(t *testing.T) {
@@ -33,7 +34,7 @@ func TestPubKey(t *testing.T) {
 		pv := &PrivValidator{signer: types.NewErroringMockSigner()}
 		pk, err := pv.PubKey()
 		require.Nil(t, pk)
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 }
 
@@ -49,7 +50,7 @@ func TestSignVote(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NoError(t, pv.SignVote(chainID, &types.Vote{Type: types.PrecommitType}))
-		require.NoError(t, pv.Close())
+		assert.NoError(t, pv.Close())
 	})
 
 	t.Run("invalid vote type", func(t *testing.T) {
@@ -60,7 +61,7 @@ func TestSignVote(t *testing.T) {
 		require.NotNil(t, pv)
 		require.NoError(t, err)
 
-		require.Panics(t, func() {
+		assert.Panics(t, func() {
 			pv.SignVote(chainID, &types.Vote{Type: types.SignedMsgType(42)})
 		})
 	})
@@ -103,7 +104,7 @@ func TestSignVote(t *testing.T) {
 			Round:  initialState.Round,
 			Type:   initialState.Type - 1,
 		}
-		require.Error(t, pv.SignVote(chainID, stepRegression))
+		assert.Error(t, pv.SignVote(chainID, stepRegression))
 	})
 
 	t.Run("already signed", func(t *testing.T) {
@@ -127,7 +128,7 @@ func TestSignVote(t *testing.T) {
 		lastSignature := initialState.Signature
 		initialState.Signature = nil
 		require.NoError(t, pv.SignVote(chainID, initialState))
-		require.Equal(t, lastSignature, initialState.Signature)
+		assert.Equal(t, lastSignature, initialState.Signature)
 	})
 
 	t.Run("already signed with different timestamp", func(t *testing.T) {
@@ -155,7 +156,7 @@ func TestSignVote(t *testing.T) {
 		initialState.Timestamp = initialState.Timestamp.Add(42)
 		require.NoError(t, pv.SignVote(chainID, initialState))
 		require.Equal(t, lastSignature, initialState.Signature)
-		require.Equal(t, lastTimestamp, initialState.Timestamp)
+		assert.Equal(t, lastTimestamp, initialState.Timestamp)
 	})
 
 	t.Run("same HRS but conflicting sign bytes", func(t *testing.T) {
@@ -184,7 +185,7 @@ func TestSignVote(t *testing.T) {
 		pv.state.SignBytes = conflictingState.SignBytes(chainID)
 
 		// Try to double sign.
-		require.ErrorIs(t, pv.SignVote(chainID, initialState), errSameHRSBadData)
+		assert.ErrorIs(t, pv.SignVote(chainID, initialState), errSameHRSBadData)
 	})
 
 	t.Run("signer Sign error", func(t *testing.T) {
@@ -198,7 +199,7 @@ func TestSignVote(t *testing.T) {
 
 		// Set erroringMockSigner as PrivValidator signer then try to sign.
 		pv.signer = types.NewErroringMockSigner()
-		require.ErrorIs(
+		assert.ErrorIs(
 			t,
 			pv.SignVote(chainID, &types.Vote{Type: types.PrecommitType}),
 			types.ErrErroringMockSigner,
@@ -217,7 +218,7 @@ func TestSignProposal(t *testing.T) {
 		require.NotNil(t, pv)
 		require.NoError(t, err)
 
-		require.NoError(t, pv.SignProposal(chainID, &types.Proposal{}))
+		assert.NoError(t, pv.SignProposal(chainID, &types.Proposal{}))
 	})
 
 	t.Run("height, round and step regression", func(t *testing.T) {
@@ -247,7 +248,7 @@ func TestSignProposal(t *testing.T) {
 			Height: initialState.Height,
 			Round:  initialState.Round - 1,
 		}
-		require.Error(t, pv.SignProposal(chainID, roundRegression))
+		assert.Error(t, pv.SignProposal(chainID, roundRegression))
 	})
 
 	t.Run("already signed", func(t *testing.T) {
@@ -270,7 +271,7 @@ func TestSignProposal(t *testing.T) {
 		lastSignature := initialState.Signature
 		initialState.Signature = nil
 		require.NoError(t, pv.SignProposal(chainID, initialState))
-		require.Equal(t, lastSignature, initialState.Signature)
+		assert.Equal(t, lastSignature, initialState.Signature)
 	})
 
 	t.Run("already signed with different timestamp", func(t *testing.T) {
@@ -297,7 +298,7 @@ func TestSignProposal(t *testing.T) {
 		initialState.Timestamp = initialState.Timestamp.Add(42)
 		require.NoError(t, pv.SignProposal(chainID, initialState))
 		require.Equal(t, lastSignature, initialState.Signature)
-		require.Equal(t, lastTimestamp, initialState.Timestamp)
+		assert.Equal(t, lastTimestamp, initialState.Timestamp)
 	})
 
 	t.Run("same HRS but conflicting sign bytes", func(t *testing.T) {
@@ -324,7 +325,7 @@ func TestSignProposal(t *testing.T) {
 		pv.state.SignBytes = conflictingState.SignBytes(chainID)
 
 		// Try to double sign.
-		require.ErrorIs(t, pv.SignProposal(chainID, initialState), errSameHRSBadData)
+		assert.ErrorIs(t, pv.SignProposal(chainID, initialState), errSameHRSBadData)
 	})
 
 	t.Run("signer Sign error", func(t *testing.T) {
@@ -338,7 +339,7 @@ func TestSignProposal(t *testing.T) {
 
 		// Set erroringMockSigner as PrivValidator signer then try to sign.
 		pv.signer = types.NewErroringMockSigner()
-		require.ErrorIs(
+		assert.ErrorIs(
 			t,
 			pv.SignProposal(chainID, &types.Proposal{}),
 			types.ErrErroringMockSigner,
@@ -359,7 +360,7 @@ func TestStringer(t *testing.T) {
 
 	pv := &PrivValidator{signer: signer, state: state}
 	require.Contains(t, pv.String(), fmt.Sprintf("%v", signer))
-	require.Contains(t, pv.String(), state.String())
+	assert.Contains(t, pv.String(), state.String())
 }
 
 func TestNewPrivValidator(t *testing.T) {
@@ -371,7 +372,7 @@ func TestNewPrivValidator(t *testing.T) {
 		statePath := path.Join(t.TempDir(), "state")
 		pv, err := NewPrivValidator(types.NewMockSigner(), statePath)
 		require.NotNil(t, pv)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 
 	t.Run("invalid state path", func(t *testing.T) {
@@ -389,7 +390,7 @@ func TestNewPrivValidator(t *testing.T) {
 		filePath := path.Join(dirPath, "file")
 		pv, err = NewPrivValidator(types.NewMockSigner(), filePath)
 		require.Nil(t, pv)
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("signer PubKey getter error", func(t *testing.T) {
@@ -412,7 +413,7 @@ func TestNewPrivValidator(t *testing.T) {
 
 		pv, err := NewPrivValidator(types.NewErroringMockSigner(), statePath)
 		require.Nil(t, pv)
-		require.ErrorIs(t, err, types.ErrErroringMockSigner)
+		assert.ErrorIs(t, err, types.ErrErroringMockSigner)
 	})
 
 	t.Run("invalid state signature", func(t *testing.T) {
@@ -435,7 +436,7 @@ func TestNewPrivValidator(t *testing.T) {
 
 		pv, err := NewPrivValidator(types.NewMockSigner(), statePath)
 		require.Nil(t, pv)
-		require.ErrorIs(t, err, errSignatureMismatch)
+		assert.ErrorIs(t, err, errSignatureMismatch)
 	})
 
 	t.Run("signer changed", func(t *testing.T) {
@@ -466,6 +467,6 @@ func TestNewPrivValidator(t *testing.T) {
 		// Retry with signer1.
 		pv, err = NewPrivValidator(signer1, statePath)
 		require.NotNil(t, pv)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 }

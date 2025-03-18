@@ -7,6 +7,7 @@ import (
 	rsclient "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,13 +17,13 @@ func TestValidateBasic(t *testing.T) {
 	t.Run("default config", func(t *testing.T) {
 		t.Parallel()
 
-		require.NoError(t, DefaultPrivValidatorConfig().ValidateBasic())
+		assert.NoError(t, DefaultPrivValidatorConfig().ValidateBasic())
 	})
 
 	t.Run("test config", func(t *testing.T) {
 		t.Parallel()
 
-		require.NoError(t, TestPrivValidatorConfig().ValidateBasic())
+		assert.NoError(t, TestPrivValidatorConfig().ValidateBasic())
 	})
 
 	t.Run("sign state file path is not set", func(t *testing.T) {
@@ -31,7 +32,7 @@ func TestValidateBasic(t *testing.T) {
 		cfg := DefaultPrivValidatorConfig()
 		cfg.SignState = ""
 
-		require.ErrorIs(t, cfg.ValidateBasic(), errInvalidSignStatePath)
+		assert.ErrorIs(t, cfg.ValidateBasic(), errInvalidSignStatePath)
 	})
 
 	t.Run("local signer file path is not set", func(t *testing.T) {
@@ -40,7 +41,7 @@ func TestValidateBasic(t *testing.T) {
 		cfg := DefaultPrivValidatorConfig()
 		cfg.LocalSigner = ""
 
-		require.ErrorIs(t, cfg.ValidateBasic(), errInvalidLocalSignerPath)
+		assert.ErrorIs(t, cfg.ValidateBasic(), errInvalidLocalSignerPath)
 	})
 
 	t.Run("remote signer config with invalid key", func(t *testing.T) {
@@ -49,7 +50,7 @@ func TestValidateBasic(t *testing.T) {
 		cfg := DefaultPrivValidatorConfig()
 		cfg.RemoteSigner.AuthorizedKeys = []string{"invalid"}
 
-		require.Error(t, cfg.ValidateBasic())
+		assert.Error(t, cfg.ValidateBasic())
 	})
 }
 
@@ -66,7 +67,7 @@ func TestPathGetters(t *testing.T) {
 	cfg.RootDir = rootDir
 
 	require.Contains(t, cfg.LocalSignerPath(), rootDir)
-	require.Contains(t, cfg.SignStatePath(), rootDir)
+	assert.Contains(t, cfg.SignStatePath(), rootDir)
 }
 
 func TestNewPrivValidatorFromConfig(t *testing.T) {
@@ -86,7 +87,7 @@ func TestNewPrivValidatorFromConfig(t *testing.T) {
 		privval, err := NewPrivValidatorFromConfig(cfg, privKey, logger)
 		require.NotNil(t, privval)
 		require.NoError(t, err)
-		require.IsType(t, &local.LocalSigner{}, privval.signer)
+		assert.IsType(t, &local.LocalSigner{}, privval.signer)
 		privval.Close()
 	})
 
@@ -100,7 +101,7 @@ func TestNewPrivValidatorFromConfig(t *testing.T) {
 		privval, err := NewPrivValidatorFromConfig(cfg, privKey, logger)
 		require.NotNil(t, privval)
 		require.NoError(t, err)
-		require.IsType(t, &rsclient.RemoteSignerClient{}, privval.signer)
+		assert.IsType(t, &rsclient.RemoteSignerClient{}, privval.signer)
 		privval.Close()
 	})
 
@@ -114,6 +115,6 @@ func TestNewPrivValidatorFromConfig(t *testing.T) {
 
 		privval, err := NewPrivValidatorFromConfig(cfg, privKey, logger)
 		require.Nil(t, privval)
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 }

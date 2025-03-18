@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -21,7 +21,7 @@ func TestLoggerFromServerFlags(t *testing.T) {
 
 		// Create the logger.
 		_, _, err := LoggerFromServerFlags(flags, commands.NewTestIO())
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("valid log level", func(t *testing.T) {
@@ -34,6 +34,6 @@ func TestLoggerFromServerFlags(t *testing.T) {
 
 		// Create the logger.
 		_, _, err := LoggerFromServerFlags(flags, commands.NewTestIO())
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 }

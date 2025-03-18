@@ -6,6 +6,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,13 +16,13 @@ func TestValidate(t *testing.T) {
 	t.Run("default config", func(t *testing.T) {
 		t.Parallel()
 
-		require.NoError(t, DefaultRemoteSignerClientConfig().ValidateBasic())
+		assert.NoError(t, DefaultRemoteSignerClientConfig().ValidateBasic())
 	})
 
 	t.Run("test config", func(t *testing.T) {
 		t.Parallel()
 
-		require.NoError(t, TestRemoteSignerClientConfig().ValidateBasic())
+		assert.NoError(t, TestRemoteSignerClientConfig().ValidateBasic())
 	})
 
 	t.Run("default config with invalid keys", func(t *testing.T) {
@@ -30,7 +31,7 @@ func TestValidate(t *testing.T) {
 		cfg := DefaultRemoteSignerClientConfig()
 		cfg.AuthorizedKeys = []string{"invalid_key"}
 
-		require.ErrorIs(t, cfg.ValidateBasic(), errInvalidAuthorizedKey)
+		assert.ErrorIs(t, cfg.ValidateBasic(), errInvalidAuthorizedKey)
 	})
 }
 
@@ -45,7 +46,7 @@ func TestAuthorizedKeys(t *testing.T) {
 
 		keys, err := cfg.authorizedKeys()
 		require.Nil(t, keys)
-		require.ErrorIs(t, err, errInvalidAuthorizedKey)
+		assert.ErrorIs(t, err, errInvalidAuthorizedKey)
 	})
 
 	t.Run("invalid key type", func(t *testing.T) {
@@ -58,7 +59,7 @@ func TestAuthorizedKeys(t *testing.T) {
 
 		keys, err := cfg.authorizedKeys()
 		require.Nil(t, keys)
-		require.ErrorIs(t, err, errInvalidAuthorizedKey)
+		assert.ErrorIs(t, err, errInvalidAuthorizedKey)
 	})
 
 	t.Run("valid authorized keys", func(t *testing.T) {
@@ -74,7 +75,7 @@ func TestAuthorizedKeys(t *testing.T) {
 
 		keys, err := cfg.authorizedKeys()
 		require.Equal(t, len(keys), 3)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 }
 
@@ -96,7 +97,7 @@ func TestNewRemoteSignerClientFromConfig(t *testing.T) {
 
 		client, err := NewRemoteSignerClientFromConfig(cfg, privKey, logger)
 		require.Nil(t, client)
-		require.ErrorIs(t, err, errInvalidAuthorizedKey)
+		assert.ErrorIs(t, err, errInvalidAuthorizedKey)
 	})
 
 	t.Run("valid authorized keys", func(t *testing.T) {
@@ -118,7 +119,7 @@ func TestNewRemoteSignerClientFromConfig(t *testing.T) {
 		require.NotNil(t, keys)
 		require.NoError(t, err)
 		require.Equal(t, client.authorizedKeys, keys)
-		require.Equal(t, client.clientPrivKey, privKey)
+		assert.Equal(t, client.clientPrivKey, privKey)
 		client.Close()
 	})
 }

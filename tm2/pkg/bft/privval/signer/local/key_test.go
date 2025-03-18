@@ -8,6 +8,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,7 +21,7 @@ func TestValidate(t *testing.T) {
 		fk := GenerateFileKey()
 		fk.filePath = "filePath"
 
-		require.NoError(t, fk.validate())
+		assert.NoError(t, fk.validate())
 	})
 
 	t.Run("invalid private key", func(t *testing.T) {
@@ -30,7 +31,7 @@ func TestValidate(t *testing.T) {
 		fk.filePath = "filePath"
 		fk.PrivKey = nil
 
-		require.ErrorIs(t, fk.validate(), errInvalidPrivateKey)
+		assert.ErrorIs(t, fk.validate(), errInvalidPrivateKey)
 	})
 
 	t.Run("public key mismatch", func(t *testing.T) {
@@ -40,7 +41,7 @@ func TestValidate(t *testing.T) {
 		fk.filePath = "filePath"
 		fk.PubKey = nil
 
-		require.ErrorIs(t, fk.validate(), errPublicKeyMismatch)
+		assert.ErrorIs(t, fk.validate(), errPublicKeyMismatch)
 	})
 
 	t.Run("address mismatch", func(t *testing.T) {
@@ -50,7 +51,7 @@ func TestValidate(t *testing.T) {
 		fk.filePath = "filePath"
 		fk.Address = crypto.Address{} // zero address
 
-		require.ErrorIs(t, fk.validate(), errAddressMismatch)
+		assert.ErrorIs(t, fk.validate(), errAddressMismatch)
 	})
 
 	t.Run("empty filepath", func(t *testing.T) {
@@ -58,7 +59,7 @@ func TestValidate(t *testing.T) {
 
 		fk := GenerateFileKey()
 
-		require.ErrorIs(t, fk.validate(), errFilePathNotSet)
+		assert.ErrorIs(t, fk.validate(), errFilePathNotSet)
 	})
 }
 
@@ -70,7 +71,7 @@ func TestSave(t *testing.T) {
 
 		fk, err := GeneratePersistedFileKey("")
 		require.Nil(t, fk)
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("read-only file path", func(t *testing.T) {
@@ -84,7 +85,7 @@ func TestSave(t *testing.T) {
 		filePath := path.Join(dirPath, "file")
 		fk, err := GeneratePersistedFileKey(filePath)
 		require.Nil(t, fk)
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("read-write file path", func(t *testing.T) {
@@ -93,7 +94,7 @@ func TestSave(t *testing.T) {
 		filePath := path.Join(t.TempDir(), "writable")
 		fk, err := GeneratePersistedFileKey(filePath)
 		require.NotNil(t, fk)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 }
 
@@ -113,7 +114,7 @@ func TestLoadFileKey(t *testing.T) {
 		require.NoError(t, err)
 
 		// Compare the loaded file key with the original.
-		require.Equal(t, fk, loaded)
+		assert.Equal(t, fk, loaded)
 	})
 
 	t.Run("non-existent file path", func(t *testing.T) {
@@ -121,7 +122,7 @@ func TestLoadFileKey(t *testing.T) {
 
 		fk, err := LoadFileKey("non-existent")
 		require.Nil(t, fk)
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("invalid file key", func(t *testing.T) {
@@ -148,7 +149,7 @@ func TestLoadFileKey(t *testing.T) {
 
 		fk, err = LoadFileKey(filePath)
 		require.Nil(t, fk)
-		require.ErrorIs(t, err, errAddressMismatch)
+		assert.ErrorIs(t, err, errAddressMismatch)
 	})
 }
 
@@ -161,7 +162,7 @@ func TestNewFileKey(t *testing.T) {
 		filePath := path.Join(t.TempDir(), "new")
 		fk, err := NewFileKey(filePath)
 		require.NotNil(t, fk)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 
 	t.Run("load existing key", func(t *testing.T) {
@@ -178,7 +179,7 @@ func TestNewFileKey(t *testing.T) {
 		require.NoError(t, err)
 
 		// Compare the loaded file key with the original.
-		require.Equal(t, fk, loaded)
+		assert.Equal(t, fk, loaded)
 	})
 
 	t.Run("read-only file path", func(t *testing.T) {
@@ -192,6 +193,6 @@ func TestNewFileKey(t *testing.T) {
 		filePath := path.Join(dirPath, "file")
 		fk, err := NewFileKey(filePath)
 		require.Nil(t, fk)
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 }

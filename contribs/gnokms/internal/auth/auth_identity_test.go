@@ -7,6 +7,7 @@ import (
 
 	"github.com/gnolang/gno/contribs/gnokms/internal/common"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,7 +27,7 @@ func TestIdentity(t *testing.T) {
 
 		// Run the command.
 		cmdErr := cmd.ParseAndRun(context.Background(), []string{})
-		require.Error(t, cmdErr)
+		assert.Error(t, cmdErr)
 	})
 
 	t.Run("valid auth key file", func(t *testing.T) {
@@ -49,6 +50,6 @@ func TestIdentity(t *testing.T) {
 		require.NoError(t, cmdErr)
 
 		// Check the command output.
-		require.Contains(t, buffer.String(), authKeysFile.ServerIdentity.PubKey)
+		assert.Contains(t, buffer.String(), authKeysFile.ServerIdentity.PubKey)
 	})
 }

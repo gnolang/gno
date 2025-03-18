@@ -6,6 +6,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,7 +24,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 
 		rsc, err := NewRemoteSignerClient("", nil)
 		require.Nil(t, rsc)
-		require.ErrorIs(t, err, ErrNilLogger)
+		assert.ErrorIs(t, err, ErrNilLogger)
 	})
 
 	t.Run("invalid protocol", func(t *testing.T) {
@@ -32,7 +33,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		invalidAddressProtocol := "udp://127.0.0.1"
 		rsc, err := NewRemoteSignerClient(invalidAddressProtocol, logger)
 		require.Nil(t, rsc)
-		require.ErrorIs(t, err, ErrInvalidAddressProtocol)
+		assert.ErrorIs(t, err, ErrInvalidAddressProtocol)
 	})
 
 	t.Run("valid config", func(t *testing.T) {
@@ -46,7 +47,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		// Test Unix socket connection.
 		rsc, err = NewRemoteSignerClient(validUnix, logger)
 		require.NotNil(t, rsc)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 
 	t.Run("option dialMaxRetries", func(t *testing.T) {
@@ -63,7 +64,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		rsc, err = NewRemoteSignerClient(validTCP, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
-		require.Equal(t, 3, rsc.dialMaxRetries)
+		assert.Equal(t, 3, rsc.dialMaxRetries)
 	})
 
 	t.Run("option dialRetryInterval", func(t *testing.T) {
@@ -80,7 +81,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		rsc, err = NewRemoteSignerClient(validTCP, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
-		require.Equal(t, time.Duration(42), rsc.dialRetryInterval)
+		assert.Equal(t, time.Duration(42), rsc.dialRetryInterval)
 	})
 
 	t.Run("option dialTimeout", func(t *testing.T) {
@@ -97,7 +98,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		rsc, err = NewRemoteSignerClient(validTCP, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
-		require.Equal(t, time.Duration(42), rsc.dialTimeout)
+		assert.Equal(t, time.Duration(42), rsc.dialTimeout)
 	})
 
 	t.Run("option keepAlivePeriod", func(t *testing.T) {
@@ -114,7 +115,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		rsc, err = NewRemoteSignerClient(validTCP, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
-		require.Equal(t, time.Duration(42), rsc.keepAlivePeriod)
+		assert.Equal(t, time.Duration(42), rsc.keepAlivePeriod)
 	})
 
 	t.Run("option requestTimeout", func(t *testing.T) {
@@ -131,7 +132,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		rsc, err = NewRemoteSignerClient(validTCP, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
-		require.Equal(t, time.Duration(42), rsc.requestTimeout)
+		assert.Equal(t, time.Duration(42), rsc.requestTimeout)
 	})
 
 	t.Run("option clientPrivKey", func(t *testing.T) {
@@ -149,7 +150,7 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		rsc, err = NewRemoteSignerClient(validTCP, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
-		require.Equal(t, privKey, rsc.clientPrivKey)
+		assert.Equal(t, privKey, rsc.clientPrivKey)
 	})
 
 	t.Run("option authorizedKeys", func(t *testing.T) {
@@ -167,6 +168,6 @@ func TestNewRemoteSignerClient(t *testing.T) {
 		rsc, err = NewRemoteSignerClient(validTCP, logger, option)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
-		require.Equal(t, keys, rsc.authorizedKeys)
+		assert.Equal(t, keys, rsc.authorizedKeys)
 	})
 }

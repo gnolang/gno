@@ -14,6 +14,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/rs/xid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -84,7 +85,7 @@ func TestCloseState(t *testing.T) {
 
 		// Stop it.
 		require.NoError(t, rss.Stop())
-		require.False(t, rss.IsRunning())
+		assert.False(t, rss.IsRunning())
 
 		// Wait should not block.
 		rss.Wait()
@@ -127,7 +128,7 @@ func TestCloseState(t *testing.T) {
 		require.NoError(t, err)
 		err = file.Chmod(0o000)
 		require.NoError(t, err)
-		require.ErrorIs(t, rss.Start(), ErrListenFailed)
+		assert.ErrorIs(t, rss.Start(), ErrListenFailed)
 	})
 }
 
@@ -178,7 +179,7 @@ func TestServerResponse(t *testing.T) {
 		require.Error(t, err)
 		localPK, err = signer.PubKey()
 		require.Nil(t, localPK)
-		require.Error(t, err)
+		assert.Error(t, err)
 		rss.Stop()
 		rsc.Close()
 	})
@@ -219,7 +220,7 @@ func TestServerResponse(t *testing.T) {
 		require.Error(t, err)
 		localSignature, err = signer.Sign([]byte("sign bytes"))
 		require.Nil(t, localSignature)
-		require.Error(t, err)
+		assert.Error(t, err)
 		rss.Stop()
 		rsc.Close()
 	})
@@ -238,7 +239,7 @@ func TestServerResponse(t *testing.T) {
 		require.NoError(t, rss.Start())
 		rsc := newRemoteSignerClient(t, unixSocket)
 		require.NotNil(t, rsc)
-		require.NoError(t, rsc.Ping())
+		assert.NoError(t, rsc.Ping())
 		rss.Stop()
 		rsc.Close()
 	})
@@ -247,7 +248,7 @@ func TestServerResponse(t *testing.T) {
 		t.Parallel()
 
 		rss := newRemoteSignerServer(t, testUnixSocket(t), types.NewMockSigner())
-		require.Nil(t, rss.handle([]byte("invalid request")))
+		assert.Nil(t, rss.handle([]byte("invalid request")))
 	})
 }
 
@@ -308,7 +309,7 @@ func TestServerConnection(t *testing.T) {
 		}
 
 		require.True(t, rss.IsRunning())
-		require.NoError(t, rss.Stop())
+		assert.NoError(t, rss.Stop())
 	})
 
 	t.Run("tcp configuration succeeded", func(t *testing.T) {
@@ -356,7 +357,7 @@ func TestServerConnection(t *testing.T) {
 		)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
-		require.NoError(t, rsc.Ping())
+		assert.NoError(t, rsc.Ping())
 		rss.Stop()
 		rsc.Close()
 	})
@@ -383,7 +384,7 @@ func TestServerConnection(t *testing.T) {
 		)
 		require.NotNil(t, rsc)
 		require.NoError(t, err)
-		require.ErrorIs(t, rsc.Ping(), r.ErrUnauthorizedPubKey)
+		assert.ErrorIs(t, rsc.Ping(), r.ErrUnauthorizedPubKey)
 		rss.Stop()
 		rsc.Close()
 	})

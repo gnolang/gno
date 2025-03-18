@@ -7,6 +7,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,7 +28,7 @@ func TestNewRemoteSignerServer(t *testing.T) {
 
 		rss, err := NewRemoteSignerServer(nil, nil, nil)
 		require.Nil(t, rss)
-		require.ErrorIs(t, err, ErrNilSigner)
+		assert.ErrorIs(t, err, ErrNilSigner)
 	})
 
 	t.Run("invalid listenAddresses", func(t *testing.T) {
@@ -43,7 +44,7 @@ func TestNewRemoteSignerServer(t *testing.T) {
 		invalidListenAddresses := []string{"udp://127.0.0.1"}
 		rss, err = NewRemoteSignerServer(signer, invalidListenAddresses, nil)
 		require.Nil(t, rss)
-		require.ErrorIs(t, err, ErrInvalidAddressProtocol)
+		assert.ErrorIs(t, err, ErrInvalidAddressProtocol)
 	})
 
 	t.Run("nil logger", func(t *testing.T) {
@@ -51,7 +52,7 @@ func TestNewRemoteSignerServer(t *testing.T) {
 
 		rss, err := NewRemoteSignerServer(signer, listenAddresses, nil)
 		require.Nil(t, rss)
-		require.ErrorIs(t, err, ErrNilLogger)
+		assert.ErrorIs(t, err, ErrNilLogger)
 	})
 
 	t.Run("valid config", func(t *testing.T) {
@@ -59,7 +60,7 @@ func TestNewRemoteSignerServer(t *testing.T) {
 
 		rss, err := NewRemoteSignerServer(signer, listenAddresses, logger)
 		require.NotNil(t, rss)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 
 	t.Run("option keepAlivePeriod", func(t *testing.T) {
@@ -76,7 +77,7 @@ func TestNewRemoteSignerServer(t *testing.T) {
 		rss, err = NewRemoteSignerServer(signer, listenAddresses, logger, option)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
-		require.Equal(t, time.Duration(42), rss.keepAlivePeriod)
+		assert.Equal(t, time.Duration(42), rss.keepAlivePeriod)
 	})
 
 	t.Run("option responseTimeout", func(t *testing.T) {
@@ -93,7 +94,7 @@ func TestNewRemoteSignerServer(t *testing.T) {
 		rss, err = NewRemoteSignerServer(signer, listenAddresses, logger, option)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
-		require.Equal(t, time.Duration(42), rss.responseTimeout)
+		assert.Equal(t, time.Duration(42), rss.responseTimeout)
 	})
 
 	t.Run("option serverPrivKey", func(t *testing.T) {
@@ -111,7 +112,7 @@ func TestNewRemoteSignerServer(t *testing.T) {
 		rss, err = NewRemoteSignerServer(signer, listenAddresses, logger, option)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
-		require.Equal(t, privKey, rss.serverPrivKey)
+		assert.Equal(t, privKey, rss.serverPrivKey)
 	})
 
 	t.Run("option authorizedKeys", func(t *testing.T) {
@@ -129,6 +130,6 @@ func TestNewRemoteSignerServer(t *testing.T) {
 		rss, err = NewRemoteSignerServer(signer, listenAddresses, logger, option)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
-		require.Equal(t, keys, rss.authorizedKeys)
+		assert.Equal(t, keys, rss.authorizedKeys)
 	})
 }

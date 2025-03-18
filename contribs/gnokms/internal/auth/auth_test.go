@@ -9,6 +9,7 @@ import (
 	"github.com/gnolang/gno/contribs/gnokms/internal/common"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/rs/xid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -47,7 +48,7 @@ func TestLoadAuthKeysFile(t *testing.T) {
 		// Try to load the auth keys file.
 		authKeysFile, err := loadAuthKeysFile(flags)
 		require.Nil(t, authKeysFile)
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("invalid auth key file", func(t *testing.T) {
@@ -64,7 +65,7 @@ func TestLoadAuthKeysFile(t *testing.T) {
 		// Try to load the auth keys file.
 		authKeysFile, err := loadAuthKeysFile(flags)
 		require.Nil(t, authKeysFile)
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("valid auth key file", func(t *testing.T) {
@@ -81,12 +82,12 @@ func TestLoadAuthKeysFile(t *testing.T) {
 		// Try to load the auth keys file.
 		authKeysFile, err := loadAuthKeysFile(flags)
 		require.NotNil(t, authKeysFile)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 }
 
 func TestAuthCmd(t *testing.T) {
 	t.Parallel()
 
-	require.NotNil(t, NewAuthCmd(commands.NewTestIO()))
+	assert.NotNil(t, NewAuthCmd(commands.NewTestIO()))
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -45,7 +46,7 @@ func TestNewGnokeySigner(t *testing.T) {
 			commands.NewTestIO(),
 		)
 		require.Nil(t, signer)
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("invalid password then valid", func(t *testing.T) {
@@ -68,7 +69,7 @@ func TestNewGnokeySigner(t *testing.T) {
 			io,
 		)
 		require.NotNil(t, signer)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 
 	t.Run("closed stdin", func(t *testing.T) {
@@ -91,7 +92,7 @@ func TestNewGnokeySigner(t *testing.T) {
 			io,
 		)
 		require.Nil(t, signer)
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("invalid key", func(t *testing.T) {
@@ -119,7 +120,7 @@ func TestNewGnokeySigner(t *testing.T) {
 			io,
 		)
 		require.Nil(t, signer)
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 
 	t.Run("valid key", func(t *testing.T) {
@@ -153,6 +154,6 @@ func TestNewGnokeySigner(t *testing.T) {
 		require.NotNil(t, signature)
 		require.NoError(t, err)
 
-		require.NoError(t, signer.Close())
+		assert.NoError(t, signer.Close())
 	})
 }
