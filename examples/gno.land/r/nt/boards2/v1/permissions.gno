@@ -3,7 +3,8 @@ package boards2
 import "std"
 
 const (
-	PermissionBoardCreate         Permission = "board:create"
+	PermissionRealmNotice         Permission = "realm:notice"
+	PermissionBoardCreate                    = "board:create"
 	PermissionBoardRename                    = "board:rename"
 	PermissionBoardFlaggingUpdate            = "board:flagging-update"
 	PermissionBoardFreeze                    = "board:freeze"

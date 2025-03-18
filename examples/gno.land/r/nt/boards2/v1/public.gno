@@ -63,6 +63,22 @@ func SetPermissions(bid BoardID, p Permissions) {
 	})
 }
 
+// SetRealmNotice sets a notice to be displayed globally by the realm.
+// An empty message removes the realm notice.
+func SetRealmNotice(message string) {
+	message = strings.TrimSpace(message)
+	caller := std.PreviousRealm().Address()
+	gPerms.WithPermission(caller, PermissionRealmNotice, nil, func(Args) {
+		gNotice = message
+
+		std.Emit(
+			"RealmNoticeChanged",
+			"caller", caller.String(),
+			"message", message,
+		)
+	})
+}
+
 // GetBoardIDFromName searches a board by name and returns it's ID.
 func GetBoardIDFromName(name string) (_ BoardID, found bool) {
 	v, found := gBoardsByName.Get(name)
