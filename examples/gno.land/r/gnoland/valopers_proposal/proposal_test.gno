@@ -168,12 +168,11 @@ func TestValopers_ProposeNewMinFee(t *testing.T) {
 		pr := ProposeNewMinFeeProposalRequest(newMinFee)
 
 		std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
-		pid := dao.MustCreateProposal(pr)
+		pid = dao.MustCreateProposal(pr)
 	})
 
 	proposal, err := dao.GetProposal(pid) // index starts from 0
 	urequire.NoError(t, err, "proposal not found")
-
 	// Check that the proposal is correct
 	urequire.Equal(t, description, proposal.Description())
 }
