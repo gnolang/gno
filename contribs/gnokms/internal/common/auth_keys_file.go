@@ -36,8 +36,8 @@ var (
 	errFilePathNotSet       = errors.New("filePath not set")
 )
 
-// SortAndDuplicate sorts and deduplicates the given string slice.
-func SortAndDuplicate(keys []string) []string {
+// SortAndDeduplicate sorts and deduplicates the given string slice.
+func SortAndDeduplicate(keys []string) []string {
 	slices.Sort(keys)
 	return slices.Compact(keys)
 }
@@ -62,7 +62,7 @@ func (akf *AuthKeysFile) validate() (err error) {
 	}
 
 	// Sort and deduplicate the list of authorized keys.
-	akf.ClientAuthorizedKeys = SortAndDuplicate(akf.ClientAuthorizedKeys)
+	akf.ClientAuthorizedKeys = SortAndDeduplicate(akf.ClientAuthorizedKeys)
 
 	// Validate the list of authorized keys.
 	for _, authorizedKey := range akf.ClientAuthorizedKeys {

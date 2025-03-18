@@ -52,7 +52,7 @@ func manipulatesAuthorizedKeys(
 	}
 
 	// Sort and deduplicate the keys.
-	publicKeys := common.SortAndDuplicate(args)
+	publicKeys := common.SortAndDeduplicate(args)
 
 	// Process the keys.
 	authKeysFile.ClientAuthorizedKeys = processKeys(authKeysFile.ClientAuthorizedKeys, publicKeys)
