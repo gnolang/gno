@@ -46,6 +46,9 @@ type Account interface {
 // for authentication purposes.
 //
 // Many complex conditions can be used in the concrete struct which implements Session.
+//
+// XXX: find ways to make Session working without pubkeys, such as managed by a contract,
+// or maybe through IBC later.
 type Session interface {
 	GetAccountAddress() crypto.Address // Reference to parent account
 	SetAccountAddress(crypto.Address) error
