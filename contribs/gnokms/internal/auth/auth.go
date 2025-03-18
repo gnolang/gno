@@ -40,7 +40,7 @@ func NewAuthCmd(io commands.IO) *commands.Command {
 			Name:       "auth",
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
 			ShortHelp:  "manages mutual authentication keys",
-			LongHelp:   "Manages the mutual authentication keys used by gnokms including gnokms own private key and client authorized public keys.",
+			LongHelp:   "Manages the mutual authentication keys used by gnokms including gnokms' own private key and client authorized public keys.",
 		},
 		rootCfg,
 		commands.HelpExec,

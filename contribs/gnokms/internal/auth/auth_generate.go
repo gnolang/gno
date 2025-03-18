@@ -30,7 +30,7 @@ func newAuthGenerateCmd(rootCfg *common.AuthFlags, io commands.IO) *commands.Com
 			Name:       "generate",
 			ShortUsage: "auth generate [flags]",
 			ShortHelp:  "generates a new file with mutual authentication keys",
-			LongHelp:   "Generates a new file with mutual authentication keys including gnokms own private key and an empty list of client authorized public keys.",
+			LongHelp:   "Generates a new file with mutual authentication keys including gnokms' own private key and an empty list of client authorized public keys.",
 		},
 		cfg,
 		func(_ context.Context, _ []string) error {
