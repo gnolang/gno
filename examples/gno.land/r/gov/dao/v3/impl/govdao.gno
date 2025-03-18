@@ -173,7 +173,7 @@ func (g *GovDAO) renderActiveProposals(url string) string {
 		out += g.renderProposal(item.Key)
 	}
 
-	out = out + page.Picker()
+	out += page.Picker("")
 
 	return out
 }
