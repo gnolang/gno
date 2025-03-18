@@ -1,7 +1,6 @@
 package awesomegno
 
-
-func MockData() {	
+func MockData() {
 	categories := []struct {
 		name        string
 		description string
@@ -17,11 +16,11 @@ func MockData() {
 		{"Marketplaces", "Decentralized marketplaces and exchanges"},
 		{"Utilities", "Utility applications and services"},
 	}
-	
+
 	for _, cat := range categories {
 		AddCategory(cat.name, cat.description)
 	}
-	
+
 	dapps := []struct {
 		title       string
 		description string
@@ -89,15 +88,15 @@ func MockData() {
 			[]string{"Tools", "Infrastructure"},
 		},
 	}
-	
+
 	for i, dapp := range dapps {
 		proposalID, _ := ProposeNewDapp(dapp.title, dapp.description, dapp.url, dapp.categories)
-		
-		if i % 2 == 0 {
+
+		if i%2 == 0 {
 			ApproveProposal(proposalID)
 		}
 	}
-	
+
 	pendingProposals := []struct {
 		title       string
 		description string
@@ -135,10 +134,10 @@ func MockData() {
 			[]string{"Infrastructure", "Utilities"},
 		},
 	}
-	
+
 	for _, proposal := range pendingProposals {
 		ProposeNewDapp(proposal.title, proposal.description, proposal.url, proposal.categories)
 	}
-	
+
 	RejectProposal(8, "URL is not valid or project is not ready for inclusion")
 }

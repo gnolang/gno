@@ -10,7 +10,7 @@ type Category struct {
 	Name        string
 	Description string
 	CreatedAt   time.Time
-	DappIDs     []uint64 
+	DappIDs     []uint64
 }
 
 type Dapp struct {
@@ -21,7 +21,7 @@ type Dapp struct {
 	URL         string
 	Approved    bool
 	CreatedAt   time.Time
-	Categories  []string 
+	Categories  []string
 }
 
 const (
