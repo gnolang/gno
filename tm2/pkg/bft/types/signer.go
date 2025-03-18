@@ -67,7 +67,7 @@ func NewMockSigner() Signer {
 // erroringMockSigner implements Signer that only returns error. Only use it for testing.
 type erroringMockSigner struct{}
 
-// Error that will be returned by erroringMockSigner.
+// ErrErroringMockSigner is be systematically returned by any call to erroringMockSigner.
 var ErrErroringMockSigner = errors.New("erroringMockSigner error")
 
 // erroringMockSigner type implements Signer.
