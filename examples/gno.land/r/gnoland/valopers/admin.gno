@@ -3,9 +3,8 @@ package valopers
 import (
 	"std"
 
-	"gno.land/p/demo/dao"
 	"gno.land/p/moul/authz"
-	"gno.land/r/gov/dao/bridge"
+	"gno.land/r/gov/dao"
 )
 
 var auth *authz.Authorizer
@@ -36,20 +35,21 @@ func updateMinFee(newMinFee int64) {
 	}
 }
 
-func NewInstructionsExecutor(newInstructions string) dao.Executor {
-	cb := func() error {
+
+func NewInstructionsProposalCallback(newInstructions string) func(dao.Metadata) error {
+	cb := func(dao.Metadata) error {
 		updateInstructions(newInstructions)
 		return nil
 	}
 
-	return bridge.GovDAO().NewGovDAOExecutor(cb)
+	return cb
 }
 
-func NewMinFeeExecutor(newMinFee int64) dao.Executor {
-	cb := func() error {
+func NewMinFeeProposalCallback(newMinFee int64) func(dao.Metadata) error {
+	cb := func(dao.Metadata) error {
 		updateMinFee(newMinFee)
 		return nil
 	}
 
-	return bridge.GovDAO().NewGovDAOExecutor(cb)
+	return cb
 }

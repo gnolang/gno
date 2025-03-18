@@ -13,7 +13,7 @@ var dao DAO
 var AllowedDAOs []string
 
 // proposals contains all the proposals in history.
-var proposals Proposals = NewProposals()
+var proposals *Proposals = NewProposals()
 
 // Render calls directly to Render's DAO implementation.
 // This allows to have this realm as the main entry point for everything.
@@ -68,7 +68,6 @@ func CreateProposal(r ProposalRequest) (ProposalID, error) {
 	}
 
 	pid := proposals.SetProposal(p)
-
 	dao.PostCreateProposal(r, pid)
 
 	return pid, nil

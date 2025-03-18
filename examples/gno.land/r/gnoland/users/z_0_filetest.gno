@@ -12,14 +12,18 @@ func init() {
 	c := std.OriginCaller()
 	init.InitWithUsers(c)
 	pReq := users.ProposeNewRelease("gno.land/r/gnoland/users/v2", "This is a note!")
+
+	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 	dao.MustCreateProposal(pReq)
 }
 
 func main() {
+	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.YesVote,
 		ProposalID: dao.ProposalID(0),
 	})
+
 	dao.ExecuteProposal(dao.ProposalID(0))
 	println(users.Render(""))
 }

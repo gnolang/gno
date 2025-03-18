@@ -1,9 +1,6 @@
 package dao
 
 import (
-	"errors"
-	"std"
-
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
 )
@@ -132,19 +129,21 @@ type Proposals struct {
 	*avl.Tree // *avl.Tree[ProposalID]*Proposal
 }
 
-func NewProposals() Proposals {
-	return Proposals{Tree:avl.NewTree()}
+func NewProposals() *Proposals {
+	return &Proposals{Tree:avl.NewTree()}
 }
 
-func (ps Proposals) SetProposal(p *Proposal) ProposalID{
+func (ps *Proposals) SetProposal(p *Proposal) ProposalID{
 	pid := ProposalID(ps.seq)
-	ps.Set(pid.String(), p)
-	ps.seq++
-
+	updated := ps.Set(pid.String(), p)
+	if updated {
+		panic("fatal error: Override proposals is not allowed")
+	}
+	ps.seq = ps.seq + 1
 	return pid
 }
 
-func (ps Proposals) GetProposal(pid ProposalID) *Proposal {
+func (ps *Proposals) GetProposal(pid ProposalID) *Proposal {
 	pv, ok := ps.Get(pid.String())
 	if !ok {
 		return nil
@@ -170,7 +169,7 @@ type executor struct {
 func newExecutor(fn func(m Metadata) error, metadata Metadata) *executor {
 	return &executor{
 		metadata:   metadata,
-		callbackFn: securityWrapper(fn),
+		callbackFn: fn,
 	}
 }
 
@@ -185,19 +184,6 @@ func (e *executor) String() string {
 func (e *executor) Execute() error {
 	return e.callbackFn(e.metadata)
 }
-
-func securityWrapper(fn func(m Metadata) error) func(m Metadata) error {
-	return func(m Metadata) error {
-		// check if the caller is an allowed DAO from the AllowedDAOs list
-		if index(std.PreviousRealm().PkgPath()) < 0 {
-			return ErrInvalidExecutorCaller
-		}
-
-		return fn(m)
-	}
-}
-
-var ErrInvalidExecutorCaller error = errors.New("the realm calling the proposal executor was not a govDAO realm")
 
 // Metadata contains any kind of information that will be stored on the executor
 // and will be sent to the callback function when the proposal is validated.

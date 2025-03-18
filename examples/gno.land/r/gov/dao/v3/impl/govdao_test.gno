@@ -154,22 +154,22 @@ func TestProposalPagination(t *testing.T) {
 
 	pid = dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
 	// TODO: tests keep the same vm state: https://github.com/gnolang/gno/issues/1982
-	urequire.Equal(t, int(pid), 1)
+	urequire.Equal(t, 1, int(pid))
 
 	pid = dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
-	urequire.Equal(t, int(pid), 2)
+	urequire.Equal(t, 2, int(pid))
 
 	pid = dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
-	urequire.Equal(t, int(pid), 3)
+	urequire.Equal(t, 3, int(pid))
 
 	pid = dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
-	urequire.Equal(t, int(pid), 4)
+	urequire.Equal(t, 4, int(pid))
 
 	pid = dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
-	urequire.Equal(t, int(pid), 5)
+	urequire.Equal(t, 5, int(pid))
 
 	pid = dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
-	urequire.Equal(t, int(pid), 6)
+	urequire.Equal(t, 6, int(pid))
 
 	urequire.Equal(t, true, contains(dao.Render(""), "## Proposal with id: 6"))
 	urequire.Equal(t, true, contains(dao.Render(""), "## Proposal with id: 5"))

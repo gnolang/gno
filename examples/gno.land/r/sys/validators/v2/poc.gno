@@ -12,7 +12,7 @@ const errNoChangesProposed = "no set changes proposed"
 // NewPropRequest creates a new proposal request that wraps a changes closure
 // proposal. This wrapper is required to ensure the GovDAO Realm actually
 // executed the callback.
-func NewPropRequest(changesFn func() []validators.Validator, description string) dao.ProposalRequest {
+func NewPropRequest(changesFn func() []validators.Validator, title, description string) dao.ProposalRequest {
 	if changesFn == nil {
 		panic(errNoChangesProposed)
 	}
@@ -34,7 +34,7 @@ func NewPropRequest(changesFn func() []validators.Validator, description string)
 	}
 
 	return dao.
-	NewProposalRequestBuilder("Validator Change Request").
+	NewProposalRequestBuilder(title).
 	WithDescription(description).
 	WithCallback(callback).
 	Build()

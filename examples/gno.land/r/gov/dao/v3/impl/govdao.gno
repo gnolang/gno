@@ -56,7 +56,7 @@ var _govdao *GovDAO
 
 func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (dao.Author, error) {
 	if !g.isValidCall() {
-		return nil, errors.New("proposal execution must be done directly by a user")
+		return nil, errors.New("proposal creation must be done directly by a user")
 	}
 
 	return NewUserAuthor(), nil

@@ -8,8 +8,8 @@ import (
 
 	"gno.land/r/gnoland/valopers"
 	"gno.land/r/gnoland/valopers_proposal"
-	_ "gno.land/r/gov/dao/init" // so that the govdao initializer is executed
-	govdao "gno.land/r/gov/dao/v2"
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/init" // so that the govdao initializer is executed
 )
 
 const (
@@ -20,22 +20,50 @@ const (
 )
 
 func init() {
+	c := std.OriginCaller()
+	init.InitWithUsers(c)
+
 	// Register a validator and add the proposal
 	valopers.Register(validMoniker, validDescription, validAddress, validPubKey)
-	valopers_proposal.ProposeNewValidator(validAddress)
+	pr := valopers_proposal.NewValidatorProposalRequest(validAddress)
+
+	std.TestSetOriginCaller(c)
+	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+	dao.MustCreateProposal(pr)
 }
 
 func main() {
-	println(govdao.Render(""))
+	println(dao.Render(""))
 }
 
 // Output:
-// # GovDAO Proposals
+// # Active Proposals:
+// ## Proposal with id: 0
+// ### Title: Add valoper test-1 to the valset
+// 
+// ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
-// ## [Prop #0 - Add valoper test-1 to the valset](/r/gov/dao/v2:0)
+// Valoper profile: [test-1](/r/gnoland/valopers:g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h)
 //
-// **Status: ACTIVE**
+// ## test-1
+// test-1's description
 //
-// **Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm**
+// - Address: g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h
+// - PubKey: gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p
+//
+// [Profile link](/r/demo/profile:u/g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h)
+//
+//
+// This proposal contains the following metadata:
+//
+// No metadata available.
+//
+// ### Proposal Status:
+//
+// - **Proposal open for votes**
+// - Allowed tiers to vote: T1 T2 T3
+// - YES PERCENT: 0%
+// - NO PERCENT: 0%
+// - [Go to votes list](:0/votes).
 //
 //
