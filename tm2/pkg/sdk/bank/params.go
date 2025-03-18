@@ -12,8 +12,7 @@ type BankParamsContextKey struct{}
 
 // Params defines the parameters for the bank module.
 type Params struct {
-	RestrictedDenoms     []string `json:"restricted_denoms" yaml:"restricted_denoms"`
-	FeesCollectorAddress string   `json:"fees_collector_address" yaml:"collector_address"`
+	RestrictedDenoms []string `json:"restricted_denoms" yaml:"restricted_denoms"`
 }
 
 // NewParams creates a new Params object
@@ -33,7 +32,6 @@ func (p Params) String() string {
 	var sb strings.Builder
 	sb.WriteString("Params: \n")
 	sb.WriteString(fmt.Sprintf("RestrictedDenom: %q\n", p.RestrictedDenoms))
-	sb.WriteString(fmt.Sprintf("FeesCollectorAddress: %q\n", p.FeesCollectorAddress))
 	return sb.String()
 }
 
