@@ -111,7 +111,7 @@ func (led *PrivateLedger) Approve(caller std.Address, to std.Address, tid TokenI
 		return ErrCallerIsNotOwnerOrApproved
 	}
 
-	if err := led.hookRegistry.TriggerApprovalHooks(HookBefore, owner, to, tid); err != nil {
+	if err := led.hookRegistry.TriggerApprovalHooks(led.nft, HookBefore, owner, to, tid); err != nil {
 		return err
 	}
 
@@ -123,7 +123,7 @@ func (led *PrivateLedger) Approve(caller std.Address, to std.Address, tid TokenI
 		"tokenId", string(tid),
 	)
 
-	return led.hookRegistry.TriggerApprovalHooks(HookAfter, owner, to, tid)
+	return led.hookRegistry.TriggerApprovalHooks(led.nft, HookAfter, owner, to, tid)
 }
 
 // SetApprovalForAll approves or removes an operator to transfer all tokens
@@ -136,7 +136,7 @@ func (led *PrivateLedger) SetApprovalForAll(caller std.Address, operator std.Add
 		return ErrApprovalToCurrentOwner
 	}
 
-	if err := led.hookRegistry.TriggerApprovalForAllHooks(HookBefore, caller, operator, approved); err != nil {
+	if err := led.hookRegistry.TriggerApprovalForAllHooks(led.nft, HookBefore, caller, operator, approved); err != nil {
 		return err
 	}
 
@@ -150,7 +150,7 @@ func (led *PrivateLedger) SetApprovalForAll(caller std.Address, operator std.Add
 		"approved", strconv.FormatBool(approved),
 	)
 
-	return led.hookRegistry.TriggerApprovalForAllHooks(HookAfter, caller, operator, approved)
+	return led.hookRegistry.TriggerApprovalForAllHooks(led.nft, HookAfter, caller, operator, approved)
 }
 
 // Transfer transfers a nft directly from the caller to another address
@@ -173,7 +173,7 @@ func (led *PrivateLedger) Transfer(from, to std.Address, tid TokenID) error {
 		return ErrTransferFromIncorrectOwner
 	}
 
-	if err := led.hookRegistry.TriggerTransferHooks(HookBefore, from, to, tid); err != nil {
+	if err := led.hookRegistry.TriggerTransferHooks(led.nft, HookBefore, from, to, tid); err != nil {
 		return err
 	}
 
@@ -182,7 +182,7 @@ func (led *PrivateLedger) Transfer(from, to std.Address, tid TokenID) error {
 		return err
 	}
 
-	return led.hookRegistry.TriggerTransferHooks(HookAfter, from, to, tid)
+	return led.hookRegistry.TriggerTransferHooks(led.nft, HookAfter, from, to, tid)
 }
 
 // TransferFrom transfers a nft from one address to another
@@ -210,7 +210,7 @@ func (led *PrivateLedger) TransferFrom(caller, from, to std.Address, tid TokenID
 		return ErrTransferFromIncorrectOwner
 	}
 
-	if err := led.hookRegistry.TriggerTransferHooks(HookBefore, from, to, tid); err != nil {
+	if err := led.hookRegistry.TriggerTransferHooks(led.nft, HookBefore, from, to, tid); err != nil {
 		return err
 	}
 
@@ -219,7 +219,7 @@ func (led *PrivateLedger) TransferFrom(caller, from, to std.Address, tid TokenID
 		return err
 	}
 
-	return led.hookRegistry.TriggerTransferHooks(HookAfter, from, to, tid)
+	return led.hookRegistry.TriggerTransferHooks(led.nft, HookAfter, from, to, tid)
 }
 
 // Mint creates a new token
@@ -232,7 +232,7 @@ func (led *PrivateLedger) Mint(to std.Address, tid TokenID) error {
 		return ErrTokenIdAlreadyExists
 	}
 
-	if err := led.hookRegistry.TriggerMintHooks(HookBefore, to, tid); err != nil {
+	if err := led.hookRegistry.TriggerMintHooks(led.nft, HookBefore, to, tid); err != nil {
 		return err
 	}
 
@@ -241,11 +241,11 @@ func (led *PrivateLedger) Mint(to std.Address, tid TokenID) error {
 		return err
 	}
 
-	return led.hookRegistry.TriggerMintHooks(HookAfter, to, tid)
+	return led.hookRegistry.TriggerMintHooks(led.nft, HookAfter, to, tid)
 }
 
 func (led *PrivateLedger) Burn(tid TokenID) error {
-	if err := led.hookRegistry.TriggerBurnHooks(HookBefore, tid); err != nil {
+	if err := led.hookRegistry.TriggerBurnHooks(led.nft, HookBefore, tid); err != nil {
 		return err
 	}
 
@@ -254,7 +254,7 @@ func (led *PrivateLedger) Burn(tid TokenID) error {
 		return err
 	}
 
-	return led.hookRegistry.TriggerBurnHooks(HookAfter, tid)
+	return led.hookRegistry.TriggerBurnHooks(led.nft, HookAfter, tid)
 }
 
 // BatchTransferFrom transfers multiple tokens from one address to another

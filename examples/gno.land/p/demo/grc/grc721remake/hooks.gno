@@ -32,31 +32,31 @@ type Hook interface {
 // TransferHook is implemented by hooks that want to intercept transfer operations
 type TransferHook interface {
 	Hook
-	OnTransfer(from, to std.Address, tid TokenID) error
+	OnTransfer(nft *NFT, from, to std.Address, tid TokenID) error
 }
 
 // ApprovalHook is implemented by hooks that want to intercept approval operations
 type ApprovalHook interface {
 	Hook
-	OnApproval(owner, approved std.Address, tid TokenID) error
+	OnApproval(nft *NFT, owner, approved std.Address, tid TokenID) error
 }
 
 // ApprovalForAllHook is implemented by hooks that want to intercept approvalForAll operations
 type ApprovalForAllHook interface {
 	Hook
-	OnApprovalForAll(owner, operator std.Address, approved bool) error
+	OnApprovalForAll(nft *NFT, owner, operator std.Address, approved bool) error
 }
 
 // MintHook is implemented by hooks that want to intercept mint operations
 type MintHook interface {
 	Hook
-	OnMint(to std.Address, tid TokenID) error
+	OnMint(nft *NFT, to std.Address, tid TokenID) error
 }
 
 // BurnHook is implemented by hooks that want to intercept burn operations
 type BurnHook interface {
 	Hook
-	OnBurn(tid TokenID) error
+	OnBurn(nft *NFT, tid TokenID) error
 }
 
 // HookRegistry manages a collection of hooks
@@ -77,11 +77,11 @@ func (reg *HookRegistry) RegisterHook(hook Hook) {
 }
 
 // TriggerTransferHooks executes all transfer hooks of the specified time
-func (reg *HookRegistry) TriggerTransferHooks(time HookTime, from, to std.Address, tid TokenID) error {
+func (reg *HookRegistry) TriggerTransferHooks(nft *NFT, time HookTime, from, to std.Address, tid TokenID) error {
 	for _, hook := range reg.hooks {
 		if hook.GetHookType() == HookTransfer && hook.GetHookTime() == time {
 			if transferHook, ok := hook.(TransferHook); ok {
-				if err := transferHook.OnTransfer(from, to, tid); err != nil {
+				if err := transferHook.OnTransfer(nft, from, to, tid); err != nil {
 					return err
 				}
 			}
@@ -91,11 +91,11 @@ func (reg *HookRegistry) TriggerTransferHooks(time HookTime, from, to std.Addres
 }
 
 // TriggerApprovalHooks executes all approval hooks of the specified time
-func (reg *HookRegistry) TriggerApprovalHooks(time HookTime, owner, approved std.Address, tid TokenID) error {
+func (reg *HookRegistry) TriggerApprovalHooks(nft *NFT, time HookTime, owner, approved std.Address, tid TokenID) error {
 	for _, hook := range reg.hooks {
 		if hook.GetHookType() == HookApproval && hook.GetHookTime() == time {
 			if approvalHook, ok := hook.(ApprovalHook); ok {
-				if err := approvalHook.OnApproval(owner, approved, tid); err != nil {
+				if err := approvalHook.OnApproval(nft, owner, approved, tid); err != nil {
 					return err
 				}
 			}
@@ -105,11 +105,11 @@ func (reg *HookRegistry) TriggerApprovalHooks(time HookTime, owner, approved std
 }
 
 // TriggerApprovalForAllHooks executes all approvalForAll hooks of the specified time
-func (reg *HookRegistry) TriggerApprovalForAllHooks(time HookTime, owner, operator std.Address, approved bool) error {
+func (reg *HookRegistry) TriggerApprovalForAllHooks(nft *NFT, time HookTime, owner, operator std.Address, approved bool) error {
 	for _, hook := range reg.hooks {
 		if hook.GetHookType() == HookApprovalForAll && hook.GetHookTime() == time {
 			if approvalForAllHook, ok := hook.(ApprovalForAllHook); ok {
-				if err := approvalForAllHook.OnApprovalForAll(owner, operator, approved); err != nil {
+				if err := approvalForAllHook.OnApprovalForAll(nft, owner, operator, approved); err != nil {
 					return err
 				}
 			}
@@ -119,11 +119,11 @@ func (reg *HookRegistry) TriggerApprovalForAllHooks(time HookTime, owner, operat
 }
 
 // TriggerMintHooks executes all mint hooks of the specified time
-func (reg *HookRegistry) TriggerMintHooks(time HookTime, to std.Address, tid TokenID) error {
+func (reg *HookRegistry) TriggerMintHooks(nft *NFT, time HookTime, to std.Address, tid TokenID) error {
 	for _, hook := range reg.hooks {
 		if hook.GetHookType() == HookMint && hook.GetHookTime() == time {
 			if mintHook, ok := hook.(MintHook); ok {
-				if err := mintHook.OnMint(to, tid); err != nil {
+				if err := mintHook.OnMint(nft, to, tid); err != nil {
 					return err
 				}
 			}
@@ -133,15 +133,15 @@ func (reg *HookRegistry) TriggerMintHooks(time HookTime, to std.Address, tid Tok
 }
 
 // TriggerBurnHooks executes all burn hooks of the specified time
-func (reg *HookRegistry) TriggerBurnHooks(time HookTime, tid TokenID) error {
+func (reg *HookRegistry) TriggerBurnHooks(nft *NFT, time HookTime, tid TokenID) error {
 	for _, hook := range reg.hooks {
 		if hook.GetHookType() == HookBurn && hook.GetHookTime() == time {
 			if burnHook, ok := hook.(BurnHook); ok {
-				if err := burnHook.OnBurn(tid); err != nil {
+				if err := burnHook.OnBurn(nft, tid); err != nil {
 					return err
 				}
 			}
 		}
 	}
 	return nil
-} 
+}

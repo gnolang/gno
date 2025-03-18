@@ -74,7 +74,7 @@ func TestNFT(t *testing.T) {
 	urequire.NoError(t, ledger.TransferFrom(bob, alice, carl, "token1"))
 	checkBalances(2, 0, 1)
 	checkOwnership("token1", carl)
-	
+
 	_, err := nft.GetApproved("token1")
 	uassert.ErrorContains(t, err, ErrTokenIdNotHasApproved.Error(), "approval should be cleared after transfer")
 
@@ -100,30 +100,30 @@ func TestNFT(t *testing.T) {
 	urequire.NoError(t, ledger.Burn("token1"))
 	checkBalances(0, 1, 3)
 	uassert.Equal(t, nft.TokenCount(), uint64(4), "token count should be 4 after burning")
-	
+
 	urequire.NoError(t, ledger.BatchBurn([]TokenID{"token3", "token4"}))
 	checkBalances(0, 1, 1)
 	uassert.Equal(t, nft.TokenCount(), uint64(2), "token count should be 2 after batch burning")
-	
+
 	err = ledger.Mint(alice, "token2")
 	uassert.ErrorContains(t, err, ErrTokenIdAlreadyExists.Error(), "should not be able to mint existing token")
-	
+
 	err = ledger.Transfer(alice, bob, "nonexistent")
 	uassert.ErrorContains(t, err, ErrInvalidTokenId.Error(), "should not be able to transfer non-existent token")
-	
+
 	err = ledger.Approve(alice, bob, "nonexistent")
 	uassert.ErrorContains(t, err, ErrInvalidTokenId.Error(), "should not be able to approve non-existent token")
-	
+
 	err = ledger.Transfer(alice, bob, "token5")
 	uassert.ErrorContains(t, err, ErrTransferFromIncorrectOwner.Error(), "should not be able to transfer token you don't own")
 }
 
 func TestMetadata(t *testing.T) {
 	nft, _ := NewNFT("Dummy NFT", "DNFT")
-	
+
 	uassert.Equal(t, nft.GetName(), "Dummy NFT", "name should match")
 	uassert.Equal(t, nft.GetSymbol(), "DNFT", "symbol should match")
-	
+
 	getter := nft.Getter()
 	nftFromGetter := getter()
 	uassert.Equal(t, nftFromGetter.GetName(), "Dummy NFT", "name from getter should match")

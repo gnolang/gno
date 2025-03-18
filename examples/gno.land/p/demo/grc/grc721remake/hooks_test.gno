@@ -6,8 +6,8 @@ import (
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/urequire"
 )
 
 // PausableHook is an example hook that can pause transfers
@@ -23,7 +23,7 @@ func (h *PausableHook) GetHookTime() HookTime {
 	return HookBefore
 }
 
-func (h *PausableHook) OnTransfer(from, to std.Address, tid TokenID) error {
+func (h *PausableHook) OnTransfer(nft *NFT, from, to std.Address, tid TokenID) error {
 	if h.paused {
 		return ufmt.Errorf("transfers are paused")
 	}
@@ -44,7 +44,7 @@ func (h *RoyaltyHook) GetHookTime() HookTime {
 	return HookBefore
 }
 
-func (h *RoyaltyHook) OnTransfer(from, to std.Address, tid TokenID) error {
+func (h *RoyaltyHook) OnTransfer(nft *NFT, from, to std.Address, tid TokenID) error {
 	println("RoyaltyHook OnTransfer called")
 	return nil
 }
@@ -60,7 +60,7 @@ func (h *LoggingHook) GetHookTime() HookTime {
 	return HookAfter
 }
 
-func (h *LoggingHook) OnMint(to std.Address, tid TokenID) error {
+func (h *LoggingHook) OnMint(nft *NFT, to std.Address, tid TokenID) error {
 	println("LoggingHook OnMint called")
 	return nil
 }
@@ -79,7 +79,7 @@ func (h *BurnLimitHook) GetHookTime() HookTime {
 	return HookBefore
 }
 
-func (h *BurnLimitHook) OnBurn(tid TokenID) error {
+func (h *BurnLimitHook) OnBurn(nft *NFT, tid TokenID) error {
 	if h.burnCount >= h.maxBurns {
 		return ufmt.Errorf("burn limit reached: maximum %d burns allowed", h.maxBurns)
 	}
@@ -92,33 +92,33 @@ func TestPausableHook(t *testing.T) {
 	bob := testutils.TestAddress("bob")
 
 	nft, ledger := NewNFT("Dummy NFT", "DNFT")
-	
+
 	pausable := &PausableHook{paused: false}
 	nft.RegisterHook(pausable)
-	
+
 	urequire.NoError(t, ledger.Mint(alice, "token1"))
 	urequire.NoError(t, ledger.Transfer(alice, bob, "token1"))
-	
+
 	owner, err := nft.OwnerOf("token1")
 	urequire.NoError(t, err)
 	uassert.Equal(t, owner, bob, "token should be transferred to bob")
-	
+
 	pausable.paused = true
-	
+
 	urequire.NoError(t, ledger.Mint(bob, "token2"))
-	
+
 	err = ledger.Transfer(bob, alice, "token2")
 	uassert.Error(t, err, "transfer should fail when paused")
 	uassert.ErrorContains(t, err, "transfers are paused", "error should indicate transfers are paused")
-	
+
 	owner, err = nft.OwnerOf("token2")
 	urequire.NoError(t, err)
 	uassert.Equal(t, owner, bob, "token should still be owned by bob")
-	
+
 	pausable.paused = false
-	
+
 	urequire.NoError(t, ledger.Transfer(bob, alice, "token2"))
-	
+
 	owner, err = nft.OwnerOf("token2")
 	urequire.NoError(t, err)
 	uassert.Equal(t, owner, alice, "token should be transferred to alice")
@@ -130,16 +130,16 @@ func TestRoyaltyHook(t *testing.T) {
 	creator := testutils.TestAddress("creator")
 
 	nft, ledger := NewNFT("Royalty NFT", "RNFT")
-	
+
 	royalty := &RoyaltyHook{
 		royaltyReceiver: creator,
 		royaltyPercent:  10,
 	}
 	nft.RegisterHook(royalty)
-	
+
 	urequire.NoError(t, ledger.Mint(alice, "token1"))
 	urequire.NoError(t, ledger.Transfer(alice, bob, "token1"))
-	
+
 	owner, err := nft.OwnerOf("token1")
 	urequire.NoError(t, err)
 	uassert.Equal(t, owner, bob, "token should be transferred to bob")
@@ -149,10 +149,10 @@ func TestLoggingHook(t *testing.T) {
 	alice := testutils.TestAddress("alice")
 
 	nft, ledger := NewNFT("Logging NFT", "LNFT")
-	
+
 	logger := &LoggingHook{}
 	nft.RegisterHook(logger)
-	
+
 	urequire.NoError(t, ledger.Mint(alice, "token1"))
 }
 
@@ -160,24 +160,24 @@ func TestBurnLimitHook(t *testing.T) {
 	alice := testutils.TestAddress("alice")
 
 	nft, ledger := NewNFT("Burn Limit NFT", "BLNFT")
-	
+
 	burnLimit := &BurnLimitHook{
 		burnCount: 0,
 		maxBurns:  2,
 	}
 	nft.RegisterHook(burnLimit)
-	
+
 	urequire.NoError(t, ledger.Mint(alice, "token1"))
 	urequire.NoError(t, ledger.Mint(alice, "token2"))
 	urequire.NoError(t, ledger.Mint(alice, "token3"))
-	
+
 	urequire.NoError(t, ledger.Burn("token1"))
 	urequire.NoError(t, ledger.Burn("token2"))
-	
+
 	err := ledger.Burn("token3")
 	uassert.Error(t, err, "burn should fail when limit reached")
 	uassert.ErrorContains(t, err, "burn limit reached", "error should indicate burn limit reached")
-	
+
 	_, err = nft.OwnerOf("token3")
 	uassert.NoError(t, err, "token3 should still exist")
 }
@@ -188,28 +188,28 @@ func TestMultipleHooks(t *testing.T) {
 	creator := testutils.TestAddress("creator")
 
 	nft, ledger := NewNFT("Multi Hook NFT", "MHNFT")
-	
+
 	pausable := &PausableHook{paused: false}
 	royalty := &RoyaltyHook{
 		royaltyReceiver: creator,
 		royaltyPercent:  10,
 	}
 	logger := &LoggingHook{}
-	
+
 	nft.RegisterHook(pausable)
 	nft.RegisterHook(royalty)
 	nft.RegisterHook(logger)
-	
+
 	urequire.NoError(t, ledger.Mint(alice, "token1"))
-	
+
 	urequire.NoError(t, ledger.Transfer(alice, bob, "token1"))
-	
+
 	pausable.paused = true
-	
+
 	err := ledger.Transfer(bob, alice, "token1")
 	uassert.Error(t, err, "transfer should fail when paused")
-	
+
 	owner, err := nft.OwnerOf("token1")
 	urequire.NoError(t, err)
 	uassert.Equal(t, owner, bob, "token should still be owned by bob")
-} 
+}
