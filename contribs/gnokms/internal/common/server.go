@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	sserver "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/server"
+	rss "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/server"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
@@ -20,14 +20,14 @@ func NewSignerServer(
 	commonFlags *ServerFlags,
 	signer types.Signer,
 	logger *slog.Logger,
-) (*sserver.RemoteSignerServer, error) {
+) (*rss.RemoteSignerServer, error) {
 	// Split the listen addresses into a slice.
 	listenAddresses := strings.Split(commonFlags.ListenAddresses, ",")
 
 	// Create server options.
-	options := []sserver.Option{
-		sserver.WithKeepAlivePeriod(commonFlags.KeepAlivePeriod),
-		sserver.WithResponseTimeout(commonFlags.ResponseTimeout),
+	options := []rss.Option{
+		rss.WithKeepAlivePeriod(commonFlags.KeepAlivePeriod),
+		rss.WithResponseTimeout(commonFlags.ResponseTimeout),
 	}
 
 	// Load the auth keys file if it exists for mutual authentication.
@@ -42,8 +42,8 @@ func NewSignerServer(
 
 		// Add the authorized keys and server private key to the server options.
 		options = append(options,
-			sserver.WithAuthorizedKeys(authorizedKeys),
-			sserver.WithServerPrivKey(authKeysFile.ServerIdentity.PrivKey),
+			rss.WithAuthorizedKeys(authorizedKeys),
+			rss.WithServerPrivKey(authKeysFile.ServerIdentity.PrivKey),
 		)
 	} else {
 		// Check if at least one of the listener is using the tcp protocol.
@@ -58,7 +58,7 @@ func NewSignerServer(
 	}
 
 	// Initialize the remote signer server with its options.
-	server, err := sserver.NewRemoteSignerServer(
+	server, err := rss.NewRemoteSignerServer(
 		signer,
 		listenAddresses,
 		logger.With("module", "remote_signer_server"),
