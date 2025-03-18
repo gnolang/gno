@@ -106,6 +106,8 @@ type PrivateLedger struct {
 	tokenURIs avl.Tree
 	// "OwnerAddress:OperatorAddress" -> bool
 	operatorApprovals avl.Tree
+	// Hook registry for extensibility
+	hookRegistry *HookRegistry
 }
 
 const (
