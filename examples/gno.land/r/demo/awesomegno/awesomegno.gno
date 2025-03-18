@@ -7,7 +7,6 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/sys/users"
 )
 
 var (
@@ -33,7 +32,6 @@ func AddAdmin(addr std.Address) error {
 	if !isAdmin(caller) {
 		return ufmt.Errorf("not authorized: only admins can add new admins")
 	}
-
 	if !addr.IsValid() {
 		return ufmt.Errorf("invalid address")
 	}
@@ -49,11 +47,9 @@ func RemoveAdmin(addr std.Address) error {
 	if !isAdmin(caller) {
 		return ufmt.Errorf("not authorized: only admins can remove admins")
 	}
-
 	if !addr.IsValid() {
 		return ufmt.Errorf("invalid address")
 	}
-
 	if admins.Size() <= 1 {
 		return ufmt.Errorf("cannot remove the last admin")
 	}
@@ -65,11 +61,9 @@ func RemoveAdmin(addr std.Address) error {
 
 func AddCategory(name, description string) (uint64, error) {
 	caller := std.PreviousRealm().Address()
-
 	if !isAdmin(caller) {
 		return 0, ufmt.Errorf("not authorized: only admins can add categories")
 	}
-
 	if name == "" {
 		return 0, ufmt.Errorf("category name cannot be empty")
 	}
@@ -132,24 +126,6 @@ func GetCategoryByID(id uint64) (Category, bool) {
 	return value.(Category), true
 }
 
-func AddDappToCategory(dappID uint64, categoryName string) error {
-	category, found := GetCategory(categoryName)
-	if !found {
-		return ufmt.Errorf("category not found: %s", categoryName)
-	}
-
-	for _, id := range category.DappIDs {
-		if id == dappID {
-			return nil
-		}
-	}
-
-	category.DappIDs = append(category.DappIDs, dappID)
-	categories.Set(strconv.FormatUint(category.ID, 10), category)
-
-	return nil
-}
-
 func RemoveDappFromCategory(dappID uint64, categoryName string) error {
 	category, found := GetCategory(categoryName)
 	if !found {
@@ -186,11 +162,9 @@ func ProposeNewDapp(title, description, url string, categoryNames []string) (uin
 	if title == "" {
 		return 0, ufmt.Errorf("title cannot be empty")
 	}
-
 	if description == "" {
 		return 0, ufmt.Errorf("description cannot be empty")
 	}
-
 	if url == "" {
 		return 0, ufmt.Errorf("URL cannot be empty")
 	}
@@ -206,7 +180,6 @@ func ProposeNewDapp(title, description, url string, categoryNames []string) (uin
 				}
 				return false
 			})
-
 			if !categoryExists {
 				return 0, ufmt.Errorf("category '%s' does not exist", catName)
 			}
@@ -267,7 +240,7 @@ func ApproveProposal(proposalID uint64) error {
 	dapps.Set(strconv.FormatUint(nextDappID, 10), dapp)
 
 	for _, categoryName := range dapp.Categories {
-		err := AddDappToCategory(dapp.ID, categoryName)
+		err := addDappToCategory(dapp.ID, categoryName)
 		if err != nil {
 			return err
 		}
@@ -297,7 +270,6 @@ func RejectProposal(proposalID uint64, reason string) error {
 	}
 
 	proposal := proposalRaw.(Proposal)
-
 	if proposal.Status != StatusPending {
 		return ufmt.Errorf("proposal is not pending")
 	}
@@ -355,19 +327,6 @@ func ListPendingProposals() []Proposal {
 	return result
 }
 
-func isAdmin(addr std.Address) bool {
-	isAdminRaw, exists := admins.Get(addr.String())
-	return exists && isAdminRaw.(bool)
-}
-
-func GetUserDisplayName(addr std.Address) string {
-	userData := users.ResolveAddress(addr)
-	if userData != nil {
-		return "@" + userData.Name()
-	}
-	return addr.String()
-}
-
 func GetDappsByCategory(categoryName string) []Dapp {
 	result := []Dapp{}
 
@@ -402,7 +361,6 @@ func UpdateDappCategories(dappID uint64, newCategories []string) error {
 	}
 
 	dapp := value.(Dapp)
-
 	for _, catName := range newCategories {
 		_, found := GetCategory(catName)
 		if !found {
@@ -418,7 +376,6 @@ func UpdateDappCategories(dappID uint64, newCategories []string) error {
 				break
 			}
 		}
-
 		if !found {
 			err := RemoveDappFromCategory(dappID, oldCat)
 			if err != nil {
@@ -435,9 +392,8 @@ func UpdateDappCategories(dappID uint64, newCategories []string) error {
 				break
 			}
 		}
-
 		if !found {
-			err := AddDappToCategory(dappID, newCat)
+			err := addDappToCategory(dappID, newCat)
 			if err != nil {
 				return err
 			}
@@ -463,7 +419,6 @@ func DeleteDapp(dappID uint64) error {
 	}
 
 	dapp := value.(Dapp)
-
 	for _, categoryName := range dapp.Categories {
 		err := RemoveDappFromCategory(dappID, categoryName)
 		if err != nil {
@@ -512,4 +467,27 @@ func DeleteCategory(categoryName string) error {
 	std.Emit("CategoryDeleted", "name", categoryName)
 
 	return nil
+}
+
+func addDappToCategory(dappID uint64, categoryName string) error {
+	category, found := GetCategory(categoryName)
+	if !found {
+		return ufmt.Errorf("category not found: %s", categoryName)
+	}
+
+	for _, id := range category.DappIDs {
+		if id == dappID {
+			return nil
+		}
+	}
+
+	category.DappIDs = append(category.DappIDs, dappID)
+	categories.Set(strconv.FormatUint(category.ID, 10), category)
+
+	return nil
+}
+
+func isAdmin(addr std.Address) bool {
+	isAdminRaw, exists := admins.Get(addr.String())
+	return exists && isAdminRaw.(bool)
 }

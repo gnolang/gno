@@ -1,6 +1,7 @@
 package awesomegno
 
 import (
+	"std"
 	"strconv"
 	"strings"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/avl/pager"
 	"gno.land/p/moul/md"
+	"gno.land/r/sys/users"
 )
 
 func Render(path string) string {
@@ -88,7 +90,7 @@ func renderHomePage(queryParams string) string {
 				out += md.Bold("Categories:") + " " + strings.Join(categoryLinks, ", ") + "\n\n"
 			}
 
-			out += md.Bold("Author:") + " " + GetUserDisplayName(dapp.Author) + "\n\n"
+			out += md.Bold("Author:") + " " + getUserDisplayName(dapp.Author) + "\n\n"
 			out += md.Bold("URL:") + " " + md.Link(dapp.URL, dapp.URL) + "\n\n"
 
 			out += md.HorizontalRule()
@@ -124,7 +126,7 @@ func renderDappPage(id uint64) string {
 		out += md.Bold("Categories:") + " " + strings.Join(categoryLinks, ", ") + "\n\n"
 	}
 
-	out += md.Bold("Author:") + " " + GetUserDisplayName(dapp.Author) + "\n\n"
+	out += md.Bold("Author:") + " " + getUserDisplayName(dapp.Author) + "\n\n"
 	out += md.Bold("URL:") + " " + md.Link(dapp.URL, dapp.URL) + "\n\n"
 	out += md.Bold("Added:") + " " + dapp.CreatedAt.Format(time.RFC3339) + "\n\n"
 
@@ -155,7 +157,7 @@ func renderProposalsPage(queryParams string) string {
 			proposal := item.Value.(Proposal)
 
 			out += md.H2(md.Link(proposal.Dapp.Title, "/r/demo/awesomegno:proposals/"+strconv.FormatUint(proposal.ID, 10)))
-			out += md.Bold("Proposer:") + " " + GetUserDisplayName(proposal.Proposer) + "\n\n"
+			out += md.Bold("Proposer:") + " " + getUserDisplayName(proposal.Proposer) + "\n\n"
 			out += md.Bold("Submitted:") + " " + proposal.CreatedAt.Format(time.RFC3339) + "\n\n"
 			out += md.HorizontalRule()
 		}
@@ -177,7 +179,7 @@ func renderProposalPage(id uint64) string {
 
 	out := md.H1("Proposal: " + proposal.Dapp.Title)
 	out += md.Bold("Status:") + " " + proposal.Status + "\n\n"
-	out += md.Bold("Proposer:") + " " + GetUserDisplayName(proposal.Proposer) + "\n\n"
+	out += md.Bold("Proposer:") + " " + getUserDisplayName(proposal.Proposer) + "\n\n"
 	out += md.Bold("Submitted:") + " " + proposal.CreatedAt.Format(time.RFC3339) + "\n\n"
 
 	if proposal.Status == StatusRejected && proposal.Reason != "" {
@@ -249,7 +251,7 @@ func renderCategoryPage(categoryName string, queryParams string) string {
 				}
 			}
 
-			out += md.Bold("Author:") + " " + GetUserDisplayName(dapp.Author) + "\n\n"
+			out += md.Bold("Author:") + " " + getUserDisplayName(dapp.Author) + "\n\n"
 			out += md.Bold("URL:") + " " + md.Link(dapp.URL, dapp.URL) + "\n\n"
 
 			out += md.HorizontalRule()
@@ -323,4 +325,12 @@ func renderContributePage() string {
 	out += "\n\nFor more information, visit the " + md.Link("Awesome Gno GitHub repository", "https://github.com/gnoverse/awesome-gno") + ".\n\n"
 
 	return out
+}
+
+func getUserDisplayName(addr std.Address) string {
+	userData := users.ResolveAddress(addr)
+	if userData != nil {
+		return "@" + userData.Name()
+	}
+	return addr.String()
 }
