@@ -3,6 +3,7 @@ package gnolang
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 	"math/big"
 	"math/rand/v2"
 	"reflect"
@@ -1459,21 +1460,16 @@ func (tv *TypedValue) AssertNonNegative(msg string) {
 	}
 }
 
-// uvnan is the unsigned value of NaN. It can be obtained by applying the following:
-// { var nan = math.NaN(); var uvnan = *(*uint64)(unsafe.Pointer(&nan)) }
-const uvnan = 0x7FF8000000000001
-
-// randNaN returns an uint64 representation of NaN with a random payload of 53 bits.
-func randNaN() uint64 {
-	return rand.Uint64()&^uvnan | uvnan //nolint:gosec
+// randNaN64 returns an uint64 representation of NaN with a random payload.
+func randNaN64() uint64 {
+	const uvnan64 = 0x7FF8000000000001      // math.Float64bits(math.NaN())
+	return rand.Uint64()&^uvnan64 | uvnan64 //nolint:gosec
 }
 
-// IsNaN reports wether tv is an IEEE 754 "not a number" value.
-func (tv *TypedValue) IsNaN() bool {
-	if tv.HasKind(Float64Kind) {
-		return uvnan == tv.GetFloat64()&uvnan
-	}
-	return false
+// randNaN32 returns an uint32 representation of NaN with a random payload.
+func randNaN32() uint32 {
+	const uvnan32 = 0x7FC00000              // math.Float32bits(float32(math.NaN()))
+	return rand.Uint32()&^uvnan32 | uvnan32 //nolint:gosec
 }
 
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
@@ -1494,9 +1490,26 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 	}
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
-		if tv.IsNaN() {
-			// if NaN, generate a random payload to ensure key uniqueness.
-			tv.SetFloat64(randNaN())
+		if tv.HasKind(Float64Kind) {
+			f := math.Float64frombits(tv.GetFloat64())
+			if f != f {
+				// If NaN, shuffle its value, thus allowing several NaN per map
+				// and ensuring that a value cannot be retrieved by NaN.
+				tv.SetFloat64(randNaN64())
+			} else if f == 0.0 {
+				// If zero, clear the sign, so +0.0 and -0.0 match the same key.
+				tv.SetFloat64(math.Float64bits(+0.0))
+			}
+		} else if tv.HasKind(Float32Kind) {
+			f := math.Float32frombits(tv.GetFloat32())
+			if f != f {
+				// If NaN, shuffle its value, thus allowing several NaN per map
+				// and ensuring that a value cannot be retrieved by NaN.
+				tv.SetFloat32(randNaN32())
+			} else if f == 0.0 {
+				// If zero, clear the sign, so +0.0 and -0.0 match the same key.
+				tv.SetFloat32(math.Float32bits(+0.0))
+			}
 		}
 		pbz := tv.PrimitiveBytes()
 		bz = append(bz, pbz...)
