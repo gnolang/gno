@@ -27,6 +27,7 @@ const (
 	MaxSessionsPerAccount = 64
 )
 
+// Account flags
 const (
 	// XXX rename these to flagXyz.
 
@@ -43,7 +44,7 @@ const (
 // validAccountFlags defines the set of all valid flags for accounts
 var validAccountFlags = flagUnrestrictedAccount | flagValidatorAccount | flagRealmAccount
 
-// Session flags - using the same BitSet type
+// Session flags
 const (
 	flagSessionManagerSession BitSet = 1 << iota // Replaces CanManageOtherSessions
 	flagPackageManagerSession                    // Replaces CanManagePackages
@@ -121,17 +122,18 @@ func (ga *GnoAccount) CreateSession(pubKey crypto.PubKey) (std.Session, error) {
 	return session, nil
 }
 
-// GetSessionPubkeys returns all non-expired session pubkeys
-func (ga *GnoAccount) GetSessionPubkeys() []crypto.PubKey {
-	var pubkeys []crypto.PubKey
-	now := time.Now()
+// GetSessions returns all non-expired sessions
+// Implements the Account interface
+func (ga *GnoAccount) GetSessions() []std.Session {
+	// Clean up expired sessions first
+	ga.gc()
 
-	for _, session := range ga.Sessions {
-		if session.ExpirationTime.IsZero() || now.Before(session.ExpirationTime) {
-			pubkeys = append(pubkeys, session.GetPubKey())
-		}
+	// Convert and return all sessions as std.Session
+	sessions := make([]std.Session, 0, len(ga.Sessions))
+	for i := range ga.Sessions {
+		sessions = append(sessions, &ga.Sessions[i])
 	}
-	return pubkeys
+	return sessions
 }
 
 // GetSession gets a specific session by pubkey
