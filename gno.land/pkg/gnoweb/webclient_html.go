@@ -254,7 +254,7 @@ func (s *HTMLWebClient) query(qpath string, data []byte) ([]byte, error) {
 func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) error {
 	var lexer chroma.Lexer
 
-	const gnolandPrefix = "gno.land/"
+	const gnolandPrefix = "gno.land/" //  XXX: dynamically get this from the underlying chain instance.
 
 	// Determine the lexer to be used based on the file extension.
 	switch strings.ToLower(gopath.Ext(fileName)) {
