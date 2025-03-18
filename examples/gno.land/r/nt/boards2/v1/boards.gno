@@ -75,3 +75,11 @@ func mustGetReply(thread *Post, replyID PostID) *Post {
 	}
 	return reply
 }
+
+func mustGetPermissions(bid BoardID) Permissions {
+	if bid != 0 {
+		board := mustGetBoard(bid)
+		return board.perms
+	}
+	return gPerms
+}

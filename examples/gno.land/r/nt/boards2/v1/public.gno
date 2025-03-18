@@ -634,11 +634,3 @@ func assertReplyBodyIsValid(body string) {
 		panic("using Markdown headings, blockquotes or horizontal lines is not allowed in replies")
 	}
 }
-
-func mustGetPermissions(bid BoardID) Permissions {
-	if bid != 0 {
-		board := mustGetBoard(bid)
-		return board.perms
-	}
-	return gPerms
-}
