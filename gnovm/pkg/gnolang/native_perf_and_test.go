@@ -53,6 +53,7 @@ func BenchmarkGnoPrintln(b *testing.B) {
 	if pSink == nil {
 		b.Fatal("Benchmark did not run!")
 	}
+	pSink = nil
 }
 
 func TestGnoPrintAndPrintln(t *testing.T) {
