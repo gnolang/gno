@@ -1775,25 +1775,10 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	if pv == nil {
 		panic(fmt.Sprintf("package value missing in store: %s", fv.PkgPath))
 	}
-	rlm := pv.GetRealm()
-	if rlm == nil && recv.IsDefined() {
-		obj := recv.GetFirstObject(m.Store)
-		if obj == nil {
-			// could be a nil receiver.
-			// just ignore.
-		} else {
-			recvOID := obj.GetObjectInfo().ID
-			if !recvOID.IsZero() {
-				// override the pv and rlm with receiver's.
-				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
-				pv = m.Store.GetObject(recvPkgOID).(*PackageValue)
-				rlm = pv.GetRealm() // done
-			}
-		}
-	}
+
 	m.Package = pv
-	if rlm != nil && m.Realm != rlm {
-		m.Realm = rlm // enter new realm
+	if rlm := pv.GetRealm(); rlm != nil {
+		m.Realm = rlm // switch to new realm
 	}
 }
 
