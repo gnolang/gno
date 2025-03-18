@@ -23,6 +23,7 @@ var (
 )
 
 func init() {
+	admins.Set("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y", true)
 	admins.Set(std.PreviousRealm().Address().String(), true)
 }
 

@@ -11,8 +11,22 @@ import (
 )
 
 func Render(path string) string {
+	queryParams := ""
+	if idx := strings.Index(path, "?"); idx != -1 {
+		queryParams = path[idx:]
+		path = path[:idx]
+	}
+	
 	if path == "" {
-		return renderHomePage()
+		return renderHomePage(queryParams)
+	}
+	
+	if path == "categories" {
+		return renderCategoriesPage(queryParams)
+	}
+	
+	if path == "contribute" {
+		return renderContributePage()
 	}
 	
 	if strings.HasPrefix(path, "dapp/") {
@@ -23,14 +37,14 @@ func Render(path string) string {
 		}
 		return renderDappPage(id)
 	}
-	
-	if strings.HasPrefix(path, "category/") {
-		categoryName := strings.TrimPrefix(path, "category/")
-		return renderCategoryPage(categoryName)
+
+	if strings.HasPrefix(path, "categories/") {
+		categoryName := strings.TrimPrefix(path, "categories/")
+		return renderCategoryPage(categoryName, queryParams)
 	}
 	
 	if path == "proposals" {
-		return renderProposalsPage()
+		return renderProposalsPage(queryParams)
 	}
 	
 	if strings.HasPrefix(path, "proposals/") {
@@ -45,42 +59,16 @@ func Render(path string) string {
 	return "Page not found"
 }
 
-func renderHomePage() string {
+func renderHomePage(queryParams string) string {
 	out := md.H1("Awesome Gno")
 	out += "A curated list of awesome Gno resources, libraries, tools and more.\n\n"
 	
-	out += md.H2("Categories")
-	
-	categoriesTree := avl.NewTree()
-	categories.Iterate("", "", func(key string, value interface{}) bool {
-		categoriesTree.Set(key, value)
-		return false
-	})
-	
-	categoryPager := pager.NewPager(categoriesTree, 10, true)
-	categoryPage := categoryPager.MustGetPageByPath("")
-	
-	if len(categoryPage.Items) == 0 {
-		out += "No categories available yet.\n\n"
-	} else {
-		categoryLinks := []string{}
-		for _, item := range categoryPage.Items {
-			category := item.Value.(Category)
-			dappCount := len(category.DappIDs)
-			categoryLinks = append(categoryLinks, md.Link(category.Name+" ("+strconv.Itoa(dappCount)+")", "/r/demo/awesomegno:category/"+category.Name))
-		}
-		out += md.BulletList(categoryLinks)
-		
-		categoryPagination := categoryPage.Picker()
-		if categoryPagination != "" {
-			out += categoryPagination + "\n\n"
-		}
-	}
+	out += md.Link("Browse Categories", "/r/demo/awesomegno:categories") + "\n\n"
 	
 	out += md.H2("All Resources")
 	
 	dappPager := pager.NewPager(dapps, 5, true)
-	dappPage := dappPager.MustGetPageByPath("")
+	dappPage := dappPager.MustGetPageByPath(queryParams)
 	
 	if len(dappPage.Items) == 0 {
 		out += "No dApps available yet.\n\n"
@@ -112,25 +100,9 @@ func renderHomePage() string {
 		}
 	}
 	
-	out += md.H2("Contribute")
-	out += "Want to add your project? Call `ProposeNewDapp()` to submit a proposal.\n\n"
-	out += md.Link("View Pending Proposals", "/r/demo/awesomegno:proposals") + "\n\n"
-	
-	out += md.H2("API Documentation")
-	out += "This realm can be imported by other realms to display curated resources:\n\n"
-	out += md.LanguageCodeBlock("go", `import "gno.land/r/demo/awesomegno"
-
-// Get a specific dApp
-dapp, exists := awesomegno.GetDapp(1)
-
-// List all dApps
-allDapps := awesomegno.ListDapps()
-
-// Get dApps by category
-categoryDapps := awesomegno.GetDappsByCategory("Tools")
-
-// Get all categories
-allCategories := awesomegno.ListCategories()`)
+	out += md.H2("More")
+	out += md.Link("View Pending Proposals", "/r/demo/awesomegno:proposals") + " | "
+	out += md.Link("How to Contribute", "/r/demo/awesomegno:contribute") + "\n\n"
 	
 	return out
 }
@@ -161,7 +133,7 @@ func renderDappPage(id uint64) string {
 	return out
 }
 
-func renderProposalsPage() string {
+func renderProposalsPage(queryParams string) string {
 	out := md.H1("Pending Proposals")
 	
 	pendingProposalsTree := avl.NewTree()
@@ -174,7 +146,7 @@ func renderProposalsPage() string {
 	})
 	
 	proposalPager := pager.NewPager(pendingProposalsTree, 5, true)
-	page := proposalPager.MustGetPageByPath("")
+	page := proposalPager.MustGetPageByPath(queryParams)
 	
 	if len(page.Items) == 0 {
 		out += "No pending proposals.\n\n"
@@ -193,9 +165,7 @@ func renderProposalsPage() string {
 			out += pagination + "\n\n"
 		}
 	}
-		
-	out += md.Link("Back to Home", "/r/demo/awesomegno") + "\n"
-	
+			
 	return out
 }
 
@@ -227,13 +197,11 @@ func renderProposalPage(id uint64) string {
 	}
 	
 	out += md.Bold("URL:") + " " + md.Link(proposal.Dapp.URL, proposal.Dapp.URL) + "\n\n"
-	
-	out += md.Link("Back to Proposals", "/r/demo/awesomegno:proposals") + "\n"
-	
+		
 	return out
 }
 
-func renderCategoryPage(categoryName string) string {
+func renderCategoryPage(categoryName string, queryParams string) string {
 	category, found := GetCategory(categoryName)
 	if !found {
 		return "Category not found: " + categoryName
@@ -257,7 +225,7 @@ func renderCategoryPage(categoryName string) string {
 	}
 	
 	dappPager := pager.NewPager(dappsInCategoryTree, 5, true)
-	page := dappPager.MustGetPageByPath("")
+	page := dappPager.MustGetPageByPath(queryParams)
 	
 	if len(page.Items) == 0 {
 		out += "No resources available in this category yet.\n\n"
@@ -293,7 +261,67 @@ func renderCategoryPage(categoryName string) string {
 		}
 	}
 	
-	out += md.Link("Back to Home", "/r/demo/awesomegno") + "\n"
 	
+	return out
+}
+
+func renderCategoriesPage(queryParams string) string {
+	out := md.H1("Categories")
+	out += "Browse resources by category:\n\n"
+	
+	categoriesTree := avl.NewTree()
+	categories.Iterate("", "", func(key string, value interface{}) bool {
+		categoriesTree.Set(key, value)
+		return false
+	})
+	
+	categoryPager := pager.NewPager(categoriesTree, 30, true)
+	categoryPage := categoryPager.MustGetPageByPath(queryParams)
+	
+	if len(categoryPage.Items) == 0 {
+		out += "No categories available yet.\n\n"
+	} else {
+		categoryItems := []string{}
+		for _, item := range categoryPage.Items {
+			category := item.Value.(Category)
+			dappCount := len(category.DappIDs)
+			categoryItems = append(categoryItems, md.Link(category.Name+" ("+strconv.Itoa(dappCount)+")", "/r/demo/awesomegno:category/"+category.Name))
+		}
+		
+		out += md.BulletList(categoryItems)
+		
+		categoryPagination := categoryPage.Picker()
+		if categoryPagination != "" {
+			out += "Page: " + categoryPagination + "\n\n"
+		}
+	}
+		
+	return out
+}
+
+func renderContributePage() string {
+	out := md.H1("Contributing to Awesome Gno")
+	
+	out += md.H2("Contributing")
+	out += "Your contributions are always welcome!\n\n"
+	
+	out += md.H3("Guidelines")
+	out += md.BulletList([]string{
+		"Add one link per Pull Request.",
+		"Make sure the PR title is in the format of Add project-name.",
+		"Write down the reason why the link is awesome.",
+		"Add the link: * [project-name](http://example.com/) - A short description ends with a period.",
+		"Keep descriptions concise and short.",
+		"Add a section if needed.",
+		"Add the section description.",
+		"Add the section title to Table of Contents.",
+		"Search previous Pull Requests or Issues before making a new one, as yours may be a duplicate.",
+		"Don't mention Gno in the description as it's implied.",
+		"Check your spelling and grammar.",
+		"Remove any trailing whitespace.",
+	})
+	
+	out += "\n\nFor more information, visit the " + md.Link("Awesome Gno GitHub repository", "https://github.com/gnoverse/awesome-gno") + ".\n\n"
+		
 	return out
 }
