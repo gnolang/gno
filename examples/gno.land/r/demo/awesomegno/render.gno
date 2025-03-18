@@ -130,8 +130,6 @@ func renderDappPage(id uint64) string {
 	out += md.Bold("URL:") + " " + md.Link(dapp.URL, dapp.URL) + "\n\n"
 	out += md.Bold("Added:") + " " + dapp.CreatedAt.Format(time.RFC3339) + "\n\n"
 
-	out += md.Link("Back to Home", "/r/demo/awesomegno") + "\n"
-
 	return out
 }
 
@@ -286,7 +284,7 @@ func renderCategoriesPage(queryParams string) string {
 		for _, item := range categoryPage.Items {
 			category := item.Value.(Category)
 			dappCount := len(category.DappIDs)
-			categoryItems = append(categoryItems, md.Link(category.Name+" ("+strconv.Itoa(dappCount)+")", "/r/demo/awesomegno:category/"+category.Name))
+			categoryItems = append(categoryItems, md.Link(category.Name+" ("+strconv.Itoa(dappCount)+")", "/r/demo/awesomegno:categories/"+category.Name))
 		}
 
 		out += md.BulletList(categoryItems)
