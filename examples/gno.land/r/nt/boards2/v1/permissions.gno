@@ -5,6 +5,7 @@ import "std"
 const (
 	PermissionRealmNotice         Permission = "realm:notice"
 	PermissionRealmLock                      = "realm:lock"
+	PermissionRealmMembersLock               = "realm:members-lock"
 	PermissionBoardCreate                    = "board:create"
 	PermissionBoardRename                    = "board:rename"
 	PermissionBoardFlaggingUpdate            = "board:flagging-update"
@@ -26,10 +27,10 @@ const (
 )
 
 const (
-	RoleOwner     Role = "owner"
+	RoleGuest     Role = ""
+	RoleOwner          = "owner"
 	RoleAdmin          = "admin"
 	RoleModerator      = "moderator"
-	RoleGuest          = ""
 )
 
 type (

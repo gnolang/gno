@@ -13,11 +13,11 @@ func init() {
 }
 
 func main() {
-	boards2.LockRealm()
+	boards2.LockRealmMembers()
 	println(boards2.IsRealmLocked())
 	println(boards2.AreRealmMembersLocked())
 }
 
 // Output:
 // true
-// false
+// true

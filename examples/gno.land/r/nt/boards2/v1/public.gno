@@ -423,8 +423,12 @@ func EditReply(boardID BoardID, threadID, replyID PostID, body string) {
 // Board ID is only required when inviting a member to a board.
 func InviteMember(boardID BoardID, user std.Address, role Role) {
 	if boardID != 0 {
+		assertRealmIsNotLocked()
+
 		board := mustGetBoard(boardID)
 		assertBoardIsNotFrozen(board)
+	} else {
+		assertRealmMembersAreNotLocked()
 	}
 
 	perms := mustGetPermissions(boardID)
@@ -450,8 +454,12 @@ func InviteMember(boardID BoardID, user std.Address, role Role) {
 // Board ID is only required when removing a member from board.
 func RemoveMember(boardID BoardID, user std.Address) {
 	if boardID != 0 {
+		assertRealmIsNotLocked()
+
 		board := mustGetBoard(boardID)
 		assertBoardIsNotFrozen(board)
+	} else {
+		assertRealmMembersAreNotLocked()
 	}
 
 	perms := mustGetPermissions(boardID)
@@ -501,8 +509,12 @@ func HasMemberRole(boardID BoardID, member std.Address, role Role) bool {
 // Board ID is only required when changing the role for a member of a board.
 func ChangeMemberRole(boardID BoardID, member std.Address, role Role) {
 	if boardID != 0 {
+		assertRealmIsNotLocked()
+
 		board := mustGetBoard(boardID)
 		assertBoardIsNotFrozen(board)
+	} else {
+		assertRealmMembersAreNotLocked()
 	}
 
 	perms := mustGetPermissions(boardID)
