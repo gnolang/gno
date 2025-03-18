@@ -2,13 +2,19 @@
 package crossrealm_test
 
 import (
-	"gno.land/r/demo/tests"
+	crossrealm "gno.land/r/demo/tests/crossrealm/struct"
 )
 
-// NOTE: it is invalid to persist value of external realm types.
-var somevalue tests.TestRealmObject
+// associate to a containing object
+type Container struct {
+	name string
+	b    crossrealm.Bar
+}
+
+var c Container
 
 func init() {
+	print(".")
 }
 
 func main() {

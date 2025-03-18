@@ -5,7 +5,7 @@ import (
 	"gno.land/r/demo/tests"
 )
 
-// NOTE: it is valid to persist external realm types.
+// NOTE: it is invalid to persist external realm types.
 var somevalue tests.TestRealmObject
 
 func main() {
@@ -13,5 +13,5 @@ func main() {
 	println(somevalue)
 }
 
-// Output:
-// (struct{("test" string)} gno.land/r/demo/tests.TestRealmObject)
+// Error:
+// cannot attach a value of a type defined by another realm

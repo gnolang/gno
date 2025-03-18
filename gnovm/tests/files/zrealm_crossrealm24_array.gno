@@ -2,16 +2,14 @@
 package crossrealm_test
 
 import (
-	"gno.land/r/demo/tests"
+	crossrealm "gno.land/r/demo/tests/crossrealm/array"
 )
 
-// NOTE: it is invalid to persist value of external realm types.
-var somevalue tests.TestRealmObject
-
-func init() {
-}
+var root interface{}
 
 func main() {
+	root = crossrealm.GetArray()
+	println(".")
 }
 
 // Error:

@@ -2,16 +2,18 @@
 package crossrealm_test
 
 import (
-	"gno.land/r/demo/tests"
+	crossrealm "gno.land/r/demo/tests/crossrealm/slice"
 )
 
-// NOTE: it is invalid to persist value of external realm types.
-var somevalue tests.TestRealmObject
+var SS [2]crossrealm.XYZ
 
-func init() {
+var f = func(s [2]crossrealm.XYZ) {
+	SS = s
 }
 
 func main() {
+	crossrealm.GetSlice7(f)
+	println(".")
 }
 
 // Error:

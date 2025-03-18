@@ -8,13 +8,13 @@ type S struct {
 var a, b *S
 
 func init() {
-	a = new(S)
+	a = new(S) // heapItemValue new real
 	a.A = new(int)
 	*a.A = 4
 }
 
 func main() {
-	b = a
+	b = a // dirty, refCount change.
 }
 
 // Realm:

@@ -7,27 +7,26 @@ import (
 	crossrealm "gno.land/r/demo/tests/crossrealm"
 )
 
-type fooer struct{}
+type fooer struct{ name string }
 
-func (fooer) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
+func (fooer) Foo() { println("hello from local realm fooer: " + std.CurrentRealm().PkgPath()) }
 
-var f crossrealm.Fooer = crossrealm.SetFooer(&fooer{})
+var local_fooer = &fooer{name: "local_fooer"}
 
 func init() {
+	crossrealm.SetFooer(local_fooer)
 	crossrealm.CallFooerFoo()
 }
 
 func main() {
 	crossrealm.CallFooerFoo()
-	print(".")
+	println(".")
 }
 
 // Output:
-// hello gno.land/r/crossrealm_test
-// hello gno.land/r/crossrealm_test
+// hello from local realm fooer: gno.land/r/crossrealm_test
+// hello from local realm fooer: gno.land/r/crossrealm_test
 // .
-
-// Error:
 
 // Realm:
 // switchrealm["gno.land/r/crossrealm_test"]
