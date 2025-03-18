@@ -7,6 +7,7 @@ import (
 
 // NewNFT creates a new NFT.
 // It returns a pointer to the NFT and a pointer to the Ledger.
+// Expected usage: NFT, ledger := NewNFT("DummyNFT", "DNFT")
 func NewNFT(name, symbol string) (*NFT, *PrivateLedger) {
 	if name == "" {
 		panic("name should not be empty")
@@ -137,7 +138,7 @@ func (led *PrivateLedger) SetApprovalForAll(caller std.Address, operator std.Add
 	return nil
 }
 
-// Transfer transfers a token directly from the caller to another address
+// Transfer transfers a nft directly from the caller to another address
 func (led *PrivateLedger) Transfer(from, to std.Address, tid TokenID) error {
 	if err := isValidAddress(from); err != nil {
 		return err
@@ -160,7 +161,7 @@ func (led *PrivateLedger) Transfer(from, to std.Address, tid TokenID) error {
 	return led.transferToken(from, to, tid)
 }
 
-// TransferFrom transfers a token from one address to another
+// TransferFrom transfers a nft from one address to another
 func (led *PrivateLedger) TransferFrom(caller, from, to std.Address, tid TokenID) error {
 	if err := isValidAddress(from); err != nil {
 		return err
@@ -394,7 +395,7 @@ func (led *PrivateLedger) burnToken(tid TokenID) (std.Address, error) {
 	return owner, nil
 }
 
-// exists checks if a token exists
+// exists checks if a nft exists
 func (led *PrivateLedger) exists(tid TokenID) bool {
 	_, found := led.owners.Get(string(tid))
 	return found

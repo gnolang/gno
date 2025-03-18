@@ -22,7 +22,6 @@ func (nft *NFT) CallerTeller() NFTTeller {
 }
 
 // ReadonlyTeller is a GRC721 compatible teller that panics for any write operation.
-// This is useful for providing read-only access to NFT information.
 func (nft *NFT) ReadonlyTeller() NFTTeller {
 	if nft == nil {
 		panic("NFT cannot be nil")
