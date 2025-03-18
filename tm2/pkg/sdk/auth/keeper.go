@@ -159,7 +159,7 @@ func (ak AccountKeeper) GetNextAccountNumber(ctx sdk.Context) uint64 {
 func (ak AccountKeeper) FeeCollectorAddress(ctx sdk.Context) crypto.Address {
 	feeCollector := ak.GetParams(ctx).FeeCollector
 	if feeCollector.IsZero() {
-		feeCollector = crypto.AddressFromPreimage([]byte(DefaultFeeCollectorName))
+		panic("empty `fee_collector` param value")
 	}
 	return feeCollector
 }

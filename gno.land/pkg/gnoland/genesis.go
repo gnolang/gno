@@ -109,9 +109,9 @@ func LoadGenesisParamsFile(path string, ggs *GnoGenesisState) error {
 		}
 	}
 
-	// Write onto ggs.VM.Params.
-	if vmparams, ok := m["auth"]; ok {
-		for name, value := range vmparams {
+	// Write onto ggs.Auth.Params.
+	if authparams, ok := m["auth"]; ok {
+		for name, value := range authparams {
 			name, _ := splitTypedName(name)
 			switch name {
 			case "fee_collector":
@@ -123,7 +123,7 @@ func LoadGenesisParamsFile(path string, ggs *GnoGenesisState) error {
 				ggs.Auth.Params.FeeCollector = addr
 
 			default:
-				return errors.New("unexpected vm parameter " + name)
+				return errors.New("unexpected auth parameter " + name)
 			}
 		}
 	}
