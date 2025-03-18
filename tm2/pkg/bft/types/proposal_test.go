@@ -53,8 +53,7 @@ func TestProposalVerifySignature(t *testing.T) {
 	t.Parallel()
 
 	privVal := NewMockPV()
-	pubKey, err := privVal.PubKey()
-	require.NoError(t, err)
+	pubKey, _ := privVal.PubKey()
 
 	prop := NewProposal(
 		4, 2, 2,
@@ -62,7 +61,7 @@ func TestProposalVerifySignature(t *testing.T) {
 	signBytes := prop.SignBytes("test_chain_id")
 
 	// sign it
-	err = privVal.SignProposal("test_chain_id", prop)
+	err := privVal.SignProposal("test_chain_id", prop)
 	require.NoError(t, err)
 
 	// verify the same proposal
@@ -103,7 +102,7 @@ func BenchmarkProposalVerifySignature(b *testing.B) {
 	privVal := NewMockPV()
 	err := privVal.SignProposal("test_chain_id", testProposal)
 	require.Nil(b, err)
-	pubKey, err := privVal.PubKey()
+	pubKey, _ := privVal.PubKey()
 	require.NoError(b, err)
 
 	for i := 0; i < b.N; i++ {

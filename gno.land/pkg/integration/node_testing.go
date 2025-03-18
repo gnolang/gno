@@ -87,10 +87,7 @@ func TestingMinimalNodeConfig(gnoroot string) *gnoland.InMemoryNodeConfig {
 	pv := bft.NewMockPV()
 
 	// Get identity pubkey
-	pk, err := pv.PubKey()
-	if err != nil {
-		panic(err) // Should never happen
-	}
+	pk, _ := pv.PubKey()
 
 	// Generate genesis config
 	genesis := DefaultTestingGenesisConfig(gnoroot, pk, tmconfig)

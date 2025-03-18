@@ -73,10 +73,7 @@ func TestEvidence(t *testing.T) {
 		{vote1, badVote, false}, // signed by wrong key
 	}
 
-	pubKey, err := val.PubKey()
-	if err != nil {
-		t.Fatalf("failed to get the validator public key: %v", err)
-	}
+	pubKey, _ := val.PubKey()
 	for _, c := range cases {
 		ev := &DuplicateVoteEvidence{
 			VoteA: c.vote1,
