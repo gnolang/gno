@@ -29,6 +29,8 @@ var (
 
 // SetPermissions sets a permissions implementation for boards2 realm or a board.
 func SetPermissions(bid BoardID, p Permissions) {
+	assertRealmIsNotLocked()
+
 	if p == nil {
 		panic("permissions is required")
 	}
@@ -90,6 +92,8 @@ func GetBoardIDFromName(name string) (_ BoardID, found bool) {
 
 // CreateBoard creates a new board.
 func CreateBoard(name string) BoardID {
+	assertRealmIsNotLocked()
+
 	name = strings.TrimSpace(name)
 	assertIsValidBoardName(name)
 	assertBoardNameNotExists(name)
@@ -120,6 +124,8 @@ func CreateBoard(name string) BoardID {
 // A history of previous board names is kept when boards are renamed.
 // Because of that boards are also accesible using previous name(s).
 func RenameBoard(name, newName string) {
+	assertRealmIsNotLocked()
+
 	newName = strings.TrimSpace(newName)
 	assertIsValidBoardName(newName)
 	assertBoardNameNotExists(newName)
@@ -152,6 +158,8 @@ func RenameBoard(name, newName string) {
 
 // CreateThread creates a new thread within a board.
 func CreateThread(boardID BoardID, title, body string) PostID {
+	assertRealmIsNotLocked()
+
 	title = strings.TrimSpace(title)
 	assertTitleIsValid(title)
 
@@ -181,6 +189,8 @@ func CreateThread(boardID BoardID, title, body string) PostID {
 //
 // The value of `replyID` is only required when creating a reply of another reply.
 func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID {
+	assertRealmIsNotLocked()
+
 	body = strings.TrimSpace(body)
 	assertReplyBodyIsValid(body)
 
@@ -221,6 +231,8 @@ func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID 
 
 // CreateRepost reposts a thread into another board.
 func CreateRepost(boardID BoardID, threadID PostID, title, body string, dstBoardID BoardID) PostID {
+	assertRealmIsNotLocked()
+
 	title = strings.TrimSpace(title)
 	assertTitleIsValid(title)
 
@@ -258,15 +270,23 @@ func CreateRepost(boardID BoardID, threadID PostID, title, body string, dstBoard
 //
 // Threads can be deleted by the users who created them or otherwise by users with special permissions.
 func DeleteThread(boardID BoardID, threadID PostID) {
-	board := mustGetBoard(boardID)
-	assertBoardIsNotFrozen(board)
-
+	// Council members should always be able to delete
 	caller := std.PreviousRealm().Address()
-	thread := mustGetThread(board, threadID)
-	assertThreadIsNotFrozen(thread)
+	isRealmOwner := gPerms.HasRole(caller, RoleOwner) // TODO: Add DeleteThread filetest cases for realm owners
+	if !isRealmOwner {
+		assertRealmIsNotLocked()
+	}
 
-	if caller != thread.GetCreator() {
-		assertHasBoardPermission(board, caller, PermissionThreadDelete)
+	board := mustGetBoard(boardID)
+	thread := mustGetThread(board, threadID)
+
+	if !isRealmOwner {
+		assertBoardIsNotFrozen(board)
+		assertThreadIsNotFrozen(thread)
+
+		if caller != thread.GetCreator() {
+			assertHasBoardPermission(board, caller, PermissionThreadDelete)
+		}
 	}
 
 	// Hard delete thread and all its replies
@@ -286,19 +306,26 @@ func DeleteThread(boardID BoardID, threadID PostID) {
 // Soft deletion is used when the deleted reply contains sub replies, in which case the reply content
 // is replaced by a text informing that reply has been deleted to avoid deleting sub-replies.
 func DeleteReply(boardID BoardID, threadID, replyID PostID) {
-	board := mustGetBoard(boardID)
-	assertBoardIsNotFrozen(board)
-
-	thread := mustGetThread(board, threadID)
-	assertThreadIsNotFrozen(thread)
-
-	reply := mustGetReply(thread, replyID)
-	assertReplyIsVisible(reply)
-	assertReplyIsNotFrozen(reply)
-
+	// Council members should always be able to delete
 	caller := std.PreviousRealm().Address()
-	if caller != reply.GetCreator() {
-		assertHasBoardPermission(board, caller, PermissionReplyDelete)
+	isRealmOwner := gPerms.HasRole(caller, RoleOwner) // TODO: Add DeleteReply filetest cases for realm owners
+	if !isRealmOwner {
+		assertRealmIsNotLocked()
+	}
+
+	board := mustGetBoard(boardID)
+	thread := mustGetThread(board, threadID)
+	reply := mustGetReply(thread, replyID)
+
+	if !isRealmOwner {
+		assertBoardIsNotFrozen(board)
+		assertThreadIsNotFrozen(thread)
+		assertReplyIsVisible(reply)
+		assertReplyIsNotFrozen(reply)
+
+		if caller != reply.GetCreator() {
+			assertHasBoardPermission(board, caller, PermissionReplyDelete)
+		}
 	}
 
 	// Soft delete reply by changing its body when it contains
@@ -322,6 +349,8 @@ func DeleteReply(boardID BoardID, threadID, replyID PostID) {
 //
 // Threads can be updated by the users who created them or otherwise by users with special permissions.
 func EditThread(boardID BoardID, threadID PostID, title, body string) {
+	assertRealmIsNotLocked()
+
 	title = strings.TrimSpace(title)
 	assertTitleIsValid(title)
 
@@ -356,6 +385,8 @@ func EditThread(boardID BoardID, threadID PostID, title, body string) {
 //
 // Replies can be updated only by the users who created them.
 func EditReply(boardID BoardID, threadID, replyID PostID, body string) {
+	assertRealmIsNotLocked()
+
 	body = strings.TrimSpace(body)
 	assertReplyBodyIsValid(body)
 

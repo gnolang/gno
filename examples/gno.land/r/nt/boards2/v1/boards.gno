@@ -12,6 +12,9 @@ var (
 	gLastBoardID  BoardID
 	gBoardsByID   avl.Tree // string(id) -> *Board
 	gBoardsByName avl.Tree // string(name) -> *Board
+	gLocked       struct {
+		realm bool
+	}
 )
 
 func init() {
