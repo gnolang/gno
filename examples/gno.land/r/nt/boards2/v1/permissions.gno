@@ -5,7 +5,6 @@ import "std"
 const (
 	PermissionRealmNotice         Permission = "realm:notice"
 	PermissionRealmLock                      = "realm:lock"
-	PermissionRealmMembersLock               = "realm:members-lock"
 	PermissionBoardCreate                    = "board:create"
 	PermissionBoardRename                    = "board:rename"
 	PermissionBoardFlaggingUpdate            = "board:flagging-update"
