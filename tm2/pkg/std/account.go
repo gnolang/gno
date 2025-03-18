@@ -31,7 +31,7 @@ type Account interface {
 	SetCoins(Coins) error
 
 	// Session management
-	CreateSession(pubKey crypto.PubKey) (Session, error)
+	CreateSession(pubKey crypto.PubKey, sequence uint64) (Session, error)
 	RevokeSession(pubKey crypto.PubKey) error
 	RevokeOtherSessions(currentPubKey crypto.PubKey) error
 	GetSessions() []Session
@@ -145,7 +145,7 @@ func (acc *BaseAccount) SetAccountNumber(accNumber uint64) error {
 	return nil
 }
 
-func (acc *BaseAccount) CreateSession(pubKey crypto.PubKey) (Session, error) {
+func (acc *BaseAccount) CreateSession(pubKey crypto.PubKey, sequence uint64) (Session, error) {
 	// Check if a session with this pubKey already exists
 	for _, session := range acc.Sessions {
 		if session.GetPubKey().Equals(pubKey) {
@@ -153,8 +153,8 @@ func (acc *BaseAccount) CreateSession(pubKey crypto.PubKey) (Session, error) {
 		}
 	}
 
-	// Create new session
-	session := NewBaseSession(acc.Address, pubKey, 0)
+	// Create new session with the specified sequence
+	session := NewBaseSession(acc.Address, pubKey, sequence)
 	session.setAccount(acc)
 	acc.Sessions = append(acc.Sessions, session)
 	return session, nil
