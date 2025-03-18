@@ -1,6 +1,6 @@
 # Test with a valid _filetest.gno file
 
-gno test -print-events .
+gno test -print-events . -no-cache
 
 ! stdout .+
 stderr 'ok      \. 	\d+\.\d\ds'

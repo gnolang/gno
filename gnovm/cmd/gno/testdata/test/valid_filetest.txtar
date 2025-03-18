@@ -1,6 +1,6 @@
 # Test with a valid _filetest.gno file
 
-gno test .
+gno test . -no-cache
 
 ! stdout .+
 stderr 'ok      \. 	\d+\.\d\ds'
