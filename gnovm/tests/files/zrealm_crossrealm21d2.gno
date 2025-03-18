@@ -28,7 +28,7 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/demo/tests/crossrealm/iface"]
-// u[5836d1a3cec217737a5553d4c1a03d8897d5f281:4]={
+// u[r:5836d1a3cec217737a5553d4c1a03d8897d5f281:4]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -49,7 +49,7 @@ func main() {
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
-//                     "ObjectID": "f5a516808f8976c33939133293d598ce3bca4e8d:2"
+//                     "ObjectID": "r:f5a516808f8976c33939133293d598ce3bca4e8d:2"
 //                 },
 //                 "Index": "3",
 //                 "TV": null
@@ -57,9 +57,9 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "5836d1a3cec217737a5553d4c1a03d8897d5f281:4",
+//         "ID": "r:5836d1a3cec217737a5553d4c1a03d8897d5f281:4",
 //         "ModTime": "4",
-//         "OwnerID": "5836d1a3cec217737a5553d4c1a03d8897d5f281:2",
+//         "OwnerID": "r:5836d1a3cec217737a5553d4c1a03d8897d5f281:2",
 //         "RefCount": "1"
 //     }
 // }

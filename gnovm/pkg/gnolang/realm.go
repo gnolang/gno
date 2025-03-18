@@ -3,6 +3,7 @@ package gnolang
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -48,28 +49,45 @@ paid for by the realm.  Anyone can pay the storage upkeep of
 a realm to keep it alive.
 */
 
-//----------------------------------------
+// ----------------------------------------
 // PkgID & Realm
-
+//
+// PkgID is an identifier for a package, stored using a fixed length in bytes.
+// It is a [Hashlet] (sha256 hash, cut at 20 bytes) of the package path.
 type PkgID struct {
-	Hashlet
+	Hashlet Hashlet
+	// Pure is used for PkgIDs of pure packages.
+	Pure bool
 }
 
 func (pid PkgID) MarshalAmino() (string, error) {
-	return hex.EncodeToString(pid.Hashlet[:]), nil
+	pref := "r:"
+	if pid.Pure {
+		pref = "p:"
+	}
+	return pref + hex.EncodeToString(pid.Hashlet[:]), nil
 }
 
 func (pid *PkgID) UnmarshalAmino(h string) error {
-	_, err := hex.Decode(pid.Hashlet[:], []byte(h))
+	const encodedSize = len(pid.Hashlet)*2 + 2
+	if len(h) != encodedSize {
+		return errors.New("pkg id is not of expected size")
+	}
+	switch h[:2] {
+	case "p:":
+		pid.Pure = true
+	case "r:":
+		pid.Pure = false
+	default:
+		return fmt.Errorf("invalid pkgid prefix: %q", h[:2])
+	}
+	_, err := hex.Decode(pid.Hashlet[:], []byte(h[2:]))
 	return err
 }
 
 func (pid PkgID) String() string {
-	return fmt.Sprintf("RID%X", pid.Hashlet[:])
-}
-
-func (pid PkgID) Bytes() []byte {
-	return pid.Hashlet[:]
+	s, _ := pid.MarshalAmino()
+	return s
 }
 
 var (
@@ -80,6 +98,7 @@ var (
 	pkgIDFromPkgPathCache = make(map[string]*PkgID, 100)
 )
 
+// PkgIDFromPkgPath creates a new [PkgID] from the given package path.
 func PkgIDFromPkgPath(path string) PkgID {
 	pkgIDFromPkgPathCacheMu.Lock()
 	defer pkgIDFromPkgPathCacheMu.Unlock()
@@ -87,19 +106,21 @@ func PkgIDFromPkgPath(path string) PkgID {
 	pkgID, ok := pkgIDFromPkgPathCache[path]
 	if !ok {
 		pkgID = new(PkgID)
-		*pkgID = PkgID{HashBytes([]byte(path))}
+		*pkgID = PkgID{HashBytes([]byte(path)), !IsRealmPath(path)}
 		pkgIDFromPkgPathCache[path] = pkgID
 	}
 	return *pkgID
 }
 
-// Returns the ObjectID of the PackageValue associated with path.
+// ObjectIDFromPkgPath returns the [ObjectID] of the [PackageValue] associated
+// with path.
 func ObjectIDFromPkgPath(path string) ObjectID {
 	pkgID := PkgIDFromPkgPath(path)
 	return ObjectIDFromPkgID(pkgID)
 }
 
-// Returns the ObjectID of the PackageValue associated with pkgID.
+// ObjectIDFromPkgPath returns the [ObjectID] of the [PackageValue] associated
+// with pkgID.
 func ObjectIDFromPkgID(pkgID PkgID) ObjectID {
 	return ObjectID{
 		PkgID:   pkgID,
@@ -107,17 +128,28 @@ func ObjectIDFromPkgID(pkgID PkgID) ObjectID {
 	}
 }
 
-// NOTE: A nil realm is special and has limited functionality; enough to
-// support methods that don't require persistence. This is the default realm
-// when a machine starts with a non-realm package.
+// Realm is a data structure to keep track of modifications done to a realm
+// package's state. A Realm state is composed of various objects attached to a
+// realm. Any of the objects of the realm may be created, escaped or deleted
+// during a transaction, these actions are recorded through [Realm.DidUpdate].
+// When a realm boundary is crossed, then [Realm.FinalizeRealmTransaction] is
+// called, which updates the store with the up-to-date objects.
+//
+// An object is considered "escaped" when it has a RefCount > 1.
 type Realm struct {
-	ID   PkgID
+	// ID is a hash for the realm's package path.
+	ID PkgID
+	// Path is the realm's package path.
 	Path string
+	// Time is a counter to provide a unique [ObjectID] to each new object.
 	Time uint64
 
-	newCreated []Object
-	newEscaped []Object
-	newDeleted []Object
+	// Temporary creates/escapes/deletes that happen in [DidUpdate].
+	newCreated []Object // may become created unless ancestor is deleted
+	newEscaped []Object // may become escaped unless new-real and refcount 0 or 1.
+	newDeleted []Object // may become deleted unless attached to new-real owner
+	// Updated objects are marked directly in updated, there is no newUpdated.
+	// During finalization, all ancestors of updated are finalized too.
 
 	created []Object // about to become real.
 	updated []Object // real objects that were modified.
@@ -125,7 +157,7 @@ type Realm struct {
 	escaped []Object // real objects with refcount > 1.
 }
 
-// Creates a blank new realm with counter 0.
+// NewRealm creates a blank new Realm.
 func NewRealm(path string) *Realm {
 	id := PkgIDFromPkgPath(path)
 	return &Realm{
@@ -140,19 +172,20 @@ func (rlm *Realm) String() string {
 		return "Realm(nil)"
 	} else {
 		return fmt.Sprintf(
-			"Realm{Path:%q,Time:%d}#%X",
-			rlm.Path, rlm.Time, rlm.ID.Bytes())
+			"Realm{Path:%q,Time:%d}#%s",
+			rlm.Path, rlm.Time, rlm.ID.String())
 	}
 }
 
 //----------------------------------------
 // ownership hooks
 
-// po's old elem value is xo, will become co.
-// po, xo, and co may each be nil.
-// if rlm or po is nil, do nothing.
-// xo or co is nil if the element value is undefined or has no
-// associated object.
+// DidUpdate attaches co (Created Object) to po (Parent Object), substituting xo
+// (deleted (X) Object).
+//
+// po will be marked as dirty. If co is not nil, its ref-count will be increased.
+// If xo is not nil, its ref-count will be decreased, and if 0 it will be
+// considered as deleted.
 func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
@@ -675,8 +708,6 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 // Saves .created and .updated objects.
 func (rlm *Realm) saveUnsavedObjects(store Store) {
 	for _, co := range rlm.created {
-		// for i := len(rlm.created) - 1; i >= 0; i-- {
-		// co := rlm.created[i]
 		if !co.GetIsNewReal() {
 			// might have happened already as child
 			// of something else created.
@@ -686,8 +717,6 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 		}
 	}
 	for _, uo := range rlm.updated {
-		// for i := len(rlm.updated) - 1; i >= 0; i-- {
-		// uo := rlm.updated[i]
 		if !uo.GetIsDirty() {
 			// might have happened already as child
 			// of something else created/dirty.
@@ -716,6 +745,11 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 			panic("cannot save deleted objects")
 		}
 	}
+
+	// Ensure the values contained in this object can be validly assigned, and
+	// are not from an external realm.
+	oo.CheckRealmTypes()
+
 	// first, save unsaved children.
 	unsaved := getUnsavedChildObjects(oo)
 	for _, uch := range unsaved {
@@ -1425,7 +1459,7 @@ func (rlm *Realm) nextObjectID() ObjectID {
 	if rlm == nil {
 		panic("cannot get next object ID of nil realm")
 	}
-	if rlm.ID.IsZero() {
+	if rlm.ID.Hashlet.IsZero() {
 		panic("cannot get next object ID of realm without an ID")
 	}
 	rlm.Time++

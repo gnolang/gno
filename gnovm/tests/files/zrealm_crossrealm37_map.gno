@@ -20,7 +20,7 @@ func main() {
 // switchrealm["gno.land/r/demo/tests/crossrealm/map"]
 // switchrealm["gno.land/r/demo/tests/crossrealm/map"]
 // switchrealm["gno.land/r/crossrealm_test"]
-// u[5a06306c27263d4b9ae8f2f30e82f8ef014042cd:6]={
+// u[r:5a06306c27263d4b9ae8f2f30e82f8ef014042cd:6]={
 //     "List": {
 //         "List": [
 //             {
@@ -45,10 +45,10 @@ func main() {
 //         ]
 //     },
 //     "ObjectInfo": {
-//         "ID": "5a06306c27263d4b9ae8f2f30e82f8ef014042cd:6",
+//         "ID": "r:5a06306c27263d4b9ae8f2f30e82f8ef014042cd:6",
 //         "IsEscaped": true,
 //         "ModTime": "3",
-//         "OwnerID": "5a06306c27263d4b9ae8f2f30e82f8ef014042cd:2",
+//         "OwnerID": "r:5a06306c27263d4b9ae8f2f30e82f8ef014042cd:2",
 //         "RefCount": "2"
 //     }
 // }

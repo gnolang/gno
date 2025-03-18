@@ -25,4 +25,4 @@ func main() {
 }
 
 // Error:
-// cannot modify external-realm or non-realm object
+// cannot attach a value of a type defined by another realm

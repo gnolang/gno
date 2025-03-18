@@ -1,7 +1,6 @@
 package gnolang
 
 import (
-	"encoding/hex"
 	"fmt"
 	"strconv"
 	"strings"
@@ -45,20 +44,19 @@ type ObjectID struct {
 }
 
 func (oid ObjectID) MarshalAmino() (string, error) {
-	pid := hex.EncodeToString(oid.PkgID.Hashlet[:])
-	return fmt.Sprintf("%s:%d", pid, oid.NewTime), nil
+	return fmt.Sprintf("%s:%d", oid.PkgID.String(), oid.NewTime), nil
 }
 
 func (oid *ObjectID) UnmarshalAmino(oids string) error {
-	parts := strings.Split(oids, ":")
-	if len(parts) != 2 {
+	li := strings.LastIndexByte(oids, ':')
+	if li < 0 {
 		return errors.New("invalid ObjectID %s", oids)
 	}
-	_, err := hex.Decode(oid.PkgID.Hashlet[:], []byte(parts[0]))
-	if err != nil {
+	pkgid, t := oids[:li], oids[li+1:]
+	if err := oid.PkgID.UnmarshalAmino(pkgid); err != nil {
 		return err
 	}
-	newTime, err := strconv.Atoi(parts[1])
+	newTime, err := strconv.Atoi(t)
 	if err != nil {
 		return err
 	}
@@ -75,13 +73,13 @@ func (oid ObjectID) String() string {
 // and enforcing that the value of PkgID is never zero.
 func (oid ObjectID) IsZero() bool {
 	if debug {
-		if oid.PkgID.IsZero() {
+		if oid.PkgID.Hashlet.IsZero() {
 			if oid.NewTime != 0 {
 				panic("should not happen")
 			}
 		}
 	}
-	return oid.PkgID.IsZero()
+	return oid.PkgID.Hashlet.IsZero()
 }
 
 type Object interface {
@@ -121,6 +119,7 @@ type Object interface {
 	// Saves to realm along the way if owned, and also (dirty
 	// or new).
 	// ValueImage(rlm *Realm, owned bool) *ValueImage
+	CheckRealmTypes()
 }
 
 var (
@@ -130,6 +129,7 @@ var (
 	_ Object = &MapValue{}
 	_ Object = &Block{}
 	_ Object = &HeapItemValue{}
+	_ Object = &PackageValue{}
 )
 
 type ObjectInfo struct {
@@ -372,3 +372,66 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 		return nil
 	}
 }
+
+func (av *ArrayValue) CheckRealmTypes() {
+	// databyte type, no need to check children.
+	if av.Data == nil {
+		return
+	}
+	var last Type
+	id := av.GetObjectID().PkgID
+	for _, it := range av.List {
+		if it.T == last {
+			continue
+		}
+		checkDeclaredType(id, it)
+		last = it.T
+	}
+}
+
+func checkDeclaredType(id PkgID, tv TypedValue) {
+	if dt, ok := tv.T.(*DeclaredType); ok {
+		pid := PkgIDFromPkgPath(dt.PkgPath)
+		if id != pid && !pid.Pure {
+			panic("cannot attach a value of a type defined by another realm")
+		}
+	}
+}
+
+func (sv *StructValue) CheckRealmTypes() {
+	id := sv.GetObjectID().PkgID
+	for _, fd := range sv.Fields {
+		checkDeclaredType(id, fd)
+	}
+}
+
+func (bmv *BoundMethodValue) CheckRealmTypes() {
+	// XXX what to do here?
+}
+
+func (mv *MapValue) CheckRealmTypes() {
+	var lastk, lastv Type
+	id := mv.GetObjectID().PkgID
+	for head := mv.List.Head; head != nil; head = head.Next {
+		if hk := head.Key; lastk != hk.T {
+			checkDeclaredType(id, hk)
+		}
+		if hv := head.Value; lastv != hv.T {
+			checkDeclaredType(id, hv)
+		}
+	}
+}
+
+func (b *Block) CheckRealmTypes() {
+	id := b.GetObjectID().PkgID
+	for _, val := range b.Values {
+		checkDeclaredType(id, val)
+	}
+}
+
+func (hiv *HeapItemValue) CheckRealmTypes() {
+	// what to do here?
+	// checkDeclaredType(hiv.GetObjectID().PkgID, hiv.Value)
+}
+
+func (*PackageValue) CheckRealmTypes() {}

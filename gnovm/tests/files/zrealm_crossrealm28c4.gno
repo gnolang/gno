@@ -33,7 +33,7 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/demo/tests/crossrealm/slice"]
-// c[ff34c6500d0daee58e4ac9899c0e7ecc131db63e:29]={
+// c[r:ff34c6500d0daee58e4ac9899c0e7ecc131db63e:29]={
 //     "Data": null,
 //     "List": [
 //         {
@@ -49,7 +49,7 @@ func main() {
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
-//                     "ObjectID": "f5a516808f8976c33939133293d598ce3bca4e8d:2"
+//                     "ObjectID": "r:f5a516808f8976c33939133293d598ce3bca4e8d:2"
 //                 },
 //                 "Index": "1",
 //                 "TV": null
@@ -68,7 +68,7 @@ func main() {
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
-//                     "ObjectID": "f5a516808f8976c33939133293d598ce3bca4e8d:2"
+//                     "ObjectID": "r:f5a516808f8976c33939133293d598ce3bca4e8d:2"
 //                 },
 //                 "Index": "2",
 //                 "TV": null
@@ -87,7 +87,7 @@ func main() {
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
-//                     "ObjectID": "f5a516808f8976c33939133293d598ce3bca4e8d:2"
+//                     "ObjectID": "r:f5a516808f8976c33939133293d598ce3bca4e8d:2"
 //                 },
 //                 "Index": "3",
 //                 "TV": null
@@ -95,11 +95,11 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:29",
+//         "ID": "r:ff34c6500d0daee58e4ac9899c0e7ecc131db63e:29",
 //         "ModTime": "0",
-//         "OwnerID": "ff34c6500d0daee58e4ac9899c0e7ecc131db63e:2",
+//         "OwnerID": "r:ff34c6500d0daee58e4ac9899c0e7ecc131db63e:2",
 //         "RefCount": "1"
 //     }
 // }
-// d[ff34c6500d0daee58e4ac9899c0e7ecc131db63e:4]
+// d[r:ff34c6500d0daee58e4ac9899c0e7ecc131db63e:4]
 // switchrealm["gno.land/r/crossrealm_test"]

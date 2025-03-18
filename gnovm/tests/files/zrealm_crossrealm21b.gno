@@ -19,4 +19,4 @@ func main() {
 }
 
 // Error:
-// cannot attach a reference to an unattached object from an external realm
+// cannot attach a value of a type defined by another realm
