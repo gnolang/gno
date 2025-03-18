@@ -1,4 +1,4 @@
-# Inspired by 
+# Inspired by
 # - ./misc/telemetry
 # - ./misc/loop
 services:
@@ -45,7 +45,7 @@ services:
       - traefik.http.routers.gnoweb.tls=true
       - traefik.http.routers.gnoweb.tls.certresolver=le
       - com.centurylinklabs.watchtower.enable=true
-      - com.centurylinklabs.watchtower.depends-on=gnoland-val
+      - com.centurylinklabs.watchtower.depends-on=/gnoland-val
 
   tx-indexer:
     image: ghcr.io/gnolang/tx-indexer:latest
@@ -64,7 +64,8 @@ services:
       - traefik.http.routers.tx-indexer.tls=true
       - traefik.http.routers.tx-indexer.tls.certresolver=le
       - traefik.http.services.tx-indexer.loadbalancer.server.port=8546
-      - com.centurylinklabs.watchtower.depends-on=gnoland-val
+      - com.centurylinklabs.watchtower.enable=true
+      - com.centurylinklabs.watchtower.depends-on=/gnoland-val
 
   traefik:
     image: traefik:v3
@@ -91,22 +92,15 @@ services:
 
   watchtower:
     image: containrrr/watchtower
-    command: 
+    command:
       - --interval
       - "30"
       - --label-enable
-      - --http-api-metrics
-      - --http-api-update
-      - --http-api-periodic-polls
       - --debug
+      - --cleanup
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - $HOME/.docker/config.json:/config.json
-    environment:
-      - WATCHTOWER_HTTP_API_TOKEN=atoken
-    ports:
-      - "127.0.0.1:8080:8080"
-
 
 networks:
   gnoland-net:
