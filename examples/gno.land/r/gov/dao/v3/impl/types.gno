@@ -160,8 +160,8 @@ func StringifyVotes(ps *proposalStatus) string {
 }
 
 func writeVotes(sb *strings.Builder, t memberstore.MembersByTier, title string) {
-	if t.Size() == 0 { 
-		return 
+	if t.Size() == 0 {
+		return
 	}
 	t.Iterate("", "", func(tn string, value interface{}) bool {
 		tier, ok := memberstore.Tiers.GetTier(tn)

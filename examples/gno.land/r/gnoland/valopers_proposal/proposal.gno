@@ -64,12 +64,12 @@ func NewValidatorProposalRequest(address std.Address) dao.ProposalRequest {
 	)
 
 	// Create the request
-	return validators.NewPropRequest(changesFn,title, description)
+	return validators.NewPropRequest(changesFn, title, description)
 }
 
 // ProposeNewInstructionsProposalRequest creates a proposal to the GovDAO
 // for updating the realm instructions.
-func ProposeNewInstructionsProposalRequest(newInstructions string) dao.ProposalRequest{
+func ProposeNewInstructionsProposalRequest(newInstructions string) dao.ProposalRequest {
 	cb := valopers.NewInstructionsProposalCallback(newInstructions)
 
 	// Create a proposal
@@ -81,7 +81,7 @@ func ProposeNewInstructionsProposalRequest(newInstructions string) dao.ProposalR
 
 // ProposeNewMinFee creates a proposal to the GovDAO
 // for updating the minimum fee to register a new valoper.
-func ProposeNewMinFeeProposalRequest(newMinFee int64) dao.ProposalRequest{
+func ProposeNewMinFeeProposalRequest(newMinFee int64) dao.ProposalRequest {
 	cb := valopers.NewMinFeeProposalCallback(newMinFee)
 
 	// Create a proposal

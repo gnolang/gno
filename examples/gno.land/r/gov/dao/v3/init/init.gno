@@ -17,7 +17,7 @@ func Init() {
 
 func InitWithUsers(addrs ...std.Address) {
 	for _, a := range addrs {
-		memberstore.Get().SetMember(memberstore.T1, a, &memberstore.Member{InvitationPoints:3})
+		memberstore.Get().SetMember(memberstore.T1, a, &memberstore.Member{InvitationPoints: 3})
 	}
 
 	dao.UpdateImpl(dao.UpdateRequest{

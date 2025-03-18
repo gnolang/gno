@@ -35,7 +35,6 @@ func updateMinFee(newMinFee int64) {
 	}
 }
 
-
 func NewInstructionsProposalCallback(newInstructions string) func(dao.Metadata) error {
 	cb := func(dao.Metadata) error {
 		updateInstructions(newInstructions)

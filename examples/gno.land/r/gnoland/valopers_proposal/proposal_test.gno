@@ -12,7 +12,7 @@ import (
 	"gno.land/r/gov/dao/v3/init" // so that the govdao initializer is executed
 )
 
-func init(){
+func init() {
 	c := std.OriginCaller()
 	init.InitWithUsers(c)
 }
@@ -71,7 +71,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 		// Send coins to be able to make a proposal
 		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)}, nil)
-		
+
 		var pid dao.ProposalID
 		urequire.NotPanics(t, func() {
 			pr := NewValidatorProposalRequest(test1Address)
@@ -140,7 +140,7 @@ func TestValopers_ProposeNewInstructions(t *testing.T) {
 	var pid dao.ProposalID
 	urequire.NotPanics(t, func() {
 		pr := ProposeNewInstructionsProposalRequest(newInstructions)
-		
+
 		std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 		pid = dao.MustCreateProposal(pr)
 	})
@@ -166,7 +166,7 @@ func TestValopers_ProposeNewMinFee(t *testing.T) {
 	var pid dao.ProposalID
 	urequire.NotPanics(t, func() {
 		pr := ProposeNewMinFeeProposalRequest(newMinFee)
-		
+
 		std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 		pid := dao.MustCreateProposal(pr)
 	})

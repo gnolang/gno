@@ -22,7 +22,7 @@ var (
 func TestProxy_Functions(t *testing.T) {
 	// initialize tests
 	UpdateImpl(UpdateRequest{
-		DAO: &dummyDao{},
+		DAO:         &dummyDao{},
 		AllowedDAOs: []string{v3},
 	})
 
@@ -47,7 +47,7 @@ func TestProxy_Functions(t *testing.T) {
 	urequire.NotPanics(t, func() {
 		UpdateImpl(UpdateRequest{
 			DAO:         &dummyDao{},
-			AllowedDAOs: []string{v3,v5},
+			AllowedDAOs: []string{v3, v5},
 		})
 	})
 
@@ -72,10 +72,10 @@ func TestProxy_Functions(t *testing.T) {
 	urequire.NotPanics(t, func() {
 		pid = MustCreateProposal(
 			NewProposalRequestBuilder("Proposal Title").
-			WithDescription("Description").
-			WithCallback(func(m Metadata) error {
-				return nil
-			}).Build())
+				WithDescription("Description").
+				WithCallback(func(m Metadata) error {
+					return nil
+				}).Build())
 	})
 
 	p := MustGetProposal(1000)
@@ -96,7 +96,7 @@ func TestProxy_Functions(t *testing.T) {
 	// reset state
 	std.TestSetRealm(std.NewCodeRealm(v4))
 	UpdateImpl(UpdateRequest{
-		DAO: &dummyDao{},
+		DAO:         &dummyDao{},
 		AllowedDAOs: []string{},
 	})
 }

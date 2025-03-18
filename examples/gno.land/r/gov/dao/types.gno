@@ -9,7 +9,7 @@ type ProposalID int64
 
 func (pid ProposalID) String() string {
 	return ufmt.Sprintf("%v", int64(pid))
-} 
+}
 
 // VoteOption is the limited voting option for a DAO proposal
 // New govDAOs can create their own VoteOptions if needed in the
@@ -28,17 +28,16 @@ type VoteRequest struct {
 	Metadata   Metadata
 }
 
-
 type ProposalRequestBuilder struct {
-	title string
+	title       string
 	description string
-	callback func(Metadata) error
-	metadata Metadata
+	callback    func(Metadata) error
+	metadata    Metadata
 }
 
 func NewProposalRequestBuilder(title string) *ProposalRequestBuilder {
 	return &ProposalRequestBuilder{
-		title:title,
+		title: title,
 	}
 }
 
@@ -58,12 +57,12 @@ func (prb *ProposalRequestBuilder) WithCallback(cb func(Metadata) error) *Propos
 }
 
 func (prb *ProposalRequestBuilder) Build() ProposalRequest {
-	return ProposalRequest {
-		title: prb.title,
+	return ProposalRequest{
+		title:       prb.title,
 		description: prb.description,
-		callback: prb.callback,
-		metadata: prb.metadata,
-	}	
+		callback:    prb.callback,
+		metadata:    prb.metadata,
+	}
 }
 
 type ProposalRequest struct {
@@ -81,7 +80,7 @@ func (p *ProposalRequest) Description() string {
 	return p.description
 }
 
-func (p *ProposalRequest) Callback() func(Metadata)error {
+func (p *ProposalRequest) Callback() func(Metadata) error {
 	return p.callback
 }
 
@@ -119,21 +118,20 @@ func (p *Proposal) ExecutorString() string {
 	return ""
 }
 
-
 func (p *Proposal) AllowedDAOs() []string {
 	return p.allowedDAOs
 }
 
 type Proposals struct {
-	seq int64
+	seq       int64
 	*avl.Tree // *avl.Tree[ProposalID]*Proposal
 }
 
 func NewProposals() *Proposals {
-	return &Proposals{Tree:avl.NewTree()}
+	return &Proposals{Tree: avl.NewTree()}
 }
 
-func (ps *Proposals) SetProposal(p *Proposal) ProposalID{
+func (ps *Proposals) SetProposal(p *Proposal) ProposalID {
 	pid := ProposalID(ps.seq)
 	updated := ps.Set(pid.String(), p)
 	if updated {

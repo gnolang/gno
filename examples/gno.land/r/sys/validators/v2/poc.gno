@@ -34,10 +34,10 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 	}
 
 	return dao.
-	NewProposalRequestBuilder(title).
-	WithDescription(description).
-	WithCallback(callback).
-	Build()
+		NewProposalRequestBuilder(title).
+		WithDescription(description).
+		WithCallback(callback).
+		Build()
 }
 
 // IsValidator returns a flag indicating if the given bech32 address

@@ -41,4 +41,3 @@ func AddMember(addr std.Address) {
 		panic(err.Error())
 	}
 }
-

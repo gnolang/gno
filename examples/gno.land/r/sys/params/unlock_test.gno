@@ -9,7 +9,7 @@ import (
 	"gno.land/r/gov/dao/v3/init"
 )
 
-func init(){
+func init() {
 	c := std.OriginCaller()
 	init.InitWithUsers(c)
 }

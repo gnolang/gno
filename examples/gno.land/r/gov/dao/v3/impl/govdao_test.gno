@@ -17,7 +17,6 @@ func init() {
 	init.Init()
 }
 
-
 var (
 	m1    = testutils.TestAddress("m1")
 	m11   = testutils.TestAddress("m1.1")

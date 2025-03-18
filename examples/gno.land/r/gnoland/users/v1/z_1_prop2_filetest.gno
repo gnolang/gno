@@ -18,7 +18,7 @@ var c std.Address = std.OriginCaller()
 
 func init() {
 	init.InitWithUsers(c)
-	
+
 	alice := testutils.TestAddress("alice")
 
 	// Register alice
@@ -28,7 +28,7 @@ func init() {
 
 	// Prop to change name
 	pr := users.ProposeDeleteUser(alice, "Change alice's name!")
-	
+
 	std.TestSetOriginCaller(c)
 	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 	dao.MustCreateProposal(pr)
@@ -69,87 +69,87 @@ func main() {
 // # Active Proposals:
 // ## Proposal with id: 0
 // ### Title: Propose deleting a name using users/v1 realm
-// 
+//
 // ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-// 
+//
 // Change alice's name!
-// 
+//
 // This proposal contains the following metadata:
-// 
+//
 // No metadata available.
-// 
+//
 // ### Proposal Status:
-// 
+//
 // - **Proposal open for votes**
 // - Allowed tiers to vote: T1 T2 T3
 // - YES PERCENT: 0%
 // - NO PERCENT: 0%
 // - [Go to votes list](:0/votes).
-// 
-// 
+//
+//
 // --
 // ## Proposal with id: 0
 // ### Title: Propose deleting a name using users/v1 realm
-// 
+//
 // ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-// 
+//
 // Change alice's name!
-// 
+//
 // This proposal contains the following metadata:
-// 
+//
 // No metadata available.
-// 
+//
 // ### Proposal Status:
-// 
+//
 // - **Proposal open for votes**
 // - Allowed tiers to vote: T1 T2 T3
 // - YES PERCENT: 0%
 // - NO PERCENT: 0%
 // - [Go to votes list](:0/votes).
-// 
-// 
+//
+//
 // --
 // --
 // ## Proposal with id: 0
 // ### Title: Propose deleting a name using users/v1 realm
-// 
+//
 // ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-// 
+//
 // Change alice's name!
-// 
+//
 // This proposal contains the following metadata:
-// 
+//
 // No metadata available.
-// 
+//
 // ### Proposal Status:
-// 
+//
 // - **Proposal open for votes**
 // - Allowed tiers to vote: T1 T2 T3
 // - YES PERCENT: 100%
 // - NO PERCENT: 0%
 // - [Go to votes list](:0/votes).
-// 
-// 
+//
+//
 // --
 // --
 // ## Proposal with id: 0
 // ### Title: Propose deleting a name using users/v1 realm
-// 
+//
 // ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-// 
+//
 // Change alice's name!
-// 
+//
 // This proposal contains the following metadata:
-// 
+//
 // No metadata available.
-// 
+//
 // ### Proposal Status:
-// 
+//
 // - **PROPOSAL HAS BEEN ACCEPTED**
 // - Allowed tiers to vote: T1 T2 T3
 // - YES PERCENT: 100%
 // - NO PERCENT: 0%
 // - [Go to votes list](:0/votes).
-// 
-// 
+//
+//
 // Successfully deleted alice
