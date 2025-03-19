@@ -215,7 +215,7 @@ func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID 
 	} else {
 		// Try to get parent reply and add a new child reply
 		parent := mustGetReply(thread, replyID)
-		if parent.IsHidden() || parent.IsReadOnly() {
+		if parent.IsHidden() || parent.IsReadonly() {
 			panic("replying to a hidden or frozen reply is not allowed")
 		}
 
@@ -524,6 +524,20 @@ func ChangeMemberRole(boardID BoardID, member std.Address, role Role) {
 	})
 }
 
+// IterateRealmMembers iterates realm members.
+// The iteration is done only for realm members, board members are not iterated.
+func IterateRealmMembers(offset, count int, fn UsersIterFn) (halted bool) {
+	return gPerms.IterateUsers(offset, count, fn)
+}
+
+// IterateBoards iterates realm boards.
+func IterateBoards(offset, count int, fn func(ReadonlyBoard) bool) (halted bool) {
+	return gBoardsByID.IterateByOffset(offset, count, func(_ string, v any) bool {
+		board, _ := v.(*Board)
+		return fn(readonlyBoard{board})
+	})
+}
+
 func assertHasBoardPermission(b *Board, user std.Address, p Permission) {
 	if !b.perms.HasPermission(user, p) {
 		panic("unauthorized")
@@ -537,7 +551,7 @@ func assertBoardExists(id BoardID) {
 }
 
 func assertBoardIsNotFrozen(b *Board) {
-	if b.IsReadOnly() {
+	if b.IsReadonly() {
 		panic("board is frozen")
 	}
 }
@@ -559,13 +573,13 @@ func assertIsValidBoardName(name string) {
 }
 
 func assertThreadIsNotFrozen(t *Post) {
-	if t.IsReadOnly() {
+	if t.IsReadonly() {
 		panic("thread is frozen")
 	}
 }
 
 func assertReplyIsNotFrozen(r *Post) {
-	if r.IsReadOnly() {
+	if r.IsReadonly() {
 		panic("reply is frozen")
 	}
 }

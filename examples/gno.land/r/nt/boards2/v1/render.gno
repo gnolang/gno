@@ -62,7 +62,7 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write("on " + board.createdAt.Format(dateFormat))
 		res.Write(", #" + board.id.String() + "_  \n")
 		res.Write("_" + strconv.Itoa(board.threads.Size()) + " threads")
-		if board.IsReadOnly() {
+		if board.IsReadonly() {
 			res.Write(", **read-only**")
 		}
 
@@ -105,7 +105,7 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 func renderBoardMenu(board *Board, res *mux.ResponseWriter, req *mux.Request) {
 	boardMembersURL := board.GetPath() + "/members"
 
-	if board.IsReadOnly() {
+	if board.IsReadonly() {
 		res.Write(newLink("List Board Members", boardMembersURL))
 		res.Write("\n")
 	} else {
