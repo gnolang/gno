@@ -61,8 +61,6 @@ func (g *GoldenTests) Run(t *testing.T, dir string) {
 
 		// Run individual test by file
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
 			archive, err := txtar.ParseFile(file)
 			require.NoError(t, err)
 

@@ -11,12 +11,19 @@ content 4
 </gno-columns>
 
 -- output.html --
-<!-- gno-columns error: invalid columns format: open tag should be followed by heading separator -->
+<div class="gno-columns">
+<!-- Column 1 -->
+<div>
 <h6>Title 1</h6>
 <p>content 1</p>
 <h2>Title 2</h2>
 <p>content 2</p>
+</div>
+<!-- Column 2 -->
+<div>
 <h6>Title 3</h6>
 <p>content 3</p>
 <h2>Title 4</h2>
 <p>content 4</p>
+</div>
+</div>

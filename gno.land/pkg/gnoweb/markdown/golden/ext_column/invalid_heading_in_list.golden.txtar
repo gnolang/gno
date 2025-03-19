@@ -6,7 +6,7 @@
 </gno-columns>
 
 -- output.html --
-<!-- gno-columns error: invalid columns format: open tag should be followed by heading separator -->
+<!-- gno-columns error: invalid columns format: open tag should be followed by heading separator or a closing tag -->
 <ul>
 <li>
 <h2>title 1</h2>

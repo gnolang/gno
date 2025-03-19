@@ -125,7 +125,7 @@ func (p *columnParser) Open(self ast.Node, reader text.Reader, pc parser.Context
 
 	// Get column context
 	cctx, ok := pc.Get(columnContextKey).(*columnContext)
-	if !ok || !cctx.isOpen {
+	if !ok || !cctx.isOpen || cctx.error != nil {
 		cctx = &columnContext{} // new context
 		pc.Set(columnContextKey, cctx)
 	}
@@ -293,7 +293,7 @@ func (a *columnASTTransformer) Transform(node *ast.Document, reader text.Reader,
 		// Check if the first separator is followed by any tag
 		if next := n.NextSibling(); next.Kind() != KindColumn {
 			col.ctx.error = fmt.Errorf(
-				"%w: open tag should be followed by heading separator", ErrInvalidColumnFormat,
+				"%w: open tag should be followed by heading separator or a closing tag", ErrInvalidColumnFormat,
 			)
 		}
 	}

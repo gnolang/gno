@@ -11,7 +11,7 @@ content 4
 </gno-columns>
 
 -- output.html --
-<!-- gno-columns error: invalid columns format: open tag should be followed by heading separator -->
+<!-- gno-columns error: invalid columns format: open tag should be followed by heading separator or a closing tag -->
 <p>content 1
 content 2</p>
 <h2>Title 1</h2>

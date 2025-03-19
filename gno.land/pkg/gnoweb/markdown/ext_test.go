@@ -14,7 +14,7 @@ import (
 const testdataDir = "golden"
 
 var (
-	update = flag.Bool("update-golden-files", false, "update golden files")
+	update = flag.Bool("update-golden-tests", false, "update golden tests")
 	dump   = flag.Bool("dump", false, "dump ast tree after parsing")
 )
 
