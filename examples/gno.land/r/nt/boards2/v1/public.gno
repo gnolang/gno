@@ -526,12 +526,14 @@ func ChangeMemberRole(boardID BoardID, member std.Address, role Role) {
 
 // IterateRealmMembers iterates realm members.
 // The iteration is done only for realm members, board members are not iterated.
-func IterateRealmMembers(offset, count int, fn UsersIterFn) (halted bool) {
+func IterateRealmMembers(offset int, fn UsersIterFn) (halted bool) {
+	count := gPerms.UsersCount() - offset
 	return gPerms.IterateUsers(offset, count, fn)
 }
 
 // IterateBoards iterates realm boards.
-func IterateBoards(offset, count int, fn func(ReadonlyBoard) bool) (halted bool) {
+func IterateBoards(offset int, fn func(ReadonlyBoard) bool) (halted bool) {
+	count := gBoardsByID.Size() - offset
 	return gBoardsByID.IterateByOffset(offset, count, func(_ string, v any) bool {
 		board, _ := v.(*Board)
 		return fn(readonlyBoard{board})
