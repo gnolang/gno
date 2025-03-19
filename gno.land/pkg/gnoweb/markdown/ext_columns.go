@@ -65,9 +65,9 @@ func (*ColumnNode) Kind() ast.NodeKind {
 }
 
 // Error returns a non-empty error if any error was encountered during parsing.
-func (c *ColumnNode) Error() error {
-	if c.ctx != nil {
-		return c.ctx.error
+func (n *ColumnNode) Error() error {
+	if n.ctx != nil {
+		return n.ctx.error
 	}
 	return nil
 }

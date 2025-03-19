@@ -19,6 +19,8 @@ var (
 )
 
 func testGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string, []byte) {
+	t.Helper()
+
 	assertExt(t, nameIn, ".md")
 
 	name := nameIn[:len(nameIn)-3]
@@ -50,6 +52,8 @@ func TestGnoExtension(t *testing.T) {
 }
 
 func assertExt(t *testing.T, filename, ext string) {
+	t.Helper()
+
 	require.Truef(t, strings.HasSuffix(filename, ext),
 		"expected %q extension for filename %q", ext, filename)
 }
