@@ -1,1 +1,1 @@
-module gno.land/p/demo/grc/grc721-remake
+module gno.land/p/demo/grc/grc721remake
