@@ -1,0 +1,39 @@
+-- input.md --
+</gno-columns>
+
+<gno-columns>
+## title 1
+
+content 1
+
+## title 2
+
+<gno-columns>
+## sub-title 1
+
+content
+
+## sub-title 2
+
+<gno-columns>
+
+content 2
+
+<gno-columns>
+## title 3
+
+content 3
+
+-- output.html --
+<!-- raw HTML omitted -->
+<!-- gno-columns error: invalid columns format: columns hasn't been closed -->
+<h2>title 1</h2>
+<p>content 1</p>
+<h2>title 2</h2>
+<!-- raw HTML omitted -->
+<p>content</p>
+<h2>sub-title 2</h2>
+<!-- raw HTML omitted -->
+<p>content 2</p>
+<!-- raw HTML omitted -->
+<p>content 3</p>

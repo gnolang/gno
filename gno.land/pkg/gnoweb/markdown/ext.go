@@ -42,5 +42,5 @@ var GnoExtension = &gno{}
 
 // Extend adds the Gno extension to the provided Goldmark markdown processor.
 func (e *gno) Extend(m goldmark.Markdown) {
-	Column.Extend(m)
+	Columns.Extend(m)
 }

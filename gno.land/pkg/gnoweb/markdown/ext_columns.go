@@ -13,7 +13,7 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
-var ErrInvalidColumnFormat = errors.New("invalid columns format")
+var ErrInvalidColumnsFormat = errors.New("invalid columns format")
 
 var KindColumn = ast.NewNodeKind("Column")
 
@@ -40,7 +40,7 @@ type ColumnNode struct {
 	Index int       // Index represents the current column index; 0 indicates no column.
 	Tag   ColumnTag // Tag represents the current Column Tag for this node.
 
-	ctx *columnContext
+	ctx *columnsContext
 }
 
 // Dump implements Node.Dump for debug representation.
@@ -73,14 +73,14 @@ func (n *ColumnNode) Error() error {
 }
 
 // NewColumn initializes a ColumnNode object.
-func NewColumn(ctx *columnContext, index int, tag ColumnTag) *ColumnNode {
+func NewColumn(ctx *columnsContext, index int, tag ColumnTag) *ColumnNode {
 	return &ColumnNode{ctx: ctx, Index: index, Tag: tag}
 }
 
 var columnContextKey = parser.NewContextKey()
 
-// columnContext is used to keep track of columns' state across parsing.
-type columnContext struct {
+// columnsContext is used to keep track of columns' state across parsing.
+type columnsContext struct {
 	isOpen          bool  // Indicates if a block has been correctly opened
 	error           error // Error encountered during parsing
 	index           int   // Current column index
@@ -105,17 +105,17 @@ func parseLineTag(line []byte) ColumnTag {
 	return ColumnTagUndefined
 }
 
-// columnParser implements BlockParser.
-type columnParser struct{}
+// columnsParser implements BlockParser.
+type columnsParser struct{}
 
 // Trigger returns the trigger characters for the parser.
-func (*columnParser) Trigger() []byte {
+func (*columnsParser) Trigger() []byte {
 	return []byte{'<', '#'}
 }
 
 // Open creates a column node based on the line tag.
 // If it matches a column tag, it integrates the node into the AST.
-func (p *columnParser) Open(self ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
+func (p *columnsParser) Open(self ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	const MaxHeading = 6
 
 	// Columns tag cannot be a child of another node
@@ -124,9 +124,9 @@ func (p *columnParser) Open(self ast.Node, reader text.Reader, pc parser.Context
 	}
 
 	// Get column context
-	cctx, ok := pc.Get(columnContextKey).(*columnContext)
+	cctx, ok := pc.Get(columnContextKey).(*columnsContext)
 	if !ok || !cctx.isOpen || cctx.error != nil {
-		cctx = &columnContext{} // new context
+		cctx = &columnsContext{} // new context
 		pc.Set(columnContextKey, cctx)
 	}
 
@@ -195,36 +195,36 @@ func (p *columnParser) Open(self ast.Node, reader text.Reader, pc parser.Context
 	return node, parser.NoChildren
 }
 
-func (*columnParser) Continue(n ast.Node, reader text.Reader, _ parser.Context) parser.State {
+func (*columnsParser) Continue(n ast.Node, reader text.Reader, _ parser.Context) parser.State {
 	return parser.Close
 }
 
-func (*columnParser) Close(_ ast.Node, reader text.Reader, _ parser.Context) {}
+func (*columnsParser) Close(_ ast.Node, reader text.Reader, _ parser.Context) {}
 
 // CanInterruptParagraph should return true if the parser can interrupt paragraphs.
-func (*columnParser) CanInterruptParagraph() bool {
+func (*columnsParser) CanInterruptParagraph() bool {
 	return true
 }
 
 // CanAcceptIndentedLine should return true if the parser can open new nodes when
 // the given line is indented more than 3 spaces.
-func (*columnParser) CanAcceptIndentedLine() bool {
+func (*columnsParser) CanAcceptIndentedLine() bool {
 	return false
 }
 
 // columnRenderer implements NodeRenderer
 // See https://pkg.go.dev/github.com/yuin/goldmark/renderer#NodeRenderer
-var _ renderer.NodeRenderer = (*columnRenderer)(nil)
+var _ renderer.NodeRenderer = (*columnsRenderer)(nil)
 
-type columnRenderer struct{}
+type columnsRenderer struct{}
 
 // RegisterFuncs adds AST objects to Renderer.
-func (r *columnRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
-	reg.Register(KindColumn, columnRender)
+func (r *columnsRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
+	reg.Register(KindColumn, columnsRender)
 }
 
-// columnRender function is used to render the column node.
-func columnRender(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
+// columnsRender function is used to render the column node.
+func columnsRender(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
 	cnode, ok := node.(*ColumnNode)
 	if !ok || !entering {
 		return ast.WalkContinue, nil
@@ -265,11 +265,11 @@ func columnRender(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast
 
 // columnASTTransformer implements ASTTransformer.
 // See https://pkg.go.dev/github.com/yuin/goldmark/parser#ASTTransformer
-var _ parser.ASTTransformer = (*columnASTTransformer)(nil)
+var _ parser.ASTTransformer = (*columnsASTTransformer)(nil)
 
-type columnASTTransformer struct{}
+type columnsASTTransformer struct{}
 
-func (a *columnASTTransformer) Transform(node *ast.Document, reader text.Reader, pc parser.Context) {
+func (a *columnsASTTransformer) Transform(node *ast.Document, reader text.Reader, pc parser.Context) {
 	// Validate columns
 	for n := node.FirstChild(); n != nil; n = n.NextSibling() {
 		if n.Kind() != KindColumn {
@@ -284,7 +284,7 @@ func (a *columnASTTransformer) Transform(node *ast.Document, reader text.Reader,
 		// Check if columns block is correctly closed
 		if col.ctx.isOpen {
 			col.ctx.error = fmt.Errorf(
-				"%w: columns hasn't been closed", ErrInvalidColumnFormat,
+				"%w: columns hasn't been closed", ErrInvalidColumnsFormat,
 			)
 
 			continue
@@ -294,31 +294,31 @@ func (a *columnASTTransformer) Transform(node *ast.Document, reader text.Reader,
 		if next := n.NextSibling(); next.Kind() != KindColumn {
 			col.ctx.error = fmt.Errorf(
 				"%w: open tag should be followed by heading separator or a closing tag",
-				ErrInvalidColumnFormat,
+				ErrInvalidColumnsFormat,
 			)
 		}
 	}
 }
 
-type column struct{}
+type columns struct{}
 
 // column implements Extender
-var _ goldmark.Extender = (*column)(nil)
+var _ goldmark.Extender = (*columns)(nil)
 
-var Column = &column{}
+var Columns = &columns{}
 
 // Extend adds column functionality to the markdown processor.
 // XXX: Use 500 for priority for now; we will rework these numbers once another extension is implemented.
-func (e *column) Extend(m goldmark.Markdown) {
+func (e *columns) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(
 		parser.WithBlockParsers(
-			util.Prioritized(&columnParser{}, 500),
+			util.Prioritized(&columnsParser{}, 500),
 		),
 		parser.WithASTTransformers(
-			util.Prioritized(&columnASTTransformer{}, 500),
+			util.Prioritized(&columnsASTTransformer{}, 500),
 		),
 	)
 	m.Renderer().AddOptions(renderer.WithNodeRenderers(
-		util.Prioritized(&columnRenderer{}, 500),
+		util.Prioritized(&columnsRenderer{}, 500),
 	))
 }
