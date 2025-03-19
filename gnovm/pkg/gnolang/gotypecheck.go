@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm"
+	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"go.uber.org/multierr"
 )
 
@@ -23,6 +24,8 @@ type MemPackageGetter interface {
 	GetMemPackage(path string) *gnovm.MemPackage
 }
 
+const DEFAULT_MAX_GAS_UGNOT = 1_000_000 // 1Gnot aka 1e6 ugnots
+
 // TypeCheckMemPackage performs type validation and checking on the given
 // mempkg. To retrieve dependencies, it uses getter.
 //
@@ -30,8 +33,16 @@ type MemPackageGetter interface {
 //
 // If format is true, the code will be automatically updated with the
 // formatted source code.
+//
+// By default is uses a gas meter of `DEFAULT_MAX_GAS_UGNOT`.
 func TypeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, format bool) error {
-	return typeCheckMemPackage(mempkg, getter, false, format)
+	return typeCheckMemPackage(mempkg, getter, false, format, newDefaultGasMeter())
+}
+
+// TypeCheckMemPackageWithGasMeter is like TypeCheckMemPackage, except
+// that it allows passing in the gas meter to use.
+func TypeCheckMemPackageWithGasMeter(mempkg *gnovm.MemPackage, getter MemPackageGetter, format bool, gasMeter storetypes.GasMeter) error {
+	return typeCheckMemPackage(mempkg, getter, false, format, gasMeter)
 }
 
 // TypeCheckMemPackageTest performs the same type checks as [TypeCheckMemPackage],
@@ -39,10 +50,14 @@ func TypeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, form
 //
 // Note: like TypeCheckMemPackage, this function ignores tests and filetests.
 func TypeCheckMemPackageTest(mempkg *gnovm.MemPackage, getter MemPackageGetter) error {
-	return typeCheckMemPackage(mempkg, getter, true, false)
+	return typeCheckMemPackage(mempkg, getter, true, false, newDefaultGasMeter())
 }
 
-func typeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, testing, format bool) error {
+func newDefaultGasMeter() storetypes.GasMeter {
+	return storetypes.NewGasMeter(DEFAULT_MAX_GAS_UGNOT)
+}
+
+func typeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, testing, format bool, gasMeter storetypes.GasMeter) error {
 	var errs error
 	imp := &gnoImporter{
 		getter: getter,
@@ -53,6 +68,7 @@ func typeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, test
 			},
 		},
 		allowRedefinitions: testing,
+		gasMeter:           gasMeter,
 	}
 	imp.cfg.Importer = imp
 
@@ -77,6 +93,7 @@ type gnoImporter struct {
 
 	// allow symbol redefinitions? (test standard libraries)
 	allowRedefinitions bool
+	gasMeter           storetypes.GasMeter
 }
 
 // Unused, but satisfies the Importer interface.
@@ -136,7 +153,7 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*t
 			continue
 		}
 
-		// m.chargeGasForTypecheck(f)
+		chargeGasForTypecheck(g.gasMeter, f)
 
 		if delFunc != nil {
 			deleteOldIdents(delFunc, f)
@@ -162,50 +179,6 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*t
 	return g.cfg.Check(mpkg.Path, fset, files, nil)
 }
 
-func (m *Machine) chargeGasForTypecheck(f *ast.File) {
-	ast.Walk(&astTraversingGasCharger{m}, f)
-}
-
-// astTraversingGasCharger is an ast.Visitor helper that statically traverses an AST
-// charging gas for the respective typechecking operations so as to bear a cost
-// and not let typechecking be abused
-type astTraversingGasCharger struct {
-	m *Machine
-}
-
-var _ ast.Visitor = (*astTraversingGasCharger)(nil)
-
-func (wmv *astTraversingGasCharger) Visit(n ast.Node) ast.Visitor {
-	switch n := n.(type) {
-	case *ast.ImportSpec:
-		return nil
-
-	case *ast.BinaryExpr:
-		// TODO: Charge more gas for the operands that aren't constant.
-		opCode := word2UnaryOp(Word(n.Op))
-		wmv.m.incrCPU(opCode.cpuCycles())
-		wmv.m.incrCPU(OpCPUBinary1)
-		return wmv
-
-	case *ast.UnaryExpr:
-		opCode := word2BinaryOp(Word(n.Op))
-		wmv.m.incrCPU(opCode.cpuCycles())
-		// TODO: Charge gas for the expression itself too?
-
-	case *ast.CallExpr:
-		wmv.m.incrCPU(OpCall.cpuCycles())
-
-	case *ast.ForStmt:
-		wmv.m.incrCPU(OpCPUForLoop)
-
-	case *ast.RangeStmt:
-		wmv.m.incrCPU(OpRangeIter)
-		// TODO: Alternate on the different type of range statements.
-	}
-
-	return wmv
-}
-
 func deleteOldIdents(idents map[string]func(), f *ast.File) {
 	for _, decl := range f.Decls {
 		fd, ok := decl.(*ast.FuncDecl)
@@ -222,4 +195,91 @@ func deleteOldIdents(idents map[string]func(), f *ast.File) {
 			f.Decls = slices.DeleteFunc(f.Decls, func(d ast.Decl) bool { return decl == d })
 		}
 	}
+}
+
+func chargeGasForTypecheck(gasMeter storetypes.GasMeter, f *ast.File) {
+	ast.Walk(&astTraversingGasCharger{gasMeter}, f)
+}
+
+// astTraversingGasCharger is an ast.Visitor helper that statically traverses an AST
+// charging gas for the respective typechecking operations so as to bear a cost
+// and not let typechecking be abused
+type astTraversingGasCharger struct {
+	m storetypes.GasMeter
+}
+
+var _ ast.Visitor = (*astTraversingGasCharger)(nil)
+
+func (atgc *astTraversingGasCharger) consumeGas(amount storetypes.Gas) {
+	atgc.m.ConsumeGas(amount, "typeCheck")
+}
+
+const _BASIC_TYPECHECK_GAS_CHARGE = 5 // Arbitrary value.
+
+func (wmv *astTraversingGasCharger) Visit(n ast.Node) ast.Visitor {
+	switch n.(type) {
+	case *ast.ImportSpec:
+		// No need to charge gas for imports.
+		return nil
+
+	case *ast.UnaryExpr:
+		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 2)
+
+	case *ast.BinaryExpr:
+		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 3)
+
+	case *ast.BasicLit:
+		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 2)
+
+	case *ast.CompositeLit:
+		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 3)
+
+	case *ast.CallExpr:
+		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 4)
+
+	case *ast.ForStmt:
+		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 5)
+
+	case *ast.RangeStmt:
+		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 6)
+		// TODO: Alternate on the different type of range statements.
+
+	case *ast.FuncDecl:
+		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 6)
+
+	case *ast.SwitchStmt:
+		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 4)
+
+	case *ast.IfStmt:
+		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 5)
+
+	case *ast.CaseClause:
+		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 3)
+
+	case *ast.BranchStmt:
+		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 3)
+
+	case *ast.AssignStmt:
+		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 2)
+
+	case *ast.Ident:
+		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 1)
+
+	case *ast.SelectorExpr:
+		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 5)
+
+	case *ast.ParenExpr:
+		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 3)
+
+	case *ast.ReturnStmt, *ast.DeferStmt:
+		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 2)
+
+	case nil:
+		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE / 2)
+
+	default:
+		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 3)
+	}
+
+	return wmv
 }
