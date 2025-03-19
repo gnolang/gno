@@ -45,16 +45,16 @@ func WithWriter(dir string, startHeightReq int64, endHeight int64, logger *zap.L
 		return err
 	}
 
-	if endHeight != 0 && int64(endHeight) == state.EndHeight {
+	if endHeight != 0 && endHeight == state.EndHeight {
 		logger.Info("Nothing to do, backup is already at requested end height")
 		return nil
 	}
 
-	if endHeight != 0 && int64(endHeight) <= state.EndHeight {
+	if endHeight != 0 && endHeight <= state.EndHeight {
 		return fmt.Errorf("invalid input: requested end height is smaller or equal to the existing backup height (#%d), use a different output directory or a valid end height", state.EndHeight)
 	}
 
-	height, err := getStartHeight(int64(startHeightReq), state.EndHeight)
+	height, err := getStartHeight(startHeightReq, state.EndHeight)
 	if err != nil {
 		return fmt.Errorf("decide start height: %w", err)
 	}

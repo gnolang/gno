@@ -17,7 +17,6 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/backup"
-	"github.com/gnolang/gno/tm2/pkg/bft/blockchain"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/discovery"
@@ -171,9 +170,9 @@ type Node struct {
 	// services
 	evsw              events.EventSwitch
 	stateDB           dbm.DB
-	blockStore        *store.BlockStore             // store the blockchain to disk
-	bcReactor         *blockchain.BlockchainReactor // for fast-syncing and restoring from backup
-	mempoolReactor    *mempl.Reactor                // for gossipping transactions
+	blockStore        *store.BlockStore     // store the blockchain to disk
+	bcReactor         *bc.BlockchainReactor // for fast-syncing and restoring from backup
+	mempoolReactor    *mempl.Reactor        // for gossipping transactions
 	mempool           mempl.Mempool
 	consensusState    *cs.ConsensusState   // latest consensus state
 	consensusReactor  *cs.ConsensusReactor // for participating in the consensus
@@ -572,8 +571,8 @@ func NewNode(config *cfg.Config,
 	return node, nil
 }
 
-func (n *Node) Restore(ctx context.Context, readBlocks func(yield func(block *types.Block) error) error) error {
-	return n.bcReactor.Restore(ctx, readBlocks)
+func (n *Node) Restore(ctx context.Context, blocksIterator bc.BlocksIterator) error {
+	return n.bcReactor.Restore(ctx, blocksIterator)
 }
 
 // OnStart starts the Node. It implements service.Service.
