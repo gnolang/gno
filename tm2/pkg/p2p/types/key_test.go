@@ -62,11 +62,11 @@ func TestNodeKey_Load(t *testing.T) {
 		path := fmt.Sprintf("%s/key.json", t.TempDir())
 
 		type random struct {
-			field string
+			Field string
 		}
 
 		data, err := json.Marshal(&random{
-			field: "random data",
+			Field: "random data",
 		})
 		require.NoError(t, err)
 

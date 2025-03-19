@@ -41,8 +41,6 @@ func NewIDFromStrings(idStrs []string) ([]ID, []error) {
 // NOTE: keep in sync with gno.land/cmd/gnoland/secrets.go
 type NodeKey struct {
 	PrivKey ed25519.PrivKeyEd25519 `json:"priv_key"` // our priv key
-
-	filePath string
 }
 
 // ID returns the bech32 representation
@@ -55,7 +53,6 @@ func (nk *NodeKey) ID() ID {
 // NodeKey validation errors.
 var (
 	errInvalidNodeKey = errors.New("invalid node p2p key")
-	errFilePathNotSet = errors.New("filePath not set")
 )
 
 // validate validates the NodeKey.
@@ -65,11 +62,6 @@ func (nk *NodeKey) validate() (err error) {
 
 	// Setup a recover as next steps may panic.
 	defer func() { recover() }()
-
-	// Check if the file path is set.
-	if nk.filePath == "" {
-		return errFilePathNotSet
-	}
 
 	// Try to amino marshal the PrivKey.
 	nk.PrivKey.Bytes()
@@ -81,7 +73,7 @@ func (nk *NodeKey) validate() (err error) {
 }
 
 // save persists the NodeKey to its file path.
-func (nk *NodeKey) save() error {
+func (nk *NodeKey) save(filePath string) error {
 	// Check if the NodeKey is valid.
 	if err := nk.validate(); err != nil {
 		return err
@@ -91,7 +83,7 @@ func (nk *NodeKey) save() error {
 	jsonBytes := amino.MustMarshalJSONIndent(nk, "", "  ")
 
 	// Write the JSON bytes to the file.
-	if err := osm.WriteFileAtomic(nk.filePath, jsonBytes, 0o600); err != nil {
+	if err := osm.WriteFileAtomic(filePath, jsonBytes, 0o600); err != nil {
 		return err
 	}
 
@@ -113,9 +105,6 @@ func LoadNodeKey(filePath string) (*NodeKey, error) {
 		return nil, fmt.Errorf("unable to unmarshal NodeKey from %v: %w", filePath, err)
 	}
 
-	// Manually set the private file path.
-	nk.filePath = filePath
-
 	// Validate the NodeKey.
 	if err := nk.validate(); err != nil {
 		return nil, err
@@ -134,11 +123,8 @@ func GeneratePersistedNodeKey(filePath string) (*NodeKey, error) {
 	// Generate a new random NodeKey.
 	fk := GenerateNodeKey()
 
-	// Set the file path.
-	fk.filePath = filePath
-
 	// Persist the NodeKey to disk.
-	if err := fk.save(); err != nil {
+	if err := fk.save(filePath); err != nil {
 		return nil, err
 	}
 
