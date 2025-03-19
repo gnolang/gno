@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/google/go-github/v64/github"
 )
@@ -22,8 +21,7 @@ import (
 // GitHub OAuth applications require a client ID and secret to authenticate users securely.
 // These credentials are obtained when registering an application on GitHub at:
 // https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authenticating-to-the-rest-api-with-an-oauth-app#registering-your-app
-func getGithubMiddleware(clientID, secret string, cooldown time.Duration) func(next http.Handler) http.Handler {
-	coolDownLimiter := NewCooldownLimiter(cooldown)
+func getGithubMiddleware(clientID, secret string, coolDownLimiter *CooldownLimiter) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
@@ -55,7 +53,13 @@ func getGithubMiddleware(clientID, secret string, cooldown time.Duration) func(n
 				}
 
 				// Just check if given account have asked for faucet before the cooldown period
-				if !coolDownLimiter.CheckCooldown(user.GetLogin()) {
+				allowedToClaim, err := coolDownLimiter.CheckCooldown(user.GetLogin())
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+
+				if !allowedToClaim {
 					http.Error(w, "user is on cooldown", http.StatusTooManyRequests)
 					return
 				}

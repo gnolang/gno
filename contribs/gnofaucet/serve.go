@@ -24,6 +24,7 @@ const (
 	defaultGasWanted     = "100000"
 	defaultRemote        = "http://127.0.0.1:26657"
 	defaultListenAddress = "127.0.0.1:5050"
+	defaultDBPath        = "db.db"
 )
 
 // url & struct for verify captcha
@@ -50,6 +51,7 @@ type SiteVerifyResponse struct {
 
 type serveCfg struct {
 	listenAddress string
+	dbPath        string
 	chainID       string
 	mnemonic      string
 	maxSendAmount string
@@ -157,6 +159,13 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 		false,
 		"use X-Forwarded-For IP for throttling",
 	)
+
+	fs.StringVar(
+		&c.dbPath,
+		"db-path",
+		defaultDBPath,
+		"local db path for keeping the cooldown state",
+	)
 }
 
 // generateFaucetConfig generates the Faucet configuration
@@ -211,8 +220,10 @@ func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
 		),
 	)
 
-	// Start throttled faucet.
+	// Create cooldown limiter
 	st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
+	// Start throttled faucet.
+	cooldownLimiter := NewCooldownLimiter(defaultRateLimitInterval, cfg.dbPath)
 	st.start(ctx)
 
 	// Prepare the middlewares
@@ -220,7 +231,7 @@ func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
 		getIPMiddleware(cfg.isBehindProxy, st),
 		getCaptchaMiddleware(cfg.captchaSecret),
 		getAccountBalanceMiddleware(cli, cfg.maxBalance),
-		getGithubMiddleware(cfg.ghClientID, cfg.ghClientSecret, 1*time.Hour),
+		getGithubMiddleware(cfg.ghClientID, cfg.ghClientSecret, cooldownLimiter),
 	}
 
 	// Create a new faucet with
