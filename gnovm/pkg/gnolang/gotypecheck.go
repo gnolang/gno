@@ -216,70 +216,70 @@ func (atgc *astTraversingGasCharger) consumeGas(amount storetypes.Gas) {
 
 const _BASIC_TYPECHECK_GAS_CHARGE = 5 // Arbitrary value.
 
-func (wmv *astTraversingGasCharger) Visit(n ast.Node) ast.Visitor {
+func (atgc *astTraversingGasCharger) Visit(n ast.Node) ast.Visitor {
 	switch n.(type) {
 	case *ast.ImportSpec:
 		// No need to charge gas for imports.
 		return nil
 
 	case *ast.UnaryExpr:
-		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 2)
+		atgc.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 2)
 
 	case *ast.BinaryExpr:
-		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 3)
+		atgc.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 3)
 
 	case *ast.BasicLit:
-		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 2)
+		atgc.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 2)
 
 	case *ast.CompositeLit:
-		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 3)
+		atgc.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 3)
 
 	case *ast.CallExpr:
-		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 4)
+		atgc.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 4)
 
 	case *ast.ForStmt:
-		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 5)
+		atgc.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 5)
 
 	case *ast.RangeStmt:
-		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 6)
+		atgc.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 6)
 		// TODO: Alternate on the different type of range statements.
 
 	case *ast.FuncDecl:
-		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 6)
+		atgc.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 6)
 
 	case *ast.SwitchStmt:
-		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 4)
+		atgc.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 4)
 
 	case *ast.IfStmt:
-		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 5)
+		atgc.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 5)
 
 	case *ast.CaseClause:
-		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 3)
+		atgc.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 3)
 
 	case *ast.BranchStmt:
-		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 3)
+		atgc.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 3)
 
 	case *ast.AssignStmt:
-		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 2)
+		atgc.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 2)
 
 	case *ast.Ident:
-		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 1)
+		atgc.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 1)
 
 	case *ast.SelectorExpr:
-		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 5)
+		atgc.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 5)
 
 	case *ast.ParenExpr:
-		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 3)
+		atgc.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 3)
 
 	case *ast.ReturnStmt, *ast.DeferStmt:
-		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 2)
+		atgc.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 2)
 
 	case nil:
-		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE / 2)
+		atgc.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE / 2)
 
 	default:
-		wmv.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 3)
+		atgc.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 3)
 	}
 
-	return wmv
+	return atgc
 }
