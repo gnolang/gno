@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/gnoland/commondao"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/txlink"
-	"gno.land/p/gnoland/commondao"
 )
 
 type BoardID uint64
