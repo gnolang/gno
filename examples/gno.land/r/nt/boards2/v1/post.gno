@@ -33,7 +33,7 @@ type Post struct {
 	title         string // optional
 	body          string
 	isHidden      bool
-	isReadOnly    bool
+	isReadonly    bool
 	replies       avl.Tree // Post.id -> *Post
 	repliesAll    avl.Tree // Post.id -> *Post (all replies, for top-level posts)
 	reposts       avl.Tree // Board.id -> Post.id
@@ -132,12 +132,12 @@ func (post *Post) IsHidden() bool {
 	return post.isHidden
 }
 
-func (post *Post) SetReadOnly(isReadOnly bool) {
-	post.isReadOnly = isReadOnly
+func (post *Post) SetReadonly(isReadonly bool) {
+	post.isReadonly = isReadonly
 }
 
-func (post *Post) IsReadOnly() bool {
-	return post.isReadOnly
+func (post *Post) IsReadonly() bool {
+	return post.isReadonly
 }
 
 func (post *Post) AddReply(creator std.Address, body string) *Post {
@@ -384,8 +384,8 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
 		sb.WriteString(newButtonLink("repost", post.GetRepostFormURL()))
 	}
 
-	isReadOnly := post.IsReadOnly() || post.GetBoard().IsReadOnly()
-	if !isReadOnly {
+	isReadonly := post.IsReadonly() || post.GetBoard().IsReadonly()
+	if !isReadonly {
 		sb.WriteString(" ")
 		sb.WriteString(newButtonLink("reply", post.GetReplyFormURL()))
 		sb.WriteString(" ")
