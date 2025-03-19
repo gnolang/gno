@@ -1,17 +1,46 @@
+// This file serves as the entry point to load the Gno Goldmark extension.
+// Goldmark extensions are designed as follows:
+//
+//  <Markdown in []byte, parser.Context>
+//                 |
+//                 V
+//  +-------- parser.Parser ---------------------------
+//  | 1. Parse block elements into AST
+//  |   1. If a parsed block is a paragraph, apply
+//  |      ast.ParagraphTransformer
+//  | 2. Traverse AST and parse blocks.
+//  |   1. Process delimiters (emphasis) at the end of
+//  |      block parsing
+//  | 3. Apply parser.ASTTransformers to AST
+//                 |
+//                 V
+//            <ast.Node>
+//                 |
+//                 V
+//  +------- renderer.Renderer ------------------------
+//  | 1. Traverse AST and apply renderer.NodeRenderer
+//  |    corresponding to the node type
+//
+//                 |
+//                 V
+//              <Output>
+//
+// More information can be found on the Goldmark repository page:
+// https://github.com/yuin/goldmark#goldmark-internalfor-extension-developers
+
 package markdown
 
 import (
 	"github.com/yuin/goldmark"
 )
 
-// GnoExtension is a goldmark Extender
 var _ goldmark.Extender = (*gno)(nil)
 
 type gno struct{}
 
-// GnoExtension expose the gno extension, can be use with gno
 var GnoExtension = &gno{}
 
+// Extend adds the Gno extension to the provided Goldmark markdown processor.
 func (e *gno) Extend(m goldmark.Markdown) {
 	Column.Extend(m)
 }
