@@ -1008,6 +1008,202 @@ const (
 	OpVoid              Op = 0xFF // For profiling simple operation
 )
 
+func (o Op) cpuCycles() int64 {
+	switch o {
+	case OpNoop:
+		return OpCPUNoop
+	case OpExec:
+		return OpCPUExec
+	case OpPrecall:
+		return OpCPUPrecall
+	case OpCall:
+		return OpCPUCall
+	case OpCallNativeBody:
+		return OpCPUCallNativeBody
+	case OpReturn:
+		return OpCPUReturn
+	case OpReturnFromBlock:
+		return OpCPUReturnFromBlock
+	case OpReturnToBlock:
+		return OpCPUReturnToBlock
+	case OpDefer:
+		return OpCPUDefer
+	case OpPanic1:
+		return OpCPUPanic1
+	case OpPanic2:
+		return OpCPUPanic2
+	case OpCallDeferNativeBody:
+		return OpCPUCallDeferNativeBody
+	case OpGo:
+		panic("not yet implemented")
+	case OpSelect:
+		panic("not yet implemented")
+	case OpSwitchClause:
+		return OpCPUSwitchClause
+	case OpSwitchClauseCase:
+		return OpCPUSwitchClauseCase
+	case OpTypeSwitch:
+		return OpCPUTypeSwitch
+	case OpIfCond:
+		return OpCPUIfCond
+	/* Unary operators */
+	case OpUpos:
+		return OpCPUUpos
+	case OpUneg:
+		return OpCPUUneg
+	case OpUnot:
+		return OpCPUUnot
+	case OpUxor:
+		return OpCPUUxor
+	case OpUrecv:
+		return OpCPUUrecv
+	/* Binary operators */
+	case OpLor:
+		return OpCPULor
+	case OpLand:
+		return OpCPULand
+	case OpEql:
+		return OpCPUEql
+	case OpNeq:
+		return OpCPUNeq
+	case OpLss:
+		return OpCPULss
+	case OpLeq:
+		return OpCPULeq
+	case OpGtr:
+		return OpCPUGtr
+	case OpGeq:
+		return OpCPUGeq
+	case OpAdd:
+		return OpCPUAdd
+	case OpSub:
+		return OpCPUSub
+	case OpBor:
+		return OpCPUBor
+	case OpXor:
+		return OpCPUXor
+	case OpMul:
+		return OpCPUMul
+	case OpQuo:
+		return OpCPUQuo
+	case OpRem:
+		return OpCPURem
+	case OpShl:
+		return OpCPUShl
+	case OpShr:
+		return OpCPUShr
+	case OpBand:
+		return OpCPUBand
+	case OpBandn:
+		return OpCPUBandn
+	/* Expression operators */
+	case OpEval:
+		return OpCPUEval
+	case OpBinary1:
+		return OpCPUBinary1
+	case OpIndex1:
+		return OpCPUIndex1
+	case OpIndex2:
+		return OpCPUIndex2
+	case OpSelector:
+		return OpCPUSelector
+	case OpSlice:
+		return OpCPUSlice
+	case OpStar:
+		return OpCPUStar
+	case OpRef:
+		return OpCPURef
+	case OpTypeAssert1:
+		return OpCPUTypeAssert1
+	case OpTypeAssert2:
+		return OpCPUTypeAssert2
+	case OpStaticTypeOf:
+		return OpCPUStaticTypeOf
+	case OpCompositeLit:
+		return OpCPUCompositeLit
+	case OpArrayLit:
+		return OpCPUArrayLit
+	case OpSliceLit:
+		return OpCPUSliceLit
+	case OpSliceLit2:
+		return OpCPUSliceLit2
+	case OpFuncLit:
+		return OpCPUFuncLit
+	case OpMapLit:
+		return OpCPUMapLit
+	case OpStructLit:
+		return OpCPUStructLit
+	/* Type operators */
+	case OpFieldType:
+		return OpCPUFieldType
+	case OpArrayType:
+		return OpCPUArrayType
+	case OpSliceType:
+		return OpCPUSliceType
+	case OpChanType:
+		return OpCPUChanType
+	case OpFuncType:
+		return OpCPUFuncType
+	case OpMapType:
+		return OpCPUMapType
+	case OpStructType:
+		return OpCPUStructType
+	case OpInterfaceType:
+		return OpCPUInterfaceType
+	/* Statement operators */
+	case OpAssign:
+		return OpCPUAssign
+	case OpAddAssign:
+		return OpCPUAddAssign
+	case OpSubAssign:
+		return OpCPUSubAssign
+	case OpMulAssign:
+		return OpCPUMulAssign
+	case OpQuoAssign:
+		return OpCPUQuoAssign
+	case OpRemAssign:
+		return OpCPURemAssign
+	case OpBandAssign:
+		return OpCPUBandAssign
+	case OpBandnAssign:
+		return OpCPUBandnAssign
+	case OpBorAssign:
+		return OpCPUBorAssign
+	case OpXorAssign:
+		return OpCPUXorAssign
+	case OpShlAssign:
+		return OpCPUShlAssign
+	case OpShrAssign:
+		return OpCPUShrAssign
+	case OpDefine:
+		return OpCPUDefine
+	case OpInc:
+		return OpCPUInc
+	case OpDec:
+		return OpCPUDec
+	/* Decl operators */
+	case OpValueDecl:
+		return OpCPUValueDecl
+	case OpTypeDecl:
+		return OpCPUTypeDecl
+	/* Loop (sticky) operators */
+	case OpForLoop:
+		return OpCPUForLoop
+	case OpRangeIter:
+		return OpCPURangeIter
+	case OpRangeIterArrayPtr:
+		return OpCPURangeIterArrayPtr
+	case OpRangeIterString:
+		return OpCPURangeIterString
+	case OpRangeIterMap:
+		return OpCPURangeIterMap
+	case OpReturnCallDefers:
+		return OpCPUReturnCallDefers
+	default:
+		panic(fmt.Sprintf("not yet implemented: %v", o))
+	}
+}
+
 const GasFactorCPU int64 = 1
 
 //----------------------------------------

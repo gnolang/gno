@@ -136,6 +136,8 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*t
 			continue
 		}
 
+		// m.chargeGasForTypecheck(f)
+
 		if delFunc != nil {
 			deleteOldIdents(delFunc, f)
 		}
@@ -158,6 +160,50 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*t
 	}
 
 	return g.cfg.Check(mpkg.Path, fset, files, nil)
+}
+
+func (m *Machine) chargeGasForTypecheck(f *ast.File) {
+	ast.Walk(&astTraversingGasCharger{m}, f)
+}
+
+// astTraversingGasCharger is an ast.Visitor helper that statically traverses an AST
+// charging gas for the respective typechecking operations so as to bear a cost
+// and not let typechecking be abused
+type astTraversingGasCharger struct {
+	m *Machine
+}
+
+var _ ast.Visitor = (*astTraversingGasCharger)(nil)
+
+func (wmv *astTraversingGasCharger) Visit(n ast.Node) ast.Visitor {
+	switch n := n.(type) {
+	case *ast.ImportSpec:
+		return nil
+
+	case *ast.BinaryExpr:
+		// TODO: Charge more gas for the operands that aren't constant.
+		opCode := word2UnaryOp(Word(n.Op))
+		wmv.m.incrCPU(opCode.cpuCycles())
+		wmv.m.incrCPU(OpCPUBinary1)
+		return wmv
+
+	case *ast.UnaryExpr:
+		opCode := word2BinaryOp(Word(n.Op))
+		wmv.m.incrCPU(opCode.cpuCycles())
+		// TODO: Charge gas for the expression itself too?
+
+	case *ast.CallExpr:
+		wmv.m.incrCPU(OpCall.cpuCycles())
+
+	case *ast.ForStmt:
+		wmv.m.incrCPU(OpCPUForLoop)
+
+	case *ast.RangeStmt:
+		wmv.m.incrCPU(OpRangeIter)
+		// TODO: Alternate on the different type of range statements.
+	}
+
+	return wmv
 }
 
 func deleteOldIdents(idents map[string]func(), f *ast.File) {
