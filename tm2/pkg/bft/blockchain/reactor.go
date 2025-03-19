@@ -362,7 +362,9 @@ FOR_LOOP:
 	}
 }
 
-func (bcR *BlockchainReactor) Restore(ctx context.Context, blocksIterator func(yield func(block *types.Block) error) error) error {
+type BlocksIterator func(yield func(block *types.Block) error) error
+
+func (bcR *BlockchainReactor) Restore(ctx context.Context, blocksIterator BlocksIterator) error {
 	var (
 		first   *types.Block
 		second  *types.Block
