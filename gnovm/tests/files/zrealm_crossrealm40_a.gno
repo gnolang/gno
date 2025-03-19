@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// cannot attach a value of a type defined by another realm
+// references returned across realm boundaries must be real

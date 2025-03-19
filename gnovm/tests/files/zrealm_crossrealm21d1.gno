@@ -64,6 +64,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
+// switchrealm["gno.land/r/crossrealm_test"]
 // u[r:f5a516808f8976c33939133293d598ce3bca4e8d:3]={
 //     "Fields": [
 //         {
@@ -103,7 +104,6 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// switchrealm["gno.land/r/crossrealm_test"]
 // u[r:f5a516808f8976c33939133293d598ce3bca4e8d:4]={
 //     "ObjectInfo": {
 //         "ID": "r:f5a516808f8976c33939133293d598ce3bca4e8d:4",

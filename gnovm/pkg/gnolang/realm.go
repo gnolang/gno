@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 	"reflect"
 	"strings"
 	"sync"
@@ -729,6 +730,13 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 
 // store unsaved children first.
 func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
+	defer func() {
+		rec := recover()
+		if rec != nil {
+			fmt.Println("obj stack", oo.GetObjectID(), oo)
+			panic(rec)
+		}
+	}()
 	if debug {
 		if !oo.GetIsNewReal() && !oo.GetIsDirty() {
 			panic("cannot save new real or non-dirty objects")
@@ -751,12 +759,18 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 	oo.CheckRealmTypes()
 
 	// first, save unsaved children.
-	unsaved := getUnsavedChildObjects(oo)
-	for _, uch := range unsaved {
-		if uch.GetIsEscaped() || uch.GetIsNewEscaped() {
-			// no need to save preemptively.
-		} else {
-			rlm.saveUnsavedObjectRecursively(store, uch)
+	if rlm.ID == oo.GetObjectID().PkgID {
+		// only save children for objects in the same realm as the one we're
+		// saving.
+		// a caller realm may pass to a realm call a value which is only partly
+		// real
+		unsaved := getUnsavedChildObjects(oo)
+		for _, uch := range unsaved {
+			if uch.GetIsEscaped() || uch.GetIsNewEscaped() {
+				// no need to save preemptively.
+			} else {
+				rlm.saveUnsavedObjectRecursively(store, uch)
+			}
 		}
 	}
 	// then, save self.
@@ -1480,6 +1494,103 @@ func (rlm *Realm) assignNewObjectID(oo Object) ObjectID {
 	noid := rlm.nextObjectID()
 	oo.SetObjectID(noid)
 	return noid
+}
+
+//----------------------------------------
+// assertReal
+
+func assertReal(m *Machine, vals []TypedValue) {
+	for _, val := range vals {
+		for ref := range findReferenceObjects(m.Store, val) {
+			if ref == nil || !ref.GetIsReal() {
+				println(m.String())
+				panic("references returned across realm boundaries must be real")
+			}
+		}
+	}
+}
+
+func findReferenceObjects(store Store, tv TypedValue) iter.Seq[Object] {
+	return func(yield func(Object) bool) {
+		t := baseOf(tv.T)
+
+		if rt, ok := t.(RefType); ok {
+			t = store.GetType(rt.ID)
+		}
+
+		switch t := baseOf(tv.T).(type) {
+		case *ArrayType:
+			av := tv.V.(*ArrayValue)
+			if av.Data != nil {
+				return
+			}
+			for _, el := range av.List {
+				for child := range findReferenceObjects(store, el) {
+					if !yield(child) {
+						return
+					}
+				}
+			}
+		case PrimitiveType:
+			// We don't care about primitives or RefTypes;
+			// primitives are simple values by definition, while RefTypes are
+			// already real objects.
+			return
+		case *StructType:
+			v := tv.V
+			if rv, ok := v.(RefValue); ok {
+				v = store.GetObject(rv.ObjectID)
+			}
+			flds := v.(*StructValue).Fields
+			for _, el := range flds {
+				for child := range findReferenceObjects(store, el) {
+					if !yield(child) {
+						return
+					}
+				}
+			}
+		case *FuncType:
+			switch fv := tv.V.(type) {
+			case *FuncValue:
+				for _, el := range fv.Captures {
+					if !yield(el.V.(*HeapItemValue)) {
+						return
+					}
+				}
+			case *BoundMethodValue:
+				if !yield(fv) {
+					return
+				}
+			}
+		case *SliceType:
+			base := tv.V.(*SliceValue).Base
+			switch base.(type) {
+			case nil, RefValue:
+				// RefValues can be ignored as already real objects.
+				return
+			}
+			if !yield(base.(Object)) {
+				return
+			}
+		case *PointerType:
+			base := tv.V.(PointerValue).Base
+			switch base.(type) {
+			case nil, RefValue:
+				// RefValues can be ignored as already real objects.
+				return
+			}
+			if !yield(base.(Object)) {
+				return
+			}
+
+		case *MapType:
+			if !yield(tv.V.(Object)) {
+				return
+			}
+		default:
+			panic(fmt.Sprintf("unexpected gnolang.Type: %#v", t))
+		}
+	}
 }
 
 //----------------------------------------

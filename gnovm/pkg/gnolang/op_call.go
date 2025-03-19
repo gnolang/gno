@@ -2,7 +2,6 @@ package gnolang
 
 import (
 	"fmt"
-	"iter"
 	"reflect"
 	"strings"
 )
@@ -247,96 +246,6 @@ func (m *Machine) doOpReturnFromBlock() {
 	m.checkRealmBoundary(cfr, ft)
 	// finalize
 	m.PopFrameAndReturn()
-}
-
-func assertReal(m *Machine, vals []TypedValue) {
-	for _, val := range vals {
-		for ref := range findReferenceObjects(m.Store, val) {
-			if ref == nil || !ref.GetIsReal() {
-				println(m.String())
-				panic("references returned across realm boundaries must be real")
-			}
-		}
-	}
-}
-
-func findReferenceObjects(store Store, tv TypedValue) iter.Seq[Object] {
-	return func(yield func(Object) bool) {
-		t := baseOf(tv.T)
-
-		if rt, ok := t.(RefType); ok {
-			t = store.GetType(rt.ID)
-		}
-
-		switch t := baseOf(tv.T).(type) {
-		case *ArrayType:
-			av := tv.V.(*ArrayValue)
-			if av.Data != nil {
-				return
-			}
-			for _, el := range av.List {
-				for child := range findReferenceObjects(store, el) {
-					if !yield(child) {
-						return
-					}
-				}
-			}
-		case PrimitiveType:
-			// We don't care about primitives or RefTypes;
-			// primitives are simple values by definition, while RefTypes are
-			// already real objects.
-			return
-		case *StructType:
-			flds := tv.V.(*StructValue).Fields
-			for _, el := range flds {
-				for child := range findReferenceObjects(store, el) {
-					if !yield(child) {
-						return
-					}
-				}
-			}
-		case *FuncType:
-			switch fv := tv.V.(type) {
-			case *FuncValue:
-				for _, el := range fv.Captures {
-					if !yield(el.V.(*HeapItemValue)) {
-						return
-					}
-				}
-			case *BoundMethodValue:
-				if !yield(fv) {
-					return
-				}
-			}
-		case *SliceType:
-			base := tv.V.(*SliceValue).Base
-			switch base.(type) {
-			case nil, RefValue:
-				// RefValues can be ignored as already real objects.
-				return
-			}
-			if !yield(base.(Object)) {
-				return
-			}
-		case *PointerType:
-			base := tv.V.(PointerValue).Base
-			switch base.(type) {
-			case nil, RefValue:
-				// RefValues can be ignored as already real objects.
-				return
-			}
-			if !yield(base.(Object)) {
-				return
-			}
-
-		case *MapType:
-			if !yield(tv.V.(Object)) {
-				return
-			}
-		default:
-			panic(fmt.Sprintf("unexpected gnolang.Type: %#v", t))
-		}
-	}
 }
 
 // Before defers during return, move results to block so that
