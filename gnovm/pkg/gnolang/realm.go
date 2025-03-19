@@ -1557,7 +1557,7 @@ func ensureUniq(oozz ...[]Object) {
 	for _, ooz := range oozz {
 		for _, uo := range ooz {
 			if _, ok := om[uo]; ok {
-				panic("duplicate object")
+				panic(fmt.Sprintf("duplicate object %+v", uo))
 			} else {
 				om[uo] = struct{}{}
 			}
