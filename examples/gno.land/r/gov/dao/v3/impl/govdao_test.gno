@@ -8,13 +8,15 @@ import (
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/urequire"
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/init"
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
 func init() {
 	loadMembers()
-	init.Init()
+	dao.UpdateImpl(dao.UpdateRequest{
+		DAO:         govDAO,
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+	})
 }
 
 var (
