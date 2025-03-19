@@ -7,32 +7,32 @@ import (
 
 // FreezeBoard freezes a board so no more threads and comments can be created or modified.
 func FreezeBoard(boardID BoardID) {
-	setBoardReadOnly(boardID, true)
+	setBoardReadonly(boardID, true)
 }
 
 // UnfreezeBoard removes frozen status from a board.
 func UnfreezeBoard(boardID BoardID) {
-	setBoardReadOnly(boardID, false)
+	setBoardReadonly(boardID, false)
 }
 
 // IsBoardFrozen checks if a board has been frozen.
 func IsBoardFrozen(boardID BoardID) bool {
 	board := mustGetBoard(boardID)
-	return board.IsReadOnly()
+	return board.IsReadonly()
 }
 
 // FreezeThread freezes a thread so thread cannot be replied, modified or deleted.
 //
 // Fails if board is frozen.
 func FreezeThread(boardID BoardID, threadID PostID) {
-	setThreadReadOnly(boardID, threadID, true)
+	setThreadReadonly(boardID, threadID, true)
 }
 
 // UnfreezeThread removes frozen status from a thread.
 //
 // Fails if board is frozen.
 func UnfreezeThread(boardID BoardID, threadID PostID) {
-	setThreadReadOnly(boardID, threadID, false)
+	setThreadReadonly(boardID, threadID, false)
 }
 
 // IsThreadFrozen checks if a thread has been frozen.
@@ -43,7 +43,7 @@ func IsThreadFrozen(boardID BoardID, threadID PostID) bool {
 	thread := mustGetThread(board, threadID)
 	assertThreadIsVisible(thread)
 
-	return board.IsReadOnly() || thread.IsReadOnly()
+	return board.IsReadonly() || thread.IsReadonly()
 }
 
 // UnfreezeReply removes frozen status from a reply.
@@ -51,14 +51,14 @@ func IsThreadFrozen(boardID BoardID, threadID PostID) bool {
 // Fails when parent thread or board are frozen.
 func UnfreezeReply(boardID BoardID, threadID, replyID PostID) {
 	// XXX: Is there a use case for also freezing replies?
-	setReplyReadOnly(boardID, threadID, replyID, false)
+	setReplyReadonly(boardID, threadID, replyID, false)
 }
 
 // FreezeReply freezes a thread reply so it cannot be modified or deleted.
 //
 // Fails when parent thread or board are frozen.
 func FreezeReply(boardID BoardID, threadID, replyID PostID) {
-	setReplyReadOnly(boardID, threadID, replyID, true)
+	setReplyReadonly(boardID, threadID, replyID, true)
 }
 
 // IsReplyFrozen checks if a thread reply has been frozen.
@@ -72,10 +72,10 @@ func IsReplyFrozen(boardID BoardID, threadID, replyID PostID) bool {
 	reply := mustGetReply(thread, replyID)
 	assertReplyIsVisible(reply)
 
-	return board.IsReadOnly() || thread.IsReadOnly() || reply.IsReadOnly()
+	return board.IsReadonly() || thread.IsReadonly() || reply.IsReadonly()
 }
 
-func setReplyReadOnly(boardID BoardID, threadID, replyID PostID, isReadOnly bool) {
+func setReplyReadonly(boardID BoardID, threadID, replyID PostID, isReadonly bool) {
 	assertRealmIsNotLocked()
 
 	board := mustGetBoard(boardID)
@@ -91,11 +91,11 @@ func setReplyReadOnly(boardID BoardID, threadID, replyID PostID, isReadOnly bool
 	reply := mustGetReply(thread, replyID)
 	assertReplyIsVisible(reply)
 
-	if isReadOnly {
+	if isReadonly {
 		assertReplyIsNotFrozen(reply)
 	}
 
-	reply.SetReadOnly(isReadOnly)
+	reply.SetReadonly(isReadonly)
 
 	std.Emit(
 		"ReplyFreeze",
@@ -103,11 +103,11 @@ func setReplyReadOnly(boardID BoardID, threadID, replyID PostID, isReadOnly bool
 		"boardID", boardID.String(),
 		"threadID", threadID.String(),
 		"replyID", replyID.String(),
-		"frozen", strconv.FormatBool(isReadOnly),
+		"frozen", strconv.FormatBool(isReadonly),
 	)
 }
 
-func setThreadReadOnly(boardID BoardID, threadID PostID, isReadOnly bool) {
+func setThreadReadonly(boardID BoardID, threadID PostID, isReadonly bool) {
 	assertRealmIsNotLocked()
 
 	board := mustGetBoard(boardID)
@@ -117,38 +117,38 @@ func setThreadReadOnly(boardID BoardID, threadID PostID, isReadOnly bool) {
 	assertHasBoardPermission(board, caller, PermissionThreadFreeze)
 
 	thread := mustGetThread(board, threadID)
-	if isReadOnly {
+	if isReadonly {
 		assertThreadIsNotFrozen(thread)
 	}
 
-	thread.SetReadOnly(isReadOnly)
+	thread.SetReadonly(isReadonly)
 
 	std.Emit(
 		"ThreadFreeze",
 		"caller", caller.String(),
 		"boardID", boardID.String(),
 		"threadID", threadID.String(),
-		"frozen", strconv.FormatBool(isReadOnly),
+		"frozen", strconv.FormatBool(isReadonly),
 	)
 }
 
-func setBoardReadOnly(boardID BoardID, isReadOnly bool) {
+func setBoardReadonly(boardID BoardID, isReadonly bool) {
 	assertRealmIsNotLocked()
 
 	board := mustGetBoard(boardID)
-	if isReadOnly {
+	if isReadonly {
 		assertBoardIsNotFrozen(board)
 	}
 
 	caller := std.PreviousRealm().Address()
 	assertHasBoardPermission(board, caller, PermissionBoardFreeze)
 
-	board.SetReadOnly(isReadOnly)
+	board.SetReadonly(isReadonly)
 
 	std.Emit(
 		"BoardFreeze",
 		"caller", caller.String(),
 		"boardID", boardID.String(),
-		"frozen", strconv.FormatBool(isReadOnly),
+		"frozen", strconv.FormatBool(isReadonly),
 	)
 }

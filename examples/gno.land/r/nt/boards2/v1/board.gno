@@ -33,7 +33,7 @@ type Board struct {
 	createdAt time.Time
 	deleted   avl.Tree // TODO reserved for fast-delete.
 	perms     Permissions
-	readOnly  bool
+	readonly  bool
 }
 
 func newBoard(id BoardID, name string, creator std.Address, p Permissions) *Board {
@@ -73,14 +73,14 @@ func (board *Board) GetPermissions() Permissions {
 	return board.perms
 }
 
-// SetReadOnly updates board's read-only status.
-func (board *Board) SetReadOnly(readOnly bool) {
-	board.readOnly = readOnly
+// SetReadonly updates board's read-only status.
+func (board *Board) SetReadonly(readonly bool) {
+	board.readonly = readonly
 }
 
-// IsReadOnly checks if the board is a read-only board.
-func (board *Board) IsReadOnly() bool {
-	return board.readOnly
+// IsReadonly checks if the board is a read-only board.
+func (board *Board) IsReadonly() bool {
+	return board.readonly
 }
 
 func (board *Board) GetThread(threadID PostID) (_ *Post, found bool) {
@@ -116,7 +116,7 @@ func (board *Board) Render(path string) string {
 	sb.WriteString("on " + board.createdAt.Format(dateFormat))
 	sb.WriteString(", #" + board.id.String() + "_")
 
-	if board.IsReadOnly() {
+	if board.IsReadonly() {
 		sb.WriteString("  \n_**Starting new threads and commenting is disabled**_")
 	}
 
@@ -124,7 +124,7 @@ func (board *Board) Render(path string) string {
 
 	if board.threads.Size() == 0 {
 		sb.WriteString("### This board doesn't have any threads\n")
-		if !board.IsReadOnly() {
+		if !board.IsReadonly() {
 			url := board.GetPostFormURL()
 			sb.WriteString("Do you want to [start a new conversation](" + url + ") in this board ?")
 		}
