@@ -1,0 +1,91 @@
+// reach all having years and minted all amount
+// and then no gns will be minted
+
+// PKGPATH: gno.land/r/gnoswap/v1/gns_test
+package gns_test
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/ufmt"
+
+	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/gns"
+
+	_ "gno.land/r/gnoswap/v1/emission"
+	_ "gno.land/r/gnoswap/v1/staker"
+)
+
+var t *testing.T
+
+var (
+	user01Addr  = testutils.TestAddress("user01Addr")
+	user01Realm = std.NewUserRealm(user01Addr)
+)
+
+func main() {
+	reachAlmostEndOfEmission()
+	skip50Blocks()
+	moreBlocksAfterEmissionEnds()
+}
+
+func reachAlmostEndOfEmission() {
+	endHeight := gns.GetEndHeight()
+	untilEnds := endHeight - std.ChainHeight()
+	std.TestSkipHeights(untilEnds - 10) // 10 blocks before end of emission
+
+	std.TestSetRealm(std.NewCodeRealm(consts.EMISSION_PATH))
+	minted := gns.MintGns(user01Addr)
+
+	// minted all amount for year 01 ~ 11
+	for year := int64(1); year <= 11; year++ {
+		uassert.Equal(
+			t,
+			gns.GetHalvingYearMaxAmount(year),
+			gns.GetHalvingYearMintAmount(year),
+			ufmt.Sprintf("shoud been minted max amount for year %d", year),
+		)
+	}
+
+	// we're at the end of last halving year
+	year := gns.GetHalvingYearByHeight(std.ChainHeight())
+	uassert.Equal(t, int64(12), year)
+}
+
+func skip50Blocks() {
+	// 10 block left until emission ends
+	// skipping 50 blocks will reach the end of emission
+	// and it should mint for only 10 blocks
+
+	std.TestSetRealm(std.NewCodeRealm(consts.EMISSION_PATH))
+	std.TestSkipHeights(50)
+	gns.MintGns(user01Addr)
+
+	// total supply
+	totalSupply := gns.TotalSupply()
+	uassert.Equal(t, gns.MAXIMUM_SUPPLY, totalSupply)
+
+	// minted amount
+	mintedAmount := gns.GetMintedEmissionAmount()
+	uassert.Equal(t, gns.MAX_EMISSION_AMOUNT, mintedAmount)
+}
+
+func moreBlocksAfterEmissionEnds() {
+	std.TestSetRealm(std.NewCodeRealm(consts.EMISSION_PATH))
+	std.TestSkipHeights(10)
+
+	// no gns will be minted after emission ends
+	minted := gns.MintGns(user01Addr)
+	uassert.Equal(t, uint64(0), minted)
+
+	// total supply
+	totalSupply := gns.TotalSupply()
+	uassert.Equal(t, gns.MAXIMUM_SUPPLY, totalSupply)
+
+	// minted amount
+	mintedAmount := gns.GetMintedEmissionAmount()
+	uassert.Equal(t, gns.MAX_EMISSION_AMOUNT, mintedAmount)
+}

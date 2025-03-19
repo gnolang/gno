@@ -1,0 +1,95 @@
+package governance
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/demo/uassert"
+
+	"gno.land/r/gnoswap/v1/gns"
+	gs "gno.land/r/gnoswap/v1/gov/staker"
+)
+
+func init() {
+	std.TestSetRealm(adminRealm)
+	gns.Approve(govStakerAddr, uint64(1_000_000))
+	gs.Delegate(admin, uint64(1_000_000), "")
+	std.TestSkipHeights(11) // VotingWeightSmoothingDuration is 10 block
+
+	// overwrite config for testcase
+	config = Config{
+		VotingStartDelay:              uint64(10),   // 10s ≈ 5 block
+		VotingPeriod:                  uint64(30),   // 30s ≈ 15 block
+		VotingWeightSmoothingDuration: uint64(10),   // 10s ≈ 5 block
+		Quorum:                        uint64(50),   // 50% of total xGNS supply
+		ProposalCreationThreshold:     uint64(100),  //
+		ExecutionDelay:                uint64(10),   // 10s ≈ 5 block
+		ExecutionWindow:               uint64(1000), // 500 block
+	}
+	setConfigVersion(1, config)
+}
+
+func TestProposeParameterChange_Two_SetAvgBlockTimeInMs_CommunityPoolSpend(t *testing.T) {
+	uassert.Equal(t, gns.BalanceOf(communityPoolAddr), uint64(0))
+	uassert.Equal(t, std.ChainHeight(), int64(123))
+
+	std.TestSkipHeights(5)
+
+	t.Run("propose successful", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		proposalID := ProposeParameterChange(
+			"test_title",
+			"test_description",
+			uint64(2),
+			"gno.land/r/gnoswap/v1/gns*EXE*SetAvgBlockTimeInMs*EXE*123*GOV*gno.land/r/gnoswap/v1/community_pool*EXE*TransferToken*EXE*gno.land/r/gnoswap/v1/gns,g17290cwvmrapvp869xfnhhawa8sm9edpufzat7d,905",
+		)
+
+		uassert.Equal(t, proposalID, uint64(1))
+		uassert.Equal(t, gns.BalanceOf(communityPoolAddr), uint64(3567351)) // community pool receives 5% of emission reward
+		uassert.Equal(t, std.ChainHeight(), int64(128))
+	})
+
+	t.Run("vote => skip time => pass status", func(t *testing.T) {
+		t.Skip()
+		// vote to pass it
+		std.TestSkipHeights(11) // voting start delay
+		proposalID := ProposeParameterChange(
+			"test_title",
+			"test_description",
+			uint64(2),
+			"gno.land/r/gnoswap/v1/gns*EXE*SetAvgBlockTimeInMs*EXE*123*GOV*gno.land/r/gnoswap/v1/community_pool*EXE*TransferToken*EXE*gno.land/r/gnoswap/v1/gns,g17290cwvmrapvp869xfnhhawa8sm9edpufzat7d,905",
+		)
+
+		voteKey := Vote(proposalId, true)
+		voted := GetVoteByVoteKey(voteKey)
+		uassert.Equal(t, voted, true)
+
+		std.TestSkipHeights(31) // ends voting period
+		updateProposalsState()
+
+		uassert.Equal(t, gns.BalanceOf(communityPoolAddr), uint64(33533103))
+		uassert.Equal(t, std.ChainHeight(), int64(170)) // 42 from block initial(123)
+	})
+
+	t.Run("execute proposal", func(t *testing.T) {
+		t.Skip()
+		std.TestSetRealm(adminRealm)
+
+		uassert.Equal(t, gns.GetAvgBlockTimeInMs(), int64(2000))
+		uassert.Equal(t, gns.BalanceOf(communityPoolAddr), uint64(33533103))
+
+		proposalID := ProposeParameterChange(
+			"test_title",
+			"test_description",
+			uint64(2),
+			"gno.land/r/gnoswap/v1/gns*EXE*SetAvgBlockTimeInMs*EXE*123*GOV*gno.land/r/gnoswap/v1/community_pool*EXE*TransferToken*EXE*gno.land/r/gnoswap/v1/gns,g17290cwvmrapvp869xfnhhawa8sm9edpufzat7d,905",
+		)
+
+		err := Execute(proposalID)
+		uassert.NoError(t, err)
+
+		uassert.Equal(t, gns.GetAvgBlockTimeInMs(), int64(123))
+		uassert.Equal(t, gns.BalanceOf(communityPoolAddr), uint64(33532198)) // 905 transferred, as paramter from proposal L#44
+	})
+}

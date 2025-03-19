@@ -1,0 +1,215 @@
+package position
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
+
+	"gno.land/p/gnoswap/consts"
+	"gno.land/r/gnoswap/v1/common"
+
+	"gno.land/r/demo/wugnot"
+	"gno.land/r/gnoswap/v1/gns"
+
+	pl "gno.land/r/gnoswap/v1/pool"
+)
+
+// fresh users
+var (
+	fresh01 = testutils.TestAddress("fresh01") // g1veex2umgxqc47h6lta047h6lta047h6lgnrusf
+	fresh02 = testutils.TestAddress("fresh02") // g1veex2umgxqe97h6lta047h6lta047h6lhqv0lu
+)
+
+func TestPoolInitCreatePool(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	gns.Approve(poolAddr, pl.GetPoolCreationFee())
+	pl.CreatePool(consts.GNOT, consts.GNS_PATH, fee500, common.TickMathGetSqrtRatioAtTick(-10000).ToString())
+
+	singlePool := pl.GetPoolFromPoolPath("gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:500")
+}
+
+func TestFreshUser(t *testing.T) {
+	std.TestIssueCoins(fresh01, std.Coins{{"ugnot", 100_000_000}})
+	std.TestIssueCoins(fresh02, std.Coins{{"ugnot", 100_000_000}})
+
+	std.TestSetRealm(adminRealm)
+	gns.Transfer(fresh01, 100_000_000)
+	gns.Transfer(fresh02, 100_000_000)
+
+	// fresh users will have...
+	// 100_000_000 ugnot
+	// 100_000_000 gns
+	uassert.Equal(t, ugnotBalanceOf(t, fresh01), uint64(100_000_000))
+	uassert.Equal(t, gns.BalanceOf(fresh01), uint64(100_000_000))
+
+	uassert.Equal(t, ugnotBalanceOf(t, fresh02), uint64(100_000_000))
+	uassert.Equal(t, gns.BalanceOf(fresh02), uint64(100_000_000))
+}
+
+func TestOneSideOnlyGrc20WithoutSend(t *testing.T) {
+	fresh01Realm := std.NewUserRealm(fresh01)
+	std.TestSetRealm(fresh01Realm)
+
+	gns.Approve(poolAddr, consts.UINT64_MAX)    // POOL FOR MINT
+	wugnot.Approve(poolAddr, consts.UINT64_MAX) // POOL FOR MINT
+
+	wugnot.Approve(positionAddr, consts.UINT64_MAX) // POSITION FOR WRAP
+
+	// should panic
+	// user is trying to mint position with native coin, but didn't send any native coin
+	uassert.PanicsWithMessage(
+		t,
+		"[GNOSWAP-POSITION-014] No UGNOTs were sent || amount of ugnot is zero",
+		func() {
+			std.TestSetRealm(fresh01Realm)
+			positionId, liquidity, amount0, amount1 := Mint(
+				consts.GNS_PATH, // token0
+				consts.GNOT,     // token1
+				fee500,          // fee
+				12000,           // tickLower
+				14000,           // tickUpper
+				"10000000",      // amount0Desired
+				"10000000",      // amount1Desired
+				"0",             // amount0Min
+				"0",             // amount1Min
+				max_timeout,     // deadline
+				fresh01,         // operator
+				fresh01,
+				"",
+			)
+		},
+	)
+}
+
+func TestOneSideOnlyGrc20WithSend0Coin(t *testing.T) {
+	fresh01Realm := std.NewUserRealm(fresh01)
+	std.TestSetRealm(fresh01Realm)
+
+	gns.Approve(poolAddr, consts.UINT64_MAX)    // POOL FOR MINT
+	wugnot.Approve(poolAddr, consts.UINT64_MAX) // POOL FOR MINT
+
+	wugnot.Approve(positionAddr, consts.UINT64_MAX) // POSITION FOR WRAP
+
+	std.TestSetOriginSend(std.Coins{{"ugnot", 0}}, nil)
+
+	// should panic
+	// user is trying to mint position with native coin, but sent 0 coin
+	uassert.PanicsWithMessage(
+		t,
+		"[GNOSWAP-POSITION-014] No UGNOTs were sent || amount of ugnot is zero",
+		func() {
+			std.TestSetRealm(fresh01Realm)
+			positionId, liquidity, amount0, amount1 := Mint(
+				consts.GNS_PATH, // token0
+				consts.GNOT,     // token1
+				fee500,          // fee
+				12000,           // tickLower
+				14000,           // tickUpper
+				"10000000",      // amount0Desired
+				"10000000",      // amount1Desired
+				"0",             // amount0Min
+				"0",             // amount1Min
+				max_timeout,     // deadline
+				fresh01,         // operator
+				fresh01,
+				"",
+			)
+		},
+	)
+}
+
+func TestOneSideOnlyUgnot(t *testing.T) {
+	fresh01Realm := std.NewUserRealm(fresh01)
+	std.TestSetRealm(fresh01Realm)
+
+	gns.Approve(poolAddr, consts.UINT64_MAX)    // POOL FOR MINT
+	wugnot.Approve(poolAddr, consts.UINT64_MAX) // POOL FOR MINT
+
+	wugnot.Approve(positionAddr, consts.UINT64_MAX) // POSITION FOR WRAP
+
+	std.TestSetOriginSend(std.Coins{{"ugnot", 100_000_000}}, nil)
+	std.TestIssueCoins(positionAddr, std.Coins{{"ugnot", 100_000_000}})
+	uassert.Equal(t, ugnotBalanceOf(t, fresh01), uint64(0))
+
+	std.TestSetRealm(fresh01Realm)
+	positionId, liquidity, amount0, amount1 := Mint(
+		consts.GNS_PATH, // token0
+		consts.GNOT,     // token1
+		fee500,          // fee
+		6000,            // tickLower
+		8000,            // tickUpper
+		"90000000",      // amount0Desired
+		"90000000",      // amount1Desired
+		"0",             // amount0Min
+		"0",             // amount1Min
+		max_timeout,     // deadline
+		fresh01,         // operator
+		fresh01,
+		"",
+	)
+	// send 100000000
+	// mint 90000000
+	// => remain 10000000
+	uassert.Equal(t, ugnotBalanceOf(t, fresh01), uint64(10000000))
+	uassert.Equal(t, wugnot.BalanceOf(fresh01), uint64(0)) // position will unwrap remaining wugnot to ugnot, so wugnot balance should be 0
+}
+
+// func TestBothWithFresh(t *testing.T) {
+// 	fresh02Realm := std.NewUserRealm(fresh02)
+// 	std.TestSetRealm(fresh02Realm)
+
+// 	gns.Approve(poolAddr, consts.UINT64_MAX)    // POOL FOR MINT
+// 	wugnot.Approve(poolAddr, consts.UINT64_MAX) // POOL FOR MINT
+
+// 	wugnot.Approve(positionAddr, consts.UINT64_MAX) // POSITION FOR WRAP
+
+// 	std.TestIssueCoins(positionAddr, std.Coins{{"ugnot", 100_000_000}})
+// 	std.TestSetOrigSend(std.Coins{{"ugnot", 100_000_000}}, nil)
+// 	uassert.Equal(t, ugnotBalanceOf(t, fresh02), uint64(0))
+
+// 	std.TestSetRealm(fresh02Realm)
+// 	positionId, liquidity, amount0, amount1 := Mint(
+// 		consts.GNS_PATH, // token0
+// 		consts.GNOT,     // token1
+// 		fee500,          // fee
+// 		6000,            // tickLower
+// 		16000,           // tickUpper
+// 		"70000000",      // amount0Desired
+// 		"70000000",      // amount1Desired
+// 		"0",             // amount0Min
+// 		"0",             // amount1Min
+// 		max_timeout,     // deadline
+// 		fresh02,         // operator
+// 		fresh02,
+// 		"",
+// 	)
+
+// 	// send 100_000_000
+// 	// mint 70_000_000
+// 	// => remain 30_000_000
+// 	uassert.Equal(t, ugnotBalanceOf(t, fresh02), uint64(30_000_000))
+// 	uassert.Equal(t, wugnot.BalanceOf(fresh02), uint64(0)) // position will unwrap remaining wugnot to ugnot, so wugnot balance should be 0
+// }
+
+// func TestBothWithFreshButNoSend(t *testing.T) {
+// 	fresh02Realm := std.NewUserRealm(fresh02)
+// 	std.TestSetRealm(fresh02Realm)
+
+// 	gns.Approve(poolAddr, consts.UINT64_MAX)    // POOL FOR MINT
+// 	wugnot.Approve(poolAddr, consts.UINT64_MAX) // POOL FOR MINT
+
+// 	wugnot.Approve(positionAddr, consts.UINT64_MAX) // POSITION FOR WRAP
+
+// 	std.TestSetOrigSend(std.Coins{{"ugnot", 0}}, nil)
+
+// 	std.TestSetRealm(fresh02Realm)
+// 	uassert.PanicsWithMessage(
+// 		t,
+// 		`insufficient balance`,
+// 		func() {
+// 			Mint(consts.GNS_PATH, consts.GNOT, fee500, 6000, 16000, "70000000", "70000000", "0", "0", max_timeout, fresh02, fresh02, "")
+// 		},
+// 	)
+// }

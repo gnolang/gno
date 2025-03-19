@@ -1,0 +1,450 @@
+package governance
+
+import (
+	"std"
+	"testing"
+	"time"
+
+	"gno.land/p/demo/uassert"
+
+	"gno.land/r/gnoswap/v1/gns"
+	gs "gno.land/r/gnoswap/v1/gov/staker"
+)
+
+var (
+	oldHeight uint64
+	oldTime   uint64
+
+	nowHeight uint64
+	nowTime   uint64
+)
+
+func TestProposeText(t *testing.T) {
+	t.Run("initial state", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		gns.Approve(govStakerAddr, uint64(1_000_000))
+		gs.Delegate(admin, uint64(1_000_000), "")
+		std.TestSkipHeights(11) // VotingWeightSmoothingDuration is 10 block
+
+		// overwrite config for testcase
+		config = Config{
+			VotingStartDelay:              uint64(10),   // 10s ≈ 5 block
+			VotingPeriod:                  uint64(30),   // 30s ≈ 15 block
+			VotingWeightSmoothingDuration: uint64(10),   // 10s ≈ 5 block
+			Quorum:                        uint64(50),   // 50% of total xGNS supply
+			ProposalCreationThreshold:     uint64(100),  //
+			ExecutionDelay:                uint64(10),   // 10s ≈ 5 block
+			ExecutionWindow:               uint64(1000), // 500 block
+		}
+		setConfigVersion(1, config)
+	})
+
+	oldHeight = uint64(std.ChainHeight())
+	oldTime = uint64(time.Now().Unix())
+
+	nowHeight = oldHeight
+	nowTime = oldTime
+
+	t.Run("create text proposal", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		proposalId := ProposeText("test_title_1", "test_description_1")
+		updateProposalsState()
+		proposalStat := mustGetProposal(proposalId).State
+
+		uassert.True(t, proposalStat.Created)
+		uassert.Equal(t, proposalStat.CreatedAt, oldTime)
+		uassert.True(t, proposalStat.Upcoming)
+		uassert.False(t, proposalStat.Active)
+		uassert.False(t, proposalStat.Passed)
+		uassert.Equal(t, proposalStat.PassedAt, uint64(0))
+		uassert.False(t, proposalStat.Rejected)
+		uassert.Equal(t, proposalStat.RejectedAt, uint64(0))
+		uassert.False(t, proposalStat.Canceled)
+		uassert.Equal(t, proposalStat.CanceledAt, uint64(0))
+		uassert.False(t, proposalStat.Executed)
+		uassert.Equal(t, proposalStat.ExecutedAt, uint64(0))
+	})
+
+	t.Run("vote YES", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		std.TestSkipHeights(11)
+
+		nowHeight = uint64(std.ChainHeight())
+		nowTime = uint64(time.Now().Unix())
+
+		voteKey := Vote(proposalId, true)
+
+		voted := GetVoteByVoteKey(voteKey)
+		uassert.True(t, voted)
+
+		updateProposalsState()
+		proposalStat := mustGetProposal(proposalId).State
+
+		uassert.True(t, proposalStat.Created)
+		uassert.Equal(t, proposalStat.CreatedAt, oldTime)
+		uassert.False(t, proposalStat.Upcoming)
+		uassert.True(t, proposalStat.Active)
+		uassert.False(t, proposalStat.Passed)
+		uassert.Equal(t, proposalStat.PassedAt, uint64(0))
+		uassert.False(t, proposalStat.Rejected)
+		uassert.Equal(t, proposalStat.RejectedAt, uint64(0))
+		uassert.False(t, proposalStat.Canceled)
+		uassert.Equal(t, proposalStat.CanceledAt, uint64(0))
+		uassert.False(t, proposalStat.Executed)
+		uassert.Equal(t, proposalStat.ExecutedAt, uint64(0))
+	})
+
+	t.Run("skip time to check proposal pass/reject", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		std.TestSkipHeights(31)
+
+		nowHeight = uint64(std.ChainHeight())
+		nowTime = uint64(time.Now().Unix())
+
+		updateProposalsState()
+		proposalStat := mustGetProposal(proposalId).State
+
+		uassert.True(t, proposalStat.Created)
+		uassert.Equal(t, proposalStat.CreatedAt, oldTime)
+		uassert.False(t, proposalStat.Upcoming)
+		uassert.False(t, proposalStat.Active)
+		uassert.True(t, proposalStat.Passed)
+		uassert.Equal(t, proposalStat.PassedAt, nowTime)
+		uassert.False(t, proposalStat.Rejected)
+		uassert.Equal(t, proposalStat.RejectedAt, uint64(0))
+		uassert.False(t, proposalStat.Canceled)
+		uassert.Equal(t, proposalStat.CanceledAt, uint64(0))
+		uassert.False(t, proposalStat.Executed)
+		uassert.Equal(t, proposalStat.ExecutedAt, uint64(0))
+	})
+
+	t.Run("skip long to check proposal status", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		std.TestSkipHeights(500)
+
+		updateProposalsState()
+		proposalStat := mustGetProposal(proposalId).State
+
+		uassert.True(t, proposalStat.Created)
+		uassert.Equal(t, proposalStat.CreatedAt, oldTime)
+		uassert.False(t, proposalStat.Upcoming)
+		uassert.False(t, proposalStat.Active)
+		uassert.True(t, proposalStat.Passed)
+		uassert.Equal(t, proposalStat.PassedAt, nowTime)
+		uassert.Equal(t, proposalStat.PassedAt, nowTime)
+		uassert.False(t, proposalStat.Rejected)
+		uassert.Equal(t, proposalStat.RejectedAt, uint64(0))
+		uassert.False(t, proposalStat.Canceled)
+		uassert.Equal(t, proposalStat.CanceledAt, uint64(0))
+
+		uassert.False(t, proposalStat.Executed)
+		uassert.Equal(t, proposalStat.ExecutedAt, uint64(0))
+	})
+
+	t.Run("create new text proposal and cancel", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		proposalId := ProposeText("test_title_2", "test_description_2")
+		Cancel(proposalId)
+
+		updateProposalsState()
+		proposalStat := mustGetProposal(proposalId).State
+
+		nowHeight = uint64(std.ChainHeight())
+		nowTime = uint64(time.Now().Unix())
+
+		uassert.True(t, proposalStat.Created)
+		uassert.Equal(t, proposalStat.CreatedAt, nowTime)
+		uassert.False(t, proposalStat.Upcoming)
+		uassert.False(t, proposalStat.Active)
+		uassert.False(t, proposalStat.Passed)
+		uassert.Equal(t, proposalStat.PassedAt, uint64(0))
+		uassert.False(t, proposalStat.Rejected)
+		uassert.Equal(t, proposalStat.RejectedAt, uint64(0))
+		uassert.True(t, proposalStat.Canceled)
+		uassert.Equal(t, proposalStat.CanceledAt, nowTime)
+		uassert.False(t, proposalStat.Executed)
+		uassert.Equal(t, proposalStat.ExecutedAt, uint64(0))
+	})
+}
+
+func TestParamaterChange(t *testing.T) {
+	t.Run("initial state", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		gns.Approve(govStakerAddr, uint64(1_000_000))
+		gs.Delegate(admin, uint64(1_000_000), "")
+		std.TestSkipHeights(11) // VotingWeightSmoothingDuration is 10 block
+
+		// overwrite config for testcase
+		config = Config{
+			VotingStartDelay:              uint64(10),   // 10s ≈ 5 block
+			VotingPeriod:                  uint64(30),   // 30s ≈ 15 block
+			VotingWeightSmoothingDuration: uint64(10),   // 10s ≈ 5 block
+			Quorum:                        uint64(50),   // 50% of total xGNS supply
+			ProposalCreationThreshold:     uint64(100),  //
+			ExecutionDelay:                uint64(10),   // 10s ≈ 5 block
+			ExecutionWindow:               uint64(1000), // 500 block
+		}
+		setConfigVersion(1, config)
+	})
+
+	oldHeight = uint64(std.ChainHeight())
+	oldTime = uint64(time.Now().Unix())
+
+	nowHeight = oldHeight
+	nowTime = oldTime
+
+	t.Run("create param change", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		proposalId := ProposeParameterChange("test_title_3", "test_description_3", uint64(1), "gno.land/r/gnoswap/v1/gns*EXE*SetAvgBlockTimeInMs*EXE*100")
+		updateProposalsState()
+		proposalStat := mustGetProposal(proposalId).State
+
+		uassert.True(t, proposalStat.Created)
+		uassert.Equal(t, proposalStat.CreatedAt, oldTime)
+		uassert.True(t, proposalStat.Upcoming)
+		uassert.False(t, proposalStat.Active)
+		uassert.False(t, proposalStat.Passed)
+		uassert.Equal(t, proposalStat.PassedAt, uint64(0))
+		uassert.False(t, proposalStat.Rejected)
+		uassert.Equal(t, proposalStat.RejectedAt, uint64(0))
+		uassert.False(t, proposalStat.Canceled)
+		uassert.Equal(t, proposalStat.CanceledAt, uint64(0))
+		uassert.False(t, proposalStat.Executed)
+		uassert.Equal(t, proposalStat.ExecutedAt, uint64(0))
+	})
+
+	t.Run("vote YES", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		std.TestSkipHeights(11)
+
+		nowHeight = uint64(std.ChainHeight())
+		nowTime = uint64(time.Now().Unix())
+
+		voteKey := Vote(proposalId, true)
+		voted := GetVoteByVoteKey(voteKey)
+		uassert.True(t, voted)
+
+		updateProposalsState()
+		proposalStat := mustGetProposal(proposalId).State
+
+		uassert.True(t, proposalStat.Created)
+		uassert.Equal(t, proposalStat.CreatedAt, oldTime)
+		uassert.False(t, proposalStat.Upcoming)
+		uassert.True(t, proposalStat.Active)
+		uassert.False(t, proposalStat.Passed)
+		uassert.Equal(t, proposalStat.PassedAt, uint64(0))
+		uassert.False(t, proposalStat.Rejected)
+		uassert.Equal(t, proposalStat.RejectedAt, uint64(0))
+		uassert.False(t, proposalStat.Canceled)
+		uassert.Equal(t, proposalStat.CanceledAt, uint64(0))
+		uassert.False(t, proposalStat.Executed)
+		uassert.Equal(t, proposalStat.ExecutedAt, uint64(0))
+	})
+
+	t.Run("skip time to check proposal pass/reject => pass", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		std.TestSkipHeights(31)
+
+		nowHeight = uint64(std.ChainHeight())
+		nowTime = uint64(time.Now().Unix())
+
+		updateProposalsState()
+		proposalStat := mustGetProposal(proposalId).State
+
+		uassert.True(t, proposalStat.Created)
+		uassert.Equal(t, proposalStat.CreatedAt, oldTime)
+		uassert.False(t, proposalStat.Upcoming)
+		uassert.False(t, proposalStat.Active)
+		uassert.True(t, proposalStat.Passed)
+		uassert.Equal(t, proposalStat.PassedAt, nowTime)
+		uassert.False(t, proposalStat.Rejected)
+		uassert.Equal(t, proposalStat.RejectedAt, uint64(0))
+		uassert.False(t, proposalStat.Canceled)
+		uassert.Equal(t, proposalStat.CanceledAt, uint64(0))
+		uassert.False(t, proposalStat.Executed)
+		uassert.Equal(t, proposalStat.ExecutedAt, uint64(0))
+	})
+
+	t.Run("execute", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		Execute(proposalId)
+		updateProposalsState()
+		proposalStat := mustGetProposal(proposalId).State
+
+		nowHeight = uint64(std.ChainHeight())
+		nowTime = uint64(time.Now().Unix())
+
+		uassert.True(t, proposalStat.Created)
+		uassert.Equal(t, proposalStat.CreatedAt, oldTime)
+		uassert.False(t, proposalStat.Upcoming)
+		uassert.False(t, proposalStat.Active)
+		uassert.True(t, proposalStat.Passed)
+		uassert.Equal(t, proposalStat.PassedAt, nowTime)
+		uassert.False(t, proposalStat.Rejected)
+		uassert.Equal(t, proposalStat.RejectedAt, uint64(0))
+		uassert.False(t, proposalStat.Canceled)
+		uassert.Equal(t, proposalStat.CanceledAt, uint64(0))
+		uassert.True(t, proposalStat.Executed)
+		uassert.Equal(t, proposalStat.ExecutedAt, nowTime)
+		uassert.False(t, proposalStat.Expired)
+		uassert.Equal(t, proposalStat.ExpiredAt, uint64(0))
+	})
+
+	t.Run("skip long time after execute", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		std.TestSkipHeights(1000)
+		updateProposalsState()
+		proposalStat := mustGetProposal(proposalId).State
+
+		uassert.True(t, proposalStat.Created)
+		uassert.Equal(t, proposalStat.CreatedAt, oldTime)
+		uassert.False(t, proposalStat.Upcoming)
+		uassert.False(t, proposalStat.Active)
+		uassert.True(t, proposalStat.Passed)
+		uassert.Equal(t, proposalStat.PassedAt, nowTime)
+		uassert.False(t, proposalStat.Rejected)
+		uassert.Equal(t, proposalStat.RejectedAt, uint64(0))
+		uassert.False(t, proposalStat.Canceled)
+		uassert.Equal(t, proposalStat.CanceledAt, uint64(0))
+		uassert.True(t, proposalStat.Executed)
+		uassert.Equal(t, proposalStat.ExecutedAt, nowTime)
+		uassert.False(t, proposalStat.Expired)
+		uassert.Equal(t, proposalStat.ExpiredAt, uint64(0))
+	})
+
+	t.Run("create new param change proposal and cancel", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		std.TestSkipHeights(100)
+		proposalId := ProposeParameterChange("test_title_3", "test_description_3", uint64(1), "gno.land/r/gnoswap/v1/gns*EXE*SetAvgBlockTimeInMs*EXE*300")
+		Cancel(proposalId)
+
+		updateProposalsState()
+		proposalStat := mustGetProposal(proposalId).State
+
+		nowHeight = uint64(std.ChainHeight())
+		nowTime = uint64(time.Now().Unix())
+
+		uassert.True(t, proposalStat.Created)
+		uassert.Equal(t, proposalStat.CreatedAt, nowTime)
+		uassert.False(t, proposalStat.Upcoming)
+		uassert.False(t, proposalStat.Active)
+		uassert.False(t, proposalStat.Passed)
+		uassert.Equal(t, proposalStat.PassedAt, uint64(0))
+		uassert.False(t, proposalStat.Rejected)
+		uassert.Equal(t, proposalStat.RejectedAt, uint64(0))
+		uassert.True(t, proposalStat.Canceled)
+		uassert.Equal(t, proposalStat.CanceledAt, nowTime)
+		uassert.False(t, proposalStat.Executed)
+		uassert.Equal(t, proposalStat.ExecutedAt, uint64(0))
+	})
+
+	t.Run("skip long time after cancel", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		oldTime = nowTime
+		oldHeight = nowHeight
+
+		std.TestSkipHeights(1000)
+		nowTime = uint64(time.Now().Unix())
+		nowHeight = uint64(std.ChainHeight())
+
+		updateProposalsState()
+		proposalStat := mustGetProposal(proposalId).State
+
+		uassert.True(t, proposalStat.Created)
+		uassert.Equal(t, proposalStat.CreatedAt, oldTime)
+		uassert.False(t, proposalStat.Upcoming)
+		uassert.False(t, proposalStat.Active)
+		uassert.False(t, proposalStat.Passed)
+		uassert.Equal(t, proposalStat.PassedAt, uint64(0))
+		uassert.False(t, proposalStat.Rejected)
+		uassert.Equal(t, proposalStat.RejectedAt, uint64(0))
+		uassert.True(t, proposalStat.Canceled)
+		uassert.Equal(t, proposalStat.CanceledAt, oldTime)
+		uassert.False(t, proposalStat.Executed)
+		uassert.Equal(t, proposalStat.ExecutedAt, uint64(0))
+		uassert.False(t, proposalStat.Expired)
+		uassert.Equal(t, proposalStat.ExpiredAt, uint64(0))
+	})
+
+	t.Run("create new param change proposal and pass", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+		std.TestSkipHeights(100)
+		proposalId := ProposeParameterChange("test_title_4", "test_description_4", uint64(1), "gno.land/r/gnoswap/v1/gns*EXE*SetAvgBlockTimeInMs*EXE*300")
+		oldHeight = uint64(std.ChainHeight())
+		oldTime = uint64(time.Now().Unix())
+
+		std.TestSkipHeights(11) // voting start
+		Vote(proposalId, true)
+		std.TestSkipHeights(31) // finish voting
+
+		nowHeight = uint64(std.ChainHeight())
+		nowTime = uint64(time.Now().Unix())
+
+		updateProposalsState()
+		proposalStat := mustGetProposal(proposalId).State
+
+		uassert.True(t, proposalStat.Created)
+		uassert.Equal(t, proposalStat.CreatedAt, oldTime)
+		uassert.False(t, proposalStat.Upcoming)
+		uassert.False(t, proposalStat.Active)
+		uassert.True(t, proposalStat.Passed)
+		uassert.Equal(t, proposalStat.PassedAt, nowTime)
+		uassert.False(t, proposalStat.Rejected)
+		uassert.Equal(t, proposalStat.RejectedAt, uint64(0))
+		uassert.False(t, proposalStat.Canceled)
+		uassert.Equal(t, proposalStat.CanceledAt, uint64(0))
+		uassert.False(t, proposalStat.Executed)
+		uassert.Equal(t, proposalStat.ExecutedAt, uint64(0))
+	})
+
+	t.Run("skip long time after passed => make expired", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		oldOldTime := oldTime
+		oldTime = nowTime
+		oldHeight = nowHeight
+
+		std.TestSkipHeights(600)
+		updateProposalsState()
+		nowTime = uint64(time.Now().Unix())
+		nowHeight = uint64(std.ChainHeight())
+
+		proposalStat := mustGetProposal(proposalId).State
+		uassert.True(t, proposalStat.Created)
+		uassert.Equal(t, proposalStat.CreatedAt, oldOldTime)
+		uassert.False(t, proposalStat.Upcoming)
+		uassert.False(t, proposalStat.Active)
+		uassert.True(t, proposalStat.Passed)
+		uassert.Equal(t, proposalStat.PassedAt, oldTime)
+		uassert.False(t, proposalStat.Rejected)
+		uassert.Equal(t, proposalStat.RejectedAt, uint64(0))
+		uassert.False(t, proposalStat.Canceled)
+		uassert.Equal(t, proposalStat.CanceledAt, uint64(0))
+		uassert.False(t, proposalStat.Executed)
+		uassert.Equal(t, proposalStat.ExecutedAt, uint64(0))
+		uassert.True(t, proposalStat.Expired)
+		uassert.Equal(t, proposalStat.ExpiredAt, nowTime)
+	})
+
+	t.Run("skip long time after expired", func(t *testing.T) {
+		std.TestSetRealm(adminRealm)
+
+		std.TestSkipHeights(100)
+		updateProposalsState()
+
+		proposalStat := mustGetProposal(proposalId).State
+		uassert.True(t, proposalStat.Created)
+		uassert.False(t, proposalStat.Upcoming)
+		uassert.False(t, proposalStat.Active)
+		uassert.True(t, proposalStat.Passed)
+		uassert.Equal(t, proposalStat.PassedAt, oldTime)
+		uassert.False(t, proposalStat.Rejected)
+		uassert.Equal(t, proposalStat.RejectedAt, uint64(0))
+		uassert.False(t, proposalStat.Canceled)
+		uassert.Equal(t, proposalStat.CanceledAt, uint64(0))
+		uassert.False(t, proposalStat.Executed)
+		uassert.Equal(t, proposalStat.ExecutedAt, uint64(0))
+		uassert.True(t, proposalStat.Expired)
+		uassert.Equal(t, proposalStat.ExpiredAt, nowTime)
+	})
+}

@@ -1,0 +1,149 @@
+package staker
+
+import (
+	"std"
+	"testing"
+
+	"gno.land/p/demo/json"
+	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
+
+	"gno.land/r/gnoswap/v1/gns"
+	"gno.land/r/gnoswap/v1/gov/xgns"
+
+	"gno.land/p/gnoswap/consts"
+	en "gno.land/r/gnoswap/v1/emission"
+	_ "gno.land/r/gnoswap/v1/staker"
+)
+
+const minAmount = uint64(1_000_000)
+
+var (
+	dummyToAddr  = testutils.TestAddress("dummyTo")
+	dummyToRealm = std.NewUserRealm(dummyToAddr)
+
+	dummyAddr  = testutils.TestAddress("dummy")
+	dummyRealm = std.NewUserRealm(dummyAddr)
+
+	reDelegate = testutils.TestAddress("reDelegate")
+)
+
+func TestEmissionReward(t *testing.T) {
+	initial(t)
+	delegateAdmin(t)
+	delegateAnother(t)
+	skipDummyBlocks(t)
+	reward(t)
+}
+
+func initial(t *testing.T) {
+
+	uassert.Equal(t, gns.BalanceOf(admin), uint64(100000000000000)) // admin has initial gns
+	uassert.Equal(t, xgns.BalanceOf(admin), uint64(0))
+
+	std.TestSetRealm(adminRealm)
+	en.ChangeDistributionPctByAdmin(
+		int(1), 7000,
+		int(2), 2000,
+		int(3), 500,
+		int(4), 500,
+	)
+	// CHANGE emission distribution ratio
+	// - STAKER 75% => 70%
+	// - DEV_OPS 20% => 20%
+	// - COMMUNITY_POOL 5% => 5%
+	// - GOV_STAKER 0% => 5%
+}
+
+func delegateAdmin(t *testing.T) {
+	// gns before emission
+	uassert.Equal(t, gns.BalanceOf(stakerAddr), uint64(0))
+	uassert.Equal(t, gns.BalanceOf(devOpsAddr), uint64(0))
+	uassert.Equal(t, gns.BalanceOf(communityPoolAddr), uint64(0))
+	uassert.Equal(t, gns.BalanceOf(govStakerAddr), uint64(0))
+
+	std.TestSkipHeights(1)
+
+	std.TestSetRealm(adminRealm)
+	gns.Approve(govStakerAddr, uint64(minAmount))
+	Delegate(dummyToAddr, minAmount, "")
+
+	// gns emission after adjustment & delegate
+	// 1 block gns 14269406
+	// 70% ≈ 9988584.2
+	// 20% ≈ 2853881.2
+	// 5% ≈ 713470.3
+
+	uassert.Equal(t, gns.BalanceOf(stakerAddr), uint64(9988584))
+	uassert.Equal(t, gns.BalanceOf(devOpsAddr), uint64(2853881))
+	uassert.Equal(t, gns.BalanceOf(communityPoolAddr), uint64(713470))
+	uassert.Equal(t, gns.BalanceOf(govStakerAddr), uint64(1713470))
+	// 1713470 (gov staker gns) - 1000000 (delegated gns) = 713470
+}
+
+func delegateAnother(t *testing.T) {
+	std.TestSetRealm(adminRealm)
+	delegateAmount := uint64(5 * minAmount)
+	gns.Transfer(dummyAddr, delegateAmount)
+
+	std.TestSkipHeights(1)
+	std.TestSetRealm(dummyRealm)
+	gns.Approve(govStakerAddr, delegateAmount)
+	Delegate(dummyAddr, delegateAmount, "")
+
+	uassert.Equal(t, gns.BalanceOf(stakerAddr), uint64(19977168))
+	uassert.Equal(t, gns.BalanceOf(devOpsAddr), uint64(5707762))
+	uassert.Equal(t, gns.BalanceOf(communityPoolAddr), uint64(1426940))
+	uassert.Equal(t, gns.BalanceOf(govStakerAddr), uint64(7426940))
+	uassert.Equal(t, gns.BalanceOf(govStakerAddr)-xgns.TotalSupply(), uint64(1426940))
+}
+
+func skipDummyBlocks(t *testing.T) {
+	std.TestSkipHeights(10)
+	en.MintAndDistributeGns()
+}
+
+func reward(t *testing.T) {
+	t.Run("check reward", func(t *testing.T) {
+		gcr := GetClaimableRewardByAddress(dummyAddr)
+		uassert.Equal(t, gcr, `{"height":"135","now":"1234567914","emissionReward":"5945585"}`)
+	})
+
+	t.Run("collect reward", func(t *testing.T) {
+		uassert.Equal(t, gns.BalanceOf(dummyAddr), uint64(0))
+		result := GetClaimableRewardByAddress(dummyAddr)
+		root, err := json.Unmarshal([]byte(result))
+		if err != nil {
+			panic(err.Error())
+		}
+
+		response, err := root.GetKey("emissionReward")
+		if err != nil {
+			panic(err.Error())
+		}
+
+		uassert.Equal(t, response.String(), `"5945585"`)
+
+		std.TestSetRealm(dummyRealm)
+		CollectReward()
+
+		uassert.Equal(t, gns.BalanceOf(dummyAddr), uint64(5945585))
+	})
+
+	t.Run("same block", func(t *testing.T) {
+		std.TestSetRealm(dummyRealm)
+
+		CollectReward()
+
+		uassert.Equal(t, gns.BalanceOf(dummyAddr), uint64(5945585))
+	})
+
+	t.Run("more block", func(t *testing.T) {
+		std.TestSkipHeights(1)
+		std.TestSetRealm(dummyRealm)
+
+		CollectReward()
+
+		uassert.Equal(t, gns.BalanceOf(dummyAddr), uint64(6540144))
+	})
+}
