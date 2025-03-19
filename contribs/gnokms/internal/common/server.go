@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	rss "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/server"
@@ -131,9 +132,9 @@ func RunSignerServer(commonFlags *ServerFlags, signer types.Signer, io commands.
 		return fmt.Errorf("signer server initialization failed: %w", err)
 	}
 
-	// Catch SIGINT signal to stop the server gracefully.
+	// Catch SIGINT/SIGTERM/SIGQUIT signals to stop the server gracefully.
 	catch := make(chan os.Signal, 1)
-	signal.Notify(catch, os.Interrupt)
+	signal.Notify(catch, os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	go func() {
 		<-catch
 		logger.Info("Caught interrupt signal, stopping signer server...")
