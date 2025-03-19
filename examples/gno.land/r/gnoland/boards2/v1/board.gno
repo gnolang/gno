@@ -10,7 +10,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/moul/txlink"
-	"gno.land/p/nt/commondao"
+	"gno.land/p/gnoland/commondao"
 )
 
 type BoardID uint64

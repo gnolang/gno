@@ -3,7 +3,7 @@ package main
 import (
 	"std"
 
-	"gno.land/p/nt/commondao"
+	"gno.land/p/gnoland/commondao"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
