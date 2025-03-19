@@ -293,7 +293,8 @@ func (a *columnASTTransformer) Transform(node *ast.Document, reader text.Reader,
 		// Check if the first separator is followed by any tag
 		if next := n.NextSibling(); next.Kind() != KindColumn {
 			col.ctx.error = fmt.Errorf(
-				"%w: open tag should be followed by heading separator or a closing tag", ErrInvalidColumnFormat,
+				"%w: open tag should be followed by heading separator or a closing tag",
+				ErrInvalidColumnFormat,
 			)
 		}
 	}
