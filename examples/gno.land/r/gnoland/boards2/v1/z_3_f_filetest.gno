@@ -5,8 +5,8 @@ package main
 import (
 	"std"
 
-	users "gno.land/r/gnoland/users/v1"
 	boards2 "gno.land/r/gnoland/boards2/v1"
+	users "gno.land/r/gnoland/users/v1"
 )
 
 const (
