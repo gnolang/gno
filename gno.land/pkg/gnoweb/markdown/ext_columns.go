@@ -47,7 +47,7 @@ type ColumnNode struct {
 func (n *ColumnNode) Dump(source []byte, level int) {
 	kv := map[string]string{
 		"tag":      columnTagNames[n.Tag],
-		"head_ref": strconv.Itoa(n.ctx.refHeadingLevel),
+		"head_ref": strconv.Itoa(n.ctx.RefHeadingLevel),
 	}
 	if n.Tag == ColumnTagSep {
 		kv["index"] = strconv.Itoa(n.Index)
@@ -67,7 +67,7 @@ func (*ColumnNode) Kind() ast.NodeKind {
 // Error returns a non-empty error if any error was encountered during parsing.
 func (n *ColumnNode) Error() error {
 	if n.ctx != nil {
-		return n.ctx.error
+		return n.ctx.Error
 	}
 	return nil
 }
@@ -81,10 +81,10 @@ var columnContextKey = parser.NewContextKey()
 
 // columnsContext is used to keep track of columns' state across parsing.
 type columnsContext struct {
-	isOpen          bool  // Indicates if a block has been correctly opened
-	error           error // Error encountered during parsing
-	index           int   // Current column index
-	refHeadingLevel int   // Level reference for separators
+	IsOpen          bool  // Indicates if a block has been correctly opened
+	Error           error // Error encountered during parsing
+	Index           int   // Current column index
+	RefHeadingLevel int   // Level reference for separators
 }
 
 // parseLineTag checks if the line matches open or closing tag or if the line starts with a heading.
@@ -125,7 +125,7 @@ func (p *columnsParser) Open(self ast.Node, reader text.Reader, pc parser.Contex
 
 	// Get column context
 	cctx, ok := pc.Get(columnContextKey).(*columnsContext)
-	if !ok || !cctx.isOpen || cctx.error != nil {
+	if !ok || !cctx.IsOpen || cctx.Error != nil {
 		cctx = &columnsContext{} // new context
 		pc.Set(columnContextKey, cctx)
 	}
@@ -136,10 +136,10 @@ func (p *columnsParser) Open(self ast.Node, reader text.Reader, pc parser.Contex
 		return nil, parser.NoChildren
 	}
 
-	node := NewColumn(cctx, cctx.index, tagKind)
+	node := NewColumn(cctx, cctx.Index, tagKind)
 	switch tagKind {
 	case ColumnTagSep:
-		if !cctx.isOpen {
+		if !cctx.IsOpen {
 			return nil, parser.NoChildren
 		}
 
@@ -152,17 +152,17 @@ func (p *columnsParser) Open(self ast.Node, reader text.Reader, pc parser.Contex
 		case level > MaxHeading:
 			// Level is beyond the maximum one, ignore this heading
 			return nil, parser.NoChildren
-		case cctx.refHeadingLevel == 0:
+		case cctx.RefHeadingLevel == 0:
 			// Register first header as reference
-			cctx.refHeadingLevel = level
-		case cctx.refHeadingLevel != level:
+			cctx.RefHeadingLevel = level
+		case cctx.RefHeadingLevel != level:
 			// If heading level reference is different, skip it
 			return nil, parser.NoChildren
 		}
 
 		// Process creating a column
-		cctx.index++
-		node.Index = cctx.index
+		cctx.Index++
+		node.Index = cctx.Index
 
 		// Check for non-empty heading
 		if trimmed := util.TrimLeftSpace(line[level:]); len(trimmed) > 0 {
@@ -176,20 +176,20 @@ func (p *columnsParser) Open(self ast.Node, reader text.Reader, pc parser.Contex
 		reader.Advance(segment.Len())
 
 	case ColumnTagOpen:
-		if cctx.isOpen {
+		if cctx.IsOpen {
 			// Block already open
 			return nil, parser.NoChildren
 		}
 
-		cctx.isOpen = true
+		cctx.IsOpen = true
 
 	case ColumnTagClose:
-		if !cctx.isOpen {
+		if !cctx.IsOpen {
 			// Block closing without being open
 			return nil, parser.NoChildren
 		}
 
-		cctx.isOpen = false
+		cctx.IsOpen = false
 	}
 
 	return node, parser.NoChildren
@@ -282,8 +282,8 @@ func (a *columnsASTTransformer) Transform(node *ast.Document, reader text.Reader
 		}
 
 		// Check if columns block is correctly closed
-		if col.ctx.isOpen {
-			col.ctx.error = fmt.Errorf(
+		if col.ctx.IsOpen {
+			col.ctx.Error = fmt.Errorf(
 				"%w: columns hasn't been closed", ErrInvalidColumnsFormat,
 			)
 
@@ -292,7 +292,7 @@ func (a *columnsASTTransformer) Transform(node *ast.Document, reader text.Reader
 
 		// Check if the first separator is followed by any tag
 		if next := n.NextSibling(); next.Kind() != KindColumn {
-			col.ctx.error = fmt.Errorf(
+			col.ctx.Error = fmt.Errorf(
 				"%w: open tag should be followed by heading separator or a closing tag",
 				ErrInvalidColumnsFormat,
 			)
