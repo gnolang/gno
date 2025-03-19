@@ -34,7 +34,7 @@ const DEFAULT_MAX_GAS_UGNOT = 1_000_000 // 1Gnot aka 1e6 ugnots
 // If format is true, the code will be automatically updated with the
 // formatted source code.
 //
-// By default is uses a gas meter of `DEFAULT_MAX_GAS_UGNOT`.
+// By default it uses a gas meter with `DEFAULT_MAX_GAS_UGNOT`.
 func TypeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, format bool) error {
 	return typeCheckMemPackage(mempkg, getter, false, format, newDefaultGasMeter())
 }
