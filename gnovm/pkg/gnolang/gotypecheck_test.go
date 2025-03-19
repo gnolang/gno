@@ -415,6 +415,8 @@ func main() {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			pkg := &gnovm.MemPackage{
 				Name: "hello",
 				Path: "gno.land/p/demo/hello",
