@@ -43,18 +43,19 @@ func SortAndDeduplicate(keys []string) []string {
 }
 
 // validate validates the AuthKeysFile.
-func (akf *AuthKeysFile) validate() (err error) {
-	// Use named return value to set error from recover.
-	err = errInvalidPrivateKey
-
-	// Setup a recover as next steps may panic.
-	defer func() { recover() }()
-
-	// Try to amino marshal the PrivKey.
-	akf.ServerIdentity.PrivKey.Bytes()
-
-	// Try to get the PubKey.
-	akf.ServerIdentity.PrivKey.PubKey()
+func (akf *AuthKeysFile) validate() error {
+	// Check if a non-zero public key is concatenated to the private key.
+	privKeyBytes := [64]byte(akf.ServerIdentity.PrivKey)
+	initialized := false
+	for _, v := range privKeyBytes[32:] {
+		if v != 0 {
+			initialized = true
+			break
+		}
+	}
+	if !initialized {
+		return errInvalidPrivateKey
+	}
 
 	// Make sure the public key is derived from the private one.
 	if akf.ServerIdentity.PrivKey.PubKey().String() != akf.ServerIdentity.PubKey {
