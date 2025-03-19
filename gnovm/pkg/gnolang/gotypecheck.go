@@ -36,7 +36,7 @@ const DEFAULT_MAX_GAS_UGNOT = 1_000_000 // 1Gnot aka 1e6 ugnots
 //
 // By default it uses a gas meter with `DEFAULT_MAX_GAS_UGNOT`.
 func TypeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, format bool) error {
-	return typeCheckMemPackage(mempkg, getter, false, format, newDefaultGasMeter())
+	return typeCheckMemPackage(mempkg, getter, false, format, storetypes.NewGasMeter(DEFAULT_MAX_GAS_UGNOT))
 }
 
 // TypeCheckMemPackageWithGasMeter is like TypeCheckMemPackage, except
@@ -50,11 +50,7 @@ func TypeCheckMemPackageWithGasMeter(mempkg *gnovm.MemPackage, getter MemPackage
 //
 // Note: like TypeCheckMemPackage, this function ignores tests and filetests.
 func TypeCheckMemPackageTest(mempkg *gnovm.MemPackage, getter MemPackageGetter) error {
-	return typeCheckMemPackage(mempkg, getter, true, false, newDefaultGasMeter())
-}
-
-func newDefaultGasMeter() storetypes.GasMeter {
-	return storetypes.NewGasMeter(DEFAULT_MAX_GAS_UGNOT)
+	return typeCheckMemPackage(mempkg, getter, true, false, storetypes.NewInfiniteGasMeter())
 }
 
 func typeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, testing, format bool, gasMeter storetypes.GasMeter) error {
