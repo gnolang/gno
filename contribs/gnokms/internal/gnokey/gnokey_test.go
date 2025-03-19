@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/assert"
@@ -18,20 +19,34 @@ func TestNewGnokeyCmd(t *testing.T) {
 	t.Run("without keyname", func(t *testing.T) {
 		t.Parallel()
 
+		// Create the command.
 		cmd := NewGnokeyCmd(commands.NewTestIO())
 		require.NotNil(t, cmd)
 		cmd.SetOutput(commands.WriteNopCloser(new(bytes.Buffer)))
 
-		assert.Error(t, cmd.ParseAndRun(context.Background(), []string{}))
+		// Create a context with a 5s timeout.
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		// Run the command.
+		cmdErr := cmd.ParseAndRun(ctx, []string{})
+		assert.Error(t, cmdErr)
 	})
 
 	t.Run("unknown keyname", func(t *testing.T) {
 		t.Parallel()
 
+		// Create the command.
 		cmd := NewGnokeyCmd(commands.NewTestIO())
 		require.NotNil(t, cmd)
 
-		assert.Error(t, cmd.ParseAndRun(context.Background(), []string{"unknown"}))
+		// Create a context with a 5s timeout.
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		// Run the command.
+		cmdErr := cmd.ParseAndRun(ctx, []string{"unknown"})
+		assert.Error(t, cmdErr)
 	})
 
 	t.Run("valid keyname with wrong address", func(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/contribs/gnokms/internal/common"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -27,8 +28,12 @@ func TestAuthorizedAdd(t *testing.T) {
 		// Create the command.
 		cmd := newAuthAuthorizedAddCmd(flags, commands.NewTestIO())
 
+		// Create a context with a 5s timeout.
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
 		// Run the command.
-		cmdErr := cmd.ParseAndRun(context.Background(), []string{})
+		cmdErr := cmd.ParseAndRun(ctx, []string{})
 		assert.Error(t, cmdErr)
 	})
 
@@ -133,8 +138,12 @@ func TestAuthorizedRemove(t *testing.T) {
 		// Create the command.
 		cmd := newAuthAuthorizedRemoveCmd(flags, commands.NewTestIO())
 
+		// Create a context with a 5s timeout.
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
 		// Run the command.
-		cmdErr := cmd.ParseAndRun(context.Background(), []string{})
+		cmdErr := cmd.ParseAndRun(ctx, []string{})
 		assert.Error(t, cmdErr)
 	})
 
@@ -246,8 +255,12 @@ func TestAuthorizedList(t *testing.T) {
 		// Create the command.
 		cmd := newAuthAuthorizedListCmd(flags, commands.NewTestIO())
 
+		// Create a context with a 5s timeout.
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
 		// Run the command.
-		cmdErr := cmd.ParseAndRun(context.Background(), []string{})
+		cmdErr := cmd.ParseAndRun(ctx, []string{})
 		assert.Error(t, cmdErr)
 	})
 
@@ -266,8 +279,12 @@ func TestAuthorizedList(t *testing.T) {
 		// Create the command.
 		cmd := newAuthAuthorizedListCmd(flags, io)
 
+		// Create a context with a 5s timeout.
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
 		// Run the command.
-		cmdErr := cmd.ParseAndRun(context.Background(), []string{})
+		cmdErr := cmd.ParseAndRun(ctx, []string{})
 		require.NoError(t, cmdErr)
 
 		// Check the command output.
@@ -298,8 +315,12 @@ func TestAuthorizedList(t *testing.T) {
 		// Create the command.
 		cmd := newAuthAuthorizedListCmd(flags, io)
 
+		// Create a context with a 5s timeout.
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
 		// Run the command.
-		cmdErr := cmd.ParseAndRun(context.Background(), []string{})
+		cmdErr := cmd.ParseAndRun(ctx, []string{})
 		require.NoError(t, cmdErr)
 
 		// Check the command output.
