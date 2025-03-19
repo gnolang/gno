@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/bech32"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -56,18 +57,25 @@ var (
 )
 
 // validate validates the NodeKey.
-func (nk *NodeKey) validate() (err error) {
-	// Use named return value to set error from recover.
-	err = errInvalidNodeKey
+func (nk *NodeKey) validate() error {
+	// Check if a non-zero public key is concatenated to the private key.
+	privKeyBytes := [64]byte(nk.PrivKey)
+	initialized := false
+	for _, v := range privKeyBytes[32:] {
+		if v != 0 {
+			initialized = true
+			break
+		}
+	}
+	if !initialized {
+		return errInvalidNodeKey
+	}
 
-	// Setup a recover as next steps may panic.
-	defer func() { recover() }()
-
-	// Try to amino marshal the PrivKey.
-	nk.PrivKey.Bytes()
-
-	// Try to get the ID.
-	nk.ID()
+	// Check if the address can be encoded using bech32.
+	addr := nk.PrivKey.PubKey().Address()
+	if _, err := bech32.Encode(crypto.Bech32AddrPrefix, addr[:]); err != nil {
+		return fmt.Errorf("%w: unable to encode address: %w", errInvalidNodeKey, err)
+	}
 
 	return nil
 }
