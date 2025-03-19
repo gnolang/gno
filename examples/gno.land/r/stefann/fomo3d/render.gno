@@ -9,7 +9,7 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/txlink"
 
-	"gno.land/r/demo/users"
+	"gno.land/r/sys/users"
 )
 
 // RenderHome renders the main game state
@@ -139,8 +139,8 @@ func RenderPlayer(addr std.Address, keys int64, dividends int64) string {
 
 // Helper to get display name - just returns namespace if exists, otherwise address
 func getDisplayName(addr std.Address) string {
-	if user := users.GetUserByAddress(addr); user != nil {
-		return user.Name
+	if user := users.ResolveAddress(addr); user != nil {
+		return user.Name()
 	}
 	return addr.String()
 }
