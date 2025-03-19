@@ -15,7 +15,7 @@ content 2
 </gno-columns>
 
 -- output.html --
-<div class="gno-cols">
+<div class="gno-columns">
 <!-- Column 1 -->
 <div>
 <p><img src="http://abc.yz/image" alt="img"></p>
