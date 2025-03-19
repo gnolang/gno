@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -359,6 +360,50 @@ FOR_LOOP:
 			break FOR_LOOP
 		}
 	}
+}
+
+func (bcR *BlockchainReactor) Restore(ctx context.Context, blocksIterator func(yield func(block *types.Block) error) error) error {
+	var (
+		first   *types.Block
+		second  *types.Block
+		chainID = bcR.initialState.ChainID
+		state   = bcR.initialState
+		err     error
+	)
+
+	return blocksIterator(func(block *types.Block) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		if first == nil {
+			first = block
+			return nil
+		}
+
+		second = block
+
+		firstParts := first.MakePartSet(types.BlockPartSizeBytes)
+		firstPartsHeader := firstParts.Header()
+		firstID := types.BlockID{Hash: first.Hash(), PartsHeader: firstPartsHeader}
+
+		if err := state.Validators.VerifyCommit(
+			chainID, firstID, first.Height, second.LastCommit); err != nil {
+			return fmt.Errorf("invalid commit (%d:%X): %w", first.Height, first.Hash(), err)
+		}
+
+		bcR.store.SaveBlock(first, firstParts, second.LastCommit)
+
+		state, err = bcR.blockExec.ApplyBlock(state, firstID, first)
+		if err != nil {
+			return fmt.Errorf("failed to process committed block (%d:%X): %w", first.Height, first.Hash(), err)
+		}
+
+		first = second
+		return nil
+	})
 }
 
 // BroadcastStatusRequest broadcasts `BlockStore` height.
