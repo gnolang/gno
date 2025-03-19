@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	r "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
@@ -110,7 +111,7 @@ func NewRemoteSignerServer(
 	// Check the protocol of each listener address.
 	for _, listenAddress := range listenAddresses {
 		protocol, _ := osm.ProtocolAndAddress(listenAddress)
-		if protocol != "tcp" && protocol != "unix" {
+		if protocol != r.TCPProtocol && protocol != r.UDSProtocol {
 			return nil, fmt.Errorf(
 				"%w for listener %s: expected (tcp|unix), got %s",
 				ErrInvalidAddressProtocol,
