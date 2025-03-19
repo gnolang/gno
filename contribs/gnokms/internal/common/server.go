@@ -137,7 +137,9 @@ func RunSignerServer(commonFlags *ServerFlags, signer types.Signer, io commands.
 	go func() {
 		<-catch
 		logger.Info("Caught interrupt signal, stopping signer server...")
-		server.Stop()
+		if err := server.Stop(); err != nil {
+			logger.Error("Failed to stop signer server", "error", err)
+		}
 	}()
 
 	// Start the remote signer server, then wait for it to finish.
