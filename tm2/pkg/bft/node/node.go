@@ -17,6 +17,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/backup"
+	"github.com/gnolang/gno/tm2/pkg/bft/blockchain"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/discovery"
@@ -170,9 +171,9 @@ type Node struct {
 	// services
 	evsw              events.EventSwitch
 	stateDB           dbm.DB
-	blockStore        *store.BlockStore // store the blockchain to disk
-	bcReactor         p2p.Reactor       // for fast-syncing
-	mempoolReactor    *mempl.Reactor    // for gossipping transactions
+	blockStore        *store.BlockStore             // store the blockchain to disk
+	bcReactor         *blockchain.BlockchainReactor // for fast-syncing and restoring from backup
+	mempoolReactor    *mempl.Reactor                // for gossipping transactions
 	mempool           mempl.Mempool
 	consensusState    *cs.ConsensusState   // latest consensus state
 	consensusReactor  *cs.ConsensusReactor // for participating in the consensus
@@ -303,7 +304,7 @@ func createBlockchainReactor(
 	fastSync bool,
 	switchToConsensusFn bc.SwitchToConsensusFn,
 	logger *slog.Logger,
-) (bcReactor p2p.Reactor, err error) {
+) (bcReactor *bc.BlockchainReactor, err error) {
 	bcReactor = bc.NewBlockchainReactor(
 		state.Copy(),
 		blockExec,
@@ -569,6 +570,10 @@ func NewNode(config *cfg.Config,
 	}
 
 	return node, nil
+}
+
+func (n *Node) Restore(ctx context.Context, readBlocks func(yield func(block *types.Block) error) error) error {
+	return n.bcReactor.Restore(ctx, readBlocks)
 }
 
 // OnStart starts the Node. It implements service.Service.
