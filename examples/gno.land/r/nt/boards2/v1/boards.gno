@@ -8,9 +8,14 @@ import (
 
 var (
 	gPerms        Permissions
+	gNotice       string
 	gLastBoardID  BoardID
 	gBoardsByID   avl.Tree // string(id) -> *Board
 	gBoardsByName avl.Tree // string(name) -> *Board
+	gLocked       struct {
+		realm        bool
+		realmMembers bool
+	}
 )
 
 func init() {
@@ -70,4 +75,12 @@ func mustGetReply(thread *Post, replyID PostID) *Post {
 		panic("reply does not exist with ID: " + replyID.String())
 	}
 	return reply
+}
+
+func mustGetPermissions(bid BoardID) Permissions {
+	if bid != 0 {
+		board := mustGetBoard(bid)
+		return board.perms
+	}
+	return gPerms
 }

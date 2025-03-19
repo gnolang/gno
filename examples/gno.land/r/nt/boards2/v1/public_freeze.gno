@@ -76,6 +76,8 @@ func IsReplyFrozen(boardID BoardID, threadID, replyID PostID) bool {
 }
 
 func setReplyReadOnly(boardID BoardID, threadID, replyID PostID, isReadOnly bool) {
+	assertRealmIsNotLocked()
+
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
 
@@ -106,6 +108,8 @@ func setReplyReadOnly(boardID BoardID, threadID, replyID PostID, isReadOnly bool
 }
 
 func setThreadReadOnly(boardID BoardID, threadID PostID, isReadOnly bool) {
+	assertRealmIsNotLocked()
+
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
 
@@ -129,6 +133,8 @@ func setThreadReadOnly(boardID BoardID, threadID PostID, isReadOnly bool) {
 }
 
 func setBoardReadOnly(boardID BoardID, isReadOnly bool) {
+	assertRealmIsNotLocked()
+
 	board := mustGetBoard(boardID)
 	if isReadOnly {
 		assertBoardIsNotFrozen(board)
