@@ -116,11 +116,8 @@ func TestGitHubMiddleware(t *testing.T) {
 }
 
 func getCooldownLimiter(t *testing.T, tempFile string, duration time.Duration) *CooldownLimiter {
+	t.Helper()
+
 	testDir := os.TempDir()
-
-	t.Cleanup(func() {
-		os.RemoveAll(testDir)
-	})
-
 	return NewCooldownLimiter(duration, testDir+"/"+tempFile)
 }

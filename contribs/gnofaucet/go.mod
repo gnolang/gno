@@ -7,6 +7,7 @@ require (
 	github.com/gnolang/faucet v0.3.2
 	github.com/gnolang/gno v0.1.0-nightly.20240627
 	github.com/google/go-github/v64 v64.0.0
+	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/time v0.5.0
@@ -34,7 +35,6 @@ require (
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/peterbourgon/ff/v3 v3.4.0 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/rs/xid v1.6.0 // indirect

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
+	"github.com/pkg/errors"
 )
 
 // CooldownLimiter is a Limiter using an in-memory map
@@ -47,10 +48,9 @@ func (rl *CooldownLimiter) isOnCooldown(key string) (bool, error) {
 		_, err := txn.Get([]byte(key))
 		return err
 	})
-
 	if err != nil {
 		// Real error
-		if err != badger.ErrKeyNotFound {
+		if !errors.Is(err, badger.ErrKeyNotFound) {
 			return false, err
 		}
 		// errNotFound: key is not on cooldown
