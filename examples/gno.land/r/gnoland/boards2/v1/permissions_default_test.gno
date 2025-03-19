@@ -6,7 +6,7 @@ import (
 
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
-	"gno.land/p/nt/commondao"
+	"gno.land/p/gnoland/commondao"
 )
 
 var _ Permissions = (*DefaultPermissions)(nil)
