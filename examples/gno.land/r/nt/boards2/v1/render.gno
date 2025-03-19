@@ -36,6 +36,8 @@ func Render(path string) string {
 }
 
 func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
+	renderNotice(res)
+
 	res.Write("# Boards\n\n")
 	renderBoardListMenu(res, req)
 	res.Write("\n\n---\n")
@@ -84,6 +86,8 @@ func renderBoardListMenu(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
+	renderNotice(res)
+
 	name := req.GetVar("board")
 	v, found := gBoardsByName.Get(name)
 	if !found {
@@ -132,6 +136,8 @@ func renderBoardMenu(board *Board, res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderThread(res *mux.ResponseWriter, req *mux.Request) {
+	renderNotice(res)
+
 	name := req.GetVar("board")
 	v, found := gBoardsByName.Get(name)
 	if !found {
@@ -158,6 +164,8 @@ func renderThread(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderReply(res *mux.ResponseWriter, req *mux.Request) {
+	renderNotice(res)
+
 	name := req.GetVar("board")
 	v, found := gBoardsByName.Get(name)
 	if !found {
@@ -234,6 +242,16 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 	if p.HasPages() {
 		res.Write("\n\n" + pager.Picker(p))
 	}
+}
+
+func renderNotice(res *mux.ResponseWriter) {
+	if gNotice == "" {
+		return
+	}
+
+	res.Write("> ")
+	res.Write(gNotice)
+	res.Write("\n\n")
 }
 
 func rolesToString(roles []Role) string {

@@ -13,13 +13,18 @@ func SetFlaggingThreshold(boardID BoardID, threshold int) {
 		panic("invalid flagging threshold")
 	}
 
+	assertRealmIsNotLocked()
+
 	board := mustGetBoard(boardID)
 	assertBoardIsNotFrozen(board)
 
 	caller := std.PreviousRealm().Address()
 	args := Args{boardID, threshold}
 	board.perms.WithPermission(caller, PermissionBoardFlaggingUpdate, args, func(Args) {
-		assertBoardExists(boardID)
+		assertRealmIsNotLocked()
+
+		board := mustGetBoard(boardID)
+		assertBoardIsNotFrozen(board)
 
 		gFlaggingThresholds.Set(boardID.String(), threshold)
 		std.Emit(
@@ -48,6 +53,7 @@ func FlagThread(boardID BoardID, threadID PostID, reason string) {
 	caller := std.PreviousRealm().Address()
 	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
 	if !isRealmOwner {
+		assertRealmIsNotLocked()
 		assertBoardIsNotFrozen(board)
 		assertHasBoardPermission(board, caller, PermissionThreadFlag)
 	}
@@ -89,6 +95,7 @@ func FlagReply(boardID BoardID, threadID, replyID PostID, reason string) {
 	caller := std.PreviousRealm().Address()
 	isRealmOwner := gPerms.HasRole(caller, RoleOwner)
 	if !isRealmOwner {
+		assertRealmIsNotLocked()
 		assertBoardIsNotFrozen(board)
 		assertHasBoardPermission(board, caller, PermissionReplyFlag)
 	}
