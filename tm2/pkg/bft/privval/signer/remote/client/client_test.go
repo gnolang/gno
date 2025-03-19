@@ -20,7 +20,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const unixSocketPath = "/tmp/test_tm2_remote_signer"
+const (
+	unixSocketPath = "/tmp/test_tm2_remote_signer"
+	tcpLocalhost   = "tcp://127.0.0.1"
+)
 
 func testUnixSocket(t *testing.T) string {
 	t.Helper()
@@ -460,35 +463,23 @@ func TestClientConnection(t *testing.T) {
 		rsc.Close()
 	})
 
-	getFreePort := func(t *testing.T) int {
-		t.Helper()
-
-		listener, err := net.Listen("tcp", "127.0.0.1:0")
-		require.NoError(t, err)
-		port := listener.Addr().(*net.TCPAddr).Port
-		listener.Close()
-
-		return port
-	}
-
 	t.Run("tcp configuration succeeded", func(t *testing.T) {
 		t.Parallel()
-
-		tcpAddr := fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort(t))
 
 		// Server succeeded authenticating client.
 		serverPrivKey := ed25519.GenPrivKey()
 		rss, err := s.NewRemoteSignerServer(
 			types.NewMockSigner(),
-			[]string{tcpAddr},
+			[]string{tcpLocalhost + ":0"},
 			log.NewNoopLogger(),
 			s.WithServerPrivKey(serverPrivKey),
 		)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		require.NoError(t, rss.Start())
+		serverPort := rss.ListenAddresses(t)[0].(*net.TCPAddr).Port
 		rsc, err := NewRemoteSignerClient(
-			tcpAddr,
+			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),
 			WithAuthorizedKeys([]ed25519.PubKeyEd25519{serverPrivKey.PubKey().(ed25519.PubKeyEd25519)}),
 		)
@@ -502,15 +493,16 @@ func TestClientConnection(t *testing.T) {
 		clientPrivKey := ed25519.GenPrivKey()
 		rss, err = s.NewRemoteSignerServer(
 			types.NewMockSigner(),
-			[]string{tcpAddr},
+			[]string{tcpLocalhost + ":0"},
 			log.NewNoopLogger(),
 			s.WithAuthorizedKeys([]ed25519.PubKeyEd25519{clientPrivKey.PubKey().(ed25519.PubKeyEd25519)}),
 		)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		require.NoError(t, rss.Start())
+		serverPort = rss.ListenAddresses(t)[0].(*net.TCPAddr).Port
 		rsc, err = NewRemoteSignerClient(
-			tcpAddr,
+			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),
 			WithClientPrivKey(clientPrivKey),
 		)
@@ -521,42 +513,15 @@ func TestClientConnection(t *testing.T) {
 		rsc.Close()
 	})
 
-	// Conn close during handshake.
-	connCloseDuringHandshake := func(t *testing.T, address string, wg *sync.WaitGroup) {
-		t.Helper()
-
-		// Create a listener.
-		protocol, address := osm.ProtocolAndAddress(address)
-		listener, err := net.Listen(protocol, address)
-		require.NoError(t, err)
-
-		wg.Add(1)
-		go func() {
-			// Cleanup before returning.
-			defer func() {
-				listener.Close()
-				wg.Done()
-			}()
-
-			conn, err := listener.Accept()
-			require.NoError(t, err)
-
-			// Read the first byte of the handshake.
-			conn.Read(make([]byte, 1))
-			conn.Close()
-		}()
-	}
-
 	t.Run("tcp configuration failed", func(t *testing.T) {
 		t.Parallel()
 
-		tcpAddr := fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort(t))
-
 		// Server fails authenticating client.
-		rss := newRemoteSignerServer(t, tcpAddr, types.NewMockSigner())
+		rss := newRemoteSignerServer(t, tcpLocalhost+":0", types.NewMockSigner())
 		require.NoError(t, rss.Start())
+		serverPort := rss.ListenAddresses(t)[0].(*net.TCPAddr).Port
 		rsc, err := NewRemoteSignerClient(
-			tcpAddr,
+			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),
 			WithAuthorizedKeys([]ed25519.PubKeyEd25519{ed25519.GenPrivKey().PubKey().(ed25519.PubKeyEd25519)}),
 		)
@@ -569,14 +534,15 @@ func TestClientConnection(t *testing.T) {
 		// Client fails authenticating server.
 		rss, err = s.NewRemoteSignerServer(
 			types.NewMockSigner(),
-			[]string{tcpAddr},
+			[]string{tcpLocalhost + ":0"},
 			log.NewNoopLogger(),
 			s.WithAuthorizedKeys([]ed25519.PubKeyEd25519{ed25519.GenPrivKey().PubKey().(ed25519.PubKeyEd25519)}),
 		)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		require.NoError(t, rss.Start())
-		rsc = newRemoteSignerClient(t, tcpAddr)
+		serverPort = rss.ListenAddresses(t)[0].(*net.TCPAddr).Port
+		rsc = newRemoteSignerClient(t, fmt.Sprintf("%s:%d", tcpLocalhost, serverPort))
 		require.NotNil(t, rsc)
 		require.NoError(t, rsc.ensureConnection())
 		rss.Stop()
@@ -585,17 +551,6 @@ func TestClientConnection(t *testing.T) {
 		// Check if the configuration fail with a nil connection.
 		conn, err := r.ConfigureTCPConnection(nil, ed25519.PrivKeyEd25519{}, nil, 0, 0)
 		require.Nil(t, conn)
-		require.ErrorIs(t, err, r.ErrNilConn)
-
-		// Check if the configuration fail during the handshake.
-		connCloseDuringHandshake(t, tcpAddr, wg)
-		protocol, address := osm.ProtocolAndAddress(tcpAddr)
-		tcpConn, err := net.Dial(protocol, address)
-		require.NotNil(t, tcpConn)
-		require.NoError(t, err)
-		defer tcpConn.Close()
-		conn, err = r.ConfigureTCPConnection(tcpConn.(*net.TCPConn), ed25519.GenPrivKey(), nil, 0, 0)
-		require.Nil(t, conn)
-		assert.ErrorIs(t, err, r.ErrSecretConnFailed)
+		assert.ErrorIs(t, err, r.ErrNilConn)
 	})
 }

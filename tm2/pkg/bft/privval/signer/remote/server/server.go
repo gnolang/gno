@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"net"
+	"testing"
 
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
@@ -78,4 +79,20 @@ func (rss *RemoteSignerServer) Stop() error {
 // Wait waits for the remote signer server to stop.
 func (rss *RemoteSignerServer) Wait() {
 	rss.wg.Wait()
+}
+
+// ListenAddresses returns the listen addresses of the server.
+// NOTE: This method is only used for testing purposes.
+func (rss *RemoteSignerServer) ListenAddresses(t *testing.T) []net.Addr {
+	t.Helper() // Mark the function as a test helper.
+
+	// Get the addresses of all listeners.
+	rss.listenersLock.RLock()
+	addrs := make([]net.Addr, len(rss.listeners))
+	for i, listener := range rss.listeners {
+		addrs[i] = listener.Addr()
+	}
+	rss.listenersLock.RUnlock()
+
+	return addrs
 }

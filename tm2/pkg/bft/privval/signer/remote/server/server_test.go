@@ -18,7 +18,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const unixSocketPath = "/tmp/test_tm2_remote_signer"
+const (
+	unixSocketPath = "/tmp/test_tm2_remote_signer"
+	tcpLocalhost   = "tcp://127.0.0.1"
+)
 
 func testUnixSocket(t *testing.T) string {
 	t.Helper()
@@ -263,17 +266,6 @@ func TestServerConnection(t *testing.T) {
 		os.Remove(unixSocketPath)
 	})
 
-	getFreePort := func(t *testing.T) int {
-		t.Helper()
-
-		listener, err := net.Listen("tcp", "127.0.0.1:0")
-		require.NoError(t, err)
-		port := listener.Addr().(*net.TCPAddr).Port
-		listener.Close()
-
-		return port
-	}
-
 	t.Run("conn closed during read/write", func(t *testing.T) {
 		t.Parallel()
 
@@ -315,21 +307,20 @@ func TestServerConnection(t *testing.T) {
 	t.Run("tcp configuration succeeded", func(t *testing.T) {
 		t.Parallel()
 
-		tcpAddr := fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort(t))
-
 		// Client succeeded authenticating server.
 		clientPrivKey := ed25519.GenPrivKey()
 		rss, err := NewRemoteSignerServer(
 			types.NewMockSigner(),
-			[]string{tcpAddr},
+			[]string{tcpLocalhost + ":0"},
 			log.NewNoopLogger(),
 			WithAuthorizedKeys([]ed25519.PubKeyEd25519{clientPrivKey.PubKey().(ed25519.PubKeyEd25519)}),
 		)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		require.NoError(t, rss.Start())
+		serverPort := rss.listeners[0].Addr().(*net.TCPAddr).Port
 		rsc, err := c.NewRemoteSignerClient(
-			tcpAddr,
+			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),
 			c.WithClientPrivKey(clientPrivKey),
 		)
@@ -343,15 +334,16 @@ func TestServerConnection(t *testing.T) {
 		serverPrivKey := ed25519.GenPrivKey()
 		rss, err = NewRemoteSignerServer(
 			types.NewMockSigner(),
-			[]string{tcpAddr},
+			[]string{tcpLocalhost + ":0"},
 			log.NewNoopLogger(),
 			WithServerPrivKey(serverPrivKey),
 		)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		require.NoError(t, rss.Start())
+		serverPort = rss.listeners[0].Addr().(*net.TCPAddr).Port
 		rsc, err = c.NewRemoteSignerClient(
-			tcpAddr,
+			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),
 			c.WithAuthorizedKeys([]ed25519.PubKeyEd25519{serverPrivKey.PubKey().(ed25519.PubKeyEd25519)}),
 		)
@@ -365,20 +357,19 @@ func TestServerConnection(t *testing.T) {
 	t.Run("tcp configuration failed", func(t *testing.T) {
 		t.Parallel()
 
-		tcpAddr := fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort(t))
-
 		// Client fails authenticating server.
 		rss, err := NewRemoteSignerServer(
 			types.NewMockSigner(),
-			[]string{tcpAddr},
+			[]string{tcpLocalhost + ":0"},
 			log.NewNoopLogger(),
 			WithAuthorizedKeys([]ed25519.PubKeyEd25519{ed25519.GenPrivKey().PubKey().(ed25519.PubKeyEd25519)}),
 		)
 		require.NotNil(t, rss)
 		require.NoError(t, err)
 		require.NoError(t, rss.Start())
+		serverPort := rss.listeners[0].Addr().(*net.TCPAddr).Port
 		rsc, err := c.NewRemoteSignerClient(
-			tcpAddr,
+			fmt.Sprintf("%s:%d", tcpLocalhost, serverPort),
 			log.NewNoopLogger(),
 			c.WithAuthorizedKeys([]ed25519.PubKeyEd25519{ed25519.GenPrivKey().PubKey().(ed25519.PubKeyEd25519)}),
 		)

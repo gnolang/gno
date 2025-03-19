@@ -16,35 +16,17 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/log"
-	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
 )
-
-func getFreePort(t *testing.T) int {
-	t.Helper()
-
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	port := listener.Addr().(*net.TCPAddr).Port
-	listener.Close()
-
-	return port
-}
-
-func getTCPAddress(t *testing.T) string {
-	t.Helper()
-
-	return fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort(t))
-}
 
 func TestNewSignerServer(t *testing.T) {
 	t.Parallel()
 
 	t.Run("nil signer", func(t *testing.T) {
 		serverFlags := &ServerFlags{
-			ListenAddresses: getTCPAddress(t),
+			ListenAddresses: "tcp://127.0.0.1:0",
 		}
 
 		signerServer, err := NewSignerServer(
@@ -64,7 +46,7 @@ func TestNewSignerServer(t *testing.T) {
 		os.WriteFile(filePath, []byte("invalid"), 0o600)
 
 		serverFlags := &ServerFlags{
-			ListenAddresses: getTCPAddress(t),
+			ListenAddresses: "tcp://127.0.0.1:0",
 			AuthFlags: AuthFlags{
 				AuthKeysFile: filePath,
 			},
@@ -100,7 +82,7 @@ func TestNewSignerServer(t *testing.T) {
 		os.WriteFile(akf.filePath, jsonBytes, 0o600)
 
 		serverFlags := &ServerFlags{
-			ListenAddresses: getTCPAddress(t),
+			ListenAddresses: "tcp://127.0.0.1:0",
 			AuthFlags: AuthFlags{
 				AuthKeysFile: filePath,
 			},
@@ -200,7 +182,7 @@ func TestRunSignerServer(t *testing.T) {
 		os.WriteFile(filePath, []byte("invalid"), 0o600)
 
 		serverFlags := &ServerFlags{
-			ListenAddresses: getTCPAddress(t),
+			ListenAddresses: "tcp://127.0.0.1:0",
 			LogLevel:        zapcore.ErrorLevel.String(),
 			AuthFlags: AuthFlags{
 				AuthKeysFile: filePath,
@@ -217,14 +199,15 @@ func TestRunSignerServer(t *testing.T) {
 	t.Run("listener not free", func(t *testing.T) {
 		t.Parallel()
 
+		// Listen on the address to make it unavailable.
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+
+		// Use the address:port for the server flags.
 		serverFlags := &ServerFlags{
-			ListenAddresses: getTCPAddress(t),
+			ListenAddresses: fmt.Sprintf("tcp://127.0.0.1:%d", listener.Addr().(*net.TCPAddr).Port),
 			LogLevel:        zapcore.ErrorLevel.String(),
 		}
-
-		// Listen on the address to make it unavailable.
-		protocol, address := osm.ProtocolAndAddress(serverFlags.ListenAddresses)
-		net.Listen(protocol, address)
 
 		assert.Error(t, RunSignerServer(
 			serverFlags,
@@ -237,7 +220,7 @@ func TestRunSignerServer(t *testing.T) {
 		t.Parallel()
 
 		serverFlags := &ServerFlags{
-			ListenAddresses: getTCPAddress(t),
+			ListenAddresses: "tcp://127.0.0.1:0",
 			LogLevel:        zapcore.ErrorLevel.String(),
 		}
 
@@ -254,7 +237,7 @@ func TestRunSignerServer(t *testing.T) {
 		t.Parallel()
 
 		serverFlags := &ServerFlags{
-			ListenAddresses: getTCPAddress(t),
+			ListenAddresses: "tcp://127.0.0.1:0",
 			LogLevel:        zapcore.ErrorLevel.String(),
 		}
 

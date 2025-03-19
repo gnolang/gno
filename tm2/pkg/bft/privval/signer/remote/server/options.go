@@ -31,7 +31,7 @@ type RemoteSignerServer struct {
 
 	// Internal.
 	listeners     []net.Listener
-	listenersLock sync.Mutex
+	listenersLock sync.RWMutex
 	conns         []net.Conn
 	connsLock     sync.RWMutex
 	running       atomic.Bool
