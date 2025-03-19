@@ -92,7 +92,7 @@ func execBackup(ctx context.Context, c *backupCfg, io commands.IO) (resErr error
 			ctx,
 			connect.NewRequest(&backuppb.StreamBlocksRequest{
 				StartHeight: startHeight,
-				EndHeight:   int64(c.endHeight),
+				EndHeight:   c.endHeight,
 			}),
 		)
 		if err != nil {
