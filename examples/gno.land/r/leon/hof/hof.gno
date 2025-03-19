@@ -33,7 +33,7 @@ type (
 	Exhibition struct {
 		itemCounter            seqid.ID
 		description            string
-		items                  *avl.Tree // pkgPath > &Item
+		items                  *avl.Tree // pkgPath > *Item
 		itemsSortedByCreation  *avl.Tree // same data but sorted by creation time
 		itemsSortedByUpvotes   *avl.Tree // same data but sorted by upvotes
 		itemsSortedByDownvotes *avl.Tree // same data but sorted by downvotes
