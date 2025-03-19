@@ -390,7 +390,7 @@ func TestRunMultiple_Integration(t *testing.T) {
 	// Make Tx config
 	baseCfg := BaseTxCfg{
 		GasFee:         ugnot.ValueString(2300000),
-		GasWanted:      23000000,
+		GasWanted:      33000000, // To account for typechecking gas
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",

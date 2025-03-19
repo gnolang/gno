@@ -355,7 +355,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 
 	// Validate Gno syntax and type check.
 	format := true
-	if err := gno.TypeCheckMemPackage(memPkg, gnostore, format); err != nil {
+	if err := gno.TypeCheckMemPackageWithGasMeter(memPkg, gnostore, format, ctx.GasMeter()); err != nil {
 		return ErrTypeCheck(err)
 	}
 
@@ -587,7 +587,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 	// Validate Gno syntax and type check.
 	format := false
-	if err = gno.TypeCheckMemPackage(memPkg, gnostore, format); err != nil {
+	if err = gno.TypeCheckMemPackageWithGasMeter(memPkg, gnostore, format, ctx.GasMeter()); err != nil {
 		return "", ErrTypeCheck(err)
 	}
 
