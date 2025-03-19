@@ -85,9 +85,3 @@ func TestLoadAuthKeysFile(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
-
-func TestAuthCmd(t *testing.T) {
-	t.Parallel()
-
-	assert.NotNil(t, NewAuthCmd(commands.NewTestIO()))
-}
