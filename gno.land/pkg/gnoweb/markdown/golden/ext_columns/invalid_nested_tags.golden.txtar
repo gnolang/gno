@@ -31,15 +31,19 @@ content 3
 <!-- Column 2 -->
 <div>
 <h2>title 2</h2>
-<!-- raw HTML omitted -->
-<p>content</p>
+<!-- unexpected/invalid "ColumnTagOpen" omitted -->
 </div>
 <!-- Column 3 -->
+<div>
+<h2>sub-title 1</h2>
+<p>content</p>
+</div>
+<!-- Column 4 -->
 <div>
 <h2>sub-title 2</h2>
 <p>content 2</p>
 </div>
 </div>
 <h2>title 3</h2>
-<p>content 3
-<!-- raw HTML omitted --></p>
+<p>content 3</p>
+<!-- unexpected/invalid "ColumnTagClose" omitted -->

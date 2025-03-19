@@ -7,7 +7,10 @@ content 2
 
 -- output.html --
 <!-- gno-columns error: invalid columns format: columns hasn't been closed -->
+<!-- unexpected/invalid "ColumnTagOpen" omitted -->
+<!-- unexpected/invalid "ColumnTagSep" omitted -->
 <h2>Title 1</h2>
 <p>content 1</p>
+<!-- unexpected/invalid "ColumnTagSep" omitted -->
 <h2>Title 2</h2>
 <p>content 2</p>

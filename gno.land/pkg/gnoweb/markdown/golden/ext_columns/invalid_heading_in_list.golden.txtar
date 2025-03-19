@@ -7,6 +7,7 @@
 
 -- output.html --
 <!-- gno-columns error: invalid columns format: open tag should be followed by heading separator or a closing tag -->
+<!-- unexpected/invalid "ColumnTagOpen" omitted -->
 <ul>
 <li>
 <h2>title 1</h2>
@@ -18,3 +19,4 @@
 <h2>title 3</h2>
 </li>
 </ul>
+<!-- unexpected/invalid "ColumnTagClose" omitted -->

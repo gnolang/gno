@@ -25,15 +25,26 @@ content 2
 content 3
 
 -- output.html --
-<!-- raw HTML omitted -->
+<!-- unexpected/invalid "ColumnTagClose" omitted -->
 <!-- gno-columns error: invalid columns format: columns hasn't been closed -->
+<!-- unexpected/invalid "ColumnTagOpen" omitted -->
+<!-- unexpected/invalid "ColumnTagSep" omitted -->
 <h2>title 1</h2>
 <p>content 1</p>
+<!-- unexpected/invalid "ColumnTagSep" omitted -->
 <h2>title 2</h2>
-<!-- raw HTML omitted -->
+<!-- gno-columns error: invalid columns format: columns hasn't been closed -->
+<!-- unexpected/invalid "ColumnTagOpen" omitted -->
+<!-- unexpected/invalid "ColumnTagSep" omitted -->
+<h2>sub-title 1</h2>
 <p>content</p>
+<!-- unexpected/invalid "ColumnTagSep" omitted -->
 <h2>sub-title 2</h2>
-<!-- raw HTML omitted -->
+<!-- gno-columns error: invalid columns format: columns hasn't been closed -->
+<!-- unexpected/invalid "ColumnTagOpen" omitted -->
 <p>content 2</p>
-<!-- raw HTML omitted -->
+<!-- gno-columns error: invalid columns format: columns hasn't been closed -->
+<!-- unexpected/invalid "ColumnTagOpen" omitted -->
+<!-- unexpected/invalid "ColumnTagSep" omitted -->
+<h2>title 3</h2>
 <p>content 3</p>
