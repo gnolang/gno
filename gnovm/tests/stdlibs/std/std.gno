@@ -5,6 +5,7 @@ func TestSkipHeights(count int64) // injected
 
 func TestSetOriginCaller(addr Address)     { testSetOriginCaller(string(addr)) }
 func TestSetOriginPkgAddress(addr Address) { testSetOriginPkgAddr(string(addr)) }
+func TestSetChainDomain(domain string)     { testSetChainDomain(domain) }
 
 // TestSetRealm sets the realm for the current frame.
 // After calling TestSetRealm, calling CurrentRealm() in the test function will yield the value of
@@ -30,6 +31,7 @@ func callerAt(n int) string
 // native bindings
 func testSetOriginCaller(s string)
 func testSetOriginPkgAddr(s string)
+func testSetChainDomain(s string)
 func testSetRealm(addr, pkgPath string)
 func testSetOriginSend(
 	sentDenom []string, sentAmt []int64,

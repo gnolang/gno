@@ -103,6 +103,12 @@ func X_testSetOriginPkgAddr(m *gno.Machine, addr string) {
 	m.Context = ctx
 }
 
+func X_testSetChainDomain(m *gno.Machine, domain string) {
+	ctx := m.Context.(*TestExecContext)
+	ctx.ChainDomain = domain
+	m.Context = ctx
+}
+
 func X_testSetRealm(m *gno.Machine, addr, pkgPath string) {
 	// Associate the given Realm with the caller's frame.
 	var frame *gno.Frame

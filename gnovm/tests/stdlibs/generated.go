@@ -433,6 +433,30 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
+		"testSetChainDomain",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("string")},
+		},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+
+			testlibs_std.X_testSetChainDomain(
+				m,
+				p0)
+		},
+	},
+	{
+		"std",
 		"testSetRealm",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("string")},
