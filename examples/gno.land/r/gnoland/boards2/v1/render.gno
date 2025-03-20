@@ -127,7 +127,7 @@ func renderBoardMenu(board *Board, res *mux.ResponseWriter, req *mux.Request) {
 			res.Write(" • ")
 			res.Write(newLink("Invite", board.GetInviteMemberFormURL()))
 			res.Write(" • ")
-			res.Write(newLink("Remove Member", board.GetRemoveMemberFormURL()))
+			res.Write(newLink("Remove Member", board.GetRemoveMemberFormURL("")))
 			res.Write(" • ")
 			res.Write(newLink("Change Member Role", board.GetChangeMemberRoleFormURL()))
 			res.Write("\n\n")
@@ -207,6 +207,7 @@ func renderReply(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
+	boardID := BoardID(0)
 	perms := gPerms
 	name := req.GetVar("board")
 	if name != "" {
@@ -217,6 +218,7 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 		}
 
 		board := v.(*Board)
+		boardID = board.GetID()
 		perms = board.perms
 
 		res.Write("# " + board.GetName() + " Members\n")
@@ -234,8 +236,25 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
+	res.Write("| Member | Role | Actions |\n| --- | --- | --- |\n")
 	perms.IterateUsers(p.Offset(), p.PageSize(), func(u User) bool {
-		res.Write("- " + newUserLink(u.Address) + " : " + rolesToString(u.Roles) + "\n")
+		res.Write("| ")
+		res.Write(newUserLink(u.Address))
+		res.Write(" | ")
+		res.Write(rolesToString(u.Roles))
+		res.Write(" | ")
+		res.Write(newLink("remove", txlink.Call(
+			"RemoveMember",
+			"boardID", boardID.String(),
+			"member", u.Address.String(),
+		)))
+		res.Write(" • ")
+		res.Write(newLink("change role", txlink.Call(
+			"ChangeMemberRole",
+			"boardID", boardID.String(),
+			"member", u.Address.String(),
+		)))
+		res.Write(" |\n")
 		return false
 	})
 

@@ -451,15 +451,15 @@ func InviteMember(boardID BoardID, user std.Address, role Role) {
 // RemoveMember removes a member from the realm or a boards.
 //
 // Board ID is only required when removing a member from board.
-func RemoveMember(boardID BoardID, user std.Address) {
+func RemoveMember(boardID BoardID, member std.Address) {
 	assertMembersUpdateIsEnabled(boardID)
 
 	perms := mustGetPermissions(boardID)
 	caller := std.PreviousRealm().Address()
-	perms.WithPermission(caller, PermissionMemberRemove, Args{user}, func(Args) {
+	perms.WithPermission(caller, PermissionMemberRemove, Args{member}, func(Args) {
 		assertMembersUpdateIsEnabled(boardID)
 
-		if !perms.RemoveUser(user) {
+		if !perms.RemoveUser(member) {
 			panic("member not found")
 		}
 
@@ -467,7 +467,7 @@ func RemoveMember(boardID BoardID, user std.Address) {
 			"MemberRemoved",
 			"caller", caller.String(),
 			"boardID", boardID.String(),
-			"member", user.String(),
+			"member", member.String(),
 		)
 	})
 }
