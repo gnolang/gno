@@ -375,7 +375,7 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 
 func (av *ArrayValue) CheckRealmTypes() {
 	// databyte type, no need to check children.
-	if av.Data == nil {
+	if av.Data != nil {
 		return
 	}
 	var last Type
