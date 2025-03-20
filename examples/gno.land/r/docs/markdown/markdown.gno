@@ -215,7 +215,7 @@ This approach allows for a more consistent rendering experience across different
 Gno Flavored Markdown introduces a column layout system using special HTML-like tags. This system allows content to be organized into multiple vertical columns using heading elements as separators.
 
 #### Basic Syntax
-Wrap your column content in ±<gno-columns>± tags and use standard markdown headings (±#± to ±######±) to define column breaks:
+Wrap your column content in ±<gno-columns>± tags and use standard markdown headings (from h1 ±#± to h6 ±######±) to define column breaks:
 
 ±±±markdown
 <gno-columns>
@@ -309,7 +309,7 @@ Another column
 
 #### Validation Rules
 
-The column system will ignore invalid structures and generate errors in the following cases:
+The column system will ignore invalid structures and generate errors in  the form of comments in the following cases:
 
 1. Unclosed Tags
 ±±±markdown

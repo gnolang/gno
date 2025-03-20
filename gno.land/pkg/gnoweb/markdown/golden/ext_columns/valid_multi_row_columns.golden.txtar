@@ -5,9 +5,9 @@
 <gno-columns>
 ## Sub-Title 1.1
 content 1.1
-## Sub-Title 1.1
+## Sub-Title 1.2
 
-content 1.1
+content 1.2
 
 </gno-columns>
 
@@ -32,8 +32,8 @@ content 2.2
 </div>
 <!-- Column 2 -->
 <div>
-<h2>Sub-Title 1.1</h2>
-<p>content 1.1</p>
+<h2>Sub-Title 1.2</h2>
+<p>content 1.2</p>
 </div>
 </div> <!-- </gno-columns> -->
 <h1>Title 2</h1>
