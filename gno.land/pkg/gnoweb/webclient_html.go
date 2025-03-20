@@ -38,9 +38,8 @@ type HTMLWebClientConfig struct {
 // It converts links starting with ":" to use the standard gno.land args syntax.
 //
 // Example:
-//
-//	Input:  [link text](:2/votes)
-//	Output: [link text](/r/demo/polls:2/votes)
+// Input:  [link text](:2/votes)
+// Output: [link text](/r/demo/polls:2/votes)
 func TransformRelArgsURL(node *ast.Document, pkgPath string) {
 	if node == nil || pkgPath == "" {
 		return
