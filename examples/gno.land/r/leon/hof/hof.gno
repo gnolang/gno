@@ -88,7 +88,7 @@ func Register(title, description string) {
 	}
 
 	// Description must be between 1 maxDescriptionLength long
-	if len(description) == 0 || len(description) > maxDescriptionLength {
+	if len(description) > maxDescriptionLength {
 		return
 	}
 
