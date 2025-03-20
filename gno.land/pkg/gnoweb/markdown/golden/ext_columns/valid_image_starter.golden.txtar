@@ -26,4 +26,4 @@ content 2
 <p><img src="http://abc.yz/image" alt="img"></p>
 <p>content 2</p>
 </div>
-</div>
+</div> <!-- </gno-columns> -->

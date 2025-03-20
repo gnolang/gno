@@ -35,7 +35,7 @@ content 2.2
 <h2>Sub-Title 1.1</h2>
 <p>content 1.1</p>
 </div>
-</div>
+</div> <!-- </gno-columns> -->
 <h1>Title 2</h1>
 <div class="gno-columns">
 <!-- Column 1 -->
@@ -48,4 +48,4 @@ content 2.2
 <h2>Sub-Title 2.2</h2>
 <p>content 2.2</p>
 </div>
-</div>
+</div> <!-- </gno-columns> -->

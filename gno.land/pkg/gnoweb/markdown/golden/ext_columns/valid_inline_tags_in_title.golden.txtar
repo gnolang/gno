@@ -25,4 +25,4 @@ content 3
 <h2><strong>title 3</strong></h2>
 <p>content 3</p>
 </div>
-</div>
+</div> <!-- </gno-columns> -->

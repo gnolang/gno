@@ -26,4 +26,4 @@ content 4
 <h1>Title 4</h1>
 <p>content 4</p>
 </div>
-</div>
+</div> <!-- </gno-columns> -->

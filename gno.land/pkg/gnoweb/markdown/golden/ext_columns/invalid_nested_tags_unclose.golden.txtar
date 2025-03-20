@@ -1,22 +1,17 @@
 -- input.md --
-</gno-columns>
-
 <gno-columns>
 ## title 1
-
 content 1
 
 ## title 2
 
 <gno-columns>
 ## sub-title 1
-
 content
 
 ## sub-title 2
 
 <gno-columns>
-
 content 2
 
 <gno-columns>
@@ -25,26 +20,32 @@ content 2
 content 3
 
 -- output.html --
-<!-- unexpected/invalid "ColumnTagClose" omitted -->
-<!-- gno-columns error: invalid columns format: columns hasn't been closed -->
-<!-- unexpected/invalid "ColumnTagOpen" omitted -->
-<!-- unexpected/invalid "ColumnTagSep" omitted -->
+<div class="gno-columns">
+<!-- Column 1 -->
+<div>
 <h2>title 1</h2>
 <p>content 1</p>
-<!-- unexpected/invalid "ColumnTagSep" omitted -->
+</div>
+<!-- Column 2 -->
+<div>
 <h2>title 2</h2>
-<!-- gno-columns error: invalid columns format: columns hasn't been closed -->
 <!-- unexpected/invalid "ColumnTagOpen" omitted -->
-<!-- unexpected/invalid "ColumnTagSep" omitted -->
+</div>
+<!-- Column 3 -->
+<div>
 <h2>sub-title 1</h2>
 <p>content</p>
-<!-- unexpected/invalid "ColumnTagSep" omitted -->
+</div>
+<!-- Column 4 -->
+<div>
 <h2>sub-title 2</h2>
-<!-- gno-columns error: invalid columns format: columns hasn't been closed -->
 <!-- unexpected/invalid "ColumnTagOpen" omitted -->
 <p>content 2</p>
-<!-- gno-columns error: invalid columns format: columns hasn't been closed -->
 <!-- unexpected/invalid "ColumnTagOpen" omitted -->
-<!-- unexpected/invalid "ColumnTagSep" omitted -->
+</div>
+<!-- Column 5 -->
+<div>
 <h2>title 3</h2>
 <p>content 3</p>
+</div>
+</div> <!-- </gno-columns> -->

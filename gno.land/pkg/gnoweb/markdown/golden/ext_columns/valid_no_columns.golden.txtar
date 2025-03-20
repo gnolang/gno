@@ -4,4 +4,4 @@
 
 -- output.html --
 <div class="gno-columns">
-</div>
+</div> <!-- </gno-columns> -->

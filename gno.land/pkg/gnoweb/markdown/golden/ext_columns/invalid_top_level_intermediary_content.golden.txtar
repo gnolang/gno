@@ -11,14 +11,11 @@ content 4
 </gno-columns>
 
 -- output.html --
-<!-- gno-columns error: invalid columns format: open tag should be followed by heading separator or a closing tag -->
-<!-- unexpected/invalid "ColumnTagOpen" omitted -->
+<!-- gno-columns error: open tag should be followed by heading separator or closing tag -->
 <p>content 1
 content 2</p>
-<!-- unexpected/invalid "ColumnTagSep" omitted -->
 <h2>Title 1</h2>
 <p>content 3</p>
-<!-- unexpected/invalid "ColumnTagSep" omitted -->
 <h2>Title 2</h2>
 <p>content 4</p>
 <!-- unexpected/invalid "ColumnTagClose" omitted -->

@@ -43,7 +43,7 @@ content 3
 <h2>sub-title 2</h2>
 <p>content 2</p>
 </div>
-</div>
+</div> <!-- </gno-columns> -->
 <h2>title 3</h2>
 <p>content 3</p>
 <!-- unexpected/invalid "ColumnTagClose" omitted -->
