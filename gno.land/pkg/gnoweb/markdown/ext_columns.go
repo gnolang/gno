@@ -67,8 +67,8 @@ func (*ColumnNode) Kind() ast.NodeKind {
 	return KindColumn
 }
 
-func (c *ColumnNode) String() string {
-	return columnTagNames[c.Tag]
+func (n *ColumnNode) String() string {
+	return columnTagNames[n.Tag]
 }
 
 // Error returns a non-empty error if any error was encountered during parsing.
