@@ -96,7 +96,7 @@ func renderHomePage(queryParams string) string {
 			out += md.HorizontalRule()
 		}
 
-		dappPagination := dappPage.Picker()
+		dappPagination := dappPage.Picker(dappPage.Pager.PageQueryParam)
 		if dappPagination != "" {
 			out += dappPagination + "\n\n"
 		}
@@ -160,7 +160,7 @@ func renderProposalsPage(queryParams string) string {
 			out += md.HorizontalRule()
 		}
 
-		pagination := page.Picker()
+		pagination := page.Picker(page.Pager.PageQueryParam)
 		if pagination != "" {
 			out += pagination + "\n\n"
 		}
@@ -255,7 +255,7 @@ func renderCategoryPage(categoryName string, queryParams string) string {
 			out += md.HorizontalRule()
 		}
 
-		pagination := page.Picker()
+		pagination := page.Picker(page.Pager.PageQueryParam)
 		if pagination != "" {
 			out += pagination + "\n\n"
 		}
@@ -289,7 +289,7 @@ func renderCategoriesPage(queryParams string) string {
 
 		out += md.BulletList(categoryItems)
 
-		categoryPagination := categoryPage.Picker()
+		categoryPagination := categoryPage.Picker(categoryPage.Pager.PageQueryParam)
 		if categoryPagination != "" {
 			out += "Page: " + categoryPagination + "\n\n"
 		}

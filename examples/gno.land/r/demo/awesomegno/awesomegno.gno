@@ -8,6 +8,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
+	"gno.land/r/leon/hof"
 )
 
 var (
@@ -26,6 +27,8 @@ func init() {
 	admins.Set("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y", true)
 	admins.Set(std.CurrentRealm().Address().String(), true)
 	admins.Set(std.PreviousRealm().Address().String(), true)
+
+	hof.Register("AwesomeGno", "Awesome Gno is a registry for gnowesome dApps on gno.land")
 }
 
 func AddAdmin(addr std.Address) error {
