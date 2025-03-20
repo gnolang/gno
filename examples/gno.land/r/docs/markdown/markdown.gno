@@ -48,11 +48,11 @@ You can format text using the following syntax:
 ***All bold and italic***
 ±±±
 
-**Bold text**  
-*Italic text*  
-~~Strikethrough text~~  
-**Bold and _nested italic_**  
-***All bold and italic***  
+**Bold text**
+*Italic text*
+~~Strikethrough text~~
+**Bold and _nested italic_**
+***All bold and italic***
 
 ### Links
 
@@ -63,7 +63,7 @@ Links can be created using the following syntax:
 [Link with title](https://example.com "Link title")
 ±±±
 
-[Link text](https://example.com)  
+[Link text](https://example.com)
 [Link with title](https://example.com "Link title")
 
 XXX: custom CSS for internal/external links and if possible for "in the same realm/namespace".
@@ -213,6 +213,7 @@ This approach allows for a more consistent rendering experience across different
 ### Columns
 
 Gno Flavored Markdown introduces a column layout system using special HTML-like tags. This system allows content to be organized into multiple vertical columns using heading elements as separators.
+On GnoWeb, up to four columns can be displayed in a single row; exceeding this limit will transfer additional columns to another row, and so on.
 
 #### Basic Syntax
 Wrap your column content in ±<gno-columns>± tags and use standard markdown headings (from h1 ±#± to h6 ±######±) to define column breaks:
@@ -305,11 +306,10 @@ Content without title
 Another column
 </gno-columns>
 
----
 
 #### Validation Rules
 
-The column system will ignore invalid structures and generate errors in  the form of comments in the following cases:
+The column system will ignore invalid structures and generate errors in the form of comments in the following cases:
 
 1. Unclosed Tags
 ±±±markdown
