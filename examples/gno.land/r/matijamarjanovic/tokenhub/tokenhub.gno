@@ -33,10 +33,14 @@ func init() {
 // It uses the slug to construct a key and then registers the token in the registry
 // The logic is the same as in grc20reg, but it's done here so the key path is callers pkgpath and not of this realm
 // After doing so, the token hub realm uses grc20reg's registry as a read-only avl.Tree
-func RegisterToken(tokenGetter grc20.TokenGetter, slug string) {
+//
+// Note: register token returns the key path that can be used to retrieve the token
+func RegisterToken(tokenGetter grc20.TokenGetter, slug string) string {
 	rlmPath := std.PreviousRealm().PkgPath()
 	key := fqname.Construct(rlmPath, slug)
 	grc20reg.Register(tokenGetter, key)
+
+	return fqname.Construct(std.CurrentRealm().PkgPath(), key)
 }
 
 // RegisterNFT is a function that registers an NFT in an avl.Tree
