@@ -64,8 +64,8 @@ func (rl *CooldownLimiter) isOnCooldown(key string) (bool, error) {
 
 func (rl *CooldownLimiter) markOnCooldown(key string) error {
 	return rl.cooldownDB.Update(func(txn *badger.Txn) error {
-		// Here the value set does not mather as we remain only on the
-		// key existence (TTL) to be eligible to claim again
+		// The value set here does not matter, as we only rely on 
+		// badger's TTL feature to check if a key is still on cooldown
 		e := badger.NewEntry([]byte(key), []byte("claimed")).WithTTL(rl.cooldownTime)
 		return txn.SetEntry(e)
 	})
