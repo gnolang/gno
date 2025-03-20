@@ -298,7 +298,7 @@ func (post *Post) RenderSummary() string {
 		title   = post.title
 	)
 
-	b.WriteString("## " + newLink(summaryOf(title, 80), postURL) + "\n\n")
+	b.WriteString("## ≡ " + newLink(summaryOf(title, 80), postURL) + "\n\n")
 	b.WriteString("Created by " + newUserLink(post.creator) + " on " + post.createdAt.Format(dateFormat))
 	b.WriteString("  \n")
 	b.WriteString(strconv.Itoa(post.repliesAll.Size()) + " replies • ")

@@ -17,12 +17,12 @@ const (
 	pageSizeReplies = 10
 )
 
-const menuMembership = "membership"
+const menuManageBoard = "manageBoard"
 
 func Render(path string) string {
 	router := mux.NewRouter()
 	router.HandleFunc("", renderBoardsList)
-	router.HandleFunc("adminUsers", renderMembers)
+	router.HandleFunc("admin-users", renderMembers)
 	router.HandleFunc("{board}", renderBoard)
 	router.HandleFunc("{board}/members", renderMembers)
 	router.HandleFunc("{board}/{thread}", renderThread)
@@ -81,7 +81,7 @@ func renderBoardListMenu(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write(newLink("Create Board", txlink.Call("CreateBoard")))
 	res.Write(" • ")
-	res.Write(newLink("List Admin Users", path+":adminUsers"))
+	res.Write(newLink("List Admin Users", path+":admin-users"))
 	res.Write("\n\n")
 }
 
@@ -106,30 +106,30 @@ func renderBoardMenu(board *Board, res *mux.ResponseWriter, req *mux.Request) {
 	boardMembersURL := board.GetPath() + "/members"
 
 	if board.IsReadonly() {
-		res.Write(newLink("List Board Members", boardMembersURL))
+		res.Write(newLink("List Members", boardMembersURL))
+		res.Write(" • ")
+		res.Write(newLink("Unfreeze Board", board.GetUnfreezeFormURL()))
 		res.Write("\n")
 	} else {
-		res.Write(newLink("Start Thread", board.GetPostFormURL()))
+		res.Write(newLink("Create Thread", board.GetPostFormURL()))
 		res.Write(" • ")
 
-		menu := getCurrentSubmenu(req.RawPath)
-		if menu == menuMembership {
-			res.Write("**Manage Board Membership**")
+		menu := getCurrentMenu(req.RawPath)
+		if menu == menuManageBoard {
+			res.Write("**Manage Board**")
 		} else {
-			res.Write(newLink("Manage Board Membership", submenuURL(menuMembership)))
+			res.Write(newLink("Manage Board", menuURL(menuManageBoard)))
 		}
 
 		res.Write("  \n")
 
-		if menu == menuMembership {
+		if menu == menuManageBoard {
 			res.Write("↳")
+			res.Write(newLink("Invite Member", board.GetInviteMemberFormURL()))
+			res.Write(" • ")
 			res.Write(newLink("List Members", boardMembersURL))
 			res.Write(" • ")
-			res.Write(newLink("Invite", board.GetInviteMemberFormURL()))
-			res.Write(" • ")
-			res.Write(newLink("Remove Member", board.GetRemoveMemberFormURL("")))
-			res.Write(" • ")
-			res.Write(newLink("Change Member Role", board.GetChangeMemberRoleFormURL()))
+			res.Write(newLink("Freeze Board", board.GetFreezeFormURL()))
 			res.Write("\n\n")
 		}
 	}
@@ -285,17 +285,17 @@ func rolesToString(roles []Role) string {
 	return strings.Join(names, ", ")
 }
 
-func submenuURL(name string) string {
-	// TODO: Submenu URL works because no other GET arguments are being used
-	return "?submenu=" + name
+func menuURL(name string) string {
+	// TODO: Menu URL works because no other GET arguments are being used
+	return "?menu=" + name
 }
 
-func getCurrentSubmenu(rawURL string) string {
+func getCurrentMenu(rawURL string) string {
 	_, rawQuery, found := strings.Cut(rawURL, "?")
 	if !found {
 		return ""
 	}
 
 	query, _ := url.ParseQuery(rawQuery)
-	return query.Get("submenu")
+	return query.Get("menu")
 }
