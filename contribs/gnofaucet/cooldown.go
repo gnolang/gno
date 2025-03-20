@@ -48,12 +48,14 @@ func (rl *CooldownLimiter) isOnCooldown(key string) (bool, error) {
 		return err
 	})
 	if err != nil {
-		// Real error
-		if !errors.Is(err, badger.ErrKeyNotFound) {
-			return false, err
+		// Since we use badger's TTL feature to manage cooldown periods, 
+		// an ErrKeyNotFound simply indicates that the key is not on cooldown.
+		if errors.Is(err, badger.ErrKeyNotFound) {
+			return false, nil
 		}
-		// errNotFound: key is not on cooldown
-		return false, nil
+		
+		// Any other unexpected error is returned.
+		return false, err
 	}
 
 	// Key found: it is on cooldown
