@@ -26,7 +26,7 @@ var (
 const pageSize = 10
 
 func init() {
-	hof.Register()
+	hof.Register("Token Hub", "Registry for tokens and NFTs on gno.land")
 }
 
 // RegisterToken is a function that uses gno.land/r/demo/grc20reg to register a token
