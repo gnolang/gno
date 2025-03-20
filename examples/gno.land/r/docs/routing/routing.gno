@@ -76,5 +76,5 @@ func profileHandler(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func wildcardHandler(res *mux.ResponseWriter, req *mux.Request) {
-	//
+	// todo
 }
