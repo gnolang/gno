@@ -13,20 +13,26 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
+// Error messages for invalid column tags.
 var (
-	ErrInvalidColumnsFormat = errors.New("invalid columns format")
-	KindColumn              = ast.NewNodeKind("Column")
-	MaxHeading              = 6 // Max heading level for markdown
+	ErrColumnsInvalidOpenFormat      = errors.New("invalid heading format")
+	ErrColumnsUnexpectedOrInvalidTag = errors.New("unexpected or invalid tag")
+)
+
+// Define custom node kind and maximum heading level.
+var (
+	KindColumn = ast.NewNodeKind("Column")
+	MaxHeading = 6
 )
 
 // ColumnTag represents the type of tag in a column block.
 type ColumnTag int
 
 const (
-	ColumnTagUndefined ColumnTag = iota // Undefined column tag
-	ColumnTagOpen                       // Opening tag for columns
-	ColumnTagSep                        // Separator tag for columns
-	ColumnTagClose                      // Closing tag for columns
+	ColumnTagUndefined ColumnTag = iota
+	ColumnTagOpen
+	ColumnTagSep
+	ColumnTagClose
 )
 
 var columnTagNames = map[ColumnTag]string{
@@ -39,9 +45,9 @@ var columnTagNames = map[ColumnTag]string{
 // ColumnNode represents a semantic tree for a "column".
 type ColumnNode struct {
 	ast.BaseBlock
-	Index  int       // Index of the current column; 0 indicates no column.
-	Tag    ColumnTag // Current Column Tag for this node.
-	Ignore bool      // Ignore this node, generally meaning it is invalid.
+	Index int       // Index of the column associated with the node.
+	Tag   ColumnTag // Current Column Tag for this node.
+	Error error     // If not nil, indicates that the node is invalid.
 
 	ctx *columnsContext
 }
@@ -55,7 +61,7 @@ func (n *ColumnNode) Dump(source []byte, level int) {
 	if n.Tag == ColumnTagSep {
 		kv["index"] = strconv.Itoa(n.Index)
 	}
-	if err := n.Error(); err != nil {
+	if err := n.Error; err != nil {
 		kv["error"] = err.Error()
 	}
 
@@ -71,14 +77,6 @@ func (n *ColumnNode) String() string {
 	return columnTagNames[n.Tag]
 }
 
-// Error returns a non-empty error if any error was encountered during parsing.
-func (n *ColumnNode) Error() error {
-	if n.ctx != nil {
-		return n.ctx.Error
-	}
-	return nil
-}
-
 // NewColumn initializes a ColumnNode object.
 func NewColumn(ctx *columnsContext, index int, tag ColumnTag) *ColumnNode {
 	return &ColumnNode{ctx: ctx, Index: index, Tag: tag}
@@ -88,13 +86,13 @@ var columnContextKey = parser.NewContextKey()
 
 // columnsContext is used to keep track of columns' state across parsing.
 type columnsContext struct {
-	IsOpen          bool  // Indicates if a block has been correctly opened.
-	Error           error // Error encountered during parsing.
-	Index           int   // Current column index.
-	RefHeadingLevel int   // Level reference for separators.
+	IsOpen          bool        // Indicates if a block has been correctly opened.
+	Index           int         // Index of the current column; 0 indicates no column.
+	RefHeadingLevel int         // Level reference for separators.
+	OpenTag         *ColumnNode // First opening tag for this context.
 }
 
-// parseLineTag checks if the line matches open or closing tag or if the line starts with a heading.
+// parseLineTag identifies the tag type based on the line content.
 func parseLineTag(line []byte) ColumnTag {
 	line = util.TrimRightSpace(util.TrimLeftSpace(line))
 
@@ -113,6 +111,8 @@ func parseLineTag(line []byte) ColumnTag {
 }
 
 // columnsParser implements BlockParser.
+var _ parser.BlockParser = (*columnsParser)(nil)
+
 type columnsParser struct{}
 
 // Trigger returns the trigger characters for the parser.
@@ -121,18 +121,17 @@ func (*columnsParser) Trigger() []byte {
 }
 
 // Open creates a column node based on the line tag.
-// If it matches a column tag, it integrates the node into the AST.
-func (p *columnsParser) Open(self ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
-	// Columns tag cannot be a child of another node
-	if self.Parent() != nil {
+func (p *columnsParser) Open(doc ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
+	// Columns tag cannot be a child of another node.
+	if doc.Parent() != nil {
 		return nil, parser.NoChildren
 	}
 
-	// Get column context
-	columnContext, ok := pc.Get(columnContextKey).(*columnsContext)
-	if !ok || !columnContext.IsOpen {
-		columnContext = &columnsContext{} // new context
-		pc.Set(columnContextKey, columnContext)
+	// Get column context.
+	cctx, ok := pc.Get(columnContextKey).(*columnsContext)
+	if !ok || !cctx.IsOpen {
+		cctx = &columnsContext{} // New context.
+		pc.Set(columnContextKey, cctx)
 	}
 
 	line, segment := reader.PeekLine()
@@ -141,10 +140,10 @@ func (p *columnsParser) Open(self ast.Node, reader text.Reader, pc parser.Contex
 		return nil, parser.NoChildren
 	}
 
-	node := NewColumn(columnContext, columnContext.Index, tagKind)
+	node := NewColumn(cctx, cctx.Index, tagKind)
 	switch tagKind {
 	case ColumnTagSep:
-		if !columnContext.IsOpen {
+		if !cctx.IsOpen {
 			return nil, parser.NoChildren
 		}
 
@@ -155,105 +154,129 @@ func (p *columnsParser) Open(self ast.Node, reader text.Reader, pc parser.Contex
 
 		switch {
 		case level > MaxHeading:
-			// Level is beyond the maximum one, ignore this heading
+			// Level is beyond the maximum one, ignore this heading.
 			return nil, parser.NoChildren
-		case columnContext.RefHeadingLevel == 0:
-			// Register first header as reference
-			columnContext.RefHeadingLevel = level
-		case columnContext.RefHeadingLevel != level:
-			// If heading level reference is different, skip it
+		case cctx.RefHeadingLevel == 0:
+			// Register first header as reference.
+			cctx.RefHeadingLevel = level
+		case cctx.RefHeadingLevel != level:
+			// If heading level reference is different, skip it.
 			return nil, parser.NoChildren
 		}
 
-		// Process creating a column
-		columnContext.Index++
-		node.Index = columnContext.Index
+		// First separator should follow an Open Tag.
+		if cctx.Index == 0 {
+			lc := doc.LastChild()
+			if ln, ok := lc.(*ColumnNode); !ok || ln.Tag != ColumnTagOpen {
+				// Open tag isn't followed by a heading.
+				// Mark open tag as wrong and immediately close the context.
+				cctx.OpenTag.Error = ErrColumnsInvalidOpenFormat
+				cctx.IsOpen = false
+				return nil, parser.NoChildren
+			}
+		}
 
-		// Check for non-empty heading
+		// Process creating a column.
+		cctx.Index++
+		node.Index = cctx.Index
+
+		// Check for non-empty heading.
 		if trimmed := util.TrimLeftSpace(line[level:]); len(trimmed) > 0 {
 			// Insert a column separator but return an empty node so we can
-			// let the parser parse the heading
-			self.InsertBefore(self, self.PreviousSibling(), node)
+			// let the parser parse the heading.
+			doc.InsertBefore(doc, doc.PreviousSibling(), node)
 			return nil, parser.NoChildren
 		}
 
-		// Empty heading, create a column separator
+		// Empty heading, create a column separator.
 		reader.Advance(segment.Len())
 
 	case ColumnTagOpen:
-		if columnContext.IsOpen {
-			node.Ignore = true
-			// Block already open
+		if cctx.IsOpen {
+			// Block already open.
+			node.Error = ErrColumnsUnexpectedOrInvalidTag
 			return node, parser.NoChildren
 		}
 
-		columnContext.IsOpen = true
+		cctx.OpenTag = node
+		cctx.IsOpen = true
 
 	case ColumnTagClose:
-		if !columnContext.IsOpen {
-			node.Ignore = true
-			// Block closing without being open
+		if !cctx.IsOpen {
+			// Block closing without being open.
+			node.Error = ErrColumnsUnexpectedOrInvalidTag
 			return node, parser.NoChildren
 		}
 
-		columnContext.IsOpen = false
+		if cctx.Index == 0 {
+			// If no columns exist, close tag should follow open tag.
+			lc := doc.LastChild()
+			if ln, ok := lc.(*ColumnNode); !ok || ln.Tag != ColumnTagOpen {
+				// Mark open tag as wrong and immediately close the context.
+				cctx.OpenTag.Error = ErrColumnsInvalidOpenFormat
+				node.Error = ErrColumnsUnexpectedOrInvalidTag
+			}
+		}
+
+		cctx.IsOpen = false
 	}
 
 	return node, parser.NoChildren
 }
 
+// Continue returns the parser state for continued parsing.
+// Not needed in columns context.
 func (*columnsParser) Continue(n ast.Node, reader text.Reader, _ parser.Context) parser.State {
 	return parser.Close
 }
 
+// Close finalizes the parsing of the node.
+// Not needed in columns context.
 func (*columnsParser) Close(_ ast.Node, reader text.Reader, _ parser.Context) {}
 
-// CanInterruptParagraph should return true if the parser can interrupt paragraphs.
+// CanInterruptParagraph determines if the parser can interrupt paragraphs.
 func (*columnsParser) CanInterruptParagraph() bool {
 	return true
 }
 
-// CanAcceptIndentedLine should return true if the parser can open new nodes when
-// the given line is indented more than 3 spaces.
+// CanAcceptIndentedLine checks if the parser can handle indented lines.
 func (*columnsParser) CanAcceptIndentedLine() bool {
 	return false
 }
 
-// columnRenderer implements NodeRenderer.
-// See https://pkg.go.dev/github.com/yuin/goldmark/renderer#NodeRenderer
-var _ renderer.NodeRenderer = (*columnsRenderer)(nil)
+// columnsRendererHTML implements NodeRenderer.
+type columnsRendererHTML struct{}
 
-type columnsRenderer struct{}
-
-// RegisterFuncs adds AST objects to Renderer.
-func (r *columnsRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
-	reg.Register(KindColumn, columnsRender)
+// RegisterFuncs adds AST objects to the Renderer.
+func (r *columnsRendererHTML) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
+	reg.Register(KindColumn, columnsRenderHTML)
 }
 
-// columnsRender function is used to render the column node.
-func columnsRender(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
+// columnsRenderHTML renders the column node.
+func columnsRenderHTML(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
 	cnode, ok := node.(*ColumnNode)
 	if !ok || !entering {
 		return ast.WalkContinue, nil
 	}
 
-	ignore := cnode.Ignore
-	if err := cnode.Error(); err != nil {
-		if cnode.Tag == ColumnTagOpen { // only display error on the first tag
+	// Check for any error
+	if err := cnode.Error; err != nil {
+		switch {
+		case errors.Is(err, ErrColumnsUnexpectedOrInvalidTag):
+			fmt.Fprintf(w, "<!-- unexpected/invalid %q omitted -->\n", cnode.String())
+		case errors.Is(err, ErrColumnsInvalidOpenFormat):
+			fmt.Fprintln(w, "<!-- gno-columns error: open tag should be followed by heading separator or closing tag -->")
+		default:
 			fmt.Fprintf(w, "<!-- gno-columns error: %s -->\n", err.Error())
 		}
 
-		ignore = true
-	}
-
-	if ignore {
-		fmt.Fprintf(w, "<!-- unexpected/invalid %q omitted -->\n", cnode.String())
 		return ast.WalkContinue, nil
 	}
 
+	// Render the node
 	switch cnode.Tag {
 	case ColumnTagOpen:
-		fmt.Fprint(w, `<div class="gno-columns">`+"\n")
+		fmt.Fprintln(w, `<div class="gno-columns">`)
 
 	case ColumnTagSep:
 		if cnode.Index > 1 {
@@ -264,11 +287,11 @@ func columnsRender(w util.BufWriter, _ []byte, node ast.Node, entering bool) (as
 		fmt.Fprintln(w, "<div>")
 
 	case ColumnTagClose:
-		if cnode.Index > 0 { // at least one separator
+		if cnode.Index > 0 {
 			fmt.Fprintln(w, "</div>")
 		}
 
-		fmt.Fprintln(w, "</div>")
+		fmt.Fprintln(w, "</div> <!-- </gno-columns> -->")
 
 	default:
 		panic("invalid column tag - should not happen")
@@ -277,48 +300,35 @@ func columnsRender(w util.BufWriter, _ []byte, node ast.Node, entering bool) (as
 	return ast.WalkContinue, nil
 }
 
-// columnASTTransformer implements ASTTransformer.
-// See https://pkg.go.dev/github.com/yuin/goldmark/parser#ASTTransformer
-var _ parser.ASTTransformer = (*columnsASTTransformer)(nil)
-
+// columnsASTTransformer implements ASTTransformer.
 type columnsASTTransformer struct{}
 
-func (a *columnsASTTransformer) Transform(node *ast.Document, reader text.Reader, pc parser.Context) {
-	// Validate columns
-	for n := node.FirstChild(); n != nil; n = n.NextSibling() {
-		if n.Kind() != KindColumn {
-			continue
+// Transform modifies the AST to handle unfinished open tags.
+func (a *columnsASTTransformer) Transform(doc *ast.Document, reader text.Reader, pc parser.Context) {
+	// Retrieve the last column context
+	cctx, ok := pc.Get(columnContextKey).(*columnsContext)
+	if !ok {
+		return
+	}
+
+	// Check for unclosed contexts.
+	if cctx.IsOpen {
+		// Ensure the column index is greater than zero
+		if cctx.Index == 0 {
+			cctx.OpenTag.Error = ErrColumnsInvalidOpenFormat
+			return
 		}
 
-		col := n.(*ColumnNode)
-		if col.Error() != nil || col.Tag != ColumnTagOpen {
-			continue
-		}
-
-		// Check if columns block is correctly closed
-		if col.ctx.IsOpen {
-			col.ctx.Error = fmt.Errorf(
-				"%w: columns hasn't been closed", ErrInvalidColumnsFormat,
-			)
-
-			continue
-		}
-
-		// Check if the first separator is followed by any tag
-		if next := n.NextSibling(); next.Kind() != KindColumn {
-			col.ctx.Error = fmt.Errorf(
-				"%w: open tag should be followed by heading separator or a closing tag",
-				ErrInvalidColumnsFormat,
-			)
-		}
+		// Insert a closing column tag after the last child of the doc
+		lc := doc.LastChild()
+		nodeCol := NewColumn(cctx, cctx.Index, ColumnTagClose)
+		doc.InsertAfter(doc, lc, nodeCol)
 	}
 }
 
 type columns struct{}
 
-// column implements Extender
-var _ goldmark.Extender = (*columns)(nil)
-
+// Columns instance for extending markdown with column functionality.
 var Columns = &columns{}
 
 // Extend adds column functionality to the markdown processor.
@@ -333,6 +343,6 @@ func (e *columns) Extend(m goldmark.Markdown) {
 		),
 	)
 	m.Renderer().AddOptions(renderer.WithNodeRenderers(
-		util.Prioritized(&columnsRenderer{}, 500),
+		util.Prioritized(&columnsRendererHTML{}, 500),
 	))
 }
