@@ -18,6 +18,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
 	markdown "github.com/yuin/goldmark-highlighting/v2"
+	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
@@ -31,6 +32,34 @@ type HTMLWebClientConfig struct {
 	ChromaStyle       *chroma.Style
 	ChromaHTMLOptions []chromahtml.Option
 	GoldmarkOptions   []goldmark.Option
+}
+
+// TransformRelArgsURL modifies the AST to transform relative links starting with Gno args.
+// It converts links starting with ":" to use the standard gno.land args syntax.
+//
+// Example:
+// Input:  [link text](:2/votes)
+// Output: [link text](/r/demo/polls:2/votes)
+func TransformRelArgsURL(node *ast.Document, pkgPath string) {
+	if node == nil || pkgPath == "" {
+		return
+	}
+	ast.Walk(node, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		if link, ok := n.(*ast.Link); ok {
+			if link.Destination == nil {
+				return ast.WalkContinue, nil
+			}
+			url := string(link.Destination)
+			if strings.HasPrefix(url, ":") {
+				// Simply prefix with pkgPath
+				link.Destination = []byte("/" + pkgPath + url)
+			}
+		}
+		return ast.WalkContinue, nil
+	})
 }
 
 // NewDefaultHTMLWebClientConfig initializes a WebClientConfig with default settings.
@@ -206,6 +235,11 @@ func (s *HTMLWebClient) RenderRealm(w io.Writer, pkgPath string, args string) (*
 	context := parser.NewContext()
 	doc := s.Markdown.Parser().Parse(text.NewReader(rawres), parser.WithContext(context))
 	metaData := md.Get(context)
+
+	// Transform URLs in the AST
+	if document, ok := doc.(*ast.Document); ok {
+		TransformRelArgsURL(document, pkgPath)
+	}
 
 	if err := s.Markdown.Renderer().Render(w, rawres, doc); err != nil {
 		return nil, fmt.Errorf("unable to render realm %q: %w", data, err)
