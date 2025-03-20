@@ -34,7 +34,7 @@ func Render(path string) string {
 }
 
 func init() {
-	hof.Register()
+	hof.Register("Leon's Home Realm", "")
 	mirror.Register(std.CurrentRealm().PkgPath(), Render)
 
 	pfp = "https://i.imgflip.com/91vskx.jpg"
