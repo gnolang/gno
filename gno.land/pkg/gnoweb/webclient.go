@@ -5,7 +5,6 @@ import (
 	"io"
 
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 )
 
@@ -37,7 +36,7 @@ type WebClient interface {
 	// RenderRealm renders the content of a realm from a given path and
 	// arguments into the giver `writer`. The method should ensures the rendered
 	// content is safely handled and formatted.
-	RenderRealm(w io.Writer, path string, args string, gnourl *weburl.GnoURL) (*RealmMeta, error)
+	RenderRealm(w io.Writer, path string, args string) (*RealmMeta, error)
 
 	// SourceFile fetches and writes the source file from a given
 	// package path and file name. The method should ensures the source

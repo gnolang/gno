@@ -6,7 +6,6 @@ import (
 	"io"
 	"sort"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 )
 
@@ -33,7 +32,7 @@ func NewMockWebClient(pkgs ...*MockPackage) *MockWebClient {
 }
 
 // RenderRealm simulates rendering a package by writing its content to the writer.
-func (m *MockWebClient) RenderRealm(w io.Writer, path string, args string, gnourl *weburl.GnoURL) (*RealmMeta, error) {
+func (m *MockWebClient) RenderRealm(w io.Writer, path string, args string) (*RealmMeta, error) {
 	pkg, exists := m.Packages[path]
 	if !exists {
 		return nil, ErrClientPathNotFound

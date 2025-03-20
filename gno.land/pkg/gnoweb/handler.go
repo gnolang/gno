@@ -131,7 +131,7 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 
 	switch {
 	case gnourl.IsRealm(), gnourl.IsPure():
-		return h.GetPackageView(gnourl, indexData, r)
+		return h.GetPackageView(gnourl, indexData)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
 		return http.StatusBadRequest, components.StatusErrorComponent("invalid path")
@@ -139,7 +139,7 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 }
 
 // GetPackageView handles package pages.
-func (h *WebHandler) GetPackageView(gnourl *weburl.GnoURL, indexData *components.IndexData, r *http.Request) (int, *components.View) {
+func (h *WebHandler) GetPackageView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	// Handle Help page
 	if gnourl.WebQuery.Has("help") {
 		return h.GetHelpView(gnourl, indexData)
@@ -156,13 +156,13 @@ func (h *WebHandler) GetPackageView(gnourl *weburl.GnoURL, indexData *components
 	}
 
 	// Ultimately get realm view
-	return h.GetRealmView(gnourl, indexData, r)
+	return h.GetRealmView(gnourl, indexData)
 }
 
-func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL, indexData *components.IndexData, r *http.Request) (int, *components.View) {
+func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	var content bytes.Buffer
 
-	meta, err := h.Client.RenderRealm(&content, gnourl.Path, gnourl.EncodeArgs(), gnourl)
+	meta, err := h.Client.RenderRealm(&content, gnourl.Path, gnourl.EncodeArgs())
 	if err != nil {
 		if errors.Is(err, ErrRenderNotDeclared) {
 			return http.StatusOK, components.StatusNoRenderComponent(gnourl.Path)

@@ -13,7 +13,6 @@ import (
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/alecthomas/chroma/v2/styles"
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
@@ -38,10 +37,12 @@ type HTMLWebClientConfig struct {
 // TransformRelArgsURL modifies the AST to transform relative links starting with Gno args.
 // It converts links starting with ":" to use the standard gno.land args syntax.
 //
-//	Input:  [Go to votes list](:2/votes)
-//	Output: /r/gov/dao/proxy:2/votes
-func TransformRelArgsURL(node *ast.Document, gnourl *weburl.GnoURL) {
-	if node == nil || gnourl == nil {
+// Example:
+//
+//	Input:  [link text](:2/votes)
+//	Output: [link text](/r/demo/polls:2/votes)
+func TransformRelArgsURL(node *ast.Document, pkgPath string) {
+	if node == nil || pkgPath == "" {
 		return
 	}
 	ast.Walk(node, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
@@ -54,12 +55,8 @@ func TransformRelArgsURL(node *ast.Document, gnourl *weburl.GnoURL) {
 			}
 			url := string(link.Destination)
 			if strings.HasPrefix(url, ":") {
-				// Create a new GnoURL with the same domain and path but new args
-				newURL := *gnourl
-				newURL.Args = strings.TrimPrefix(url, ":")
-				newURL.WebQuery = nil
-				newURL.Query = nil
-				link.Destination = []byte(newURL.EncodeWebURL())
+				// Simply prefix with pkgPath
+				link.Destination = []byte("/" + pkgPath + url)
 			}
 		}
 		return ast.WalkContinue, nil
@@ -224,7 +221,7 @@ func extractHeadMeta(metaData map[string]interface{}) HeadMeta {
 // RenderRealm renders the content of a realm from a given path
 // and arguments into the provided writer. It uses Goldmark for
 // Markdown processing to generate HTML content.
-func (s *HTMLWebClient) RenderRealm(w io.Writer, pkgPath string, args string, gnourl *weburl.GnoURL) (*RealmMeta, error) {
+func (s *HTMLWebClient) RenderRealm(w io.Writer, pkgPath string, args string) (*RealmMeta, error) {
 	const qpath = "vm/qrender"
 
 	pkgPath = strings.Trim(pkgPath, "/")
@@ -242,7 +239,7 @@ func (s *HTMLWebClient) RenderRealm(w io.Writer, pkgPath string, args string, gn
 
 	// Transform URLs in the AST
 	if document, ok := doc.(*ast.Document); ok {
-		TransformRelArgsURL(document, gnourl)
+		TransformRelArgsURL(document, pkgPath)
 	}
 
 	if err := s.Markdown.Renderer().Render(w, rawres, doc); err != nil {
