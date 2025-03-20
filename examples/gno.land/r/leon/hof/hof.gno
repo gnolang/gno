@@ -125,7 +125,7 @@ func Upvote(pkgpath string) {
 	}
 
 	if _, exists := exhibition.itemsSortedByUpvotes.Remove(getVoteSortKey(item.upvote.Size(), item.id)); !exists {
-		panic("Error removing old upvote entry!")
+		panic("error removing old upvote entry")
 	}
 
 	item.upvote.Add(caller)
@@ -147,7 +147,7 @@ func Downvote(pkgpath string) {
 	}
 
 	if _, exist := exhibition.itemsSortedByDownvotes.Remove(getVoteSortKey(item.downvote.Size(), item.id)); !exist {
-		panic("Error removing old downvote entry!")
+		panic("error removing old downvote entry")
 
 	}
 
