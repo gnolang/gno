@@ -29,7 +29,7 @@ func syskey(module, submodule, name string) string {
 	return module + ":" + submodule + ":" + name
 }
 
-func NewSysParamStringPropRequest(module, submodule, name string, value string) dao.ProposalRequest {
+func NewSysParamStringPropRequest(module, submodule, name, value string) dao.ProposalRequest {
 	return newPropRequest(
 		syskey(module, submodule, name),
 		func() { prms.SetSysParamString(module, submodule, name, value) },
@@ -37,7 +37,7 @@ func NewSysParamStringPropRequest(module, submodule, name string, value string) 
 	)
 }
 
-func NewSysParamStringPropRequestWithTitle(module, submodule, name string, value string, title string) dao.ProposalRequest {
+func NewSysParamStringPropRequestWithTitle(module, submodule, name, value, title string) dao.ProposalRequest {
 	return newPropRequest(
 		syskey(module, submodule, name),
 		func() { prms.SetSysParamString(module, submodule, name, value) },

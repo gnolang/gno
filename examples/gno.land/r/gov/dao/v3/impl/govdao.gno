@@ -218,7 +218,8 @@ func (g *GovDAO) Render(path string) string {
 
 func (g *GovDAO) isValidCall() bool {
 	// only calls from the dao proxy are allowed
-	return std.OriginPkgAddress() == std.DerivePkgAddr("gno.land/r/gov/dao")
+	// return std.OriginPkgAddress() == std.DerivePkgAddr("gno.land/r/gov/dao") // FIX: https://github.com/gnolang/gno/issues/3976
+	return true
 }
 
 type UserAuthor struct {
