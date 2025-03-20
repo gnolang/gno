@@ -17,6 +17,7 @@ Explore various examples to learn more about Gno functionality and usage.
 - [Buttons](/r/docs/buttons) - Add buttons to your realm's render.
 - [AVL Pager](/r/docs/avl_pager) - Paginate through AVL tree items.  
 - [AVL Pager + Render paths](/r/docs/avl_pager_params) - Handle render arguments with pagination.
+- [Routing for Render paths](/r/docs/routing) - Route Render paths with the p/demo/mux package.
 - [Img Embed](/r/docs/img_embed) - Demonstrates how to embed an image.
 - [Optional Render](/r/docs/optional_render) - Render() is optional in realms.
 - [MiniSocial](/r/docs/minisocial) - Minimalistic social media app for learning purposes.
