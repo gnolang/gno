@@ -124,7 +124,10 @@ func Upvote(pkgpath string) {
 		panic(ErrDoubleUpvote)
 	}
 
-	exhibition.itemsSortedByUpvotes.Remove(getVoteSortKey(item.upvote.Size(), item.id))
+	if _, exists := exhibition.itemsSortedByUpvotes.Remove(getVoteSortKey(item.upvote.Size(), item.id)); !exists {
+		panic("Error removing old upvote entry!")
+	}
+
 	if !item.upvote.Add(caller) {
 		panic(ErrDoubleUpvote)
 	}
