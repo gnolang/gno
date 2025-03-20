@@ -184,8 +184,8 @@ func (board *Board) GetInviteMemberFormURL() string {
 	return txlink.Call("InviteMember", "boardID", board.id.String())
 }
 
-func (board *Board) GetRemoveMemberFormURL() string {
-	return txlink.Call("RemoveMember", "boardID", board.id.String())
+func (board *Board) GetRemoveMemberFormURL(member std.Address) string {
+	return txlink.Call("RemoveMember", "boardID", board.id.String(), "user", member.String())
 }
 
 func (board *Board) GetChangeMemberRoleFormURL() string {
