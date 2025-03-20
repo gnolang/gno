@@ -2,6 +2,7 @@ package std
 
 import (
 	"crypto/bech32"
+	"crypto/ripemd160"
 	"crypto/sha256"
 	"errors"
 )
@@ -39,6 +40,21 @@ func DecodeBech32(addr Address) (string, [20]byte, bool) {
 		return "", [20]byte{}, false
 	}
 	return prefix, convertTo20Byte(bz), true
+}
+
+func PubkeyToAddress(publicKey string) (Address, error) {
+	_, bz, err := decodeAndConvert(publicKey)
+	if err != nil {
+		return "", err
+	}
+	//XXX: Investigating this, currently the last 33 bytes (corresponding to secp256k1 key length)
+	// are returned with more bytes on the left probably a marshal idk this magic operation is temporary
+	bz = bz[len(bz)-33:]
+
+	sha := sha256.Sum256(bz)
+	hasherRIPEMD160 := ripemd160.New() //nolint:gosec
+	hasherRIPEMD160.Write(sha[:])      // does not error
+	return EncodeBech32(bech32AddrPrefix, convertTo20Byte(hasherRIPEMD160.Sum(nil))), nil
 }
 
 func convertAndEncode(hrp string, data []byte) (string, error) {

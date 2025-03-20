@@ -58,3 +58,29 @@ func TestDerivePkgAddr(t *testing.T) {
 		}
 	}
 }
+
+func TestPubkeyToAddress(t *testing.T) {
+	type test struct {
+		inputKey string
+		expected string
+	}
+
+	testCases := []test{
+		{inputKey: "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqgfakcapzvuux7vug9vagyjmvj6k2w2xu723qnue69z9r7wlt9c6zeyxvt8", expected: "g14vxq5e5pt5sev7rkz2ej438scmxtylnzv5vnkw"},
+		{inputKey: "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqt3gjrvnd3qslct7hwy9e7uu5vje95tcedhvls3hw4prrg7z8hdzwt7a930", expected: "g1s3ngxp56v8w230qp4p9qf7memq6ra2x4x3zqsn"},
+		{inputKey: "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqf4s3e9agxz20lqvuqhkwp6xcl0pdmtw907axyxxv4ntnx865u6zvc46z77", expected: "g1cfg8z8fjap628nsh5tf2eu73x7qsq7svemfexr"},
+		{inputKey: "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqfuuq0n9ytg4f6ryhpkwrm8c8255vgjyua9s7v07nhemfyywf7nz68axq0m", expected: "g1gwdx26dksjwpkhg37j2cgmlyfhv2nfzdut7ae2"},
+	}
+
+	for _, tc := range testCases {
+
+		address, err := PubkeyToAddress(tc.inputKey)
+		if err != nil {
+			panic(err)
+		}
+
+		if address.String() != tc.expected {
+			t.Fatalf("Expected: %t, got: %t", tc.expected, address)
+		}
+	}
+}
