@@ -28,6 +28,8 @@ func init() {
 
 	// When a wildcard path is passed
 	router.HandleFunc("wildcard/*/", wildcardHandler)
+
+	// Todo add query param examples
 }
 
 // Render displays the current number value, last update timestamp, and a link to call Add with 42
@@ -65,7 +67,7 @@ func profileHandler(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("name")
 	userData, _ := users.ResolveName(name)
 	if userData == nil {
-		out += "This name does not exist in the User Registry!"
+		out += "This name does not exist in the [User Registry](/r/sys/users)!"
 		res.Write(out)
 		return
 	}
