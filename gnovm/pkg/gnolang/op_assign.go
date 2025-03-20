@@ -2,6 +2,7 @@ package gnolang
 
 func (m *Machine) doOpDefine() {
 	s := m.PopStmt().(*AssignStmt)
+	//fmt.Println("doOpDefine, s:", s)
 	// Define each value evaluated for Lhs.
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.
@@ -10,6 +11,7 @@ func (m *Machine) doOpDefine() {
 	for i := 0; i < len(s.Lhs); i++ {
 		// Get name and value of i'th term.
 		nx := s.Lhs[i].(*NameExpr)
+		//fmt.Println("nx:", nx)
 		// Finally, define (or assign if loop block).
 		ptr := lb.GetPointerToMaybeHeapDefine(m.Store, nx)
 		if !m.PreprocessorMode && isUntyped(rvs[i].T) && rvs[i].T.Kind() != BoolKind {
