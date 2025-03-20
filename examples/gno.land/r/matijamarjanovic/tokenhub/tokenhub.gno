@@ -36,7 +36,7 @@ func init() {
 func RegisterToken(tokenGetter grc20.TokenGetter, slug string) {
 	rlmPath := std.PreviousRealm().PkgPath()
 	key := fqname.Construct(rlmPath, slug)
-	grc20reg.RegisterWithTokenhub(tokenGetter, key)
+	grc20reg.Register(tokenGetter, key)
 }
 
 // RegisterNFT is a function that registers an NFT in an avl.Tree
