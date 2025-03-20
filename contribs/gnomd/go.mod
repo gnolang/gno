@@ -1,6 +1,7 @@
 module github.com/gnolang/gno/contribs/gnomd
 
-go 1.22
+go 1.23.0
+
 toolchain go1.24.1
 
 require github.com/MichaelMure/go-term-markdown v0.1.4
