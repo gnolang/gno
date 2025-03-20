@@ -27,10 +27,9 @@ func NewCooldownLimiter(cooldown time.Duration, dbPath string) *CooldownLimiter 
 	}
 }
 
-// CheckCooldown checks if a key has done some action before the cooldown period has passed
-// Returns true if the key is not on cooldown setting
-// Returns false if the key is on cooldown
-// also marks the key as on cooldown before returning
+// CheckCooldown checks if a key can make a claim or if it is still within the cooldown period
+// Returns true if the key is not on cooldown, and marks the key as on cooldown
+// Returns false if the key is on cooldown or if an error occurs
 func (rl *CooldownLimiter) CheckCooldown(key string) (bool, error) {
 	isOnCooldown, err := rl.isOnCooldown(key)
 	if err != nil {
