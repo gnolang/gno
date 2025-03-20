@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"regexp"
 	"strconv"
 	"time"
@@ -50,20 +51,20 @@ type SiteVerifyResponse struct {
 }
 
 type serveCfg struct {
-	listenAddress string
-	dbPath        string
-	chainID       string
-	mnemonic      string
-	maxSendAmount string
-	numAccounts   uint64
+	listenAddress  string
+	dbPath         string
+	cooldownPeriod time.Duration
+	chainID        string
+	mnemonic       string
+	maxSendAmount  string
+	numAccounts    uint64
 
 	remote string
 
-	captchaSecret  string
-	ghClientID     string
-	maxBalance     int64
-	ghClientSecret string
-	isBehindProxy  bool
+	captchaSecret string
+	ghClientID    string
+	maxBalance    int64
+	isBehindProxy bool
 }
 
 func newServeCmd() *commands.Command {
@@ -133,13 +134,6 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
-		&c.ghClientSecret,
-		"github-client-secret",
-		"",
-		"github client secret for oauth authentication (if empty, middleware is disabled)",
-	)
-
-	fs.StringVar(
 		&c.ghClientID,
 		"github-client-id",
 		"",
@@ -165,6 +159,13 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 		"db-path",
 		defaultDBPath,
 		"local db path for keeping the cooldown state",
+	)
+
+	fs.DurationVar(
+		&c.cooldownPeriod,
+		"cooldown-period",
+		24*time.Hour,
+		"minimum required time between consecutive faucet claims by the same user",
 	)
 }
 
@@ -220,10 +221,10 @@ func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
 		),
 	)
 
-	// Create cooldown limiter
-	st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
 	// Start throttled faucet.
-	cooldownLimiter := NewCooldownLimiter(defaultRateLimitInterval, cfg.dbPath)
+	st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
+	// Create cooldown limiter
+	cooldownLimiter := NewCooldownLimiter(cfg.cooldownPeriod, cfg.dbPath)
 	st.start(ctx)
 
 	// Prepare the middlewares
@@ -231,7 +232,7 @@ func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
 		getIPMiddleware(cfg.isBehindProxy, st),
 		getCaptchaMiddleware(cfg.captchaSecret),
 		getAccountBalanceMiddleware(cli, cfg.maxBalance),
-		getGithubMiddleware(cfg.ghClientID, cfg.ghClientSecret, cooldownLimiter),
+		getGithubMiddleware(cfg.ghClientID, os.Getenv("GH_CLIENT_SECRET"), cooldownLimiter),
 	}
 
 	// Create a new faucet with

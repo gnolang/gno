@@ -8,7 +8,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// CooldownLimiter is a Limiter using an in-memory map
+// CooldownLimiter is a limits a specific user to one claim per cooldown period
+// this limiter keeps track of which keys are on cooldown using a badger database (written to a local file)
 type CooldownLimiter struct {
 	cooldownDB   *badger.DB
 	cooldownTime time.Duration
@@ -48,12 +49,12 @@ func (rl *CooldownLimiter) isOnCooldown(key string) (bool, error) {
 		return err
 	})
 	if err != nil {
-		// Since we use badger's TTL feature to manage cooldown periods, 
+		// Since we use badger's TTL feature to manage cooldown periods,
 		// an ErrKeyNotFound simply indicates that the key is not on cooldown.
 		if errors.Is(err, badger.ErrKeyNotFound) {
 			return false, nil
 		}
-		
+
 		// Any other unexpected error is returned.
 		return false, err
 	}
@@ -64,7 +65,7 @@ func (rl *CooldownLimiter) isOnCooldown(key string) (bool, error) {
 
 func (rl *CooldownLimiter) markOnCooldown(key string) error {
 	return rl.cooldownDB.Update(func(txn *badger.Txn) error {
-		// The value set here does not matter, as we only rely on 
+		// The value set here does not matter, as we only rely on
 		// badger's TTL feature to check if a key is still on cooldown
 		e := badger.NewEntry([]byte(key), []byte("claimed")).WithTTL(rl.cooldownTime)
 		return txn.SetEntry(e)
