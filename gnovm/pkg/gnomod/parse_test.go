@@ -81,7 +81,7 @@ func TestModuleDeprecated(t *testing.T) {
 		{
 			desc: "deprecated_paragraph_space",
 			in: `// Deprecated: the next line has a space
-			// 
+			//
 			// c
 			module m`,
 			expected: "the next line has a space",
@@ -233,6 +233,97 @@ func TestParseGnoMod(t *testing.T) {
 				assert.ErrorContains(t, err, tc.errShouldContain)
 			} else {
 				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestParseWithInvalidModulePath tests that Parse correctly rejects gno.mod files
+// with invalid module paths.
+func TestParseWithInvalidModulePath(t *testing.T) {
+	tests := []struct {
+		name    string
+		modData string
+		errMsg  string
+	}{
+		{
+			name:    "valid module path",
+			modData: "module gno.land/p/demo/foo",
+			errMsg:  "",
+		},
+		{
+			name:    "module path with space",
+			modData: "module \"gno.land/p/demo/ foo\"",
+			errMsg:  "malformed import path \"gno.land/p/demo/ foo\": invalid char ' '",
+		},
+		{
+			name:    "module path with Unicode",
+			modData: "module gno.land/p/demo/한글",
+			errMsg:  "malformed import path \"gno.land/p/demo/한글\": invalid char '한'",
+		},
+		{
+			name:    "module path with invalid character",
+			modData: "module gno.land/p/demo/foo*bar",
+			errMsg:  "malformed import path \"gno.land/p/demo/foo*bar\": invalid char '*'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Parse("gno.mod", []byte(tt.modData))
+			if tt.errMsg != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestCreateGnoModFileWithInvalidPath tests that CreateGnoModFile correctly rejects
+// invalid module paths.
+func TestCreateGnoModFileWithInvalidPath(t *testing.T) {
+	tests := []struct {
+		name    string
+		modPath string
+		errMsg  string
+	}{
+		{
+			name:    "valid module path",
+			modPath: "gno.land/p/demo/foo",
+			errMsg:  "",
+		},
+		{
+			name:    "module path with space",
+			modPath: "gno.land/p/demo/ foo",
+			errMsg:  "malformed import path \"gno.land/p/demo/ foo\": invalid char ' '",
+		},
+		{
+			name:    "module path with Unicode",
+			modPath: "gno.land/p/demo/한글",
+			errMsg:  "malformed import path \"gno.land/p/demo/한글\": invalid char '한'",
+		},
+		{
+			name:    "module path with invalid character",
+			modPath: "gno.land/p/demo/foo*bar",
+			errMsg:  "malformed import path \"gno.land/p/demo/foo*bar\": invalid char '*'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir, cleanUpFn := testutils.NewTestCaseDir(t)
+			defer cleanUpFn()
+
+			err := CreateGnoModFile(tempDir, tt.modPath)
+			if tt.errMsg != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+			} else {
+				if err != nil && !assert.Contains(t, err.Error(), "dir") {
+					t.Errorf("unexpected error: %v", err)
+				}
 			}
 		})
 	}

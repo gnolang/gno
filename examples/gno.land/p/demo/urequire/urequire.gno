@@ -70,7 +70,7 @@ func NotPanics(t uassert.TestingT, f func(), msgs ...string) {
 	t.FailNow()
 }
 
-func Equal(t uassert.TestingT, expected, actual interface{}, msgs ...string) {
+func Equal(t uassert.TestingT, expected, actual any, msgs ...string) {
 	t.Helper()
 	if uassert.Equal(t, expected, actual, msgs...) {
 		return
@@ -78,7 +78,7 @@ func Equal(t uassert.TestingT, expected, actual interface{}, msgs ...string) {
 	t.FailNow()
 }
 
-func NotEqual(t uassert.TestingT, expected, actual interface{}, msgs ...string) {
+func NotEqual(t uassert.TestingT, expected, actual any, msgs ...string) {
 	t.Helper()
 	if uassert.NotEqual(t, expected, actual, msgs...) {
 		return
@@ -86,7 +86,7 @@ func NotEqual(t uassert.TestingT, expected, actual interface{}, msgs ...string) 
 	t.FailNow()
 }
 
-func Empty(t uassert.TestingT, obj interface{}, msgs ...string) {
+func Empty(t uassert.TestingT, obj any, msgs ...string) {
 	t.Helper()
 	if uassert.Empty(t, obj, msgs...) {
 		return
@@ -94,7 +94,7 @@ func Empty(t uassert.TestingT, obj interface{}, msgs ...string) {
 	t.FailNow()
 }
 
-func NotEmpty(t uassert.TestingT, obj interface{}, msgs ...string) {
+func NotEmpty(t uassert.TestingT, obj any, msgs ...string) {
 	t.Helper()
 	if uassert.NotEmpty(t, obj, msgs...) {
 		return

@@ -1,4 +1,4 @@
-package packages
+package packages_test
 
 import (
 	"os"
@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/stretchr/testify/require"
 )
 
@@ -112,22 +113,22 @@ func TestImports(t *testing.T) {
 	// - ignore subdirs
 	// - ignore duplicate
 	// - should be sorted
-	expected := map[FileKind][]string{
-		FileKindPackageSource: {
+	expected := map[packages.FileKind][]string{
+		packages.FileKindPackageSource: {
 			"gno.land/p/demo/pkg1",
 			"gno.land/p/demo/pkg2",
 			"std",
 		},
-		FileKindTest: {
+		packages.FileKindTest: {
 			"gno.land/p/demo/testpkg",
 			"testing",
 		},
-		FileKindXTest: {
+		packages.FileKindXTest: {
 			"gno.land/p/demo/testpkg",
 			"gno.land/p/demo/xtestdep",
 			"testing",
 		},
-		FileKindFiletest: {
+		packages.FileKindFiletest: {
 			"gno.land/p/demo/filetestdep",
 		},
 	}
@@ -145,11 +146,11 @@ func TestImports(t *testing.T) {
 	pkg, err := gnolang.ReadMemPackage(tmpDir, "test")
 	require.NoError(t, err)
 
-	importsMap, err := Imports(pkg, nil)
+	importsMap, err := packages.Imports(pkg, nil)
 	require.NoError(t, err)
 
 	// ignore specs
-	got := map[FileKind][]string{}
+	got := map[packages.FileKind][]string{}
 	for key, vals := range importsMap {
 		stringVals := make([]string, len(vals))
 		for i, val := range vals {

@@ -9,8 +9,8 @@ import (
 // Content represents a key-value pair where the Key can be either an int or string
 // and the Value can be any type.
 type Content struct {
-	Key   interface{}
-	Value interface{}
+	Key   any
+	Value any
 }
 
 // Less compares two Content records by their Keys.
@@ -120,7 +120,6 @@ func TestLen(t *testing.T) {
 	if length != 123 {
 		t.Errorf("Length is incorrect. Expected 123, but got %d.", length)
 	}
-
 }
 
 func TestHas(t *testing.T) {
@@ -400,7 +399,7 @@ func TestBTree(t *testing.T) {
 	// Create a B-Tree of degree 3
 	tree := New(WithDegree(3))
 
-	//insertData := []Content{}
+	// insertData := []Content{}
 	var insertData ContentSlice
 
 	// Insert integer keys
@@ -523,91 +522,14 @@ func TestBTree(t *testing.T) {
 	}
 }
 
-func TestStress(t *testing.T) {
-	// Loop through creating B-Trees with a range of degrees from 3 to 12, stepping by 3.
-	// Insert 1000 records into each tree, then search for each record.
-	// Delete half of the records, skipping every other one, then search for each record.
-
-	for degree := 3; degree <= 12; degree += 3 {
-		t.Logf("Testing B-Tree of degree %d\n", degree)
-		tree := New(WithDegree(degree))
-
-		// Insert 1000 records
-		t.Logf("Inserting 1000 records\n")
-		for i := 0; i < 1000; i++ {
-			content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
-			tree.Insert(content)
-		}
-
-		// Search for all records
-		for i := 0; i < 1000; i++ {
-			content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
-			val := tree.Get(content)
-			if val == nil {
-				t.Errorf("Expected key %v, but didn't find it", content.Key)
-			}
-		}
-
-		// Delete half of the records
-		for i := 0; i < 1000; i += 2 {
-			content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
-			tree.Delete(content)
-		}
-
-		// Search for all records
-		for i := 0; i < 1000; i++ {
-			content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
-			val := tree.Get(content)
-			if i%2 == 0 {
-				if val != nil {
-					t.Errorf("Didn't expect key %v, but found key:value %v:%v", content.Key, val.(Content).Key, val.(Content).Value)
-				}
-			} else {
-				if val == nil {
-					t.Errorf("Expected key %v, but didn't find it", content.Key)
-				}
-			}
-		}
-	}
-
-	// Now create a very large tree, with 100000 records
-	// Then delete roughly one third of them, using a very basic random number generation scheme
-	// (implement it right here) to determine which records to delete.
-	// Print a few lines using Logf to let the user know what's happening.
-
-	t.Logf("Testing B-Tree of degree 10 with 100000 records\n")
-	tree := New(WithDegree(10))
-
-	// Insert 100000 records
-	t.Logf("Inserting 100000 records\n")
-	for i := 0; i < 100000; i++ {
-		content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
-		tree.Insert(content)
-	}
-
-	// Implement a very basic random number generator
-	seed := 0
-	random := func() int {
-		seed = (seed*1103515245 + 12345) & 0x7fffffff
-		return seed
-	}
-
-	// Delete one third of the records
-	t.Logf("Deleting one third of the records\n")
-	for i := 0; i < 35000; i++ {
-		content := Content{Key: random() % 100000, Value: fmt.Sprintf("Value_%d", i)}
-		tree.Delete(content)
-	}
-}
-
-// Write a test that populates a large B-Tree with 10000 records.
+// Write a test that populates a large B-Tree with 1000 records.
 // It should then `Clone` the tree, make some changes to both the original and the clone,
 // And then clone the clone, and make some changes to all three trees, and then check that the changes are isolated
 // to the tree they were made in.
-
 func TestBTreeCloneIsolation(t *testing.T) {
-	t.Logf("Creating B-Tree of degree 10 with 10000 records\n")
-	tree := genericSeeding(New(WithDegree(10)), 10000)
+	t.Logf("Creating B-Tree of degree 10 with 1000 records\n")
+	size := 1000
+	tree := genericSeeding(New(WithDegree(10)), size)
 
 	// Clone the tree
 	t.Logf("Cloning the tree\n")
@@ -615,7 +537,7 @@ func TestBTreeCloneIsolation(t *testing.T) {
 
 	// Make some changes to the original and the clone
 	t.Logf("Making changes to the original and the clone\n")
-	for i := 0; i < 10000; i += 2 {
+	for i := 0; i < size; i += 2 {
 		content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
 		tree.Delete(content)
 		content = Content{Key: i + 1, Value: fmt.Sprintf("Value_%d", i+1)}
@@ -628,7 +550,7 @@ func TestBTreeCloneIsolation(t *testing.T) {
 
 	// Make some changes to all three trees
 	t.Logf("Making changes to all three trees\n")
-	for i := 0; i < 10000; i += 3 {
+	for i := 0; i < size; i += 3 {
 		content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
 		tree.Delete(content)
 		content = Content{Key: i, Value: fmt.Sprintf("Value_%d", i+1)}
@@ -639,7 +561,7 @@ func TestBTreeCloneIsolation(t *testing.T) {
 
 	// Check that the changes are isolated to the tree they were made in
 	t.Logf("Checking that the changes are isolated to the tree they were made in\n")
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < size; i++ {
 		content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
 		val := tree.Get(content)
 
@@ -676,3 +598,83 @@ func TestBTreeCloneIsolation(t *testing.T) {
 		}
 	}
 }
+
+// --------------------
+// Stress tests. Disabled for testing performance
+
+//func TestStress(t *testing.T) {
+//	// Loop through creating B-Trees with a range of degrees from 3 to 12, stepping by 3.
+//	// Insert 1000 records into each tree, then search for each record.
+//	// Delete half of the records, skipping every other one, then search for each record.
+//
+//	for degree := 3; degree <= 12; degree += 3 {
+//		t.Logf("Testing B-Tree of degree %d\n", degree)
+//		tree := New(WithDegree(degree))
+//
+//		// Insert 1000 records
+//		t.Logf("Inserting 1000 records\n")
+//		for i := 0; i < 1000; i++ {
+//			content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
+//			tree.Insert(content)
+//		}
+//
+//		// Search for all records
+//		for i := 0; i < 1000; i++ {
+//			content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
+//			val := tree.Get(content)
+//			if val == nil {
+//				t.Errorf("Expected key %v, but didn't find it", content.Key)
+//			}
+//		}
+//
+//		// Delete half of the records
+//		for i := 0; i < 1000; i += 2 {
+//			content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
+//			tree.Delete(content)
+//		}
+//
+//		// Search for all records
+//		for i := 0; i < 1000; i++ {
+//			content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
+//			val := tree.Get(content)
+//			if i%2 == 0 {
+//				if val != nil {
+//					t.Errorf("Didn't expect key %v, but found key:value %v:%v", content.Key, val.(Content).Key, val.(Content).Value)
+//				}
+//			} else {
+//				if val == nil {
+//					t.Errorf("Expected key %v, but didn't find it", content.Key)
+//				}
+//			}
+//		}
+//	}
+//
+//	// Now create a very large tree, with 100000 records
+//	// Then delete roughly one third of them, using a very basic random number generation scheme
+//	// (implement it right here) to determine which records to delete.
+//	// Print a few lines using Logf to let the user know what's happening.
+//
+//	t.Logf("Testing B-Tree of degree 10 with 100000 records\n")
+//	tree := New(WithDegree(10))
+//
+//	// Insert 100000 records
+//	t.Logf("Inserting 100000 records\n")
+//	for i := 0; i < 100000; i++ {
+//		content := Content{Key: i, Value: fmt.Sprintf("Value_%d", i)}
+//		tree.Insert(content)
+//	}
+//
+//	// Implement a very basic random number generator
+//	seed := 0
+//	random := func() int {
+//		seed = (seed*1103515245 + 12345) & 0x7fffffff
+//		return seed
+//	}
+//
+//	// Delete one third of the records
+//	t.Logf("Deleting one third of the records\n")
+//	for i := 0; i < 35000; i++ {
+//		content := Content{Key: random() % 100000, Value: fmt.Sprintf("Value_%d", i)}
+//		tree.Delete(content)
+//	}
+//}

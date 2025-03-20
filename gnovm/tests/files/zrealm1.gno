@@ -4,8 +4,8 @@ package test
 var root Node
 
 type (
-	Node interface{}
-	Key  interface{}
+	Node any
+	Key  any
 )
 
 type InnerNode struct {

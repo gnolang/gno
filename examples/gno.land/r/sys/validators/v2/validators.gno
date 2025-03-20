@@ -30,7 +30,7 @@ func addValidator(validator validators.Validator) {
 
 	// Validator added, note the change
 	ch := change{
-		blockNum:  std.GetHeight(),
+		blockNum:  std.ChainHeight(),
 		validator: val,
 	}
 
@@ -50,7 +50,7 @@ func removeValidator(address std.Address) {
 
 	// Validator removed, note the change
 	ch := change{
-		blockNum: std.GetHeight(),
+		blockNum: std.ChainHeight(),
 		validator: validators.Validator{
 			Address:     val.Address,
 			PubKey:      val.PubKey,
@@ -98,7 +98,7 @@ func Render(_ string) string {
 	}
 
 	output := "Valset changes:\n"
-	changes.ReverseIterateByOffset(size-maxDisplay, maxDisplay, func(_ string, value interface{}) bool {
+	changes.ReverseIterateByOffset(size-maxDisplay, maxDisplay, func(_ string, value any) bool {
 		chs := value.([]change)
 
 		for _, ch := range chs {

@@ -1,8 +1,6 @@
 module github.com/gnolang/gno/contribs/gnofaucet
 
-go 1.22.0
-
-toolchain go1.22.10
+go 1.23.6
 
 require (
 	github.com/gnolang/faucet v0.3.2
@@ -32,6 +30,7 @@ require (
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/sig-0/insertion-queue v0.0.0-20241004125609-6b3ca841346b // indirect
+	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/otel v1.34.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.34.0 // indirect

@@ -10,6 +10,8 @@ import (
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/pausable"
 	"gno.land/p/demo/seqid"
+
+	"gno.land/r/leon/config"
 )
 
 var (
@@ -24,7 +26,7 @@ type (
 	Exhibition struct {
 		itemCounter seqid.ID
 		description string
-		items       *avl.Tree // pkgPath > Item
+		items       *avl.Tree // pkgPath > &Item
 		itemsSorted *avl.Tree // same data but sorted, storing pointers
 	}
 
@@ -43,7 +45,7 @@ func init() {
 		itemsSorted: avl.NewTree(),
 	}
 
-	Ownable = ownable.NewWithAddress(std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"))
+	Ownable = ownable.NewWithAddress(config.OwnableMain.Owner()) // OrigSendOwnable?
 	Pausable = pausable.NewFromOwnable(Ownable)
 }
 
@@ -54,7 +56,7 @@ func Register() {
 		return
 	}
 
-	submission := std.PrevRealm()
+	submission := std.PreviousRealm()
 	pkgpath := submission.PkgPath()
 
 	// Must be called from code
@@ -71,7 +73,7 @@ func Register() {
 	i := &Item{
 		id:       id,
 		pkgpath:  pkgpath,
-		blockNum: std.GetHeight(),
+		blockNum: std.ChainHeight(),
 		upvote:   avl.NewTree(),
 		downvote: avl.NewTree(),
 	}
@@ -85,14 +87,14 @@ func Register() {
 func Upvote(pkgpath string) {
 	rawItem, ok := exhibition.items.Get(pkgpath)
 	if !ok {
-		panic(ErrNoSuchItem.Error())
+		panic(ErrNoSuchItem)
 	}
 
 	item := rawItem.(*Item)
-	caller := std.PrevRealm().Addr().String()
+	caller := std.PreviousRealm().Address().String()
 
 	if item.upvote.Has(caller) {
-		panic(ErrDoubleUpvote.Error())
+		panic(ErrDoubleUpvote)
 	}
 
 	item.upvote.Set(caller, struct{}{})
@@ -101,14 +103,14 @@ func Upvote(pkgpath string) {
 func Downvote(pkgpath string) {
 	rawItem, ok := exhibition.items.Get(pkgpath)
 	if !ok {
-		panic(ErrNoSuchItem.Error())
+		panic(ErrNoSuchItem)
 	}
 
 	item := rawItem.(*Item)
-	caller := std.PrevRealm().Addr().String()
+	caller := std.PreviousRealm().Address().String()
 
 	if item.downvote.Has(caller) {
-		panic(ErrDoubleDownvote.Error())
+		panic(ErrDoubleDownvote)
 	}
 
 	item.downvote.Set(caller, struct{}{})
@@ -116,19 +118,19 @@ func Downvote(pkgpath string) {
 
 func Delete(pkgpath string) {
 	if !Ownable.CallerIsOwner() {
-		panic(ownable.ErrUnauthorized.Error())
+		panic(ownable.ErrUnauthorized)
 	}
 
 	i, ok := exhibition.items.Get(pkgpath)
 	if !ok {
-		panic(ErrNoSuchItem.Error())
+		panic(ErrNoSuchItem)
 	}
 
 	if _, removed := exhibition.itemsSorted.Remove(i.(*Item).id.String()); !removed {
-		panic(ErrNoSuchItem.Error())
+		panic(ErrNoSuchItem)
 	}
 
 	if _, removed := exhibition.items.Remove(pkgpath); !removed {
-		panic(ErrNoSuchItem.Error())
+		panic(ErrNoSuchItem)
 	}
 }

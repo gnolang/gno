@@ -1,8 +1,8 @@
-# Run gno transpile with an individual file.
+# Run gno tool transpile with an individual file.
 
 # Running transpile on the current directory should only precompile
 # main.gno.
-gno transpile -v .
+gno tool transpile -v .
 
 ! stdout .+
 stderr ^\.$
@@ -12,7 +12,7 @@ exists main.gno.gen.go
 rm main.gno.gen.go
 
 # Running it using individual filenames should precompile hello_test.gno, as well.
-gno transpile -v main.gno hello_test.gno
+gno tool transpile -v main.gno hello_test.gno
 
 ! stdout .+
 cmp stderr transpile-files-stderr.golden
@@ -36,7 +36,7 @@ package main
 import "std"
 
 func hello() {
-	std.AssertOriginCall()
+	std.ChainID()
 }
 
 -- main.gno.gen.go.golden --
@@ -61,5 +61,5 @@ package main
 import "github.com/gnolang/gno/gnovm/stdlibs/std"
 
 func hello() {
-	std.AssertOriginCall(nil)
+	std.ChainID(nil)
 }
