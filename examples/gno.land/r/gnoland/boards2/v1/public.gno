@@ -653,13 +653,8 @@ func assertReplyBodyIsValid(body string) {
 }
 
 func assertMembersUpdateIsEnabled(boardID BoardID) {
-	// Realm members can be updated when realm members are not locked.
-	// Board members can be updated while the board is not locked or frozen.
 	if boardID != 0 {
 		assertRealmIsNotLocked()
-
-		board := mustGetBoard(boardID)
-		assertBoardIsNotFrozen(board)
 	} else {
 		assertRealmMembersAreNotLocked()
 	}

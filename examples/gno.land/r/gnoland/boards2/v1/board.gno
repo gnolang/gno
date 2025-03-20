@@ -168,12 +168,16 @@ func (board *Board) GetURLFromReplyID(threadID, replyID PostID) string {
 	return board.GetURL() + "/" + threadID.String() + "/" + replyID.String()
 }
 
-func (board *Board) GetRenameFormURL() string {
+func (board *Board) GetRenameFormURL() string { // TODO: These type of functions shouldn't be part of Board type
 	return txlink.Call("RenameBoard", "name", board.name)
 }
 
 func (board *Board) GetFreezeFormURL() string {
 	return txlink.Call("FreezeBoard", "boardID", board.id.String())
+}
+
+func (board *Board) GetUnfreezeFormURL() string {
+	return txlink.Call("UnfreezeBoard", "boardID", board.id.String())
 }
 
 func (board *Board) GetFlaggingThresholdFormURL() string {
@@ -182,14 +186,6 @@ func (board *Board) GetFlaggingThresholdFormURL() string {
 
 func (board *Board) GetInviteMemberFormURL() string {
 	return txlink.Call("InviteMember", "boardID", board.id.String())
-}
-
-func (board *Board) GetRemoveMemberFormURL(member std.Address) string {
-	return txlink.Call("RemoveMember", "boardID", board.id.String(), "user", member.String())
-}
-
-func (board *Board) GetChangeMemberRoleFormURL() string {
-	return txlink.Call("ChangeMemberRole", "boardID", board.id.String())
 }
 
 func (board *Board) GetPostFormURL() string {
