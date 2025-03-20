@@ -18,7 +18,6 @@ import (
 	"std"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/stdlibs/std"
 	"gno.land/p/moul/txlink"
 )
 
