@@ -2,6 +2,8 @@ package grc721remake
 
 import (
 	"std"
+
+	"gno.land/p/demo/avl"
 )
 
 // HookType represents the type of operation a hook is associated with
@@ -59,89 +61,128 @@ type BurnHook interface {
 	OnBurn(nft *NFT, tid TokenID) error
 }
 
-// HookRegistry manages a collection of hooks
+// HookRegistry manages a collection of hooks using a tree structure
 type HookRegistry struct {
-	hooks []Hook
+	hooks *avl.Tree
 }
 
 // NewHookRegistry creates a new hook registry
 func NewHookRegistry() *HookRegistry {
 	return &HookRegistry{
-		hooks: make([]Hook, 0),
+		hooks: avl.NewTree(),
 	}
 }
 
-// RegisterHook adds a hook to the registry
-func (reg *HookRegistry) RegisterHook(hook Hook) {
-	reg.hooks = append(reg.hooks, hook)
+// RegisterHookWithKey adds a hook to the registry with a specified key
+func (reg *HookRegistry) RegisterHook(key string, hook Hook) {
+	reg.hooks.Set(key, hook)
+}
+
+// GetHook retrieves a hook by its key
+func (reg *HookRegistry) GetHook(key string) (Hook, bool) {
+	value, exists := reg.hooks.Get(key)
+	if !exists {
+		return nil, false
+	}
+	return value.(Hook), true
 }
 
 // TriggerTransferHooks executes all transfer hooks of the specified time
 func (reg *HookRegistry) TriggerTransferHooks(nft *NFT, time HookTime, from, to std.Address, tid TokenID) error {
-	for _, hook := range reg.hooks {
+	var foundError error = nil
+
+	reg.hooks.Iterate("", "", func(key string, value any) bool {
+		hook := value.(Hook)
 		if hook.GetHookType() == HookTransfer && hook.GetHookTime() == time {
 			if transferHook, ok := hook.(TransferHook); ok {
 				if err := transferHook.OnTransfer(nft, from, to, tid); err != nil {
-					return err
+					foundError = err
+					return true
 				}
 			}
 		}
-	}
-	return nil
+		return false
+	})
+
+	return foundError
 }
 
 // TriggerApprovalHooks executes all approval hooks of the specified time
 func (reg *HookRegistry) TriggerApprovalHooks(nft *NFT, time HookTime, owner, approved std.Address, tid TokenID) error {
-	for _, hook := range reg.hooks {
+	var foundError error = nil
+
+	reg.hooks.Iterate("", "", func(key string, value any) bool {
+		hook := value.(Hook)
 		if hook.GetHookType() == HookApproval && hook.GetHookTime() == time {
 			if approvalHook, ok := hook.(ApprovalHook); ok {
 				if err := approvalHook.OnApproval(nft, owner, approved, tid); err != nil {
-					return err
+					foundError = err
+					return true
 				}
 			}
 		}
-	}
-	return nil
+		return false
+	})
+
+	return foundError
 }
 
 // TriggerApprovalForAllHooks executes all approvalForAll hooks of the specified time
 func (reg *HookRegistry) TriggerApprovalForAllHooks(nft *NFT, time HookTime, owner, operator std.Address, approved bool) error {
-	for _, hook := range reg.hooks {
+	var foundError error = nil
+
+	reg.hooks.Iterate("", "", func(key string, value any) bool {
+		hook := value.(Hook)
 		if hook.GetHookType() == HookApprovalForAll && hook.GetHookTime() == time {
 			if approvalForAllHook, ok := hook.(ApprovalForAllHook); ok {
 				if err := approvalForAllHook.OnApprovalForAll(nft, owner, operator, approved); err != nil {
-					return err
+					foundError = err
+					return true
 				}
 			}
 		}
-	}
-	return nil
+		return false
+	})
+
+	return foundError
 }
 
 // TriggerMintHooks executes all mint hooks of the specified time
 func (reg *HookRegistry) TriggerMintHooks(nft *NFT, time HookTime, to std.Address, tid TokenID) error {
-	for _, hook := range reg.hooks {
+	var foundError error = nil
+
+	reg.hooks.Iterate("", "", func(key string, value any) bool {
+		hook := value.(Hook)
 		if hook.GetHookType() == HookMint && hook.GetHookTime() == time {
 			if mintHook, ok := hook.(MintHook); ok {
 				if err := mintHook.OnMint(nft, to, tid); err != nil {
-					return err
+					foundError = err
+					return true
 				}
 			}
 		}
-	}
-	return nil
+		return false
+	})
+
+	return foundError
 }
 
 // TriggerBurnHooks executes all burn hooks of the specified time
 func (reg *HookRegistry) TriggerBurnHooks(nft *NFT, time HookTime, tid TokenID) error {
-	for _, hook := range reg.hooks {
+	var foundError error = nil
+
+	reg.hooks.Iterate("", "", func(key string, value any) bool {
+		hook := value.(Hook)
 		if hook.GetHookType() == HookBurn && hook.GetHookTime() == time {
 			if burnHook, ok := hook.(BurnHook); ok {
 				if err := burnHook.OnBurn(nft, tid); err != nil {
-					return err
+					foundError = err
+					return true
 				}
 			}
 		}
-	}
-	return nil
+		return false
+	})
+
+	return foundError
 }

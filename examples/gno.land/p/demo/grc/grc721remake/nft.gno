@@ -72,9 +72,19 @@ func (n *NFT) Getter() NFTGetter {
 	}
 }
 
-// RegisterHook registers a hook with the NFT's ledger
-func (n *NFT) RegisterHook(hook Hook) {
-	n.ledger.hookRegistry.RegisterHook(hook)
+// RegisterHook registers a hook with a specific key (admin only)
+func (led *PrivateLedger) RegisterHook(key string, hook Hook) error {
+	led.hookRegistry.RegisterHook(key, hook)
+	return nil
+}
+
+// GetHook retrieves a hook by its key
+func (led *PrivateLedger) GetHook(key string) (Hook, error) {
+	hook, found := led.hookRegistry.GetHook(key)
+	if !found {
+		return nil, ErrHookNotFound
+	}
+	return hook, nil
 }
 
 // SetTokenURI sets the URI for a token

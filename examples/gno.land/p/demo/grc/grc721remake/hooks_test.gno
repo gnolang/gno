@@ -94,7 +94,7 @@ func TestPausableHook(t *testing.T) {
 	nft, ledger := NewNFT("Dummy NFT", "DNFT")
 
 	pausable := &PausableHook{paused: false}
-	nft.RegisterHook(pausable)
+	ledger.RegisterHook("pausable", pausable)
 
 	urequire.NoError(t, ledger.Mint(alice, "token1"))
 	urequire.NoError(t, ledger.Transfer(alice, bob, "token1"))
@@ -103,7 +103,10 @@ func TestPausableHook(t *testing.T) {
 	urequire.NoError(t, err)
 	uassert.Equal(t, owner, bob, "token should be transferred to bob")
 
-	pausable.paused = true
+	retrievedHook, err := ledger.GetHook("pausable")
+	uassert.NoError(t, err)
+	pausableHook := retrievedHook.(*PausableHook)
+	pausableHook.paused = true
 
 	urequire.NoError(t, ledger.Mint(bob, "token2"))
 
@@ -135,7 +138,7 @@ func TestRoyaltyHook(t *testing.T) {
 		royaltyReceiver: creator,
 		royaltyPercent:  10,
 	}
-	nft.RegisterHook(royalty)
+	ledger.RegisterHook("royalty", royalty)
 
 	urequire.NoError(t, ledger.Mint(alice, "token1"))
 	urequire.NoError(t, ledger.Transfer(alice, bob, "token1"))
@@ -151,7 +154,7 @@ func TestLoggingHook(t *testing.T) {
 	nft, ledger := NewNFT("Logging NFT", "LNFT")
 
 	logger := &LoggingHook{}
-	nft.RegisterHook(logger)
+	ledger.RegisterHook("logging", logger)
 
 	urequire.NoError(t, ledger.Mint(alice, "token1"))
 }
@@ -165,7 +168,7 @@ func TestBurnLimitHook(t *testing.T) {
 		burnCount: 0,
 		maxBurns:  2,
 	}
-	nft.RegisterHook(burnLimit)
+	ledger.RegisterHook("burnLimit", burnLimit)
 
 	urequire.NoError(t, ledger.Mint(alice, "token1"))
 	urequire.NoError(t, ledger.Mint(alice, "token2"))
@@ -196,9 +199,9 @@ func TestMultipleHooks(t *testing.T) {
 	}
 	logger := &LoggingHook{}
 
-	nft.RegisterHook(pausable)
-	nft.RegisterHook(royalty)
-	nft.RegisterHook(logger)
+	ledger.RegisterHook("pausable", pausable)
+	ledger.RegisterHook("royalty", royalty)
+	ledger.RegisterHook("logging", logger)
 
 	urequire.NoError(t, ledger.Mint(alice, "token1"))
 

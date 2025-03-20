@@ -131,6 +131,7 @@ var (
 	ErrTokenIdAlreadyExists        = errors.New("token id already exists")
 	ErrEmptyTokenIDList            = errors.New("empty token ID list")
 	ErrReadOnly                    = errors.New("teller is readonly")
+	ErrHookNotFound                = errors.New("hook not found")
 )
 
 var zeroAddress std.Address
