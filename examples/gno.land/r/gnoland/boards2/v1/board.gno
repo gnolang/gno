@@ -108,7 +108,7 @@ func (board *Board) DeleteThread(pid PostID) {
 }
 
 // Render renders a board into Markdown.
-func (board *Board) Render(path string) string {
+func (board *Board) Render(path, menu string) string {
 	var sb strings.Builder
 
 	sb.WriteString("# " + board.GetName() + "  \n")
@@ -118,6 +118,14 @@ func (board *Board) Render(path string) string {
 
 	if board.IsReadonly() {
 		sb.WriteString("  \n_**Starting new threads and commenting is disabled**_")
+	}
+
+	// XXX: Menu is rendered by the caller to deal with links and sub-menus
+	// TODO: We should have the render logic separated from boards so avoid sending menu as argument
+	if menu != "" {
+		sb.WriteString("\n\n")
+		sb.WriteString(menu)
+		sb.WriteString("\n")
 	}
 
 	sb.WriteString("\n\n---\n")
