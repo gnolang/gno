@@ -22,6 +22,7 @@ const menuManageBoard = "manageBoard"
 func Render(path string) string {
 	router := mux.NewRouter()
 	router.HandleFunc("", renderBoardsList)
+	router.HandleFunc("help", renderHelp)
 	router.HandleFunc("admin-users", renderMembers)
 	router.HandleFunc("{board}", renderBoard)
 	router.HandleFunc("{board}/members", renderMembers)
@@ -33,6 +34,18 @@ func Render(path string) string {
 	}
 
 	return router.Render(path)
+}
+
+func renderHelp(res *mux.ResponseWriter, _ *mux.Request) {
+	res.Write("# Boards Help\n")
+	if gHelp != "" {
+		res.Write(gHelp)
+	} else {
+		res.Write("### Help content has not been uploaded\n")
+		res.Write("Do you want to ")
+		res.Write(newLink("upload boards help", txlink.Call("SetHelp")))
+		res.Write(" ?")
+	}
 }
 
 func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
@@ -82,6 +95,8 @@ func renderBoardListMenu(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(newLink("Create Board", txlink.Call("CreateBoard")))
 	res.Write(" • ")
 	res.Write(newLink("List Admin Users", path+":admin-users"))
+	res.Write(" • ")
+	res.Write(newLink("Help", path+":help"))
 	res.Write("\n\n")
 }
 
