@@ -15,6 +15,7 @@
 package helplink
 
 import (
+	"std"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/stdlibs/std"
