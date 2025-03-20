@@ -7,10 +7,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/go-github/v64/github"
+	"github.com/stretchr/testify/require"
 )
 
 // Mock function for exchangeCodeForToken
@@ -27,7 +30,7 @@ func TestGitHubMiddleware(t *testing.T) {
 	cooldown := 2 * time.Minute
 	exchangeCodeForUser = mockExchangeCodeForToken
 	t.Run("Midleware without credentials", func(t *testing.T) {
-		middleware := getGithubMiddleware("", "", getCooldownLimiter(t, t.Name(), cooldown))
+		middleware := getGithubMiddleware("", "", getCooldownLimiter(t, cooldown))
 		// Test missing clientID and secret, middleware does nothing
 		req := httptest.NewRequest("GET", "http://localhost", nil)
 		rec := httptest.NewRecorder()
@@ -43,7 +46,7 @@ func TestGitHubMiddleware(t *testing.T) {
 		}
 	})
 	t.Run("request without code", func(t *testing.T) {
-		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, t.Name(), cooldown))
+		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown))
 		req := httptest.NewRequest("GET", "http://localhost?code=", nil)
 		rec := httptest.NewRecorder()
 
@@ -59,7 +62,7 @@ func TestGitHubMiddleware(t *testing.T) {
 	})
 
 	t.Run("request invalid code", func(t *testing.T) {
-		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, t.Name(), cooldown))
+		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown))
 		req := httptest.NewRequest("GET", "http://localhost?code=invalid", nil)
 		rec := httptest.NewRecorder()
 
@@ -75,7 +78,7 @@ func TestGitHubMiddleware(t *testing.T) {
 	})
 
 	t.Run("OK", func(t *testing.T) {
-		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, t.Name(), cooldown))
+		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown))
 		req := httptest.NewRequest("GET", "http://localhost?code=valid", nil)
 		rec := httptest.NewRecorder()
 
@@ -91,7 +94,7 @@ func TestGitHubMiddleware(t *testing.T) {
 	})
 
 	t.Run("Cooldown active", func(t *testing.T) {
-		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, t.Name(), cooldown))
+		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown))
 		req := httptest.NewRequest("GET", "http://localhost?code=valid", nil)
 		rec := httptest.NewRecorder()
 
@@ -115,9 +118,17 @@ func TestGitHubMiddleware(t *testing.T) {
 	})
 }
 
-func getCooldownLimiter(t *testing.T, tempFile string, duration time.Duration) *CooldownLimiter {
+func getCooldownLimiter(t *testing.T, duration time.Duration) *CooldownLimiter {
 	t.Helper()
-
 	testDir := os.TempDir()
-	return NewCooldownLimiter(duration, testDir+"/"+tempFile)
+
+	file, err := os.CreateTemp(testDir, strings.ReplaceAll(t.Name(), "/", ""))
+	require.NoError(t, err)
+
+	limiter, err := NewCooldownLimiter(duration, path.Join(testDir, file.Name()))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		os.Remove(file.Name())
+	})
+	return limiter
 }

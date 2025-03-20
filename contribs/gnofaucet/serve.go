@@ -224,7 +224,10 @@ func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
 	// Start throttled faucet.
 	st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
 	// Create cooldown limiter
-	cooldownLimiter := NewCooldownLimiter(cfg.cooldownPeriod, cfg.dbPath)
+	cooldownLimiter, err := NewCooldownLimiter(cfg.cooldownPeriod, cfg.dbPath)
+	if err != nil {
+		return fmt.Errorf("unable to create cooldown limiter, %w", err)
+	}
 	st.start(ctx)
 
 	// Prepare the middlewares

@@ -11,7 +11,8 @@ import (
 func TestCooldownLimiter(t *testing.T) {
 	testDir := os.TempDir()
 	cooldownDuration := time.Second
-	limiter := NewCooldownLimiter(cooldownDuration, testDir+"/db")
+	limiter, err := NewCooldownLimiter(cooldownDuration, testDir+"/db")
+	require.NoError(t, err)
 	user := "testUser"
 
 	// First check should be allowed

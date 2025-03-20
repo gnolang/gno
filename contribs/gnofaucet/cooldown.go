@@ -16,16 +16,16 @@ type CooldownLimiter struct {
 }
 
 // NewCooldownLimiter initializes a Cooldown Limiter with a given duration
-func NewCooldownLimiter(cooldown time.Duration, dbPath string) *CooldownLimiter {
+func NewCooldownLimiter(cooldown time.Duration, dbPath string) (*CooldownLimiter, error) {
 	db, err := badger.Open(badger.DefaultOptions(dbPath))
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("unable to open badger database, %w", err)
 	}
 
 	return &CooldownLimiter{
 		cooldownDB:   db,
 		cooldownTime: cooldown,
-	}
+	}, nil
 }
 
 // CheckCooldown checks if a key can make a claim or if it is still within the cooldown period
