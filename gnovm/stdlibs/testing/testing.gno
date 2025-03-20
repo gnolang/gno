@@ -2,7 +2,6 @@
 package testing
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -40,7 +39,7 @@ func Recover(result Setter) {
 }
 
 type Setter interface {
-	Set(v interface{})
+	Set(v any)
 }
 
 func Short() bool {
@@ -84,12 +83,12 @@ type testingFunc func(*T)
 // Not yet implemented:
 // func (t *T) Cleanup(f func()) {
 // func (t *T) Deadline() (deadline time.Time, ok bool)
-func (t *T) Error(args ...interface{}) {
+func (t *T) Error(args ...any) {
 	t.Log(args...)
 	t.Fail()
 }
 
-func (t *T) Errorf(format string, args ...interface{}) {
+func (t *T) Errorf(format string, args ...any) {
 	t.Logf(format, args...)
 	t.Fail()
 }
@@ -129,21 +128,21 @@ func (t *T) printFailure() {
 	}
 }
 
-func (t *T) Fatal(args ...interface{}) {
+func (t *T) Fatal(args ...any) {
 	t.Log(args...)
 	t.FailNow()
 }
 
-func (t *T) Fatalf(format string, args ...interface{}) {
+func (t *T) Fatalf(format string, args ...any) {
 	t.Logf(format, args...)
 	t.FailNow()
 }
 
-func (t *T) Log(args ...interface{}) {
+func (t *T) Log(args ...any) {
 	t.log(fmt.Sprintln(args...))
 }
 
-func (t *T) Logf(format string, args ...interface{}) {
+func (t *T) Logf(format string, args ...any) {
 	t.log(fmt.Sprintf(format, args...))
 	t.log(fmt.Sprintln())
 }
@@ -176,7 +175,7 @@ func (t *T) Setenv(key, value string) {
 	panic("not yet implemented")
 }
 
-func (t *T) Skip(args ...interface{}) {
+func (t *T) Skip(args ...any) {
 	t.Log(args...)
 	t.SkipNow()
 }
@@ -191,7 +190,7 @@ func (t *T) Skipped() bool {
 	return t.skipped
 }
 
-func (t *T) Skipf(format string, args ...interface{}) {
+func (t *T) Skipf(format string, args ...any) {
 	t.Logf(format, args...)
 	t.SkipNow()
 }
@@ -218,6 +217,18 @@ type Report struct {
 	Skipped bool
 }
 
+func (r *Report) marshal() string {
+	failed := "false"
+	skipped := "false"
+	if r.Failed {
+		failed = "true"
+	}
+	if r.Skipped {
+		skipped = "true"
+	}
+	return `{"Failed":` + failed + `,"Skipped":` + skipped + `}`
+}
+
 func (t *T) report() Report {
 	return Report{
 		Failed:  t.Failed(),
@@ -233,33 +244,33 @@ type B struct {
 	N int
 }
 
-func (b *B) Cleanup(f func())                          { panic("not yet implemented") }
-func (b *B) Error(args ...interface{})                 { panic("not yet implemented") }
-func (b *B) Errorf(format string, args ...interface{}) { panic("not yet implemented") }
-func (b *B) Fail()                                     { panic("not yet implemented") }
-func (b *B) FailNow()                                  { panic("not yet implemented") }
-func (b *B) Failed() bool                              { panic("not yet implemented") }
-func (b *B) Fatal(args ...interface{})                 { panic("not yet implemented") }
-func (b *B) Fatalf(format string, args ...interface{}) { panic("not yet implemented") }
-func (b *B) Helper()                                   { panic("not yet implemented") }
-func (b *B) Log(args ...interface{})                   { panic("not yet implemented") }
-func (b *B) Logf(format string, args ...interface{})   { panic("not yet implemented") }
-func (b *B) Name() string                              { panic("not yet implemented") }
-func (b *B) ReportAllocs()                             { panic("not yet implemented") }
-func (b *B) ReportMetric(n float64, unit string)       { panic("not yet implemented") }
-func (b *B) ResetTimer()                               { panic("not yet implemented") }
-func (b *B) Run(name string, f func(b *B)) bool        { panic("not yet implemented") }
-func (b *B) RunParallel(body func(*PB))                { panic("not yet implemented") }
-func (b *B) SetBytes(n int64)                          { panic("not yet implemented") }
-func (b *B) SetParallelism(p int)                      { panic("not yet implemented") }
-func (b *B) Setenv(key, value string)                  { panic("not yet implemented") }
-func (b *B) Skip(args ...interface{})                  { panic("not yet implemented") }
-func (b *B) SkipNow()                                  { panic("not yet implemented") }
-func (b *B) Skipf(format string, args ...interface{})  { panic("not yet implemented") }
-func (b *B) Skipped() bool                             { panic("not yet implemented") }
-func (b *B) StartTimer()                               { panic("not yet implemented") }
-func (b *B) StopTimer()                                { panic("not yet implemented") }
-func (b *B) TempDir() string                           { panic("not yet implemented") }
+func (b *B) Cleanup(f func())                    { panic("not yet implemented") }
+func (b *B) Error(args ...any)                   { panic("not yet implemented") }
+func (b *B) Errorf(format string, args ...any)   { panic("not yet implemented") }
+func (b *B) Fail()                               { panic("not yet implemented") }
+func (b *B) FailNow()                            { panic("not yet implemented") }
+func (b *B) Failed() bool                        { panic("not yet implemented") }
+func (b *B) Fatal(args ...any)                   { panic("not yet implemented") }
+func (b *B) Fatalf(format string, args ...any)   { panic("not yet implemented") }
+func (b *B) Helper()                             { panic("not yet implemented") }
+func (b *B) Log(args ...any)                     { panic("not yet implemented") }
+func (b *B) Logf(format string, args ...any)     { panic("not yet implemented") }
+func (b *B) Name() string                        { panic("not yet implemented") }
+func (b *B) ReportAllocs()                       { panic("not yet implemented") }
+func (b *B) ReportMetric(n float64, unit string) { panic("not yet implemented") }
+func (b *B) ResetTimer()                         { panic("not yet implemented") }
+func (b *B) Run(name string, f func(b *B)) bool  { panic("not yet implemented") }
+func (b *B) RunParallel(body func(*PB))          { panic("not yet implemented") }
+func (b *B) SetBytes(n int64)                    { panic("not yet implemented") }
+func (b *B) SetParallelism(p int)                { panic("not yet implemented") }
+func (b *B) Setenv(key, value string)            { panic("not yet implemented") }
+func (b *B) Skip(args ...any)                    { panic("not yet implemented") }
+func (b *B) SkipNow()                            { panic("not yet implemented") }
+func (b *B) Skipf(format string, args ...any)    { panic("not yet implemented") }
+func (b *B) Skipped() bool                       { panic("not yet implemented") }
+func (b *B) StartTimer()                         { panic("not yet implemented") }
+func (b *B) StopTimer()                          { panic("not yet implemented") }
+func (b *B) TempDir() string                     { panic("not yet implemented") }
 
 // ----------------------------------------
 // PB
@@ -303,8 +314,7 @@ func RunTest(runFlag string, verbose bool, test InternalTest) (ret string) {
 	}
 
 	report := t.report()
-	out, _ := json.Marshal(report)
-	return string(out)
+	return report.marshal()
 }
 
 func formatDur(dur int64) string {
@@ -322,8 +332,11 @@ func formatDur(dur int64) string {
 // used to calculate execution times; only present in testing stdlibs
 func unixNano() int64
 
+// recovers panics and returns their related stacktraces, as well
+func recoverWithStacktrace() (interface{}, string)
+
 // used to filter tests, we can't directly use regexp here due to a cyclic import; only present in testing stdlibs
-func matchString(pat, str string) (result bool, err error)
+func matchString(pat, str string) (bool, string)
 
 func tRunner(t *T, fn testingFunc, verbose bool) {
 	if !t.shouldRun(t.name) {
@@ -333,13 +346,13 @@ func tRunner(t *T, fn testingFunc, verbose bool) {
 	start := unixNano()
 
 	defer func() {
-		err := recover()
+		err, st := recoverWithStacktrace()
 		switch err.(type) {
 		case nil:
 		case skipErr:
 		default:
 			t.Fail()
-			fmt.Fprintf(os.Stderr, "panic: %v\n", err)
+			fmt.Fprintf(os.Stderr, "panic: %v\nStacktrace:\n%s\n", err, st)
 		}
 
 		dur := unixNano() - start

@@ -122,10 +122,6 @@ func _() {
 	_ = x[OpStructLit-80]
 	_ = x[OpFuncLit-81]
 	_ = x[OpConvert-82]
-	_ = x[OpArrayLitGoNative-96]
-	_ = x[OpSliceLitGoNative-97]
-	_ = x[OpStructLitGoNative-98]
-	_ = x[OpCallGoNative-99]
 	_ = x[OpFieldType-112]
 	_ = x[OpArrayType-113]
 	_ = x[OpSliceType-114]
@@ -135,7 +131,6 @@ func _() {
 	_ = x[OpFuncType-118]
 	_ = x[OpMapType-119]
 	_ = x[OpStructType-120]
-	_ = x[OpMaybeNativeType-121]
 	_ = x[OpAssign-128]
 	_ = x[OpAddAssign-129]
 	_ = x[OpSubAssign-130]
@@ -169,12 +164,11 @@ const (
 	_Op_name_1 = "OpUposOpUnegOpUnotOpUxor"
 	_Op_name_2 = "OpUrecvOpLorOpLandOpEqlOpNeqOpLssOpLeqOpGtrOpGeqOpAddOpSubOpBorOpXorOpMulOpQuoOpRemOpShlOpShrOpBandOpBandn"
 	_Op_name_3 = "OpEvalOpBinary1OpIndex1OpIndex2OpSelectorOpSliceOpStarOpRefOpTypeAssert1OpTypeAssert2OpStaticTypeOfOpCompositeLitOpArrayLitOpSliceLitOpSliceLit2OpMapLitOpStructLitOpFuncLitOpConvert"
-	_Op_name_4 = "OpArrayLitGoNativeOpSliceLitGoNativeOpStructLitGoNativeOpCallGoNative"
-	_Op_name_5 = "OpFieldTypeOpArrayTypeOpSliceTypeOpPointerTypeOpInterfaceTypeOpChanTypeOpFuncTypeOpMapTypeOpStructTypeOpMaybeNativeType"
-	_Op_name_6 = "OpAssignOpAddAssignOpSubAssignOpMulAssignOpQuoAssignOpRemAssignOpBandAssignOpBandnAssignOpBorAssignOpXorAssignOpShlAssignOpShrAssignOpDefineOpIncOpDec"
-	_Op_name_7 = "OpValueDeclOpTypeDecl"
-	_Op_name_8 = "OpStickyOpBodyOpForLoopOpRangeIterOpRangeIterStringOpRangeIterMapOpRangeIterArrayPtrOpReturnCallDefers"
-	_Op_name_9 = "OpVoid"
+	_Op_name_4 = "OpFieldTypeOpArrayTypeOpSliceTypeOpPointerTypeOpInterfaceTypeOpChanTypeOpFuncTypeOpMapTypeOpStructType"
+	_Op_name_5 = "OpAssignOpAddAssignOpSubAssignOpMulAssignOpQuoAssignOpRemAssignOpBandAssignOpBandnAssignOpBorAssignOpXorAssignOpShlAssignOpShrAssignOpDefineOpIncOpDec"
+	_Op_name_6 = "OpValueDeclOpTypeDecl"
+	_Op_name_7 = "OpStickyOpBodyOpForLoopOpRangeIterOpRangeIterStringOpRangeIterMapOpRangeIterArrayPtrOpReturnCallDefers"
+	_Op_name_8 = "OpVoid"
 )
 
 var (
@@ -182,11 +176,10 @@ var (
 	_Op_index_1 = [...]uint8{0, 6, 12, 18, 24}
 	_Op_index_2 = [...]uint8{0, 7, 12, 18, 23, 28, 33, 38, 43, 48, 53, 58, 63, 68, 73, 78, 83, 88, 93, 99, 106}
 	_Op_index_3 = [...]uint8{0, 6, 15, 23, 31, 41, 48, 54, 59, 72, 85, 99, 113, 123, 133, 144, 152, 163, 172, 181}
-	_Op_index_4 = [...]uint8{0, 18, 36, 55, 69}
-	_Op_index_5 = [...]uint8{0, 11, 22, 33, 46, 61, 71, 81, 90, 102, 119}
-	_Op_index_6 = [...]uint8{0, 8, 19, 30, 41, 52, 63, 75, 88, 99, 110, 121, 132, 140, 145, 150}
-	_Op_index_7 = [...]uint8{0, 11, 21}
-	_Op_index_8 = [...]uint8{0, 8, 14, 23, 34, 51, 65, 84, 102}
+	_Op_index_4 = [...]uint8{0, 11, 22, 33, 46, 61, 71, 81, 90, 102}
+	_Op_index_5 = [...]uint8{0, 8, 19, 30, 41, 52, 63, 75, 88, 99, 110, 121, 132, 140, 145, 150}
+	_Op_index_6 = [...]uint8{0, 11, 21}
+	_Op_index_7 = [...]uint8{0, 8, 14, 23, 34, 51, 65, 84, 102}
 )
 
 func (i Op) String() string {
@@ -202,23 +195,20 @@ func (i Op) String() string {
 	case 64 <= i && i <= 82:
 		i -= 64
 		return _Op_name_3[_Op_index_3[i]:_Op_index_3[i+1]]
-	case 96 <= i && i <= 99:
-		i -= 96
-		return _Op_name_4[_Op_index_4[i]:_Op_index_4[i+1]]
-	case 112 <= i && i <= 121:
+	case 112 <= i && i <= 120:
 		i -= 112
-		return _Op_name_5[_Op_index_5[i]:_Op_index_5[i+1]]
+		return _Op_name_4[_Op_index_4[i]:_Op_index_4[i+1]]
 	case 128 <= i && i <= 142:
 		i -= 128
-		return _Op_name_6[_Op_index_6[i]:_Op_index_6[i+1]]
+		return _Op_name_5[_Op_index_5[i]:_Op_index_5[i+1]]
 	case 144 <= i && i <= 145:
 		i -= 144
-		return _Op_name_7[_Op_index_7[i]:_Op_index_7[i+1]]
+		return _Op_name_6[_Op_index_6[i]:_Op_index_6[i+1]]
 	case 208 <= i && i <= 215:
 		i -= 208
-		return _Op_name_8[_Op_index_8[i]:_Op_index_8[i+1]]
+		return _Op_name_7[_Op_index_7[i]:_Op_index_7[i+1]]
 	case i == 255:
-		return _Op_name_9
+		return _Op_name_8
 	default:
 		return "Op(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
@@ -229,13 +219,12 @@ func _() {
 	var x [1]struct{}
 	_ = x[TRANS_CONTINUE-0]
 	_ = x[TRANS_SKIP-1]
-	_ = x[TRANS_BREAK-2]
-	_ = x[TRANS_EXIT-3]
+	_ = x[TRANS_EXIT-2]
 }
 
-const _TransCtrl_name = "TRANS_CONTINUETRANS_SKIPTRANS_BREAKTRANS_EXIT"
+const _TransCtrl_name = "TRANS_CONTINUETRANS_SKIPTRANS_EXIT"
 
-var _TransCtrl_index = [...]uint8{0, 14, 24, 35, 45}
+var _TransCtrl_index = [...]uint8{0, 14, 24, 34}
 
 func (i TransCtrl) String() string {
 	if i >= TransCtrl(len(_TransCtrl_index)-1) {
@@ -282,56 +271,55 @@ func _() {
 	_ = x[TRANS_MAPTYPE_KEY-32]
 	_ = x[TRANS_MAPTYPE_VALUE-33]
 	_ = x[TRANS_STRUCTTYPE_FIELD-34]
-	_ = x[TRANS_MAYBENATIVETYPE_TYPE-35]
-	_ = x[TRANS_ASSIGN_LHS-36]
-	_ = x[TRANS_ASSIGN_RHS-37]
-	_ = x[TRANS_BLOCK_BODY-38]
-	_ = x[TRANS_DECL_BODY-39]
-	_ = x[TRANS_DEFER_CALL-40]
-	_ = x[TRANS_EXPR_X-41]
-	_ = x[TRANS_FOR_INIT-42]
-	_ = x[TRANS_FOR_COND-43]
-	_ = x[TRANS_FOR_POST-44]
-	_ = x[TRANS_FOR_BODY-45]
-	_ = x[TRANS_GO_CALL-46]
-	_ = x[TRANS_IF_INIT-47]
-	_ = x[TRANS_IF_COND-48]
-	_ = x[TRANS_IF_BODY-49]
-	_ = x[TRANS_IF_ELSE-50]
-	_ = x[TRANS_IF_CASE_BODY-51]
-	_ = x[TRANS_INCDEC_X-52]
-	_ = x[TRANS_RANGE_X-53]
-	_ = x[TRANS_RANGE_KEY-54]
-	_ = x[TRANS_RANGE_VALUE-55]
-	_ = x[TRANS_RANGE_BODY-56]
-	_ = x[TRANS_RETURN_RESULT-57]
-	_ = x[TRANS_PANIC_EXCEPTION-58]
-	_ = x[TRANS_SELECT_CASE-59]
-	_ = x[TRANS_SELECTCASE_COMM-60]
-	_ = x[TRANS_SELECTCASE_BODY-61]
-	_ = x[TRANS_SEND_CHAN-62]
-	_ = x[TRANS_SEND_VALUE-63]
-	_ = x[TRANS_SWITCH_INIT-64]
-	_ = x[TRANS_SWITCH_X-65]
-	_ = x[TRANS_SWITCH_CASE-66]
-	_ = x[TRANS_SWITCHCASE_CASE-67]
-	_ = x[TRANS_SWITCHCASE_BODY-68]
-	_ = x[TRANS_FUNC_RECV-69]
-	_ = x[TRANS_FUNC_TYPE-70]
-	_ = x[TRANS_FUNC_BODY-71]
-	_ = x[TRANS_IMPORT_PATH-72]
-	_ = x[TRANS_CONST_TYPE-73]
-	_ = x[TRANS_CONST_VALUE-74]
-	_ = x[TRANS_VAR_NAME-75]
-	_ = x[TRANS_VAR_TYPE-76]
-	_ = x[TRANS_VAR_VALUE-77]
-	_ = x[TRANS_TYPE_TYPE-78]
-	_ = x[TRANS_FILE_BODY-79]
+	_ = x[TRANS_ASSIGN_LHS-35]
+	_ = x[TRANS_ASSIGN_RHS-36]
+	_ = x[TRANS_BLOCK_BODY-37]
+	_ = x[TRANS_DECL_BODY-38]
+	_ = x[TRANS_DEFER_CALL-39]
+	_ = x[TRANS_EXPR_X-40]
+	_ = x[TRANS_FOR_INIT-41]
+	_ = x[TRANS_FOR_COND-42]
+	_ = x[TRANS_FOR_POST-43]
+	_ = x[TRANS_FOR_BODY-44]
+	_ = x[TRANS_GO_CALL-45]
+	_ = x[TRANS_IF_INIT-46]
+	_ = x[TRANS_IF_COND-47]
+	_ = x[TRANS_IF_BODY-48]
+	_ = x[TRANS_IF_ELSE-49]
+	_ = x[TRANS_IF_CASE_BODY-50]
+	_ = x[TRANS_INCDEC_X-51]
+	_ = x[TRANS_RANGE_X-52]
+	_ = x[TRANS_RANGE_KEY-53]
+	_ = x[TRANS_RANGE_VALUE-54]
+	_ = x[TRANS_RANGE_BODY-55]
+	_ = x[TRANS_RETURN_RESULT-56]
+	_ = x[TRANS_PANIC_EXCEPTION-57]
+	_ = x[TRANS_SELECT_CASE-58]
+	_ = x[TRANS_SELECTCASE_COMM-59]
+	_ = x[TRANS_SELECTCASE_BODY-60]
+	_ = x[TRANS_SEND_CHAN-61]
+	_ = x[TRANS_SEND_VALUE-62]
+	_ = x[TRANS_SWITCH_INIT-63]
+	_ = x[TRANS_SWITCH_X-64]
+	_ = x[TRANS_SWITCH_CASE-65]
+	_ = x[TRANS_SWITCHCASE_CASE-66]
+	_ = x[TRANS_SWITCHCASE_BODY-67]
+	_ = x[TRANS_FUNC_RECV-68]
+	_ = x[TRANS_FUNC_TYPE-69]
+	_ = x[TRANS_FUNC_BODY-70]
+	_ = x[TRANS_IMPORT_PATH-71]
+	_ = x[TRANS_CONST_TYPE-72]
+	_ = x[TRANS_CONST_VALUE-73]
+	_ = x[TRANS_VAR_NAME-74]
+	_ = x[TRANS_VAR_TYPE-75]
+	_ = x[TRANS_VAR_VALUE-76]
+	_ = x[TRANS_TYPE_TYPE-77]
+	_ = x[TRANS_FILE_BODY-78]
 }
 
-const _TransField_name = "TRANS_ROOTTRANS_BINARY_LEFTTRANS_BINARY_RIGHTTRANS_CALL_FUNCTRANS_CALL_ARGTRANS_INDEX_XTRANS_INDEX_INDEXTRANS_SELECTOR_XTRANS_SLICE_XTRANS_SLICE_LOWTRANS_SLICE_HIGHTRANS_SLICE_MAXTRANS_STAR_XTRANS_REF_XTRANS_TYPEASSERT_XTRANS_TYPEASSERT_TYPETRANS_UNARY_XTRANS_COMPOSITE_TYPETRANS_COMPOSITE_KEYTRANS_COMPOSITE_VALUETRANS_FUNCLIT_TYPETRANS_FUNCLIT_HEAP_CAPTURETRANS_FUNCLIT_BODYTRANS_FIELDTYPE_TYPETRANS_FIELDTYPE_TAGTRANS_ARRAYTYPE_LENTRANS_ARRAYTYPE_ELTTRANS_SLICETYPE_ELTTRANS_INTERFACETYPE_METHODTRANS_CHANTYPE_VALUETRANS_FUNCTYPE_PARAMTRANS_FUNCTYPE_RESULTTRANS_MAPTYPE_KEYTRANS_MAPTYPE_VALUETRANS_STRUCTTYPE_FIELDTRANS_MAYBENATIVETYPE_TYPETRANS_ASSIGN_LHSTRANS_ASSIGN_RHSTRANS_BLOCK_BODYTRANS_DECL_BODYTRANS_DEFER_CALLTRANS_EXPR_XTRANS_FOR_INITTRANS_FOR_CONDTRANS_FOR_POSTTRANS_FOR_BODYTRANS_GO_CALLTRANS_IF_INITTRANS_IF_CONDTRANS_IF_BODYTRANS_IF_ELSETRANS_IF_CASE_BODYTRANS_INCDEC_XTRANS_RANGE_XTRANS_RANGE_KEYTRANS_RANGE_VALUETRANS_RANGE_BODYTRANS_RETURN_RESULTTRANS_PANIC_EXCEPTIONTRANS_SELECT_CASETRANS_SELECTCASE_COMMTRANS_SELECTCASE_BODYTRANS_SEND_CHANTRANS_SEND_VALUETRANS_SWITCH_INITTRANS_SWITCH_XTRANS_SWITCH_CASETRANS_SWITCHCASE_CASETRANS_SWITCHCASE_BODYTRANS_FUNC_RECVTRANS_FUNC_TYPETRANS_FUNC_BODYTRANS_IMPORT_PATHTRANS_CONST_TYPETRANS_CONST_VALUETRANS_VAR_NAMETRANS_VAR_TYPETRANS_VAR_VALUETRANS_TYPE_TYPETRANS_FILE_BODY"
+const _TransField_name = "TRANS_ROOTTRANS_BINARY_LEFTTRANS_BINARY_RIGHTTRANS_CALL_FUNCTRANS_CALL_ARGTRANS_INDEX_XTRANS_INDEX_INDEXTRANS_SELECTOR_XTRANS_SLICE_XTRANS_SLICE_LOWTRANS_SLICE_HIGHTRANS_SLICE_MAXTRANS_STAR_XTRANS_REF_XTRANS_TYPEASSERT_XTRANS_TYPEASSERT_TYPETRANS_UNARY_XTRANS_COMPOSITE_TYPETRANS_COMPOSITE_KEYTRANS_COMPOSITE_VALUETRANS_FUNCLIT_TYPETRANS_FUNCLIT_HEAP_CAPTURETRANS_FUNCLIT_BODYTRANS_FIELDTYPE_TYPETRANS_FIELDTYPE_TAGTRANS_ARRAYTYPE_LENTRANS_ARRAYTYPE_ELTTRANS_SLICETYPE_ELTTRANS_INTERFACETYPE_METHODTRANS_CHANTYPE_VALUETRANS_FUNCTYPE_PARAMTRANS_FUNCTYPE_RESULTTRANS_MAPTYPE_KEYTRANS_MAPTYPE_VALUETRANS_STRUCTTYPE_FIELDTRANS_ASSIGN_LHSTRANS_ASSIGN_RHSTRANS_BLOCK_BODYTRANS_DECL_BODYTRANS_DEFER_CALLTRANS_EXPR_XTRANS_FOR_INITTRANS_FOR_CONDTRANS_FOR_POSTTRANS_FOR_BODYTRANS_GO_CALLTRANS_IF_INITTRANS_IF_CONDTRANS_IF_BODYTRANS_IF_ELSETRANS_IF_CASE_BODYTRANS_INCDEC_XTRANS_RANGE_XTRANS_RANGE_KEYTRANS_RANGE_VALUETRANS_RANGE_BODYTRANS_RETURN_RESULTTRANS_PANIC_EXCEPTIONTRANS_SELECT_CASETRANS_SELECTCASE_COMMTRANS_SELECTCASE_BODYTRANS_SEND_CHANTRANS_SEND_VALUETRANS_SWITCH_INITTRANS_SWITCH_XTRANS_SWITCH_CASETRANS_SWITCHCASE_CASETRANS_SWITCHCASE_BODYTRANS_FUNC_RECVTRANS_FUNC_TYPETRANS_FUNC_BODYTRANS_IMPORT_PATHTRANS_CONST_TYPETRANS_CONST_VALUETRANS_VAR_NAMETRANS_VAR_TYPETRANS_VAR_VALUETRANS_TYPE_TYPETRANS_FILE_BODY"
 
-var _TransField_index = [...]uint16{0, 10, 27, 45, 60, 74, 87, 104, 120, 133, 148, 164, 179, 191, 202, 220, 241, 254, 274, 293, 314, 332, 358, 376, 396, 415, 434, 453, 472, 498, 518, 538, 559, 576, 595, 617, 643, 659, 675, 691, 706, 722, 734, 748, 762, 776, 790, 803, 816, 829, 842, 855, 873, 887, 900, 915, 932, 948, 967, 988, 1005, 1026, 1047, 1062, 1078, 1095, 1109, 1126, 1147, 1168, 1183, 1198, 1213, 1230, 1246, 1263, 1277, 1291, 1306, 1321, 1336}
+var _TransField_index = [...]uint16{0, 10, 27, 45, 60, 74, 87, 104, 120, 133, 148, 164, 179, 191, 202, 220, 241, 254, 274, 293, 314, 332, 358, 376, 396, 415, 434, 453, 472, 498, 518, 538, 559, 576, 595, 617, 633, 649, 665, 680, 696, 708, 722, 736, 750, 764, 777, 790, 803, 816, 829, 847, 861, 874, 889, 906, 922, 941, 962, 979, 1000, 1021, 1036, 1052, 1069, 1083, 1100, 1121, 1142, 1157, 1172, 1187, 1204, 1220, 1237, 1251, 1265, 1280, 1295, 1310}
 
 func (i TransField) String() string {
 	if i >= TransField(len(_TransField_index)-1) {
@@ -354,13 +342,11 @@ func _() {
 	_ = x[VPDerefValMethod-19]
 	_ = x[VPDerefPtrMethod-20]
 	_ = x[VPDerefInterface-21]
-	_ = x[VPNative-32]
 }
 
 const (
 	_VPType_name_0 = "VPUverseVPBlockVPFieldVPValMethodVPPtrMethodVPInterfaceVPSubrefField"
 	_VPType_name_1 = "VPDerefFieldVPDerefValMethodVPDerefPtrMethodVPDerefInterface"
-	_VPType_name_2 = "VPNative"
 )
 
 var (
@@ -375,8 +361,6 @@ func (i VPType) String() string {
 	case 18 <= i && i <= 21:
 		i -= 18
 		return _VPType_name_1[_VPType_index_1[i]:_VPType_index_1[i+1]]
-	case i == 32:
-		return _VPType_name_2
 	default:
 		return "VPType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}

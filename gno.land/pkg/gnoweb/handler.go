@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"path/filepath"
+	"path"
+	"slices"
 	"strings"
 	"time"
 
@@ -207,14 +208,14 @@ func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) 
 		}
 	}
 
-	realmName := filepath.Base(gnourl.Path)
+	realmName := path.Base(gnourl.Path)
 	return http.StatusOK, components.HelpView(components.HelpData{
 		SelectedFunc: selFn,
 		SelectedArgs: selArgs,
 		RealmName:    realmName,
 		// TODO: get chain domain and use that.
 		ChainId:   h.Static.ChainId,
-		PkgPath:   filepath.Join(h.Static.Domain, gnourl.Path),
+		PkgPath:   path.Join(h.Static.Domain, gnourl.Path),
 		Remote:    h.Static.RemoteHelp,
 		Functions: fsigs,
 	})
@@ -316,8 +317,29 @@ func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
 		})
 	}
 
-	if args := url.EncodeArgs(); args != "" {
-		data.Args = args
+	// Add args
+	if url.Args != "" {
+		argSplit := strings.Split(url.Args, "/")
+		nonEmptyArgs := slices.DeleteFunc(argSplit, func(a string) bool {
+			return a == ""
+		})
+
+		for i := range nonEmptyArgs {
+			data.ArgParts = append(data.ArgParts, components.BreadcrumbPart{
+				Name: nonEmptyArgs[i],
+				URL:  url.Path + ":" + strings.Join(nonEmptyArgs[:i+1], "/"),
+			})
+		}
+	}
+
+	// Add query params
+	for key, values := range url.Query {
+		for _, v := range values {
+			data.Queries = append(data.Queries, components.QueryParam{
+				Key:   key,
+				Value: v,
+			})
+		}
 	}
 
 	return data

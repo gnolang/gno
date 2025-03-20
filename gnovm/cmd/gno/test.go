@@ -26,6 +26,8 @@ type testCfg struct {
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
 	printEvents         bool
+	debug               bool
+	debugAddr           string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -143,6 +145,20 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		false,
 		"print emitted events",
 	)
+
+	fs.BoolVar(
+		&c.debug,
+		"debug",
+		false,
+		"enable interactive debugger using stdin and stdout",
+	)
+
+	fs.StringVar(
+		&c.debugAddr,
+		"debug-addr",
+		"",
+		"enable interactive debugger using tcp address in the form [host]:port",
+	)
 }
 
 func execTest(cfg *testCfg, args []string, io commands.IO) error {
@@ -183,12 +199,13 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	if cfg.verbose {
 		stdout = io.Out()
 	}
-	opts := test.NewTestOptions(cfg.rootDir, io.In(), stdout, io.Err())
+	opts := test.NewTestOptions(cfg.rootDir, stdout, io.Err())
 	opts.RunFlag = cfg.run
 	opts.Sync = cfg.updateGoldenTests
 	opts.Verbose = cfg.verbose
 	opts.Metrics = cfg.printRuntimeMetrics
 	opts.Events = cfg.printEvents
+	opts.Debug = cfg.debug
 
 	buildErrCount := 0
 	testErrCount := 0
@@ -213,10 +230,24 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 		memPkg := gno.MustReadMemPackage(pkg.Dir, gnoPkgPath)
 
+		var hasError bool
+
 		startedAt := time.Now()
-		hasError := catchRuntimeError(gnoPkgPath, io.Err(), func() {
+		runtimeError := catchRuntimeError(gnoPkgPath, io.Err(), func() {
+			if modfile == nil || !modfile.Draft {
+				foundErr, lintErr := lintTypeCheck(io, memPkg, opts.TestStore)
+				if lintErr != nil {
+					io.ErrPrintln(lintErr)
+					hasError = true
+				} else if foundErr {
+					hasError = true
+				}
+			} else if cfg.verbose {
+				io.ErrPrintfln("%s: module is draft, skipping type check", gnoPkgPath)
+			}
 			err = test.Test(memPkg, pkg.Dir, opts)
 		})
+		hasError = hasError || runtimeError
 
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
@@ -225,9 +256,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			if err != nil {
 				io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, err)
 			}
-			io.ErrPrintfln("FAIL")
 			io.ErrPrintfln("FAIL    %s \t%s", pkg.Dir, dstr)
-			io.ErrPrintfln("FAIL")
 			testErrCount++
 		} else {
 			io.ErrPrintfln("ok      %s \t%s", pkg.Dir, dstr)

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"path/filepath"
+	gopath "path"
 	"regexp"
 	"slices"
 	"strings"
@@ -21,7 +21,7 @@ type GnoURL struct {
 	// gno.land/r/demo/users/render.gno:jae$help&a=b?c=d
 
 	Domain   string     // gno.land
-	Path     string     // /r/demo/users
+	Path     string     // /r/gnoland/users/v1
 	Args     string     // jae
 	WebQuery url.Values // help&a=b
 	Query    url.Values // c=d
@@ -126,7 +126,7 @@ func (gnoURL GnoURL) EncodeArgs() string {
 // EncodeURL encodes the path, arguments, and query parameters into a string.
 // This function provides the full representation of the URL without the web query.
 func (gnoURL GnoURL) EncodeURL() string {
-	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeQuery)
+	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeQuery | EncodeNoEscape)
 }
 
 // EncodeWebURL encodes the path, package arguments, web query, and query into a string.
@@ -179,8 +179,8 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 
 	// A file is considered as one that either ends with an extension or
 	// contains an uppercase rune
-	ext := filepath.Ext(upath)
-	base := filepath.Base(upath)
+	ext := gopath.Ext(upath)
+	base := gopath.Base(upath)
 	if ext != "" || strings.ToLower(base) != base {
 		file = base
 		upath = strings.TrimSuffix(upath, base)
