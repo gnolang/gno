@@ -112,42 +112,47 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	board := v.(*Board)
-	renderBoardMenu(board, res, req)
+	menu := renderBoardMenu(board, req)
 
-	res.Write(board.Render(req.RawPath))
+	res.Write(board.Render(req.RawPath, menu))
 }
 
-func renderBoardMenu(board *Board, res *mux.ResponseWriter, req *mux.Request) {
-	boardMembersURL := board.GetPath() + "/members"
+func renderBoardMenu(board *Board, req *mux.Request) string {
+	var (
+		b               strings.Builder
+		boardMembersURL = board.GetPath() + "/members"
+	)
 
 	if board.IsReadonly() {
-		res.Write(newLink("List Members", boardMembersURL))
-		res.Write(" • ")
-		res.Write(newLink("Unfreeze Board", board.GetUnfreezeFormURL()))
-		res.Write("\n")
+		b.WriteString(newLink("List Members", boardMembersURL))
+		b.WriteString(" • ")
+		b.WriteString(newLink("Unfreeze Board", board.GetUnfreezeFormURL()))
+		b.WriteString("\n")
 	} else {
-		res.Write(newLink("Create Thread", board.GetPostFormURL()))
-		res.Write(" • ")
+		b.WriteString(newLink("Create Thread", board.GetPostFormURL()))
+		b.WriteString(" • ")
 
 		menu := getCurrentMenu(req.RawPath)
 		if menu == menuManageBoard {
-			res.Write("**Manage Board**")
+			b.WriteString("**Manage Board**")
 		} else {
-			res.Write(newLink("Manage Board", menuURL(menuManageBoard)))
+			b.WriteString(newLink("Manage Board", menuURL(menuManageBoard)))
 		}
 
-		res.Write("  \n")
+		b.WriteString("  \n")
 
 		if menu == menuManageBoard {
-			res.Write("↳")
-			res.Write(newLink("Invite Member", board.GetInviteMemberFormURL()))
-			res.Write(" • ")
-			res.Write(newLink("List Members", boardMembersURL))
-			res.Write(" • ")
-			res.Write(newLink("Freeze Board", board.GetFreezeFormURL()))
-			res.Write("\n\n")
+			b.WriteString("↳")
+			b.WriteString(newLink("Invite Member", board.GetInviteMemberFormURL()))
+			b.WriteString(" • ")
+			b.WriteString(newLink("List Members", boardMembersURL))
+			b.WriteString(" • ")
+			b.WriteString(newLink("Freeze Board", board.GetFreezeFormURL()))
+			b.WriteString("\n\n")
 		}
 	}
+
+	return b.String()
 }
 
 func renderThread(res *mux.ResponseWriter, req *mux.Request) {
