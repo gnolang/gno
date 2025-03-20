@@ -196,6 +196,12 @@ func (m *Machine) doOpCallDeferNativeBody() {
 // Assumes that result values are pushed onto the Values stack.
 func (m *Machine) doOpReturn() {
 	cfr := m.PopUntilLastCallFrame()
+	m.checkRealmBoundary(cfr, cfr.Func.GetType(m.Store))
+	// finalize
+	m.PopFrameAndReturn()
+}
+
+func (m *Machine) checkRealmBoundary(fr *Frame, ft *FuncType) {
 	// See if we are exiting a realm boundary.
 	// NOTE: there are other ways to implement realm boundary transitions,
 	// e.g. with independent Machine instances per realm for example, or
@@ -203,24 +209,25 @@ func (m *Machine) doOpReturn() {
 	// original statement execution, but for now we handle them like this,
 	// per OpReturn*.
 	crlm := m.Realm
-	if crlm != nil {
-		lrlm := cfr.LastRealm
-		finalize := false
-		if m.NumFrames() == 1 {
-			// We are exiting the machine's realm.
-			finalize = true
-		} else if crlm != lrlm {
-			// We are changing realms or exiting a realm.
-			finalize = true
-		}
-		if finalize {
-			// Finalize realm updates!
-			// NOTE: This is a resource intensive undertaking.
-			crlm.FinalizeRealmTransaction(m.Store)
-		}
+	if crlm == nil {
+		return
 	}
-	// finalize
-	m.PopFrameAndReturn()
+	lrlm := fr.LastRealm
+	realmChanged := crlm != lrlm
+	if !realmChanged && m.NumFrames() != 1 {
+		// Only finalize if we are exiting the machine's realm,
+		// or we are changing realms / exiting a realm.
+		return
+	}
+
+	// Finalize realm updates!
+	// NOTE: This is a resource intensive undertaking.
+	crlm.FinalizeRealmTransaction(m.Store)
+
+	if realmChanged {
+		numResults := len(ft.Results)
+		assertReal(m, m.Values[m.NumValues-numResults:m.NumValues])
+	}
 }
 
 // Like doOpReturn, but with results from the block;
@@ -236,24 +243,7 @@ func (m *Machine) doOpReturnFromBlock() {
 		rtv := fillValueTV(m.Store, &fblock.Values[i+numParams])
 		m.PushValue(*rtv)
 	}
-	// See if we are exiting a realm boundary.
-	crlm := m.Realm
-	if crlm != nil {
-		lrlm := cfr.LastRealm
-		finalize := false
-		if m.NumFrames() == 1 {
-			// We are exiting the machine's realm.
-			finalize = true
-		} else if crlm != lrlm {
-			// We are changing realms or exiting a realm.
-			finalize = true
-		}
-		if finalize {
-			// Finalize realm updates!
-			// NOTE: This is a resource intensive undertaking.
-			crlm.FinalizeRealmTransaction(m.Store)
-		}
-	}
+	m.checkRealmBoundary(cfr, ft)
 	// finalize
 	m.PopFrameAndReturn()
 }

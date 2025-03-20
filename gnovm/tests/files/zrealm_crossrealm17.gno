@@ -17,7 +17,7 @@ var f *fooer
 
 func main() {
 	f = &fooer{}
-	c := &container{f}
+	c := &container{f} // heapItemValue not real, so trying attach by value
 	crossrealm.SetFooer(c)
 	crossrealm.CallFooerFoo()
 	print(".")
