@@ -28,46 +28,43 @@ func Render(_ string) string {
 
 	template := `# Welcome to gno.land
 
-## We're building a user-owned internet where governance is fair, development is open, and innovation is rewarded.
+## We’re building a decentralized operating system where governance is fair, development is open, and innovation is rewarded.
 
 [/about](/about) &nbsp;&nbsp;&nbsp; [/github](/github) &nbsp;&nbsp;&nbsp; [/try gno](/try-gno) 
 
-We’re building gno.land, set to be the leading open-source smart contract platform for the Internet of the future. At its core, gno.land is powered by Gno, an interpreted and fully deterministic variation of the Go programming language, designed for succinct and composable smart contracts.
 
-The gno.land blockchain is the first experiment showcasing what’s possible with Gno, providing a secure, auditable, and reusable architecture for building and iterating on decentralized applications. With transparent and timeless code, gno.land serves as the “GitHub” of the Gno ecosystem, enabling anyone to inspect, reuse, and contribute to the development of Gno-based dApps. Intuitive and easy to use, gno.land makes anti-censorship-resistant web3 applications the standard for the future. Join us in building an open-source-first, fairer, and freer Internet for everyone
+**/about /github /try gno**
 
-- Reusability - smart contracts built with Gno are designed to encourage reusability, composability, and forkability when needed. 
-- Open and transparent - all smart contracts and applications are fully open-source and auditable, ensuring verifiability. 
-- Decentralized Governance – governance is maintained by trusted contributors and the community. 
-- Developer-Friendly – Go developers can easily transition to Gno and start building without learning a new, restrictive language.
+gno.land is a smart contract platform built for Gno, a deterministic implementation of Go, designed for secure, auditable, and reusable decentralized applications (dApps). Unlike historical blockchain development languages, Gno allows Go developers to easily transfer their skills without needing to learn a completely new language. With type safety and composability, gno.land makes building scalable dApps secure, intuitive and reusable.
+
+At its core, gno.land is the ‘GitHub’ of the Gno ecosystem, where transparent, open-source smart contracts are built on top of a native censorship-resistant decentralized operating system (dOS) starting with the Gno Virtual Machine (GnoVM).
+
+## Key Features of Gno
+
+- Open & Transparent: All applications are open-source and fully auditable.
+- Composable: Smart contracts are modular, reusable, and customizable to ease development and extend the ecosystem’s capabilities quickly.
+- Censorship-Resistant: Enables platforms with fair moderation and freedom of communication without a central authority.
+- Developer-Friendly: Intuitive design that reduces onboarding timelines and enables faster iteration.
+- Go-Based & Type Safe: Go developers can transition seamlessly to Gno thanks to the well-established Go language, while benefiting from type safety for security.
 
 
 ---
 
-Why Gno?
+Use Cases
 
-## A new decentralized operating system (dOS) to power the Internet of Everyone
+## Why Gno and gno.land?
 
-We are building an operating system and network for everyone who wants to contribute and change the way the human component of the web currently operates. Find out more how gno.land is making this happen. 
+gno.land’s smart contract platform is a first step in an experiment to build a complete dOS to bypass the centralized and controlled restrictions of the current Web, and power new social platforms, governance frameworks, and economic models that favor contribution-based incentives.
 
 <gno-columns>
 
 ####
 
-![Social coordination & community](#)
+![The next killer app](#)
 
-### Social coordination & community
+### A Platform Designed for Next Generation Apps
 
-Censorship-resistant, community-organized social impact platforms that provide coordination, conversation, conflict resolution, and a builder-owned governance sstructure. 
-
-
-####
-
-![Governance & organization](#)
-
-### Governance & Organization
-
-Redefining governance frameworks, negotiation systems, and decentralized autonomous organizations (DAOs) to prioritize a common ecosystem alignment, active participation and ownership, and application specific implementations in lieu of a solely capital-based control system.
+A reusable technical architecture for everyone to build the next generation applications of the future that attract the next wave of builders and users.
 
 ####
 
@@ -75,24 +72,37 @@ Redefining governance frameworks, negotiation systems, and decentralized autonom
 
 ### New Economic Model
 
-A contribution-driven economic model that incentivizes creators, innovators, moderators, and maintainers to ensure a sustainable, builder-aligned governance and organizational framework for an alternative model to the current speculation or advertising based internet. 
+A builder-aligned economy that incentivizes developers, content creators, and maintainers with sustainable rewards.
 
 ####
 
-![The next killer app](#)
+![Decentralized Platform Governance](#)
 
-### The next killer app
+### Decentralized Governance: GovDAO
 
-A reusable technical architecture for everyone to build the killer applications of the future that attract the next wave of builders and users to the Internet of Everyone.   
+A governance model that prioritizes contribution-based participation over capital-weighted control.
+
+####
+
+![Social coordination & community](#)
+
+### Social coordination & community
+
+A decentralized space for uncensored discourse, fair moderation, and community-driven governance with forkability to allow for conflict resolution.
+
+
+####
 
 
 </gno-columns>
 
-Beta Mainnet Coming Soon!
+---
+Beta Mainnet
+
+## Beta Mainnet Coming Soon!
 
 Stay tuned for the first phase of gno.land's launch, the beta mainnet release.  
 - [Road to Mainnet and Beyond](https://gno.land/r/gnoland/blog:p/road-to-mainnet)
-
 
 ---
 
@@ -102,7 +112,7 @@ Ecosystem
 
 Explore gno.land's expanding ecosystem of applications, wallets, and explorers.
 
-[/the universe ](#)
+[/the ecosystem ](https://gno.land/ecosystem)
 
 
 <gno-columns>
@@ -111,12 +121,13 @@ Explore gno.land's expanding ecosystem of applications, wallets, and explorers.
 
 ![Wallet](#)
 
-### Wallets
+### Wallets and Faucet
 
 Execute transactions on gno.land using wallets, or a CLI keychain and client tool.
 
 - [Adena Wallet](https://www.adena.app/)
 - [gnokey](https://docs.gno.land/gno-tooling/cli/gnokey/)
+- [gno.land Faucet Hub](https://faucet.gno.land/)
 
 ####
 
@@ -138,7 +149,6 @@ Monitor and track the status of on-chain transactions in real time.
 Try out the DeFi platforms and gaming applications on gno.land. 
 
 - [gnoswap - a gno.land DEX](http://beta.gnoswap.io/)
-- More coming soon!
 
 ####
 
@@ -148,8 +158,8 @@ Try out the DeFi platforms and gaming applications on gno.land.
 
 Register your gno.land username and be a part of the conversation happening on gno.land social network, r/Boards.  
 
-- [r/users - gno.land's user name registry](https://gno.land/r/gnoland/users/v1)
-- [r/Boards - gno.land's social network](coming soon!)
+- [gno.land's user name registry](https://gno.land/r/gnoland/users/v1)
+- [Boards - gno.land's social network](coming soon!)
 - [Hall of Fame](https://gno.land/r/leon/hof) 
 - [Gno.me - gno.land's educational and community development platform](Coming soon!)
 
@@ -158,7 +168,7 @@ Register your gno.land username and be a part of the conversation happening on g
 
 ## A community of gnomes
 
-gno.land is a contribution-driven network and community where gnomes, its dedicated contributors, serve as the builders, guardians, and pioneers of a future Internet of Everyone.
+gno.land is a contribution-driven network and community where dedicated contributors, also known as gnomes, serve as the builders, guardians, and pioneers of gno.land’s future.
 
 <gno-columns>
 ##
@@ -185,17 +195,20 @@ Builders
 
 ## Build on gno.land
 
-gno.land builders are at the center of creating a user-owned network where applications remain open and reusable, governance aligns with contributors, and innovation extends beyond financial speculation.
+gno.land builders are at the center of creating the applications and infrastructure for the decentralized operating system needed to power an Internet that is 100% decentralized.
 
-[/read the documentation](docs.gno.land)
+[/read the documentation](docs.gno.land) [Read about the Gno language](https://gno.land/gnolang)
 
 <gno-columns>
 
-### Builder Portal
+### Builders
 
-The Builder Portal is a collection of educational resources and tools to help you learn, experiment, and develop your Gno skills. 
-
-[Coming soon!](/)
+- [Discover Gno Examples](https://gno.land/r/docs)
+- [Gno Playground: Code to Gno](https://play.gno.land/)
+- [Gno Studio Connect: A Realm interaction app](https://gno.studio/connect)
+- [Gnodev: Efficient local development for Gno](https://docs.gno.land/gno-tooling/cli/gno-tooling-gnodev)
+- [gno.land Faucet Hub](https://faucet.gno.land/)
+- [Discover Demo Packages](https://github.com/gnolang/gno/tree/master/examples)
 
 ### Bounties
 
@@ -205,7 +218,7 @@ The Gno bounty program is a good way to find interesting challenges in Gno, and 
 
 ### gno.land grants
 
-gno.land grants program provides financial support to developers interested in exploring new blockchain technology, and/or are already actively contributing to gno.land.
+Are you a builder, tinkerer, or researcher? If you’re looking to create awesome dApps, tooling, infrastructure, or smart contract libraries on gno.land, you can apply for a grant. gno.land grants program provides financial support to developers interested in exploring new blockchain technology, and/or are already actively contributing to gno.land.
 
 [/read more](https://github.com/gnolang/grants)
 
@@ -220,7 +233,7 @@ gno.land grants program provides financial support to developers interested in e
 - [About](#)
 - [Events](#)
 - [Blog](#)
-- [Carreer](#)
+- [Career](#)
 
 ### Advanced
 
