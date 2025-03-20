@@ -333,7 +333,7 @@ func (post *Post) renderSourcePost(indent string) (string, *Post) {
 
 // renderPostContent renders post text content (including repost body).
 // Function will dump a predefined message instead of a body if post is hidden.
-func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
+func (post *Post) renderPostContent(sb *strings.Builder, indent string, levels int) {
 	if post.isHidden {
 		// Flagged comment should be hidden, but replies still visible (see: #3480)
 		// Flagged threads will be hidden by render function caller.
@@ -374,6 +374,12 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
 	sb.WriteString(" on ")
 	sb.WriteString(post.createdAt.Format(dateFormat))
 
+	// Add a reply view link to each top level reply
+	if !post.IsThread() {
+		sb.WriteString(", ")
+		sb.WriteString(newLink("#"+post.id.String(), post.GetURL()))
+	}
+
 	if post.repostsCount > 0 {
 		sb.WriteString(", ")
 		sb.WriteString(strconv.FormatUint(post.repostsCount, 10))
@@ -396,6 +402,15 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string) {
 		sb.WriteString(newLink("Edit", post.GetEditFormURL()))
 		sb.WriteString(" • ")
 		sb.WriteString(newLink("Delete", post.GetDeleteFormURL()))
+	}
+
+	if levels == 0 {
+		sb.WriteString(" • ")
+		if post.IsThread() {
+			sb.WriteString(newLink("Show all Replies", post.board.GetURLFromThreadID(post.GetPostID())))
+		} else {
+			sb.WriteString(newLink("View Thread", post.board.GetURLFromThreadID(post.threadID)))
+		}
 	}
 
 	sb.WriteString(" ]\n")
@@ -423,18 +438,17 @@ func (post *Post) Render(path string, indent string, levels int) string {
 	sb.WriteString("## " + title + "\n")
 	sb.WriteString(indent + "\n")
 
-	post.renderPostContent(&sb, indent)
+	post.renderPostContent(&sb, indent, levels)
 
 	if post.replies.Size() == 0 {
 		return sb.String()
 	}
 
+	// XXX: This triggers for reply views
 	if levels == 0 {
 		sb.WriteString(indent + "\n")
 		sb.WriteString(indent)
-		sb.WriteString("_")
-		sb.WriteString(newLink("see all "+strconv.Itoa(post.replies.Size())+" replies", post.GetURL()))
-		sb.WriteString("_\n")
+		sb.WriteString("\n")
 		return sb.String()
 	}
 
@@ -498,11 +512,10 @@ func (post *Post) RenderInner() string {
 	}
 
 	var (
+		s         string
 		threadID  = post.threadID
 		thread, _ = post.board.GetThread(threadID) // TODO: This seems redundant (post == thread)
 	)
-
-	s := "_" + newLink("see thread", post.board.GetURLFromThreadID(threadID)) + "_\n\n"
 
 	// Fully render parent if it's not a repost.
 	if !post.IsRepost() {
