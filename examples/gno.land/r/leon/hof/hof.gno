@@ -146,10 +146,13 @@ func Downvote(pkgpath string) {
 		panic(ErrDoubleDownvote)
 	}
 
-	exhibition.itemsSortedByDownvotes.Remove(getVoteSortKey(item.downvote.Size(), item.id))
-	if !item.downvote.Add(caller) {
-		panic(ErrDoubleDownvote)
+	if _, exist := exhibition.itemsSortedByDownvotes.Remove(getVoteSortKey(item.downvote.Size(), item.id)); !exist {
+		panic("Error removing old downvote entry!")
+
 	}
+
+	item.downvote.Add(caller)
+
 	exhibition.itemsSortedByDownvotes.Set(getVoteSortKey(item.downvote.Size(), item.id), item)
 }
 
