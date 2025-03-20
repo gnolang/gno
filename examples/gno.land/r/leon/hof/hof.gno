@@ -194,7 +194,7 @@ func getVoteSortKey(votes int, id seqid.ID) string {
 }
 
 func getCreationSortKey(blockNum int64, id seqid.ID) string {
-	blockNumStr := strconv.FormatInt(blockNum, 10)
+	blockNumStr := strconv.Itoa(int(blockNum))
 	paddedBlockNum := strings.Repeat("0", 10-len(blockNumStr)) + blockNumStr
 	return paddedBlockNum + ":" + strconv.FormatUint(uint64(id), 10)
 }
