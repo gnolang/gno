@@ -130,7 +130,7 @@ func (p *columnsParser) Open(self ast.Node, reader text.Reader, pc parser.Contex
 
 	// Get column context
 	columnContext, ok := pc.Get(columnContextKey).(*columnsContext)
-	if !ok || !columnContext.IsOpen || columnContext.Error != nil {
+	if !ok || !columnContext.IsOpen {
 		columnContext = &columnsContext{} // new context
 		pc.Set(columnContextKey, columnContext)
 	}
