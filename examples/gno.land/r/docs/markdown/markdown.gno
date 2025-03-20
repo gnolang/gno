@@ -48,11 +48,11 @@ You can format text using the following syntax:
 ***All bold and italic***
 ±±±
 
-**Bold text**  
-*Italic text*  
-~~Strikethrough text~~  
-**Bold and _nested italic_**  
-***All bold and italic***  
+**Bold text**
+*Italic text*
+~~Strikethrough text~~
+**Bold and _nested italic_**
+***All bold and italic***
 
 ### Links
 
@@ -63,7 +63,7 @@ Links can be created using the following syntax:
 [Link with title](https://example.com "Link title")
 ±±±
 
-[Link text](https://example.com)  
+[Link text](https://example.com)
 [Link with title](https://example.com "Link title")
 
 XXX: custom CSS for internal/external links and if possible for "in the same realm/namespace".
@@ -212,7 +212,161 @@ This approach allows for a more consistent rendering experience across different
 
 ### Columns
 
-XXX: in progress in https://github.com/gnolang/gno/pull/3763
+Gno Flavored Markdown introduces a column layout system using special HTML-like tags. This system allows content to be organized into multiple vertical columns using heading elements as separators.
+On GnoWeb, up to four columns can be displayed in a single row; exceeding this limit will transfer additional columns to another row, and so on.
+
+#### Basic Syntax
+Wrap your column content in ±<gno-columns>± tags and use standard markdown headings (from h1 ±#± to h6 ±######±) to define column breaks:
+
+±±±markdown
+<gno-columns>
+## Column 1 Title
+
+Column 1 content
+
+## Column 2 Title
+
+Column 2 content
+</gno-columns>
+±±±
+
+This will render as:
+
+<gno-columns>
+## Column 1 Title
+
+Column 1 content
+
+## Column 2 Title
+
+Column 2 content
+</gno-columns>
+---
+
+#### Key Features
+
+1. **Heading Levels**: Any heading level from ±#± (h1) to ±######± (h6) can be used as column separators. The first one will be the reference for subsequent separator.
+
+±±±markdown
+<gno-columns>
+# Main Section
+
+Content
+
+## Subsection
+
+More content
+
+# Second section
+
+Content
+
+## Subsection
+
+More content
+</gno-columns>
+±±±
+
+<gno-columns>
+## Main Section
+Content
+### Subsection
+More content
+## Second section
+Content
+### Subsection
+More content
+</gno-columns>
+
+---
+
+2. **Empty Headings**: Use empty headings to create columns without titles:
+
+±±±markdown
+<gno-columns>
+###
+
+![Alt text](/public/imgs/gnoland.svg "Optional title")
+Content without title
+
+### Second Column
+
+Another column
+</gno-columns>
+±±±
+
+<gno-columns>
+###
+
+![Alt text](/public/imgs/gnoland.svg "Optional title")
+Content without title
+
+### Second Column
+
+Another column
+</gno-columns>
+
+
+#### Validation Rules
+
+The column system will ignore invalid structures and generate errors in the form of comments in the following cases:
+
+1. Unclosed Tags
+±±±markdown
+<gno-columns>
+## Title
+Content
+<!-- Missing closing tag -->
+±±±
+
+2. Nested Columns
+
+Nested columns tag will be ignored, e.g.
+
+±±±markdown
+<gno-columns>
+## Parent
+<gno-columns> <!-- this tag will be ignored -->
+  ## Child
+</gno-columns>
+</gno-columns> <!-- this tag will be ignored -->
+±±±
+
+3. Invalid Headings.
+
+Invalid stating heading will generate an error, e.g.
+
+  - Headings in list:
+±±±markdown
+<gno-columns>
+- ## List Heading
+</gno-columns>
+±±±
+
+  - Headings beyond h6:
+±±±markdown
+<gno-columns>
+####### Invalid
+</gno-columns>
+±±±
+
+4. Content Before First Heading
+
+Setting content before first heading, is considered as invalid and will generate an error.
+
+±±±markdown
+<gno-columns>
+Invalid content
+## Title
+</gno-columns>
+±±±
+
+#### Best Pratices
+- Always start column content with a heading
+- Maintain consistent heading levels within a columns block
+- Close tags immediately after final column content
+- Prefer simple markdown structures within columns
+- Use empty headings (##) for image-focused columns
 
 ### Usernames
 
