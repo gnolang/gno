@@ -32,7 +32,7 @@ import (
 	"strings"
 )
 
-const chainDomain = std.ChainDomain()
+var chainDomain = std.ChainDomain()
 
 // Request represents a parsed request.
 type Request struct {

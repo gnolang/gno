@@ -20,7 +20,7 @@ import (
 	"strings"
 )
 
-const chainDomain = std.ChainDomain()
+var chainDomain = std.ChainDomain()
 
 // Call returns a URL for the specified function with optional key-value
 // arguments, for the current realm.

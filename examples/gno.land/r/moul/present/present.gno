@@ -18,7 +18,7 @@ import (
 	"gno.land/p/moul/txlink"
 )
 
-const chainDomain = std.ChainDomain()
+var chainDomain = std.ChainDomain()
 
 type Presentation struct {
 	Slug      string

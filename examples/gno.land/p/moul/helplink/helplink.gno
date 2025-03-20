@@ -21,7 +21,7 @@ import (
 	"gno.land/p/moul/txlink"
 )
 
-const chainDomain = std.ChainDomain()
+var chainDomain = std.ChainDomain()
 
 // Func returns a markdown link for the specific function with optional
 // key-value arguments, for the current realm.
