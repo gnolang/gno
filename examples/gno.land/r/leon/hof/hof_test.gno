@@ -142,7 +142,7 @@ func itemExists(t *testing.T, rlmPath string) bool {
 	return ok1
 }
 
-func TestgenerateVoteSortKey(t *testing.T) {
+func TestgetVoteSortKey(t *testing.T) {
 	i := &Item{
 		id:          1,
 		title:       validTitle,
@@ -155,7 +155,7 @@ func TestgenerateVoteSortKey(t *testing.T) {
 
 	i.upvote.Add(alice)
 
-	generatedKey := generateVoteSortKey(i.upvote.Size(), i.id)
+	generatedKey := getVoteSortKey(i.upvote.Size(), i.id)
 	expectedKey := "0000000001:1"
 
 	urequire.Equal(t, generatedKey, expectedKey)
