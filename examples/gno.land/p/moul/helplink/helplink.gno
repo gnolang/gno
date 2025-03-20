@@ -17,10 +17,11 @@ package helplink
 import (
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/stdlibs/std"
 	"gno.land/p/moul/txlink"
 )
 
-const chainDomain = "gno.land" // XXX: std.ChainDomain (#2911)
+const chainDomain = std.ChainDomain()
 
 // Func returns a markdown link for the specific function with optional
 // key-value arguments, for the current realm.
