@@ -45,7 +45,7 @@ func init() {
 	modernLink = "https://www.google.com"
 	classicLink = "https://www.google.com"
 	minimalLink = "https://www.google.com"
-	hof.Register()
+	hof.Register("Matija Marijanovic's Home Realm", "")
 }
 
 func UpdatePFP(url, caption string) {
