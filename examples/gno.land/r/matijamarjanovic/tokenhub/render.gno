@@ -130,7 +130,7 @@ func renderItemsList(items []string, page *pager.Page, emptyMessage string) stri
 	out += "\n"
 	out += md.HorizontalRule()
 
-	picker := page.Picker()
+	picker := page.Picker(page.Pager.PageQueryParam)
 	if picker != "" {
 		out += md.Paragraph(picker)
 	}
