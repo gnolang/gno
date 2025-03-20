@@ -34,6 +34,7 @@ func init() {
 
 // Render displays the current number value, last update timestamp, and a link to call Add with 42
 func Render(path string) string {
+	// Pass the render path to the router
 	return router.Render(path)
 }
 
@@ -47,7 +48,7 @@ This home page is handled by the homeHandler function. Check out the examples be
 to use this package:
 - [A static page](/r/docs/routing:staticpage)
 - [A path handling path variables, such as user pages](/r/docs/routing:user/test1)
-- [A path handling wildcard](/r/docs/routing:wildcard/wildcardhelp})
+- [A path handling wildcard](/r/docs/routing:wildcard/wildcardhelp/whatever)
 `
 
 	// Write to the result at the end
