@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// CooldownLimiter is a limits a specific user to one claim per cooldown period
+// CooldownLimiter limits a specific user to one claim per cooldown period
 // this limiter keeps track of which keys are on cooldown using a badger database (written to a local file)
 type CooldownLimiter struct {
 	cooldownDB   *badger.DB
