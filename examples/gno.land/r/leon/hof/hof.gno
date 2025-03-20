@@ -193,8 +193,3 @@ func generateCreationSortKey(blockNum int64, id seqid.ID) string {
 	paddedBlockNum := strings.Repeat("0", 10-len(blockNumStr)) + blockNumStr
 	return paddedBlockNum + ":" + strconv.FormatUint(uint64(id), 10)
 }
-
-// func generateUpvoteSortKey(item *Item) string {
-// 	upvotes := item.upvote.Size()
-// 	return ufmt.Sprintf("%010d:%s", upvotes, item.id.String())
-// }
