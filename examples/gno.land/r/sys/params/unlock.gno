@@ -10,9 +10,9 @@ const (
 )
 
 func ProposeUnlockTransferRequest() dao.ProposalRequest {
-	return NewSysParamStringPropRequestWithTitle(bankModulePrefix, "p", restrictedDenomsKey, "", unlockTransferTitle)
+	return NewSysParamStringsPropRequestWithTitle(bankModulePrefix, "p", restrictedDenomsKey,unlockTransferTitle, []string{})
 }
 
 func ProposeLockTransferRequest() dao.ProposalRequest {
-	return NewSysParamStringPropRequestWithTitle(bankModulePrefix, "p", restrictedDenomsKey, "ugnot", lockTransferTitle)
+	return NewSysParamStringsPropRequestWithTitle(bankModulePrefix, "p", restrictedDenomsKey, lockTransferTitle, []string{"ugnot"})
 }
