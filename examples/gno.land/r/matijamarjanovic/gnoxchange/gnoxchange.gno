@@ -60,6 +60,10 @@ var (
 )
 
 func init() {
+	initHelper()
+}
+
+func initHelper() {
 	poolRegistry = &PoolRegistry{
 		pools: avl.NewTree(),
 	}
