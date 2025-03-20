@@ -13,11 +13,13 @@ import (
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/alecthomas/chroma/v2/styles"
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
 	markdown "github.com/yuin/goldmark-highlighting/v2"
+	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
@@ -31,6 +33,37 @@ type HTMLWebClientConfig struct {
 	ChromaStyle       *chroma.Style
 	ChromaHTMLOptions []chromahtml.Option
 	GoldmarkOptions   []goldmark.Option
+}
+
+// TransformRelArgsURL modifies the AST to transform relative links starting with Gno args.
+// It converts links starting with ":" to use the standard gno.land args syntax.
+//
+//	Input:  [Go to votes list](:2/votes)
+//	Output: /r/gov/dao/proxy:2/votes
+func TransformRelArgsURL(node *ast.Document, gnourl *weburl.GnoURL) {
+	if node == nil || gnourl == nil {
+		return
+	}
+	ast.Walk(node, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		if link, ok := n.(*ast.Link); ok {
+			if link.Destination == nil {
+				return ast.WalkContinue, nil
+			}
+			url := string(link.Destination)
+			if strings.HasPrefix(url, ":") {
+				// Create a new GnoURL with the same domain and path but new args
+				newURL := *gnourl
+				newURL.Args = strings.TrimPrefix(url, ":")
+				newURL.WebQuery = nil
+				newURL.Query = nil
+				link.Destination = []byte(newURL.EncodeWebURL())
+			}
+		}
+		return ast.WalkContinue, nil
+	})
 }
 
 // NewDefaultHTMLWebClientConfig initializes a WebClientConfig with default settings.
@@ -191,7 +224,7 @@ func extractHeadMeta(metaData map[string]interface{}) HeadMeta {
 // RenderRealm renders the content of a realm from a given path
 // and arguments into the provided writer. It uses Goldmark for
 // Markdown processing to generate HTML content.
-func (s *HTMLWebClient) RenderRealm(w io.Writer, pkgPath string, args string) (*RealmMeta, error) {
+func (s *HTMLWebClient) RenderRealm(w io.Writer, pkgPath string, args string, gnourl *weburl.GnoURL) (*RealmMeta, error) {
 	const qpath = "vm/qrender"
 
 	pkgPath = strings.Trim(pkgPath, "/")
@@ -206,6 +239,11 @@ func (s *HTMLWebClient) RenderRealm(w io.Writer, pkgPath string, args string) (*
 	context := parser.NewContext()
 	doc := s.Markdown.Parser().Parse(text.NewReader(rawres), parser.WithContext(context))
 	metaData := md.Get(context)
+
+	// Transform URLs in the AST
+	if document, ok := doc.(*ast.Document); ok {
+		TransformRelArgsURL(document, gnourl)
+	}
 
 	if err := s.Markdown.Renderer().Render(w, rawres, doc); err != nil {
 		return nil, fmt.Errorf("unable to render realm %q: %w", data, err)
