@@ -34,13 +34,13 @@ import (
 	"github.com/yuin/goldmark"
 )
 
-var _ goldmark.Extender = (*gno)(nil)
+var _ goldmark.Extender = (*gnoExtension)(nil)
 
-type gno struct{}
+type gnoExtension struct{}
 
-var GnoExtension = &gno{}
+var GnoExtension = &gnoExtension{}
 
 // Extend adds the Gno extension to the provided Goldmark markdown processor.
-func (e *gno) Extend(m goldmark.Markdown) {
+func (e *gnoExtension) Extend(m goldmark.Markdown) {
 	Columns.Extend(m)
 }
