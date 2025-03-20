@@ -70,5 +70,5 @@ func init() {
 		openNFTTickets: avl.NewTree(),
 	}
 
-	hof.Register()
+	hof.Register("gnoXchange", "Decentralized exchange for gno.land for p2p, amm and nft-to-token swaps")
 }

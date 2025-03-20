@@ -157,7 +157,7 @@ func renderTickets(path string) string {
 	}
 
 	if page.TotalPages > 1 {
-		str += "\n\nPages: " + page.Picker()
+		str += "\n\nPages: " + page.Picker(page.Pager.PageQueryParam)
 	}
 
 	return str
@@ -232,7 +232,7 @@ func renderNFTMarket(path string) string {
 	}
 
 	if page.TotalPages > 1 {
-		str += "\n\nPages: " + page.Picker()
+		str += "\n\nPages: " + page.Picker(page.Pager.PageQueryParam)
 	}
 
 	return str
@@ -282,7 +282,7 @@ func renderPools(path string) string {
 	}
 
 	if page.TotalPages > 1 {
-		str += "\n\nPages: " + page.Picker()
+		str += "\n\nPages: " + page.Picker(page.Pager.PageQueryParam)
 	}
 
 	return str
@@ -395,7 +395,7 @@ func renderTicketHistory(path string) string {
 	}
 
 	if page.TotalPages > 1 {
-		str += "\n\nPages: " + page.Picker()
+		str += "\n\nPages: " + page.Picker(page.Pager.PageQueryParam)
 	}
 
 	return str

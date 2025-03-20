@@ -293,7 +293,7 @@ func GetPoolsPageInfo(path string) ([]PoolInfo, string, error) {
 		})
 	}
 
-	return pools, page.Picker(), nil
+	return pools, page.Picker(page.Pager.PageQueryParam), nil
 }
 
 // GetPoolsPageInfoString returns a string representation of pool information for the given page
