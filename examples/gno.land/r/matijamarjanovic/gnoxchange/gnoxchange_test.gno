@@ -22,7 +22,7 @@ func TestCreatePool(t *testing.T) {
 	ledgerA.Mint(std.CurrentRealm().Address(), 10000)
 	ledgerB.Mint(std.CurrentRealm().Address(), 10000)
 
-	_, err := CreatePool("gno.land/r/test/pools.test_token_a", "gno.land/r/test/pools.test_token_b", 1000, 1000)
+	_, err := CreatePool("gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/pools.test_token_a", "gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/pools.test_token_b", 1000, 1000)
 	uassert.Error(t, err, "Should fail with identical tokens")
 
 	tellerA := tokenA.CallerTeller()
@@ -34,8 +34,8 @@ func TestCreatePool(t *testing.T) {
 	urequire.NoError(t, err, "Should approve token B")
 
 	poolKey, err := CreatePool(
-		"gno.land/r/test/pools.test_token_a",
-		"gno.land/r/test/pools.test_token_b",
+		"gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/pools.test_token_a",
+		"gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/pools.test_token_b",
 		1000,
 		1000,
 	)
@@ -44,8 +44,8 @@ func TestCreatePool(t *testing.T) {
 
 	tokenAName, tokenBName, reserveA, reserveB, err := GetPoolInfo(poolKey)
 	urequire.NoError(t, err, "Should get pool info")
-	uassert.Equal(t, "gno.land/r/test/pools.test_token_a", tokenAName)
-	uassert.Equal(t, "gno.land/r/test/pools.test_token_b", tokenBName)
+	uassert.Equal(t, "gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/pools.test_token_a", tokenAName)
+	uassert.Equal(t, "gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/pools.test_token_b", tokenBName)
 	uassert.Equal(t, uint64(1000), reserveA)
 	uassert.Equal(t, uint64(1000), reserveB)
 }
@@ -69,7 +69,7 @@ func TestAddLiquidity(t *testing.T) {
 	err = tellerB.Approve(std.DerivePkgAddr("gno.land/r/matijamarjanovic/gnoxchange"), 10000)
 	urequire.NoError(t, err, "Should approve token B")
 
-	poolKey, err := CreatePool("gno.land/r/test/pools.test_token_a2", "gno.land/r/test/pools.test_token_b2", 1000, 1000)
+	poolKey, err := CreatePool("gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/pools.test_token_a2", "gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/pools.test_token_b2", 1000, 1000)
 	urequire.NoError(t, err, "Should create pool")
 
 	err = tellerA.Approve(std.DerivePkgAddr("gno.land/r/matijamarjanovic/gnoxchange"), 500)
@@ -113,7 +113,7 @@ func TestWithdrawLiquidity(t *testing.T) {
 	err = tellerB.Approve(std.DerivePkgAddr("gno.land/r/matijamarjanovic/gnoxchange"), 1000)
 	urequire.NoError(t, err)
 
-	poolKey, err := CreatePool("gno.land/r/test/pools.test_token_a3", "gno.land/r/test/pools.test_token_b3", 1000, 1000)
+	poolKey, err := CreatePool("gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/pools.test_token_a3", "gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/pools.test_token_b3", 1000, 1000)
 	urequire.NoError(t, err, "Should create pool")
 
 	poolInterface, exists := poolRegistry.pools.Get(poolKey)
@@ -154,7 +154,7 @@ func TestPoolRegistry(t *testing.T) {
 	err = tellerB.Approve(std.DerivePkgAddr("gno.land/r/matijamarjanovic/gnoxchange"), 2000)
 	urequire.NoError(t, err)
 
-	poolKey1, err := CreatePool("gno.land/r/test/pools.test_token_a4", "gno.land/r/test/pools.test_token_b4", 1000, 1000)
+	poolKey1, err := CreatePool("gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/pools.test_token_a4", "gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/pools.test_token_b4", 1000, 1000)
 	urequire.NoError(t, err)
 
 	poolNames := GetAllPoolNames()
@@ -180,32 +180,32 @@ func TestCreateCoinToTokenTicket(t *testing.T) {
 	tokenhub.RegisterToken(token.Getter(), "test_token")
 
 	{
-		_, err := CreateCoinToTokenTicket("ugnot", "gno.land/r/test/tickets.test_token", 1000, 24)
+		_, err := CreateCoinToTokenTicket("ugnot", "gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/tickets.test_token", 1000, 24)
 		uassert.Error(t, err, "Should fail without sending coins")
 	}
 
 	{
 		std.TestSetOriginSend(std.Coins{{"wrongcoin", 1000}}, nil)
-		_, err := CreateCoinToTokenTicket("ugnot", "gno.land/r/test/tickets.test_token", 1000, 24)
+		_, err := CreateCoinToTokenTicket("ugnot", "gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/tickets.test_token", 1000, 24)
 		uassert.Error(t, err, "Should fail with wrong coin denomination")
 	}
 
 	{
 		std.TestSetOriginSend(std.Coins{{"ugnot", 1000}, {"other", 500}}, nil)
-		_, err := CreateCoinToTokenTicket("ugnot", "gno.land/r/test/tickets.test_token", 1000, 24)
+		_, err := CreateCoinToTokenTicket("ugnot", "gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/tickets.test_token", 1000, 24)
 		uassert.Error(t, err, "Should fail with multiple coins")
 	}
 
 	{
 		std.TestSetOriginSend(std.Coins{{"ugnot", 1000}}, nil)
-		ticketID, err := CreateCoinToTokenTicket("ugnot", "gno.land/r/test/tickets.test_token", 1000, 24)
+		ticketID, err := CreateCoinToTokenTicket("ugnot", "gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/tickets.test_token", 1000, 24)
 		urequire.NoError(t, err, "Should create ticket successfully")
 		uassert.NotEmpty(t, ticketID, "Ticket ID should not be empty")
 
 		ticket, err := GetTicket(ticketID)
 		urequire.NoError(t, err)
 		uassert.Equal(t, "ugnot", ticket.AssetIn.Denom)
-		uassert.Equal(t, "gno.land/r/test/tickets.test_token", ticket.AssetOut.Token)
+		uassert.Equal(t, "gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/tickets.test_token", ticket.AssetOut.Token)
 		uassert.Equal(t, uint64(1000), ticket.MinAmountOut)
 		uassert.Equal(t, "open", ticket.Status)
 	}
@@ -218,19 +218,19 @@ func TestCreateTokenToCoinTicket(t *testing.T) {
 
 	ledger.Mint(std.CurrentRealm().Address(), 10000)
 
-	_, err := CreateTokenToCoinTicket("gno.land/r/test/tickets.test_token", "ugnot", 1000, 1000, 24)
+	_, err := CreateTokenToCoinTicket("gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/tickets.test_token", "ugnot", 1000, 1000, 24)
 	uassert.Error(t, err, "Should fail without approval")
 
 	teller := token.CallerTeller()
 	err = teller.Approve(std.DerivePkgAddr("gno.land/r/matijamarjanovic/gnoxchange"), 1000)
 	urequire.NoError(t, err)
 
-	ticketID, err := CreateTokenToCoinTicket("gno.land/r/test/tickets.test_token", "ugnot", 1000, 1000, 24)
+	ticketID, err := CreateTokenToCoinTicket("gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/tickets.test_token", "ugnot", 1000, 1000, 24)
 	urequire.NoError(t, err, "Should create ticket successfully")
 
 	ticket, err := GetTicket(ticketID)
 	urequire.NoError(t, err)
-	uassert.Equal(t, "gno.land/r/test/tickets.test_token", ticket.AssetIn.Token)
+	uassert.Equal(t, "gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/tickets.test_token", ticket.AssetIn.Token)
 	uassert.Equal(t, "ugnot", ticket.AssetOut.Denom)
 	uassert.Equal(t, uint64(1000), ticket.MinAmountOut)
 }
@@ -250,8 +250,8 @@ func TestCreateTokenToTokenTicket(t *testing.T) {
 	urequire.NoError(t, err)
 
 	ticketID, err := CreateTokenToTokenTicket(
-		"gno.land/r/test/tickets.test_token_a",
-		"gno.land/r/test/tickets.test_token_b",
+		"gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/tickets.test_token_a",
+		"gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/tickets.test_token_b",
 		1000,
 		1000,
 		24,
@@ -260,8 +260,8 @@ func TestCreateTokenToTokenTicket(t *testing.T) {
 
 	ticket, err := GetTicket(ticketID)
 	urequire.NoError(t, err)
-	uassert.Equal(t, "gno.land/r/test/tickets.test_token_a", ticket.AssetIn.Token)
-	uassert.Equal(t, "gno.land/r/test/tickets.test_token_b", ticket.AssetOut.Token)
+	uassert.Equal(t, "gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/tickets.test_token_a", ticket.AssetIn.Token)
+	uassert.Equal(t, "gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/tickets.test_token_b", ticket.AssetOut.Token)
 }
 
 func TestFulfillTicket(t *testing.T) {
@@ -280,8 +280,8 @@ func TestFulfillTicket(t *testing.T) {
 	urequire.NoError(t, err)
 
 	ticketID, err := CreateTokenToTokenTicket(
-		"gno.land/r/test/tickets.test_token_a",
-		"gno.land/r/test/tickets.test_token_b",
+		"gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/tickets.test_token_a",
+		"gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/tickets.test_token_b",
 		1000,
 		1000,
 		24,
@@ -319,7 +319,7 @@ func TestCancelTicket(t *testing.T) {
 	err := teller.Approve(std.DerivePkgAddr("gno.land/r/matijamarjanovic/gnoxchange"), 1000)
 	urequire.NoError(t, err)
 
-	ticketID, err := CreateTokenToCoinTicket("gno.land/r/test/tickets.test_token", "ugnot", 1000, 1000, 24)
+	ticketID, err := CreateTokenToCoinTicket("gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/tickets.test_token", "ugnot", 1000, 1000, 24)
 	urequire.NoError(t, err)
 
 	err = CancelTicket(ticketID)
@@ -339,7 +339,7 @@ func TestCreateNFTToTokenTicket(t *testing.T) {
 	tokenhub.RegisterNFT(nft.Getter(), "test_nft", "1")
 
 	{
-		_, err := CreateNFTToTokenTicket("gno.land/r/test/nfts.test_nft.nonexistent.1", "gno.land/r/test/nfts.test_token", 1000, 24)
+		_, err := CreateNFTToTokenTicket("gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/nfts.test_nft.nonexistent.1", "gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/nfts.test_token", 1000, 24)
 		uassert.Error(t, err, "Should fail with non-existent NFT")
 	}
 
@@ -349,8 +349,8 @@ func TestCreateNFTToTokenTicket(t *testing.T) {
 		urequire.NoError(t, err)
 
 		_, err = CreateNFTToTokenTicket(
-			"gno.land/r/test/nfts.test_nft.1",
-			"gno.land/r/test/nfts.test_token",
+			"gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/nfts.test_nft.1",
+			"gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/nfts.test_token",
 			1000,
 			24,
 		)
@@ -363,7 +363,7 @@ func TestCreateNFTToTokenTicket(t *testing.T) {
 
 		_, err = CreateNFTToTokenTicket(
 			"gno.land/r/test/nfts.test_nft.2",
-			"gno.land/r/test/nfts.test_token",
+			"gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/nfts.test_token",
 			1000,
 			24,
 		)
@@ -444,7 +444,7 @@ func TestBuyNFT(t *testing.T) {
 
 	ticketID, err := CreateNFTToTokenTicket(
 		"gno.land/r/test/nfts.test_nft.1",
-		"gno.land/r/test/nfts.test_token",
+		"gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/nfts.test_token",
 		1000,
 		24,
 	)
