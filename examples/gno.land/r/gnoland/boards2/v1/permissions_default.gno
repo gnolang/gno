@@ -101,9 +101,7 @@ func (dp *DefaultPermissions) AddUser(user std.Address, roles ...Role) error {
 		return errors.New("user already exists")
 	}
 
-	if err := dp.dao.AddMember(user); err != nil {
-		return err
-	}
+	dp.dao.Members().Add(user)
 	return dp.setUserRoles(user, roles...)
 }
 
@@ -118,7 +116,7 @@ func (dp *DefaultPermissions) SetUserRoles(user std.Address, roles ...Role) erro
 // RemoveUser removes a user from permissions.
 func (dp *DefaultPermissions) RemoveUser(user std.Address) bool {
 	_, removed := dp.users.Remove(user.String())
-	dp.dao.RemoveMember(user)
+	dp.dao.Members().Remove(user)
 	return removed
 }
 
@@ -146,7 +144,7 @@ func (dp DefaultPermissions) IterateUsers(start, count int, fn UsersIterFn) bool
 // It panics on error or when a handler panics.
 // Callbacks are by default called when there is no handle registered for the permission.
 func (dp *DefaultPermissions) WithPermission(user std.Address, perm Permission, args Args, cb func(Args)) {
-	if !dp.HasPermission(user, perm) || !dp.dao.IsMember(user) {
+	if !dp.HasPermission(user, perm) || !dp.dao.Members().Has(user) {
 		panic("unauthorized")
 	}
 
