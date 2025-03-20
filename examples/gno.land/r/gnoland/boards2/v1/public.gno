@@ -27,6 +27,16 @@ var (
 	reDeniedReplyLinePrefixes = regexp.MustCompile(`(?m)^\s*(#|---|>)+`)
 )
 
+// SetHelp sets or updates boards realm help content.
+func SetHelp(content string) {
+	content = strings.TrimSpace(content)
+	caller := std.PreviousRealm().Address()
+	args := Args{content}
+	gPerms.WithPermission(caller, PermissionRealmHelp, args, func(Args) {
+		gHelp = content
+	})
+}
+
 // SetPermissions sets a permissions implementation for boards2 realm or a board.
 func SetPermissions(bid BoardID, p Permissions) {
 	assertRealmIsNotLocked()

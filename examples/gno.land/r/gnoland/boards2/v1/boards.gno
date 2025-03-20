@@ -9,6 +9,7 @@ import (
 var (
 	gPerms        Permissions
 	gNotice       string
+	gHelp         string
 	gLastBoardID  BoardID
 	gBoardsByID   avl.Tree // string(id) -> *Board
 	gBoardsByName avl.Tree // string(name) -> *Board
