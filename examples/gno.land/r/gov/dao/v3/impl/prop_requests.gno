@@ -73,7 +73,7 @@ func NewAddMemberRequest(addr std.Address, tier string, portfolio string) dao.Pr
 	}
 
 	if tier != memberstore.T1 && tier != memberstore.T2 {
-		panic("Only T1 and T2 members must be added by proposal. To add a T3 member use AddMember function directly.")
+		panic("Only T1 and T2 members can be added by proposal. To add a T3 member use AddMember function directly.")
 	}
 
 	if portfolio == "" {
