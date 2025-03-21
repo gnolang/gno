@@ -210,7 +210,7 @@ func (atgc *astTraversingGasCharger) consumeGas(amount storetypes.Gas) {
 	atgc.m.ConsumeGas(amount, "typeCheck")
 }
 
-const _BASIC_TYPECHECK_GAS_CHARGE = 5 // Arbitrary value.
+const _BASIC_TYPECHECK_GAS_CHARGE = 5 // Arbitrary value, needs more research and derivation.
 
 func (atgc *astTraversingGasCharger) Visit(n ast.Node) ast.Visitor {
 	switch n.(type) {
@@ -273,7 +273,7 @@ func (atgc *astTraversingGasCharger) Visit(n ast.Node) ast.Visitor {
 	case nil:
 		atgc.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE / 2)
 
-	default:
+	default: // IndexExpr, StarExpr et al, all fall under defaults here.
 		atgc.consumeGas(_BASIC_TYPECHECK_GAS_CHARGE * 3)
 	}
 
