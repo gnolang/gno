@@ -1139,6 +1139,8 @@ const (
 	OpCPURangeIterMap      = 48
 	OpCPURangeIterArrayPtr = 46
 	OpCPUReturnCallDefers  = 78
+
+	OpCharPrint = 100
 )
 
 //----------------------------------------
