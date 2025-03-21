@@ -315,7 +315,7 @@ banker.RemoveCoin(addr, denom, amount)
 ```go
 func AssertOriginCall()
 ```
-Panics if caller of function is not an EOA.
+Panics if caller of function is not an EOA. Only allows `MsgCall` transactions; panics on `MsgRun` calls.
 
 ##### Usage
 ```go
@@ -752,7 +752,7 @@ realmPath := r.PkgPath() // eg. gno.land/r/gnoland/blog
 ```
 ---
 ### IsUser
-Checks if the realm it was called upon is a user realm.
+Checks if the realm it was called upon is a user realm. This check passes for both `MsgCall` and `MsgRun` transactions.
 
 ##### Usage
 ```go
