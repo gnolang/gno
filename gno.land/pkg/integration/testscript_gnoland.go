@@ -42,7 +42,8 @@ const nodeMaxLifespan = time.Second * 30
 type envKey int
 
 const (
-	envKeyGenesis envKey = iota
+	envKeyGenesisState envKey = iota
+	envKeyConfig
 	envKeyLogger
 	envKeyPkgsLoader
 	envKeyPrivValKey
@@ -187,13 +188,16 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		// command and packages added with the `loadpkg` command.
 		// This genesis will be use when node is started.
 
-		genesis := gnoland.DefaultGenState()
+		cfg := TestingMinimalNodeConfig(gnoRootDir)
+		genesis := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
 		genesis.Balances = LoadDefaultGenesisBalanceFile(t, gnoRootDir)
-		genesis.Auth.Params.InitialGasPrice = std.GasPrice{Gas: 0, Price: std.Coin{Amount: 0, Denom: "ugnot"}}
-		genesis.Txs = []gnoland.TxWithMetadata{}
 		LoadDefaultGenesisParamFile(t, gnoRootDir, &genesis)
 
-		env.Values[envKeyGenesis] = &genesis
+		genesis.Txs = []gnoland.TxWithMetadata{}
+
+		cfg.Genesis.AppState = &genesis
+		env.Values[envKeyConfig] = cfg
+		env.Values[envKeyGenesisState] = &genesis
 		env.Values[envKeyPkgsLoader] = NewPkgsLoader()
 
 		env.Setenv("GNOROOT", gnoRootDir)
@@ -222,7 +226,7 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 		"adduserfrom": adduserfromCmd(nodesManager),
 		"patchpkg":    patchpkgCmd(),
 		"loadpkg":     loadpkgCmd(gnoRootDir),
-		"scanf":       loadpkgCmd(gnoRootDir),
+		"loadparams":  loadParamsCmd(),
 	}
 
 	// Initialize cmds map if needed
@@ -283,19 +287,15 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 				ts.Fatalf("unable to load packages txs: %s", err)
 			}
 
-			cfg := TestingMinimalNodeConfig(gnoRootDir)
-			tsGenesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
-			genesis := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
-			genesis.Txs = append(genesis.Txs, append(pkgsTxs, tsGenesis.Txs...)...)
-			genesis.Balances = append(genesis.Balances, tsGenesis.Balances...)
+			cfg := ts.Value(envKeyConfig).(*gnoland.InMemoryNodeConfig)
+			genesis := ts.Value(envKeyGenesisState).(*gnoland.GnoGenesisState)
+			genesis.Txs = append(genesis.Txs, pkgsTxs...)
+
+			// Apply additionnal gnoland flags
 			if *lockTransfer {
 				genesis.Bank.Params.RestrictedDenoms = []string{"ugnot"}
 			}
 
-			genesis.VM.RealmParams = append(genesis.VM.RealmParams, tsGenesis.VM.RealmParams...)
-			genesis.Auth.Params.FeeCollector = tsGenesis.Auth.Params.FeeCollector
-
-			cfg.Genesis.AppState = genesis
 			if *nonVal {
 				pv := gnoland.NewMockedPrivValidator()
 				cfg.Genesis.Validators = []bft.GenesisValidator{
@@ -448,7 +448,7 @@ func adduserCmd(nodesManager *NodesManager) func(ts *testscript.TestScript, neg 
 			ts.Fatalf("error creating account %s: %s", args[0], err)
 		}
 
-		genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
+		genesis := ts.Value(envKeyGenesisState).(*gnoland.GnoGenesisState)
 		genesis.Balances = append(genesis.Balances, balance)
 	}
 }
@@ -493,7 +493,7 @@ func adduserfromCmd(nodesManager *NodesManager) func(ts *testscript.TestScript, 
 			ts.Fatalf("error creating wallet %s", err)
 		}
 
-		genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
+		genesis := ts.Value(envKeyGenesisState).(*gnoland.GnoGenesisState)
 		genesis.Balances = append(genesis.Balances, balance)
 
 		fmt.Fprintf(ts.Stdout(), "Added %s(%s) to genesis", args[0], balance.Address)
@@ -558,6 +558,24 @@ func loadpkgCmd(gnoRootDir string) func(ts *testscript.TestScript, neg bool, arg
 	}
 }
 
+func loadParamsCmd() func(ts *testscript.TestScript, neg bool, args []string) {
+	return func(ts *testscript.TestScript, neg bool, args []string) {
+		if len(args) != 1 {
+			ts.Fatalf("invalid path argument for loadparams")
+		}
+
+		path := args[0]
+
+		genesis := ts.Value(envKeyGenesisState).(*gnoland.GnoGenesisState)
+		err := gnoland.LoadGenesisParamsFile(path, genesis)
+		if err != nil {
+			ts.Fatalf("unable load params file %q: %s", path, err)
+		}
+
+		fmt.Fprintf(ts.Stdout(), "params file %q successfully loaded\n", path)
+	}
+}
+
 func loadUserEnv(ts *testscript.TestScript, remote string) error {
 	const path = "auth/accounts"
 
@@ -610,7 +628,7 @@ func loadUserEnv(ts *testscript.TestScript, remote string) error {
 
 		strAccountSequence := strconv.Itoa(int(qret.BaseAccount.GetSequence()))
 		ts.Setenv(name+"_account_seq", strAccountSequence)
-		ts.Logf("[%q] account sequence: %s", name, strAccountNumber)
+		ts.Logf("[%q] account sequence: %s", name, strAccountSequence)
 	}
 
 	return nil

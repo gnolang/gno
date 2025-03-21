@@ -114,6 +114,41 @@ func LoadGenesisParamsFile(path string, ggs *GnoGenesisState) error {
 		for name, value := range authparams {
 			name, _ := splitTypedName(name)
 			switch name {
+			case "max_memo_bytes":
+				ggs.Auth.Params.MaxMemoBytes = value.(int64)
+			case "tx_sig_limit":
+				ggs.Auth.Params.TxSigLimit = value.(int64)
+			case "tx_size_cost_per_byte":
+				ggs.Auth.Params.TxSizeCostPerByte = value.(int64)
+			case "sig_verify_cost_ed25519":
+				ggs.Auth.Params.SigVerifyCostED25519 = value.(int64)
+			case "sig_verify_cost_secp256k1":
+				ggs.Auth.Params.SigVerifyCostSecp256k1 = value.(int64)
+			case "gas_price_change_compressor":
+				ggs.Auth.Params.GasPricesChangeCompressor = value.(int64)
+			case "target_gas_ratio":
+				ggs.Auth.Params.TargetGasRatio = 0
+			case "initial_gasprice":
+				vs := value.(string)
+				gp, err := std.ParseGasPrice(vs)
+				if err != nil {
+					return fmt.Errorf("unable to parse gas price %q: %w", vs, err)
+				}
+
+				ggs.Auth.Params.InitialGasPrice = gp
+			case "unrestricted_addrs":
+				vz := value.([]interface{})
+				addrs := make([]crypto.Address, len(vz))
+				for i, v := range vz {
+					vs := v.(string)
+					addr, err := crypto.AddressFromString(v.(string))
+					if err != nil {
+						return fmt.Errorf("unable to parse fee collector address %q: %w", vs, err)
+					}
+					addrs[i] = addr
+				}
+
+				ggs.Auth.Params.UnrestrictedAddrs = addrs
 			case "fee_collector":
 				addr, err := crypto.AddressFromString(value.(string))
 				if err != nil {
@@ -121,7 +156,6 @@ func LoadGenesisParamsFile(path string, ggs *GnoGenesisState) error {
 				}
 
 				ggs.Auth.Params.FeeCollector = addr
-
 			default:
 				return errors.New("unexpected auth parameter " + name)
 			}

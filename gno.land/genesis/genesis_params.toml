@@ -13,20 +13,25 @@
   # TODO: default_storage_allowance = ""
 
 ["auth"]
+  # TODO: max_memo_bytes = 65536
+  # TODO: tx_sig_limit = 7
+  # TODO: tx_size_cost_per_byte = 10
+  # TODO: sig_verify_cost_ed25519 = 590
+  # TODO: sig_verify_cost_secp256k1 = 1000
+  # TODO: GasPricesChangeCompressor = 10
+  # TODO: TargetGasRatio = 70
   fee_collector = "g1najfm5t7dr4f2m38cg55xt6gh2lxsk92tgh0xy" # "gno.land/r/sys/txfees"
 
 ["tm2"]
   # TODO
 
 #######################################
-## testing realm parameters
-## Do not remove these lines.
-## They are needed for a txtar integration test.
-## XXX copy these (and above) to say genesis_params_test.toml.
-["vm:gno.land/r/sys/testrealm"]
-  foo_string = "bar"
-  foo_int64 = -1337
-  foo_uint64 = 123
-  foo_bool = true
-  "foo_strings.strings" = ["some", "strings"]
-  # foo_bytes = ...?
+## realm parameters example
+#
+# ["vm:gno.land/r/sys/testrealm"]
+#   foo_string = "bar"
+#   foo_int64 = -1337
+#   foo_uint64 = 123
+#   foo_bool = true
+#   "foo_strings.strings" = ["some", "strings"]
+#   # foo_bytes = ...?
