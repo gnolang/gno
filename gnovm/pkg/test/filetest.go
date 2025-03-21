@@ -57,6 +57,11 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 		return "", fmt.Errorf("could not parse MAXALLOC directive: %w", err)
 	}
 
+	var opslog io.Writer
+	if dirs.First(DirectiveRealm) != nil {
+		opslog = new(bytes.Buffer)
+	}
+
 	// Create machine for execution and run test
 	cw := opts.BaseStore.CacheWrap()
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
@@ -67,7 +72,7 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 		Debug:         opts.Debug,
 	})
 	defer m.Release()
-	result := opts.runTest(m, pkgPath, filename, source)
+	result := opts.runTest(m, pkgPath, filename, source, opslog)
 
 	// updated tells whether the directives have been updated, and as such
 	// a new generated filetest should be returned.
@@ -130,8 +135,8 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 			}
 			match(dir, result.Output)
 		case DirectiveRealm:
-			sops := m.Store.SprintStoreOps() + "\n"
-			match(dir, sops)
+			res := opslog.(*bytes.Buffer).String()
+			match(dir, res)
 		case DirectiveEvents:
 			events := m.Context.(*teststd.TestExecContext).EventLogger.Events()
 			evtjson, err := json.MarshalIndent(events, "", "  ")
@@ -181,7 +186,7 @@ type runResult struct {
 	GoPanicStack []byte
 }
 
-func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, content []byte) (rr runResult) {
+func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, content []byte, opslog io.Writer) (rr runResult) {
 	pkgName := gno.Name(pkgPath[strings.LastIndexByte(pkgPath, '/')+1:])
 
 	// Eagerly load imports.
@@ -197,6 +202,9 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		},
 	}); err != nil {
 		// NOTE: we perform this here, so we can capture the runResult.
+		if swe, ok := err.(*stackWrappedError); ok {
+			return runResult{Error: err.Error(), GoPanicStack: swe.stack}
+		}
 		return runResult{Error: err.Error()}
 	}
 
@@ -267,7 +275,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		m.SetActivePackage(pv2)
 		gno.EnableDebug()
 		// clear store.opslog from init function(s).
-		m.Store.SetLogStoreOps(true) // resets.
+		m.Store.SetLogStoreOps(opslog) // resets.
 		m.RunStatement(gno.S(gno.Call(gno.X("main"))))
 	}
 

@@ -53,7 +53,7 @@ func TestExecutor_Callback(t *testing.T) {
 
 		// Execute as the /r/gov/dao caller
 		r := std.NewCodeRealm(daoPkgPath)
-		std.TestSetRealm(r)
+		testing.SetRealm(r)
 
 		uassert.NoError(t, e.Execute())
 		uassert.True(t, called, "expected proposal to execute")
@@ -79,7 +79,7 @@ func TestExecutor_Callback(t *testing.T) {
 
 		// Execute as the /r/gov/dao caller
 		r := std.NewCodeRealm(daoPkgPath)
-		std.TestSetRealm(r)
+		testing.SetRealm(r)
 
 		uassert.ErrorIs(t, e.Execute(), expectedErr)
 		uassert.True(t, called, "expected proposal to execute")
@@ -137,7 +137,7 @@ func TestExecutor_Context(t *testing.T) {
 
 		// Execute as the /r/gov/dao caller
 		r := std.NewCodeRealm(daoPkgPath)
-		std.TestSetRealm(r)
+		testing.SetRealm(r)
 
 		urequire.NoError(t, e.Execute())
 		uassert.True(t, called, "expected proposal to execute")
@@ -167,7 +167,7 @@ func TestExecutor_Context(t *testing.T) {
 
 		// Execute as the /r/gov/dao caller
 		r := std.NewCodeRealm(daoPkgPath)
-		std.TestSetRealm(r)
+		testing.SetRealm(r)
 
 		uassert.NotPanics(t, func() {
 			err := e.Execute()

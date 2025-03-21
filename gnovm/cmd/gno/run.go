@@ -95,9 +95,6 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 	output := test.OutputWithError(stdout, stderr)
 	_, testStore := test.Store(
 		cfg.rootDir, output)
-	if cfg.verbose {
-		testStore.SetLogStoreOps(true)
-	}
 
 	if len(args) == 0 {
 		args = []string{"."}
