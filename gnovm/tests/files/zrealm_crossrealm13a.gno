@@ -3,17 +3,18 @@ package groups
 
 import (
 	"std"
+	"testing"
 )
 
 func main() {
 	PrintRealm()
 	println(pad("CurrentRealm:"), std.CurrentRealm())
 	println(pad("PreviousRealm:"), std.PreviousRealm())
-	std.TestSetRealm(std.NewUserRealm("g1user"))
+	testing.SetRealm(std.NewUserRealm("g1user"))
 	PrintRealm()
 	println(pad("CurrentRealm:"), std.CurrentRealm())
 	println(pad("PreviousRealm:"), std.PreviousRealm())
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
 	PrintRealm()
 	println(pad("CurrentRealm:"), std.CurrentRealm())
 	println(pad("PreviousRealm:"), std.PreviousRealm())
