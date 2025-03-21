@@ -325,7 +325,7 @@ func (opts *TestOptions) runTestFiles(
 		alloc = gno.NewAllocator(math.MaxInt64)
 	}
 	// reset store ops, if any - we only need them for some filetests.
-	opts.TestStore.SetLogStoreOps(false)
+	opts.TestStore.SetLogStoreOps(nil)
 
 	// Check if we already have the package - it may have been eagerly loaded.
 	m = Machine(gs, opts.WriterForStore(), memPkg.Path, opts.Debug)
