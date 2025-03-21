@@ -385,7 +385,7 @@ func TestProposerFrequency(t *testing.T) {
 			votePower := int64(random.RandInt()%maxPower) + 1
 			totalVotePower += votePower
 			privVal := types.NewMockPV()
-			pubKey := privVal.GetPubKey()
+			pubKey, _ := privVal.PubKey()
 			val := types.NewValidator(pubKey, votePower)
 			val.ProposerPriority = random.RandInt64()
 			vals[j] = val

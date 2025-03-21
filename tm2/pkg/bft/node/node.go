@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
+	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/discovery"
@@ -24,7 +25,6 @@ import (
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	cs "github.com/gnolang/gno/tm2/pkg/bft/consensus"
 	mempl "github.com/gnolang/gno/tm2/pkg/bft/mempool"
-	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	rpccore "github.com/gnolang/gno/tm2/pkg/bft/rpc/core"
 	_ "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -106,14 +106,10 @@ func DefaultNewNode(
 	logger *slog.Logger,
 ) (*Node, error) {
 	// Generate node PrivKey
-	nodeKey, err := p2pTypes.LoadOrGenNodeKey(config.NodeKeyFile())
+	nodeKey, err := p2pTypes.NewNodeKey(config.NodeKeyFile())
 	if err != nil {
 		return nil, err
 	}
-
-	// Get privValKeys.
-	newPrivValKey := config.PrivValidatorKeyFile()
-	newPrivValState := config.PrivValidatorStateFile()
 
 	// Get app client creator.
 	appClientCreator := proxy.DefaultClientCreator(
@@ -123,8 +119,18 @@ func DefaultNewNode(
 		config.DBDir(),
 	)
 
+	// Initialize the privValidator
+	privVal, err := privval.NewPrivValidatorFromConfig(
+		config.PrivValidator,
+		nodeKey.PrivKey,
+		logger.With("module", "remote_signer_client"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	return NewNode(config,
-		privval.LoadOrGenFilePV(newPrivValKey, newPrivValState),
+		privVal,
 		nodeKey,
 		appClientCreator,
 		DefaultGenesisDocProviderFunc(genesisFile),
@@ -262,7 +268,11 @@ func onlyValidatorIsUs(state sm.State, privVal types.PrivValidator) bool {
 		return false
 	}
 	addr, _ := state.Validators.GetByIndex(0)
-	return privVal.GetPubKey().Address() == addr
+	pubKey, err := privVal.PubKey()
+	if err != nil {
+		return false
+	}
+	return pubKey.Address() == addr
 }
 
 func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp appconn.AppConns,
@@ -398,19 +408,8 @@ func NewNode(config *cfg.Config,
 	// what happened during block replay).
 	state = sm.LoadState(stateDB)
 
-	// If an address is provided, listen on the socket for a connection from an
-	// external signing process.
-	if config.PrivValidatorListenAddr != "" {
-		// FIXME: we should start services inside OnStart
-		privValidator, err = createAndStartPrivValidatorSocketClient(config.PrivValidatorListenAddr, logger)
-		if err != nil {
-			return nil, errors.Wrap(err, "error with private validator socket client")
-		}
-	}
-
-	pubKey := privValidator.GetPubKey()
-	if pubKey == nil {
-		// TODO: GetPubKey should return errors - https://github.com/gnolang/gno/tm2/pkg/bft/issues/3602
+	pubKey, err := privValidator.PubKey()
+	if err != nil {
 		return nil, errors.New("could not retrieve public key from private validator")
 	}
 
@@ -680,8 +679,9 @@ func (n *Node) OnStop() {
 		}
 	}
 
-	if pvsc, ok := n.privValidator.(service.Service); ok {
-		pvsc.Stop()
+	// Close the private validator
+	if err := n.privValidator.Close(); err != nil {
+		n.Logger.Error("Error closing private validator", "err", err)
 	}
 }
 
@@ -699,7 +699,10 @@ func (n *Node) configureRPC() {
 	rpccore.SetMempool(n.mempool)
 	rpccore.SetP2PPeers(n.sw)
 	rpccore.SetP2PTransport(n)
-	pubKey := n.privValidator.GetPubKey()
+	pubKey, err := n.privValidator.PubKey()
+	if err != nil {
+		panic(err)
+	}
 	rpccore.SetPubKey(pubKey)
 	rpccore.SetGenesisDoc(n.genesisDoc)
 	rpccore.SetProxyAppQuery(n.proxyApp.Query())
@@ -1006,23 +1009,6 @@ func saveGenesisDoc(db dbm.DB, genDoc *types.GenesisDoc) {
 		panic(fmt.Sprintf("Failed to save genesis doc due to marshaling error: %v", err))
 	}
 	db.SetSync(genesisDocKey, b)
-}
-
-func createAndStartPrivValidatorSocketClient(
-	listenAddr string,
-	logger *slog.Logger,
-) (types.PrivValidator, error) {
-	pve, err := privval.NewSignerListener(listenAddr, logger)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to start private validator")
-	}
-
-	pvsc, err := privval.NewSignerClient(pve)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to start private validator")
-	}
-
-	return pvsc, nil
 }
 
 // splitAndTrimEmpty slices s into all subslices separated by sep and returns a

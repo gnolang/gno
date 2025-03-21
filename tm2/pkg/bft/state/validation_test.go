@@ -205,8 +205,9 @@ func TestValidateBlockCommit(t *testing.T) {
 		*/
 		goodVote, err := types.MakeVote(height, blockID, state.Validators, privVals[proposerAddr.String()], chainID)
 		require.NoError(t, err, "height %d", height)
+		pubKey, _ := badPrivVal.PubKey()
 		badVote := &types.Vote{
-			ValidatorAddress: badPrivVal.GetPubKey().Address(),
+			ValidatorAddress: pubKey.Address(),
 			ValidatorIndex:   0,
 			Height:           height,
 			Round:            0,
