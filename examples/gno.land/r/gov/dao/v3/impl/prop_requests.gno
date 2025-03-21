@@ -89,7 +89,7 @@ func NewAddMemberRequest(addr std.Address, tier string, portfolio string) dao.Pr
 		panic("proposer does not have enough invitation points for inviting new people to the board")
 	}
 
-	return dao.NewProposalRequestBuilder("New Member Prorposal").
+	return dao.NewProposalRequestBuilder("New Member Proposal").
 		WithDescription("This proposal is looking to add a new member to the board.").
 		WithCallback(addMemberCallback).
 		WithMetadata(&AddMemberMetadata{

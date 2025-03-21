@@ -41,7 +41,7 @@ func AdminRemoveModerator(addr std.Address) {
 	moderatorList.Set(addr.String(), false) // FIXME: delete instead?
 }
 
-type NewPostMetadata struct {
+type NewPostProposalMetadata struct {
 	Slug            string
 	Title           string
 	Body            string
@@ -51,13 +51,13 @@ type NewPostMetadata struct {
 	Caller          std.Address
 }
 
-func (a *NewPostMetadata) IsMetadata() {}
-func (a *NewPostMetadata) String() string {
+func (a *NewPostProposalMetadata) IsMetadata() {}
+func (a *NewPostProposalMetadata) String() string {
 	return ufmt.Sprintf("- Post Title: %v\n- Post Publication Date: %v\n- Authors: %v\n- Tags: %v", a.Title, a.PublicationDate, a.Authors, a.Tags)
 }
 
 func newPostCallback(m dao.Metadata) error {
-	amm, ok := m.(*NewPostMetadata)
+	amm, ok := m.(*NewPostProposalMetadata)
 	if !ok {
 		panic("wrong metadata type")
 	}
@@ -72,7 +72,7 @@ func NewPostProposalRequest(slug, title, body, publicationDate, authors, tags st
 		NewProposalRequestBuilder("Add new post to gnoland blog").
 		WithDescription("This propoposal is looking to add a new post to gnoland blog").
 		WithCallback(newPostCallback).
-		WithMetadata(&NewPostMetadata{
+		WithMetadata(&NewPostProposalMetadata{
 			Slug:            slug,
 			Title:           title,
 			Body:            body,

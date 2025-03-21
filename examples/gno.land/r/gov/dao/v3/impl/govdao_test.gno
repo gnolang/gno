@@ -57,7 +57,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 
 	nm1 := testutils.TestAddress("nm1")
 
-	urequire.PanicsWithMessage(t, "Only T1 and T2 members must be added by proposal. To add a T3 member use AddMember function directly.", func() {
+	urequire.PanicsWithMessage(t, "Only T1 and T2 members can be added by proposal. To add a T3 member use AddMember function directly.", func() {
 		dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T3, portfolio))
 	})
 
