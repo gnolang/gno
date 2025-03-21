@@ -2,8 +2,6 @@
 package crossrealm_test
 
 import (
-	"std"
-
 	crossrealm "gno.land/r/demo/tests/crossrealm"
 )
 
@@ -13,13 +11,13 @@ type fooer struct {
 
 func (f *fooer) Foo() {
 	f.s = "B"
-	println("hello " + f.s + " " + std.CurrentRealm().PkgPath())
+	println("hello")
 }
 
 var f *fooer
 
 func init() {
-	f = &fooer{s: "A"}
+	f = &fooer{s: "A"} // unreal, refCount 1, owner f
 	crossrealm.SetFooer(f)
 	crossrealm.CallFooerFoo()
 }
@@ -29,4 +27,4 @@ func main() {
 }
 
 // Error:
-// new escaped mark has no object ID
+// cannot attach a reference to an unattached object from an external realm

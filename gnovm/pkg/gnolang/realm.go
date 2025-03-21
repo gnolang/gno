@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 
@@ -51,6 +52,8 @@ a realm to keep it alive.
 //----------------------------------------
 // PkgID & Realm
 
+// PkgID is an identifier for a package, stored using a fixed length in bytes.
+// It is a [Hashlet] (sha256 hash, cut at 20 bytes) of the package path.
 type PkgID struct {
 	Hashlet
 }
@@ -80,6 +83,7 @@ var (
 	pkgIDFromPkgPathCache = make(map[string]*PkgID, 100)
 )
 
+// PkgIDFromPkgPath creates a new [PkgID] from the given package path.
 func PkgIDFromPkgPath(path string) PkgID {
 	pkgIDFromPkgPathCacheMu.Lock()
 	defer pkgIDFromPkgPathCacheMu.Unlock()
@@ -87,19 +91,20 @@ func PkgIDFromPkgPath(path string) PkgID {
 	pkgID, ok := pkgIDFromPkgPathCache[path]
 	if !ok {
 		pkgID = new(PkgID)
-		*pkgID = PkgID{HashBytes([]byte(path))}
+		*pkgID = PkgID{Hashlet: HashBytes([]byte(path))}
+
 		pkgIDFromPkgPathCache[path] = pkgID
 	}
 	return *pkgID
 }
 
-// Returns the ObjectID of the PackageValue associated with path.
+// ObjectIDFromPkgPath the [ObjectID] of the [PackageValue] associated with path.
 func ObjectIDFromPkgPath(path string) ObjectID {
 	pkgID := PkgIDFromPkgPath(path)
 	return ObjectIDFromPkgID(pkgID)
 }
 
-// Returns the ObjectID of the PackageValue associated with pkgID.
+// ObjectIDFromPkgID the [ObjectID] of the [PackageValue] associated with pkgID.
 func ObjectIDFromPkgID(pkgID PkgID) ObjectID {
 	return ObjectID{
 		PkgID:   pkgID,
@@ -107,17 +112,29 @@ func ObjectIDFromPkgID(pkgID PkgID) ObjectID {
 	}
 }
 
-// NOTE: A nil realm is special and has limited functionality; enough to
-// support methods that don't require persistence. This is the default realm
-// when a machine starts with a non-realm package.
+// Realm is a data structure to keep track of modifications done to a realm
+// package's state. A Realm state is composed of various objects attached to a
+// realm. Any of the objects of the realm may be created, escaped or deleted
+// during a transaction, these actions are recorded through [Realm.DidUpdate].
+// When a realm boundary is exited, then [Realm.FinalizeRealmTransaction] is
+// called, which updates the store with the up-to-date objects.
+//
+// An object is considered "escaped" when it has a RefCount > 1.
 type Realm struct {
-	ID   PkgID
+	// ID is a constant-sized hash for the realm's package path.
+	ID PkgID
+	// The realm package path.
 	Path string
+	// The "Time" of a realm; a variable increased for each new object, in order
+	// to assign it a unique [ObjectID].
 	Time uint64
 
-	newCreated []Object
-	newEscaped []Object
-	newDeleted []Object
+	// Temporary creates/escapes/deletes that happen in [DidUpdate].
+	newCreated []Object // may become created unless ancestor is deleted
+	newEscaped []Object // may become escaped unless new-real and refcount 0 or 1.
+	newDeleted []Object // may become deleted unless attached to new-real owner
+	// Updated objects are marked directly in updated, there is no newUpdated.
+	// During finalization, all ancestors of updated are finalized too.
 
 	created []Object // about to become real.
 	updated []Object // real objects that were modified.
@@ -125,7 +142,7 @@ type Realm struct {
 	escaped []Object // real objects with refcount > 1.
 }
 
-// Creates a blank new realm with counter 0.
+// NewRealm a blank new [Realm] with counter 0.
 func NewRealm(path string) *Realm {
 	id := PkgIDFromPkgPath(path)
 	return &Realm{
@@ -148,33 +165,48 @@ func (rlm *Realm) String() string {
 //----------------------------------------
 // ownership hooks
 
-// po's old elem value is xo, will become co.
-// po, xo, and co may each be nil.
-// if rlm or po is nil, do nothing.
-// xo or co is nil if the element value is undefined or has no
-// associated object.
-func (rlm *Realm) DidUpdate(po, xo, co Object) {
-	if bm.OpsEnabled {
-		bm.PauseOpCode()
-		defer bm.ResumeOpCode()
+// DidUpdate attaches co (Created Object) to po (Parent Object), substituting xo
+// (deleted (X) Object).
+//
+// po will be marked as dirty. If co is not nil, its ref-count will be increased.
+// If xo is not nil, its ref-count will be decreased, and if 0 it will be
+// considered as deleted.
+func (rlm *Realm) DidUpdate(store Store, po, xo, co Object) {
+	if debug {
+		debug.Printf(
+			"DidUpdate - po: %v (type: %v) | xo: %v (type: %v) | co: %v (type: %v) \n",
+			po, reflect.TypeOf(po), xo, reflect.TypeOf(xo), co, reflect.TypeOf(co),
+		)
+
+		if rlm != nil {
+			debug.Println("rlm.ID: ", rlm.ID)
+		}
+
+		if co != nil {
+			debug.Printf(
+				"co: %v (type: %v) | GetBoundRealm: %v | GetIsRef: %v | GetRefCount: %v | GetIsReal: %v\n",
+				co, reflect.TypeOf(co), co.GetBoundRealm(), co.GetIsAttachingAsBase(), co.GetRefCount(), co.GetIsReal(),
+			)
+		}
 	}
+
 	if rlm == nil {
 		return
 	}
+
 	if debug {
 		if co != nil && co.GetIsDeleted() {
 			panic("cannot attach a deleted object")
-		}
-		if po != nil && po.GetIsTransient() {
-			panic("cannot attach to a transient object")
 		}
 		if po != nil && po.GetIsDeleted() {
 			panic("cannot attach to a deleted object")
 		}
 	}
-	if po == nil || !po.GetIsReal() {
+
+	if po == nil || !po.GetIsReal() { // XXX, make sure po is attached
 		return // do nothing.
 	}
+
 	if po.GetObjectID().PkgID != rlm.ID {
 		panic("cannot modify external-realm or non-realm object")
 	}
@@ -195,16 +227,20 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 			if co.GetIsReal() {
 				rlm.MarkDirty(co)
 			}
-			if co.GetIsEscaped() {
-				// already escaped
-			} else {
+			// If it's not escaped, mark as newly escaped item.
+			if !co.GetIsEscaped() {
+				checkCrossRealm(rlm, store, co, &[]Object{})
 				rlm.MarkNewEscaped(co)
 			}
-		} else if co.GetIsReal() {
-			rlm.MarkDirty(co)
 		} else {
-			co.SetOwner(po)
-			rlm.MarkNewReal(co)
+			if co.GetIsReal() {
+				rlm.MarkDirty(co)
+			} else {
+				co.SetOwner(po)
+				rlm.MarkNewReal(co)
+			}
+			// check cross realm for non escaped objects
+			checkCrossRealm(rlm, store, co, &[]Object{})
 		}
 	}
 
@@ -220,9 +256,124 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	}
 }
 
+// checkCrossRealm performs a deep crawl to determine if cross-realm conditions exist.
+func checkCrossRealm(rlm *Realm, store Store, oo Object, seenObjs *[]Object) {
+	// if it is checking a pointer, and it
+	// has a base in current realm, implies
+	// the current realm is finalizing,
+	// just skip the next recursive step.
+	if slices.Contains(*seenObjs, oo) {
+		return
+	}
+	*seenObjs = append(*seenObjs, oo)
+
+	defer func() {
+		*seenObjs = (*seenObjs)[:len(*seenObjs)-1]
+	}()
+
+	if debug {
+		debug.Printf(
+			"checkCrossRealm, oo: %v (type: %v) | GetIsReal: %t | GetIsEscaped: %t | oo.GetBoundRealm: %v | rlm.ID: %v | isAttachingAsBase: %t\n",
+			oo, reflect.TypeOf(oo), oo.GetIsReal(), oo.GetIsEscaped(), oo.GetBoundRealm(), rlm.ID, oo.GetIsAttachingAsBase(),
+		)
+	}
+
+	if oo.GetIsEscaped() {
+		return
+	}
+
+	// object from pure package is ok
+	if pv := oo.GetPackage(); pv != nil {
+		if pv.Realm == nil {
+			return
+		}
+	}
+
+	// same realm recursive check
+	if rlm.ID == oo.GetBoundRealm() {
+		checkCrossRealmChildren(rlm, store, oo, seenObjs)
+		return
+	}
+
+	// if object does not have a bound realm
+	if oo.GetBoundRealm().IsZero() {
+		if oo.GetIsReal() && oo.GetIsAttachingAsBase() {
+			return
+		} else {
+			checkCrossRealmChildren(rlm, store, oo, seenObjs)
+			return
+		}
+	}
+
+	if rlm.ID != oo.GetBoundRealm() { // crossing realm
+		// When attaching a reference, ensure that the base object is real.
+		// The child objects do not need to be real at this stage;
+		// they can be attached(real) after.
+		if oo.GetIsAttachingAsBase() {
+			if !oo.GetIsReal() {
+				panic("cannot attach a reference to an unattached object from an external realm")
+			} else {
+				return
+			}
+		} else {
+			panic("cannot attach a value of a type defined by another realm")
+		}
+	}
+}
+
+// checkCrossRealm2 checks cross realm recursively.
+func checkCrossRealm2(rlm *Realm, store Store, tv *TypedValue, seenObjs *[]Object) {
+	if debug {
+		debug.Printf("checkCrossRealm2, tv: %v (type: %v) \n", tv, reflect.TypeOf(tv.V))
+	}
+	oo2 := tv.GetFirstObjectAndAttach(store)
+	if oo2 != nil {
+		checkCrossRealm(rlm, store, oo2, seenObjs)
+	}
+}
+
+// checkCrossRealmChildren checks if any children of oo is crossing realm.
+func checkCrossRealmChildren(rlm *Realm, store Store, oo Object, seenObjs *[]Object) {
+	switch v := oo.(type) {
+	case *StructValue:
+		for _, fv := range v.Fields {
+			checkCrossRealm2(rlm, store, &fv, seenObjs) // ref to struct is heapItemValue or block
+		}
+	case *MapValue:
+		for cur := v.List.Head; cur != nil; cur = cur.Next {
+			checkCrossRealm2(rlm, store, &cur.Key, seenObjs)
+			checkCrossRealm2(rlm, store, &cur.Value, seenObjs)
+		}
+	case *BoundMethodValue:
+		checkCrossRealm2(rlm, store, &v.Receiver, seenObjs)
+		o2 := v.Func.Closure.(Object)
+		// the closure must be a real fileBlock
+		if !o2.GetIsReal() {
+			panic("BoundMethod closure should be real")
+		}
+	case *Block:
+		for _, tv := range v.Values {
+			checkCrossRealm2(rlm, store, &tv, seenObjs)
+		}
+	case *HeapItemValue:
+		checkCrossRealm2(rlm, store, &v.Value, seenObjs)
+	case *ArrayValue:
+		if v.Data == nil {
+			for _, e := range v.List {
+				checkCrossRealm2(rlm, store, &e, seenObjs)
+			}
+		}
+	default:
+		panic("should not happen, oo is not an object")
+	}
+}
+
 //----------------------------------------
 // mark*
 
+// MarkNewReal marks the given [Object] as a new real object; that is, that
+// it should be considered a newly created object to save during realm
+// finalization.
 func (rlm *Realm) MarkNewReal(oo Object) {
 	if debug {
 		if pv, ok := oo.(*PackageValue); ok {
@@ -254,6 +405,8 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 	rlm.newCreated = append(rlm.newCreated, oo)
 }
 
+// MarkDirty sets the given [Object] as "dirty" (updated) at the given rlm.Time,
+// and marks it to be updated during the next realm finalization.
 func (rlm *Realm) MarkDirty(oo Object) {
 	if debug {
 		if !oo.GetIsReal() && !oo.GetIsNewReal() {
@@ -274,6 +427,8 @@ func (rlm *Realm) MarkDirty(oo Object) {
 	rlm.updated = append(rlm.updated, oo)
 }
 
+// MarkNewEscaped marks the given [Object] as to be deleted during the next
+// realm finalization.
 func (rlm *Realm) MarkNewDeleted(oo Object) {
 	if debug {
 		if !oo.GetIsNewReal() && !oo.GetIsReal() {
@@ -294,6 +449,8 @@ func (rlm *Realm) MarkNewDeleted(oo Object) {
 	rlm.newDeleted = append(rlm.newDeleted, oo)
 }
 
+// MarkNewEscaped marks the given [Object] to be escaped during the next realm
+// finalization.
 func (rlm *Realm) MarkNewEscaped(oo Object) {
 	if debug {
 		if !oo.GetIsNewReal() && !oo.GetIsReal() {
@@ -320,18 +477,20 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 //----------------------------------------
 // transactions
 
-// OpReturn calls this when exiting a realm transaction.
+// FinalizeRealmTransaction moves the changes recorded in the given [Realm] and
+// writes them into the underlying [Store]. OpReturn calls this when exiting a
+// realm transaction; additionally, this is called by the machine itself in
+// [Machine.RunMemPackage].
 func (rlm *Realm) FinalizeRealmTransaction(store Store) {
+	// TODO: check cross realm, that might be objects not attached
+	// to a realm gets attached here, which should panic.
+
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
 	}
 
 	if debug {
-		// * newCreated - may become created unless ancestor is deleted
-		// * newDeleted - may become deleted unless attached to new-real owner
-		// * newEscaped - may become escaped unless new-real and refcount 0 or 1.
-		// * updated - includes all real updated objects, and will be appended with ancestors
 		ensureUniq(rlm.newCreated)
 		ensureUniq(rlm.newEscaped)
 		ensureUniq(rlm.newDeleted)
@@ -380,7 +539,9 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 // and get assigned ids.
 func (rlm *Realm) processNewCreatedMarks(store Store) {
 	// Create new objects and their new descendants.
-	for _, oo := range rlm.newCreated {
+	// for _, oo := range rlm.newCreated {
+	for i := 0; i < len(rlm.newCreated); i++ {
+		oo := rlm.newCreated[i]
 		if debug {
 			if oo.GetIsDirty() {
 				panic("new created mark cannot be dirty")
@@ -397,6 +558,13 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 			// skip if became deleted.
 			continue
 		} else {
+			// check cross realm before attaching
+			// from package block, recursively
+			if pv, ok := oo.(*PackageValue); ok {
+				if IsRealmPath(pv.PkgPath) {
+					checkCrossRealm(rlm, store, pv.Block.(Object), &[]Object{})
+				}
+			}
 			rlm.incRefCreatedDescendants(store, oo)
 		}
 	}
@@ -425,7 +593,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 		return
 	}
 	rlm.assignNewObjectID(oo)
-	rlm.created = append(rlm.created, oo)
+	rlm.created = append(rlm.created, oo) // here it becomes real.
 	// RECURSE GUARD END
 
 	// recurse for children.
@@ -578,6 +746,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 			if po == nil {
 				// e.g. !eo.GetIsNewReal(),
 				// should have no parent.
+				// eo.SetOwner(nil)
 				continue
 			} else {
 				if po.GetRefCount() == 0 {
@@ -589,7 +758,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 					rlm.MarkDirty(po)
 				}
 				if eo.GetObjectID().IsZero() {
-					panic("new escaped mark has no object ID")
+					panic("new escaped object has no object ID")
 				}
 				// escaped has no owner.
 				eo.SetOwner(nil)
@@ -686,8 +855,6 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 		}
 	}
 	for _, uo := range rlm.updated {
-		// for i := len(rlm.updated) - 1; i >= 0; i-- {
-		// uo := rlm.updated[i]
 		if !uo.GetIsDirty() {
 			// might have happened already as child
 			// of something else created/dirty.
@@ -717,7 +884,15 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		}
 	}
 	// first, save unsaved children.
-	unsaved := getUnsavedChildObjects(oo)
+	// leave unreal external object
+	// to be attached in their own realm
+	unsaved := []Object(nil)
+	// if oo is from external realm, imply it's already real,
+	// and it's attaching by ref, (after the checkCrossReal logic)
+	// skip its unreal child, to be attached in respective realm
+	if !isCrossRealm(oo, rlm.ID) {
+		unsaved = getUnsavedChildObjects(oo)
+	}
 	for _, uch := range unsaved {
 		if uch.GetIsEscaped() || uch.GetIsNewEscaped() {
 			// no need to save preemptively.
@@ -725,7 +900,10 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 			rlm.saveUnsavedObjectRecursively(store, uch)
 		}
 	}
+	// NOTE, won't be any external unreal here.
+
 	// then, save self.
+	// neither escaped nor new escaped
 	if oo.GetIsNewReal() {
 		// save created object.
 		if debug {
@@ -756,7 +934,12 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 func (rlm *Realm) saveObject(store Store, oo Object) {
 	oid := oo.GetObjectID()
 	if oid.IsZero() {
-		panic("unexpected zero object id")
+		panic(fmt.Sprintf("unexpected zero object id: %v", oo))
+	}
+	if isCrossRealm(oo, rlm.ID) {
+		if !oo.GetIsEscaped() && !oo.GetIsNewEscaped() {
+			panic("cannot attach object from external realm: object must be either escaped or newly escaped")
+		}
 	}
 	// set hash to escape index.
 	if oo.GetIsNewEscaped() {
@@ -943,7 +1126,7 @@ func getUnsavedChildObjects(val Value) []Object {
 			// is already saved.
 		} else if obj, ok := val.(Object); ok {
 			// if object...
-			if isUnsaved(obj) {
+			if isUnsavedInRealm(obj) {
 				unsaved = append(unsaved, obj)
 			}
 		} else {
@@ -1471,7 +1654,7 @@ func toRefValue(val Value) RefValue {
 				PkgPath: pv.PkgPath,
 			}
 		} else if !oo.GetIsReal() {
-			panic("unexpected unreal object")
+			panic(fmt.Sprintf("unexpected unreal object: %v", val))
 		} else if oo.GetIsDirty() {
 			// This can happen with some circular
 			// references.
@@ -1544,7 +1727,7 @@ func refOrCopyValue(tv TypedValue) TypedValue {
 	}
 }
 
-func isUnsaved(oo Object) bool {
+func isUnsavedInRealm(oo Object) bool {
 	return oo.GetIsNewReal() || oo.GetIsDirty()
 }
 
@@ -1571,4 +1754,20 @@ func getOwner(store Store, oo Object) Object {
 		}
 	}
 	return po
+}
+
+// ----------------------------------------
+// misc
+
+// isCrossRealm checks if it's crossing realms.
+// if the origin realm is zero, e.g. an unreal array,
+// it is not considered a cross-realm scenario for now.
+// however, further checks on children are required afterward.
+func isCrossRealm(oo Object, rlmID PkgID) bool {
+	pv := oo.GetPackage()
+	if pv != nil && pv.Realm != nil {
+		boundRealm := oo.GetBoundRealm()
+		return !boundRealm.IsZero() && boundRealm != rlmID
+	}
+	return false
 }

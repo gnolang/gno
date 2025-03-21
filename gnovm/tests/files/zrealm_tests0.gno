@@ -26,46 +26,7 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/demo/tests"]
-// c[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:19]={
-//     "Fields": [
-//         {
-//             "T": {
-//                 "@type": "/gno.PrimitiveType",
-//                 "value": "16"
-//             },
-//             "V": {
-//                 "@type": "/gno.StringValue",
-//                 "value": "three"
-//             }
-//         }
-//     ],
-//     "ObjectInfo": {
-//         "ID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:19",
-//         "ModTime": "0",
-//         "OwnerID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:18",
-//         "RefCount": "1"
-//     }
-// }
-// c[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:18]={
-//     "ObjectInfo": {
-//         "ID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:18",
-//         "ModTime": "0",
-//         "OwnerID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:17",
-//         "RefCount": "1"
-//     },
-//     "Value": {
-//         "T": {
-//             "@type": "/gno.RefType",
-//             "ID": "gno.land/r/demo/tests_foo.FooStringer"
-//         },
-//         "V": {
-//             "@type": "/gno.RefValue",
-//             "Hash": "6b9b731f6118c2419f23ba57e1481679f17f4a8f",
-//             "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:19"
-//         }
-//     }
-// }
-// c[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:17]={
+// c[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:13]={
 //     "Data": null,
 //     "List": [
 //         {
@@ -80,8 +41,8 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "4e0d77a91ba35733bf82329317bf8c8dffa6f655",
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:12"
+//                     "Escaped": true,
+//                     "ObjectID": "f643af0964f4fc0bfa4d9d204506cc75a00fac2d:3"
 //                 },
 //                 "Index": "0",
 //                 "TV": null
@@ -99,8 +60,8 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "fa414e1770821b8deb8e6d46d97828c47f7d5fa5",
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:15"
+//                     "Escaped": true,
+//                     "ObjectID": "f643af0964f4fc0bfa4d9d204506cc75a00fac2d:5"
 //                 },
 //                 "Index": "0",
 //                 "TV": null
@@ -118,8 +79,8 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "aaa64d049cf8660d689780acac9f546f270eaa4e",
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:18"
+//                     "Escaped": true,
+//                     "ObjectID": "f643af0964f4fc0bfa4d9d204506cc75a00fac2d:7"
 //                 },
 //                 "Index": "0",
 //                 "TV": null
@@ -127,18 +88,18 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:17",
+//         "ID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:13",
 //         "ModTime": "0",
 //         "OwnerID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:2",
 //         "RefCount": "1"
 //     }
 // }
-// u[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:12]={
+// u[f643af0964f4fc0bfa4d9d204506cc75a00fac2d:3]={
 //     "ObjectInfo": {
-//         "ID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:12",
-//         "ModTime": "17",
-//         "OwnerID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:11",
-//         "RefCount": "1"
+//         "ID": "f643af0964f4fc0bfa4d9d204506cc75a00fac2d:3",
+//         "IsEscaped": true,
+//         "ModTime": "13",
+//         "RefCount": "2"
 //     },
 //     "Value": {
 //         "T": {
@@ -147,17 +108,17 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "f163acee63433b44deb3168fef87beb588847322",
-//             "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:13"
+//             "Hash": "45f556b68be863359e2bce915ca9bea54cb433ee",
+//             "ObjectID": "f643af0964f4fc0bfa4d9d204506cc75a00fac2d:4"
 //         }
 //     }
 // }
-// u[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:15]={
+// u[f643af0964f4fc0bfa4d9d204506cc75a00fac2d:5]={
 //     "ObjectInfo": {
-//         "ID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:15",
-//         "ModTime": "17",
-//         "OwnerID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:14",
-//         "RefCount": "1"
+//         "ID": "f643af0964f4fc0bfa4d9d204506cc75a00fac2d:5",
+//         "IsEscaped": true,
+//         "ModTime": "13",
+//         "RefCount": "2"
 //     },
 //     "Value": {
 //         "T": {
@@ -166,12 +127,32 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "2a96c074210eb2db31b7941e31d62deb04e59937",
-//             "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:16"
+//             "Hash": "852145bd1f1b33fa43aa9e6c1c41ccfc31e952c2",
+//             "ObjectID": "f643af0964f4fc0bfa4d9d204506cc75a00fac2d:6"
 //         }
 //     }
 // }
-// d[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:14]
+// u[f643af0964f4fc0bfa4d9d204506cc75a00fac2d:7]={
+//     "ObjectInfo": {
+//         "ID": "f643af0964f4fc0bfa4d9d204506cc75a00fac2d:7",
+//         "IsEscaped": true,
+//         "ModTime": "13",
+//         "OwnerID": "f643af0964f4fc0bfa4d9d204506cc75a00fac2d:2",
+//         "RefCount": "2"
+//     },
+//     "Value": {
+//         "T": {
+//             "@type": "/gno.RefType",
+//             "ID": "gno.land/r/demo/tests_foo.FooStringer"
+//         },
+//         "V": {
+//             "@type": "/gno.RefValue",
+//             "Hash": "db60709913153489a5694aa8139398ca99c75f9d",
+//             "ObjectID": "f643af0964f4fc0bfa4d9d204506cc75a00fac2d:8"
+//         }
+//     }
+// }
+// d[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:12]
 // switchrealm["gno.land/r/demo/tests_foo"]
 // switchrealm["gno.land/r/demo/tests_foo"]
 // switchrealm["gno.land/r/demo/tests_foo"]
