@@ -154,7 +154,9 @@ func (rlm *Realm) String() string {
 // xo or co is nil if the element value is undefined or has no
 // associated object.
 func (rlm *Realm) DidUpdate(po, xo, co Object) {
-	//fmt.Println("===DidUpdate", po, xo, co)
+	fmt.Printf("===DidUpdate, po: %v \n", po)
+	fmt.Printf("===xo: %v \n", xo)
+	fmt.Printf("===co: %v \n", co)
 	//fmt.Println("===DidUpdate, rlm: ", rlm)
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
@@ -214,12 +216,14 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 
 	if xo != nil {
 		xo.DecRefCount()
+		fmt.Printf("xo...Rc after dec: %d, xo.GetIsReal: %t\n", xo.GetRefCount(), xo.GetIsReal())
+		fmt.Printf("---addr of xo: %p\n", xo)
 		if xo.GetRefCount() == 0 {
 			if xo.GetIsReal() {
 				rlm.MarkNewDeleted(xo)
 			}
-		} else if xo.GetIsReal() {
-			rlm.MarkDirty(xo)
+			//} else if xo.GetIsReal() {
+			//	rlm.MarkDirty(xo)
 		}
 	}
 }
@@ -260,7 +264,7 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 }
 
 func (rlm *Realm) MarkDirty(oo Object) {
-	//fmt.Println("===MarkDirty, oo: ", oo)
+	fmt.Println("===MarkDirty, oo: ", oo, oo.GetRefCount())
 	if debug {
 		if !oo.GetIsReal() && !oo.GetIsNewReal() {
 			panic("cannot mark unreal object as dirty")
@@ -328,8 +332,8 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 
 // OpReturn calls this when exiting a realm transaction.
 func (rlm *Realm) FinalizeRealmTransaction(store Store) {
-	//fmt.Println("===FinalizeRealmTransaction")
-	//defer fmt.Println("===Done, FinalizeRealmTransaction")
+	fmt.Println("===FinalizeRealmTransaction")
+	defer fmt.Println("===Done, FinalizeRealmTransaction")
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -345,9 +349,9 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 		ensureUniq(rlm.newDeleted)
 		ensureUniq(rlm.updated)
 		if false ||
-				rlm.created != nil ||
-				rlm.deleted != nil ||
-				rlm.escaped != nil {
+			rlm.created != nil ||
+			rlm.deleted != nil ||
+			rlm.escaped != nil {
 			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
@@ -387,8 +391,10 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 // All newly created objects become appended to .created,
 // and get assigned ids.
 func (rlm *Realm) processNewCreatedMarks(store Store) {
+	fmt.Println("processNewCreatedMarks")
 	// Create new objects and their new descendants.
 	for _, oo := range rlm.newCreated {
+		fmt.Printf("---oo: %v, oo.RefCount: %d \n", oo, oo.GetRefCount())
 		if debug {
 			if oo.GetIsDirty() {
 				panic("new created mark cannot be dirty")
@@ -397,6 +403,8 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 		if oo.GetRefCount() == 0 {
 			if debug {
 				if !oo.GetIsNewDeleted() {
+					fmt.Println("---should be new deleted, oo:", oo)
+					fmt.Printf("addr: %p\n", oo)
 					panic("should have been marked new-deleted")
 				}
 			}
@@ -475,7 +483,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 			//fmt.Println("child refCount: ", child.GetRefCount())
 			//fmt.Println("===mark dirty, oo.GetIsReal: ", oo.GetIsReal(), oo.GetIsNewReal(), oo.GetIsEscaped())
 			if !child.GetIsNewReal() && !child.GetIsDirty() {
-				rlm.MarkDirty(child)
+				//rlm.MarkDirty(child)
 			}
 			//rlm.MarkDirty(child)
 			if child.GetIsEscaped() {
@@ -520,6 +528,7 @@ func (rlm *Realm) processNewDeletedMarks(store Store) {
 
 // Like incRefCreatedDescendants but decrements.
 func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
+	fmt.Println("===decRefDeletedDescendants, oo: ", oo)
 	if debug {
 		if oo.GetObjectID().IsZero() {
 			panic("cannot decrement references of deleted descendants of object with no object ID")
@@ -546,12 +555,20 @@ func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 	// recurse for children
 	more := getChildObjects2(store, oo)
 	for _, child := range more {
+		fmt.Println("===child: ", child)
+		fmt.Printf("child.GetIsReal: %t | child.GetIsNewReal: %t | child.GetIsDirty: %t \n",
+			child.GetIsReal(), child.GetIsNewReal(), child.GetIsDirty())
+
 		child.DecRefCount()
 		rc := child.GetRefCount()
+		fmt.Println("===rc: ", rc)
 		if rc == 0 {
 			rlm.decRefDeletedDescendants(store, child)
 		} else if rc > 0 {
-			rlm.MarkDirty(child)
+			if !isUnsaved(child) {
+				fmt.Println("Not unsaved, mark it dirty")
+				rlm.MarkDirty(child)
+			}
 		} else {
 			panic("deleted descendants should not have a reference count of less than zero")
 		}
@@ -606,6 +623,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 					// will be saved regardless.
 				} else {
 					// exists, mark dirty.
+					println("!!!!!!!!!!!!!!!!!!!!!1")
 					rlm.MarkDirty(po)
 				}
 				if eo.GetObjectID().IsZero() {
@@ -626,8 +644,10 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 // (ancestors) must be marked as dirty to update the
 // hash tree.
 func (rlm *Realm) markDirtyAncestors(store Store) {
+	fmt.Println("===markDirtyAncestors...")
 	markAncestorsOne := func(oo Object) {
 		for {
+			fmt.Println("===iterating oo: ", oo)
 			if pv, ok := oo.(*PackageValue); ok {
 				if debug {
 					if pv.GetRefCount() < 1 {
@@ -640,7 +660,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 			rc := oo.GetRefCount()
 			if debug {
 				if rc == 0 {
-					fmt.Println("---oo: ", oo)
+					fmt.Println("---zero dirty oo: ", oo)
 					panic("ancestor should have a non-zero reference count to be marked as dirty")
 				}
 			}
@@ -659,21 +679,31 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 			} // else, rc == 1
 
 			po := getOwner(store, oo)
+			fmt.Printf("po: %v (po.GetIsReal: %t) | (po.GetIsNewReal: %t) | (po.GetIsDirty: %t)"+
+				"(po.GetIsEscape: %t) \n", po, po.GetIsReal(), po.GetIsNewReal(), po.GetIsDirty(), po.GetIsEscaped())
 			if po == nil {
 				break // no more owners.
 			} else if po.GetIsNewReal() {
+				fmt.Println("===po is new real, do nothing")
 				// already will be marked
 				// via call to markAncestorsOne
 				// via .created.
 				break
 			} else if po.GetIsDirty() {
+				fmt.Println("===po is dirty, do nothing")
 				// already will be marked
 				// via call to markAncestorsOne
 				// via .updated.
 				break
 			} else {
-				rlm.MarkDirty(po)
-				// next case
+				fmt.Println("==============!!!!!!!!!!!!!!!!!!!!!!!!, po.rc: ", po, po.GetRefCount())
+				if po.GetRefCount() > 0 {
+					rlm.MarkDirty(po)
+					//oo = po
+				} else {
+					fmt.Println("===not marking dirty")
+				}
+				//next case
 				oo = po
 			}
 		}
@@ -681,11 +711,13 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 	// NOTE: newly dirty-marked owners get appended
 	// to .updated without affecting iteration.
 	for _, oo := range rlm.updated {
+		fmt.Println("===uo: ", oo)
 		markAncestorsOne(oo)
 	}
 	// NOTE: must happen after iterating over rlm.updated
 	// for the same reason.
 	for _, oo := range rlm.created {
+		fmt.Println("===co: ", oo)
 		markAncestorsOne(oo)
 	}
 }
@@ -738,9 +770,9 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		}
 		// deleted objects should not have gotten here.
 		if false ||
-				oo.GetRefCount() <= 0 ||
-				oo.GetIsNewDeleted() ||
-				oo.GetIsDeleted() {
+			oo.GetRefCount() <= 0 ||
+			oo.GetIsNewDeleted() ||
+			oo.GetIsDeleted() {
 			panic("cannot save deleted objects")
 		}
 	}
