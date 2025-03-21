@@ -790,7 +790,7 @@ func uversePrint(m *Machine, xv PointerValue, newline bool) {
 			if i != 0 { // Not the last item.
 				buf.WriteByte(' ')
 			}
-			ev := xv.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
+			ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
 			buf.WriteString(ev.Sprint(m))
 		}
 		if newline {
