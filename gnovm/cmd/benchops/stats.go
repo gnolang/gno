@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -41,7 +41,7 @@ func stats(binFile string) {
 	numWorkers := 2
 	wg.Add(numWorkers)
 	doneCh := make(chan struct{})
-	for i := 0; i < numWorkers; i++ {
+	for range numWorkers {
 		go func() {
 			for {
 				record, ok := <-inputCh
@@ -97,7 +97,7 @@ func stats(binFile string) {
 		}
 		n := nbytes / recordSize
 
-		for j := 0; j < n; j++ {
+		for j := range n {
 			inputCh <- buf[j*recordSize : (j+1)*recordSize]
 		}
 	}
@@ -137,9 +137,7 @@ func calculateStats(crs []codeRecord) {
 	for k := range m {
 		keys = append(keys, k)
 	}
-	sort.Slice(keys, func(i, j int) bool {
-		return keys[i] < keys[j]
-	})
+	slices.Sort(keys)
 
 	for _, k := range keys {
 		cs := calculate(k, m[k])

@@ -220,7 +220,7 @@ func TestHeaderByteSize(t *testing.T) {
 	// Each supplementary character takes 4 bytes.
 	// http://www.i18nguy.com/unicode/supplementary-test.html
 	maxChainID := ""
-	for i := 0; i < MaxChainIDLen; i++ {
+	for range MaxChainIDLen {
 		maxChainID += "𠜎"
 	}
 
@@ -277,7 +277,7 @@ func TestCommitToVoteSet(t *testing.T) {
 	chainID := voteSet.ChainID()
 	voteSet2 := CommitToVoteSet(chainID, commit, valSet)
 
-	for i := 0; i < len(vals); i++ {
+	for i := range vals {
 		vote1 := voteSet.GetByIndex(i)
 		vote2 := voteSet2.GetByIndex(i)
 		vote3 := commit.GetVote(i)
@@ -321,7 +321,7 @@ func TestCommitToVoteSetWithVotesForAnotherBlockOrNilBlock(t *testing.T) {
 
 		vi := 0
 		for n := range tc.blockIDs {
-			for i := 0; i < tc.numVotes[n]; i++ {
+			for range tc.numVotes[n] {
 				addr := vals[vi].GetPubKey().Address()
 				vote := &Vote{
 					ValidatorAddress: addr,

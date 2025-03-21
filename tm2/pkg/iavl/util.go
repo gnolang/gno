@@ -16,7 +16,7 @@ func PrintTree(tree *ImmutableTree) {
 
 func printNode(ndb *nodeDB, node *Node, indent int) {
 	indentPrefix := ""
-	for i := 0; i < indent; i++ {
+	for range indent {
 		indentPrefix += "    "
 	}
 
@@ -124,7 +124,7 @@ func treat(s string, color string) string {
 	return color + s + ANSIReset
 }
 
-func treatAll(color string, args ...interface{}) string {
+func treatAll(color string, args ...any) string {
 	parts := make([]string, 0, len(args))
 	for _, arg := range args {
 		parts = append(parts, treat(fmt.Sprintf("%v", arg), color))
@@ -132,22 +132,22 @@ func treatAll(color string, args ...interface{}) string {
 	return strings.Join(parts, "")
 }
 
-func Green(args ...interface{}) string {
+func Green(args ...any) string {
 	return treatAll(ANSIFgGreen, args...)
 }
 
-func Blue(args ...interface{}) string {
+func Blue(args ...any) string {
 	return treatAll(ANSIFgBlue, args...)
 }
 
-func Cyan(args ...interface{}) string {
+func Cyan(args ...any) string {
 	return treatAll(ANSIFgCyan, args...)
 }
 
 // ColoredBytes takes in the byte that you would like to show as a string and byte
 // and will display them in a human readable format.
 // If the environment variable TENDERMINT_IAVL_COLORS_ON is set to a non-empty string then different colors will be used for bytes and strings.
-func ColoredBytes(data []byte, textColor, bytesColor func(...interface{}) string) string {
+func ColoredBytes(data []byte, textColor, bytesColor func(...any) string) string {
 	colors := os.Getenv("TENDERMINT_IAVL_COLORS_ON")
 	if colors == "" {
 		for _, b := range data {
