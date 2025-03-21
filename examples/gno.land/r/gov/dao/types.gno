@@ -17,9 +17,9 @@ func (pid ProposalID) String() string {
 type VoteOption string
 
 const (
+	AbstainVote VoteOption = "ABSTAIN" // Side is not chosen
 	YesVote     VoteOption = "YES"     // Proposal should be accepted
 	NoVote      VoteOption = "NO"      // Proposal should be rejected
-	AbstainVote VoteOption = "ABSTAIN" // Side is not chosen
 )
 
 type VoteRequest struct {
