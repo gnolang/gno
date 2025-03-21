@@ -24,7 +24,7 @@ func TestUpdateInstructions(t *testing.T) {
 		updateInstructions(newInstructions)
 	})
 
-	std.TestSetOriginCaller(std.DerivePkgAddr("gno.land/r/gov/dao/v2"))
+	testing.SetOriginCaller(std.DerivePkgAddr("gno.land/r/gov/dao/v2"))
 
 	uassert.NotPanics(t, func() {
 		updateInstructions(newInstructions)
@@ -49,7 +49,7 @@ func TestUpdateMinFee(t *testing.T) {
 		updateMinFee(newMinFee)
 	})
 
-	std.TestSetOriginCaller(std.DerivePkgAddr("gno.land/r/gov/dao/v2"))
+	testing.SetOriginCaller(std.DerivePkgAddr("gno.land/r/gov/dao/v2"))
 
 	uassert.NotPanics(t, func() {
 		updateMinFee(newMinFee)

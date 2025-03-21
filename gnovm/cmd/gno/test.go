@@ -20,6 +20,7 @@ import (
 
 type testCfg struct {
 	verbose             bool
+	failfast            bool
 	rootDir             string
 	run                 string
 	timeout             time.Duration
@@ -102,6 +103,13 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		"v",
 		false,
 		"verbose output when running",
+	)
+
+	fs.BoolVar(
+		&c.failfast,
+		"failfast",
+		false,
+		"do not start new tests after the first test failure",
 	)
 
 	fs.BoolVar(
@@ -206,9 +214,15 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	opts.Metrics = cfg.printRuntimeMetrics
 	opts.Events = cfg.printEvents
 	opts.Debug = cfg.debug
+	opts.FailfastFlag = cfg.failfast
 
 	buildErrCount := 0
 	testErrCount := 0
+	fail := func() error {
+		io.ErrPrintfln("FAIL")
+		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
+	}
+
 	for _, pkg := range subPkgs {
 		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
 			io.ErrPrintfln("?       %s \t[no test files]", pkg.Dir)
@@ -258,13 +272,15 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			}
 			io.ErrPrintfln("FAIL    %s \t%s", pkg.Dir, dstr)
 			testErrCount++
+			if cfg.failfast {
+				return fail()
+			}
 		} else {
 			io.ErrPrintfln("ok      %s \t%s", pkg.Dir, dstr)
 		}
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
-		io.ErrPrintfln("FAIL")
-		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
+		return fail()
 	}
 
 	return nil
