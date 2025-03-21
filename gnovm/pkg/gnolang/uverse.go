@@ -1,9 +1,9 @@
 package gnolang
 
 import (
+	"bytes"
 	"fmt"
 	"io"
-	"strings"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 )
@@ -709,6 +709,7 @@ func makeUverseNode() {
 			return
 		},
 	)
+
 	// NOTE: panic is its own statement type, and is not defined as a function.
 	defNative("print",
 		Flds( // params
@@ -717,34 +718,7 @@ func makeUverseNode() {
 		nil, // results
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1()
-			xv := arg0
-			xvl := xv.TV.GetLength()
-			if xvl == 0 {
-				// Mimick Go in which invoking print() does nothing.
-				return
-			}
-
-			switch debug {
-			case true:
-				ss := make([]string, xvl)
-				for i := 0; i < xvl; i++ {
-					ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
-					ss[i] = ev.Sprint(m)
-				}
-				rs := strings.Join(ss, " ")
-				print(rs)
-				io.WriteString(m.Output, rs)
-
-			default:
-				nMax := xvl - 1
-				for i := 0; i < xvl; i++ {
-					ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
-					io.WriteString(m.Output, ev.Sprint(m))
-					if i < nMax { // Not the last item.
-						io.WriteString(m.Output, " ")
-					}
-				}
-			}
+			uversePrint(m, arg0, false)
 		},
 	)
 	defNative("println",
@@ -754,31 +728,7 @@ func makeUverseNode() {
 		nil, // results
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1()
-			xv := arg0
-			xvl := xv.TV.GetLength()
-
-			switch debug {
-			case true:
-				ss := make([]string, xvl)
-				for i := 0; i < xvl; i++ {
-					ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
-					ss[i] = ev.Sprint(m)
-				}
-				rs := strings.Join(ss, " ") + "\n"
-				println("DEBUG/stdout: " + rs)
-				io.WriteString(m.Output, rs)
-
-			default:
-				nMax := xvl - 1
-				for i := 0; i < xvl; i++ {
-					ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
-					io.WriteString(m.Output, ev.Sprint(m))
-					if i < nMax { // Not the last item.
-						io.WriteString(m.Output, " ")
-					}
-				}
-				io.WriteString(m.Output, "\n")
-			}
+			uversePrint(m, arg0, true)
 		},
 	)
 	defNative("recover",
@@ -816,3 +766,38 @@ func copyListToRunes(dst []rune, tvs []TypedValue) {
 		dst[i] = tvs[i].GetInt32()
 	}
 }
+
+// uversePrint is used for the print and println functions.
+// println passes newline = true.
+// xv contains the variadic argument passed to the function.
+func uversePrint(m *Machine, xv PointerValue, newline bool) {
+	xvl := xv.TV.GetLength()
+	switch xvl {
+	case 0:
+		if newline {
+			m.Output.Write(bNewline)
+		}
+	case 1:
+		ev := xv.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
+		res := ev.Sprint(m)
+		io.WriteString(m.Output, res)
+		if newline {
+			m.Output.Write(bNewline)
+		}
+	default:
+		var buf bytes.Buffer
+		for i := 0; i < xvl; i++ {
+			if i != 0 { // Not the last item.
+				buf.WriteByte(' ')
+			}
+			ev := xv.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
+			buf.WriteString(ev.Sprint(m))
+		}
+		if newline {
+			buf.WriteByte('\n')
+		}
+		m.Output.Write(buf.Bytes())
+	}
+}
+
+var bNewline = []byte("\n")
