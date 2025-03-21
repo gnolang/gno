@@ -9,6 +9,7 @@ package bank1
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/r/demo/banktest"
 )
@@ -17,8 +18,8 @@ func main() {
 	// set up main address and banktest addr.
 	banktestAddr := std.DerivePkgAddr("gno.land/r/demo/banktest")
 	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
-	std.TestSetOriginCaller(mainaddr)
-	std.TestSetOriginPkgAddress(banktestAddr)
+	testing.SetOriginCaller(mainaddr)
+	testing.SetOriginPkgAddress(banktestAddr)
 
 	// get and print balance of mainaddr.
 	// with the SEND, + 200 gnot given by the TestContext, main should have 300gnot.
@@ -28,7 +29,7 @@ func main() {
 
 	// simulate a Deposit call. use Send + OriginSend to simulate -send.
 	banker.SendCoins(mainaddr, banktestAddr, std.Coins{{"ugnot", 100_000_000}})
-	std.TestSetOriginSend(std.Coins{{"ugnot", 100_000_000}}, nil)
+	testing.SetOriginSend(std.Coins{{"ugnot", 100_000_000}})
 	res := banktest.Deposit("ugnot", 50_000_000)
 	println("Deposit():", res)
 
