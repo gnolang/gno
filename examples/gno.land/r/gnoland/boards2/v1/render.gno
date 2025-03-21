@@ -107,7 +107,7 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	v, found := gBoardsByName.Get(name)
 	if !found {
 		res.Write("### The board you are looking for does not exist\n")
-		res.Write("Do you want to [create a new board](" + txlink.Call("CreateBoard") + ") ?")
+		res.Write("Do you want to [create a new board](" + txlink.Call("CreateBoard", "name", name) + ") ?")
 		return
 	}
 
