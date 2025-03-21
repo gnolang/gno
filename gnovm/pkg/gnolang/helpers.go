@@ -927,3 +927,14 @@ func chopRight(in string) (left string, tok rune, right string) {
 		return
 	}
 }
+
+//func InjectStmts(lvs *CapturedLoopVariables) []Stmt {
+//	stmts := []Stmt{}
+//	for _, lv := range lvs.loopVars {
+//		lhs := Nx(lv)
+//		rhs := Nx(lv)
+//		as := A(lhs, ":=", rhs)
+//		stmts = append(stmts, as)
+//	}
+//	return stmts
+//}

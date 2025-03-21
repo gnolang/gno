@@ -153,8 +153,10 @@ const (
 	ATTR_TYPE_VALUE      GnoAttribute = "ATTR_TYPE_VALUE"
 	ATTR_TYPEOF_VALUE    GnoAttribute = "ATTR_TYPEOF_VALUE"
 	ATTR_IOTA            GnoAttribute = "ATTR_IOTA"
-	ATTR_LOOP_DEFINES    GnoAttribute = "ATTR_LOOP_DEFINES" // []Name defined within loops.
-	ATTR_LOOP_USES       GnoAttribute = "ATTR_LOOP_USES"    // []Name loop defines actually used.
+	ATTR_LOOP_DEFINES    GnoAttribute = "ATTR_LOOP_DEFINES"    // []Name defined within loops.
+	ATTR_LOOP_USES       GnoAttribute = "ATTR_LOOP_USES"       // []Name loop defines actually used.
+	ATTR_LOOPVAR_DEFINES GnoAttribute = "ATTR_LOOPVAR_DEFINES" // []Name defined within loops.
+	ATTR_LOOPVAR_USES    GnoAttribute = "ATTR_LOOPVAR_USES"    // []Name loop defines actually used.
 	ATTR_SHIFT_RHS       GnoAttribute = "ATTR_SHIFT_RHS"
 	ATTR_LAST_BLOCK_STMT GnoAttribute = "ATTR_LAST_BLOCK_STMT"
 	ATTR_GLOBAL          GnoAttribute = "ATTR_GLOBAL"
@@ -376,11 +378,15 @@ var (
 type NameExprType int
 
 const (
-	NameExprTypeNormal      NameExprType = iota // default
-	NameExprTypeDefine                          // when defining normally
-	NameExprTypeHeapDefine                      // when defining escaped name in loop
-	NameExprTypeHeapUse                         // when above used in non-define lhs/rhs
-	NameExprTypeHeapClosure                     // when closure captures name
+	NameExprTypeNormal            NameExprType = iota // default
+	NameExprTypeDefine                                // when defining normally
+	NameExprTypeLoopVarDefine                         // when defining a loopvar
+	NameExprTypeLoopVarUse                            // when above used in non-define lhs/rhs
+	NameExprTypeHeapDefine                            // when defining escaped name in loop
+	NameExprTypeHeapUse                               // when above used in non-define lhs/rhs
+	NameExprTypeLoopVarHeapDefine                     // when defining escaped name in loop
+	NameExprTypeLoopVarHeapUse                        // when above used in non-define lhs/rhs
+	NameExprTypeHeapClosure                           // when closure captures name
 )
 
 type NameExpr struct {
@@ -1611,6 +1617,7 @@ type BlockNode interface {
 	GetNumNames() uint16
 	GetParentNode(Store) BlockNode
 	GetPathForName(Store, Name) ValuePath
+	FindNameSkipPredefined(Store, Name) bool
 	GetBlockNodeForPath(Store, ValuePath) BlockNode
 	GetIsConst(Store, Name) bool
 	GetIsConstAt(Store, ValuePath) bool
@@ -1787,6 +1794,38 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	panic(fmt.Sprintf("name %s not declared", n))
 }
 
+func (sb *StaticBlock) FindNameSkipPredefined(store Store, n Name) bool {
+	fmt.Println("FindNameSkipPredefined, n: ", n)
+	if n == blankIdentifier {
+		return false
+	}
+	// Check local.
+	gen := 1
+	// also search with .loopvar_, this make sure `i` also
+	// get a correct path.
+	if _, loopvar, ok := sb.GetLocalIndexSkipPredefined(n); ok {
+		fmt.Println("===loopVar: ", loopvar)
+		// found a NameExpr with type NameExprTypeLoopVarDefine
+		return loopvar
+	}
+	// Check ancestors.
+	gen++
+	bp := sb.GetParentNode(store)
+	for bp != nil {
+		if _, loopvar, ok := sb.GetLocalIndexSkipPredefined(n); ok {
+			// found a NameExpr with type NameExprTypeLoopVarDefine
+			return loopvar
+		} else {
+			bp = bp.GetParentNode(store)
+			gen++
+			if 0xff < gen {
+				panic("value path depth overflow")
+			}
+		}
+	}
+	return false
+}
+
 // Get the containing block node for node with path relative to this containing block.
 func (sb *StaticBlock) GetBlockNodeForPath(store Store, path ValuePath) BlockNode {
 	if path.Type != VPBlock {
@@ -1914,6 +1953,58 @@ func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 			sb, nt, n)
 	}
 	return 0, false
+}
+
+func (sb *StaticBlock) GetLocalIndexSkipPredefined(n Name) (uint16, bool, bool) {
+	fmt.Println("===GetLocalIndexSkipPredefined, n: ", n)
+	// if loopvar is found.
+	var loopvar bool
+
+	// firstly search general TypeDefine names,
+	// it potentially overrides the loopvar.
+	for i, name := range sb.Names {
+		if name == n {
+			if debug {
+				nt := reflect.TypeOf(sb.Source).String()
+				debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = %v, %v\n",
+					sb, nt, n, i, name)
+			}
+			// skip predefined name
+			t := sb.Types[i]
+			if t != nil {
+				return uint16(i), loopvar, true
+			}
+			// else going on search loopvar
+		}
+	}
+
+	// if not found above, looking for loopvar.
+	for i, name := range sb.Names {
+		println("===search loopvar")
+		n = Name(fmt.Sprintf(".loopvar_%s", n))
+		fmt.Println("===n: ", n)
+		if name == n {
+			if debug {
+				nt := reflect.TypeOf(sb.Source).String()
+				debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = %v, %v\n",
+					sb, nt, n, i, name)
+			}
+
+			loopvar = true
+
+			t := sb.Types[i]
+			if t == nil {
+				return 0, loopvar, false
+			}
+			return uint16(i), loopvar, true
+		}
+	}
+	if debug {
+		nt := reflect.TypeOf(sb.Source).String()
+		debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = undefined\n",
+			sb, nt, n)
+	}
+	return 0, loopvar, false
 }
 
 // Implemented BlockNode.

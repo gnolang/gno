@@ -159,6 +159,8 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 			switch n := n.(type) {
 			case *AssignStmt:
 				if n.Op == DEFINE {
+					//fmt.Println("===initStaticBlocks, last: ", last)
+					//fmt.Println("===initStaticBlocks, last last: ", ns[len(ns)-1])
 					for _, lx := range n.Lhs {
 						nx := lx.(*NameExpr)
 						ln := nx.Name
@@ -166,10 +168,20 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 							continue
 						}
 						if !isLocallyDefined2(last, ln) {
-							// if loop extern, will promote to
-							// NameExprTypeHeapDefine later.
-							nx.Type = NameExprTypeDefine
+							fmt.Println("---locally NOT defined, ln: ", ln)
+							if ftype == TRANS_FOR_INIT {
+								ln = Name(fmt.Sprintf(".loopvar_%s", ln))
+								nx.Type = NameExprTypeLoopVarDefine // demote if shadowed by i := i
+								fmt.Println("---ln: ", ln)
+								nx.Name = ln // rename
+							} else {
+								// if loop extern, will promote to
+								// NameExprTypeHeapDefine later.
+								nx.Type = NameExprTypeDefine
+							}
 							last.Predefine(false, ln)
+						} else {
+							fmt.Println("---locally defined, ln: ", ln)
 						}
 					}
 				}
@@ -420,6 +432,18 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	// it works for now because preprocess also does pushInitBlock,
 	// but it's kinda weird.
 	// maybe consider moving initStaticBlocks here and ensure idempotency of it.
+
+	// XXX, after predefine.
+	// find loopvarDefine.
+	// find loopVarUse(reset to normal), rename nx;
+	// then preprocess, all good.
+
+	//if bn, ok := n.(BlockNode); ok {
+	//	findLoopVarDefines(ctx, bn)
+	//	findLoopVarUses(ctx, bn)
+	//	renameLoopVar(ctx, bn)
+	//}
+
 	n = preprocess1(store, ctx, n)
 	// XXX check node lines and locations
 	checkNodeLinesLocations("XXXpkgPath", "XXXfileName", n)
@@ -428,9 +452,22 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	// XXX well the following may be isn't idempotent,
 	// XXX so it is currently strange.
 	if bn, ok := n.(BlockNode); ok {
+
 		findGotoLoopDefines(ctx, bn)
+
 		findLoopUses1(ctx, bn)
 		findLoopUses2(ctx, bn)
+
+		// if loopvar is HeapUsed
+		// deal with loopvar, if it's redclared as i:= i,
+		// the LoopVarDefine and LoopVarUse is not needed
+		// anymore, demote to TypeDefine.
+		// else, do inject, and demote after inject.
+
+		// XXX, inject only loopvar is heapUsed...
+
+		// TypeDefine -> HeapDefine, no inject, do nothing
+		// LoopVarDefine -> LoopVarHeapDefine, do inject
 	}
 	return n
 }
@@ -1001,6 +1038,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						fillNameExprPath(last, n, true)
 						return n, TRANS_CONTINUE
 					} else {
+						// find LoopVarUse, and rename,
+						// happens before fill path
+						// rename ensure name match.
+						renameLoopVar(last, n)
 						fillNameExprPath(last, n, false)
 					}
 					// If uverse, return a *ConstExpr.
@@ -2506,6 +2547,232 @@ func parseMultipleAssignFromOneExpr(
 	}
 }
 
+//// find LoopVarDefine, LoopVarUse, rename also
+//// these two type of NameExpr's Name to
+//// hidden name, e.g. .loopvar_i. (same as defined in predefine).
+//func findLoopVarDefines(ctx BlockNode, bn BlockNode) {
+//	// create stack of BlockNodes.
+//	var stack []BlockNode = make([]BlockNode, 0, 32)
+//	var last BlockNode = ctx
+//	stack = append(stack, last)
+//
+//	// iterate over all nodes recursively.
+//	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+//		defer doRecover(stack, n)
+//
+//		if debug {
+//			debug.Printf("findLoopVarDefines %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+//		}
+//
+//		switch stage {
+//		// ----------------------------------------
+//		case TRANS_ENTER:
+//			return n, TRANS_CONTINUE
+//
+//		// ----------------------------------------
+//		case TRANS_BLOCK:
+//			pushInitBlock(n.(BlockNode), &last, &stack)
+//			return n, TRANS_CONTINUE
+//
+//		// ----------------------------------------
+//		case TRANS_LEAVE:
+//
+//			// Defer pop block from stack.
+//			// NOTE: DO NOT USE TRANS_SKIP WITHIN BLOCK
+//			// NODES, AS TRANS_LEAVE WILL BE SKIPPED; OR
+//			// POP BLOCK YOURSELF.
+//			defer func() {
+//				switch n.(type) {
+//				case BlockNode:
+//					stack = stack[:len(stack)-1]
+//					last = stack[len(stack)-1]
+//				}
+//			}()
+//
+//			switch n := n.(type) {
+//			case *ForStmt, *RangeStmt:
+//				Transcribe(n,
+//					func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+//						switch stage {
+//						case TRANS_ENTER:
+//							switch n := n.(type) {
+//							case *FuncLitExpr:
+//								// inner funcs.
+//								return n, TRANS_SKIP
+//							case *FuncDecl:
+//								panic("unexpected inner func decl")
+//							case *AssignStmt:
+//								//fmt.Println("===find loopvar, assignStmt, n: ", n)
+//								if n.Op == DEFINE {
+//									//fmt.Println("===is define, ftype: ", ftype)
+//									for _, lx := range n.Lhs {
+//										nx := lx.(*NameExpr)
+//										ln := nx.Name
+//										if ln == blankIdentifier {
+//											continue
+//										}
+//										if ftype == TRANS_FOR_INIT {
+//											if nx.Type == NameExprTypeDefine {
+//												nx.Type = NameExprTypeLoopVarDefine // promote to LoopVarDefine
+//											}
+//										}
+//									}
+//								}
+//							case *NameExpr:
+//								//fmt.Println("===find loopvar, n, ftype: ", n, ftype)
+//								if ftype == TRANS_FOR_INIT || ftype == TRANS_RANGE_KEY {
+//									if n.Type == NameExprTypeDefine {
+//										n.Type = NameExprTypeLoopVarDefine // promote to LoopVarDefine
+//									}
+//								}
+//							}
+//						}
+//						return n, TRANS_CONTINUE
+//					})
+//			}
+//			return n, TRANS_CONTINUE
+//		}
+//		return n, TRANS_CONTINUE
+//	})
+//}
+//
+//// findLoopVarUse, set attr.
+//// and renamed after.
+//func findLoopVarUses(ctx BlockNode, bn BlockNode) {
+//	// create stack of BlockNodes.
+//	var stack []BlockNode = make([]BlockNode, 0, 32)
+//	var last BlockNode = ctx
+//	stack = append(stack, last)
+//
+//	// Iterate over all nodes recursively.
+//	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+//		defer doRecover(stack, n)
+//
+//		if debug {
+//			debug.Printf("findLoopVarUses %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+//		}
+//		//fmt.Printf("findLoopVarUses %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+//
+//		switch stage {
+//		// ----------------------------------------
+//		case TRANS_BLOCK:
+//			pushInitBlock(n.(BlockNode), &last, &stack)
+//
+//		// ----------------------------------------
+//		case TRANS_ENTER:
+//			switch n := n.(type) {
+//			case *NameExpr:
+//				//fmt.Println("===find loopvar use, n: ", n.String())
+//				//fmt.Println("===n.Path.Type: ", n.Path.Type)
+//				// Ignore non-block type paths
+//				//if n.Path.Type != VPBlock {
+//				//	return n, TRANS_CONTINUE
+//				//}
+//				switch n.Type {
+//				case NameExprTypeLoopVarDefine:
+//					println("===1")
+//					// Set name in attribute, so later matches
+//					// on NameExpr can know that this was loopvar
+//					// defined on this block.
+//					setAttrLoopVarDefine(last, n.Name)
+//				case NameExprTypeNormal:
+//					println("===2")
+//					// Find the block where name is defined
+//					dbn := last.GetBlockNodeForPath(nil, n.Path)
+//					// if the name is loop defined,
+//					lvds, _ := dbn.GetAttribute(ATTR_LOOPVAR_DEFINES).([]Name)
+//					if slices.Contains(lvds, n.Name) {
+//						addAttrLoopVarUse(dbn, n.Name)
+//						n.Type = NameExprTypeLoopVarUse
+//					} else {
+//						// if the name is not loop defined,
+//						// do nothing.
+//					}
+//				case NameExprTypeDefine:
+//					// nothing to do.
+//				case NameExprTypeHeapUse, NameExprTypeHeapClosure:
+//					panic("unexpected node type")
+//				}
+//			}
+//			return n, TRANS_CONTINUE
+//
+//		// ----------------------------------------
+//		case TRANS_LEAVE:
+//			// Pop block from stack.
+//			// NOTE: DO NOT USE TRANS_SKIP WITHIN BLOCK
+//			// NODES, AS TRANS_LEAVE WILL BE SKIPPED; OR
+//			// POP BLOCK YOURSELF.
+//			switch n.(type) {
+//			case BlockNode:
+//				stack = stack[:len(stack)-1]
+//				last = stack[len(stack)-1]
+//			}
+//
+//			return n, TRANS_CONTINUE
+//		}
+//		return n, TRANS_CONTINUE
+//	})
+//}
+//
+//func renameLoopVar(ctx BlockNode, bn BlockNode) {
+//	// create stack of BlockNodes.
+//	var stack []BlockNode = make([]BlockNode, 0, 32)
+//	var last BlockNode = ctx
+//	stack = append(stack, last)
+//
+//	// Iterate over all nodes recursively.
+//	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+//		defer doRecover(stack, n)
+//
+//		if debug {
+//			debug.Printf("findLoopVarUses %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+//		}
+//		//fmt.Printf("renameLoopVar %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+//
+//		switch stage {
+//		// ----------------------------------------
+//		case TRANS_BLOCK:
+//			pushInitBlock(n.(BlockNode), &last, &stack)
+//
+//		// ----------------------------------------
+//		case TRANS_ENTER:
+//			switch n := n.(type) {
+//			case *NameExpr:
+//				//fmt.Println("======trans_enter, nx: ", n, n.Type)
+//				// Ignore non-block type paths
+//				//if n.Path.Type != VPBlock {
+//				//	return n, TRANS_CONTINUE
+//				//}
+//				switch n.Type {
+//				case NameExprTypeLoopVarDefine, NameExprTypeLoopVarUse:
+//					// rename...
+//					//fmt.Println("======rename nx: ", n)
+//				case NameExprTypeDefine:
+//					// nothing to do.
+//				case NameExprTypeHeapUse, NameExprTypeHeapClosure:
+//					panic("unexpected node type")
+//				}
+//			}
+//			return n, TRANS_CONTINUE
+//
+//		// ----------------------------------------
+//		case TRANS_LEAVE:
+//			// Pop block from stack.
+//			// NOTE: DO NOT USE TRANS_SKIP WITHIN BLOCK
+//			// NODES, AS TRANS_LEAVE WILL BE SKIPPED; OR
+//			// POP BLOCK YOURSELF.
+//			switch n.(type) {
+//			case BlockNode:
+//				stack = stack[:len(stack)-1]
+//				last = stack[len(stack)-1]
+//			}
+//
+//			return n, TRANS_CONTINUE
+//		}
+//		return n, TRANS_CONTINUE
+//	})
+//}
+
 // Identifies NameExprTypeHeapDefines.
 // Also finds GotoLoopStmts, XXX but probably remove, not needed.
 func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
@@ -2679,6 +2946,7 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 		if debug {
 			debug.Printf("findLoopUses1 %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
+		//fmt.Printf("findLoopUses1 %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 
 		switch stage {
 		// ----------------------------------------
@@ -2693,6 +2961,7 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 				if n.Path.Type != VPBlock {
 					return n, TRANS_CONTINUE
 				}
+				fmt.Println("===findLoopUse1, n: ", n)
 				switch n.Type {
 				case NameExprTypeNormal:
 					// Find the block where name is defined
@@ -2709,6 +2978,7 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 							// used later in findLoopUses2.
 							idx := addHeapCapture(dbn, fle, n.Name)
 							// adjust NameExpr type.
+							//fmt.Println("===set to heap use...")
 							n.Type = NameExprTypeHeapUse
 							n.Path.SetDepth(uint8(depth))
 							n.Path.Index = idx
@@ -2759,7 +3029,7 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 
 func assertNotHasName(names []Name, name Name) {
 	if slices.Contains(names, name) {
-		panic(fmt.Sprintf("name: %s already contained in names: %v", name, names))
+		//panic(fmt.Sprintf("name: %s already contained in names: %v", name, names))
 	}
 }
 
@@ -2768,6 +3038,24 @@ func setAttrHeapDefine(bn BlockNode, name Name) {
 	assertNotHasName(bnLDs, name)
 	bnLDs = append(bnLDs, name)
 	bn.SetAttribute(ATTR_LOOP_DEFINES, bnLDs)
+}
+
+func setAttrLoopVarDefine(bn BlockNode, name Name) {
+	bnLVDs, _ := bn.GetAttribute(ATTR_LOOPVAR_DEFINES).([]Name)
+	assertNotHasName(bnLVDs, name)
+	bnLVDs = append(bnLVDs, name)
+	bn.SetAttribute(ATTR_LOOPVAR_DEFINES, bnLVDs)
+}
+
+func addAttrLoopVarUse(bn BlockNode, name Name) {
+	bnLVUs, _ := bn.GetAttribute(ATTR_LOOPVAR_USES).([]Name)
+	if slices.Contains(bnLVUs, name) {
+		return
+	} else {
+		bnLVUs = append(bnLVUs, name)
+		bn.SetAttribute(ATTR_LOOPVAR_USES, bnLVUs)
+		return
+	}
 }
 
 func addAttrHeapUse(bn BlockNode, name Name) {
@@ -2886,18 +3174,24 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 				if n.Path.Type != VPBlock {
 					return n, TRANS_CONTINUE
 				}
+				fmt.Println("===findLoopUse2, n: ", n)
+
 				switch n.Type {
 				case NameExprTypeNormal:
+					//fmt.Println("===nx type normal")
 					// Find the block where name is defined
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
 					// if the name is loop defined,
 					lds, _ := dbn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
+					//fmt.Println("===lds: ", lds)
 					if slices.Contains(lds, n.Name) {
 						// if the name is actually loop used,
 						lus, _ := dbn.GetAttribute(ATTR_LOOP_USES).([]Name)
 						if slices.Contains(lus, n.Name) {
 							// change type finally to HeapUse.
+							//fmt.Println("===set heap use for n: ", n)
 							n.Type = NameExprTypeHeapUse
+							fmt.Println("===done, findLoopUse2, n: ", n)
 						} else {
 							// else, will be demoted in later clause.
 						}
@@ -4908,6 +5202,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 				if last.GetStaticTypeOf(nil, nx.Name) == nil {
 					continue
 				} else {
+					// handle loopvar stuff
 					path = last.GetPathForName(nil, nx.Name)
 					if path.Type != VPBlock {
 						panic("expected block value path type; check this is not shadowing a builtin type")
@@ -4927,6 +5222,28 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 	// Otherwise, set path for name.
 	// Uverse name paths get set here as well.
 	nx.Path = last.GetPathForName(nil, nx.Name)
+}
+
+func renameLoopVar(last BlockNode, nx *NameExpr) {
+	fmt.Println("===renameLoopVar, nx: ", nx, nx.Type)
+	fmt.Println("---last: ", last)
+	if nx.Name == blankIdentifier {
+		return
+	}
+
+	if nx.Type == NameExprTypeNormal {
+		// handle loopvar stuff
+		found := last.FindNameSkipPredefined(nil, nx.Name)
+		if found {
+			fmt.Println("---found loopvar use, nx: ", nx)
+			nx.Type = NameExprTypeLoopVarUse
+			// XXX, necessary?
+			nx.Name = Name(fmt.Sprintf(".loopvar_%s", nx.Name))
+			fmt.Println("===after rename, nx: ", nx)
+		} else {
+			fmt.Println("Not loopvar, nx: ", nx, nx.Type)
+		}
+	}
 }
 
 func isFile(n BlockNode) bool {
