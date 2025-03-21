@@ -91,7 +91,6 @@ A governance model that prioritizes contribution-based participation over capita
 A decentralized space for uncensored discourse, fair moderation, and community-driven governance with forkability to allow for conflict resolution.
 
 
-####
 
 
 </gno-columns>
