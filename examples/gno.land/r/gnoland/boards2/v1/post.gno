@@ -386,7 +386,7 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string, levels i
 		sb.WriteString(" repost(s)")
 	}
 
-	sb.WriteString("  \n[ ")
+	sb.WriteString("  \n")
 	sb.WriteString(newLink("Flag", post.GetFlagFormURL()))
 
 	if post.IsThread() {
@@ -413,7 +413,7 @@ func (post *Post) renderPostContent(sb *strings.Builder, indent string, levels i
 		}
 	}
 
-	sb.WriteString(" ]\n")
+	sb.WriteString(" \n")
 }
 
 func (post *Post) Render(path string, indent string, levels int) string {
