@@ -1,12 +1,15 @@
 package main
 
-import "std"
+import (
+	"std"
+	"testing"
+)
 
 func main() {
 	defer func() {
 		println(recover())
 	}()
-	std.TestSetRealm(std.NewCodeRealm("gno.land/p/demo/users"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/p/demo/users"))
 }
 
 // Output:

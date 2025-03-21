@@ -51,3 +51,38 @@ func main() {
 //         }
 //     }
 // }
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2]=
+//     @@ -54,6 +54,16 @@
+//                          "@type": "/gno.RefType",
+//                          "ID": "gno.land/r/test.S"
+//                      }
+//     +            },
+//     +            "V": {
+//     +                "@type": "/gno.PointerValue",
+//     +                "Base": {
+//     +                    "@type": "/gno.RefValue",
+//     +                    "Escaped": true,
+//     +                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
+//     +                },
+//     +                "Index": "0",
+//     +                "TV": null
+//                  }
+//              },
+//              {
+//     @@ -63,6 +73,16 @@
+//                          "@type": "/gno.RefType",
+//                          "ID": "gno.land/r/test.S"
+//                      }
+//     +            },
+//     +            "V": {
+//     +                "@type": "/gno.PointerValue",
+//     +                "Base": {
+//     +                    "@type": "/gno.RefValue",
+//     +                    "Escaped": true,
+//     +                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
+//     +                },
+//     +                "Index": "0",
+//     +                "TV": null
+//                  }
+//              },
+//              {
