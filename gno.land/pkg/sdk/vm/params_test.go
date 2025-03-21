@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -127,4 +128,161 @@ func TestWillSetParam(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestWillSetParam_ValsetUpdate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no valset update", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			env = setupTestEnv()
+			ctx = env.vmk.MakeGnoTransactionStore(env.ctx)
+		)
+
+		assert.NotPanics(t, func() {
+			env.vmk.WillSetParam(ctx, "random key", nil)
+		})
+	})
+
+	t.Run("malformed valset update key", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			env = setupTestEnv()
+			ctx = env.vmk.MakeGnoTransactionStore(env.ctx)
+		)
+
+		assert.Panics(t, func() {
+			env.vmk.WillSetParam(ctx, valsetUpdatesParam+":10-10", []string{"value"})
+		})
+	})
+
+	t.Run("invalid valset value type", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			env = setupTestEnv()
+			ctx = env.vmk.MakeGnoTransactionStore(env.ctx)
+		)
+
+		assert.Panics(t, func() {
+			env.vmk.WillSetParam(ctx, valsetUpdatesParam+":10", "single value")
+		})
+	})
+
+	t.Run("invalid valset update values", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			key = secp256k1.GenPrivKey()
+
+			pubKey  = key.PubKey()
+			address = pubKey.Address()
+			power   = 10
+		)
+
+		var (
+			env = setupTestEnv()
+			ctx = env.vmk.MakeGnoTransactionStore(env.ctx)
+		)
+
+		testTable := []struct {
+			name   string
+			change string
+		}{
+			{
+				"invalid serialization",
+				"addr:pubkey:power:random", // 4 parts
+			},
+			{
+				"invalid bech address",
+				fmt.Sprintf(
+					"%s:%s:%d",
+					"validvalidvalid", // invalid address
+					pubKey,
+					power,
+				),
+			},
+			{
+				"invalid public key",
+				fmt.Sprintf(
+					"%s:%s:%d",
+					address,
+					"validvalidvalid", // invalid pubkey
+					power,
+				),
+			},
+			{
+				"address / public key mismatch",
+				fmt.Sprintf(
+					"%s:%s:%d",
+					address,
+					secp256k1.GenPrivKey().PubKey(), // different pubkey
+					power,
+				),
+			},
+			{
+				"invalid voting power",
+				fmt.Sprintf(
+					"%s:%s:%s",
+					address,
+					pubKey,
+					"abc123", // invalid voting power
+				),
+			},
+		}
+
+		for _, testCase := range testTable {
+			t.Run(testCase.name, func(t *testing.T) {
+				t.Parallel()
+
+				assert.Panics(t, func() {
+					env.vmk.WillSetParam(
+						ctx,
+						fmt.Sprintf("%s:%d", valsetUpdatesParam, 10),
+						[]string{testCase.change},
+					)
+				})
+			})
+		}
+	})
+
+	t.Run("valid valset update values", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			key = secp256k1.GenPrivKey()
+
+			pubKey  = key.PubKey()
+			address = pubKey.Address()
+			power   = 10
+		)
+
+		var (
+			env = setupTestEnv()
+			ctx = env.vmk.MakeGnoTransactionStore(env.ctx)
+		)
+
+		var (
+			paramKey   = fmt.Sprintf("%s:%d", valsetUpdatesParam, 10)
+			paramValue = []string{
+				fmt.Sprintf(
+					"%s:%s:%d",
+					address,
+					pubKey,
+					power,
+				),
+			}
+		)
+
+		assert.NotPanics(t, func() {
+			env.vmk.WillSetParam(
+				ctx,
+				paramKey,
+				paramValue,
+			)
+		})
+	})
 }

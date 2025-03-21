@@ -101,9 +101,20 @@ func (vm *VMKeeper) getSysNamesPkgParam(ctx sdk.Context) string {
 	return sysNamesPkg
 }
 
+var reValsetUpdates = regexp.MustCompile(fmt.Sprintf("^%s:\\d+$", valsetUpdatesParam))
+
 func (vm *VMKeeper) WillSetParam(_ sdk.Context, key string, value any) {
 	switch {
-	case strings.HasPrefix(key, valsetUpdatesParam):
+	case strings.HasPrefix(key, valsetUpdatesParam): // vm:p:valset_updates:<height>
+		if !reValsetUpdates.Match([]byte(key)) {
+			panic(
+				fmt.Sprintf(
+					"invalid valset update key: %s",
+					key,
+				),
+			)
+		}
+
 		// Validate the proposed valset changes
 		changes, ok := value.([]string)
 		if !ok {

@@ -2,15 +2,12 @@ package gnoland
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm"
-	gnostdlibs "github.com/gnolang/gno/gnovm/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -456,218 +453,124 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 func TestEndBlocker(t *testing.T) {
 	t.Parallel()
 
-	constructVMResponse := func(updates []abci.ValidatorUpdate) string {
-		var builder strings.Builder
-
-		builder.WriteString("(slice[")
-
-		for i, update := range updates {
-			builder.WriteString(
-				fmt.Sprintf(
-					"(struct{(%q std.Address),(%q string),(%d uint64)} gno.land/p/sys/validators.Validator)",
-					update.Address,
-					update.PubKey,
-					update.Power,
-				),
-			)
-
-			if i < len(updates)-1 {
-				builder.WriteString(",")
-			}
-		}
-
-		builder.WriteString("] []gno.land/p/sys/validators.Validator)")
-
-		return builder.String()
-	}
-
-	newCommonEvSwitch := func() *mockEventSwitch {
-		var cb events.EventCallback
-
-		return &mockEventSwitch{
-			addListenerFn: func(_ string, callback events.EventCallback) {
-				cb = callback
-			},
-			fireEventFn: func(event events.Event) {
-				cb(event)
-			},
-		}
-	}
-
-	t.Run("no collector events", func(t *testing.T) {
-		t.Parallel()
-
-		noFilter := func(_ events.Event) []validatorUpdate {
-			return []validatorUpdate{}
-		}
-
-		// Create the collector
-		c := newCollector[validatorUpdate](&mockEventSwitch{}, noFilter)
-
-		// Create the EndBlocker
-		eb := EndBlocker(c, nil, nil, nil, &mockEndBlockerApp{})
-
-		// Run the EndBlocker
-		res := eb(sdk.Context{}, abci.RequestEndBlock{})
-
-		// Verify the response was empty
-		assert.Equal(t, abci.ResponseEndBlock{}, res)
-	})
-
-	t.Run("invalid VM call", func(t *testing.T) {
+	t.Run("no valset changes", func(t *testing.T) {
 		t.Parallel()
 
 		var (
-			noFilter = func(_ events.Event) []validatorUpdate {
-				return make([]validatorUpdate, 1) // 1 update
+			height = int64(10)
+
+			mockParamsKeeper = &mockParamsKeeper{
+				getStringsFn: func(_ sdk.Context, key string, _ *[]string) {
+					require.Equal(t, valsetParamPath(height), key)
+				},
 			}
 
-			vmCalled bool
-
-			mockEventSwitch = newCommonEvSwitch()
-
-			mockVMKeeper = &mockVMKeeper{
-				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
-					vmCalled = true
-
-					require.Equal(t, valRealm, pkgPath)
-					require.NotEmpty(t, expr)
-
-					return "", errors.New("random call error")
+			mockApp = &mockEndBlockerApp{
+				lastBlockHeightFn: func() int64 {
+					return height
 				},
 			}
 		)
 
-		// Create the collector
-		c := newCollector[validatorUpdate](mockEventSwitch, noFilter)
-
-		// Fire a GnoVM event
-		mockEventSwitch.FireEvent(gnostdlibs.GnoEvent{})
-
 		// Create the EndBlocker
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(mockParamsKeeper, nil, nil, mockApp)
 
 		// Run the EndBlocker
 		res := eb(sdk.Context{}, abci.RequestEndBlock{})
 
-		// Verify the response was empty
+		// Verify the response was empty (no changes)
 		assert.Equal(t, abci.ResponseEndBlock{}, res)
-
-		// Make sure the VM was called
-		assert.True(t, vmCalled)
 	})
 
-	t.Run("empty VM response", func(t *testing.T) {
+	t.Run("invalid valset changes", func(t *testing.T) {
 		t.Parallel()
 
 		var (
-			noFilter = func(_ events.Event) []validatorUpdate {
-				return make([]validatorUpdate, 1) // 1 update
+			height = int64(10)
+
+			mockParamsKeeper = &mockParamsKeeper{
+				getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
+					require.Equal(t, valsetParamPath(height), key)
+
+					*ptr = []string{
+						"totally valid format",
+					}
+				},
 			}
 
-			vmCalled bool
-
-			mockEventSwitch = newCommonEvSwitch()
-
-			mockVMKeeper = &mockVMKeeper{
-				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
-					vmCalled = true
-
-					require.Equal(t, valRealm, pkgPath)
-					require.NotEmpty(t, expr)
-
-					return constructVMResponse([]abci.ValidatorUpdate{}), nil
+			mockApp = &mockEndBlockerApp{
+				lastBlockHeightFn: func() int64 {
+					return height
 				},
 			}
 		)
 
-		// Create the collector
-		c := newCollector[validatorUpdate](mockEventSwitch, noFilter)
-
-		// Fire a GnoVM event
-		mockEventSwitch.FireEvent(gnostdlibs.GnoEvent{})
-
 		// Create the EndBlocker
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(mockParamsKeeper, nil, nil, mockApp)
 
 		// Run the EndBlocker
 		res := eb(sdk.Context{}, abci.RequestEndBlock{})
 
-		// Verify the response was empty
+		// Verify the response was empty (invalid changes)
 		assert.Equal(t, abci.ResponseEndBlock{}, res)
-
-		// Make sure the VM was called
-		assert.True(t, vmCalled)
 	})
 
-	t.Run("multiple valset updates", func(t *testing.T) {
+	t.Run("valid valset changes", func(t *testing.T) {
 		t.Parallel()
 
 		var (
-			changes = generateValidatorUpdates(t, 100)
+			updates = generateValidatorUpdates(t, 10)
 
-			mockEventSwitch = newCommonEvSwitch()
+			serializeUpdate = func(validator abci.ValidatorUpdate) string {
+				// <address>:<pub-key>:<voting-power>
+				// voting power == 0 => validator removal
+				// voting power != 0 => validator power update / validator addition
+				return fmt.Sprintf(
+					"%s:%s:%d",
+					validator.Address.String(),
+					validator.PubKey,
+					validator.Power,
+				)
+			}
 
-			mockVMKeeper = &mockVMKeeper{
-				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
-					require.Equal(t, valRealm, pkgPath)
-					require.NotEmpty(t, expr)
+			height = int64(10)
 
-					return constructVMResponse(changes), nil
+			mockParamsKeeper = &mockParamsKeeper{
+				getStringsFn: func(_ sdk.Context, key string, ptr *[]string) {
+					require.Equal(t, valsetParamPath(height), key)
+
+					changes := make([]string, 0, len(updates))
+
+					for _, update := range updates {
+						changes = append(changes, serializeUpdate(update))
+					}
+
+					*ptr = changes
+				},
+			}
+
+			mockApp = &mockEndBlockerApp{
+				lastBlockHeightFn: func() int64 {
+					return height
 				},
 			}
 		)
 
-		// Create the collector
-		c := newCollector[validatorUpdate](mockEventSwitch, validatorEventFilter)
-
-		// Construct the GnoVM events
-		vmEvents := make([]abci.Event, 0, len(changes))
-		for index := range changes {
-			event := gnostdlibs.GnoEvent{
-				Type:    validatorAddedEvent,
-				PkgPath: valRealm,
-			}
-
-			// Make half the changes validator removes
-			if index%2 == 0 {
-				changes[index].Power = 0
-
-				event = gnostdlibs.GnoEvent{
-					Type:    validatorRemovedEvent,
-					PkgPath: valRealm,
-				}
-			}
-
-			vmEvents = append(vmEvents, event)
-		}
-
-		// Fire the tx result event
-		txEvent := bft.EventTx{
-			Result: bft.TxResult{
-				Response: abci.ResponseDeliverTx{
-					ResponseBase: abci.ResponseBase{
-						Events: vmEvents,
-					},
-				},
-			},
-		}
-
-		mockEventSwitch.FireEvent(txEvent)
-
 		// Create the EndBlocker
-		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(mockParamsKeeper, nil, nil, mockApp)
 
 		// Run the EndBlocker
 		res := eb(sdk.Context{}, abci.RequestEndBlock{})
 
-		// Verify the response was not empty
-		require.Len(t, res.ValidatorUpdates, len(changes))
+		// Verify the response was filled out
+		require.Len(t, res.ValidatorUpdates, len(updates))
 
-		for index, update := range res.ValidatorUpdates {
-			assert.Equal(t, changes[index].Address, update.Address)
-			assert.True(t, changes[index].PubKey.Equals(update.PubKey))
-			assert.Equal(t, changes[index].Power, update.Power)
+		for index, update := range updates {
+			valUpdate := res.ValidatorUpdates[index]
+
+			assert.Equal(t, update.Address, valUpdate.Address)
+			assert.True(t, update.PubKey.Equals(valUpdate.PubKey))
+			assert.Equal(t, update.Power, valUpdate.Power)
 		}
 	})
 }
@@ -877,19 +780,12 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 		},
 	)
 
-	// Set up the event collector
-	c := newCollector[validatorUpdate](
-		cfg.EventSwitch,      // global event switch filled by the node
-		validatorEventFilter, // filter fn that keeps the collector valid
-	)
-
 	// Set EndBlocker
 	baseApp.SetEndBlocker(
 		EndBlocker(
-			c,
+			prmk,
 			acck,
 			gpk,
-			nil,
 			baseApp,
 		),
 	)

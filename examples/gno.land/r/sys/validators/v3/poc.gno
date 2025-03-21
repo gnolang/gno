@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	vmModulePrefix   = "vm"
-	valsetUpdatesKey = "valset_updates"
+	vmModulePrefix         = "vm"
+	valsetUpdatesKeyPrefix = "valset_updates"
 )
 
 const errNoChangesProposed = "no set changes proposed"
@@ -63,11 +63,19 @@ func NewValsetChangeExecutor(changesFn func() []validators.Validator) dao.Execut
 		// piece of logic). I've used the VM module here.
 		// I've also chosen to utilize the existing []string setter,
 		// and not introduce the "any" struct type setter, to
-		// avoid opening the pandora's box on arbitrary structures
+		// avoid opening the pandora's box on arbitrary structures.
+		//
+		// Params are dropped in the following params path:
+		// vm:p:valset_updates:height
+		// with "valset_updates:height" being the key.
+		// @moul, the height is part of the key, because I went with the premise that
+		// we will only modify params from GovDAO proposals. An alternative is to always reuse
+		// the same param (key -> valset_updates) and wipe it in Endlocker, but this breaks the principle
+		// that params are _only_ updated through the GovDAO (in Gno).
 		prms.SetSysParamStrings(
 			vmModulePrefix,
 			"p",
-			valsetUpdatesKey,
+			ufmt.Sprintf("%s:%d", valsetUpdatesKeyPrefix, std.ChainHeight()),
 			changes,
 		)
 
