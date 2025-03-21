@@ -137,8 +137,8 @@ func (c *RPCClient) ABCIQueryWithOptions(path string, data []byte, opts ABCIQuer
 		map[string]any{
 			"path":   path,
 			"data":   data,
-			"height": opts.Height,
 			"prove":  opts.Prove,
+			"height": opts.Height,
 		},
 	)
 }
