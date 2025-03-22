@@ -109,6 +109,24 @@ func LoadGenesisParamsFile(path string, ggs *GnoGenesisState) error {
 		}
 	}
 
+	// Write onto ggs.Bank.Params.
+	if vmparams, ok := m["bank"]; ok {
+		for name, value := range vmparams {
+			name, _ := splitTypedName(name)
+			switch name {
+			case "restricted_denoms":
+				vz := value.([]interface{})
+				sz := make([]string, len(vz))
+				for i, v := range vz {
+					sz[i] = v.(string)
+				}
+				ggs.Bank.Params.RestrictedDenoms = sz
+			default:
+				return errors.New("unexpected vm parameter " + name)
+			}
+		}
+	}
+
 	// Write onto ggs.Auth.Params.
 	if authparams, ok := m["auth"]; ok {
 		for name, value := range authparams {
@@ -127,7 +145,7 @@ func LoadGenesisParamsFile(path string, ggs *GnoGenesisState) error {
 			case "gas_price_change_compressor":
 				ggs.Auth.Params.GasPricesChangeCompressor = value.(int64)
 			case "target_gas_ratio":
-				ggs.Auth.Params.TargetGasRatio = 0
+				ggs.Auth.Params.TargetGasRatio = value.(int64)
 			case "initial_gasprice":
 				vs := value.(string)
 				gp, err := std.ParseGasPrice(vs)

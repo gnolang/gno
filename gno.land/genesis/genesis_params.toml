@@ -18,8 +18,8 @@
   # TODO: tx_size_cost_per_byte = 10
   # TODO: sig_verify_cost_ed25519 = 590
   # TODO: sig_verify_cost_secp256k1 = 1000
-  # TODO: GasPricesChangeCompressor = 10
-  # TODO: TargetGasRatio = 70
+  # TODO: gas_price_change_compressor = 10
+  # TODO: target_gas_ratio = 70
   fee_collector = "g1najfm5t7dr4f2m38cg55xt6gh2lxsk92tgh0xy" # "gno.land/r/sys/txfees"
 
 ["tm2"]
