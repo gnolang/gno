@@ -52,7 +52,7 @@ func Context(pkgPath string, send std.Coins) *teststd.TestExecContext {
 	}
 	ctx := stdlibs.ExecContext{
 		ChainID:         "dev",
-		ChainDomain:     "tests.gno.land",
+		ChainDomain:     "gno.land", // TODO: make this configurable
 		Height:          DefaultHeight,
 		Timestamp:       DefaultTimestamp,
 		OriginCaller:    DefaultCaller,

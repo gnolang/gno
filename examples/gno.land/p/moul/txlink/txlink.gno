@@ -41,7 +41,7 @@ func (r Realm) prefix() string {
 
 	// local realm -> /realm
 	realm := string(r)
-	if strings.Contains(realm, chainDomain) {
+	if strings.HasPrefix(realm, chainDomain) {
 		return strings.TrimPrefix(realm, chainDomain)
 	}
 
