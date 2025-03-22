@@ -1,11 +1,13 @@
 package gnoweb
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	gopath "path"
+	"regexp"
 	"strings"
 
 	"github.com/alecthomas/chroma/v2"
@@ -230,6 +232,8 @@ func (s *HTMLWebClient) query(qpath string, data []byte) ([]byte, error) {
 func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) error {
 	var lexer chroma.Lexer
 
+	const gnolandPrefix = "gno.land/" //  XXX: dynamically get this from the underlying chain instance.
+
 	// Determine the lexer to be used based on the file extension.
 	switch strings.ToLower(gopath.Ext(fileName)) {
 	case ".gno":
@@ -246,16 +250,40 @@ func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) e
 		return fmt.Errorf("unsupported lexer for file %q", fileName)
 	}
 
+	// Format with Chroma
+	var buf bytes.Buffer
 	iterator, err := lexer.Tokenise(nil, string(src))
 	if err != nil {
 		return fmt.Errorf("unable to tokenise %q: %w", fileName, err)
 	}
 
-	if err := s.Formatter.Format(w, s.chromaStyle, iterator); err != nil {
+	if err := s.Formatter.Format(&buf, s.chromaStyle, iterator); err != nil {
 		return fmt.Errorf("unable to format source file %q: %w", fileName, err)
 	}
 
-	return nil
+	formatted := buf.String()
+
+	// Process .gno files to add links
+	if strings.HasSuffix(fileName, ".gno") {
+		pattern := `(<span class="chroma-s">&#34;)(gno\.land/[^&#34;]+)(&#34;</span>)`
+		re := regexp.MustCompile(pattern)
+
+		formatted = re.ReplaceAllStringFunc(formatted, func(match string) string {
+			submatch := re.FindStringSubmatch(match)
+			if len(submatch) < 4 {
+				return match
+			}
+
+			importPath := submatch[2]
+			urlPath := strings.TrimPrefix(importPath, gnolandPrefix)
+
+			return fmt.Sprintf(`<span class="chroma-s"><a href="/%s$source" class="hover:underline">&#34;%s&#34;</a></span>`,
+				urlPath, importPath)
+		})
+	}
+
+	_, err = w.Write([]byte(formatted))
+	return err
 }
 
 func (s *HTMLWebClient) WriteFormatterCSS(w io.Writer) error {
