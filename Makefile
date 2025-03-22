@@ -25,6 +25,7 @@ GOIMPORTS_FLAGS ?= $(GOFMT_FLAGS)
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 # when running `make tidy`, use it to check that the go.mods are up-to-date.
 VERIFY_MOD_SUMS ?= false
+BUILDDIR ?= $(CURDIR)/build
 
 ########################################
 # Dev tools
@@ -54,7 +55,7 @@ install_gnokey: install.gnokey
 install_gno: install.gno
 
 .PHONY: test
-test: test.components
+test: test.components govulncheck
 
 .PHONY: test.components
 test.components:
@@ -78,3 +79,11 @@ lint:
 .PHONY: tidy
 tidy:
 	$(MAKE) --no-print-directory -C misc     tidy
+
+$(BUILDDIR)/:
+	mkdir -p $(BUILDDIR)/
+
+.PHONY: govulncheck
+govulncheck: $(BUILDDIR)/
+	GOBIN=$(BUILDDIR) go install golang.org/x/vuln/cmd/govulncheck@latest
+	$(BUILDDIR)/govulncheck ./...
