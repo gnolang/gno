@@ -86,3 +86,83 @@ func TestNested(t *testing.T) {
 		}
 	})
 }
+
+func TestColGroup(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		expected string
+	}{
+		{
+			name:     "empty colgroup",
+			content:  "",
+			expected: "<colgroup>\n</colgroup>\n",
+		},
+		{
+			name:     "single col",
+			content:  "  <col>content</col>\n",
+			expected: "<colgroup>\n  <col>content</col>\n</colgroup>\n",
+		},
+		{
+			name:     "multiple cols",
+			content:  "  <col>col1</col>\n  <col>col2</col>\n",
+			expected: "<colgroup>\n  <col>col1</col>\n  <col>col2</col>\n</colgroup>\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := md.ColGroup(tt.content)
+			if result != tt.expected {
+				t.Errorf("ColGroup(%q) = %q, want %q", tt.content, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestCol(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		expected string
+	}{
+		{
+			name:     "empty col",
+			content:  "",
+			expected: "  <col></col>\n",
+		},
+		{
+			name:     "col with content",
+			content:  "content",
+			expected: "  <col>content</col>\n",
+		},
+		{
+			name:     "col with special characters",
+			content:  "width=100",
+			expected: "  <col>width=100</col>\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := md.Col(tt.content)
+			if result != tt.expected {
+				t.Errorf("Col(%q) = %q, want %q", tt.content, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestColGroupWithCols(t *testing.T) {
+	// Test combining ColGroup and Col functions
+	col1 := md.Col("col1")
+	col2 := md.Col("col2")
+	col3 := md.Col("col3")
+
+	result := md.ColGroup(col1 + col2 + col3)
+	expected := "<colgroup>\n  <col>col1</col>\n  <col>col2</col>\n  <col>col3</col>\n</colgroup>\n"
+
+	if result != expected {
+		t.Errorf("Complex colgroup test failed.\nGot: %q\nWant: %q", result, expected)
+	}
+}

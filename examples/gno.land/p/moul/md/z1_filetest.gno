@@ -29,6 +29,11 @@ func main() {
 	println(md.InlineImageWithLink("Alt Text", "http://example.com/image.png", "http://example.com"))
 	println(md.Footnote("ref", "This is a footnote"))
 	println(md.Paragraph("This is a paragraph."))
+
+	// Colgroup tests
+	col1 := md.Col("First column")
+	col2 := md.Col("Second column")
+	println(md.ColGroup(col1 + col2))
 }
 
 // Output:
@@ -84,4 +89,9 @@ func main() {
 // [ref]: This is a footnote
 // This is a paragraph.
 //
+//
+// <colgroup>
+//   <col>First column</col>
+//   <col>Second column</col>
+// </colgroup>
 //
