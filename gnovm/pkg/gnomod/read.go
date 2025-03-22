@@ -122,7 +122,7 @@ func (in *input) peekRune() int {
 func (in *input) peekPrefix(prefix string) bool {
 	// This is like bytes.HasPrefix(in.remaining, []byte(prefix))
 	// but without the allocation of the []byte copy of prefix.
-	for i := 0; i < len(prefix); i++ {
+	for i := range len(prefix) {
 		if i >= len(in.remaining) || in.remaining[i] != prefix[i] {
 			return false
 		}
@@ -735,7 +735,7 @@ func parseReplace(filename string, line *modfile.Line, verb string, args []strin
 			Err:      err,
 		}
 	}
-	errorf := func(format string, args ...interface{}) *modfile.Error {
+	errorf := func(format string, args ...any) *modfile.Error {
 		return wrapError(fmt.Errorf(format, args...))
 	}
 

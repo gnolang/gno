@@ -36,7 +36,7 @@ type Reactor interface {
 
 	// RemovePeer is called by the switch when the peer is stopped (due to error
 	// or other reason).
-	RemovePeer(peer PeerConn, reason interface{})
+	RemovePeer(peer PeerConn, reason any)
 
 	// Receive is called by the switch when msgBytes is received from the peer.
 	//

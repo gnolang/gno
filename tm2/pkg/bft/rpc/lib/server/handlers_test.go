@@ -47,7 +47,7 @@ func TestRPCParams(t *testing.T) {
 	tests := []struct {
 		payload    string
 		wantErr    string
-		expectedId interface{}
+		expectedId any
 	}{
 		// bad
 		{`{"jsonrpc": "2.0", "id": "0"}`, "Method not found", types.JSONRPCStringID("0")},
@@ -97,7 +97,7 @@ func TestJSONRPCID(t *testing.T) {
 	tests := []struct {
 		payload    string
 		wantErr    bool
-		expectedId interface{}
+		expectedId any
 	}{
 		// good id
 		{`{"jsonrpc": "2.0", "method": "c", "id": "0", "params": ["a", "10"]}`, false, types.JSONRPCStringID("0")},
@@ -249,7 +249,7 @@ func TestWebsocketManagerHandler(t *testing.T) {
 	}
 
 	// check basic functionality works
-	req, err := types.MapToRequest(types.JSONRPCStringID("TestWebsocketManager"), "c", map[string]interface{}{"s": "a", "i": 10})
+	req, err := types.MapToRequest(types.JSONRPCStringID("TestWebsocketManager"), "c", map[string]any{"s": "a", "i": 10})
 	require.NoError(t, err)
 	err = c.WriteJSON(req)
 	require.NoError(t, err)

@@ -30,7 +30,7 @@ func TSTestingT(ts *testscript.TestScript) TestingTS {
 	return &testingTS{ts}
 }
 
-func (t *testingTS) Errorf(format string, args ...interface{}) {
+func (t *testingTS) Errorf(format string, args ...any) {
 	defer recover() // we can ignore recover result, we just want to catch it up
 	t.Fatalf(format, args...)
 }

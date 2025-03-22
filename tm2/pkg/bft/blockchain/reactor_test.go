@@ -32,7 +32,7 @@ var config *cfg.Config
 func randGenesisDoc(numValidators int, randPower bool, minPower int64) (*types.GenesisDoc, []types.PrivValidator) {
 	validators := make([]types.GenesisValidator, numValidators)
 	privValidators := make([]types.PrivValidator, numValidators)
-	for i := 0; i < numValidators; i++ {
+	for i := range numValidators {
 		val, privVal := types.RandValidator(randPower, minPower)
 		validators[i] = types.GenesisValidator{
 			PubKey: val.PubKey,
@@ -407,7 +407,7 @@ func TestBcStatusResponseMessageValidateBasic(t *testing.T) {
 // utility funcs
 
 func makeTxs(height int64) (txs []types.Tx) {
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		txs = append(txs, types.Tx([]byte{byte(height), byte(i)}))
 	}
 	return txs

@@ -21,7 +21,7 @@ func RandVal(i int) abci.ValidatorUpdate {
 // random (Change this if not desired)
 func RandVals(cnt int) []abci.ValidatorUpdate {
 	res := make([]abci.ValidatorUpdate, cnt)
-	for i := 0; i < cnt; i++ {
+	for i := range cnt {
 		res[i] = RandVal(i)
 	}
 	return res

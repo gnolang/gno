@@ -101,7 +101,7 @@ type Stacktrace struct {
 func (s Stacktrace) String() string {
 	var builder strings.Builder
 
-	for i := 0; i < len(s.Calls); i++ {
+	for i := range s.Calls {
 		if s.NumFramesElided > 0 && i == maxStacktraceSize/2 {
 			fmt.Fprintf(&builder, "...%d frame(s) elided...\n", s.NumFramesElided)
 		}

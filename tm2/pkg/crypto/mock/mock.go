@@ -24,7 +24,7 @@ func (privKey PrivKeyMock) Bytes() []byte {
 
 // Make a fake signature.  Its length is variable.
 func (privKey PrivKeyMock) Sign(msg []byte) ([]byte, error) {
-	sigBytes := []byte(fmt.Sprintf("signature-for-%X-by-%X", msg, []byte(privKey)))
+	sigBytes := fmt.Appendf(nil, "signature-for-%X-by-%X", msg, []byte(privKey))
 	return sigBytes, nil
 }
 
@@ -67,7 +67,7 @@ func (pubKey PubKeyMock) Bytes() []byte {
 }
 
 func (pubKey PubKeyMock) VerifyBytes(msg []byte, sig []byte) bool {
-	sigBytes := []byte(fmt.Sprintf("signature-for-%X-by-%X", msg, []byte(pubKey)))
+	sigBytes := fmt.Appendf(nil, "signature-for-%X-by-%X", msg, []byte(pubKey))
 	return bytes.Equal(sig, sigBytes)
 }
 

@@ -3,6 +3,7 @@ package std
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -504,7 +505,7 @@ func (coins Coins) IsEqual(coinsB Coins) bool {
 	coins = coins.Sort()
 	coinsB = coinsB.Sort()
 
-	for i := 0; i < len(coins); i++ {
+	for i := range coins {
 		if !coins[i].IsEqual(coinsB[i]) {
 			return false
 		}
@@ -602,7 +603,7 @@ func removeZeroCoins(coins Coins) Coins {
 	for i < l {
 		if coins[i].IsZero() {
 			// remove coin
-			coins = append(coins[:i], coins[i+1:]...)
+			coins = slices.Delete(coins, i, i+1)
 			l--
 		} else {
 			i++

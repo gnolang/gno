@@ -59,7 +59,7 @@ func (bs *BlockStore) LoadBlock(height int64) *types.Block {
 
 	block := new(types.Block)
 	buf := []byte{}
-	for i := 0; i < blockMeta.BlockID.PartsHeader.Total; i++ {
+	for i := range blockMeta.BlockID.PartsHeader.Total {
 		part := bs.LoadBlockPart(height, i)
 		buf = append(buf, part.Bytes...)
 	}
@@ -161,7 +161,7 @@ func (bs *BlockStore) SaveBlock(block *types.Block, blockParts *types.PartSet, s
 	bs.db.Set(calcBlockMetaKey(height), metaBytes)
 
 	// Save block parts
-	for i := 0; i < blockParts.Total(); i++ {
+	for i := range blockParts.Total() {
 		part := blockParts.GetPart(i)
 		bs.saveBlockPart(height, i, part)
 	}
@@ -198,19 +198,19 @@ func (bs *BlockStore) saveBlockPart(height int64, index int, part *types.Part) {
 //-----------------------------------------------------------------------------
 
 func calcBlockMetaKey(height int64) []byte {
-	return []byte(fmt.Sprintf("H:%v", height))
+	return fmt.Appendf(nil, "H:%v", height)
 }
 
 func calcBlockPartKey(height int64, partIndex int) []byte {
-	return []byte(fmt.Sprintf("P:%v:%v", height, partIndex))
+	return fmt.Appendf(nil, "P:%v:%v", height, partIndex)
 }
 
 func calcBlockCommitKey(height int64) []byte {
-	return []byte(fmt.Sprintf("C:%v", height))
+	return fmt.Appendf(nil, "C:%v", height)
 }
 
 func calcSeenCommitKey(height int64) []byte {
-	return []byte(fmt.Sprintf("SC:%v", height))
+	return fmt.Appendf(nil, "SC:%v", height)
 }
 
 //-----------------------------------------------------------------------------

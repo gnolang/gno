@@ -55,7 +55,7 @@ func TestCheckHeadSizeLimit(t *testing.T) {
 	assertGroupInfo(t, g.ReadGroupInfo(), 0, 0, 0, 0)
 
 	// Write 1000 bytes 999 times.
-	for i := 0; i < 999; i++ {
+	for range 999 {
 		err := g.WriteLine(random.RandStr(999))
 		require.NoError(t, err, "Error appending to head")
 	}
@@ -77,7 +77,7 @@ func TestCheckHeadSizeLimit(t *testing.T) {
 	assertGroupInfo(t, g.ReadGroupInfo(), 0, 1, 1001000, 1000)
 
 	// Write 1000 bytes 999 times.
-	for i := 0; i < 999; i++ {
+	for range 999 {
 		err = g.WriteLine(random.RandStr(999))
 		require.NoError(t, err, "Error appending to head")
 	}

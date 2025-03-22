@@ -639,7 +639,7 @@ func TestConsumeSignatureVerificationGas(t *testing.T) {
 	multisigKey1 := multisig.NewPubKeyMultisigThreshold(2, pkSet1)
 	multisignature1 := multisig.NewMultisig(len(pkSet1))
 	expectedCost1 := expectedGasCostByKeys(pkSet1)
-	for i := 0; i < len(pkSet1); i++ {
+	for i := range pkSet1 {
 		multisignature1.AddSignatureFromPubKey(sigSet1[i], pkSet1[i], pkSet1)
 	}
 
@@ -680,7 +680,7 @@ func TestConsumeSignatureVerificationGas(t *testing.T) {
 func generatePubKeysAndSignatures(n int, msg []byte, keyTypeed25519 bool) (pubkeys []crypto.PubKey, signatures [][]byte) {
 	pubkeys = make([]crypto.PubKey, n)
 	signatures = make([][]byte, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		var privkey crypto.PrivKey
 		if rand.Int63()%2 == 0 {
 			privkey = ed25519.GenPrivKey()
@@ -714,7 +714,7 @@ func TestCountSubkeys(t *testing.T) {
 
 	genPubKeys := func(n int) []crypto.PubKey {
 		var ret []crypto.PubKey
-		for i := 0; i < n; i++ {
+		for range n {
 			ret = append(ret, secp256k1.GenPrivKey().PubKey())
 		}
 		return ret

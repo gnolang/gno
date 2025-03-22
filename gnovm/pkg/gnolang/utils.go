@@ -1,14 +1,12 @@
 package gnolang
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 func contains(list []string, item string) bool {
-	for _, i := range list {
-		if i == item {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(list, item)
 }
 
 func endsWith(item string, suffixes []string) bool {

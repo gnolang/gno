@@ -224,10 +224,10 @@ type AminoMarshalerStruct2 struct {
 
 type ReprElem2 struct {
 	Key   string
-	Value interface{}
+	Value any
 }
 
-func (re ReprElem2) get(key string) (value interface{}) {
+func (re ReprElem2) get(key string) (value any) {
 	if re.Key != key {
 		panic(fmt.Sprintf("wanted %v but is %v", key, re.Key))
 	}
@@ -404,7 +404,7 @@ type EmbeddedSt5 struct {
 	Foo5                uint
 }
 
-var StructTypes = []interface{}{
+var StructTypes = []any{
 	(*EmptyStruct)(nil),
 	(*PrimitivesStruct)(nil),
 	(*ShortArraysStruct)(nil),
@@ -463,7 +463,7 @@ type PrimitivesStructSl []PrimitivesStruct
 // message SomeName { repeated PrimitivesStruct val = 1; }
 type PrimitivesStructAr [2]PrimitivesStruct
 
-var DefTypes = []interface{}{
+var DefTypes = []any{
 	(*IntDef)(nil),
 	(*IntAr)(nil),
 	(*IntSl)(nil),
@@ -511,8 +511,8 @@ func (ConcreteWrappedBytes) AssertInterface1() {}
 type InterfaceFieldsStruct struct {
 	F1 Interface1
 	F2 Interface1
-	F3 interface{}
-	F4 interface{}
+	F3 any
+	F4 any
 }
 
 func (*InterfaceFieldsStruct) AssertInterface1() {}

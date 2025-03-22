@@ -15,7 +15,7 @@ import (
 // `.UnmarshalAmino(<any>) error`, the pair will be used to copy.
 // If .MarshalAmino() or .UnmarshalAmino() returns an error, this
 // function will panic.
-func DeepCopy(o interface{}) (r interface{}) {
+func DeepCopy(o any) (r any) {
 	if o == nil {
 		return nil
 	}
@@ -26,7 +26,7 @@ func DeepCopy(o interface{}) (r interface{}) {
 }
 
 // Like DeepCopy, but returns a pointer to the copy.
-func DeepCopyToPtr(o interface{}) (ptr interface{}) {
+func DeepCopyToPtr(o any) (ptr any) {
 	if o == nil {
 		return nil
 	}
@@ -75,7 +75,7 @@ func _deepCopy(src, dst reflect.Value) {
 			reflect.Copy(dst, src)
 			return
 		default:
-			for i := 0; i < src.Type().Len(); i++ {
+			for i := range src.Type().Len() {
 				esrc := src.Index(i)
 				edst := dst.Index(i)
 				deepCopy(esrc, edst)
@@ -99,7 +99,7 @@ func _deepCopy(src, dst reflect.Value) {
 		default:
 			cpy := reflect.MakeSlice(
 				src.Type(), src.Len(), src.Len())
-			for i := 0; i < src.Len(); i++ {
+			for i := range src.Len() {
 				esrc := src.Index(i)
 				ecpy := cpy.Index(i)
 				deepCopy(esrc, ecpy)
@@ -114,7 +114,7 @@ func _deepCopy(src, dst reflect.Value) {
 			dst.Set(src)
 			return
 		default:
-			for i := 0; i < src.NumField(); i++ {
+			for i := range src.NumField() {
 				if !isExported(src.Type().Field(i)) {
 					continue // field is unexported
 				}

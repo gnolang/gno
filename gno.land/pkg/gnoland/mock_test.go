@@ -185,11 +185,11 @@ func (m *mockParamsKeeper) Has(ctx sdk.Context, key string) bool             { r
 func (m *mockParamsKeeper) GetRaw(ctx sdk.Context, key string) []byte        { return nil }
 func (m *mockParamsKeeper) SetRaw(ctx sdk.Context, key string, value []byte) {}
 
-func (m *mockParamsKeeper) GetStruct(ctx sdk.Context, key string, strctPtr interface{}) {}
-func (m *mockParamsKeeper) SetStruct(ctx sdk.Context, key string, strct interface{})    {}
+func (m *mockParamsKeeper) GetStruct(ctx sdk.Context, key string, strctPtr any) {}
+func (m *mockParamsKeeper) SetStruct(ctx sdk.Context, key string, strct any)    {}
 
-func (m *mockParamsKeeper) GetAny(ctx sdk.Context, key string) interface{}        { return nil }
-func (m *mockParamsKeeper) SetAny(ctx sdk.Context, key string, value interface{}) {}
+func (m *mockParamsKeeper) GetAny(ctx sdk.Context, key string) any        { return nil }
+func (m *mockParamsKeeper) SetAny(ctx sdk.Context, key string, value any) {}
 
 type mockGasPriceKeeper struct{}
 

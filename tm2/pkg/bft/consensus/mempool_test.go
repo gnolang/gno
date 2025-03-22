@@ -256,7 +256,7 @@ func NewCounterApplication() *CounterApplication {
 }
 
 func (app *CounterApplication) Info(req abci.RequestInfo) (res abci.ResponseInfo) {
-	res.Data = []byte(fmt.Sprintf("txs:%v", app.txCount))
+	res.Data = fmt.Appendf(nil, "txs:%v", app.txCount)
 	return
 }
 

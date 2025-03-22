@@ -85,9 +85,9 @@ func TestKeeper_internal(t *testing.T) {
 
 	kvs := []struct {
 		key   string
-		param interface{}
-		zero  interface{}
-		ptr   interface{}
+		param any
+		zero  any
+		ptr   any
 	}{
 		{"string", "test", "", new(string)},
 		{"bool", true, false, new(bool)},
@@ -124,7 +124,7 @@ func TestKeeper_internal(t *testing.T) {
 
 type s struct{ I int }
 
-func indirect(ptr interface{}) interface{} { return reflect.ValueOf(ptr).Elem().Interface() }
+func indirect(ptr any) any { return reflect.ValueOf(ptr).Elem().Interface() }
 
 type Params struct {
 	p1 int

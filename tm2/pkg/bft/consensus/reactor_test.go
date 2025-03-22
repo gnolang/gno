@@ -40,7 +40,7 @@ func startConsensusNet(
 	eventSwitches := make([]events.EventSwitch, n)
 	p2pSwitches := ([]*p2p.MultiplexSwitch)(nil)
 	options := make(map[int][]p2p.SwitchOption)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		/*logger, err := tmflags.ParseLogLevel("consensus:info,*:error", logger, "info")
 		if err != nil {	t.Fatal(err)}*/
 		reactors[i] = NewConsensusReactor(css[i], true) // so we dont start the consensus states
@@ -83,7 +83,7 @@ func startConsensusNet(
 	// If we started the state machines before everyone was connected,
 	// we'd block when the cs fires NewBlockEvent and the peers are trying to start their reactors
 	// TODO: is this still true with new pubsub?
-	for i := 0; i < n; i++ {
+	for i := range n {
 		s := reactors[i].conS.GetState()
 		reactors[i].SwitchToConsensus(s, 0)
 	}
@@ -241,7 +241,7 @@ func TestReactorVotingPowerChange(t *testing.T) {
 
 	// map of active validators
 	activeVals := make(map[string]struct{})
-	for i := 0; i < nVals; i++ {
+	for i := range nVals {
 		addr := css[i].privValidator.GetPubKey().Address()
 		activeVals[addr.String()] = struct{}{}
 	}
@@ -307,7 +307,7 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 
 	// map of active validators
 	activeVals := make(map[string]struct{})
-	for i := 0; i < nVals; i++ {
+	for i := range nVals {
 		addr := css[i].privValidator.GetPubKey().Address()
 		activeVals[addr.String()] = struct{}{}
 	}
@@ -397,7 +397,7 @@ func TestReactorWithTimeoutCommit(t *testing.T) {
 	css, cleanup := randConsensusNet(N, "consensus_reactor_with_timeout_commit_test", newMockTickerFunc(false), newCounter)
 	defer cleanup()
 	// override default SkipTimeoutCommit == true for tests
-	for i := 0; i < N; i++ {
+	for i := range N {
 		css[i].config.SkipTimeoutCommit = false
 	}
 
@@ -518,7 +518,7 @@ func timeoutWaitGroup(t *testing.T, n int, f func(int), css []*ConsensusState) {
 
 	wg := new(sync.WaitGroup)
 	wg.Add(n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		go func(j int) {
 			f(j)
 			wg.Done()

@@ -4,23 +4,23 @@ import "sync"
 
 // CMap is a goroutine-safe map
 type CMap struct {
-	m map[string]interface{}
+	m map[string]any
 	l sync.Mutex
 }
 
 func NewCMap() *CMap {
 	return &CMap{
-		m: make(map[string]interface{}),
+		m: make(map[string]any),
 	}
 }
 
-func (cm *CMap) Set(key string, value interface{}) {
+func (cm *CMap) Set(key string, value any) {
 	cm.l.Lock()
 	cm.m[key] = value
 	cm.l.Unlock()
 }
 
-func (cm *CMap) Get(key string) interface{} {
+func (cm *CMap) Get(key string) any {
 	cm.l.Lock()
 	val := cm.m[key]
 	cm.l.Unlock()
@@ -49,7 +49,7 @@ func (cm *CMap) Size() int {
 
 func (cm *CMap) Clear() {
 	cm.l.Lock()
-	cm.m = make(map[string]interface{})
+	cm.m = make(map[string]any)
 	cm.l.Unlock()
 }
 
@@ -64,9 +64,9 @@ func (cm *CMap) Keys() []string {
 	return keys
 }
 
-func (cm *CMap) Values() []interface{} {
+func (cm *CMap) Values() []any {
 	cm.l.Lock()
-	items := make([]interface{}, 0, len(cm.m))
+	items := make([]any, 0, len(cm.m))
 	for _, v := range cm.m {
 		items = append(items, v)
 	}

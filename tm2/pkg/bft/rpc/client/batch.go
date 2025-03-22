@@ -394,7 +394,7 @@ func (b *RPCBatch) Tx(hash []byte) error {
 	// Prepare the RPC request
 	request, err := newRequest(
 		txMethod,
-		map[string]interface{}{
+		map[string]any{
 			"hash": hash,
 		},
 	)

@@ -88,7 +88,7 @@ func TestConsensusParamsHash(t *testing.T) {
 	sort.Slice(hashes, func(i, j int) bool {
 		return bytes.Compare(hashes[i], hashes[j]) < 0
 	})
-	for i := 0; i < len(hashes)-1; i++ {
+	for i := range len(hashes) - 1 {
 		assert.NotEqual(t, hashes[i], hashes[i+1])
 	}
 }

@@ -63,7 +63,7 @@ func (ps testPeers) stop() {
 
 func makePeers(numPeers int, minHeight, maxHeight int64) testPeers {
 	peers := make(testPeers, numPeers)
-	for i := 0; i < numPeers; i++ {
+	for range numPeers {
 		peerID := p2pTypes.ID(random.RandStr(12))
 		height := minHeight + random.RandInt63n(maxHeight-minHeight)
 		peers[peerID] = testPeer{peerID, height, make(chan inputData, 10)}
@@ -194,7 +194,7 @@ func TestBlockPoolRemovePeer(t *testing.T) {
 	t.Parallel()
 
 	peers := make(testPeers, 10)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		peerID := p2pTypes.ID(fmt.Sprintf("%d", i+1))
 		height := int64(i + 1)
 		peers[peerID] = testPeer{peerID, height, make(chan inputData)}

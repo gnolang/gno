@@ -19,7 +19,7 @@ func generateTxResults(t *testing.T, count int) []*types.TxResult {
 
 	results := make([]*types.TxResult, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		tx := &std.Tx{
 			Memo: fmt.Sprintf("tx %d", i),
 		}

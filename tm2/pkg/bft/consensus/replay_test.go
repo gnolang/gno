@@ -354,7 +354,7 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 	proposalCh := subscribe(css[0].evsw, cstypes.EventCompleteProposal{})
 
 	vss := make([]*validatorStub, nPeers)
-	for i := 0; i < nPeers; i++ {
+	for i := range nPeers {
 		vss[i] = NewValidatorStub(css[i].privValidator, i)
 	}
 	height, round := css[0].Height, css[0].Round
@@ -456,7 +456,7 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 	assert.Nil(t, err)
 
 	rs = css[0].GetRoundState()
-	for i := 0; i < nVals+1; i++ {
+	for i := range nVals + 1 {
 		if i == selfIndex {
 			continue
 		}
@@ -470,7 +470,7 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 	incrementHeight(vss...)
 	ensureNewProposal(proposalCh, height, round)
 	rs = css[0].GetRoundState()
-	for i := 0; i < nVals+1; i++ {
+	for i := range nVals + 1 {
 		if i == selfIndex {
 			continue
 		}
@@ -507,7 +507,7 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 	}
 	ensureNewProposal(proposalCh, height, round)
 	rs = css[0].GetRoundState()
-	for i := 0; i < nVals+3; i++ {
+	for i := range nVals + 3 {
 		if i == selfIndex {
 			continue
 		}
@@ -785,12 +785,12 @@ func buildAppStateFromChain(proxyApp appconn.AppConns, stateDB dbm.DB,
 
 	switch mode {
 	case 0:
-		for i := 0; i < nBlocks; i++ {
+		for i := range nBlocks {
 			block := chain[i]
 			state = applyBlock(stateDB, state, block, proxyApp)
 		}
 	case 1, 2:
-		for i := 0; i < nBlocks-1; i++ {
+		for i := range nBlocks - 1 {
 			block := chain[i]
 			state = applyBlock(stateDB, state, block, proxyApp)
 		}
@@ -909,7 +909,7 @@ func makeBlocks(n int, state *sm.State, privVal types.PrivValidator) []*types.Bl
 	)
 
 	appHeight := byte(0x01)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		height := int64(i + 1)
 
 		block, parts := makeBlock(*state, prevBlock, prevBlockMeta, privVal, height)
@@ -1060,7 +1060,7 @@ func makeBlockchainFromWAL(wal walm.WAL) ([]*types.Block, []*types.Commit, error
 	return blocks, commits, nil
 }
 
-func readPieceFromWAL(msg *walm.TimedWALMessage) interface{} {
+func readPieceFromWAL(msg *walm.TimedWALMessage) any {
 	// for logging
 	switch m := msg.Msg.(type) {
 	case msgInfo:

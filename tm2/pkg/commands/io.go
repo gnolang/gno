@@ -19,11 +19,11 @@ type IO interface {
 	SetIn(in io.Reader)
 	SetOut(out io.WriteCloser)
 	SetErr(err io.WriteCloser)
-	Println(args ...interface{})
-	Printf(format string, args ...interface{})
-	Printfln(format string, args ...interface{})
-	ErrPrintln(args ...interface{})
-	ErrPrintfln(format string, args ...interface{})
+	Println(args ...any)
+	Printf(format string, args ...any)
+	Printfln(format string, args ...any)
+	ErrPrintln(args ...any)
+	ErrPrintfln(format string, args ...any)
 	GetCheckPassword(prompts [2]string, insecure bool) (string, error)
 	GetConfirmation(prompt string) (bool, error)
 	GetPassword(prompt string, insecure bool) (string, error)
@@ -91,7 +91,7 @@ func (io *IOImpl) SetErr(err io.WriteCloser) {
 }
 
 // Println prints a line terminated by a newline
-func (io *IOImpl) Println(args ...interface{}) {
+func (io *IOImpl) Println(args ...any) {
 	if io.outBuf == nil {
 		return
 	}
@@ -101,7 +101,7 @@ func (io *IOImpl) Println(args ...interface{}) {
 }
 
 // Printf prints a formatted string without trailing newline
-func (io *IOImpl) Printf(format string, args ...interface{}) {
+func (io *IOImpl) Printf(format string, args ...any) {
 	if io.outBuf == nil {
 		return
 	}
@@ -111,7 +111,7 @@ func (io *IOImpl) Printf(format string, args ...interface{}) {
 }
 
 // Printfln prints a formatted string terminated by a newline
-func (io *IOImpl) Printfln(format string, args ...interface{}) {
+func (io *IOImpl) Printfln(format string, args ...any) {
 	if io.outBuf == nil {
 		return
 	}
@@ -122,7 +122,7 @@ func (io *IOImpl) Printfln(format string, args ...interface{}) {
 
 // ErrPrintln prints a line terminated by a newline to
 // cmd.Err(Buf)
-func (io *IOImpl) ErrPrintln(args ...interface{}) {
+func (io *IOImpl) ErrPrintln(args ...any) {
 	if io.errBuf == nil {
 		return
 	}
@@ -132,7 +132,7 @@ func (io *IOImpl) ErrPrintln(args ...interface{}) {
 }
 
 // ErrPrintfln prints a formatted string terminated by a newline to cmd.Err(Buf)
-func (io *IOImpl) ErrPrintfln(format string, args ...interface{}) {
+func (io *IOImpl) ErrPrintfln(format string, args ...any) {
 	if io.errBuf == nil {
 		return
 	}

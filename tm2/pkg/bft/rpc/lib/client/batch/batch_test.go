@@ -15,7 +15,7 @@ func generateRequests(t *testing.T, count int) types.RPCRequests {
 
 	requests := make(types.RPCRequests, 0, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		requests = append(requests, types.RPCRequest{
 			JSONRPC: "2.0",
 			ID:      types.JSONRPCIntID(i),

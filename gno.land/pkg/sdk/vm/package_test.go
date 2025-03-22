@@ -26,7 +26,7 @@ func assertJSONSnakeCase(t *testing.T, typ reflect.Type) {
 		assertJSONSnakeCase(t, typ.Key())
 		assertJSONSnakeCase(t, typ.Elem())
 	case reflect.Struct:
-		for i := 0; i < typ.NumField(); i++ {
+		for i := range typ.NumField() {
 			fld := typ.Field(i)
 			if !fld.IsExported() {
 				continue

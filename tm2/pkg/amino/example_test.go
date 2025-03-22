@@ -22,7 +22,7 @@ import (
 )
 
 func Example() {
-	type Message interface{}
+	type Message any
 
 	type bcMessage struct {
 		Message string

@@ -149,10 +149,7 @@ func (m *Monitor) Status() Status {
 			s.CurRate = round(m.rEMA)
 			if s.BytesRem > 0 {
 				if tRate := 0.8*m.rEMA + 0.2*rAvg; tRate > 0 {
-					ns := float64(s.BytesRem) / tRate * 1e9
-					if ns > float64(timeRemLimit) {
-						ns = float64(timeRemLimit)
-					}
+					ns := min(float64(s.BytesRem)/tRate*1e9, float64(timeRemLimit))
 					s.TimeRem = clockRound(time.Duration(ns))
 				}
 			}

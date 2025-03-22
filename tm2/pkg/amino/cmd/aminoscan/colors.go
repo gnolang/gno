@@ -27,7 +27,7 @@ func treat(s string, color string) string {
 	return color + s + ANSIReset
 }
 
-func treatAll(color string, args ...interface{}) string {
+func treatAll(color string, args ...any) string {
 	parts := make([]string, 0, len(args))
 	for _, arg := range args {
 		parts = append(parts, treat(fmt.Sprintf("%v", arg), color))
@@ -35,27 +35,27 @@ func treatAll(color string, args ...interface{}) string {
 	return strings.Join(parts, "")
 }
 
-func Red(args ...interface{}) string {
+func Red(args ...any) string {
 	return treatAll(ANSIFgRed, args...)
 }
 
-func Green(args ...interface{}) string {
+func Green(args ...any) string {
 	return treatAll(ANSIFgGreen, args...)
 }
 
-func Yellow(args ...interface{}) string {
+func Yellow(args ...any) string {
 	return treatAll(ANSIFgYellow, args...)
 }
 
-func Blue(args ...interface{}) string {
+func Blue(args ...any) string {
 	return treatAll(ANSIFgBlue, args...)
 }
 
-func Cyan(args ...interface{}) string {
+func Cyan(args ...any) string {
 	return treatAll(ANSIFgCyan, args...)
 }
 
-func ColoredBytes(data []byte, textColor, bytesColor func(...interface{}) string) string {
+func ColoredBytes(data []byte, textColor, bytesColor func(...any) string) string {
 	s := ""
 	for _, b := range data {
 		if 0x21 <= b && b < 0x7F {

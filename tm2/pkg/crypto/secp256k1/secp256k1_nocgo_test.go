@@ -15,7 +15,7 @@ func TestSignatureVerificationAndRejectUpperS(t *testing.T) {
 	t.Parallel()
 
 	msg := []byte("We have lingered long enough on the shores of the cosmic ocean.")
-	for i := 0; i < 500; i++ {
+	for range 500 {
 		priv := GenPrivKey()
 		sigStr, err := priv.Sign(msg)
 		require.NoError(t, err)

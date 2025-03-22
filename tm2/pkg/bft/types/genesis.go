@@ -49,7 +49,7 @@ type GenesisDoc struct {
 	ConsensusParams abci.ConsensusParams `json:"consensus_params,omitempty"`
 	Validators      []GenesisValidator   `json:"validators,omitempty"`
 	AppHash         []byte               `json:"app_hash"`
-	AppState        interface{}          `json:"app_state,omitempty"`
+	AppState        any                  `json:"app_state,omitempty"`
 }
 
 // SaveAs is a utility method for saving GenensisDoc as a JSON file.

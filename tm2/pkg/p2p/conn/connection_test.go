@@ -133,7 +133,7 @@ func TestMConnectionReceive(t *testing.T) {
 	defer client.Close() //nolint: errcheck
 
 	receivedCh := make(chan []byte)
-	errorsCh := make(chan interface{})
+	errorsCh := make(chan any)
 	onReceive := func(chID byte, msgBytes []byte) {
 		receivedCh <- msgBytes
 	}
@@ -188,7 +188,7 @@ func TestMConnectionPongTimeoutResultsInError(t *testing.T) {
 	defer client.Close()
 
 	receivedCh := make(chan []byte)
-	errorsCh := make(chan interface{})
+	errorsCh := make(chan any)
 	onReceive := func(chID byte, msgBytes []byte) {
 		receivedCh <- msgBytes
 	}
@@ -229,7 +229,7 @@ func TestMConnectionMultiplePongsInTheBeginning(t *testing.T) {
 	defer client.Close()
 
 	receivedCh := make(chan []byte)
-	errorsCh := make(chan interface{})
+	errorsCh := make(chan any)
 	onReceive := func(chID byte, msgBytes []byte) {
 		receivedCh <- msgBytes
 	}
@@ -284,7 +284,7 @@ func TestMConnectionMultiplePings(t *testing.T) {
 	defer client.Close()
 
 	receivedCh := make(chan []byte)
-	errorsCh := make(chan interface{})
+	errorsCh := make(chan any)
 	onReceive := func(chID byte, msgBytes []byte) {
 		receivedCh <- msgBytes
 	}
@@ -327,7 +327,7 @@ func TestMConnectionPingPongs(t *testing.T) {
 	defer client.Close()
 
 	receivedCh := make(chan []byte)
-	errorsCh := make(chan interface{})
+	errorsCh := make(chan any)
 	onReceive := func(chID byte, msgBytes []byte) {
 		receivedCh <- msgBytes
 	}
@@ -380,7 +380,7 @@ func TestMConnectionStopsAndReturnsError(t *testing.T) {
 	defer client.Close() //nolint: errcheck
 
 	receivedCh := make(chan []byte)
-	errorsCh := make(chan interface{})
+	errorsCh := make(chan any)
 	onReceive := func(chID byte, msgBytes []byte) {
 		receivedCh <- msgBytes
 	}

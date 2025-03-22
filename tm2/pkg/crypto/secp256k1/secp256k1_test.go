@@ -74,7 +74,7 @@ func TestSecp256k1LoadPrivkeyAndSerializeIsIdentity(t *testing.T) {
 	t.Parallel()
 
 	numberOfTests := 256
-	for i := 0; i < numberOfTests; i++ {
+	for range numberOfTests {
 		// Seed the test case with some random bytes
 		privKeyBytes := [32]byte{}
 		copy(privKeyBytes[:], crypto.CRandBytes(32))

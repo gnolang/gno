@@ -10,7 +10,7 @@ import (
 )
 
 // Returns list of kvpairs from param struct.
-func encodeStructFields(prm interface{}) (res []std.KVPair) {
+func encodeStructFields(prm any) (res []std.KVPair) {
 	rvPrm := reflect.ValueOf(prm)
 	tinfo, err := amino.GetTypeInfo(rvPrm.Type())
 	if err != nil {
@@ -36,7 +36,7 @@ func findKV(kvz []std.KVPair, key string) (std.KVPair, bool) {
 }
 
 // Reads list of kvpairs into param struct.
-func decodeStructFields(prmPtr interface{}, kvz []std.KVPair) {
+func decodeStructFields(prmPtr any, kvz []std.KVPair) {
 	if reflect.TypeOf(prmPtr).Kind() != reflect.Pointer {
 		panic("setStructFields expects module param struct pointer")
 	}
@@ -58,7 +58,7 @@ func decodeStructFields(prmPtr interface{}, kvz []std.KVPair) {
 }
 
 // Gets list of kvpairs associated with param struct from store.
-func getStructFieldsFromStore(prmPtr interface{}, store sm.Store, key []byte) (res []std.KVPair) {
+func getStructFieldsFromStore(prmPtr any, store sm.Store, key []byte) (res []std.KVPair) {
 	if reflect.TypeOf(prmPtr).Kind() != reflect.Pointer {
 		panic("setStructFields expects module param struct pointer")
 	}

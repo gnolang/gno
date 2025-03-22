@@ -27,7 +27,7 @@ func TestKVPairs(t *testing.T) {
 		{Key: []byte("k1"), Value: []byte("2")},
 		{Key: []byte("k2"), Value: []byte("")},
 	}
-	for i := 0; i < kvs.Len(); i++ {
+	for i := range kvs.Len() {
 		assert.Equal(t, kvs[i].Key, kvs2[i].Key)
 		assert.Equal(t, kvs[i].Value, kvs2[i].Value)
 	}
@@ -54,7 +54,7 @@ func TestKI64Pairs(t *testing.T) {
 		{Key: []byte("k1"), Value: 2},
 		{Key: []byte("k2"), Value: 0},
 	}
-	for i := 0; i < kvs.Len(); i++ {
+	for i := range kvs.Len() {
 		assert.Equal(t, kvs[i].Key, kvs2[i].Key)
 		assert.Equal(t, kvs[i].Value, kvs2[i].Value)
 	}

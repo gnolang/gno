@@ -23,7 +23,7 @@ func TestParseJSONMap(t *testing.T) {
 	input := []byte(`{"value":"1234","height":22}`)
 
 	// naive is float,string
-	var p1 map[string]interface{}
+	var p1 map[string]any
 	err := json.Unmarshal(input, &p1)
 	if assert.Nil(t, err) {
 		h, ok := p1["height"].(float64)
@@ -38,7 +38,7 @@ func TestParseJSONMap(t *testing.T) {
 
 	// preloading map with values doesn't help
 	tmp := 0
-	p2 := map[string]interface{}{
+	p2 := map[string]any{
 		"value":  &[]byte{},
 		"height": &tmp,
 	}
@@ -58,8 +58,8 @@ func TestParseJSONMap(t *testing.T) {
 	// struct has unknown types, but hard-coded keys
 	tmp = 0
 	p3 := struct {
-		Value  interface{} `json:"value"`
-		Height interface{} `json:"height"`
+		Value  any `json:"value"`
+		Height any `json:"height"`
 	}{
 		Height: &tmp,
 		Value:  &[]byte{},
@@ -113,7 +113,7 @@ func TestParseJSONArray(t *testing.T) {
 	input := []byte(`["1234",22]`)
 
 	// naive is float,string
-	var p1 []interface{}
+	var p1 []any
 	err := json.Unmarshal(input, &p1)
 	if assert.Nil(t, err) {
 		v, ok := p1[0].(string)
@@ -128,7 +128,7 @@ func TestParseJSONArray(t *testing.T) {
 
 	// preloading map with values helps here (unlike map - p2 above)
 	tmp := 0
-	p2 := []interface{}{&[]byte{}, &tmp}
+	p2 := []any{&[]byte{}, &tmp}
 	err = json.Unmarshal(input, &p2)
 	if assert.Nil(t, err) {
 		v, ok := p2[0].(*[]byte)

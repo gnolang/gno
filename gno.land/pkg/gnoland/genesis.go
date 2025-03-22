@@ -86,7 +86,7 @@ func LoadGenesisParamsFile(path string, ggs *GnoGenesisState) error {
 	// The vm module uses the submodule for realm package paths.
 	// If only the module is specified, the submodule is assumed to be "p"
 	// for keeper param structs.
-	m := map[string] /* <module>(:<submodule>)? */ map[string] /* <name> */ interface{} /* <value> */ {}
+	m := map[string] /* <module>(:<submodule>)? */ map[string] /* <name> */ any /* <value> */ {}
 	err = toml.Unmarshal(content, &m)
 	if err != nil {
 		return err
@@ -124,7 +124,7 @@ func LoadGenesisParamsFile(path string, ggs *GnoGenesisState) error {
 			for name, value := range values {
 				name, type_ := splitTypedName(name)
 				if type_ == "strings" {
-					vz := value.([]interface{})
+					vz := value.([]any)
 					sz := make([]string, len(vz))
 					for i, v := range vz {
 						sz[i] = v.(string)
