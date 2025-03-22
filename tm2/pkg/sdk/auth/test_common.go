@@ -31,6 +31,7 @@ func setupTestEnv() testEnv {
 	prmk := params.NewParamsKeeper(authCapKey)
 
 	acck := NewAccountKeeper(authCapKey, prmk.ForModule(ModuleName), std.ProtoBaseAccount)
+
 	bankk := NewDummyBankKeeper(acck, prmk.ForModule("dummybank"))
 	gk := NewGasPriceKeeper(authCapKey)
 
@@ -38,6 +39,9 @@ func setupTestEnv() testEnv {
 	prmk.Register("dummybank", bankk)
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{Height: 1, ChainID: "test-chain-id"}, log.NewNoopLogger())
+
+	acck.SetParams(ctx, DefaultParams()) // Setup default params
+
 	ctx = ctx.WithValue(AuthParamsContextKey{}, DefaultParams())
 	ctx = ctx.WithConsensusParams(&abci.ConsensusParams{
 		Block: &abci.BlockParams{
