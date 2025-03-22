@@ -12,7 +12,7 @@ import (
 
 func TestExample(t *testing.T) {
 	cd := std.ChainDomain()
-	std.TestSetRealm(std.NewCodeRealm(cd + "/r/lorem/ipsum"))
+	testing.SetRealm(std.NewCodeRealm(cd + "/r/lorem/ipsum"))
 
 	// initial parsing
 	path := "hello/world?foo=bar&baz=foobar"
@@ -34,7 +34,7 @@ func TestExample(t *testing.T) {
 
 func TestParse(t *testing.T) {
 	cd := std.ChainDomain()
-	std.TestSetRealm(std.NewCodeRealm(cd + "/r/lorem/ipsum"))
+	testing.SetRealm(std.NewCodeRealm(cd + "/r/lorem/ipsum"))
 
 	tests := []struct {
 		rawPath        string

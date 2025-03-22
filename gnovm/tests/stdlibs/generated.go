@@ -329,30 +329,6 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
-		"TestSkipHeights",
-		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("int64")},
-		},
-		[]gno.FieldTypeExpr{},
-		true,
-		func(m *gno.Machine) {
-			b := m.LastBlock()
-			var (
-				p0  int64
-				rp0 = reflect.ValueOf(&p0).Elem()
-			)
-
-			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.DeepFill(m.Store)
-			gno.Gno2GoValue(tv0, rp0)
-
-			testlibs_std.TestSkipHeights(
-				m,
-				p0)
-		},
-	},
-	{
-		"std",
 		"callerAt",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("int")},
@@ -381,186 +357,6 @@ var nativeFuncs = [...]NativeFunc{
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
 			))
-		},
-	},
-	{
-		"std",
-		"testSetOriginCaller",
-		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("string")},
-		},
-		[]gno.FieldTypeExpr{},
-		true,
-		func(m *gno.Machine) {
-			b := m.LastBlock()
-			var (
-				p0  string
-				rp0 = reflect.ValueOf(&p0).Elem()
-			)
-
-			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.DeepFill(m.Store)
-			gno.Gno2GoValue(tv0, rp0)
-
-			testlibs_std.X_testSetOriginCaller(
-				m,
-				p0)
-		},
-	},
-	{
-		"std",
-		"testSetOriginPkgAddr",
-		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("string")},
-		},
-		[]gno.FieldTypeExpr{},
-		true,
-		func(m *gno.Machine) {
-			b := m.LastBlock()
-			var (
-				p0  string
-				rp0 = reflect.ValueOf(&p0).Elem()
-			)
-
-			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.DeepFill(m.Store)
-			gno.Gno2GoValue(tv0, rp0)
-
-			testlibs_std.X_testSetOriginPkgAddr(
-				m,
-				p0)
-		},
-	},
-	{
-		"std",
-		"testSetChainDomain",
-		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("string")},
-		},
-		[]gno.FieldTypeExpr{},
-		true,
-		func(m *gno.Machine) {
-			b := m.LastBlock()
-			var (
-				p0  string
-				rp0 = reflect.ValueOf(&p0).Elem()
-			)
-
-			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.DeepFill(m.Store)
-			gno.Gno2GoValue(tv0, rp0)
-
-			testlibs_std.X_testSetChainDomain(
-				m,
-				p0)
-		},
-	},
-	{
-		"std",
-		"testSetRealm",
-		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("string")},
-			{Name: gno.N("p1"), Type: gno.X("string")},
-		},
-		[]gno.FieldTypeExpr{},
-		true,
-		func(m *gno.Machine) {
-			b := m.LastBlock()
-			var (
-				p0  string
-				rp0 = reflect.ValueOf(&p0).Elem()
-				p1  string
-				rp1 = reflect.ValueOf(&p1).Elem()
-			)
-
-			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.DeepFill(m.Store)
-			gno.Gno2GoValue(tv0, rp0)
-			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
-			tv1.DeepFill(m.Store)
-			gno.Gno2GoValue(tv1, rp1)
-
-			testlibs_std.X_testSetRealm(
-				m,
-				p0, p1)
-		},
-	},
-	{
-		"std",
-		"testSetOriginSend",
-		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("[]string")},
-			{Name: gno.N("p1"), Type: gno.X("[]int64")},
-			{Name: gno.N("p2"), Type: gno.X("[]string")},
-			{Name: gno.N("p3"), Type: gno.X("[]int64")},
-		},
-		[]gno.FieldTypeExpr{},
-		true,
-		func(m *gno.Machine) {
-			b := m.LastBlock()
-			var (
-				p0  []string
-				rp0 = reflect.ValueOf(&p0).Elem()
-				p1  []int64
-				rp1 = reflect.ValueOf(&p1).Elem()
-				p2  []string
-				rp2 = reflect.ValueOf(&p2).Elem()
-				p3  []int64
-				rp3 = reflect.ValueOf(&p3).Elem()
-			)
-
-			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.DeepFill(m.Store)
-			gno.Gno2GoValue(tv0, rp0)
-			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
-			tv1.DeepFill(m.Store)
-			gno.Gno2GoValue(tv1, rp1)
-			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
-			tv2.DeepFill(m.Store)
-			gno.Gno2GoValue(tv2, rp2)
-			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
-			tv3.DeepFill(m.Store)
-			gno.Gno2GoValue(tv3, rp3)
-
-			testlibs_std.X_testSetOriginSend(
-				m,
-				p0, p1, p2, p3)
-		},
-	},
-	{
-		"std",
-		"testIssueCoins",
-		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("string")},
-			{Name: gno.N("p1"), Type: gno.X("[]string")},
-			{Name: gno.N("p2"), Type: gno.X("[]int64")},
-		},
-		[]gno.FieldTypeExpr{},
-		true,
-		func(m *gno.Machine) {
-			b := m.LastBlock()
-			var (
-				p0  string
-				rp0 = reflect.ValueOf(&p0).Elem()
-				p1  []string
-				rp1 = reflect.ValueOf(&p1).Elem()
-				p2  []int64
-				rp2 = reflect.ValueOf(&p2).Elem()
-			)
-
-			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.DeepFill(m.Store)
-			gno.Gno2GoValue(tv0, rp0)
-			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
-			tv1.DeepFill(m.Store)
-			gno.Gno2GoValue(tv1, rp1)
-			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
-			tv2.DeepFill(m.Store)
-			gno.Gno2GoValue(tv2, rp2)
-
-			testlibs_std.X_testIssueCoins(
-				m,
-				p0, p1, p2)
 		},
 	},
 	{
@@ -631,6 +427,206 @@ var nativeFuncs = [...]NativeFunc{
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
 			))
+		},
+	},
+	{
+		"testing",
+		"getContext",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("string")},
+			{Name: gno.N("r1"), Type: gno.X("string")},
+			{Name: gno.N("r2"), Type: gno.X("[]string")},
+			{Name: gno.N("r3"), Type: gno.X("[]int64")},
+			{Name: gno.N("r4"), Type: gno.X("[]string")},
+			{Name: gno.N("r5"), Type: gno.X("[]int64")},
+			{Name: gno.N("r6"), Type: gno.X("string")},
+			{Name: gno.N("r7"), Type: gno.X("int64")},
+			{Name: gno.N("r8"), Type: gno.X("int64")},
+			{Name: gno.N("r9"), Type: gno.X("int64")},
+		},
+		true,
+		func(m *gno.Machine) {
+			r0, r1, r2, r3, r4, r5, r6, r7, r8, r9 := testlibs_testing.X_getContext(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r2).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r3).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r4).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r5).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r6).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r7).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r8).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r9).Elem(),
+			))
+		},
+	},
+	{
+		"testing",
+		"setContext",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("string")},
+			{Name: gno.N("p1"), Type: gno.X("string")},
+			{Name: gno.N("p2"), Type: gno.X("string")},
+			{Name: gno.N("p3"), Type: gno.X("string")},
+			{Name: gno.N("p4"), Type: gno.X("[]string")},
+			{Name: gno.N("p5"), Type: gno.X("[]int64")},
+			{Name: gno.N("p6"), Type: gno.X("[]string")},
+			{Name: gno.N("p7"), Type: gno.X("[]int64")},
+			{Name: gno.N("p8"), Type: gno.X("string")},
+			{Name: gno.N("p9"), Type: gno.X("int64")},
+			{Name: gno.N("p10"), Type: gno.X("int64")},
+			{Name: gno.N("p11"), Type: gno.X("int64")},
+		},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0   string
+				rp0  = reflect.ValueOf(&p0).Elem()
+				p1   string
+				rp1  = reflect.ValueOf(&p1).Elem()
+				p2   string
+				rp2  = reflect.ValueOf(&p2).Elem()
+				p3   string
+				rp3  = reflect.ValueOf(&p3).Elem()
+				p4   []string
+				rp4  = reflect.ValueOf(&p4).Elem()
+				p5   []int64
+				rp5  = reflect.ValueOf(&p5).Elem()
+				p6   []string
+				rp6  = reflect.ValueOf(&p6).Elem()
+				p7   []int64
+				rp7  = reflect.ValueOf(&p7).Elem()
+				p8   string
+				rp8  = reflect.ValueOf(&p8).Elem()
+				p9   int64
+				rp9  = reflect.ValueOf(&p9).Elem()
+				p10  int64
+				rp10 = reflect.ValueOf(&p10).Elem()
+				p11  int64
+				rp11 = reflect.ValueOf(&p11).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
+			tv3.DeepFill(m.Store)
+			gno.Gno2GoValue(tv3, rp3)
+			tv4 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 4, "")).TV
+			tv4.DeepFill(m.Store)
+			gno.Gno2GoValue(tv4, rp4)
+			tv5 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 5, "")).TV
+			tv5.DeepFill(m.Store)
+			gno.Gno2GoValue(tv5, rp5)
+			tv6 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 6, "")).TV
+			tv6.DeepFill(m.Store)
+			gno.Gno2GoValue(tv6, rp6)
+			tv7 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 7, "")).TV
+			tv7.DeepFill(m.Store)
+			gno.Gno2GoValue(tv7, rp7)
+			tv8 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 8, "")).TV
+			tv8.DeepFill(m.Store)
+			gno.Gno2GoValue(tv8, rp8)
+			tv9 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 9, "")).TV
+			tv9.DeepFill(m.Store)
+			gno.Gno2GoValue(tv9, rp9)
+			tv10 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 10, "")).TV
+			tv10.DeepFill(m.Store)
+			gno.Gno2GoValue(tv10, rp10)
+			tv11 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 11, "")).TV
+			tv11.DeepFill(m.Store)
+			gno.Gno2GoValue(tv11, rp11)
+
+			testlibs_testing.X_setContext(
+				m,
+				p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11)
+		},
+	},
+	{
+		"testing",
+		"testIssueCoins",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("string")},
+			{Name: gno.N("p1"), Type: gno.X("[]string")},
+			{Name: gno.N("p2"), Type: gno.X("[]int64")},
+		},
+		[]gno.FieldTypeExpr{},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  []string
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  []int64
+				rp2 = reflect.ValueOf(&p2).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+
+			testlibs_testing.X_testIssueCoins(
+				m,
+				p0, p1, p2)
 		},
 	},
 	{
