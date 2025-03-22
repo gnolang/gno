@@ -17,6 +17,7 @@ const (
 	defaultSeenValuesSize = 32
 
 	// nestedLimit indicates the maximum nested level when printing a deeply recursive value.
+	// if this increases significantly a map should be used instead
 	nestedLimit = 10
 )
 
@@ -29,14 +30,14 @@ func (sv *seenValues) Put(v Value) {
 	sv.values = append(sv.values, v)
 }
 
-func (sv *seenValues) Contains(v Value) bool {
-	for _, vv := range sv.values {
+func (sv *seenValues) IndexOf(v Value) int {
+	for i, vv := range sv.values {
 		if vv == v {
-			return true
+			return i
 		}
 	}
 
-	return false
+	return -1
 }
 
 // Pop should be called by using a defer after each Put.
@@ -52,7 +53,10 @@ func (sv *seenValues) Pop() {
 }
 
 func newSeenValues() *seenValues {
-	return &seenValues{values: make([]Value, 0, defaultSeenValuesSize), nc: nestedLimit}
+	return &seenValues{
+		values: make([]Value, 0, defaultSeenValuesSize),
+		nc:     nestedLimit,
+	}
 }
 
 func (sv StringValue) String() string {
@@ -76,8 +80,8 @@ func (av *ArrayValue) String() string {
 }
 
 func (av *ArrayValue) ProtectedString(seen *seenValues) string {
-	if seen.Contains(av) {
-		return fmt.Sprintf("%p", av)
+	if i := seen.IndexOf(av); i != -1 {
+		return fmt.Sprintf("ref@%d", i)
 	}
 
 	seen.nc--
@@ -112,8 +116,8 @@ func (sv *SliceValue) ProtectedString(seen *seenValues) string {
 		return "nil-slice"
 	}
 
-	if seen.Contains(sv) {
-		return fmt.Sprintf("%p", sv)
+	if i := seen.IndexOf(sv); i != -1 {
+		return fmt.Sprintf("ref@%d", i)
 	}
 
 	if ref, ok := sv.Base.(RefValue); ok {
@@ -142,8 +146,8 @@ func (pv PointerValue) String() string {
 }
 
 func (pv PointerValue) ProtectedString(seen *seenValues) string {
-	if seen.Contains(pv) {
-		return fmt.Sprintf("%p", &pv)
+	if i := seen.IndexOf(pv); i != -1 {
+		return fmt.Sprintf("ref@%d", i)
 	}
 
 	seen.Put(pv)
@@ -162,8 +166,8 @@ func (sv *StructValue) String() string {
 }
 
 func (sv *StructValue) ProtectedString(seen *seenValues) string {
-	if seen.Contains(sv) {
-		return fmt.Sprintf("%p", sv)
+	if i := seen.IndexOf(sv); i != -1 {
+		return fmt.Sprintf("ref@%d", i)
 	}
 
 	seen.Put(sv)
@@ -215,8 +219,8 @@ func (mv *MapValue) ProtectedString(seen *seenValues) string {
 		return "zero-map"
 	}
 
-	if seen.Contains(mv) {
-		return fmt.Sprintf("%p", mv)
+	if i := seen.IndexOf(mv); i != -1 {
+		return fmt.Sprintf("ref@%d", i)
 	}
 
 	seen.Put(mv)
@@ -291,8 +295,8 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 }
 
 func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType bool) string {
-	if seen.Contains(tv.V) {
-		return fmt.Sprintf("%p", tv)
+	if i := seen.IndexOf(tv.V); i != -1 {
+		return fmt.Sprintf("ref@%d", i)
 	}
 
 	// print declared type

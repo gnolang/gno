@@ -6,6 +6,7 @@ package boards_test
 import (
 	"std"
 	"strconv"
+	"testing"
 
 	"gno.land/r/demo/boards"
 	users "gno.land/r/gnoland/users/v1"
@@ -18,7 +19,7 @@ var (
 )
 
 func init() {
-	std.TestSetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
 	users.Register("gnouser123")
 
 	firstBoard = boards.CreateBoard("first_board")

@@ -255,6 +255,14 @@
   ::selection {
     @apply bg-green-600 text-light;
   }
+
+  /* MD components */
+  .realm-view .gno-columns {
+    @apply flex flex-wrap gap-x-10 xxl:gap-x-12;
+  }
+  .realm-view .gno-columns > * {
+    @apply grow shrink basis-52 lg:basis-44;
+  }
 }
 
 @layer components {

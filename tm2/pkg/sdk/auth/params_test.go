@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -127,9 +127,7 @@ func TestParamsString(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.params.String()
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Fatalf("Mismatch: got - want +\n%s", diff)
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

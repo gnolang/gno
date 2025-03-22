@@ -7,13 +7,14 @@ package bank1
 
 import (
 	"std"
+	"testing"
 )
 
 func main() {
 	banktestAddr := std.DerivePkgAddr("gno.land/r/demo/banktest")
 
 	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
-	std.TestSetOriginCaller(mainaddr)
+	testing.SetOriginCaller(mainaddr)
 
 	banker := std.NewBanker(std.BankerTypeRealmSend)
 	send := std.Coins{{"ugnot", 123}}

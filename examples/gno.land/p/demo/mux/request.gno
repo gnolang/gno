@@ -1,6 +1,9 @@
 package mux
 
-import "strings"
+import (
+	"net/url"
+	"strings"
+)
 
 // Request represents an incoming request.
 type Request struct {
@@ -14,6 +17,9 @@ type Request struct {
 
 	// HandlerPath is handler rule that matches a request.
 	HandlerPath string
+
+	// Query contains the parsed URL query parameters.
+	Query url.Values
 }
 
 // GetVar retrieves a variable from the path based on routing rules.
