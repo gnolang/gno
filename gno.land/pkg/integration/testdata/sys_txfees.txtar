@@ -1,0 +1,47 @@
+loadpkg gno.land/r/sys/txfees
+loadpkg gno.land/r/dev/counter $WORK/counter
+
+## start a new node
+gnoland start
+
+gnokey query params/auth:p:fee_collector
+stdout g1najfm5t7dr4f2m38cg55xt6gh2lxsk92tgh0xy
+
+gnokey query vm/qrender --data 'gno.land/r/sys/txfees:'
+stdout 'Balance: 2000000ugnot'
+
+## execute AddCounter
+gnokey maketx call -pkgpath gno.land/r/dev/counter -args 10 -func AddToCounter -gas-fee 100ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query vm/qrender --data 'gno.land/r/dev/counter:'
+stdout 'counter: 10'
+
+gnokey query vm/qrender --data 'gno.land/r/sys/txfees:'
+stdout 'Balance: 2000100ugnot'
+
+## execute AddCounter again
+gnokey maketx call -pkgpath gno.land/r/dev/counter -args 10 -func AddToCounter -gas-fee 100ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query vm/qrender --data 'gno.land/r/dev/counter:'
+stdout 'counter: 20'
+
+gnokey query vm/qrender --data 'gno.land/r/sys/txfees:'
+stdout 'Balance: 2000200ugnot'
+
+
+-- counter/counter.gno --
+package counter
+
+import "strconv"
+
+var counter int
+
+func AddToCounter(add int)  {
+ 	counter = counter + add
+}
+
+func Render(_ string) string {
+	return "counter: "+strconv.Itoa(counter)
+}

@@ -1,4 +1,4 @@
-# tests for
+loadparams $WORK/genesis_params_test.toml
 
 gnoland start
 
@@ -38,3 +38,8 @@ import (
 
 // This should succeed if it is called from gno.land/r/sys/params
 func SetLockTransfer(denom string) { params.SetSysParamStrings("bank","p", "restricted_denoms", []string{denom}) }
+
+-- genesis_params_test.toml --
+
+["bank"]
+  restricted_denoms = [] # unset restrict transfer
