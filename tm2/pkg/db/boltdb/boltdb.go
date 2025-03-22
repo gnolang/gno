@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/internal"
@@ -29,7 +30,8 @@ func init() {
 // A single bucket ([]byte("tm")) is used per a database instance. This could
 // lead to performance issues when/if there will be lots of keys.
 type BoltDB struct {
-	db *bbolt.DB
+	db  *bbolt.DB
+	mux sync.Mutex
 }
 
 // New returns a BoltDB with default options.
@@ -67,6 +69,9 @@ func NewWithOptions(name string, dir string, opts *bbolt.Options) (db.DB, error)
 }
 
 func (bdb *BoltDB) Get(key []byte) (value []byte) {
+	bdb.mux.Lock()
+	defer bdb.mux.Unlock()
+
 	key = nonEmptyKey(internal.NonNilBytes(key))
 	err := bdb.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(bucket)
@@ -86,6 +91,9 @@ func (bdb *BoltDB) Has(key []byte) bool {
 }
 
 func (bdb *BoltDB) Set(key, value []byte) {
+	bdb.mux.Lock()
+	defer bdb.mux.Unlock()
+
 	key = nonEmptyKey(internal.NonNilBytes(key))
 	value = internal.NonNilBytes(value)
 	err := bdb.db.Update(func(tx *bbolt.Tx) error {
@@ -102,6 +110,9 @@ func (bdb *BoltDB) SetSync(key, value []byte) {
 }
 
 func (bdb *BoltDB) Delete(key []byte) {
+	bdb.mux.Lock()
+	defer bdb.mux.Unlock()
+
 	key = nonEmptyKey(internal.NonNilBytes(key))
 	err := bdb.db.Update(func(tx *bbolt.Tx) error {
 		return tx.Bucket(bucket).Delete(key)
@@ -181,6 +192,9 @@ func (bdb *boltDBBatch) Delete(key []byte) {
 
 // NOTE: the operation is synchronous (see BoltDB for reasons)
 func (bdb *boltDBBatch) Write() {
+	bdb.db.mux.Lock()
+	defer bdb.db.mux.Unlock()
+
 	err := bdb.db.db.Batch(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(bucket)
 		for _, op := range bdb.ops {
