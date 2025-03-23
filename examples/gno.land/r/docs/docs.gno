@@ -1,10 +1,7 @@
 package docs
 
 func Render(_ string) string {
-	content := ""
-	content += frontMatter() // XXX: try to remove this
-	content += `
-# Gno Examples Documentation
+	return `# Gno Examples Documentation
 
 Welcome to the Gno examples documentation index.
 Explore various examples to learn more about Gno functionality and usage.
@@ -29,12 +26,4 @@ Explore various examples to learn more about Gno functionality and usage.
 
 - [Official documentation](https://github.com/gnolang/gno/tree/master/docs) <!-- should be /docs with gnoweb embedding the docs/ folder. -->
 `
-	return content
-}
-
-func frontMatter() string {
-	return `---
-Title: Welcome to the Gno examples documentation index 
-Description: Welcome to the Gno examples documentation index. Explore various examples to learn more about Gno functionality and usage.
----`
 }

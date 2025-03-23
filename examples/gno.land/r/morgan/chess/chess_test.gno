@@ -264,7 +264,7 @@ func newTestCommandColorID(fn func(string) string, s string, addr string) testCo
 }
 
 func (tc *testCommandColorID) Run(t *testing.T, bufs map[string]string) {
-	std.TestSetRealm(std.NewUserRealm(tc.addr))
+	testing.SetRealm(std.NewUserRealm(tc.addr))
 	bufs["result"] = tc.fn(bufs["id"])
 }
 
@@ -274,7 +274,7 @@ type testCommandNewGame struct {
 }
 
 func (tc *testCommandNewGame) Run(t *testing.T, bufs map[string]string) {
-	std.TestSetRealm(std.NewUserRealm(tc.w))
+	testing.SetRealm(std.NewUserRealm(tc.w))
 	res := xNewGame(string(tc.b), tc.seconds, tc.incr)
 	bufs["result"] = res
 
@@ -295,7 +295,7 @@ type testCommandMove struct {
 }
 
 func (tc *testCommandMove) Run(t *testing.T, bufs map[string]string) {
-	std.TestSetRealm(std.NewUserRealm(tc.addr))
+	testing.SetRealm(std.NewUserRealm(tc.addr))
 	bufs["result"] = MakeMove(bufs["id"], tc.from, tc.to, tc.promotion)
 }
 
