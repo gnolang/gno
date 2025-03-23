@@ -43,6 +43,13 @@ func X_setSysParamStrings(m *gno.Machine, module, submodule, name string, val []
 	std.GetContext(m).Params.SetStrings(pk, val)
 }
 
+// @moul, just a note on this, because I think it's important:
+// It seems overly restrictive to have the sys/params realm be the only
+// entry point for sys params changes, given its limited API. It's not easy
+// to "bundle" logic with params changes, since if we centralize it to sys/params
+// as it is now, we enforce a single request-single param change policy, with no arbitrary
+// logic to go with the change. TL;DR we can't bundle additional logic in the GovDAO callback with
+// a sys param change
 func assertSysParamsRealm(m *gno.Machine) {
 	// XXX improve
 	if len(m.Frames) < 2 {

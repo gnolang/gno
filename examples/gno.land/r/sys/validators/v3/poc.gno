@@ -2,18 +2,18 @@ package validators
 
 import (
 	"std"
-	prms "sys/params"
+	"strconv"
+	"strings"
 
 	"gno.land/p/demo/dao"
+	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/sys/validators"
 	"gno.land/r/gov/dao/bridge"
 )
 
-const (
-	vmModulePrefix         = "vm"
-	valsetUpdatesKeyPrefix = "valset_updates"
-)
+// Keep in sync with vm/params.go
+const valsetUpdatesKeyPrefix = "valset_updates"
 
 const errNoChangesProposed = "no set changes proposed"
 
@@ -60,22 +60,21 @@ func NewValsetChangeExecutor(changesFn func() []validators.Validator) dao.Execut
 		// place to dump the valset updates, given our
 		// consensus module does not actually have params
 		// (nor do I think it should, since it's a deterministic
-		// piece of logic). I've used the VM module here.
+		// piece of logic). I've used the realm here.
 		// I've also chosen to utilize the existing []string setter,
 		// and not introduce the "any" struct type setter, to
 		// avoid opening the pandora's box on arbitrary structures.
 		//
-		// Params are dropped in the following params path:
-		// vm:p:valset_updates:height
+		// Params are dropped in the following params path (realm-local):
+		// vm:gno.land/r/sys/validators/v3:valset_updates_height
 		// with "valset_updates:height" being the key.
+		//
 		// @moul, the height is part of the key, because I went with the premise that
 		// we will only modify params from GovDAO proposals. An alternative is to always reuse
 		// the same param (key -> valset_updates) and wipe it in Endlocker, but this breaks the principle
-		// that params are _only_ updated through the GovDAO (in Gno).
-		prms.SetSysParamStrings(
-			vmModulePrefix,
-			"p",
-			ufmt.Sprintf("%s:%d", valsetUpdatesKeyPrefix, std.ChainHeight()),
+		// that params should _only_ be updated through the GovDAO (in Gno).
+		std.SetParamStrings(
+			ufmt.Sprintf("%s_%d", valsetUpdatesKeyPrefix, std.ChainHeight()),
 			changes,
 		)
 
@@ -117,4 +116,54 @@ func GetValidator(addr std.Address) validators.Validator {
 // GetValidators returns the typed validator set
 func GetValidators() []validators.Validator {
 	return vp.GetValidators()
+}
+
+// Render displays the valset changes saved in the params,
+// depending on the specified height
+func Render(path string) string {
+	router := mux.NewRouter()
+
+	router.HandleFunc("", func(res *mux.ResponseWriter, req *mux.Request) {
+		height := std.ChainHeight()
+
+		res.Write(renderHeight(height))
+	})
+
+	router.HandleFunc("{height}", func(res *mux.ResponseWriter, req *mux.Request) {
+		heightStr := req.GetVar("height")
+
+		height, err := strconv.Atoi(heightStr)
+		if err != nil {
+			res.Write("Invalid block height")
+
+			return
+		}
+
+		res.Write(renderHeight(height))
+	})
+
+	return router.Render(path)
+}
+
+// renderHeight returns the render changes for the specific height
+func renderHeight(height int) string {
+	var sb strings.Builder
+
+	// Fetch the changes from the params
+	changes, found := std.GetParamStrings(
+		ufmt.Sprintf("%s_%d", valsetUpdatesKeyPrefix, height),
+	)
+	if !found {
+		sb.WriteString("No changes for height " + height)
+
+		return sb.String()
+	}
+
+	sb.WriteString("## Valset changes at " + height + "\n")
+	for _, change := range changes {
+		sb.WriteString(change)
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
 }

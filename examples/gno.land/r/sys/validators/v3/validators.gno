@@ -1,5 +1,11 @@
 package validators
 
+import (
+	"std"
+
+	"gno.land/p/sys/validators"
+)
+
 var vp validators.ValsetProtocol // vp is the underlying validator set protocol
 
 // addValidator adds a new validator to the validator set.

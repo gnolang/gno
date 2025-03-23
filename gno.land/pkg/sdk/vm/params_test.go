@@ -13,13 +13,15 @@ func TestParamsString(t *testing.T) {
 	p := Params{
 		SysNamesPkgPath: "gno.land/r/sys/names", // XXX what is this really for now
 		ChainDomain:     "example.com",
+		ValsetRealmPath: "gno.land/r/sys/validators/v3",
 	}
 	result := p.String()
 
 	// Construct the expected string.
 	expected := "Params: \n" +
 		fmt.Sprintf("SysUsersPkgPath: %q\n", p.SysNamesPkgPath) +
-		fmt.Sprintf("ChainDomain: %q\n", p.ChainDomain)
+		fmt.Sprintf("ChainDomain: %q\n", p.ChainDomain) +
+		fmt.Sprintf("ValsetRealmPath: %q\n", p.ValsetRealmPath)
 
 	// Assert: check if the result matches the expected string.
 	if result != expected {
@@ -133,6 +135,10 @@ func TestWillSetParam(t *testing.T) {
 func TestWillSetParam_ValsetUpdate(t *testing.T) {
 	t.Parallel()
 
+	valsetUpdatePath := func() string {
+		return ValsetRealmDefault + ":" + "valset_updates"
+	}
+
 	t.Run("no valset update", func(t *testing.T) {
 		t.Parallel()
 
@@ -155,7 +161,7 @@ func TestWillSetParam_ValsetUpdate(t *testing.T) {
 		)
 
 		assert.Panics(t, func() {
-			env.vmk.WillSetParam(ctx, valsetUpdatesParam+":10-10", []string{"value"})
+			env.vmk.WillSetParam(ctx, valsetUpdatePath()+"_10-10", []string{"value"})
 		})
 	})
 
@@ -168,7 +174,7 @@ func TestWillSetParam_ValsetUpdate(t *testing.T) {
 		)
 
 		assert.Panics(t, func() {
-			env.vmk.WillSetParam(ctx, valsetUpdatesParam+":10", "single value")
+			env.vmk.WillSetParam(ctx, valsetUpdatePath()+"_10", "single value")
 		})
 	})
 
@@ -241,7 +247,7 @@ func TestWillSetParam_ValsetUpdate(t *testing.T) {
 				assert.Panics(t, func() {
 					env.vmk.WillSetParam(
 						ctx,
-						fmt.Sprintf("%s:%d", valsetUpdatesParam, 10),
+						fmt.Sprintf("%s_%d", valsetUpdatePath(), 10),
 						[]string{testCase.change},
 					)
 				})
@@ -266,7 +272,7 @@ func TestWillSetParam_ValsetUpdate(t *testing.T) {
 		)
 
 		var (
-			paramKey   = fmt.Sprintf("%s:%d", valsetUpdatesParam, 10)
+			paramKey   = fmt.Sprintf("%s_%d", valsetUpdatePath(), 10)
 			paramValue = []string{
 				fmt.Sprintf(
 					"%s:%s:%d",

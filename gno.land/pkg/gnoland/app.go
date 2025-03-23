@@ -417,11 +417,13 @@ const (
 // valsetParamPath constructs the valset update
 // params keeper path
 //
-// vm:p:valset_updates:<height>
-func valsetParamPath(height int64) string {
+// vm:<valset-realm-path>:valset_updates_<height>
+// Keep format in sync with vm/params.go
+func valsetParamPath(valsetRealm string, height int64) string {
 	return fmt.Sprintf(
-		"%s:p:%s:%d",
+		"%s:%s:%s_%d",
 		vmModulePrefix,
+		valsetRealm,
 		valsetUpdatesKeyPrefix,
 		height,
 	)
@@ -449,11 +451,14 @@ func EndBlocker(
 			auth.EndBlocker(ctx, gpk)
 		}
 
-		// Fetch the changes for the current height,
+		// Fetch the changes for the current height and valset realm,
 		// if they're stored in the params
+		valsetRealm := vm.ValsetRealmDefault
+		prmk.GetString(ctx, vm.ValsetRealmParamPath, &valsetRealm)
+
 		var (
 			changes = make([]string, 0)
-			path    = valsetParamPath(app.LastBlockHeight())
+			path    = valsetParamPath(valsetRealm, app.LastBlockHeight())
 		)
 
 		prmk.GetStrings(ctx, path, &changes)

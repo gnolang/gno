@@ -15,6 +15,7 @@ import (
 const (
 	sysNamesPkgDefault = "gno.land/r/sys/names"
 	chainDomainDefault = "gno.land"
+	ValsetRealmDefault = "gno.land/r/sys/validators/v3"
 )
 
 var ASCIIDomain = regexp.MustCompile(`^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$`)
@@ -23,19 +24,16 @@ var ASCIIDomain = regexp.MustCompile(`^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-
 type Params struct {
 	SysNamesPkgPath string `json:"sysnames_pkgpath" yaml:"sysnames_pkgpath"`
 	ChainDomain     string `json:"chain_domain" yaml:"chain_domain"`
-}
-
-// NewParams creates a new Params object
-func NewParams(namesPkgPath, chainDomain string) Params {
-	return Params{
-		SysNamesPkgPath: namesPkgPath,
-		ChainDomain:     chainDomain,
-	}
+	ValsetRealmPath string `json:"valset_realm_path" yaml:"valset_realm_path"`
 }
 
 // DefaultParams returns a default set of parameters.
 func DefaultParams() Params {
-	return NewParams(sysNamesPkgDefault, chainDomainDefault)
+	return Params{
+		SysNamesPkgPath: sysNamesPkgDefault,
+		ChainDomain:     chainDomainDefault,
+		ValsetRealmPath: ValsetRealmDefault,
+	}
 }
 
 // String implements the stringer interface.
@@ -44,6 +42,7 @@ func (p Params) String() string {
 	sb.WriteString("Params: \n")
 	sb.WriteString(fmt.Sprintf("SysUsersPkgPath: %q\n", p.SysNamesPkgPath))
 	sb.WriteString(fmt.Sprintf("ChainDomain: %q\n", p.ChainDomain))
+	sb.WriteString(fmt.Sprintf("ValsetRealmPath: %q\n", p.ValsetRealmPath))
 	return sb.String()
 }
 
@@ -53,6 +52,9 @@ func (p Params) Validate() error {
 	}
 	if p.ChainDomain != "" && !ASCIIDomain.MatchString(p.ChainDomain) {
 		return fmt.Errorf("invalid chain domain %q, failed to match %q", p.ChainDomain, ASCIIDomain)
+	}
+	if p.ValsetRealmPath != "" && !gno.ReRealmPath.MatchString(p.ValsetRealmPath) {
+		return fmt.Errorf("invalid valset realm path %q, failed to match %q", p.ValsetRealmPath, gno.ReRealmPath)
 	}
 	return nil
 }
@@ -80,13 +82,14 @@ const (
 	moduleParamPrefix = "vm"
 
 	// Param declarations
-	sysUsersPkgParam   = "p:sysnames_pkgpath"
-	chainDomainParam   = "p:chain_domain"
-	valsetUpdatesParam = "p:valset_updates"
+	sysUsersPkgParam = "p:sysnames_pkgpath"
+	chainDomainParam = "p:chain_domain"
+	valsetRealmParam = "p:valset_realmpath"
 
-	// Full param paths (for lookups)
+	// Full param paths (for sys lookups)
 	sysUsersPkgParamPath = moduleParamPrefix + ":" + sysUsersPkgParam
 	chainDomainParamPath = moduleParamPrefix + ":" + chainDomainParam
+	ValsetRealmParamPath = moduleParamPrefix + ":" + valsetRealmParam
 )
 
 func (vm *VMKeeper) getChainDomainParam(ctx sdk.Context) string {
@@ -101,12 +104,24 @@ func (vm *VMKeeper) getSysNamesPkgParam(ctx sdk.Context) string {
 	return sysNamesPkg
 }
 
-var reValsetUpdates = regexp.MustCompile(fmt.Sprintf("^%s:\\d+$", valsetUpdatesParam))
+func (vm *VMKeeper) getValsetRealmParam(ctx sdk.Context) string {
+	// Fetch the latest valset realm path
+	valsetRealm := ValsetRealmDefault
+	vm.prmk.GetString(ctx, ValsetRealmParamPath, &valsetRealm)
 
-func (vm *VMKeeper) WillSetParam(_ sdk.Context, key string, value any) {
+	return valsetRealm
+}
+
+var reValsetUpdates = regexp.MustCompile(fmt.Sprintf("^%s_\\d+$", "valset_updates"))
+
+func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	switch {
-	case strings.HasPrefix(key, valsetUpdatesParam): // vm:p:valset_updates:<height>
-		if !reValsetUpdates.Match([]byte(key)) {
+	// vm:<valset-realm-path>:valset_updates_<height>
+	case strings.HasPrefix(key, vm.getValsetRealmParam(ctx)+":"+"valset_updates"):
+		// This update is realm-specific, so we trim the realm part
+		parts := strings.Split(key, ":")
+		
+		if !reValsetUpdates.Match([]byte(parts[1])) {
 			panic(
 				fmt.Sprintf(
 					"invalid valset update key: %s",
