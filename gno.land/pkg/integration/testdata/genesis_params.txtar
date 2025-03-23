@@ -35,6 +35,10 @@ gnokey query params/auth:p:gas_price_change_compressor
 stdout 'data: "10"$'
 gnokey query params/auth:p:target_gas_ratio
 stdout 'data: "70"$'
+gnokey query params/auth:p:initial_gasprice
+stdout 'data: {"gas":"10","price":"3ugnot"}$'
+gnokey query params/auth:p:unrestricted_addrs
+stdout 'data: \["g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"\]$'
 gnokey query params/auth:p:fee_collector
 stdout 'data: "g1najfm5t7dr4f2m38cg55xt6gh2lxsk92tgh0xy"$'
 
@@ -66,6 +70,8 @@ stdout 'data: \["some","strings"\]'
   sig_verify_cost_secp256k1 = 1000
   gas_price_change_compressor = 10
   target_gas_ratio = 70
+  initial_gasprice = "3ugnot/10gas"
+  unrestricted_addrs = ["g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"]
   fee_collector = "g1najfm5t7dr4f2m38cg55xt6gh2lxsk92tgh0xy" # "gno.land/r/sys/txfees"
 
 ["vm:gno.land/r/sys/testrealm"]
