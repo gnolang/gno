@@ -159,6 +159,25 @@ func FuzzConvertTo(f *testing.F) {
 			},
 			Typ: Float64Type,
 		},
+		{
+			TV: &TypedValue{
+				T: Uint64Type,
+				V: &BigintValue{V: big.NewInt(9816)},
+			},
+			Typ: Float64Type,
+		},
+		{
+			TV: &TypedValue{
+				T: &PointerType{Elt: &StructType{}},
+				V: PointerValue{
+					TV: &TypedValue{
+						T: &StructType{},
+						V: &mockTypedValueStruct{field: 42},
+					},
+				},
+			},
+			Typ: &StructType{},
+		},
 	}
 
 	for _, seed := range seeds {
