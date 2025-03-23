@@ -76,6 +76,15 @@ func X_originCaller(m *gno.Machine) string {
 }
 
 func X_originPkgAddr(m *gno.Machine) string {
+	for i := 0; i < m.NumFrames(); i++ {
+		fr := m.Frames[i]
+		if fr.LastPackage == nil || !fr.LastPackage.IsRealm() {
+			continue
+		}
+
+		return string(fr.LastPackage.GetPkgAddr().Bech32())
+	}
+
 	return string(GetContext(m).OriginPkgAddr)
 }
 

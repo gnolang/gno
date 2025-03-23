@@ -30,6 +30,7 @@ func main() {
 	// simulate a Deposit call. use Send + OriginSend to simulate -send.
 	banker.SendCoins(mainaddr, banktestAddr, std.Coins{{"ugnot", 100_000_000}})
 	testing.SetOriginSend(std.Coins{{"ugnot", 100_000_000}})
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/banktest"))
 	res := banktest.Deposit("ugnot", 50_000_000)
 	println("Deposit():", res)
 
