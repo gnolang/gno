@@ -49,10 +49,16 @@ func NewLocalCmd(io commands.IO) *commands.Command {
 
 	return commands.NewCommand(
 		commands.Metadata{
-			Name:          "local",
-			ShortUsage:    "gnodev local [flags] [package_dir...]",
-			ShortHelp:     "Start gnodev in local development mode (default)",
-			LongHelp:      "LOCAL: Local mode configure the node for local development usage",
+			Name:       "local",
+			ShortUsage: "gnodev local [flags] [package_dir...]",
+			ShortHelp:  "Start gnodev in local development mode (default)",
+			LongHelp: `LOCAL: Local mode configures the node for local development usage.
+This mode is optimized for realm developement, providing an interactive and flexible environment.
+It enables features such as interactive mode, unsafe API access for testing, and lazy loading to improve performance.
+The log format is set to console for easier readability, and the web interface is accessible locally, making it ideal for iterative development and testing.
+
+By default, the current directory and the "example" folder from "gnoroot" will be used as the root resolver.
+`,
 			NoParentFlags: true,
 		},
 		&cfg,
@@ -87,12 +93,16 @@ func execLocalApp(cfg *LocalAppConfig, args []string, cio commands.IO) error {
 
 	// If no resolvers is defined, use gno example as root resolver
 	var baseResolvers []packages.Resolver
+
 	if len(cfg.resolvers) == 0 {
+		// Add current dir as root resolvers
+		baseResolvers = append(baseResolvers, packages.NewRootResolver(dir))
+
+		// Add examples as root resolver
 		gnoroot, err := gnoenv.GuessRootDir()
 		if err != nil {
 			return err
 		}
-
 		exampleRoot := filepath.Join(gnoroot, "examples")
 		baseResolvers = append(baseResolvers, packages.NewRootResolver(exampleRoot))
 	}
