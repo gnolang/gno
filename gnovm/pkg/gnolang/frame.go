@@ -101,7 +101,7 @@ type Stacktrace struct {
 func (s Stacktrace) String() string {
 	var builder strings.Builder
 
-	for i := range s.Calls {
+	for i, call := range s.Calls {
 		if s.NumFramesElided > 0 && i == maxStacktraceSize/2 {
 			fmt.Fprintf(&builder, "...%d frame(s) elided...\n", s.NumFramesElided)
 		}
@@ -112,7 +112,6 @@ func (s Stacktrace) String() string {
 			line = s.Calls[i-1].Frame.Source.GetLine()
 		}
 
-		call := s.Calls[i]
 		cx := call.Frame.Source.(*CallExpr)
 		switch {
 		case call.Frame.Func != nil && call.Frame.Func.IsNative():

@@ -108,7 +108,7 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 		}
 	}()
 
-	for range 1_000 {
+	for range 10_000 {
 		f.Fuzz(ptr)
 
 		// Reset, which makes debugging decoding easier.
@@ -205,7 +205,7 @@ func _testDeepCopy(t *testing.T, rt reflect.Type) {
 		}
 	}()
 
-	for range 1_000 {
+	for range 10_000 {
 		f.Fuzz(ptr)
 
 		ptr2 := amino.DeepCopy(ptr)
