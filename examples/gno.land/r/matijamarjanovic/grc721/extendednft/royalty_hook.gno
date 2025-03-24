@@ -10,7 +10,7 @@ import (
 
 type RoyaltyHook struct {
 	tokenRoyalties    *avl.Tree // TokenID -> RoyaltyInfo
-	maxRoyaltyPercent uint64    
+	maxRoyaltyPercent uint64
 }
 
 func NewRoyaltyHook(maxRoyaltyPercent uint64) *RoyaltyHook {
