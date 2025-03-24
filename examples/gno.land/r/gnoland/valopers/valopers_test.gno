@@ -52,7 +52,7 @@ func TestValopers_Register(t *testing.T) {
 		valopers.Set(v.Address.String(), v)
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{minFee}, nil)
+		testing.SetOriginSend(std.Coins{minFee})
 
 		uassert.PanicsWithMessage(t, ErrValoperExists.Error(), func() {
 			Register(info.Moniker, info.Description, info.Address, info.PubKey)
@@ -66,7 +66,7 @@ func TestValopers_Register(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send no coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", 0)}, nil)
+		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", 0)})
 
 		uassert.PanicsWithMessage(t, ufmt.Sprintf("payment must not be less than %d", minFee.Amount), func() {
 			Register(info.Moniker, info.Description, info.Address, info.PubKey)
@@ -80,7 +80,7 @@ func TestValopers_Register(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send invalid coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", minFee.Amount-1)}, nil)
+		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", minFee.Amount-1)})
 
 		uassert.PanicsWithMessage(t, ufmt.Sprintf("payment must not be less than %d", minFee.Amount), func() {
 			Register(info.Moniker, info.Description, info.Address, info.PubKey)
@@ -94,7 +94,7 @@ func TestValopers_Register(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send invalid coins
-		std.TestSetOriginSend(std.Coins{std.NewCoin("gnogno", minFee.Amount)}, nil)
+		testing.SetOriginSend(std.Coins{std.NewCoin("gnogno", minFee.Amount)})
 
 		uassert.PanicsWithMessage(t, "incompatible coin denominations: gnogno, ugnot", func() {
 			Register(info.Moniker, info.Description, info.Address, info.PubKey)
@@ -108,7 +108,7 @@ func TestValopers_Register(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{minFee}, nil)
+		testing.SetOriginSend(std.Coins{minFee})
 
 		uassert.NotPanics(t, func() {
 			Register(info.Moniker, info.Description, info.Address, info.PubKey)
@@ -137,18 +137,18 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{minFee}, nil)
+		testing.SetOriginSend(std.Coins{minFee})
 
-		std.TestSetRealm(std.NewUserRealm(test1Address))
-		std.TestSetOriginCaller(test1Address) // TODO(bug, issue #2371): should not be needed
+		testing.SetRealm(std.NewUserRealm(test1Address))
+		testing.SetOriginCaller(test1Address) // TODO(bug, issue #2371): should not be needed
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
 			Register(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 
-		std.TestSetRealm(std.NewUserRealm(info.Address))
-		std.TestSetOriginCaller(info.Address) // TODO(bug, issue #2371): should not be needed
+		testing.SetRealm(std.NewUserRealm(info.Address))
+		testing.SetOriginCaller(info.Address) // TODO(bug, issue #2371): should not be needed
 
 		// try to add member without being authorized
 		uassert.PanicsWithMessage(t, authorizable.ErrNotSuperuser.Error(), func() {
@@ -163,10 +163,10 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{minFee}, nil)
+		testing.SetOriginSend(std.Coins{minFee})
 
-		std.TestSetRealm(std.NewUserRealm(test1Address))
-		std.TestSetOriginCaller(test1Address) // TODO(bug, issue #2371): should not be needed
+		testing.SetRealm(std.NewUserRealm(test1Address))
+		testing.SetOriginCaller(test1Address) // TODO(bug, issue #2371): should not be needed
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -177,8 +177,8 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 			AddToAuthList(info.Address, test2Address)
 		})
 
-		std.TestSetRealm(std.NewUserRealm(info.Address))
-		std.TestSetOriginCaller(info.Address) // TODO(bug, issue #2371): should not be needed
+		testing.SetRealm(std.NewUserRealm(info.Address))
+		testing.SetOriginCaller(info.Address) // TODO(bug, issue #2371): should not be needed
 
 		// try to add member without being authorized
 		uassert.PanicsWithMessage(t, authorizable.ErrNotSuperuser.Error(), func() {
@@ -193,10 +193,10 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{minFee}, nil)
+		testing.SetOriginSend(std.Coins{minFee})
 
-		std.TestSetRealm(std.NewUserRealm(test1Address))
-		std.TestSetOriginCaller(test1Address) // TODO(bug, issue #2371): should not be needed
+		testing.SetRealm(std.NewUserRealm(test1Address))
+		testing.SetOriginCaller(test1Address) // TODO(bug, issue #2371): should not be needed
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -207,8 +207,8 @@ func TestValopers_UpdateAuthMembers(t *testing.T) {
 			AddToAuthList(info.Address, test2Address)
 		})
 
-		std.TestSetRealm(std.NewUserRealm(test2Address))
-		std.TestSetOriginCaller(test2Address) // TODO(bug, issue #2371): should not be needed
+		testing.SetRealm(std.NewUserRealm(test2Address))
+		testing.SetOriginCaller(test2Address) // TODO(bug, issue #2371): should not be needed
 
 		newMoniker := "new moniker"
 		// Update the valoper
@@ -241,7 +241,7 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 
 	t.Run("invalid caller", func(t *testing.T) {
 		// Set the origin caller
-		std.TestSetOriginCaller(test1Address)
+		testing.SetOriginCaller(test1Address)
 
 		// Clear the set for the test
 		valopers = avl.NewTree()
@@ -249,7 +249,7 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{minFee}, nil)
+		testing.SetOriginSend(std.Coins{minFee})
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -257,7 +257,7 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		})
 
 		// Change the origin caller
-		std.TestSetOriginCaller(test2Address)
+		testing.SetOriginCaller(test2Address)
 
 		// Update the valoper
 		uassert.PanicsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
@@ -282,7 +282,7 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{minFee}, nil)
+		testing.SetOriginSend(std.Coins{minFee})
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -304,7 +304,7 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{minFee}, nil)
+		testing.SetOriginSend(std.Coins{minFee})
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -324,7 +324,7 @@ func TestValopers_UpdateMoniker(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{minFee}, nil)
+		testing.SetOriginSend(std.Coins{minFee})
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -362,7 +362,7 @@ func TestValopers_UpdateDescription(t *testing.T) {
 
 	t.Run("invalid caller", func(t *testing.T) {
 		// Set the origin caller
-		std.TestSetOriginCaller(test1Address)
+		testing.SetOriginCaller(test1Address)
 
 		info := validValidatorInfo(t)
 
@@ -370,7 +370,7 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		valopers = avl.NewTree()
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{minFee}, nil)
+		testing.SetOriginSend(std.Coins{minFee})
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -378,7 +378,7 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		})
 
 		// Change the origin caller
-		std.TestSetOriginCaller(test2Address)
+		testing.SetOriginCaller(test2Address)
 
 		// Update the valoper
 		uassert.PanicsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
@@ -393,7 +393,7 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{minFee}, nil)
+		testing.SetOriginSend(std.Coins{minFee})
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -414,7 +414,7 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{minFee}, nil)
+		testing.SetOriginSend(std.Coins{minFee})
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -434,7 +434,7 @@ func TestValopers_UpdateDescription(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{minFee}, nil)
+		testing.SetOriginSend(std.Coins{minFee})
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -472,7 +472,7 @@ func TestValopers_UpdateKeepRunning(t *testing.T) {
 
 	t.Run("invalid caller", func(t *testing.T) {
 		// Set the origin caller
-		std.TestSetOriginCaller(test1Address)
+		testing.SetOriginCaller(test1Address)
 
 		// Clear the set for the test
 		valopers = avl.NewTree()
@@ -480,7 +480,7 @@ func TestValopers_UpdateKeepRunning(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{minFee}, nil)
+		testing.SetOriginSend(std.Coins{minFee})
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
@@ -488,7 +488,7 @@ func TestValopers_UpdateKeepRunning(t *testing.T) {
 		})
 
 		// Change the origin caller
-		std.TestSetOriginCaller(test2Address)
+		testing.SetOriginCaller(test2Address)
 
 		// Update the valoper
 		uassert.PanicsWithMessage(t, authorizable.ErrNotInAuthList.Error(), func() {
@@ -503,7 +503,7 @@ func TestValopers_UpdateKeepRunning(t *testing.T) {
 		info := validValidatorInfo(t)
 
 		// Send coins
-		std.TestSetOriginSend(std.Coins{minFee}, nil)
+		testing.SetOriginSend(std.Coins{minFee})
 
 		// Add the valoper
 		uassert.NotPanics(t, func() {
