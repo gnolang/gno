@@ -15,6 +15,7 @@ const (
 	HookApprovalForAll HookType = "approvalForAll"
 	HookMint           HookType = "mint"
 	HookBurn           HookType = "burn"
+	HookUniversal      HookType = "universal"
 )
 
 // HookTime represents when a hook should be executed
@@ -61,6 +62,12 @@ type BurnHook interface {
 	OnBurn(nft *NFT, tid TokenID) error
 }
 
+// UniversalHook is implemented by hooks that want to intercept all operations
+type UniversalHook interface {
+	Hook
+	OnAny(nft *NFT, operation string) error
+}
+
 // HookRegistry manages a collection of hooks using a tree structure
 type HookRegistry struct {
 	hooks *avl.Tree
@@ -93,9 +100,20 @@ func (reg *HookRegistry) TriggerTransferHooks(nft *NFT, time HookTime, from, to 
 
 	reg.hooks.Iterate("", "", func(key string, value any) bool {
 		hook := value.(Hook)
-		if hook.GetHookType() == HookTransfer && hook.GetHookTime() == time {
+		if hook.GetHookTime() != time {
+			return false
+		}
+
+		if hook.GetHookType() == HookTransfer {
 			if transferHook, ok := hook.(TransferHook); ok {
 				if err := transferHook.OnTransfer(nft, from, to, tid); err != nil {
+					foundError = err
+					return true
+				}
+			}
+		} else if hook.GetHookType() == HookUniversal {
+			if universalHook, ok := hook.(UniversalHook); ok {
+				if err := universalHook.OnAny(nft, "transfer"); err != nil {
 					foundError = err
 					return true
 				}
@@ -113,9 +131,20 @@ func (reg *HookRegistry) TriggerApprovalHooks(nft *NFT, time HookTime, owner, ap
 
 	reg.hooks.Iterate("", "", func(key string, value any) bool {
 		hook := value.(Hook)
-		if hook.GetHookType() == HookApproval && hook.GetHookTime() == time {
+		if hook.GetHookTime() != time {
+			return false
+		}
+
+		if hook.GetHookType() == HookApproval {
 			if approvalHook, ok := hook.(ApprovalHook); ok {
 				if err := approvalHook.OnApproval(nft, owner, approved, tid); err != nil {
+					foundError = err
+					return true
+				}
+			}
+		} else if hook.GetHookType() == HookUniversal {
+			if universalHook, ok := hook.(UniversalHook); ok {
+				if err := universalHook.OnAny(nft, "approval"); err != nil {
 					foundError = err
 					return true
 				}
@@ -133,9 +162,20 @@ func (reg *HookRegistry) TriggerApprovalForAllHooks(nft *NFT, time HookTime, own
 
 	reg.hooks.Iterate("", "", func(key string, value any) bool {
 		hook := value.(Hook)
-		if hook.GetHookType() == HookApprovalForAll && hook.GetHookTime() == time {
+		if hook.GetHookTime() != time {
+			return false
+		}
+
+		if hook.GetHookType() == HookApprovalForAll {
 			if approvalForAllHook, ok := hook.(ApprovalForAllHook); ok {
 				if err := approvalForAllHook.OnApprovalForAll(nft, owner, operator, approved); err != nil {
+					foundError = err
+					return true
+				}
+			}
+		} else if hook.GetHookType() == HookUniversal {
+			if universalHook, ok := hook.(UniversalHook); ok {
+				if err := universalHook.OnAny(nft, "approvalForAll"); err != nil {
 					foundError = err
 					return true
 				}
@@ -153,9 +193,20 @@ func (reg *HookRegistry) TriggerMintHooks(nft *NFT, time HookTime, to std.Addres
 
 	reg.hooks.Iterate("", "", func(key string, value any) bool {
 		hook := value.(Hook)
-		if hook.GetHookType() == HookMint && hook.GetHookTime() == time {
+		if hook.GetHookTime() != time {
+			return false
+		}
+
+		if hook.GetHookType() == HookMint {
 			if mintHook, ok := hook.(MintHook); ok {
 				if err := mintHook.OnMint(nft, to, tid); err != nil {
+					foundError = err
+					return true
+				}
+			}
+		} else if hook.GetHookType() == HookUniversal {
+			if universalHook, ok := hook.(UniversalHook); ok {
+				if err := universalHook.OnAny(nft, "mint"); err != nil {
 					foundError = err
 					return true
 				}
@@ -173,9 +224,20 @@ func (reg *HookRegistry) TriggerBurnHooks(nft *NFT, time HookTime, tid TokenID) 
 
 	reg.hooks.Iterate("", "", func(key string, value any) bool {
 		hook := value.(Hook)
-		if hook.GetHookType() == HookBurn && hook.GetHookTime() == time {
+		if hook.GetHookTime() != time {
+			return false
+		}
+
+		if hook.GetHookType() == HookBurn {
 			if burnHook, ok := hook.(BurnHook); ok {
 				if err := burnHook.OnBurn(nft, tid); err != nil {
+					foundError = err
+					return true
+				}
+			}
+		} else if hook.GetHookType() == HookUniversal {
+			if universalHook, ok := hook.(UniversalHook); ok {
+				if err := universalHook.OnAny(nft, "burn"); err != nil {
 					foundError = err
 					return true
 				}
