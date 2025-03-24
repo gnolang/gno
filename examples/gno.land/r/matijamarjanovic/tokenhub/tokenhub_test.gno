@@ -13,7 +13,7 @@ import (
 )
 
 func TestTokenRegistration(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
 
 	token, _ := grc20.NewToken("Test Token", "TEST", 6)
 	RegisterToken(token.Getter(), "test_token")
@@ -26,7 +26,7 @@ func TestTokenRegistration(t *testing.T) {
 }
 
 func TestNFTRegistration(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
 
 	nft := grc721.NewBasicNFT("Test NFT", "TNFT")
 	nft.Mint(std.CurrentRealm().Address(), grc721.TokenID("1"))
@@ -43,7 +43,7 @@ func TestNFTRegistration(t *testing.T) {
 }
 
 func TestGRC1155Registration(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
 
 	mt := grc1155.NewBasicGRC1155Token("test-uri")
 	err := RegisterMultiToken(mt.Getter(), "1")
@@ -59,7 +59,7 @@ func TestGRC1155Registration(t *testing.T) {
 }
 
 func TestBalanceRetrieval(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
 
 	token, ledger := grc20.NewToken("Test Token", "TEST", 6)
 	RegisterToken(token.Getter(), "test_tokenn")
@@ -83,7 +83,7 @@ func TestBalanceRetrieval(t *testing.T) {
 }
 
 func TestErrorCases(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
 
 	nft := grc721.NewBasicNFT("Test NFT", "TNFT")
 	err := RegisterNFT(nft.Getter(), "test_nft", "1")
@@ -101,7 +101,7 @@ func TestErrorCases(t *testing.T) {
 }
 
 func TestTokenListingFunctions(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
 
 	grc20Token, _ := grc20.NewToken("Test Token", "TEST", 6)
 	RegisterToken(grc20Token.Getter(), "listing_token")
@@ -135,7 +135,7 @@ func TestTokenListingFunctions(t *testing.T) {
 }
 
 func TestMustGetFunctions(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
 
 	token, _ := grc20.NewToken("Must Token", "MUST", 6)
 	RegisterToken(token.Getter(), "must_token")
@@ -182,7 +182,7 @@ func TestMustGetFunctions(t *testing.T) {
 }
 
 func TestGetAddressForUsername(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/matijamarjanovic/home"))
 
 	validAddr := "g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"
 	addr := getAddressForUsername(validAddr)
