@@ -86,7 +86,7 @@ func (dh *DockerHandler) StartGnoPortalLoopContainer(ctx context.Context, contai
 
 	// Run Docker container
 	dockerContainer, err := dh.DockerClient.ContainerCreate(ctx, &container.Config{
-		Image: "ghcr.io/gnolang/gno/gnoland:master",
+		Image: GnoOfficialImage,
 		Labels: map[string]string{
 			"the-portal-loop": containerName,
 		},
