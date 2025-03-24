@@ -12,7 +12,7 @@ import (
 )
 
 func TestCreatePool(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/test/pools"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/pools"))
 	tokenA, ledgerA := grc20.NewToken("Test Token A", "TTA", 6)
 	tokenB, ledgerB := grc20.NewToken("Test Token B", "TTB", 6)
 
@@ -51,7 +51,7 @@ func TestCreatePool(t *testing.T) {
 }
 
 func TestAddLiquidity(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/test/pools"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/pools"))
 	tokenA, ledgerA := grc20.NewToken("Test Token A", "TTA", 6)
 	tokenB, ledgerB := grc20.NewToken("Test Token B", "TTB", 6)
 
@@ -95,7 +95,7 @@ func TestAddLiquidity(t *testing.T) {
 }
 
 func TestWithdrawLiquidity(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/test/pools"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/pools"))
 	tokenA, ledgerA := grc20.NewToken("Test Token A", "TTA", 6)
 	tokenB, ledgerB := grc20.NewToken("Test Token B", "TTB", 6)
 
@@ -136,7 +136,7 @@ func TestWithdrawLiquidity(t *testing.T) {
 }
 
 func TestPoolRegistry(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/test/pools"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/pools"))
 	tokenA, ledgerA := grc20.NewToken("Test Token A", "TTA", 6)
 	tokenB, ledgerB := grc20.NewToken("Test Token B", "TTB", 6)
 
@@ -175,7 +175,7 @@ func contains(slice []string, str string) bool {
 }
 
 func TestCreateCoinToTokenTicket(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/test/tickets"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/tickets"))
 	token, ledger := grc20.NewToken("Test Token", "TT", 6)
 	tokenhub.RegisterToken(token.Getter(), "test_token")
 
@@ -185,19 +185,19 @@ func TestCreateCoinToTokenTicket(t *testing.T) {
 	}
 
 	{
-		std.TestSetOriginSend(std.Coins{{"wrongcoin", 1000}}, nil)
+		testing.SetOriginSend(std.Coins{{"wrongcoin", 1000}})
 		_, err := CreateCoinToTokenTicket("ugnot", "gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/tickets.test_token", 1000, 24)
 		uassert.Error(t, err, "Should fail with wrong coin denomination")
 	}
 
 	{
-		std.TestSetOriginSend(std.Coins{{"ugnot", 1000}, {"other", 500}}, nil)
+		testing.SetOriginSend(std.Coins{{"ugnot", 1000}, {"other", 500}})
 		_, err := CreateCoinToTokenTicket("ugnot", "gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/tickets.test_token", 1000, 24)
 		uassert.Error(t, err, "Should fail with multiple coins")
 	}
 
 	{
-		std.TestSetOriginSend(std.Coins{{"ugnot", 1000}}, nil)
+		testing.SetOriginSend(std.Coins{{"ugnot", 1000}})
 		ticketID, err := CreateCoinToTokenTicket("ugnot", "gno.land/r/matijamarjanovic/tokenhub.gno.land/r/test/tickets.test_token", 1000, 24)
 		urequire.NoError(t, err, "Should create ticket successfully")
 		uassert.NotEmpty(t, ticketID, "Ticket ID should not be empty")
@@ -212,7 +212,7 @@ func TestCreateCoinToTokenTicket(t *testing.T) {
 }
 
 func TestCreateTokenToCoinTicket(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/test/tickets"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/tickets"))
 	token, ledger := grc20.NewToken("Test Token", "TT", 6)
 	tokenhub.RegisterToken(token.Getter(), "test_token")
 
@@ -236,7 +236,7 @@ func TestCreateTokenToCoinTicket(t *testing.T) {
 }
 
 func TestCreateTokenToTokenTicket(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/test/tickets"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/tickets"))
 	tokenA, ledgerA := grc20.NewToken("Test Token A", "TTA", 6)
 	tokenB, ledgerB := grc20.NewToken("Test Token B", "TTB", 6)
 
@@ -265,7 +265,7 @@ func TestCreateTokenToTokenTicket(t *testing.T) {
 }
 
 func TestFulfillTicket(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/test/tickets"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/tickets"))
 	tokenA, ledgerA := grc20.NewToken("Test Token A", "TTA", 6)
 	tokenB, ledgerB := grc20.NewToken("Test Token B", "TTB", 6)
 
@@ -288,7 +288,7 @@ func TestFulfillTicket(t *testing.T) {
 	)
 	urequire.NoError(t, err)
 
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/test/tickets2"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/tickets2"))
 	ledgerA.Mint(std.CurrentRealm().Address(), 10000)
 	ledgerB.Mint(std.CurrentRealm().Address(), 10000)
 
@@ -309,7 +309,7 @@ func TestFulfillTicket(t *testing.T) {
 }
 
 func TestCancelTicket(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/test/tickets"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/tickets"))
 	token, ledger := grc20.NewToken("Test Token", "TT", 6)
 	tokenhub.RegisterToken(token.Getter(), "test_token")
 
@@ -331,7 +331,7 @@ func TestCancelTicket(t *testing.T) {
 }
 
 func TestCreateNFTToTokenTicket(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/test/nfts"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/nfts"))
 
 	token, ledger := grc20.NewToken("Test Token", "TT", 6)
 	tokenhub.RegisterToken(token.Getter(), "test_token")
@@ -372,7 +372,7 @@ func TestCreateNFTToTokenTicket(t *testing.T) {
 }
 
 func TestCreateNFTToCoinTicket(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/test/nftsss"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/nftsss"))
 	nft := grc721.NewBasicNFT("Test NFT", "TNFT")
 
 	tokenhub.RegisterNFT(nft.Getter(), "test_nft", "1")
@@ -426,7 +426,7 @@ func TestCreateNFTToCoinTicket(t *testing.T) {
 }
 
 func TestBuyNFT(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/test/nfts"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/nfts"))
 
 	token, ledger := grc20.NewToken("Test Token", "TT", 6)
 	tokenhub.RegisterToken(token.Getter(), "test_token")
@@ -450,7 +450,7 @@ func TestBuyNFT(t *testing.T) {
 	)
 	urequire.NoError(t, err)
 
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/test/nftss"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/test/nftss"))
 
 	{
 		err = BuyNFT(ticketID, 500)
