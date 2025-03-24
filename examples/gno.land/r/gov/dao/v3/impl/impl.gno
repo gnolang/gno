@@ -16,7 +16,7 @@ func init() {
 }
 
 func Render(in string) string {
-	return govDAO.Render(in)
+	return govDAO.Render(in, std.CurrentRealm().PkgPath())
 }
 
 // AddMember allows T1 and T2 members to freely add T3 members using their invitation points.

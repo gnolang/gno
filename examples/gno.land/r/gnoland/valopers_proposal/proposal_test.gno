@@ -31,7 +31,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 	t.Run("remove an unexisting validator", func(t *testing.T) {
 		// Send coins to be able to register a valoper
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)}, nil)
+		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)})
 
 		urequire.NotPanics(t, func() {
 			valopers.Register(moniker, description, test1Address, pubKey)
@@ -45,7 +45,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		})
 
 		// Send coins to be able to make a proposal
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)}, nil)
+		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
 		urequire.PanicsWithMessage(t, ErrValidatorMissing.Error(), func() {
 			pr := NewValidatorProposalRequest(test1Address)
@@ -57,7 +57,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 	t.Run("proposal successfully created", func(t *testing.T) {
 		// Send coins to be able to register a valoper
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)}, nil)
+		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)})
 
 		urequire.NotPanics(t, func() {
 			valopers.UpdateKeepRunning(test1Address, true)
@@ -70,7 +70,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		})
 
 		// Send coins to be able to make a proposal
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)}, nil)
+		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
 		var pid dao.ProposalID
 		urequire.NotPanics(t, func() {
@@ -95,7 +95,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 	t.Run("try to update a validator with the same values", func(t *testing.T) {
 		// Send coins to be able to register a valoper
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)}, nil)
+		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)})
 
 		var valoper valopers.Valoper
 
@@ -105,24 +105,24 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 		urequire.NotPanics(t, func() {
 			// Vote the proposal created in the previous test
-			std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+			testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 			dao.MustVoteOnProposal(dao.VoteRequest{
 				Option:     dao.YesVote,
 				ProposalID: dao.ProposalID(0),
 			})
 
 			// Execute the proposal
-			std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+			testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 			dao.ExecuteProposal(dao.ProposalID(0))
 		})
 
 		// Send coins to be able to make a proposal
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)}, nil)
+		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
 		urequire.PanicsWithMessage(t, ErrSameValues.Error(), func() {
 			pr := NewValidatorProposalRequest(test1Address)
 
-			std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+			testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 			dao.MustCreateProposal(pr)
 		})
 	})
@@ -135,13 +135,13 @@ func TestValopers_ProposeNewInstructions(t *testing.T) {
 	description := ufmt.Sprintf("Update the instructions to: \n\n%s", newInstructions)
 
 	// Send coins to be able to make a proposal
-	std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)}, nil)
+	testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
 	var pid dao.ProposalID
 	urequire.NotPanics(t, func() {
 		pr := ProposeNewInstructionsProposalRequest(newInstructions)
 
-		std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+		testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 		pid = dao.MustCreateProposal(pr)
 	})
 
@@ -161,7 +161,7 @@ func TestValopers_ProposeNewMinFee(t *testing.T) {
 	description := ufmt.Sprintf("Update the minimum register fee to: %d ugnot", newMinFee)
 
 	// Send coins to be able to make a proposal
-	std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)}, nil)
+	testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
 	var pid dao.ProposalID
 	urequire.NotPanics(t, func() {

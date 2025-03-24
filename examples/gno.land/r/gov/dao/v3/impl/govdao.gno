@@ -3,10 +3,7 @@ package impl
 import (
 	"errors"
 	"std"
-	"strconv"
 
-	"gno.land/p/demo/avl/pager"
-	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
@@ -16,36 +13,17 @@ var ErrMemberNotFound = errors.New("member not found")
 
 type GovDAO struct {
 	pss      ProposalsStatuses
-	pssPager *pager.Pager
-	router   *mux.Router
+	render   *render
 }
 
 func NewGovDAO() *GovDAO {
 	pss := NewProposalsStatuses()
 	d := &GovDAO{
 		pss:      pss,
-		pssPager: pager.NewPager(pss.Tree, 3, true),
 	}
 
-	r := mux.NewRouter()
+	d.render = NewRender(d)
 
-	r.HandleFunc("/", func(rw *mux.ResponseWriter, req *mux.Request) {
-		rw.Write(d.renderActiveProposals(req.RawPath))
-	})
-
-	r.HandleFunc("", func(rw *mux.ResponseWriter, req *mux.Request) {
-		rw.Write(d.renderActiveProposals(req.RawPath))
-	})
-
-	r.HandleFunc("{pid}", func(rw *mux.ResponseWriter, req *mux.Request) {
-		rw.Write(d.renderProposal(req.GetVar("pid")))
-	})
-
-	r.HandleFunc("{pid}/votes", func(rw *mux.ResponseWriter, req *mux.Request) {
-		rw.Write(d.renderVotesForProposal(req.GetVar("pid")))
-	})
-
-	d.router = r
 	_govdao = d
 
 	return d
@@ -160,60 +138,8 @@ func (g *GovDAO) PreExecuteProposal(pid dao.ProposalID) (bool, error) {
 	return false, errors.New(ufmt.Sprintf("proposal didn't reach supermajority yet: %v", law.Supermajority))
 }
 
-func (g *GovDAO) renderActiveProposals(url string) string {
-	out := "# Active Proposals:\n"
-
-	page, err := g.pssPager.GetPageByPath(url)
-	if err != nil {
-		out += ufmt.Sprintf("Error getting selected page: %v", err.Error())
-		return out
-	}
-
-	for _, item := range page.Items {
-		out += g.renderProposal(item.Key)
-	}
-
-	out += page.Picker("")
-
-	return out
-}
-
-func (g *GovDAO) renderProposal(sPid string) string {
-	pid, err := strconv.Atoi(sPid)
-	if err != nil {
-		panic(err.Error())
-	}
-	ps := g.pss.GetStatus(dao.ProposalID(pid))
-
-	p := dao.MustGetProposal(dao.ProposalID(pid))
-
-	out := ""
-	out += ufmt.Sprintf("## Proposal with id: %v", sPid)
-	out += StringifyProposal(p)
-	out += "\n\n"
-	out += ps.String()
-	out += ufmt.Sprintf("- [Go to votes list](:%v/votes).", sPid)
-	out += "\n\n"
-
-	return out
-}
-
-func (g *GovDAO) renderVotesForProposal(sPid string) string {
-	pid, err := strconv.Atoi(sPid)
-	if err != nil {
-		panic(err.Error())
-	}
-	ps := g.pss.GetStatus(dao.ProposalID(pid))
-
-	out := ""
-	out += ufmt.Sprintf("## Voters for Proposal with id: %v\n\n", sPid)
-	out += StringifyVotes(ps)
-
-	return out
-}
-
-func (g *GovDAO) Render(path string) string {
-	return g.router.Render(path)
+func (g *GovDAO) Render(path string, realmPackage string) string {
+	return g.render.Render(path, realmPackage)
 }
 
 func (g *GovDAO) isValidCall() bool {

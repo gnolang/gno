@@ -140,6 +140,8 @@ func TestCreateProposalAndVote(t *testing.T) {
 
 	urequire.Equal(t, true, contains(dao.Render(""), "**PROPOSAL HAS BEEN DENIED**"))
 	urequire.Equal(t, true, contains(dao.Render(""), "NO PERCENT: 68.42105263157895%"))
+
+	println(Render(""))
 }
 
 func TestProposalPagination(t *testing.T) {

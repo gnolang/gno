@@ -4,6 +4,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	users "gno.land/r/gnoland/users/v1"
@@ -22,20 +23,21 @@ func init() {
 	alice := testutils.TestAddress("alice")
 
 	// Register alice
-	std.TestSetOriginCaller(alice)
-	std.TestSetRealm(std.NewUserRealm(alice))
+	testing.SetOriginCaller(alice)
+	testing.SetRealm(std.NewUserRealm(alice))
 	users.Register("alice123")
 
 	// Prop to change name
 	pr := users.ProposeDeleteUser(alice, "Change alice's name!")
 
-	std.TestSetOriginCaller(c)
-	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+	testing.SetOriginCaller(c)
+	testing.SetRealm(std.NewUserRealm(c))
+	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 	dao.MustCreateProposal(pr)
 }
 
 func main() {
-	std.TestSetOriginCaller(c)
+	testing.SetOriginCaller(c)
 
 	println("--")
 	println(dao.Render(""))
@@ -43,7 +45,7 @@ func main() {
 	println(dao.Render("0"))
 	println("--")
 
-	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.YesVote,
 		ProposalID: dao.ProposalID(0),
@@ -52,7 +54,7 @@ func main() {
 	println(dao.Render("0"))
 	println("--")
 
-	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 	dao.ExecuteProposal(dao.ProposalID(0))
 
 	println("--")

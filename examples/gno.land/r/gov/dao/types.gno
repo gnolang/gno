@@ -223,7 +223,7 @@ type DAO interface {
 
 	// Render will return a human-readable string in markdown format that
 	// will be used to show new data through the dao proxy entrypoint.
-	Render(string) string
+	Render(path string, realmPackage string) string
 }
 
 type UpdateRequest struct {

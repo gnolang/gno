@@ -18,7 +18,7 @@ var proposals *Proposals = NewProposals()
 // Render calls directly to Render's DAO implementation.
 // This allows to have this realm as the main entry point for everything.
 func Render(p string) string {
-	return dao.Render(p)
+	return dao.Render(p, std.CurrentRealm().PkgPath())
 }
 
 // MustCreateProposal is an utility method that does the same as CreateProposal,
