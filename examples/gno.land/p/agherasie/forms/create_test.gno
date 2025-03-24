@@ -1,7 +1,6 @@
 package forms
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -10,7 +9,7 @@ import (
 
 func TestCreateForm(t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	std.TestSetOriginCaller(alice)
+	testing.SetOriginCaller(alice)
 	db := NewDB()
 	title := "Simple Form"
 	description := "This is a form"
