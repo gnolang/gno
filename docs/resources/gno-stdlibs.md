@@ -783,7 +783,7 @@ denom := r.CoinDenom("blgcoin") // /gno.land/r/gnoland/blog:blgcoin
 ## Testing
 
 ```go
-// testing package
+// package `testing`
 func SkipHeights(count int64)
 func SetOriginCaller(origCaller std.Address)
 func SetOriginPkgAddress(addr std.Address)
@@ -791,7 +791,7 @@ func SetOriginSend(sent std.Coins)
 func IssueCoins(addr std.Address, coins std.Coins)
 func SetRealm(realm std.Realm)
 
-// std package
+// package `std`
 func NewUserRealm(address std.Address) std.Realm
 func NewCodeRealm(pkgPath string) std.Realm
 ```
