@@ -81,6 +81,10 @@ type Entry struct {
 // Entry needs to be under r/docs to be valid.
 // Title and description are required.
 func AddEntry(title, description string) {
+	if !admins.Has(std.OriginCaller()) {
+		return
+	}
+
 	entryPath := std.PreviousRealm().PkgPath()
 
 	// Disallow non-code calls and non-docs realms
