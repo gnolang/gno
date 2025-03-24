@@ -1538,8 +1538,8 @@ var initOrder = [...]string{
 	"regexp",
 	"std",
 	"sys/params",
-	"testing",
 	"time",
+	"testing",
 	"unicode/utf16",
 }
 
