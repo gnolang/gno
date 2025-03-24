@@ -54,6 +54,24 @@ func IsPaused() bool {
 
 // Admin Functions (authz)
 
+func MintToken(to std.Address, tid grc721remake.TokenID) error {
+	return auth.Do("mint", func() error {
+		return ledger.Mint(to, tid)
+	})
+}
+
+func BatchMintTokens(to std.Address, tids []grc721remake.TokenID) error {
+	return auth.Do("batch_mint", func() error {
+		return ledger.BatchMint(to, tids)
+	})
+}
+
+func BurnToken(tid grc721remake.TokenID) error {
+	return auth.Do("burn", func() error {
+		return ledger.Burn(tid)
+	})
+}
+
 func TransferAuthority(newAuthority authz.Authority) error {
 	return auth.Transfer(newAuthority)
 }
