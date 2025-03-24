@@ -29,7 +29,6 @@ func (h *RoyaltyHook) GetHookTime() grc721remake.HookTime {
 }
 
 func (h *RoyaltyHook) OnTransfer(nft *grc721remake.NFT, from, to std.Address, tid TokenID) error {
-	// Skip minting and burning operations
 	if from == std.Address("") || to == std.Address("") {
 		return nil
 	}
