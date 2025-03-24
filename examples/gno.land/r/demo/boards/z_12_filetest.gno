@@ -5,6 +5,7 @@ package boards_test
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/r/demo/boards"
 	users "gno.land/r/gnoland/users/v1"
@@ -17,7 +18,7 @@ var (
 )
 
 func init() {
-	std.TestSetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
 	users.Register("gnouser123")
 
 	bid1 = boards.CreateBoard("test_board1")
@@ -26,7 +27,7 @@ func init() {
 }
 
 func main() {
-	std.TestSetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
 	rid := boards.CreateRepost(bid1, pid, "", "Check this out", bid2)
 	println(rid)
 	println(boards.Render("test_board2"))

@@ -20,7 +20,7 @@ import (
 	"strings"
 )
 
-const chainDomain = "gno.land" // XXX: std.ChainDomain (#2911)
+var chainDomain = std.ChainDomain()
 
 // Call returns a URL for the specified function with optional key-value
 // arguments, for the current realm.
@@ -41,7 +41,7 @@ func (r Realm) prefix() string {
 
 	// local realm -> /realm
 	realm := string(r)
-	if strings.Contains(realm, chainDomain) {
+	if strings.HasPrefix(realm, chainDomain) {
 		return strings.TrimPrefix(realm, chainDomain)
 	}
 

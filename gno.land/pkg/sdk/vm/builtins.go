@@ -6,7 +6,6 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
-	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -69,11 +68,11 @@ func (bnk *SDKBanker) RemoveCoin(b32addr crypto.Bech32Address, denom string, amo
 // Users must write code to limit access as appropriate.
 
 type SDKParams struct {
-	pmk params.ParamsKeeper
+	pmk ParamsKeeperI
 	ctx sdk.Context
 }
 
-func NewSDKParams(pmk params.ParamsKeeper, ctx sdk.Context) *SDKParams {
+func NewSDKParams(pmk ParamsKeeperI, ctx sdk.Context) *SDKParams {
 	return &SDKParams{
 		pmk: pmk,
 		ctx: ctx,

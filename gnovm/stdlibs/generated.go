@@ -1170,7 +1170,7 @@ var nativeFuncs = [...]NativeFunc{
 		},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("bool")},
-			{Name: gno.N("r1"), Type: gno.X("error")},
+			{Name: gno.N("r1"), Type: gno.X("string")},
 		},
 		false,
 		func(m *gno.Machine) {
@@ -1310,8 +1310,8 @@ var initOrder = [...]string{
 	"regexp",
 	"std",
 	"sys/params",
-	"testing",
 	"time",
+	"testing",
 	"unicode/utf16",
 }
 

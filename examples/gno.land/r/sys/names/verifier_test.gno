@@ -30,8 +30,8 @@ func TestDefaultVerifier(t *testing.T) {
 	uassert.False(t, verifier(true, std.Address(""), ""))
 
 	// Register proper username
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/gnoland/users/v1")) // authorized write
-	std.TestSetOriginCaller(std.DerivePkgAddr("gno.land/r/gnoland/users/v1"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoland/users/v1")) // authorized write
+	testing.SetOriginCaller(std.DerivePkgAddr("gno.land/r/gnoland/users/v1"))
 	urequire.NoError(t, users.RegisterUser("alice", alice))
 
 	// Proper namespace
@@ -39,8 +39,8 @@ func TestDefaultVerifier(t *testing.T) {
 }
 
 func TestEnable(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"))
-	std.TestSetOriginCaller("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	testing.SetRealm(std.NewUserRealm("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"))
+	testing.SetOriginCaller("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 	uassert.NotPanics(t, func() {
 		Enable()
