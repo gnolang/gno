@@ -791,10 +791,6 @@ func SetOriginSend(sent std.Coins)
 func IssueCoins(addr std.Address, coins std.Coins)
 func SetRealm(realm std.Realm)
 
-<!--
-Since the two functions below are defined within the std package, it is not necessary to specify 'std' in the parameters and return types. However, I made this modification to maintain a consistent format with the functions in the testing package mentioned above.
--->
-
 // std package
 func NewUserRealm(address std.Address) std.Realm
 func NewCodeRealm(pkgPath string) std.Realm
