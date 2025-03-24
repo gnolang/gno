@@ -11,8 +11,8 @@ import (
 
 var (
 	NFT, ledger = grc721remake.NewNFT("PausableNFT", "PNFT")
-	Teller 	= NFT.CallerTeller()
-	auth   = authz.New()
+	Teller      = NFT.CallerTeller()
+	auth        = authz.New()
 )
 
 func init() {
@@ -29,10 +29,10 @@ func SetPaused(paused bool) error {
 		if err != nil {
 			return err
 		}
-		
+
 		pausableHook := hook.(*PausableHook)
 		pausableHook.paused = paused
-		
+
 		std.Emit(
 			"SetPaused",
 			"paused", strconv.FormatBool(paused),
@@ -47,7 +47,7 @@ func IsPaused() bool {
 	if err != nil {
 		panic(err)
 	}
-	
+
 	pausableHook := hook.(*PausableHook)
 	return pausableHook.paused
 }
@@ -71,4 +71,3 @@ func RemoveAdmin(addr std.Address) error {
 	}
 	return ufmt.Errorf("current authority is not a member authority")
 }
-

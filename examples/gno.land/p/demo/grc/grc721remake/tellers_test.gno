@@ -94,18 +94,18 @@ func TestCallerTeller(t *testing.T) {
 	urequire.NoError(t, ledger.Mint(alice, "token1"))
 	checkBalances(1, 0, 0)
 
-	std.TestSetOriginCaller(alice)
+	testing.SetOriginCaller(alice)
 
 	urequire.NoError(t, teller.Approve(bob, "token1"))
 	approved, err := nft.GetApproved("token1")
 	urequire.NoError(t, err)
 	uassert.Equal(t, approved, bob, "invalid approval")
 
-	std.TestSetOriginCaller(bob)
+	testing.SetOriginCaller(bob)
 
 	urequire.NoError(t, teller.TransferFrom(alice, carl, "token1"))
 	checkBalances(0, 0, 1)
-	std.TestSetOriginCaller(carl)
+	testing.SetOriginCaller(carl)
 
 	urequire.NoError(t, teller.Transfer(bob, "token1"))
 	checkBalances(0, 1, 0)
@@ -125,7 +125,7 @@ func TestBatchOperations(t *testing.T) {
 	aliceBalance, _ := nft.BalanceOf(alice)
 	uassert.Equal(t, aliceBalance, uint64(3), "invalid balance after minting")
 
-	std.TestSetOriginCaller(alice)
+	testing.SetOriginCaller(alice)
 
 	urequire.NoError(t, teller.BatchTransfer(bob, []TokenID{"token1", "token2"}))
 
@@ -136,7 +136,7 @@ func TestBatchOperations(t *testing.T) {
 
 	urequire.NoError(t, teller.Approve(bob, "token3"))
 
-	std.TestSetOriginCaller(alice)
+	testing.SetOriginCaller(alice)
 
 	urequire.NoError(t, teller.Transfer(bob, "token3"))
 
