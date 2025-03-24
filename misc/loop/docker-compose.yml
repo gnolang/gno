@@ -100,7 +100,7 @@ services:
       - traefik.http.routers.tx-indexer.tls.certresolver=le
       - traefik.http.services.tx-indexer.loadbalancer.server.port=8546
       - com.centurylinklabs.watchtower.enable=true
-      - com.centurylinklabs.watchtower.depends-on=portalloopd
+      - com.centurylinklabs.watchtower.depends-on=/portalloopd
 
   portalloopd:
     container_name: portalloopd
@@ -136,6 +136,8 @@ services:
 
   portalloopd-notify:
     image: containrrr/shoutrrr
+    networks:
+      - portal-loop
     env_file: .env
     command: 
       - send
@@ -144,7 +146,8 @@ services:
       - --message
       - "Portal Loop is healthy again"
     labels:
-      - com.centurylinklabs.watchtower.depends-on=portalloopd
+      - com.centurylinklabs.watchtower.enable=true
+      - com.centurylinklabs.watchtower.depends-on=/portalloopd
     depends_on:
       portalloopd:
         condition: service_healthy
@@ -159,6 +162,8 @@ services:
       - --http-api-update
       - --http-api-periodic-polls
       - --debug
+      - --cleanup
+      - --include-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - $HOME/.docker/config.json:/config.json

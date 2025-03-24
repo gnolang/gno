@@ -197,14 +197,14 @@ func (plh *PortalLoopHandler) WaitStartedLoop() error {
 			} else {
 				plh.logger.Error("Error fetching blocks", zap.Error(err))
 			}
-			time.Sleep(2 * time.Second)
+			time.Sleep(5 * time.Second)
 		}
 	}()
 
 	select {
 	case <-done:
 		return nil
-	case <-time.After(2 * time.Minute):
+	case <-time.After(10 * time.Minute):
 		return fmt.Errorf("timeout getting latest block")
 	}
 }
