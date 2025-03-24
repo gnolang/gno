@@ -783,14 +783,21 @@ denom := r.CoinDenom("blgcoin") // /gno.land/r/gnoland/blog:blgcoin
 ## Testing
 
 ```go
+// testing package
 func SkipHeights(count int64)
 func SetOriginCaller(origCaller std.Address)
 func SetOriginPkgAddress(addr std.Address)
 func SetOriginSend(sent std.Coins)
 func IssueCoins(addr std.Address, coins std.Coins)
 func SetRealm(realm std.Realm)
-func NewUserRealm(address Address) Realm
-func NewCodeRealm(pkgPath string) Realm
+
+<!--
+Since the two functions below are defined within the std package, it is not necessary to specify 'std' in the parameters and return types. However, I made this modification to maintain a consistent format with the functions in the testing package mentioned above.
+-->
+
+// std package
+func NewUserRealm(address std.Address) std.Realm
+func NewCodeRealm(pkgPath string) std.Realm
 ```
 
 ### SkipHeights
@@ -903,7 +910,7 @@ testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/users"))
 ### NewUserRealm
 
 ```go
-func NewUserRealm(address Address) Realm
+func NewUserRealm(address std.Address) Realm
 ```
 
 Creates a new user realm for testing purposes.
@@ -919,7 +926,7 @@ userRealm := std.NewUserRealm(addr)
 ### NewCodeRealm
 
 ```go
-func NewCodeRealm(pkgPath string) Realm
+func NewCodeRealm(pkgPath string) std.Realm
 ```
 
 Creates a new code realm for testing purposes.
