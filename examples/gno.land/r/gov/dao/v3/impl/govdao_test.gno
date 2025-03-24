@@ -52,8 +52,8 @@ func TestCreateProposalAndVote(t *testing.T) {
 
 	portfolio := "# This is my portfolio:\n\n- THINGS"
 
-	std.TestSetOriginCaller(noMember)
-	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+	testing.SetOriginCaller(noMember)
+	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 
 	nm1 := testutils.TestAddress("nm1")
 
@@ -65,8 +65,8 @@ func TestCreateProposalAndVote(t *testing.T) {
 		dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
 	})
 
-	std.TestSetOriginCaller(m1)
-	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+	testing.SetOriginCaller(m1)
+	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 
 	pid := dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
 	urequire.Equal(t, int(pid), 0)
@@ -77,32 +77,32 @@ func TestCreateProposalAndVote(t *testing.T) {
 		ProposalID: dao.ProposalID(0),
 	})
 
-	std.TestSetOriginCaller(m11)
-	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+	testing.SetOriginCaller(m11)
+	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.NoVote,
 		ProposalID: dao.ProposalID(0),
 	})
 
-	std.TestSetOriginCaller(m2)
-	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+	testing.SetOriginCaller(m2)
+	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.NoVote,
 		ProposalID: dao.ProposalID(0),
 	})
 
-	std.TestSetOriginCaller(m3)
-	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+	testing.SetOriginCaller(m3)
+	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.NoVote,
 		ProposalID: dao.ProposalID(0),
 	})
 
-	std.TestSetOriginCaller(m4)
-	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+	testing.SetOriginCaller(m4)
+	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 
 	urequire.PanicsWithMessage(t, "member on specified tier is not allowed to vote on this proposal", func() {
 		dao.MustVoteOnProposal(dao.VoteRequest{
@@ -111,8 +111,8 @@ func TestCreateProposalAndVote(t *testing.T) {
 		})
 	})
 
-	std.TestSetOriginCaller(m111)
-	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+	testing.SetOriginCaller(m111)
+	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.NoVote,
@@ -127,8 +127,8 @@ func TestCreateProposalAndVote(t *testing.T) {
 		dao.ExecuteProposal(dao.ProposalID(0))
 	})
 
-	std.TestSetOriginCaller(m1111)
-	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+	testing.SetOriginCaller(m1111)
+	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.NoVote,
@@ -148,8 +148,8 @@ func TestProposalPagination(t *testing.T) {
 	loadMembers()
 	portfolio := "### This is my portfolio:\n\n- THINGS"
 
-	std.TestSetOriginCaller(m1)
-	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+	testing.SetOriginCaller(m1)
+	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 
 	nm1 := testutils.TestAddress("nm1")
 
