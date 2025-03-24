@@ -32,5 +32,4 @@ type Metadata struct {
 	YoutubeURL      string  // URL to a YouTube video
 }
 
-// TokenID is an alias for the NFT's token ID type
 type TokenID = grc721remake.TokenID
