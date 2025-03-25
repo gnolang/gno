@@ -30,7 +30,15 @@ gnodev uses its own package loader and resolver system to support multiple scena
 - local: This resolver also takes a <dir> as its location. It is designed to load a single package, using the module name from 'gno.mod' within this package to resolve the package.
 - remote: This resolver takes a <remote> RPC address as its location. It is meant to use a remote node as a resolver, primarily for testing a local package against a remote node.
 
+Resolvers can be chained, and gnodev will attempt to use them in the order they are declared.
+
+For example:
+    gnodev -resolver root=/user/gnome/myproject -resolver remote=https://rpc.gno.lands
+
+If no resolvers can resolve a given package path, the loader will return a "package not found" error.
+
 If no command is provided, gnodev will automatically start in <local> mode.
+
 For more information and flags usage description, use 'gnodev local -h'.`,
 		},
 		nil,

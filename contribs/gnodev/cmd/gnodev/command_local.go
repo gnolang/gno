@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -95,8 +96,11 @@ func execLocalApp(cfg *LocalAppConfig, args []string, cio commands.IO) error {
 	var baseResolvers []packages.Resolver
 
 	if len(cfg.resolvers) == 0 {
-		// Add current dir as root resolvers
-		baseResolvers = append(baseResolvers, packages.NewRootResolver(dir))
+		// Check if we are not in gnoroot
+		if !strings.HasPrefix(dir, cfg.root) {
+			// Add current dir as root resolvers
+			baseResolvers = append(baseResolvers, packages.NewRootResolver(dir))
+		}
 
 		// Add examples as root resolver
 		gnoroot, err := gnoenv.GuessRootDir()
