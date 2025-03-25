@@ -10,7 +10,6 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/leon/hof"
 	"gno.land/p/demo/seqid"
-	"gno.land/p/moul/addrset"
 	"gno.land/p/moul/authz"
 )
 
@@ -20,9 +19,9 @@ var (
 
 	nextDappID     seqid.ID
 	nextProposalID seqid.ID
+	nextCategoryID seqid.ID
 
 	categories            = avl.NewTree()
-	nextCategoryID uint64 = 1
 
 	auth *authz.Authorizer
 )
@@ -67,54 +66,35 @@ func AddCategory(name, description string) (uint64, error) {
 		return 0, ufmt.Errorf("category name cannot be empty")
 	}
 
-	exists := false
-	categories.Iterate("", "", func(key string, value interface{}) bool {
-		cat := value.(Category)
-		if cat.Name == name {
-			exists = true
-			return true
-		}
-		return false
-	})
-
-	if exists {
+	sanitizedKey := strings.TrimSpace(name)
+	if categories.Has(sanitizedKey) {
 		return 0, ufmt.Errorf("category already exists")
 	}
 
 	category := Category{
-		ID:          nextCategoryID,
+		ID:          uint64(nextCategoryID.Next()),
 		Name:        name,
 		Description: description,
 		CreatedAt:   time.Now(),
 		DappIDs:     []uint64{},
 	}
 
-	categories.Set(strconv.FormatUint(nextCategoryID, 10), category)
+	categories.Set(sanitizedKey, category)
 
 	std.Emit("CategoryAdded",
-		"id", ufmt.Sprintf("%d", nextCategoryID),
+		"id", nextCategoryID.String(),
 		"name", name)
 
-	id := nextCategoryID
-	nextCategoryID++
-	return id, nil
+	return uint64(category.ID), nil
 }
 
 func GetCategory(name string) (Category, bool) {
-	var category Category
-	found := false
-
-	categories.Iterate("", "", func(key string, value interface{}) bool {
-		cat := value.(Category)
-		if cat.Name == name {
-			category = cat
-			found = true
-			return true
-		}
-		return false
-	})
-
-	return category, found
+	sanitizedKey := strings.TrimSpace(name)
+	value, found := categories.Get(sanitizedKey)
+	if !found {
+		return Category{}, false
+	}
+	return value.(Category), true
 }
 
 func GetCategoryByID(id uint64) (Category, bool) {
@@ -139,7 +119,7 @@ func RemoveDappFromCategory(dappID uint64, categoryName string) error {
 	}
 
 	category.DappIDs = newDappIDs
-	categories.Set(strconv.FormatUint(category.ID, 10), category)
+	categories.Set(strings.TrimSpace(categoryName), category)
 
 	return nil
 }
@@ -181,7 +161,7 @@ func ProposeNewDapp(title, description, url string, categoryNamesStr string) (ui
 	if len(categoryNames) > 0 {
 		for _, catName := range categoryNames {
 			categoryExists := false
-			categories.Iterate("", "", func(key string, value interface{}) bool {
+			categories.Iterate("", "", func(key string, value any) bool {
 				cat := value.(Category)
 				if cat.Name == catName {
 					categoryExists = true
@@ -206,7 +186,7 @@ func ProposeNewDapp(title, description, url string, categoryNamesStr string) (ui
 	}
 
 	proposal := Proposal{
-		ID:        nextProposalID.Next(),
+		ID:        uint64(nextProposalID.Next()),
 		Dapp:      dapp,
 		Status:    StatusPending,
 		Proposer:  caller,
@@ -221,7 +201,7 @@ func ProposeNewDapp(title, description, url string, categoryNamesStr string) (ui
 		"title", title,
 		"proposer", caller.String())
 
-	return uint64(nextProposalID), nil
+	return uint64(proposal.ID), nil
 }
 
 func ApproveProposal(proposalID uint64) error {
@@ -242,12 +222,12 @@ func ApproveProposal(proposalID uint64) error {
 	}
 
 	dapp := proposal.Dapp
-	dapp.ID = nextDappID.Next()
+	dapp.ID = uint64(nextDappID.Next())
 	dapp.Approved = true
 	dapps.Set(nextDappID.String(), dapp)
 
 	for _, categoryName := range dapp.Categories {
-		err := addDappToCategory(dapp.ID, categoryName)
+		err := addDappToCategory(uint64(dapp.ID), categoryName)
 		if err != nil {
 			return err
 		}
