@@ -52,7 +52,7 @@ func Context(pkgPath string, send std.Coins) *teststd.TestExecContext {
 	}
 	ctx := stdlibs.ExecContext{
 		ChainID:         "dev",
-		ChainDomain:     "tests.gno.land",
+		ChainDomain:     "gno.land", // TODO: make this configurable
 		Height:          DefaultHeight,
 		Timestamp:       DefaultTimestamp,
 		OriginCaller:    DefaultCaller,
@@ -131,6 +131,8 @@ type TestOptions struct {
 
 	// Flag to filter tests to run.
 	RunFlag string
+	// Flag to stop executing as soon a test fails.
+	FailfastFlag bool
 	// Whether to update filetest directives.
 	Sync bool
 	// Uses Error to print when starting a test, and prints test output directly,
@@ -349,7 +351,7 @@ func (opts *TestOptions) runTestFiles(
 		alloc = gno.NewAllocator(math.MaxInt64)
 	}
 	// reset store ops, if any - we only need them for some filetests.
-	opts.TestStore.SetLogStoreOps(false)
+	opts.TestStore.SetLogStoreOps(nil)
 
 	// Check if we already have the package - it may have been eagerly loaded.
 	m = Machine(gs, opts.WriterForStore(), memPkg.Path, opts.Debug)
@@ -398,9 +400,10 @@ func (opts *TestOptions) runTestFiles(
 		}
 
 		eval := m.Eval(gno.Call(
-			gno.Sel(testingcx, "RunTest"),            // Call testing.RunTest
-			gno.Str(opts.RunFlag),                    // run flag
-			gno.Nx(strconv.FormatBool(opts.Verbose)), // is verbose?
+			gno.Sel(testingcx, "RunTest"),                 // Call testing.RunTest
+			gno.Str(opts.RunFlag),                         // run flag
+			gno.Nx(strconv.FormatBool(opts.Verbose)),      // is verbose?
+			gno.Nx(strconv.FormatBool(opts.FailfastFlag)), // stop as soon as a test fails
 			&gno.CompositeLitExpr{ // Third param, the testing.InternalTest
 				Type: gno.Sel(testingcx, "InternalTest"),
 				Elts: gno.KeyValueExprs{
@@ -441,6 +444,9 @@ func (opts *TestOptions) runTestFiles(
 		if rep.Failed {
 			err := fmt.Errorf("failed: %q", tf.Name)
 			errs = multierr.Append(errs, err)
+			if opts.FailfastFlag {
+				return errs
+			}
 		}
 
 		if opts.Metrics {
