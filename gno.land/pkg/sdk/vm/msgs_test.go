@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/gnovm"
@@ -84,6 +85,79 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 				}},
 			},
 			expectErr: std.InvalidCoinsError{},
+		},
+		{
+			name: "max metadata fields exceeded",
+			msg: MsgAddPackage{
+				Creator: creator,
+				Package: &gnovm.MemPackage{
+					Name:  pkgName,
+					Path:  pkgPath,
+					Files: files,
+				},
+				Metadata: []*MetaField{
+					{Name: "1"},
+					{Name: "2"},
+					{Name: "3"},
+					{Name: "4"},
+					{Name: "5"},
+					{Name: "6"},
+					{Name: "7"},
+					{Name: "8"},
+					{Name: "9"},
+					{Name: "10"},
+					{Name: "11"},
+				},
+			},
+			expectErr: InvalidPkgMetaError{},
+		},
+		{
+			name: "invalid metadata field name",
+			msg: MsgAddPackage{
+				Creator: creator,
+				Package: &gnovm.MemPackage{
+					Name:  pkgName,
+					Path:  pkgPath,
+					Files: files,
+				},
+				Metadata: []*MetaField{{Name: "@"}},
+			},
+			expectErr: InvalidPkgMetaError{},
+		},
+		{
+			name: "duplicated metadata field",
+			msg: MsgAddPackage{
+				Creator: creator,
+				Package: &gnovm.MemPackage{
+					Name:  pkgName,
+					Path:  pkgPath,
+					Files: files,
+				},
+				Metadata: []*MetaField{
+					{Name: "field1"},
+					{Name: "field2"},
+					{Name: "field1"},
+				},
+			},
+			expectErr: InvalidPkgMetaError{},
+		},
+		{
+			name: "metadata value is too long",
+			msg: MsgAddPackage{
+				Creator: creator,
+				Package: &gnovm.MemPackage{
+					Name:  pkgName,
+					Path:  pkgPath,
+					Files: files,
+				},
+				Metadata: []*MetaField{
+					{
+						Name:  "field_name",
+						Value: []byte(strings.Repeat("x", 1_000_001)),
+					},
+				},
+			},
+			expectErr: InvalidPkgMetaError{},
 		},
 	}
 
