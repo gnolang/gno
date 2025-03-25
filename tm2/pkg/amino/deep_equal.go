@@ -11,7 +11,7 @@ import (
 // DeepEqual returns true if the types are the same and the
 // binary amino encoding would be the same.
 // TODO: optimize, and support genproto.
-func DeepEqual(a, b interface{}) bool {
+func DeepEqual(a, b any) bool {
 	if reflect.TypeOf(a) != reflect.TypeOf(b) {
 		return false
 	}

@@ -61,7 +61,7 @@ func (kf *KeyFormat) KeyBytes(segments ...[]byte) []byte {
 // Format the args passed into the key format - will panic if the arguments passed do not match the length
 // of the segment to which they correspond. When called with no arguments returns the raw prefix (useful as a start
 // element of the entire keys space when sorted lexicographically).
-func (kf *KeyFormat) Key(args ...interface{}) []byte {
+func (kf *KeyFormat) Key(args ...any) []byte {
 	if len(args) > len(kf.layout) {
 		panic(fmt.Errorf("KeyFormat.Key() is provided with %d args but format only has %d segments",
 			len(args), len(kf.layout)))
@@ -89,7 +89,7 @@ func (kf *KeyFormat) ScanBytes(key []byte) [][]byte {
 
 // Extracts the segments into the values pointed to by each of args. Each arg must be a pointer to int64, uint64, or
 // []byte, and the width of the args must match layout.
-func (kf *KeyFormat) Scan(key []byte, args ...interface{}) {
+func (kf *KeyFormat) Scan(key []byte, args ...any) {
 	segments := kf.ScanBytes(key)
 	if len(args) > len(segments) {
 		panic(fmt.Errorf("KeyFormat.Scan() is provided with %d args but format only has %d segments in key %X",
@@ -105,7 +105,7 @@ func (kf *KeyFormat) Prefix() string {
 	return string([]byte{kf.prefix})
 }
 
-func scan(a interface{}, value []byte) {
+func scan(a any, value []byte) {
 	switch v := a.(type) {
 	case *int64:
 		// Negative values will be mapped correctly when read in as uint64 and then type converted
@@ -119,7 +119,7 @@ func scan(a interface{}, value []byte) {
 	}
 }
 
-func format(a interface{}) []byte {
+func format(a any) []byte {
 	switch v := a.(type) {
 	case uint64:
 		return formatUint64(v)

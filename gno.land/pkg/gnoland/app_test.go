@@ -248,7 +248,7 @@ func generateValidatorUpdates(t *testing.T, count int) []abci.ValidatorUpdate {
 
 	validators := make([]abci.ValidatorUpdate, 0, count)
 
-	for i := 0; i < count; i++ {
+	for range count {
 		// Generate a random private key
 		key := getDummyKey(t).PubKey()
 
