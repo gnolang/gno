@@ -165,14 +165,21 @@ func (m *mockAuthKeeper) IterateAccounts(ctx sdk.Context, process func(std.Accou
 func (m *mockAuthKeeper) InitGenesis(ctx sdk.Context, data auth.GenesisState)             {}
 func (m *mockAuthKeeper) GetParams(ctx sdk.Context) auth.Params                           { return auth.Params{} }
 
-type mockParamsKeeper struct{}
+type getStringsDelegate func(sdk.Context, string, *[]string)
+type mockParamsKeeper struct {
+	getStringsFn getStringsDelegate
+}
 
-func (m *mockParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string)    {}
-func (m *mockParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64)      {}
-func (m *mockParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64)    {}
-func (m *mockParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool)        {}
-func (m *mockParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte)     {}
-func (m *mockParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) {}
+func (m *mockParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) {}
+func (m *mockParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr *int64)   {}
+func (m *mockParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) {}
+func (m *mockParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool)     {}
+func (m *mockParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte)  {}
+func (m *mockParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) {
+	if m.getStringsFn != nil {
+		m.getStringsFn(ctx, key, ptr)
+	}
+}
 
 func (m *mockParamsKeeper) SetString(ctx sdk.Context, key string, value string)    {}
 func (m *mockParamsKeeper) SetInt64(ctx sdk.Context, key string, value int64)      {}
