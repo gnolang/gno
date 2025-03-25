@@ -300,8 +300,6 @@ func columnsRenderHTML(w util.BufWriter, _ []byte, node ast.Node, entering bool)
 		switch {
 		case errors.Is(err, ErrColumnsUnexpectedOrInvalidTag):
 			fmt.Fprintf(w, "<!-- unexpected/invalid %q omitted -->\n", cnode.String())
-		case errors.Is(err, ErrColumnsInvalidOpenFormat):
-			fmt.Fprintln(w, "<!-- gno-columns error: open tag should be followed by heading separator or closing tag -->")
 		default:
 			fmt.Fprintf(w, "<!-- gno-columns error: %s -->\n", err.Error())
 		}

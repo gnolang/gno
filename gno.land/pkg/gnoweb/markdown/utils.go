@@ -1,6 +1,7 @@
 package markdown
 
 import (
+	"errors"
 	"io"
 
 	"golang.org/x/net/html"
@@ -18,7 +19,7 @@ func ParseHTMLTokens(r io.Reader) ([]html.Token, error) {
 		tok := tokenizer.Token()
 		if tok.Type == html.ErrorToken {
 			err := tokenizer.Err()
-			if err != nil && err == io.EOF {
+			if err != nil && errors.Is(err, io.EOF) {
 				return toks, nil
 			}
 
