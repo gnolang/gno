@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ufmt"
-	"gno.land/r/leon/hof"
-	"gno.land/p/demo/seqid"
-	"gno.land/p/moul/authz"
 	"gno.land/p/demo/avl/rotree"
+	"gno.land/p/demo/seqid"
+	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/authz"
+	"gno.land/r/leon/hof"
 )
 
 var (
@@ -22,7 +22,7 @@ var (
 	nextProposalID seqid.ID
 	nextCategoryID seqid.ID
 
-	categories            = avl.NewTree()
+	categories = avl.NewTree()
 
 	auth *authz.Authorizer
 )
