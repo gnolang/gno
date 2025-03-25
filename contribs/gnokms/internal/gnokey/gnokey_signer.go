@@ -56,7 +56,6 @@ func newGnokeySigner(
 
 	// Check if a password is required according to the key type.
 	switch info.GetType() {
-	case keys.TypeLedger: // No password required.
 	case keys.TypeLocal:
 		for {
 			// Get the password from the user.
@@ -76,6 +75,9 @@ func newGnokeySigner(
 
 			break
 		}
+		// TODO: suggest to use `gnokms ledger` when it will be implemented.
+	// case keys.TypeLedger: // Ledger is not supported
+	// 	return nil, fmt.Errorf("unsupported key type: use 'gnokms ledger' for ledger keys")
 	default: // Offline and Multi types are not supported.
 		return nil, fmt.Errorf("unsupported key type: %s", info.GetType())
 	}

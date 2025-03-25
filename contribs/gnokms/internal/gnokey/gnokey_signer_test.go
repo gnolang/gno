@@ -102,7 +102,7 @@ func TestNewGnokeySigner(t *testing.T) {
 		filePath, keybase := generateKeyBaseWithKey(t)
 		defer keybase.CloseDB()
 
-		// Create a ledger key.
+		// Create an invalid key.
 		info, err := keybase.CreateOffline("offline", ed25519.GenPrivKey().PubKey())
 		require.NotNil(t, info)
 		require.NoError(t, err)
