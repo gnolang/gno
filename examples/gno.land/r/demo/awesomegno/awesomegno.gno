@@ -11,6 +11,7 @@ import (
 	"gno.land/r/leon/hof"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/moul/authz"
+	"gno.land/p/demo/avl/rotree"
 )
 
 var (
@@ -127,7 +128,9 @@ func RemoveDappFromCategory(dappID uint64, categoryName string) error {
 func ListCategories() []Category {
 	result := []Category{}
 
-	categories.Iterate("", "", func(key string, value interface{}) bool {
+	readOnlyCategories := rotree.Wrap(categories, nil)
+
+	readOnlyCategories.Iterate("", "", func(key string, value any) bool {
 		result = append(result, value.(Category))
 		return false
 	})
