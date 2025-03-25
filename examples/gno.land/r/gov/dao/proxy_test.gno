@@ -27,7 +27,7 @@ func TestProxy_Functions(t *testing.T) {
 	})
 
 	// invalid package cannot add a new dao in charge
-	std.TestSetRealm(std.NewCodeRealm(invalid))
+	testing.SetRealm(std.NewCodeRealm(invalid))
 	urequire.PanicsWithMessage(t, "permission denied for prev realm: gno.land/r/invalid/dao", func() {
 		UpdateImpl(UpdateRequest{
 			DAO: &dummyDao{},
@@ -35,7 +35,7 @@ func TestProxy_Functions(t *testing.T) {
 	})
 
 	// dao in charge can add a new dao
-	std.TestSetRealm(std.NewCodeRealm(v3))
+	testing.SetRealm(std.NewCodeRealm(v3))
 	urequire.NotPanics(t, func() {
 		UpdateImpl(UpdateRequest{
 			DAO: &dummyDao{},
@@ -43,7 +43,7 @@ func TestProxy_Functions(t *testing.T) {
 	})
 
 	// v3 that is in charge adds v5 in charge
-	std.TestSetRealm(std.NewCodeRealm(v3))
+	testing.SetRealm(std.NewCodeRealm(v3))
 	urequire.NotPanics(t, func() {
 		UpdateImpl(UpdateRequest{
 			DAO:         &dummyDao{},
@@ -52,7 +52,7 @@ func TestProxy_Functions(t *testing.T) {
 	})
 
 	// v3 can still do updates
-	std.TestSetRealm(std.NewCodeRealm(v3))
+	testing.SetRealm(std.NewCodeRealm(v3))
 	urequire.NotPanics(t, func() {
 		UpdateImpl(UpdateRequest{
 			AllowedDAOs: []string{v4},
@@ -60,7 +60,7 @@ func TestProxy_Functions(t *testing.T) {
 	})
 
 	// not after removing himself from allowedDAOs list
-	std.TestSetRealm(std.NewCodeRealm(v3))
+	testing.SetRealm(std.NewCodeRealm(v3))
 	urequire.PanicsWithMessage(t, "permission denied for prev realm: gno.land/r/gov/dao/v3/impl", func() {
 		UpdateImpl(UpdateRequest{
 			AllowedDAOs: []string{v3},
@@ -68,7 +68,7 @@ func TestProxy_Functions(t *testing.T) {
 	})
 
 	var pid ProposalID
-	std.TestSetRealm(std.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 	urequire.NotPanics(t, func() {
 		pid = MustCreateProposal(
 			NewProposalRequestBuilder("Proposal Title").
@@ -94,7 +94,7 @@ func TestProxy_Functions(t *testing.T) {
 	)
 
 	// reset state
-	std.TestSetRealm(std.NewCodeRealm(v4))
+	testing.SetRealm(std.NewCodeRealm(v4))
 	UpdateImpl(UpdateRequest{
 		DAO:         &dummyDao{},
 		AllowedDAOs: []string{},
@@ -128,7 +128,7 @@ func (dd *dummyDao) PreExecuteProposal(pid ProposalID) (bool, error) {
 	return true, nil
 }
 
-func (dd *dummyDao) Render(i string) string {
+func (dd *dummyDao) Render(i,x string) string {
 	return "Render: " + i
 }
 

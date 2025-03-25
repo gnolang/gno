@@ -16,7 +16,7 @@ func init() {
 
 func TestProUnlockTransfer(t *testing.T) {
 	pr := ProposeUnlockTransferRequest()
-	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 	id := dao.MustCreateProposal(pr)
 	p, err := dao.GetProposal(id)
 	urequire.NoError(t, err)
@@ -25,7 +25,7 @@ func TestProUnlockTransfer(t *testing.T) {
 
 func TestFailUnlockTransfer(t *testing.T) {
 	pr := ProposeUnlockTransferRequest()
-	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 	id := dao.MustCreateProposal(pr)
 	urequire.PanicsWithMessage(
 		t,
@@ -38,7 +38,7 @@ func TestFailUnlockTransfer(t *testing.T) {
 
 func TestExeUnlockTransfer(t *testing.T) {
 	pr := ProposeUnlockTransferRequest()
-	std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 	id := dao.MustCreateProposal(pr)
 	p, err := dao.GetProposal(id)
 	urequire.NoError(t, err)

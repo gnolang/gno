@@ -50,7 +50,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		urequire.PanicsWithMessage(t, ErrValidatorMissing.Error(), func() {
 			pr := NewValidatorProposalRequest(test1Address)
 
-			std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+			testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 			dao.MustCreateProposal(pr)
 		})
 	})
@@ -76,7 +76,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		urequire.NotPanics(t, func() {
 			pr := NewValidatorProposalRequest(test1Address)
 
-			std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+			testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 			pid := dao.MustCreateProposal(pr)
 		})
 
@@ -167,7 +167,7 @@ func TestValopers_ProposeNewMinFee(t *testing.T) {
 	urequire.NotPanics(t, func() {
 		pr := ProposeNewMinFeeProposalRequest(newMinFee)
 
-		std.TestSetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+		testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 		pid = dao.MustCreateProposal(pr)
 	})
 
