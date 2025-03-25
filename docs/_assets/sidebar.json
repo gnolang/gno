@@ -31,7 +31,6 @@
         "type": "category",
         "label": "Resources",
         "items": [
-          "resources/awesome-gno",
           "resources/effective-gno",
           "resources/gno-packages",
           "resources/gnoland-networks",
@@ -41,6 +40,11 @@
           "resources/glossary",
           "resources/gno-testing",
           "resources/go-gno-compatibility",
+          {
+            "type": "link",
+            "label": "Awesome Gno",
+            "href": "https://github.com/gnoverse/awesome-gno"
+          },
           {
             "type": "link",
             "label": "Gno Examples",
