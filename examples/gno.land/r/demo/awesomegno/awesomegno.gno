@@ -10,6 +10,7 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/leon/hof"
 	"gno.land/p/demo/seqid"
+	"gno.land/p/moul/addrset"
 )
 
 var (
@@ -19,15 +20,15 @@ var (
 	nextDappID     seqid.ID
 	nextProposalID seqid.ID
 
-	admins                = avl.NewTree()
+	admins                = addrset.Set{}
 	categories            = avl.NewTree()
 	nextCategoryID uint64 = 1
 )
 
 func init() {
-	admins.Set("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y", true)
-	admins.Set(std.CurrentRealm().Address().String(), true)
-	admins.Set(std.PreviousRealm().Address().String(), true)
+	admins.Add(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
+	admins.Add(std.CurrentRealm().Address())
+	admins.Add(std.PreviousRealm().Address())
 
 	hof.Register("AwesomeGno", "Awesome Gno is a registry for gnowesome dApps on gno.land")
 }
@@ -42,7 +43,9 @@ func AddAdmin(addr std.Address) error {
 		return ufmt.Errorf("invalid address")
 	}
 
-	admins.Set(addr.String(), true)
+	if !admins.Add(addr) {
+		return ufmt.Errorf("admin already exists")
+	}
 	std.Emit("AdminAdded", "address", addr.String())
 	return nil
 }
@@ -60,7 +63,9 @@ func RemoveAdmin(addr std.Address) error {
 		return ufmt.Errorf("cannot remove the last admin")
 	}
 
-	admins.Remove(addr.String())
+	if !admins.Remove(addr) {
+		return ufmt.Errorf("admin not found")
+	}
 	std.Emit("AdminRemoved", "address", addr.String())
 	return nil
 }
@@ -501,6 +506,5 @@ func addDappToCategory(dappID uint64, categoryName string) error {
 }
 
 func isAdmin(addr std.Address) bool {
-	isAdminRaw, exists := admins.Get(addr.String())
-	return exists && isAdminRaw.(bool)
+	return admins.Has(addr)
 }
