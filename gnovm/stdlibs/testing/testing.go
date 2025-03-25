@@ -40,24 +40,23 @@ func X_expectEmit(m *gno.Machine, expectedType string, expectedAttrs []string) b
 		return false
 	}
 
+	attrLen := len(lastEvent.Attributes)
 	expectedAttrCount := len(expectedAttrs) / 2
-	if len(lastEvent.Attributes) != expectedAttrCount {
+	if attrLen != expectedAttrCount {
 		return false
 	}
 
+	attrs := make(map[string]string, attrLen)
+	for _, attr := range lastEvent.Attributes {
+		attrs[attr.Key] = attr.Value
+	}
+
+	// validate expected attributes
 	for i := 0; i < len(expectedAttrs); i += 2 {
 		expectedKey := expectedAttrs[i]
 		expectedValue := expectedAttrs[i+1]
-		found := false
 
-		for _, attr := range lastEvent.Attributes {
-			if attr.Key == expectedKey && attr.Value == expectedValue {
-				found = true
-				break
-			}
-		}
-
-		if !found {
+		if actualValue, exists := attrs[expectedKey]; !exists || actualValue != expectedValue {
 			return false
 		}
 	}
