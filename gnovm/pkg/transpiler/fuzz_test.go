@@ -12,8 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
-
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -147,8 +145,7 @@ func FuzzTypecheckThenGnoRunMemPackageVsCompileGo(f *testing.F) {
 
 				goRunErrOutput = strings.TrimSpace(goRunErrOutput)
 				sr = strings.TrimSpace(sr)
-				diff := cmp.Diff(sr, goRunErrOutput)
-				if diff == "" { // We've got exact matching errors so can exit.
+				if sr == goRunErrOutput { // We've got exact matching errors so can exit.
 					return
 				}
 			}
