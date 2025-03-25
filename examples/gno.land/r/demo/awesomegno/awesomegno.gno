@@ -97,27 +97,27 @@ func AddCategory(name, description string) (uint64, error) {
 	return uint64(category.ID), nil
 }
 
-func GetCategory(name string) (Category, bool) {
+func GetCategory(name string) (Category, error) {
 	sanitizedKey := strings.TrimSpace(name)
 	value, found := categories.Get(sanitizedKey)
 	if !found {
-		return Category{}, false
+		return Category{}, ErrCategoryNotFound
 	}
-	return value.(Category), true
+	return value.(Category), nil
 }
 
-func GetCategoryByID(id uint64) (Category, bool) {
+func GetCategoryByID(id uint64) (Category, error) {
 	value, found := categories.Get(strconv.FormatUint(id, 10))
 	if !found {
-		return Category{}, false
+		return Category{}, ErrCategoryNotFound
 	}
-	return value.(Category), true
+	return value.(Category), nil
 }
 
 func RemoveDappFromCategory(dappID uint64, categoryName string) error {
-	category, found := GetCategory(categoryName)
-	if !found {
-		return ufmt.Errorf("category not found: %s", categoryName)
+	category, err := GetCategory(categoryName)
+	if err != nil {
+		return err
 	}
 
 	newDappIDs := []uint64{}
@@ -172,7 +172,7 @@ func ProposeNewDapp(title, description, url string, categoryNamesStr string) (ui
 	}
 
 	for _, catName := range categoryNames {
-		if _, found := GetCategory(catName); !found {
+		if _, err := GetCategory(catName); err != nil {
 			return 0, ufmt.Errorf("category '%s' does not exist", catName)
 		}
 	}
@@ -318,8 +318,8 @@ func ListPendingProposals() []Proposal {
 func GetDappsByCategory(categoryName string) []Dapp {
 	result := []Dapp{}
 
-	category, found := GetCategory(categoryName)
-	if !found {
+	category, err := GetCategory(categoryName)
+	if err != nil {
 		return result
 	}
 
@@ -371,10 +371,10 @@ func UpdateDappCategories(dappID uint64, newCategories string) error {
 
 	newCatTree.Iterate("", "", func(key string, _ any) bool {
 		if !categories.Has(key) {
-			return ufmt.Errorf("category not found: %s", key)
+			return true
 		}
 		if err := addDappToCategory(dappID, key); err != nil {
-			return err
+			return true
 		}
 		return false
 	})
@@ -393,7 +393,7 @@ func DeleteDapp(dappID uint64) error {
 	caller := std.PreviousRealm().Address()
 
 	if !isAdmin(caller) {
-		return ufmt.Errorf("not authorized: only admins can delete dApps")
+		return ErrNotAuthorized
 	}
 
 	value, found := dapps.Get(strconv.FormatUint(dappID, 10))
@@ -420,12 +420,12 @@ func DeleteCategory(categoryName string) error {
 	caller := std.PreviousRealm().Address()
 
 	if !isAdmin(caller) {
-		return ufmt.Errorf("not authorized: only admins can delete categories")
+		return ErrNotAuthorized
 	}
 
-	category, found := GetCategory(categoryName)
-	if !found {
-		return ufmt.Errorf("category not found: %s", categoryName)
+	category, err := GetCategory(categoryName)
+	if err != nil {
+		return err
 	}
 
 	for _, dappID := range category.DappIDs {
@@ -453,9 +453,9 @@ func DeleteCategory(categoryName string) error {
 }
 
 func addDappToCategory(dappID uint64, categoryName string) error {
-	category, found := GetCategory(categoryName)
-	if !found {
-		return ufmt.Errorf("category not found: %s", categoryName)
+	category, err := GetCategory(categoryName)
+	if err != nil {
+		return err
 	}
 
 	for _, id := range category.DappIDs {

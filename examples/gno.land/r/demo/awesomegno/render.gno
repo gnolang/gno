@@ -202,8 +202,8 @@ func renderProposalPage(id uint64) string {
 }
 
 func renderCategoryPage(categoryName string, queryParams string) string {
-	category, found := GetCategory(categoryName)
-	if !found {
+	category, err := GetCategory(categoryName)
+	if err != nil {
 		return "Category not found: " + categoryName
 	}
 
