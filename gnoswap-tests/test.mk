@@ -86,7 +86,7 @@ swap-exact-in-gns-wugnot:
 	# approve OUTPUT TOKEN to ROUTER ( as 0.15% fee )
 	@echo "" | gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Approve -args $(ADDR_ROUTER) -args $(MAX_UINT64) -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
 
-	@echo "" | gnokey maketx call -pkgpath gno.land/r/gnoswap/v1/router -func ExactInSwapRoute -args "gno.land/r/gnoswap/v1/gns" -args "gno.land/r/demo/wugnot" -args 50000 -args "gno.land/r/gnoswap/v1/gns:gno.land/r/demo/wugnot:3000" -args "100" -args "0" -args $(TX_EXPIRE) -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
+	@echo "" | gnokey maketx call -pkgpath gno.land/r/gnoswap/v1/router -func ExactInSwapRoute -args "gno.land/r/gnoswap/v1/gns" -args "gno.land/r/demo/wugnot" -args 50000 -args "gno.land/r/gnoswap/v1/gns:gno.land/r/demo/wugnot:3000" -args "100" -args "0" -args $(TX_EXPIRE) -args "" -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
 	@echo
 
 

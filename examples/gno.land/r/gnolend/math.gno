@@ -5,7 +5,7 @@ import (
 )
 
 // WAD represents a decimal with 18 decimals (i.e. 1e18)
-var WAD = uint256.NewInt(1000000000000000000)
+var WAD = uint256.NewUint(1000000000000000000)
 
 // WMulDown returns (x * y) / WAD rounded down
 func WMulDown(x, y *uint256.Uint) *uint256.Uint {
@@ -35,7 +35,7 @@ func MulDivUp(x, y, d *uint256.Uint) *uint256.Uint {
 	// Multiply
 	mul := new(uint256.Uint).Mul(x, y)
 	// Add (d - 1) for rounding up
-	dMinusOne := new(uint256.Uint).Sub(d, uint256.NewInt(1))
+	dMinusOne := new(uint256.Uint).Sub(d, uint256.NewUint(1))
 	mulPlusD := new(uint256.Uint).Add(mul, dMinusOne)
 	// Divide and round up
 	return new(uint256.Uint).Div(mulPlusD, d)
@@ -48,11 +48,11 @@ func WTaylorCompounded(x, n *uint256.Uint) *uint256.Uint {
 	firstTerm := new(uint256.Uint).Mul(x, n)
 
 	// Second term: (firstTerm * firstTerm) / (2 * WAD)
-	twoWad := new(uint256.Uint).Mul(uint256.NewInt(2), WAD)
+	twoWad := new(uint256.Uint).Mul(uint256.NewUint(2), WAD)
 	secondTerm := MulDivDown(firstTerm, firstTerm, twoWad)
 
 	// Third term: (secondTerm * firstTerm) / (3 * WAD)
-	threeWad := new(uint256.Uint).Mul(uint256.NewInt(3), WAD)
+	threeWad := new(uint256.Uint).Mul(uint256.NewUint(3), WAD)
 	thirdTerm := MulDivDown(secondTerm, firstTerm, threeWad)
 
 	// Sum all terms

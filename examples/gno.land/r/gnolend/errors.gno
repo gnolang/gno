@@ -29,4 +29,7 @@ var (
 	ErrInsufficientLiquidity = errors.New("insufficient liquidity in market")
 	ErrZeroBorrow            = errors.New("borrow amount must be greater than zero")
 	ErrNoCollateral          = errors.New("must deposit collateral before borrowing")
+
+	// Oracle errors
+	ErrPriceNotAvailable     = errors.New("price not available from pool")
 )

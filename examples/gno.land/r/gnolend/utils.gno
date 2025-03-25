@@ -4,6 +4,7 @@ import (
 	"gno.land/p/demo/grc/grc20"
 	
 	"gno.land/r/demo/grc20reg"
+	"gno.land/r/gnoswap/v1/pool"
 )
 
 // GetTokenTeller returns a GRC20 token teller for the given token path

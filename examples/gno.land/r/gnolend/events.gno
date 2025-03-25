@@ -4,7 +4,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/demo/u256"
+	u256 "gno.land/p/demo/uint256"
 )
 
 // Event names
@@ -16,6 +16,7 @@ const (
 	BorrowEvent       = "Borrow"
 	RepayEvent        = "Repay"
 	LiquidateEvent    = "Liquidate"
+	RegisterIRMEvent  = "RegisterIRM"
 )
 
 // Event keys
@@ -99,5 +100,31 @@ func emitAccrueInterest(marketId string, borrowRate, interest *u256.Uint) {
 		"market_id", marketId,
 		"borrow_rate", borrowRate.String(),
 		"interest", interest.String(),
+	)
+}
+
+func emitRegisterIRM(pkgPath, name string) {
+	std.Emit(
+		RegisterIRMEvent,
+		"pkgpath", pkgPath,
+		"name", name,
+	)
+}
+
+func emitSupplyCollateral(marketId string, caller std.Address, amount uint64) {
+	std.Emit(
+		"supply_collateral",
+		"market_id", marketId,
+		"caller", caller.String(),
+		"amount", ufmt.Sprintf("%d", amount),
+	)
+}
+
+func emitWithdrawCollateral(marketId string, caller std.Address, amount uint64) {
+	std.Emit(
+		"withdraw_collateral",
+		"market_id", marketId,
+		"caller", caller.String(),
+		"amount", ufmt.Sprintf("%d", amount),
 	)
 }
