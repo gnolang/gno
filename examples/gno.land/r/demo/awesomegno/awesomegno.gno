@@ -42,7 +42,7 @@ func AddAdmin(addr std.Address) error {
 		if !addr.IsValid() {
 			return ErrInvalidAddress
 		}
-		if !auth.Current().(*authz.MemberAuthority).AddMember(addr) {
+		if err := auth.Current().(*authz.MemberAuthority).AddMember(addr); err != nil {
 			return ErrAdminAlreadyExists
 		}
 		std.Emit("AdminAdded", "address", addr.String())
@@ -58,8 +58,8 @@ func RemoveAdmin(addr std.Address) error {
 		if auth.Current().(*authz.MemberAuthority).Tree().Size() <= 1 {
 			return ErrCannotRemoveLastAdmin
 		}
-		if !auth.Current().(*authz.MemberAuthority).RemoveMember(addr) {
-			return ErrAdminNotFound
+		if err := auth.Current().(*authz.MemberAuthority).RemoveMember(addr); err != nil {
+			return err
 		}
 		std.Emit("AdminRemoved", "address", addr.String())
 		return nil
