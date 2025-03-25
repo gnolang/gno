@@ -340,7 +340,7 @@ func UpdateDappCategories(dappID uint64, newCategories string) error {
 	caller := std.PreviousRealm().Address()
 
 	if !isAdmin(caller) {
-		return ufmt.Errorf("not authorized: only admins can update dApp categories")
+		return ErrNotAuthorized
 	}
 
 	value, found := dapps.Get(strconv.FormatUint(dappID, 10))
@@ -349,46 +349,41 @@ func UpdateDappCategories(dappID uint64, newCategories string) error {
 	}
 
 	dapp := value.(Dapp)
+
+	newCatTree := avl.NewTree()
 	for _, catName := range strings.Split(newCategories, ",") {
-		_, found := GetCategory(catName)
-		if !found {
-			return ufmt.Errorf("category not found: %s", catName)
+		trimmedName := strings.TrimSpace(catName)
+		if trimmedName != "" {
+			if !categories.Has(trimmedName) {
+				return ufmt.Errorf("category not found: %s", trimmedName)
+			}
+			newCatTree.Set(trimmedName, struct{}{})
 		}
 	}
 
 	for _, oldCat := range dapp.Categories {
-		found := false
-		for _, newCat := range strings.Split(newCategories, ",") {
-			if oldCat == newCat {
-				found = true
-				break
-			}
-		}
-		if !found {
-			err := RemoveDappFromCategory(dappID, oldCat)
-			if err != nil {
+		if !newCatTree.Has(oldCat) {
+			if err := RemoveDappFromCategory(dappID, oldCat); err != nil {
 				return err
 			}
 		}
 	}
 
-	for _, newCat := range strings.Split(newCategories, ",") {
-		found := false
-		for _, oldCat := range dapp.Categories {
-			if newCat == oldCat {
-				found = true
-				break
-			}
+	newCatTree.Iterate("", "", func(key string, _ any) bool {
+		if !categories.Has(key) {
+			return ufmt.Errorf("category not found: %s", key)
 		}
-		if !found {
-			err := addDappToCategory(dappID, newCat)
-			if err != nil {
-				return err
-			}
+		if err := addDappToCategory(dappID, key); err != nil {
+			return err
 		}
-	}
+		return false
+	})
 
-	dapp.Categories = strings.Split(newCategories, ",")
+	dapp.Categories = []string{}
+	newCatTree.Iterate("", "", func(key string, _ any) bool {
+		dapp.Categories = append(dapp.Categories, key)
+		return false
+	})
 	dapps.Set(strconv.FormatUint(dappID, 10), dapp)
 
 	return nil

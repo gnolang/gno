@@ -50,6 +50,7 @@ var (
 	ErrAdminNotFound       = errors.New("admin not found")
 	ErrCannotRemoveLastAdmin = errors.New("cannot remove the last admin")
 	ErrCategoryExists      = errors.New("category already exists")
+	ErrDappNotFound        = errors.New("dapp not found")
 	ErrCategoryNotFound    = errors.New("category not found")
 	ErrProposalNotFound    = errors.New("proposal not found")
 	ErrProposalNotPending  = errors.New("proposal is not pending")
