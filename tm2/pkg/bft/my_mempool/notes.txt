@@ -1,0 +1,11 @@
+# Mempool Upgrade Ideas
+
+## Core Improvements
+- Add real transaction validation in CheckTx
+- Implement priority queue for transaction selection
+- Use heap data structure for better performance
+
+## Next Steps
+- Try binary tree or red-black tree for transaction ordering
+- Add real-time sorting when new transactions arrive
+
