@@ -189,7 +189,7 @@
   .realm-view ul ol,
   .realm-view ol ul,
   .realm-view ol ol {
-    @apply mt-3 mb-2 pl-4;
+    @apply my-2 pl-4;
   }
 
   .realm-view ul {
@@ -254,6 +254,14 @@
   }
   ::selection {
     @apply bg-green-600 text-light;
+  }
+
+  /* MD components */
+  .realm-view .gno-columns {
+    @apply flex flex-wrap gap-x-10 xxl:gap-x-12;
+  }
+  .realm-view .gno-columns > * {
+    @apply grow shrink basis-52 lg:basis-44;
   }
 }
 
