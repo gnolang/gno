@@ -9,14 +9,15 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/leon/hof"
+	"gno.land/p/demo/seqid"
 )
 
 var (
 	dapps     = avl.NewTree()
 	proposals = avl.NewTree()
 
-	nextDappID     uint64 = 1
-	nextProposalID uint64 = 1
+	nextDappID     seqid.ID
+	nextProposalID seqid.ID
 
 	admins                = avl.NewTree()
 	categories            = avl.NewTree()
@@ -212,7 +213,7 @@ func ProposeNewDapp(title, description, url string, categoryNamesStr string) (ui
 	}
 
 	proposal := Proposal{
-		ID:        nextProposalID,
+		ID:        nextProposalID.Next(),
 		Dapp:      dapp,
 		Status:    StatusPending,
 		Proposer:  caller,
@@ -220,16 +221,14 @@ func ProposeNewDapp(title, description, url string, categoryNamesStr string) (ui
 		CreatedAt: time.Now(),
 	}
 
-	proposals.Set(strconv.FormatUint(nextProposalID, 10), proposal)
+	proposals.Set(nextProposalID.String(), proposal)
 
 	std.Emit("ProposalCreated",
-		"id", ufmt.Sprintf("%d", nextProposalID),
+		"id", nextProposalID.String(),
 		"title", title,
 		"proposer", caller.String())
 
-	id := nextProposalID
-	nextProposalID++
-	return id, nil
+	return uint64(nextProposalID), nil
 }
 
 func ApproveProposal(proposalID uint64) error {
@@ -250,9 +249,9 @@ func ApproveProposal(proposalID uint64) error {
 	}
 
 	dapp := proposal.Dapp
-	dapp.ID = nextDappID
+	dapp.ID = nextDappID.Next()
 	dapp.Approved = true
-	dapps.Set(strconv.FormatUint(nextDappID, 10), dapp)
+	dapps.Set(nextDappID.String(), dapp)
 
 	for _, categoryName := range dapp.Categories {
 		err := addDappToCategory(dapp.ID, categoryName)
@@ -262,13 +261,12 @@ func ApproveProposal(proposalID uint64) error {
 	}
 
 	proposal.Status = StatusApproved
-	proposals.Set(strconv.FormatUint(proposalID, 10), proposal)
+	proposals.Set(nextProposalID.String(), proposal)
 
 	std.Emit("ProposalApproved",
 		"id", ufmt.Sprintf("%d", proposalID),
-		"dapp_id", ufmt.Sprintf("%d", nextDappID))
+		"dapp_id", nextDappID.String())
 
-	nextDappID++
 	return nil
 }
 
