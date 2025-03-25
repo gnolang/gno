@@ -68,7 +68,7 @@ func (c *MakeAddPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.Var(
 		&c.Meta,
 		"meta",
-		"metadata fields (format: name=value)",
+		"metadata fields (format: field=value)",
 	)
 }
 
@@ -88,6 +88,12 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 
 	if len(args) != 1 {
 		return flag.ErrHelp
+	}
+
+	// parse metadata fields
+	metadata, err := parseMetadataFields(cfg.Meta)
+	if err != nil {
+		return err
 	}
 
 	// read account pubkey.
@@ -113,30 +119,6 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	memPkg := gno.MustReadMemPackage(cfg.PkgDir, cfg.PkgPath)
 	if memPkg.IsEmpty() {
 		panic(fmt.Sprintf("found an empty package %q", cfg.PkgPath))
-	}
-
-	// parse metadata fields
-	var metadata []*vm.MetaField //nolint: prealloc // Must be nil when there are no meta fields
-	for _, s := range cfg.Meta {
-		parts := strings.SplitN(s, "=", 2)
-		if len(parts) != 2 {
-			return errors.New("invalid metadata field format, expected field=value")
-		}
-
-		name := strings.TrimSpace(parts[0])
-		if name == "" {
-			return errors.New("empty metadata field name")
-		}
-
-		var value []byte
-		if v := parts[1]; strings.TrimSpace(v) != "" {
-			value = []byte(v)
-		}
-
-		metadata = append(metadata, &vm.MetaField{
-			Name:  name,
-			Value: value,
-		})
 	}
 
 	// parse gas wanted & fee.
@@ -168,4 +150,34 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 		io.Println(string(amino.MustMarshalJSON(tx)))
 	}
 	return nil
+}
+
+func parseMetadataFields(meta commands.StringArr) ([]*vm.MetaField, error) {
+	if len(meta) == 0 {
+		return nil, nil
+	}
+
+	metadata := make([]*vm.MetaField, len(meta))
+	for i, v := range meta {
+		parts := strings.SplitN(v, "=", 2)
+		if len(parts) != 2 {
+			return nil, errors.New("invalid metadata field format, expected field=value")
+		}
+
+		name := strings.TrimSpace(parts[0])
+		if name == "" {
+			return nil, errors.New("empty metadata field name")
+		}
+
+		var value []byte
+		if strings.TrimSpace(parts[1]) != "" {
+			value = []byte(parts[1])
+		}
+
+		metadata[i] = &vm.MetaField{
+			Name:  name,
+			Value: value,
+		}
+	}
+	return metadata, nil
 }
