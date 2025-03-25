@@ -54,7 +54,7 @@ func NewLocalCmd(io commands.IO) *commands.Command {
 			ShortUsage: "gnodev local [flags] [package_dir...]",
 			ShortHelp:  "Start gnodev in local development mode (default)",
 			LongHelp: `LOCAL: Local mode configures the node for local development usage.
-This mode is optimized for realm developement, providing an interactive and flexible environment.
+This mode is optimized for realm development, providing an interactive and flexible environment.
 It enables features such as interactive mode, unsafe API access for testing, and lazy loading to improve performance.
 The log format is set to console for easier readability, and the web interface is accessible locally, making it ideal for iterative development and testing.
 
