@@ -12,14 +12,14 @@ import (
 var ErrMemberNotFound = errors.New("member not found")
 
 type GovDAO struct {
-	pss      ProposalsStatuses
-	render   *render
+	pss    ProposalsStatuses
+	render *render
 }
 
 func NewGovDAO() *GovDAO {
 	pss := NewProposalsStatuses()
 	d := &GovDAO{
-		pss:      pss,
+		pss: pss,
 	}
 
 	d.render = NewRender(d)

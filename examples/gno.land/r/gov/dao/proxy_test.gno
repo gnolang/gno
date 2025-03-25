@@ -128,7 +128,7 @@ func (dd *dummyDao) PreExecuteProposal(pid ProposalID) (bool, error) {
 	return true, nil
 }
 
-func (dd *dummyDao) Render(i,x string) string {
+func (dd *dummyDao) Render(i, x string) string {
 	return "Render: " + i
 }
 

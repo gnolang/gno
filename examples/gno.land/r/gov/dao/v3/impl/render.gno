@@ -13,8 +13,8 @@ import (
 
 type render struct {
 	relativeRealmPath string
-	router   *mux.Router
-	pssPager *pager.Pager
+	router            *mux.Router
+	pssPager          *pager.Pager
 }
 
 func NewRender(d *GovDAO) *render {
@@ -87,7 +87,7 @@ func (ren *render) renderProposal(sPid string, d *GovDAO) string {
 	out += StringifyProposal(p)
 	out += "\n\n"
 	out += ps.String()
-	out += ufmt.Sprintf("- [Go to votes list](%v:%v/votes).",ren.relativeRealmPath, sPid)
+	out += ufmt.Sprintf("- [Go to votes list](%v:%v/votes).", ren.relativeRealmPath, sPid)
 	out += "\n\n"
 
 	return out
