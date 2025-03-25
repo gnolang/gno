@@ -86,7 +86,7 @@ func main() {
 // - Allowed tiers to vote: T1 T2 T3
 // - YES PERCENT: 0%
 // - NO PERCENT: 0%
-// - [Go to votes list](:0/votes).
+// - [Go to votes list](/r/gov/dao:0/votes).
 //
 //
 // --
@@ -107,7 +107,7 @@ func main() {
 // - Allowed tiers to vote: T1 T2 T3
 // - YES PERCENT: 0%
 // - NO PERCENT: 0%
-// - [Go to votes list](:0/votes).
+// - [Go to votes list](/r/gov/dao:0/votes).
 //
 //
 // --
@@ -129,7 +129,7 @@ func main() {
 // - Allowed tiers to vote: T1 T2 T3
 // - YES PERCENT: 100%
 // - NO PERCENT: 0%
-// - [Go to votes list](:0/votes).
+// - [Go to votes list](/r/gov/dao:0/votes).
 //
 //
 // --
@@ -151,7 +151,7 @@ func main() {
 // - Allowed tiers to vote: T1 T2 T3
 // - YES PERCENT: 100%
 // - NO PERCENT: 0%
-// - [Go to votes list](:0/votes).
+// - [Go to votes list](/r/gov/dao:0/votes).
 //
 //
 // Successfully deleted alice
