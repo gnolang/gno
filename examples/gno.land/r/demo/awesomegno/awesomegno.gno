@@ -159,30 +159,21 @@ func ProposeNewDapp(title, description, url string, categoryNamesStr string) (ui
 		return 0, ErrURLCannotBeEmpty
 	}
 
-	var categoryNames []string
-	if categoryNamesStr != "" {
-		for _, name := range strings.Split(categoryNamesStr, ",") {
-			trimmedName := strings.TrimSpace(name)
-			if trimmedName != "" {
-				categoryNames = append(categoryNames, trimmedName)
-			}
+	if categoryNamesStr == "" {
+		return 0, ErrNoCategoriesProvided
+	}
+
+	categoryNames := []string{}
+	for _, name := range strings.Split(categoryNamesStr, ",") {
+		trimmedName := strings.TrimSpace(name)
+		if trimmedName != "" {
+			categoryNames = append(categoryNames, trimmedName)
 		}
 	}
 
-	if len(categoryNames) > 0 {
-		for _, catName := range categoryNames {
-			categoryExists := false
-			categories.Iterate("", "", func(key string, value any) bool {
-				cat := value.(Category)
-				if cat.Name == catName {
-					categoryExists = true
-					return true
-				}
-				return false
-			})
-			if !categoryExists {
-				return 0, ufmt.Errorf("category '%s' does not exist", catName)
-			}
+	for _, catName := range categoryNames {
+		if _, found := GetCategory(catName); !found {
+			return 0, ufmt.Errorf("category '%s' does not exist", catName)
 		}
 	}
 
