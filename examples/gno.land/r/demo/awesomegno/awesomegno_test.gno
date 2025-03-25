@@ -2,25 +2,27 @@ package awesomegno
 
 import (
 	"std"
+	"strconv"
 	"testing"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
+	"gno.land/p/moul/authz"
 )
 
 func setupTest() {
-	admins = avl.NewTree()
 	categories = avl.NewTree()
 	dapps = avl.NewTree()
 	proposals = avl.NewTree()
 	nextDappID = 1
 	nextCategoryID = 1
 
-	testAdmin := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	admins.Set(testAdmin.String(), true)
+	auth = authz.New()
+	adminAddress := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	auth.Current().(*authz.MemberAuthority).AddMember(adminAddress)
 
-	std.TestSetOriginCaller(testAdmin)
+	testing.SetOriginCaller(adminAddress)
 }
 
 func TestAddCategory(t *testing.T) {
@@ -30,8 +32,8 @@ func TestAddCategory(t *testing.T) {
 	urequire.NoError(t, err)
 	uassert.True(t, categoryID > 0)
 
-	category, found := GetCategory("Test")
-	uassert.True(t, found)
+	category, err := GetCategory("Test")
+	urequire.NoError(t, err)
 	uassert.Equal(t, "Test", category.Name)
 	uassert.Equal(t, "Test category", category.Description)
 
@@ -75,38 +77,41 @@ func TestApproveProposal(t *testing.T) {
 	proposalID, err := ProposeNewDapp("Test dApp", "A test dApp", "https://example.com", "Tools,DeFi")
 	urequire.NoError(t, err)
 
-	std.TestSetOriginCaller(std.Address("g1notadmin"))
-	err = ApproveProposal(proposalID)
+	testing.SetOriginCaller(std.Address("g1notadmin"))
+	approvedID, err := ApproveProposal(proposalID)
 	uassert.Error(t, err)
+	uassert.Equal(t, uint64(0), approvedID)
 
-	std.TestSetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
-	err = ApproveProposal(proposalID)
+	testing.SetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	approvedID, err = ApproveProposal(proposalID)
 	urequire.NoError(t, err)
 
 	proposal, found := GetProposal(proposalID)
-	uassert.True(t, found)
+	uassert.True(t, found, "Proposal should be found")
 	uassert.Equal(t, StatusApproved, proposal.Status)
 
-	dapp, found := GetDapp(1)
-	uassert.True(t, found)
+	dapp, found := GetDapp(approvedID)
+	uassert.True(t, found, "Dapp should be found")
 	uassert.Equal(t, "Test dApp", dapp.Title)
 	uassert.Equal(t, true, dapp.Approved)
 
 	uassert.Equal(t, 2, len(dapp.Categories))
 
-	toolsCategory, found := GetCategory("Tools")
-	uassert.True(t, found)
-	uassert.True(t, containsUint64(toolsCategory.DappIDs, 1))
+	toolsCategory, err := GetCategory("Tools")
+	urequire.NoError(t, err)
+	uassert.True(t, containsUint64(toolsCategory.DappIDs, 2), "Tools category should contain dapp ID 2")
 
-	defiCategory, found := GetCategory("DeFi")
-	uassert.True(t, found)
-	uassert.True(t, containsUint64(defiCategory.DappIDs, 1))
+	defiCategory, err := GetCategory("DeFi")
+	urequire.NoError(t, err)
+	uassert.True(t, containsUint64(defiCategory.DappIDs, 2), "DeFi category should contain dapp ID 2")
 
-	err = ApproveProposal(999)
+	approvedID, err = ApproveProposal(999)
 	uassert.Error(t, err)
+	uassert.Equal(t, uint64(0), approvedID)
 
-	err = ApproveProposal(proposalID)
+	approvedID, err = ApproveProposal(proposalID)
 	uassert.Error(t, err)
+	uassert.Equal(t, uint64(0), approvedID)
 }
 
 func TestRejectProposal(t *testing.T) {
@@ -118,11 +123,11 @@ func TestRejectProposal(t *testing.T) {
 	proposalID, err := ProposeNewDapp("Test dApp", "A test dApp", "https://example.com", "Tools")
 	urequire.NoError(t, err)
 
-	std.TestSetOriginCaller(std.Address("g1notadmin"))
+	testing.SetOriginCaller(std.Address("g1notadmin"))
 	err = RejectProposal(proposalID, "Not suitable")
 	uassert.Error(t, err)
 
-	std.TestSetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	testing.SetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 	err = RejectProposal(proposalID, "Not suitable")
 	urequire.NoError(t, err)
 
@@ -153,49 +158,46 @@ func TestUpdateDappCategories(t *testing.T) {
 
 	proposalID, err := ProposeNewDapp("Test dApp", "A test dApp", "https://example.com", "Tools")
 	urequire.NoError(t, err)
-	err = ApproveProposal(proposalID)
+	approvedID, err := ApproveProposal(proposalID)
 	urequire.NoError(t, err)
 
-	dapp, found := GetDapp(1)
+	dapp, found := GetDapp(approvedID)
 	uassert.True(t, found)
-	uassert.Equal(t, 1, len(dapp.Categories))
+	uassert.Equal(t, 1, len(dapp.Categories), "Dapp should have 1 category")
 	uassert.True(t, containsString(dapp.Categories, "Tools"))
 
-	toolsCategory, found := GetCategory("Tools")
-	uassert.True(t, found)
-	uassert.True(t, containsUint64(toolsCategory.DappIDs, 1))
+	toolsCategory, err := GetCategory("Tools")
+	urequire.NoError(t, err)
+	uassert.True(t, containsUint64(toolsCategory.DappIDs, approvedID), "Tools category should contain dapp ID"+strconv.FormatUint(approvedID, 10))
 
-	std.TestSetOriginCaller(std.Address("g1notadmin"))
-	err = UpdateDappCategories(1, "Tools,DeFi")
+	testing.SetOriginCaller(std.Address("g1notadmin"))
+	err = UpdateDappCategories(approvedID, "Tools,DeFi")
 	uassert.Error(t, err)
 
-	std.TestSetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
-	err = UpdateDappCategories(1, "DeFi,Games")
+	testing.SetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	err = UpdateDappCategories(approvedID, "DeFi,Games")
 	urequire.NoError(t, err)
 
-	dapp, found = GetDapp(1)
-	uassert.True(t, found)
-	uassert.Equal(t, 2, len(dapp.Categories))
-	uassert.True(t, containsString(dapp.Categories, "DeFi"))
-	uassert.True(t, containsString(dapp.Categories, "Games"))
-	uassert.False(t, containsString(dapp.Categories, "Tools"))
+	dapp, found = GetDapp(approvedID)
+	uassert.True(t, found, "Dapp should be found")
+	uassert.Equal(t, 2, len(dapp.Categories), "Dapp should have 2 categories")
+	uassert.True(t, containsString(dapp.Categories, "DeFi"), "Dapp should have DeFi category")
+	uassert.True(t, containsString(dapp.Categories, "Games"), "Dapp should have Games category")
+	uassert.False(t, containsString(dapp.Categories, "Tools"), "Dapp should not have Tools category")
 
-	toolsCategory, found = GetCategory("Tools")
-	uassert.True(t, found)
-	uassert.False(t, containsUint64(toolsCategory.DappIDs, 1))
+	toolsCategory, err = GetCategory("Tools")
+	urequire.NoError(t, err)
+	uassert.False(t, containsUint64(toolsCategory.DappIDs, approvedID), "Tools category should not contain dapp ID"+strconv.FormatUint(approvedID, 10))
 
-	defiCategory, found := GetCategory("DeFi")
-	uassert.True(t, found)
-	uassert.True(t, containsUint64(defiCategory.DappIDs, 1))
+	defiCategory, err := GetCategory("DeFi")
+	urequire.NoError(t, err)
+	uassert.True(t, containsUint64(defiCategory.DappIDs, approvedID), "DeFi category should contain dapp ID"+strconv.FormatUint(approvedID, 10))
 
-	gamesCategory, found := GetCategory("Games")
-	uassert.True(t, found)
-	uassert.True(t, containsUint64(gamesCategory.DappIDs, 1))
+	gamesCategory, err := GetCategory("Games")
+	urequire.NoError(t, err)
+	uassert.True(t, containsUint64(gamesCategory.DappIDs, approvedID), "Games category should contain dapp ID"+strconv.FormatUint(approvedID, 10))
 
-	err = UpdateDappCategories(1, "NonExistent")
-	uassert.Error(t, err)
-
-	err = UpdateDappCategories(999, "Tools")
+	err = UpdateDappCategories(approvedID, "NonExistent")
 	uassert.Error(t, err)
 }
 
@@ -209,26 +211,26 @@ func TestDeleteDapp(t *testing.T) {
 
 	proposalID, err := ProposeNewDapp("Test dApp", "A test dApp", "https://example.com", "Tools,DeFi")
 	urequire.NoError(t, err)
-	err = ApproveProposal(proposalID)
+	approvedID, err := ApproveProposal(proposalID)
 	urequire.NoError(t, err)
 
-	std.TestSetOriginCaller(std.Address("g1notadmin"))
-	err = DeleteDapp(1)
+	testing.SetOriginCaller(std.Address("g1notadmin"))
+	err = DeleteDapp(approvedID)
 	uassert.Error(t, err)
 
-	std.TestSetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
-	err = DeleteDapp(1)
+	testing.SetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	err = DeleteDapp(approvedID)
 	urequire.NoError(t, err)
 
-	_, found := GetDapp(1)
-	uassert.False(t, found)
+	_, found1 := GetDapp(approvedID)
+	uassert.False(t, found1)
 
-	toolsCategory, found := GetCategory("Tools")
-	uassert.True(t, found)
+	toolsCategory, err := GetCategory("Tools")
+	urequire.NoError(t, err)
 	uassert.False(t, containsUint64(toolsCategory.DappIDs, 1))
 
-	defiCategory, found := GetCategory("DeFi")
-	uassert.True(t, found)
+	defiCategory, err := GetCategory("DeFi")
+	urequire.NoError(t, err)
 	uassert.False(t, containsUint64(defiCategory.DappIDs, 1))
 
 	err = DeleteDapp(999)
@@ -245,28 +247,28 @@ func TestDeleteCategory(t *testing.T) {
 
 	proposalID, err := ProposeNewDapp("Test dApp", "A test dApp", "https://example.com", "Tools,DeFi")
 	urequire.NoError(t, err)
-	err = ApproveProposal(proposalID)
+	approvedID, err := ApproveProposal(proposalID)
 	urequire.NoError(t, err)
 
-	std.TestSetOriginCaller(std.Address("g1notadmin"))
+	testing.SetOriginCaller(std.Address("g1notadmin"))
 	err = DeleteCategory("Tools")
-	uassert.Error(t, err)
+	uassert.Error(t, err, "Should not be able to delete category with dapps")
 
-	std.TestSetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	testing.SetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 	err = DeleteCategory("Tools")
 	urequire.NoError(t, err)
 
-	_, found := GetCategory("Tools")
-	uassert.False(t, found)
+	_, err = GetCategory("Tools")
+	uassert.Error(t, err, "Should not be able to get category that was deleted")
 
-	dapp, found := GetDapp(1)
+	dapp, found := GetDapp(approvedID)
 	uassert.True(t, found)
 	uassert.Equal(t, 1, len(dapp.Categories))
 	uassert.False(t, containsString(dapp.Categories, "Tools"))
 	uassert.True(t, containsString(dapp.Categories, "DeFi"))
 
 	err = DeleteCategory("NonExistent")
-	uassert.Error(t, err)
+	uassert.Error(t, err, "Should not be able to delete non-existent category")
 }
 
 func TestGetDappsByCategory(t *testing.T) {
@@ -279,17 +281,17 @@ func TestGetDappsByCategory(t *testing.T) {
 
 	proposalID1, err := ProposeNewDapp("Tool dApp", "A tool dApp", "https://example.com/tool", "Tools")
 	urequire.NoError(t, err)
-	err = ApproveProposal(proposalID1)
+	approvedID1, err := ApproveProposal(proposalID1)
 	urequire.NoError(t, err)
 
 	proposalID2, err := ProposeNewDapp("DeFi dApp", "A DeFi dApp", "https://example.com/defi", "DeFi")
 	urequire.NoError(t, err)
-	err = ApproveProposal(proposalID2)
+	approvedID2, err := ApproveProposal(proposalID2)
 	urequire.NoError(t, err)
 
 	proposalID3, err := ProposeNewDapp("Hybrid dApp", "A hybrid dApp", "https://example.com/hybrid", "Tools,DeFi")
 	urequire.NoError(t, err)
-	err = ApproveProposal(proposalID3)
+	approvedID3, err := ApproveProposal(proposalID3)
 	urequire.NoError(t, err)
 
 	toolsDapps := GetDappsByCategory("Tools")
@@ -310,6 +312,8 @@ func TestBidirectionalConsistency(t *testing.T) {
 		urequire.NoError(t, err)
 	}
 
+	var firstDappID uint64
+
 	dappConfigs := []struct {
 		title       string
 		description string
@@ -324,18 +328,21 @@ func TestBidirectionalConsistency(t *testing.T) {
 		{"Tooled Game", "Game with tools", "https://example.com/tooled-game", "Tools,Games"},
 	}
 
-	for _, config := range dappConfigs {
+	for i, config := range dappConfigs {
 		proposalID, err := ProposeNewDapp(config.title, config.description, config.url, config.categories)
 		urequire.NoError(t, err)
-		err = ApproveProposal(proposalID)
+		dappID, err := ApproveProposal(proposalID)
 		urequire.NoError(t, err)
+		if i == 0 {
+			firstDappID = dappID
+		}
 	}
 
 	allDapps := ListDapps()
 	for _, dapp := range allDapps {
 		for _, categoryName := range dapp.Categories {
-			category, found := GetCategory(categoryName)
-			uassert.True(t, found)
+			category, err := GetCategory(categoryName)
+			urequire.NoError(t, err)
 			uassert.True(t, containsUint64(category.DappIDs, dapp.ID))
 		}
 	}
@@ -349,28 +356,28 @@ func TestBidirectionalConsistency(t *testing.T) {
 		}
 	}
 
-	err := UpdateDappCategories(1, "Tools,Social")
+	err := UpdateDappCategories(firstDappID, "Tools,Social")
 	urequire.NoError(t, err)
 
-	dapp, found := GetDapp(1)
+	dapp, found := GetDapp(firstDappID)
 	uassert.True(t, found)
 	uassert.Equal(t, 2, len(dapp.Categories))
 	uassert.True(t, containsString(dapp.Categories, "Tools"))
 	uassert.True(t, containsString(dapp.Categories, "Social"))
 
-	toolsCategory, found := GetCategory("Tools")
-	uassert.True(t, found)
-	uassert.True(t, containsUint64(toolsCategory.DappIDs, 1))
+	toolsCategory, err := GetCategory("Tools")
+	urequire.NoError(t, err)
+	uassert.True(t, containsUint64(toolsCategory.DappIDs, firstDappID))
 
-	socialCategory, found := GetCategory("Social")
-	uassert.True(t, found)
-	uassert.True(t, containsUint64(socialCategory.DappIDs, 1))
+	socialCategory, err := GetCategory("Social")
+	urequire.NoError(t, err)
+	uassert.True(t, containsUint64(socialCategory.DappIDs, firstDappID))
 
 	err = DeleteCategory("Games")
 	urequire.NoError(t, err)
 
-	_, found = GetCategory("Games")
-	uassert.False(t, found)
+	_, err = GetCategory("Games")
+	uassert.Error(t, err, "Should not be able to get category that was deleted")
 
 	allDapps = ListDapps()
 	for _, dapp := range allDapps {

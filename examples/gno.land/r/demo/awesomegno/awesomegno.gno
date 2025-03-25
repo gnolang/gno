@@ -196,7 +196,7 @@ func ProposeNewDapp(title, description, url string, categoryNamesStr string) (ui
 		CreatedAt: time.Now(),
 	}
 
-	proposals.Set(nextProposalID.String(), proposal)
+	proposals.Set(strconv.FormatUint(uint64(proposal.ID), 10), proposal)
 
 	std.Emit("ProposalCreated",
 		"id", nextProposalID.String(),
@@ -206,43 +206,43 @@ func ProposeNewDapp(title, description, url string, categoryNamesStr string) (ui
 	return uint64(proposal.ID), nil
 }
 
-func ApproveProposal(proposalID uint64) error {
+func ApproveProposal(proposalID uint64) (uint64, error) {
 	caller := std.PreviousRealm().Address()
 
 	if !isAdmin(caller) {
-		return ufmt.Errorf("not authorized: only admins can approve proposals")
+		return 0, ufmt.Errorf("not authorized: only admins can approve proposals")
 	}
 
 	value, found := proposals.Get(strconv.FormatUint(proposalID, 10))
 	if !found {
-		return ufmt.Errorf("proposal not found: %d", proposalID)
+		return 0, ufmt.Errorf("proposal not found: %d", proposalID)
 	}
 
 	proposal := value.(Proposal)
 	if proposal.Status != StatusPending {
-		return ufmt.Errorf("proposal is not pending")
+		return 0, ufmt.Errorf("proposal is not pending")
 	}
 
 	dapp := proposal.Dapp
 	dapp.ID = uint64(nextDappID.Next())
 	dapp.Approved = true
-	dapps.Set(nextDappID.String(), dapp)
+
+	dapps.Set(strconv.FormatUint(dapp.ID, 10), dapp)
 
 	for _, categoryName := range dapp.Categories {
-		err := addDappToCategory(uint64(dapp.ID), categoryName)
+		err := addDappToCategory(dapp.ID, categoryName)
 		if err != nil {
-			return err
+			return 0, err
 		}
 	}
-
 	proposal.Status = StatusApproved
-	proposals.Set(nextProposalID.String(), proposal)
+	proposals.Set(strconv.FormatUint(proposalID, 10), proposal)
 
 	std.Emit("ProposalApproved",
 		"id", ufmt.Sprintf("%d", proposalID),
-		"dapp_id", nextDappID.String())
+		"dapp_id", strconv.FormatUint(dapp.ID, 10))
 
-	return nil
+	return dapp.ID, nil
 }
 
 func RejectProposal(proposalID uint64, reason string) error {
@@ -445,7 +445,7 @@ func DeleteCategory(categoryName string) error {
 		}
 	}
 
-	categories.Remove(strconv.FormatUint(category.ID, 10))
+	categories.Remove(strings.TrimSpace(categoryName))
 
 	std.Emit("CategoryDeleted", "name", categoryName)
 
@@ -465,7 +465,7 @@ func addDappToCategory(dappID uint64, categoryName string) error {
 	}
 
 	category.DappIDs = append(category.DappIDs, dappID)
-	categories.Set(strconv.FormatUint(category.ID, 10), category)
+	categories.Set(strings.TrimSpace(categoryName), category)
 
 	return nil
 }
