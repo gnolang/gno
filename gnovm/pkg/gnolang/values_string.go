@@ -59,27 +59,27 @@ func newSeenValues() *seenValues {
 	}
 }
 
-func (sv StringValue) String() string {
+func (sv StringValue) String(m *Machine) string {
 	return strconv.Quote(string(sv))
 }
 
-func (biv BigintValue) String() string {
+func (biv BigintValue) String(m *Machine) string {
 	return biv.V.String()
 }
 
-func (bdv BigdecValue) String() string {
+func (bdv BigdecValue) String(m *Machine) string {
 	return bdv.V.String()
 }
 
-func (dbv DataByteValue) String() string {
+func (dbv DataByteValue) String(m *Machine) string {
 	return fmt.Sprintf("(%0X)", (dbv.GetByte()))
 }
 
-func (av *ArrayValue) String() string {
-	return av.ProtectedString(newSeenValues())
+func (av *ArrayValue) String(m *Machine) string {
+	return av.ProtectedString(m, newSeenValues())
 }
 
-func (av *ArrayValue) ProtectedString(seen *seenValues) string {
+func (av *ArrayValue) ProtectedString(m *Machine, seen *seenValues) string {
 	if i := seen.IndexOf(av); i != -1 {
 		return fmt.Sprintf("ref@%d", i)
 	}
@@ -94,7 +94,7 @@ func (av *ArrayValue) ProtectedString(seen *seenValues) string {
 	ss := make([]string, len(av.List))
 	if av.Data == nil {
 		for i, e := range av.List {
-			ss[i] = e.ProtectedString(seen)
+			ss[i] = e.ProtectedString(m, seen)
 		}
 		// NOTE: we may want to unify the representation,
 		// but for now tests expect this to be different.
@@ -107,11 +107,11 @@ func (av *ArrayValue) ProtectedString(seen *seenValues) string {
 	return fmt.Sprintf("array[0x%X]", av.Data)
 }
 
-func (sv *SliceValue) String() string {
-	return sv.ProtectedString(newSeenValues())
+func (sv *SliceValue) String(m *Machine) string {
+	return sv.ProtectedString(m, newSeenValues())
 }
 
-func (sv *SliceValue) ProtectedString(seen *seenValues) string {
+func (sv *SliceValue) ProtectedString(m *Machine, seen *seenValues) string {
 	if sv.Base == nil {
 		return "nil-slice"
 	}
@@ -131,7 +131,7 @@ func (sv *SliceValue) ProtectedString(seen *seenValues) string {
 	if vbase.Data == nil {
 		ss := make([]string, sv.Length)
 		for i, e := range vbase.List[sv.Offset : sv.Offset+sv.Length] {
-			ss[i] = e.ProtectedString(seen)
+			ss[i] = e.ProtectedString(m, seen)
 		}
 		return "slice[" + strings.Join(ss, ",") + "]"
 	}
@@ -141,11 +141,11 @@ func (sv *SliceValue) ProtectedString(seen *seenValues) string {
 	return fmt.Sprintf("slice[0x%X]", vbase.Data[sv.Offset:sv.Offset+sv.Length])
 }
 
-func (pv PointerValue) String() string {
-	return pv.ProtectedString(newSeenValues())
+func (pv PointerValue) String(m *Machine) string {
+	return pv.ProtectedString(m, newSeenValues())
 }
 
-func (pv PointerValue) ProtectedString(seen *seenValues) string {
+func (pv PointerValue) ProtectedString(m *Machine, seen *seenValues) string {
 	if i := seen.IndexOf(pv); i != -1 {
 		return fmt.Sprintf("ref@%d", i)
 	}
@@ -158,14 +158,14 @@ func (pv PointerValue) ProtectedString(seen *seenValues) string {
 		return "&<nil>"
 	}
 
-	return fmt.Sprintf("&%s", pv.TV.ProtectedString(seen))
+	return fmt.Sprintf("&%s", pv.TV.ProtectedString(m, seen))
 }
 
-func (sv *StructValue) String() string {
-	return sv.ProtectedString(newSeenValues())
+func (sv *StructValue) String(m *Machine) string {
+	return sv.ProtectedString(m, newSeenValues())
 }
 
-func (sv *StructValue) ProtectedString(seen *seenValues) string {
+func (sv *StructValue) ProtectedString(m *Machine, seen *seenValues) string {
 	if i := seen.IndexOf(sv); i != -1 {
 		return fmt.Sprintf("ref@%d", i)
 	}
@@ -175,12 +175,12 @@ func (sv *StructValue) ProtectedString(seen *seenValues) string {
 
 	ss := make([]string, len(sv.Fields))
 	for i, f := range sv.Fields {
-		ss[i] = f.ProtectedString(seen)
+		ss[i] = f.ProtectedString(m, seen)
 	}
 	return "struct{" + strings.Join(ss, ",") + "}"
 }
 
-func (fv *FuncValue) String() string {
+func (fv *FuncValue) String(m *Machine) string {
 	name := string(fv.Name)
 	if fv.Type == nil {
 		return fmt.Sprintf("incomplete-func ?%s(?)?", name)
@@ -191,7 +191,7 @@ func (fv *FuncValue) String() string {
 	return name
 }
 
-func (bmv *BoundMethodValue) String() string {
+func (bmv *BoundMethodValue) String(m *Machine) string {
 	name := bmv.Func.Name
 	var (
 		recvT   string = "?"
@@ -210,11 +210,11 @@ func (bmv *BoundMethodValue) String() string {
 		recvT, name, params, results)
 }
 
-func (mv *MapValue) String() string {
-	return mv.ProtectedString(newSeenValues())
+func (mv *MapValue) String(m *Machine) string {
+	return mv.ProtectedString(m, newSeenValues())
 }
 
-func (mv *MapValue) ProtectedString(seen *seenValues) string {
+func (mv *MapValue) ProtectedString(m *Machine, seen *seenValues) string {
 	if mv.List == nil {
 		return "zero-map"
 	}
@@ -230,14 +230,14 @@ func (mv *MapValue) ProtectedString(seen *seenValues) string {
 	next := mv.List.Head
 	for next != nil {
 		ss = append(ss,
-			next.Key.ProtectedString(seen)+":"+
-				next.Value.ProtectedString(seen))
+			next.Key.ProtectedString(m, seen)+":"+
+				next.Value.ProtectedString(m, seen))
 		next = next.Next
 	}
 	return "map{" + strings.Join(ss, ",") + "}"
 }
 
-func (tv TypeValue) String() string {
+func (tv TypeValue) String(m *Machine) string {
 	ptr := ""
 	if reflect.TypeOf(tv.Type).Kind() == reflect.Ptr {
 		ptr = fmt.Sprintf(" (%p)", tv.Type)
@@ -252,11 +252,11 @@ func (tv TypeValue) String() string {
 		tv.Type.String(), ptr)
 }
 
-func (pv *PackageValue) String() string {
+func (pv *PackageValue) String(m *Machine) string {
 	return fmt.Sprintf("package(%s %s)", pv.PkgName, pv.PkgPath)
 }
 
-func (rv RefValue) String() string {
+func (rv RefValue) String(m *Machine) string {
 	if rv.PkgPath == "" {
 		return fmt.Sprintf("ref(%v)",
 			rv.ObjectID)
@@ -265,7 +265,7 @@ func (rv RefValue) String() string {
 		rv.PkgPath)
 }
 
-func (hiv *HeapItemValue) String() string {
+func (hiv *HeapItemValue) String(m *Machine) string {
 	return fmt.Sprintf("heapitem(%v)",
 		hiv.Value)
 }
@@ -291,24 +291,24 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 		return res[0].GetString()
 	}
 
-	return tv.ProtectedSprint(newSeenValues(), true)
+	return tv.ProtectedSprint(m, newSeenValues(), true)
 }
 
-func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType bool) string {
+func (tv *TypedValue) ProtectedSprint(m *Machine, seen *seenValues, considerDeclaredType bool) string {
 	if i := seen.IndexOf(tv.V); i != -1 {
 		return fmt.Sprintf("ref@%d", i)
 	}
 
 	// print declared type
 	if _, ok := tv.T.(*DeclaredType); ok && considerDeclaredType {
-		return tv.ProtectedString(seen)
+		return tv.ProtectedString(m, seen)
 	}
 
 	// This is a special case that became necessary after adding `ProtectedString()` methods to
 	// reliably prevent recursive print loops.
 	if tv.V != nil {
 		if v, ok := tv.V.(RefValue); ok {
-			return v.String()
+			return v.String(m)
 		}
 	}
 
@@ -357,14 +357,14 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 		if tv.V == nil {
 			return "invalid-pointer"
 		}
-		return tv.V.(PointerValue).ProtectedString(seen)
+		return tv.V.(PointerValue).ProtectedString(m, seen)
 	case *FuncType:
 		switch fv := tv.V.(type) {
 		case nil:
 			ft := tv.T.String()
 			return nilStr + " " + ft
 		case *FuncValue, *BoundMethodValue:
-			return fv.String()
+			return fv.String(m)
 		default:
 			panic(fmt.Sprintf(
 				"unexpected func type %v",
@@ -380,11 +380,11 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 	case *DeclaredType:
 		panic("should not happen")
 	case *PackageType:
-		return tv.V.(*PackageValue).String()
+		return tv.V.(*PackageValue).String(m)
 	case *ChanType:
 		panic("not yet implemented")
 	case *TypeType:
-		return tv.V.(TypeValue).String()
+		return tv.V.(TypeValue).String(m)
 	default:
 		// The remaining types may have a nil value.
 		if tv.V == nil {
@@ -394,9 +394,9 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 		// *ArrayType, *SliceType, *StructType, *MapType
 		if ps, ok := tv.V.(protectedStringer); ok {
 			return ps.ProtectedString(seen)
-		} else if s, ok := tv.V.(fmt.Stringer); ok {
+		} else if s, ok := tv.V.(GasStringer); ok {
 			// *NativeType
-			return s.String()
+			return s.String(m)
 		}
 
 		if debug {
@@ -409,15 +409,19 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 	}
 }
 
+type GasStringer interface {
+	String(m *Machine) string
+}
+
 // ----------------------------------------
 // TypedValue.String()
 
 // For gno debugging/testing.
-func (tv TypedValue) String() string {
-	return tv.ProtectedString(newSeenValues())
+func (tv TypedValue) String(m *Machine) string {
+	return tv.ProtectedString(m, newSeenValues())
 }
 
-func (tv TypedValue) ProtectedString(seen *seenValues) string {
+func (tv TypedValue) ProtectedString(m *Machine, seen *seenValues) string {
 	if tv.IsUndefined() {
 		return "(undefined)"
 	}
@@ -459,7 +463,7 @@ func (tv TypedValue) ProtectedString(seen *seenValues) string {
 			vs = nilStr
 		}
 	} else {
-		vs = tv.ProtectedSprint(seen, false)
+		vs = tv.ProtectedSprint(m, seen, false)
 		if base := baseOf(tv.T); base == StringType || base == UntypedStringType {
 			vs = strconv.Quote(vs)
 		}

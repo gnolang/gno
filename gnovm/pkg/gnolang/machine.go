@@ -314,7 +314,7 @@ func (r redeclarationErrors) add(newI Name) redeclarationErrors {
 }
 
 // checkDuplicates returns an error if there are duplicate declarations in the fset.
-func checkDuplicates(fset *FileSet) error {
+func checkDuplicates(m *Machine, fset *FileSet) error {
 	defined := make(map[Name]struct{}, 128)
 	var duplicated redeclarationErrors
 	for _, f := range fset.Files {
@@ -327,7 +327,7 @@ func checkDuplicates(fset *FileSet) error {
 				}
 				name = d.Name
 				if d.IsMethod {
-					name = Name(destar(d.Recv.Type).String()) + "." + name
+					name = Name(destar(d.Recv.Type).String(m)) + "." + name
 				}
 			case *TypeDecl:
 				name = d.Name
@@ -427,7 +427,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 // compile-time errors in the package.
 func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, withOverrides bool) (*PackageNode, *PackageValue) {
 	if !withOverrides {
-		if err := checkDuplicates(fset); err != nil {
+		if err := checkDuplicates(m, fset); err != nil {
 			panic(fmt.Errorf("running package %q: %w", pkgName, err))
 		}
 	}
@@ -501,7 +501,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		pn.FileSet.AddFiles(fns...)
 	}
 	if !withOverrides {
-		if err := checkDuplicates(pn.FileSet); err != nil {
+		if err := checkDuplicates(nil, pn.FileSet); err != nil {
 			panic(fmt.Errorf("running package %q: %w", pv.PkgPath, err))
 		}
 	}
@@ -689,7 +689,7 @@ func (m *Machine) RunFunc(fn Name) {
 					fn, r.Error(), m.ExceptionsStacktrace())
 			default:
 				fmt.Printf("Machine.RunFunc(%q) panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
-					fn, r, m.String(), m.Stacktrace().String())
+					fn, r, m.String(), m.Stacktrace().String(m))
 			}
 			panic(r)
 		}
@@ -708,7 +708,7 @@ func (m *Machine) RunMain() {
 					r.Error(), m.ExceptionsStacktrace())
 			default:
 				fmt.Printf("Machine.RunMain() panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
-					r, m.String(), m.Stacktrace())
+					r, m.String(), m.Stacktrace().String(m))
 			}
 			panic(r)
 		}
@@ -736,7 +736,7 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 	if x.GetAttribute(ATTR_PREPROCESSED) != nil {
 		panic(fmt.Sprintf(
 			"Machine.Eval(x) expression already preprocessed: %s",
-			x.String()))
+			x.String(m)))
 	}
 	// Preprocess input using last block context.
 	last := m.LastBlock().GetSource(m.Store)
@@ -775,7 +775,7 @@ func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
 	if x.GetAttribute(ATTR_PREPROCESSED) == nil {
 		panic(fmt.Sprintf(
 			"Machine.EvalStatic(x) expression not yet preprocessed: %s",
-			x.String()))
+			x.String(m)))
 	}
 	// Temporarily push last to m.Blocks.
 	m.PushBlock(last.GetStaticBlock().GetBlock())
@@ -804,7 +804,7 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 	if x.GetAttribute(ATTR_PREPROCESSED) == nil {
 		panic(fmt.Sprintf(
 			"Machine.EvalStaticTypeOf(x) expression not yet preprocessed: %s",
-			x.String()))
+			x.String(m)))
 	}
 	// Temporarily push last to m.Blocks.
 	m.PushBlock(last.GetStaticBlock().GetBlock())
@@ -2173,12 +2173,12 @@ func (m *Machine) String() string {
 			// print the pkgpath.
 			fmt.Fprintf(builder, "          %s(%d) %s\n", gens, gen, pv.PkgPath)
 		} else {
-			bsi := b.StringIndented("            ")
+			bsi := b.StringIndented(m, "            ")
 			fmt.Fprintf(builder, "          %s(%d) %s\n", gens, gen, bsi)
 
 			if b.Source != nil {
 				sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
-				fmt.Fprintf(builder, " (s vals) %s(%d) %s\n", gens, gen, sb.StringIndented("            "))
+				fmt.Fprintf(builder, " (s vals) %s(%d) %s\n", gens, gen, sb.StringIndented(m, "            "))
 
 				sts := b.GetSource(m.Store).GetStaticBlock().Types
 				fmt.Fprintf(builder, " (s typs) %s(%d) %s\n", gens, gen, sts)
@@ -2212,11 +2212,11 @@ func (m *Machine) String() string {
 			break // done, skip *PackageNode.
 		} else {
 			fmt.Fprintf(builder, "          #%d %s\n", i,
-				b.StringIndented("            "))
+				b.StringIndented(m, "            "))
 			if b.Source != nil {
 				sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
 				fmt.Fprintf(builder, " (static) #%d %s\n", i,
-					sb.StringIndented("            "))
+					sb.StringIndented(m, "            "))
 			}
 		}
 	}
@@ -2249,7 +2249,7 @@ func (m *Machine) ExceptionsStacktrace() string {
 
 	ex := m.Exceptions[0]
 	builder.WriteString("panic: " + ex.Sprint(m) + "\n")
-	builder.WriteString(ex.Stacktrace.String())
+	builder.WriteString(ex.Stacktrace.String(m))
 
 	switch {
 	case len(m.Exceptions) > 2:
@@ -2258,7 +2258,7 @@ func (m *Machine) ExceptionsStacktrace() string {
 	case len(m.Exceptions) == 2:
 		ex = m.Exceptions[len(m.Exceptions)-1]
 		builder.WriteString("panic: " + ex.Sprint(m) + "\n")
-		builder.WriteString(ex.Stacktrace.String())
+		builder.WriteString(ex.Stacktrace.String(m))
 	}
 
 	return builder.String()

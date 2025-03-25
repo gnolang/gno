@@ -30,7 +30,7 @@ func TestBenchStoreSet(t *testing.T) {
 		for range rounds {
 			cx := gno.Call("GetPost", gno.X(0), gno.X(0))
 			res := callFunc(gstore, pv, cx)
-			parts := strings.Split(res[0].V.String(), ",")
+			parts := strings.Split(res[0].V.String(nil), ",")
 			p := strings.Trim(parts[1], `\"`)
 			expected := strings.Repeat("a", 1024)
 			assert.Equal(p, expected, "it should be 1 KB of character a")

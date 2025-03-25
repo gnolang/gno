@@ -494,7 +494,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	defer doRecover(m, &err)
 	rtvs := m.Eval(xn)
 	for i, rtv := range rtvs {
-		res = res + rtv.String()
+		res = res + rtv.String(m)
 		if i < len(rtvs)-1 {
 			res += "\n"
 		}
@@ -558,7 +558,7 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 	*e = errors.Wrapf(
 		fmt.Errorf("%v", r),
 		"VM panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
-		r, m.String(), m.Stacktrace().String(),
+		r, m.String(), m.Stacktrace().String(m),
 	)
 }
 
@@ -738,7 +738,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	}
 	res = ""
 	for i, rtv := range rtvs {
-		res += rtv.String()
+		res += rtv.String(nil)
 		if i < len(rtvs)-1 {
 			res += "\n"
 		}

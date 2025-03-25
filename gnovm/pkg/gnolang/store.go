@@ -540,7 +540,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 			if oo != oo2 {
 				panic(fmt.Sprintf(
 					"duplicate object: set %s (oid: %s) but %s (oid %s) already exists",
-					oo.String(), oid.String(), oo2.String(), oo2.GetObjectID().String()))
+					oo.String(nil), oid.String(), oo2.String(nil), oo2.GetObjectID().String()))
 			}
 		}
 	}

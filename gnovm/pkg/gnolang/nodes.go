@@ -222,7 +222,7 @@ func (attr *Attributes) DelAttribute(key GnoAttribute) {
 
 type Node interface {
 	assertNode()
-	String() string
+	String(m *Machine) string
 	Copy() Node
 	GetLine() int
 	SetLine(int)
@@ -1033,14 +1033,14 @@ func (x *bodyStmt) PopActiveStmt() (as Stmt) {
 	return
 }
 
-func (x *bodyStmt) String() string {
+func (x *bodyStmt) String(m *Machine) string {
 	next := ""
 	if x.NextBodyIndex < 0 {
 		next = "(init)"
 	} else if x.NextBodyIndex == len(x.Body) {
 		next = "(end)"
 	} else {
-		next = x.Body[x.NextBodyIndex].String()
+		next = x.Body[x.NextBodyIndex].String(m)
 	}
 	active := ""
 	if x.Active != nil {

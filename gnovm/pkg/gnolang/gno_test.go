@@ -144,7 +144,7 @@ func TestConvertTo(t *testing.T) {
 			}
 
 			err := r.(*PreprocessError)
-			c := strings.Contains(err.Error(), msg)
+			c := strings.Contains(err.Error(nil), msg)
 			if !c {
 				t.Fatalf(`expected "%s", got "%s"`, msg, r)
 			}
@@ -548,7 +548,7 @@ func TestDoOpEvalBaseConversion(t *testing.T) {
 		} else {
 			m.doOpEval()
 			v := m.PopValue()
-			assert.Equal(t, tc.expect, v.V.String())
+			assert.Equal(t, tc.expect, v.V.String(nil))
 		}
 	}
 }
