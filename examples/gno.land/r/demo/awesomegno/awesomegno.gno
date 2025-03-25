@@ -11,6 +11,7 @@ import (
 	"gno.land/r/leon/hof"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/moul/addrset"
+	"gno.land/p/moul/authz"
 )
 
 var (
@@ -20,54 +21,41 @@ var (
 	nextDappID     seqid.ID
 	nextProposalID seqid.ID
 
-	admins                = addrset.Set{}
 	categories            = avl.NewTree()
 	nextCategoryID uint64 = 1
+
+	auth *authz.Authorizer
 )
 
 func init() {
-	admins.Add(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
-	admins.Add(std.CurrentRealm().Address())
-	admins.Add(std.PreviousRealm().Address())
+	auth = authz.New()
+
+	auth.Current().(*authz.MemberAuthority).AddMember(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
+	auth.Current().(*authz.MemberAuthority).AddMember(std.CurrentRealm().Address())
+	auth.Current().(*authz.MemberAuthority).AddMember(std.PreviousRealm().Address())
 
 	hof.Register("AwesomeGno", "Awesome Gno is a registry for gnowesome dApps on gno.land")
 }
 
 func AddAdmin(addr std.Address) error {
-	caller := std.PreviousRealm().Address()
-
-	if !isAdmin(caller) {
-		return ufmt.Errorf("not authorized: only admins can add new admins")
-	}
-	if !addr.IsValid() {
-		return ufmt.Errorf("invalid address")
-	}
-
-	if !admins.Add(addr) {
-		return ufmt.Errorf("admin already exists")
-	}
-	std.Emit("AdminAdded", "address", addr.String())
-	return nil
+	return auth.Do("add_admin", func() error {
+		if !addr.IsValid() {
+			return ufmt.Errorf("invalid address")
+		}
+		return auth.Current().(*authz.MemberAuthority).AddMember(addr)
+	})
 }
 
 func RemoveAdmin(addr std.Address) error {
-	caller := std.PreviousRealm().Address()
-
-	if !isAdmin(caller) {
-		return ufmt.Errorf("not authorized: only admins can remove admins")
-	}
-	if !addr.IsValid() {
-		return ufmt.Errorf("invalid address")
-	}
-	if admins.Size() <= 1 {
-		return ufmt.Errorf("cannot remove the last admin")
-	}
-
-	if !admins.Remove(addr) {
-		return ufmt.Errorf("admin not found")
-	}
-	std.Emit("AdminRemoved", "address", addr.String())
-	return nil
+	return auth.Do("remove_admin", func() error {
+		if !addr.IsValid() {
+			return ufmt.Errorf("invalid address")
+		}
+		if auth.Current().(*authz.MemberAuthority).Tree().Size() <= 1 {
+			return ufmt.Errorf("cannot remove the last admin")
+		}
+		return auth.Current().(*authz.MemberAuthority).RemoveMember(addr)
+	})
 }
 
 func AddCategory(name, description string) (uint64, error) {
@@ -506,5 +494,5 @@ func addDappToCategory(dappID uint64, categoryName string) error {
 }
 
 func isAdmin(addr std.Address) bool {
-	return admins.Has(addr)
+	return auth.Current().(*authz.MemberAuthority).Has(addr)
 }
