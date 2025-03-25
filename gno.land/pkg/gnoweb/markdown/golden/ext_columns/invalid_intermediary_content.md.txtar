@@ -1,0 +1,75 @@
+-- input.md --
+<gno-columns>
+## Invalid Content 1
+
+invalid content 2
+<col>
+## My Content 1
+hey
+</col>
+Invalid content 3
+<col>
+  <col>
+My Content 3
+  </col>
+
+   Invalid Content 4
+
+  <col>
+  My Content 4
+
+  </col>
+  Invalid Content 5
+</col>
+
+- Invalid content 6
+- Invalid content 7
+</gno-columns>
+
+<gno-columns>
+
+
+# Other Invalid content 1
+
+<col>
+# My Other Content
+</col>
+
+</gno-columns>
+
+
+-- output.html --
+<h2>Invalid Content 1</h2>
+<div class="gno-columns">
+<p>invalid content 2</p>
+<!-- Column 1 -->
+<div class="gno-col">
+<h2>My Content 1</h2>
+<p>hey</p>
+</div>
+<p>Invalid content 3</p>
+<!-- Column 2 -->
+<div class="gno-col">
+	<!-- Column 3 -->
+<div class="gno-col">
+<p>My Content 3</p>
+</div>
+<p>Invalid Content 4</p>
+	<!-- Column 4 -->
+<div class="gno-col">
+<p>My Content 4</p>
+</div>
+<p>Invalid Content 5</p>
+</div>
+<ul>
+<li>Invalid content 6</li>
+<li>Invalid content 7</li>
+</ul>
+</div> <!-- </gno-columns> -->
+<h1>Other Invalid content 1</h1>
+<div class="gno-columns">
+<!-- Column 1 -->
+<div class="gno-col">
+<h1>My Other Content</h1>
+</div>
+</div> <!-- </gno-columns> -->
