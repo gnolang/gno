@@ -45,8 +45,6 @@ const (
 	maxToolDescriptionLenght = 100
 )
 
-var reToolName = regexp.MustCompile(`^[a-z]+[_a-z0-9]{5,16}$`)
-
 // vm.VMKeeperI defines a module interface that supports Gno
 // smart contracts programming (scripting).
 type VMKeeperI interface {
@@ -366,16 +364,10 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrTypeCheck(err)
 	}
 
-	// Set package metadata
-	for _, f := range msg.Metadata {
-		if f.Name == "tools" {
-			// The "tools" metadata field must have a valid pre-defined structure
-			if err := validateToolsMetaField(f.Value); err != nil {
-				return ErrInvalidPkgMeta(err.Error())
-			}
-		}
-
-		gnostore.SetPackageMetaField(msg.Package.Path, f.Name, f.Value)
+	// Save package metadata
+	err = storePackageMetadata(msg.Package.Path, msg.Metadata, gnostore)
+	if err != nil {
+		return err
 	}
 
 	// Pay deposit from creator.
@@ -920,12 +912,33 @@ func logTelemetry(
 	)
 }
 
+// storePackageMetadata stores package's metadata.
+func storePackageMetadata(pkgPath string, meta []*MetaField, store gno.Store) error {
+	for _, f := range meta {
+		if f.Name == "tools" {
+			// The "tools" metadata field must have a valid pre-defined structure
+			if err := validateToolsMetaField(f.Value); err != nil {
+				return ErrInvalidPkgMeta(err.Error())
+			}
+		}
+
+		store.SetPackageMetaField(pkgPath, f.Name, f.Value)
+	}
+	return nil
+}
+
+// reToolName defines the allowed format for tool names defined within the tools metadata field.
+var reToolName = regexp.MustCompile(`^[a-z]+[_a-z0-9]{5,16}$`)
+
+// validateToolsMetaField validates the format of the tools metadata field.
+// This field must contain a JSON value that stores information about the tools
+// that has been used to develop a gno.land package or a realm.
 func validateToolsMetaField(value []byte) error {
 	var v struct {
 		Tools []struct {
-			Name        string  `json:"name"`
-			Weight      float64 `json:"weight"`
-			Description string  `json:"description,omitempty"`
+			Name        string  `json:"name"`                  // Name of the tool
+			Weight      float64 `json:"weight"`                // Weight given to the tool, where 1 == 100%
+			Description string  `json:"description,omitempty"` // Optional description of the tool
 		} `json:"tools,omitempty"`
 	}
 
