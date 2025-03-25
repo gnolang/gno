@@ -1,0 +1,27 @@
+# Start a new node
+gnoland start
+
+# Fail deploy when using an invalid metadata argument
+! gnokey maketx addpkg -meta invalid -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/realm -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stderr 'invalid metadata field format, expected field=value'
+
+# Fail deploy when using an empty metadata field name value
+! gnokey maketx addpkg -meta="=" -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/realm -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stderr 'empty metadata field name'
+
+# Successfully deploy a package with metadata
+gnokey maketx addpkg -meta foo=bar -meta other=42 -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/realm -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# Check "foo" metadata field
+gnokey query vm/qmeta --data "gno.land/r/$test1_user_addr/realm:foo"
+stdout 'data: YmFy'
+
+# Check "baz" metadata field
+gnokey query vm/qmeta --data "gno.land/r/$test1_user_addr/realm:other"
+stdout 'data: NDI='
+
+-- realm.gno --
+package realm
+
+func Render(string) string { return "" }
