@@ -1,7 +1,6 @@
 package ownable2step
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -15,8 +14,7 @@ var (
 )
 
 func TestNew(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
-	std.TestSetOrigCaller(alice)
+	testing.SetOriginCaller(alice)
 
 	o := New()
 	got := o.Owner()
@@ -37,8 +35,7 @@ func TestNewWithAddress(t *testing.T) {
 }
 
 func TestInitiateTransferOwnership(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
-	std.TestSetOrigCaller(alice)
+	testing.SetOriginCaller(alice)
 
 	o := New()
 
@@ -53,8 +50,7 @@ func TestInitiateTransferOwnership(t *testing.T) {
 }
 
 func TestTransferOwnership(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
-	std.TestSetOrigCaller(alice)
+	testing.SetOriginCaller(alice)
 
 	o := New()
 
@@ -67,8 +63,7 @@ func TestTransferOwnership(t *testing.T) {
 	uassert.Equal(t, owner, alice)
 	uassert.Equal(t, pendingOwner, bob)
 
-	std.TestSetRealm(std.NewUserRealm(bob))
-	std.TestSetOrigCaller(bob)
+	testing.SetOriginCaller(bob)
 
 	err = o.AcceptOwnership()
 	urequire.NoError(t, err)
@@ -81,20 +76,18 @@ func TestTransferOwnership(t *testing.T) {
 }
 
 func TestCallerIsOwner(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
-	std.TestSetOrigCaller(alice)
+	testing.SetOriginCaller(alice)
 
 	o := New()
 	unauthorizedCaller := bob
 
-	std.TestSetRealm(std.NewUserRealm(unauthorizedCaller))
-	std.TestSetOrigCaller(unauthorizedCaller)
+	testing.SetOriginCaller(unauthorizedCaller)
 
 	uassert.False(t, o.CallerIsOwner())
 }
 
 func TestDropOwnership(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
+	testing.SetOriginCaller(alice)
 
 	o := New()
 
@@ -108,20 +101,18 @@ func TestDropOwnership(t *testing.T) {
 // Errors
 
 func TestErrUnauthorized(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
-	std.TestSetOrigCaller(alice)
+	testing.SetOriginCaller(alice)
 
 	o := New()
 
-	std.TestSetRealm(std.NewUserRealm(bob))
-	std.TestSetOrigCaller(bob)
+	testing.SetOriginCaller(bob)
 
 	uassert.ErrorContains(t, o.TransferOwnership(alice), ErrUnauthorized.Error())
 	uassert.ErrorContains(t, o.DropOwnership(), ErrUnauthorized.Error())
 }
 
 func TestErrInvalidAddress(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
+	testing.SetOriginCaller(alice)
 
 	o := New()
 
@@ -133,7 +124,7 @@ func TestErrInvalidAddress(t *testing.T) {
 }
 
 func TestErrNoPendingOwner(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
+	testing.SetOriginCaller(alice)
 
 	o := New()
 
@@ -142,14 +133,14 @@ func TestErrNoPendingOwner(t *testing.T) {
 }
 
 func TestErrPendingUnauthorized(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
+	testing.SetOriginCaller(alice)
 
 	o := New()
 
 	err := o.TransferOwnership(bob)
 	urequire.NoError(t, err)
 
-	std.TestSetRealm(std.NewUserRealm(alice))
+	testing.SetOriginCaller(alice)
 
 	err = o.AcceptOwnership()
 	uassert.ErrorContains(t, err, ErrPendingUnauthorized.Error())

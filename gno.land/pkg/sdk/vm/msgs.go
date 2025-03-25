@@ -154,6 +154,9 @@ func (msg MsgCall) ValidateBasic() error {
 	if !gno.IsRealmPath(msg.PkgPath) {
 		return ErrInvalidPkgPath("pkgpath must be of a realm")
 	}
+	if _, isInt := gno.IsInternalPath(msg.PkgPath); isInt {
+		return ErrInvalidPkgPath("pkgpath must not be of an internal package")
+	}
 	if msg.Func == "" { // XXX
 		return ErrInvalidExpr("missing function to call")
 	}

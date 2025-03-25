@@ -354,18 +354,6 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	if err := checkSame(lv.T, rv.T, ""); err != nil {
 		return false
 	}
-	if lnt, ok := lv.T.(*NativeType); ok {
-		if rnt, ok := rv.T.(*NativeType); ok {
-			if lnt.Type != rnt.Type {
-				return false
-			}
-			lrv := lv.V.(*NativeValue).Value.Interface()
-			rrv := rv.V.(*NativeValue).Value.Interface()
-			return lrv == rrv
-		} else {
-			return false
-		}
-	}
 	switch lv.T.Kind() {
 	case BoolKind:
 		return (lv.GetBool() == rv.GetBool())
@@ -719,11 +707,11 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 	case Float64Type:
 		// NOTE: gno doesn't fuse *+.
 		lv.SetFloat64(softfloat.Fadd64(lv.GetFloat64(), rv.GetFloat64()))
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Add(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
-	case BigdecType, UntypedBigdecType:
+	case UntypedBigdecType:
 		lb := lv.GetBigDec()
 		rb := rv.GetBigDec()
 		sum := apd.New(0, 0)
@@ -775,11 +763,11 @@ func subAssign(lv, rv *TypedValue) {
 	case Float64Type:
 		// NOTE: gno doesn't fuse *+.
 		lv.SetFloat64(softfloat.Fsub64(lv.GetFloat64(), rv.GetFloat64()))
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Sub(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
-	case BigdecType, UntypedBigdecType:
+	case UntypedBigdecType:
 		lb := lv.GetBigDec()
 		rb := rv.GetBigDec()
 		diff := apd.New(0, 0)
@@ -831,11 +819,11 @@ func mulAssign(lv, rv *TypedValue) {
 	case Float64Type:
 		// NOTE: gno doesn't fuse *+.
 		lv.SetFloat64(softfloat.Fmul64(lv.GetFloat64(), rv.GetFloat64()))
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Mul(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
-	case BigdecType, UntypedBigdecType:
+	case UntypedBigdecType:
 		lb := lv.GetBigDec()
 		rb := rv.GetBigDec()
 		prod := apd.New(0, 0)
@@ -929,14 +917,14 @@ func quoAssign(lv, rv *TypedValue) *Exception {
 		if ok {
 			lv.SetFloat64(softfloat.Fdiv64(lv.GetFloat64(), rv.GetFloat64()))
 		}
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		if rv.GetBigInt().Sign() == 0 {
 			return expt
 		}
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Quo(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
-	case BigdecType, UntypedBigdecType:
+	case UntypedBigdecType:
 		if rv.GetBigDec().Cmp(apd.New(0, 0)) == 0 {
 			return expt
 		}
@@ -1022,7 +1010,7 @@ func remAssign(lv, rv *TypedValue) *Exception {
 			return expt
 		}
 		lv.SetUint64(lv.GetUint64() % rv.GetUint64())
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		if rv.GetBigInt().Sign() == 0 {
 			return expt
 		}
@@ -1067,7 +1055,7 @@ func bandAssign(lv, rv *TypedValue) {
 		lv.SetUint32(lv.GetUint32() & rv.GetUint32())
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() & rv.GetUint64())
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).And(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
@@ -1106,7 +1094,7 @@ func bandnAssign(lv, rv *TypedValue) {
 		lv.SetUint32(lv.GetUint32() &^ rv.GetUint32())
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() &^ rv.GetUint64())
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).AndNot(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
@@ -1145,7 +1133,7 @@ func borAssign(lv, rv *TypedValue) {
 		lv.SetUint32(lv.GetUint32() | rv.GetUint32())
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() | rv.GetUint64())
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Or(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
@@ -1184,7 +1172,7 @@ func xorAssign(lv, rv *TypedValue) {
 		lv.SetUint32(lv.GetUint32() ^ rv.GetUint32())
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() ^ rv.GetUint64())
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Xor(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
@@ -1308,7 +1296,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 		})
 
 		lv.SetUint64(lv.GetUint64() << rv.GetUint())
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Lsh(lb, uint(rv.GetUint()))
 		lv.V = BigintValue{V: lb}
@@ -1432,7 +1420,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 		})
 
 		lv.SetUint64(lv.GetUint64() >> rv.GetUint())
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Rsh(lb, uint(rv.GetUint()))
 		lv.V = BigintValue{V: lb}

@@ -28,6 +28,22 @@ func IsRealmPath(pkgPath string) bool {
 		!ReGnoRunPath.MatchString(pkgPath)
 }
 
+// IsInternalPath determines whether the given pkgPath refers to an internal
+// package, that may not be called directly or imported by packages that don't
+// share the same root.
+//
+// If isInternal is true, base will be set to the root of the internal package,
+// which must also be an ancestor or the same path that imports the given
+// internal package.
+func IsInternalPath(pkgPath string) (base string, isInternal bool) {
+	// Restrict imports to /internal packages to a package rooted at base.
+	var suff string
+	base, suff, isInternal = strings.Cut(pkgPath, "/internal")
+	// /internal should be either at the end, or be a part: /internal/
+	isInternal = isInternal && (suff == "" || suff[0] == '/')
+	return
+}
+
 // IsPurePackagePath determines whether the given pkgpath is for a published Gno package.
 // It only considers "pure" those starting with gno.land/p/, so it returns false for
 // stdlib packages and MsgRun paths.
@@ -134,12 +150,6 @@ func Recv(n, t interface{}) FieldTypeExpr {
 	return FieldTypeExpr{
 		Name: N(n),
 		Type: X(t),
-	}
-}
-
-func MaybeNativeT(tx interface{}) *MaybeNativeTypeExpr {
-	return &MaybeNativeTypeExpr{
-		Type: X(tx),
 	}
 }
 

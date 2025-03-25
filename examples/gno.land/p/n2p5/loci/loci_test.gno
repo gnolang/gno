@@ -1,7 +1,6 @@
 package loci
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -15,7 +14,7 @@ func TestLociStore(t *testing.T) {
 
 		m1 := []byte("hello")
 		m2 := []byte("world")
-		std.TestSetOrigCaller(u1)
+		testing.SetOriginCaller(u1)
 
 		// Ensure that the value is nil before setting it.
 		r1 := store.Get(u1)
@@ -47,11 +46,11 @@ func TestLociStore(t *testing.T) {
 		m2 := []byte("world")
 		m3 := []byte("goodbye")
 
-		std.TestSetOrigCaller(u1)
+		testing.SetOriginCaller(u1)
 		store.Set(m1)
-		std.TestSetOrigCaller(u2)
+		testing.SetOriginCaller(u2)
 		store.Set(m2)
-		std.TestSetOrigCaller(u3)
+		testing.SetOriginCaller(u3)
 		store.Set(m3)
 
 		// Ensure that the value is correct after setting it.
@@ -75,5 +74,4 @@ func TestLociStore(t *testing.T) {
 			t.Errorf("expected value to be 'goodbye', got '%s'", r3)
 		}
 	})
-
 }

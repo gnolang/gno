@@ -68,7 +68,7 @@ func (c *MakeAddPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.Var(
 		&c.Meta,
 		"meta",
-		"metadata fields",
+		"metadata fields (format: name=value)",
 	)
 }
 
