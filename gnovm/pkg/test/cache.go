@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
+	// "reflect"
 	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -193,31 +193,6 @@ func isValidCache(cache *TestCache, testFile string, content []byte) bool {
 	// Check file content hash
 	if cache.Key.FileHash != currentKey.FileHash {
 		return false
-	}
-
-	// Check all dependencies
-	for path, currentInfo := range currentKey.Dependencies {
-		cachedInfo, exists := cache.Key.Dependencies[path]
-		if !exists {
-			return false
-		}
-
-		// Compare package content hash
-		if cachedInfo.ContentHash != currentInfo.ContentHash {
-			return false
-		}
-
-		// Compare individual files
-		if !reflect.DeepEqual(cachedInfo.Files, currentInfo.Files) {
-			return false
-		}
-	}
-
-	// Check if any cached dependency no longer exists
-	for path := range cache.Key.Dependencies {
-		if _, exists := currentKey.Dependencies[path]; !exists {
-			return false
-		}
 	}
 
 	return true
