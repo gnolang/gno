@@ -40,36 +40,44 @@ func init() {
 func AddAdmin(addr std.Address) error {
 	return auth.Do("add_admin", func() error {
 		if !addr.IsValid() {
-			return ufmt.Errorf("invalid address")
+			return ErrInvalidAddress
 		}
-		return auth.Current().(*authz.MemberAuthority).AddMember(addr)
+		if !auth.Current().(*authz.MemberAuthority).AddMember(addr) {
+			return ErrAdminAlreadyExists
+		}
+		std.Emit("AdminAdded", "address", addr.String())
+		return nil
 	})
 }
 
 func RemoveAdmin(addr std.Address) error {
 	return auth.Do("remove_admin", func() error {
 		if !addr.IsValid() {
-			return ufmt.Errorf("invalid address")
+			return ErrInvalidAddress
 		}
 		if auth.Current().(*authz.MemberAuthority).Tree().Size() <= 1 {
-			return ufmt.Errorf("cannot remove the last admin")
+			return ErrCannotRemoveLastAdmin
 		}
-		return auth.Current().(*authz.MemberAuthority).RemoveMember(addr)
+		if !auth.Current().(*authz.MemberAuthority).RemoveMember(addr) {
+			return ErrAdminNotFound
+		}
+		std.Emit("AdminRemoved", "address", addr.String())
+		return nil
 	})
 }
 
 func AddCategory(name, description string) (uint64, error) {
 	caller := std.PreviousRealm().Address()
 	if !isAdmin(caller) {
-		return 0, ufmt.Errorf("not authorized: only admins can add categories")
+		return 0, ErrNotAuthorized
 	}
 	if name == "" {
-		return 0, ufmt.Errorf("category name cannot be empty")
+		return 0, ErrCategoryExists
 	}
 
 	sanitizedKey := strings.TrimSpace(name)
 	if categories.Has(sanitizedKey) {
-		return 0, ufmt.Errorf("category already exists")
+		return 0, ErrCategoryExists
 	}
 
 	category := Category{
@@ -142,13 +150,13 @@ func ProposeNewDapp(title, description, url string, categoryNamesStr string) (ui
 	caller := std.PreviousRealm().Address()
 
 	if title == "" {
-		return 0, ufmt.Errorf("title cannot be empty")
+		return 0, ErrTitleEmpty
 	}
 	if description == "" {
-		return 0, ufmt.Errorf("description cannot be empty")
+		return 0, ErrDescriptionEmpty
 	}
 	if url == "" {
-		return 0, ufmt.Errorf("URL cannot be empty")
+		return 0, ErrURLCannotBeEmpty
 	}
 
 	var categoryNames []string
