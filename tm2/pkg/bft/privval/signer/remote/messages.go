@@ -4,8 +4,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
-// MaxMessageSize is the maximum size of a message that can be sent or received.
-const MaxMessageSize = 1024
+// MaxMessageSize is the maximum size in bytes of a message that can be sent or received.
+const MaxMessageSize = 10 * 1024
 
 // RemoteSignerError is an error returned by the remote signer.
 // Necessary because golang errors are not serializable (private fields).
