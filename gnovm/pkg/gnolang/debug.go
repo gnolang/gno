@@ -21,6 +21,7 @@ import (
 // before calling debug.Println or debug.Printf.
 
 type debugging bool
+type debugging_realm bool
 
 // using a const is probably faster.
 // const debug debugging = true // or flip
@@ -64,6 +65,28 @@ func (debugging) Printf(format string, args ...interface{}) {
 			_, file, line, _ := runtime.Caller(2)
 			caller := fmt.Sprintf("%.12s:%-4d", path.Base(file), line)
 			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
+			fmt.Printf(prefix+format, args...)
+		}
+	}
+}
+
+func (debugging_realm) Println(args ...interface{}) {
+	if debug_realm {
+		if enabled {
+			_, file, line, _ := runtime.Caller(2)
+			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
+			prefix := fmt.Sprintf("DEBUG_REALM: %17s: ", caller)
+			fmt.Println(append([]interface{}{prefix}, args...)...)
+		}
+	}
+}
+
+func (debugging_realm) Printf(format string, args ...interface{}) {
+	if debug_realm {
+		if enabled {
+			_, file, line, _ := runtime.Caller(2)
+			caller := fmt.Sprintf("%.12s:%-4d", path.Base(file), line)
+			prefix := fmt.Sprintf("DEBUG_REALM: %17s: ", caller)
 			fmt.Printf(prefix+format, args...)
 		}
 	}
