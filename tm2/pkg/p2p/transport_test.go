@@ -21,7 +21,7 @@ func generateNetAddr(t *testing.T, count int) []*types.NetAddress {
 
 	addrs := make([]*types.NetAddress, 0, count)
 
-	for i := 0; i < count; i++ {
+	for range count {
 		key := types.GenerateNodeKey()
 
 		// Grab a random port
