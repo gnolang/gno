@@ -10,6 +10,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/gnoland/commondao"
 	"gno.land/p/jeronimoalbi/pager"
+	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
 )
 
@@ -144,7 +145,7 @@ func (board *Board) Render(path, menu string) string {
 		panic(err)
 	}
 
-	board.threads.ReverseIterateByOffset(p.Offset(), p.PageSize(), func(_ string, v any) bool {
+	render := func(_ string, v any) bool {
 		thread := v.(*Post)
 		if thread.isHidden {
 			return false
@@ -153,7 +154,21 @@ func (board *Board) Render(path, menu string) string {
 		sb.WriteString(thread.RenderSummary())
 		sb.WriteString("\n")
 		return false
-	})
+	}
+
+	sb.WriteString("_Sort by ")
+	r := realmpath.Parse(path)
+	if r.Query.Get("order") == "desc" {
+		r.Query.Set("order", "asc")
+		sb.WriteString(newLink("newest first", r.String()))
+		sb.WriteString("_\n")
+		board.threads.ReverseIterateByOffset(p.Offset(), p.PageSize(), render)
+	} else {
+		r.Query.Set("order", "desc")
+		sb.WriteString(newLink("oldest first", r.String()))
+		sb.WriteString("_\n")
+		board.threads.IterateByOffset(p.Offset(), p.PageSize(), render)
+	}
 
 	if p.HasPages() {
 		sb.WriteString("\n---\n")

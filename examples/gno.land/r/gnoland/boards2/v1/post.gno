@@ -9,6 +9,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/jeronimoalbi/pager"
+	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
 )
 
@@ -471,14 +472,29 @@ func (post *Post) renderTopLevelReplies(path, indent string, levels int) string 
 		commentsIndent = indent + "> "
 	)
 
-	post.replies.ReverseIterateByOffset(p.Offset(), p.PageSize(), func(_ string, v any) bool {
+	render := func(_ string, v any) bool {
 		reply := v.(*Post)
 
 		b.WriteString(indent)
 		b.WriteString("\n")
 		b.WriteString(reply.Render("", commentsIndent, levels-1))
 		return false
-	})
+	}
+
+	b.WriteString("\n_Sort by ")
+	r := realmpath.Parse(path)
+	if r.Query.Get("order") == "desc" {
+		r.Query.Set("order", "asc")
+		b.WriteString(newLink("newest first", r.String()))
+		b.WriteString("_\n")
+		post.replies.ReverseIterateByOffset(p.Offset(), p.PageSize(), render)
+
+	} else {
+		r.Query.Set("order", "desc")
+		b.WriteString(newLink("oldest first", r.String()))
+		b.WriteString("_\n")
+		post.replies.IterateByOffset(p.Offset(), p.PageSize(), render)
+	}
 
 	if p.HasPages() {
 		b.WriteString("\n---\n")
