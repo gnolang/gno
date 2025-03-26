@@ -7,7 +7,6 @@ import (
 // Virtual amounts for share/asset calculations
 // These values are used to prevent share price manipulation when pools are empty or nearly empty
 // They create a minimum pool size that exists from the start
-// Higher values make manipulation more expensive but also require more gas for calculations
 var (
 	// VIRTUAL_SHARES represents the minimum number of shares that exist in a pool
 	// This creates a buffer that makes share price manipulation more expensive
@@ -20,9 +19,7 @@ var (
 
 // ToSharesDown converts assets to shares, rounding down (used for supply)
 // This is used when a user supplies assets and we need to calculate how many shares they receive
-// We round down to ensure the protocol cannot be exploited
 func ToSharesDown(assets, totalAssets, totalShares *u256.Uint) *u256.Uint {
-	// Add virtual amounts
 	totalSharesWithVirtual := new(u256.Uint).Add(totalShares, VIRTUAL_SHARES)
 	totalAssetsWithVirtual := new(u256.Uint).Add(totalAssets, VIRTUAL_ASSETS)
 
@@ -35,9 +32,7 @@ func ToSharesDown(assets, totalAssets, totalShares *u256.Uint) *u256.Uint {
 
 // ToSharesUp converts assets to shares, rounding up (used for borrow)
 // This is used when a user borrows assets and we need to calculate how many shares they need
-// We round up to ensure the protocol cannot be exploited
 func ToSharesUp(assets, totalAssets, totalShares *u256.Uint) *u256.Uint {
-	// Add virtual amounts
 	totalSharesWithVirtual := new(u256.Uint).Add(totalShares, VIRTUAL_SHARES)
 	totalAssetsWithVirtual := new(u256.Uint).Add(totalAssets, VIRTUAL_ASSETS)
 
@@ -50,9 +45,7 @@ func ToSharesUp(assets, totalAssets, totalShares *u256.Uint) *u256.Uint {
 
 // ToAssetsDown converts shares to assets, rounding down (used for withdraw)
 // This is used when a user withdraws shares and we need to calculate how many assets they receive
-// We round down to ensure the protocol cannot be exploited
 func ToAssetsDown(shares, totalAssets, totalShares *u256.Uint) *u256.Uint {
-	// Add virtual amounts
 	totalSharesWithVirtual := new(u256.Uint).Add(totalShares, VIRTUAL_SHARES)
 	totalAssetsWithVirtual := new(u256.Uint).Add(totalAssets, VIRTUAL_ASSETS)
 
@@ -65,9 +58,7 @@ func ToAssetsDown(shares, totalAssets, totalShares *u256.Uint) *u256.Uint {
 
 // ToAssetsUp converts shares to assets, rounding up (used for borrow)
 // This is used when a user specifies shares to borrow and we need to calculate how many assets they'll receive
-// We round up to ensure the protocol cannot be exploited
 func ToAssetsUp(shares, totalAssets, totalShares *u256.Uint) *u256.Uint {
-	// Add virtual amounts
 	totalSharesWithVirtual := new(u256.Uint).Add(totalShares, VIRTUAL_SHARES)
 	totalAssetsWithVirtual := new(u256.Uint).Add(totalAssets, VIRTUAL_ASSETS)
 

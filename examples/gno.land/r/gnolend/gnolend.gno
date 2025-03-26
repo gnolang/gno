@@ -3,9 +3,10 @@ package gnolend
 import (
 	"time"
 
+	"std"
+
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
-	"std"
 	u256 "gno.land/p/gnoswap/uint256"
 	pl "gno.land/r/gnoswap/v1/pool"
 )
@@ -15,13 +16,13 @@ var (
 	markets *avl.Tree // marketId -> Market
 	// First level: marketId -> *avl.Tree
 	// Second level: userAddr -> Position
-	positions *avl.Tree
+	positions    *avl.Tree
 	marketParams *avl.Tree // marketId -> MarketParams
-	enabledIRMs *avl.Tree // irm -> bool
+	enabledIRMs  *avl.Tree // irm -> bool
 	enabledLLTVs *avl.Tree // lltv -> bool
-	Ownable *ownable.Ownable
+	Ownable      *ownable.Ownable
 	feeRecipient std.Address
-	irmRegistry *avl.Tree // irmName -> IRM
+	irmRegistry  *avl.Tree // irmName -> IRM
 )
 
 func init() {
@@ -121,9 +122,9 @@ func CreateMarket(poolPath string, isToken0Loan bool, irm string, lltv int64) {
 
 	// Create market params
 	params := MarketParams{
-		PoolPath: poolPath,
-		IRM: irm,
-		LLTV: lltvWad,
+		PoolPath:     poolPath,
+		IRM:          irm,
+		LLTV:         lltvWad,
 		IsToken0Loan: isToken0Loan,
 	}
 
@@ -141,8 +142,8 @@ func CreateMarket(poolPath string, isToken0Loan bool, irm string, lltv int64) {
 		TotalSupplyShares: new(u256.Uint),
 		TotalBorrowAssets: new(u256.Uint),
 		TotalBorrowShares: new(u256.Uint),
-		LastUpdate: time.Now().Unix(),
-		Fee: new(u256.Uint), // Initialize fee as zero
+		LastUpdate:        time.Now().Unix(),
+		Fee:               new(u256.Uint), // Initialize fee as zero
 	}
 
 	// Store market and its params

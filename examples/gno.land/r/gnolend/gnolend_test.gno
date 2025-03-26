@@ -4,6 +4,7 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/avl"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/urequire"
 	"gno.land/p/gnoswap/uint256"
@@ -36,7 +37,7 @@ func TestEnableIRM(t *testing.T) {
 
 	// Test enabling IRM
 	EnableIRM("r/gnolend/irm/linear")
-	
+
 	// Verify IRM is enabled
 	enabled, _ := enabledIRMs.Get("r/gnolend/irm/linear")
 	urequire.Equal(t, true, enabled.(bool))
@@ -52,7 +53,7 @@ func TestEnableLLTV(t *testing.T) {
 	// Test enabling LLTV
 	lltv := uint256.NewUint(75) // 75%
 	EnableLLTV(lltv)
-	
+
 	// Verify LLTV is enabled
 	enabled, _ := enabledLLTVs.Get(lltv.String())
 	urequire.Equal(t, true, enabled.(bool))
@@ -164,7 +165,7 @@ func TestCreateMarket(t *testing.T) {
 	urequire.Equal(t, collateralToken.String(), params.CollateralToken)
 	urequire.Equal(t, oracle, params.Oracle)
 	urequire.Equal(t, "r/gnolend/irm/linear", params.IRM)
-	
+
 	expectedLLTV := uint256.NewUint(75)
 	expectedLLTVWad := uint256.WMulDown(expectedLLTV, uint256.WAD)
 	urequire.Equal(t, expectedLLTVWad.String(), params.LLTV.String())
@@ -296,4 +297,4 @@ func TestBorrowErrors(t *testing.T) {
 	urequire.PanicsWithMessage(t, ErrInsufficientCollateral.Error(), func() {
 		Borrow(marketId, uint256.NewUint(2000000000))
 	})
-} 
+}

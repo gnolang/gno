@@ -15,7 +15,7 @@ func GetPosition(marketId string, userAddr string) Position {
 		return Position{
 			SupplyShares: new(u256.Uint),
 			BorrowShares: new(u256.Uint),
-			Collateral: new(u256.Uint),
+			Collateral:   new(u256.Uint),
 		} // Market doesn't exist, return empty position with initialized fields
 	}
 
@@ -24,7 +24,7 @@ func GetPosition(marketId string, userAddr string) Position {
 		return Position{
 			SupplyShares: new(u256.Uint),
 			BorrowShares: new(u256.Uint),
-			Collateral: new(u256.Uint),
+			Collateral:   new(u256.Uint),
 		} // Position doesn't exist, return empty position with initialized fields
 	}
 	return position.(Position)

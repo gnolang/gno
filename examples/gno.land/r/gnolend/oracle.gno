@@ -27,15 +27,12 @@ func GetPrice(poolPath string) (*u256.Uint, error) {
 
 	// Convert string to uint256
 	sqrtPriceX96 := u256.MustFromDecimal(sqrtPriceX96Str)
-	println("sqrtPriceX96:", sqrtPriceX96.ToString())
 
 	// Square the price to get the actual price in Q192
 	priceQ192 := new(u256.Uint).Mul(sqrtPriceX96, sqrtPriceX96)
-	println("priceQ192:", priceQ192.ToString())
 
 	// Finally divide by Q192 to get the actual price ratio with ORACLE_PRICE_SCALE precision
 	price := MulDivDown(priceQ192, ORACLE_PRICE_SCALE, Q192)
-	println("final price:", price.ToString())
 
 	// If token0 is not the loan token, we need to invert the price
 	// because Gnoswap's price is always token1/token0

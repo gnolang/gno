@@ -1,10 +1,4 @@
-# Network configuration
-GNOLAND_RPC_URL=http://localhost:26657
-CHAINID=dev
-
-ADMIN := g1tzl3sgre0c2zgxfpws9xhq0c069wf7zqh6aqqy
-ADDR_GNOLEND := g1vppywurq38q4x2rk2hyulv8tptcfq06lzapwhr
-MAX_UINT64 := 18446744073709551615
+include _info.mk
 
 # Enable the linear IRM
 enable-irm:
@@ -322,6 +316,3 @@ withdraw-collateral-gns-wugnot:
 		-memo "" \
 		gnoswap_admin
 	@echo
-
-# Run all market tests
-test-markets: enable-irm market-create-gns-wugnot market-get-price-gns-wugnot market-get-gns-wugnot supply-assets-gns-wugnot supply-shares-gns-wugnot check-position-gns-wugnot check-gns-balance check-wugnot-balance wrap-ugnot borrow-gns supply-collateral-gns-wugnot withdraw-collateral-gns-wugnot
