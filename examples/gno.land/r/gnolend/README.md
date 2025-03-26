@@ -2,6 +2,8 @@
 
 Gnolend is a lending protocol built on Gno.land that leverages Gnoswap's liquidity pools for price feeds and collateral management. It provides a decentralized lending market where users can participate in lending and borrowing activities with any token pair that has sufficient liquidity in Gnoswap.
 
+> **Warning:** This is a work in progress. The protocol is under active development and contains incomplete features and known issues.
+
 ## Prerequisites
 
 - GNU Make 3.81 or higher
