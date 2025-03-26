@@ -255,27 +255,26 @@ func (a *columnsASTTransformer) Transform(doc *ast.Document, reader text.Reader,
 	}
 
 	// Ensure no intermediary content.
-	for ; cctx != nil; cctx = cctx.PrevContext {
-		var openNode ast.Node = cctx.OpenTag
-		var withinColumn bool
-
-		for node := openNode.NextSibling(); node != nil; node = node.NextSibling() {
-			col, ok := node.(*ColumnNode)
-			if !ok {
-				if !withinColumn {
-					doc.RemoveChild(node.Parent(), node)
-					doc.InsertBefore(doc, openNode, node)
-				}
-
-				continue
+	var withinColumn bool
+	var openTag ast.Node
+	for node := doc.FirstChild(); node != nil; node = node.NextSibling() {
+		col, ok := node.(*ColumnNode)
+		if !ok {
+			if !withinColumn && openTag != nil {
+				doc.RemoveChild(node.Parent(), node)
+				doc.InsertBefore(doc, openTag, node)
 			}
 
-			if col.Tag == ColumnTagSepOpen || col.Tag == ColumnTagSepClose {
-				withinColumn = col.Tag == ColumnTagSepOpen
-				continue
-			}
+			continue
+		}
 
-			break
+		if col.Tag == ColumnTagOpen {
+			openTag = node
+			continue
+		}
+
+		if col.Tag == ColumnTagSepOpen || col.Tag == ColumnTagSepClose {
+			withinColumn = col.Tag == ColumnTagSepOpen
 		}
 	}
 }

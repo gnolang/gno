@@ -40,31 +40,31 @@ My Content 3
 
 -- output.html --
 <h2>Invalid Content 1</h2>
-<div class="gno-columns">
 <p>invalid content 2</p>
+<p>Invalid content 3</p>
+<p>Invalid Content 4</p>
+<p>Invalid Content 5</p>
+<ul>
+<li>Invalid content 6</li>
+<li>Invalid content 7</li>
+</ul>
+<div class="gno-columns">
 <!-- Column 1 -->
 <div class="gno-col">
 <h2>My Content 1</h2>
 <p>hey</p>
 </div>
-<p>Invalid content 3</p>
 <!-- Column 2 -->
 <div class="gno-col">
 	<!-- Column 3 -->
 <div class="gno-col">
 <p>My Content 3</p>
 </div>
-<p>Invalid Content 4</p>
 	<!-- Column 4 -->
 <div class="gno-col">
 <p>My Content 4</p>
 </div>
-<p>Invalid Content 5</p>
 </div>
-<ul>
-<li>Invalid content 6</li>
-<li>Invalid content 7</li>
-</ul>
 </div> <!-- </gno-columns> -->
 <h1>Other Invalid content 1</h1>
 <div class="gno-columns">
