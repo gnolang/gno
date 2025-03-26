@@ -22,7 +22,7 @@ func TestSimpleProof(t *testing.T) {
 	total := 100
 
 	items := make([][]byte, total)
-	for i := 0; i < total; i++ {
+	for i := range total {
 		items[i] = testItem(random.RandBytes(tmhash.Size))
 	}
 
@@ -76,7 +76,7 @@ func TestSimpleHashAlternatives(t *testing.T) {
 	total := 100
 
 	items := make([][]byte, total)
-	for i := 0; i < total; i++ {
+	for i := range total {
 		items[i] = testItem(random.RandBytes(tmhash.Size))
 	}
 
@@ -89,7 +89,7 @@ func BenchmarkSimpleHashAlternatives(b *testing.B) {
 	total := 100
 
 	items := make([][]byte, total)
-	for i := 0; i < total; i++ {
+	for i := range total {
 		items[i] = testItem(random.RandBytes(tmhash.Size))
 	}
 

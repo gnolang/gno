@@ -6,6 +6,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/r/demo/disperse"
 )
@@ -14,8 +15,8 @@ func main() {
 	disperseAddr := std.DerivePkgAddr("gno.land/r/demo/disperse")
 	mainaddr := std.DerivePkgAddr("gno.land/r/demo/main")
 
-	std.TestSetOriginPkgAddress(disperseAddr)
-	std.TestSetOriginCaller(mainaddr)
+	testing.SetOriginPkgAddress(disperseAddr)
+	testing.SetOriginCaller(mainaddr)
 
 	banker := std.NewBanker(std.BankerTypeRealmSend)
 
