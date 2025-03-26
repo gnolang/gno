@@ -5,42 +5,77 @@ package ufmt
 
 import (
 	"errors"
+	"io"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
+
+type buffer []byte
+
+func (b *buffer) write(p []byte) {
+	*b = append(*b, p...)
+}
+
+func (b *buffer) writeString(s string) {
+	*b = append(*b, s...)
+}
+
+func (b *buffer) writeByte(c byte) {
+	*b = append(*b, c)
+}
+
+func (b *buffer) writeRune(r rune) {
+	*b = utf8.AppendRune(*b, r)
+}
+
+type printer struct {
+	buf buffer
+}
+
+func newPrinter() *printer {
+	return &printer{}
+}
 
 // Println formats using the default formats for its operands and writes to standard output.
 // Println writes the given arguments to standard output with spaces between arguments
 // and a newline at the end.
-func Println(args ...any) {
-	var strs []string
-	for _, arg := range args {
+func (p *printer) doPrint(args []any) {
+	for i, arg := range args {
+		// Add a space between two arguments.
+		if i > 0 {
+			p.buf.writeRune(' ')
+		}
+
 		switch v := arg.(type) {
 		case string:
-			strs = append(strs, v)
+			p.buf.writeString(v)
 		case (interface{ String() string }):
-			strs = append(strs, v.String())
+			p.buf.writeString(v.String())
 		case error:
-			strs = append(strs, v.Error())
+			p.buf.writeString(v.Error())
 		case float64:
-			strs = append(strs, Sprintf("%f", v))
+			p.buf.writeString(Sprintf("%f", v))
 		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
-			strs = append(strs, Sprintf("%d", v))
+			p.buf.writeString(Sprintf("%d", v))
 		case bool:
 			if v {
-				strs = append(strs, "true")
+				p.buf.writeString("true")
 			} else {
-				strs = append(strs, "false")
+				p.buf.writeString("false")
 			}
 		case nil:
-			strs = append(strs, "<nil>")
+			p.buf.writeString("<nil>")
 		default:
-			strs = append(strs, "(unhandled)")
+			p.buf.writeString("(unhandled)")
 		}
 	}
+}
 
-	// TODO: remove println after gno supports os.Stdout
-	println(strings.Join(strs, " "))
+// doPrintln is like doPrint but add a newline after the last argument.
+func (p *printer) doPrintln(a []any) {
+	p.doPrint(a)
+	p.buf.writeByte('\n')
 }
 
 // Sprintf offers similar functionality to Go's fmt.Sprintf, or the sprintf
@@ -51,50 +86,50 @@ func Println(args ...any) {
 //
 // The currently formatted verbs are the following:
 //
-//		%s: places a string value directly.
-//		    If the value implements the interface interface{ String() string },
-//		    the String() method is called to retrieve the value. Same about Error()
-//		    string.
-//		%c: formats the character represented by Unicode code point
-//		%d: formats an integer value using package "strconv".
-//		    Currently supports only uint, uint64, int, int64.
-//		%f: formats a float value, with a default precision of 6.
-//		%e: formats a float with scientific notation; 1.23456e+78
-//		%E: formats a float with scientific notation; 1.23456E+78
-//		%F: The same as %f
-//		%g: formats a float value with %e for large exponents, and %f with full precision for smaller numbers
-//		%G: formats a float value with %G for large exponents, and %F with full precision for smaller numbers
-//		%t: formats a boolean value to "true" or "false".
-//		%x: formats an integer value as a hexadecimal string.
-//		    Currently supports only uint8, []uint8, [32]uint8.
-//		%c: formats a rune value as a string.
-//		    Currently supports only rune, int.
-//		%q: formats a string value as a quoted string.
-//		%T: formats the type of the value.
-//	     %v: formats the value with a default representation appropriate for the value's type
-//		%%: outputs a literal %. Does not consume an argument.
-func Sprintf(format string, args ...any) string {
+//	%s: places a string value directly.
+//	    If the value implements the interface interface{ String() string },
+//	    the String() method is called to retrieve the value. Same about Error()
+//	    string.
+//	%c: formats the character represented by Unicode code point
+//
+//	%d: formats an integer value using package "strconv".
+//	    Currently supports only uint, uint64, int, int64.
+//	%f: formats a float value, with a default precision of 6.
+//	%e: formats a float with scientific notation; 1.23456e+78
+//	%E: formats a float with scientific notation; 1.23456E+78
+//	%F: The same as %f
+//	%g: formats a float value with %e for large exponents, and %f with full precision for smaller numbers
+//	%G: formats a float value with %G for large exponents, and %F with full precision for smaller numbers
+//	%t: formats a boolean value to "true" or "false".
+//	%x: formats an integer value as a hexadecimal string.
+//	    Currently supports only uint8, []uint8, [32]uint8.
+//	%c: formats a rune value as a string.
+//	    Currently supports only rune, int.
+//	%q: formats a string value as a quoted string.
+//	%T: formats the type of the value.
+//	%v: formats the value with a default representation appropriate for the value's type
+//	%%: outputs a literal %. Does not consume an argument.
+func (p *printer) doPrintf(format string, args []any) {
 	// we use runes to handle multi-byte characters
 	sTor := []rune(format)
 	end := len(sTor)
 	argNum := 0
 	argLen := len(args)
-	buf := ""
 
 	for i := 0; i < end; {
 		isLast := i == end-1
-		c := string(sTor[i])
+		c := sTor[i]
 
-		if isLast || c != "%" {
+		if isLast || c != '%' {
 			// we don't check for invalid format like a one ending with "%"
-			buf += string(c)
+			p.buf.writeRune(c)
 			i++
 			continue
 		}
 
-		verb := string(sTor[i+1])
-		if verb == "%" {
-			buf += "%"
+		verb := sTor[i+1]
+		if verb == '%' {
+			p.buf.writeRune('%')
 			i += 2
 			continue
 		}
@@ -106,186 +141,186 @@ func Sprintf(format string, args ...any) string {
 		argNum++
 
 		switch verb {
-		case "v":
+		case 'v':
 			switch v := arg.(type) {
 			case nil:
-				buf += "<nil>"
+				p.buf.writeString("<nil>")
 			case bool:
 				if v {
-					buf += "true"
+					p.buf.writeString("true")
 				} else {
-					buf += "false"
+					p.buf.writeString("false")
 				}
 			case int:
-				buf += strconv.Itoa(v)
+				p.buf.writeString(strconv.Itoa(v))
 			case int8:
-				buf += strconv.Itoa(int(v))
+				p.buf.writeString(strconv.Itoa(int(v)))
 			case int16:
-				buf += strconv.Itoa(int(v))
+				p.buf.writeString(strconv.Itoa(int(v)))
 			case int32:
-				buf += strconv.Itoa(int(v))
+				p.buf.writeString(strconv.Itoa(int(v)))
 			case int64:
-				buf += strconv.Itoa(int(v))
+				p.buf.writeString(strconv.Itoa(int(v)))
 			case uint:
-				buf += strconv.FormatUint(uint64(v), 10)
+				p.buf.writeString(strconv.FormatUint(uint64(v), 10))
 			case uint8:
-				buf += strconv.FormatUint(uint64(v), 10)
+				p.buf.writeString(strconv.FormatUint(uint64(v), 10))
 			case uint16:
-				buf += strconv.FormatUint(uint64(v), 10)
+				p.buf.writeString(strconv.FormatUint(uint64(v), 10))
 			case uint32:
-				buf += strconv.FormatUint(uint64(v), 10)
+				p.buf.writeString(strconv.FormatUint(uint64(v), 10))
 			case uint64:
-				buf += strconv.FormatUint(v, 10)
+				p.buf.writeString(strconv.FormatUint(v, 10))
 			case float64:
-				buf += strconv.FormatFloat(v, 'g', -1, 64)
+				p.buf.writeString(strconv.FormatFloat(v, 'g', -1, 64))
 			case string:
-				buf += v
+				p.buf.writeString(v)
 			case []byte:
-				buf += string(v)
+				p.buf.write(v)
 			case []rune:
-				buf += string(v)
+				p.buf.writeString(string(v))
 			case interface{ String() string }:
-				buf += v.String()
+				p.buf.writeString(v.String())
 			case error:
-				buf += v.Error()
+				p.buf.writeString(v.Error())
 			default:
-				buf += fallback(verb, v)
+				p.buf.writeString(fallback(verb, v))
 			}
-		case "s":
+		case 's':
 			switch v := arg.(type) {
 			case interface{ String() string }:
-				buf += v.String()
+				p.buf.writeString(v.String())
 			case error:
-				buf += v.Error()
+				p.buf.writeString(v.Error())
 			case string:
-				buf += v
+				p.buf.writeString(v)
 			default:
-				buf += fallback(verb, v)
+				p.buf.writeString(fallback(verb, v))
 			}
-		case "c":
+		case 'c':
 			switch v := arg.(type) {
 			// rune is int32. Exclude overflowing numeric types and dups (byte, int32):
 			case rune:
-				buf += string(v)
+				p.buf.writeString(string(v))
 			case int:
-				buf += string(v)
+				p.buf.writeString(string(v))
 			case int8:
-				buf += string(v)
+				p.buf.writeString(string(v))
 			case int16:
-				buf += string(v)
+				p.buf.writeString(string(v))
 			case uint:
-				buf += string(v)
+				p.buf.writeString(string(v))
 			case uint8:
-				buf += string(v)
+				p.buf.writeString(string(v))
 			case uint16:
-				buf += string(v)
+				p.buf.writeString(string(v))
 			default:
-				buf += fallback(verb, v)
+				p.buf.writeString(fallback(verb, v))
 			}
-		case "d":
+		case 'd':
 			switch v := arg.(type) {
 			case int:
-				buf += strconv.Itoa(v)
+				p.buf.writeString(strconv.Itoa(v))
 			case int8:
-				buf += strconv.Itoa(int(v))
+				p.buf.writeString(strconv.Itoa(int(v)))
 			case int16:
-				buf += strconv.Itoa(int(v))
+				p.buf.writeString(strconv.Itoa(int(v)))
 			case int32:
-				buf += strconv.Itoa(int(v))
+				p.buf.writeString(strconv.Itoa(int(v)))
 			case int64:
-				buf += strconv.Itoa(int(v))
+				p.buf.writeString(strconv.Itoa(int(v)))
 			case uint:
-				buf += strconv.FormatUint(uint64(v), 10)
+				p.buf.writeString(strconv.FormatUint(uint64(v), 10))
 			case uint8:
-				buf += strconv.FormatUint(uint64(v), 10)
+				p.buf.writeString(strconv.FormatUint(uint64(v), 10))
 			case uint16:
-				buf += strconv.FormatUint(uint64(v), 10)
+				p.buf.writeString(strconv.FormatUint(uint64(v), 10))
 			case uint32:
-				buf += strconv.FormatUint(uint64(v), 10)
+				p.buf.writeString(strconv.FormatUint(uint64(v), 10))
 			case uint64:
-				buf += strconv.FormatUint(v, 10)
+				p.buf.writeString(strconv.FormatUint(v, 10))
 			default:
-				buf += fallback(verb, v)
+				p.buf.writeString(fallback(verb, v))
 			}
-		case "e", "E", "f", "F", "g", "G":
+		case 'e', 'E', 'f', 'F', 'g', 'G':
 			switch v := arg.(type) {
 			case float64:
 				switch verb {
-				case "e":
-					buf += strconv.FormatFloat(v, byte('e'), -1, 64)
-				case "E":
-					buf += strconv.FormatFloat(v, byte('E'), -1, 64)
-				case "f", "F":
-					buf += strconv.FormatFloat(v, byte('f'), 6, 64)
-				case "g":
-					buf += strconv.FormatFloat(v, byte('g'), -1, 64)
-				case "G":
-					buf += strconv.FormatFloat(v, byte('G'), -1, 64)
+				case 'e':
+					p.buf.writeString(strconv.FormatFloat(v, byte('e'), -1, 64))
+				case 'E':
+					p.buf.writeString(strconv.FormatFloat(v, byte('E'), -1, 64))
+				case 'f', 'F':
+					p.buf.writeString(strconv.FormatFloat(v, byte('f'), 6, 64))
+				case 'g':
+					p.buf.writeString(strconv.FormatFloat(v, byte('g'), -1, 64))
+				case 'G':
+					p.buf.writeString(strconv.FormatFloat(v, byte('G'), -1, 64))
 				}
 			default:
-				buf += fallback(verb, v)
+				p.buf.writeString(fallback(verb, v))
 			}
-		case "t":
+		case 't':
 			switch v := arg.(type) {
 			case bool:
 				if v {
-					buf += "true"
+					p.buf.writeString("true")
 				} else {
-					buf += "false"
+					p.buf.writeString("false")
 				}
 			default:
-				buf += fallback(verb, v)
+				p.buf.writeString(fallback(verb, v))
 			}
-		case "x":
+		case 'x':
 			switch v := arg.(type) {
 			case uint8:
-				buf += strconv.FormatUint(uint64(v), 16)
+				p.buf.writeString(strconv.FormatUint(uint64(v), 16))
 			default:
-				buf += "(unhandled)"
+				p.buf.writeString("(unhandled)")
 			}
-		case "q":
+		case 'q':
 			switch v := arg.(type) {
 			case string:
-				buf += strconv.Quote(v)
+				p.buf.writeString(strconv.Quote(v))
 			default:
-				buf += "(unhandled)"
+				p.buf.writeString("(unhandled)")
 			}
-		case "T":
+		case 'T':
 			switch arg.(type) {
 			case bool:
-				buf += "bool"
+				p.buf.writeString("bool")
 			case int:
-				buf += "int"
+				p.buf.writeString("int")
 			case int8:
-				buf += "int8"
+				p.buf.writeString("int8")
 			case int16:
-				buf += "int16"
+				p.buf.writeString("int16")
 			case int32:
-				buf += "int32"
+				p.buf.writeString("int32")
 			case int64:
-				buf += "int64"
+				p.buf.writeString("int64")
 			case uint:
-				buf += "uint"
+				p.buf.writeString("uint")
 			case uint8:
-				buf += "uint8"
+				p.buf.writeString("uint8")
 			case uint16:
-				buf += "uint16"
+				p.buf.writeString("uint16")
 			case uint32:
-				buf += "uint32"
+				p.buf.writeString("uint32")
 			case uint64:
-				buf += "uint64"
+				p.buf.writeString("uint64")
 			case string:
-				buf += "string"
+				p.buf.writeString("string")
 			case []byte:
-				buf += "[]byte"
+				p.buf.writeString("[]byte")
 			case []rune:
-				buf += "[]rune"
+				p.buf.writeString("[]rune")
 			default:
-				buf += "unknown"
+				p.buf.writeString("unknown")
 			}
 		// % handled before, as it does not consume an argument
 		default:
-			buf += "(unhandled verb: %" + verb + ")"
+			p.buf.writeString("(unhandled verb: %" + string(verb) + ")")
 		}
 
 		i += 2
@@ -293,7 +328,123 @@ func Sprintf(format string, args ...any) string {
 	if argNum < argLen {
 		panic("too many arguments to ufmt.Sprintf")
 	}
-	return buf
+}
+
+// These routines end in 'f' and take a format string.
+
+// Fprintf formats according to a format specifier and writes to w.
+// It returns the number of bytes written and any write error encountered.
+func Fprintf(w io.Writer, format string, a ...any) (n int, err error) {
+	p := newPrinter()
+	p.doPrintf(format, a)
+	return w.Write(p.buf)
+}
+
+// Printf formats according to a format specifier and writes to standard output.
+// It returns the number of bytes written and any write error encountered.
+func Printf(format string, a ...any) (n int, err error) {
+	// XXX: update this after gno supports os.Stdout
+	var out strings.Builder
+	n, err = Fprintf(&out, format, a)
+	print(out.String())
+	return n, err
+}
+
+// Sprintf formats according to a format specifier and returns the resulting string.
+func Sprintf(format string, a ...any) string {
+	p := newPrinter()
+	p.doPrintf(format, a)
+	return string(p.buf)
+}
+
+// Appendf formats according to a format specifier, appends the result to the byte
+// slice, and returns the updated slice.
+func Appendf(b []byte, format string, a ...any) []byte {
+	p := newPrinter()
+	p.doPrintf(format, a)
+	return append(b, p.buf...)
+}
+
+// Fprint formats using the default formats for its operands and writes to w.
+// Spaces are added between operands when neither is a string.
+// It returns the number of bytes written and any write error encountered.
+func Fprint(w io.Writer, a ...any) (n int, err error) {
+	p := newPrinter()
+	p.doPrint(a)
+	return w.Write(p.buf)
+}
+
+// Print formats using the default formats for its operands and writes to standard output.
+// Spaces are added between operands when neither is a string.
+// It returns the number of bytes written and any write error encountered.
+func Print(a ...any) (n int, err error) {
+	// XXX: update this after gno supports os.Stdout
+	var out strings.Builder
+	n, err = Fprint(&out, a...)
+	print(out.String())
+	return n, err
+}
+
+// Sprint formats using the default formats for its operands and returns the resulting string.
+// Spaces are added between operands when neither is a string.
+func Sprint(a ...any) string {
+	p := newPrinter()
+	p.doPrint(a)
+	s := string(p.buf)
+	return s
+}
+
+// Append formats using the default formats for its operands, appends the result to
+// the byte slice, and returns the updated slice.
+func Append(b []byte, a ...any) []byte {
+	p := newPrinter()
+	p.doPrint(a)
+	return append(b, p.buf...)
+}
+
+// These routines end in 'ln', do not take a format string,
+// always add spaces between operands, and add a newline
+// after the last operand.
+
+// Fprintln formats using the default formats for its operands and writes to w.
+// Spaces are always added between operands and a newline is appended.
+// It returns the number of bytes written and any write error encountered.
+func Fprintln(w io.Writer, a ...any) (n int, err error) {
+	p := newPrinter()
+	p.doPrintln(a)
+	return w.Write(p.buf)
+}
+
+// Println formats using the default formats for its operands and writes to standard output.
+// Spaces are always added between operands and a newline is appended.
+// It returns the number of bytes written and any write error encountered.
+func Println(a ...any) (n int, err error) {
+	// XXX: update this after gno supports os.Stdout
+	var out strings.Builder
+	n, err = Fprintln(&out, a...)
+	if err != nil {
+		print(out.String())
+	}
+
+	return n, err
+}
+
+// Sprintln formats using the default formats for its operands and returns the resulting string.
+// Spaces are always added between operands and a newline is appended.
+func Sprintln(a ...any) string {
+	p := newPrinter()
+	p.doPrintln(a)
+	return string(p.buf)
+
+}
+
+// Appendln formats using the default formats for its operands, appends the result
+// to the byte slice, and returns the updated slice. Spaces are always added
+// between operands and a newline is appended.
+func Appendln(b []byte, a ...any) []byte {
+	p := newPrinter()
+	p.doPrintln(a)
+	return append(b, p.buf...)
 }
 
 // This function is used to mimic Go's fmt.Sprintf
@@ -306,7 +457,7 @@ func Sprintf(format string, args ...any) string {
 //
 //	fallback("s", 8) -> "%!s(int=8)"
 //	fallback("d", nil) -> "%!d(<nil>)", and so on.
-func fallback(verb string, arg any) string {
+func fallback(verb rune, arg any) string {
 	var s string
 	switch v := arg.(type) {
 	case string:
@@ -336,7 +487,7 @@ func fallback(verb string, arg any) string {
 	default:
 		s = "(unhandled)"
 	}
-	return "%!" + verb + "(" + s + ")"
+	return "%!" + string(verb) + "(" + s + ")"
 }
 
 // Get the name of the type of `v` as a string.
