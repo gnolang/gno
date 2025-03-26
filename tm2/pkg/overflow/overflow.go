@@ -6,8 +6,6 @@
 // types. The modulo % operation is not present, as it is always safe.
 package overflow
 
-const is64Bit = ^uint(0) == (1<<64 - 1)
-
 // Number is a type constraint for all integer values, signed and unsigned.
 type Number interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64 |
