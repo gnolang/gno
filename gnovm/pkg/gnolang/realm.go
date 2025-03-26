@@ -673,8 +673,8 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 				// A new real object can initially be owned by one owner,
 				// then owned by another owner. If the first owner is
 				// deleted before finalization complete(its refCount is zero
-				// but not marked), the real object remains alive, with the
-				// owner to be the first one, and refCount is 0.
+				// but not marked), the new real object remains alive, with the
+				// owner to be the first one, whose refCount is 0.
 				// in this case the second owner should be dirty, so just
 				// skip the first one, whose refCount is 0.
 				if po.GetRefCount() == 0 {
