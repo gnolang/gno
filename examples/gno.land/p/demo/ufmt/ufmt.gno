@@ -144,6 +144,7 @@ func (p *printer) doPrintf(format string, args []any) {
 		c := sTor[i]
 
 		if isLast || c != '%' {
+			// we don't check for invalid format like a one ending with "%"
 			p.buf.writeRune(c)
 			i++
 			continue
@@ -181,6 +182,7 @@ func (p *printer) doPrintf(format string, args []any) {
 			writeQuotedString(p, verb, arg)
 		case 'T':
 			writeType(p, arg)
+
 		default:
 			p.buf.writeString("(unhandled verb: %" + string(verb) + ")")
 		}
@@ -254,6 +256,7 @@ func writeString(p *printer, verb rune, arg any) {
 // writeChar handles %c formatting
 func writeChar(p *printer, verb rune, arg any) {
 	switch v := arg.(type) {
+	// rune is int32. Exclude overflowing numeric types and dups (byte, int32):
 	case rune:
 		p.buf.writeString(string(v))
 	case int:
@@ -483,7 +486,16 @@ func Appendln(b []byte, a ...any) []byte {
 	return append(b, p.buf...)
 }
 
-// fallback generates error strings for unsupported verb/type combinations.
+// This function is used to mimic Go's fmt.Sprintf
+// specific behaviour of showing verb/type mismatches,
+// where for example:
+//
+//	fmt.Sprintf("%d", "foo") gives "%!d(string=foo)"
+//
+// Here:
+//
+//	fallback("s", 8) -> "%!s(int=8)"
+//	fallback("d", nil) -> "%!d(<nil>)", and so on.f
 func fallback(verb rune, arg any) string {
 	var s string
 	switch v := arg.(type) {
