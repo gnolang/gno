@@ -3,6 +3,7 @@ package main
 import (
 	"std"
 	"strings"
+	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
@@ -21,13 +22,13 @@ var (
 )
 
 func init() {
-	std.TestSetOriginCaller(owner)
+	testing.SetOriginCaller(owner)
 	bid = boards2.CreateBoard("test-board")
 	pid = boards2.CreateThread(bid, "Foo", "bar")
 
 	// Invite a member using a role with permission to edit threads
 	boards2.InviteMember(bid, admin, boards2.RoleAdmin)
-	std.TestSetOriginCaller(admin)
+	testing.SetOriginCaller(admin)
 }
 
 func main() {

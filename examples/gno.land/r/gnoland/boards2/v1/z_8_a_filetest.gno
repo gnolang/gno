@@ -3,6 +3,7 @@ package main
 import (
 	"std"
 	"strings"
+	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
@@ -17,7 +18,7 @@ const (
 var bid boards2.BoardID
 
 func init() {
-	std.TestSetOriginCaller(owner)
+	testing.SetOriginCaller(owner)
 	bid = boards2.CreateBoard("test-board")
 }
 

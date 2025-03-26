@@ -3,6 +3,7 @@ package main
 import (
 	"std"
 	"strings"
+	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
@@ -10,7 +11,7 @@ import (
 const owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 
 func init() {
-	std.TestSetOriginCaller(owner)
+	testing.SetOriginCaller(owner)
 
 	// Set an initial message so it can be cleared
 	boards2.SetRealmNotice("This is a test realm message")

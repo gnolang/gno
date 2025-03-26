@@ -2,6 +2,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
@@ -11,7 +12,7 @@ const owner = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 const bid boards2.BoardID = 404
 
 func init() {
-	std.TestSetOriginCaller(owner)
+	testing.SetOriginCaller(owner)
 }
 
 func main() {

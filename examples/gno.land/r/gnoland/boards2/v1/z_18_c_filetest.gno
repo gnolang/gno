@@ -2,6 +2,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/p/gnoland/commondao"
 
@@ -19,7 +20,7 @@ func init() {
 	// Create a new permissions instance without users
 	perms = boards2.NewDefaultPermissions(commondao.New())
 
-	std.TestSetOriginCaller(owner)
+	testing.SetOriginCaller(owner)
 	bid = boards2.CreateBoard("foobar")
 }
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
@@ -13,10 +14,10 @@ const (
 )
 
 func init() {
-	std.TestSetOriginCaller(owner)
+	testing.SetOriginCaller(owner)
 	boards2.CreateBoard(name)
 
-	std.TestSetOriginCaller(user)
+	testing.SetOriginCaller(user)
 }
 
 func main() {

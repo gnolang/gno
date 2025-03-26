@@ -2,6 +2,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
@@ -17,7 +18,7 @@ var (
 )
 
 func init() {
-	std.TestSetOriginCaller(owner)
+	testing.SetOriginCaller(owner)
 
 	// Created a board with a specific flagging threshold
 	bid = boards2.CreateBoard("test-board")
@@ -27,7 +28,7 @@ func init() {
 	boards2.InviteMember(bid, moderator, boards2.RoleModerator)
 
 	// Create a new thread and flag it as a moderator
-	std.TestSetOriginCaller(moderator)
+	testing.SetOriginCaller(moderator)
 	pid = boards2.CreateThread(bid, "Foo", "bar")
 	boards2.FlagThread(bid, pid, "")
 }
