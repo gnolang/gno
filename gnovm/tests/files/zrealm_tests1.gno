@@ -17,12 +17,13 @@ func AddStringer(str Stringer) {
 	stringers = append(stringers, str)
 }
 
-func init() {
+func main() {
 	f1 := &Foo{name: "foo1"}
 	AddStringer(f1)
-}
-
-func main() {
 	f2 := &Foo{name: "foo2"}
 	AddStringer(f2)
+	println("ok")
 }
+
+// Output:
+// ok

@@ -20,8 +20,10 @@ import (
 // so it is still faster to first check the truth value
 // before calling debug.Println or debug.Printf.
 
-type debugging bool
-type debugging_realm bool
+type (
+	debugging       bool
+	debugging_realm bool
+)
 
 // using a const is probably faster.
 // const debug debugging = true // or flip
