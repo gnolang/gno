@@ -288,10 +288,10 @@ func TestIsApprovedOrOwner(t *testing.T) {
 	uassert.True(t, dummy != nil, "should not be nil")
 
 	var (
-		owner = testutils.TestAddress("owner")
+		owner    = testutils.TestAddress("owner")
 		operator = testutils.TestAddress("operator")
 		approved = testutils.TestAddress("approved")
-		other = testutils.TestAddress("other")
+		other    = testutils.TestAddress("other")
 	)
 
 	tid := TokenID("1")
