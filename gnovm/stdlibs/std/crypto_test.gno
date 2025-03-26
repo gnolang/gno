@@ -16,6 +16,9 @@ func TestValid(t *testing.T) {
 		{inputAddress: "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq", expected: true},
 		{inputAddress: "g14da4n9hcynyzz83q607uu8keuh9hwlv42ra6fa", expected: true},
 
+		// address does not start with "g"
+		{inputAddress: "bc156tlrfxxxelwrmvu0v986psjln9ry60ef34yp2", expected: false},
+
 		// Bech32 doesn't allow '1', 'b', 'i', 'o' for data part
 		//
 		// 	https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#bech32
