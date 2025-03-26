@@ -144,11 +144,28 @@ func (led *PrivateLedger) TransferFrom(owner, spender, to std.Address, amount ui
 	if led.balanceOf(owner) < amount {
 		return ErrInsufficientBalance
 	}
-	if err := led.SpendAllowance(owner, spender, amount); err != nil {
+
+	// allowance must be sufficient
+	currentAllowance := led.allowance(owner, spender)
+	if currentAllowance < amount {
+		return ErrInsufficientAllowance
+	}
+
+	if err := led.Transfer(owner, to, amount); err != nil {
 		return err
 	}
-	// XXX: since we don't "panic", we should take care of rollbacking spendAllowance if transfer fails.
-	return led.Transfer(owner, to, amount)
+
+	// decrease the allowance only when transfer is successful
+	key := allowanceKey(owner, spender)
+	newAllowance := currentAllowance - amount
+
+	if newAllowance == 0 {
+		led.allowances.Remove(key)
+	} else {
+		led.allowances.Set(key, newAllowance)
+	}
+
+	return nil
 }
 
 // Approve sets the allowance of the specified owner and spender.
