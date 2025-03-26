@@ -86,7 +86,7 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write("_Sort by ")
 	r := realmpath.Parse(req.RawPath)
-	if req.Query.Get("order") == "desc" {
+	if r.Query.Get("order") == "desc" {
 		r.Query.Set("order", "asc")
 		res.Write(newLink("newest first", r.String()))
 		res.Write("_\n")
