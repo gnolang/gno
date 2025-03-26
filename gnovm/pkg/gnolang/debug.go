@@ -73,7 +73,7 @@ func (debugging) Printf(format string, args ...interface{}) {
 }
 
 func (debugging_realm) Println(args ...interface{}) {
-	if debug_realm {
+	if debugRealm {
 		if enabled {
 			_, file, line, _ := runtime.Caller(2)
 			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
@@ -84,7 +84,7 @@ func (debugging_realm) Println(args ...interface{}) {
 }
 
 func (debugging_realm) Printf(format string, args ...interface{}) {
-	if debug_realm {
+	if debugRealm {
 		if enabled {
 			_, file, line, _ := runtime.Caller(2)
 			caller := fmt.Sprintf("%.12s:%-4d", path.Base(file), line)
