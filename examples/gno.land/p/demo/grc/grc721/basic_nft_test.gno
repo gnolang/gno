@@ -4,6 +4,7 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
 )
 
@@ -280,4 +281,47 @@ func TestSetTokenURI(t *testing.T) {
 	dummyTokenURI, err := dummy.TokenURI(TokenID("1"))
 	uassert.NoError(t, err, "TokenURI error")
 	uassert.Equal(t, string(tokenURI), string(dummyTokenURI))
+}
+
+func TestIsApprovedOrOwner(t *testing.T) {
+	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
+	uassert.True(t, dummy != nil, "should not be nil")
+
+	var (
+		owner    = testutils.TestAddress("owner")
+		operator = testutils.TestAddress("operator")
+		approved = testutils.TestAddress("approved")
+		other    = testutils.TestAddress("other")
+	)
+
+	tid := TokenID("1")
+
+	err := dummy.mint(owner, tid)
+	uassert.NoError(t, err)
+
+	// check owner
+	isApprovedOrOwner := dummy.isApprovedOrOwner(owner, tid)
+	uassert.True(t, isApprovedOrOwner, "owner should be approved")
+
+	// check operator
+	testing.SetOriginCaller(owner)
+	err = dummy.SetApprovalForAll(operator, true)
+	uassert.NoError(t, err)
+	isApprovedOrOwner = dummy.isApprovedOrOwner(operator, tid)
+	uassert.True(t, isApprovedOrOwner, "operator should be approved")
+
+	// check approved
+	testing.SetOriginCaller(owner)
+	err = dummy.Approve(approved, tid)
+	uassert.NoError(t, err)
+	isApprovedOrOwner = dummy.isApprovedOrOwner(approved, tid)
+	uassert.True(t, isApprovedOrOwner, "approved address should be approved")
+
+	// check other
+	isApprovedOrOwner = dummy.isApprovedOrOwner(other, tid)
+	uassert.False(t, isApprovedOrOwner, "other address should not be approved")
+
+	// check non-existent token
+	isApprovedOrOwner = dummy.isApprovedOrOwner(owner, TokenID("999"))
+	uassert.False(t, isApprovedOrOwner, "non-existent token should not be approved")
 }
