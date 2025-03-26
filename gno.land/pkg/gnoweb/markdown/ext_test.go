@@ -27,7 +27,7 @@ func testGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string, []by
 	require.Greater(t, len(name), 0, "txtar file name cannot be empty")
 
 	m := goldmark.New()
-	GnoExtension.Extend(m)
+	NewGnoExtension("gno.land", "r/test").Extend(m)
 
 	// Parse markdown input
 	node := m.Parser().Parse(text.NewReader(input))

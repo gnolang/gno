@@ -51,7 +51,6 @@ func NewDefaultHTMLWebClientConfig(client *client.RPCClient) *HTMLWebClientConfi
 			),
 			extension.Strikethrough,
 			extension.Table,
-			md.GnoExtension,
 		),
 	}
 
@@ -68,10 +67,11 @@ type HTMLWebClient struct {
 	Markdown  goldmark.Markdown
 	Formatter *chromahtml.Formatter
 
-	domain      string
-	logger      *slog.Logger
-	client      *client.RPCClient
-	chromaStyle *chroma.Style
+	domain        string
+	logger        *slog.Logger
+	client        *client.RPCClient
+	chromaStyle   *chroma.Style
+	commonOptions []goldmark.Option
 }
 
 // NewHTMLClient creates a new instance of WebClient.
@@ -83,10 +83,11 @@ func NewHTMLClient(log *slog.Logger, cfg *HTMLWebClientConfig) *HTMLWebClient {
 		Markdown:  goldmark.New(cfg.GoldmarkOptions...),
 		Formatter: chromahtml.New(cfg.ChromaHTMLOptions...),
 
-		logger:      log,
-		domain:      cfg.Domain,
-		client:      cfg.RPCClient,
-		chromaStyle: cfg.ChromaStyle,
+		logger:        log,
+		domain:        cfg.Domain,
+		client:        cfg.RPCClient,
+		chromaStyle:   cfg.ChromaStyle,
+		commonOptions: cfg.GoldmarkOptions,
 	}
 }
 
@@ -185,9 +186,18 @@ func (s *HTMLWebClient) RenderRealm(w io.Writer, pkgPath string, args string) (*
 		return nil, err
 	}
 
+	// Create a new markdown instance with the current path
+	markdown := goldmark.New(
+		append(s.commonOptions,
+			goldmark.WithExtensions(
+				md.NewGnoExtension(s.domain, pkgPath),
+			),
+		)...,
+	)
+
 	// Use Goldmark for Markdown parsing
-	doc := s.Markdown.Parser().Parse(text.NewReader(rawres))
-	if err := s.Markdown.Renderer().Render(w, rawres, doc); err != nil {
+	doc := markdown.Parser().Parse(text.NewReader(rawres))
+	if err := markdown.Renderer().Render(w, rawres, doc); err != nil {
 		return nil, fmt.Errorf("unable to render realm %q: %w", data, err)
 	}
 
