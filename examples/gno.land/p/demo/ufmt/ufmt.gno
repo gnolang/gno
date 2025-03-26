@@ -60,7 +60,7 @@ func (p *printer) doPrint(args []any) {
 		switch v := arg.(type) {
 		case string:
 			p.buf.writeString(v)
-		case interface{ String() string }:
+		case (interface{ String() string }):
 			p.buf.writeString(v.String())
 		case error:
 			p.buf.writeString(v.Error())
@@ -182,7 +182,7 @@ func (p *printer) doPrintf(format string, args []any) {
 			writeQuotedString(p, verb, arg)
 		case 'T':
 			writeType(p, arg)
-
+		// % handled before, as it does not consume an argument
 		default:
 			p.buf.writeString("(unhandled verb: %" + string(verb) + ")")
 		}
@@ -230,7 +230,7 @@ func writeValue(p *printer, verb rune, arg any) {
 		p.buf.write(v)
 	case []rune:
 		p.buf.writeString(string(v))
-	case interface{ String() string }:
+	case (interface{ String() string }):
 		p.buf.writeString(v.String())
 	case error:
 		p.buf.writeString(v.Error())
@@ -242,7 +242,7 @@ func writeValue(p *printer, verb rune, arg any) {
 // writeString handles %s formatting
 func writeString(p *printer, verb rune, arg any) {
 	switch v := arg.(type) {
-	case interface{ String() string }:
+	case (interface{ String() string }):
 		p.buf.writeString(v.String())
 	case error:
 		p.buf.writeString(v.Error())
@@ -501,13 +501,15 @@ func fallback(verb rune, arg any) string {
 	switch v := arg.(type) {
 	case string:
 		s = "string=" + v
-	case interface{ String() string }:
+	case (interface{ String() string }):
 		s = "string=" + v.String()
 	case error:
+		// note: also "string=" in Go fmt
 		s = "string=" + v.Error()
 	case float64:
 		s = "float64=" + Sprintf("%f", v)
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		// note: rune, byte would be dups, being aliases
 		if typename, e := typeToString(v); e == nil {
 			s = typename + "=" + Sprintf("%d", v)
 		} else {
