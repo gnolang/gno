@@ -843,7 +843,7 @@ func (rlm *Realm) clearMarks() {
 		}
 
 		// A new real object can be possible here.
-		// This new real object may have recCount of 0m
+		// This new real object may have recCount of 0
 		// but its state was not unset in `processNewCreatedMarks`.
 		// As a result, it will be garbage collected.
 		// therefore, new real is allowed to exist here.
