@@ -45,7 +45,7 @@ type RequestInitChain struct {
 	ChainID         string
 	ConsensusParams *ConsensusParams
 	Validators      []ValidatorUpdate
-	AppState        interface{}
+	AppState        any
 }
 
 type RequestQuery struct {

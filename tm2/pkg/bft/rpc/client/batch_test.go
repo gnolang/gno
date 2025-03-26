@@ -128,7 +128,7 @@ func TestRPCBatch_Send(t *testing.T) {
 		)
 
 		// Enqueue the requests
-		for i := 0; i < numRequests; i++ {
+		for range numRequests {
 			require.NoError(t, batch.Status())
 		}
 
@@ -494,7 +494,7 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 			)
 
 			// Enqueue the requests
-			for i := 0; i < numRequests; i++ {
+			for range numRequests {
 				testCase.batchCallback(batch)
 			}
 
