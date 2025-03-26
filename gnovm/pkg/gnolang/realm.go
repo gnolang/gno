@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/gnolang/gno/tm2/pkg/store/types"
+
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 )
 
@@ -321,7 +323,7 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 // transactions
 
 // OpReturn calls this when exiting a realm transaction.
-func (rlm *Realm) FinalizeRealmTransaction(store Store) {
+func (rlm *Realm) FinalizeRealmTransaction(m *Machine) {
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -344,18 +346,18 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 		}
 	}
 	// log realm boundaries in opslog.
-	store.LogSwitchRealm(rlm.Path)
+	m.Store.LogSwitchRealm(rlm.Path)
 	// increment recursively for created descendants.
 	// also assigns object ids for all.
-	rlm.processNewCreatedMarks(store)
+	rlm.processNewCreatedMarks(m)
 	// decrement recursively for deleted descendants.
-	rlm.processNewDeletedMarks(store)
+	rlm.processNewDeletedMarks(m.Store)
 	// at this point, all ref-counts are final.
 	// demote any escaped if ref-count is 1.
-	rlm.processNewEscapedMarks(store)
+	rlm.processNewEscapedMarks(m.Store)
 	// given created and updated objects,
 	// mark all owned-ancestors also as dirty.
-	rlm.markDirtyAncestors(store)
+	rlm.markDirtyAncestors(m.Store)
 	if debug {
 		ensureUniq(rlm.created, rlm.updated, rlm.deleted)
 		ensureUniq(rlm.escaped)
@@ -364,9 +366,9 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	// hash calculation is done along the way,
 	// or via escaped-object persistence in
 	// the iavl tree.
-	rlm.saveUnsavedObjects(store)
+	rlm.saveUnsavedObjects(m.Store)
 	// delete all deleted objects.
-	rlm.removeDeletedObjects(store)
+	rlm.removeDeletedObjects(m.Store)
 	// reset realm state for new transaction.
 	rlm.clearMarks()
 }
@@ -378,7 +380,7 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 // finding more newly created objects recursively.
 // All newly created objects become appended to .created,
 // and get assigned ids.
-func (rlm *Realm) processNewCreatedMarks(store Store) {
+func (rlm *Realm) processNewCreatedMarks(m *Machine) {
 	// Create new objects and their new descendants.
 	for _, oo := range rlm.newCreated {
 		if debug {
@@ -397,17 +399,17 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 			// skip if became deleted.
 			continue
 		} else {
-			rlm.incRefCreatedDescendants(store, oo)
+			rlm.incRefCreatedDescendants(m, oo)
 		}
 	}
 	// Save new realm time.
 	if len(rlm.newCreated) > 0 {
-		store.SetPackageRealm(rlm)
+		m.Store.SetPackageRealm(rlm)
 	}
 }
 
 // oo must be marked new-real, and ref-count already incremented.
-func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
+func (rlm *Realm) incRefCreatedDescendants(m *Machine, oo Object) {
 	if debug {
 		if oo.GetIsDirty() {
 			panic("cannot increase reference of descendants of dirty objects")
@@ -416,6 +418,11 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 			panic("cannot increase reference of descendants of unreferenced object")
 		}
 	}
+
+	cost := 1
+	defer func() {
+		m.GasMeter.ConsumeGas(types.Gas(cost), "incRefCreatedDescendants")
+	}()
 
 	// RECURSE GUARD
 	// if id already set, skip.
@@ -429,7 +436,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	// RECURSE GUARD END
 
 	// recurse for children.
-	more := getChildObjects2(store, oo)
+	more := getChildObjects2(m.Store, oo)
 	for _, child := range more {
 		if _, ok := child.(*PackageValue); ok {
 			if debug {
@@ -440,6 +447,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 			// extern package values are skipped.
 			continue
 		}
+		cost += 1
 		child.IncRefCount()
 		rc := child.GetRefCount()
 		if rc == 1 {
@@ -453,7 +461,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 				// NOTE: may already be marked for first gen
 				// newCreated or updated.
 				child.SetOwner(oo)
-				rlm.incRefCreatedDescendants(store, child)
+				rlm.incRefCreatedDescendants(m, child)
 				child.SetIsNewReal(true)
 			}
 		} else if rc > 1 {

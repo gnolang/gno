@@ -216,7 +216,7 @@ func (m *Machine) doOpReturn() {
 		if finalize {
 			// Finalize realm updates!
 			// NOTE: This is a resource intensive undertaking.
-			crlm.FinalizeRealmTransaction(m.Store)
+			crlm.FinalizeRealmTransaction(m)
 		}
 	}
 	// finalize
@@ -251,7 +251,7 @@ func (m *Machine) doOpReturnFromBlock() {
 		if finalize {
 			// Finalize realm updates!
 			// NOTE: This is a resource intensive undertaking.
-			crlm.FinalizeRealmTransaction(m.Store)
+			crlm.FinalizeRealmTransaction(m)
 		}
 	}
 	// finalize
