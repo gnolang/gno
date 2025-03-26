@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - "feat/gno-fee-experimental"
+  pull_request:
+    branches:
+      - "feat/gno-fee-experimental"
 
 permissions:
   contents: read
