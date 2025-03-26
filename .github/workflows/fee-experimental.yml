@@ -19,7 +19,7 @@ jobs:
       - name: Build and Run Gnoland
         uses: dagger/dagger-for-github@v7
         with:
-          version: "v0.15.2"
+          version: "v0.16.1"
           verb: call
           module: misc/gno-fee/dagger
           args: build-and-run --source .
