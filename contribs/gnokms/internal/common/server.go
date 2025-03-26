@@ -47,10 +47,10 @@ func NewSignerServer(
 			rss.WithServerPrivKey(authKeysFile.ServerIdentity.PrivKey),
 		)
 	} else {
-		// Check if at least one of the listener is using the tcp protocol.
+		// No auth keys file found, so check if the server is using at least one tcp listener, and if so, log a security
+		// warning suggesting to the user to generate mutual auth keys.
 		for _, listenAddress := range listenAddresses {
 			if protocol, _ := osm.ProtocolAndAddress(listenAddress); protocol == "tcp" {
-				// Log a warning if the auth keys file does not exist and if the server is using a tcp listener.
 				logger.Warn("Mutual auth keys not found, gnokms and its clients will not be able to authenticate")
 				logger.Warn("For more security, generate mutual auth keys using 'gnokms auth generate'")
 				break
