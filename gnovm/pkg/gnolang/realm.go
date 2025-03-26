@@ -216,7 +216,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 				// there's a chance xo is dirty and new deleted
 				// in one transaction, clear the dirty one once
 				// it's already marked new deleted.
-				rlm.clearDirtyNewDeleted()
+				rlm.clearDirtyNewDeleted(xo)
 			}
 		} else if xo.GetIsReal() { // xo should always be !unsaved here.
 			rlm.MarkDirty(xo)
@@ -341,9 +341,9 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 		ensureUniq(rlm.newDeleted)
 		ensureUniq(rlm.updated)
 		if false ||
-				rlm.created != nil ||
-				rlm.deleted != nil ||
-				rlm.escaped != nil {
+			rlm.created != nil ||
+			rlm.deleted != nil ||
+			rlm.escaped != nil {
 			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
@@ -700,15 +700,12 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 	}
 }
 
-func (rlm *Realm) clearDirtyNewDeleted() {
+func (rlm *Realm) clearDirtyNewDeleted(oo Object) {
 	filtered := rlm.updated[:0] // Reuse the backing array
 	for _, uo := range rlm.updated {
 		keep := true
-		for _, do := range rlm.newDeleted {
-			if uo == do {
-				keep = false
-				break
-			}
+		if uo == oo {
+			keep = false
 		}
 		if keep {
 			filtered = append(filtered, uo)
@@ -758,9 +755,9 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		}
 		// deleted objects should not have gotten here.
 		if false ||
-				oo.GetRefCount() <= 0 ||
-				oo.GetIsNewDeleted() ||
-				oo.GetIsDeleted() {
+			oo.GetRefCount() <= 0 ||
+			oo.GetIsNewDeleted() ||
+			oo.GetIsDeleted() {
 			panic("cannot save deleted objects")
 		}
 	}
