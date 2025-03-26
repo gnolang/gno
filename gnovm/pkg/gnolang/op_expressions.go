@@ -8,7 +8,7 @@ import (
 
 // NOTE: keep in sync with doOpIndex2.
 func (m *Machine) doOpIndex1() {
-	if debug {
+	if zealous {
 		_ = m.PopExpr().(*IndexExpr)
 	} else {
 		m.PopExpr()
@@ -36,7 +36,7 @@ func (m *Machine) doOpIndex1() {
 
 // NOTE: keep in sync with doOpIndex1.
 func (m *Machine) doOpIndex2() {
-	if debug {
+	if zealous {
 		_ = m.PopExpr().(*IndexExpr)
 	} else {
 		m.PopExpr()
@@ -75,7 +75,7 @@ func (m *Machine) doOpSelector() {
 	sx := m.PopExpr().(*SelectorExpr)
 	xv := m.PeekValue(1)
 	res := xv.GetPointerToFromTV(m.Alloc, m.Store, sx.Path).Deref()
-	if debug {
+	if dbg {
 		m.Printf("-v[S] %v\n", xv)
 		m.Printf("+v[S] %v\n", res)
 	}
@@ -449,7 +449,7 @@ func (m *Machine) doOpArrayLit() {
 		}
 	}
 	// pop array type.
-	if debug {
+	if zealous {
 		if m.PopValue().V.(TypeValue).Type != at {
 			panic("should not happen")
 		}
@@ -475,7 +475,7 @@ func (m *Machine) doOpSliceLit() {
 		es[i] = *m.PopValue()
 	}
 	// construct and push value.
-	if debug {
+	if zealous {
 		if m.PopValue().V.(TypeValue).Type != st {
 			panic("should not happen")
 		}
@@ -525,7 +525,7 @@ func (m *Machine) doOpSliceLit2() {
 		}
 	}
 	// construct and push value.
-	if debug {
+	if zealous {
 		if m.PopValue().V.(TypeValue).Type != st {
 			panic("should not happen")
 		}
@@ -563,7 +563,7 @@ func (m *Machine) doOpMapLit() {
 		}
 	}
 	// pop map type.
-	if debug {
+	if zealous {
 		if m.PopValue().GetType() != mt {
 			panic("should not happen")
 		}
@@ -595,7 +595,7 @@ func (m *Machine) doOpStructLit() {
 		// field values are in order.
 		m.Alloc.AllocateStructFields(int64(len(st.Fields)))
 		fs = make([]TypedValue, 0, len(st.Fields))
-		if debug {
+		if zealous {
 			if el == 0 {
 				// this is fine.
 			} else if el != nf {
@@ -616,14 +616,14 @@ func (m *Machine) doOpStructLit() {
 		}
 		ftvs := m.PopValues(el)
 		for _, ftv := range ftvs {
-			if debug {
+			if zealous {
 				if !ftv.IsUndefined() && ftv.T.Kind() == InterfaceKind {
 					panic("should not happen")
 				}
 			}
 			fs = append(fs, ftv)
 		}
-		if debug {
+		if zealous {
 			if len(fs) != cap(fs) {
 				panic("should not happen")
 			}
@@ -636,7 +636,7 @@ func (m *Machine) doOpStructLit() {
 		for i := 0; i < el; i++ {
 			fnx := x.Elts[i].Key.(*NameExpr)
 			ftv := ftvs[i]
-			if debug {
+			if zealous {
 				if fnx.Path.Depth != 0 {
 					panic("unexpected struct composite lit key path generation value")
 				}

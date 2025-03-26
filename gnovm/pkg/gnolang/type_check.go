@@ -148,8 +148,8 @@ func assertComparable(xt, dt Type) {
 
 // assert value with dt is comparable
 func assertComparable2(dt Type) {
-	if debug {
-		debug.Printf("assertComparable2 dt: %v \n", dt)
+	if dbg {
+		dbg.Printf("log_machine", "assertComparable2 dt: %v \n", dt)
 	}
 	switch cdt := baseOf(dt).(type) {
 	case PrimitiveType:
@@ -187,8 +187,8 @@ func maybeNil(t Type) bool {
 }
 
 func checkSame(at, bt Type, msg string) error {
-	if debug {
-		debug.Printf("checkSame, at: %v bt: %v \n", at, bt)
+	if dbg {
+		dbg.Printf("log_machine", "checkSame, at: %v bt: %v \n", at, bt)
 	}
 	if at.TypeID() != bt.TypeID() {
 		return errors.New("incompatible types %v and %v %s",
@@ -406,8 +406,8 @@ func checkValDefineMismatch(n Node) {
 // If autoNative is true, a broad range of xt can match against
 // a target native dt type, if and only if dt is a native type.
 func checkAssignableTo(n Node, xt, dt Type, autoNative bool) error {
-	if debug {
-		debug.Printf("checkAssignableTo, xt: %v dt: %v \n", xt, dt)
+	if dbg {
+		dbg.Printf("log_machine", "checkAssignableTo, xt: %v dt: %v \n", xt, dt)
 	}
 	// case0
 	if xt == nil { // see test/files/types/eql_0f18
@@ -490,8 +490,8 @@ func checkAssignableTo(n Node, xt, dt Type, autoNative bool) error {
 		// special case if implicitly named primitive type.
 		// TODO simplify with .IsNamedType().
 		if _, ok := xt.(PrimitiveType); ok { // e.g. 1 == Int(1)
-			if debug {
-				debug.Printf("xt is primitiveType: %v, ddt: %v \n", xt, ddt)
+			if dbg {
+				dbg.Printf("log_machine", "xt is primitiveType: %v, ddt: %v \n", xt, ddt)
 			}
 			// this is special when dt is the declared type of x
 			if !isUntyped(xt) {

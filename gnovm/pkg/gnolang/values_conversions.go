@@ -14,7 +14,7 @@ import (
 // the conversion is forced and overflow/underflow is ignored.
 // TODO: return error, and let caller also print the file and line.
 func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bool) {
-	if debug {
+	if zealous {
 		if t == nil {
 			panic("ConvertTo() requires non-nil type")
 		}
@@ -1215,12 +1215,12 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 // Panics if conversion is illegal.
 // TODO: method on TypedValue?
 func ConvertUntypedTo(tv *TypedValue, t Type) {
-	if debug {
+	if dbg {
 		defer func() {
-			debug.Printf("ConvertUntypedTo done, tv: %v \n", tv)
+			dbg.Printf("log_machine", "ConvertUntypedTo done, tv: %v", tv)
 		}()
 	}
-	if debug {
+	if zealous {
 		if !isUntyped(tv.T) {
 			panic(fmt.Sprintf(
 				"ConvertUntypedTo expects untyped const source but got %s",
@@ -1292,7 +1292,7 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 	// Set .T exactly to t, and set .V to nil
 	// since the result is only primitive (unless string)
 	dst.T = t
-	if debug {
+	if zealous {
 		if dst.V != nil {
 			panic("should not happen")
 		}

@@ -3,9 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"io"
-	"path"
 	"reflect"
-	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -519,9 +517,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		// non-constant var declarations and file-level imports
 		// are re-set in runDeclaration(,true).
 		fn = Preprocess(m.Store, pn, fn).(*FileNode)
-		if debug {
-			debug.Printf("PREPROCESSED FILE: %v\n", fn)
-		}
+		dbg.Printf("log_preprocess", "PREPROCESSED FILE: %v\n", fn)
 		// After preprocessing, save blocknodes to store.
 		SaveBlockNodes(m.Store, fn)
 		// Make block for fn.
@@ -722,7 +718,7 @@ func (m *Machine) RunMain() {
 // Input must not have been preprocessed, that is,
 // it should not be the child of any parent.
 func (m *Machine) Eval(x Expr) []TypedValue {
-	if debug {
+	if dbg {
 		m.Printf("Machine.Eval(%v)\n", x)
 	}
 	if bm.OpsEnabled || bm.StorageEnabled {
@@ -768,7 +764,7 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 // This is primiarily used by the preprocessor to evaluate
 // static types and values.
 func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
-	if debug {
+	if dbg {
 		m.Printf("Machine.EvalStatic(%v, %v)\n", last, x)
 	}
 	// X must have been preprocessed.
@@ -797,7 +793,7 @@ func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
 // This is primiarily used by the preprocessor to evaluate
 // static types of nodes.
 func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
-	if debug {
+	if dbg {
 		m.Printf("Machine.EvalStaticTypeOf(%v, %v)\n", last, x)
 	}
 	// X must have been preprocessed.
@@ -853,7 +849,7 @@ func (m *Machine) RunDeclaration(d Decl) {
 	// do not SaveBlockNodes(m.Store, d).
 	pn.PrepareNewValues(m.Package)
 	m.runDeclaration(d)
-	if debug {
+	if zealous {
 		if pn != m.Package.GetBlock(m.Store).GetSource(m.Store) {
 			panic("package mismatch")
 		}
@@ -1501,7 +1497,7 @@ func (m *Machine) Run() {
 // push pop methods.
 
 func (m *Machine) PushOp(op Op) {
-	if debug {
+	if dbg {
 		m.Printf("+o %v\n", op)
 	}
 	if len(m.Ops) == m.NumOps {
@@ -1518,7 +1514,7 @@ func (m *Machine) PushOp(op Op) {
 func (m *Machine) PopOp() Op {
 	numOps := m.NumOps
 	op := m.Ops[numOps-1]
-	if debug {
+	if dbg {
 		m.Printf("-o %v\n", op)
 	}
 	if OpSticky <= op {
@@ -1530,7 +1526,7 @@ func (m *Machine) PopOp() Op {
 }
 
 func (m *Machine) ForcePopOp() {
-	if debug {
+	if dbg {
 		m.Printf("-o! %v\n", m.Ops[m.NumOps-1])
 	}
 	m.NumOps--
@@ -1539,7 +1535,7 @@ func (m *Machine) ForcePopOp() {
 // Offset starts at 1.
 // DEPRECATED use PeekStmt1() instead.
 func (m *Machine) PeekStmt(offset int) Stmt {
-	if debug {
+	if zealous {
 		if offset != 1 {
 			panic("should not happen")
 		}
@@ -1558,14 +1554,14 @@ func (m *Machine) PeekStmt1() Stmt {
 }
 
 func (m *Machine) PushStmt(s Stmt) {
-	if debug {
+	if dbg {
 		m.Printf("+s %v\n", s)
 	}
 	m.Stmts = append(m.Stmts, s)
 }
 
 func (m *Machine) PushStmts(ss ...Stmt) {
-	if debug {
+	if dbg {
 		for _, s := range ss {
 			m.Printf("+s %v\n", s)
 		}
@@ -1576,7 +1572,7 @@ func (m *Machine) PushStmts(ss ...Stmt) {
 func (m *Machine) PopStmt() Stmt {
 	numStmts := len(m.Stmts)
 	s := m.Stmts[numStmts-1]
-	if debug {
+	if dbg {
 		m.Printf("-s %v\n", s)
 	}
 	if bs, ok := s.(*bodyStmt); ok {
@@ -1591,7 +1587,7 @@ func (m *Machine) PopStmt() Stmt {
 func (m *Machine) ForcePopStmt() (s Stmt) {
 	numStmts := len(m.Stmts)
 	s = m.Stmts[numStmts-1]
-	if debug {
+	if dbg {
 		m.Printf("-s %v\n", s)
 	}
 	// TODO debug lines and assertions.
@@ -1605,7 +1601,7 @@ func (m *Machine) PeekExpr(offset int) Expr {
 }
 
 func (m *Machine) PushExpr(x Expr) {
-	if debug {
+	if dbg {
 		m.Printf("+x %v\n", x)
 	}
 	m.Exprs = append(m.Exprs, x)
@@ -1614,7 +1610,7 @@ func (m *Machine) PushExpr(x Expr) {
 func (m *Machine) PopExpr() Expr {
 	numExprs := len(m.Exprs)
 	x := m.Exprs[numExprs-1]
-	if debug {
+	if dbg {
 		m.Printf("-x %v\n", x)
 	}
 	m.Exprs = m.Exprs[:numExprs-1]
@@ -1632,7 +1628,7 @@ func (m *Machine) PeekType(offset int) Type {
 }
 
 func (m *Machine) PushValue(tv TypedValue) {
-	if debug {
+	if dbg {
 		m.Printf("+v %v\n", tv)
 	}
 	if len(m.Values) == m.NumValues {
@@ -1649,7 +1645,7 @@ func (m *Machine) PushValue(tv TypedValue) {
 // Resulting reference is volatile.
 func (m *Machine) PopValue() (tv *TypedValue) {
 	tv = &m.Values[m.NumValues-1]
-	if debug {
+	if dbg {
 		m.Printf("-v %v\n", tv)
 	}
 	m.NumValues--
@@ -1663,7 +1659,7 @@ func (m *Machine) PopValue() (tv *TypedValue) {
 // NOTE: the values are in stack order, oldest first, the opposite order of
 // multiple pop calls.  This is used for params assignment, for example.
 func (m *Machine) PopValues(n int) []TypedValue {
-	if debug {
+	if dbg {
 		for i := 0; i < n; i++ {
 			tv := m.Values[m.NumValues-n+i]
 			m.Printf("-vs[%d/%d] %v\n", i, n, tv)
@@ -1683,7 +1679,7 @@ func (m *Machine) PopCopyValues(n int) []TypedValue {
 
 // Decrements NumValues by number of last results.
 func (m *Machine) PopResults() {
-	if debug {
+	if dbg {
 		for i := 0; i < m.NumResults; i++ {
 			m.PopValue()
 		}
@@ -1703,15 +1699,15 @@ func (m *Machine) ReapValues(start int) []TypedValue {
 }
 
 func (m *Machine) PushBlock(b *Block) {
-	if debug {
-		m.Println("+B")
+	if dbg {
+		m.Printf("+B")
 	}
 	m.Blocks = append(m.Blocks, b)
 }
 
 func (m *Machine) PopBlock() (b *Block) {
-	if debug {
-		m.Println("-B")
+	if dbg {
+		m.Printf("-B")
 	}
 	numBlocks := len(m.Blocks)
 	b = m.Blocks[numBlocks-1]
@@ -1737,7 +1733,7 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 		NumStmts:  len(m.Stmts),
 		NumBlocks: len(m.Blocks),
 	}
-	if debug {
+	if dbg {
 		m.Printf("+F %#v\n", fr)
 	}
 	m.Frames = append(m.Frames, fr)
@@ -1762,12 +1758,12 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 		LastPackage: m.Package,
 		LastRealm:   m.Realm,
 	}
-	if debug {
+	if zealous {
 		if m.Package == nil {
 			panic("should not happen")
 		}
 	}
-	if debug {
+	if dbg {
 		m.Printf("+F %#v\n", fr)
 	}
 	m.Frames = append(m.Frames, fr)
@@ -1801,7 +1797,7 @@ func (m *Machine) PopFrame() Frame {
 	numFrames := len(m.Frames)
 	f := m.Frames[numFrames-1]
 	f.Popped = true
-	if debug {
+	if dbg {
 		m.Printf("-F %#v\n", f)
 	}
 	m.Frames = m.Frames[:numFrames-1]
@@ -1824,7 +1820,7 @@ func (m *Machine) PopFrameAndReset() {
 func (m *Machine) PopFrameAndReturn() {
 	fr := m.PopFrame()
 	fr.Popped = true
-	if debug {
+	if zealous {
 		if !fr.IsCall() {
 			panic("unexpected non-call (loop) frame")
 		}
@@ -2092,27 +2088,19 @@ func (m *Machine) Recover() *Exception {
 //----------------------------------------
 // inspection methods
 
-func (m *Machine) Println(args ...interface{}) {
-	if debug {
-		if enabled {
-			_, file, line, _ := runtime.Caller(2) // get caller info
-			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
-			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
-			s := prefix + strings.Repeat("|", m.NumOps)
-			fmt.Println(append([]interface{}{s}, args...)...)
-		}
-	}
-}
-
 func (m *Machine) Printf(format string, args ...interface{}) {
-	if debug {
-		if enabled {
-			_, file, line, _ := runtime.Caller(2) // get caller info
-			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
-			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
-			s := prefix + strings.Repeat("|", m.NumOps)
-			fmt.Printf(s+" "+format, args...)
+	if dbg {
+		// 160 pipes, avoids using Repeat which is slow especially for repeated usage.
+		const repeatedPipes = "" +
+			"||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||" +
+			"||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||"
+		var pref string
+		if m.NumOps <= len(repeatedPipes) {
+			pref = repeatedPipes[:m.NumOps]
+		} else {
+			pref = strings.Repeat("|", m.NumOps)
 		}
+		dbg.Printf("log_machine", pref+" "+format, args...)
 	}
 }
 

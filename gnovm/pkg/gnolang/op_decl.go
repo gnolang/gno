@@ -40,7 +40,7 @@ func (m *Machine) doOpValueDecl() {
 		} else if nt != nil {
 			// if nt.T is an interface, maintain tv.T as-is.
 			if nt.Kind() != InterfaceKind {
-				if debug {
+				if zealous {
 					if nt.TypeID() != tv.T.TypeID() &&
 						baseOf(nt).TypeID() != tv.T.TypeID() {
 						panic(fmt.Sprintf(

@@ -42,8 +42,8 @@ func (tid TypeID) String() string {
 
 func typeid(s string) (tid TypeID) {
 	x := TypeID(s)
-	if debug {
-		debug.Println("TYPEID", s)
+	if dbg {
+		dbg.Printf("log_types", "TYPEID %s", s)
 	}
 	return x
 }
@@ -51,8 +51,8 @@ func typeid(s string) (tid TypeID) {
 func typeidf(f string, args ...interface{}) (tid TypeID) {
 	fs := fmt.Sprintf(f, args...)
 	x := TypeID(fs)
-	if debug {
-		debug.Println("TYPEID", fs)
+	if dbg {
+		dbg.Printf("log_types", "TYPEID %s", fs)
 	}
 	return x
 }
@@ -436,7 +436,7 @@ func (l FieldTypeList) TypeIDForPackage(pkgPath string) TypeID {
 
 func (l FieldTypeList) HasUnexported() bool {
 	for _, ft := range l {
-		if debug {
+		if zealous {
 			if ft.Name == "" {
 				// incorrect usage.
 				panic("should not happen")
@@ -783,7 +783,7 @@ func (st *StructType) GetPathForName(n Name) ValuePath {
 }
 
 func (st *StructType) GetStaticTypeOfAt(path ValuePath) Type {
-	if debug {
+	if zealous {
 		if path.Depth != 0 {
 			panic("expected path.Depth of 0")
 		}
@@ -907,7 +907,7 @@ func (it *InterfaceType) Kind() Kind {
 }
 
 func (it *InterfaceType) TypeID() TypeID {
-	if debug {
+	if zealous {
 		if it.Generic != "" {
 			panic("generic type has no TypeID")
 		}
@@ -984,7 +984,7 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 				// XXX make test case and check against go
 				return nil, false, nil, nil, true
 			} else if trail != nil {
-				if debug {
+				if zealous {
 					if len(trail) != 1 || trail[0].Type != VPInterface {
 						panic("should not happen")
 					}
@@ -1114,7 +1114,7 @@ func (ft *FuncType) IsZero() bool {
 
 // if ft is a method, returns whether method takes a pointer receiver.
 func (ft *FuncType) HasPointerReceiver() bool {
-	if debug {
+	if zealous {
 		if len(ft.Params) == 0 {
 			panic("expected unbound method function type, but found no receiver parameter.")
 		}
@@ -1624,7 +1624,7 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 	case VPInterface:
 		return trail, hasPtr, rcvr, ft, false
 	case VPField, VPDerefField:
-		if debug {
+		if zealous {
 			if trail[0].Depth != 0 && trail[0].Depth != 2 {
 				panic("should not happen")
 			}
@@ -1961,7 +1961,7 @@ func KindOf(t Type) Kind {
 // Only for runtime debugging.
 // One of them can be nil, and this lets uninitialized primitives
 // and others serve as empty values.  See doOpAdd()
-// usage: if debug { debugAssertSameTypes() }
+// usage: if dbg { debugAssertSameTypes() }
 func debugAssertSameTypes(lt, rt Type) {
 	if lt == nil && rt == nil {
 		// both are nil.
@@ -1979,17 +1979,17 @@ func debugAssertSameTypes(lt, rt Type) {
 	} else if lt.TypeID() == rt.TypeID() {
 		// non-nil types are identical.
 	} else {
-		debug.Errorf(
+		panic(fmt.Sprintf(
 			"incompatible operands in binary expression: %s and %s",
 			lt.String(),
 			rt.String(),
-		)
+		))
 	}
 }
 
 // Only for runtime debugging.
 // Like debugAssertSameTypes(), but more relaxed, for == and !=.
-// usage: if debug { debugAssertEqualityTypes() }
+// usage: if dbg { debugAssertEqualityTypes() }
 func debugAssertEqualityTypes(lt, rt Type) {
 	if lt == nil && rt == nil {
 		// both are nil.
@@ -2007,11 +2007,11 @@ func debugAssertEqualityTypes(lt, rt Type) {
 	} else if lt.TypeID() == rt.TypeID() {
 		// non-nil types are identical.
 	} else {
-		debug.Errorf(
+		panic(fmt.Sprintf(
 			"incompatible operands in binary (eql/neq) expression: %s and %s",
 			lt.String(),
 			rt.String(),
-		)
+		))
 	}
 }
 

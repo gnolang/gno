@@ -13,6 +13,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/gnodebug"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/pmezard/go-difflib/difflib"
@@ -114,9 +115,6 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 		err = m.CheckEmpty()
 		if err != nil {
 			return "", fmt.Errorf("machine not empty after main: %w", err)
-		}
-		if gno.HasDebugErrors() {
-			return "", fmt.Errorf("got unexpected debug error(s): %v", gno.GetDebugErrors())
 		}
 	}
 
@@ -237,7 +235,8 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		m.RunStatement(gno.S(gno.Call(gno.X("main"))))
 	} else {
 		// Realm case.
-		gno.DisableDebug() // until main call.
+		saved := gnodebug.Debug.Get("log_machine")
+		gnodebug.Debug.Set("log_machine", "") // until main call.
 
 		// Remove filetest from name, as that can lead to the package not being
 		// parsed correctly when using RunMemPackage.
@@ -265,7 +264,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 
 		pv2 := m.Store.GetPackage(pkgPath, false)
 		m.SetActivePackage(pv2)
-		gno.EnableDebug()
+		gnodebug.Debug.Set("log_machine", saved)
 		// clear store.opslog from init function(s).
 		m.Store.SetLogStoreOps(true) // resets.
 		m.RunStatement(gno.S(gno.Call(gno.X("main"))))

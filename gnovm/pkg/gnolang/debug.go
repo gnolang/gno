@@ -3,8 +3,6 @@ package gnolang
 import (
 	"fmt"
 	"net/http"
-	"path"
-	"runtime"
 	"strings"
 	"time"
 
@@ -13,23 +11,17 @@ import (
 	// outright by using environment variables (starts serving)
 	//nolint:gosec
 	_ "net/http/pprof"
+
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/gnodebug"
 )
 
-// NOTE: the golang compiler doesn't seem to be intelligent
-// enough to remove steps when const debug is True,
-// so it is still faster to first check the truth value
-// before calling debug.Println or debug.Printf.
-
-type (
-	debugging      bool
-	debuggingRealm bool
+const (
+	zealous = gnodebug.Zealous
+	dbg     = gnodebug.Debug
 )
-
-// using a const is probably faster.
-// const debug debugging = true // or flip
 
 func init() {
-	if debug {
+	if dbg.Enabled("pprof") {
 		go func() {
 			// e.g.
 			// curl -sK -v http://localhost:8080/debug/pprof/profile?seconds=30 > cpu.out
@@ -43,67 +35,6 @@ func init() {
 			}
 			server.ListenAndServe()
 		}()
-	}
-}
-
-// runtime debugging flag.
-
-var enabled bool = true
-
-func (debugging) Println(args ...interface{}) {
-	if debug {
-		if enabled {
-			_, file, line, _ := runtime.Caller(2)
-			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
-			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
-			fmt.Println(append([]interface{}{prefix}, args...)...)
-		}
-	}
-}
-
-func (debugging) Printf(format string, args ...interface{}) {
-	if debug {
-		if enabled {
-			_, file, line, _ := runtime.Caller(2)
-			caller := fmt.Sprintf("%.12s:%-4d", path.Base(file), line)
-			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
-			fmt.Printf(prefix+format, args...)
-		}
-	}
-}
-
-func (debuggingRealm) Println(args ...interface{}) {
-	if debugRealm {
-		if enabled {
-			_, file, line, _ := runtime.Caller(2)
-			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
-			prefix := fmt.Sprintf("DEBUG_REALM: %17s: ", caller)
-			fmt.Println(append([]interface{}{prefix}, args...)...)
-		}
-	}
-}
-
-func (debuggingRealm) Printf(format string, args ...interface{}) {
-	if debugRealm {
-		if enabled {
-			_, file, line, _ := runtime.Caller(2)
-			caller := fmt.Sprintf("%.12s:%-4d", path.Base(file), line)
-			prefix := fmt.Sprintf("DEBUG_REALM: %17s: ", caller)
-			fmt.Printf(prefix+format, args...)
-		}
-	}
-}
-
-var derrors []string = nil
-
-// Instead of actually panic'ing, which messes with tests, errors are sometimes
-// collected onto `var derrors`.  tests/file_test.go checks derrors after each
-// test, and the file test fails if any unexpected debug errors were found.
-func (debugging) Errorf(format string, args ...interface{}) {
-	if debug {
-		if enabled {
-			derrors = append(derrors, fmt.Sprintf(format, args...))
-		}
 	}
 }
 
@@ -139,36 +70,4 @@ func (p *PreprocessError) Error() string {
 	fmt.Fprint(&err, p.Stack())
 	fmt.Fprintf(&err, "------------------------")
 	return err.String()
-}
-
-// ----------------------------------------
-// Exposed errors accessors
-// File tests may access debug errors.
-
-func HasDebugErrors() bool {
-	return len(derrors) > 0
-}
-
-func GetDebugErrors() []string {
-	return derrors
-}
-
-func ClearDebugErrors() {
-	derrors = nil
-}
-
-func IsDebug() bool {
-	return bool(debug)
-}
-
-func IsDebugEnabled() bool {
-	return bool(debug) && enabled
-}
-
-func DisableDebug() {
-	enabled = false
-}
-
-func EnableDebug() {
-	enabled = true
 }

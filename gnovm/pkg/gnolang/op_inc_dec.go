@@ -22,7 +22,7 @@ func (m *Machine) doOpInc() {
 	// bounds checking.  NOTE: no need to set .V to nil,
 	// as the type should be the same, and thus .V is
 	// expected to be nil.
-	if debug {
+	if zealous {
 		if lv.V != nil {
 			panic("expected lv.V to be nil for primitive type for OpInc")
 		}
@@ -96,7 +96,7 @@ func (m *Machine) doOpDec() {
 	// bounds checking.  NOTE: no need to set .V to nil,
 	// as the type should be the same, and thus .V is
 	// expected to be nil.
-	if debug {
+	if zealous {
 		if lv.V != nil {
 			panic("expected lv.V to be nil for primitive type for OpDec")
 		}

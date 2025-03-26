@@ -31,7 +31,7 @@ func (m *Machine) doOpArrayType() {
 		t.Vrd = true
 	} else {
 		lv := m.PopValue()
-		if debug {
+		if zealous {
 			// This is how run-time untyped const
 			// conversions would work, but we
 			// expect the preprocessor to convert
@@ -282,7 +282,7 @@ func (m *Machine) doOpStaticTypeOf() {
 		default:
 			dxt = xt
 		}
-		if debug {
+		if zealous {
 			path.Validate()
 		}
 

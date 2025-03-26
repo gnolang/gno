@@ -46,7 +46,7 @@ func (m *Machine) doOpLor() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
@@ -61,7 +61,7 @@ func (m *Machine) doOpLand() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
@@ -78,7 +78,7 @@ func (m *Machine) doOpEql() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if debug {
+	if zealous {
 		debugAssertEqualityTypes(lv.T, rv.T)
 	}
 	// set result in lv.
@@ -94,7 +94,7 @@ func (m *Machine) doOpNeq() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if debug {
+	if zealous {
 		debugAssertEqualityTypes(lv.T, rv.T)
 	}
 
@@ -111,7 +111,7 @@ func (m *Machine) doOpLss() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
@@ -128,7 +128,7 @@ func (m *Machine) doOpLeq() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
@@ -145,7 +145,7 @@ func (m *Machine) doOpGtr() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
@@ -162,7 +162,7 @@ func (m *Machine) doOpGeq() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
@@ -179,7 +179,7 @@ func (m *Machine) doOpAdd() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
@@ -193,7 +193,7 @@ func (m *Machine) doOpSub() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
@@ -207,7 +207,7 @@ func (m *Machine) doOpBor() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
@@ -221,7 +221,7 @@ func (m *Machine) doOpXor() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
@@ -235,7 +235,7 @@ func (m *Machine) doOpMul() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
@@ -249,7 +249,7 @@ func (m *Machine) doOpQuo() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
@@ -266,7 +266,7 @@ func (m *Machine) doOpRem() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
@@ -283,7 +283,7 @@ func (m *Machine) doOpShl() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if debug {
+	if zealous {
 		if rv.T.Kind() != UintKind {
 			panic("should not happen")
 		}
@@ -299,7 +299,7 @@ func (m *Machine) doOpShr() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if debug {
+	if zealous {
 		if rv.T.Kind() != UintKind {
 			panic("should not happen")
 		}
@@ -315,7 +315,7 @@ func (m *Machine) doOpBand() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
@@ -329,7 +329,7 @@ func (m *Machine) doOpBandn() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
@@ -396,7 +396,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		ra := rv.V.(*ArrayValue)
 		at := baseOf(lv.T).(*ArrayType)
 		et := at.Elt
-		if debug {
+		if zealous {
 			if la.GetLength() != ra.GetLength() {
 				panic("comparison on arrays of unequal length")
 			}
@@ -416,7 +416,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	case StructKind:
 		ls := lv.V.(*StructValue)
 		rs := rv.V.(*StructValue)
-		if debug {
+		if zealous {
 			lt := baseOf(lv.T).(*StructType)
 			rt := baseOf(rv.T).(*StructType)
 			if lt.TypeID() != rt.TypeID() {
@@ -435,21 +435,21 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		}
 		return true
 	case MapKind:
-		if debug {
+		if zealous {
 			if lv.V != nil && rv.V != nil {
 				panic("map can only be compared with `nil`")
 			}
 		}
 		return lv.V == rv.V
 	case SliceKind:
-		if debug {
+		if zealous {
 			if lv.V != nil && rv.V != nil {
 				panic("slice can only be compared with `nil`")
 			}
 		}
 		return lv.V == rv.V
 	case FuncKind:
-		if debug {
+		if zealous {
 			if lv.V != nil && rv.V != nil {
 				panic("function can only be compared with `nil`")
 			}

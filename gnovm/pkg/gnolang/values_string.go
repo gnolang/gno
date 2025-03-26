@@ -367,8 +367,8 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 				reflect.TypeOf(tv.V)))
 		}
 	case *InterfaceType:
-		if debug {
-			if tv.DebugHasValue() {
+		if zealous {
+			if tv.V != nil || tv.N != [8]byte{} {
 				panic("should not happen")
 			}
 		}
@@ -395,7 +395,7 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 			return s.String()
 		}
 
-		if debug {
+		if zealous {
 			panic(fmt.Sprintf(
 				"unexpected type %s",
 				tv.T.String()))

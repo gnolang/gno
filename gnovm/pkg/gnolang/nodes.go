@@ -210,7 +210,7 @@ func (attr *Attributes) SetAttribute(key GnoAttribute, value interface{}) {
 }
 
 func (attr *Attributes) DelAttribute(key GnoAttribute) {
-	if debug && attr.data == nil {
+	if zealous && attr.data == nil {
 		panic("should not happen, attribute is expected to be non-empty.")
 	}
 	delete(attr.data, key)
@@ -1547,9 +1547,7 @@ func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 
 // DefineNativeFunc defines a native function.
 func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
-	if debug {
-		debug.Printf("*PackageNode.DefineNative(%s,...)\n", n)
-	}
+	dbg.Printf("log_machine", "*PackageNode.DefineNative(%s,...)", n)
 	if native == nil {
 		panic("DefineNative expects a function, but got nil")
 	}
@@ -1557,7 +1555,7 @@ func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*M
 	fd := FuncD(n, ps, rs, nil)
 	fd = Preprocess(nil, x, fd).(*FuncDecl)
 	ft := evalStaticType(nil, x, &fd.Type).(*FuncType)
-	if debug {
+	if zealous {
 		if ft == nil {
 			panic("should not happen")
 		}
@@ -1570,8 +1568,8 @@ func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*M
 // For example, overriding a native function defined in stdlibs/stdlibs for
 // testing. Caller must ensure that the function type is identical.
 func (x *PackageNode) DefineNativeOverride(n Name, native func(*Machine)) {
-	if debug {
-		debug.Printf("*PackageNode.DefineNativeOverride(%s,...)\n", n)
+	if dbg {
+		dbg.Printf("log_machine", "*PackageNode.DefineNativeOverride(%s,...)\n", n)
 	}
 	if native == nil {
 		panic("DefineNative expects a function, but got nil")
@@ -1887,7 +1885,7 @@ func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 
 // Implements BlockNode.
 func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
-	if debug {
+	if zealous {
 		if path.Depth == 0 {
 			panic("should not happen")
 		}
@@ -1900,17 +1898,17 @@ func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
 func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 	for i, name := range sb.Names {
 		if name == n {
-			if debug {
+			if dbg {
 				nt := reflect.TypeOf(sb.Source).String()
-				debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = %v, %v\n",
+				dbg.Printf("log_machine", "StaticBlock(%p %v).GetLocalIndex(%s) = %v, %v\n",
 					sb, nt, n, i, name)
 			}
 			return uint16(i), true
 		}
 	}
-	if debug {
+	if zealous {
 		nt := reflect.TypeOf(sb.Source).String()
-		debug.Printf("StaticBlock(%p %v).GetLocalIndex(%s) = undefined\n",
+		dbg.Printf("log_machine", "StaticBlock(%p %v).GetLocalIndex(%s) = undefined\n",
 			sb, nt, n)
 	}
 	return 0, false
@@ -1963,8 +1961,8 @@ func (sb *StaticBlock) Predefine(isConst bool, n Name) {
 // e.g. var x MyInterface = MyStruct{}.
 // Setting st and tv to nil/zero reserves (predefines) name for definition later.
 func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
-	if debug {
-		debug.Printf(
+	if dbg {
+		dbg.Printf("log_machine",
 			"StaticBlock.Define2(%v, %s, %v, %v)\n",
 			isConst, n, st, tv)
 	}

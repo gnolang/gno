@@ -428,8 +428,8 @@ func makeUverseNode() {
 			case *SliceType:
 				switch bst := baseOf(src.TV.T).(type) {
 				case PrimitiveType:
-					if debug {
-						debug.Println("copy(<%s>,<%s>)", bdt.String(), bst.String())
+					if dbg {
+						dbg.Printf("copy(<%s>,<%s>)", bdt.String(), bst.String())
 					}
 					if bst.Kind() != StringKind {
 						panic("should not happen")
@@ -724,7 +724,7 @@ func makeUverseNode() {
 				ss[i] = ev.Sprint(m)
 			}
 			rs := strings.Join(ss, " ")
-			if debug {
+			if dbg {
 				print(rs)
 			}
 			m.Output.Write([]byte(rs))
@@ -745,7 +745,7 @@ func makeUverseNode() {
 				ss[i] = ev.Sprint(m)
 			}
 			rs := strings.Join(ss, " ") + "\n"
-			if debug {
+			if dbg {
 				println("DEBUG/stdout: " + rs)
 			}
 			m.Output.Write([]byte(rs))
