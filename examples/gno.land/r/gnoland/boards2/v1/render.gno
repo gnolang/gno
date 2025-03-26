@@ -8,6 +8,7 @@ import (
 
 	"gno.land/p/demo/mux"
 	"gno.land/p/jeronimoalbi/pager"
+	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
 )
 
@@ -67,7 +68,7 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 		panic(err)
 	}
 
-	gBoardsByID.ReverseIterateByOffset(p.Offset(), p.PageSize(), func(_ string, v any) bool {
+	render := func(_ string, v any) bool {
 		board := v.(*Board)
 
 		res.Write("## " + newLink(board.GetName(), board.GetURL()) + "  \n")
@@ -81,7 +82,21 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 
 		res.Write("_\n")
 		return false
-	})
+	}
+
+	res.Write("_Sort by ")
+	r := realmpath.Parse(req.RawPath)
+	if req.Query.Get("order") == "desc" {
+		r.Query.Set("order", "asc")
+		res.Write(newLink("newest first", r.String()))
+		res.Write("_\n")
+		gBoardsByID.ReverseIterateByOffset(p.Offset(), p.PageSize(), render)
+	} else {
+		r.Query.Set("order", "desc")
+		res.Write(newLink("oldest first", r.String()))
+		res.Write("_\n")
+		gBoardsByID.IterateByOffset(p.Offset(), p.PageSize(), render)
+	}
 
 	if p.HasPages() {
 		res.Write("\n---\n")
