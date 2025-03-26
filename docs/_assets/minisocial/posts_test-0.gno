@@ -12,7 +12,7 @@ func TestCreatePostSingle(t *testing.T) {
 	// Get a test address for alice
 	aliceAddr := testutils.TestAddress("alice")
 	// TestSetRealm sets the realm caller, in this case Alice
-	std.TestSetRealm(std.NewUserRealm(aliceAddr))
+	testing.SetRealm(std.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
 	err := CreatePost(text1)

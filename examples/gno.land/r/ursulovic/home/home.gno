@@ -76,7 +76,7 @@ func UpdateSelectedImage(url string) {
 
 	sentCoins := std.OriginSend()
 
-	if len(sentCoins) != 1 && sentCoins.AmountOf("ugnot") == imageUpdatePrice {
+	if len(sentCoins) != 1 || sentCoins.AmountOf("ugnot") != imageUpdatePrice {
 		panic("Please send exactly " + strconv.Itoa(int(imageUpdatePrice)) + " ugnot")
 	}
 
