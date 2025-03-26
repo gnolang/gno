@@ -21,8 +21,8 @@ import (
 // before calling debug.Println or debug.Printf.
 
 type (
-	debugging       bool
-	debugging_realm bool
+	debugging      bool
+	debuggingRealm bool
 )
 
 // using a const is probably faster.
@@ -72,7 +72,7 @@ func (debugging) Printf(format string, args ...interface{}) {
 	}
 }
 
-func (debugging_realm) Println(args ...interface{}) {
+func (debuggingRealm) Println(args ...interface{}) {
 	if debugRealm {
 		if enabled {
 			_, file, line, _ := runtime.Caller(2)
@@ -83,7 +83,7 @@ func (debugging_realm) Println(args ...interface{}) {
 	}
 }
 
-func (debugging_realm) Printf(format string, args ...interface{}) {
+func (debuggingRealm) Printf(format string, args ...interface{}) {
 	if debugRealm {
 		if enabled {
 			_, file, line, _ := runtime.Caller(2)

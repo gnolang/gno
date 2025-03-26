@@ -4,4 +4,4 @@ package gnolang
 
 const debug debugging = false
 
-const debugRealm debugging_realm = false
+const debugRealm debuggingRealm = false
