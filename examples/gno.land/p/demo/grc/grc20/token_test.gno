@@ -1,6 +1,7 @@
 package grc20
 
 import (
+	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -86,4 +87,36 @@ func TestOverflow(t *testing.T) {
 	urequire.NoError(t, adm.Mint(alice, 2<<62))
 	urequire.Equal(t, tok.BalanceOf(alice), uint64(2<<62))
 	urequire.Error(t, adm.Mint(bob, 2<<62))
+}
+
+func TestTransferFromAtomicity(t *testing.T) {
+	var (
+		owner     = testutils.TestAddress("owner")
+		spender   = testutils.TestAddress("spender")
+		recipient = testutils.TestAddress("recipient")
+
+		invalidRecipient = std.Address("")
+	)
+
+	token, admin := NewToken("Test", "TEST", 6)
+
+	// owner has 100 tokens, spender has 50 allowance
+	initialBalance := uint64(100)
+	initialAllowance := uint64(50)
+
+	urequire.NoError(t, admin.Mint(owner, initialBalance))
+	urequire.NoError(t, admin.Approve(owner, spender, initialAllowance))
+
+	// transfer to an invalid address to force a transfer failure
+	transferAmount := uint64(30)
+	err := admin.TransferFrom(owner, spender, invalidRecipient, transferAmount)
+	uassert.Error(t, err, "transfer should fail due to invalid address")
+
+	ownerBalance := token.BalanceOf(owner)
+	uassert.Equal(t, ownerBalance, initialBalance, "owner balance should remain unchanged")
+
+	// check if allowance was incorrectly reduced
+	remainingAllowance := token.Allowance(owner, spender)
+	uassert.Equal(t, remainingAllowance, initialAllowance,
+		"allowance should not be reduced when transfer fails")
 }
