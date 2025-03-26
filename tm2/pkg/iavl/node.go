@@ -356,7 +356,7 @@ func (node *Node) getRightNode(t *ImmutableTree) *Node {
 
 // NOTE: mutates height and size
 func (node *Node) calcHeightAndSize(t *ImmutableTree) {
-	node.height = maxInt8(node.getLeftNode(t).height, node.getRightNode(t).height) + 1
+	node.height = max(node.getLeftNode(t).height, node.getRightNode(t).height) + 1
 	node.size = node.getLeftNode(t).size + node.getRightNode(t).size
 }
 

@@ -45,13 +45,6 @@ func printNode(ndb *nodeDB, node *Node, indent int) {
 	}
 }
 
-func maxInt8(a, b int8) int8 {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 func cp(bz []byte) (ret []byte) {
 	ret = make([]byte, len(bz))
 	copy(ret, bz)
