@@ -213,10 +213,6 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		if xo.GetRefCount() == 0 {
 			if xo.GetIsReal() {
 				rlm.MarkNewDeleted(xo)
-				// there's a chance xo is dirty and new deleted
-				// in one transaction, clear the dirty one once
-				// it's already marked new deleted.
-				rlm.clearDirtyNewDeleted(xo)
 			}
 		} else if xo.GetIsReal() { // xo should always be !unsaved here.
 			rlm.MarkDirty(xo)
@@ -510,6 +506,8 @@ func (rlm *Realm) processNewDeletedMarks(store Store) {
 			rlm.decRefDeletedDescendants(store, oo)
 		}
 	}
+	// clear deleted from all other sets.
+	rlm.clearDeleted()
 }
 
 // Like incRefCreatedDescendants but decrements.
@@ -638,7 +636,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 			rc := oo.GetRefCount()
 			if debugRealm {
 				if rc == 0 {
-					panic("ancestor should have a non-zero reference count to be marked as dirty")
+					panic(fmt.Sprintf("ancestor should have a non-zero reference count to be marked as dirty: %v", oo))
 				}
 			}
 			if rc > 1 {
@@ -700,18 +698,39 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 	}
 }
 
-func (rlm *Realm) clearDirtyNewDeleted(oo Object) {
-	filtered := rlm.updated[:0] // Reuse the backing array
+func (rlm *Realm) clearDeleted() {
+	// Convert deleted objects to a map for O(1) lookups
+	deleted := make(map[Object]struct{}, len(rlm.deleted))
+	for _, do := range rlm.deleted {
+		deleted[do] = struct{}{}
+	}
+
+	// Filter updated objects
+	filtered := rlm.updated[:0]
 	for _, uo := range rlm.updated {
-		keep := true
-		if uo == oo {
-			keep = false
-		}
-		if keep {
+		if _, exists := deleted[uo]; !exists {
 			filtered = append(filtered, uo)
 		}
 	}
 	rlm.updated = filtered
+
+	// Filter created objects
+	filtered = rlm.created[:0]
+	for _, co := range rlm.created {
+		if _, exists := deleted[co]; !exists {
+			filtered = append(filtered, co)
+		}
+	}
+	rlm.created = filtered
+
+	// Filter new newEscaped objects
+	filtered = rlm.newEscaped[:0]
+	for _, co := range rlm.newEscaped {
+		if _, exists := deleted[co]; !exists {
+			filtered = append(filtered, co)
+		}
+	}
+	rlm.newEscaped = filtered
 }
 
 //----------------------------------------
