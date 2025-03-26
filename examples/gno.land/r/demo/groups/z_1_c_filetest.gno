@@ -5,6 +5,7 @@ package groups_test
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/groups"
@@ -18,8 +19,8 @@ func main() {
 
 	// add member via anon user
 	test2 := testutils.TestAddress("test2")
-	std.TestSetOrigCaller(test2)
-	std.TestSetOrigSend(std.Coins{{"ugnot", 9000000}}, nil)
+	testing.SetOriginCaller(test2)
+	testing.SetOriginSend(std.Coins{{"ugnot", 9000000}})
 
 	groups.AddMember(gid, test2.String(), 42, "metadata3")
 }

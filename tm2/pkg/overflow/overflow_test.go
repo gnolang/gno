@@ -28,8 +28,7 @@ func TestAlgorithms(t *testing.T) {
 				// now the verification
 				result, ok := Add8(a8, b8)
 				if ok && int64(result) != r64 {
-					t.Errorf("failed to fail on %v + %v = %v instead of %v\n",
-						a8, b8, result, r64)
+					t.Errorf("failed to fail on %v + %v = %v instead of %v\n", a8, b8, result, r64)
 					errors++
 				}
 				if !ok && int64(result) == r64 {
@@ -45,8 +44,7 @@ func TestAlgorithms(t *testing.T) {
 				// now the verification
 				result, ok := Sub8(a8, b8)
 				if ok && int64(result) != r64 {
-					t.Errorf("failed to fail on %v - %v = %v instead of %v\n",
-						a8, b8, result, r64)
+					t.Errorf("failed to fail on %v - %v = %v instead of %v\n", a8, b8, result, r64)
 				}
 				if !ok && int64(result) == r64 {
 					t.Fail()
@@ -61,8 +59,7 @@ func TestAlgorithms(t *testing.T) {
 				// now the verification
 				result, ok := Mul8(a8, b8)
 				if ok && int64(result) != r64 {
-					t.Errorf("failed to fail on %v * %v = %v instead of %v\n",
-						a8, b8, result, r64)
+					t.Errorf("failed to fail on %v * %v = %v instead of %v\n", a8, b8, result, r64)
 					errors++
 				}
 				if !ok && int64(result) == r64 {
@@ -78,11 +75,10 @@ func TestAlgorithms(t *testing.T) {
 				// now the verification
 				result, _, ok := Quotient8(a8, b8)
 				if ok && int64(result) != r64 {
-					t.Errorf("failed to fail on %v / %v = %v instead of %v\n",
-						a8, b8, result, r64)
+					t.Errorf("failed to fail on %v / %v = %v instead of %v\n", a8, b8, result, r64)
 					errors++
 				}
-				if !ok && result != 0 && int64(result) == r64 {
+				if !ok && int64(result) == r64 {
 					t.Fail()
 					errors++
 				}

@@ -179,7 +179,7 @@ func TestTOML_ConfigComments(t *testing.T) {
 			structStack = structStack[:len(structStack)-1]
 
 			// Process all fields of the struct
-			for i := 0; i < structVal.NumField(); i++ {
+			for i := range structVal.NumField() {
 				fieldVal := structVal.Field(i)
 				fieldType := structVal.Type().Field(i)
 

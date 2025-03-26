@@ -7,6 +7,7 @@ package bank1
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/r/demo/banktest"
 )
@@ -15,9 +16,9 @@ func main() {
 	banktestAddr := std.DerivePkgAddr("gno.land/r/demo/banktest")
 
 	// simulate a Deposit call.
-	std.TestSetOrigPkgAddr(banktestAddr)
-	std.TestIssueCoins(banktestAddr, std.Coins{{"ugnot", 100000000}})
-	std.TestSetOrigSend(std.Coins{{"ugnot", 100000000}}, nil)
+	testing.SetOriginPkgAddress(banktestAddr)
+	testing.IssueCoins(banktestAddr, std.Coins{{"ugnot", 100000000}})
+	testing.SetOriginSend(std.Coins{{"ugnot", 100000000}})
 	res := banktest.Deposit("ugnot", 101000000)
 	println(res)
 }

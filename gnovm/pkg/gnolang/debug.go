@@ -3,6 +3,8 @@ package gnolang
 import (
 	"fmt"
 	"net/http"
+	"path"
+	"runtime"
 	"strings"
 	"time"
 
@@ -45,18 +47,24 @@ func init() {
 
 var enabled bool = true
 
-func (debugging) Println(args ...interface{}) {
+func (debugging) Println(args ...any) {
 	if debug {
 		if enabled {
-			fmt.Println(append([]interface{}{"DEBUG:"}, args...)...)
+			_, file, line, _ := runtime.Caller(2)
+			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
+			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
+			fmt.Println(append([]any{prefix}, args...)...)
 		}
 	}
 }
 
-func (debugging) Printf(format string, args ...interface{}) {
+func (debugging) Printf(format string, args ...any) {
 	if debug {
 		if enabled {
-			fmt.Printf("DEBUG: "+format, args...)
+			_, file, line, _ := runtime.Caller(2)
+			caller := fmt.Sprintf("%.12s:%-4d", path.Base(file), line)
+			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
+			fmt.Printf(prefix+format, args...)
 		}
 	}
 }
@@ -66,7 +74,7 @@ var derrors []string = nil
 // Instead of actually panic'ing, which messes with tests, errors are sometimes
 // collected onto `var derrors`.  tests/file_test.go checks derrors after each
 // test, and the file test fails if any unexpected debug errors were found.
-func (debugging) Errorf(format string, args ...interface{}) {
+func (debugging) Errorf(format string, args ...any) {
 	if debug {
 		if enabled {
 			derrors = append(derrors, fmt.Sprintf(format, args...))

@@ -1,13 +1,15 @@
 // PKGPATH: gno.land/r/demo/boards_test
 package boards_test
 
-// SEND: 200000000ugnot
+// SEND: 1000000ugnot
 
 import (
+	"std"
 	"strconv"
+	"testing"
 
 	"gno.land/r/demo/boards"
-	"gno.land/r/demo/users"
+	users "gno.land/r/gnoland/users/v1"
 )
 
 var (
@@ -17,7 +19,8 @@ var (
 )
 
 func init() {
-	users.Register("", "gnouser", "my profile")
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	users.Register("gnouser123")
 
 	bid = boards.CreateBoard("test_board")
 	boards.CreateThread(bid, "First Post (title)", "Body of the first post. (body)")
@@ -26,6 +29,7 @@ func init() {
 }
 
 func main() {
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")))
 	boards.CreateReply(bid, pid, pid, "Second reply of the second post\n")
 	rid2 := boards.CreateReply(bid, pid, rid, "First reply of the first reply\n")
 	println(boards.Render("test_board/" + strconv.Itoa(int(pid)) + "/" + strconv.Itoa(int(rid2))))
@@ -35,11 +39,11 @@ func main() {
 // _[see thread](/r/demo/boards:test_board/2)_
 //
 // Reply of the second post
-// \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/3) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=2&postid=3)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=2&postid=3)]
+// \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/3) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&postid=3&threadid=2)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=3&threadid=2)]
 //
 // _[see all 1 replies](/r/demo/boards:test_board/2/3)_
 //
 // > First reply of the first reply
 // >
-// > \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/5) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&threadid=2&postid=5)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&threadid=2&postid=5)]
+// > \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/5) \[[reply](/r/demo/boards$help&func=CreateReply&bid=1&postid=5&threadid=2)] \[[x](/r/demo/boards$help&func=DeletePost&bid=1&postid=5&threadid=2)]
 //

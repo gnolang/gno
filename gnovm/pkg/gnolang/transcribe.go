@@ -14,7 +14,6 @@ type (
 const (
 	TRANS_CONTINUE TransCtrl = iota
 	TRANS_SKIP
-	TRANS_BREAK
 	TRANS_EXIT
 )
 
@@ -61,7 +60,6 @@ const (
 	TRANS_MAPTYPE_KEY
 	TRANS_MAPTYPE_VALUE
 	TRANS_STRUCTTYPE_FIELD
-	TRANS_MAYBENATIVETYPE_TYPE
 	TRANS_ASSIGN_LHS
 	TRANS_ASSIGN_RHS
 	TRANS_BLOCK_BODY
@@ -101,7 +99,7 @@ const (
 	TRANS_IMPORT_PATH
 	TRANS_CONST_TYPE
 	TRANS_CONST_VALUE
-	TRANS_VAR_NAME // XXX stringer
+	TRANS_VAR_NAME
 	TRANS_VAR_TYPE
 	TRANS_VAR_VALUE
 	TRANS_TYPE_TYPE
@@ -113,8 +111,6 @@ const (
 //   - TRANS_SKIP to break out of the
 //     ENTER,CHILDS1,[BLOCK,CHILDS2]?,LEAVE sequence for that node,
 //     i.e. skipping (the rest of) it;
-//   - TRANS_BREAK to break out of looping in CHILDS1 or CHILDS2,
-//     but still perform TRANS_LEAVE.
 //   - TRANS_EXIT to stop traversing altogether.
 //
 // Do not mutate ns.
@@ -168,9 +164,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 		for idx := range cnn.Args {
 			cnn.Args[idx] = transcribe(t, nns, TRANS_CALL_ARG, idx, cnn.Args[idx], &c).(Expr)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
+			if isStopOrSkip(nc, c) {
 				return
 			}
 		}
@@ -248,16 +242,12 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			k, v := kvx.Key, kvx.Value
 			if k != nil {
 				k = transcribe(t, nns, TRANS_COMPOSITE_KEY, idx, k, &c).(Expr)
-				if isBreak(c) {
-					break
-				} else if isStopOrSkip(nc, c) {
+				if isStopOrSkip(nc, c) {
 					return
 				}
 			}
 			v = transcribe(t, nns, TRANS_COMPOSITE_VALUE, idx, v, &c).(Expr)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
+			if isStopOrSkip(nc, c) {
 				return
 			}
 			cnn.Elts[idx] = KeyValueExpr{Key: k, Value: v}
@@ -269,9 +259,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 		for idx := range cnn.HeapCaptures {
 			cnn.HeapCaptures[idx] = *(transcribe(t, nns, TRANS_FUNCLIT_HEAP_CAPTURE, idx, &cnn.HeapCaptures[idx], &c).(*NameExpr))
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
+			if isStopOrSkip(nc, c) {
 				return
 			}
 		}
@@ -285,9 +273,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		// iterate over Body; its length can change if a statement is decomposed.
 		for idx := 0; idx < len(cnn.Body); idx++ {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_FUNCLIT_BODY, idx, cnn.Body[idx], &c).(Stmt)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
+			if isStopOrSkip(nc, c) {
 				return
 			}
 		}
@@ -321,9 +307,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 	case *InterfaceTypeExpr:
 		for idx := range cnn.Methods {
 			cnn.Methods[idx] = *transcribe(t, nns, TRANS_INTERFACETYPE_METHOD, idx, &cnn.Methods[idx], &c).(*FieldTypeExpr)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
+			if isStopOrSkip(nc, c) {
 				return
 			}
 		}
@@ -341,9 +325,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 		for idx := range cnn.Results {
 			cnn.Results[idx] = *transcribe(t, nns, TRANS_FUNCTYPE_RESULT, idx, &cnn.Results[idx], &c).(*FieldTypeExpr)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
+			if isStopOrSkip(nc, c) {
 				return
 			}
 		}
@@ -359,31 +341,20 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 	case *StructTypeExpr:
 		for idx := range cnn.Fields {
 			cnn.Fields[idx] = *transcribe(t, nns, TRANS_STRUCTTYPE_FIELD, idx, &cnn.Fields[idx], &c).(*FieldTypeExpr)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
+			if isStopOrSkip(nc, c) {
 				return
 			}
-		}
-	case *MaybeNativeTypeExpr:
-		cnn.Type = transcribe(t, nns, TRANS_MAYBENATIVETYPE_TYPE, 0, cnn.Type, &c).(Expr)
-		if isStopOrSkip(nc, c) {
-			return
 		}
 	case *AssignStmt:
 		for idx := range cnn.Lhs {
 			cnn.Lhs[idx] = transcribe(t, nns, TRANS_ASSIGN_LHS, idx, cnn.Lhs[idx], &c).(Expr)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
+			if isStopOrSkip(nc, c) {
 				return
 			}
 		}
 		for idx := range cnn.Rhs {
 			cnn.Rhs[idx] = transcribe(t, nns, TRANS_ASSIGN_RHS, idx, cnn.Rhs[idx], &c).(Expr)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
+			if isStopOrSkip(nc, c) {
 				return
 			}
 		}
@@ -398,9 +369,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		// iterate over Body; its length can change if a statement is decomposed.
 		for idx := 0; idx < len(cnn.Body); idx++ {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_BLOCK_BODY, idx, cnn.Body[idx], &c).(Stmt)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
+			if isStopOrSkip(nc, c) {
 				return
 			}
 		}
@@ -409,9 +378,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		// iterate over Body; its length can change if a statement is decomposed.
 		for idx := 0; idx < len(cnn.Body); idx++ {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_DECL_BODY, idx, cnn.Body[idx], &c).(SimpleDeclStmt)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
+			if isStopOrSkip(nc, c) {
 				return
 			}
 		}
@@ -455,9 +422,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		// iterate over Body; its length can change if a statement is decomposed.
 		for idx := 0; idx < len(cnn.Body); idx++ {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_FOR_BODY, idx, cnn.Body[idx], &c).(Stmt)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
+			if isStopOrSkip(nc, c) {
 				return
 			}
 		}
@@ -506,9 +471,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		// iterate over Body; its length can change if a statement is decomposed.
 		for idx := 0; idx < len(cnn.Body); idx++ {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_IF_CASE_BODY, idx, cnn.Body[idx], &c).(Stmt)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
+			if isStopOrSkip(nc, c) {
 				return
 			}
 		}
@@ -544,18 +507,14 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		// iterate over Body; its length can change if a statement is decomposed.
 		for idx := 0; idx < len(cnn.Body); idx++ {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_RANGE_BODY, idx, cnn.Body[idx], &c).(Stmt)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
+			if isStopOrSkip(nc, c) {
 				return
 			}
 		}
 	case *ReturnStmt:
 		for idx := range cnn.Results {
 			cnn.Results[idx] = transcribe(t, nns, TRANS_RETURN_RESULT, idx, cnn.Results[idx], &c).(Expr)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
+			if isStopOrSkip(nc, c) {
 				return
 			}
 		}
@@ -564,9 +523,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 	case *SelectStmt:
 		for idx := range cnn.Cases {
 			cnn.Cases[idx] = *transcribe(t, nns, TRANS_SELECT_CASE, idx, &cnn.Cases[idx], &c).(*SelectCaseStmt)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
+			if isStopOrSkip(nc, c) {
 				return
 			}
 		}
@@ -585,9 +542,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		// iterate over Body; its length can change if a statement is decomposed.
 		for idx := 0; idx < len(cnn.Body); idx++ {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_SELECTCASE_BODY, idx, cnn.Body[idx], &c).(Stmt)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
+			if isStopOrSkip(nc, c) {
 				return
 			}
 		}
@@ -632,9 +587,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 		for idx := range cnn.Clauses {
 			cnn.Clauses[idx] = *transcribe(t, nns, TRANS_SWITCH_CASE, idx, &cnn.Clauses[idx], &c).(*SwitchClauseStmt)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
+			if isStopOrSkip(nc, c) {
 				return
 			}
 		}
@@ -652,18 +605,14 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 		for idx := range cnn.Cases {
 			cnn.Cases[idx] = transcribe(t, nns, TRANS_SWITCHCASE_CASE, idx, cnn.Cases[idx], &c).(Expr)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
+			if isStopOrSkip(nc, c) {
 				return
 			}
 		}
 		// iterate over Body; its length can change if a statement is decomposed.
 		for idx := 0; idx < len(cnn.Body); idx++ {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_SWITCHCASE_BODY, idx, cnn.Body[idx], &c).(Stmt)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
+			if isStopOrSkip(nc, c) {
 				return
 			}
 		}
@@ -688,9 +637,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		// iterate over Body; its length can change if a statement is decomposed.
 		for idx := 0; idx < len(cnn.Body); idx++ {
 			cnn.Body[idx] = transcribe(t, nns, TRANS_FUNC_BODY, idx, cnn.Body[idx], &c).(Stmt)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
+			if isStopOrSkip(nc, c) {
 				return
 			}
 		}
@@ -709,9 +656,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 		for idx := range cnn.Values {
 			cnn.Values[idx] = transcribe(t, nns, TRANS_VAR_VALUE, idx, cnn.Values[idx], &c).(Expr)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
+			if isStopOrSkip(nc, c) {
 				return
 			}
 		}
@@ -730,9 +675,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 		for idx := range cnn.Decls {
 			cnn.Decls[idx] = transcribe(t, nns, TRANS_FILE_BODY, idx, cnn.Decls[idx], &c).(Decl)
-			if isBreak(c) {
-				break
-			} else if isStopOrSkip(nc, c) {
+			if isStopOrSkip(nc, c) {
 				return
 			}
 		}
@@ -766,14 +709,5 @@ func isStopOrSkip(oldnc *TransCtrl, nc TransCtrl) (stop bool) {
 		return false
 	} else {
 		panic("should not happen")
-	}
-}
-
-// returns true if transcribe() should break (a loop).
-func isBreak(nc TransCtrl) (brek bool) {
-	if nc == TRANS_BREAK {
-		return true
-	} else {
-		return false
 	}
 }

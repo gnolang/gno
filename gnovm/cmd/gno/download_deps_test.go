@@ -46,9 +46,10 @@ func TestDownloadDeps(t *testing.T) {
 					},
 				},
 			},
-			requirements: []string{"avl"},
+			requirements: []string{"avl", "ufmt"},
 			ioErrContains: []string{
 				"gno: downloading gno.land/p/demo/avl",
+				"gno: downloading gno.land/p/demo/ufmt",
 			},
 		}, {
 			desc:    "fetch_gno.land/p/demo/blog6",
@@ -80,9 +81,10 @@ func TestDownloadDeps(t *testing.T) {
 					New: module.Version{Path: "gno.land/p/demo/avl"},
 				}},
 			},
-			requirements: []string{"avl"},
+			requirements: []string{"avl", "ufmt"},
 			ioErrContains: []string{
 				"gno: downloading gno.land/p/demo/avl",
+				"gno: downloading gno.land/p/demo/ufmt",
 			},
 		}, {
 			desc:    "fetch_replace_local",
@@ -107,7 +109,7 @@ func TestDownloadDeps(t *testing.T) {
 
 			dirPath := t.TempDir()
 
-			err := os.WriteFile(filepath.Join(dirPath, "main.gno"), []byte(fmt.Sprintf("package main\n\n import %q\n", tc.pkgPath)), 0o644)
+			err := os.WriteFile(filepath.Join(dirPath, "main.gno"), fmt.Appendf(nil, "package main\n\n import %q\n", tc.pkgPath), 0o644)
 			require.NoError(t, err)
 
 			tmpGnoHome := t.TempDir()

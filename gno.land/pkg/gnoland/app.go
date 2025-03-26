@@ -34,11 +34,13 @@ import (
 
 // AppOptions contains the options to create the gno.land ABCI application.
 type AppOptions struct {
-	DB                dbm.DB             // required
-	Logger            *slog.Logger       // required
-	EventSwitch       events.EventSwitch // required
-	VMOutput          io.Writer          // optional
-	InitChainerConfig                    // options related to InitChainer
+	DB                      dbm.DB             // required
+	Logger                  *slog.Logger       // required
+	EventSwitch             events.EventSwitch // required
+	VMOutput                io.Writer          // optional
+	SkipGenesisVerification bool               // default to verify genesis transactions
+	InitChainerConfig                          // options related to InitChainer
+	MinGasPrices            string             // optional
 }
 
 // TestAppOptions provides a "ready" default [AppOptions] for use with
@@ -53,6 +55,7 @@ func TestAppOptions(db dbm.DB) *AppOptions {
 			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
 			CacheStdlibLoad:        true,
 		},
+		SkipGenesisVerification: true,
 	}
 }
 
@@ -79,9 +82,13 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	mainKey := store.NewStoreKey("main")
 	baseKey := store.NewStoreKey("base")
 
+	//  set sdk app options
+	var appOpts []func(*sdk.BaseApp)
+	if cfg.MinGasPrices != "" {
+		appOpts = append(appOpts, sdk.SetMinGasPrices(cfg.MinGasPrices))
+	}
 	// Create BaseApp.
-	// TODO: Add a consensus based min gas prices for the node, by default it does not check
-	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey)
+	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey, appOpts...)
 	baseApp.SetAppVersion("dev")
 
 	// Set mounts for BaseApp's MultiStore.
@@ -89,36 +96,39 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
 
 	// Construct keepers.
-	paramsKpr := params.NewParamsKeeper(mainKey, "vm")
-	acctKpr := auth.NewAccountKeeper(mainKey, paramsKpr, ProtoGnoAccount)
-	gpKpr := auth.NewGasPriceKeeper(mainKey)
-	bankKpr := bank.NewBankKeeper(acctKpr)
 
-	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, paramsKpr)
+	prmk := params.NewParamsKeeper(mainKey)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount)
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
+	gpk := auth.NewGasPriceKeeper(mainKey)
+	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, prmk)
 	vmk.Output = cfg.VMOutput
+
+	prmk.Register(auth.ModuleName, acck)
+	prmk.Register(bank.ModuleName, bankk)
+	prmk.Register(vm.ModuleName, vmk)
 
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
 	icc.baseApp = baseApp
-	icc.acctKpr, icc.bankKpr, icc.vmKpr, icc.paramsKpr, icc.gpKpr = acctKpr, bankKpr, vmk, paramsKpr, gpKpr
+	icc.acck, icc.bankk, icc.vmk, icc.prmk, icc.gpk = acck, bankk, vmk, prmk, gpk
 	baseApp.SetInitChainer(icc.InitChainer)
 
 	// Set AnteHandler
 	authOptions := auth.AnteOptions{
-		VerifyGenesisSignatures: false, // for development
+		VerifyGenesisSignatures: !cfg.SkipGenesisVerification,
 	}
 	authAnteHandler := auth.NewAnteHandler(
-		acctKpr, bankKpr, auth.DefaultSigVerificationGasConsumer, authOptions)
+		acck, bankk, auth.DefaultSigVerificationGasConsumer, authOptions)
 	baseApp.SetAnteHandler(
 		// Override default AnteHandler with custom logic.
 		func(ctx sdk.Context, tx std.Tx, simulate bool) (
 			newCtx sdk.Context, res sdk.Result, abort bool,
 		) {
 			// Add last gas price in the context
-			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpKpr.LastGasPrice(ctx))
-
+			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpk.LastGasPrice(ctx))
 			// Override auth params.
-			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acctKpr.GetParams(ctx))
+			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
 			// Continue on with default auth ante handler.
 			newCtx, res, abort = authAnteHandler(ctx, tx, simulate)
 			return
@@ -149,17 +159,17 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	baseApp.SetEndBlocker(
 		EndBlocker(
 			c,
-			acctKpr,
-			gpKpr,
+			acck,
+			gpk,
 			vmk,
 			baseApp,
 		),
 	)
 
 	// Set a handler Route.
-	baseApp.Router().AddRoute("auth", auth.NewHandler(acctKpr))
-	baseApp.Router().AddRoute("bank", bank.NewHandler(bankKpr))
-	baseApp.Router().AddRoute("params", params.NewHandler(paramsKpr))
+	baseApp.Router().AddRoute("auth", auth.NewHandler(acck))
+	baseApp.Router().AddRoute("bank", bank.NewHandler(bankk))
+	baseApp.Router().AddRoute("params", params.NewHandler(prmk))
 	baseApp.Router().AddRoute("vm", vm.NewHandler(vmk))
 
 	// Load latest version.
@@ -175,12 +185,28 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	return baseApp, nil
 }
 
+// GenesisAppConfig wraps the most important
+// genesis params relating to the App
+type GenesisAppConfig struct {
+	SkipFailingTxs      bool // does not stop the chain from starting if any tx fails
+	SkipSigVerification bool // does not verify the transaction signatures in genesis
+}
+
+// NewTestGenesisAppConfig returns a testing genesis app config
+func NewTestGenesisAppConfig() GenesisAppConfig {
+	return GenesisAppConfig{
+		SkipFailingTxs:      true,
+		SkipSigVerification: true,
+	}
+}
+
 // NewApp creates the gno.land application.
 func NewApp(
 	dataRootDir string,
-	skipFailingGenesisTxs bool,
+	genesisCfg GenesisAppConfig,
 	evsw events.EventSwitch,
 	logger *slog.Logger,
+	minGasPrices string,
 ) (abci.Application, error) {
 	var err error
 
@@ -191,8 +217,10 @@ func NewApp(
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
 			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
 		},
+		MinGasPrices:            minGasPrices,
+		SkipGenesisVerification: genesisCfg.SkipSigVerification,
 	}
-	if skipFailingGenesisTxs {
+	if genesisCfg.SkipFailingTxs {
 		cfg.GenesisTxResultHandler = NoopGenesisTxResultHandler
 	}
 
@@ -237,12 +265,12 @@ type InitChainerConfig struct {
 
 	// These fields are passed directly by NewAppWithOptions, and should not be
 	// configurable by end-users.
-	baseApp   *sdk.BaseApp
-	vmKpr     vm.VMKeeperI
-	acctKpr   auth.AccountKeeperI
-	bankKpr   bank.BankKeeperI
-	paramsKpr params.ParamsKeeperI
-	gpKpr     auth.GasPriceKeeperI
+	baseApp *sdk.BaseApp
+	vmk     vm.VMKeeperI
+	acck    auth.AccountKeeperI
+	bankk   bank.BankKeeperI
+	prmk    params.ParamsKeeperI
+	gpk     auth.GasPriceKeeperI
 }
 
 // InitChainer is the function that can be used as a [sdk.InitChainer].
@@ -283,14 +311,14 @@ func (cfg InitChainerConfig) loadStdlibs(ctx sdk.Context) {
 	ms := ctx.MultiStore()
 	msCache := ms.MultiCacheWrap()
 
-	stdlibCtx := cfg.vmKpr.MakeGnoTransactionStore(ctx)
+	stdlibCtx := cfg.vmk.MakeGnoTransactionStore(ctx)
 	stdlibCtx = stdlibCtx.WithMultiStore(msCache)
 	if cfg.CacheStdlibLoad {
-		cfg.vmKpr.LoadStdlibCached(stdlibCtx, cfg.StdlibDir)
+		cfg.vmk.LoadStdlibCached(stdlibCtx, cfg.StdlibDir)
 	} else {
-		cfg.vmKpr.LoadStdlib(stdlibCtx, cfg.StdlibDir)
+		cfg.vmk.LoadStdlib(stdlibCtx, cfg.StdlibDir)
 	}
-	cfg.vmKpr.CommitGnoTransactionStore(stdlibCtx)
+	cfg.vmk.CommitGnoTransactionStore(stdlibCtx)
 
 	msCache.MultiWrite()
 }
@@ -300,25 +328,36 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 	if !ok {
 		return nil, fmt.Errorf("invalid AppState of type %T", appState)
 	}
-	cfg.acctKpr.InitGenesis(ctx, state.Auth)
-	params := cfg.acctKpr.GetParams(ctx)
-	ctx = ctx.WithValue(auth.AuthParamsContextKey{}, params)
-	auth.InitChainer(ctx, cfg.gpKpr.(auth.GasPriceKeeper), params.InitialGasPrice)
 
+	cfg.bankk.InitGenesis(ctx, state.Bank)
 	// Apply genesis balances.
 	for _, bal := range state.Balances {
-		acc := cfg.acctKpr.NewAccountWithAddress(ctx, bal.Address)
-		cfg.acctKpr.SetAccount(ctx, acc)
-		err := cfg.bankKpr.SetCoins(ctx, bal.Address, bal.Amount)
+		acc := cfg.acck.NewAccountWithAddress(ctx, bal.Address)
+		cfg.acck.SetAccount(ctx, acc)
+		err := cfg.bankk.SetCoins(ctx, bal.Address, bal.Amount)
 		if err != nil {
 			panic(err)
 		}
 	}
+	// The account keeper's initial genesis state must be set after genesis
+	// accounts are created in account keeeper with genesis balances
+	cfg.acck.InitGenesis(ctx, state.Auth)
 
-	// Apply genesis params.
-	for _, param := range state.Params {
-		param.register(ctx, cfg.paramsKpr)
+	// The unrestricted address must have been created as one of the genesis accounts.
+	// Otherwise, we cannot verify the unrestricted address in the genesis state.
+
+	for _, addr := range state.Auth.Params.UnrestrictedAddrs {
+		acc := cfg.acck.GetAccount(ctx, addr)
+		accr := acc.(*GnoAccount)
+		accr.SetUnrestricted()
+		cfg.acck.SetAccount(ctx, acc)
 	}
+
+	cfg.vmk.InitGenesis(ctx, state.VM)
+
+	params := cfg.acck.GetParams(ctx)
+	ctx = ctx.WithValue(auth.AuthParamsContextKey{}, params)
+	auth.InitChainer(ctx, cfg.gpk, params.InitialGasPrice)
 
 	// Replay genesis txs.
 	txResponses := make([]abci.ResponseDeliverTx, 0, len(state.Txs))
@@ -381,8 +420,8 @@ type endBlockerApp interface {
 // validator set changes
 func EndBlocker(
 	collector *collector[validatorUpdate],
-	acctKpr auth.AccountKeeperI,
-	gpKpr auth.GasPriceKeeperI,
+	acck auth.AccountKeeperI,
+	gpk auth.GasPriceKeeperI,
 	vmk vm.VMKeeperI,
 	app endBlockerApp,
 ) func(
@@ -392,11 +431,11 @@ func EndBlocker(
 	return func(ctx sdk.Context, _ abci.RequestEndBlock) abci.ResponseEndBlock {
 		// set the auth params value in the ctx.  The EndBlocker will use InitialGasPrice in
 		// the params to calculate the updated gas price.
-		if acctKpr != nil {
-			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acctKpr.GetParams(ctx))
+		if acck != nil {
+			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
 		}
-		if acctKpr != nil && gpKpr != nil {
-			auth.EndBlocker(ctx, gpKpr)
+		if acck != nil && gpk != nil {
+			auth.EndBlocker(ctx, gpk)
 		}
 		// Check if there was a valset change
 		if len(collector.getEvents()) == 0 {

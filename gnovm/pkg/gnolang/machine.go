@@ -1,11 +1,11 @@
 package gnolang
 
-// XXX rename file to machine.go.
-
 import (
 	"fmt"
 	"io"
+	"path"
 	"reflect"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -17,30 +17,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
-
-// Exception represents a panic that originates from a gno program.
-type Exception struct {
-	// Value is the value passed to panic.
-	Value TypedValue
-	// Frame is used to reference the frame a panic occurred in so that recover() knows if the
-	// currently executing deferred function is able to recover from the panic.
-	Frame *Frame
-
-	Stacktrace Stacktrace
-}
-
-func (e Exception) Sprint(m *Machine) string {
-	return e.Value.Sprint(m)
-}
-
-// UnhandledPanicError represents an error thrown when a panic is not handled in the realm.
-type UnhandledPanicError struct {
-	Descriptor string // Description of the unhandled panic.
-}
-
-func (e UnhandledPanicError) Error() string {
-	return e.Descriptor
-}
 
 //----------------------------------------
 // Machine
@@ -66,11 +42,9 @@ type Machine struct {
 
 	// Configuration
 	PreprocessorMode bool // this is used as a flag when const values are evaluated during preprocessing
-	ReadOnly         bool
-	MaxCycles        int64
 	Output           io.Writer
 	Store            Store
-	Context          interface{}
+	Context          any
 	GasMeter         store.GasMeter
 	// PanicScope is incremented each time a panic occurs and is reset to
 	// zero when it is recovered.
@@ -103,15 +77,13 @@ type MachineOptions struct {
 	// Active package of the given machine; must be set before execution.
 	PkgPath          string
 	PreprocessorMode bool
-	ReadOnly         bool
 	Debug            bool
 	Input            io.Reader // used for default debugger input only
 	Output           io.Writer // default os.Stdout
 	Store            Store     // default NewStore(Alloc, nil, nil)
-	Context          interface{}
+	Context          any
 	Alloc            *Allocator // or see MaxAllocBytes.
 	MaxAllocBytes    int64      // or 0 for no limit.
-	MaxCycles        int64      // or 0 for no limit.
 	GasMeter         store.GasMeter
 }
 
@@ -120,7 +92,7 @@ type MachineOptions struct {
 // to be occupied by *Machine
 // hence, this pool
 var machinePool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return &Machine{
 			Ops:    make([]Op, VMSliceSize),
 			Values: make([]TypedValue, VMSliceSize),
@@ -135,8 +107,6 @@ var machinePool = sync.Pool{
 // [Machine.Release].
 func NewMachineWithOptions(opts MachineOptions) *Machine {
 	preprocessorMode := opts.PreprocessorMode
-	readOnly := opts.ReadOnly
-	maxCycles := opts.MaxCycles
 	vmGasMeter := opts.GasMeter
 
 	output := opts.Output
@@ -168,8 +138,6 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Package = pv
 	mm.Alloc = alloc
 	mm.PreprocessorMode = preprocessorMode
-	mm.ReadOnly = readOnly
-	mm.MaxCycles = maxCycles
 	mm.Output = output
 	mm.Store = store
 	mm.Context = context
@@ -283,11 +251,6 @@ func (m *Machine) RunMemPackageWithOverrides(memPkg *gnovm.MemPackage, save bool
 func (m *Machine) runMemPackage(memPkg *gnovm.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
 	// parse files.
 	files := ParseMemPackage(memPkg)
-	if !overrides {
-		if err := checkDuplicates(files); err != nil {
-			panic(fmt.Errorf("running package %q: %w", memPkg.Path, err))
-		}
-	}
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)
@@ -303,7 +266,7 @@ func (m *Machine) runMemPackage(memPkg *gnovm.MemPackage, save, overrides bool) 
 	}
 	m.SetActivePackage(pv)
 	// run files.
-	updates := m.runFileDecls(files.Files...)
+	updates := m.runFileDecls(overrides, files.Files...)
 	// save package value and mempackage.
 	// XXX save condition will be removed once gonative is removed.
 	var throwaway *Realm
@@ -407,24 +370,17 @@ func destar(x Expr) Expr {
 // Stacktrace returns the stack trace of the machine.
 // It collects the executions and frames from the machine's frames and statements.
 func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
-	if len(m.Frames) == 0 || len(m.Stmts) == 0 {
+	if len(m.Frames) == 0 {
 		return
 	}
 
-	calls := make([]StacktraceCall, 0, len(m.Stmts))
-	nextStmtIndex := len(m.Stmts) - 1
+	calls := make([]StacktraceCall, 0, len(m.Frames))
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		if m.Frames[i].IsCall() {
-			stm := m.Stmts[nextStmtIndex]
-			bs := stm.(*bodyStmt)
-			stm = bs.Body[bs.NextBodyIndex-1]
 			calls = append(calls, StacktraceCall{
-				Stmt:  stm,
 				Frame: m.Frames[i],
 			})
 		}
-		// if the frame is a call, the next statement is the last statement of the frame.
-		nextStmtIndex = m.Frames[i].NumStmts - 1
 	}
 
 	// if the stacktrace is too long, we trim it down to maxStacktraceSize
@@ -438,6 +394,19 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 
 	stacktrace.Calls = calls
 
+	// XXX move to machine.LastLine()?
+	if len(m.Exprs) > 0 {
+		stacktrace.LastLine = m.PeekExpr(1).GetLine()
+	} else if len(m.Stmts) > 0 {
+		stmt := m.PeekStmt(1)
+		if bs, ok := stmt.(*bodyStmt); ok {
+			if 0 <= bs.NextBodyIndex-1 {
+				stmt = bs.Body[bs.NextBodyIndex-1]
+			}
+		}
+		stacktrace.LastLine = stmt.GetLine()
+	}
+
 	return
 }
 
@@ -450,14 +419,59 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	if pv == nil {
 		panic("RunFiles requires Machine.Package")
 	}
-	updates := m.runFileDecls(fns...)
+	updates := m.runFileDecls(IsStdlib(pv.PkgPath), fns...)
 	m.runInitFromUpdates(pv, updates)
+}
+
+// PreprocessFiles runs Preprocess on the given files. It is used to detect
+// compile-time errors in the package.
+func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, withOverrides bool) (*PackageNode, *PackageValue) {
+	if !withOverrides {
+		if err := checkDuplicates(fset); err != nil {
+			panic(fmt.Errorf("running package %q: %w", pkgName, err))
+		}
+	}
+	pn := NewPackageNode(Name(pkgName), pkgPath, fset)
+	pv := pn.NewPackage()
+	pb := pv.GetBlock(m.Store)
+	m.SetActivePackage(pv)
+	m.Store.SetBlockNode(pn)
+	PredefineFileSet(m.Store, pn, fset)
+	for _, fn := range fset.Files {
+		fn = Preprocess(m.Store, pn, fn).(*FileNode)
+		// After preprocessing, save blocknodes to store.
+		SaveBlockNodes(m.Store, fn)
+		// Make block for fn.
+		// Each file for each *PackageValue gets its own file *Block,
+		// with values copied over from each file's
+		// *FileNode.StaticBlock.
+		fb := m.Alloc.NewBlock(fn, pb)
+		fb.Values = make([]TypedValue, len(fn.StaticBlock.Values))
+		copy(fb.Values, fn.StaticBlock.Values)
+		pv.AddFileBlock(fn.Name, fb)
+	}
+	// Get new values across all files in package.
+	pn.PrepareNewValues(pv)
+	// save package value.
+	var throwaway *Realm
+	if save {
+		// store new package values and types
+		throwaway = m.saveNewPackageValuesAndTypes()
+		if throwaway != nil {
+			m.Realm = throwaway
+		}
+		m.resavePackageValues(throwaway)
+		if throwaway != nil {
+			m.Realm = nil
+		}
+	}
+	return pn, pv
 }
 
 // Add files to the package's *FileSet and run decls in them.
 // This will also run each init function encountered.
 // Returns the updated typed values of package.
-func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
+func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValue {
 	// Files' package names must match the machine's active one.
 	// if there is one.
 	for _, fn := range fns {
@@ -485,6 +499,11 @@ func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
 		}
 		// add fns to pre-existing fileset.
 		pn.FileSet.AddFiles(fns...)
+	}
+	if !withOverrides {
+		if err := checkDuplicates(pn.FileSet); err != nil {
+			panic(fmt.Errorf("running package %q: %w", pv.PkgPath, err))
+		}
 	}
 
 	// Predefine declarations across all files.
@@ -621,13 +640,13 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 	if pv.IsRealm() {
 		rlm := pv.Realm
 		rlm.MarkNewReal(pv)
-		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+		rlm.FinalizeRealmTransaction(m.Store)
 		// save package realm info.
 		m.Store.SetPackageRealm(rlm)
 	} else { // use a throwaway realm.
 		rlm := NewRealm(pv.PkgPath)
 		rlm.MarkNewReal(pv)
-		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+		rlm.FinalizeRealmTransaction(m.Store)
 		throwaway = rlm
 	}
 	// save declared types.
@@ -651,11 +670,11 @@ func (m *Machine) resavePackageValues(rlm *Realm) {
 	pv := m.Package
 	if pv.IsRealm() {
 		rlm = pv.Realm
-		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+		rlm.FinalizeRealmTransaction(m.Store)
 		// re-save package realm info.
 		m.Store.SetPackageRealm(rlm)
 	} else { // use the throwaway realm.
-		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+		rlm.FinalizeRealmTransaction(m.Store)
 	}
 	// types were already saved, and should not change
 	// even after running the init function.
@@ -666,10 +685,10 @@ func (m *Machine) RunFunc(fn Name) {
 		if r := recover(); r != nil {
 			switch r := r.(type) {
 			case UnhandledPanicError:
-				fmt.Printf("Machine.RunFunc(%q) panic: %s\nStacktrace: %s\n",
+				fmt.Printf("Machine.RunFunc(%q) panic: %s\nStacktrace:\n%s\n",
 					fn, r.Error(), m.ExceptionsStacktrace())
 			default:
-				fmt.Printf("Machine.RunFunc(%q) panic: %v\nMachine State:%s\nStacktrace: %s\n",
+				fmt.Printf("Machine.RunFunc(%q) panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
 					fn, r, m.String(), m.Stacktrace().String())
 			}
 			panic(r)
@@ -685,10 +704,10 @@ func (m *Machine) RunMain() {
 		if r != nil {
 			switch r := r.(type) {
 			case UnhandledPanicError:
-				fmt.Printf("Machine.RunMain() panic: %s\nStacktrace: %s\n",
+				fmt.Printf("Machine.RunMain() panic: %s\nStacktrace:\n%s\n",
 					r.Error(), m.ExceptionsStacktrace())
 			default:
-				fmt.Printf("Machine.RunMain() panic: %v\nMachine State:%s\nStacktrace: %s\n",
+				fmt.Printf("Machine.RunMain() panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
 					r, m.String(), m.Stacktrace())
 			}
 			panic(r)
@@ -945,23 +964,16 @@ const (
 	OpFuncLit      Op = 0x51 // func(T){Body}
 	OpConvert      Op = 0x52 // Y(X)
 
-	/* Native operators */
-	OpArrayLitGoNative  Op = 0x60
-	OpSliceLitGoNative  Op = 0x61
-	OpStructLitGoNative Op = 0x62
-	OpCallGoNative      Op = 0x63
-
 	/* Type operators */
-	OpFieldType       Op = 0x70 // Name: X `tag`
-	OpArrayType       Op = 0x71 // [X]Y{}
-	OpSliceType       Op = 0x72 // []X{}
-	OpPointerType     Op = 0x73 // *X
-	OpInterfaceType   Op = 0x74 // interface{...}
-	OpChanType        Op = 0x75 // [<-]chan[<-]X
-	OpFuncType        Op = 0x76 // func(params...)results...
-	OpMapType         Op = 0x77 // map[X]Y
-	OpStructType      Op = 0x78 // struct{...}
-	OpMaybeNativeType Op = 0x79 // maybenative{X}
+	OpFieldType     Op = 0x70 // Name: X `tag`
+	OpArrayType     Op = 0x71 // [X]Y{}
+	OpSliceType     Op = 0x72 // []X{}
+	OpPointerType   Op = 0x73 // *X
+	OpInterfaceType Op = 0x74 // interface{...}
+	OpChanType      Op = 0x75 // [<-]chan[<-]X
+	OpFuncType      Op = 0x76 // func(params...)results...
+	OpMapType       Op = 0x77 // map[X]Y
+	OpStructType    Op = 0x78 // struct{...}
 
 	/* Statement operators */
 	OpAssign      Op = 0x80 // Lhs = Rhs
@@ -1004,13 +1016,9 @@ const GasFactorCPU int64 = 1
 func (m *Machine) incrCPU(cycles int64) {
 	if m.GasMeter != nil {
 		gasCPU := overflow.Mul64p(cycles, GasFactorCPU)
-		m.GasMeter.ConsumeGas(gasCPU, "CPUCycles")
+		m.GasMeter.ConsumeGas(gasCPU, "CPUCycles") // May panic if out of gas.
 	}
-
 	m.Cycles += cycles
-	if m.MaxCycles != 0 && m.Cycles > m.MaxCycles {
-		panic("CPU cycle overrun")
-	}
 }
 
 const (
@@ -1090,23 +1098,16 @@ const (
 	OpCPUFuncLit      = 61
 	OpCPUConvert      = 16
 
-	/* Native operators */
-	OpCPUArrayLitGoNative  = 137
-	OpCPUSliceLitGoNative  = 183
-	OpCPUStructLitGoNative = 179
-	OpCPUCallGoNative      = 256
-
 	/* Type operators */
-	OpCPUFieldType       = 59
-	OpCPUArrayType       = 57
-	OpCPUSliceType       = 55
-	OpCPUPointerType     = 1 // Not yet implemented
-	OpCPUInterfaceType   = 75
-	OpCPUChanType        = 57
-	OpCPUFuncType        = 81
-	OpCPUMapType         = 59
-	OpCPUStructType      = 174
-	OpCPUMaybeNativeType = 67
+	OpCPUFieldType     = 59
+	OpCPUArrayType     = 57
+	OpCPUSliceType     = 55
+	OpCPUPointerType   = 1 // Not yet implemented
+	OpCPUInterfaceType = 75
+	OpCPUChanType      = 57
+	OpCPUFuncType      = 81
+	OpCPUMapType       = 59
+	OpCPUStructType    = 174
 
 	/* Statement operators */
 	OpCPUAssign      = 79
@@ -1385,19 +1386,6 @@ func (m *Machine) Run() {
 		case OpConvert:
 			m.incrCPU(OpCPUConvert)
 			m.doOpConvert()
-		/* GoNative Operators */
-		case OpArrayLitGoNative:
-			m.incrCPU(OpCPUArrayLitGoNative)
-			m.doOpArrayLitGoNative()
-		case OpSliceLitGoNative:
-			m.incrCPU(OpCPUSliceLitGoNative)
-			m.doOpSliceLitGoNative()
-		case OpStructLitGoNative:
-			m.incrCPU(OpCPUStructLitGoNative)
-			m.doOpStructLitGoNative()
-		case OpCallGoNative:
-			m.incrCPU(OpCPUCallGoNative)
-			m.doOpCallGoNative()
 		/* Type operators */
 		case OpFieldType:
 			m.incrCPU(OpCPUFieldType)
@@ -1423,9 +1411,6 @@ func (m *Machine) Run() {
 		case OpInterfaceType:
 			m.incrCPU(OpCPUInterfaceType)
 			m.doOpInterfaceType()
-		case OpMaybeNativeType:
-			m.incrCPU(OpCPUMaybeNativeType)
-			m.doOpMaybeNativeType()
 		/* Statement operators */
 		case OpAssign:
 			m.incrCPU(OpCPUAssign)
@@ -1679,7 +1664,7 @@ func (m *Machine) PopValue() (tv *TypedValue) {
 // multiple pop calls.  This is used for params assignment, for example.
 func (m *Machine) PopValues(n int) []TypedValue {
 	if debug {
-		for i := 0; i < n; i++ {
+		for i := range n {
 			tv := m.Values[m.NumValues-n+i]
 			m.Printf("-vs[%d/%d] %v\n", i, n, tv)
 		}
@@ -1699,7 +1684,7 @@ func (m *Machine) PopCopyValues(n int) []TypedValue {
 // Decrements NumValues by number of last results.
 func (m *Machine) PopResults() {
 	if debug {
-		for i := 0; i < m.NumResults; i++ {
+		for range m.NumResults {
 			m.PopValue()
 		}
 	} else {
@@ -1770,7 +1755,6 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 		NumStmts:    len(m.Stmts),
 		NumBlocks:   len(m.Blocks),
 		Func:        fv,
-		GoFunc:      nil,
 		Receiver:    recv,
 		NumArgs:     cx.NumArgs,
 		IsVarg:      cx.Varg,
@@ -1811,30 +1795,6 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	if rlm != nil && m.Realm != rlm {
 		m.Realm = rlm // enter new realm
 	}
-}
-
-func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *NativeValue) {
-	fr := &Frame{
-		Source:      cx,
-		NumOps:      m.NumOps,
-		NumValues:   m.NumValues - cx.NumArgs - 1,
-		NumExprs:    len(m.Exprs),
-		NumStmts:    len(m.Stmts),
-		NumBlocks:   len(m.Blocks),
-		Func:        nil,
-		GoFunc:      fv,
-		Receiver:    TypedValue{},
-		NumArgs:     cx.NumArgs,
-		IsVarg:      cx.Varg,
-		Defers:      nil,
-		LastPackage: m.Package,
-		LastRealm:   m.Realm,
-	}
-	if debug {
-		m.Printf("+F %#v\n", fr)
-	}
-	m.Frames = append(m.Frames, fr)
-	// keep m.Package the same.
 }
 
 func (m *Machine) PopFrame() Frame {
@@ -1879,7 +1839,7 @@ func (m *Machine) PopFrameAndReturn() {
 	// shift and convert results to typed-nil if undefined and not iface
 	// kind.  and not func result type isn't interface kind.
 	resStart := m.NumValues - numRes
-	for i := 0; i < numRes; i++ {
+	for i := range numRes {
 		res := m.Values[resStart+i]
 		if res.IsUndefined() && rtypes[i].Type.Kind() != InterfaceKind {
 			res.T = rtypes[i].Type
@@ -2095,28 +2055,72 @@ func (m *Machine) Panic(ex TypedValue) {
 	m.PushOp(OpReturnCallDefers)
 }
 
+// Recover is the underlying implementation of the recover() function in the
+// GnoVM. It returns nil if there was no exception to be recovered, otherwise
+// it returns the [Exception], which also contains the value passed into panic().
+func (m *Machine) Recover() *Exception {
+	if len(m.Exceptions) == 0 {
+		return nil
+	}
+
+	// If the exception is out of scope, this recover can't help; return nil.
+	if m.PanicScope <= m.DeferPanicScope {
+		return nil
+	}
+
+	exception := &m.Exceptions[len(m.Exceptions)-1]
+
+	// If the frame the exception occurred in is not popped, it's possible that
+	// the exception is still in scope and can be recovered.
+	if !exception.Frame.Popped {
+		// If the frame is not the current frame, the exception is not in scope; return nil.
+		// This retrieves the second most recent call frame because the first most recent
+		// is the call to recover itself.
+		if frame := m.LastCallFrame(2); frame == nil || frame != exception.Frame {
+			return nil
+		}
+	}
+
+	if isUntyped(exception.Value.T) {
+		ConvertUntypedTo(&exception.Value, nil)
+	}
+	// Recover complete; remove exceptions.
+	m.Exceptions = nil
+	return exception
+}
+
 //----------------------------------------
 // inspection methods
 
-func (m *Machine) Println(args ...interface{}) {
+func (m *Machine) Println(args ...any) {
 	if debug {
 		if enabled {
-			s := strings.Repeat("|", m.NumOps)
-			debug.Println(append([]interface{}{s}, args...)...)
+			_, file, line, _ := runtime.Caller(2) // get caller info
+			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
+			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
+			s := prefix + strings.Repeat("|", m.NumOps)
+			fmt.Println(append([]any{s}, args...)...)
 		}
 	}
 }
 
-func (m *Machine) Printf(format string, args ...interface{}) {
+func (m *Machine) Printf(format string, args ...any) {
 	if debug {
 		if enabled {
-			s := strings.Repeat("|", m.NumOps)
-			debug.Printf(s+" "+format, args...)
+			_, file, line, _ := runtime.Caller(2) // get caller info
+			caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
+			prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
+			s := prefix + strings.Repeat("|", m.NumOps)
+			fmt.Printf(s+" "+format, args...)
 		}
 	}
 }
 
 func (m *Machine) String() string {
+	if m == nil {
+		return "Machine:nil"
+	}
+
 	// Calculate some reasonable total length to avoid reallocation
 	// Assuming an average length of 32 characters per string
 	var (
@@ -2131,25 +2135,26 @@ func (m *Machine) String() string {
 		totalLength = vsLength + ssLength + xsLength + bsLength + obsLength + fsLength + exceptionsLength
 	)
 
-	var builder strings.Builder
+	var sb strings.Builder
+	builder := &sb // Pointer for use in fmt.Fprintf.
 	builder.Grow(totalLength)
 
-	builder.WriteString(fmt.Sprintf("Machine:\n    PreprocessorMode: %v\n    Op: %v\n    Values: (len: %d)\n", m.PreprocessorMode, m.Ops[:m.NumOps], m.NumValues))
+	fmt.Fprintf(builder, "Machine:\n    PreprocessorMode: %v\n    Op: %v\n    Values: (len: %d)\n", m.PreprocessorMode, m.Ops[:m.NumOps], m.NumValues)
 
 	for i := m.NumValues - 1; i >= 0; i-- {
-		builder.WriteString(fmt.Sprintf("          #%d %v\n", i, m.Values[i]))
+		fmt.Fprintf(builder, "          #%d %v\n", i, m.Values[i])
 	}
 
 	builder.WriteString("    Exprs:\n")
 
 	for i := len(m.Exprs) - 1; i >= 0; i-- {
-		builder.WriteString(fmt.Sprintf("          #%d %v\n", i, m.Exprs[i]))
+		fmt.Fprintf(builder, "          #%d %v\n", i, m.Exprs[i])
 	}
 
 	builder.WriteString("    Stmts:\n")
 
 	for i := len(m.Stmts) - 1; i >= 0; i-- {
-		builder.WriteString(fmt.Sprintf("          #%d %v\n", i, m.Stmts[i]))
+		fmt.Fprintf(builder, "          #%d %v\n", i, m.Stmts[i])
 	}
 
 	builder.WriteString("    Blocks:\n")
@@ -2166,17 +2171,17 @@ func (m *Machine) String() string {
 		if pv, ok := b.Source.(*PackageNode); ok {
 			// package blocks have too much, so just
 			// print the pkgpath.
-			builder.WriteString(fmt.Sprintf("          %s(%d) %s\n", gens, gen, pv.PkgPath))
+			fmt.Fprintf(builder, "          %s(%d) %s\n", gens, gen, pv.PkgPath)
 		} else {
 			bsi := b.StringIndented("            ")
-			builder.WriteString(fmt.Sprintf("          %s(%d) %s\n", gens, gen, bsi))
+			fmt.Fprintf(builder, "          %s(%d) %s\n", gens, gen, bsi)
 
 			if b.Source != nil {
 				sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
-				builder.WriteString(fmt.Sprintf(" (s vals) %s(%d) %s\n", gens, gen, sb.StringIndented("            ")))
+				fmt.Fprintf(builder, " (s vals) %s(%d) %s\n", gens, gen, sb.StringIndented("            "))
 
 				sts := b.GetSource(m.Store).GetStaticBlock().Types
-				builder.WriteString(fmt.Sprintf(" (s typs) %s(%d) %s\n", gens, gen, sts))
+				fmt.Fprintf(builder, " (s typs) %s(%d) %s\n", gens, gen, sts)
 			}
 		}
 
@@ -2187,7 +2192,7 @@ func (m *Machine) String() string {
 		case *Block:
 			b = bp
 		case RefValue:
-			builder.WriteString(fmt.Sprintf("            (block ref %v)\n", bp.ObjectID))
+			fmt.Fprintf(builder, "            (block ref %v)\n", bp.ObjectID)
 			b = nil
 		default:
 			panic("should not happen")
@@ -2206,12 +2211,12 @@ func (m *Machine) String() string {
 		if _, ok := b.Source.(*PackageNode); ok {
 			break // done, skip *PackageNode.
 		} else {
-			builder.WriteString(fmt.Sprintf("          #%d %s\n", i,
-				b.StringIndented("            ")))
+			fmt.Fprintf(builder, "          #%d %s\n", i,
+				b.StringIndented("            "))
 			if b.Source != nil {
 				sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
-				builder.WriteString(fmt.Sprintf(" (static) #%d %s\n", i,
-					sb.StringIndented("            ")))
+				fmt.Fprintf(builder, " (static) #%d %s\n", i,
+					sb.StringIndented("            "))
 			}
 		}
 	}
@@ -2219,17 +2224,17 @@ func (m *Machine) String() string {
 	builder.WriteString("    Frames:\n")
 
 	for i := len(m.Frames) - 1; i >= 0; i-- {
-		builder.WriteString(fmt.Sprintf("          #%d %s\n", i, m.Frames[i]))
+		fmt.Fprintf(builder, "          #%d %s\n", i, m.Frames[i])
 	}
 
 	if m.Realm != nil {
-		builder.WriteString(fmt.Sprintf("    Realm:\n      %s\n", m.Realm.Path))
+		fmt.Fprintf(builder, "    Realm:\n      %s\n", m.Realm.Path)
 	}
 
 	builder.WriteString("    Exceptions:\n")
 
 	for _, ex := range m.Exceptions {
-		builder.WriteString(fmt.Sprintf("      %s\n", ex.Sprint(m)))
+		fmt.Fprintf(builder, "      %s\n", ex.Sprint(m))
 	}
 
 	return builder.String()

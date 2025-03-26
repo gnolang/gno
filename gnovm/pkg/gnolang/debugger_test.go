@@ -28,8 +28,7 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 	bout := bytes.NewBufferString("")
 	berr := bytes.NewBufferString("")
 	stdin := bytes.NewBufferString(in)
-	stdout := writeNopCloser{bout}
-	stderr := writeNopCloser{berr}
+	output := test.OutputWithError(writeNopCloser{bout}, writeNopCloser{berr})
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -39,14 +38,14 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 		err = strings.TrimSpace(strings.ReplaceAll(err, "../../tests/files/", "files/"))
 	}()
 
-	_, testStore := test.Store(gnoenv.RootDir(), false, stdin, stdout, stderr)
+	_, testStore := test.Store(gnoenv.RootDir(), output)
 
 	f := gnolang.MustReadFile(file)
 
 	m := gnolang.NewMachineWithOptions(gnolang.MachineOptions{
 		PkgPath: string(f.PkgName),
 		Input:   stdin,
-		Output:  stdout,
+		Output:  output,
 		Store:   testStore,
 		Context: test.Context(string(f.PkgName), nil),
 		Debug:   true,
@@ -143,6 +142,9 @@ func TestDebug(t *testing.T) {
 		{in: "b 27\nc\np b\n", out: `("!zero" string)`},
 		{in: "b 22\nc\np t.A[3]\n", out: "Command failed: &{(\"slice index out of bounds: 3 (len=3)\" string) <nil> }"},
 		{in: "b 43\nc\nc\nc\np i\ndetach\n", out: "(1 int)"},
+		{in: "b 37\nc\nnext\n", out: "=>   39:"},
+		{in: "b 40\nc\nnext\n", out: "=>   41:"},
+		{in: "b 22\nc\nstepout\n", out: "=>   40:"},
 	})
 
 	runDebugTest(t, "../../tests/files/a1.gno", []dtest{

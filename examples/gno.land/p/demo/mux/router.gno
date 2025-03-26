@@ -1,11 +1,14 @@
 package mux
 
-import "strings"
+import (
+	"net/url"
+	"strings"
+)
 
 // Router handles the routing and rendering logic.
 type Router struct {
 	routes          []Handler
-	NotFoundHandler HandlerFunc
+	NotFoundHandler NotFoundHandler
 }
 
 // NewRouter creates a new Router instance.
@@ -18,13 +21,20 @@ func NewRouter() *Router {
 
 // Render renders the output for the given path using the registered route handler.
 func (r *Router) Render(reqPath string) string {
-	clearPath := stripQueryString(reqPath)
+	clearPath, rawQuery, _ := strings.Cut(reqPath, "?")
+	query, _ := url.ParseQuery(rawQuery)
 	reqParts := strings.Split(clearPath, "/")
 
 	for _, route := range r.routes {
 		patParts := strings.Split(route.Pattern, "/")
-
-		if len(patParts) != len(reqParts) {
+		wildcard := false
+		for _, part := range patParts {
+			if part == "*" {
+				wildcard = true
+				break
+			}
+		}
+		if !wildcard && len(patParts) != len(reqParts) {
 			continue
 		}
 
@@ -34,7 +44,7 @@ func (r *Router) Render(reqPath string) string {
 			reqPart := reqParts[i]
 
 			if patPart == "*" {
-				continue
+				break
 			}
 			if strings.HasPrefix(patPart, "{") && strings.HasSuffix(patPart, "}") {
 				continue
@@ -49,6 +59,7 @@ func (r *Router) Render(reqPath string) string {
 				Path:        clearPath,
 				RawPath:     reqPath,
 				HandlerPath: route.Pattern,
+				Query:       query,
 			}
 			res := &ResponseWriter{}
 			route.Fn(res, req)
@@ -57,23 +68,31 @@ func (r *Router) Render(reqPath string) string {
 	}
 
 	// not found
-	req := &Request{Path: reqPath}
+	req := &Request{Path: reqPath, Query: query}
 	res := &ResponseWriter{}
 	r.NotFoundHandler(res, req)
 	return res.Output()
 }
 
-// Handle registers a route and its handler function.
+// HandleFunc registers a route and its handler function.
 func (r *Router) HandleFunc(pattern string, fn HandlerFunc) {
 	route := Handler{Pattern: pattern, Fn: fn}
 	r.routes = append(r.routes, route)
 }
 
-func stripQueryString(reqPath string) string {
-	i := strings.Index(reqPath, "?")
-	if i == -1 {
-		return reqPath
+// HandleErrFunc registers a route and its error handler function.
+func (r *Router) HandleErrFunc(pattern string, fn ErrHandlerFunc) {
+	// Convert ErrHandlerFunc to regular HandlerFunc
+	handler := func(res *ResponseWriter, req *Request) {
+		if err := fn(res, req); err != nil {
+			res.Write("Error: " + err.Error())
+		}
 	}
 
-	return reqPath[:i]
+	r.HandleFunc(pattern, handler)
+}
+
+// SetNotFoundHandler sets custom message for 404 defaultNotFoundHandler.
+func (r *Router) SetNotFoundHandler(handler NotFoundHandler) {
+	r.NotFoundHandler = handler
 }

@@ -25,8 +25,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
-	"github.com/gnolang/gno/tm2/pkg/p2p"
-	p2pmock "github.com/gnolang/gno/tm2/pkg/p2p/mock"
 	"github.com/gnolang/gno/tm2/pkg/random"
 )
 
@@ -39,8 +37,6 @@ func TestNodeStartStop(t *testing.T) {
 	require.NoError(t, err)
 	err = n.Start()
 	require.NoError(t, err)
-
-	t.Logf("Started node %v", n.sw.NodeInfo())
 
 	// wait for the node to produce a block
 	blocksSub := events.SubscribeToEvent(n.EventSwitch(), "node_test", types.EventNewBlock{})
@@ -284,7 +280,7 @@ func TestCreateProposalBlock(t *testing.T) {
 	// fill the mempool with more txs
 	// than can fit in a block
 	txLength := 1000
-	for i := 0; i < maxBlockBytes/txLength; i++ {
+	for range maxBlockBytes / txLength {
 		tx := random.RandBytes(txLength)
 		err := mempool.CheckTx(tx, nil)
 		assert.NoError(t, err)
@@ -308,43 +304,10 @@ func TestCreateProposalBlock(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestNodeNewNodeCustomReactors(t *testing.T) {
-	config, genesisFile := cfg.ResetTestRoot("node_new_node_custom_reactors_test")
-	defer os.RemoveAll(config.RootDir)
-
-	cr := p2pmock.NewReactor()
-	customBlockchainReactor := p2pmock.NewReactor()
-
-	nodeKey, err := p2p.LoadOrGenNodeKey(config.NodeKeyFile())
-	require.NoError(t, err)
-
-	n, err := NewNode(config,
-		privval.LoadOrGenFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile()),
-		nodeKey,
-		proxy.DefaultClientCreator(nil, config.ProxyApp, config.ABCI, config.DBDir()),
-		DefaultGenesisDocProviderFunc(genesisFile),
-		DefaultDBProvider,
-		events.NewEventSwitch(),
-		log.NewTestingLogger(t),
-		CustomReactors(map[string]p2p.Reactor{"FOO": cr, "BLOCKCHAIN": customBlockchainReactor}),
-	)
-	require.NoError(t, err)
-
-	err = n.Start()
-	require.NoError(t, err)
-	defer n.Stop()
-
-	assert.True(t, cr.IsRunning())
-	assert.Equal(t, cr, n.Switch().Reactor("FOO"))
-
-	assert.True(t, customBlockchainReactor.IsRunning())
-	assert.Equal(t, customBlockchainReactor, n.Switch().Reactor("BLOCKCHAIN"))
-}
-
 func state(nVals int, height int64) (sm.State, dbm.DB) {
 	vals := make([]types.GenesisValidator, nVals)
-	for i := 0; i < nVals; i++ {
-		secret := []byte(fmt.Sprintf("test%d", i))
+	for i := range nVals {
+		secret := fmt.Appendf(nil, "test%d", i)
 		pk := ed25519.GenPrivKeyFromSecret(secret)
 		vals[i] = types.GenesisValidator{
 			Address: pk.PubKey().Address(),

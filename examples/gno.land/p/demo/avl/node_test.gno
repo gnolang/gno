@@ -4,6 +4,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"gno.land/p/demo/ufmt"
 )
 
 func TestTraverseByOffset(t *testing.T) {
@@ -138,7 +140,7 @@ func TestGet(t *testing.T) {
 		input        []string
 		getKey       string
 		expectIdx    int
-		expectVal    interface{}
+		expectVal    any
 		expectExists bool
 	}{
 		{
@@ -205,7 +207,7 @@ func TestGetByIndex(t *testing.T) {
 		input       []string
 		idx         int
 		expectKey   string
-		expectVal   interface{}
+		expectVal   any
 		expectPanic bool
 	}{
 		{
@@ -550,6 +552,175 @@ func TestRotateAndBalance(t *testing.T) {
 	}
 }
 
+func TestRemoveFromEmptyTree(t *testing.T) {
+	var tree *Node
+	newTree, _, val, removed := tree.Remove("NonExistent")
+	if newTree != nil {
+		t.Errorf("Removing from an empty tree should still be nil tree.")
+	}
+	if val != nil || removed {
+		t.Errorf("Expected no value and removed=false when removing from empty tree.")
+	}
+}
+
+func TestBalanceAfterRemoval(t *testing.T) {
+	tests := []struct {
+		name            string
+		insertKeys      []string
+		removeKey       string
+		expectedBalance int
+	}{
+		{
+			name:            "balance after removing right node",
+			insertKeys:      []string{"B", "A", "D", "C", "E"},
+			removeKey:       "E",
+			expectedBalance: 0,
+		},
+		{
+			name:            "balance after removing left node",
+			insertKeys:      []string{"D", "B", "E", "A", "C"},
+			removeKey:       "A",
+			expectedBalance: 0,
+		},
+		{
+			name:            "ensure no lean after removal",
+			insertKeys:      []string{"C", "B", "E", "A", "D", "F"},
+			removeKey:       "F",
+			expectedBalance: -1,
+		},
+		{
+			name:            "descending order insert, remove middle node",
+			insertKeys:      []string{"E", "D", "C", "B", "A"},
+			removeKey:       "C",
+			expectedBalance: 0,
+		},
+		{
+			name:            "ascending order insert, remove middle node",
+			insertKeys:      []string{"A", "B", "C", "D", "E"},
+			removeKey:       "C",
+			expectedBalance: 0,
+		},
+		{
+			name:            "duplicate key insert, remove the duplicated key",
+			insertKeys:      []string{"C", "B", "C", "A", "D"},
+			removeKey:       "C",
+			expectedBalance: 1,
+		},
+		{
+			name:            "complex rotation case",
+			insertKeys:      []string{"H", "B", "A", "C", "E", "D", "F", "G"},
+			removeKey:       "B",
+			expectedBalance: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var tree *Node
+			for _, key := range tt.insertKeys {
+				tree, _ = tree.Set(key, nil)
+			}
+
+			tree, _, _, _ = tree.Remove(tt.removeKey)
+
+			balance := tree.calcBalance()
+			if balance != tt.expectedBalance {
+				t.Errorf("Expected balance factor %d, got %d", tt.expectedBalance, balance)
+			}
+
+			if balance < -1 || balance > 1 {
+				t.Errorf("Tree is unbalanced with factor %d", balance)
+			}
+
+			if errMsg := checkSubtreeBalance(t, tree); errMsg != "" {
+				t.Errorf("AVL property violation after removal: %s", errMsg)
+			}
+		})
+	}
+}
+
+func TestBSTProperty(t *testing.T) {
+	var tree *Node
+	keys := []string{"D", "B", "F", "A", "C", "E", "G"}
+	for _, key := range keys {
+		tree, _ = tree.Set(key, nil)
+	}
+
+	var result []string
+	inorderTraversal(t, tree, &result)
+
+	for i := 1; i < len(result); i++ {
+		if result[i] < result[i-1] {
+			t.Errorf("BST property violated: %s < %s (index %d)",
+				result[i], result[i-1], i)
+		}
+	}
+}
+
+// inorderTraversal performs an inorder traversal of the tree and returns the keys in a list.
+func inorderTraversal(t *testing.T, node *Node, result *[]string) {
+	t.Helper()
+
+	if node == nil {
+		return
+	}
+	// leaf
+	if node.height == 0 {
+		*result = append(*result, node.key)
+		return
+	}
+	inorderTraversal(t, node.leftNode, result)
+	inorderTraversal(t, node.rightNode, result)
+}
+
+// checkSubtreeBalance checks if all nodes under the given node satisfy the AVL tree conditions.
+// The balance factor of all nodes must be ∈ [-1, +1]
+func checkSubtreeBalance(t *testing.T, node *Node) string {
+	t.Helper()
+
+	if node == nil {
+		return ""
+	}
+
+	if node.IsLeaf() {
+		// leaf node must be height=0, size=1
+		if node.height != 0 {
+			return ufmt.Sprintf("Leaf node %s has height %d, expected 0", node.Key(), node.height)
+		}
+		if node.size != 1 {
+			return ufmt.Sprintf("Leaf node %s has size %d, expected 1", node.Key(), node.size)
+		}
+		return ""
+	}
+
+	// check balance factor for current node
+	balanceFactor := node.calcBalance()
+	if balanceFactor < -1 || balanceFactor > 1 {
+		return ufmt.Sprintf("Node %s is unbalanced: balanceFactor=%d", node.Key(), balanceFactor)
+	}
+
+	// check height / size relationship for children
+	left, right := node.getLeftNode(), node.getRightNode()
+	expectedHeight := maxInt8(left.height, right.height) + 1
+	if node.height != expectedHeight {
+		return ufmt.Sprintf("Node %s has incorrect height %d, expected %d", node.Key(), node.height, expectedHeight)
+	}
+	expectedSize := left.Size() + right.Size()
+	if node.size != expectedSize {
+		return ufmt.Sprintf("Node %s has incorrect size %d, expected %d", node.Key(), node.size, expectedSize)
+	}
+
+	// recursively check the left/right subtree
+	if errMsg := checkSubtreeBalance(t, left); errMsg != "" {
+		return errMsg
+	}
+	if errMsg := checkSubtreeBalance(t, right); errMsg != "" {
+		return errMsg
+	}
+
+	return ""
+}
+
 func slicesEqual(w1, w2 []string) bool {
 	if len(w1) != len(w2) {
 		return false
@@ -560,13 +731,6 @@ func slicesEqual(w1, w2 []string) bool {
 		}
 	}
 	return true
-}
-
-func maxint8(a, b int8) int8 {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 func reverseSlice(ss []string) {

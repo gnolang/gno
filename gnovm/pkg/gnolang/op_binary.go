@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/cockroachdb/apd/v3"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 )
 
 // ----------------------------------------
@@ -353,18 +354,6 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	if err := checkSame(lv.T, rv.T, ""); err != nil {
 		return false
 	}
-	if lnt, ok := lv.T.(*NativeType); ok {
-		if rnt, ok := rv.T.(*NativeType); ok {
-			if lnt.Type != rnt.Type {
-				return false
-			}
-			lrv := lv.V.(*NativeValue).Value.Interface()
-			rrv := rv.V.(*NativeValue).Value.Interface()
-			return lrv == rrv
-		} else {
-			return false
-		}
-	}
 	switch lv.T.Kind() {
 	case BoolKind:
 		return (lv.GetBool() == rv.GetBool())
@@ -391,9 +380,9 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() == rv.GetUint64())
 	case Float32Kind:
-		return (lv.GetFloat32() == rv.GetFloat32()) // XXX determinism?
+		return softfloat.Feq32(lv.GetFloat32(), rv.GetFloat32())
 	case Float64Kind:
-		return (lv.GetFloat64() == rv.GetFloat64()) // XXX determinism?
+		return softfloat.Feq64(lv.GetFloat64(), rv.GetFloat64())
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -416,7 +405,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				panic("comparison on arrays of unequal type")
 			}
 		}
-		for i := 0; i < la.GetLength(); i++ {
+		for i := range la.GetLength() {
 			li := la.GetPointerAtIndexInt2(store, i, et).Deref()
 			ri := ra.GetPointerAtIndexInt2(store, i, et).Deref()
 			if !isEql(store, &li, &ri) {
@@ -437,7 +426,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				panic("comparison on structs of unequal size")
 			}
 		}
-		for i := 0; i < len(ls.Fields); i++ {
+		for i := range ls.Fields {
 			lf := ls.GetPointerToInt(store, i).Deref()
 			rf := rs.GetPointerToInt(store, i).Deref()
 			if !isEql(store, &lf, &rf) {
@@ -532,9 +521,9 @@ func isLss(lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() < rv.GetUint64())
 	case Float32Kind:
-		return (lv.GetFloat32() < rv.GetFloat32()) // XXX determinism?
+		return softfloat.Flt32(lv.GetFloat32(), rv.GetFloat32())
 	case Float64Kind:
-		return (lv.GetFloat64() < rv.GetFloat64()) // XXX determinism?
+		return softfloat.Flt64(lv.GetFloat64(), rv.GetFloat64())
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -576,9 +565,9 @@ func isLeq(lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() <= rv.GetUint64())
 	case Float32Kind:
-		return (lv.GetFloat32() <= rv.GetFloat32()) // XXX determinism?
+		return softfloat.Fle32(lv.GetFloat32(), rv.GetFloat32())
 	case Float64Kind:
-		return (lv.GetFloat64() <= rv.GetFloat64()) // XXX determinism?
+		return softfloat.Fle64(lv.GetFloat64(), rv.GetFloat64())
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -620,9 +609,9 @@ func isGtr(lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() > rv.GetUint64())
 	case Float32Kind:
-		return (lv.GetFloat32() > rv.GetFloat32()) // XXX determinism?
+		return softfloat.Fgt32(lv.GetFloat32(), rv.GetFloat32())
 	case Float64Kind:
-		return (lv.GetFloat64() > rv.GetFloat64()) // XXX determinism?
+		return softfloat.Fgt64(lv.GetFloat64(), rv.GetFloat64())
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -664,9 +653,9 @@ func isGeq(lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() >= rv.GetUint64())
 	case Float32Kind:
-		return (lv.GetFloat32() >= rv.GetFloat32()) // XXX determinism?
+		return softfloat.Fge32(lv.GetFloat32(), rv.GetFloat32())
 	case Float64Kind:
-		return (lv.GetFloat64() >= rv.GetFloat64()) // XXX determinism?
+		return softfloat.Fge64(lv.GetFloat64(), rv.GetFloat64())
 	case BigintKind:
 		lb := lv.V.(BigintValue).V
 		rb := rv.V.(BigintValue).V
@@ -714,15 +703,15 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 		lv.SetUint64(lv.GetUint64() + rv.GetUint64())
 	case Float32Type:
 		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat32(lv.GetFloat32() + rv.GetFloat32()) // XXX determinism?
+		lv.SetFloat32(softfloat.Fadd32(lv.GetFloat32(), rv.GetFloat32()))
 	case Float64Type:
 		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat64(lv.GetFloat64() + rv.GetFloat64()) // XXX determinism?
-	case BigintType, UntypedBigintType:
+		lv.SetFloat64(softfloat.Fadd64(lv.GetFloat64(), rv.GetFloat64()))
+	case UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Add(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
-	case BigdecType, UntypedBigdecType:
+	case UntypedBigdecType:
 		lb := lv.GetBigDec()
 		rb := rv.GetBigDec()
 		sum := apd.New(0, 0)
@@ -770,15 +759,15 @@ func subAssign(lv, rv *TypedValue) {
 		lv.SetUint64(lv.GetUint64() - rv.GetUint64())
 	case Float32Type:
 		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat32(lv.GetFloat32() - rv.GetFloat32()) // XXX determinism?
+		lv.SetFloat32(softfloat.Fsub32(lv.GetFloat32(), rv.GetFloat32()))
 	case Float64Type:
 		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat64(lv.GetFloat64() - rv.GetFloat64()) // XXX determinism?
-	case BigintType, UntypedBigintType:
+		lv.SetFloat64(softfloat.Fsub64(lv.GetFloat64(), rv.GetFloat64()))
+	case UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Sub(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
-	case BigdecType, UntypedBigdecType:
+	case UntypedBigdecType:
 		lb := lv.GetBigDec()
 		rb := rv.GetBigDec()
 		diff := apd.New(0, 0)
@@ -826,15 +815,15 @@ func mulAssign(lv, rv *TypedValue) {
 		lv.SetUint64(lv.GetUint64() * rv.GetUint64())
 	case Float32Type:
 		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat32(lv.GetFloat32() * rv.GetFloat32()) // XXX determinism?
+		lv.SetFloat32(softfloat.Fmul32(lv.GetFloat32(), rv.GetFloat32()))
 	case Float64Type:
 		// NOTE: gno doesn't fuse *+.
-		lv.SetFloat64(lv.GetFloat64() * rv.GetFloat64()) // XXX determinism?
-	case BigintType, UntypedBigintType:
+		lv.SetFloat64(softfloat.Fmul64(lv.GetFloat64(), rv.GetFloat64()))
+	case UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Mul(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
-	case BigdecType, UntypedBigdecType:
+	case UntypedBigdecType:
 		lb := lv.GetBigDec()
 		rb := rv.GetBigDec()
 		prod := apd.New(0, 0)
@@ -917,26 +906,25 @@ func quoAssign(lv, rv *TypedValue) *Exception {
 		lv.SetUint64(lv.GetUint64() / rv.GetUint64())
 	case Float32Type:
 		// NOTE: gno doesn't fuse *+.
-		if rv.GetFloat32() == 0 {
-			return expt
+		ok := !softfloat.Feq32(rv.GetFloat32(), softfloat.Fintto32(0))
+
+		if ok {
+			lv.SetFloat32(softfloat.Fdiv32(lv.GetFloat32(), rv.GetFloat32()))
 		}
-		lv.SetFloat32(lv.GetFloat32() / rv.GetFloat32())
-		// XXX FOR DETERMINISM, PANIC IF NAN.
 	case Float64Type:
 		// NOTE: gno doesn't fuse *+.
-		if rv.GetFloat64() == 0 {
-			return expt
+		ok := !softfloat.Feq64(rv.GetFloat64(), softfloat.Fintto64(0))
+		if ok {
+			lv.SetFloat64(softfloat.Fdiv64(lv.GetFloat64(), rv.GetFloat64()))
 		}
-		lv.SetFloat64(lv.GetFloat64() / rv.GetFloat64())
-		// XXX FOR DETERMINISM, PANIC IF NAN.
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		if rv.GetBigInt().Sign() == 0 {
 			return expt
 		}
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Quo(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
-	case BigdecType, UntypedBigdecType:
+	case UntypedBigdecType:
 		if rv.GetBigDec().Cmp(apd.New(0, 0)) == 0 {
 			return expt
 		}
@@ -1022,7 +1010,7 @@ func remAssign(lv, rv *TypedValue) *Exception {
 			return expt
 		}
 		lv.SetUint64(lv.GetUint64() % rv.GetUint64())
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		if rv.GetBigInt().Sign() == 0 {
 			return expt
 		}
@@ -1067,7 +1055,7 @@ func bandAssign(lv, rv *TypedValue) {
 		lv.SetUint32(lv.GetUint32() & rv.GetUint32())
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() & rv.GetUint64())
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).And(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
@@ -1106,7 +1094,7 @@ func bandnAssign(lv, rv *TypedValue) {
 		lv.SetUint32(lv.GetUint32() &^ rv.GetUint32())
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() &^ rv.GetUint64())
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).AndNot(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
@@ -1145,7 +1133,7 @@ func borAssign(lv, rv *TypedValue) {
 		lv.SetUint32(lv.GetUint32() | rv.GetUint32())
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() | rv.GetUint64())
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Or(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
@@ -1184,7 +1172,7 @@ func xorAssign(lv, rv *TypedValue) {
 		lv.SetUint32(lv.GetUint32() ^ rv.GetUint32())
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() ^ rv.GetUint64())
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Xor(lb, rv.GetBigInt())
 		lv.V = BigintValue{V: lb}
@@ -1211,8 +1199,8 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 	switch baseOf(lv.T) {
 	case IntType:
 		checkOverflow(func() bool {
-			l := big.NewInt(int64(lv.GetInt()))
-			r := big.NewInt(0).Lsh(l, rv.GetUint())
+			l := big.NewInt(lv.GetInt())
+			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxInt)) != 1
 		})
@@ -1221,7 +1209,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 	case Int8Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(int64(lv.GetInt8()))
-			r := big.NewInt(0).Lsh(l, rv.GetUint())
+			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxInt8)) != 1
 		})
@@ -1230,7 +1218,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 	case Int16Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(int64(lv.GetInt16()))
-			r := big.NewInt(0).Lsh(l, rv.GetUint())
+			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxInt16)) != 1
 		})
@@ -1239,7 +1227,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 	case Int32Type, UntypedRuneType:
 		checkOverflow(func() bool {
 			l := big.NewInt(int64(lv.GetInt32()))
-			r := big.NewInt(0).Lsh(l, rv.GetUint())
+			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxInt32)) != 1
 		})
@@ -1248,7 +1236,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 	case Int64Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(lv.GetInt64())
-			r := big.NewInt(0).Lsh(l, rv.GetUint())
+			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxInt64)) != 1
 		})
@@ -1256,8 +1244,8 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 		lv.SetInt64(lv.GetInt64() << rv.GetUint())
 	case UintType:
 		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(uint64(lv.GetUint()))
-			r := big.NewInt(0).Lsh(l, rv.GetUint())
+			l := big.NewInt(0).SetUint64(lv.GetUint())
+			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(0).SetUint64(math.MaxUint)) != 1
 		})
@@ -1266,7 +1254,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 	case Uint8Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(0).SetUint64(uint64(lv.GetUint8()))
-			r := big.NewInt(0).Lsh(l, rv.GetUint())
+			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxUint8)) != 1
 		})
@@ -1275,7 +1263,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 	case DataByteType:
 		checkOverflow(func() bool {
 			l := big.NewInt(0).SetUint64(uint64(lv.GetDataByte()))
-			r := big.NewInt(0).Lsh(l, rv.GetUint())
+			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxUint8)) != 1
 		})
@@ -1284,7 +1272,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 	case Uint16Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(0).SetUint64(uint64(lv.GetUint16()))
-			r := big.NewInt(0).Lsh(l, rv.GetUint())
+			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxUint16)) != 1
 		})
@@ -1293,7 +1281,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 	case Uint32Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(0).SetUint64(uint64(lv.GetUint32()))
-			r := big.NewInt(0).Lsh(l, rv.GetUint())
+			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxUint32)) != 1
 		})
@@ -1302,15 +1290,15 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 	case Uint64Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(0).SetUint64(lv.GetUint64())
-			r := big.NewInt(0).Lsh(l, rv.GetUint())
+			r := big.NewInt(0).Lsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(0).SetUint64(math.MaxUint64)) != 1
 		})
 
 		lv.SetUint64(lv.GetUint64() << rv.GetUint())
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		lb := lv.GetBigInt()
-		lb = big.NewInt(0).Lsh(lb, rv.GetUint())
+		lb = big.NewInt(0).Lsh(lb, uint(rv.GetUint()))
 		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
@@ -1335,8 +1323,8 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 	switch baseOf(lv.T) {
 	case IntType:
 		checkOverflow(func() bool {
-			l := big.NewInt(int64(lv.GetInt()))
-			r := big.NewInt(0).Rsh(l, rv.GetUint())
+			l := big.NewInt(lv.GetInt())
+			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxInt)) != 1
 		})
@@ -1345,7 +1333,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 	case Int8Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(int64(lv.GetInt8()))
-			r := big.NewInt(0).Rsh(l, rv.GetUint())
+			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxInt8)) != 1
 		})
@@ -1354,7 +1342,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 	case Int16Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(int64(lv.GetInt16()))
-			r := big.NewInt(0).Rsh(l, rv.GetUint())
+			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxInt16)) != 1
 		})
@@ -1363,7 +1351,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 	case Int32Type, UntypedRuneType:
 		checkOverflow(func() bool {
 			l := big.NewInt(int64(lv.GetInt32()))
-			r := big.NewInt(0).Rsh(l, rv.GetUint())
+			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxInt32)) != 1
 		})
@@ -1372,7 +1360,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 	case Int64Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(lv.GetInt64())
-			r := big.NewInt(0).Rsh(l, rv.GetUint())
+			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxInt64)) != 1
 		})
@@ -1380,8 +1368,8 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 		lv.SetInt64(lv.GetInt64() >> rv.GetUint())
 	case UintType:
 		checkOverflow(func() bool {
-			l := big.NewInt(0).SetUint64(uint64(lv.GetUint()))
-			r := big.NewInt(0).Rsh(l, rv.GetUint())
+			l := big.NewInt(0).SetUint64(lv.GetUint())
+			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(0).SetUint64(math.MaxUint)) != 1
 		})
@@ -1390,7 +1378,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 	case Uint8Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(0).SetUint64(uint64(lv.GetUint8()))
-			r := big.NewInt(0).Rsh(l, rv.GetUint())
+			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxUint8)) != 1
 		})
@@ -1399,7 +1387,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 	case DataByteType:
 		checkOverflow(func() bool {
 			l := big.NewInt(0).SetUint64(uint64(lv.GetDataByte()))
-			r := big.NewInt(0).Rsh(l, rv.GetUint())
+			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxUint8)) != 1
 		})
@@ -1408,7 +1396,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 	case Uint16Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(0).SetUint64(uint64(lv.GetUint16()))
-			r := big.NewInt(0).Rsh(l, rv.GetUint())
+			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxUint16)) != 1
 		})
@@ -1417,7 +1405,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 	case Uint32Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(0).SetUint64(uint64(lv.GetUint32()))
-			r := big.NewInt(0).Rsh(l, rv.GetUint())
+			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(math.MaxUint32)) != 1
 		})
@@ -1426,15 +1414,15 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 	case Uint64Type:
 		checkOverflow(func() bool {
 			l := big.NewInt(0).SetUint64(lv.GetUint64())
-			r := big.NewInt(0).Rsh(l, rv.GetUint())
+			r := big.NewInt(0).Rsh(l, uint(rv.GetUint()))
 
 			return r.Cmp(big.NewInt(0).SetUint64(math.MaxUint64)) != 1
 		})
 
 		lv.SetUint64(lv.GetUint64() >> rv.GetUint())
-	case BigintType, UntypedBigintType:
+	case UntypedBigintType:
 		lb := lv.GetBigInt()
-		lb = big.NewInt(0).Rsh(lb, rv.GetUint())
+		lb = big.NewInt(0).Rsh(lb, uint(rv.GetUint()))
 		lv.V = BigintValue{V: lb}
 	default:
 		panic(fmt.Sprintf(
