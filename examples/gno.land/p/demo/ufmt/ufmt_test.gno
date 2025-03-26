@@ -1,6 +1,7 @@
 package ufmt
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"testing"
@@ -166,9 +167,7 @@ func TestPrintErrors(t *testing.T) {
 	}
 }
 
-// NOTE: Currently, there is no way to get the output of Println without using os.Stdout,
-// so we can only test that it doesn't panic and print arguments well.
-func TestPrinters(t *testing.T) {
+func TestSprint(t *testing.T) {
 	tests := []struct {
 		name     string
 		args     []any
@@ -197,55 +196,148 @@ func TestPrinters(t *testing.T) {
 		{
 			name:     "Unhandled type",
 			args:     []any{"Hello", 3.14, []int{1, 2, 3}},
-			expected: "Hello (unhandled) (unhandled)",
+			expected: "Hello 3.140000 (unhandled)",
 		},
 	}
 
-	// TODO: replace os.Stdout with a buffer to capture the output and test it.
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			Println(tt.args...)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := Sprint(tc.args...)
+			if got != tc.expected {
+				t.Errorf("got %q, want %q.", got, tc.expected)
+			}
 		})
 	}
 }
 
-func TestPrintln(t *testing.T) {
-	tests := []struct {
-		name     string
-		args     []any
-		expected string
-	}{
-		{
-			name:     "Empty args",
-			args:     []any{},
-			expected: "",
-		},
-		{
-			name:     "String args",
-			args:     []any{"Hello", "World"},
-			expected: "Hello World",
-		},
-		{
-			name:     "Integer args",
-			args:     []any{1, 2, 3},
-			expected: "1 2 3",
-		},
-		{
-			name:     "Mixed args",
-			args:     []any{"Hello", 42, true, false, "World"},
-			expected: "Hello 42 true false World",
-		},
-		{
-			name:     "Unhandled type",
-			args:     []any{"Hello", 3.14, []int{1, 2, 3}},
-			expected: "Hello (unhandled) (unhandled)",
-		},
+func TestFprintf(t *testing.T) {
+	var buf bytes.Buffer
+	n, err := Fprintf(&buf, "Count: %d, Message: %s", 42, "hello")
+	if err != nil {
+		t.Fatalf("Fprintf failed: %v", err)
 	}
 
-	// TODO: replace os.Stdout with a buffer to capture the output and test it.
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			Println(tt.args...)
-		})
+	const expected = "Count: 42, Message: hello"
+	if buf.String() != expected {
+		t.Errorf("Expected %q, got %q", expected, buf.String())
+	}
+	if n != len(expected) {
+		t.Errorf("Expected %d bytes written, got %d", len(expected), n)
+	}
+}
+
+// TODO: replace os.Stdout with a buffer to capture the output and test it.
+func TestPrintf(t *testing.T) {
+	n, err := Printf("The answer is %d", 42)
+	if err != nil {
+		t.Fatalf("Printf failed: %v", err)
+	}
+
+	const expected = "The answer is 42"
+	if n != len(expected) {
+		t.Errorf("Expected 14 bytes written, got %d", n)
+	}
+}
+
+func TestAppendf(t *testing.T) {
+	b := []byte("Header: ")
+	result := Appendf(b, "Value %d", 7)
+	const expected = "Header: Value 7"
+	if string(result) != expected {
+		t.Errorf("Expected %q, got %q", expected, string(result))
+	}
+}
+
+func TestFprint(t *testing.T) {
+	var buf bytes.Buffer
+	n, err := Fprint(&buf, "Hello", 42, true)
+	if err != nil {
+		t.Fatalf("Fprint failed: %v", err)
+	}
+
+	const expected = "Hello 42 true"
+	if buf.String() != expected {
+		t.Errorf("Expected %q, got %q", expected, buf.String())
+	}
+	if n != len(expected) {
+		t.Errorf("Expected %d bytes written, got %d", len(expected), n)
+	}
+}
+
+// TODO: replace os.Stdout with a buffer to capture the output and test it.
+func TestPrint(t *testing.T) {
+	n, err := Print("Mixed", 3.14, false)
+	if err != nil {
+		t.Fatalf("Print failed: %v", err)
+	}
+
+	const expected = "Mixed 3.140000 false"
+	if n != len(expected) {
+		t.Errorf("Expected 12 bytes written, got %d", n)
+	}
+}
+
+func TestAppend(t *testing.T) {
+	b := []byte{0x01, 0x02}
+	result := Append(b, "Test", 99)
+
+	const expected = "\x01\x02Test 99"
+	if string(result) != expected {
+		t.Errorf("Expected %q, got %q", expected, string(result))
+	}
+}
+
+func TestFprintln(t *testing.T) {
+	var buf bytes.Buffer
+	n, err := Fprintln(&buf, "Line", 1)
+	if err != nil {
+		t.Fatalf("Fprintln failed: %v", err)
+	}
+
+	const expected = "Line 1\n"
+	if buf.String() != expected {
+		t.Errorf("Expected %q, got %q", expected, buf.String())
+	}
+	if n != len(expected) {
+		t.Errorf("Expected %d bytes written, got %d", len(expected), n)
+	}
+}
+
+// TODO: replace os.Stdout with a buffer to capture the output and test it.
+func TestPrintln(t *testing.T) {
+	n, err := Println("Output", "test")
+	if err != nil {
+		t.Fatalf("Println failed: %v", err)
+	}
+
+	const expected = "Output test\n"
+	if n != len(expected) {
+		t.Errorf("Expected 12 bytes written, got %d", n)
+	}
+}
+
+func TestSprintln(t *testing.T) {
+	result := Sprintln("Item", 42)
+
+	const expected = "Item 42\n"
+	if result != expected {
+		t.Errorf("Expected %q, got %q", expected, result)
+	}
+}
+
+func TestAppendln(t *testing.T) {
+	b := []byte("Start:")
+	result := Appendln(b, "End")
+
+	const expected = "Start:End\n"
+	if string(result) != expected {
+		t.Errorf("Expected %q, got %q", expected, string(result))
+	}
+}
+
+func assertNoError(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
 	}
 }
