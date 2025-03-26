@@ -4,6 +4,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 	users "gno.land/r/gnoland/users/v1"
@@ -16,12 +17,12 @@ const (
 )
 
 func init() {
-	std.TestSetOriginCaller(owner)
+	testing.SetOriginCaller(owner)
 
 	// Test1 is the boards owner and its address has a user already registered
 	// so a new member must register a user with the new board name.
 	boards2.InviteMember(0, member, boards2.RoleOwner) // Operate on realm DAO members instead of individual boards
-	std.TestSetOriginCaller(member)
+	testing.SetOriginCaller(member)
 	users.Register(name)
 }
 

@@ -3,6 +3,7 @@ package main
 import (
 	"std"
 	"strings"
+	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
@@ -18,7 +19,7 @@ var (
 )
 
 func init() {
-	std.TestSetOriginCaller(owner)
+	testing.SetOriginCaller(owner)
 
 	// Created a board with flagging threshold greater than 1
 	bid = boards2.CreateBoard("test-board")

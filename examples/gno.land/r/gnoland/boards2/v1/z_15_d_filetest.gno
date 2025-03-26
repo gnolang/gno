@@ -3,6 +3,7 @@ package main
 import (
 	"std"
 	"strings"
+	"testing"
 
 	"gno.land/p/demo/ufmt"
 	boards2 "gno.land/r/gnoland/boards2/v1"
@@ -17,7 +18,7 @@ var (
 )
 
 func init() {
-	std.TestSetOriginCaller(owner)
+	testing.SetOriginCaller(owner)
 	srcBID = boards2.CreateBoard("src-board")
 	dstBID = boards2.CreateBoard("dst-board")
 

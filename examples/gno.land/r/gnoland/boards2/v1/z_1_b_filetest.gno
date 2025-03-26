@@ -2,6 +2,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
@@ -15,14 +16,14 @@ const (
 var bid boards2.BoardID // Operate on board DAO
 
 func init() {
-	std.TestSetOriginCaller(owner)
+	testing.SetOriginCaller(owner)
 	bid = boards2.CreateBoard("test123")
 
 	// Add an admin member
 	boards2.InviteMember(bid, admin, boards2.RoleAdmin)
 
 	// Next call will be done by the admin member
-	std.TestSetOriginCaller(admin)
+	testing.SetOriginCaller(admin)
 }
 
 func main() {
