@@ -1,8 +1,10 @@
 package gnolend
 
 import (
+	"std"
+
 	"gno.land/p/demo/avl"
-	u256 "gno.land/p/demo/uint256"
+	u256 "gno.land/p/gnoswap/uint256"
 )
 
 // Position getters
@@ -31,17 +33,17 @@ func GetPosition(marketId string, userAddr string) Position {
 // Individual field getters
 func GetPositionSupplyShares(marketId string, userAddr string) string {
 	position := GetPosition(marketId, userAddr)
-	return position.SupplyShares.String()
+	return position.SupplyShares.ToString()
 }
 
 func GetPositionBorrowShares(marketId string, userAddr string) string {
 	position := GetPosition(marketId, userAddr)
-	return position.BorrowShares.String()
+	return position.BorrowShares.ToString()
 }
 
 func GetPositionCollateral(marketId string, userAddr string) string {
 	position := GetPosition(marketId, userAddr)
-	return position.Collateral.String()
+	return position.Collateral.ToString()
 }
 
 // Market getters
@@ -63,22 +65,22 @@ func GetMarket(marketId string) (Market, MarketParams) {
 // Individual field getters
 func GetMarketTotalSupplyAssets(marketId string) string {
 	market, _ := GetMarket(marketId)
-	return market.TotalSupplyAssets.String()
+	return market.TotalSupplyAssets.ToString()
 }
 
 func GetMarketTotalSupplyShares(marketId string) string {
 	market, _ := GetMarket(marketId)
-	return market.TotalSupplyShares.String()
+	return market.TotalSupplyShares.ToString()
 }
 
 func GetMarketTotalBorrowAssets(marketId string) string {
 	market, _ := GetMarket(marketId)
-	return market.TotalBorrowAssets.String()
+	return market.TotalBorrowAssets.ToString()
 }
 
 func GetMarketTotalBorrowShares(marketId string) string {
 	market, _ := GetMarket(marketId)
-	return market.TotalBorrowShares.String()
+	return market.TotalBorrowShares.ToString()
 }
 
 func GetMarketLastUpdate(marketId string) int64 {
@@ -88,7 +90,7 @@ func GetMarketLastUpdate(marketId string) int64 {
 
 func GetMarketFee(marketId string) string {
 	market, _ := GetMarket(marketId)
-	return market.Fee.String()
+	return market.Fee.ToString()
 }
 
 // MarketParams getters
@@ -114,7 +116,7 @@ func GetMarketParamsIRM(marketId string) string {
 
 func GetMarketParamsLLTV(marketId string) string {
 	_, params := GetMarket(marketId)
-	return params.LLTV.String()
+	return params.LLTV.ToString()
 }
 
 // IRM getters
@@ -208,10 +210,56 @@ func GetMarketPrice(marketId string) string {
 		panic(err)
 	}
 
-	return price.String()
+	return price.ToString()
 }
 
 // Other getters
+
+func GetSupplyShares(marketId string, user std.Address) string {
+	position := GetPosition(marketId, user.String())
+	return position.SupplyShares.ToString()
+}
+
+func GetBorrowShares(marketId string, user std.Address) string {
+	position := GetPosition(marketId, user.String())
+	return position.BorrowShares.ToString()
+}
+
+func GetCollateral(marketId string, user std.Address) string {
+	position := GetPosition(marketId, user.String())
+	return position.Collateral.ToString()
+}
+
+func GetTotalSupplyAssets(marketId string) string {
+	market, _ := GetMarket(marketId)
+	return market.TotalSupplyAssets.ToString()
+}
+
+func GetTotalSupplyShares(marketId string) string {
+	market, _ := GetMarket(marketId)
+	return market.TotalSupplyShares.ToString()
+}
+
+func GetTotalBorrowAssets(marketId string) string {
+	market, _ := GetMarket(marketId)
+	return market.TotalBorrowAssets.ToString()
+}
+
+func GetTotalBorrowShares(marketId string) string {
+	market, _ := GetMarket(marketId)
+	return market.TotalBorrowShares.ToString()
+}
+
+func GetFee(marketId string) string {
+	market, _ := GetMarket(marketId)
+	return market.Fee.ToString()
+}
+
+func GetLLTV(marketId string) string {
+	_, params := GetMarket(marketId)
+	return params.LLTV.ToString()
+}
+
 func GetFeeRecipient() string {
 	return feeRecipient.String()
-} 
+}

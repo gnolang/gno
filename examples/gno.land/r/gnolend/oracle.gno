@@ -1,7 +1,7 @@
 package gnolend
 
 import (
-	u256 "gno.land/p/demo/uint256"
+	u256 "gno.land/p/gnoswap/uint256"
 	"gno.land/r/gnoswap/v1/pool"
 )
 
@@ -14,7 +14,7 @@ var Q192 = u256.MustFromDecimal("62771017353866807638357894232076664161023554444
 var ORACLE_PRICE_SCALE = u256.MustFromDecimal("1000000000000000000000000000000000000") // 1e36
 
 // GetPrice returns the price from a Gnoswap pool
-// The price is returned as a WAD (18 decimals) in terms of loan token per collateral token
+// The price is returned as a sqrtPriceX96e36 (36 decimals) in terms of loan token per collateral token
 func GetPrice(poolPath string) (*u256.Uint, error) {
 	// Get market params to determine token ordering
 	_, params := GetMarket(poolPath)
@@ -24,29 +24,24 @@ func GetPrice(poolPath string) (*u256.Uint, error) {
 	if sqrtPriceX96Str == "" {
 		return nil, ErrPriceNotAvailable
 	}
-	println("sqrtPriceX96Str:", sqrtPriceX96Str)
 
 	// Convert string to uint256
 	sqrtPriceX96 := u256.MustFromDecimal(sqrtPriceX96Str)
-	println("sqrtPriceX96:", sqrtPriceX96.String())
-
-	// First multiply sqrtPriceX96 by WAD to maintain precision
-	sqrtPriceX96WAD := new(u256.Uint).Mul(sqrtPriceX96, WAD)
-	println("sqrtPriceX96WAD:", sqrtPriceX96WAD.String())
+	println("sqrtPriceX96:", sqrtPriceX96.ToString())
 
 	// Square the price to get the actual price in Q192
-	priceQ192 := new(u256.Uint).Mul(sqrtPriceX96WAD, sqrtPriceX96WAD)
-	println("priceQ192:", priceQ192.String())
+	priceQ192 := new(u256.Uint).Mul(sqrtPriceX96, sqrtPriceX96)
+	println("priceQ192:", priceQ192.ToString())
 
-	// Finally divide by Q192 to get the actual price ratio with WAD precision
-	price := new(u256.Uint).Div(priceQ192, Q192)
-	println("final price:", price.String())
+	// Finally divide by Q192 to get the actual price ratio with ORACLE_PRICE_SCALE precision
+	price := MulDivDown(priceQ192, ORACLE_PRICE_SCALE, Q192)
+	println("final price:", price.ToString())
 
 	// If token0 is not the loan token, we need to invert the price
 	// because Gnoswap's price is always token1/token0
 	if !params.IsToken0Loan {
-		// Invert price: WAD² / price
-		price = new(u256.Uint).Div(new(u256.Uint).Mul(WAD, WAD), price)
+		// Invert price: ORACLE_PRICE_SCALE² / price
+		price = MulDivDown(ORACLE_PRICE_SCALE, ORACLE_PRICE_SCALE, price)
 	}
 
 	return price, nil

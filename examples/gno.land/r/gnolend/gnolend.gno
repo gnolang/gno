@@ -6,7 +6,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
 	"std"
-	u256 "gno.land/p/demo/uint256"
+	u256 "gno.land/p/gnoswap/uint256"
 	pl "gno.land/r/gnoswap/v1/pool"
 )
 
@@ -45,7 +45,7 @@ func init() {
 func RegisterIRM(irm IRM) {
 	// Get IRM name
 	name := irm.Name()
-	
+
 	// Check if IRM is already registered
 	if _, exists := irmRegistry.Get(name); exists {
 		panic("IRM already registered")
@@ -53,7 +53,7 @@ func RegisterIRM(irm IRM) {
 
 	// Register the IRM
 	irmRegistry.Set(name, irm)
-	
+
 	// Emit registration event
 	emitRegisterIRM(std.PreviousRealm().PkgPath(), name)
 }
@@ -79,7 +79,7 @@ func EnableLLTV(lltv *u256.Uint) {
 	Ownable.AssertCallerIsOwner()
 
 	// Convert LLTV to string for use as key in tree
-	lltvStr := lltv.String()
+	lltvStr := lltv.ToString()
 
 	if _, exists := enabledLLTVs.Get(lltvStr); exists {
 		panic(ErrAlreadySet)
@@ -305,27 +305,10 @@ func Borrow(marketId string, assets, shares uint64) {
 	emitBorrow(marketId, caller, assetsU256)
 }
 
-// getCollateralValue returns the value of collateral using Gnoswap price
-func getCollateralValue(params MarketParams, collateralAmount *u256.Uint) *u256.Uint {
-	// Get price from oracle (using pool path)
-	price, err := GetPrice(params.PoolPath)
-	if err != nil {
-		panic(err)
-	}
-
-	// Convert collateral amount to WAD
-	collateralWAD := new(u256.Uint).Mul(collateralAmount, WAD)
-
-	// Calculate collateral value in loan token terms
-	collateralValue := WMulDown(collateralWAD, price)
-
-	return collateralValue
-}
-
 // accrueInterest accrues interest for a market using its IRM
 func accrueInterest(marketId string) {
 	market, params := GetMarket(marketId)
-	
+
 	// Calculate elapsed time
 	now := time.Now().Unix()
 	elapsed := now - market.LastUpdate
@@ -358,7 +341,7 @@ func accrueInterest(marketId string) {
 	if !market.Fee.IsZero() && feeRecipient != "" {
 		// Calculate fee amount
 		feeAmount := WMulDown(interest, market.Fee)
-		
+
 		// Calculate fee shares
 		// The fee amount is subtracted from total supply to compensate for already increased supply
 		totalSupplyMinusFee := new(u256.Uint).Sub(market.TotalSupplyAssets, feeAmount)
@@ -488,14 +471,16 @@ func isHealthy(marketId string, userAddr string) bool {
 		market.TotalBorrowShares,
 	)
 
-	// Get collateral value
-	collateralValue := getCollateralValue(params, position.Collateral)
-
 	// Print collateral value for debugging
-	println("collateral value:", collateralValue.String())
+	println("collateral value:", borrowed.ToString())
+
+	collateralPrice, err := GetPrice(params.PoolPath)
+	if err != nil {
+		panic(err)
+	}
 
 	// Calculate max borrow allowed
-	maxBorrow := WMulDown(collateralValue, params.LLTV)
+	maxBorrow := WMulDown(MulDivDown(position.Collateral, collateralPrice, ORACLE_PRICE_SCALE), params.LLTV)
 
 	// Position is healthy if borrowed <= maxBorrow
 	return borrowed.Cmp(maxBorrow) <= 0

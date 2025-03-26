@@ -1,7 +1,7 @@
 package gnolend
 
 import (
-	u256 "gno.land/p/demo/uint256"
+	u256 "gno.land/p/gnoswap/uint256"
 )
 
 // LinearIRM is a simple interest rate model where utilization rate directly corresponds to APR

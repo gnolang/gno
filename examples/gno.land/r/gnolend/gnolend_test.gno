@@ -6,7 +6,7 @@ import (
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/urequire"
-	"gno.land/p/demo/uint256"
+	"gno.land/p/gnoswap/uint256"
 )
 
 // Reset state before each test

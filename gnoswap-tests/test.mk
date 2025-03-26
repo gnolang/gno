@@ -27,7 +27,7 @@ mint-gns-gnot:
 	# SetTokenURI
 	@echo "" | gnokey maketx call -pkgpath gno.land/r/gnoswap/v1/gnft -func SetTokenURIByImageURI -args "1" -insecure-password-stdin=true -remote $(GNOLAND_RPC_URL) -broadcast=true -chainid $(CHAINID) -gas-fee 100000000ugnot -gas-wanted 1000000000 -memo "" gnoswap_admin
 	@echo
-	
+
 
 # increase liquidity
 increase-liquidity-position-01:

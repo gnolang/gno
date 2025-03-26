@@ -1,8 +1,8 @@
 package gnolend
 
 import (
-	u256 "gno.land/p/demo/uint256"
-	
+	u256 "gno.land/p/gnoswap/uint256"
+
 	pl "gno.land/r/gnoswap/v1/pool"
 )
 
@@ -62,7 +62,7 @@ type IRM interface {
 	// BorrowRate returns the borrow rate per second as a simple integer percentage
 	// For example: 5 means 5% per second
 	BorrowRate(totalSupply, totalBorrow *u256.Uint) *u256.Uint
-	
+
 	// Name returns a human readable name for the IRM
 	Name() string
 }

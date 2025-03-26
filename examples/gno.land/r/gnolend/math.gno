@@ -1,7 +1,7 @@
 package gnolend
 
 import (
-	"gno.land/p/demo/uint256"
+	"gno.land/p/gnoswap/uint256"
 )
 
 // WAD represents a decimal with 18 decimals (i.e. 1e18)
@@ -9,36 +9,34 @@ var WAD = uint256.NewUint(1000000000000000000)
 
 // WMulDown returns (x * y) / WAD rounded down
 func WMulDown(x, y *uint256.Uint) *uint256.Uint {
-	return MulDivDown(x, y, WAD)
+	return uint256.MulDiv(x, y, WAD)
+}
+
+// WMulUp returns (x * y) / WAD rounded up
+func WMulUp(x, y *uint256.Uint) *uint256.Uint {
+	return uint256.MulDivRoundingUp(x, y, WAD)
 }
 
 // WDivDown returns (x * WAD) / y rounded down
 func WDivDown(x, y *uint256.Uint) *uint256.Uint {
-	return MulDivDown(x, WAD, y)
+	return uint256.MulDiv(x, WAD, y)
 }
 
 // WDivUp returns (x * WAD) / y rounded up
 func WDivUp(x, y *uint256.Uint) *uint256.Uint {
-	return MulDivUp(x, WAD, y)
+	return uint256.MulDivRoundingUp(x, WAD, y)
 }
 
-// MulDivDown returns (x * y) / d rounded down
-func MulDivDown(x, y, d *uint256.Uint) *uint256.Uint {
-	// Multiply
-	mul := new(uint256.Uint).Mul(x, y)
-	// Divide and round down
-	return new(uint256.Uint).Div(mul, d)
+// MulDivDown multiplies two numbers and divides by a third, rounding down.
+// Uses Gnoswap's FullMath implementation for safe multiplication and division.
+func MulDivDown(a, b, denominator *uint256.Uint) *uint256.Uint {
+	return uint256.MulDiv(a, b, denominator)
 }
 
-// MulDivUp returns (x * y) / d rounded up
-func MulDivUp(x, y, d *uint256.Uint) *uint256.Uint {
-	// Multiply
-	mul := new(uint256.Uint).Mul(x, y)
-	// Add (d - 1) for rounding up
-	dMinusOne := new(uint256.Uint).Sub(d, uint256.NewUint(1))
-	mulPlusD := new(uint256.Uint).Add(mul, dMinusOne)
-	// Divide and round up
-	return new(uint256.Uint).Div(mulPlusD, d)
+// MulDivUp multiplies two numbers and divides by a third, rounding up.
+// Uses Gnoswap's FullMath implementation for safe multiplication and division.
+func MulDivUp(a, b, denominator *uint256.Uint) *uint256.Uint {
+	return uint256.MulDivRoundingUp(a, b, denominator)
 }
 
 // WTaylorCompounded returns the sum of the first three non-zero terms of a Taylor expansion of e^(nx) - 1

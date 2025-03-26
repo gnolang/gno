@@ -4,7 +4,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/ufmt"
-	u256 "gno.land/p/demo/uint256"
+	u256 "gno.land/p/gnoswap/uint256"
 )
 
 // Event names
@@ -52,7 +52,7 @@ func emitDeposit(marketId string, user std.Address, amount *u256.Uint) {
 		DepositEvent,
 		EventMarketIDKey, marketId,
 		EventUserKey, user.String(),
-		EventAmountKey, amount.String(),
+		EventAmountKey, amount.ToString(),
 	)
 }
 
@@ -70,7 +70,7 @@ func emitBorrow(marketId string, user std.Address, amount *u256.Uint) {
 		BorrowEvent,
 		EventMarketIDKey, marketId,
 		EventUserKey, user.String(),
-		EventAmountKey, amount.String(),
+		EventAmountKey, amount.ToString(),
 	)
 }
 
@@ -98,8 +98,8 @@ func emitAccrueInterest(marketId string, borrowRate, interest *u256.Uint) {
 	std.Emit(
 		"AccrueInterest",
 		"market_id", marketId,
-		"borrow_rate", borrowRate.String(),
-		"interest", interest.String(),
+		"borrow_rate", borrowRate.ToString(),
+		"interest", interest.ToString(),
 	)
 }
 

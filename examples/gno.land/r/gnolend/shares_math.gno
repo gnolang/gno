@@ -1,7 +1,7 @@
 package gnolend
 
 import (
-	u256 "gno.land/p/demo/uint256"
+	u256 "gno.land/p/gnoswap/uint256"
 )
 
 // Virtual amounts for share/asset calculations
@@ -25,7 +25,7 @@ func ToSharesDown(assets, totalAssets, totalShares *u256.Uint) *u256.Uint {
 	// Add virtual amounts
 	totalSharesWithVirtual := new(u256.Uint).Add(totalShares, VIRTUAL_SHARES)
 	totalAssetsWithVirtual := new(u256.Uint).Add(totalAssets, VIRTUAL_ASSETS)
-	
+
 	return MulDivDown(
 		assets,
 		totalSharesWithVirtual,
@@ -40,7 +40,7 @@ func ToSharesUp(assets, totalAssets, totalShares *u256.Uint) *u256.Uint {
 	// Add virtual amounts
 	totalSharesWithVirtual := new(u256.Uint).Add(totalShares, VIRTUAL_SHARES)
 	totalAssetsWithVirtual := new(u256.Uint).Add(totalAssets, VIRTUAL_ASSETS)
-	
+
 	return MulDivUp(
 		assets,
 		totalSharesWithVirtual,
@@ -55,7 +55,7 @@ func ToAssetsDown(shares, totalAssets, totalShares *u256.Uint) *u256.Uint {
 	// Add virtual amounts
 	totalSharesWithVirtual := new(u256.Uint).Add(totalShares, VIRTUAL_SHARES)
 	totalAssetsWithVirtual := new(u256.Uint).Add(totalAssets, VIRTUAL_ASSETS)
-	
+
 	return MulDivDown(
 		shares,
 		totalAssetsWithVirtual,
@@ -70,7 +70,7 @@ func ToAssetsUp(shares, totalAssets, totalShares *u256.Uint) *u256.Uint {
 	// Add virtual amounts
 	totalSharesWithVirtual := new(u256.Uint).Add(totalShares, VIRTUAL_SHARES)
 	totalAssetsWithVirtual := new(u256.Uint).Add(totalAssets, VIRTUAL_ASSETS)
-	
+
 	return MulDivUp(
 		shares,
 		totalAssetsWithVirtual,
