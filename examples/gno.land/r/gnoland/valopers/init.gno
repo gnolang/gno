@@ -3,6 +3,7 @@ package valopers
 import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/moul/authz"
+	"gno.land/p/moul/txlink"
 )
 
 func init() {
@@ -30,7 +31,7 @@ By registering your validator profile, you contribute to a transparent and well-
 
 ## 📝 How to Register Your Validator Node
 
-To add your validator node to the registry, use the **Register** function with the following parameters:
+To add your validator node to the registry, use the [**Register**](` + txlink.Call("Register") + `) function with the following parameters:
 
 - **Moniker** (Validator Name)
   - Must be **human-readable**
@@ -71,7 +72,7 @@ After registration, you can update your validator details using the **update fun
 
 Once you're satisfied with your **valoper** profile, you need to notify GovDAO; only a GovDAO member can submit a proposal to add you to the validator set.
 
-If you are a GovDAO member, you can nominate yourself by executing the following function: **r/gnoland/valopers_proposal.MakeProposal**
+If you are a GovDAO member, you can nominate yourself by executing the following function: [**r/gnoland/valopers_proposal.ProposeNewValidator**](` + txlink.Realm("gno.land/r/gnoland/valopers_proposal").Call("ProposeNewValidator") + `)
 
 This will initiate a governance process where **GovDAO** members will vote on your proposal.
 

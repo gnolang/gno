@@ -39,7 +39,7 @@ func main() {
 //
 // ## 📝 How to Register Your Validator Node
 //
-// To add your validator node to the registry, use the **Register** function with the following parameters:
+// To add your validator node to the registry, use the [**Register**](/r/gnoland/valopers$help&func=Register) function with the following parameters:
 //
 // - **Moniker** (Validator Name)
 //   - Must be **human-readable**
@@ -80,7 +80,7 @@ func main() {
 //
 // Once you're satisfied with your **valoper** profile, you need to notify GovDAO; only a GovDAO member can submit a proposal to add you to the validator set.
 //
-// If you are a GovDAO member, you can nominate yourself by executing the following function: **r/gnoland/valopers_proposal.MakeProposal**
+// If you are a GovDAO member, you can nominate yourself by executing the following function: [**r/gnoland/valopers_proposal.ProposeNewValidator**](/r/gnoland/valopers_proposal$help&func=ProposeNewValidator)
 //
 // This will initiate a governance process where **GovDAO** members will vote on your proposal.
 //
