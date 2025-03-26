@@ -2,6 +2,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/r/gnoland/commondao"
 )
@@ -13,7 +14,7 @@ const (
 
 func init() {
 	// Call as a users which is not a Common DAO member
-	std.TestSetOriginCaller(user)
+	testing.SetOriginCaller(user)
 }
 
 func main() {

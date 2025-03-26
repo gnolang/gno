@@ -2,6 +2,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/r/gnoland/commondao"
 )
@@ -15,11 +16,11 @@ var daoID uint64
 
 func init() {
 	// Invite a user to be able to start creating DAOs
-	std.TestSetOriginCaller(owner)
+	testing.SetOriginCaller(owner)
 	commondao.Invite(user)
 
 	// Create a DAO
-	std.TestSetOriginCaller(user)
+	testing.SetOriginCaller(user)
 	daoID = commondao.New("Foo").ID()
 }
 

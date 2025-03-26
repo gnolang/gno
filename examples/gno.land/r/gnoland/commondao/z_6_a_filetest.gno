@@ -2,6 +2,7 @@ package main
 
 import (
 	"std"
+	"testing"
 	"time"
 
 	"gno.land/p/demo/testutils"
@@ -36,14 +37,14 @@ var (
 
 func init() {
 	// Use a realm caller
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 
 	// Invite a user to be able to start creating DAOs
-	std.TestSetOriginCaller(owner)
+	testing.SetOriginCaller(owner)
 	commondao.Invite(user1)
 
 	// Create a new DAO which gives ownership to `commondao_test`
-	std.TestSetOriginCaller(user1)
+	testing.SetOriginCaller(user1)
 	dao = commondao.New("Foo")
 
 	// Configure DAO
@@ -58,7 +59,7 @@ func init() {
 	commondao.Vote(dao.ID(), proposal.ID(), pdao.ChoiceYes, "")
 
 	// Submit user2 vote
-	std.TestSetOriginCaller(user2)
+	testing.SetOriginCaller(user2)
 	commondao.Vote(dao.ID(), proposal.ID(), pdao.ChoiceYes, "")
 }
 

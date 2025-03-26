@@ -2,6 +2,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/r/gnoland/commondao"
 )
@@ -14,16 +15,16 @@ const (
 var daoID uint64
 
 func init() {
-	std.TestSetOriginCaller(owner)
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/tests"))
+	testing.SetOriginCaller(owner)
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/tests"))
 	commondao.Invite(user)
 
-	std.TestSetOriginCaller(user)
+	testing.SetOriginCaller(user)
 	dao := commondao.New("Foo")
 
 	daoID = dao.ID()
 
-	std.TestSetRealm(std.NewUserRealm(user))
+	testing.SetRealm(std.NewUserRealm(user))
 }
 
 func main() {

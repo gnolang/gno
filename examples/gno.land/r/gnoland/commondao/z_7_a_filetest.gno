@@ -3,6 +3,7 @@ package commondao_test
 
 import (
 	"std"
+	"testing"
 
 	pcommondao "gno.land/p/gnoland/commondao"
 
@@ -20,12 +21,12 @@ var rootDAO *pcommondao.CommonDAO
 
 func init() {
 	// Invite a user to be able to start creating DAOs
-	std.TestSetOriginCaller(owner)
+	testing.SetOriginCaller(owner)
 	commondao.Invite(user)
 
 	// The origin must be the invited user where invitation
 	// is removed after the first user call to create a DAO
-	std.TestSetOriginCaller(user)
+	testing.SetOriginCaller(user)
 
 	// Create the root DAO
 	rootDAO = commondao.New("Parent DAO")
