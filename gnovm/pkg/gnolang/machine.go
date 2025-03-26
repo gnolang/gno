@@ -42,7 +42,7 @@ type Machine struct {
 	PreprocessorMode bool // this is used as a flag when const values are evaluated during preprocessing
 	Output           io.Writer
 	Store            Store
-	Context          interface{}
+	Context          any
 	GasMeter         store.GasMeter
 	// PanicScope is incremented each time a panic occurs and is reset to
 	// zero when it is recovered.
@@ -79,7 +79,7 @@ type MachineOptions struct {
 	Input            io.Reader // used for default debugger input only
 	Output           io.Writer // default os.Stdout
 	Store            Store     // default NewStore(Alloc, nil, nil)
-	Context          interface{}
+	Context          any
 	Alloc            *Allocator // or see MaxAllocBytes.
 	MaxAllocBytes    int64      // or 0 for no limit.
 	GasMeter         store.GasMeter
@@ -90,7 +90,7 @@ type MachineOptions struct {
 // to be occupied by *Machine
 // hence, this pool
 var machinePool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return &Machine{
 			Ops:    make([]Op, VMSliceSize),
 			Values: make([]TypedValue, VMSliceSize),
@@ -1660,7 +1660,7 @@ func (m *Machine) PopValue() (tv *TypedValue) {
 // multiple pop calls.  This is used for params assignment, for example.
 func (m *Machine) PopValues(n int) []TypedValue {
 	if dbg {
-		for i := 0; i < n; i++ {
+		for i := range n {
 			tv := m.Values[m.NumValues-n+i]
 			m.Printf("-vs[%d/%d] %v\n", i, n, tv)
 		}
@@ -1680,7 +1680,7 @@ func (m *Machine) PopCopyValues(n int) []TypedValue {
 // Decrements NumValues by number of last results.
 func (m *Machine) PopResults() {
 	if dbg {
-		for i := 0; i < m.NumResults; i++ {
+		for range m.NumResults {
 			m.PopValue()
 		}
 	} else {
@@ -1835,7 +1835,7 @@ func (m *Machine) PopFrameAndReturn() {
 	// shift and convert results to typed-nil if undefined and not iface
 	// kind.  and not func result type isn't interface kind.
 	resStart := m.NumValues - numRes
-	for i := 0; i < numRes; i++ {
+	for i := range numRes {
 		res := m.Values[resStart+i]
 		if res.IsUndefined() && rtypes[i].Type.Kind() != InterfaceKind {
 			res.T = rtypes[i].Type

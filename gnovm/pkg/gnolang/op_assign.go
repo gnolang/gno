@@ -7,7 +7,7 @@ func (m *Machine) doOpDefine() {
 	// forward order, not the usual reverse.
 	rvs := m.PopValues(len(s.Lhs))
 	lb := m.LastBlock()
-	for i := 0; i < len(s.Lhs); i++ {
+	for i := range s.Lhs {
 		// Get name and value of i'th term.
 		nx := s.Lhs[i].(*NameExpr)
 		// Finally, define (or assign if loop block).
