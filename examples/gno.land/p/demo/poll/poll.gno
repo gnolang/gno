@@ -120,6 +120,11 @@ func (p *Poll) Edit(
 	p.MaxChoices = newMaxChoices
 }
 
+// HasVotingBegun returns true if any votes have been cast.
+func (p *Poll) HasVotingBegun() bool {
+	return p.VoterCount() > 0
+}
+
 //----------------------------------------
 // Option Management
 
@@ -127,6 +132,9 @@ func (p *Poll) Edit(
 func (p *Poll) AddOption(optionText string) {
 	if optionText == "" {
 		panic("option text must not be empty")
+	}
+	if p.HasVotingBegun() {
+		panic("cannot add options after voting has begun")
 	}
 	p.Options = append(p.Options, optionText)
 }
@@ -139,6 +147,9 @@ func (p *Poll) EditOption(index int, newText string) {
 	if newText == "" {
 		panic("new option text must not be empty")
 	}
+	if p.HasVotingBegun() {
+		panic("cannot edit options after voting has begun")
+	}
 	p.Options[index] = newText
 }
 
@@ -146,6 +157,9 @@ func (p *Poll) EditOption(index int, newText string) {
 func (p *Poll) DeleteOption(index int) {
 	if index < 0 || index >= len(p.Options) {
 		panic("invalid option index")
+	}
+	if p.HasVotingBegun() {
+		panic("cannot delete options after voting has begun")
 	}
 	p.Options = append(p.Options[:index], p.Options[index+1:]...)
 }

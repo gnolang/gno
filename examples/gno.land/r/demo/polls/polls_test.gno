@@ -232,4 +232,20 @@ func TestOptionManagementAfterVoting(t *testing.T) {
 		}
 	}()
 	AddOption("0000001", "Option 3")
+
+	// Attempt to edit option after voting
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic when editing option after voting")
+		}
+	}()
+	EditOption("0000001", 0, "Updated Option 1")
+
+	// Attempt to delete option after voting
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic when deleting option after voting")
+		}
+	}()
+	DeleteOption("0000001", 0)
 }

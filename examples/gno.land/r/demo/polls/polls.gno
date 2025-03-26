@@ -80,7 +80,7 @@ func AddOption(id string, optionText string) string {
 		panic("only the poll creator can add options")
 	}
 	// Disallow if any votes have been cast
-	if p.VoterCount() > 0 {
+	if p.HasVotingBegun() {
 		panic("cannot add options after the first vote has been cast")
 	}
 	p.AddOption(optionText)
@@ -97,6 +97,10 @@ func EditOption(id string, optionIndex int, newText string) string {
 	if p.Creator != std.OriginCaller() {
 		panic("only the poll creator can edit options")
 	}
+	// Disallow if any votes have been cast
+	if p.HasVotingBegun() {
+		panic("cannot edit options after the first vote has been cast")
+	}
 	p.EditOption(optionIndex, newText)
 	polls.Set(id, p)
 	return ufmt.Sprintf("Edited option #%d in poll %s", optionIndex, id)
@@ -110,7 +114,7 @@ func DeleteOption(id string, optionIndex int) string {
 		panic("only the poll creator can delete options")
 	}
 	// Disallow deleting if any votes have been cast
-	if p.VoterCount() > 0 {
+	if p.HasVotingBegun() {
 		panic("cannot delete options after the first vote has been cast")
 	}
 	p.DeleteOption(optionIndex)

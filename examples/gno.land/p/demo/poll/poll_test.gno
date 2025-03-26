@@ -206,3 +206,46 @@ func TestVoterCount(t *testing.T) {
 		t.Errorf("expected voter count 2, got %d", count)
 	}
 }
+
+func TestOptionManagementAfterVoting(t *testing.T) {
+	creator := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	voter := std.Address("g1htpxzv2dkplvzg50nd8fuwt5yg4jn8dgtx076k")
+	now := time.Now()
+	deadline := now.Add(time.Hour * 24)
+
+	p := NewPoll(
+		"Test Poll",
+		"Description",
+		[]string{"Option 1", "Option 2"},
+		1,
+		deadline,
+		creator,
+	)
+
+	// Cast a vote
+	p.Vote(voter, []int{0})
+
+	// Test adding option after voting
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic when adding option after voting")
+		}
+	}()
+	p.AddOption("Option 3")
+
+	// Test editing option after voting
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic when editing option after voting")
+		}
+	}()
+	p.EditOption(0, "Updated Option 1")
+
+	// Test deleting option after voting
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic when deleting option after voting")
+		}
+	}()
+	p.DeleteOption(0)
+}
