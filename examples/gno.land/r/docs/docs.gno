@@ -13,6 +13,7 @@ import (
 )
 
 func Render(_ string) string {
+	content := ""
 	content += `
 # Gno Examples Documentation
 
@@ -43,8 +44,7 @@ Explore various examples to learn more about Gno functionality and usage.
 
 - [Official documentation](https://github.com/gnolang/gno/tree/master/docs) <!-- should be /docs with gnoweb embedding the docs/ folder. -->
 `
-	content := ""
-	content += frontMatter() // XXX: try to remove this
+
 	return content
 }
 
