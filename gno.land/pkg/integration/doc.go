@@ -54,6 +54,11 @@
 //   - NOTE: this command may only be temporary, as it's not best approach to
 //     solve the above problem
 //
+// 7. `loadparams`:
+//   - Must be run before `gnoland start`.
+//   - Load the given params genesis toml file.
+//   - IMPORTANT: this genesis file will be loaded on top of the default one.
+//
 // Logging:
 //
 // Gnoland logs aren't forwarded to stdout to avoid overwhelming the tests with too much

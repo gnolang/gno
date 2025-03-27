@@ -122,7 +122,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 
 		// deduct the fees
 		if !tx.Fee.GasFee.IsZero() {
-			res = DeductFees(bank, newCtx, signerAccs[0], std.Coins{tx.Fee.GasFee})
+			res = DeductFees(bank, newCtx, signerAccs[0], ak.FeeCollectorAddress(ctx), std.Coins{tx.Fee.GasFee})
 			if !res.IsOK() {
 				return newCtx, res, true
 			}
@@ -307,7 +307,7 @@ func consumeMultisignatureVerificationGas(meter store.GasMeter,
 //
 // NOTE: We could use the CoinKeeper (in addition to the AccountKeeper, because
 // the CoinKeeper doesn't give us accounts), but it seems easier to do this.
-func DeductFees(bank BankKeeperI, ctx sdk.Context, acc std.Account, fees std.Coins) sdk.Result {
+func DeductFees(bk BankKeeperI, ctx sdk.Context, acc std.Account, collector crypto.Address, fees std.Coins) sdk.Result {
 	coins := acc.GetCoins()
 
 	if !fees.IsValid() {
@@ -323,7 +323,7 @@ func DeductFees(bank BankKeeperI, ctx sdk.Context, acc std.Account, fees std.Coi
 	}
 
 	// Sending coins is unrestricted to pay for gas fees
-	err := bank.SendCoinsUnrestricted(ctx, acc.GetAddress(), FeeCollectorAddress(), fees)
+	err := bk.SendCoinsUnrestricted(ctx, acc.GetAddress(), collector, fees)
 	if err != nil {
 		return abciResult(err)
 	}

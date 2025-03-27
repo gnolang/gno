@@ -1,4 +1,6 @@
 # Test for #3003, #2911.
+loadparams $WORK/genesis_params_test.toml
+stdout 'successfully loaded'
 
 gnoland start
 
@@ -9,19 +11,73 @@ gnoland start
 # Verify the default chain domain parameter for Gno.land
 gnokey query params/vm:p:chain_domain
 stdout 'data: "gno.land"$'
+gnokey query params/vm:p:sysnames_pkgpath
+stdout 'data: "gno.land/r/sys/names"$'
+
+# Test auth bank
+
+gnokey query params/bank:p:restricted_denoms
+stdout 'data: \["gnot"\]$'
+
+# Test auth param
+
+gnokey query params/auth:p:max_memo_bytes
+stdout 'data: "65536"$'
+gnokey query params/auth:p:tx_sig_limit
+stdout 'data: "7"$'
+gnokey query params/auth:p:tx_size_cost_per_byte
+stdout 'data: "10"$'
+gnokey query params/auth:p:sig_verify_cost_ed25519
+stdout 'data: "590"$'
+gnokey query params/auth:p:sig_verify_cost_secp256k1
+stdout 'data: "1000"$'
+gnokey query params/auth:p:gas_price_change_compressor
+stdout 'data: "10"$'
+gnokey query params/auth:p:target_gas_ratio
+stdout 'data: "70"$'
+gnokey query params/auth:p:initial_gasprice
+stdout 'data: {"gas":"10","price":"3ugnot"}$'
+gnokey query params/auth:p:unrestricted_addrs
+stdout 'data: \["g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"\]$'
+gnokey query params/auth:p:fee_collector
+stdout 'data: "g1najfm5t7dr4f2m38cg55xt6gh2lxsk92tgh0xy"$'
 
 # Test custom parameters to confirm they return the expected values and types.
 
 gnokey query params/vm:gno.land/r/sys/testrealm:foo_string
 stdout 'data: "bar"$'
-
 gnokey query params/vm:gno.land/r/sys/testrealm:foo_int64
 stdout 'data: "-1337"$'
-
 gnokey query params/vm:gno.land/r/sys/testrealm:foo_bool
 stdout 'data: true$'
-
 gnokey query params/vm:gno.land/r/sys/testrealm:foo_strings
 stdout 'data: \["some","strings"\]'
 
+-- genesis_params_test.toml --
 
+["vm"]
+  chain_domain = "gno.land"
+  sysnames_pkgpath = "gno.land/r/sys/names"
+
+["bank"]
+  restricted_denoms = ["gnot"]
+
+["auth"]
+  max_memo_bytes = 65536
+  tx_sig_limit = 7
+  tx_size_cost_per_byte = 10
+  sig_verify_cost_ed25519 = 590
+  sig_verify_cost_secp256k1 = 1000
+  gas_price_change_compressor = 10
+  target_gas_ratio = 70
+  initial_gasprice = "3ugnot/10gas"
+  unrestricted_addrs = ["g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"]
+  fee_collector = "g1najfm5t7dr4f2m38cg55xt6gh2lxsk92tgh0xy" # "gno.land/r/sys/txfees"
+
+["vm:gno.land/r/sys/testrealm"]
+foo_string = "bar"
+foo_int64 = -1337
+foo_uint64 = 123
+foo_bool = true
+"foo_strings.strings" = ["some", "strings"]
+# foo_bytes = ...?

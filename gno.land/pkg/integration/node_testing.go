@@ -67,12 +67,13 @@ func TestingNodeConfig(t TestingTS, gnoroot string, additionalTxs ...gnoland.TxW
 	txs := make([]gnoland.TxWithMetadata, 0)
 	txs = append(txs, LoadDefaultPackages(t, creator, gnoroot)...)
 	txs = append(txs, additionalTxs...)
+
 	ggs := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
 	ggs.Balances = balances
 	ggs.Txs = txs
 	LoadDefaultGenesisParamFile(t, gnoroot, &ggs)
-	cfg.Genesis.AppState = ggs
 
+	cfg.Genesis.AppState = ggs
 	return cfg, creator
 }
 
