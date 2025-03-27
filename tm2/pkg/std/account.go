@@ -33,7 +33,6 @@ type Account interface {
 	// Session management
 	CreateSession(pubKey crypto.PubKey, sequence uint64) (Session, error)
 	RevokeSession(pubKey crypto.PubKey) error
-	RevokeOtherSessions(currentPubKey crypto.PubKey) error
 	GetSessions() []Session
 
 	String() string
@@ -89,18 +88,19 @@ type AccountUnrestricter interface {
 // BaseAccount - a base account structure.
 // This can be extended by embedding within in your *Account structure.
 type BaseAccount struct {
-	Address       crypto.Address `json:"address" yaml:"address"`
-	Coins         Coins          `json:"coins" yaml:"coins"`
-	AccountNumber uint64         `json:"account_number" yaml:"account_number"`
-	Sessions      []Session      `json:"sessions" yaml:"sessions"`
+	Address       crypto.Address  `json:"address" yaml:"address"`
+	Coins         Coins           `json:"coins" yaml:"coins"`
+	AccountNumber uint64          `json:"account_number" yaml:"account_number"`
+	SessionKeys   []crypto.PubKey `json:"session_keys" yaml:"session_keys"` // First key is master
 }
 
 // NewBaseAccount creates a new BaseAccount object
-func NewBaseAccount(address crypto.Address, coins Coins, accountNumber uint64) *BaseAccount {
+func NewBaseAccount(address crypto.Address, coins Coins, accountNumber uint64, pubkey crypto.PubKey) *BaseAccount {
 	return &BaseAccount{
 		Address:       address,
 		Coins:         coins,
 		AccountNumber: accountNumber,
+		SessionKeys:   []crypto.PubKey{pubkey}, // First key is master
 	}
 }
 
@@ -109,21 +109,15 @@ func (acc BaseAccount) String() string {
 	return fmt.Sprintf(`Account:
   Address:       %s
   Coins:         %s
-  AccountNumber: %d`,
-		acc.Address, acc.Coins, acc.AccountNumber,
+  AccountNumber: %d
+  SessionKeys:   %v`,
+		acc.Address, acc.Coins, acc.AccountNumber, acc.SessionKeys,
 	)
 }
 
 // ProtoBaseAccount - a prototype function for BaseAccount
 func ProtoBaseAccount() Account {
 	return &BaseAccount{}
-}
-
-// NewBaseAccountWithAddress - returns a new base account with a given address
-func NewBaseAccountWithAddress(addr crypto.Address) BaseAccount {
-	return BaseAccount{
-		Address: addr,
-	}
 }
 
 // GetAddress - Implements Account.
@@ -162,65 +156,49 @@ func (acc *BaseAccount) SetAccountNumber(accNumber uint64) error {
 	return nil
 }
 
+// CreateSession creates a new session and stores its key
 func (acc *BaseAccount) CreateSession(pubKey crypto.PubKey, sequence uint64) (Session, error) {
 	// Check if a session with this pubKey already exists
-	for _, session := range acc.Sessions {
-		if session.GetPubKey().Equals(pubKey) {
+	for _, existingKey := range acc.SessionKeys {
+		if existingKey.Equals(pubKey) {
 			return nil, errors.New("session with this public key already exists")
 		}
 	}
 
-	// Create new regular (non-master) session
-	session := NewBaseSession(acc.Address, pubKey, sequence, false)
+	// Store the session key
+	acc.SessionKeys = append(acc.SessionKeys, pubKey)
+
+	// Create and return the session object
+	session := NewBaseSession(acc.Address, pubKey, sequence, len(acc.SessionKeys) == 1) // master if first key
 	session.setAccount(acc)
-	acc.Sessions = append(acc.Sessions, session)
 	return session, nil
 }
 
+// RevokeSession removes a session key
 func (acc *BaseAccount) RevokeSession(pubKey crypto.PubKey) error {
-	for i, session := range acc.Sessions {
-		if session.GetPubKey().Equals(pubKey) {
-			// Prevent revoking master sessions
-			if session.IsMaster() {
+	for i, key := range acc.SessionKeys {
+		if key.Equals(pubKey) {
+			// Prevent revoking master session (first key)
+			if i == 0 {
 				return errors.New("cannot revoke master session")
 			}
-			// Remove session at index i
-			acc.Sessions = append(acc.Sessions[:i], acc.Sessions[i+1:]...)
+			// Remove key at index i
+			acc.SessionKeys = append(acc.SessionKeys[:i], acc.SessionKeys[i+1:]...)
 			return nil
 		}
 	}
 	return errors.New("session not found")
 }
 
-func (acc *BaseAccount) RevokeOtherSessions(currentPubKey crypto.PubKey) error {
-	var currentSession Session
-	newSessions := make([]Session, 0, 1)
-
-	// Find current session and keep track of master session
-	var hasMaster bool
-	for _, session := range acc.Sessions {
-		if session.IsMaster() {
-			hasMaster = true
-			newSessions = append(newSessions, session)
-		}
-		if session.GetPubKey().Equals(currentPubKey) {
-			currentSession = session
-			if !session.IsMaster() { // Don't add non-master session twice
-				newSessions = append(newSessions, session)
-			}
-		}
-	}
-
-	if currentSession == nil {
-		return errors.New("current session not found")
-	}
-
-	acc.Sessions = newSessions
-	return nil
-}
-
+// GetSessions creates Session objects for all stored keys
 func (acc *BaseAccount) GetSessions() []Session {
-	return acc.Sessions
+	sessions := make([]Session, len(acc.SessionKeys))
+	for i, key := range acc.SessionKeys {
+		session := NewBaseSession(acc.Address, key, 0, i == 0) // master if first key
+		session.setAccount(acc)
+		sessions[i] = session
+	}
+	return sessions
 }
 
 // BaseSession - a base session structure for authentication.
@@ -298,18 +276,4 @@ func (s *BaseSession) SetSequence(seq uint64) error {
 // Add IsMaster implementation
 func (s *BaseSession) IsMaster() bool {
 	return s.master
-}
-
-// Add helper to create a new account with a master session
-func NewBaseAccountWithMasterKey(address crypto.Address, pubKey crypto.PubKey) *BaseAccount {
-	acc := &BaseAccount{
-		Address: address,
-	}
-
-	// Create and add the master session
-	masterSession := NewBaseSession(address, pubKey, 0, true)
-	masterSession.setAccount(acc)
-	acc.Sessions = append(acc.Sessions, masterSession)
-
-	return acc
 }
