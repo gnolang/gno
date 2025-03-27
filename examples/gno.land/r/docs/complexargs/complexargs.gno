@@ -32,7 +32,7 @@ func SetMyObject(newCoolObject CustomType) {
 
 func Render(_ string) string {
 	out := "# Complex argument functions\n\n"
-	out += `Exposed realm functions that take in complex arguments, such as slices, structs, pointers, etc,
+	out += `Exposed realm functions and methods that take in complex arguments, such as slices, structs, pointers, etc,
 cannot be called via a standard "MsgCall" transaction. To call these functions, users need to use "MsgRun".
 
 Check out the source code to see example functions and objects.
@@ -42,15 +42,20 @@ In this case, the following "MsgRun" code would be used to call the function:
 	out += ufmt.Sprintf("```go\n%s\n```\n\n", msgrun)
 
 	out += "Value of int slice: "
-	for _, v := range slice {
+	for i, v := range slice {
+		if i > 0 {
+			out += ", "
+		}
 		out += ufmt.Sprintf("%d", v)
 	}
-
 	out += "\n\n"
 
 	if myObject != nil {
 		s := ""
-		for _, v := range myObject.Numbers {
+		for i, v := range myObject.Numbers {
+			if i > 0 {
+				s += ","
+			}
 			s += ufmt.Sprintf("%d", v)
 		}
 		out += ufmt.Sprintf("Value of myObject: `CustomObject{Name: %s, Numbers: %s}`", myObject.Name, s)
@@ -72,6 +77,6 @@ func main() {
 	complexargs.SetSlice(slice)
 
 	// The same can be done with custom types:
-	obj := complexargs.CustomType{Name: "whatever", Numbers: slice}
+	obj := complexargs.CustomType{Name: "whatever", Numbers: []int{1, 10, 100}}
 	complexargs.SetMyObject(obj)
 }`
