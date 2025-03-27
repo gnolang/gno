@@ -42,6 +42,7 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
+<<< HEAD
 //         "ID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:59",
 //         "ModTime": "0",
 //         "OwnerID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:58",

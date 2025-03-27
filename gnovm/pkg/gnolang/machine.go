@@ -130,6 +130,9 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm := machinePool.Get().(*Machine)
 	mm.Package = pv
 	mm.Alloc = alloc
+	if mm.Alloc != nil {
+		mm.Alloc.SetGCCallback(func() (int64, bool) { return mm.GarbageCollect() })
+	}
 	mm.PreprocessorMode = preprocessorMode
 	mm.Output = output
 	mm.Store = store
@@ -2225,6 +2228,7 @@ func (m *Machine) Recover() *Exception {
 	if fr.IsDefer {          // not **called directly**
 		return nil
 	}
+<<< HEAD
 	fr = m.PeekCallFrame(2) // what contained recover().
 	if !fr.IsDefer {        // not **by a deferred function**
 		return nil
