@@ -14,18 +14,12 @@ func SetSlice(newSlice []int) {
 }
 
 func Render(_ string) string {
-	return out
-}
-
-var out string
-
-func init() {
-	out = "# Complex argument functions\n\n"
+	out := "# Complex argument functions\n\n"
 	out += `Exposed realm functions that take in complex arguments, such as slices, structs, pointers, etc,
 cannot be called via a standard "MsgCall" transaction. To call these functions, users need to use "MsgRun".
 
 `
 
 	out = strings.Replace(out, "\"", "`", -1)
-
+	return out
 }
