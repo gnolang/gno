@@ -664,7 +664,7 @@ func Until(t Time) Duration {
 func (t Time) AddDate(years int, months int, days int) Time {
 	year, month, day := t.Date()
 	hour, min, sec := t.Clock()
-	return Date(year+years, month+Month(months), day+days, hour, min, sec, int(t.nsec), t.Location())
+	return Date(year+years, month+Month(months), day+days, hour, min, sec, int(t.nsec), ChainTZ)
 }
 
 const (
@@ -822,11 +822,6 @@ func Now() Time {
 
 func unixTime(sec int64, nsec int32) Time {
 	return Time{sec + unixToInternal, nsec}
-}
-
-// Location returns the chain time zone.
-func (t Time) Location() *Location {
-	return ChainTZ
 }
 
 // Zone computes the time zone in effect at time t, returning the abbreviated

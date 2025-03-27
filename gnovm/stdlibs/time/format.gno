@@ -538,7 +538,7 @@ func (t Time) GoString() string {
 	buf = append(buf, ", "...)
 	buf = appendInt(buf, t.Nanosecond(), 0)
 	buf = append(buf, ", "...)
-	switch loc := t.Location(); loc {
+	switch loc := ChainTZ; loc {
 	case UTC, nil:
 		buf = append(buf, "time.UTC"...)
 	default:
