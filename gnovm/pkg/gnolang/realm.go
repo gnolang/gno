@@ -688,39 +688,35 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 	}
 }
 
+// clearDeleted removes any objects from .updated, .created,
+// and .newEscaped slices that are also present in the .deleted slice.
 func (rlm *Realm) clearDeleted() {
+	if len(rlm.deleted) == 0 {
+		return
+	}
+
 	// Convert deleted objects to a map for O(1) lookups
 	deleted := make(map[Object]struct{}, len(rlm.deleted))
 	for _, do := range rlm.deleted {
 		deleted[do] = struct{}{}
 	}
 
-	// Filter updated objects
-	filtered := rlm.updated[:0]
-	for _, uo := range rlm.updated {
-		if _, exists := deleted[uo]; !exists {
-			filtered = append(filtered, uo)
+	filter := func(slice []Object) []Object {
+		if slice == nil {
+			return nil
 		}
+		filtered := slice[:0]
+		for _, obj := range slice {
+			if _, exists := deleted[obj]; !exists {
+				filtered = append(filtered, obj)
+			}
+		}
+		return filtered
 	}
-	rlm.updated = filtered
 
-	// Filter created objects
-	filtered = rlm.created[:0]
-	for _, co := range rlm.created {
-		if _, exists := deleted[co]; !exists {
-			filtered = append(filtered, co)
-		}
-	}
-	rlm.created = filtered
-
-	// Filter new newEscaped objects
-	filtered = rlm.newEscaped[:0]
-	for _, co := range rlm.newEscaped {
-		if _, exists := deleted[co]; !exists {
-			filtered = append(filtered, co)
-		}
-	}
-	rlm.newEscaped = filtered
+	rlm.updated = filter(rlm.updated)
+	rlm.created = filter(rlm.created)
+	rlm.newEscaped = filter(rlm.newEscaped)
 }
 
 //----------------------------------------
