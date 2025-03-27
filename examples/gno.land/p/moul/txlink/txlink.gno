@@ -5,7 +5,7 @@
 // flexible arguments, allowing users to build dynamic links that integrate
 // seamlessly with various Gno clients.
 //
-// The package offers a way to generate clickable transaction MD links 
+// The package offers a way to generate clickable transaction MD links
 // for the current "relative realm":
 //
 //  Using a builder pattern for more structured URLs:
