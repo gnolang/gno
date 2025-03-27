@@ -1,0 +1,62 @@
+{
+  "tutorialSidebar": [
+    "README",
+    [
+      {
+        "type": "category",
+        "label": "Use gno.land",
+        "items": [
+          "users/discover-gnoland",
+          "users/explore-with-gnoweb",
+          "users/interact-with-gnokey",
+          "users/example-boards",
+          "users/third-party-wallets",
+          "users/power-users"
+        ]
+      },
+      {
+        "type": "category",
+        "label": "Build on gno.land",
+        "items": [
+          "builders/what-is-gnolang",
+          "builders/anatomy-of-a-gno-package",
+          "builders/local-dev-with-gnodev",
+          "builders/example-minisocial-dapp",
+          "builders/deploy-packages",
+          "builders/connect-clients-and-apps",
+          "builders/become-a-gnome"
+        ]
+      },
+      {
+        "type": "category",
+        "label": "Resources",
+        "items": [
+          "resources/effective-gno",
+          "resources/gno-packages",
+          "resources/gnoland-networks",
+          "resources/users-and-teams",
+          "resources/gas-fees",
+          "resources/gno-stdlibs",
+          "resources/glossary",
+          "resources/gno-testing",
+          "resources/go-gno-compatibility",
+          {
+            "type": "link",
+            "label": "Awesome Gno",
+            "href": "https://github.com/gnoverse/awesome-gno"
+          },
+          {
+            "type": "link",
+            "label": "Gno Examples",
+            "href": "https://github.com/gnolang/gno/tree/master/examples"
+          },
+          {
+            "type": "link",
+            "label": "Gno Workshops",
+            "href": "https://github.com/gnolang/workshops"
+          }
+        ]
+      }
+    ]
+  ]
+}
