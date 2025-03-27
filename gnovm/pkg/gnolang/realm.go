@@ -214,7 +214,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 			if xo.GetIsReal() {
 				rlm.MarkNewDeleted(xo)
 			}
-		} else if xo.GetIsReal() { // xo should always be !unsaved here.
+		} else if xo.GetIsReal() {
 			rlm.MarkDirty(xo)
 		}
 	}
@@ -388,12 +388,14 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 		}
 		if oo.GetRefCount() == 0 {
 			if debugRealm {
-				// new real rc can be zero and not mark as new deleted
+				// The refCount for a new real object could be zero,
+				// and the object may not yet be marked as deleted.
 				if !oo.GetIsNewDeleted() && !oo.GetIsNewReal() {
 					panic("should have been marked new-deleted")
 				}
 			}
 			// No need to unmark, will be garbage collected.
+			// also see comment in clearMarks().
 			// oo.SetIsNewReal(false)
 			// skip if became deleted.
 			continue
@@ -849,7 +851,7 @@ func (rlm *Realm) clearMarks() {
 		// A new real object can be possible here.
 		// This new real object may have recCount of 0
 		// but its state was not unset in `processNewCreatedMarks`.
-		// As a result, it will be garbage collected.
+		// (As a result, it will be garbage collected.)
 		// therefore, new real is allowed to exist here.
 
 		for _, oo := range rlm.newEscaped {
