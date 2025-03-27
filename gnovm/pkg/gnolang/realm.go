@@ -465,9 +465,8 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 				rlm.incRefCreatedDescendants(store, child)
 			}
 		} else if rc > 1 {
-			if !isUnsaved(child) {
-				rlm.MarkDirty(child)
-			}
+			// new real or dirty won't be marked(again).
+			rlm.MarkDirty(child)
 			if child.GetIsEscaped() {
 				// already escaped, do nothing.
 			} else {
@@ -543,11 +542,7 @@ func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 		if rc == 0 {
 			rlm.decRefDeletedDescendants(store, child)
 		} else if rc > 0 {
-			// If the object is unsaved, it will be saved anyway,
-			// preventing it from being saved multiple times.
-			if !isUnsaved(child) {
-				rlm.MarkDirty(child)
-			}
+			rlm.MarkDirty(child)
 		} else {
 			panic("deleted descendants should not have a reference count of less than zero")
 		}
@@ -668,14 +663,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 				// via .updated.
 				break
 			} else {
-				// A new real object can initially be owned by one owner,
-				// then owned by another owner. If the first owner is
-				// deleted before finalization complete(its refCount is zero
-				// but not marked), the new real object remains alive, with the
-				// owner to be the first one, whose refCount is 0.
-				// in this case the second owner should be dirty, so just
-				// skip the first one, whose refCount is 0.
-				if po.GetRefCount() == 0 {
+				if po.GetIsDeleted() {
 					break
 				} else {
 					rlm.MarkDirty(po)
