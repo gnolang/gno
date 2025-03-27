@@ -48,7 +48,7 @@ func (d DebugFlags) Printf(flagName, format string, args ...any) {
 	caller := fmt.Sprintf("%-.12s:%-4d", filepath.Base(file), line)
 	fmt.Fprintf(
 		Output,
-		"DEBUG[%s]: %17s: "+format,
+		"%15s: %17s: "+format,
 		append([]any{flagName, caller}, args...)...,
 	)
 }

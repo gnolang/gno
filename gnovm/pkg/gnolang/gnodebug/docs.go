@@ -5,6 +5,8 @@ type FlagDoc struct {
 	Description string
 }
 
+// FlagDocs keeps track of the used flags, and simple human readable
+// documentation of how to use them.
 var FlagDocs = [...]FlagDoc{
 	{
 		Name:        "log_machine",

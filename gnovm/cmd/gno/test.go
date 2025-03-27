@@ -12,6 +12,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/gnodebug"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -29,6 +30,29 @@ type testCfg struct {
 	printEvents         bool
 	debug               bool
 	debugAddr           string
+}
+
+func gnodebugHelp() string {
+	if !gnodebug.Debug {
+		return ""
+	}
+	var bld strings.Builder
+	bld.WriteString(`
+# GNODEBUG flags
+
+This version of the gno binary is built with support for debugging flags.
+You may pass them using the GNODEBUG environment variable. Each flag is a
+key=value pair, separated by commas. If a flag is boolean (ie. may be enabled or
+disabled), the =value may be omitted, for instance:
+	GNODEBUG=bool,string=hello
+Enables the "bool" flag (sets it to "1"), and sets "string" to "hello".
+
+The available flags are the following:
+`)
+	for _, fd := range gnodebug.FlagDocs {
+		fmt.Fprintf(&bld, "- %s\n\t%s\n", fd.Name, strings.ReplaceAll(fd.Description, "\n", "\n\t"))
+	}
+	return bld.String()
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -88,7 +112,7 @@ of the GnoVM, acting as a "golden test":
 To speed up execution, imports of pure packages are processed separately from
 the execution of the tests. This makes testing faster, but means that the
 initialization of imported pure packages cannot be checked in filetests.
-`,
+` + gnodebugHelp(),
 		},
 		cfg,
 		func(_ context.Context, args []string) error {

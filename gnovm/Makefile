@@ -45,6 +45,10 @@ build:
 install:
 	go install $(GOBUILD_FLAGS) ./cmd/gno
 
+.PHONY: install.debug
+install:
+	go install $(GOBUILD_FLAGS) -tags debug ./cmd/gno
+
 .PHONY: clean
 clean:
 	rm -rf build
