@@ -6,12 +6,6 @@ import (
 	"strings"
 	"time"
 
-	// Ignore pprof import, as the server does not
-	// handle http requests if the user doesn't enable them
-	// outright by using environment variables (starts serving)
-	//nolint:gosec
-	_ "net/http/pprof"
-
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/gnodebug"
 )
 
@@ -23,6 +17,10 @@ const (
 func init() {
 	if dbg.Enabled("pprof") {
 		go func() {
+			// Start pprof server.
+			// Note that inclusion of net/http/pprof is controlled by -tags debug,
+			// see ./gnodebug/debug_enabled.go.
+
 			// e.g.
 			// curl -sK -v http://localhost:8080/debug/pprof/profile?seconds=30 > cpu.out
 			// curl -sK -v http://localhost:8080/debug/pprof/heap > heap.out

@@ -5,6 +5,10 @@ package gnodebug
 import (
 	"os"
 	"sync"
+
+	// Enable pprof.
+	//nolint:gosec
+	_ "net/http/pprof"
 )
 
 const Debug DebugType = true
