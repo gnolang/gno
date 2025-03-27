@@ -923,11 +923,7 @@ func (ds *defaultStore) GetNative(pkgPath string, name Name) func(m *Machine) {
 
 // Set to nil to disable.
 func (ds *defaultStore) SetLogStoreOps(buf io.Writer) {
-	if enabled {
-		ds.opslog = buf
-	} else {
-		ds.opslog = nil
-	}
+	ds.opslog = buf
 }
 
 func (ds *defaultStore) LogSwitchRealm(rlmpath string) {

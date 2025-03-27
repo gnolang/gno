@@ -20,7 +20,7 @@ var (
 func (m *Machine) doOpEval() {
 	x := m.PeekExpr(1)
 	if dbg {
-		dbg.Printf("log_eval", "EVAL: (%T) %v\n", x, x)
+		dbg.Printf("log_machine", "EVAL: (%T) %v\n", x, x)
 	}
 	// This case moved out of switch for performance.
 	// TODO: understand this better.

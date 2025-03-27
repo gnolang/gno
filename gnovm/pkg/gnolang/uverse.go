@@ -430,7 +430,7 @@ func makeUverseNode() {
 				switch bst := baseOf(src.TV.T).(type) {
 				case PrimitiveType:
 					if dbg {
-						dbg.Printf("copy(<%s>,<%s>)", bdt.String(), bst.String())
+						dbg.Printf("log_machine", "copy(<%s>,<%s>)", bdt.String(), bst.String())
 					}
 					if bst.Kind() != StringKind {
 						panic("should not happen")

@@ -13,8 +13,8 @@ var flagsOnce = sync.OnceValue[DebugFlags](func() DebugFlags {
 	return ParseFlags(os.Getenv("GNODEBUG"))
 })
 
-func (DebugType) Printf(kind, format string, args ...any) {
-	flagsOnce().Printf(kind, format, args...)
+func (DebugType) Printf(flagName, format string, args ...any) {
+	flagsOnce().Printf(flagName, format, args...)
 }
 
 func (DebugType) Get(flagName string) string {

@@ -1543,7 +1543,9 @@ func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 
 // DefineNativeFunc defines a native function.
 func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
-	dbg.Printf("log_machine", "*PackageNode.DefineNative(%s,...)", n)
+	if dbg {
+		dbg.Printf("log_machine", "*PackageNode.DefineNative(%s,...)", n)
+	}
 	if native == nil {
 		panic("DefineNative expects a function, but got nil")
 	}
