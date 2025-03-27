@@ -113,7 +113,7 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 	fs.Var(
 		&c.resolvers,
 		"resolver",
-		"list of additional resolvers (`root`, `local` or `remote`), will be executed in the given order",
+		"list of additional resolvers (`root`, `local`, or `remote`) in the form of <resolver>=<location> will be executed in the given order",
 	)
 
 	fs.StringVar(
@@ -217,7 +217,7 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		&c.paths,
 		"paths",
 		defaultCfg.paths,
-		"additional path(s) to load, separated by comma",
+		`additional paths to preload in the form of "gno.land/r/my/realm", separated by commas; glob is supported`,
 	)
 
 	fs.BoolVar(
