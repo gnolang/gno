@@ -34,7 +34,7 @@ import (
 	"strings"
 )
 
-const chainDomain = "gno.land" // XXX: std.ChainDomain (#2911)
+var chainDomain = std.ChainDomain()
 
 // Realm represents a specific realm for generating tx links.
 type Realm string
@@ -136,7 +136,7 @@ func (r Realm) prefix() string {
 
 	// local realm -> /realm
 	realm := string(r)
-	if strings.Contains(realm, chainDomain) {
+	if strings.HasPrefix(realm, chainDomain) {
 		return strings.TrimPrefix(realm, chainDomain)
 	}
 

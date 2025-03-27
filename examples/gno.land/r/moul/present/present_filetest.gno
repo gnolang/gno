@@ -225,7 +225,7 @@ func printRender(path string) {
 // ## Thank You!
 // author1
 //
-// 🔗 [https://tests\.gno\.land/r/moul/present:s15](https://tests.gno.land/r/moul/present:s15)
+// 🔗 [https://gno\.land/r/moul/present:s15](https://gno.land/r/moul/present:s15)
 //
 // [← Prev](/r/moul/present:s15/slides?page=4) | 5/5 |
 //

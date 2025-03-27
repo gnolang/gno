@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-func debug(format string, args ...interface{}) {
+func debug(format string, args ...any) {
 	if false {
 		fmt.Printf(format, args...)
 	}
