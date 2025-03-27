@@ -292,6 +292,8 @@ Legend:
 [^9]: `math/rand` in Gno ports over Go's `math/rand/v2`.
 [^10]: `strconv` does not have the methods relating to types `complex64` and
   `complex128`.
+[^11]: `_` is not permitted as a function name in Gno, but anyways the resulting
+  function could not be referenced.
 
 ## Tooling (`gno` binary)
 

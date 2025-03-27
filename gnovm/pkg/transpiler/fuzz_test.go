@@ -270,6 +270,7 @@ func FuzzTypecheckThenGnoRunMemPackageVsCompileGo(f *testing.F) {
 				strings.Contains(sr, "function type must have no type parameters"),
 				strings.Contains(sr, "missing ',' before newline in type argument list"),
 				strings.Contains(sr, "expected declaration, found con"),
+				strings.Contains(sr, `"_" as a function name is not permitted, cannot be referenced`),
 				strings.Contains(sr, "escape sequence not terminated"):
 				return
 
