@@ -2,9 +2,9 @@ package awesomegno
 
 import (
 	"std"
+	"strconv"
 	"strings"
 	"testing"
-	"strconv"
 	"time"
 
 	"gno.land/p/demo/avl"
@@ -34,9 +34,9 @@ func setupTestData() {
 	dapps = avl.NewTree()
 	categories = avl.NewTree()
 	proposals = avl.NewTree()
-	
+
 	testAddress := std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")
-	
+
 	cat1 := Category{
 		ID:          1,
 		Name:        "Games",
@@ -53,7 +53,7 @@ func setupTestData() {
 	}
 	categories.Set(cat1.Name, cat1)
 	categories.Set(cat2.Name, cat2)
-	
+
 	dapp1 := Dapp{
 		ID:          1,
 		Title:       "Game Dapp",
@@ -76,7 +76,7 @@ func setupTestData() {
 	}
 	dapps.Set(strconv.FormatUint(dapp1.ID, 10), dapp1)
 	dapps.Set(strconv.FormatUint(dapp2.ID, 10), dapp2)
-	
+
 	proposal1 := Proposal{
 		ID:        1,
 		Dapp:      dapp1,
@@ -99,7 +99,7 @@ func setupTestData() {
 
 func TestDappsDatasourceRecords(t *testing.T) {
 	setupTestData()
-	
+
 	cases := []struct {
 		name      string
 		recordIDs []string
@@ -152,7 +152,7 @@ func TestDappsDatasourceRecords(t *testing.T) {
 
 func TestDappsDatasourceRecord(t *testing.T) {
 	setupTestData()
-	
+
 	cases := []struct {
 		name string
 		id   string
@@ -192,26 +192,25 @@ func TestDappsDatasourceRecord(t *testing.T) {
 
 func TestDappRecord(t *testing.T) {
 	setupTestData()
-	
+
 	dapp, exists := GetDapp(1)
 	urequire.True(t, exists, "dapp exists")
-	
+
 	r := dappRecord{dapp: dapp}
-	
+
 	uassert.Equal(t, "1", r.ID())
 	uassert.Equal(t, dapp.Title, r.String())
-	
+
 	fields, err := r.Fields()
 	urequire.NoError(t, err, "fields error")
-	
+
 	title, found := fields.Get("title")
 	urequire.True(t, found, "title field exists")
 	uassert.Equal(t, dapp.Title, title)
-	
+
 	url, found := fields.Get("url")
 	urequire.True(t, found, "url field exists")
 	uassert.Equal(t, dapp.URL, url)
-	
 
 	content, err := r.Content()
 	urequire.NoError(t, err, "content error")
@@ -221,7 +220,7 @@ func TestDappRecord(t *testing.T) {
 
 func TestCategoriesDatasourceRecords(t *testing.T) {
 	setupTestData()
-	
+
 	cases := []struct {
 		name      string
 		recordIDs []string
@@ -266,7 +265,7 @@ func TestCategoriesDatasourceRecords(t *testing.T) {
 
 func TestCategoriesDatasourceRecord(t *testing.T) {
 	setupTestData()
-	
+
 	cases := []struct {
 		name string
 		id   string
@@ -302,26 +301,26 @@ func TestCategoriesDatasourceRecord(t *testing.T) {
 
 func TestCategoryRecord(t *testing.T) {
 	setupTestData()
-	
+
 	category, err := GetCategory("Games")
 	urequire.NoError(t, err, "category exists")
-	
+
 	r := categoryRecord{category: category}
-	
+
 	uassert.Equal(t, "Games", r.ID())
 	uassert.Equal(t, category.Name, r.String())
-	
+
 	fields, err := r.Fields()
 	urequire.NoError(t, err, "fields error")
-	
+
 	name, found := fields.Get("name")
 	urequire.True(t, found, "name field exists")
 	uassert.Equal(t, category.Name, name)
-	
+
 	desc, found := fields.Get("description")
 	urequire.True(t, found, "description field exists")
 	uassert.Equal(t, category.Description, desc)
-	
+
 	content, err := r.Content()
 	urequire.NoError(t, err, "content error")
 	uassert.True(t, strings.Contains(content, category.Name), "content contains name")
@@ -330,7 +329,7 @@ func TestCategoryRecord(t *testing.T) {
 
 func TestProposalsDatasourceRecords(t *testing.T) {
 	setupTestData()
-	
+
 	cases := []struct {
 		name      string
 		recordIDs []string
@@ -375,7 +374,7 @@ func TestProposalsDatasourceRecords(t *testing.T) {
 
 func TestProposalsDatasourceRecord(t *testing.T) {
 	setupTestData()
-	
+
 	cases := []struct {
 		name string
 		id   string
@@ -416,32 +415,32 @@ func TestProposalsDatasourceRecord(t *testing.T) {
 
 func TestProposalRecord(t *testing.T) {
 	setupTestData()
-	
+
 	proposal, exists := GetProposal(1)
 	urequire.True(t, exists, "proposal exists")
-	
+
 	r := proposalRecord{proposal: proposal}
-	
+
 	uassert.Equal(t, "1", r.ID())
 	uassert.Equal(t, proposal.Dapp.Title, r.String())
-	
+
 	fields, err := r.Fields()
 	urequire.NoError(t, err, "fields error")
-	
+
 	title, found := fields.Get("title")
 	urequire.True(t, found, "title field exists")
 	uassert.Equal(t, proposal.Dapp.Title, title)
-	
+
 	status, found := fields.Get("status")
 	urequire.True(t, found, "status field exists")
 	uassert.Equal(t, proposal.Status, status)
-	
+
 	content, err := r.Content()
 	urequire.NoError(t, err, "content error")
 	uassert.True(t, strings.Contains(content, proposal.Dapp.Title), "content contains title")
 	uassert.True(t, strings.Contains(content, proposal.Status), "content contains status")
-	
+
 	tags := r.Tags()
 	uassert.Equal(t, len(proposal.Dapp.Categories)+1, len(tags), "tags length")
 	uassert.Equal(t, proposal.Status, tags[len(tags)-1], "status tag")
-} 
+}

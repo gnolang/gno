@@ -32,12 +32,12 @@ func (ds *DappsDatasource) Record(id string) (datasource.Record, error) {
 	if err != nil {
 		return nil, errors.New("invalid dapp ID")
 	}
-	
+
 	dapp, exists := GetDapp(dappID)
 	if !exists {
 		return nil, errors.New("dapp not found")
 	}
-	
+
 	return &dappRecord{dapp: dapp}, nil
 }
 
@@ -55,14 +55,14 @@ func (r *dappRecord) String() string {
 
 func (r *dappRecord) Fields() (datasource.Fields, error) {
 	fields := avl.NewTree()
-	
+
 	fields.Set("title", r.dapp.Title)
 	fields.Set("description", r.dapp.Description)
 	fields.Set("author", r.dapp.Author.String())
 	fields.Set("url", r.dapp.URL)
 	fields.Set("approved", r.dapp.Approved)
 	fields.Set("created_at", r.dapp.CreatedAt)
-	
+
 	categoryStr := ""
 	for i, cat := range r.dapp.Categories {
 		if i > 0 {
@@ -71,7 +71,7 @@ func (r *dappRecord) Fields() (datasource.Fields, error) {
 		categoryStr += cat
 	}
 	fields.Set("categories", categoryStr)
-	
+
 	return fields, nil
 }
 
@@ -83,7 +83,7 @@ func (r *dappRecord) Tags() []string {
 func (r *dappRecord) Content() (string, error) {
 	content := md.H1(r.dapp.Title)
 	content += r.dapp.Description + "\n\n"
-	
+
 	if len(r.dapp.Categories) > 0 {
 		categoryStr := ""
 		for i, cat := range r.dapp.Categories {
@@ -94,11 +94,11 @@ func (r *dappRecord) Content() (string, error) {
 		}
 		content += md.Bold("Categories:") + " " + categoryStr + "\n\n"
 	}
-	
+
 	content += md.Bold("URL:") + " " + md.Link(r.dapp.URL, r.dapp.URL) + "\n\n"
 	content += md.Bold("Author:") + " " + r.dapp.Author.String() + "\n\n"
 	content += md.Bold("Created:") + " " + r.dapp.CreatedAt.String() + "\n\n"
-	
+
 	return content, nil
 }
 
@@ -112,7 +112,7 @@ func (it *dappsIterator) Next() bool {
 	if it.index >= it.maxIndex || it.index >= dapps.Size() {
 		return false
 	}
-	
+
 	_, value := dapps.GetByIndex(it.index)
 	it.record = &dappRecord{dapp: value.(Dapp)}
 	it.index++
@@ -150,7 +150,7 @@ func (ds *CategoriesDatasource) Record(id string) (datasource.Record, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &categoryRecord{category: category}, nil
 }
 
@@ -168,26 +168,26 @@ func (r *categoryRecord) String() string {
 
 func (r *categoryRecord) Fields() (datasource.Fields, error) {
 	fields := avl.NewTree()
-	
+
 	fields.Set("id", r.category.ID)
 	fields.Set("name", r.category.Name)
 	fields.Set("description", r.category.Description)
 	fields.Set("created_at", r.category.CreatedAt)
 	fields.Set("dapp_count", len(r.category.DappIDs))
-	
+
 	return fields, nil
 }
 
 func (r *categoryRecord) Content() (string, error) {
 	content := md.H1("Category: " + r.category.Name)
-	
+
 	if r.category.Description != "" {
 		content += r.category.Description + "\n\n"
 	}
-	
+
 	content += md.Bold("Dapps:") + " " + strconv.Itoa(len(r.category.DappIDs)) + "\n\n"
 	content += md.Bold("Created:") + " " + r.category.CreatedAt.String() + "\n\n"
-	
+
 	return content, nil
 }
 
@@ -201,7 +201,7 @@ func (it *categoriesIterator) Next() bool {
 	if it.index >= it.maxIndex || it.index >= categories.Size() {
 		return false
 	}
-	
+
 	_, value := categories.GetByIndex(it.index)
 	it.record = &categoryRecord{category: value.(Category)}
 	it.index++
@@ -239,12 +239,12 @@ func (ds *ProposalsDatasource) Record(id string) (datasource.Record, error) {
 	if err != nil {
 		return nil, errors.New("invalid proposal ID")
 	}
-	
+
 	proposal, exists := GetProposal(proposalID)
 	if !exists {
 		return nil, errors.New("proposal not found")
 	}
-	
+
 	return &proposalRecord{proposal: proposal}, nil
 }
 
@@ -262,7 +262,7 @@ func (r *proposalRecord) String() string {
 
 func (r *proposalRecord) Fields() (datasource.Fields, error) {
 	fields := avl.NewTree()
-	
+
 	fields.Set("id", r.proposal.ID)
 	fields.Set("title", r.proposal.Dapp.Title)
 	fields.Set("description", r.proposal.Dapp.Description)
@@ -271,7 +271,7 @@ func (r *proposalRecord) Fields() (datasource.Fields, error) {
 	fields.Set("reason", r.proposal.Reason)
 	fields.Set("created_at", r.proposal.CreatedAt)
 	fields.Set("url", r.proposal.Dapp.URL)
-	
+
 	categoryStr := ""
 	for i, cat := range r.proposal.Dapp.Categories {
 		if i > 0 {
@@ -280,7 +280,7 @@ func (r *proposalRecord) Fields() (datasource.Fields, error) {
 		categoryStr += cat
 	}
 	fields.Set("categories", categoryStr)
-	
+
 	return fields, nil
 }
 
@@ -292,9 +292,9 @@ func (r *proposalRecord) Tags() []string {
 func (r *proposalRecord) Content() (string, error) {
 	content := md.H1("Proposal: " + r.proposal.Dapp.Title)
 	content += md.Bold("Status: ") + r.proposal.Status + "\n\n"
-	
+
 	content += r.proposal.Dapp.Description + "\n\n"
-	
+
 	if len(r.proposal.Dapp.Categories) > 0 {
 		categoryStr := ""
 		for i, cat := range r.proposal.Dapp.Categories {
@@ -305,16 +305,16 @@ func (r *proposalRecord) Content() (string, error) {
 		}
 		content += md.Bold("Categories: ") + categoryStr + "\n\n"
 	}
-	
+
 	content += md.Bold("URL: ") + md.Link(r.proposal.Dapp.URL, r.proposal.Dapp.URL) + "\n\n"
 	content += md.Bold("Proposer: ") + r.proposal.Proposer.String() + "\n\n"
-	
+
 	if r.proposal.Reason != "" {
 		content += md.Bold("Reason: ") + r.proposal.Reason + "\n\n"
 	}
-	
+
 	content += md.Bold("Created: ") + r.proposal.CreatedAt.String() + "\n\n"
-	
+
 	return content, nil
 }
 
@@ -328,7 +328,7 @@ func (it *proposalsIterator) Next() bool {
 	if it.index >= it.maxIndex || it.index >= proposals.Size() {
 		return false
 	}
-	
+
 	_, value := proposals.GetByIndex(it.index)
 	it.record = &proposalRecord{proposal: value.(Proposal)}
 	it.index++
