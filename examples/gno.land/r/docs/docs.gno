@@ -48,13 +48,6 @@ Explore various examples to learn more about Gno functionality and usage.
 	return content
 }
 
-func frontMatter() string {
-	return `---
-Title: Welcome to the Gno examples documentation index 
-Description: Welcome to the Gno examples documentation index. Explore various examples to learn more about Gno functionality and usage.
----`
-}
-
 var (
 	idGen         seqid.ID
 	alphabetical  = avl.NewTree() // title > *Entry
