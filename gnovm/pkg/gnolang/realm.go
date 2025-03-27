@@ -213,12 +213,8 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		if xo.GetRefCount() == 0 {
 			if xo.GetIsReal() {
 				rlm.MarkNewDeleted(xo)
-				// there's a chance xo is dirty and new deleted
-				// in one transaction, clear the dirty one once
-				// it's already marked new deleted.
-				rlm.clearDirtyNewDeleted()
 			}
-		} else if xo.GetIsReal() { // xo should always be !unsaved here.
+		} else if xo.GetIsReal() {
 			rlm.MarkDirty(xo)
 		}
 	}
@@ -392,12 +388,14 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 		}
 		if oo.GetRefCount() == 0 {
 			if zealous {
-				// new real rc can be zero and not mark as new deleted
+				// The refCount for a new real object could be zero,
+				// and the object may not yet be marked as deleted.
 				if !oo.GetIsNewDeleted() && !oo.GetIsNewReal() {
 					panic("should have been marked new-deleted")
 				}
 			}
 			// No need to unmark, will be garbage collected.
+			// also see comment in clearMarks().
 			// oo.SetIsNewReal(false)
 			// skip if became deleted.
 			continue
@@ -469,9 +467,8 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 				rlm.incRefCreatedDescendants(store, child)
 			}
 		} else if rc > 1 {
-			if !isUnsaved(child) {
-				rlm.MarkDirty(child)
-			}
+			// new real or dirty won't be marked(again).
+			rlm.MarkDirty(child)
 			if child.GetIsEscaped() {
 				// already escaped, do nothing.
 			} else {
@@ -510,6 +507,8 @@ func (rlm *Realm) processNewDeletedMarks(store Store) {
 			rlm.decRefDeletedDescendants(store, oo)
 		}
 	}
+	// clear deleted from all other sets.
+	rlm.clearDeleted()
 }
 
 // Like incRefCreatedDescendants but decrements.
@@ -545,11 +544,7 @@ func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 		if rc == 0 {
 			rlm.decRefDeletedDescendants(store, child)
 		} else if rc > 0 {
-			// If the object is unsaved, it will be saved anyway,
-			// preventing it from being saved multiple times.
-			if !isUnsaved(child) {
-				rlm.MarkDirty(child)
-			}
+			rlm.MarkDirty(child)
 		} else {
 			panic("deleted descendants should not have a reference count of less than zero")
 		}
@@ -638,7 +633,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 			rc := oo.GetRefCount()
 			if zealous {
 				if rc == 0 {
-					panic("ancestor should have a non-zero reference count to be marked as dirty")
+					panic(fmt.Sprintf("ancestor should have a non-zero reference count to be marked as dirty: %v", oo))
 				}
 			}
 			if rc > 1 {
@@ -670,14 +665,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 				// via .updated.
 				break
 			} else {
-				// A new real object can initially be owned by one owner,
-				// then owned by another owner. If the first owner is
-				// deleted before finalization complete(its refCount is zero
-				// but not marked), the new real object remains alive, with the
-				// owner to be the first one, whose refCount is 0.
-				// in this case the second owner should be dirty, so just
-				// skip the first one, whose refCount is 0.
-				if po.GetRefCount() == 0 {
+				if po.GetIsDeleted() {
 					break
 				} else {
 					rlm.MarkDirty(po)
@@ -700,21 +688,35 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 	}
 }
 
-func (rlm *Realm) clearDirtyNewDeleted() {
-	filtered := rlm.updated[:0] // Reuse the backing array
-	for _, uo := range rlm.updated {
-		keep := true
-		for _, do := range rlm.newDeleted {
-			if uo == do {
-				keep = false
-				break
+// clearDeleted removes any objects from .updated, .created,
+// and .newEscaped slices that are also present in the .deleted slice.
+func (rlm *Realm) clearDeleted() {
+	if len(rlm.deleted) == 0 {
+		return
+	}
+
+	// Convert deleted objects to a map for O(1) lookups
+	deleted := make(map[Object]struct{}, len(rlm.deleted))
+	for _, do := range rlm.deleted {
+		deleted[do] = struct{}{}
+	}
+
+	filter := func(slice []Object) []Object {
+		if slice == nil {
+			return nil
+		}
+		filtered := slice[:0]
+		for _, obj := range slice {
+			if _, exists := deleted[obj]; !exists {
+				filtered = append(filtered, obj)
 			}
 		}
-		if keep {
-			filtered = append(filtered, uo)
-		}
+		return filtered
 	}
-	rlm.updated = filtered
+
+	rlm.updated = filter(rlm.updated)
+	rlm.created = filter(rlm.created)
+	rlm.newEscaped = filter(rlm.newEscaped)
 }
 
 //----------------------------------------
@@ -843,9 +845,9 @@ func (rlm *Realm) clearMarks() {
 		}
 
 		// A new real object can be possible here.
-		// This new real object may have recCount of 0m
+		// This new real object may have recCount of 0
 		// but its state was not unset in `processNewCreatedMarks`.
-		// As a result, it will be garbage collected.
+		// (As a result, it will be garbage collected.)
 		// therefore, new real is allowed to exist here.
 
 		for _, oo := range rlm.newEscaped {
