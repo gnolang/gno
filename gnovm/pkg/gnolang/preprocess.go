@@ -1,5 +1,7 @@
 package gnolang
 
+// XXX do not allow conversion to external realm type.
+
 import (
 	"fmt"
 	"math"

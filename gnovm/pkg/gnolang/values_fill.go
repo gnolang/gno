@@ -83,3 +83,7 @@ func (hiv *HeapItemValue) DeepFill(store Store) Value {
 	}
 	return hiv
 }
+
+func (rov ReadonlyValue) DeepFill(store Store) Value {
+	return ReadonlyValue{V: rov.V.DeepFill(store)}
+}
