@@ -244,6 +244,10 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		oo2 := pv.TV.GetFirstObject(store)
 		rlm.DidUpdate(pv.Base.(Object), oo1, oo2)
 	} else {
+		// XXX if debug
+		if rlm != nil {
+			panic("should not happen")
+		}
 		pv.TV.Assign(alloc, tv2, cu)
 	}
 }

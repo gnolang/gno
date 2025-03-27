@@ -17,10 +17,11 @@ func (m *Machine) doOpIndex1() {
 	xv := m.PeekValue(1) // x
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
-		mv := xv.V.(*MapValue)
+		xvv, isRO := unwrapRO(xv.V)
+		mv := xvv.(*MapValue)
 		vv, exists := mv.GetValueForKey(m.Store, iv)
 		if exists {
-			*xv = vv // reuse as result
+			*xv = maybeRO(vv, isRO) // reuse as result
 		} else {
 			vt := ct.Value
 			*xv = TypedValue{ // reuse as result
@@ -53,10 +54,11 @@ func (m *Machine) doOpIndex2() {
 			}
 			*iv = untypedBool(false) // reuse as result
 		} else {
-			mv := xv.V.(*MapValue)
+			xvv, isRO := unwrapRO(xv.V)
+			mv := xvv.(*MapValue)
 			vv, exists := mv.GetValueForKey(m.Store, iv)
 			if exists {
-				*xv = vv                // reuse as result
+				*xv = maybeRO(vv, isRO) // reuse as result
 				*iv = untypedBool(true) // reuse as result
 			} else {
 				*xv = TypedValue{ // reuse as result
