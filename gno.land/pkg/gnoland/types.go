@@ -63,7 +63,6 @@ func (bs BitSet) String() string {
 
 var _ std.AccountUnrestricter = &GnoAccount{}
 
-// Modify GnoAccount to work with GnoSessions
 type GnoAccount struct {
 	std.BaseAccount
 	Attributes BitSet       `json:"attributes" yaml:"attributes"`

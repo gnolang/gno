@@ -212,7 +212,6 @@ func (s *BaseSession) GetAccount() Account {
 	return s.account
 }
 
-// Modify NewBaseSession to accept Account parameter
 func NewBaseSession(accountAddress crypto.Address, pubKey crypto.PubKey, sequence uint64) *BaseSession {
 	return &BaseSession{
 		AccountAddress: accountAddress,
