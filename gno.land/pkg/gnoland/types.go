@@ -46,12 +46,13 @@ var validAccountFlags = flagUnrestrictedAccount | flagValidatorAccount | flagRea
 
 // Session flags
 const (
-	flagSessionManagerSession BitSet = 1 << iota // Replaces CanManageOtherSessions
+	flagMasterSession         BitSet = 1 << iota // Master session has all permissions and cannot be revoked
+	flagSessionManagerSession                    // Replaces CanManageOtherSessions
 	flagPackageManagerSession                    // Replaces CanManagePackages
 )
 
 // validSessionFlags defines the set of all valid flags for sessions
-var validSessionFlags = flagSessionManagerSession | flagPackageManagerSession
+var validSessionFlags = flagMasterSession | flagSessionManagerSession | flagPackageManagerSession
 
 // bitSet represents a set of flags stored in a 64-bit unsigned integer.
 // Each bit in the BitSet corresponds to a specific flag.
@@ -113,8 +114,8 @@ func (ga *GnoAccount) CreateSession(pubKey crypto.PubKey) (std.Session, error) {
 		}
 	}
 
-	// Create a new session with default settings
-	session := NewGnoSession(ga.Address, pubKey)
+	// Create a new regular (non-master) session
+	session := NewGnoSession(ga.Address, pubKey, false)
 
 	// Add to sessions collection
 	ga.Sessions = append(ga.Sessions, *session)
@@ -153,6 +154,10 @@ func (ga *GnoAccount) GetSession(pubKey crypto.PubKey) (*GnoSession, error) {
 func (ga *GnoAccount) RevokeSession(pubKey crypto.PubKey) error {
 	for i, session := range ga.Sessions {
 		if session.GetPubKey().Equals(pubKey) {
+			// Prevent revoking master sessions
+			if session.IsMaster() {
+				return errors.New("cannot revoke master session")
+			}
 			// Remove session at index i
 			ga.Sessions = append(ga.Sessions[:i], ga.Sessions[i+1:]...)
 			return nil
@@ -163,29 +168,7 @@ func (ga *GnoAccount) RevokeSession(pubKey crypto.PubKey) error {
 
 // RevokeOtherSessions implements Account interface with permission check
 func (ga *GnoAccount) RevokeOtherSessions(currentPubKey crypto.PubKey) error {
-	var currentSession *GnoSession
-	newSessions := make([]GnoSession, 0, 1)
-
-	// Find current session
-	for _, session := range ga.Sessions {
-		if session.GetPubKey().Equals(currentPubKey) {
-			currentSession = &session
-			newSessions = append(newSessions, session)
-			break
-		}
-	}
-
-	if currentSession == nil {
-		return errors.New("current session not found")
-	}
-
-	// Check if session has permission to manage other sessions
-	if !currentSession.IsSessionManager() {
-		return errors.New("current session does not have permission to manage other sessions")
-	}
-
-	ga.Sessions = newSessions
-	return nil
+	panic("not implemented")
 }
 
 func (ga *GnoAccount) setFlag(flag BitSet) {
@@ -268,14 +251,21 @@ type GnoSession struct {
 func NewGnoSession(
 	accountAddress crypto.Address,
 	pubKey crypto.PubKey,
+	master bool,
 ) *GnoSession {
-	return &GnoSession{
-		BaseSession:           *std.NewBaseSession(accountAddress, pubKey, 0), // Default sequence is 0
-		Flags:                 BitSet(0),                                      // No flags set by default
-		ExpirationTime:        time.Time{},                                    // Zero time means no expiration
-		CoinsTransferCapacity: std.Coins{},
-		RealmsWhitelist:       []string{},
+	session := &GnoSession{
+		BaseSession:           *std.NewBaseSession(accountAddress, pubKey, 0),
+		Flags:                 BitSet(0),
+		ExpirationTime:        time.Time{}, // Master sessions never expire
+		CoinsTransferCapacity: std.Coins{}, // Master sessions have unlimited transfer capacity
+		RealmsWhitelist:       []string{},  // Master sessions have access to all realms
 	}
+
+	if master {
+		session.SetMaster()
+	}
+
+	return session
 }
 
 // Add setters for all properties
@@ -297,6 +287,12 @@ func (s *GnoSession) SetRealmsWhitelist(whitelist []string) {
 
 // IsExpired checks if the session has expired
 func (s *GnoSession) IsExpired() bool {
+	// Master sessions never expire
+	if s.IsMaster() {
+		return false
+	}
+
+	// Regular session logic
 	return !s.ExpirationTime.IsZero() && time.Now().After(s.ExpirationTime)
 }
 
@@ -312,34 +308,38 @@ func (s *GnoSession) IsExpired() bool {
 // - "r/*/public" (all "public" subrealms under any realm)
 // - "r/app/v[1-3]/*" (all subrealms of app versions 1-3)
 func (s *GnoSession) HasRealmAccess(realm string) bool {
-	// If whitelist is empty, access is allowed to all realms
+	// Master sessions have access to all realms
+	if s.IsMaster() {
+		return true
+	}
+
+	// Regular session logic
 	if len(s.RealmsWhitelist) == 0 {
 		return true
 	}
 
-	// Check each entry in the whitelist
 	for _, pattern := range s.RealmsWhitelist {
-		// Use filepath.Match which implements shell-like pattern matching
-		// that's more powerful than simple prefix/suffix matching
 		matched, err := filepath.Match(pattern, realm)
-
-		// If there's a pattern error, we skip this pattern
 		if err != nil {
 			continue
 		}
-
 		if matched {
 			return true
 		}
 	}
-
 	return false
 }
 
 // CanTransferAmount checks if the session has sufficient transfer capacity
 func (s *GnoSession) CanTransferAmount(amount std.Coins) bool {
+	// Master sessions have unlimited transfer capacity
+	if s.IsMaster() {
+		return true
+	}
+
+	// Regular session logic
 	if s.CoinsTransferCapacity.IsZero() {
-		return true // Zero capacity means unlimited transfers
+		return true
 	}
 	return s.CoinsTransferCapacity.IsGTE(amount)
 }
@@ -394,7 +394,7 @@ func (s *GnoSession) SetSessionManager() {
 }
 
 func (s *GnoSession) IsSessionManager() bool {
-	return s.hasFlag(flagSessionManagerSession)
+	return s.hasFlag(flagSessionManagerSession) || s.IsMaster()
 }
 
 func (s *GnoSession) SetPackageManager() {
@@ -402,7 +402,15 @@ func (s *GnoSession) SetPackageManager() {
 }
 
 func (s *GnoSession) IsPackageManager() bool {
-	return s.hasFlag(flagPackageManagerSession)
+	return s.hasFlag(flagPackageManagerSession) || s.IsMaster()
+}
+
+func (s *GnoSession) SetMaster() {
+	s.setFlag(flagMasterSession)
+}
+
+func (s *GnoSession) IsMaster() bool {
+	return s.hasFlag(flagMasterSession)
 }
 
 func ProtoGnoSession() std.Session {
@@ -498,4 +506,19 @@ func SignGenesisTxs(txs []TxWithMetadata, privKey crypto.PrivKey, chainID string
 	}
 
 	return nil
+}
+
+// Add method to initialize an account with a master session
+func NewGnoAccountWithMasterKey(address crypto.Address, pubKey crypto.PubKey) *GnoAccount {
+	acc := &GnoAccount{
+		BaseAccount: std.BaseAccount{
+			Address: address,
+		},
+	}
+
+	// Create the master session
+	masterSession := NewGnoSession(address, pubKey, true)
+	acc.Sessions = append(acc.Sessions, *masterSession)
+
+	return acc
 }
