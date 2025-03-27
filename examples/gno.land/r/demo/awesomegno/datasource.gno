@@ -9,6 +9,7 @@ import (
 	"gno.land/p/moul/md"
 )
 
+// Dapp datasource
 func NewDappsDatasource() *DappsDatasource {
 	return &DappsDatasource{}
 }
@@ -126,6 +127,7 @@ func (it *dappsIterator) Err() error {
 	return it.err
 }
 
+// Categories datasource
 func NewCategoriesDatasource() *CategoriesDatasource {
 	return &CategoriesDatasource{}
 }
@@ -214,6 +216,7 @@ func (it *categoriesIterator) Err() error {
 	return it.err
 }
 
+// Proposals datasource
 func NewProposalsDatasource() *ProposalsDatasource {
 	return &ProposalsDatasource{}
 }
