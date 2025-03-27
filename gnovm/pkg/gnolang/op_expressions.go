@@ -408,6 +408,11 @@ func (m *Machine) doOpArrayLit() {
 	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
 	ne := len(x.Elts)
+
+	defer func() {
+		m.incrCPU(int64(OpCPUCompositeLitEl * ne))
+	}()
+
 	// peek array type.
 	at := m.PeekValue(1 + ne).V.(TypeValue).Type
 	bt := baseOf(at).(*ArrayType)
@@ -493,6 +498,11 @@ func (m *Machine) doOpSliceLit2() {
 	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
 	el := len(x.Elts)
+
+	defer func() {
+		m.incrCPU(int64(OpCPUCompositeLitEl * el))
+	}()
+
 	tvs := m.PopValues(el * 2)
 	// peek slice type.
 	st := m.PeekValue(1).V.(TypeValue).Type
@@ -542,6 +552,11 @@ func (m *Machine) doOpSliceLit2() {
 func (m *Machine) doOpMapLit() {
 	x := m.PopExpr().(*CompositeLitExpr)
 	ne := len(x.Elts)
+
+	defer func() {
+		m.incrCPU(int64(OpCPUCompositeLitEl * ne))
+	}()
+
 	// peek map type.
 	mt := m.PeekValue(1 + ne*2).V.(TypeValue).Type
 	// bt := baseOf(at).(*MapType)
@@ -581,6 +596,11 @@ func (m *Machine) doOpStructLit() {
 	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
 	el := len(x.Elts) // may be incomplete
+
+	defer func() {
+		m.incrCPU(int64(OpCPUCompositeLitEl * el))
+	}()
+
 	// peek struct type.
 	xt := m.PeekValue(1 + el).V.(TypeValue).Type
 	st := baseOf(xt).(*StructType)
