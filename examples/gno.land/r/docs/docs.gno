@@ -1,21 +1,7 @@
 package docs
 
-import (
-	"std"
-	"strings"
-
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/seqid"
-	"gno.land/p/moul/addrset"
-
-	lc "gno.land/r/leon/config"
-	mc "gno.land/r/moul/config"
-)
-
 func Render(_ string) string {
-	content := ""
-	content += `
-# Gno Examples Documentation
+	content := `# Gno Examples Documentation
 
 Welcome to the Gno examples documentation index.
 Explore various examples to learn more about Gno functionality and usage.
@@ -44,61 +30,5 @@ Explore various examples to learn more about Gno functionality and usage.
 
 - [Official documentation](https://github.com/gnolang/gno/tree/master/docs) <!-- should be /docs with gnoweb embedding the docs/ folder. -->
 `
-
 	return content
-}
-
-var (
-	idGen         seqid.ID
-	alphabetical  = avl.NewTree() // title > *Entry
-	chronological = avl.NewTree() // seqid.ID > *Entry
-
-	admins = addrset.Set{}
-)
-
-func init() {
-	admins.Add(lc.OwnableMain.Owner()) // @leohhhn
-	admins.Add(mc.Addr())              // @moul
-}
-
-const docsPrefix = "gno.land/r/docs"
-
-type Entry struct {
-	id          seqid.ID
-	pkgpath     string
-	title       string
-	description string
-}
-
-// AddEntry adds a docs entry.
-// Entry needs to be under r/docs to be valid.
-// Title and description are required.
-func AddEntry(title, description string) {
-	if !admins.Has(std.OriginCaller()) {
-		return
-	}
-
-	entryPath := std.PreviousRealm().PkgPath()
-
-	// Disallow non-code calls and non-docs realms
-	// This will automatically reject non-code calls as pkgpath of a user realm is ""
-	if !strings.HasPrefix(entryPath, docsPrefix) {
-		return
-	}
-
-	// Need both title and description
-	if title == "" || description == "" {
-		return
-	}
-
-	id := idGen.Next()
-	entry := &Entry{
-		id:          id,
-		pkgpath:     entryPath,
-		title:       title,
-		description: description,
-	}
-
-	chronological.Set(id.String(), entry)
-	alphabetical.Set(entryPath, entry)
 }
