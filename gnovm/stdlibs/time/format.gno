@@ -509,8 +509,7 @@ func formatNano(b []byte, nanosec uint, std int) []byte {
 // representation, use t.MarshalText, t.MarshalBinary, or t.Format
 // with an explicit format string.
 func (t Time) String() string {
-	s := t.Format("2006-01-02 15:04:05.999999999 -0700 MST")
-	return s
+	return t.Format("2006-01-02 15:04:05.999999999 -0700 MST")
 }
 
 // GoString implements fmt.GoStringer and formats t to be printed in Go source
