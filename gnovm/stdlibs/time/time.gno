@@ -845,11 +845,9 @@ func (t Time) ZoneBounds() (start, end Time) {
 	_, _, startSec, endSec, _ := ChainTZ.lookup(t.unixSec())
 	if startSec != alpha {
 		start = unixTime(startSec, 0)
-		start.setLoc(t.loc)
 	}
 	if endSec != omega {
 		end = unixTime(endSec, 0)
-		end.setLoc(t.loc)
 	}
 	return
 }
@@ -938,6 +936,20 @@ func (t *Time) UnmarshalBinary(data []byte) error {
 	t.nsec = nsec
 
 	return nil
+}
+
+// TODO(rsc): Remove GobEncoder, GobDecoder, MarshalJSON, UnmarshalJSON in Go 2.
+// The same semantics will be provided by the generic MarshalBinary, MarshalText,
+// UnmarshalBinary, UnmarshalText.
+
+// GobEncode implements the gob.GobEncoder interface.
+func (t Time) GobEncode() ([]byte, error) {
+	return t.MarshalBinary()
+}
+
+// GobDecode implements the gob.GobDecoder interface.
+func (t *Time) GobDecode(data []byte) error {
+	return t.UnmarshalBinary(data)
 }
 
 // MarshalJSON implements the json.Marshaler interface.
