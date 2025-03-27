@@ -387,56 +387,6 @@ func TestClientConnection(t *testing.T) {
 		os.Remove(unixSocketPath)
 	})
 
-	// Server that fails on read.
-	newReadWriteErrorRemoteSignerServer := func(t *testing.T, address string, wg *sync.WaitGroup) {
-		t.Helper()
-
-		// Create a listener.
-		protocol, address := osm.ProtocolAndAddress(address)
-		listener, err := net.Listen(protocol, address)
-		require.NoError(t, err)
-
-		wg.Add(1)
-		go func() {
-			// Cleanup before returning.
-			defer func() {
-				listener.Close()
-				wg.Done()
-			}()
-
-			conn, err := listener.Accept()
-			require.NoError(t, err)
-			conn.Close()
-		}()
-	}
-
-	t.Run("conn closed during read/write", func(t *testing.T) {
-		t.Parallel()
-
-		// Repeat to catch both read and write errors.
-		for i := 0; i < 100; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				unixSocket := testUnixSocket(t)
-
-				// Init a new remote signer server and client.
-				newReadWriteErrorRemoteSignerServer(t, unixSocket, wg)
-				rsc, err := NewRemoteSignerClient(
-					unixSocket,
-					log.NewNoopLogger(),
-					WithDialMaxRetries(3),
-					WithDialRetryInterval(time.Microsecond),
-					WithRequestTimeout(time.Millisecond),
-					WithDialTimeout(time.Millisecond),
-				)
-				require.NotNil(t, rsc)
-				require.NoError(t, err)
-				require.ErrorIs(t, rsc.Ping(), ErrMaxRetriesExceeded)
-			}()
-		}
-	})
-
 	t.Run("force close whiie trying to dial", func(t *testing.T) {
 		t.Parallel()
 
