@@ -62,6 +62,57 @@ func (p Params) Equals(p2 Params) bool {
 	return amino.DeepEqual(p, p2)
 }
 
+func (params *Params) Set(key string, value any) error {
+	switch key {
+	case "max_memo_bytes":
+		params.MaxMemoBytes = value.(int64)
+	case "tx_sig_limit":
+		params.TxSigLimit = value.(int64)
+	case "tx_size_cost_per_byte":
+		params.TxSizeCostPerByte = value.(int64)
+	case "sig_verify_cost_ed25519":
+		params.SigVerifyCostED25519 = value.(int64)
+	case "sig_verify_cost_secp256k1":
+		params.SigVerifyCostSecp256k1 = value.(int64)
+	case "gas_price_change_compressor":
+		params.GasPricesChangeCompressor = value.(int64)
+	case "target_gas_ratio":
+		params.TargetGasRatio = value.(int64)
+	case "initial_gasprice":
+		vs := value.(string)
+		gp, err := std.ParseGasPrice(vs)
+		if err != nil {
+			return fmt.Errorf("unable to parse gas price %q: %w", vs, err)
+		}
+
+		params.InitialGasPrice = gp
+	case "unrestricted_addrs":
+		vz := value.([]any)
+		addrs := make([]crypto.Address, len(vz))
+		for i, v := range vz {
+			vs := v.(string)
+			addr, err := crypto.AddressFromString(v.(string))
+			if err != nil {
+				return fmt.Errorf("unable to parse fee collector address %q: %w", vs, err)
+			}
+			addrs[i] = addr
+		}
+
+		params.UnrestrictedAddrs = addrs
+	case "fee_collector":
+		addr, err := crypto.AddressFromString(value.(string))
+		if err != nil {
+			return fmt.Errorf("unable to parse fee collector: %w", err)
+		}
+
+		params.FeeCollector = addr
+	default:
+		return fmt.Errorf("unexpected auth parameter :" + key)
+	}
+
+	return nil
+}
+
 // DefaultParams returns a default set of parameters.
 func DefaultParams() Params {
 	return NewParams(
@@ -132,5 +183,7 @@ func (ak AccountKeeper) GetParams(ctx sdk.Context) Params {
 }
 
 func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
-	// XXX validate input?
+	params := ak.GetParams(ctx)
+
+	ak.SetParams(ctx, params)
 }

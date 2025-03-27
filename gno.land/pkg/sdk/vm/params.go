@@ -7,6 +7,7 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 )
 
@@ -58,6 +59,19 @@ func (p Params) Validate() error {
 // Equals returns a boolean determining if two Params types are identical.
 func (p Params) Equals(p2 Params) bool {
 	return amino.DeepEqual(p, p2)
+}
+
+func (params *Params) Set(key string, value any) error {
+	switch key {
+	case "chain_domain":
+		params.ChainDomain = value.(string)
+	case "sysnames_pkgpath":
+		params.SysNamesPkgPath = value.(string)
+	default:
+		return errors.New("unexpected vm parameter " + key)
+	}
+
+	return nil
 }
 
 func (vm *VMKeeper) SetParams(ctx sdk.Context, params Params) error {

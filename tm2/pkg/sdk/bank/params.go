@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -13,6 +14,22 @@ type BankParamsContextKey struct{}
 // Params defines the parameters for the bank module.
 type Params struct {
 	RestrictedDenoms []string `json:"restricted_denoms" yaml:"restricted_denoms"`
+}
+
+func (params *Params) Set(key string, value any) error {
+	switch key {
+	case "restricted_denoms":
+		vz := value.([]interface{})
+		sz := make([]string, len(vz))
+		for i, v := range vz {
+			sz[i] = v.(string)
+		}
+		params.RestrictedDenoms = sz
+	default:
+		return errors.New("unexpected vm parameter " + key)
+	}
+
+	return nil
 }
 
 // NewParams creates a new Params object
