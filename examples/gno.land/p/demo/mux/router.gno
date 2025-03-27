@@ -1,6 +1,9 @@
 package mux
 
-import "strings"
+import (
+	"net/url"
+	"strings"
+)
 
 // Router handles the routing and rendering logic.
 type Router struct {
@@ -18,7 +21,8 @@ func NewRouter() *Router {
 
 // Render renders the output for the given path using the registered route handler.
 func (r *Router) Render(reqPath string) string {
-	clearPath := stripQueryString(reqPath)
+	clearPath, rawQuery, _ := strings.Cut(reqPath, "?")
+	query, _ := url.ParseQuery(rawQuery)
 	reqParts := strings.Split(clearPath, "/")
 
 	for _, route := range r.routes {
@@ -55,6 +59,7 @@ func (r *Router) Render(reqPath string) string {
 				Path:        clearPath,
 				RawPath:     reqPath,
 				HandlerPath: route.Pattern,
+				Query:       query,
 			}
 			res := &ResponseWriter{}
 			route.Fn(res, req)
@@ -63,7 +68,7 @@ func (r *Router) Render(reqPath string) string {
 	}
 
 	// not found
-	req := &Request{Path: reqPath}
+	req := &Request{Path: reqPath, Query: query}
 	res := &ResponseWriter{}
 	r.NotFoundHandler(res, req)
 	return res.Output()
@@ -77,7 +82,6 @@ func (r *Router) HandleFunc(pattern string, fn HandlerFunc) {
 
 // HandleErrFunc registers a route and its error handler function.
 func (r *Router) HandleErrFunc(pattern string, fn ErrHandlerFunc) {
-
 	// Convert ErrHandlerFunc to regular HandlerFunc
 	handler := func(res *ResponseWriter, req *Request) {
 		if err := fn(res, req); err != nil {
@@ -91,14 +95,4 @@ func (r *Router) HandleErrFunc(pattern string, fn ErrHandlerFunc) {
 // SetNotFoundHandler sets custom message for 404 defaultNotFoundHandler.
 func (r *Router) SetNotFoundHandler(handler NotFoundHandler) {
 	r.NotFoundHandler = handler
-}
-
-// stripQueryString removes query string from the request path.
-func stripQueryString(reqPath string) string {
-	i := strings.Index(reqPath, "?")
-	if i == -1 {
-		return reqPath
-	}
-
-	return reqPath[:i]
 }

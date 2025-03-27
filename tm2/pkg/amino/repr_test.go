@@ -20,10 +20,10 @@ type Foo struct {
 
 type pair struct {
 	Key   string
-	Value interface{}
+	Value any
 }
 
-func (pr pair) get(key string) (value interface{}) {
+func (pr pair) get(key string) (value any) {
 	if pr.Key != key {
 		panic(fmt.Sprintf("wanted %v but is %v", key, pr.Key))
 	}

@@ -68,7 +68,7 @@ func (a ABCIResults) ProveResult(i int) merkle.SimpleProof {
 func (a ABCIResults) toByteSlices() [][]byte {
 	l := len(a)
 	bzs := make([][]byte, l)
-	for i := 0; i < l; i++ {
+	for i := range l {
 		bzs[i] = a[i].Bytes()
 	}
 	return bzs

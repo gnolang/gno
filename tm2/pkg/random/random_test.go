@@ -34,7 +34,7 @@ func TestRandIntn(t *testing.T) {
 	t.Parallel()
 
 	n := 243
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		x := RandIntn(n)
 		assert.True(t, x < n)
 	}
@@ -49,7 +49,7 @@ func TestDeterminism(t *testing.T) {
 	// (It isn't strictly necessary).
 	mrand.Seed(1)
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		output := testThemAll()
 		if i == 0 {
 			firstOutput = output
@@ -85,7 +85,7 @@ func TestRngConcurrencySafety(t *testing.T) {
 	t.Parallel()
 
 	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
