@@ -779,23 +779,11 @@ func main() {
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
-//     -            "Hash": "058a49e6ee26f75cc44901754d4c298fd1a1655c",
-//     +            "Hash": "a88a9b837af217656ee27084309f7cd02cd94cb3",
+//     -            "Hash": "b02a40a48af2a114dfc839d59628963a9ce68f06",
+//     +            "Hash": "1125783626176a5acef18db1a8d69bea276c0afd",
 //                  "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:85"
 //              }
 //          }
-// u[336074805fc853987abe6f7fe3ad97a6a6f3077a:2]=
-//     @@ -3,8 +3,8 @@
-//          "ObjectInfo": {
-//              "ID": "336074805fc853987abe6f7fe3ad97a6a6f3077a:2",
-//              "IsEscaped": true,
-//     -        "ModTime": "118",
-//     -        "RefCount": "11"
-//     +        "ModTime": "131",
-//     +        "RefCount": "12"
-//          },
-//          "Parent": null,
-//          "Source": {
 // switchrealm["gno.land/r/demo/boards"]
 // switchrealm["gno.land/r/sys/users"]
 // switchrealm["gno.land/r/sys/users"]
