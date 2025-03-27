@@ -2,11 +2,42 @@ package client
 
 import (
 	"fmt"
+	"log/slog"
+	"net"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	r "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 )
+
+// RemoteSignerClient implements types.Signer by connecting to a RemoteSignerServer.
+type RemoteSignerClient struct {
+	// Required config.
+	protocol string
+	address  string
+	logger   *slog.Logger
+
+	// Optional connection config.
+	dialMaxRetries    int // If -1, retry indefinitely.
+	dialRetryInterval time.Duration
+	dialTimeout       time.Duration // If 0, no timeout is set.
+	keepAlivePeriod   time.Duration // If 0, keep alive is disabled.
+	requestTimeout    time.Duration // If 0, no timeout is set.
+
+	// Optional authentication config.
+	clientPrivKey  ed25519.PrivKeyEd25519  // Default is a random key.
+	authorizedKeys []ed25519.PubKeyEd25519 // If empty, all keys are authorized.
+
+	// Internal.
+	conn      net.Conn
+	connLock  sync.RWMutex
+	closed    atomic.Bool
+	addrCache string
+}
 
 // RemoteSignerClient type implements types.Signer.
 var _ types.Signer = (*RemoteSignerClient)(nil)

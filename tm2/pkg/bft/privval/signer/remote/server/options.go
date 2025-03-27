@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	r "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote"
@@ -13,30 +11,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
-
-// RemoteSignerServer provides a service that forwards requests to a types.Signer.
-type RemoteSignerServer struct {
-	// Required config.
-	signer          types.Signer
-	listenAddresses []string
-	logger          *slog.Logger
-
-	// Optional connection config.
-	keepAlivePeriod time.Duration // If 0, keep alive is disabled.
-	responseTimeout time.Duration // If 0, no timeout is set. Requests reception is not timed out.
-
-	// Optional authentication config.
-	serverPrivKey  ed25519.PrivKeyEd25519  // Default is a random key.
-	authorizedKeys []ed25519.PubKeyEd25519 // If empty, all keys are authorized.
-
-	// Internal.
-	listeners     []net.Listener
-	listenersLock sync.RWMutex
-	conns         []net.Conn
-	connsLock     sync.RWMutex
-	running       atomic.Bool
-	wg            sync.WaitGroup // Listeners and connections goroutines will register in this.
-}
 
 // Default connection config.
 const (
