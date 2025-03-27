@@ -16,11 +16,11 @@ func BenchmarkCoinsAdditionIntersect(b *testing.B) {
 			maxCoins := max(numCoinsA, numCoinsB)
 			denomLength := len(fmt.Sprint(maxCoins))
 
-			for i := 0; i < numCoinsA; i++ {
+			for i := range numCoinsA {
 				denom := fmt.Sprintf("coinz_%0*d", denomLength, i)
 				coinsA[i] = NewCoin(denom, int64(i+1))
 			}
-			for i := 0; i < numCoinsB; i++ {
+			for i := range numCoinsB {
 				denom := fmt.Sprintf("coinz_%0*d", denomLength, i)
 				coinsB[i] = NewCoin(denom, int64(i+1))
 			}
@@ -34,7 +34,7 @@ func BenchmarkCoinsAdditionIntersect(b *testing.B) {
 	}
 
 	benchmarkSizes := [][]int{{1, 1}, {5, 5}, {5, 20}, {1, 1000}, {2, 1000}}
-	for i := 0; i < len(benchmarkSizes); i++ {
+	for i := range benchmarkSizes {
 		sizeA := benchmarkSizes[i][0]
 		sizeB := benchmarkSizes[i][1]
 		b.Run(fmt.Sprintf("sizes: A_%d, B_%d", sizeA, sizeB), benchmarkingFunc(sizeA, sizeB))
@@ -52,11 +52,11 @@ func BenchmarkCoinsAdditionNoIntersect(b *testing.B) {
 			maxCoins := max(numCoinsA, numCoinsB)
 			denomLength := len(fmt.Sprint(maxCoins))
 
-			for i := 0; i < numCoinsA; i++ {
+			for i := range numCoinsA {
 				denom := fmt.Sprintf("coinz_%0*d", denomLength, i)
 				coinsA[i] = NewCoin(denom, int64(i+1))
 			}
-			for i := 0; i < numCoinsB; i++ {
+			for i := range numCoinsB {
 				denom := fmt.Sprintf("coinz_%0*d", denomLength, i)
 				coinsB[i] = NewCoin(denom, int64(i+1))
 			}
@@ -70,7 +70,7 @@ func BenchmarkCoinsAdditionNoIntersect(b *testing.B) {
 	}
 
 	benchmarkSizes := [][]int{{1, 1}, {5, 5}, {5, 20}, {1, 1000}, {2, 1000}, {1000, 2}}
-	for i := 0; i < len(benchmarkSizes); i++ {
+	for i := range benchmarkSizes {
 		sizeA := benchmarkSizes[i][0]
 		sizeB := benchmarkSizes[i][1]
 		b.Run(fmt.Sprintf("sizes: A_%d, B_%d", sizeA, sizeB), benchmarkingFunc(sizeA, sizeB))

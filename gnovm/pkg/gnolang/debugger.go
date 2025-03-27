@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -421,7 +422,7 @@ func debugClear(m *Machine, arg string) error {
 		if err != nil || id < 0 || id >= len(m.Debugger.breakpoints) {
 			return fmt.Errorf("invalid breakpoint id: %v", arg)
 		}
-		m.Debugger.breakpoints = append(m.Debugger.breakpoints[:id], m.Debugger.breakpoints[id+1:]...)
+		m.Debugger.breakpoints = slices.Delete(m.Debugger.breakpoints, id, id+1)
 		return nil
 	}
 	m.Debugger.breakpoints = nil
