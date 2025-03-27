@@ -17,7 +17,7 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 		panic(errNoChangesProposed)
 	}
 
-	callback := func(dao.Metadata) error {
+	callback := func() error {
 		for _, change := range changesFn() {
 			if change.VotingPower == 0 {
 				// This change request is to remove the validator
@@ -33,11 +33,9 @@ func NewPropRequest(changesFn func() []validators.Validator, title, description 
 		return nil
 	}
 
-	return dao.
-		NewProposalRequestBuilder(title).
-		WithDescription(description).
-		WithCallback(callback).
-		Build()
+	e := dao.NewSimpleExecutor(callback, "")
+
+	return dao.NewProposalRequest(title, description, e)
 }
 
 // IsValidator returns a flag indicating if the given bech32 address

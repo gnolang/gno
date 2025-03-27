@@ -1,6 +1,8 @@
 package dao
 
 import (
+	"std"
+
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
 )
@@ -25,51 +27,33 @@ const (
 type VoteRequest struct {
 	Option     VoteOption
 	ProposalID ProposalID
-	Metadata   Metadata
+	Metadata   interface{}
 }
 
-type ProposalRequestBuilder struct {
-	title       string
-	description string
-	callback    func(Metadata) error
-	metadata    Metadata
-}
-
-func NewProposalRequestBuilder(title string) *ProposalRequestBuilder {
-	return &ProposalRequestBuilder{
-		title: title,
-	}
-}
-
-func (prb *ProposalRequestBuilder) WithDescription(desc string) *ProposalRequestBuilder {
-	prb.description = desc
-	return prb
-}
-
-func (prb *ProposalRequestBuilder) WithMetadata(md Metadata) *ProposalRequestBuilder {
-	prb.metadata = md
-	return prb
-}
-
-func (prb *ProposalRequestBuilder) WithCallback(cb func(Metadata) error) *ProposalRequestBuilder {
-	prb.callback = cb
-	return prb
-}
-
-func (prb *ProposalRequestBuilder) Build() ProposalRequest {
+func NewProposalRequest(title string, description string, executor Executor) ProposalRequest {
 	return ProposalRequest{
-		title:       prb.title,
-		description: prb.description,
-		callback:    prb.callback,
-		metadata:    prb.metadata,
+		title:       title,
+		description: description,
+		executor:    executor,
 	}
 }
+
+func NewProposalRequestWithFilter(title string, description string, executor Executor, filter Filter) ProposalRequest {
+	return ProposalRequest{
+		title:       title,
+		description: description,
+		executor:    executor,
+		filter:      filter,
+	}
+}
+
+type Filter interface{}
 
 type ProposalRequest struct {
 	title       string
 	description string
-	callback    func(Metadata) error
-	metadata    Metadata
+	executor    Executor
+	filter      Filter
 }
 
 func (p *ProposalRequest) Title() string {
@@ -80,25 +64,21 @@ func (p *ProposalRequest) Description() string {
 	return p.description
 }
 
-func (p *ProposalRequest) Callback() func(Metadata) error {
-	return p.callback
-}
-
-func (p *ProposalRequest) Metadata() Metadata {
-	return p.metadata
+func (p *ProposalRequest) Filter() Filter {
+	return p.filter
 }
 
 type Proposal struct {
-	author Author
+	author std.Address
 
 	title       string
 	description string
 
-	executor    *executor
+	executor    Executor
 	allowedDAOs []string
 }
 
-func (p *Proposal) Author() Author {
+func (p *Proposal) Author() std.Address {
 	return p.author
 }
 
@@ -150,53 +130,37 @@ func (ps *Proposals) GetProposal(pid ProposalID) *Proposal {
 	return pv.(*Proposal)
 }
 
-// Author is an interface returned by the current govDAO implementation
-// representing the creator of a proposal. It is an interface
-// because we don't really know who/what will be allowed to create proposals
-// in the future, they can be any entity.
-type Author interface {
-	ID() string
+type Executor interface {
+	Execute() error
 	String() string
 }
 
-type executor struct {
-	metadata   Metadata
-	callbackFn func(m Metadata) error
-}
-
-func newExecutor(fn func(m Metadata) error, metadata Metadata) *executor {
-	return &executor{
-		metadata:   metadata,
-		callbackFn: fn,
+func NewSimpleExecutor(callback func() error, description string) *SimpleExecutor {
+	return &SimpleExecutor{
+		callback: callback,
+		desc:     description,
 	}
 }
 
-func (e *executor) String() string {
-	if e.metadata == nil {
-		return "No metadata available."
-	}
-
-	return e.metadata.String()
+type SimpleExecutor struct {
+	callback func() error
+	desc     string
 }
 
-func (e *executor) Execute() error {
-	return e.callbackFn(e.metadata)
+func (e *SimpleExecutor) Execute() error {
+	return e.callback()
 }
 
-// Metadata contains any kind of information that will be stored on the executor
-// and will be sent to the callback function when the proposal is validated.
-// It can contains any kind of data.
-type Metadata interface {
-	IsMetadata()
-	String() string
+func (e *SimpleExecutor) String() string {
+	return e.desc
 }
 
 type DAO interface {
 	// PreCreateProposal is called just before creating a new Proposal
-	// It is intended to be used to get the Author of the proposal, that
+	// It is intended to be used to get the std.Address of the proposal, that
 	// may vary depending on the DAO implementation, and to validate that
 	// the requester is allowed to do a proposal
-	PreCreateProposal(r ProposalRequest) (Author, error)
+	PreCreateProposal(r ProposalRequest) (std.Address, error)
 
 	// PostCreateProposal is called after creating the Proposal. It is
 	// intended to be used as a way to store a new proposal status, that

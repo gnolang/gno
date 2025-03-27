@@ -63,7 +63,7 @@ func CreateProposal(r ProposalRequest) (ProposalID, error) {
 		author:      author,
 		title:       r.title,
 		description: r.description,
-		executor:    newExecutor(r.callback, r.metadata),
+		executor:    r.executor,
 		allowedDAOs: AllowedDAOs,
 	}
 

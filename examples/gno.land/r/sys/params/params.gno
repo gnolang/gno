@@ -86,7 +86,7 @@ func NewSysParamStringsPropRequestWithTitle(module, submodule, name, title strin
 }
 
 func newPropRequest(key string, fn func(), title string) dao.ProposalRequest {
-	callback := func(dao.Metadata) error {
+	callback := func() error {
 		fn()
 		std.Emit("set", "key", key) // TODO document, make const, make consistent. 'k'??
 		return nil
@@ -96,7 +96,7 @@ func newPropRequest(key string, fn func(), title string) dao.ProposalRequest {
 		title = "Set new sys/params key"
 	}
 
-	return dao.NewProposalRequestBuilder(title).
-		WithDescription("This proposal wants to add a new key to sys/params: " + key).
-		WithCallback(callback).Build()
+	e := dao.NewSimpleExecutor(callback, "")
+
+	return dao.NewProposalRequest(title, "This proposal wants to add a new key to sys/params: "+key, e)
 }

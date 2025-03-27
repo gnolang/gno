@@ -4,7 +4,6 @@ import (
 	"std"
 
 	"gno.land/p/moul/authz"
-	"gno.land/r/gov/dao"
 )
 
 var auth *authz.Authorizer
@@ -35,8 +34,8 @@ func updateMinFee(newMinFee int64) {
 	}
 }
 
-func NewInstructionsProposalCallback(newInstructions string) func(dao.Metadata) error {
-	cb := func(dao.Metadata) error {
+func NewInstructionsProposalCallback(newInstructions string) func() error {
+	cb := func() error {
 		updateInstructions(newInstructions)
 		return nil
 	}
@@ -44,8 +43,8 @@ func NewInstructionsProposalCallback(newInstructions string) func(dao.Metadata) 
 	return cb
 }
 
-func NewMinFeeProposalCallback(newMinFee int64) func(dao.Metadata) error {
-	cb := func(dao.Metadata) error {
+func NewMinFeeProposalCallback(newMinFee int64) func() error {
+	cb := func() error {
 		updateMinFee(newMinFee)
 		return nil
 	}

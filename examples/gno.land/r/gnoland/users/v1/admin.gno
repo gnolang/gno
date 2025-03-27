@@ -11,12 +11,14 @@ var paused = false // XXX: replace with p/moul/authz
 
 // NewSetPausedExecutor allows GovDAO to pause or unpause this realm
 func NewSetPausedExecutor(newPausedValue bool) dao.ProposalRequest {
-	cb := func(m dao.Metadata) error {
+	cb := func() error {
 		paused = newPausedValue
 		return nil
 	}
 
-	return dao.NewProposalRequestBuilder("Pause users/v1 realm").WithCallback(cb).Build()
+	e := dao.NewSimpleExecutor(cb, "")
+
+	return dao.NewProposalRequest("Pause users/v1 realm", "", e)
 }
 
 // ProposeNewName allows GovDAO to propose a new name for an existing user
@@ -32,14 +34,13 @@ func ProposeNewName(addr std.Address, newName string) dao.ProposalRequest {
 		panic(susers.ErrUserNotExistOrDeleted)
 	}
 
-	cb := func(dao.Metadata) error {
-		if err := userData.UpdateName(newName); err != nil {
-			return err
-		}
-		return nil
+	cb := func() error {
+		return userData.UpdateName(newName)
 	}
 
-	return dao.NewProposalRequestBuilder("Propose a new name using users/v1 realm").WithCallback(cb).Build()
+	e := dao.NewSimpleExecutor(cb, "")
+
+	return dao.NewProposalRequest("Propose a new name using users/v1 realm", "", e)
 }
 
 // ProposeDeleteUser allows GovDAO to propose deletion of a user
@@ -51,14 +52,13 @@ func ProposeDeleteUser(addr std.Address, desc string) dao.ProposalRequest {
 		panic(susers.ErrUserNotExistOrDeleted)
 	}
 
-	cb := func(dao.Metadata) error {
-		if err := userData.Delete(); err != nil {
-			return err
-		}
-		return nil
+	cb := func() error {
+		return userData.Delete()
 	}
 
-	return dao.NewProposalRequestBuilder("Propose deleting a name using users/v1 realm").WithDescription(desc).WithCallback(cb).Build()
+	e := dao.NewSimpleExecutor(cb, "")
+
+	return dao.NewProposalRequest("Propose deleting a name using users/v1 realm", desc, e)
 }
 
 // ProposeNewRegisterPrice allows GovDAO to update the price of registration
@@ -67,10 +67,16 @@ func ProposeNewRegisterPrice(newPrice int64) dao.ProposalRequest {
 		panic("invalid price")
 	}
 
-	cb := func(dao.Metadata) error {
+	cb := func() error {
 		registerPrice = newPrice
 		return nil
 	}
 
-	return dao.NewProposalRequestBuilder("Propose change the price for name registration using users/v1 realm").WithCallback(cb).Build()
+	e := dao.NewSimpleExecutor(cb, "")
+
+	return dao.NewProposalRequest(
+		"Propose change the price for name registration using users/v1 realm",
+		"",
+		e,
+	)
 }

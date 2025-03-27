@@ -32,34 +32,25 @@ func NewGovDAO() *GovDAO {
 // Setting this to a global variable forces attaching the GovDAO struct to this realm.
 var _govdao *GovDAO
 
-func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (dao.Author, error) {
+func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (std.Address, error) {
 	if !g.isValidCall() {
-		return nil, errors.New("proposal creation must be done directly by a user")
+		return "", errors.New("proposal creation must be done directly by a user")
 	}
 
-	return NewUserAuthor(), nil
+	return std.OriginCaller(), nil
 }
 
 func (g *GovDAO) PostCreateProposal(r dao.ProposalRequest, pid dao.ProposalID) {
 	// Tiers Allowed to Vote
 	tatv := []string{memberstore.T1, memberstore.T2, memberstore.T3}
-	switch v := r.Metadata().(type) {
-	case *AddMemberMetadata:
+	switch v := r.Filter().(type) {
+	case FilterByTier:
 		// only members from T1 are allowed to vote when adding new members to T1
 		if v.Tier == memberstore.T1 {
 			tatv = []string{memberstore.T1}
 		}
 		// only members from T1 and T2 are allowed to vote when adding new members to T2
 		if v.Tier == memberstore.T2 {
-			tatv = []string{memberstore.T1, memberstore.T2}
-		}
-	case *PromoteMemberMetadata:
-		// only members from T1 are allowed to vote when promoting someone to T1
-		if v.ToTier == memberstore.T1 {
-			tatv = []string{memberstore.T1}
-		}
-		// only members from T1 and T2 are allowed to vote when promoting someone to T2
-		if v.ToTier == memberstore.T2 {
 			tatv = []string{memberstore.T1, memberstore.T2}
 		}
 	}
@@ -146,22 +137,4 @@ func (g *GovDAO) isValidCall() bool {
 	// only calls from the dao proxy are allowed
 	// return std.OriginPkgAddress() == std.DerivePkgAddr("gno.land/r/gov/dao") // FIX: https://github.com/gnolang/gno/issues/3976
 	return true
-}
-
-type UserAuthor struct {
-	addr string
-}
-
-func NewUserAuthor() *UserAuthor {
-	return &UserAuthor{
-		addr: std.OriginCaller().String(),
-	}
-}
-
-func (u *UserAuthor) ID() string {
-	return "addr:" + u.addr
-}
-
-func (u *UserAuthor) String() string {
-	return u.addr
 }

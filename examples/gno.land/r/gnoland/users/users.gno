@@ -35,10 +35,16 @@ func ProposeNewRelease(newVerPkgPath, note string) dao.ProposalRequest {
 		panic("r/gnoland/users: invalid version pkgpath")
 	}
 
-	cb := func(dao.Metadata) error {
+	cb := func() error {
 		changelog.NewRelease(ver, strings.TrimPrefix(newVerPkgPath, "gno.land"), note)
 		return nil
 	}
 
-	return dao.NewProposalRequestBuilder("Propose a new release for gnoland/users realm").WithCallback(cb).Build()
+	e := dao.NewSimpleExecutor(cb, "")
+
+	return dao.NewProposalRequest(
+		"Propose a new release for gnoland/users realm",
+		"",
+		e,
+	)
 }

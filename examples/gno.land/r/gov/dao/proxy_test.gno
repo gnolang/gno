@@ -70,12 +70,15 @@ func TestProxy_Functions(t *testing.T) {
 	var pid ProposalID
 	testing.SetRealm(std.NewUserRealm(alice))
 	urequire.NotPanics(t, func() {
+		e := NewSimpleExecutor(
+			func() error {
+				return nil
+			},
+			"",
+		)
 		pid = MustCreateProposal(
-			NewProposalRequestBuilder("Proposal Title").
-				WithDescription("Description").
-				WithCallback(func(m Metadata) error {
-					return nil
-				}).Build())
+			NewProposalRequest("Proposal Title", "Description", e),
+		)
 	})
 
 	p := MustGetProposal(1000)
@@ -85,7 +88,7 @@ func TestProxy_Functions(t *testing.T) {
 
 	p = MustGetProposal(pid)
 	urequire.Equal(t, "Proposal Title", p.Title())
-	urequire.Equal(t, p.Author().ID(), "user:g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")
+	urequire.Equal(t, p.Author().String(), "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")
 
 	urequire.Equal(
 		t,
@@ -104,8 +107,8 @@ func TestProxy_Functions(t *testing.T) {
 type dummyDao struct {
 }
 
-func (dd *dummyDao) PreCreateProposal(r ProposalRequest) (Author, error) {
-	return &dummyAuthor{std.OriginCaller()}, nil
+func (dd *dummyDao) PreCreateProposal(r ProposalRequest) (std.Address, error) {
+	return std.OriginCaller(), nil
 }
 
 func (dd *dummyDao) PostCreateProposal(r ProposalRequest, pid ProposalID) {
@@ -130,16 +133,4 @@ func (dd *dummyDao) PreExecuteProposal(pid ProposalID) (bool, error) {
 
 func (dd *dummyDao) Render(i, x string) string {
 	return "Render: " + i
-}
-
-type dummyAuthor struct {
-	caller std.Address
-}
-
-func (da *dummyAuthor) ID() string {
-	return "user:" + string(da.caller)
-}
-
-func (da *dummyAuthor) String() string {
-	return da.ID()
 }

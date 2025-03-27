@@ -31,11 +31,7 @@ func AddMember(addr std.Address) {
 		panic("caller is not on T1 or T2. To add members, propose them through proposals")
 	}
 
-	if m.InvitationPoints >= 0 {
-		panic("you don't have enough invitation points left!")
-	}
-
-	m.InvitationPoints--
+	m.RemoveInvitationPoint()
 
 	if err := memberstore.Get().SetMember(memberstore.T3, addr, memberByTier(memberstore.T3)); err != nil {
 		panic(err.Error())

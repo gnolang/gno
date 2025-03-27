@@ -27,7 +27,7 @@ func NewProposalsStatuses() ProposalsStatuses {
 }
 
 func (pss ProposalsStatuses) GetStatus(id dao.ProposalID) *proposalStatus {
-	pids := ufmt.Sprintf("%v", int(id))
+	pids := id.String()
 	psv, ok := pss.Get(pids)
 	if !ok {
 		return nil

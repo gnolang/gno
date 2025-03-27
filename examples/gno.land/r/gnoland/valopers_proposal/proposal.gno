@@ -76,7 +76,9 @@ func ProposeNewInstructionsProposalRequest(newInstructions string) dao.ProposalR
 	title := "/p/gnoland/valopers: Update instructions"
 	description := ufmt.Sprintf("Update the instructions to: \n\n%s", newInstructions)
 
-	return dao.NewProposalRequestBuilder(title).WithDescription(description).WithCallback(cb).Build()
+	e := dao.NewSimpleExecutor(cb, "")
+
+	return dao.NewProposalRequest(title, description, e)
 }
 
 // ProposeNewMinFee creates a proposal to the GovDAO
@@ -88,5 +90,7 @@ func ProposeNewMinFeeProposalRequest(newMinFee int64) dao.ProposalRequest {
 	title := "/p/gnoland/valopers: Update minFee"
 	description := ufmt.Sprintf("Update the minimum register fee to: %d ugnot", newMinFee)
 
-	return dao.NewProposalRequestBuilder(title).WithDescription(description).WithCallback(cb).Build()
+	e := dao.NewSimpleExecutor(cb, "")
+
+	return dao.NewProposalRequest(title, description, e)
 }

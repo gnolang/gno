@@ -41,46 +41,22 @@ func AdminRemoveModerator(addr std.Address) {
 	moderatorList.Set(addr.String(), false) // FIXME: delete instead?
 }
 
-type NewPostProposalMetadata struct {
-	Slug            string
-	Title           string
-	Body            string
-	PublicationDate string
-	Authors         string
-	Tags            string
-	Caller          std.Address
-}
-
-func (a *NewPostProposalMetadata) IsMetadata() {}
-func (a *NewPostProposalMetadata) String() string {
-	return ufmt.Sprintf("- Post Title: %v\n- Post Publication Date: %v\n- Authors: %v\n- Tags: %v", a.Title, a.PublicationDate, a.Authors, a.Tags)
-}
-
-func newPostCallback(m dao.Metadata) error {
-	amm, ok := m.(*NewPostProposalMetadata)
-	if !ok {
-		panic("wrong metadata type")
-	}
-
-	addPost(amm.Caller, amm.Slug, amm.Title, amm.Body, amm.PublicationDate, amm.Authors, amm.Tags)
-
-	return nil
-}
-
 func NewPostProposalRequest(slug, title, body, publicationDate, authors, tags string) dao.ProposalRequest {
-	return dao.
-		NewProposalRequestBuilder("Add new post to gnoland blog").
-		WithDescription("This propoposal is looking to add a new post to gnoland blog").
-		WithCallback(newPostCallback).
-		WithMetadata(&NewPostProposalMetadata{
-			Slug:            slug,
-			Title:           title,
-			Body:            body,
-			PublicationDate: publicationDate,
-			Authors:         authors,
-			Tags:            tags,
-			Caller:          std.PreviousRealm().Address(),
-		}).Build()
+	caller := std.PreviousRealm().Address()
+	e := dao.NewSimpleExecutor(
+		func() error {
+			addPost(caller, slug, title, body, publicationDate, authors, tags)
+
+			return nil
+		},
+		ufmt.Sprintf("- Post Title: %v\n- Post Publication Date: %v\n- Authors: %v\n- Tags: %v", title, publicationDate, authors, tags),
+	)
+
+	return dao.NewProposalRequest(
+		"Add new post to gnoland blog",
+		"This propoposal is looking to add a new post to gnoland blog",
+		e,
+	)
 }
 
 func ModAddPost(slug, title, body, publicationDate, authors, tags string) {

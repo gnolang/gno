@@ -8,62 +8,21 @@ import (
 	"gno.land/r/gov/dao/v3/memberstore"
 )
 
-type ChangeLawMetadata struct {
-	Law *Law
-}
-
-func (a *ChangeLawMetadata) IsMetadata() {}
-func (a *ChangeLawMetadata) String() string {
-	return ufmt.Sprintf("A new Law is proposed:\n %v", a.Law)
-}
-
-func changeLawCallback(m dao.Metadata) error {
-	amm, ok := m.(*ChangeLawMetadata)
-	if !ok {
-		panic("metadata type for changing the law is wrong")
-	}
-
-	law = amm.Law
-
-	return nil
-}
-
-func NewChangeLawRequest(law *Law) dao.ProposalRequest {
+func NewChangeLawRequest(newLaw *Law) dao.ProposalRequest {
 	member, _ := memberstore.Get().GetMember(std.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
 
-	return dao.NewProposalRequestBuilder("Change Law Proposal").
-		WithDescription("This proposal is looking to change the actual govDAO Law").
-		WithCallback(changeLawCallback).
-		WithMetadata(&ChangeLawMetadata{
-			Law: law,
-		}).Build()
-}
+	cb := func() error {
+		law = newLaw
 
-type AddMemberMetadata struct {
-	Member    *memberstore.Member
-	Portfolio string
-	Tier      string
-	Addr      std.Address
-	Caller    *memberstore.Member
-}
-
-func (a *AddMemberMetadata) IsMetadata() {}
-func (a *AddMemberMetadata) String() string {
-	return ufmt.Sprintf("A new member with address %v is proposed to be on tier %v. Provided Portfolio information:\n\n%v", a.Addr, a.Tier, a.Portfolio)
-}
-
-func addMemberCallback(m dao.Metadata) error {
-	amm, ok := m.(*AddMemberMetadata)
-	if !ok {
-		panic("metadata type for adding a member is wrong")
+		return nil
 	}
 
-	amm.Caller.RemoveInvitationPoint()
+	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("A new Law is proposed:\n %v", newLaw))
 
-	return memberstore.Get().SetMember(amm.Tier, amm.Addr, amm.Member)
+	return dao.NewProposalRequest("Change Law Proposal", "This proposal is looking to change the actual govDAO Law", e)
 }
 
 func NewAddMemberRequest(addr std.Address, tier string, portfolio string) dao.ProposalRequest {
@@ -89,38 +48,20 @@ func NewAddMemberRequest(addr std.Address, tier string, portfolio string) dao.Pr
 		panic("proposer does not have enough invitation points for inviting new people to the board")
 	}
 
-	return dao.NewProposalRequestBuilder("New Member Proposal").
-		WithDescription("This proposal is looking to add a new member to the board.").
-		WithCallback(addMemberCallback).
-		WithMetadata(&AddMemberMetadata{
-			Member:    memberByTier(tier),
-			Portfolio: portfolio,
-			Tier:      tier,
-			Addr:      addr,
-			Caller:    member,
-		}).Build()
-}
+	cb := func() error {
+		member.RemoveInvitationPoint()
 
-type RemoveMemberMetadata struct {
-	Addr   std.Address
-	Tier   string
-	Reason string
-}
-
-func (a *RemoveMemberMetadata) IsMetadata() {}
-func (a *RemoveMemberMetadata) String() string {
-	return ufmt.Sprintf("Member with address %v will be withdrawn.\n\n REASON: %v.", a.Addr, a.Reason)
-}
-
-func removeMemberCallback(m dao.Metadata) error {
-	rmm, ok := m.(*RemoveMemberMetadata)
-	if !ok {
-		panic("metadata type for removing a member is wrong")
+		return memberstore.Get().SetMember(tier, addr, memberByTier(tier))
 	}
 
-	memberstore.Get().RemoveMember(rmm.Addr)
+	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("A new member with address %v is proposed to be on tier %v. Provided Portfolio information:\n\n%v", addr, tier, portfolio))
 
-	return nil
+	return dao.NewProposalRequestWithFilter(
+		"New Member Proposal",
+		"This proposal is looking to add a new member to the board.",
+		e,
+		FilterByTier{Tier: tier},
+	)
 }
 
 func NewWithdrawMemberRequest(addr std.Address, reason string) dao.ProposalRequest {
@@ -133,56 +74,39 @@ func NewWithdrawMemberRequest(addr std.Address, reason string) dao.ProposalReque
 		panic("T1 user removals must contains a reason.")
 	}
 
-	return dao.NewProposalRequestBuilder("Member Withdrawn").
-		WithDescription("This proposal is looking to remove a member from the board.").
-		WithCallback(removeMemberCallback).
-		WithMetadata(&RemoveMemberMetadata{
-			Addr:   addr,
-			Tier:   tier,
-			Reason: reason,
-		}).Build()
-}
+	cb := func() error {
+		memberstore.Get().RemoveMember(addr)
 
-type PromoteMemberMetadata struct {
-	FromTier string
-	ToTier   string
-	Addr     std.Address
-	Member   *memberstore.Member
-}
-
-func (a *PromoteMemberMetadata) IsMetadata() {}
-func (a *PromoteMemberMetadata) String() string {
-	return ufmt.Sprintf("A new member with address %v will be promoted from tier %v to tier %v.", a.Addr, a.FromTier, a.ToTier)
-}
-
-func promoteMemberCallback(m dao.Metadata) error {
-	pmm, ok := m.(*PromoteMemberMetadata)
-	if !ok {
-		panic("metadata type for promoting a member is wrong")
+		return nil
 	}
 
-	prevTier := memberstore.Get().RemoveMember(pmm.Addr)
-	if prevTier == "" {
-		panic("member not found, so cannot be promoted")
-	}
+	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("Member with address %v will be withdrawn.\n\n REASON: %v.", addr, reason))
 
-	if prevTier != pmm.FromTier {
-		panic("previous tier changed from the one indicated in the proposal")
-	}
-
-	return memberstore.Get().SetMember(pmm.ToTier, pmm.Addr, pmm.Member)
+	return dao.NewProposalRequest("Member Withdrawn", "This proposal is looking to remove a member from the board.", e)
 }
 
 func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) dao.ProposalRequest {
-	return dao.NewProposalRequestBuilder("Member Promotion").
-		WithDescription("This proposal is looking to promote a member to an upper tier.").
-		WithCallback(promoteMemberCallback).
-		WithMetadata(&PromoteMemberMetadata{
-			Addr:     addr,
-			FromTier: fromTier,
-			ToTier:   toTier,
-			Member:   memberByTier(toTier),
-		}).Build()
+	cb := func() error {
+		prevTier := memberstore.Get().RemoveMember(addr)
+		if prevTier == "" {
+			panic("member not found, so cannot be promoted")
+		}
+
+		if prevTier != fromTier {
+			panic("previous tier changed from the one indicated in the proposal")
+		}
+
+		return memberstore.Get().SetMember(toTier, addr, memberByTier(toTier))
+	}
+
+	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("A new member with address %v will be promoted from tier %v to tier %v.", addr, fromTier, toTier))
+
+	return dao.NewProposalRequestWithFilter(
+		"Member Promotion",
+		"This proposal is looking to promote a member to an upper tier.",
+		e,
+		FilterByTier{Tier: toTier},
+	)
 }
 
 func memberByTier(tier string) *memberstore.Member {
