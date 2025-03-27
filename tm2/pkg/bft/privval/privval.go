@@ -138,7 +138,7 @@ func (pv *PrivValidator) String() string {
 // file path. If the state file does not exist, it will be created.
 func NewPrivValidator(signer types.Signer, stateFilePath string) (*PrivValidator, error) {
 	// Load existing file state or create a new one.
-	state, err := fstate.NewFileState(stateFilePath)
+	state, err := fstate.LoadOrMakeFileState(stateFilePath)
 	if err != nil {
 		return nil, err
 	}

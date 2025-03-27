@@ -214,7 +214,7 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		}
 
 		// Load existing or generate a new private validator key
-		fileKey, err := signer.NewFileKey(cfg.PrivValidator.LocalSignerPath())
+		fileKey, err := signer.LoadOrMakeFileKey(cfg.PrivValidator.LocalSignerPath())
 		if err != nil {
 			return fmt.Errorf("unable to instantiate validator key: %w", err)
 		}

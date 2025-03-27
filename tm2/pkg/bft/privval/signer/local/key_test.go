@@ -160,7 +160,7 @@ func TestNewFileKey(t *testing.T) {
 		t.Parallel()
 
 		filePath := path.Join(t.TempDir(), "new")
-		fk, err := NewFileKey(filePath)
+		fk, err := LoadOrMakeFileKey(filePath)
 		require.NotNil(t, fk)
 		assert.NoError(t, err)
 	})
@@ -174,7 +174,7 @@ func TestNewFileKey(t *testing.T) {
 		require.NoError(t, err)
 
 		// Load it using NewFileKey.
-		loaded, err := NewFileKey(filePath)
+		loaded, err := LoadOrMakeFileKey(filePath)
 		require.NotNil(t, loaded)
 		require.NoError(t, err)
 
@@ -191,7 +191,7 @@ func TestNewFileKey(t *testing.T) {
 		require.NoError(t, err)
 
 		filePath := path.Join(dirPath, "file")
-		fk, err := NewFileKey(filePath)
+		fk, err := LoadOrMakeFileKey(filePath)
 		require.Nil(t, fk)
 		assert.Error(t, err)
 	})

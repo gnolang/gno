@@ -38,12 +38,12 @@ func (fs *LocalSigner) String() string {
 	return fmt.Sprintf("{Type: LocalSigner, Addr: %s}", fs.key.Address)
 }
 
-// NewLocalSigner returns a new LocalSigner instance using a file key from the given
-// file path. If the file does not exist, a new random FileKey is generated and
-// persisted to disk.
-func NewLocalSigner(filePath string) (*LocalSigner, error) {
+// LoadOrMakeLocalSigner returns a new LocalSigner instance using a file key
+// from the given file path. If the file does not exist, a new random FileKey
+// is generated and persisted to disk.
+func LoadOrMakeLocalSigner(filePath string) (*LocalSigner, error) {
 	// Load existing file key or generate a new random one.
-	key, err := NewFileKey(filePath)
+	key, err := LoadOrMakeFileKey(filePath)
 	if err != nil {
 		return nil, err
 	}

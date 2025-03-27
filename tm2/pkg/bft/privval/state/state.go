@@ -312,9 +312,9 @@ func GeneratePersistedFileState(filePath string) (*FileState, error) {
 	return fs, nil
 }
 
-// NewFileState returns a new FileState instance from the given file path.
+// LoadOrMakeFileState returns a new FileState instance from the given file path.
 // If the file does not exist, a new FileState is generated and persisted to disk.
-func NewFileState(filePath string) (*FileState, error) {
+func LoadOrMakeFileState(filePath string) (*FileState, error) {
 	// If the file exists, load the FileState from the file.
 	if osm.FileExists(filePath) {
 		return LoadFileState(filePath)

@@ -519,7 +519,7 @@ func TestNewFileState(t *testing.T) {
 		t.Parallel()
 
 		filePath := path.Join(t.TempDir(), "new")
-		fs, err := NewFileState(filePath)
+		fs, err := LoadOrMakeFileState(filePath)
 		require.NotNil(t, fs)
 		assert.NoError(t, err)
 	})
@@ -533,7 +533,7 @@ func TestNewFileState(t *testing.T) {
 		require.NoError(t, err)
 
 		// Load it using NewFileState.
-		loaded, err := NewFileState(filePath)
+		loaded, err := LoadOrMakeFileState(filePath)
 		require.NotNil(t, loaded)
 		require.NoError(t, err)
 
@@ -550,7 +550,7 @@ func TestNewFileState(t *testing.T) {
 		require.NoError(t, err)
 
 		filePath := path.Join(dirPath, "file")
-		fs, err := NewFileState(filePath)
+		fs, err := LoadOrMakeFileState(filePath)
 		require.Nil(t, fs)
 		assert.Error(t, err)
 	})

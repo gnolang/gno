@@ -354,7 +354,7 @@ func TestStringer(t *testing.T) {
 	require.NotNil(t, signer)
 
 	statePath := path.Join(t.TempDir(), "state")
-	state, err := fstate.NewFileState(statePath)
+	state, err := fstate.LoadOrMakeFileState(statePath)
 	require.NotNil(t, state)
 	require.NoError(t, err)
 
@@ -398,7 +398,7 @@ func TestNewPrivValidator(t *testing.T) {
 
 		// Create a state on disk.
 		statePath := path.Join(t.TempDir(), "state")
-		state, err := fstate.NewFileState(statePath)
+		state, err := fstate.LoadOrMakeFileState(statePath)
 		require.NotNil(t, state)
 		require.NoError(t, err)
 
@@ -421,7 +421,7 @@ func TestNewPrivValidator(t *testing.T) {
 
 		// Create a state on disk.
 		statePath := path.Join(t.TempDir(), "state")
-		state, err := fstate.NewFileState(statePath)
+		state, err := fstate.LoadOrMakeFileState(statePath)
 		require.NotNil(t, state)
 		require.NoError(t, err)
 

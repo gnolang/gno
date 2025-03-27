@@ -13,7 +13,7 @@ func TestStringer(t *testing.T) {
 	t.Parallel()
 
 	filePath := path.Join(t.TempDir(), "new")
-	ls, err := NewLocalSigner(filePath)
+	ls, err := LoadOrMakeLocalSigner(filePath)
 	require.NotNil(t, ls)
 	require.NoError(t, err)
 	assert.Contains(t, ls.String(), ls.key.Address.String())
@@ -27,11 +27,11 @@ func TestNewLocalSigner(t *testing.T) {
 
 		// Generate a valid random local signer (FileKey) on disk.
 		filePath := path.Join(t.TempDir(), "existing")
-		ls, err := NewLocalSigner(filePath)
+		ls, err := LoadOrMakeLocalSigner(filePath)
 		require.NoError(t, err)
 
 		// Load it using NewLocalSigner.
-		loaded, err := NewLocalSigner(filePath)
+		loaded, err := LoadOrMakeLocalSigner(filePath)
 		require.NotNil(t, loaded)
 		require.NoError(t, err)
 
@@ -49,7 +49,7 @@ func TestNewLocalSigner(t *testing.T) {
 		require.NoError(t, err)
 
 		filePath := path.Join(dirPath, "file")
-		ls, err := NewLocalSigner(filePath)
+		ls, err := LoadOrMakeLocalSigner(filePath)
 		require.Nil(t, ls)
 		require.Error(t, err)
 		assert.Nil(t, ls.Close())
@@ -59,7 +59,7 @@ func TestNewLocalSigner(t *testing.T) {
 		t.Parallel()
 
 		filePath := path.Join(t.TempDir(), "new")
-		ls, err := NewLocalSigner(filePath)
+		ls, err := LoadOrMakeLocalSigner(filePath)
 		require.NotNil(t, ls)
 		require.NoError(t, err)
 

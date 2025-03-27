@@ -98,7 +98,7 @@ func NewPrivValidatorFromConfig(
 		)
 	} else {
 		// Otherwise, use a local signer.
-		signer, err = local.NewLocalSigner(config.LocalSignerPath())
+		signer, err = local.LoadOrMakeLocalSigner(config.LocalSignerPath())
 	}
 	if err != nil {
 		return nil, fmt.Errorf("signer initialization from config failed: %w", err)

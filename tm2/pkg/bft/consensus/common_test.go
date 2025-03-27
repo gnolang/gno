@@ -331,7 +331,7 @@ func newConsensusStateWithConfigAndBlockStore(thisConfig *cfg.Config, state sm.S
 func loadPrivValidator(config *cfg.Config) *privval.PrivValidator {
 	privValidatorKeyFile := config.PrivValidator.LocalSignerPath()
 	ensureDir(filepath.Dir(privValidatorKeyFile), 0o700)
-	fileSigner, err := signer.NewLocalSigner(privValidatorKeyFile)
+	fileSigner, err := signer.LoadOrMakeLocalSigner(privValidatorKeyFile)
 	if err != nil {
 		panic(err)
 	}
@@ -683,7 +683,7 @@ func randConsensusNetWithPeers(nValidators, nPeers int, testName string, tickerF
 				panic(err)
 			}
 
-			fileSigner, err := signer.NewLocalSigner(tempKeyFile.Name())
+			fileSigner, err := signer.LoadOrMakeLocalSigner(tempKeyFile.Name())
 			if err != nil {
 				panic(err)
 			}

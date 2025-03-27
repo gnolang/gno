@@ -129,9 +129,9 @@ func GeneratePersistedFileKey(filePath string) (*FileKey, error) {
 	return fk, nil
 }
 
-// NewFileKey returns a new FileKey instance from the given file path.
+// LoadOrMakeFileKey returns a new FileKey instance from the given file path.
 // If the file does not exist, a new FileKey is generated and persisted to disk.
-func NewFileKey(filePath string) (*FileKey, error) {
+func LoadOrMakeFileKey(filePath string) (*FileKey, error) {
 	// If the file exists, load the FileKey from the file.
 	if osm.FileExists(filePath) {
 		return LoadFileKey(filePath)
