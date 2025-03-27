@@ -185,14 +185,22 @@ func writeVotes(sb *strings.Builder, t memberstore.MembersByTier, title string) 
 }
 
 func StringifyProposal(p *dao.Proposal) string {
-	return ufmt.Sprintf(`
+	out := ufmt.Sprintf(`
 ### Title: %s
 
 ### Proposed by: %s
 
 %s
+`, p.Title(), p.Author(), p.Description())
 
+	if p.ExecutorString() != "" {
+		out += ufmt.Sprintf(`
 This proposal contains the following metadata:
 
-%s`, p.Title(), p.Author(), p.Description(), p.ExecutorString())
+%s	
+`, p.ExecutorString())
+	}
+
+	return out
+
 }

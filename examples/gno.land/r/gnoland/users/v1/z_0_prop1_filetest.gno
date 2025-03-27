@@ -69,9 +69,6 @@ func main() {
 //
 //
 //
-// This proposal contains the following metadata:
-//
-// No metadata available.
 //
 // ### Proposal Status:
 //
@@ -90,9 +87,6 @@ func main() {
 //
 //
 //
-// This proposal contains the following metadata:
-//
-// No metadata available.
 //
 // ### Proposal Status:
 //
@@ -112,9 +106,6 @@ func main() {
 //
 //
 //
-// This proposal contains the following metadata:
-//
-// No metadata available.
 //
 // ### Proposal Status:
 //
@@ -134,9 +125,6 @@ func main() {
 //
 //
 //
-// This proposal contains the following metadata:
-//
-// No metadata available.
 //
 // ### Proposal Status:
 //

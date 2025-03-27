@@ -76,9 +76,6 @@ func main() {
 //
 // Change alice's name!
 //
-// This proposal contains the following metadata:
-//
-// No metadata available.
 //
 // ### Proposal Status:
 //
@@ -97,9 +94,6 @@ func main() {
 //
 // Change alice's name!
 //
-// This proposal contains the following metadata:
-//
-// No metadata available.
 //
 // ### Proposal Status:
 //
@@ -119,9 +113,6 @@ func main() {
 //
 // Change alice's name!
 //
-// This proposal contains the following metadata:
-//
-// No metadata available.
 //
 // ### Proposal Status:
 //
@@ -141,9 +132,6 @@ func main() {
 //
 // Change alice's name!
 //
-// This proposal contains the following metadata:
-//
-// No metadata available.
 //
 // ### Proposal Status:
 //

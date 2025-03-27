@@ -55,9 +55,6 @@ func main() {
 // [Profile link](/r/demo/profile:u/g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h)
 //
 //
-// This proposal contains the following metadata:
-//
-// No metadata available.
 //
 // ### Proposal Status:
 //
