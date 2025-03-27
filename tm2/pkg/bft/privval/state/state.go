@@ -17,7 +17,6 @@ import (
 type Step uint8
 
 const (
-	StepNone      Step = 0 // Undefined step
 	StepPropose   Step = 1 // Only used in proposal signing
 	StepPrevote   Step = 2 // Only used in vote signing
 	StepPrecommit Step = 3 // Only used in vote signing
