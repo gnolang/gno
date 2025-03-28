@@ -1,6 +1,8 @@
 package acl
 
-import "regexp"
+import (
+	"regexp"
+)
 
 type perm struct {
 	verbs     []string
@@ -41,4 +43,27 @@ func match(pattern, target string) bool {
 	// regexp handling
 	match, _ := regexp.MatchString(pattern, target)
 	return match
+}
+
+func (p perm) Equal(p2 perm) bool {
+	if len(p.verbs) != len(p2.verbs) {
+		return false
+	}
+	if len(p.resources) != len(p2.resources) {
+		return false
+	}
+
+	for i, verb := range p.verbs {
+		if verb != p2.verbs[i] {
+			return false
+		}
+	}
+
+	for i, resource := range p.resources {
+		if resource != p2.resources[i] {
+			return false
+		}
+	}
+
+	return true
 }
