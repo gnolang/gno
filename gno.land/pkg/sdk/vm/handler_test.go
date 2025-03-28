@@ -443,3 +443,93 @@ func Hello(msg string) (res string) { res = prefix+" "+msg; return }
 		})
 	}
 }
+
+func TestVmHandlerQuery_Meta(t *testing.T) {
+	tt := []struct {
+		name                string
+		input               []byte
+		meta                []*MetaField
+		expectedResult      string
+		expectedResultMatch string
+		expectedErrorMatch  string
+		expectedPanicMatch  string
+	}{
+		{
+			name:  "success",
+			input: []byte("gno.land/r/foo:field"),
+			meta: []*MetaField{
+				{Name: "field", Value: []byte("bar")},
+			},
+			expectedResult: "YmFy",
+		},
+		{
+			name:               "invalid query data format",
+			input:              []byte("gno.land/r/foo"),
+			expectedPanicMatch: "expected <pkgpath>:<field_name> syntax in query input data",
+		},
+		{
+			name:               "metadata field not found",
+			input:              []byte("gno.land/r/foo:foobar"),
+			expectedErrorMatch: "metadata field for package gno.land/r/foo not found: foobar",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			env := setupTestEnv()
+			ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+			vmHandler := env.vmh
+
+			// Give "addr1" some gnots.
+			addr := crypto.AddressFromPreimage([]byte("addr1"))
+			acc := env.acck.NewAccountWithAddress(ctx, addr)
+			env.acck.SetAccount(ctx, acc)
+			env.bankk.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+			assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+
+			// Prepare add package message
+			files := []*gnovm.MemFile{
+				{Name: "foo.gno", Body: "package foo\nfunc Render(string) string{ return \"\"}\n"},
+			}
+			pkgPath := "gno.land/r/foo"
+			msg := NewMsgAddPackage(addr, pkgPath, files)
+			msg.Metadata = tc.meta
+
+			// Create test package.
+			err := env.vmk.AddPackage(ctx, msg)
+			assert.NoError(t, err)
+			env.vmk.CommitGnoTransactionStore(ctx)
+
+			// Prepare ABCI request
+			req := abci.RequestQuery{
+				Path: "vm/qmeta",
+				Data: tc.input,
+			}
+
+			defer func() {
+				if r := recover(); r != nil {
+					output := fmt.Sprintf("%v", r)
+					assert.Regexp(t, tc.expectedPanicMatch, output)
+				} else {
+					assert.Equal(t, tc.expectedPanicMatch, "", "should not panic")
+				}
+			}()
+
+			res := vmHandler.Query(env.ctx, req)
+
+			if tc.expectedPanicMatch == "" {
+				if tc.expectedErrorMatch == "" {
+					assert.True(t, res.IsOK(), "should not have error")
+
+					if tc.expectedResult != "" {
+						assert.Equal(t, tc.expectedResult, string(res.Data))
+					}
+				} else {
+					assert.False(t, res.IsOK(), "should have an error")
+					errmsg := res.Error.Error()
+					assert.Regexp(t, tc.expectedErrorMatch, errmsg)
+				}
+			}
+		})
+	}
+}

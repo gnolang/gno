@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -21,6 +22,7 @@ type MakeAddPkgCfg struct {
 	PkgPath string
 	PkgDir  string
 	Deposit string
+	Meta    commands.StringArr
 }
 
 func NewMakeAddPkgCmd(rootCfg *client.MakeTxCfg, io commands.IO) *commands.Command {
@@ -62,6 +64,12 @@ func (c *MakeAddPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"deposit coins",
 	)
+
+	fs.Var(
+		&c.Meta,
+		"meta",
+		"metadata fields (format: field=value)",
+	)
 }
 
 func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
@@ -80,6 +88,12 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 
 	if len(args) != 1 {
 		return flag.ErrHelp
+	}
+
+	// parse metadata fields
+	metadata, err := parseMetadataFields(cfg.Meta)
+	if err != nil {
+		return err
 	}
 
 	// read account pubkey.
@@ -115,9 +129,10 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	}
 	// construct msg & tx and marshal.
 	msg := vm.MsgAddPackage{
-		Creator: creator,
-		Package: memPkg,
-		Deposit: deposit,
+		Creator:  creator,
+		Package:  memPkg,
+		Deposit:  deposit,
+		Metadata: metadata,
 	}
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},
@@ -135,4 +150,34 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 		io.Println(string(amino.MustMarshalJSON(tx)))
 	}
 	return nil
+}
+
+func parseMetadataFields(meta commands.StringArr) ([]*vm.MetaField, error) {
+	if len(meta) == 0 {
+		return nil, nil
+	}
+
+	metadata := make([]*vm.MetaField, len(meta))
+	for i, v := range meta {
+		parts := strings.SplitN(v, "=", 2)
+		if len(parts) != 2 {
+			return nil, errors.New("invalid metadata field format, expected field=value")
+		}
+
+		name := strings.TrimSpace(parts[0])
+		if name == "" {
+			return nil, errors.New("empty metadata field name")
+		}
+
+		var value []byte
+		if strings.TrimSpace(parts[1]) != "" {
+			value = []byte(parts[1])
+		}
+
+		metadata[i] = &vm.MetaField{
+			Name:  name,
+			Value: value,
+		}
+	}
+	return metadata, nil
 }

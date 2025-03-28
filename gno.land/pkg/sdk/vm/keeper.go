@@ -5,6 +5,8 @@ package vm
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	goerrors "errors"
 	"fmt"
 	"io"
@@ -35,9 +37,12 @@ import (
 )
 
 const (
-	maxAllocTx    = 500_000_000
-	maxAllocQuery = 1_500_000_000 // higher limit for queries
-	maxGasQuery   = 3_000_000_000 // same as max block gas
+	maxAllocTx               = 500_000_000
+	maxAllocQuery            = 1_500_000_000 // higher limit for queries
+	maxGasQuery              = 3_000_000_000 // same as max block gas
+	maxMetaFieldValueSize    = 1_000_000     // maximum size for package metadata field values in bytes
+	maxMetaFields            = 10            // maximum number of package metadata fields
+	maxToolDescriptionLenght = 100
 )
 
 // vm.VMKeeperI defines a module interface that supports Gno
@@ -357,6 +362,12 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	format := true
 	if err := gno.TypeCheckMemPackage(memPkg, gnostore, format); err != nil {
 		return ErrTypeCheck(err)
+	}
+
+	// Save package metadata
+	err = storePackageMetadata(msg.Package.Path, msg.Metadata, gnostore)
+	if err != nil {
+		return err
 	}
 
 	// Pay deposit from creator.
@@ -848,6 +859,27 @@ func (vm *VMKeeper) QueryDoc(ctx sdk.Context, pkgPath string) (*doc.JSONDocument
 	return d.WriteJSONDocumentation()
 }
 
+func (vm *VMKeeper) QueryMeta(ctx sdk.Context, pkgPath, name string) ([]byte, error) {
+	var (
+		res   []byte
+		store = vm.newGnoTransactionStore(ctx) // throwaway (never committed)
+	)
+
+	found := store.IteratePackageMeta(pkgPath, func(field string, value []byte) bool {
+		if field == name {
+			res = make([]byte, base64.StdEncoding.EncodedLen(len(value)))
+			base64.StdEncoding.Encode(res, value)
+			return true
+		}
+		return false
+	})
+
+	if !found {
+		return nil, fmt.Errorf("metadata field for package %s not found: %s", pkgPath, name) // TODO: XSS protection
+	}
+	return res, nil
+}
+
 // logTelemetry logs the VM processing telemetry
 func logTelemetry(
 	gasUsed int64,
@@ -878,4 +910,64 @@ func logTelemetry(
 		gasUsed,
 		metric.WithAttributes(attributes...),
 	)
+}
+
+// storePackageMetadata stores package's metadata.
+func storePackageMetadata(pkgPath string, meta []*MetaField, store gno.Store) error {
+	for _, f := range meta {
+		if f.Name == "tools" {
+			// The "tools" metadata field must have a valid pre-defined structure
+			if err := validateToolsMetaField(f.Value); err != nil {
+				return ErrInvalidPkgMeta(err.Error())
+			}
+		}
+
+		store.SetPackageMetaField(pkgPath, f.Name, f.Value)
+	}
+	return nil
+}
+
+// reToolName defines the allowed format for tool names defined within the tools metadata field.
+var reToolName = regexp.MustCompile(`^[a-z]+[_a-z0-9]{5,16}$`)
+
+// validateToolsMetaField validates the format of the tools metadata field.
+// This field must contain a JSON value that stores information about the tools
+// that has been used to develop a gno.land package or a realm.
+func validateToolsMetaField(value []byte) error {
+	var v struct {
+		Tools []struct {
+			Name        string  `json:"name"`                  // Name of the tool
+			Weight      float64 `json:"weight"`                // Weight given to the tool, where 1 == 100%
+			Description string  `json:"description,omitempty"` // Optional description of the tool
+		} `json:"tools,omitempty"`
+	}
+
+	if err := json.Unmarshal(value, &v); err != nil {
+		return fmt.Errorf("invalid tools field format: %w", err)
+	}
+
+	if len(v.Tools) == 0 {
+		return errors.New("tools list is empty")
+	}
+
+	var totalWeight float64
+	for _, t := range v.Tools {
+		if len(t.Description) > maxToolDescriptionLenght {
+			return fmt.Errorf("maximum length for tool description is %d", maxToolDescriptionLenght)
+		}
+
+		if !reToolName.MatchString(t.Name) {
+			return fmt.Errorf(
+				"invalid tool name: %s (minimum 6 chars, lowercase alphanumeric with underscore)",
+				t.Name,
+			)
+		}
+
+		totalWeight += t.Weight
+	}
+
+	if totalWeight != 1 {
+		return errors.New("the sum of all tool weights must be 1")
+	}
+	return nil
 }

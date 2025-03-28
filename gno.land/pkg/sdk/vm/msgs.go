@@ -2,6 +2,7 @@ package vm
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm"
@@ -12,15 +13,26 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+var reMetaFieldName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]*$`)
+
 //----------------------------------------
 // MsgAddPackage
 
-// MsgAddPackage - create and initialize new package
-type MsgAddPackage struct {
-	Creator crypto.Address    `json:"creator" yaml:"creator"`
-	Package *gnovm.MemPackage `json:"package" yaml:"package"`
-	Deposit std.Coins         `json:"deposit" yaml:"deposit"`
-}
+type (
+	// MsgAddPackage - create and initialize new package
+	MsgAddPackage struct {
+		Creator  crypto.Address    `json:"creator" yaml:"creator"`
+		Package  *gnovm.MemPackage `json:"package" yaml:"package"`
+		Deposit  std.Coins         `json:"deposit" yaml:"deposit"`
+		Metadata []*MetaField      `json:"metadata" yaml:"metadata"`
+	}
+
+	// MetaField - package metadata field
+	MetaField struct {
+		Name  string `json:"name" yaml:"name"`
+		Value []byte `json:"value" yaml:"value"`
+	}
+)
 
 var _ std.Msg = MsgAddPackage{}
 
@@ -60,6 +72,28 @@ func (msg MsgAddPackage) ValidateBasic() error {
 	if !msg.Deposit.IsValid() {
 		return std.ErrInvalidCoins(msg.Deposit.String())
 	}
+
+	if len(msg.Metadata) > maxMetaFields {
+		return ErrInvalidPkgMeta("maximum number of metadata fields exceeded")
+	}
+
+	seenFields := make(map[string]struct{}, len(msg.Metadata))
+	for _, f := range msg.Metadata {
+		if !reMetaFieldName.Match([]byte(f.Name)) {
+			return ErrInvalidPkgMeta("invalid metadata field name")
+		}
+
+		if _, exists := seenFields[f.Name]; exists {
+			return ErrInvalidPkgMeta("metadata contains duplicated fields")
+		}
+
+		if len(f.Value) > maxMetaFieldValueSize {
+			return ErrInvalidPkgMeta("metadata field value is too large")
+		}
+
+		seenFields[f.Name] = struct{}{}
+	}
+
 	// XXX validate files.
 	return nil
 }

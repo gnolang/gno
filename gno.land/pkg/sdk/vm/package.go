@@ -18,8 +18,12 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	MsgRun{}, "m_run",
 	MsgAddPackage{}, "m_addpkg", // TODO rename both to MsgAddPkg?
 
+	// other
+	MetaField{}, "MetaField",
+
 	// errors
 	InvalidPkgPathError{}, "InvalidPkgPathError",
+	InvalidPkgMetaError{}, "InvalidPkgMetaError",
 	NoRenderDeclError{}, "NoRenderDeclError",
 	PkgExistError{}, "PkgExistError",
 	InvalidStmtError{}, "InvalidStmtError",

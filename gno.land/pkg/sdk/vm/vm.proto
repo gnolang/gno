@@ -26,9 +26,18 @@ message m_addpkg {
 	string creator = 1;
 	gnovm.MemPackage package = 2;
 	string deposit = 3;
+	repeated MetaField metadata = 4;
+}
+
+message MetaField {
+	string name = 1;
+	bytes value = 2;
 }
 
 message InvalidPkgPathError {
+}
+
+message InvalidPkgMetaError {
 }
 
 message PkgExistError {
