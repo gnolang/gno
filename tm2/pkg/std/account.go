@@ -216,12 +216,21 @@ func (s *BaseSession) GetAccount() Account {
 	return s.account
 }
 
-func NewBaseSession(accountAddress crypto.Address, pubKey crypto.PubKey, sequence uint64, master bool) *BaseSession {
+func NewMasterSession(accountAddress crypto.Address, pubKey crypto.PubKey, sequence uint64) *BaseSession {
 	return &BaseSession{
 		AccountAddress: accountAddress,
 		PubKey:         pubKey,
 		Sequence:       sequence,
-		master:         master,
+		master:         true,
+	}
+}
+
+func NewBaseSession(accountAddress crypto.Address, pubKey crypto.PubKey, sequence uint64) *BaseSession {
+	return &BaseSession{
+		AccountAddress: accountAddress,
+		PubKey:         pubKey,
+		Sequence:       sequence,
+		master:         false,
 	}
 }
 

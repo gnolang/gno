@@ -212,20 +212,35 @@ func ValidateMemo(tx std.Tx, params Params) sdk.Result {
 // verify the signature and increment the sequence. If the account doesn't
 // have a pubkey, set it.
 func processSig(
-	ctx sdk.Context, acc std.Account, sig std.Signature, signBytes []byte, simulate bool, params Params,
+	ctx sdk.Context, ak AccountKeeper, acc std.Account, sig std.Signature,
+	signBytes []byte, simulate bool, params Params,
 	sigGasConsumer SignatureVerificationGasConsumer,
-) (updatedAcc std.Account, res sdk.Result) {
+) (updatedAcc std.Account, updatedSess std.Session, res sdk.Result) {
 	pubKey, res := ProcessPubKey(acc, sig)
 	if !res.IsOK() {
 		return nil, res
 	}
 
+	var sess std.Session
+
 	// If this is the account's master pubkey and it's not set yet, set it
-	if acc.GetMasterPubKey() == nil && pubKey.Address() == acc.GetAddress() {
-		err := acc.SetPubKey(pubKey)
+	if acc.GetMasterPubKey() == nil {
+		newSess := std.NewMasterSession(acc.GetAddress(), pubKey, 0)
+		sess = newSess
+		err := acc.AddSession(sess)
 		if err != nil {
-			return nil, abciResult(std.ErrInternal("setting PubKey on signer's account"))
+			return nil, abciResult(std.ErrInternal("setting master Session on signer's account"))
 		}
+	} else {
+		sess = ak.GetSession(ctx, pubKey)
+		if sess == nil {
+			return nil, abciResult(std.ErrInternal("retrieve session from account keeper"))
+		}
+	}
+
+	// Check if the session is expired
+	if sess.IsExpired() {
+		return nil, abciResult(std.ErrUnauthorized("session is expired"))
 	}
 
 	// Consume gas for signature verification
@@ -239,18 +254,17 @@ func processSig(
 	}
 
 	// Increment sequence
-	if err := acc.SetSequence(acc.GetSequence() + 1); err != nil {
+	if err := sess.SetSequence(sess.GetSequence() + 1); err != nil {
 		panic(err)
 	}
 
-	return acc, res
+	return acc, sess, res
 }
 
 // ProcessPubKey verifies that the given account address matches that of the
 // std.Signature. In addition, it will:
 // 1. If account has no master pubkey/session, set it from the signature
-// 2. Verify the signature's pubkey is the same as the account's master pubkey/session, or
-// 3. If account has other sessions, verify the signature's pubkey belongs to a session
+// 2. Verify if the signature's pubkey belongs to one of the account's sessions (master or otherwise)
 func ProcessPubKey(acc std.Account, sig std.Signature) (crypto.PubKey, sdk.Result) {
 	sigPubKey := sig.PubKey
 	if sigPubKey == nil {
@@ -268,16 +282,12 @@ func ProcessPubKey(acc std.Account, sig std.Signature) (crypto.PubKey, sdk.Resul
 		return sigPubKey, sdk.Result{}
 	}
 
-	// Case 2: Direct match with account's pubkey
-	if accPubKey.Equals(sigPubKey) {
-		return pubKey, sdk.Result{}
-	}
-
-	// Case 3: Check if it's a valid session key
+	// Case 2: Check if it's a valid session key
 	sessionKeys := acc.GetSessionKeys()
 	for _, sessionKey := range sessionKeys {
 		if sessionKey.Equals(sigPubKey) {
-			// TODO: Check if the session key is valid
+			// TODO: Check if the session key is valid, or let this be handled later?
+			//       Maybe just check for expiration date?
 			return sigPubKey, sdk.Result{}
 		}
 	}
