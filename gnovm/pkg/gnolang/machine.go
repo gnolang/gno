@@ -1972,22 +1972,42 @@ func (m *Machine) PushForPointer(lx Expr) {
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	pv, ro := m.PopAsPointer2(lx)
 	if ro {
-		panic("base value is readonly")
+		// panic("cannot modify external-realm or non-realm object with " + lx.String())
+		panic("cannot modify external-realm or non-realm object")
 	}
 	return pv
 }
 
-// returns ro = true if the base is readonly.
+// returns ro = true if the base is readonly,
+// or if the base's storage realm != m.Realm and both are non-nil,
+// and the lx isn't a name (base is a block),
+// and the lx isn't a composit lit expr.
 func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
+	isReadonly := func(xv *TypedValue) bool {
+		ro := xv.IsReadonly()
+		if !ro && m.Realm != nil {
+			xvoid := xv.GetFirstObject(nil).GetObjectID()
+			if xvoid.IsZero() {
+				return ro
+			}
+			rlmid := m.Realm.ID
+			if xvoid.PkgID != rlmid {
+				return true
+			}
+		}
+		return ro
+	}
 	switch lx := lx.(type) {
 	case *NameExpr:
 		switch lx.Type {
 		case NameExprTypeNormal:
 			lb := m.LastBlock()
-			return lb.GetPointerTo(m.Store, lx.Path), false
+			pv = lb.GetPointerTo(m.Store, lx.Path)
+			ro = false // always mutable
 		case NameExprTypeHeapUse:
 			lb := m.LastBlock()
-			return lb.GetPointerToHeapUse(m.Store, lx.Path), false
+			pv = lb.GetPointerToHeapUse(m.Store, lx.Path)
+			ro = false // always mutable
 		case NameExprTypeHeapClosure:
 			panic("should not happen")
 		default:
@@ -1996,25 +2016,29 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
-		return xv.GetPointerAtIndex(m.Alloc, m.Store, iv), xv.IsReadonly()
+		pv = xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
+		ro = isReadonly(xv)
 	case *SelectorExpr:
 		xv := m.PopValue()
-		return xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path), xv.IsReadonly()
+		pv = xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
+		ro = isReadonly(xv)
 	case *StarExpr:
 		xv := m.PopValue()
-		ptr := xv.V.(PointerValue)
-		return ptr, xv.IsReadonly()
+		pv = xv.V.(PointerValue)
+		ro = isReadonly(xv)
 	case *CompositeLitExpr: // for *RefExpr
 		tv := *m.PopValue()
 		hv := m.Alloc.NewHeapItem(tv)
-		return PointerValue{
+		pv = PointerValue{
 			TV:    &hv.Value,
 			Base:  hv,
 			Index: 0,
-		}, false
+		}
+		ro = false // always mutable
 	default:
 		panic("should not happen")
 	}
+	return
 }
 
 // for testing.
