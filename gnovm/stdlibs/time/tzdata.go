@@ -20,7 +20,7 @@ func init() {
 	n := get2s(z[idx+10:])
 	idx = get4s(z[idx+16:])
 
-	for i := 0; i < n; i++ {
+	for range n {
 		// See time.loadTzinfoFromZip for zip entry layout.
 		if get4s(z[idx:]) != zcheader {
 			break

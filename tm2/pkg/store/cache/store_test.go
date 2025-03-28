@@ -113,7 +113,7 @@ func TestCacheKVIteratorBounds(t *testing.T) {
 
 	// set some items
 	nItems := 5
-	for i := 0; i < nItems; i++ {
+	for i := range nItems {
 		st.Set(keyFmt(i), valFmt(i))
 	}
 
@@ -166,7 +166,7 @@ func TestCacheKVReverseIteratorBounds(t *testing.T) {
 
 	// set some items
 	nItems := 5
-	for i := 0; i < nItems; i++ {
+	for i := range nItems {
 		st.Set(keyFmt(i), valFmt(i))
 	}
 
@@ -262,7 +262,7 @@ func TestCacheKVMergeIteratorDeleteLast(t *testing.T) {
 
 	// set some items and write them
 	nItems := 5
-	for i := 0; i < nItems; i++ {
+	for i := range nItems {
 		st.Set(keyFmt(i), valFmt(i))
 	}
 	st.Write()
@@ -276,7 +276,7 @@ func TestCacheKVMergeIteratorDeleteLast(t *testing.T) {
 	assertIterateDomain(t, st, nItems*2)
 
 	// delete them all
-	for i := 0; i < nItems*2; i++ {
+	for i := range nItems * 2 {
 		last := nItems*2 - 1 - i
 		st.Delete(keyFmt(last))
 		assertIterateDomain(t, st, last)
@@ -291,7 +291,7 @@ func TestCacheKVMergeIteratorDeletes(t *testing.T) {
 
 	// set some items and write them
 	nItems := 10
-	for i := 0; i < nItems; i++ {
+	for i := range nItems {
 		doOp(st, truth, opSet, i)
 	}
 	st.Write()
@@ -307,7 +307,7 @@ func TestCacheKVMergeIteratorDeletes(t *testing.T) {
 	truth = memdb.NewMemDB()
 
 	// set some items and write them
-	for i := 0; i < nItems; i++ {
+	for i := range nItems {
 		doOp(st, truth, opSet, i)
 	}
 	st.Write()
@@ -363,7 +363,7 @@ func TestCacheKVMergeIteratorRandom(t *testing.T) {
 	setRange(st, truth, start, end)
 
 	// do an op, test the iterator
-	for i := 0; i < 2000; i++ {
+	for range 2000 {
 		doRandomOp(st, truth, maxVal)
 		assertIterateDomainCompare(t, st, truth)
 	}

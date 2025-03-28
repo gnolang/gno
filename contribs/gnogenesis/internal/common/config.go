@@ -4,6 +4,7 @@ import (
 	"flag"
 	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
 
@@ -31,5 +32,6 @@ func GetDefaultGenesis() *types.GenesisDoc {
 		GenesisTime:     time.Now(),
 		ChainID:         DefaultChainID,
 		ConsensusParams: types.DefaultConsensusParams(),
+		AppState:        gnoland.DefaultGenState(),
 	}
 }
