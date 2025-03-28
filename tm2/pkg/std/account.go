@@ -75,6 +75,8 @@ type Session interface {
 	// Master session status
 	IsMaster() bool
 
+	IsValid() bool
+
 	String() string
 }
 
