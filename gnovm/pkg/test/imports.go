@@ -60,7 +60,7 @@ func StoreWithOptions(
 	if opts.PreprocessOnly {
 		processMemPackage = func(m *gno.Machine, memPkg *gnovm.MemPackage, save bool) (*gno.PackageNode, *gno.PackageValue) {
 			m.Store.AddMemPackage(memPkg)
-			return m.PreprocessFiles(memPkg.Name, memPkg.Path, gno.ParseMemPackage(memPkg), save, false)
+			return m.PreprocessFiles(memPkg.Name, memPkg.Path, m.ParseMemPackage(memPkg), save, false)
 		}
 	}
 	getPackage := func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
@@ -161,7 +161,7 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer, prep
 	})
 	if preprocessOnly {
 		m2.Store.AddMemPackage(memPkg)
-		return m2.PreprocessFiles(memPkg.Name, memPkg.Path, gno.ParseMemPackage(memPkg), true, true)
+		return m2.PreprocessFiles(memPkg.Name, memPkg.Path, m2.ParseMemPackage(memPkg), true, true)
 	}
 	// TODO: make this work when using gno lint.
 	return m2.RunMemPackageWithOverrides(memPkg, true)

@@ -2,7 +2,6 @@ package gnolang
 
 import (
 	"fmt"
-	"go/parser"
 	"go/token"
 	"math"
 	"os"
@@ -14,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/gnovm/pkg/parser"
 	"go.uber.org/multierr"
 )
 
@@ -1340,7 +1340,7 @@ func MustReadMemPackageFromList(list []string, pkgPath string) *gnovm.MemPackage
 //
 // If one of the files has a different package name than memPkg.Name,
 // or [ParseFile] returns an error, ParseMemPackage panics.
-func ParseMemPackage(memPkg *gnovm.MemPackage) (fset *FileSet) {
+func (m *Machine) ParseMemPackage(memPkg *gnovm.MemPackage) (fset *FileSet) {
 	fset = &FileSet{}
 	var errs error
 	for _, mfile := range memPkg.Files {
@@ -1348,7 +1348,7 @@ func ParseMemPackage(memPkg *gnovm.MemPackage) (fset *FileSet) {
 			endsWith(mfile.Name, []string{"_test.gno", "_filetest.gno"}) {
 			continue // skip spurious or test file.
 		}
-		n, err := ParseFile(mfile.Name, mfile.Body)
+		n, err := m.ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue

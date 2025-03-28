@@ -33,38 +33,40 @@ package gnolang
 import (
 	"fmt"
 	"go/ast"
-	"go/parser"
 	"go/token"
+	"math"
 	"os"
 	"reflect"
 	"strconv"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/gnolang/gno/gnovm/pkg/parser"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
-func MustReadFile(path string) *FileNode {
-	n, err := ReadFile(path)
+func (m *Machine) MustReadFile(path string) *FileNode {
+	n, err := m.ReadFile(path)
 	if err != nil {
 		panic(err)
 	}
 	return n
 }
 
-func MustParseFile(filename string, body string) *FileNode {
-	n, err := ParseFile(filename, body)
+func (m *Machine) MustParseFile(filename string, body string) *FileNode {
+	n, err := m.ParseFile(filename, body)
 	if err != nil {
 		panic(err)
 	}
 	return n
 }
 
-func ReadFile(path string) (*FileNode, error) {
+func (m *Machine) ReadFile(path string) (*FileNode, error) {
 	bz, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	return ParseFile(path, string(bz))
+	return m.ParseFile(path, string(bz))
 }
 
 func ParseExpr(expr string) (retx Expr, err error) {
@@ -96,21 +98,33 @@ func MustParseExpr(expr string) Expr {
 	return x
 }
 
+// parseCost computes and returns the cost of parsing from the parser stats.
+func parseCost(stats *parser.Stats) types.Gas {
+	// The parsing cost is a function of the number of tokens and the
+	// nesting level reached during the parsing, which reflect both the size
+	// and the complexity of the AST.
+	return types.Gas(stats.NumTok * math.Ilogb(float64(stats.TopNest)))
+}
+
 // ParseFile uses the Go parser to parse body. It then runs [Go2Gno] on the
 // resulting AST -- the resulting FileNode is returned, together with any other
 // error (including panics, which are recovered) from [Go2Gno].
-func ParseFile(filename string, body string) (fn *FileNode, err error) {
+func (m *Machine) ParseFile(filename string, body string) (fn *FileNode, err error) {
 	// Use go parser to parse the body.
 	fs := token.NewFileSet()
 	// TODO(morgan): would be nice to add parser.SkipObjectResolution as we don't
 	// seem to be using its features, but this breaks when testing (specifically redeclaration tests).
 	const parseOpts = parser.ParseComments | parser.DeclarationErrors
-	f, err := parser.ParseFile(fs, filename, body, parseOpts)
+	f, stats, err := parser.ParseFileStats(fs, filename, body, parseOpts, 1e4)
 	if err != nil {
 		return nil, err
 	}
 	// Print the imports from the file's AST.
 	// spew.Dump(f)
+
+	if m != nil {
+		m.GasMeter.ConsumeGas(parseCost(stats), "parsing")
+	}
 
 	// recover from Go2Gno.
 	// NOTE: Go2Gno is best implemented with panics due to inlined toXYZ() calls.
