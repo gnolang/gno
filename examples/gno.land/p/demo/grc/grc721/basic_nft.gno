@@ -395,3 +395,9 @@ func (s *basicNFT) RenderHome() (str string) {
 
 	return
 }
+
+func (n *basicNFT) Getter() NFTGetter {
+	return func() IGRC721 {
+		return n
+	}
+}
