@@ -361,12 +361,12 @@ func (s *basicNFT) isApprovedOrOwner(addr std.Address, tid TokenID) bool {
 		return true
 	}
 
-	_, err := s.GetApproved(tid)
+	approved, err := s.GetApproved(tid)
 	if err != nil {
 		return false
 	}
 
-	return true
+	return approved == addr
 }
 
 // Checks if token id already exists
