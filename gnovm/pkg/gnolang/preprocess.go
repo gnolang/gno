@@ -1361,115 +1361,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// Func type evaluation.
 				var ft *FuncType
 				ift := evalStaticTypeOf(store, last, n.Func)
-				var fn string
-				const (
-					BuiltinLen  = "len"
-					BuiltinCap  = "cap"
-					BuiltinMake = "make"
-				)
-				if callExpr, ok := n.Func.(*ConstExpr); ok {
-					if constExpr, ok := callExpr.Source.(*NameExpr); ok {
-						fn = string(constExpr.Name)
-					}
-
-					if fn == BuiltinLen || fn == BuiltinCap || fn == BuiltinMake {
-						argT := evalStaticTypeOfRaw(store, last, n.Args[0])
-						if argT == nil {
-							panic(fmt.Sprintf("invalid argument: nil for built-in %s", fn))
-						}
-						tp := baseOf(argT)
-						if fn == BuiltinLen {
-							switch tp := tp.(type) {
-							case PrimitiveType:
-								if tp.Kind() != StringKind || tp != UntypedStringType {
-									panic(fmt.Sprintf("invalid argument: %s for built-in %s", tp.String(), fn))
-								}
-							case *MapType, *SliceType, *ArrayType, *ChanType:
-								break
-							default:
-								panic(fmt.Sprintf("invalid argument: %s for built-in %s", tp.String(), fn))
-							}
-						}
-
-						if fn == BuiltinCap {
-							if tuple, ok := argT.(*tupleType); ok {
-								if st, ok := tuple.Elts[0].(*SliceType); ok {
-									tp = st
-								}
-							}
-
-							if callExpr, ok := n.Args[0].(*CallExpr); ok {
-								if nameExpr, ok := callExpr.Func.(*NameExpr); ok && nameExpr.Name == "make" {
-									tp = evalStaticType(store, last, callExpr.Args[0])
-								}
-							}
-							switch tp.(type) {
-							case *SliceType, *ChanType, *ArrayType:
-								break
-							default:
-								panic(fmt.Sprintf("invalid argument: %s for built-in %s", tp.String(), fn))
-							}
-						}
-
-						if fn == BuiltinMake {
-							if len(n.Args) < 2 || len(n.Args) > 3 {
-								panic(fmt.Sprintf("make requires 2 or 3 arguments, got %d", len(n.Args)))
-							}
-
-							tp = evalStaticType(store, last, n.Args[0])
-							var length int
-
-							if _, ok := tp.(*SliceType); ok {
-								if arg2, ok := n.Args[1].(*ConstExpr); ok {
-									if basicLit, ok := arg2.Source.(*BasicLitExpr); ok {
-										ln, err := strconv.Atoi(basicLit.Value)
-										if err != nil {
-											panic(fmt.Sprintf("cannot convert length: %v to type int", basicLit.Value))
-										}
-										if ln < 0 {
-											panic(fmt.Sprintf("invalid argument: length (%d) must not be negative", ln))
-										}
-										length = ln
-									} else {
-										panic(fmt.Sprintf("invalid argument: index %d (constant of type int) must not be negative", arg2.V))
-									}
-								} else {
-									panic("make requires a constant integer for length")
-								}
-
-								if len(n.Args) == 3 {
-									if arg3, ok := n.Args[2].(*ConstExpr); ok {
-										if basicLit, ok := arg3.Source.(*BasicLitExpr); ok {
-											cp, err := strconv.Atoi(basicLit.Value)
-											if err != nil {
-												panic(fmt.Sprintf("cannot convert capacity: %v to type int", basicLit.Value))
-											}
-											if cp < 0 {
-												panic(fmt.Sprintf("invalid argument: capacity (%d) must not be negative", cp))
-											}
-											if cp < length {
-												panic(fmt.Sprintf("invalid argument: capacity (%d) must not be less than length (%d)", cp, length))
-											}
-										}
-									} else {
-										panic("make requires a constant integer for capacity")
-									}
-								} else {
-								}
-							}
-
-							// Validate supported types
-							switch tp.(type) {
-							case *SliceType, *MapType, *ChanType:
-								break
-							default:
-								panic(fmt.Sprintf("invalid argument: %s for built-in %s", tp.String(), fn))
-							}
-						}
-					}
-				}
 				switch cft := baseOf(ift).(type) {
 				case *FuncType:
+					assertValidBuiltinArgType(store, last, n)
 					ft = cft
 				case *NativeType:
 					ft = store.Go2GnoType(cft.Type).(*FuncType)
@@ -5605,4 +5499,157 @@ func SaveBlockNodes(store Store, fn *FileNode) {
 		}
 		return n, TRANS_CONTINUE
 	})
+}
+
+// Check for invalid arguments in builtin functions
+// len, cap, make
+const (
+	BuiltinLen  = "len"
+	BuiltinCap  = "cap"
+	BuiltinMake = "make"
+)
+
+func assertValidBuiltinArgType(store Store, last BlockNode, currExpr Expr) {
+	switch currExpr := currExpr.(type) {
+	case *ConstExpr:
+		assertValidBuiltinArgType(store, last, currExpr.Source)
+	case *NameExpr:
+		assertValidBuiltinArgType(store, last, currExpr)
+	case *CallExpr:
+		ift := evalStaticTypeOf(store, last, currExpr.Func)
+		switch baseOf(ift).(type) {
+		case *FuncType:
+			if cx, ok := currExpr.Func.(*ConstExpr); ok {
+				if fv, ok := cx.V.(*FuncValue); ok {
+					// Handle the specific built-in function
+					if fv.PkgPath == uversePkgPath {
+						at := evalStaticTypeOf(store, last, currExpr.Args[0])
+
+						// Validate based on the function name
+						switch fv.Name {
+						case BuiltinLen:
+							validateLenArg(at)
+						case BuiltinCap:
+							validateCapArg(at)
+						case BuiltinMake:
+							validateMakeArg(store, last, currExpr)
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// Validate argument for len() function
+func validateLenArg(at Type) {
+	if at == nil {
+		panic("invalid argument: nil for built-in len")
+	}
+
+	switch at := unwrapPointerType(baseOf(at)).(type) {
+	case PrimitiveType:
+		if at.Kind() != StringKind && at != UntypedStringType {
+			panic(fmt.Sprintf("invalid argument: %s for built-in %s", at.String(), BuiltinLen))
+		}
+	case *ArrayType, *SliceType, *MapType, *ChanType:
+		// Valid types for len()
+	default:
+		panic(fmt.Sprintf("invalid argument: %v for built-in len", at))
+	}
+}
+
+// Validate argument for cap() function
+func validateCapArg(at Type) {
+	if at == nil {
+		panic("invalid argument: nil for built-in cap")
+	}
+
+	switch at := unwrapPointerType(baseOf(at)).(type) {
+	case *ArrayType, *SliceType, *ChanType:
+		// Valid types for cap()
+	default:
+		panic(fmt.Sprintf("invalid argument: %v for built-in cap", at))
+	}
+}
+
+// Validate arguments for make() function
+func validateMakeArg(store Store, last BlockNode, currExpr *CallExpr) {
+	if len(currExpr.Args) < 1 || len(currExpr.Args) > 3 {
+		panic(fmt.Sprintf("invalid number of arguments for built-in make: expected 1 to 3, got %d", len(currExpr.Args)))
+	}
+
+	// Validate first argument: must be a slice, map, or channel type
+	at := evalStaticType(store, last, currExpr.Args[0])
+	validateMakeType(at)
+
+	var length int
+	var capacity int
+
+	// Validate length argument (second argument for make)
+	if len(currExpr.Args) > 1 {
+		at1 := evalStaticTypeOf(store, last, currExpr.Args[1])
+		if at1 == nil {
+			panic("invalid argument 2: nil for built-in make")
+		}
+
+		var err error
+		length, err = getIntValue(currExpr.Args[1], "length")
+		if err != nil {
+			panic(err.Error()) // Convert error to panic message
+		}
+		if length < 0 {
+			panic(fmt.Sprintf("invalid length argument for built-in %s: cannot be negative, got %d", BuiltinMake, length))
+		}
+	}
+
+	// Validate capacity argument (third argument for make)
+	if len(currExpr.Args) > 2 {
+		at2 := evalStaticTypeOf(store, last, currExpr.Args[2])
+		if at2 == nil {
+			panic("invalid argument 3: nil for built-in make")
+		}
+		var err error
+		capacity, err = getIntValue(currExpr.Args[2], "capacity")
+		if err != nil {
+			panic(err.Error()) // Convert error to panic message
+		}
+		if capacity < length {
+			panic(fmt.Sprintf("invalid capacity argument for built-in %s: capacity (%d) cannot be less than length (%d)", BuiltinMake, capacity, length))
+		}
+	}
+}
+
+// Ensures that the first argument to make() is a valid type
+func validateMakeType(tp Type) {
+	switch tp.(type) {
+	case *SliceType, *MapType, *ChanType:
+		// Valid types for make()
+	default:
+		panic(fmt.Sprintf("invalid type for built-in %s: %s (must be slice, map, or channel)", BuiltinMake, tp.String()))
+	}
+}
+
+func getIntValue(expr Expr, argName string) (int, error) {
+	switch e := expr.(type) {
+	case *ConstExpr:
+		return getIntValue(e.Source, argName)
+
+	case *BasicLitExpr:
+		num, err := strconv.Atoi(e.Value)
+		if err != nil {
+			return 0, fmt.Errorf("invalid %s argument for built-in %s: cannot convert %q to int", argName, BuiltinMake, e.Value)
+		}
+		return num, nil
+
+	case *NameExpr:
+		return 0, nil
+
+	case *CallExpr:
+		num, err := getIntValue(e.Func, argName)
+		return num, err
+
+	default:
+		return 0, fmt.Errorf("invalid %s argument for built-in %s: expected an integer, got %s", argName, BuiltinMake, expr.String())
+	}
 }

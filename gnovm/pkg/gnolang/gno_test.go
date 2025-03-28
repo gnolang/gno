@@ -626,116 +626,148 @@ func TestInvalidBuiltinArg(t *testing.T) {
 		{
 			name: "Invalid len(nil)",
 			source: `package test
-            func main() {
-                a := len(nil) // Invalid: len() does not accept nil
-                println(a)
-            }`,
+		func main() {
+		 a := len(nil) // Invalid: len() does not accept nil
+		 println(a)
+		}`,
 		},
 		{
 			name: "Invalid len(42)",
 			source: `package test
-                func main() {
-                    a := len(42) // Invalid: len() does not accept int
-                    println(a)
-                }`,
+		  func main() {
+		      a := len(42) // Invalid: len() does not accept int
+		      println(a)
+		  }`,
 		},
 		{
 			name: "Invalid len(func() {})",
 			source: `package test
-                func main() {
-                    a := len(func() {}) // Invalid: len() does not accept function types
-                    println(a)
-                }`,
+		  func main() {
+		      a := len(func() {}) // Invalid: len() does not accept function types
+		      println(a)
+		  }`,
 		},
 		// Invalid cap cases
 		{
 			name: "Invalid cap(nil)",
 			source: `package test
-        func main() {
-          a := cap(nil) // Invalid: 'nil' doesn't have a capacity
-          println(a)
-        }`,
+		func main() {
+		a := cap(nil) // Invalid: 'nil' doesn't have a capacity
+		println(a)
+		}`,
 		},
 		{
 			name: "Invalid cap(1)",
 			source: `package test
-        func main() {
-          a := cap(1) // Invalid: '1' is not a slice, array, or channel
-          println(a)
-        }`,
+		func main() {
+		a := cap(1) // Invalid: '1' is not a slice, array, or channel
+		println(a)
+		}`,
 		},
 		{
 			name: "Invalid cap(func() {})",
 			source: `package test
-        func main() {
-          a := cap(func() {}) // Invalid: Functions don't have capacity
-          println(a)
-        }`,
+		func main() {
+		a := cap(func() {}) // Invalid: Functions don't have capacity
+		println(a)
+		}`,
 		},
 		{
 			name: "Invalid cap(struct{}{})",
 			source: `package test
-        func main() {
-          a := cap(struct{}{}) // Invalid: Structs don't have capacity
-          println(a)
-        }`,
+		func main() {
+		a := cap(struct{}{}) // Invalid: Structs don't have capacity
+		println(a)
+		}`,
 		},
 		{
 			name: "Invalid cap('hello')",
 			source: `package test
-        func main() {
-          a := cap("hello") // Invalid: Strings do not have capacity in this context
-          println(a)
-        }`,
+		func main() {
+		a := cap("hello") // Invalid: Strings do not have capacity in this context
+		println(a)
+		}`,
 		},
 		{
 			name: "Invalid cap(map[string]int{})",
 			source: `package test
-        func main() {
-          a := cap(map[string]int{}) // Invalid: Maps don't have capacity
-          println(a)
-        }`,
+		func main() {
+		a := cap(map[string]int{}) // Invalid: Maps don't have capacity
+		println(a)
+		}`,
 		},
 		// Invalid make cases
 		{
 			name: "Invalid make(int)",
 			source: `package test
-        func main() {
-          a := make(int) // Invalid: 'make' expects a slice, map, or channel type
-          println(a)
-        }`,
+		func main() {
+		a := make(int) // Invalid: 'make' expects a slice, map, or channel type
+		println(a)
+		}`,
 		},
 		{
 			name: "Invalid make(1)",
 			source: `package test
-        func main() {
-          a := make(1) // Invalid: 'make' requires a valid type as its first argument
-          println(a)
-        }`,
+		func main() {
+		a := make(1) // Invalid: 'make' requires a valid type as its first argument
+		println(a)
+		}`,
 		},
 		{
 			name: "Invalid make(func() {})",
 			source: `package test
-        func main() {
-          a := make(func() {}) // Invalid: 'make' cannot create a function type
-          println(a)
-        }`,
+		func main() {
+		a := make(func() {}) // Invalid: 'make' cannot create a function type
+		println(a)
+		}`,
 		},
 		{
 			name: "Invalid make([]int, 'string')",
 			source: `package test
-        func main() {
-          a := make([]int, "string") // Invalid: The second argument must be an integer (size of slice)
-          println(a)
-        }`,
+		func main() {
+		a := make([]int, "string") // Invalid: The second argument must be an integer (size of slice)
+		println(a)
+		}`,
+		},
+		{
+			name: "Invalid make([]int, 10, 5)",
+			source: `package test
+		func main() {
+		a := make([]int, 10, 5) // Invalid: The second argument must be equal or higher then 10
+		println(a)
+		}`,
+		},
+		{
+			name: "Invalid make([]int, 10, 'string')",
+			source: `package test
+		func main() {
+		a := make([]int, 10, "5") // Invalid: The second argument must be int
+		println(a)
+		}`,
+		},
+		{
+			name: "Invalid make([]int, 10, -5)",
+			source: `package test
+		func main() {
+		a := make([]int, 10, -5) // Invalid: The capacity cannot be negative
+		println(a)
+		}`,
+		},
+		{
+			name: "Invalid make([]int, -10, 10)",
+			source: `package test
+		func main() {
+		a := make([]int, -10, 10) // Invalid: The size of slice cannot be negative
+		println(a)
+		}`,
 		},
 		{
 			name: "Invalid make([]int, -1)",
 			source: `package test
-        func main() {
-           a := make([]int, -1) // Invalid: The second argument cannot be negative for slice size
-           println(a)
-        }`,
+		func main() {
+		a := make([]int, -1) // Invalid: The second argument cannot be negative for slice size
+		println(a)
+		}`,
 		},
 	}
 
@@ -766,54 +798,139 @@ func TestValidBuiltinArg(t *testing.T) {
 		{
 			name: "Valid len([]int{1, 2, 3})",
 			source: `package test
-                func main() {
-                    a := len([]int{1, 2, 3}) // Valid: len() works with slices
-                    println(a)
-                }`,
+		func main() {
+		   a := len([]int{1, 2, 3}) // Valid: len() works with slices
+		   println(a)
+		}`,
 		},
 		{
 			name: "Valid len(\"hello\")",
 			source: `package test
-                func main() {
-                    a := len("hello") // Valid: len() works with strings
-                    println(a)
-                }`,
+		func main() {
+		    a := len("hello") // Valid: len() works with strings
+		    println(a)
+		}`,
 		},
 		{
 			name: "Valid len([3]int{1, 2, 3})",
 			source: `package test
-                func main() {
-                    a := len([3]int{1, 2, 3}) // Valid: len() works with arrays
-                    println(a)
-                }`,
+		func main() {
+		    a := len([3]int{1, 2, 3}) // Valid: len() works with arrays
+		    println(a)
+		}`,
 		},
 		// Valid cap cases
 		{
 			name: "Valid cap([]int{1, 2, 3})",
 			source: `package test
-        func main() {
-         a := cap([]int{1, 2, 3}) // Valid: cap() works with slices
-         println(a)
-        }`,
+		func main() {
+		a := cap([]int{1, 2, 3}) // Valid: cap() works with slices
+		println(a)
+		}`,
 		},
 		{
 			name: "Valid cap(make([]int, 10))",
 			source: `package test
-        func main() {
-        a := cap(make([]int, 10)) // Valid: cap() works with slices
-        println(a)
-        }`,
+		func main() {
+		a := cap(make([]int, 10)) // Valid: cap() works with slices
+		println(a)
+		}`,
+		},
+		{
+			name: "Valid cap(make([]int, 10, 10))",
+			source: `package test
+		func main() {
+		a := cap(make([]int, 10, 10)) // Valid: cap() works with slices
+		println(a)
+		}`,
 		},
 		// Valid make cases
 		{
 			name: "Valid make([]int, 10)",
 			source: `package test
-                func main() {
-                   a := make([]int, 10) // Valid: make() works with slices
-                    for _, r := range a {
-                   println(a)
+		    func main() {
+		       a := make([]int, 10) // Valid: make() works with slices
+		        for _, r := range a {
+		       println(r)
+		}
+		    }`,
+		},
+		{
+			name: "Valid make([]int, b)",
+			source: `package test
+		     func main() {
+				  b := 10
+		        a := make([]int, b) // Valid: make() works with slices
+		         for _, r := range a {
+		        println(r)
+		}
+		     }`,
+		},
+		{
+			name: "Valid make([]int, b, c)",
+			source: `package test
+		     func main() {
+				  c := 10
+				  b := 10
+		        a := make([]int, b, c) // Valid: make() works with slices
+		         for _, r := range a {
+		        println(r)
+		}
+		     }`,
+		},
+		{
+			name: "Valid make([]int, max(len(s), 5), capacity)",
+			source: `package test
+        func main() {
+			s := []int{1, 2, 3}
+			capacity := (len(s) * 3) / 2  // Ensures this evaluates to an integer
+			a := make([]int, len(s), capacity) // Valid case
+			println(len(a), cap(a)) 
+		}`,
+		},
+
+		{
+			name: "Valid make([]int, max(b, 5), c)",
+			source: `package test
+        func main() {
+			s := []int{1, 2, 3}
+			capacity := (len(s) * 3) / 2  // Ensure this evaluates to a valid int
+			a := make([]int, len(s), capacity) // Valid case
+			println(len(a), cap(a))  // Should print: 3 <valid computed cap>
+		}`,
+		},
+		{
+			name: "Valid make([]int, max(b, 5), c)",
+			source: `package test
+        func max(x, y int) int {
+            if x > y {
+                return x
+            }
+            return y
         }
-                }`,
+
+        func main() {
+            b := 3
+            c := 10
+            a := make([]int, max(b, 5), c) // Uses max function
+            for _, r := range a {
+                println(r)
+            }
+        }`,
+		},
+
+		{
+			name: "Valid make(map[string]*T)",
+			source: `package test
+
+func main() {
+	type T struct {
+		Name string
+	}
+
+	var m = make(map[string]*T)
+	println(m)
+}`,
 		},
 	}
 
