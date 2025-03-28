@@ -64,7 +64,10 @@ func (fk *FileKey) save() error {
 	}
 
 	// Marshal the FileKey to JSON bytes using amino.
-	jsonBytes := amino.MustMarshalJSONIndent(fk, "", "  ")
+	jsonBytes, err := amino.MarshalJSONIndent(fk, "", "  ")
+	if err != nil {
+		return fmt.Errorf("unable to marshal FileKey to JSON: %w", err)
+	}
 
 	// Write the JSON bytes to the file.
 	if err := osm.WriteFileAtomic(fk.filePath, jsonBytes, 0o600); err != nil {

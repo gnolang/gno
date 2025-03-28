@@ -88,7 +88,10 @@ func (akf *AuthKeysFile) Save() error {
 	}
 
 	// Marshal the AuthKeysFile to JSON bytes using amino.
-	jsonBytes := amino.MustMarshalJSONIndent(akf, "", "  ")
+	jsonBytes, err := amino.MarshalJSONIndent(akf, "", "  ")
+	if err != nil {
+		return fmt.Errorf("unable to marshal AuthKeysFile to JSON: %w", err)
+	}
 
 	// Ensure the parent directory exists.
 	parentDir := filepath.Dir(akf.filePath)

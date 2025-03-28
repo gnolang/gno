@@ -157,10 +157,6 @@ func MarshalJSONIndent(o interface{}, prefix, indent string) ([]byte, error) {
 	return gcdc.MarshalJSONIndent(o, prefix, indent)
 }
 
-func MustMarshalJSONIndent(o interface{}, prefix, indent string) []byte {
-	return gcdc.MustMarshalJSONIndent(o, prefix, indent)
-}
-
 // XXX unstable API.
 func GetTypeURL(o interface{}) string {
 	return gcdc.GetTypeURL(o)
@@ -887,16 +883,6 @@ func (cdc *Codec) MarshalJSONIndent(o interface{}, prefix, indent string) ([]byt
 		return nil, err
 	}
 	return copyBytes(out.Bytes()), nil
-}
-
-// MustMarshalJSONIndent panics if an error occurs. Besides that behaves exactly like
-// MarshalJSONIndent.
-func (cdc *Codec) MustMarshalJSONIndent(o interface{}, prefix, indent string) []byte {
-	bz, err := cdc.MarshalJSONIndent(o, prefix, indent)
-	if err != nil {
-		panic(err)
-	}
-	return bz
 }
 
 // ----------------------------------------

@@ -88,7 +88,10 @@ func (nk *NodeKey) save(filePath string) error {
 	}
 
 	// Marshal the NodeKey to JSON bytes using amino.
-	jsonBytes := amino.MustMarshalJSONIndent(nk, "", "  ")
+	jsonBytes, err := amino.MarshalJSONIndent(nk, "", "  ")
+	if err != nil {
+		return fmt.Errorf("unable to marshal NodeKey to JSON: %w", err)
+	}
 
 	// Write the JSON bytes to the file.
 	if err := osm.WriteFileAtomic(filePath, jsonBytes, 0o600); err != nil {

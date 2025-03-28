@@ -95,7 +95,10 @@ func printValidatorInfo(signer types.Signer, logger *slog.Logger) error {
 
 	// Marshal the genesis validator info to JSON using amino.
 	const indent = "  "
-	genesisValidatorInfo := amino.MustMarshalJSONIndent(genesisValidator, "", indent)
+	genesisValidatorInfo, err := amino.MarshalJSONIndent(genesisValidator, "", indent)
+	if err != nil {
+		return fmt.Errorf("unable to marshal genesis validator info to JSON: %w", err)
+	}
 
 	// Print the validator info in genesis and bech32 formats.
 	logger.Info(fmt.Sprintf("Validator info:\n%s\n%s\n%s\n%s%s%s\n%s%s%s",

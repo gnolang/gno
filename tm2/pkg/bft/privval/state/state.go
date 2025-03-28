@@ -261,7 +261,10 @@ func (fs *FileState) save() error {
 	}
 
 	// Marshal the FileState to JSON bytes using amino.
-	jsonBytes := amino.MustMarshalJSONIndent(fs, "", "  ")
+	jsonBytes, err := amino.MarshalJSONIndent(fs, "", "  ")
+	if err != nil {
+		return fmt.Errorf("unable to marshal FileState to JSON: %w", err)
+	}
 
 	// Write the JSON bytes to the file.
 	if err := osm.WriteFileAtomic(fs.filePath, jsonBytes, 0o600); err != nil {
