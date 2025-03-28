@@ -9,7 +9,7 @@ import (
 func (m *Machine) doOpPrecall() {
 	cx := m.PopExpr().(*CallExpr)
 	v := m.PeekValue(1 + cx.NumArgs).V
-	if debug {
+	if zealous {
 		if v == nil {
 			// This may happen due to an undefined uverse or
 			// closure value (which isn't supposed to happen but
@@ -33,7 +33,7 @@ func (m *Machine) doOpPrecall() {
 		}
 
 		m.PushOp(OpConvert)
-		if debug {
+		if zealous {
 			if len(cx.Args) != 1 {
 				panic("conversion expressions only take 1 argument")
 			}
@@ -117,7 +117,7 @@ func (m *Machine) doOpCall() {
 	}
 	// Assign receiver as first parameter, if any.
 	if !fr.Receiver.IsUndefined() {
-		if debug {
+		if zealous {
 			pt := pts[0].Type
 			rt := fr.Receiver.T
 			if pt.TypeID() != rt.TypeID() {
@@ -140,7 +140,7 @@ func (m *Machine) doOpCall() {
 		if fr.IsVarg {
 			// Do nothing, last arg type is already slice
 			// type called with form fncall(?, vargs...)
-			if debug {
+			if zealous {
 				if nvar != 1 {
 					panic("should not happen")
 				}
@@ -159,7 +159,7 @@ func (m *Machine) doOpCall() {
 	pvs := m.PopValues(numParams - isMethod)
 	for i := isMethod; i < numParams; i++ {
 		pv := pvs[i-isMethod]
-		if debug {
+		if zealous {
 			// This is how run-time untyped const
 			// conversions would work, but we
 			// expect the preprocessor to convert
@@ -334,7 +334,7 @@ func (m *Machine) doOpReturnCallDefers() {
 			numArgs := len(dfr.Args)
 			nvar := numArgs - (numParams - 1)
 			if dfr.Source.Call.Varg {
-				if debug {
+				if zealous {
 					if nvar != 1 {
 						panic("should not happen")
 					}
@@ -380,7 +380,7 @@ func (m *Machine) doOpDefer() {
 			PanicScope: m.PanicScope,
 		})
 	case *BoundMethodValue:
-		if debug {
+		if zealous {
 			pt := cv.Func.GetType(m.Store).Params[0]
 			rt := cv.Receiver.T
 			if pt.TypeID() != rt.TypeID() {

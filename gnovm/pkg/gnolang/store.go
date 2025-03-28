@@ -353,7 +353,7 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	ds.consumeGas(gas, GasGetPackageRealmDesc)
 	amino.MustUnmarshal(bz, &rlm)
 	size = len(bz)
-	if debug {
+	if zealous {
 		if rlm.ID != oid.PkgID {
 			panic(fmt.Sprintf("unexpected realm id: expected %v but got %v",
 				oid.PkgID, rlm.ID))
@@ -410,7 +410,7 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 	// check baseStore.
 	if ds.baseStore != nil {
 		if oo := ds.loadObjectSafe(oid); oo != nil {
-			if debug {
+			if zealous {
 				if _, ok := oo.(*PackageValue); ok {
 					panic("packages must be fetched with GetPackage()")
 				}
@@ -448,7 +448,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		gas := overflow.Mul64p(ds.gasConfig.GasGetObject, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasGetObjectDesc)
 		amino.MustUnmarshal(bz, &oo)
-		if debug {
+		if zealous {
 			if oo.GetObjectID() != oid {
 				panic(fmt.Sprintf("unexpected object id: expected %v but got %v",
 					oid, oo.GetObjectID()))
@@ -532,7 +532,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 		size = len(hashbz)
 	}
 	// save object to cache.
-	if debug {
+	if zealous {
 		if oid.IsZero() {
 			panic("object id cannot be zero")
 		}
@@ -623,7 +623,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 			ds.consumeGas(gas, GasGetTypeDesc)
 			var tt Type
 			amino.MustUnmarshal(bz, &tt)
-			if debug {
+			if zealous {
 				if tt.TypeID() != tid {
 					panic(fmt.Sprintf("unexpected type id: expected %v but got %v",
 						tid, tt.TypeID()))
@@ -722,7 +722,7 @@ func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 			var bn BlockNode
 			amino.MustUnmarshal(bz, &bn)
 			size = len(bz)
-			if debug {
+			if zealous {
 				if bn.GetLocation() != loc {
 					panic(fmt.Sprintf("unexpected node location: expected %v but got %v",
 						loc, bn.GetLocation()))
@@ -923,11 +923,7 @@ func (ds *defaultStore) GetNative(pkgPath string, name Name) func(m *Machine) {
 
 // Set to nil to disable.
 func (ds *defaultStore) SetLogStoreOps(buf io.Writer) {
-	if enabled {
-		ds.opslog = buf
-	} else {
-		ds.opslog = nil
-	}
+	ds.opslog = buf
 }
 
 func (ds *defaultStore) LogSwitchRealm(rlmpath string) {

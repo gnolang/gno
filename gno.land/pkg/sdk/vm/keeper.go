@@ -18,6 +18,7 @@ import (
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/gnodebug"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -119,9 +120,10 @@ func (vm *VMKeeper) Initialize(
 				Store:   vm.gnoStore,
 			})
 		defer m2.Release()
-		gno.DisableDebug()
+		saved := gnodebug.Debug.Get("log_machine")
+		gnodebug.Debug.Set("log_machine", "")
 		m2.PreprocessAllFilesAndSaveBlockNodes()
-		gno.EnableDebug()
+		gnodebug.Debug.Set("log_machine", saved)
 
 		logger.Debug("GnoVM packages preprocessed",
 			"elapsed", time.Since(start))

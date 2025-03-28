@@ -79,7 +79,7 @@ func go2GnoType(rt reflect.Type) Type {
 // ConvertTo).  Panics on unexported/private fields. Some types that cannot be
 // converted remain native. Unlike go2GnoValue(), rv must be valid.
 func Go2GnoValue(alloc *Allocator, store Store, rv reflect.Value) (tv TypedValue) {
-	if debug {
+	if zealous {
 		if !rv.IsValid() {
 			panic("go2GnoValue2() requires valid rv")
 		}
@@ -223,7 +223,7 @@ func gno2GoType(t Type) reflect.Type {
 // function available for eager fetching of ref values.
 func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 	if tv.IsUndefined() {
-		if debug {
+		if zealous {
 			if !rv.IsValid() {
 				panic("unexpected undefined gno value")
 			}
@@ -237,7 +237,7 @@ func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		rv = reflect.New(rt).Elem()
 		ret = rv
 	} else if rv.Kind() == reflect.Interface {
-		if debug {
+		if zealous {
 			if !rv.IsZero() {
 				panic("should not happen")
 			}
@@ -305,7 +305,7 @@ func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 			rv.Set(rv2.Addr())
 		}
 	case *ArrayType:
-		if debug {
+		if zealous {
 			if tv.V == nil {
 				// all arguments and recursively fetched arrays
 				// should have been initialized if not already so.
