@@ -387,7 +387,7 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
 // starts with `Test`.
 func (m *Machine) TestFunc(t *testing.T, tv TypedValue) {
 	if !(tv.T.Kind() == FuncKind &&
-		strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test")) {
+			strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test")) {
 		return // not a test function.
 	}
 	// XXX ensure correct func type.
@@ -1996,10 +1996,12 @@ func (m *Machine) lastCallFrame(n int, mustBeFound bool) *Frame {
 // pops the last non-call (loop) frames
 // and returns the last call frame (which is left on stack).
 func (m *Machine) PopUntilLastCallFrame() *Frame {
+	fmt.Println("---PopUntilLastCallFrame, len(m.Frames): ", len(m.Frames))
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := m.Frames[i]
 		if fr.IsCall() {
 			m.Frames = m.Frames[:i+1]
+			fmt.Println("---return fr: ", fr)
 			return fr
 		}
 
@@ -2106,9 +2108,17 @@ func (m *Machine) CheckEmpty() error {
 }
 
 func (m *Machine) Panic(ex TypedValue) {
+	fmt.Println("---m Panic, ex: ", ex)
 	// Skip the last frame, as it's the one of the panic() (or native)
 	// function call.
-	panicFrames := slices.Clone(m.Frames[:len(m.Frames)-1])
+	//panicFrames := slices.Clone(m.Frames[:len(m.Frames)-1])
+	panicFrames := slices.Clone(m.Frames[:])
+	for i, frame := range m.Frames {
+		fmt.Printf("frames[%d] is : %v\n", i, frame)
+	}
+
+	fmt.Println("---panicFrames: ", panicFrames)
+
 	m.Exceptions = append(
 		m.Exceptions,
 		Exception{
@@ -2117,6 +2127,7 @@ func (m *Machine) Panic(ex TypedValue) {
 			Stacktrace: m.Stacktrace(),
 		},
 	)
+	fmt.Println("---m.Exceptions: ", m.Exceptions)
 
 	m.PopUntilLastCallFrame()
 	m.PushOp(OpPanic2)

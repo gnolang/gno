@@ -256,22 +256,30 @@ func (m *Machine) doOpReturnToBlock() {
 }
 
 func (m *Machine) doOpReturnCallDefers() {
+	fmt.Println("doOpReturnCallDefers")
 	cfr := m.MustLastCallFrame(1)
 	dfr, ok := cfr.PopDefer()
+	fmt.Println("---cfr: ", cfr)
+	fmt.Println("---dfr: ", dfr)
 	if !ok {
 		// Done with defers.
-		m.ForcePopOp()
+		m.ForcePopOp() // no more defer
 		if len(m.Exceptions) > 0 {
 			exceptionFrames := m.Exceptions[len(m.Exceptions)-1].Frames
+			fmt.Println("exceptionFrames: ", exceptionFrames)
 			if slices.Contains(exceptionFrames, cfr) {
 				// In a state of panic (not return).
 				// Pop the containing function frame.
-				m.PopFrame()
+				fmt.Println("---pop frame...")
+				m.PopFrame() // pop current frame cuz it's finished at panic.
+				fmt.Println("---after pop frame: ", m.Frames)
 			}
 		}
+		fmt.Println("---done with defers...")
 		return
 	}
 
+	fmt.Println("---exec defers...")
 	// Push onto value stack: function, receiver, arguments.
 	if dfr.Func != nil {
 		fv := dfr.Func
@@ -354,6 +362,7 @@ func (m *Machine) doOpDefer() {
 }
 
 func (m *Machine) doOpPanic1() {
+	fmt.Println("doOpPanic1")
 	// Pop exception
 	var ex TypedValue = m.PopValue().Copy(m.Alloc)
 	// Panic
@@ -361,6 +370,11 @@ func (m *Machine) doOpPanic1() {
 }
 
 func (m *Machine) doOpPanic2() {
+	fmt.Println("---doOpPanic2")
+	defer fmt.Println("---done doOpPanic2...")
+
+	fmt.Println("---m.Exceptions: ", m.Exceptions)
+
 	if len(m.Exceptions) == 0 {
 		// Recovered from panic
 		m.PushOp(OpReturnFromBlock)
@@ -368,6 +382,7 @@ func (m *Machine) doOpPanic2() {
 	} else {
 		// Keep panicking
 		last := m.PopUntilLastCallFrame()
+		fmt.Println("---last: ", last)
 		if last == nil {
 			// Build exception string just as go, separated by \n\t.
 			var bld strings.Builder
@@ -378,10 +393,12 @@ func (m *Machine) doOpPanic2() {
 				bld.WriteString("panic: ")
 				bld.WriteString(ex.Sprint(m))
 			}
+			fmt.Println("---unhandled panic: ", bld.String())
 			panic(UnhandledPanicError{
 				Descriptor: bld.String(),
 			})
 		}
+		fmt.Println("---next panic2.............")
 		m.PushOp(OpPanic2)
 		m.PushOp(OpReturnCallDefers) // XXX rename, not return?
 	}

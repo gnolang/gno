@@ -978,14 +978,24 @@ func UverseNode() *PackageNode {
 			"exception", AnyT(),
 		),
 		func(m *Machine) {
+			fmt.Println("---recovering...")
+			fmt.Println("---m.Exceptions: ", m.Exceptions)
+			fmt.Println("---m.Frames: ", m.Frames)
+
 			if len(m.Exceptions) == 0 {
 				m.PushValue(TypedValue{})
 				return
 			}
 
 			exception := &m.Exceptions[len(m.Exceptions)-1]
+			fmt.Println("---exception: ", exception)
 
+			fr := m.LastCallFrame(3)
+			fmt.Println("---fr: ", fr)
+
+			// contains? or the third one? where the panic happens?
 			if frame := m.LastCallFrame(3); !slices.Contains(exception.Frames, frame) {
+				fmt.Println("---not contains frame, return")
 				m.PushValue(TypedValue{})
 				return
 			}
