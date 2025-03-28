@@ -76,7 +76,6 @@ func (r *dappRecord) Fields() (datasource.Fields, error) {
 }
 
 func (r *dappRecord) Tags() []string {
-	println(r.dapp)
 	return r.dapp.Categories
 }
 
