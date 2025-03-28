@@ -296,3 +296,6 @@ func TestClearSessionFlag(t *testing.T) {
 	session.clearFlag(flagSessionManagerSession)
 	assert.False(t, session.hasFlag(flagSessionManagerSession), "Expected session manager flag to be cleared")
 }
+
+// XXX: test session coin restriction
+// XXX: test session validity

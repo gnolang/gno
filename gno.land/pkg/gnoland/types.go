@@ -18,41 +18,49 @@ import (
 )
 
 var (
-	ErrBalanceEmptyAddress = errors.New("balance address is empty")
-	ErrBalanceEmptyAmount  = errors.New("balance amount is empty")
-)
-
-const (
-	// MaxSessionsPerAccount is the maximum number of sessions allowed per account
-	MaxSessionsPerAccount = 64
+	ErrBalanceEmptyAddress  = errors.New("balance address is empty")
+	ErrBalanceEmptyAmount   = errors.New("balance amount is empty")
+	ErrSessionAlreadyExists = errors.New("session already exists")
+	ErrSessionNotFound      = errors.New("session not found")
+	ErrSessionInvalid       = errors.New("session is invalid")
 )
 
 // Account flags
 const (
 	// XXX rename these to flagXyz.
 
-	// flagUnrestrictedAccount allows flagUnrestricted transfers.
-	flagUnrestrictedAccount BitSet = 1 << iota
+	// accountFlagUnrestricted allows flagUnrestricted transfers.
+	accountFlagUnrestricted BitSet = 1 << iota
 
-	// TODO: flagValidatorAccount marks an account as validator.
-	flagValidatorAccount
+	// TODO: accountFlagValidator marks an account as validator.
+	accountFlagValidator // XXX: consider flagValidatorSession instead of flagValidatorAccount
 
-	// TODO: flagRealmAccount marks an account as realm.
-	flagRealmAccount
+	// TODO: accountFlagRealm marks an account as realm.
+	accountFlagRealm
 )
 
 // validAccountFlags defines the set of all valid flags for accounts
-var validAccountFlags = flagUnrestrictedAccount | flagValidatorAccount | flagRealmAccount
+var validAccountFlags = accountFlagUnrestricted | accountFlagValidator | accountFlagRealm
 
 // Session flags
 const (
-	flagMasterSession         BitSet = 1 << iota // Master session has all permissions and cannot be revoked
-	flagSessionManagerSession                    // Replaces CanManageOtherSessions
-	flagPackageManagerSession                    // Replaces CanManagePackages
+	// sessionFlagMaster is a flag indicating that the session is a master session
+	sessionFlagMaster BitSet = 1 << iota
+
+	// sessionFlagValidationOnly is a flag limiting the session to validator permissions
+	sessionFlagValidationOnly
+
+	// sessionFlagCanManageSessions is a flag that allows the session to manage other sessions
+	sessionFlagCanManageSessions // Can manage sessions
 )
 
 // validSessionFlags defines the set of all valid flags for sessions
-var validSessionFlags = flagMasterSession | flagSessionManagerSession | flagPackageManagerSession
+var validSessionFlags = sessionFlagMaster | sessionFlagValidationOnly | sessionFlagCanManageSessions
+
+const (
+	// MaxSessionsPerAccount is the maximum number of sessions allowed per account
+	MaxSessionsPerAccount = 64
+)
 
 // bitSet represents a set of flags stored in a 64-bit unsigned integer.
 // Each bit in the BitSet corresponds to a specific flag.

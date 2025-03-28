@@ -5,7 +5,6 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/sdk"
 
 	_ "github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	_ "github.com/gnolang/gno/tm2/pkg/crypto/mock"
@@ -74,8 +73,9 @@ type Session interface {
 	// Master session status
 	IsMaster() bool
 
-	// IsValid checks if the session is valid (not expired, etc)
-	IsValid(ctx sdk.Context) bool
+	// XXX: IsValid checks if the session is valid (not expired, etc)
+	//      sdk.Context is not available (import cycle)
+	// IsValid(ctx sdk.Context) bool
 
 	String() string
 }
