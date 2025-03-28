@@ -15,7 +15,7 @@ func (m *Machine) doOpValueDecl() {
 	if s.Values != nil {
 		rvs = m.PopValues(len(s.NameExprs))
 	}
-	for i := 0; i < len(s.NameExprs); i++ {
+	for i := range s.NameExprs {
 		var tv TypedValue
 		if rvs == nil {
 			// NOTE: Go/Gno wart.
