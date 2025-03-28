@@ -295,7 +295,7 @@
   }
 
   .filter-list label:has(input:checked)::after {
-    @apply absolute content-[''] -bottom-1.5 left-0 w-full h-0.5 bg-gray-600;
+    @apply absolute content-[''] -bottom-1.5 left-0 w-full h-0.5 bg-gray-600 rounded-full;
   }
 
   /* toc */
