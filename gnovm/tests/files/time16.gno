@@ -4,9 +4,11 @@ import (
 	"time"
 )
 
+var t time.Time
+
 func main() {
-	println(time.Now())
+	println(t.IsDST())
 }
 
 // Output:
-// 2009-02-13 23:31:30 +0000 UTC
+// false
