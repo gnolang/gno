@@ -36,11 +36,21 @@ import (
 
 var _ goldmark.Extender = (*gnoExtension)(nil)
 
-type gnoExtension struct{}
+type gnoExtension struct {
+	domain string
+	path   string
+}
 
-var GnoExtension = &gnoExtension{}
+// NewGnoExtension creates a new GnoExtension instance
+func NewGnoExtension(domain, path string) goldmark.Extender {
+	return &gnoExtension{
+		domain: domain,
+		path:   path,
+	}
+}
 
 // Extend adds the Gno extension to the provided Goldmark markdown processor.
 func (e *gnoExtension) Extend(m goldmark.Markdown) {
 	Columns.Extend(m)
+	Links.Extend(m, e.domain, e.path)
 }
