@@ -26,8 +26,8 @@ func TestBenchStoreSet(t *testing.T) {
 	pv := addPackage(gstore, storagePkgDir, storagePkgPath)
 	benchStoreSet(bstore, pv)
 	// verify the post content from all three boards
-	for i := 0; i < 3; i++ {
-		for j := 0; j < rounds; j++ {
+	for range 3 {
+		for range rounds {
 			cx := gno.Call("GetPost", gno.X(0), gno.X(0))
 			res := callFunc(gstore, pv, cx)
 			parts := strings.Split(res[0].V.String(), ",")

@@ -68,7 +68,7 @@ func NewKVStoreApplication() *KVStoreApplication {
 func (app *KVStoreApplication) Info(req abci.RequestInfo) (resInfo abci.ResponseInfo) {
 	return abci.ResponseInfo{
 		ResponseBase: abci.ResponseBase{
-			Data: []byte(fmt.Sprintf("{\"size\":%v}", app.state.Size)),
+			Data: fmt.Appendf(nil, "{\"size\":%v}", app.state.Size),
 		},
 		ABCIVersion: abciver.Version,
 		AppVersion:  AppVersion,
