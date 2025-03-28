@@ -31,7 +31,7 @@ const (
 const (
 	// XXX rename these to flagXyz.
 
-	// flagUnrestricted allows flagUnrestricted transfers.
+	// flagUnrestrictedAccount allows flagUnrestricted transfers.
 	flagUnrestrictedAccount BitSet = 1 << iota
 
 	// TODO: flagValidatorAccount marks an account as validator.
