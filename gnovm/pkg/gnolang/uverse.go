@@ -731,6 +731,10 @@ func makeUverseNode() {
 			"exception", AnyT(),
 		),
 		func(m *Machine) {
+			fmt.Println("---recovering...")
+			fmt.Println("---m.Exceptions: ", m.Exceptions)
+			fmt.Println("---m.Frames: ", m.Frames)
+
 			exception := m.Recover()
 			if exception == nil {
 				m.PushValue(TypedValue{})

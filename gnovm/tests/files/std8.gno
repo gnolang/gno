@@ -35,4 +35,4 @@ func main() {
 //     main/files/std8.gno:21
 
 // Error:
-// frame not found
+// panic: frame not found

@@ -28,6 +28,6 @@ func f() {
 //     main/files/panic0b.gno:4
 
 // Error:
-// first
-// 	second
-// 	third
+// panic: first
+// 	panic: second
+// 	panic: third

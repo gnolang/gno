@@ -28,4 +28,4 @@ func main() {
 //     main/files/panic1.gno:22
 
 // Error:
-// here
+// panic: here

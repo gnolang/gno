@@ -17,4 +17,4 @@ func main() {
 //     main/files/typeassert2a.gno:10
 
 // Error:
-// interface conversion: interface is nil, not main.A
+// panic: interface conversion: interface is nil, not main.A

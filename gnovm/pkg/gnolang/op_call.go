@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 )
 
@@ -188,11 +189,6 @@ func (m *Machine) doOpCallNativeBody() {
 	m.LastFrame().Func.nativeBody(m)
 }
 
-func (m *Machine) doOpCallDeferNativeBody() {
-	fv := m.PopValue().V.(*FuncValue)
-	fv.nativeBody(m)
-}
-
 // Assumes that result values are pushed onto the Values stack.
 func (m *Machine) doOpReturn() {
 	cfr := m.PopUntilLastCallFrame()
@@ -275,88 +271,52 @@ func (m *Machine) doOpReturnToBlock() {
 }
 
 func (m *Machine) doOpReturnCallDefers() {
+	fmt.Println("doOpReturnCallDefers")
 	cfr := m.MustLastCallFrame(1)
 	dfr, ok := cfr.PopDefer()
+	fmt.Println("---cfr: ", cfr)
+	fmt.Println("---dfr: ", dfr)
 	if !ok {
 		// Done with defers.
-		m.DeferPanicScope = 0
-		m.ForcePopOp()
+		m.ForcePopOp() // no more defer
 		if len(m.Exceptions) > 0 {
-			// In a state of panic (not return).
-			// Pop the containing function frame.
-			m.PopFrame()
+			exceptionFrames := m.Exceptions[len(m.Exceptions)-1].Frames
+			fmt.Println("exceptionFrames: ", exceptionFrames)
+			if slices.Contains(exceptionFrames, cfr) {
+				// In a state of panic (not return).
+				// Pop the containing function frame.
+				fmt.Println("---pop frame...")
+				m.PopFrame() // pop current frame cuz it's finished at panic.
+				fmt.Println("---after pop frame: ", m.Frames)
+			}
 		}
+		fmt.Println("---done with defers...")
 		return
 	}
 
-	m.DeferPanicScope = dfr.PanicScope
-
-	// Call last deferred call.
-	// NOTE: the following logic is largely duplicated in doOpCall().
-	// Convert if variadic argument.
+	fmt.Println("---exec defers...")
+	// Push onto value stack: function, receiver, arguments.
 	if dfr.Func != nil {
 		fv := dfr.Func
 		ft := fv.GetType(m.Store)
-		pts := ft.Params
-		numParams := len(ft.Params)
-		// Create new block scope for defer.
-		clo := dfr.Func.GetClosure(m.Store)
-		b := m.Alloc.NewBlock(fv.GetSource(m.Store), clo)
-		// copy values from captures
-		if len(fv.Captures) != 0 {
-			if len(fv.Captures) > len(b.Values) {
-				panic("should not happen, length of captured variables must not exceed the number of values")
-			}
-			for i := range fv.Captures {
-				b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
-			}
-		}
-		m.PushBlock(b)
-		if fv.nativeBody == nil {
-			fbody := fv.GetBodyFromSource(m.Store)
-			// Exec body.
-			b.bodyStmt = bodyStmt{
-				Body:          fbody,
-				BodyLen:       len(fbody),
-				NextBodyIndex: -2,
-			}
-			m.PushOp(OpBody)
-			m.PushStmt(b.GetBodyStmt())
-		} else {
-			// Call native function.
-			m.PushValue(TypedValue{
-				T: ft,
-				V: fv,
-			})
-			m.PushOp(OpCallDeferNativeBody)
-		}
-		if ft.HasVarg() {
-			numArgs := len(dfr.Args)
-			nvar := numArgs - (numParams - 1)
-			if dfr.Source.Call.Varg {
-				if debug {
-					if nvar != 1 {
-						panic("should not happen")
-					}
-				}
-				// Do nothing, last arg type is already slice type
-				// called with form fncall(?, vargs...)
-			} else {
-				// Convert last nvar to slice.
-				vart := pts[len(pts)-1].Type.(*SliceType)
-				vargs := make([]TypedValue, nvar)
-				copy(vargs, dfr.Args[numArgs-nvar:numArgs])
-				varg := m.Alloc.NewSliceFromList(vargs)
-				dfr.Args = dfr.Args[:numArgs-nvar]
-				dfr.Args = append(dfr.Args, TypedValue{
-					T: vart,
-					V: varg,
-				})
-			}
-		}
-		copy(b.Values, dfr.Args)
+		m.PushValue(TypedValue{
+			T: ft,
+			V: fv,
+		})
 	} else {
-		panic("should not happen")
+		panic("unexpected Defer in stack with nil Func and GoFunc")
+	}
+	if dfr.Receiver.T != nil {
+		m.PushValue(dfr.Receiver)
+	}
+	for _, arg := range dfr.Args {
+		m.PushValue(arg)
+	}
+
+	// Push op and frame.
+	if dfr.Func != nil {
+		m.PushFrameCall(&dfr.Source.Call, dfr.Func, dfr.Receiver)
+		m.PushOp(OpCall)
 	}
 }
 
@@ -373,11 +333,10 @@ func (m *Machine) doOpDefer() {
 	switch cv := ftv.V.(type) {
 	case *FuncValue:
 		cfr.PushDefer(Defer{
-			Func:       cv,
-			Args:       args,
-			Source:     ds,
-			Parent:     lb,
-			PanicScope: m.PanicScope,
+			Func:   cv,
+			Args:   args,
+			Source: ds,
+			Parent: lb,
 		})
 	case *BoundMethodValue:
 		if debug {
@@ -390,15 +349,12 @@ func (m *Machine) doOpDefer() {
 					rt.String()))
 			}
 		}
-		args2 := make([]TypedValue, len(args)+1)
-		args2[0] = cv.Receiver
-		copy(args2[1:], args)
 		cfr.PushDefer(Defer{
-			Func:       cv.Func,
-			Args:       args2,
-			Source:     ds,
-			Parent:     lb,
-			PanicScope: m.PanicScope,
+			Func:     cv.Func,
+			Args:     args,
+			Receiver: cv.Receiver,
+			Source:   ds,
+			Parent:   lb,
 		})
 	default:
 		panic("should not happen")
@@ -406,6 +362,7 @@ func (m *Machine) doOpDefer() {
 }
 
 func (m *Machine) doOpPanic1() {
+	fmt.Println("doOpPanic1")
 	// Pop exception
 	var ex TypedValue = m.PopValue().Copy(m.Alloc)
 	// Panic
@@ -413,24 +370,35 @@ func (m *Machine) doOpPanic1() {
 }
 
 func (m *Machine) doOpPanic2() {
+	fmt.Println("---doOpPanic2")
+	defer fmt.Println("---done doOpPanic2...")
+
+	fmt.Println("---m.Exceptions: ", m.Exceptions)
+
 	if len(m.Exceptions) == 0 {
 		// Recovered from panic
 		m.PushOp(OpReturnFromBlock)
 		m.PushOp(OpReturnCallDefers)
-		m.PanicScope = 0
 	} else {
 		// Keep panicking
 		last := m.PopUntilLastCallFrame()
+		fmt.Println("---last: ", last)
 		if last == nil {
 			// Build exception string just as go, separated by \n\t.
-			exs := make([]string, len(m.Exceptions))
+			var bld strings.Builder
 			for i, ex := range m.Exceptions {
-				exs[i] = ex.Sprint(m)
+				if i > 0 {
+					bld.WriteString("\n\t")
+				}
+				bld.WriteString("panic: ")
+				bld.WriteString(ex.Sprint(m))
 			}
+			fmt.Println("---unhandled panic: ", bld.String())
 			panic(UnhandledPanicError{
-				Descriptor: strings.Join(exs, "\n\t"),
+				Descriptor: bld.String(),
 			})
 		}
+		fmt.Println("---next panic2.............")
 		m.PushOp(OpPanic2)
 		m.PushOp(OpReturnCallDefers) // XXX rename, not return?
 	}

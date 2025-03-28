@@ -22,4 +22,4 @@ func main() {
 //     main/files/typeassert9.gno:16
 
 // Error:
-// interface conversion: interface is nil, not main.Writer
+// panic: interface conversion: interface is nil, not main.Writer

@@ -28,4 +28,4 @@ func main() {
 //     main/files/recover8.gno:20
 
 // Error:
-// do something panic
+// panic: do something panic

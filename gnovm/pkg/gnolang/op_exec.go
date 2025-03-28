@@ -431,6 +431,7 @@ EXEC_SWITCH:
 	if debug {
 		debug.Printf("EXEC: %v\n", s)
 	}
+	fmt.Printf("EXEC: %v\n", s)
 	switch cs := s.(type) {
 	case *AssignStmt:
 		switch cs.Op {
@@ -551,6 +552,7 @@ EXEC_SWITCH:
 			// ".res%d" from the preprocessor, so they are
 			// present in the func block.
 			m.PushOp(OpReturnFromBlock)
+			fmt.Println("---op_exec, return call defers, sticky...")
 			m.PushOp(OpReturnCallDefers) // sticky
 			if cs.Results == nil {
 				// results already in block, if any.
@@ -572,6 +574,7 @@ EXEC_SWITCH:
 			m.PushOp(OpEval)
 		}
 	case *PanicStmt:
+		fmt.Println("---panic statement, cs.Exception ", cs.Exception)
 		m.PopStmt()
 		m.PushOp(OpPanic1)
 		// evaluate exception
