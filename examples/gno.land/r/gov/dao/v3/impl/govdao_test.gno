@@ -119,7 +119,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 	// 	Option:     dao.NoVote,
 	// 	ProposalID: dao.ProposalID(0),
 	// })
-	dao.MustVoteOnProposalSimple(0,"NO")
+	dao.MustVoteOnProposalSimple(0, "NO")
 
 	urequire.Equal(t, true, contains(dao.Render(""), "Proposal open for votes"))
 	urequire.Equal(t, true, contains(dao.Render(""), "15.789473684210526%"))

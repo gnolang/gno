@@ -89,7 +89,7 @@ func VoteOnProposal(r VoteRequest) error {
 // MustVoteOnProposalSimple is like MustVoteOnProposal but intended to be used through gnokey with basic types.
 func MustVoteOnProposalSimple(pid int64, option string) {
 	MustVoteOnProposal(VoteRequest{
-		Option: VoteOption(option),
+		Option:     VoteOption(option),
 		ProposalID: ProposalID(pid),
 	})
 }
