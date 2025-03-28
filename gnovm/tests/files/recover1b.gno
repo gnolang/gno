@@ -11,4 +11,5 @@ func main() {
 }
 
 // Error:
-// panic: other panic
+// panic: test panic
+//	panic: other panic

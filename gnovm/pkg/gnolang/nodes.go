@@ -9,11 +9,12 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
-	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/gnovm"
+	"go.uber.org/multierr"
 )
 
 // ----------------------------------------
@@ -145,11 +146,26 @@ func (loc Location) IsZero() bool {
 // even after preprocessing.  Temporary attributes (e.g. those
 // for preprocessing) are stored in .data.
 
+type GnoAttribute string
+
+const (
+	ATTR_PREPROCESSED    GnoAttribute = "ATTR_PREPROCESSED"
+	ATTR_PREDEFINED      GnoAttribute = "ATTR_PREDEFINED"
+	ATTR_TYPE_VALUE      GnoAttribute = "ATTR_TYPE_VALUE"
+	ATTR_TYPEOF_VALUE    GnoAttribute = "ATTR_TYPEOF_VALUE"
+	ATTR_IOTA            GnoAttribute = "ATTR_IOTA"
+	ATTR_LOOP_DEFINES    GnoAttribute = "ATTR_LOOP_DEFINES" // []Name defined within loops.
+	ATTR_LOOP_USES       GnoAttribute = "ATTR_LOOP_USES"    // []Name loop defines actually used.
+	ATTR_SHIFT_RHS       GnoAttribute = "ATTR_SHIFT_RHS"
+	ATTR_LAST_BLOCK_STMT GnoAttribute = "ATTR_LAST_BLOCK_STMT"
+	ATTR_GLOBAL          GnoAttribute = "ATTR_GLOBAL"
+)
+
 type Attributes struct {
 	Line   int
 	Column int
 	Label  Name
-	data   map[interface{}]interface{} // not persisted
+	data   map[GnoAttribute]any // not persisted
 }
 
 func (attr *Attributes) GetLine() int {
@@ -176,20 +192,29 @@ func (attr *Attributes) SetLabel(label Name) {
 	attr.Label = label
 }
 
-func (attr *Attributes) HasAttribute(key interface{}) bool {
+func (attr *Attributes) HasAttribute(key GnoAttribute) bool {
 	_, ok := attr.data[key]
 	return ok
 }
 
-func (attr *Attributes) GetAttribute(key interface{}) interface{} {
+// GnoAttribute must not be user provided / arbitrary,
+// otherwise will create potential exploits.
+func (attr *Attributes) GetAttribute(key GnoAttribute) any {
 	return attr.data[key]
 }
 
-func (attr *Attributes) SetAttribute(key interface{}, value interface{}) {
+func (attr *Attributes) SetAttribute(key GnoAttribute, value any) {
 	if attr.data == nil {
-		attr.data = make(map[interface{}]interface{})
+		attr.data = make(map[GnoAttribute]any)
 	}
 	attr.data[key] = value
+}
+
+func (attr *Attributes) DelAttribute(key GnoAttribute) {
+	if debug && attr.data == nil {
+		panic("should not happen, attribute is expected to be non-empty.")
+	}
+	delete(attr.data, key)
 }
 
 // ----------------------------------------
@@ -205,64 +230,64 @@ type Node interface {
 	SetColumn(int)
 	GetLabel() Name
 	SetLabel(Name)
-	HasAttribute(key interface{}) bool
-	GetAttribute(key interface{}) interface{}
-	SetAttribute(key interface{}, value interface{})
+	HasAttribute(key GnoAttribute) bool
+	GetAttribute(key GnoAttribute) any
+	SetAttribute(key GnoAttribute, value any)
+	DelAttribute(key GnoAttribute)
 }
 
 // non-pointer receiver to help make immutable.
-func (x *NameExpr) assertNode()            {}
-func (x *BasicLitExpr) assertNode()        {}
-func (x *BinaryExpr) assertNode()          {}
-func (x *CallExpr) assertNode()            {}
-func (x *IndexExpr) assertNode()           {}
-func (x *SelectorExpr) assertNode()        {}
-func (x *SliceExpr) assertNode()           {}
-func (x *StarExpr) assertNode()            {}
-func (x *RefExpr) assertNode()             {}
-func (x *TypeAssertExpr) assertNode()      {}
-func (x *UnaryExpr) assertNode()           {}
-func (x *CompositeLitExpr) assertNode()    {}
-func (x *KeyValueExpr) assertNode()        {}
-func (x *FuncLitExpr) assertNode()         {}
-func (x *ConstExpr) assertNode()           {}
-func (x *FieldTypeExpr) assertNode()       {}
-func (x *ArrayTypeExpr) assertNode()       {}
-func (x *SliceTypeExpr) assertNode()       {}
-func (x *InterfaceTypeExpr) assertNode()   {}
-func (x *ChanTypeExpr) assertNode()        {}
-func (x *FuncTypeExpr) assertNode()        {}
-func (x *MapTypeExpr) assertNode()         {}
-func (x *StructTypeExpr) assertNode()      {}
-func (x *constTypeExpr) assertNode()       {}
-func (x *MaybeNativeTypeExpr) assertNode() {}
-func (x *AssignStmt) assertNode()          {}
-func (x *BlockStmt) assertNode()           {}
-func (x *BranchStmt) assertNode()          {}
-func (x *DeclStmt) assertNode()            {}
-func (x *DeferStmt) assertNode()           {}
-func (x *ExprStmt) assertNode()            {}
-func (x *ForStmt) assertNode()             {}
-func (x *GoStmt) assertNode()              {}
-func (x *IfStmt) assertNode()              {}
-func (x *IfCaseStmt) assertNode()          {}
-func (x *IncDecStmt) assertNode()          {}
-func (x *RangeStmt) assertNode()           {}
-func (x *ReturnStmt) assertNode()          {}
-func (x *PanicStmt) assertNode()           {}
-func (x *SelectStmt) assertNode()          {}
-func (x *SelectCaseStmt) assertNode()      {}
-func (x *SendStmt) assertNode()            {}
-func (x *SwitchStmt) assertNode()          {}
-func (x *SwitchClauseStmt) assertNode()    {}
-func (x *EmptyStmt) assertNode()           {}
-func (x *bodyStmt) assertNode()            {}
-func (x *FuncDecl) assertNode()            {}
-func (x *ImportDecl) assertNode()          {}
-func (x *ValueDecl) assertNode()           {}
-func (x *TypeDecl) assertNode()            {}
-func (x *FileNode) assertNode()            {}
-func (x *PackageNode) assertNode()         {}
+func (x *NameExpr) assertNode()          {}
+func (x *BasicLitExpr) assertNode()      {}
+func (x *BinaryExpr) assertNode()        {}
+func (x *CallExpr) assertNode()          {}
+func (x *IndexExpr) assertNode()         {}
+func (x *SelectorExpr) assertNode()      {}
+func (x *SliceExpr) assertNode()         {}
+func (x *StarExpr) assertNode()          {}
+func (x *RefExpr) assertNode()           {}
+func (x *TypeAssertExpr) assertNode()    {}
+func (x *UnaryExpr) assertNode()         {}
+func (x *CompositeLitExpr) assertNode()  {}
+func (x *KeyValueExpr) assertNode()      {}
+func (x *FuncLitExpr) assertNode()       {}
+func (x *ConstExpr) assertNode()         {}
+func (x *FieldTypeExpr) assertNode()     {}
+func (x *ArrayTypeExpr) assertNode()     {}
+func (x *SliceTypeExpr) assertNode()     {}
+func (x *InterfaceTypeExpr) assertNode() {}
+func (x *ChanTypeExpr) assertNode()      {}
+func (x *FuncTypeExpr) assertNode()      {}
+func (x *MapTypeExpr) assertNode()       {}
+func (x *StructTypeExpr) assertNode()    {}
+func (x *constTypeExpr) assertNode()     {}
+func (x *AssignStmt) assertNode()        {}
+func (x *BlockStmt) assertNode()         {}
+func (x *BranchStmt) assertNode()        {}
+func (x *DeclStmt) assertNode()          {}
+func (x *DeferStmt) assertNode()         {}
+func (x *ExprStmt) assertNode()          {}
+func (x *ForStmt) assertNode()           {}
+func (x *GoStmt) assertNode()            {}
+func (x *IfStmt) assertNode()            {}
+func (x *IfCaseStmt) assertNode()        {}
+func (x *IncDecStmt) assertNode()        {}
+func (x *RangeStmt) assertNode()         {}
+func (x *ReturnStmt) assertNode()        {}
+func (x *PanicStmt) assertNode()         {}
+func (x *SelectStmt) assertNode()        {}
+func (x *SelectCaseStmt) assertNode()    {}
+func (x *SendStmt) assertNode()          {}
+func (x *SwitchStmt) assertNode()        {}
+func (x *SwitchClauseStmt) assertNode()  {}
+func (x *EmptyStmt) assertNode()         {}
+func (x *bodyStmt) assertNode()          {}
+func (x *FuncDecl) assertNode()          {}
+func (x *ImportDecl) assertNode()        {}
+func (x *ValueDecl) assertNode()         {}
+func (x *TypeDecl) assertNode()          {}
+func (x *FileNode) assertNode()          {}
+func (x *PackageNode) assertNode()       {}
 
 var (
 	_ Node = &NameExpr{}
@@ -289,7 +314,6 @@ var (
 	_ Node = &MapTypeExpr{}
 	_ Node = &StructTypeExpr{}
 	_ Node = &constTypeExpr{}
-	_ Node = &MaybeNativeTypeExpr{}
 	_ Node = &AssignStmt{}
 	_ Node = &BlockStmt{}
 	_ Node = &BranchStmt{}
@@ -327,27 +351,10 @@ var (
 
 type Expr interface {
 	Node
-	assertExpr()
+	addressability() addressabilityStatus
 }
 
 type Exprs []Expr
-
-// non-pointer receiver to help make immutable.
-func (*NameExpr) assertExpr()         {}
-func (*BasicLitExpr) assertExpr()     {}
-func (*BinaryExpr) assertExpr()       {}
-func (*CallExpr) assertExpr()         {}
-func (*IndexExpr) assertExpr()        {}
-func (*SelectorExpr) assertExpr()     {}
-func (*SliceExpr) assertExpr()        {}
-func (*StarExpr) assertExpr()         {}
-func (*RefExpr) assertExpr()          {}
-func (*TypeAssertExpr) assertExpr()   {}
-func (*UnaryExpr) assertExpr()        {}
-func (*CompositeLitExpr) assertExpr() {}
-func (*KeyValueExpr) assertExpr()     {}
-func (*FuncLitExpr) assertExpr()      {}
-func (*ConstExpr) assertExpr()        {}
 
 var (
 	_ Expr = &NameExpr{}
@@ -367,11 +374,26 @@ var (
 	_ Expr = &ConstExpr{}
 )
 
+type NameExprType int
+
+const (
+	NameExprTypeNormal      NameExprType = iota // default
+	NameExprTypeDefine                          // when defining normally
+	NameExprTypeHeapDefine                      // when defining escaped name in loop
+	NameExprTypeHeapUse                         // when above used in non-define lhs/rhs
+	NameExprTypeHeapClosure                     // when closure captures name
+)
+
 type NameExpr struct {
 	Attributes
 	// TODO rename .Path's to .ValuePaths.
 	Path ValuePath // set by preprocessor.
 	Name
+	Type NameExprType
+}
+
+func (x *NameExpr) addressability() addressabilityStatus {
+	return addressabilityStatusSatisfied
 }
 
 type NameExprs []NameExpr
@@ -385,6 +407,10 @@ type BasicLitExpr struct {
 	Value string
 }
 
+func (x *BasicLitExpr) addressability() addressabilityStatus {
+	return addressabilityStatusUnsatisfied
+}
+
 type BinaryExpr struct { // (Left Op Right)
 	Attributes
 	Left  Expr // left operand
@@ -392,26 +418,54 @@ type BinaryExpr struct { // (Left Op Right)
 	Right Expr // right operand
 }
 
+func (x *BinaryExpr) addressability() addressabilityStatus {
+	return addressabilityStatusUnsatisfied
+}
+
 type CallExpr struct { // Func(Args<Varg?...>)
 	Attributes
-	Func    Expr  // function expression
-	Args    Exprs // function arguments, if any.
-	Varg    bool  // if true, final arg is variadic.
-	NumArgs int   // len(Args) or len(Args[0].Results)
+	Func           Expr  // function expression
+	Args           Exprs // function arguments, if any.
+	Varg           bool  // if true, final arg is variadic.
+	NumArgs        int   // len(Args) or len(Args[0].Results)
+	Addressability addressabilityStatus
+}
+
+func (x *CallExpr) addressability() addressabilityStatus {
+	return x.Addressability
 }
 
 type IndexExpr struct { // X[Index]
 	Attributes
-	X     Expr // expression
-	Index Expr // index expression
-	HasOK bool // if true, is form: `value, ok := <X>[<Key>]
+	X              Expr // expression
+	Index          Expr // index expression
+	HasOK          bool // if true, is form: `value, ok := <X>[<Key>]
+	Addressability addressabilityStatus
+}
+
+func (x *IndexExpr) addressability() addressabilityStatus {
+	// If not set in TRANS_LEAVE, defer to the the child expression's addressability.
+	if x.Addressability == addressabilityStatusNotApplicable {
+		return x.X.addressability()
+	}
+
+	return x.Addressability
 }
 
 type SelectorExpr struct { // X.Sel
 	Attributes
-	X    Expr      // expression
-	Path ValuePath // set by preprocessor.
-	Sel  Name      // field selector
+	X             Expr      // expression
+	Path          ValuePath // set by preprocessor.
+	Sel           Name      // field selector
+	IsAddressable bool      // true if X is a pointer
+}
+
+func (x *SelectorExpr) addressability() addressabilityStatus {
+	if x.IsAddressable || x.X.addressability() == addressabilityStatusSatisfied {
+		return addressabilityStatusSatisfied
+	}
+
+	return addressabilityStatusUnsatisfied
 }
 
 type SliceExpr struct { // X[Low:High:Max]
@@ -422,6 +476,10 @@ type SliceExpr struct { // X[Low:High:Max]
 	Max  Expr // maximum capacity of slice; or nil; added in Go 1.2
 }
 
+func (x *SliceExpr) addressability() addressabilityStatus {
+	return addressabilityStatusUnsatisfied
+}
+
 // A StarExpr node represents an expression of the form
 // "*" Expression.  Semantically it could be a unary "*"
 // expression, or a pointer type.
@@ -430,16 +488,33 @@ type StarExpr struct { // *X
 	X Expr // operand
 }
 
+func (x *StarExpr) addressability() addressabilityStatus {
+	return addressabilityStatusSatisfied
+}
+
 type RefExpr struct { // &X
 	Attributes
 	X Expr // operand
 }
 
+func (x *RefExpr) addressability() addressabilityStatus {
+	return x.X.addressability()
+}
+
 type TypeAssertExpr struct { // X.(Type)
 	Attributes
-	X     Expr // expression.
-	Type  Expr // asserted type, never nil.
-	HasOK bool // if true, is form: `_, ok := <X>.(<Type>)`.
+	X             Expr // expression.
+	Type          Expr // asserted type, never nil.
+	HasOK         bool // if true, is form: `_, ok := <X>.(<Type>)`.
+	IsAddressable bool
+}
+
+func (x *TypeAssertExpr) addressability() addressabilityStatus {
+	if x.IsAddressable {
+		return addressabilityStatusSatisfied
+	}
+
+	return addressabilityStatusUnsatisfied
 }
 
 // A UnaryExpr node represents a unary expression. Unary
@@ -452,12 +527,25 @@ type UnaryExpr struct { // (Op X)
 	Op Word // operator
 }
 
+func (x *UnaryExpr) addressability() addressabilityStatus {
+	return x.X.addressability()
+}
+
 // MyType{<key>:<value>} struct, array, slice, and map
 // expressions.
 type CompositeLitExpr struct {
 	Attributes
-	Type Expr          // literal type; or nil
-	Elts KeyValueExprs // list of struct fields; if any
+	Type          Expr          // literal type; or nil
+	Elts          KeyValueExprs // list of struct fields; if any
+	IsAddressable bool
+}
+
+func (x *CompositeLitExpr) addressability() addressabilityStatus {
+	if x.IsAddressable {
+		return addressabilityStatusSatisfied
+	}
+
+	return addressabilityStatusUnsatisfied
 }
 
 // Returns true if any elements are keyed.
@@ -490,6 +578,10 @@ type KeyValueExpr struct {
 	Value Expr // never nil
 }
 
+func (x *KeyValueExpr) addressability() addressabilityStatus {
+	return addressabilityStatusNotApplicable
+}
+
 type KeyValueExprs []KeyValueExpr
 
 // A FuncLitExpr node represents a function literal.  Here one
@@ -498,8 +590,13 @@ type KeyValueExprs []KeyValueExpr
 type FuncLitExpr struct {
 	Attributes
 	StaticBlock
-	Type FuncTypeExpr // function type
-	Body              // function body
+	Type         FuncTypeExpr // function type
+	Body                      // function body
+	HeapCaptures NameExprs    // filled in findLoopUses1
+}
+
+func (x *FuncLitExpr) addressability() addressabilityStatus {
+	return addressabilityStatusUnsatisfied
 }
 
 // The preprocessor replaces const expressions
@@ -508,6 +605,10 @@ type ConstExpr struct {
 	Attributes
 	Source Expr // (preprocessed) source of this value.
 	TypedValue
+}
+
+func (x *ConstExpr) addressability() addressabilityStatus {
+	return addressabilityStatusUnsatisfied
 }
 
 // ----------------------------------------
@@ -528,28 +629,18 @@ type TypeExpr interface {
 	assertTypeExpr()
 }
 
-// non-pointer receiver to help make immutable.
-func (x *FieldTypeExpr) assertTypeExpr()       {}
-func (x *ArrayTypeExpr) assertTypeExpr()       {}
-func (x *SliceTypeExpr) assertTypeExpr()       {}
-func (x *InterfaceTypeExpr) assertTypeExpr()   {}
-func (x *ChanTypeExpr) assertTypeExpr()        {}
-func (x *FuncTypeExpr) assertTypeExpr()        {}
-func (x *MapTypeExpr) assertTypeExpr()         {}
-func (x *StructTypeExpr) assertTypeExpr()      {}
-func (x *constTypeExpr) assertTypeExpr()       {}
-func (x *MaybeNativeTypeExpr) assertTypeExpr() {}
+const typeExprAddressability = "the addressability method should not be called on Type Expressions"
 
-func (x *FieldTypeExpr) assertExpr()       {}
-func (x *ArrayTypeExpr) assertExpr()       {}
-func (x *SliceTypeExpr) assertExpr()       {}
-func (x *InterfaceTypeExpr) assertExpr()   {}
-func (x *ChanTypeExpr) assertExpr()        {}
-func (x *FuncTypeExpr) assertExpr()        {}
-func (x *MapTypeExpr) assertExpr()         {}
-func (x *StructTypeExpr) assertExpr()      {}
-func (x *constTypeExpr) assertExpr()       {}
-func (x *MaybeNativeTypeExpr) assertExpr() {}
+// non-pointer receiver to help make immutable.
+func (x *FieldTypeExpr) assertTypeExpr()     {}
+func (x *ArrayTypeExpr) assertTypeExpr()     {}
+func (x *SliceTypeExpr) assertTypeExpr()     {}
+func (x *InterfaceTypeExpr) assertTypeExpr() {}
+func (x *ChanTypeExpr) assertTypeExpr()      {}
+func (x *FuncTypeExpr) assertTypeExpr()      {}
+func (x *MapTypeExpr) assertTypeExpr()       {}
+func (x *StructTypeExpr) assertTypeExpr()    {}
+func (x *constTypeExpr) assertTypeExpr()     {}
 
 var (
 	_ TypeExpr = &FieldTypeExpr{}
@@ -561,7 +652,6 @@ var (
 	_ TypeExpr = &MapTypeExpr{}
 	_ TypeExpr = &StructTypeExpr{}
 	_ TypeExpr = &constTypeExpr{}
-	_ TypeExpr = &MaybeNativeTypeExpr{}
 )
 
 type FieldTypeExpr struct {
@@ -574,17 +664,25 @@ type FieldTypeExpr struct {
 	Tag Expr
 }
 
+func (x *FieldTypeExpr) addressability() addressabilityStatus {
+	panic(typeExprAddressability)
+}
+
 type FieldTypeExprs []FieldTypeExpr
 
 func (ftxz FieldTypeExprs) IsNamed() bool {
 	named := false
 	for i, ftx := range ftxz {
 		if i == 0 {
-			named = ftx.Name != ""
+			if ftx.Name == "" || isHiddenResultVariable(string(ftx.Name)) {
+				named = false
+			} else {
+				named = true
+			}
 		} else {
 			if named && ftx.Name == "" {
 				panic("[]FieldTypeExpr has inconsistent namedness (starts named)")
-			} else if !named && ftx.Name != "" {
+			} else if !named && (ftx.Name != "" || !isHiddenResultVariable(string(ftx.Name))) {
 				panic("[]FieldTypeExpr has inconsistent namedness (starts unnamed)")
 			}
 		}
@@ -598,16 +696,28 @@ type ArrayTypeExpr struct {
 	Elt Expr // element type
 }
 
+func (x *ArrayTypeExpr) addressability() addressabilityStatus {
+	panic(typeExprAddressability)
+}
+
 type SliceTypeExpr struct {
 	Attributes
 	Elt Expr // element type
 	Vrd bool // variadic arg expression
 }
 
+func (x *SliceTypeExpr) addressability() addressabilityStatus {
+	panic(typeExprAddressability)
+}
+
 type InterfaceTypeExpr struct {
 	Attributes
 	Methods FieldTypeExprs // list of methods
 	Generic Name           // for uverse generics
+}
+
+func (x *InterfaceTypeExpr) addressability() addressabilityStatus {
+	panic(typeExprAddressability)
 }
 
 type ChanDir int
@@ -627,10 +737,19 @@ type ChanTypeExpr struct {
 	Value Expr    // value type
 }
 
+func (x *ChanTypeExpr) addressability() addressabilityStatus {
+	panic(typeExprAddressability)
+}
+
 type FuncTypeExpr struct {
 	Attributes
-	Params  FieldTypeExprs // (incoming) parameters, if any.
-	Results FieldTypeExprs // (outgoing) results, if any.
+	Params    FieldTypeExprs // (incoming) parameters, if any.
+	Results   FieldTypeExprs // (outgoing) results, if any.
+	IsClosure bool
+}
+
+func (x *FuncTypeExpr) addressability() addressabilityStatus {
+	panic(typeExprAddressability)
 }
 
 type MapTypeExpr struct {
@@ -639,9 +758,17 @@ type MapTypeExpr struct {
 	Value Expr // value type
 }
 
+func (x *MapTypeExpr) addressability() addressabilityStatus {
+	panic(typeExprAddressability)
+}
+
 type StructTypeExpr struct {
 	Attributes
 	Fields FieldTypeExprs // list of field declarations
+}
+
+func (x *StructTypeExpr) addressability() addressabilityStatus {
+	panic(typeExprAddressability)
 }
 
 // Like ConstExpr but for types.
@@ -651,10 +778,8 @@ type constTypeExpr struct {
 	Type   Type
 }
 
-// Only used for native func arguments
-type MaybeNativeTypeExpr struct {
-	Attributes
-	Type Expr
+func (x *constTypeExpr) addressability() addressabilityStatus {
+	panic(typeExprAddressability)
 }
 
 // ----------------------------------------
@@ -1048,12 +1173,7 @@ func (x *TypeDecl) GetDeclNames() []Name {
 
 func HasDeclName(d Decl, n2 Name) bool {
 	ns := d.GetDeclNames()
-	for _, n := range ns {
-		if n == n2 {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ns, n2)
 }
 
 // ----------------------------------------
@@ -1090,14 +1210,23 @@ type FileSet struct {
 
 // PackageNameFromFileBody extracts the package name from the given Gno code body.
 // The 'name' parameter is used for better error traces, and 'body' contains the Gno code.
-func PackageNameFromFileBody(name, body string) Name {
+func PackageNameFromFileBody(name, body string) (Name, error) {
 	fset := token.NewFileSet()
 	astFile, err := parser.ParseFile(fset, name, body, parser.PackageClauseOnly)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
-	return Name(astFile.Name.Name)
+	return Name(astFile.Name.Name), nil
+}
+
+// MustPackageNameFromFileBody is a wrapper around [PackageNameFromFileBody] that panics on error.
+func MustPackageNameFromFileBody(name, body string) Name {
+	pkgName, err := PackageNameFromFileBody(name, body)
+	if err != nil {
+		panic(err)
+	}
+	return pkgName
 }
 
 // ReadMemPackage initializes a new MemPackage by reading the OS directory
@@ -1110,10 +1239,10 @@ func PackageNameFromFileBody(name, body string) Name {
 //
 // NOTE: panics if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
-func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
+func ReadMemPackage(dir string, pkgPath string) (*gnovm.MemPackage, error) {
 	files, err := os.ReadDir(dir)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	allowedFiles := []string{ // make case insensitive?
 		"LICENSE",
@@ -1144,42 +1273,66 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	return ReadMemPackageFromList(list, pkgPath)
 }
 
-// ReadMemPackageFromList creates a new [std.MemPackage] with the specified pkgPath,
+// MustReadMemPackage is a wrapper around [ReadMemPackage] that panics on error.
+func MustReadMemPackage(dir string, pkgPath string) *gnovm.MemPackage {
+	pkg, err := ReadMemPackage(dir, pkgPath)
+	if err != nil {
+		panic(err)
+	}
+	return pkg
+}
+
+// ReadMemPackageFromList creates a new [gnovm.MemPackage] with the specified pkgPath,
 // containing the contents of all the files provided in the list slice.
 // No parsing or validation is done on the filenames.
 //
-// NOTE: panics if package name is invalid (characters must be alphanumeric or _,
+// NOTE: errors out if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
-func ReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
-	memPkg := &std.MemPackage{Path: pkgPath}
+func ReadMemPackageFromList(list []string, pkgPath string) (*gnovm.MemPackage, error) {
+	memPkg := &gnovm.MemPackage{Path: pkgPath}
 	var pkgName Name
 	for _, fpath := range list {
 		fname := filepath.Base(fpath)
 		bz, err := os.ReadFile(fpath)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		// XXX: should check that all pkg names are the same (else package is invalid)
 		if pkgName == "" && strings.HasSuffix(fname, ".gno") {
-			pkgName = PackageNameFromFileBody(fname, string(bz))
+			pkgName, err = PackageNameFromFileBody(fname, string(bz))
+			if err != nil {
+				return nil, err
+			}
 			if strings.HasSuffix(string(pkgName), "_test") {
 				pkgName = pkgName[:len(pkgName)-len("_test")]
 			}
 		}
 		memPkg.Files = append(memPkg.Files,
-			&std.MemFile{
+			&gnovm.MemFile{
 				Name: fname,
 				Body: string(bz),
 			})
 	}
 
+	memPkg.Name = string(pkgName)
+
 	// If no .gno files are present, package simply does not exist.
 	if !memPkg.IsEmpty() {
-		validatePkgName(string(pkgName))
-		memPkg.Name = string(pkgName)
+		if err := validatePkgName(string(pkgName)); err != nil {
+			return nil, err
+		}
 	}
 
-	return memPkg
+	return memPkg, nil
+}
+
+// MustReadMemPackageFromList is a wrapper around [ReadMemPackageFromList] that panics on error.
+func MustReadMemPackageFromList(list []string, pkgPath string) *gnovm.MemPackage {
+	pkg, err := ReadMemPackageFromList(list, pkgPath)
+	if err != nil {
+		panic(err)
+	}
+	return pkg
 }
 
 // ParseMemPackage executes [ParseFile] on each file of the memPkg, excluding
@@ -1187,8 +1340,9 @@ func ReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
 //
 // If one of the files has a different package name than memPkg.Name,
 // or [ParseFile] returns an error, ParseMemPackage panics.
-func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
+func ParseMemPackage(memPkg *gnovm.MemPackage) (fset *FileSet) {
 	fset = &FileSet{}
+	var errs error
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") ||
 			endsWith(mfile.Name, []string{"_test.gno", "_filetest.gno"}) {
@@ -1196,7 +1350,8 @@ func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 		}
 		n, err := ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
-			panic(err)
+			errs = multierr.Append(errs, err)
+			continue
 		}
 		if memPkg.Name != string(n.PkgName) {
 			panic(fmt.Sprintf(
@@ -1206,39 +1361,10 @@ func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 		// add package file.
 		fset.AddFiles(n)
 	}
-	return fset
-}
-
-func ParseMemPackageTests(memPkg *std.MemPackage) (tset, itset *FileSet) {
-	tset = &FileSet{}
-	itset = &FileSet{}
-	for _, mfile := range memPkg.Files {
-		if !strings.HasSuffix(mfile.Name, ".gno") {
-			continue // skip this file.
-		}
-		n, err := ParseFile(mfile.Name, mfile.Body)
-		if err != nil {
-			panic(errors.Wrap(err, "parsing file "+mfile.Name))
-		}
-		if n == nil {
-			panic("should not happen")
-		}
-		if strings.HasSuffix(mfile.Name, "_test.gno") {
-			// add test file.
-			if memPkg.Name+"_test" == string(n.PkgName) {
-				itset.AddFiles(n)
-			} else {
-				tset.AddFiles(n)
-			}
-		} else if memPkg.Name == string(n.PkgName) {
-			// skip package file.
-		} else {
-			panic(fmt.Sprintf(
-				"expected package name [%s] or [%s_test] but got [%s] file [%s]",
-				memPkg.Name, memPkg.Name, n.PkgName, mfile))
-		}
+	if errs != nil {
+		panic(errs)
 	}
-	return tset, itset
+	return fset
 }
 
 func (fs *FileSet) AddFiles(fns ...*FileNode) {
@@ -1415,9 +1541,7 @@ func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 	}
 }
 
-// DefineNativeFunc defines a native function. This is not the
-// same as DefineGoNativeValue, which DOES NOT give access to
-// the running machine.
+// DefineNativeFunc defines a native function.
 func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
 	if debug {
 		debug.Printf("*PackageNode.DefineNative(%s,...)\n", n)
@@ -1483,7 +1607,9 @@ type BlockNode interface {
 	GetNumNames() uint16
 	GetParentNode(Store) BlockNode
 	GetPathForName(Store, Name) ValuePath
+	GetBlockNodeForPath(Store, ValuePath) BlockNode
 	GetIsConst(Store, Name) bool
+	GetIsConstAt(Store, ValuePath) bool
 	GetLocalIndex(Name) (uint16, bool)
 	GetValueRef(Store, Name, bool) *TypedValue
 	GetStaticTypeOf(Store, Name) Type
@@ -1501,12 +1627,13 @@ type BlockNode interface {
 // Embed in node to make it a BlockNode.
 type StaticBlock struct {
 	Block
-	Types    []Type
-	NumNames uint16
-	Names    []Name
-	Consts   []Name // TODO consider merging with Names.
-	Externs  []Name
-	Loc      Location
+	Types             []Type
+	NumNames          uint16
+	Names             []Name
+	UnassignableNames []Name
+	Consts            []Name // TODO consider merging with Names.
+	Externs           []Name
+	Loc               Location
 
 	// temporary storage for rolling back redefinitions.
 	oldValues []oldValue
@@ -1582,15 +1709,15 @@ func (sb *StaticBlock) GetBlockNames() (ns []Name) {
 }
 
 // Implements BlockNode.
+// NOTE: Extern names may also be local, if declared after usage as an extern
+// (thus shadowing the extern name).
 func (sb *StaticBlock) GetExternNames() (ns []Name) {
 	return sb.Externs // copy?
 }
 
 func (sb *StaticBlock) addExternName(n Name) {
-	for _, extern := range sb.Externs {
-		if extern == n {
-			return
-		}
+	if slices.Contains(sb.Externs, n) {
+		return
 	}
 	sb.Externs = append(sb.Externs, n)
 }
@@ -1623,6 +1750,9 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	}
 	// Register as extern.
 	// NOTE: uverse names are externs too.
+	// NOTE: externs may also be shadowed later in the block. Thus, usages
+	// before the declaration will have depth > 1; following it, depth == 1,
+	// matching the two different identifiers they refer to.
 	if !isFile(sb.GetSource(store)) {
 		sb.GetStaticBlock().addExternName(n)
 	}
@@ -1651,6 +1781,21 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	panic(fmt.Sprintf("name %s not declared", n))
 }
 
+// Get the containing block node for node with path relative to this containing block.
+func (sb *StaticBlock) GetBlockNodeForPath(store Store, path ValuePath) BlockNode {
+	if path.Type != VPBlock {
+		panic("expected block type value path but got " + path.Type.String())
+	}
+
+	// NOTE: path.Depth == 1 means it's in bn.
+	bn := sb.GetSource(store)
+	for i := 1; i < int(path.Depth); i++ {
+		bn = bn.GetParentNode(store)
+	}
+
+	return bn
+}
+
 // Returns whether a name defined here in in ancestry is a const.
 // This is not the same as whether a name's static type is
 // untyped -- as in c := a == b, a name may be an untyped non-const.
@@ -1671,14 +1816,33 @@ func (sb *StaticBlock) GetIsConst(store Store, n Name) bool {
 	}
 }
 
+func (sb *StaticBlock) GetIsConstAt(store Store, path ValuePath) bool {
+	return sb.GetBlockNodeForPath(store, path).GetStaticBlock().getLocalIsConst(path.Name)
+}
+
 // Returns true iff n is a local const defined name.
 func (sb *StaticBlock) getLocalIsConst(n Name) bool {
-	for _, name := range sb.Consts {
-		if name == n {
+	return slices.Contains(sb.Consts, n)
+}
+
+func (sb *StaticBlock) IsAssignable(store Store, n Name) bool {
+	_, ok := sb.GetLocalIndex(n)
+	bp := sb.GetParentNode(store)
+	un := sb.UnassignableNames
+
+	for {
+		if ok {
+			return !slices.Contains(un, n)
+		} else if bp != nil {
+			_, ok = bp.GetLocalIndex(n)
+			un = bp.GetStaticBlock().UnassignableNames
+			bp = bp.GetParentNode(store)
+		} else if _, ok := UverseNode().GetLocalIndex(n); ok {
+			return false
+		} else {
 			return true
 		}
 	}
-	return false
 }
 
 // Implements BlockNode.
@@ -1707,21 +1871,12 @@ func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 // Implements BlockNode.
 func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
 	if debug {
-		if path.Type != VPBlock {
-			panic("should not happen")
-		}
 		if path.Depth == 0 {
 			panic("should not happen")
 		}
 	}
-	for {
-		if path.Depth == 1 {
-			return sb.Types[path.Index]
-		} else {
-			sb = sb.GetParentNode(store).GetStaticBlock()
-			path.Depth -= 1
-		}
-	}
+	bn := sb.GetBlockNodeForPath(store, path)
+	return bn.GetStaticBlock().Types[path.Index]
 }
 
 // Implements BlockNode.
@@ -1821,7 +1976,7 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 				n))
 		}
 		old := sb.Block.Values[idx]
-		if !old.IsUndefined() {
+		if !old.IsUndefined() && tv.T != nil {
 			if tv.T.Kind() == FuncKind && tv.T.(*FuncType).IsZero() {
 				// special case,
 				// allow re-predefining for func upgrades.
@@ -1931,10 +2086,26 @@ func (x *PackageNode) SetBody(b Body) {
 // such as those for *DeclaredType methods or *StructType fields,
 // see tests/selector_test.go.
 type ValuePath struct {
-	Type  VPType // see VPType* consts.
+	Type VPType // see VPType* consts.
+	// Warning: Use SetDepth() to set Depth.
 	Depth uint8  // see doc for ValuePath.
 	Index uint16 // index of value, field, or method.
 	Name  Name   // name of value, field, or method.
+}
+
+// Maximum depth of a ValuePath.
+const MaxValuePathDepth = 127
+
+func (vp ValuePath) validateDepth() {
+	if vp.Depth > MaxValuePathDepth {
+		panic(fmt.Sprintf("exceeded maximum %s depth (%d)", vp.Type, MaxValuePathDepth))
+	}
+}
+
+func (vp *ValuePath) SetDepth(d uint8) {
+	vp.Depth = d
+
+	vp.validateDepth()
 }
 
 type VPType uint8
@@ -1951,7 +2122,6 @@ const (
 	VPDerefValMethod VPType = 0x13 // 0x10 + VPValMethod
 	VPDerefPtrMethod VPType = 0x14 // 0x10 + VPPtrMethod
 	VPDerefInterface VPType = 0x15 // 0x10 + VPInterface
-	VPNative         VPType = 0x20
 	// 0x3X, 0x5X, 0x7X, 0x9X, 0xAX, 0xCX, 0xEX reserved.
 )
 
@@ -2010,11 +2180,9 @@ func NewValuePathDerefInterface(n Name) ValuePath {
 	return NewValuePath(VPDerefInterface, 0, 0, n)
 }
 
-func NewValuePathNative(n Name) ValuePath {
-	return NewValuePath(VPNative, 0, 0, n)
-}
-
 func (vp ValuePath) Validate() {
+	vp.validateDepth()
+
 	switch vp.Type {
 	case VPUverse:
 		if vp.Depth != 0 {
@@ -2064,13 +2232,6 @@ func (vp ValuePath) Validate() {
 		if vp.Name == "" {
 			panic("(deref) interface value path must have name")
 		}
-	case VPNative:
-		if vp.Depth != 0 {
-			panic("native value path must have depth 0")
-		}
-		if vp.Name == "" {
-			panic("native value path must have name")
-		}
 	default:
 		panic(fmt.Sprintf(
 			"unexpected value path type %X",
@@ -2094,6 +2255,7 @@ type ValuePather interface {
 // Utility
 
 func (x *BasicLitExpr) GetString() string {
+	// Matches string literal parsing in go/constant.MakeFromLiteral.
 	str, err := strconv.Unquote(x.Value)
 	if err != nil {
 		panic("error in parsing string literal: " + err.Error())
@@ -2109,24 +2271,30 @@ func (x *BasicLitExpr) GetInt() int {
 	return i
 }
 
-type GnoAttribute string
-
-const (
-	ATTR_PREPROCESSED GnoAttribute = "ATTR_PREPROCESSED"
-	ATTR_PREDEFINED   GnoAttribute = "ATTR_PREDEFINED"
-	ATTR_TYPE_VALUE   GnoAttribute = "ATTR_TYPE_VALUE"
-	ATTR_TYPEOF_VALUE GnoAttribute = "ATTR_TYPEOF_VALUE"
-	ATTR_IOTA         GnoAttribute = "ATTR_IOTA"
-	ATTR_LOCATIONED   GnoAttribute = "ATTR_LOCATIONED"
-	ATTR_INJECTED     GnoAttribute = "ATTR_INJECTED"
-)
-
 var rePkgName = regexp.MustCompile(`^[a-z][a-z0-9_]+$`)
 
 // TODO: consider length restrictions.
 // If this function is changed, ReadMemPackage's documentation should be updated accordingly.
-func validatePkgName(name string) {
+func validatePkgName(name string) error {
 	if !rePkgName.MatchString(name) {
-		panic(fmt.Sprintf("cannot create package with invalid name %q", name))
+		return fmt.Errorf("cannot create package with invalid name %q", name)
 	}
+	return nil
 }
+
+const hiddenResultVariable = ".res_"
+
+func isHiddenResultVariable(name string) bool {
+	if strings.HasPrefix(name, hiddenResultVariable) {
+		return true
+	}
+	return false
+}
+
+type addressabilityStatus int
+
+const (
+	addressabilityStatusNotApplicable addressabilityStatus = iota
+	addressabilityStatusSatisfied
+	addressabilityStatusUnsatisfied
+)

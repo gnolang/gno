@@ -1,7 +1,5 @@
 package gnolang
 
-import "reflect"
-
 // Keeps track of in-memory allocations.
 // In the future, allocations within realm boundaries will be
 // (optionally?) condensed (objects to be GC'd will be discarded),
@@ -28,7 +26,6 @@ const (
 	_allocMapValue         = 144
 	_allocBoundMethodValue = 176
 	_allocBlock            = 464
-	_allocNativeValue      = 48
 	_allocTypeValue        = 16
 	_allocTypedValue       = 40
 	_allocBigint           = 200 // XXX
@@ -56,7 +53,6 @@ const (
 	allocBoundMethod = _allocBase + _allocPointer + _allocBoundMethodValue
 	allocBlock       = _allocBase + _allocPointer + _allocBlock
 	allocBlockItem   = _allocTypedValue
-	allocNative      = _allocBase + _allocPointer + _allocNativeValue
 	allocType        = _allocBase + _allocPointer + _allocType
 	// allocDataByte    = 1
 	// allocPackge = 1
@@ -161,11 +157,6 @@ func (alloc *Allocator) AllocateBlockItems(items int64) {
 	alloc.Allocate(allocBlockItem * items)
 }
 
-// NOTE: does not allocate for the underlying value.
-func (alloc *Allocator) AllocateNative() {
-	alloc.Allocate(allocNative)
-}
-
 /* NOTE: Not used, account for with AllocatePointer.
 func (alloc *Allocator) AllocateDataByte() {
 	alloc.Allocate(allocDataByte)
@@ -194,6 +185,9 @@ func (alloc *Allocator) NewString(s string) StringValue {
 }
 
 func (alloc *Allocator) NewListArray(n int) *ArrayValue {
+	if n < 0 {
+		panic(&Exception{Value: typedString("len out of range")})
+	}
 	alloc.AllocateListArray(int64(n))
 	return &ArrayValue{
 		List: make([]TypedValue, n),
@@ -201,6 +195,10 @@ func (alloc *Allocator) NewListArray(n int) *ArrayValue {
 }
 
 func (alloc *Allocator) NewDataArray(n int) *ArrayValue {
+	if n < 0 {
+		panic(&Exception{Value: typedString("len out of range")})
+	}
+
 	alloc.AllocateDataArray(int64(n))
 	return &ArrayValue{
 		Data: make([]byte, n),
@@ -223,7 +221,12 @@ func (alloc *Allocator) NewSlice(base Value, offset, length, maxcap int) *SliceV
 	}
 }
 
-// NOTE: also allocates the underlying array from list.
+// NewSliceFromList allocates a new slice with the underlying array value
+// populated from `list`. This should not be called from areas in the codebase
+// that are doing allocations with potentially large user provided values, e.g.
+// `make()` and `append()`. Using `Alloc.NewListArray` can be used is most cases
+// to allocate the space for the `TypedValue` list before doing the allocation
+// in the go runtime -- see the `make()` code in uverse.go.
 func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
 	alloc.AllocateSlice()
 	alloc.AllocateListArray(int64(cap(list)))
@@ -238,7 +241,9 @@ func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
 	}
 }
 
-// NOTE: also allocates the underlying array from data.
+// NewSliceFromData allocates a new slice with the underlying data array
+// value populated from `data`. See the doc for `NewSliceFromList` for
+// correct usage notes.
 func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
 	alloc.AllocateSlice()
 	alloc.AllocateDataArray(int64(cap(data)))
@@ -283,13 +288,6 @@ func (alloc *Allocator) NewMap(size int) *MapValue {
 func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {
 	alloc.AllocateBlock(int64(source.GetNumNames()))
 	return NewBlock(source, parent)
-}
-
-func (alloc *Allocator) NewNative(rv reflect.Value) *NativeValue {
-	alloc.AllocateNative()
-	return &NativeValue{
-		Value: rv,
-	}
 }
 
 func (alloc *Allocator) NewType(t Type) Type {

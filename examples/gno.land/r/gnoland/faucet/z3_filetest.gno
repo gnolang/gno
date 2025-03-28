@@ -2,6 +2,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/gnoland/faucet"
@@ -10,7 +11,7 @@ import (
 // mints coints to current realm
 func init() {
 	facuetaddr := std.DerivePkgAddr("gno.land/r/gnoland/faucet")
-	std.TestIssueCoins(facuetaddr, std.Coins{{"ugnot", 200000000}})
+	testing.IssueCoins(facuetaddr, std.Coins{{"ugnot", 200000000}})
 }
 
 // assert render with 2 controllers and 2 transfers
@@ -22,7 +23,7 @@ func main() {
 		testaddr1       = testutils.TestAddress("test1")
 		testaddr2       = testutils.TestAddress("test2")
 	)
-	std.TestSetOrigCaller(adminaddr)
+	testing.SetOriginCaller(adminaddr)
 	err := faucet.AdminAddController(controlleraddr1)
 	if err != "" {
 		panic(err)
@@ -31,12 +32,12 @@ func main() {
 	if err != "" {
 		panic(err)
 	}
-	std.TestSetOrigCaller(controlleraddr1)
+	testing.SetOriginCaller(controlleraddr1)
 	err = faucet.Transfer(testaddr1, 1000000)
 	if err != "" {
 		panic(err)
 	}
-	std.TestSetOrigCaller(controlleraddr2)
+	testing.SetOriginCaller(controlleraddr2)
 	err = faucet.Transfer(testaddr1, 2000000)
 	if err != "" {
 		panic(err)
@@ -60,3 +61,5 @@ func main() {
 //  g1vdhkuarjdakxcetjx9047h6lta047h6lsdacav  g1vdhkuarjdakxcetjxf047h6lta047h6lnrev3v
 //
 // Per request limit: 350000000ugnot
+//
+//

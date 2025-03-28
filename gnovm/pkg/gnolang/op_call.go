@@ -28,15 +28,17 @@ func (m *Machine) doOpPrecall() {
 	case TypeValue:
 		// Do not pop type yet.
 		// No need for frames.
+		xv := m.PeekValue(1)
+		if cx.GetAttribute(ATTR_SHIFT_RHS) == true {
+			xv.AssertNonNegative("runtime error: negative shift amount")
+		}
+
 		m.PushOp(OpConvert)
 		if debug {
 			if len(cx.Args) != 1 {
 				panic("conversion expressions only take 1 argument")
 			}
 		}
-	case *NativeValue:
-		m.PushFrameGoNative(cx, fv)
-		m.PushOp(OpCallGoNative)
 	default:
 		panic(fmt.Sprintf(
 			"unexpected function value type %s",
@@ -58,6 +60,18 @@ func (m *Machine) doOpCall() {
 	// Create new block scope.
 	clo := fr.Func.GetClosure(m.Store)
 	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
+
+	// Copy *FuncValue.Captures into block
+	// NOTE: addHeapCapture in preprocess ensures order.
+	if len(fv.Captures) != 0 {
+		if len(fv.Captures) > len(b.Values) {
+			panic("should not happen, length of captured variables must not exceed the number of values")
+		}
+		for i := range fv.Captures {
+			b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
+		}
+	}
+
 	m.PushBlock(b)
 	if fv.nativeBody == nil && fv.NativePkg != "" {
 		// native function, unmarshaled so doesn't have nativeBody yet
@@ -79,6 +93,7 @@ func (m *Machine) doOpCall() {
 			// Initialize return variables with default value.
 			numParams := len(ft.Params)
 			for i, rt := range ft.Results {
+				// results/parameters never are heap use/closure.
 				ptr := b.GetPointerToInt(nil, numParams+i)
 				dtv := defaultTypedValue(m.Alloc, rt.Type)
 				ptr.Assign2(m.Alloc, nil, nil, dtv, false)
@@ -197,7 +212,7 @@ func (m *Machine) doOpReturn() {
 		if finalize {
 			// Finalize realm updates!
 			// NOTE: This is a resource intensive undertaking.
-			crlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+			crlm.FinalizeRealmTransaction(m.Store)
 		}
 	}
 	// finalize
@@ -213,7 +228,7 @@ func (m *Machine) doOpReturnFromBlock() {
 	numParams := len(ft.Params)
 	numResults := len(ft.Results)
 	fblock := m.Blocks[cfr.NumBlocks] // frame +1
-	for i := 0; i < numResults; i++ {
+	for i := range numResults {
 		rtv := fillValueTV(m.Store, &fblock.Values[i+numParams])
 		m.PushValue(*rtv)
 	}
@@ -232,7 +247,7 @@ func (m *Machine) doOpReturnFromBlock() {
 		if finalize {
 			// Finalize realm updates!
 			// NOTE: This is a resource intensive undertaking.
-			crlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+			crlm.FinalizeRealmTransaction(m.Store)
 		}
 	}
 	// finalize
@@ -249,7 +264,7 @@ func (m *Machine) doOpReturnToBlock() {
 	numResults := len(ft.Results)
 	fblock := m.Blocks[cfr.NumBlocks] // frame +1
 	results := m.PopValues(numResults)
-	for i := 0; i < numResults; i++ {
+	for i := range numResults {
 		rtv := results[i]
 		fblock.Values[numParams+i] = rtv
 	}
@@ -288,8 +303,6 @@ func (m *Machine) doOpReturnCallDefers() {
 			T: ft,
 			V: fv,
 		})
-	} else if dfr.GoFunc != nil {
-		m.PushValue(TypedValue{}) // NOTE: this is ignored by doOpCallGoNative
 	} else {
 		panic("unexpected Defer in stack with nil Func and GoFunc")
 	}
@@ -304,9 +317,6 @@ func (m *Machine) doOpReturnCallDefers() {
 	if dfr.Func != nil {
 		m.PushFrameCall(&dfr.Source.Call, dfr.Func, dfr.Receiver)
 		m.PushOp(OpCall)
-	} else { // GoFunc != nil
-		m.PushFrameGoNative(&dfr.Source.Call, dfr.GoFunc)
-		m.PushOp(OpCallGoNative)
 	}
 }
 
@@ -320,11 +330,8 @@ func (m *Machine) doOpDefer() {
 	// Pop func
 	ftv := m.PopValue()
 	// Push defer.
-	// NOTE: we let type be FuncValue and value NativeValue,
-	// because native funcs can't be converted to gno anyways.
 	switch cv := ftv.V.(type) {
 	case *FuncValue:
-		// TODO what if value is NativeValue?
 		cfr.PushDefer(Defer{
 			Func:   cv,
 			Args:   args,
@@ -348,13 +355,6 @@ func (m *Machine) doOpDefer() {
 			Receiver: cv.Receiver,
 			Source:   ds,
 			Parent:   lb,
-		})
-	case *NativeValue:
-		cfr.PushDefer(Defer{
-			GoFunc: cv,
-			Args:   args,
-			Source: ds,
-			Parent: lb,
 		})
 	default:
 		panic("should not happen")

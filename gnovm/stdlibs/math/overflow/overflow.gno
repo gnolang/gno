@@ -223,7 +223,7 @@ func Div8p(a, b int8) int8 {
 func Quo8(a, b int8) (int8, int8, bool) {
 	if b == 0 {
 		return 0, 0, false
-	} else if b == -1 && a == math.MinInt8 {
+	} else if b == -1 && a == int8(math.MinInt8) {
 		return 0, 0, false
 	}
 	c := a / b
@@ -313,7 +313,7 @@ func Div16p(a, b int16) int16 {
 func Quo16(a, b int16) (int16, int16, bool) {
 	if b == 0 {
 		return 0, 0, false
-	} else if b == -1 && a == math.MinInt16 {
+	} else if b == -1 && a == int16(math.MinInt16) {
 		return 0, 0, false
 	}
 	c := a / b
@@ -403,7 +403,7 @@ func Div32p(a, b int32) int32 {
 func Quo32(a, b int32) (int32, int32, bool) {
 	if b == 0 {
 		return 0, 0, false
-	} else if b == -1 && a == math.MinInt32 {
+	} else if b == -1 && a == int32(math.MinInt32) {
 		return 0, 0, false
 	}
 	c := a / b

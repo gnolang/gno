@@ -24,10 +24,10 @@ func FindNative(pkgPath string, name gno.Name) *NativeFunc {
 	return nil
 }
 
-// NativeStore is used by the GnoVM to determine if the given function,
+// NativeResolver is used by the GnoVM to determine if the given function,
 // specified by its pkgPath and name, has a native implementation; and if so
 // retrieve it.
-func NativeStore(pkgPath string, name gno.Name) func(*gno.Machine) {
+func NativeResolver(pkgPath string, name gno.Name) func(*gno.Machine) {
 	nt := FindNative(pkgPath, name)
 	if nt == nil {
 		return nil

@@ -47,7 +47,7 @@ func TestRPCParams(t *testing.T) {
 	tests := []struct {
 		payload    string
 		wantErr    string
-		expectedId interface{}
+		expectedId any
 	}{
 		// bad
 		{`{"jsonrpc": "2.0", "id": "0"}`, "Method not found", types.JSONRPCStringID("0")},
@@ -97,7 +97,7 @@ func TestJSONRPCID(t *testing.T) {
 	tests := []struct {
 		payload    string
 		wantErr    bool
-		expectedId interface{}
+		expectedId any
 	}{
 		// good id
 		{`{"jsonrpc": "2.0", "method": "c", "id": "0", "params": ["a", "10"]}`, false, types.JSONRPCStringID("0")},
@@ -173,6 +173,12 @@ func TestRPCNotificationInBatch(t *testing.T) {
 		},
 		{
 			`[
+				{"jsonrpc": "2.0","method":"c","id":"abc","params":["a","10"]}
+			 ]`,
+			1,
+		},
+		{
+			`[
 				{"jsonrpc": "2.0","id": ""},
 				{"jsonrpc": "2.0","method":"c","id":"abc","params":["a","10"]},
 				{"jsonrpc": "2.0","id": ""},
@@ -198,21 +204,8 @@ func TestRPCNotificationInBatch(t *testing.T) {
 		// try to unmarshal an array first
 		err = json.Unmarshal(blob, &responses)
 		if err != nil {
-			// if we were actually expecting an array, but got an error
-			if tt.expectCount > 1 {
-				t.Errorf("#%d: expected an array, couldn't unmarshal it\nblob: %s", i, blob)
-				continue
-			} else {
-				// we were expecting an error here, so let's unmarshal a single response
-				var response types.RPCResponse
-				err = json.Unmarshal(blob, &response)
-				if err != nil {
-					t.Errorf("#%d: expected successful parsing of an RPCResponse\nblob: %s", i, blob)
-					continue
-				}
-				// have a single-element result
-				responses = types.RPCResponses{response}
-			}
+			t.Errorf("#%d: expected an array, couldn't unmarshal it\nblob: %s", i, blob)
+			continue
 		}
 		if tt.expectCount != len(responses) {
 			t.Errorf("#%d: expected %d response(s), but got %d\nblob: %s", i, tt.expectCount, len(responses), blob)
@@ -256,7 +249,7 @@ func TestWebsocketManagerHandler(t *testing.T) {
 	}
 
 	// check basic functionality works
-	req, err := types.MapToRequest(types.JSONRPCStringID("TestWebsocketManager"), "c", map[string]interface{}{"s": "a", "i": 10})
+	req, err := types.MapToRequest(types.JSONRPCStringID("TestWebsocketManager"), "c", map[string]any{"s": "a", "i": 10})
 	require.NoError(t, err)
 	err = c.WriteJSON(req)
 	require.NoError(t, err)

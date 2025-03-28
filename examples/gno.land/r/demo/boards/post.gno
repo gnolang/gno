@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/moul/txlink"
 )
 
 //----------------------------------------
@@ -155,27 +156,26 @@ func (post *Post) GetURL() string {
 }
 
 func (post *Post) GetReplyFormURL() string {
-	return "/r/demo/boards?help&__func=CreateReply" +
-		"&bid=" + post.board.id.String() +
-		"&threadid=" + post.threadID.String() +
-		"&postid=" + post.id.String() +
-		"&body.type=textarea"
+	return txlink.Call("CreateReply",
+		"bid", post.board.id.String(),
+		"threadid", post.threadID.String(),
+		"postid", post.id.String(),
+	)
 }
 
 func (post *Post) GetRepostFormURL() string {
-	return "/r/demo/boards?help&__func=CreateRepost" +
-		"&bid=" + post.board.id.String() +
-		"&postid=" + post.id.String() +
-		"&title.type=textarea" +
-		"&body.type=textarea" +
-		"&dstBoardID.type=textarea"
+	return txlink.Call("CreateRepost",
+		"bid", post.board.id.String(),
+		"postid", post.id.String(),
+	)
 }
 
 func (post *Post) GetDeleteFormURL() string {
-	return "/r/demo/boards?help&__func=DeletePost" +
-		"&bid=" + post.board.id.String() +
-		"&threadid=" + post.threadID.String() +
-		"&postid=" + post.id.String()
+	return txlink.Call("DeletePost",
+		"bid", post.board.id.String(),
+		"threadid", post.threadID.String(),
+		"postid", post.id.String(),
+	)
 }
 
 func (post *Post) RenderSummary() string {
@@ -223,7 +223,7 @@ func (post *Post) RenderPost(indent string, levels int) string {
 	str += " \\[[x](" + post.GetDeleteFormURL() + ")]\n"
 	if levels > 0 {
 		if post.replies.Size() > 0 {
-			post.replies.Iterate("", "", func(key string, value interface{}) bool {
+			post.replies.Iterate("", "", func(key string, value any) bool {
 				str += indent + "\n"
 				str += value.(*Post).RenderPost(indent+"> ", levels-1)
 				return false

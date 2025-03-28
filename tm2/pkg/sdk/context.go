@@ -147,32 +147,22 @@ func (c Context) WithEventLogger(em *EventLogger) Context {
 	return c
 }
 
-// WithValue is deprecated, provided for backwards compatibility
-// Please use
+// WithValue is shorthand for:
 //
-//	ctx = ctx.WithContext(context.WithValue(ctx.Context(), key, false))
+//	c.WithContext(context.WithValue(c.Context(), key, value))
 //
-// instead of
-//
-//	ctx = ctx.WithValue(key, false)
-//
-// NOTE: why?
-func (c Context) WithValue(key, value interface{}) Context {
+// It adds a value to the [context.Context].
+func (c Context) WithValue(key, value any) Context {
 	c.ctx = context.WithValue(c.ctx, key, value)
 	return c
 }
 
-// Value is deprecated, provided for backwards compatibility
-// Please use
+// Value is shorthand for:
 //
-//	ctx.Context().Value(key)
+//	c.Context().Value(key)
 //
-// instead of
-//
-//	ctx.Value(key)
-//
-// NOTE: why?
-func (c Context) Value(key interface{}) interface{} {
+// It retrieves a value from the [context.Context].
+func (c Context) Value(key any) any {
 	return c.ctx.Value(key)
 }
 
@@ -181,8 +171,12 @@ func (c Context) Value(key interface{}) interface{} {
 // ----------------------------------------------------------------------------
 
 // Store fetches a Store from the MultiStore, but wrapped for gas calculation.
-func (c Context) Store(key store.StoreKey) store.Store {
+func (c Context) GasStore(key store.StoreKey) store.Store {
 	return gas.New(c.MultiStore().GetStore(key), c.GasMeter(), store.DefaultGasConfig())
+}
+
+func (c Context) Store(key store.StoreKey) store.Store {
+	return c.MultiStore().GetStore(key)
 }
 
 // CacheContext returns a new Context with the multi-store cached and a new

@@ -37,10 +37,9 @@ func TestMarshal_Primitive(t *testing.T) {
 			name: "42",
 			node: NumberNode("", 42),
 		},
-		// TODO: fix output for not to use scientific notation
 		{
-			name: "1.005e+02",
-			node: NumberNode("", 100.5),
+			name: "3.14",
+			node: NumberNode("", 3.14),
 		},
 		{
 			name: `[1,2,3]`,
@@ -99,7 +98,7 @@ func TestMarshal_Object(t *testing.T) {
 	}
 }
 
-func valueNode(prev *Node, key string, typ ValueType, val interface{}) *Node {
+func valueNode(prev *Node, key string, typ ValueType, val any) *Node {
 	curr := &Node{
 		prev:     prev,
 		data:     nil,

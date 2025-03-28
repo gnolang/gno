@@ -3,7 +3,6 @@ package gnolang
 import (
 	"encoding/binary"
 	"fmt"
-	"math"
 	"math/big"
 	"reflect"
 	"strconv"
@@ -21,6 +20,18 @@ import (
 type Value interface {
 	assertValue()
 	String() string // for debugging
+
+	// DeepFill returns the same value, filled.
+	//
+	// NOTE NOT LAZY (and potentially expensive)
+	// DeepFill() is only used for synchronous recursive
+	// filling before running genstd generated native bindings
+	// which use Gno2GoValue().  All other filling functionality is
+	// lazy, so avoid using this, and keep the logic lazy.
+	//
+	// NOTE must use the return value since PointerValue isn't a pointer
+	// receiver, and RefValue returns another type entirely.
+	DeepFill(store Store) Value
 }
 
 // Fixed size primitive types are represented in TypedValue.N
@@ -38,7 +49,6 @@ func (*MapValue) assertValue()         {}
 func (*BoundMethodValue) assertValue() {}
 func (TypeValue) assertValue()         {}
 func (*PackageValue) assertValue()     {}
-func (*NativeValue) assertValue()      {}
 func (*Block) assertValue()            {}
 func (RefValue) assertValue()          {}
 func (*HeapItemValue) assertValue()    {}
@@ -62,7 +72,6 @@ var (
 	_ Value = &BoundMethodValue{}
 	_ Value = TypeValue{}
 	_ Value = &PackageValue{}
-	_ Value = &NativeValue{}
 	_ Value = &Block{}
 	_ Value = RefValue{}
 	_ Value = &HeapItemValue{}
@@ -80,26 +89,26 @@ type BigintValue struct {
 	V *big.Int
 }
 
-func (bv BigintValue) MarshalAmino() (string, error) {
-	bz, err := bv.V.MarshalText()
+func (biv BigintValue) MarshalAmino() (string, error) {
+	bz, err := biv.V.MarshalText()
 	if err != nil {
 		return "", err
 	}
 	return string(bz), nil
 }
 
-func (bv *BigintValue) UnmarshalAmino(s string) error {
+func (biv *BigintValue) UnmarshalAmino(s string) error {
 	vv := big.NewInt(0)
 	err := vv.UnmarshalText([]byte(s))
 	if err != nil {
 		return err
 	}
-	bv.V = vv
+	biv.V = vv
 	return nil
 }
 
-func (bv BigintValue) Copy(alloc *Allocator) BigintValue {
-	return BigintValue{V: big.NewInt(0).Set(bv.V)}
+func (biv BigintValue) Copy(alloc *Allocator) BigintValue {
+	return BigintValue{V: big.NewInt(0).Set(biv.V)}
 }
 
 // ----------------------------------------
@@ -109,27 +118,27 @@ type BigdecValue struct {
 	V *apd.Decimal
 }
 
-func (bv BigdecValue) MarshalAmino() (string, error) {
-	bz, err := bv.V.MarshalText()
+func (bdv BigdecValue) MarshalAmino() (string, error) {
+	bz, err := bdv.V.MarshalText()
 	if err != nil {
 		return "", err
 	}
 	return string(bz), nil
 }
 
-func (bv *BigdecValue) UnmarshalAmino(s string) error {
+func (bdv *BigdecValue) UnmarshalAmino(s string) error {
 	vv := apd.New(0, 0)
 	err := vv.UnmarshalText([]byte(s))
 	if err != nil {
 		return err
 	}
-	bv.V = vv
+	bdv.V = vv
 	return nil
 }
 
-func (bv BigdecValue) Copy(alloc *Allocator) BigdecValue {
+func (bdv BigdecValue) Copy(alloc *Allocator) BigdecValue {
 	cp := apd.New(0, 0)
-	_, err := apd.BaseContext.Add(cp, cp, bv.V)
+	_, err := apd.BaseContext.Add(cp, cp, bdv.V)
 	if err != nil {
 		panic("should not happen")
 	}
@@ -189,7 +198,6 @@ type PointerValue struct {
 const (
 	PointerIndexBlockBlank = -1 // for the "_" identifier in blocks
 	PointerIndexMap        = -2 // Base is Map, use Key.
-	PointerIndexNative     = -3 // Base is *NativeValue.
 )
 
 func (pv *PointerValue) GetBase(store Store) Object {
@@ -212,71 +220,7 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
 	// Special cases.
-	if pv.Index == PointerIndexNative {
-		// Special case if extended object && native.
-		rv := pv.Base.(*NativeValue).Value
-		if rv.Kind() == reflect.Map { // go native object
-			// assign value to map directly.
-			krv := gno2GoValue(pv.Key, reflect.Value{})
-			vrv := gno2GoValue(&tv2, reflect.Value{})
-			rv.SetMapIndex(krv, vrv)
-		} else {
-			// assign depending on pv.TV type.
-			tv := pv.TV
-			nv1 := tv.V.(*NativeValue)
-			switch v2 := tv2.V.(type) {
-			case PointerValue:
-				if tv.T.Kind() != PointerKind {
-					panic("should not happen")
-				}
-				if nv2, ok := v2.TV.V.(*NativeValue); ok {
-					nrv2 := nv2.Value
-					if nrv2.CanAddr() {
-						it := nrv2.Addr()
-						nv1.Value.Set(it)
-					} else {
-						panic("not yet implemented")
-					}
-				} else {
-					panic("not yet implemented")
-				}
-			case *NativeValue:
-				if tv.V == nil {
-					// tv.V is a native function type.
-					// there is no default value, so just assign
-					// rather than .Value.Set().
-					if tv.T.Kind() == FuncKind {
-						if debug {
-							if tv2.T.Kind() != FuncKind {
-								panic("should not happen")
-							}
-							if nv, ok := tv2.V.(*NativeValue); !ok ||
-								nv.Value.Kind() != reflect.Func {
-								panic("should not happen")
-							}
-						}
-						tv.V = v2
-					} else {
-						tv.V = defaultValue(alloc, tv.T)
-						tv.V.(*NativeValue).Value.Set(v2.Value)
-					}
-				} else {
-					nv1.Value.Set(v2.Value)
-				}
-			case nil:
-				if debug {
-					if tv2.T != nil && tv.T.TypeID() != tv2.T.TypeID() {
-						panic(fmt.Sprintf("mismatched types: cannot assign %v to %v",
-							tv2.String(), tv.T.String()))
-					}
-				}
-				*tv = tv2.Copy(alloc)
-			default:
-				panic("should not happen")
-			}
-		}
-		return
-	} else if pv.TV.T == DataByteType {
+	if pv.TV.T == DataByteType {
 		// Special case of DataByte into (base=*SliceValue).Data.
 		pv.TV.SetDataByte(tv2.GetUint8())
 		return
@@ -297,12 +241,6 @@ func (pv PointerValue) Deref() (tv TypedValue) {
 		dbv := pv.TV.V.(DataByteValue)
 		tv.T = dbv.ElemType
 		tv.SetUint8(dbv.GetByte())
-		return
-	} else if nv, ok := pv.TV.V.(*NativeValue); ok {
-		rv := nv.Value
-		// XXX memoize type.
-		tv.T = &NativeType{Type: rv.Type()}
-		tv.V = nv
 		return
 	} else {
 		tv = *pv.TV
@@ -436,12 +374,18 @@ func (sv *SliceValue) GetLength() int {
 func (sv *SliceValue) GetPointerAtIndexInt2(store Store, ii int, et Type) PointerValue {
 	// Necessary run-time slice bounds check
 	if ii < 0 {
-		panic(fmt.Sprintf(
-			"slice index out of bounds: %d", ii))
+		excpt := &Exception{
+			Value: typedString(fmt.Sprintf(
+				"slice index out of bounds: %d", ii)),
+		}
+		panic(excpt)
 	} else if sv.Length <= ii {
-		panic(fmt.Sprintf(
-			"slice index out of bounds: %d (len=%d)",
-			ii, sv.Length))
+		excpt := &Exception{
+			Value: typedString(fmt.Sprintf(
+				"slice index out of bounds: %d (len=%d)",
+				ii, sv.Length)),
+		}
+		panic(excpt)
 	}
 	return sv.GetBase(store).GetPointerAtIndexInt2(store, sv.Offset+ii, et)
 }
@@ -534,14 +478,15 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 // makes construction TypedValue{T:*FuncType{},V:*FuncValue{}}
 // faster.
 type FuncValue struct {
-	Type       Type      // includes unbound receiver(s)
-	IsMethod   bool      // is an (unbound) method
-	Source     BlockNode // for block mem allocation
-	Name       Name      // name of function/method
-	Closure    Value     // *Block or RefValue to closure (may be nil for file blocks; lazy)
-	FileName   Name      // file name where declared
+	Type       Type         // includes unbound receiver(s)
+	IsMethod   bool         // is an (unbound) method
+	Source     BlockNode    // for block mem allocation
+	Name       Name         // name of function/method
+	Closure    Value        // *Block or RefValue to closure (may be nil for file blocks; lazy)
+	Captures   []TypedValue `json:",omitempty"` // HeapItemValues captured from closure.
+	FileName   Name         // file name where declared
 	PkgPath    string
-	NativePkg  string // for native bindings through NativeStore
+	NativePkg  string // for native bindings through NativeResolver
 	NativeName Name   // not redundant with Name; this cannot be changed in userspace
 
 	body       []Stmt         // function body
@@ -850,7 +795,7 @@ func (pv *PackageValue) deriveFBlocksMap(store Store) {
 		panic("should not happen")
 	}
 	pv.fBlocksMap = make(map[Name]*Block, len(pv.FNames))
-	for i := 0; i < len(pv.FNames); i++ {
+	for i := range pv.FNames {
 		fname := pv.FNames[i]
 		fblock := pv.GetFileBlock(store, fname)
 		pv.fBlocksMap[fname] = fblock
@@ -937,21 +882,6 @@ func (pv *PackageValue) GetPkgAddr() crypto.Address {
 }
 
 // ----------------------------------------
-// NativeValue
-
-type NativeValue struct {
-	Value reflect.Value `json:"-"`
-	Bytes []byte        // XXX is this used?
-}
-
-func (nv *NativeValue) Copy(alloc *Allocator) *NativeValue {
-	nt := nv.Value.Type()
-	nv2 := reflect.New(nt).Elem()
-	nv2.Set(nv.Value)
-	return alloc.NewNative(nv2)
-}
-
-// ----------------------------------------
 // TypedValue (is not a value, but a tuple)
 
 type TypedValue struct {
@@ -1035,9 +965,6 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	case *StructValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc)
-	case *NativeValue:
-		cp.T = tv.T
-		cp.V = cv.Copy(alloc)
 	default:
 		cp = tv
 	}
@@ -1110,22 +1037,20 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 	case UintType, Uint64Type:
 		data = make([]byte, 8)
 		binary.LittleEndian.PutUint64(
-			data, uint64(tv.GetUint()))
+			data, tv.GetUint())
 		return data
 	case Float32Type:
 		data = make([]byte, 4)
-		u32 := math.Float32bits(tv.GetFloat32())
+		u32 := tv.GetFloat32()
 		binary.LittleEndian.PutUint32(
 			data, u32)
 		return data
 	case Float64Type:
 		data = make([]byte, 8)
-		u64 := math.Float64bits(tv.GetFloat64())
+		u64 := tv.GetFloat64()
 		binary.LittleEndian.PutUint64(
 			data, u64)
 		return data
-	case BigintType:
-		return tv.V.(BigintValue).V.Bytes()
 	default:
 		panic(fmt.Sprintf(
 			"unexpected primitive value type: %s",
@@ -1139,7 +1064,7 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 
 func (tv *TypedValue) SetBool(b bool) {
 	if debug {
-		if tv.T.Kind() != BoolKind || isNative(tv.T) {
+		if tv.T.Kind() != BoolKind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetBool() on type %s",
 				tv.T.String()))
@@ -1161,7 +1086,7 @@ func (tv *TypedValue) GetBool() bool {
 
 func (tv *TypedValue) SetString(s StringValue) {
 	if debug {
-		if tv.T.Kind() != StringKind || isNative(tv.T) {
+		if tv.T.Kind() != StringKind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetString() on type %s",
 				tv.T.String()))
@@ -1184,27 +1109,24 @@ func (tv *TypedValue) GetString() string {
 	return string(tv.V.(StringValue))
 }
 
-func (tv *TypedValue) SetInt(n int) {
+func (tv *TypedValue) SetInt(n int64) {
 	if debug {
-		if tv.T.Kind() != IntKind || isNative(tv.T) {
+		if tv.T.Kind() != IntKind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt() on type %s",
 				tv.T.String()))
 		}
 	}
-	// XXX probably should be coerced into int64 for determinism.
-	// XXX otherwise, all nodes must run in 64bit.
-	// XXX alternatively, require 64bit.
-	*(*int)(unsafe.Pointer(&tv.N)) = n
+	*(*int64)(unsafe.Pointer(&tv.N)) = n
 }
 
-func (tv *TypedValue) ConvertGetInt() int {
+func (tv *TypedValue) ConvertGetInt() int64 {
 	var store Store = nil // not used
-	ConvertTo(nilAllocator, store, tv, IntType)
+	ConvertTo(nilAllocator, store, tv, IntType, false)
 	return tv.GetInt()
 }
 
-func (tv *TypedValue) GetInt() int {
+func (tv *TypedValue) GetInt() int64 {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != IntKind {
 			panic(fmt.Sprintf(
@@ -1212,12 +1134,12 @@ func (tv *TypedValue) GetInt() int {
 				tv.T.String()))
 		}
 	}
-	return *(*int)(unsafe.Pointer(&tv.N))
+	return *(*int64)(unsafe.Pointer(&tv.N))
 }
 
 func (tv *TypedValue) SetInt8(n int8) {
 	if debug {
-		if tv.T.Kind() != Int8Kind || isNative(tv.T) {
+		if tv.T.Kind() != Int8Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt8() on type %s",
 				tv.T.String()))
@@ -1239,7 +1161,7 @@ func (tv *TypedValue) GetInt8() int8 {
 
 func (tv *TypedValue) SetInt16(n int16) {
 	if debug {
-		if tv.T.Kind() != Int16Kind || isNative(tv.T) {
+		if tv.T.Kind() != Int16Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt16() on type %s",
 				tv.T.String()))
@@ -1261,7 +1183,7 @@ func (tv *TypedValue) GetInt16() int16 {
 
 func (tv *TypedValue) SetInt32(n int32) {
 	if debug {
-		if tv.T.Kind() != Int32Kind || isNative(tv.T) {
+		if tv.T.Kind() != Int32Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt32() on type %s",
 				tv.T.String()))
@@ -1283,7 +1205,7 @@ func (tv *TypedValue) GetInt32() int32 {
 
 func (tv *TypedValue) SetInt64(n int64) {
 	if debug {
-		if tv.T.Kind() != Int64Kind || isNative(tv.T) {
+		if tv.T.Kind() != Int64Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt64() on type %s",
 				tv.T.String()))
@@ -1303,18 +1225,18 @@ func (tv *TypedValue) GetInt64() int64 {
 	return *(*int64)(unsafe.Pointer(&tv.N))
 }
 
-func (tv *TypedValue) SetUint(n uint) {
+func (tv *TypedValue) SetUint(n uint64) {
 	if debug {
-		if tv.T.Kind() != UintKind || isNative(tv.T) {
+		if tv.T.Kind() != UintKind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint() on type %s",
 				tv.T.String()))
 		}
 	}
-	*(*uint)(unsafe.Pointer(&tv.N)) = n
+	*(*uint64)(unsafe.Pointer(&tv.N)) = n
 }
 
-func (tv *TypedValue) GetUint() uint {
+func (tv *TypedValue) GetUint() uint64 {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != UintKind {
 			panic(fmt.Sprintf(
@@ -1322,12 +1244,12 @@ func (tv *TypedValue) GetUint() uint {
 				tv.T.String()))
 		}
 	}
-	return *(*uint)(unsafe.Pointer(&tv.N))
+	return *(*uint64)(unsafe.Pointer(&tv.N))
 }
 
 func (tv *TypedValue) SetUint8(n uint8) {
 	if debug {
-		if tv.T.Kind() != Uint8Kind || isNative(tv.T) {
+		if tv.T.Kind() != Uint8Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint8() on type %s",
 				tv.T.String()))
@@ -1355,7 +1277,7 @@ func (tv *TypedValue) GetUint8() uint8 {
 
 func (tv *TypedValue) SetDataByte(n uint8) {
 	if debug {
-		if tv.T != DataByteType || isNative(tv.T) {
+		if tv.T != DataByteType {
 			panic(fmt.Sprintf(
 				"TypedValue.SetDataByte() on type %s",
 				tv.T.String()))
@@ -1379,7 +1301,7 @@ func (tv *TypedValue) GetDataByte() uint8 {
 
 func (tv *TypedValue) SetUint16(n uint16) {
 	if debug {
-		if tv.T.Kind() != Uint16Kind || isNative(tv.T) {
+		if tv.T.Kind() != Uint16Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint16() on type %s",
 				tv.T.String()))
@@ -1401,7 +1323,7 @@ func (tv *TypedValue) GetUint16() uint16 {
 
 func (tv *TypedValue) SetUint32(n uint32) {
 	if debug {
-		if tv.T.Kind() != Uint32Kind || isNative(tv.T) {
+		if tv.T.Kind() != Uint32Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint32() on type %s",
 				tv.T.String()))
@@ -1423,7 +1345,7 @@ func (tv *TypedValue) GetUint32() uint32 {
 
 func (tv *TypedValue) SetUint64(n uint64) {
 	if debug {
-		if tv.T.Kind() != Uint64Kind || isNative(tv.T) {
+		if tv.T.Kind() != Uint64Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint64() on type %s",
 				tv.T.String()))
@@ -1443,18 +1365,18 @@ func (tv *TypedValue) GetUint64() uint64 {
 	return *(*uint64)(unsafe.Pointer(&tv.N))
 }
 
-func (tv *TypedValue) SetFloat32(n float32) {
+func (tv *TypedValue) SetFloat32(n uint32) {
 	if debug {
-		if tv.T.Kind() != Float32Kind || isNative(tv.T) {
+		if tv.T.Kind() != Float32Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetFloat32() on type %s",
 				tv.T.String()))
 		}
 	}
-	*(*float32)(unsafe.Pointer(&tv.N)) = n
+	*(*uint32)(unsafe.Pointer(&tv.N)) = n
 }
 
-func (tv *TypedValue) GetFloat32() float32 {
+func (tv *TypedValue) GetFloat32() uint32 {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != Float32Kind {
 			panic(fmt.Sprintf(
@@ -1462,21 +1384,21 @@ func (tv *TypedValue) GetFloat32() float32 {
 				tv.T.String()))
 		}
 	}
-	return *(*float32)(unsafe.Pointer(&tv.N))
+	return *(*uint32)(unsafe.Pointer(&tv.N))
 }
 
-func (tv *TypedValue) SetFloat64(n float64) {
+func (tv *TypedValue) SetFloat64(n uint64) {
 	if debug {
-		if tv.T.Kind() != Float64Kind || isNative(tv.T) {
+		if tv.T.Kind() != Float64Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetFloat64() on type %s",
 				tv.T.String()))
 		}
 	}
-	*(*float64)(unsafe.Pointer(&tv.N)) = n
+	*(*uint64)(unsafe.Pointer(&tv.N)) = n
 }
 
-func (tv *TypedValue) GetFloat64() float64 {
+func (tv *TypedValue) GetFloat64() uint64 {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != Float64Kind {
 			panic(fmt.Sprintf(
@@ -1484,7 +1406,7 @@ func (tv *TypedValue) GetFloat64() float64 {
 				tv.T.String()))
 		}
 	}
-	return *(*float64)(unsafe.Pointer(&tv.N))
+	return *(*uint64)(unsafe.Pointer(&tv.N))
 }
 
 func (tv *TypedValue) GetBigInt() *big.Int {
@@ -1509,86 +1431,31 @@ func (tv *TypedValue) GetBigDec() *apd.Decimal {
 	return tv.V.(BigdecValue).V
 }
 
-// returns true if tv is zero
-func (tv *TypedValue) isZero() bool {
+func (tv *TypedValue) Sign() int {
 	if tv.T == nil {
 		panic("type should not be nil")
 	}
+
 	switch tv.T.Kind() {
-	case IntKind:
-		v := tv.GetInt()
-		if v == 0 {
-			return true
-		}
-	case Int8Kind:
-		v := tv.GetInt8()
-		if v == 0 {
-			return true
-		}
-	case Int16Kind:
-		v := tv.GetInt16()
-		if v == 0 {
-			return true
-		}
-	case Int32Kind:
-		v := tv.GetInt32()
-		if v == 0 {
-			return true
-		}
-	case Int64Kind:
-		v := tv.GetInt64()
-		if v == 0 {
-			return true
-		}
-	case UintKind:
-		v := tv.GetUint()
-		if v == 0 {
-			return true
-		}
-	case Uint8Kind:
-		v := tv.GetUint8()
-		if v == 0 {
-			return true
-		}
-	case Uint16Kind:
-		v := tv.GetUint16()
-		if v == 0 {
-			return true
-		}
-	case Uint32Kind:
-		v := tv.GetUint32()
-		if v == 0 {
-			return true
-		}
-	case Uint64Kind:
-		v := tv.GetUint64()
-		if v == 0 {
-			return true
-		}
-	case Float32Kind:
-		v := tv.GetFloat32()
-		if v == 0 {
-			return true
-		}
-	case Float64Kind:
-		v := tv.GetFloat64()
-		if v == 0 {
-			return true
-		}
+	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
+		return signOfUnsignedBytes(tv.N)
+	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind, Float32Kind, Float64Kind:
+		return signOfSignedBytes(tv.N)
 	case BigintKind:
 		v := tv.GetBigInt()
-		if v.Sign() == 0 {
-			return true
-		}
+		return v.Sign()
 	case BigdecKind:
 		v := tv.GetBigDec()
-		if v.Sign() == 0 {
-			return true
-		}
+		return v.Sign()
 	default:
-		panic("not numeric")
+		panic("type should be numeric")
 	}
-	return false
+}
+
+func (tv *TypedValue) AssertNonNegative(msg string) {
+	if tv.Sign() < 0 {
+		panic(fmt.Sprintf("%s: %v", msg, tv))
+	}
 }
 
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
@@ -1612,6 +1479,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		pbz := tv.PrimitiveBytes()
 		bz = append(bz, pbz...)
 	case *PointerType:
+		fillValueTV(store, tv)
 		ptr := uintptr(unsafe.Pointer(tv.V.(PointerValue).TV))
 		bz = append(bz, uintptrToBytes(&ptr)...)
 	case FieldType:
@@ -1622,7 +1490,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		bz = append(bz, '[')
 		if av.Data == nil {
 			omitTypes := bt.Elem().Kind() != InterfaceKind
-			for i := 0; i < al; i++ {
+			for i := range al {
 				ev := fillValueTV(store, &av.List[i])
 				bz = append(bz, ev.ComputeMapKey(store, omitTypes)...)
 				if i != al-1 {
@@ -1639,7 +1507,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		sv := tv.V.(*StructValue)
 		sl := len(sv.Fields)
 		bz = append(bz, '{')
-		for i := 0; i < sl; i++ {
+		for i := range sl {
 			fv := fillValueTV(store, &sv.Fields[i])
 			omitTypes := bt.Fields[i].Type.Kind() != InterfaceKind
 			bz = append(bz, fv.ComputeMapKey(store, omitTypes)...)
@@ -1658,8 +1526,6 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		pv := tv.V.(*PackageValue)
 		bz = append(bz, []byte(strconv.Quote(pv.PkgPath))...)
 	case *ChanType:
-		panic("not yet implemented")
-	case *NativeType:
 		panic("not yet implemented")
 	default:
 		panic(fmt.Sprintf(
@@ -1700,10 +1566,10 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 // or binary operations. When a pointer is to be
 // allocated, *Allocator.AllocatePointer() is called separately,
 // as in OpRef.
-func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath) PointerValue {
+func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path ValuePath) PointerValue {
 	if debug {
 		if tv.IsUndefined() {
-			panic("GetPointerTo() on undefined value")
+			panic("GetPointerToFromTV() on undefined value")
 		}
 	}
 
@@ -1718,7 +1584,7 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 			dtv = tv
 		case 1:
 			dtv = tv
-			path.Depth = 0
+			path.SetDepth(0)
 		default:
 			panic("should not happen")
 		}
@@ -1730,15 +1596,15 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 		case 1:
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
-			path.Depth = 0
+			path.SetDepth(0)
 		case 2:
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
-			path.Depth = 0
+			path.SetDepth(0)
 		case 3:
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
-			path.Depth = 0
+			path.SetDepth(0)
 		default:
 			panic("should not happen")
 		}
@@ -1752,21 +1618,27 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
 			path.Type = VPField
-			path.Depth = 0
+			path.SetDepth(0)
 		case 2:
+			if tv.V == nil {
+				panic(&Exception{Value: typedString("nil pointer dereference")})
+			}
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
 			path.Type = VPField
-			path.Depth = 0
+			path.SetDepth(0)
 		case 3:
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
 			path.Type = VPField
-			path.Depth = 0
+			path.SetDepth(0)
 		default:
 			panic("should not happen")
 		}
 	case VPDerefValMethod:
+		if tv.V == nil {
+			panic(&Exception{Value: typedString("nil pointer dereference")})
+		}
 		dtv2 := tv.V.(PointerValue).TV
 		dtv = &TypedValue{ // In case method is called on converted type, like ((*othertype)x).Method().
 			T: tv.T.Elem(),
@@ -1825,22 +1697,6 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 				return PointerValue{
 					TV:   &tv, // heap alloc
 					Base: nil, // TODO: make TypeValue an object.
-				}
-			case *NativeType:
-				rt := t.Type
-				mt, ok := rt.MethodByName(string(path.Name))
-				if !ok {
-					if debug {
-						panic(fmt.Sprintf(
-							"native type %s has no method %s",
-							rt.String(), path.Name))
-					}
-					panic("unknown native method selector")
-				}
-				mtv := go2GnoValue(alloc, mt.Func)
-				return PointerValue{
-					TV:   &mtv, // heap alloc
-					Base: nil,
 				}
 			default:
 				panic("unexpected selector base typeval.")
@@ -1922,92 +1778,13 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 		}
 		bv := *dtv
 		for i, path := range tr {
-			ptr := bv.GetPointerTo(alloc, store, path)
+			ptr := bv.GetPointerToFromTV(alloc, store, path)
 			if i == len(tr)-1 {
 				return ptr // done
 			}
 			bv = ptr.Deref() // deref
 		}
 		panic("should not happen")
-	case VPNative:
-		var nv *NativeValue
-		// Special case if tv.T.(PointerType):
-		// we may need to treat this as a native pointer
-		// to get the correct pointer-receiver value.
-		if _, ok := dtv.T.(*PointerType); ok {
-			pv := dtv.V.(PointerValue)
-			nv = pv.TV.V.(*NativeValue)
-		} else {
-			nv = dtv.V.(*NativeValue)
-		}
-		rv := nv.Value
-		rt := rv.Type()
-		// First, try to get field.
-		var fv reflect.Value
-		if rt.Kind() == reflect.Ptr {
-			if rt.Elem().Kind() == reflect.Struct {
-				fv = rv.Elem().FieldByName(string(path.Name))
-			}
-		} else if rt.Kind() == reflect.Struct {
-			fv = rv.FieldByName(string(path.Name))
-		}
-		if fv.IsValid() {
-			ftv := go2GnoValue(alloc, fv)
-			return PointerValue{
-				TV: &ftv, // heap alloc
-				// TODO consider if needed for persistence:
-				/*
-					Base: nv,
-					Index: PointerIndexNative,
-					Key: pathValue{path},
-				*/
-			}
-		}
-		// Then, try to get method.
-		mv := rv.MethodByName(string(path.Name))
-		if mv.IsValid() {
-			mt := mv.Type()
-			return PointerValue{
-				TV: &TypedValue{ // heap alloc
-					T: alloc.NewType(&NativeType{Type: mt}),
-					V: alloc.NewNative(mv),
-				},
-				// TODO consider if needed for persistence:
-				/*
-					Base: nv,
-					Index: PointerIndexNative,
-					Key: pathValue{path},
-				*/
-			}
-		} else {
-			// Always try to get method from pointer type.
-			if !rv.CanAddr() {
-				// Replace rv with addressable value.
-				rv2 := reflect.New(rt).Elem()
-				rv2.Set(rv)
-				rv = rv2
-				tv.V.(*NativeValue).Value = rv2 // replace rv
-			}
-			mv := rv.Addr().MethodByName(string(path.Name))
-			if mv.IsValid() {
-				mt := mv.Type()
-				return PointerValue{
-					TV: &TypedValue{ // heap alloc
-						T: alloc.NewType(&NativeType{Type: mt}),
-						V: alloc.NewNative(mv),
-					},
-					// TODO consider if needed for persistence:
-					/*
-						Base: nv,
-						Index: PointerIndexNative,
-						Key: pathValue{path},
-					*/
-				}
-			}
-		}
-		panic(fmt.Sprintf(
-			"native type %s has no method or field %s",
-			dtv.T.String(), path.Name))
 	default:
 		panic("should not happen")
 	}
@@ -2016,7 +1793,7 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 // Convenience for GetPointerAtIndex().  Slow.
 func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
 	iv := TypedValue{T: IntType}
-	iv.SetInt(ii)
+	iv.SetInt(int64(ii))
 	return tv.GetPointerAtIndex(nilAllocator, store, &iv)
 }
 
@@ -2025,10 +1802,18 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 	case PrimitiveType:
 		if bt == StringType || bt == UntypedStringType {
 			sv := tv.GetString()
-			ii := iv.ConvertGetInt()
+			ii := int(iv.ConvertGetInt())
 			bv := &TypedValue{ // heap alloc
 				T: Uint8Type,
 			}
+
+			if ii >= len(sv) {
+				panic(&Exception{Value: typedString(fmt.Sprintf("index out of range [%d] with length %d", ii, len(sv)))})
+			}
+			if ii < 0 {
+				panic(&Exception{Value: typedString(fmt.Sprintf("invalid slice index %d (index must be non-negative)", ii))})
+			}
+
 			bv.SetUint8(sv[ii])
 			return PointerValue{
 				TV:   bv,
@@ -2040,18 +1825,18 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 			tv.T.String()))
 	case *ArrayType:
 		av := tv.V.(*ArrayValue)
-		ii := iv.ConvertGetInt()
+		ii := int(iv.ConvertGetInt())
 		return av.GetPointerAtIndexInt2(store, ii, bt.Elt)
 	case *SliceType:
 		if tv.V == nil {
 			panic("nil slice index (out of bounds)")
 		}
 		sv := tv.V.(*SliceValue)
-		ii := iv.ConvertGetInt()
+		ii := int(iv.ConvertGetInt())
 		return sv.GetPointerAtIndexInt2(store, ii, bt.Elt)
 	case *MapType:
 		if tv.V == nil {
-			panic("uninitialized map index")
+			panic(&Exception{Value: typedString("uninitialized map index")})
 		}
 		mv := tv.V.(*MapValue)
 		pv := mv.GetPointerForKey(alloc, store, iv)
@@ -2063,40 +1848,6 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 			}
 		}
 		return pv
-	case *NativeType:
-		rt := tv.T.(*NativeType).Type
-		nv := tv.V.(*NativeValue)
-		rv := nv.Value
-		switch rt.Kind() {
-		case reflect.Array, reflect.Slice, reflect.String:
-			ii := iv.ConvertGetInt()
-			erv := rv.Index(ii)
-			etv := go2GnoValue(alloc, erv)
-			return PointerValue{
-				TV: &etv,
-				// TODO consider if needed for persistence:
-				/*
-					Base: nv,
-					Index: PointerIndexNative,
-					Key: pathValue{path},
-				*/
-			}
-		case reflect.Map:
-			krv := gno2GoValue(iv, reflect.Value{})
-			vrv := rv.MapIndex(krv)
-			etv := go2GnoValue(alloc, vrv) // NOTE: lazy, often native.
-			return PointerValue{
-				TV:    &etv, // TODO not needed for assignment.
-				Base:  nv,
-				Index: PointerIndexNative,
-				Key: &TypedValue{
-					T: alloc.NewType(&NativeType{Type: krv.Type()}),
-					V: alloc.NewNative(krv),
-				},
-			}
-		default:
-			panic("should not happen")
-		}
 	default:
 		panic(fmt.Sprintf(
 			"unexpected index base type %s (%v base %v)",
@@ -2125,13 +1876,20 @@ func (tv *TypedValue) GetLength() int {
 		switch bt := baseOf(tv.T).(type) {
 		case PrimitiveType:
 			if bt != StringType {
-				panic("should not happen")
+				panic(fmt.Sprintf("unexpected type for len(): %s", tv.T.String()))
 			}
 			return 0
 		case *ArrayType:
 			return bt.Len
 		case *SliceType:
 			return 0
+		case *MapType:
+			return 0
+		case *PointerType:
+			if at, ok := bt.Elt.(*ArrayType); ok {
+				return at.Len
+			}
+			panic(fmt.Sprintf("unexpected type for len(): %s", tv.T.String()))
 		default:
 			panic(fmt.Sprintf(
 				"unexpected type for len(): %s",
@@ -2147,8 +1905,11 @@ func (tv *TypedValue) GetLength() int {
 		return cv.GetLength()
 	case *MapValue:
 		return cv.GetLength()
-	case *NativeValue:
-		return cv.Value.Len()
+	case PointerValue:
+		if av, ok := cv.TV.V.(*ArrayValue); ok {
+			return av.GetLength()
+		}
+		panic(fmt.Sprintf("unexpected type for len(): %s", tv.T.String()))
 	default:
 		panic(fmt.Sprintf("unexpected type for len(): %s",
 			tv.T.String()))
@@ -2157,27 +1918,32 @@ func (tv *TypedValue) GetLength() int {
 
 func (tv *TypedValue) GetCapacity() int {
 	if tv.V == nil {
-		if debug {
-			// assert acceptable type.
-			switch baseOf(tv.T).(type) {
-			// strings have no capacity.
-			case *ArrayType:
-			case *SliceType:
-			default:
-				panic("should not happen")
+		// assert acceptable type.
+		switch bt := baseOf(tv.T).(type) {
+		// strings have no capacity.
+		case *ArrayType:
+			return bt.Len
+		case *SliceType:
+			return 0
+		case *PointerType:
+			if at, ok := bt.Elt.(*ArrayType); ok {
+				return at.Len
 			}
+			panic(fmt.Sprintf("unexpected type for cap(): %s", tv.T.String()))
+		default:
+			panic(fmt.Sprintf("unexpected type for cap(): %s", tv.T.String()))
 		}
-		return 0
 	}
 	switch cv := tv.V.(type) {
-	case StringValue:
-		return len(string(cv))
 	case *ArrayValue:
 		return cv.GetCapacity()
 	case *SliceValue:
 		return cv.GetCapacity()
-	case *NativeValue:
-		return cv.Value.Cap()
+	case PointerValue:
+		if av, ok := cv.TV.V.(*ArrayValue); ok {
+			return av.GetCapacity()
+		}
+		panic(fmt.Sprintf("unexpected type for cap(): %s", tv.T.String()))
 	default:
 		panic(fmt.Sprintf("unexpected type for cap(): %s",
 			tv.T.String()))
@@ -2186,35 +1952,42 @@ func (tv *TypedValue) GetCapacity() int {
 
 func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 	if low < 0 {
-		panic(fmt.Sprintf(
+		panic(&Exception{Value: typedString(fmt.Sprintf(
 			"invalid slice index %d (index must be non-negative)",
-			low))
+			low))})
 	}
 	if high < 0 {
-		panic(fmt.Sprintf(
+		panic(&Exception{Value: typedString(fmt.Sprintf(
 			"invalid slice index %d (index must be non-negative)",
-			high))
+			low))})
 	}
 	if low > high {
-		panic(fmt.Sprintf(
+		panic(&Exception{Value: typedString(fmt.Sprintf(
 			"invalid slice index %d > %d",
-			low, high))
-	}
-	if tv.GetCapacity() < high {
-		panic(fmt.Sprintf(
-			"slice bounds out of range [%d:%d] with capacity %d",
-			low, high, tv.GetCapacity()))
+			low, high))})
 	}
 	switch t := baseOf(tv.T).(type) {
 	case PrimitiveType:
+		if tv.GetLength() < high {
+			panic(&Exception{Value: typedString(fmt.Sprintf(
+				"slice bounds out of range [%d:%d] with string length %d",
+				low, high, tv.GetLength()))})
+		}
 		if t == StringType || t == UntypedStringType {
 			return TypedValue{
 				T: tv.T,
 				V: alloc.NewString(tv.GetString()[low:high]),
 			}
 		}
-		panic("non-string primitive type cannot be sliced")
+		panic(&Exception{Value: typedString(fmt.Sprintf(
+			"non-string primitive type cannot be sliced",
+		))})
 	case *ArrayType:
+		if tv.GetLength() < high {
+			panic(&Exception{Value: typedString(fmt.Sprintf(
+				"slice bounds out of range [%d:%d] with array length %d",
+				low, high, tv.GetLength()))})
+		}
 		av := tv.V.(*ArrayValue)
 		st := alloc.NewType(&SliceType{
 			Elt: t.Elt,
@@ -2230,9 +2003,15 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 			),
 		}
 	case *SliceType:
+		if tv.GetCapacity() < high {
+			panic(&Exception{Value: typedString(fmt.Sprintf(
+				"slice bounds out of range [%d:%d] with capacity %d",
+				low, high, tv.GetCapacity()))})
+		}
 		if tv.V == nil {
 			if low != 0 || high != 0 {
-				panic("nil slice index out of range")
+				panic(&Exception{Value: typedString(fmt.Sprintf(
+					"nil slice index out of range"))})
 			}
 			return TypedValue{
 				T: tv.T,
@@ -2255,41 +2034,41 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 	}
 }
 
-func (tv *TypedValue) GetSlice2(alloc *Allocator, low, high, max int) TypedValue {
-	if low < 0 {
+func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) TypedValue {
+	if lowVal < 0 {
 		panic(fmt.Sprintf(
 			"invalid slice index %d (index must be non-negative)",
-			low))
+			lowVal))
 	}
-	if high < 0 {
+	if highVal < 0 {
 		panic(fmt.Sprintf(
 			"invalid slice index %d (index must be non-negative)",
-			high))
+			highVal))
 	}
-	if max < 0 {
+	if maxVal < 0 {
 		panic(fmt.Sprintf(
 			"invalid slice index %d (index must be non-negative)",
-			max))
+			maxVal))
 	}
-	if low > high {
+	if lowVal > highVal {
 		panic(fmt.Sprintf(
 			"invalid slice index %d > %d",
-			low, high))
+			lowVal, highVal))
 	}
-	if high > max {
+	if highVal > maxVal {
 		panic(fmt.Sprintf(
 			"invalid slice index %d > %d",
-			high, max))
+			highVal, maxVal))
 	}
-	if tv.GetCapacity() < high {
+	if tv.GetCapacity() < highVal {
 		panic(fmt.Sprintf(
 			"slice bounds out of range [%d:%d:%d] with capacity %d",
-			low, high, max, tv.GetCapacity()))
+			lowVal, highVal, maxVal, tv.GetCapacity()))
 	}
-	if tv.GetCapacity() < max {
+	if tv.GetCapacity() < maxVal {
 		panic(fmt.Sprintf(
 			"slice bounds out of range [%d:%d:%d] with capacity %d",
-			low, high, max, tv.GetCapacity()))
+			lowVal, highVal, maxVal, tv.GetCapacity()))
 	}
 	switch bt := baseOf(tv.T).(type) {
 	case *ArrayType:
@@ -2301,15 +2080,15 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, low, high, max int) TypedValue
 		return TypedValue{
 			T: st,
 			V: alloc.NewSlice(
-				av,       // base
-				low,      // low
-				high-low, // length
-				max-low,  // maxcap
+				av,             // base
+				lowVal,         // low
+				highVal-lowVal, // length
+				maxVal-lowVal,  // maxcap
 			),
 		}
 	case *SliceType:
 		if tv.V == nil {
-			if low != 0 || high != 0 || max != 0 {
+			if lowVal != 0 || highVal != 0 || maxVal != 0 {
 				panic("nil slice index out of range")
 			}
 			return TypedValue{
@@ -2321,15 +2100,23 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, low, high, max int) TypedValue
 		return TypedValue{
 			T: tv.T,
 			V: alloc.NewSlice(
-				sv.Base,       // base
-				sv.Offset+low, // offset
-				high-low,      // length
-				max-low,       // maxcap
+				sv.Base,          // base
+				sv.Offset+lowVal, // offset
+				highVal-lowVal,   // length
+				maxVal-lowVal,    // maxcap
 			),
 		}
 	default:
 		panic(fmt.Sprintf("unexpected type for GetSlice2(): %s",
 			tv.T.String()))
+	}
+}
+
+// Convenience for Value.DeepFill.
+// NOTE: NOT LAZY (and potentially expensive)
+func (tv *TypedValue) DeepFill(store Store) {
+	if tv.V != nil {
+		tv.V = tv.V.DeepFill(store)
 	}
 }
 
@@ -2464,6 +2251,70 @@ func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	return b.GetPointerToInt(store, int(path.Index))
 }
 
+// Convenience
+func (b *Block) GetPointerToMaybeHeapUse(store Store, nx *NameExpr) PointerValue {
+	switch nx.Type {
+	case NameExprTypeNormal:
+		return b.GetPointerTo(store, nx.Path)
+	case NameExprTypeHeapUse:
+		return b.GetPointerToHeapUse(store, nx.Path)
+	case NameExprTypeHeapClosure:
+		panic("should not happen with type heap closure")
+	default:
+		panic("unexpected NameExpr type for GetPointerToMaybeHeapUse")
+	}
+}
+
+// Convenience
+func (b *Block) GetPointerToMaybeHeapDefine(store Store, nx *NameExpr) PointerValue {
+	switch nx.Type {
+	case NameExprTypeNormal:
+		return b.GetPointerTo(store, nx.Path)
+	case NameExprTypeDefine:
+		return b.GetPointerTo(store, nx.Path)
+	case NameExprTypeHeapDefine:
+		return b.GetPointerToHeapDefine(store, nx.Path)
+	default:
+		panic("unexpected NameExpr type for GetPointerToMaybeHeapDefine")
+	}
+}
+
+// First defines a new HeapItemValue.
+// This gets called from NameExprTypeHeapDefine name expressions.
+func (b *Block) GetPointerToHeapDefine(store Store, path ValuePath) PointerValue {
+	ptr := b.GetPointerTo(store, path)
+	hiv := &HeapItemValue{}
+	// point to a heapItem
+	*ptr.TV = TypedValue{
+		T: heapItemType{},
+		V: hiv,
+	}
+
+	return PointerValue{
+		TV:    &hiv.Value,
+		Base:  hiv,
+		Index: 0,
+	}
+}
+
+// Assumes a HeapItemValue, and gets inner pointer.
+// This gets called from NameExprTypeHeapUse name expressions.
+func (b *Block) GetPointerToHeapUse(store Store, path ValuePath) PointerValue {
+	ptr := b.GetPointerTo(store, path)
+	if _, ok := ptr.TV.T.(heapItemType); !ok {
+		panic("should not happen, should be heapItemType")
+	}
+	if _, ok := ptr.TV.V.(*HeapItemValue); !ok {
+		panic("should not happen, should be HeapItemValue")
+	}
+
+	return PointerValue{
+		TV:    &ptr.TV.V.(*HeapItemValue).Value,
+		Base:  ptr.TV.V,
+		Index: 0,
+	}
+}
+
 // Result is used has lhs for any assignments to "_".
 func (b *Block) GetBlankRef() *TypedValue {
 	return &b.Blank
@@ -2552,7 +2403,7 @@ func defaultArrayValue(alloc *Allocator, at *ArrayType) *ArrayValue {
 	av := alloc.NewListArray(at.Len)
 	tvs := av.List
 	if et := at.Elem(); et.Kind() != InterfaceKind {
-		for i := 0; i < at.Len; i++ {
+		for i := range at.Len {
 			tvs[i].T = et
 			tvs[i].V = defaultValue(alloc, et)
 		}
@@ -2572,14 +2423,6 @@ func defaultValue(alloc *Allocator, t Type) Value {
 		return nil
 	case *MapType:
 		return nil
-	case *NativeType:
-		if t.Kind() == InterfaceKind {
-			return nil
-		} else {
-			return alloc.NewNative(
-				reflect.New(ct.Type).Elem(),
-			)
-		}
 	default:
 		return nil
 	}
@@ -2597,7 +2440,7 @@ func defaultTypedValue(alloc *Allocator, t Type) TypedValue {
 
 func typedInt(i int) TypedValue {
 	tv := TypedValue{T: IntType}
-	tv.SetInt(i)
+	tv.SetInt(int64(i))
 	return tv
 }
 
@@ -2665,4 +2508,25 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 		// do nothing
 	}
 	return tv
+}
+
+// ----------------------------------------
+// Utility
+func signOfSignedBytes(n [8]byte) int {
+	si := *(*int64)(unsafe.Pointer(&n[0]))
+	switch {
+	case si == 0:
+		return 0
+	case si < 0:
+		return -1
+	default:
+		return 1
+	}
+}
+
+func signOfUnsignedBytes(n [8]byte) int {
+	if *(*uint64)(unsafe.Pointer(&n[0])) == 0 {
+		return 0
+	}
+	return 1
 }

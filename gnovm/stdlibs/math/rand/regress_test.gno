@@ -130,7 +130,7 @@ func TestRegress(t *testing.T) {
 }
 */
 
-var regressGolden = []interface{}{
+var regressGolden = []any{
 	float64(0.5931317151369719),   // ExpFloat64()
 	float64(0.0680034588807843),   // ExpFloat64()
 	float64(0.036496967459790364), // ExpFloat64()

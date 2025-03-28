@@ -22,7 +22,7 @@ func NewCounterApplication(serial bool) *CounterApplication {
 
 func (app *CounterApplication) Info(req abci.RequestInfo) abci.ResponseInfo {
 	return abci.ResponseInfo{ResponseBase: abci.ResponseBase{
-		Data: []byte(fmt.Sprintf("{\"hashes\":%v,\"txs\":%v}", app.hashCount, app.txCount)),
+		Data: fmt.Appendf(nil, "{\"hashes\":%v,\"txs\":%v}", app.hashCount, app.txCount),
 	}}
 }
 
@@ -108,9 +108,9 @@ func (app *CounterApplication) Commit() (resp abci.ResponseCommit) {
 func (app *CounterApplication) Query(reqQuery abci.RequestQuery) abci.ResponseQuery {
 	switch reqQuery.Path {
 	case "hash":
-		return abci.ResponseQuery{Value: []byte(fmt.Sprintf("%v", app.hashCount))}
+		return abci.ResponseQuery{Value: fmt.Appendf(nil, "%v", app.hashCount)}
 	case "tx":
-		return abci.ResponseQuery{Value: []byte(fmt.Sprintf("%v", app.txCount))}
+		return abci.ResponseQuery{Value: fmt.Appendf(nil, "%v", app.txCount)}
 	default:
 		return abci.ResponseQuery{ResponseBase: abci.ResponseBase{Log: fmt.Sprintf("Invalid query path. Expected hash or tx, got %v", reqQuery.Path)}}
 	}

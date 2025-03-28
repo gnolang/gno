@@ -5,12 +5,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/url"
 	"os"
 	"os/signal"
-	"path/filepath"
+	gopath "path"
 	"strings"
 	"time"
 
@@ -21,7 +22,6 @@ import (
 	"github.com/charmbracelet/wish"
 	"github.com/charmbracelet/wish/activeterm"
 	"github.com/charmbracelet/wish/bubbletea"
-	"github.com/charmbracelet/wish/logging"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/browser"
@@ -47,6 +47,7 @@ type broCfg struct {
 	sshListener    string
 	sshHostKeyPath string
 	banner         bool
+	jsonlog        bool
 }
 
 var defaultBroOptions = broCfg{
@@ -152,6 +153,13 @@ func (c *broCfg) RegisterFlags(fs *flag.FlagSet) {
 		defaultBroOptions.readonly,
 		"readonly mode, no commands allowed",
 	)
+
+	fs.BoolVar(
+		&c.jsonlog,
+		"jsonlog",
+		defaultBroOptions.jsonlog,
+		"display server log as json format",
+	)
 }
 
 func execBrowser(cfg *broCfg, args []string, cio commands.IO) error {
@@ -231,7 +239,6 @@ func runLocal(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg br
 	)
 
 	var errgs errgroup.Group
-
 	if cfg.dev {
 		devpoint, err := getDevEndpoint(cfg)
 		if err != nil {
@@ -277,9 +284,7 @@ func runLocal(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg br
 
 func runServer(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg browser.Config, io commands.IO) error {
 	// setup logger
-	charmlogger := charmlog.New(io.Out())
-	charmlogger.SetLevel(charmlog.DebugLevel)
-	logger := slog.New(charmlogger)
+	logger := newLogger(io.Out(), cfg.jsonlog)
 
 	teaHandler := func(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 		shortid := fmt.Sprintf("%.10s", s.Context().SessionID())
@@ -326,8 +331,8 @@ func runServer(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg b
 			bubbletea.Middleware(teaHandler),
 			activeterm.Middleware(), // ensure PTY
 			ValidatePathCommandMiddleware(bcfg.URLPrefix),
-			logging.StructuredMiddlewareWithLogger(
-				charmlogger, charmlog.DebugLevel,
+			StructuredMiddlewareWithLogger(
+				ctx, logger, slog.LevelInfo,
 			),
 			// XXX: add ip throttler
 		),
@@ -358,7 +363,9 @@ func runServer(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg b
 		return err
 	}
 
-	io.Println("Bye!")
+	if !cfg.jsonlog {
+		io.Println("Bye!")
+	}
 	return nil
 }
 
@@ -421,14 +428,14 @@ func getSignerForAccount(io commands.IO, address string, kb keys.Keybase, cfg *b
 	}
 
 	// try empty password first
-	if _, err := kb.ExportPrivKeyUnsafe(address, ""); err != nil {
+	if _, err := kb.ExportPrivKey(address, ""); err != nil {
 		prompt := fmt.Sprintf("[%.10s] Enter password:", address)
 		signer.Password, err = io.GetPassword(prompt, true)
 		if err != nil {
 			return nil, fmt.Errorf("error while reading password: %w", err)
 		}
 
-		if _, err := kb.ExportPrivKeyUnsafe(address, signer.Password); err != nil {
+		if _, err := kb.ExportPrivKey(address, signer.Password); err != nil {
 			return nil, fmt.Errorf("invalid password: %w", err)
 		}
 	}
@@ -445,7 +452,7 @@ func ValidatePathCommandMiddleware(pathPrefix string) wish.Middleware {
 				return
 			case 1: // check for valid path
 				path := cmd[0]
-				if strings.HasPrefix(path, pathPrefix) && filepath.Clean(path) == path {
+				if strings.HasPrefix(path, pathPrefix) && gopath.Clean(path) == path {
 					s.Context().SetValue("path", path)
 					next(s)
 					return
@@ -459,4 +466,48 @@ func ValidatePathCommandMiddleware(pathPrefix string) wish.Middleware {
 			s.Exit(1)
 		}
 	}
+}
+
+func StructuredMiddlewareWithLogger(ctx context.Context, logger *slog.Logger, level slog.Level) wish.Middleware {
+	return func(next ssh.Handler) ssh.Handler {
+		return func(sess ssh.Session) {
+			ct := time.Now()
+			hpk := sess.PublicKey() != nil
+			pty, _, _ := sess.Pty()
+			logger.Log(
+				ctx,
+				level,
+				"connect",
+				"user", sess.User(),
+				"remote-addr", sess.RemoteAddr().String(),
+				"public-key", hpk,
+				"command", sess.Command(),
+				"term", pty.Term,
+				"width", pty.Window.Width,
+				"height", pty.Window.Height,
+				"client-version", sess.Context().ClientVersion(),
+			)
+			next(sess)
+			logger.Log(
+				ctx,
+				level,
+				"disconnect",
+				"user", sess.User(),
+				"remote-addr", sess.RemoteAddr().String(),
+				"duration", time.Since(ct),
+			)
+		}
+	}
+}
+
+func newLogger(out io.Writer, json bool) *slog.Logger {
+	if json {
+		return slog.New(slog.NewJSONHandler(out, &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		}))
+	}
+
+	charmlogger := charmlog.New(out)
+	charmlogger.SetLevel(charmlog.DebugLevel)
+	return slog.New(charmlogger)
 }

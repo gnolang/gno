@@ -18,8 +18,8 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/gnolang/tx-archive/backup"
-	"github.com/gnolang/tx-archive/backup/client/http"
-	"github.com/gnolang/tx-archive/backup/writer/legacy"
+	"github.com/gnolang/tx-archive/backup/client/rpc"
+	"github.com/gnolang/tx-archive/backup/writer/standard"
 )
 
 const (
@@ -42,19 +42,22 @@ type snapshotter struct {
 type config struct {
 	rpcAddr        string
 	traefikGnoFile string
-	backupDir      string
-	hostPWD        string
+
+	snapshotsDir     string
+	masterBackupFile string
+
+	hostPWD string
 }
 
 func NewSnapshotter(dockerClient *client.Client, cfg config) (*snapshotter, error) {
 	timenow := time.Now()
 	now := fmt.Sprintf("%s_%v", timenow.Format("2006-01-02_"), timenow.UnixNano())
 
-	backupFile, err := filepath.Abs(cfg.backupDir + "/backup.jsonl")
+	backupFile, err := filepath.Abs(cfg.masterBackupFile)
 	if err != nil {
 		return nil, err
 	}
-	instanceBackupFile, err := filepath.Abs(fmt.Sprintf("%s/backup_%s.jsonl", cfg.backupDir, now))
+	instanceBackupFile, err := filepath.Abs(fmt.Sprintf("%s/backup_%s.jsonl", cfg.snapshotsDir, now))
 	if err != nil {
 		return nil, err
 	}
@@ -147,6 +150,7 @@ func (s snapshotter) startPortalLoopContainer(ctx context.Context) (*types.Conta
 		Env: []string{
 			"MONIKER=the-portal-loop",
 			"GENESIS_BACKUP_FILE=/backups/backup.jsonl",
+			"GENESIS_BALANCES_FILE=/backups/balances.jsonl",
 		},
 		Entrypoint: []string{"/scripts/start.sh"},
 		ExposedPorts: nat.PortSet{
@@ -198,16 +202,20 @@ func (s snapshotter) backupTXs(ctx context.Context, rpcURL string) error {
 	cfg.FromBlock = 1
 	cfg.Watch = false
 
+	// We want to skip failed txs on the Portal Loop reset,
+	// because they might (unexpectedly) succeed
+	cfg.SkipFailedTx = true
+
 	instanceBackupFile, err := os.Create(s.instanceBackupFile)
 	if err != nil {
 		return err
 	}
 	defer instanceBackupFile.Close()
 
-	w := legacy.NewWriter(instanceBackupFile)
+	w := standard.NewWriter(instanceBackupFile)
 
 	// Create the tx-archive backup service
-	c, err := http.NewClient(rpcURL)
+	c, err := rpc.NewHTTPClient(rpcURL)
 	if err != nil {
 		return fmt.Errorf("could not create tx-archive client, %w", err)
 	}

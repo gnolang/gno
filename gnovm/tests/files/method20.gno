@@ -2,16 +2,11 @@ package main
 
 import (
 	"fmt"
-	"sync"
 )
 
-type Hello struct {
-	mu sync.Mutex
-}
+type Hello struct{}
 
 func (h *Hello) Hi() string {
-	h.mu.Lock()
-	h.mu.Unlock()
 	return "hi"
 }
 

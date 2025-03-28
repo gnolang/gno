@@ -6,6 +6,7 @@ import (
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/urequire"
 )
 
 var (
@@ -14,70 +15,51 @@ var (
 )
 
 func TestNew(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
-	std.TestSetOrigCaller(alice) // TODO(bug): should not be needed
+	testing.SetOriginCaller(alice)
 
 	o := New()
 	got := o.Owner()
-	if alice != got {
-		t.Fatalf("Expected %s, got: %s", alice, got)
-	}
+	uassert.Equal(t, got, alice)
 }
 
 func TestNewWithAddress(t *testing.T) {
 	o := NewWithAddress(alice)
 
 	got := o.Owner()
-	if alice != got {
-		t.Fatalf("Expected %s, got: %s", alice, got)
-	}
-}
-
-func TestOwner(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
-
-	o := New()
-	expected := alice
-	got := o.Owner()
-	uassert.Equal(t, expected, got)
+	uassert.Equal(t, got, alice)
 }
 
 func TestTransferOwnership(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
+	testing.SetOriginCaller(alice)
 
 	o := New()
 
 	err := o.TransferOwnership(bob)
-	if err != nil {
-		t.Fatalf("TransferOwnership failed, %v", err)
-	}
+	urequire.NoError(t, err)
 
 	got := o.Owner()
-	if bob != got {
-		t.Fatalf("Expected: %s, got: %s", bob, got)
-	}
+
+	uassert.Equal(t, got, bob)
 }
 
 func TestCallerIsOwner(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 
 	o := New()
 	unauthorizedCaller := bob
 
-	std.TestSetRealm(std.NewUserRealm(unauthorizedCaller))
-	std.TestSetOrigCaller(unauthorizedCaller) // TODO(bug): should not be needed
+	testing.SetOriginCaller(unauthorizedCaller)
 
-	err := o.CallerIsOwner()
-	uassert.Error(t, err) // XXX: IsError(..., unauthorizedCaller)
+	uassert.False(t, o.CallerIsOwner())
 }
 
 func TestDropOwnership(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
+	testing.SetRealm(std.NewUserRealm(alice))
 
 	o := New()
 
 	err := o.DropOwnership()
-	uassert.NoError(t, err, "DropOwnership failed")
+	urequire.NoError(t, err, "DropOwnership failed")
 
 	owner := o.Owner()
 	uassert.Empty(t, owner, "owner should be empty")
@@ -86,25 +68,18 @@ func TestDropOwnership(t *testing.T) {
 // Errors
 
 func TestErrUnauthorized(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
-	std.TestSetOrigCaller(alice) // TODO(bug): should not be needed
+	testing.SetOriginCaller(alice)
 
 	o := New()
 
-	std.TestSetRealm(std.NewUserRealm(bob))
-	std.TestSetOrigCaller(bob) // TODO(bug): should not be needed
+	testing.SetOriginCaller(bob)
 
-	err := o.TransferOwnership(alice)
-	if err != ErrUnauthorized {
-		t.Fatalf("Should've been ErrUnauthorized, was %v", err)
-	}
-
-	err = o.DropOwnership()
-	uassert.ErrorContains(t, err, ErrUnauthorized.Error())
+	uassert.ErrorContains(t, o.TransferOwnership(alice), ErrUnauthorized.Error())
+	uassert.ErrorContains(t, o.DropOwnership(), ErrUnauthorized.Error())
 }
 
 func TestErrInvalidAddress(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
+	testing.SetOriginCaller(alice)
 
 	o := New()
 
@@ -113,4 +88,52 @@ func TestErrInvalidAddress(t *testing.T) {
 
 	err = o.TransferOwnership("10000000001000000000100000000010000000001000000000")
 	uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
+}
+
+func TestAssertCallerIsOwner(t *testing.T) {
+	testing.SetRealm(std.NewUserRealm(alice))
+	testing.SetOriginCaller(alice)
+
+	o := New()
+
+	// Should not panic when caller is owner
+	o.AssertCallerIsOwner()
+
+	// Should panic when caller is not owner
+	testing.SetRealm(std.NewUserRealm(bob))
+	testing.SetOriginCaller(bob)
+
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Error("expected panic but got none")
+		}
+		if r != ErrUnauthorized {
+			t.Errorf("expected ErrUnauthorized but got %v", r)
+		}
+	}()
+	o.AssertCallerIsOwner()
+}
+
+func TestNilReceiver(t *testing.T) {
+	var o *Ownable
+
+	owner := o.Owner()
+	if owner != std.Address("") {
+		t.Errorf("expected empty address but got %v", owner)
+	}
+
+	isOwner := o.CallerIsOwner()
+	uassert.False(t, isOwner)
+
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Error("expected panic but got none")
+		}
+		if r != ErrUnauthorized {
+			t.Errorf("expected ErrUnauthorized but got %v", r)
+		}
+	}()
+	o.AssertCallerIsOwner()
 }

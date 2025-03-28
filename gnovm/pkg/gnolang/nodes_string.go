@@ -88,15 +88,26 @@ func (vp ValuePath) String() string {
 		return fmt.Sprintf("VPDerefPtrMethod(%d,%s)", vp.Index, vp.Name)
 	case VPDerefInterface:
 		return fmt.Sprintf("VPDerefInterface(%s)", vp.Name)
-	case VPNative:
-		return fmt.Sprintf("VPNative(%s)", vp.Name)
 	default:
 		panic("illegal_value_type")
 	}
 }
 
 func (x NameExpr) String() string {
-	return fmt.Sprintf("%s<%s>", x.Name, x.Path.String())
+	switch x.Type {
+	case NameExprTypeNormal:
+		return fmt.Sprintf("%s<%s>", x.Name, x.Path.String())
+	case NameExprTypeDefine:
+		return fmt.Sprintf("%s<!%s>", x.Name, x.Path.String())
+	case NameExprTypeHeapDefine:
+		return fmt.Sprintf("%s<!~%s>", x.Name, x.Path.String())
+	case NameExprTypeHeapUse:
+		return fmt.Sprintf("%s<~%s>", x.Name, x.Path.String())
+	case NameExprTypeHeapClosure:
+		return fmt.Sprintf("%s<()~%s>", x.Name, x.Path.String())
+	default:
+		panic("unexpected NameExpr type")
+	}
 }
 
 func (x BasicLitExpr) String() string {
@@ -172,7 +183,11 @@ func (x CompositeLitExpr) String() string {
 }
 
 func (x FuncLitExpr) String() string {
-	return fmt.Sprintf("func %s{ %s }", x.Type, x.Body.String())
+	heapCaptures := ""
+	if len(x.HeapCaptures) > 0 {
+		heapCaptures = "<" + x.HeapCaptures.String() + ">"
+	}
+	return fmt.Sprintf("func %s{ %s }%s", x.Type, x.Body.String(), heapCaptures)
 }
 
 func (x KeyValueExpr) String() string {
@@ -238,10 +253,6 @@ func (x MapTypeExpr) String() string {
 
 func (x StructTypeExpr) String() string {
 	return fmt.Sprintf("struct { %v }", x.Fields)
-}
-
-func (x MaybeNativeTypeExpr) String() string {
-	return fmt.Sprintf("maybenative(%s)", x.Type.String())
 }
 
 func (x AssignStmt) String() string {

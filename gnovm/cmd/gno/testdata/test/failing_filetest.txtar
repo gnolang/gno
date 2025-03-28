@@ -1,0 +1,19 @@
+# Test with a failing _filetest.gno file
+
+! gno test -v .
+
+stderr '=== RUN   file/failing_filetest.gno'
+stderr 'unexpected panic: beep boop'
+
+-- failing.gno --
+package failing
+
+-- failing_filetest.gno --
+package main
+
+func main() {
+	panic("beep boop")
+}
+
+// Output:
+// blah

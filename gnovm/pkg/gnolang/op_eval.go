@@ -36,7 +36,7 @@ func (m *Machine) doOpEval() {
 			// Get value from scope.
 			lb := m.LastBlock()
 			// Push value, done.
-			ptr := lb.GetPointerTo(m.Store, nx.Path)
+			ptr := lb.GetPointerToMaybeHeapUse(m.Store, nx)
 			m.PushValue(ptr.Deref())
 			return
 		}
@@ -135,7 +135,7 @@ func (m *Machine) doOpEval() {
 				// Step 2 adjust exp from dot.
 				pIndex := -1
 				vLen := len(value)
-				for i := 0; i < vLen; i++ {
+				for i := range vLen {
 					if value[i] == '.' {
 						if pIndex > -1 {
 							panic(fmt.Sprintf(
@@ -204,16 +204,14 @@ func (m *Machine) doOpEval() {
 			// and github.com/golang/go/issues/19921
 			panic("imaginaries are not supported")
 		case CHAR:
-			cstr, err := strconv.Unquote(x.Value)
+			// Matching character literal parsing in go/constant.MakeFromLiteral.
+			val := x.Value
+			rne, _, _, err := strconv.UnquoteChar(val[1:len(val)-1], '\'')
 			if err != nil {
 				panic("error in parsing character literal: " + err.Error())
 			}
-			runes := []rune(cstr)
-			if len(runes) != 1 {
-				panic(fmt.Sprintf("error in parsing character literal: 1 rune expected, but got %v (%s)", len(runes), cstr))
-			}
 			tv := TypedValue{T: UntypedRuneType}
-			tv.SetInt32(runes[0])
+			tv.SetInt32(rne)
 			m.PushValue(tv)
 		case STRING:
 			m.PushValue(TypedValue{
@@ -401,11 +399,6 @@ func (m *Machine) doOpEval() {
 		m.PushOp(OpChanType)
 		m.PushExpr(x.Value)
 		m.PushOp(OpEval) // OpEvalType?
-	case *MaybeNativeTypeExpr:
-		m.PopExpr()
-		m.PushOp(OpMaybeNativeType)
-		m.PushExpr(x.Type)
-		m.PushOp(OpEval)
 	default:
 		panic(fmt.Sprintf("unexpected expression %#v", x))
 	}

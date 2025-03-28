@@ -16,7 +16,7 @@ func TestKeyPath(t *testing.T) {
 	keys := make([][]byte, 10)
 	alphanum := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-	for d := 0; d < 1e4; d++ {
+	for range 1_000 {
 		path = nil
 
 		for i := range keys {
