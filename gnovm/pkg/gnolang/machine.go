@@ -200,7 +200,7 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	ch := m.Store.IterMemPackage()
 	for memPkg := range ch {
-		fset := ParseMemPackage(memPkg)
+		fset := m.ParseMemPackage(memPkg)
 		pn := NewPackageNode(Name(memPkg.Name), memPkg.Path, fset)
 		m.Store.SetBlockNode(pn)
 		PredefineFileSet(m.Store, pn, fset)
@@ -250,7 +250,7 @@ func (m *Machine) RunMemPackageWithOverrides(memPkg *gnovm.MemPackage, save bool
 
 func (m *Machine) runMemPackage(memPkg *gnovm.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
 	// parse files.
-	files := ParseMemPackage(memPkg)
+	files := m.ParseMemPackage(memPkg)
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)

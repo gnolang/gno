@@ -232,7 +232,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 		m.SetActivePackage(pv)
-		n := gno.MustParseFile(filename, string(content))
+		n := m.MustParseFile(filename, string(content))
 		m.RunFiles(n)
 		m.RunStatement(gno.S(gno.Call(gno.X("main"))))
 	} else {

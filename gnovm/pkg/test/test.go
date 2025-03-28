@@ -471,13 +471,14 @@ func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
 func parseMemPackageTests(memPkg *gnovm.MemPackage) (tset, itset *gno.FileSet, itfiles, ftfiles []*gnovm.MemFile) {
 	tset = &gno.FileSet{}
 	itset = &gno.FileSet{}
+	var m *gno.Machine
 	var errs error
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // skip this file.
 		}
 
-		n, err := gno.ParseFile(mfile.Name, mfile.Body)
+		n, err := m.ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue

@@ -180,7 +180,7 @@ func (r *Repl) handleExpression(e *ast.File) (string, error) {
 	fn := r.filename()
 	src := r.nodeToString(e)
 
-	n := gno.MustParseFile(fn, src)
+	n := r.state.machine.MustParseFile(fn, src)
 	r.state.files[fn] = src
 	r.state.machine.RunFiles(n)
 	r.state.machine.RunStatement(gno.S(gno.Call(gno.X(fmt.Sprintf("%s%d", executedFunc, r.state.id)))))
@@ -251,7 +251,7 @@ func (r *Repl) handleDeclarations(fn *ast.File) (string, error) {
 		name := r.filename()
 		src := r.nodeToString(fn)
 
-		n := gno.MustParseFile(name, src)
+		n := r.state.machine.MustParseFile(name, src)
 		r.state.files[name] = src
 		r.state.machine.RunFiles(n)
 	}
