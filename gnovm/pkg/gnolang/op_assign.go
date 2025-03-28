@@ -15,7 +15,7 @@ func (m *Machine) doOpDefine() {
 		if !m.PreprocessorMode && isUntyped(rvs[i].T) && rvs[i].T.Kind() != BoolKind {
 			panic("untyped conversion should not happen at runtime")
 		}
-		ptr.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
+		ptr.Assign2(m, m.Alloc, m.Store, m.Realm, rvs[i], true)
 	}
 }
 
@@ -31,7 +31,7 @@ func (m *Machine) doOpAssign() {
 		if !m.PreprocessorMode && isUntyped(rvs[i].T) && rvs[i].T.Kind() != BoolKind {
 			panic("untyped conversion should not happen at runtime")
 		}
-		lv.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
+		lv.Assign2(m, m.Alloc, m.Store, m.Realm, rvs[i], true)
 	}
 }
 

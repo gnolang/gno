@@ -28,6 +28,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 			panic("should not happen")
 		}
 	}
+
 	// special case for interface target
 	if t.Kind() == InterfaceKind {
 		if tv.IsUndefined() && tv.T == nil {
@@ -1239,7 +1240,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 			} else {
 				panic(fmt.Sprintf(
 					"ConvertUntypedTo expects more specific target for %v but got %s",
-					tv.String(),
+					tv.String(nil),
 					t.String()))
 			}
 		}
