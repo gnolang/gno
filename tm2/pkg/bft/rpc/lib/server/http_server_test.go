@@ -46,7 +46,7 @@ func TestMaxOpenConnections(t *testing.T) {
 	attempts := maxVal * 2
 	var wg sync.WaitGroup
 	var failed int32
-	for i := 0; i < attempts; i++ {
+	for range attempts {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

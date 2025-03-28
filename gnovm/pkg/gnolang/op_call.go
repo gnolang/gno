@@ -38,9 +38,6 @@ func (m *Machine) doOpPrecall() {
 				panic("conversion expressions only take 1 argument")
 			}
 		}
-	case *NativeValue:
-		m.PushFrameGoNative(cx, fv)
-		m.PushOp(OpCallGoNative)
 	default:
 		panic(fmt.Sprintf(
 			"unexpected function value type %s",
@@ -69,7 +66,7 @@ func (m *Machine) doOpCall() {
 		if len(fv.Captures) > len(b.Values) {
 			panic("should not happen, length of captured variables must not exceed the number of values")
 		}
-		for i := 0; i < len(fv.Captures); i++ {
+		for i := range fv.Captures {
 			b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
 		}
 	}
@@ -235,7 +232,7 @@ func (m *Machine) doOpReturnFromBlock() {
 	numParams := len(ft.Params)
 	numResults := len(ft.Results)
 	fblock := m.Blocks[cfr.NumBlocks] // frame +1
-	for i := 0; i < numResults; i++ {
+	for i := range numResults {
 		rtv := fillValueTV(m.Store, &fblock.Values[i+numParams])
 		m.PushValue(*rtv)
 	}
@@ -271,7 +268,7 @@ func (m *Machine) doOpReturnToBlock() {
 	numResults := len(ft.Results)
 	fblock := m.Blocks[cfr.NumBlocks] // frame +1
 	results := m.PopValues(numResults)
-	for i := 0; i < numResults; i++ {
+	for i := range numResults {
 		rtv := results[i]
 		fblock.Values[numParams+i] = rtv
 	}
@@ -310,7 +307,7 @@ func (m *Machine) doOpReturnCallDefers() {
 			if len(fv.Captures) > len(b.Values) {
 				panic("should not happen, length of captured variables must not exceed the number of values")
 			}
-			for i := 0; i < len(fv.Captures); i++ {
+			for i := range fv.Captures {
 				b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
 			}
 		}
@@ -358,19 +355,6 @@ func (m *Machine) doOpReturnCallDefers() {
 			}
 		}
 		copy(b.Values, dfr.Args)
-	} else if dfr.GoFunc != nil {
-		fv := dfr.GoFunc
-		ptvs := dfr.Args
-		prvs := make([]reflect.Value, len(ptvs))
-		for i := 0; i < len(prvs); i++ {
-			// TODO consider when declared types can be
-			// converted, e.g. fmt.Println. See GoValue.
-			prvs[i] = gno2GoValue(&ptvs[i], reflect.Value{})
-		}
-		// Call and ignore results.
-		fv.Value.Call(prvs)
-		// Cleanup.
-		m.NumResults = 0
 	} else {
 		panic("should not happen")
 	}
@@ -386,11 +370,8 @@ func (m *Machine) doOpDefer() {
 	// Pop func
 	ftv := m.PopValue()
 	// Push defer.
-	// NOTE: we let type be FuncValue and value NativeValue,
-	// because native funcs can't be converted to gno anyways.
 	switch cv := ftv.V.(type) {
 	case *FuncValue:
-		// TODO what if value is NativeValue?
 		cfr.PushDefer(Defer{
 			Func:       cv,
 			Args:       args,
@@ -415,14 +396,6 @@ func (m *Machine) doOpDefer() {
 		cfr.PushDefer(Defer{
 			Func:       cv.Func,
 			Args:       args2,
-			Source:     ds,
-			Parent:     lb,
-			PanicScope: m.PanicScope,
-		})
-	case *NativeValue:
-		cfr.PushDefer(Defer{
-			GoFunc:     cv,
-			Args:       args,
 			Source:     ds,
 			Parent:     lb,
 			PanicScope: m.PanicScope,

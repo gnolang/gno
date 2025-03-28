@@ -136,7 +136,7 @@ func (pkg *Package) WithDependencies(deps ...*Package) *Package {
 //		&StructB{}, // If pointer receivers are preferred when decoding to interfaces.
 //		NoInputsError{}, "NoInputsError", // Named
 //	)
-func (pkg *Package) WithTypes(objs ...interface{}) *Package {
+func (pkg *Package) WithTypes(objs ...any) *Package {
 	var lastType *Type = nil
 	for _, obj := range objs {
 		// Initialize variables

@@ -10,9 +10,9 @@ import (
 	"log/slog"
 	"net/http"
 	"reflect"
-	"regexp"
 	"runtime/debug"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -76,16 +76,16 @@ type RPCFunc struct {
 
 // NewRPCFunc wraps a function for introspection.
 // f is the function, args are comma separated argument names
-func NewRPCFunc(f interface{}, args string) *RPCFunc {
+func NewRPCFunc(f any, args string) *RPCFunc {
 	return newRPCFunc(f, args, false)
 }
 
 // NewWSRPCFunc wraps a function for introspection and use in the websockets.
-func NewWSRPCFunc(f interface{}, args string) *RPCFunc {
+func NewWSRPCFunc(f any, args string) *RPCFunc {
 	return newRPCFunc(f, args, true)
 }
 
-func newRPCFunc(f interface{}, args string, ws bool) *RPCFunc {
+func newRPCFunc(f any, args string, ws bool) *RPCFunc {
 	var argNames []string
 	if args != "" {
 		argNames = strings.Split(args, ",")
@@ -100,22 +100,22 @@ func newRPCFunc(f interface{}, args string, ws bool) *RPCFunc {
 }
 
 // return a function's argument types
-func funcArgTypes(f interface{}) []reflect.Type {
+func funcArgTypes(f any) []reflect.Type {
 	t := reflect.TypeOf(f)
 	n := t.NumIn()
 	typez := make([]reflect.Type, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		typez[i] = t.In(i)
 	}
 	return typez
 }
 
 // return a function's return types
-func funcReturnTypes(f interface{}) []reflect.Type {
+func funcReturnTypes(f any) []reflect.Type {
 	t := reflect.TypeOf(f)
 	n := t.NumOut()
 	typez := make([]reflect.Type, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		typez[i] = t.Out(i)
 	}
 	return typez
@@ -358,127 +358,57 @@ func makeHTTPHandler(rpcFunc *RPCFunc, logger *slog.Logger) http.HandlerFunc {
 // Convert an http query to a list of properly typed values.
 // To be properly decoded the arg must be a concrete type from tendermint (if its an interface).
 func httpParamsToArgs(rpcFunc *RPCFunc, r *http.Request) ([]reflect.Value, error) {
-	// skip types.Context
 	const argsOffset = 1
 
-	values := make([]reflect.Value, len(rpcFunc.argNames))
-
-	for i, name := range rpcFunc.argNames {
-		argType := rpcFunc.args[i+argsOffset]
-
-		values[i] = reflect.Zero(argType) // set default for that type
-
-		arg := GetParam(r, name)
-		// log.Notice("param to arg", "argType", argType, "name", name, "arg", arg)
-
+	paramsMap := make(map[string]json.RawMessage)
+	for _, argName := range rpcFunc.argNames {
+		arg := GetParam(r, argName)
 		if arg == "" {
+			// Empty param
 			continue
 		}
 
-		v, err, ok := nonJSONStringToArg(argType, arg)
-		if err != nil {
-			return nil, err
-		}
-		if ok {
-			values[i] = v
+		// Handle hex string
+		if strings.HasPrefix(arg, "0x") {
+			decoded, err := hex.DecodeString(arg[2:])
+			if err != nil {
+				return nil, fmt.Errorf("unable to decode hex string: %w", err)
+			}
+
+			data, err := amino.MarshalJSON(decoded)
+			if err != nil {
+				return nil, fmt.Errorf("unable to marshal argument to JSON: %w", err)
+			}
+
+			paramsMap[argName] = data
+
 			continue
 		}
 
-		values[i], err = jsonStringToArg(argType, arg)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return values, nil
-}
-
-func jsonStringToArg(rt reflect.Type, arg string) (reflect.Value, error) {
-	rv := reflect.New(rt)
-	err := amino.UnmarshalJSON([]byte(arg), rv.Interface())
-	if err != nil {
-		return rv, err
-	}
-	rv = rv.Elem()
-	return rv, nil
-}
-
-func nonJSONStringToArg(rt reflect.Type, arg string) (reflect.Value, error, bool) {
-	if rt.Kind() == reflect.Ptr {
-		rv_, err, ok := nonJSONStringToArg(rt.Elem(), arg)
-		switch {
-		case err != nil:
-			return reflect.Value{}, err, false
-		case ok:
-			rv := reflect.New(rt.Elem())
-			rv.Elem().Set(rv_)
-			return rv, nil, true
-		default:
-			return reflect.Value{}, nil, false
-		}
-	} else {
-		return _nonJSONStringToArg(rt, arg)
-	}
-}
-
-var reInt = regexp.MustCompile(`^-?[0-9]+$`)
-
-// NOTE: rt.Kind() isn't a pointer.
-func _nonJSONStringToArg(rt reflect.Type, arg string) (reflect.Value, error, bool) {
-	isIntString := reInt.Match([]byte(arg))
-	isQuotedString := strings.HasPrefix(arg, `"`) && strings.HasSuffix(arg, `"`)
-	isHexString := strings.HasPrefix(strings.ToLower(arg), "0x")
-
-	var expectingString, expectingByteSlice, expectingInt bool
-	switch rt.Kind() {
-	case reflect.Int, reflect.Uint, reflect.Int8, reflect.Uint8, reflect.Int16, reflect.Uint16, reflect.Int32, reflect.Uint32, reflect.Int64, reflect.Uint64:
-		expectingInt = true
-	case reflect.String:
-		expectingString = true
-	case reflect.Slice:
-		expectingByteSlice = rt.Elem().Kind() == reflect.Uint8
-	}
-
-	if isIntString && expectingInt {
-		qarg := `"` + arg + `"`
-		// jsonStringToArg
-		rv, err := jsonStringToArg(rt, qarg)
-		if err != nil {
-			return rv, err, false
+		// Handle integer string by adding quotes to ensure it is treated as a JSON string.
+		// This is required by Amino JSON to unmarshal values into integers.
+		if _, err := strconv.Atoi(arg); err == nil {
+			// arg is a number, wrap it
+			arg = "\"" + arg + "\""
 		}
 
-		return rv, nil, true
+		// Handle invalid JSON: ensure it's wrapped as a JSON-encoded string
+		if !json.Valid([]byte(arg)) {
+			data, err := amino.MarshalJSON(arg)
+			if err != nil {
+				return nil, fmt.Errorf("unable to marshal argument to JSON: %w", err)
+			}
+
+			paramsMap[argName] = data
+
+			continue
+		}
+
+		// Default: treat the argument as a JSON raw message
+		paramsMap[argName] = json.RawMessage([]byte(arg))
 	}
 
-	if isHexString {
-		if !expectingString && !expectingByteSlice {
-			err := errors.New("got a hex string arg, but expected '%s'",
-				rt.Kind().String())
-			return reflect.ValueOf(nil), err, false
-		}
-
-		var value []byte
-		value, err := hex.DecodeString(arg[2:])
-		if err != nil {
-			return reflect.ValueOf(nil), err, false
-		}
-		if rt.Kind() == reflect.String {
-			return reflect.ValueOf(string(value)), nil, true
-		}
-		return reflect.ValueOf(value), nil, true
-	}
-
-	if isQuotedString && expectingByteSlice {
-		v := reflect.New(reflect.TypeOf(""))
-		err := amino.UnmarshalJSON([]byte(arg), v.Interface())
-		if err != nil {
-			return reflect.ValueOf(nil), err, false
-		}
-		v = v.Elem()
-		return reflect.ValueOf([]byte(v.String())), nil, true
-	}
-
-	return reflect.ValueOf(nil), nil, false
+	return mapParamsToArgs(rpcFunc, paramsMap, argsOffset)
 }
 
 // rpc.http
@@ -926,7 +856,7 @@ func (wm *WebsocketManager) WebsocketHandler(w http.ResponseWriter, r *http.Requ
 // -----------------------------------------------------------------------------
 
 // NOTE: assume returns is result struct and error. If error is not nil, return it
-func unreflectResult(returns []reflect.Value) (interface{}, error) {
+func unreflectResult(returns []reflect.Value) (any, error) {
 	errV := returns[1]
 	if errV.Interface() != nil {
 		return nil, errors.New("%v", errV.Interface())

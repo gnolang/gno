@@ -20,6 +20,7 @@ import (
 
 type testCfg struct {
 	verbose             bool
+	failfast            bool
 	rootDir             string
 	run                 string
 	timeout             time.Duration
@@ -102,6 +103,13 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		"v",
 		false,
 		"verbose output when running",
+	)
+
+	fs.BoolVar(
+		&c.failfast,
+		"failfast",
+		false,
+		"do not start new tests after the first test failure",
 	)
 
 	fs.BoolVar(
@@ -199,16 +207,22 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	if cfg.verbose {
 		stdout = io.Out()
 	}
-	opts := test.NewTestOptions(cfg.rootDir, io.In(), stdout, io.Err())
+	opts := test.NewTestOptions(cfg.rootDir, stdout, io.Err())
 	opts.RunFlag = cfg.run
 	opts.Sync = cfg.updateGoldenTests
 	opts.Verbose = cfg.verbose
 	opts.Metrics = cfg.printRuntimeMetrics
 	opts.Events = cfg.printEvents
 	opts.Debug = cfg.debug
+	opts.FailfastFlag = cfg.failfast
 
 	buildErrCount := 0
 	testErrCount := 0
+	fail := func() error {
+		io.ErrPrintfln("FAIL")
+		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
+	}
+
 	for _, pkg := range subPkgs {
 		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
 			io.ErrPrintfln("?       %s \t[no test files]", pkg.Dir)
@@ -230,10 +244,24 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 		memPkg := gno.MustReadMemPackage(pkg.Dir, gnoPkgPath)
 
+		var hasError bool
+
 		startedAt := time.Now()
-		hasError := catchRuntimeError(gnoPkgPath, io.Err(), func() {
+		runtimeError := catchRuntimeError(gnoPkgPath, io.Err(), func() {
+			if modfile == nil || !modfile.Draft {
+				foundErr, lintErr := lintTypeCheck(io, memPkg, opts.TestStore)
+				if lintErr != nil {
+					io.ErrPrintln(lintErr)
+					hasError = true
+				} else if foundErr {
+					hasError = true
+				}
+			} else if cfg.verbose {
+				io.ErrPrintfln("%s: module is draft, skipping type check", gnoPkgPath)
+			}
 			err = test.Test(memPkg, pkg.Dir, opts)
 		})
+		hasError = hasError || runtimeError
 
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
@@ -242,17 +270,17 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			if err != nil {
 				io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, err)
 			}
-			io.ErrPrintfln("FAIL")
 			io.ErrPrintfln("FAIL    %s \t%s", pkg.Dir, dstr)
-			io.ErrPrintfln("FAIL")
 			testErrCount++
+			if cfg.failfast {
+				return fail()
+			}
 		} else {
 			io.ErrPrintfln("ok      %s \t%s", pkg.Dir, dstr)
 		}
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
-		io.ErrPrintfln("FAIL")
-		return fmt.Errorf("FAIL: %d build errors, %d test errors", buildErrCount, testErrCount)
+		return fail()
 	}
 
 	return nil

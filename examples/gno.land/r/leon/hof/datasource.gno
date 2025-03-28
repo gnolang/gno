@@ -6,6 +6,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/jeronimoalbi/datasource"
+	"gno.land/p/moul/md"
 )
 
 func NewDatasource() Datasource {
@@ -16,7 +17,7 @@ type Datasource struct {
 	exhibition *Exhibition
 }
 
-func (ds Datasource) Size() int { return ds.exhibition.itemsSorted.Size() }
+func (ds Datasource) Size() int { return ds.exhibition.items.Size() }
 
 func (ds Datasource) Records(q datasource.Query) datasource.Iterator {
 	return &iterator{
@@ -27,7 +28,7 @@ func (ds Datasource) Records(q datasource.Query) datasource.Iterator {
 }
 
 func (ds Datasource) Record(id string) (datasource.Record, error) {
-	v, found := ds.exhibition.itemsSorted.Get(id)
+	v, found := ds.exhibition.items.Get(id)
 	if !found {
 		return nil, errors.New("realm submission not found")
 	}
@@ -51,7 +52,8 @@ func (r record) Fields() (datasource.Fields, error) {
 }
 
 func (r record) Content() (string, error) {
-	content := ufmt.Sprintf("# Submission #%d\n\n", int(r.item.id))
+	content := md.H1(r.item.title)
+	content += md.H2(r.item.description)
 	content += r.item.Render(false)
 	return content, nil
 }
@@ -66,11 +68,11 @@ func (it iterator) Record() datasource.Record { return it.record }
 func (it iterator) Err() error                { return nil }
 
 func (it *iterator) Next() bool {
-	if it.index >= it.maxIndex || it.index >= it.exhibition.itemsSorted.Size() {
+	if it.index >= it.maxIndex || it.index >= it.exhibition.items.Size() {
 		return false
 	}
 
-	_, v := it.exhibition.itemsSorted.GetByIndex(it.index)
+	_, v := it.exhibition.items.GetByIndex(it.index)
 	it.record = &record{v.(*Item)}
 	it.index++
 	return true

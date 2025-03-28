@@ -901,8 +901,6 @@ func getChildObjects(val Value, more []Value) []Value {
 	case *HeapItemValue:
 		more = getSelfOrChildObjects(cv.Value.V, more)
 		return more
-	case *NativeValue:
-		panic("native values not supported")
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %v",
@@ -1056,8 +1054,6 @@ func copyTypeWithRefs(typ Type) Type {
 			Dir: ct.Dir,
 			Elt: refOrCopyType(ct.Elt),
 		}
-	case *NativeType:
-		panic("cannot copy native types")
 	case blockType:
 		return blockType{}
 	case *tupleType:
@@ -1247,8 +1243,6 @@ func copyValueWithRefs(val Value) Value {
 			Value:      refOrCopyValue(cv.Value),
 		}
 		return hiv
-	case *NativeValue:
-		panic("native values not supported")
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %v",
@@ -1326,8 +1320,6 @@ func fillType(store Store, typ Type) Type {
 	case *ChanType:
 		ct.Elt = fillType(store, ct.Elt)
 		return ct
-	case *NativeType:
-		panic("cannot fill native types")
 	case blockType:
 		return ct // nothing to do
 	case *tupleType:
@@ -1372,7 +1364,7 @@ func fillTypesOfValue(store Store, val Value) Value {
 			return cv
 		}
 	case *ArrayValue:
-		for i := 0; i < len(cv.List); i++ {
+		for i := range cv.List {
 			ctv := &cv.List[i]
 			fillTypesTV(store, ctv)
 		}
@@ -1381,7 +1373,7 @@ func fillTypesOfValue(store Store, val Value) Value {
 		fillTypesOfValue(store, cv.Base)
 		return cv
 	case *StructValue:
-		for i := 0; i < len(cv.Fields); i++ {
+		for i := range cv.Fields {
 			ctv := &cv.Fields[i]
 			fillTypesTV(store, ctv)
 		}
@@ -1409,13 +1401,11 @@ func fillTypesOfValue(store Store, val Value) Value {
 		fillTypesOfValue(store, cv.Block)
 		return cv
 	case *Block:
-		for i := 0; i < len(cv.Values); i++ {
+		for i := range cv.Values {
 			ctv := &cv.Values[i]
 			fillTypesTV(store, ctv)
 		}
 		return cv
-	case *NativeValue:
-		panic("native values not supported")
 	case RefValue: // do nothing
 		return cv
 	case *HeapItemValue:
@@ -1559,7 +1549,7 @@ func isUnsaved(oo Object) bool {
 }
 
 func prettyJSON(jstr []byte) []byte {
-	var c interface{}
+	var c any
 	err := json.Unmarshal(jstr, &c)
 	if err != nil {
 		return nil

@@ -354,18 +354,6 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	if err := checkSame(lv.T, rv.T, ""); err != nil {
 		return false
 	}
-	if lnt, ok := lv.T.(*NativeType); ok {
-		if rnt, ok := rv.T.(*NativeType); ok {
-			if lnt.Type != rnt.Type {
-				return false
-			}
-			lrv := lv.V.(*NativeValue).Value.Interface()
-			rrv := rv.V.(*NativeValue).Value.Interface()
-			return lrv == rrv
-		} else {
-			return false
-		}
-	}
 	switch lv.T.Kind() {
 	case BoolKind:
 		return (lv.GetBool() == rv.GetBool())
@@ -417,7 +405,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				panic("comparison on arrays of unequal type")
 			}
 		}
-		for i := 0; i < la.GetLength(); i++ {
+		for i := range la.GetLength() {
 			li := la.GetPointerAtIndexInt2(store, i, et).Deref()
 			ri := ra.GetPointerAtIndexInt2(store, i, et).Deref()
 			if !isEql(store, &li, &ri) {
@@ -438,7 +426,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				panic("comparison on structs of unequal size")
 			}
 		}
-		for i := 0; i < len(ls.Fields); i++ {
+		for i := range ls.Fields {
 			lf := ls.GetPointerToInt(store, i).Deref()
 			rf := rs.GetPointerToInt(store, i).Deref()
 			if !isEql(store, &lf, &rf) {

@@ -52,7 +52,7 @@ func Context(pkgPath string, send std.Coins) *teststd.TestExecContext {
 	}
 	ctx := stdlibs.ExecContext{
 		ChainID:         "dev",
-		ChainDomain:     "tests.gno.land",
+		ChainDomain:     "gno.land", // TODO: make this configurable
 		Height:          DefaultHeight,
 		Timestamp:       DefaultTimestamp,
 		OriginCaller:    DefaultCaller,
@@ -79,6 +79,21 @@ func Machine(testStore gno.Store, output io.Writer, pkgPath string, debug bool) 
 	})
 }
 
+// OutputWithError returns an io.Writer that can be used as a [gno.Machine.Output],
+// where the test standard libraries will write to errWriter when using
+// os.Stderr.
+func OutputWithError(output, errWriter io.Writer) io.Writer {
+	return &outputWithError{output, errWriter}
+}
+
+type outputWithError struct {
+	w    io.Writer
+	errW io.Writer
+}
+
+func (o outputWithError) Write(p []byte) (int, error)       { return o.w.Write(p) }
+func (o outputWithError) StderrWrite(p []byte) (int, error) { return o.errW.Write(p) }
+
 // ----------------------------------------
 // testParams
 
@@ -88,11 +103,12 @@ func newTestParams() *testParams {
 	return &testParams{}
 }
 
-func (tp *testParams) SetBool(key string, val bool)     { /* noop */ }
-func (tp *testParams) SetBytes(key string, val []byte)  { /* noop */ }
-func (tp *testParams) SetInt64(key string, val int64)   { /* noop */ }
-func (tp *testParams) SetUint64(key string, val uint64) { /* noop */ }
-func (tp *testParams) SetString(key string, val string) { /* noop */ }
+func (tp *testParams) SetBool(key string, val bool)        { /* noop */ }
+func (tp *testParams) SetBytes(key string, val []byte)     { /* noop */ }
+func (tp *testParams) SetInt64(key string, val int64)      { /* noop */ }
+func (tp *testParams) SetUint64(key string, val uint64)    { /* noop */ }
+func (tp *testParams) SetString(key string, val string)    { /* noop */ }
+func (tp *testParams) SetStrings(key string, val []string) { /* noop */ }
 
 // ----------------------------------------
 // main test function
@@ -115,6 +131,8 @@ type TestOptions struct {
 
 	// Flag to filter tests to run.
 	RunFlag string
+	// Flag to stop executing as soon a test fails.
+	FailfastFlag bool
 	// Whether to update filetest directives.
 	Sync bool
 	// Uses Error to print when starting a test, and prints test output directly,
@@ -136,37 +154,53 @@ func (opts *TestOptions) WriterForStore() io.Writer {
 }
 
 // NewTestOptions sets up TestOptions, filling out all "required" parameters.
-func NewTestOptions(rootDir string, stdin io.Reader, stdout, stderr io.Writer) *TestOptions {
+func NewTestOptions(rootDir string, stdout, stderr io.Writer) *TestOptions {
 	opts := &TestOptions{
 		RootDir: rootDir,
 		Output:  stdout,
 		Error:   stderr,
 	}
-	opts.BaseStore, opts.TestStore = Store(rootDir, stdin, opts.WriterForStore(), stderr)
+	opts.BaseStore, opts.TestStore = Store(rootDir, opts.WriterForStore())
 	return opts
 }
 
 // proxyWriter is a simple wrapper around a io.Writer, it exists so that the
 // underlying writer can be swapped with another when necessary.
 type proxyWriter struct {
-	w io.Writer
+	w    io.Writer
+	errW io.Writer
 }
 
 func (p *proxyWriter) Write(b []byte) (int, error) {
 	return p.w.Write(b)
 }
 
+// StderrWrite implements the interface specified in tests/stdlibs/os/os.go,
+// which if found in Machine.Output allows to write to stderr from Gno.
+func (p *proxyWriter) StderrWrite(b []byte) (int, error) {
+	return p.errW.Write(b)
+}
+
 // tee temporarily appends the writer w to an underlying MultiWriter, which
 // should then be reverted using revert().
 func (p *proxyWriter) tee(w io.Writer) (revert func()) {
-	save := p.w
+	rev := tee(&p.w, w)
+	revErr := tee(&p.errW, w)
+	return func() {
+		rev()
+		revErr()
+	}
+}
+
+func tee(ptr *io.Writer, dst io.Writer) (revert func()) {
+	save := *ptr
 	if save == io.Discard {
-		p.w = w
+		*ptr = dst
 	} else {
-		p.w = io.MultiWriter(save, w)
+		*ptr = io.MultiWriter(save, dst)
 	}
 	return func() {
-		p.w = save
+		*ptr = save
 	}
 }
 
@@ -178,6 +212,7 @@ func (p *proxyWriter) tee(w io.Writer) (revert func()) {
 // tests; you can use [NewTestOptions] for a common base configuration.
 func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 	opts.outWriter.w = opts.Output
+	opts.outWriter.errW = opts.Error
 
 	var errs error
 
@@ -189,7 +224,7 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 	// Stands for "test", "integration test", and "filetest".
 	// "integration test" are the test files with `package xxx_test` (they are
 	// not necessarily integration tests, it's just for our internal reference.)
-	tset, itset, itfiles, ftfiles := parseMemPackageTests(opts.TestStore, memPkg)
+	tset, itset, itfiles, ftfiles := parseMemPackageTests(memPkg)
 
 	// Testing with *_test.gno
 	if len(tset.Files)+len(itset.Files) > 0 {
@@ -201,7 +236,7 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 
 		// Run test files in pkg.
 		if len(tset.Files) > 0 {
-			err := opts.runTestFiles(memPkg, tset, cw, gs)
+			err := opts.runTestFiles(memPkg, tset, gs)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -215,7 +250,7 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 				Files: itfiles,
 			}
 
-			err := opts.runTestFiles(itPkg, itset, cw, gs)
+			err := opts.runTestFiles(itPkg, itset, gs)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -267,7 +302,7 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 func (opts *TestOptions) runTestFiles(
 	memPkg *gnovm.MemPackage,
 	files *gno.FileSet,
-	cw storetypes.Store, gs gno.TransactionStore,
+	gs gno.TransactionStore,
 ) (errs error) {
 	var m *gno.Machine
 	defer func() {
@@ -290,12 +325,12 @@ func (opts *TestOptions) runTestFiles(
 		alloc = gno.NewAllocator(math.MaxInt64)
 	}
 	// reset store ops, if any - we only need them for some filetests.
-	opts.TestStore.SetLogStoreOps(false)
+	opts.TestStore.SetLogStoreOps(nil)
 
 	// Check if we already have the package - it may have been eagerly loaded.
 	m = Machine(gs, opts.WriterForStore(), memPkg.Path, opts.Debug)
 	m.Alloc = alloc
-	if opts.TestStore.GetMemPackage(memPkg.Path) == nil {
+	if gs.GetMemPackage(memPkg.Path) == nil {
 		m.RunMemPackage(memPkg, true)
 	} else {
 		m.SetActivePackage(gs.GetPackage(memPkg.Path, false))
@@ -313,7 +348,7 @@ func (opts *TestOptions) runTestFiles(
 		// - Run the test files before this for loop (but persist it to store;
 		//   RunFiles doesn't do that currently)
 		// - Wrap here.
-		m = Machine(gs, opts.Output, memPkg.Path, opts.Debug)
+		m = Machine(gs, opts.WriterForStore(), memPkg.Path, opts.Debug)
 		m.Alloc = alloc.Reset()
 		m.SetActivePackage(pv)
 
@@ -339,9 +374,10 @@ func (opts *TestOptions) runTestFiles(
 		}
 
 		eval := m.Eval(gno.Call(
-			gno.Sel(testingcx, "RunTest"),            // Call testing.RunTest
-			gno.Str(opts.RunFlag),                    // run flag
-			gno.Nx(strconv.FormatBool(opts.Verbose)), // is verbose?
+			gno.Sel(testingcx, "RunTest"),                 // Call testing.RunTest
+			gno.Str(opts.RunFlag),                         // run flag
+			gno.Nx(strconv.FormatBool(opts.Verbose)),      // is verbose?
+			gno.Nx(strconv.FormatBool(opts.FailfastFlag)), // stop as soon as a test fails
 			&gno.CompositeLitExpr{ // Third param, the testing.InternalTest
 				Type: gno.Sel(testingcx, "InternalTest"),
 				Elts: gno.KeyValueExprs{
@@ -382,6 +418,9 @@ func (opts *TestOptions) runTestFiles(
 		if rep.Failed {
 			err := fmt.Errorf("failed: %q", tf.Name)
 			errs = multierr.Append(errs, err)
+			if opts.FailfastFlag {
+				return errs
+			}
 		}
 
 		if opts.Metrics {
@@ -435,7 +474,7 @@ func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
 }
 
 // parseMemPackageTests parses test files (skipping filetests) in the memPkg.
-func parseMemPackageTests(store gno.Store, memPkg *gnovm.MemPackage) (tset, itset *gno.FileSet, itfiles, ftfiles []*gnovm.MemFile) {
+func parseMemPackageTests(memPkg *gnovm.MemPackage) (tset, itset *gno.FileSet, itfiles, ftfiles []*gnovm.MemFile) {
 	tset = &gno.FileSet{}
 	itset = &gno.FileSet{}
 	var errs error

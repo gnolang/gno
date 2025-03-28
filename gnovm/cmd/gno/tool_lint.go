@@ -98,7 +98,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	hasError := false
 
 	bs, ts := test.StoreWithOptions(
-		rootDir, nopReader{}, goio.Discard, goio.Discard,
+		rootDir, goio.Discard,
 		test.StoreOptions{PreprocessOnly: true},
 	)
 
@@ -317,7 +317,3 @@ func issueFromError(pkgPath string, err error) lintIssue {
 	}
 	return issue
 }
-
-type nopReader struct{}
-
-func (nopReader) Read(p []byte) (int, error) { return 0, goio.EOF }

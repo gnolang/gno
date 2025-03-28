@@ -1,6 +1,8 @@
 package cachemulti
 
 import (
+	"maps"
+
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -43,9 +45,7 @@ func New(
 
 func newStoreFromCMS(cms Store) Store {
 	stores := make(map[types.StoreKey]types.Store)
-	for k, v := range cms.stores {
-		stores[k] = v
-	}
+	maps.Copy(stores, cms.stores)
 	return NewFromStores(stores, nil)
 }
 
