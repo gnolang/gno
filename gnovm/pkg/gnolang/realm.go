@@ -457,12 +457,12 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 				// newCreated or updated.
 				child.SetOwner(oo)
 
-				// There’s a cycle when incrementing the reference count for:
-				// package block -> file block -> package block.
-				// To avoid redundant marking as dirty, set the block to "new real" first
-				// before recursing. This helps identify if it’s already marked as "new real"
-				// in the second visit, eliminating the need for another dirty set.
-				// XXX, side effects?
+				// As a child of packageValue, packageBlock is
+				// visited once. As a child of fileBlock, it's
+				// visited twice. On the second visit, it's already
+				// Real, while it should be NewReal too, to avoid
+				// redundant dirty marking. So make SetNewReal happen
+				// first before recurse.
 				child.SetIsNewReal(true)
 				rlm.incRefCreatedDescendants(store, child)
 			}
@@ -664,13 +664,13 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 				// via call to markAncestorsOne
 				// via .updated.
 				break
+			} else if po.GetIsDeleted() {
+				// already deleted, no need to mark.
+				// oo(child) maybe have another owner,
+				// if so, it should be marked by .updated.
+				break
 			} else {
-				if po.GetIsDeleted() {
-					break
-				} else {
-					rlm.MarkDirty(po)
-				}
-
+				rlm.MarkDirty(po)
 				// next case
 				oo = po
 			}
