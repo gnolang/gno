@@ -329,13 +329,13 @@ func newConsensusStateWithConfigAndBlockStore(thisConfig *cfg.Config, state sm.S
 }
 
 func loadPrivValidator(config *cfg.Config) *privval.PrivValidator {
-	privValidatorKeyFile := config.PrivValidator.LocalSignerPath()
+	privValidatorKeyFile := config.Consensus.PrivValidator.LocalSignerPath()
 	ensureDir(filepath.Dir(privValidatorKeyFile), 0o700)
 	fileSigner, err := signer.LoadOrMakeLocalSigner(privValidatorKeyFile)
 	if err != nil {
 		panic(err)
 	}
-	privValidatorStateFile := config.PrivValidator.SignStatePath()
+	privValidatorStateFile := config.Consensus.PrivValidator.SignStatePath()
 	if osm.FileExists(privValidatorStateFile) {
 		if err := os.Remove(privValidatorStateFile); err != nil {
 			panic(err)

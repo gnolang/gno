@@ -165,7 +165,7 @@ func TestNodeSetPrivValTCP(t *testing.T) {
 
 	config, genesisFile := cfg.ResetTestRoot("node_priv_val_tcp_test")
 	defer os.RemoveAll(config.RootDir)
-	config.PrivValidator.RemoteSigner.ServerAddress = addr
+	config.Consensus.PrivValidator.RemoteSigner.ServerAddress = addr
 
 	signer := types.NewMockSigner()
 
@@ -203,7 +203,7 @@ func TestNodeSetPrivValIPC(t *testing.T) {
 
 	config, genesisFile := cfg.ResetTestRoot("node_priv_val_tcp_test")
 	defer os.RemoveAll(config.RootDir)
-	config.PrivValidator.RemoteSigner.ServerAddress = unixSocket
+	config.Consensus.PrivValidator.RemoteSigner.ServerAddress = unixSocket
 
 	signer := types.NewMockSigner()
 

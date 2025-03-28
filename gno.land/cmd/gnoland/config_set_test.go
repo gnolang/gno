@@ -191,7 +191,7 @@ func TestConfig_Set_Base(t *testing.T) {
 				"example path",
 			},
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.PrivValidator.SignState)
+				assert.Equal(t, value, loadedCfg.Consensus.PrivValidator.SignState)
 			},
 		},
 		{
@@ -201,7 +201,7 @@ func TestConfig_Set_Base(t *testing.T) {
 				"example path",
 			},
 			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.PrivValidator.LocalSigner)
+				assert.Equal(t, value, loadedCfg.Consensus.PrivValidator.LocalSigner)
 			},
 		},
 		{

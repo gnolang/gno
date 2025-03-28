@@ -197,7 +197,7 @@ func TestConfig_Get_Base(t *testing.T) {
 			"validator sign state fetched",
 			"priv_validator.sign_state",
 			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.PrivValidator.SignState, unmarshalJSONCommon[string](t, value))
+				assert.Equal(t, loadedCfg.Consensus.PrivValidator.SignState, unmarshalJSONCommon[string](t, value))
 			},
 			false,
 		},
@@ -205,7 +205,7 @@ func TestConfig_Get_Base(t *testing.T) {
 			"validator sign state fetched, raw",
 			"priv_validator.sign_state",
 			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.PrivValidator.SignState, escapeNewline(value))
+				assert.Equal(t, loadedCfg.Consensus.PrivValidator.SignState, escapeNewline(value))
 			},
 			true,
 		},
@@ -213,7 +213,7 @@ func TestConfig_Get_Base(t *testing.T) {
 			"validator local signer fetched",
 			"priv_validator.local_signer",
 			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.PrivValidator.LocalSigner, unmarshalJSONCommon[string](t, value))
+				assert.Equal(t, loadedCfg.Consensus.PrivValidator.LocalSigner, unmarshalJSONCommon[string](t, value))
 			},
 			false,
 		},
@@ -221,7 +221,7 @@ func TestConfig_Get_Base(t *testing.T) {
 			"validator local_signer fetched, raw",
 			"priv_validator.local_signer",
 			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.PrivValidator.LocalSigner, escapeNewline(value))
+				assert.Equal(t, loadedCfg.Consensus.PrivValidator.LocalSigner, escapeNewline(value))
 			},
 			true,
 		},

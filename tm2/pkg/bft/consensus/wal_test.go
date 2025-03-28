@@ -124,9 +124,9 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	// COPY PASTE FROM node.go WITH A FEW MODIFICATIONS
 	// NOTE: we can't import node package because of circular dependency.
 	// NOTE: we don't do handshake so need to set state.Version.Consensus.App directly.
-	fileSigner, err := signer.LoadOrMakeLocalSigner(config.PrivValidator.LocalSignerPath())
+	fileSigner, err := signer.LoadOrMakeLocalSigner(config.Consensus.PrivValidator.LocalSignerPath())
 	require.NoError(t, err)
-	privVal, err := privval.NewPrivValidator(fileSigner, config.PrivValidator.SignStatePath())
+	privVal, err := privval.NewPrivValidator(fileSigner, config.Consensus.PrivValidator.SignStatePath())
 	require.NoError(t, err)
 	genDoc, err := types.GenesisDocFromFile(genesisFile)
 	if err != nil {

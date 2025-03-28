@@ -12,7 +12,6 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cns "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	mem "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
-	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	rpc "github.com/gnolang/gno/tm2/pkg/bft/rpc/config"
 	eventstore "github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/types"
 	"github.com/gnolang/gno/tm2/pkg/db"
@@ -48,28 +47,26 @@ type Config struct {
 	BaseConfig `toml:",squash"`
 
 	// Options for services
-	RPC           *rpc.RPCConfig               `json:"rpc" toml:"rpc" comment:"##### rpc server configuration options #####"`
-	P2P           *p2p.P2PConfig               `json:"p2p" toml:"p2p" comment:"##### peer to peer configuration options #####"`
-	PrivValidator *privval.PrivValidatorConfig `json:"priv_validator" toml:"priv_validator" comment:"##### private validator configuration options #####"`
-	Mempool       *mem.MempoolConfig           `json:"mempool" toml:"mempool" comment:"##### mempool configuration options #####"`
-	Consensus     *cns.ConsensusConfig         `json:"consensus" toml:"consensus" comment:"##### consensus configuration options #####"`
-	TxEventStore  *eventstore.Config           `json:"tx_event_store" toml:"tx_event_store" comment:"##### event store #####"`
-	Telemetry     *telemetry.Config            `json:"telemetry" toml:"telemetry" comment:"##### node telemetry #####"`
-	Application   *sdk.AppConfig               `json:"application" toml:"application" comment:"##### app settings #####"`
+	RPC          *rpc.RPCConfig       `json:"rpc" toml:"rpc" comment:"##### rpc server configuration options #####"`
+	P2P          *p2p.P2PConfig       `json:"p2p" toml:"p2p" comment:"##### peer to peer configuration options #####"`
+	Mempool      *mem.MempoolConfig   `json:"mempool" toml:"mempool" comment:"##### mempool configuration options #####"`
+	Consensus    *cns.ConsensusConfig `json:"consensus" toml:"consensus" comment:"##### consensus configuration options #####"`
+	TxEventStore *eventstore.Config   `json:"tx_event_store" toml:"tx_event_store" comment:"##### event store #####"`
+	Telemetry    *telemetry.Config    `json:"telemetry" toml:"telemetry" comment:"##### node telemetry #####"`
+	Application  *sdk.AppConfig       `json:"application" toml:"application" comment:"##### app settings #####"`
 }
 
 // DefaultConfig returns a default configuration for a Tendermint node
 func DefaultConfig() *Config {
 	return &Config{
-		BaseConfig:    DefaultBaseConfig(),
-		RPC:           rpc.DefaultRPCConfig(),
-		P2P:           p2p.DefaultP2PConfig(),
-		PrivValidator: privval.DefaultPrivValidatorConfig(),
-		Mempool:       mem.DefaultMempoolConfig(),
-		Consensus:     cns.DefaultConsensusConfig(),
-		TxEventStore:  eventstore.DefaultEventStoreConfig(),
-		Telemetry:     telemetry.DefaultTelemetryConfig(),
-		Application:   sdk.DefaultAppConfig(),
+		BaseConfig:   DefaultBaseConfig(),
+		RPC:          rpc.DefaultRPCConfig(),
+		P2P:          p2p.DefaultP2PConfig(),
+		Mempool:      mem.DefaultMempoolConfig(),
+		Consensus:    cns.DefaultConsensusConfig(),
+		TxEventStore: eventstore.DefaultEventStoreConfig(),
+		Telemetry:    telemetry.DefaultTelemetryConfig(),
+		Application:  sdk.DefaultAppConfig(),
 	}
 }
 
@@ -179,15 +176,14 @@ func testP2PConfig() *p2p.P2PConfig {
 // TestConfig returns a configuration that can be used for testing
 func TestConfig() *Config {
 	return &Config{
-		BaseConfig:    testBaseConfig(),
-		RPC:           rpc.TestRPCConfig(),
-		P2P:           testP2PConfig(),
-		PrivValidator: privval.TestPrivValidatorConfig(),
-		Mempool:       mem.TestMempoolConfig(),
-		Consensus:     cns.TestConsensusConfig(),
-		TxEventStore:  eventstore.DefaultEventStoreConfig(),
-		Telemetry:     telemetry.DefaultTelemetryConfig(),
-		Application:   sdk.DefaultAppConfig(),
+		BaseConfig:   testBaseConfig(),
+		RPC:          rpc.TestRPCConfig(),
+		P2P:          testP2PConfig(),
+		Mempool:      mem.TestMempoolConfig(),
+		Consensus:    cns.TestConsensusConfig(),
+		TxEventStore: eventstore.DefaultEventStoreConfig(),
+		Telemetry:    telemetry.DefaultTelemetryConfig(),
+		Application:  sdk.DefaultAppConfig(),
 	}
 }
 
@@ -196,9 +192,9 @@ func (cfg *Config) SetRootDir(root string) *Config {
 	cfg.BaseConfig.RootDir = root
 	cfg.RPC.RootDir = root
 	cfg.P2P.RootDir = root
-	cfg.PrivValidator.RootDir = (filepath.Join(root, DefaultSecretsDir))
 	cfg.Mempool.RootDir = root
 	cfg.Consensus.RootDir = root
+	cfg.Consensus.PrivValidator.RootDir = root
 
 	return cfg
 }
@@ -237,9 +233,6 @@ func (cfg *Config) ValidateBasic() error {
 	}
 	if err := cfg.P2P.ValidateBasic(); err != nil {
 		return errors.Wrap(err, "Error in [p2p] section")
-	}
-	if err := cfg.PrivValidator.ValidateBasic(); err != nil {
-		return errors.Wrap(err, "Error in [priv_validator] section")
 	}
 	if err := cfg.Mempool.ValidateBasic(); err != nil {
 		return errors.Wrap(err, "Error in [mempool] section")

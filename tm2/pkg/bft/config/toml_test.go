@@ -75,8 +75,8 @@ func TestEnsureTestRoot(t *testing.T) {
 	ensureFiles(
 		t,
 		"",
-		cfg.PrivValidator.LocalSignerPath(),
-		cfg.PrivValidator.SignStatePath(),
+		cfg.Consensus.PrivValidator.LocalSignerPath(),
+		cfg.Consensus.PrivValidator.SignStatePath(),
 	)
 }
 

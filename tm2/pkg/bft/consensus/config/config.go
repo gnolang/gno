@@ -4,6 +4,8 @@ import (
 	"errors"
 	"path/filepath"
 	"time"
+
+	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 )
 
 // -----------------------------------------------------------------------------
@@ -20,6 +22,8 @@ type ConsensusConfig struct {
 	WALPath     string `json:"wal_file" toml:"wal_file"`
 	WALDisabled bool   `json:"-" toml:"-"`
 	walFile     string // overrides WalPath if set
+
+	PrivValidator *privval.PrivValidatorConfig `json:"priv_validator" toml:"priv_validator" comment:"##### private validator configuration options #####"`
 
 	TimeoutPropose        time.Duration `json:"timeout_propose" toml:"timeout_propose"`
 	TimeoutProposeDelta   time.Duration `json:"timeout_propose_delta" toml:"timeout_propose_delta"`
@@ -45,6 +49,7 @@ type ConsensusConfig struct {
 func DefaultConsensusConfig() *ConsensusConfig {
 	return &ConsensusConfig{
 		WALPath:                     filepath.Join(defaultWALDir, "cs.wal", "wal"),
+		PrivValidator:               privval.DefaultPrivValidatorConfig(),
 		TimeoutPropose:              3000 * time.Millisecond,
 		TimeoutProposeDelta:         500 * time.Millisecond,
 		TimeoutPrevote:              1000 * time.Millisecond,
@@ -63,6 +68,7 @@ func DefaultConsensusConfig() *ConsensusConfig {
 // TestConsensusConfig returns a configuration for testing the consensus service
 func TestConsensusConfig() *ConsensusConfig {
 	cfg := DefaultConsensusConfig()
+	cfg.PrivValidator = privval.TestPrivValidatorConfig()
 	cfg.TimeoutPropose = 500 * time.Millisecond
 	cfg.TimeoutProposeDelta = 1 * time.Millisecond
 	cfg.TimeoutPrevote = 100 * time.Millisecond
@@ -124,6 +130,9 @@ func (cfg *ConsensusConfig) SetWalFile(walFile string) {
 // ValidateBasic performs basic validation (checking param bounds, etc.) and
 // returns an error if any check fails.
 func (cfg *ConsensusConfig) ValidateBasic() error {
+	if err := cfg.PrivValidator.ValidateBasic(); err != nil {
+		return err
+	}
 	if cfg.TimeoutPropose < 0 {
 		return errors.New("timeout_propose can't be negative")
 	}

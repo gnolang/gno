@@ -121,7 +121,7 @@ func DefaultNewNode(
 
 	// Initialize the privValidator
 	privVal, err := privval.NewPrivValidatorFromConfig(
-		config.PrivValidator,
+		config.Consensus.PrivValidator,
 		nodeKey.PrivKey,
 		logger.With("module", "remote_signer_client"),
 	)

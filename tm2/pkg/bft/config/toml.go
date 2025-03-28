@@ -100,8 +100,8 @@ func ResetTestRoot(testName string) (*Config, string) {
 	}
 
 	// we always overwrite the priv val
-	osm.MustWriteFile(config.PrivValidator.LocalSignerPath(), []byte(testPrivValidatorKey), 0o644)
-	osm.MustWriteFile(config.PrivValidator.SignStatePath(), []byte(testPrivValidatorState), 0o644)
+	osm.MustWriteFile(config.Consensus.PrivValidator.LocalSignerPath(), []byte(testPrivValidatorKey), 0o644)
+	osm.MustWriteFile(config.Consensus.PrivValidator.SignStatePath(), []byte(testPrivValidatorState), 0o644)
 
 	return config, genesisFilePath
 }
