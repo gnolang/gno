@@ -5,6 +5,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 
 	_ "github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	_ "github.com/gnolang/gno/tm2/pkg/crypto/mock"
@@ -60,8 +61,9 @@ type Account interface {
 // - Connected to external identity providers
 // - Managed by governance protocols
 type Session interface {
-	GetAccountAddress() crypto.Address // Reference to parent account
-	SetAccountAddress(crypto.Address) error
+	// Account reference
+	GetAccount() Account
+	GetAccountAddress() crypto.Address
 
 	GetPubKey() crypto.PubKey
 	SetPubKey(crypto.PubKey) error
@@ -69,13 +71,11 @@ type Session interface {
 	GetSequence() uint64
 	SetSequence(uint64) error
 
-	// Account reference
-	GetAccount() Account
-
 	// Master session status
 	IsMaster() bool
 
-	IsValid() bool
+	// IsValid checks if the session is valid (not expired, etc)
+	IsValid(ctx sdk.Context) bool
 
 	String() string
 }
@@ -90,19 +90,21 @@ type AccountUnrestricter interface {
 // BaseAccount - a base account structure.
 // This can be extended by embedding within in your *Account structure.
 type BaseAccount struct {
-	Address       crypto.Address  `json:"address" yaml:"address"`
-	Coins         Coins           `json:"coins" yaml:"coins"`
-	AccountNumber uint64          `json:"account_number" yaml:"account_number"`
-	SessionKeys   []crypto.PubKey `json:"session_keys" yaml:"session_keys"` // First key is master
+	Address       crypto.Address `json:"address" yaml:"address"`
+	Sessions      []Session      `json:"sessions" yaml:"sessions"` // First session is master
+	Coins         Coins          `json:"coins" yaml:"coins"`
+	AccountNumber uint64         `json:"account_number" yaml:"account_number"`
 }
 
 // NewBaseAccount creates a new BaseAccount object
-func NewBaseAccount(address crypto.Address, coins Coins, accountNumber uint64, pubkey crypto.PubKey) *BaseAccount {
+func NewBaseAccount(address crypto.Address, coins Coins, pubKey crypto.PubKey,
+	accountNumber uint64, sequence uint64,
+) *BaseAccount {
 	return &BaseAccount{
 		Address:       address,
 		Coins:         coins,
 		AccountNumber: accountNumber,
-		SessionKeys:   []crypto.PubKey{pubkey}, // First key is master
+		Sessions:      []Session{NewMasterSession(pubKey, sequence)},
 	}
 }
 
@@ -112,8 +114,8 @@ func (acc BaseAccount) String() string {
   Address:       %s
   Coins:         %s
   AccountNumber: %d
-  SessionKeys:   %v`,
-		acc.Address, acc.Coins, acc.AccountNumber, acc.SessionKeys,
+  Sessions:      %d`,
+		acc.Address, acc.Coins, acc.AccountNumber, len(acc.Sessions),
 	)
 }
 
@@ -178,14 +180,13 @@ func (acc *BaseAccount) CreateSession(pubKey crypto.PubKey, sequence uint64) (Se
 
 // RevokeSession removes a session key
 func (acc *BaseAccount) RevokeSession(pubKey crypto.PubKey) error {
-	for i, key := range acc.SessionKeys {
-		if key.Equals(pubKey) {
-			// Prevent revoking master session (first key)
-			if i == 0 {
+	for i, sess := range acc.Sessions {
+		if sess.GetPubKey().Equals(pubKey) {
+			if sess.IsMaster() {
 				return errors.New("cannot revoke master session")
 			}
 			// Remove key at index i
-			acc.SessionKeys = append(acc.SessionKeys[:i], acc.SessionKeys[i+1:]...)
+			acc.Sessions = append(acc.Sessions[:i], acc.Sessions[i+1:]...)
 			return nil
 		}
 	}
@@ -194,11 +195,10 @@ func (acc *BaseAccount) RevokeSession(pubKey crypto.PubKey) error {
 
 // GetSessions creates Session objects for all stored keys
 func (acc *BaseAccount) GetSessions() []Session {
-	sessions := make([]Session, len(acc.SessionKeys))
-	for i, key := range acc.SessionKeys {
-		session := NewBaseSession(acc.Address, key, 0, i == 0) // master if first key
-		session.setAccount(acc)
-		sessions[i] = session
+	sessions := make([]Session, len(acc.Sessions))
+	for i, sess := range acc.Sessions {
+		sess.setAccount(acc)
+		sessions[i] = sess
 	}
 	return sessions
 }
@@ -206,11 +206,10 @@ func (acc *BaseAccount) GetSessions() []Session {
 // BaseSession - a base session structure for authentication.
 // This can be extended by embedding within in your *Session structure.
 type BaseSession struct {
-	AccountAddress crypto.Address `json:"account_address" yaml:"account_address"`
-	PubKey         crypto.PubKey  `json:"public_key" yaml:"public_key"`
-	Sequence       uint64         `json:"sequence" yaml:"sequence"`
-	account        Account        `json:"-" yaml:"-"`           // Reference to the parent account
-	master         bool           `json:"master" yaml:"master"` // Whether this is a master session
+	PubKey   crypto.PubKey `json:"public_key" yaml:"public_key"`
+	Sequence uint64        `json:"sequence" yaml:"sequence"`
+	Master   bool          `json:"master" yaml:"master"` // Whether this is a master session
+	account  Account       `json:"-" yaml:"-"`           // Reference to the parent account
 }
 
 // Add GetAccount method to BaseSession
@@ -218,25 +217,22 @@ func (s *BaseSession) GetAccount() Account {
 	return s.account
 }
 
-func NewMasterSession(accountAddress crypto.Address, pubKey crypto.PubKey, sequence uint64) *BaseSession {
+func NewMasterSession(pubKey crypto.PubKey, sequence uint64) *BaseSession {
 	return &BaseSession{
-		AccountAddress: accountAddress,
-		PubKey:         pubKey,
-		Sequence:       sequence,
-		master:         true,
+		PubKey:   pubKey,
+		Sequence: sequence,
+		Master:   true,
 	}
 }
 
-func NewBaseSession(accountAddress crypto.Address, pubKey crypto.PubKey, sequence uint64) *BaseSession {
+func NewBaseSession(pubKey crypto.PubKey, sequence uint64) *BaseSession {
 	return &BaseSession{
-		AccountAddress: accountAddress,
-		PubKey:         pubKey,
-		Sequence:       sequence,
-		master:         false,
+		PubKey:   pubKey,
+		Sequence: sequence,
+		Master:   false,
 	}
 }
 
-// Helper method to set the account reference (should be called when creating a session)
 func (s *BaseSession) setAccount(acc Account) {
 	s.account = acc
 }
@@ -249,21 +245,18 @@ func (s BaseSession) String() string {
 	return fmt.Sprintf(`Session:
   AccountAddress: %s
   Pubkey:        %s
-  Sequence:      %d`,
-		s.AccountAddress, pubkey, s.Sequence,
+  Sequence:      %d
+  Master:        %t`,
+		s.GetAccountAddress(), pubkey, s.Sequence, s.Master,
 	)
 }
 
 func (s BaseSession) GetAccountAddress() crypto.Address {
-	return s.AccountAddress
-}
-
-func (s *BaseSession) SetAccountAddress(addr crypto.Address) error {
-	if !s.AccountAddress.IsZero() {
-		return errors.New("cannot override BaseSession account address")
+	if s.account == nil {
+		// should only happen when forget to call sess.setAccount
+		return crypto.Address{}
 	}
-	s.AccountAddress = addr
-	return nil
+	return s.account.GetAddress()
 }
 
 func (s BaseSession) GetPubKey() crypto.PubKey {
@@ -285,6 +278,6 @@ func (s *BaseSession) SetSequence(seq uint64) error {
 }
 
 // Add IsMaster implementation
-func (s *BaseSession) IsMaster() bool {
-	return s.master
+func (s BaseSession) IsMaster() bool {
+	return s.Master
 }
