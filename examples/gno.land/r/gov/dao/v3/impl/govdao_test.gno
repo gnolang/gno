@@ -114,10 +114,12 @@ func TestCreateProposalAndVote(t *testing.T) {
 	testing.SetOriginCaller(m111)
 	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 
-	dao.MustVoteOnProposal(dao.VoteRequest{
-		Option:     dao.NoVote,
-		ProposalID: dao.ProposalID(0),
-	})
+	// Same effect as:
+	// dao.MustVoteOnProposal(dao.VoteRequest{
+	// 	Option:     dao.NoVote,
+	// 	ProposalID: dao.ProposalID(0),
+	// })
+	dao.MustVoteOnProposalSimple(0,"NO")
 
 	urequire.Equal(t, true, contains(dao.Render(""), "Proposal open for votes"))
 	urequire.Equal(t, true, contains(dao.Render(""), "15.789473684210526%"))
@@ -140,8 +142,6 @@ func TestCreateProposalAndVote(t *testing.T) {
 
 	urequire.Equal(t, true, contains(dao.Render(""), "**PROPOSAL HAS BEEN DENIED**"))
 	urequire.Equal(t, true, contains(dao.Render(""), "NO PERCENT: 68.42105263157895%"))
-
-	println(Render(""))
 }
 
 func TestProposalPagination(t *testing.T) {
