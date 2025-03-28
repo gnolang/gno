@@ -19,7 +19,24 @@ var (
 	abtMe      [2]string
 )
 
+func Render(path string) string {
+	out := "# Leon's Homepage\n\n"
+
+	out += renderAboutMe()
+	out += renderBlogPosts()
+	out += "\n\n"
+	out += renderArt()
+	out += "\n\n"
+	out += config.Banner()
+	out += "\n\n"
+
+	return out
+}
+
 func init() {
+	hof.Register("Leon's Home Realm", "")
+	mirror.Register(std.CurrentRealm().PkgPath(), Render)
+
 	pfp = "https://i.imgflip.com/91vskx.jpg"
 	pfpCaption = "[My favourite painting & pfp](https://en.wikipedia.org/wiki/Wanderer_above_the_Sea_of_Fog)"
 	abtMe = [2]string{
@@ -30,16 +47,12 @@ life-long learner, and sharer of knowledge.`,
 My contributions to gno.land can mainly be found 
 [here](https://github.com/gnolang/gno/issues?q=sort:updated-desc+author:leohhhn).
 
-TODO import r/gh
-`,
+TODO import r/gh`,
 	}
-
-	hof.Register()
-	mirror.Register(std.CurrentRealm().PkgPath(), Render)
 }
 
 func UpdatePFP(url, caption string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !config.IsAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -48,7 +61,7 @@ func UpdatePFP(url, caption string) {
 }
 
 func UpdateAboutMe(col1, col2 string) {
-	if !isAuthorized(std.PrevRealm().Addr()) {
+	if !config.IsAuthorized(std.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -56,20 +69,9 @@ func UpdateAboutMe(col1, col2 string) {
 	abtMe[1] = col2
 }
 
-func Render(path string) string {
-	out := "# Leon's Homepage\n\n"
-
-	out += renderAboutMe()
-	out += renderBlogPosts()
-	out += "\n\n"
-	out += renderArt()
-
-	return out
-}
-
 func renderBlogPosts() string {
 	out := ""
-	//out += "## Leon's Blog Posts"
+	// out += "## Leon's Blog Posts"
 
 	// todo fetch blog posts authored by @leohhhn
 	// and render them
@@ -116,7 +118,7 @@ func renderArt() string {
 
 func renderGnoFace() string {
 	out := "<div>\n\n"
-	out += gnoface.Render(strconv.Itoa(int(std.GetHeight())))
+	out += gnoface.Render(strconv.Itoa(int(std.ChainHeight())))
 	out += "</div>\n\n"
 
 	return out
@@ -125,12 +127,8 @@ func renderGnoFace() string {
 func renderMillipede() string {
 	out := "<div>\n\n"
 	out += "Millipede\n\n"
-	out += "```\n" + millipede.Draw(int(std.GetHeight())%10+1) + "```\n"
+	out += "```\n" + millipede.Draw(int(std.ChainHeight())%10+1) + "```\n"
 	out += "</div>\n\n"
 
 	return out
-}
-
-func isAuthorized(addr std.Address) bool {
-	return addr == config.Address() || addr == config.Backup()
 }

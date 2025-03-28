@@ -3,6 +3,7 @@ package types
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/gnolang/gno/tm2/pkg/strings"
 	"github.com/gnolang/gno/tm2/pkg/versionset"
@@ -14,7 +15,6 @@ const (
 )
 
 var (
-	ErrInvalidPeerID        = errors.New("invalid peer ID")
 	ErrInvalidVersion       = errors.New("invalid node version")
 	ErrInvalidMoniker       = errors.New("invalid node moniker")
 	ErrInvalidRPCAddress    = errors.New("invalid node RPC address")
@@ -30,8 +30,8 @@ type NodeInfo struct {
 	// Set of protocol versions
 	VersionSet versionset.VersionSet `json:"version_set"`
 
-	// Unique peer identifier
-	PeerID ID `json:"id"`
+	// The advertised net address of the peer
+	NetAddress *NetAddress `json:"net_address"`
 
 	// Check compatibility.
 	// Channels are HexBytes so easier to read as JSON
@@ -54,12 +54,27 @@ type NodeInfoOther struct {
 // Validate checks the self-reported NodeInfo is safe.
 // It returns an error if there
 // are too many Channels, if there are any duplicate Channels,
-// if the ListenAddr is malformed, or if the ListenAddr is a host name
+// if the NetAddress is malformed, or if the NetAddress is a host name
 // that can not be resolved to some IP
 func (info NodeInfo) Validate() error {
-	// Validate the ID
-	if err := info.PeerID.Validate(); err != nil {
-		return fmt.Errorf("%w, %w", ErrInvalidPeerID, err)
+	// There are a few checks that need to be performed when validating
+	// the node info's net address:
+	// - the ID needs to be valid
+	// - the FORMAT of the net address needs to be valid
+	//
+	// The key nuance here is that the net address is not being validated
+	// for its "dialability", but whether it's of the correct format.
+	//
+	// Unspecified IPs are tolerated (ex. 0.0.0.0 or ::),
+	// because of legacy logic that assumes node info
+	// can have unspecified IPs (ex. no external address is set, use
+	// the listen address which is bound to 0.0.0.0).
+	//
+	// These types of IPs are caught during the
+	// real peer info sharing process, since they are undialable
+	_, err := NewNetAddressFromString(NetAddressString(info.NetAddress.ID, info.NetAddress.DialString()))
+	if err != nil {
+		return fmt.Errorf("invalid net address in node info, %w", err)
 	}
 
 	// Validate Version
@@ -100,7 +115,12 @@ func (info NodeInfo) Validate() error {
 
 // ID returns the local node ID
 func (info NodeInfo) ID() ID {
-	return info.PeerID
+	return info.NetAddress.ID
+}
+
+// DialAddress is the advertised peer dial address (share-able)
+func (info NodeInfo) DialAddress() *NetAddress {
+	return info.NetAddress
 }
 
 // CompatibleWith checks if two NodeInfo are compatible with each other.
@@ -120,12 +140,8 @@ func (info NodeInfo) CompatibleWith(other NodeInfo) error {
 	// Make sure there is at least 1 channel in common
 	commonFound := false
 	for _, ch1 := range info.Channels {
-		for _, ch2 := range other.Channels {
-			if ch1 == ch2 {
-				commonFound = true
-
-				break
-			}
+		if slices.Contains(other.Channels, ch1) {
+			commonFound = true
 		}
 
 		if commonFound {

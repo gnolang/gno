@@ -9,7 +9,7 @@ import (
 
 func TestUpdateGithubUrl(t *testing.T) {
 	caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
-	std.TestSetOrigCaller(caller)
+	testing.SetOriginCaller(caller)
 
 	newUrl := "https://github.com/example"
 
@@ -22,7 +22,7 @@ func TestUpdateGithubUrl(t *testing.T) {
 
 func TestUpdateLinkedinUrl(t *testing.T) {
 	caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
-	std.TestSetOrigCaller(caller)
+	testing.SetOriginCaller(caller)
 
 	newUrl := "https://www.linkedin.com/in/example"
 
@@ -35,7 +35,7 @@ func TestUpdateLinkedinUrl(t *testing.T) {
 
 func TestUpdateAboutMe(t *testing.T) {
 	caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
-	std.TestSetOrigCaller(caller)
+	testing.SetOriginCaller(caller)
 
 	newAboutMe := "This is new description!"
 
@@ -47,13 +47,13 @@ func TestUpdateAboutMe(t *testing.T) {
 }
 
 func TestUpdateSelectedImage(t *testing.T) {
-	var user = testutils.TestAddress("user")
-	std.TestSetOrigCaller(user)
+	user := testutils.TestAddress("user")
+	testing.SetOriginCaller(user)
 
 	validImageUrl := "https://i.ibb.co/hLtmnX0/beautiful-rain-forest-ang-ka-nature-trail-doi-inthanon-national-park-thailand-36703721.webp"
 
 	coinsSent := std.NewCoins(std.NewCoin("ugnot", 5000000)) // Update to match the price expected by your function
-	std.TestSetOrigSend(coinsSent, std.NewCoins())
+	testing.SetOriginSend(coinsSent)
 
 	UpdateSelectedImage(validImageUrl)
 
@@ -72,7 +72,7 @@ func TestUpdateSelectedImage(t *testing.T) {
 	UpdateSelectedImage(invalidImageUrl)
 
 	invalidCoins := std.NewCoins(std.NewCoin("ugnot", 1000000))
-	std.TestSetOrigSend(invalidCoins, std.NewCoins())
+	testing.SetOriginSend(invalidCoins)
 
 	defer func() {
 		if r := recover(); r == nil {
@@ -85,7 +85,7 @@ func TestUpdateSelectedImage(t *testing.T) {
 
 func TestUpdateImagePrice(t *testing.T) {
 	caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
-	std.TestSetOrigCaller(caller)
+	testing.SetOriginCaller(caller)
 
 	var newImageUpdatePrice int64 = 3000000
 

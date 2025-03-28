@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"path/filepath"
+	gopath "path"
 	"strings"
 
 	"github.com/alecthomas/chroma/v2"
@@ -49,7 +49,9 @@ func NewDefaultHTMLWebClientConfig(client *client.RPCClient) *HTMLWebClientConfi
 			markdown.NewHighlighting(
 				markdown.WithFormatOptions(chromaOptions...),
 			),
+			extension.Strikethrough,
 			extension.Table,
+			md.GnoExtension,
 		),
 	}
 
@@ -120,7 +122,7 @@ func (s *HTMLWebClient) SourceFile(w io.Writer, path, fileName string) (*FileMet
 	}
 
 	// XXX: Consider moving this into gnoclient
-	fullPath := filepath.Join(s.domain, strings.Trim(path, "/"), fileName)
+	fullPath := gopath.Join(s.domain, strings.Trim(path, "/"), fileName)
 
 	source, err := s.query(qpath, []byte(fullPath))
 	if err != nil {
@@ -177,6 +179,7 @@ func (s *HTMLWebClient) RenderRealm(w io.Writer, pkgPath string, args string) (*
 
 	pkgPath = strings.Trim(pkgPath, "/")
 	data := fmt.Sprintf("%s/%s:%s", s.domain, pkgPath, args)
+
 	rawres, err := s.query(qpath, []byte(data))
 	if err != nil {
 		return nil, err
@@ -213,6 +216,10 @@ func (s *HTMLWebClient) query(qpath string, data []byte) ([]byte, error) {
 			return nil, ErrClientPathNotFound
 		}
 
+		if errors.Is(err, vm.NoRenderDeclError{}) {
+			return nil, ErrRenderNotDeclared
+		}
+
 		s.logger.Error("response error", "path", qpath, "log", qres.Response.Log)
 		return nil, fmt.Errorf("%w: %s", ErrClientResponse, err.Error())
 	}
@@ -224,7 +231,7 @@ func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) e
 	var lexer chroma.Lexer
 
 	// Determine the lexer to be used based on the file extension.
-	switch strings.ToLower(filepath.Ext(fileName)) {
+	switch strings.ToLower(gopath.Ext(fileName)) {
 	case ".gno":
 		lexer = lexers.Get("go")
 	case ".md":

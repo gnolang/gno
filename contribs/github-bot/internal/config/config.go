@@ -33,12 +33,18 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 	auto := []AutomaticCheck{
 		{
 			Description: "Maintainers must be able to edit this pull request ([more info](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/allowing-changes-to-a-pull-request-branch-created-from-a-fork))",
-			If:          c.CreatedFromFork(),
-			Then:        r.MaintainerCanModify(),
+			If: c.And(
+				c.BaseBranch("^master$"),
+				c.CreatedFromFork(),
+			),
+			Then: r.MaintainerCanModify(),
 		},
 		{
 			Description: "Changes to 'docs' folder must be reviewed/authored by at least one devrel and one tech-staff",
-			If:          c.FileChanged(gh, "^docs/"),
+			If: c.And(
+				c.BaseBranch("^master$"),
+				c.FileChanged(gh, "^docs/"),
+			),
 			Then: r.And(
 				r.Or(
 					r.AuthorInTeam(gh, "tech-staff"),
@@ -51,13 +57,27 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 			),
 		},
 		{
+			Description: "Changes related to gnoweb must be reviewed by its codeowners",
+			If: c.And(
+				c.BaseBranch("^master$"),
+				c.FileChanged(gh, "^gno.land/pkg/gnoweb/"),
+			),
+			Then: r.Or(
+				r.ReviewByUser(gh, "alexiscolin"),
+				r.ReviewByUser(gh, "gfanton"),
+			),
+		},
+		{
 			Description: "Must not contain the \"don't merge\" label",
 			If:          c.Label("don't merge"),
 			Then:        r.Never(),
 		},
 		{
 			Description: "Pending initial approval by a review team member, or review from tech-staff",
-			If:          c.Not(c.AuthorInTeam(gh, "tech-staff")),
+			If: c.And(
+				c.BaseBranch("^master$"),
+				c.Not(c.AuthorInTeam(gh, "tech-staff")),
+			),
 			Then: r.
 				If(r.Or(
 					r.ReviewByOrgMembers(gh).WithDesiredState(utils.ReviewStateApproved),
@@ -91,7 +111,7 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 		{
 			Description: "Determine if infra needs to be updated before merging",
 			If: c.And(
-				c.BaseBranch("master"),
+				c.BaseBranch("^master$"),
 				c.Or(
 					c.FileChanged(gh, `Dockerfile`),
 					c.FileChanged(gh, `^misc/deployments`),

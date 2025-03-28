@@ -67,7 +67,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			}
 		}
 
-		newCtx = SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
+		newCtx = SetGasMeter(ctx, tx.Fee.GasWanted)
 
 		// AnteHandlers must have their own defer/recover in order for the BaseApp
 		// to know how much gas was used! This is because the GasMeter is created in
@@ -135,7 +135,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		// When simulating, this would just be a 0-length slice.
 		stdSigs := tx.GetSignatures()
 
-		for i := 0; i < len(stdSigs); i++ {
+		for i := range stdSigs {
 			// skip the fee payer, account is cached and fees were deducted already
 			if i != 0 {
 				signerAccs[i], res = GetSignerAcc(newCtx, ak, signerAddrs[i])
@@ -182,7 +182,7 @@ func ValidateSigCount(tx std.Tx, params Params) sdk.Result {
 	stdSigs := tx.GetSignatures()
 
 	sigCount := 0
-	for i := 0; i < len(stdSigs); i++ {
+	for i := range stdSigs {
 		sigCount += std.CountSubKeys(stdSigs[i].PubKey)
 		if int64(sigCount) > params.TxSigLimit {
 			return abciResult(std.ErrTooManySignatures(
@@ -295,7 +295,7 @@ func consumeMultisignatureVerificationGas(meter store.GasMeter,
 ) {
 	size := sig.BitArray.Size()
 	sigIndex := 0
-	for i := 0; i < size; i++ {
+	for i := range size {
 		if sig.BitArray.GetIndex(i) {
 			DefaultSigVerificationGasConsumer(meter, sig.Sigs[sigIndex], pubkey.PubKeys[i], params)
 			sigIndex++
@@ -322,7 +322,8 @@ func DeductFees(bank BankKeeperI, ctx sdk.Context, acc std.Account, fees std.Coi
 		))
 	}
 
-	err := bank.SendCoins(ctx, acc.GetAddress(), FeeCollectorAddress(), fees)
+	// Sending coins is unrestricted to pay for gas fees
+	err := bank.SendCoinsUnrestricted(ctx, acc.GetAddress(), FeeCollectorAddress(), fees)
 	if err != nil {
 		return abciResult(err)
 	}
@@ -406,10 +407,10 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 }
 
 // SetGasMeter returns a new context with a gas meter set from a given context.
-func SetGasMeter(simulate bool, ctx sdk.Context, gasLimit int64) sdk.Context {
+func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
 	// In various cases such as simulation and during the genesis block, we do not
 	// meter any gas utilization.
-	if simulate || ctx.BlockHeight() == 0 {
+	if ctx.BlockHeight() == 0 {
 		return ctx.WithGasMeter(store.NewInfiniteGasMeter())
 	}
 

@@ -1,7 +1,6 @@
 package foo20
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -10,7 +9,7 @@ import (
 )
 
 func TestReadOnlyPublicMethods(t *testing.T) {
-	std.TestSetOrigPkgAddr("gno.land/r/demo/grc20factory")
+	testing.SetOriginPkgAddress("gno.land/r/demo/grc20factory")
 	admin := testutils.TestAddress("admin")
 	bob := testutils.TestAddress("bob")
 	carl := testutils.TestAddress("carl")
@@ -36,8 +35,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 	}
 
 	// admin creates FOO and BAR.
-	std.TestSetOrigCaller(admin)
-	std.TestSetRealm(std.NewUserRealm(admin))
+	testing.SetOriginCaller(admin)
 	NewWithAdmin("Foo", "FOO", 3, 1_111_111_000, 5_555, admin)
 	NewWithAdmin("Bar", "BAR", 3, 2_222_000, 6_666, admin)
 	checkBalances("step1", 1_111_111_000, 1_111_111_000, 0, 0, 0)
@@ -47,26 +45,22 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 	checkBalances("step2", 1_444_444_000, 1_111_111_000, 333_333_000, 0, 0)
 
 	// carl uses the faucet.
-	std.TestSetOrigCaller(carl)
-	std.TestSetRealm(std.NewUserRealm(carl))
+	testing.SetOriginCaller(carl)
 	Faucet("FOO")
 	checkBalances("step3", 1_444_449_555, 1_111_111_000, 333_333_000, 0, 5_555)
 
 	// admin gives to bob some allowance.
-	std.TestSetOrigCaller(admin)
-	std.TestSetRealm(std.NewUserRealm(admin))
+	testing.SetOriginCaller(admin)
 	Approve("FOO", bob, 1_000_000)
 	checkBalances("step4", 1_444_449_555, 1_111_111_000, 333_333_000, 1_000_000, 5_555)
 
 	// bob uses a part of the allowance.
-	std.TestSetOrigCaller(bob)
-	std.TestSetRealm(std.NewUserRealm(bob))
+	testing.SetOriginCaller(bob)
 	TransferFrom("FOO", admin, carl, 400_000)
 	checkBalances("step5", 1_444_449_555, 1_110_711_000, 333_333_000, 600_000, 405_555)
 
 	// bob uses a part of the allowance.
-	std.TestSetOrigCaller(bob)
-	std.TestSetRealm(std.NewUserRealm(bob))
+	testing.SetOriginCaller(bob)
 	TransferFrom("FOO", admin, carl, 600_000)
 	checkBalances("step6", 1_444_449_555, 1_110_111_000, 333_333_000, 0, 1_005_555)
 }

@@ -3,7 +3,9 @@
   font-style: normal;
   font-weight: 900;
   font-display: swap;
-  src: url("./fonts/roboto/roboto-mono-normal.woff2") format("woff2"), url("./fonts/roboto/roboto-mono-normal.woff") format("woff");
+  src:
+    url("./fonts/roboto/roboto-mono-normal.woff2") format("woff2"),
+    url("./fonts/roboto/roboto-mono-normal.woff") format("woff");
 }
 
 @font-face {
@@ -21,8 +23,16 @@
 @layer base {
   html {
     @apply font-interVar text-gray-600 bg-light text-200;
-    font-feature-settings: "kern" on, "liga" on, "calt" on, "zero" on;
-    -webkit-font-feature-settings: "kern" on, "liga" on, "calt" on, "zero" on;
+    font-feature-settings:
+      "kern" on,
+      "liga" on,
+      "calt" on,
+      "zero" on;
+    -webkit-font-feature-settings:
+      "kern" on,
+      "liga" on,
+      "calt" on,
+      "zero" on;
     text-size-adjust: 100%;
     -moz-osx-font-smoothing: grayscale;
     font-smoothing: antialiased;
@@ -179,7 +189,7 @@
   .realm-view ul ol,
   .realm-view ol ul,
   .realm-view ol ol {
-    @apply mt-3 mb-2 pl-4;
+    @apply my-2 pl-4;
   }
 
   .realm-view ul {
@@ -245,6 +255,14 @@
   ::selection {
     @apply bg-green-600 text-light;
   }
+
+  /* MD components */
+  .realm-view .gno-columns {
+    @apply flex flex-wrap gap-x-10 xxl:gap-x-12;
+  }
+  .realm-view .gno-columns > * {
+    @apply grow shrink basis-52 lg:basis-44;
+  }
 }
 
 @layer components {
@@ -269,15 +287,43 @@
     @apply block;
   }
 
-  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) + main .realm-view,
-  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) .main-navigation {
+  :is(
+      .main-header:has(#sidemenu-source:checked),
+      .main-header:has(#sidemenu-docs:checked),
+      .main-header:has(#sidemenu-meta:checked)
+    )
+    + main
+    .realm-view,
+  :is(
+      .main-header:has(#sidemenu-source:checked),
+      .main-header:has(#sidemenu-docs:checked),
+      .main-header:has(#sidemenu-meta:checked)
+    )
+    .main-navigation {
     @apply md:col-span-6;
   }
-  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) + main #sidebar,
-  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) .sidemenu {
+  :is(
+      .main-header:has(#sidemenu-source:checked),
+      .main-header:has(#sidemenu-docs:checked),
+      .main-header:has(#sidemenu-meta:checked)
+    )
+    + main
+    #sidebar,
+  :is(
+      .main-header:has(#sidemenu-source:checked),
+      .main-header:has(#sidemenu-docs:checked),
+      .main-header:has(#sidemenu-meta:checked)
+    )
+    .sidemenu {
     @apply md:col-span-4;
   }
-  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) + main #sidebar::before {
+  :is(
+      .main-header:has(#sidemenu-source:checked),
+      .main-header:has(#sidemenu-docs:checked),
+      .main-header:has(#sidemenu-meta:checked)
+    )
+    + main
+    #sidebar::before {
     @apply absolute block content-[''] top-0 w-[50vw] h-full -left-7 bg-gray-100 z-min;
   }
 
@@ -293,9 +339,20 @@
     @apply !bg-transparent;
   }
   main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-ln:target),
-  main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-lnlinks:hover),
-  main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-ln:target) .chroma-cl,
-  main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-lnlinks:hover) .chroma-cl {
+  main
+    :is(.realm-view, .source-code)
+    > pre
+    .chroma-line:has(.chroma-lnlinks:hover),
+  main
+    :is(.realm-view, .source-code)
+    > pre
+    .chroma-line:has(.chroma-ln:target)
+    .chroma-cl,
+  main
+    :is(.realm-view, .source-code)
+    > pre
+    .chroma-line:has(.chroma-lnlinks:hover)
+    .chroma-cl {
     @apply !bg-gray-100 rounded;
   }
   main :is(.realm-view, .source-code) > pre .chroma-ln {
@@ -342,5 +399,16 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  .field-content {
+    field-sizing: content;
+  }
+}
+
+/* supports rules */
+@supports not (field-sizing: content) {
+  .focus-no-field-sizing\:w-20:focus {
+    width: 5rem !important;
   }
 }

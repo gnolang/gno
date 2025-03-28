@@ -3,14 +3,15 @@ package main
 import (
 	"gno.land/p/demo/dao"
 	"gno.land/r/gov/dao/bridge"
+	_ "gno.land/r/gov/dao/init" // so that the govdao initializer is executed
 	govdaov2 "gno.land/r/gov/dao/v2"
 	"gno.land/r/sys/params"
 )
 
 func init() {
-	mExec := params.NewStringPropExecutor("prop1.string", "value1")
-	title := "Setting prop1.string param"
-	comment := "setting prop1.string param"
+	mExec := params.NewSysParamStringPropExecutor("foo", "bar", "baz", "quz")
+	title := "Setting foo:bar:baz param"
+	comment := "new value will be quz"
 	prop := dao.ProposalRequest{
 		Title:       title,
 		Description: comment,
@@ -40,7 +41,7 @@ func main() {
 // --
 // # GovDAO Proposals
 //
-// ## [Prop #0 - Setting prop1.string param](/r/gov/dao/v2:0)
+// ## [Prop #0 - Setting foo:bar:baz param](/r/gov/dao/v2:0)
 //
 // **Status: ACTIVE**
 //
@@ -48,11 +49,11 @@ func main() {
 //
 //
 // --
-// # Proposal #0 - Setting prop1.string param
+// # Proposal #0 - Setting foo:bar:baz param
 //
 // ## Description
 //
-// setting prop1.string param
+// new value will be quz
 //
 // ## Proposal information
 //
@@ -76,11 +77,11 @@ func main() {
 //
 // --
 // --
-// # Proposal #0 - Setting prop1.string param
+// # Proposal #0 - Setting foo:bar:baz param
 //
 // ## Description
 //
-// setting prop1.string param
+// new value will be quz
 //
 // ## Proposal information
 //
@@ -104,11 +105,11 @@ func main() {
 //
 // --
 // --
-// # Proposal #0 - Setting prop1.string param
+// # Proposal #0 - Setting foo:bar:baz param
 //
 // ## Description
 //
-// setting prop1.string param
+// new value will be quz
 //
 // ## Proposal information
 //

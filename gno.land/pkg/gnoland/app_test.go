@@ -64,12 +64,13 @@ func TestNewAppWithOptions(t *testing.T) {
 			},
 		},
 	}
-	appState.Params = []Param{
-		{key: "foo", kind: "string", value: "hello"},
-		{key: "foo", kind: "int64", value: int64(-42)},
-		{key: "foo", kind: "uint64", value: uint64(1337)},
-		{key: "foo", kind: "bool", value: true},
-		{key: "foo", kind: "bytes", value: []byte{0x48, 0x69, 0x21}},
+	appState.VM.RealmParams = []params.Param{
+		params.NewParam("gno.land/r/sys/testrealm:bar_string", "hello"),
+		params.NewParam("gno.land/r/sys/testrealm:bar_int64", int64(-42)),
+		params.NewParam("gno.land/r/sys/testrealm:bar_uint64", uint64(1337)),
+		params.NewParam("gno.land/r/sys/testrealm:bar_bool", true),
+		params.NewParam("gno.land/r/sys/testrealm:bar_strings", []string{"some", "strings"}),
+		params.NewParam("gno.land/r/sys/testrealm:bar_bytes", []byte{0x48, 0x69, 0x21}),
 	}
 
 	resp := bapp.InitChain(abci.RequestInitChain{
@@ -108,12 +109,14 @@ func TestNewAppWithOptions(t *testing.T) {
 		path        string
 		expectedVal string
 	}{
-		{"params/vm/foo.string", `"hello"`},
-		{"params/vm/foo.int64", `"-42"`},
-		{"params/vm/foo.uint64", `"1337"`},
-		{"params/vm/foo.bool", `true`},
-		{"params/vm/foo.bytes", `"SGkh"`}, // XXX: make this test more readable
+		{"params/vm:gno.land/r/sys/testrealm:bar_string", `"hello"`},
+		{"params/vm:gno.land/r/sys/testrealm:bar_int64", `"-42"`},
+		{"params/vm:gno.land/r/sys/testrealm:bar_uint64", `"1337"`},
+		{"params/vm:gno.land/r/sys/testrealm:bar_bool", `true`},
+		{"params/vm:gno.land/r/sys/testrealm:bar_strings", `["some","strings"]`},
+		{"params/vm:gno.land/r/sys/testrealm:bar_bytes", `"SGkh"`}, // XXX: make this test more readable
 	}
+
 	for _, tc := range tcs {
 		qres := bapp.Query(abci.RequestQuery{
 			Path: tc.path,
@@ -215,13 +218,14 @@ func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
 	// call initchainer
 	cfg := InitChainerConfig{
 		StdlibDir:       stdlibDir,
-		vmKpr:           mock,
+		vmk:             mock,
+		acck:            &mockAuthKeeper{},
+		bankk:           &mockBankKeeper{},
+		prmk:            &mockParamsKeeper{},
+		gpk:             &mockGasPriceKeeper{},
 		CacheStdlibLoad: cached,
 	}
-	// Construct keepers.
-	paramsKpr := params.NewParamsKeeper(iavlCapKey, "")
-	cfg.acctKpr = auth.NewAccountKeeper(iavlCapKey, paramsKpr, ProtoGnoAccount)
-	cfg.gpKpr = auth.NewGasPriceKeeper(iavlCapKey)
+
 	cfg.InitChainer(testCtx, abci.RequestInitChain{
 		AppState: DefaultGenState(),
 	})
@@ -244,7 +248,7 @@ func generateValidatorUpdates(t *testing.T, count int) []abci.ValidatorUpdate {
 
 	validators := make([]abci.ValidatorUpdate, 0, count)
 
-	for i := 0; i < count; i++ {
+	for range count {
 		// Generate a random private key
 		key := getDummyKey(t).PubKey()
 
@@ -311,6 +315,9 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 				},
 				// Make sure the deployer account has a balance
 				Balances: balances,
+				Auth:     auth.DefaultGenesisState(),
+				Bank:     bank.DefaultGenesisState(),
+				VM:       vm.DefaultGenesisState(),
 			}
 		}
 
@@ -322,6 +329,9 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 					},
 				},
 				Balances: balances,
+				Auth:     auth.DefaultGenesisState(),
+				Bank:     bank.DefaultGenesisState(),
+				VM:       vm.DefaultGenesisState(),
 			}
 		}
 	)
@@ -822,16 +832,18 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
 
 	// Construct keepers.
-	paramsKpr := params.NewParamsKeeper(mainKey, "")
-	acctKpr := auth.NewAccountKeeper(mainKey, paramsKpr, ProtoGnoAccount)
-	gpKpr := auth.NewGasPriceKeeper(mainKey)
-	bankKpr := bank.NewBankKeeper(acctKpr)
-	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, paramsKpr)
-
+	prmk := params.NewParamsKeeper(mainKey)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount)
+	gpk := auth.NewGasPriceKeeper(mainKey)
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
+	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, prmk)
+	prmk.Register(auth.ModuleName, acck)
+	prmk.Register(bank.ModuleName, bankk)
+	prmk.Register(vm.ModuleName, vmk)
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
 	icc.baseApp = baseApp
-	icc.acctKpr, icc.bankKpr, icc.vmKpr, icc.gpKpr = acctKpr, bankKpr, vmk, gpKpr
+	icc.acck, icc.bankk, icc.vmk, icc.gpk = acck, bankk, vmk, gpk
 	baseApp.SetInitChainer(icc.InitChainer)
 
 	// Set AnteHandler
@@ -841,10 +853,10 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 			newCtx sdk.Context, res sdk.Result, abort bool,
 		) {
 			// Add last gas price in the context
-			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpKpr.LastGasPrice(ctx))
+			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpk.LastGasPrice(ctx))
 
 			// Override auth params.
-			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acctKpr.GetParams(ctx))
+			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
 			// Continue on with default auth ante handler.
 			if ctx.IsCheckTx() {
 				res := auth.EnsureSufficientMempoolFees(ctx, tx.Fee)
@@ -853,7 +865,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 				}
 			}
 
-			newCtx = auth.SetGasMeter(false, ctx, tx.Fee.GasWanted)
+			newCtx = auth.SetGasMeter(ctx, tx.Fee.GasWanted)
 
 			count := getTotalCount(tx)
 
@@ -875,16 +887,16 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	baseApp.SetEndBlocker(
 		EndBlocker(
 			c,
-			acctKpr,
-			gpKpr,
+			acck,
+			gpk,
 			nil,
 			baseApp,
 		),
 	)
 
 	// Set a handler Route.
-	baseApp.Router().AddRoute("auth", auth.NewHandler(acctKpr))
-	baseApp.Router().AddRoute("bank", bank.NewHandler(bankKpr))
+	baseApp.Router().AddRoute("auth", auth.NewHandler(acck))
+	baseApp.Router().AddRoute("bank", bank.NewHandler(bankk))
 	baseApp.Router().AddRoute(
 		testutils.RouteMsgCounter,
 		newTestHandler(
@@ -950,6 +962,10 @@ func gnoGenesisState(t *testing.T) GnoGenesisState {
     }
   }`)
 	err := amino.UnmarshalJSON(genBytes, &gen)
+
+	gen.Bank = bank.DefaultGenesisState()
+	gen.VM = vm.DefaultGenesisState()
+
 	if err != nil {
 		t.Fatalf("failed to create genesis state: %v", err)
 	}

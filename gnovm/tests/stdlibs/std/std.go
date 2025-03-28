@@ -14,7 +14,7 @@ import (
 type TestExecContext struct {
 	std.ExecContext
 
-	// These are used to set up the result of CurrentRealm() and PrevRealm().
+	// These are used to set up the result of CurrentRealm() and PreviousRealm().
 	RealmFrames map[*gno.Frame]RealmOverride
 }
 
@@ -26,7 +26,7 @@ type RealmOverride struct {
 }
 
 func AssertOriginCall(m *gno.Machine) {
-	if !IsOriginCall(m) {
+	if !isOriginCall(m) {
 		m.Panic(typedString("invalid non-origin call"))
 	}
 }
@@ -37,7 +37,7 @@ func typedString(s gno.StringValue) gno.TypedValue {
 	return tv
 }
 
-func IsOriginCall(m *gno.Machine) bool {
+func isOriginCall(m *gno.Machine) bool {
 	tname := m.Frames[0].Func.Name
 	switch tname {
 	case "main": // test is a _filetest
@@ -62,19 +62,12 @@ func IsOriginCall(m *gno.Machine) bool {
 	panic("unable to determine if test is a _test or a _filetest")
 }
 
-func TestSkipHeights(m *gno.Machine, count int64) {
-	ctx := m.Context.(*TestExecContext)
-	ctx.Height += count
-	ctx.Timestamp += (count * 5)
-	m.Context = ctx
-}
-
 func X_callerAt(m *gno.Machine, n int) string {
 	if n <= 0 {
-		m.Panic(typedString("GetCallerAt requires positive arg"))
+		m.Panic(typedString("CallerAt requires positive arg"))
 		return ""
 	}
-	// Add 1 to n to account for the GetCallerAt (gno fn) frame.
+	// Add 1 to n to account for the CallerAt (gno fn) frame.
 	n++
 	if n > m.NumFrames()-1 {
 		// NOTE: the last frame's LastPackage
@@ -84,45 +77,11 @@ func X_callerAt(m *gno.Machine, n int) string {
 		return ""
 	}
 	if n == m.NumFrames()-1 {
-		// This makes it consistent with GetOrigCaller and TestSetOrigCaller.
+		// This makes it consistent with OriginCaller and testing.SetOriginCaller.
 		ctx := m.Context.(*TestExecContext)
-		return string(ctx.OrigCaller)
+		return string(ctx.OriginCaller)
 	}
 	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
-}
-
-func X_testSetOrigCaller(m *gno.Machine, addr string) {
-	ctx := m.Context.(*TestExecContext)
-	ctx.OrigCaller = crypto.Bech32Address(addr)
-	m.Context = ctx
-}
-
-func X_testSetOrigPkgAddr(m *gno.Machine, addr string) {
-	ctx := m.Context.(*TestExecContext)
-	ctx.OrigPkgAddr = crypto.Bech32Address(addr)
-	m.Context = ctx
-}
-
-func X_testSetRealm(m *gno.Machine, addr, pkgPath string) {
-	// Associate the given Realm with the caller's frame.
-	var frame *gno.Frame
-	// When calling this function from Gno, the two top frames are the following:
-	// #6 [FRAME FUNC:testSetRealm RECV:(undefined) (2 args) 17/6/0/10/8 LASTPKG:std ...]
-	// #5 [FRAME FUNC:TestSetRealm RECV:(undefined) (1 args) 14/5/0/8/7 LASTPKG:gno.land/r/tyZ1Vcsta ...]
-	// We want to set the Realm of the frame where TestSetRealm is being called, hence -3.
-	for i := m.NumFrames() - 3; i >= 0; i-- {
-		// Must be a frame from calling a function.
-		if fr := m.Frames[i]; fr.Func != nil {
-			frame = fr
-			break
-		}
-	}
-
-	ctx := m.Context.(*TestExecContext)
-	ctx.RealmFrames[frame] = RealmOverride{
-		Addr:    crypto.Bech32Address(addr),
-		PkgPath: pkgPath,
-	}
 }
 
 func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
@@ -160,23 +119,12 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 		}
 	}
 
-	// Fallback case: return OrigCaller.
-	return string(ctx.OrigCaller), ""
+	// Fallback case: return OriginCaller.
+	return string(ctx.OriginCaller), ""
 }
 
 func X_isRealm(m *gno.Machine, pkgPath string) bool {
 	return gno.IsRealmPath(pkgPath)
-}
-
-func X_testSetOrigSend(m *gno.Machine,
-	sentDenom []string, sentAmt []int64,
-	spentDenom []string, spentAmt []int64,
-) {
-	ctx := m.Context.(*TestExecContext)
-	ctx.OrigSend = std.CompactCoins(sentDenom, sentAmt)
-	spent := std.CompactCoins(spentDenom, spentAmt)
-	ctx.OrigSendSpent = &spent
-	m.Context = ctx
 }
 
 // TestBanker is a banker that can be used as a mock banker in test contexts.

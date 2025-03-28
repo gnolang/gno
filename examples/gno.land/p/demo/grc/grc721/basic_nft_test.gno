@@ -4,6 +4,7 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
 )
 
@@ -111,7 +112,7 @@ func TestSetApprovalForAll(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	isApprovedForAll := dummy.IsApprovedForAll(caller, addr)
@@ -136,7 +137,7 @@ func TestApprove(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	dummy.mint(caller, TokenID("1"))
@@ -156,7 +157,7 @@ func TestTransferFrom(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	dummy.mint(caller, TokenID("1"))
@@ -185,7 +186,7 @@ func TestSafeTransferFrom(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	dummy.mint(caller, TokenID("1"))
@@ -259,7 +260,7 @@ func TestSetTokenURI(t *testing.T) {
 	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 	tokenURI := "http://example.com/token"
 
-	std.TestSetOrigCaller(std.Address(addr1)) // addr1
+	testing.SetOriginCaller(addr1) // addr1
 
 	dummy.mint(addr1, TokenID("1"))
 	_, derr := dummy.SetTokenURI(TokenID("1"), TokenURI(tokenURI))
@@ -269,15 +270,58 @@ func TestSetTokenURI(t *testing.T) {
 	_, err := dummy.SetTokenURI(TokenID("3"), TokenURI(tokenURI))
 	uassert.ErrorIs(t, err, ErrInvalidTokenId)
 
-	std.TestSetOrigCaller(std.Address(addr2)) // addr2
+	testing.SetOriginCaller(addr2) // addr2
 
 	_, cerr := dummy.SetTokenURI(TokenID("1"), TokenURI(tokenURI)) // addr2 trying to set URI for token 1
 	uassert.ErrorIs(t, cerr, ErrCallerIsNotOwner)
 
 	// Test case: Retrieving TokenURI
-	std.TestSetOrigCaller(std.Address(addr1)) // addr1
+	testing.SetOriginCaller(addr1) // addr1
 
 	dummyTokenURI, err := dummy.TokenURI(TokenID("1"))
 	uassert.NoError(t, err, "TokenURI error")
 	uassert.Equal(t, string(tokenURI), string(dummyTokenURI))
+}
+
+func TestIsApprovedOrOwner(t *testing.T) {
+	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
+	uassert.True(t, dummy != nil, "should not be nil")
+
+	var (
+		owner    = testutils.TestAddress("owner")
+		operator = testutils.TestAddress("operator")
+		approved = testutils.TestAddress("approved")
+		other    = testutils.TestAddress("other")
+	)
+
+	tid := TokenID("1")
+
+	err := dummy.mint(owner, tid)
+	uassert.NoError(t, err)
+
+	// check owner
+	isApprovedOrOwner := dummy.isApprovedOrOwner(owner, tid)
+	uassert.True(t, isApprovedOrOwner, "owner should be approved")
+
+	// check operator
+	testing.SetOriginCaller(owner)
+	err = dummy.SetApprovalForAll(operator, true)
+	uassert.NoError(t, err)
+	isApprovedOrOwner = dummy.isApprovedOrOwner(operator, tid)
+	uassert.True(t, isApprovedOrOwner, "operator should be approved")
+
+	// check approved
+	testing.SetOriginCaller(owner)
+	err = dummy.Approve(approved, tid)
+	uassert.NoError(t, err)
+	isApprovedOrOwner = dummy.isApprovedOrOwner(approved, tid)
+	uassert.True(t, isApprovedOrOwner, "approved address should be approved")
+
+	// check other
+	isApprovedOrOwner = dummy.isApprovedOrOwner(other, tid)
+	uassert.False(t, isApprovedOrOwner, "other address should not be approved")
+
+	// check non-existent token
+	isApprovedOrOwner = dummy.isApprovedOrOwner(owner, TokenID("999"))
+	uassert.False(t, isApprovedOrOwner, "non-existent token should not be approved")
 }
