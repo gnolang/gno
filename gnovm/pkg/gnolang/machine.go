@@ -1970,15 +1970,24 @@ func (m *Machine) PushForPointer(lx Expr) {
 }
 
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
+	pv, ro := m.PopAsPointer2(lx)
+	if ro {
+		panic("base value is readonly")
+	}
+	return pv
+}
+
+// returns ro = true if the base is readonly.
+func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 	switch lx := lx.(type) {
 	case *NameExpr:
 		switch lx.Type {
 		case NameExprTypeNormal:
 			lb := m.LastBlock()
-			return lb.GetPointerTo(m.Store, lx.Path)
+			return lb.GetPointerTo(m.Store, lx.Path), false
 		case NameExprTypeHeapUse:
 			lb := m.LastBlock()
-			return lb.GetPointerToHeapUse(m.Store, lx.Path)
+			return lb.GetPointerToHeapUse(m.Store, lx.Path), false
 		case NameExprTypeHeapClosure:
 			panic("should not happen")
 		default:
@@ -1987,13 +1996,14 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
-		return xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
+		return xv.GetPointerAtIndex(m.Alloc, m.Store, iv), xv.IsReadonly()
 	case *SelectorExpr:
 		xv := m.PopValue()
-		return xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
+		return xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path), xv.IsReadonly()
 	case *StarExpr:
-		ptr := m.PopValue().V.(PointerValue)
-		return ptr
+		xv := m.PopValue()
+		ptr := xv.V.(PointerValue)
+		return ptr, xv.IsReadonly()
 	case *CompositeLitExpr: // for *RefExpr
 		tv := *m.PopValue()
 		hv := m.Alloc.NewHeapItem(tv)
@@ -2001,7 +2011,7 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 			TV:    &hv.Value,
 			Base:  hv,
 			Index: 0,
-		}
+		}, false
 	default:
 		panic("should not happen")
 	}

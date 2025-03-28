@@ -19,10 +19,6 @@ func (m *mockTypedValueStruct) DeepFill(store Store) Value {
 	return m
 }
 
-func (m *mockTypedValueStruct) IsMutable() bool {
-	return true
-}
-
 func TestGetLengthPanic(t *testing.T) {
 	tests := []struct {
 		name     string
