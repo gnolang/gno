@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"regexp"
 	"strconv"
 	"time"
@@ -24,6 +25,7 @@ const (
 	defaultGasWanted     = "100000"
 	defaultRemote        = "http://127.0.0.1:26657"
 	defaultListenAddress = "127.0.0.1:5050"
+	defaultDBPath        = "db.db"
 )
 
 // url & struct for verify captcha
@@ -49,15 +51,19 @@ type SiteVerifyResponse struct {
 }
 
 type serveCfg struct {
-	listenAddress string
-	chainID       string
-	mnemonic      string
-	maxSendAmount string
-	numAccounts   uint64
+	listenAddress  string
+	dbPath         string
+	cooldownPeriod time.Duration
+	chainID        string
+	mnemonic       string
+	maxSendAmount  string
+	numAccounts    uint64
 
 	remote string
 
 	captchaSecret string
+	ghClientID    string
+	maxBalance    int64
 	isBehindProxy bool
 }
 
@@ -127,11 +133,39 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 		"recaptcha secret key (if empty, captcha are disabled)",
 	)
 
+	fs.StringVar(
+		&c.ghClientID,
+		"github-client-id",
+		"",
+		"github client id for oauth authentication",
+	)
+
+	fs.Int64Var(
+		&c.maxBalance,
+		"max-balance",
+		10000000, // 10 gnot
+		"limit of tokens the user can possess to be eligible to claim the faucet",
+	)
+
 	fs.BoolVar(
 		&c.isBehindProxy,
 		"is-behind-proxy",
 		false,
 		"use X-Forwarded-For IP for throttling",
+	)
+
+	fs.StringVar(
+		&c.dbPath,
+		"db-path",
+		defaultDBPath,
+		"local db path for keeping the cooldown state",
+	)
+
+	fs.DurationVar(
+		&c.cooldownPeriod,
+		"cooldown-period",
+		24*time.Hour,
+		"minimum required time between consecutive faucet claims by the same user",
 	)
 }
 
@@ -189,12 +223,19 @@ func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
 
 	// Start throttled faucet.
 	st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
+	// Create cooldown limiter
+	cooldownLimiter, err := NewCooldownLimiter(cfg.cooldownPeriod, cfg.dbPath)
+	if err != nil {
+		return fmt.Errorf("unable to create cooldown limiter, %w", err)
+	}
 	st.start(ctx)
 
 	// Prepare the middlewares
 	middlewares := []faucet.Middleware{
 		getIPMiddleware(cfg.isBehindProxy, st),
 		getCaptchaMiddleware(cfg.captchaSecret),
+		getAccountBalanceMiddleware(cli, cfg.maxBalance),
+		getGithubMiddleware(cfg.ghClientID, os.Getenv("GH_CLIENT_SECRET"), cooldownLimiter),
 	}
 
 	// Create a new faucet with
