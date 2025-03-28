@@ -5,10 +5,12 @@ package valopers_proposal_test
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/r/gnoland/valopers"
 	"gno.land/r/gnoland/valopers_proposal"
-	_ "gno.land/r/gov/dao/init" // so that the govdao initializer is executed
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/init"
 )
 
 const (
@@ -20,6 +22,8 @@ const (
 )
 
 func init() {
+	c := std.OriginCaller()
+	init.InitWithUsers(c)
 }
 
 func main() {
@@ -30,7 +34,10 @@ func main() {
 		r := recover()
 		println("r: ", r)
 	}()
-	valopers_proposal.ProposeNewValidator(otherAddress)
+	pr := valopers_proposal.NewValidatorProposalRequest(otherAddress)
+
+	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
+	dao.MustCreateProposal(pr)
 }
 
 // Output:
