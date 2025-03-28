@@ -3,7 +3,7 @@
     <header class="w-full flex justify-between items-end">
       <div class="flex gap-6 items-end">
         <div
-          class="w-24 h-24border border-gray-100 border border-gray-100 rounded"
+          class="w-24 h-24 border border-gray-100 border border-gray-100 rounded"
         >
           <img
             src="/public/imgs/gnoland.svg"
@@ -31,32 +31,67 @@
       <p>Md contents here</p>
     </div>
 
-    <div id="contributions" class="mt-14">
+    <div id="contributions" class="filter-list mt-14">
       <nav class="flex gap-4 mb-3 items-center">
-        <h2 class="block text-gray-900 text-600 font-bold min-w-56">
+        <h2 class="block text-gray-900 text-600 font-bold min-w-64">
           Packages
         </h2>
-        <ul class="flex gap-4 font-bold text-gray-400 text-100">
-          <li
-            class="cursor-pointer relative text-gray-600 hover:text-gray-600 underline underline-offset-8"
+        <div class="flex gap-8 font-bold text-gray-400 text-100">
+          <label
+            class="relative cursor-pointer hover:text-gray-600 peer-checked:text-gray-600 peer-checked:underline peer-checked:underline-offset-8"
           >
+            <input
+              type="radio"
+              name="contributions-filter"
+              value="0"
+              checked
+              class="peer hidden"
+            />
             All
-          </li>
-          <li class="cursor-pointer hover:text-gray-600 ">
-            Realms <code class="font-normal font-mono">(r/)</code>
-          </li>
-          <li class="cursor-pointer hover:text-gray-600 ">
-            Pures <code class="font-normal font-mono">(p/)</code>
-          </li>
-        </ul>
+          </label>
+          <label
+            class="relative flex gap-1 items-center  cursor-pointer hover:text-gray-600 peer-checked:text-gray-600 peer-checked:underline peer-checked:underline-offset-8"
+          >
+            <input
+              type="radio"
+              name="contributions-filter"
+              value="1"
+              class="peer hidden"
+            />
+            {{ template "ui/icons/r" }}
+            Realms
+          </label>
+          <label
+            class="relative flex gap-1 items-center cursor-pointer hover:text-gray-600 peer-checked:text-gray-600 peer-checked:underline peer-checked:underline-offset-8"
+          >
+            <input
+              type="radio"
+              name="contributions-filter"
+              value="2"
+              class="peer hidden"
+            />
+            {{ template "ui/icons/p" }}
+            Pures
+          </label>
+        </div>
       </nav>
       <div class="text-100 text-gray-600">
         {{ range .Contributions }}
-          <article class="border-b last:border-b-0">
-            <a href="#" class="flex gap-4 items-center py-2 hover:bg-gray-50">
-              <h3 class="font-bold text-200 min-w-56">
-                <code class="font-mono">{{ .Title }}</code>
-              </h3>
+          <article data-type="{{ .Type.Id }}" class="border-b last:border-b-0">
+            <a
+              href="{{ .URL }}"
+              class="flex gap-4 items-center py-2 hover:bg-gray-50 px-1"
+            >
+              <span class="flex gap-2 items-center min-w-64">
+                {{ if eq .Type.Name "package" }}
+                  {{ template "ui/icons/p" }}
+                {{ else }}
+                  {{ template "ui/icons/r" }}
+                {{ end }}
+                <h3 class="font-bold text-200 ">
+                  <code class="font-mono">{{ .Title }}</code>
+                </h3>
+              </span>
               <div class="flex gap-4 justify-between w-full">
                 <p>{{ .Description }}</p>
                 <div class="flex gap-4">

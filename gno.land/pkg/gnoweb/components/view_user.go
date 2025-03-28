@@ -19,11 +19,20 @@ const (
 	UserLinkTypeLink     UserLinkType = "link"
 )
 
-type UserContributionType string
+type UserContributionType struct {
+	Id   int
+	Name string
+}
 
-const (
-	UserContributionTypePackage UserContributionType = "package"
-	UserContributionTypeRealm   UserContributionType = "realm"
+var (
+	UserContributionTypeRealm = UserContributionType{
+		Id:   1,
+		Name: "realm",
+	}
+	UserContributionTypePackage = UserContributionType{
+		Id:   2,
+		Name: "package",
+	}
 )
 
 type UserLink struct {

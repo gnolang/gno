@@ -271,6 +271,33 @@
     @apply text-green-600;
   }
 
+  /* filter */
+  .filter-list :is(li, article) {
+    @apply hidden;
+  }
+
+  .filter-list:has(input[value="0"]:checked) :is(li, article) {
+    @apply block;
+  }
+
+  .filter-list:has(input[value="1"]:checked)
+    :is(li[data-type="1"], article[data-type="1"]) {
+    @apply block;
+  }
+
+  .filter-list:has(input[value="2"]:checked)
+    :is(li[data-type="2"], article[data-type="2"]) {
+    @apply block;
+  }
+
+  .filter-list label:has(input:checked) {
+    @apply text-gray-600;
+  }
+
+  .filter-list label:has(input:checked)::after {
+    @apply absolute content-[''] -bottom-1.5 left-0 w-full h-0.5 bg-gray-600;
+  }
+
   /* toc */
   .toc-expend-btn:has(#toc-expend:checked) + nav {
     @apply block;
