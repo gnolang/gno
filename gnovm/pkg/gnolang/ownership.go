@@ -359,6 +359,8 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 		return cv
 	case *BoundMethodValue:
 		return cv
+	case *PackageValue:
+		return cv.GetBlock(store)
 	case *Block:
 		return cv
 	case RefValue:

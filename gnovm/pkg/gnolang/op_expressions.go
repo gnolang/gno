@@ -15,6 +15,7 @@ func (m *Machine) doOpIndex1() {
 	}
 	iv := m.PopValue()   // index
 	xv := m.PeekValue(1) // x
+	ro := xv.IsReadonly()
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
 		mv := xv.V.(*MapValue)
@@ -32,6 +33,7 @@ func (m *Machine) doOpIndex1() {
 		res := xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 		*xv = res.Deref() // reuse as result
 	}
+	xv.SetReadonly(ro)
 }
 
 // NOTE: keep in sync with doOpIndex1.
@@ -43,6 +45,7 @@ func (m *Machine) doOpIndex2() {
 	}
 	iv := m.PeekValue(1) // index
 	xv := m.PeekValue(2) // x
+	ro := xv.IsReadonly()
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
 		vt := ct.Value
@@ -69,17 +72,20 @@ func (m *Machine) doOpIndex2() {
 	default:
 		panic("should not happen")
 	}
+	xv.SetReadonly(ro)
 }
 
 func (m *Machine) doOpSelector() {
 	sx := m.PopExpr().(*SelectorExpr)
 	xv := m.PeekValue(1)
+	ro := xv.IsReadonly()
 	res := xv.GetPointerToFromTV(m.Alloc, m.Store, sx.Path).Deref()
 	if debug {
 		m.Printf("-v[S] %v\n", xv)
 		m.Printf("+v[S] %v\n", res)
 	}
 	*xv = res // reuse as result
+	xv.SetReadonly(ro)
 }
 
 func (m *Machine) doOpSlice() {
@@ -106,7 +112,8 @@ func (m *Machine) doOpSlice() {
 	if xv.T.Kind() == PointerKind &&
 		xv.T.Elem().Kind() == ArrayKind {
 		// simply deref xv.
-		*xv = xv.V.(PointerValue).Deref()
+		ro := xv.IsReadonly()
+		*xv = xv.V.(PointerValue).Deref().WithReadonly(ro)
 	}
 	// fill default based on xv
 	if sx.High == nil {
@@ -152,17 +159,13 @@ func (m *Machine) doOpStar() {
 			tv.SetUint8(dbv.GetByte())
 			m.PushValue(tv)
 		} else {
-			if pv.TV.IsUndefined() && bt.Elt.Kind() != InterfaceKind {
-				refv := TypedValue{T: bt.Elt}
-				m.PushValue(refv)
-			} else {
-				m.PushValue(*pv.TV)
-			}
+			ro := xv.IsReadonly()
+			pvtv := (*pv.TV).WithReadonly(ro)
+			m.PushValue(pvtv)
 		}
 	case *TypeType:
 		t := xv.GetType()
 		pt := &PointerType{Elt: t}
-
 		m.PushValue(asValue(pt))
 	default:
 		panic(fmt.Sprintf(
@@ -174,17 +177,16 @@ func (m *Machine) doOpStar() {
 // XXX this is wrong, for var i interface{}; &i is *interface{}.
 func (m *Machine) doOpRef() {
 	rx := m.PopExpr().(*RefExpr)
-	m.Alloc.AllocatePointer()
-	xv := m.PopAsPointer(rx.X)
-	// when obtaining a pointer of the databyte type, use the ElemType of databyte
+	xv, ro := m.PopAsPointer2(rx.X)
 	elt := xv.TV.T
 	if elt == DataByteType {
 		elt = xv.TV.V.(DataByteValue).ElemType
 	}
+	m.Alloc.AllocatePointer()
 	m.PushValue(TypedValue{
 		T: m.Alloc.NewType(&PointerType{Elt: elt}),
 		V: xv,
-	})
+	}.WithReadonly(ro))
 }
 
 // NOTE: keep in sync with doOpTypeAssert2.

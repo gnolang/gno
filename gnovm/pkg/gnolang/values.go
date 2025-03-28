@@ -1,5 +1,10 @@
 package gnolang
 
+// XXX TODO do not allow conversion
+// XXX this is wrong, for var i interface{}; &i is *interface{}.
+// XXX readonly function means can't be called?
+// XXX doOpSliceLit2 alloc
+
 import (
 	"encoding/binary"
 	"fmt"
@@ -232,6 +237,10 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		oo2 := pv.TV.GetFirstObject(store)
 		rlm.DidUpdate(pv.Base.(Object), oo1, oo2)
 	} else {
+		// XXX if debug
+		if rlm != nil {
+			panic("should not happen")
+		}
 		pv.TV.Assign(alloc, tv2, cu)
 	}
 }
@@ -305,7 +314,7 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 			Index: ii,
 		}
 	}
-	bv := &TypedValue{ // heap alloc, so need to compare value rather than pointer
+	btv := &TypedValue{ // heap alloc, so need to compare value rather than pointer
 		T: DataByteType,
 		V: DataByteValue{
 			Base:     av,
@@ -315,7 +324,7 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 	}
 
 	return PointerValue{
-		TV:    bv,
+		TV:    btv,
 		Base:  av,
 		Index: ii,
 	}
@@ -890,6 +899,33 @@ type TypedValue struct {
 	N [8]byte `json:",omitempty"` // numeric bytes
 }
 
+// magic 8 bytes to denote a readonly wrapped non-nil V of mutable type that is
+// readonly. This happens when subvalues are retrieved from an externally
+// stored realm value, such as external realm package vars, or slices or
+// pointers to.
+var N_Readonly [8]byte = [8]byte{'R', 'e', 'a', 'D', 'o', 'N', 'L', 'Y'} // ReaDoNLY
+
+// returns true if mutable .V is readonly "wrapped".
+func (tv *TypedValue) IsReadonly() bool {
+	return tv.N == N_Readonly && tv.V != nil
+}
+
+// Sets tv.N to N_Readonly if ro.
+// If ro is false does nothing.
+func (tv *TypedValue) SetReadonly(ro bool) {
+	if ro {
+		tv.N = N_Readonly
+	} else {
+		// perserve prior tv.N
+	}
+}
+
+// Convenience, makes readonly if ro is true.
+func (tv TypedValue) WithReadonly(ro bool) TypedValue {
+	tv.SetReadonly(ro)
+	return tv
+}
+
 func (tv *TypedValue) IsDefined() bool {
 	return !tv.IsUndefined()
 }
@@ -962,9 +998,11 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	case *ArrayValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc)
+		cp.N = tv.N // preserve N_Readonly
 	case *StructValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc)
+		cp.N = tv.N // preserve N_Readonly
 	default:
 		cp = tv
 	}
@@ -976,15 +1014,13 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
 	switch tv.V.(type) {
 	case RefValue:
-		cp.T = tv.T
+		cp = tv // preserve N_Readonly
 		refObject := tv.GetFirstObject(store)
 		switch refObjectValue := refObject.(type) {
 		case *ArrayValue:
 			cp.V = refObjectValue.Copy(alloc)
 		case *StructValue:
 			cp.V = refObjectValue.Copy(alloc)
-		default:
-			cp = tv
 		}
 	default:
 		cp = tv.Copy(alloc)
@@ -1649,7 +1685,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		path.Type = VPValMethod
 	case VPDerefPtrMethod:
 		// dtv = tv.V.(PointerValue).TV
-		// dtv not needed for nil receivers.
+		// dtv not used due to possible nil receivers.
 		isPtr = true
 		path.Type = VPPtrMethod // XXX pseudo
 	case VPDerefInterface:
@@ -1776,13 +1812,13 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			panic(fmt.Sprintf("method %s not found in type %s",
 				path.Name, dtv.T.String()))
 		}
-		bv := *dtv
+		btv := *dtv
 		for i, path := range tr {
-			ptr := bv.GetPointerToFromTV(alloc, store, path)
+			ptr := btv.GetPointerToFromTV(alloc, store, path)
 			if i == len(tr)-1 {
 				return ptr // done
 			}
-			bv = ptr.Deref() // deref
+			btv = ptr.Deref() // deref
 		}
 		panic("should not happen")
 	default:
@@ -1790,7 +1826,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 	}
 }
 
-// Convenience for GetPointerAtIndex().  Slow.
+// Convenience for GetPointerAtIndex(). Slow.
 func (tv *TypedValue) GetPointerAtIndexInt(store Store, ii int) PointerValue {
 	iv := TypedValue{T: IntType}
 	iv.SetInt(int64(ii))
@@ -1803,7 +1839,7 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 		if bt == StringType || bt == UntypedStringType {
 			sv := tv.GetString()
 			ii := int(iv.ConvertGetInt())
-			bv := &TypedValue{ // heap alloc
+			btv := &TypedValue{ // heap alloc
 				T: Uint8Type,
 			}
 
@@ -1814,9 +1850,9 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 				panic(&Exception{Value: typedString(fmt.Sprintf("invalid slice index %d (index must be non-negative)", ii))})
 			}
 
-			bv.SetUint8(sv[ii])
+			btv.SetUint8(sv[ii])
 			return PointerValue{
-				TV:   bv,
+				TV:   btv,
 				Base: nil, // free floating
 			}
 		}
@@ -2001,8 +2037,10 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 				high-low,             // length
 				av.GetCapacity()-low, // maxcap
 			),
+			N: tv.N, // preserve N_Readonly
 		}
 	case *SliceType:
+		// XXX consider restricting slice expansion if slice is readonly.
 		if tv.GetCapacity() < high {
 			panic(&Exception{Value: typedString(fmt.Sprintf(
 				"slice bounds out of range [%d:%d] with capacity %d",
@@ -2027,6 +2065,7 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 				high-low,      // length
 				sv.Maxcap-low, // maxcap
 			),
+			N: tv.N, // preserve N_Readonly
 		}
 	default:
 		panic(fmt.Sprintf("unexpected type for GetSlice(): %s",
@@ -2085,8 +2124,10 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) T
 				highVal-lowVal, // length
 				maxVal-lowVal,  // maxcap
 			),
+			N: tv.N, // preserve N_Readonly
 		}
 	case *SliceType:
+		// XXX consider restricting slice expansion if slice is readonly.
 		if tv.V == nil {
 			if lowVal != 0 || highVal != 0 || maxVal != 0 {
 				panic("nil slice index out of range")
@@ -2105,6 +2146,7 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) T
 				highVal-lowVal,   // length
 				maxVal-lowVal,    // maxcap
 			),
+			N: tv.N, // preserve N_Readonly
 		}
 	default:
 		panic(fmt.Sprintf("unexpected type for GetSlice2(): %s",
@@ -2463,6 +2505,7 @@ func typedString(s string) TypedValue {
 	return tv
 }
 
+// returns the same tv instance for convenience.
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 	switch cv := tv.V.(type) {
 	case RefValue:
