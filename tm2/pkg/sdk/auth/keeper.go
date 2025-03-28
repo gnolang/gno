@@ -118,24 +118,6 @@ func (ak AccountKeeper) IterateAccounts(ctx sdk.Context, process func(std.Accoun
 	}
 }
 
-// GetPubKey Returns the PubKey of the account at address
-func (ak AccountKeeper) GetPubKey(ctx sdk.Context, addr crypto.Address) (crypto.PubKey, error) {
-	acc := ak.GetAccount(ctx, addr)
-	if acc == nil {
-		return nil, std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", addr))
-	}
-	return acc.GetPubKey(), nil
-}
-
-// GetSequence Returns the Sequence of the account at address
-func (ak AccountKeeper) GetSequence(ctx sdk.Context, addr crypto.Address) (uint64, error) {
-	acc := ak.GetAccount(ctx, addr)
-	if acc == nil {
-		return 0, std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist", addr))
-	}
-	return acc.GetSequence(), nil
-}
-
 // GetNextAccountNumber Returns and increments the global account number counter
 func (ak AccountKeeper) GetNextAccountNumber(ctx sdk.Context) uint64 {
 	var accNumber uint64
@@ -219,6 +201,15 @@ func (ak AccountKeeper) IterateSessions(ctx sdk.Context, process func(std.Sessio
 		}
 		iter.Next()
 	}
+}
+
+// GetSequence Returns the Sequence of the account at address
+func (ak AccountKeeper) GetSequence(ctx sdk.Context, pubkey crypto.PubKey) (uint64, error) {
+	sess := ak.GetSession(ctx, pubkey)
+	if sess == nil {
+		return 0, std.ErrUnknownAddress(fmt.Sprintf("session %s does not exist", pubkey))
+	}
+	return sess.GetSequence(), nil
 }
 
 func (ak AccountKeeper) decodeSession(bz []byte) (sess std.Session) {
