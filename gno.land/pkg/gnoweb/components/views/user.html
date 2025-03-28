@@ -88,13 +88,17 @@
                 {{ else }}
                   {{ template "ui/icons/r" }}
                 {{ end }}
-                <h3 class="font-bold text-200 ">
+                <h3 class="font-bold text-200">
                   <code class="font-mono">{{ .Title }}</code>
                 </h3>
               </span>
-              <div class="flex gap-4 justify-between w-full">
-                <p>{{ .Description }}</p>
-                <div class="flex gap-4">
+              <div class="flex gap-4 justify-between w-full min-w-0">
+                <p
+                  class="overflow-hidden text-ellipsis whitespace-nowrap flex-shrink"
+                >
+                  {{ .Description }}
+                </p>
+                <div class="flex gap-4 flex-shrink-0">
                   <time datetime="{{ .Date.Format "2006-01-02" }}">
                     {{ FormatRelativeTime .Date }}
                   </time>
