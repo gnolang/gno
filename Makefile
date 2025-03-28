@@ -69,6 +69,7 @@ fmt:
 	$(MAKE) --no-print-directory -C tm2      fmt imports
 	$(MAKE) --no-print-directory -C gnovm    fmt imports
 	$(MAKE) --no-print-directory -C gno.land fmt imports
+	$(MAKE) --no-print-directory -C contribs fmt
 	$(MAKE) --no-print-directory -C examples fmt
 
 .PHONY: lint
