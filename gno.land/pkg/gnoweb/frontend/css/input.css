@@ -50,7 +50,7 @@
   }
 
   .realm-view {
-    @apply text-200 break-words pt-6 lg:pt-10;
+    @apply text-200 break-words;
   }
 
   .realm-view > *:first-child {
