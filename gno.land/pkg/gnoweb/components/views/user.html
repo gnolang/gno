@@ -1,0 +1,203 @@
+{{ define "renderUser" }}
+  <div class="pt-6 lg:pt-10 lg:row-start-1 mt-4 lg:mt-0 lg:col-span-7 pb-24">
+    <header class="w-full flex justify-between items-end">
+      <div class="flex gap-6 items-end">
+        <div
+          class="w-24 h-24border border-gray-100 border border-gray-100 rounded"
+        >
+          <img
+            src="/public/imgs/gnoland.svg"
+            alt="User"
+            class="w-full h-full object-cover"
+          />
+        </div>
+        <div class="pb-1">
+          <h1 class="font-bold text-800 text-gray-900">{{ .Handlename }}</h1>
+          <p class="text-gray-600 text-600 font-bold leading-none">
+            {{ .Username }}
+          </p>
+        </div>
+      </div>
+      <div class="pb-1">
+        <a
+          href="#contributions"
+          class="rounded border py-1 px-2 hover:bg-gray-50"
+          >Contributions</a
+        >
+      </div>
+    </header>
+
+    <div class="realm-view w-full mt-14">
+      <p>Md contents here</p>
+    </div>
+
+    <div id="contributions" class="mt-14">
+      <nav class="flex gap-4 mb-3 items-center">
+        <h2 class="block text-gray-900 text-600 font-bold min-w-56">
+          Packages
+        </h2>
+        <ul class="flex gap-4 font-bold text-gray-400 text-100">
+          <li
+            class="cursor-pointer relative text-gray-600 hover:text-gray-600 underline underline-offset-8"
+          >
+            All
+          </li>
+          <li class="cursor-pointer hover:text-gray-600 ">
+            Realms <code class="font-normal font-mono">(r/)</code>
+          </li>
+          <li class="cursor-pointer hover:text-gray-600 ">
+            Pures <code class="font-normal font-mono">(p/)</code>
+          </li>
+        </ul>
+      </nav>
+      <div class="text-100 text-gray-600">
+        {{ range .Contributions }}
+          <article class="border-b last:border-b-0">
+            <a href="#" class="flex gap-4 items-center py-2 hover:bg-gray-50">
+              <h3 class="font-bold text-200 min-w-56">
+                <code class="font-mono">{{ .Title }}</code>
+              </h3>
+              <div class="flex gap-4 justify-between w-full">
+                <p>{{ .Description }}</p>
+                <div class="flex gap-4">
+                  <time datetime="{{ .Date.Format "2006-01-02" }}">
+                    {{ FormatRelativeTime .Date }}
+                  </time>
+                  <span class="min-w-12 text-right">{{ .Size }}b</span>
+                </div>
+              </div>
+            </a>
+          </article>
+        {{ end }}
+      </div>
+    </div>
+  </div>
+
+  <aside
+    class="first:mt-8 lg:first:mt-0 col-span-1 lg:col-span-3 lg:col-span-3 lg:order-2 lg:row-start-1 lg:row-span-2 relative h-full"
+  >
+    <div class="sticky top-14 lg:pt-2 has-[ul:empty]:hidden">
+      <div
+        class="max-h-screen overflow-scroll no-scrollbar bg-gray-50 lg:bg-transparent rounded-sm"
+      >
+        <h2 class="text-100 lg:text-200 font-normal lg:font-semibold lg:mt-10">
+          User
+        </h2>
+        <p class="text-gray-600 text-100">
+          {{ .Bio }}
+        </p>
+
+        <h2 class="text-100 lg:text-200 font-normal lg:font-semibold lg:mt-10">
+          Links
+        </h2>
+        <ul class="flex gap-0.5 flex-wrap">
+          {{ range .Links }}
+            <li>
+              <a
+                href="{{ .URL }}"
+                rel="noopener noreferrer"
+                class="flex justify-center items-center rounded-full w-7 h-7 border hover:bg-gray-50"
+                title="{{ .Title }}"
+              >
+                {{ $type := .Type }}
+                {{ $icon := printf "ico-%s" $type }}
+                <svg class="w-4 h-4">
+                  <use href="#{{ $icon }}" />
+                </svg>
+              </a>
+            </li>
+          {{ end }}
+        </ul>
+
+        <h2 class="text-100 lg:text-200 font-normal lg:font-semibold lg:mt-10">
+          Teams
+        </h2>
+        <ul class="flex gap-0.5 flex-wrap">
+          {{ range .Teams }}
+            <li>
+              <a
+                href="#"
+                class="rounded-full w-7 h-7 border border-gray-100 block"
+              >
+                <img
+                  src="/public/imgs/gnoland.svg"
+                  alt="user"
+                  class="w-full h-full"
+              /></a>
+            </li>
+          {{ end }}
+        </ul>
+
+        <h2 class="text-100 lg:text-200 font-normal lg:font-semibold lg:mt-10">
+          Overview
+        </h2>
+        <nav
+          class="toc-nav hidden lg:block text-100 mt-2 lg:mt-0 pb-6 lg:pb-28 px-4 py-2 lg:px-0 *:pl-0"
+        >
+          <ul class="space-y-2 pt-2 pl-4">
+            <li>
+              <a
+                class="line-clamp-2 hover:text-green-600 hover:underline"
+                href="#learn-about-gnoland"
+              >
+                Learn about gno.land
+              </a>
+            </li>
+            <li>
+              <a
+                class="line-clamp-2 hover:text-green-600 hover:underline"
+                href="#build-with-gno"
+              >
+                Build with Gno
+              </a>
+            </li>
+            <li>
+              <a
+                class="line-clamp-2 hover:text-green-600 hover:underline"
+                href="#explore-the-universe"
+              >
+                Explore the universe
+              </a>
+            </li>
+
+            <li>
+              <a
+                class="line-clamp-2 hover:text-green-600 hover:underline"
+                href="#latest-blogpostsrgnolandblog"
+              >
+                Latest Blogposts
+              </a>
+            </li>
+
+            <li>
+              <a
+                class="line-clamp-2 hover:text-green-600 hover:underline"
+                href="#latest-eventsrgnolandevents"
+              >
+                Latest Events
+              </a>
+            </li>
+
+            <li>
+              <a
+                class="line-clamp-2 hover:text-green-600 hover:underline"
+                href="#hall-of-famerleonhof"
+              >
+                Hall of Fame
+              </a>
+            </li>
+
+            <li>
+              <a
+                class="line-clamp-2 hover:text-green-600 hover:underline"
+                href="#gno-playgroundhttpsplaygnoland"
+              >
+                Gno Playground
+              </a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </div>
+  </aside>
+{{ end }}
