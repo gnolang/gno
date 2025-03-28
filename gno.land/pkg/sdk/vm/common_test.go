@@ -19,12 +19,13 @@ import (
 )
 
 type testEnv struct {
-	ctx   sdk.Context
-	vmk   *VMKeeper
-	bankk bankm.BankKeeper
-	acck  authm.AccountKeeper
-	prmk  pm.ParamsKeeper
-	vmh   vmHandler
+	ctx       sdk.Context
+	vmk       *VMKeeper
+	bankk     bankm.BankKeeper
+	acck      authm.AccountKeeper
+	prmk      pm.ParamsKeeper
+	vmh       vmHandler
+	supplyKey store.StoreKey
 }
 
 func setupTestEnv() testEnv {
@@ -40,11 +41,13 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 
 	baseCapKey := store.NewStoreKey("baseCapKey")
 	iavlCapKey := store.NewStoreKey("iavlCapKey")
+	supplyKey := store.NewStoreKey("supply")
 
 	// Mount db store and iavlstore
 	ms := store.NewCommitMultiStore(db)
 	ms.MountStoreWithDB(baseCapKey, dbadapter.StoreConstructor, db)
 	ms.MountStoreWithDB(iavlCapKey, iavl.StoreConstructor, db)
+	ms.MountStoreWithDB(supplyKey, dbadapter.StoreConstructor, db)
 	ms.LoadLatestVersion()
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
@@ -52,7 +55,7 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	prmk := pm.NewParamsKeeper(iavlCapKey)
 	acck := authm.NewAccountKeeper(iavlCapKey, prmk.ForModule(authm.ModuleName), std.ProtoBaseAccount)
 	bankk := bankm.NewBankKeeper(acck, prmk.ForModule(bankm.ModuleName))
-	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bankk, prmk)
+	vmk := NewVMKeeper(baseCapKey, iavlCapKey, supplyKey, acck, bankk, prmk)
 
 	prmk.Register(authm.ModuleName, acck)
 	prmk.Register(bankm.ModuleName, bankk)
@@ -71,5 +74,5 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	mcw.MultiWrite()
 	vmh := NewHandler(vmk)
 
-	return testEnv{ctx: ctx, vmk: vmk, bankk: bankk, acck: acck, prmk: prmk, vmh: vmh}
+	return testEnv{ctx: ctx, vmk: vmk, bankk: bankk, acck: acck, prmk: prmk, vmh: vmh, supplyKey: supplyKey}
 }
