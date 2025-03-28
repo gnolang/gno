@@ -20,7 +20,7 @@ const (
 	// AddressStoreKeyPrefix prefix for account-by-address store
 	AddressStoreKeyPrefix = "/a/"
 
-	// SessionStoreKeyPrefix prefix for session-by-pubkey store
+	// SessionStoreKeyPrefix prefix for account-address-by-pubkey store
 	SessionStoreKeyPrefix = "/k/"
 
 	// key for gas price
