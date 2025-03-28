@@ -51,6 +51,9 @@ func typeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, test
 			Error: func(err error) {
 				errs = multierr.Append(errs, err)
 			},
+			// TODO: tempory solution to avoid false-positive unused import check
+			// TODO: remove this once the root cause is found
+			DisableUnusedImportCheck: true,
 		},
 		allowRedefinitions: testing,
 	}
