@@ -93,8 +93,6 @@ func (alloc *Allocator) Fork() *Allocator {
 }
 
 func (alloc *Allocator) Allocate(size int64) {
-	// fmt.Println("---Allocate, size: ", size)
-	// fmt.Println("---alloc: ", alloc)
 	if alloc == nil {
 		// this can happen for map items just prior to assignment.
 		return

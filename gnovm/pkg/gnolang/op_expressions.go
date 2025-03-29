@@ -466,7 +466,6 @@ func (m *Machine) doOpArrayLit() {
 func (m *Machine) doOpSliceLit() {
 	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
-	// XXX, can this really happen?
 	el := len(x.Elts)
 	// peek slice type.
 	st := m.PeekValue(1 + el).V.(TypeValue).Type
