@@ -75,19 +75,6 @@ func X_originCaller(m *gno.Machine) string {
 	return string(GetContext(m).OriginCaller)
 }
 
-func X_originPkgAddr(m *gno.Machine) string {
-	for i := 0; i < m.NumFrames(); i++ {
-		fr := m.Frames[i]
-		if fr.LastPackage == nil || !fr.LastPackage.IsRealm() {
-			continue
-		}
-
-		return string(fr.LastPackage.GetPkgAddr().Bech32())
-	}
-
-	return string(GetContext(m).OriginPkgAddr)
-}
-
 func X_callerAt(m *gno.Machine, n int) string {
 	if n <= 0 {
 		m.Panic(typedString("CallerAt requires positive arg"))

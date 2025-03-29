@@ -16,7 +16,6 @@ func main() {
 	banktestAddr := std.DerivePkgAddr("gno.land/r/demo/banktest")
 
 	// simulate a Deposit call.
-	testing.SetOriginPkgAddress(banktestAddr)
 	testing.IssueCoins(banktestAddr, std.Coins{{"ugnot", 100000000}})
 	testing.SetOriginSend(std.Coins{{"ugnot", 100000000}})
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/banktest"))

@@ -396,18 +396,6 @@ caller := std.OriginCaller()
 ```
 ---
 
-### OriginPkgAddress
-```go
-func OriginPkgAddress() Address
-```
-Returns the address of the first (entry point) realm/package in a sequence of realm/package calls.
-
-##### Usage
-```go
-addr := std.OriginPkgAddress()
-```
----
-
 ### CurrentRealm
 ```go
 func CurrentRealm() Realm
@@ -785,7 +773,6 @@ denom := r.CoinDenom("blgcoin") // /gno.land/r/gnoland/blog:blgcoin
 ```go
 func TestSkipHeights(count int64)
 func TestSetOriginCaller(addr Address)
-func TestSetOriginPkgAddress(addr Address)
 func TestSetOriginSend(sent, spent Coins)
 func TestIssueCoins(addr Address, coins Coins)
 func TestSetRealm(realm Realm)
@@ -819,20 +806,6 @@ Sets the current caller of the transaction to **addr**.
 ```go
 testing.SetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 ```
----
-
-### TestSetOriginPkgAddress
-
-```go
-func TestSetOriginPkgAddress(addr Address)
-```
-Sets the call entry realm address to **addr**.
-
-#### Usage
-```go
-std.TestSetOriginPkgAddress(std.Address("g1ecely4gjy0yl6s9kt409ll330q9hk2lj9ls3ec"))
-```
-
 ---
 
 ### TestSetOriginSend

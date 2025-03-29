@@ -123,26 +123,6 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 	return string(ctx.OriginCaller), ""
 }
 
-func X_originPkgAddr(m *gno.Machine) string {
-	ctx := m.Context.(*TestExecContext)
-	for i := 0; i < m.NumFrames(); i++ {
-		fr := m.Frames[i]
-		override, overridden := ctx.RealmFrames[m.Frames[max(i-1, 0)]]
-		if !overridden &&
-			(fr.LastPackage == nil || !fr.LastPackage.IsRealm()) {
-			continue
-		}
-
-		if !overridden {
-			return string(fr.LastPackage.GetPkgAddr().Bech32())
-		}
-
-		return string(override.Addr)
-	}
-
-	return string(ctx.OriginPkgAddr)
-}
-
 func X_isRealm(m *gno.Machine, pkgPath string) bool {
 	return gno.IsRealmPath(pkgPath)
 }
