@@ -12,8 +12,11 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 
 	// Account
 	&BaseAccount{}, "BaseAccount",
+	&BaseSession{}, "BaseSession",
+
 	// Coin
 	&Coin{}, "Coin",
+
 	// GasPrice
 	&GasPrice{}, "GasPrice",
 
@@ -37,4 +40,8 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	NoSignaturesError{}, "NoSignaturesError",
 	GasOverflowError{}, "GasOverflowError",
 	RestrictedTransferError{}, "RestrictedTransferError",
+	SessionNotFoundError{}, "SessionNotFoundError",
+	SessionAlreadyExistsError{}, "SessionAlreadyExistsError",
+	SessionIsMasterError{}, "SessionIsMasterError",
+	SessionIsInvalidError{}, "SessionIsInvalidError",
 ))
