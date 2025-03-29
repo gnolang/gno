@@ -470,7 +470,8 @@ func (m *Machine) doOpSliceLit() {
 	// peek slice type.
 	st := m.PeekValue(1 + el).V.(TypeValue).Type
 	// construct element buf slice.
-	es := make([]TypedValue, el)
+	baseArray := m.Alloc.NewListArray(el)
+	es := baseArray.List
 	for i := el - 1; 0 <= i; i-- {
 		es[i] = *m.PopValue()
 	}
@@ -482,7 +483,7 @@ func (m *Machine) doOpSliceLit() {
 	} else {
 		m.PopValue()
 	}
-	sv := m.Alloc.NewSliceFromList(es)
+	sv := m.Alloc.NewSlice(baseArray, 0, el, el)
 	m.PushValue(TypedValue{
 		T: st,
 		V: sv,
@@ -506,7 +507,10 @@ func (m *Machine) doOpSliceLit2() {
 		}
 	}
 	// construct element buf slice.
-	es := make([]TypedValue, maxVal+1)
+	// alloc before the underlying array constructed
+	baseArray := m.Alloc.NewListArray(int(maxVal + 1))
+	es := baseArray.List
+
 	for i := range el {
 		itv := tvs[i*2+0]
 		vtv := tvs[i*2+1]
@@ -532,7 +536,7 @@ func (m *Machine) doOpSliceLit2() {
 	} else {
 		m.PopValue()
 	}
-	sv := m.Alloc.NewSliceFromList(es)
+	sv := m.Alloc.NewSlice(baseArray, 0, int(maxVal+1), int(maxVal+1))
 	m.PushValue(TypedValue{
 		T: st,
 		V: sv,
