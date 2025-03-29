@@ -93,8 +93,8 @@ func (alloc *Allocator) Fork() *Allocator {
 }
 
 func (alloc *Allocator) Allocate(size int64) {
-	//fmt.Println("---Allocate, size: ", size)
-	//fmt.Println("---alloc: ", alloc)
+	// fmt.Println("---Allocate, size: ", size)
+	// fmt.Println("---alloc: ", alloc)
 	if alloc == nil {
 		// this can happen for map items just prior to assignment.
 		return
@@ -119,7 +119,6 @@ func (alloc *Allocator) AllocateDataArray(size int64) {
 }
 
 func (alloc *Allocator) AllocateListArray(items int64) {
-	//fmt.Println("---AllocateListArray, items: ", items)
 	alloc.Allocate(allocArray + allocArrayItem*items)
 }
 
@@ -194,6 +193,21 @@ func (alloc *Allocator) NewListArray(n int) *ArrayValue {
 	alloc.AllocateListArray(int64(n))
 	return &ArrayValue{
 		List: make([]TypedValue, n),
+	}
+}
+
+func (alloc *Allocator) NewListArray2(l, c int) *ArrayValue {
+	if l < 0 || c < 0 {
+		panic(&Exception{Value: typedString("len or cap out of range")})
+	}
+
+	if c < l {
+		panic(&Exception{Value: typedString("length and capacity swapped")})
+	}
+
+	alloc.AllocateListArray(int64(c))
+	return &ArrayValue{
+		List: make([]TypedValue, l, c),
 	}
 }
 
