@@ -59,6 +59,9 @@ type UserData struct {
 	Teams         []struct{}
 	Links         []UserLink
 	Contributions []UserContribution
+	PackageCount  int
+	RealmCount    int
+	PureCount     int
 }
 
 // FormatRelativeTime formats a time into a relative string (e.g. "1 month ago")
@@ -94,7 +97,6 @@ func FormatRelativeTime(t time.Time) string {
 
 // UserView creates a new user view component
 func UserView(data UserData) *View {
-
 	// Set the title of the link to the host of the URL if it's a link
 	for i := range data.Links {
 		if data.Links[i].Type == UserLinkTypeLink {
@@ -105,6 +107,16 @@ func UserView(data UserData) *View {
 			}
 		}
 	}
+
+	// Count realms, packages is the rest
+	data.RealmCount = 0
+	data.PackageCount = len(data.Contributions)
+	for _, contribution := range data.Contributions {
+		if contribution.Type.Id == UserContributionTypeRealm.Id {
+			data.RealmCount++
+		}
+	}
+	data.PureCount = data.PackageCount - data.RealmCount
 
 	return NewTemplateView(
 		UserViewType,
