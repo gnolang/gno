@@ -33,12 +33,17 @@ type Account interface {
 	GetCoins() Coins
 	SetCoins(Coins) error
 
+	// Root key access
+	SetRootKey(crypto.PubKey) (AccountKey, error)
+	GetRootKey() AccountKey
+
 	// Session management
-	GetMasterSession() Session
-	GetSession(pubKey crypto.PubKey) (Session, error)
-	AddSession(sess Session) (Session, error)
+	GetSession(pubKey crypto.PubKey) (AccountKey, error)
+	AddSession(sess AccountKey) (AccountKey, error)
 	DelSession(pubKey crypto.PubKey) error
-	GetAllSessions() []Session
+
+	// Get all keys (both root key and sessions)
+	GetAllKeys() []AccountKey
 
 	String() string
 }
@@ -46,12 +51,12 @@ type Account interface {
 // Session represents authentication and replay protection details for an Account.
 // Multiple sessions can be associated with a single Account.
 //
-// Each account has exactly one master session, created at account initialization.
-// The master session:
+// Each account has exactly one root key, created before any sessions.
+// The root key:
 // - Cannot be revoked
 // - Has all permissions and unlimited transfer capacity
 // - Never expires
-// Master sessions should be kept secure and used only for account recovery or
+// Root keys should be kept secure and used only for account recovery or
 // critical operations. Regular sessions with limited permissions should be used
 // for daily operations.
 //
@@ -64,20 +69,16 @@ type Account interface {
 // - Associated with multi-sig requirements
 // - Connected to external identity providers
 // - Managed by governance protocols
-type Session interface {
-	// Account reference
-	SetAccount(Account)
-	GetAccount() Account
-	GetAccountAddress() crypto.Address
-
+type AccountKey interface {
 	GetPubKey() crypto.PubKey
 	SetPubKey(crypto.PubKey) error
 
 	GetSequence() uint64
 	SetSequence(uint64) error
 
-	GetIsMaster() bool
-	SetIsMaster(bool) error
+	GetIsRootKey() bool
+	GetIsSession() bool
+	SetIsRootKey(bool) error
 
 	// XXX: IsValid checks if the session is valid (not expired, etc)
 	//      sdk.Context is not available (import cycle)
@@ -97,7 +98,7 @@ type AccountUnrestricter interface {
 // This can be extended by embedding within in your *Account structure.
 type BaseAccount struct {
 	Address        crypto.Address `json:"address" yaml:"address"`
-	Sessions       []Session      `json:"sessions" yaml:"sessions"` // First session is master
+	Sessions       []AccountKey   `json:"sessions" yaml:"sessions"` // First is root key, rest are sessions
 	Coins          Coins          `json:"coins" yaml:"coins"`
 	AccountNumber  uint64         `json:"account_number" yaml:"account_number"`
 	GlobalSequence uint64         `json:"global_sequence" yaml:"global_sequence"` // sum of all session sequences
@@ -111,7 +112,7 @@ func NewBaseAccount(address crypto.Address, coins Coins, pubKey crypto.PubKey, a
 		Address:        address,
 		Coins:          coins,
 		AccountNumber:  accountNumber,
-		Sessions:       []Session{sess},
+		Sessions:       []AccountKey{sess},
 		GlobalSequence: 0,
 	}
 }
@@ -170,9 +171,7 @@ func (acc *BaseAccount) SetAccountNumber(accNumber uint64) error {
 }
 
 // AddSession - Implements Account.
-func (acc *BaseAccount) AddSession(sess Session) (Session, error) {
-	pubKey := sess.GetPubKey()
-
+func (acc *BaseAccount) AddSession(pubKey crypto.PubKey) (AccountKey, error) {
 	// Check if a session with this pubKey already exists for this account.
 	// Note: A public key can currently be used to manage multiple accounts
 	// by signing with the appropriate account address and the appropriate
@@ -190,14 +189,14 @@ func (acc *BaseAccount) AddSession(sess Session) (Session, error) {
 	// global sequence number, rather than starting from 0. This ensures any
 	// previously signed transactions cannot be replayed.
 	isFirst := len(acc.Sessions) == 0
-	isMaster := sess.GetIsMaster()
-	if isFirst && isMaster {
+	isRootKey := sess.GetIsRootKey()
+	if isFirst && isRootKey {
 		sess.GetAccount().SetAccountNumber(0)
-	} else if !isFirst && !isMaster {
+	} else if !isFirst && !isRootKey {
 		seq := acc.GetGlobalSequence()
 		sess.GetAccount().SetAccountNumber(seq)
 	} else {
-		return nil, ErrSessionIsInvalid("session is first and not master or not first and master")
+		return nil, ErrSessionIsInvalid("session is first and not root key or not first and root key")
 	}
 
 	// Store the session key
@@ -205,8 +204,8 @@ func (acc *BaseAccount) AddSession(sess Session) (Session, error) {
 	return sess, nil
 }
 
-// GetAllSessions - Implements Account.
-func (acc *BaseAccount) GetAllSessions() []Session {
+// GetAllKeys - Implements Account.
+func (acc *BaseAccount) GetAllKeys() []AccountKey {
 	// Set the account reference for each session
 	for _, sess := range acc.Sessions {
 		sess.SetAccount(acc)
@@ -214,8 +213,8 @@ func (acc *BaseAccount) GetAllSessions() []Session {
 	return acc.Sessions
 }
 
-// GetMasterSession - Implements Account.
-func (acc *BaseAccount) GetMasterSession() Session {
+// GetRootKey - Implements Account.
+func (acc *BaseAccount) GetRootKey() AccountKey {
 	if len(acc.Sessions) == 0 {
 		return nil
 	}
@@ -239,8 +238,8 @@ func (acc *BaseAccount) GetGlobalSequence() uint64 {
 func (acc *BaseAccount) DelSession(pubKey crypto.PubKey) error {
 	for i, sess := range acc.Sessions {
 		if sess.GetPubKey().Equals(pubKey) {
-			if sess.GetIsMaster() {
-				return errors.New("cannot revoke master session")
+			if sess.GetIsRootKey() {
+				return errors.New("cannot revoke root key")
 			}
 			// Remove key at index i
 			acc.Sessions = append(acc.Sessions[:i], acc.Sessions[i+1:]...)
@@ -251,7 +250,7 @@ func (acc *BaseAccount) DelSession(pubKey crypto.PubKey) error {
 }
 
 // GetSession - Implements Account.
-func (acc *BaseAccount) GetSession(pubKey crypto.PubKey) (Session, error) {
+func (acc *BaseAccount) GetSession(pubKey crypto.PubKey) (AccountKey, error) {
 	for _, sess := range acc.Sessions {
 		if sess.GetPubKey().Equals(pubKey) {
 			return sess, nil
@@ -260,23 +259,13 @@ func (acc *BaseAccount) GetSession(pubKey crypto.PubKey) (Session, error) {
 	return nil, errors.New("session not found")
 }
 
-// GetSessions - Implements Account.
-func (acc *BaseAccount) GetSessions() []Session {
-	sessions := make([]Session, len(acc.Sessions))
-	for i, sess := range acc.Sessions {
-		sess.SetAccount(acc)
-		sessions[i] = sess
-	}
-	return sessions
-}
-
 // BaseSession - a base session structure for authentication.
 // This can be extended by embedding within in your *Session structure.
 type BaseSession struct {
-	PubKey   crypto.PubKey `json:"public_key" yaml:"public_key"`
-	Sequence uint64        `json:"sequence" yaml:"sequence"`
-	IsMaster bool          `json:"is_master" yaml:"is_master"`
-	account  Account       `json:"-" yaml:"-"` // Reference to the parent account
+	PubKey    crypto.PubKey `json:"public_key" yaml:"public_key"`
+	Sequence  uint64        `json:"sequence" yaml:"sequence"`
+	IsRootKey bool          `json:"is_root_key" yaml:"is_root_key"`
+	account   Account       `json:"-" yaml:"-"`
 }
 
 // Add GetAccount method to BaseSession
@@ -284,25 +273,21 @@ func (s *BaseSession) GetAccount() Account {
 	return s.account
 }
 
-func NewBaseSession(pubKey crypto.PubKey, sequence uint64, isMaster bool) *BaseSession {
+func NewBaseSession(pubKey crypto.PubKey, sequence uint64, isRoot bool) *BaseSession {
 	return &BaseSession{
-		PubKey:   pubKey,
-		Sequence: sequence,
-		IsMaster: isMaster,
+		PubKey:    pubKey,
+		Sequence:  sequence,
+		IsRootKey: isRoot,
 	}
 }
 
-func (s *BaseSession) SetAccount(acc Account) {
-	s.account = acc
-}
-
-func (s *BaseSession) SetIsMaster(isMaster bool) error {
-	s.IsMaster = isMaster
+func (s *BaseSession) SetIsRootKey(isRoot bool) error {
+	s.IsRootKey = isRoot
 	return nil
 }
 
-func (s *BaseSession) GetIsMaster() bool {
-	return s.IsMaster
+func (s *BaseSession) GetIsRootKey() bool {
+	return s.IsRootKey
 }
 
 func (s BaseSession) String() string {
@@ -314,17 +299,9 @@ func (s BaseSession) String() string {
   AccountAddress: %s
   Pubkey:         %s
   Sequence:       %d
-  Master:         %t`,
-		s.GetAccountAddress(), pubkey, s.Sequence, s.GetIsMaster(),
+  RootKey:        %t`,
+		s.GetAccountAddress(), pubkey, s.Sequence, s.GetIsRootKey(),
 	)
-}
-
-func (s BaseSession) GetAccountAddress() crypto.Address {
-	if s.account == nil {
-		// should only happen when forget to call sess.setAccount
-		return crypto.Address{}
-	}
-	return s.account.GetAddress()
 }
 
 func (s BaseSession) GetPubKey() crypto.PubKey {
