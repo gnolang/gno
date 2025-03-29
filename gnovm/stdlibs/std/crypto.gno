@@ -57,7 +57,7 @@ func PubkeyToAddress(publicKey string) (Address, error) {
 	keyBytes := []byte(parts[1])
 
 	if !strings.Contains(keyType, "/tm.PubKeySecp256k1") {
-		panic("unknown type")
+		return "", errors.New("invalid public key type")
 	}
 
 	sha := sha256.Sum256(keyBytes)
