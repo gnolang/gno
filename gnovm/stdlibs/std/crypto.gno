@@ -5,6 +5,7 @@ import (
 	"crypto/ripemd160"
 	"crypto/sha256"
 	"errors"
+	"strings"
 )
 
 type Address string // NOTE: bech32
@@ -47,13 +48,21 @@ func PubkeyToAddress(publicKey string) (Address, error) {
 	if err != nil {
 		return "", err
 	}
-	//XXX: Investigating this, currently the last 33 bytes (corresponding to secp256k1 key length)
-	// are returned with more bytes on the left probably a marshal idk this magic operation is temporary
-	bz = bz[len(bz)-33:]
+	//XXX: the bytes we recover here are in the form:
+	/// /tm.KEY_TYPE#\n!ACTUAL_KEY_BYES
+	// so we need to split the string in order to get the actual key bytes
+	// we also ensure that the type of the key is supported right now just PubKeySecp256k1
+	parts := strings.Split(string(bz), "#\n!")
+	keyType := parts[0]
+	keyBytes := []byte(parts[1])
 
-	sha := sha256.Sum256(bz)
-	hasherRIPEMD160 := ripemd160.New() //nolint:gosec
-	hasherRIPEMD160.Write(sha[:])      // does not error
+	if !strings.Contains(keyType, "/tm.PubKeySecp256k1") {
+		panic("unknown type")
+	}
+
+	sha := sha256.Sum256(keyBytes)
+	hasherRIPEMD160 := ripemd160.New()
+	hasherRIPEMD160.Write(sha[:])
 	return EncodeBech32(bech32AddrPrefix, convertTo20Byte(hasherRIPEMD160.Sum(nil))), nil
 }
 
