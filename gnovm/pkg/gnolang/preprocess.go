@@ -4552,6 +4552,9 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 			if cd.Name == "init" {
 				panic("cd.Name 'init' should have been appended with a number in initStaticBlocks")
 			}
+			if cd.Name == "_" {
+				panic(`"_" as a function name is not permitted, cannot be referenced`)
+			}
 			ftv := pkg.GetValueRef(store, cd.Name, true)
 			ft := ftv.T.(*FuncType)
 			cd.Type = *Preprocess(store, last, &cd.Type).(*FuncTypeExpr)
