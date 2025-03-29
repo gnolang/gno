@@ -104,7 +104,7 @@ func (m *Machine) doOpSlice() {
 	// if a is a pointer to an array, a[low : high : max] is
 	// shorthand for (*a)[low : high : max]
 	if xv.T.Kind() == PointerKind &&
-		xv.T.Elem().Kind() == ArrayKind {
+			xv.T.Elem().Kind() == ArrayKind {
 		// simply deref xv.
 		*xv = xv.V.(PointerValue).Deref()
 	}
@@ -471,10 +471,8 @@ func (m *Machine) doOpSliceLit() {
 	// peek slice type.
 	st := m.PeekValue(1 + el).V.(TypeValue).Type
 	// construct element buf slice.
-	// alloc before the underlying array constructed
-	m.Alloc.AllocateSlice()
-	m.Alloc.AllocateListArray(int64(el))
-	es := make([]TypedValue, el)
+	baseArray := m.Alloc.NewListArray(el)
+	es := baseArray.List
 	for i := el - 1; 0 <= i; i-- {
 		es[i] = *m.PopValue()
 	}
@@ -486,7 +484,7 @@ func (m *Machine) doOpSliceLit() {
 	} else {
 		m.PopValue()
 	}
-	sv := m.Alloc.NewSliceFromList2(es)
+	sv := m.Alloc.NewSlice(baseArray, 0, el, el)
 	m.PushValue(TypedValue{
 		T: st,
 		V: sv,
@@ -509,13 +507,10 @@ func (m *Machine) doOpSliceLit2() {
 			maxVal = idx
 		}
 	}
-	//fmt.Println("---doOpSliceLit2, maxVal:", maxVal)
-
 	// construct element buf slice.
 	// alloc before the underlying array constructed
-	m.Alloc.AllocateSlice()
-	m.Alloc.AllocateListArray(maxVal + 1)
-	es := make([]TypedValue, maxVal+1)
+	baseArray := m.Alloc.NewListArray(int(maxVal + 1))
+	es := baseArray.List
 
 	for i := range el {
 		itv := tvs[i*2+0]
@@ -542,9 +537,7 @@ func (m *Machine) doOpSliceLit2() {
 	} else {
 		m.PopValue()
 	}
-	// no allocation happens here
-	// since it happened already.
-	sv := m.Alloc.NewSliceFromList2(es)
+	sv := m.Alloc.NewSlice(baseArray, 0, int(maxVal+1), int(maxVal+1))
 	m.PushValue(TypedValue{
 		T: st,
 		V: sv,
@@ -617,7 +610,7 @@ func (m *Machine) doOpStructLit() {
 				// package doesn't match, we cannot use this
 				// method to initialize the struct.
 				if FieldTypeList(st.Fields).HasUnexported() &&
-					st.PkgPath != m.Package.PkgPath {
+						st.PkgPath != m.Package.PkgPath {
 					panic(fmt.Sprintf(
 						"Cannot initialize imported struct %s.%s with nameless composite lit expression (has unexported fields) from package %s",
 						st.PkgPath, st.String(), m.Package.PkgPath))

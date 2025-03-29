@@ -244,18 +244,6 @@ func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
 	}
 }
 
-func (alloc *Allocator) NewSliceFromList2(list []TypedValue) *SliceValue {
-	fullList := list[:cap(list)]
-	return &SliceValue{
-		Base: &ArrayValue{
-			List: fullList,
-		},
-		Offset: 0,
-		Length: len(list),
-		Maxcap: cap(list),
-	}
-}
-
 // NewSliceFromData allocates a new slice with the underlying data array
 // value populated from `data`. See the doc for `NewSliceFromList` for
 // correct usage notes.
