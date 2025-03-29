@@ -761,7 +761,6 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	alloc := gno.NewAllocator(maxAllocQuery)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
-	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	// Get Package.
 	pv := gnostore.GetPackage(pkgPath, false)
 	if pv == nil {
