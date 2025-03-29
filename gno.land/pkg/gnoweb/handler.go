@@ -130,7 +130,7 @@ func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components
 	}
 
 	switch {
-	case gnourl.IsRealm(), gnourl.IsPure():
+	case gnourl.IsRealm(), gnourl.IsPure() || gnourl.IsUser():
 		return h.GetPackageView(gnourl)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
@@ -153,6 +153,10 @@ func (h *WebHandler) GetPackageView(gnourl *weburl.GnoURL) (int, *components.Vie
 	// Handle Source page
 	if gnourl.IsDir() || gnourl.IsPure() {
 		return h.GetDirectoryView(gnourl)
+	}
+
+	if gnourl.IsUser() {
+		return h.GetUserView(gnourl)
 	}
 
 	// Ultimately get realm view
@@ -180,6 +184,103 @@ func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL) (int, *components.View)
 		// NOTE: `RenderRealm` should ensure that HTML content is
 		// sanitized before rendering
 		ComponentContent: components.NewReaderComponent(&content),
+	})
+}
+
+// GetUserView returns the user profile view for a given GnoURL.
+func (h *WebHandler) GetUserView(gnourl *weburl.GnoURL) (int, *components.View) {
+	username := strings.TrimPrefix(gnourl.Path, "/u/")
+	handlename := username
+
+	contributions := []components.UserContribution{
+		{
+			Title:       "gno-blogpost",
+			Description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+			URL:         "/r/blog/posts/example",
+			Type:        components.UserContributionTypeRealm,
+			Date:        time.Now().Add(-18 * time.Hour),
+			Size:        120,
+		},
+		{
+			Title:       "gno-utils",
+			Description: "A collection of utility functions for Gno development.",
+			URL:         "/p/utils",
+			Type:        components.UserContributionTypePackage,
+			Date:        time.Now().Add(-27 * time.Hour),
+			Size:        79,
+		},
+		{
+			Title:       "gno-pizza",
+			Description: "A pizza delivery service.",
+			URL:         "/p/pizza",
+			Type:        components.UserContributionTypeRealm,
+			Date:        time.Now().Add(-14 * 24 * time.Hour),
+			Size:        100,
+		},
+		{
+			Title:       "gno-trading",
+			Description: "A trading service.",
+			URL:         "/p/trading",
+			Type:        components.UserContributionTypePackage,
+			Date:        time.Now().Add(-3 * 30 * 24 * time.Hour),
+			Size:        37,
+		},
+		{
+			Title:       "gno-orders",
+			Description: "An order management system.",
+			URL:         "/p/orders",
+			Type:        components.UserContributionTypePackage,
+			Date:        time.Now().Add(-2 * 365 * 24 * time.Hour),
+			Size:        23,
+		},
+		{
+			Title:       "gno-payments",
+			Description: "A payment processing system.",
+			URL:         "/p/payments",
+			Type:        components.UserContributionTypePackage,
+			Date:        time.Now().Add(-5 * 365 * 24 * time.Hour),
+			Size:        17,
+		},
+	}
+
+	// Trier les contributions par date décroissante
+	slices.SortFunc(contributions, func(a, b components.UserContribution) int {
+		return b.Date.Compare(a.Date)
+	})
+
+	// TODO: get user data from chain
+	return http.StatusOK, components.UserView(components.UserData{
+		Username:      username,
+		Handlename:    handlename,
+		Bio:           "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque vehicula a lectus ac porta. Pellentesque nunc massa, ultricies vitae nunc a, vulputate malesuada justo.",
+		Contributions: contributions,
+		Teams:         make([]struct{}, 8),
+		Links: []components.UserLink{
+			{
+				Type: components.UserLinkTypeGithub,
+				URL:  "https://github.com/" + username,
+			},
+			{
+				Type: components.UserLinkTypeTwitter,
+				URL:  "https://twitter.com/" + username,
+			},
+			{
+				Type: components.UserLinkTypeDiscord,
+				URL:  "https://discord.com/" + username,
+			},
+			{
+				Type: components.UserLinkTypeTelegram,
+				URL:  "https://t.me/" + username,
+			},
+			{
+				Type: components.UserLinkTypeLinkedin,
+				URL:  "https://linkedin.com/" + username,
+			},
+			{
+				Type: components.UserLinkTypeLink,
+				URL:  "https://example.com/" + username,
+			},
+		},
 	})
 }
 

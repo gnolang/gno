@@ -50,7 +50,7 @@
   }
 
   .realm-view {
-    @apply text-200 break-words pt-6 lg:pt-10;
+    @apply text-200 break-words;
   }
 
   .realm-view > *:first-child {
@@ -269,6 +269,33 @@
   /* header */
   .sidemenu .peer:checked + label > svg {
     @apply text-green-600;
+  }
+
+  /* filter */
+  .filter-list :is(li, article) {
+    @apply hidden;
+  }
+
+  .filter-list:has(input[value="0"]:checked) :is(li, article) {
+    @apply block;
+  }
+
+  .filter-list:has(input[value="1"]:checked)
+    :is(li[data-type="1"], article[data-type="1"]) {
+    @apply block;
+  }
+
+  .filter-list:has(input[value="2"]:checked)
+    :is(li[data-type="2"], article[data-type="2"]) {
+    @apply block;
+  }
+
+  .filter-list label:has(input:checked) {
+    @apply text-gray-600;
+  }
+
+  .filter-list label:has(input:checked)::after {
+    @apply absolute content-[''] -bottom-2 left-0 w-full h-0.5 bg-gray-400 rounded-full;
   }
 
   /* toc */
