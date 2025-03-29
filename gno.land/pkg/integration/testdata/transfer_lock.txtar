@@ -49,7 +49,7 @@ func Withdraw(denom string, amt int64) string{
   caller := std.OriginCaller()
   coin := std.Coins{{denom, amt}}
   banker := std.NewBanker(std.BankerTypeOriginSend)
-  pkgaddr := std.OriginPkgAddress()
+  pkgaddr := std.PreviousRealm().Address()
   banker.SendCoins(pkgaddr, caller, coin)
   return "Withdrawn!"
 }
