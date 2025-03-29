@@ -93,6 +93,8 @@ func (alloc *Allocator) Fork() *Allocator {
 }
 
 func (alloc *Allocator) Allocate(size int64) {
+	//fmt.Println("---Allocate, size: ", size)
+	//fmt.Println("---alloc: ", alloc)
 	if alloc == nil {
 		// this can happen for map items just prior to assignment.
 		return
@@ -117,6 +119,7 @@ func (alloc *Allocator) AllocateDataArray(size int64) {
 }
 
 func (alloc *Allocator) AllocateListArray(items int64) {
+	//fmt.Println("---AllocateListArray, items: ", items)
 	alloc.Allocate(allocArray + allocArrayItem*items)
 }
 
@@ -230,6 +233,18 @@ func (alloc *Allocator) NewSlice(base Value, offset, length, maxcap int) *SliceV
 func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
 	alloc.AllocateSlice()
 	alloc.AllocateListArray(int64(cap(list)))
+	fullList := list[:cap(list)]
+	return &SliceValue{
+		Base: &ArrayValue{
+			List: fullList,
+		},
+		Offset: 0,
+		Length: len(list),
+		Maxcap: cap(list),
+	}
+}
+
+func (alloc *Allocator) NewSliceFromList2(list []TypedValue) *SliceValue {
 	fullList := list[:cap(list)]
 	return &SliceValue{
 		Base: &ArrayValue{

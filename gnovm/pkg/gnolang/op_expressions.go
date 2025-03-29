@@ -466,10 +466,14 @@ func (m *Machine) doOpArrayLit() {
 func (m *Machine) doOpSliceLit() {
 	// assess performance TODO
 	x := m.PopExpr().(*CompositeLitExpr)
+	// XXX, can this really happen?
 	el := len(x.Elts)
 	// peek slice type.
 	st := m.PeekValue(1 + el).V.(TypeValue).Type
 	// construct element buf slice.
+	// alloc before the underlying array constructed
+	m.Alloc.AllocateSlice()
+	m.Alloc.AllocateListArray(int64(el))
 	es := make([]TypedValue, el)
 	for i := el - 1; 0 <= i; i-- {
 		es[i] = *m.PopValue()
@@ -482,7 +486,7 @@ func (m *Machine) doOpSliceLit() {
 	} else {
 		m.PopValue()
 	}
-	sv := m.Alloc.NewSliceFromList(es)
+	sv := m.Alloc.NewSliceFromList2(es)
 	m.PushValue(TypedValue{
 		T: st,
 		V: sv,
@@ -505,8 +509,14 @@ func (m *Machine) doOpSliceLit2() {
 			maxVal = idx
 		}
 	}
+	//fmt.Println("---doOpSliceLit2, maxVal:", maxVal)
+
 	// construct element buf slice.
+	// alloc before the underlying array constructed
+	m.Alloc.AllocateSlice()
+	m.Alloc.AllocateListArray(maxVal + 1)
 	es := make([]TypedValue, maxVal+1)
+
 	for i := range el {
 		itv := tvs[i*2+0]
 		vtv := tvs[i*2+1]
@@ -532,7 +542,9 @@ func (m *Machine) doOpSliceLit2() {
 	} else {
 		m.PopValue()
 	}
-	sv := m.Alloc.NewSliceFromList(es)
+	// no allocation happens here
+	// since it happened already.
+	sv := m.Alloc.NewSliceFromList2(es)
 	m.PushValue(TypedValue{
 		T: st,
 		V: sv,
