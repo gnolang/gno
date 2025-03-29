@@ -8,6 +8,7 @@ on:
     paths:
       - "misc/loop/**"
       - ".github/workflows/portal-loop.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
