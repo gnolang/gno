@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	stded25519 "golang.org/x/crypto/ed25519"
 )
 
 // ID represents the cryptographically unique Peer ID
@@ -58,21 +60,31 @@ var (
 
 // validate validates the NodeKey.
 func (nk *NodeKey) validate() error {
-	// Check if a non-zero public key is concatenated to the private key.
-	privKeyBytes := [64]byte(nk.PrivKey)
-	initialized := false
-	for _, v := range privKeyBytes[32:] {
-		if v != 0 {
-			initialized = true
-			break
-		}
+	if nk == nil {
+		return fmt.Errorf("%w: node key is nil", errInvalidNodeKey)
 	}
-	if !initialized {
-		return errInvalidNodeKey
+
+	// Check if the private key has the expected size for ed25519
+	if len(nk.PrivKey) != stded25519.PrivateKeySize {
+		return fmt.Errorf("%w: private key has invalid length: got %d, want %d",
+			errInvalidNodeKey, len(nk.PrivKey), stded25519.PrivateKeySize)
+	}
+
+	// Check if the public key portion is properly initialized
+	// Ed25519 private keys store the public key in the second half
+	pubKeyPortion := nk.PrivKey[32:]
+	if bytes.Equal(pubKeyPortion, make([]byte, 32)) {
+		return fmt.Errorf("%w: public key portion is all uninitialized", errInvalidNodeKey)
+	}
+
+	// Verify that the embedded public key matches what we get from PubKey()
+	derivedPubKey := nk.PrivKey.PubKey()
+	if !bytes.Equal(derivedPubKey.Bytes()[:], pubKeyPortion) {
+		return fmt.Errorf("%w: embedded public key doesn't match derived public key", errInvalidNodeKey)
 	}
 
 	// Check if the address can be encoded using bech32.
-	addr := nk.PrivKey.PubKey().Address()
+	addr := derivedPubKey.Address()
 	if _, err := bech32.Encode(crypto.Bech32AddrPrefix, addr[:]); err != nil {
 		return fmt.Errorf("%w: unable to encode address: %w", errInvalidNodeKey, err)
 	}
