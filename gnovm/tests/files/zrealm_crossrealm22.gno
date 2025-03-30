@@ -63,6 +63,7 @@ func main() {
 //     },
 //     "Values": [
 //         {
+//             "N": "UmVhRG9OTFk=",
 //             "T": {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
@@ -102,7 +103,7 @@ func main() {
 //     +                "@type": "/gno.FuncValue",
 //     +                "Closure": {
 //     +                    "@type": "/gno.RefValue",
-//     +                    "Hash": "23de97a577d573252d00394ce9b71c24b0646546",
+//     +                    "Hash": "ba3cf00a802a018413d9dd37c26528b0c45c0357",
 //     +                    "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:6"
 //     +                },
 //     +                "FileName": "",
@@ -212,11 +213,19 @@ func main() {
 //              "RefCount": "2"
 //          },
 //          "Parent": null,
-//     @@ -500,23 +500,23 @@
+//     @@ -492,6 +492,7 @@
+//                  }
+//              },
+//              {
+//     +            "N": "UmVhRG9OTFk=",
+//                  "T": {
+//                      "@type": "/gno.RefType",
+//                      "ID": "gno.land/r/demo/tests/crossrealm.FooerGetter"
+//     @@ -500,23 +501,23 @@
 //                      "@type": "/gno.FuncValue",
 //                      "Closure": {
 //                          "@type": "/gno.RefValue",
-//     -                    "Hash": "23de97a577d573252d00394ce9b71c24b0646546",
+//     -                    "Hash": "ba3cf00a802a018413d9dd37c26528b0c45c0357",
 //     -                    "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:6"
 //     +                    "Escaped": true,
 //     +                    "ObjectID": "0edc46caf30c00efd87b6c272673239eafbd051e:5"
@@ -338,7 +347,15 @@ func main() {
 //     ]
 // }
 // u[1712ac7adcfdc8e58a67e5615e20fb312394c4df:2]=
-//     @@ -500,8 +500,8 @@
+//     @@ -492,7 +492,6 @@
+//                  }
+//              },
+//              {
+//     -            "N": "UmVhRG9OTFk=",
+//                  "T": {
+//                      "@type": "/gno.RefType",
+//                      "ID": "gno.land/r/demo/tests/crossrealm.FooerGetter"
+//     @@ -501,8 +500,8 @@
 //                      "@type": "/gno.FuncValue",
 //                      "Closure": {
 //                          "@type": "/gno.RefValue",
@@ -349,7 +366,7 @@ func main() {
 //                      },
 //                      "FileName": "",
 //                      "IsMethod": false,
-//     @@ -513,9 +513,9 @@
+//     @@ -514,9 +513,9 @@
 //                          "@type": "/gno.RefNode",
 //                          "BlockNode": null,
 //                          "Location": {

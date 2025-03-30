@@ -903,6 +903,9 @@ type TypedValue struct {
 // readonly. This happens when subvalues are retrieved from an externally
 // stored realm value, such as external realm package vars, or slices or
 // pointers to.
+// NOTE: most of the code except copy methods do not consider N_Readonly.
+// Instead the op functions should with m.IsReadonly() and tv.SetReadonly() and
+// tv.WithReadonly().
 var N_Readonly [8]byte = [8]byte{'R', 'e', 'a', 'D', 'o', 'N', 'L', 'Y'} // ReaDoNLY
 
 // returns true if mutable .V is readonly "wrapped".
@@ -910,13 +913,20 @@ func (tv *TypedValue) IsReadonly() bool {
 	return tv.N == N_Readonly && tv.V != nil
 }
 
-// Sets tv.N to N_Readonly if ro.
+// Sets tv.N to N_Readonly if ro and V is non-nil non-string.
 // If ro is false does nothing.
 func (tv *TypedValue) SetReadonly(ro bool) {
+	if tv.V == nil {
+		return // do nothing
+	}
+	if _, ok := tv.V.(StringValue); ok {
+		return // do nothing
+	}
 	if ro {
 		tv.N = N_Readonly
+		return
 	} else {
-		// perserve prior tv.N
+		return // perserve prior tv.N
 	}
 }
 
@@ -1760,6 +1770,12 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			}
 		}
 		dtv2 := dtv.Copy(alloc)
+		if dtv2.V != nil {
+			// Clear readonly for receivers.
+			// Other rules still apply such as in DidUpdate.
+			// NOTE: dtv2 is a copy, orig is untouched.
+			dtv2.N = [8]byte{}
+		}
 		alloc.AllocateBoundMethod()
 		bmv := &BoundMethodValue{
 			Func:     mv,
@@ -1790,10 +1806,17 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 				panic("should not happen")
 			}
 		}
+		ptv := *tv
+		if ptv.V != nil {
+			// Clear readonly for receivers.
+			// Other rules still apply such as in DidUpdate.
+			// NOTE: ptv is a copy, orig is untouched.
+			ptv.N = [8]byte{}
+		}
 		alloc.AllocateBoundMethod()
 		bmv := &BoundMethodValue{
 			Func:     mv,
-			Receiver: *tv, // bound to ptr, not dtv.
+			Receiver: ptv, // bound to tv ptr, not dtv.
 		}
 		return PointerValue{
 			TV: &TypedValue{
@@ -2037,7 +2060,6 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 				high-low,             // length
 				av.GetCapacity()-low, // maxcap
 			),
-			N: tv.N, // preserve N_Readonly
 		}
 	case *SliceType:
 		// XXX consider restricting slice expansion if slice is readonly.
@@ -2065,7 +2087,6 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 				high-low,      // length
 				sv.Maxcap-low, // maxcap
 			),
-			N: tv.N, // preserve N_Readonly
 		}
 	default:
 		panic(fmt.Sprintf("unexpected type for GetSlice(): %s",
@@ -2124,7 +2145,6 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) T
 				highVal-lowVal, // length
 				maxVal-lowVal,  // maxcap
 			),
-			N: tv.N, // preserve N_Readonly
 		}
 	case *SliceType:
 		// XXX consider restricting slice expansion if slice is readonly.
@@ -2146,7 +2166,6 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) T
 				highVal-lowVal,   // length
 				maxVal-lowVal,    // maxcap
 			),
-			N: tv.N, // preserve N_Readonly
 		}
 	default:
 		panic(fmt.Sprintf("unexpected type for GetSlice2(): %s",
@@ -2410,6 +2429,10 @@ type RefValue struct {
 	Hash     ValueHash `json:",omitempty"`
 }
 
+func (ref RefValue) GetObjectID() ObjectID {
+	return ref.ObjectID
+}
+
 // Base for a detached singleton (e.g. new(int) or &struct{})
 // Conceptually like a Block that holds one value.
 // NOTE: could be renamed to HeapItemBaseValue.
@@ -2518,6 +2541,7 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 	case PointerValue:
 		// As a special case, cv.Base is filled
 		// and cv.TV set appropriately.
+		// XXX but why, isn't lazy better?
 		// Alternatively, could implement
 		// `PointerValue.Deref(store) *TypedValue`,
 		// but for execution speed traded off for

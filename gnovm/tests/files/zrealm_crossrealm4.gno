@@ -13,14 +13,10 @@ func init() {
 }
 
 func main() {
-	// NOTE: it is invalid to modify it even using the external realm function,
-	// because the value was retrieved by a selector. XXX reconsider
+	// NOTE: it is to modify external realm resident object using its method.
 	somevalue.Modify()
 	println(somevalue)
 }
 
-// OutputXXX:
+// Output:
 // &(struct{("_modified" string)} gno.land/r/demo/tests.TestRealmObject)
-
-// Error:
-// cannot modify external-realm or non-realm object

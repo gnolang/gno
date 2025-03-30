@@ -34,12 +34,15 @@ func main() {
 //              "RefCount": "2"
 //          },
 //          "Parent": null,
-//     @@ -283,8 +283,21 @@
+//     @@ -282,9 +282,23 @@
+//                  }
 //              },
 //              {
-//                  "T": {
+//     -            "T": {
 //     -                "@type": "/gno.RefType",
 //     -                "ID": "gno.land/r/demo/tests/crossrealm.Fooer"
+//     +            "N": "UmVhRG9OTFk=",
+//     +            "T": {
 //     +                "@type": "/gno.PointerType",
 //     +                "Elt": {
 //     +                    "@type": "/gno.RefType",

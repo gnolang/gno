@@ -4,6 +4,8 @@ import (
 	"fmt"
 )
 
+var dd = false // XXX delete before merging
+
 // OpBinary1 defined in op_binary.go
 
 // NOTE: keep in sync with doOpIndex2.
@@ -15,7 +17,7 @@ func (m *Machine) doOpIndex1() {
 	}
 	iv := m.PopValue()   // index
 	xv := m.PeekValue(1) // x
-	ro := xv.IsReadonly()
+	ro := m.IsReadonly(xv)
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
 		mv := xv.V.(*MapValue)
@@ -33,6 +35,9 @@ func (m *Machine) doOpIndex1() {
 		res := xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 		*xv = res.Deref() // reuse as result
 	}
+	if dd && ro {
+		fmt.Println("RO->", xv.String())
+	}
 	xv.SetReadonly(ro)
 }
 
@@ -45,7 +50,7 @@ func (m *Machine) doOpIndex2() {
 	}
 	iv := m.PeekValue(1) // index
 	xv := m.PeekValue(2) // x
-	ro := xv.IsReadonly()
+	ro := m.IsReadonly(xv)
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
 		vt := ct.Value
@@ -72,19 +77,25 @@ func (m *Machine) doOpIndex2() {
 	default:
 		panic("should not happen")
 	}
+	if dd && ro {
+		fmt.Println("RO->", xv.String())
+	}
 	xv.SetReadonly(ro)
 }
 
 func (m *Machine) doOpSelector() {
 	sx := m.PopExpr().(*SelectorExpr)
 	xv := m.PeekValue(1)
-	ro := xv.IsReadonly()
+	ro := m.IsReadonly(xv)
 	res := xv.GetPointerToFromTV(m.Alloc, m.Store, sx.Path).Deref()
 	if debug {
 		m.Printf("-v[S] %v\n", xv)
 		m.Printf("+v[S] %v\n", res)
 	}
 	*xv = res // reuse as result
+	if dd && ro {
+		fmt.Println("RO->", res.String())
+	}
 	xv.SetReadonly(ro)
 }
 
@@ -107,13 +118,18 @@ func (m *Machine) doOpSlice() {
 	}
 	// slice base x
 	xv := m.PopValue()
+	ro := m.IsReadonly(xv)
 	// if a is a pointer to an array, a[low : high : max] is
 	// shorthand for (*a)[low : high : max]
+	// XXX fix this in precompile instead.
 	if xv.T.Kind() == PointerKind &&
 		xv.T.Elem().Kind() == ArrayKind {
 		// simply deref xv.
-		ro := xv.IsReadonly()
-		*xv = xv.V.(PointerValue).Deref().WithReadonly(ro)
+		*xv = xv.V.(PointerValue).Deref()
+		// check array also for ro.
+		if !ro {
+			ro = xv.IsReadonly()
+		}
 	}
 	// fill default based on xv
 	if sx.High == nil {
@@ -122,10 +138,16 @@ func (m *Machine) doOpSlice() {
 	// all low:high:max cases
 	if maxVal == -1 {
 		sv := xv.GetSlice(m.Alloc, lowVal, highVal)
-		m.PushValue(sv)
+		if dd && ro {
+			fmt.Println("RO->", sv.String())
+		}
+		m.PushValue(sv.WithReadonly(ro))
 	} else {
 		sv := xv.GetSlice2(m.Alloc, lowVal, highVal, maxVal)
-		m.PushValue(sv)
+		if dd && ro {
+			fmt.Println("RO->", sv.String())
+		}
+		m.PushValue(sv.WithReadonly(ro))
 	}
 }
 
@@ -159,7 +181,10 @@ func (m *Machine) doOpStar() {
 			tv.SetUint8(dbv.GetByte())
 			m.PushValue(tv)
 		} else {
-			ro := xv.IsReadonly()
+			ro := m.IsReadonly(xv)
+			if dd && ro {
+				fmt.Println("RO->", pv.TV.String())
+			}
 			pvtv := (*pv.TV).WithReadonly(ro)
 			m.PushValue(pvtv)
 		}
