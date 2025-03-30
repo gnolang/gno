@@ -1,6 +1,7 @@
 package common
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -8,9 +9,11 @@ import (
 	"slices"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/bech32"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	stded25519 "golang.org/x/crypto/ed25519"
 )
 
 // ServerIdentity defines the server identity keypair.
@@ -44,22 +47,38 @@ func SortAndDeduplicate(keys []string) []string {
 
 // validate validates the AuthKeysFile.
 func (akf *AuthKeysFile) validate() error {
-	// Check if a non-zero public key is concatenated to the private key.
-	privKeyBytes := [64]byte(akf.ServerIdentity.PrivKey)
-	initialized := false
-	for _, v := range privKeyBytes[32:] {
-		if v != 0 {
-			initialized = true
-			break
-		}
-	}
-	if !initialized {
-		return errInvalidPrivateKey
+	if akf == nil {
+		return fmt.Errorf("%w: auth key is nil", errInvalidPrivateKey)
 	}
 
-	// Make sure the public key is derived from the private one.
+	// Check if the private key has the expected size for ed25519
+	if len(akf.ServerIdentity.PrivKey) != stded25519.PrivateKeySize {
+		return fmt.Errorf("%w: private key has invalid length: got %d, want %d",
+			errInvalidPrivateKey, len(akf.ServerIdentity.PrivKey), stded25519.PrivateKeySize)
+	}
+
+	// Check if the public key portion is properly initialized
+	// Ed25519 private keys store the public key in the second half
+	pubKeyPortion := akf.ServerIdentity.PrivKey[32:]
+	if bytes.Equal(pubKeyPortion, make([]byte, 32)) {
+		return fmt.Errorf("%w: public key portion is all uninitialized", errInvalidPublicKey)
+	}
+
+	// Verify that the embedded public key matches what we get from PubKey()
+	derivedPubKey := akf.ServerIdentity.PrivKey.PubKey()
+	if !bytes.Equal(derivedPubKey.Bytes()[:], pubKeyPortion) {
+		return fmt.Errorf("%w: embedded public key doesn't match derived public key", errInvalidPublicKey)
+	}
+
+	// Make sure the ServerIdentity public key is derived from the private one.
 	if akf.ServerIdentity.PrivKey.PubKey().String() != akf.ServerIdentity.PubKey {
 		return errPublicKeyMismatch
+	}
+
+	// Check if the address can be encoded using bech32.
+	addr := derivedPubKey.Address()
+	if _, err := bech32.Encode(crypto.Bech32AddrPrefix, addr[:]); err != nil {
+		return fmt.Errorf("%w: unable to encode address: %w", errInvalidPublicKeyType, err)
 	}
 
 	// Sort and deduplicate the list of authorized keys.
