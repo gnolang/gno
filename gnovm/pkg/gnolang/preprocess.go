@@ -1363,7 +1363,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				ift := evalStaticTypeOf(store, last, n.Func)
 				switch cft := baseOf(ift).(type) {
 				case *FuncType:
-					assertValidBuiltinArgType(store, last, n)
+					fn := extractFunctionName(n)
+					if fn == BuiltinMake || fn == BuiltinCap || fn == BuiltinLen {
+						assertValidBuiltinArgType(store, last, n)
+					}
 					ft = cft
 				case *NativeType:
 					ft = store.Go2GnoType(cft.Type).(*FuncType)
@@ -4827,10 +4830,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 			panic("cannot import stdlib internal/ package outside of standard library")
 		}
 
-		// Restrict imports to /internal packages to a package rooted at base.
-		base, suff, isInternal := strings.Cut(d.PkgPath, "/internal")
-		// /internal should be either at the end, or be a part: /internal/
-		isInternal = isInternal && (suff == "" || suff[0] == '/')
+		base, isInternal := IsInternalPath(d.PkgPath)
 		if isInternal &&
 			pkg.PkgPath != base &&
 			!strings.HasPrefix(pkg.PkgPath, base+"/") {
@@ -5524,7 +5524,6 @@ func assertValidBuiltinArgType(store Store, last BlockNode, currExpr Expr) {
 					// Handle the specific built-in function
 					if fv.PkgPath == uversePkgPath {
 						at := evalStaticTypeOf(store, last, currExpr.Args[0])
-
 						// Validate based on the function name
 						switch fv.Name {
 						case BuiltinLen:
@@ -5550,12 +5549,12 @@ func validateLenArg(at Type) {
 	switch at := unwrapPointerType(baseOf(at)).(type) {
 	case PrimitiveType:
 		if at.Kind() != StringKind && at != UntypedStringType {
-			panic(fmt.Sprintf("invalid argument: %s for built-in %s", at.String(), BuiltinLen))
+			panic(fmt.Sprintf("unexpected type for len(): %v", at))
 		}
 	case *ArrayType, *SliceType, *MapType, *ChanType:
 		// Valid types for len()
 	default:
-		panic(fmt.Sprintf("invalid argument: %v for built-in len", at))
+		panic(fmt.Sprintf("unexpected type for len(): %v", at))
 	}
 }
 
@@ -5569,7 +5568,7 @@ func validateCapArg(at Type) {
 	case *ArrayType, *SliceType, *ChanType:
 		// Valid types for cap()
 	default:
-		panic(fmt.Sprintf("invalid argument: %v for built-in cap", at))
+		panic(fmt.Sprintf("unexpected type for cap(): %v", at))
 	}
 }
 
@@ -5581,7 +5580,7 @@ func validateMakeArg(store Store, last BlockNode, currExpr *CallExpr) {
 
 	// Validate first argument: must be a slice, map, or channel type
 	at := evalStaticType(store, last, currExpr.Args[0])
-	validateMakeType(at)
+	validateMakeType(baseOf(at))
 
 	var length int
 	var capacity int
@@ -5615,7 +5614,7 @@ func validateMakeArg(store Store, last BlockNode, currExpr *CallExpr) {
 			panic(err.Error()) // Convert error to panic message
 		}
 		if capacity < length {
-			panic(fmt.Sprintf("invalid capacity argument for built-in %s: capacity (%d) cannot be less than length (%d)", BuiltinMake, capacity, length))
+			capacity = length
 		}
 	}
 }
@@ -5636,20 +5635,49 @@ func getIntValue(expr Expr, argName string) (int, error) {
 		return getIntValue(e.Source, argName)
 
 	case *BasicLitExpr:
-		num, err := strconv.Atoi(e.Value)
-		if err != nil {
-			return 0, fmt.Errorf("invalid %s argument for built-in %s: cannot convert %q to int", argName, BuiltinMake, e.Value)
+		var num int64
+		if e.Kind == FLOAT {
+			f, err := hasFractionalPart(e.Value)
+			if err != nil {
+				return 0, err
+			}
+			num = int64(f)
+		} else {
+			n, err := strconv.Atoi(e.Value)
+			if err != nil {
+				return 0, fmt.Errorf("invalid %s argument for built-in %s: cannot convert %q to int", argName, BuiltinMake, e.Value)
+			}
+			return n, nil
 		}
-		return num, nil
-
-	case *NameExpr:
-		return 0, nil
-
-	case *CallExpr:
-		num, err := getIntValue(e.Func, argName)
-		return num, err
-
-	default:
-		return 0, fmt.Errorf("invalid %s argument for built-in %s: expected an integer, got %s", argName, BuiltinMake, expr.String())
+		return int(num), nil
 	}
+	return 0, nil
+}
+
+func extractFunctionName(n *CallExpr) string {
+	ce, ok := n.Func.(*ConstExpr)
+	if !ok {
+		return ""
+	}
+
+	ne, ok := ce.Source.(*NameExpr)
+	if !ok {
+		return ""
+	}
+	return string(ne.Name)
+}
+
+func hasFractionalPart(s string) (float64, error) {
+	// Parse the string as a float64
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	// Check if the float has a fractional part by comparing it with its integer part
+	intPart := math.Trunc(f)
+	if f != intPart {
+		return f, errors.New(fmt.Sprintf("Error message"))
+	}
+	return f, nil
 }

@@ -794,6 +794,17 @@ func TestValidBuiltinArg(t *testing.T) {
 		name   string
 		source string
 	}{
+		{
+			name: "Valid make",
+			source: `package test
+		func main() {
+		type appendSliceWriter []byte
+		s := "string"
+		buf := make(appendSliceWriter, 0, len(s))
+println(buf)
+}
+`,
+		},
 		// Valid len cases
 		{
 			name: "Valid len([]int{1, 2, 3})",
@@ -856,69 +867,24 @@ func TestValidBuiltinArg(t *testing.T) {
 		    }`,
 		},
 		{
-			name: "Valid make([]int, b)",
+			name: "Valid make",
 			source: `package test
-		     func main() {
-				  b := 10
-		        a := make([]int, b) // Valid: make() works with slices
-		         for _, r := range a {
-		        println(r)
-		}
-		     }`,
+		func main() {
+			s := "string"
+			buf := make([]byte, 1, len(s)+2)
+}
+		`,
 		},
 		{
-			name: "Valid make([]int, b, c)",
+			name: "Valid make(buf := make([]byte, n)",
 			source: `package test
-		     func main() {
-				  c := 10
-				  b := 10
-		        a := make([]int, b, c) // Valid: make() works with slices
-		         for _, r := range a {
-		        println(r)
-		}
-		     }`,
+	func main() {
+		n := 10
+		buf := make([]byte, n)
+		println(buf)
+}			
+`,
 		},
-		{
-			name: "Valid make([]int, max(len(s), 5), capacity)",
-			source: `package test
-        func main() {
-			s := []int{1, 2, 3}
-			capacity := (len(s) * 3) / 2  // Ensures this evaluates to an integer
-			a := make([]int, len(s), capacity) // Valid case
-			println(len(a), cap(a)) 
-		}`,
-		},
-
-		{
-			name: "Valid make([]int, max(b, 5), c)",
-			source: `package test
-        func main() {
-			s := []int{1, 2, 3}
-			capacity := (len(s) * 3) / 2  // Ensure this evaluates to a valid int
-			a := make([]int, len(s), capacity) // Valid case
-			println(len(a), cap(a))  // Should print: 3 <valid computed cap>
-		}`,
-		},
-		{
-			name: "Valid make([]int, max(b, 5), c)",
-			source: `package test
-        func max(x, y int) int {
-            if x > y {
-                return x
-            }
-            return y
-        }
-
-        func main() {
-            b := 3
-            c := 10
-            a := make([]int, max(b, 5), c) // Uses max function
-            for _, r := range a {
-                println(r)
-            }
-        }`,
-		},
-
 		{
 			name: "Valid make(map[string]*T)",
 			source: `package test

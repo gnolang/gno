@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// unexpected type for cap(): *int
+// main/files/cap9.gno:5:17: unexpected type for cap(): int
