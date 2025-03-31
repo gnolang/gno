@@ -29,7 +29,7 @@ func main() {
 // Realm:
 // switchrealm["gno.land/r/test"]
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2]=
-//     @@ -31,7 +31,7 @@
+//     @@ -30,7 +30,7 @@
 //                              "Tag": "",
 //                              "Type": {
 //                                  "@type": "/gno.PrimitiveType",
@@ -38,7 +38,7 @@ func main() {
 //                              }
 //                          }
 //                      ]
-//     @@ -45,8 +45,8 @@
+//     @@ -44,8 +44,8 @@
 //                      },
 //                      "FileName": "native.gno",
 //                      "IsMethod": false,
@@ -49,7 +49,7 @@ func main() {
 //                      "NativePkg": "std",
 //                      "PkgPath": "std",
 //                      "Source": {
-//     @@ -55,7 +55,7 @@
+//     @@ -54,7 +54,7 @@
 //                          "Location": {
 //                              "Column": "1",
 //                              "File": "native.gno",
@@ -58,7 +58,7 @@ func main() {
 //                              "PkgPath": "std"
 //                          }
 //                      },
-//     @@ -70,7 +70,7 @@
+//     @@ -69,7 +69,7 @@
 //                                  "Tag": "",
 //                                  "Type": {
 //                                      "@type": "/gno.PrimitiveType",

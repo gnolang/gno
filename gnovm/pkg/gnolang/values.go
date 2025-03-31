@@ -913,13 +913,13 @@ func (tv *TypedValue) IsReadonly() bool {
 	return tv.N == N_Readonly && tv.V != nil
 }
 
-// Sets tv.N to N_Readonly if ro and V is non-nil non-string.
-// If ro is false does nothing.
+// Sets tv.N to N_Readonly if ro and tv is not already immutable.  If ro is
+// false does nothing. See also Type.IsImmutable().
 func (tv *TypedValue) SetReadonly(ro bool) {
 	if tv.V == nil {
 		return // do nothing
 	}
-	if _, ok := tv.V.(StringValue); ok {
+	if tv.T.IsImmutable() {
 		return // do nothing
 	}
 	if ro {

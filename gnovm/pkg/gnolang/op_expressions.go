@@ -36,7 +36,7 @@ func (m *Machine) doOpIndex1() {
 		*xv = res.Deref() // reuse as result
 	}
 	if dd && ro {
-		fmt.Println("RO->", xv.String())
+		fmt.Println("RO1->", xv.String())
 	}
 	xv.SetReadonly(ro)
 }
@@ -78,7 +78,7 @@ func (m *Machine) doOpIndex2() {
 		panic("should not happen")
 	}
 	if dd && ro {
-		fmt.Println("RO->", xv.String())
+		fmt.Println("RO2->", xv.String())
 	}
 	xv.SetReadonly(ro)
 }
@@ -94,7 +94,7 @@ func (m *Machine) doOpSelector() {
 	}
 	*xv = res // reuse as result
 	if dd && ro {
-		fmt.Println("RO->", res.String())
+		fmt.Println("RO3->", res.String())
 	}
 	xv.SetReadonly(ro)
 }
@@ -139,13 +139,13 @@ func (m *Machine) doOpSlice() {
 	if maxVal == -1 {
 		sv := xv.GetSlice(m.Alloc, lowVal, highVal)
 		if dd && ro {
-			fmt.Println("RO->", sv.String())
+			fmt.Println("RO4->", sv.String())
 		}
 		m.PushValue(sv.WithReadonly(ro))
 	} else {
 		sv := xv.GetSlice2(m.Alloc, lowVal, highVal, maxVal)
 		if dd && ro {
-			fmt.Println("RO->", sv.String())
+			fmt.Println("RO5->", sv.String())
 		}
 		m.PushValue(sv.WithReadonly(ro))
 	}
@@ -183,7 +183,7 @@ func (m *Machine) doOpStar() {
 		} else {
 			ro := m.IsReadonly(xv)
 			if dd && ro {
-				fmt.Println("RO->", pv.TV.String())
+				fmt.Println("RO6->", pv.TV.String())
 			}
 			pvtv := (*pv.TV).WithReadonly(ro)
 			m.PushValue(pvtv)
@@ -734,26 +734,27 @@ func (m *Machine) doOpConvert() {
 
 	// fmt.Println("DOCONVERT", xv.String(), t.String())
 
-	/*
-		// BEGIN conversion checks
-		// These protect against inter-realm conversion exploits.
+	// BEGIN conversion checks
+	// These protect against inter-realm conversion exploits.
 
-		// Case 1.
-		// Do not allow conversion of value stored in eternal realm.
-		// Otherwise anyone could convert an external object insecurely.
-		if m.IsReadonly(xv) {
-			if xvdt, ok := xv.T.(*DeclaredType); ok &&
-				xvdt.PkgPath == m.Realm.Path {
-				// Except allow if xv.T is m.Realm.
-				// XXX do we need/want this?
-			} else {
-				xvdt, ok := xv.T.(*DeclaredType)
-				fmt.Println(m.String())
-				fmt.Println(xv.String(), t.String())
-				fmt.Println(xvdt, ok)
-				panic("illegal conversion of readonly or externally stored value")
-			}
+	// Case 1.
+	// Do not allow conversion of value stored in eternal realm.
+	// Otherwise anyone could convert an external object insecurely.
+	if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(xv) {
+		if xvdt, ok := xv.T.(*DeclaredType); ok &&
+			xvdt.PkgPath == m.Realm.Path {
+			// Except allow if xv.T is m.Realm.
+			// XXX do we need/want this?
+		} else {
+			xvdt, ok := xv.T.(*DeclaredType)
+			fmt.Println(m.String())
+			fmt.Println(xv.String(), t.String())
+			fmt.Println(xvdt, ok)
+			panic("illegal conversion of readonly or externally stored value")
 		}
+	}
+
+	/*
 
 		// Case 2.
 		// Do not allow conversion to type of external realm.

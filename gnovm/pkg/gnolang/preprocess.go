@@ -3538,8 +3538,11 @@ func convertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 			// convert x to destination type t
 			doConvertType(store, last, x, t)
 		} else {
-			// if one side is declared name type and the other side is unnamed type
-			if isNamedConversion(xt, t) {
+			// if t is interface do nothing
+			if t != nil && t.Kind() == InterfaceKind {
+				// do nothing
+			} else if isNamedConversion(xt, t) {
+				// if one side is declared name type and the other side is unnamed type
 				// covert right (xt) to the type of the left (t)
 				doConvertType(store, last, x, t)
 			}
@@ -3549,6 +3552,7 @@ func convertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 
 // convert x to destination type t
 func doConvertType(store Store, last BlockNode, x *Expr, t Type) {
+	// XXX
 	cx := Expr(Call(constType(*x, t), *x))
 	cx = Preprocess(store, last, cx).(Expr)
 	*x = cx

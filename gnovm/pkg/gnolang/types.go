@@ -23,7 +23,8 @@ type Type interface {
 	String() string // for dev/debugging
 	Elem() Type     // for TODO... types
 	GetPkgPath() string
-	IsNamed() bool // named vs unname type. property as a method
+	IsNamed() bool     // named vs unname type. property as a method
+	IsImmutable() bool // immutable types
 }
 
 type TypeID string
@@ -78,6 +79,25 @@ func (blockType) assertType()      {}
 func (heapItemType) assertType()   {}
 func (*tupleType) assertType()     {}
 func (RefType) assertType()        {}
+
+// IsImmutable
+func (PrimitiveType) IsImmutable() bool    { return true }
+func (*PointerType) IsImmutable() bool     { return false }
+func (FieldType) IsImmutable() bool        { panic("should not happen") }
+func (*ArrayType) IsImmutable() bool       { return false }
+func (*SliceType) IsImmutable() bool       { return false }
+func (*StructType) IsImmutable() bool      { return false }
+func (*FuncType) IsImmutable() bool        { return true }
+func (*MapType) IsImmutable() bool         { return false }
+func (*InterfaceType) IsImmutable() bool   { panic("should not happen") }
+func (*TypeType) IsImmutable() bool        { return true }
+func (dt *DeclaredType) IsImmutable() bool { return dt.Base.IsImmutable() }
+func (*PackageType) IsImmutable() bool     { return false }
+func (*ChanType) IsImmutable() bool        { return true }
+func (blockType) IsImmutable() bool        { return false }
+func (heapItemType) IsImmutable() bool     { return false }
+func (*tupleType) IsImmutable() bool       { panic("should not happen") }
+func (RefType) IsImmutable() bool          { panic("should not happen") }
 
 // ----------------------------------------
 // Primitive types
