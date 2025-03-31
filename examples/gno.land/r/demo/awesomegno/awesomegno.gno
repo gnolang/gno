@@ -24,16 +24,11 @@ var (
 
 	categories = avl.NewTree()
 
-	auth *authz.Authorizer
+	auth = authz.New()
 )
 
 func init() {
-	auth = authz.New()
-
-	auth.Current().(*authz.MemberAuthority).AddMember(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
-	auth.Current().(*authz.MemberAuthority).AddMember(std.CurrentRealm().Address())
-	auth.Current().(*authz.MemberAuthority).AddMember(std.PreviousRealm().Address())
-
+	auth.Current().(*authz.MemberAuthority).AddMember(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")) // matijamarjanovic 
 	hof.Register("AwesomeGno", "Awesome Gno is a registry for gnowesome dApps on gno.land")
 }
 
@@ -52,12 +47,10 @@ func AddAdmin(addr std.Address) error {
 
 func RemoveAdmin(addr std.Address) error {
 	return auth.Do("remove_admin", func() error {
-		if !addr.IsValid() {
-			return ErrInvalidAddress
-		}
 		if auth.Current().(*authz.MemberAuthority).Tree().Size() <= 1 {
 			return ErrCannotRemoveLastAdmin
 		}
+
 		if err := auth.Current().(*authz.MemberAuthority).RemoveMember(addr); err != nil {
 			return err
 		}
@@ -71,6 +64,7 @@ func AddCategory(name, description string) (uint64, error) {
 	if !isAdmin(caller) {
 		return 0, ErrNotAuthorized
 	}
+
 	if name == "" {
 		return 0, ErrCategoryExists
 	}
@@ -103,6 +97,7 @@ func GetCategory(name string) (Category, error) {
 	if !found {
 		return Category{}, ErrCategoryNotFound
 	}
+
 	return value.(Category), nil
 }
 
@@ -111,6 +106,7 @@ func GetCategoryByID(id uint64) (Category, error) {
 	if !found {
 		return Category{}, ErrCategoryNotFound
 	}
+
 	return value.(Category), nil
 }
 
@@ -152,9 +148,11 @@ func ProposeNewDapp(title, description, url string, categoryNamesStr string) (ui
 	if title == "" {
 		return 0, ErrTitleEmpty
 	}
+
 	if description == "" {
 		return 0, ErrDescriptionEmpty
 	}
+
 	if url == "" {
 		return 0, ErrURLCannotBeEmpty
 	}
@@ -279,6 +277,7 @@ func GetDapp(id uint64) (Dapp, bool) {
 	if !exists {
 		return Dapp{}, false
 	}
+
 	return dappRaw.(Dapp), true
 }
 
@@ -287,6 +286,7 @@ func GetProposal(id uint64) (Proposal, bool) {
 	if !exists {
 		return Proposal{}, false
 	}
+	
 	return proposalRaw.(Proposal), true
 }
 
