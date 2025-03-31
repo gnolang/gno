@@ -1,9 +1,6 @@
 package gnolang
 
-// XXX TODO do not allow conversion
-// XXX this is wrong, for var i interface{}; &i is *interface{}.
-// XXX readonly function means can't be called?
-// XXX doOpSliceLit2 alloc
+// XXX TODO address "this is wrong, for var i interface{}; &i is *interface{}."
 
 import (
 	"encoding/binary"
@@ -231,16 +228,15 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		return
 	}
 	// General case
-	if rlm != nil && pv.Base != nil {
+	if rlm != nil {
+		if debug && pv.Base == nil {
+			panic("expected non-nil base for assignment")
+		}
 		oo1 := pv.TV.GetFirstObject(store)
 		pv.TV.Assign(alloc, tv2, cu)
 		oo2 := pv.TV.GetFirstObject(store)
 		rlm.DidUpdate(pv.Base.(Object), oo1, oo2)
 	} else {
-		// XXX if debug
-		if rlm != nil {
-			panic("should not happen")
-		}
 		pv.TV.Assign(alloc, tv2, cu)
 	}
 }
@@ -934,6 +930,10 @@ func (tv *TypedValue) SetReadonly(ro bool) {
 func (tv TypedValue) WithReadonly(ro bool) TypedValue {
 	tv.SetReadonly(ro)
 	return tv
+}
+
+func (tv *TypedValue) IsImmutable() bool {
+	return tv.T == nil || tv.T.IsImmutable()
 }
 
 func (tv *TypedValue) IsDefined() bool {

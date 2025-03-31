@@ -724,7 +724,6 @@ func (m *Machine) doOpConvert() {
 			// Except allow if xv.T is m.Realm.
 			// XXX do we need/want this?
 		} else {
-			xvdt, ok := xv.T.(*DeclaredType)
 			panic("illegal conversion of readonly or externally stored value")
 		}
 	}

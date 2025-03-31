@@ -13,7 +13,7 @@ func init() {
 }
 
 func main() {
-	// NOTE: it is to modify external realm resident object using its method.
+	// NOTE: it is valid to modify it using the external realm function.
 	somevalue.Modify()
 	println(somevalue)
 }
