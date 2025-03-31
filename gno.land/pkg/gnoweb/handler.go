@@ -184,10 +184,8 @@ func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL) (int, *components.View)
 	})
 }
 
-
 func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) {
 	jdoc, err := h.Client.Doc(gnourl.Path)
-  
 	if err != nil {
 		h.Logger.Error("unable to fetch qdoc", "error", err)
 		return GetClientErrorStatusPage(gnourl, err)
