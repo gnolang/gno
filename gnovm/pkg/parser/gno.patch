@@ -1,5 +1,5 @@
 --- interface.go.orig	2025-02-27 18:57:18.000000000 +0100
-+++ interface.go	2025-03-28 09:37:22.300906508 +0100
++++ interface.go	2025-03-28 19:25:48.241851064 +0100
 @@ -95,6 +95,7 @@
  	file := fset.AddFile(filename, -1, len(text))
  
@@ -148,7 +148,7 @@
 +	return ParseExprFromStats(token.NewFileSet(), "", []byte(x), 0, maxNest)
 +}
 --- parser.go.orig	2025-02-27 18:57:18.000000000 +0100
-+++ parser.go	2025-03-27 10:01:09.585754556 +0100
++++ parser.go	2025-03-28 19:25:48.243210313 +0100
 @@ -63,13 +63,26 @@
  	// nestLev is used to track and limit the recursion depth
  	// during parsing.
@@ -201,3 +201,25 @@
  		if p.tok == token.COMMENT {
  			if p.top && strings.HasPrefix(p.lit, "//go:build") {
  				if x, err := constraint.Parse(p.lit); err == nil {
+--- parser_test.go.orig	2025-03-31 15:55:55.632064139 +0200
++++ parser_test.go	2025-03-31 15:56:28.263289173 +0200
+@@ -680,7 +680,7 @@
+ 						t.Errorf("ParseFile(...): %v (want success)", err)
+ 					}
+ 				} else {
+-					expected := "exceeded max nesting depth"
++					expected := "exceeded max nesting depth 100000"
+ 					if err == nil || !strings.HasSuffix(err.Error(), expected) {
+ 						t.Errorf("ParseFile(...) = _, %v, want %q", err, expected)
+ 					}
+--- performance_test.go.orig	2025-02-27 18:57:18.000000000 +0100
++++ performance_test.go	2025-03-31 15:51:14.536960665 +0200
+@@ -10,7 +10,7 @@
+ 	"testing"
+ )
+ 
+-var src = readFile("../printer/nodes.go")
++var src = readFile("nodes.go.src")
+ 
+ func readFile(filename string) []byte {
+ 	data, err := os.ReadFile(filename)
