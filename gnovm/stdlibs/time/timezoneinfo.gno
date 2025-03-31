@@ -62,9 +62,9 @@ const (
 // ChainTZ represents the timezone of the chain.
 var ChainTZ *Location = &chainLoc
 
-// chainLoc is separate so that get can refer to &chainLoc
-// and ensure that it never returns a nil *Location,
-// even if a badly behaved client has changed ChainTZ.
+// chainLoc is kept separate so that ChainTZ can always refer to &chainLoc,
+// ensuring it never returns a nil *Location, even if a client improperly
+// modifies ChainTZ.
 var chainLoc Location = Location{name: "UTC"}
 
 // UTC represents Universal Coordinated Time (UTC).
