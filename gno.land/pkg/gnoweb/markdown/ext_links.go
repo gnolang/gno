@@ -126,7 +126,10 @@ var linkTypes = map[linkType]linkTypeInfo{
 
 // renderLink renders a link node
 func (r *linkRenderer) renderLink(w util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
-	n := node.(*ast.Link)
+	n, ok := node.(*ast.Link)
+	if !ok {
+		return ast.WalkContinue, fmt.Errorf("expected *ast.Link, got %T", node)
+	}
 	dest := string(n.Destination)
 	linkType, hasHelp, err := detectLinkType(dest, r.domain, r.path)
 	if err != nil {
