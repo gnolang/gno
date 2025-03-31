@@ -27,7 +27,7 @@ var (
 )
 
 func init() {
-	auth.Current().(*authz.MemberAuthority).AddMember(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")) // matijamarjanovic 
+	auth.Current().(*authz.MemberAuthority).AddMember(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")) // matijamarjanovic
 	hof.Register("AwesomeGno", "Awesome Gno is a registry for gnowesome dApps on gno.land")
 }
 
@@ -285,7 +285,7 @@ func GetProposal(id seqid.ID) (Proposal, bool) {
 	if !exists {
 		return Proposal{}, false
 	}
-	
+
 	return proposalRaw.(Proposal), true
 }
 

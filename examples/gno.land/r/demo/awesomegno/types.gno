@@ -4,7 +4,7 @@ import (
 	"errors"
 	"std"
 	"time"
-	
+
 	"gno.land/p/demo/seqid"
 )
 
