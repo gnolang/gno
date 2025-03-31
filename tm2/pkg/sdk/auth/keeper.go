@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"fmt"
 	"log/slog"
 	"math/big"
 
@@ -146,17 +145,18 @@ func (ak AccountKeeper) decodeAccount(bz []byte) (acc std.Account) {
 	return
 }
 
+/*
 // -----------------------------------------------------------------------------
 // Session.
 
-func (ak AccountKeeper) GetSession(ctx sdk.Context, pubkey crypto.PubKey) std.Session {
+func (ak AccountKeeper) GetSession(ctx sdk.Context, pubkey crypto.PubKey) std.AccountKey {
 	stor := ctx.GasStore(ak.key)
 	bz := stor.Get(SessionStoreKey(pubkey))
 	if bz == nil {
 		return nil
 	}
-	sess := ak.decodeSession(bz)
-	return sess
+	key := ak.decodeSession(bz)
+	return key
 }
 
 func (ak AccountKeeper) GetAllSessions(ctx sdk.Context) []std.Session {
@@ -219,6 +219,7 @@ func (ak AccountKeeper) decodeSession(bz []byte) (sess std.Session) {
 	}
 	return
 }
+*/
 
 // -----------------------------------------------------------------------------
 // Gas.

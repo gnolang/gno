@@ -38,7 +38,12 @@ type AnteOptions struct {
 // NewAnteHandler returns an AnteHandler that checks and increments sequence
 // numbers, checks signatures & account numbers, and deducts fees from the first
 // signer.
-func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer SignatureVerificationGasConsumer, opts AnteOptions) sdk.AnteHandler {
+func NewAnteHandler(
+	ak AccountKeeper,
+	bank BankKeeperI,
+	sigGasConsumer SignatureVerificationGasConsumer,
+	opts AnteOptions,
+) sdk.AnteHandler {
 	return func(
 		ctx sdk.Context, tx std.Tx, simulate bool,
 	) (newCtx sdk.Context, res sdk.Result, abort bool) {
@@ -219,26 +224,28 @@ func processSig(
 		return nil, res
 	}
 
-	var sess std.Session
-
-	// If this is the account's master pubkey and it's not set yet, set it
-	if acc.GetMasterSession() == nil {
-		newSess := std.NewBaseSession(pubKey, 0, true)
-		sess = newSess
-		updatedSess, err := acc.AddSession(sess)
-		_ = updatedSess
+	var currentKey std.AccountKey
+	// If this is the account's root key and it's not set yet, set it
+	if acc.GetRootKey() == nil {
+		newKey, err := acc.SetRootKey(pubKey)
+		currentKey = newKey
 		if err != nil {
-			return nil, abciResult(std.ErrInternal("setting master Session on signer's account"))
+			return nil, abciResult(std.ErrInternal("setting root key on signer's account"))
 		}
 	} else {
-		var err error
-		sess, err = acc.GetSession(pubKey)
-		if err != nil {
-			return nil, sdk.ABCIResultFromError(err)
+		// Check if the pubkey is the root key or a session key
+		for _, key := range acc.GetAllKeys() {
+			if key.GetPubKey().Equals(pubKey) {
+				currentKey = key
+				break
+			}
 		}
 	}
+	if currentKey == nil {
+		return nil, abciResult(std.ErrUnauthorized("account does not have this key"))
+	}
 
-	// XXX: Check if the session is valid (not expired, etc)
+	// XXX: Check if the session is valid (not expired, etc)?
 
 	// Consume gas for signature verification
 	if res := sigGasConsumer(ctx.GasMeter(), sig.Signature, pubKey, params); !res.IsOK() {
@@ -251,11 +258,11 @@ func processSig(
 	}
 
 	// Increment account and session sequences
-	if err := sess.SetSequence(sess.GetSequence() + 1); err != nil {
-		panic(err)
+	if err := currentKey.SetSequence(currentKey.GetSequence() + 1); err != nil {
+		return nil, abciResult(std.ErrInternal("setting sequence on signer's key"))
 	}
 	if err := acc.SetGlobalSequence(acc.GetGlobalSequence() + 1); err != nil {
-		panic(err)
+		return nil, abciResult(std.ErrInternal("setting global sequence on signer's account"))
 	}
 
 	return acc, res
