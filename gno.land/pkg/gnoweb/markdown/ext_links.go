@@ -75,26 +75,27 @@ var (
 	ErrLinkInvalidURL = errors.New("invalid URL format")
 )
 
-// writeHTMLAttr writes an HTML attribute
-func writeHTMLAttr(w util.BufWriter, name, value string) {
-	_, _ = w.WriteString(" ")
-	_, _ = w.WriteString(name)
-	_, _ = w.WriteString(`="`)
-	_, _ = w.WriteString(value)
-	_, _ = w.WriteString(`"`)
-}
+// linkType represents the type of a link
+type linkType int
 
-// writeHTMLTag writes an HTML tag with its attributes
+const (
+	linkTypeExternal linkType = iota
+	linkTypePackage
+	linkTypeInternal
+)
+
+// writeHTMLAttr writes an HTML attribute
 func writeHTMLTag(w util.BufWriter, tag string, attrs []attr) {
-	_, _ = w.WriteString("<" + tag)
+	w.WriteString("<" + tag)
 	for _, a := range attrs {
-		writeHTMLAttr(w, a.name, a.value)
+		w.WriteString(" ") // write a single space
+		fmt.Fprintf(w, "%s=%q", a.name, a.value)
 	}
-	_, _ = w.WriteString(">")
+	w.WriteString(">")
 }
 
 // detectLinkType detects the type of link based on the destination
-func detectLinkType(dest, domain, path string) (string, bool, error) {
+func detectLinkType(dest, domain, path string) (linkType, bool, error) {
 	// Extract the package name from the path (e.g., "r/test/foo" -> "test")
 	pathWithoutR := strings.TrimPrefix(path, "r/")
 	if idx := strings.Index(pathWithoutR, "/"); idx != -1 {
@@ -105,22 +106,22 @@ func detectLinkType(dest, domain, path string) (string, bool, error) {
 	// - Contains a protocol (e.g., http://, https://)
 	// - Contains a domain different from the current one
 	if strings.Contains(dest, "://") && !strings.Contains(dest, "://"+domain) {
-		return "external", false, nil
+		return linkTypeExternal, false, nil
 	}
 
 	// Check if the link is a package link
 	if isSamePackage(dest, pathWithoutR) {
-		return "package", strings.Contains(dest, "$help"), nil
+		return linkTypePackage, strings.Contains(dest, "$help"), nil
 	}
 
 	// All other links are internal
-	return "internal", strings.Contains(dest, "$help"), nil
+	return linkTypeInternal, strings.Contains(dest, "$help"), nil
 }
 
-var linkTypes = map[string]linkTypeInfo{
-	"external": {tooltipExternalLink, iconExternalLink, classLinkExternal},
-	"internal": {tooltipInternalLink, iconInternalLink, classLinkInternal},
-	"tx":       {tooltipTxLink, iconTxLink, classLinkTx},
+var linkTypes = map[linkType]linkTypeInfo{
+	linkTypeExternal: {tooltipExternalLink, iconExternalLink, classLinkExternal},
+	linkTypeInternal: {tooltipInternalLink, iconInternalLink, classLinkInternal},
+	linkTypePackage:  {tooltipTxLink, iconTxLink, classLinkTx},
 }
 
 // renderLink renders a link node
@@ -141,30 +142,30 @@ func (r *linkRenderer) renderLink(w util.BufWriter, source []byte, node ast.Node
 				{"data-tooltip", tooltipTxLink},
 			}
 			writeHTMLTag(w, "span", txAttrs)
-			_, _ = w.WriteString(iconTxLink)
-			_, _ = w.WriteString("</span>")
+			w.WriteString(iconTxLink)
+			w.WriteString("</span>")
 		}
 
 		// Add external/internal icon span if needed
-		if linkType != "package" {
+		if linkType != linkTypePackage {
 			if info, ok := linkTypes[linkType]; ok {
 				attrs := []attr{
 					{"class", info.class + " tooltip"},
 					{"data-tooltip", info.tooltip},
 				}
 				writeHTMLTag(w, "span", attrs)
-				_, _ = w.WriteString(info.icon)
-				_, _ = w.WriteString("</span>")
+				w.WriteString(info.icon)
+				w.WriteString("</span>")
 			}
 		}
 
-		_, _ = w.WriteString("</a>")
+		w.WriteString("</a>")
 		return ast.WalkContinue, nil
 	}
 
 	// Prepare link attributes with href first
 	attrs := []attr{{"href", string(n.Destination)}}
-	if linkType == "external" {
+	if linkType == linkTypeExternal {
 		attrs = append(attrs, attr{"rel", "noopener nofollow ugc"})
 	}
 	if n.Title != nil {
