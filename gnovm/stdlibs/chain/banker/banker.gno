@@ -1,6 +1,7 @@
-package std
+package banker
 
 import (
+	"chain"
 	"strconv"
 	"strings"
 )
@@ -20,7 +21,7 @@ import (
 // type, and those can't return non-primitive objects
 // (without confusion).
 type Banker interface {
-	GetCoins(addr Address) (dst Coins)
+	GetCoins(addr chain.Address) (dst Coins)
 	SendCoins(from, to Address, amt Coins)
 	TotalCoin(denom string) int64
 	IssueCoin(addr Address, denom string, amount int64)
@@ -167,3 +168,5 @@ func isValidBaseDenom(denom string) bool {
 	}
 	return true
 }
+
+func assertCallerIsRealm()

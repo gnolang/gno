@@ -1,4 +1,4 @@
-package std
+package banker
 
 import (
 	"fmt"
@@ -75,4 +75,29 @@ func X_bankerIssueCoin(m *gno.Machine, bt uint8, addr string, denom string, amou
 
 func X_bankerRemoveCoin(m *gno.Machine, bt uint8, addr string, denom string, amount int64) {
 	GetContext(m).Banker.RemoveCoin(crypto.Bech32Address(addr), denom, amount)
+}
+
+func ExpandCoins(c std.Coins) (denoms []string, amounts []int64) {
+	denoms = make([]string, len(c))
+	amounts = make([]int64, len(c))
+	for i, coin := range c {
+		denoms[i] = coin.Denom
+		amounts[i] = coin.Amount
+	}
+	return denoms, amounts
+}
+
+func CompactCoins(denoms []string, amounts []int64) std.Coins {
+	coins := make(std.Coins, len(denoms))
+	for i := range coins {
+		coins[i] = std.Coin{Denom: denoms[i], Amount: amounts[i]}
+	}
+	return coins
+}
+
+func X_assertCallerIsRealm(m *gno.Machine) {
+	frame := m.Frames[m.NumFrames()-2]
+	if path := frame.LastPackage.PkgPath; !gno.IsRealmPath(path) {
+		m.Panic(typedString("caller is not a realm"))
+	}
 }

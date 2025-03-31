@@ -2,6 +2,7 @@ package std
 
 import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/stdlibs/chain/banker"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -16,7 +17,7 @@ type ExecContext struct {
 	OriginCaller    crypto.Bech32Address
 	OriginSend      std.Coins
 	OriginSendSpent *std.Coins // mutable
-	Banker          BankerInterface
+	Banker          banker.BankerInterface
 	Params          ParamsInterface
 	EventLogger     *sdk.EventLogger
 }

@@ -3,7 +3,6 @@ package std
 import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 func AssertOriginCall(m *gno.Machine) {
@@ -137,33 +136,8 @@ func currentRealm(m *gno.Machine) (address, pkgPath string) {
 	return X_getRealm(m, 0)
 }
 
-func X_assertCallerIsRealm(m *gno.Machine) {
-	frame := m.Frames[m.NumFrames()-2]
-	if path := frame.LastPackage.PkgPath; !gno.IsRealmPath(path) {
-		m.Panic(typedString("caller is not a realm"))
-	}
-}
-
 func typedString(s string) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.StringType}
 	tv.SetString(gno.StringValue(s))
 	return tv
-}
-
-func ExpandCoins(c std.Coins) (denoms []string, amounts []int64) {
-	denoms = make([]string, len(c))
-	amounts = make([]int64, len(c))
-	for i, coin := range c {
-		denoms[i] = coin.Denom
-		amounts[i] = coin.Amount
-	}
-	return denoms, amounts
-}
-
-func CompactCoins(denoms []string, amounts []int64) std.Coins {
-	coins := make(std.Coins, len(denoms))
-	for i := range coins {
-		coins[i] = std.Coin{Denom: denoms[i], Amount: amounts[i]}
-	}
-	return coins
 }
