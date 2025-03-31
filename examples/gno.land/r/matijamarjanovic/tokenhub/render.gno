@@ -99,8 +99,9 @@ func renderToken(path string) string {
 		tokenGetter := item.Value.(grc20.TokenGetter)
 		token := tokenGetter()
 		linkURL := strings.ReplaceAll(item.Key, "gno.land/r/matijamarjanovic/tokenhub.", "")
+		pkgPath, _ := fqname.Parse(linkURL)
 		tokenItems = append(tokenItems, ufmt.Sprintf("%s (%s), registered at [%s]",
-			md.Link(md.Bold(token.GetName()), linkURL),
+			md.Link(md.Bold(token.GetName()), pkgPath),
 			md.InlineCode(token.GetSymbol()),
 			md.InlineCode(item.Key)))
 	}
