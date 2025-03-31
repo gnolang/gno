@@ -6,7 +6,7 @@ import (
 
 type staticAnalysis struct {
 	// contexts for switch, for, functions, and lambdas
-	contexts []interface{}
+	contexts []any
 
 	// here we accumulate errors
 	// from lambdas defined in the function declaration
@@ -15,7 +15,7 @@ type staticAnalysis struct {
 
 func newStaticAnalysis() *staticAnalysis {
 	return &staticAnalysis{
-		contexts: make([]interface{}, 0),
+		contexts: make([]any, 0),
 		errs:     make([]error, 0),
 	}
 }
@@ -38,11 +38,11 @@ func Analyze(f *FuncDecl) []error {
 	return errs
 }
 
-func (s *staticAnalysis) push(ctx interface{}) {
+func (s *staticAnalysis) push(ctx any) {
 	s.contexts = append(s.contexts, ctx)
 }
 
-func (s *staticAnalysis) pop() interface{} {
+func (s *staticAnalysis) pop() any {
 	if len(s.contexts) == 0 {
 		return nil
 	}
@@ -54,7 +54,7 @@ func (s *staticAnalysis) pop() interface{} {
 // findCtxByLabel returns the last context if the label is empty
 // otherwise it returns the context that matches the label
 // if it doesn't exist, it returns nil
-func (s *staticAnalysis) findCtxByLabel(label string) interface{} {
+func (s *staticAnalysis) findCtxByLabel(label string) any {
 	if len(label) == 0 {
 		if len(s.contexts) > 0 {
 			return s.contexts[len(s.contexts)-1]

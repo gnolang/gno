@@ -15,7 +15,7 @@ func generateNetAddrs(t *testing.T, count int) []*types.NetAddress {
 
 	addrs := make([]*types.NetAddress, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		var (
 			key     = types.GenerateNodeKey()
 			address = "127.0.0.1:8080"

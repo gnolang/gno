@@ -5,6 +5,7 @@ package groups_test
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/groups"
@@ -15,7 +16,7 @@ var gid groups.GroupID
 
 func main() {
 	caller := std.OriginCaller()
-	std.TestSetRealm(std.NewUserRealm(caller))
+	testing.SetRealm(std.NewUserRealm(caller))
 	users.Register("gnouser123")
 
 	gid = groups.CreateGroup("test_group")
@@ -23,8 +24,8 @@ func main() {
 
 	// delete group via anon user
 	test2 := testutils.TestAddress("test2")
-	std.TestSetOriginCaller(test2)
-	std.TestSetOriginSend(std.Coins{{"ugnot", 9000000}}, nil)
+	testing.SetOriginCaller(test2)
+	testing.SetOriginSend(std.Coins{{"ugnot", 9000000}})
 
 	groups.DeleteGroup(gid)
 	println(groups.Render(""))
