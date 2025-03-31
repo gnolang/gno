@@ -52,7 +52,7 @@ func renderHome() string {
 	out += md.H2("How to Register Your Tokens")
 	out += md.Paragraph("You can register your tokens with the following import and function calls:")
 
-	registerCode := `// Import the tokenhub package
+	registerCode := `// Import packages
 import (
 	"gno.land/r/matijamarjanovic/tokenhub"
 	"gno.land/p/demo/grc/grc20"
@@ -60,26 +60,18 @@ import (
 	"gno.land/p/demo/grc/grc1155"
 )
 
-// Create and register a GRC20 token
-// Create a new token with name, symbol, and decimal precision
+// GRC20 token
 myToken, myLedger := grc20.NewToken("My Token", "MTK", 6)
-// Register the token with TokenHub
 myTokenPath := tokenhub.RegisterToken(myToken.Getter(), "my_token")
 
-// Create and register a GRC721 NFT
-// Create a new NFT collection with name and symbol
+// GRC721 NFT
 myNFT := grc721.NewBasicNFT("My NFT Collection", "MNFT")
-// Mint an NFT (TokenID = "1") to your address
 myNFT.Mint("g1your_address_here", "1")
-// Register the NFT collection with TokenHub
 err := tokenhub.RegisterNFT(myNFT.Getter(), "my_collection", "1")
 
-// Create and register a GRC1155 multi-token
-// Create a new multi-token with base URI
+// GRC1155 multi-token
 myMultiToken := grc1155.NewBasicGRC1155Token("https://metadata.example.com/")
-// Mint a token (TokenID = "123") to your address with quantity 10
 myMultiToken.SafeMint("g1your_address_here", "123", 10)
-// Register the multi-token with TokenHub
 err := tokenhub.RegisterMultiToken(myMultiToken.Getter(), "123")`
 
 	out += md.LanguageCodeBlock("go", registerCode)
@@ -104,6 +96,8 @@ nonZeroBalances := tokenhub.GetUserTokenBalancesNonZero("g1...")`
 
 func renderToken(path string) string {
 	out := md.H1("GRC20 Tokens")
+	out += md.Paragraph("Below is a list of all registered GRC20 tokens and their registry keys (keys are used to query token information).")
+	
 	var tokenItems []string
 
 	tokenPager := pager.NewPager(grc20reg.GetRegistry(), pageSize, false)
@@ -115,7 +109,7 @@ func renderToken(path string) string {
 		pkgPath, _ := fqname.Parse(item.Key)
 		linkURL := strings.ReplaceAll(pkgPath, "gno.land/r/matijamarjanovic/tokenhub.", "")
 		linkURL = strings.ReplaceAll(linkURL, "gno.land", "")
-		tokenItems = append(tokenItems, ufmt.Sprintf("%s (%s), registered at key: %s",
+		tokenItems = append(tokenItems, ufmt.Sprintf("%s (%s) - %s",
 			md.Link(token.GetName(), linkURL),
 			md.InlineCode(token.GetSymbol()),
 			md.InlineCode(item.Key)))
@@ -127,7 +121,8 @@ func renderToken(path string) string {
 
 func renderNFT(path string) string {
 	out := md.H1("GRC721 NFTs")
-
+	out += md.Paragraph("Below is a list of all registered GRC721 NFT collections and their registry keys (keys are used to query token information).")
+	
 	var nftItems []string
 	nftPager := pager.NewPager(registeredNFTs, pageSize, false)
 	page := nftPager.MustGetPageByPath(path)
@@ -146,7 +141,7 @@ func renderNFT(path string) string {
 			linkURL = strings.Join(parts[:len(parts)-2], ".")
 		}
 		
-		nftItems = append(nftItems, ufmt.Sprintf("%s (%s), registered at [%s]",
+		nftItems = append(nftItems, ufmt.Sprintf("%s (%s) - %s",
 			md.Link(metadata.Name(), linkURL),
 			md.InlineCode(metadata.Symbol()),
 			md.InlineCode(item.Key)))
@@ -158,6 +153,8 @@ func renderNFT(path string) string {
 
 func renderMT(path string) string {
 	out := md.H1("GRC1155 Multi-Tokens")
+	out += md.Paragraph("Below is a list of all registered GRC1155 multi-tokens and their registry keys (keys are used to query token information).")
+	
 	var mtItems []string
 
 	mtPager := pager.NewPager(registeredMTs, pageSize, false)
@@ -171,8 +168,8 @@ func renderMT(path string) string {
 			linkURL = strings.Join(parts[:len(parts)-1], ".")
 		}
 
-		mtItems = append(mtItems, ufmt.Sprintf("%s: %s, registered at [%s]",
-			md.Bold("TokenID"),
+		mtItems = append(mtItems, ufmt.Sprintf("%s %s - %s",
+			md.Bold("TokenID:"),
 			md.Link(md.InlineCode(info.TokenID), linkURL),
 			md.InlineCode(item.Key)))
 	}
