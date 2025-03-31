@@ -725,9 +725,6 @@ func (m *Machine) doOpConvert() {
 			// XXX do we need/want this?
 		} else {
 			xvdt, ok := xv.T.(*DeclaredType)
-			fmt.Println(m.String())
-			fmt.Println(xv.String(), t.String())
-			fmt.Println(xvdt, ok)
 			panic("illegal conversion of readonly or externally stored value")
 		}
 	}
