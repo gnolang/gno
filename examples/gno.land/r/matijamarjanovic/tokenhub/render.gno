@@ -39,7 +39,7 @@ func Render(path string) string {
 
 func renderHome() string {
 	out := md.H1("Token Hub")
-	out += md.Paragraph("A central registry for GRC721 NFTs, GRC20 tokens, and GRC1155 multi-tokens on gno.land")
+	out += md.Paragraph("Token Hub provides listings of all existing token types on Gno.land - GRC20 tokens, GRC721 NFTs, and GRC1155 multi-tokens. You can browse these listings to find available tokens, check balances, and access token metadata. If you're developing wallets or interfaces, you can query this registry to display token information to your users.")
 
 	links := []string{
 		"[GRC20 Tokens](/r/matijamarjanovic/tokenhub:tokens)",
@@ -47,6 +47,43 @@ func renderHome() string {
 		"[GRC1155 Multi-Tokens](/r/matijamarjanovic/tokenhub:mts)",
 	}
 	out += md.BulletList(links)
+
+	out += md.H2("How to Register Your Tokens")
+	out += md.Paragraph("You can register your tokens with the following import and function calls:")
+
+	registerCode := `// Import the tokenhub package
+import "gno.land/r/matijamarjanovic/tokenhub"
+
+// Register a GRC20 token
+// tokenGetter is your token's Getter() function
+// "my_token" is a unique slug for your token
+myTokenPath := tokenhub.RegisterToken(myToken.Getter(), "my_token")
+
+// Register a GRC721 NFT
+// "my_collection" is the collection name
+// "1" is the token ID of an existing NFT
+err := tokenhub.RegisterNFT(myNFT.Getter(), "my_collection", "1")
+
+// Register a GRC1155 multi-token
+// "123" is the token ID to register
+err := tokenhub.RegisterMultiToken(myMultiToken.Getter(), "123")`
+
+	out += md.LanguageCodeBlock("go", registerCode)
+
+	out += "\n"
+	out += md.H2("Querying Token Information")
+	out += md.Paragraph("You can query token information and balances using functions like:")
+
+	queryCode := `// Get all registered tokens
+allTokens := tokenhub.GetAllTokens()
+
+// Get token balances for a user
+balances := tokenhub.GetUserTokenBalances("g1...")
+
+// Get non-zero token balances
+nonZeroBalances := tokenhub.GetUserTokenBalancesNonZero("g1...")`
+
+	out += md.LanguageCodeBlock("go", queryCode)
 
 	return out
 }
