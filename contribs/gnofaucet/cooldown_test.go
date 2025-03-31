@@ -1,29 +1,35 @@
 package main
 
 import (
-	"os"
+	"context"
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCooldownLimiter(t *testing.T) {
-	testDir := os.TempDir()
+	redisServer := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{
+		Addr: redisServer.Addr(),
+	})
+
 	cooldownDuration := time.Second
-	limiter, err := NewCooldownLimiter(cooldownDuration, testDir+"/db")
-	require.NoError(t, err)
+	limiter := NewCooldownLimiter(cooldownDuration, rdb)
+	ctx := context.Background()
 	user := "testUser"
 
 	// First check should be allowed
-	allowed, err := limiter.CheckCooldown(user)
+	allowed, err := limiter.CheckCooldown(ctx, user)
 	require.NoError(t, err)
 
 	if !allowed {
 		t.Errorf("Expected first CheckCooldown to return true, but got false")
 	}
 
-	allowed, err = limiter.CheckCooldown(user)
+	allowed, err = limiter.CheckCooldown(ctx, user)
 	require.NoError(t, err)
 	// Second check immediately should be denied
 	if allowed {
@@ -31,7 +37,7 @@ func TestCooldownLimiter(t *testing.T) {
 	}
 
 	require.Eventually(t, func() bool {
-		allowed, err := limiter.CheckCooldown(user)
+		allowed, err := limiter.CheckCooldown(ctx, user)
 		return err == nil && !allowed
 	}, 2*cooldownDuration, 10*time.Millisecond, "Expected CheckCooldown to return true after cooldown period")
 }

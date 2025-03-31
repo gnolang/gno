@@ -17,6 +17,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -101,7 +102,7 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.mnemonic,
 		"mnemonic",
-		"",
+		os.Getenv("GNO_MNEMONIC"),
 		"the mnemonic for faucet keys",
 	)
 
@@ -223,11 +224,18 @@ func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
 
 	// Start throttled faucet.
 	st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
-	// Create cooldown limiter
-	cooldownLimiter, err := NewCooldownLimiter(cfg.cooldownPeriod, cfg.dbPath)
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     os.Getenv("REDIS_ADDR"),
+		Username: os.Getenv("REDIS_USER"),
+		Password: os.Getenv("REDIS_PASSWORD"),
+	})
+	err = rdb.Ping(ctx).Err()
 	if err != nil {
-		return fmt.Errorf("unable to create cooldown limiter, %w", err)
+		return fmt.Errorf("unable to connect to redis, %w", err)
 	}
+
+	// Create cooldown limiter
+	cooldownLimiter := NewCooldownLimiter(cfg.cooldownPeriod, rdb)
 	st.start(ctx)
 
 	// Prepare the middlewares

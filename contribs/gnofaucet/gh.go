@@ -53,7 +53,7 @@ func getGithubMiddleware(clientID, secret string, coolDownLimiter *CooldownLimit
 				}
 
 				// Just check if given account have asked for faucet before the cooldown period
-				allowedToClaim, err := coolDownLimiter.CheckCooldown(user.GetLogin())
+				allowedToClaim, err := coolDownLimiter.CheckCooldown(r.Context(), user.GetLogin())
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return

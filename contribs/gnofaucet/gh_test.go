@@ -3,24 +3,20 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path"
-	"strings"
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/google/go-github/v64/github"
-	"github.com/stretchr/testify/require"
+	"github.com/redis/go-redis/v9"
 )
 
 // Mock function for exchangeCodeForToken
 func mockExchangeCodeForToken(ctx context.Context, secret, clientID, code string) (*github.User, error) {
 	login := "mock_login"
 	if code == "valid" {
-		fmt.Println("mockExchangeCodeForToken: valid")
 		return &github.User{Login: &login}, nil
 	}
 	return nil, errors.New("invalid code")
@@ -120,15 +116,12 @@ func TestGitHubMiddleware(t *testing.T) {
 
 func getCooldownLimiter(t *testing.T, duration time.Duration) *CooldownLimiter {
 	t.Helper()
-	testDir := os.TempDir()
-
-	file, err := os.CreateTemp(testDir, strings.ReplaceAll(t.Name(), "/", ""))
-	require.NoError(t, err)
-
-	limiter, err := NewCooldownLimiter(duration, path.Join(testDir, file.Name()))
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		os.Remove(file.Name())
+	redisServer := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{
+		Addr: redisServer.Addr(),
 	})
+
+	limiter := NewCooldownLimiter(duration, rdb)
+
 	return limiter
 }
