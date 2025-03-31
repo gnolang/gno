@@ -2,9 +2,9 @@ package awesomegno
 
 import (
 	"errors"
-	"strconv"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/seqid"
 	"gno.land/p/jeronimoalbi/datasource"
 	"gno.land/p/moul/md"
 )
@@ -28,7 +28,7 @@ func (ds *DappsDatasource) Records(q datasource.Query) datasource.Iterator {
 }
 
 func (ds *DappsDatasource) Record(id string) (datasource.Record, error) {
-	dappID, err := strconv.ParseUint(id, 10, 64)
+	dappID, err := seqid.FromString(id)
 	if err != nil {
 		return nil, errors.New("invalid dapp ID")
 	}
@@ -46,7 +46,7 @@ type dappRecord struct {
 }
 
 func (r *dappRecord) ID() string {
-	return strconv.FormatUint(r.dapp.ID, 10)
+	return r.dapp.ID.String()
 }
 
 func (r *dappRecord) String() string {
@@ -184,7 +184,7 @@ func (r *categoryRecord) Content() (string, error) {
 		content += r.category.Description + "\n\n"
 	}
 
-	content += md.Bold("Dapps:") + " " + strconv.Itoa(len(r.category.DappIDs)) + "\n\n"
+	content += md.Bold("Dapps:") + " " + string(len(r.category.DappIDs)+'0') + "\n\n"
 	content += md.Bold("Created:") + " " + r.category.CreatedAt.String() + "\n\n"
 
 	return content, nil
@@ -234,7 +234,7 @@ func (ds *ProposalsDatasource) Records(q datasource.Query) datasource.Iterator {
 }
 
 func (ds *ProposalsDatasource) Record(id string) (datasource.Record, error) {
-	proposalID, err := strconv.ParseUint(id, 10, 64)
+	proposalID, err := seqid.FromString(id)
 	if err != nil {
 		return nil, errors.New("invalid proposal ID")
 	}
@@ -252,7 +252,7 @@ type proposalRecord struct {
 }
 
 func (r *proposalRecord) ID() string {
-	return strconv.FormatUint(r.proposal.ID, 10)
+	return r.proposal.ID.String()
 }
 
 func (r *proposalRecord) String() string {

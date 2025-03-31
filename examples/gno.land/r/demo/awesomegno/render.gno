@@ -2,12 +2,12 @@ package awesomegno
 
 import (
 	"std"
-	"strconv"
 	"strings"
 	"time"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/avl/pager"
+	"gno.land/p/demo/seqid"
 	"gno.land/p/moul/md"
 	"gno.land/r/sys/users"
 )
@@ -33,7 +33,7 @@ func Render(path string) string {
 
 	if strings.HasPrefix(path, "dapp/") {
 		idStr := strings.TrimPrefix(path, "dapp/")
-		id, err := strconv.ParseUint(idStr, 10, 64)
+		id, err := seqid.FromString(idStr)
 		if err != nil {
 			return "Invalid dApp ID"
 		}
@@ -51,7 +51,7 @@ func Render(path string) string {
 
 	if strings.HasPrefix(path, "proposals/") {
 		idStr := strings.TrimPrefix(path, "proposals/")
-		id, err := strconv.ParseUint(idStr, 10, 64)
+		id, err := seqid.FromString(idStr)
 		if err != nil {
 			return "Invalid proposal ID"
 		}
@@ -77,15 +77,15 @@ func renderHomePage(queryParams string) string {
 	} else {
 		for _, item := range dappPage.Items {
 			dapp := item.Value.(Dapp)
-			id, _ := strconv.ParseUint(item.Key, 10, 64)
+			id, _ := seqid.FromString(item.Key)
 
-			out += md.H3(md.Link(dapp.Title, "/r/demo/awesomegno:dapp/"+strconv.FormatUint(id, 10)))
+			out += md.H3(md.Link(dapp.Title, "/r/demo/awesomegno:dapp/"+id.String()))
 			out += dapp.Description + "\n\n"
 
 			if len(dapp.Categories) > 0 {
 				categoryLinks := []string{}
 				for _, cat := range dapp.Categories {
-					categoryLinks = append(categoryLinks, md.Link(cat, "/r/demo/awesomegno:category/"+cat))
+					categoryLinks = append(categoryLinks, md.Link(cat, "/r/demo/awesomegno:categories/"+cat))
 				}
 				out += md.Bold("Categories:") + " " + strings.Join(categoryLinks, ", ") + "\n\n"
 			}
@@ -109,7 +109,7 @@ func renderHomePage(queryParams string) string {
 	return out
 }
 
-func renderDappPage(id uint64) string {
+func renderDappPage(id seqid.ID) string {
 	dapp, exists := GetDapp(id)
 	if !exists {
 		return "dApp not found"
@@ -121,7 +121,7 @@ func renderDappPage(id uint64) string {
 	if len(dapp.Categories) > 0 {
 		categoryLinks := []string{}
 		for _, cat := range dapp.Categories {
-			categoryLinks = append(categoryLinks, md.Link(cat, "/r/demo/awesomegno:category/"+cat))
+			categoryLinks = append(categoryLinks, md.Link(cat, "/r/demo/awesomegno:categories/"+cat))
 		}
 		out += md.Bold("Categories:") + " " + strings.Join(categoryLinks, ", ") + "\n\n"
 	}
@@ -154,7 +154,7 @@ func renderProposalsPage(queryParams string) string {
 		for _, item := range page.Items {
 			proposal := item.Value.(Proposal)
 
-			out += md.H2(md.Link(proposal.Dapp.Title, "/r/demo/awesomegno:proposals/"+strconv.FormatUint(proposal.ID, 10)))
+			out += md.H2(md.Link(proposal.Dapp.Title, "/r/demo/awesomegno:proposals/"+proposal.ID.String()))
 			out += md.Bold("Proposer:") + " " + getUserDisplayName(proposal.Proposer) + "\n\n"
 			out += md.Bold("Submitted:") + " " + proposal.CreatedAt.Format(time.RFC3339) + "\n\n"
 			out += md.HorizontalRule()
@@ -169,7 +169,7 @@ func renderProposalsPage(queryParams string) string {
 	return out
 }
 
-func renderProposalPage(id uint64) string {
+func renderProposalPage(id seqid.ID) string {
 	proposal, exists := GetProposal(id)
 	if !exists {
 		return "Proposal not found"
@@ -191,7 +191,7 @@ func renderProposalPage(id uint64) string {
 	if len(proposal.Dapp.Categories) > 0 {
 		categoryLinks := []string{}
 		for _, cat := range proposal.Dapp.Categories {
-			categoryLinks = append(categoryLinks, md.Link(cat, "/r/demo/awesomegno:category/"+cat))
+			categoryLinks = append(categoryLinks, md.Link(cat, "/r/demo/awesomegno:categories/"+cat))
 		}
 		out += md.Bold("Categories:") + " " + strings.Join(categoryLinks, ", ") + "\n\n"
 	}
@@ -215,11 +215,11 @@ func renderCategoryPage(categoryName string, queryParams string) string {
 
 	dappsInCategoryTree := avl.NewTree()
 	for _, dappID := range category.DappIDs {
-		value, found := dapps.Get(strconv.FormatUint(dappID, 10))
+		value, found := dapps.Get(dappID.String())
 		if found {
 			dapp := value.(Dapp)
 			if dapp.Approved {
-				dappsInCategoryTree.Set(strconv.FormatUint(dappID, 10), dapp)
+				dappsInCategoryTree.Set(dappID.String(), dapp)
 			}
 		}
 	}
@@ -232,16 +232,16 @@ func renderCategoryPage(categoryName string, queryParams string) string {
 	} else {
 		for _, item := range page.Items {
 			dapp := item.Value.(Dapp)
-			id, _ := strconv.ParseUint(item.Key, 10, 64)
+			id, _ := seqid.FromString(item.Key)
 
-			out += md.H3(md.Link(dapp.Title, "/r/demo/awesomegno:dapp/"+strconv.FormatUint(id, 10)))
+			out += md.H3(md.Link(dapp.Title, "/r/demo/awesomegno:dapp/"+id.String()))
 			out += dapp.Description + "\n\n"
 
 			if len(dapp.Categories) > 1 {
 				categoryLinks := []string{}
 				for _, cat := range dapp.Categories {
 					if cat != categoryName {
-						categoryLinks = append(categoryLinks, md.Link(cat, "/r/demo/awesomegno:category/"+cat))
+						categoryLinks = append(categoryLinks, md.Link(cat, "/r/demo/awesomegno:categories/"+cat))
 					}
 				}
 				if len(categoryLinks) > 0 {
@@ -284,7 +284,7 @@ func renderCategoriesPage(queryParams string) string {
 		for _, item := range categoryPage.Items {
 			category := item.Value.(Category)
 			dappCount := len(category.DappIDs)
-			categoryItems = append(categoryItems, md.Link(category.Name+" ("+strconv.Itoa(dappCount)+")", "/r/demo/awesomegno:categories/"+category.Name))
+			categoryItems = append(categoryItems, md.Link(category.Name+" ("+string(rune('0'+dappCount))+")", "/r/demo/awesomegno:categories/"+category.Name))
 		}
 
 		out += md.BulletList(categoryItems)

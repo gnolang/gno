@@ -2,7 +2,6 @@ package awesomegno
 
 import (
 	"std"
-	"strconv"
 	"strings"
 	"time"
 
@@ -59,7 +58,7 @@ func RemoveAdmin(addr std.Address) error {
 	})
 }
 
-func AddCategory(name, description string) (uint64, error) {
+func AddCategory(name, description string) (seqid.ID, error) {
 	caller := std.PreviousRealm().Address()
 	if !isAdmin(caller) {
 		return 0, ErrNotAuthorized
@@ -75,20 +74,20 @@ func AddCategory(name, description string) (uint64, error) {
 	}
 
 	category := Category{
-		ID:          uint64(nextCategoryID.Next()),
+		ID:          nextCategoryID.Next(),
 		Name:        name,
 		Description: description,
 		CreatedAt:   time.Now(),
-		DappIDs:     []uint64{},
+		DappIDs:     []seqid.ID{},
 	}
 
 	categories.Set(sanitizedKey, category)
 
 	std.Emit("CategoryAdded",
-		"id", nextCategoryID.String(),
+		"id", category.ID.String(),
 		"name", name)
 
-	return uint64(category.ID), nil
+	return category.ID, nil
 }
 
 func GetCategory(name string) (Category, error) {
@@ -101,8 +100,8 @@ func GetCategory(name string) (Category, error) {
 	return value.(Category), nil
 }
 
-func GetCategoryByID(id uint64) (Category, error) {
-	value, found := categories.Get(strconv.FormatUint(id, 10))
+func GetCategoryByID(id seqid.ID) (Category, error) {
+	value, found := categories.Get(id.String())
 	if !found {
 		return Category{}, ErrCategoryNotFound
 	}
@@ -110,13 +109,13 @@ func GetCategoryByID(id uint64) (Category, error) {
 	return value.(Category), nil
 }
 
-func RemoveDappFromCategory(dappID uint64, categoryName string) error {
+func RemoveDappFromCategory(dappID seqid.ID, categoryName string) error {
 	category, err := GetCategory(categoryName)
 	if err != nil {
 		return err
 	}
 
-	newDappIDs := []uint64{}
+	newDappIDs := []seqid.ID{}
 	for _, id := range category.DappIDs {
 		if id != dappID {
 			newDappIDs = append(newDappIDs, id)
@@ -142,7 +141,7 @@ func ListCategories() []Category {
 	return result
 }
 
-func ProposeNewDapp(title, description, url string, categoryNamesStr string) (uint64, error) {
+func ProposeNewDapp(title, description, url string, categoryNamesStr string) (seqid.ID, error) {
 	caller := std.PreviousRealm().Address()
 
 	if title == "" {
@@ -186,7 +185,7 @@ func ProposeNewDapp(title, description, url string, categoryNamesStr string) (ui
 	}
 
 	proposal := Proposal{
-		ID:        uint64(nextProposalID.Next()),
+		ID:        nextProposalID.Next(),
 		Dapp:      dapp,
 		Status:    StatusPending,
 		Proposer:  caller,
@@ -194,26 +193,26 @@ func ProposeNewDapp(title, description, url string, categoryNamesStr string) (ui
 		CreatedAt: time.Now(),
 	}
 
-	proposals.Set(strconv.FormatUint(uint64(proposal.ID), 10), proposal)
+	proposals.Set(proposal.ID.String(), proposal)
 
 	std.Emit("ProposalCreated",
-		"id", nextProposalID.String(),
+		"id", proposal.ID.String(),
 		"title", title,
 		"proposer", caller.String())
 
-	return uint64(proposal.ID), nil
+	return proposal.ID, nil
 }
 
-func ApproveProposal(proposalID uint64) (uint64, error) {
+func ApproveProposal(proposalID seqid.ID) (seqid.ID, error) {
 	caller := std.PreviousRealm().Address()
 
 	if !isAdmin(caller) {
 		return 0, ufmt.Errorf("not authorized: only admins can approve proposals")
 	}
 
-	value, found := proposals.Get(strconv.FormatUint(proposalID, 10))
+	value, found := proposals.Get(proposalID.String())
 	if !found {
-		return 0, ufmt.Errorf("proposal not found: %d", proposalID)
+		return 0, ufmt.Errorf("proposal not found: %s", proposalID.String())
 	}
 
 	proposal := value.(Proposal)
@@ -222,10 +221,10 @@ func ApproveProposal(proposalID uint64) (uint64, error) {
 	}
 
 	dapp := proposal.Dapp
-	dapp.ID = uint64(nextDappID.Next())
+	dapp.ID = nextDappID.Next()
 	dapp.Approved = true
 
-	dapps.Set(strconv.FormatUint(dapp.ID, 10), dapp)
+	dapps.Set(dapp.ID.String(), dapp)
 
 	for _, categoryName := range dapp.Categories {
 		err := addDappToCategory(dapp.ID, categoryName)
@@ -234,25 +233,25 @@ func ApproveProposal(proposalID uint64) (uint64, error) {
 		}
 	}
 	proposal.Status = StatusApproved
-	proposals.Set(strconv.FormatUint(proposalID, 10), proposal)
+	proposals.Set(proposalID.String(), proposal)
 
 	std.Emit("ProposalApproved",
-		"id", ufmt.Sprintf("%d", proposalID),
-		"dapp_id", strconv.FormatUint(dapp.ID, 10))
+		"id", proposalID.String(),
+		"dapp_id", dapp.ID.String())
 
 	return dapp.ID, nil
 }
 
-func RejectProposal(proposalID uint64, reason string) error {
+func RejectProposal(proposalID seqid.ID, reason string) error {
 	caller := std.PreviousRealm().Address()
 
 	if !isAdmin(caller) {
 		return ufmt.Errorf("not authorized: only admins can reject proposals")
 	}
 
-	proposalRaw, exists := proposals.Get(strconv.FormatUint(proposalID, 10))
+	proposalRaw, exists := proposals.Get(proposalID.String())
 	if !exists {
-		return ufmt.Errorf("proposal with ID %d does not exist", proposalID)
+		return ufmt.Errorf("proposal with ID %s does not exist", proposalID.String())
 	}
 
 	proposal := proposalRaw.(Proposal)
@@ -262,18 +261,18 @@ func RejectProposal(proposalID uint64, reason string) error {
 
 	proposal.Status = StatusRejected
 	proposal.Reason = reason
-	proposals.Set(strconv.FormatUint(proposalID, 10), proposal)
+	proposals.Set(proposalID.String(), proposal)
 
 	std.Emit("ProposalRejected",
-		"id", ufmt.Sprintf("%d", proposalID),
+		"id", proposalID.String(),
 		"title", proposal.Dapp.Title,
 		"reason", reason)
 
 	return nil
 }
 
-func GetDapp(id uint64) (Dapp, bool) {
-	dappRaw, exists := dapps.Get(strconv.FormatUint(id, 10))
+func GetDapp(id seqid.ID) (Dapp, bool) {
+	dappRaw, exists := dapps.Get(id.String())
 	if !exists {
 		return Dapp{}, false
 	}
@@ -281,8 +280,8 @@ func GetDapp(id uint64) (Dapp, bool) {
 	return dappRaw.(Dapp), true
 }
 
-func GetProposal(id uint64) (Proposal, bool) {
-	proposalRaw, exists := proposals.Get(strconv.FormatUint(id, 10))
+func GetProposal(id seqid.ID) (Proposal, bool) {
+	proposalRaw, exists := proposals.Get(id.String())
 	if !exists {
 		return Proposal{}, false
 	}
@@ -324,7 +323,7 @@ func GetDappsByCategory(categoryName string) []Dapp {
 	}
 
 	for _, dappID := range category.DappIDs {
-		value, found := dapps.Get(strconv.FormatUint(dappID, 10))
+		value, found := dapps.Get(dappID.String())
 		if found {
 			dapp := value.(Dapp)
 			if dapp.Approved {
@@ -336,16 +335,16 @@ func GetDappsByCategory(categoryName string) []Dapp {
 	return result
 }
 
-func UpdateDappCategories(dappID uint64, newCategories string) error {
+func UpdateDappCategories(dappID seqid.ID, newCategories string) error {
 	caller := std.PreviousRealm().Address()
 
 	if !isAdmin(caller) {
 		return ErrNotAuthorized
 	}
 
-	value, found := dapps.Get(strconv.FormatUint(dappID, 10))
+	value, found := dapps.Get(dappID.String())
 	if !found {
-		return ufmt.Errorf("dApp not found: %d", dappID)
+		return ufmt.Errorf("dApp not found: %s", dappID.String())
 	}
 
 	dapp := value.(Dapp)
@@ -384,21 +383,21 @@ func UpdateDappCategories(dappID uint64, newCategories string) error {
 		dapp.Categories = append(dapp.Categories, key)
 		return false
 	})
-	dapps.Set(strconv.FormatUint(dappID, 10), dapp)
+	dapps.Set(dappID.String(), dapp)
 
 	return nil
 }
 
-func DeleteDapp(dappID uint64) error {
+func DeleteDapp(dappID seqid.ID) error {
 	caller := std.PreviousRealm().Address()
 
 	if !isAdmin(caller) {
 		return ErrNotAuthorized
 	}
 
-	value, found := dapps.Get(strconv.FormatUint(dappID, 10))
+	value, found := dapps.Get(dappID.String())
 	if !found {
-		return ufmt.Errorf("dApp not found: %d", dappID)
+		return ufmt.Errorf("dApp not found: %s", dappID.String())
 	}
 
 	dapp := value.(Dapp)
@@ -409,9 +408,9 @@ func DeleteDapp(dappID uint64) error {
 		}
 	}
 
-	dapps.Remove(strconv.FormatUint(dappID, 10))
+	dapps.Remove(dappID.String())
 
-	std.Emit("DappDeleted", "id", ufmt.Sprintf("%d", dappID))
+	std.Emit("DappDeleted", "id", dappID.String())
 
 	return nil
 }
@@ -429,7 +428,7 @@ func DeleteCategory(categoryName string) error {
 	}
 
 	for _, dappID := range category.DappIDs {
-		value, found := dapps.Get(strconv.FormatUint(dappID, 10))
+		value, found := dapps.Get(dappID.String())
 		if found {
 			dapp := value.(Dapp)
 
@@ -441,7 +440,7 @@ func DeleteCategory(categoryName string) error {
 			}
 
 			dapp.Categories = newCategories
-			dapps.Set(strconv.FormatUint(dappID, 10), dapp)
+			dapps.Set(dappID.String(), dapp)
 		}
 	}
 
@@ -452,7 +451,7 @@ func DeleteCategory(categoryName string) error {
 	return nil
 }
 
-func addDappToCategory(dappID uint64, categoryName string) error {
+func addDappToCategory(dappID seqid.ID, categoryName string) error {
 	category, err := GetCategory(categoryName)
 	if err != nil {
 		return err

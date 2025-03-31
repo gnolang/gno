@@ -2,12 +2,12 @@ package awesomegno
 
 import (
 	"std"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
 	"gno.land/p/jeronimoalbi/datasource"
@@ -38,24 +38,24 @@ func setupTestData() {
 	testAddress := std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")
 
 	cat1 := Category{
-		ID:          1,
+		ID:          seqid.ID(1),
 		Name:        "Games",
 		Description: "Gaming applications",
 		CreatedAt:   time.Now(),
-		DappIDs:     []uint64{1},
+		DappIDs:     []seqid.ID{seqid.ID(1)},
 	}
 	cat2 := Category{
-		ID:          2,
+		ID:          seqid.ID(2),
 		Name:        "Finance",
 		Description: "Financial applications",
 		CreatedAt:   time.Now(),
-		DappIDs:     []uint64{2},
+		DappIDs:     []seqid.ID{seqid.ID(2)},
 	}
 	categories.Set(cat1.Name, cat1)
 	categories.Set(cat2.Name, cat2)
 
 	dapp1 := Dapp{
-		ID:          1,
+		ID:          seqid.ID(1),
 		Title:       "Game Dapp",
 		Description: "A cool game on Gno.land",
 		Author:      testAddress,
@@ -65,7 +65,7 @@ func setupTestData() {
 		CreatedAt:   time.Now(),
 	}
 	dapp2 := Dapp{
-		ID:          2,
+		ID:          seqid.ID(2),
 		Title:       "Finance Dapp",
 		Description: "A DeFi application",
 		Author:      testAddress,
@@ -74,11 +74,11 @@ func setupTestData() {
 		Approved:    false,
 		CreatedAt:   time.Now(),
 	}
-	dapps.Set(strconv.FormatUint(dapp1.ID, 10), dapp1)
-	dapps.Set(strconv.FormatUint(dapp2.ID, 10), dapp2)
+	dapps.Set(dapp1.ID.String(), dapp1)
+	dapps.Set(dapp2.ID.String(), dapp2)
 
 	proposal1 := Proposal{
-		ID:        1,
+		ID:        seqid.ID(1),
 		Dapp:      dapp1,
 		Proposer:  testAddress,
 		Status:    StatusApproved,
@@ -86,15 +86,15 @@ func setupTestData() {
 		CreatedAt: time.Now(),
 	}
 	proposal2 := Proposal{
-		ID:        2,
+		ID:        seqid.ID(2),
 		Dapp:      dapp2,
 		Proposer:  testAddress,
 		Status:    StatusPending,
 		Reason:    "",
 		CreatedAt: time.Now(),
 	}
-	proposals.Set(strconv.FormatUint(proposal1.ID, 10), proposal1)
-	proposals.Set(strconv.FormatUint(proposal2.ID, 10), proposal2)
+	proposals.Set(proposal1.ID.String(), proposal1)
+	proposals.Set(proposal2.ID.String(), proposal2)
 }
 
 func TestDappsDatasourceRecords(t *testing.T) {
@@ -107,21 +107,21 @@ func TestDappsDatasourceRecords(t *testing.T) {
 	}{
 		{
 			name:      "all dapps",
-			recordIDs: []string{"1", "2"},
+			recordIDs: []string{"0000001", "0000002"},
 		},
 		{
 			name:      "with offset",
-			recordIDs: []string{"2"},
+			recordIDs: []string{"0000002"},
 			options:   []datasource.QueryOption{datasource.WithOffset(1)},
 		},
 		{
 			name:      "with count",
-			recordIDs: []string{"1"},
+			recordIDs: []string{"0000001"},
 			options:   []datasource.QueryOption{datasource.WithCount(1)},
 		},
 		{
 			name:      "with offset and count",
-			recordIDs: []string{"2"},
+			recordIDs: []string{"0000002"},
 			options: []datasource.QueryOption{
 				datasource.WithOffset(1),
 				datasource.WithCount(1),
@@ -160,11 +160,11 @@ func TestDappsDatasourceRecord(t *testing.T) {
 	}{
 		{
 			name: "found",
-			id:   "1",
+			id:   "0000001",
 		},
 		{
 			name: "not found",
-			id:   "999",
+			id:   "0000999",
 			err:  "dapp not found",
 		},
 		{
@@ -193,12 +193,12 @@ func TestDappsDatasourceRecord(t *testing.T) {
 func TestDappRecord(t *testing.T) {
 	setupTestData()
 
-	dapp, exists := GetDapp(1)
+	dapp, exists := GetDapp(seqid.ID(1))
 	urequire.True(t, exists, "dapp exists")
 
 	r := dappRecord{dapp: dapp}
 
-	uassert.Equal(t, "1", r.ID())
+	uassert.Equal(t, "0000001", r.ID())
 	uassert.Equal(t, dapp.Title, r.String())
 
 	fields, err := r.Fields()
@@ -277,7 +277,7 @@ func TestCategoriesDatasourceRecord(t *testing.T) {
 		},
 		{
 			name: "not found",
-			id:   "Unknown",
+			id:   "0000999",
 			err:  "category not found",
 		},
 	}
@@ -337,16 +337,16 @@ func TestProposalsDatasourceRecords(t *testing.T) {
 	}{
 		{
 			name:      "all proposals",
-			recordIDs: []string{"1", "2"},
+			recordIDs: []string{"0000001", "0000002"},
 		},
 		{
 			name:      "with offset",
-			recordIDs: []string{"2"},
+			recordIDs: []string{"0000002"},
 			options:   []datasource.QueryOption{datasource.WithOffset(1)},
 		},
 		{
 			name:      "with count",
-			recordIDs: []string{"1"},
+			recordIDs: []string{"0000001"},
 			options:   []datasource.QueryOption{datasource.WithCount(1)},
 		},
 	}
@@ -382,11 +382,11 @@ func TestProposalsDatasourceRecord(t *testing.T) {
 	}{
 		{
 			name: "found",
-			id:   "1",
+			id:   "0000001",
 		},
 		{
 			name: "not found",
-			id:   "999",
+			id:   "0000999",
 			err:  "proposal not found",
 		},
 		{
@@ -416,12 +416,12 @@ func TestProposalsDatasourceRecord(t *testing.T) {
 func TestProposalRecord(t *testing.T) {
 	setupTestData()
 
-	proposal, exists := GetProposal(1)
+	proposal, exists := GetProposal(seqid.ID(1))
 	urequire.True(t, exists, "proposal exists")
 
 	r := proposalRecord{proposal: proposal}
 
-	uassert.Equal(t, "1", r.ID())
+	uassert.Equal(t, "0000001", r.ID())
 	uassert.Equal(t, proposal.Dapp.Title, r.String())
 
 	fields, err := r.Fields()

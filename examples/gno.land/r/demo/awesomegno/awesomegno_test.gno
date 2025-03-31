@@ -2,10 +2,10 @@ package awesomegno
 
 import (
 	"std"
-	"strconv"
 	"testing"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
 	"gno.land/p/moul/authz"
@@ -15,8 +15,9 @@ func setupTest() {
 	categories = avl.NewTree()
 	dapps = avl.NewTree()
 	proposals = avl.NewTree()
-	nextDappID = 1
-	nextCategoryID = 1
+	nextDappID = seqid.ID(0)
+	nextCategoryID = seqid.ID(0)
+	nextProposalID = seqid.ID(0)
 
 	auth = authz.New()
 	adminAddress := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
@@ -80,7 +81,7 @@ func TestApproveProposal(t *testing.T) {
 	testing.SetOriginCaller(std.Address("g1notadmin"))
 	approvedID, err := ApproveProposal(proposalID)
 	uassert.Error(t, err)
-	uassert.Equal(t, uint64(0), approvedID)
+	uassert.Equal(t, seqid.ID(0).String(), approvedID.String())
 
 	testing.SetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 	approvedID, err = ApproveProposal(proposalID)
@@ -99,19 +100,20 @@ func TestApproveProposal(t *testing.T) {
 
 	toolsCategory, err := GetCategory("Tools")
 	urequire.NoError(t, err)
-	uassert.True(t, containsUint64(toolsCategory.DappIDs, 2), "Tools category should contain dapp ID 2")
+	uassert.True(t, containsID(toolsCategory.DappIDs, seqid.ID(1)), "Tools category should contain dapp ID 1")
 
 	defiCategory, err := GetCategory("DeFi")
 	urequire.NoError(t, err)
-	uassert.True(t, containsUint64(defiCategory.DappIDs, 2), "DeFi category should contain dapp ID 2")
+	uassert.True(t, containsID(defiCategory.DappIDs, seqid.ID(1)), "DeFi category should contain dapp ID 1")
 
-	approvedID, err = ApproveProposal(999)
+	invalidID := seqid.ID(999)
+	approvedID, err = ApproveProposal(invalidID)
 	uassert.Error(t, err)
-	uassert.Equal(t, uint64(0), approvedID)
+	uassert.Equal(t, seqid.ID(0).String(), approvedID.String())
 
 	approvedID, err = ApproveProposal(proposalID)
 	uassert.Error(t, err)
-	uassert.Equal(t, uint64(0), approvedID)
+	uassert.Equal(t, seqid.ID(0).String(), approvedID.String())
 }
 
 func TestRejectProposal(t *testing.T) {
@@ -136,10 +138,11 @@ func TestRejectProposal(t *testing.T) {
 	uassert.Equal(t, StatusRejected, proposal.Status)
 	uassert.Equal(t, "Not suitable", proposal.Reason)
 
-	_, found = GetDapp(1)
+	_, found = GetDapp(seqid.ID(1))
 	uassert.False(t, found)
 
-	err = RejectProposal(999, "Does not exist")
+	invalidID := seqid.ID(999)
+	err = RejectProposal(invalidID, "Does not exist")
 	uassert.Error(t, err)
 
 	err = RejectProposal(proposalID, "Already rejected")
@@ -168,7 +171,7 @@ func TestUpdateDappCategories(t *testing.T) {
 
 	toolsCategory, err := GetCategory("Tools")
 	urequire.NoError(t, err)
-	uassert.True(t, containsUint64(toolsCategory.DappIDs, approvedID), "Tools category should contain dapp ID"+strconv.FormatUint(approvedID, 10))
+	uassert.True(t, containsID(toolsCategory.DappIDs, approvedID), "Tools category should contain dapp ID "+approvedID.String())
 
 	testing.SetOriginCaller(std.Address("g1notadmin"))
 	err = UpdateDappCategories(approvedID, "Tools,DeFi")
@@ -187,15 +190,15 @@ func TestUpdateDappCategories(t *testing.T) {
 
 	toolsCategory, err = GetCategory("Tools")
 	urequire.NoError(t, err)
-	uassert.False(t, containsUint64(toolsCategory.DappIDs, approvedID), "Tools category should not contain dapp ID"+strconv.FormatUint(approvedID, 10))
+	uassert.False(t, containsID(toolsCategory.DappIDs, approvedID), "Tools category should not contain dapp ID "+approvedID.String())
 
 	defiCategory, err := GetCategory("DeFi")
 	urequire.NoError(t, err)
-	uassert.True(t, containsUint64(defiCategory.DappIDs, approvedID), "DeFi category should contain dapp ID"+strconv.FormatUint(approvedID, 10))
+	uassert.True(t, containsID(defiCategory.DappIDs, approvedID), "DeFi category should contain dapp ID "+approvedID.String())
 
 	gamesCategory, err := GetCategory("Games")
 	urequire.NoError(t, err)
-	uassert.True(t, containsUint64(gamesCategory.DappIDs, approvedID), "Games category should contain dapp ID"+strconv.FormatUint(approvedID, 10))
+	uassert.True(t, containsID(gamesCategory.DappIDs, approvedID), "Games category should contain dapp ID "+approvedID.String())
 
 	err = UpdateDappCategories(approvedID, "NonExistent")
 	uassert.Error(t, err)
@@ -227,13 +230,14 @@ func TestDeleteDapp(t *testing.T) {
 
 	toolsCategory, err := GetCategory("Tools")
 	urequire.NoError(t, err)
-	uassert.False(t, containsUint64(toolsCategory.DappIDs, 1))
+	uassert.False(t, containsID(toolsCategory.DappIDs, seqid.ID(1)))
 
 	defiCategory, err := GetCategory("DeFi")
 	urequire.NoError(t, err)
-	uassert.False(t, containsUint64(defiCategory.DappIDs, 1))
+	uassert.False(t, containsID(defiCategory.DappIDs, seqid.ID(1)))
 
-	err = DeleteDapp(999)
+	invalidID := seqid.ID(999)
+	err = DeleteDapp(invalidID)
 	uassert.Error(t, err)
 }
 
@@ -312,7 +316,7 @@ func TestBidirectionalConsistency(t *testing.T) {
 		urequire.NoError(t, err)
 	}
 
-	var firstDappID uint64
+	var firstDappID seqid.ID
 
 	dappConfigs := []struct {
 		title       string
@@ -343,7 +347,7 @@ func TestBidirectionalConsistency(t *testing.T) {
 		for _, categoryName := range dapp.Categories {
 			category, err := GetCategory(categoryName)
 			urequire.NoError(t, err)
-			uassert.True(t, containsUint64(category.DappIDs, dapp.ID))
+			uassert.True(t, containsID(category.DappIDs, dapp.ID))
 		}
 	}
 
@@ -367,11 +371,11 @@ func TestBidirectionalConsistency(t *testing.T) {
 
 	toolsCategory, err := GetCategory("Tools")
 	urequire.NoError(t, err)
-	uassert.True(t, containsUint64(toolsCategory.DappIDs, firstDappID))
+	uassert.True(t, containsID(toolsCategory.DappIDs, firstDappID))
 
 	socialCategory, err := GetCategory("Social")
 	urequire.NoError(t, err)
-	uassert.True(t, containsUint64(socialCategory.DappIDs, firstDappID))
+	uassert.True(t, containsID(socialCategory.DappIDs, firstDappID))
 
 	err = DeleteCategory("Games")
 	urequire.NoError(t, err)
@@ -394,9 +398,9 @@ func containsString(slice []string, str string) bool {
 	return false
 }
 
-func containsUint64(slice []uint64, num uint64) bool {
+func containsID(slice []seqid.ID, id seqid.ID) bool {
 	for _, item := range slice {
-		if item == num {
+		if item == id {
 			return true
 		}
 	}

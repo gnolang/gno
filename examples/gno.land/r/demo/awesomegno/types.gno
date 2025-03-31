@@ -4,18 +4,20 @@ import (
 	"errors"
 	"std"
 	"time"
+	
+	"gno.land/p/demo/seqid"
 )
 
 type Category struct {
-	ID          uint64
+	ID          seqid.ID
 	Name        string
 	Description string
 	CreatedAt   time.Time
-	DappIDs     []uint64
+	DappIDs     []seqid.ID
 }
 
 type Dapp struct {
-	ID          uint64
+	ID          seqid.ID
 	Title       string
 	Description string
 	Author      std.Address
@@ -32,7 +34,7 @@ const (
 )
 
 type Proposal struct {
-	ID        uint64
+	ID        seqid.ID
 	Dapp      Dapp
 	Status    string
 	Proposer  std.Address
