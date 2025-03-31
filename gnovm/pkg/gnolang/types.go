@@ -89,7 +89,7 @@ func (*SliceType) IsImmutable() bool       { return false }
 func (*StructType) IsImmutable() bool      { return false }
 func (*FuncType) IsImmutable() bool        { return true }
 func (*MapType) IsImmutable() bool         { return false }
-func (*InterfaceType) IsImmutable() bool   { panic("should not happen") }
+func (*InterfaceType) IsImmutable() bool   { return false } // preprocessor only
 func (*TypeType) IsImmutable() bool        { return true }
 func (dt *DeclaredType) IsImmutable() bool { return dt.Base.IsImmutable() }
 func (*PackageType) IsImmutable() bool     { return false }

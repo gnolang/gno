@@ -4,8 +4,6 @@ import (
 	"fmt"
 )
 
-var dd = false // XXX delete before merging
-
 // OpBinary1 defined in op_binary.go
 
 // NOTE: keep in sync with doOpIndex2.
@@ -34,9 +32,6 @@ func (m *Machine) doOpIndex1() {
 	default:
 		res := xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 		*xv = res.Deref() // reuse as result
-	}
-	if dd && ro {
-		fmt.Println("RO1->", xv.String())
 	}
 	xv.SetReadonly(ro)
 }
@@ -77,9 +72,6 @@ func (m *Machine) doOpIndex2() {
 	default:
 		panic("should not happen")
 	}
-	if dd && ro {
-		fmt.Println("RO2->", xv.String())
-	}
 	xv.SetReadonly(ro)
 }
 
@@ -93,9 +85,6 @@ func (m *Machine) doOpSelector() {
 		m.Printf("+v[S] %v\n", res)
 	}
 	*xv = res // reuse as result
-	if dd && ro {
-		fmt.Println("RO3->", res.String())
-	}
 	xv.SetReadonly(ro)
 }
 
@@ -138,15 +127,9 @@ func (m *Machine) doOpSlice() {
 	// all low:high:max cases
 	if maxVal == -1 {
 		sv := xv.GetSlice(m.Alloc, lowVal, highVal)
-		if dd && ro {
-			fmt.Println("RO4->", sv.String())
-		}
 		m.PushValue(sv.WithReadonly(ro))
 	} else {
 		sv := xv.GetSlice2(m.Alloc, lowVal, highVal, maxVal)
-		if dd && ro {
-			fmt.Println("RO5->", sv.String())
-		}
 		m.PushValue(sv.WithReadonly(ro))
 	}
 }
@@ -182,9 +165,6 @@ func (m *Machine) doOpStar() {
 			m.PushValue(tv)
 		} else {
 			ro := m.IsReadonly(xv)
-			if dd && ro {
-				fmt.Println("RO6->", pv.TV.String())
-			}
 			pvtv := (*pv.TV).WithReadonly(ro)
 			m.PushValue(pvtv)
 		}
@@ -732,8 +712,6 @@ func (m *Machine) doOpConvert() {
 	xv := m.PopValue()
 	t := m.PopValue().GetType()
 
-	// fmt.Println("DOCONVERT", xv.String(), t.String())
-
 	// BEGIN conversion checks
 	// These protect against inter-realm conversion exploits.
 
@@ -754,22 +732,19 @@ func (m *Machine) doOpConvert() {
 		}
 	}
 
-	/*
-
-		// Case 2.
-		// Do not allow conversion to type of external realm.
-		// Only code declared within the same realm my perform such
-		// conversions, otherwise the realm could be tricked
-		// into executing a subtle exploit of mutating some
-		// value (say a pointer) stored in its own realm by
-		// a hostile construction converted to look safe.
-		if tdt, ok := t.(*DeclaredType); ok && m.Realm != nil {
-			if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path {
-				panic("illegal conversion to external realm type")
-			}
+	// Case 2.
+	// Do not allow conversion to type of external realm.
+	// Only code declared within the same realm my perform such
+	// conversions, otherwise the realm could be tricked
+	// into executing a subtle exploit of mutating some
+	// value (say a pointer) stored in its own realm by
+	// a hostile construction converted to look safe.
+	if tdt, ok := t.(*DeclaredType); ok && !tdt.IsImmutable() && m.Realm != nil {
+		if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path {
+			panic("illegal conversion to external realm type")
 		}
-		// END conversion checks
-	*/
+	}
+	// END conversion checks
 
 	ConvertTo(m.Alloc, m.Store, xv, t, false)
 	m.PushValue(*xv)
