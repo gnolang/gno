@@ -40,7 +40,7 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:5]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:5](-264)=
 //     @@ -8,16 +8,6 @@
 //                          "@type": "/gno.RefType",
 //                          "ID": "gno.land/r/test.B"
@@ -82,7 +82,7 @@ func main() {
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
 //              "RefCount": "1"
 //          }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:9]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:9](0)=
 //     @@ -3,8 +3,8 @@
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:9",
@@ -94,7 +94,7 @@ func main() {
 //          },
 //          "Parent": {
 //              "@type": "/gno.RefValue",
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4](-132)=
 //     @@ -7,22 +7,12 @@
 //                          "@type": "/gno.RefType",
 //                          "ID": "gno.land/r/test.S"
@@ -119,7 +119,7 @@ func main() {
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
 //              "RefCount": "1"
 //          }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7](2)=
 //     @@ -2,8 +2,8 @@
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
@@ -131,7 +131,7 @@ func main() {
 //          },
 //          "Value": {
 //              "T": {
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3](0)=
 //     @@ -3,7 +3,7 @@
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
 //              "IsEscaped": true,
@@ -150,7 +150,7 @@ func main() {
 //                  "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
 //              }
 //          }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:6]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:6](0)=
 //     @@ -4,7 +4,7 @@
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
 //              "IsEscaped": true,
@@ -160,5 +160,5 @@ func main() {
 //          },
 //          "Parent": {
 //              "@type": "/gno.RefValue",
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:9]
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:10]
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:9](-508)
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:10](-583)

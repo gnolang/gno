@@ -25,7 +25,7 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/test"]
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:7]={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:7](389)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -63,7 +63,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:6]={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:6](336)={
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
 //         "ModTime": "0",
@@ -82,7 +82,7 @@ func main() {
 //         }
 //     }
 // }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2](0)=
 //     @@ -3,7 +3,7 @@
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
@@ -103,5 +103,5 @@ func main() {
 //                      },
 //                      "Index": "0",
 //                      "TV": null
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:4]
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:5]
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:4](-336)
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:5](-389)

@@ -24,7 +24,7 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/example"]
-// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:11]={
+// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:11](256)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -43,7 +43,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:10]={
+// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:10](483)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -84,7 +84,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:9]={
+// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:9](341)={
 //     "ObjectInfo": {
 //         "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:9",
 //         "ModTime": "0",
@@ -103,7 +103,7 @@ func main() {
 //         }
 //     }
 // }
-// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:8]={
+// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:8](679)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -173,7 +173,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:7]={
+// c[1ffd45e074aa1b8df562907c95ad97526b7ca187:7](340)={
 //     "ObjectInfo": {
 //         "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:7",
 //         "ModTime": "0",
@@ -192,7 +192,7 @@ func main() {
 //         }
 //     }
 // }
-// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:6]=
+// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:6](131)=
 //     @@ -7,12 +7,22 @@
 //                          "@type": "/gno.RefType",
 //                          "ID": "gno.land/p/demo/avl.Node"
@@ -217,7 +217,7 @@ func main() {
 //              "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:5",
 //              "RefCount": "1"
 //          }
-// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:5]=
+// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:5](2)=
 //     @@ -17,11 +17,12 @@
 //                  },
 //                  "V": {

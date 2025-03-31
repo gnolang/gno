@@ -19,6 +19,7 @@ import (
 type MsgAddPackage struct {
 	Creator crypto.Address    `json:"creator" yaml:"creator"`
 	Package *gnovm.MemPackage `json:"package" yaml:"package"`
+	Send    std.Coins         `json:"send" yaml:"send"`
 	Deposit std.Coins         `json:"deposit" yaml:"deposit"`
 }
 
@@ -76,7 +77,7 @@ func (msg MsgAddPackage) GetSigners() []crypto.Address {
 
 // Implements ReceiveMsg.
 func (msg MsgAddPackage) GetReceived() std.Coins {
-	return msg.Deposit
+	return msg.Send
 }
 
 //----------------------------------------
@@ -86,6 +87,7 @@ func (msg MsgAddPackage) GetReceived() std.Coins {
 type MsgCall struct {
 	Caller  crypto.Address `json:"caller" yaml:"caller"`
 	Send    std.Coins      `json:"send" yaml:"send"`
+	Deposit std.Coins      `json:"deposit" yaml:"deposit"`
 	PkgPath string         `json:"pkg_path" yaml:"pkg_path"`
 	Func    string         `json:"func" yaml:"func"`
 	Args    []string       `json:"args" yaml:"args"`
@@ -151,6 +153,7 @@ func (msg MsgCall) GetReceived() std.Coins {
 type MsgRun struct {
 	Caller  crypto.Address    `json:"caller" yaml:"caller"`
 	Send    std.Coins         `json:"send" yaml:"send"`
+	Deposit std.Coins         `json:"deposit" yaml:"deposit"`
 	Package *gnovm.MemPackage `json:"package" yaml:"package"`
 }
 

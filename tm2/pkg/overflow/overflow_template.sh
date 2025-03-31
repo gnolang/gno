@@ -92,5 +92,23 @@ func Quotient${SIZE}(a, b int${SIZE}) (int${SIZE}, int${SIZE}, bool) {
 	c := a / b
 	status := (c < 0) == ((a < 0) != (b < 0)) || (c == 0) // no sign check for 0 quotient
 	return c, a % b, status
+}
+
+// AddUint${SIZE} performs + operation on two uint${SIZE} operands, returning a result and status.
+func AddUint${SIZE}(a, b uint${SIZE}) (uint${SIZE}, bool) {
+	sum := a + b
+	if sum < a {
+		return 0, false // overflow occurred
+	}
+	return sum, true
+}
+
+// AddUint${SIZE}p is the unchecked panicing version of AddUint${SIZE}.
+func AddUint${SIZE}p(a, b uint${SIZE}) uint${SIZE} {
+	r, ok := AddUint${SIZE}(a, b)
+	if !ok {
+		panic(\"addition overflow\")
+	}
+	return r
 }"
 done

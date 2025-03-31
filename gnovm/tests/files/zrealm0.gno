@@ -20,7 +20,7 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2](4)=
 //     @@ -19,11 +19,10 @@
 //          },
 //          "Values": [
