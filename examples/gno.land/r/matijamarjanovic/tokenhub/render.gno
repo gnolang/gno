@@ -4,11 +4,11 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl/pager"
+	"gno.land/p/demo/fqname"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
-	"gno.land/p/demo/fqname"
 	"gno.land/r/demo/grc20reg"
 )
 
@@ -97,7 +97,7 @@ nonZeroBalances := tokenhub.GetUserTokenBalancesNonZero("g1...")`
 func renderToken(path string) string {
 	out := md.H1("GRC20 Tokens")
 	out += md.Paragraph("Below is a list of all registered GRC20 tokens and their registry keys (keys are used to query token information).")
-	
+
 	var tokenItems []string
 
 	tokenPager := pager.NewPager(grc20reg.GetRegistry(), pageSize, false)
@@ -122,7 +122,7 @@ func renderToken(path string) string {
 func renderNFT(path string) string {
 	out := md.H1("GRC721 NFTs")
 	out += md.Paragraph("Below is a list of all registered GRC721 NFT collections and their registry keys (keys are used to query token information).")
-	
+
 	var nftItems []string
 	nftPager := pager.NewPager(registeredNFTs, pageSize, false)
 	page := nftPager.MustGetPageByPath(path)
@@ -140,7 +140,7 @@ func renderNFT(path string) string {
 		if len(parts) > 2 {
 			linkURL = strings.Join(parts[:len(parts)-2], ".")
 		}
-		
+
 		nftItems = append(nftItems, ufmt.Sprintf("%s (%s) - %s",
 			md.Link(metadata.Name(), linkURL),
 			md.InlineCode(metadata.Symbol()),
@@ -154,7 +154,7 @@ func renderNFT(path string) string {
 func renderMT(path string) string {
 	out := md.H1("GRC1155 Multi-Tokens")
 	out += md.Paragraph("Below is a list of all registered GRC1155 multi-tokens and their registry keys (keys are used to query token information).")
-	
+
 	var mtItems []string
 
 	mtPager := pager.NewPager(registeredMTs, pageSize, false)
