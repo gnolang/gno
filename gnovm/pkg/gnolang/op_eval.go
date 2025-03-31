@@ -135,7 +135,7 @@ func (m *Machine) doOpEval() {
 				// Step 2 adjust exp from dot.
 				pIndex := -1
 				vLen := len(value)
-				for i := 0; i < vLen; i++ {
+				for i := range vLen {
 					if value[i] == '.' {
 						if pIndex > -1 {
 							panic(fmt.Sprintf(

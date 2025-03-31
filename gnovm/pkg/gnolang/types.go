@@ -48,7 +48,7 @@ func typeid(s string) (tid TypeID) {
 	return x
 }
 
-func typeidf(f string, args ...interface{}) (tid TypeID) {
+func typeidf(f string, args ...any) (tid TypeID) {
 	fs := fmt.Sprintf(f, args...)
 	x := TypeID(fs)
 	if debug {
@@ -809,7 +809,7 @@ func (st *StructType) FindEmbeddedFieldType(callerPath string, n Name, m map[Typ
 		m[st] = struct{}{}
 	}
 	// Search fields.
-	for i := 0; i < len(st.Fields); i++ {
+	for i := range st.Fields {
 		sf := &st.Fields[i]
 		// Maybe is a field of the struct.
 		if sf.Name == n {
@@ -1593,7 +1593,7 @@ func (dt *DeclaredType) FindEmbeddedFieldType(callerPath string, n Name, m map[T
 		m[dt] = struct{}{}
 	}
 	// Search direct methods.
-	for i := 0; i < len(dt.Methods); i++ {
+	for i := range dt.Methods {
 		mv := &dt.Methods[i]
 		if fv := mv.GetFunc(); fv.Name == n {
 			// Ensure exposed or package match.

@@ -42,10 +42,17 @@ func NewStagingCmd(io commands.IO) *commands.Command {
 
 	return commands.NewCommand(
 		commands.Metadata{
-			Name:          "staging",
-			ShortUsage:    "gnodev staging [flags] [package_dir...]",
-			ShortHelp:     "Start gnodev in staging mode",
-			LongHelp:      "STAGING: Staging mode configure the node for server usage",
+			Name:       "staging",
+			ShortUsage: "gnodev staging [flags] [package_dir...]",
+			ShortHelp:  "Start gnodev in staging mode",
+			LongHelp: `STAGING: Staging mode configures the node for server usage.
+This mode is designed for stability and security, suitable for pre-deployment testing.
+Interactive mode and unsafe API access are disabled to ensure a secure environment.
+The log format is set to JSON, facilitating integration with logging systems.
+Since lazy-load is disabled in this mode, the entire example folder from "gnoroot" is loaded by default.
+
+Additionally, you can specify an additional package directory to load.
+`,
 			NoParentFlags: true,
 		},
 		&cfg,
