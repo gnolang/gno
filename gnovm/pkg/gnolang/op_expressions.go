@@ -731,6 +731,45 @@ func (m *Machine) doOpFuncLit() {
 func (m *Machine) doOpConvert() {
 	xv := m.PopValue()
 	t := m.PopValue().GetType()
+
+	// fmt.Println("DOCONVERT", xv.String(), t.String())
+
+	/*
+		// BEGIN conversion checks
+		// These protect against inter-realm conversion exploits.
+
+		// Case 1.
+		// Do not allow conversion of value stored in eternal realm.
+		// Otherwise anyone could convert an external object insecurely.
+		if m.IsReadonly(xv) {
+			if xvdt, ok := xv.T.(*DeclaredType); ok &&
+				xvdt.PkgPath == m.Realm.Path {
+				// Except allow if xv.T is m.Realm.
+				// XXX do we need/want this?
+			} else {
+				xvdt, ok := xv.T.(*DeclaredType)
+				fmt.Println(m.String())
+				fmt.Println(xv.String(), t.String())
+				fmt.Println(xvdt, ok)
+				panic("illegal conversion of readonly or externally stored value")
+			}
+		}
+
+		// Case 2.
+		// Do not allow conversion to type of external realm.
+		// Only code declared within the same realm my perform such
+		// conversions, otherwise the realm could be tricked
+		// into executing a subtle exploit of mutating some
+		// value (say a pointer) stored in its own realm by
+		// a hostile construction converted to look safe.
+		if tdt, ok := t.(*DeclaredType); ok && m.Realm != nil {
+			if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path {
+				panic("illegal conversion to external realm type")
+			}
+		}
+		// END conversion checks
+	*/
+
 	ConvertTo(m.Alloc, m.Store, xv, t, false)
 	m.PushValue(*xv)
 }

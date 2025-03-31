@@ -1969,6 +1969,7 @@ func (m *Machine) PushForPointer(lx Expr) {
 	}
 }
 
+// Pop a pointer (for writing only).
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	pv, ro := m.PopAsPointer2(lx)
 	if ro {
@@ -1978,23 +1979,20 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	return pv
 }
 
-// returns true if tv is readonly or its "first object" resides in a different
-// non-zero realm.
+// Returns true if tv is N_Readonly or, its "first object" resides in a
+// different non-zero realm. Returns false for non-N_Readonly StringValue, free
+// floating pointers, and unreal objects.
 func (m *Machine) IsReadonly(tv *TypedValue) bool {
 	if m.Realm == nil {
 		return false
-	}
-	if tv == nil {
-		fmt.Println("tv was nil")
 	}
 	if tv.IsReadonly() {
 		return true
 	}
 	tvoid, ok := tv.GetFirstObjectID()
 	if !ok {
-		// e.g. if tv is a string,
-		// or free floating pointers.
-		return true
+		// e.g. if tv is a string, or free floating pointers.
+		return false
 	}
 	if tvoid.IsZero() {
 		return false
@@ -2005,7 +2003,7 @@ func (m *Machine) IsReadonly(tv *TypedValue) bool {
 	return false
 }
 
-// returns ro = true if the base is readonly,
+// Returns ro = true if the base is readonly,
 // or if the base's storage realm != m.Realm and both are non-nil,
 // and the lx isn't a name (base is a block),
 // and the lx isn't a composit lit expr.

@@ -1094,13 +1094,18 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if ric {
 						// Left const, Right const ----------------------
 						// Replace with *ConstExpr if const operands.
+						//
 						// First, convert untyped as necessary.
-						if !shouldSwapOnSpecificity(lcx.T, rcx.T) {
-							// convert n.Left to right type.
-							checkOrConvertType(store, last, n, &n.Left, rcx.T, false)
-						} else {
-							// convert n.Right to left type.
-							checkOrConvertType(store, last, n, &n.Right, lcx.T, false)
+						// If either is interface type no conversion is required.
+						if (lt == nil || lt.Kind() != InterfaceKind) &&
+							(rt == nil || rt.Kind() != InterfaceKind) {
+							if !shouldSwapOnSpecificity(lcx.T, rcx.T) {
+								// convert n.Left to right type.
+								checkOrConvertType(store, last, n, &n.Left, rcx.T, false)
+							} else {
+								// convert n.Right to left type.
+								checkOrConvertType(store, last, n, &n.Right, lcx.T, false)
+							}
 						}
 						// Then, evaluate the expression.
 						cx := evalConst(store, last, n)

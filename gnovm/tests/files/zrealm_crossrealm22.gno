@@ -94,7 +94,7 @@ func main() {
 //              "RefCount": "2"
 //          },
 //          "Parent": null,
-//     @@ -495,6 +495,46 @@
+//     @@ -490,6 +490,46 @@
 //                  "T": {
 //                      "@type": "/gno.RefType",
 //                      "ID": "gno.land/r/demo/tests/crossrealm.FooerGetter"
@@ -213,7 +213,7 @@ func main() {
 //              "RefCount": "2"
 //          },
 //          "Parent": null,
-//     @@ -492,6 +492,7 @@
+//     @@ -487,6 +487,7 @@
 //                  }
 //              },
 //              {
@@ -221,7 +221,7 @@ func main() {
 //                  "T": {
 //                      "@type": "/gno.RefType",
 //                      "ID": "gno.land/r/demo/tests/crossrealm.FooerGetter"
-//     @@ -500,23 +501,23 @@
+//     @@ -495,23 +496,23 @@
 //                      "@type": "/gno.FuncValue",
 //                      "Closure": {
 //                          "@type": "/gno.RefValue",
@@ -347,7 +347,7 @@ func main() {
 //     ]
 // }
 // u[1712ac7adcfdc8e58a67e5615e20fb312394c4df:2]=
-//     @@ -492,7 +492,6 @@
+//     @@ -487,7 +487,6 @@
 //                  }
 //              },
 //              {
@@ -355,7 +355,7 @@ func main() {
 //                  "T": {
 //                      "@type": "/gno.RefType",
 //                      "ID": "gno.land/r/demo/tests/crossrealm.FooerGetter"
-//     @@ -501,8 +500,8 @@
+//     @@ -496,8 +495,8 @@
 //                      "@type": "/gno.FuncValue",
 //                      "Closure": {
 //                          "@type": "/gno.RefValue",
@@ -366,7 +366,7 @@ func main() {
 //                      },
 //                      "FileName": "",
 //                      "IsMethod": false,
-//     @@ -514,9 +513,9 @@
+//     @@ -509,9 +508,9 @@
 //                          "@type": "/gno.RefNode",
 //                          "BlockNode": null,
 //                          "Location": {

@@ -899,7 +899,7 @@ type TypedValue struct {
 	N [8]byte `json:",omitempty"` // numeric bytes
 }
 
-// magic 8 bytes to denote a readonly wrapped non-nil V of mutable type that is
+// Magic 8 bytes to denote a readonly wrapped non-nil V of mutable type that is
 // readonly. This happens when subvalues are retrieved from an externally
 // stored realm value, such as external realm package vars, or slices or
 // pointers to.
@@ -908,7 +908,7 @@ type TypedValue struct {
 // tv.WithReadonly().
 var N_Readonly [8]byte = [8]byte{'R', 'e', 'a', 'D', 'o', 'N', 'L', 'Y'} // ReaDoNLY
 
-// returns true if mutable .V is readonly "wrapped".
+// Returns true if mutable .V is readonly "wrapped".
 func (tv *TypedValue) IsReadonly() bool {
 	return tv.N == N_Readonly && tv.V != nil
 }
@@ -940,6 +940,11 @@ func (tv *TypedValue) IsDefined() bool {
 	return !tv.IsUndefined()
 }
 
+// XXX replace IsUndefined() with IsUndefined2() and delete IsUndefined, replace.
+func (tv *TypedValue) IsUndefined2() bool {
+	return tv.T == nil
+}
+
 func (tv *TypedValue) IsUndefined() bool {
 	if debug {
 		if tv == nil {
@@ -958,6 +963,7 @@ func (tv *TypedValue) IsUndefined() bool {
 	return tv.IsNilInterface()
 }
 
+// (this is used mostly by the preprocessor)
 func (tv *TypedValue) IsNilInterface() bool {
 	if tv.T != nil && tv.T.Kind() == InterfaceKind {
 		if tv.V == nil {

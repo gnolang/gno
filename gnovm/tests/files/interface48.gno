@@ -18,4 +18,4 @@ func main() {
 }
 
 // Output:
-// nil
+// undefined

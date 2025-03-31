@@ -34,13 +34,12 @@ func main() {
 //              "RefCount": "2"
 //          },
 //          "Parent": null,
-//     @@ -282,9 +282,23 @@
+//     @@ -281,7 +281,26 @@
+//                      }
 //                  }
 //              },
-//              {
-//     -            "T": {
-//     -                "@type": "/gno.RefType",
-//     -                "ID": "gno.land/r/demo/tests/crossrealm.Fooer"
+//     -        {},
+//     +        {
 //     +            "N": "UmVhRG9OTFk=",
 //     +            "T": {
 //     +                "@type": "/gno.PointerType",
@@ -58,9 +57,11 @@ func main() {
 //     +                },
 //     +                "Index": "0",
 //     +                "TV": null
-//                  }
-//              },
+//     +            }
+//     +        },
 //              {
+//                  "T": {
+//                      "@type": "/gno.FuncType",
 // u[0edc46caf30c00efd87b6c272673239eafbd051e:3]=
 //     @@ -1,9 +1,10 @@
 //      {
