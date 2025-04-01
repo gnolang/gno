@@ -51,8 +51,12 @@ func (b *backupServer) StreamBlocks(_ context.Context, req *connect.Request[back
 		return fmt.Errorf("start height must be >= 1, got %d", startHeight)
 	}
 
-	endHeight := req.Msg.EndHeight
 	blockStoreHeight := b.store.Height()
+	if blockStoreHeight < 1 {
+		return fmt.Errorf("block store returned invalid max height (%d)", blockStoreHeight)
+	}
+
+	endHeight := req.Msg.EndHeight
 	if endHeight == 0 {
 		endHeight = blockStoreHeight
 	} else if endHeight > blockStoreHeight {
@@ -65,6 +69,10 @@ func (b *backupServer) StreamBlocks(_ context.Context, req *connect.Request[back
 
 	for height := startHeight; height <= endHeight; height++ {
 		block := b.store.LoadBlock(height)
+		if block == nil {
+			return fmt.Errorf("block store returned nil block for height %d", height)
+		}
+
 		data, err := amino.Marshal(block)
 		if err != nil {
 			return err
