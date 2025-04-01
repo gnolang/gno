@@ -76,7 +76,7 @@ func (bA *CompactBitArray) SetIndex(i int, v bool) bool {
 // there are two bits set to true before index 4.
 func (bA *CompactBitArray) NumTrueBitsBefore(index int) int {
 	numTrueValues := 0
-	for i := 0; i < index; i++ {
+	for i := range index {
 		if bA.GetIndex(i) {
 			numTrueValues++
 		}
@@ -116,7 +116,7 @@ func (bA *CompactBitArray) StringIndented(indent string) string {
 	lines := []string{}
 	bits := ""
 	size := bA.Size()
-	for i := 0; i < size; i++ {
+	for i := range size {
 		if bA.GetIndex(i) {
 			bits += "x"
 		} else {
@@ -148,7 +148,7 @@ func (bA *CompactBitArray) MarshalJSON() ([]byte, error) {
 
 	bits := `"`
 	size := bA.Size()
-	for i := 0; i < size; i++ {
+	for i := range size {
 		if bA.GetIndex(i) {
 			bits += `x`
 		} else {
@@ -183,7 +183,7 @@ func (bA *CompactBitArray) UnmarshalJSON(bz []byte) error {
 	// Construct new CompactBitArray and copy over.
 	numBits := len(bits)
 	bA2 := NewCompactBitArray(numBits)
-	for i := 0; i < numBits; i++ {
+	for i := range numBits {
 		if bits[i] == 'x' {
 			bA2.SetIndex(i, true)
 		}

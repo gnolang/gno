@@ -30,7 +30,7 @@ func prepareTree(b *testing.B, db db.DB, size, keyLen, dataLen int) (*iavl.Mutab
 	t := iavl.NewMutableTree(db, size)
 	keys := make([][]byte, size)
 
-	for i := 0; i < size; i++ {
+	for i := range size {
 		key := randBytes(keyLen)
 		t.Set(key, randBytes(dataLen))
 		keys[i] = key
@@ -103,7 +103,7 @@ func runBlock(b *testing.B, t *iavl.MutableTree, keyLen, dataLen, blockSize int,
 	// check := t
 
 	for i := 0; i < b.N; i++ {
-		for j := 0; j < blockSize; j++ {
+		for range blockSize {
 			// 50% insert, 50% update
 			var key []byte
 			if i%2 == 0 {
