@@ -640,13 +640,13 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 	if pv.IsRealm() {
 		rlm := pv.Realm
 		rlm.MarkNewReal(pv)
-		rlm.FinalizeRealmTransaction(m)
+		rlm.FinalizeRealmTransaction(m.Store, m.GasMeter)
 		// save package realm info.
 		m.Store.SetPackageRealm(rlm)
 	} else { // use a throwaway realm.
 		rlm := NewRealm(pv.PkgPath)
 		rlm.MarkNewReal(pv)
-		rlm.FinalizeRealmTransaction(m)
+		rlm.FinalizeRealmTransaction(m.Store, m.GasMeter)
 		throwaway = rlm
 	}
 	// save declared types.
@@ -670,11 +670,11 @@ func (m *Machine) resavePackageValues(rlm *Realm) {
 	pv := m.Package
 	if pv.IsRealm() {
 		rlm = pv.Realm
-		rlm.FinalizeRealmTransaction(m)
+		rlm.FinalizeRealmTransaction(m.Store, m.GasMeter)
 		// re-save package realm info.
 		m.Store.SetPackageRealm(rlm)
 	} else { // use the throwaway realm.
-		rlm.FinalizeRealmTransaction(m)
+		rlm.FinalizeRealmTransaction(m.Store, m.GasMeter)
 	}
 	// types were already saved, and should not change
 	// even after running the init function.

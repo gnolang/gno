@@ -323,7 +323,7 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 // transactions
 
 // OpReturn calls this when exiting a realm transaction.
-func (rlm *Realm) FinalizeRealmTransaction(m *Machine) {
+func (rlm *Realm) FinalizeRealmTransaction(store Store, gm types.GasMeter) {
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -346,18 +346,18 @@ func (rlm *Realm) FinalizeRealmTransaction(m *Machine) {
 		}
 	}
 	// log realm boundaries in opslog.
-	m.Store.LogSwitchRealm(rlm.Path)
+	store.LogSwitchRealm(rlm.Path)
 	// increment recursively for created descendants.
 	// also assigns object ids for all.
-	rlm.processNewCreatedMarks(m)
+	rlm.processNewCreatedMarks(store, gm)
 	// decrement recursively for deleted descendants.
-	rlm.processNewDeletedMarks(m.Store)
+	rlm.processNewDeletedMarks(store)
 	// at this point, all ref-counts are final.
 	// demote any escaped if ref-count is 1.
-	rlm.processNewEscapedMarks(m.Store)
+	rlm.processNewEscapedMarks(store)
 	// given created and updated objects,
 	// mark all owned-ancestors also as dirty.
-	rlm.markDirtyAncestors(m.Store)
+	rlm.markDirtyAncestors(store)
 	if debug {
 		ensureUniq(rlm.created, rlm.updated, rlm.deleted)
 		ensureUniq(rlm.escaped)
@@ -366,9 +366,9 @@ func (rlm *Realm) FinalizeRealmTransaction(m *Machine) {
 	// hash calculation is done along the way,
 	// or via escaped-object persistence in
 	// the iavl tree.
-	rlm.saveUnsavedObjects(m.Store)
+	rlm.saveUnsavedObjects(store)
 	// delete all deleted objects.
-	rlm.removeDeletedObjects(m.Store)
+	rlm.removeDeletedObjects(store)
 	// reset realm state for new transaction.
 	rlm.clearMarks()
 }
@@ -380,7 +380,7 @@ func (rlm *Realm) FinalizeRealmTransaction(m *Machine) {
 // finding more newly created objects recursively.
 // All newly created objects become appended to .created,
 // and get assigned ids.
-func (rlm *Realm) processNewCreatedMarks(m *Machine) {
+func (rlm *Realm) processNewCreatedMarks(store Store, gm types.GasMeter) {
 	// Create new objects and their new descendants.
 	for _, oo := range rlm.newCreated {
 		if debug {
@@ -399,17 +399,17 @@ func (rlm *Realm) processNewCreatedMarks(m *Machine) {
 			// skip if became deleted.
 			continue
 		} else {
-			rlm.incRefCreatedDescendants(m, oo)
+			rlm.incRefCreatedDescendants(store, gm, oo)
 		}
 	}
 	// Save new realm time.
 	if len(rlm.newCreated) > 0 {
-		m.Store.SetPackageRealm(rlm)
+		store.SetPackageRealm(rlm)
 	}
 }
 
 // oo must be marked new-real, and ref-count already incremented.
-func (rlm *Realm) incRefCreatedDescendants(m *Machine, oo Object) {
+func (rlm *Realm) incRefCreatedDescendants(store Store, gm types.GasMeter, oo Object) {
 	if debug {
 		if oo.GetIsDirty() {
 			panic("cannot increase reference of descendants of dirty objects")
@@ -421,7 +421,7 @@ func (rlm *Realm) incRefCreatedDescendants(m *Machine, oo Object) {
 
 	cost := 1
 	defer func() {
-		m.GasMeter.ConsumeGas(types.Gas(cost), "incRefCreatedDescendants")
+		gm.ConsumeGas(types.Gas(cost), "incRefCreatedDescendants")
 	}()
 
 	// RECURSE GUARD
@@ -436,7 +436,7 @@ func (rlm *Realm) incRefCreatedDescendants(m *Machine, oo Object) {
 	// RECURSE GUARD END
 
 	// recurse for children.
-	more := getChildObjects2(m.Store, oo)
+	more := getChildObjects2(store, oo)
 	for _, child := range more {
 		if _, ok := child.(*PackageValue); ok {
 			if debug {
@@ -461,7 +461,7 @@ func (rlm *Realm) incRefCreatedDescendants(m *Machine, oo Object) {
 				// NOTE: may already be marked for first gen
 				// newCreated or updated.
 				child.SetOwner(oo)
-				rlm.incRefCreatedDescendants(m, child)
+				rlm.incRefCreatedDescendants(store, gm, child)
 				child.SetIsNewReal(true)
 			}
 		} else if rc > 1 {
