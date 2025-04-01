@@ -7,7 +7,9 @@ import (
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer"
+	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
 )
 
@@ -32,23 +34,74 @@ const (
 // for external, internal, and same-package links.
 type LinkExtension struct{}
 
+// LinkMetadata contains metadata about a GnoLink
+type LinkMetadata struct {
+	LinkType linkType
+	HasHelp  bool
+}
+
 // linkRenderer implements NodeRenderer
-type linkRenderer struct {
-	domain string
-	path   string
+type linkRenderer struct{}
+
+// GnoLink represents a link with Gno-specific metadata
+type GnoLink struct {
+	ast.Link
+	Metadata LinkMetadata
 }
 
-// linkTypeInfo contains information about a link type
-type linkTypeInfo struct {
-	tooltip string
-	icon    string
-	class   string
-}
+// linkType represents the type of a link
+type linkType int
 
-// attr represents an HTML attribute
-type attr struct {
-	name  string
-	value string
+const (
+	linkTypeExternal linkType = iota
+	linkTypePackage
+	linkTypeInternal
+)
+
+// linkTransformer implements ASTTransformer
+type linkTransformer struct{}
+
+// Transform replaces ast.Link nodes with GnoLink nodes in two passes.
+func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc parser.Context) {
+	url, ok := getUrlFromContext(pc)
+	if !ok {
+		return
+	}
+
+	// First pass: collect all *ast.Link nodes to transform
+	var linkNodes []ast.Node
+	ast.Walk(doc, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
+		if entering {
+			if _, ok := node.(*ast.Link); ok {
+				linkNodes = append(linkNodes, node)
+			}
+		}
+		return ast.WalkContinue, nil
+	})
+
+	// Second pass: transform and replace collected nodes
+	for _, node := range linkNodes {
+		link := node.(*ast.Link)
+		dest := string(link.Destination)
+
+		linkType, hasHelp, err := detectLinkType(dest, url.Domain, url.Path)
+		if err != nil {
+			continue
+		}
+
+		gnoLink := &GnoLink{}
+		gnoLink.Link = *link
+		gnoLink.Metadata = LinkMetadata{
+			LinkType: linkType,
+			HasHelp:  hasHelp,
+		}
+
+		parent := link.Parent()
+		if parent == nil {
+			parent = doc
+		}
+		parent.ReplaceChild(parent, link, gnoLink)
+	}
 }
 
 // RegisterFuncs registers the renderer functions
@@ -75,16 +128,26 @@ var (
 	ErrLinkInvalidURL = errors.New("invalid URL format")
 )
 
-// linkType represents the type of a link
-type linkType int
+var linkTypes = map[linkType]linkTypeInfo{
+	linkTypeExternal: {tooltipExternalLink, iconExternalLink, classLinkExternal},
+	linkTypeInternal: {tooltipInternalLink, iconInternalLink, classLinkInternal},
+	linkTypePackage:  {tooltipTxLink, iconTxLink, classLinkTx},
+}
 
-const (
-	linkTypeExternal linkType = iota
-	linkTypePackage
-	linkTypeInternal
-)
+// linkTypeInfo contains information about a link type
+type linkTypeInfo struct {
+	tooltip string
+	icon    string
+	class   string
+}
 
-// writeHTMLAttr writes an HTML attribute
+// attr represents an HTML attribute
+type attr struct {
+	name  string
+	value string
+}
+
+// writeHTMLTag writes an HTML attribute
 func writeHTMLTag(w util.BufWriter, tag string, attrs []attr) {
 	w.WriteString("<" + tag)
 	for _, a := range attrs {
@@ -97,7 +160,7 @@ func writeHTMLTag(w util.BufWriter, tag string, attrs []attr) {
 // detectLinkType detects the type of link based on the destination
 func detectLinkType(dest, domain, path string) (linkType, bool, error) {
 	// Extract the package name from the path (e.g., "r/test/foo" -> "test")
-	pathWithoutR := strings.TrimPrefix(path, "r/")
+	pathWithoutR := strings.TrimPrefix(path, "/r/")
 	if idx := strings.Index(pathWithoutR, "/"); idx != -1 {
 		pathWithoutR = pathWithoutR[:idx]
 	}
@@ -118,28 +181,16 @@ func detectLinkType(dest, domain, path string) (linkType, bool, error) {
 	return linkTypeInternal, strings.Contains(dest, "$help"), nil
 }
 
-var linkTypes = map[linkType]linkTypeInfo{
-	linkTypeExternal: {tooltipExternalLink, iconExternalLink, classLinkExternal},
-	linkTypeInternal: {tooltipInternalLink, iconInternalLink, classLinkInternal},
-	linkTypePackage:  {tooltipTxLink, iconTxLink, classLinkTx},
-}
-
 // renderLink renders a link node
 func (r *linkRenderer) renderLink(w util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
-	n, ok := node.(*ast.Link)
+	n, ok := node.(*GnoLink)
 	if !ok {
-		return ast.WalkContinue, fmt.Errorf("expected *ast.Link, got %T", node)
-	}
-	dest := string(n.Destination)
-	linkType, hasHelp, err := detectLinkType(dest, r.domain, r.path)
-	if err != nil {
-		fmt.Fprintf(w, "<!-- link error: %s -->\n", err.Error())
 		return ast.WalkContinue, nil
 	}
 
 	if !entering {
 		// Add the Tx icon span if needed
-		if hasHelp {
+		if n.Metadata.HasHelp {
 			txAttrs := []attr{
 				{"class", classLinkTx + " tooltip"},
 				{"data-tooltip", tooltipTxLink},
@@ -150,8 +201,8 @@ func (r *linkRenderer) renderLink(w util.BufWriter, source []byte, node ast.Node
 		}
 
 		// Add external/internal icon span if needed
-		if linkType != linkTypePackage {
-			if info, ok := linkTypes[linkType]; ok {
+		if n.Metadata.LinkType != linkTypePackage {
+			if info, ok := linkTypes[n.Metadata.LinkType]; ok {
 				attrs := []attr{
 					{"class", info.class + " tooltip"},
 					{"data-tooltip", info.tooltip},
@@ -168,7 +219,7 @@ func (r *linkRenderer) renderLink(w util.BufWriter, source []byte, node ast.Node
 
 	// Prepare link attributes with href first
 	attrs := []attr{{"href", string(n.Destination)}}
-	if linkType == linkTypeExternal {
+	if n.Metadata.LinkType == linkTypeExternal {
 		attrs = append(attrs, attr{"rel", "noopener nofollow ugc"})
 	}
 	if n.Title != nil {
@@ -182,12 +233,14 @@ func (r *linkRenderer) renderLink(w util.BufWriter, source []byte, node ast.Node
 }
 
 // Extend adds the LinkExtension to the provided Goldmark markdown processor
-func (l *LinkExtension) Extend(m goldmark.Markdown, domain, path string) {
+func (l *LinkExtension) Extend(m goldmark.Markdown) {
+	m.Parser().AddOptions(parser.WithASTTransformers(
+		util.Prioritized(&linkTransformer{}, 500),
+	))
+
+	// Register our renderer with a higher priority than the default renderer
 	m.Renderer().AddOptions(renderer.WithNodeRenderers(
-		util.Prioritized(&linkRenderer{
-			domain: domain,
-			path:   path,
-		}, 500),
+		util.Prioritized(&linkRenderer{}, 0), // Priority 0 is higher than default
 	))
 }
 

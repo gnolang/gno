@@ -161,7 +161,7 @@ func (gnoURL GnoURL) IsValid() bool {
 }
 
 // ParseGnoURL parses a URL into a GnoURL structure, extracting and validating its components.
-func ParseGnoURL(u *url.URL) (*GnoURL, error) {
+func ParseGnoURL(u *url.URL, defaultDomain string) (*GnoURL, error) {
 	var webargs string
 	path, args, found := strings.Cut(u.EscapedPath(), ":")
 	if found {
@@ -208,12 +208,18 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 		return nil, fmt.Errorf("unable to unescape args %q: %w", args, err)
 	}
 
+	// Use the provided domain if the URL's hostname is empty
+	domain := u.Hostname()
+	if domain == "" {
+		domain = defaultDomain
+	}
+
 	return &GnoURL{
 		Path:     upath,
 		Args:     uargs,
 		WebQuery: webquery,
 		Query:    u.Query(),
-		Domain:   u.Hostname(),
+		Domain:   domain,
 		File:     file,
 	}, nil
 }

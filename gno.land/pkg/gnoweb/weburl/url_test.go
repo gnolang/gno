@@ -259,7 +259,7 @@ func TestParseGnoURL(t *testing.T) {
 			u, err := url.Parse(tc.Input)
 			require.NoError(t, err)
 
-			result, err := ParseGnoURL(u)
+			result, err := ParseGnoURL(u, "gno.land")
 			if tc.Err == nil {
 				require.NoError(t, err)
 				t.Logf("encoded web path: %q", result.EncodeWebURL())

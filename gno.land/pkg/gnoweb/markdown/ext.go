@@ -31,26 +31,45 @@
 package markdown
 
 import (
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/parser"
 )
 
 var _ goldmark.Extender = (*gnoExtension)(nil)
 
-type gnoExtension struct {
-	domain string
-	path   string
+// NewGnoParserContext creates a new parser context with GnoURL
+func NewGnoParserContext(url weburl.GnoURL) parser.Context {
+	ctx := parser.NewContext()
+	ctx.Set(gUrlContextKey, url)
+	return ctx
 }
 
-// NewGnoExtension creates a new GnoExtension instance
-func NewGnoExtension(domain, path string) goldmark.Extender {
+var gUrlContextKey = parser.NewContextKey()
+
+// getUrlFromContext retrieves the GnoURL from the parser context
+func getUrlFromContext(ctx parser.Context) (url weburl.GnoURL, ok bool) {
+	url, ok = ctx.Get(gUrlContextKey).(weburl.GnoURL)
+	return
+}
+
+// gnoExtension is a Goldmark extension that adds Gno-specific features
+type gnoExtension struct {
+	url weburl.GnoURL
+}
+
+// NewGnoExtension creates a new Gno extension with the given URL
+func NewGnoExtension(url weburl.GnoURL) goldmark.Extender {
 	return &gnoExtension{
-		domain: domain,
-		path:   path,
+		url: url,
 	}
 }
 
 // Extend adds the Gno extension to the provided Goldmark markdown processor.
 func (e *gnoExtension) Extend(m goldmark.Markdown) {
+	// Add column extension
 	Columns.Extend(m)
-	Links.Extend(m, e.domain, e.path)
+
+	// Add link extension with context
+	Links.Extend(m)
 }
