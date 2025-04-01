@@ -12,7 +12,6 @@ import (
 
 const (
 	ChunkSize           = 100
-	heightFilename      = "next-height.txt"
 	backupStateFilename = "info.json"
 	backupVersion       = "v1"
 )
