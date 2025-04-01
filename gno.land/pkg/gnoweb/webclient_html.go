@@ -113,8 +113,8 @@ func (s *HTMLWebClient) Doc(pkgPath string) (*doc.JSONDocumentation, error) {
 
 // SourceFile fetches and writes the source file from a given
 // package path and file name to the provided writer. It uses
-// Chroma for syntax highlighting source.
-func (s *HTMLWebClient) SourceFile(w io.Writer, path, fileName string) (*FileMeta, error) {
+// Chroma for syntax highlighting or Raw style source.
+func (s *HTMLWebClient) SourceFile(w io.Writer, path, fileName string, isRaw bool) (*FileMeta, error) {
 	const qpath = "vm/qfile"
 
 	fileName = strings.TrimSpace(fileName)
@@ -141,9 +141,16 @@ func (s *HTMLWebClient) SourceFile(w io.Writer, path, fileName string) (*FileMet
 		SizeKb: float64(len(source)) / 1024.0,
 	}
 
-	// Use Chroma for syntax highlighting
-	if err := s.FormatSource(w, fileName, source); err != nil {
-		return nil, err
+	if isRaw {
+		// Use raw syntax for source
+		if _, err := w.Write(source); err != nil {
+			return nil, err
+		}
+	} else {
+		// Use Chroma for syntax highlighting
+		if err := s.FormatSource(w, fileName, source); err != nil {
+			return nil, err
+		}
 	}
 
 	return &fileMeta, nil

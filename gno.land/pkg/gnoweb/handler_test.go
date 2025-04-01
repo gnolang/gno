@@ -151,3 +151,80 @@ func TestWebHandler_NoRender(t *testing.T) {
 	expectedBody := "This realm does not implement a Render() function."
 	assert.Contains(t, rr.Body.String(), expectedBody, "rendered body should contain: %q", expectedBody)
 }
+
+// TestWebHandler_GetSourceDownload tests the source file download functionality
+func TestWebHandler_GetSourceDownload(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/path",
+		Files: map[string]string{
+			"test.gno": `package main; func main() {}`,
+		},
+	}
+
+	webclient := gnoweb.NewMockWebClient(mockPackage)
+	config := gnoweb.WebHandlerConfig{
+		WebClient: webclient,
+	}
+
+	cases := []struct {
+		Path    string
+		Status  int
+		Contain string
+		Headers map[string]string
+	}{
+		{
+			Path:    "/r/mock/path$source&file=test.gno&download",
+			Status:  http.StatusOK,
+			Contain: "package main",
+			Headers: map[string]string{
+				"Content-Type":        "text/plain; charset=utf-8",
+				"Content-Disposition": `attachment; filename="test.gno"`,
+			},
+		},
+		{
+			Path:    "/r/mock/path$source&file=nonexistent.gno&download",
+			Status:  http.StatusNotFound,
+			Contain: "not found",
+		},
+		{
+			Path:    "/r/mock/path$source&download",
+			Status:  http.StatusNotFound,
+			Contain: "not found",
+		},
+		{
+			Path:    "/invalid/path$source&file=test.gno&download",
+			Status:  http.StatusNotFound,
+			Contain: "not found",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(strings.TrimPrefix(tc.Path, "/"), func(t *testing.T) {
+			t.Parallel()
+			t.Logf("input: %+v", tc)
+
+			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+			handler, err := gnoweb.NewWebHandler(logger, config)
+			require.NoError(t, err)
+
+			req, err := http.NewRequest(http.MethodGet, tc.Path, nil)
+			require.NoError(t, err)
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			assert.Equal(t, tc.Status, rr.Code)
+			assert.Contains(t, rr.Body.String(), tc.Contain)
+
+			if tc.Headers != nil {
+				for k, v := range tc.Headers {
+					assert.Equal(t, v, rr.Header().Get(k))
+				}
+			}
+		})
+	}
+}
