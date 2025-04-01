@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"go/token"
 	"log/slog"
 	"net/http"
 	"path"
@@ -13,7 +14,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
-	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // For error types
+	"github.com/gnolang/gno/gnovm/pkg/doc"
 )
 
 // StaticMetadata holds static configuration for a web handler.
@@ -197,10 +198,20 @@ func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL) (int, *components.View)
 }
 
 func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) {
-	fsigs, err := h.Client.Functions(gnourl.Path)
+	jdoc, err := h.Client.Doc(gnourl.Path)
 	if err != nil {
-		h.Logger.Error("unable to fetch path functions", "error", err)
+		h.Logger.Error("unable to fetch qdoc", "error", err)
 		return GetClientErrorStatusPage(gnourl, err)
+	}
+
+	// Get public non-method funcs
+	fsigs := []*doc.JSONFunc{}
+	for _, fun := range jdoc.Funcs {
+		if !(fun.Type == "" && token.IsExported(fun.Name)) {
+			continue
+		}
+
+		fsigs = append(fsigs, fun)
 	}
 
 	// Get selected function
@@ -208,7 +219,7 @@ func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) 
 	selFn := gnourl.WebQuery.Get("func")
 	if selFn != "" {
 		for _, fn := range fsigs {
-			if selFn != fn.FuncName {
+			if selFn != fn.Name {
 				continue
 			}
 
@@ -216,7 +227,7 @@ func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) 
 				selArgs[param.Name] = gnourl.WebQuery.Get(param.Name)
 			}
 
-			fsigs = []vm.FunctionSignature{fn}
+			fsigs = []*doc.JSONFunc{fn}
 			break
 		}
 	}
@@ -231,6 +242,7 @@ func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) 
 		PkgPath:   path.Join(h.Static.Domain, gnourl.Path),
 		Remote:    h.Static.RemoteHelp,
 		Functions: fsigs,
+		Doc:       jdoc.PackageDoc,
 	})
 }
 
