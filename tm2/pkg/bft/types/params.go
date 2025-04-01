@@ -81,7 +81,7 @@ func ValidateConsensusParams(params abci.ConsensusParams) error {
 	}
 
 	// Check if keyType is a known ABCIPubKeyType
-	for i := 0; i < len(params.Validator.PubKeyTypeURLs); i++ {
+	for i := range params.Validator.PubKeyTypeURLs {
 		keyType := params.Validator.PubKeyTypeURLs[i]
 		if _, ok := validatorPubKeyTypeURLs[keyType]; !ok {
 			return errors.New("params.Validator.PubKeyTypeURLs[%d], %s, is an unknown pubKey type",

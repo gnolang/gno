@@ -58,7 +58,7 @@ func (e *exporter) close() {
 }
 
 func FinishStore() {
-	for i := 0; i < 256; i++ {
+	for i := range 256 {
 		count := measure.storeCounts[i]
 
 		if count == 0 {
@@ -80,7 +80,7 @@ func FinishStore() {
 }
 
 func FinishRun() {
-	for i := 0; i < 256; i++ {
+	for i := range 256 {
 		if measure.opCounts[i] == 0 {
 			continue
 		}
