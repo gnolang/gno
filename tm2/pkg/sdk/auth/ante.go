@@ -117,6 +117,7 @@ func NewAnteHandler(
 		// When simulating, this would just be a 0-length slice.
 		signerAddrs := tx.GetSigners()
 		signerAccs := make([]std.Account, len(signerAddrs))
+		signerKeys := make([]std.AccountKey, len(signerAddrs))
 		isGenesis := ctx.BlockHeight() == 0
 
 		// fetch first signer, who's going to pay the fees
