@@ -6,7 +6,7 @@ import (
 	"io"
 	"sort"
 
-	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm/pkg/doc"
 )
 
 // MockPackage represents a mock package with files and function signatures.
@@ -14,7 +14,7 @@ type MockPackage struct {
 	Path      string
 	Domain    string
 	Files     map[string]string // filename -> body
-	Functions []vm.FunctionSignature
+	Functions []*doc.JSONFunc
 }
 
 // MockWebClient is a mock implementation of the Client interface.
@@ -67,14 +67,14 @@ func (m *MockWebClient) SourceFile(w io.Writer, pkgPath, fileName string, isRaw 
 	return nil, ErrClientPathNotFound
 }
 
-// Functions simulates retrieving function signatures from a package.
-func (m *MockWebClient) Functions(path string) ([]vm.FunctionSignature, error) {
+// Doc simulates retrieving function docs from a package.
+func (m *MockWebClient) Doc(path string) (*doc.JSONDocumentation, error) {
 	pkg, exists := m.Packages[path]
 	if !exists {
 		return nil, ErrClientPathNotFound
 	}
 
-	return pkg.Functions, nil
+	return &doc.JSONDocumentation{Funcs: pkg.Functions}, nil
 }
 
 // Sources simulates listing all source files in a package.
@@ -101,7 +101,7 @@ func pkgHasRender(pkg *MockPackage) bool {
 	}
 
 	for _, fn := range pkg.Functions {
-		if fn.FuncName == "Render" &&
+		if fn.Name == "Render" &&
 			len(fn.Params) == 1 &&
 			len(fn.Results) == 1 &&
 			fn.Params[0].Type == "string" &&

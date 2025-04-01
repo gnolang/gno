@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
-	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,13 +34,13 @@ func TestWebHandler_Get(t *testing.T) {
 			"gno.mod":    `module example.com/r/mock/path`,
 			"LicEnse":    `my super license`,
 		},
-		Functions: []vm.FunctionSignature{
-			{FuncName: "SuperRenderFunction", Params: []vm.NamedType{
+		Functions: []*doc.JSONFunc{
+			{Name: "SuperRenderFunction", Params: []*doc.JSONField{
 				{Name: "my_super_arg", Type: "string"},
 			}},
 			{
-				FuncName: "Render", Params: []vm.NamedType{{Name: "path", Type: "string"}},
-				Results: []vm.NamedType{{Name: "", Type: "string"}},
+				Name: "Render", Params: []*doc.JSONField{{Name: "path", Type: "string"}},
+				Results: []*doc.JSONField{{Name: "", Type: "string"}},
 			},
 		},
 	}
