@@ -1,0 +1,88 @@
+-- input.md --
+<gno-columns>
+<col>
+  <col>
+## Title 1.1
+content 1.1
+  </col>
+  <col>
+## Title 1.2
+content 1.2
+  </col>
+</col>
+
+<col>
+  <col>
+## Title 2.1
+content 2.1
+  </col>
+  <col>
+    <col>
+## Title 2.2.1
+content 2.2.1
+    </col>
+    <col>
+## Title 2.2.2
+content 2.2.2
+    </col>
+  </col>
+</col>
+
+<col>
+## Title 3
+content 3
+</col>
+
+<col>
+## Title 4
+content 4
+</col>
+</gno-columns>
+
+-- output.html --
+<div class="gno-columns">
+<!-- Column 1 -->
+<div class="gno-col">
+	<!-- Column 2 -->
+<div class="gno-col">
+<h2>Title 1.1</h2>
+<p>content 1.1</p>
+</div>
+	<!-- Column 3 -->
+<div class="gno-col">
+<h2>Title 1.2</h2>
+<p>content 1.2</p>
+</div>
+</div>
+<!-- Column 4 -->
+<div class="gno-col">
+	<!-- Column 5 -->
+<div class="gno-col">
+<h2>Title 2.1</h2>
+<p>content 2.1</p>
+</div>
+	<!-- Column 6 -->
+<div class="gno-col">
+		<!-- Column 7 -->
+<div class="gno-col">
+<h2>Title 2.2.1</h2>
+<p>content 2.2.1</p>
+</div>
+		<!-- Column 8 -->
+<div class="gno-col">
+<h2>Title 2.2.2</h2>
+<p>content 2.2.2</p>
+</div>
+</div>
+</div>
+<!-- Column 9 -->
+<div class="gno-col">
+<h2>Title 3</h2>
+<p>content 3</p>
+</div>
+<!-- Column 10 -->
+<div class="gno-col">
+<h2>Title 4</h2>
+<p>content 4</p>
+</div>
+</div> <!-- </gno-columns> -->

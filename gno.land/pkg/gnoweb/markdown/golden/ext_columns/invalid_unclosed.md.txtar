@@ -1,0 +1,42 @@
+-- input.md --
+<gno-columns>
+<col>
+## Hello 1
+</col>
+
+<gno-columns>
+<col>
+## Hello 2
+</col>
+<col>
+## Hello 3
+
+<gno-columns>
+
+<col>
+## Hello 4
+
+</gno-columns>
+
+-- output.html --
+<div class="gno-columns">
+<!-- Column 1 -->
+<div class="gno-col">
+<h2>Hello 1</h2>
+</div>
+<!-- unexpected/invalid "ColumnTagOpen" omitted -->
+<!-- Column 2 -->
+<div class="gno-col">
+<h2>Hello 2</h2>
+</div>
+<!-- Column 3 -->
+<div class="gno-col">
+<h2>Hello 3</h2>
+<!-- unexpected/invalid "ColumnTagOpen" omitted -->
+	<!-- Column 4 -->
+<div class="gno-col">
+<h2>Hello 4</h2>
+<!-- unexpected/invalid "ColumnTagClose" omitted -->
+</div>
+</div>
+</div> <!-- </gno-columns> -->
