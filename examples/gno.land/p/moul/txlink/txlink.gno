@@ -158,13 +158,12 @@ func (r Realm) Call(fn string, args ...string) string {
 	// Check if args length is even
 	if len(args)%2 != 0 {
 		panic("odd number of arguments")
-	} else {
-		// Add key-value pairs to values
-		for i := 0; i < len(args); i += 2 {
-			key := args[i]
-			value := args[i+1]
-			values.Add(key, value)
-		}
+	}
+	// Add key-value pairs to values
+	for i := 0; i < len(args); i += 2 {
+		key := args[i]
+		value := args[i+1]
+		values.Add(key, value)
 	}
 
 	// Build the base URL and append encoded query parameters

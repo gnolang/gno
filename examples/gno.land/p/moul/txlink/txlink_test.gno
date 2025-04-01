@@ -37,6 +37,17 @@ func TestCall(t *testing.T) {
 	for _, tt := range tests {
 		title := string(tt.realm) + "_" + tt.fn
 		t.Run(title, func(t *testing.T) {
+			if tt.fn == "oddArgsFunc" {
+				defer func() {
+					if r := recover(); r != nil {
+						if r != "odd number of arguments" {
+							t.Errorf("expected panic with message 'odd number of arguments', got: %v", r)
+						}
+					} else {
+						t.Error("expected panic for odd number of arguments, but did not panic")
+					}
+				}()
+			}
 			got := tt.realm.Call(tt.fn, tt.args...)
 			urequire.Equal(t, tt.want, got)
 		})
