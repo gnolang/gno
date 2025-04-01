@@ -182,7 +182,7 @@ func (s *HTMLWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL) (*RealmMeta, 
 	const qpath = "vm/qrender"
 
 	pkgPath := strings.Trim(u.Path, "/")
-	data := fmt.Sprintf("%s/%s:%s", s.domain, pkgPath, u.Args)
+	data := fmt.Sprintf("%s/%s:%s", s.domain, pkgPath, u.EncodeArgs())
 
 	rawres, err := s.query(qpath, []byte(data))
 	if err != nil {

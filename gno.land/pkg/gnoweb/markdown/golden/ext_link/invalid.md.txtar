@@ -1,0 +1,6 @@
+-- input.md --
+[Invalid char](https://example.com|)
+[Invalid new line](https://example.com\n)
+-- output.html --
+<p><!-- invalid link "https://example.com|" -->
+<!-- invalid link "https://example.com\\n" --></p>

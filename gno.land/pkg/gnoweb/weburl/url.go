@@ -12,9 +12,6 @@ import (
 
 var ErrURLInvalidPath = errors.New("invalid path")
 
-// rePkgOrRealmPath matches and validates a flexible path.
-var rePkgOrRealmPath = regexp.MustCompile(`^/[a-z0-9_/]*$`)
-
 // GnoURL decomposes the parts of an URL to query a realm.
 type GnoURL struct {
 	// Example full path:
@@ -156,6 +153,9 @@ func (gnoURL GnoURL) IsDir() bool {
 		len(gnoURL.Path) > 0 && gnoURL.Path[len(gnoURL.Path)-1] == '/'
 }
 
+// rePkgOrRealmPath matches and validates a flexible path.
+var rePkgOrRealmPath = regexp.MustCompile(`^/[a-z][a-z0-9_/]*$`)
+
 func (gnoURL GnoURL) IsValid() bool {
 	return rePkgOrRealmPath.MatchString(gnoURL.Path)
 }
@@ -205,10 +205,6 @@ func ParseFromURL(u *url.URL) (*GnoURL, error) {
 		if i := strings.LastIndexByte(upath, '/'); i > 0 {
 			upath = upath[:i]
 		}
-	}
-
-	if !rePkgOrRealmPath.MatchString(upath) {
-		return nil, fmt.Errorf("%w: %q", ErrURLInvalidPath, upath)
 	}
 
 	webquery := url.Values{}
