@@ -116,6 +116,7 @@ func TestCreateMembers(t *testing.T) {
 
 func addMembers(ms MembersByTier, c int, tier string) {
 	mt := avl.NewTree()
+	ms.SetTier(tier)
 	for i := 0; i < c; i++ {
 		addr := std.Address(strconv.Itoa(i) + tier)
 		if err := ms.SetMember(tier, addr, &Member{}); err != nil {

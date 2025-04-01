@@ -57,10 +57,23 @@ type proposalStatus struct {
 }
 
 func newProposalStatus(allowedToVote []string) *proposalStatus {
+	yv := memberstore.NewMembersByTier()
+	yv.SetTier(memberstore.T1)
+	yv.SetTier(memberstore.T2)
+	yv.SetTier(memberstore.T3)
+	nv := memberstore.NewMembersByTier()
+	nv.SetTier(memberstore.T1)
+	nv.SetTier(memberstore.T2)
+	nv.SetTier(memberstore.T3)
+	av := memberstore.NewMembersByTier()
+	av.SetTier(memberstore.T1)
+	av.SetTier(memberstore.T2)
+	av.SetTier(memberstore.T3)
+
 	return &proposalStatus{
-		YesVotes: memberstore.NewMembersByTier(),
-		NoVotes:  memberstore.NewMembersByTier(),
-		AllVotes: memberstore.NewMembersByTier(),
+		YesVotes: yv,
+		NoVotes:  nv,
+		AllVotes: av,
 
 		TiersAllowedToVote: allowedToVote,
 

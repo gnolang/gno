@@ -1,6 +1,7 @@
 package memberstore
 
 import (
+	"errors"
 	"std"
 
 	"gno.land/p/demo/avl"
@@ -35,6 +36,16 @@ func NewMembersByTier() MembersByTier {
 	return MembersByTier{avl.NewTree()}
 }
 
+func (mbt MembersByTier) SetTier(tier string) error {
+	if ok := mbt.Has(tier); ok {
+		return errors.New("tier already exist: " + tier)
+	}
+
+	mbt.Set(tier, avl.NewTree())
+
+	return nil
+}
+
 // GetTierSize tries to get how many members are on the specified tier. If the tier does not exists, it returns 0.
 func (mbt MembersByTier) GetTierSize(tn string) int {
 	tv, ok := mbt.Get(tn)
@@ -58,7 +69,7 @@ func (mbt MembersByTier) SetMember(tier string, addr std.Address, member *Member
 	}
 
 	if ok := mbt.Has(tier); !ok {
-		mbt.Set(tier, avl.NewTree())
+		return errors.New("tier does not exist: " + tier)
 	}
 
 	ms, _ := mbt.Get(tier)
@@ -77,21 +88,20 @@ func (mbt MembersByTier) GetMember(addr std.Address) (m *Member, t string) {
 			panic("MembersByTier values can only be avl.Tree")
 		}
 
-		return mst.Iterate("", "", func(ma string, msv interface{}) bool {
-			if ma != string(addr) {
-				return false
-			}
+		mv, ok := mst.Get(string(addr))
+		if !ok {
+			return false
+		}
 
-			mst, ok := msv.(*Member)
-			if !ok {
-				panic("MembersByTier values can only be *Member")
-			}
+		mm, ok := mv.(*Member)
+		if !ok {
+			panic("MembersByTier values can only be *Member")
+		}
 
-			m = mst
-			t = tn
+		m = mm
+		t = tn
 
-			return true
-		})
+		return true
 	})
 
 	return
@@ -134,9 +144,6 @@ func (mbt MembersByTier) GetTotalPower() float64 {
 type Tier struct {
 	// BasePower defines the standard voting power for the members on this tier.
 	BasePower float64
-
-	// Payment defines what will be the amount being paid to Members on different tiers. The payment itself will be good, but not exceed 90th percentile of senior software architect roles in the highest paid city globally.
-	Payment int // TODO: implement payment.
 
 	// InvitationPoints defines how many invitation points users on that tier will receive.
 	InvitationPoints int

@@ -35,6 +35,10 @@ var (
 
 // TODO: This is not needed right now. Tests keep the same vm state: https://github.com/gnolang/gno/issues/1982
 func loadMembers() {
+	memberstore.Get().SetTier(memberstore.T1)
+	memberstore.Get().SetTier(memberstore.T2)
+	memberstore.Get().SetTier(memberstore.T3)
+
 	memberstore.Get().SetMember(memberstore.T1, m1, memberByTier(memberstore.T1))
 	memberstore.Get().SetMember(memberstore.T1, m11, memberByTier(memberstore.T1))
 	memberstore.Get().SetMember(memberstore.T1, m111, memberByTier(memberstore.T1))

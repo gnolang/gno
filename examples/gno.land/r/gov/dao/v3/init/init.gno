@@ -16,6 +16,7 @@ func Init() {
 }
 
 func InitWithUsers(addrs ...std.Address) {
+	memberstore.Get().SetTier(memberstore.T1)
 	for _, a := range addrs {
 		memberstore.Get().SetMember(memberstore.T1, a, &memberstore.Member{InvitationPoints: 3})
 	}

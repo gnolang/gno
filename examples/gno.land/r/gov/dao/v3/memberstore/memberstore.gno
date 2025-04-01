@@ -22,7 +22,6 @@ func init() {
 	Tiers = TiersByName{avl.NewTree()}
 	Tiers.Set(T1, Tier{
 		InvitationPoints: 3,
-		Payment:          90000,
 		MinSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
 			return 70
 		},
@@ -37,7 +36,6 @@ func init() {
 
 	Tiers.Set(T2, Tier{
 		InvitationPoints: 2,
-		Payment:          90000,
 		MaxSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
 			return membersByTier.GetTierSize(T1) * 2
 		},
@@ -66,7 +64,6 @@ func init() {
 
 	Tiers.Set(T3, Tier{
 		InvitationPoints: 1,
-		Payment:          0,
 		MaxSize: func(membersByTier MembersByTier, tiersByName TiersByName) int {
 			return 0
 		},
@@ -97,7 +94,7 @@ func init() {
 // Get gets the Members store
 func Get() MembersByTier {
 	realm := std.PreviousRealm().PkgPath()
-	if dao.InAllowedDAOsIndex(realm) < 0 {
+	if !dao.InAllowedDAOs(realm) {
 		panic("this Realm is not allowed to get the Members data: " + realm)
 	}
 

@@ -64,7 +64,7 @@ func CreateProposal(r ProposalRequest) (ProposalID, error) {
 		title:       r.title,
 		description: r.description,
 		executor:    r.executor,
-		allowedDAOs: AllowedDAOs,
+		allowedDAOs: AllowedDAOs[:],
 	}
 
 	pid := proposals.SetProposal(p)
@@ -127,7 +127,8 @@ func GetProposal(pid ProposalID) (*Proposal, error) {
 // implementation wont be able to execute new Proposals!
 func UpdateImpl(r UpdateRequest) {
 	realm := std.PreviousRealm().PkgPath()
-	if index(realm) < 0 {
+
+	if !InAllowedDAOs(realm) {
 		panic("permission denied for prev realm: " + realm)
 	}
 
@@ -140,20 +141,14 @@ func UpdateImpl(r UpdateRequest) {
 	}
 }
 
-func InAllowedDAOsIndex(pkg string) int {
-	return index(pkg)
-}
-
-func index(pkg string) int {
+func InAllowedDAOs(pkg string) bool {
 	if len(AllowedDAOs) == 0 {
-		return 0 // corner case for initialization
+		return true // corner case for initialization
 	}
-
-	for i, d := range AllowedDAOs {
+	for _, d := range AllowedDAOs {
 		if pkg == d {
-			return i
+			return true
 		}
 	}
-
-	return -1
+	return false
 }

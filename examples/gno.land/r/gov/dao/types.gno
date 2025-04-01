@@ -1,9 +1,11 @@
 package dao
 
 import (
+	"errors"
 	"std"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 )
 
@@ -103,7 +105,7 @@ func (p *Proposal) AllowedDAOs() []string {
 }
 
 type Proposals struct {
-	seq       int64
+	seq       seqid.ID
 	*avl.Tree // *avl.Tree[ProposalID]*Proposal
 }
 
@@ -112,12 +114,14 @@ func NewProposals() *Proposals {
 }
 
 func (ps *Proposals) SetProposal(p *Proposal) ProposalID {
-	pid := ProposalID(ps.seq)
+	pid := ProposalID(int64(ps.seq))
 	updated := ps.Set(pid.String(), p)
 	if updated {
 		panic("fatal error: Override proposals is not allowed")
 	}
-	ps.seq = ps.seq + 1
+
+	ps.seq = ps.seq.Next()
+
 	return pid
 }
 
@@ -142,6 +146,8 @@ func NewSimpleExecutor(callback func() error, description string) *SimpleExecuto
 	}
 }
 
+// SimpleExecutor implements the Executor interface using
+// a callback function and a description string.
 type SimpleExecutor struct {
 	callback func() error
 	desc     string
@@ -153,6 +159,31 @@ func (e *SimpleExecutor) Execute() error {
 
 func (e *SimpleExecutor) String() string {
 	return e.desc
+}
+
+func NewSafeExecutor(e Executor) *SafeExecutor {
+	return &SafeExecutor{
+		e: e,
+	}
+}
+
+// SafeExecutor wraps an Executor to only allow its execution
+// by allowed govDAOs.
+type SafeExecutor struct {
+	e Executor
+}
+
+func (e *SafeExecutor) Execute() error {
+	// Verify the caller is an adequate Realm
+	if !InAllowedDAOs(std.CurrentRealm().PkgPath()) {
+		return errors.New("execution only allowed by validated govDAOs")
+	}
+
+	return e.e.Execute()
+}
+
+func (e *SafeExecutor) String() string {
+	return e.e.String()
 }
 
 type DAO interface {
