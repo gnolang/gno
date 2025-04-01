@@ -2,8 +2,10 @@ package std
 
 import (
 	"crypto/bech32"
+	"crypto/ripemd160"
 	"crypto/sha256"
 	"errors"
+	"strings"
 )
 
 type Address string // NOTE: bech32
@@ -39,6 +41,29 @@ func DecodeBech32(addr Address) (string, [20]byte, bool) {
 		return "", [20]byte{}, false
 	}
 	return prefix, convertTo20Byte(bz), true
+}
+
+func PubkeyToAddress(publicKey string) (Address, error) {
+	_, bz, err := decodeAndConvert(publicKey)
+	if err != nil {
+		return "", err
+	}
+	//XXX: the bytes we recover here are in the form:
+	/// /tm.KEY_TYPE#\n!ACTUAL_KEY_BYES
+	// so we need to split the string in order to get the actual key bytes
+	// we also ensure that the type of the key is supported right now just PubKeySecp256k1
+	parts := strings.Split(string(bz), "#\n!")
+	keyType := parts[0]
+	keyBytes := []byte(parts[1])
+
+	if !strings.Contains(keyType, "/tm.PubKeySecp256k1") {
+		return "", errors.New("invalid public key type")
+	}
+
+	sha := sha256.Sum256(keyBytes)
+	hasherRIPEMD160 := ripemd160.New()
+	hasherRIPEMD160.Write(sha[:])
+	return EncodeBech32(bech32AddrPrefix, convertTo20Byte(hasherRIPEMD160.Sum(nil))), nil
 }
 
 func convertAndEncode(hrp string, data []byte) (string, error) {
