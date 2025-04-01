@@ -32,6 +32,9 @@ func MustCreateProposal(r ProposalRequest) ProposalID {
 	return pid
 }
 
+// ExecuteProposal will try to execute the proposal with the provided ProposalID.
+// If the proposal was denied, it will return false. If the proposal is correctly
+// executed, it will return true. If something happens this function will panic.
 func ExecuteProposal(pid ProposalID) bool {
 	execute, err := dao.PreExecuteProposal(pid)
 	if err != nil {
