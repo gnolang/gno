@@ -26,7 +26,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 	t.Run("remove an unexisting validator", func(t *testing.T) {
 		// Send coins to be able to register a valoper
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)}, nil)
+		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)})
 
 		uassert.NotPanics(t, func() {
 			valopers.Register(moniker, description, test1Address, pubKey)
@@ -40,7 +40,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		})
 
 		// Send coins to be able to make a proposal
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)}, nil)
+		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
 		uassert.PanicsWithMessage(t, ErrValidatorMissing.Error(), func() {
 			ProposeNewValidator(test1Address)
@@ -49,7 +49,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 	t.Run("proposal successfully created", func(t *testing.T) {
 		// Send coins to be able to register a valoper
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)}, nil)
+		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)})
 
 		uassert.NotPanics(t, func() {
 			valopers.UpdateKeepRunning(test1Address, true)
@@ -66,7 +66,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		currentSize := propStore.Size()
 
 		// Send coins to be able to make a proposal
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)}, nil)
+		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
 		uassert.NotPanics(t, func() {
 			ProposeNewValidator(test1Address)
@@ -89,7 +89,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 	t.Run("try to update a validator with the same values", func(t *testing.T) {
 		// Send coins to be able to register a valoper
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)}, nil)
+		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)})
 
 		var valoper valopers.Valoper
 
@@ -102,7 +102,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		currentSize := propStore.Size()
 
 		// Set a GovDAO member as the caller
-		std.TestSetOriginCaller(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
+		testing.SetOriginCaller(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
 
 		uassert.NotPanics(t, func() {
 			// Vote the proposal created in the previous test
@@ -113,7 +113,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		})
 
 		// Send coins to be able to make a proposal
-		std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)}, nil)
+		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
 		uassert.PanicsWithMessage(t, ErrSameValues.Error(), func() {
 			ProposeNewValidator(test1Address)
@@ -132,7 +132,7 @@ func TestValopers_ProposeNewInstructions(t *testing.T) {
 	currentSize := propStore.Size()
 
 	// Send coins to be able to make a proposal
-	std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)}, nil)
+	testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
 	uassert.NotPanics(t, func() {
 		ProposeNewInstructions(newInstructions)
@@ -157,7 +157,7 @@ func TestValopers_ProposeNewMinFee(t *testing.T) {
 	currentSize := propStore.Size()
 
 	// Send coins to be able to make a proposal
-	std.TestSetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)}, nil)
+	testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
 
 	uassert.NotPanics(t, func() {
 		ProposeNewMinFee(newMinFee)

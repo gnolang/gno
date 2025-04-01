@@ -124,6 +124,6 @@ func (ak AccountKeeper) GetParams(ctx sdk.Context) Params {
 	return params
 }
 
-func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
+func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	// XXX validate input?
 }
