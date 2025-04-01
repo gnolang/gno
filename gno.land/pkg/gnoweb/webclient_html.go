@@ -52,7 +52,8 @@ func NewDefaultHTMLWebClientConfig(client *client.RPCClient) *HTMLWebClientConfi
 			),
 			extension.Strikethrough,
 			extension.Table,
-			md.Links,
+
+			md.GnoExtension,
 		),
 	}
 
@@ -177,7 +178,7 @@ func (s *HTMLWebClient) Sources(path string) ([]string, error) {
 // RenderRealm renders the content of a realm from a given path
 // and arguments into the provided writer. It uses Goldmark for
 // Markdown processing to generate HTML content.
-func (s *HTMLWebClient) RenderRealm(w io.Writer, u weburl.GnoURL) (*RealmMeta, error) {
+func (s *HTMLWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL) (*RealmMeta, error) {
 	const qpath = "vm/qrender"
 
 	pkgPath := strings.Trim(u.Path, "/")

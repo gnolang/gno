@@ -13,7 +13,7 @@ import (
 var ErrURLInvalidPath = errors.New("invalid path")
 
 // rePkgOrRealmPath matches and validates a flexible path.
-var rePkgOrRealmPath = regexp.MustCompile(`^/[a-z][a-z0-9_/]*$`)
+var rePkgOrRealmPath = regexp.MustCompile(`^/[a-z0-9_/]*$`)
 
 // GnoURL decomposes the parts of an URL to query a realm.
 type GnoURL struct {
@@ -160,8 +160,24 @@ func (gnoURL GnoURL) IsValid() bool {
 	return rePkgOrRealmPath.MatchString(gnoURL.Path)
 }
 
-// ParseGnoURL parses a URL into a GnoURL structure, extracting and validating its components.
-func ParseGnoURL(u *url.URL, defaultDomain string) (*GnoURL, error) {
+var reNamespace = regexp.MustCompile(`^/[a-z]/[a-z][a-z0-9_/]*$`)
+
+// Extract the package name from the path (e.g., "/r/test/foo" -> "test")
+func (gnoURL GnoURL) Namespace() string {
+	if !reNamespace.MatchString(gnoURL.Path) {
+		return ""
+	}
+
+	path := gnoURL.Path[3:] // skip `/x/`
+	if idx := strings.Index(path, "/"); idx > 1 {
+		return path[:idx] // namespace
+	}
+
+	return path
+}
+
+// ParseFromURL parses a URL into a GnoURL structure, extracting and validating its components.
+func ParseFromURL(u *url.URL) (*GnoURL, error) {
 	var webargs string
 	path, args, found := strings.Cut(u.EscapedPath(), ":")
 	if found {
@@ -208,20 +224,23 @@ func ParseGnoURL(u *url.URL, defaultDomain string) (*GnoURL, error) {
 		return nil, fmt.Errorf("unable to unescape args %q: %w", args, err)
 	}
 
-	// Use the provided domain if the URL's hostname is empty
-	domain := u.Hostname()
-	if domain == "" {
-		domain = defaultDomain
-	}
-
 	return &GnoURL{
 		Path:     upath,
 		Args:     uargs,
 		WebQuery: webquery,
 		Query:    u.Query(),
-		Domain:   domain,
+		Domain:   u.Hostname(),
 		File:     file,
 	}, nil
+}
+
+func Parse(u string) (gnourl *GnoURL, err error) {
+	var pu *url.URL
+	if pu, err = url.Parse(u); err == nil {
+		gnourl, err = ParseFromURL(pu)
+	}
+
+	return gnourl, err
 }
 
 // EncodeValues generates a URL-encoded query string from the given url.Values.
