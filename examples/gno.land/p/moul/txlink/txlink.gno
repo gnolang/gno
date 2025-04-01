@@ -85,7 +85,7 @@ func (b *TxBuilder) AddArgs(args ...string) *TxBuilder {
 		return nil
 	}
 	if len(args)%2 != 0 {
-		return b.AddArg("error", "odd number of arguments")
+		panic("odd number of arguments")
 	}
 	// Add key-value pairs
 	for i := 0; i < len(args); i += 2 {
@@ -157,7 +157,7 @@ func (r Realm) Call(fn string, args ...string) string {
 
 	// Check if args length is even
 	if len(args)%2 != 0 {
-		values.Add("error", "odd number of arguments")
+		panic("odd number of arguments")
 	} else {
 		// Add key-value pairs to values
 		for i := 0; i < len(args); i += 2 {
