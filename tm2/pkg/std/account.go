@@ -41,6 +41,7 @@ type Account interface {
 	GetSession(pubKey crypto.PubKey) (AccountKey, error)
 	AddSession(pubKey crypto.PubKey) (AccountKey, error)
 	DelSession(pubKey crypto.PubKey) error
+	DelAllSessions() error
 
 	// Get all keys (both root key and sessions)
 	GetAllKeys() []AccountKey
@@ -107,12 +108,12 @@ func ProtoBaseAccount() Account {
 	return &BaseAccount{}
 }
 
-// GetAddress - Implements Account.
+// GetAddress implements Account.
 func (acc BaseAccount) GetAddress() crypto.Address {
 	return acc.Address
 }
 
-// SetAddress - Implements Account.
+// SetAddress implements Account.
 func (acc *BaseAccount) SetAddress(addr crypto.Address) error {
 	if !acc.Address.IsZero() {
 		return errors.New("cannot override BaseAccount address")
@@ -121,29 +122,29 @@ func (acc *BaseAccount) SetAddress(addr crypto.Address) error {
 	return nil
 }
 
-// GetCoins - Implements Account.
+// GetCoins implements Account.
 func (acc *BaseAccount) GetCoins() Coins {
 	return acc.Coins
 }
 
-// SetCoins - Implements Account.
+// SetCoins implements Account.
 func (acc *BaseAccount) SetCoins(coins Coins) error {
 	acc.Coins = coins
 	return nil
 }
 
-// GetAccountNumber - Implements Account.
+// GetAccountNumber implements Account.
 func (acc *BaseAccount) GetAccountNumber() uint64 {
 	return acc.AccountNumber
 }
 
-// SetAccountNumber - Implements Account.
+// SetAccountNumber implements Account.
 func (acc *BaseAccount) SetAccountNumber(accNumber uint64) error {
 	acc.AccountNumber = accNumber
 	return nil
 }
 
-// AddSession - Implements Account.
+// AddSession implements Account.
 func (acc *BaseAccount) AddSession(pubKey crypto.PubKey) (AccountKey, error) {
 	// Check if the pubkey is the root key.
 	if acc.RootKey.GetPubKey().Equals(pubKey) {
@@ -182,23 +183,23 @@ func (acc *BaseAccount) GetAllKeys() []AccountKey {
 	return append([]AccountKey{acc.RootKey}, acc.Sessions...)
 }
 
-// GetRootKey - Implements Account.
+// GetRootKey implements Account.
 func (acc *BaseAccount) GetRootKey() AccountKey {
 	return acc.RootKey
 }
 
-// SetGlobalSequence - Implements Account.
+// SetGlobalSequence implements Account.
 func (acc *BaseAccount) SetGlobalSequence(globalSequence uint64) error {
 	acc.GlobalSequence = globalSequence
 	return nil
 }
 
-// GetGlobalSequence - Implements Account.
+// GetGlobalSequence implements Account.
 func (acc *BaseAccount) GetGlobalSequence() uint64 {
 	return acc.GlobalSequence
 }
 
-// DelSession - Implements Account.
+// DelSession implements Account.
 func (acc *BaseAccount) DelSession(pubKey crypto.PubKey) error {
 	for i, sess := range acc.Sessions {
 		if sess.GetPubKey().Equals(pubKey) {
@@ -210,7 +211,13 @@ func (acc *BaseAccount) DelSession(pubKey crypto.PubKey) error {
 	return errors.New("session not found")
 }
 
-// GetSession - Implements Account.
+// DelAllSessions implements Account.
+func (acc *BaseAccount) DelAllSessions() error {
+	acc.Sessions = []AccountKey{}
+	return nil
+}
+
+// GetSession implements Account.
 func (acc *BaseAccount) GetSession(pubKey crypto.PubKey) (AccountKey, error) {
 	for _, sess := range acc.Sessions {
 		if sess.GetPubKey().Equals(pubKey) {
@@ -231,6 +238,11 @@ type BaseAccountKey struct {
 	Sequence uint64        `json:"sequence" yaml:"sequence"`
 }
 
+// ProtoBaseAccountKey - a prototype function for BaseAccountKey
+func ProtoBaseAccountKey() AccountKey {
+	return &BaseAccountKey{}
+}
+
 func NewBaseAccountKey(pubKey crypto.PubKey, sequence uint64) *BaseAccountKey {
 	return &BaseAccountKey{
 		PubKey:   pubKey,
@@ -238,6 +250,7 @@ func NewBaseAccountKey(pubKey crypto.PubKey, sequence uint64) *BaseAccountKey {
 	}
 }
 
+// String implements AccountKey and fmt.Stringer	.
 func (k BaseAccountKey) String() string {
 	var pubkey string
 	if k.PubKey != nil {
@@ -250,19 +263,23 @@ func (k BaseAccountKey) String() string {
 	)
 }
 
+// GetPubKey implements AccountKey.
 func (k BaseAccountKey) GetPubKey() crypto.PubKey {
 	return k.PubKey
 }
 
+// SetPubKey implements AccountKey.
 func (k *BaseAccountKey) SetPubKey(pubKey crypto.PubKey) error {
 	k.PubKey = pubKey
 	return nil
 }
 
+// GetSequence implements AccountKey.
 func (k BaseAccountKey) GetSequence() uint64 {
 	return k.Sequence
 }
 
+// SetSequence implements AccountKey.
 func (k *BaseAccountKey) SetSequence(seq uint64) error {
 	k.Sequence = seq
 	return nil

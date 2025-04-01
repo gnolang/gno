@@ -279,8 +279,8 @@ func ProcessPubKey(acc std.Account, sig std.Signature) (crypto.PubKey, sdk.Resul
 	}
 
 	// Case 1: If account has no master pubkey/session, set it from the signature
-	sess := acc.GetMasterSession()
-	if sess == nil {
+	rootKey := acc.GetRootKey()
+	if rootKey == nil {
 		// Verify the signature's pubkey matches the account address
 		if sigPubKey.Address() != acc.GetAddress() {
 			return nil, abciResult(std.ErrInvalidPubKey(
@@ -290,9 +290,9 @@ func ProcessPubKey(acc std.Account, sig std.Signature) (crypto.PubKey, sdk.Resul
 	}
 
 	// Case 2: Check if it's a valid session key
-	sess, err := acc.GetSession(sigPubKey)
+	_, err := acc.GetSession(sigPubKey)
 	if err != nil {
-		return nil, abciResult(std.ErrUnauthorized(
+		return nil, abciResult(std.ErrInvalidPubKey(
 			fmt.Sprintf("pubkey %s is not associated with account %s",
 				sigPubKey.Address(), acc.GetAddress())))
 	}
