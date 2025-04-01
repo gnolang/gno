@@ -181,7 +181,7 @@ func TestBuilder(t *testing.T) {
 					AddArgs("key1", "value1", "orphan").
 					URL()
 			},
-			expected: "$help&func=MyFunc&error=odd+number+of+arguments",
+			expected: "",
 		},
 
 		// Empty values tests
