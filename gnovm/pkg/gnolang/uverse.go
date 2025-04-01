@@ -1,5 +1,7 @@
 package gnolang
 
+// XXX append and delete need checks too.
+
 import (
 	"bytes"
 	"fmt"
@@ -743,6 +745,67 @@ func makeUverseNode() {
 			} else {
 				m.PushValue(exception.Value)
 			}
+		},
+	)
+	defNative("switchrealm",
+		nil, // params
+		nil, // results
+		func(m *Machine) {
+			stmt := m.PeekStmt(1)
+			bs, ok := stmt.(*bodyStmt)
+			if !ok {
+				panic("unexpected origin of switchrealm call")
+			}
+			if bs.NextBodyIndex != 1 {
+				panic("switchrealm call must be the first call of a function or method")
+			}
+			fr2 := m.LastCallFrame(1) // fr2.LastPackage created fr.
+			if !fr2.LastPackage.IsRealm() {
+				panic("switchrealm call only allowed in realm packages") // XXX test
+			}
+			// Verify hard-switch or soft-switch.
+			// NOTE: fr.IsHardSwitch() may or may not be true
+			// because soft switches can be stacked.
+			found := false
+			for i := 2; ; i++ {
+				fr3 := m.LastCallFrame(i)
+				if fr3.IsHardSwitch() || fr3.IsSoftSwitch() {
+					// NOTE: fr3.IsSoftSwitch() implies
+					// everything under it is also valid.
+					found = true
+					break
+				}
+				// Neither hard-switxh nor soft-switch, yet
+				// Realm already switched implicitly.
+				if fr3.LastRealm != m.Realm {
+					fmt.Println(">>>", fr3.LastRealm)
+					fmt.Println(">>>", m.Realm)
+					panic("switchrealm could not find corresponding withswitch(fn)(...) call")
+				}
+			}
+			if !found {
+				fmt.Println("QWEQWEQWEQWEQWEQWEQWEQWEQWE WTF")
+				panic("couldnt find it")
+			}
+			// Valid. Set soft switch.
+			fr := m.LastCallFrame(2)
+			fr.SetSoftSwitch()
+		},
+	)
+	defNative("withswitch",
+		Flds( // param
+			"x", GenT("X", nil),
+		),
+		Flds( // results
+			"x", GenT("X", nil),
+		),
+		func(m *Machine) {
+			// This is handled by op_call instead.
+			panic("withswitch is a virtual function")
+			/*
+				arg0 := m.LastBlock().GetParams1()
+				m.PushValue(arg0.Deref())
+			*/
 		},
 	)
 	uverseValue = uverseNode.NewPackage()

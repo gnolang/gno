@@ -14,10 +14,23 @@ func getPreviousRealm() std.Realm {
 }
 
 func Exec(fn func()) {
+	switchrealm()
+
+	println("Exec...")
+	println(std.CurrentRealm())
 	fn()
 }
 
 func main() {
+	withswitch(main2)()
+	//main2()
+}
+
+func main2() {
+	switchrealm()
+
+	println("mmmmmain")
+	println(std.CurrentRealm())
 	// Create a map of the potential callers, this will give more understandable
 	// output than the bech32 addresses.
 	callersByAddr := make(map[std.Address]string)
@@ -73,13 +86,18 @@ func main() {
 
 	baseCallStack := "user1.gno -> r/crossrealm_test.main"
 	for i, tt := range tests {
+		println("OOOH", i)
 		printColumns(baseCallStack+tt.callStackAdd, callersByAddr[tt.callerFn().Address()])
-		Exec(func() {
+		println("OOOH2", i)
+		withswitch(Exec)(func() {
+			println("OOOH22")
 			r := tt.callerFn()
+			println("OOOH222")
 			assertRealm(r)
 			printColumns(baseCallStack+" -> r/crossrealm_test.Exec"+tt.callStackAdd, callersByAddr[r.Address()])
 		})
-		rtests.Exec(func() {
+		println("OOOH3", i)
+		withswitch(rtests.Exec)(func() {
 			r := tt.callerFn()
 			assertRealm(r)
 			printColumns(baseCallStack+" -> r/demo/tests.Exec"+tt.callStackAdd, callersByAddr[r.Address()])

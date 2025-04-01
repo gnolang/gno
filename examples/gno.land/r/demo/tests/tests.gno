@@ -10,36 +10,52 @@ import (
 var counter int
 
 func IncCounter() {
+	switchrealm()
+
 	counter++
 }
 
 func Counter() int {
+	switchrealm()
+
 	return counter
 }
 
 func CurrentRealmPath() string {
+	switchrealm()
+
 	return std.CurrentRealm().PkgPath()
 }
 
 var initOriginCaller = std.OriginCaller()
 
 func InitOriginCaller() std.Address {
+	switchrealm()
+
 	return initOriginCaller
 }
 
 func CallAssertOriginCall() {
+	switchrealm()
+
 	std.AssertOriginCall()
 }
 
 func CallIsOriginCall() bool {
+	switchrealm()
+
 	return std.PreviousRealm().IsUser()
 }
 
 func CallSubtestsAssertOriginCall() {
+	switchrealm()
+
 	rsubtests.CallAssertOriginCall()
 }
 
 func CallSubtestsIsOriginCall() bool {
+	switchrealm()
+
 	return rsubtests.CallIsOriginCall()
 }
 
@@ -53,6 +69,8 @@ type TestRealmObject struct {
 var TestRealmObjectValue TestRealmObject
 
 func ModifyTestRealmObject(t *TestRealmObject) {
+	switchrealm()
+
 	t.Field += "_modified"
 }
 
@@ -75,11 +93,15 @@ var (
 )
 
 func InitTestNodes() {
+	switchrealm()
+
 	gTestNode1 = &TestNode{Name: "first"}
 	gTestNode2 = &TestNode{Name: "second", Child: &TestNode{Name: "second's child"}}
 }
 
 func ModTestNodes() {
+	switchrealm()
+
 	tmp := &TestNode{}
 	tmp.Child = gTestNode2.Child
 	gTestNode3 = tmp // set to new-real
@@ -92,25 +114,37 @@ func PrintTestNodes() {
 }
 
 func GetPreviousRealm() std.Realm {
+	switchrealm()
+
 	return std.PreviousRealm()
 }
 
 func GetRSubtestsPreviousRealm() std.Realm {
+	switchrealm()
+
 	return rsubtests.GetPreviousRealm()
 }
 
 func Exec(fn func()) {
+	switchrealm()
+
 	fn()
 }
 
 func IsCallerSubPath() bool {
+	switchrealm()
+
 	return nestedpkg.IsCallerSubPath()
 }
 
 func IsCallerParentPath() bool {
+	switchrealm()
+
 	return nestedpkg.IsCallerParentPath()
 }
 
 func HasCallerSameNamespace() bool {
+	switchrealm()
+
 	return nestedpkg.IsSameNamespace()
 }

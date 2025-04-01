@@ -7,13 +7,15 @@ func (n nat) Add() nat {
 }
 
 func GetAbs() nat {
-	abs = []Word{0}
+	switchrealm()
 
+	abs = []Word{0}
 	return abs
 }
 
 func AbsAdd() nat {
-	rt := GetAbs().Add()
+	switchrealm()
 
+	rt := GetAbs().Add()
 	return rt
 }

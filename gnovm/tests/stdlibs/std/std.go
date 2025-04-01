@@ -88,39 +88,60 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 	// NOTE: keep in sync with stdlibs/std.getRealm
 
 	var (
-		ctx           = m.Context.(*TestExecContext)
-		currentCaller crypto.Bech32Address
-		// Keeps track of the number of times currentCaller
-		// has changed.
-		changes int
+		ctx      = m.Context.(*TestExecContext)
+		switches int // track realm hard-switches
 	)
 
 	for i := m.NumFrames() - 1; i >= 0; i-- {
 		fr := m.Frames[i]
+
+		// override implies hard switch.
 		override, overridden := ctx.RealmFrames[m.Frames[max(i-1, 0)]]
 		if !overridden &&
-			(fr.LastPackage == nil || !fr.LastPackage.IsRealm()) {
+			(fr.LastPackage == nil || !fr.LastPackage.IsRealm() || !fr.IsHardSwitch()) {
 			continue
 		}
 
-		// LastPackage is a realm. Get caller and pkgPath, and compare against
-		// currentCaller.
-		caller, pkgPath := override.Addr, override.PkgPath
+		// sanity check
 		if !overridden {
-			caller = fr.LastPackage.GetPkgAddr().Bech32()
-			pkgPath = fr.LastPackage.PkgPath
+			if !fr.IsSoftSwitch() {
+				panic("call to withswitch(fn) did not call switchrealm")
+			}
 		}
-		if caller != currentCaller {
-			if changes == height {
+
+		switches++
+		if switches > height {
+			if overridden {
+				caller, pkgPath := override.Addr, override.PkgPath
+				return string(caller), pkgPath
+			} else {
+				fr2 := m.Frames[i+1] // XXX OOOOOH NOT A CALL LOL.
+				curPkg := fr2.LastPackage
+				if curPkg == nil {
+					fmt.Println("NNNNNNNNNIL", i, fr2.String())
+					fmt.Println(m.String())
+					fmt.Println("NNNNNNNNNIL", i, fr2.String())
+				}
+				caller, pkgPath := curPkg.GetPkgAddr().Bech32(), curPkg.PkgPath
 				return string(caller), pkgPath
 			}
-			currentCaller = caller
-			changes++
+		}
+		if overridden {
+			panic("should not happen")
 		}
 	}
 
 	// Fallback case: return OriginCaller.
 	return string(ctx.OriginCaller), ""
+
+	// XXX why not be more precise?
+	if height == switches {
+		// Final case: return OriginCaller.
+		return string(ctx.OriginCaller), ""
+	} else {
+		fmt.Println("MMMMMM", m.String())
+		panic("realm frame not found. missing withswitch(fn)(...)?")
+	}
 }
 
 func X_isRealm(m *gno.Machine, pkgPath string) bool {

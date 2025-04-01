@@ -17,12 +17,13 @@ func (m *Machine) doOpPrecall() {
 			panic("should not happen")
 		}
 	}
+	isWithSwitch := cx.IsWithSwitch()
 	switch fv := v.(type) {
 	case *FuncValue:
-		m.PushFrameCall(cx, fv, TypedValue{})
+		m.PushFrameCall(cx, fv, TypedValue{}, isWithSwitch)
 		m.PushOp(OpCall)
 	case *BoundMethodValue:
-		m.PushFrameCall(cx, fv.Func, fv.Receiver)
+		m.PushFrameCall(cx, fv.Func, fv.Receiver, isWithSwitch)
 		m.PushOp(OpCall)
 	case TypeValue:
 		// Do not pop type yet.

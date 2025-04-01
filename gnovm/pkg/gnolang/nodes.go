@@ -426,8 +426,27 @@ type CallExpr struct { // Func(Args<Varg?...>)
 	Func           Expr  // function expression
 	Args           Exprs // function arguments, if any.
 	Varg           bool  // if true, final arg is variadic.
-	NumArgs        int   // len(Args) or len(Args[0].Results)
+	NumArgs        int   // len(Args) or len(Args[0].Results).
 	Addressability addressabilityStatus
+	WithSwitch     bool // if called like withswitch(fn)(...).
+}
+
+func (x *CallExpr) SetWithSwitch() {
+	if fnc, ok := x.Func.(*CallExpr); ok {
+		if inner, ok := fnc.Func.(*ConstExpr); ok {
+			if nx, ok := inner.Source.(*NameExpr); ok {
+				if nx.Name == "withswitch" {
+					x.WithSwitch = true
+					return
+				}
+			}
+		}
+	}
+	panic("expected withswitch(fn)(...)")
+}
+
+func (x *CallExpr) IsWithSwitch() bool {
+	return x.WithSwitch
 }
 
 func (x *CallExpr) addressability() addressabilityStatus {

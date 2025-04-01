@@ -1746,7 +1746,7 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // TODO: track breaks/panics/returns on frame and
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
-func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
+func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, withSwitch bool) {
 	fr := &Frame{
 		Source:      cx,
 		NumOps:      m.NumOps,
@@ -1761,6 +1761,8 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 		Defers:      nil,
 		LastPackage: m.Package,
 		LastRealm:   m.Realm,
+		HardSwitch:  withSwitch,
+		SoftSwitch:  false,
 	}
 	if debug {
 		if m.Package == nil {
