@@ -421,7 +421,9 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, gm types.GasMeter, oo Ob
 
 	cost := 1
 	defer func() {
-		gm.ConsumeGas(types.Gas(cost), "incRefCreatedDescendants")
+		if gm != nil {
+			gm.ConsumeGas(types.Gas(cost), "incRefCreatedDescendants")
+		}
 	}()
 
 	// RECURSE GUARD
