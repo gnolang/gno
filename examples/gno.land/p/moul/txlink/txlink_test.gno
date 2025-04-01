@@ -168,6 +168,15 @@ func TestBuilder(t *testing.T) {
 		{
 			name: "addargs_with_odd_number_of_args",
 			build: func() string {
+				defer func() {
+					if r := recover(); r != nil {
+						if r != "odd number of arguments" {
+							t.Errorf("expected panic with message 'odd number of arguments', got: %v", r)
+						}
+					} else {
+						t.Error("expected panic for odd number of arguments, but did not panic")
+					}
+				}()
 				return NewLink("MyFunc").
 					AddArgs("key1", "value1", "orphan").
 					URL()
