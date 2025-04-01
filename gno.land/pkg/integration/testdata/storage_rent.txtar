@@ -1,0 +1,80 @@
+# test the storage rent
+
+## start a new node
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 10000000 -deposit 3085000ugnot -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query vm/qstorage --data gno.land/r/foo
+
+stdout 'storage: 3085, deposit: 3085000'
+
+## set an obejct but smaller size
+gnokey maketx call -pkgpath gno.land/r/foo -func NewFoo -args "foo" -deposit 27000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test test1
+stdout ''
+stdout OK!
+
+gnokey query vm/qstorage --data gno.land/r/foo
+stdout 'storage: 3083, deposit: 3083000'
+
+
+## restart server
+gnoland restart
+
+## remove an object
+
+ gnokey maketx call -pkgpath gno.land/r/foo -func Clear -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test test1
+ stdout ''
+ stdout OK!
+
+## update an obejct
+## gnokey maketx call -pkgpath gno.land/r/foo -func SetName -args "foo2" -deposit 3000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+## stdout ''
+## stdout OK!
+
+
+
+## update an obejct
+## gnokey maketx call -pkgpath gno.land/r/foo -func SetName -args "foo03" -deposit 1000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+## stdout ''
+## stdout OK!
+
+
+
+## remove an object
+
+## gnokey maketx call -pkgpath gno.land/r/foo -func Clear -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test test1
+## stdout ''
+## stdout OK!
+
+-- gno.mod --
+module gno.land/r/foo
+
+-- storage.gno --
+package foo
+
+var record Foo
+
+func init(){
+	NewFoo("hello")
+}
+
+type Foo struct{
+  name string
+}
+
+func NewFoo(name string){
+  record = Foo{name}
+}
+func SetName(n string){
+  record.name = n
+}
+
+func GetName()string {
+  return record.name
+}
+
+func Clear(){
+  record = Foo{}
+}

@@ -35,7 +35,7 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:10]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:10](2)=
 //     @@ -13,7 +13,7 @@
 //                      "Base": {
 //                          "@type": "/gno.RefValue",
@@ -54,7 +54,7 @@ func main() {
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:9",
 //              "RefCount": "1"
 //          }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:5]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:5](4)=
 //     @@ -1,9 +1,10 @@
 //      {
 //          "ObjectInfo": {
@@ -68,7 +68,7 @@ func main() {
 //          },
 //          "Value": {
 //              "T": {
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3](0)=
 //     @@ -2,8 +2,8 @@
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",

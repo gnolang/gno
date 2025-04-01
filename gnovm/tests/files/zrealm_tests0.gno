@@ -26,7 +26,7 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/demo/tests"]
-// c[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:19]={
+// c[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:19](245)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -46,7 +46,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:18]={
+// c[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:18](356)={
 //     "ObjectInfo": {
 //         "ID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:18",
 //         "ModTime": "0",
@@ -65,7 +65,7 @@ func main() {
 //         }
 //     }
 // }
-// c[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:17]={
+// c[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:17](839)={
 //     "Data": null,
 //     "List": [
 //         {
@@ -133,7 +133,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// u[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:2]=
+// u[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:2](0)=
 //     @@ -3,7 +3,7 @@
 //          "ObjectInfo": {
 //              "ID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:2",
@@ -160,7 +160,7 @@ func main() {
 //                      "Offset": "0"
 //                  }
 //              },
-// u[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:12]=
+// u[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:12](0)=
 //     @@ -1,7 +1,7 @@
 //      {
 //          "ObjectInfo": {
@@ -170,7 +170,7 @@ func main() {
 //              "OwnerID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:11",
 //              "RefCount": "1"
 //          },
-// u[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:15]=
+// u[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:15](2)=
 //     @@ -1,7 +1,7 @@
 //      {
 //          "ObjectInfo": {
@@ -180,7 +180,7 @@ func main() {
 //              "OwnerID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:14",
 //              "RefCount": "1"
 //          },
-// d[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:14]
+// d[0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:14](-618)
 // switchrealm["gno.land/r/demo/tests_foo"]
 // switchrealm["gno.land/r/demo/tests_foo"]
 // switchrealm["gno.land/r/demo/tests_foo"]

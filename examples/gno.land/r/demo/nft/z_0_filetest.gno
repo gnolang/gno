@@ -22,7 +22,7 @@ func main() {
 // Realm:
 // switchrealm["gno.land/r/demo/nft"]
 // switchrealm["gno.land/r/demo/nft"]
-// c[67c479d3d51d4056b2f4111d5352912a00be311e:11]={
+// c[67c479d3d51d4056b2f4111d5352912a00be311e:11](486)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -68,7 +68,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[67c479d3d51d4056b2f4111d5352912a00be311e:10]={
+// c[67c479d3d51d4056b2f4111d5352912a00be311e:10](345)={
 //     "ObjectInfo": {
 //         "ID": "67c479d3d51d4056b2f4111d5352912a00be311e:10",
 //         "ModTime": "0",
@@ -87,7 +87,7 @@ func main() {
 //         }
 //     }
 // }
-// c[67c479d3d51d4056b2f4111d5352912a00be311e:9]={
+// c[67c479d3d51d4056b2f4111d5352912a00be311e:9](683)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -157,7 +157,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[67c479d3d51d4056b2f4111d5352912a00be311e:8]={
+// c[67c479d3d51d4056b2f4111d5352912a00be311e:8](340)={
 //     "ObjectInfo": {
 //         "ID": "67c479d3d51d4056b2f4111d5352912a00be311e:8",
 //         "ModTime": "0",
@@ -176,7 +176,7 @@ func main() {
 //         }
 //     }
 // }
-// u[67c479d3d51d4056b2f4111d5352912a00be311e:5]=
+// u[67c479d3d51d4056b2f4111d5352912a00be311e:5](131)=
 //     @@ -7,12 +7,22 @@
 //                          "@type": "/gno.RefType",
 //                          "ID": "gno.land/p/demo/avl.Node"
@@ -201,7 +201,7 @@ func main() {
 //              "OwnerID": "67c479d3d51d4056b2f4111d5352912a00be311e:4",
 //              "RefCount": "1"
 //          }
-// u[67c479d3d51d4056b2f4111d5352912a00be311e:4]=
+// u[67c479d3d51d4056b2f4111d5352912a00be311e:4](2)=
 //     @@ -2,6 +2,7 @@
 //          "Fields": [
 //              {},

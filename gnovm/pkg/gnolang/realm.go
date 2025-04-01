@@ -115,6 +115,10 @@ type Realm struct {
 	Path string
 	Time uint64
 
+	Deposit uint64 // Amount of deposit held
+	Storage uint64 // Amount of storage used
+	sumDiff int64  // Total size difference from added, updated, or deleted objects
+
 	newCreated []Object
 	newEscaped []Object
 	newDeleted []Object
@@ -369,6 +373,11 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	rlm.removeDeletedObjects(store)
 	// reset realm state for new transaction.
 	rlm.clearMarks()
+
+	// Update storage differences.
+	realmDiffs := store.RealmDiffs()
+	realmDiffs[rlm.Path] += rlm.sumDiff
+	rlm.sumDiff = 0
 }
 
 //----------------------------------------
@@ -766,7 +775,7 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 	}
 	// set object to store.
 	// NOTE: also sets the hash to object.
-	store.SetObject(oo)
+	rlm.sumDiff += store.SetObject(oo)
 	// set index.
 	if oo.GetIsEscaped() {
 		// XXX save oid->hash to iavl.
@@ -778,7 +787,7 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 
 func (rlm *Realm) removeDeletedObjects(store Store) {
 	for _, do := range rlm.deleted {
-		store.DelObject(do)
+		rlm.sumDiff -= store.DelObject(do)
 	}
 }
 

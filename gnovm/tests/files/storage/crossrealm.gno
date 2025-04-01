@@ -12,15 +12,20 @@ func main() {
 	f := crossrealm_b.Fooer
 	crossrealm.SetFooer(f)
 	crossrealm.CallFooerFoo()
-	f.SetS("B")
+	f.SetS("ABCD")
 	crossrealm.CallFooerFoo()
 	print(".")
 }
 
 // Output:
 // hello A cur=gno.land/r/demo/tests/crossrealm_b prev=gno.land/r/demo/tests/crossrealm
-// hello B cur=gno.land/r/demo/tests/crossrealm_b prev=gno.land/r/demo/tests/crossrealm
+// hello ABCD cur=gno.land/r/demo/tests/crossrealm_b prev=gno.land/r/demo/tests/crossrealm
 // .
+
+// Storage:
+// gno.land/r/crossrealm_test: 0
+// gno.land/r/demo/tests/crossrealm: 160
+// gno.land/r/demo/tests/crossrealm_b: 5
 
 // Realm:
 // switchrealm["gno.land/r/demo/tests/crossrealm"]
@@ -75,13 +80,13 @@ func main() {
 // switchrealm["gno.land/r/demo/tests/crossrealm_b"]
 // switchrealm["gno.land/r/demo/tests/crossrealm"]
 // switchrealm["gno.land/r/demo/tests/crossrealm_b"]
-// u[0edc46caf30c00efd87b6c272673239eafbd051e:4](2)=
+// u[0edc46caf30c00efd87b6c272673239eafbd051e:4](5)=
 //     @@ -7,13 +7,13 @@
 //                  },
 //                  "V": {
 //                      "@type": "/gno.StringValue",
 //     -                "value": "A"
-//     +                "value": "B"
+//     +                "value": "ABCD"
 //                  }
 //              }
 //          ],
@@ -95,6 +100,3 @@ func main() {
 // switchrealm["gno.land/r/demo/tests/crossrealm_b"]
 // switchrealm["gno.land/r/demo/tests/crossrealm"]
 // switchrealm["gno.land/r/crossrealm_test"]
-
-// Error:
-//

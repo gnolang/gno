@@ -1,0 +1,123 @@
+## It tests changing deposit parameters through GovDAO voting
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/gov/dao/v2
+
+patchpkg "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+gnoland start
+
+## add a contract
+gnokey maketx addpkg -pkgdir $WORK/storage -pkgpath gno.land/r/storage -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## Propose to update default deposit.
+
+gnokey maketx run -gas-fee 1ugnot -gas-wanted 115000000 -broadcast -chainid=tendermint_test test1 $WORK/run/submit_proposal.gno
+
+stdout '0'
+
+
+## Vote "update default deposit"
+gnokey maketx run  -gas-fee 1ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_proposal.gno
+
+stdout 'OK!'
+
+## query params before the change
+gnokey query params/vm:p:default_deposit
+stdout '600000000ugnot'
+
+## Execute "update default deposit" proposal
+gnokey maketx run  -gas-fee 1ugnot -gas-wanted 95000000  -broadcast -chainid=tendermint_test test1 $WORK/run/exec_proposal.gno
+
+stdout 'OK!'
+
+## query params,
+gnokey query params/vm:p:default_deposit
+stdout '1ugnot'
+
+
+## failed due to not providing enough default deposit
+
+! gnokey maketx call -pkgpath gno.land/r/storage -func SetName -args "hellooo"  -gas-fee 1000000ugnot -gas-wanted 10000000  -broadcast -chainid=tendermint_test test1
+
+stderr 'not enough deposit to cover the stroage usage'
+
+-- run/submit_proposal.gno --
+package main
+
+import (
+  govdao "gno.land/r/gov/dao/v2"
+  "gno.land/p/demo/dao"
+  "gno.land/r/sys/params"
+)
+
+func main() {
+
+  exec := params.NewSysParamStringPropExecutor("vm", "p", "default_deposit", "1ugnot")
+
+  prop := dao.ProposalRequest{
+    Title:       "Proposal to lock the transfer of ugnot.",
+    Description: "",
+    Executor:    exec,
+  }
+  n:=govdao.GovDAO.Propose(prop)
+  println(n)
+
+}
+
+
+-- run/vote_proposal.gno --
+package main
+
+import (
+  govdao "gno.land/r/gov/dao/v2"
+)
+
+func main() {
+	govdao.GovDAO.VoteOnProposal(0,"YES")
+}
+
+
+-- run/exec_proposal.gno --
+package main
+
+import (
+  govdao "gno.land/r/gov/dao/v2"
+)
+
+func main() {
+	govdao.GovDAO.ExecuteProposal(0)
+}
+
+
+
+-- storage/gno.mod --
+module gno.land/r/storage
+
+-- storage/storage.gno --
+package storage
+
+var record Foo
+
+func init(){
+	NewFoo("hello")
+}
+
+type Foo struct{
+  name string
+}
+
+func NewFoo(name string){
+  record = Foo{name}
+}
+func SetName(n string){
+  record.name = n
+}
+
+func GetName()string {
+  return record.name
+}
+
+func Clear(){
+  record = Foo{}
+}

@@ -54,7 +54,7 @@ func main() {
 // switchrealm["gno.land/r/sys/users"]
 // switchrealm["gno.land/r/sys/users"]
 // switchrealm["gno.land/r/demo/boards"]
-// u[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:111]=
+// u[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:111](2)=
 //     @@ -1,8 +1,8 @@
 //      {
 //          "ObjectInfo": {
@@ -66,7 +66,7 @@ func main() {
 //              "RefCount": "1"
 //          },
 //          "Value": {
-// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:125]={
+// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:125](700)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -136,7 +136,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:124]={
+// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:124](346)={
 //     "ObjectInfo": {
 //         "ID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:124",
 //         "ModTime": "0",
@@ -155,7 +155,7 @@ func main() {
 //         }
 //     }
 // }
-// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:123]={
+// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:123](761)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -228,7 +228,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:122]={
+// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:122](346)={
 //     "ObjectInfo": {
 //         "ID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:122",
 //         "ModTime": "0",
@@ -247,7 +247,7 @@ func main() {
 //         }
 //     }
 // }
-// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:128]={
+// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:128](258)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -266,7 +266,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:129]={
+// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:129](258)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -285,7 +285,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:130]={
+// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:130](258)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -304,7 +304,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:131]={
+// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:131](461)={
 //     "Fields": [
 //         {
 //             "N": "AAAAgJSeXbo=",
@@ -347,7 +347,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:132]={
+// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:132](326)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -378,7 +378,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:127]={
+// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:127](1688)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -519,7 +519,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:126]={
+// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:126](349)={
 //     "ObjectInfo": {
 //         "ID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:126",
 //         "IsEscaped": true,
@@ -538,7 +538,7 @@ func main() {
 //         }
 //     }
 // }
-// u[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:120]=
+// u[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:120](3)=
 //     @@ -1,8 +1,8 @@
 //      {
 //          "ObjectInfo": {
@@ -550,7 +550,7 @@ func main() {
 //              "RefCount": "1"
 //          },
 //          "Value": {
-// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:136]={
+// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:136](700)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -620,7 +620,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:135]={
+// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:135](346)={
 //     "ObjectInfo": {
 //         "ID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:135",
 //         "ModTime": "0",
@@ -639,7 +639,7 @@ func main() {
 //         }
 //     }
 // }
-// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:134]={
+// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:134](761)={
 //     "Fields": [
 //         {
 //             "T": {
@@ -712,7 +712,7 @@ func main() {
 //         "RefCount": "1"
 //     }
 // }
-// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:133]={
+// c[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:133](346)={
 //     "ObjectInfo": {
 //         "ID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:133",
 //         "ModTime": "0",
@@ -731,7 +731,7 @@ func main() {
 //         }
 //     }
 // }
-// u[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:85]=
+// u[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:85](0)=
 //     @@ -49,7 +49,7 @@
 //                  }
 //              },
@@ -750,7 +750,7 @@ func main() {
 //              "OwnerID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:84",
 //              "RefCount": "1"
 //          }
-// u[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:106]=
+// u[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:106](0)=
 //     @@ -12,8 +12,8 @@
 //                      "@type": "/gno.PointerValue",
 //                      "Base": {
@@ -771,7 +771,7 @@ func main() {
 //              "OwnerID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:105",
 //              "RefCount": "1"
 //          }
-// u[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:107]=
+// u[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:107](0)=
 //     @@ -12,8 +12,8 @@
 //                      "@type": "/gno.PointerValue",
 //                      "Base": {
@@ -792,7 +792,7 @@ func main() {
 //              "OwnerID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:105",
 //              "RefCount": "1"
 //          }
-// u[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:84]=
+// u[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:84](0)=
 //     @@ -2,8 +2,8 @@
 //          "ObjectInfo": {
 //              "ID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:84",
@@ -813,7 +813,7 @@ func main() {
 //                  "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:85"
 //              }
 //          }
-// u[336074805fc853987abe6f7fe3ad97a6a6f3077a:2]=
+// u[336074805fc853987abe6f7fe3ad97a6a6f3077a:2](1)=
 //     @@ -3,8 +3,8 @@
 //          "ObjectInfo": {
 //              "ID": "336074805fc853987abe6f7fe3ad97a6a6f3077a:2",

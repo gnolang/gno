@@ -34,7 +34,7 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 			msg:  NewMsgAddPackage(creator, pkgPath, files),
 			expectSignBytes: `{"creator":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt","deposit":"",` +
 				`"package":{"files":[{"body":"package test\n\t\tfunc Echo() string {return \"hello world\"}",` +
-				`"name":"test.gno"}],"name":"test","path":"gno.land/r/namespace/test"}}`,
+				`"name":"test.gno"}],"name":"test","path":"gno.land/r/namespace/test"},"send":""}`,
 			expectErr: nil,
 		},
 		{
@@ -119,7 +119,7 @@ func TestMsgCall_ValidateBasic(t *testing.T) {
 			name: "valid message",
 			msg:  NewMsgCall(caller, std.NewCoins(std.NewCoin("ugnot", 1000)), pkgPath, funcName, args),
 			expectSignBytes: `{"args":["arg1","arg2"],"caller":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt",` +
-				`"func":"MyFunction","pkg_path":"gno.land/r/namespace/test","send":"1000ugnot"}`,
+				`"deposit":"","func":"MyFunction","pkg_path":"gno.land/r/namespace/test","send":"1000ugnot"}`,
 			expectErr: nil,
 		},
 		{
@@ -232,6 +232,7 @@ func TestMsgRun_ValidateBasic(t *testing.T) {
 			name: "valid message",
 			msg:  NewMsgRun(caller, std.NewCoins(std.NewCoin("ugnot", 1000)), pkgFiles),
 			expectSignBytes: `{"caller":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt",` +
+				`"deposit":"",` +
 				`"package":{"files":[{"body":"package main\n\t\tfunc Echo() string {return \"hello world\"}",` +
 				`"name":"main.gno"}],"name":"main","path":""},` +
 				`"send":"1000ugnot"}`,

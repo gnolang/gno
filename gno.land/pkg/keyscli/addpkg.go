@@ -20,6 +20,7 @@ type MakeAddPkgCfg struct {
 
 	PkgPath string
 	PkgDir  string
+	Send    string
 	Deposit string
 }
 
@@ -55,7 +56,12 @@ func (c *MakeAddPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"path to package files (required)",
 	)
-
+	fs.StringVar(
+		&c.Send,
+		"send",
+		"",
+		"send amount",
+	)
 	fs.StringVar(
 		&c.Deposit,
 		"deposit",
@@ -94,7 +100,11 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	}
 	creator := info.GetAddress()
 	// info.GetPubKey()
-
+	// Parse send amount.
+	send, err := std.ParseCoins(cfg.Send)
+	if err != nil {
+		return errors.Wrap(err, "parsing send coins")
+	}
 	// parse deposit.
 	deposit, err := std.ParseCoins(cfg.Deposit)
 	if err != nil {
@@ -117,6 +127,7 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 	msg := vm.MsgAddPackage{
 		Creator: creator,
 		Package: memPkg,
+		Send:    send,
 		Deposit: deposit,
 	}
 	tx := std.Tx{
