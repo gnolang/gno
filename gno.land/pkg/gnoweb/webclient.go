@@ -32,9 +32,9 @@ type WebClient interface {
 	RenderRealm(w io.Writer, path string, args string) (*RealmMeta, error)
 
 	// SourceFile fetches and writes the source file from a given
-	// package path and file name. The method should ensures the source
+	// package path, file name and if raw. The method should ensures the source
 	// file's content is safely handled and formatted.
-	SourceFile(w io.Writer, pkgPath, fileName string) (*FileMeta, error)
+	SourceFile(w io.Writer, pkgPath, fileName string, isRaw bool) (*FileMeta, error)
 
 	// Functions retrieves a list of function signatures from a
 	// specified package path.

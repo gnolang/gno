@@ -50,7 +50,7 @@ func (m *MockWebClient) RenderRealm(w io.Writer, path string, args string) (*Rea
 }
 
 // SourceFile simulates retrieving a source file's metadata.
-func (m *MockWebClient) SourceFile(w io.Writer, pkgPath, fileName string) (*FileMeta, error) {
+func (m *MockWebClient) SourceFile(w io.Writer, pkgPath, fileName string, isRaw bool) (*FileMeta, error) {
 	pkg, exists := m.Packages[pkgPath]
 	if !exists {
 		return nil, ErrClientPathNotFound
