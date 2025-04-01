@@ -116,7 +116,7 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var status int
-	status, indexData.BodyView = h.prepareIndexBodyView(gnourl, &indexData)
+	status, indexData.BodyView = h.prepareIndexBodyView(r, &indexData)
 
 	// Render the final page with the rendered body
 	w.WriteHeader(status)
@@ -300,19 +300,6 @@ func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL) (int, *components.V
 
 func (h *WebHandler) GetSourceDownload(gnourl *weburl.GnoURL, w http.ResponseWriter, r *http.Request) {
 	pkgPath := gnourl.Path
-	files, err := h.Client.Sources(pkgPath)
-	if err != nil {
-		h.Logger.Error("unable to list sources file", "path", gnourl.Path, "error", err)
-		status, _ := GetClientErrorStatusPage(gnourl, err)
-		http.Error(w, "not found", status)
-		return
-	}
-
-	if len(files) == 0 {
-		h.Logger.Debug("no files available", "path", gnourl.Path)
-		http.Error(w, "not found", http.StatusNotFound)
-		return
-	}
 
 	var fileName string
 	if gnourl.IsFile() { // check path file from path first
@@ -328,7 +315,7 @@ func (h *WebHandler) GetSourceDownload(gnourl *weburl.GnoURL, w http.ResponseWri
 
 	// Get source file
 	var source bytes.Buffer
-	_, err = h.Client.SourceFile(&source, pkgPath, fileName, true)
+	_, err := h.Client.SourceFile(&source, pkgPath, fileName, true)
 	if err != nil {
 		h.Logger.Error("unable to get source file", "file", fileName, "error", err)
 		status, _ := GetClientErrorStatusPage(gnourl, err)
