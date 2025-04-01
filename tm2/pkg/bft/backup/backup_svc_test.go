@@ -165,6 +165,7 @@ func TestStreamBlocks(t *testing.T) {
 			mux := http.NewServeMux()
 			mux.Handle(backuppbconnect.NewBackupServiceHandler(svc))
 			srv := httptest.NewServer(mux)
+			defer srv.Close()
 			httpClient := srv.Client()
 			client := backuppbconnect.NewBackupServiceClient(httpClient, srv.URL)
 
