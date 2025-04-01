@@ -1,4 +1,4 @@
-package std
+package chain
 
 import (
 	"encoding/json"
@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/stdlibs/internal/execctx"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/stretchr/testify/assert"
 )
@@ -14,26 +15,26 @@ import (
 func TestEmit(t *testing.T) {
 	m := gno.NewMachine("emit", nil)
 
-	m.Context = ExecContext{}
+	m.Context = execctx.ExecContext{}
 
-	_, pkgPath := X_getRealm(m, 0)
+	_, pkgPath := execctx.CurrentRealm(m)
 	tests := []struct {
 		name           string
 		eventType      string
 		attrs          []string
-		expectedEvents []GnoEvent
+		expectedEvents []Event
 		expectPanic    bool
 	}{
 		{
 			name:      "SimpleValid",
 			eventType: "test",
 			attrs:     []string{"key1", "value1", "key2", "value2"},
-			expectedEvents: []GnoEvent{
+			expectedEvents: []Event{
 				{
 					Type:    "test",
 					PkgPath: pkgPath,
 					Func:    "",
-					Attributes: []GnoEventAttribute{
+					Attributes: []EventAttribute{
 						{Key: "key1", Value: "value1"},
 						{Key: "key2", Value: "value2"},
 					},
@@ -51,12 +52,12 @@ func TestEmit(t *testing.T) {
 			name:      "EmptyAttribute",
 			eventType: "test",
 			attrs:     []string{"key1", "", "key2", "value2"},
-			expectedEvents: []GnoEvent{
+			expectedEvents: []Event{
 				{
 					Type:    "test",
 					PkgPath: pkgPath,
 					Func:    "",
-					Attributes: []GnoEventAttribute{
+					Attributes: []EventAttribute{
 						{Key: "key1", Value: ""},
 						{Key: "key2", Value: "value2"},
 					},
@@ -68,12 +69,12 @@ func TestEmit(t *testing.T) {
 			name:      "EmptyType",
 			eventType: "",
 			attrs:     []string{"key1", "value1", "key2", "value2"},
-			expectedEvents: []GnoEvent{
+			expectedEvents: []Event{
 				{
 					Type:    "",
 					PkgPath: pkgPath,
 					Func:    "",
-					Attributes: []GnoEventAttribute{
+					Attributes: []EventAttribute{
 						{Key: "key1", Value: "value1"},
 						{Key: "key2", Value: "value2"},
 					},
@@ -85,12 +86,12 @@ func TestEmit(t *testing.T) {
 			name:      "EmptyAttributeKey",
 			eventType: "test",
 			attrs:     []string{"", "value1", "key2", "value2"},
-			expectedEvents: []GnoEvent{
+			expectedEvents: []Event{
 				{
 					Type:    "test",
 					PkgPath: pkgPath,
 					Func:    "",
-					Attributes: []GnoEventAttribute{
+					Attributes: []EventAttribute{
 						{Key: "", Value: "value1"},
 						{Key: "key2", Value: "value2"},
 					},
@@ -103,7 +104,7 @@ func TestEmit(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			elgs := sdk.NewEventLogger()
-			m.Context = ExecContext{EventLogger: elgs}
+			m.Context = execctx.ExecContext{EventLogger: elgs}
 
 			if tt.expectPanic {
 				assert.Panics(t, func() {
@@ -134,7 +135,7 @@ func TestEmit_MultipleEvents(t *testing.T) {
 	m := gno.NewMachine("emit", nil)
 
 	elgs := sdk.NewEventLogger()
-	m.Context = ExecContext{EventLogger: elgs}
+	m.Context = execctx.ExecContext{EventLogger: elgs}
 
 	attrs1 := []string{"key1", "value1", "key2", "value2"}
 	attrs2 := []string{"key3", "value3", "key4", "value4"}
@@ -148,12 +149,12 @@ func TestEmit_MultipleEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expect := []GnoEvent{
+	expect := []Event{
 		{
 			Type:    "test1",
 			PkgPath: "",
 			Func:    "",
-			Attributes: []GnoEventAttribute{
+			Attributes: []EventAttribute{
 				{Key: "key1", Value: "value1"},
 				{Key: "key2", Value: "value2"},
 			},
@@ -162,7 +163,7 @@ func TestEmit_MultipleEvents(t *testing.T) {
 			Type:    "test2",
 			PkgPath: "",
 			Func:    "",
-			Attributes: []GnoEventAttribute{
+			Attributes: []EventAttribute{
 				{Key: "key3", Value: "value3"},
 				{Key: "key4", Value: "value4"},
 			},
@@ -196,7 +197,7 @@ func TestEmit_ContractInteraction(t *testing.T) {
 	t.Parallel()
 	m := gno.NewMachine("emit", nil)
 	elgs := sdk.NewEventLogger()
-	m.Context = ExecContext{EventLogger: elgs}
+	m.Context = execctx.ExecContext{EventLogger: elgs}
 
 	baz := func(m *gno.Machine) {
 		X_emit(m, testFoo, []string{"k1", "v1", "k2", "v2"})
@@ -235,7 +236,7 @@ func TestEmit_Iteration(t *testing.T) {
 	m := gno.NewMachine("emit", nil)
 
 	elgs := sdk.NewEventLogger()
-	m.Context = ExecContext{EventLogger: elgs}
+	m.Context = execctx.ExecContext{EventLogger: elgs}
 
 	iterEvent := func(m *gno.Machine) {
 		for range 10 {
@@ -300,7 +301,7 @@ func TestEmit_ComplexInteraction(t *testing.T) {
 	m := gno.NewMachine("emit", nil)
 
 	elgs := sdk.NewEventLogger()
-	m.Context = ExecContext{EventLogger: elgs}
+	m.Context = execctx.ExecContext{EventLogger: elgs}
 
 	complexInteraction(m)
 

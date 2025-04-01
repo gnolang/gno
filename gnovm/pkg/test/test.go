@@ -18,7 +18,7 @@ import (
 	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
-	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
+	"github.com/gnolang/gno/gnovm/tests/stdlibs/chain/runtime"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -41,11 +41,11 @@ const (
 // the pkgAddr the coins in `send` by default, and only that.
 // The Height and Timestamp parameters are set to the [DefaultHeight] and
 // [DefaultTimestamp].
-func Context(pkgPath string, send std.Coins) *teststd.TestExecContext {
+func Context(pkgPath string, send std.Coins) *runtime.TestExecContext {
 	// FIXME: create a better package to manage this, with custom constructors
 	pkgAddr := gno.DerivePkgAddr(pkgPath) // the addr of the pkgPath called.
 
-	banker := &teststd.TestBanker{
+	banker := &runtime.TestBanker{
 		CoinTable: map[crypto.Bech32Address]std.Coins{
 			pkgAddr.Bech32(): send,
 		},
@@ -62,9 +62,9 @@ func Context(pkgPath string, send std.Coins) *teststd.TestExecContext {
 		Params:          newTestParams(),
 		EventLogger:     sdk.NewEventLogger(),
 	}
-	return &teststd.TestExecContext{
+	return &runtime.TestExecContext{
 		ExecContext: ctx,
-		RealmFrames: make(map[*gno.Frame]teststd.RealmOverride),
+		RealmFrames: make(map[*gno.Frame]runtime.RealmOverride),
 	}
 }
 
@@ -387,7 +387,7 @@ func (opts *TestOptions) runTestFiles(
 		))
 
 		if opts.Events {
-			events := m.Context.(*teststd.TestExecContext).EventLogger.Events()
+			events := m.Context.(*runtime.TestExecContext).EventLogger.Events()
 			if events != nil {
 				res, err := json.Marshal(events)
 				if err != nil {

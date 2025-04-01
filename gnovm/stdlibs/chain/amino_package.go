@@ -1,4 +1,4 @@
-package std
+package chain
 
 import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -6,7 +6,7 @@ import (
 )
 
 var Package = amino.RegisterPackage(amino.NewPackage(
-	"github.com/gnolang/gno/gnovm/stdlibs/std",
+	"github.com/gnolang/gno/gnovm/stdlibs/chain",
 	"tm",
 	amino.GetCallersDirname(),
 ).
@@ -14,6 +14,6 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 		abci.Package,
 	).
 	WithTypes(
-		GnoEventAttribute{},
-		GnoEvent{},
+		EventAttribute{},
+		Event{},
 	))

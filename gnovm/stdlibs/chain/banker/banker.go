@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/stdlibs/internal/execctx"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -33,14 +34,14 @@ const (
 )
 
 func X_bankerGetCoins(m *gno.Machine, bt uint8, addr string) (denoms []string, amounts []int64) {
-	coins := GetContext(m).Banker.GetCoins(crypto.Bech32Address(addr))
+	coins := execctx.GetContext(m).Banker.GetCoins(crypto.Bech32Address(addr))
 	return ExpandCoins(coins)
 }
 
 func X_bankerSendCoins(m *gno.Machine, bt uint8, fromS, toS string, denoms []string, amounts []int64) {
 	// bt != BankerTypeReadonly (checked in gno)
 
-	ctx := GetContext(m)
+	ctx := execctx.GetContext(m)
 	amt := CompactCoins(denoms, amounts)
 	from, to := crypto.Bech32Address(fromS), crypto.Bech32Address(toS)
 
@@ -49,11 +50,11 @@ func X_bankerSendCoins(m *gno.Machine, bt uint8, fromS, toS string, denoms []str
 		// indirection allows us to "commit" in a second phase
 		spent := (*ctx.OriginSendSpent).Add(amt)
 		if !ctx.OriginSend.IsAllGTE(spent) {
-			m.Panic(typedString(
+			m.PanicString(
 				fmt.Sprintf(
 					`cannot send "%v", limit "%v" exceeded with "%v" already spent`,
 					amt, ctx.OriginSend, *ctx.OriginSendSpent),
-			))
+			)
 			return
 		}
 		ctx.Banker.SendCoins(from, to, amt)
@@ -66,15 +67,15 @@ func X_bankerSendCoins(m *gno.Machine, bt uint8, fromS, toS string, denoms []str
 }
 
 func X_bankerTotalCoin(m *gno.Machine, bt uint8, denom string) int64 {
-	return GetContext(m).Banker.TotalCoin(denom)
+	return execctx.GetContext(m).Banker.TotalCoin(denom)
 }
 
 func X_bankerIssueCoin(m *gno.Machine, bt uint8, addr string, denom string, amount int64) {
-	GetContext(m).Banker.IssueCoin(crypto.Bech32Address(addr), denom, amount)
+	execctx.GetContext(m).Banker.IssueCoin(crypto.Bech32Address(addr), denom, amount)
 }
 
 func X_bankerRemoveCoin(m *gno.Machine, bt uint8, addr string, denom string, amount int64) {
-	GetContext(m).Banker.RemoveCoin(crypto.Bech32Address(addr), denom, amount)
+	execctx.GetContext(m).Banker.RemoveCoin(crypto.Bech32Address(addr), denom, amount)
 }
 
 func ExpandCoins(c std.Coins) (denoms []string, amounts []int64) {
@@ -98,6 +99,11 @@ func CompactCoins(denoms []string, amounts []int64) std.Coins {
 func X_assertCallerIsRealm(m *gno.Machine) {
 	frame := m.Frames[m.NumFrames()-2]
 	if path := frame.LastPackage.PkgPath; !gno.IsRealmPath(path) {
-		m.Panic(typedString("caller is not a realm"))
+		m.PanicString("caller is not a realm")
 	}
+}
+
+func X_originSend(m *gno.Machine) (denoms []string, amounts []int64) {
+	os := execctx.GetContext(m).OriginSend
+	return ExpandCoins(os)
 }

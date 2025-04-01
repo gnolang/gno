@@ -1,24 +1,24 @@
-package std
+package runtime
 
 import (
 	"fmt"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/stdlibs/std"
+	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	tm2std "github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // TestExecContext is the testing extension of the exec context.
 type TestExecContext struct {
-	std.ExecContext
+	stdlibs.ExecContext
 
 	// These are used to set up the result of CurrentRealm() and PreviousRealm().
 	RealmFrames map[*gno.Frame]RealmOverride
 }
 
-var _ std.ExecContexter = &TestExecContext{}
+var _ stdlibs.ExecContexter = &TestExecContext{}
 
 type RealmOverride struct {
 	Addr    crypto.Bech32Address
@@ -43,7 +43,7 @@ func isOriginCall(m *gno.Machine) bool {
 	case "main": // test is a _filetest
 		// 0. main
 		// 1. $RealmFuncName
-		// 2. std.IsOriginCall
+		// 2. td.IsOriginCall
 		return len(m.Frames) == 3
 	case "RunTest": // test is a _test
 		// 0. testing.RunTest
@@ -132,7 +132,7 @@ type TestBanker struct {
 	CoinTable map[crypto.Bech32Address]tm2std.Coins
 }
 
-var _ std.BankerInterface = &TestBanker{}
+var _ stdlibs.BankerInterface = &TestBanker{}
 
 // GetCoins implements the Banker interface.
 func (tb *TestBanker) GetCoins(addr crypto.Bech32Address) (dst tm2std.Coins) {

@@ -1,4 +1,4 @@
-package std
+package runtime
 
 import (
 	"testing"
@@ -6,13 +6,14 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/stdlibs/internal/execctx"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
 func TestPreviousRealmIsOrigin(t *testing.T) {
 	var (
 		user = gno.DerivePkgAddr("user1.gno").Bech32()
-		ctx  = ExecContext{
+		ctx  = execctx.ExecContext{
 			OriginCaller: user,
 		}
 		msgCallFrame = &gno.Frame{LastPackage: &gno.PackageValue{PkgPath: "main"}}

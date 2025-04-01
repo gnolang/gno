@@ -13,7 +13,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
+	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/pmezard/go-difflib/difflib"
 	"go.uber.org/multierr"
@@ -138,7 +138,7 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 			res := opslog.(*bytes.Buffer).String()
 			match(dir, res)
 		case DirectiveEvents:
-			events := m.Context.(*teststd.TestExecContext).EventLogger.Events()
+			events := m.Context.(*teststdlibs.TestExecContext).EventLogger.Events()
 			evtjson, err := json.MarshalIndent(events, "", "  ")
 			if err != nil {
 				panic(err)
