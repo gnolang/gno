@@ -174,6 +174,9 @@ func TestStreamBlocks(t *testing.T) {
 				EndHeight:   tc.end,
 			}})
 			require.NoError(t, err)
+			defer func() {
+				require.NoError(t, stream.Close())
+			}()
 
 			data := []*types.Block(nil)
 			for {
