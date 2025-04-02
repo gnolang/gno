@@ -17,7 +17,7 @@ import (
 type Reader = func(yield func(block *types.Block) error) error
 
 // WithReader creates a backup reader and pass it to the provided cb.
-// It is process-safe but not thread-safe.
+// yield should not be called concurently
 func WithReader(dir string, startHeight int64, endHeight int64, cb func(reader Reader) error) (resErr error) {
 	dir = filepath.Clean(dir)
 
