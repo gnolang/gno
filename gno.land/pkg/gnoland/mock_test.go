@@ -53,7 +53,6 @@ func (m *mockEventSwitch) RemoveListener(listenerID string) {
 type mockVMKeeper struct {
 	addPackageFn                func(sdk.Context, vm.MsgAddPackage) error
 	callFn                      func(sdk.Context, vm.MsgCall) (string, error)
-	evalFn                      func(sdk.Context, vm.MsgEval) (string, error)
 	queryFn                     func(sdk.Context, string, string) (string, error)
 	runFn                       func(sdk.Context, vm.MsgRun) (string, error)
 	loadStdlibFn                func(sdk.Context, string)
@@ -73,14 +72,6 @@ func (m *mockVMKeeper) AddPackage(ctx sdk.Context, msg vm.MsgAddPackage) error {
 func (m *mockVMKeeper) Call(ctx sdk.Context, msg vm.MsgCall) (res string, err error) {
 	if m.callFn != nil {
 		return m.callFn(ctx, msg)
-	}
-
-	return "", nil
-}
-
-func (m *mockVMKeeper) Eval(ctx sdk.Context, msg vm.MsgEval) (res string, err error) {
-	if m.evalFn != nil {
-		return m.evalFn(ctx, msg)
 	}
 
 	return "", nil

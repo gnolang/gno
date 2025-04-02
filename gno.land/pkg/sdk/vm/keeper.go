@@ -46,7 +46,6 @@ const (
 type VMKeeperI interface {
 	AddPackage(ctx sdk.Context, msg MsgAddPackage) error
 	Call(ctx sdk.Context, msg MsgCall) (res string, err error)
-	Eval(ctx sdk.Context, msg MsgEval) (res string, err error)
 	Run(ctx sdk.Context, msg MsgRun) (res string, err error)
 	LoadStdlib(ctx sdk.Context, stdlibDir string)
 	LoadStdlibCached(ctx sdk.Context, stdlibDir string)
@@ -503,13 +502,10 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	defer doRecover(m, &err)
 
 	rtvs := m.Eval(xn)
-	res = stringifyResultValues(m, msg.Format, rtvs)
+	res = stringifyResultValues(m, FormatMachine, rtvs)
 
-	switch msg.Format {
-	case FormatMachine, "":
-		// Use `\n\n` as separator to separate results for single tx with multi msgs
-		res += "\n\n"
-	}
+	// Use `\n\n` as separator to separate results for single tx with multi msgs
+	res += "\n\n"
 
 	// Log the telemetry
 	logTelemetry(
@@ -744,38 +740,7 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 }
 
 // QueryEval evaluates a gno expression (readonly, for ABCI queries).
-func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
-	rtvs, err := vm.queryEvalInternal(ctx, pkgPath, expr)
-	if err != nil {
-		return "", err
-	}
-	res = ""
-	for i, rtv := range rtvs {
-		res += rtv.String()
-		if i < len(rtvs)-1 {
-			res += "\n"
-		}
-	}
-	return res, nil
-}
-
-// QueryEvalString evaluates a gno expression (readonly, for ABCI queries).
-// The result is expected to be a single string (not a tuple).
-func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
-	rtvs, err := vm.queryEvalInternal(ctx, pkgPath, expr)
-	if err != nil {
-		return "", err
-	}
-	if len(rtvs) != 1 {
-		return "", errors.New("expected 1 string result, got %d", len(rtvs))
-	} else if rtvs[0].T.Kind() != gno.StringKind {
-		return "", errors.New("expected 1 string result, got %v", rtvs[0].T.Kind())
-	}
-	res = rtvs[0].GetString()
-	return res, nil
-}
-
-func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr string) (rtvs []gno.TypedValue, err error) {
+func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string, format Format) (res string, err error) {
 	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	alloc := gno.NewAllocator(maxAllocQuery)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
@@ -785,12 +750,12 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 	if pv == nil {
 		err = ErrInvalidPkgPath(fmt.Sprintf(
 			"package not found: %s", pkgPath))
-		return nil, err
+		return "", err
 	}
 	// Parse expression.
 	xx, err := gno.ParseExpr(expr)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	// Construct new machine.
 	chainDomain := vm.getChainDomainParam(ctx)
@@ -807,10 +772,9 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 		Params:        NewSDKParams(vm.prmk, ctx),
 		EventLogger:   ctx.EventLogger(),
 	}
-
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:  msg.PkgPath,
+			PkgPath:  pkgPath,
 			Output:   vm.Output,
 			Store:    gnostore,
 			Context:  msgCtx,
@@ -820,7 +784,9 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 
 	defer m.Release()
 	defer doRecoverQuery(m, &err)
-	return m.Eval(xx), err
+
+	rtvs := m.Eval(xx)
+	return stringifyResultValues(m, format, rtvs), nil
 }
 
 func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err error) {
