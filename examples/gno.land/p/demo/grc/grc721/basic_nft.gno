@@ -361,12 +361,12 @@ func (s *basicNFT) isApprovedOrOwner(addr std.Address, tid TokenID) bool {
 		return true
 	}
 
-	_, err := s.GetApproved(tid)
+	approved, err := s.GetApproved(tid)
 	if err != nil {
 		return false
 	}
 
-	return true
+	return approved == addr
 }
 
 // Checks if token id already exists
@@ -394,4 +394,10 @@ func (s *basicNFT) RenderHome() (str string) {
 	str += ufmt.Sprintf("* **Known accounts**: %d\n", s.balances.Size())
 
 	return
+}
+
+func (n *basicNFT) Getter() NFTGetter {
+	return func() IGRC721 {
+		return n
+	}
 }
