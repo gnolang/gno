@@ -554,18 +554,7 @@ EXEC_SWITCH:
 			// ".res%d" from the preprocessor, so they are
 			// present in the func block.
 			m.PushOp(OpReturnFromBlock)
-			var hasUnRecovered bool
-			for _, ex := range m.Exceptions {
-				if !ex.Recovered {
-					hasUnRecovered = true
-				}
-			}
-
-			if hasUnRecovered {
-				m.PushOp(OpReturnCallDefers2) // no sticky
-			} else {
-				m.PushOp(OpReturnCallDefers) // sticky
-			}
+			m.PushOp(OpReturnCallDefers) // sticky
 			if cs.Results == nil {
 				// results already in block, if any.
 			} else if hasResults {
@@ -588,7 +577,7 @@ EXEC_SWITCH:
 	case *PanicStmt:
 		m.Println("---panic statement, cs.Exception ", cs.Exception)
 		m.PopStmt()
-		//m.ForcePopStmt()
+		// m.ForcePopStmt()
 		m.PushOp(OpPanic1)
 		// evaluate exception
 		m.PushExpr(cs.Exception)

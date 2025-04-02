@@ -1523,7 +1523,7 @@ func (m *Machine) PopOp() Op {
 		m.Printf("-o %v\n", op)
 	}
 	if OpSticky <= op {
-		//if OpSticky <= op {
+		// if OpSticky <= op {
 		// do not pop persistent op types.
 	} else {
 		m.NumOps--
@@ -2069,7 +2069,7 @@ func (m *Machine) Panic(ex TypedValue) {
 
 	m.PopUntilLastCallFrame()
 	m.PushOp(OpPanic2)
-	m.PushOp(OpReturnCallDefers2)
+	m.PushOp(OpReturnCallDefers)
 }
 
 // Recover is the underlying implementation of the recover() function in the
@@ -2112,7 +2112,6 @@ func (m *Machine) Recover() *Exception {
 	var frame *Frame
 	if len(m.Frames) > 2 {
 		frame = m.LastCallFrame(3)
-
 	} else {
 		frame = m.LastCallFrame(2)
 	}
@@ -2144,7 +2143,10 @@ func (m *Machine) Recover() *Exception {
 }
 
 func (m *Machine) isRecovered() bool {
-	return m.Exceptions[len(m.Exceptions)-1].Recovered
+	if len(m.Exceptions) > 0 {
+		return m.Exceptions[len(m.Exceptions)-1].Recovered
+	}
+	return true
 }
 
 //----------------------------------------

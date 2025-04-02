@@ -284,9 +284,24 @@ func (m *Machine) doOpReturnCallDefers() {
 	if !ok {
 		// Done with defers.
 
+		// if this call is from m.Panic,
+		// m won't be recovered.
+		// if it's from doOpPanic2,
+		// and m is recovered, then
+		// expect it returns normally,
+		// so no need to pop frame.
+		// ForcePopOp???
+
+		fmt.Println("---m.Recovered: ", m.isRecovered())
+
 		if m.Ops[m.NumOps-1] == OpReturnCallDefers {
 			m.ForcePopOp() // force pop sticky
 		}
+
+		if m.isRecovered() {
+			return
+		}
+
 		if len(m.Exceptions) > 0 {
 			exceptionFrames := m.Exceptions[len(m.Exceptions)-1].Frames
 			m.Println("exceptionFrames: ", exceptionFrames)
@@ -424,6 +439,6 @@ func (m *Machine) doOpPanic2() {
 		m.Println("---next panic2.............")
 		m.PushOp(OpPanic2)
 
-		m.PushOp(OpReturnCallDefers2) // XXX rename, not return?
+		m.PushOp(OpReturnCallDefers) // XXX rename, not return?
 	}
 }
