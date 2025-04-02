@@ -1,16 +1,20 @@
 package main
 
+import "fmt"
+
 func main() {
 	defer func() {
-		println("3")
+		if r := recover(); r != nil {
+			fmt.Println("recovered: ", r)
+		}
 	}()
-	println("1")
+
 	defer func() {
-		println("2")
+		panic("second")
 	}()
+
+	panic("first")
 }
 
 // Output:
-// 1
-// 2
-// 3
+// recovered:  second

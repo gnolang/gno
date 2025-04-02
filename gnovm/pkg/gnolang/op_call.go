@@ -279,40 +279,27 @@ func (m *Machine) doOpReturnCallDefers() {
 	cfr := m.MustLastCallFrame(1)
 	dfr, ok := cfr.PopDefer()
 	m.Println("---cfr: ", cfr)
-	m.Println("---dfr: ", dfr)
-	m.Println("---ok: ", ok)
 	if !ok {
 		// Done with defers.
+		//fmt.Println("---m.Recovered: ", m.hasNoUnrecovered())
 
-		// if this call is from m.Panic,
-		// m won't be recovered.
-		// if it's from doOpPanic2,
-		// and m is recovered, then
-		// expect it returns normally,
-		// so no need to pop frame.
-		// ForcePopOp???
+		m.ForcePopOp() // force pop sticky
 
-		fmt.Println("---m.Recovered: ", m.isRecovered())
-
-		if m.Ops[m.NumOps-1] == OpReturnCallDefers {
-			m.ForcePopOp() // force pop sticky
-		}
-
-		if m.isRecovered() {
+		// not in panic. no pop
+		// and wait for return.
+		if m.hasNoUnrecovered() {
 			return
-		}
-
-		if len(m.Exceptions) > 0 {
+		} else {
 			exceptionFrames := m.Exceptions[len(m.Exceptions)-1].Frames
-			m.Println("exceptionFrames: ", exceptionFrames)
 			if slices.Contains(exceptionFrames, cfr) {
 				// In a state of panic (not return).
 				// Pop the containing function frame.
 				m.Println("---pop frame...")
-				m.PopFrame() // pop current frame cuz it's finished at panic.
+				m.PopFrame()
 				m.Println("---after pop frame: ", m.Frames)
 			}
 		}
+
 		m.Println("---done with defers...")
 		return
 	}
@@ -394,20 +381,14 @@ func (m *Machine) doOpPanic1() {
 
 func (m *Machine) doOpPanic2() {
 	m.Println("---doOpPanic2")
-	defer m.Println("---done doOpPanic2...")
 
-	m.Println("---m.Exceptions: ", m.Exceptions)
-
-	if m.isRecovered() {
+	if m.hasNoUnrecovered() {
 		m.Println("---all exceptions recovered..., or no exceptions...")
 		m.Exceptions = nil
 		// Recovered from panic
 		m.PushOp(OpReturnFromBlock)
-		// TODO: check if defer exists?
-		// cfr := m.MustLastCallFrame(1)
-		// len(cft.Defers)
-
-		m.PushOp(OpReturnCallDefers) // sticky
+		// XXX, is this always necessary?
+		//m.PushOp(OpReturnCallDefers) // sticky
 		return
 	} else {
 		// Keep panicking
@@ -429,7 +410,6 @@ func (m *Machine) doOpPanic2() {
 				}
 			}
 
-			m.Println("---recovered: ", m.isRecovered())
 			m.Println("---unhandled panic: ", bld.String())
 
 			panic(UnhandledPanicError{

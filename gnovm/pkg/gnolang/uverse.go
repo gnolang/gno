@@ -743,10 +743,6 @@ func makeUverseNode() {
 				exception.Recovered = true
 				m.PushValue(exception.Value)
 			}
-			//// if all recovered all exp is 0, set nil
-			//if !m.hasUnrecoveredExceptions() {
-			//	m.Exceptions = nil
-			//}
 		},
 	)
 	uverseValue = uverseNode.NewPackage()

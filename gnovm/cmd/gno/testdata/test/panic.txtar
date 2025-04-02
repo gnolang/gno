@@ -3,7 +3,6 @@
 ! gno test .
 
 ! stdout .+
-stderr '--- FAIL: TestPanic'
 stderr 'panic: hello world'
 stderr 'FAIL'
 

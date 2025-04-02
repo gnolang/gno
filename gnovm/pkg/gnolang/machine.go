@@ -2081,60 +2081,38 @@ func (m *Machine) Recover() *Exception {
 		return nil
 	}
 
-	// If the exception is out of scope, this recover can't help; return nil.
-	//if m.PanicScope <= m.DeferPanicScope {
-	//	fmt.Println("---m.PanicScope", m.PanicScope)
-	//	fmt.Println("---m.DeferPanicScope", m.DeferPanicScope)
-	//	return nil
-	//}
-
 	exception := &m.Exceptions[len(m.Exceptions)-1]
 
-	m.Println("----exception: ", exception)
-	if exception != nil {
-		m.Println("---exception... panic frames: ", exception.Frames)
-		m.Println("---exception.Recovered: ", exception.Recovered)
+	if exception == nil {
+		return nil
 	}
+
+	m.Println("----exception: ", exception)
+	m.Println("---exception... panic frames: ", exception.Frames)
+	m.Println("---exception.Recovered: ", exception.Recovered)
 
 	for i, frame := range m.Frames {
 		m.Printf("frames[%d] is : %v\n", i, frame)
 	}
 
 	// the first call frame is recover,
-	// the second is defer func,
+	// the second is deferred func lit,
 	// the third is the frame where panic happens.
 	exframe := m.LastCallFrame(3)
-
-	m.Println("---lastCallFrame(3): ", exframe)
-	m.Println("---lastCallFrame(2): ", m.LastCallFrame(2))
-	m.Println("---lastCallFrame(1): ", m.LastCallFrame(1))
-
-	var frame *Frame
-	if len(m.Frames) > 2 {
-		frame = m.LastCallFrame(3)
-	} else {
-		frame = m.LastCallFrame(2)
+	if exframe == nil {
+		return nil
 	}
-	if !slices.Contains(exception.Frames, frame) {
+
+	m.Println("---target frame: ", exframe)
+
+	if !slices.Contains(exception.Frames, exframe) {
 		m.Println("---not contained, return nil")
 		return nil
 	}
 
-	//if !exframe.Popped {
-	//	// If the frame is not the current frame, the exception is not in scope; return nil.
-	//	// This retrieves the second most recent call frame because the first most recent
-	//	// is the call to recover itself.
-	//	if frame := m.LastCallFrame(2); frame == nil || frame != exframe {
-	//		fmt.Println("---return nil...")
-	//		return nil
-	//	}
-	//}
-
 	if isUntyped(exception.Value.T) {
 		ConvertUntypedTo(&exception.Value, nil)
 	}
-	// Recover complete; remove exceptions.
-	// m.Exceptions = nil
 
 	if exception.Recovered { // no recover for the second time
 		return nil
@@ -2142,7 +2120,7 @@ func (m *Machine) Recover() *Exception {
 	return exception
 }
 
-func (m *Machine) isRecovered() bool {
+func (m *Machine) hasNoUnrecovered() bool {
 	if len(m.Exceptions) > 0 {
 		return m.Exceptions[len(m.Exceptions)-1].Recovered
 	}
