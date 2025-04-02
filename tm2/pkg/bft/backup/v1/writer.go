@@ -21,7 +21,7 @@ const (
 type Writer = func(block *types.Block) error
 
 // WithWriter creates a backup writer and pass it to the provided cb.
-// It is process-safe but not thread-safe.
+// write should not be called concurently
 func WithWriter(dir string, startHeightReq int64, endHeight int64, logger *zap.Logger, cb func(startHeight int64, write Writer) error) (retErr error) {
 	if startHeightReq < 0 {
 		return errors.New("start height request must be >= 0")
