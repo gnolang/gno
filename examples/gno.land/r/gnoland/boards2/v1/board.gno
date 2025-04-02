@@ -156,17 +156,17 @@ func (board *Board) Render(path, menu string) string {
 		return false
 	}
 
-	sb.WriteString("_Sort by ")
+	sb.WriteString("Sort by: ")
 	r := realmpath.Parse(path)
 	if r.Query.Get("order") == "desc" {
 		r.Query.Set("order", "asc")
 		sb.WriteString(newLink("newest first", r.String()))
-		sb.WriteString("_\n")
+		sb.WriteString("\n\n")
 		board.threads.ReverseIterateByOffset(p.Offset(), p.PageSize(), render)
 	} else {
 		r.Query.Set("order", "desc")
 		sb.WriteString(newLink("oldest first", r.String()))
-		sb.WriteString("_\n")
+		sb.WriteString("\n\n")
 		board.threads.IterateByOffset(p.Offset(), p.PageSize(), render)
 	}
 
