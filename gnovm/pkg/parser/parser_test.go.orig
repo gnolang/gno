@@ -822,39 +822,3 @@ func TestIssue57490(t *testing.T) {
 		t.Fatalf("offset = %d, want %d", offset, tokFile.Size())
 	}
 }
-
-func TestParseTypeParamsAsParenExpr(t *testing.T) {
-	const src = "package p; type X[A (B),] struct{}"
-
-	fset := token.NewFileSet()
-	f, err := ParseFile(fset, "test.go", src, ParseComments|SkipObjectResolution)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	typeParam := f.Decls[0].(*ast.GenDecl).Specs[0].(*ast.TypeSpec).TypeParams.List[0].Type
-	_, ok := typeParam.(*ast.ParenExpr)
-	if !ok {
-		t.Fatalf("typeParam is a %T; want: *ast.ParenExpr", typeParam)
-	}
-}
-
-// TestEmptyFileHasValidStartEnd is a regression test for #70162.
-func TestEmptyFileHasValidStartEnd(t *testing.T) {
-	for _, test := range []struct {
-		src  string
-		want string // "Pos() FileStart FileEnd"
-	}{
-		{src: "", want: "0 1 1"},
-		{src: "package ", want: "0 1 9"},
-		{src: "package p", want: "1 1 10"},
-		{src: "type T int", want: "0 1 11"},
-	} {
-		fset := token.NewFileSet()
-		f, _ := ParseFile(fset, "a.go", test.src, 0)
-		got := fmt.Sprintf("%d %d %d", f.Pos(), f.FileStart, f.FileEnd)
-		if got != test.want {
-			t.Fatalf("src = %q: got %s, want %s", test.src, got, test.want)
-		}
-	}
-}

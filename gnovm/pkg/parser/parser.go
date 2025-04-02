@@ -22,6 +22,8 @@ import (
 	"go/scanner"
 	"go/token"
 	"strings"
+
+	"github.com/gnolang/gno/gnovm/pkg/parser/internal/typeparams"
 )
 
 // The parser structure holds the parser's internal state.
@@ -74,8 +76,8 @@ type parser struct {
 	numTok int
 }
 
-func (p *parser) init(file *token.File, src []byte, mode Mode, maxNest int) {
-	p.file = file
+func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode Mode, maxNest int) {
+	p.file = fset.AddFile(filename, -1, len(src))
 	eh := func(pos token.Position, msg string) { p.errors.Add(pos, msg) }
 	p.scanner.Init(p.file, src, eh, scanner.ScanComments)
 
@@ -659,7 +661,7 @@ func (p *parser) parseArrayFieldOrTypeInstance(x *ast.Ident) (*ast.Ident, ast.Ex
 	}
 
 	// x[P], x[P1, P2], ...
-	return nil, packIndexExpr(x, lbrack, args, rbrack)
+	return nil, typeparams.PackIndexExpr(x, lbrack, args, rbrack)
 }
 
 func (p *parser) parseFieldDecl() *ast.Field {
@@ -810,7 +812,7 @@ func (p *parser) parseParamDecl(name *ast.Ident, typeSetsOK bool) (f field) {
 	// TODO(rFindley) refactor to be more similar to paramDeclOrNil in the syntax
 	// package
 	if p.trace {
-		defer un(trace(p, "ParamDecl"))
+		defer un(trace(p, "ParamDeclOrNil"))
 	}
 
 	ptok := p.tok
@@ -994,30 +996,26 @@ func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing tok
 			}
 		}
 		if errPos.IsValid() {
-			// Not all parameters are named because named != len(list).
-			// If named == typed, there must be parameters that have no types.
-			// They must be at the end of the parameter list, otherwise types
-			// would have been filled in by the right-to-left sweep above and
-			// there would be no error.
-			// If tparams is set, the parameter list is a type parameter list.
 			var msg string
-			if named == typed {
-				errPos = p.pos // position error at closing token ) or ]
-				if tparams {
+			if tparams {
+				// Not all parameters are named because named != len(list).
+				// If named == typed we must have parameters that have no types,
+				// and they must be at the end of the parameter list, otherwise
+				// the types would have been filled in by the right-to-left sweep
+				// above and we wouldn't have an error. Since we are in a type
+				// parameter list, the missing types are constraints.
+				if named == typed {
+					errPos = p.pos // position error at closing ]
 					msg = "missing type constraint"
 				} else {
-					msg = "missing parameter type"
-				}
-			} else {
-				if tparams {
 					msg = "missing type parameter name"
 					// go.dev/issue/60812
 					if len(list) == 1 {
 						msg += " or invalid array length"
 					}
-				} else {
-					msg = "missing parameter name"
 				}
+			} else {
+				msg = "mixed named and unnamed parameters"
 			}
 			p.error(errPos, msg)
 		}
@@ -1179,7 +1177,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
 					p.exprLev--
 				}
 				rbrack := p.expectClosing(token.RBRACK, "type argument list")
-				typ = packIndexExpr(ident, lbrack, list, rbrack)
+				typ = typeparams.PackIndexExpr(ident, lbrack, list, rbrack)
 			}
 		case p.tok == token.LPAREN:
 			// ordinary method
@@ -1368,7 +1366,7 @@ func (p *parser) parseTypeInstance(typ ast.Expr) ast.Expr {
 		}
 	}
 
-	return packIndexExpr(typ, opening, list, closing)
+	return typeparams.PackIndexExpr(typ, opening, list, closing)
 }
 
 func (p *parser) tryIdentOrType() ast.Expr {
@@ -1621,7 +1619,7 @@ func (p *parser) parseIndexOrSliceOrInstance(x ast.Expr) ast.Expr {
 	}
 
 	// instance expression
-	return packIndexExpr(x, lbrack, args, rbrack)
+	return typeparams.PackIndexExpr(x, lbrack, args, rbrack)
 }
 
 func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
@@ -2689,8 +2687,8 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Token, _ int) ast.
 //	P*[]int     T/F      P       *[]int
 //	P*E         T        P       *E
 //	P*E         F        nil     P*E
-//	P([]int)    T/F      P       ([]int)
-//	P(E)        T        P       (E)
+//	P([]int)    T/F      P       []int
+//	P(E)        T        P       E
 //	P(E)        F        nil     P(E)
 //	P*E|F|~G    T/F      P       *E|F|~G
 //	P*E|F|G     T        P       *E|F|G
@@ -2717,14 +2715,8 @@ func extractName(x ast.Expr, force bool) (*ast.Ident, ast.Expr) {
 	case *ast.CallExpr:
 		if name, _ := x.Fun.(*ast.Ident); name != nil {
 			if len(x.Args) == 1 && x.Ellipsis == token.NoPos && (force || isTypeElem(x.Args[0])) {
-				// x = name (x.Args[0])
-				// (Note that the cmd/compile/internal/syntax parser does not care
-				// about syntax tree fidelity and does not preserve parentheses here.)
-				return name, &ast.ParenExpr{
-					Lparen: x.Lparen,
-					X:      x.Args[0],
-					Rparen: x.Rparen,
-				}
+				// x = name "(" x.ArgList[0] ")"
+				return name, x.Args[0]
 			}
 		}
 	}
@@ -2917,11 +2909,12 @@ func (p *parser) parseFile() *ast.File {
 	}
 
 	f := &ast.File{
-		Doc:     doc,
-		Package: pos,
-		Name:    ident,
-		Decls:   decls,
-		// File{Start,End} are set by the defer in the caller.
+		Doc:       doc,
+		Package:   pos,
+		Name:      ident,
+		Decls:     decls,
+		FileStart: token.Pos(p.file.Base()),
+		FileEnd:   token.Pos(p.file.Base() + p.file.Size()),
 		Imports:   p.imports,
 		Comments:  p.comments,
 		GoVersion: p.goVersion,
@@ -2935,26 +2928,4 @@ func (p *parser) parseFile() *ast.File {
 	}
 
 	return f
-}
-
-// packIndexExpr returns an IndexExpr x[expr0] or IndexListExpr x[expr0, ...].
-func packIndexExpr(x ast.Expr, lbrack token.Pos, exprs []ast.Expr, rbrack token.Pos) ast.Expr {
-	switch len(exprs) {
-	case 0:
-		panic("internal error: packIndexExpr with empty expr slice")
-	case 1:
-		return &ast.IndexExpr{
-			X:      x,
-			Lbrack: lbrack,
-			Index:  exprs[0],
-			Rbrack: rbrack,
-		}
-	default:
-		return &ast.IndexListExpr{
-			X:       x,
-			Lbrack:  lbrack,
-			Indices: exprs,
-			Rbrack:  rbrack,
-		}
-	}
 }

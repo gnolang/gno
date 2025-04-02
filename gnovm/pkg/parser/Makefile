@@ -2,6 +2,7 @@
 import:
 	cp -a $$(go env GOROOT)/src/go/parser/* .
 	cp -a $$(go env GOROOT)/src/go/printer/nodes.go nodes.go.src
+	mkdir -p internal && cp -a $$(go env GOROOT)/src/go/internal/typeparams internal/
 
 # Generate a patch to be applied against imported files.
 genpatch:
@@ -12,7 +13,7 @@ patch:
 	patch -b < gno.patch
 
 clean:
-	rm -rf *.go *.orig testdata;
+	rm -rf *.go *.orig internal testdata;
 	echo "package parser" > gen.go
 	echo "//go:generate make import patch" >> gen.go
 

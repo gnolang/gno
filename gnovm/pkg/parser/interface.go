@@ -92,10 +92,7 @@ func ParseFile(fset *token.FileSet, filename string, src any, mode Mode) (f *ast
 		return nil, err
 	}
 
-	file := fset.AddFile(filename, -1, len(text))
-
 	var p parser
-	p.maxNest = maxNestLev
 	defer func() {
 		if e := recover(); e != nil {
 			// resume same panic if it's not a bailout
@@ -118,17 +115,12 @@ func ParseFile(fset *token.FileSet, filename string, src any, mode Mode) (f *ast
 			}
 		}
 
-		// Ensure the start/end are consistent,
-		// whether parsing succeeded or not.
-		f.FileStart = token.Pos(file.Base())
-		f.FileEnd = token.Pos(file.Base() + file.Size())
-
 		p.errors.Sort()
 		err = p.errors.Err()
 	}()
 
 	// parse source
-	p.init(file, text, mode, 0)
+	p.init(fset, filename, text, mode, 0)
 	f = p.parseFile()
 
 	return
@@ -150,8 +142,6 @@ func ParseFileStats(fset *token.FileSet, filename string, src any, mode Mode, ma
 		return nil, nil, err
 	}
 
-	file := fset.AddFile(filename, -1, len(text))
-
 	var p parser
 	defer func() {
 		if e := recover(); e != nil {
@@ -175,17 +165,12 @@ func ParseFileStats(fset *token.FileSet, filename string, src any, mode Mode, ma
 			}
 		}
 
-		// Ensure the start/end are consistent,
-		// whether parsing succeeded or not.
-		f.FileStart = token.Pos(file.Base())
-		f.FileEnd = token.Pos(file.Base() + file.Size())
-
 		p.errors.Sort()
 		err = p.errors.Err()
 	}()
 
 	// parse source
-	p.init(file, text, mode, maxNest)
+	p.init(fset, filename, text, mode, maxNest)
 	f = p.parseFile()
 	s = &Stats{p.topNest, p.numTok}
 
@@ -281,8 +266,7 @@ func ParseExprFrom(fset *token.FileSet, filename string, src any, mode Mode) (ex
 	}()
 
 	// parse expr
-	file := fset.AddFile(filename, -1, len(text))
-	p.init(file, text, mode, 0)
+	p.init(fset, filename, text, mode, 0)
 	expr = p.parseRhs()
 
 	// If a semicolon was inserted, consume it;
@@ -322,8 +306,7 @@ func ParseExprFromStats(fset *token.FileSet, filename string, src any, mode Mode
 	}()
 
 	// parse expr
-	file := fset.AddFile(filename, -1, len(text))
-	p.init(file, text, mode, maxNest)
+	p.init(fset, filename, text, mode, 0)
 	expr = p.parseRhs()
 
 	// If a semicolon was inserted, consume it;
@@ -332,8 +315,6 @@ func ParseExprFromStats(fset *token.FileSet, filename string, src any, mode Mode
 		p.next()
 	}
 	p.expect(token.EOF)
-
-	s = &Stats{p.topNest, p.numTok}
 
 	return
 }
