@@ -385,7 +385,7 @@ func tRunner(t *T, fn testingFunc, verbose bool) {
 
 // ExpectEmit checks if the last event matches the expected type and attributes.
 func ExpectEmit(expectedType string, expectedAttrs []string) bool {
-	return X_expectEmit(expectedType, expectedAttrs)
+	return expectEmit(expectedType, expectedAttrs)
 }
 
 func expectEmit(expectedType string, expectedAttrs []string) bool
