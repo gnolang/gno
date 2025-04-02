@@ -40,9 +40,11 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 
 	_, testStore := test.Store(gnoenv.RootDir(), output)
 
-	f := gnolang.MustReadFile(file)
+	var m *gnolang.Machine
 
-	m := gnolang.NewMachineWithOptions(gnolang.MachineOptions{
+	f := m.MustReadFile(file)
+
+	m = gnolang.NewMachineWithOptions(gnolang.MachineOptions{
 		PkgPath: string(f.PkgName),
 		Input:   stdin,
 		Output:  output,
