@@ -122,7 +122,7 @@ func (m *Machine) ParseFile(filename string, body string) (fn *FileNode, err err
 	// Print the imports from the file's AST.
 	// spew.Dump(f)
 
-	if m != nil {
+	if m != nil && m.GasMeter != nil {
 		m.GasMeter.ConsumeGas(parseCost(stats), "parsing")
 	}
 
