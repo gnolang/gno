@@ -6,5 +6,8 @@
 [Invalid dest](>https://example.com)
 
 -- output.html --
-<p><!-- invalid link "https://example.com|" -->
-<!-- invalid link "https://example.com\\n" --></p>
+<p><!-- invalid link -->
+<!-- invalid link -->
+<a href="https://example.com" rel="noopener nofollow ugc">Invalid html tag <!-- raw HTML omitted --><span class="link-external tooltip" data-tooltip="External link">↗</span></a>
+<a href="https://example.com" rel="noopener nofollow ugc" title="\\\"<div>">Invalid html tag 2<span class="link-external tooltip" data-tooltip="External link">↗</span></a>
+<!-- invalid link --></p>
