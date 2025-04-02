@@ -853,6 +853,11 @@ func (ss Body) GetLabeledStmt(label Name) (stmt Stmt, idx int) {
 }
 
 // Convenience, returns true if first statement is switchrealm()
+func (ss Body) IsSwitchRealm() bool {
+	return ss.isSwitchRealm()
+}
+
+// XXX deprecate
 func (ss Body) isSwitchRealm() bool {
 	if len(ss) == 0 {
 		return false

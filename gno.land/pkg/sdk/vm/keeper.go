@@ -437,7 +437,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		}
 		argslist += fmt.Sprintf("arg%d", i)
 	}
-	expr := fmt.Sprintf(`pkg.%s(%s)`, fnc, argslist)
+	expr := fmt.Sprintf(`withswitch(pkg.%s)(%s)`, fnc, argslist)
 	xn := gno.MustParseExpr(expr)
 	// Send send-coins to pkg from caller.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)

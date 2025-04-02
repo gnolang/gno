@@ -89,25 +89,29 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 
 	var (
 		ctx      = m.Context.(*TestExecContext)
-		switches int        // track realm hard-switches
-		lfr      *gno.Frame // last call frame
+		switches int                        // track realm withswitches
+		lfr      *gno.Frame = m.LastFrame() // last call frame
 	)
 
 	for i := m.NumFrames() - 1; i >= 0; i-- {
 		fr := m.Frames[i]
 
-		// Skip over (non-realm) non-hard-switches.
-		// Override implies hard switch of origin.
+		// Skip over (non-realm) non-withswitches.
+		// Override implies withswitch.
 		override, overridden := ctx.RealmFrames[m.Frames[max(i-1, 0)]]
 		if !overridden {
-			if !fr.IsHardSwitch() {
+			if !fr.IsCall() {
+				continue
+			}
+			if !fr.WithSwitch {
+				lfr = fr
 				continue
 			}
 		}
 
 		// Sanity check
 		if !overridden {
-			if !fr.IsSoftSwitch() {
+			if !fr.DidSwitch {
 				panic("call to withswitch(fn) did not call switchrealm")
 			}
 		}

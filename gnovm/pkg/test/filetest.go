@@ -272,11 +272,14 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		m.Store = orig
 
 		pv2 := m.Store.GetPackage(pkgPath, false)
-		m.SetActivePackage(pv2)
+		m.SetActivePackage(pv2) // XXX should it set the realm?
 		gno.EnableDebug()
 		// clear store.opslog from init function(s).
 		m.Store.SetLogStoreOps(opslog) // resets.
-		m.RunStatement(gno.S(gno.Call(gno.X("main"))))
+		// Call main() like withrealm(main)().
+		// This will switch the realm to the package.
+		// main() must start with switchrealm().
+		m.RunStatement(gno.S(gno.Call(gno.Call(gno.X("withswitch"), gno.X("main"))))) // switch realm.
 	}
 
 	return runResult{

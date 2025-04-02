@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"std"
 
-	psubtests "gno.land/p/demo/tests/subtests"
 	rsubtests "gno.land/r/demo/tests/subtests"
 )
 
 func main() {
+	switchrealm()
+
 	tests := []struct {
 		fn func() std.Realm
 	}{

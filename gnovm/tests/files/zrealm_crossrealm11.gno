@@ -18,13 +18,6 @@ func Exec(fn func()) {
 }
 
 func main() {
-	// The realm is still user1.gno (testing quirk).
-	// But switching to main2 will switch realm to
-	// gno.land/r/crossrealm_test.
-	withswitch(main2)()
-}
-
-func main2() {
 	switchrealm()
 
 	// Create a map of the potential callers, this will give more understandable

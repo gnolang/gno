@@ -1750,6 +1750,9 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, wi
 	if withSwitch && !fv.IsSwitchRealm() {
 		panic("withswitch(fn)(...) but fn not switchrealm")
 	}
+	fmt.Println("========================================")
+	fmt.Println(m.String())
+	fmt.Println("========================================", withSwitch, fv.IsSwitchRealm(), cx.String())
 
 	fr := &Frame{
 		Source:      cx,
@@ -1765,8 +1768,8 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, wi
 		Defers:      nil,
 		LastPackage: m.Package,
 		LastRealm:   m.Realm,
-		HardSwitch:  withSwitch,
-		SoftSwitch:  false,
+		WithSwitch:  withSwitch,
+		DidSwitch:   false,
 	}
 	if debug {
 		if m.Package == nil {
@@ -1787,35 +1790,52 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, wi
 	}
 	m.Package = pv
 
-	// Switch Realm.
-	if withSwitch {
-		var rlm *Realm
-		if recv.IsDefined() {
-			// Soft-switch to storage realm.
-			obj := recv.GetFirstObject(m.Store)
-			if obj == nil {
-				// A nil receiver.
-				// Do not switch realms.
-			} else {
-				recvOID := obj.GetObjectInfo().ID
-				if recvOID.IsZero() {
-					// An unreal object.
-					// Do not switch realms.
-				} else {
-					// Switch to realm.
-					// Override the rlm with receiver's.
-					// XXX delete recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
-					// XXX delete pv = m.Store.GetObject(recvPkgOID).(*PackageValue)
-					rlm = pv.GetRealm() // Done
-				}
-			}
+	// If withswitch, always switch to pv.Realm.
+	// If method, this means the object cannot be modified if
+	// stored externally by this method; but other methods can.
+	if withSwitch && fv.IsSwitchRealm() {
+		m.Realm = pv.GetRealm()
+		return
+	}
+
+	// Not called like withswitch(fn)(...).
+	if fv.IsSwitchRealm() {
+		if m.Realm != pv.Realm {
+			// panic; not explicit
+			panic("missing withswitch before external switchrealm()")
 		} else {
-			// Switch to pv's realm if realm.
-			rlm = pv.GetRealm()
+			// ok
+			// Technically OK even if recv.Realm is different.
+			return
 		}
-		if rlm != nil { // && m.Realm != rlm {
-			m.Realm = rlm // enter new realm
+	}
+
+	// Not withswitch nor switchrealm.
+	// Only "soft" switch to storage realm of receiver.
+	var rlm *Realm
+	if recv.IsDefined() { // method call
+		obj := recv.GetFirstObject(m.Store)
+		if obj == nil { // nil receiver
+			// no switch
+			return
+		} else {
+			recvOID := obj.GetObjectInfo().ID
+			if recvOID.IsZero() || recvOID.PkgID == m.Realm.ID {
+				// no switch
+				return
+			} else {
+				// "soft" switch to storage realm.
+				// neither withswitch nor didswitch.
+				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
+				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
+				rlm = objpv.GetRealm()
+				m.Realm = rlm
+				return
+			}
 		}
+	} else { // top level function
+		// no switch
+		return
 	}
 }
 

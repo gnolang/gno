@@ -1366,6 +1366,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							panic("withswitch(fn) must be followed by a call")
 						}
 						pc.SetWithSwitch()
+					} else if fv.PkgPath == uversePkgPath && fv.Name == "switchrealm" {
+						// XXX Make sure it's only used in a realm.
 					}
 				}
 
