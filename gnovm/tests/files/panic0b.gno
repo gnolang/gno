@@ -22,8 +22,10 @@ func f() {
 //     main/files/panic0b.gno:4
 // ... 1 panic(s) elided ...
 // panic: third
+// func(){ ... }()
+//     main/:9
 // f<VPBlock(3,1)>()
-//     main/files/panic0b.gno:9
+//     main/files/panic0b.gno:8
 // main<VPBlock(1,0)>()
 //     main/files/panic0b.gno:4
 

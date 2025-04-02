@@ -30,15 +30,17 @@ func main() {
 //     main/files/panic2b.gno:14
 // ... 4 panic(s) elided ...
 // panic: here
+// func(){ ... }()
+//     main/:5
 // p<VPBlock(3,0)>(0)
-//     main/files/panic2b.gno:5
+//     main/files/panic2b.gno:4
 // main<VPBlock(1,1)>()
 //     main/files/panic2b.gno:14
 
 // Error:
-// here
-// 	here
-// 	here
-// 	here
-// 	here
-// 	here
+// panic: here
+// 	panic: here
+// 	panic: here
+// 	panic: here
+// 	panic: here
+// 	panic: here

@@ -84,4 +84,4 @@ func main() {
 //     main/files/panic0c.gno:57
 
 // Error:
-// wtf
+// panic: wtf
