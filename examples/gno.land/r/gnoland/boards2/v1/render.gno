@@ -75,9 +75,9 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 		board := v.(*Board)
 
 		res.Write("**" + newLink(board.GetName(), board.GetURL()) + "**  \n")
-		res.Write("_Created by " + newUserLink(board.creator) + " ")
+		res.Write("Created by " + newUserLink(board.creator) + " ")
 		res.Write("on " + board.createdAt.Format(dateFormat))
-		res.Write(", #" + board.id.String() + "_  \n")
+		res.Write(", #" + board.id.String() + "  \n")
 		res.Write("**" + strconv.Itoa(board.threads.Size()) + " threads")
 		if board.IsReadonly() {
 			res.Write(", read-only")

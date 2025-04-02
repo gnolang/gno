@@ -113,9 +113,9 @@ func (board *Board) Render(path, menu string) string {
 	var sb strings.Builder
 
 	sb.WriteString("# " + board.GetName() + "  \n")
-	sb.WriteString("_Board created by " + newUserLink(board.creator) + " ")
+	sb.WriteString("Board created by " + newUserLink(board.creator) + " ")
 	sb.WriteString("on " + board.createdAt.Format(dateFormat))
-	sb.WriteString(", #" + board.id.String() + "_")
+	sb.WriteString(", #" + board.id.String())
 
 	if board.IsReadonly() {
 		sb.WriteString("  \n_**Starting new threads and commenting is disabled**_")
