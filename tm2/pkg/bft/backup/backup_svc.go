@@ -78,10 +78,7 @@ func (b *backupServer) StreamBlocks(_ context.Context, req *connect.Request[back
 			return err
 		}
 
-		if err := stream.Send(&backuppb.StreamBlocksResponse{
-			Height: height,
-			Data:   data,
-		}); err != nil {
+		if err := stream.Send(&backuppb.StreamBlocksResponse{Data: data}); err != nil {
 			return err
 		}
 	}
