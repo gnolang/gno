@@ -25,11 +25,19 @@ func NewDefaultPermissions(dao *commondao.CommonDAO) *DefaultPermissions {
 		panic("default permissions require a DAO")
 	}
 
-	return &DefaultPermissions{
+	dp := &DefaultPermissions{
 		dao:   dao,
 		roles: avl.NewTree(),
 		users: avl.NewTree(),
 	}
+
+	// Make sure that DAO users are indexed when DAO has members
+	dao.Members().IterateByOffset(0, dao.Members().Size(), func(m std.Address) bool {
+		dp.users.Set(m.String(), []Role(nil))
+		return false
+	})
+
+	return dp
 }
 
 // SetSuperRole assigns a super role.

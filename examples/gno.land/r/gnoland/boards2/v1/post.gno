@@ -225,34 +225,44 @@ func (post *Post) GetURL() string {
 
 func (post *Post) GetReplyFormURL() string {
 	if post.IsThread() {
-		return txlink.Call("CreateReply",
+		return txlink.Call(
+			"CreateReply",
 			"boardID", post.board.id.String(),
 			"threadID", post.threadID.String(),
 			"replyID", "0",
+			"body", "",
 		)
 	}
-	return txlink.Call("CreateReply",
+	return txlink.Call(
+		"CreateReply",
 		"boardID", post.board.id.String(),
 		"threadID", post.threadID.String(),
 		"replyID", post.id.String(),
+		"body", "",
 	)
 }
 
 func (post *Post) GetRepostFormURL() string {
-	return txlink.Call("CreateRepost",
+	return txlink.Call(
+		"CreateRepost",
 		"boardID", post.board.id.String(),
 		"threadID", post.id.String(),
+		"title", "",
+		"body", "",
+		"destinationBoardID", "",
 	)
 }
 
 func (post *Post) GetDeleteFormURL() string {
 	if post.IsThread() {
-		return txlink.Call("DeleteThread",
+		return txlink.Call(
+			"DeleteThread",
 			"boardID", post.board.id.String(),
 			"threadID", post.threadID.String(),
 		)
 	}
-	return txlink.Call("DeleteReply",
+	return txlink.Call(
+		"DeleteReply",
 		"boardID", post.board.id.String(),
 		"threadID", post.threadID.String(),
 		"replyID", post.id.String(),
@@ -261,7 +271,8 @@ func (post *Post) GetDeleteFormURL() string {
 
 func (post *Post) GetEditFormURL() string {
 	if post.IsThread() {
-		return txlink.Call("EditThread",
+		return txlink.Call(
+			"EditThread",
 			"boardID", post.board.id.String(),
 			"threadID", post.threadID.String(),
 			"title", post.GetTitle(),
@@ -269,7 +280,8 @@ func (post *Post) GetEditFormURL() string {
 		)
 	}
 
-	return txlink.Call("EditReply",
+	return txlink.Call(
+		"EditReply",
 		"boardID", post.board.id.String(),
 		"threadID", post.threadID.String(),
 		"replyID", post.id.String(),
@@ -279,16 +291,20 @@ func (post *Post) GetEditFormURL() string {
 
 func (post *Post) GetFlagFormURL() string {
 	if post.IsThread() {
-		return txlink.Call("FlagThread",
+		return txlink.Call(
+			"FlagThread",
 			"boardID", post.board.id.String(),
 			"threadID", post.threadID.String(),
+			"reason", "",
 		)
 	}
 
-	return txlink.Call("FlagReply",
+	return txlink.Call(
+		"FlagReply",
 		"boardID", post.board.id.String(),
 		"threadID", post.threadID.String(),
 		"replyID", post.id.String(),
+		"reason", "",
 	)
 }
 

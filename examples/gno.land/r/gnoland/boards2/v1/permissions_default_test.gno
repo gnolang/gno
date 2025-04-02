@@ -370,7 +370,7 @@ func TestDefaultPermissionsAddUser(t *testing.T) {
 					commondao.New(commondao.WithMember("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")),
 				)
 			},
-			err: "member already exist",
+			err: "user already exists",
 		},
 	}
 
@@ -381,7 +381,7 @@ func TestDefaultPermissionsAddUser(t *testing.T) {
 			err := perms.AddUser(tc.user, tc.roles...)
 
 			if tc.err != "" {
-				urequire.True(t, err != nil, "expected an error")
+				urequire.Error(t, err, "expected an error")
 				uassert.Equal(t, tc.err, err.Error())
 				return
 			} else {
