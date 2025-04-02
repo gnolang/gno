@@ -1,24 +1,25 @@
 # Test recovering
 
-! gno test -v -run 'TestBadRecover$' .
+gno test -v -run 'TestRecover$' .
 
 ! stdout .+
-! stderr 'recovered bad panic!'
+stderr 'recovered bad panic!'
+stderr '--- PASS'
+stderr 'ok  '
 
-gno test -v -run 'TestRecoverSkip1$' .
+gno test -v -run 'TestRecoverSkip$' .
 
 ! stdout .+
 stderr 'skipped'
-! stderr 'after skipped'
+! stderr 'recovered.*testing.Recover'
 stderr '--- SKIP'
 stderr 'ok  '
 
-gno test -v -run 'TestRecoverSkip2$' .
+gno test -v -run 'TestBadRecoverSkip$' .
 
 ! stdout .+
 # should contain warning about using testing.Recover
-stderr 'skipped'
-! stderr 'after skipped'
+stderr 'recovered.*testing.Recover'
 # the test will still be marked as skipped
 stderr '--- SKIP'
 stderr 'ok  '
@@ -39,19 +40,17 @@ func (s *RecoverySetter) Set(v interface{}) {
 	s.value = v
 }
 
-func TestBadRecover(t *testing.T) {
+func TestRecover(t *testing.T) {
 	var setter RecoverySetter
 	defer func() {
 		t.Log("recovered", setter.value)
 	}()
-	//  not recovering
-	//  unhandled panic error
 	defer testing.Recover(&setter)
 
 	panic("bad panic!")
 }
 
-func TestRecoverSkip1(t *testing.T) {
+func TestRecoverSkip(t *testing.T) {
 	var setter RecoverySetter
 	defer func() {
 		t.Log("recovered", setter.value)
@@ -59,17 +58,15 @@ func TestRecoverSkip1(t *testing.T) {
 	defer testing.Recover(&setter)
 
 	t.Skip("skipped")
-	t.Log("after skipped")
 	panic("bad panic!")
 }
 
-func TestRecoverSkip2(t *testing.T) {
+func TestBadRecoverSkip(t *testing.T) {
 	defer func() {
 		err := recover()
 		t.Log("recovered", err)
 	}()
 
 	t.Skip("skipped")
-	t.Log("after skipped")
 	panic("bad panic!")
 }

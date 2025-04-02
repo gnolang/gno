@@ -5,6 +5,7 @@ package std
 
 import (
 	"errors"
+	"fmt"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
@@ -14,7 +15,9 @@ var errInvalidGnoEventAttrs = errors.New("cannot pair attributes due to odd coun
 func X_emit(m *gno.Machine, typ string, attrs []string) {
 	eventAttrs, err := attrKeysAndValues(attrs)
 	if err != nil {
+		fmt.Println("---panic, err: ", err)
 		m.Panic(typedString(err.Error()))
+		//panic(err)
 	}
 
 	_, pkgPath := currentRealm(m)

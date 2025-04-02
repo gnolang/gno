@@ -30,7 +30,7 @@ func (s skipErr) Error() string {
 // NOTE: Recover() is likely to be removed.
 func Recover(result Setter) {
 	r := recover()
-	if _, ok := r.(skipErr); ok {
+	if _, ok := r.(skipErr); !ok {
 		result.Set(r)
 		return
 	}
@@ -357,7 +357,6 @@ func tRunner(t *T, fn testingFunc, verbose bool) {
 		switch err.(type) {
 		case nil:
 		case skipErr:
-			//fmt.Println("---skip err---")
 		default:
 			t.Fail()
 			fmt.Fprintf(os.Stderr, "panic: %v\nStacktrace:\n%s\n", err, st)

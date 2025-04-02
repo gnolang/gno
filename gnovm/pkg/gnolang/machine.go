@@ -2046,7 +2046,11 @@ func (m *Machine) CheckEmpty() error {
 }
 
 func (m *Machine) Panic(ex TypedValue) {
-	//fmt.Println("---m Panic, ex: ", ex, reflect.TypeOf(ex.V), ex.T)
+	fmt.Println("---m Panic, ex: ", ex, reflect.TypeOf(ex.V), ex.T)
+	defer func() {
+		fmt.Println("---done m.Panic...")
+	}()
+
 	// Skip the last frame, as it's the one of the panic() (or native)
 	// function call.
 	// panicFrames := slices.Clone(m.Frames[:len(m.Frames)-1])
@@ -2065,9 +2069,10 @@ func (m *Machine) Panic(ex TypedValue) {
 			Stacktrace: m.Stacktrace(),
 		},
 	)
-	m.Println("---m.Exceptions: ", m.Exceptions)
+	fmt.Println("---m.Exceptions: ", m.Exceptions)
 
 	m.PopUntilLastCallFrame()
+	fmt.Println("---push ...")
 	m.PushOp(OpPanic2)
 	m.PushOp(OpReturnCallDefers)
 }
@@ -2083,11 +2088,12 @@ func (m *Machine) Recover() *Exception {
 
 	exception := &m.Exceptions[len(m.Exceptions)-1]
 
+	//fmt.Println("----exception: ", exception)
+
 	if exception == nil {
 		return nil
 	}
 
-	//fmt.Println("----exception: ", exception)
 	//fmt.Println("---exception... panic frames: ", exception.Frames)
 	//fmt.Println("---exception.Recovered: ", exception.Recovered)
 
@@ -2099,11 +2105,12 @@ func (m *Machine) Recover() *Exception {
 	// the second is deferred func lit,
 	// the third is the frame where panic happens.
 	exframe := m.LastCallFrame(3)
+
+	//fmt.Println("---target frame: ", exframe)
+
 	if exframe == nil {
 		return nil
 	}
-
-	//fmt.Println("---target frame: ", exframe)
 
 	if !slices.Contains(exception.Frames, exframe) {
 		//fmt.Println("---not contained, return nil")

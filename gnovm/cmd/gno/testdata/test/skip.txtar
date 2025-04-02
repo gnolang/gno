@@ -1,12 +1,13 @@
 # Test skipping a test
 
-! gno test -v .
+gno test -v .
 
 ! stdout .+
 stderr 'Hey'
 stderr 'I.m on strike!'
-! stderr 'this should not print'
+! stderr 'this shouldn.t print'
 stderr '--- SKIP: TestSkip'
+stderr 'ok  '
 
 -- skip.gno --
 package skip
@@ -19,5 +20,5 @@ import "testing"
 func TestSkip(t *testing.T) {
 	t.Log("Hey")
 	t.Skip("I'm on strike!")
-	t.Log("this shouldn't print")
+	t.Log("so this shouldn't print")
 }

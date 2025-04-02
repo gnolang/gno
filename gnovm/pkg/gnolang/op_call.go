@@ -274,11 +274,11 @@ func (m *Machine) doOpReturnToBlock() {
 }
 
 func (m *Machine) doOpReturnCallDefers() {
-	m.Println("---doOpReturnCallDefers...")
+	fmt.Println("---doOpReturnCallDefers...")
 
 	cfr := m.MustLastCallFrame(1)
 	dfr, ok := cfr.PopDefer()
-	m.Println("---cfr: ", cfr)
+	fmt.Println("---cfr: ", cfr)
 	if !ok {
 		// Done with defers.
 		//fmt.Println("---m.Recovered: ", m.hasNoUnrecovered())
@@ -380,10 +380,10 @@ func (m *Machine) doOpPanic1() {
 }
 
 func (m *Machine) doOpPanic2() {
-	m.Println("---doOpPanic2")
+	fmt.Println("---doOpPanic2")
 
 	if m.hasNoUnrecovered() {
-		m.Println("---all exceptions recovered..., or no exceptions...")
+		fmt.Println("---all exceptions recovered..., or no exceptions...")
 		m.Exceptions = nil
 		// Recovered from panic
 		m.PushOp(OpReturnFromBlock)
@@ -393,7 +393,7 @@ func (m *Machine) doOpPanic2() {
 	} else {
 		// Keep panicking
 		last := m.PopUntilLastCallFrame()
-		m.Println("---last: ", last)
+		fmt.Println("---last: ", last)
 		if last == nil {
 			// Build exception string just as go, separated by \n\t.
 			var bld strings.Builder
@@ -410,7 +410,7 @@ func (m *Machine) doOpPanic2() {
 				}
 			}
 
-			//fmt.Println("---unhandled panic: ", bld.String())
+			fmt.Println("---unhandled panic: ", bld.String())
 
 			panic(UnhandledPanicError{
 				Descriptor: bld.String(),
