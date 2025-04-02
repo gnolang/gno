@@ -162,3 +162,7 @@ func TestStart_Lazy(t *testing.T) {
 	assert.FileExists(t, validatorStatePath)
 	assert.FileExists(t, nodeKeyPath)
 }
+
+func TestCreateNode(t *testing.T) {
+
+}
