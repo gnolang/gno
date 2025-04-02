@@ -5,7 +5,7 @@ import (
 	"io"
 
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
-	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm/pkg/doc"
 )
 
 var (
@@ -32,13 +32,13 @@ type WebClient interface {
 	RenderRealm(w io.Writer, path string, args string) (*RealmMeta, error)
 
 	// SourceFile fetches and writes the source file from a given
-	// package path and file name. The method should ensures the source
+	// package path, file name and if raw. The method should ensures the source
 	// file's content is safely handled and formatted.
-	SourceFile(w io.Writer, pkgPath, fileName string) (*FileMeta, error)
+	SourceFile(w io.Writer, pkgPath, fileName string, isRaw bool) (*FileMeta, error)
 
-	// Functions retrieves a list of function signatures from a
+	// Doc retrieves the JSON doc suitable for printing from a
 	// specified package path.
-	Functions(path string) ([]vm.FunctionSignature, error)
+	Doc(path string) (*doc.JSONDocumentation, error)
 
 	// Sources lists all source files available in a specified
 	// package path.
