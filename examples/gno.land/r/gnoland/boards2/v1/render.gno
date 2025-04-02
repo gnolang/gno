@@ -44,7 +44,7 @@ func renderHelp(res *mux.ResponseWriter, _ *mux.Request) {
 	} else {
 		res.Write("### Help content has not been uploaded\n")
 		res.Write("Do you want to ")
-		res.Write(newLink("upload boards help", txlink.Call("SetHelp")))
+		res.Write(newLink("upload boards help", txlink.Call("SetHelp", "content", "")))
 		res.Write(" ?")
 	}
 }
@@ -57,8 +57,11 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write("\n\n---\n")
 
 	if gBoardsByID.Size() == 0 {
+		link := txlink.Call("CreateBoard", "name", "")
 		res.Write("### Currently there are no boards\n")
-		res.Write("Be the first to " + newLink("create a new board", txlink.Call("CreateBoard")) + " !")
+		res.Write("Be the first to ")
+		res.Write(newLink("create a new board", link))
+		res.Write(" !")
 
 		return
 	}
@@ -107,7 +110,7 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 func renderBoardListMenu(res *mux.ResponseWriter, req *mux.Request) {
 	path := strings.TrimPrefix(std.CurrentRealm().PkgPath(), "gno.land")
 
-	res.Write(newLink("Create Board", txlink.Call("CreateBoard")))
+	res.Write(newLink("Create Board", txlink.Call("CreateBoard", "name", "")))
 	res.Write(" • ")
 	res.Write(newLink("List Admin Users", path+":admin-users"))
 	res.Write(" • ")
@@ -121,8 +124,11 @@ func renderBoard(res *mux.ResponseWriter, req *mux.Request) {
 	name := req.GetVar("board")
 	v, found := gBoardsByName.Get(name)
 	if !found {
+		link := newLink("create a new board", txlink.Call("CreateBoard", "name", name))
 		res.Write("### The board you are looking for does not exist\n")
-		res.Write("Do you want to [create a new board](" + txlink.Call("CreateBoard", "name", name) + ") ?")
+		res.Write("Do you want to ")
+		res.Write(link)
+		res.Write(" ?")
 		return
 	}
 
@@ -288,6 +294,7 @@ func renderMembers(res *mux.ResponseWriter, req *mux.Request) {
 			"ChangeMemberRole",
 			"boardID", boardID.String(),
 			"member", u.Address.String(),
+			"role", "",
 		)))
 		res.Write(" |\n")
 		return false

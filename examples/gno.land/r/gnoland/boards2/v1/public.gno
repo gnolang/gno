@@ -244,14 +244,14 @@ func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID 
 }
 
 // CreateRepost reposts a thread into another board.
-func CreateRepost(boardID BoardID, threadID PostID, title, body string, dstBoardID BoardID) PostID {
+func CreateRepost(boardID BoardID, threadID PostID, title, body string, destinationBoardID BoardID) PostID {
 	assertRealmIsNotLocked()
 
 	title = strings.TrimSpace(title)
 	assertTitleIsValid(title)
 
 	caller := std.PreviousRealm().Address()
-	dst := mustGetBoard(dstBoardID)
+	dst := mustGetBoard(destinationBoardID)
 	assertBoardIsNotFrozen(dst)
 	assertHasBoardPermission(dst, caller, PermissionThreadRepost)
 
@@ -273,7 +273,7 @@ func CreateRepost(boardID BoardID, threadID PostID, title, body string, dstBoard
 		"caller", caller.String(),
 		"boardID", boardID.String(),
 		"threadID", threadID.String(),
-		"destinationBoardID", dstBoardID.String(),
+		"destinationBoardID", destinationBoardID.String(),
 		"title", title,
 	)
 
