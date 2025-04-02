@@ -61,9 +61,3 @@ _test.pkg.db:;      go test $(GOTEST_FLAGS) ./pkg/db/... ./pkg/iavl/benchmarks/.
 generate:
 	go generate -x ./...
 	$(MAKE) fmt
-
-.PHONY: generate.backup-grpc
-generate.backup-grpc:
-	cd pkg/bft/backup && go run -modfile ../../../../misc/devdeps/go.mod github.com/bufbuild/buf/cmd/buf generate
-	go run -modfile ../misc/devdeps/go.mod mvdan.cc/gofumpt -w pkg/bft/backup
-	go run -modfile ../misc/devdeps/go.mod golang.org/x/tools/cmd/goimports -w pkg/bft/backup

@@ -13,6 +13,5 @@ message StreamBlocksRequest {
 }
 
 message StreamBlocksResponse {
-    int64 height = 1;
     bytes data = 2;
 }
