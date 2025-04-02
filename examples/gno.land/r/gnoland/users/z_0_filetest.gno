@@ -2,7 +2,6 @@ package main
 
 import (
 	"std"
-	"testing"
 
 	"gno.land/r/gnoland/users"
 	"gno.land/r/gov/dao"
@@ -14,12 +13,10 @@ func init() {
 	init.InitWithUsers(c)
 	pReq := users.ProposeNewRelease("gno.land/r/gnoland/users/v2", "This is a note!")
 
-	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 	dao.MustCreateProposal(pReq)
 }
 
 func main() {
-	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.YesVote,
 		ProposalID: dao.ProposalID(0),

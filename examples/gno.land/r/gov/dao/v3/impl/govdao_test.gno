@@ -1,7 +1,6 @@
 package impl
 
 import (
-	"std"
 	"strings"
 	"testing"
 
@@ -57,7 +56,6 @@ func TestCreateProposalAndVote(t *testing.T) {
 	portfolio := "# This is my portfolio:\n\n- THINGS"
 
 	testing.SetOriginCaller(noMember)
-	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 
 	nm1 := testutils.TestAddress("nm1")
 
@@ -70,7 +68,6 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m1)
-	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 
 	pid := dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
 	urequire.Equal(t, int(pid), 0)
@@ -82,7 +79,6 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m11)
-	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.NoVote,
@@ -90,7 +86,6 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m2)
-	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.NoVote,
@@ -98,7 +93,6 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m3)
-	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.NoVote,
@@ -106,7 +100,6 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m4)
-	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 
 	urequire.PanicsWithMessage(t, "member on specified tier is not allowed to vote on this proposal", func() {
 		dao.MustVoteOnProposal(dao.VoteRequest{
@@ -116,7 +109,6 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m111)
-	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 
 	// Same effect as:
 	// dao.MustVoteOnProposal(dao.VoteRequest{
@@ -134,7 +126,6 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m1111)
-	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.NoVote,
@@ -153,7 +144,6 @@ func TestProposalPagination(t *testing.T) {
 	portfolio := "### This is my portfolio:\n\n- THINGS"
 
 	testing.SetOriginCaller(m1)
-	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 
 	nm1 := testutils.TestAddress("nm1")
 

@@ -50,7 +50,6 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		urequire.PanicsWithMessage(t, ErrValidatorMissing.Error(), func() {
 			pr := NewValidatorProposalRequest(test1Address)
 
-			testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 			dao.MustCreateProposal(pr)
 		})
 	})
@@ -76,7 +75,6 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		urequire.NotPanics(t, func() {
 			pr := NewValidatorProposalRequest(test1Address)
 
-			testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 			pid := dao.MustCreateProposal(pr)
 		})
 
@@ -105,14 +103,12 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 		urequire.NotPanics(t, func() {
 			// Vote the proposal created in the previous test
-			testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 			dao.MustVoteOnProposal(dao.VoteRequest{
 				Option:     dao.YesVote,
 				ProposalID: dao.ProposalID(0),
 			})
 
 			// Execute the proposal
-			testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 			dao.ExecuteProposal(dao.ProposalID(0))
 		})
 
@@ -122,7 +118,6 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		urequire.PanicsWithMessage(t, ErrSameValues.Error(), func() {
 			pr := NewValidatorProposalRequest(test1Address)
 
-			testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 			dao.MustCreateProposal(pr)
 		})
 	})
@@ -141,7 +136,6 @@ func TestValopers_ProposeNewInstructions(t *testing.T) {
 	urequire.NotPanics(t, func() {
 		pr := ProposeNewInstructionsProposalRequest(newInstructions)
 
-		testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 		pid = dao.MustCreateProposal(pr)
 	})
 
@@ -167,7 +161,6 @@ func TestValopers_ProposeNewMinFee(t *testing.T) {
 	urequire.NotPanics(t, func() {
 		pr := ProposeNewMinFeeProposalRequest(newMinFee)
 
-		testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 		pid = dao.MustCreateProposal(pr)
 	})
 

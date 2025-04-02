@@ -5,7 +5,6 @@ package valopers_proposal_test
 
 import (
 	"std"
-	"testing"
 
 	"gno.land/r/gnoland/valopers"
 	"gno.land/r/gnoland/valopers_proposal"
@@ -36,7 +35,6 @@ func main() {
 	}()
 	pr := valopers_proposal.NewValidatorProposalRequest(otherAddress)
 
-	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 	dao.MustCreateProposal(pr)
 }
 

@@ -32,7 +32,6 @@ func init() {
 
 	testing.SetOriginCaller(c)
 	testing.SetRealm(std.NewUserRealm(c))
-	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 	dao.MustCreateProposal(pr)
 }
 
@@ -45,7 +44,6 @@ func main() {
 	println(dao.Render("0"))
 	println("--")
 
-	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 	dao.MustVoteOnProposal(dao.VoteRequest{
 		Option:     dao.YesVote,
 		ProposalID: dao.ProposalID(0),
@@ -54,7 +52,6 @@ func main() {
 	println(dao.Render("0"))
 	println("--")
 
-	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 	dao.ExecuteProposal(dao.ProposalID(0))
 
 	println("--")

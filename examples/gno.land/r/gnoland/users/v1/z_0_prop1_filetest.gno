@@ -29,14 +29,12 @@ func init() {
 	// Prop to change name
 	testing.SetOriginCaller(c)
 	testing.SetRealm(std.NewUserRealm(c))
-	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 	pr := users.ProposeNewName(alice, "alice_new123")
 	dao.MustCreateProposal(pr)
 }
 
 func main() {
 	testing.SetOriginCaller(c)
-	testing.SetOriginPkgAddress(std.Address("g1p84dvfh4wrplyxx4zsmy77a8rxcnjup2j7zv5r")) // gno.land/r/gov/dao
 
 	println("--")
 	println(dao.Render(""))
