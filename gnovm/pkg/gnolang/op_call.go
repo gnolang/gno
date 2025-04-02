@@ -344,9 +344,10 @@ func (m *Machine) doOpReturnCallDefers() {
 			} else {
 				// Convert last nvar to slice.
 				vart := pts[len(pts)-1].Type.(*SliceType)
-				vargs := make([]TypedValue, nvar)
+				baseArray := m.Alloc.NewListArray(nvar)
+				vargs := baseArray.List
 				copy(vargs, dfr.Args[numArgs-nvar:numArgs])
-				varg := m.Alloc.NewSliceFromList(vargs)
+				varg := m.Alloc.NewSlice(baseArray, 0, nvar, nvar)
 				dfr.Args = dfr.Args[:numArgs-nvar]
 				dfr.Args = append(dfr.Args, TypedValue{
 					T: vart,
