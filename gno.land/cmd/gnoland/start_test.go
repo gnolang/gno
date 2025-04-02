@@ -3,14 +3,15 @@ package main
 import (
 	"bytes"
 	"context"
-	"fmt"
+	"flag"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -201,4 +202,100 @@ func TestStart_Lazy(t *testing.T) {
 }
 
 func TestCreateNode(t *testing.T) {
+	tcs := []struct {
+		name        string
+		errContains string
+		args        []string
+		prepare     func(t *testing.T, dataDir string)
+	}{
+		{
+			name: "lazy",
+			args: []string{
+				"--lazy",
+			},
+		},
+		{
+			name:        "err init logger",
+			errContains: "unable to initialize zap logger",
+			args: []string{
+				"--log-level", "NOTEXIST",
+			},
+		},
+		{
+			name:        "err no config",
+			errContains: "unable to load config",
+		},
+		{
+			name:        "err no genesis",
+			errContains: "missing genesis.json",
+			prepare: func(t *testing.T, dataDir string) {
+				confDir := filepath.Join(dataDir, "gnoland-data", "config")
+				require.NoError(t, os.MkdirAll(confDir, 0775))
+				err := config.WriteConfigFile(filepath.Join(confDir, "config.toml"), config.DefaultConfig())
+				require.NoError(t, err)
+			},
+		},
+	}
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			testDir := t.TempDir()
+			chtestdir(t, testDir)
+
+			if tc.prepare != nil {
+				tc.prepare(t, testDir)
+			}
+
+			cfg := &nodeCfg{}
+
+			fset := flag.NewFlagSet("test", flag.PanicOnError)
+			cfg.RegisterFlags(fset)
+
+			require.NoError(t, fset.Parse(tc.args))
+
+			io := commands.NewTestIO()
+			io.SetOut(os.Stdout)
+			io.SetErr(os.Stderr)
+			_, err := createNode(cfg, io)
+			if tc.errContains != "" {
+				require.ErrorContains(t, err, tc.errContains)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
+func chtestdir(t *testing.T, dir string) {
+	oldwd, err := os.Open(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	// On POSIX platforms, PWD represents “an absolute pathname of the
+	// current working directory.” Since we are changing the working
+	// directory, we should also set or update PWD to reflect that.
+	switch runtime.GOOS {
+	case "windows", "plan9":
+		// Windows and Plan 9 do not use the PWD variable.
+	default:
+		if !filepath.IsAbs(dir) {
+			dir, err = os.Getwd()
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		t.Setenv("PWD", dir)
+	}
+	t.Cleanup(func() {
+		err := oldwd.Chdir()
+		oldwd.Close()
+		if err != nil {
+			// It's not safe to continue with tests if we can't
+			// get back to the original working directory. Since
+			// we are holding a dirfd, this is highly unlikely.
+			panic("testing.Chdir: " + err.Error())
+		}
+	})
 }
