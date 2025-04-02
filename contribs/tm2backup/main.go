@@ -66,7 +66,7 @@ func (c *backupCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.startHeight,
 		"start",
 		0,
-		fmt.Sprintf("Start height. Will be aligned at a multiple of %d blocks. This can't be used when resuming from an existing output directory.", backup.ChunkSize),
+		fmt.Sprintf("Start height. Will be aligned at a multiple of %d blocks. This option can't be used when resuming from an existing output directory.", backup.ChunkSize),
 	)
 	fs.Int64Var(
 		&c.endHeight,
