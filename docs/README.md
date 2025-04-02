@@ -36,7 +36,7 @@ Gno-specific features, connect to Gno apps with clients, and more.
 
 Learn about core concepts found in gno.land & Gno.
 
-- [Awesome Gno](resources/awesome-gno.md) - Curated list of Gno freshness.
+- [Awesome Gno](https://github.com/gnoverse/awesome-gno) - Curated list of Gno freshness.
 - [Effective Gno](resources/effective-gno.md) - Learn how to write Gno following best practices, including counter-intuitive good practices specific to blockchain
 - [Packages](resources/gno-packages.md) - Learn about realms, pure packages, smart contracts, dApps and how they're organized in the gno.land ecosystem.
 - [Networks](resources/gnoland-networks.md) - Discover different gno.land networks (testnets, devnets) and their purposes, including network configurations.
