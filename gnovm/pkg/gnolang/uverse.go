@@ -778,13 +778,10 @@ func makeUverseNode() {
 				// Neither hard-switxh nor soft-switch, yet
 				// Realm already switched implicitly.
 				if fr3.LastRealm != m.Realm {
-					fmt.Println(">>>", fr3.LastRealm)
-					fmt.Println(">>>", m.Realm)
 					panic("switchrealm could not find corresponding withswitch(fn)(...) call")
 				}
 			}
 			if !found {
-				fmt.Println("QWEQWEQWEQWEQWEQWEQWEQWEQWE WTF")
 				panic("couldnt find it")
 			}
 			// Valid. Set soft switch.

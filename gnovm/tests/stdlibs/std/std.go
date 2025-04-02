@@ -89,20 +89,23 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 
 	var (
 		ctx      = m.Context.(*TestExecContext)
-		switches int // track realm hard-switches
+		switches int        // track realm hard-switches
+		lfr      *gno.Frame // last call frame
 	)
 
 	for i := m.NumFrames() - 1; i >= 0; i-- {
 		fr := m.Frames[i]
 
-		// override implies hard switch.
+		// Skip over (non-realm) non-hard-switches.
+		// Override implies hard switch of origin.
 		override, overridden := ctx.RealmFrames[m.Frames[max(i-1, 0)]]
-		if !overridden &&
-			(fr.LastPackage == nil || !fr.LastPackage.IsRealm() || !fr.IsHardSwitch()) {
-			continue
+		if !overridden {
+			if !fr.IsHardSwitch() {
+				continue
+			}
 		}
 
-		// sanity check
+		// Sanity check
 		if !overridden {
 			if !fr.IsSoftSwitch() {
 				panic("call to withswitch(fn) did not call switchrealm")
@@ -115,33 +118,23 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 				caller, pkgPath := override.Addr, override.PkgPath
 				return string(caller), pkgPath
 			} else {
-				fr2 := m.Frames[i+1] // XXX OOOOOH NOT A CALL LOL.
-				curPkg := fr2.LastPackage
-				if curPkg == nil {
-					fmt.Println("NNNNNNNNNIL", i, fr2.String())
-					fmt.Println(m.String())
-					fmt.Println("NNNNNNNNNIL", i, fr2.String())
-				}
-				caller, pkgPath := curPkg.GetPkgAddr().Bech32(), curPkg.PkgPath
-				return string(caller), pkgPath
+				currlm := lfr.LastRealm
+				caller, rlmPath := gno.DerivePkgAddr(currlm.Path).Bech32(), currlm.Path
+				return string(caller), rlmPath
 			}
 		}
+		lfr = fr
 		if overridden {
 			panic("should not happen")
 		}
 	}
 
-	// Fallback case: return OriginCaller.
-	return string(ctx.OriginCaller), ""
-
-	// XXX why not be more precise?
-	if height == switches {
-		// Final case: return OriginCaller.
-		return string(ctx.OriginCaller), ""
-	} else {
-		fmt.Println("MMMMMM", m.String())
-		panic("realm frame not found. missing withswitch(fn)(...)?")
+	if switches != height {
+		panic("height too large")
 	}
+
+	// Base case: return OriginCaller.
+	return string(ctx.OriginCaller), ""
 }
 
 func X_isRealm(m *gno.Machine, pkgPath string) bool {

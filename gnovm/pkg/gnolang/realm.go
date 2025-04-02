@@ -1,5 +1,7 @@
 package gnolang
 
+// XXX finalize should consider hard boundaries only
+
 import (
 	"encoding/hex"
 	"encoding/json"
@@ -1158,16 +1160,17 @@ func copyValueWithRefs(val Value) Value {
 		}
 		ft := copyTypeWithRefs(cv.Type)
 		return &FuncValue{
-			Type:       ft,
-			IsMethod:   cv.IsMethod,
-			Source:     source,
-			Name:       cv.Name,
-			Closure:    closure,
-			Captures:   cv.Captures,
-			FileName:   cv.FileName,
-			PkgPath:    cv.PkgPath,
-			NativePkg:  cv.NativePkg,
-			NativeName: cv.NativeName,
+			Type:        ft,
+			IsMethod:    cv.IsMethod,
+			Source:      source,
+			Name:        cv.Name,
+			Closure:     closure,
+			Captures:    cv.Captures,
+			FileName:    cv.FileName,
+			PkgPath:     cv.PkgPath,
+			NativePkg:   cv.NativePkg,
+			NativeName:  cv.NativeName,
+			SwitchRealm: cv.SwitchRealm,
 		}
 	case *BoundMethodValue:
 		fnc := copyValueWithRefs(cv.Func).(*FuncValue)

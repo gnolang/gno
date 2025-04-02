@@ -122,10 +122,15 @@ func GetPreviousRealm() std.Realm {
 func GetRSubtestsPreviousRealm() std.Realm {
 	switchrealm()
 
-	return rsubtests.GetPreviousRealm()
+	return withswitch(rsubtests.GetPreviousRealm)()
 }
 
 func Exec(fn func()) {
+	// no realm switching.
+	fn()
+}
+
+func ExecSwitch(fn func()) {
 	switchrealm()
 
 	fn()

@@ -248,7 +248,6 @@ func (m *Machine) doOpEval() {
 			m.PushOp(OpEval)
 		}
 		// evaluate func
-		fmt.Println("CALL", x.String())
 		if x.IsWithSwitch() {
 			m.PushExpr(x.Func.(*CallExpr).Args[0])
 		} else {

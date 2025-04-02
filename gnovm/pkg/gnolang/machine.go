@@ -1747,6 +1747,10 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, withSwitch bool) {
+	if withSwitch && !fv.IsSwitchRealm() {
+		panic("withswitch(fn)(...) but fn not switchrealm")
+	}
+
 	fr := &Frame{
 		Source:      cx,
 		NumOps:      m.NumOps,
@@ -1773,29 +1777,45 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, wi
 		m.Printf("+F %#v\n", fr)
 	}
 	m.Frames = append(m.Frames, fr)
+
+	// Set the package.
+	// .Package always refers to the code being run,
+	// and may differ from .Realm.
 	pv := fv.GetPackage(m.Store)
 	if pv == nil {
 		panic(fmt.Sprintf("package value missing in store: %s", fv.PkgPath))
 	}
-	rlm := pv.GetRealm()
-	if rlm == nil && recv.IsDefined() {
-		obj := recv.GetFirstObject(m.Store)
-		if obj == nil {
-			// could be a nil receiver.
-			// just ignore.
-		} else {
-			recvOID := obj.GetObjectInfo().ID
-			if !recvOID.IsZero() {
-				// override the pv and rlm with receiver's.
-				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
-				pv = m.Store.GetObject(recvPkgOID).(*PackageValue)
-				rlm = pv.GetRealm() // done
-			}
-		}
-	}
 	m.Package = pv
-	if rlm != nil && m.Realm != rlm {
-		m.Realm = rlm // enter new realm
+
+	// Switch Realm.
+	if withSwitch {
+		var rlm *Realm
+		if recv.IsDefined() {
+			// Soft-switch to storage realm.
+			obj := recv.GetFirstObject(m.Store)
+			if obj == nil {
+				// A nil receiver.
+				// Do not switch realms.
+			} else {
+				recvOID := obj.GetObjectInfo().ID
+				if recvOID.IsZero() {
+					// An unreal object.
+					// Do not switch realms.
+				} else {
+					// Switch to realm.
+					// Override the rlm with receiver's.
+					// XXX delete recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
+					// XXX delete pv = m.Store.GetObject(recvPkgOID).(*PackageValue)
+					rlm = pv.GetRealm() // Done
+				}
+			}
+		} else {
+			// Switch to pv's realm if realm.
+			rlm = pv.GetRealm()
+		}
+		if rlm != nil { // && m.Realm != rlm {
+			m.Realm = rlm // enter new realm
+		}
 	}
 }
 

@@ -105,29 +105,37 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 
 	var (
 		ctx      = GetContext(m)
-		switches int // track realm hard-switches
+		switches int        // track realm hard-switches
+		lfr      *gno.Frame // last call frame
 	)
 
 	for i := m.NumFrames() - 1; i >= 0; i-- {
 		fr := m.Frames[i]
-		if fr.LastPackage == nil || !fr.LastPackage.IsRealm() || !fr.IsHardSwitch() {
+
+		// Skip over (non-realm) non-hard-switches.
+		if !fr.IsHardSwitch() {
 			continue
+		}
+
+		// Sanity check
+		if !fr.IsSoftSwitch() {
+			panic("call to withswitch(fn) did not call switchrealm")
 		}
 
 		switches++
 		if switches > height {
-			fr2 := m.Frames[i+1]
-			curPkg := fr2.LastPackage
-			caller, pkgPath := curPkg.GetPkgAddr().Bech32(), curPkg.PkgPath
-			return string(caller), pkgPath
+			currlm := lfr.LastRealm
+			caller, rlmPath := gno.DerivePkgAddr(currlm.Path).Bech32(), currlm.Path
+			return string(caller), rlmPath
 		}
+		lfr = fr
 	}
 
 	if switches != height {
 		panic("height too large")
 	}
 
-	// Fallback case: return OriginCaller.
+	// Base case: return OriginCaller.
 	return string(ctx.OriginCaller), ""
 }
 
