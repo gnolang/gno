@@ -24,10 +24,10 @@ func Routine(fn func()) <-chan struct{} {
 // val: the value returned after task execution.
 // err: the error returned during task completion.
 // abort: tells Parallel to return, whether or not all tasks have completed.
-type Task func(i int) (val interface{}, err error, abort bool)
+type Task func(i int) (val any, err error, abort bool)
 
 type TaskResult struct {
-	Value interface{}
+	Value any
 	Error error
 }
 
@@ -65,7 +65,7 @@ func (trs *TaskResultSet) LatestResult(index int) (TaskResult, bool) {
 // NOTE: Not concurrency safe.
 // Writes results to trs.results without waiting for all tasks to complete.
 func (trs *TaskResultSet) Reap() *TaskResultSet {
-	for i := 0; i < len(trs.results); i++ {
+	for i := range trs.results {
 		trch := trs.chz[i]
 		select {
 		case result, ok := <-trch:
@@ -89,7 +89,7 @@ func (trs *TaskResultSet) Reap() *TaskResultSet {
 // NOTE: Not concurrency safe.
 // Like Reap() but waits until all tasks have returned or panic'd.
 func (trs *TaskResultSet) Wait() *TaskResultSet {
-	for i := 0; i < len(trs.results); i++ {
+	for i := range trs.results {
 		trch := trs.chz[i]
 		result, ok := <-trch
 		if ok {
@@ -108,7 +108,7 @@ func (trs *TaskResultSet) Wait() *TaskResultSet {
 
 // Returns the firstmost (by task index) error as
 // discovered by all previous Reap() calls.
-func (trs *TaskResultSet) FirstValue() interface{} {
+func (trs *TaskResultSet) FirstValue() any {
 	for _, result := range trs.results {
 		if result.Value != nil {
 			return result.Value
@@ -175,7 +175,7 @@ func Parallel(tasks ...Task) (trs *TaskResultSet, ok bool) {
 
 	// Wait until all tasks are done, or until abort.
 	// DONE_LOOP:
-	for i := 0; i < len(tasks); i++ {
+	for range tasks {
 		abort := <-taskDoneCh
 		if abort {
 			ok = false

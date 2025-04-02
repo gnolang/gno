@@ -187,7 +187,7 @@ func (conR *ConsensusReactor) AddPeer(peer p2p.PeerConn) {
 }
 
 // RemovePeer is a noop.
-func (conR *ConsensusReactor) RemovePeer(peer p2p.PeerConn, reason interface{}) {
+func (conR *ConsensusReactor) RemovePeer(peer p2p.PeerConn, reason any) {
 	if !conR.IsRunning() {
 		return
 	}
