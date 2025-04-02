@@ -3,6 +3,7 @@ package markdown
 import (
 	"errors"
 	"fmt"
+	"html"
 	"net/url"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
@@ -199,7 +200,7 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 
 	if n.LinkType == GnoLinkTypeInvalid {
 		if entering {
-			fmt.Fprintf(w, "<!-- invalid link %q -->", n.Destination)
+			w.WriteString("<!-- invalid link -->")
 		}
 		return ast.WalkSkipChildren, nil
 	}
@@ -211,7 +212,7 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 			attrs = append(attrs, attr{"rel", "noopener nofollow ugc"})
 		}
 		if n.Title != nil {
-			attrs = append(attrs, attr{"title", string(n.Title)})
+			attrs = append(attrs, attr{"title", html.EscapeString(string(n.Title))})
 		}
 
 		// Write opening tag <a>.

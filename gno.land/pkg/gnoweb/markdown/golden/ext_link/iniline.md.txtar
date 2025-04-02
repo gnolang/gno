@@ -3,6 +3,9 @@ Lorem ipsum dolor sit [external](https://example.com) consectetur adipiscing eli
 Vivamus nibh dui, finibus [internal](/r/other/realm) quis placerat et, laoreet ut est.
 Nam id ipsum faucibus [package](/r/test/mypackage/realm) ultrices eros at.
 
+Nam id ipsum *faucibus* *[italic](/r/test/mypackage/realm)* ultrices eros at.
+Nam id ipsum faucibus __[italic](/r/test/mypackage/realm)__ ultrices eros at.
+
 ## Inline title [internal](/r/other/realm)
 
 - level 1 [internal1](/r/other1/realm)
@@ -13,6 +16,8 @@ Nam id ipsum faucibus [package](/r/test/mypackage/realm) ultrices eros at.
 <p>Lorem ipsum dolor sit <a href="https://example.com" rel="noopener nofollow ugc">external<span class="link-external tooltip" data-tooltip="External link">↗</span></a> consectetur adipiscing elit.
 Vivamus nibh dui, finibus <a href="/r/other/realm">internal<span class="link-internal tooltip" data-tooltip="Cross package link">↔</span></a> quis placerat et, laoreet ut est.
 Nam id ipsum faucibus <a href="/r/test/mypackage/realm">package</a> ultrices eros at.</p>
+<p>Nam id ipsum <em>faucibus</em> <em><a href="/r/test/mypackage/realm">italic</a></em> ultrices eros at.
+Nam id ipsum faucibus <strong><a href="/r/test/mypackage/realm">italic</a></strong> ultrices eros at.</p>
 <h2>Inline title <a href="/r/other/realm">internal<span class="link-internal tooltip" data-tooltip="Cross package link">↔</span></a></h2>
 <ul>
 <li>level 1 <a href="/r/other1/realm">internal1<span class="link-internal tooltip" data-tooltip="Cross package link">↔</span></a>
