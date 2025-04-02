@@ -29,11 +29,19 @@ type blockStore interface {
 	LoadBlock(height int64) *types.Block
 }
 
-func NewServer(conf *Config, store blockStore) *http.Server {
+func NewBackupServiceHandler(store blockStore) (string, http.Handler) {
 	backupServ := &backupServer{store: store}
+	return backuppbconnect.NewBackupServiceHandler(backupServ)
+}
+
+func NewMux(store blockStore) *http.ServeMux {
 	mux := http.NewServeMux()
-	path, handler := backuppbconnect.NewBackupServiceHandler(backupServ)
-	mux.Handle(path, handler)
+	mux.Handle(NewBackupServiceHandler(store))
+	return mux
+}
+
+func NewServer(conf *Config, store blockStore) *http.Server {
+	mux := NewMux(store)
 	return &http.Server{Addr: conf.ListenAddress, Handler: h2c.NewHandler(mux, &http2.Server{}), ReadHeaderTimeout: time.Second * 5}
 }
 

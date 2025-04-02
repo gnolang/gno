@@ -2,7 +2,6 @@ package backup
 
 import (
 	"context"
-	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -161,9 +160,7 @@ func TestStreamBlocks(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			store := tc.initStore()
-			svc := &backupServer{store: store}
-			mux := http.NewServeMux()
-			mux.Handle(backuppbconnect.NewBackupServiceHandler(svc))
+			mux := NewMux(store)
 			srv := httptest.NewServer(mux)
 			defer srv.Close()
 			httpClient := srv.Client()
