@@ -7,7 +7,6 @@ import (
 
 func getContext() (
 	originCaller string,
-	originPkgAddress string,
 	origSendDenoms []string, origSendAmounts []int64,
 	origSpendDenoms []string, origSpendAmounts []int64,
 	chainID string,
@@ -17,7 +16,6 @@ func getContext() (
 
 func setContext(
 	originCaller string,
-	originPkgAddress string,
 	currRealmAddr string, currRealmPkgPath string,
 	origSendDenoms []string, origSendAmounts []int64,
 	origSpendDenoms []string, origSpendAmounts []int64,
@@ -27,15 +25,14 @@ func setContext(
 )
 
 func GetContext() Context {
-	originCaller, originPkgAddress, origSendDenoms, origSendAmounts, origSpendDenoms, origSpendAmounts, chainID, height, timeUnix, timeNano := getContext()
+	originCaller, origSendDenoms, origSendAmounts, origSpendDenoms, origSpendAmounts, chainID, height, timeUnix, timeNano := getContext()
 	return Context{
-		OriginCaller:     std.Address(originCaller),
-		OriginPkgAddress: std.Address(originPkgAddress),
-		OriginSend:       compactNative(origSendDenoms, origSendAmounts),
-		OriginSpend:      compactNative(origSpendDenoms, origSpendAmounts),
-		ChainID:          chainID,
-		Height:           height,
-		Time:             time.Unix(timeUnix, timeNano),
+		OriginCaller: std.Address(originCaller),
+		OriginSend:   compactNative(origSendDenoms, origSendAmounts),
+		OriginSpend:  compactNative(origSpendDenoms, origSpendAmounts),
+		ChainID:      chainID,
+		Height:       height,
+		Time:         time.Unix(timeUnix, timeNano),
 	}
 }
 
@@ -53,7 +50,6 @@ func SetContext(ctx Context) {
 
 	setContext(
 		ctx.OriginCaller.String(),
-		ctx.OriginPkgAddress.String(),
 		ctx.CurrentRealm.Address().String(), ctx.CurrentRealm.PkgPath(),
 		originSendDenom, originSendAmount,
 		originSpendDenom, originSpendAmount,
@@ -80,12 +76,6 @@ func SetOriginSend(send std.Coins) {
 func SetOriginSpend(spend std.Coins) {
 	ctx := GetContext()
 	ctx.OriginSpend = spend
-	SetContext(ctx)
-}
-
-func SetOriginPkgAddress(addr std.Address) {
-	ctx := GetContext()
-	ctx.OriginPkgAddress = addr
 	SetContext(ctx)
 }
 

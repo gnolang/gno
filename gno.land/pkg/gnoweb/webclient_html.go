@@ -15,6 +15,7 @@ import (
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
+	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
@@ -94,30 +95,30 @@ func NewHTMLClient(log *slog.Logger, cfg *HTMLWebClientConfig) *HTMLWebClient {
 	}
 }
 
-// Functions retrieves a list of function signatures from a
+// Doc retrieves the JSON doc suitable for printing from a
 // specified package path.
-func (s *HTMLWebClient) Functions(pkgPath string) ([]vm.FunctionSignature, error) {
-	const qpath = "vm/qfuncs"
+func (s *HTMLWebClient) Doc(pkgPath string) (*doc.JSONDocumentation, error) {
+	const qpath = "vm/qdoc"
 
 	args := fmt.Sprintf("%s/%s", s.domain, strings.Trim(pkgPath, "/"))
 	res, err := s.query(qpath, []byte(args))
 	if err != nil {
-		return nil, fmt.Errorf("unable to query func list: %w", err)
+		return nil, fmt.Errorf("unable to query qdoc: %w", err)
 	}
 
-	var fsigs vm.FunctionSignatures
-	if err := amino.UnmarshalJSON(res, &fsigs); err != nil {
-		s.logger.Warn("unable to unmarshal function signatures, client is probably outdated")
-		return nil, fmt.Errorf("unable to unmarshal function signatures: %w", err)
+	jdoc := &doc.JSONDocumentation{}
+	if err := amino.UnmarshalJSON(res, jdoc); err != nil {
+		s.logger.Warn("unable to unmarshal qdoc, client is probably outdated")
+		return nil, fmt.Errorf("unable to unmarshal qdoc: %w", err)
 	}
 
-	return fsigs, nil
+	return jdoc, nil
 }
 
 // SourceFile fetches and writes the source file from a given
 // package path and file name to the provided writer. It uses
-// Chroma for syntax highlighting source.
-func (s *HTMLWebClient) SourceFile(w io.Writer, path, fileName string) (*FileMeta, error) {
+// Chroma for syntax highlighting or Raw style source.
+func (s *HTMLWebClient) SourceFile(w io.Writer, path, fileName string, isRaw bool) (*FileMeta, error) {
 	const qpath = "vm/qfile"
 
 	fileName = strings.TrimSpace(fileName)
@@ -144,9 +145,16 @@ func (s *HTMLWebClient) SourceFile(w io.Writer, path, fileName string) (*FileMet
 		SizeKb: float64(len(source)) / 1024.0,
 	}
 
-	// Use Chroma for syntax highlighting
-	if err := s.FormatSource(w, fileName, source); err != nil {
-		return nil, err
+	if isRaw {
+		// Use raw syntax for source
+		if _, err := w.Write(source); err != nil {
+			return nil, err
+		}
+	} else {
+		// Use Chroma for syntax highlighting
+		if err := s.FormatSource(w, fileName, source); err != nil {
+			return nil, err
+		}
 	}
 
 	return &fileMeta, nil
