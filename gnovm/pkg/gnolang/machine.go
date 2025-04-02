@@ -892,29 +892,30 @@ type Op uint8
 const (
 
 	/* Control operators */
-	OpInvalid          Op = 0x00 // invalid
-	OpHalt             Op = 0x01 // halt (e.g. last statement)
-	OpNoop             Op = 0x02 // no-op
-	OpExec             Op = 0x03 // exec next statement
-	OpPrecall          Op = 0x04 // sets X (func) to frame
-	OpCall             Op = 0x05 // call(Frame.Func, [...])
-	OpCallNativeBody   Op = 0x06 // call body is native
-	OpReturn           Op = 0x07 // return ...
-	OpReturnFromBlock  Op = 0x08 // return results (after defers)
-	OpReturnToBlock    Op = 0x09 // copy results to block (before defer)
-	OpDefer            Op = 0x0A // defer call(X, [...])
-	OpGo               Op = 0x0B // go call(X, [...])
-	OpSelect           Op = 0x0C // exec next select case
-	OpSwitchClause     Op = 0x0D // exec next switch clause
-	OpSwitchClauseCase Op = 0x0E // exec next switch clause case
-	OpTypeSwitch       Op = 0x0F // exec type switch clauses (all)
-	OpIfCond           Op = 0x10 // eval cond
-	OpPopValue         Op = 0x11 // pop X
-	OpPopResults       Op = 0x12 // pop n call results
-	OpPopBlock         Op = 0x13 // pop block NOTE breaks certain invariants.
-	OpPopFrameAndReset Op = 0x14 // pop frame and reset.
-	OpPanic1           Op = 0x15 // pop exception and pop call frames.
-	OpPanic2           Op = 0x16 // pop call frames.
+	OpInvalid           Op = 0x00 // invalid
+	OpHalt              Op = 0x01 // halt (e.g. last statement)
+	OpNoop              Op = 0x02 // no-op
+	OpExec              Op = 0x03 // exec next statement
+	OpPrecall           Op = 0x04 // sets X (func) to frame
+	OpCall              Op = 0x05 // call(Frame.Func, [...])
+	OpCallNativeBody    Op = 0x06 // call body is native
+	OpReturn            Op = 0x07 // return ...
+	OpReturnFromBlock   Op = 0x08 // return results (after defers)
+	OpReturnToBlock     Op = 0x09 // copy results to block (before defer)
+	OpDefer             Op = 0x0A // defer call(X, [...])
+	OpGo                Op = 0x0B // go call(X, [...])
+	OpSelect            Op = 0x0C // exec next select case
+	OpSwitchClause      Op = 0x0D // exec next switch clause
+	OpSwitchClauseCase  Op = 0x0E // exec next switch clause case
+	OpTypeSwitch        Op = 0x0F // exec type switch clauses (all)
+	OpIfCond            Op = 0x10 // eval cond
+	OpPopValue          Op = 0x11 // pop X
+	OpPopResults        Op = 0x12 // pop n call results
+	OpPopBlock          Op = 0x13 // pop block NOTE breaks certain invariants.
+	OpPopFrameAndReset  Op = 0x14 // pop frame and reset.
+	OpPanic1            Op = 0x15 // pop exception and pop call frames.
+	OpPanic2            Op = 0x16 // pop call frames.
+	OpReturnCallDefers2 Op = 0x17 // not sticky
 
 	/* Unary & binary operators */
 	OpUpos  Op = 0x20 // + (unary)
@@ -1047,6 +1048,7 @@ const (
 	OpCPUPopFrameAndReset    = 15
 	OpCPUPanic1              = 121
 	OpCPUPanic2              = 21
+	OpCPUReturnCallDefers2   = 78
 
 	/* Unary & binary operators */
 	OpCPUUpos  = 7
@@ -1482,6 +1484,9 @@ func (m *Machine) Run() {
 		case OpReturnCallDefers:
 			m.incrCPU(OpCPUReturnCallDefers)
 			m.doOpReturnCallDefers()
+		case OpReturnCallDefers2:
+			m.incrCPU(OpCPUReturnCallDefers2)
+			m.doOpReturnCallDefers()
 		default:
 			panic(fmt.Sprintf("unexpected opcode %s", op.String()))
 		}
@@ -1518,6 +1523,7 @@ func (m *Machine) PopOp() Op {
 		m.Printf("-o %v\n", op)
 	}
 	if OpSticky <= op {
+		//if OpSticky <= op {
 		// do not pop persistent op types.
 	} else {
 		m.NumOps--
@@ -1766,6 +1772,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	if debug {
 		m.Printf("+F %#v\n", fr)
 	}
+
 	m.Frames = append(m.Frames, fr)
 	pv := fv.GetPackage(m.Store)
 	if pv == nil {
@@ -1800,6 +1807,7 @@ func (m *Machine) PopFrame() Frame {
 	if debug {
 		m.Printf("-F %#v\n", f)
 	}
+
 	m.Frames = m.Frames[:numFrames-1]
 
 	return *f
@@ -1818,6 +1826,7 @@ func (m *Machine) PopFrameAndReset() {
 
 // TODO: optimize by passing in last frame.
 func (m *Machine) PopFrameAndReturn() {
+	m.Println("---PopFrameAndReturn---")
 	fr := m.PopFrame()
 	fr.Popped = true
 	if debug {
@@ -1916,12 +1925,11 @@ func (m *Machine) lastCallFrame(n int, mustBeFound bool) *Frame {
 // pops the last non-call (loop) frames
 // and returns the last call frame (which is left on stack).
 func (m *Machine) PopUntilLastCallFrame() *Frame {
-	fmt.Println("---PopUntilLastCallFrame, len(m.Frames): ", len(m.Frames))
+	m.Println("---PopUntilLastCallFrame, len(m.Frames): ", len(m.Frames))
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := m.Frames[i]
 		if fr.IsCall() {
 			m.Frames = m.Frames[:i+1]
-			fmt.Println("---return fr: ", fr)
 			return fr
 		}
 
@@ -2038,16 +2046,16 @@ func (m *Machine) CheckEmpty() error {
 }
 
 func (m *Machine) Panic(ex TypedValue) {
-	fmt.Println("---m Panic, ex: ", ex)
+	m.Println("---m Panic, ex: ", ex)
 	// Skip the last frame, as it's the one of the panic() (or native)
 	// function call.
-	//panicFrames := slices.Clone(m.Frames[:len(m.Frames)-1])
+	// panicFrames := slices.Clone(m.Frames[:len(m.Frames)-1])
 	panicFrames := slices.Clone(m.Frames[:])
 	for i, frame := range m.Frames {
-		fmt.Printf("frames[%d] is : %v\n", i, frame)
+		m.Printf("frames[%d] is : %v\n", i, frame)
 	}
 
-	fmt.Println("---panicFrames: ", panicFrames)
+	m.Println("---panicFrames: ", panicFrames)
 
 	m.Exceptions = append(
 		m.Exceptions,
@@ -2057,46 +2065,86 @@ func (m *Machine) Panic(ex TypedValue) {
 			Stacktrace: m.Stacktrace(),
 		},
 	)
-	fmt.Println("---m.Exceptions: ", m.Exceptions)
+	m.Println("---m.Exceptions: ", m.Exceptions)
 
 	m.PopUntilLastCallFrame()
 	m.PushOp(OpPanic2)
-	m.PushOp(OpReturnCallDefers)
+	m.PushOp(OpReturnCallDefers2)
 }
 
 // Recover is the underlying implementation of the recover() function in the
 // GnoVM. It returns nil if there was no exception to be recovered, otherwise
 // it returns the [Exception], which also contains the value passed into panic().
 func (m *Machine) Recover() *Exception {
+	m.Println("---m.recovering...")
 	if len(m.Exceptions) == 0 {
 		return nil
 	}
 
 	// If the exception is out of scope, this recover can't help; return nil.
-	if m.PanicScope <= m.DeferPanicScope {
-		return nil
-	}
+	//if m.PanicScope <= m.DeferPanicScope {
+	//	fmt.Println("---m.PanicScope", m.PanicScope)
+	//	fmt.Println("---m.DeferPanicScope", m.DeferPanicScope)
+	//	return nil
+	//}
 
 	exception := &m.Exceptions[len(m.Exceptions)-1]
 
-	// If the frame the exception occurred in is not popped, it's possible that
-	// the exception is still in scope and can be recovered.
-	exframe := m.LastCallFrame(3)
-	if !exframe.Popped {
-		// If the frame is not the current frame, the exception is not in scope; return nil.
-		// This retrieves the second most recent call frame because the first most recent
-		// is the call to recover itself.
-		if frame := m.LastCallFrame(2); frame == nil || frame != exframe {
-			return nil
-		}
+	m.Println("----exception: ", exception)
+	if exception != nil {
+		m.Println("---exception... panic frames: ", exception.Frames)
+		m.Println("---exception.Recovered: ", exception.Recovered)
 	}
+
+	for i, frame := range m.Frames {
+		m.Printf("frames[%d] is : %v\n", i, frame)
+	}
+
+	// the first call frame is recover,
+	// the second is defer func,
+	// the third is the frame where panic happens.
+	exframe := m.LastCallFrame(3)
+
+	m.Println("---lastCallFrame(3): ", exframe)
+	m.Println("---lastCallFrame(2): ", m.LastCallFrame(2))
+	m.Println("---lastCallFrame(1): ", m.LastCallFrame(1))
+
+	var frame *Frame
+	if len(m.Frames) > 2 {
+		frame = m.LastCallFrame(3)
+
+	} else {
+		frame = m.LastCallFrame(2)
+	}
+	if !slices.Contains(exception.Frames, frame) {
+		m.Println("---not contained, return nil")
+		return nil
+	}
+
+	//if !exframe.Popped {
+	//	// If the frame is not the current frame, the exception is not in scope; return nil.
+	//	// This retrieves the second most recent call frame because the first most recent
+	//	// is the call to recover itself.
+	//	if frame := m.LastCallFrame(2); frame == nil || frame != exframe {
+	//		fmt.Println("---return nil...")
+	//		return nil
+	//	}
+	//}
 
 	if isUntyped(exception.Value.T) {
 		ConvertUntypedTo(&exception.Value, nil)
 	}
 	// Recover complete; remove exceptions.
-	m.Exceptions = nil
+	// m.Exceptions = nil
+
+	if exception.Recovered { // no recover for the second time
+		return nil
+	}
 	return exception
+}
+
+func (m *Machine) isRecovered() bool {
+	return m.Exceptions[len(m.Exceptions)-1].Recovered
 }
 
 //----------------------------------------

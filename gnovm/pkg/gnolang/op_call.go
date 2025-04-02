@@ -191,6 +191,7 @@ func (m *Machine) doOpCallNativeBody() {
 
 // Assumes that result values are pushed onto the Values stack.
 func (m *Machine) doOpReturn() {
+	m.Println("---doOpReturn---")
 	cfr := m.PopUntilLastCallFrame()
 	// See if we are exiting a realm boundary.
 	// NOTE: there are other ways to implement realm boundary transitions,
@@ -222,6 +223,7 @@ func (m *Machine) doOpReturn() {
 // Like doOpReturn, but with results from the block;
 // i.e. named result vars declared in func signatures.
 func (m *Machine) doOpReturnFromBlock() {
+	m.Println("---doOpReturnFromBlock---")
 	// Copy results from block.
 	cfr := m.PopUntilLastCallFrame()
 	ft := cfr.Func.GetType(m.Store)
@@ -258,6 +260,7 @@ func (m *Machine) doOpReturnFromBlock() {
 // deferred statements can refer to results with name
 // expressions.
 func (m *Machine) doOpReturnToBlock() {
+	m.Println("---doOpReturnToBlock---")
 	cfr := m.MustLastCallFrame(1)
 	ft := cfr.Func.GetType(m.Store)
 	numParams := len(ft.Params)
@@ -271,30 +274,35 @@ func (m *Machine) doOpReturnToBlock() {
 }
 
 func (m *Machine) doOpReturnCallDefers() {
-	fmt.Println("doOpReturnCallDefers")
+	m.Println("---doOpReturnCallDefers...")
+
 	cfr := m.MustLastCallFrame(1)
 	dfr, ok := cfr.PopDefer()
-	fmt.Println("---cfr: ", cfr)
-	fmt.Println("---dfr: ", dfr)
+	m.Println("---cfr: ", cfr)
+	m.Println("---dfr: ", dfr)
+	m.Println("---ok: ", ok)
 	if !ok {
 		// Done with defers.
-		m.ForcePopOp() // no more defer
+
+		if m.Ops[m.NumOps-1] == OpReturnCallDefers {
+			m.ForcePopOp() // force pop sticky
+		}
 		if len(m.Exceptions) > 0 {
 			exceptionFrames := m.Exceptions[len(m.Exceptions)-1].Frames
-			fmt.Println("exceptionFrames: ", exceptionFrames)
+			m.Println("exceptionFrames: ", exceptionFrames)
 			if slices.Contains(exceptionFrames, cfr) {
 				// In a state of panic (not return).
 				// Pop the containing function frame.
-				fmt.Println("---pop frame...")
+				m.Println("---pop frame...")
 				m.PopFrame() // pop current frame cuz it's finished at panic.
-				fmt.Println("---after pop frame: ", m.Frames)
+				m.Println("---after pop frame: ", m.Frames)
 			}
 		}
-		fmt.Println("---done with defers...")
+		m.Println("---done with defers...")
 		return
 	}
 
-	fmt.Println("---exec defers...")
+	m.Println("---exec defers...")
 	// Push onto value stack: function, receiver, arguments.
 	if dfr.Func != nil {
 		fv := dfr.Func
@@ -362,7 +370,7 @@ func (m *Machine) doOpDefer() {
 }
 
 func (m *Machine) doOpPanic1() {
-	fmt.Println("doOpPanic1")
+	m.Println("doOpPanic1")
 	// Pop exception
 	var ex TypedValue = m.PopValue().Copy(m.Alloc)
 	// Panic
@@ -370,19 +378,26 @@ func (m *Machine) doOpPanic1() {
 }
 
 func (m *Machine) doOpPanic2() {
-	fmt.Println("---doOpPanic2")
-	defer fmt.Println("---done doOpPanic2...")
+	m.Println("---doOpPanic2")
+	defer m.Println("---done doOpPanic2...")
 
-	fmt.Println("---m.Exceptions: ", m.Exceptions)
+	m.Println("---m.Exceptions: ", m.Exceptions)
 
-	if len(m.Exceptions) == 0 {
+	if m.isRecovered() {
+		m.Println("---all exceptions recovered..., or no exceptions...")
+		m.Exceptions = nil
 		// Recovered from panic
 		m.PushOp(OpReturnFromBlock)
-		m.PushOp(OpReturnCallDefers)
+		// TODO: check if defer exists?
+		// cfr := m.MustLastCallFrame(1)
+		// len(cft.Defers)
+
+		m.PushOp(OpReturnCallDefers) // sticky
+		return
 	} else {
 		// Keep panicking
 		last := m.PopUntilLastCallFrame()
-		fmt.Println("---last: ", last)
+		m.Println("---last: ", last)
 		if last == nil {
 			// Build exception string just as go, separated by \n\t.
 			var bld strings.Builder
@@ -392,14 +407,23 @@ func (m *Machine) doOpPanic2() {
 				}
 				bld.WriteString("panic: ")
 				bld.WriteString(ex.Sprint(m))
+
+				// if at least one exception is not recovered
+				if ex.Recovered {
+					bld.WriteString("[recovered]")
+				}
 			}
-			fmt.Println("---unhandled panic: ", bld.String())
+
+			m.Println("---recovered: ", m.isRecovered())
+			m.Println("---unhandled panic: ", bld.String())
+
 			panic(UnhandledPanicError{
 				Descriptor: bld.String(),
 			})
 		}
-		fmt.Println("---next panic2.............")
+		m.Println("---next panic2.............")
 		m.PushOp(OpPanic2)
-		m.PushOp(OpReturnCallDefers) // XXX rename, not return?
+
+		m.PushOp(OpReturnCallDefers2) // XXX rename, not return?
 	}
 }

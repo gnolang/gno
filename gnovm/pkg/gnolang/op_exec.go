@@ -431,7 +431,7 @@ EXEC_SWITCH:
 	if debug {
 		debug.Printf("EXEC: %v\n", s)
 	}
-	fmt.Printf("EXEC: %v\n", s)
+	// fmt.Printf("EXEC: %v\n", s)
 	switch cs := s.(type) {
 	case *AssignStmt:
 		switch cs.Op {
@@ -542,6 +542,8 @@ EXEC_SWITCH:
 		m.PushForPointer(cs.X)
 	case *ReturnStmt:
 		m.PopStmt()
+		m.Println("---exec return stmt")
+		m.Println("---len of frames: ", len(m.Frames))
 		fr := m.MustLastCallFrame(1)
 		ft := fr.Func.GetType(m.Store)
 		hasDefers := 0 < len(fr.Defers)
@@ -552,8 +554,18 @@ EXEC_SWITCH:
 			// ".res%d" from the preprocessor, so they are
 			// present in the func block.
 			m.PushOp(OpReturnFromBlock)
-			fmt.Println("---op_exec, return call defers, sticky...")
-			m.PushOp(OpReturnCallDefers) // sticky
+			var hasUnRecovered bool
+			for _, ex := range m.Exceptions {
+				if !ex.Recovered {
+					hasUnRecovered = true
+				}
+			}
+
+			if hasUnRecovered {
+				m.PushOp(OpReturnCallDefers2) // no sticky
+			} else {
+				m.PushOp(OpReturnCallDefers) // sticky
+			}
 			if cs.Results == nil {
 				// results already in block, if any.
 			} else if hasResults {
@@ -574,8 +586,9 @@ EXEC_SWITCH:
 			m.PushOp(OpEval)
 		}
 	case *PanicStmt:
-		fmt.Println("---panic statement, cs.Exception ", cs.Exception)
+		m.Println("---panic statement, cs.Exception ", cs.Exception)
 		m.PopStmt()
+		//m.ForcePopStmt()
 		m.PushOp(OpPanic1)
 		// evaluate exception
 		m.PushExpr(cs.Exception)

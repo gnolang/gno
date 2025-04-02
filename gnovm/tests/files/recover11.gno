@@ -3,7 +3,7 @@ package main
 func level3() {
 	panic("level3")
 	defer func() {
-		if r := recover(); r != nil {
+		if r3 := recover(); r3 != nil {
 			println("recover level3 in level3")
 		}
 	}()
@@ -22,7 +22,7 @@ func level2() {
 func level1() {
 	defer func() {
 		if r := recover(); r != nil {
-			println("recover level3 in level1")
+			println("recover level1 in level1")
 		}
 	}()
 	level2()
@@ -33,6 +33,10 @@ func main() {
 	level1()
 }
 
+// Error:
+// panic: level2
+//	panic: level3[recovered]
+
 // Output:
 // recover level3 in level2
-// recover level3 in level1
+// recover level1 in level1

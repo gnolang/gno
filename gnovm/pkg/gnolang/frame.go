@@ -104,6 +104,8 @@ type Exception struct {
 	// a panic.
 	Frames []*Frame
 
+	Recovered bool
+
 	Stacktrace Stacktrace
 }
 

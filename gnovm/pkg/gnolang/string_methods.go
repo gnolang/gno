@@ -66,7 +66,6 @@ func _() {
 	_ = x[OpReturnFromBlock-8]
 	_ = x[OpReturnToBlock-9]
 	_ = x[OpDefer-10]
-	//_ = x[OpCallDeferNativeBody-11]
 	_ = x[OpGo-11]
 	_ = x[OpSelect-12]
 	_ = x[OpSwitchClause-13]
@@ -79,6 +78,7 @@ func _() {
 	_ = x[OpPopFrameAndReset-20]
 	_ = x[OpPanic1-21]
 	_ = x[OpPanic2-22]
+	_ = x[OpReturnCallDefers2-23]
 	_ = x[OpUpos-32]
 	_ = x[OpUneg-33]
 	_ = x[OpUnot-34]
@@ -160,7 +160,7 @@ func _() {
 }
 
 const (
-	_Op_name_0 = "OpInvalidOpHaltOpNoopOpExecOpPrecallOpCallOpCallNativeBodyOpReturnOpReturnFromBlockOpReturnToBlockOpDeferOpCallDeferNativeBodyOpGoOpSelectOpSwitchClauseOpSwitchClauseCaseOpTypeSwitchOpIfCondOpPopValueOpPopResultsOpPopBlockOpPopFrameAndResetOpPanic1OpPanic2"
+	_Op_name_0 = "OpInvalidOpHaltOpNoopOpExecOpPrecallOpCallOpCallNativeBodyOpReturnOpReturnFromBlockOpReturnToBlockOpDeferOpGoOpSelectOpSwitchClauseOpSwitchClauseCaseOpTypeSwitchOpIfCondOpPopValueOpPopResultsOpPopBlockOpPopFrameAndResetOpPanic1OpPanic2OpReturnCallDefers2"
 	_Op_name_1 = "OpUposOpUnegOpUnotOpUxor"
 	_Op_name_2 = "OpUrecvOpLorOpLandOpEqlOpNeqOpLssOpLeqOpGtrOpGeqOpAddOpSubOpBorOpXorOpMulOpQuoOpRemOpShlOpShrOpBandOpBandn"
 	_Op_name_3 = "OpEvalOpBinary1OpIndex1OpIndex2OpSelectorOpSliceOpStarOpRefOpTypeAssert1OpTypeAssert2OpStaticTypeOfOpCompositeLitOpArrayLitOpSliceLitOpSliceLit2OpMapLitOpStructLitOpFuncLitOpConvert"
@@ -172,7 +172,7 @@ const (
 )
 
 var (
-	_Op_index_0 = [...]uint16{0, 9, 15, 21, 27, 36, 42, 58, 66, 83, 98, 105, 126, 130, 138, 152, 170, 182, 190, 200, 212, 222, 240, 248, 256}
+	_Op_index_0 = [...]uint8{0, 9, 15, 21, 27, 36, 42, 58, 66, 83, 98, 105, 109, 117, 131, 149, 161, 169, 179, 191, 201, 219, 227, 235, 254}
 	_Op_index_1 = [...]uint8{0, 6, 12, 18, 24}
 	_Op_index_2 = [...]uint8{0, 7, 12, 18, 23, 28, 33, 38, 43, 48, 53, 58, 63, 68, 73, 78, 83, 88, 93, 99, 106}
 	_Op_index_3 = [...]uint8{0, 6, 15, 23, 31, 41, 48, 54, 59, 72, 85, 99, 113, 123, 133, 144, 152, 163, 172, 181}
