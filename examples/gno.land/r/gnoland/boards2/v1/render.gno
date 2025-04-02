@@ -54,11 +54,10 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write("# Boards\n\n")
 	renderBoardListMenu(res, req)
-	res.Write("\n\n---\n")
 
 	if gBoardsByID.Size() == 0 {
 		link := txlink.Call("CreateBoard", "name", "")
-		res.Write("### Currently there are no boards\n")
+		res.Write("\n\n---\n### Currently there are no boards\n")
 		res.Write("Be the first to ")
 		res.Write(newLink("create a new board", link))
 		res.Write(" !")
@@ -74,30 +73,30 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 	render := func(_ string, v any) bool {
 		board := v.(*Board)
 
-		res.Write("## " + newLink(board.GetName(), board.GetURL()) + "  \n")
+		res.Write("**" + newLink(board.GetName(), board.GetURL()) + "**  \n")
 		res.Write("_Created by " + newUserLink(board.creator) + " ")
 		res.Write("on " + board.createdAt.Format(dateFormat))
 		res.Write(", #" + board.id.String() + "_  \n")
-		res.Write("_" + strconv.Itoa(board.threads.Size()) + " threads")
+		res.Write("_**" + strconv.Itoa(board.threads.Size()) + " threads")
 		if board.IsReadonly() {
-			res.Write(", **read-only**")
+			res.Write(", read-only")
 		}
 
-		res.Write("_\n")
+		res.Write("**_\n\n")
 		return false
 	}
 
-	res.Write("_Sort by ")
+	res.Write("Sort by: ")
 	r := realmpath.Parse(req.RawPath)
 	if r.Query.Get("order") == "desc" {
 		r.Query.Set("order", "asc")
 		res.Write(newLink("newest first", r.String()))
-		res.Write("_\n")
+		res.Write("\n\n---\n")
 		gBoardsByID.ReverseIterateByOffset(p.Offset(), p.PageSize(), render)
 	} else {
 		r.Query.Set("order", "desc")
 		res.Write(newLink("oldest first", r.String()))
-		res.Write("_\n")
+		res.Write("\n\n---\n")
 		gBoardsByID.IterateByOffset(p.Offset(), p.PageSize(), render)
 	}
 
