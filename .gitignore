@@ -39,7 +39,6 @@ coverage.out
 
 .tmp/
 wal/
-!/tm2/pkg/bft/wal/
 
-# Gnoweb frontend
-node_modules/
+# Filelocks
+*.lock
