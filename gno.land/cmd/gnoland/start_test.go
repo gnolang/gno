@@ -199,3 +199,7 @@ func TestStart_Lazy(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateNode(t *testing.T) {
+
+}
