@@ -39,6 +39,3 @@ coverage.out
 
 .tmp/
 wal/
-
-# Filelocks
-*.lock
