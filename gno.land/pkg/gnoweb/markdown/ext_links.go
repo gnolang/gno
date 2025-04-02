@@ -125,7 +125,7 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 func detectLinkType(dest *url.URL, orig *weburl.GnoURL) (*weburl.GnoURL, GnoLinkType) {
 	// Attempt to parse the destination as a GnoURL.
 	target, err := weburl.ParseFromURL(dest)
-	if err != nil || !target.IsValidPath() {
+	if err != nil {
 		if dest.Scheme == "" {
 			// If there's no scheme, consider it as a relative path.
 			return nil, GnoLinkTypePackage

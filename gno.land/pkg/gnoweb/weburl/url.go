@@ -207,6 +207,10 @@ func ParseFromURL(u *url.URL) (*GnoURL, error) {
 		}
 	}
 
+	if !rePkgPath.MatchString(upath) {
+		return nil, fmt.Errorf("%w: %q", ErrURLInvalidPath, upath)
+	}
+
 	webquery := url.Values{}
 	if len(webargs) > 0 {
 		var parseErr error

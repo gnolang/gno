@@ -108,7 +108,7 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 // prepareIndexBodyView prepares the data and main view for the index.
 func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
 	gnourl, err := weburl.ParseFromURL(r.URL)
-	if err != nil || !gnourl.IsValidPath() {
+	if err != nil {
 		h.Logger.Warn("invalid gno url path", "path", r.URL.Path, "error", err)
 		return http.StatusNotFound, components.StatusErrorComponent("invalid path")
 	}
