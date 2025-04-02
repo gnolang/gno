@@ -25,6 +25,7 @@ var (
 )
 
 // CommonDAO defines a DAO.
+// TODO: Support optional storage of proposals in a different location
 type CommonDAO struct {
 	id          uint64
 	slug        string
@@ -32,7 +33,7 @@ type CommonDAO struct {
 	description string
 	parent      *CommonDAO
 	children    list.IList
-	members     *addrset.Set
+	members     *addrset.Set // TODO: Consider saving members as groups, PR #3933
 	genID       seqid.ID
 	active      *avl.Tree // string(proposal ID) -> *Proposal
 	finished    *avl.Tree // string(proposal ID) -> *Proposal
@@ -76,6 +77,7 @@ func (dao CommonDAO) Description() string {
 // Paths are normally used when working with hierarchical
 // DAOs and is created by concatenating DAO slugs.
 func (dao CommonDAO) Path() string {
+	// NOTE: Path could be a value but there might be use cases where dynamic path is useful (?)
 	parent := dao.Parent()
 	if parent != nil {
 		prefix := parent.Path()

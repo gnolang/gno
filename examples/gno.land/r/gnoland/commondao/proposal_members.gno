@@ -12,7 +12,7 @@ import (
 
 // TODO: Support optional parent DAO mechanics to add/remove direct SubDAO members
 
-// NewMembersUpdateProposal creates a new proposal definition for adding/removing DAO members.
+// NewMembersPropDefinition creates a new proposal definition for adding/removing DAO members.
 func NewMembersPropDefinition(dao *commondao.CommonDAO, add, remove addrset.Set) MembersPropDefinition {
 	if dao == nil {
 		panic("DAO is required")
@@ -48,7 +48,9 @@ func (p MembersPropDefinition) Body() string {
 	if p.toAdd.Size() > 0 {
 		b.WriteString("**Members to Add:**  \n")
 		p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr std.Address) bool {
-			b.WriteString("- " + addr.String() + "\n")
+			b.WriteString("- ")
+			b.WriteString(addr.String())
+			b.WriteString("\n")
 			return false
 		})
 	}
@@ -56,7 +58,9 @@ func (p MembersPropDefinition) Body() string {
 	if p.toRemove.Size() > 0 {
 		b.WriteString("\n**Members to Remove:**  \n")
 		p.toRemove.IterateByOffset(0, p.toRemove.Size(), func(addr std.Address) bool {
-			b.WriteString("- " + addr.String() + "\n")
+			b.WriteString("- ")
+			b.WriteString(addr.String())
+			b.WriteString("\n")
 			return false
 		})
 	}

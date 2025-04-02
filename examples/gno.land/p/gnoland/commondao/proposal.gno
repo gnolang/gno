@@ -50,7 +50,7 @@ type (
 		status         ProposalStatus
 		definition     ProposalDefinition
 		creator        std.Address
-		record         *VotingRecord
+		record         *VotingRecord // TODO: Add support for multiple voting records
 		statusReason   string
 		voteChoices    *avl.Tree // string(VoteChoice) -> struct{}
 		votingDeadline time.Time
@@ -74,7 +74,7 @@ type (
 		VotingPeriod() time.Duration
 
 		// Tally counts the number of votes and verifies if proposal passes.
-		Tally(r ReadonlyVotingRecord, members MemberSet) (passes bool, _ error)
+		Tally(ReadonlyVotingRecord, MemberSet) (passes bool, _ error)
 	}
 
 	// Validable defines an interface for proposal definitions that require state validation.
