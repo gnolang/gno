@@ -33,6 +33,8 @@ type AnteOptions struct {
 	// This is useful for development, and maybe production chains.
 	// Always check your settings and inspect genesis transactions.
 	VerifyGenesisSignatures bool
+
+	DenySharedPubkeys bool // XXX: probably not possible, just because a session can be created with a pubkey that then become the root key of another account.
 }
 
 // NewAnteHandler returns an AnteHandler that checks and increments sequence
@@ -115,13 +117,12 @@ func NewAnteHandler(
 
 		// stdSigs contains the sequence number, account number, and signatures.
 		// When simulating, this would just be a 0-length slice.
-		signerAddrs := tx.GetSigners()
-		signerAccs := make([]std.Account, len(signerAddrs))
-		signerKeys := make([]std.AccountKey, len(signerAddrs))
+		signerInfos := tx.GetSignerInfos()
+		signerAccs := make([]std.Account, len(signerInfos))
 		isGenesis := ctx.BlockHeight() == 0
 
 		// fetch first signer, who's going to pay the fees
-		signerAccs[0], res = GetSignerAcc(newCtx, ak, signerAddrs[0])
+		signerAccs[0], res = GetSignerAcc(newCtx, ak, signerInfos[0].Address)
 		if !res.IsOK() {
 			return newCtx, res, true
 		}
@@ -144,7 +145,7 @@ func NewAnteHandler(
 		for i := range stdSigs {
 			// skip the fee payer, account is cached and fees were deducted already
 			if i != 0 {
-				signerAccs[i], res = GetSignerAcc(newCtx, ak, signerAddrs[i])
+				signerAccs[i], res = GetSignerAcc(newCtx, ak, signerInfos[i].Address)
 				if !res.IsOK() {
 					return newCtx, res, true
 				}
@@ -152,11 +153,12 @@ func NewAnteHandler(
 
 			// check signature, return account with incremented nonce
 			sacc := signerAccs[i]
+			spubkey := signerInfos[i].PubKey
 			if isGenesis && !opts.VerifyGenesisSignatures {
 				// No signatures are needed for genesis.
 			} else {
 				// Check signature
-				signBytes, err := GetSignBytes(newCtx.ChainID(), tx, sacc, isGenesis)
+				signBytes, err := GetSignBytes(newCtx.ChainID(), tx, sacc, spubkey, isGenesis)
 				if err != nil {
 					return newCtx, res, true
 				}
@@ -291,7 +293,7 @@ func ProcessPubKey(acc std.Account, sig std.Signature) (crypto.PubKey, sdk.Resul
 	}
 
 	// Case 2: Check if it's a valid session key
-	_, err := acc.GetSession(sigPubKey)
+	_, err := acc.GetKey(sigPubKey)
 	if err != nil {
 		return nil, abciResult(std.ErrInvalidPubKey(
 			fmt.Sprintf("pubkey %s is not associated with account %s",
@@ -461,21 +463,25 @@ func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
 
 // GetSignBytes returns a slice of bytes to sign over for a given transaction
 // and an account.
-func GetSignBytes(chainID string, tx std.Tx, acc std.Account, genesis bool) ([]byte, error) {
+func GetSignBytes(chainID string, tx std.Tx, acc std.Account, pubKey crypto.PubKey, genesis bool) ([]byte, error) {
 	var (
-		accNum      uint64
-		accSequence uint64
+		accNum     uint64
+		akSequence uint64
 	)
 	if !genesis {
 		accNum = acc.GetAccountNumber()
-		accSequence = acc.GetSequence()
+		ak, err := acc.GetKey(pubKey)
+		if err != nil {
+			return nil, err
+		}
+		akSequence = ak.GetSequence()
 	}
 
 	return std.GetSignaturePayload(
 		std.SignDoc{
 			ChainID:       chainID,
 			AccountNumber: accNum,
-			Sequence:      accSequence,
+			Sequence:      akSequence,
 			Fee:           tx.Fee,
 			Msgs:          tx.Msgs,
 			Memo:          tx.Memo,

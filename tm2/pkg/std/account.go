@@ -38,12 +38,12 @@ type Account interface {
 	GetRootKey() AccountKey
 
 	// Session management
-	GetSession(pubKey crypto.PubKey) (AccountKey, error)
 	AddSession(pubKey crypto.PubKey) (AccountKey, error)
 	DelSession(pubKey crypto.PubKey) error
 	DelAllSessions() error
 
-	// Get all keys (both root key and sessions)
+	// Key getters
+	GetKey(pubKey crypto.PubKey) (AccountKey, error)
 	GetAllKeys() []AccountKey
 
 	String() string
@@ -217,14 +217,17 @@ func (acc *BaseAccount) DelAllSessions() error {
 	return nil
 }
 
-// GetSession implements Account.
-func (acc *BaseAccount) GetSession(pubKey crypto.PubKey) (AccountKey, error) {
+// GetKey implements Account.
+func (acc *BaseAccount) GetKey(pubKey crypto.PubKey) (AccountKey, error) {
+	if acc.RootKey.GetPubKey().Equals(pubKey) {
+		return acc.RootKey, nil
+	}
 	for _, sess := range acc.Sessions {
 		if sess.GetPubKey().Equals(pubKey) {
 			return sess, nil
 		}
 	}
-	return nil, errors.New("session not found")
+	return nil, errors.New("key not found")
 }
 
 func (acc *BaseAccount) SetRootKey(pubKey crypto.PubKey) (AccountKey, error) {
