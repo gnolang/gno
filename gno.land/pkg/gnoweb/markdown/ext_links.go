@@ -125,11 +125,12 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 func detectLinkType(dest *url.URL, orig *weburl.GnoURL) (*weburl.GnoURL, GnoLinkType) {
 	// Attempt to parse the destination as a GnoURL.
 	target, err := weburl.ParseFromURL(dest)
-	if err != nil {
+	if err != nil || !target.IsValidPath() {
 		if dest.Scheme == "" {
 			// If there's no scheme, consider it as a relative path.
 			return nil, GnoLinkTypePackage
 		}
+
 		// Otherwise, treat it as an external URL.
 		return nil, GnoLinkTypeExternal
 	}
@@ -262,6 +263,6 @@ func (l *linkExtension) Extend(m goldmark.Markdown) {
 
 	// Register our renderer with a higher priority than the default renderer
 	m.Renderer().AddOptions(renderer.WithNodeRenderers(
-		util.Prioritized(&linkRenderer{}, 500), // Priority 0 is higher than default
+		util.Prioritized(&linkRenderer{}, 500),
 	))
 }

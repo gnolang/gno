@@ -153,11 +153,11 @@ func (gnoURL GnoURL) IsDir() bool {
 		len(gnoURL.Path) > 0 && gnoURL.Path[len(gnoURL.Path)-1] == '/'
 }
 
-// rePkgOrRealmPath matches and validates a flexible path.
-var rePkgOrRealmPath = regexp.MustCompile(`^/[a-z][a-z0-9_/]*$`)
+// rePkgPath matches and validates a path.
+var rePkgPath = regexp.MustCompile(`^/[a-z0-9_/]*$`)
 
-func (gnoURL GnoURL) IsValid() bool {
-	return rePkgOrRealmPath.MatchString(gnoURL.Path)
+func (gnoURL GnoURL) IsValidPath() bool {
+	return rePkgPath.MatchString(gnoURL.Path)
 }
 
 var reNamespace = regexp.MustCompile(`^/[a-z]/[a-z][a-z0-9_/]*$`)

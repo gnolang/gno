@@ -518,7 +518,7 @@ func TestEncode(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			result := tc.GnoURL.Encode(tc.EncodeFlags)
-			require.True(t, tc.GnoURL.IsValid(), "gno url is not valid")
+			require.True(t, tc.GnoURL.IsValidPath(), "gno url is not valid")
 			assert.Equal(t, tc.Expected, result)
 		})
 	}
