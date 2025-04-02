@@ -162,8 +162,8 @@ func (ps *proposalStatus) String() string {
 func StringifyVotes(ps *proposalStatus) string {
 	var sb strings.Builder
 
-	writeVotes(&sb, ps.YesVotes, "### Voting YES")
-	writeVotes(&sb, ps.NoVotes, "### Voting NO")
+	writeVotes(&sb, ps.YesVotes, "YES")
+	writeVotes(&sb, ps.NoVotes, "NO")
 
 	if sb.String() == "" {
 		return "No one voted yet."
@@ -184,7 +184,7 @@ func writeVotes(sb *strings.Builder, t memberstore.MembersByTier, title string) 
 
 		power := tier.PowerHandler(memberstore.Get(), memberstore.Tiers)
 
-		sb.WriteString(ufmt.Sprintf("%v from %v (VPPM %v):\n", title, tn, power))
+		sb.WriteString(ufmt.Sprintf("### %v from %v (VPPM %v):\n", title, tn, power))
 		ms, _ := value.(*avl.Tree)
 		ms.Iterate("", "", func(addr string, _ interface{}) bool {
 			sb.WriteString("\n")
