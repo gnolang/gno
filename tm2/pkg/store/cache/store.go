@@ -144,9 +144,6 @@ func (store *cacheStore) clear() {
 
 // Implements Store.
 func (store *cacheStore) CacheWrap() types.Store {
-	store.mtx.Lock()
-	defer store.mtx.Unlock()
-
 	return New(store)
 }
 
