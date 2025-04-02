@@ -6,7 +6,9 @@ import (
 	"bytes"
 	"context"
 	_ "embed"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"strings"
 
@@ -33,21 +35,23 @@ const (
 )
 
 type ClusterManager struct {
-	client *client.Client
+	client *client.Client // docker API client
 	logger *slog.Logger
 
-	containerInfos map[string]ContainerInfo
+	containerInfos map[string]ContainerInfo //
 
 	name string // unique cluster name
+
+	sharedVolumePath string // the shared volume mount point
+	networkID        string // the common Docker network ID
 }
 
 type ContainerInfo struct {
-	ID      string
-	Name    string
-	Image   string
-	HostIP  string
-	Ports   map[string]string // container port -> host port
-	Running bool
+	ID     string
+	Name   string
+	Image  string
+	HostIP string
+	Ports  map[string]string // container port -> host port
 }
 
 type ContainerConfig struct {
@@ -117,20 +121,26 @@ func (cm *ClusterManager) BuildImages(ctx context.Context) error {
 	return imageBuildRes.Body.Close() // TODO critical error?
 }
 
-func (cm *ClusterManager) SetupNetwork(ctx context.Context) (string, error) {
-	networkName := fmt.Sprintf("%s-%s", networkNamePrefix, cm.name)
+// SetupNetwork creates the cluster's Docker network, if it doesn't exist
+func (cm *ClusterManager) SetupNetwork(ctx context.Context) error {
+	networkName := cm.networkName()
 
+	// Check if the network exists already
 	networks, err := cm.client.NetworkList(ctx, network.ListOptions{})
 	if err != nil {
-		return "", err
+		return fmt.Errorf("unable to query Docker networks: %w", err)
 	}
 
 	for _, nw := range networks {
 		if nw.Name == networkName {
-			return nw.ID, nil
+			// Save the ID
+			cm.networkID = nw.ID
+
+			return nil
 		}
 	}
 
+	// Network doesn't exist, so it needs to be created
 	resp, err := cm.client.NetworkCreate(
 		ctx,
 		networkName,
@@ -139,51 +149,72 @@ func (cm *ClusterManager) SetupNetwork(ctx context.Context) (string, error) {
 		},
 	)
 	if err != nil {
-		return "", err
+		return fmt.Errorf("unable to create Docker network: %w", err)
 	}
 
-	// TODO log ID
+	// Save the ID
+	cm.networkID = resp.ID
 
-	return resp.ID, nil
+	return nil
 }
 
-func (cm *ClusterManager) SetupSharedVolume(ctx context.Context) (string, error) {
+// SetupSharedVolume creates a shared Docker volume for the cluster,
+// for common artifact exchange (like genesis files)
+func (cm *ClusterManager) SetupSharedVolume(ctx context.Context) error {
+	volumeName := cm.volumeName()
+
+	// Check if the volume already exists
 	volumes, err := cm.client.VolumeList(ctx, volume.ListOptions{})
 	if err != nil {
-		return "", err
+		return fmt.Errorf("unable to get Docker volume list: %w", err)
 	}
-
-	volumeName := fmt.Sprintf("%s-%s", volumeNamePrefix, cm.name)
 
 	for _, vol := range volumes.Volumes {
 		if vol.Name == volumeName {
-			return vol.Mountpoint, nil
+			// Volume already exists
+			cm.sharedVolumePath = vol.Mountpoint
 		}
 	}
 
-	vol, err := cm.client.VolumeCreate(ctx, volume.CreateOptions{
-		Driver: "local",
-		Name:   volumeName,
-	})
+	// Volume doesn't exist, create it
+	vol, err := cm.client.VolumeCreate(
+		ctx,
+		volume.CreateOptions{
+			Driver: "local",
+			Name:   volumeName,
+		},
+	)
 	if err != nil {
-		return "", err
+		return fmt.Errorf("unable to create Docker volume: %w", err)
 	}
 
-	return vol.Mountpoint, nil
+	cm.sharedVolumePath = vol.Mountpoint
+
+	return nil
 }
 
-func (cm *ClusterManager) CreateContainer(ctx context.Context) (string, error) {
-	fmt.Printf("Creating container %s from image %s...\n", config.Name, config.Image)
+// CreateContainer creates a single cluster node container.
+// Requires the shared volume and network to be configured beforehand
+func (cm *ClusterManager) CreateContainer(ctx context.Context, config ContainerConfig) error {
+	// Make sure the shared volume is set up
+	if cm.sharedVolumePath == "" {
+		return errors.New("cluster shared volume is not created")
+	}
+
+	// Make sure the shared network is set up
+	if cm.networkID == "" {
+		return errors.New("cluster shared network is not created")
+	}
 
 	// Create port bindings
 	var (
-		portBindings = nat.PortMap{}
-		exposedPorts = nat.PortSet{}
+		portBindings = make(nat.PortMap)
+		exposedPorts = make(nat.PortSet)
 	)
 
 	for containerPort, hostPort := range config.Ports {
 		port := nat.Port(containerPort)
-		exposedPorts[port] = struct{}{}
+		exposedPorts[port] = struct{}{} // mark the port as exposed
 
 		// If host port is empty, it will be auto-assigned
 		portBindings[port] = []nat.PortBinding{
@@ -194,15 +225,16 @@ func (cm *ClusterManager) CreateContainer(ctx context.Context) (string, error) {
 		}
 	}
 
-	// Set up volume mounts
-	var mounts []mount.Mount
-
-	// Add shared volume mount
-	mounts = append(mounts, mount.Mount{
-		Type:   mount.TypeVolume,
-		Source: volumeName,
-		Target: volumeMountPath,
-	})
+	// Set up volume mounts for the container.
+	// The cluster's shared volume is always part of the
+	// mount set
+	mounts := []mount.Mount{
+		{
+			Type:   mount.TypeVolume,
+			Source: cm.volumeName(),
+			Target: cm.sharedVolumePath,
+		},
+	}
 
 	// Create container
 	resp, err := cm.client.ContainerCreate(
@@ -217,11 +249,11 @@ func (cm *ClusterManager) CreateContainer(ctx context.Context) (string, error) {
 		&container.HostConfig{
 			PortBindings: portBindings,
 			Mounts:       mounts,
-			AutoRemove:   false,
+			AutoRemove:   false, // container cleanup is managed by the cluster
 		},
 		&network.NetworkingConfig{
 			EndpointsConfig: map[string]*network.EndpointSettings{
-				networkName: {
+				cm.networkName(): {
 					NetworkID: cm.networkID,
 				},
 			},
@@ -230,55 +262,65 @@ func (cm *ClusterManager) CreateContainer(ctx context.Context) (string, error) {
 		config.Name,
 	)
 	if err != nil {
-		return "", fmt.Errorf("failed to create container: %v", err)
+		return fmt.Errorf("unable to create cluster container: %w", err)
 	}
 
+	// Grab the container ID
 	containerID := resp.ID
 
-	// Start container
+	// Start container.
+	// The container needs to be booted in order to get assigned port values.
+	// Because of this, it is expected that the containers don't have an "actionable" ENTRYPOINT and CMD,
+	// but instead utilize something like "/bin/sh -c sleep infinity" as the entrypoint
 	if err := cm.client.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
-		return "", fmt.Errorf("failed to start container: %v", err)
+		return fmt.Errorf("failed to start container: %v", err)
 	}
 
 	// Get container details
 	containerJSON, err := cm.client.ContainerInspect(ctx, containerID)
 	if err != nil {
-		return containerID, fmt.Errorf("container started but failed to inspect: %v", err)
+		return fmt.Errorf("unable to get cluster container %s details: %w", containerID, err)
 	}
 
 	// Get assigned ports
-	assignedPorts := make(map[string]string)
-	for containerPort, bindings := range containerJSON.NetworkSettings.Ports {
-		if len(bindings) > 0 {
-			assignedPorts[string(containerPort)] = bindings[0].HostPort
+	var (
+		containerPorts = containerJSON.NetworkSettings.Ports
+		assignedPorts  = make(map[string]string)
+	)
+
+	for containerPort, bindings := range containerPorts {
+		if len(bindings) == 0 {
+			continue
 		}
+
+		assignedPorts[string(containerPort)] = bindings[0].HostPort
 	}
 
 	// Save container info
 	cm.containerInfos[config.Name] = ContainerInfo{
-		ID:      containerID,
-		Name:    config.Name,
-		Image:   config.Image,
-		HostIP:  "127.0.0.1", // TODO change?
-		Ports:   assignedPorts,
-		Running: true,
+		ID:     containerID,
+		Name:   config.Name,
+		Image:  config.Image,
+		HostIP: "127.0.0.1", // TODO change this? I assume localhost is fine
+		Ports:  assignedPorts,
 	}
 
-	fmt.Printf("Container %s created with ID %s\n", config.Name, containerID)
-	fmt.Printf("Ports: %v\n", assignedPorts)
-
-	return containerID, nil
+	return nil
 }
 
+// ExecuteCmd executes the given command (single) inside the given container.
+// Returns the command output, from the container
 func (cm *ClusterManager) ExecuteCmd(
 	ctx context.Context,
 	containerName string,
 	cmd []string,
 ) (string, error) {
-	containerInfo, exists := cm.containerInfos[containerName]
+	// Check if the container exists
+	cName := cm.containerName(containerName)
 
+	containerInfo, exists := cm.containerInfos[cName]
 	if !exists {
-		return "", fmt.Errorf("container %s not found", containerName)
+		return "", fmt.Errorf("container %s not found", cName)
 	}
 
 	// Create exec configuration
@@ -291,13 +333,13 @@ func (cm *ClusterManager) ExecuteCmd(
 	// Create exec instance
 	execID, err := cm.client.ContainerExecCreate(ctx, containerInfo.ID, execConfig)
 	if err != nil {
-		return "", fmt.Errorf("failed to create exec instance: %v", err)
+		return "", fmt.Errorf("unable to create exec instance: %w", err)
 	}
 
 	// Start exec instance
 	resp, err := cm.client.ContainerExecAttach(ctx, execID.ID, container.ExecAttachOptions{})
 	if err != nil {
-		return "", fmt.Errorf("failed to attach to exec instance: %v", err)
+		return "", fmt.Errorf("unable to attach to exec instance: %w", err)
 	}
 	defer resp.Close()
 
@@ -315,12 +357,197 @@ func (cm *ClusterManager) ExecuteCmd(
 	// Check for exec completion
 	execInspect, err := cm.client.ContainerExecInspect(ctx, execID.ID)
 	if err != nil {
-		return outBuf.String(), fmt.Errorf("failed to inspect exec instance: %v", err)
+		return outBuf.String(), fmt.Errorf(
+			"unable to inspect exec (cmd) instance (container %s): %w",
+			cName,
+			err,
+		)
 	}
 
 	if execInspect.ExitCode != 0 {
-		return outBuf.String(), fmt.Errorf("command exited with code %d", execInspect.ExitCode)
+		return outBuf.String(), fmt.Errorf(
+			"container %s command exited with code %d",
+			cName,
+			execInspect.ExitCode,
+		)
 	}
 
 	return outBuf.String(), nil
+}
+
+// Cleanup stops and removes all cluster containers.
+// Additionally, it wipes the shared volumes and networks
+func (cm *ClusterManager) Cleanup(ctx context.Context) {
+	timeout := 10 // seconds. The Docker API requires an int reference. Don't ask.
+
+	// Gather the container IDs
+	containerIDs := make([]string, 0, len(cm.containerInfos))
+	for _, info := range cm.containerInfos {
+		containerIDs = append(containerIDs, info.ID)
+	}
+
+	// Stop the container
+	for _, id := range containerIDs {
+		// Stop the container
+		if err := cm.client.ContainerStop(
+			ctx,
+			id,
+			container.StopOptions{
+				Timeout: &timeout,
+			},
+		); err != nil {
+			cm.logger.Error(
+				"failed to stop container",
+				"id", id,
+				"err", err,
+			)
+		}
+
+		// Remove the container
+		if err := cm.client.ContainerRemove(
+			ctx,
+			id,
+			container.RemoveOptions{
+				Force: true,
+			},
+		); err != nil {
+			cm.logger.Error(
+				"failed to remove container",
+				"id", id,
+				"err", err,
+			)
+		}
+	}
+
+	// Remove the network, if any
+	if cm.networkID != "" {
+		if err := cm.client.NetworkRemove(ctx, cm.networkID); err != nil {
+			cm.logger.Error(
+				"failed to remove network",
+				"network ID", cm.networkID,
+				"err", err,
+			)
+		}
+	}
+
+	// Remove the shared volume, if any
+	if cm.sharedVolumePath != "" {
+		volumeName := cm.volumeName()
+
+		if err := cm.client.VolumeRemove(ctx, volumeName, true); err != nil {
+			cm.logger.Error(
+				"failed to remove volume",
+				"volume", volumeName,
+				"err", err,
+			)
+		}
+	}
+
+	// Clean the container reference
+	clear(cm.containerInfos)
+}
+
+// PipeLogs starts capturing logs from the given container and writes them to the given writer.
+// Logs are continuously captured, with timestamps
+func (cm *ClusterManager) PipeLogs(ctx context.Context, containerName string, w io.WriteCloser) error {
+	cName := cm.containerName(containerName)
+
+	// Grab the container info
+	containerInfo, exists := cm.containerInfos[cName]
+	if !exists {
+		return fmt.Errorf("container %s not found", cName)
+	}
+
+	// Set the log capture options
+	opts := container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     true,
+		Timestamps: true,
+	}
+
+	logs, err := cm.client.ContainerLogs(ctx, containerInfo.ID, opts)
+	if err != nil {
+		_ = w.Close()
+
+		return fmt.Errorf("unable to get container %s logs: %w", cName, err)
+	}
+
+	go func() {
+		defer func() {
+			// Cleanup
+			_ = w.Close()
+			_ = logs.Close()
+		}()
+
+		// Docker API may include 8-byte headers for each log line.
+		// We need to handle this properly. Again, don't ask.
+		header := make([]byte, 8)
+
+		for {
+			_, err := io.ReadFull(logs, header)
+			if err != nil {
+				// Check if the log stream is closed (ex. container stopped)
+				if !errors.Is(err, io.EOF) {
+					cm.logger.Error(
+						"error while reading log header",
+						"container", containerInfo.ID,
+						"err", err,
+					)
+				}
+
+				// Show-stopping error
+				break
+			}
+
+			// Get payload size from header (uint32 at position 4)
+			payloadSize := int(header[4]) | int(header[5])<<8 | int(header[6])<<16 | int(header[7])<<24
+
+			// Read the payload (log)
+			payload := make([]byte, payloadSize)
+
+			_, err = io.ReadFull(logs, payload)
+			if err != nil {
+				if !errors.Is(err, io.EOF) {
+					cm.logger.Error(
+						"error while reading log header",
+						"container", containerInfo.ID,
+						"err", err,
+					)
+				}
+
+				// Show-stopping error
+				break
+			}
+
+			if _, err := w.Write(payload); err != nil {
+				cm.logger.Error(
+					"error while writing container log",
+					"container", containerInfo.ID,
+					"err", err,
+				)
+
+				break
+			}
+		}
+	}()
+
+	return nil
+}
+
+// volumeName returns the cluster's shared volume name
+// (for shared artifacts like genesis)
+func (cm *ClusterManager) volumeName() string {
+	return fmt.Sprintf("%s-%s", volumeNamePrefix, cm.name)
+}
+
+// networkName returns the cluster's Docker network name
+func (cm *ClusterManager) networkName() string {
+	return fmt.Sprintf("%s-%s", networkNamePrefix, cm.name)
+}
+
+// containerName maps the container name (which can be non-unique)
+// to a unique container name (within the cluster)
+func (cm *ClusterManager) containerName(name string) string {
+	return fmt.Sprintf("%s-container-%s", cm.name, name)
 }
