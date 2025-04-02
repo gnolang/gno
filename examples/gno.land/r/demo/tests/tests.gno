@@ -25,7 +25,7 @@ func PrintCurrentRealmPath() {
 	println(CurrentRealmPath())
 }
 
-var initOrigCaller = std.GetOrigCaller()
+var initOriginCaller = std.OriginCaller()
 
 func InitOriginCaller() std.Address {
 	return initOriginCaller
