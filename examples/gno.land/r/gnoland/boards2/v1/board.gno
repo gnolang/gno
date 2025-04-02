@@ -192,27 +192,53 @@ func (board *Board) GetURLFromReplyID(threadID, replyID PostID) string {
 }
 
 func (board *Board) GetRenameFormURL() string { // TODO: These type of functions shouldn't be part of Board type
-	return txlink.Call("RenameBoard", "name", board.name)
+	return txlink.Call(
+		"RenameBoard",
+		"name", board.name,
+		"newName", "",
+	)
 }
 
 func (board *Board) GetFreezeFormURL() string {
-	return txlink.Call("FreezeBoard", "boardID", board.id.String())
+	return txlink.Call(
+		"FreezeBoard",
+		"boardID", board.id.String(),
+	)
 }
 
 func (board *Board) GetUnfreezeFormURL() string {
-	return txlink.Call("UnfreezeBoard", "boardID", board.id.String())
+	return txlink.Call(
+		"UnfreezeBoard",
+		"boardID", board.id.String(),
+		"threadID", "",
+		"replyID", "",
+	)
 }
 
 func (board *Board) GetFlaggingThresholdFormURL() string {
-	return txlink.Call("SetFlaggingThreshold", "boardID", board.id.String())
+	return txlink.Call(
+		"SetFlaggingThreshold",
+		"boardID", board.id.String(),
+		"threshold", "",
+	)
 }
 
 func (board *Board) GetInviteMemberFormURL() string {
-	return txlink.Call("InviteMember", "boardID", board.id.String())
+	return txlink.Call(
+		"InviteMember",
+		"boardID", board.id.String(),
+		"user", "",
+		"role", "",
+	)
 }
 
 func (board *Board) GetPostFormURL() string {
-	return txlink.Call("CreateThread", "boardID", board.id.String())
+	return txlink.Call(
+		"CreateThread",
+		"boardID", board.id.String(),
+		"title", "",
+		"body", "",
+	)
 }
 
 func (board *Board) GetMembersURL() string {

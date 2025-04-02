@@ -26,4 +26,4 @@ func main() {
 }
 
 // Error:
-// user not found
+// invalid member address

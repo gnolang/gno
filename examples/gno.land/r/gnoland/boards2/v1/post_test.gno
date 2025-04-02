@@ -111,7 +111,6 @@ func TestPostAddRepostTo(t *testing.T) {
 
 func TestNewThread(t *testing.T) {
 	creator := testutils.TestAddress("creator")
-	member := testutils.TestAddress("member")
 	title := "Test Title"
 	body := strings.Repeat("A", 82)
 	boardID := BoardID(1)
@@ -125,7 +124,7 @@ func TestNewThread(t *testing.T) {
 		uint(threadID),
 	)
 	replyURL := ufmt.Sprintf(
-		"/r/gnoland/boards2/v1$help&func=CreateReply&boardID=%d&replyID=0&threadID=%d",
+		"/r/gnoland/boards2/v1$help&func=CreateReply&boardID=%d&body=&replyID=0&threadID=%d",
 		uint(boardID),
 		uint(threadID),
 	)
@@ -137,7 +136,7 @@ func TestNewThread(t *testing.T) {
 		strings.ReplaceAll(title, " ", "+"),
 	)
 	repostURL := ufmt.Sprintf(
-		"/r/gnoland/boards2/v1$help&func=CreateRepost&boardID=%d&threadID=%d",
+		"/r/gnoland/boards2/v1$help&func=CreateRepost&boardID=%d&body=&destinationBoardID=&threadID=%d&title=",
 		uint(boardID),
 		uint(threadID),
 	)
@@ -147,7 +146,7 @@ func TestNewThread(t *testing.T) {
 		uint(threadID),
 	)
 	flagURL := ufmt.Sprintf(
-		"/r/gnoland/boards2/v1$help&func=FlagThread&boardID=%d&threadID=%d",
+		"/r/gnoland/boards2/v1$help&func=FlagThread&boardID=%d&reason=&threadID=%d",
 		uint(boardID),
 		uint(threadID),
 	)
@@ -288,7 +287,6 @@ func TestThreadRenderInner(t *testing.T) {
 
 func TestNewReply(t *testing.T) {
 	creator := testutils.TestAddress("creator")
-	member := testutils.TestAddress("member")
 	body := strings.Repeat("A", 82)
 	boardID := BoardID(1)
 	threadID := PostID(42)
@@ -304,7 +302,7 @@ func TestNewReply(t *testing.T) {
 		uint(replyID),
 	)
 	replyURL := ufmt.Sprintf(
-		"/r/gnoland/boards2/v1$help&func=CreateReply&boardID=%d&replyID=%d&threadID=%d",
+		"/r/gnoland/boards2/v1$help&func=CreateReply&boardID=%d&body=&replyID=%d&threadID=%d",
 		uint(boardID),
 		uint(replyID),
 		uint(threadID),
@@ -333,7 +331,6 @@ func TestReplyAddReply(t *testing.T) {
 	replier := testutils.TestAddress("replier")
 	thread := createTestThread(t)
 	parentReply := thread.AddReply(testutils.TestAddress("parentReplier"), "")
-	threadID := uint(thread.GetPostID())
 	parentReplyID := uint(parentReply.GetPostID())
 	body := "A child reply"
 

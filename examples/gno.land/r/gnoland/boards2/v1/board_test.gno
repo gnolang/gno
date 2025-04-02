@@ -100,7 +100,7 @@ func TestBoard_GetPostFormURL(t *testing.T) {
 	addr := testutils.TestAddress("creator")
 	perms := createDefaultBoardPermissions(addr)
 	b := newBoard(bid, "foo1234", addr, perms)
-	expect := txlink.Call("CreateThread", "boardID", bid.String())
+	expect := txlink.Call("CreateThread", "boardID", bid.String(), "title", "", "body", "")
 
 	got := b.GetPostFormURL()
 	uassert.Equal(t, expect, got)

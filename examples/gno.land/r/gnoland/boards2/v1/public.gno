@@ -244,14 +244,14 @@ func CreateReply(boardID BoardID, threadID, replyID PostID, body string) PostID 
 }
 
 // CreateRepost reposts a thread into another board.
-func CreateRepost(boardID BoardID, threadID PostID, title, body string, dstBoardID BoardID) PostID {
+func CreateRepost(boardID BoardID, threadID PostID, title, body string, destinationBoardID BoardID) PostID {
 	assertRealmIsNotLocked()
 
 	title = strings.TrimSpace(title)
 	assertTitleIsValid(title)
 
 	caller := std.PreviousRealm().Address()
-	dst := mustGetBoard(dstBoardID)
+	dst := mustGetBoard(destinationBoardID)
 	assertBoardIsNotFrozen(dst)
 	assertHasBoardPermission(dst, caller, PermissionThreadRepost)
 
@@ -273,7 +273,7 @@ func CreateRepost(boardID BoardID, threadID PostID, title, body string, dstBoard
 		"caller", caller.String(),
 		"boardID", boardID.String(),
 		"threadID", threadID.String(),
-		"destinationBoardID", dstBoardID.String(),
+		"destinationBoardID", destinationBoardID.String(),
 		"title", title,
 	)
 
@@ -436,6 +436,7 @@ func EditReply(boardID BoardID, threadID, replyID PostID, body string) {
 // A role can optionally be specified to be assigned to the new member.
 // Board ID is only required when inviting a member to a board.
 func InviteMember(boardID BoardID, user std.Address, role Role) {
+	assertUserAddressIsValid(user)
 	assertMembersUpdateIsEnabled(boardID)
 
 	perms := mustGetPermissions(boardID)
@@ -463,6 +464,7 @@ func InviteMember(boardID BoardID, user std.Address, role Role) {
 // Board ID is only required when removing a member from board.
 func RemoveMember(boardID BoardID, member std.Address) {
 	assertMembersUpdateIsEnabled(boardID)
+	assertMemberAddressIsValid(member)
 
 	perms := mustGetPermissions(boardID)
 	caller := std.PreviousRealm().Address()
@@ -486,6 +488,8 @@ func RemoveMember(boardID BoardID, member std.Address) {
 //
 // Board ID is only required when checking if a user is a member of a board.
 func IsMember(boardID BoardID, user std.Address) bool {
+	assertUserAddressIsValid(user)
+
 	if boardID != 0 {
 		board := mustGetBoard(boardID)
 		assertBoardIsNotFrozen(board)
@@ -499,6 +503,8 @@ func IsMember(boardID BoardID, user std.Address) bool {
 //
 // Board ID is only required when checking a member of a board.
 func HasMemberRole(boardID BoardID, member std.Address, role Role) bool {
+	assertMemberAddressIsValid(member)
+
 	if boardID != 0 {
 		board := mustGetBoard(boardID)
 		assertBoardIsNotFrozen(board)
@@ -512,6 +518,7 @@ func HasMemberRole(boardID BoardID, member std.Address, role Role) bool {
 //
 // Board ID is only required when changing the role for a member of a board.
 func ChangeMemberRole(boardID BoardID, member std.Address, role Role) {
+	assertMemberAddressIsValid(member)
 	assertMembersUpdateIsEnabled(boardID)
 
 	perms := mustGetPermissions(boardID)
@@ -548,6 +555,18 @@ func IterateBoards(offset int, fn func(ReadonlyBoard) bool) (halted bool) {
 		board, _ := v.(*Board)
 		return fn(readonlyBoard{board})
 	})
+}
+
+func assertMemberAddressIsValid(member std.Address) {
+	if !member.IsValid() {
+		panic("invalid member address")
+	}
+}
+
+func assertUserAddressIsValid(user std.Address) {
+	if !user.IsValid() {
+		panic("invalid user address")
+	}
 }
 
 func assertHasBoardPermission(b *Board, user std.Address, p Permission) {
