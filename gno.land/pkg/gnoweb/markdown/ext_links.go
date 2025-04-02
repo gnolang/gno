@@ -3,8 +3,9 @@ package markdown
 import (
 	"errors"
 	"fmt"
-	"strings"
+	"net/url"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
@@ -12,6 +13,9 @@ import (
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
 )
+
+// Error messages for invalid link formats
+var ErrLinkInvalidURL = errors.New("invalid URL format")
 
 const (
 	// Tooltips info for link types
@@ -30,115 +34,130 @@ const (
 	classLinkTx       = "link-tx"
 )
 
-// LinkExtension is a Goldmark extension that handles link rendering with special attributes
-// for external, internal, and same-package links.
-type LinkExtension struct{}
+// GnoLinkType represents the type of a link
+type GnoLinkType int
 
-// LinkMetadata contains metadata about a GnoLink
-type LinkMetadata struct {
-	LinkType linkType
-	HasHelp  bool
+const (
+	GnoLinkTypeInvalid GnoLinkType = iota
+	GnoLinkTypeExternal
+	GnoLinkTypePackage
+	GnoLinkTypeInternal
+)
+
+func (t GnoLinkType) String() string {
+	switch t {
+	case GnoLinkTypeExternal:
+		return "external"
+	case GnoLinkTypePackage:
+		return "package"
+	case GnoLinkTypeInternal:
+		return "internal"
+	}
+	return "unknown"
 }
 
-// linkRenderer implements NodeRenderer
-type linkRenderer struct{}
+var KindGnoLink = ast.NewNodeKind("GnoLink")
 
 // GnoLink represents a link with Gno-specific metadata
 type GnoLink struct {
-	ast.Link
-	Metadata LinkMetadata
+	*ast.Link
+	LinkType GnoLinkType
+	GnoURL   *weburl.GnoURL
 }
 
-// linkType represents the type of a link
-type linkType int
+func (n *GnoLink) Dump(source []byte, level int) {
+	m := map[string]string{}
+	m["Destination"] = string(n.Destination)
+	m["Title"] = string(n.Title)
+	m["LinkType"] = n.LinkType.String()
+	ast.DumpHelper(n, source, level, m, nil)
+}
 
-const (
-	linkTypeExternal linkType = iota
-	linkTypePackage
-	linkTypeInternal
-)
+// Kind implements Node.Kind.
+func (*GnoLink) Kind() ast.NodeKind {
+	return KindGnoLink
+}
 
 // linkTransformer implements ASTTransformer
 type linkTransformer struct{}
 
 // Transform replaces ast.Link nodes with GnoLink nodes in two passes.
 func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc parser.Context) {
-	url, ok := getUrlFromContext(pc)
+	orig, ok := getUrlFromContext(pc)
 	if !ok {
 		return
 	}
 
-	// First pass: collect all *ast.Link nodes to transform
-	var linkNodes []ast.Node
+	// Traverse through the document and transform link nodes to GnoLink nodes.
 	ast.Walk(doc, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
-		if entering {
-			if _, ok := node.(*ast.Link); ok {
-				linkNodes = append(linkNodes, node)
-			}
+		if !entering {
+			return ast.WalkContinue, nil
 		}
+
+		link, ok := node.(*ast.Link)
+		if !ok {
+			return ast.WalkContinue, nil
+		}
+
+		// Create a new GnoLink node wrapping the original link.
+		gnoLink := &GnoLink{Link: link}
+
+		// Replace the original link with the GnoLink wrapper.
+		parent, next := node.Parent(), node.NextSibling()
+		parent.RemoveChild(parent, node)
+		parent.InsertBefore(parent, next, gnoLink)
+
+		// Parse destination URL and check for validity.
+		dest, err := url.Parse(string(link.Destination))
+		if err != nil {
+			gnoLink.LinkType = GnoLinkTypeInvalid
+			return ast.WalkContinue, nil
+		}
+
+		// Detect and set the GnoLink type.
+		gnoLink.GnoURL, gnoLink.LinkType = detectLinkType(dest, &orig)
+
 		return ast.WalkContinue, nil
 	})
+}
 
-	// Second pass: transform and replace collected nodes
-	for _, node := range linkNodes {
-		link := node.(*ast.Link)
-		dest := string(link.Destination)
-
-		linkType, hasHelp, err := detectLinkType(dest, url.Domain, url.Path)
-		if err != nil {
-			continue
+// detectLinkType detects the type of link based on the destination
+func detectLinkType(dest *url.URL, orig *weburl.GnoURL) (*weburl.GnoURL, GnoLinkType) {
+	// Attempt to parse the destination as a GnoURL.
+	target, err := weburl.ParseFromURL(dest)
+	if err != nil {
+		if dest.Scheme == "" {
+			// If there's no scheme, consider it as a relative path.
+			return nil, GnoLinkTypePackage
 		}
 
-		gnoLink := &GnoLink{}
-		gnoLink.Link = *link
-		gnoLink.Metadata = LinkMetadata{
-			LinkType: linkType,
-			HasHelp:  hasHelp,
-		}
+		// Otherwise, treat it as an external URL.
+		return nil, GnoLinkTypeExternal
+	}
 
-		parent := link.Parent()
-		if parent == nil {
-			parent = doc
-		}
-		parent.ReplaceChild(parent, link, gnoLink)
+	// Extract domain and namespace from the target.
+	targetDomain := target.Domain
+	targetName := target.Namespace()
+
+	switch {
+	case targetDomain != "" && targetDomain != orig.Domain:
+		// External: the domain does not match the origin's domain.
+		return target, GnoLinkTypeExternal
+	case targetName != "" && targetName == orig.Namespace():
+		// Package: the namespace matches the origin's namespace.
+		return target, GnoLinkTypePackage
+	default:
+		// Internal: it's neither external nor a package link.
+		return target, GnoLinkTypeInternal
 	}
 }
 
+// linkRenderer implements NodeRenderer
+type linkRenderer struct{}
+
 // RegisterFuncs registers the renderer functions
 func (r *linkRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
-	reg.Register(ast.KindLink, r.renderLink)
-}
-
-// isSamePackage checks if the link points to the same package
-// - Link is an anchor (starts with #)
-// - Link is relative (no leading / and no protocol -> root link)
-// - Link points to the same package in /r/ path
-// - Link points to the same package in /p/ path
-// - Link points to the same package in /u/ path
-func isSamePackage(dest, pathWithoutR string) bool {
-	return strings.HasPrefix(dest, "#") ||
-		(!strings.HasPrefix(dest, "/") && !strings.Contains(dest, "://")) ||
-		strings.Contains(dest, "/r/"+pathWithoutR) ||
-		strings.Contains(dest, "/p/"+pathWithoutR) ||
-		strings.Contains(dest, "/u/"+pathWithoutR)
-}
-
-// Error messages for invalid link formats
-var (
-	ErrLinkInvalidURL = errors.New("invalid URL format")
-)
-
-var linkTypes = map[linkType]linkTypeInfo{
-	linkTypeExternal: {tooltipExternalLink, iconExternalLink, classLinkExternal},
-	linkTypeInternal: {tooltipInternalLink, iconInternalLink, classLinkInternal},
-	linkTypePackage:  {tooltipTxLink, iconTxLink, classLinkTx},
-}
-
-// linkTypeInfo contains information about a link type
-type linkTypeInfo struct {
-	tooltip string
-	icon    string
-	class   string
+	reg.Register(KindGnoLink, r.renderGnoLink)
 }
 
 // attr represents an HTML attribute
@@ -147,102 +166,103 @@ type attr struct {
 	value string
 }
 
-// writeHTMLTag writes an HTML attribute
+// writeHTMLTag writes an HTML attribute.
+// XXX: We probably want this as a general helper for futur extension.
 func writeHTMLTag(w util.BufWriter, tag string, attrs []attr) {
 	w.WriteString("<" + tag)
 	for _, a := range attrs {
-		w.WriteString(" ") // write a single space
+		w.WriteByte(' ') // write space separator
 		fmt.Fprintf(w, "%s=%q", a.name, a.value)
 	}
-	w.WriteString(">")
+	w.WriteByte('>')
 }
 
-// detectLinkType detects the type of link based on the destination
-func detectLinkType(dest, domain, path string) (linkType, bool, error) {
-	// Extract the package name from the path (e.g., "r/test/foo" -> "test")
-	pathWithoutR := strings.TrimPrefix(path, "/r/")
-	if idx := strings.Index(pathWithoutR, "/"); idx != -1 {
-		pathWithoutR = pathWithoutR[:idx]
-	}
-
-	// Check if the link is external:
-	// - Contains a protocol (e.g., http://, https://)
-	// - Contains a domain different from the current one
-	if strings.Contains(dest, "://") && !strings.Contains(dest, "://"+domain) {
-		return linkTypeExternal, false, nil
-	}
-
-	// Check if the link is a package link
-	if isSamePackage(dest, pathWithoutR) {
-		return linkTypePackage, strings.Contains(dest, "$help"), nil
-	}
-
-	// All other links are internal
-	return linkTypeInternal, strings.Contains(dest, "$help"), nil
+// linkTypeInfo contains information about a link type.
+type linkTypeInfo struct {
+	tooltip string
+	icon    string
+	class   string
 }
 
-// renderLink renders a link node
-func (r *linkRenderer) renderLink(w util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
+var linkTypes = map[GnoLinkType]linkTypeInfo{
+	GnoLinkTypeExternal: {tooltipExternalLink, iconExternalLink, classLinkExternal},
+	GnoLinkTypeInternal: {tooltipInternalLink, iconInternalLink, classLinkInternal},
+	GnoLinkTypePackage:  {tooltipTxLink, iconTxLink, classLinkTx},
+}
+
+// renderGnoLink renders a link node.
+func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
 	n, ok := node.(*GnoLink)
 	if !ok {
 		return ast.WalkContinue, nil
 	}
 
-	if !entering {
-		// Add the Tx icon span if needed
-		if n.Metadata.HasHelp {
-			txAttrs := []attr{
-				{"class", classLinkTx + " tooltip"},
-				{"data-tooltip", tooltipTxLink},
-			}
-			writeHTMLTag(w, "span", txAttrs)
-			w.WriteString(iconTxLink)
-			w.WriteString("</span>")
+	if n.LinkType == GnoLinkTypeInvalid {
+		if entering {
+			w.WriteString("<!-- invalid link -->")
+		}
+		return ast.WalkSkipChildren, nil
+	}
+
+	if entering {
+		// Prepare link attributes with href first.
+		attrs := []attr{{"href", string(n.Destination)}}
+		if n.LinkType == GnoLinkTypeExternal {
+			attrs = append(attrs, attr{"rel", "noopener nofollow ugc"})
+		}
+		if n.Title != nil {
+			attrs = append(attrs, attr{"title", string(n.Title)})
 		}
 
-		// Add external/internal icon span if needed
-		if n.Metadata.LinkType != linkTypePackage {
-			if info, ok := linkTypes[n.Metadata.LinkType]; ok {
-				attrs := []attr{
-					{"class", info.class + " tooltip"},
-					{"data-tooltip", info.tooltip},
-				}
-				writeHTMLTag(w, "span", attrs)
-				w.WriteString(info.icon)
-				w.WriteString("</span>")
-			}
-		}
-
-		w.WriteString("</a>")
+		// Write opening tag <a>.
+		writeHTMLTag(w, "a", attrs)
 		return ast.WalkContinue, nil
 	}
 
-	// Prepare link attributes with href first
-	attrs := []attr{{"href", string(n.Destination)}}
-	if n.Metadata.LinkType == linkTypeExternal {
-		attrs = append(attrs, attr{"rel", "noopener nofollow ugc"})
-	}
-	if n.Title != nil {
-		attrs = append(attrs, attr{"title", string(n.Title)})
+	// Add the Tx icon span if needed.
+	if n.LinkType != GnoLinkTypeExternal &&
+		n.GnoURL != nil && n.GnoURL.WebQuery.Has("help") { // has help webquery
+		writeHTMLTag(w, "span", []attr{
+			{"class", classLinkTx + " tooltip"},
+			{"data-tooltip", tooltipTxLink},
+		})
+		w.WriteString(iconTxLink)
+		w.WriteString("</span>")
 	}
 
-	// Write opening <a> tag
-	writeHTMLTag(w, "a", attrs)
+	// Add external/internal icon span if needed.
+	if n.LinkType != GnoLinkTypePackage {
+		if info, ok := linkTypes[n.LinkType]; ok {
+			writeHTMLTag(w, "span", []attr{
+				{"class", info.class + " tooltip"},
+				{"data-tooltip", info.tooltip},
+			})
+			w.WriteString(info.icon)
+			w.WriteString("</span>")
+		}
+	}
+
+	// Write closing tag <a>.
+	w.WriteString("</a>")
 
 	return ast.WalkContinue, nil
 }
 
+// linkExtension is a Goldmark extension that handles link rendering with special attributes
+// for external, internal, and same-package links.
+type linkExtension struct{}
+
+// Links instance for extending markdown with link functionality
+var Links = &linkExtension{}
+
 // Extend adds the LinkExtension to the provided Goldmark markdown processor
-func (l *LinkExtension) Extend(m goldmark.Markdown) {
+func (l *linkExtension) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(parser.WithASTTransformers(
 		util.Prioritized(&linkTransformer{}, 500),
 	))
 
 	// Register our renderer with a higher priority than the default renderer
 	m.Renderer().AddOptions(renderer.WithNodeRenderers(
-		util.Prioritized(&linkRenderer{}, 0), // Priority 0 is higher than default
+		util.Prioritized(&linkRenderer{}, 500),
 	))
 }
-
-// Links instance for extending markdown with link functionality
-var Links = &LinkExtension{}
