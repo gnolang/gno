@@ -229,8 +229,9 @@ func TestCreateNode(t *testing.T) {
 			name:        "err no genesis",
 			errContains: "missing genesis.json",
 			prepare: func(t *testing.T, dataDir string) {
+				t.Helper()
 				confDir := filepath.Join(dataDir, "gnoland-data", "config")
-				require.NoError(t, os.MkdirAll(confDir, 0775))
+				require.NoError(t, os.MkdirAll(confDir, 0o775))
 				err := config.WriteConfigFile(filepath.Join(confDir, "config.toml"), config.DefaultConfig())
 				require.NoError(t, err)
 			},
@@ -266,6 +267,8 @@ func TestCreateNode(t *testing.T) {
 }
 
 func chtestdir(t *testing.T, dir string) {
+	t.Helper()
+
 	oldwd, err := os.Open(".")
 	if err != nil {
 		t.Fatal(err)
