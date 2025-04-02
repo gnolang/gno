@@ -2046,7 +2046,7 @@ func (m *Machine) CheckEmpty() error {
 }
 
 func (m *Machine) Panic(ex TypedValue) {
-	m.Println("---m Panic, ex: ", ex)
+	//fmt.Println("---m Panic, ex: ", ex, reflect.TypeOf(ex.V), ex.T)
 	// Skip the last frame, as it's the one of the panic() (or native)
 	// function call.
 	// panicFrames := slices.Clone(m.Frames[:len(m.Frames)-1])
@@ -2076,7 +2076,7 @@ func (m *Machine) Panic(ex TypedValue) {
 // GnoVM. It returns nil if there was no exception to be recovered, otherwise
 // it returns the [Exception], which also contains the value passed into panic().
 func (m *Machine) Recover() *Exception {
-	m.Println("---m.recovering...")
+	//fmt.Println("---m.recovering...")
 	if len(m.Exceptions) == 0 {
 		return nil
 	}
@@ -2087,13 +2087,13 @@ func (m *Machine) Recover() *Exception {
 		return nil
 	}
 
-	m.Println("----exception: ", exception)
-	m.Println("---exception... panic frames: ", exception.Frames)
-	m.Println("---exception.Recovered: ", exception.Recovered)
+	//fmt.Println("----exception: ", exception)
+	//fmt.Println("---exception... panic frames: ", exception.Frames)
+	//fmt.Println("---exception.Recovered: ", exception.Recovered)
 
-	for i, frame := range m.Frames {
-		m.Printf("frames[%d] is : %v\n", i, frame)
-	}
+	//for i, frame := range m.Frames {
+	//	fmt.Printf("frames[%d] is : %v\n", i, frame)
+	//}
 
 	// the first call frame is recover,
 	// the second is deferred func lit,
@@ -2103,14 +2103,15 @@ func (m *Machine) Recover() *Exception {
 		return nil
 	}
 
-	m.Println("---target frame: ", exframe)
+	//fmt.Println("---target frame: ", exframe)
 
 	if !slices.Contains(exception.Frames, exframe) {
-		m.Println("---not contained, return nil")
+		//fmt.Println("---not contained, return nil")
 		return nil
 	}
 
 	if isUntyped(exception.Value.T) {
+		//fmt.Println("---untyped...")
 		ConvertUntypedTo(&exception.Value, nil)
 	}
 

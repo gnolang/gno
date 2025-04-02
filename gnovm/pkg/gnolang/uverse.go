@@ -731,18 +731,22 @@ func makeUverseNode() {
 			"exception", AnyT(),
 		),
 		func(m *Machine) {
-			m.Println("---recovering...")
-			m.Println("---m.Exceptions: ", m.Exceptions)
-			m.Println("---m.Frames: ", m.Frames)
+			//fmt.Println("---recovering...")
+			//fmt.Println("---m.Exceptions: ", m.Exceptions)
+			//fmt.Println("---m.Frames: ", m.Frames)
 
 			exception := m.Recover()
-			m.Println("---exception from recover: ", exception)
+			//fmt.Println("---exception from recover: ", exception)
+			//if exception != nil {
+			//	fmt.Println("---exp.Value, exp...Value.T: ", exception.Value, exception.Value.T)
+			//}
 			if exception == nil {
 				m.PushValue(TypedValue{})
 			} else {
 				exception.Recovered = true
 				m.PushValue(exception.Value)
 			}
+			//fmt.Println("---done recovering...")
 		},
 	)
 	uverseValue = uverseNode.NewPackage()

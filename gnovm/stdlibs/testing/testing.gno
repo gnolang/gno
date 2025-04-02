@@ -30,7 +30,7 @@ func (s skipErr) Error() string {
 // NOTE: Recover() is likely to be removed.
 func Recover(result Setter) {
 	r := recover()
-	if _, ok := r.(skipErr); !ok {
+	if _, ok := r.(skipErr); ok {
 		result.Set(r)
 		return
 	}
@@ -101,7 +101,7 @@ func (t *T) Fail() {
 func (t *T) FailNow() {
 	t.Fail()
 	panic(skipErr("testing: you have recovered a panic attempting to interrupt a test, as a consequence of FailNow. " +
-		"Use testing.Recover to recover panics within tests"))
+			"Use testing.Recover to recover panics within tests"))
 }
 
 func (t *T) Failed() bool {
@@ -188,7 +188,7 @@ func (t *T) Skip(args ...any) {
 func (t *T) SkipNow() {
 	t.skipped = true
 	panic(skipErr("testing: you have recovered a panic attempting to interrupt a test, as a consequence of SkipNow. " +
-		"Use testing.Recover to recover panics within tests"))
+			"Use testing.Recover to recover panics within tests"))
 }
 
 func (t *T) Skipped() bool {
@@ -208,6 +208,7 @@ func (t *T) Helper() {
 }
 
 func (t *T) log(s string) {
+	//fmt.Println("---t.log, s: ", s)
 	if t.verbose {
 		// verbose, print immediately
 		fmt.Fprint(os.Stderr, s)
@@ -356,6 +357,7 @@ func tRunner(t *T, fn testingFunc, verbose bool) {
 		switch err.(type) {
 		case nil:
 		case skipErr:
+			//fmt.Println("---skip err---")
 		default:
 			t.Fail()
 			fmt.Fprintf(os.Stderr, "panic: %v\nStacktrace:\n%s\n", err, st)

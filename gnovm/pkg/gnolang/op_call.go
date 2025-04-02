@@ -410,7 +410,7 @@ func (m *Machine) doOpPanic2() {
 				}
 			}
 
-			m.Println("---unhandled panic: ", bld.String())
+			//fmt.Println("---unhandled panic: ", bld.String())
 
 			panic(UnhandledPanicError{
 				Descriptor: bld.String(),
