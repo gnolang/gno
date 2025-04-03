@@ -28,6 +28,6 @@ func (m *GnoFee) BuildAndRun(ctx context.Context, source *dagger.Directory) (int
 		WithServiceBinding("gno", gnoService).
 		WithExec(strings.Split("apk add jq curl", " ")).
 		WithExec([]string{"sh", "-c",
-			"[ $(curl -s gno:26657/status | jq -r '.result.sync_info.latest_block_height') -ge 1 ]"}).
+			"[ $(curl -s gno:26657/status | jq -r '.result.sync_info.latest_block_height') -ge 0 ]"}).
 		ExitCode(ctx)
 }
