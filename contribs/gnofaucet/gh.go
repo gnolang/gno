@@ -71,14 +71,15 @@ func getGithubMiddleware(clientID, secret string, coolDownLimiter *CooldownLimit
 	}
 }
 
-type GitHubTokenResponse struct {
+type gitHubTokenResponse struct {
 	AccessToken string `json:"access_token"`
 }
 
+const githubTokenExchangeURL = "https://github.com/login/oauth/access_token"
+
 var exchangeCodeForUser = func(ctx context.Context, secret, clientID, code string) (*github.User, error) {
-	url := "https://github.com/login/oauth/access_token"
 	body := fmt.Sprintf("client_id=%s&client_secret=%s&code=%s", clientID, secret, code)
-	req, err := http.NewRequest("POST", url, strings.NewReader(body))
+	req, err := http.NewRequest("POST", githubTokenExchangeURL, strings.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +92,7 @@ var exchangeCodeForUser = func(ctx context.Context, secret, clientID, code strin
 	}
 	defer resp.Body.Close()
 
-	var tokenResponse GitHubTokenResponse
+	var tokenResponse gitHubTokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResponse); err != nil {
 		return nil, err
 	}
