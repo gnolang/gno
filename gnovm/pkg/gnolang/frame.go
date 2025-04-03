@@ -83,11 +83,6 @@ type Defer struct {
 	Args     []TypedValue // arguments
 	Source   *DeferStmt   // source
 	Parent   *Block
-
-	// PanicScope is set to the value of the Machine's PanicScope when the
-	// defer is created. The PanicScope of the Machine is incremented each time
-	// a panic occurs and is decremented each time a panic is recovered.
-	PanicScope uint
 }
 
 //----------------------------------------

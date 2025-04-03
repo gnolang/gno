@@ -208,7 +208,6 @@ func (t *T) Helper() {
 }
 
 func (t *T) log(s string) {
-	//fmt.Println("---t.log, s: ", s)
 	if t.verbose {
 		// verbose, print immediately
 		fmt.Fprint(os.Stderr, s)

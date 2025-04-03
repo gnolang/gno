@@ -46,13 +46,6 @@ type Machine struct {
 	Store            Store
 	Context          any
 	GasMeter         store.GasMeter
-	// PanicScope is incremented each time a panic occurs and is reset to
-	// zero when it is recovered.
-	PanicScope uint
-	// DeferPanicScope is set to the value of the defer's panic scope before
-	// it is executed. It is reset to zero after the defer functions in the current
-	// scope have finished executing.
-	DeferPanicScope uint
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -892,30 +885,29 @@ type Op uint8
 const (
 
 	/* Control operators */
-	OpInvalid           Op = 0x00 // invalid
-	OpHalt              Op = 0x01 // halt (e.g. last statement)
-	OpNoop              Op = 0x02 // no-op
-	OpExec              Op = 0x03 // exec next statement
-	OpPrecall           Op = 0x04 // sets X (func) to frame
-	OpCall              Op = 0x05 // call(Frame.Func, [...])
-	OpCallNativeBody    Op = 0x06 // call body is native
-	OpReturn            Op = 0x07 // return ...
-	OpReturnFromBlock   Op = 0x08 // return results (after defers)
-	OpReturnToBlock     Op = 0x09 // copy results to block (before defer)
-	OpDefer             Op = 0x0A // defer call(X, [...])
-	OpGo                Op = 0x0B // go call(X, [...])
-	OpSelect            Op = 0x0C // exec next select case
-	OpSwitchClause      Op = 0x0D // exec next switch clause
-	OpSwitchClauseCase  Op = 0x0E // exec next switch clause case
-	OpTypeSwitch        Op = 0x0F // exec type switch clauses (all)
-	OpIfCond            Op = 0x10 // eval cond
-	OpPopValue          Op = 0x11 // pop X
-	OpPopResults        Op = 0x12 // pop n call results
-	OpPopBlock          Op = 0x13 // pop block NOTE breaks certain invariants.
-	OpPopFrameAndReset  Op = 0x14 // pop frame and reset.
-	OpPanic1            Op = 0x15 // pop exception and pop call frames.
-	OpPanic2            Op = 0x16 // pop call frames.
-	OpReturnCallDefers2 Op = 0x17 // not sticky
+	OpInvalid          Op = 0x00 // invalid
+	OpHalt             Op = 0x01 // halt (e.g. last statement)
+	OpNoop             Op = 0x02 // no-op
+	OpExec             Op = 0x03 // exec next statement
+	OpPrecall          Op = 0x04 // sets X (func) to frame
+	OpCall             Op = 0x05 // call(Frame.Func, [...])
+	OpCallNativeBody   Op = 0x06 // call body is native
+	OpReturn           Op = 0x07 // return ...
+	OpReturnFromBlock  Op = 0x08 // return results (after defers)
+	OpReturnToBlock    Op = 0x09 // copy results to block (before defer)
+	OpDefer            Op = 0x0A // defer call(X, [...])
+	OpGo               Op = 0x0B // go call(X, [...])
+	OpSelect           Op = 0x0C // exec next select case
+	OpSwitchClause     Op = 0x0D // exec next switch clause
+	OpSwitchClauseCase Op = 0x0E // exec next switch clause case
+	OpTypeSwitch       Op = 0x0F // exec type switch clauses (all)
+	OpIfCond           Op = 0x10 // eval cond
+	OpPopValue         Op = 0x11 // pop X
+	OpPopResults       Op = 0x12 // pop n call results
+	OpPopBlock         Op = 0x13 // pop block NOTE breaks certain invariants.
+	OpPopFrameAndReset Op = 0x14 // pop frame and reset.
+	OpPanic1           Op = 0x15 // pop exception and pop call frames.
+	OpPanic2           Op = 0x16 // pop call frames.
 
 	/* Unary & binary operators */
 	OpUpos  Op = 0x20 // + (unary)
@@ -1484,9 +1476,6 @@ func (m *Machine) Run() {
 		case OpReturnCallDefers:
 			m.incrCPU(OpCPUReturnCallDefers)
 			m.doOpReturnCallDefers()
-		case OpReturnCallDefers2:
-			m.incrCPU(OpCPUReturnCallDefers2)
-			m.doOpReturnCallDefers()
 		default:
 			panic(fmt.Sprintf("unexpected opcode %s", op.String()))
 		}
@@ -1807,7 +1796,6 @@ func (m *Machine) PopFrame() Frame {
 	if debug {
 		m.Printf("-F %#v\n", f)
 	}
-
 	m.Frames = m.Frames[:numFrames-1]
 
 	return *f
@@ -1826,7 +1814,6 @@ func (m *Machine) PopFrameAndReset() {
 
 // TODO: optimize by passing in last frame.
 func (m *Machine) PopFrameAndReturn() {
-	m.Println("---PopFrameAndReturn---")
 	fr := m.PopFrame()
 	fr.Popped = true
 	if debug {
