@@ -1,5 +1,7 @@
 package gnolang
 
+// XXX test that p is not actually mutable
+
 // XXX finalize should consider hard boundaries only
 
 import (
@@ -465,14 +467,6 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 			if child.GetIsEscaped() {
 				// already escaped, do nothing.
 			} else {
-				/* XXX delete
-				if child.GetObjectID().IsZero() {
-					// child was passed from caller.
-					// save it here instead.
-					rlm.incRefCreatedDescendants(store, child)
-					child.SetIsNewReal(true)
-				}
-				*/
 				// NOTE: do not unset owner here,
 				// may become unescaped later
 				// in processNewEscapedMarks().
@@ -607,14 +601,6 @@ func (rlm *Realm) processNewEscapedMarks(store Store, start int) int {
 					// eo was passed from caller.
 					rlm.incRefCreatedDescendants(store, eo)
 					eo.SetIsNewReal(true)
-					/*
-						// 'eo' was marked new from caller or before.
-						rlm.assignNewObjectID(eo)
-						rlm.created = append(rlm.created, eo)
-						// eo.SetIsNewReal(true)
-					*/
-					// should have been handled earlier in incRefCreatedDescendants().
-					//panic("new escaped mark has no object ID")
 				}
 				// escaped has no owner.
 				eo.SetOwner(nil)
