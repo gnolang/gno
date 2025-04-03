@@ -51,7 +51,6 @@ func TestLoadOpcodesPackage(t *testing.T) {
 		"OpLand",
 		"OpPanic",
 		"OpTypeSwitch",
-		"OpCallDeferNativeBody",
 		"OpRange",
 		"OpForLoop",
 		"OpTypes",

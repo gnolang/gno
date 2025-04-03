@@ -1040,7 +1040,6 @@ const (
 	OpCPUPopFrameAndReset    = 15
 	OpCPUPanic1              = 121
 	OpCPUPanic2              = 21
-	OpCPUReturnCallDefers2   = 78
 
 	/* Unary & binary operators */
 	OpCPUUpos  = 7
@@ -1512,7 +1511,6 @@ func (m *Machine) PopOp() Op {
 		m.Printf("-o %v\n", op)
 	}
 	if OpSticky <= op {
-		// if OpSticky <= op {
 		// do not pop persistent op types.
 	} else {
 		m.NumOps--
@@ -1761,7 +1759,6 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	if debug {
 		m.Printf("+F %#v\n", fr)
 	}
-
 	m.Frames = append(m.Frames, fr)
 	pv := fv.GetPackage(m.Store)
 	if pv == nil {
@@ -1912,7 +1909,6 @@ func (m *Machine) lastCallFrame(n int, mustBeFound bool) *Frame {
 // pops the last non-call (loop) frames
 // and returns the last call frame (which is left on stack).
 func (m *Machine) PopUntilLastCallFrame() *Frame {
-	m.Println("---PopUntilLastCallFrame, len(m.Frames): ", len(m.Frames))
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := m.Frames[i]
 		if fr.IsCall() {
@@ -2033,11 +2029,7 @@ func (m *Machine) CheckEmpty() error {
 }
 
 func (m *Machine) Panic(ex TypedValue) {
-	// Skip the last frame, as it's the one of the panic() (or native)
-	// function call.
 	panicFrames := slices.Clone(m.Frames[:])
-	m.Println("---panicFrames: ", panicFrames)
-
 	m.Exceptions = append(
 		m.Exceptions,
 		Exception{
@@ -2046,7 +2038,6 @@ func (m *Machine) Panic(ex TypedValue) {
 			Stacktrace: m.Stacktrace(),
 		},
 	)
-	// fmt.Println("---m.Exceptions: ", m.Exceptions)
 
 	m.PopUntilLastCallFrame()
 	m.PushOp(OpPanic2)
@@ -2057,35 +2048,33 @@ func (m *Machine) Panic(ex TypedValue) {
 // GnoVM. It returns nil if there was no exception to be recovered, otherwise
 // it returns the [Exception], which also contains the value passed into panic().
 func (m *Machine) Recover() *Exception {
+	fmt.Println("---m.Recover...")
 	if len(m.Exceptions) == 0 {
 		return nil
 	}
-
 	exception := &m.Exceptions[len(m.Exceptions)-1]
 
-	if exception == nil {
+	if exception == nil || exception.Recovered {
 		return nil
 	}
 
-	// the first call frame is recover,
-	// the second is deferred func lit,
-	// the third is the frame where panic happens.
-	exframe := m.LastCallFrame(3)
+	// The first call frame is recover func frame,
+	// the second is deferred function frame,
+	// the third frame may be in a panic state and
+	// requires recovery.
+	fr := m.LastCallFrame(3)
 
-	if exframe == nil {
+	if fr == nil {
 		return nil
 	}
 
-	if !slices.Contains(exception.Frames, exframe) {
+	// not in recover scope
+	if !slices.Contains(exception.Frames, fr) {
 		return nil
 	}
 
 	if isUntyped(exception.Value.T) {
 		ConvertUntypedTo(&exception.Value, nil)
-	}
-
-	if exception.Recovered { // no recover for the second time
-		return nil
 	}
 
 	exception.Recovered = true

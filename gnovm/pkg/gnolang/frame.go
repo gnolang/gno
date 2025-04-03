@@ -94,7 +94,7 @@ type Exception struct {
 	Value TypedValue
 	// Frames is a snapshot of the Machine frames at the time panic() is called.
 	// It is used to determine whether recover() can be called (it may only be
-	// called directly by a referred function) and to determine whether the
+	// called directly by a deferred function) and to determine whether the
 	// current execution of a deferred function is happening in the context of
 	// a panic.
 	Frames []*Frame
