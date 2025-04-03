@@ -50,6 +50,10 @@ func execGenerate(cfg *GenerateCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
+	if cfg.RootCfg.Json {
+		io.ErrPrintln("warning: -json flag has no effect on `generate` command")
+	}
+
 	var entropySeed []byte
 
 	if customEntropy {

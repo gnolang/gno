@@ -55,6 +55,10 @@ func execDelete(cfg *DeleteCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
+	if cfg.RootCfg.Json {
+		io.ErrPrintln("warning: -json flag has no effect on `delete` command")
+	}
+
 	nameOrBech32 := args[0]
 
 	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.Home)

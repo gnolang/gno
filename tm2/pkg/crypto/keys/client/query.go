@@ -1,9 +1,13 @@
 package client
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"flag"
+	"fmt"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -56,6 +60,10 @@ func execQuery(cfg *QueryCfg, args []string, io commands.IO) error {
 		return err
 	}
 
+	if cfg.RootCfg.Json {
+		return printResultABCIQueryJson(qres, io)
+	}
+
 	if qres.Response.Error != nil {
 		io.Printf("Log: %s\n",
 			qres.Response.Log)
@@ -95,4 +103,51 @@ func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 	}
 
 	return qres, nil
+}
+
+func printResultABCIQueryJson(qres *ctypes.ResultABCIQuery, io commands.IO) error {
+	var output struct {
+		Response json.RawMessage `json:"response"`
+		Data     json.RawMessage `json:"data,omitempty"`
+	}
+
+	var err error
+	if output.Response, err = amino.MarshalJSONIndent(qres.Response, "", "  "); err != nil {
+		io.ErrPrintfln("Unable to marshal response %+v\n", qres)
+		return fmt.Errorf("amino marshal json error: %w", err)
+	}
+
+	data := qres.Response.Data
+	switch {
+	case len(data) == 0:
+		output.Data = []byte(`[]`)
+	case data[0] == '[', data[len(data)-1] == ']':
+		fallthrough
+	case data[0] == '{', data[len(data)-1] == '}':
+		output.Data = data
+	default:
+		output.Data, _ = json.Marshal(qres.Response.Data)
+	}
+
+	var buff bytes.Buffer
+	jqueryEnc := json.NewEncoder(&buff)
+	jqueryEnc.SetEscapeHTML(false) // disable HTML escaping, as we want to correctly display `<`, `>`
+	jqueryEnc.SetIndent("", "  ")
+
+	if err := jqueryEnc.Encode(output); err != nil {
+		io.ErrPrintfln("Unable to marshal\n Response: %+v\n Data: %+v\n",
+			string(output.Response),
+			string(output.Data),
+		)
+		return fmt.Errorf("marshal json error: %w", err)
+	}
+
+	// Print out json.
+	io.Println(buff.String())
+
+	if qres.Response.IsErr() {
+		return commands.ExitCodeError(1)
+	}
+
+	return nil
 }
