@@ -2048,7 +2048,6 @@ func (m *Machine) Panic(ex TypedValue) {
 // GnoVM. It returns nil if there was no exception to be recovered, otherwise
 // it returns the [Exception], which also contains the value passed into panic().
 func (m *Machine) Recover() *Exception {
-	fmt.Println("---m.Recover...")
 	if len(m.Exceptions) == 0 {
 		return nil
 	}
