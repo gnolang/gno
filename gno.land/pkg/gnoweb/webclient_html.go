@@ -13,6 +13,7 @@ import (
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/alecthomas/chroma/v2/styles"
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -52,6 +53,7 @@ func NewDefaultHTMLWebClientConfig(client *client.RPCClient) *HTMLWebClientConfi
 			),
 			extension.Strikethrough,
 			extension.Table,
+
 			md.GnoExtension,
 		),
 	}
@@ -69,10 +71,11 @@ type HTMLWebClient struct {
 	Markdown  goldmark.Markdown
 	Formatter *chromahtml.Formatter
 
-	domain      string
-	logger      *slog.Logger
-	client      *client.RPCClient
-	chromaStyle *chroma.Style
+	domain        string
+	logger        *slog.Logger
+	client        *client.RPCClient
+	chromaStyle   *chroma.Style
+	commonOptions []goldmark.Option
 }
 
 // NewHTMLClient creates a new instance of WebClient.
@@ -84,10 +87,11 @@ func NewHTMLClient(log *slog.Logger, cfg *HTMLWebClientConfig) *HTMLWebClient {
 		Markdown:  goldmark.New(cfg.GoldmarkOptions...),
 		Formatter: chromahtml.New(cfg.ChromaHTMLOptions...),
 
-		logger:      log,
-		domain:      cfg.Domain,
-		client:      cfg.RPCClient,
-		chromaStyle: cfg.ChromaStyle,
+		logger:        log,
+		domain:        cfg.Domain,
+		client:        cfg.RPCClient,
+		chromaStyle:   cfg.ChromaStyle,
+		commonOptions: cfg.GoldmarkOptions,
 	}
 }
 
@@ -182,19 +186,21 @@ func (s *HTMLWebClient) Sources(path string) ([]string, error) {
 // RenderRealm renders the content of a realm from a given path
 // and arguments into the provided writer. It uses Goldmark for
 // Markdown processing to generate HTML content.
-func (s *HTMLWebClient) RenderRealm(w io.Writer, pkgPath string, args string) (*RealmMeta, error) {
+func (s *HTMLWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL) (*RealmMeta, error) {
 	const qpath = "vm/qrender"
 
-	pkgPath = strings.Trim(pkgPath, "/")
-	data := fmt.Sprintf("%s/%s:%s", s.domain, pkgPath, args)
+	pkgPath := strings.Trim(u.Path, "/")
+	data := fmt.Sprintf("%s/%s:%s", s.domain, pkgPath, u.EncodeArgs())
 
 	rawres, err := s.query(qpath, []byte(data))
 	if err != nil {
 		return nil, err
 	}
 
+	ctxOpts := parser.WithContext(md.NewGnoParserContext(u))
+
 	// Use Goldmark for Markdown parsing
-	doc := s.Markdown.Parser().Parse(text.NewReader(rawres))
+	doc := s.Markdown.Parser().Parse(text.NewReader(rawres), ctxOpts)
 	if err := s.Markdown.Renderer().Render(w, rawres, doc); err != nil {
 		return nil, fmt.Errorf("unable to render realm %q: %w", data, err)
 	}
