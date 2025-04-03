@@ -124,7 +124,7 @@ func Go2GnoValue(alloc *Allocator, store Store, rv reflect.Value) (tv TypedValue
 		} else {
 			av := alloc.NewListArray(rvl)
 			list := av.List
-			for i := 0; i < rvl; i++ {
+			for i := range rvl {
 				list[i] = Go2GnoValue(alloc, store, rv.Index(i))
 			}
 			tv.V = av
@@ -132,11 +132,13 @@ func Go2GnoValue(alloc *Allocator, store Store, rv reflect.Value) (tv TypedValue
 	case reflect.Slice:
 		rvl := rv.Len()
 		rvc := rv.Cap()
-		list := make([]TypedValue, rvl, rvc)
-		for i := 0; i < rvl; i++ {
+
+		baseArray := alloc.NewListArray2(rvl, rvc)
+		list := baseArray.List
+		for i := range rvl {
 			list[i] = Go2GnoValue(alloc, store, rv.Index(i))
 		}
-		tv.V = alloc.NewSliceFromList(list)
+		tv.V = alloc.NewSlice(baseArray, 0, rvl, rvc)
 	case reflect.Ptr:
 		val := Go2GnoValue(alloc, store, rv.Elem())
 		tv.V = PointerValue{TV: &val} // heap alloc
@@ -315,7 +317,7 @@ func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		// General case.
 		av := tv.V.(*ArrayValue)
 		if av.Data == nil {
-			for i := 0; i < ct.Len; i++ {
+			for i := range ct.Len {
 				etv := &av.List[i]
 				if etv.IsUndefined() {
 					continue
@@ -323,7 +325,7 @@ func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 				Gno2GoValue(etv, rv.Index(i))
 			}
 		} else {
-			for i := 0; i < ct.Len; i++ {
+			for i := range ct.Len {
 				val := av.Data[i]
 				erv := rv.Index(i)
 				erv.SetUint(uint64(val))
@@ -343,7 +345,7 @@ func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		svb := sv.GetBase(nil)
 		if svb.Data == nil {
 			rv.Set(reflect.MakeSlice(st, svl, svc))
-			for i := 0; i < svl; i++ {
+			for i := range svl {
 				etv := &(svb.List[svo+i])
 				if etv.IsUndefined() {
 					continue
