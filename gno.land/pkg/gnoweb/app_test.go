@@ -65,7 +65,6 @@ func TestRoutes(t *testing.T) {
 	}
 
 	rootdir := gnoenv.RootDir()
-	println(rootdir)
 	genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
 	config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewTestingLogger(t), config)
