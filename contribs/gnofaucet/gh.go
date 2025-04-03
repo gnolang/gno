@@ -94,6 +94,7 @@ type gitHubTokenResponse struct {
 	AccessToken string `json:"access_token"`
 }
 
+//nolint:gosec
 const githubTokenExchangeURL = "https://github.com/login/oauth/access_token"
 
 var exchangeCodeForUser = func(ctx context.Context, secret, clientID, code string) (*github.User, error) {

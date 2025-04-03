@@ -39,8 +39,6 @@ func TestServe(t *testing.T) {
 			"captcha",
 			"--captcha-secret",
 			"dummy-secret",
-			//"--chain-id",
-			//"",
 		}
 
 		// Run the command
@@ -155,5 +153,4 @@ func TestServe(t *testing.T) {
 		cmdErr := cmd.ParseAndRun(ctx, args)
 		require.NoError(t, cmdErr)
 	})
-
 }
