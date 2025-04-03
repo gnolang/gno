@@ -288,58 +288,30 @@
     @apply block;
   }
 
-  :is(
-      .main-header:has(#sidemenu-source:checked),
-      .main-header:has(#sidemenu-docs:checked),
-      .main-header:has(#sidemenu-meta:checked)
-    )
-    + main
-    .realm-view,
-  :is(
-      .main-header:has(#sidemenu-source:checked),
-      .main-header:has(#sidemenu-docs:checked),
-      .main-header:has(#sidemenu-meta:checked)
-    )
-    .main-navigation {
+  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) + main .realm-view,
+  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) .main-navigation {
     @apply md:col-span-6;
   }
-  :is(
-      .main-header:has(#sidemenu-source:checked),
-      .main-header:has(#sidemenu-docs:checked),
-      .main-header:has(#sidemenu-meta:checked)
-    )
-    + main
-    #sidebar,
-  :is(
-      .main-header:has(#sidemenu-source:checked),
-      .main-header:has(#sidemenu-docs:checked),
-      .main-header:has(#sidemenu-meta:checked)
-    )
-    .sidemenu {
+  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) + main #sidebar,
+  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) .sidemenu {
     @apply md:col-span-4;
   }
-  :is(
-      .main-header:has(#sidemenu-source:checked),
-      .main-header:has(#sidemenu-docs:checked),
-      .main-header:has(#sidemenu-meta:checked)
-    )
-    + main
-    #sidebar::before {
+  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) + main #sidebar::before {
     @apply absolute block content-[''] top-0 w-[50vw] h-full -left-7 bg-gray-100 z-min;
   }
 
   /* Tooltip */
   .tooltip {
-    @apply relative inline-block;
+    @apply relative inline;
   }
 
   .tooltip::after {
     content: attr(data-tooltip);
-    @apply absolute z-max invisible px-2 py-1 bg-light rounded border border-gray-100 w-fit min-w-32 max-w-48 top-full -left-1 text-center text-100 text-gray-600 font-normal transition-all opacity-0;
+    @apply absolute z-max scale-0 invisible px-2 py-1 bg-light rounded border border-gray-100 w-fit min-w-32 max-w-48 top-full -left-1 text-center text-100 text-gray-600 font-normal transition-opacity opacity-0;
   }
 
   .tooltip:hover::after {
-    @apply visible opacity-100 delay-300;
+    @apply visible opacity-100 delay-300 scale-100;
   }
 
   /* chroma */
@@ -354,20 +326,9 @@
     @apply !bg-transparent;
   }
   main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-ln:target),
-  main
-    :is(.realm-view, .source-code)
-    > pre
-    .chroma-line:has(.chroma-lnlinks:hover),
-  main
-    :is(.realm-view, .source-code)
-    > pre
-    .chroma-line:has(.chroma-ln:target)
-    .chroma-cl,
-  main
-    :is(.realm-view, .source-code)
-    > pre
-    .chroma-line:has(.chroma-lnlinks:hover)
-    .chroma-cl {
+  main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-lnlinks:hover),
+  main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-ln:target) .chroma-cl,
+  main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-lnlinks:hover) .chroma-cl {
     @apply !bg-gray-100 rounded;
   }
   main :is(.realm-view, .source-code) > pre .chroma-ln {
@@ -427,12 +388,9 @@
   }
 
   :is(.link-external, .link-internal, .link-tx) {
-    @apply inline-block align-text-top;
+    @apply inline align-text-top;
   }
 
-  .realm-view a > span:last-of-type {
-    @apply mr-0.5;
-  }
   .realm-view a > span:first-of-type {
     @apply ml-0.5;
   }
