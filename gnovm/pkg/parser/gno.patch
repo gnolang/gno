@@ -1,5 +1,5 @@
 --- interface.go.orig	2025-02-27 18:57:18.000000000 +0100
-+++ interface.go	2025-04-02 14:08:18.583526376 +0200
++++ interface.go	2025-04-03 09:48:49.029163919 +0200
 @@ -120,12 +120,63 @@
  	}()
  
@@ -123,8 +123,16 @@
 +	return ParseExprFromStats(token.NewFileSet(), "", []byte(x), 0, maxNest)
 +}
 --- parser_test.go.orig	2025-02-27 18:57:18.000000000 +0100
-+++ parser_test.go	2025-04-02 13:29:49.371172116 +0200
-@@ -680,7 +680,7 @@
++++ parser_test.go	2025-04-03 09:57:46.201912230 +0200
+@@ -391,6 +391,7 @@
+ }
+ 
+ func checkFieldComments(t *testing.T, file *ast.File, fieldname, lead, line string) {
++	t.Helper()
+ 	f := getField(file, fieldname)
+ 	if f == nil {
+ 		t.Fatalf("field not found: %s", fieldname)
+@@ -680,7 +681,7 @@
  						t.Errorf("ParseFile(...): %v (want success)", err)
  					}
  				} else {
@@ -134,7 +142,7 @@
  						t.Errorf("ParseFile(...) = _, %v, want %q", err, expected)
  					}
 --- parser.go.orig	2025-02-27 18:57:18.000000000 +0100
-+++ parser.go	2025-04-02 14:06:01.177297863 +0200
++++ parser.go	2025-04-03 09:54:51.771889855 +0200
 @@ -19,10 +19,11 @@
  	"fmt"
  	"go/ast"
@@ -200,8 +208,68 @@
  		if p.tok == token.COMMENT {
  			if p.top && strings.HasPrefix(p.lit, "//go:build") {
  				if x, err := constraint.Parse(p.lit); err == nil {
+@@ -571,19 +589,19 @@
+ 
+ // "[" has already been consumed, and lbrack is its position.
+ // If len != nil it is the already consumed array length.
+-func (p *parser) parseArrayType(lbrack token.Pos, len ast.Expr) *ast.ArrayType {
++func (p *parser) parseArrayType(lbrack token.Pos, length ast.Expr) *ast.ArrayType {
+ 	if p.trace {
+ 		defer un(trace(p, "ArrayType"))
+ 	}
+ 
+-	if len == nil {
++	if length == nil {
+ 		p.exprLev++
+ 		// always permit ellipsis for more fault-tolerant parsing
+ 		if p.tok == token.ELLIPSIS {
+-			len = &ast.Ellipsis{Ellipsis: p.pos}
++			length = &ast.Ellipsis{Ellipsis: p.pos}
+ 			p.next()
+ 		} else if p.tok != token.RBRACK {
+-			len = p.parseRhs()
++			length = p.parseRhs()
+ 		}
+ 		p.exprLev--
+ 	}
+@@ -596,7 +614,7 @@
+ 	}
+ 	p.expect(token.RBRACK)
+ 	elt := p.parseType()
+-	return &ast.ArrayType{Lbrack: lbrack, Len: len, Elt: elt}
++	return &ast.ArrayType{Lbrack: lbrack, Len: length, Elt: elt}
+ }
+ 
+ func (p *parser) parseArrayFieldOrTypeInstance(x *ast.Ident) (*ast.Ident, ast.Expr) {
+@@ -1016,7 +1034,7 @@
+ 
+ 	// If the parameter list consists of named parameters with types,
+ 	// collect all names with the same types into a single ast.Field.
+-	var names []*ast.Ident
++	var names = []*ast.Ident{}
+ 	var typ ast.Expr
+ 	addParams := func() {
+ 		assert(typ != nil, "nil type in named parameter list")
+@@ -2481,7 +2499,7 @@
+ // ----------------------------------------------------------------------------
+ // Declarations
+ 
+-type parseSpecFunction func(doc *ast.CommentGroup, keyword token.Token, iota int) ast.Spec
++type parseSpecFunction func(doc *ast.CommentGroup, keyword token.Token, i int) ast.Spec
+ 
+ func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Token, _ int) ast.Spec {
+ 	if p.trace {
+@@ -2523,7 +2541,7 @@
+ 	return spec
+ }
+ 
+-func (p *parser) parseValueSpec(doc *ast.CommentGroup, keyword token.Token, iota int) ast.Spec {
++func (p *parser) parseValueSpec(doc *ast.CommentGroup, keyword token.Token, i int) ast.Spec {
+ 	if p.trace {
+ 		defer un(trace(p, keyword.String()+"Spec"))
+ 	}
 --- performance_test.go.orig	2025-02-27 18:57:18.000000000 +0100
-+++ performance_test.go	2025-04-02 13:29:49.371408656 +0200
++++ performance_test.go	2025-04-03 09:48:49.031169270 +0200
 @@ -10,7 +10,7 @@
  	"testing"
  )
@@ -211,3 +279,13 @@
  
  func readFile(filename string) []byte {
  	data, err := os.ReadFile(filename)
+--- resolver.go.orig	2025-04-03 09:55:27.609114029 +0200
++++ resolver.go	2025-04-03 09:55:50.847999262 +0200
+@@ -253,7 +253,6 @@
+ 	}
+ 
+ 	switch n := node.(type) {
+-
+ 	// Expressions.
+ 	case *ast.Ident:
+ 		r.resolve(n, true)

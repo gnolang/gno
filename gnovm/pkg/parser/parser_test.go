@@ -391,6 +391,7 @@ func commentText(c *ast.CommentGroup) string {
 }
 
 func checkFieldComments(t *testing.T, file *ast.File, fieldname, lead, line string) {
+	t.Helper()
 	f := getField(file, fieldname)
 	if f == nil {
 		t.Fatalf("field not found: %s", fieldname)

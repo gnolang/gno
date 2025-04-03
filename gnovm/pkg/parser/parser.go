@@ -589,19 +589,19 @@ func (p *parser) parseTypeName(ident *ast.Ident) ast.Expr {
 
 // "[" has already been consumed, and lbrack is its position.
 // If len != nil it is the already consumed array length.
-func (p *parser) parseArrayType(lbrack token.Pos, len ast.Expr) *ast.ArrayType {
+func (p *parser) parseArrayType(lbrack token.Pos, length ast.Expr) *ast.ArrayType {
 	if p.trace {
 		defer un(trace(p, "ArrayType"))
 	}
 
-	if len == nil {
+	if length == nil {
 		p.exprLev++
 		// always permit ellipsis for more fault-tolerant parsing
 		if p.tok == token.ELLIPSIS {
-			len = &ast.Ellipsis{Ellipsis: p.pos}
+			length = &ast.Ellipsis{Ellipsis: p.pos}
 			p.next()
 		} else if p.tok != token.RBRACK {
-			len = p.parseRhs()
+			length = p.parseRhs()
 		}
 		p.exprLev--
 	}
@@ -614,7 +614,7 @@ func (p *parser) parseArrayType(lbrack token.Pos, len ast.Expr) *ast.ArrayType {
 	}
 	p.expect(token.RBRACK)
 	elt := p.parseType()
-	return &ast.ArrayType{Lbrack: lbrack, Len: len, Elt: elt}
+	return &ast.ArrayType{Lbrack: lbrack, Len: length, Elt: elt}
 }
 
 func (p *parser) parseArrayFieldOrTypeInstance(x *ast.Ident) (*ast.Ident, ast.Expr) {
@@ -1034,7 +1034,7 @@ func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing tok
 
 	// If the parameter list consists of named parameters with types,
 	// collect all names with the same types into a single ast.Field.
-	var names []*ast.Ident
+	var names = []*ast.Ident{}
 	var typ ast.Expr
 	addParams := func() {
 		assert(typ != nil, "nil type in named parameter list")
@@ -2499,7 +2499,7 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 // ----------------------------------------------------------------------------
 // Declarations
 
-type parseSpecFunction func(doc *ast.CommentGroup, keyword token.Token, iota int) ast.Spec
+type parseSpecFunction func(doc *ast.CommentGroup, keyword token.Token, i int) ast.Spec
 
 func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Token, _ int) ast.Spec {
 	if p.trace {
@@ -2541,7 +2541,7 @@ func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Token, _ int) as
 	return spec
 }
 
-func (p *parser) parseValueSpec(doc *ast.CommentGroup, keyword token.Token, iota int) ast.Spec {
+func (p *parser) parseValueSpec(doc *ast.CommentGroup, keyword token.Token, i int) ast.Spec {
 	if p.trace {
 		defer un(trace(p, keyword.String()+"Spec"))
 	}

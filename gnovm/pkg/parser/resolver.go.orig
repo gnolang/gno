@@ -253,6 +253,7 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
 	}
 
 	switch n := node.(type) {
+
 	// Expressions.
 	case *ast.Ident:
 		r.resolve(n, true)
