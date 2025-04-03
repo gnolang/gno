@@ -3,7 +3,9 @@ package gnolang
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 	"math/big"
+	"math/rand/v2"
 	"reflect"
 	"strconv"
 	"strings"
@@ -1458,6 +1460,18 @@ func (tv *TypedValue) AssertNonNegative(msg string) {
 	}
 }
 
+// randNaN64 returns an uint64 representation of NaN with a random payload.
+func randNaN64() uint64 {
+	const uvnan64 = 0x7FF8000000000001      // math.Float64bits(math.NaN())
+	return rand.Uint64()&^uvnan64 | uvnan64 //nolint:gosec
+}
+
+// randNaN32 returns an uint32 representation of NaN with a random payload.
+func randNaN32() uint32 {
+	const uvnan32 = 0x7FC00000              // math.Float32bits(float32(math.NaN()))
+	return rand.Uint32()&^uvnan32 | uvnan32 //nolint:gosec
+}
+
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 	// Special case when nil: has no separator.
 	if tv.T == nil {
@@ -1476,6 +1490,27 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 	}
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
+		if tv.HasKind(Float64Kind) {
+			f := math.Float64frombits(tv.GetFloat64())
+			if f != f {
+				// If NaN, shuffle its value, thus allowing several NaN per map
+				// and ensuring that a value cannot be retrieved by NaN.
+				tv.SetFloat64(randNaN64())
+			} else if f == 0.0 {
+				// If zero, clear the sign, so +0.0 and -0.0 match the same key.
+				tv.SetFloat64(math.Float64bits(+0.0))
+			}
+		} else if tv.HasKind(Float32Kind) {
+			f := math.Float32frombits(tv.GetFloat32())
+			if f != f {
+				// If NaN, shuffle its value, thus allowing several NaN per map
+				// and ensuring that a value cannot be retrieved by NaN.
+				tv.SetFloat32(randNaN32())
+			} else if f == 0.0 {
+				// If zero, clear the sign, so +0.0 and -0.0 match the same key.
+				tv.SetFloat32(math.Float32bits(+0.0))
+			}
+		}
 		pbz := tv.PrimitiveBytes()
 		bz = append(bz, pbz...)
 	case *PointerType:
