@@ -25,4 +25,4 @@ func main() {
 }
 
 // Error:
-// thread not exist
+// panic: thread not exist

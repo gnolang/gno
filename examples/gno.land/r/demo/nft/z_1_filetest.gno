@@ -17,4 +17,4 @@ func main() {
 }
 
 // Error:
-// unauthorized
+// panic: unauthorized

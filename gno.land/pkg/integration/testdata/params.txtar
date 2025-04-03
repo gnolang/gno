@@ -55,11 +55,11 @@ stdout 'data: "-31337"'
 
 # It is impossible to call std.SetParamXXX with a param key in the <prefix>:<key> format (e.g. "bank:p:lockTransfer") because it is an invalid key.
 ! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetLockTransfer -args ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-stderr 'Data: invalid param key: bank:p:lockTransfer'
+stderr 'Data: panic: invalid param key: bank:p:lockTransfer'
 
 # <prefix>.<key> is invalid (e.g., "bank.lockTransfer")
 ! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetInvalidString -args ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-stderr 'Data: invalid param key: bank:p:lockTransfer'
+stderr 'Data: panic: invalid param key: bank:p:lockTransfer'
 
 # <key_name>.<type> (e.g., "bank_lockTransfer") is a valid name.
 gnokey maketx call -pkgpath gno.land/r/myrealm -func SetValidString -args ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1

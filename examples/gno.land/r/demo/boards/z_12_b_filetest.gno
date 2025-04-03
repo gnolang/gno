@@ -25,4 +25,4 @@ func main() {
 }
 
 // Error:
-// src board not exist
+// panic: src board not exist

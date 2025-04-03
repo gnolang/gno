@@ -34,4 +34,4 @@ func main() {
 }
 
 // Error:
-// invalid non-user call
+// panic: invalid non-user call

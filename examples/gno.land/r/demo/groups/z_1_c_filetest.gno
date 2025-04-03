@@ -26,4 +26,4 @@ func main() {
 }
 
 // Error:
-// user not found
+// panic: user not found

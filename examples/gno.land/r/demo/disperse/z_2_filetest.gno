@@ -25,4 +25,4 @@ func main() {
 }
 
 // Error:
-// disperse: mismatch between coins sent and params called
+// panic: disperse: mismatch between coins sent and params called

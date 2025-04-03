@@ -29,4 +29,4 @@ func main() {
 }
 
 // Error:
-// r/gnoland/users: non-user call
+// panic: r/gnoland/users: non-user call

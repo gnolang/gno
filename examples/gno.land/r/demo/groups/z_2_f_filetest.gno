@@ -26,4 +26,4 @@ func main() {
 }
 
 // Error:
-// group id (20) does not exists
+// panic: group id (20) does not exists

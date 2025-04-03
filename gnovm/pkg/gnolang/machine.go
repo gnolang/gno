@@ -2046,10 +2046,10 @@ func (m *Machine) CheckEmpty() error {
 }
 
 func (m *Machine) Panic(ex TypedValue) {
-	fmt.Println("---m Panic, ex: ", ex, reflect.TypeOf(ex.V), ex.T)
-	defer func() {
-		fmt.Println("---done m.Panic...")
-	}()
+	//fmt.Println("---m Panic, ex: ", ex, reflect.TypeOf(ex.V), ex.T)
+	//defer func() {
+	//	fmt.Println("---done m.Panic...")
+	//}()
 
 	// Skip the last frame, as it's the one of the panic() (or native)
 	// function call.
@@ -2069,10 +2069,9 @@ func (m *Machine) Panic(ex TypedValue) {
 			Stacktrace: m.Stacktrace(),
 		},
 	)
-	fmt.Println("---m.Exceptions: ", m.Exceptions)
+	//fmt.Println("---m.Exceptions: ", m.Exceptions)
 
 	m.PopUntilLastCallFrame()
-	fmt.Println("---push ...")
 	m.PushOp(OpPanic2)
 	m.PushOp(OpReturnCallDefers)
 }
@@ -2125,6 +2124,10 @@ func (m *Machine) Recover() *Exception {
 	if exception.Recovered { // no recover for the second time
 		return nil
 	}
+
+	// XXX
+	//exception.Recovered = true
+
 	return exception
 }
 

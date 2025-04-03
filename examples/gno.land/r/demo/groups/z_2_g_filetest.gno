@@ -32,4 +32,4 @@ func main() {
 }
 
 // Error:
-// unauthorized to delete group
+// panic: unauthorized to delete group
