@@ -35,7 +35,7 @@ func TestBalanceChecker(t *testing.T) {
 		},
 		{
 			name: "show total supply for test token",
-			path: "test",
+			path: "/test",
 			setupFunc: func() {
 				banker := std.NewBanker(std.BankerTypeRealmIssue)
 				banker.IssueCoin(addr1, testDenom, 1000000)

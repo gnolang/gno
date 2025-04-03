@@ -27,6 +27,7 @@ import (
 	"strconv"
 	"strings"
 
+	"gno.land/p/demo/mux"
 	"gno.land/p/moul/md"
 )
 
@@ -35,6 +36,31 @@ var (
 	errInvalidAddress = errors.New("invalid address")
 	errInvalidPath    = errors.New("invalid path")
 )
+
+var router *mux.Router
+
+func init() {
+	router = mux.NewRouter()
+
+	// Homepage
+	router.HandleFunc("/", func(res *mux.ResponseWriter, req *mux.Request) {
+		res.Write(renderHomepage())
+	})
+
+	// Coin Info
+	router.HandleFunc("/{denom}", func(res *mux.ResponseWriter, req *mux.Request) {
+		denom := req.GetVar("denom")
+		totalSupply := TotalSupply(denom)
+		res.Write(renderCoinInfo(denom, totalSupply))
+	})
+
+	// Address Balance
+	router.HandleFunc("/{denom}/{addr}", func(res *mux.ResponseWriter, req *mux.Request) {
+		denom := req.GetVar("denom")
+		addr := req.GetVar("addr")
+		res.Write(renderAddressBalance(denom, std.Address(addr)))
+	})
+}
 
 // TotalSupply returns the total supply of the specified denomination
 func TotalSupply(denom string) int64 {
@@ -67,22 +93,7 @@ func Render(path string) string {
 	if path == "" {
 		return renderHomepage()
 	}
-
-	if !strings.Contains(path, "/") {
-		denom := path
-		totalSupply := TotalSupply(denom)
-		return renderCoinInfo(denom, totalSupply)
-	}
-
-	parts := strings.Split(path, "/")
-	if len(parts) != 2 {
-		panic(errInvalidPath)
-	}
-
-	denom, addr := parts[0], parts[1]
-	return renderAddressBalance(denom, std.Address(addr))
-
-	// TODO: create navigation links between pages to enable intuitive exploration without typing URLs
+	return router.Render(path)
 }
 
 func renderHomepage() string {
