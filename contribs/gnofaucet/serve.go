@@ -25,7 +25,6 @@ const (
 	defaultGasWanted     = "100000"
 	defaultRemote        = "http://127.0.0.1:26657"
 	defaultListenAddress = "127.0.0.1:5050"
-	defaultDBPath        = "db.db"
 )
 
 // url & struct for verify captcha
@@ -65,8 +64,9 @@ func newServeCmd() *commands.Command {
 	cfg := &serveCfg{}
 	cmd := commands.NewCommand(
 		commands.Metadata{
-			ShortUsage: "<subcommand> [flags] [<arg>...]",
-			ShortHelp:  "serve [flags]",
+			Name:       "serve",
+			ShortUsage: "<subcommand> [flags]",
+			ShortHelp:  "serve <subcommand> [flags]",
 			LongHelp:   "Serves the gno.land faucet to users",
 		},
 		cfg,

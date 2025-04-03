@@ -30,7 +30,7 @@ func newCaptchaCmd(rootCfg *serveCfg) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "captcha",
-			ShortUsage: "serve [flags]",
+			ShortUsage: "captcha [flags]",
 			LongHelp:   "applies captcha middleware to the gno.land faucet",
 		},
 		cfg,
