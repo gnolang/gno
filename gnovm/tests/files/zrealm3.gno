@@ -18,6 +18,8 @@ func init() {
 }
 
 func main() {
+	switchrealm()
+
 	root = &Node{
 		Key: "new",
 	}

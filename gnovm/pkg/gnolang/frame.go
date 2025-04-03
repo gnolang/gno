@@ -29,13 +29,15 @@ type Frame struct {
 	Defers      []Defer       // deferred calls
 	LastPackage *PackageValue // previous package context
 	LastRealm   *Realm        // previous realm context
+	WithSwitch  bool          // true if called like withswitch(fn)(...). expects switchrealm() after.
+	DidSwitch   bool          // true if switchrealm() was called.
 
 	Popped bool // true if frame has been popped
 }
 
 func (fr Frame) String() string {
 	if fr.Func != nil {
-		return fmt.Sprintf("[FRAME FUNC:%v RECV:%s (%d args) %d/%d/%d/%d/%d LASTPKG:%s LASTRLM:%v]",
+		return fmt.Sprintf("[FRAME FUNC:%v RECV:%s (%d args) %d/%d/%d/%d/%d LASTPKG:%s LASTRLM:%v WSW:%v DSW:%v]",
 			fr.Func,
 			fr.Receiver,
 			fr.NumArgs,
@@ -45,7 +47,9 @@ func (fr Frame) String() string {
 			fr.NumStmts,
 			fr.NumBlocks,
 			fr.LastPackage.PkgPath,
-			fr.LastRealm)
+			fr.LastRealm,
+			fr.WithSwitch,
+			fr.DidSwitch)
 	} else {
 		return fmt.Sprintf("[FRAME LABEL: %s %d/%d/%d/%d/%d]",
 			fr.Label,
@@ -72,6 +76,20 @@ func (fr *Frame) PopDefer() (res Defer, ok bool) {
 		fr.Defers = fr.Defers[:len(fr.Defers)-1]
 	}
 	return
+}
+
+func (fr *Frame) SetWithSwitch() {
+	if fr.WithSwitch {
+		panic("fr.WithSwitch already set")
+	}
+	fr.WithSwitch = true
+}
+
+func (fr *Frame) SetDidSwitch() {
+	if fr.DidSwitch {
+		panic("fr.DidSwitch already set")
+	}
+	fr.DidSwitch = true
 }
 
 //----------------------------------------
@@ -205,7 +223,8 @@ func toConstExpTrace(cte *ConstExpr) string {
 		}
 	}
 
-	return tv.T.String()
+	return cte.Source.String()
+	//return tv.T.String()
 }
 
 //----------------------------------------

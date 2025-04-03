@@ -6,12 +6,14 @@ import (
 )
 
 func main() {
-	println("test1", tests.CurrentRealmPath())
+	switchrealm()
+
+	println("test1", withswitch(tests.CurrentRealmPath)())
 	func() {
-		println("test2", tests.CurrentRealmPath())
+		println("test2", withswitch(tests.CurrentRealmPath)())
 	}()
 	x := tests.CurrentRealmPath
-	println("test3", x())
+	println("test3", withswitch(x)())
 }
 
 // Output:

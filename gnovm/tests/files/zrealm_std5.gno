@@ -6,6 +6,8 @@ import (
 )
 
 func main() {
+	switchrealm()
+
 	println("test1", tests.CurrentRealmPath())
 	func() {
 		println("test2", tests.CurrentRealmPath())

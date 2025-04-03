@@ -17,6 +17,8 @@ func (m *Machine) doOpPrecall() {
 			panic("should not happen")
 		}
 	}
+
+	// handle withswitch().
 	switch fv := v.(type) {
 	case *FuncValue:
 		m.PushFrameCall(cx, fv, TypedValue{})

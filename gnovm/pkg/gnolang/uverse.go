@@ -1,5 +1,7 @@
 package gnolang
 
+// XXX append and delete need checks too.
+
 import (
 	"bytes"
 	"fmt"
@@ -743,6 +745,63 @@ func makeUverseNode() {
 			} else {
 				m.PushValue(exception.Value)
 			}
+		},
+	)
+	defNative("switchrealm",
+		nil, // params
+		nil, // results
+		func(m *Machine) {
+			stmt := m.PeekStmt(1)
+			bs, ok := stmt.(*bodyStmt)
+			if !ok {
+				panic("unexpected origin of switchrealm call")
+			}
+			if bs.NextBodyIndex != 1 {
+				panic("switchrealm call must be the first call of a function or method")
+			}
+			fr1 := m.LastCallFrame(1) // fr1.LastPackage created fr.
+			if !fr1.LastPackage.IsRealm() {
+				panic("switchrealm call only allowed in realm packages") // XXX test
+			}
+			// Verify prior fr.WithSwitch or fr.DidSwitch.
+			// NOTE: fr.WithSwitch may or may not be true,
+			// switcherealm() (which sets fr.DidSwitch) can be
+			// stacked.
+			for i := 2; ; i++ {
+				fri := m.LastCallFrame(i)
+				if fri == nil {
+					panic("switchrealm could not find corresponding withswitch(fn)(...) call")
+				}
+				if fri.WithSwitch || fri.DidSwitch {
+					// NOTE: fri.DidSwitch implies
+					// everything under it is also valid.
+					fr2 := m.LastCallFrame(2)
+					fr2.SetDidSwitch()
+					return
+				}
+				// Neither fri.WithSwitch nor fri.DidSwitch, yet
+				// Realm already switched implicitly.
+				if fri.LastRealm != m.Realm {
+					panic("switchrealm could not find corresponding withswitch(fn)(...) call")
+				}
+			}
+			panic("should not happen") // defensive
+		},
+	)
+	defNative("withswitch",
+		Flds( // param
+			"x", GenT("X", nil),
+		),
+		Flds( // results
+			"x", GenT("X", nil),
+		),
+		func(m *Machine) {
+			// This is handled by op_call instead.
+			panic("withswitch is a virtual function")
+			/*
+				arg0 := m.LastBlock().GetParams1()
+				m.PushValue(arg0.Deref())
+			*/
 		},
 	)
 	uverseValue = uverseNode.NewPackage()

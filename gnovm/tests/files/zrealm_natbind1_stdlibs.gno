@@ -6,6 +6,8 @@ import (
 )
 
 func main() {
+	switchrealm()
+
 	println(std.ChainDomain())
 }
 

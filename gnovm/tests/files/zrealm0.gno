@@ -4,6 +4,8 @@ package test
 var root any
 
 func main() {
+	switchrealm()
+
 	println(root)
 	root = 1
 	println(root)

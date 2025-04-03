@@ -1,8 +1,9 @@
 package std
 
 import (
+	"fmt"
+
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -105,33 +106,52 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 	// NOTE: keep in sync with test/stdlibs/std.getRealm
 
 	var (
-		ctx           = GetContext(m)
-		currentCaller crypto.Bech32Address
-		// Keeps track of the number of times currentCaller
-		// has changed.
-		changes int
+		ctx      = GetContext(m)
+		switches int                        // track realm withswitches
+		lfr      *gno.Frame = m.LastFrame() // last call frame
 	)
 
 	for i := m.NumFrames() - 1; i >= 0; i-- {
 		fr := m.Frames[i]
-		if fr.LastPackage == nil || !fr.LastPackage.IsRealm() {
+
+		// Skip over (non-realm) non-withswitches.
+		if !fr.IsCall() {
+			continue
+		}
+		if !fr.WithSwitch {
+			lfr = fr
 			continue
 		}
 
-		// LastPackage is a realm. Get caller and pkgPath, and compare against
-		// current* values.
-		caller := fr.LastPackage.GetPkgAddr().Bech32()
-		pkgPath := fr.LastPackage.PkgPath
-		if caller != currentCaller {
-			if changes == height {
-				return string(caller), pkgPath
-			}
-			currentCaller = caller
-			changes++
+		// Sanity check
+		if !fr.DidSwitch {
+			panic(fmt.Sprintf(
+				"call to withswitch(fn) did not call switchrealm: %s",
+				fr.Func.String()))
 		}
+
+		switches++
+		if switches > height {
+			currlm := lfr.LastRealm
+			caller, rlmPath := gno.DerivePkgAddr(currlm.Path).Bech32(), currlm.Path
+			return string(caller), rlmPath
+		}
+		lfr = fr
 	}
 
-	// Fallback case: return OriginCaller.
+	if switches != height {
+		panic("height too large")
+	}
+
+	// Special case if package initialization.
+	if ctx.OriginCaller == "" {
+		fr := m.Frames[0]
+		caller := string(fr.LastPackage.GetPkgAddr().Bech32())
+		pkgPath := fr.LastPackage.PkgPath
+		return string(caller), pkgPath
+	}
+
+	// Base case: return OriginCaller.
 	return string(ctx.OriginCaller), ""
 }
 

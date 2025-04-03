@@ -6,6 +6,8 @@ import (
 )
 
 func main() {
+	switchrealm()
+
 	caller := std.OriginCaller()
 	println(caller)
 }

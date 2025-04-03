@@ -15,6 +15,8 @@ func init() {
 }
 
 func main() {
+	switchrealm()
+
 	println(m[s[myStruct.Index]])
 }
 

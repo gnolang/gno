@@ -4,6 +4,8 @@ package test
 import "time"
 
 func main() {
+	switchrealm()
+
 	println(time.UTC == nil)
 	time.UTC = nil
 	println(time.UTC == nil)

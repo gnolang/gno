@@ -6,6 +6,8 @@ import (
 )
 
 func main() {
+	switchrealm()
+
 	println(testutils.TestAddress("test1"))
 	println(testutils.TestAddress("test2"))
 }

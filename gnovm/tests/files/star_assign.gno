@@ -22,6 +22,8 @@ func init() {
 }
 
 func main() {
+	switchrealm()
+
 	Delta()
 	println(Values())
 }

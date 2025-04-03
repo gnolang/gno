@@ -15,6 +15,8 @@ type InnerNode struct {
 }
 
 func main() {
+	switchrealm()
+
 	key := "somekey"
 	root = InnerNode{
 		Key:   key,

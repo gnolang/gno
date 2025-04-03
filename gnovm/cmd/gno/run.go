@@ -112,7 +112,7 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 
 	var send std.Coins
 	pkgPath := string(files[0].PkgName)
-	ctx := test.Context(pkgPath, send)
+	ctx := test.Context("", pkgPath, send)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath: pkgPath,
 		Output:  output,

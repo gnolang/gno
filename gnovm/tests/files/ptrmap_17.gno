@@ -16,6 +16,8 @@ func init() {
 }
 
 func main() {
+	switchrealm()
+
 	println(m[&arr[index]])
 }
 

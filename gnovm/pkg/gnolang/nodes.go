@@ -426,8 +426,50 @@ type CallExpr struct { // Func(Args<Varg?...>)
 	Func           Expr  // function expression
 	Args           Exprs // function arguments, if any.
 	Varg           bool  // if true, final arg is variadic.
-	NumArgs        int   // len(Args) or len(Args[0].Results)
+	NumArgs        int   // len(Args) or len(Args[0].Results).
 	Addressability addressabilityStatus
+	WithSwitch     bool // if called like withswitch(fn)(...).
+}
+
+// if x is *ConstExpr returns its source.
+func unwrapConstExpr(x Expr) Expr {
+	if cx, ok := x.(*ConstExpr); ok {
+		return cx.Source
+	}
+	return x
+}
+
+// returns true if x is of form withswitch(fn)(...).
+func (x *CallExpr) isWithSwitch() bool {
+	if fnc, ok := x.Func.(*CallExpr); ok {
+		if nx, ok := unwrapConstExpr(fnc.Func).(*NameExpr); ok {
+			if nx.Name == "withswitch" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// returns true if x is of form switchrealm().
+func (x *CallExpr) isSwitchRealm() bool {
+	if nx, ok := unwrapConstExpr(x.Func).(*NameExpr); ok {
+		if nx.Name == "switchrealm" {
+			return true
+		}
+	}
+	return false
+}
+
+func (x *CallExpr) SetWithSwitch() {
+	if !x.isWithSwitch() {
+		panic("expected withswitch(fn)(...)")
+	}
+	x.WithSwitch = true
+}
+
+func (x *CallExpr) IsWithSwitch() bool {
+	return x.WithSwitch
 }
 
 func (x *CallExpr) addressability() addressabilityStatus {
@@ -808,6 +850,25 @@ func (ss Body) GetLabeledStmt(label Name) (stmt Stmt, idx int) {
 		}
 	}
 	return nil, -1
+}
+
+// Convenience, returns true if first statement is switchrealm()
+func (ss Body) IsSwitchRealm() bool {
+	return ss.isSwitchRealm()
+}
+
+// XXX deprecate
+func (ss Body) isSwitchRealm() bool {
+	if len(ss) == 0 {
+		return false
+	}
+	fs := ss[0]
+	xs, ok := fs.(*ExprStmt)
+	if !ok {
+		return false
+	}
+	cx, ok := xs.X.(*CallExpr)
+	return cx.isSwitchRealm()
 }
 
 // ----------------------------------------

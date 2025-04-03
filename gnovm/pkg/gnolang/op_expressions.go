@@ -695,15 +695,16 @@ func (m *Machine) doOpFuncLit() {
 	m.PushValue(TypedValue{
 		T: ft,
 		V: &FuncValue{
-			Type:       ft,
-			IsMethod:   false,
-			Source:     x,
-			Name:       "",
-			Closure:    lb,
-			Captures:   captures,
-			PkgPath:    m.Package.PkgPath,
-			body:       x.Body,
-			nativeBody: nil,
+			Type:        ft,
+			IsMethod:    false,
+			Source:      x,
+			Name:        "",
+			Closure:     lb,
+			Captures:    captures,
+			PkgPath:     m.Package.PkgPath,
+			SwitchRealm: x.Body.isSwitchRealm(),
+			body:        x.Body,
+			nativeBody:  nil,
 		},
 	})
 }

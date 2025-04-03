@@ -12,6 +12,8 @@ func init() {
 }
 
 func main() {
+	switchrealm()
+
 	gPlot.AddPost("TEST_TITLE", "TEST_BODY")
 	println(gPlot.String())
 }

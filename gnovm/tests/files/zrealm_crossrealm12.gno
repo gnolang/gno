@@ -10,12 +10,16 @@ import (
 )
 
 func main() {
+	switchrealm()
+
 	tests := []struct {
 		fn func() std.Realm
 	}{
 		{std.CurrentRealm},
 		{psubtests.GetCurrentRealm},
-		{rsubtests.GetCurrentRealm},
+		{func() std.Realm {
+			return withswitch(rsubtests.GetCurrentRealm)()
+		}},
 	}
 
 	for _, test := range tests {
