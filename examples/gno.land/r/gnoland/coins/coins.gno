@@ -25,10 +25,8 @@ import (
 	"errors"
 	"std"
 	"strconv"
-	"strings"
 
 	"gno.land/p/demo/mux"
-	"gno.land/p/moul/md"
 )
 
 var (
@@ -97,62 +95,46 @@ func Render(path string) string {
 }
 
 func renderHomepage() string {
-	var sb strings.Builder
+	out := "# Gno.land Coins\n\n"
+	out += "This realm provides an interface to query coin information on the Gno.land chain.\n\n"
 
-	sb.WriteString(md.H1("Gno.land Coins"))
-	sb.WriteString(md.Paragraph("This realm provides an interface to query coin information on the Gno.land chain."))
+	out += "## Usage\n\n"
+	out += "You can query information using the following URL patterns:\n\n"
+	out += "* /r/gnoland/coins:ugnot - Check total supply of ugnot\n"
+	out += "* /r/gnoland/coins:ugnot/{address} - Check ugnot balance of a specific address\n\n"
 
-	sb.WriteString(md.H2("Usage"))
-	sb.WriteString(md.Paragraph("You can query information using the following URL patterns:"))
+	out += "## Supported Coins\n\n"
+	out += "* ugnot - The native token of Gno.land\n"
 
-	urlPatterns := []string{
-		md.Link("/r/gnoland/coins:ugnot", "/r/gnoland/coins:ugnot") + " - Check total supply of ugnot",
-		"/r/gnoland/coins:ugnot/{address} - Check ugnot balance of a specific address",
-	}
-	sb.WriteString(md.BulletList(urlPatterns))
-
-	sb.WriteString(md.H2("Supported Coins"))
-	supportedCoins := []string{
-		md.Link("ugnot", "/r/gnoland/coins:ugnot") + " - The native token of Gno.land",
-	}
-	sb.WriteString(md.BulletList(supportedCoins))
-
-	return sb.String()
+	return out
 }
 
 func renderCoinInfo(denom string, totalSupply int64) string {
-	var sb strings.Builder
+	out := "# Coin Information\n\n"
 
-	sb.WriteString(md.H1("Coin Information"))
+	out += "## Denomination\n\n"
+	out += denom + "\n\n"
 
-	sb.WriteString(md.H2("Denomination"))
-	sb.WriteString(md.Paragraph(denom))
+	out += "## Total Supply\n\n"
+	out += std.NewCoin(denom, totalSupply).String() + "\n\n"
 
-	sb.WriteString(md.H2("Total Supply"))
-	sb.WriteString(md.Paragraph(std.NewCoin(denom, totalSupply).String()))
+	out += "## Statistics\n\n"
+	out += "* Total Supply: " + std.NewCoin(denom, totalSupply).String() + "\n"
+	out += "* Chain ID: " + std.ChainID() + "\n"
+	out += "* Current Block Height: " + strconv.Itoa(int(std.ChainHeight())) + "\n"
 
-	sb.WriteString(md.H2("Statistics"))
-	stats := []string{
-		"Total Supply: " + std.NewCoin(denom, totalSupply).String(),
-		"Chain ID: " + std.ChainID(),
-		"Current Block Height: " + strconv.Itoa(int(std.ChainHeight())),
-	}
-	sb.WriteString(md.BulletList(stats))
-
-	return sb.String()
+	return out
 }
 
 func renderAddressBalance(denom string, address std.Address) string {
-	var sb strings.Builder
 	balance := AddressBalance(denom, address)
+	out := "# Address Balance Information\n\n"
 
-	sb.WriteString(md.H1("Address Balance Information"))
+	out += "## Address\n\n"
+	out += address.String() + "\n\n"
 
-	sb.WriteString(md.H2("Address"))
-	sb.WriteString(md.Paragraph(address.String()))
+	out += "## Balance\n\n"
+	out += std.NewCoin(denom, balance).String() + "\n"
 
-	sb.WriteString(md.H2("Balance"))
-	sb.WriteString(md.Paragraph(std.NewCoin(denom, balance).String()))
-
-	return sb.String()
+	return out
 }
