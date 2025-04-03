@@ -119,7 +119,7 @@ func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abc
 	expr := fmt.Sprintf("Render(%q)", path)
 
 	// Try evaluate `Render` function
-	result, err := vh.vm.QueryEval(ctx, pkgPath, expr, FormatString)
+	result, err := vh.vm.QueryEval(ctx, EvalCfg{Expr: expr, PkgPath: pkgPath})
 	if err != nil {
 		if strings.Contains(err.Error(), "Render not declared") {
 			err = NoRenderDeclError{}
@@ -168,7 +168,7 @@ func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.
 		return sdk.ABCIResponseQueryFromError(fmt.Errorf("expr cannot be empty"))
 	}
 
-	result, err := vh.vm.QueryEval(ctx, pkgpath, expr, format)
+	result, err := vh.vm.QueryEval(ctx, EvalCfg{Expr: expr, PkgPath: pkgpath, Format: format})
 	if err != nil {
 		return sdk.ABCIResponseQueryFromError(err)
 	}

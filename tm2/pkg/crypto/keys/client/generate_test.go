@@ -12,6 +12,7 @@ func Test_execGenerateNormal(t *testing.T) {
 	t.Parallel()
 
 	cfg := &GenerateCfg{
+		RootCfg:       &BaseCfg{},
 		CustomEntropy: false,
 	}
 
@@ -23,6 +24,7 @@ func Test_execGenerateUser(t *testing.T) {
 	t.Parallel()
 
 	cfg := &GenerateCfg{
+		RootCfg:       &BaseCfg{},
 		CustomEntropy: true,
 	}
 

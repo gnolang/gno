@@ -31,31 +31,29 @@ stdout '}'
 stdout 'Log:'
 stderr '"gnokey" error: unknown request error'
 
-# jquery
-
-## succeed call: string
-gnokey jquery vm/qeval -data "gno.land/r/dev/silo.Hello(\"juliette\")"
-stdout '"returns": \['
+## succeed json call: string
+gnokey -json query vm/qeval/json -data "gno.land/r/dev/silo.Hello(\"juliette\")"
+stdout '"data": \['
 stdout '   "Hello juliette",'
 stdout '   null'
 stdout '\]'
 
-## succeed call: error
-gnokey jquery vm/qeval -data "gno.land/r/dev/silo.Hello(\"bernard\")"
-stdout '"returns": \['
+## succeed json call: error
+gnokey -json query vm/qeval/json -data "gno.land/r/dev/silo.Hello(\"bernard\")"
+stdout '"data": \['
 stdout '   "",'
 stdout '   "not for you bernard!"'
 stdout '\]'
 
-## success call: object
-gnokey jquery vm/qeval -data "gno.land/r/dev/silo.GetSilo()"
-stdout '"returns": \['
+## success json call: object
+gnokey -json query vm/qeval/json -data "gno.land/r/dev/silo.GetSilo()"
+stdout '"data": \['
 stdout '  "<obj:\*gno.land/r/dev/silo.Silo:6aed2eda72c79e411eec1ea7f661c5e30383fb59:2>"'
 stdout '\]'
 
-## success call: []byte
-gnokey jquery vm/qeval -data "gno.land/r/dev/silo.GetSiloData()"
-stdout '"returns": \['
+## success json call: []byte
+gnokey -json query vm/qeval/json -data "gno.land/r/dev/silo.GetSiloData()"
+stdout '"data": \['
 stdout '  "c2VjcmV0IG1lc3NhZ2U="'
 stdout '\]'
 
