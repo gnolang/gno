@@ -137,7 +137,7 @@ func TestGitHubMiddleware(t *testing.T) {
 		rec = httptest.NewRecorder()
 
 		handler.ServeHTTP(rec, req)
-		//Second claim should also be ok
+		//third claim should fail
 		if rec.Code != http.StatusTooManyRequests {
 			t.Errorf("Expected status OK, got %d", rec.Code)
 		}
