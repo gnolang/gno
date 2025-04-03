@@ -416,6 +416,11 @@ func (z *Uint) isBitSet(n uint) bool {
 	return (z.arr[n/64] & (1 << (n % 64))) != 0
 }
 
+// IsOverflow checks if the number is too large to be represented as a 256-bit unsigned integer.
+func (z *Uint) IsOverflow() bool {
+	return z.isBitSet(255)
+}
+
 // addTo computes x += y.
 // Requires len(x) >= len(y).
 func addTo(x, y []uint64) uint64 {
