@@ -10,6 +10,8 @@ var (
 )
 
 func main() {
+	switchrealm()
+
 	println(realmAddr)
 }
 

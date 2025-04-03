@@ -7,11 +7,13 @@ import (
 )
 
 func main() {
+	switchrealm()
+
 	f := crossrealm_b.Fooer
-	crossrealm.SetFooer(f)
-	crossrealm.CallFooerFoo()
+	withswitch(crossrealm.SetFooer)(f)
+	withswitch(crossrealm.CallFooerFooSR2)()
 	f.SetS("B")
-	crossrealm.CallFooerFoo()
+	withswitch(crossrealm.CallFooerFooSR2)()
 	print(".")
 }
 
@@ -27,12 +29,12 @@ func main() {
 //          "ObjectInfo": {
 //              "ID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:2",
 //              "IsEscaped": true,
-//     -        "ModTime": "3",
-//     +        "ModTime": "5",
-//              "RefCount": "2"
+//     -        "ModTime": "4",
+//     +        "ModTime": "6",
+//              "RefCount": "3"
 //          },
 //          "Parent": null,
-//     @@ -281,7 +281,26 @@
+//     @@ -284,7 +284,26 @@
 //                      }
 //                  }
 //              },
@@ -67,7 +69,7 @@ func main() {
 //              "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:3",
 //     -        "ModTime": "0",
 //     +        "IsEscaped": true,
-//     +        "ModTime": "5",
+//     +        "ModTime": "6",
 //              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:2",
 //     -        "RefCount": "1"
 //     +        "RefCount": "2"

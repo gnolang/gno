@@ -10,6 +10,8 @@ func foo() {
 }
 
 func main() {
+	switchrealm()
+
 	println("main", std.CurrentRealm().PkgPath())
 	foo()
 }

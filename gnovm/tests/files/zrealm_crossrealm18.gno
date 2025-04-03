@@ -11,13 +11,15 @@ type fooer struct{}
 
 func (fooer) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
 
-var f crossrealm.Fooer = crossrealm.SetFooer(&fooer{})
+var f crossrealm.Fooer = withswitch(crossrealm.SetFooer)(&fooer{})
 
 func init() {
 	crossrealm.CallFooerFoo()
 }
 
 func main() {
+	switchrealm()
+
 	crossrealm.CallFooerFoo()
 	print(".")
 }
@@ -27,9 +29,5 @@ func main() {
 // hello gno.land/r/crossrealm_test
 // .
 
-// Error:
-
 // Realm:
-// switchrealm["gno.land/r/crossrealm_test"]
-// switchrealm["gno.land/r/demo/tests/crossrealm"]
 // switchrealm["gno.land/r/crossrealm_test"]

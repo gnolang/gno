@@ -8,6 +8,8 @@ type S struct {
 var a, b *S
 
 func main() {
+	switchrealm()
+
 	a = new(S)
 	a.A = 4
 	b = a

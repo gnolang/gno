@@ -8,6 +8,8 @@ func (ms MyStruct) Panic() {
 }
 
 func main() {
+	switchrealm()
+
 	ms := MyStruct{}
 	ms.Panic()
 }
@@ -19,5 +21,5 @@ func main() {
 // panic: panic
 // ms<VPBlock(1,0)>.Panic()
 //     gno.land/r/test/files/zrealm_panic.gno:7
-// main<VPBlock(1,1)>()
-//     gno.land/r/test/files/zrealm_panic.gno:12
+// withswitch<VPUverse(34)>(main<VPBlock(1,1)>)()
+//     gno.land/r/test/files/zrealm_panic.gno:14

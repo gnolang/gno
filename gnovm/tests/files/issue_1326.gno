@@ -11,6 +11,8 @@ func init() {
 }
 
 func main() {
+	switchrealm()
+
 	println(Delta())
 }
 

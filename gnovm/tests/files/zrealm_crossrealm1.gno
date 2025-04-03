@@ -13,6 +13,8 @@ func init() {
 }
 
 func main() {
+	switchrealm()
+
 	println(somevalue)
 }
 

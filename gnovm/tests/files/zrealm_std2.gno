@@ -9,12 +9,16 @@ import (
 var aset std.AddressSet
 
 func init() {
-	caller := std.OriginCaller()
+	// This won't work, init is called with empty caller.
+	// caller := std.OriginCaller()
+	caller := std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")
 	aset = std.NewAddressList()
 	aset.AddAddress(caller)
 }
 
 func main() {
+	switchrealm()
+
 	println(*(aset.(*std.AddressList)))
 	caller := std.OriginCaller()
 	err := aset.AddAddress(caller)

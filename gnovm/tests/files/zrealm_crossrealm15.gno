@@ -17,14 +17,16 @@ func init() {
 	f = &fooer{}
 	withswitch(crossrealm.SetFooer)(f)
 	crossrealm.CallFooerFoo()
-	withswitch(crossrealm.CallFooerFooSW)()
+	withswitch(crossrealm.CallFooerFooSR)()
 }
 
 func main() {
+	switchrealm()
+
 	print(".")
 }
 
 // Output:
-// hello
+// hello gno.land/r/crossrealm_test
 // hello gno.land/r/demo/tests/crossrealm
 // .

@@ -19,13 +19,12 @@ func (m *Machine) doOpPrecall() {
 	}
 
 	// handle withswitch().
-	isWithSwitch := cx.IsWithSwitch()
 	switch fv := v.(type) {
 	case *FuncValue:
-		m.PushFrameCall(cx, fv, TypedValue{}, isWithSwitch) // remove third arg XXX
+		m.PushFrameCall(cx, fv, TypedValue{})
 		m.PushOp(OpCall)
 	case *BoundMethodValue:
-		m.PushFrameCall(cx, fv.Func, fv.Receiver, isWithSwitch)
+		m.PushFrameCall(cx, fv.Func, fv.Receiver)
 		m.PushOp(OpCall)
 	case TypeValue:
 		// Do not pop type yet.

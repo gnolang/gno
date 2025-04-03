@@ -13,8 +13,10 @@ func init() {
 }
 
 func main() {
+	switchrealm()
+
 	// NOTE: but it is invalid to modify it using an external realm function.
-	tests.ModifyTestRealmObject(&somevalue)
+	withswitch(tests.ModifyTestRealmObject)(&somevalue)
 	println(somevalue)
 }
 

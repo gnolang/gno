@@ -13,6 +13,8 @@ func init() {
 }
 
 func main() {
+	switchrealm()
+
 	var updated bool
 	tree, updated = tree.Put(types.String("key1"), "value1")
 	println(updated, tree.Size())

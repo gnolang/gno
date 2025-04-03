@@ -6,6 +6,8 @@ import (
 )
 
 func main() {
+	switchrealm()
+
 	tests.ModifyTestRealmObject2a()
 	println("done")
 }

@@ -6,7 +6,6 @@ var (
 	b [2]*B
 )
 
-
 type A struct {
 	A string
 }
@@ -16,7 +15,7 @@ type B struct {
 }
 
 func init() {
- 	c := B{
+	c := B{
 		A: a,
 		B: "c",
 	}
@@ -30,9 +29,10 @@ func init() {
 }
 
 func main() {
+	switchrealm()
+
 	b[0] = nil
 }
-
 
 // Realm:
 // switchrealm["gno.land/r/test"]

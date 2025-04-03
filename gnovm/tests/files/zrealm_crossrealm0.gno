@@ -9,6 +9,8 @@ import (
 var somevalue tests.TestRealmObject
 
 func main() {
+	switchrealm()
+
 	somevalue.Field = "test"
 	println(somevalue)
 }

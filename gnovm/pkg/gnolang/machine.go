@@ -613,6 +613,8 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 // multiple files belonging to the same package in
 // lexical file name order to a compiler."
 func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
+	// Only for the init functions make the origin caller
+	// the package addr.
 	for _, tv := range updates {
 		if tv.IsDefined() && tv.T.Kind() == FuncKind && tv.V != nil {
 			fv, ok := tv.V.(*FuncValue)
@@ -622,7 +624,7 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 			if strings.HasPrefix(string(fv.Name), "init.") {
 				fb := pv.GetFileBlock(m.Store, fv.FileName)
 				m.PushBlock(fb)
-				m.RunFunc(fv.Name)
+				m.RunFunc(fv.Name, false)
 				m.PopBlock()
 			}
 		}
@@ -680,21 +682,25 @@ func (m *Machine) resavePackageValues(rlm *Realm) {
 	// even after running the init function.
 }
 
-func (m *Machine) RunFunc(fn Name) {
+func (m *Machine) RunFunc(fn Name, withSwitch bool) {
 	defer func() {
 		if r := recover(); r != nil {
 			switch r := r.(type) {
 			case UnhandledPanicError:
-				fmt.Printf("Machine.RunFunc(%q) panic: %s\nStacktrace:\n%s\n",
-					fn, r.Error(), m.ExceptionsStacktrace())
+				fmt.Printf("Machine.RunFunc(%q,%v) panic: %s\nStacktrace:\n%s\n",
+					fn, withSwitch, r.Error(), m.ExceptionsStacktrace())
 			default:
-				fmt.Printf("Machine.RunFunc(%q) panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
-					fn, r, m.String(), m.Stacktrace().String())
+				fmt.Printf("Machine.RunFunc(%q,%v) panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
+					fn, withSwitch, r, m.String(), m.Stacktrace().String())
 			}
 			panic(r)
 		}
 	}()
-	m.RunStatement(S(Call(Nx(fn))))
+	if withSwitch {
+		m.RunStatement(S(Call(Call(Nx("withswitch"), Nx(fn)))))
+	} else {
+		m.RunStatement(S(Call(Nx(fn))))
+	}
 }
 
 func (m *Machine) RunMain() {
@@ -713,7 +719,11 @@ func (m *Machine) RunMain() {
 			panic(r)
 		}
 	}()
-	m.RunStatement(S(Call(X("main"))))
+	if m.Package.IsRealm() {
+		m.RunStatement(S(Call(Nx("withswitch"), Nx("main"))))
+	} else {
+		m.RunStatement(S(Call(X("main"))))
+	}
 }
 
 // Evaluate throwaway expression in new block scope.
@@ -1746,7 +1756,8 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // TODO: track breaks/panics/returns on frame and
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
-func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, withSwitch bool) {
+func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
+	withSwitch := cx.IsWithSwitch()
 	fr := &Frame{
 		Source:      cx,
 		NumOps:      m.NumOps,
@@ -1791,7 +1802,15 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, wi
 	// If withswitch, always switch to pv.Realm.
 	// If method, this means the object cannot be modified if
 	// stored externally by this method; but other methods can.
-	if withSwitch && fv.IsSwitchRealm() {
+	if withSwitch {
+		if !fv.IsSwitchRealm() {
+			panic(fmt.Sprintf(
+				"missing switchrealm() after withswitch call in %v from %s to %s",
+				fr.Func.String(),
+				m.Realm.Path,
+				pv.Realm.Path,
+			))
+		}
 		m.Realm = pv.GetRealm()
 		return
 	}
@@ -1801,7 +1820,8 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, wi
 		if m.Realm != pv.Realm {
 			// panic; not explicit
 			panic(fmt.Sprintf(
-				"missing withswitch before external switchrealm() from %s to %s",
+				"missing withswitch before external switchrealm() in %v from %s to %s",
+				fr.Func.String(),
 				m.Realm.Path,
 				pv.Realm.Path,
 			))

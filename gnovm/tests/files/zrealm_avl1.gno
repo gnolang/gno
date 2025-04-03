@@ -13,6 +13,8 @@ func init() {
 }
 
 func main() {
+	switchrealm()
+
 	var updated bool
 	node, updated = node.Set("key2", "value2")
 	// println(node, updated)

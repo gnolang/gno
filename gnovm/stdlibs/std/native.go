@@ -143,6 +143,14 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 		panic("height too large")
 	}
 
+	// Special case if package initialization.
+	if ctx.OriginCaller == "" {
+		fr := m.Frames[0]
+		caller := string(fr.LastPackage.GetPkgAddr().Bech32())
+		pkgPath := fr.LastPackage.PkgPath
+		return string(caller), pkgPath
+	}
+
 	// Base case: return OriginCaller.
 	return string(ctx.OriginCaller), ""
 }

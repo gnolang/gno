@@ -43,10 +43,16 @@ func GetFooer() Fooer { return fooer }
 
 func CallFooerFoo() { fooer.Foo() }
 
-func CallFooerFooSW() {
+func CallFooerFooSR() {
 	switchrealm()
 
 	fooer.Foo()
+}
+
+func CallFooerFooSR2() {
+	switchrealm()
+
+	withswitch(fooer.Foo)()
 }
 
 type FooerGetter func() Fooer
@@ -65,3 +71,9 @@ func GetFooerGetter() FooerGetter {
 }
 
 func CallFooerGetterFoo() { fooerGetter().Foo() }
+
+func CallFooerGetterFooSR2() {
+	switchrealm()
+
+	withswitch(fooerGetter().Foo)()
+}

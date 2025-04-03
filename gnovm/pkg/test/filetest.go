@@ -47,10 +47,7 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 	if err != nil {
 		return "", err
 	}
-	ctx := Context(
-		pkgPath,
-		coins,
-	)
+	ctx := Context("", pkgPath, coins)
 	maxAllocRaw := dirs.FirstDefault(DirectiveMaxAlloc, "0")
 	maxAlloc, err := strconv.ParseInt(maxAllocRaw, 10, 64)
 	if err != nil {
@@ -240,6 +237,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 		m.SetActivePackage(pv)
+		m.Context.(*teststd.TestExecContext).OriginCaller = DefaultCaller
 		n := gno.MustParseFile(filename, string(content))
 		m.RunFiles(n)
 		m.RunStatement(gno.S(gno.Call(gno.X("main"))))
@@ -273,6 +271,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 
 		pv2 := m.Store.GetPackage(pkgPath, false)
 		m.SetActivePackage(pv2) // XXX should it set the realm?
+		m.Context.(*teststd.TestExecContext).OriginCaller = DefaultCaller
 		gno.EnableDebug()
 		// clear store.opslog from init function(s).
 		m.Store.SetLogStoreOps(opslog) // resets.

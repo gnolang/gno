@@ -20,6 +20,8 @@ func init() {
 }
 
 func main() {
+	switchrealm()
+
 	r := GetFromMap()
 	println(r == 5)
 
