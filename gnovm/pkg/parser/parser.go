@@ -1034,7 +1034,7 @@ func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing tok
 
 	// If the parameter list consists of named parameters with types,
 	// collect all names with the same types into a single ast.Field.
-	var names = []*ast.Ident{}
+	names := []*ast.Ident{}
 	var typ ast.Expr
 	addParams := func() {
 		assert(typ != nil, "nil type in named parameter list")
@@ -2751,8 +2751,8 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.Gen
 	if p.tok == token.LPAREN {
 		lparen = p.pos
 		p.next()
-		for iota := 0; p.tok != token.RPAREN && p.tok != token.EOF; iota++ {
-			list = append(list, f(p.leadComment, keyword, iota))
+		for i := 0; p.tok != token.RPAREN && p.tok != token.EOF; i++ {
+			list = append(list, f(p.leadComment, keyword, i))
 		}
 		rparen = p.expect(token.RPAREN)
 		p.expectSemi()
