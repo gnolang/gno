@@ -1,6 +1,8 @@
 package std
 
 import (
+	"fmt"
+
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -123,7 +125,9 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 
 		// Sanity check
 		if !fr.DidSwitch {
-			panic("call to withswitch(fn) did not call switchrealm")
+			panic(fmt.Sprintf(
+				"call to withswitch(fn) did not call switchrealm: %s",
+				fr.Func.String()))
 		}
 
 		switches++

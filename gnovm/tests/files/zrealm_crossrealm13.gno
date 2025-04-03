@@ -6,6 +6,12 @@ import (
 )
 
 func main() {
+	// Need this as base frame because main2 calls PreviousRealm.
+	testing.SetRealm(std.NewUserRealm("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))
+	main2()
+}
+
+func main2() {
 	PrintRealm()
 	println(pad("CurrentRealm:"), std.CurrentRealm())
 	println(pad("PreviousRealm:"), std.PreviousRealm())
@@ -30,9 +36,6 @@ func PrintRealm() {
 	println(pad("PrintRealm: CurrentRealm:"), std.CurrentRealm())
 	println(pad("PrintRealm: PreviousRealm:"), std.PreviousRealm())
 }
-
-// Because this is the context of a package, using PrintRealm()
-// should not change the output of the main function.
 
 // Output:
 // PrintRealm: CurrentRealm:  (struct{("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" std.Address),("" string)} std.Realm)

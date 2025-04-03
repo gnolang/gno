@@ -33,6 +33,8 @@ type Fooer interface{ Foo() }
 var fooer Fooer
 
 func SetFooer(f Fooer) Fooer {
+	switchrealm()
+
 	fooer = f
 	return fooer
 }
@@ -41,11 +43,19 @@ func GetFooer() Fooer { return fooer }
 
 func CallFooerFoo() { fooer.Foo() }
 
+func CallFooerFooSW() {
+	switchrealm()
+
+	fooer.Foo()
+}
+
 type FooerGetter func() Fooer
 
 var fooerGetter FooerGetter
 
 func SetFooerGetter(fg FooerGetter) FooerGetter {
+	switchrealm()
+
 	fooerGetter = fg
 	return fg
 }

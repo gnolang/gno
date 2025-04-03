@@ -15,13 +15,16 @@ var f *fooer
 
 func init() {
 	f = &fooer{}
-	crossrealm.SetFooer(f)
+	withswitch(crossrealm.SetFooer)(f)
 	crossrealm.CallFooerFoo()
+	withswitch(crossrealm.CallFooerFooSW)()
 }
 
 func main() {
 	print(".")
 }
 
-// Error:
-// new escaped mark has no object ID
+// Output:
+// hello
+// hello gno.land/r/demo/tests/crossrealm
+// .

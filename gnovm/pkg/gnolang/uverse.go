@@ -751,10 +751,6 @@ func makeUverseNode() {
 		nil, // params
 		nil, // results
 		func(m *Machine) {
-			fmt.Println("----------------------------------------")
-			fmt.Println(m.String())
-			fmt.Println("----------------------------------------")
-
 			stmt := m.PeekStmt(1)
 			bs, ok := stmt.(*bodyStmt)
 			if !ok {

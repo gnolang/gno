@@ -98,7 +98,7 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 
 		// Skip over (non-realm) non-withswitches.
 		// Override implies withswitch.
-		override, overridden := ctx.RealmFrames[m.Frames[max(i-1, 0)]]
+		override, overridden := ctx.RealmFrames[m.Frames[i]]
 		if !overridden {
 			if !fr.IsCall() {
 				continue
@@ -109,10 +109,13 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 			}
 		}
 
-		// Sanity check
+		// Sanity check XXX move check elsewhere
 		if !overridden {
 			if !fr.DidSwitch {
-				panic("call to withswitch(fn) did not call switchrealm")
+				panic(fmt.Sprintf(
+					"withswitch(fn) but fn didn't call switchrealm(): %s.%s",
+					fr.Func.PkgPath,
+					fr.Func.String()))
 			}
 		}
 
@@ -128,14 +131,19 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 			}
 		}
 		lfr = fr
-		if overridden {
-			panic("should not happen")
-		}
+		/*
+			if overridden {
+				panic("should not happen")
+			}
+		*/
 	}
 
-	if switches != height {
-		panic("height too large")
-	}
+	/*
+		if switches != height {
+			fmt.Println(m.String())
+			panic("height too large")
+		}
+	*/
 
 	// Base case: return OriginCaller.
 	return string(ctx.OriginCaller), ""

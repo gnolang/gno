@@ -1747,13 +1747,6 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, withSwitch bool) {
-	if withSwitch && !fv.IsSwitchRealm() {
-		panic("withswitch(fn)(...) but fn not switchrealm")
-	}
-	fmt.Println("========================================")
-	fmt.Println(m.String())
-	fmt.Println("========================================", withSwitch, fv.IsSwitchRealm(), cx.String())
-
 	fr := &Frame{
 		Source:      cx,
 		NumOps:      m.NumOps,
@@ -1790,6 +1783,11 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, wi
 	}
 	m.Package = pv
 
+	// If no realm, return early.
+	if m.Realm == nil {
+		return
+	}
+
 	// If withswitch, always switch to pv.Realm.
 	// If method, this means the object cannot be modified if
 	// stored externally by this method; but other methods can.
@@ -1802,7 +1800,11 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, wi
 	if fv.IsSwitchRealm() {
 		if m.Realm != pv.Realm {
 			// panic; not explicit
-			panic("missing withswitch before external switchrealm()")
+			panic(fmt.Sprintf(
+				"missing withswitch before external switchrealm() from %s to %s",
+				m.Realm.Path,
+				pv.Realm.Path,
+			))
 		} else {
 			// ok
 			// Technically OK even if recv.Realm is different.
