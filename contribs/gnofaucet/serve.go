@@ -17,7 +17,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -52,36 +51,34 @@ type SiteVerifyResponse struct {
 }
 
 type serveCfg struct {
-	listenAddress  string
-	dbPath         string
-	cooldownPeriod time.Duration
-	chainID        string
-	mnemonic       string
-	maxSendAmount  string
-	numAccounts    uint64
+	listenAddress string
+	chainID       string
+	mnemonic      string
+	maxSendAmount string
+	numAccounts   uint64
 
-	remote string
-
-	captchaSecret string
-	ghClientID    string
-	maxBalance    int64
+	remote        string
 	isBehindProxy bool
 }
 
 func newServeCmd() *commands.Command {
 	cfg := &serveCfg{}
-
-	return commands.NewCommand(
+	cmd := commands.NewCommand(
 		commands.Metadata{
-			Name:       "serve",
-			ShortUsage: "serve [flags]",
+			ShortUsage: "<subcommand> [flags] [<arg>...]",
+			ShortHelp:  "serve [flags]",
 			LongHelp:   "Serves the gno.land faucet to users",
 		},
 		cfg,
-		func(ctx context.Context, args []string) error {
-			return execServe(ctx, cfg, commands.NewDefaultIO())
-		},
+		commands.HelpExec,
 	)
+
+	cmd.AddSubCommands(
+		newCaptchaCmd(cfg),
+		newGithubCmd(cfg),
+	)
+
+	return cmd
 }
 
 func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
@@ -127,46 +124,11 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 		"the static max send amount (native currency)",
 	)
 
-	fs.StringVar(
-		&c.captchaSecret,
-		"captcha-secret",
-		"",
-		"recaptcha secret key (if empty, captcha are disabled)",
-	)
-
-	fs.StringVar(
-		&c.ghClientID,
-		"github-client-id",
-		"",
-		"github client id for oauth authentication",
-	)
-
-	fs.Int64Var(
-		&c.maxBalance,
-		"max-balance",
-		10000000, // 10 gnot
-		"limit of tokens the user can possess to be eligible to claim the faucet",
-	)
-
 	fs.BoolVar(
 		&c.isBehindProxy,
 		"is-behind-proxy",
 		false,
 		"use X-Forwarded-For IP for throttling",
-	)
-
-	fs.StringVar(
-		&c.dbPath,
-		"db-path",
-		defaultDBPath,
-		"local db path for keeping the cooldown state",
-	)
-
-	fs.DurationVar(
-		&c.cooldownPeriod,
-		"cooldown-period",
-		24*time.Hour,
-		"minimum required time between consecutive faucet claims by the same user",
 	)
 }
 
@@ -185,7 +147,7 @@ func (c *serveCfg) generateFaucetConfig() *config.Config {
 	return cfg
 }
 
-func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
+func serveFaucet(ctx context.Context, cfg *serveCfg, io commands.IO, extraMiddlewares ...faucet.Middleware) error {
 	// Parse static gas values.
 	// It is worth noting that this is temporary,
 	// and will be removed once gas estimation is enabled
@@ -224,27 +186,15 @@ func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
 
 	// Start throttled faucet.
 	st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     os.Getenv("REDIS_ADDR"),
-		Username: os.Getenv("REDIS_USER"),
-		Password: os.Getenv("REDIS_PASSWORD"),
-	})
-	err = rdb.Ping(ctx).Err()
-	if err != nil {
-		return fmt.Errorf("unable to connect to redis, %w", err)
-	}
 
-	// Create cooldown limiter
-	cooldownLimiter := NewCooldownLimiter(cfg.cooldownPeriod, rdb)
 	st.start(ctx)
 
 	// Prepare the middlewares
 	middlewares := []faucet.Middleware{
 		getIPMiddleware(cfg.isBehindProxy, st),
-		getCaptchaMiddleware(cfg.captchaSecret),
-		getAccountBalanceMiddleware(cli, cfg.maxBalance),
-		getGithubMiddleware(cfg.ghClientID, os.Getenv("GH_CLIENT_SECRET"), cooldownLimiter),
 	}
+
+	middlewares = append(middlewares, extraMiddlewares...)
 
 	// Create a new faucet with
 	// static gas estimation
