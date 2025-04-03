@@ -1,9 +1,15 @@
 package gnolang
 
 import (
+	"bytes"
+	"fmt"
+	"os"
+	"runtime"
 	"testing"
 
 	"github.com/gnolang/gno/gnovm"
+	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/multierr"
@@ -356,4 +362,95 @@ func Hello(name string) string {
 	assert.NoError(t, err)
 	assert.NotEqual(t, input, pkg.Files[0].Body)
 	assert.Equal(t, expected, pkg.Files[0].Body)
+}
+
+func TestTypecheckMemPackageGasMetering(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		src     string
+		wantErr string
+	}{
+		{
+			"basic expression + print",
+			`
+package main
+func main() {
+    println("abcdefgh")
+    var _ = 1+2+3+4+5+6+7+8+9+10
+}`,
+			"",
+		},
+		{
+			name: "this entire file",
+			src: func() string {
+				_, thisFile, _, _ := runtime.Caller(1)
+				blob, err := os.ReadFile(thisFile)
+				require.NoError(t, err)
+				return string(blob)
+			}(),
+			wantErr: "could not import", // Not out of gas.
+		},
+		{
+			name: "deeply nested expression",
+			src: func() string {
+				buf := new(bytes.Buffer)
+				N := 1000
+				buf.WriteString("package main\nfunc main() {\n\tconst x = 1")
+				for i := 0; i < 3; i++ {
+					for j := 0; j < N; j++ {
+						buf.WriteString("+\n(1")
+					}
+					for j := 0; j < N; j++ {
+						buf.WriteByte(')')
+					}
+				}
+				buf.WriteString("\nprintln(x)\n}")
+				return buf.String()
+			}(),
+			wantErr: "out of gas",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			pkg := &gnovm.MemPackage{
+				Name: "hello",
+				Path: "gno.land/p/demo/hello",
+				Files: []*gnovm.MemFile{
+					{
+						Name: "hello.gno",
+						Body: tt.src,
+					},
+				},
+			}
+
+			mpkgGetter := mockPackageGetter{}
+			format := false
+			gasMeter := storetypes.NewGasMeter(100_000)
+			var err error
+
+			defer func() {
+				r := recover()
+				if r != nil && err == nil {
+					err = fmt.Errorf("%v", r)
+				}
+
+				if tt.wantErr != "" {
+					assert.Error(t, err)
+					assert.Contains(t, err.Error(), tt.wantErr)
+					return
+				}
+
+				assert.NoError(t, err)
+				assert.Equal(t, tt.src, pkg.Files[0].Body) // unchanged
+				assert.True(t, gasMeter.Remaining() > 0)
+			}()
+
+			err = TypeCheckMemPackageWithGasMeter(pkg, mpkgGetter, format, gasMeter)
+		})
+	}
 }
