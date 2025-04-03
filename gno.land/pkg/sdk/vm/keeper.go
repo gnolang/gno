@@ -84,12 +84,11 @@ func NewVMKeeper(
 	prmk ParamsKeeperI,
 ) *VMKeeper {
 	vmk := &VMKeeper{
-		baseKey:   baseKey,
-		iavlKey:   iavlKey,
-		supplyKey: supplyKey,
-		acck:      acck,
-		bank:      bank,
-		prmk:      prmk,
+		baseKey: baseKey,
+		iavlKey: iavlKey,
+		acck:    acck,
+		bank:    bank,
+		prmk:    prmk,
 	}
 
 	return vmk

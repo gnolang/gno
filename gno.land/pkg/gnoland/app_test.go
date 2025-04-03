@@ -823,7 +823,6 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	// Capabilities keys.
 	mainKey := store.NewStoreKey("main")
 	baseKey := store.NewStoreKey("base")
-	supplyKey := store.NewStoreKey("supply")
 
 	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey)
 	baseApp.SetAppVersion("test")
@@ -837,7 +836,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount)
 	gpk := auth.NewGasPriceKeeper(mainKey)
 	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
-	vmk := vm.NewVMKeeper(baseKey, mainKey, supplyKey, acck, bankk, prmk)
+	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, prmk)
 	prmk.Register(auth.ModuleName, acck)
 	prmk.Register(bank.ModuleName, bankk)
 	prmk.Register(vm.ModuleName, vmk)

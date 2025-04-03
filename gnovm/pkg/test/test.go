@@ -49,13 +49,6 @@ func Context(pkgPath string, send std.Coins) *teststd.TestExecContext {
 		CoinTable: map[crypto.Bech32Address]std.Coins{
 			pkgAddr.Bech32(): send,
 		},
-		Supplies: make(map[string]int64),
-	}
-
-	if send != nil {
-		for _, coin := range send {
-			banker.Supplies[coin.Denom] = coin.Amount
-		}
 	}
 	ctx := stdlibs.ExecContext{
 		ChainID:         "dev",
