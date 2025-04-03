@@ -118,7 +118,9 @@ func CreateMarket(poolPath string, isToken0Loan bool, irm string, lltv int64) {
 
 	// Convert LLTV percentage to WAD-scaled value (e.g., 75% -> 0.75 * 1e18)
 	lltvUint := u256.NewUint(uint64(lltv))
-	lltvWad := WMulDown(lltvUint, WAD) // This will give us (lltv * 1e18) / 100
+	lltvWad := MulDivDown(lltvUint, WAD, u256.NewUint(100)) // This will give us (lltv * 1e18) / 100
+
+	println("lltvWad:", lltvWad.ToString())
 
 	// Create market params
 	params := MarketParams{
@@ -163,10 +165,15 @@ func CreateMarket(poolPath string, isToken0Loan bool, irm string, lltv int64) {
 }
 
 // Supply tokens to a market
-// Either assets or shares must be non-zero (not both)
+// Either assets or shares must be non-zero (XOR)
 func Supply(marketId string, assets, shares uint64) {
 	if (assets > 0 && shares > 0) || (assets == 0 && shares == 0) {
 		panic(ErrInconsistentAmount)
+	}
+
+	// Check if market exists
+	if _, exists := markets.Get(marketId); !exists {
+		panic(ErrMarketNotCreated)
 	}
 
 	// Convert inputs to uint256
@@ -219,7 +226,7 @@ func Supply(marketId string, assets, shares uint64) {
 
 	// Handle token transfer using GRC20 interface
 	tokenTeller := GetTokenCallerTeller(params.GetLoanToken())
-	if err := tokenTeller.TransferFrom(caller, std.CurrentRealm().Address(), assets); err != nil {
+	if err := tokenTeller.TransferFrom(caller, std.CurrentRealm().Address(), assetsU256.Uint64()); err != nil {
 		panic(err)
 	}
 
@@ -231,6 +238,11 @@ func Supply(marketId string, assets, shares uint64) {
 func Borrow(marketId string, assets, shares uint64) {
 	if (assets > 0 && shares > 0) || (assets == 0 && shares == 0) {
 		panic(ErrInconsistentAmount)
+	}
+
+	// Check if market exists
+	if _, exists := markets.Get(marketId); !exists {
+		panic(ErrMarketNotCreated)
 	}
 
 	// Convert inputs to uint256
@@ -299,11 +311,21 @@ func Borrow(marketId string, assets, shares uint64) {
 
 	// Transfer borrowed tokens to caller
 	tokenTeller := GetTokenCallerTeller(params.GetLoanToken())
-	if err := tokenTeller.Transfer(caller, assets); err != nil {
+	if err := tokenTeller.Transfer(caller, assetsU256.Uint64()); err != nil {
 		panic(err)
 	}
 
 	emitBorrow(marketId, caller, assetsU256)
+}
+
+// AccrueInterest is the public function that accrues interest for a market.
+func AccrueInterest(marketId string) {
+	// Check if market exists
+	if _, exists := markets.Get(marketId); !exists {
+		panic(ErrMarketNotCreated)
+	}
+
+	accrueInterest(marketId)
 }
 
 // accrueInterest accrues interest for a market using its IRM
@@ -313,6 +335,8 @@ func accrueInterest(marketId string) {
 	// Calculate elapsed time
 	now := time.Now().Unix()
 	elapsed := now - market.LastUpdate
+
+	println("elapsed:", elapsed)
 	if elapsed == 0 {
 		return
 	}
@@ -328,11 +352,20 @@ func accrueInterest(marketId string) {
 	irm := GetIRM(params.IRM)
 	borrowRate := irm.BorrowRate(market.TotalSupplyAssets, market.TotalBorrowAssets)
 
-	// Calculate interest using Taylor series approximation
-	// interest = totalBorrowAssets * (e^(rate * time) - 1)
+	println("borrowRate:", borrowRate.ToString())
+
+	// Calculate accrued interest using Taylor series approximation of e^(rate * time) - 1
+	// wTaylorCompounded returns the sum of first 3 terms: x*n + (x*n)^2/2 + (x*n)^3/6
+    // This approximates continuous compound interest more accurately than simple interest
 	elapsedUint := u256.NewUint(uint64(elapsed))
-	rateTimesTerm := WTaylorCompounded(borrowRate, elapsedUint)
-	interest := WMulDown(market.TotalBorrowAssets, rateTimesTerm)
+	wtc := WTaylorCompounded(borrowRate, elapsedUint)
+
+	println("wtc:", wtc.ToString())
+	interest := WMulDown(market.TotalBorrowAssets, wtc)
+
+	println("interest:", interest.ToString())
+
+	println("market.TotalBorrowAssets:", market.TotalBorrowAssets.ToString())
 
 	// Update market state
 	market.TotalBorrowAssets = new(u256.Uint).Add(market.TotalBorrowAssets, interest)
@@ -355,10 +388,7 @@ func accrueInterest(marketId string) {
 		// Update fee recipient's position
 		feeRecipientPos := GetPosition(marketId, feeRecipient.String())
 		feeRecipientPos.SupplyShares = new(u256.Uint).Add(feeRecipientPos.SupplyShares, feeShares)
-		marketPositionsInterface, exists := positions.Get(marketId)
-		if !exists {
-			panic(ErrMarketNotCreated)
-		}
+		marketPositionsInterface, _ := positions.Get(marketId)
 		marketPositions := marketPositionsInterface.(*avl.Tree)
 		marketPositions.Set(feeRecipient.String(), feeRecipientPos)
 
@@ -374,6 +404,11 @@ func accrueInterest(marketId string) {
 // SupplyCollateral supplies collateral to a market
 // The collateral can be used to borrow assets from the market
 func SupplyCollateral(marketId string, amount uint64) {
+	// Check if market exists
+	if _, exists := markets.Get(marketId); !exists {
+		panic(ErrMarketNotCreated)
+	}
+
 	caller := std.PreviousRealm().Address()
 
 	_, params := GetMarket(marketId)
@@ -385,10 +420,7 @@ func SupplyCollateral(marketId string, amount uint64) {
 	position.Collateral = new(u256.Uint).Add(position.Collateral, u256.NewUint(amount))
 
 	// Get market's positions tree and update position
-	marketPositionsInterface, exists := positions.Get(marketId)
-	if !exists {
-		panic(ErrMarketNotCreated)
-	}
+	marketPositionsInterface, _ := positions.Get(marketId)
 	marketPositions := marketPositionsInterface.(*avl.Tree)
 	marketPositions.Set(caller.String(), position)
 
@@ -404,6 +436,11 @@ func SupplyCollateral(marketId string, amount uint64) {
 // WithdrawCollateral withdraws collateral from a market
 // The withdrawal will fail if it would make the user's position unhealthy
 func WithdrawCollateral(marketId string, amount uint64) {
+	// Check if market exists
+	if _, exists := markets.Get(marketId); !exists {
+		panic(ErrMarketNotCreated)
+	}
+
 	caller := std.PreviousRealm().Address()
 
 	_, params := GetMarket(marketId)
@@ -422,20 +459,21 @@ func WithdrawCollateral(marketId string, amount uint64) {
 		panic(ErrInsufficientCollateral)
 	}
 
+	println("position collateral before:", position.Collateral.ToString())
+	
 	// Update position
 	position.Collateral = new(u256.Uint).Sub(position.Collateral, amountU256)
 
+	// Get market's positions tree and update position
+	marketPositionsInterface, exists := positions.Get(marketId)
+	if !exists {
+		panic(ErrMarketNotCreated)
+	}
+	marketPositions := marketPositionsInterface.(*avl.Tree)
+	marketPositions.Set(caller.String(), position)
+
 	// Check if position would still be healthy after withdrawal
 	if !position.BorrowShares.IsZero() {
-		// Get market's positions tree and update position temporarily to check health
-		marketPositionsInterface, exists := positions.Get(marketId)
-		if !exists {
-			panic(ErrMarketNotCreated)
-		}
-		marketPositions := marketPositionsInterface.(*avl.Tree)
-		marketPositions.Set(caller.String(), position)
-
-		// Check if position would be healthy after withdrawal
 		if !isHealthy(marketId, caller.String()) {
 			panic(ErrExceedsLTV)
 		}
@@ -462,7 +500,6 @@ func isHealthy(marketId string, userAddr string) bool {
 		return true
 	}
 
-	// Get market and params
 	market, params := GetMarket(marketId)
 
 	// Calculate current borrowed value
@@ -472,9 +509,6 @@ func isHealthy(marketId string, userAddr string) bool {
 		market.TotalBorrowShares,
 	)
 
-	// Print collateral value for debugging
-	println("collateral value:", borrowed.ToString())
-
 	collateralPrice, err := GetPrice(params.PoolPath)
 	if err != nil {
 		panic(err)
@@ -483,6 +517,279 @@ func isHealthy(marketId string, userAddr string) bool {
 	// Calculate max borrow allowed
 	maxBorrow := WMulDown(MulDivDown(position.Collateral, collateralPrice, ORACLE_PRICE_SCALE), params.LLTV)
 
+	println("maxBorrow:", maxBorrow.ToString())
+	println("borrowed:", borrowed.ToString())
+
 	// Position is healthy if borrowed <= maxBorrow
 	return borrowed.Cmp(maxBorrow) <= 0
+}
+
+// Withdraw tokens from a market
+// Either assets or shares must be non-zero (XOR)
+func Withdraw(marketId string, assets, shares uint64) {
+	if (assets > 0 && shares > 0) || (assets == 0 && shares == 0) {
+		panic(ErrInconsistentAmount)
+	}
+
+	// Check if market exists
+	if _, exists := markets.Get(marketId); !exists {
+		panic(ErrMarketNotCreated)
+	}
+
+	// Convert inputs to uint256
+	assetsU256 := u256.NewUint(assets)
+	sharesU256 := u256.NewUint(shares)
+
+	caller := std.PreviousRealm().Address()
+
+	// Get market and params
+	market, params := GetMarket(marketId)
+
+	// Accrue interest before any state changes
+	accrueInterest(marketId)
+
+	// Calculate shares to burn
+	var sharesToBurn *u256.Uint
+	if assets > 0 {
+		sharesToBurn = ToSharesUp(
+			assetsU256,
+			market.TotalSupplyAssets,
+			market.TotalSupplyShares,
+		)
+	} else {
+		sharesToBurn = sharesU256
+		assetsU256 = ToAssetsDown(
+			sharesU256,
+			market.TotalSupplyAssets,
+			market.TotalSupplyShares,
+		)
+	}
+
+	// Get user's current position
+	position := GetPosition(marketId, caller.String())
+
+	// Check if user has enough shares
+	if sharesToBurn.Gt(position.SupplyShares) {
+		panic(ErrInsufficientShares)
+	}
+
+	// Update position
+	position.SupplyShares = new(u256.Uint).Sub(position.SupplyShares, sharesToBurn)
+
+	// Get market's positions tree and update position
+	marketPositionsInterface, exists := positions.Get(marketId)
+	if !exists {
+		panic(ErrMarketNotCreated)
+	}
+	marketPositions := marketPositionsInterface.(*avl.Tree)
+	marketPositions.Set(caller.String(), position)
+
+	// Update market state
+	market.TotalSupplyShares = new(u256.Uint).Sub(market.TotalSupplyShares, sharesToBurn)
+	market.TotalSupplyAssets = new(u256.Uint).Sub(market.TotalSupplyAssets, assetsU256)
+	markets.Set(marketId, market)
+
+	// Check if there's enough liquidity after withdrawal
+	if market.TotalBorrowAssets.Gt(market.TotalSupplyAssets) {
+		panic(ErrInsufficientLiquidity)
+	}
+
+	// Handle token transfer using GRC20 interface
+	tokenTeller := GetTokenCallerTeller(params.GetLoanToken())
+	if err := tokenTeller.Transfer(caller, assetsU256.Uint64()); err != nil {
+		panic(err)
+	}
+
+	emitWithdraw(marketId, caller, assetsU256)
+}
+
+// Repay borrowed tokens to a market
+// Either assets or shares must be non-zero (XOR)
+func Repay(marketId string, assets, shares uint64) {
+	if (assets > 0 && shares > 0) || (assets == 0 && shares == 0) {
+		panic(ErrInconsistentAmount)
+	}
+
+	// Check if market exists
+	if _, exists := markets.Get(marketId); !exists {
+		panic(ErrMarketNotCreated)
+	}
+
+	// Convert inputs to uint256
+	assetsU256 := u256.NewUint(assets)
+	sharesU256 := u256.NewUint(shares)
+
+	caller := std.PreviousRealm().Address()
+
+	// Get market and params
+	market, params := GetMarket(marketId)
+
+	// Accrue interest before any state changes
+	accrueInterest(marketId)
+
+	// Calculate shares to burn
+	var sharesToBurn *u256.Uint
+	if assets > 0 {
+		sharesToBurn = ToSharesDown(
+			assetsU256,
+			market.TotalBorrowAssets,
+			market.TotalBorrowShares,
+		)
+	} else {
+		sharesToBurn = sharesU256
+		assetsU256 = ToAssetsUp(
+			sharesU256,
+			market.TotalBorrowAssets,
+			market.TotalBorrowShares,
+		)
+	}
+
+	// Get user's current position
+	position := GetPosition(marketId, caller.String())
+
+	// Check if user has enough shares
+	if sharesToBurn.Gt(position.BorrowShares) {
+		panic(ErrInsufficientShares)
+	}
+
+	// Update position
+	position.BorrowShares = new(u256.Uint).Sub(position.BorrowShares, sharesToBurn)
+
+	// Get market's positions tree and update position
+	marketPositionsInterface, exists := positions.Get(marketId)
+	if !exists {
+		panic(ErrMarketNotCreated)
+	}
+	marketPositions := marketPositionsInterface.(*avl.Tree)
+	marketPositions.Set(caller.String(), position)
+
+	// Update market state
+	market.TotalBorrowShares = new(u256.Uint).Sub(market.TotalBorrowShares, sharesToBurn)
+	market.TotalBorrowAssets = new(u256.Uint).Sub(market.TotalBorrowAssets, assetsU256)
+	markets.Set(marketId, market)
+
+	// Handle token transfer using GRC20 interface
+	tokenTeller := GetTokenCallerTeller(params.GetLoanToken())
+	if err := tokenTeller.TransferFrom(caller, std.CurrentRealm().Address(), assetsU256.Uint64()); err != nil {
+		panic(err)
+	}
+
+	emitRepay(marketId, caller, assetsU256, sharesToBurn)
+}
+
+// Liquidate liquidates a position that is below the liquidation threshold.
+// It takes either seizedAssets (collateral to seize) or repaidShares (debt to repay), but not both.
+func Liquidate(marketId string, borrower std.Address, seizedAssets, repaidShares uint64) (uint64, uint64) {
+	// Check that exactly one of seizedAssets or repaidShares is non-zero
+	if (seizedAssets == 0) == (repaidShares == 0) {
+		panic(ErrInconsistentAmount)
+	}
+
+	// Get market data
+	market, params := GetMarket(marketId)
+
+	// Convert inputs to uint256
+	seizedAssetsU256 := u256.NewUint(seizedAssets)
+	repaidSharesU256 := u256.NewUint(repaidShares)
+
+	// Accrue interest before making state changes
+	accrueInterest(marketId)
+
+	// Get borrower's position
+	borrowerPos := GetPosition(marketId, borrower.String())
+
+	// Get collateral price from oracle
+	collateralPrice, err := GetPrice(marketId)
+	if err != nil {
+		panic(err)
+	}
+
+	// Check if position is unhealthy
+	if isHealthy(marketId, borrower.String()) {
+		panic(ErrHealthyPosition)
+	}
+
+	// Calculate the liquidation incentive factor: min(maxLiquidationIncentiveFactor, 1/(1 - cursor*(1 - lltv)))
+	incentiveFactor := WDivDown(
+		WAD,
+		new(u256.Uint).Sub(WAD, WMulDown(LIQUIDATION_CURSOR, new(u256.Uint).Sub(WAD, params.LLTV))),
+	)
+	incentiveFactor = Min(incentiveFactor, MAX_LIQUIDATION_INCENTIVE_FACTOR)
+
+	// Calculate seized assets or repaid shares based on input
+	if seizedAssets > 0 {
+		// Calculate repaid shares from seized assets
+		seizedAssetsQuoted := MulDivUp(seizedAssetsU256, collateralPrice, ORACLE_PRICE_SCALE)
+		repaidSharesU256 = ToSharesUp(
+			WDivUp(seizedAssetsQuoted, incentiveFactor),
+			market.TotalBorrowAssets,
+			market.TotalBorrowShares,
+		)
+	} else {
+		// Calculate seized assets from repaid shares
+		seizedAssetsU256 = MulDivDown(
+			WMulDown(
+				ToAssetsDown(
+					repaidSharesU256,
+					market.TotalBorrowAssets,
+					market.TotalBorrowShares,
+				),
+				incentiveFactor,
+			),
+			ORACLE_PRICE_SCALE,
+			collateralPrice,
+		)
+	}
+
+	// Calculate repaid assets
+	repaidAssets := ToAssetsUp(
+		repaidSharesU256,
+		market.TotalBorrowAssets,
+		market.TotalBorrowShares,
+	)
+
+	// Update borrower's position
+	borrowerPos.BorrowShares = new(u256.Uint).Sub(borrowerPos.BorrowShares, repaidSharesU256)
+	borrowerPos.Collateral = new(u256.Uint).Sub(borrowerPos.Collateral, seizedAssetsU256)
+
+	// Update market state
+	market.TotalBorrowShares = new(u256.Uint).Sub(market.TotalBorrowShares, repaidSharesU256)
+	market.TotalBorrowAssets = new(u256.Uint).Sub(market.TotalBorrowAssets, repaidAssets)
+	markets.Set(marketId, market)
+
+	// Handle bad debt if all collateral is seized
+	if borrowerPos.Collateral.IsZero() {
+		badDebtShares := borrowerPos.BorrowShares
+		badDebtAssets := ToAssetsUp(
+			badDebtShares,
+			market.TotalBorrowAssets,
+			market.TotalBorrowShares,
+		)
+		if badDebtAssets.Cmp(market.TotalBorrowAssets) > 0 {
+			badDebtAssets = market.TotalBorrowAssets
+		}
+
+		market.TotalBorrowAssets = new(u256.Uint).Sub(market.TotalBorrowAssets, badDebtAssets)
+		market.TotalSupplyAssets = new(u256.Uint).Sub(market.TotalSupplyAssets, badDebtAssets)
+		market.TotalBorrowShares = new(u256.Uint).Sub(market.TotalBorrowShares, badDebtShares)
+		borrowerPos.BorrowShares = u256.Zero()
+	}
+
+	// Transfer seized collateral to liquidator
+	caller := std.PreviousRealm().Address()
+	tokenTeller := GetTokenCallerTeller(params.GetCollateralToken())
+	if err := tokenTeller.Transfer(caller, seizedAssetsU256.Uint64()); err != nil {
+		panic(err)
+	}
+
+	// Transfer repaid assets from liquidator to contract
+	tokenTeller = GetTokenCallerTeller(params.GetLoanToken())
+	if err := tokenTeller.TransferFrom(caller, std.CurrentRealm().Address(), repaidAssets.Uint64()); err != nil {
+		panic(err)
+	}
+
+	// Emit liquidate event
+	emitLiquidate(marketId, caller, borrower, repaidAssets, repaidSharesU256, seizedAssetsU256)
+
+	return seizedAssetsU256.Uint64(), repaidAssets.Uint64()
 }

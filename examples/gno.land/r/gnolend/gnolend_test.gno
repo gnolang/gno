@@ -298,3 +298,62 @@ func TestBorrowErrors(t *testing.T) {
 		Borrow(marketId, uint256.NewUint(2000000000))
 	})
 }
+
+func TestInterestAccrual(t *testing.T) {
+	setupTest(t)
+
+	// Create test tokens and addresses
+	loanToken := testutils.TestAddress("loanToken")
+	collateralToken := testutils.TestAddress("collateralToken")
+	oracle := "r/gnoswap/v1/pool/" + loanToken.String() + "/" + collateralToken.String() + "/0"
+	lender := testutils.TestAddress("lender")
+	borrower := testutils.TestAddress("borrower")
+
+	// Register and enable IRM with 10% APR
+	irm.RegisterIRM(irm.NewLinearIRM("TestIRM", uint256.NewUint(100000000000000000)))
+	std.TestSetOriginCaller(testutils.TestAddress("admin"))
+	EnableIRM("r/gnolend/irm/linear")
+
+	// Enable LLTV
+	lltv := uint256.NewUint(75)
+	EnableLLTV(lltv)
+
+	// Create market
+	CreateMarket(loanToken.String(), collateralToken.String(), oracle, "r/gnolend/irm/linear", 75)
+
+	// Set up lender
+	std.TestSetOriginCaller(lender)
+	Supply(loanToken.String()+"/"+collateralToken.String(), 1000000, 0) // Supply 1M tokens
+
+	// Set up borrower
+	std.TestSetOriginCaller(borrower)
+	SupplyCollateral(loanToken.String()+"/"+collateralToken.String(), 1000000) // Supply 1M collateral
+	Borrow(loanToken.String()+"/"+collateralToken.String(), 500000, 0) // Borrow 500K tokens
+
+	// Get initial state
+	market, _ := GetMarket(loanToken.String() + "/" + collateralToken.String())
+	initialBorrowed := market.TotalBorrowAssets.String()
+	initialShares := market.TotalBorrowShares.String()
+
+	// Simulate time passing (1 year = 31536000 seconds)
+	std.TestSetTime(std.TestGetTime() + 31536000)
+
+	// Accrue interest
+	accrueInterest(loanToken.String() + "/" + collateralToken.String())
+
+	// Get final state
+	market, _ = GetMarket(loanToken.String() + "/" + collateralToken.String())
+	finalBorrowed := market.TotalBorrowAssets.String()
+	finalShares := market.TotalBorrowShares.String()
+
+	// Verify interest has accrued (should be ~10% more)
+	// Note: Due to rounding and the way interest is calculated, it might not be exactly 10%
+	urequire.Greater(t, finalBorrowed, initialBorrowed)
+	urequire.Greater(t, finalShares, initialShares)
+
+	// Print values for debugging
+	println("Initial borrowed:", initialBorrowed)
+	println("Final borrowed:", finalBorrowed)
+	println("Initial shares:", initialShares)
+	println("Final shares:", finalShares)
+}

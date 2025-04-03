@@ -6,6 +6,17 @@ import (
 	pl "gno.land/r/gnoswap/v1/pool"
 )
 
+// Constants for scaling
+var (
+	MAX_FEE = 10 // 10% max fee
+
+	// Liquidation cursor - used to calculate liquidation incentive factor
+	LIQUIDATION_CURSOR = u256.NewUint(300000000000000000) // 0.3 in WAD
+
+	// Maximum liquidation incentive factor (15%)
+	MAX_LIQUIDATION_INCENTIVE_FACTOR = u256.NewUint(1150000000000000000) // 1.15 in WAD
+)
+
 // Market represents a lending market for a specific token pair
 type Market struct {
 	TotalSupplyAssets *u256.Uint // Total assets supplied to market
@@ -51,11 +62,6 @@ func (mp *MarketParams) GetCollateralToken() string {
 	}
 	return pl.PoolGetToken0Path(mp.PoolPath)
 }
-
-// Constants for scaling
-const (
-	MAX_FEE = 10 // 10% max fee
-)
 
 // IRM is the interface that all interest rate models must implement
 type IRM interface {

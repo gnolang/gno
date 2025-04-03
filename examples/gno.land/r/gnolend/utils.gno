@@ -2,6 +2,7 @@ package gnolend
 
 import (
 	"gno.land/p/demo/grc/grc20"
+	u256 "gno.land/p/gnoswap/uint256"
 
 	"gno.land/r/demo/grc20reg"
 	"gno.land/r/gnoswap/v1/pool"
@@ -36,4 +37,12 @@ func areTokensPairedInGnoswap(token0, token1 string) bool {
 		}
 	}
 	return false
+}
+
+// Min returns the minimum of two uint256 numbers
+func Min(a, b *u256.Uint) *u256.Uint {
+	if a.Lt(b) {
+		return a
+	}
+	return b
 }

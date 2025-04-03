@@ -3,7 +3,6 @@ package gnolend
 import (
 	"std"
 
-	"gno.land/p/demo/ufmt"
 	u256 "gno.land/p/gnoswap/uint256"
 )
 
@@ -17,6 +16,20 @@ const (
 	RepayEvent        = "Repay"
 	LiquidateEvent    = "Liquidate"
 	RegisterIRMEvent  = "RegisterIRM"
+	AccrueInterestEvent = "AccrueInterest"
+	SupplyCollateralEvent = "SupplyCollateral"
+	WithdrawCollateralEvent = "WithdrawCollateral"
+
+	// Event names
+	EventAccrueInterest    = "accrue_interest"
+	EventCreateMarket      = "create_market"
+	EventSupply           = "supply"
+	EventWithdraw         = "withdraw"
+	EventBorrow           = "borrow"
+	EventRepay            = "repay"
+	EventLiquidate        = "liquidate"
+	EventSupplyCollateral = "supply_collateral"
+	EventWithdrawCollateral = "withdraw_collateral"
 )
 
 // Event keys
@@ -35,6 +48,16 @@ const (
 	EventBorrowerKey      = "borrower"
 	EventLiquidatedAmtKey = "liquidated_amount"
 	EventCollateralAmtKey = "collateral_amount"
+
+	// Interest keys
+	EventBorrowRateKey = "borrow_rate"
+	EventInterestKey   = "interest"
+
+	// Event keys
+	EventMarketIdKey  = "market_id"
+	EventSharesKey    = "shares"
+	EventSeizedKey    = "seized"
+	EventFeeKey       = "fee"
 )
 
 // Event emission helper functions
@@ -56,12 +79,12 @@ func emitDeposit(marketId string, user std.Address, amount *u256.Uint) {
 	)
 }
 
-func emitWithdraw(marketId string, user std.Address, amount int64) {
+func emitWithdraw(marketId string, caller std.Address, amount *u256.Uint) {
 	std.Emit(
 		WithdrawEvent,
 		EventMarketIDKey, marketId,
-		EventUserKey, user.String(),
-		EventAmountKey, ufmt.Sprintf("%d", amount),
+		EventUserKey, caller.String(),
+		EventAmountKey, amount.ToString(),
 	)
 }
 
@@ -74,32 +97,34 @@ func emitBorrow(marketId string, user std.Address, amount *u256.Uint) {
 	)
 }
 
-func emitRepay(marketId string, user std.Address, amount int64) {
+func emitRepay(marketId string, caller std.Address, assets, shares *u256.Uint) {
 	std.Emit(
 		RepayEvent,
 		EventMarketIDKey, marketId,
-		EventUserKey, user.String(),
-		EventAmountKey, ufmt.Sprintf("%d", amount),
+		EventUserKey, caller.String(),
+		EventAmountKey, assets.ToString(),
+		"shares", shares.ToString(),
 	)
 }
 
-func emitLiquidate(marketId string, liquidator std.Address, borrower std.Address, liquidatedAmt int64, collateralAmt int64) {
+func emitLiquidate(marketId string, caller std.Address, borrower std.Address, repaidAssets, repaidShares, seizedAssets *u256.Uint) {
 	std.Emit(
-		LiquidateEvent,
-		EventMarketIDKey, marketId,
-		EventLiquidatorKey, liquidator.String(),
+		EventLiquidate,
+		EventMarketIdKey, marketId,
+		EventUserKey, caller.String(),
 		EventBorrowerKey, borrower.String(),
-		EventLiquidatedAmtKey, ufmt.Sprintf("%d", liquidatedAmt),
-		EventCollateralAmtKey, ufmt.Sprintf("%d", collateralAmt),
+		EventAmountKey, repaidAssets.ToString(),
+		EventSharesKey, repaidShares.ToString(),
+		EventSeizedKey, seizedAssets.ToString(),
 	)
 }
 
 func emitAccrueInterest(marketId string, borrowRate, interest *u256.Uint) {
 	std.Emit(
-		"AccrueInterest",
-		"market_id", marketId,
-		"borrow_rate", borrowRate.ToString(),
-		"interest", interest.ToString(),
+		AccrueInterestEvent,
+		EventMarketIDKey, marketId,
+		EventBorrowRateKey, borrowRate.ToString(),
+		EventInterestKey, interest.ToString(),
 	)
 }
 
@@ -113,18 +138,18 @@ func emitRegisterIRM(pkgPath, name string) {
 
 func emitSupplyCollateral(marketId string, caller std.Address, amount uint64) {
 	std.Emit(
-		"supply_collateral",
-		"market_id", marketId,
-		"caller", caller.String(),
-		"amount", ufmt.Sprintf("%d", amount),
+		SupplyCollateralEvent,
+		EventMarketIDKey, marketId,
+		EventUserKey, caller.String(),
+		EventAmountKey, u256.NewUint(amount).ToString(),
 	)
 }
 
 func emitWithdrawCollateral(marketId string, caller std.Address, amount uint64) {
 	std.Emit(
-		"withdraw_collateral",
-		"market_id", marketId,
-		"caller", caller.String(),
-		"amount", ufmt.Sprintf("%d", amount),
+		WithdrawCollateralEvent,
+		EventMarketIDKey, marketId,
+		EventUserKey, caller.String(),
+		EventAmountKey, u256.NewUint(amount).ToString(),
 	)
 }

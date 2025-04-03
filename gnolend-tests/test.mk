@@ -57,9 +57,80 @@ market-get-price-gns-wugnot:
 # Test getting market info for GNS-WUGNOT pair
 market-get-gns-wugnot:
 	$(info ************ Test getting market info for GNS-WUGNOT pair ************)
+	# GET TOTAL SUPPLY ASSETS
 	@echo "" | gnokey maketx call \
 		-pkgpath gno.land/r/gnolend \
-		-func GetMarket \
+		-func GetTotalSupplyAssets \
+		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+
+	# GET TOTAL SUPPLY SHARES
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/gnolend \
+		-func GetTotalSupplyShares \
+		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+
+	# GET TOTAL BORROW ASSETS
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/gnolend \
+		-func GetTotalBorrowAssets \
+		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+
+	# GET TOTAL BORROW SHARES
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/gnolend \
+		-func GetTotalBorrowShares \
+		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+
+	# GET LIQUIDATION LTV
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/gnolend \
+		-func GetLLTV \
+		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+
+	# GET MARKET FEE
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/gnolend \
+		-func GetFee \
 		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" \
 		-insecure-password-stdin=true \
 		-remote $(GNOLAND_RPC_URL) \
@@ -96,6 +167,25 @@ supply-assets-gns-wugnot:
 		-func Supply \
 		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" \
 		-args 1000000 \
+		-args 0 \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+	@echo
+
+# Test withdrawing assets from GNS-WUGNOT market
+withdraw-assets-gns-wugnot:
+	$(info ************ Test withdrawing GNS assets from GNS-WUGNOT market ************)
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/gnolend \
+		-func Withdraw \
+		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" \
+		-args 994940 \
 		-args 0 \
 		-insecure-password-stdin=true \
 		-remote $(GNOLAND_RPC_URL) \
@@ -211,6 +301,57 @@ check-gns-balance:
 		gnoswap_admin
 	@echo
 
+# Check Gnolend contract GNS balance
+check-gnolend-gns-balance:
+	$(info ************ Check Gnolend contract GNS balance ************)
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/gnoswap/v1/gns \
+		-func BalanceOf \
+		-args $(ADDR_GNOLEND) \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+	@echo
+
+# Check Gnolend contract WUGNOT balance
+check-gnolend-wugnot-balance:
+	$(info ************ Check Gnolend contract WUGNOT balance ************)
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/demo/wugnot \
+		-func BalanceOf \
+		-args $(ADDR_GNOLEND) \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+	@echo
+
+# Test accruing interest on GNS-WUGNOT market
+accrue-interest-gns-wugnot:
+	$(info ************ Test accruing interest on GNS-WUGNOT market ************)
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/gnolend \
+		-func AccrueInterest \
+		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+	@echo
+
 # Check WUGNOT balance
 check-wugnot-balance:
 	$(info ************ Check WUGNOT balance ************)
@@ -252,8 +393,81 @@ borrow-gns:
 		-pkgpath gno.land/r/gnolend \
 		-func Borrow \
 		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" \
-		-args 5 \
+		-args 740000 \
 		-args 0 \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+	@echo
+
+# Test repaying GNS tokens
+repay-gns:
+	$(info ************ Test repaying GNS tokens ************)
+	# APPROVE FIRST
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/gnoswap/v1/gns \
+		-func Approve \
+		-args $(ADDR_GNOLEND) \
+		-args $(MAX_UINT64) \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+	@echo
+
+	# THEN REPAY
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/gnolend \
+		-func Repay \
+		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" \
+		-args 50 \
+		-args 0 \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+	@echo
+
+# Test liquidating GNS position
+liquidate-gns:
+	$(info ************ Test liquidating GNS position ************)
+	# APPROVE FIRST
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/gnoswap/v1/gns \
+		-func Approve \
+		-args $(ADDR_GNOLEND) \
+		-args $(MAX_UINT64) \
+		-insecure-password-stdin=true \
+		-remote $(GNOLAND_RPC_URL) \
+		-broadcast=true \
+		-chainid $(CHAINID) \
+		-gas-fee 100000000ugnot \
+		-gas-wanted 1000000000 \
+		-memo "" \
+		gnoswap_admin
+	@echo
+
+	# THEN LIQUIDATE
+	@echo "" | gnokey maketx call \
+		-pkgpath gno.land/r/gnolend \
+		-func Liquidate \
+		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" \
+		-args $(ADMIN) \
+		-args 0 \
+		-args 25 \
 		-insecure-password-stdin=true \
 		-remote $(GNOLAND_RPC_URL) \
 		-broadcast=true \
@@ -306,7 +520,7 @@ withdraw-collateral-gns-wugnot:
 		-pkgpath gno.land/r/gnolend \
 		-func WithdrawCollateral \
 		-args "gno.land/r/demo/wugnot:gno.land/r/gnoswap/v1/gns:3000" \
-		-args 500000 \
+		-args 500 \
 		-insecure-password-stdin=true \
 		-remote $(GNOLAND_RPC_URL) \
 		-broadcast=true \

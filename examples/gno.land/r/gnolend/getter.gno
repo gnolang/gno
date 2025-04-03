@@ -204,7 +204,6 @@ func GetIRMCount() int {
 // GetMarketPrice returns the current price from the Gnoswap pool
 // Returns price in terms of loan token per collateral token
 func GetMarketPrice(marketId string) string {
-	// Get price from pool
 	price, err := GetPrice(marketId)
 	if err != nil {
 		panic(err)
