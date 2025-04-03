@@ -46,6 +46,7 @@ const (
 type VMKeeperI interface {
 	AddPackage(ctx sdk.Context, msg MsgAddPackage) error
 	Call(ctx sdk.Context, msg MsgCall) (res string, err error)
+	QueryEval(ctx sdk.Context, pkgPath string, expr string, format Format) (res string, err error)
 	Run(ctx sdk.Context, msg MsgRun) (res string, err error)
 	LoadStdlib(ctx sdk.Context, stdlibDir string)
 	LoadStdlibCached(ctx sdk.Context, stdlibDir string)

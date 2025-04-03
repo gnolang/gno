@@ -242,9 +242,9 @@ func JSONPrimitiveValue(m *gno.Machine, tv gno.TypedValue) string {
 		case gno.Float64Type:
 			f64 := math.Float64frombits(tv.GetFloat64())
 			return fmt.Sprintf("%f", f64)
-		case gno.UntypedBigintType, gno.BigintType:
+		case gno.UntypedBigintType:
 			return tv.V.(gno.BigintValue).V.String()
-		case gno.UntypedBigdecType, gno.BigdecType:
+		case gno.UntypedBigdecType:
 			return tv.V.(gno.BigdecValue).V.String()
 		case gno.IntType, gno.Int8Type, gno.Int16Type, gno.Int32Type, gno.UntypedRuneType, gno.Int64Type:
 			return fmt.Sprintf("%d", getSignedIntValue(bt, tv))
