@@ -124,5 +124,4 @@ func execMakeSend(cfg *MakeSendCfg, args []string, io commands.IO) error {
 	io.Println(string(amino.MustMarshalJSON(tx)))
 
 	return nil
-
 }

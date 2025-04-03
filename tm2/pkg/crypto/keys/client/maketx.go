@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -237,7 +236,7 @@ func ExecSignAndBroadcast(
 	return nil
 }
 
-func printResultBroadcastTxCommitJson(bres *ctypes.ResultBroadcastTxCommit, io commands.IO) error {
+func printResultBroadcastTxCommitJson(bres *types.ResultBroadcastTxCommit, io commands.IO) error {
 	var output struct {
 		CheckTx   json.RawMessage `json:"check_tx"`
 		DeliverTx json.RawMessage `json:"deliver_tx"`

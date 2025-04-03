@@ -297,7 +297,7 @@ func JSONPrimitiveValue(m *gno.Machine, tv gno.TypedValue) string {
 func getSignedIntValue(bt gno.PrimitiveType, tv gno.TypedValue) int64 {
 	switch bt {
 	case gno.IntType:
-		return int64(tv.GetInt())
+		return tv.GetInt()
 	case gno.Int8Type:
 		return int64(tv.GetInt8())
 	case gno.Int16Type:
@@ -314,7 +314,7 @@ func getSignedIntValue(bt gno.PrimitiveType, tv gno.TypedValue) int64 {
 func getUnsignedIntValue(bt gno.PrimitiveType, tv gno.TypedValue) uint64 {
 	switch bt {
 	case gno.UintType:
-		return uint64(tv.GetUint())
+		return tv.GetUint()
 	case gno.Uint8Type, gno.DataByteType:
 		return uint64(tv.GetUint8())
 	case gno.Uint16Type:
