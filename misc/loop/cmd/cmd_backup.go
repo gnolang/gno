@@ -66,7 +66,7 @@ func newBackupCmd(io commands.IO) *commands.Command {
 }
 
 func execBackup(ctx context.Context, cfg *backupCfg) error {
-	dockerClient, err := client.NewEnvClient()
+	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return err
 	}
