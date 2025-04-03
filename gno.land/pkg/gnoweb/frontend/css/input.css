@@ -391,9 +391,6 @@
     @apply inline align-text-top;
   }
 
-  .realm-view a > span:last-of-type {
-    @apply mr-0.5;
-  }
   .realm-view a > span:first-of-type {
     @apply ml-0.5;
   }
