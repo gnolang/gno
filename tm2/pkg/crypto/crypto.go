@@ -3,6 +3,7 @@ package crypto
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/bech32"
@@ -128,6 +129,8 @@ func (addr *Address) DecodeString(str string) error {
 // ----------------------------------------
 // ID
 
+var ErrZeroID = errors.New("address ID is zero")
+
 // The bech32 representation w/ bech32 prefix.
 type ID string
 
@@ -141,16 +144,12 @@ func (id ID) String() string {
 
 func (id ID) Validate() error {
 	if id.IsZero() {
-		return fmt.Errorf("zero ID is invalid")
+		return ErrZeroID
 	}
-	var addr Address
-	err := addr.DecodeID(id)
-	return err
-}
 
-func AddressFromID(id ID) (addr Address, err error) {
-	err = addr.DecodeString(string(id))
-	return
+	var addr Address
+
+	return addr.DecodeID(id)
 }
 
 func (addr Address) ID() ID {

@@ -7,6 +7,7 @@ package bank1
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/r/demo/banktest"
 )
@@ -16,16 +17,16 @@ func main() {
 
 	// print main balance before.
 	mainaddr := std.DerivePkgAddr("gno.land/r/demo/bank1")
-	std.TestSetOrigCaller(mainaddr)
+	testing.SetOriginCaller(mainaddr)
 
-	banker := std.GetBanker(std.BankerTypeReadonly)
+	banker := std.NewBanker(std.BankerTypeReadonly)
 	mainbal := banker.GetCoins(mainaddr)
-	println("main before:", mainbal) // plus OrigSend equals 300.
+	println("main before:", mainbal) // plus OriginSend equals 300.
 
 	// simulate a Deposit call.
-	std.TestSetOrigPkgAddr(banktestAddr)
-	std.TestIssueCoins(banktestAddr, std.Coins{{"ugnot", 100000000}})
-	std.TestSetOrigSend(std.Coins{{"ugnot", 100000000}}, nil)
+	testing.IssueCoins(banktestAddr, std.Coins{{"ugnot", 100000000}})
+	testing.SetOriginSend(std.Coins{{"ugnot", 100000000}})
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/banktest"))
 	res := banktest.Deposit("ugnot", 55000000)
 	println("Deposit():", res)
 
@@ -39,9 +40,9 @@ func main() {
 }
 
 // Output:
-// main before: 200000000ugnot
+// main before:
 // Deposit(): returned!
-// main after: 255000000ugnot
+// main after: 55000000ugnot
 // ## recent activity
 //
 //  * g1tnpdmvrmtgql8fmxgsq9rwtst5hsxahk3f05dk 100000000ugnot sent, 55000000ugnot returned, at 2009-02-13 11:31pm UTC

@@ -7,7 +7,7 @@ import (
 )
 
 var b = &blog.Blog{
-	Title:  "Gnoland's Blog",
+	Title:  "gno.land's blog",
 	Prefix: "/r/gnoland/blog:",
 }
 
@@ -15,7 +15,7 @@ func AddComment(postSlug, comment string) {
 	assertIsCommenter()
 	assertNotInPause()
 
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	err := b.GetPost(postSlug).AddComment(caller, comment)
 	checkErr(err)
 }

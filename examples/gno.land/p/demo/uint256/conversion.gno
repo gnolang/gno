@@ -83,7 +83,7 @@ func (z *Uint) Dec() string {
 	return string(out[pos-len(buf):])
 }
 
-func (z *Uint) Scan(src interface{}) error {
+func (z *Uint) Scan(src any) error {
 	if src == nil {
 		z.Clear()
 		return nil
@@ -130,7 +130,7 @@ func (z *Uint) scanScientificFromString(src string) error {
 
 // ToString returns the decimal string representation of z. It returns an empty string if z is nil.
 // OBS: doesn't exist from holiman's uint256
-func (z *Uint) ToString() string {
+func (z *Uint) String() string {
 	if z == nil {
 		return ""
 	}

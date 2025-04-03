@@ -110,7 +110,7 @@ func (board *Board) RenderBoard() string {
 	str := ""
 	str += "\\[[post](" + board.GetPostFormURL() + ")]\n\n"
 	if board.threads.Size() > 0 {
-		board.threads.Iterate("", "", func(key string, value interface{}) bool {
+		board.threads.Iterate("", "", func(key string, value any) bool {
 			if str != "" {
 				str += "----------------------------------------\n"
 			}
@@ -135,5 +135,5 @@ func (board *Board) GetURLFromThreadAndReplyID(threadID, replyID PostID) string 
 }
 
 func (board *Board) GetPostFormURL() string {
-	return txlink.URL("CreateThread", "bid", board.id.String())
+	return txlink.Call("CreateThread", "bid", board.id.String())
 }

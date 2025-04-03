@@ -1,8 +1,16 @@
 package gnoweb
 
-// realm aliases
+import (
+	"net/http"
+
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+)
+
+const HomeAlias = "/r/gnoland/home"
+
+// Aliases are gnoweb paths that are rewritten using [AliasAndRedirectMiddleware].
 var Aliases = map[string]string{
-	"/":           "/r/gnoland/home",
+	"/":           HomeAlias,
 	"/about":      "/r/gnoland/pages:p/about",
 	"/gnolang":    "/r/gnoland/pages:p/gnolang",
 	"/ecosystem":  "/r/gnoland/pages:p/ecosystem",
@@ -14,7 +22,7 @@ var Aliases = map[string]string{
 	"/events":     "/r/gnoland/events",
 }
 
-// http redirects
+// Redirect are gnoweb paths that are redirected using [AliasAndRedirectMiddleware].
 var Redirects = map[string]string{
 	"/r/demo/boards:gnolang/6": "/r/demo/boards:gnolang/3", // XXX: temporary
 	"/blog":                    "/r/gnoland/blog",
@@ -23,5 +31,34 @@ var Redirects = map[string]string{
 	"/grants":                  "/partners",
 	"/language":                "/gnolang",
 	"/getting-started":         "/start",
-	"/gophercon24":             "https://docs.gno.land",
+}
+
+// AliasAndRedirectMiddleware redirects all incoming requests whose path matches
+// any of the [Redirects] to the corresponding URL; and rewrites the URL path
+// for incoming requests which match any of the [Aliases].
+func AliasAndRedirectMiddleware(next http.Handler, analytics bool) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check if the request path matches a redirect
+		if newPath, ok := Redirects[r.URL.Path]; ok {
+			http.Redirect(w, r, newPath, http.StatusFound)
+			components.RedirectView(components.RedirectData{
+				To:            newPath,
+				WithAnalytics: analytics,
+			}).Render(w)
+			return
+		}
+
+		// Check if the request path matches an alias
+		if newPath, ok := Aliases[r.URL.Path]; ok {
+			r.URL.Path = newPath
+		}
+
+		// Call the next handler
+		next.ServeHTTP(w, r)
+	})
+}
+
+// IsHomePath checks if the given path is the home path.
+func IsHomePath(path string) bool {
+	return path == "/"
 }

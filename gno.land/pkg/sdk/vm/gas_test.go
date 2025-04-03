@@ -21,13 +21,12 @@ import (
 // Insufficient gas for a successful message.
 
 func TestAddPkgDeliverTxInsuffGas(t *testing.T) {
-	success := true
-	ctx, tx, vmHandler := setupAddPkg(success)
+	isValidTx := true
+	ctx, tx, vmHandler := setupAddPkg(isValidTx)
 
 	ctx = ctx.WithMode(sdk.RunTxModeDeliver)
-	simulate := false
 	tx.Fee.GasWanted = 3000
-	gctx := auth.SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
+	gctx := auth.SetGasMeter(ctx, tx.Fee.GasWanted)
 	// Has to be set up after gas meter in the context; so the stores are
 	// correctly wrapped in gas stores.
 	gctx = vmHandler.vm.MakeGnoTransactionStore(gctx)
@@ -38,7 +37,7 @@ func TestAddPkgDeliverTxInsuffGas(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
-			case store.OutOfGasException:
+			case store.OutOfGasError:
 				res.Error = sdk.ABCIError(std.ErrOutOfGas(""))
 				abort = true
 			default:
@@ -47,7 +46,7 @@ func TestAddPkgDeliverTxInsuffGas(t *testing.T) {
 			assert.True(t, abort)
 			assert.False(t, res.IsOK())
 			gasCheck := gctx.GasMeter().GasConsumed()
-			assert.Equal(t, int64(3231), gasCheck)
+			assert.Equal(t, int64(3462), gasCheck)
 		} else {
 			t.Errorf("should panic")
 		}
@@ -58,15 +57,12 @@ func TestAddPkgDeliverTxInsuffGas(t *testing.T) {
 
 // Enough gas for a successful message.
 func TestAddPkgDeliverTx(t *testing.T) {
-	success := true
-	ctx, tx, vmHandler := setupAddPkg(success)
-
-	var simulate bool
+	isValidTx := true
+	ctx, tx, vmHandler := setupAddPkg(isValidTx)
 
 	ctx = ctx.WithMode(sdk.RunTxModeDeliver)
-	simulate = false
 	tx.Fee.GasWanted = 500000
-	gctx := auth.SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
+	gctx := auth.SetGasMeter(ctx, tx.Fee.GasWanted)
 	gctx = vmHandler.vm.MakeGnoTransactionStore(gctx)
 	msgs := tx.GetMsgs()
 	res := vmHandler.Process(gctx, msgs[0])
@@ -74,41 +70,35 @@ func TestAddPkgDeliverTx(t *testing.T) {
 
 	assert.True(t, res.IsOK())
 
-	// NOTE: let's try to keep this bellow 100_000 :)
-	assert.Equal(t, int64(93825), gasDeliver)
+	// NOTE: let's try to keep this bellow 150_000 :)
+	assert.Equal(t, int64(143845), gasDeliver)
 }
 
 // Enough gas for a failed transaction.
 func TestAddPkgDeliverTxFailed(t *testing.T) {
-	success := false
-	ctx, tx, vmHandler := setupAddPkg(success)
-
-	var simulate bool
+	isValidTx := false
+	ctx, tx, vmHandler := setupAddPkg(isValidTx)
 
 	ctx = ctx.WithMode(sdk.RunTxModeDeliver)
-	simulate = false
 	tx.Fee.GasWanted = 500000
-	gctx := auth.SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
+	gctx := auth.SetGasMeter(ctx, tx.Fee.GasWanted)
 	gctx = vmHandler.vm.MakeGnoTransactionStore(gctx)
 	msgs := tx.GetMsgs()
 	res := vmHandler.Process(gctx, msgs[0])
 	gasDeliver := gctx.GasMeter().GasConsumed()
 
 	assert.False(t, res.IsOK())
-	assert.Equal(t, int64(2231), gasDeliver)
+	assert.Equal(t, int64(1231), gasDeliver)
 }
 
 // Not enough gas for a failed transaction.
 func TestAddPkgDeliverTxFailedNoGas(t *testing.T) {
-	success := false
-	ctx, tx, vmHandler := setupAddPkg(success)
-
-	var simulate bool
+	isValidTx := false
+	ctx, tx, vmHandler := setupAddPkg(isValidTx)
 
 	ctx = ctx.WithMode(sdk.RunTxModeDeliver)
-	simulate = false
-	tx.Fee.GasWanted = 2230
-	gctx := auth.SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
+	tx.Fee.GasWanted = 1230
+	gctx := auth.SetGasMeter(ctx, tx.Fee.GasWanted)
 	gctx = vmHandler.vm.MakeGnoTransactionStore(gctx)
 
 	var res sdk.Result
@@ -117,7 +107,7 @@ func TestAddPkgDeliverTxFailedNoGas(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
-			case store.OutOfGasException:
+			case store.OutOfGasError:
 				res.Error = sdk.ABCIError(std.ErrOutOfGas(""))
 				abort = true
 			default:
@@ -126,7 +116,7 @@ func TestAddPkgDeliverTxFailedNoGas(t *testing.T) {
 			assert.True(t, abort)
 			assert.False(t, res.IsOK())
 			gasCheck := gctx.GasMeter().GasConsumed()
-			assert.Equal(t, int64(2231), gasCheck)
+			assert.Equal(t, int64(1231), gasCheck)
 		} else {
 			t.Errorf("should panic")
 		}
@@ -147,7 +137,7 @@ func setupAddPkg(success bool) (sdk.Context, sdk.Tx, vmHandler) {
 	addr := crypto.AddressFromPreimage([]byte("test1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10000000)))
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10000000)))
 	// success message
 	var files []*gnovm.MemFile
 	if success {

@@ -127,7 +127,7 @@ func TestStateProposerSelection2(t *testing.T) {
 	ensureNewRound(newRoundCh, height, round) // wait for the new round
 
 	// everyone just votes nil. we get a new proposer each round
-	for i := 0; i < len(vss); i++ {
+	for i := range vss {
 		prop := cs1.GetRoundState().Validators.GetProposer()
 		addr := vss[(i+round)%len(vss)].GetPubKey().Address()
 		correctProposer := addr
@@ -1733,7 +1733,7 @@ func TestStateOutputsBlockPartsStats(t *testing.T) {
 
 	// create dummy peer
 	cs, _ := randConsensusState(1)
-	peer := p2pmock.NewPeer(nil)
+	peer := p2pmock.Peer{}
 
 	// 1) new block part
 	parts := types.NewPartSetFromData(random.RandBytes(100), 10)
@@ -1777,7 +1777,7 @@ func TestStateOutputVoteStats(t *testing.T) {
 
 	cs, vss := randConsensusState(2)
 	// create dummy peer
-	peer := p2pmock.NewPeer(nil)
+	peer := p2pmock.Peer{}
 
 	vote := signVote(vss[1], types.PrecommitType, []byte("test"), types.PartSetHeader{})
 

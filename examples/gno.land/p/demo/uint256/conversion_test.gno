@@ -60,7 +60,7 @@ func TestDec(t *testing.T) {
 func TestUint_Scan(t *testing.T) {
 	tests := []struct {
 		name    string
-		input   interface{}
+		input   any
 		want    *Uint
 		wantErr bool
 	}{
@@ -169,7 +169,7 @@ func TestSetBytes(t *testing.T) {
 		z.SetBytes(test.input)
 		expected := MustFromDecimal(test.expected)
 		if z.Cmp(expected) != 0 {
-			t.Errorf("SetBytes(%x) = %s, expected %s", test.input, z.ToString(), test.expected)
+			t.Errorf("SetBytes(%x) = %s, expected %s", test.input, z.String(), test.expected)
 		}
 	}
 }

@@ -30,7 +30,7 @@ func TestBalanceOf(t *testing.T) {
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
 
-	balanceZeroAddressOfToken1, err := dummy.BalanceOf(zeroAddress, tid1)
+	_, err := dummy.BalanceOf(zeroAddress, tid1)
 	uassert.Error(t, err, "should result in error")
 
 	balanceAddr1OfToken1, err := dummy.BalanceOf(addr1, tid1)
@@ -91,7 +91,7 @@ func TestSetApprovalForAll(t *testing.T) {
 	dummy := NewBasicGRC1155Token(dummyURI)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	isApprovedForAll := dummy.IsApprovedForAll(caller, addr)
@@ -114,7 +114,7 @@ func TestSafeTransferFrom(t *testing.T) {
 	dummy := NewBasicGRC1155Token(dummyURI)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	tid := TokenID("1")
@@ -145,7 +145,7 @@ func TestSafeBatchTransferFrom(t *testing.T) {
 	dummy := NewBasicGRC1155Token(dummyURI)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	tid1 := TokenID("1")

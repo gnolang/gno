@@ -17,8 +17,8 @@ var (
 )
 
 func init() {
-	// adminAddr = std.GetOrigCaller() // FIXME: find a way to use this from the main's genesis.
-	adminAddr = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"
+	// adminAddr = std.OriginCaller() // FIXME: find a way to use this from the main's genesis.
+	adminAddr = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
 }
 
 func AdminSetAdminAddr(addr std.Address) {
@@ -43,7 +43,7 @@ func AdminRemoveModerator(addr std.Address) {
 
 func NewPostExecutor(slug, title, body, publicationDate, authors, tags string) dao.Executor {
 	callback := func() error {
-		addPost(std.PrevRealm().Addr(), slug, title, body, publicationDate, authors, tags)
+		addPost(std.PreviousRealm().Address(), slug, title, body, publicationDate, authors, tags)
 
 		return nil
 	}
@@ -53,7 +53,7 @@ func NewPostExecutor(slug, title, body, publicationDate, authors, tags string) d
 
 func ModAddPost(slug, title, body, publicationDate, authors, tags string) {
 	assertIsModerator()
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	addPost(caller, slug, title, body, publicationDate, authors, tags)
 }
 
@@ -120,14 +120,14 @@ func isCommenter(addr std.Address) bool {
 }
 
 func assertIsAdmin() {
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	if !isAdmin(caller) {
 		panic("access restricted.")
 	}
 }
 
 func assertIsModerator() {
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	if isAdmin(caller) || isModerator(caller) {
 		return
 	}
@@ -135,7 +135,7 @@ func assertIsModerator() {
 }
 
 func assertIsCommenter() {
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	if isAdmin(caller) || isModerator(caller) || isCommenter(caller) {
 		return
 	}

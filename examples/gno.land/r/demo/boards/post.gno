@@ -156,7 +156,7 @@ func (post *Post) GetURL() string {
 }
 
 func (post *Post) GetReplyFormURL() string {
-	return txlink.URL("CreateReply",
+	return txlink.Call("CreateReply",
 		"bid", post.board.id.String(),
 		"threadid", post.threadID.String(),
 		"postid", post.id.String(),
@@ -164,14 +164,14 @@ func (post *Post) GetReplyFormURL() string {
 }
 
 func (post *Post) GetRepostFormURL() string {
-	return txlink.URL("CreateRepost",
+	return txlink.Call("CreateRepost",
 		"bid", post.board.id.String(),
 		"postid", post.id.String(),
 	)
 }
 
 func (post *Post) GetDeleteFormURL() string {
-	return txlink.URL("DeletePost",
+	return txlink.Call("DeletePost",
 		"bid", post.board.id.String(),
 		"threadid", post.threadID.String(),
 		"postid", post.id.String(),
@@ -223,7 +223,7 @@ func (post *Post) RenderPost(indent string, levels int) string {
 	str += " \\[[x](" + post.GetDeleteFormURL() + ")]\n"
 	if levels > 0 {
 		if post.replies.Size() > 0 {
-			post.replies.Iterate("", "", func(key string, value interface{}) bool {
+			post.replies.Iterate("", "", func(key string, value any) bool {
 				str += indent + "\n"
 				str += value.(*Post).RenderPost(indent+"> ", levels-1)
 				return false

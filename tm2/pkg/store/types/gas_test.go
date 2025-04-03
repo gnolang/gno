@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/gnolang/overflow"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/stretchr/testify/require"
 )
 
@@ -62,7 +62,7 @@ func TestAddUint64Overflow(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		res, ok := overflow.Add64(tc.a, tc.b)
+		res, ok := overflow.Add(tc.a, tc.b)
 		overflow := !ok
 		require.Equal(
 			t, tc.overflow, overflow,

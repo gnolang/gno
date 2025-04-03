@@ -11,7 +11,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"path/filepath"
+	gopath "path"
 	"strings"
 	"time"
 
@@ -239,7 +239,6 @@ func runLocal(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg br
 	)
 
 	var errgs errgroup.Group
-
 	if cfg.dev {
 		devpoint, err := getDevEndpoint(cfg)
 		if err != nil {
@@ -429,14 +428,14 @@ func getSignerForAccount(io commands.IO, address string, kb keys.Keybase, cfg *b
 	}
 
 	// try empty password first
-	if _, err := kb.ExportPrivKeyUnsafe(address, ""); err != nil {
+	if _, err := kb.ExportPrivKey(address, ""); err != nil {
 		prompt := fmt.Sprintf("[%.10s] Enter password:", address)
 		signer.Password, err = io.GetPassword(prompt, true)
 		if err != nil {
 			return nil, fmt.Errorf("error while reading password: %w", err)
 		}
 
-		if _, err := kb.ExportPrivKeyUnsafe(address, signer.Password); err != nil {
+		if _, err := kb.ExportPrivKey(address, signer.Password); err != nil {
 			return nil, fmt.Errorf("invalid password: %w", err)
 		}
 	}
@@ -453,7 +452,7 @@ func ValidatePathCommandMiddleware(pathPrefix string) wish.Middleware {
 				return
 			case 1: // check for valid path
 				path := cmd[0]
-				if strings.HasPrefix(path, pathPrefix) && filepath.Clean(path) == path {
+				if strings.HasPrefix(path, pathPrefix) && gopath.Clean(path) == path {
 					s.Context().SetValue("path", path)
 					next(s)
 					return

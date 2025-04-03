@@ -7,8 +7,8 @@ import (
 func TestSetAllOne(t *testing.T) {
 	z := Zero()
 	z.SetAllOne()
-	if z.ToString() != twoPow256Sub1 {
-		t.Errorf("Expected all ones, got %s", z.ToString())
+	if z.String() != twoPow256Sub1 {
+		t.Errorf("Expected all ones, got %s", z.String())
 	}
 }
 
@@ -120,8 +120,8 @@ func TestClone(t *testing.T) {
 	for _, tt := range tests {
 		z, _ := FromHex(tt.input)
 		result := z.Clone()
-		if result.ToString() != tt.expected {
-			t.Errorf("Test %s failed. Expected %s, got %s", tt.input, tt.expected, result.ToString())
+		if result.String() != tt.expected {
+			t.Errorf("Test %s failed. Expected %s, got %s", tt.input, tt.expected, result.String())
 		}
 	}
 }

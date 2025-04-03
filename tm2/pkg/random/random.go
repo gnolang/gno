@@ -41,7 +41,7 @@ func NewRand() *Rand {
 func (r *Rand) init() {
 	bz := cRandBytes(8)
 	var seed uint64
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		seed |= uint64(bz[i])
 		seed <<= 8
 	}
@@ -154,7 +154,7 @@ func (r *Rand) Str(length int) string {
 MAIN_LOOP:
 	for {
 		val := r.Int63()
-		for i := 0; i < 10; i++ {
+		for range 10 {
 			v := int(val & 0x3f) // rightmost 6 bits
 			if v >= 62 {         // only 62 characters in strChars
 				val >>= 6
@@ -265,7 +265,7 @@ func (r *Rand) Bytes(n int) []byte {
 	// cRandBytes isn't guaranteed to be fast so instead
 	// use random bytes generated from the internal PRNG
 	bs := make([]byte, n)
-	for i := 0; i < len(bs); i++ {
+	for i := range bs {
 		bs[i] = byte(r.Int() & 0xFF)
 	}
 	return bs

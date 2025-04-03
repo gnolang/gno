@@ -12,7 +12,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/tests"
+	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -32,7 +32,7 @@ func newRunCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "run",
 			ShortUsage: "run [flags] <file> [<file>...]",
-			ShortHelp:  "runs the specified gno files",
+			ShortHelp:  "run gno packages",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -92,12 +92,9 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 	stderr := io.Err()
 
 	// init store and machine
-	testStore := tests.TestStore(cfg.rootDir,
-		"", stdin, stdout, stderr,
-		tests.ImportModeStdlibsPreferred)
-	if cfg.verbose {
-		testStore.SetLogStoreOps(true)
-	}
+	output := test.OutputWithError(stdout, stderr)
+	_, testStore := test.Store(
+		cfg.rootDir, output)
 
 	if len(args) == 0 {
 		args = []string{"."}
@@ -115,10 +112,10 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 
 	var send std.Coins
 	pkgPath := string(files[0].PkgName)
-	ctx := tests.TestContext(pkgPath, send)
+	ctx := test.Context(pkgPath, send)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath: pkgPath,
-		Output:  stdout,
+		Output:  output,
 		Input:   stdin,
 		Store:   testStore,
 		Context: ctx,
@@ -195,10 +192,10 @@ func runExpr(m *gno.Machine, expr string) {
 		if r := recover(); r != nil {
 			switch r := r.(type) {
 			case gno.UnhandledPanicError:
-				fmt.Printf("panic running expression %s: %v\nStacktrace: %s\n",
+				fmt.Printf("panic running expression %s: %v\nStacktrace:\n%s\n",
 					expr, r.Error(), m.ExceptionsStacktrace())
 			default:
-				fmt.Printf("panic running expression %s: %v\nMachine State:%s\nStacktrace: %s\n",
+				fmt.Printf("panic running expression %s: %v\nMachine State:%s\nStacktrace:\n%s\n",
 					expr, r, m.String(), m.Stacktrace().String())
 			}
 			panic(r)

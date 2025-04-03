@@ -155,7 +155,7 @@ func assertComparable2(dt Type) {
 	case PrimitiveType:
 	case *ArrayType:
 		switch baseOf(cdt.Elem()).(type) {
-		case PrimitiveType, *PointerType, *InterfaceType, *NativeType, *ArrayType, *StructType, *ChanType:
+		case PrimitiveType, *PointerType, *InterfaceType, *ArrayType, *StructType, *ChanType:
 			assertComparable2(cdt.Elem())
 		default:
 			panic(fmt.Sprintf("%v is not comparable", dt))
@@ -163,7 +163,7 @@ func assertComparable2(dt Type) {
 	case *StructType:
 		for _, f := range cdt.Fields {
 			switch cft := baseOf(f.Type).(type) {
-			case PrimitiveType, *PointerType, *InterfaceType, *NativeType, *ArrayType, *StructType:
+			case PrimitiveType, *PointerType, *InterfaceType, *ArrayType, *StructType:
 				assertComparable2(cft)
 			default:
 				panic(fmt.Sprintf("%v is not comparable", dt))
@@ -172,26 +172,15 @@ func assertComparable2(dt Type) {
 	case *PointerType: // &a == &b
 	case *InterfaceType:
 	case *SliceType, *FuncType, *MapType:
-	case *NativeType:
-		if !cdt.Type.Comparable() {
-			panic(fmt.Sprintf("%v is not comparable", dt))
-		}
 	default:
 		panic(fmt.Sprintf("%v is not comparable", dt))
 	}
 }
 
 func maybeNil(t Type) bool {
-	switch cxt := baseOf(t).(type) {
+	switch baseOf(t).(type) {
 	case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType, *ChanType: //  we don't have unsafePointer
 		return true
-	case *NativeType:
-		switch nk := cxt.Type.Kind(); nk {
-		case reflect.Slice, reflect.Func, reflect.Map, reflect.Interface, reflect.Pointer:
-			return true
-		default:
-			return false
-		}
 	default:
 		return false
 	}
@@ -208,10 +197,144 @@ func checkSame(at, bt Type, msg string) error {
 	return nil
 }
 
-func assertAssignableTo(xt, dt Type, autoNative bool) {
-	err := checkAssignableTo(xt, dt, autoNative)
+func assertAssignableTo(n Node, xt, dt Type, autoNative bool) {
+	err := checkAssignableTo(n, xt, dt, autoNative)
 	if err != nil {
 		panic(err.Error())
+	}
+}
+
+func assertValidConstExpr(store Store, last BlockNode, n *ValueDecl, expr Expr) {
+	if n.Type != nil {
+		nt := evalStaticType(store, last, n.Type)
+		if _, ok := baseOf(nt).(PrimitiveType); !ok {
+			panic(fmt.Sprintf("invalid constant type %s", nt.String()))
+		}
+	}
+
+	nt := evalStaticTypeOf(store, last, expr)
+
+	if nt == nil {
+		panic(fmt.Sprintf("%s (variable of type nil) is not constant", expr))
+	}
+
+	if _, ok := baseOf(nt).(PrimitiveType); !ok {
+		panic(fmt.Sprintf("%s (variable of type %s) is not constant", expr, nt))
+	}
+
+	assertValidConstValue(store, last, expr)
+}
+
+func assertValidConstValue(store Store, last BlockNode, currExpr Expr) {
+Main:
+	switch currExpr := currExpr.(type) {
+	case *ConstExpr:
+	case *UnaryExpr:
+		// *, & is filter out previously since they are not primitive
+		assertValidConstValue(store, last, currExpr.X)
+	case *TypeAssertExpr:
+		ty := evalStaticTypeOf(store, last, currExpr)
+		if _, ok := ty.(*TypeType); ok {
+			ty = evalStaticType(store, last, currExpr)
+		}
+		panic(fmt.Sprintf("%s (comma, ok expression of type %s) is not constant", currExpr.String(), currExpr.Type))
+	case *CallExpr:
+		ift := evalStaticTypeOf(store, last, currExpr.Func)
+		switch baseOf(ift).(type) {
+		case *FuncType:
+			tup := evalStaticTypeOfRaw(store, last, currExpr).(*tupleType)
+
+			// check for built-in functions
+			if cx, ok := currExpr.Func.(*ConstExpr); ok {
+				if fv, ok := cx.V.(*FuncValue); ok {
+					if fv.PkgPath == uversePkgPath {
+						// TODO: should support min, max, real, imag
+						switch {
+						case fv.Name == "len":
+							at := evalStaticTypeOf(store, last, currExpr.Args[0])
+							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
+								// ok
+								break Main
+							}
+							assertValidConstValue(store, last, currExpr.Args[0])
+							break Main
+						case fv.Name == "cap":
+							at := evalStaticTypeOf(store, last, currExpr.Args[0])
+							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
+								// ok
+								break Main
+							}
+							assertValidConstValue(store, last, currExpr.Args[0])
+							break Main
+						}
+					}
+				}
+			}
+
+			switch {
+			case len(tup.Elts) == 0:
+				panic(fmt.Sprintf("%s (no value) used as value", currExpr.String()))
+			case len(tup.Elts) == 1:
+				panic(fmt.Sprintf("%s (value of type %s) is not constant", currExpr.String(), tup.Elts[0]))
+			default:
+				panic(fmt.Sprintf("multiple-value %s (value of type %s) in single-value context", currExpr.String(), tup.Elts))
+			}
+		case *TypeType:
+			for _, arg := range currExpr.Args {
+				assertValidConstValue(store, last, arg)
+			}
+		default:
+			panic(fmt.Sprintf(
+				"unexpected func type %v (%v)",
+				ift, reflect.TypeOf(ift)))
+		}
+	case *BinaryExpr:
+		assertValidConstValue(store, last, currExpr.Left)
+		assertValidConstValue(store, last, currExpr.Right)
+	case *SelectorExpr:
+		xt := evalStaticTypeOf(store, last, currExpr.X)
+		switch xt := xt.(type) {
+		case *PackageType:
+			var pv *PackageValue
+			if cx, ok := currExpr.X.(*ConstExpr); ok {
+				// NOTE: *Machine.TestMemPackage() needs this
+				// to pass in an imported package as *ConstEzpr.
+				pv = cx.V.(*PackageValue)
+			} else {
+				// otherwise, packages can only be referred to by
+				// *NameExprs, and cannot be copied.
+				pvc := evalConst(store, last, currExpr.X)
+				pv_, ok := pvc.V.(*PackageValue)
+				if !ok {
+					panic(fmt.Sprintf(
+						"missing package in selector expr %s",
+						currExpr.String()))
+				}
+				pv = pv_
+			}
+			if pv.GetBlock(store).Source.GetIsConst(store, currExpr.Sel) {
+				break Main
+			}
+
+			tt := pv.GetBlock(store).Source.GetStaticTypeOf(store, currExpr.Sel)
+			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), tt))
+		case *PointerType, *DeclaredType, *StructType, *InterfaceType, *TypeType:
+			ty := evalStaticTypeOf(store, last, currExpr)
+			if _, ok := ty.(*TypeType); ok {
+				ty = evalStaticType(store, last, currExpr)
+			}
+			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), ty))
+		default:
+			panic(fmt.Sprintf(
+				"unexpected selector expression type %v",
+				reflect.TypeOf(xt)))
+		}
+	default:
+		ift := evalStaticTypeOf(store, last, currExpr)
+		if _, ok := ift.(*TypeType); ok {
+			ift = evalStaticType(store, last, currExpr)
+		}
+		panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), ift))
 	}
 }
 
@@ -282,14 +405,30 @@ func checkValDefineMismatch(n Node) {
 // Assert that xt can be assigned as dt (dest type).
 // If autoNative is true, a broad range of xt can match against
 // a target native dt type, if and only if dt is a native type.
-func checkAssignableTo(xt, dt Type, autoNative bool) error {
+func checkAssignableTo(n Node, xt, dt Type, autoNative bool) error {
 	if debug {
 		debug.Printf("checkAssignableTo, xt: %v dt: %v \n", xt, dt)
 	}
 	// case0
 	if xt == nil { // see test/files/types/eql_0f18
+		if dt == nil || dt.Kind() == InterfaceKind {
+			return nil
+		}
 		if !maybeNil(dt) {
-			panic(fmt.Sprintf("invalid operation, nil can not be compared to %v", dt))
+			switch n := n.(type) {
+			case *ValueDecl:
+				panic(fmt.Sprintf("cannot use nil as %v value in variable declaration", dt))
+			case *AssignStmt:
+				panic(fmt.Sprintf("cannot use nil as %v value in assignment", dt))
+			case *CompositeLitExpr:
+				panic(fmt.Sprintf("cannot use nil as %v value in array, slice literal or map literal", dt))
+			case *CallExpr:
+				panic(fmt.Sprintf("cannot use nil as %v value in argument to %v", dt, n.Func))
+			case *BinaryExpr:
+				panic(fmt.Sprintf("invalid operation: %v (mismatched types %v and untyped nil)", n, dt))
+			default:
+				panic(fmt.Sprintf("cannot use nil as %v value", dt))
+			}
 		}
 		return nil
 	} else if dt == nil { // _ = xxx, assign8.gno, 0f31. else cases?
@@ -311,71 +450,8 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 					dt.String(),
 					err.Error())
 			}
-		} else if ndt, ok := baseOf(dt).(*NativeType); ok {
-			nidt := ndt.Type
-			if nidt.NumMethod() == 0 {
-				// if dt is an empty Go native interface, ditto.
-				return nil // ok
-			} else if nxt, ok := baseOf(xt).(*NativeType); ok {
-				// if xt has native base, do the naive native.
-				if nxt.Type.AssignableTo(nidt) {
-					return nil // ok
-				} else {
-					return errors.New(
-						"cannot use %s as %s",
-						nxt.String(),
-						nidt.String())
-				}
-			} else if pxt, ok := baseOf(xt).(*PointerType); ok {
-				nxt, ok := pxt.Elt.(*NativeType)
-				if !ok {
-					return errors.New(
-						"pointer to non-native type cannot satisfy non-empty native interface; %s doesn't implement %s",
-						pxt.String(),
-						nidt.String())
-				}
-				// if xt has native base, do the naive native.
-				if reflect.PtrTo(nxt.Type).AssignableTo(nidt) {
-					return nil // ok
-				} else {
-					return errors.New(
-						"cannot use %s as %s",
-						pxt.String(),
-						nidt.String())
-				}
-			} else if xdt, ok := xt.(*DeclaredType); ok {
-				if gno2GoTypeMatches(baseOf(xdt), ndt.Type) {
-					return nil
-				} // not check against native interface
-			} else {
-				return errors.New(
-					"unexpected type pair: cannot use %s as %s",
-					xt.String(),
-					dt.String())
-			}
 		} else {
 			return errors.New("should not happen")
-		}
-	}
-
-	// case2
-	// Special case if xt or dt is *PointerType to *NativeType,
-	// convert to *NativeType of pointer kind.
-	if pxt, ok := xt.(*PointerType); ok {
-		// *gonative{x} is gonative{*x}
-		//nolint:misspell
-		if enxt, ok := pxt.Elt.(*NativeType); ok {
-			xt = &NativeType{
-				Type: reflect.PtrTo(enxt.Type),
-			}
-		}
-	}
-	if pdt, ok := dt.(*PointerType); ok {
-		// *gonative{x} is gonative{*x}
-		if endt, ok := pdt.Elt.(*NativeType); ok {
-			dt = &NativeType{
-				Type: reflect.PtrTo(endt.Type),
-			}
 		}
 	}
 
@@ -501,7 +577,7 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 		}
 	case *PointerType: // case 4 from here on
 		if pt, ok := xt.(*PointerType); ok {
-			return checkAssignableTo(pt.Elt, cdt.Elt, false)
+			return checkAssignableTo(n, pt.Elt, cdt.Elt, false)
 		}
 	case *ArrayType:
 		if at, ok := xt.(*ArrayType); ok {
@@ -523,7 +599,7 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 	case *SliceType:
 		if st, ok := xt.(*SliceType); ok {
 			if cdt.Vrd {
-				return checkAssignableTo(st.Elt, cdt.Elt, false)
+				return checkAssignableTo(n, st.Elt, cdt.Elt, false)
 			} else {
 				err := checkSame(st.Elt, cdt.Elt, "")
 				if err != nil {
@@ -553,23 +629,6 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 	case *FuncType, *StructType, *PackageType, *ChanType, *TypeType:
 		if xt.TypeID() == cdt.TypeID() {
 			return nil // ok
-		}
-	case *NativeType:
-		if !autoNative {
-			if debug {
-				debug.Printf("native type, xt.TypeID: %v, cdt.TypeID: %v \n", xt.TypeID(), cdt.TypeID())
-			}
-			if xt.TypeID() == cdt.TypeID() {
-				return nil // ok
-			}
-		} else {
-			// autoNative, so check whether matches.
-			// xt: any type but a *DeclaredType; could be native.
-			// cdt: actual concrete native target type.
-			// ie, if cdt can match against xt.
-			if gno2GoTypeMatches(xt, cdt.Type) {
-				return nil // ok
-			}
 		}
 	default:
 		return errors.New(
@@ -631,7 +690,7 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 		if lt == UntypedBigdecType {
 			// 1.0 << 1
 			if lic && ric {
-				convertConst(store, last, lcx, UntypedBigintType)
+				convertConst(store, last, x, lcx, UntypedBigintType)
 				return
 			}
 		}
@@ -662,28 +721,6 @@ func (x *BinaryExpr) assertShiftExprCompatible2(t Type) {
 // Overall,it efficiently filters out incompatible expressions, stopping before the next
 // checkOrConvertType() operation to optimize performance.
 func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
-	// native type will be converted to gno in latter logic,
-	// this check logic will be conduct again from trans_leave *BinaryExpr.
-	lnt, lin := lt.(*NativeType)
-	rnt, rin := rt.(*NativeType)
-	if lin && rin {
-		if lt.TypeID() != rt.TypeID() {
-			panic(fmt.Sprintf(
-				"incompatible operands in binary expression: %s %s %s",
-				lt.TypeID(), x.Op, rt.TypeID()))
-		}
-	}
-	if lin {
-		if _, ok := go2GnoBaseType(lnt.Type).(PrimitiveType); ok {
-			return
-		}
-	}
-	if rin {
-		if _, ok := go2GnoBaseType(rnt.Type).(PrimitiveType); ok {
-			return
-		}
-	}
-
 	xt, dt := lt, rt
 	if shouldSwapOnSpecificity(lt, rt) {
 		xt, dt = dt, xt
@@ -694,11 +731,11 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 		case EQL, NEQ:
 			assertComparable(xt, dt)
 			if !isUntyped(xt) && !isUntyped(dt) {
-				assertAssignableTo(xt, dt, false)
+				assertAssignableTo(x, xt, dt, false)
 			}
 		case LSS, LEQ, GTR, GEQ:
 			if checker, ok := binaryChecker[x.Op]; ok {
-				x.checkCompatibility(xt, dt, checker, x.Op.TokenString())
+				x.checkCompatibility(x, xt, dt, checker, x.Op.TokenString())
 			} else {
 				panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 			}
@@ -707,7 +744,7 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 		}
 	} else {
 		if checker, ok := binaryChecker[x.Op]; ok {
-			x.checkCompatibility(xt, dt, checker, x.Op.TokenString())
+			x.checkCompatibility(x, xt, dt, checker, x.Op.TokenString())
 		} else {
 			panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 		}
@@ -735,14 +772,14 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 // The function checkOrConvertType will be invoked after this check.
 // NOTE: dt is established based on a specificity check between xt and dt,
 // confirming dt as the appropriate destination type for this context.
-func (x *BinaryExpr) checkCompatibility(xt, dt Type, checker func(t Type) bool, OpStr string) {
+func (x *BinaryExpr) checkCompatibility(n Node, xt, dt Type, checker func(t Type) bool, OpStr string) {
 	if !checker(dt) {
 		panic(fmt.Sprintf("operator %s not defined on: %v", OpStr, kindString(dt)))
 	}
 
 	// if both typed
 	if !isUntyped(xt) && !isUntyped(dt) {
-		err := checkAssignableTo(xt, dt, false)
+		err := checkAssignableTo(n, xt, dt, false)
 		if err != nil {
 			panic(fmt.Sprintf("invalid operation: mismatched types %v and %v", xt, dt))
 		}
@@ -750,11 +787,6 @@ func (x *BinaryExpr) checkCompatibility(xt, dt Type, checker func(t Type) bool, 
 }
 
 func (x *UnaryExpr) AssertCompatible(t Type) {
-	if nt, ok := t.(*NativeType); ok {
-		if _, ok := go2GnoBaseType(nt.Type).(PrimitiveType); ok {
-			return
-		}
-	}
 	// check compatible
 	if checker, ok := unaryChecker[x.Op]; ok {
 		if !checker(t) {
@@ -766,11 +798,6 @@ func (x *UnaryExpr) AssertCompatible(t Type) {
 }
 
 func (x *IncDecStmt) AssertCompatible(t Type) {
-	if nt, ok := t.(*NativeType); ok {
-		if _, ok := go2GnoBaseType(nt.Type).(PrimitiveType); ok {
-			return
-		}
-	}
 	// check compatible
 	if checker, ok := IncDecStmtChecker[x.Op]; ok {
 		if !checker(t) {
@@ -807,19 +834,19 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	xt := evalStaticTypeOf(store, last, x.X)
 	switch cxt := xt.(type) {
 	case *MapType:
-		assertAssignableTo(cxt.Key, kt, false)
+		assertAssignableTo(x, cxt.Key, kt, false)
 		if vt != nil {
-			assertAssignableTo(cxt.Value, vt, false)
+			assertAssignableTo(x, cxt.Value, vt, false)
 		}
 	case *SliceType:
 		assertIndexTypeIsInt(kt)
 		if vt != nil {
-			assertAssignableTo(cxt.Elt, vt, false)
+			assertAssignableTo(x, cxt.Elt, vt, false)
 		}
 	case *ArrayType:
 		assertIndexTypeIsInt(kt)
 		if vt != nil {
-			assertAssignableTo(cxt.Elt, vt, false)
+			assertAssignableTo(x, cxt.Elt, vt, false)
 		}
 	case PrimitiveType:
 		if cxt.Kind() == StringKind {
@@ -837,6 +864,7 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 
 func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 	if x.Op == ASSIGN || x.Op == DEFINE {
+		assertValidAssignRhs(store, last, x)
 		if len(x.Lhs) > len(x.Rhs) {
 			if len(x.Rhs) != 1 {
 				panic(fmt.Sprintf("assignment mismatch: %d variables but %d values", len(x.Lhs), len(x.Rhs)))
@@ -858,7 +886,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 						assertValidAssignLhs(store, last, lx)
 						if !isBlankIdentifier(lx) {
 							lxt := evalStaticTypeOf(store, last, lx)
-							assertAssignableTo(cft.Results[i].Type, lxt, false)
+							assertAssignableTo(x, cft.Results[i].Type, lxt, false)
 						}
 					}
 				}
@@ -873,7 +901,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					if !isBlankIdentifier(x.Lhs[0]) { // see composite3.gno
 						dt := evalStaticTypeOf(store, last, x.Lhs[0])
 						ift := evalStaticTypeOf(store, last, cx)
-						assertAssignableTo(ift, dt, false)
+						assertAssignableTo(x, ift, dt, false)
 					}
 					// check second value
 					assertValidAssignLhs(store, last, x.Lhs[1])
@@ -896,12 +924,12 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 						if _, ok := cx.X.(*NameExpr); ok {
 							rt := evalStaticTypeOf(store, last, cx.X)
 							if mt, ok := rt.(*MapType); ok {
-								assertAssignableTo(mt.Value, lt, false)
+								assertAssignableTo(x, mt.Value, lt, false)
 							}
 						} else if _, ok := cx.X.(*CompositeLitExpr); ok {
 							cpt := evalStaticTypeOf(store, last, cx.X)
 							if mt, ok := cpt.(*MapType); ok {
-								assertAssignableTo(mt.Value, lt, false)
+								assertAssignableTo(x, mt.Value, lt, false)
 							} else {
 								panic("should not happen")
 							}
@@ -994,6 +1022,48 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 	}
 	if shouldPanic {
 		panic(fmt.Sprintf("cannot assign to %v", lx))
+	}
+}
+
+func assertValidAssignRhs(store Store, last BlockNode, n Node) {
+	var exps []Expr
+	switch x := n.(type) {
+	case *ValueDecl:
+		exps = x.Values
+	case *AssignStmt:
+		exps = x.Rhs
+	default:
+		panic(fmt.Sprintf("unexpected node type %T", n))
+	}
+
+	for _, exp := range exps {
+		tt := evalStaticTypeOfRaw(store, last, exp)
+		if tt == nil {
+			switch x := n.(type) {
+			case *ValueDecl:
+				if x.Type != nil {
+					continue
+				}
+				panic("use of untyped nil in variable declaration")
+			case *AssignStmt:
+				if x.Op != DEFINE {
+					continue
+				}
+				panic("use of untyped nil in assignment")
+			}
+		}
+		if _, ok := tt.(*TypeType); ok {
+			tt = evalStaticType(store, last, exp)
+			panic(fmt.Sprintf("%s (type) is not an expression", tt.String()))
+		}
+
+		// Ensures that function used in ValueDecl or AssignStmt must return at least 1 value.
+		if cx, ok := exp.(*CallExpr); ok {
+			tType, ok := tt.(*tupleType)
+			if ok && len(tType.Elts) == 0 {
+				panic(fmt.Sprintf("%s (no value) used as value", cx.Func.String()))
+			}
+		}
 	}
 }
 

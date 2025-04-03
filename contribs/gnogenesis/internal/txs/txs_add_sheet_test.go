@@ -21,25 +21,27 @@ import (
 )
 
 // generateDummyTxs generates dummy transactions
-func generateDummyTxs(t *testing.T, count int) []std.Tx {
+func generateDummyTxs(t *testing.T, count int) []gnoland.TxWithMetadata {
 	t.Helper()
 
-	txs := make([]std.Tx, count)
+	txs := make([]gnoland.TxWithMetadata, count)
 
 	for i := 0; i < count; i++ {
-		txs[i] = std.Tx{
-			Msgs: []std.Msg{
-				bank.MsgSend{
-					FromAddress: crypto.Address{byte(i)},
-					ToAddress:   crypto.Address{byte((i + 1) % count)},
-					Amount:      std.NewCoins(std.NewCoin(ugnot.Denom, 1)),
+		txs[i] = gnoland.TxWithMetadata{
+			Tx: std.Tx{
+				Msgs: []std.Msg{
+					bank.MsgSend{
+						FromAddress: crypto.Address{byte(i)},
+						ToAddress:   crypto.Address{byte((i + 1) % count)},
+						Amount:      std.NewCoins(std.NewCoin(ugnot.Denom, 1)),
+					},
 				},
+				Fee: std.Fee{
+					GasWanted: 1,
+					GasFee:    std.NewCoin(ugnot.Denom, 1000000),
+				},
+				Memo: fmt.Sprintf("tx %d", i),
 			},
-			Fee: std.Fee{
-				GasWanted: 1,
-				GasFee:    std.NewCoin(ugnot.Denom, 1000000),
-			},
-			Memo: fmt.Sprintf("tx %d", i),
 		}
 	}
 
@@ -47,7 +49,7 @@ func generateDummyTxs(t *testing.T, count int) []std.Tx {
 }
 
 // encodeDummyTxs encodes the transactions into amino JSON
-func encodeDummyTxs(t *testing.T, txs []std.Tx) []string {
+func encodeDummyTxs(t *testing.T, txs []gnoland.TxWithMetadata) []string {
 	t.Helper()
 
 	encodedTxs := make([]string, 0, len(txs))
@@ -104,8 +106,7 @@ func TestGenesis_Txs_Add_Sheets(t *testing.T) {
 		}
 
 		// Run the command
-		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, errInvalidTxsFile.Error())
+		assert.Error(t, cmd.ParseAndRun(context.Background(), args))
 	})
 
 	t.Run("no txs file", func(t *testing.T) {

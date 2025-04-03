@@ -24,9 +24,9 @@ func main() {
 
 	r.foo()
 
-	fmt.Printf("%T \n", r) // TODO: should output main.U64 rather than the underlying type
+	fmt.Printf("%T\n", r) // TODO: should output main.U64 rather than the underlying type
 }
 
 // Output:
 // bar
-// uint64
+// main.U64

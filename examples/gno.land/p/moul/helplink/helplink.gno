@@ -15,12 +15,13 @@
 package helplink
 
 import (
+	"std"
 	"strings"
 
 	"gno.land/p/moul/txlink"
 )
 
-const chainDomain = "gno.land" // XXX: std.ChainDomain (#2911)
+var chainDomain = std.ChainDomain()
 
 // Func returns a markdown link for the specific function with optional
 // key-value arguments, for the current realm.
@@ -51,7 +52,7 @@ func (r Realm) prefix() string {
 
 	// local realm -> /realm
 	realm := string(r)
-	if strings.Contains(realm, chainDomain) {
+	if strings.HasPrefix(realm, chainDomain) {
 		return strings.TrimPrefix(realm, chainDomain)
 	}
 
@@ -70,10 +71,10 @@ func (r Realm) Func(title string, fn string, args ...string) string {
 // arguments.
 func (r Realm) FuncURL(fn string, args ...string) string {
 	tlr := txlink.Realm(r)
-	return tlr.URL(fn, args...)
+	return tlr.Call(fn, args...)
 }
 
 // Home returns the base help URL for the specified realm.
 func (r Realm) Home() string {
-	return r.prefix() + "?help"
+	return r.prefix() + "$help"
 }

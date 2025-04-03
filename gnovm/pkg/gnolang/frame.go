@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"math"
 	"strings"
 )
 
@@ -22,7 +23,6 @@ type Frame struct {
 
 	// call frame
 	Func        *FuncValue    // function value
-	GoFunc      *NativeValue  // go function value
 	Receiver    TypedValue    // if bound method
 	NumArgs     int           // number of arguments in call
 	IsVarg      bool          // is form fncall(???, vargs...)
@@ -46,16 +46,6 @@ func (fr Frame) String() string {
 			fr.NumBlocks,
 			fr.LastPackage.PkgPath,
 			fr.LastRealm)
-	} else if fr.GoFunc != nil {
-		return fmt.Sprintf("[FRAME GOFUNC:%v RECV:%s (%d args) %d/%d/%d/%d/%d]",
-			fr.GoFunc.Value,
-			fr.Receiver,
-			fr.NumArgs,
-			fr.NumOps,
-			fr.NumValues,
-			fr.NumExprs,
-			fr.NumStmts,
-			fr.NumBlocks)
 	} else {
 		return fmt.Sprintf("[FRAME LABEL: %s %d/%d/%d/%d/%d]",
 			fr.Label,
@@ -68,7 +58,7 @@ func (fr Frame) String() string {
 }
 
 func (fr *Frame) IsCall() bool {
-	return fr.Func != nil || fr.GoFunc != nil
+	return fr.Func != nil
 }
 
 func (fr *Frame) PushDefer(dfr Defer) {
@@ -89,7 +79,6 @@ func (fr *Frame) PopDefer() (res Defer, ok bool) {
 
 type Defer struct {
 	Func   *FuncValue   // function value
-	GoFunc *NativeValue // go function value
 	Args   []TypedValue // arguments
 	Source *DeferStmt   // source
 	Parent *Block
@@ -101,23 +90,28 @@ type Defer struct {
 }
 
 type StacktraceCall struct {
-	Stmt  Stmt
 	Frame *Frame
 }
 type Stacktrace struct {
 	Calls           []StacktraceCall
 	NumFramesElided int
+	LastLine        int
 }
 
 func (s Stacktrace) String() string {
 	var builder strings.Builder
 
-	for i := 0; i < len(s.Calls); i++ {
+	for i, call := range s.Calls {
 		if s.NumFramesElided > 0 && i == maxStacktraceSize/2 {
 			fmt.Fprintf(&builder, "...%d frame(s) elided...\n", s.NumFramesElided)
 		}
+		var line int
+		if i == 0 {
+			line = s.LastLine
+		} else {
+			line = s.Calls[i-1].Frame.Source.GetLine()
+		}
 
-		call := s.Calls[i]
 		cx := call.Frame.Source.(*CallExpr)
 		switch {
 		case call.Frame.Func != nil && call.Frame.Func.IsNative():
@@ -125,10 +119,7 @@ func (s Stacktrace) String() string {
 			fmt.Fprintf(&builder, "    gonative:%s.%s\n", call.Frame.Func.NativePkg, call.Frame.Func.NativeName)
 		case call.Frame.Func != nil:
 			fmt.Fprintf(&builder, "%s\n", toExprTrace(cx))
-			fmt.Fprintf(&builder, "    %s/%s:%d\n", call.Frame.Func.PkgPath, call.Frame.Func.FileName, call.Stmt.GetLine())
-		case call.Frame.GoFunc != nil:
-			fmt.Fprintf(&builder, "%s\n", toExprTrace(cx))
-			fmt.Fprintf(&builder, "    gofunction:%s\n", call.Frame.GoFunc.Value.Type())
+			fmt.Fprintf(&builder, "    %s/%s:%d\n", call.Frame.Func.PkgPath, call.Frame.Func.FileName, line)
 		default:
 			panic("StacktraceCall has a non-call Frame")
 		}
@@ -207,11 +198,38 @@ func toConstExpTrace(cte *ConstExpr) string {
 		case Uint64Type:
 			return fmt.Sprintf("%d", tv.GetUint64())
 		case Float32Type:
-			return fmt.Sprintf("%v", tv.GetFloat32())
+			return fmt.Sprintf("%v", math.Float32frombits(tv.GetFloat32()))
 		case Float64Type:
-			return fmt.Sprintf("%v", tv.GetFloat64())
+			return fmt.Sprintf("%v", math.Float64frombits(tv.GetFloat64()))
 		}
 	}
 
 	return tv.T.String()
+}
+
+//----------------------------------------
+// Exception
+
+// Exception represents a panic that originates from a gno program.
+type Exception struct {
+	// Value is the value passed to panic.
+	Value TypedValue
+	// Frame is used to reference the frame a panic occurred in so that recover() knows if the
+	// currently executing deferred function is able to recover from the panic.
+	Frame *Frame
+
+	Stacktrace Stacktrace
+}
+
+func (e Exception) Sprint(m *Machine) string {
+	return e.Value.Sprint(m)
+}
+
+// UnhandledPanicError represents an error thrown when a panic is not handled in the realm.
+type UnhandledPanicError struct {
+	Descriptor string // Description of the unhandled panic.
+}
+
+func (e UnhandledPanicError) Error() string {
+	return e.Descriptor
 }

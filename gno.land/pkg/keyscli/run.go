@@ -92,7 +92,7 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 			return fmt.Errorf("could not read source path: %q, %w", sourcePath, err)
 		}
 		if info.IsDir() {
-			memPkg = gno.ReadMemPackage(sourcePath, "")
+			memPkg = gno.MustReadMemPackage(sourcePath, "")
 		} else { // is file
 			b, err := os.ReadFile(sourcePath)
 			if err != nil {
@@ -106,11 +106,12 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 			}
 		}
 	}
+
+	memPkg.Name = "main"
 	if memPkg.IsEmpty() {
 		panic(fmt.Sprintf("found an empty package %q", memPkg.Path))
 	}
 
-	memPkg.Name = "main"
 	// Set to empty; this will be automatically set by the VM keeper.
 	memPkg.Path = ""
 

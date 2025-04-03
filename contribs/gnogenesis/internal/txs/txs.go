@@ -8,7 +8,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type txsCfg struct {
@@ -47,7 +46,7 @@ func (c *txsCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 // appendGenesisTxs saves the given transactions to the genesis doc
-func appendGenesisTxs(genesis *types.GenesisDoc, txs []std.Tx) error {
+func appendGenesisTxs(genesis *types.GenesisDoc, txs []gnoland.TxWithMetadata) error {
 	// Initialize the app state if it's not present
 	if genesis.AppState == nil {
 		genesis.AppState = gnoland.GnoGenesisState{}
@@ -77,7 +76,7 @@ func appendGenesisTxs(genesis *types.GenesisDoc, txs []std.Tx) error {
 }
 
 // txStore is a wrapper for TM2 transactions
-type txStore []std.Tx
+type txStore []gnoland.TxWithMetadata
 
 // leftMerge merges the two tx stores, with
 // preference to the left
@@ -86,7 +85,7 @@ func (i *txStore) leftMerge(b txStore) error {
 	txHashMap := make(map[string]struct{}, len(*i))
 
 	for _, tx := range *i {
-		txHash, err := getTxHash(tx)
+		txHash, err := getTxHash(tx.Tx)
 		if err != nil {
 			return err
 		}
@@ -95,7 +94,7 @@ func (i *txStore) leftMerge(b txStore) error {
 	}
 
 	for _, tx := range b {
-		txHash, err := getTxHash(tx)
+		txHash, err := getTxHash(tx.Tx)
 		if err != nil {
 			return err
 		}

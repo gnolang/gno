@@ -353,11 +353,6 @@ func TestInitChainer(t *testing.T) {
 		Data: key,
 	}
 
-	// initChainer is nil - nothing happens
-	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
-	res := app.Query(query)
-	require.Equal(t, 0, len(res.Value))
-
 	// set initChainer and try again - should see the value
 	app.SetInitChainer(initChainer)
 
@@ -365,6 +360,11 @@ func TestInitChainer(t *testing.T) {
 	err := app.LoadLatestVersion() // needed to make stores non-nil
 	require.Nil(t, err)
 	require.Equal(t, int64(0), app.LastBlockHeight())
+
+	// initChainer is nil - nothing happens
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+	res := app.Query(query)
+	require.Equal(t, 0, len(res.Value))
 
 	app.InitChain(abci.RequestInitChain{AppState: nil, ChainID: "test-chain-id"}) // must have valid JSON genesis file, even if empty
 
@@ -447,7 +447,7 @@ func anteHandlerTxTest(t *testing.T, capKey store.StoreKey, storeKey []byte) Ant
 	t.Helper()
 
 	return func(ctx Context, tx std.Tx, simulate bool) (newCtx Context, res Result, abort bool) {
-		store := ctx.Store(capKey)
+		store := ctx.GasStore(capKey)
 		if getFailOnAnte(tx) {
 			res.Error = ABCIError(std.ErrInternal("ante handler failure"))
 			return newCtx, res, true
@@ -614,11 +614,11 @@ func TestDeliverTx(t *testing.T) {
 	nBlocks := 3
 	txPerHeight := 5
 
-	for blockN := 0; blockN < nBlocks; blockN++ {
+	for blockN := range nBlocks {
 		header := &bft.Header{ChainID: "test-chain", Height: int64(blockN) + 1}
 		app.BeginBlock(abci.RequestBeginBlock{Header: header})
 
-		for i := 0; i < txPerHeight; i++ {
+		for i := range txPerHeight {
 			counter := int64(blockN*txPerHeight + i)
 			tx := newTxCounter(counter, counter)
 
@@ -632,6 +632,38 @@ func TestDeliverTx(t *testing.T) {
 		app.EndBlock(abci.RequestEndBlock{})
 		app.Commit()
 	}
+}
+
+// Test that the gas used between Simulate and DeliverTx is the same.
+func TestGasUsedBetweenSimulateAndDeliver(t *testing.T) {
+	t.Parallel()
+
+	anteKey := []byte("ante-key")
+	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, anteKey)) }
+
+	deliverKey := []byte("deliver-key")
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newMsgCounterHandler(t, mainKey, deliverKey))
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	header := &bft.Header{ChainID: "test-chain", Height: 1}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+
+	tx := newTxCounter(0, 0)
+	txBytes, err := amino.Marshal(tx)
+	require.Nil(t, err)
+
+	simulateRes := app.Simulate(txBytes, tx)
+	require.True(t, simulateRes.IsOK(), fmt.Sprintf("%v", simulateRes))
+	require.Greater(t, simulateRes.GasUsed, int64(0)) // gas used should be greater than 0
+
+	deliverRes := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+	require.True(t, deliverRes.IsOK(), fmt.Sprintf("%v", deliverRes))
+
+	require.Equal(t, simulateRes.GasUsed, deliverRes.GasUsed) // gas used should be the same from simulate and deliver
 }
 
 // One call to DeliverTx should process all the messages, in order.
@@ -725,7 +757,7 @@ func TestSimulateTx(t *testing.T) {
 	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
 
 	nBlocks := 3
-	for blockN := 0; blockN < nBlocks; blockN++ {
+	for blockN := range nBlocks {
 		count := int64(blockN + 1)
 		header := &bft.Header{ChainID: "test-chain", Height: count}
 		app.BeginBlock(abci.RequestBeginBlock{Header: header})
@@ -753,7 +785,7 @@ func TestSimulateTx(t *testing.T) {
 		require.True(t, queryResult.IsOK(), queryResult.Log)
 
 		var res Result
-		amino.MustUnmarshal(queryResult.Value, &res)
+		require.NoError(t, amino.Unmarshal(queryResult.Value, &res))
 		require.Nil(t, err, "Result unmarshalling failed")
 		require.True(t, res.IsOK(), res.Log)
 		require.Equal(t, gasConsumed, res.GasUsed, res.Log)
@@ -981,7 +1013,7 @@ func TestMaxBlockGasLimits(t *testing.T) {
 		app.BeginBlock(abci.RequestBeginBlock{Header: header})
 
 		// execute the transaction multiple times
-		for j := 0; j < tc.numDelivers; j++ {
+		for j := range tc.numDelivers {
 			res := app.Deliver(tx)
 
 			ctx := app.getState(RunTxModeDeliver).ctx
