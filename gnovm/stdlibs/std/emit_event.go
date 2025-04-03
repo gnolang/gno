@@ -5,6 +5,7 @@ package std
 
 import (
 	"errors"
+
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 

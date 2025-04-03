@@ -191,7 +191,6 @@ func (m *Machine) doOpCallNativeBody() {
 
 // Assumes that result values are pushed onto the Values stack.
 func (m *Machine) doOpReturn() {
-	m.Println("---doOpReturn---")
 	cfr := m.PopUntilLastCallFrame()
 	// See if we are exiting a realm boundary.
 	// NOTE: there are other ways to implement realm boundary transitions,
@@ -223,7 +222,6 @@ func (m *Machine) doOpReturn() {
 // Like doOpReturn, but with results from the block;
 // i.e. named result vars declared in func signatures.
 func (m *Machine) doOpReturnFromBlock() {
-	m.Println("---doOpReturnFromBlock---")
 	// Copy results from block.
 	cfr := m.PopUntilLastCallFrame()
 	ft := cfr.Func.GetType(m.Store)
@@ -260,7 +258,6 @@ func (m *Machine) doOpReturnFromBlock() {
 // deferred statements can refer to results with name
 // expressions.
 func (m *Machine) doOpReturnToBlock() {
-	m.Println("---doOpReturnToBlock---")
 	cfr := m.MustLastCallFrame(1)
 	ft := cfr.Func.GetType(m.Store)
 	numParams := len(ft.Params)
@@ -278,10 +275,7 @@ func (m *Machine) doOpReturnCallDefers() {
 	dfr, ok := cfr.PopDefer()
 	if !ok {
 		// Done with defers.
-		//fmt.Println("---m.Recovered: ", m.hasNoUnrecovered())
-
 		m.ForcePopOp() // force pop sticky
-
 		// not in panic. no pop
 		// and wait for return.
 		if m.hasNoUnrecovered() {
@@ -291,17 +285,13 @@ func (m *Machine) doOpReturnCallDefers() {
 			if slices.Contains(exceptionFrames, cfr) {
 				// In a state of panic (not return).
 				// Pop the containing function frame.
-				m.Println("---pop frame...")
 				m.PopFrame()
-				m.Println("---after pop frame: ", m.Frames)
 			}
 		}
 
-		m.Println("---done with defers...")
 		return
 	}
 
-	m.Println("---exec defers...")
 	// Push onto value stack: function, receiver, arguments.
 	if dfr.Func != nil {
 		fv := dfr.Func
@@ -369,7 +359,6 @@ func (m *Machine) doOpDefer() {
 }
 
 func (m *Machine) doOpPanic1() {
-	m.Println("doOpPanic1")
 	// Pop exception
 	var ex TypedValue = m.PopValue().Copy(m.Alloc)
 	// Panic
@@ -377,15 +366,10 @@ func (m *Machine) doOpPanic1() {
 }
 
 func (m *Machine) doOpPanic2() {
-	m.Println("---doOpPanic2")
-
 	if m.hasNoUnrecovered() {
-		//fmt.Println("---all exceptions recovered..., or no exceptions...")
 		m.Exceptions = nil
 		// Recovered from panic
 		m.PushOp(OpReturnFromBlock)
-		// XXX, is this always necessary?
-		//m.PushOp(OpReturnCallDefers) // sticky
 		return
 	} else {
 		// Keep panicking
@@ -406,15 +390,11 @@ func (m *Machine) doOpPanic2() {
 				}
 			}
 
-			//fmt.Println("---unhandled panic: ", bld.String())
-
 			panic(UnhandledPanicError{
 				Descriptor: bld.String(),
 			})
 		}
-		m.Println("---next panic2.............")
 		m.PushOp(OpPanic2)
-
 		m.PushOp(OpReturnCallDefers) // XXX rename, not return?
 	}
 }

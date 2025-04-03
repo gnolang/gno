@@ -2046,19 +2046,9 @@ func (m *Machine) CheckEmpty() error {
 }
 
 func (m *Machine) Panic(ex TypedValue) {
-	//fmt.Println("---m Panic, ex: ", ex, reflect.TypeOf(ex.V), ex.T)
-	//defer func() {
-	//	fmt.Println("---done m.Panic...")
-	//}()
-
 	// Skip the last frame, as it's the one of the panic() (or native)
 	// function call.
-	// panicFrames := slices.Clone(m.Frames[:len(m.Frames)-1])
 	panicFrames := slices.Clone(m.Frames[:])
-	for i, frame := range m.Frames {
-		m.Printf("frames[%d] is : %v\n", i, frame)
-	}
-
 	m.Println("---panicFrames: ", panicFrames)
 
 	m.Exceptions = append(
@@ -2069,7 +2059,7 @@ func (m *Machine) Panic(ex TypedValue) {
 			Stacktrace: m.Stacktrace(),
 		},
 	)
-	//fmt.Println("---m.Exceptions: ", m.Exceptions)
+	// fmt.Println("---m.Exceptions: ", m.Exceptions)
 
 	m.PopUntilLastCallFrame()
 	m.PushOp(OpPanic2)
@@ -2080,44 +2070,30 @@ func (m *Machine) Panic(ex TypedValue) {
 // GnoVM. It returns nil if there was no exception to be recovered, otherwise
 // it returns the [Exception], which also contains the value passed into panic().
 func (m *Machine) Recover() *Exception {
-	//fmt.Println("---m.recovering...")
 	if len(m.Exceptions) == 0 {
 		return nil
 	}
 
 	exception := &m.Exceptions[len(m.Exceptions)-1]
 
-	//fmt.Println("----exception: ", exception)
-
 	if exception == nil {
 		return nil
 	}
-
-	//fmt.Println("---exception... panic frames: ", exception.Frames)
-	//fmt.Println("---exception.Recovered: ", exception.Recovered)
-
-	//for i, frame := range m.Frames {
-	//	fmt.Printf("frames[%d] is : %v\n", i, frame)
-	//}
 
 	// the first call frame is recover,
 	// the second is deferred func lit,
 	// the third is the frame where panic happens.
 	exframe := m.LastCallFrame(3)
 
-	//fmt.Println("---target frame: ", exframe)
-
 	if exframe == nil {
 		return nil
 	}
 
 	if !slices.Contains(exception.Frames, exframe) {
-		//fmt.Println("---not contained, return nil")
 		return nil
 	}
 
 	if isUntyped(exception.Value.T) {
-		//fmt.Println("---untyped...")
 		ConvertUntypedTo(&exception.Value, nil)
 	}
 
@@ -2125,9 +2101,7 @@ func (m *Machine) Recover() *Exception {
 		return nil
 	}
 
-	// XXX
-	//exception.Recovered = true
-
+	exception.Recovered = true
 	return exception
 }
 

@@ -20,12 +20,9 @@ func X_matchString(pat, str string) (bool, string) {
 }
 
 func X_recoverWithStacktrace(m *gnolang.Machine) (gnolang.TypedValue, string) {
-	//fmt.Println("---native, recover with stacktrace...")
 	exception := m.Recover()
-	//fmt.Println("recovered from panic:", exception)
 	if exception == nil {
 		return gnolang.TypedValue{}, ""
 	}
-	exception.Recovered = true
 	return exception.Value, exception.Stacktrace.String()
 }
