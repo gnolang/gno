@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"time"
 
@@ -12,10 +13,10 @@ import (
 )
 
 type githubCfg struct {
-	rootCfg        *serveCfg
-	ghClientID     string
-	maxBalance     int64
-	cooldownPeriod time.Duration
+	rootCfg           *serveCfg
+	ghClientID        string
+	maxClaimableLimit int64
+	cooldownPeriod    time.Duration
 }
 
 func (c *githubCfg) RegisterFlags(fs *flag.FlagSet) {
@@ -31,6 +32,13 @@ func (c *githubCfg) RegisterFlags(fs *flag.FlagSet) {
 		"cooldown-period",
 		24*time.Hour,
 		"minimum required time between consecutive faucet claims by the same user",
+	)
+
+	fs.Int64Var(
+		&c.maxClaimableLimit,
+		"max-claimable-limit",
+		math.MaxInt64,
+		"maximum number of tokens a single user can claim over their lifetime",
 	)
 }
 
@@ -76,7 +84,7 @@ func execGithub(ctx context.Context, cfg *githubCfg, io commands.IO) error {
 	}
 
 	// Create cooldown limiter
-	cooldownLimiter := NewCooldownLimiter(cfg.cooldownPeriod, rdb)
+	cooldownLimiter := NewCooldownLimiter(cfg.cooldownPeriod, rdb, cfg.maxClaimableLimit)
 
 	return serveFaucet(ctx, cfg.rootCfg, io, getGithubMiddleware(cfg.ghClientID, clientSecret, cooldownLimiter))
 }

@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -25,25 +28,11 @@ func mockExchangeCodeForToken(ctx context.Context, secret, clientID, code string
 func TestGitHubMiddleware(t *testing.T) {
 	cooldown := 2 * time.Minute
 	exchangeCodeForUser = mockExchangeCodeForToken
-	t.Run("Midleware without credentials", func(t *testing.T) {
-		middleware := getGithubMiddleware("", "", getCooldownLimiter(t, cooldown))
-		// Test missing clientID and secret, middleware does nothing
-		req := httptest.NewRequest("GET", "http://localhost", nil)
-		rec := httptest.NewRecorder()
-
-		handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		}))
-
-		handler.ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Errorf("Expected status OK, got %d", rec.Code)
-		}
-	})
+	var tenGnots int64 = 10000000
+	claimBody := fmt.Sprintf(`{"amount": %d}`, tenGnots)
 	t.Run("request without code", func(t *testing.T) {
-		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown))
-		req := httptest.NewRequest("GET", "http://localhost?code=", nil)
+		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown, math.MaxInt64))
+		req := httptest.NewRequest("GET", "http://localhost?code=", bytes.NewBufferString(claimBody))
 		rec := httptest.NewRecorder()
 
 		handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -58,8 +47,8 @@ func TestGitHubMiddleware(t *testing.T) {
 	})
 
 	t.Run("request invalid code", func(t *testing.T) {
-		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown))
-		req := httptest.NewRequest("GET", "http://localhost?code=invalid", nil)
+		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown, math.MaxInt64))
+		req := httptest.NewRequest("GET", "http://localhost?code=invalid", bytes.NewBufferString(claimBody))
 		rec := httptest.NewRecorder()
 
 		handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -74,8 +63,8 @@ func TestGitHubMiddleware(t *testing.T) {
 	})
 
 	t.Run("OK", func(t *testing.T) {
-		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown))
-		req := httptest.NewRequest("GET", "http://localhost?code=valid", nil)
+		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown, math.MaxInt64))
+		req := httptest.NewRequest("GET", "http://localhost?code=valid", bytes.NewBufferString(claimBody))
 		rec := httptest.NewRecorder()
 
 		handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -90,8 +79,8 @@ func TestGitHubMiddleware(t *testing.T) {
 	})
 
 	t.Run("Cooldown active", func(t *testing.T) {
-		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown))
-		req := httptest.NewRequest("GET", "http://localhost?code=valid", nil)
+		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown, math.MaxInt64))
+		req := httptest.NewRequest("GET", "http://localhost?code=valid", bytes.NewBufferString(claimBody))
 		rec := httptest.NewRecorder()
 
 		handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -104,7 +93,7 @@ func TestGitHubMiddleware(t *testing.T) {
 			t.Errorf("Expected status OK, got %d", rec.Code)
 		}
 
-		req = httptest.NewRequest("GET", "http://localhost?code=valid", nil)
+		req = httptest.NewRequest("GET", "http://localhost?code=valid", bytes.NewBufferString(claimBody))
 		rec = httptest.NewRecorder()
 
 		handler.ServeHTTP(rec, req)
@@ -112,16 +101,57 @@ func TestGitHubMiddleware(t *testing.T) {
 			t.Errorf("Expected status TooManyRequest, got %d", rec.Code)
 		}
 	})
+
+	t.Run("User exceeded lifetime limit", func(t *testing.T) {
+		cooldown = time.Millisecond
+		// Max lifetime amount is 20 Gnots so we should be able to make 2 claims
+		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown, tenGnots*2))
+		req := httptest.NewRequest("GET", "http://localhost?code=valid", bytes.NewBufferString(claimBody))
+		rec := httptest.NewRecorder()
+
+		handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+
+		handler.ServeHTTP(rec, req)
+		// First claim ok
+		if rec.Code != http.StatusOK {
+			t.Errorf("Expected status OK, got %d", rec.Code)
+		}
+		// Wait 2 times the cooldown
+		time.Sleep(2 * cooldown)
+
+		req = httptest.NewRequest("GET", "http://localhost?code=valid", bytes.NewBufferString(claimBody))
+		rec = httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		//Second claim should also be ok
+		if rec.Code != http.StatusOK {
+			t.Errorf("Expected status OK, got %d", rec.Code)
+		}
+
+		// Third one should fail
+		time.Sleep(2 * cooldown)
+
+		req = httptest.NewRequest("GET", "http://localhost?code=valid", bytes.NewBufferString(claimBody))
+		rec = httptest.NewRecorder()
+
+		handler.ServeHTTP(rec, req)
+		//Second claim should also be ok
+		if rec.Code != http.StatusTooManyRequests {
+			t.Errorf("Expected status OK, got %d", rec.Code)
+		}
+	})
 }
 
-func getCooldownLimiter(t *testing.T, duration time.Duration) *CooldownLimiter {
+func getCooldownLimiter(t *testing.T, duration time.Duration, maxlifeTimeAmount int64) *CooldownLimiter {
 	t.Helper()
 	redisServer := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{
 		Addr: redisServer.Addr(),
 	})
 
-	limiter := NewCooldownLimiter(duration, rdb)
+	limiter := NewCooldownLimiter(duration, rdb, maxlifeTimeAmount)
 
 	return limiter
 }

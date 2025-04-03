@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -12,52 +13,71 @@ import (
 // CooldownLimiter limits a specific user to one claim per cooldown period
 // this limiter keeps track of which keys are on cooldown using a badger database (written to a local file)
 type CooldownLimiter struct {
-	redis        *redis.Client
-	cooldownTime time.Duration
+	redis             *redis.Client
+	cooldownTime      time.Duration
+	maxlifeTimeAmount int64
 }
 
 // NewCooldownLimiter initializes a Cooldown Limiter with a given duration
-func NewCooldownLimiter(cooldown time.Duration, redis *redis.Client) *CooldownLimiter {
+func NewCooldownLimiter(cooldown time.Duration, redis *redis.Client, maxlifeTimeAmount int64) *CooldownLimiter {
 	return &CooldownLimiter{
-		redis:        redis,
-		cooldownTime: cooldown,
+		redis:             redis,
+		cooldownTime:      cooldown,
+		maxlifeTimeAmount: maxlifeTimeAmount,
 	}
 }
 
 // CheckCooldown checks if a key can make a claim or if it is still within the cooldown period
+// also checks that the user will not exceed the max lifetime allowed amount
 // Returns true if the key is not on cooldown, and marks the key as on cooldown
 // Returns false if the key is on cooldown or if an error occurs
-func (rl *CooldownLimiter) CheckCooldown(ctx context.Context, key string) (bool, error) {
-	isOnCooldown, err := rl.isOnCooldown(ctx, key)
+func (rl *CooldownLimiter) CheckCooldown(ctx context.Context, key string, amountClaimed int64) (bool, error) {
+	claimData, err := rl.getClaimsData(ctx, key)
 	if err != nil {
 		return false, fmt.Errorf("unable to check if key is on cooldown, %w", err)
 	}
-	if isOnCooldown {
-		return false, nil // Deny claim if within cooldown period
+	// Deny claim if within cooldown period
+	if claimData.LastClaimed.Add(rl.cooldownTime).After(time.Now()) {
+		return false, nil
+	}
+	// check that user will not exceed max lifetime allowed amount
+	if claimData.TotalClaimed+amountClaimed > rl.maxlifeTimeAmount {
+		return false, nil
 	}
 
-	return true, rl.markOnCooldown(ctx, key)
+	return true, rl.declareClaimedValue(ctx, key, amountClaimed, claimData)
 }
 
-func (rl *CooldownLimiter) isOnCooldown(ctx context.Context, key string) (bool, error) {
-	_, err := rl.redis.Get(ctx, key).Result()
+func (rl *CooldownLimiter) getClaimsData(ctx context.Context, key string) (*claimData, error) {
+	storedData, err := rl.redis.Get(ctx, key).Result()
 	if err != nil {
-		// Since we use redis's TTL feature to manage cooldown periods,
-		// an error redis.Nil simply indicates that the key is not on cooldown.
+		// Here we return an empty claimData because is the first time the user is making a claim
+		// the total amount claimed is 0 and the lastClaimed is the default time value
 		if errors.Is(err, redis.Nil) {
-			return false, nil
+			return &claimData{}, nil
 		}
 		// Any other unexpected error is returned.
-		return false, err
+		return nil, err
 	}
 
-	// Key found: it is on cooldown
-	return true, nil
+	claimData := &claimData{}
+	err = json.Unmarshal([]byte(storedData), claimData)
+	return claimData, err
 }
 
-func (rl *CooldownLimiter) markOnCooldown(ctx context.Context, key string) error {
-	// The value set here does not matter, as we only rely on
-	// redis's TTL feature to check if a key is still on cooldown
-	return rl.redis.Set(ctx, key, "claimed", rl.cooldownTime).Err()
+func (rl *CooldownLimiter) declareClaimedValue(ctx context.Context, key string, amountClaimed int64, currentData *claimData) error {
+	currentData.LastClaimed = time.Now()
+	currentData.TotalClaimed += amountClaimed
 
+	data, err := json.Marshal(currentData)
+	if err != nil {
+		return fmt.Errorf("unable to marshal claim data, %w", err)
+	}
+
+	return rl.redis.Set(ctx, key, data, 0).Err()
+}
+
+type claimData struct {
+	LastClaimed  time.Time
+	TotalClaimed int64
 }

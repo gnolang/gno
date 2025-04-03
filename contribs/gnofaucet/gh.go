@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -25,14 +27,6 @@ func getGithubMiddleware(clientID, secret string, coolDownLimiter *CooldownLimit
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
-				// github Oauth flow is enabled
-				if secret == "" || clientID == "" {
-					// Continue with serving the faucet request
-					next.ServeHTTP(w, r)
-
-					return
-				}
-
 				// Extracts the authorization code returned by the GitHub OAuth flow.
 				//
 				// When a user successfully authenticates via GitHub OAuth, GitHub redirects them
@@ -52,8 +46,14 @@ func getGithubMiddleware(clientID, secret string, coolDownLimiter *CooldownLimit
 					return
 				}
 
+				claimAmount, err := getClaimAmount(r)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadRequest)
+					return
+				}
+
 				// Just check if given account have asked for faucet before the cooldown period
-				allowedToClaim, err := coolDownLimiter.CheckCooldown(r.Context(), user.GetLogin())
+				allowedToClaim, err := coolDownLimiter.CheckCooldown(r.Context(), user.GetLogin(), claimAmount)
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
@@ -69,6 +69,25 @@ func getGithubMiddleware(clientID, secret string, coolDownLimiter *CooldownLimit
 			},
 		)
 	}
+}
+
+type request struct {
+	Amount int64 `json:"amount"`
+}
+
+func getClaimAmount(r *http.Request) (int64, error) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return 0, err
+	}
+
+	var data request
+	err = json.Unmarshal(body, &data)
+	if err != nil {
+		return 0, err
+	}
+	r.Body = io.NopCloser(bytes.NewBuffer(body))
+	return data.Amount, nil
 }
 
 type gitHubTokenResponse struct {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"math"
 	"testing"
 	"time"
 
@@ -11,25 +12,26 @@ import (
 )
 
 func TestCooldownLimiter(t *testing.T) {
+	var tenGnots int64 = 10_000_000
 	redisServer := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{
 		Addr: redisServer.Addr(),
 	})
 
 	cooldownDuration := time.Second
-	limiter := NewCooldownLimiter(cooldownDuration, rdb)
+	limiter := NewCooldownLimiter(cooldownDuration, rdb, math.MaxInt64)
 	ctx := context.Background()
 	user := "testUser"
 
 	// First check should be allowed
-	allowed, err := limiter.CheckCooldown(ctx, user)
+	allowed, err := limiter.CheckCooldown(ctx, user, tenGnots)
 	require.NoError(t, err)
 
 	if !allowed {
 		t.Errorf("Expected first CheckCooldown to return true, but got false")
 	}
 
-	allowed, err = limiter.CheckCooldown(ctx, user)
+	allowed, err = limiter.CheckCooldown(ctx, user, tenGnots)
 	require.NoError(t, err)
 	// Second check immediately should be denied
 	if allowed {
@@ -37,7 +39,7 @@ func TestCooldownLimiter(t *testing.T) {
 	}
 
 	require.Eventually(t, func() bool {
-		allowed, err := limiter.CheckCooldown(ctx, user)
+		allowed, err := limiter.CheckCooldown(ctx, user, tenGnots)
 		return err == nil && !allowed
 	}, 2*cooldownDuration, 10*time.Millisecond, "Expected CheckCooldown to return true after cooldown period")
 }
