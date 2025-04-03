@@ -395,7 +395,7 @@ func TestVMKeeperEvalJSONFormatting2(t *testing.T) {
 			assert.NoError(t, err)
 			env.vmk.CommitGnoTransactionStore(ctx)
 
-			cfgEval := EvalCfg{Expr: tc.expr, PkgPath: pkgPath, Format: FormatJSON}
+			cfgEval := EvalCfg{Expr: tc.expr, PkgPath: pkgPath, Format: QueryFormatJSON}
 			res, err := env.vmk.QueryEval(env.ctx, cfgEval)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, res)

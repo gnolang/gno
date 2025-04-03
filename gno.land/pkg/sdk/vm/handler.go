@@ -11,6 +11,15 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+type QueryFormat string
+
+const (
+	QueryFormatMachine QueryFormat = "machine" // Default machine representation
+	QueryFormatString              = "string"  // Single string representation
+	QueryFormatJSON                = "json"    // XXX: EXPERIMENTAL, only supports primitive types for now
+	QueryFormatDefault             = QueryFormatMachine
+)
+
 type vmHandler struct {
 	vm *VMKeeper
 }
@@ -119,7 +128,7 @@ func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abc
 	expr := fmt.Sprintf("Render(%q)", path)
 
 	// Try evaluate `Render` function
-	result, err := vh.vm.QueryEval(ctx, EvalCfg{Expr: expr, PkgPath: pkgPath})
+	result, err := vh.vm.QueryEval(ctx, EvalCfg{Expr: expr, PkgPath: pkgPath, Format: QueryFormatString})
 	if err != nil {
 		if strings.Contains(err.Error(), "Render not declared") {
 			err = NoRenderDeclError{}
@@ -146,19 +155,19 @@ func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci
 
 // queryEval evaluates any expression in readonly mode and returns the results based on the given format.
 func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	var format Format
+	var format QueryFormat
 	switch ss := strings.Split(req.Path, "/"); len(ss) {
 	case 2:
-		format = FormatDefault
+		format = QueryFormatDefault
 	case 3:
-		format = Format(ss[2])
+		format = QueryFormat(ss[2])
 	default:
 		return sdk.ABCIResponseQueryFromError(errors.New("invalid query path"))
 	}
 
 	// Validate format
 	switch format {
-	case FormatMachine, FormatJSON, FormatString:
+	case QueryFormatMachine, QueryFormatJSON, QueryFormatString:
 	default:
 		return sdk.ABCIResponseQueryFromError(fmt.Errorf("invalid query result format %q", format))
 	}

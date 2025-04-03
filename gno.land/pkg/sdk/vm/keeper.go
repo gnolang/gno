@@ -499,7 +499,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	defer doRecover(m, &err)
 
 	rtvs := m.Eval(xn)
-	res = stringifyResultValues(m, FormatMachine, rtvs)
+	res = stringifyResultValues(m, QueryFormatMachine, rtvs)
 
 	// Use `\n\n` as separator to separate results for single tx with multi msgs
 	res += "\n\n"
@@ -738,7 +738,7 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 type EvalCfg struct {
 	Expr    string
 	PkgPath string
-	Format  Format
+	Format  QueryFormat
 }
 
 // QueryEval evaluates a gno expression (readonly, for ABCI queries).
@@ -817,9 +817,13 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 	return res, nil
 }
 
-func stringifyResultValues(m *gno.Machine, format Format, values []gno.TypedValue) string {
+func stringifyResultValues(m *gno.Machine, format QueryFormat, values []gno.TypedValue) string {
+	if format == "" {
+		format = QueryFormatDefault
+	}
+
 	switch format {
-	case FormatString:
+	case QueryFormatString:
 		if len(values) != 1 {
 			panic(fmt.Errorf("expected 1 string result, got %d", len(values)))
 		}
@@ -839,9 +843,9 @@ func stringifyResultValues(m *gno.Machine, format Format, values []gno.TypedValu
 
 		panic(fmt.Errorf("expected 1 `string` or `Stringer` result, got %v", tv.T.Kind()))
 
-	case FormatJSON:
+	case QueryFormatJSON:
 		return JSONPrimitiveValues(m, values)
-	case FormatDefault, "":
+	case QueryFormatDefault, "":
 		var res strings.Builder
 
 		for i, v := range values {

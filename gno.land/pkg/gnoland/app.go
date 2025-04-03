@@ -448,7 +448,7 @@ func EndBlocker(
 			vm.EvalCfg{
 				PkgPath: valRealm,
 				Expr:    fmt.Sprintf("%s(%d)", valChangesFn, app.LastBlockHeight()),
-				Format:  vm.FormatMachine,
+				Format:  vm.QueryFormatMachine,
 			},
 		)
 		if err != nil {

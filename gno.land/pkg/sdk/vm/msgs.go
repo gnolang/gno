@@ -12,15 +12,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-type Format string
-
-const (
-	FormatMachine Format = "machine" // Default machine representation
-	FormatString         = "string"  // Single string representation
-	FormatJSON           = "json"    // XXX: EXPERIMENTAL, only supports primitive types for now
-	FormatDefault        = FormatMachine
-)
-
 //----------------------------------------
 // MsgAddPackage
 
@@ -100,14 +91,14 @@ type MsgCall struct {
 	Args    []string       `json:"args" yaml:"args"`
 
 	// XXX: This field is experimental, use with care as output is likely to change
-	Format Format `json:"format" yaml:"format"`
+	Format QueryFormat `json:"format" yaml:"format"`
 }
 
 var _ std.Msg = MsgCall{}
 
 func NewMsgCall(caller crypto.Address, send sdk.Coins, pkgPath, fnc string, args []string) MsgCall {
 	return MsgCall{
-		Format:  FormatDefault,
+		Format:  QueryFormatDefault,
 		Caller:  caller,
 		Send:    send,
 		PkgPath: pkgPath,
@@ -118,7 +109,7 @@ func NewMsgCall(caller crypto.Address, send sdk.Coins, pkgPath, fnc string, args
 
 func NewMsgCallJSON(caller crypto.Address, send sdk.Coins, pkgPath, fnc string, args []string) MsgCall {
 	msg := NewMsgCall(caller, send, pkgPath, fnc, args)
-	msg.Format = FormatJSON
+	msg.Format = QueryFormatJSON
 	return msg
 }
 
