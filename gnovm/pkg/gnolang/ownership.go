@@ -118,6 +118,12 @@ type Object interface {
 	SetIsNewDeleted(bool)
 	GetIsTransient() bool
 
+	// Added methods for cross-realm payment mechanism
+	GetPayer() Object
+	GetPayerID() ObjectID
+	SetPayer(Object)
+	HasPayer() bool
+
 	// Saves to realm along the way if owned, and also (dirty
 	// or new).
 	// ValueImage(rlm *Realm, owned bool) *ValueImage
@@ -138,6 +144,10 @@ type ObjectInfo struct {
 	OwnerID  ObjectID  `json:",omitempty"` // parent in the ownership tree.
 	ModTime  uint64    // time last updated.
 	RefCount int       // for persistence. deleted/gc'd if 0.
+
+	// PayerID represents the realm responsible for paying storage costs
+	// If empty, the owner realm pays (default behavior)
+	PayerID ObjectID `json:",omitempty"` // realm responsible for storage costs
 
 	// Object has multiple references (refcount > 1) and is persisted separately
 	IsEscaped bool `json:",omitempty"` // hash in iavl.
@@ -160,6 +170,9 @@ type ObjectInfo struct {
 
 	// XXX huh?
 	owner Object // mem reference to owner.
+
+	// In-memory reference to the payer
+	payer Object // mem reference to payer realm
 }
 
 // Copy used for serialization of objects.
@@ -169,6 +182,7 @@ func (oi *ObjectInfo) Copy() ObjectInfo {
 		ID:           oi.ID,
 		Hash:         oi.Hash.Copy(),
 		OwnerID:      oi.OwnerID,
+		PayerID:      oi.PayerID,
 		ModTime:      oi.ModTime,
 		RefCount:     oi.RefCount,
 		IsEscaped:    oi.IsEscaped,
@@ -182,11 +196,19 @@ func (oi *ObjectInfo) Copy() ObjectInfo {
 
 func (oi *ObjectInfo) String() string {
 	// XXX update with new flags.
+
+	// Add payer information to string representation
+	payerStr := "none"
+	if !oi.PayerID.IsZero() {
+		payerStr = oi.PayerID.String()
+	}
+
 	return fmt.Sprintf(
-		"OI[%s#%X,owner=%s,refs=%d,new:%v,drt:%v,del:%v]",
+		"OI[%s#%X,owner=%s,payer=%s,refs=%d,new:%v,drt:%v,del:%v]",
 		oi.ID.String(),
 		oi.Hash.Bytes(),
 		oi.OwnerID.String(),
+		payerStr,
 		oi.RefCount,
 		oi.GetIsNewReal(),
 		oi.GetIsDirty(),
@@ -343,6 +365,32 @@ func (oi *ObjectInfo) GetIsTransient() bool {
 	return false
 }
 
+func (oi *ObjectInfo) GetPayer() Object {
+	return oi.payer
+}
+
+func (oi *ObjectInfo) SetPayer(po Object) {
+	if po == nil {
+		oi.PayerID = ObjectID{}
+		oi.payer = nil
+	} else {
+		oi.PayerID = po.GetObjectID()
+		oi.payer = po
+	}
+}
+
+func (oi *ObjectInfo) GetPayerID() ObjectID {
+	if oi.payer == nil {
+		return oi.PayerID // Return stored ID when pointer is nil
+	} else {
+		return oi.payer.GetObjectID()
+	}
+}
+
+func (oi *ObjectInfo) HasPayer() bool {
+	return !oi.PayerID.IsZero()
+}
+
 func (tv *TypedValue) GetFirstObject(store Store) Object {
 	switch cv := tv.V.(type) {
 	case PointerValue:
@@ -371,4 +419,19 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 	default:
 		return nil
 	}
+}
+
+// IsNilOrUnreachable checks if a pointer is nil or references an unreachable object
+func IsNilOrUnreachable(store Store, ptr Object) bool {
+	if ptr == nil {
+		return true
+	}
+
+	// If it's a reference to another realm, check if it's still available
+	oid := ptr.GetObjectID()
+	if !oid.IsZero() {
+		return store.GetObject(oid) == nil
+	}
+
+	return false
 }
