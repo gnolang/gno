@@ -2751,8 +2751,8 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.Gen
 	if p.tok == token.LPAREN {
 		lparen = p.pos
 		p.next()
-		for i := 0; p.tok != token.RPAREN && p.tok != token.EOF; i++ {
-			list = append(list, f(p.leadComment, keyword, i))
+		for iota := 0; p.tok != token.RPAREN && p.tok != token.EOF; iota++ {
+			list = append(list, f(p.leadComment, keyword, iota))
 		}
 		rparen = p.expect(token.RPAREN)
 		p.expectSemi()
