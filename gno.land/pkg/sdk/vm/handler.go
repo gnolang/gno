@@ -11,15 +11,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-type QueryFormat string
-
-const (
-	QueryFormatMachine QueryFormat = "machine" // Default machine representation
-	QueryFormatString              = "string"  // Single string representation
-	QueryFormatJSON                = "json"    // XXX: EXPERIMENTAL, only supports primitive types for now
-	QueryFormatDefault             = QueryFormatMachine
-)
-
 type vmHandler struct {
 	vm *VMKeeper
 }
@@ -77,6 +68,15 @@ func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
 
 // ----------------------------------------
 // Query
+
+type QueryFormat string
+
+const (
+	QueryFormatMachine QueryFormat = "machine" // Default machine representation
+	QueryFormatString              = "string"  // Single string representation
+	QueryFormatJSON                = "json"    // XXX: EXPERIMENTAL, only supports primitive types for now
+	QueryFormatDefault             = QueryFormatMachine
+)
 
 // query paths
 const (
