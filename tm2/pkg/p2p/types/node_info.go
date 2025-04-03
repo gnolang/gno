@@ -3,6 +3,7 @@ package types
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/gnolang/gno/tm2/pkg/strings"
 	"github.com/gnolang/gno/tm2/pkg/versionset"
@@ -139,12 +140,8 @@ func (info NodeInfo) CompatibleWith(other NodeInfo) error {
 	// Make sure there is at least 1 channel in common
 	commonFound := false
 	for _, ch1 := range info.Channels {
-		for _, ch2 := range other.Channels {
-			if ch1 == ch2 {
-				commonFound = true
-
-				break
-			}
+		if slices.Contains(other.Channels, ch1) {
+			commonFound = true
 		}
 
 		if commonFound {

@@ -13,7 +13,9 @@ import (
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/alecthomas/chroma/v2/styles"
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm" // for error types
+	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
@@ -46,12 +48,13 @@ func NewDefaultHTMLWebClientConfig(client *client.RPCClient) *HTMLWebClientConfi
 	goldmarkOptions := []goldmark.Option{
 		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 		goldmark.WithExtensions(
-			md.NewMetadata(),
 			markdown.NewHighlighting(
 				markdown.WithFormatOptions(chromaOptions...),
 			),
 			extension.Strikethrough,
 			extension.Table,
+
+			md.GnoExtension,
 		),
 	}
 
@@ -68,10 +71,11 @@ type HTMLWebClient struct {
 	Markdown  goldmark.Markdown
 	Formatter *chromahtml.Formatter
 
-	domain      string
-	logger      *slog.Logger
-	client      *client.RPCClient
-	chromaStyle *chroma.Style
+	domain        string
+	logger        *slog.Logger
+	client        *client.RPCClient
+	chromaStyle   *chroma.Style
+	commonOptions []goldmark.Option
 }
 
 // NewHTMLClient creates a new instance of WebClient.
@@ -83,37 +87,38 @@ func NewHTMLClient(log *slog.Logger, cfg *HTMLWebClientConfig) *HTMLWebClient {
 		Markdown:  goldmark.New(cfg.GoldmarkOptions...),
 		Formatter: chromahtml.New(cfg.ChromaHTMLOptions...),
 
-		logger:      log,
-		domain:      cfg.Domain,
-		client:      cfg.RPCClient,
-		chromaStyle: cfg.ChromaStyle,
+		logger:        log,
+		domain:        cfg.Domain,
+		client:        cfg.RPCClient,
+		chromaStyle:   cfg.ChromaStyle,
+		commonOptions: cfg.GoldmarkOptions,
 	}
 }
 
-// Functions retrieves a list of function signatures from a
+// Doc retrieves the JSON doc suitable for printing from a
 // specified package path.
-func (s *HTMLWebClient) Functions(pkgPath string) ([]vm.FunctionSignature, error) {
-	const qpath = "vm/qfuncs"
+func (s *HTMLWebClient) Doc(pkgPath string) (*doc.JSONDocumentation, error) {
+	const qpath = "vm/qdoc"
 
 	args := fmt.Sprintf("%s/%s", s.domain, strings.Trim(pkgPath, "/"))
 	res, err := s.query(qpath, []byte(args))
 	if err != nil {
-		return nil, fmt.Errorf("unable to query func list: %w", err)
+		return nil, fmt.Errorf("unable to query qdoc: %w", err)
 	}
 
-	var fsigs vm.FunctionSignatures
-	if err := amino.UnmarshalJSON(res, &fsigs); err != nil {
-		s.logger.Warn("unable to unmarshal function signatures, client is probably outdated")
-		return nil, fmt.Errorf("unable to unmarshal function signatures: %w", err)
+	jdoc := &doc.JSONDocumentation{}
+	if err := amino.UnmarshalJSON(res, jdoc); err != nil {
+		s.logger.Warn("unable to unmarshal qdoc, client is probably outdated")
+		return nil, fmt.Errorf("unable to unmarshal qdoc: %w", err)
 	}
 
-	return fsigs, nil
+	return jdoc, nil
 }
 
 // SourceFile fetches and writes the source file from a given
 // package path and file name to the provided writer. It uses
-// Chroma for syntax highlighting source.
-func (s *HTMLWebClient) SourceFile(w io.Writer, path, fileName string) (*FileMeta, error) {
+// Chroma for syntax highlighting or Raw style source.
+func (s *HTMLWebClient) SourceFile(w io.Writer, path, fileName string, isRaw bool) (*FileMeta, error) {
 	const qpath = "vm/qfile"
 
 	fileName = strings.TrimSpace(fileName)
@@ -140,9 +145,16 @@ func (s *HTMLWebClient) SourceFile(w io.Writer, path, fileName string) (*FileMet
 		SizeKb: float64(len(source)) / 1024.0,
 	}
 
-	// Use Chroma for syntax highlighting
-	if err := s.FormatSource(w, fileName, source); err != nil {
-		return nil, err
+	if isRaw {
+		// Use raw syntax for source
+		if _, err := w.Write(source); err != nil {
+			return nil, err
+		}
+	} else {
+		// Use Chroma for syntax highlighting
+		if err := s.FormatSource(w, fileName, source); err != nil {
+			return nil, err
+		}
 	}
 
 	return &fileMeta, nil
@@ -171,42 +183,24 @@ func (s *HTMLWebClient) Sources(path string) ([]string, error) {
 	return files, nil
 }
 
-// extractHeadMeta extracts optional head metadata from the provided metaData map
-// and returns a HeadMeta struct. All fields ("Title", "Description", "Canonical")
-// are optional; if a field is not present or not a string, it will be empty.
-func extractHeadMeta(metaData map[string]interface{}) HeadMeta {
-	hm := HeadMeta{}
-	if title, ok := metaData["Title"].(string); ok {
-		hm.Title = title
-	}
-	if desc, ok := metaData["Description"].(string); ok {
-		hm.Description = desc
-	}
-	if canonical, ok := metaData["Canonical"].(string); ok {
-		hm.Canonical = canonical
-	}
-	return hm
-}
-
 // RenderRealm renders the content of a realm from a given path
 // and arguments into the provided writer. It uses Goldmark for
 // Markdown processing to generate HTML content.
-func (s *HTMLWebClient) RenderRealm(w io.Writer, pkgPath string, args string) (*RealmMeta, error) {
+func (s *HTMLWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL) (*RealmMeta, error) {
 	const qpath = "vm/qrender"
 
-	pkgPath = strings.Trim(pkgPath, "/")
-	data := fmt.Sprintf("%s/%s:%s", s.domain, pkgPath, args)
+	pkgPath := strings.Trim(u.Path, "/")
+	data := fmt.Sprintf("%s/%s:%s", s.domain, pkgPath, u.EncodeArgs())
 
 	rawres, err := s.query(qpath, []byte(data))
 	if err != nil {
 		return nil, err
 	}
 
-	// Use Goldmark for Markdown parsing
-	context := parser.NewContext()
-	doc := s.Markdown.Parser().Parse(text.NewReader(rawres), parser.WithContext(context))
-	metaData := md.Get(context)
+	ctxOpts := parser.WithContext(md.NewGnoParserContext(u))
 
+	// Use Goldmark for Markdown parsing
+	doc := s.Markdown.Parser().Parse(text.NewReader(rawres), ctxOpts)
 	if err := s.Markdown.Renderer().Render(w, rawres, doc); err != nil {
 		return nil, fmt.Errorf("unable to render realm %q: %w", data, err)
 	}
@@ -216,8 +210,6 @@ func (s *HTMLWebClient) RenderRealm(w io.Writer, pkgPath string, args string) (*
 	if err != nil {
 		s.logger.Warn("unable to inspect for TOC elements", "error", err)
 	}
-
-	meta.Head = extractHeadMeta(metaData)
 
 	return &meta, nil
 }
