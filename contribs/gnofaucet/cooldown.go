@@ -15,16 +15,20 @@ import (
 type CooldownLimiter struct {
 	redis             *redis.Client
 	cooldownTime      time.Duration
-	maxlifeTimeAmount int64
+	maxlifeTimeAmount *int64
 }
 
 // NewCooldownLimiter initializes a Cooldown Limiter with a given duration
 func NewCooldownLimiter(cooldown time.Duration, redis *redis.Client, maxlifeTimeAmount int64) *CooldownLimiter {
-	return &CooldownLimiter{
-		redis:             redis,
-		cooldownTime:      cooldown,
-		maxlifeTimeAmount: maxlifeTimeAmount,
+	limiter := &CooldownLimiter{
+		redis:        redis,
+		cooldownTime: cooldown,
 	}
+	if maxlifeTimeAmount > 0 {
+		limiter.maxlifeTimeAmount = &maxlifeTimeAmount
+	}
+
+	return limiter
 }
 
 // CheckCooldown checks if a key can make a claim or if it is still within the cooldown period
@@ -41,7 +45,7 @@ func (rl *CooldownLimiter) CheckCooldown(ctx context.Context, key string, amount
 		return false, nil
 	}
 	// check that user will not exceed max lifetime allowed amount
-	if claimData.TotalClaimed+amountClaimed > rl.maxlifeTimeAmount {
+	if rl.maxlifeTimeAmount != nil && claimData.TotalClaimed+amountClaimed > *rl.maxlifeTimeAmount {
 		return false, nil
 	}
 

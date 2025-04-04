@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"regexp"
 	"strconv"
 	"time"
@@ -99,7 +98,7 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.mnemonic,
 		"mnemonic",
-		os.Getenv("GNO_MNEMONIC"),
+		"",
 		"the mnemonic for faucet keys",
 	)
 

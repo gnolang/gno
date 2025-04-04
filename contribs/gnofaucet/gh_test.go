@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -31,7 +30,7 @@ func TestGitHubMiddleware(t *testing.T) {
 	var tenGnots int64 = 10000000
 	claimBody := fmt.Sprintf(`{"amount": %d}`, tenGnots)
 	t.Run("request without code", func(t *testing.T) {
-		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown, math.MaxInt64))
+		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown, 0))
 		req := httptest.NewRequest("GET", "http://localhost?code=", bytes.NewBufferString(claimBody))
 		rec := httptest.NewRecorder()
 
@@ -47,7 +46,7 @@ func TestGitHubMiddleware(t *testing.T) {
 	})
 
 	t.Run("request invalid code", func(t *testing.T) {
-		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown, math.MaxInt64))
+		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown, 0))
 		req := httptest.NewRequest("GET", "http://localhost?code=invalid", bytes.NewBufferString(claimBody))
 		rec := httptest.NewRecorder()
 
@@ -63,7 +62,7 @@ func TestGitHubMiddleware(t *testing.T) {
 	})
 
 	t.Run("OK", func(t *testing.T) {
-		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown, math.MaxInt64))
+		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown, 0))
 		req := httptest.NewRequest("GET", "http://localhost?code=valid", bytes.NewBufferString(claimBody))
 		rec := httptest.NewRecorder()
 
@@ -79,7 +78,7 @@ func TestGitHubMiddleware(t *testing.T) {
 	})
 
 	t.Run("Cooldown active", func(t *testing.T) {
-		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown, math.MaxInt64))
+		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown, 0))
 		req := httptest.NewRequest("GET", "http://localhost?code=valid", bytes.NewBufferString(claimBody))
 		rec := httptest.NewRecorder()
 

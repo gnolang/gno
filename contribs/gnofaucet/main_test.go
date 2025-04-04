@@ -30,7 +30,7 @@ func TestServe(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, "captcha secret is required")
+		assert.ErrorIs(t, cmdErr, ErrCaptchaMissing)
 	})
 
 	t.Run("Serve captcha without chain-id", func(t *testing.T) {
@@ -93,7 +93,7 @@ func TestServe(t *testing.T) {
 		}
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, "client id is required")
+		assert.ErrorIs(t, cmdErr, errGithubClientIDMissing)
 	})
 
 	t.Run("Serve github without client secret", func(t *testing.T) {
@@ -109,7 +109,7 @@ func TestServe(t *testing.T) {
 		}
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, "github client secret is required")
+		assert.ErrorIs(t, cmdErr, errGithubClientSecretMissing)
 	})
 
 	t.Run("Serve github cannot connect redis", func(t *testing.T) {
@@ -123,7 +123,7 @@ func TestServe(t *testing.T) {
 			"--github-client-id",
 			"mock",
 		}
-		t.Setenv("GH_CLIENT_SECRET", "mock")
+		t.Setenv(envGithubClientSecret, "mock")
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
 		assert.ErrorContains(t, cmdErr, "unable to connect to redis")
@@ -141,8 +141,8 @@ func TestServe(t *testing.T) {
 			"--github-client-id",
 			"mock",
 		}
-		t.Setenv("GH_CLIENT_SECRET", "mock")
-		t.Setenv("REDIS_ADDR", redisServer.Addr())
+		t.Setenv(envGithubClientSecret, "mock")
+		t.Setenv(envRedisAddr, redisServer.Addr())
 		// Run the command
 		ctx, cancel := context.WithCancel(context.Background())
 		go func() {

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"math"
 	"testing"
 	"time"
 
@@ -19,7 +18,7 @@ func TestCooldownLimiter(t *testing.T) {
 	})
 
 	cooldownDuration := time.Second
-	limiter := NewCooldownLimiter(cooldownDuration, rdb, math.MaxInt64)
+	limiter := NewCooldownLimiter(cooldownDuration, rdb, 0)
 	ctx := context.Background()
 	user := "testUser"
 

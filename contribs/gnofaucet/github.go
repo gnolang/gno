@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"math"
 	"os"
 	"time"
 
@@ -18,6 +17,19 @@ type githubCfg struct {
 	maxClaimableLimit int64
 	cooldownPeriod    time.Duration
 }
+
+var (
+	errGithubClientIDMissing     = fmt.Errorf("GitHub client ID is required")
+	errGithubClientSecretMissing = fmt.Errorf("GitHub client secret is required")
+	errCooldownPeriodInvalid     = fmt.Errorf("cooldown period must be greater than 0")
+)
+
+const (
+	envGithubClientSecret = "GH_CLIENT_SECRET"
+	envRedisAddr          = "REDIS_ADDR"
+	envRedisUser          = "REDIS_USER"
+	envRedisPassword      = "REDIS_PASSWORD"
+)
 
 func (c *githubCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
@@ -37,7 +49,7 @@ func (c *githubCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.Int64Var(
 		&c.maxClaimableLimit,
 		"max-claimable-limit",
-		math.MaxInt64,
+		0,
 		"maximum number of tokens a single user can claim over their lifetime",
 	)
 }
@@ -62,21 +74,21 @@ func newGithubCmd(rootCfg *serveCfg) *commands.Command {
 
 func execGithub(ctx context.Context, cfg *githubCfg, io commands.IO) error {
 	if cfg.ghClientID == "" {
-		return fmt.Errorf("github client id is required")
+		return errGithubClientIDMissing
 	}
 
 	if cfg.cooldownPeriod <= 0 {
-		return fmt.Errorf("cooldown period must be greater than 0")
+		return errCooldownPeriodInvalid
 	}
-	clientSecret := os.Getenv("GH_CLIENT_SECRET")
+	clientSecret := os.Getenv(envGithubClientSecret)
 	if clientSecret == "" {
-		return fmt.Errorf("github client secret is required")
+		return errGithubClientSecretMissing
 	}
 
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     os.Getenv("REDIS_ADDR"),
-		Username: os.Getenv("REDIS_USER"),
-		Password: os.Getenv("REDIS_PASSWORD"),
+		Addr:     os.Getenv(envRedisAddr),
+		Username: os.Getenv(envRedisUser),
+		Password: os.Getenv(envRedisPassword),
 	})
 	err := rdb.Ping(ctx).Err()
 	if err != nil {
