@@ -315,11 +315,11 @@ func (post *Post) RenderSummary() string {
 		title   = post.title
 	)
 
-	b.WriteString("## ≡ " + newLink(summaryOf(title, 80), postURL) + "\n\n")
+	b.WriteString("**≡ " + newLink(summaryOf(title, 80), postURL) + "**  \n")
 	b.WriteString("Created by " + newUserLink(post.creator) + " on " + post.createdAt.Format(dateFormat))
-	b.WriteString("  \n")
+	b.WriteString("  \n**")
 	b.WriteString(strconv.Itoa(post.repliesAll.Size()) + " replies • ")
-	b.WriteString(strconv.Itoa(post.reposts.Size()) + " reposts" + "\n")
+	b.WriteString(strconv.Itoa(post.reposts.Size()) + " reposts**\n")
 	return b.String()
 }
 
@@ -452,7 +452,9 @@ func (post *Post) Render(path string, indent string, levels int) string {
 	}
 
 	sb.WriteString(indent)
-	sb.WriteString("## " + title + "\n")
+	if title != "" { // Replies don't have a title
+		sb.WriteString("## " + title + "\n")
+	}
 	sb.WriteString(indent + "\n")
 
 	post.renderPostContent(&sb, indent, levels)
@@ -497,18 +499,18 @@ func (post *Post) renderTopLevelReplies(path, indent string, levels int) string 
 		return false
 	}
 
-	b.WriteString("\n_Sort by ")
+	b.WriteString("\n\n---\nSort by: ")
 	r := realmpath.Parse(path)
 	if r.Query.Get("order") == "desc" {
 		r.Query.Set("order", "asc")
 		b.WriteString(newLink("newest first", r.String()))
-		b.WriteString("_\n")
+		b.WriteString("\n")
 		post.replies.ReverseIterateByOffset(p.Offset(), p.PageSize(), render)
 
 	} else {
 		r.Query.Set("order", "desc")
 		b.WriteString(newLink("oldest first", r.String()))
-		b.WriteString("_\n")
+		b.WriteString("\n")
 		post.replies.IterateByOffset(p.Offset(), p.PageSize(), render)
 	}
 
