@@ -9,7 +9,6 @@ import (
 
 func X_getContext(m *gno.Machine) (
 	originCaller string,
-	originPkgAddr string,
 	origSendDenoms []string, origSendAmounts []int64,
 	origSpendDenoms []string, origSpendAmounts []int64,
 	chainID string,
@@ -19,7 +18,6 @@ func X_getContext(m *gno.Machine) (
 	ctx := m.Context.(*teststd.TestExecContext)
 
 	originCaller = ctx.OriginCaller.String()
-	originPkgAddr = ctx.OriginPkgAddr.String()
 
 	for _, coin := range ctx.OriginSend {
 		origSendDenoms = append(origSendDenoms, coin.Denom)
@@ -41,7 +39,6 @@ func X_getContext(m *gno.Machine) (
 func X_setContext(
 	m *gno.Machine,
 	originCaller string,
-	originPkgAddress string,
 	currRealmAddr string, currRealmPkgPath string,
 	origSendDenoms []string, origSendAmounts []int64,
 	origSpendDenoms []string, origSpendAmounts []int64,
@@ -56,7 +53,6 @@ func X_setContext(
 	ctx.Timestamp = timeUnix
 	ctx.TimestampNano = timeNano
 	ctx.OriginCaller = crypto.Bech32Address(originCaller)
-	ctx.OriginPkgAddr = crypto.Bech32Address(originPkgAddress)
 
 	if currRealmAddr != "" {
 		// Associate the given Realm with the caller's frame.
