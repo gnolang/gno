@@ -94,10 +94,42 @@ func (tx Tx) GetSigners() []crypto.Address {
 	return signers
 }
 
+// SignerInfo contains both the public key and address of a signer
+type SignerInfo struct {
+	PubKey  crypto.PubKey  `json:"pub_key" yaml:"pub_key"`
+	Address crypto.Address `json:"address" yaml:"address"`
+}
+
+func (si SignerInfo) String() string {
+	return fmt.Sprintf("SignerInfo{PubKey:%s,Address:%s}", si.PubKey, si.Address)
+}
+
+// GetSignerInfos returns the public keys and addresses of all signers.
+// SignerInfos are returned in a deterministic order.
+// They are accumulated from the signatures in the order they appear in tx.GetSignatures().
+// Duplicate (pubkey, address) pairs will be omitted.
+func (tx Tx) GetSignerInfos() []SignerInfo {
+	seen := map[string]bool{}
+	var signerInfos []SignerInfo
+	for _, sig := range tx.GetSignatures() {
+		// Create composite key from both pubkey and address
+		addr := sig.PubKey.Address()
+		compositeKey := sig.PubKey.String() + "|" + addr.String()
+
+		if !seen[compositeKey] {
+			signerInfos = append(signerInfos, SignerInfo{
+				PubKey:  sig.PubKey,
+				Address: addr,
+			})
+			seen[compositeKey] = true
+		}
+	}
+	return signerInfos
+}
+
 // GetMemo returns the memo
 func (tx Tx) GetMemo() string { return tx.Memo }
 
-// GetSignatures returns the signature of signers who signed the Msg.
 // GetSignatures returns the signature of signers who signed the Msg.
 // CONTRACT: Length returned is same as length of
 // pubkeys returned from MsgKeySigners, and the order
