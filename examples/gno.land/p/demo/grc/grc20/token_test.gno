@@ -84,9 +84,12 @@ func TestOverflow(t *testing.T) {
 	bob := testutils.TestAddress("bob")
 	tok, adm := NewToken("Dummy", "DUMMY", 6)
 
-	urequire.NoError(t, adm.Mint(alice, 2<<62))
-	urequire.Equal(t, tok.BalanceOf(alice), uint64(2<<62))
-	urequire.Error(t, adm.Mint(bob, 2<<62))
+	safeValue := uint64(1 << 62)
+	urequire.NoError(t, adm.Mint(alice, safeValue))
+	urequire.Equal(t, tok.BalanceOf(alice), safeValue)
+
+	err := adm.Mint(bob, safeValue)
+	uassert.Error(t, err, "expected ErrOverflow")
 }
 
 func TestTransferFromAtomicity(t *testing.T) {
@@ -119,4 +122,70 @@ func TestTransferFromAtomicity(t *testing.T) {
 	remainingAllowance := token.Allowance(owner, spender)
 	uassert.Equal(t, remainingAllowance, initialAllowance,
 		"allowance should not be reduced when transfer fails")
+}
+
+func TestMintOverflow(t *testing.T) {
+	alice := testutils.TestAddress("alice")
+	bob := testutils.TestAddress("bob")
+	tok, adm := NewToken("Dummy", "DUMMY", 6)
+
+	tests := []struct {
+		name           string
+		address        std.Address
+		amount         uint64
+		expectedError  error
+		expectedSupply uint64
+		description    string
+	}{
+		{
+			name:           "mint value larger than MaxUint64",
+			address:        alice,
+			amount:         MaxUint64 + 1000,
+			expectedError:  ErrOverflow,
+			expectedSupply: 0,
+			description:    "minting a value larger than MaxUint64 should fail with ErrOverflow",
+		},
+		{
+			name:           "mint safe value close to MaxUint64",
+			address:        alice,
+			amount:         MaxUint64 - 1000,
+			expectedError:  nil,
+			expectedSupply: MaxUint64 - 1000,
+			description:    "minting a value close to MaxUint64 should succeed",
+		},
+		{
+			name:           "mint small value",
+			address:        bob,
+			amount:         1000,
+			expectedError:  nil,
+			expectedSupply: MaxUint64,
+			description:    "minting a small value when close to MaxUint64 should succeed",
+		},
+		{
+			name:           "mint value that would exceed MaxUint64",
+			address:        bob,
+			amount:         1,
+			expectedError:  ErrOverflow,
+			expectedSupply: MaxUint64,
+			description:    "minting any value when at MaxUint64 should fail with ErrOverflow",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := adm.Mint(tt.address, tt.amount)
+
+			if tt.expectedError != nil {
+				uassert.Error(t, err, tt.description)
+				if err.Error() != tt.expectedError.Error() {
+					t.Errorf("expected error %v, got %v", tt.expectedError, err)
+				}
+			} else {
+				uassert.NoError(t, err, tt.description)
+			}
+
+			totalSupply := tok.TotalSupply()
+			uassert.Equal(t, totalSupply, tt.expectedSupply, "totalSupply should match expected value")
+		})
+	}
 }
