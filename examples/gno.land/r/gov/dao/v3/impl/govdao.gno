@@ -32,15 +32,15 @@ func NewGovDAO() *GovDAO {
 // Setting this to a global variable forces attaching the GovDAO struct to this realm.
 var _govdao *GovDAO
 
-func (g *GovDAO) PreCreateProposal(r dao.ProposalRequest) (std.Address, error) {
-	if !g.isValidCall() {
+func (g *GovDAO) PreCreateProposal(ctx *dao.Context, r dao.ProposalRequest) (std.Address, error) {
+	if !g.isValidCall(ctx) {
 		return "", errors.New("proposal creation must be done directly by a user")
 	}
 
 	return std.OriginCaller(), nil
 }
 
-func (g *GovDAO) PostCreateProposal(r dao.ProposalRequest, pid dao.ProposalID) {
+func (g *GovDAO) PostCreateProposal(ctx *dao.Context, r dao.ProposalRequest, pid dao.ProposalID) {
 	// Tiers Allowed to Vote
 	tatv := []string{memberstore.T1, memberstore.T2, memberstore.T3}
 	switch v := r.Filter().(type) {
@@ -59,8 +59,8 @@ func (g *GovDAO) PostCreateProposal(r dao.ProposalRequest, pid dao.ProposalID) {
 	g.pss.Set(pids, newProposalStatus(tatv))
 }
 
-func (g *GovDAO) VoteOnProposal(r dao.VoteRequest) error {
-	if !g.isValidCall() {
+func (g *GovDAO) VoteOnProposal(ctx *dao.Context, r dao.VoteRequest) error {
+	if !g.isValidCall(ctx) {
 		return errors.New("proposal voting must be done directly by a user")
 	}
 
@@ -99,16 +99,16 @@ func (g *GovDAO) VoteOnProposal(r dao.VoteRequest) error {
 	return nil
 }
 
-func (g *GovDAO) PreGetProposal(pid dao.ProposalID) error {
+func (g *GovDAO) PreGetProposal(ctx *dao.Context, pid dao.ProposalID) error {
 	return nil
 }
 
-func (g *GovDAO) PostGetProposal(pid dao.ProposalID, p *dao.Proposal) error {
+func (g *GovDAO) PostGetProposal(ctx *dao.Context, pid dao.ProposalID, p *dao.Proposal) error {
 	return nil
 }
 
-func (g *GovDAO) PreExecuteProposal(pid dao.ProposalID) (bool, error) {
-	if !g.isValidCall() {
+func (g *GovDAO) PreExecuteProposal(ctx *dao.Context, pid dao.ProposalID) (bool, error) {
+	if !g.isValidCall(ctx) {
 		return false, errors.New("proposal execution must be done directly by a user")
 	}
 	status := g.pss.GetStatus(pid)
@@ -129,12 +129,28 @@ func (g *GovDAO) PreExecuteProposal(pid dao.ProposalID) (bool, error) {
 	return false, errors.New(ufmt.Sprintf("proposal didn't reach supermajority yet: %v", law.Supermajority))
 }
 
-func (g *GovDAO) Render(path string, realmPackage string) string {
-	return g.render.Render(path, realmPackage)
+func (g *GovDAO) Render(ctx *dao.Context, path string) string {
+	return g.render.Render(path, ctx.CurrentRealm.PkgPath())
 }
 
-func (g *GovDAO) isValidCall() bool {
-	// only calls from the dao proxy are allowed
-	// return std.OriginPkgAddress() == std.DerivePkgAddr("gno.land/r/gov/dao") // FIX: https://github.com/gnolang/gno/issues/3976
-	return true
+func (g *GovDAO) isValidCall(ctx *dao.Context) bool {
+	// We need to verify two cases:
+	// 1: r/gov/dao (proxy) was called directly by an user
+	// 2: r/gov/dao/v3/impl was called directly by an user
+
+	// case 1
+
+	println(ctx.CurrentRealm.PkgPath())
+	println(ctx.PrevRealm.PkgPath())
+
+	if ctx.CurrentRealm.PkgPath() == "gno.land/r/gov/dao" && ctx.PrevRealm.IsUser() {
+		return true
+	}
+
+	// case 2
+	if ctx.CurrentRealm.PkgPath() == "gno.land/r/gov/dao/v3/impl" && ctx.PrevRealm.IsUser() {
+		return true
+	}
+
+	return false
 }

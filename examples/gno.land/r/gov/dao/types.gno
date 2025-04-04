@@ -191,34 +191,39 @@ type DAO interface {
 	// It is intended to be used to get the std.Address of the proposal, that
 	// may vary depending on the DAO implementation, and to validate that
 	// the requester is allowed to do a proposal
-	PreCreateProposal(r ProposalRequest) (std.Address, error)
+	PreCreateProposal(ctx *Context, r ProposalRequest) (std.Address, error)
 
 	// PostCreateProposal is called after creating the Proposal. It is
 	// intended to be used as a way to store a new proposal status, that
 	// depends on the actuall govDAO implementation
-	PostCreateProposal(r ProposalRequest, pid ProposalID)
+	PostCreateProposal(ctx *Context, r ProposalRequest, pid ProposalID)
 
 	// VoteOnProposal will send a petition to vote for a specific proposal
 	// to the actual govDAO implementation
-	VoteOnProposal(r VoteRequest) error
+	VoteOnProposal(ctx *Context, r VoteRequest) error
 
 	// PreGetProposal is called when someone is trying to get a proposal by ID.
 	// Is intended to be used to validate who can query proposals, just in case
 	// the actual govDAO implementation wants to limit the access.
-	PreGetProposal(pid ProposalID) error
+	PreGetProposal(ctx *Context, pid ProposalID) error
 
 	// PostGetProposal is called after the proposal has been obtained. Intended to be
 	// used by govDAO implementations if they need to check Proposal data to know if
 	// the caller is allowed to get that kind of Proposal or not.
-	PostGetProposal(pid ProposalID, p *Proposal) error
+	PostGetProposal(ctx *Context, pid ProposalID, p *Proposal) error
 
 	// PreExecuteProposal is called when someone is trying to execute a proposal by ID.
 	// Is intended to be used to validate who can trigger the proposal execution.
-	PreExecuteProposal(pid ProposalID) (bool, error)
+	PreExecuteProposal(ctx *Context, pid ProposalID) (bool, error)
 
 	// Render will return a human-readable string in markdown format that
 	// will be used to show new data through the dao proxy entrypoint.
-	Render(path string, realmPackage string) string
+	Render(ctx *Context, path string) string
+}
+
+type Context struct {
+	PrevRealm    std.Realm
+	CurrentRealm std.Realm
 }
 
 type UpdateRequest struct {

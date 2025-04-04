@@ -107,30 +107,30 @@ func TestProxy_Functions(t *testing.T) {
 type dummyDao struct {
 }
 
-func (dd *dummyDao) PreCreateProposal(r ProposalRequest) (std.Address, error) {
+func (dd *dummyDao) PreCreateProposal(ctx *Context, r ProposalRequest) (std.Address, error) {
 	return std.OriginCaller(), nil
 }
 
-func (dd *dummyDao) PostCreateProposal(r ProposalRequest, pid ProposalID) {
+func (dd *dummyDao) PostCreateProposal(ctx *Context, r ProposalRequest, pid ProposalID) {
 
 }
 
-func (dd *dummyDao) VoteOnProposal(r VoteRequest) error {
+func (dd *dummyDao) VoteOnProposal(ctx *Context, r VoteRequest) error {
 	return nil
 }
 
-func (dd *dummyDao) PreGetProposal(pid ProposalID) error {
+func (dd *dummyDao) PreGetProposal(ctx *Context, pid ProposalID) error {
 	return nil
 }
 
-func (dd *dummyDao) PostGetProposal(pid ProposalID, p *Proposal) error {
+func (dd *dummyDao) PostGetProposal(ctx *Context, pid ProposalID, p *Proposal) error {
 	return nil
 }
 
-func (dd *dummyDao) PreExecuteProposal(pid ProposalID) (bool, error) {
+func (dd *dummyDao) PreExecuteProposal(ctx *Context, pid ProposalID) (bool, error) {
 	return true, nil
 }
 
-func (dd *dummyDao) Render(i, x string) string {
+func (dd *dummyDao) Render(ctx *Context, i string) string {
 	return "Render: " + i
 }
