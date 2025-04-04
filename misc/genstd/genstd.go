@@ -19,6 +19,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"text/template"
 
@@ -100,6 +101,10 @@ type pkgData struct {
 
 	// for determining initialization order
 	imports map[string]struct{}
+
+	// whether there are gno files in this package; if not, it's not a valid gno
+	// package and should be ignored ie. in the initialization order.
+	hasGnoFiles bool
 }
 
 type funcDecl struct {
@@ -165,6 +170,10 @@ func walkStdlibs(stdlibsPath string) ([]*pkgData, error) {
 			return nil
 		}
 
+		// this is a gno file; ensure to mark that there are gno files in this
+		// package.
+		pkg.hasGnoFiles = true
+
 		// ext == ".gno"
 		if bd := filterBodylessFuncDecls(f); len(bd) > 0 {
 			// gno file -- keep track of function declarations without body.
@@ -176,6 +185,9 @@ func walkStdlibs(stdlibsPath string) ([]*pkgData, error) {
 		}
 
 		return nil
+	})
+	pkgs = slices.DeleteFunc(pkgs, func(p *pkgData) bool {
+		return !p.hasGnoFiles
 	})
 	return pkgs, err
 }

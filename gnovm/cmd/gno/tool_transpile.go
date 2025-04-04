@@ -142,6 +142,10 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 	opts := newTranspileOptions(cfg, io)
 	var errlist scanner.ErrorList
 	for _, path := range paths {
+		path, err = filepath.Abs(path)
+		if err != nil {
+			return err
+		}
 		st, err := os.Stat(path)
 		if err != nil {
 			return err

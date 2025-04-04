@@ -1,4 +1,4 @@
-package std
+package execctx
 
 import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -6,6 +6,23 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
+
+type BankerInterface interface {
+	GetCoins(addr crypto.Bech32Address) (dst std.Coins)
+	SendCoins(from, to crypto.Bech32Address, amt std.Coins)
+	TotalCoin(denom string) int64
+	IssueCoin(addr crypto.Bech32Address, denom string, amount int64)
+	RemoveCoin(addr crypto.Bech32Address, denom string, amount int64)
+}
+
+type ParamsInterface interface {
+	SetString(key, val string)
+	SetBool(key string, val bool)
+	SetInt64(key string, val int64)
+	SetUint64(key string, val uint64)
+	SetBytes(key string, val []byte)
+	SetStrings(key string, val []string)
+}
 
 type ExecContext struct {
 	ChainID         string

@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
+	"github.com/gnolang/gno/gnovm/tests/stdlibs/chain/runtime"
 )
 
 func X_write(m *gnolang.Machine, p []byte, isStderr bool) int {
@@ -23,7 +23,7 @@ func X_sleep(m *gnolang.Machine, duration int64) {
 	d := arg0.GetInt64()
 	sec := d / int64(time.Second)
 	nano := d % int64(time.Second)
-	ctx := m.Context.(*teststd.TestExecContext)
+	ctx := m.Context.(*runtime.TestExecContext)
 	ctx.Timestamp += sec
 	ctx.TimestampNano += nano
 	if ctx.TimestampNano >= int64(time.Second) {
