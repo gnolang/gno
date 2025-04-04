@@ -1088,15 +1088,16 @@ const (
 	OpCPUTypeAssert2 = 25
 	// TODO: OpCPUStaticTypeOf is an arbitrary number.
 	// A good way to benchmark this is yet to be determined.
-	OpCPUStaticTypeOf = 100
-	OpCPUCompositeLit = 50
-	OpCPUArrayLit     = 137
-	OpCPUSliceLit     = 183
-	OpCPUSliceLit2    = 467
-	OpCPUMapLit       = 475
-	OpCPUStructLit    = 179
-	OpCPUFuncLit      = 61
-	OpCPUConvert      = 16
+	OpCPUStaticTypeOf   = 100
+	OpCPUCompositeLit   = 50
+	OpCPUArrayLit       = 137
+	OpCPUSliceLit       = 183
+	OpCPUSliceLit2      = 467
+	OpCPUCompositeLitEl = 40
+	OpCPUMapLit         = 475
+	OpCPUStructLit      = 179
+	OpCPUFuncLit        = 61
+	OpCPUConvert        = 16
 
 	/* Type operators */
 	OpCPUFieldType     = 59
