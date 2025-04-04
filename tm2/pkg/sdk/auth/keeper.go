@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"math/big"
@@ -11,6 +12,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
+	"github.com/gnolang/gno/tm2/pkg/telemetry"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 // Concrete implementation of AccountKeeper.
@@ -307,5 +312,22 @@ func (gk GasPriceKeeper) LastGasPrice(ctx sdk.Context) std.GasPrice {
 	if err != nil {
 		panic(err)
 	}
+	logTelemetry(gp)
 	return gp
+}
+
+func logTelemetry(gp std.GasPrice) {
+	if !telemetry.MetricsEnabled() {
+		return
+	}
+	a := attribute.KeyValue{
+		Key:   "Coin",
+		Value: attribute.StringValue(gp.Price.String()),
+	}
+
+	metrics.BlockGasPriceAmount.Record(
+		context.Background(),
+		gp.Gas,
+		metric.WithAttributes(a),
+	)
 }
