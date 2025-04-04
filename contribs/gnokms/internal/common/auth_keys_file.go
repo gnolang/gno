@@ -66,7 +66,7 @@ func (akf *AuthKeysFile) validate() error {
 
 	// Verify that the embedded public key matches what we get from PubKey()
 	derivedPubKey := akf.ServerIdentity.PrivKey.PubKey()
-	if !bytes.Equal(derivedPubKey.Bytes()[:], pubKeyPortion) {
+	if !derivedPubKey.Equals(ed25519.PubKeyEd25519(pubKeyPortion)) {
 		return fmt.Errorf("%w: embedded public key doesn't match derived public key", errInvalidPublicKey)
 	}
 

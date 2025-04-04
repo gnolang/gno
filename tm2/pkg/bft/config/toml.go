@@ -91,6 +91,8 @@ func ResetTestRoot(testName string) (*Config, string) {
 	if !osm.FileExists(configFilePath) {
 		WriteConfigFile(configFilePath, DefaultConfig())
 	}
+
+	// Write default genesis file if missing.
 	if !osm.FileExists(genesisFilePath) {
 		if chainID == "" {
 			chainID = "tendermint_test"
