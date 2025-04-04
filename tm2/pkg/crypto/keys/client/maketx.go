@@ -254,14 +254,14 @@ func printResultBroadcastTxCommitJson(bres *types.ResultBroadcastTxCommit, io co
 	// Marshal CheckTx
 	output.CheckTx, err = amino.MarshalJSONIndent(bres.CheckTx, "", "  ")
 	if err != nil {
-		io.ErrPrintfln("Unable to marshal CheckTx: %+v", bres.CheckTx)
+		io.ErrPrintfln("Unable to marshal `CheckTx` from: %+v", bres)
 		return fmt.Errorf("amino marshal json error: %w", err)
 	}
 
 	// Marshal DeliverTx
 	output.DeliverTx, err = amino.MarshalJSONIndent(bres.DeliverTx, "", "  ")
 	if err != nil {
-		io.ErrPrintfln("Unable to marshal DeliverTx: %+v", bres.DeliverTx)
+		io.ErrPrintfln("Unable to marshal `DeliverTx` from: %+v", bres)
 		return fmt.Errorf("amino marshal json error: %w", err)
 	}
 
