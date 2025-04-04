@@ -1,5 +1,5 @@
 --- ./parser_test.go.orig	2025-02-27 18:57:18.000000000 +0100
-+++ ./parser_test.go	2025-04-03 14:33:00.618206378 +0200
++++ ./parser_test.go	2025-04-04 16:56:26.893372794 +0200
 @@ -81,14 +81,6 @@
  	}
  }
@@ -33,7 +33,7 @@
  						t.Errorf("ParseFile(...) = _, %v, want %q", err, expected)
  					}
 --- ./interface.go.orig	2025-02-27 18:57:18.000000000 +0100
-+++ ./interface.go	2025-04-03 14:33:00.618673681 +0200
++++ ./interface.go	2025-04-04 16:56:26.893783754 +0200
 @@ -120,12 +120,63 @@
  	}()
  
@@ -157,7 +157,7 @@
 +	return ParseExprFromStats(token.NewFileSet(), "", []byte(x), 0, maxNest)
 +}
 --- ./performance_test.go.orig	2025-02-27 18:57:18.000000000 +0100
-+++ ./performance_test.go	2025-04-03 14:33:00.618907270 +0200
++++ ./performance_test.go	2025-04-04 16:56:26.894037839 +0200
 @@ -10,7 +10,7 @@
  	"testing"
  )
@@ -168,7 +168,7 @@
  func readFile(filename string) []byte {
  	data, err := os.ReadFile(filename)
 --- ./resolver.go.orig	2025-02-27 18:57:18.000000000 +0100
-+++ ./resolver.go	2025-04-03 14:33:00.619532702 +0200
++++ ./resolver.go	2025-04-04 16:56:26.894467633 +0200
 @@ -253,7 +253,6 @@
  	}
  
@@ -178,7 +178,7 @@
  	case *ast.Ident:
  		r.resolve(n, true)
 --- ./parser.go.orig	2025-02-27 18:57:18.000000000 +0100
-+++ ./parser.go	2025-04-03 17:43:09.416089862 +0200
++++ ./parser.go	2025-04-04 16:56:26.895620638 +0200
 @@ -19,10 +19,11 @@
  	"fmt"
  	"go/ast"
