@@ -1,4 +1,4 @@
-package docs
+package demo
 
 func Render(_ string) string {
 	return `# Gno Demo Packages
@@ -6,8 +6,11 @@ func Render(_ string) string {
 Welcome to the "demo" namespace. Here you will find realms that demonstrate 
 how the Gno language can be used. Check out some examples below:
 
-- [Counter](/r/demo/counter)
-- [Userbook](/r/demo/userbook) 
+- [Art](/r/demo/art)
+- [AtomicSwap](/r/demo/atomicswap)
+- [Userbook](/r/demo/userbook)
+- [Userbook](/r/demo/userbook)
+- [Boards](/r/demo/boards)
 - GRC:
 	- [Foo20](/r/demo/foo20)
 	- [Bar20](/r/demo/bar20)
