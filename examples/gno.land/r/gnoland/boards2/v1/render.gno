@@ -74,30 +74,30 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 	render := func(_ string, v any) bool {
 		board := v.(*Board)
 
-		res.Write("## " + newLink(board.GetName(), board.GetURL()) + "  \n")
-		res.Write("_Created by " + newUserLink(board.creator) + " ")
+		res.Write("**" + newLink(board.GetName(), board.GetURL()) + "**  \n")
+		res.Write("Created by " + newUserLink(board.creator) + " ")
 		res.Write("on " + board.createdAt.Format(dateFormat))
-		res.Write(", #" + board.id.String() + "_  \n")
-		res.Write("_" + strconv.Itoa(board.threads.Size()) + " threads")
+		res.Write(", #" + board.id.String() + "  \n")
+		res.Write("**" + strconv.Itoa(board.threads.Size()) + " threads")
 		if board.IsReadonly() {
-			res.Write(", **read-only**")
+			res.Write(", read-only")
 		}
 
-		res.Write("_\n")
+		res.Write("**\n\n")
 		return false
 	}
 
-	res.Write("_Sort by ")
+	res.Write("Sort by: ")
 	r := realmpath.Parse(req.RawPath)
 	if r.Query.Get("order") == "desc" {
 		r.Query.Set("order", "asc")
 		res.Write(newLink("newest first", r.String()))
-		res.Write("_\n")
+		res.Write("\n\n")
 		gBoardsByID.ReverseIterateByOffset(p.Offset(), p.PageSize(), render)
 	} else {
 		r.Query.Set("order", "desc")
 		res.Write(newLink("oldest first", r.String()))
-		res.Write("_\n")
+		res.Write("\n\n")
 		gBoardsByID.IterateByOffset(p.Offset(), p.PageSize(), render)
 	}
 
