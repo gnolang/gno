@@ -53,8 +53,6 @@ type webCfg struct {
 	html       bool
 	noStrict   bool
 	verbose    bool
-	cspImgHost []string // New field for CSP hostnames
-
 }
 
 var defaultWebOptions = webCfg{
@@ -249,7 +247,6 @@ func SecureHeadersMiddleware(next http.Handler, strict bool) http.Handler {
 	// Build img-src CSP directive
 	imgSrc := "'self' data:image/svg+xml"
 
-	// Generate csp images hosts
 	for _, host := range cspImgHost {
 		imgSrc += " " + host
 	}
@@ -257,10 +254,6 @@ func SecureHeadersMiddleware(next http.Handler, strict bool) http.Handler {
 	// Define a Content Security Policy (CSP) to restrict the sources of
 	// scripts, styles, images, and other resources. This helps prevent
 	// cross-site scripting (XSS) and other code injection attacks.
-	// The list of allowed domain is discribed above.
-	// - 'self' allows resources from the same origin.
-	// - 'data:' allows inline images (e.g., base64-encoded images).
-	// - 'https://gnolang.github.io' allows images from this specific domain - used by gno.land.
 	csp := fmt.Sprintf(
 		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src %s; font-src 'self'",
 		imgSrc,
