@@ -50,7 +50,7 @@ func (c *githubCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.maxClaimableLimit,
 		"max-claimable-limit",
 		0,
-		"maximum number of tokens a single user can claim over their lifetime",
+		"maximum number of tokens a single user can claim over their lifetime. Zero means no limit",
 	)
 }
 

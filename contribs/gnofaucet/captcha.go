@@ -13,7 +13,7 @@ type captchaCfg struct {
 	captchaSecret string
 }
 
-var ErrCaptchaMissing = fmt.Errorf("captcha secret is required")
+var errCaptchaMissing = fmt.Errorf("captcha secret is required")
 
 func (c *captchaCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
@@ -44,7 +44,7 @@ func newCaptchaCmd(rootCfg *serveCfg) *commands.Command {
 
 func execCaptcha(ctx context.Context, cfg *captchaCfg, io commands.IO) error {
 	if cfg.captchaSecret == "" {
-		return ErrCaptchaMissing
+		return errCaptchaMissing
 	}
 
 	return serveFaucet(ctx, cfg.rootCfg, io, getCaptchaMiddleware(cfg.captchaSecret))

@@ -18,7 +18,7 @@ func TestServeCapcha(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorIs(t, cmdErr, ErrCaptchaMissing)
+		assert.ErrorIs(t, cmdErr, errCaptchaMissing)
 	})
 
 	t.Run("Serve captcha without chain-id", func(t *testing.T) {
