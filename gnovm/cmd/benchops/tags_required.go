@@ -2,6 +2,10 @@
 
 package main
 
+import "testing"
+
 func init() {
-	panic("build tags benchmarkingops or benchmarkingstorage are required for measuring benchmarks")
+	if !testing.Testing() {
+		panic("build tags benchmarkingops or benchmarkingstorage are required for measuring benchmarks")
+	}
 }
