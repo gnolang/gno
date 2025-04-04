@@ -1364,7 +1364,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				switch cft := baseOf(ift).(type) {
 				case *FuncType:
 					fn := extractFunctionName(n)
-					if fn == BuiltinMake || fn == BuiltinCap || fn == BuiltinLen {
+					if fn == "len" {
+						at := evalStaticTypeOf(store, last, n.Args[0])
+						validateLenArg(at)
+					}
+					if fn == "cap" {
+						at := evalStaticTypeOf(store, last, n.Args[0])
+						validateCapArg(at)
+					}
+					if fn == "make" {
 						assertValidBuiltinArgType(store, last, n)
 					}
 					ft = cft
@@ -5503,39 +5511,15 @@ func SaveBlockNodes(store Store, fn *FileNode) {
 
 // Check for invalid arguments in builtin functions
 // len, cap, make
-const (
-	BuiltinLen  = "len"
-	BuiltinCap  = "cap"
-	BuiltinMake = "make"
-)
-
 func assertValidBuiltinArgType(store Store, last BlockNode, currExpr Expr) {
 	switch currExpr := currExpr.(type) {
 	case *ConstExpr:
 		assertValidBuiltinArgType(store, last, currExpr.Source)
-	case *NameExpr:
-		assertValidBuiltinArgType(store, last, currExpr)
 	case *CallExpr:
 		ift := evalStaticTypeOf(store, last, currExpr.Func)
 		switch baseOf(ift).(type) {
 		case *FuncType:
-			if cx, ok := currExpr.Func.(*ConstExpr); ok {
-				if fv, ok := cx.V.(*FuncValue); ok {
-					// Handle the specific built-in function
-					if fv.PkgPath == uversePkgPath {
-						at := evalStaticTypeOf(store, last, currExpr.Args[0])
-						// Validate based on the function name
-						switch fv.Name {
-						case BuiltinLen:
-							validateLenArg(at)
-						case BuiltinCap:
-							validateCapArg(at)
-						case BuiltinMake:
-							validateMakeArg(store, last, currExpr)
-						}
-					}
-				}
-			}
+			validateMakeArg(store, last, currExpr)
 		}
 	}
 }
@@ -5554,7 +5538,7 @@ func validateLenArg(at Type) {
 	case *ArrayType, *SliceType, *MapType, *ChanType:
 		// Valid types for len()
 	default:
-		panic(fmt.Sprintf("unexpected type for len(): %v", at))
+		panic(fmt.Sprintf("unexpected type for len(): %v", baseOf(at)))
 	}
 }
 
@@ -5593,12 +5577,12 @@ func validateMakeArg(store Store, last BlockNode, currExpr *CallExpr) {
 		}
 
 		var err error
-		length, err = getIntValue(currExpr.Args[1], "length")
+		length, err = parseIntValue(currExpr.Args[1], "length")
 		if err != nil {
 			panic(err.Error()) // Convert error to panic message
 		}
 		if length < 0 {
-			panic(fmt.Sprintf("invalid length argument for built-in %s: cannot be negative, got %d", BuiltinMake, length))
+			panic(fmt.Sprintf("invalid length argument for built-in %s: cannot be negative, got %d", "make", length))
 		}
 	}
 
@@ -5609,7 +5593,7 @@ func validateMakeArg(store Store, last BlockNode, currExpr *CallExpr) {
 			panic("invalid argument 3: nil for built-in make")
 		}
 		var err error
-		capacity, err = getIntValue(currExpr.Args[2], "capacity")
+		capacity, err = parseIntValue(currExpr.Args[2], "capacity")
 		if err != nil {
 			panic(err.Error()) // Convert error to panic message
 		}
@@ -5625,14 +5609,14 @@ func validateMakeType(tp Type) {
 	case *SliceType, *MapType, *ChanType:
 		// Valid types for make()
 	default:
-		panic(fmt.Sprintf("invalid type for built-in %s: %s (must be slice, map, or channel)", BuiltinMake, tp.String()))
+		panic(fmt.Sprintf("invalid type for built-in %s: %s (must be slice, map, or channel)", "make", tp.String()))
 	}
 }
 
-func getIntValue(expr Expr, argName string) (int, error) {
+func parseIntValue(expr Expr, argName string) (int, error) {
 	switch e := expr.(type) {
 	case *ConstExpr:
-		return getIntValue(e.Source, argName)
+		return parseIntValue(e.Source, argName)
 
 	case *BasicLitExpr:
 		var num int64
@@ -5645,7 +5629,7 @@ func getIntValue(expr Expr, argName string) (int, error) {
 		} else {
 			n, err := strconv.Atoi(e.Value)
 			if err != nil {
-				return 0, fmt.Errorf("invalid %s argument for built-in %s: cannot convert %q to int", argName, BuiltinMake, e.Value)
+				return 0, fmt.Errorf("invalid %s argument for built-in %s: cannot convert %q to int", argName, "make", e.Value)
 			}
 			return n, nil
 		}
@@ -5677,7 +5661,7 @@ func hasFractionalPart(s string) (float64, error) {
 	// Check if the float has a fractional part by comparing it with its integer part
 	intPart := math.Trunc(f)
 	if f != intPart {
-		return f, errors.New(fmt.Sprintf("Error message"))
+		return f, fmt.Errorf("invalid argument: %s has a fractional part", s)
 	}
 	return f, nil
 }
