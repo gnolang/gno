@@ -9,8 +9,8 @@ how the Gno language can be used. Check out some examples below:
 - [Art](/r/demo/art)
 - [AtomicSwap](/r/demo/atomicswap)
 - [Userbook](/r/demo/userbook)
-- [Userbook](/r/demo/userbook)
 - [Boards](/r/demo/boards)
+- [Counter](/r/demo/counter)
 - GRC:
 	- [Foo20](/r/demo/foo20)
 	- [Bar20](/r/demo/bar20)
