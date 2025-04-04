@@ -638,9 +638,8 @@ type ChanTypeExpr struct {
 
 type FuncTypeExpr struct {
 	Attributes
-	Params    FieldTypeExprs // (incoming) parameters, if any.
-	Results   FieldTypeExprs // (outgoing) results, if any.
-	IsClosure bool
+	Params  FieldTypeExprs // (incoming) parameters, if any.
+	Results FieldTypeExprs // (outgoing) results, if any.
 }
 
 type MapTypeExpr struct {
