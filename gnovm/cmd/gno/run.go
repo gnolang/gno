@@ -33,6 +33,7 @@ func newRunCmd(io commands.IO) *commands.Command {
 			Name:       "run",
 			ShortUsage: "run [flags] <file> [<file>...]",
 			ShortHelp:  "run gno packages",
+			LongHelp:   "run gno packages.\n" + gnodebugHelp(),
 		},
 		cfg,
 		func(_ context.Context, args []string) error {

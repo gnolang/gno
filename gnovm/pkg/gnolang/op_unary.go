@@ -10,16 +10,16 @@ import (
 
 func (m *Machine) doOpUpos() {
 	ux := m.PopExpr().(*UnaryExpr)
-	if debug {
-		debug.Printf("doOpUpos(%v)\n", ux)
+	if dbg {
+		dbg.Printf("log_machine", "doOpUpos(%v)\n", ux)
 	}
 	// nothing to do, +x is just x?
 }
 
 func (m *Machine) doOpUneg() {
 	ux := m.PopExpr().(*UnaryExpr)
-	if debug {
-		debug.Printf("doOpUneg(%v)\n", ux)
+	if dbg {
+		dbg.Printf("log_machine", "doOpUneg(%v)\n", ux)
 	}
 	xv := m.PeekValue(1)
 
@@ -68,8 +68,8 @@ func (m *Machine) doOpUneg() {
 
 func (m *Machine) doOpUnot() {
 	ux := m.PopExpr().(*UnaryExpr)
-	if debug {
-		debug.Printf("doOpUnot(%v)\n", ux)
+	if dbg {
+		dbg.Printf("log_machine", "doOpUnot(%v)\n", ux)
 	}
 	xv := m.PeekValue(1)
 
@@ -85,8 +85,8 @@ func (m *Machine) doOpUnot() {
 
 func (m *Machine) doOpUxor() {
 	ux := m.PopExpr().(*UnaryExpr)
-	if debug {
-		debug.Printf("doOpUxor(%v)\n", ux)
+	if dbg {
+		dbg.Printf("log_machine", "doOpUxor(%v)\n", ux)
 	}
 	xv := m.PeekValue(1)
 

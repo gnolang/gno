@@ -400,7 +400,7 @@ type StructValue struct {
 
 // TODO handle unexported fields in debug, and also ensure in the preprocessor.
 func (sv *StructValue) GetPointerTo(store Store, path ValuePath) PointerValue {
-	if debug {
+	if zealous {
 		if path.Depth != 0 {
 			panic(fmt.Sprintf(
 				"expected path.Depth of 0 but got %s %s",
@@ -421,7 +421,7 @@ func (sv *StructValue) GetPointerToInt(store Store, index int) PointerValue {
 
 // Like GetPointerTo*, but returns (a pointer of) a reference to field.
 func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path ValuePath) PointerValue {
-	if debug {
+	if zealous {
 		if path.Depth != 0 {
 			panic(fmt.Sprintf(
 				"expected path.Depth of 0 but got %s %s",
@@ -895,13 +895,13 @@ func (tv *TypedValue) IsDefined() bool {
 }
 
 func (tv *TypedValue) IsUndefined() bool {
-	if debug {
+	if zealous {
 		if tv == nil {
 			panic("should not happen")
 		}
 	}
 	if tv.T == nil {
-		if debug {
+		if zealous {
 			if tv.V != nil || tv.N != [8]byte{} {
 				panic(fmt.Sprintf(
 					"corrupted TypeValue (nil T)"))
@@ -917,7 +917,7 @@ func (tv *TypedValue) IsNilInterface() bool {
 		if tv.V == nil {
 			return true
 		}
-		if debug {
+		if zealous {
 			if tv.N != [8]byte{} {
 				panic(fmt.Sprintf(
 					"corrupted TypeValue (nil interface)"))
@@ -933,21 +933,6 @@ func (tv *TypedValue) HasKind(k Kind) bool {
 		return false
 	}
 	return tv.T.Kind() == k
-}
-
-// for debugging, returns true if V or N is not zero.  just because V and N are
-// zero doesn't mean it didn't get a value set.
-func (tv *TypedValue) DebugHasValue() bool {
-	if !debug {
-		panic("should not happen")
-	}
-	if tv.V != nil {
-		return true
-	}
-	if tv.N != [8]byte{} {
-		return true
-	}
-	return false
 }
 
 func (tv *TypedValue) ClearNum() {
@@ -1063,7 +1048,7 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 // values stored without interfaces..
 
 func (tv *TypedValue) SetBool(b bool) {
-	if debug {
+	if zealous {
 		if tv.T.Kind() != BoolKind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetBool() on type %s",
@@ -1074,7 +1059,7 @@ func (tv *TypedValue) SetBool(b bool) {
 }
 
 func (tv *TypedValue) GetBool() bool {
-	if debug {
+	if zealous {
 		if tv.T != nil && tv.T.Kind() != BoolKind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetBool() on type %s",
@@ -1085,7 +1070,7 @@ func (tv *TypedValue) GetBool() bool {
 }
 
 func (tv *TypedValue) SetString(s StringValue) {
-	if debug {
+	if zealous {
 		if tv.T.Kind() != StringKind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetString() on type %s",
@@ -1096,7 +1081,7 @@ func (tv *TypedValue) SetString(s StringValue) {
 }
 
 func (tv *TypedValue) GetString() string {
-	if debug {
+	if zealous {
 		if tv.T != nil && tv.T.Kind() != StringKind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetString() on type %s",
@@ -1110,7 +1095,7 @@ func (tv *TypedValue) GetString() string {
 }
 
 func (tv *TypedValue) SetInt(n int64) {
-	if debug {
+	if zealous {
 		if tv.T.Kind() != IntKind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt() on type %s",
@@ -1127,7 +1112,7 @@ func (tv *TypedValue) ConvertGetInt() int64 {
 }
 
 func (tv *TypedValue) GetInt() int64 {
-	if debug {
+	if zealous {
 		if tv.T != nil && tv.T.Kind() != IntKind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetInt() on type %s",
@@ -1138,7 +1123,7 @@ func (tv *TypedValue) GetInt() int64 {
 }
 
 func (tv *TypedValue) SetInt8(n int8) {
-	if debug {
+	if zealous {
 		if tv.T.Kind() != Int8Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt8() on type %s",
@@ -1149,7 +1134,7 @@ func (tv *TypedValue) SetInt8(n int8) {
 }
 
 func (tv *TypedValue) GetInt8() int8 {
-	if debug {
+	if zealous {
 		if tv.T != nil && tv.T.Kind() != Int8Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetInt8() on type %s",
@@ -1160,7 +1145,7 @@ func (tv *TypedValue) GetInt8() int8 {
 }
 
 func (tv *TypedValue) SetInt16(n int16) {
-	if debug {
+	if zealous {
 		if tv.T.Kind() != Int16Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt16() on type %s",
@@ -1171,7 +1156,7 @@ func (tv *TypedValue) SetInt16(n int16) {
 }
 
 func (tv *TypedValue) GetInt16() int16 {
-	if debug {
+	if zealous {
 		if tv.T != nil && tv.T.Kind() != Int16Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetInt16() on type %s",
@@ -1182,7 +1167,7 @@ func (tv *TypedValue) GetInt16() int16 {
 }
 
 func (tv *TypedValue) SetInt32(n int32) {
-	if debug {
+	if zealous {
 		if tv.T.Kind() != Int32Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt32() on type %s",
@@ -1193,7 +1178,7 @@ func (tv *TypedValue) SetInt32(n int32) {
 }
 
 func (tv *TypedValue) GetInt32() int32 {
-	if debug {
+	if zealous {
 		if tv.T != nil && tv.T.Kind() != Int32Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetInt32() on type %s",
@@ -1204,7 +1189,7 @@ func (tv *TypedValue) GetInt32() int32 {
 }
 
 func (tv *TypedValue) SetInt64(n int64) {
-	if debug {
+	if zealous {
 		if tv.T.Kind() != Int64Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetInt64() on type %s",
@@ -1215,7 +1200,7 @@ func (tv *TypedValue) SetInt64(n int64) {
 }
 
 func (tv *TypedValue) GetInt64() int64 {
-	if debug {
+	if zealous {
 		if tv.T != nil && tv.T.Kind() != Int64Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetInt64() on type %s",
@@ -1226,7 +1211,7 @@ func (tv *TypedValue) GetInt64() int64 {
 }
 
 func (tv *TypedValue) SetUint(n uint64) {
-	if debug {
+	if zealous {
 		if tv.T.Kind() != UintKind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint() on type %s",
@@ -1237,7 +1222,7 @@ func (tv *TypedValue) SetUint(n uint64) {
 }
 
 func (tv *TypedValue) GetUint() uint64 {
-	if debug {
+	if zealous {
 		if tv.T != nil && tv.T.Kind() != UintKind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetUint() on type %s",
@@ -1248,7 +1233,7 @@ func (tv *TypedValue) GetUint() uint64 {
 }
 
 func (tv *TypedValue) SetUint8(n uint8) {
-	if debug {
+	if zealous {
 		if tv.T.Kind() != Uint8Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint8() on type %s",
@@ -1262,7 +1247,7 @@ func (tv *TypedValue) SetUint8(n uint8) {
 }
 
 func (tv *TypedValue) GetUint8() uint8 {
-	if debug {
+	if zealous {
 		if tv.T != nil && tv.T.Kind() != Uint8Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetUint8() on type %s",
@@ -1276,7 +1261,7 @@ func (tv *TypedValue) GetUint8() uint8 {
 }
 
 func (tv *TypedValue) SetDataByte(n uint8) {
-	if debug {
+	if zealous {
 		if tv.T != DataByteType {
 			panic(fmt.Sprintf(
 				"TypedValue.SetDataByte() on type %s",
@@ -1288,7 +1273,7 @@ func (tv *TypedValue) SetDataByte(n uint8) {
 }
 
 func (tv *TypedValue) GetDataByte() uint8 {
-	if debug {
+	if zealous {
 		if tv.T != nil && tv.T != DataByteType {
 			panic(fmt.Sprintf(
 				"TypedValue.GetDataByte() on type %s",
@@ -1300,7 +1285,7 @@ func (tv *TypedValue) GetDataByte() uint8 {
 }
 
 func (tv *TypedValue) SetUint16(n uint16) {
-	if debug {
+	if zealous {
 		if tv.T.Kind() != Uint16Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint16() on type %s",
@@ -1311,7 +1296,7 @@ func (tv *TypedValue) SetUint16(n uint16) {
 }
 
 func (tv *TypedValue) GetUint16() uint16 {
-	if debug {
+	if zealous {
 		if tv.T != nil && tv.T.Kind() != Uint16Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetUint16() on type %s",
@@ -1322,7 +1307,7 @@ func (tv *TypedValue) GetUint16() uint16 {
 }
 
 func (tv *TypedValue) SetUint32(n uint32) {
-	if debug {
+	if zealous {
 		if tv.T.Kind() != Uint32Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint32() on type %s",
@@ -1333,7 +1318,7 @@ func (tv *TypedValue) SetUint32(n uint32) {
 }
 
 func (tv *TypedValue) GetUint32() uint32 {
-	if debug {
+	if zealous {
 		if tv.T != nil && tv.T.Kind() != Uint32Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetUint32() on type %s",
@@ -1344,7 +1329,7 @@ func (tv *TypedValue) GetUint32() uint32 {
 }
 
 func (tv *TypedValue) SetUint64(n uint64) {
-	if debug {
+	if zealous {
 		if tv.T.Kind() != Uint64Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetUint64() on type %s",
@@ -1355,7 +1340,7 @@ func (tv *TypedValue) SetUint64(n uint64) {
 }
 
 func (tv *TypedValue) GetUint64() uint64 {
-	if debug {
+	if zealous {
 		if tv.T != nil && tv.T.Kind() != Uint64Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetUint64() on type %s",
@@ -1366,7 +1351,7 @@ func (tv *TypedValue) GetUint64() uint64 {
 }
 
 func (tv *TypedValue) SetFloat32(n uint32) {
-	if debug {
+	if zealous {
 		if tv.T.Kind() != Float32Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetFloat32() on type %s",
@@ -1377,7 +1362,7 @@ func (tv *TypedValue) SetFloat32(n uint32) {
 }
 
 func (tv *TypedValue) GetFloat32() uint32 {
-	if debug {
+	if zealous {
 		if tv.T != nil && tv.T.Kind() != Float32Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetFloat32() on type %s",
@@ -1388,7 +1373,7 @@ func (tv *TypedValue) GetFloat32() uint32 {
 }
 
 func (tv *TypedValue) SetFloat64(n uint64) {
-	if debug {
+	if zealous {
 		if tv.T.Kind() != Float64Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.SetFloat64() on type %s",
@@ -1399,7 +1384,7 @@ func (tv *TypedValue) SetFloat64(n uint64) {
 }
 
 func (tv *TypedValue) GetFloat64() uint64 {
-	if debug {
+	if zealous {
 		if tv.T != nil && tv.T.Kind() != Float64Kind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetFloat64() on type %s",
@@ -1410,7 +1395,7 @@ func (tv *TypedValue) GetFloat64() uint64 {
 }
 
 func (tv *TypedValue) GetBigInt() *big.Int {
-	if debug {
+	if zealous {
 		if tv.T != nil && tv.T.Kind() != BigintKind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetBigInt() on type %s",
@@ -1421,7 +1406,7 @@ func (tv *TypedValue) GetBigInt() *big.Int {
 }
 
 func (tv *TypedValue) GetBigDec() *apd.Decimal {
-	if debug {
+	if zealous {
 		if tv.T != nil && tv.T.Kind() != BigdecKind {
 			panic(fmt.Sprintf(
 				"TypedValue.GetBigDec() on type %s",
@@ -1461,7 +1446,7 @@ func (tv *TypedValue) AssertNonNegative(msg string) {
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 	// Special case when nil: has no separator.
 	if tv.T == nil {
-		if debug {
+		if zealous {
 			if omitType {
 				panic("should not happen")
 			}
@@ -1543,7 +1528,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 // cu: convert untyped after assignment. pass false
 // for const definitions, but true for all else.
 func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
-	if debug {
+	if zealous {
 		if tv.T == DataByteType {
 			// assignment to data byte types should only
 			// happen via *PointerValue.Assign2().
@@ -1567,7 +1552,7 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 // allocated, *Allocator.AllocatePointer() is called separately,
 // as in OpRef.
 func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path ValuePath) PointerValue {
-	if debug {
+	if zealous {
 		if tv.IsUndefined() {
 			panic("GetPointerToFromTV() on undefined value")
 		}
@@ -1659,7 +1644,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 	default:
 		dtv = tv
 	}
-	if debug {
+	if zealous {
 		path.Validate()
 	}
 
@@ -1718,7 +1703,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		mtv := dt.GetValueAt(alloc, store, path)
 		mv := mtv.GetFunc()
 		mt := mv.GetType(store)
-		if debug {
+		if zealous {
 			if mt.HasPointerReceiver() {
 				panic("should not happen")
 			}
@@ -1743,7 +1728,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 		mtv := dt.GetValueAt(alloc, store, path)
 		mv := mtv.GetFunc()
 		mt := mv.GetType(store)
-		if debug {
+		if zealous {
 			if !mt.HasPointerReceiver() {
 				panic("should not happen")
 			}
@@ -2228,7 +2213,7 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	if path.IsBlockBlankPath() {
-		if debug {
+		if zealous {
 			if path.Name != blankIdentifier {
 				panic(fmt.Sprintf(
 					"zero value path is reserved for \"_\", but got %s",
@@ -2347,7 +2332,7 @@ func (b *Block) GetBodyStmt() *bodyStmt {
 
 // Used by SwitchStmt upon clause match.
 func (b *Block) ExpandToSize(alloc *Allocator, size uint16) {
-	if debug {
+	if zealous {
 		if len(b.Values) >= int(size) {
 			panic(fmt.Sprintf(
 				"unexpected block size shrinkage: %v vs %v",

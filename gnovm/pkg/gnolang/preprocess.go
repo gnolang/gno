@@ -149,8 +149,8 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 	// iterate over all nodes recursively.
 	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		defer doRecover(stack, n)
-		if debug {
-			debug.Printf("initStaticBlocks %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+		if dbg {
+			dbg.Printf("log_preprocess", "initStaticBlocks %s (%v) stage:%v", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -467,8 +467,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 		}
 
 		defer doRecover(stack, n)
-		if debug {
-			debug.Printf("Preprocess %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+		if dbg {
+			dbg.Printf("log_preprocess", "Preprocess %s (%v) stage:%v", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -1054,8 +1054,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				lcx, lic := n.Left.(*ConstExpr)
 				rcx, ric := n.Right.(*ConstExpr)
 
-				if debug {
-					debug.Printf("Trans_leave, BinaryExpr, OP: %v, lx: %v, rx: %v, lt: %v, rt: %v, isLeftConstExpr: %v, isRightConstExpr %v, isLeftUntyped: %v, isRightUntyped: %v \n", n.Op, n.Left, n.Right, lt, rt, lic, ric, isUntyped(lt), isUntyped(rt))
+				if dbg {
+					dbg.Printf("log_preprocess", "Trans_leave, BinaryExpr, OP: %v, lx: %v, rx: %v, lt: %v, rt: %v, isLeftConstExpr: %v, isRightConstExpr %v, isLeftUntyped: %v, isRightUntyped: %v", n.Op, n.Left, n.Right, lt, rt, lic, ric, isUntyped(lt), isUntyped(rt))
 				}
 
 				// Special (recursive) case if shift and right isn't uint.
@@ -1710,7 +1710,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 					if len(tr) > 1 {
 						// (the last vp, tr[len(tr)-1], is for n.Sel)
-						if debug {
+						if zealous {
 							if tr[len(tr)-1].Name != n.Sel {
 								panic("should not happen")
 							}
@@ -2518,8 +2518,8 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		defer doRecover(stack, n)
 
-		if debug {
-			debug.Printf("findGotoLoopDefines %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+		if dbg {
+			dbg.Printf("log_preprocess", "findGotoLoopDefines %s (%v) stage:%v", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -2676,8 +2676,8 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		defer doRecover(stack, n)
 
-		if debug {
-			debug.Printf("findLoopUses1 %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+		if dbg {
+			dbg.Printf("log_preprocess", "findLoopUses1 %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -2869,8 +2869,8 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		defer doRecover(stack, n)
 
-		if debug {
-			debug.Printf("findLoopUses2 %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+		if dbg {
+			dbg.Printf("log_machine", "findLoopUses2 %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -3416,16 +3416,16 @@ func isConstType(x Expr) bool {
 
 // check before convert type
 func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type, autoNative bool) {
-	if debug {
-		debug.Printf("checkOrConvertType, *x: %v:, t:%v \n", *x, t)
+	if dbg {
+		dbg.Printf("log_preprocess", "checkOrConvertType, *x: %v:, t:%v \n", *x, t)
 	}
 	if cx, ok := (*x).(*ConstExpr); ok {
 		// e.g. int(1) == int8(1)
 		assertAssignableTo(n, cx.T, t, autoNative)
 	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
 		xt := evalStaticTypeOf(store, last, *x)
-		if debug {
-			debug.Printf("shift, xt: %v, Op: %v, t: %v \n", xt, bx.Op, t)
+		if dbg {
+			dbg.Printf("log_preprocess", "shift, xt: %v, Op: %v, t: %v \n", xt, bx.Op, t)
 		}
 		if isUntyped(xt) {
 			// check assignable first, see: types/shift_b6.gno
@@ -3517,8 +3517,8 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type, au
 // automatically converted to native go types.
 // NOTE: also see checkOrConvertIntegerKind()
 func convertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
-	if debug {
-		debug.Printf("convertType, *x: %v:, t:%v \n", *x, t)
+	if dbg {
+		dbg.Printf("log_preprocess", "convertType, *x: %v:, t:%v \n", *x, t)
 	}
 	if cx, ok := (*x).(*ConstExpr); ok {
 		convertConst(store, last, n, cx, t)

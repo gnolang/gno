@@ -52,9 +52,9 @@ SelectStmt ->
 
 func (m *Machine) doOpExec(op Op) {
 	s := m.PeekStmt(1) // TODO: PeekStmt1()?
-	if debug {
-		debug.Printf("PEEK STMT: %v\n", s)
-		debug.Printf("%v\n", m)
+	if dbg {
+		dbg.Printf("log_machine", "PEEK STMT: %v\n", s)
+		dbg.Printf("log_machine", "%v\n", m)
 	}
 
 	// NOTE this could go in the switch statement, and we could
@@ -428,8 +428,8 @@ func (m *Machine) doOpExec(op Op) {
 	}
 
 EXEC_SWITCH:
-	if debug {
-		debug.Printf("EXEC: %v\n", s)
+	if dbg {
+		dbg.Printf("log_machine", "EXEC: %v\n", s)
 	}
 	switch cs := s.(type) {
 	case *AssignStmt:
@@ -829,7 +829,7 @@ func (m *Machine) doOpTypeSwitch() {
 		if len(cs.Cases) > 0 {
 			// see if any clause cases match.
 			for _, cx := range cs.Cases {
-				if debug {
+				if zealous {
 					if !isConstType(cx) {
 						panic(fmt.Sprintf(
 							"should not happen, expected const type expr for case(s) but got %s",
@@ -944,7 +944,7 @@ func (m *Machine) doOpSwitchClauseCase() {
 	cliv := m.PeekValue(3) // clause index (reuse)
 
 	// eval whether cv == tv.
-	if debug {
+	if dbg {
 		debugAssertEqualityTypes(cv.T, tv.T)
 	}
 	match := isEql(m.Store, cv, tv)
