@@ -64,4 +64,7 @@ func (e *gnoExtension) Extend(m goldmark.Markdown) {
 
 	// Add link extension with context
 	Links.Extend(m)
+
+	// Add form / inputs extension with context
+	Forms.Extend(m)
 }
