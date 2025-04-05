@@ -21,10 +21,8 @@ type SourceTocData struct {
 	Icon         string
 	Items        []SourceTocItem
 	RegularFiles []SourceTocItem
-	Categories   struct {
-		TestFiles   []SourceTocItem
-		NonGnoFiles []SourceTocItem
-	}
+	TestFiles    []SourceTocItem
+	NonGnoFiles  []SourceTocItem
 }
 
 type SourceTocItem struct {
@@ -59,15 +57,15 @@ func SourceView(data SourceData) *View {
 		tocData.Items[i] = item
 
 		if strings.Contains(file, "_test.") || strings.HasSuffix(file, "test.gno") {
-			tocData.Categories.TestFiles = append(tocData.Categories.TestFiles, item)
+			tocData.TestFiles = append(tocData.TestFiles, item)
 		} else if !strings.HasSuffix(file, ".gno") {
-			tocData.Categories.NonGnoFiles = append(tocData.Categories.NonGnoFiles, item)
+			tocData.NonGnoFiles = append(tocData.NonGnoFiles, item)
 		} else {
 			tocData.RegularFiles = append(tocData.RegularFiles, item)
 		}
 	}
 
-	toc := NewTemplateComponent("ui/toc_generic", tocData)
+	toc := NewTemplateComponent("ui/toc_source", tocData)
 	content := NewTemplateComponent("ui/code_wrapper", data.FileSource)
 	viewData := sourceViewParams{
 		Article: ArticleData{
