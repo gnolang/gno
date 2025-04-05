@@ -691,6 +691,7 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 	switch baseOf(lv.T) {
 	case StringType, UntypedStringType:
 		lv.V = alloc.NewString(lv.GetString() + rv.GetString())
+		lv.V.(*StringValue).isNewBase = true
 	case IntType:
 		lv.SetInt(lv.GetInt() + rv.GetInt())
 	case Int8Type:

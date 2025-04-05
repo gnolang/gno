@@ -84,8 +84,6 @@ func (oid ObjectID) IsZero() bool {
 	return oid.PkgID.IsZero()
 }
 
-type Visitor func(o Object) (stop bool)
-
 type Object interface {
 	Value
 	GetObjectInfo() *ObjectInfo
@@ -119,16 +117,9 @@ type Object interface {
 	GetIsNewDeleted() bool
 	SetIsNewDeleted(bool)
 	GetIsTransient() bool
-	GetShalowSize() int64
 
-	// Visit visits all reachable associated values.
-	// It is used primarily for GC.
-	// The caller must provide a callback visitor
-	// which knows how to break cycles, otherwise
-	// the Visit function may recurse infinitely.
-	// (the GC does this with gcCycle)
-	// It does not call the visitor on itself.
-	VisitAssociated(tr Visitor) (stop bool) // for GC
+	GetLastGCCycle() int64
+	SetLastGCCycle(int64)
 
 	// Saves to realm along the way if owned, and also (dirty
 	// or new).

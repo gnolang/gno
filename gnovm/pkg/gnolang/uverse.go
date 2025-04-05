@@ -592,7 +592,7 @@ func makeUverseNode() {
 
 				// ------------------------------------------------------------
 				// append(*NativeValue, StringValue)
-				case StringValue:
+				case *StringValue:
 					if arg0Type.Elem().Kind() == Uint8Kind {
 						// TODO this might be faster if reflect supports
 						// appending this way without first converting to a slice.
