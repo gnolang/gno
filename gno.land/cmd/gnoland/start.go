@@ -26,9 +26,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"github.com/gnolang/gno/tm2/pkg/telemetry"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -48,7 +48,7 @@ var startGraphic = strings.ReplaceAll(`
 // Keep in sync with contribs/gnogenesis/internal/txs/txs_add_packages.go
 var genesisDeployFee = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 
-type startCfg struct {
+type nodeCfg struct {
 	gnoRootDir                 string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
 	skipFailingGenesisTxs      bool   // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
 	skipGenesisSigVerification bool   // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
@@ -65,7 +65,7 @@ type startCfg struct {
 }
 
 func newStartCmd(io commands.IO) *commands.Command {
-	cfg := &startCfg{}
+	cfg := &nodeCfg{}
 
 	return commands.NewCommand(
 		commands.Metadata{
@@ -81,7 +81,7 @@ func newStartCmd(io commands.IO) *commands.Command {
 	)
 }
 
-func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *nodeCfg) RegisterFlags(fs *flag.FlagSet) {
 	gnoroot := gnoenv.RootDir()
 	defaultGenesisBalancesFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_balances.txt")
 
@@ -170,96 +170,10 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
-	// Get the absolute path to the node's data directory
-	nodeDir, err := filepath.Abs(c.dataDir)
+func execStart(ctx context.Context, c *nodeCfg, io commands.IO) error {
+	gnoNode, err := createNode(c, io)
 	if err != nil {
-		return fmt.Errorf("unable to get absolute path for data directory, %w", err)
-	}
-
-	// Get the absolute path to the node's genesis.json
-	genesisPath, err := filepath.Abs(c.genesisFile)
-	if err != nil {
-		return fmt.Errorf("unable to get absolute path for the genesis.json, %w", err)
-	}
-
-	// Initialize the logger
-	zapLogger, err := initializeLogger(io.Out(), c.logLevel, c.logFormat)
-	if err != nil {
-		return fmt.Errorf("unable to initialize zap logger, %w", err)
-	}
-
-	defer func() {
-		// Sync the logger before exiting
-		_ = zapLogger.Sync()
-	}()
-
-	// Wrap the zap logger
-	logger := log.ZapLoggerToSlog(zapLogger)
-
-	if c.lazyInit {
-		if err := lazyInitNodeDir(io, nodeDir); err != nil {
-			return fmt.Errorf("unable to lazy-init the node directory, %w", err)
-		}
-	}
-
-	// Load the configuration
-	cfg, err := config.LoadConfig(nodeDir)
-	if err != nil {
-		return fmt.Errorf("%s, %w", tryConfigInit, err)
-	}
-
-	// Check if the genesis.json exists
-	if !osm.FileExists(genesisPath) {
-		if !c.lazyInit {
-			return errMissingGenesis
-		}
-
-		// Load the private validator secrets
-		privateKey := privval.LoadFilePV(
-			cfg.PrivValidatorKeyFile(),
-			cfg.PrivValidatorStateFile(),
-		)
-
-		// Init a new genesis.json
-		if err := lazyInitGenesis(io, c, genesisPath, privateKey.Key.PrivKey); err != nil {
-			return fmt.Errorf("unable to initialize genesis.json, %w", err)
-		}
-	}
-
-	// Initialize telemetry
-	if err := telemetry.Init(*cfg.Telemetry); err != nil {
-		return fmt.Errorf("unable to initialize telemetry, %w", err)
-	}
-
-	// Print the starting graphic
-	if c.logFormat != string(log.JSONFormat) {
-		io.Println(startGraphic)
-	}
-
-	// Create a top-level shared event switch
-	evsw := events.NewEventSwitch()
-	minGasPrices := cfg.Application.MinGasPrices
-
-	// Create application and node
-	cfg.LocalApp, err = gnoland.NewApp(
-		nodeDir,
-		gnoland.GenesisAppConfig{
-			SkipFailingTxs:      c.skipFailingGenesisTxs,
-			SkipSigVerification: c.skipGenesisSigVerification,
-		},
-		evsw,
-		logger,
-		minGasPrices,
-	)
-	if err != nil {
-		return fmt.Errorf("unable to create the Gnoland app, %w", err)
-	}
-
-	// Create a default node, with the given setup
-	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, evsw, logger)
-	if err != nil {
-		return fmt.Errorf("unable to create the Gnoland node, %w", err)
+		return err
 	}
 
 	// Start the node (async)
@@ -289,6 +203,101 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	}
 
 	return nil
+}
+
+func createNode(c *nodeCfg, io commands.IO) (*node.Node, error) {
+	// Get the absolute path to the node's data directory
+	nodeDir, err := filepath.Abs(c.dataDir)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get absolute path for data directory, %w", err)
+	}
+
+	// Get the absolute path to the node's genesis.json
+	genesisPath, err := filepath.Abs(c.genesisFile)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get absolute path for the genesis.json, %w", err)
+	}
+
+	// Initialize the logger
+	zapLogger, err := initializeLogger(io.Out(), c.logLevel, c.logFormat)
+	if err != nil {
+		return nil, fmt.Errorf("unable to initialize zap logger, %w", err)
+	}
+
+	defer func() {
+		// Sync the logger before exiting
+		_ = zapLogger.Sync()
+	}()
+
+	// Wrap the zap logger
+	logger := log.ZapLoggerToSlog(zapLogger)
+
+	if c.lazyInit {
+		if err := lazyInitNodeDir(io, nodeDir); err != nil {
+			return nil, fmt.Errorf("unable to lazy-init the node directory, %w", err)
+		}
+	}
+
+	// Load the configuration
+	cfg, err := config.LoadConfig(nodeDir)
+	if err != nil {
+		return nil, fmt.Errorf("%s, %w", tryConfigInit, err)
+	}
+
+	// Check if the genesis.json exists
+	if !osm.FileExists(genesisPath) {
+		if !c.lazyInit {
+			return nil, errMissingGenesis
+		}
+
+		// Load the private validator secrets
+		privateKey := privval.LoadFilePV(
+			cfg.PrivValidatorKeyFile(),
+			cfg.PrivValidatorStateFile(),
+		)
+
+		// Init a new genesis.json
+		if err := lazyInitGenesis(io, c, genesisPath, privateKey.Key.PrivKey); err != nil {
+			return nil, fmt.Errorf("unable to initialize genesis.json, %w", err)
+		}
+	}
+
+	// Initialize telemetry
+	if err := telemetry.Init(*cfg.Telemetry); err != nil {
+		return nil, fmt.Errorf("unable to initialize telemetry, %w", err)
+	}
+
+	// Print the starting graphic
+	if c.logFormat != string(log.JSONFormat) {
+		io.Println(startGraphic)
+	}
+
+	// Create a top-level shared event switch
+	evsw := events.NewEventSwitch()
+	minGasPrices := cfg.Application.MinGasPrices
+
+	// Create application and node
+	cfg.LocalApp, err = gnoland.NewApp(
+		nodeDir,
+		gnoland.GenesisAppConfig{
+			SkipFailingTxs:      c.skipFailingGenesisTxs,
+			SkipSigVerification: c.skipGenesisSigVerification,
+		},
+		evsw,
+		logger,
+		minGasPrices,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create the Gnoland app, %w", err)
+	}
+
+	// Create a default node, with the given setup
+	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, evsw, logger)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create the Gnoland node, %w", err)
+	}
+
+	return gnoNode, err
 }
 
 // lazyInitNodeDir initializes new secrets, and a default configuration
@@ -345,7 +354,7 @@ func lazyInitNodeDir(io commands.IO, nodeDir string) error {
 // lazyInitGenesis a new genesis.json file, with a signle validator
 func lazyInitGenesis(
 	io commands.IO,
-	c *startCfg,
+	c *nodeCfg,
 	genesisPath string,
 	privateKey crypto.PrivKey,
 ) error {
@@ -380,7 +389,7 @@ func initializeLogger(io io.WriteCloser, logLevel, logFormat string) (*zap.Logge
 	return log.GetZapLoggerFn(format)(io, level), nil
 }
 
-func generateGenesisFile(genesisFile string, privKey crypto.PrivKey, c *startCfg) error {
+func generateGenesisFile(genesisFile string, privKey crypto.PrivKey, c *nodeCfg) error {
 	var (
 		pubKey = privKey.PubKey()
 		// There is an active constraint for gno.land transactions:

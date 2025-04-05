@@ -4,6 +4,7 @@ package node
 // is enabled by the user by setting a profiling address
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
+	"github.com/gnolang/gno/tm2/pkg/bft/backup"
 	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/discovery"
@@ -160,9 +162,9 @@ type Node struct {
 	// services
 	evsw              events.EventSwitch
 	stateDB           dbm.DB
-	blockStore        *store.BlockStore // store the blockchain to disk
-	bcReactor         p2p.Reactor       // for fast-syncing
-	mempoolReactor    *mempl.Reactor    // for gossipping transactions
+	blockStore        *store.BlockStore     // store the blockchain to disk
+	bcReactor         *bc.BlockchainReactor // for fast-syncing and restoring from backup
+	mempoolReactor    *mempl.Reactor        // for gossipping transactions
 	mempool           mempl.Mempool
 	consensusState    *cs.ConsensusState   // latest consensus state
 	consensusReactor  *cs.ConsensusReactor // for participating in the consensus
@@ -171,6 +173,7 @@ type Node struct {
 	txEventStore      eventstore.TxEventStore
 	eventStoreService *eventstore.Service
 	firstBlockSignal  <-chan struct{}
+	backupServer      *http.Server
 }
 
 func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.BlockStore, stateDB dbm.DB, err error) {
@@ -292,7 +295,7 @@ func createBlockchainReactor(
 	fastSync bool,
 	switchToConsensusFn bc.SwitchToConsensusFn,
 	logger *slog.Logger,
-) (bcReactor p2p.Reactor, err error) {
+) (bcReactor *bc.BlockchainReactor, err error) {
 	bcReactor = bc.NewBlockchainReactor(
 		state.Copy(),
 		blockExec,
@@ -572,6 +575,10 @@ func NewNode(config *cfg.Config,
 	return node, nil
 }
 
+func (n *Node) Restore(ctx context.Context, blocksIterator bc.BlocksIterator) error {
+	return n.bcReactor.Restore(ctx, blocksIterator)
+}
+
 // OnStart starts the Node. It implements service.Service.
 func (n *Node) OnStart() error {
 	now := tmtime.Now()
@@ -599,6 +606,16 @@ func (n *Node) OnStart() error {
 			return err
 		}
 		n.rpcListeners = listeners
+	}
+
+	// start backup server if requested
+	if n.config.Backup != nil && n.config.Backup.ListenAddress != "" {
+		n.backupServer = backup.NewServer(n.config.Backup, n.blockStore)
+		go func() {
+			if err := n.backupServer.ListenAndServe(); err != nil {
+				n.Logger.Info("Backup server stopped", "err", err)
+			}
+		}()
 	}
 
 	// Start the transport.
@@ -671,6 +688,15 @@ func (n *Node) OnStop() {
 	}
 
 	n.isListening = false
+
+	// stop the backup server if started
+	if n.backupServer != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+		defer cancel()
+		if err := n.backupServer.Shutdown(ctx); err != nil {
+			n.Logger.Error("Error closing backup server", "err", err)
+		}
+	}
 
 	// finally stop the listeners / external services
 	for _, l := range n.rpcListeners {
