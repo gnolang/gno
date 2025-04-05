@@ -1,6 +1,7 @@
 package tokenhub
 
 import (
+	"regexp"
 	"strings"
 
 	"gno.land/p/demo/avl/pager"
@@ -107,8 +108,8 @@ func renderToken(path string) string {
 		tokenGetter := item.Value.(grc20.TokenGetter)
 		token := tokenGetter()
 		pkgPath, _ := fqname.Parse(item.Key)
-		linkURL := strings.ReplaceAll(pkgPath, "gno.land/r/matijamarjanovic/tokenhub.", "")
-		linkURL = strings.ReplaceAll(linkURL, "gno.land", "")
+		linkURL := formatLinkURL(pkgPath, 0)
+
 		tokenItems = append(tokenItems, ufmt.Sprintf("%s (%s) - %s",
 			md.Link(token.GetName(), linkURL),
 			md.InlineCode(token.GetSymbol()),
@@ -135,11 +136,8 @@ func renderNFT(path string) string {
 			continue
 		}
 
-		linkURL := strings.ReplaceAll(item.Key, "gno.land", "")
-		parts := strings.Split(linkURL, ".")
-		if len(parts) > 2 {
-			linkURL = strings.Join(parts[:len(parts)-2], ".")
-		}
+		pkgPath, _ := fqname.Parse(item.Key)
+		linkURL := formatLinkURL(pkgPath, 2)
 
 		nftItems = append(nftItems, ufmt.Sprintf("%s (%s) - %s",
 			md.Link(metadata.Name(), linkURL),
@@ -162,11 +160,8 @@ func renderMT(path string) string {
 
 	for _, item := range page.Items {
 		info := item.Value.(GRC1155TokenInfo)
-		linkURL := strings.ReplaceAll(item.Key, "gno.land", "")
-		parts := strings.Split(linkURL, ".")
-		if len(parts) > 1 {
-			linkURL = strings.Join(parts[:len(parts)-1], ".")
-		}
+		pkgPath, _ := fqname.Parse(item.Key)
+		linkURL := formatLinkURL(pkgPath, 1)
 
 		mtItems = append(mtItems, ufmt.Sprintf("%s %s - %s",
 			md.Bold("TokenID:"),
@@ -196,4 +191,22 @@ func renderItemsList(items []string, page *pager.Page, emptyMessage string) stri
 	}
 
 	return out
+}
+
+func formatLinkURL(pkgPath string, trailingSegmentsToRemove int) string {
+	re1 := regexp.MustCompile(`gno\.land/r/matijamarjanovic/tokenhub\.`)
+	pkgPath = re1.ReplaceAllString(pkgPath, "")
+
+	re2 := regexp.MustCompile(`gno\.land`)
+	url := re2.ReplaceAllString(pkgPath, "")
+
+	if trailingSegmentsToRemove > 0 {
+		re3 := regexp.MustCompile(`\.`)
+		parts := re3.Split(url, -1)
+		if len(parts) > trailingSegmentsToRemove {
+			url = strings.Join(parts[:len(parts)-trailingSegmentsToRemove], ".")
+		}
+	}
+
+	return url
 }
