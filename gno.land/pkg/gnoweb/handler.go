@@ -152,7 +152,7 @@ func (h *WebHandler) Post(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// override form with query
+	// Override form with query
 	gnourl.Query = r.Form
 
 	// Redirect to the new URL

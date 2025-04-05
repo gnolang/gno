@@ -16,7 +16,10 @@ import (
 )
 
 // Error messages for invalid form tags.
-var ErrFormUnexpectedOrInvalidTag = errors.New("unexpected or invalid tag")
+var (
+	ErrFormUnexpectedOrInvalidTag = errors.New("unexpected or invalid tag")
+	ErrFormInputMissingArg        = errors.New("gno-input must have an 'arg' attribute")
+)
 
 // Define custom node kind.
 var KindForm = ast.NewNodeKind("Form")
@@ -185,6 +188,10 @@ func (p *formParser) Open(doc ast.Node, reader text.Reader, pc parser.Context) (
 			node.Error = ErrFormUnexpectedOrInvalidTag
 			return node, parser.NoChildren
 		}
+		if arg == "" {
+			node.Error = ErrFormInputMissingArg
+			return node, parser.NoChildren
+		}
 	}
 
 	return node, parser.NoChildren
@@ -230,9 +237,7 @@ func (a *formASTTransformer) Transform(doc *ast.Document, reader text.Reader, pc
 }
 
 // formRendererHTML implements NodeRenderer.
-type formRendererHTML struct {
-	inputCounter int
-}
+type formRendererHTML struct{}
 
 // RegisterFuncs adds AST objects to the Renderer.
 func (r *formRendererHTML) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
@@ -251,6 +256,8 @@ func (r *formRendererHTML) formRenderHTML(w util.BufWriter, _ []byte, node ast.N
 		switch {
 		case errors.Is(err, ErrFormUnexpectedOrInvalidTag):
 			fmt.Fprintf(w, "<!-- unexpected/invalid %q omitted -->\n", cnode.String())
+		case errors.Is(err, ErrFormInputMissingArg):
+			fmt.Fprintf(w, "<!-- gno-input error: %s -->\n", err.Error())
 		default:
 			fmt.Fprintf(w, "<!-- gno-form error: %s -->\n", err.Error())
 		}
@@ -261,7 +268,6 @@ func (r *formRendererHTML) formRenderHTML(w util.BufWriter, _ []byte, node ast.N
 	switch cnode.Tag {
 	case FormTagOpen:
 		if entering {
-			r.inputCounter = 0 // Reset counter at form start
 			fmt.Fprintln(w, `<form class="gno-form" method="post">`)
 		}
 	case FormTagClose:
@@ -271,17 +277,11 @@ func (r *formRendererHTML) formRenderHTML(w util.BufWriter, _ []byte, node ast.N
 		}
 	case FormTagInput:
 		if entering {
-			// Escape the placeholder
+			// Escape the placeholder and arg
 			placeholder := html.EscapeString(cnode.Placeholder)
+			arg := html.EscapeString(cnode.Arg)
 
-			if arg := cnode.Arg; arg == "" {
-				// For inputs without arg, use __gnoweb-order:NUMBER__ format
-				fmt.Fprintf(w, `<input type="text" name="__gnoweb-order:%d__" placeholder="%s" />`, r.inputCounter, placeholder)
-			} else {
-				// For inputs with arg, use __gnoweb-order:NUMBER__arg format
-				fmt.Fprintf(w, `<input type="text" name="__gnoweb-order:%d__%s" placeholder="%s" />`, r.inputCounter, arg, placeholder)
-			}
-			r.inputCounter++
+			fmt.Fprintf(w, `<input type="text" name="%s" placeholder="%s" />`, arg, placeholder)
 		}
 	default:
 		panic("invalid form tag - should not happen")
