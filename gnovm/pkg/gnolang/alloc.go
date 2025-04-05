@@ -388,7 +388,28 @@ func (sv *SliceValue) GetShallowSize() int64 {
 
 // Only count for closures.
 func (fv *FuncValue) GetShallowSize() int64 {
-	if fv.isClosure {
+	// XXX, consider this
+	isClosure := true
+	if b, ok := fv.Closure.(*Block); ok {
+		if b == nil { // e.g. make
+			isClosure = false
+		} else {
+			switch n := b.Source.(type) {
+			case *FileNode:
+				isClosure = false
+			case RefNode:
+				if n.BlockNode == nil { // XXX, *FileNode?
+					isClosure = false
+				} else if _, ok := n.BlockNode.(*FileNode); ok {
+					isClosure = false
+				}
+			}
+		}
+	} else if _, ok := fv.Closure.(RefValue); ok {
+		isClosure = false
+	}
+
+	if isClosure {
 		return allocFunc
 	}
 	return 0

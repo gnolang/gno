@@ -598,7 +598,6 @@ type FuncValue struct {
 
 	body       []Stmt         // function body
 	nativeBody func(*Machine) // alternative to Body
-	isClosure  bool
 }
 
 func (fv *FuncValue) IsNative() bool {
