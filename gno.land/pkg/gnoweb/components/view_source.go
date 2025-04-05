@@ -48,7 +48,7 @@ func SourceView(data SourceData) *View {
 		Items: make([]SourceTocItem, len(data.Files)),
 	}
 
- 	for i, file := range data.Files {
+	for i, file := range data.Files {
 		item := SourceTocItem{
 			Link: data.PkgPath + "$source&file=" + file,
 			Text: file,
