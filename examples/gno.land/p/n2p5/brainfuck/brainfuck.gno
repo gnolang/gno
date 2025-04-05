@@ -1,20 +1,19 @@
 // Package brainfuck implements a minimalist Brainfuck language interpreter.
 package brainfuck
 
-
-// Run executes a byte slice encoded Brainfuck program with the provided input and 
-// returns the output. If no input is desired, use an empty string "". Memory is 
-// dynamically allocated and grows rightward as needed. The pointer cannot go below 
+// Run executes a byte slice encoded Brainfuck program with the provided input and
+// returns the output. If no input is desired, use an empty string "". Memory is
+// dynamically allocated and grows rightward as needed. The pointer cannot go below
 // zero (does not wrap from the beginning to end). When input is exhausted, the ','
-// command writes 0 to the current cell. Program exits early if unmatched brackets 
+// command writes 0 to the current cell. Program exits early if unmatched brackets
 // are encountered.
 func Run(code, input []byte) []byte {
-	memory  := []byte{} // dynamic memory tape
-	output  := []byte{} // collected output bytes
-	pointer := 0     	// memory cell pointer
-	cursor  := 0     	// code instruction pointer 
-	i := 0	        	// input index
-	
+	memory := []byte{} // dynamic memory tape
+	output := []byte{} // collected output bytes
+	pointer := 0       // memory cell pointer
+	cursor := 0        // code instruction pointer
+	i := 0             // input index
+
 	for cursor < len(code) {
 		switch code[cursor] {
 		case '>': // Move pointer right
@@ -48,7 +47,7 @@ func Run(code, input []byte) []byte {
 		case '[': // Jump forward to matching ] if current cell is 0
 			ensureMemory(&memory, pointer)
 			if memory[pointer] == 0 {
-				brackets := 1  // Track nesting level
+				brackets := 1 // Track nesting level
 				for brackets > 0 {
 					cursor++
 					if cursor >= len(code) {
@@ -89,7 +88,7 @@ func Run(code, input []byte) []byte {
 	return output
 }
 
-// ensureMemory grows the memory slice if needed to accommodate the specified 
+// ensureMemory grows the memory slice if needed to accommodate the specified
 // pointer position. New cells are initialized to zero.
 func ensureMemory(memory *[]byte, pointer int) {
 	for pointer >= len(*memory) {

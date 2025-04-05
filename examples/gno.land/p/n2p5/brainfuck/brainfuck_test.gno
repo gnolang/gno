@@ -146,7 +146,6 @@ func TestInput(t *testing.T) {
 	}
 }
 
-
 func TestBsort(t *testing.T) {
 	// [bsort.b -- bubble sort
 	// (c) 2016 Daniel B. Cristofani
@@ -163,14 +162,12 @@ func TestBsort(t *testing.T) {
 		]>>>>[.>>]`
 	input := "ckduwcomaz"
 	expected := "accdkmouwz"
-	
+
 	output := Run([]byte(code), []byte(input))
 	if string(output) != expected {
 		t.Errorf("Hello World test failed. Expected '%s', got '%s'", expected, string(output))
 	}
 }
-
-
 
 func TestHelloWorld(t *testing.T) {
 	// Classic "Hello World!" program from wikipedia
@@ -197,7 +194,7 @@ func TestHelloWorld(t *testing.T) {
 > + .                   print '!'
 > .                     print 'eol'`
 	expected := "Hello World!\n"
-	
+
 	output := Run([]byte(code), []byte{})
 	if string(output) != expected {
 		t.Errorf("Hello World test failed. Expected '%s', got '%s'", expected, string(output))
@@ -235,11 +232,11 @@ func TestEnsureMemory(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			memory := tc.initialMem
 			ensureMemory(&memory, tc.pointer)
-			
+
 			if len(memory) != tc.expectedLen {
 				t.Errorf("Expected memory length %d, got %d", tc.expectedLen, len(memory))
 			}
-			
+
 			// Check that we can access the pointer without panic
 			_ = memory[tc.pointer]
 		})
