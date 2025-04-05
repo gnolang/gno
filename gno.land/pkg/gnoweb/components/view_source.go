@@ -48,7 +48,7 @@ func SourceView(data SourceData) *View {
 		Items: make([]SourceTocItem, len(data.Files)),
 	}
 
-	for i, file := range data.Files {
+ 	for i, file := range data.Files {
 		item := SourceTocItem{
 			Link: data.PkgPath + "$source&file=" + file,
 			Text: file,
@@ -56,7 +56,9 @@ func SourceView(data SourceData) *View {
 
 		tocData.Items[i] = item
 
-		if strings.Contains(file, "_test.") || strings.HasSuffix(file, "test.gno") || strings.HasSuffix(file, "_filetest.gno") {
+		if file == "README.md" {
+			tocData.RegularFiles = append(tocData.RegularFiles, item)
+		} else if strings.Contains(file, "_test.") || strings.HasSuffix(file, "test.gno") || strings.HasSuffix(file, "_filetest.gno") {
 			tocData.TestFiles = append(tocData.TestFiles, item)
 		} else if !strings.HasSuffix(file, ".gno") {
 			tocData.NonGnoFiles = append(tocData.NonGnoFiles, item)
