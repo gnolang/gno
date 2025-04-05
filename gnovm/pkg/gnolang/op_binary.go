@@ -344,8 +344,8 @@ func (m *Machine) doOpBandn() {
 func isEql(store Store, lv, rv *TypedValue) bool {
 	// If one is undefined, the other must be as well.
 	// Fields/items are set to defaultValue along the way.
-	lvu := lv.IsUndefined()
-	rvu := rv.IsUndefined()
+	lvu := lv.IsUndefined2()
+	rvu := rv.IsUndefined2()
 	if lvu {
 		return rvu
 	} else if rvu {

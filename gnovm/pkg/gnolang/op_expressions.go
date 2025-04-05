@@ -15,6 +15,7 @@ func (m *Machine) doOpIndex1() {
 	}
 	iv := m.PopValue()   // index
 	xv := m.PeekValue(1) // x
+	ro := m.IsReadonly(xv)
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
 		mv := xv.V.(*MapValue)
@@ -32,6 +33,7 @@ func (m *Machine) doOpIndex1() {
 		res := xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 		*xv = res.Deref() // reuse as result
 	}
+	xv.SetReadonly(ro)
 }
 
 // NOTE: keep in sync with doOpIndex1.
@@ -43,6 +45,7 @@ func (m *Machine) doOpIndex2() {
 	}
 	iv := m.PeekValue(1) // index
 	xv := m.PeekValue(2) // x
+	ro := m.IsReadonly(xv)
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
 		vt := ct.Value
@@ -69,17 +72,20 @@ func (m *Machine) doOpIndex2() {
 	default:
 		panic("should not happen")
 	}
+	xv.SetReadonly(ro)
 }
 
 func (m *Machine) doOpSelector() {
 	sx := m.PopExpr().(*SelectorExpr)
 	xv := m.PeekValue(1)
+	ro := m.IsReadonly(xv)
 	res := xv.GetPointerToFromTV(m.Alloc, m.Store, sx.Path).Deref()
 	if debug {
 		m.Printf("-v[S] %v\n", xv)
 		m.Printf("+v[S] %v\n", res)
 	}
 	*xv = res // reuse as result
+	xv.SetReadonly(ro)
 }
 
 func (m *Machine) doOpSlice() {
@@ -101,12 +107,18 @@ func (m *Machine) doOpSlice() {
 	}
 	// slice base x
 	xv := m.PopValue()
+	ro := m.IsReadonly(xv)
 	// if a is a pointer to an array, a[low : high : max] is
 	// shorthand for (*a)[low : high : max]
+	// XXX fix this in precompile instead.
 	if xv.T.Kind() == PointerKind &&
 		xv.T.Elem().Kind() == ArrayKind {
 		// simply deref xv.
 		*xv = xv.V.(PointerValue).Deref()
+		// check array also for ro.
+		if !ro {
+			ro = xv.IsReadonly()
+		}
 	}
 	// fill default based on xv
 	if sx.High == nil {
@@ -115,10 +127,10 @@ func (m *Machine) doOpSlice() {
 	// all low:high:max cases
 	if maxVal == -1 {
 		sv := xv.GetSlice(m.Alloc, lowVal, highVal)
-		m.PushValue(sv)
+		m.PushValue(sv.WithReadonly(ro))
 	} else {
 		sv := xv.GetSlice2(m.Alloc, lowVal, highVal, maxVal)
-		m.PushValue(sv)
+		m.PushValue(sv.WithReadonly(ro))
 	}
 }
 
@@ -152,17 +164,13 @@ func (m *Machine) doOpStar() {
 			tv.SetUint8(dbv.GetByte())
 			m.PushValue(tv)
 		} else {
-			if pv.TV.IsUndefined() && bt.Elt.Kind() != InterfaceKind {
-				refv := TypedValue{T: bt.Elt}
-				m.PushValue(refv)
-			} else {
-				m.PushValue(*pv.TV)
-			}
+			ro := m.IsReadonly(xv)
+			pvtv := (*pv.TV).WithReadonly(ro)
+			m.PushValue(pvtv)
 		}
 	case *TypeType:
 		t := xv.GetType()
 		pt := &PointerType{Elt: t}
-
 		m.PushValue(asValue(pt))
 	default:
 		panic(fmt.Sprintf(
@@ -174,17 +182,16 @@ func (m *Machine) doOpStar() {
 // XXX this is wrong, for var i interface{}; &i is *interface{}.
 func (m *Machine) doOpRef() {
 	rx := m.PopExpr().(*RefExpr)
-	m.Alloc.AllocatePointer()
-	xv := m.PopAsPointer(rx.X)
-	// when obtaining a pointer of the databyte type, use the ElemType of databyte
+	xv, ro := m.PopAsPointer2(rx.X)
 	elt := xv.TV.T
 	if elt == DataByteType {
 		elt = xv.TV.V.(DataByteValue).ElemType
 	}
+	m.Alloc.AllocatePointer()
 	m.PushValue(TypedValue{
 		T: m.Alloc.NewType(&PointerType{Elt: elt}),
 		V: xv,
-	})
+	}.WithReadonly(ro))
 }
 
 // NOTE: keep in sync with doOpTypeAssert2.
@@ -708,6 +715,37 @@ func (m *Machine) doOpFuncLit() {
 func (m *Machine) doOpConvert() {
 	xv := m.PopValue()
 	t := m.PopValue().GetType()
+
+	// BEGIN conversion checks
+	// These protect against inter-realm conversion exploits.
+
+	// Case 1.
+	// Do not allow conversion of value stored in eternal realm.
+	// Otherwise anyone could convert an external object insecurely.
+	if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(xv) {
+		if xvdt, ok := xv.T.(*DeclaredType); ok &&
+			xvdt.PkgPath == m.Realm.Path {
+			// Except allow if xv.T is m.Realm.
+			// XXX do we need/want this?
+		} else {
+			panic("illegal conversion of readonly or externally stored value")
+		}
+	}
+
+	// Case 2.
+	// Do not allow conversion to type of external realm.
+	// Only code declared within the same realm my perform such
+	// conversions, otherwise the realm could be tricked
+	// into executing a subtle exploit of mutating some
+	// value (say a pointer) stored in its own realm by
+	// a hostile construction converted to look safe.
+	if tdt, ok := t.(*DeclaredType); ok && !tdt.IsImmutable() && m.Realm != nil {
+		if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path {
+			panic("illegal conversion to external realm type")
+		}
+	}
+	// END conversion checks
+
 	ConvertTo(m.Alloc, m.Store, xv, t, false)
 	m.PushValue(*xv)
 }

@@ -2,8 +2,6 @@
 package crossrealm_test
 
 import (
-	"std"
-
 	"gno.land/r/demo/tests/crossrealm"
 	"gno.land/r/demo/tests/crossrealm_b"
 )
@@ -34,12 +32,14 @@ func main() {
 //              "RefCount": "2"
 //          },
 //          "Parent": null,
-//     @@ -283,8 +283,21 @@
+//     @@ -281,7 +281,26 @@
+//                      }
+//                  }
 //              },
-//              {
-//                  "T": {
-//     -                "@type": "/gno.RefType",
-//     -                "ID": "gno.land/r/demo/tests/crossrealm.Fooer"
+//     -        {},
+//     +        {
+//     +            "N": "UmVhRG9OTFk=",
+//     +            "T": {
 //     +                "@type": "/gno.PointerType",
 //     +                "Elt": {
 //     +                    "@type": "/gno.RefType",
@@ -55,9 +55,11 @@ func main() {
 //     +                },
 //     +                "Index": "0",
 //     +                "TV": null
-//                  }
-//              },
+//     +            }
+//     +        },
 //              {
+//                  "T": {
+//                      "@type": "/gno.FuncType",
 // u[0edc46caf30c00efd87b6c272673239eafbd051e:3]=
 //     @@ -1,9 +1,10 @@
 //      {
@@ -95,6 +97,3 @@ func main() {
 // switchrealm["gno.land/r/demo/tests/crossrealm_b"]
 // switchrealm["gno.land/r/demo/tests/crossrealm"]
 // switchrealm["gno.land/r/crossrealm_test"]
-
-// Error:
-//
