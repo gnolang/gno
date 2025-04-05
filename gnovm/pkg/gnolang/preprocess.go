@@ -3015,13 +3015,7 @@ func findHeapDefines(ctx BlockNode, bn BlockNode) {
 						}
 					}
 				}
-				/*
-					hds, _ := n.GetAttribute(ATTR_HEAP_DEFINES).([]Name)
-					hus, _ := n.GetAttribute(ATTR_HEAP_USES).([]Name)
-					if len(hds) < len(hus) {
-						panic("defines should be a superset of used-defines")
-					}
-				*/
+
 				// no need anymore
 				n.DelAttribute(ATTR_HEAP_USES)
 				n.DelAttribute(ATTR_HEAP_DEFINES)

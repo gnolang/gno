@@ -84,7 +84,7 @@ func main() {
 //              "RefCount": "1"
 //          }
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:9]=
-//     @@ -3,8 +3,8 @@
+//     @@ -2,8 +2,8 @@
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:9",
 //              "IsEscaped": true,
@@ -93,8 +93,8 @@ func main() {
 //     +        "ModTime": "10",
 //     +        "RefCount": "0"
 //          },
-//          "Parent": {
-//              "@type": "/gno.RefValue",
+//          "Value": {
+//              "T": {
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4]=
 //     @@ -7,22 +7,12 @@
 //                          "@type": "/gno.RefType",
@@ -151,15 +151,5 @@ func main() {
 //                  "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
 //              }
 //          }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:6]=
-//     @@ -4,7 +4,7 @@
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
-//              "IsEscaped": true,
-//              "ModTime": "10",
-//     -        "RefCount": "4"
-//     +        "RefCount": "3"
-//          },
-//          "Parent": {
-//              "@type": "/gno.RefValue",
 // d[a8ada09dee16d791fd406d629fe29bb0ed084a30:9]
 // d[a8ada09dee16d791fd406d629fe29bb0ed084a30:10]
