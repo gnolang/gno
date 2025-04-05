@@ -153,8 +153,8 @@ const (
 	ATTR_TYPE_VALUE      GnoAttribute = "ATTR_TYPE_VALUE"
 	ATTR_TYPEOF_VALUE    GnoAttribute = "ATTR_TYPEOF_VALUE"
 	ATTR_IOTA            GnoAttribute = "ATTR_IOTA"
-	ATTR_LOOP_DEFINES    GnoAttribute = "ATTR_LOOP_DEFINES" // []Name defined within loops.
-	ATTR_LOOP_USES       GnoAttribute = "ATTR_LOOP_USES"    // []Name loop defines actually used.
+	ATTR_HEAP_DEFINES    GnoAttribute = "ATTR_HEAP_DEFINES" // []Name heap items.
+	ATTR_HEAP_USES       GnoAttribute = "ATTR_HEAP_USES"    // []Name heap items used.
 	ATTR_SHIFT_RHS       GnoAttribute = "ATTR_SHIFT_RHS"
 	ATTR_LAST_BLOCK_STMT GnoAttribute = "ATTR_LAST_BLOCK_STMT"
 	ATTR_GLOBAL          GnoAttribute = "ATTR_GLOBAL"
@@ -453,6 +453,9 @@ func (x *CallExpr) isWithSwitch() bool {
 
 // returns true if x is of form switchrealm().
 func (x *CallExpr) isSwitchRealm() bool {
+	if x == nil {
+		return false
+	}
 	if nx, ok := unwrapConstExpr(x.Func).(*NameExpr); ok {
 		if nx.Name == "switchrealm" {
 			return true
@@ -697,7 +700,7 @@ var (
 
 type FieldTypeExpr struct {
 	Attributes
-	Name
+	NameExpr
 	Type Expr
 
 	// Currently only BasicLitExpr allowed.
@@ -1172,6 +1175,8 @@ type FuncDecl struct {
 	Recv     FieldTypeExpr // receiver (if method); or empty (if function)
 	Type     FuncTypeExpr  // function signature: parameters and results
 	Body                   // function body; or empty for external (non-Go) function
+
+	unboundType *FuncTypeExpr // memoized
 }
 
 func (x *FuncDecl) GetDeclNames() []Name {
@@ -1180,6 +1185,22 @@ func (x *FuncDecl) GetDeclNames() []Name {
 	} else {
 		return []Name{x.NameExpr.Name}
 	}
+}
+
+// If FuncDecl is for method, construct a FuncTypeExpr with receiver as first
+// parameter.
+func (x *FuncDecl) GetUnboundTypeExpr() *FuncTypeExpr {
+	if x.IsMethod {
+		if x.unboundType == nil {
+			x.unboundType = &FuncTypeExpr{
+				Attributes: x.Type.Attributes,
+				Params:     append([]FieldTypeExpr{x.Recv}, x.Type.Params...),
+				Results:    x.Type.Results,
+			}
+		}
+		return x.unboundType
+	}
+	return &x.Type
 }
 
 type ImportDecl struct {

@@ -118,9 +118,9 @@ func (x *FuncLitExpr) Copy() Node {
 
 func (x *FieldTypeExpr) Copy() Node {
 	return &FieldTypeExpr{
-		Name: x.Name,
-		Type: x.Type.Copy().(Expr),
-		Tag:  copyExpr(x.Tag),
+		NameExpr: *(x.NameExpr.Copy().(*NameExpr)),
+		Type:     x.Type.Copy().(Expr),
+		Tag:      copyExpr(x.Tag),
 	}
 }
 

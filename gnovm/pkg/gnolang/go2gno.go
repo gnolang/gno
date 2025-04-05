@@ -241,15 +241,15 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 	case *ast.Field:
 		if len(gon.Names) == 0 {
 			return &FieldTypeExpr{
-				Name: "",
-				Type: toExpr(fs, gon.Type),
-				Tag:  toExpr(fs, gon.Tag),
+				NameExpr: *Nx(""),
+				Type:     toExpr(fs, gon.Type),
+				Tag:      toExpr(fs, gon.Tag),
 			}
 		} else if len(gon.Names) == 1 {
 			return &FieldTypeExpr{
-				Name: toName(gon.Names[0]),
-				Type: toExpr(fs, gon.Type),
-				Tag:  toExpr(fs, gon.Tag),
+				NameExpr: *Nx(toName(gon.Names[0])),
+				Type:     toExpr(fs, gon.Type),
+				Tag:      toExpr(fs, gon.Tag),
 			}
 		} else {
 			panicWithPos(
@@ -764,17 +764,17 @@ func toFields(fs *token.FileSet, fields ...*ast.Field) (ftxs []FieldTypeExpr) {
 		if len(f.Names) == 0 {
 			// a single unnamed field w/ type
 			ftxs = append(ftxs, FieldTypeExpr{
-				Name: "",
-				Type: toExpr(fs, f.Type),
-				Tag:  toExpr(fs, f.Tag),
+				NameExpr: *Nx(""),
+				Type:     toExpr(fs, f.Type),
+				Tag:      toExpr(fs, f.Tag),
 			})
 		} else {
 			// one or more named fields
 			for _, n := range f.Names {
 				ftxs = append(ftxs, FieldTypeExpr{
-					Name: toName(n),
-					Type: toExpr(fs, f.Type),
-					Tag:  toExpr(fs, f.Tag),
+					NameExpr: *Nx(toName(n)),
+					Type:     toExpr(fs, f.Type),
+					Tag:      toExpr(fs, f.Tag),
 				})
 			}
 		}

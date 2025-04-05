@@ -24,7 +24,8 @@ func (m *Machine) doOpPrecall() {
 		m.PushFrameCall(cx, fv, TypedValue{})
 		m.PushOp(OpCall)
 	case *BoundMethodValue:
-		m.PushFrameCall(cx, fv.Func, fv.Receiver)
+		recv := fv.Receiver
+		m.PushFrameCall(cx, fv.Func, recv)
 		m.PushOp(OpCall)
 	case TypeValue:
 		// Do not pop type yet.
@@ -48,18 +49,28 @@ func (m *Machine) doOpPrecall() {
 
 var gReturnStmt = &ReturnStmt{}
 
+func getFuncTypeExprFromSource(source Node) *FuncTypeExpr {
+	if fd, ok := source.(*FuncDecl); ok {
+		return fd.GetUnboundTypeExpr()
+	} else {
+		return &source.(*FuncLitExpr).Type
+	}
+}
+
 func (m *Machine) doOpCall() {
 	// NOTE: Frame won't be popped until the statement is complete, to
 	// discard the correct number of results for func calls in ExprStmts.
 	fr := m.LastFrame()
 	fv := fr.Func
+	fs := fv.GetSource(m.Store)
+	ftxz := getFuncTypeExprFromSource(fs)
 	ft := fr.Func.GetType(m.Store)
 	pts := ft.Params
 	numParams := len(pts)
 	isMethod := 0 // 1 if true
 	// Create new block scope.
 	clo := fr.Func.GetClosure(m.Store)
-	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
+	b := m.Alloc.NewBlock(fs, clo)
 
 	// Copy *FuncValue.Captures into block
 	// NOTE: addHeapCapture in preprocess ensures order.
@@ -91,10 +102,10 @@ func (m *Machine) doOpCall() {
 			m.PushOp(OpExec)
 		} else {
 			// Initialize return variables with default value.
-			numParams := len(ft.Params)
 			for i, rt := range ft.Results {
+				rnx := &ftxz.Results[i].NameExpr
 				// results/parameters never are heap use/closure.
-				ptr := b.GetPointerToInt(nil, numParams+i)
+				ptr := b.GetPointerToMaybeHeapDefine(nil, rnx)
 				dtv := defaultTypedValue(m.Alloc, rt.Type)
 				ptr.Assign2(m.Alloc, nil, nil, dtv, false)
 			}
@@ -118,17 +129,6 @@ func (m *Machine) doOpCall() {
 	}
 	// Assign receiver as first parameter, if any.
 	if !fr.Receiver.IsUndefined() {
-		if debug {
-			pt := pts[0].Type
-			rt := fr.Receiver.T
-			if pt.TypeID() != rt.TypeID() {
-				panic(fmt.Sprintf(
-					"expected %s but got %s",
-					pt.String(),
-					rt.String()))
-			}
-		}
-		b.Values[0] = fr.Receiver
 		isMethod = 1
 	}
 	// Convert variadic argument to slice argument.
@@ -158,30 +158,27 @@ func (m *Machine) doOpCall() {
 	}
 	// Assign non-receiver parameters in forward order.
 	pvs := m.PopValues(numParams - isMethod)
-	for i := isMethod; i < numParams; i++ {
-		pv := pvs[i-isMethod]
-		if debug {
-			// This is how run-time untyped const
-			// conversions would work, but we
-			// expect the preprocessor to convert
-			// these to *ConstExpr.
-			/*
-				// Convert if untyped const.
-				if isUntyped(pv.T) {
-					ConvertUntypedTo(&pv, pv.Type)
-				}
-			*/
-			if isUntyped(pv.T) {
-				panic("unexpected untyped const type for assign during runtime")
+	for i := 0; i < numParams; i++ {
+		var pv TypedValue
+		if i >= isMethod {
+			pv = pvs[i-isMethod]
+			// Make a copy so that a reference to the argument isn't used
+			// in cases where the non-primitive value type is represented
+			// as a pointer, but the declared type is not; e.g. *StructValue
+			// otherwise the struct won't actually be copied by value.
+			pv = pv.Copy(m.Alloc)
+		} else {
+			pv = fr.Receiver
+		}
+		// Make heap item if param is heap defined.
+		// This also heap escapes the receiver if any.
+		if ftxz.Params[i].NameExpr.Type == NameExprTypeHeapDefine {
+			pv = TypedValue{
+				T: heapItemType{},
+				V: &HeapItemValue{Value: pv},
 			}
 		}
-		// TODO: some more pt <> pv.Type
-		// reconciliations/conversions necessary.
-
-		// Make a copy so that a reference to the argument isn't used
-		// in cases where the non-primitive value type is represented
-		// as a pointer, *StructValue, for example.
-		b.Values[i] = pv.Copy(m.Alloc)
+		b.Values[i] = pv
 	}
 }
 
@@ -229,13 +226,20 @@ func (m *Machine) doOpReturn() {
 func (m *Machine) doOpReturnFromBlock() {
 	// Copy results from block.
 	cfr := m.PopUntilLastCallFrame()
-	ft := cfr.Func.GetType(m.Store)
+	fv := cfr.Func
+	fs := fv.GetSource(m.Store)
+	ftxz := getFuncTypeExprFromSource(fs)
+	ft := fv.GetType(m.Store)
 	numParams := len(ft.Params)
 	numResults := len(ft.Results)
 	fblock := m.Blocks[cfr.NumBlocks] // frame +1
 	for i := 0; i < numResults; i++ {
-		rtv := fillValueTV(m.Store, &fblock.Values[i+numParams])
-		m.PushValue(*rtv)
+		rtv := *fillValueTV(m.Store, &fblock.Values[i+numParams])
+		// Deref heap item if it was heap defined.
+		if ftxz.Results[i].NameExpr.Type == NameExprTypeHeapDefine {
+			rtv = rtv.V.(*HeapItemValue).Value
+		}
+		m.PushValue(rtv)
 	}
 	// See if we are exiting a realm boundary.
 	crlm := m.Realm
@@ -264,13 +268,23 @@ func (m *Machine) doOpReturnFromBlock() {
 // expressions.
 func (m *Machine) doOpReturnToBlock() {
 	cfr := m.MustLastCallFrame(1)
-	ft := cfr.Func.GetType(m.Store)
+	fv := cfr.Func
+	fs := fv.GetSource(m.Store)
+	ftxz := getFuncTypeExprFromSource(fs)
+	ft := fv.GetType(m.Store)
 	numParams := len(ft.Params)
 	numResults := len(ft.Results)
 	fblock := m.Blocks[cfr.NumBlocks] // frame +1
 	results := m.PopValues(numResults)
 	for i := 0; i < numResults; i++ {
 		rtv := results[i]
+		// Make heap item if result is heap defined.
+		if ftxz.Results[i].NameExpr.Type == NameExprTypeHeapDefine {
+			rtv = TypedValue{
+				T: heapItemType{},
+				V: &HeapItemValue{Value: rtv},
+			}
+		}
 		fblock.Values[numParams+i] = rtv
 	}
 }
@@ -298,8 +312,6 @@ func (m *Machine) doOpReturnCallDefers() {
 	if dfr.Func != nil {
 		fv := dfr.Func
 		ft := fv.GetType(m.Store)
-		pts := ft.Params
-		numParams := len(ft.Params)
 		// Create new block scope for defer.
 		clo := dfr.Func.GetClosure(m.Store)
 		b := m.Alloc.NewBlock(fv.GetSource(m.Store), clo)
@@ -331,30 +343,8 @@ func (m *Machine) doOpReturnCallDefers() {
 			})
 			m.PushOp(OpCallDeferNativeBody)
 		}
-		if ft.HasVarg() {
-			numArgs := len(dfr.Args)
-			nvar := numArgs - (numParams - 1)
-			if dfr.Source.Call.Varg {
-				if debug {
-					if nvar != 1 {
-						panic("should not happen")
-					}
-				}
-				// Do nothing, last arg type is already slice type
-				// called with form fncall(?, vargs...)
-			} else {
-				// Convert last nvar to slice.
-				vart := pts[len(pts)-1].Type.(*SliceType)
-				vargs := make([]TypedValue, nvar)
-				copy(vargs, dfr.Args[numArgs-nvar:numArgs])
-				varg := m.Alloc.NewSliceFromList(vargs)
-				dfr.Args = dfr.Args[:numArgs-nvar]
-				dfr.Args = append(dfr.Args, TypedValue{
-					T: vart,
-					V: varg,
-				})
-			}
-		}
+		// Assign parameters in forward order.
+		// Heap escapes and vargs already handled by doOpDefer.
 		copy(b.Values, dfr.Args)
 	} else {
 		panic("should not happen")
@@ -373,6 +363,43 @@ func (m *Machine) doOpDefer() {
 	// Push defer.
 	switch cv := ftv.V.(type) {
 	case *FuncValue:
+		fv := cv
+		fs := fv.GetSource(m.Store)
+		ftxz := getFuncTypeExprFromSource(fs)
+		ft := fv.GetType(m.Store)
+		pts := ft.Params
+		numParams := len(pts)
+		isMethod := 0
+		nvar := numArgs - (numParams - 1 - isMethod)
+		if ft.HasVarg() {
+			if ds.Call.Varg {
+				// Do nothing, last arg type is already slice
+				// type called with form fncall(?, vargs...)
+				if debug {
+					if nvar != 1 {
+						panic("should not happen")
+					}
+				}
+			} else {
+				// Convert last nvar to slice.
+				vart := pts[numParams-1].Type.(*SliceType)
+				list := make([]TypedValue, nvar)
+				copy(list, args[numParams-1-isMethod:])
+				varg := m.Alloc.NewSliceFromList(list)
+				args = append(args[:numParams-1-isMethod], TypedValue{
+					T: vart,
+					V: varg,
+				})
+			}
+		}
+		for i := 0; i < numParams; i++ {
+			if ftxz.Params[i].NameExpr.Type == NameExprTypeHeapDefine {
+				args[i] = TypedValue{
+					T: heapItemType{},
+					V: &HeapItemValue{Value: args[i]},
+				}
+			}
+		}
 		cfr.PushDefer(Defer{
 			Func:       cv,
 			Args:       args,
@@ -381,21 +408,56 @@ func (m *Machine) doOpDefer() {
 			PanicScope: m.PanicScope,
 		})
 	case *BoundMethodValue:
-		if debug {
-			pt := cv.Func.GetType(m.Store).Params[0]
-			rt := cv.Receiver.T
-			if pt.TypeID() != rt.TypeID() {
-				panic(fmt.Sprintf(
-					"expected %s but got %s",
-					pt.String(),
-					rt.String()))
+		fv := cv.Func
+		fd := fv.GetSource(m.Store).(*FuncDecl)
+		ftxz := getFuncTypeExprFromSource(fd)
+		ft := fv.GetType(m.Store)
+		pts := ft.Params
+		numParams := len(pts)
+		isMethod := 1
+		nvar := numArgs - (numParams - 1 - isMethod)
+		if ft.HasVarg() {
+			if ds.Call.Varg {
+				// Do nothing, last arg type is already slice
+				// type called with form fncall(?, vargs...)
+				if debug {
+					if nvar != 1 {
+						panic("should not happen")
+					}
+				}
+			} else {
+				// Convert last nvar to slice.
+				vart := pts[numParams-1].Type.(*SliceType)
+				list := make([]TypedValue, nvar)
+				copy(list, args[numParams-1-isMethod:])
+				varg := m.Alloc.NewSliceFromList(list)
+				args = append(args[:numParams-1-isMethod], TypedValue{
+					T: vart,
+					V: varg,
+				})
 			}
 		}
 		args2 := make([]TypedValue, len(args)+1)
-		args2[0] = cv.Receiver
-		copy(args2[1:], args)
+		// Make heap item if param is heap defined.
+		// This also heap escapes the receiver.
+		for i := 0; i < numParams; i++ {
+			var pv TypedValue
+			if i >= isMethod {
+				pv = args[i-isMethod]
+			} else {
+				pv = cv.Receiver
+			}
+			if ftxz.Params[i].NameExpr.Type == NameExprTypeHeapDefine {
+				args2[i] = TypedValue{
+					T: heapItemType{},
+					V: &HeapItemValue{Value: pv},
+				}
+			} else {
+				args2[i] = pv
+			}
+		}
 		cfr.PushDefer(Defer{
-			Func:       cv.Func,
+			Func:       fv,
 			Args:       args2,
 			Source:     ds,
 			Parent:     lb,

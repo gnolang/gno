@@ -134,8 +134,6 @@ func (x IndexExpr) String() string {
 }
 
 func (x SelectorExpr) String() string {
-	// NOTE: for debugging selector issues:
-	// return fmt.Sprintf("%s.(%v).%s", n.X, n.Path.Type, n.Sel)
 	return fmt.Sprintf("%s.%s", x.X, x.Sel)
 }
 
@@ -198,10 +196,14 @@ func (x KeyValueExpr) String() string {
 }
 
 func (x FieldTypeExpr) String() string {
-	if x.Tag == nil {
-		return fmt.Sprintf("%s %s", x.Name, x.Type)
+	hd := ""
+	if x.NameExpr.Type == NameExprTypeHeapDefine {
+		hd = "~"
 	}
-	return fmt.Sprintf("%s %s %s", x.Name, x.Type, x.Tag)
+	if x.Tag == nil {
+		return fmt.Sprintf("%s%s %s", x.Name, hd, x.Type)
+	}
+	return fmt.Sprintf("%s%s %s %s", x.Name, hd, x.Type, x.Tag)
 }
 
 func (x ArrayTypeExpr) String() string {
