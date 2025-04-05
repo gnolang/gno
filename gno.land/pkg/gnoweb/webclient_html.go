@@ -316,7 +316,7 @@ func getFileCategory(filename string) int {
 
 	isGno := strings.HasSuffix(filename, ".gno")
 	if isGno {
-		if strings.Contains(filename, "test") {
+		if strings.Contains(filename, "_filetest.gno") || strings.HasSuffix(filename, "_test.gno"){
 			return 2
 		}
 		return 1

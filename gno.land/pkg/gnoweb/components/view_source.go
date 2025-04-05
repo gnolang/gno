@@ -56,7 +56,7 @@ func SourceView(data SourceData) *View {
 
 		tocData.Items[i] = item
 
-		if strings.Contains(file, "_test.") || strings.HasSuffix(file, "test.gno") {
+		if strings.Contains(file, "_test.") || strings.HasSuffix(file, "test.gno") || strings.HasSuffix(file, "_filetest.gno") {
 			tocData.TestFiles = append(tocData.TestFiles, item)
 		} else if !strings.HasSuffix(file, ".gno") {
 			tocData.NonGnoFiles = append(tocData.NonGnoFiles, item)
