@@ -256,6 +256,40 @@ func (pv *PackageValue) String() string {
 	return fmt.Sprintf("package(%s %s)", pv.PkgName, pv.PkgPath)
 }
 
+func (b *Block) String() string {
+	return b.StringIndented("    ")
+}
+
+func (b *Block) StringIndented(indent string) string {
+	source := toString(b.Source)
+	if len(source) > 32 {
+		source = source[:32] + "..."
+	}
+	lines := make([]string, 0, 3)
+	lines = append(lines,
+		fmt.Sprintf("Block(ID:%v,Addr:%p,Source:%s,Parent:%p)",
+			b.ObjectInfo.ID, b, source, b.Parent)) // XXX Parent may be RefValue{}.
+	if b.Source != nil {
+		if _, ok := b.Source.(RefNode); ok {
+			lines = append(lines,
+				fmt.Sprintf("%s(RefNode names not shown)", indent))
+		} else {
+			types := b.Source.GetStaticBlock().Types
+			for i, n := range b.Source.GetBlockNames() {
+				if len(b.Values) <= i {
+					lines = append(lines,
+						fmt.Sprintf("%s%s: undefined static:%s", indent, n, types[i]))
+				} else {
+					lines = append(lines,
+						fmt.Sprintf("%s%s: %s static:%s",
+							indent, n, b.Values[i].String(), types[i]))
+				}
+			}
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
 func (rv RefValue) String() string {
 	if rv.PkgPath == "" {
 		return fmt.Sprintf("ref(%v)",

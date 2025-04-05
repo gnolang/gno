@@ -124,4 +124,5 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	blockType{},
 	&tupleType{},
 	RefType{},
+	heapItemType{},
 ))

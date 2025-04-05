@@ -8,11 +8,7 @@ import (
 
 // NOTE: keep in sync with doOpIndex2.
 func (m *Machine) doOpIndex1() {
-	if debug {
-		_ = m.PopExpr().(*IndexExpr)
-	} else {
-		m.PopExpr()
-	}
+	m.PopExpr()
 	iv := m.PopValue()   // index
 	xv := m.PeekValue(1) // x
 	ro := m.IsReadonly(xv)
@@ -38,11 +34,7 @@ func (m *Machine) doOpIndex1() {
 
 // NOTE: keep in sync with doOpIndex1.
 func (m *Machine) doOpIndex2() {
-	if debug {
-		_ = m.PopExpr().(*IndexExpr)
-	} else {
-		m.PopExpr()
-	}
+	m.PopExpr()
 	iv := m.PeekValue(1) // index
 	xv := m.PeekValue(2) // x
 	ro := m.IsReadonly(xv)

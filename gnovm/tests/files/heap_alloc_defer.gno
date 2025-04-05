@@ -17,8 +17,6 @@ func main() {
 		},
 	}
 
-	// tt is heap defined every iteration,
-	// different with for loopvar spec.
 	for _, tt := range s {
 		f := func() {
 			println(tt.num)
@@ -34,4 +32,4 @@ func main() {
 // 1
 // 2
 // hola
-// hola
+// hello

@@ -1636,6 +1636,12 @@ func (m *Machine) PeekValue(offset int) *TypedValue {
 	return &m.Values[m.NumValues-offset]
 }
 
+// Returns a slice of the values stack.
+// Use or copy the result, as well as the slice.
+func (m *Machine) PeekValues(n int) []TypedValue {
+	return m.Values[m.NumValues-n : m.NumValues]
+}
+
 // XXX delete?
 func (m *Machine) PeekType(offset int) Type {
 	return m.Values[m.NumValues-offset].T
@@ -2037,7 +2043,6 @@ func (m *Machine) PushForPointer(lx Expr) {
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	pv, ro := m.PopAsPointer2(lx)
 	if ro {
-		// panic("cannot modify external-realm or non-realm object with " + lx.String())
 		panic("cannot modify external-realm or non-realm object")
 	}
 	return pv
@@ -2284,14 +2289,6 @@ func (m *Machine) String() string {
 		} else {
 			bsi := b.StringIndented("            ")
 			fmt.Fprintf(builder, "          %s(%d) %s\n", gens, gen, bsi)
-
-			if b.Source != nil {
-				sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
-				fmt.Fprintf(builder, " (s vals) %s(%d) %s\n", gens, gen, sb.StringIndented("            "))
-
-				sts := b.GetSource(m.Store).GetStaticBlock().Types
-				fmt.Fprintf(builder, " (s typs) %s(%d) %s\n", gens, gen, sts)
-			}
 		}
 
 		// Update b
@@ -2322,11 +2319,6 @@ func (m *Machine) String() string {
 		} else {
 			fmt.Fprintf(builder, "          #%d %s\n", i,
 				b.StringIndented("            "))
-			if b.Source != nil {
-				sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
-				fmt.Fprintf(builder, " (static) #%d %s\n", i,
-					sb.StringIndented("            "))
-			}
 		}
 	}
 
