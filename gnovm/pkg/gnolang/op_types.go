@@ -376,7 +376,7 @@ func (m *Machine) doOpStaticTypeOf() {
 			panic(fmt.Sprintf(
 				"unknown value path type %v in selector %s (path %s)",
 				path.Type,
-				x.String(),
+				x.String(m),
 				path.String()))
 		}
 

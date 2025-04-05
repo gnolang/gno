@@ -95,7 +95,7 @@ func (m *Machine) doOpCall() {
 				// results/parameters never are heap use/closure.
 				ptr := b.GetPointerToInt(nil, numParams+i)
 				dtv := defaultTypedValue(m.Alloc, rt.Type)
-				ptr.Assign2(m.Alloc, nil, nil, dtv, false)
+				ptr.Assign2(m, m.Alloc, nil, nil, dtv, false)
 			}
 		}
 		// Exec body.
