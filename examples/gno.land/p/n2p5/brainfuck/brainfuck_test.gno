@@ -147,7 +147,7 @@ func TestInput(t *testing.T) {
 }
 
 
-func TestBubblesort(t *testing.T) {
+func TestBsort(t *testing.T) {
 	// [bsort.b -- bubble sort
 	// (c) 2016 Daniel B. Cristofani
 	// http://brainfuck.org/]
@@ -173,7 +173,7 @@ func TestBubblesort(t *testing.T) {
 
 
 func TestHelloWorld(t *testing.T) {
-	// Classic "Hello World!" program
+	// Classic "Hello World!" program from wikipedia
 	code := `
 +++++ +++++             initialize counter (cell #0) to 10
 [                       use loop to set 70/100/30/10
