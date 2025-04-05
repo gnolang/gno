@@ -161,7 +161,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	if rlm == nil {
 		return
 	}
-	if debug {
+	if debugRealm {
 		if co != nil && co.GetIsDeleted() {
 			panic("cannot attach a deleted object")
 		}
@@ -224,7 +224,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 // mark*
 
 func (rlm *Realm) MarkNewReal(oo Object) {
-	if debug {
+	if debugRealm {
 		if pv, ok := oo.(*PackageValue); ok {
 			// packages should have no owner.
 			if pv.GetOwner() != nil {
@@ -255,7 +255,7 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 }
 
 func (rlm *Realm) MarkDirty(oo Object) {
-	if debug {
+	if debugRealm {
 		if !oo.GetIsReal() && !oo.GetIsNewReal() {
 			panic("cannot mark unreal object as dirty")
 		}
@@ -275,7 +275,7 @@ func (rlm *Realm) MarkDirty(oo Object) {
 }
 
 func (rlm *Realm) MarkNewDeleted(oo Object) {
-	if debug {
+	if debugRealm {
 		if !oo.GetIsNewReal() && !oo.GetIsReal() {
 			panic("cannot mark unreal object as new deleted")
 		}
@@ -295,7 +295,7 @@ func (rlm *Realm) MarkNewDeleted(oo Object) {
 }
 
 func (rlm *Realm) MarkNewEscaped(oo Object) {
-	if debug {
+	if debugRealm {
 		if !oo.GetIsNewReal() && !oo.GetIsReal() {
 			panic("cannot mark unreal object as new escaped")
 		}
@@ -327,7 +327,7 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 		defer bm.ResumeOpCode()
 	}
 
-	if debug {
+	if debugRealm {
 		// * newCreated - may become created unless ancestor is deleted
 		// * newDeleted - may become deleted unless attached to new-real owner
 		// * newEscaped - may become escaped unless new-real and refcount 0 or 1.
@@ -356,7 +356,7 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	// given created and updated objects,
 	// mark all owned-ancestors also as dirty.
 	rlm.markDirtyAncestors(store)
-	if debug {
+	if debugRealm {
 		ensureUniq(rlm.created, rlm.updated, rlm.deleted)
 		ensureUniq(rlm.escaped)
 	}
@@ -381,18 +381,21 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 func (rlm *Realm) processNewCreatedMarks(store Store) {
 	// Create new objects and their new descendants.
 	for _, oo := range rlm.newCreated {
-		if debug {
+		if debugRealm {
 			if oo.GetIsDirty() {
 				panic("new created mark cannot be dirty")
 			}
 		}
 		if oo.GetRefCount() == 0 {
-			if debug {
-				if !oo.GetIsNewDeleted() {
+			if debugRealm {
+				// The refCount for a new real object could be zero,
+				// and the object may not yet be marked as deleted.
+				if !oo.GetIsNewDeleted() && !oo.GetIsNewReal() {
 					panic("should have been marked new-deleted")
 				}
 			}
 			// No need to unmark, will be garbage collected.
+			// also see comment in clearMarks().
 			// oo.SetIsNewReal(false)
 			// skip if became deleted.
 			continue
@@ -408,7 +411,7 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 
 // oo must be marked new-real, and ref-count already incremented.
 func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
-	if debug {
+	if debugRealm {
 		if oo.GetIsDirty() {
 			panic("cannot increase reference of descendants of dirty objects")
 		}
@@ -432,7 +435,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	more := getChildObjects2(store, oo)
 	for _, child := range more {
 		if _, ok := child.(*PackageValue); ok {
-			if debug {
+			if debugRealm {
 				if child.GetRefCount() < 1 {
 					panic("cannot increase reference count of package descendant that is unreferenced")
 				}
@@ -453,10 +456,18 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 				// NOTE: may already be marked for first gen
 				// newCreated or updated.
 				child.SetOwner(oo)
-				rlm.incRefCreatedDescendants(store, child)
+
+				// As a child of packageValue, packageBlock is
+				// visited once. As a child of fileBlock, it's
+				// visited twice. On the second visit, it's already
+				// Real, while it should be NewReal too, to avoid
+				// redundant dirty marking. So make SetNewReal happen
+				// first before recurse.
 				child.SetIsNewReal(true)
+				rlm.incRefCreatedDescendants(store, child)
 			}
 		} else if rc > 1 {
+			// new real or dirty won't be marked(again).
 			rlm.MarkDirty(child)
 			if child.GetIsEscaped() {
 				// already escaped, do nothing.
@@ -483,7 +494,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 // Must run *after* processNewCreatedMarks().
 func (rlm *Realm) processNewDeletedMarks(store Store) {
 	for _, oo := range rlm.newDeleted {
-		if debug {
+		if debugRealm {
 			if oo.GetObjectID().IsZero() {
 				panic("new deleted mark should have an object ID")
 			}
@@ -496,11 +507,13 @@ func (rlm *Realm) processNewDeletedMarks(store Store) {
 			rlm.decRefDeletedDescendants(store, oo)
 		}
 	}
+	// clear deleted from all other sets.
+	rlm.clearDeleted()
 }
 
 // Like incRefCreatedDescendants but decrements.
 func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
-	if debug {
+	if debugRealm {
 		if oo.GetObjectID().IsZero() {
 			panic("cannot decrement references of deleted descendants of object with no object ID")
 		}
@@ -553,7 +566,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 	// except for new-reals that get demoted
 	// because ref-count isn't >= 2.
 	for _, eo := range rlm.newEscaped {
-		if debug {
+		if debugRealm {
 			if !eo.GetIsNewEscaped() {
 				panic("new escaped mark not marked as new escaped")
 			}
@@ -609,7 +622,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 	markAncestorsOne := func(oo Object) {
 		for {
 			if pv, ok := oo.(*PackageValue); ok {
-				if debug {
+				if debugRealm {
 					if pv.GetRefCount() < 1 {
 						panic("expected package value to have refcount 1 or greater")
 					}
@@ -618,13 +631,13 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 				break
 			}
 			rc := oo.GetRefCount()
-			if debug {
+			if debugRealm {
 				if rc == 0 {
-					panic("ancestor should have a non-zero reference count to be marked as dirty")
+					panic(fmt.Sprintf("ancestor should have a non-zero reference count to be marked as dirty: %v", oo))
 				}
 			}
 			if rc > 1 {
-				if debug {
+				if debugRealm {
 					if !oo.GetIsEscaped() && !oo.GetIsNewEscaped() {
 						panic("ancestor should cannot be escaped or new escaped to be marked as dirty")
 					}
@@ -638,6 +651,7 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 			} // else, rc == 1
 
 			po := getOwner(store, oo)
+
 			if po == nil {
 				break // no more owners.
 			} else if po.GetIsNewReal() {
@@ -649,6 +663,11 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 				// already will be marked
 				// via call to markAncestorsOne
 				// via .updated.
+				break
+			} else if po.GetIsDeleted() {
+				// already deleted, no need to mark.
+				// oo(child) maybe have another owner,
+				// if so, it should be marked by .updated.
 				break
 			} else {
 				rlm.MarkDirty(po)
@@ -667,6 +686,37 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 	for _, oo := range rlm.created {
 		markAncestorsOne(oo)
 	}
+}
+
+// clearDeleted removes any objects from .updated, .created,
+// and .newEscaped slices that are also present in the .deleted slice.
+func (rlm *Realm) clearDeleted() {
+	if len(rlm.deleted) == 0 {
+		return
+	}
+
+	// Convert deleted objects to a map for O(1) lookups
+	deleted := make(map[Object]struct{}, len(rlm.deleted))
+	for _, do := range rlm.deleted {
+		deleted[do] = struct{}{}
+	}
+
+	filter := func(slice []Object) []Object {
+		if slice == nil {
+			return nil
+		}
+		filtered := slice[:0]
+		for _, obj := range slice {
+			if _, exists := deleted[obj]; !exists {
+				filtered = append(filtered, obj)
+			}
+		}
+		return filtered
+	}
+
+	rlm.updated = filter(rlm.updated)
+	rlm.created = filter(rlm.created)
+	rlm.newEscaped = filter(rlm.newEscaped)
 }
 
 //----------------------------------------
@@ -700,7 +750,7 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 
 // store unsaved children first.
 func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
-	if debug {
+	if debugRealm {
 		if !oo.GetIsNewReal() && !oo.GetIsDirty() {
 			panic("cannot save new real or non-dirty objects")
 		}
@@ -728,7 +778,7 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 	// then, save self.
 	if oo.GetIsNewReal() {
 		// save created object.
-		if debug {
+		if debugRealm {
 			if oo.GetIsDirty() {
 				panic("cannot save dirty new real object")
 			}
@@ -737,7 +787,7 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		oo.SetIsNewReal(false)
 	} else {
 		// update existing object.
-		if debug {
+		if debugRealm {
 			if !oo.GetIsDirty() {
 				panic("cannot save non-dirty existing object")
 			}
@@ -787,17 +837,19 @@ func (rlm *Realm) removeDeletedObjects(store Store) {
 
 func (rlm *Realm) clearMarks() {
 	// sanity check
-	if debug {
+	if debugRealm {
 		for _, oo := range rlm.newDeleted {
 			if oo.GetIsNewDeleted() {
 				panic("cannot clear marks if new deleted exist")
 			}
 		}
-		for _, oo := range rlm.newCreated {
-			if oo.GetIsNewReal() {
-				panic("cannot clear marks if new created exist")
-			}
-		}
+
+		// A new real object can be possible here.
+		// This new real object may have recCount of 0
+		// but its state was not unset in `processNewCreatedMarks`.
+		// (As a result, it will be garbage collected.)
+		// therefore, new real is allowed to exist here.
+
 		for _, oo := range rlm.newEscaped {
 			if oo.GetIsNewEscaped() {
 				panic("cannot clear marks if new escaped exist")
@@ -1485,7 +1537,7 @@ func toRefValue(val Value) RefValue {
 				// Hash: nil,
 			}
 		} else if oo.GetIsEscaped() {
-			if debug {
+			if debugRealm {
 				if !oo.GetOwnerID().IsZero() {
 					panic("cannot convert escaped object to ref value without an owner ID")
 				}
@@ -1496,7 +1548,7 @@ func toRefValue(val Value) RefValue {
 				// Hash: nil,
 			}
 		} else {
-			if debug {
+			if debugRealm {
 				if oo.GetRefCount() > 1 {
 					panic("unexpected references when converting to ref value")
 				}
@@ -1523,7 +1575,7 @@ func ensureUniq(oozz ...[]Object) {
 	for _, ooz := range oozz {
 		for _, uo := range ooz {
 			if _, ok := om[uo]; ok {
-				panic("duplicate object")
+				panic(fmt.Sprintf("duplicate object: %v", uo))
 			} else {
 				om[uo] = struct{}{}
 			}

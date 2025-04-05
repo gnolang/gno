@@ -21,6 +21,15 @@ func main() {
 // Realm:
 // switchrealm["gno.land/r/test"]
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2]=
+//     @@ -3,7 +3,7 @@
+//          "ObjectInfo": {
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//              "IsEscaped": true,
+//     -        "ModTime": "0",
+//     +        "ModTime": "3",
+//              "RefCount": "2"
+//          },
+//          "Parent": null,
 //     @@ -19,11 +19,10 @@
 //          },
 //          "Values": [
