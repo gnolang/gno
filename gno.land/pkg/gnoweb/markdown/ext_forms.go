@@ -275,11 +275,11 @@ func (r *formRendererHTML) formRenderHTML(w util.BufWriter, _ []byte, node ast.N
 			placeholder := html.EscapeString(cnode.Placeholder)
 
 			if arg := cnode.Arg; arg == "" {
-				// For inputs without arg, use :NUMBER: format
-				fmt.Fprintf(w, `<input type="text" name=":%d:" placeholder="%s" />`, r.inputCounter, placeholder)
+				// For inputs without arg, use __gnoweb-order:NUMBER__ format
+				fmt.Fprintf(w, `<input type="text" name="__gnoweb-order:%d__" placeholder="%s" />`, r.inputCounter, placeholder)
 			} else {
-				// For inputs with arg, use :NUMBER:arg format
-				fmt.Fprintf(w, `<input type="text" name=":%d:%s" placeholder="%s" />`, r.inputCounter, arg, placeholder)
+				// For inputs with arg, use __gnoweb-order:NUMBER__arg format
+				fmt.Fprintf(w, `<input type="text" name="__gnoweb-order:%d__%s" placeholder="%s" />`, r.inputCounter, arg, placeholder)
 			}
 			r.inputCounter++
 		}

@@ -139,14 +139,14 @@ func (h *WebHandler) Post(w http.ResponseWriter, r *http.Request) {
 			"elapsed", time.Since(start).String())
 	}()
 
-	// Parse form data
+	// Parse the form data
 	if err := r.ParseForm(); err != nil {
 		h.Logger.Error("failed to parse form", "error", err)
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
-	// Get the current URL path
+	// Parse the URL
 	gnourl, err := weburl.ParseFromURL(r.URL)
 	if err != nil {
 		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "error", err)
@@ -154,10 +154,9 @@ func (h *WebHandler) Post(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build the redirect URL with form values
 	redirectPath := gnourl.Path
 
-	// Process form values in order
+	// Structure to keep the order, name and value of an input
 	type input struct {
 		order int
 		name  string
@@ -165,28 +164,31 @@ func (h *WebHandler) Post(w http.ResponseWriter, r *http.Request) {
 	}
 	var inputs []input
 
-	// Get all form values and extract their order
-	for name, values := range r.Form {
+	// Process all form values to extract those with the expected prefix
+	for key, values := range r.Form {
 		// Skip empty values
 		if len(values) == 0 || values[0] == "" {
 			continue
 		}
 
-		// Extract order number from name (format :NUMBER:...)
-		parts := strings.Split(name, ":")
-		if len(parts) < 2 {
+		// Only "__gnoweb-order:" keys are processed
+		if !strings.HasPrefix(key, "__gnoweb-order:") {
 			continue
 		}
 
-		order, err := strconv.Atoi(parts[1])
+		// Remove the prefix to get the rest of the key
+		trimmed := strings.TrimPrefix(key, "__gnoweb-order:")
+		// Search for the separator "__" to split the number and the argument name
+		idx := strings.Index(trimmed, "__")
+		if idx < 0 {
+			continue
+		}
+		numberPart := trimmed[:idx]
+		argName := trimmed[idx+2:]
+
+		order, err := strconv.Atoi(numberPart)
 		if err != nil {
 			continue
-		}
-
-		// Get the argument name (everything after the first :NUMBER:)
-		var argName string
-		if len(parts) > 2 {
-			argName = strings.Join(parts[2:], ":")
 		}
 
 		inputs = append(inputs, input{
@@ -196,21 +198,20 @@ func (h *WebHandler) Post(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	// Sort inputs by order and build parts
+	// Sort inputs by order
 	sort.Slice(inputs, func(i, j int) bool { return inputs[i].order < inputs[j].order })
 
+	// Build the new URL
 	var parts []string
 	for _, input := range inputs {
 		if input.name == "" {
-			// For inputs without arg, just add the value
 			parts = append(parts, input.value)
 		} else {
-			// For inputs with arg, add name and value
 			parts = append(parts, input.name, input.value)
 		}
 	}
 
-	// Join all parts with /
+	// Concatenate parts with '/' and add to the original path with a ':'
 	if len(parts) > 0 {
 		redirectPath += ":" + strings.Join(parts, "/")
 	}
