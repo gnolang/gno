@@ -9,8 +9,6 @@ import (
 	"net/http"
 	"path"
 	"slices"
-	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -154,70 +152,11 @@ func (h *WebHandler) Post(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	redirectPath := gnourl.Path
-
-	// Structure to keep the order, name and value of an input
-	type input struct {
-		order int
-		name  string
-		value string
-	}
-	var inputs []input
-
-	// Process all form values to extract those with the expected prefix
-	for key, values := range r.Form {
-		// Skip empty values
-		if len(values) == 0 || values[0] == "" {
-			continue
-		}
-
-		// Only "__gnoweb-order:" keys are processed
-		if !strings.HasPrefix(key, "__gnoweb-order:") {
-			continue
-		}
-
-		// Remove the prefix to get the rest of the key
-		trimmed := strings.TrimPrefix(key, "__gnoweb-order:")
-		// Search for the separator "__" to split the number and the argument name
-		idx := strings.Index(trimmed, "__")
-		if idx < 0 {
-			continue
-		}
-		numberPart := trimmed[:idx]
-		argName := trimmed[idx+2:]
-
-		order, err := strconv.Atoi(numberPart)
-		if err != nil {
-			continue
-		}
-
-		inputs = append(inputs, input{
-			order: order,
-			name:  argName,
-			value: values[0],
-		})
-	}
-
-	// Sort inputs by order
-	sort.Slice(inputs, func(i, j int) bool { return inputs[i].order < inputs[j].order })
-
-	// Build the new URL
-	var parts []string
-	for _, input := range inputs {
-		if input.name == "" {
-			parts = append(parts, input.value)
-		} else {
-			parts = append(parts, input.name, input.value)
-		}
-	}
-
-	// Concatenate parts with '/' and add to the original path with a ':'
-	if len(parts) > 0 {
-		redirectPath += ":" + strings.Join(parts, "/")
-	}
+	// override form with query
+	gnourl.Query = r.Form
 
 	// Redirect to the new URL
-	http.Redirect(w, r, redirectPath, http.StatusSeeOther)
+	http.Redirect(w, r, gnourl.EncodeWebURL(), http.StatusSeeOther)
 }
 
 // prepareIndexBodyView prepares the data and main view for the index.
