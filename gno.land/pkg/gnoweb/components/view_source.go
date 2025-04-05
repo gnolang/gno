@@ -1,5 +1,9 @@
 package components
 
+import (
+	"strings"
+)
+
 const SourceViewType ViewType = "source-view"
 
 type SourceData struct {
@@ -14,8 +18,13 @@ type SourceData struct {
 }
 
 type SourceTocData struct {
-	Icon  string
-	Items []SourceTocItem
+	Icon         string
+	Items        []SourceTocItem
+	RegularFiles []SourceTocItem
+	Categories   struct {
+		TestFiles   []SourceTocItem
+		NonGnoFiles []SourceTocItem
+	}
 }
 
 type SourceTocItem struct {
@@ -42,9 +51,19 @@ func SourceView(data SourceData) *View {
 	}
 
 	for i, file := range data.Files {
-		tocData.Items[i] = SourceTocItem{
+		item := SourceTocItem{
 			Link: data.PkgPath + "$source&file=" + file,
 			Text: file,
+		}
+
+		tocData.Items[i] = item
+
+		if strings.Contains(file, "_test.") || strings.HasSuffix(file, "test.gno") {
+			tocData.Categories.TestFiles = append(tocData.Categories.TestFiles, item)
+		} else if !strings.HasSuffix(file, ".gno") {
+			tocData.Categories.NonGnoFiles = append(tocData.Categories.NonGnoFiles, item)
+		} else {
+			tocData.RegularFiles = append(tocData.RegularFiles, item)
 		}
 	}
 
