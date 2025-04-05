@@ -240,3 +240,13 @@ func EscapeText(text string) string {
 	)
 	return replacer.Replace(text)
 }
+
+// ColGroup wraps content in colgroup tags.
+func ColGroup(content string) string {
+	return "<colgroup>\n" + content + "</colgroup>\n"
+}
+
+// Col creates a col tag.
+func Col(content string) string {
+	return "  <col>" + content + "</col>\n"
+}
