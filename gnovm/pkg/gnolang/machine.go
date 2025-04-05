@@ -1636,6 +1636,12 @@ func (m *Machine) PeekValue(offset int) *TypedValue {
 	return &m.Values[m.NumValues-offset]
 }
 
+// Returns a slice of the values stack.
+// Use or copy the result, as well as the slice.
+func (m *Machine) PeekValues(n int) []TypedValue {
+	return m.Values[m.NumValues-n : m.NumValues]
+}
+
 // XXX delete?
 func (m *Machine) PeekType(offset int) Type {
 	return m.Values[m.NumValues-offset].T

@@ -104,10 +104,19 @@ func (m *Machine) doOpCall() {
 			// Initialize return variables with default value.
 			for i, rt := range ft.Results {
 				rnx := &ftxz.Results[i].NameExpr
-				// results/parameters never are heap use/closure.
-				ptr := b.GetPointerToMaybeHeapDefine(nil, rnx)
 				dtv := defaultTypedValue(m.Alloc, rt.Type)
-				ptr.Assign2(m.Alloc, nil, nil, dtv, false)
+				ptr := b.GetPointerToInt(nil, numParams+i)
+				// Write to existing heap item if result is heap defined.
+				if rnx.Type == NameExprTypeHeapDefine {
+					*ptr.TV = TypedValue{
+						T: heapItemType{},
+						V: &HeapItemValue{
+							Value: dtv,
+						},
+					}
+				} else {
+					*ptr.TV = dtv
+				}
 			}
 		}
 		// Exec body.
@@ -193,13 +202,29 @@ func (m *Machine) doOpCallDeferNativeBody() {
 
 // Assumes that result values are pushed onto the Values stack.
 func (m *Machine) doOpReturn() {
-	cfr := m.PopUntilLastCallFrame()
+
+	// If there are named results that are heap defined,
+	// need to write to those from stack before returning.
+	cfr := m.MustLastCallFrame(1)
+	fv := cfr.Func
+	fs := fv.GetSource(m.Store)
+	ftxz := getFuncTypeExprFromSource(fs)
+	ft := fv.GetType(m.Store)
+	numParams := len(ft.Params)
+	numResults := len(ft.Results)
+	fblock := m.Blocks[cfr.NumBlocks] // frame +1
+	results := m.PeekValues(numResults)
+	for i := 0; i < numResults; i++ {
+		rtv := results[i]
+		// Write to existing heap item if result is heap defined.
+		if ftxz.Results[i].NameExpr.Type == NameExprTypeHeapDefine {
+			hiv := fblock.Values[numParams+i].V.(*HeapItemValue)
+			hiv.Value = rtv.Copy(m.Alloc)
+		}
+	}
+
+	cfr = m.PopUntilLastCallFrame()
 	// See if we are exiting a realm boundary.
-	// NOTE: there are other ways to implement realm boundary transitions,
-	// e.g. with independent Machine instances per realm for example, or
-	// even only finalizing all realm transactions at the end of the
-	// original statement execution, but for now we handle them like this,
-	// per OpReturn*.
 	crlm := m.Realm
 	if crlm != nil {
 		lrlm := cfr.LastRealm
@@ -278,14 +303,13 @@ func (m *Machine) doOpReturnToBlock() {
 	results := m.PopValues(numResults)
 	for i := 0; i < numResults; i++ {
 		rtv := results[i]
-		// Make heap item if result is heap defined.
+		// Write to existing heap item if result is heap defined.
 		if ftxz.Results[i].NameExpr.Type == NameExprTypeHeapDefine {
-			rtv = TypedValue{
-				T: heapItemType{},
-				V: &HeapItemValue{Value: rtv},
-			}
+			hiv := fblock.Values[numParams+i].V.(*HeapItemValue)
+			hiv.Value = rtv
+		} else {
+			fblock.Values[numParams+i] = rtv
 		}
-		fblock.Values[numParams+i] = rtv
 	}
 }
 
