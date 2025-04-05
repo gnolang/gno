@@ -245,3 +245,19 @@ func DefaultGenState() GnoGenesisState {
 	}
 	return gs
 }
+
+func ValidateGenState(state GnoGenesisState) error {
+	if err := auth.ValidateGenesis(state.Auth); err != nil {
+		return err
+	}
+
+	if err := bank.ValidateGenesis(state.Bank); err != nil {
+		return err
+	}
+
+	if err := vmm.ValidateGenesis(state.VM); err != nil {
+		return err
+	}
+
+	return nil
+}
