@@ -172,7 +172,7 @@ func (h *WebHandler) Post(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Extract order number from name (format :NUMBER: or :NUMBER:arg)
+		// Extract order number from name (format :NUMBER:...)
 		parts := strings.Split(name, ":")
 		if len(parts) < 2 {
 			continue
@@ -183,10 +183,10 @@ func (h *WebHandler) Post(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Get the argument name if present
+		// Get the argument name (everything after the first :NUMBER:)
 		var argName string
 		if len(parts) > 2 {
-			argName = parts[2]
+			argName = strings.Join(parts[2:], ":")
 		}
 
 		inputs = append(inputs, input{
