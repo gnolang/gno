@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"path"
 	"slices"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -65,13 +67,15 @@ func NewWebHandler(logger *slog.Logger, cfg WebHandlerConfig) (*WebHandler, erro
 func (h *WebHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.Logger.Debug("receiving request", "method", r.Method, "path", r.URL.Path)
 
-	if r.Method != http.MethodGet {
+	switch r.Method {
+	case http.MethodGet:
+		w.Header().Add("Content-Type", "text/html; charset=utf-8")
+		h.Get(w, r)
+	case http.MethodPost:
+		h.Post(w, r)
+	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
 	}
-
-	w.Header().Add("Content-Type", "text/html; charset=utf-8")
-	h.Get(w, r)
 }
 
 // Get processes a GET HTTP request.
@@ -124,6 +128,95 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	if err := components.IndexLayout(indexData).Render(w); err != nil {
 		h.Logger.Error("failed to render index component", "error", err)
 	}
+}
+
+// Post processes a POST HTTP request.
+func (h *WebHandler) Post(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	defer func() {
+		h.Logger.Debug("request completed",
+			"url", r.URL.String(),
+			"elapsed", time.Since(start).String())
+	}()
+
+	// Parse form data
+	if err := r.ParseForm(); err != nil {
+		h.Logger.Error("failed to parse form", "error", err)
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+
+	// Get the current URL path
+	gnourl, err := weburl.ParseFromURL(r.URL)
+	if err != nil {
+		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "error", err)
+		http.Error(w, "invalid path", http.StatusNotFound)
+		return
+	}
+
+	// Build the redirect URL with form values
+	redirectPath := gnourl.Path
+
+	// Process form values in order
+	type input struct {
+		order int
+		name  string
+		value string
+	}
+	var inputs []input
+
+	// Get all form values and extract their order
+	for name, values := range r.Form {
+		// Skip empty values
+		if len(values) == 0 || values[0] == "" {
+			continue
+		}
+
+		// Extract order number from name (format :NUMBER: or :NUMBER:arg)
+		parts := strings.Split(name, ":")
+		if len(parts) < 2 {
+			continue
+		}
+
+		order, err := strconv.Atoi(parts[1])
+		if err != nil {
+			continue
+		}
+
+		// Get the argument name if present
+		var argName string
+		if len(parts) > 2 {
+			argName = parts[2]
+		}
+
+		inputs = append(inputs, input{
+			order: order,
+			name:  argName,
+			value: values[0],
+		})
+	}
+
+	// Sort inputs by order and build parts
+	sort.Slice(inputs, func(i, j int) bool { return inputs[i].order < inputs[j].order })
+
+	var parts []string
+	for _, input := range inputs {
+		if input.name == "" {
+			// For inputs without arg, just add the value
+			parts = append(parts, input.value)
+		} else {
+			// For inputs with arg, add name and value
+			parts = append(parts, input.name, input.value)
+		}
+	}
+
+	// Join all parts with /
+	if len(parts) > 0 {
+		redirectPath += ":" + strings.Join(parts, "/")
+	}
+
+	// Redirect to the new URL
+	http.Redirect(w, r, redirectPath, http.StatusSeeOther)
 }
 
 // prepareIndexBodyView prepares the data and main view for the index.
