@@ -143,11 +143,11 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			tv.SetUint64(u64)
 			return
 		case gno.Float32Type:
-			value := convertFloat(arg, 32)
+			value := convertStringToFloat(arg, 32)
 			tv.SetFloat32(math.Float32bits(float32(value)))
 			return
 		case gno.Float64Type:
-			value := convertFloat(arg, 64)
+			value := convertStringToFloat(arg, 64)
 			tv.SetFloat64(math.Float64bits(value))
 			return
 		default:
@@ -193,7 +193,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 	}
 }
 
-func convertFloat(value string, precision int) float64 {
+func convertStringToFloat(value string, precision int) float64 {
 	assertNoPlusPrefix(value)
 	dec, _, err := apd.NewFromString(value)
 	if err != nil {
@@ -206,4 +206,146 @@ func convertFloat(value string, precision int) float64 {
 	}
 
 	return f64
+}
+
+func JSONPrimitiveValues(m *gno.Machine, tvs []gno.TypedValue) string {
+	var str strings.Builder
+
+	str.WriteRune('[')
+	for i, tv := range tvs {
+		if i > 0 {
+			str.WriteRune(',')
+		}
+		str.WriteString(JSONPrimitiveValue(m, tv))
+	}
+	str.WriteRune(']')
+
+	return str.String()
+}
+
+func JSONPrimitiveValue(m *gno.Machine, tv gno.TypedValue) string {
+	if tv.T == nil {
+		return "null"
+	}
+
+	bt := gno.BaseOf(tv.T)
+	switch bt := bt.(type) {
+	case gno.PrimitiveType:
+		switch bt {
+		case gno.UntypedBoolType, gno.BoolType:
+			return fmt.Sprintf("%t", tv.GetBool())
+		case gno.UntypedStringType, gno.StringType:
+			return strconv.Quote(tv.GetString())
+		case gno.Float32Type:
+			f32 := math.Float32frombits(tv.GetFloat32())
+			return fmt.Sprintf("%f", f32)
+		case gno.Float64Type:
+			f64 := math.Float64frombits(tv.GetFloat64())
+			return fmt.Sprintf("%f", f64)
+		case gno.UntypedBigintType:
+			return tv.V.(gno.BigintValue).V.String()
+		case gno.UntypedBigdecType:
+			return tv.V.(gno.BigdecValue).V.String()
+		case gno.IntType, gno.Int8Type, gno.Int16Type, gno.Int32Type, gno.UntypedRuneType, gno.Int64Type:
+			return fmt.Sprintf("%d", getSignedIntValue(bt, tv))
+		case gno.UintType, gno.Uint8Type, gno.Uint16Type, gno.Uint32Type, gno.Uint64Type, gno.DataByteType:
+			return fmt.Sprintf("%d", getUnsignedIntValue(bt, tv))
+		default:
+			panic("invalid primitive type - should not happen")
+		}
+	case *gno.ArrayType:
+		if bt.Elt == gno.Uint8Type {
+			arr := tv.V.(*gno.ArrayValue)
+			if data := arr.Data; data != nil {
+				i := arr.GetLength()
+				return `"` + base64.StdEncoding.EncodeToString(data[:i]) + `"`
+			}
+		}
+	case *gno.SliceType:
+		if bt.Elt == gno.Uint8Type {
+			slice := tv.V.(*gno.SliceValue)
+			if data := slice.GetBase(nil).Data; data != nil {
+				i := slice.GetLength()
+				return `"` + base64.StdEncoding.EncodeToString(data[:i]) + `"`
+			}
+		}
+	}
+
+	if tv.V == nil {
+		return "null"
+	}
+
+	if res, ok := tryGetError(m, tv); ok {
+		return res
+	}
+
+	var oid gno.ObjectID
+	switch v := tv.V.(type) {
+	case gno.PointerValue:
+		oid = v.GetBase(m.Store).GetObjectID()
+	case gno.Object:
+		oid = v.GetObjectID()
+	}
+
+	if !oid.IsZero() {
+		return strconv.Quote(fmt.Sprintf(`<obj:%s:%s>`, tv.T.String(), oid))
+	}
+
+	return strconv.Quote(fmt.Sprintf(`<obj:%s:0>`, tv.T.String()))
+}
+
+func getSignedIntValue(bt gno.PrimitiveType, tv gno.TypedValue) int64 {
+	switch bt {
+	case gno.IntType:
+		return tv.GetInt()
+	case gno.Int8Type:
+		return int64(tv.GetInt8())
+	case gno.Int16Type:
+		return int64(tv.GetInt16())
+	case gno.Int32Type, gno.UntypedRuneType:
+		return int64(tv.GetInt32())
+	case gno.Int64Type:
+		return tv.GetInt64()
+	default:
+		panic("unexpected signed integer type")
+	}
+}
+
+func getUnsignedIntValue(bt gno.PrimitiveType, tv gno.TypedValue) uint64 {
+	switch bt {
+	case gno.UintType:
+		return tv.GetUint()
+	case gno.Uint8Type, gno.DataByteType:
+		return uint64(tv.GetUint8())
+	case gno.Uint16Type:
+		return uint64(tv.GetUint16())
+	case gno.Uint32Type:
+		return uint64(tv.GetUint32())
+	case gno.Uint64Type:
+		return tv.GetUint64()
+	default:
+		panic("unexpected unsigned integer type")
+	}
+}
+
+func tryGetError(m *gno.Machine, tv gno.TypedValue) (string, bool) {
+	bt := gno.BaseOf(tv.T)
+
+	// Check if type implement Error
+	ptv := tv
+	if _, ok := bt.(*gno.PointerType); !ok {
+		// Try wrapping the valye
+		ptv = gno.TypedValue{
+			T: &gno.PointerType{Elt: tv.T},
+			V: gno.PointerValue{TV: &tv, Base: tv.V},
+		}
+	}
+
+	// If implements .Error(), return this
+	if ptv.IsError() {
+		res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: ptv}, "Error")))
+		return strconv.Quote(res[0].GetString()), true
+	}
+
+	return "", false
 }
