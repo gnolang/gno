@@ -5,7 +5,7 @@
 stderr '=== RUN   file/x_filetest.gno'
 stderr 'Error diff:'
 stderr '-xxx'
-stderr '\+oups'
+stderr '\+panic: oups'
 
 -- x_filetest.gno --
 package main

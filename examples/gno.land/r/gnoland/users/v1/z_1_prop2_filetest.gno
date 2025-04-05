@@ -258,6 +258,6 @@ func main() {
 //       }
 //     ],
 //     "pkg_path": "gno.land/r/gov/dao/v2",
-//     "func": "ExecuteProposal"
+//     "func": "EmitProposalExecuted"
 //   }
 // ]

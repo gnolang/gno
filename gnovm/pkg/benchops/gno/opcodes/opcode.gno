@@ -416,7 +416,6 @@ OpEval, (const (0 int))
 OpIndex1, (array[(0 int)] [1]int)
 OpReturnToBlock, [FRAME FUNC:OpDefer RECV:(undefined) (0 args) 1/0/0/0/1 LASTPKG:main LASTRLM:Realm(nil)]
 OpReturnCallDefers
-OpCallDeferNativeBody, len
 OpReturnCallDefers
 OpExec, bodyStmt[0/0/-2]=(init)
 OpBody, a<VPBlock(2,1)>[(const (0 int))]++
@@ -768,13 +767,6 @@ func OpTypeSwitch() {
 			// ...
 		}
 	}
-}
-
-func OpCallDeferNativeBody() {
-	a := [1]int{0}
-	defer func() {
-		len(a)
-	}()
 }
 
 /*

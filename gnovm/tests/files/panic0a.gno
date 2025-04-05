@@ -42,4 +42,4 @@ func main() {
 //     main/files/panic0a.gno:22
 
 // Error:
-// wtf
+// panic: wtf

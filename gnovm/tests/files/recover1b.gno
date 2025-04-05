@@ -1,7 +1,5 @@
 package main
 
-import "fmt"
-
 func main() {
 	defer func() {
 		recover()
@@ -11,9 +9,15 @@ func main() {
 }
 
 // Stacktrace:
-// panic: other panic
+// panic: test panic
 // main<VPBlock(1,0)>()
 //     main/files/recover1b.gno:8
+// panic: other panic
+// func(){ ... }()
+//     main/:6
+// main<VPBlock(1,0)>()
+//     main/files/recover1b.gno:4
 
 // Error:
-// other panic
+// panic: test panic[recovered]
+// 	panic: other panic
