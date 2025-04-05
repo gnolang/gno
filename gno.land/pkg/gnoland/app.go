@@ -81,6 +81,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Capabilities keys.
 	mainKey := store.NewStoreKey("main")
 	baseKey := store.NewStoreKey("base")
+	supplyKey := store.NewStoreKey("supply")
 
 	//  set sdk app options
 	var appOpts []func(*sdk.BaseApp)
@@ -94,6 +95,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Set mounts for BaseApp's MultiStore.
 	baseApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, cfg.DB)
 	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
+	baseApp.MountStoreWithDB(supplyKey, dbadapter.StoreConstructor, cfg.DB)
 
 	// Construct keepers.
 
@@ -101,7 +103,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount)
 	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
 	gpk := auth.NewGasPriceKeeper(mainKey)
-	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, prmk)
+	vmk := vm.NewVMKeeper(baseKey, mainKey, supplyKey, acck, bankk, prmk)
 	vmk.Output = cfg.VMOutput
 
 	prmk.Register(auth.ModuleName, acck)
