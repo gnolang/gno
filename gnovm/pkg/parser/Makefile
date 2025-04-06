@@ -14,7 +14,6 @@ patch:
 	patch -b < gno.patch
 
 clean:
-	rm -rf *.go *.orig internal testdata;
-	printf "package parser\n\n//go:generate make import patch\n" > gen.go
+	rm -rf *.go *.orig internal testdata
 
 .PHONY: import genpatch patch clean
