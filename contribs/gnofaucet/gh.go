@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/google/go-github/v64/github"
@@ -72,7 +74,7 @@ func getGithubMiddleware(clientID, secret string, coolDownLimiter *CooldownLimit
 }
 
 type request struct {
-	Amount int64 `json:"amount"`
+	Amount string `json:"amount"`
 }
 
 func getClaimAmount(r *http.Request) (int64, error) {
@@ -87,7 +89,18 @@ func getClaimAmount(r *http.Request) (int64, error) {
 		return 0, err
 	}
 	r.Body = io.NopCloser(bytes.NewBuffer(body))
-	return data.Amount, nil
+
+	// amount sent is a string, so we need to convert it to int64
+	// Ex: "1000000ugnot" -> 1000000
+	// Regex to extract leading digits
+	re := regexp.MustCompile(`^\d+`)
+	numericPart := re.FindString(data.Amount)
+
+	value, err := strconv.ParseInt(numericPart, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid claim amount, %w", err)
+	}
+	return value, nil
 }
 
 type gitHubTokenResponse struct {
