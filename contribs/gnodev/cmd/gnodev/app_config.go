@@ -42,6 +42,33 @@ type AppConfig struct {
 	unsafeAPI   bool
 	interactive bool
 	paths       string
+
+	// Tx-Indexer Configuration
+	//
+	// Providers configuration to enable the running of tx-indexer alongside
+	// gnodev. Defaults can be overridden by setting the CLI flags. Please view
+	// the tx-indexer repo for documentation on tx-indexer defaults and other
+	// relevant information.
+	// https://github.com/gnolang/tx-indexer
+	//
+	// enable tx-indexer service
+	txIndexerEnabled bool
+	// the absolute path for the indexer DB (embedded)
+	// default: indexer-db
+	txIndexerDBPath string
+	// the maximum HTTP requests allowed per minute per IP, unlimited by default
+	txIndexerHttpRateLimit optionalFlag[int]
+	// the IP:PORT URL for the indexer JSON-RPC server
+	// default: 0.0.0.0:8546
+	txIndexerListenAddress string
+	// the log level for the CLI output
+	txIndexerLogLevel optionalFlag[string]
+	// the range for fetching blockchain data by a single worker
+	txIndexerMaxChunkSize optionalFlag[int]
+	// the amount of slots (workers) the fetcher employs
+	txIndexerMaxSlots optionalFlag[int]
+	// the JSON-RPC URL of the Gno chain
+	txIndexerRemote optionalFlag[string]
 }
 
 func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
@@ -113,7 +140,7 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 	fs.Var(
 		&c.resolvers,
 		"resolver",
-		"list of additional resolvers (`root`, `local`, or `remote`) in the form of <resolver>=<location> will be executed in the given order",
+		"list of additional resolvers (`root`, `local` or `remote`), will be executed in the given order",
 	)
 
 	fs.StringVar(
@@ -217,7 +244,7 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		&c.paths,
 		"paths",
 		defaultCfg.paths,
-		`additional paths to preload in the form of "gno.land/r/my/realm", separated by commas; glob is supported`,
+		"additional path(s) to load, separated by comma",
 	)
 
 	fs.BoolVar(
@@ -226,6 +253,16 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		defaultCfg.verbose,
 		"enable verbose output for development",
 	)
+
+	// tx-indexer flags
+	fs.BoolVar(&c.txIndexerEnabled, "tx-indexer", false, "Enable tx-indexer service")
+	fs.StringVar(&c.txIndexerDBPath, "tx-indexer-db-path", "indexer-db", "Path to tx-indexer database")
+	fs.Var(&c.txIndexerHttpRateLimit, "tx-indexer-http-rate-limit", "Max HTTP requests allowed per minute per IP")
+	fs.StringVar(&c.txIndexerListenAddress, "tx-indexer-listen-address", "0.0.0.0:8546", "IP:PORT URL for tx-indexer JSON-RPC server")
+	fs.Var(&c.txIndexerLogLevel, "tx-indexer-log-level", "Log level for tx-indexer CLI output")
+	fs.Var(&c.txIndexerMaxChunkSize, "tx-indexer-max-chunk-size", "Range for fetching blockchain data by a single worker")
+	fs.Var(&c.txIndexerMaxSlots, "tx-indexer-max-slots", "Amount of slots (workers) the fetcher employs")
+	fs.Var(&c.txIndexerRemote, "tx-indexer-remote", "JSON-RPC URL of the Gno chain")
 }
 
 func (c *AppConfig) validateConfigFlags() error {
