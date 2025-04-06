@@ -92,7 +92,7 @@ func (s *Service) Reload(ctx context.Context) error {
 	return nil
 }
 
-// Stop stops the tx-indexer process.
+// stop stops the tx-indexer process.
 func (s *Service) stop(ctx context.Context) error {
 	if err := s.process.stop(ctx); err != nil {
 		const msg = "failed to stop tx-indexer"
