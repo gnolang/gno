@@ -8,7 +8,6 @@ import (
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/ufmt"
 )
 
 func TestNew(t *testing.T) {
