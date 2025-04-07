@@ -26,3 +26,5 @@ const (
 	ApprovalEvent       = "Approval"
 	ApprovalForAllEvent = "ApprovalForAll"
 )
+
+type NFTGetter func() IGRC721
