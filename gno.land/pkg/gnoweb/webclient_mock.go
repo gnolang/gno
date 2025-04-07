@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 )
 
@@ -32,8 +34,8 @@ func NewMockWebClient(pkgs ...*MockPackage) *MockWebClient {
 }
 
 // RenderRealm simulates rendering a package by writing its content to the writer.
-func (m *MockWebClient) RenderRealm(w io.Writer, path string, args string) (*RealmMeta, error) {
-	pkg, exists := m.Packages[path]
+func (m *MockWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL) (*RealmMeta, error) {
+	pkg, exists := m.Packages[u.Path]
 	if !exists {
 		return nil, ErrClientPathNotFound
 	}
@@ -42,8 +44,8 @@ func (m *MockWebClient) RenderRealm(w io.Writer, path string, args string) (*Rea
 		return nil, ErrRenderNotDeclared
 	}
 
-	// Write to the realm render
-	fmt.Fprintf(w, "[%s]%s:", pkg.Domain, pkg.Path)
+	// Return the production format [domain]/path:args
+	fmt.Fprintf(w, "[%s]/%s:%s", pkg.Domain, strings.Trim(u.Path, "/"), u.Args)
 
 	// Return a dummy RealmMeta for simplicity
 	return &RealmMeta{}, nil
