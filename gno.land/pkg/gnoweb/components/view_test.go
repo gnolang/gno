@@ -5,6 +5,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSourceView(t *testing.T) {
@@ -47,18 +48,11 @@ func TestSourceView(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			view := SourceView(tt.data)
 
-			if view == nil {
-				t.Error("expected view to be non-nil")
-				return
-			}
+			assert.NotNil(t, view, "expected view to be non-nil")
 
 			tocItemsCount := len(tt.data.Files)
-			if tocItemsCount != tt.expected {
-				t.Errorf("expected %d TOC items, got %d", tt.expected, tocItemsCount)
-			}
-			if view.Type != SourceViewType {
-				t.Errorf("expected view type %s, got %s", SourceViewType, view.Type)
-			}
+			assert.Equal(t, tt.expected, tocItemsCount, "expected %d TOC items, got %d", tt.expected, tocItemsCount)
+			assert.Equal(t, SourceViewType, view.Type, "expected view type %s, got %s", SourceViewType, view.Type)
 		})
 	}
 }
@@ -67,54 +61,32 @@ func TestStatusErrorComponent(t *testing.T) {
 	message := "Test Error"
 	view := StatusErrorComponent(message)
 
-	if view == nil {
-		t.Error("expected view to be non-nil")
-		return
-	}
+	assert.NotNil(t, view, "expected view to be non-nil")
 
 	expectedTitle := "Error: " + message
 	templateComponent, ok := view.Component.(*TemplateComponent)
-	if !ok {
-		t.Error("expected TemplateComponent type in view.Component")
-		return
-	}
+	assert.True(t, ok, "expected TemplateComponent type in view.Component")
 
 	statusData, ok := templateComponent.data.(StatusData)
-	if !ok {
-		t.Error("expected StatusData type in component data")
-		return
-	}
+	assert.True(t, ok, "expected StatusData type in component data")
 
-	if statusData.Title != expectedTitle {
-		t.Errorf("expected title %s, got %s", expectedTitle, statusData.Title)
-	}
+	assert.Equal(t, expectedTitle, statusData.Title, "expected title %s, got %s", expectedTitle, statusData.Title)
 }
 
 func TestStatusNoRenderComponent(t *testing.T) {
 	pkgPath := "example/path"
 	view := StatusNoRenderComponent(pkgPath)
 
-	if view == nil {
-		t.Error("expected view to be non-nil")
-		return
-	}
+	assert.NotNil(t, view, "expected view to be non-nil")
 
 	templateComponent, ok := view.Component.(*TemplateComponent)
-	if !ok {
-		t.Error("expected TemplateComponent type in view.Component")
-		return
-	}
+	assert.True(t, ok, "expected TemplateComponent type in view.Component")
 
 	statusData, ok := templateComponent.data.(StatusData)
-	if !ok {
-		t.Error("expected StatusData type in component data")
-		return
-	}
+	assert.True(t, ok, "expected StatusData type in component data")
 
 	expectedURL := pkgPath + "$source"
-	if statusData.ButtonURL != expectedURL {
-		t.Errorf("expected ButtonURL %s, got %s", expectedURL, statusData.ButtonURL)
-	}
+	assert.Equal(t, expectedURL, statusData.ButtonURL, "expected ButtonURL %s, got %s", expectedURL, statusData.ButtonURL)
 }
 
 func TestRedirectView(t *testing.T) {
@@ -124,30 +96,16 @@ func TestRedirectView(t *testing.T) {
 	}
 	view := RedirectView(data)
 
-	if view == nil {
-		t.Error("expected view to be non-nil")
-		return
-	}
+	assert.NotNil(t, view, "expected view to be non-nil")
 
 	templateComponent, ok := view.Component.(*TemplateComponent)
-	if !ok {
-		t.Error("expected TemplateComponent type in view.Component")
-		return
-	}
+	assert.True(t, ok, "expected TemplateComponent type in view.Component")
 
 	redirectData, ok := templateComponent.data.(RedirectData)
-	if !ok {
-		t.Error("expected RedirectData type in component data")
-		return
-	}
+	assert.True(t, ok, "expected RedirectData type in component data")
 
-	if redirectData.To != data.To {
-		t.Errorf("expected redirect to %s, got %s", data.To, redirectData.To)
-	}
-
-	if redirectData.WithAnalytics != data.WithAnalytics {
-		t.Errorf("expected WithAnalytics to be %v, got %v", data.WithAnalytics, redirectData.WithAnalytics)
-	}
+	assert.Equal(t, data.To, redirectData.To, "expected redirect to %s, got %s", data.To, redirectData.To)
+	assert.Equal(t, data.WithAnalytics, redirectData.WithAnalytics, "expected WithAnalytics to be %v, got %v", data.WithAnalytics, redirectData.WithAnalytics)
 }
 
 func TestViewRender(t *testing.T) {
@@ -159,13 +117,9 @@ func TestViewRender(t *testing.T) {
 
 	writer := &mockWriter{}
 	err := view.Render(writer)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
+	assert.NoError(t, err, "expected no error")
 
-	if writer.written != "rendered" {
-		t.Errorf("expected 'rendered', got %s", writer.written)
-	}
+	assert.Equal(t, "rendered", writer.written, "expected 'rendered', got %s", writer.written)
 }
 
 type mockWriter struct {
@@ -191,26 +145,15 @@ func TestRealmView(t *testing.T) {
 
 	view := RealmView(data)
 
-	if view == nil {
-		t.Error("expected view to be non-nil")
-		return
-	}
+	assert.NotNil(t, view, "expected view to be non-nil")
 
 	templateComponent, ok := view.Component.(*TemplateComponent)
-	if !ok {
-		t.Error("expected TemplateComponent type in view.Component")
-		return
-	}
+	assert.True(t, ok, "expected TemplateComponent type in view.Component")
 
 	realmViewParams, ok := templateComponent.data.(realmViewParams)
-	if !ok {
-		t.Error("expected realmViewParams type in component data")
-		return
-	}
+	assert.True(t, ok, "expected realmViewParams type in component data")
 
-	if realmViewParams.Article.ComponentContent != component {
-		t.Error("expected component content to match")
-	}
+	assert.Equal(t, component, realmViewParams.Article.ComponentContent, "expected component content to match")
 }
 
 func TestHelpView(t *testing.T) {
@@ -226,26 +169,15 @@ func TestHelpView(t *testing.T) {
 
 	view := HelpView(data)
 
-	if view == nil {
-		t.Error("expected view to be non-nil")
-		return
-	}
+	assert.NotNil(t, view, "expected view to be non-nil")
 
 	templateComponent, ok := view.Component.(*TemplateComponent)
-	if !ok {
-		t.Error("expected TemplateComponent type in view.Component")
-		return
-	}
+	assert.True(t, ok, "expected TemplateComponent type in view.Component")
 
 	helpViewParams, ok := templateComponent.data.(helpViewParams)
-	if !ok {
-		t.Error("expected helpViewParams type in component data")
-		return
-	}
+	assert.True(t, ok, "expected helpViewParams type in component data")
 
-	if helpViewParams.HelpData.RealmName != data.RealmName {
-		t.Errorf("expected realm name %s, got %s", data.RealmName, helpViewParams.HelpData.RealmName)
-	}
+	assert.Equal(t, data.RealmName, helpViewParams.HelpData.RealmName, "expected realm name %s, got %s", data.RealmName, helpViewParams.HelpData.RealmName)
 }
 
 func TestDirectoryView(t *testing.T) {
@@ -257,32 +189,15 @@ func TestDirectoryView(t *testing.T) {
 
 	view := DirectoryView(data)
 
-	if view == nil {
-		t.Error("expected view to be non-nil")
-		return
-	}
+	assert.NotNil(t, view, "expected view to be non-nil")
 
 	templateComponent, ok := view.Component.(*TemplateComponent)
-	if !ok {
-		t.Error("expected TemplateComponent type in view.Component")
-		return
-	}
+	assert.True(t, ok, "expected TemplateComponent type in view.Component")
 
 	dirData, ok := templateComponent.data.(DirData)
-	if !ok {
-		t.Error("expected DirData type in component data")
-		return
-	}
+	assert.True(t, ok, "expected DirData type in component data")
 
-	if dirData.PkgPath != data.PkgPath {
-		t.Errorf("expected PkgPath %s, got %s", data.PkgPath, dirData.PkgPath)
-	}
-
-	if len(dirData.Files) != len(data.Files) {
-		t.Errorf("expected %d files, got %d", len(data.Files), len(dirData.Files))
-	}
-
-	if dirData.FileCounter != data.FileCounter {
-		t.Errorf("expected FileCounter %d, got %d", data.FileCounter, dirData.FileCounter)
-	}
+	assert.Equal(t, data.PkgPath, dirData.PkgPath, "expected PkgPath %s, got %s", data.PkgPath, dirData.PkgPath)
+	assert.Equal(t, len(data.Files), len(dirData.Files), "expected %d files, got %d", len(data.Files), len(dirData.Files))
+	assert.Equal(t, data.FileCounter, dirData.FileCounter, "expected FileCounter %d, got %d", data.FileCounter, dirData.FileCounter)
 }

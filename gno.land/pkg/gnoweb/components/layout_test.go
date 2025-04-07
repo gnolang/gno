@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIndexLayout(t *testing.T) {
@@ -16,26 +17,15 @@ func TestIndexLayout(t *testing.T) {
 
 	component := IndexLayout(data)
 
-	if component == nil {
-		t.Error("expected component to be non-nil")
-		return
-	}
+	assert.NotNil(t, component, "expected component to be non-nil")
 
 	templateComponent, ok := component.(*TemplateComponent)
-	if !ok {
-		t.Error("expected TemplateComponent type in component")
-		return
-	}
+	assert.True(t, ok, "expected TemplateComponent type in component")
 
 	layoutParams, ok := templateComponent.data.(indexLayoutParams)
-	if !ok {
-		t.Error("expected indexLayoutParams type in component data")
-		return
-	}
+	assert.True(t, ok, "expected indexLayoutParams type in component data")
 
-	if layoutParams.Layout != FullLayout {
-		t.Errorf("expected layout %s, got %s", FullLayout, layoutParams.Layout)
-	}
+	assert.Equal(t, FullLayout, layoutParams.Layout, "expected layout %s, got %s", FullLayout, layoutParams.Layout)
 }
 
 func TestEnrichFooterData(t *testing.T) {
@@ -46,15 +36,11 @@ func TestEnrichFooterData(t *testing.T) {
 
 	enrichedData := EnrichFooterData(data)
 
-	if len(enrichedData.Sections) == 0 {
-		t.Error("expected sections to be populated")
-	}
+	assert.NotEmpty(t, enrichedData.Sections, "expected sections to be populated")
 
 	expectedSections := []string{"Footer navigation", "Social media", "Legal"}
 	for i, section := range enrichedData.Sections {
-		if section.Title != expectedSections[i] {
-			t.Errorf("expected section title %s, got %s", expectedSections[i], section.Title)
-		}
+		assert.Equal(t, expectedSections[i], section.Title, "expected section title %s, got %s", expectedSections[i], section.Title)
 	}
 }
 
@@ -70,11 +56,6 @@ func TestEnrichHeaderData(t *testing.T) {
 
 	enrichedData := EnrichHeaderData(data, true)
 
-	if len(enrichedData.Links.General) == 0 {
-		t.Error("expected general links to be populated")
-	}
-
-	if len(enrichedData.Links.Dev) == 0 {
-		t.Error("expected dev links to be populated")
-	}
+	assert.NotEmpty(t, enrichedData.Links.General, "expected general links to be populated")
+	assert.NotEmpty(t, enrichedData.Links.Dev, "expected dev links to be populated")
 }
