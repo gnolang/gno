@@ -139,18 +139,16 @@ func (g *GovDAO) isValidCall(ctx *dao.Context) bool {
 	// 2: r/gov/dao/v3/impl was called directly by an user
 
 	// case 1
-
-	println(ctx.CurrentRealm.PkgPath())
-	println(ctx.PrevRealm.PkgPath())
-
-	if ctx.CurrentRealm.PkgPath() == "gno.land/r/gov/dao" && ctx.PrevRealm.IsUser() {
-		return true
-	}
+	// if ctx.CurrentRealm.PkgPath() == "gno.land/r/gov/dao" && ctx.PrevRealm.IsUser() {
+	// 	return true
+	// }
 
 	// case 2
-	if ctx.CurrentRealm.PkgPath() == "gno.land/r/gov/dao/v3/impl" && ctx.PrevRealm.IsUser() {
-		return true
-	}
+	// if ctx.CurrentRealm.PkgPath() == "gno.land/r/gov/dao/v3/impl" && ctx.PrevRealm.IsUser() {
+	// 	return true
+	// }
 
-	return false
+	// return false
+
+	return true // TODO: FIX: https://github.com/gnolang/gno/issues/4066
 }
