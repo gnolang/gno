@@ -225,7 +225,11 @@ func (gk GasPriceKeeper) UpdateGasPrice(ctx sdk.Context) {
 				},
 			},
 		})
-	logTelemetry(newGasPrice)
+	logTelemetry(newGasPrice,
+		attribute.KeyValue{
+			Key:   "func",
+			Value: attribute.StringValue("UpdateGasPrice"),
+		})
 }
 
 // calcBlockGasPrice calculates the minGasPrice for the txs to be included in the next block.
@@ -329,10 +333,15 @@ func (gk GasPriceKeeper) LastGasPrice(ctx sdk.Context) std.GasPrice {
 	if err != nil {
 		panic(err)
 	}
+	logTelemetry(gp,
+		attribute.KeyValue{
+			Key:   "func",
+			Value: attribute.StringValue("LastGasPrice"),
+		})
 	return gp
 }
 
-func logTelemetry(gp std.GasPrice) {
+func logTelemetry(gp std.GasPrice, kv attribute.KeyValue) {
 	if !telemetry.MetricsEnabled() {
 		return
 	}
@@ -340,10 +349,10 @@ func logTelemetry(gp std.GasPrice) {
 		Key:   "Coin",
 		Value: attribute.StringValue(gp.Price.String()),
 	}
-
+	attrs := []attribute.KeyValue{a, kv}
 	metrics.BlockGasPriceAmount.Record(
 		context.Background(),
 		gp.Gas,
-		metric.WithAttributes(a),
+		metric.WithAttributes(attrs...),
 	)
 }
