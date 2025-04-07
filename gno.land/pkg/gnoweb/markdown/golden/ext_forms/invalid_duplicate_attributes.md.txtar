@@ -1,0 +1,10 @@
+-- input.md --
+<gno-form>
+<gno-input name="duplicate" name="duplicate2" placeholder="test" placeholder="test2" />
+</gno-form>
+
+-- output.html --
+<form class="gno-form" method="post">
+<!-- gno-input error: duplicate attribute in gno-input tag -->
+<input type="submit" value="Submit" />
+</form>

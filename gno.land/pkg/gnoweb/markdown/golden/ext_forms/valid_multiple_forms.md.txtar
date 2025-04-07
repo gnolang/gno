@@ -1,0 +1,16 @@
+-- input.md --
+<gno-form>
+<gno-input name="form1" />
+</gno-form>
+
+<gno-form>
+<gno-input name="form2" />
+</gno-form>
+
+-- output.html --
+<form class="gno-form" method="post">
+<input type="text" name="form1" placeholder="Enter value" /><input type="submit" value="Submit" />
+</form>
+<form class="gno-form" method="post">
+<input type="text" name="form2" placeholder="Enter value" /><input type="submit" value="Submit" />
+</form>

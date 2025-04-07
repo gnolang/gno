@@ -1,0 +1,14 @@
+-- input.md --
+<gno-form>
+<gno-input name="outer" />
+<gno-form>
+<gno-input name="inner" />
+</gno-form>
+</gno-form>
+
+-- output.html --
+<form class="gno-form" method="post">
+<input type="text" name="outer" placeholder="Enter value" /><!-- unexpected/invalid "FormTagOpen" omitted -->
+<input type="text" name="inner" placeholder="Enter value" /><input type="submit" value="Submit" />
+</form>
+<!-- unexpected/invalid "FormTagClose" omitted -->

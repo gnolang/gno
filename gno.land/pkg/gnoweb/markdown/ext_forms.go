@@ -18,7 +18,14 @@ import (
 // Error messages for invalid form tags.
 var (
 	ErrFormUnexpectedOrInvalidTag = errors.New("unexpected or invalid tag")
-	ErrFormInputMissingArg        = errors.New("gno-input must have an 'arg' attribute")
+	ErrFormInputMissingName       = errors.New("gno-input must have a 'name' attribute")
+	ErrFormNestedForm             = errors.New("nested forms are not allowed")
+	ErrFormDuplicateAttribute     = errors.New("duplicate attribute in gno-input tag")
+)
+
+// Constants for input validation
+const (
+	defaultPlaceholder = "Enter value"
 )
 
 // Define custom node kind.
@@ -47,7 +54,7 @@ type FormNode struct {
 	Index       int     // Index of the form associated with the node.
 	Tag         FormTag // Current Form Tag for this node.
 	Error       error   // If not nil, indicates that the node is invalid.
-	Arg         string  // Argument for input fields
+	Name        string  // Name attribute for input fields
 	Placeholder string  // Placeholder text for input fields
 
 	ctx *formContext
@@ -94,17 +101,17 @@ var formContextKey = parser.NewContextKey()
 
 // parseLineTag identifies the tag type based on the line content.
 // It returns a FormTag and a slice of comments if applicable.
-func parseFormLineTag(line []byte) (FormTag, string, string) {
+func parseFormLineTag(line []byte) (FormTag, string, string, error) {
 	line = util.TrimRightSpace(util.TrimLeftSpace(line))
 
 	// Parse the line into HTML tokens
 	toks, err := ParseHTMLTokens(bytes.NewReader(line))
 	if err != nil || len(toks) != 1 {
-		return FormTagUndefined, "", "" // Return early if error or no tokens
+		return FormTagUndefined, "", "", nil // Return early if error or no tokens
 	}
 
 	var tag FormTag
-	var arg string
+	var name string
 	var placeholder string
 
 	// Determine tag type based on the first token
@@ -118,17 +125,22 @@ func parseFormLineTag(line []byte) (FormTag, string, string) {
 		}
 	case "gno-input":
 		tag = FormTagInput
-		// Extract arg and placeholder attributes
+		// Check for duplicate attributes only for gno-input
+		seenAttrs := make(map[string]bool)
 		for _, attr := range tok.Attr {
-			if attr.Key == "arg" {
-				arg = attr.Val
+			if seenAttrs[attr.Key] {
+				return FormTagUndefined, "", "", ErrFormDuplicateAttribute
+			}
+			seenAttrs[attr.Key] = true
+			if attr.Key == "name" {
+				name = attr.Val
 			} else if attr.Key == "placeholder" {
 				placeholder = attr.Val
 			}
 		}
 	}
 
-	return tag, arg, placeholder
+	return tag, name, placeholder, nil
 }
 
 // formParser implements BlockParser.
@@ -149,7 +161,12 @@ func (p *formParser) Open(doc ast.Node, reader text.Reader, pc parser.Context) (
 	}
 
 	line, _ := reader.PeekLine()
-	tag, arg, placeholder := parseFormLineTag(line)
+	tag, name, placeholder, err := parseFormLineTag(line)
+	if err != nil {
+		node := NewForm(nil, FormTagUndefined)
+		node.Error = err
+		return node, parser.NoChildren
+	}
 	if tag == FormTagUndefined {
 		return nil, parser.NoChildren
 	}
@@ -162,8 +179,12 @@ func (p *formParser) Open(doc ast.Node, reader text.Reader, pc parser.Context) (
 	}
 
 	node := NewForm(cctx, tag)
-	node.Arg = arg
-	node.Placeholder = placeholder
+	node.Name = name
+	if placeholder == "" {
+		node.Placeholder = defaultPlaceholder
+	} else {
+		node.Placeholder = placeholder
+	}
 
 	switch tag {
 	case FormTagOpen:
@@ -188,8 +209,8 @@ func (p *formParser) Open(doc ast.Node, reader text.Reader, pc parser.Context) (
 			node.Error = ErrFormUnexpectedOrInvalidTag
 			return node, parser.NoChildren
 		}
-		if arg == "" {
-			node.Error = ErrFormInputMissingArg
+		if name == "" {
+			node.Error = ErrFormInputMissingName
 			return node, parser.NoChildren
 		}
 	}
@@ -253,13 +274,15 @@ func (r *formRendererHTML) formRenderHTML(w util.BufWriter, _ []byte, node ast.N
 
 	// Check for any error
 	if err := cnode.Error; err != nil {
-		switch {
-		case errors.Is(err, ErrFormUnexpectedOrInvalidTag):
-			fmt.Fprintf(w, "<!-- unexpected/invalid %q omitted -->\n", cnode.String())
-		case errors.Is(err, ErrFormInputMissingArg):
-			fmt.Fprintf(w, "<!-- gno-input error: %s -->\n", err.Error())
-		default:
-			fmt.Fprintf(w, "<!-- gno-form error: %s -->\n", err.Error())
+		if entering {
+			switch {
+			case errors.Is(err, ErrFormUnexpectedOrInvalidTag):
+				fmt.Fprintf(w, "<!-- unexpected/invalid %q omitted -->\n", cnode.String())
+			case errors.Is(err, ErrFormInputMissingName) || errors.Is(err, ErrFormDuplicateAttribute):
+				fmt.Fprintf(w, "<!-- gno-input error: %s -->\n", err.Error())
+			default:
+				fmt.Fprintf(w, "<!-- gno-form error: %s -->\n", err.Error())
+			}
 		}
 		return ast.WalkContinue, nil
 	}
@@ -273,15 +296,15 @@ func (r *formRendererHTML) formRenderHTML(w util.BufWriter, _ []byte, node ast.N
 	case FormTagClose:
 		if !entering {
 			fmt.Fprintln(w, "<input type=\"submit\" value=\"Submit\" />")
-			fmt.Fprintln(w, "</form> <!-- </gno-form> -->")
+			fmt.Fprintln(w, "</form>")
 		}
 	case FormTagInput:
 		if entering {
-			// Escape the placeholder and arg
+			// Escape the placeholder and name
 			placeholder := html.EscapeString(cnode.Placeholder)
-			arg := html.EscapeString(cnode.Arg)
+			name := html.EscapeString(cnode.Name)
 
-			fmt.Fprintf(w, `<input type="text" name="%s" placeholder="%s" />`, arg, placeholder)
+			fmt.Fprintf(w, `<input type="text" name="%s" placeholder="%s" />`, name, placeholder)
 		}
 	default:
 		panic("invalid form tag - should not happen")

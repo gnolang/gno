@@ -1,0 +1,11 @@
+-- input.md --
+<gno-form>
+This is some **markdown** content
+<gno-input name="markdown" placeholder="In markdown" />
+</gno-form>
+
+-- output.html --
+<form class="gno-form" method="post">
+<p>This is some <strong>markdown</strong> content</p>
+<input type="text" name="markdown" placeholder="In markdown" /><input type="submit" value="Submit" />
+</form>

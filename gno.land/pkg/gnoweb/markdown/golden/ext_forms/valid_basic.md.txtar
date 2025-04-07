@@ -1,0 +1,10 @@
+-- input.md --
+<gno-form>
+<gno-input name="username" placeholder="Enter username" />
+<gno-input name="email" placeholder="Enter email" />
+</gno-form>
+
+-- output.html --
+<form class="gno-form" method="post">
+<input type="text" name="username" placeholder="Enter username" /><input type="text" name="email" placeholder="Enter email" /><input type="submit" value="Submit" />
+</form>
