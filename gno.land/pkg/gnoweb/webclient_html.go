@@ -6,7 +6,6 @@ import (
 	"io"
 	"log/slog"
 	gopath "path"
-	"sort"
 	"strings"
 
 	"github.com/alecthomas/chroma/v2"
@@ -181,7 +180,6 @@ func (s *HTMLWebClient) Sources(path string) ([]string, error) {
 	}
 
 	files := strings.Split(strings.TrimSpace(string(res)), "\n")
-	sortFiles(files)
 	return files, nil
 }
 
@@ -276,51 +274,4 @@ func (s *HTMLWebClient) FormatSource(w io.Writer, fileName string, src []byte) e
 
 func (s *HTMLWebClient) WriteFormatterCSS(w io.Writer) error {
 	return s.Formatter.WriteCSS(w, s.chromaStyle)
-}
-
-// sortFiles sorts a slice of filenames according to predefined categories:
-// 1. README.md first
-// 2. .gno files (excluding test files)
-// 3. .gno test files
-// 4. All other files
-// Within each category, files are sorted alphabetically.
-func sortFiles(files []string) {
-	categories := make(map[string]int, len(files))
-	for _, file := range files {
-		categories[file] = getFileCategory(file)
-	}
-
-	sort.SliceStable(files, func(i, j int) bool {
-		iCat := categories[files[i]]
-		jCat := categories[files[j]]
-
-		if iCat != jCat {
-			return iCat < jCat
-		}
-
-		return files[i] < files[j]
-	})
-}
-
-// getFileCategory determines the sorting priority of a file based on its name.
-// Lower numbers indicate higher priority in sorting order.
-// Categories:
-// 0 - README.md (highest priority)
-// 1 - .gno files excluding test files
-// 2 - .gno test files
-// 3 - all other files (lowest priority)
-func getFileCategory(filename string) int {
-	if filename == "README.md" {
-		return 0
-	}
-
-	isGno := strings.HasSuffix(filename, ".gno")
-	if isGno {
-		if strings.Contains(filename, "_filetest.gno") || strings.HasSuffix(filename, "_test.gno") {
-			return 2
-		}
-		return 1
-	}
-
-	return 3
 }
