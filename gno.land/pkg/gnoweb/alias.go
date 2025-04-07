@@ -6,9 +6,11 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 )
 
+const HomeAlias = "/r/gnoland/home"
+
 // Aliases are gnoweb paths that are rewritten using [AliasAndRedirectMiddleware].
 var Aliases = map[string]string{
-	"/":           "/r/gnoland/home",
+	"/":           HomeAlias,
 	"/about":      "/r/gnoland/pages:p/about",
 	"/gnolang":    "/r/gnoland/pages:p/gnolang",
 	"/ecosystem":  "/r/gnoland/pages:p/ecosystem",
@@ -54,4 +56,9 @@ func AliasAndRedirectMiddleware(next http.Handler, analytics bool) http.Handler 
 		// Call the next handler
 		next.ServeHTTP(w, r)
 	})
+}
+
+// IsHomePath checks if the given path is the home path.
+func IsHomePath(path string) bool {
+	return path == "/"
 }
