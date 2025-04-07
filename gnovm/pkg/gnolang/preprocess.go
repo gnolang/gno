@@ -41,7 +41,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// This must be done before TypeDecls, as it may recursively
 	// depend on names (even in other files) that depend on imports.
 	for _, fn := range fset.Files {
-		for i := 0; i < len(fn.Decls); i++ {
+		for i := range fn.Decls {
 			d := fn.Decls[i]
 			switch d.(type) {
 			case *ImportDecl:
@@ -60,7 +60,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	}
 	// Predefine all type decls decls.
 	for _, fn := range fset.Files {
-		for i := 0; i < len(fn.Decls); i++ {
+		for i := range fn.Decls {
 			d := fn.Decls[i]
 			switch d.(type) {
 			case *TypeDecl:
@@ -79,7 +79,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	}
 	// Then, predefine all func/method decls.
 	for _, fn := range fset.Files {
-		for i := 0; i < len(fn.Decls); i++ {
+		for i := range fn.Decls {
 			d := fn.Decls[i]
 			switch d.(type) {
 			case *FuncDecl:
@@ -110,7 +110,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			if vd, ok := d.(*ValueDecl); ok && len(vd.NameExprs) > 1 && len(vd.Values) == len(vd.NameExprs) {
 				split := make([]Decl, len(vd.NameExprs))
 
-				for j := 0; j < len(vd.NameExprs); j++ {
+				for j := range vd.NameExprs {
 					base := vd.Copy().(*ValueDecl)
 					base.NameExprs = NameExprs{NameExpr{
 						Attributes: base.NameExprs[j].Attributes,
@@ -194,7 +194,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				}
 			case *ValueDecl:
 				last2 := skipFile(last)
-				for i := 0; i < len(n.NameExprs); i++ {
+				for i := range n.NameExprs {
 					nx := &n.NameExprs[i]
 					nn := nx.Name
 					if nn == blankIdentifier {
@@ -806,7 +806,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// it would happen @ *FileNode:ENTER)
 
 					// Predefine all import decls.
-					for i := 0; i < len(n.Decls); i++ {
+					for i := range n.Decls {
 						d := n.Decls[i]
 						switch d.(type) {
 						case *ImportDecl:
@@ -823,7 +823,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 					// Predefine all type decls.
-					for i := 0; i < len(n.Decls); i++ {
+					for i := range n.Decls {
 						d := n.Decls[i]
 						switch d.(type) {
 						case *TypeDecl:
@@ -840,7 +840,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 					// Then, predefine all func/method decls.
-					for i := 0; i < len(n.Decls); i++ {
+					for i := range n.Decls {
 						d := n.Decls[i]
 						switch d.(type) {
 						case *FuncDecl:
@@ -858,7 +858,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 					// Finally, predefine other decls and
 					// preprocess ValueDecls..
-					for i := 0; i < len(n.Decls); i++ {
+					for i := range n.Decls {
 						d := n.Decls[i]
 						if d.GetAttribute(ATTR_PREDEFINED) == true {
 							// skip declarations already
@@ -1604,25 +1604,25 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				switch cclt := baseOf(clt).(type) {
 				case *StructType:
 					if n.IsKeyed() {
-						for i := 0; i < len(n.Elts); i++ {
+						for i := range n.Elts {
 							key := n.Elts[i].Key.(*NameExpr).Name
 							path := cclt.GetPathForName(key)
 							ft := cclt.GetStaticTypeOfAt(path)
 							checkOrConvertType(store, last, n, &n.Elts[i].Value, ft, false)
 						}
 					} else {
-						for i := 0; i < len(n.Elts); i++ {
+						for i := range n.Elts {
 							ft := cclt.Fields[i].Type
 							checkOrConvertType(store, last, n, &n.Elts[i].Value, ft, false)
 						}
 					}
 				case *ArrayType:
-					for i := 0; i < len(n.Elts); i++ {
+					for i := range n.Elts {
 						convertType(store, last, n, &n.Elts[i].Key, IntType)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt, false)
 					}
 				case *SliceType:
-					for i := 0; i < len(n.Elts); i++ {
+					for i := range n.Elts {
 						convertType(store, last, n, &n.Elts[i].Key, IntType)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt, false)
 					}
@@ -1631,7 +1631,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// is added to the heap during initialization.
 					n.IsAddressable = true
 				case *MapType:
-					for i := 0; i < len(n.Elts); i++ {
+					for i := range n.Elts {
 						checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key, false)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Value, false)
 					}
@@ -2322,7 +2322,7 @@ func defineOrDecl(
 
 	node := skipFile(bn)
 
-	for i := 0; i < len(sts); i++ {
+	for i := range sts {
 		nx := nameExprs[i]
 		if nx.Name == blankIdentifier {
 			nx.Path = NewValuePathBlock(0, 0, blankIdentifier)
@@ -2362,7 +2362,7 @@ func parseAssignFromExprList(
 	if typeExpr != nil {
 		// Only a single type can be specified.
 		nt := evalStaticType(store, bn, typeExpr)
-		for i := 0; i < numNames; i++ {
+		for i := range numNames {
 			sts[i] = nt
 		}
 		// Convert if const to nt.
@@ -2481,7 +2481,7 @@ func parseMultipleAssignFromOneExpr(
 		st = evalStaticType(store, bn, typeExpr)
 	}
 
-	for i := 0; i < numNames; i++ {
+	for i := range numNames {
 		if st != nil {
 			tt := tuple.Elts[i]
 
@@ -3630,7 +3630,7 @@ func assertTypeDeclNoCycle2(store Store, last BlockNode, x Expr, stack *[]Name, 
 
 		// Function to build the error message
 		buildMessage := func() string {
-			for j := 0; j < len(*stack); j++ {
+			for j := range *stack {
 				msg += fmt.Sprintf("%s -> ", (*stack)[j])
 			}
 			return msg + string(cx.Name) // Append the current name last
@@ -3718,10 +3718,8 @@ func findUndefined2SkipLocals(store Store, last BlockNode, x Expr, t Type) Name 
 		for {
 			currNames := curr.GetBlockNames()
 
-			for _, currName := range currNames {
-				if currName == name {
-					return true
-				}
+			if slices.Contains(currNames, name) {
+				return true
 			}
 
 			newcurr := bn.GetStaticBlock().GetParentNode(store)
@@ -4678,7 +4676,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 				return
 			}
 		}
-		for i := 0; i < len(d.NameExprs); i++ {
+		for i := range d.NameExprs {
 			nx := &d.NameExprs[i]
 			if nx.Name == blankIdentifier {
 				nx.Path.Name = blankIdentifier
@@ -4974,14 +4972,14 @@ func elideCompositeElements(clx *CompositeLitExpr, clt Type) {
 	case *ArrayType:
 		et := clt.Elt
 		el := len(clx.Elts)
-		for i := 0; i < el; i++ {
+		for i := range el {
 			kvx := &clx.Elts[i]
 			elideCompositeExpr(&kvx.Value, et)
 		}
 	case *SliceType:
 		et := clt.Elt
 		el := len(clx.Elts)
-		for i := 0; i < el; i++ {
+		for i := range el {
 			kvx := &clx.Elts[i]
 			elideCompositeExpr(&kvx.Value, et)
 		}
@@ -4989,7 +4987,7 @@ func elideCompositeElements(clx *CompositeLitExpr, clt Type) {
 		kt := clt.Key
 		vt := clt.Value
 		el := len(clx.Elts)
-		for i := 0; i < el; i++ {
+		for i := range el {
 			kvx := &clx.Elts[i]
 			elideCompositeExpr(&kvx.Key, kt)
 			elideCompositeExpr(&kvx.Value, vt)

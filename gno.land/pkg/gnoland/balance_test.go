@@ -254,7 +254,7 @@ func getDummyKeys(t *testing.T, count int) []crypto.PrivKey {
 
 	dummyKeys := make([]crypto.PrivKey, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		dummyKeys[i] = getDummyKey(t)
 	}
 

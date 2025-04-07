@@ -405,7 +405,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				panic("comparison on arrays of unequal type")
 			}
 		}
-		for i := 0; i < la.GetLength(); i++ {
+		for i := range la.GetLength() {
 			li := la.GetPointerAtIndexInt2(store, i, et).Deref()
 			ri := ra.GetPointerAtIndexInt2(store, i, et).Deref()
 			if !isEql(store, &li, &ri) {
@@ -426,7 +426,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				panic("comparison on structs of unequal size")
 			}
 		}
-		for i := 0; i < len(ls.Fields); i++ {
+		for i := range ls.Fields {
 			lf := ls.GetPointerToInt(store, i).Deref()
 			rf := rs.GetPointerToInt(store, i).Deref()
 			if !isEql(store, &lf, &rf) {
