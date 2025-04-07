@@ -88,11 +88,11 @@ func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, for
 	if err = portalLoopHandler.WaitStartedLoop(); err != nil {
 		return err
 	}
-	logger.Info("Backup txs")
-	err = portalLoopHandler.BackupTXs(ctx)
-	if err != nil {
-		return err
-	}
+	// logger.Info("Backup txs")
+	// err = portalLoopHandler.BackupTXs(ctx)
+	// if err != nil {
+	// 	return err
+	// }
 
 	// 6. Remove old portal loop
 	if err = dockerHandler.RemoveContainersWithVolumes(ctx, containers); err != nil {
