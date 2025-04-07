@@ -5,5 +5,6 @@
 
 -- output.html --
 <form class="gno-form" method="post">
-<input type="text" name="age" placeholder="Enter value" /><input type="submit" value="Submit" />
-</form>
+<div class="gno-form_header">
+<span><span class="font-bold"> r/test </span> Form</span><span class="tooltip" data-tooltip="This form is secure and processed on the current r/test realm itself."><svg class="w-4 h-4"><use href="#ico-info"></use></svg></span></div>
+<div class="gno-form_input"><label for="age"> Enter value </label><input type="text" id="age" name="age" placeholder="Enter value" /></div><input type="submit" value="Submit to r/test Realm" /></form>
