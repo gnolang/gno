@@ -75,15 +75,6 @@ func TestBuilder(t *testing.T) {
 			},
 			expected: "$help&func=MyFunc",
 		},
-		{
-			name: "function_with_one_arg",
-			build: func() string {
-				return NewLink("MyFunc").
-					AddArg("key", "value").
-					URL()
-			},
-			expected: "$help&func=MyFunc&key=value",
-		},
 
 		// Realm tests
 		{
@@ -91,7 +82,7 @@ func TestBuilder(t *testing.T) {
 			build: func() string {
 				return Realm("gno.land/r/demo").
 					NewLink("MyFunc").
-					AddArg("key", "value").
+					AddArgs("key", "value").
 					URL()
 			},
 			expected: "/r/demo$help&func=MyFunc&key=value",
@@ -101,7 +92,7 @@ func TestBuilder(t *testing.T) {
 			build: func() string {
 				return Realm("gno.world/r/demo").
 					NewLink("MyFunc").
-					AddArg("key", "value").
+					AddArgs("key", "value").
 					URL()
 			},
 			expected: "https://gno.world/r/demo$help&func=MyFunc&key=value",
@@ -111,7 +102,7 @@ func TestBuilder(t *testing.T) {
 			build: func() string {
 				return Realm("").
 					NewLink("func").
-					AddArg("key", "value").
+					AddArgs("key", "value").
 					URL()
 			},
 			expected: "$help&func=func&key=value",
@@ -122,7 +113,7 @@ func TestBuilder(t *testing.T) {
 			name: "url_encoding_with_spaces",
 			build: func() string {
 				return NewLink("test").
-					AddArg("key", "hello world").
+					AddArgs("key", "hello world").
 					URL()
 			},
 			expected: "$help&func=test&key=hello+world",
@@ -131,7 +122,7 @@ func TestBuilder(t *testing.T) {
 			name: "url_encoding_with_special_chars",
 			build: func() string {
 				return NewLink("test").
-					AddArg("key", "a&b=c").
+					AddArgs("key", "a&b=c").
 					URL()
 			},
 			expected: "$help&func=test&key=a%26b%3Dc",
@@ -140,7 +131,7 @@ func TestBuilder(t *testing.T) {
 			name: "url_encoding_with_unicode",
 			build: func() string {
 				return NewLink("func").
-					AddArg("key", "🌟").
+					AddArgs("key", "🌟").
 					URL()
 			},
 			expected: "$help&func=func&key=%F0%9F%8C%9F",
@@ -149,7 +140,7 @@ func TestBuilder(t *testing.T) {
 			name: "url_encoding_with_special_chars_in_key",
 			build: func() string {
 				return NewLink("func").
-					AddArg("my/key", "value").
+					AddArgs("my/key", "value").
 					URL()
 			},
 			expected: "$help&func=func&my%2Fkey=value",
@@ -189,7 +180,7 @@ func TestBuilder(t *testing.T) {
 			name: "empty_key_should_be_ignored",
 			build: func() string {
 				return NewLink("func").
-					AddArg("", "value").
+					AddArgs("", "value").
 					URL()
 			},
 			expected: "$help&func=func",
@@ -198,7 +189,7 @@ func TestBuilder(t *testing.T) {
 			name: "empty_value_should_be_kept",
 			build: func() string {
 				return NewLink("func").
-					AddArg("key", "").
+					AddArgs("key", "").
 					URL()
 			},
 			expected: "$help&func=func&key=",
@@ -209,7 +200,7 @@ func TestBuilder(t *testing.T) {
 			name: "send_via_addsend_method",
 			build: func() string {
 				return NewLink("MyFunc").
-					AddArg("key", "value").
+					AddArgs("key", "value").
 					SetSend("1000000ugnot").
 					URL()
 			},
@@ -227,7 +218,7 @@ func TestBuilder(t *testing.T) {
 						t.Errorf("expected panic for .send key, but did not panic")
 					}
 				}()
-				NewLink("MyFunc").AddArg(".send", "1000000ugnot")
+				NewLink("MyFunc").AddArgs(".send", "1000000ugnot")
 				return "no panic occurred"
 			},
 			expected: "",
