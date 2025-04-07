@@ -21,44 +21,44 @@ var (
 
 // Define custom node kind and maximum heading level.
 var (
-	KindColumn = ast.NewNodeKind("Column")
-	MaxHeading = 6
+	KindGnoColumn = ast.NewNodeKind("GnoColumn")
+	MaxHeading    = 6
 )
 
-// ColumnTag represents the type of tag in a column block.
-type ColumnTag int
+// GnoColumnTag represents the type of tag in a column block.
+type GnoColumnTag int
 
 const (
-	ColumnTagUndefined ColumnTag = iota
-	ColumnTagOpen
-	ColumnTagSep
-	ColumnTagClose
+	GnoColumnTagUndefined GnoColumnTag = iota
+	GnoColumnTagOpen
+	GnoColumnTagSep
+	GnoColumnTagClose
 )
 
-var columnTagNames = map[ColumnTag]string{
-	ColumnTagUndefined: "ColumnTagUndefined",
-	ColumnTagOpen:      "ColumnTagOpen",
-	ColumnTagSep:       "ColumnTagSep",
-	ColumnTagClose:     "ColumnTagClose",
+var GnocolumnTagNames = map[GnoColumnTag]string{
+	GnoColumnTagUndefined: "ColumnTagUndefined",
+	GnoColumnTagOpen:      "ColumnTagOpen",
+	GnoColumnTagSep:       "ColumnTagSep",
+	GnoColumnTagClose:     "ColumnTagClose",
 }
 
-// ColumnNode represents a semantic tree for a "column".
-type ColumnNode struct {
+// GnoColumnNode represents a semantic tree for a "column".
+type GnoColumnNode struct {
 	ast.BaseBlock
-	Index int       // Index of the column associated with the node.
-	Tag   ColumnTag // Current Column Tag for this node.
-	Error error     // If not nil, indicates that the node is invalid.
+	Index int          // Index of the column associated with the node.
+	Tag   GnoColumnTag // Current Column Tag for this node.
+	Error error        // If not nil, indicates that the node is invalid.
 
 	ctx *columnsContext
 }
 
 // Dump implements Node.Dump for debug representation.
-func (n *ColumnNode) Dump(source []byte, level int) {
+func (n *GnoColumnNode) Dump(source []byte, level int) {
 	kv := map[string]string{
-		"tag":      columnTagNames[n.Tag],
+		"tag":      GnocolumnTagNames[n.Tag],
 		"head_ref": strconv.Itoa(n.ctx.RefHeadingLevel),
 	}
-	if n.Tag == ColumnTagSep {
+	if n.Tag == GnoColumnTagSep {
 		kv["index"] = strconv.Itoa(n.Index)
 	}
 	if err := n.Error; err != nil {
@@ -69,45 +69,45 @@ func (n *ColumnNode) Dump(source []byte, level int) {
 }
 
 // Kind implements Node.Kind.
-func (*ColumnNode) Kind() ast.NodeKind {
-	return KindColumn
+func (*GnoColumnNode) Kind() ast.NodeKind {
+	return KindGnoColumn
 }
 
-func (n *ColumnNode) String() string {
-	return columnTagNames[n.Tag]
+func (n *GnoColumnNode) String() string {
+	return GnocolumnTagNames[n.Tag]
 }
 
 // NewColumn initializes a ColumnNode object.
-func NewColumn(ctx *columnsContext, index int, tag ColumnTag) *ColumnNode {
-	return &ColumnNode{ctx: ctx, Index: index, Tag: tag}
+func NewColumn(ctx *columnsContext, index int, tag GnoColumnTag) *GnoColumnNode {
+	return &GnoColumnNode{ctx: ctx, Index: index, Tag: tag}
 }
 
 var columnContextKey = parser.NewContextKey()
 
 // columnsContext is used to keep track of columns' state across parsing.
 type columnsContext struct {
-	IsOpen          bool        // Indicates if a block has been correctly opened.
-	Index           int         // Index of the current column; 0 indicates no column.
-	RefHeadingLevel int         // Level reference for separators.
-	OpenTag         *ColumnNode // First opening tag for this context.
+	IsOpen          bool           // Indicates if a block has been correctly opened.
+	Index           int            // Index of the current column; 0 indicates no column.
+	RefHeadingLevel int            // Level reference for separators.
+	OpenTag         *GnoColumnNode // First opening tag for this context.
 }
 
 // parseLineTag identifies the tag type based on the line content.
-func parseLineTag(line []byte) ColumnTag {
+func parseLineTag(line []byte) GnoColumnTag {
 	line = util.TrimRightSpace(util.TrimLeftSpace(line))
 
 	if len(line) > 0 && line[0] == '#' {
-		return ColumnTagSep
+		return GnoColumnTagSep
 	}
 
 	switch string(line) {
 	case "<gno-columns>":
-		return ColumnTagOpen
+		return GnoColumnTagOpen
 	case "</gno-columns>":
-		return ColumnTagClose
+		return GnoColumnTagClose
 	}
 
-	return ColumnTagUndefined
+	return GnoColumnTagUndefined
 }
 
 // columnsParser implements BlockParser.
@@ -136,13 +136,13 @@ func (p *columnsParser) Open(doc ast.Node, reader text.Reader, pc parser.Context
 
 	line, segment := reader.PeekLine()
 	tagKind := parseLineTag(line)
-	if tagKind == ColumnTagUndefined {
+	if tagKind == GnoColumnTagUndefined {
 		return nil, parser.NoChildren
 	}
 
 	node := NewColumn(cctx, cctx.Index, tagKind)
 	switch tagKind {
-	case ColumnTagSep:
+	case GnoColumnTagSep:
 		if !cctx.IsOpen {
 			return nil, parser.NoChildren
 		}
@@ -167,7 +167,7 @@ func (p *columnsParser) Open(doc ast.Node, reader text.Reader, pc parser.Context
 		// First separator should follow an Open Tag.
 		if cctx.Index == 0 {
 			lc := doc.LastChild()
-			if ln, ok := lc.(*ColumnNode); !ok || ln.Tag != ColumnTagOpen {
+			if ln, ok := lc.(*GnoColumnNode); !ok || ln.Tag != GnoColumnTagOpen {
 				// Open tag isn't followed by a heading.
 				// Mark open tag as wrong and immediately close the context.
 				cctx.OpenTag.Error = ErrColumnsInvalidOpenFormat
@@ -191,7 +191,7 @@ func (p *columnsParser) Open(doc ast.Node, reader text.Reader, pc parser.Context
 		// Empty heading, create a column separator.
 		reader.Advance(segment.Len())
 
-	case ColumnTagOpen:
+	case GnoColumnTagOpen:
 		if cctx.IsOpen {
 			// Block already open.
 			node.Error = ErrColumnsUnexpectedOrInvalidTag
@@ -201,7 +201,7 @@ func (p *columnsParser) Open(doc ast.Node, reader text.Reader, pc parser.Context
 		cctx.OpenTag = node
 		cctx.IsOpen = true
 
-	case ColumnTagClose:
+	case GnoColumnTagClose:
 		if !cctx.IsOpen {
 			// Block closing without being open.
 			node.Error = ErrColumnsUnexpectedOrInvalidTag
@@ -211,7 +211,7 @@ func (p *columnsParser) Open(doc ast.Node, reader text.Reader, pc parser.Context
 		if cctx.Index == 0 {
 			// If no columns exist, close tag should follow open tag.
 			lc := doc.LastChild()
-			if ln, ok := lc.(*ColumnNode); !ok || ln.Tag != ColumnTagOpen {
+			if ln, ok := lc.(*GnoColumnNode); !ok || ln.Tag != GnoColumnTagOpen {
 				// Mark open tag as wrong and immediately close the context.
 				cctx.OpenTag.Error = ErrColumnsInvalidOpenFormat
 				node.Error = ErrColumnsUnexpectedOrInvalidTag
@@ -249,12 +249,12 @@ type columnsRendererHTML struct{}
 
 // RegisterFuncs adds AST objects to the Renderer.
 func (r *columnsRendererHTML) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
-	reg.Register(KindColumn, columnsRenderHTML)
+	reg.Register(KindGnoColumn, renderGnoColumns)
 }
 
-// columnsRenderHTML renders the column node.
-func columnsRenderHTML(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
-	cnode, ok := node.(*ColumnNode)
+// renderGnoColumns renders the column node.
+func renderGnoColumns(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
+	cnode, ok := node.(*GnoColumnNode)
 	if !ok || !entering {
 		return ast.WalkContinue, nil
 	}
@@ -275,10 +275,10 @@ func columnsRenderHTML(w util.BufWriter, _ []byte, node ast.Node, entering bool)
 
 	// Render the node
 	switch cnode.Tag {
-	case ColumnTagOpen:
+	case GnoColumnTagOpen:
 		fmt.Fprintln(w, `<div class="gno-columns">`)
 
-	case ColumnTagSep:
+	case GnoColumnTagSep:
 		if cnode.Index > 1 {
 			fmt.Fprintln(w, "</div>")
 		}
@@ -286,7 +286,7 @@ func columnsRenderHTML(w util.BufWriter, _ []byte, node ast.Node, entering bool)
 		fmt.Fprintf(w, "<!-- Column %d -->\n", cnode.Index)
 		fmt.Fprintln(w, "<div>")
 
-	case ColumnTagClose:
+	case GnoColumnTagClose:
 		if cnode.Index > 0 {
 			fmt.Fprintln(w, "</div>")
 		}
@@ -321,7 +321,7 @@ func (a *columnsASTTransformer) Transform(doc *ast.Document, reader text.Reader,
 
 		// Insert a closing column tag after the last child of the doc
 		lc := doc.LastChild()
-		nodeCol := NewColumn(cctx, cctx.Index, ColumnTagClose)
+		nodeCol := NewColumn(cctx, cctx.Index, GnoColumnTagClose)
 		doc.InsertAfter(doc, lc, nodeCol)
 	}
 }
