@@ -24,7 +24,7 @@ Explore various examples to learn more about Gno functionality and usage.
 - [Safe Objects](/r/docs/safeobjects) - A Gno-specific pattern allowing you to expose objects with admin privileges preserved.
 - [Calling non-primitive argument functions](/r/docs/complexargs) - Learn how to call functions that take in complex arguments.
 - [MiniSocial](/r/docs/minisocial) - Minimalistic social media app for learning purposes.
-- [Resolving usernames and addresses](/r/docs/users) - How to resolve usernames and addresses via the ^r/sys/users^ realm.
+- [Resolving usernames and addresses](/r/docs/use_rsysusers) - How to resolve usernames and addresses via the ^r/sys/users^ realm.
 - More coming soon!
 <!-- meta issue with suggestions: https://github.com/gnolang/gno/issues/3292 -->
 
