@@ -42,6 +42,8 @@
 // Since tokens can have different decimals, 1 unit of a token with less decimals is the minimum amount of both tokens.
 // Meaning if user wants to p2p swap/create a pool with tokenA (4 decimalns) and tokenB (six decimals)
 // he would have to use at least 1 tokenA (to be more precise 0.0001 becasue of the decimals) and 100 tokenB (0.000100).
+// Due to limitations of uint64 and with a goal to keep the system simple,
+// maximum amount of decimals for a token that can be used in the system is 6.
 //
 // All actions are done optimistically - for instance, if user wants to add liquidiy of tokenA and tokenB,
 // after passing all the checks 2 tokens are to be added to the pool. Since this cannot happen at once,
