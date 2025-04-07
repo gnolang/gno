@@ -1262,15 +1262,23 @@ func ReadMemPackage(dir string, pkgPath string) (*gnovm.MemPackage, error) {
 
 	list := make([]string, 0, len(files))
 	for _, file := range files {
+		// Ignore directories and hidden files, only include allowed files & extensions,
+		// then exclude files that are of the rejected extensions.
 		if file.IsDir() ||
 			strings.HasPrefix(file.Name(), ".") ||
-			(!endsWith(file.Name(), allowedFileExtensions) && !contains(allowedFiles, file.Name())) ||
-			endsWith(file.Name(), rejectedFileExtensions) {
+			(!endsWithAny(file.Name(), allowedFileExtensions) && !slices.Contains(allowedFiles, file.Name())) ||
+			endsWithAny(file.Name(), rejectedFileExtensions) {
 			continue
 		}
 		list = append(list, filepath.Join(dir, file.Name()))
 	}
 	return ReadMemPackageFromList(list, pkgPath)
+}
+
+func endsWithAny(str string, suffixes []string) bool {
+	return slices.ContainsFunc(suffixes, func(s string) bool {
+		return strings.HasSuffix(str, s)
+	})
 }
 
 // MustReadMemPackage is a wrapper around [ReadMemPackage] that panics on error.
@@ -1345,7 +1353,7 @@ func ParseMemPackage(memPkg *gnovm.MemPackage) (fset *FileSet) {
 	var errs error
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") ||
-			endsWith(mfile.Name, []string{"_test.gno", "_filetest.gno"}) {
+			endsWithAny(mfile.Name, []string{"_test.gno", "_filetest.gno"}) {
 			continue // skip spurious or test file.
 		}
 		n, err := ParseFile(mfile.Name, mfile.Body)
