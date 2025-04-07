@@ -32,3 +32,16 @@ type GasPriceKeeperI interface {
 }
 
 var _ GasPriceKeeperI = GasPriceKeeper{}
+
+type Event struct {
+	Type       string           `json:"type"`
+	Attributes []EventAttribute `json:"attributes"`
+}
+
+// EventAttribute is a single key-value pair, associated with an event.
+type EventAttribute struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+func (e Event) AssertABCIEvent() {}

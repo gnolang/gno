@@ -209,6 +209,23 @@ func (gk GasPriceKeeper) UpdateGasPrice(ctx sdk.Context) {
 	lgp := gk.LastGasPrice(ctx)
 	newGasPrice := gk.calcBlockGasPrice(lgp, gasUsed, maxBlockGas, params)
 	gk.SetGasPrice(ctx, newGasPrice)
+
+	el := ctx.EventLogger()
+	el.EmitEvent(
+		Event{
+			Type: updateGasPriceEvent,
+			Attributes: []EventAttribute{
+				{
+					Key:   "Gas",
+					Value: fmt.Sprintf("%d", newGasPrice.Gas),
+				},
+				{
+					Key:   "Coin",
+					Value: newGasPrice.Price.String(),
+				},
+			},
+		})
+	logTelemetry(newGasPrice)
 }
 
 // calcBlockGasPrice calculates the minGasPrice for the txs to be included in the next block.
@@ -312,7 +329,6 @@ func (gk GasPriceKeeper) LastGasPrice(ctx sdk.Context) std.GasPrice {
 	if err != nil {
 		panic(err)
 	}
-	logTelemetry(gp)
 	return gp
 }
 

@@ -23,6 +23,9 @@ const (
 	GasPriceKey = "gasPrice"
 	// param key for global account number
 	GlobalAccountNumberKey = "globalAccountNumber"
+
+	// Event Type
+	updateGasPriceEvent = "updateGasPrice"
 )
 
 // AddressStoreKey turn an address to key used to get it from the account store
