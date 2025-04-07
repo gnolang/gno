@@ -32,10 +32,10 @@
   {{ if .GnoTestFiles }}
   <details class="group">
     <summary class="flex items-center cursor-pointer">
-      <h3 class="font-medium text-sm">Test Files</h3>
-      <svg class="w-4 h-4 ml-1 transform group-open:rotate-180 transition-transform my-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+      <svg class="w-4 h-4 mr-1 group-open:rotate-180 my-auto">
+        <use href="#ico-arrow"></use>
       </svg>
+      <h3 class="font-medium font-interVar text-100">Test Files</h3>
     </summary>
     <ul class="list-none space-y-2 pl-5 mt-2">
       {{ range .GnoTestFiles }}
