@@ -106,7 +106,7 @@ target "gnoweb" {
   inherits = ["common"]
   target = "gnoweb"
   tags = [
-    "ghcr.io/gnolang/gno/gnoweb:gnoland-home"
+    "ghcr.io/gnolang/gno/gnoweb"
   ]
   labels = {
     "org.opencontainers.image.title" = "${PROJECT_NAME}/gnoweb"
