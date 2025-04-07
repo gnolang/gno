@@ -93,12 +93,12 @@ func (s *basicNFT) SetTokenURI(tid TokenID, tURI TokenURI) (bool, error) {
 // Otherwise, returns false
 func (s *basicNFT) IsApprovedForAll(owner, operator std.Address) bool {
 	key := owner.String() + ":" + operator.String()
-	_, found := s.operatorApprovals.Get(key)
+	approved, found := s.operatorApprovals.Get(key)
 	if !found {
 		return false
 	}
 
-	return true
+	return approved.(bool)
 }
 
 // Approve approves the input address for particular token
