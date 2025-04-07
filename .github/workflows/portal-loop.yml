@@ -46,16 +46,15 @@ jobs:
           # push: ${{ github.event_name != 'pull_request' }}
 
   test-portal-loop-running-in-compose:
-    runs-on: ubuntu-latest
-    needs: build-portal-loop 
+    runs-on: ubuntu-latest 
     timeout-minutes: 10
     steps:
       - name: "Checkout"
         uses: actions/checkout@v4
 
-          # docker pull ghcr.io/gnolang/gno/gnoland:master
       - name: "Setup The portal loop docker compose"
         run: |
+          docker pull ghcr.io/gnolang/gno/gnoland:master
           cd misc/loop
           echo "Making docker compose happy"
           touch .env
