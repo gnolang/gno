@@ -34,6 +34,9 @@ func (dh *DockerHandler) CheckPulledMasterImage(ctx context.Context) (bool, erro
 	// Get local image digest
 	if len(localImage.RepoDigests) < 0 {
 		return false, fmt.Errorf("Unable to get a local digest")
+	} else if len(localImage.RepoDigests) == 0 {
+		// Assume it's locally built and not pulled
+		return true, nil
 	}
 	// local digest include full repository name
 	localDigestPrefix := strings.ReplaceAll(GnoOfficialImage, ":master", "")
@@ -41,7 +44,6 @@ func (dh *DockerHandler) CheckPulledMasterImage(ctx context.Context) (bool, erro
 
 	// Get remote image digest
 	remoteImage, err := dh.DockerClient.DistributionInspect(ctx, GnoOfficialImage, "")
-
 	if err != nil {
 		return false, err
 	}
