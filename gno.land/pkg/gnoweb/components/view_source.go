@@ -19,10 +19,9 @@ type SourceData struct {
 
 type SourceTocData struct {
 	Icon         string
-	Items        []SourceTocItem
-	RegularFiles []SourceTocItem
-	TestFiles    []SourceTocItem
-	NonGnoFiles  []SourceTocItem
+	ReadmeFile   SourceTocItem
+	GnoFiles     []SourceTocItem
+	GnoTestFiles []SourceTocItem
 }
 
 type SourceTocItem struct {
@@ -45,26 +44,24 @@ type sourceViewParams struct {
 func SourceView(data SourceData) *View {
 	tocData := SourceTocData{
 		Icon:  "file",
-		Items: make([]SourceTocItem, len(data.Files)),
 	}
 
-	for i, file := range data.Files {
+	for _, file := range data.Files {
 		item := SourceTocItem{
 			Link: data.PkgPath + "$source&file=" + file,
 			Text: file,
 		}
 
-		tocData.Items[i] = item
+		switch {  
+			case file == "README.md":  
+				tocData.ReadmeFile = item
 
-		if file == "README.md" {
-			tocData.RegularFiles = append(tocData.RegularFiles, item)
-		} else if strings.Contains(file, "_test.") || strings.HasSuffix(file, "test.gno") || strings.HasSuffix(file, "_filetest.gno") {
-			tocData.TestFiles = append(tocData.TestFiles, item)
-		} else if !strings.HasSuffix(file, ".gno") {
-			tocData.NonGnoFiles = append(tocData.NonGnoFiles, item)
-		} else {
-			tocData.RegularFiles = append(tocData.RegularFiles, item)
-		}
+			case strings.HasSuffix(file, "_test.gno") || strings.HasSuffix(file, "_filetest.gno"):  
+				tocData.GnoTestFiles = append(tocData.GnoTestFiles, item) 
+
+			case strings.HasSuffix(file, ".gno"):  
+				tocData.GnoFiles = append(tocData.GnoFiles, item) 
+			} 
 	}
 
 	toc := NewTemplateComponent("ui/toc_source", tocData)
