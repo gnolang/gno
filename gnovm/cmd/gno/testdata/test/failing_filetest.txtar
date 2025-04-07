@@ -3,7 +3,7 @@
 ! gno test -v .
 
 stderr '=== RUN   file/failing_filetest.gno'
-stderr 'unexpected panic: beep boop'
+stderr 'unexpected panic: panic: beep boop'
 
 -- failing.gno --
 package failing

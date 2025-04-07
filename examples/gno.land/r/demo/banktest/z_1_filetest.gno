@@ -24,4 +24,4 @@ func main() {
 }
 
 // Error:
-// cannot send "101000000ugnot", limit "100000000ugnot" exceeded with "" already spent
+// panic: cannot send "101000000ugnot", limit "100000000ugnot" exceeded with "" already spent

@@ -78,15 +78,43 @@ func (fr *Frame) PopDefer() (res Defer, ok bool) {
 // Defer
 
 type Defer struct {
-	Func   *FuncValue   // function value
-	Args   []TypedValue // arguments
-	Source *DeferStmt   // source
-	Parent *Block
+	Func     *FuncValue   // function value
+	Receiver TypedValue   // for methods
+	Args     []TypedValue // arguments
+	Source   *DeferStmt   // source
+	Parent   *Block
+}
 
-	// PanicScope is set to the value of the Machine's PanicScope when the
-	// defer is created. The PanicScope of the Machine is incremented each time
-	// a panic occurs and is decremented each time a panic is recovered.
-	PanicScope uint
+//----------------------------------------
+// Exception
+
+// Exception represents a panic that originates from a gno program.
+type Exception struct {
+	// Value is the value passed to panic.
+	Value TypedValue
+	// Frames is a snapshot of the Machine frames at the time panic() is called.
+	// It is used to determine whether recover() can be called (it may only be
+	// called directly by a deferred function) and to determine whether the
+	// current execution of a deferred function is happening in the context of
+	// a panic.
+	Frames []*Frame
+
+	Recovered bool
+
+	Stacktrace Stacktrace
+}
+
+func (e Exception) Sprint(m *Machine) string {
+	return e.Value.Sprint(m)
+}
+
+// UnhandledPanicError represents an error thrown when a panic is not handled in the realm.
+type UnhandledPanicError struct {
+	Descriptor string // Description of the unhandled panic.
+}
+
+func (e UnhandledPanicError) Error() string {
+	return e.Descriptor
 }
 
 type StacktraceCall struct {
@@ -205,31 +233,4 @@ func toConstExpTrace(cte *ConstExpr) string {
 	}
 
 	return tv.T.String()
-}
-
-//----------------------------------------
-// Exception
-
-// Exception represents a panic that originates from a gno program.
-type Exception struct {
-	// Value is the value passed to panic.
-	Value TypedValue
-	// Frame is used to reference the frame a panic occurred in so that recover() knows if the
-	// currently executing deferred function is able to recover from the panic.
-	Frame *Frame
-
-	Stacktrace Stacktrace
-}
-
-func (e Exception) Sprint(m *Machine) string {
-	return e.Value.Sprint(m)
-}
-
-// UnhandledPanicError represents an error thrown when a panic is not handled in the realm.
-type UnhandledPanicError struct {
-	Descriptor string // Description of the unhandled panic.
-}
-
-func (e UnhandledPanicError) Error() string {
-	return e.Descriptor
 }

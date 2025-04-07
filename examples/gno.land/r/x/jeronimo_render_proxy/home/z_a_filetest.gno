@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// no realm has been registered
+// panic: no realm has been registered

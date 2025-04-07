@@ -24,4 +24,4 @@ func main() {
 }
 
 // Error:
-// board not exist
+// panic: board not exist

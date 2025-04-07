@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// nil pointer dereference
+// panic: nil pointer dereference

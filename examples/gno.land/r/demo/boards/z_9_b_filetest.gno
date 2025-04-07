@@ -30,4 +30,4 @@ func main() {
 }
 
 // Error:
-// dst board not exist
+// panic: dst board not exist

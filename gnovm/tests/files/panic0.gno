@@ -10,4 +10,4 @@ func main() {
 //     main/files/panic0.gno:4
 
 // Error:
-// wtf
+// panic: wtf

@@ -13,7 +13,7 @@ func main() {
 }
 
 // Error:
-// panic
+// panic: panic
 
 // Stacktrace:
 // panic: panic
