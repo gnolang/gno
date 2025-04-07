@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"unicode"
 	"unsafe"
@@ -150,13 +151,12 @@ func isReservedName(n Name) bool {
 
 // scans uverse static node for blocknames. (slow)
 func isUverseName(n Name) bool {
-	uverseNames := UverseNode().GetBlockNames()
-	for _, name := range uverseNames {
-		if name == n {
-			return true
-		}
+	if n == "panic" {
+		// panic is not in uverse, as it is parsed as its own statement (PanicStmt)
+		return true
 	}
-	return false
+	uverseNames := UverseNode().GetBlockNames()
+	return slices.Contains(uverseNames, n)
 }
 
 //----------------------------------------

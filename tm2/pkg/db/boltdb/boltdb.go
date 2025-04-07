@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/internal"
@@ -71,7 +72,7 @@ func (bdb *BoltDB) Get(key []byte) (value []byte) {
 	err := bdb.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(bucket)
 		if v := b.Get(key); v != nil {
-			value = append([]byte{}, v...)
+			value = slices.Clone(v)
 		}
 		return nil
 	})
@@ -170,13 +171,13 @@ func (bdb *BoltDB) NewBatch() db.Batch {
 // It is safe to modify the contents of the argument after Set returns but not
 // before.
 func (bdb *boltDBBatch) Set(key, value []byte) {
-	bdb.ops = append(bdb.ops, internal.Operation{internal.OpTypeSet, key, value})
+	bdb.ops = append(bdb.ops, internal.Operation{OpType: internal.OpTypeSet, Key: key, Value: value})
 }
 
 // It is safe to modify the contents of the argument after Delete returns but
 // not before.
 func (bdb *boltDBBatch) Delete(key []byte) {
-	bdb.ops = append(bdb.ops, internal.Operation{internal.OpTypeDelete, key, nil})
+	bdb.ops = append(bdb.ops, internal.Operation{OpType: internal.OpTypeDelete, Key: key})
 }
 
 // NOTE: the operation is synchronous (see BoltDB for reasons)
@@ -318,14 +319,14 @@ func (itr *boltDBIterator) Next() {
 
 func (itr *boltDBIterator) Key() []byte {
 	itr.assertIsValid()
-	return append([]byte{}, itr.currentKey...)
+	return slices.Clone(itr.currentKey)
 }
 
 func (itr *boltDBIterator) Value() []byte {
 	itr.assertIsValid()
 	var value []byte
 	if itr.currentValue != nil {
-		value = append([]byte{}, itr.currentValue...)
+		value = slices.Clone(itr.currentValue)
 	}
 	return value
 }

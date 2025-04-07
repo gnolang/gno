@@ -1,6 +1,7 @@
 package crypto_test
 
 import (
+	"encoding/json"
 	"math/rand"
 	"testing"
 
@@ -37,7 +38,7 @@ func TestEmptyAddresses(t *testing.T) {
 	require.Nil(t, err)
 }
 
-func testMarshal(t *testing.T, addr crypto.Address, marshal func(orig interface{}) ([]byte, error), unmarshal func(bz []byte, ptr interface{}) error) {
+func testMarshal(t *testing.T, addr crypto.Address, marshal func(orig any) ([]byte, error), unmarshal func(bz []byte, ptr any) error) {
 	t.Helper()
 
 	bz, err := marshal(addr)
@@ -53,12 +54,13 @@ func TestRandBech32AddrConsistency(t *testing.T) {
 
 	var pub ed25519.PubKeyEd25519
 
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		rand.Read(pub[:])
 
 		addr := crypto.AddressFromBytes(pub.Address().Bytes())
 		testMarshal(t, addr, amino.Marshal, amino.Unmarshal)
 		testMarshal(t, addr, amino.MarshalJSON, amino.UnmarshalJSON)
+		testMarshal(t, addr, json.Marshal, json.Unmarshal)
 
 		str := addr.String()
 		res, err := crypto.AddressFromBech32(str)

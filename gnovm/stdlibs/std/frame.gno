@@ -5,7 +5,7 @@ type Realm struct {
 	pkgPath string
 }
 
-func (r Realm) Addr() Address {
+func (r Realm) Address() Address {
 	return r.addr
 }
 
@@ -15,4 +15,16 @@ func (r Realm) PkgPath() string {
 
 func (r Realm) IsUser() bool {
 	return r.pkgPath == ""
+}
+
+func (r Realm) CoinDenom(coinName string) string {
+	return CoinDenom(r.pkgPath, coinName)
+}
+
+func CoinDenom(pkgPath, coinName string) string {
+	// TODO: Possibly remove after https://github.com/gnolang/gno/issues/3164
+	// Similar to ibc spec
+	// ibc_denom := 'ibc/' + hash('path' + 'base_denom')
+	// gno_qualified_denom := '/' + 'pkg_path' + ':' + 'base_denom'
+	return "/" + pkgPath + ":" + coinName
 }

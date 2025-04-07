@@ -8,9 +8,12 @@
 //
 // Additional Command Overview:
 //
-// 1. `gnoland [start|stop]`:
+// 1. `gnoland [start|stop|restart]`:
 //   - The gnoland node doesn't start automatically. This enables the user to do some
 //     pre-configuration or pass custom arguments to the start command.
+//   - `gnoland restart` will simulate restarting a node, as in stopping and
+//     starting it again, recovering state from the persisted database data.
+//   - `gnoland start -non-validator` can be used to start a node as a non-validator node.
 //
 // 2. `gnokey`:
 //   - Supports most of the common commands.
@@ -73,13 +76,6 @@
 //
 // Input:
 //
-//   - LOG_LEVEL:
-//     The logging level to be used, which can be one of "error", "debug", "info", or an empty string.
-//     If empty, the log level defaults to "debug".
-//
-//   - LOG_DIR:
-//     If set, logs will be directed to the specified directory.
-//
 //   - TESTWORK:
 //     A boolean that, when enabled, retains working directories after tests for
 //     inspection. If enabled, gnoland logs will be persisted inside this
@@ -106,11 +102,17 @@
 //     The path where the gnoland node stores its configuration and data. It's
 //     set only if the node has started.
 //
-//   - USER_SEED_test1:
-//     Contains the seed for the test1 account.
+//   - xxx_user_seed:
+//     Where `xxx` is the account name; Contains the seed for the test1 account.
 //
-//   - USER_ADDR_test1:
-//     Contains the address for the test1 account.
+//   - xxx_user_addr:
+//     Where `xxx` is the account name; Contains the address for the test1 account.
+//
+//   - xxx_account_num:
+//     Where `xxx` is the account name; Contains the account number for the test1 account.
+//
+//   - xxx_account_seq:
+//     Where `xxx` is the account name; Contains the address for the test1 account.
 //
 //   - RPC_ADDR:
 //     Points to the gnoland node's remote address. It's set only if the node has started.

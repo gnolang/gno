@@ -1,43 +1,102 @@
 // Package valopers is designed around the permissionless lifecycle of valoper profiles.
-// It also includes parts designed for govdao to propose valset changes based on registered valopers.
 package valopers
 
 import (
+	"crypto/bech32"
+	"errors"
+	"regexp"
 	"std"
+	"strconv"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/avl/pager"
+	"gno.land/p/demo/combinederr"
+	"gno.land/p/demo/ownable/exts/authorizable"
 	"gno.land/p/demo/ufmt"
-	pVals "gno.land/p/sys/validators"
-	govdao "gno.land/r/gov/dao"
-	"gno.land/r/sys/validators"
+	"gno.land/p/moul/realmpath"
 )
 
 const (
-	errValoperExists        = "valoper already exists"
-	errValoperMissing       = "valoper does not exist"
-	errInvalidAddressUpdate = "valoper updated address exists"
-	errValoperNotCaller     = "valoper is not the caller"
+	MonikerMaxLength     = 32
+	DescriptionMaxLength = 2048
 )
 
-// valopers keeps track of all the active validator operators
-var valopers *avl.Tree // Address -> Valoper
+var (
+	ErrValoperExists      = errors.New("valoper already exists")
+	ErrValoperMissing     = errors.New("valoper does not exist")
+	ErrAddressExists      = errors.New("valoper updated address exists")
+	ErrSameAddress        = errors.New("valoper updated address is the same")
+	ErrInvalidAddress     = errors.New("invalid address")
+	ErrOriginCaller       = errors.New("origin call is not the same")
+	ErrInvalidMoniker     = errors.New("moniker is not valid")
+	ErrInvalidDescription = errors.New("description is not valid")
+	ErrInvalidPubKey      = errors.New("invalid public key")
+)
+
+var (
+	valopers     *avl.Tree                            // valopers keeps track of all the valoper profiles. Address -> Valoper
+	instructions string                               // markdown instructions for valoper's registration
+	minFee       = std.NewCoin("ugnot", 20*1_000_000) // minimum gnot must be paid to register.
+
+	monikerMaxLengthMiddle     = ufmt.Sprintf("%d", MonikerMaxLength-2)
+	validateMonikerRe          = regexp.MustCompile(`^[a-zA-Z0-9][\w -]{0,` + monikerMaxLengthMiddle + `}[a-zA-Z0-9]$`) // 32 characters, including spaces, hyphens or underscores in the middle
+	validateListeningAddressRe = regexp.MustCompile(`^(?:\w+://)?[\w\.-]+:\d+$`)                                        // <protocol>://<hostname>:<port> where <protocol> is optional
+)
 
 // Valoper represents a validator operator profile
 type Valoper struct {
-	Name        string // the display name of the valoper
-	Description string // the description of the valoper
+	Moniker     string // A human-readable name
+	Description string // A description and details about the valoper
 
-	Address      std.Address // The bech32 gno address of the validator
-	PubKey       string      // the bech32 public key of the validator
-	P2PAddresses []string    // the publicly reachable P2P addresses of the validator
-	Active       bool        // flag indicating if the valoper is active
+	Address     std.Address // The bech32 gno address of the validator
+	PubKey      string      // The bech32 public key of the validator
+	KeepRunning bool        // Flag indicating if the owner wants to keep the validator running
+
+	auth *authorizable.Authorizable // The authorizer system for the valoper
+}
+
+func (v Valoper) Auth() *authorizable.Authorizable {
+	return v.auth
+}
+
+func AddToAuthList(address std.Address, member std.Address) {
+	v := GetByAddr(address)
+
+	if err := v.Auth().AddToAuthList(member); err != nil {
+		panic(err)
+	}
+}
+
+func DeleteFromAuthList(address std.Address, member std.Address) {
+	v := GetByAddr(address)
+
+	if err := v.Auth().DeleteFromAuthList(member); err != nil {
+		panic(err)
+	}
 }
 
 // Register registers a new valoper
-func Register(v Valoper) {
+func Register(moniker string, description string, address std.Address, pubKey string) {
+	if err := validateSentCoins(); err != nil {
+		panic(err)
+	}
+
 	// Check if the valoper is already registered
-	if isValoper(v.Address) {
-		panic(errValoperExists)
+	if isValoper(address) {
+		panic(ErrValoperExists)
+	}
+
+	v := Valoper{
+		Moniker:     moniker,
+		Description: description,
+		Address:     address,
+		PubKey:      pubKey,
+		KeepRunning: true,
+		auth:        authorizable.NewAuthorizable(),
+	}
+
+	if err := v.Validate(); err != nil {
+		panic(err)
 	}
 
 	// TODO add address derivation from public key
@@ -47,83 +106,142 @@ func Register(v Valoper) {
 	valopers.Set(v.Address.String(), v)
 }
 
-// Update updates an existing valoper
-func Update(address std.Address, v Valoper) {
-	// Check if the valoper is present
-	if !isValoper(address) {
-		panic(errValoperMissing)
+// UpdateMoniker updates an existing valoper's moniker
+func UpdateMoniker(address std.Address, moniker string) {
+	// Check that the moniker is not empty
+	if err := validateMoniker(moniker); err != nil {
+		panic(err)
 	}
 
-	// Check that the valoper wouldn't be
-	// overwriting an existing one
-	isAddressUpdate := address != v.Address
-	if isAddressUpdate && isValoper(v.Address) {
-		panic(errInvalidAddressUpdate)
+	v := GetByAddr(address)
+
+	// Check that the caller has permissions
+	v.Auth().AssertOnAuthList()
+
+	// Update the moniker
+	v.Moniker = moniker
+
+	// Save the valoper info
+	valopers.Set(address.String(), v)
+}
+
+// UpdateDescription updates an existing valoper's description
+func UpdateDescription(address std.Address, description string) {
+	// Check that the description is not empty
+	if err := validateDescription(description); err != nil {
+		panic(err)
 	}
 
-	// Remove the old valoper info
-	// in case the address changed
-	if address != v.Address {
-		valopers.Remove(address.String())
-	}
+	v := GetByAddr(address)
 
-	// Save the new valoper info
-	valopers.Set(v.Address.String(), v)
+	// Check that the caller has permissions
+	v.Auth().AssertOnAuthList()
+
+	// Update the description
+	v.Description = description
+
+	// Save the valoper info
+	valopers.Set(address.String(), v)
+}
+
+// UpdateKeepRunning updates an existing valoper's active status
+func UpdateKeepRunning(address std.Address, keepRunning bool) {
+	v := GetByAddr(address)
+
+	// Check that the caller has permissions
+	v.Auth().AssertOnAuthList()
+
+	// Update status
+	v.KeepRunning = keepRunning
+
+	// Save the valoper info
+	valopers.Set(address.String(), v)
 }
 
 // GetByAddr fetches the valoper using the address, if present
 func GetByAddr(address std.Address) Valoper {
 	valoperRaw, exists := valopers.Get(address.String())
 	if !exists {
-		panic(errValoperMissing)
+		panic(ErrValoperMissing)
 	}
 
 	return valoperRaw.(Valoper)
 }
 
-// Render renders the current valoper set
-func Render(_ string) string {
+// Render renders the current valoper set.
+// "/r/gnoland/valopers" lists all valopers, paginated.
+// "/r/gnoland/valopers:addr" shows the detail for the valoper with the addr.
+func Render(fullPath string) string {
+	req := realmpath.Parse(fullPath)
+	if req.Path == "" {
+		return renderHome(fullPath)
+	} else {
+		addr := req.Path
+		if len(addr) < 2 || addr[:2] != "g1" {
+			return "invalid address " + addr
+		}
+		valoperRaw, exists := valopers.Get(addr)
+		if !exists {
+			return "unknown address " + addr
+		}
+		v := valoperRaw.(Valoper)
+		return "Valoper's details:\n" + v.Render()
+	}
+}
+
+func renderHome(path string) string {
+	// if there are no valopers, display instructions
 	if valopers.Size() == 0 {
-		return "No valopers to display."
+		return ufmt.Sprintf("%s\n\nNo valopers to display.", instructions)
 	}
 
-	output := "Valset changes to apply:\n"
-	valopers.Iterate("", "", func(_ string, value interface{}) bool {
-		valoper := value.(Valoper)
+	page := pager.NewPager(valopers, 50, false).MustGetPageByPath(path)
 
-		output += valoper.Render()
+	output := ""
 
-		return false
-	})
+	// if we are on the first page, display instructions
+	if page.PageNumber == 1 {
+		output += ufmt.Sprintf("%s\n\n", instructions)
+	}
 
+	for _, item := range page.Items {
+		v := item.Value.(Valoper)
+		output += ufmt.Sprintf(" * [%s](/r/gnoland/valopers:%s) - [profile](/r/demo/profile:u/%s)\n",
+			v.Moniker, v.Address, v.Auth().Owner())
+	}
+
+	output += "\n"
+	output += page.Picker(path)
 	return output
+}
+
+// Validate checks if the fields of the Valoper are valid
+func (v *Valoper) Validate() error {
+	errs := &combinederr.CombinedError{}
+
+	errs.Add(validateMoniker(v.Moniker))
+	errs.Add(validateDescription(v.Description))
+	errs.Add(validateBech32(v.Address))
+	errs.Add(validatePubKey(v.PubKey))
+
+	if errs.Size() == 0 {
+		return nil
+	}
+
+	return errs
 }
 
 // Render renders a single valoper with their information
 func (v Valoper) Render() string {
-	output := ufmt.Sprintf("## %s\n", v.Name)
-	output += ufmt.Sprintf("%s\n\n", v.Description)
+	output := ufmt.Sprintf("## %s\n", v.Moniker)
+
+	if v.Description != "" {
+		output += ufmt.Sprintf("%s\n\n", v.Description)
+	}
+
 	output += ufmt.Sprintf("- Address: %s\n", v.Address.String())
-	output += ufmt.Sprintf("- PubKey: %s\n", v.PubKey)
-	output += "- P2P Addresses: [\n"
-
-	if len(v.P2PAddresses) == 0 {
-		output += "]\n"
-
-		return output
-	}
-
-	for index, addr := range v.P2PAddresses {
-		output += addr
-
-		if index == len(v.P2PAddresses)-1 {
-			output += "]\n"
-
-			continue
-		}
-
-		output += ",\n"
-	}
+	output += ufmt.Sprintf("- PubKey: %s\n\n", v.PubKey)
+	output += ufmt.Sprintf("[Profile link](/r/demo/profile:u/%s)\n", v.Address)
 
 	return output
 }
@@ -135,47 +253,59 @@ func isValoper(address std.Address) bool {
 	return exists
 }
 
-// GovDAOProposal creates a proposal to the GovDAO
-// for adding the given valoper to the validator set.
-// This function is meant to serve as a helper
-// for generating the govdao proposal
-func GovDAOProposal(address std.Address) {
-	var (
-		valoper     = GetByAddr(address)
-		votingPower = uint64(1)
-	)
+func validateSentCoins() error {
+	sentCoins := std.OriginSend()
 
-	// Make sure the valoper is the caller
-	if std.GetOrigCaller() != address {
-		panic(errValoperNotCaller)
+	if len(sentCoins) == 1 && sentCoins[0].IsGTE(minFee) {
+		return nil
+	}
+	return errors.New("payment must not be less than " + strconv.Itoa(int(minFee.Amount)))
+}
+
+// validateMoniker checks if the moniker is valid
+func validateMoniker(moniker string) error {
+	if moniker == "" {
+		return ErrInvalidMoniker
 	}
 
-	// Determine the voting power
-	if !valoper.Active {
-		votingPower = uint64(0)
+	if len(moniker) > MonikerMaxLength {
+		return ErrInvalidMoniker
 	}
 
-	changesFn := func() []pVals.Validator {
-		return []pVals.Validator{
-			{
-				Address:     valoper.Address,
-				PubKey:      valoper.PubKey,
-				VotingPower: votingPower,
-			},
-		}
+	if !validateMonikerRe.MatchString(moniker) {
+		return ErrInvalidMoniker
 	}
 
-	// Create the executor
-	executor := validators.NewPropExecutor(changesFn)
+	return nil
+}
 
-	// Craft the proposal comment
-	comment := ufmt.Sprintf(
-		"Proposal to add valoper %s (Address: %s; PubKey: %s) to the valset",
-		valoper.Name,
-		valoper.Address.String(),
-		valoper.PubKey,
-	)
+// validateDescription checks if the description is valid
+func validateDescription(description string) error {
+	if description == "" {
+		return ErrInvalidDescription
+	}
 
-	// Create the govdao proposal
-	govdao.Propose(comment, executor)
+	if len(description) > DescriptionMaxLength {
+		return ErrInvalidDescription
+	}
+
+	return nil
+}
+
+// validateBech32 checks if the value is a valid bech32 address
+func validateBech32(address std.Address) error {
+	if !std.Address.IsValid(address) {
+		return ErrInvalidAddress
+	}
+
+	return nil
+}
+
+// validatePubKey checks if the public key is valid
+func validatePubKey(pubKey string) error {
+	if _, _, err := bech32.DecodeNoLimit(pubKey); err != nil {
+		return err
+	}
+
+	return nil
 }

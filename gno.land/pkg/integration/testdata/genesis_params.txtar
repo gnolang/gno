@@ -1,0 +1,27 @@
+# Test for #3003, #2911.
+
+gnoland start
+
+# Query and validate official parameters.
+# These parameters should ideally be tested in a txtar format to ensure that a
+# default initialization of "gnoland" provides the expected default values.
+
+# Verify the default chain domain parameter for Gno.land
+gnokey query params/vm:p:chain_domain
+stdout 'data: "gno.land"$'
+
+# Test custom parameters to confirm they return the expected values and types.
+
+gnokey query params/vm:gno.land/r/sys/testrealm:foo_string
+stdout 'data: "bar"$'
+
+gnokey query params/vm:gno.land/r/sys/testrealm:foo_int64
+stdout 'data: "-1337"$'
+
+gnokey query params/vm:gno.land/r/sys/testrealm:foo_bool
+stdout 'data: true$'
+
+gnokey query params/vm:gno.land/r/sys/testrealm:foo_strings
+stdout 'data: \["some","strings"\]'
+
+

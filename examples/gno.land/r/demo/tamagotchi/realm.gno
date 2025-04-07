@@ -16,7 +16,7 @@ func init() {
 func Reset(optionalName string) string {
 	name := optionalName
 	if name == "" {
-		height := std.GetHeight()
+		height := std.ChainHeight()
 		name = ufmt.Sprintf("gnome#%d", height)
 	}
 
@@ -43,10 +43,10 @@ func Heal() string {
 func Render(path string) string {
 	tama := t.Markdown()
 	links := `Actions:
-* [Feed](/r/demo/tamagotchi?help&__func=Feed)
-* [Play](/r/demo/tamagotchi?help&__func=Play)
-* [Heal](/r/demo/tamagotchi?help&__func=Heal)
-* [Reset](/r/demo/tamagotchi?help&__func=Reset)
+* [Feed](/r/demo/tamagotchi$help&func=Feed)
+* [Play](/r/demo/tamagotchi$help&func=Play)
+* [Heal](/r/demo/tamagotchi$help&func=Heal)
+* [Reset](/r/demo/tamagotchi$help&func=Reset)
 `
 
 	return tama + "\n\n" + links

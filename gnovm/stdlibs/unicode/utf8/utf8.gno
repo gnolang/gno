@@ -141,7 +141,7 @@ func FullRuneInString(s string) bool {
 }
 
 // DecodeRune unpacks the first UTF-8 encoding in p and returns the rune and
-// its width in bytes. If p is empty it returns (RuneError, 0). Otherwise, if
+// its width in bytes. If p is empty it returns ([RuneError], 0). Otherwise, if
 // the encoding is invalid, it returns (RuneError, 1). Both are impossible
 // results for correct, non-empty UTF-8.
 //
@@ -188,8 +188,8 @@ func DecodeRune(p []byte) (r rune, size int) {
 	return rune(p0&mask4)<<18 | rune(b1&maskx)<<12 | rune(b2&maskx)<<6 | rune(b3&maskx), 4
 }
 
-// DecodeRuneInString is like DecodeRune but its input is a string. If s is
-// empty it returns (RuneError, 0). Otherwise, if the encoding is invalid, it
+// DecodeRuneInString is like [DecodeRune] but its input is a string. If s is
+// empty it returns ([RuneError], 0). Otherwise, if the encoding is invalid, it
 // returns (RuneError, 1). Both are impossible results for correct, non-empty
 // UTF-8.
 //
@@ -237,7 +237,7 @@ func DecodeRuneInString(s string) (r rune, size int) {
 }
 
 // DecodeLastRune unpacks the last UTF-8 encoding in p and returns the rune and
-// its width in bytes. If p is empty it returns (RuneError, 0). Otherwise, if
+// its width in bytes. If p is empty it returns ([RuneError], 0). Otherwise, if
 // the encoding is invalid, it returns (RuneError, 1). Both are impossible
 // results for correct, non-empty UTF-8.
 //
@@ -276,8 +276,8 @@ func DecodeLastRune(p []byte) (r rune, size int) {
 	return r, size
 }
 
-// DecodeLastRuneInString is like DecodeLastRune but its input is a string. If
-// s is empty it returns (RuneError, 0). Otherwise, if the encoding is invalid,
+// DecodeLastRuneInString is like [DecodeLastRune] but its input is a string. If
+// s is empty it returns ([RuneError], 0). Otherwise, if the encoding is invalid,
 // it returns (RuneError, 1). Both are impossible results for correct,
 // non-empty UTF-8.
 //
@@ -337,7 +337,7 @@ func RuneLen(r rune) int {
 }
 
 // EncodeRune writes into p (which must be large enough) the UTF-8 encoding of the rune.
-// If the rune is out of range, it writes the encoding of RuneError.
+// If the rune is out of range, it writes the encoding of [RuneError].
 // It returns the number of bytes written.
 func EncodeRune(p []byte, r rune) int {
 	// Negative values are erroneous. Making it unsigned addresses the problem.
@@ -352,13 +352,7 @@ func EncodeRune(p []byte, r rune) int {
 		return 2
 	case i > MaxRune, surrogateMin <= i && i <= surrogateMax:
 		r = RuneError
-		// XXX fallthrough not implemented
-		// fallthrough
-		_ = p[2] // eliminate bounds checks
-		p[0] = t3 | byte(r>>12)
-		p[1] = tx | byte(r>>6)&maskx
-		p[2] = tx | byte(r)&maskx
-		return 3
+		fallthrough
 	case i <= rune3Max:
 		_ = p[2] // eliminate bounds checks
 		p[0] = t3 | byte(r>>12)
@@ -372,6 +366,32 @@ func EncodeRune(p []byte, r rune) int {
 		p[2] = tx | byte(r>>6)&maskx
 		p[3] = tx | byte(r)&maskx
 		return 4
+	}
+}
+
+// AppendRune appends the UTF-8 encoding of r to the end of p and
+// returns the extended buffer. If the rune is out of range,
+// it appends the encoding of [RuneError].
+func AppendRune(p []byte, r rune) []byte {
+	// This function is inlineable for fast handling of ASCII.
+	if uint32(r) <= rune1Max {
+		return append(p, byte(r))
+	}
+	return appendRuneNonASCII(p, r)
+}
+
+func appendRuneNonASCII(p []byte, r rune) []byte {
+	// Negative values are erroneous. Making it unsigned addresses the problem.
+	switch i := uint32(r); {
+	case i <= rune2Max:
+		return append(p, t2|byte(r>>6), tx|byte(r)&maskx)
+	case i > MaxRune, surrogateMin <= i && i <= surrogateMax:
+		r = RuneError
+		fallthrough
+	case i <= rune3Max:
+		return append(p, t3|byte(r>>12), tx|byte(r>>6)&maskx, tx|byte(r)&maskx)
+	default:
+		return append(p, t4|byte(r>>18), tx|byte(r>>12)&maskx, tx|byte(r>>6)&maskx, tx|byte(r)&maskx)
 	}
 }
 
@@ -413,7 +433,7 @@ func RuneCount(p []byte) int {
 	return n
 }
 
-// RuneCountInString is like RuneCount but its input is a string.
+// RuneCountInString is like [RuneCount] but its input is a string.
 func RuneCountInString(s string) (n int) {
 	ns := len(s)
 	for i := 0; i < ns; n++ {
@@ -455,6 +475,11 @@ func RuneStart(b byte) bool { return b&0xC0 != 0x80 }
 
 // Valid reports whether p consists entirely of valid UTF-8-encoded runes.
 func Valid(p []byte) bool {
+	// This optimization avoids the need to recompute the capacity
+	// when generating code for p[8:], bringing it to parity with
+	// ValidString, which was 20% faster on long ASCII strings.
+	p = p[:len(p):len(p)]
+
 	// Fast path. Check for and skip 8 bytes of ASCII characters per iteration.
 	for len(p) >= 8 {
 		// Combining two 32 bit loads allows the same code to be used

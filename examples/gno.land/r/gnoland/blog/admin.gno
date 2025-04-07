@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/context"
-	"gno.land/p/gov/proposal"
+	"gno.land/p/demo/ufmt"
+	"gno.land/r/gov/dao"
 )
 
 var (
@@ -17,8 +17,8 @@ var (
 )
 
 func init() {
-	// adminAddr = std.GetOrigCaller() // FIXME: find a way to use this from the main's genesis.
-	adminAddr = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"
+	// adminAddr = std.OriginCaller() // FIXME: find a way to use this from the main's genesis.
+	adminAddr = "g1manfred47kzduec920z88wfr64ylksmdcedlf5" // @moul
 }
 
 func AdminSetAdminAddr(addr std.Address) {
@@ -41,15 +41,27 @@ func AdminRemoveModerator(addr std.Address) {
 	moderatorList.Set(addr.String(), false) // FIXME: delete instead?
 }
 
-func DaoAddPost(ctx context.Context, slug, title, body, publicationDate, authors, tags string) {
-	proposal.AssertContextApprovedByGovDAO(ctx)
-	caller := std.DerivePkgAddr("gno.land/r/gov/dao")
-	addPost(caller, slug, title, body, publicationDate, authors, tags)
+func NewPostProposalRequest(slug, title, body, publicationDate, authors, tags string) dao.ProposalRequest {
+	caller := std.PreviousRealm().Address()
+	e := dao.NewSimpleExecutor(
+		func() error {
+			addPost(caller, slug, title, body, publicationDate, authors, tags)
+
+			return nil
+		},
+		ufmt.Sprintf("- Post Title: %v\n- Post Publication Date: %v\n- Authors: %v\n- Tags: %v", title, publicationDate, authors, tags),
+	)
+
+	return dao.NewProposalRequest(
+		"Add new post to gnoland blog",
+		"This propoposal is looking to add a new post to gnoland blog",
+		e,
+	)
 }
 
 func ModAddPost(slug, title, body, publicationDate, authors, tags string) {
 	assertIsModerator()
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	addPost(caller, slug, title, body, publicationDate, authors, tags)
 }
 
@@ -116,14 +128,14 @@ func isCommenter(addr std.Address) bool {
 }
 
 func assertIsAdmin() {
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	if !isAdmin(caller) {
 		panic("access restricted.")
 	}
 }
 
 func assertIsModerator() {
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	if isAdmin(caller) || isModerator(caller) {
 		return
 	}
@@ -131,7 +143,7 @@ func assertIsModerator() {
 }
 
 func assertIsCommenter() {
-	caller := std.GetOrigCaller()
+	caller := std.OriginCaller()
 	if isAdmin(caller) || isModerator(caller) || isCommenter(caller) {
 		return
 	}

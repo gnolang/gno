@@ -2,6 +2,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/r/gnoland/faucet"
 )
@@ -9,7 +10,7 @@ import (
 // mints ugnot to current realm
 func init() {
 	facuetaddr := std.DerivePkgAddr("gno.land/r/gnoland/faucet")
-	std.TestIssueCoins(facuetaddr, std.Coins{{"ugnot", 200000000}})
+	testing.IssueCoins(facuetaddr, std.Coins{{"ugnot", 200000000}})
 }
 
 // assert render with a path and no controllers
@@ -33,3 +34,5 @@ func main() {
 //
 //
 // Per request limit: 350000000ugnot
+//
+//

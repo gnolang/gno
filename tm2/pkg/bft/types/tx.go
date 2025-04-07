@@ -35,7 +35,7 @@ func (txs Txs) Hash() []byte {
 	// These allocations will be removed once Txs is switched to [][]byte,
 	// ref #2603. This is because golang does not allow type casting slices without unsafe
 	txBzs := make([][]byte, len(txs))
-	for i := 0; i < len(txs); i++ {
+	for i := range txs {
 		txBzs[i] = txs[i].Hash()
 	}
 	return merkle.SimpleHashFromByteSlices(txBzs)
@@ -67,7 +67,7 @@ func (txs Txs) IndexByHash(hash []byte) int {
 func (txs Txs) Proof(i int) TxProof {
 	l := len(txs)
 	bzs := make([][]byte, l)
-	for i := 0; i < l; i++ {
+	for i := range l {
 		bzs[i] = txs[i].Hash()
 	}
 	root, proofs := merkle.SimpleProofsFromByteSlices(bzs)

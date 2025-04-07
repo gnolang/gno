@@ -150,7 +150,7 @@ func (db *MemDB) NewBatch() dbm.Batch {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	return &internal.MemBatch{db, nil}
+	return &internal.MemBatch{DB: db}
 }
 
 // ----------------------------------------
@@ -188,7 +188,7 @@ func (db *MemDB) getSortedKeys(start, end []byte, reverse bool) []string {
 	sort.Strings(keys)
 	if reverse {
 		nkeys := len(keys)
-		for i := 0; i < nkeys/2; i++ {
+		for i := range nkeys / 2 {
 			temp := keys[i]
 			keys[i] = keys[nkeys-i-1]
 			keys[nkeys-i-1] = temp

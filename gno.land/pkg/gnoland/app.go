@@ -1,15 +1,19 @@
+// Package gnoland contains the bootstrapping code to launch a gno.land node.
 package gnoland
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
+	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/events"
@@ -17,6 +21,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
@@ -25,48 +30,49 @@ import (
 	// Only goleveldb is supported for now.
 	_ "github.com/gnolang/gno/tm2/pkg/db/_tags"
 	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
-	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 )
 
+// AppOptions contains the options to create the gno.land ABCI application.
 type AppOptions struct {
-	DB dbm.DB
-	// `gnoRootDir` should point to the local location of the gno repository.
-	// It serves as the gno equivalent of GOROOT.
-	GnoRootDir       string
-	GenesisTxHandler GenesisTxHandler
-	Logger           *slog.Logger
-	EventSwitch      events.EventSwitch
-	MaxCycles        int64
-	// Whether to cache the result of loading the standard libraries.
-	// This is useful if you have to start many nodes, like in testing.
-	// This disables loading existing packages; so it should only be used
-	// on a fresh database.
-	CacheStdlibLoad bool
+	DB                      dbm.DB             // required
+	Logger                  *slog.Logger       // required
+	EventSwitch             events.EventSwitch // required
+	VMOutput                io.Writer          // optional
+	SkipGenesisVerification bool               // default to verify genesis transactions
+	InitChainerConfig                          // options related to InitChainer
+	MinGasPrices            string             // optional
 }
 
-func NewAppOptions() *AppOptions {
+// TestAppOptions provides a "ready" default [AppOptions] for use with
+// [NewAppWithOptions], using the provided db.
+func TestAppOptions(db dbm.DB) *AppOptions {
 	return &AppOptions{
-		GenesisTxHandler: PanicOnFailingTxHandler,
-		Logger:           log.NewNoopLogger(),
-		DB:               memdb.NewMemDB(),
-		GnoRootDir:       gnoenv.RootDir(),
-		EventSwitch:      events.NilEventSwitch(),
+		DB:          db,
+		Logger:      log.NewNoopLogger(),
+		EventSwitch: events.NewEventSwitch(),
+		InitChainerConfig: InitChainerConfig{
+			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
+			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
+			CacheStdlibLoad:        true,
+		},
+		SkipGenesisVerification: true,
 	}
 }
 
-func (c *AppOptions) validate() error {
-	if c.Logger == nil {
-		return fmt.Errorf("no logger provided")
-	}
-
-	if c.DB == nil {
+func (c AppOptions) validate() error {
+	// Required fields
+	switch {
+	case c.DB == nil:
 		return fmt.Errorf("no db provided")
+	case c.Logger == nil:
+		return fmt.Errorf("no logger provided")
+	case c.EventSwitch == nil:
+		return fmt.Errorf("no event switch provided")
 	}
-
 	return nil
 }
 
-// NewAppWithOptions creates the GnoLand application with specified options
+// NewAppWithOptions creates the gno.land application with specified options.
 func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
@@ -76,9 +82,13 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	mainKey := store.NewStoreKey("main")
 	baseKey := store.NewStoreKey("base")
 
+	//  set sdk app options
+	var appOpts []func(*sdk.BaseApp)
+	if cfg.MinGasPrices != "" {
+		appOpts = append(appOpts, sdk.SetMinGasPrices(cfg.MinGasPrices))
+	}
 	// Create BaseApp.
-	// TODO: Add a consensus based min gas prices for the node, by default it does not check
-	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey)
+	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey, appOpts...)
 	baseApp.SetAppVersion("dev")
 
 	// Set mounts for BaseApp's MultiStore.
@@ -86,35 +96,58 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
 
 	// Construct keepers.
-	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
-	bankKpr := bank.NewBankKeeper(acctKpr)
 
-	// XXX: Embed this ?
-	stdlibsDir := filepath.Join(cfg.GnoRootDir, "gnovm", "stdlibs")
-	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdlibsDir, cfg.MaxCycles)
+	prmk := params.NewParamsKeeper(mainKey)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount)
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
+	gpk := auth.NewGasPriceKeeper(mainKey)
+	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, prmk)
+	vmk.Output = cfg.VMOutput
+
+	prmk.Register(auth.ModuleName, acck)
+	prmk.Register(bank.ModuleName, bankk)
+	prmk.Register(vm.ModuleName, vmk)
 
 	// Set InitChainer
-	baseApp.SetInitChainer(InitChainer(baseApp, acctKpr, bankKpr, cfg.GenesisTxHandler))
+	icc := cfg.InitChainerConfig
+	icc.baseApp = baseApp
+	icc.acck, icc.bankk, icc.vmk, icc.prmk, icc.gpk = acck, bankk, vmk, prmk, gpk
+	baseApp.SetInitChainer(icc.InitChainer)
 
 	// Set AnteHandler
 	authOptions := auth.AnteOptions{
-		VerifyGenesisSignatures: false, // for development
+		VerifyGenesisSignatures: !cfg.SkipGenesisVerification,
 	}
 	authAnteHandler := auth.NewAnteHandler(
-		acctKpr, bankKpr, auth.DefaultSigVerificationGasConsumer, authOptions)
+		acck, bankk, auth.DefaultSigVerificationGasConsumer, authOptions)
 	baseApp.SetAnteHandler(
 		// Override default AnteHandler with custom logic.
 		func(ctx sdk.Context, tx std.Tx, simulate bool) (
 			newCtx sdk.Context, res sdk.Result, abort bool,
 		) {
+			// Add last gas price in the context
+			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpk.LastGasPrice(ctx))
 			// Override auth params.
-			ctx = ctx.WithValue(
-				auth.AuthParamsContextKey{}, auth.DefaultParams())
+			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
 			// Continue on with default auth ante handler.
 			newCtx, res, abort = authAnteHandler(ctx, tx, simulate)
 			return
 		},
 	)
+
+	// Set begin and end transaction hooks.
+	// These are used to create gno transaction stores and commit them when finishing
+	// the tx - in other words, data from a failing transaction won't be persisted
+	// to the gno store caches.
+	baseApp.SetBeginTxHook(func(ctx sdk.Context) sdk.Context {
+		// Create Gno transaction store.
+		return vmk.MakeGnoTransactionStore(ctx)
+	})
+	baseApp.SetEndTxHook(func(ctx sdk.Context, result sdk.Result) {
+		if result.IsOK() {
+			vmk.CommitGnoTransactionStore(ctx)
+		}
+	})
 
 	// Set up the event collector
 	c := newCollector[validatorUpdate](
@@ -126,14 +159,17 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	baseApp.SetEndBlocker(
 		EndBlocker(
 			c,
+			acck,
+			gpk,
 			vmk,
 			baseApp,
 		),
 	)
 
 	// Set a handler Route.
-	baseApp.Router().AddRoute("auth", auth.NewHandler(acctKpr))
-	baseApp.Router().AddRoute("bank", bank.NewHandler(bankKpr))
+	baseApp.Router().AddRoute("auth", auth.NewHandler(acck))
+	baseApp.Router().AddRoute("bank", bank.NewHandler(bankk))
+	baseApp.Router().AddRoute("params", params.NewHandler(prmk))
 	baseApp.Router().AddRoute("vm", vm.NewHandler(vmk))
 
 	// Load latest version.
@@ -143,24 +179,49 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	// Initialize the VMKeeper.
 	ms := baseApp.GetCacheMultiStore()
-	vmk.Initialize(cfg.Logger, ms, cfg.CacheStdlibLoad)
+	vmk.Initialize(cfg.Logger, ms)
 	ms.MultiWrite() // XXX why was't this needed?
 
 	return baseApp, nil
 }
 
-// NewApp creates the GnoLand application.
+// GenesisAppConfig wraps the most important
+// genesis params relating to the App
+type GenesisAppConfig struct {
+	SkipFailingTxs      bool // does not stop the chain from starting if any tx fails
+	SkipSigVerification bool // does not verify the transaction signatures in genesis
+}
+
+// NewTestGenesisAppConfig returns a testing genesis app config
+func NewTestGenesisAppConfig() GenesisAppConfig {
+	return GenesisAppConfig{
+		SkipFailingTxs:      true,
+		SkipSigVerification: true,
+	}
+}
+
+// NewApp creates the gno.land application.
 func NewApp(
 	dataRootDir string,
-	skipFailingGenesisTxs bool,
+	genesisCfg GenesisAppConfig,
 	evsw events.EventSwitch,
 	logger *slog.Logger,
+	minGasPrices string,
 ) (abci.Application, error) {
 	var err error
 
-	cfg := NewAppOptions()
-	if skipFailingGenesisTxs {
-		cfg.GenesisTxHandler = NoopGenesisTxHandler
+	cfg := &AppOptions{
+		Logger:      logger,
+		EventSwitch: evsw,
+		InitChainerConfig: InitChainerConfig{
+			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
+			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
+		},
+		MinGasPrices:            minGasPrices,
+		SkipGenesisVerification: genesisCfg.SkipSigVerification,
+	}
+	if genesisCfg.SkipFailingTxs {
+		cfg.GenesisTxResultHandler = NoopGenesisTxResultHandler
 	}
 
 	// Get main DB.
@@ -169,74 +230,180 @@ func NewApp(
 		return nil, fmt.Errorf("error initializing database %q using path %q: %w", dbm.GoLevelDBBackend, dataRootDir, err)
 	}
 
-	cfg.Logger = logger
-	cfg.EventSwitch = evsw
-
 	return NewAppWithOptions(cfg)
 }
 
-type GenesisTxHandler func(ctx sdk.Context, tx std.Tx, res sdk.Result)
+// GenesisTxResultHandler is called in the InitChainer after a genesis
+// transaction is executed.
+type GenesisTxResultHandler func(ctx sdk.Context, tx std.Tx, res sdk.Result)
 
-func NoopGenesisTxHandler(_ sdk.Context, _ std.Tx, _ sdk.Result) {}
+// NoopGenesisTxResultHandler is a no-op GenesisTxResultHandler.
+func NoopGenesisTxResultHandler(_ sdk.Context, _ std.Tx, _ sdk.Result) {}
 
-func PanicOnFailingTxHandler(_ sdk.Context, _ std.Tx, res sdk.Result) {
+// PanicOnFailingTxResultHandler handles genesis transactions by panicking if
+// res.IsErr() returns true.
+func PanicOnFailingTxResultHandler(_ sdk.Context, _ std.Tx, res sdk.Result) {
 	if res.IsErr() {
 		panic(res.Log)
 	}
 }
 
-// InitChainer returns a function that can initialize the chain with genesis.
-func InitChainer(
-	baseApp *sdk.BaseApp,
-	acctKpr auth.AccountKeeperI,
-	bankKpr bank.BankKeeperI,
-	resHandler GenesisTxHandler,
-) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
-	return func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
-		txResponses := []abci.ResponseDeliverTx{}
+// InitChainerConfig keeps the configuration for the InitChainer.
+// [NewAppWithOptions] will set [InitChainerConfig.InitChainer] as its InitChainer
+// function.
+type InitChainerConfig struct {
+	// Handles the results of each genesis transaction.
+	GenesisTxResultHandler
 
-		if req.AppState != nil {
-			// Get genesis state
-			genState := req.AppState.(GnoGenesisState)
+	// Standard library directory.
+	StdlibDir string
+	// Whether to keep a record of the DB operations to load standard libraries,
+	// so they can be quickly replicated on additional genesis executions.
+	// This should be used for integration testing, where InitChainer will be
+	// called several times.
+	CacheStdlibLoad bool
 
-			// Parse and set genesis state balances
-			for _, bal := range genState.Balances {
-				acc := acctKpr.NewAccountWithAddress(ctx, bal.Address)
-				acctKpr.SetAccount(ctx, acc)
-				err := bankKpr.SetCoins(ctx, bal.Address, bal.Amount)
-				if err != nil {
-					panic(err)
-				}
-			}
+	// These fields are passed directly by NewAppWithOptions, and should not be
+	// configurable by end-users.
+	baseApp *sdk.BaseApp
+	vmk     vm.VMKeeperI
+	acck    auth.AccountKeeperI
+	bankk   bank.BankKeeperI
+	prmk    params.ParamsKeeperI
+	gpk     auth.GasPriceKeeperI
+}
 
-			// Run genesis txs
-			for _, tx := range genState.Txs {
-				res := baseApp.Deliver(tx)
-				if res.IsErr() {
-					ctx.Logger().Error(
-						"Unable to deliver genesis tx",
-						"log", res.Log,
-						"error", res.Error,
-						"gas-used", res.GasUsed,
-					)
-				}
+// InitChainer is the function that can be used as a [sdk.InitChainer].
+func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
+	start := time.Now()
+	ctx.Logger().Debug("InitChainer: started")
 
-				txResponses = append(txResponses, abci.ResponseDeliverTx{
-					ResponseBase: res.ResponseBase,
-					GasWanted:    res.GasWanted,
-					GasUsed:      res.GasUsed,
-				})
+	// load standard libraries; immediately committed to store so that they are
+	// available for use when processing the genesis transactions below.
+	cfg.loadStdlibs(ctx)
+	ctx.Logger().Debug("InitChainer: standard libraries loaded",
+		"elapsed", time.Since(start))
 
-				resHandler(ctx, tx, res)
-			}
-		}
-
-		// Done!
+	// load app state. AppState may be nil mostly in some minimal testing setups;
+	// so log a warning when that happens.
+	txResponses, err := cfg.loadAppState(ctx, req.AppState)
+	if err != nil {
 		return abci.ResponseInitChain{
-			Validators:  req.Validators,
-			TxResponses: txResponses,
+			ResponseBase: abci.ResponseBase{
+				Error: abci.StringError(err.Error()),
+			},
 		}
 	}
+
+	ctx.Logger().Debug("InitChainer: genesis transactions loaded",
+		"elapsed", time.Since(start))
+
+	// Done!
+	return abci.ResponseInitChain{
+		Validators:  req.Validators,
+		TxResponses: txResponses,
+	}
+}
+
+func (cfg InitChainerConfig) loadStdlibs(ctx sdk.Context) {
+	// cache-wrapping is necessary for non-validator nodes; in the tm2 BaseApp,
+	// this is done using BaseApp.cacheTxContext; so we replicate it here.
+	ms := ctx.MultiStore()
+	msCache := ms.MultiCacheWrap()
+
+	stdlibCtx := cfg.vmk.MakeGnoTransactionStore(ctx)
+	stdlibCtx = stdlibCtx.WithMultiStore(msCache)
+	if cfg.CacheStdlibLoad {
+		cfg.vmk.LoadStdlibCached(stdlibCtx, cfg.StdlibDir)
+	} else {
+		cfg.vmk.LoadStdlib(stdlibCtx, cfg.StdlibDir)
+	}
+	cfg.vmk.CommitGnoTransactionStore(stdlibCtx)
+
+	msCache.MultiWrite()
+}
+
+func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci.ResponseDeliverTx, error) {
+	state, ok := appState.(GnoGenesisState)
+	if !ok {
+		return nil, fmt.Errorf("invalid AppState of type %T", appState)
+	}
+
+	cfg.bankk.InitGenesis(ctx, state.Bank)
+	// Apply genesis balances.
+	for _, bal := range state.Balances {
+		acc := cfg.acck.NewAccountWithAddress(ctx, bal.Address)
+		cfg.acck.SetAccount(ctx, acc)
+		err := cfg.bankk.SetCoins(ctx, bal.Address, bal.Amount)
+		if err != nil {
+			panic(err)
+		}
+	}
+	// The account keeper's initial genesis state must be set after genesis
+	// accounts are created in account keeeper with genesis balances
+	cfg.acck.InitGenesis(ctx, state.Auth)
+
+	// The unrestricted address must have been created as one of the genesis accounts.
+	// Otherwise, we cannot verify the unrestricted address in the genesis state.
+
+	for _, addr := range state.Auth.Params.UnrestrictedAddrs {
+		acc := cfg.acck.GetAccount(ctx, addr)
+		accr := acc.(*GnoAccount)
+		accr.SetUnrestricted()
+		cfg.acck.SetAccount(ctx, acc)
+	}
+
+	cfg.vmk.InitGenesis(ctx, state.VM)
+
+	params := cfg.acck.GetParams(ctx)
+	ctx = ctx.WithValue(auth.AuthParamsContextKey{}, params)
+	auth.InitChainer(ctx, cfg.gpk, params.InitialGasPrice)
+
+	// Replay genesis txs.
+	txResponses := make([]abci.ResponseDeliverTx, 0, len(state.Txs))
+
+	// Run genesis txs
+	for _, tx := range state.Txs {
+		var (
+			stdTx    = tx.Tx
+			metadata = tx.Metadata
+
+			ctxFn sdk.ContextFn
+		)
+
+		// Check if there is metadata associated with the tx
+		if metadata != nil {
+			// Create a custom context modifier
+			ctxFn = func(ctx sdk.Context) sdk.Context {
+				// Create a copy of the header, in
+				// which only the timestamp information is modified
+				header := ctx.BlockHeader().(*bft.Header).Copy()
+				header.Time = time.Unix(metadata.Timestamp, 0)
+
+				// Save the modified header
+				return ctx.WithBlockHeader(header)
+			}
+		}
+
+		res := cfg.baseApp.Deliver(stdTx, ctxFn)
+		if res.IsErr() {
+			ctx.Logger().Error(
+				"Unable to deliver genesis tx",
+				"log", res.Log,
+				"error", res.Error,
+				"gas-used", res.GasUsed,
+			)
+		}
+
+		txResponses = append(txResponses, abci.ResponseDeliverTx{
+			ResponseBase: res.ResponseBase,
+			GasWanted:    res.GasWanted,
+			GasUsed:      res.GasUsed,
+		})
+
+		cfg.GenesisTxResultHandler(ctx, stdTx, res)
+	}
+	return txResponses, nil
 }
 
 // endBlockerApp is the app abstraction required by any EndBlocker
@@ -253,6 +420,8 @@ type endBlockerApp interface {
 // validator set changes
 func EndBlocker(
 	collector *collector[validatorUpdate],
+	acck auth.AccountKeeperI,
+	gpk auth.GasPriceKeeperI,
 	vmk vm.VMKeeperI,
 	app endBlockerApp,
 ) func(
@@ -260,6 +429,14 @@ func EndBlocker(
 	req abci.RequestEndBlock,
 ) abci.ResponseEndBlock {
 	return func(ctx sdk.Context, _ abci.RequestEndBlock) abci.ResponseEndBlock {
+		// set the auth params value in the ctx.  The EndBlocker will use InitialGasPrice in
+		// the params to calculate the updated gas price.
+		if acck != nil {
+			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
+		}
+		if acck != nil && gpk != nil {
+			auth.EndBlocker(ctx, gpk)
+		}
 		// Check if there was a valset change
 		if len(collector.getEvents()) == 0 {
 			// No valset updates

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"gno.land/p/demo/ownable/exts/authorizable"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 )
@@ -28,6 +29,9 @@ type (
 )
 
 var (
+	su   = std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // @leohhhn
+	Auth = authorizable.NewAuthorizableWithAddress(su)
+
 	events    = make(eventsSlice, 0) // sorted
 	idCounter seqid.ID
 )
@@ -42,7 +46,7 @@ const (
 // AddEvent adds auth new event
 // Start time & end time need to be specified in RFC3339, ie 2024-08-08T12:00:00+02:00
 func AddEvent(name, description, link, location, startTime, endTime string) (string, error) {
-	auth.AssertOnAuthList()
+	Auth.AssertOnAuthList()
 
 	if strings.TrimSpace(name) == "" {
 		return "", ErrEmptyName
@@ -73,8 +77,7 @@ func AddEvent(name, description, link, location, startTime, endTime string) (str
 	sort.Sort(events)
 
 	std.Emit(EventAdded,
-		"id",
-		e.id,
+		"id", e.id,
 	)
 
 	return id, nil
@@ -82,7 +85,7 @@ func AddEvent(name, description, link, location, startTime, endTime string) (str
 
 // DeleteEvent deletes an event with auth given ID
 func DeleteEvent(id string) {
-	auth.AssertOnAuthList()
+	Auth.AssertOnAuthList()
 
 	e, idx, err := GetEventByID(id)
 	if err != nil {
@@ -92,8 +95,7 @@ func DeleteEvent(id string) {
 	events = append(events[:idx], events[idx+1:]...)
 
 	std.Emit(EventDeleted,
-		"id",
-		e.id,
+		"id", e.id,
 	)
 }
 
@@ -101,7 +103,7 @@ func DeleteEvent(id string) {
 // It only updates values corresponding to non-empty arguments sent with the call
 // Note: if you need to update the start time or end time, you need to provide both every time
 func EditEvent(id string, name, description, link, location, startTime, endTime string) {
-	auth.AssertOnAuthList()
+	Auth.AssertOnAuthList()
 
 	e, _, err := GetEventByID(id)
 	if err != nil {
@@ -142,8 +144,7 @@ func EditEvent(id string, name, description, link, location, startTime, endTime 
 	}
 
 	std.Emit(EventEdited,
-		"id",
-		e.id,
+		"id", e.id,
 	)
 }
 

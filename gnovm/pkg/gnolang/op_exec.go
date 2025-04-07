@@ -166,13 +166,13 @@ func (m *Machine) doOpExec(op Op) {
 		case -1: // assign list element.
 			if bs.Key != nil {
 				iv := TypedValue{T: IntType}
-				iv.SetInt(bs.ListIndex)
+				iv.SetInt(int64(bs.ListIndex))
 				switch bs.Op {
 				case ASSIGN:
 					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
 				case DEFINE:
-					knxp := bs.Key.(*NameExpr).Path
-					ptr := m.LastBlock().GetPointerTo(m.Store, knxp)
+					knx := bs.Key.(*NameExpr)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
 					ptr.TV.Assign(m.Alloc, iv, false)
 				default:
 					panic("should not happen")
@@ -180,14 +180,14 @@ func (m *Machine) doOpExec(op Op) {
 			}
 			if bs.Value != nil {
 				iv := TypedValue{T: IntType}
-				iv.SetInt(bs.ListIndex)
+				iv.SetInt(int64(bs.ListIndex))
 				ev := xv.GetPointerAtIndex(m.Alloc, m.Store, &iv).Deref()
 				switch bs.Op {
 				case ASSIGN:
 					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, ev, false)
 				case DEFINE:
-					vnxp := bs.Value.(*NameExpr).Path
-					ptr := m.LastBlock().GetPointerTo(m.Store, vnxp)
+					vnx := bs.Value.(*NameExpr)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
 					ptr.TV.Assign(m.Alloc, ev, false)
 				default:
 					panic("should not happen")
@@ -262,13 +262,13 @@ func (m *Machine) doOpExec(op Op) {
 		case -1: // assign list element.
 			if bs.Key != nil {
 				iv := TypedValue{T: IntType}
-				iv.SetInt(bs.ListIndex)
+				iv.SetInt(int64(bs.ListIndex))
 				switch bs.Op {
 				case ASSIGN:
 					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
 				case DEFINE:
-					knxp := bs.Key.(*NameExpr).Path
-					ptr := m.LastBlock().GetPointerTo(m.Store, knxp)
+					knx := bs.Key.(*NameExpr)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
 					ptr.TV.Assign(m.Alloc, iv, false)
 				default:
 					panic("should not happen")
@@ -280,8 +280,8 @@ func (m *Machine) doOpExec(op Op) {
 				case ASSIGN:
 					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, ev, false)
 				case DEFINE:
-					vnxp := bs.Value.(*NameExpr).Path
-					ptr := m.LastBlock().GetPointerTo(m.Store, vnxp)
+					vnx := bs.Value.(*NameExpr)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
 					ptr.TV.Assign(m.Alloc, ev, false)
 				default:
 					panic("should not happen")
@@ -360,8 +360,8 @@ func (m *Machine) doOpExec(op Op) {
 				case ASSIGN:
 					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, kv, false)
 				case DEFINE:
-					knxp := bs.Key.(*NameExpr).Path
-					ptr := m.LastBlock().GetPointerTo(m.Store, knxp)
+					knx := bs.Key.(*NameExpr)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
 					ptr.TV.Assign(m.Alloc, kv, false)
 				default:
 					panic("should not happen")
@@ -373,8 +373,8 @@ func (m *Machine) doOpExec(op Op) {
 				case ASSIGN:
 					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, vv, false)
 				case DEFINE:
-					vnxp := bs.Value.(*NameExpr).Path
-					ptr := m.LastBlock().GetPointerTo(m.Store, vnxp)
+					vnx := bs.Value.(*NameExpr)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
 					ptr.TV.Assign(m.Alloc, vv, false)
 				default:
 					panic("should not happen")
@@ -676,25 +676,15 @@ EXEC_SWITCH:
 			bs.Active = bs.Body[cs.BodyIndex] // prefill
 		case FALLTHROUGH:
 			ss, ok := m.LastFrame().Source.(*SwitchStmt)
+			// this is handled in the preprocessor
+			// should never happen
 			if !ok {
-				// fallthrough is only allowed in a switch statement
 				panic("fallthrough statement out of place")
 			}
-			if ss.IsTypeSwitch {
-				// fallthrough is not allowed in type switches
-				panic("cannot fallthrough in type switch")
-			}
+
 			b := m.LastBlock()
-			if b.bodyStmt.NextBodyIndex != len(b.bodyStmt.Body) {
-				// fallthrough is not the final statement
-				panic("fallthrough statement out of place")
-			}
 			// compute next switch clause from BodyIndex (assigned in preprocess)
 			nextClause := cs.BodyIndex + 1
-			if nextClause >= len(ss.Clauses) {
-				// no more clause after the one executed, this is not allowed
-				panic("cannot fallthrough final case in switch")
-			}
 			// expand block size
 			cl := ss.Clauses[nextClause]
 			if nn := cl.GetNumNames(); int(nn) > len(b.Values) {
@@ -779,6 +769,7 @@ EXEC_SWITCH:
 		}
 		m.PushOp(OpBody)
 		m.PushStmt(b.GetBodyStmt())
+	case *EmptyStmt:
 	default:
 		panic(fmt.Sprintf("unexpected statement %#v", s))
 	}
@@ -852,12 +843,7 @@ func (m *Machine) doOpTypeSwitch() {
 						match = true
 					}
 				} else if ct.Kind() == InterfaceKind {
-					var gnot Type
-					if not, ok := ct.(*NativeType); ok {
-						gnot = not.GnoType(m.Store)
-					} else {
-						gnot = ct
-					}
+					gnot := ct
 					if baseOf(gnot).(*InterfaceType).IsImplementedBy(xv.T) {
 						// match
 						match = true
@@ -884,6 +870,8 @@ func (m *Machine) doOpTypeSwitch() {
 					// NOTE: assumes the var is first in block.
 					vp := NewValuePath(
 						VPBlock, 1, 0, ss.VarName)
+					// NOTE: GetPointerToMaybeHeapDefine not needed,
+					// because this type is in new type switch clause block.
 					ptr := b.GetPointerTo(m.Store, vp)
 					ptr.TV.Assign(m.Alloc, *xv, false)
 				}
@@ -911,7 +899,7 @@ func (m *Machine) doOpSwitchClause() {
 	// caiv := m.PeekValue(2) // switch clause case index (reuse)
 	cliv := m.PeekValue(3) // switch clause index (reuse)
 	idx := cliv.GetInt()
-	if idx >= len(ss.Clauses) {
+	if int(idx) >= len(ss.Clauses) {
 		// no clauses matched: do nothing.
 		m.PopStmt()  // pop switch stmt
 		m.PopValue() // pop switch tag value
@@ -987,7 +975,7 @@ func (m *Machine) doOpSwitchClauseCase() {
 		clidx := cliv.GetInt()
 		cl := ss.Clauses[clidx]
 		caidx := caiv.GetInt()
-		if (caidx + 1) < len(cl.Cases) {
+		if int(caidx+1) < len(cl.Cases) {
 			// try next clause case.
 			m.PushOp(OpSwitchClauseCase) // TODO consider sticky
 			caiv.SetInt(caidx + 1)

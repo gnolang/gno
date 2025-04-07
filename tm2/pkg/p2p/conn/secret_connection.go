@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math"
 	"net"
@@ -128,7 +129,10 @@ func MakeSecretConnection(conn io.ReadWriteCloser, locPrivKey crypto.PrivKey) (*
 	}
 
 	// Sign the challenge bytes for authentication.
-	locSignature := signChallenge(challenge, locPrivKey)
+	locSignature, err := locPrivKey.Sign(challenge[:])
+	if err != nil {
+		return nil, fmt.Errorf("unable to sign challenge, %w", err)
+	}
 
 	// Share (in secret) each other's pubkey & challenge signature
 	authSigMsg, err := shareAuthSignature(sc, locPubKey, locSignature)
@@ -274,14 +278,14 @@ func genEphKeys() (ephPub, ephPriv *[32]byte) {
 func shareEphPubKey(conn io.ReadWriteCloser, locEphPub *[32]byte) (remEphPub *[32]byte, err error) {
 	// Send our pubkey and receive theirs in tandem.
 	trs, _ := async.Parallel(
-		func(_ int) (val interface{}, err error, abort bool) {
+		func(_ int) (val any, err error, abort bool) {
 			_, err1 := amino.MarshalSizedWriter(conn, locEphPub)
 			if err1 != nil {
 				return nil, err1, true // abort
 			}
 			return nil, nil, false
 		},
-		func(_ int) (val interface{}, err error, abort bool) {
+		func(_ int) (val any, err error, abort bool) {
 			var _remEphPub [32]byte
 			_, err2 := amino.UnmarshalSizedReader(conn, &_remEphPub, 1024*1024) // TODO
 			if err2 != nil {
@@ -424,15 +428,6 @@ func sort32(foo, bar *[32]byte) (lo, hi *[32]byte) {
 	return
 }
 
-func signChallenge(challenge *[32]byte, locPrivKey crypto.PrivKey) (signature []byte) {
-	signature, err := locPrivKey.Sign(challenge[:])
-	// TODO(ismail): let signChallenge return an error instead
-	if err != nil {
-		panic(err)
-	}
-	return
-}
-
 type authSigMessage struct {
 	Key crypto.PubKey
 	Sig []byte
@@ -441,14 +436,14 @@ type authSigMessage struct {
 func shareAuthSignature(sc *SecretConnection, pubKey crypto.PubKey, signature []byte) (recvMsg authSigMessage, err error) {
 	// Send our info and receive theirs in tandem.
 	trs, _ := async.Parallel(
-		func(_ int) (val interface{}, err error, abort bool) {
+		func(_ int) (val any, err error, abort bool) {
 			_, err1 := amino.MarshalSizedWriter(sc, authSigMessage{pubKey, signature})
 			if err1 != nil {
 				return nil, err1, true // abort
 			}
 			return nil, nil, false
 		},
-		func(_ int) (val interface{}, err error, abort bool) {
+		func(_ int) (val any, err error, abort bool) {
 			var _recvMsg authSigMessage
 			_, err2 := amino.UnmarshalSizedReader(sc, &_recvMsg, 1024*1024) // TODO
 			if err2 != nil {

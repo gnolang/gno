@@ -133,17 +133,29 @@ var (
 )
 
 type ObjectInfo struct {
-	ID        ObjectID  // set if real.
-	Hash      ValueHash `json:",omitempty"` // zero if dirty.
-	OwnerID   ObjectID  `json:",omitempty"` // parent in the ownership tree.
-	ModTime   uint64    // time last updated.
-	RefCount  int       // for persistence. deleted/gc'd if 0.
-	IsEscaped bool      `json:",omitempty"` // hash in iavl.
+	ID       ObjectID  // set if real.
+	Hash     ValueHash `json:",omitempty"` // zero if dirty.
+	OwnerID  ObjectID  `json:",omitempty"` // parent in the ownership tree.
+	ModTime  uint64    // time last updated.
+	RefCount int       // for persistence. deleted/gc'd if 0.
+
+	// Object has multiple references (refcount > 1) and is persisted separately
+	IsEscaped bool `json:",omitempty"` // hash in iavl.
+
 	// MemRefCount int // consider for optimizations.
-	isDirty      bool
-	isDeleted    bool
-	isNewReal    bool
+	// Object has been modified and needs to be saved
+	isDirty bool
+
+	// Object has been permanently deleted
+	isDeleted bool
+
+	// Object is newly created in current transaction and will be persisted
+	isNewReal bool
+
+	// Object newly created multiple references in current transaction
 	isNewEscaped bool
+
+	// Object is marked for deletion in current transaction
 	isNewDeleted bool
 
 	// XXX huh?
@@ -294,7 +306,13 @@ func (oi *ObjectInfo) SetIsDeleted(x bool, mt uint64) {
 	// NOTE: Don't over-write modtime.
 	// Consider adding a DelTime, or just log it somewhere, or
 	// continue to ignore it.
-	oi.isDirty = x
+
+	// The above comment is likely made because it could introduce complexity
+	// Objects can be "undeleted" if referenced during a transaction
+	// If an object is deleted and then undeleted in the same transaction
+	// If an object is deleted multiple times
+	// ie...continue to ignore it
+	oi.isDeleted = x
 }
 
 func (oi *ObjectInfo) GetIsNewReal() bool {
@@ -341,10 +359,6 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 		return cv
 	case *BoundMethodValue:
 		return cv
-	case *NativeValue:
-		// XXX allow PointerValue.Assign2 to pass nil for oo1/oo2.
-		// panic("realm logic for native values not supported")
-		return nil
 	case *Block:
 		return cv
 	case RefValue:

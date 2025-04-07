@@ -40,7 +40,7 @@ func TestThresholdMultisigValidCases(t *testing.T) {
 		multisigKey := NewPubKeyMultisigThreshold(tc.k, tc.pubkeys)
 		multisignature := NewMultisig(len(tc.pubkeys))
 
-		for i := 0; i < tc.k-1; i++ {
+		for i := range tc.k - 1 {
 			signingIndex := tc.signingIndices[i]
 			require.NoError(
 				t,
@@ -170,7 +170,7 @@ func TestPubKeyMultisigThresholdAminoToIface(t *testing.T) {
 func generatePubKeysAndSignatures(n int, msg []byte) (pubkeys []crypto.PubKey, signatures [][]byte) {
 	pubkeys = make([]crypto.PubKey, n)
 	signatures = make([][]byte, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		var privkey crypto.PrivKey
 		if rand.Int63()%2 == 0 {
 			privkey = ed25519.GenPrivKey()
