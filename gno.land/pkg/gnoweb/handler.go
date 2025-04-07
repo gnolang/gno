@@ -97,7 +97,7 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse the URL
-	gnourl, err := weburl.ParseGnoURL(r.URL)
+	gnourl, err := weburl.ParseFromURL(r.URL)
 	if err != nil {
 		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "error", err)
 
@@ -128,9 +128,9 @@ func (h *WebHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // prepareIndexBodyView prepares the data and main view for the index.
 func (h *WebHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
-	gnourl, err := weburl.ParseGnoURL(r.URL)
+	gnourl, err := weburl.ParseFromURL(r.URL)
 	if err != nil {
-		h.Logger.Warn("unable to parse url path", "path", r.URL.Path, "error", err)
+		h.Logger.Warn("invalid gno url path", "path", r.URL.Path, "error", err)
 		return http.StatusNotFound, components.StatusErrorComponent("invalid path")
 	}
 
@@ -176,7 +176,7 @@ func (h *WebHandler) GetPackageView(gnourl *weburl.GnoURL) (int, *components.Vie
 func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL) (int, *components.View) {
 	var content bytes.Buffer
 
-	meta, err := h.Client.RenderRealm(&content, gnourl.Path, gnourl.EncodeArgs())
+	meta, err := h.Client.RenderRealm(&content, gnourl)
 	if err != nil {
 		if errors.Is(err, ErrRenderNotDeclared) {
 			return http.StatusOK, components.StatusNoRenderComponent(gnourl.Path)
