@@ -111,7 +111,18 @@ func (cm *ClusterManager) BuildDockerfile(ctx context.Context) error {
 		return fmt.Errorf("unable to build images from Dockerfile: %w", err)
 	}
 
-	// TODO copy response body?
+	// TODO remove
+	scanner := bufio.NewScanner(imageBuildRes.Body)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		fmt.Println(line)
+	}
+
+	// Check for errors
+	if err := scanner.Err(); err != nil {
+		cm.logger.Error("unable to gracefully close scanner", "err", err)
+	}
 
 	if err = imageBuildRes.Body.Close(); err != nil {
 		cm.logger.Warn(
