@@ -104,7 +104,7 @@ func (dh *DockerHandler) StartGnoPortalLoopContainer(ctx context.Context, contai
 			"26657/tcp": struct{}{},
 		},
 	}, &container.HostConfig{
-		PublishAllPorts: true,
+		// PublishAllPorts: true,
 		PortBindings: nat.PortMap{
 			"26657/tcp": []nat.PortBinding{
 				{HostIP: "127.0.0.1"},
@@ -125,7 +125,7 @@ func (dh *DockerHandler) StartGnoPortalLoopContainer(ctx context.Context, contai
 		return nil, err
 	}
 
-	if err := dh.DockerClient.ContainerStart(ctx, dockerContainer.ID, types.ContainerStartOptions{}); err != nil {
+	if err := dh.DockerClient.ContainerStart(ctx, dockerContainer.ID, container.StartOptions{}); err != nil {
 		return nil, err
 	}
 	time.Sleep(time.Second * 5)

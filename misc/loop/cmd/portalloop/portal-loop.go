@@ -88,18 +88,13 @@ func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, for
 	if err = portalLoopHandler.WaitStartedLoop(); err != nil {
 		return err
 	}
-	// logger.Info("Backup txs")
-	// err = portalLoopHandler.BackupTXs(ctx)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// 6. Remove old portal loop
-	if err = dockerHandler.RemoveContainersWithVolumes(ctx, containers); err != nil {
+	logger.Info("Backup txs")
+	err = portalLoopHandler.BackupTXs(ctx)
+	if err != nil {
 		return err
 	}
 
-	// 7. Start a new portal loop instance
+	// 6. Start a new portal loop instance
 	dockerContainer, err := dockerHandler.StartGnoPortalLoopContainer(
 		ctx,
 		portalLoopHandler.GetContainerName(),
@@ -114,13 +109,18 @@ func RunPortalLoop(ctx context.Context, portalLoopHandler PortalLoopHandler, for
 		zap.String("portal.url", portalLoopHandler.currentRpcUrl),
 	)
 
-	// 8. Wait first blocks meaning new portal loop to be ready
+	// 7. Wait first blocks meaning new portal loop to be ready
 	// Backups will be restored from genesis file
 	if err = portalLoopHandler.WaitStartedLoop(); err != nil {
 		return err
 	}
 
-	// 9. Update traefik portal loop rpc url
+	// 8. Update traefik portal loop rpc url
 	logger.Info("Updating Traefik portal loop url")
-	return portalLoopHandler.UpdateTraefikPortalLoopUrl()
+	if err = portalLoopHandler.UpdateTraefikPortalLoopUrl(); err != nil {
+		return err
+	}
+
+	// 9. Remove old portal loop
+	return dockerHandler.RemoveContainersWithVolumes(ctx, containers)
 }

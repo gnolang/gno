@@ -87,7 +87,7 @@ jobs:
             echo "${ip_addr} -> ${new_ip_addr}"
             [[ "${ip_addr}" == ${new_ip_addr} ]]
           do
-            docker logs -n 200 portalloopd
+            docker logs -n 20 portalloopd
             sleep 10
           done
 
