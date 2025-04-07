@@ -52,13 +52,6 @@ jobs:
       - name: "Checkout"
         uses: actions/checkout@v4
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: "Setup The portal loop docker compose"
         run: |
           docker pull ghcr.io/gnolang/gno/gnoland:master
@@ -70,8 +63,6 @@ jobs:
 
       - name: "Test1 - Portal loop start gnoland"
         run: |
-          cd misc/loop
-          docker compose logs -n 5000 portalloopd
           while
             block_height=$(curl -s localhost:26657/status | jq -r '.result.sync_info.latest_block_height')
             echo "Current block height: $block_height"
@@ -95,7 +86,8 @@ jobs:
             echo "${ip_addr} -> ${new_ip_addr}"
             [[ "${ip_addr}" == ${new_ip_addr} ]]
           do
-            sleep 5
+            docker logs -n 200 portalloopd
+            sleep 10
           done
 
       - name: "Test2 - Wait portal-loop start new image"
