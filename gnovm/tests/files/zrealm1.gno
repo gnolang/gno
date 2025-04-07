@@ -27,7 +27,7 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/test"]
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:4]={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:5]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -43,29 +43,32 @@ func main() {
 //         {}
 //     ],
 //     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5",
 //         "ModTime": "0",
-//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
 //         "RefCount": "1"
 //     }
 // }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2]=
-//     @@ -18,7 +18,17 @@
-//              }
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3]=
+//     @@ -1,9 +1,19 @@
+//      {
+//          "ObjectInfo": {
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
+//     -        "ModTime": "0",
+//     +        "ModTime": "4",
+//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//              "RefCount": "1"
 //          },
-//          "Values": [
-//     -        {},
-//     +        {
-//     +            "T": {
-//     +                "@type": "/gno.RefType",
-//     +                "ID": "gno.land/r/test.InnerNode"
-//     +            },
-//     +            "V": {
-//     +                "@type": "/gno.RefValue",
-//     +                "Hash": "ae4e9e2d205cc0081d4ee249e1d188ebe270b220",
-//     +                "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
-//     +            }
+//     -    "Value": {}
+//     +    "Value": {
+//     +        "T": {
+//     +            "@type": "/gno.RefType",
+//     +            "ID": "gno.land/r/test.InnerNode"
 //     +        },
-//              {
-//                  "T": {
-//                      "@type": "/gno.TypeType"
+//     +        "V": {
+//     +            "@type": "/gno.RefValue",
+//     +            "Hash": "e9c91722e6417a87e3c05b8b9f1e2782de0fd94a",
+//     +            "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
+//     +        }
+//     +    }
+//      }

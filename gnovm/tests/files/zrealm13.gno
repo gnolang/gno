@@ -36,7 +36,7 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:5]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7]=
 //     @@ -8,16 +8,6 @@
 //                          "@type": "/gno.RefType",
 //                          "ID": "gno.land/r/test.B"
@@ -46,8 +46,8 @@ func main() {
 //     -                "@type": "/gno.PointerValue",
 //     -                "Base": {
 //     -                    "@type": "/gno.RefValue",
-//     -                    "Hash": "63a333a32cca3b346084a035f45c542eaec1cbb8",
-//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7"
+//     -                    "Hash": "4f1fe78f9e1445c577c7cc5308196de4f75880e0",
+//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:9"
 //     -                },
 //     -                "Index": "0",
 //     -                "TV": null
@@ -57,23 +57,23 @@ func main() {
 //     @@ -42,7 +32,7 @@
 //          ],
 //          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5",
-//     -        "ModTime": "6",
-//     +        "ModTime": "10",
-//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
+//     -        "ModTime": "8",
+//     +        "ModTime": "12",
+//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
 //              "RefCount": "1"
 //          }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4]=
 //     @@ -2,8 +2,8 @@
 //          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
 //              "IsEscaped": true,
-//     -        "ModTime": "8",
+//     -        "ModTime": "10",
 //     -        "RefCount": "3"
-//     +        "ModTime": "10",
+//     +        "ModTime": "12",
 //     +        "RefCount": "2"
 //          },
 //          "Value": {
 //              "T": {
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:7]
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:8]
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:9]
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:10]

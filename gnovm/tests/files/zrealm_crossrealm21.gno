@@ -24,53 +24,46 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/demo/tests/crossrealm"]
-// u[1712ac7adcfdc8e58a67e5615e20fb312394c4df:2]=
-//     @@ -3,7 +3,7 @@
+// u[1712ac7adcfdc8e58a67e5615e20fb312394c4df:5]=
+//     @@ -1,9 +1,27 @@
+//      {
 //          "ObjectInfo": {
-//              "ID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:2",
-//              "IsEscaped": true,
-//     -        "ModTime": "4",
-//     +        "ModTime": "6",
-//              "RefCount": "3"
+//              "ID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:5",
+//     -        "ModTime": "0",
+//     +        "ModTime": "10",
+//              "OwnerID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:2",
+//              "RefCount": "1"
 //          },
-//          "Parent": null,
-//     @@ -284,7 +284,26 @@
-//                      }
-//                  }
-//              },
-//     -        {},
-//     +        {
-//     +            "N": "UmVhRG9OTFk=",
-//     +            "T": {
-//     +                "@type": "/gno.PointerType",
-//     +                "Elt": {
-//     +                    "@type": "/gno.RefType",
-//     +                    "ID": "gno.land/r/demo/tests/crossrealm_b.fooer"
-//     +                }
-//     +            },
-//     +            "V": {
-//     +                "@type": "/gno.PointerValue",
-//     +                "Base": {
-//     +                    "@type": "/gno.RefValue",
-//     +                    "Escaped": true,
-//     +                    "ObjectID": "0edc46caf30c00efd87b6c272673239eafbd051e:3"
-//     +                },
-//     +                "Index": "0",
-//     +                "TV": null
+//     -    "Value": {}
+//     +    "Value": {
+//     +        "T": {
+//     +            "@type": "/gno.PointerType",
+//     +            "Elt": {
+//     +                "@type": "/gno.RefType",
+//     +                "ID": "gno.land/r/demo/tests/crossrealm_b.fooer"
 //     +            }
 //     +        },
-//              {
-//                  "T": {
-//                      "@type": "/gno.FuncType",
-// u[0edc46caf30c00efd87b6c272673239eafbd051e:3]=
+//     +        "V": {
+//     +            "@type": "/gno.PointerValue",
+//     +            "Base": {
+//     +                "@type": "/gno.RefValue",
+//     +                "Escaped": true,
+//     +                "ObjectID": "0edc46caf30c00efd87b6c272673239eafbd051e:4"
+//     +            },
+//     +            "Index": "0",
+//     +            "TV": null
+//     +        }
+//     +    }
+//      }
+// u[0edc46caf30c00efd87b6c272673239eafbd051e:4]=
 //     @@ -1,9 +1,10 @@
 //      {
 //          "ObjectInfo": {
-//              "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:3",
+//              "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:4",
 //     -        "ModTime": "0",
 //     +        "IsEscaped": true,
-//     +        "ModTime": "6",
-//              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:2",
+//     +        "ModTime": "10",
+//              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:3",
 //     -        "RefCount": "1"
 //     +        "RefCount": "2"
 //          },
@@ -79,7 +72,7 @@ func main() {
 // switchrealm["gno.land/r/demo/tests/crossrealm_b"]
 // switchrealm["gno.land/r/demo/tests/crossrealm"]
 // switchrealm["gno.land/r/demo/tests/crossrealm_b"]
-// u[0edc46caf30c00efd87b6c272673239eafbd051e:4]=
+// u[0edc46caf30c00efd87b6c272673239eafbd051e:5]=
 //     @@ -7,13 +7,13 @@
 //                  },
 //                  "V": {
@@ -90,10 +83,10 @@ func main() {
 //              }
 //          ],
 //          "ObjectInfo": {
-//              "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:4",
+//              "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:5",
 //     -        "ModTime": "0",
-//     +        "ModTime": "5",
-//              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:3",
+//     +        "ModTime": "10",
+//              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:4",
 //              "RefCount": "1"
 //          }
 // switchrealm["gno.land/r/demo/tests/crossrealm_b"]
