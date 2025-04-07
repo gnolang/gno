@@ -302,7 +302,6 @@ func (r *formRendererHTML) formRenderHTML(w util.BufWriter, _ []byte, node ast.N
 	switch cnode.Tag {
 	case FormTagOpen:
 		if entering {
-
 			fmt.Fprintln(w, `<form class="gno-form" method="post">`)
 			fmt.Fprintln(w, `<div class="gno-form_header">`)
 			fmt.Fprintf(w, `<span><span class="font-bold"> %s </span> Form</span>`, realmName)
