@@ -43,7 +43,7 @@ type sourceViewParams struct {
 
 func SourceView(data SourceData) *View {
 	tocData := SourceTocData{
-		Icon:  "file",
+		Icon: "file",
 	}
 
 	for _, file := range data.Files {
@@ -52,16 +52,16 @@ func SourceView(data SourceData) *View {
 			Text: file,
 		}
 
-		switch {  
-			case file == "README.md":  
-				tocData.ReadmeFile = item
+		switch {
+		case file == "README.md":
+			tocData.ReadmeFile = item
 
-			case strings.HasSuffix(file, "_test.gno") || strings.HasSuffix(file, "_filetest.gno"):  
-				tocData.GnoTestFiles = append(tocData.GnoTestFiles, item) 
+		case strings.HasSuffix(file, "_test.gno") || strings.HasSuffix(file, "_filetest.gno"):
+			tocData.GnoTestFiles = append(tocData.GnoTestFiles, item)
 
-			case strings.HasSuffix(file, ".gno"):  
-				tocData.GnoFiles = append(tocData.GnoFiles, item) 
-			} 
+		case strings.HasSuffix(file, ".gno"):
+			tocData.GnoFiles = append(tocData.GnoFiles, item)
+		}
 	}
 
 	toc := NewTemplateComponent("ui/toc_source", tocData)
