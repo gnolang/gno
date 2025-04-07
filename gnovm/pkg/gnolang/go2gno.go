@@ -103,7 +103,7 @@ func parseCost(stats *parser.Stats) types.Gas {
 	// The parsing cost is a function of the number of tokens and the
 	// nesting level reached during the parsing, which reflect both the size
 	// and the complexity of the AST.
-	return types.Gas(stats.NumTok * math.Ilogb(float64(stats.TopNest)))
+	return types.Gas(stats.NumTok * math.Ilogb(float64(1+stats.TopNest)))
 }
 
 // ParseFile uses the Go parser to parse body. It then runs [Go2Gno] on the
