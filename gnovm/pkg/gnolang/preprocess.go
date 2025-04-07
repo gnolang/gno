@@ -447,8 +447,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	// XXX so it is currently strange.
 	if bn, ok := n.(BlockNode); ok {
 		//findGotoLoopDefines(ctx, bn)
-		findHeapUses(ctx, bn)
-		findHeapDefines(ctx, bn)
+		findHeapDefinesByUse(ctx, bn)
+		findHeapUsesDemoteDefines(ctx, bn)
+		findPackageSelectors(bn)
 	}
 	return n
 }
@@ -1036,20 +1037,31 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						cx := evalConst(store, last, n)
 						return cx, TRANS_CONTINUE
 					}
-					// If name refers to a package, and this is not in
-					// the context of a selector, fail. Packages cannot
-					// be used as a value, for go compatibility but also
-					// to preserve the security expectation regarding imports.
+					// Special handling of packages
 					nt := evalStaticTypeOf(store, last, n)
 					if nt == nil {
 						// this is fine, e.g. for TRANS_ASSIGN_LHS (define) etc.
-					} else if ftype != TRANS_SELECTOR_X {
-						nk := nt.Kind()
-						if nk == PackageKind {
+					} else if nt.Kind() == PackageKind {
+						// If name refers to a package, and this is not in
+						// the context of a selector, fail. Packages cannot
+						// be used as a value, for go compatibility but also
+						// to preserve the security expectation regarding imports.
+						if ftype != TRANS_SELECTOR_X {
 							panic(fmt.Sprintf(
 								"package %s cannot only be referred to in a selector expression",
 								n.Name))
 						}
+						// Remember the package path
+						// for findPackageSelectors().
+						pvc := evalConst(store, last, n)
+						pv, ok := pvc.V.(*PackageValue)
+						if !ok {
+							panic(fmt.Sprintf(
+								"missing package %s",
+								n.String()))
+						}
+						pref := toRefValue(pv)
+						n.SetAttribute(ATTR_PACKAGE_REF, pref)
 					}
 				}
 
@@ -1810,7 +1822,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					var pv *PackageValue
 					if cx, ok := n.X.(*ConstExpr); ok {
 						// NOTE: *Machine.TestMemPackage() needs this
-						// to pass in an imported package as *ConstEzpr.
+						// to pass in an imported package as *ConstExpr.
 						pv = cx.V.(*PackageValue)
 					} else {
 						// otherwise, packages can only be referred to by
@@ -2550,7 +2562,7 @@ func parseMultipleAssignFromOneExpr(
 // Also finds GotoLoopStmts.
 // XXX DEPRECATED but kept here in case needed in the future.
 // We may still want this for optimizing heap defines;
-// the current implementation of findHeapUses/Defines
+// the current implementation of findHeapDefinesByUse/findHeapUsesDemoteDefines
 // produces false positives.
 func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
@@ -2705,12 +2717,13 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 	})
 }
 
-// Find uses of loop names; those names that are defined as loop defines;
-// defines within loops that are used as reference or captured in a closure
-// later. Also happens to adjust the type (but not paths) of such usage.
-// If there is no usage of the &name or as closure capture, a
-// NameExprTypeHeapDefine gets demoted to NameExprTypeDefine in findHeapDefines().
-func findHeapUses(ctx BlockNode, bn BlockNode) {
+// Finds heap defines by their use in ref expressions or
+// closures (captures). Also adjusts the name expr type,
+// and sets new closure captures' path to refer to local
+// capture.
+// Also happens to declare all package and file names
+// as heap use, so that functions added later may use them.
+func findHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = ctx
@@ -2721,7 +2734,7 @@ func findHeapUses(ctx BlockNode, bn BlockNode) {
 		defer doRecover(stack, n)
 
 		if debug {
-			debug.Printf("findHeapUses %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			debug.Printf("findHeapDefinesByUse %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -2732,17 +2745,26 @@ func findHeapUses(ctx BlockNode, bn BlockNode) {
 		// ----------------------------------------
 		case TRANS_ENTER:
 			switch n := n.(type) {
+			case *ValueDecl:
+				// Top level value decls are always heap escaped.
+				// See also corresponding case in findHeapUsesDemoteDefines.
+				if !n.Const {
+					switch last.(type) {
+					case *PackageNode, *FileNode:
+						pn := skipFile(last)
+						for _, nx := range n.NameExprs {
+							if nx.Name == "_" {
+								continue
+							}
+							addAttrHeapUse(pn, nx.Name)
+						}
+					}
+				}
 			case *RefExpr:
 				lmx := LeftmostX(n.X)
 				if nx, ok := lmx.(*NameExpr); ok {
 					// Find the block where name is defined
 					dbn := last.GetBlockNodeForPath(nil, nx.Path)
-					switch dbn.(type) {
-					case *PackageNode, *FileNode:
-						// Package level vars are not heap escaped (yet?).
-						// Package imports declared in *FileNode.
-						return n, TRANS_CONTINUE
-					}
 					// The leftmost name of possibly nested index
 					// and selector exprs.
 					// e.g. leftmost.middle[0][2].rightmost
@@ -2756,30 +2778,41 @@ func findHeapUses(ctx BlockNode, bn BlockNode) {
 				if n.Path.Type != VPBlock {
 					return n, TRANS_CONTINUE
 				}
-				// Find the block where name is defined
-				dbn := last.GetBlockNodeForPath(nil, n.Path)
-				switch dbn.(type) {
-				case *PackageNode, *FileNode:
-					// Package level vars are not heap escaped (yet?).
-					// Package imports declared in *FileNode.
+				// Ignore package names
+				if n.GetAttribute(ATTR_PACKAGE_REF) != nil {
 					return n, TRANS_CONTINUE
 				}
+				// Ignore decls names.
+				if ftype == TRANS_VAR_NAME {
+					return n, TRANS_CONTINUE
+				}
+				// Find the block where name is defined
+				dbn := last.GetBlockNodeForPath(nil, n.Path)
 				switch n.Type {
 				case NameExprTypeNormal:
 					// If used as closure capture, mark as heap use.
-					fle, depth, found := findFirstClosure(stack, dbn)
-					if found {
-						// If across a closure,
-						// mark name as heap used.
-						addAttrHeapUse(dbn, n.Name)
-						// The path must stay same for now,
-						// used later in findHeapDefines.
-						idx := addHeapCapture(dbn, fle, depth, n)
-						// adjust NameExpr type.
-						n.Type = NameExprTypeHeapUse
-						n.Path.SetDepth(uint8(depth))
-						n.Path.Index = idx
+					flx, depth, found := findFirstClosure(stack, dbn)
+					if !found {
+						return n, TRANS_CONTINUE
 					}
+					// Ignore top level declarations.
+					// This get replaced by findPackageSelectors.
+					if pn, ok := dbn.(*PackageNode); ok {
+						if pn.PkgPath != ".uverse" {
+							n.SetAttribute(ATTR_PACKAGE_DECL, true)
+							return n, TRANS_CONTINUE
+						}
+					}
+
+					// Found a heap item closure capture.
+					addAttrHeapUse(dbn, n.Name)
+					// The path must stay same for now,
+					// used later in findHeapUsesDemoteDefines.
+					idx := addHeapCapture(dbn, flx, depth, n)
+					// adjust NameExpr type.
+					n.Type = NameExprTypeHeapUse
+					n.Path.SetDepth(uint8(depth))
+					n.Path.Index = idx
 				}
 			}
 			return n, TRANS_CONTINUE
@@ -2902,11 +2935,10 @@ func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, dept
 	panic("stop not found in stack")
 }
 
-// Convert other uses of heap names to NameExprTypeHeapUse if actually used as
-// heap item from findHeapUses.  Also, NameExprTypeHeapDefine gets demoted to
-// NameExprTypeDefine if no actual usage was found that warrants a
-// NameExprTypeHeapDefine.
-func findHeapDefines(ctx BlockNode, bn BlockNode) {
+// If a name is used as a heap item, Convert all other uses of such names
+// for heap use. If a name of type heap define is not actually used
+// as heap use, demotes them.
+func findHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = ctx
@@ -2917,7 +2949,7 @@ func findHeapDefines(ctx BlockNode, bn BlockNode) {
 		defer doRecover(stack, n)
 
 		if debug {
-			debug.Printf("findHeapDefines %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			debug.Printf("findHeapUsesDemoteDefines %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -2945,7 +2977,7 @@ func findHeapDefines(ctx BlockNode, bn BlockNode) {
 				case NameExprTypeDefine, NameExprTypeHeapDefine:
 					// Find the block where name is defined
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
-					// if the name is heap used,
+					// If the name is actually heap used:
 					if hasAttrHeapUse(dbn, n.Name) {
 						// Promote type to heap define.
 						n.Type = NameExprTypeHeapDefine
@@ -2954,6 +2986,26 @@ func findHeapDefines(ctx BlockNode, bn BlockNode) {
 					} else {
 						// Demote type to regular define.
 						n.Type = NameExprTypeDefine
+					}
+				}
+			case *ValueDecl:
+				// Top level var value decls are always heap escaped.
+				// See also corresponding case in findHeapDefinesByUse.
+				if !n.Const {
+					switch last.(type) {
+					case *PackageNode, *FileNode:
+						pn := skipFile(last)
+						for i := range n.NameExprs {
+							nx := &n.NameExprs[i]
+							if nx.Name == "_" {
+								continue
+							}
+							if !hasAttrHeapUse(pn, nx.Name) {
+								panic("expected heap use for top level value decl")
+							}
+							nx.Type = NameExprTypeHeapDefine
+							pn.SetIsHeapItem(nx.Name)
+						}
 					}
 				}
 			}
@@ -3019,6 +3071,57 @@ func findHeapDefines(ctx BlockNode, bn BlockNode) {
 				n.DelAttribute(ATTR_HEAP_DEFINES)
 			}
 			return n, TRANS_CONTINUE
+		}
+		return n, TRANS_CONTINUE
+	})
+}
+
+// Replaces all pkg.name selectors with const exprs containing refs.
+func findPackageSelectors(bn BlockNode) {
+	// Iterate over all nodes recursively.
+	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		switch stage {
+		case TRANS_ENTER:
+			switch n := n.(type) {
+			case *NameExpr:
+				// Replace a package name with RefValue{PkgPath}
+				prefi := n.GetAttribute(ATTR_PACKAGE_REF)
+				if prefi != nil {
+					pref := prefi.(RefValue)
+					cx := &ConstExpr{
+						Source: n,
+						TypedValue: TypedValue{
+							T: gPackageType,
+							V: pref,
+						},
+					}
+					return cx, TRANS_CONTINUE
+				}
+				// Replace a local package declared name with
+				// SelectorExpr{X:RefValue{PkgPath},Sel:name}
+				pdi := n.GetAttribute(ATTR_PACKAGE_DECL)
+				if pdi != nil { // is true
+					if n.Path.Type != VPBlock {
+						panic("expected block path")
+					}
+					pn := packageOf(bn)
+					cx := &ConstExpr{
+						Source: n,
+						TypedValue: TypedValue{
+							T: gPackageType,
+							V: RefValue{
+								PkgPath: pn.PkgPath,
+							},
+						},
+					}
+					sx := &SelectorExpr{
+						X:    cx,
+						Path: NewValuePathBlock(1, n.Path.Index, n.Name),
+						Sel:  n.Name,
+					}
+					return sx, TRANS_CONTINUE
+				}
+			}
 		}
 		return n, TRANS_CONTINUE
 	})

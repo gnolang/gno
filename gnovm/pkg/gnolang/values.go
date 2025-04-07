@@ -2254,6 +2254,7 @@ type Block struct {
 func NewBlock(source BlockNode, parent *Block) *Block {
 	numNames := source.GetNumNames()
 	values := make([]TypedValue, numNames)
+	// Keep in sync with ExpandWith().
 	for i, isHeap := range source.GetHeapItems() {
 		if !isHeap {
 			continue
@@ -2297,6 +2298,24 @@ func (b *Block) GetParent(store Store) *Block {
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 	vv := fillValueTV(store, &b.Values[index])
+	if hiv, ok := vv.V.(*HeapItemValue); ok {
+		fillValueTV(store, &hiv.Value)
+		return PointerValue{
+			TV:    &hiv.Value,
+			Base:  vv.V,
+			Index: 0,
+		}
+	} else {
+		return PointerValue{
+			TV:    vv,
+			Base:  b,
+			Index: index,
+		}
+	}
+}
+
+func (b *Block) GetPointerToIntDirect(store Store, index int) PointerValue {
+	vv := fillValueTV(store, &b.Values[index])
 	return PointerValue{
 		TV:    vv,
 		Base:  b,
@@ -2329,21 +2348,32 @@ func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	return b.GetPointerToInt(store, int(path.Index))
 }
 
-// Convenience
-func (b *Block) GetPointerToMaybeHeapUse(store Store, nx *NameExpr) PointerValue {
-	switch nx.Type {
-	case NameExprTypeNormal:
-		return b.GetPointerTo(store, nx.Path)
-	case NameExprTypeHeapUse:
-		return b.GetPointerToHeapUse(store, nx.Path)
-	case NameExprTypeHeapClosure:
-		panic("should not happen with type heap closure")
-	default:
-		panic("unexpected NameExpr type for GetPointerToMaybeHeapUse")
+func (b *Block) GetPointerToDirect(store Store, path ValuePath) PointerValue {
+	if path.IsBlockBlankPath() {
+		if debug {
+			if path.Name != blankIdentifier {
+				panic(fmt.Sprintf(
+					"zero value path is reserved for \"_\", but got %s",
+					path.Name))
+			}
+		}
+		return PointerValue{
+			TV:    b.GetBlankRef(),
+			Base:  b,
+			Index: PointerIndexBlockBlank, // -1
+		}
 	}
+	// NOTE: For most block paths, Depth starts at 1, but
+	// the generation for uverse is 0.  If path.Depth is
+	// 0, it implies that b == uverse, and the condition
+	// would fail as if it were 1.
+	for i := uint8(1); i < path.Depth; i++ {
+		b = b.GetParent(store)
+	}
+	return b.GetPointerToIntDirect(store, int(path.Index))
 }
 
-// Convenience
+// First defines a new HeapItemValue if heap slot.
 func (b *Block) GetPointerToMaybeHeapDefine(store Store, nx *NameExpr) PointerValue {
 	switch nx.Type {
 	case NameExprTypeNormal:
@@ -2353,45 +2383,27 @@ func (b *Block) GetPointerToMaybeHeapDefine(store Store, nx *NameExpr) PointerVa
 	case NameExprTypeDefine:
 		return b.GetPointerTo(store, nx.Path)
 	case NameExprTypeHeapDefine:
-		return b.GetPointerToHeapDefine(store, nx.Path)
+		path := nx.Path
+		ptr := b.GetPointerToDirect(store, path)
+		if _, ok := ptr.TV.T.(heapItemType); ok {
+			if nx.Type != NameExprTypeHeapDefine {
+				panic("expected name expr heap define type")
+			}
+			hiv := &HeapItemValue{}
+			*ptr.TV = TypedValue{
+				T: heapItemType{},
+				V: hiv,
+			}
+			return PointerValue{
+				TV:    &hiv.Value,
+				Base:  hiv,
+				Index: 0,
+			}
+		} else {
+			return ptr
+		}
 	default:
 		panic("unexpected NameExpr type for GetPointerToMaybeHeapDefine")
-	}
-}
-
-// First defines a new HeapItemValue.
-// This gets called from NameExprTypeHeapDefine name expressions.
-func (b *Block) GetPointerToHeapDefine(store Store, path ValuePath) PointerValue {
-	ptr := b.GetPointerTo(store, path)
-	hiv := &HeapItemValue{}
-	// point to a heapItem
-	*ptr.TV = TypedValue{
-		T: heapItemType{},
-		V: hiv,
-	}
-
-	return PointerValue{
-		TV:    &hiv.Value,
-		Base:  hiv,
-		Index: 0,
-	}
-}
-
-// Assumes a HeapItemValue, and gets inner pointer.
-// This gets called from NameExprTypeHeapUse name expressions.
-func (b *Block) GetPointerToHeapUse(store Store, path ValuePath) PointerValue {
-	ptr := b.GetPointerTo(store, path)
-	if _, ok := ptr.TV.T.(heapItemType); !ok {
-		panic("should not happen, should be heapItemType")
-	}
-	if _, ok := ptr.TV.V.(*HeapItemValue); !ok {
-		panic("should not happen, should be HeapItemValue")
-	}
-
-	return PointerValue{
-		TV:    &ptr.TV.V.(*HeapItemValue).Value,
-		Base:  ptr.TV.V,
-		Index: 0,
 	}
 }
 
@@ -2425,18 +2437,44 @@ func (b *Block) GetBodyStmt() *bodyStmt {
 	return &b.bodyStmt
 }
 
-// Used by SwitchStmt upon clause match.
-func (b *Block) ExpandToSize(alloc *Allocator, size uint16) {
+// Used by faux blocks like IfCond and SwitchStmt upon clause match.
+func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
+	// XXX make more efficient by only storing new names in source.
+	numNames := source.GetNumNames()
+	if len(b.Values) > int(numNames) {
+		panic(fmt.Sprintf(
+			"unexpected block size shrinkage: %v vs %v",
+			len(b.Values), numNames))
+	}
 	if debug {
-		if len(b.Values) >= int(size) {
+		if len(b.Values) >= int(numNames) {
 			panic(fmt.Sprintf(
 				"unexpected block size shrinkage: %v vs %v",
-				len(b.Values), size))
+				len(b.Values), numNames))
 		}
 	}
-	alloc.AllocateBlockItems(int64(size) - int64(len(b.Values)))
-	values := make([]TypedValue, int(size))
+	if int(numNames) == len(b.Values) {
+		return // nothing to do
+	}
+	alloc.AllocateBlockItems(int64(numNames) - int64(len(b.Values)))
+	values := make([]TypedValue, numNames)
 	copy(values, b.Values)
+	// NOTE this is a bit confusing because of the faux offset.
+	// The heap item values are always false for the old names.
+	// Keep in sync with NewBlock().
+	// XXX pass allocator in for heap items.
+	heapItems := source.GetHeapItems()
+	for i := len(b.Values); i < int(numNames); i++ {
+		isHeap := heapItems[i]
+		if !isHeap {
+			continue
+		}
+		// indicates must always be heap item.
+		values[i] = TypedValue{
+			T: heapItemType{},
+			V: &HeapItemValue{},
+		}
+	}
 	b.Values = values
 }
 
@@ -2550,6 +2588,8 @@ func typedString(s string) TypedValue {
 // returns the same tv instance for convenience.
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 	switch cv := tv.V.(type) {
+	case *HeapItemValue:
+		fillValueTV(store, &cv.Value)
 	case RefValue:
 		if cv.PkgPath != "" { // load package
 			tv.V = store.GetPackage(cv.PkgPath, false)

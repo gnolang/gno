@@ -688,10 +688,8 @@ EXEC_SWITCH:
 			// compute next switch clause from BodyIndex (assigned in preprocess)
 			nextClause := cs.BodyIndex + 1
 			// expand block size
-			cl := ss.Clauses[nextClause]
-			if nn := cl.GetNumNames(); int(nn) > len(b.Values) {
-				b.ExpandToSize(m.Alloc, nn)
-			}
+			cl := &ss.Clauses[nextClause]
+			b.ExpandWith(m.Alloc, cl)
 			// exec clause body
 			b.bodyStmt = bodyStmt{
 				Body:          cl.Body,
@@ -785,9 +783,7 @@ func (m *Machine) doOpIfCond() {
 	if cond.GetBool() {
 		if len(is.Then.Body) != 0 {
 			// expand block size
-			if nn := is.Then.GetNumNames(); int(nn) > len(b.Values) {
-				b.ExpandToSize(m.Alloc, nn)
-			}
+			b.ExpandWith(m.Alloc, &is.Then)
 			// exec then body
 			b.bodyStmt = bodyStmt{
 				Body:          is.Then.Body,
@@ -800,9 +796,7 @@ func (m *Machine) doOpIfCond() {
 	} else {
 		if len(is.Else.Body) != 0 {
 			// expand block size
-			if nn := is.Else.GetNumNames(); int(nn) > len(b.Values) {
-				b.ExpandToSize(m.Alloc, nn)
-			}
+			b.ExpandWith(m.Alloc, &is.Else)
 			// exec then body
 			b.bodyStmt = bodyStmt{
 				Body:          is.Else.Body,
@@ -878,9 +872,7 @@ func (m *Machine) doOpTypeSwitch() {
 					ptr.TV.Assign(m.Alloc, *xv, false)
 				}
 				// expand block size
-				if nn := cs.GetNumNames(); int(nn) > len(b.Values) {
-					b.ExpandToSize(m.Alloc, nn)
-				}
+				b.ExpandWith(m.Alloc, cs)
 				// exec clause body
 				b.bodyStmt = bodyStmt{
 					Body:          cs.Body,
@@ -909,7 +901,7 @@ func (m *Machine) doOpSwitchClause() {
 		m.PopValue() // pop clause index
 		// done!
 	} else {
-		cl := ss.Clauses[idx]
+		cl := &ss.Clauses[idx]
 		if len(cl.Cases) == 0 {
 			// default clause
 			m.PopStmt()  // pop switch stmt
@@ -918,9 +910,7 @@ func (m *Machine) doOpSwitchClause() {
 			m.PopValue() // clause index no longer needed
 			// expand block size
 			b := m.LastBlock()
-			if nn := cl.GetNumNames(); int(nn) > len(b.Values) {
-				b.ExpandToSize(m.Alloc, nn)
-			}
+			b.ExpandWith(m.Alloc, cl)
 			// exec clause body
 			b.bodyStmt = bodyStmt{
 				Body:          cl.Body,
@@ -958,11 +948,9 @@ func (m *Machine) doOpSwitchClauseCase() {
 		m.PopValue()                    // pop clause index
 		// expand block size
 		clidx := cliv.GetInt()
-		cl := ss.Clauses[clidx]
+		cl := &ss.Clauses[clidx]
 		b := m.LastBlock()
-		if nn := cl.GetNumNames(); int(nn) > len(b.Values) {
-			b.ExpandToSize(m.Alloc, nn)
-		}
+		b.ExpandWith(m.Alloc, cl)
 		// exec clause body
 		b.bodyStmt = bodyStmt{
 			Body:          cl.Body,

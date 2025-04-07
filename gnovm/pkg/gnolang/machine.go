@@ -2098,7 +2098,7 @@ func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 			ro = false // always mutable
 		case NameExprTypeHeapUse:
 			lb := m.LastBlock()
-			pv = lb.GetPointerToHeapUse(m.Store, lx.Path)
+			pv = lb.GetPointerTo(m.Store, lx.Path)
 			ro = false // always mutable
 		case NameExprTypeHeapClosure:
 			panic("should not happen")

@@ -69,7 +69,7 @@ func (m *Machine) doOpIndex2() {
 
 func (m *Machine) doOpSelector() {
 	sx := m.PopExpr().(*SelectorExpr)
-	xv := m.PeekValue(1)
+	xv := m.PeekValue(1) // package, struct, whatever.
 	ro := m.IsReadonly(xv)
 	res := xv.GetPointerToFromTV(m.Alloc, m.Store, sx.Path).Deref()
 	if debug {
@@ -672,7 +672,7 @@ func (m *Machine) doOpFuncLit() {
 	// every invocation of the function.
 	captures := []TypedValue(nil)
 	for _, nx := range x.HeapCaptures {
-		ptr := lb.GetPointerTo(m.Store, nx.Path)
+		ptr := lb.GetPointerToDirect(m.Store, nx.Path)
 		// check that ptr.TV is a heap item value.
 		// it must be in the form of:
 		// {T:heapItemType{},V:HeapItemValue{...}}

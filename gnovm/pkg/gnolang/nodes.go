@@ -158,6 +158,8 @@ const (
 	ATTR_SHIFT_RHS       GnoAttribute = "ATTR_SHIFT_RHS"
 	ATTR_LAST_BLOCK_STMT GnoAttribute = "ATTR_LAST_BLOCK_STMT"
 	ATTR_GLOBAL          GnoAttribute = "ATTR_GLOBAL"
+	ATTR_PACKAGE_REF     GnoAttribute = "ATTR_PACKAGE_REF"
+	ATTR_PACKAGE_DECL    GnoAttribute = "ATTR_PACKAGE_DECL"
 )
 
 type Attributes struct {
@@ -1607,7 +1609,6 @@ func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 	pnl := len(x.Values)
 	// copy new top-level defined values/types.
 	if pvl < pnl {
-		// XXX: deep copy heap values
 		nvs := make([]TypedValue, pnl-pvl)
 		copy(nvs, x.Values[pvl:pnl])
 		for i, tv := range nvs {
@@ -1619,6 +1620,18 @@ func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 					panic(fmt.Sprintf("file block missing for file %q", fv.FileName))
 				}
 				nvs[i].V = fv
+			}
+		}
+		heapItems := x.GetHeapItems()
+		for i, tv := range nvs {
+			if _, ok := tv.T.(heapItemType); ok {
+				panic("unexpected heap item")
+			}
+			if heapItems[pvl+i] {
+				nvs[i] = TypedValue{
+					T: heapItemType{},
+					V: &HeapItemValue{Value: nvs[i]},
+				}
 			}
 		}
 		block.Values = append(block.Values, nvs...)

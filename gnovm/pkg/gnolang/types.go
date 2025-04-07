@@ -880,10 +880,6 @@ func (pt *PackageType) Kind() Kind {
 
 func (pt *PackageType) TypeID() TypeID {
 	if pt.typeid.IsZero() {
-		// NOTE Different package types may have the same
-		// TypeID if and only if neither have unexported fields.
-		// pt.Path is only included in field names that are not
-		// uppercase.
 		pt.typeid = typeid("package{}")
 	}
 	return pt.typeid
