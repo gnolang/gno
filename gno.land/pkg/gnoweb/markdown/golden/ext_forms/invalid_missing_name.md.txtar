@@ -6,5 +6,4 @@
 -- output.html --
 <form class="gno-form" method="post">
 <!-- gno-input error: gno-input must have a 'name' attribute -->
-<input type="submit" value="Submit" />
 </form>

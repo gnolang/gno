@@ -6,5 +6,4 @@
 -- output.html --
 <form class="gno-form" method="post">
 <p>&lt;gno-input name=&quot;malformed&quot; placeholder=&quot;test&quot;</p>
-<input type="submit" value="Submit" />
 </form>

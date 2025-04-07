@@ -62,10 +62,11 @@ type FormNode struct {
 
 // formContext is used to keep track of form's state across parsing.
 type formContext struct {
-	PrevContext *formContext
-	IsOpen      bool      // Indicates if a block has been correctly opened.
-	Index       int       // Index of the current form; 0 indicates no form.
-	OpenTag     *FormNode // First opening tag for this context.
+	PrevContext    *formContext
+	IsOpen         bool      // Indicates if a block has been correctly opened.
+	Index          int       // Index of the current form; 0 indicates no form.
+	OpenTag        *FormNode // First opening tag for this context.
+	HasValidInputs bool      // Indicates if the form has at least one valid input
 }
 
 // Dump implements Node.Dump for debug representation.
@@ -195,6 +196,7 @@ func (p *formParser) Open(doc ast.Node, reader text.Reader, pc parser.Context) (
 
 		cctx.OpenTag = node
 		cctx.IsOpen = true
+		cctx.HasValidInputs = false // Reset valid inputs state when opening a new form
 
 	case FormTagClose:
 		if !cctx.IsOpen {
@@ -213,6 +215,7 @@ func (p *formParser) Open(doc ast.Node, reader text.Reader, pc parser.Context) (
 			node.Error = ErrFormInputMissingName
 			return node, parser.NoChildren
 		}
+		cctx.HasValidInputs = true // Mark that we have at least one valid input
 	}
 
 	return node, parser.NoChildren
@@ -295,7 +298,10 @@ func (r *formRendererHTML) formRenderHTML(w util.BufWriter, _ []byte, node ast.N
 		}
 	case FormTagClose:
 		if !entering {
-			fmt.Fprintln(w, "<input type=\"submit\" value=\"Submit\" />")
+			// Only show submit button if there are valid inputs
+			if cnode.ctx.HasValidInputs {
+				fmt.Fprintln(w, "<input type=\"submit\" value=\"Submit\" />")
+			}
 			fmt.Fprintln(w, "</form>")
 		}
 	case FormTagInput:

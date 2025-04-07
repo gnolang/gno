@@ -6,5 +6,4 @@
 -- output.html --
 <form class="gno-form" method="post">
 <p>&lt;gno-input name=&quot;test&quot; placeholder=&quot;missing quote /&gt;</p>
-<input type="submit" value="Submit" />
 </form>

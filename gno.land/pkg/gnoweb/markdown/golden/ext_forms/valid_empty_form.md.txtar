@@ -4,5 +4,4 @@
 
 -- output.html --
 <form class="gno-form" method="post">
-<input type="submit" value="Submit" />
 </form>

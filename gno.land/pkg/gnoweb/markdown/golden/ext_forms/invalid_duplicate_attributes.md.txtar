@@ -6,5 +6,4 @@
 -- output.html --
 <form class="gno-form" method="post">
 <!-- gno-input error: duplicate attribute in gno-input tag -->
-<input type="submit" value="Submit" />
 </form>
