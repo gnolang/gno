@@ -115,6 +115,7 @@ func TestSetApprovalForAll(t *testing.T) {
 	caller := std.PreviousRealm().Address()
 	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
+	// Test setting approval to true
 	isApprovedForAll := dummy.IsApprovedForAll(caller, addr)
 	uassert.False(t, isApprovedForAll)
 
@@ -123,6 +124,13 @@ func TestSetApprovalForAll(t *testing.T) {
 
 	isApprovedForAll = dummy.IsApprovedForAll(caller, addr)
 	uassert.True(t, isApprovedForAll)
+
+	// Test setting approval to false
+	err = dummy.SetApprovalForAll(addr, false)
+	uassert.NoError(t, err, "should not result in error")
+
+	isApprovedForAll = dummy.IsApprovedForAll(caller, addr)
+	uassert.False(t, isApprovedForAll)
 }
 
 func TestGetApproved(t *testing.T) {
