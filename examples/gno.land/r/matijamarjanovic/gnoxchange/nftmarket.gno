@@ -1,7 +1,6 @@
 package gnoxchange
 
 import (
-	"errors"
 	"std"
 	"strings"
 	"time"
@@ -23,31 +22,36 @@ func CreateNFTToTokenTicket(
 
 	parts := strings.Split(nftFullPath, ".")
 	if len(parts) < 4 {
-		return "", errors.New("invalid NFT path format: expected path.collection.tokenID")
+		return "", ErrInvalidNFTPathFormat
 	}
 
 	tokenID := parts[len(parts)-1]
 
 	nft := tokenhub.GetNFT(nftFullPath)
 	if nft == nil {
-		return "", errors.New("NFT not found: " + nftFullPath)
+		return "", ErrNFTNotFound(nftFullPath)
 	}
 
 	owner, err := nft.OwnerOf(grc721.TokenID(tokenID))
 	if err != nil {
-		return "", errors.New("invalid token ID")
+		return "", ErrInvalidTokenID
 	}
 	if owner != caller {
-		return "", errors.New("caller is not the owner of the NFT")
+		return "", ErrCallerNotOwner
 	}
 
 	tokenOut := tokenhub.GetToken(tokenKey)
 	if tokenOut == nil {
-		return "", errors.New("token not found: " + tokenKey)
+		return "", ErrTokenNotFound(tokenKey)
+	}
+
+	tokenDecimals := tokenOut.GetDecimals()
+	if tokenDecimals > 6 {
+		return "", ErrTokenDecimalsExceedRange(tokenKey, tokenDecimals)
 	}
 
 	if err := nft.TransferFrom(caller, std.CurrentRealm().Address(), grc721.TokenID(tokenID)); err != nil {
-		return "", errors.New("failed to transfer NFT: " + err.Error())
+		return "", ErrFailedNFTTransfer(err)
 	}
 
 	ticketCounter++
@@ -80,26 +84,26 @@ func CreateNFTToCoinTicket(
 
 	parts := strings.Split(nftFullPath, ".")
 	if len(parts) < 4 {
-		return "", errors.New("invalid NFT path format: expected path.collection.tokenID")
+		return "", ErrInvalidNFTPathFormat
 	}
 
 	tokenID := parts[len(parts)-1]
 
 	nft := tokenhub.GetNFT(nftFullPath)
 	if nft == nil {
-		return "", errors.New("NFT not found: " + nftFullPath)
+		return "", ErrNFTNotFound(nftFullPath)
 	}
 
 	owner, err := nft.OwnerOf(grc721.TokenID(tokenID))
 	if err != nil {
-		return "", errors.New("invalid token ID")
+		return "", ErrInvalidTokenID
 	}
 	if owner != caller {
-		return "", errors.New("caller is not the owner of the NFT")
+		return "", ErrCallerNotOwner
 	}
 
 	if err := nft.TransferFrom(caller, std.CurrentRealm().Address(), grc721.TokenID(tokenID)); err != nil {
-		return "", errors.New("failed to transfer NFT: " + err.Error())
+		return "", ErrFailedNFTTransfer(err)
 	}
 
 	ticketCounter++
@@ -128,33 +132,33 @@ func BuyNFT(ticketID string, amountOut uint64) error {
 
 	ticketInterface, exists := ticketRegistry.openNFTTickets.Get(ticketID)
 	if !exists {
-		return errors.New("ticket not found")
+		return ErrTicketNotFound
 	}
 
 	ticket := ticketInterface.(*Ticket)
 
 	if time.Now().After(ticket.ExpiresAt) {
 		updateTicketStatus(ticket, "expired")
-		return errors.New("ticket has expired")
+		return ErrTicketExpired
 	}
 
 	if amountOut < ticket.MinAmountOut {
-		return errors.New("insufficient payment amount")
+		return ErrInsufficientOutputAmount(ticket.MinAmountOut, amountOut)
 	}
 
 	if ticket.AssetIn.Type != AssetTypeNFT {
-		return errors.New("not an NFT ticket")
+		return ErrInvalidInputToken
 	}
 
 	nft := tokenhub.GetNFT(ticket.AssetIn.NFTPath)
 	if nft == nil {
-		return errors.New("NFT not found: " + ticket.AssetIn.NFTPath)
+		return ErrNFTNotFound(ticket.AssetIn.NFTPath)
 	}
 
 	if ticket.AssetOut.Type == AssetTypeCoin {
 		sent := std.OriginSend()
 		if len(sent) != 1 || sent[0].Denom != ticket.AssetOut.Denom || uint64(sent[0].Amount) != amountOut {
-			return errors.New("sent coins don't match payment parameters")
+			return ErrSentCoinsMismatch
 		}
 
 		banker := std.NewBanker(std.BankerTypeRealmSend)
@@ -162,19 +166,19 @@ func BuyNFT(ticketID string, amountOut uint64) error {
 	} else {
 		tokenOut := tokenhub.GetToken(ticket.AssetOut.Token)
 		if tokenOut == nil {
-			return errors.New("token not found: " + ticket.AssetOut.Token)
+			return ErrTokenNotFound(ticket.AssetOut.Token)
 		}
 
 		tellerOut := tokenOut.RealmTeller()
 		if err := tellerOut.TransferFrom(caller, ticket.Creator, amountOut); err != nil {
-			return errors.New("failed to transfer payment tokens: " + err.Error())
+			return ErrFailedTokenTransfer(ticket.AssetOut.Token, err)
 		}
 	}
 	nftKeyParts := strings.Split(ticket.AssetIn.NFTPath, ".")
 	tokenID := nftKeyParts[len(nftKeyParts)-1]
 
 	if err := nft.TransferFrom(std.CurrentRealm().Address(), caller, grc721.TokenID(tokenID)); err != nil {
-		panic(ufmt.Sprintf("CRITICAL: payment processed but NFT transfer failed: %v", err))
+		return ErrFailedTokenTransfer(ticket.AssetIn.NFTPath, err)
 	}
 
 	updateTicketStatus(ticket, "fulfilled")

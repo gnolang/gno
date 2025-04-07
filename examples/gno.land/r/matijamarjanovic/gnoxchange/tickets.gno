@@ -1,7 +1,6 @@
 package gnoxchange
 
 import (
-	"errors"
 	"math"
 	"std"
 	"strings"
@@ -36,17 +35,21 @@ func CreateCoinToTokenTicket(
 
 	sent := std.OriginSend()
 	if len(sent) != 1 || sent[0].Denom != coinDenom {
-		return "", errors.New("sent coins don't match ticket parameters")
+		return "", ErrSentCoinsMismatch
 	}
 	amountIn := uint64(sent[0].Amount)
 
 	tokenOut := tokenhub.GetToken(tokenKey)
 	if tokenOut == nil {
-		return "", errors.New("token not found: " + tokenKey)
+		return "", ErrTokenNotFound(tokenKey)
 	}
 
 	coinDecimals := uint(6)
 	tokenDecimals := tokenOut.GetDecimals()
+
+	if tokenDecimals > 6 {
+		return "", ErrTokenDecimalsExceedRange(tokenKey, tokenDecimals)
+	}
 
 	minDecimals := coinDecimals
 	if tokenDecimals < coinDecimals {
@@ -56,10 +59,7 @@ func CreateCoinToTokenTicket(
 	if tokenDecimals > minDecimals {
 		expectedScale := uint64(math.Pow10(int(tokenDecimals - minDecimals)))
 		if minAmountOut%expectedScale != 0 {
-			return "", errors.New(ufmt.Sprintf(
-				"invalid minimum output amount: amount must be in units of %d (token has %d decimals vs %d decimals for native coin)",
-				expectedScale, tokenDecimals, coinDecimals,
-			))
+			return "", ErrInvalidInputAmount(tokenKey, expectedScale, tokenDecimals, minDecimals)
 		}
 	}
 
@@ -95,7 +95,7 @@ func CreateTokenToCoinTicket(
 
 	tokenIn := tokenhub.GetToken(tokenKey)
 	if tokenIn == nil {
-		return "", errors.New("token not found: " + tokenKey)
+		return "", ErrTokenNotFound(tokenKey)
 	}
 
 	coinDecimals := uint(6)
@@ -109,16 +109,13 @@ func CreateTokenToCoinTicket(
 	if tokenDecimals > minDecimals {
 		expectedScale := uint64(math.Pow10(int(tokenDecimals - minDecimals)))
 		if amountIn%expectedScale != 0 {
-			return "", errors.New(ufmt.Sprintf(
-				"invalid input amount: amount must be in units of %d (token has %d decimals vs %d decimals for native coin)",
-				expectedScale, tokenDecimals, coinDecimals,
-			))
+			return "", ErrInvalidInputAmount(tokenKey, expectedScale, tokenDecimals, minDecimals)
 		}
 	}
 
 	tellerIn := tokenIn.RealmTeller()
 	if err := tellerIn.TransferFrom(caller, std.CurrentRealm().Address(), amountIn); err != nil {
-		return "", errors.New("failed to transfer tokens: " + err.Error())
+		return "", ErrFailedTokenTransfer(tokenKey, err)
 	}
 
 	ticketCounter++
@@ -153,16 +150,20 @@ func CreateTokenToTokenTicket(
 
 	tokenIn := tokenhub.GetToken(tokenInKey)
 	if tokenIn == nil {
-		return "", errors.New("token not found: " + tokenInKey)
+		return "", ErrTokenNotFound(tokenInKey)
 	}
 
 	tokenOut := tokenhub.GetToken(tokenOutKey)
 	if tokenOut == nil {
-		return "", errors.New("token not found: " + tokenOutKey)
+		return "", ErrTokenNotFound(tokenOutKey)
 	}
 
 	decimalsIn := tokenIn.GetDecimals()
 	decimalsOut := tokenOut.GetDecimals()
+
+	if decimalsIn > 6 || decimalsOut > 6 {
+		return "", ErrTokenDecimalsExceedRange(tokenInKey, decimalsIn)
+	}
 
 	minDecimals := decimalsIn
 	if decimalsOut < decimalsIn {
@@ -172,26 +173,20 @@ func CreateTokenToTokenTicket(
 	if decimalsIn > minDecimals {
 		expectedScale := uint64(math.Pow10(int(decimalsIn - minDecimals)))
 		if amountIn%expectedScale != 0 {
-			return "", errors.New(ufmt.Sprintf(
-				"invalid input amount for %s: amount must be in units of %d (token has %d decimals vs %d decimals for the other token)",
-				tokenInKey, expectedScale, decimalsIn, minDecimals,
-			))
+			return "", ErrInvalidInputAmount(tokenInKey, expectedScale, decimalsIn, minDecimals)
 		}
 	}
 
 	if decimalsOut > minDecimals {
 		expectedScale := uint64(math.Pow10(int(decimalsOut - minDecimals)))
 		if minAmountOut%expectedScale != 0 {
-			return "", errors.New(ufmt.Sprintf(
-				"invalid minimum output amount for %s: amount must be in units of %d (token has %d decimals vs %d decimals for the other token)",
-				tokenOutKey, expectedScale, decimalsOut, minDecimals,
-			))
+			return "", ErrInvalidInputAmount(tokenOutKey, expectedScale, decimalsOut, minDecimals)
 		}
 	}
 
 	tellerIn := tokenIn.RealmTeller()
 	if err := tellerIn.TransferFrom(caller, std.CurrentRealm().Address(), amountIn); err != nil {
-		return "", errors.New("failed to transfer tokens: " + err.Error())
+		return "", ErrFailedTokenTransfer(tokenInKey, err)
 	}
 
 	ticketCounter++
@@ -222,28 +217,28 @@ func FulfillTicket(ticketID string, amountOut uint64) error {
 
 	ticketInterface, exists := ticketRegistry.allTickets.Get(ticketID)
 	if !exists {
-		return errors.New("ticket not found")
+		return ErrTicketNotFound
 	}
 
 	ticket := ticketInterface.(*Ticket)
 
 	if ticket.Status != "open" {
-		return errors.New("ticket is not open")
+		return ErrTicketNotOpen
 	}
 
 	if time.Now().After(ticket.ExpiresAt) {
 		updateTicketStatus(ticket, "expired")
-		return errors.New("ticket has expired")
+		return ErrTicketExpired
 	}
 
 	if amountOut < ticket.MinAmountOut {
-		return errors.New("insufficient output amount")
+		return ErrInsufficientOutputAmount(ticket.MinAmountOut, amountOut)
 	}
 
 	if ticket.AssetOut.Type == AssetTypeCoin {
 		sent := std.OriginSend()
 		if len(sent) != 1 || sent[0].Denom != ticket.AssetOut.Denom || uint64(sent[0].Amount) != amountOut {
-			return errors.New("sent coins don't match fulfillment parameters")
+			return ErrSentCoinsMismatch
 		}
 
 		banker := std.NewBanker(std.BankerTypeRealmSend)
@@ -259,18 +254,18 @@ func FulfillTicket(ticketID string, amountOut uint64) error {
 			tokenIn := tokenhub.GetToken(ticket.AssetIn.Token)
 			tellerIn := tokenIn.RealmTeller()
 			if err := tellerIn.Transfer(caller, ticket.AmountIn); err != nil {
-				return errors.New("failed to transfer input token: " + err.Error())
+				return ErrFailedTokenTransfer(ticket.AssetIn.Token, err)
 			}
 		}
 	} else {
 		tokenOut := tokenhub.GetToken(ticket.AssetOut.Token)
 		if tokenOut == nil {
-			return errors.New("token not found: " + ticket.AssetOut.Token)
+			return ErrTokenNotFound(ticket.AssetOut.Token)
 		}
 
 		tellerOut := tokenOut.RealmTeller()
 		if err := tellerOut.TransferFrom(caller, ticket.Creator, amountOut); err != nil {
-			return errors.New("failed to transfer output token: " + err.Error())
+			return ErrFailedTokenTransfer(ticket.AssetOut.Token, err)
 		}
 
 		if ticket.AssetIn.Type == AssetTypeCoin {
@@ -284,7 +279,7 @@ func FulfillTicket(ticketID string, amountOut uint64) error {
 			tokenIn := tokenhub.GetToken(ticket.AssetIn.Token)
 			tellerIn := tokenIn.RealmTeller()
 			if err := tellerIn.Transfer(caller, ticket.AmountIn); err != nil {
-				return errors.New("failed to transfer input token: " + err.Error())
+				return ErrFailedTokenTransfer(ticket.AssetIn.Token, err)
 			}
 		}
 	}
@@ -299,17 +294,17 @@ func CancelTicket(ticketID string) error {
 
 	ticketInterface, exists := ticketRegistry.allTickets.Get(ticketID)
 	if !exists {
-		return errors.New("ticket not found")
+		return ErrTicketNotFound
 	}
 
 	ticket := ticketInterface.(*Ticket)
 
 	if ticket.Creator != caller {
-		return errors.New("only ticket creator can cancel")
+		return ErrOnlyCreatorCanCancel
 	}
 
 	if ticket.Status != "open" {
-		return errors.New("ticket is not open")
+		return ErrTicketNotOpen
 	}
 
 	if ticket.AssetIn.Type == AssetTypeCoin {
@@ -322,20 +317,20 @@ func CancelTicket(ticketID string) error {
 	} else if ticket.AssetIn.Type == AssetTypeNFT {
 		nft := tokenhub.GetNFT(ticket.AssetIn.NFTPath)
 		if nft == nil {
-			return errors.New("NFT not found: " + ticket.AssetIn.NFTPath)
+			return ErrNFTNotFound(ticket.AssetIn.NFTPath)
 		}
 
 		parts := strings.Split(ticket.AssetIn.NFTPath, ".")
 		tokenID := parts[len(parts)-1]
 
 		if err := nft.TransferFrom(std.CurrentRealm().Address(), ticket.Creator, grc721.TokenID(tokenID)); err != nil {
-			return errors.New(ufmt.Sprintf("failed to return NFT: %v", err))
+			return ErrFailedTokenTransfer(ticket.AssetIn.NFTPath, err)
 		}
 	} else {
 		tokenIn := tokenhub.GetToken(ticket.AssetIn.Token)
 		tellerIn := tokenIn.RealmTeller()
 		if err := tellerIn.Transfer(ticket.Creator, ticket.AmountIn); err != nil {
-			return errors.New(ufmt.Sprintf("failed to refund tokens: %v", err))
+			return ErrFailedRefundTokens(err)
 		}
 	}
 

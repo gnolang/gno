@@ -4,8 +4,11 @@ import (
 	"std"
 	"time"
 
+	"errors"
+
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/ufmt"
 )
 
 // PoolRegistry is a registry for swap pools. It is a singleton that is initialized in the init function.
@@ -106,3 +109,70 @@ func NewNFTAsset(nftFullPath string) Asset {
 		NFTPath: nftFullPath,
 	}
 }
+
+var (
+	ErrIdenticalTokens              = errors.New("identical tokens")
+	ErrPoolAlreadyExists            = errors.New("pool already exists")
+	ErrSentCoinsMismatch            = errors.New("sent coins don't match ticket parameters")
+	ErrTicketNotFound               = errors.New("ticket not found")
+	ErrTicketNotOpen                = errors.New("ticket is not open")
+	ErrTicketExpired                = errors.New("ticket has expired")
+	ErrOnlyCreatorCanCancel         = errors.New("only ticket creator can cancel")
+	ErrPoolNotFound                 = errors.New("pool not found")
+	ErrInvalidPoolType              = errors.New("invalid pool type in registry")
+	ErrCannotWithdrawZero           = errors.New("cannot withdraw zero liquidity")
+	ErrInsufficientLPBalance        = errors.New("insufficient LP token balance")
+	ErrInsufficientLiquidity        = errors.New("insufficient liquidity provided")
+	ErrInsufficientInitialLiquidity = errors.New("insufficient initial liquidity")
+	ErrInvalidNFTPathFormat         = errors.New("invalid NFT path format: expected path.collection.tokenID")
+	ErrInvalidTokenID               = errors.New("invalid token ID")
+	ErrCallerNotOwner               = errors.New("caller is not the owner of the NFT")
+
+	ErrNFTNotFound = func(nftPath string) error {
+		return errors.New("NFT not found: " + nftPath)
+	}
+
+	ErrFailedRefundTokens = func(err error) error {
+		return errors.New(ufmt.Sprintf("failed to refund tokens: %v", err))
+	}
+
+	ErrFailedNFTTransfer = func(err error) error {
+		return errors.New("failed to transfer NFT: " + err.Error())
+	}
+
+	ErrTokenNotFound = func(token string) error {
+		return errors.New(ufmt.Sprintf("token %s not found", token))
+	}
+
+	ErrInsufficientAllowance = func(token string, have, need uint64) error {
+		return errors.New(ufmt.Sprintf("insufficient allowance for token %s: have %d, need %d", token, have, need))
+	}
+
+	ErrTokenDecimalsExceedRange = func(token string, decimals uint) error {
+		return errors.New(ufmt.Sprintf("token decimals exceed safe range: %s has %d decimals, maximum allowed is 6", token, decimals))
+	}
+
+	ErrFailedTokenTransfer = func(token string, err error) error {
+		return errors.New(ufmt.Sprintf("failed to transfer token %s: %v", token, err))
+	}
+
+	ErrIncorrectTokenRatio = func(reserveA, reserveB uint64) error {
+		return errors.New(ufmt.Sprintf("incorrect token ratio, should be %d:%d", reserveA, reserveB))
+	}
+
+	ErrFailedMintLPTokens = func(err error) error {
+		return errors.New(ufmt.Sprintf("failed to mint LP tokens: %v", err))
+	}
+
+	ErrInvalidInputToken        = errors.New("invalid input token")
+	ErrInsufficientOutputAmount = func(minAmountOut, amountOut uint64) error {
+		return errors.New(ufmt.Sprintf("insufficient output amount: expected minimum %d, got %d", minAmountOut, amountOut))
+	}
+
+	ErrInvalidInputAmount = func(token string, expectedScale uint64, decimalsIn, minDecimals uint) error {
+		return errors.New(ufmt.Sprintf(
+			"invalid input amount for %s: amount must be in units of %d (token has %d decimals vs %d decimals for the other token)",
+			token, expectedScale, decimalsIn, minDecimals,
+		))
+	}
+)

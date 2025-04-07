@@ -254,7 +254,7 @@ func GetAllPoolNamesCount() int {
 func GetPoolInfo(poolKey string) (string, string, uint64, uint64, error) {
 	poolInterface, exists := poolRegistry.pools.Get(poolKey)
 	if !exists {
-		return "", "", 0, 0, errors.New("pool not found")
+		return "", "", 0, 0, ErrPoolNotFound
 	}
 
 	pool := poolInterface.(*Pool)

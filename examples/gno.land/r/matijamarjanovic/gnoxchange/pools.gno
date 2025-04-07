@@ -1,7 +1,6 @@
 package gnoxchange
 
 import (
-	"errors"
 	"math"
 	"std"
 
@@ -23,21 +22,28 @@ func CreatePool(tokenA, tokenB string, initialAmountA, initialAmountB uint64) (s
 	caller := std.PreviousRealm().Address()
 
 	if tokenA == tokenB {
-		return "", errors.New("identical tokens")
+		return "", ErrIdenticalTokens
 	}
 
 	tokenAInstance := tokenhub.GetToken(tokenA)
 	if tokenAInstance == nil {
-		return "", errors.New(ufmt.Sprintf("token %s not found", tokenA))
+		return "", ErrTokenNotFound(tokenA)
 	}
 
 	tokenBInstance := tokenhub.GetToken(tokenB)
 	if tokenBInstance == nil {
-		return "", errors.New(ufmt.Sprintf("token %s not found", tokenB))
+		return "", ErrTokenNotFound(tokenB)
 	}
 
 	decimalsA := tokenAInstance.GetDecimals()
 	decimalsB := tokenBInstance.GetDecimals()
+
+	if decimalsA > 6 {
+		return "", ErrTokenDecimalsExceedRange(tokenA, decimalsA)
+	}
+	if decimalsB > 6 {
+		return "", ErrTokenDecimalsExceedRange(tokenB, decimalsB)
+	}
 
 	minDecimals := decimalsA
 	if decimalsB < decimalsA {
@@ -47,36 +53,30 @@ func CreatePool(tokenA, tokenB string, initialAmountA, initialAmountB uint64) (s
 	if decimalsA > minDecimals {
 		expectedScale := uint64(math.Pow10(int(decimalsA - minDecimals)))
 		if initialAmountA%expectedScale != 0 {
-			return "", errors.New(ufmt.Sprintf(
-				"invalid amount for %s: amount must be in units of %d (token has %d decimals vs %d decimals for the other token)",
-				tokenA, expectedScale, decimalsA, minDecimals,
-			))
+			return "", ErrInvalidInputAmount(tokenA, expectedScale, decimalsA, minDecimals)
 		}
 	}
 
 	if decimalsB > minDecimals {
 		expectedScale := uint64(math.Pow10(int(decimalsB - minDecimals)))
 		if initialAmountB%expectedScale != 0 {
-			return "", errors.New(ufmt.Sprintf(
-				"invalid amount for %s: amount must be in units of %d (token has %d decimals vs %d decimals for the other token)",
-				tokenB, expectedScale, decimalsB, minDecimals,
-			))
+			return "", ErrInvalidInputAmount(tokenB, expectedScale, decimalsB, minDecimals)
 		}
 	}
 
 	poolKey := createPoolKey(tokenA, tokenB)
 	if _, exists := poolRegistry.pools.Get(poolKey); exists {
-		return "", errors.New("pool already exists")
+		return "", ErrPoolAlreadyExists
 	}
 
 	allowanceA := tokenAInstance.Allowance(caller, std.CurrentRealm().Address())
 	if allowanceA < initialAmountA {
-		return "", errors.New(ufmt.Sprintf("insufficient allowance for token %s: have %d, need %d", tokenA, allowanceA, initialAmountA))
+		return "", ErrInsufficientAllowance(tokenA, allowanceA, initialAmountA)
 	}
 
 	allowanceB := tokenBInstance.Allowance(caller, std.CurrentRealm().Address())
 	if allowanceB < initialAmountB {
-		return "", errors.New(ufmt.Sprintf("insufficient allowance for token %s: have %d, need %d", tokenB, allowanceB, initialAmountB))
+		return "", ErrInsufficientAllowance(tokenB, allowanceB, initialAmountB)
 	}
 
 	if err := createPool(caller, tokenA, tokenB, initialAmountA, initialAmountB); err != nil {
@@ -91,7 +91,7 @@ func CreatePool(tokenA, tokenB string, initialAmountA, initialAmountB uint64) (s
 func AddLiquidity(poolKey string, amountA, amountB uint64) error {
 	pool, exists := poolRegistry.pools.Get(poolKey)
 	if !exists {
-		return errors.New("pool not found")
+		return ErrPoolNotFound
 	}
 
 	return pool.(*Pool).addLiquidity(std.PreviousRealm().Address(), amountA, amountB)
@@ -102,22 +102,22 @@ func AddLiquidity(poolKey string, amountA, amountB uint64) error {
 func WithdrawLiquidity(poolKey string, lpAmount uint64) (uint64, uint64, error) {
 	poolInterface, exists := poolRegistry.pools.Get(poolKey)
 	if !exists {
-		return 0, 0, errors.New("pool not found")
+		return 0, 0, ErrPoolNotFound
 	}
 
 	pool, ok := poolInterface.(*Pool)
 	if !ok {
-		return 0, 0, errors.New("invalid pool type in registry")
+		return 0, 0, ErrInvalidPoolType
 	}
 
 	if lpAmount == 0 {
-		return 0, 0, errors.New("cannot withdraw zero liquidity")
+		return 0, 0, ErrCannotWithdrawZero
 	}
 
 	caller := std.PreviousRealm().Address()
 	lpBalance := pool.GetLPBalance(caller)
 	if lpBalance < lpAmount {
-		return 0, 0, errors.New("insufficient LP token balance")
+		return 0, 0, ErrInsufficientLPBalance
 	}
 
 	return pool.withdrawLiquidity(caller, lpAmount)
@@ -142,6 +142,13 @@ func (p *Pool) addLiquidity(provider std.Address, amountA, amountB uint64) error
 	decimalsA := tokenAInstance.GetDecimals()
 	decimalsB := tokenBInstance.GetDecimals()
 
+	if decimalsA > 6 {
+		return ErrTokenDecimalsExceedRange(p.tokenA, decimalsA)
+	}
+	if decimalsB > 6 {
+		return ErrTokenDecimalsExceedRange(p.tokenB, decimalsB)
+	}
+
 	minDecimals := decimalsA
 	if decimalsB < decimalsA {
 		minDecimals = decimalsB
@@ -150,31 +157,25 @@ func (p *Pool) addLiquidity(provider std.Address, amountA, amountB uint64) error
 	if decimalsA > minDecimals {
 		expectedScale := uint64(math.Pow10(int(decimalsA - minDecimals)))
 		if amountA%expectedScale != 0 {
-			return errors.New(ufmt.Sprintf(
-				"invalid amount for %s: amount must be in units of %d (token has %d decimals vs %d decimals for the other token)",
-				p.tokenA, expectedScale, decimalsA, minDecimals,
-			))
+			return ErrInvalidInputAmount(p.tokenA, expectedScale, decimalsA, minDecimals)
 		}
 	}
 
 	if decimalsB > minDecimals {
 		expectedScale := uint64(math.Pow10(int(decimalsB - minDecimals)))
 		if amountB%expectedScale != 0 {
-			return errors.New(ufmt.Sprintf(
-				"invalid amount for %s: amount must be in units of %d (token has %d decimals vs %d decimals for the other token)",
-				p.tokenB, expectedScale, decimalsB, minDecimals,
-			))
+			return ErrInvalidInputAmount(p.tokenB, expectedScale, decimalsB, minDecimals)
 		}
 	}
 
 	allowanceA := tokenAInstance.Allowance(provider, std.CurrentRealm().Address())
 	if allowanceA < amountA {
-		return errors.New(ufmt.Sprintf("insufficient allowance for token %s: have %d, need %d", p.tokenA, allowanceA, amountA))
+		return ErrInsufficientAllowance(p.tokenA, allowanceA, amountA)
 	}
 
 	allowanceB := tokenBInstance.Allowance(provider, std.CurrentRealm().Address())
 	if allowanceB < amountB {
-		return errors.New(ufmt.Sprintf("insufficient allowance for token %s: have %d, need %d", p.tokenB, allowanceB, amountB))
+		return ErrInsufficientAllowance(p.tokenB, allowanceB, amountB)
 	}
 
 	tellerA := tokenAInstance.RealmTeller()
@@ -183,7 +184,7 @@ func (p *Pool) addLiquidity(provider std.Address, amountA, amountB uint64) error
 		std.CurrentRealm().Address(),
 		amountA,
 	); err != nil {
-		return errors.New(ufmt.Sprintf("failed to transfer token %s: %v", p.tokenA, err))
+		return ErrFailedTokenTransfer(p.tokenA, err)
 	}
 
 	tellerB := tokenBInstance.RealmTeller()
@@ -198,18 +199,18 @@ func (p *Pool) addLiquidity(provider std.Address, amountA, amountB uint64) error
 			panic(ufmt.Sprintf("CRITICAL: failed to refund token %s after failed transfer of token %s: original error: %v, refund error: %v",
 				p.tokenA, p.tokenB, err, refundErr))
 		}
-		return errors.New(ufmt.Sprintf("failed to transfer token %s: %v", p.tokenB, err))
+		return ErrFailedTokenTransfer(p.tokenB, err)
 	}
 
 	var shares uint64
 	if p.totalSupplyLp == 0 {
 		if amountA == 0 || amountB == 0 {
-			return errors.New("cannot add zero liquidity")
+			return ErrInsufficientLiquidity
 		}
 		shares = uint64(math.Sqrt(float64(amountA * amountB)))
 	} else {
 		if (amountA * p.reserveB) != (amountB * p.reserveA) {
-			return errors.New(ufmt.Sprintf("incorrect token ratio, should be %d:%d", p.reserveA, p.reserveB))
+			return ErrIncorrectTokenRatio(p.reserveA, p.reserveB)
 		}
 
 		sharesA := (amountA * p.totalSupplyLp) / p.reserveA
@@ -222,7 +223,7 @@ func (p *Pool) addLiquidity(provider std.Address, amountA, amountB uint64) error
 	}
 
 	if shares == 0 {
-		return errors.New("insufficient liquidity provided")
+		return ErrInsufficientLiquidity
 	}
 
 	p.reserveA += amountA
@@ -230,7 +231,7 @@ func (p *Pool) addLiquidity(provider std.Address, amountA, amountB uint64) error
 	p.totalSupplyLp += shares
 
 	if err := p.lpLedger.Mint(provider, shares); err != nil {
-		return err
+		return ErrFailedMintLPTokens(err)
 	}
 
 	return nil
@@ -242,14 +243,14 @@ func (p *Pool) addLiquidity(provider std.Address, amountA, amountB uint64) error
 // but the caller loses their LPs.
 func (p *Pool) withdrawLiquidity(caller std.Address, lpAmount uint64) (uint64, uint64, error) {
 	if lpAmount == 0 {
-		return 0, 0, errors.New("cannot withdraw zero liquidity")
+		return 0, 0, ErrCannotWithdrawZero
 	}
 
 	amountA := (lpAmount * p.reserveA) / p.totalSupplyLp
 	amountB := (lpAmount * p.reserveB) / p.totalSupplyLp
 
 	if err := p.lpLedger.Burn(caller, lpAmount); err != nil {
-		return 0, 0, errors.New(ufmt.Sprintf("failed to burn LP tokens: %v", err))
+		return 0, 0, ErrFailedTokenTransfer(p.tokenA, err)
 	}
 
 	p.reserveA = p.reserveA - amountA
@@ -285,7 +286,7 @@ func createPool(creator std.Address, tokenA, tokenB string, initialAmountA, init
 		std.CurrentRealm().Address(),
 		initialAmountA,
 	); err != nil {
-		return errors.New(ufmt.Sprintf("failed to transfer token %s: %v", tokenA, err))
+		return ErrFailedTokenTransfer(tokenA, err)
 	}
 
 	tellerB := tokenBInstance.RealmTeller()
@@ -298,7 +299,7 @@ func createPool(creator std.Address, tokenA, tokenB string, initialAmountA, init
 			panic(ufmt.Sprintf("CRITICAL: failed to refund token %s after failed transfer of token %s: original error: %v, refund error: %v",
 				tokenA, tokenB, err, refundErr))
 		}
-		return errors.New(ufmt.Sprintf("failed to transfer token %s: %v", tokenB, err))
+		return ErrFailedTokenTransfer(tokenB, err)
 	}
 
 	lpName := ufmt.Sprintf("LP %s-%s", tokenAInstance.GetName(), tokenBInstance.GetName())
@@ -308,7 +309,7 @@ func createPool(creator std.Address, tokenA, tokenB string, initialAmountA, init
 
 	shares := uint64(math.Sqrt(float64(initialAmountA * initialAmountB)))
 	if shares == 0 {
-		return errors.New("insufficient initial liquidity")
+		return ErrInsufficientInitialLiquidity
 	}
 
 	pool := &Pool{
@@ -322,7 +323,7 @@ func createPool(creator std.Address, tokenA, tokenB string, initialAmountA, init
 	}
 
 	if err := pool.lpLedger.Mint(creator, shares); err != nil {
-		return errors.New(ufmt.Sprintf("failed to mint LP tokens: %v", err))
+		return ErrFailedMintLPTokens(err)
 	}
 
 	poolRegistry.pools.Set(createPoolKey(tokenA, tokenB), pool)
