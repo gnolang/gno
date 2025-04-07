@@ -63,7 +63,6 @@ func (m *Machine) doOpCall() {
 	fr := m.LastFrame()
 	fv := fr.Func
 	fs := fv.GetSource(m.Store)
-	ftxz := getFuncTypeExprFromSource(fs)
 	ft := fr.Func.GetType(m.Store)
 	pts := ft.Params
 	numParams := len(pts)
@@ -103,20 +102,11 @@ func (m *Machine) doOpCall() {
 		} else {
 			// Initialize return variables with default value.
 			for i, rt := range ft.Results {
-				rnx := &ftxz.Results[i].NameExpr
+				//rnx := &ftxz.Results[i].NameExpr
 				dtv := defaultTypedValue(m.Alloc, rt.Type)
 				ptr := b.GetPointerToInt(nil, numParams+i)
 				// Write to existing heap item if result is heap defined.
-				if rnx.Type == NameExprTypeHeapDefine {
-					*ptr.TV = TypedValue{
-						T: heapItemType{},
-						V: &HeapItemValue{
-							Value: dtv,
-						},
-					}
-				} else {
-					*ptr.TV = dtv
-				}
+				ptr.TV.AssignToBlock(dtv)
 			}
 		}
 		// Exec body.
@@ -179,15 +169,7 @@ func (m *Machine) doOpCall() {
 		} else {
 			pv = fr.Receiver
 		}
-		// Make heap item if param is heap defined.
-		// This also heap escapes the receiver if any.
-		if ftxz.Params[i].NameExpr.Type == NameExprTypeHeapDefine {
-			pv = TypedValue{
-				T: heapItemType{},
-				V: &HeapItemValue{Value: pv},
-			}
-		}
-		b.Values[i] = pv
+		b.Values[i].AssignToBlock(pv)
 	}
 }
 
@@ -202,28 +184,9 @@ func (m *Machine) doOpCallDeferNativeBody() {
 
 // Assumes that result values are pushed onto the Values stack.
 func (m *Machine) doOpReturn() {
+	// Unwind stack.
+	cfr := m.PopUntilLastCallFrame()
 
-	// If there are named results that are heap defined,
-	// need to write to those from stack before returning.
-	cfr := m.MustLastCallFrame(1)
-	fv := cfr.Func
-	fs := fv.GetSource(m.Store)
-	ftxz := getFuncTypeExprFromSource(fs)
-	ft := fv.GetType(m.Store)
-	numParams := len(ft.Params)
-	numResults := len(ft.Results)
-	fblock := m.Blocks[cfr.NumBlocks] // frame +1
-	results := m.PeekValues(numResults)
-	for i := 0; i < numResults; i++ {
-		rtv := results[i]
-		// Write to existing heap item if result is heap defined.
-		if ftxz.Results[i].NameExpr.Type == NameExprTypeHeapDefine {
-			hiv := fblock.Values[numParams+i].V.(*HeapItemValue)
-			hiv.Value = rtv.Copy(m.Alloc)
-		}
-	}
-
-	cfr = m.PopUntilLastCallFrame()
 	// See if we are exiting a realm boundary.
 	crlm := m.Realm
 	if crlm != nil {
@@ -242,29 +205,67 @@ func (m *Machine) doOpReturn() {
 			crlm.FinalizeRealmTransaction(m.Store)
 		}
 	}
-	// finalize
+
+	// Finalize
+	m.PopFrameAndReturn()
+}
+
+// Like doOpReturn but first copies results to block.
+func (m *Machine) doOpReturnAfterCopy() {
+	// If there are named results that are heap defined,
+	// need to write to those from stack before returning.
+	cfr := m.MustLastCallFrame(1)
+	fv := cfr.Func
+	ft := fv.GetType(m.Store)
+	numParams := len(ft.Params)
+	numResults := len(ft.Results)
+	fblock := m.Blocks[cfr.NumBlocks] // frame +1
+	results := m.PeekValues(numResults)
+	for i := 0; i < numResults; i++ {
+		rtv := results[i].Copy(m.Alloc)
+		fblock.Values[numParams+i].AssignToBlock(rtv)
+	}
+
+	// Unwind stack.
+	cfr = m.PopUntilLastCallFrame()
+
+	// See if we are exiting a realm boundary.
+	crlm := m.Realm
+	if crlm != nil {
+		lrlm := cfr.LastRealm
+		finalize := false
+		if m.NumFrames() == 1 {
+			// We are exiting the machine's realm.
+			finalize = true
+		} else if crlm != lrlm {
+			// We are changing realms or exiting a realm.
+			finalize = true
+		}
+		if finalize {
+			// Finalize realm updates!
+			// NOTE: This is a resource intensive undertaking.
+			crlm.FinalizeRealmTransaction(m.Store)
+		}
+	}
+
+	// Finalize
 	m.PopFrameAndReturn()
 }
 
 // Like doOpReturn, but with results from the block;
-// i.e. named result vars declared in func signatures.
+// i.e. named result vars declared in func signatures,
+// because return was called with no return arguments.
 func (m *Machine) doOpReturnFromBlock() {
 	// Copy results from block.
 	cfr := m.PopUntilLastCallFrame()
 	fv := cfr.Func
-	fs := fv.GetSource(m.Store)
-	ftxz := getFuncTypeExprFromSource(fs)
 	ft := fv.GetType(m.Store)
 	numParams := len(ft.Params)
 	numResults := len(ft.Results)
 	fblock := m.Blocks[cfr.NumBlocks] // frame +1
 	for i := 0; i < numResults; i++ {
 		rtv := *fillValueTV(m.Store, &fblock.Values[i+numParams])
-		// Deref heap item if it was heap defined.
-		if ftxz.Results[i].NameExpr.Type == NameExprTypeHeapDefine {
-			rtv = rtv.V.(*HeapItemValue).Value
-		}
-		m.PushValue(rtv)
+		m.PushValueFromBlock(rtv)
 	}
 	// See if we are exiting a realm boundary.
 	crlm := m.Realm
@@ -294,8 +295,6 @@ func (m *Machine) doOpReturnFromBlock() {
 func (m *Machine) doOpReturnToBlock() {
 	cfr := m.MustLastCallFrame(1)
 	fv := cfr.Func
-	fs := fv.GetSource(m.Store)
-	ftxz := getFuncTypeExprFromSource(fs)
 	ft := fv.GetType(m.Store)
 	numParams := len(ft.Params)
 	numResults := len(ft.Results)
@@ -303,13 +302,7 @@ func (m *Machine) doOpReturnToBlock() {
 	results := m.PopValues(numResults)
 	for i := 0; i < numResults; i++ {
 		rtv := results[i]
-		// Write to existing heap item if result is heap defined.
-		if ftxz.Results[i].NameExpr.Type == NameExprTypeHeapDefine {
-			hiv := fblock.Values[numParams+i].V.(*HeapItemValue)
-			hiv.Value = rtv
-		} else {
-			fblock.Values[numParams+i] = rtv
-		}
+		fblock.Values[numParams+i].AssignToBlock(rtv)
 	}
 }
 
@@ -368,8 +361,12 @@ func (m *Machine) doOpReturnCallDefers() {
 			m.PushOp(OpCallDeferNativeBody)
 		}
 		// Assign parameters in forward order.
-		// Heap escapes and vargs already handled by doOpDefer.
-		copy(b.Values, dfr.Args)
+		for i, arg := range dfr.Args {
+			// We need to define, but b was already populated
+			// with new empty heap items, so AssignToBlock is
+			// faster.
+			b.Values[i].AssignToBlock(arg)
+		}
 	} else {
 		panic("should not happen")
 	}
@@ -388,8 +385,6 @@ func (m *Machine) doOpDefer() {
 	switch cv := ftv.V.(type) {
 	case *FuncValue:
 		fv := cv
-		fs := fv.GetSource(m.Store)
-		ftxz := getFuncTypeExprFromSource(fs)
 		ft := fv.GetType(m.Store)
 		pts := ft.Params
 		numParams := len(pts)
@@ -416,14 +411,12 @@ func (m *Machine) doOpDefer() {
 				})
 			}
 		}
-		for i := 0; i < numParams; i++ {
-			if ftxz.Params[i].NameExpr.Type == NameExprTypeHeapDefine {
-				args[i] = TypedValue{
-					T: heapItemType{},
-					V: &HeapItemValue{Value: args[i]},
-				}
+		/*
+			for i := 0; i < numParams; i++ {
+				// args will be copy()'d to block later.
+				args[i].DefineToBlock(args[i])
 			}
-		}
+		*/
 		cfr.PushDefer(Defer{
 			Func:       cv,
 			Args:       args,
@@ -433,8 +426,6 @@ func (m *Machine) doOpDefer() {
 		})
 	case *BoundMethodValue:
 		fv := cv.Func
-		fd := fv.GetSource(m.Store).(*FuncDecl)
-		ftxz := getFuncTypeExprFromSource(fd)
 		ft := fv.GetType(m.Store)
 		pts := ft.Params
 		numParams := len(pts)
@@ -471,14 +462,7 @@ func (m *Machine) doOpDefer() {
 			} else {
 				pv = cv.Receiver
 			}
-			if ftxz.Params[i].NameExpr.Type == NameExprTypeHeapDefine {
-				args2[i] = TypedValue{
-					T: heapItemType{},
-					V: &HeapItemValue{Value: pv},
-				}
-			} else {
-				args2[i] = pv
-			}
+			args2[i] = pv
 		}
 		cfr.PushDefer(Defer{
 			Func:       fv,

@@ -714,19 +714,21 @@ func (x *FieldTypeExpr) addressability() addressabilityStatus {
 
 type FieldTypeExprs []FieldTypeExpr
 
+// Keep it slow, validating.
+// If you need it faster, memoize it elsewhere.
 func (ftxz FieldTypeExprs) IsNamed() bool {
 	named := false
 	for i, ftx := range ftxz {
 		if i == 0 {
-			if ftx.Name == "" || isHiddenResultVariable(string(ftx.Name)) {
+			if ftx.Name == "" || isMissingResult(string(ftx.Name)) {
 				named = false
 			} else {
 				named = true
 			}
 		} else {
-			if named && ftx.Name == "" {
+			if named && (ftx.Name == "" || isMissingResult(string(ftx.Name))) {
 				panic("[]FieldTypeExpr has inconsistent namedness (starts named)")
-			} else if !named && (ftx.Name != "" || !isHiddenResultVariable(string(ftx.Name))) {
+			} else if !named && (ftx.Name != "" && !isMissingResult(string(ftx.Name))) {
 				panic("[]FieldTypeExpr has inconsistent namedness (starts unnamed)")
 			}
 		}
@@ -1017,7 +1019,8 @@ type RangeStmt struct {
 
 type ReturnStmt struct {
 	Attributes
-	Results Exprs // result expressions; or nil
+	Results     Exprs // result expressions; or nil
+	CopyResults bool  // copy results to block first
 }
 
 type PanicStmt struct {
@@ -1115,12 +1118,13 @@ func (x *bodyStmt) String() string {
 			active = fmt.Sprintf(" unexpected active: %v", x.Active)
 		}
 	}
-	return fmt.Sprintf("bodyStmt[%d/%d/%d]=%s%s",
+	return fmt.Sprintf("bodyStmt[%d/%d/%d]=%s%s Active:%v",
 		x.ListLen,
 		x.ListIndex,
 		x.NextBodyIndex,
 		next,
-		active)
+		active,
+		x.Active)
 }
 
 // ----------------------------------------
@@ -1691,6 +1695,8 @@ type BlockNode interface {
 	GetBlockNames() []Name
 	GetExternNames() []Name
 	GetNumNames() uint16
+	SetIsHeapItem(n Name)
+	GetHeapItems() []bool
 	GetParentNode(Store) BlockNode
 	GetPathForName(Store, Name) ValuePath
 	GetBlockNodeForPath(Store, ValuePath) BlockNode
@@ -1716,6 +1722,7 @@ type StaticBlock struct {
 	Types             []Type
 	NumNames          uint16
 	Names             []Name
+	HeapItems         []bool
 	UnassignableNames []Name
 	Consts            []Name // TODO consider merging with Names.
 	Externs           []Name
@@ -1758,6 +1765,7 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 	}
 	sb.NumNames = 0
 	sb.Names = make([]Name, 0, 16)
+	sb.HeapItems = make([]bool, 0, 16)
 	sb.Consts = make([]Name, 0, 16)
 	sb.Externs = make([]Name, 0, 16)
 	return
@@ -1791,14 +1799,14 @@ func (sb *StaticBlock) GetBlock() *Block {
 
 // Implements BlockNode.
 func (sb *StaticBlock) GetBlockNames() (ns []Name) {
-	return sb.Names // copy?
+	return sb.Names
 }
 
 // Implements BlockNode.
 // NOTE: Extern names may also be local, if declared after usage as an extern
 // (thus shadowing the extern name).
 func (sb *StaticBlock) GetExternNames() (ns []Name) {
-	return sb.Externs // copy?
+	return sb.Externs
 }
 
 func (sb *StaticBlock) addExternName(n Name) {
@@ -1813,6 +1821,20 @@ func (sb *StaticBlock) addExternName(n Name) {
 // Implements BlockNode.
 func (sb *StaticBlock) GetNumNames() (nn uint16) {
 	return sb.NumNames
+}
+
+// Implements BlockNode.
+func (sb *StaticBlock) GetHeapItems() []bool {
+	return sb.HeapItems
+}
+
+// Implements BlockNode.
+func (sb *StaticBlock) SetIsHeapItem(n Name) {
+	idx, ok := sb.GetLocalIndex(n)
+	if !ok {
+		panic("name not found in block")
+	}
+	sb.HeapItems[idx] = true
 }
 
 // Implements BlockNode.
@@ -2038,7 +2060,10 @@ func (sb *StaticBlock) Define(n Name, tv TypedValue) {
 
 // Set type to nil, only reserving the name.
 func (sb *StaticBlock) Predefine(isConst bool, n Name) {
-	sb.Define2(isConst, n, nil, anyValue(nil))
+	_, exists := sb.GetLocalIndex(n)
+	if !exists {
+		sb.Define2(isConst, n, nil, anyValue(nil))
+	}
 }
 
 // The declared type st may not be the same as the static tv;
@@ -2106,6 +2131,7 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 	} else {
 		// The general case without re-definition.
 		sb.Names = append(sb.Names, n)
+		sb.HeapItems = append(sb.HeapItems, false)
 		if isConst {
 			sb.Consts = append(sb.Consts, n)
 		}
@@ -2381,13 +2407,21 @@ func validatePkgName(name string) error {
 	return nil
 }
 
-const hiddenResultVariable = ".res_"
+// The distinction is used for validation to work
+// both before and after preprocessing.
+const missingResultNamePrefix = ".res."    // if there was no name
+const underscoreResultNamePrefix = ".res_" // if was underscore
 
-func isHiddenResultVariable(name string) bool {
-	if strings.HasPrefix(name, hiddenResultVariable) {
-		return true
-	}
-	return false
+func isUnnamedResult(name string) bool {
+	return isMissingResult(name) || isUnderscoreResult(name)
+}
+
+func isMissingResult(name string) bool {
+	return strings.HasPrefix(name, missingResultNamePrefix)
+}
+
+func isUnderscoreResult(name string) bool {
+	return strings.HasPrefix(name, underscoreResultNamePrefix)
 }
 
 type addressabilityStatus int

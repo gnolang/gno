@@ -561,6 +561,8 @@ EXEC_SWITCH:
 		} else {
 			if cs.Results == nil {
 				m.PushOp(OpReturnFromBlock)
+			} else if cs.CopyResults {
+				m.PushOp(OpReturnAfterCopy)
 			} else {
 				m.PushOp(OpReturn)
 			}

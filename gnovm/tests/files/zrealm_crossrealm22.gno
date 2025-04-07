@@ -160,7 +160,7 @@ func main() {
 //     +                    "Results": [
 //     +                        {
 //     +                            "Embedded": false,
-//     +                            "Name": "",
+//     +                            "Name": ".res.0",
 //     +                            "Tag": "",
 //     +                            "Type": {
 //     +                                "@type": "/gno.RefType",

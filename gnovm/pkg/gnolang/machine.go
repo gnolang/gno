@@ -909,9 +909,6 @@ const (
 	OpPrecall             Op = 0x04 // sets X (func) to frame
 	OpCall                Op = 0x05 // call(Frame.Func, [...])
 	OpCallNativeBody      Op = 0x06 // call body is native
-	OpReturn              Op = 0x07 // return ...
-	OpReturnFromBlock     Op = 0x08 // return results (after defers)
-	OpReturnToBlock       Op = 0x09 // copy results to block (before defer)
 	OpDefer               Op = 0x0A // defer call(X, [...])
 	OpCallDeferNativeBody Op = 0x0B // call body is native
 	OpGo                  Op = 0x0C // go call(X, [...])
@@ -926,6 +923,10 @@ const (
 	OpPopFrameAndReset    Op = 0x15 // pop frame and reset.
 	OpPanic1              Op = 0x16 // pop exception and pop call frames.
 	OpPanic2              Op = 0x17 // pop call frames.
+	OpReturn              Op = 0x1A // return ...
+	OpReturnAfterCopy     Op = 0x1B // return ... (with named results)
+	OpReturnFromBlock     Op = 0x1C // return results (after defers)
+	OpReturnToBlock       Op = 0x1D // copy results to block (before defer) XXX rename to OpCopyResultsToBlock
 
 	/* Unary & binary operators */
 	OpUpos  Op = 0x20 // + (unary)
@@ -1014,7 +1015,7 @@ const (
 	OpRangeIterString   Op = 0xD4
 	OpRangeIterMap      Op = 0xD5
 	OpRangeIterArrayPtr Op = 0xD6
-	OpReturnCallDefers  Op = 0xD7 // TODO rename?
+	OpReturnCallDefers  Op = 0xD7 // XXX rename to OpCallDefers
 	OpVoid              Op = 0xFF // For profiling simple operation
 )
 
@@ -1041,9 +1042,6 @@ const (
 	OpCPUPrecall             = 207
 	OpCPUCall                = 256
 	OpCPUCallNativeBody      = 424
-	OpCPUReturn              = 38
-	OpCPUReturnFromBlock     = 36
-	OpCPUReturnToBlock       = 23
 	OpCPUDefer               = 64
 	OpCPUCallDeferNativeBody = 33
 	OpCPUGo                  = 1 // Not yet implemented
@@ -1058,6 +1056,10 @@ const (
 	OpCPUPopFrameAndReset    = 15
 	OpCPUPanic1              = 121
 	OpCPUPanic2              = 21
+	OpCPUReturn              = 38
+	OpCPUReturnAfterCopy     = 38 // XXX
+	OpCPUReturnFromBlock     = 36
+	OpCPUReturnToBlock       = 23
 
 	/* Unary & binary operators */
 	OpCPUUpos  = 7
@@ -1216,6 +1218,9 @@ func (m *Machine) Run() {
 		case OpReturn:
 			m.incrCPU(OpCPUReturn)
 			m.doOpReturn()
+		case OpReturnAfterCopy:
+			m.incrCPU(OpCPUReturnAfterCopy)
+			m.doOpReturnAfterCopy()
 		case OpReturnFromBlock:
 			m.incrCPU(OpCPUReturnFromBlock)
 			m.doOpReturnFromBlock()
@@ -1645,6 +1650,13 @@ func (m *Machine) PeekValues(n int) []TypedValue {
 // XXX delete?
 func (m *Machine) PeekType(offset int) Type {
 	return m.Values[m.NumValues-offset].T
+}
+
+func (m *Machine) PushValueFromBlock(tv TypedValue) {
+	if hiv, ok := tv.V.(*HeapItemValue); ok {
+		tv = hiv.Value
+	}
+	m.PushValue(tv)
 }
 
 func (m *Machine) PushValue(tv TypedValue) {

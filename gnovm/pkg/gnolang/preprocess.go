@@ -141,6 +141,8 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 }
 
 // Initialize static block info.
+// TODO: ensure and keep idempotent.
+// PrpedefineFileSet may precede Preprocess.
 func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
@@ -243,11 +245,13 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				}
 				for i := range n.Results {
 					r := &n.Results[i]
+					if r.Name == "" {
+						// create an unnamed name with leading dot.
+						r.Name = Name(fmt.Sprintf("%s%d", missingResultNamePrefix, i))
+					}
 					if r.Name == blankIdentifier {
-						// create a hidden var with leading dot.
-						// NOTE: document somewhere.
-						rn := fmt.Sprintf("%s%d", hiddenResultVariable, i)
-						r.Name = Name(rn)
+						// create an underscore name with leading dot.
+						r.Name = Name(fmt.Sprintf("%s%d", underscoreResultNamePrefix, i))
 					}
 				}
 			}
@@ -289,10 +293,12 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				}
 				for i := range n.Type.Results {
 					rx := &n.Type.Results[i].NameExpr
-					if rx.Name != "" {
-						rx.Type = NameExprTypeDefine
-						last.Predefine(false, rx.Name)
+					if rx.Name == "" {
+						rn := fmt.Sprintf("%s%d", missingResultNamePrefix, i)
+						rx.Name = Name(rn)
 					}
+					rx.Type = NameExprTypeDefine
+					last.Predefine(false, rx.Name)
 				}
 			case *SwitchStmt:
 				if n.VarName != "" {
@@ -341,7 +347,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				for i := range n.Type.Results {
 					rx := &n.Type.Results[i].NameExpr
 					if rx.Name == "" {
-						rn := fmt.Sprintf("%s%d", hiddenResultVariable, i)
+						rn := fmt.Sprintf("%s%d", missingResultNamePrefix, i)
 						rx.Name = Name(rn)
 					}
 					rx.Type = NameExprTypeDefine
@@ -423,12 +429,16 @@ var preprocessing atomic.Int32
 //   - Assigns BlockValuePath to NameExprs.
 //   - TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
-	// If initStaticBlocks doesn't happen here,
-	// it means Preprocess on blocks might fail.
-	// it works for now because preprocess also does pushInitBlock,
-	// but it's kinda weird.
-	// maybe consider moving initStaticBlocks here and ensure idempotency of it.
+	// First init static blocks if blocknode.
+	// This may have already happened.
+	// Keep this function idemponent.
+	if bn, ok := n.(BlockNode); ok {
+		initStaticBlocks(store, ctx, bn)
+	}
+
+	// Bulk of the preprocessor function
 	n = preprocess1(store, ctx, n)
+
 	// XXX check node lines and locations
 	checkNodeLinesLocations("XXXpkgPath", "XXXfileName", n)
 	// XXX what about the fact that preprocess1 sets the PREPROCESSED attr on all nodes?
@@ -436,7 +446,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	// XXX well the following may be isn't idempotent,
 	// XXX so it is currently strange.
 	if bn, ok := n.(BlockNode); ok {
-		findGotoLoopDefines(ctx, bn)
+		//findGotoLoopDefines(ctx, bn)
 		findHeapUses(ctx, bn)
 		findHeapDefines(ctx, bn)
 	}
@@ -666,12 +676,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// define results in new block.
 				for i, rf := range ft.Results {
 					name := rf.Name
-					if name == "" {
-						// create a hidden var with leading dot.
-						// NOTE: document somewhere.
-						name = Name(fmt.Sprintf("%s%d",
-							hiddenResultVariable, i))
-					}
 					last.Define(name, anyValue(rf.Type))
 					n.Type.Results[i].Path = n.GetPathForName(nil, name)
 				}
@@ -793,11 +797,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// define results in new block.
 				for i, rf := range ft.Results {
 					name := rf.Name
-					if name == "" {
-						// create a hidden var with leading dot.
-						name = Name(fmt.Sprintf("%s%d",
-							hiddenResultVariable, i))
-					}
 					last.Define(name, anyValue(rf.Type))
 					n.Type.Results[i].Path = n.GetPathForName(nil, name)
 				}
@@ -2127,6 +2126,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *ReturnStmt:
 				fnode, ft := funcOf(last)
+				// Mark return statement as needing to copy
+				// results to named heap items of block.
+				// This is necessary because if the results
+				// are unnamed, they are omitted from block.
+				if ft.Results.IsNamed() && len(n.Results) != 0 {
+					// NOTE: We don't know yet whether any
+					// results are heap items or not, as
+					// they are found after this
+					// preprocessor step.  Either find heap
+					// items before, or do another pass to
+					// demote for speed.
+					n.CopyResults = true
+				}
 				// Check number of return arguments.
 				if len(n.Results) != len(ft.Results) {
 					if len(n.Results) == 0 {
@@ -2535,7 +2547,11 @@ func parseMultipleAssignFromOneExpr(
 }
 
 // Identifies NameExprTypeHeapDefines.
-// Also finds GotoLoopStmts, XXX but probably remove, not needed.
+// Also finds GotoLoopStmts.
+// XXX DEPRECATED but kept here in case needed in the future.
+// We may still want this for optimizing heap defines;
+// the current implementation of findHeapUses/Defines
+// produces false positives.
 func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
@@ -2731,7 +2747,6 @@ func findHeapUses(ctx BlockNode, bn BlockNode) {
 					// and selector exprs.
 					// e.g. leftmost.middle[0][2].rightmost
 					// Mark name for heap use.
-					addAttrHeapDefine(dbn, nx.Name)
 					addAttrHeapUse(dbn, nx.Name)
 					// adjust NameExpr type.
 					nx.Type = NameExprTypeHeapUse
@@ -2756,7 +2771,6 @@ func findHeapUses(ctx BlockNode, bn BlockNode) {
 					if found {
 						// If across a closure,
 						// mark name as heap used.
-						addAttrHeapDefine(dbn, n.Name)
 						addAttrHeapUse(dbn, n.Name)
 						// The path must stay same for now,
 						// used later in findHeapDefines.
@@ -2766,16 +2780,6 @@ func findHeapUses(ctx BlockNode, bn BlockNode) {
 						n.Path.SetDepth(uint8(depth))
 						n.Path.Index = idx
 					}
-				case NameExprTypeDefine:
-					// nothing to do.
-				case NameExprTypeHeapDefine:
-					// Set name in attribute, so later matches
-					// on NameExpr can know that this was heap defined
-					// on this block.
-					addAttrHeapDefine(last, n.Name)
-				case NameExprTypeHeapUse, NameExprTypeHeapClosure:
-					// e.g. from *RefExpr above.
-					// panic("unexpected node type")
 				}
 			}
 			return n, TRANS_CONTINUE
@@ -2805,21 +2809,10 @@ func addName(names []Name, name Name) []Name {
 	return names
 }
 
-func addAttrHeapDefine(bn BlockNode, name Name) {
-	hds, _ := bn.GetAttribute(ATTR_HEAP_DEFINES).([]Name)
-	hds = addName(hds, name)
-	bn.SetAttribute(ATTR_HEAP_DEFINES, hds)
-}
-
 func addAttrHeapUse(bn BlockNode, name Name) {
 	lus, _ := bn.GetAttribute(ATTR_HEAP_USES).([]Name)
 	lus = addName(lus, name)
 	bn.SetAttribute(ATTR_HEAP_USES, lus)
-}
-
-func hasAttrHeapDefine(bn BlockNode, name Name) bool {
-	hds, _ := bn.GetAttribute(ATTR_HEAP_DEFINES).([]Name)
-	return slices.Contains(hds, name)
 }
 
 func hasAttrHeapUse(bn BlockNode, name Name) bool {
@@ -2910,9 +2903,9 @@ func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, dept
 }
 
 // Convert other uses of heap names to NameExprTypeHeapUse if actually used as
-// heap item from findHeapUses.
-// Also, NameExprTypeHeapDefine gets demoted to NameExprTypeDefine if no actual
-// usage was found that warrants a NameExprTypeHeapDefine.
+// heap item from findHeapUses.  Also, NameExprTypeHeapDefine gets demoted to
+// NameExprTypeDefine if no actual usage was found that warrants a
+// NameExprTypeHeapDefine.
 func findHeapDefines(ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
@@ -2946,8 +2939,6 @@ func findHeapDefines(ctx BlockNode, bn BlockNode) {
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
 					// If the name is heap used,
 					if hasAttrHeapUse(dbn, n.Name) {
-						// Add attribute heap define if not already added.
-						addAttrHeapDefine(dbn, n.Name)
 						// Change type to heap use.
 						n.Type = NameExprTypeHeapUse
 					}
@@ -2958,6 +2949,8 @@ func findHeapDefines(ctx BlockNode, bn BlockNode) {
 					if hasAttrHeapUse(dbn, n.Name) {
 						// Promote type to heap define.
 						n.Type = NameExprTypeHeapDefine
+						// Make record in static block.
+						dbn.SetIsHeapItem(n.Name)
 					} else {
 						// Demote type to regular define.
 						n.Type = NameExprTypeDefine
@@ -2986,32 +2979,37 @@ func findHeapDefines(ctx BlockNode, bn BlockNode) {
 				switch fd := n.(type) {
 				case *FuncDecl:
 					recv := &fd.Recv
-					if hasAttrHeapDefine(fd, recv.Name) {
+					if hasAttrHeapUse(fd, recv.Name) {
 						recv.NameExpr.Type = NameExprTypeHeapDefine
+						fd.SetIsHeapItem(recv.Name)
 					}
 					for i := 0; i < len(fd.Type.Params); i++ {
 						name := fd.Type.Params[i].Name
-						if hasAttrHeapDefine(fd, name) {
+						if hasAttrHeapUse(fd, name) {
 							fd.Type.Params[i].NameExpr.Type = NameExprTypeHeapDefine
+							fd.SetIsHeapItem(name)
 						}
 					}
 					for i := 0; i < len(fd.Type.Results); i++ {
 						name := fd.Type.Results[i].Name
-						if hasAttrHeapDefine(fd, name) {
+						if hasAttrHeapUse(fd, name) {
 							fd.Type.Results[i].NameExpr.Type = NameExprTypeHeapDefine
+							fd.SetIsHeapItem(name)
 						}
 					}
 				case *FuncLitExpr:
 					for i := 0; i < len(fd.Type.Params); i++ {
 						name := fd.Type.Params[i].Name
-						if hasAttrHeapDefine(fd, name) {
+						if hasAttrHeapUse(fd, name) {
 							fd.Type.Params[i].NameExpr.Type = NameExprTypeHeapDefine
+							fd.SetIsHeapItem(name)
 						}
 					}
 					for i := 0; i < len(fd.Type.Results); i++ {
 						name := fd.Type.Results[i].Name
-						if hasAttrHeapDefine(fd, name) {
+						if hasAttrHeapUse(fd, name) {
 							fd.Type.Results[i].NameExpr.Type = NameExprTypeHeapDefine
+							fd.SetIsHeapItem(name)
 						}
 					}
 				}

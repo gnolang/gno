@@ -1622,6 +1622,32 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 	}
 }
 
+// Define to a block slot that takes into account heap escapes.
+// (only blocks can contain heap items).
+// This should only be used when both the base parent and the value are unreal
+// new values, or call rlm.DidUpdate manually.
+func (tv *TypedValue) AssignToBlock(other TypedValue) {
+	if _, ok := tv.T.(heapItemType); ok {
+		tv.V.(*HeapItemValue).Value = other
+	} else {
+		*tv = other
+	}
+}
+
+// Like AssignToBlock but creates a new heap item instead.
+// This should only be used when both the base parent and the value are unreal
+// new values, or call rlm.DidUpdate manually.
+func (tv *TypedValue) DefineToBlock(other TypedValue) {
+	if _, ok := tv.T.(heapItemType); ok {
+		*tv = TypedValue{
+			T: heapItemType{},
+			V: &HeapItemValue{Value: other},
+		}
+	} else {
+		*tv = other
+	}
+}
+
 // NOTE: Allocation for PointerValue is not immediate,
 // as usually PointerValues are temporary for assignment
 // or binary operations. When a pointer is to be
@@ -2224,10 +2250,19 @@ type Block struct {
 }
 
 // NOTE: for allocation, use *Allocator.NewBlock.
+// XXX pass allocator in for heap items.
 func NewBlock(source BlockNode, parent *Block) *Block {
-	var values []TypedValue
-	if source != nil {
-		values = make([]TypedValue, source.GetNumNames())
+	numNames := source.GetNumNames()
+	values := make([]TypedValue, numNames)
+	for i, isHeap := range source.GetHeapItems() {
+		if !isHeap {
+			continue
+		}
+		// indicates must always be heap item.
+		values[i] = TypedValue{
+			T: heapItemType{},
+			V: &HeapItemValue{},
+		}
 	}
 	return &Block{
 		Source: source,
