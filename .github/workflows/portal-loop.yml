@@ -61,6 +61,7 @@ jobs:
 
       - name: "Test1 - Portal loop start gnoland"
         run: |
+          cd misc/loop
           docker compose logs -n 5000 portalloopd
           while
             block_height=$(curl -s localhost:26657/status | jq -r '.result.sync_info.latest_block_height')
