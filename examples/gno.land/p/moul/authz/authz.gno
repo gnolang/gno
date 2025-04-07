@@ -130,7 +130,7 @@ func (a *MemberAuthority) Authorize(title string, action PrivilegedAction, args 
 }
 
 func (a *MemberAuthority) String() string {
-	out := "MemberAuthority Member List:\n\n"
+	out := ""
 	a.members.Tree().Iterate("", "", func(key string, _ any) bool {
 		out += "- " + key + "\n"
 		return false
