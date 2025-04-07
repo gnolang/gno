@@ -264,6 +264,18 @@
   .realm-view .gno-columns > * {
     @apply grow shrink basis-52 lg:basis-44;
   }
+  .realm-view .gno-form {
+    @apply block border rounded pt-2 pb-4 px-4;
+  }
+  .realm-view .gno-form_header {
+    @apply flex justify-between text-gray-600 text-50 mb-6;
+  }
+  .realm-view .gno-form input {
+    @apply block p-2 rounded-sm border-gray-200 focus:border-gray-300 hover:border-gray-300 text-gray-600 outline-none font-mono mb-4 w-full;
+  }
+  .realm-view .gno-form input[type="submit"] {
+    @apply bg-green-600 text-light border-green-600 cursor-pointer font-interVar mb-2;
+  }
 }
 
 @layer components {

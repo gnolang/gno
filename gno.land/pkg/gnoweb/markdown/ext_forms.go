@@ -67,6 +67,7 @@ type formContext struct {
 	Index          int       // Index of the current form; 0 indicates no form.
 	OpenTag        *FormNode // First opening tag for this context.
 	HasValidInputs bool      // Indicates if the form has at least one valid input
+	RealmName      string    // Realm name from context
 }
 
 // Dump implements Node.Dump for debug representation.
@@ -244,7 +245,7 @@ func (*formParser) CanAcceptIndentedLine() bool {
 // formASTTransformer implements ASTTransformer.
 type formASTTransformer struct{}
 
-// Transform modifies the AST to handle unfinished open tags.
+// Transform modifies the AST to handle unfinished open tags and add context.
 func (a *formASTTransformer) Transform(doc *ast.Document, reader text.Reader, pc parser.Context) {
 	// Retrieve the form context
 	cctx, ok := pc.Get(formContextKey).(*formContext)
@@ -257,6 +258,11 @@ func (a *formASTTransformer) Transform(doc *ast.Document, reader text.Reader, pc
 		lc := doc.LastChild()
 		nodeForm := NewForm(cctx, FormTagClose)
 		doc.InsertAfter(doc, lc, nodeForm)
+	}
+
+	// Add realm name to form context
+	if gnourl, ok := getUrlFromContext(pc); ok {
+		cctx.RealmName = gnourl.Namespace()
 	}
 }
 
@@ -290,17 +296,25 @@ func (r *formRendererHTML) formRenderHTML(w util.BufWriter, _ []byte, node ast.N
 		return ast.WalkContinue, nil
 	}
 
+	realmName := "r/" + html.EscapeString(cnode.ctx.RealmName)
+
 	// Render the node
 	switch cnode.Tag {
 	case FormTagOpen:
 		if entering {
+
 			fmt.Fprintln(w, `<form class="gno-form" method="post">`)
+			fmt.Fprintln(w, `<div class="gno-form_header">`)
+			fmt.Fprintf(w, `<span><span class="font-bold"> %s </span> Form</span>`, realmName)
+			fmt.Fprintf(w, `<span class="tooltip" data-tooltip="This form is secure and processed on the current %s realm itself."><svg class="w-4 h-4"><use href="#ico-info"></use></svg></span>`, realmName)
+
+			fmt.Fprintln(w, `</div>`)
 		}
 	case FormTagClose:
 		if !entering {
 			// Only show submit button if there are valid inputs
 			if cnode.ctx.HasValidInputs {
-				fmt.Fprintln(w, "<input type=\"submit\" value=\"Submit\" />")
+				fmt.Fprintf(w, `<input type="submit" value="Submit to %s Realm" />`, realmName)
 			}
 			fmt.Fprintln(w, "</form>")
 		}
