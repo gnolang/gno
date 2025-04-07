@@ -15,35 +15,35 @@ permissions:
   packages: write
 
 jobs:
-#   portal-loop:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - name: Checkout
-#         uses: actions/checkout@v4
+  portal-loop:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-#       - name: Login to GitHub Container Registry
-#         uses: docker/login-action@v3
-#         with:
-#           registry: ghcr.io
-#           username: ${{ github.repository_owner }}
-#           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-#       - name: Docker metadata portalloopd
-#         id: meta
-#         uses: docker/metadata-action@v5
-#         with:
-#           images: ghcr.io/${{ github.repository }}/portalloopd
-#           tags: |
-#             type=raw,value=latest
-#             type=semver,pattern=v{{version}}
+      - name: Docker metadata portalloopd
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/portalloopd
+          tags: |
+            type=raw,value=latest
+            type=semver,pattern=v{{version}}
 
-#       - name: Build and push
-#         uses: docker/build-push-action@v6
-#         with:
-#           target: portalloopd
-#           push: ${{ github.event_name != 'pull_request' }}
-#           tags: ${{ steps.meta.outputs.tags }}
-#           labels: ${{ steps.meta.outputs.labels }}
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          target: portalloopd
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # push: ${{ github.event_name != 'pull_request' }}
 
   test-portal-loop-docker-compose:
     runs-on: ubuntu-latest
@@ -52,11 +52,10 @@ jobs:
       - name: "Checkout"
         uses: actions/checkout@v4
 
+          # docker pull ghcr.io/gnolang/gno/gnoland:master
       - name: "Setup The portal loop docker compose"
         run: |
-          docker pull ghcr.io/gnolang/gno/gnoland:master
           cd misc/loop
-          ls backups/
           echo "Making docker compose happy"
           touch .env
           make docker.ci
@@ -80,15 +79,13 @@ jobs:
 
       - name: "Wait for new docker image"
         run: |
-          docker ps -a
           ip_addr=$(cat misc/loop/traefik/gno.yml | grep -o "http://.*:26657")
           while
             new_ip_addr=$(cat misc/loop/traefik/gno.yml | grep -o "http://.*:26657")
             echo "${ip_addr} -> ${new_ip_addr}"
             [[ "${ip_addr}" == ${new_ip_addr} ]]
           do
-            docker logs -n 20 portalloopd
-            sleep 10
+            sleep 5
           done
 
       - name: "Test2 - Wait portal-loop start new image"
