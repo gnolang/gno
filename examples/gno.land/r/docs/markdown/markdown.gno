@@ -104,12 +104,12 @@ Blockquotes are created using the > character:
 
 ±±±markdown
 > This is a blockquote
-> 
+>
 > It can span multiple lines
 ±±±
 
 > This is a blockquote
-> 
+>
 > It can span multiple lines
 
 ### Code
@@ -193,6 +193,32 @@ Images can be included using the following syntax:
 ±±±
 
 ![Alt text](/public/imgs/gnoland.svg "Optional title")
+
+Currently, only a short list of content providers are supported:
+
+±±±markdown
+// Gno-related hosts
+"https://gnolang.github.io"
+"https://assets.gnoteam.com"
+"https://sa.gno.services"
+
+// Other providers should respect DMCA guidelines
+// NOTE: Feel free to open a PR to add more providers here :)
+
+// imgur
+"https://imgur.com"
+"https://*.imgur.com"
+
+// GitHub
+"https://*.github.io"
+"https://github.com"
+"https://*.githubusercontent.com"
+
+// IPFS
+"https://ipfs.io"
+"https://cloudflare-ipfs.com"
+±±±
+
 
 ## Gno-Specific Features
 
