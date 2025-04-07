@@ -1,18 +1,18 @@
 package routing
 
 import (
+	"strings"
+
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/sys/users"
 )
 
-var (
-	// Initialize the router object
-	router = mux.NewRouter()
-)
+func Render(path string) string {
+	// Initialize the router
+	router := mux.NewRouter()
 
-func init() {
-	// Pass specific path patterns and their function handlers
+	// Then, pass specific path patterns and their function handlers
 	// The handler functions need to have a specific signature:
 	// func(*mux.ResponseWriter, *mux.Request)
 
@@ -22,26 +22,23 @@ func init() {
 	router.HandleFunc("", homeHandler)
 
 	// When a specific render path is passed
-	router.HandleFunc("staticpage", staticpageHanlder)
+	router.HandleFunc("staticpage", staticpageHandler)
 
 	// When a render path with a variable is passed, ie `addr`
 	router.HandleFunc("user/{name}", profileHandler)
 
 	// When a wildcard path is passed
 	router.HandleFunc("wildcard/*/", wildcardHandler)
-}
 
-// Render displays the current number value, last update timestamp, and a link to call Add with 42
-func Render(path string) string {
-	// Pass the render path to the router
+	// Finally, Pass the render path to the router
 	return router.Render(path)
 }
 
 func homeHandler(res *mux.ResponseWriter, _ *mux.Request) {
 	out := "# Routing\n\n"
 
-	out += `This short example showcases how the [p/demo/mux](/p/demo/mux) package.
-This pure package aims to offer similar functionality to [**http.ServeMux**](https://pkg.go.dev/net/http#ServeMux) in Go, but for Gno's Render() requests.
+	out += `This short example showcases how the [p/demo/mux](/p/demo/mux) package works.
+This pure package aims to offer similar functionality to [**http.ServeMux**](https://pkg.go.dev/net/http#ServeMux) in Go, but for Gno's **Render()** requests.
 
 This home page is handled by the homeHandler function. Check out the examples below for more ways
 to use this package:
@@ -54,7 +51,7 @@ to use this package:
 	res.Write(out)
 }
 
-func staticpageHanlder(res *mux.ResponseWriter, req *mux.Request) {
+func staticpageHandler(res *mux.ResponseWriter, req *mux.Request) {
 	out := "# Welcome to the static page!\n\n"
 	out += "There isn't much on this page, but it's cool because shows you that using query parameters is also possible!\n\n"
 	out += "Try adding [`?gno_is=value`](/r/docs/routing:staticpage?gno_is=cool) to the URL.\n\n"
@@ -91,5 +88,24 @@ func profileHandler(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func wildcardHandler(res *mux.ResponseWriter, req *mux.Request) {
-	// todo
+	out := "# Wildcard handler\n\n"
+
+	// Use GetVar("*") to access the wildcard part of the route
+	wild := req.GetVar("*")
+	out += ufmt.Sprintf("This page matched a wildcard route.\n\n")
+	out += ufmt.Sprintf("**Wildcard path:** `%s`\n\n", wild)
+
+	out += "You can use this to match and handle arbitrarily nested paths.\n\n"
+	out += "Try visiting:\n"
+	out += "- [/r/docs/routing:wildcard/foo/bar](/r/docs/routing:wildcard/foo/bar)\n"
+	out += "- [/r/docs/routing:wildcard/a/b/c](/r/docs/routing:wildcard/a/b/c)\n"
+
+	// Optionally split the wildcard into segments
+	segments := strings.Split(wild, "/")
+	out += "\n### Wildcard segments:\n"
+	for i, seg := range segments {
+		out += ufmt.Sprintf("- Segment %d: `%s`\n", i+1, seg)
+	}
+
+	res.Write(out)
 }
