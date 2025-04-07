@@ -21,13 +21,8 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-// TODO embed the dockerfile
+//go:embed Dockerfile
 var dockerFile []byte
-
-var images = []string{
-	"gnoland",
-	"gnocontribs",
-}
 
 const (
 	networkNamePrefix = "gnoland-network"
@@ -47,10 +42,10 @@ type ClusterManager struct {
 }
 
 type ContainerInfo struct {
-	ID     string
-	Name   string
-	Image  string
-	HostIP string
+	ID     string            // Docker-generated ID
+	Name   string            // unique container name
+	Image  string            // base image for the container
+	HostIP string            // the host IP (localhost)
 	Ports  map[string]string // container port -> host port
 }
 
@@ -62,7 +57,7 @@ type ContainerConfig struct {
 	Cmd        []string
 }
 
-func NewClusterManager(logger *slog.Logger) (*ClusterManager, error) {
+func NewClusterManager(name string, logger *slog.Logger) (*ClusterManager, error) {
 	// Create the Docker client
 	cli, err := client.NewClientWithOpts(
 		client.FromEnv,
@@ -75,16 +70,16 @@ func NewClusterManager(logger *slog.Logger) (*ClusterManager, error) {
 	return &ClusterManager{
 		client: cli,
 		logger: logger,
+		name:   name,
 	}, nil
 }
 
-func (cm *ClusterManager) BuildImages(ctx context.Context) error {
-	for _, img := range images {
-		cm.logger.Debug("Building image", "image", img)
-	}
-
-	buf := bytes.NewBuffer(nil)
-	tw := tar.NewWriter(buf)
+// BuildDockerfile builds the embedded Dockerfile // TODO make configurable?
+func (cm *ClusterManager) BuildDockerfile(ctx context.Context) error {
+	var (
+		buf = bytes.NewBuffer(nil)
+		tw  = tar.NewWriter(buf)
+	)
 
 	tarHeader := &tar.Header{
 		Name: "Dockerfile",
@@ -113,12 +108,19 @@ func (cm *ClusterManager) BuildImages(ctx context.Context) error {
 		},
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to build images from Dockerfile: %w", err)
 	}
 
 	// TODO copy response body?
 
-	return imageBuildRes.Body.Close() // TODO critical error?
+	if err = imageBuildRes.Body.Close(); err != nil {
+		cm.logger.Warn(
+			"unable to gracefully close image builder",
+			"err", err,
+		)
+	}
+
+	return nil
 }
 
 // SetupNetwork creates the cluster's Docker network, if it doesn't exist

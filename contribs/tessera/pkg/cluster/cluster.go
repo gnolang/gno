@@ -1,33 +1,84 @@
 package cluster
 
-import "context"
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"time"
+
+	"github.com/gnolang/gno/contribs/tessera/pkg/cluster/docker"
+)
 
 type Cluster struct {
-	ctx      context.Context
-	cancelFn context.CancelFunc
+	logger *slog.Logger
 
-	config Config
+	config  Config
+	manager *docker.ClusterManager
 }
 
-func New(ctx context.Context, config Config) (*Cluster, error) {
-	ctx, cancelFn := context.WithCancel(ctx)
-
+func New(
+	ctx context.Context,
+	logger *slog.Logger,
+	config Config,
+) (*Cluster, error) {
 	c := &Cluster{
-		ctx:      ctx,
-		cancelFn: cancelFn,
-		config:   config,
+		config: config,
+		logger: logger,
 	}
 
-	// TODO implement image building
+	// Create the Docker container manager.
+	// This process directly interfaces with Docker on the machine,
+	// and handles container processes for the Cluster
+	clusterName := fmt.Sprintf(
+		"cluster-%d",
+		time.Now().Nanosecond(),
+	)
+	manager, err := docker.NewClusterManager(
+		clusterName,
+		logger.With("process", "cluster"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create Docker manager: %w", err)
+	}
+
+	// Build the docker images for the cluster
+	if err = manager.BuildDockerfile(ctx); err != nil {
+		return nil, fmt.Errorf("unable to build Dockerfile: %w", err)
+	}
+
+	// Create a shared network
+	if err = manager.SetupNetwork(ctx); err != nil {
+		return nil, fmt.Errorf("unable to setup shared network: %w", err)
+	}
+
+	// Create a shared volume (primarily for genesis access)
+	if err = manager.SetupSharedVolume(ctx); err != nil {
+		return nil, fmt.Errorf("unable to setup shared volume: %w", err)
+	}
+
+	// Create the cluster containers
+	// TODO
+	logger.Debug("Creating clusters....")
+
+	// Create the genesis.json (shared)
+	// TODO
+	logger.Debug("Creating genesis.json....")
+
+	c.manager = manager
 
 	return c, nil
 }
 
-func (c *Cluster) Shutdown() error {
-	// Stop the top-level cluster context
-	c.cancelFn()
-
-	// TODO wait on nodes to finish
+// Start starts the node cluster
+func (c *Cluster) Start(ctx context.Context) error {
+	// TODO
 
 	return nil
+}
+
+func (c *Cluster) Shutdown(ctx context.Context) {
+	// Stop the Docker containers, if any
+	if c.manager != nil {
+		c.manager.Cleanup(ctx)
+	}
 }

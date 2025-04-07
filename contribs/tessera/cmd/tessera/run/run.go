@@ -14,7 +14,9 @@ import (
 	"github.com/gnolang/gno/contribs/tessera/pkg/common"
 	"github.com/gnolang/gno/contribs/tessera/pkg/recipe"
 	"github.com/gnolang/gno/contribs/tessera/pkg/scenario"
+	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -101,7 +103,7 @@ func (c *runCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.recipesDir,
 		"recipes-dir",
-		"", // TODO resolve?
+		"",
 		"the top-level path containing recipes",
 	)
 }
@@ -225,6 +227,11 @@ func execRun(
 func runSingleRecipe(ctx context.Context, path string, io commands.IO) error {
 	io.Printf("Running recipe: %s\n", path)
 
+	// Set up logger
+	// TODO move this out to the top-level ctx and use it
+	zLogger := log.GetZapLoggerFn(log.ConsoleFormat)(io.Out(), zapcore.DebugLevel)
+	logger := log.ZapLoggerToSlog(zLogger)
+
 	// Load the recipe config
 	r, err := common.LoadYAML[recipe.Config](path)
 	if err != nil {
@@ -232,15 +239,11 @@ func runSingleRecipe(ctx context.Context, path string, io commands.IO) error {
 	}
 
 	// Create and set up cluster
-	c, err := cluster.New(ctx, r.Cluster)
+	c, err := cluster.New(ctx, logger, r.Cluster)
 	if err != nil {
 		return fmt.Errorf("failed to create cluster: %w", err)
 	}
-	defer func() {
-		if err = c.Shutdown(); err != nil {
-			io.ErrPrintfln("Cluster not gracefully closed: %s", err)
-		}
-	}()
+	defer c.Shutdown(ctx)
 
 	// Run scenarios
 	for i, scenarioCfg := range r.Scenarios {
