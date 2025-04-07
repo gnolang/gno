@@ -23,7 +23,7 @@ const (
 	defaultGasFee        = "1000000ugnot"
 	defaultGasWanted     = "100000"
 	defaultRemote        = "http://127.0.0.1:26657"
-	defaultListenAddress = "127.0.0.1:5050"
+	defaultListenAddress = "0.0.0.0:5050"
 )
 
 // url & struct for verify captcha

@@ -28,7 +28,7 @@ func TestGitHubMiddleware(t *testing.T) {
 	cooldown := 2 * time.Minute
 	exchangeCodeForUser = mockExchangeCodeForToken
 	var tenGnots int64 = 10000000
-	claimBody := fmt.Sprintf(`{"amount": %d}`, tenGnots)
+	claimBody := fmt.Sprintf(`{"amount": "%dugnot"}`, tenGnots)
 	t.Run("request without code", func(t *testing.T) {
 		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown, 0))
 		req := httptest.NewRequest("GET", "http://localhost?code=", bytes.NewBufferString(claimBody))
@@ -58,6 +58,23 @@ func TestGitHubMiddleware(t *testing.T) {
 
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("Expected status BadRequest, got %d", rec.Code)
+		}
+	})
+
+	t.Run("Invalid amount", func(t *testing.T) {
+		claimBody := `{"amount": 100000}`
+		middleware := getGithubMiddleware("mockClientID", "mockSecret", getCooldownLimiter(t, cooldown, 0))
+		req := httptest.NewRequest("GET", "http://localhost?code=valid", bytes.NewBufferString(claimBody))
+		rec := httptest.NewRecorder()
+
+		handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("Expected status OK, got %d", rec.Code)
 		}
 	})
 
