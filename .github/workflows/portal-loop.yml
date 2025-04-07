@@ -58,6 +58,7 @@ jobs:
           echo "Making docker compose happy"
           touch .env
           make docker.ci
+          sleep 30
 
       - name: "Test1 - Portal loop start gnoland"
         run: |
