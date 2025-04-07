@@ -8,7 +8,8 @@
 
 -- output.html --
 <form class="gno-form" method="post">
-<input type="text" name="outer" placeholder="Enter value" /><!-- unexpected/invalid "FormTagOpen" omitted -->
-<input type="text" name="inner" placeholder="Enter value" /><input type="submit" value="Submit" />
-</form>
+<div class="gno-form_header">
+<span><span class="font-bold"> r/ </span> Form</span><span class="tooltip" data-tooltip="This form is secure and processed on the current r/ realm itself."><svg class="w-4 h-4"><use href="#ico-info"></use></svg></span></div>
+<div class="gno-form_input"><label for="outer"> Enter value </label><input type="text" id="outer" name="outer" placeholder="Enter value" /></div><!-- unexpected/invalid "FormTagOpen" omitted -->
+<div class="gno-form_input"><label for="inner"> Enter value </label><input type="text" id="inner" name="inner" placeholder="Enter value" /></div><input type="submit" value="Submit to r/ Realm" /></form>
 <!-- unexpected/invalid "FormTagClose" omitted -->

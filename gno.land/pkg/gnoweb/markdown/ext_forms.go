@@ -324,7 +324,9 @@ func (r *formRendererHTML) formRenderHTML(w util.BufWriter, _ []byte, node ast.N
 			placeholder := html.EscapeString(cnode.Placeholder)
 			name := html.EscapeString(cnode.Name)
 
-			fmt.Fprintf(w, `<input type="text" name="%s" placeholder="%s" />`, name, placeholder)
+			fmt.Fprintf(w, `<div class="gno-form_input"><label for="%s"> %s </label>`, name, placeholder)
+			fmt.Fprintf(w, `<input type="text" id="%s" name="%s" placeholder="%s" />`, name, name, placeholder)
+			fmt.Fprintf(w, `</div>`)
 		}
 	default:
 		panic("invalid form tag - should not happen")

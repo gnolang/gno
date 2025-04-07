@@ -270,11 +270,21 @@
   .realm-view .gno-form_header {
     @apply flex justify-between text-gray-600 text-50 mb-6;
   }
+  .realm-view .gno-form label {
+    @apply absolute top-0 left-2 -translate-y-1/2 text-gray-300 text-50 bg-light px-1 hidden;
+  }
+  .realm-view .gno-form_input {
+    @apply relative;
+  }
+  .realm-view .gno-form_input:has(input:focus) label,
+  .realm-view .gno-form_input:has(input:not(:placeholder-shown)) label {
+    @apply block;
+  }
   .realm-view .gno-form input {
     @apply block p-2 rounded-sm border-gray-200 focus:border-gray-300 hover:border-gray-300 text-gray-600 outline-none font-mono mb-4 w-full;
   }
   .realm-view .gno-form input[type="submit"] {
-    @apply bg-green-600 text-light border-green-600 cursor-pointer font-interVar mb-2;
+    @apply bg-green-600 text-light border-green-600 cursor-pointer font-interVar mb-2 hover:opacity-90;
   }
 }
 
