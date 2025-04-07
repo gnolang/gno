@@ -591,26 +591,6 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"std",
-		"originPkgAddr",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("string")},
-		},
-		true,
-		func(m *gno.Machine) {
-			r0 := libs_std.X_originPkgAddr(
-				m,
-			)
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-		},
-	},
-	{
-		"std",
 		"callerAt",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("int")},
@@ -1170,7 +1150,7 @@ var nativeFuncs = [...]NativeFunc{
 		},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("bool")},
-			{Name: gno.N("r1"), Type: gno.X("error")},
+			{Name: gno.N("r1"), Type: gno.X("string")},
 		},
 		false,
 		func(m *gno.Machine) {
@@ -1310,8 +1290,8 @@ var initOrder = [...]string{
 	"regexp",
 	"std",
 	"sys/params",
-	"testing",
 	"time",
+	"testing",
 	"unicode/utf16",
 }
 

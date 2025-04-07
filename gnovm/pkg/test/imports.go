@@ -1,23 +1,19 @@
 package test
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"go/token"
 	"io"
-	"math/big"
 	"os"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
-	"time"
 
 	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
-	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -88,45 +84,6 @@ func StoreWithOptions(
 				})
 				return processMemPackage(m2, memPkg, true)
 			}
-		}
-
-		// gonative exceptions.
-		// These are values available using gonative; eventually they should all be removed.
-		switch pkgPath {
-		case "encoding/json":
-			pkg := gno.NewPackageNode("json", pkgPath, nil)
-			pkg.DefineGoNativeValue("Unmarshal", json.Unmarshal)
-			pkg.DefineGoNativeValue("Marshal", json.Marshal)
-			return pkg, pkg.NewPackage()
-		case "os_test":
-			pkg := gno.NewPackageNode("os_test", pkgPath, nil)
-			pkg.DefineNative("Sleep",
-				gno.Flds( // params
-					"d", gno.AnyT(), // NOTE: should be time.Duration
-				),
-				gno.Flds( // results
-				),
-				func(m *gno.Machine) {
-					// For testing purposes here, nanoseconds are separately kept track.
-					arg0 := m.LastBlock().GetParams1().TV
-					d := arg0.GetInt64()
-					sec := d / int64(time.Second)
-					nano := d % int64(time.Second)
-					ctx := m.Context.(*teststd.TestExecContext)
-					ctx.Timestamp += sec
-					ctx.TimestampNano += nano
-					if ctx.TimestampNano >= int64(time.Second) {
-						ctx.Timestamp += 1
-						ctx.TimestampNano -= int64(time.Second)
-					}
-					m.Context = ctx
-				},
-			)
-			return pkg, pkg.NewPackage()
-		case "math/big":
-			pkg := gno.NewPackageNode("big", pkgPath, nil)
-			pkg.DefineGoNativeValue("NewInt", big.NewInt)
-			return pkg, pkg.NewPackage()
 		}
 
 		// Load normal stdlib.
@@ -235,7 +192,7 @@ func LoadImports(store gno.Store, memPkg *gnovm.MemPackage) (err error) {
 			case *gno.TypedValue:
 				err = errors.New(v.String())
 			case *gno.PreprocessError:
-				err = v.Unwrap()
+				err = &stackWrappedError{v.Unwrap(), debug.Stack()}
 			case gno.UnhandledPanicError:
 				err = v
 			case error:

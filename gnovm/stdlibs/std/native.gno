@@ -1,7 +1,7 @@
 package std
 
 // AssertOriginCall panics if the calling method is not invoked via a direct
-// MsgCall. It panics for for other cases, like if the calling method
+// MsgCall. It panics for other cases, like if the calling method
 // is invoked by another method (even from the same realm or package).
 // It also panic every time when the transaction is broadcasted via
 // MsgRun.
@@ -33,10 +33,6 @@ func PreviousRealm() Realm {
 	return Realm{Address(addr), path}
 }
 
-func OriginPkgAddress() Address {
-	return Address(originPkgAddr())
-}
-
 func CallerAt(n int) Address {
 	return Address(callerAt(n))
 }
@@ -44,7 +40,6 @@ func CallerAt(n int) Address {
 // Variations which don't use named types.
 func originSend() (denoms []string, amounts []int64)
 func originCaller() string
-func originPkgAddr() string
 func callerAt(n int) string
 func getRealm(height int) (address string, pkgPath string)
 func assertCallerIsRealm()

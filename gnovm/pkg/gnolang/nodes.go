@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -164,7 +165,7 @@ type Attributes struct {
 	Line   int
 	Column int
 	Label  Name
-	data   map[GnoAttribute]interface{} // not persisted
+	data   map[GnoAttribute]any // not persisted
 }
 
 func (attr *Attributes) GetLine() int {
@@ -198,13 +199,13 @@ func (attr *Attributes) HasAttribute(key GnoAttribute) bool {
 
 // GnoAttribute must not be user provided / arbitrary,
 // otherwise will create potential exploits.
-func (attr *Attributes) GetAttribute(key GnoAttribute) interface{} {
+func (attr *Attributes) GetAttribute(key GnoAttribute) any {
 	return attr.data[key]
 }
 
-func (attr *Attributes) SetAttribute(key GnoAttribute, value interface{}) {
+func (attr *Attributes) SetAttribute(key GnoAttribute, value any) {
 	if attr.data == nil {
-		attr.data = make(map[GnoAttribute]interface{})
+		attr.data = make(map[GnoAttribute]any)
 	}
 	attr.data[key] = value
 }
@@ -230,64 +231,63 @@ type Node interface {
 	GetLabel() Name
 	SetLabel(Name)
 	HasAttribute(key GnoAttribute) bool
-	GetAttribute(key GnoAttribute) interface{}
-	SetAttribute(key GnoAttribute, value interface{})
+	GetAttribute(key GnoAttribute) any
+	SetAttribute(key GnoAttribute, value any)
 	DelAttribute(key GnoAttribute)
 }
 
 // non-pointer receiver to help make immutable.
-func (x *NameExpr) assertNode()            {}
-func (x *BasicLitExpr) assertNode()        {}
-func (x *BinaryExpr) assertNode()          {}
-func (x *CallExpr) assertNode()            {}
-func (x *IndexExpr) assertNode()           {}
-func (x *SelectorExpr) assertNode()        {}
-func (x *SliceExpr) assertNode()           {}
-func (x *StarExpr) assertNode()            {}
-func (x *RefExpr) assertNode()             {}
-func (x *TypeAssertExpr) assertNode()      {}
-func (x *UnaryExpr) assertNode()           {}
-func (x *CompositeLitExpr) assertNode()    {}
-func (x *KeyValueExpr) assertNode()        {}
-func (x *FuncLitExpr) assertNode()         {}
-func (x *ConstExpr) assertNode()           {}
-func (x *FieldTypeExpr) assertNode()       {}
-func (x *ArrayTypeExpr) assertNode()       {}
-func (x *SliceTypeExpr) assertNode()       {}
-func (x *InterfaceTypeExpr) assertNode()   {}
-func (x *ChanTypeExpr) assertNode()        {}
-func (x *FuncTypeExpr) assertNode()        {}
-func (x *MapTypeExpr) assertNode()         {}
-func (x *StructTypeExpr) assertNode()      {}
-func (x *constTypeExpr) assertNode()       {}
-func (x *MaybeNativeTypeExpr) assertNode() {}
-func (x *AssignStmt) assertNode()          {}
-func (x *BlockStmt) assertNode()           {}
-func (x *BranchStmt) assertNode()          {}
-func (x *DeclStmt) assertNode()            {}
-func (x *DeferStmt) assertNode()           {}
-func (x *ExprStmt) assertNode()            {}
-func (x *ForStmt) assertNode()             {}
-func (x *GoStmt) assertNode()              {}
-func (x *IfStmt) assertNode()              {}
-func (x *IfCaseStmt) assertNode()          {}
-func (x *IncDecStmt) assertNode()          {}
-func (x *RangeStmt) assertNode()           {}
-func (x *ReturnStmt) assertNode()          {}
-func (x *PanicStmt) assertNode()           {}
-func (x *SelectStmt) assertNode()          {}
-func (x *SelectCaseStmt) assertNode()      {}
-func (x *SendStmt) assertNode()            {}
-func (x *SwitchStmt) assertNode()          {}
-func (x *SwitchClauseStmt) assertNode()    {}
-func (x *EmptyStmt) assertNode()           {}
-func (x *bodyStmt) assertNode()            {}
-func (x *FuncDecl) assertNode()            {}
-func (x *ImportDecl) assertNode()          {}
-func (x *ValueDecl) assertNode()           {}
-func (x *TypeDecl) assertNode()            {}
-func (x *FileNode) assertNode()            {}
-func (x *PackageNode) assertNode()         {}
+func (x *NameExpr) assertNode()          {}
+func (x *BasicLitExpr) assertNode()      {}
+func (x *BinaryExpr) assertNode()        {}
+func (x *CallExpr) assertNode()          {}
+func (x *IndexExpr) assertNode()         {}
+func (x *SelectorExpr) assertNode()      {}
+func (x *SliceExpr) assertNode()         {}
+func (x *StarExpr) assertNode()          {}
+func (x *RefExpr) assertNode()           {}
+func (x *TypeAssertExpr) assertNode()    {}
+func (x *UnaryExpr) assertNode()         {}
+func (x *CompositeLitExpr) assertNode()  {}
+func (x *KeyValueExpr) assertNode()      {}
+func (x *FuncLitExpr) assertNode()       {}
+func (x *ConstExpr) assertNode()         {}
+func (x *FieldTypeExpr) assertNode()     {}
+func (x *ArrayTypeExpr) assertNode()     {}
+func (x *SliceTypeExpr) assertNode()     {}
+func (x *InterfaceTypeExpr) assertNode() {}
+func (x *ChanTypeExpr) assertNode()      {}
+func (x *FuncTypeExpr) assertNode()      {}
+func (x *MapTypeExpr) assertNode()       {}
+func (x *StructTypeExpr) assertNode()    {}
+func (x *constTypeExpr) assertNode()     {}
+func (x *AssignStmt) assertNode()        {}
+func (x *BlockStmt) assertNode()         {}
+func (x *BranchStmt) assertNode()        {}
+func (x *DeclStmt) assertNode()          {}
+func (x *DeferStmt) assertNode()         {}
+func (x *ExprStmt) assertNode()          {}
+func (x *ForStmt) assertNode()           {}
+func (x *GoStmt) assertNode()            {}
+func (x *IfStmt) assertNode()            {}
+func (x *IfCaseStmt) assertNode()        {}
+func (x *IncDecStmt) assertNode()        {}
+func (x *RangeStmt) assertNode()         {}
+func (x *ReturnStmt) assertNode()        {}
+func (x *PanicStmt) assertNode()         {}
+func (x *SelectStmt) assertNode()        {}
+func (x *SelectCaseStmt) assertNode()    {}
+func (x *SendStmt) assertNode()          {}
+func (x *SwitchStmt) assertNode()        {}
+func (x *SwitchClauseStmt) assertNode()  {}
+func (x *EmptyStmt) assertNode()         {}
+func (x *bodyStmt) assertNode()          {}
+func (x *FuncDecl) assertNode()          {}
+func (x *ImportDecl) assertNode()        {}
+func (x *ValueDecl) assertNode()         {}
+func (x *TypeDecl) assertNode()          {}
+func (x *FileNode) assertNode()          {}
+func (x *PackageNode) assertNode()       {}
 
 var (
 	_ Node = &NameExpr{}
@@ -314,7 +314,6 @@ var (
 	_ Node = &MapTypeExpr{}
 	_ Node = &StructTypeExpr{}
 	_ Node = &constTypeExpr{}
-	_ Node = &MaybeNativeTypeExpr{}
 	_ Node = &AssignStmt{}
 	_ Node = &BlockStmt{}
 	_ Node = &BranchStmt{}
@@ -633,16 +632,15 @@ type TypeExpr interface {
 const typeExprAddressability = "the addressability method should not be called on Type Expressions"
 
 // non-pointer receiver to help make immutable.
-func (x *FieldTypeExpr) assertTypeExpr()       {}
-func (x *ArrayTypeExpr) assertTypeExpr()       {}
-func (x *SliceTypeExpr) assertTypeExpr()       {}
-func (x *InterfaceTypeExpr) assertTypeExpr()   {}
-func (x *ChanTypeExpr) assertTypeExpr()        {}
-func (x *FuncTypeExpr) assertTypeExpr()        {}
-func (x *MapTypeExpr) assertTypeExpr()         {}
-func (x *StructTypeExpr) assertTypeExpr()      {}
-func (x *constTypeExpr) assertTypeExpr()       {}
-func (x *MaybeNativeTypeExpr) assertTypeExpr() {}
+func (x *FieldTypeExpr) assertTypeExpr()     {}
+func (x *ArrayTypeExpr) assertTypeExpr()     {}
+func (x *SliceTypeExpr) assertTypeExpr()     {}
+func (x *InterfaceTypeExpr) assertTypeExpr() {}
+func (x *ChanTypeExpr) assertTypeExpr()      {}
+func (x *FuncTypeExpr) assertTypeExpr()      {}
+func (x *MapTypeExpr) assertTypeExpr()       {}
+func (x *StructTypeExpr) assertTypeExpr()    {}
+func (x *constTypeExpr) assertTypeExpr()     {}
 
 var (
 	_ TypeExpr = &FieldTypeExpr{}
@@ -654,7 +652,6 @@ var (
 	_ TypeExpr = &MapTypeExpr{}
 	_ TypeExpr = &StructTypeExpr{}
 	_ TypeExpr = &constTypeExpr{}
-	_ TypeExpr = &MaybeNativeTypeExpr{}
 )
 
 type FieldTypeExpr struct {
@@ -782,16 +779,6 @@ type constTypeExpr struct {
 }
 
 func (x *constTypeExpr) addressability() addressabilityStatus {
-	panic(typeExprAddressability)
-}
-
-// Only used for native func arguments
-type MaybeNativeTypeExpr struct {
-	Attributes
-	Type Expr
-}
-
-func (x *MaybeNativeTypeExpr) addressability() addressabilityStatus {
 	panic(typeExprAddressability)
 }
 
@@ -1186,12 +1173,7 @@ func (x *TypeDecl) GetDeclNames() []Name {
 
 func HasDeclName(d Decl, n2 Name) bool {
 	ns := d.GetDeclNames()
-	for _, n := range ns {
-		if n == n2 {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ns, n2)
 }
 
 // ----------------------------------------
@@ -1280,15 +1262,23 @@ func ReadMemPackage(dir string, pkgPath string) (*gnovm.MemPackage, error) {
 
 	list := make([]string, 0, len(files))
 	for _, file := range files {
+		// Ignore directories and hidden files, only include allowed files & extensions,
+		// then exclude files that are of the rejected extensions.
 		if file.IsDir() ||
 			strings.HasPrefix(file.Name(), ".") ||
-			(!endsWith(file.Name(), allowedFileExtensions) && !contains(allowedFiles, file.Name())) ||
-			endsWith(file.Name(), rejectedFileExtensions) {
+			(!endsWithAny(file.Name(), allowedFileExtensions) && !slices.Contains(allowedFiles, file.Name())) ||
+			endsWithAny(file.Name(), rejectedFileExtensions) {
 			continue
 		}
 		list = append(list, filepath.Join(dir, file.Name()))
 	}
 	return ReadMemPackageFromList(list, pkgPath)
+}
+
+func endsWithAny(str string, suffixes []string) bool {
+	return slices.ContainsFunc(suffixes, func(s string) bool {
+		return strings.HasSuffix(str, s)
+	})
 }
 
 // MustReadMemPackage is a wrapper around [ReadMemPackage] that panics on error.
@@ -1363,7 +1353,7 @@ func ParseMemPackage(memPkg *gnovm.MemPackage) (fset *FileSet) {
 	var errs error
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") ||
-			endsWith(mfile.Name, []string{"_test.gno", "_filetest.gno"}) {
+			endsWithAny(mfile.Name, []string{"_test.gno", "_filetest.gno"}) {
 			continue // skip spurious or test file.
 		}
 		n, err := ParseFile(mfile.Name, mfile.Body)
@@ -1559,9 +1549,7 @@ func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 	}
 }
 
-// DefineNativeFunc defines a native function. This is not the
-// same as DefineGoNativeValue, which DOES NOT give access to
-// the running machine.
+// DefineNativeFunc defines a native function.
 func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*Machine)) {
 	if debug {
 		debug.Printf("*PackageNode.DefineNative(%s,...)\n", n)
@@ -1736,10 +1724,8 @@ func (sb *StaticBlock) GetExternNames() (ns []Name) {
 }
 
 func (sb *StaticBlock) addExternName(n Name) {
-	for _, extern := range sb.Externs {
-		if extern == n {
-			return
-		}
+	if slices.Contains(sb.Externs, n) {
+		return
 	}
 	sb.Externs = append(sb.Externs, n)
 }
@@ -1844,12 +1830,7 @@ func (sb *StaticBlock) GetIsConstAt(store Store, path ValuePath) bool {
 
 // Returns true iff n is a local const defined name.
 func (sb *StaticBlock) getLocalIsConst(n Name) bool {
-	for _, name := range sb.Consts {
-		if name == n {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(sb.Consts, n)
 }
 
 func (sb *StaticBlock) IsAssignable(store Store, n Name) bool {
@@ -1859,13 +1840,7 @@ func (sb *StaticBlock) IsAssignable(store Store, n Name) bool {
 
 	for {
 		if ok {
-			for _, uname := range un {
-				if n == uname {
-					return false
-				}
-			}
-
-			return true
+			return !slices.Contains(un, n)
 		} else if bp != nil {
 			_, ok = bp.GetLocalIndex(n)
 			un = bp.GetStaticBlock().UnassignableNames
@@ -2155,7 +2130,6 @@ const (
 	VPDerefValMethod VPType = 0x13 // 0x10 + VPValMethod
 	VPDerefPtrMethod VPType = 0x14 // 0x10 + VPPtrMethod
 	VPDerefInterface VPType = 0x15 // 0x10 + VPInterface
-	VPNative         VPType = 0x20
 	// 0x3X, 0x5X, 0x7X, 0x9X, 0xAX, 0xCX, 0xEX reserved.
 )
 
@@ -2214,10 +2188,6 @@ func NewValuePathDerefInterface(n Name) ValuePath {
 	return NewValuePath(VPDerefInterface, 0, 0, n)
 }
 
-func NewValuePathNative(n Name) ValuePath {
-	return NewValuePath(VPNative, 0, 0, n)
-}
-
 func (vp ValuePath) Validate() {
 	vp.validateDepth()
 
@@ -2269,13 +2239,6 @@ func (vp ValuePath) Validate() {
 		}
 		if vp.Name == "" {
 			panic("(deref) interface value path must have name")
-		}
-	case VPNative:
-		if vp.Depth != 0 {
-			panic("native value path must have depth 0")
-		}
-		if vp.Name == "" {
-			panic("native value path must have name")
 		}
 	default:
 		panic(fmt.Sprintf(

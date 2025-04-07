@@ -5,6 +5,7 @@ package groups_test
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/groups"
@@ -20,12 +21,12 @@ func main() {
 
 	// delete member via anon user
 	test2 := testutils.TestAddress("test2")
-	std.TestSetOriginCaller(test2)
-	std.TestSetOriginSend(std.Coins{{"ugnot", 9000000}}, nil)
+	testing.SetOriginCaller(test2)
+	testing.SetOriginSend(std.Coins{{"ugnot", 9000000}})
 
 	groups.DeleteMember(gid, 0)
 	println(groups.Render(""))
 }
 
 // Error:
-// user not found
+// r/gnoland/users: non-user call

@@ -135,7 +135,7 @@ func (m *Machine) doOpEval() {
 				// Step 2 adjust exp from dot.
 				pIndex := -1
 				vLen := len(value)
-				for i := 0; i < vLen; i++ {
+				for i := range vLen {
 					if value[i] == '.' {
 						if pIndex > -1 {
 							panic(fmt.Sprintf(
@@ -399,11 +399,6 @@ func (m *Machine) doOpEval() {
 		m.PushOp(OpChanType)
 		m.PushExpr(x.Value)
 		m.PushOp(OpEval) // OpEvalType?
-	case *MaybeNativeTypeExpr:
-		m.PopExpr()
-		m.PushOp(OpMaybeNativeType)
-		m.PushExpr(x.Type)
-		m.PushOp(OpEval)
 	default:
 		panic(fmt.Sprintf("unexpected expression %#v", x))
 	}
