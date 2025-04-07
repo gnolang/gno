@@ -129,7 +129,7 @@ services:
       test: [ "CMD-SHELL", 
         "[ $$(curl -s traefik:26657/status | jq -r '.result.sync_info.latest_block_height') -ge 1 ] \
             && grep -q 'middlewares: \\[\\]' /etc/traefik/configs/gno.yml" ]
-      interval: 20s
+      interval: 30s
       timeout: 3s
       retries: 5
       start_period: 60s
@@ -164,6 +164,7 @@ services:
       - --debug
       - --cleanup
       - --include-stopped
+      - --revive-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - $HOME/.docker/config.json:/config.json
