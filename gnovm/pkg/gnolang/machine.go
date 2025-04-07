@@ -322,7 +322,7 @@ func checkDuplicates(fset *FileSet) error {
 			var name Name
 			switch d := d.(type) {
 			case *FuncDecl:
-				if d.Name == "init" { //nolint:goconst
+				if d.Name == "init" {
 					continue
 				}
 				name = d.Name
