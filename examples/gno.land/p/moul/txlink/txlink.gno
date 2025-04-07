@@ -10,7 +10,6 @@
 //
 //  Using a builder pattern for more structured URLs:
 //     txlink.NewLink("MyFunc").
-//         AddArg("key", "value").      // add arguments one by one
 //         AddArgs("k1", "v1", "k2", "v2"). // or multiple at once
 //         SetSend("1000000ugnot").
 //         URL()
@@ -60,8 +59,8 @@ func (r Realm) NewLink(fn string) *TxBuilder {
 	return &TxBuilder{fn: fn, realm: r}
 }
 
-// AddArg adds a key-value argument pair. Returns the builder for chaining.
-func (b *TxBuilder) AddArg(key, value string) *TxBuilder {
+// addArg adds a key-value argument pair. Returns the builder for chaining.
+func (b *TxBuilder) addArg(key, value string) *TxBuilder {
 	if b == nil {
 		return nil
 	}
@@ -91,7 +90,7 @@ func (b *TxBuilder) AddArgs(args ...string) *TxBuilder {
 	for i := 0; i < len(args); i += 2 {
 		key := args[i]
 		value := args[i+1]
-		b.AddArg(key, value)
+		b.addArg(key, value)
 	}
 	return b
 }
