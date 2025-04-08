@@ -318,6 +318,25 @@ func main() {
 //                 "@type": "/gno.PrimitiveType",
 //                 "value": "512"
 //             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.PointerType",
+//                 "Elt": {
+//                     "@type": "/gno.RefType",
+//                     "ID": "time.Location"
+//                 }
+//             },
+//             "V": {
+//                 "@type": "/gno.PointerValue",
+//                 "Base": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "336074805fc853987abe6f7fe3ad97a6a6f3077a:2"
+//                 },
+//                 "Index": "173",
+//                 "TV": null
+//             }
 //         }
 //     ],
 //     "ObjectInfo": {
@@ -339,6 +358,15 @@ func main() {
 //             "T": {
 //                 "@type": "/gno.PrimitiveType",
 //                 "value": "512"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.PointerType",
+//                 "Elt": {
+//                     "@type": "/gno.RefType",
+//                     "ID": "time.Location"
+//                 }
 //             }
 //         }
 //     ],
@@ -467,7 +495,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "55cc9b7009f66b35f15d34ceed3fa25c9e36d54d",
+//                 "Hash": "116a8be553d995ba271754dba8e0aa2a78af2a1f",
 //                 "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:131"
 //             }
 //         },
@@ -478,7 +506,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "d8d66a5855b0427c262cfce9891c88d469ab2351",
+//                 "Hash": "75a43303d2c14b05d8a1498ba933328d27cfc8b1",
 //                 "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:132"
 //             }
 //         }
@@ -504,7 +532,7 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "6b2cd34f216499f59540555be3fe11f40a67baa1",
+//             "Hash": "a2aa9c300f43ad4f357fb708c881998abbb2807b",
 //             "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:127"
 //         }
 //     }
@@ -779,11 +807,23 @@ func main() {
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
-//     -            "Hash": "b02a40a48af2a114dfc839d59628963a9ce68f06",
-//     +            "Hash": "1125783626176a5acef18db1a8d69bea276c0afd",
+//     -            "Hash": "52e5307f7721d5bfa377551a85a0b3dc87adb686",
+//     +            "Hash": "501453af96608bf2798635dfcb95a19a65dfd961",
 //                  "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:85"
 //              }
 //          }
+// u[336074805fc853987abe6f7fe3ad97a6a6f3077a:2]=
+//     @@ -3,8 +3,8 @@
+//          "ObjectInfo": {
+//              "ID": "336074805fc853987abe6f7fe3ad97a6a6f3077a:2",
+//              "IsEscaped": true,
+//     -        "ModTime": "118",
+//     -        "RefCount": "11"
+//     +        "ModTime": "131",
+//     +        "RefCount": "12"
+//          },
+//          "Parent": null,
+//          "Source": {
 // switchrealm["gno.land/r/demo/boards"]
 // switchrealm["gno.land/r/sys/users"]
 // switchrealm["gno.land/r/sys/users"]
