@@ -238,7 +238,8 @@ This approach allows for a more consistent rendering experience across different
 
 ### Columns
 
-Gno Flavored Markdown introduces a column layout system that uses special tags. You can create columns with ±<gno-columns>± blocks and separate the content with ±|||±.
+Gno-Flavored Markdown introduces a column layout system that uses special tags. You can create columns with
+±<gno-columns>± blocks and separate the content with ±|||±.
 
 #### Basic Syntax
 ±±±markdown
@@ -268,6 +269,13 @@ Right content
 #### Key Features
 
 1. **Multiple Columns**:
+
+Depending on the screen size. A maximum of four rows can be displayed in
+one row.
+
+***Note**: Any overflow will result in items being displayed in the next row. Also, keep in mind that on smaller screens
+(e.g., phones), this overflow may occur with fewer elements.*
+
 ±±±markdown
 <gno-columns>
 First column
@@ -279,6 +287,14 @@ Second column
 |||
 
 Third column
+
+|||
+
+Fourth column
+
+|||
+
+Fifth column
 </gno-columns>
 ±±±
 
@@ -296,11 +312,24 @@ Second column
 |||
 
 Third column
+
+|||
+
+Fourth column
+
+|||
+
+Fifth column
 </gno-columns>
 
 ---
 
 2. **Mixed Content**:
+
+Columns can be mixed with any markdown content
+
+***Note**: Nested columns are currently not possible*
+
 ±±±markdown
 <gno-columns>
 ### Text Section
@@ -308,7 +337,7 @@ Paragraph with _formatting_
 
 |||
 
-![Alt](/public/imgs/gnoland.svg)
+My Image ![Alt](/public/imgs/gnoland.svg)
 </gno-columns>
 ±±±
 
@@ -322,7 +351,7 @@ Paragraph with _formatting_
 
 |||
 
-![Alt](/public/imgs/gnoland.svg)
+My Image ![Alt](/public/imgs/gnoland.svg)
 </gno-columns>
 
 ---
