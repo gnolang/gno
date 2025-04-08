@@ -1,0 +1,49 @@
+services:
+  collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "8090"
+    volumes:
+      - ../../telemetry/collector/collector.yaml:/etc/otelcol-contrib/config.yaml
+    networks:
+      - gnoland-net
+  
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - "--enable-feature=remote-write-receiver"
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus:/prometheus
+      - ../../telemetry/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - gnoland-net
+  
+  grafana:
+    image: grafana/grafana
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ../../telemetry/grafana/provisioning:/etc/grafana/provisioning
+    ports:
+      - "3000:3000"
+    networks:
+      - gnoland-net
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.grafana.entrypoints=websecure
+      - traefik.http.routers.grafana.rule=Host(`o11y.fees.gnoteam.com`)
+      - traefik.http.routers.grafana.tls=true
+      - traefik.http.routers.grafana.tls.certresolver=le
+
+volumes:
+  prometheus:
+    driver: local
+  grafana_data:
+    driver: local

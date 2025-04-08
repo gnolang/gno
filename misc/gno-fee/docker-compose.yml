@@ -1,6 +1,9 @@
 # Inspired by
 # - ./misc/telemetry
 # - ./misc/loop
+include:
+  - path: ./telemetry/docker-compose-telemetry.yml
+
 services:
   gnoland-val:
     image: ghcr.io/gnolang/gno/gnoland:gno-fee-experimental
@@ -16,6 +19,9 @@ services:
         gnoland config set consensus.timeout_commit 1s
         gnoland config set rpc.laddr tcp://0.0.0.0:26657
         gnoland config set moniker val000
+        gnoland config set telemetry.enabled true
+        gnoland config set telemetry.exporter_endpoint collector:4317
+        gnoland config set telemetry.service_instance_id val0
         gnoland start --lazy
     labels:
       - com.centurylinklabs.watchtower.enable=true
