@@ -141,9 +141,12 @@ func upperFirstLetter(s string) string {
 	return strings.ToUpper(s[:1]) + strings.ToLower(s[1:])
 }
 
-func DaoResponse(name string, choice dao.ProposalChoice) {
+func DaoResponse(a, name string, choice dao.ProposalChoice) {
 	actor := dao.Member(std.PreviousRealm().Address())
-	infos := assertCallerExists()
+	infos, ok := userSessions[a]
+	if !ok {
+		panic("invalid session")
+	}
 	infos.DAO.AssertUserIsMember(actor)
 	i := mustAtoi(name)
 
@@ -167,12 +170,12 @@ func DaoResponse(name string, choice dao.ProposalChoice) {
 	}
 }
 
-func DaoRespondYes(name string) {
-	DaoResponse(name, DaoYes)
+func DaoRespondYes(a, name string) {
+	DaoResponse(a, name, DaoYes)
 }
 
-func DaoRespondNo(name string) {
-	DaoResponse(name, DaoNo)
+func DaoRespondNo(a, name string) {
+	DaoResponse(a, name, DaoNo)
 }
 
 func (d minerProposal) String() string {
@@ -204,7 +207,7 @@ func (d minerProposal) String() string {
 	out += strconv.Itoa(int(d.HowManyVoters())) + " votes\n\n"
 
 	for _, choiceStr := range d.GetChoicesNames() {
-		out += ufmt.Sprintf("[%s](%s) - ", choiceStr, txlink.Call("DaoRespond"+choiceStr, "name", strconv.Itoa(int(d.index))))
+		out += ufmt.Sprintf("[%s](%s) - ", choiceStr, txlink.Call("DaoRespond"+choiceStr, "a", d.executor.session.Owner.Owner().String(), "name", strconv.Itoa(int(d.index))))
 	}
 	return out
 }
@@ -355,7 +358,7 @@ func renderDao(params map[string]string) string {
 		txlink.Call("LeaveDAO", "what", user),
 	)
 	if lnk == "" {
-		content += ufmt.Sprintf(" - You can also [Generate A Request](%s).", gnominersDAORequest + "?user=" + user)
+		content += ufmt.Sprintf(" - You can also [Generate A Request](%s).\n\n", gnominersDAORequest + "?user=" + user)
 		content += "> It is advised to generate a request by click on the link above.\n"
 		content += "> Also, note that if the owner leaves, the DAO is disbanded.\n\n"
 	} else {
