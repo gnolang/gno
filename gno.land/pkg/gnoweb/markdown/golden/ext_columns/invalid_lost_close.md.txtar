@@ -1,0 +1,9 @@
+-- input.md --
+
+### Invalid lost closing tag
+
+</gno-columns>
+
+-- output.html --
+<h3>Invalid lost closing tag</h3>
+<!-- unexpected/invalid columns tag omitted -->
