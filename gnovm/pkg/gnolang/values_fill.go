@@ -18,10 +18,6 @@ func (dbv DataByteValue) DeepFill(store Store) Value {
 }
 
 func (pv PointerValue) DeepFill(store Store) Value {
-	if pv.Key != nil {
-		// only used transiently for assignment!
-		panic("should not happen")
-	}
 	// No need to fill pv.TV.V because
 	// either it will be filled with .Base,
 	// or, it was never persisted anyways.
@@ -30,7 +26,6 @@ func (pv PointerValue) DeepFill(store Store) Value {
 			TV:    pv.TV,
 			Base:  pv.Base.DeepFill(store),
 			Index: pv.Index,
-			Key:   nil,
 		}
 	}
 	return pv

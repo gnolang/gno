@@ -466,7 +466,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 			lpv := lv.V.(PointerValue)
 			rpv := rv.V.(PointerValue)
 			if lpv.TV.T == DataByteType && rpv.TV.T == DataByteType {
-				return *(lpv.TV) == *(rpv.TV) && lpv.Base == rpv.Base && lpv.Index == rpv.Index && lpv.Key == rpv.Key
+				return *(lpv.TV) == *(rpv.TV) && lpv.Base == rpv.Base && lpv.Index == rpv.Index
 			}
 		}
 		return lv.V == rv.V

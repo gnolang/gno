@@ -339,6 +339,7 @@ func (opts *TestOptions) runTestFiles(
 	}
 	pv := m.Package
 
+	// Load the test files into package and save.
 	m.RunFiles(files.Files...)
 
 	for _, tf := range tests {
