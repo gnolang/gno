@@ -23,39 +23,14 @@ var (
 
 	categories = avl.NewTree()
 
-	auth = authz.New()
+	Auth = authz.NewWithAddress(
+		std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"), // leon
+		std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"), // moul
+	)
 )
 
 func init() {
-	auth.Current().(*authz.MemberAuthority).AddMember(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y")) // matijamarjanovic
 	hof.Register("AwesomeGno", "Awesome Gno is a registry for gnowesome dApps on gno.land")
-}
-
-func AddAdmin(addr std.Address) error {
-	return auth.Do("add_admin", func() error {
-		if !addr.IsValid() {
-			return ErrInvalidAddress
-		}
-		if err := auth.Current().(*authz.MemberAuthority).AddMember(addr); err != nil {
-			return ErrAdminAlreadyExists
-		}
-		std.Emit("AdminAdded", "address", addr.String())
-		return nil
-	})
-}
-
-func RemoveAdmin(addr std.Address) error {
-	return auth.Do("remove_admin", func() error {
-		if auth.Current().(*authz.MemberAuthority).Tree().Size() <= 1 {
-			return ErrCannotRemoveLastAdmin
-		}
-
-		if err := auth.Current().(*authz.MemberAuthority).RemoveMember(addr); err != nil {
-			return err
-		}
-		std.Emit("AdminRemoved", "address", addr.String())
-		return nil
-	})
 }
 
 func AddCategory(name, description string) (seqid.ID, error) {
@@ -470,5 +445,12 @@ func addDappToCategory(dappID seqid.ID, categoryName string) error {
 }
 
 func isAdmin(addr std.Address) bool {
-	return auth.Current().(*authz.MemberAuthority).Has(addr)
+	return Auth.Current().(*authz.MemberAuthority).Has(addr)
+}
+
+// NewWithAddress creates a new Authorizer with specific addresses as members
+func NewWithAddress(addresses ...std.Address) *Authorizer {
+	return &Authorizer{
+		current: NewMemberAuthority(addresses...),
+	}
 }
