@@ -17,13 +17,13 @@ type hiddenData struct {
 }
 
 type UserSession struct {
-	hidden      hiddenData
-	Money       float64
-	GemsCount   map[gemType]uint
-	Pickaxes    []IPickaxe
-	Active      IPickaxe
-	Owner       *ownable.Ownable
-	DAO         *minerDAO
+	hidden    hiddenData
+	Money     float64
+	GemsCount map[gemType]uint
+	Pickaxes  []IPickaxe
+	Active    IPickaxe
+	Owner     *ownable.Ownable
+	DAO       *minerDAO
 }
 
 func shorten(str string, of int) string {
@@ -57,13 +57,13 @@ func Login() {
 		panic("user already registered")
 	}
 	infos = &UserSession{
-		Money:       100,
-		GemsCount:   map[gemType]uint{},
-		Pickaxes:    []IPickaxe{&NormalPickaxe{}},
-		Owner:       ownable.NewWithAddress(caller),
-		DAO:         nil,
+		Money:     100,
+		GemsCount: map[gemType]uint{},
+		Pickaxes:  []IPickaxe{&NormalPickaxe{}},
+		Owner:     ownable.NewWithAddress(caller),
+		DAO:       nil,
 	}
-	for gem := gemRock; gem < _GemEnd; gem++ {
+	for gem := gemRock; gem < _gemEnd; gem++ {
 		infos.GemsCount[gem] = 0
 		gem++
 	}

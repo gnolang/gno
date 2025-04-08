@@ -16,7 +16,7 @@ const (
 	gemRuby
 	gemDiamond
 	gemAlexandrite
-	_GemEnd
+	_gemEnd
 )
 
 var gemLootTable = map[gemType]float64{

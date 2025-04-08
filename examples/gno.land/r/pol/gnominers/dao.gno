@@ -21,10 +21,10 @@ const (
 
 type minerExecutor struct {
 	session *UserSession // The session
-	count   uint      // How many gems you use in from
-	from    gemType   // The gem you want to give
-	to      gemType   // The gem you want to convert
-	success uint  	  // If successful
+	count   uint         // How many gems you use in from
+	from    gemType      // The gem you want to give
+	to      gemType      // The gem you want to convert
+	success uint         // If successful
 }
 
 func safelyRemoveGems(u *UserSession, gem gemType, count uint) {
@@ -44,8 +44,6 @@ func unMerge(diff float64, fromCount uint) uint {
 	return uint(math.Pow(10, diff)) * fromCount
 }
 
-var glob string
-
 func (e *minerExecutor) Execute() error {
 	if e.session.GemsCount[e.from] < e.count {
 		return errors.New("not enough gems")
@@ -57,7 +55,6 @@ func (e *minerExecutor) Execute() error {
 		prob := merge(float64(e.to-e.from), e.count)
 		safelyRemoveGems(e.session, e.from, e.count)
 		rd := randomMachine.RandFloat()
-		glob = ufmt.Sprintln(rd, prob)
 		if rd <= prob {
 			e.session.GemsCount[e.to] += 1
 			e.success = 1
@@ -77,8 +74,8 @@ type minerProposal struct {
 	voters   []dao.Member   // The ones who alread votes.
 	executor *minerExecutor // Execute the poll
 	ended    bool           // If the poll is ended
-	alive 	 bool           // If the poll is alive
-	index 	 uint			// the proposal index
+	alive    bool           // If the poll is alive
+	index    uint           // the proposal index
 }
 
 func (p *minerProposal) GetAuthor() dao.Member {
@@ -183,7 +180,7 @@ func (d minerProposal) String() string {
 		return ""
 	}
 	if d.ended {
-		return ufmt.Sprintf("> #%d results with %d %s.", d.index, d.executor.success, upperFirstLetter(gemNames[d.executor.to])) + ", " + glob
+		return ufmt.Sprintf("> #%d results with %d %s.", d.index, d.executor.success, upperFirstLetter(gemNames[d.executor.to]))
 	}
 
 	var out, s, quote string
@@ -192,7 +189,7 @@ func (d minerProposal) String() string {
 		s = "s"
 	}
 	if d.executor.from < d.executor.to {
-		quote = " (" + strconv.FormatFloat(merge(float64(d.executor.to-d.executor.from), d.executor.count) * 100., 'f', -1, 64) + "% chance)"
+		quote = " (" + strconv.FormatFloat(merge(float64(d.executor.to-d.executor.from), d.executor.count)*100., 'f', -1, 64) + "% chance)"
 	} else {
 		quote = " (between 0 and " + strconv.Itoa(int(unMerge(float64(d.executor.from-d.executor.to), d.executor.count))) + ")"
 	}
@@ -205,9 +202,9 @@ func (d minerProposal) String() string {
 	)
 	out += "\n\n"
 	out += strconv.Itoa(int(d.HowManyVoters())) + " votes\n\n"
-	
+
 	for _, choiceStr := range d.GetChoicesNames() {
-		out += ufmt.Sprintf("[%s](%s) - ", choiceStr, txlink.Call("DaoRespond" + choiceStr, "name", strconv.Itoa(int(d.index))))
+		out += ufmt.Sprintf("[%s](%s) - ", choiceStr, txlink.Call("DaoRespond"+choiceStr, "name", strconv.Itoa(int(d.index))))
 	}
 	return out
 }
@@ -234,7 +231,7 @@ func newMinerProposal(session *UserSession, who dao.Member, from, to gemType, co
 // The miner dao
 type minerDAO struct {
 	dao.DAO
-	props []dao.Proposal
+	props       []dao.Proposal
 	globalIndex uint
 }
 
@@ -307,6 +304,28 @@ func LeaveDAO(what string) {
 	infos.DAO.ExcludeMember(actor)
 }
 
+func generateRequestLink(params map[string]string, user string) (string, error) {
+	req, ok := params["request"]
+	if !ok {
+		return "", nil
+	}
+	list := strings.Split(req, ",")
+	if len(list) != 3 {
+		return "", errors.New("invalid request")
+	}
+	for _, v := range list {
+		if _, err := strconv.Atoi(v); err != nil {
+			return "", err
+		}
+	}
+	return txlink.Call("RequestDAO",
+		"a", user,
+		"count", list[0],
+		"from", list[1],
+		"to", list[2],
+	), nil
+}
+
 // Rendering
 func renderDao(params map[string]string) string {
 	user, ok := params["user"]
@@ -321,26 +340,30 @@ func renderDao(params map[string]string) string {
 		return "this user does not opened DAO yet. [Go back to the dashboard](" + gnominersDashboard + "?user=" + user + ")."
 	}
 
-	// the content
+	// The actions and main content
 	var content string
 	content += "# DAO of " + session.GetName() + "\n"
 	content += "Go back to [DashBoard](" + gnominersDashboard + "?user=" + user + ").\n\n"
 	content += "DAO have " + strconv.Itoa(len(session.DAO.GetMembers())) + " members.\n\n"
 	content += "## Actions\n"
-	content += ufmt.Sprintf("[Join](%s) - [Leave](%s) - [Request](%s)\n\n",
+	lnk, err := generateRequestLink(params, user)
+	if err != nil {
+		return "error: " + err.Error() + "[Go back to the dashboard](" + gnominersDashboard + "?user=" + user + ")."
+	}
+	content += ufmt.Sprintf("[Join](%s) - [Leave](%s)",
 		txlink.Call("JoinDAO", "what", user),
 		txlink.Call("LeaveDAO", "what", user),
-		txlink.Call("RequestDAO",
-			"a", user,
-			"count", "10",
-			"from", strconv.Itoa(int(gemRock)),
-			"to", strconv.Itoa(int(gemQuartz)),
-		),
-
 	)
-	content += "> It is advised to call `Request` from CLI, for more precise requests. Here, you're converting 10 rocks \u2192 quartz.\n"
-	content += "> Also, note that if the owner leaves, the DAO is disbanded.\n\n"
+	if lnk == "" {
+		content += ufmt.Sprintf(" - You can also [Generate A Request](%s).", gnominersDAORequest + "?user=" + user)
+		content += "> It is advised to generate a request by click on the link above.\n"
+		content += "> Also, note that if the owner leaves, the DAO is disbanded.\n\n"
+	} else {
+		content += ufmt.Sprintf("\n\n### [Submit your Request](%s)", lnk)
+	}
+ 	content += "\n\n"
 
+	// The requests
 	content += "## Requests\n"
 	props := session.DAO.GetProposals()
 	if len(props) == 0 {

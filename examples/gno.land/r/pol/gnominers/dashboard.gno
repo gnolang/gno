@@ -86,7 +86,7 @@ func renderDashboard(params map[string]string) string {
 	content += "|Gem|Quantity|Price|\n"
 	content += "|-|-|-|\n"
 	var gem gemType = gemRock
-	for gem < _GemEnd {
+	for gem < _gemEnd {
 		count, ok := session.GemsCount[gem]
 		if !ok {
 			count = 0

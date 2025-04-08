@@ -15,6 +15,7 @@ const (
 	gnominersDashboard    = gnominersPath + ":dashboard"
 	gnominersAchievements = gnominersPath + ":achievements"
 	gnominersDAO          = gnominersPath + ":dao"
+	gnominersDAORequest   = gnominersPath + ":daoreq"
 )
 
 var redirectionsPath = map[string]func(params map[string]string) string{
@@ -22,6 +23,7 @@ var redirectionsPath = map[string]func(params map[string]string) string{
 	"dashboard":    renderDashboard,
 	"achievements": renderAchievements,
 	"dao":          renderDao,
+	"daoreq":       renderDaoRequestGenerator,
 }
 
 // the rendering
