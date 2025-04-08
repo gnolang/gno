@@ -109,7 +109,7 @@ func (p *process) syncCmdLogs(ctx context.Context) error {
 
 	stderr, err := p.cmd.StderrPipe()
 	if err != nil {
-		return fmt.Errorf("failed to create stdout pipe: %w", err)
+		return fmt.Errorf("failed to create stderr pipe: %w", err)
 	}
 
 	log := func(r io.Reader) {
@@ -121,6 +121,13 @@ func (p *process) syncCmdLogs(ctx context.Context) error {
 			default:
 				p.logger.Info(s.Text())
 			}
+		}
+
+		err = s.Err()
+		switch {
+		case err == nil, errors.Is(err, os.ErrClosed), errors.Is(err, io.EOF):
+		default:
+			p.logger.Error("error reading from pipe", "error", err)
 		}
 	}
 

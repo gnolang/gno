@@ -2,9 +2,12 @@
 
 The `txindexer` package provides functionality to manage and control a
 tx-indexer process for gnodev development. It handles the lifecycle of the
-tx-indexer process, including starting, stopping, and reloading the service. 
+tx-indexer process, including starting, stopping, reloading the service. 
+Reloading comprises stopping the current process, removing the database, and
+starting it again. It's important to note that since the tx-indexer is in a
+separate repo we use the cmd.Exec package to manage the process.
 This functionality is provided by a `Service` for which an example of its usage
-is provided below.
+is provided below. 
 
 ## Usage
 
@@ -35,16 +38,6 @@ if err := svc.Reload(ctx); err != nil {
 }
 ```
 
-## Process Management
-
-The package provides the following public process management capabilities:
-
-- **Start**: Launches the tx-indexer process with the specified configuration
-- **Reload**: Performs a complete reload by:
-  1. Stopping the current process
-  2. Removing the database
-  3. Starting a new process
-
 ## Logging
 
 The tx-indexer process's stdout and stderr output is automatically piped to the
@@ -53,4 +46,6 @@ standard logger used across the gnodev application.
 ## Dependencies
 
 - Requires the `tx-indexer` binary to be available in the system PATH
-- Uses the standard library's `exec` package for process management. Non-Unix users will not be able to leverage the signal calls used for managing the tx-indexer process.
+- Uses the standard library's `exec` package for process management. Non-Unix 
+users will not be able to leverage the signal calls used for managing the
+tx-indexer process.
