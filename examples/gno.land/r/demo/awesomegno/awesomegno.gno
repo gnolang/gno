@@ -40,7 +40,7 @@ func AddCategory(name, description string) (seqid.ID, error) {
 	}
 
 	if name == "" {
-		return 0, ErrCategoryExists
+		return 0, ErrCategoryNameEmpty
 	}
 
 	sanitizedKey := strings.TrimSpace(name)

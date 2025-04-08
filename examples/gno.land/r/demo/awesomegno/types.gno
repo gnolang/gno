@@ -57,4 +57,5 @@ var (
 	ErrProposalNotFound      = errors.New("proposal not found")
 	ErrProposalNotPending    = errors.New("proposal is not pending")
 	ErrNoCategoriesProvided  = errors.New("no categories provided")
+	ErrCategoryNameEmpty     = errors.New("category name cannot be empty")
 )
