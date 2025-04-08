@@ -90,7 +90,7 @@ func MockData() {
 	}
 
 	for i, dapp := range dapps {
-		proposalID, _ := ProposeNewDapp(dapp.title, dapp.description, dapp.url, dapp.categories)
+		proposalID := ProposeNewDapp(dapp.title, dapp.description, dapp.url, dapp.categories)
 
 		if i%2 == 0 {
 			ApproveProposal(proposalID)

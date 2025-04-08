@@ -7,8 +7,8 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/avl/rotree"
-	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/seqid"
 	"gno.land/p/moul/authz"
 	"gno.land/r/leon/hof"
 )
@@ -33,19 +33,19 @@ func init() {
 	hof.Register("AwesomeGno", "Awesome Gno is a registry for gnowesome dApps on gno.land")
 }
 
-func AddCategory(name, description string) (seqid.ID, error) {
+func AddCategory(name, description string) seqid.ID {
 	caller := std.PreviousRealm().Address()
 	if !isAdmin(caller) {
-		return 0, ErrNotAuthorized
+		panic("not authorized: only admins can add categories")
 	}
 
 	if name == "" {
-		return 0, ErrCategoryNameEmpty
+		panic("category name cannot be empty")
 	}
 
 	sanitizedKey := strings.TrimSpace(name)
 	if categories.Has(sanitizedKey) {
-		return 0, ErrCategoryExists
+		panic("category already exists")
 	}
 
 	category := &Category{
@@ -62,33 +62,30 @@ func AddCategory(name, description string) (seqid.ID, error) {
 		"id", category.ID.String(),
 		"name", name)
 
-	return category.ID, nil
+	return category.ID
 }
 
-func GetCategory(name string) (Category, error) {
+func GetCategory(name string) *Category {
 	sanitizedKey := strings.TrimSpace(name)
 	value, found := categories.Get(sanitizedKey)
 	if !found {
-		return Category{}, ErrCategoryNotFound
+		panic("category not found")
 	}
 
-	return value.(Category), nil
+	return value.(*Category)
 }
 
-func GetCategoryByID(id seqid.ID) (Category, error) {
+func GetCategoryByID(id seqid.ID) Category {
 	value, found := categories.Get(id.String())
 	if !found {
-		return Category{}, ErrCategoryNotFound
+		panic("category not found")
 	}
 
-	return value.(Category), nil
+	return value.(Category)
 }
 
-func RemoveDappFromCategory(dappID seqid.ID, categoryName string) error {
-	category, err := GetCategory(categoryName)
-	if err != nil {
-		return err
-	}
+func RemoveDappFromCategory(dappID seqid.ID, categoryName string) {
+	category := GetCategory(categoryName)
 
 	newDappIDs := []seqid.ID{}
 	for _, id := range category.DappIDs {
@@ -99,8 +96,6 @@ func RemoveDappFromCategory(dappID seqid.ID, categoryName string) error {
 
 	category.DappIDs = newDappIDs
 	categories.Set(strings.TrimSpace(categoryName), category)
-
-	return nil
 }
 
 func ListCategories() []Category {
@@ -116,23 +111,23 @@ func ListCategories() []Category {
 	return result
 }
 
-func ProposeNewDapp(title, description, url string, categoryNamesStr string) (seqid.ID, error) {
+func ProposeNewDapp(title, description, url string, categoryNamesStr string) seqid.ID {
 	caller := std.PreviousRealm().Address()
 
 	if title == "" {
-		return 0, ErrTitleEmpty
+		panic("title cannot be empty")
 	}
 
 	if description == "" {
-		return 0, ErrDescriptionEmpty
+		panic("description cannot be empty")
 	}
 
 	if url == "" {
-		return 0, ErrURLCannotBeEmpty
+		panic("url cannot be empty")
 	}
 
 	if categoryNamesStr == "" {
-		return 0, ErrNoCategoriesProvided
+		panic("no categories provided")
 	}
 
 	categoryNames := []string{}
@@ -144,9 +139,7 @@ func ProposeNewDapp(title, description, url string, categoryNamesStr string) (se
 	}
 
 	for _, catName := range categoryNames {
-		if _, err := GetCategory(catName); err != nil {
-			return 0, ufmt.Errorf("category '%s' does not exist", catName)
-		}
+		GetCategory(catName)
 	}
 
 	dapp := &Dapp{
@@ -175,24 +168,24 @@ func ProposeNewDapp(title, description, url string, categoryNamesStr string) (se
 		"title", title,
 		"proposer", caller.String())
 
-	return proposal.ID, nil
+	return proposal.ID
 }
 
-func ApproveProposal(proposalID seqid.ID) (seqid.ID, error) {
+func ApproveProposal(proposalID seqid.ID) seqid.ID {
 	caller := std.PreviousRealm().Address()
 
 	if !isAdmin(caller) {
-		return 0, ufmt.Errorf("not authorized: only admins can approve proposals")
+		panic("not authorized: only admins can approve proposals")
 	}
 
 	value, found := proposals.Get(proposalID.String())
 	if !found {
-		return 0, ufmt.Errorf("proposal not found: %s", proposalID.String())
+		panic(ufmt.Sprintf("proposal not found: %s", proposalID.String()))
 	}
 
 	proposal := value.(Proposal)
 	if proposal.Status != StatusPending {
-		return 0, ufmt.Errorf("proposal is not pending")
+		panic("proposal is not pending")
 	}
 
 	dapp := proposal.Dapp
@@ -202,10 +195,7 @@ func ApproveProposal(proposalID seqid.ID) (seqid.ID, error) {
 	dapps.Set(dapp.ID.String(), dapp)
 
 	for _, categoryName := range dapp.Categories {
-		err := addDappToCategory(dapp.ID, categoryName)
-		if err != nil {
-			return 0, err
-		}
+		addDappToCategory(dapp.ID, categoryName)
 	}
 	proposal.Status = StatusApproved
 	proposals.Set(proposalID.String(), proposal)
@@ -214,24 +204,24 @@ func ApproveProposal(proposalID seqid.ID) (seqid.ID, error) {
 		"id", proposalID.String(),
 		"dapp_id", dapp.ID.String())
 
-	return dapp.ID, nil
+	return dapp.ID
 }
 
-func RejectProposal(proposalID seqid.ID, reason string) error {
+func RejectProposal(proposalID seqid.ID, reason string) {
 	caller := std.PreviousRealm().Address()
 
 	if !isAdmin(caller) {
-		return ufmt.Errorf("not authorized: only admins can reject proposals")
+		panic("not authorized: only admins can reject proposals")
 	}
 
 	proposalRaw, exists := proposals.Get(proposalID.String())
 	if !exists {
-		return ufmt.Errorf("proposal with ID %s does not exist", proposalID.String())
+		panic(ufmt.Sprintf("proposal with ID %s does not exist", proposalID.String()))
 	}
 
 	proposal := proposalRaw.(Proposal)
 	if proposal.Status != StatusPending {
-		return ufmt.Errorf("proposal is not pending")
+		panic("proposal is not pending")
 	}
 
 	proposal.Status = StatusRejected
@@ -242,8 +232,6 @@ func RejectProposal(proposalID seqid.ID, reason string) error {
 		"id", proposalID.String(),
 		"title", proposal.Dapp.Title,
 		"reason", reason)
-
-	return nil
 }
 
 func GetDapp(id seqid.ID) (Dapp, bool) {
@@ -292,10 +280,7 @@ func ListPendingProposals() []Proposal {
 func GetDappsByCategory(categoryName string) []Dapp {
 	result := []Dapp{}
 
-	category, err := GetCategory(categoryName)
-	if err != nil {
-		return result
-	}
+	category := GetCategory(categoryName)
 
 	for _, dappID := range category.DappIDs {
 		value, found := dapps.Get(dappID.String())
@@ -310,16 +295,16 @@ func GetDappsByCategory(categoryName string) []Dapp {
 	return result
 }
 
-func UpdateDappCategories(dappID seqid.ID, newCategories string) error {
+func UpdateDappCategories(dappID seqid.ID, newCategories string) {
 	caller := std.PreviousRealm().Address()
 
 	if !isAdmin(caller) {
-		return ErrNotAuthorized
+		panic("not authorized: only admins can update dapp categories")
 	}
 
 	value, found := dapps.Get(dappID.String())
 	if !found {
-		return ufmt.Errorf("dApp not found: %s", dappID.String())
+		panic(ufmt.Sprintf("dApp not found: %s", dappID.String()))
 	}
 
 	dapp := value.(Dapp)
@@ -329,7 +314,7 @@ func UpdateDappCategories(dappID seqid.ID, newCategories string) error {
 		trimmedName := strings.TrimSpace(catName)
 		if trimmedName != "" {
 			if !categories.Has(trimmedName) {
-				return ufmt.Errorf("category not found: %s", trimmedName)
+				panic(ufmt.Sprintf("category not found: %s", trimmedName))
 			}
 			newCatTree.Set(trimmedName, struct{}{})
 		}
@@ -337,9 +322,7 @@ func UpdateDappCategories(dappID seqid.ID, newCategories string) error {
 
 	for _, oldCat := range dapp.Categories {
 		if !newCatTree.Has(oldCat) {
-			if err := RemoveDappFromCategory(dappID, oldCat); err != nil {
-				return err
-			}
+			RemoveDappFromCategory(dappID, oldCat)
 		}
 	}
 
@@ -347,9 +330,7 @@ func UpdateDappCategories(dappID seqid.ID, newCategories string) error {
 		if !categories.Has(key) {
 			return true
 		}
-		if err := addDappToCategory(dappID, key); err != nil {
-			return true
-		}
+		addDappToCategory(dappID, key)
 		return false
 	})
 
@@ -359,48 +340,38 @@ func UpdateDappCategories(dappID seqid.ID, newCategories string) error {
 		return false
 	})
 	dapps.Set(dappID.String(), dapp)
-
-	return nil
 }
 
-func DeleteDapp(dappID seqid.ID) error {
+func DeleteDapp(dappID seqid.ID) {
 	caller := std.PreviousRealm().Address()
 
 	if !isAdmin(caller) {
-		return ErrNotAuthorized
+		panic("not authorized: only admins can delete dapps")
 	}
 
 	value, found := dapps.Get(dappID.String())
 	if !found {
-		return ufmt.Errorf("dApp not found: %s", dappID.String())
+		panic(ufmt.Sprintf("dApp not found: %s", dappID.String()))
 	}
 
 	dapp := value.(Dapp)
 	for _, categoryName := range dapp.Categories {
-		err := RemoveDappFromCategory(dappID, categoryName)
-		if err != nil {
-			return err
-		}
+		RemoveDappFromCategory(dappID, categoryName)
 	}
 
 	dapps.Remove(dappID.String())
 
 	std.Emit("DappDeleted", "id", dappID.String())
-
-	return nil
 }
 
-func DeleteCategory(categoryName string) error {
+func DeleteCategory(categoryName string) {
 	caller := std.PreviousRealm().Address()
 
 	if !isAdmin(caller) {
-		return ErrNotAuthorized
+		panic("not authorized: only admins can delete categories")
 	}
 
-	category, err := GetCategory(categoryName)
-	if err != nil {
-		return err
-	}
+	category := GetCategory(categoryName)
 
 	for _, dappID := range category.DappIDs {
 		value, found := dapps.Get(dappID.String())
@@ -422,26 +393,19 @@ func DeleteCategory(categoryName string) error {
 	categories.Remove(strings.TrimSpace(categoryName))
 
 	std.Emit("CategoryDeleted", "name", categoryName)
-
-	return nil
 }
 
-func addDappToCategory(dappID seqid.ID, categoryName string) error {
-	category, err := GetCategory(categoryName)
-	if err != nil {
-		return err
-	}
+func addDappToCategory(dappID seqid.ID, categoryName string) {
+	category := GetCategory(categoryName)
 
 	for _, id := range category.DappIDs {
 		if id == dappID {
-			return nil
+			return
 		}
 	}
 
 	category.DappIDs = append(category.DappIDs, dappID)
 	categories.Set(strings.TrimSpace(categoryName), category)
-
-	return nil
 }
 
 func isAdmin(addr std.Address) bool {

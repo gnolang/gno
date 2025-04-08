@@ -202,10 +202,7 @@ func renderProposalPage(id seqid.ID) string {
 }
 
 func renderCategoryPage(categoryName string, queryParams string) string {
-	category, err := GetCategory(categoryName)
-	if err != nil {
-		return "Category not found: " + categoryName
-	}
+	category := GetCategory(categoryName)
 
 	out := md.H1("Category: " + category.Name)
 

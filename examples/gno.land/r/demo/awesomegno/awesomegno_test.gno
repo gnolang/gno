@@ -19,40 +19,57 @@ func setupTest() {
 	nextCategoryID = seqid.ID(0)
 	nextProposalID = seqid.ID(0)
 
-	auth = authz.New()
 	adminAddress := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	auth.Current().(*authz.MemberAuthority).AddMember(adminAddress)
-
+	Auth = authz.NewMemberAuthority(
+		adminAddress,
+		std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"), 
+	)
 	testing.SetOriginCaller(adminAddress)
 }
 
 func TestAddCategory(t *testing.T) {
 	setupTest()
 
-	categoryID, err := AddCategory("Test", "Test category")
-	urequire.NoError(t, err)
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("unexpected panic: %v", r)
+		}
+	}()
+
+	categoryID := AddCategory("Test", "Test category")
 	uassert.True(t, categoryID > 0)
 
-	category, err := GetCategory("Test")
-	urequire.NoError(t, err)
+	category := GetCategory("Test")
 	uassert.Equal(t, "Test", category.Name)
 	uassert.Equal(t, "Test category", category.Description)
 
-	_, err = AddCategory("Test", "Another description")
-	uassert.Error(t, err)
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic for duplicate category")
+		}
+	}()
+	AddCategory("Test", "Another description")
 
-	_, err = AddCategory("", "Empty name")
-	uassert.Error(t, err)
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic for empty category name")
+		}
+	}()
+	AddCategory("", "Empty name")
 }
 
 func TestProposeNewDapp(t *testing.T) {
 	setupTest()
 
-	_, err := AddCategory("Tools", "Developer tools")
-	urequire.NoError(t, err)
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("unexpected panic: %v", r)
+		}
+	}()
 
-	proposalID, err := ProposeNewDapp("Test dApp", "A test dApp", "https://example.com", "Tools")
-	urequire.NoError(t, err)
+	AddCategory("Tools", "Developer tools")
+
+	proposalID := ProposeNewDapp("Test dApp", "A test dApp", "https://example.com", "Tools")
 	uassert.True(t, proposalID > 0)
 
 	proposal, found := GetProposal(proposalID)
@@ -60,32 +77,39 @@ func TestProposeNewDapp(t *testing.T) {
 	uassert.Equal(t, "Test dApp", proposal.Dapp.Title)
 	uassert.Equal(t, StatusPending, proposal.Status)
 
-	_, err = ProposeNewDapp("Invalid Category", "Test", "https://example.com", "NonExistent")
-	uassert.Error(t, err)
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic for invalid category")
+		}
+	}()
+	ProposeNewDapp("Invalid Category", "Test", "https://example.com", "NonExistent")
 
-	_, err = ProposeNewDapp("", "Test", "https://example.com", "Tools")
-	uassert.Error(t, err)
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic for empty title")
+		}
+	}()
+	ProposeNewDapp("", "Test", "https://example.com", "Tools")
 }
 
 func TestApproveProposal(t *testing.T) {
 	setupTest()
 
-	_, err := AddCategory("Tools", "Developer tools")
-	urequire.NoError(t, err)
-	_, err = AddCategory("DeFi", "Decentralized finance")
-	urequire.NoError(t, err)
+	AddCategory("Tools", "Developer tools")
+	AddCategory("DeFi", "Decentralized finance")
 
-	proposalID, err := ProposeNewDapp("Test dApp", "A test dApp", "https://example.com", "Tools,DeFi")
-	urequire.NoError(t, err)
+	proposalID := ProposeNewDapp("Test dApp", "A test dApp", "https://example.com", "Tools,DeFi")
 
 	testing.SetOriginCaller(std.Address("g1notadmin"))
-	approvedID, err := ApproveProposal(proposalID)
-	uassert.Error(t, err)
-	uassert.Equal(t, seqid.ID(0).String(), approvedID.String())
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic for unauthorized approval")
+		}
+	}()
+	ApproveProposal(proposalID)
 
 	testing.SetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
-	approvedID, err = ApproveProposal(proposalID)
-	urequire.NoError(t, err)
+	approvedID := ApproveProposal(proposalID)
 
 	proposal, found := GetProposal(proposalID)
 	uassert.True(t, found, "Proposal should be found")
@@ -98,40 +122,44 @@ func TestApproveProposal(t *testing.T) {
 
 	uassert.Equal(t, 2, len(dapp.Categories))
 
-	toolsCategory, err := GetCategory("Tools")
-	urequire.NoError(t, err)
-	uassert.True(t, containsID(toolsCategory.DappIDs, seqid.ID(1)), "Tools category should contain dapp ID 1")
+	toolsCategory := GetCategory("Tools")
+	uassert.True(t, containsID(toolsCategory.DappIDs, approvedID), "Tools category should contain dapp ID")
 
-	defiCategory, err := GetCategory("DeFi")
-	urequire.NoError(t, err)
-	uassert.True(t, containsID(defiCategory.DappIDs, seqid.ID(1)), "DeFi category should contain dapp ID 1")
+	defiCategory := GetCategory("DeFi")
+	uassert.True(t, containsID(defiCategory.DappIDs, approvedID), "DeFi category should contain dapp ID")
 
-	invalidID := seqid.ID(999)
-	approvedID, err = ApproveProposal(invalidID)
-	uassert.Error(t, err)
-	uassert.Equal(t, seqid.ID(0).String(), approvedID.String())
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic for invalid proposal ID")
+		}
+	}()
+	ApproveProposal(seqid.ID(999))
 
-	approvedID, err = ApproveProposal(proposalID)
-	uassert.Error(t, err)
-	uassert.Equal(t, seqid.ID(0).String(), approvedID.String())
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic for already approved proposal")
+		}
+	}()
+	ApproveProposal(proposalID)
 }
 
 func TestRejectProposal(t *testing.T) {
 	setupTest()
 
-	_, err := AddCategory("Tools", "Developer tools")
-	urequire.NoError(t, err)
+	AddCategory("Tools", "Developer tools")
 
-	proposalID, err := ProposeNewDapp("Test dApp", "A test dApp", "https://example.com", "Tools")
-	urequire.NoError(t, err)
+	proposalID := ProposeNewDapp("Test dApp", "A test dApp", "https://example.com", "Tools")
 
 	testing.SetOriginCaller(std.Address("g1notadmin"))
-	err = RejectProposal(proposalID, "Not suitable")
-	uassert.Error(t, err)
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic for unauthorized rejection")
+		}
+	}()
+	RejectProposal(proposalID, "Not suitable")
 
 	testing.SetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
-	err = RejectProposal(proposalID, "Not suitable")
-	urequire.NoError(t, err)
+	RejectProposal(proposalID, "Not suitable")
 
 	proposal, found := GetProposal(proposalID)
 	uassert.True(t, found)
@@ -141,45 +169,49 @@ func TestRejectProposal(t *testing.T) {
 	_, found = GetDapp(seqid.ID(1))
 	uassert.False(t, found)
 
-	invalidID := seqid.ID(999)
-	err = RejectProposal(invalidID, "Does not exist")
-	uassert.Error(t, err)
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic for invalid proposal ID")
+		}
+	}()
+	RejectProposal(seqid.ID(999), "Does not exist")
 
-	err = RejectProposal(proposalID, "Already rejected")
-	uassert.Error(t, err)
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic for already rejected proposal")
+		}
+	}()
+	RejectProposal(proposalID, "Already rejected")
 }
 
 func TestUpdateDappCategories(t *testing.T) {
 	setupTest()
 
-	_, err := AddCategory("Tools", "Developer tools")
-	urequire.NoError(t, err)
-	_, err = AddCategory("DeFi", "Decentralized finance")
-	urequire.NoError(t, err)
-	_, err = AddCategory("Games", "Gaming dApps")
-	urequire.NoError(t, err)
+	AddCategory("Tools", "Developer tools")
+	AddCategory("DeFi", "Decentralized finance")
+	AddCategory("Games", "Gaming dApps")
 
-	proposalID, err := ProposeNewDapp("Test dApp", "A test dApp", "https://example.com", "Tools")
-	urequire.NoError(t, err)
-	approvedID, err := ApproveProposal(proposalID)
-	urequire.NoError(t, err)
+	proposalID := ProposeNewDapp("Test dApp", "A test dApp", "https://example.com", "Tools")
+	approvedID := ApproveProposal(proposalID)
 
 	dapp, found := GetDapp(approvedID)
 	uassert.True(t, found)
 	uassert.Equal(t, 1, len(dapp.Categories), "Dapp should have 1 category")
 	uassert.True(t, containsString(dapp.Categories, "Tools"))
 
-	toolsCategory, err := GetCategory("Tools")
-	urequire.NoError(t, err)
+	toolsCategory := GetCategory("Tools")
 	uassert.True(t, containsID(toolsCategory.DappIDs, approvedID), "Tools category should contain dapp ID "+approvedID.String())
 
 	testing.SetOriginCaller(std.Address("g1notadmin"))
-	err = UpdateDappCategories(approvedID, "Tools,DeFi")
-	uassert.Error(t, err)
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic for unauthorized category update")
+		}
+	}()
+	UpdateDappCategories(approvedID, "Tools,DeFi")
 
 	testing.SetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
-	err = UpdateDappCategories(approvedID, "DeFi,Games")
-	urequire.NoError(t, err)
+	UpdateDappCategories(approvedID, "DeFi,Games")
 
 	dapp, found = GetDapp(approvedID)
 	uassert.True(t, found, "Dapp should be found")
@@ -188,82 +220,86 @@ func TestUpdateDappCategories(t *testing.T) {
 	uassert.True(t, containsString(dapp.Categories, "Games"), "Dapp should have Games category")
 	uassert.False(t, containsString(dapp.Categories, "Tools"), "Dapp should not have Tools category")
 
-	toolsCategory, err = GetCategory("Tools")
-	urequire.NoError(t, err)
+	toolsCategory = GetCategory("Tools")
 	uassert.False(t, containsID(toolsCategory.DappIDs, approvedID), "Tools category should not contain dapp ID "+approvedID.String())
 
-	defiCategory, err := GetCategory("DeFi")
-	urequire.NoError(t, err)
+	defiCategory := GetCategory("DeFi")
 	uassert.True(t, containsID(defiCategory.DappIDs, approvedID), "DeFi category should contain dapp ID "+approvedID.String())
 
-	gamesCategory, err := GetCategory("Games")
-	urequire.NoError(t, err)
+	gamesCategory := GetCategory("Games")
 	uassert.True(t, containsID(gamesCategory.DappIDs, approvedID), "Games category should contain dapp ID "+approvedID.String())
 
-	err = UpdateDappCategories(approvedID, "NonExistent")
-	uassert.Error(t, err)
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic for non-existent category")
+		}
+	}()
+	UpdateDappCategories(approvedID, "NonExistent")
 }
 
 func TestDeleteDapp(t *testing.T) {
 	setupTest()
 
-	_, err := AddCategory("Tools", "Developer tools")
-	urequire.NoError(t, err)
-	_, err = AddCategory("DeFi", "Decentralized finance")
-	urequire.NoError(t, err)
+	AddCategory("Tools", "Developer tools")
+	AddCategory("DeFi", "Decentralized finance")
 
-	proposalID, err := ProposeNewDapp("Test dApp", "A test dApp", "https://example.com", "Tools,DeFi")
-	urequire.NoError(t, err)
-	approvedID, err := ApproveProposal(proposalID)
-	urequire.NoError(t, err)
+	proposalID := ProposeNewDapp("Test dApp", "A test dApp", "https://example.com", "Tools,DeFi")
+	approvedID := ApproveProposal(proposalID)
 
 	testing.SetOriginCaller(std.Address("g1notadmin"))
-	err = DeleteDapp(approvedID)
-	uassert.Error(t, err)
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic for unauthorized dapp deletion")
+		}
+	}()
+	DeleteDapp(approvedID)
 
 	testing.SetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
-	err = DeleteDapp(approvedID)
-	urequire.NoError(t, err)
+	DeleteDapp(approvedID)
 
 	_, found1 := GetDapp(approvedID)
 	uassert.False(t, found1)
 
-	toolsCategory, err := GetCategory("Tools")
-	urequire.NoError(t, err)
-	uassert.False(t, containsID(toolsCategory.DappIDs, seqid.ID(1)))
+	toolsCategory := GetCategory("Tools")
+	uassert.False(t, containsID(toolsCategory.DappIDs, approvedID))
 
-	defiCategory, err := GetCategory("DeFi")
-	urequire.NoError(t, err)
-	uassert.False(t, containsID(defiCategory.DappIDs, seqid.ID(1)))
+	defiCategory := GetCategory("DeFi")
+	uassert.False(t, containsID(defiCategory.DappIDs, approvedID))
 
-	invalidID := seqid.ID(999)
-	err = DeleteDapp(invalidID)
-	uassert.Error(t, err)
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic for invalid dapp ID")
+		}
+	}()
+	DeleteDapp(seqid.ID(999))
 }
 
 func TestDeleteCategory(t *testing.T) {
 	setupTest()
 
-	_, err := AddCategory("Tools", "Developer tools")
-	urequire.NoError(t, err)
-	_, err = AddCategory("DeFi", "Decentralized finance")
-	urequire.NoError(t, err)
+	AddCategory("Tools", "Developer tools")
+	AddCategory("DeFi", "Decentralized finance")
 
-	proposalID, err := ProposeNewDapp("Test dApp", "A test dApp", "https://example.com", "Tools,DeFi")
-	urequire.NoError(t, err)
-	approvedID, err := ApproveProposal(proposalID)
-	urequire.NoError(t, err)
+	proposalID := ProposeNewDapp("Test dApp", "A test dApp", "https://example.com", "Tools,DeFi")
+	approvedID := ApproveProposal(proposalID)
 
 	testing.SetOriginCaller(std.Address("g1notadmin"))
-	err = DeleteCategory("Tools")
-	uassert.Error(t, err, "Should not be able to delete category with dapps")
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic for unauthorized category deletion")
+		}
+	}()
+	DeleteCategory("Tools")
 
 	testing.SetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
-	err = DeleteCategory("Tools")
-	urequire.NoError(t, err)
+	DeleteCategory("Tools")
 
-	_, err = GetCategory("Tools")
-	uassert.Error(t, err, "Should not be able to get category that was deleted")
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic for getting deleted category")
+		}
+	}()
+	GetCategory("Tools")
 
 	dapp, found := GetDapp(approvedID)
 	uassert.True(t, found)
@@ -271,32 +307,28 @@ func TestDeleteCategory(t *testing.T) {
 	uassert.False(t, containsString(dapp.Categories, "Tools"))
 	uassert.True(t, containsString(dapp.Categories, "DeFi"))
 
-	err = DeleteCategory("NonExistent")
-	uassert.Error(t, err, "Should not be able to delete non-existent category")
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic for non-existent category")
+		}
+	}()
+	DeleteCategory("NonExistent")
 }
 
 func TestGetDappsByCategory(t *testing.T) {
 	setupTest()
 
-	_, err := AddCategory("Tools", "Developer tools")
-	urequire.NoError(t, err)
-	_, err = AddCategory("DeFi", "Decentralized finance")
-	urequire.NoError(t, err)
+	AddCategory("Tools", "Developer tools")
+	AddCategory("DeFi", "Decentralized finance")
 
-	proposalID1, err := ProposeNewDapp("Tool dApp", "A tool dApp", "https://example.com/tool", "Tools")
-	urequire.NoError(t, err)
-	approvedID1, err := ApproveProposal(proposalID1)
-	urequire.NoError(t, err)
+	proposalID1 := ProposeNewDapp("Tool dApp", "A tool dApp", "https://example.com/tool", "Tools")
+	approvedID1 := ApproveProposal(proposalID1)
 
-	proposalID2, err := ProposeNewDapp("DeFi dApp", "A DeFi dApp", "https://example.com/defi", "DeFi")
-	urequire.NoError(t, err)
-	approvedID2, err := ApproveProposal(proposalID2)
-	urequire.NoError(t, err)
+	proposalID2 := ProposeNewDapp("DeFi dApp", "A DeFi dApp", "https://example.com/defi", "DeFi")
+	approvedID2 := ApproveProposal(proposalID2)
 
-	proposalID3, err := ProposeNewDapp("Hybrid dApp", "A hybrid dApp", "https://example.com/hybrid", "Tools,DeFi")
-	urequire.NoError(t, err)
-	approvedID3, err := ApproveProposal(proposalID3)
-	urequire.NoError(t, err)
+	proposalID3 := ProposeNewDapp("Hybrid dApp", "A hybrid dApp", "https://example.com/hybrid", "Tools,DeFi")
+	approvedID3 := ApproveProposal(proposalID3)
 
 	toolsDapps := GetDappsByCategory("Tools")
 	uassert.Equal(t, 2, len(toolsDapps))
@@ -312,8 +344,7 @@ func TestBidirectionalConsistency(t *testing.T) {
 	setupTest()
 
 	for _, cat := range []string{"Tools", "DeFi", "Games", "Social"} {
-		_, err := AddCategory(cat, "Description for "+cat)
-		urequire.NoError(t, err)
+		AddCategory(cat, "Description for "+cat)
 	}
 
 	var firstDappID seqid.ID
@@ -333,10 +364,8 @@ func TestBidirectionalConsistency(t *testing.T) {
 	}
 
 	for i, config := range dappConfigs {
-		proposalID, err := ProposeNewDapp(config.title, config.description, config.url, config.categories)
-		urequire.NoError(t, err)
-		dappID, err := ApproveProposal(proposalID)
-		urequire.NoError(t, err)
+		proposalID := ProposeNewDapp(config.title, config.description, config.url, config.categories)
+		dappID := ApproveProposal(proposalID)
 		if i == 0 {
 			firstDappID = dappID
 		}
@@ -345,8 +374,7 @@ func TestBidirectionalConsistency(t *testing.T) {
 	allDapps := ListDapps()
 	for _, dapp := range allDapps {
 		for _, categoryName := range dapp.Categories {
-			category, err := GetCategory(categoryName)
-			urequire.NoError(t, err)
+			category := GetCategory(categoryName)
 			uassert.True(t, containsID(category.DappIDs, dapp.ID))
 		}
 	}
@@ -360,8 +388,8 @@ func TestBidirectionalConsistency(t *testing.T) {
 		}
 	}
 
-	err := UpdateDappCategories(firstDappID, "Tools,Social")
-	urequire.NoError(t, err)
+	testing.SetOriginCaller(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	UpdateDappCategories(firstDappID, "Tools,Social")
 
 	dapp, found := GetDapp(firstDappID)
 	uassert.True(t, found)
@@ -369,19 +397,20 @@ func TestBidirectionalConsistency(t *testing.T) {
 	uassert.True(t, containsString(dapp.Categories, "Tools"))
 	uassert.True(t, containsString(dapp.Categories, "Social"))
 
-	toolsCategory, err := GetCategory("Tools")
-	urequire.NoError(t, err)
+	toolsCategory := GetCategory("Tools")
 	uassert.True(t, containsID(toolsCategory.DappIDs, firstDappID))
 
-	socialCategory, err := GetCategory("Social")
-	urequire.NoError(t, err)
+	socialCategory := GetCategory("Social")
 	uassert.True(t, containsID(socialCategory.DappIDs, firstDappID))
 
-	err = DeleteCategory("Games")
-	urequire.NoError(t, err)
+	DeleteCategory("Games")
 
-	_, err = GetCategory("Games")
-	uassert.Error(t, err, "Should not be able to get category that was deleted")
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic for getting deleted category")
+		}
+	}()
+	GetCategory("Games")
 
 	allDapps = ListDapps()
 	for _, dapp := range allDapps {
