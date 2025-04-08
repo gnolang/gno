@@ -401,6 +401,11 @@ func (ds *App) RunServer(ctx context.Context, term *rawterm.RawTerm) error {
 			"lisn", fmt.Sprintf("http://%s", addr))
 	}
 
+	// start tx-indexer if enabled, otherwise this is a no-op
+	if err := ds.txIndexer.Start(ctx); err != nil {
+		cancelWith(err)
+	}
+
 	if ds.cfg.interactive {
 		ds.logger.WithGroup("--- READY").Info("for commands and help, press `h`", "took", time.Since(ds.start))
 	} else {

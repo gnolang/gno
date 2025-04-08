@@ -40,13 +40,13 @@ func NewService(logger *slog.Logger, cfg Config) (*Service, error) {
 
 // Start starts the tx-indexer process.
 func (s *Service) Start(ctx context.Context) error {
+	s.logger.Info("starting tx-indexer", "db_path", s.dbPath, "listen", s.listen)
+
 	if err := s.process.start(ctx); err != nil {
 		const msg = "failed to start tx-indexer"
 		s.logger.Error(msg, "error", err)
 		return fmt.Errorf(msg+": %w", err)
 	}
-
-	s.logger.Info("tx-indexer started", "db_path", s.dbPath, "listen", s.listen)
 
 	return nil
 }
@@ -56,6 +56,8 @@ func (s *Service) Start(ctx context.Context) error {
 // 2. Remove the tx-indexer database
 // 3. Start the tx-indexer process again
 func (s *Service) Reload(ctx context.Context) error {
+	s.logger.Info("reloading tx-indexer")
+
 	if err := s.Stop(ctx); err != nil {
 		return err
 	}
@@ -76,13 +78,13 @@ func (s *Service) Reload(ctx context.Context) error {
 
 // Stop stops the tx-indexer process.
 func (s *Service) Stop(ctx context.Context) error {
+	s.logger.Info("stopping tx-indexer")
+
 	if err := s.process.stop(ctx); err != nil {
 		const msg = "failed to stop tx-indexer"
 		s.logger.Error(msg, "error", err)
 		return fmt.Errorf(msg+": %w", err)
 	}
-
-	s.logger.Info("tx-indexer stopped")
 
 	return nil
 }

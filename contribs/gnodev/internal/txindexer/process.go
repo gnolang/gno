@@ -141,15 +141,6 @@ func (p *process) reset() {
 	p.cmd = nil
 }
 
-/*
--db-path indexer-db             the absolute path for the indexer DB (embedded)
--http-rate-limit 0              the maximum HTTP requests allowed per minute per IP, unlimited by default
--listen-address 0.0.0.0:8546    the IP:PORT URL for the indexer JSON-RPC server
--log-level info                 the log level for the CLI output
--max-chunk-size 100             the range for fetching blockchain data by a single worker
--max-slots 100                  the amount of slots (workers) the fetcher employs
--remote http://127.0.0.1:26657  the JSON-RPC URL of the Gno chain
-*/
 func startArgs(cfg Config) []string {
 	args := []string{start}
 	if cfg.DBPath != "" {
