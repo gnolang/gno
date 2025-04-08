@@ -65,7 +65,7 @@ var ChainTZ *Location = &chainLoc
 // chainLoc is kept separate so that ChainTZ can always refer to &chainLoc,
 // ensuring it never returns a nil *Location, even if a client improperly
 // modifies ChainTZ.
-var chainLoc Location = Location{name: "UTC"}
+var chainLoc Location = ChainTZFromTZData()
 
 // UTC represents Universal Coordinated Time (UTC).
 var UTC *Location = &utcLoc
@@ -75,7 +75,20 @@ var UTC *Location = &utcLoc
 // even if a badly behaved client has changed UTC.
 var utcLoc = Location{name: "UTC"}
 
-// XXX var localOnce sync.Once
+func chainTZParamData() (data []byte) // injected
+
+func ChainTZFromTZData() Location {
+	data := chainTZParamData()
+	if len(data) == 0 {
+		return Location{name: "UTC"}
+	}
+
+	loc, err := LoadLocationFromTZData("Chain", data)
+	if err != nil {
+		return Location{name: "UTC"}
+	}
+	return *loc
+}
 
 func (l *Location) get() *Location {
 	if l == nil {
