@@ -64,7 +64,7 @@ class Help {
   }
 
   private restoreMode(): void {
-    this.restoreValue("helpCmdMode", this.DOM.cmdModeSelect, null);
+    this.restoreValue("helpCmdMode", this.DOM.cmdModeSelect, (value) => this.funcList.forEach((func) => func.updateMode(value)));
   }
 
   private bindEvents(): void {
