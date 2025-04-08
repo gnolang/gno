@@ -127,7 +127,7 @@ func init() {
 	members.SetTier(T3)
 	members.SetMember(T3, std.Address("g14u5eaheavy0ux4dmpykg2gvxpvqvexm9cyg58a"), &Member{InvitationPoints: 1}) // Norman
 	members.SetMember(T3, std.Address("g1qynsu9dwj9lq0m5fkje7jh6qy3md80ztqnshhm"), &Member{InvitationPoints: 1}) // Rémi
-	members.SetMember(T3, std.Address("g17ernafy6ctpcz6uepfsq2js8x2vz0wladh5yc3"), &Member{InvitationPoints: 1})  // Dragos
+	members.SetMember(T3, std.Address("g17ernafy6ctpcz6uepfsq2js8x2vz0wladh5yc3"), &Member{InvitationPoints: 1}) // Dragos
 
 }
 
