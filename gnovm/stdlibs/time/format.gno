@@ -1292,6 +1292,7 @@ func parse(layout, value string, defaultLocation, chainTZ *Location) (Time, erro
 		offset, ok := chainTZ.lookupName(zoneName, t.unixSec())
 		if ok {
 			t.addSec(-int64(offset))
+			t.setLoc(chainTZ)
 			return t, nil
 		}
 
