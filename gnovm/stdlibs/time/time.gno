@@ -1185,7 +1185,6 @@ func norm(hi, lo, base int) (nhi, nlo int) {
 // Date returns a time that is correct in one of the two zones involved
 // in the transition, but it does not guarantee which.
 func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) Time {
-	// enforce usage of Chain time zone
 	if loc == nil {
 		panic("time: missing Location in call to Date")
 	}
