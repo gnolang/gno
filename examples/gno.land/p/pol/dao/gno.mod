@@ -1,1 +1,1 @@
-module gno.land/r/pol/gnomining/dao
+module gno.land/p/pol/dao

@@ -1,6 +1,6 @@
-package gnominers
+package pickaxes
 
-type IPickaxe interface{
+type IPickaxe interface {
 	HowMuchMining() uint
 	String() string
 	Clone() IPickaxe
@@ -17,7 +17,7 @@ func (p *NormalPickaxe) HowMuchMining() uint {
 }
 
 func (p *NormalPickaxe) String() string {
-	return "normal pickaxe"
+	return "pickaxe"
 }
 
 func (p NormalPickaxe) Clone() IPickaxe {
@@ -35,7 +35,7 @@ func (p *TriPickaxe) HowMuchMining() uint {
 }
 
 func (p *TriPickaxe) String() string {
-	return "tri-pickaxe"
+	return "triPickaxe"
 }
 
 func (p TriPickaxe) Clone() IPickaxe {
@@ -53,7 +53,7 @@ func (p *PentaPickaxe) HowMuchMining() uint {
 }
 
 func (p *PentaPickaxe) String() string {
-	return "penta-pickaxe"
+	return "pentaPickaxe"
 }
 
 func (p PentaPickaxe) Clone() IPickaxe {
@@ -71,7 +71,7 @@ func (p *DecaPickaxe) HowMuchMining() uint {
 }
 
 func (p *DecaPickaxe) String() string {
-	return "deca-pickaxe"
+	return "decaPickaxe"
 }
 
 func (p DecaPickaxe) Clone() IPickaxe {
@@ -89,7 +89,7 @@ func (p *BirthdayPickaxe) HowMuchMining() uint {
 }
 
 func (p *BirthdayPickaxe) String() string {
-	return "birthday-pickaxe"
+	return "birthdayPickaxe"
 }
 
 func (p BirthdayPickaxe) Clone() IPickaxe {

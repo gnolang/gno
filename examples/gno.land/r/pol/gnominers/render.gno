@@ -2,29 +2,32 @@ package gnominers
 
 import (
 	"time"
-	"gno.land/p/pol/queryparsing"
+
 	"gno.land/p/pol/notrandom"
+	"gno.land/p/pol/queryparsing"
 )
 
-var randomMachine *notrandom.Machine
+var RandomMachine *notrandom.Machine
 
 const (
-	gnominersPath = "/r/pol/gnominers"
-	gnominersShopPath = gnominersPath + ":shop"
-	gnominersDashboard = gnominersPath + ":dashboard"
+	gnominersPath         = "/r/pol/gnominers"
+	gnominersShopPath     = gnominersPath + ":shop"
+	gnominersDashboard    = gnominersPath + ":dashboard"
 	gnominersAchievements = gnominersPath + ":achievements"
+	gnominersDAO          = gnominersPath + ":dao"
 )
 
-var redirectionsPath = map[string]func(params map[string]string) string {
-	"shop": renderShop,
-	"dashboard": renderDashboard,
+var redirectionsPath = map[string]func(params map[string]string) string{
+	"shop":         renderShop,
+	"dashboard":    renderDashboard,
 	"achievements": renderAchievements,
+	"dao":          renderDao,
 }
 
 // the rendering
 
 func init() {
-	randomMachine = notrandom.NewMachine(time.Now().Unix())
+	RandomMachine = notrandom.NewMachine(time.Now().Unix())
 }
 
 func Render(fullpath string) string {

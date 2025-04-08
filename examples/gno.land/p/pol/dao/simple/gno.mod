@@ -1,1 +1,1 @@
-module gno.land/r/pol/daos/simple
+module gno.land/p/pol/dao/simple

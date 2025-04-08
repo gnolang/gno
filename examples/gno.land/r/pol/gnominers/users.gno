@@ -2,31 +2,35 @@ package gnominers
 
 import (
 	"std"
-	"gno.land/r/sys/users"
+
 	"gno.land/p/demo/ownable"
 	"gno.land/p/moul/txlink"
+	"gno.land/r/sys/users"
+	"gno.land/r/pol/gnominers/pickaxes"
+	"gno.land/p/pol/dao"
 )
 
 // The user table
 type hiddenData struct {
 	overallMined uint
-	rockMined uint
-	alexandrite bool
-	achievements []IAchievement
+	rockMined    uint
+	alexandrite  bool
+	achievements []iAchievement
 }
 
 type UserInfo struct {
-	hidden hiddenData
-	Money float64
-	GemsCount map[gemType]uint
-	Pickaxes []IPickaxe
-	Active IPickaxe
-	Adress std.Address
-	Owner *ownable.Ownable
+	hidden    hiddenData
+	Money     float64
+	GemsCount map[GemType]uint
+	Pickaxes  []pickaxes.IPickaxe
+	Active    pickaxes.IPickaxe
+	Adress    std.Address
+	Owner     *ownable.Ownable
+	DAO 	  *dao.DAO
 }
 
 func shorten(str string, of int) string {
-	return str[:of] + "..." + str[len(str) - of:]
+	return str[:of] + "..." + str[len(str)-of:]
 }
 
 // Display the user great
@@ -44,7 +48,7 @@ func (u *UserInfo) GetName() string {
 // The list of users
 var userSessions = map[string]*UserInfo{}
 
-// The function to log a new user with default values
+// pub/ The function to log a new user with default values
 func Login() {
 	caller := std.PreviousRealm().Address()
 	infos, ok := userSessions[caller.String()]
@@ -52,13 +56,14 @@ func Login() {
 		panic("user already registered")
 	}
 	infos = &UserInfo{
-		Money: 100,
-		GemsCount: map[gemType]uint{},
-		Adress: caller,
-		Pickaxes: []IPickaxe{ &NormalPickaxe{} },
-		Owner: ownable.NewWithAddress(caller),
+		Money:     100,
+		GemsCount: map[GemType]uint{},
+		Adress:    caller,
+		Pickaxes:  []pickaxes.IPickaxe{&pickaxes.NormalPickaxe{}},
+		Owner:     ownable.NewWithAddress(caller),
+		DAO: 	   nil,
 	}
-	for gem := gemRock; gem < _gemEnd; gem++ {
+	for gem := GemRock; gem < _GemEnd; gem++ {
 		infos.GemsCount[gem] = 0
 		gem++
 	}

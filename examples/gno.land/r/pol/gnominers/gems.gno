@@ -1,52 +1,51 @@
 package gnominers
 
-import (
-	"strconv"
-	// "gno.land/p/pol/notrandom"
-)
+// "strconv"
+// "gno.land/p/pol/notrandom"
 
-type gemType uint
+type GemType uint
+
 const (
-	gemRock gemType = iota
-	gemQuartz
-	gemAmethyst
-	gemTopaz
-	gemOpal
-	gemSapphire
-	gemEmerald
-	gemRuby
-	gemDiamond
-	gemAlexandrite
-	_gemEnd
+	GemRock GemType = iota
+	GemQuartz
+	GemAmethyst
+	GemTopaz
+	GemOpal
+	GemSapphire
+	GemEmerald
+	GemRuby
+	GemDiamond
+	GemAlexandrite
+	_GemEnd
 )
 
-var gemLootTable = map[gemType]float64{
-	gemRock: 			1,
-	gemQuartz:			0.2,
-	gemAmethyst: 		0.1,
-	gemTopaz: 			0.05,
-	gemOpal: 			0.021,
-	gemSapphire:		0.01,
-	gemEmerald: 		0.00723,
-	gemRuby: 			0.0069,
-	gemDiamond: 		0.005,
-	gemAlexandrite: 	0.001,
+var gemLootTable = map[GemType]float64{
+	GemRock:        1,
+	GemQuartz:      0.2,
+	GemAmethyst:    0.1,
+	GemTopaz:       0.05,
+	GemOpal:        0.021,
+	GemSapphire:    0.01,
+	GemEmerald:     0.00723,
+	GemRuby:        0.0069,
+	GemDiamond:     0.005,
+	GemAlexandrite: 0.001,
 }
 
-var gemPriceCaratTable = map[gemType]float64{
-	gemRock: 			0.01,
-	gemQuartz: 			1,
-	gemAmethyst: 		5,
-	gemTopaz: 			25,
-	gemOpal: 			800,
-	gemSapphire: 		2300,
-	gemEmerald: 		6500,
-	gemRuby: 			1500,
-	gemDiamond: 		15000,
-	gemAlexandrite: 	12000,
+var gemPriceCaratTable = map[GemType]float64{
+	GemRock:        0.01,
+	GemQuartz:      1,
+	GemAmethyst:    5,
+	GemTopaz:       25,
+	GemOpal:        800,
+	GemSapphire:    2300,
+	GemEmerald:     6500,
+	GemRuby:        1500,
+	GemDiamond:     15000,
+	GemAlexandrite: 12000,
 }
 
-var gemNames = []string{
+var GemNames = []string{
 	"rock",
 	"quartz",
 	"amethyst",
@@ -59,25 +58,14 @@ var gemNames = []string{
 	"alexandrite",
 }
 
-func debugGem() string {
-	total := 0.
-	for _, v := range gemLootTable {
-		total += v
-	}
-	content := strconv.FormatFloat(total, 'f', -1, 64)
-	content += ", rarest is " + strconv.FormatFloat(gemLootTable[gemDiamond] / total, 'f', -1, 64)
-	content += ", lest rare is " + strconv.FormatFloat(gemLootTable[gemRock] / total, 'f', -1, 64)
-	return content
-}
-
-// func RandomGem(m *notrandom.Machine) (gemType, float64) {
-func RandomGem() (gemType, float64) {
+// func randomGem(m *notrandom.Machine) (GemType, float64) {
+func randomGem() (GemType, float64) {
 	total := 0.
 	for _, v := range gemLootTable {
 		total += v
 	}
 	// r := MachineRandFloat()
-	r := randomMachine.RandFloat()
+	r := RandomMachine.RandFloat()
 	value := r * total
 	for k, v := range gemLootTable {
 		if value < v {
@@ -86,5 +74,5 @@ func RandomGem() (gemType, float64) {
 			value -= v
 		}
 	}
-	return gemRock, r
+	return GemRock, r
 }

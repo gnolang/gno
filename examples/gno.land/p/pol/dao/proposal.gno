@@ -33,6 +33,12 @@ type Proposal interface {
 
 	// Check if its ended
 	IsEnded() bool
+
+	// Get the choices names & count
+	GetChoicesNames() map[ProposalChoice]string
+
+	// Convert into string
+	String() string
 }
 
 type ProposalStore interface {
@@ -41,7 +47,4 @@ type ProposalStore interface {
 
 	// Propose something to the group
 	Propose(prop Proposal)
-
-	// Get the choices names & count
-	GetChoicesNames() map[ProposalChoice]string
 }

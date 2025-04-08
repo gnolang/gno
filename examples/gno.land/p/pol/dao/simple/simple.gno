@@ -117,6 +117,18 @@ func NewSimpleProposal(who dao.Member, title, desc string, f func()error) *Simpl
 	return x
 }
 
+func (d SimpleProposal) GetChoicesNames() map[dao.ProposalChoice]string {
+	return map[dao.ProposalChoice]string{
+		SimpleAccepted: "Accept",
+		SimpleRejected: "Refuse",
+		SimpleWhiteVote: "Abstaint",
+	}
+}
+
+func (d SimpleProposal) String() string {
+	return d.Title + ", " + d.Description
+}
+
 // After all of that we create the DAO and implement the store
 type SimpleDAO struct {
 	dao.DAO
@@ -129,14 +141,6 @@ func (d *SimpleDAO) GetProposals() []dao.Proposal {
 
 func (d *SimpleDAO) Propose(prop dao.Proposal) {
 	d.props = append(d.props, prop)
-}
-
-func (d *SimpleDAO) GetChoicesNames() map[dao.ProposalChoice]string {
-	return map[dao.ProposalChoice]string{
-		SimpleAccepted: "Accept",
-		SimpleRejected: "Refuse",
-		SimpleWhiteVote: "Abstaint",
-	}
 }
 
 func NewSimpleDAO() *SimpleDAO {

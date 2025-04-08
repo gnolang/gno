@@ -1,15 +1,18 @@
 package gnominers
 
-var achievements = map[string]IAchievement{
-	"a gem": &AchMineAGem{},
-	"1000rocks": &AchMine1000Rocks{},
-	"alexandrite": &AchAlexandrite{},
-	"million": &Ach1Million{},
-	"42k gems": &Ach42kGems{},
-	"bday": &AchBDAY{},
+import "gno.land/r/pol/gnominers/pickaxes"
+
+var achievements = map[string]iAchievement{
+	"a gem":       &achMineAGem{},
+	"1000rocks":   &achMine1000Rocks{},
+	"alexandrite": &achAlexandrite{},
+	"million":     &ach1Million{},
+	"42k gems":    &ach42kGems{},
+	"bday":        &achBDAY{},
 }
 
 type achievementDifficulty uint
+
 const (
 	diffEasy achievementDifficulty = iota
 	diffMedium
@@ -18,27 +21,21 @@ const (
 	diffImpossible
 )
 
-var achievementDifficultyNames = map[achievementDifficulty]string {
-	diffEasy: 		"Easy",
-	diffMedium: 	"Medium",
-	diffHard: 		"Hard",
-	diffInsane: 	"Insance",
+var achievementDifficultyNames = map[achievementDifficulty]string{
+	diffEasy:       "Easy",
+	diffMedium:     "Medium",
+	diffHard:       "Hard",
+	diffInsane:     "Insance",
 	diffImpossible: "Impossible",
 }
 
-type IAchievement interface {
+type iAchievement interface {
 	Description() string
 	Difficulty() achievementDifficulty
 	Check(session *UserInfo)
 }
 
-func CheckAllAchievements(u *UserInfo) {
-	for _, v := range achievements {
-		v.Check(u)
-	}
-}
-
-func haveAchievement(u *UserInfo, a IAchievement) bool {
+func haveAchievement(u *UserInfo, a iAchievement) bool {
 	for _, v := range u.hidden.achievements {
 		if v.Description() == a.Description() {
 			return true
@@ -73,17 +70,17 @@ func renderAchievements(params map[string]string) string {
 
 // a gem
 
-type AchMineAGem struct {}
+type achMineAGem struct{}
 
-func (a AchMineAGem) Description() string {
+func (a achMineAGem) Description() string {
 	return "Mine a gem."
 }
 
-func (a AchMineAGem) Difficulty() achievementDifficulty {
+func (a achMineAGem) Difficulty() achievementDifficulty {
 	return diffEasy
 }
 
-func (it *AchMineAGem) Check(session *UserInfo) {
+func (it *achMineAGem) Check(session *UserInfo) {
 	if session.hidden.overallMined >= 1 && !haveAchievement(session, it) {
 		session.hidden.achievements = append(session.hidden.achievements, it)
 	}
@@ -91,17 +88,17 @@ func (it *AchMineAGem) Check(session *UserInfo) {
 
 // 1000 rocks
 
-type AchMine1000Rocks struct {}
+type achMine1000Rocks struct{}
 
-func (a AchMine1000Rocks) Description() string {
+func (a achMine1000Rocks) Description() string {
 	return "Mine 1000 rocks."
 }
 
-func (a AchMine1000Rocks) Difficulty() achievementDifficulty {
+func (a achMine1000Rocks) Difficulty() achievementDifficulty {
 	return diffMedium
 }
 
-func (it *AchMine1000Rocks) Check(session *UserInfo) {
+func (it *achMine1000Rocks) Check(session *UserInfo) {
 	if session.hidden.rockMined >= 1000 && !haveAchievement(session, it) {
 		session.hidden.achievements = append(session.hidden.achievements, it)
 	}
@@ -109,17 +106,17 @@ func (it *AchMine1000Rocks) Check(session *UserInfo) {
 
 // alexandrite
 
-type AchAlexandrite struct {}
+type achAlexandrite struct{}
 
-func (a AchAlexandrite) Description() string {
+func (a achAlexandrite) Description() string {
 	return "Mine an alexandrite."
 }
 
-func (a AchAlexandrite) Difficulty() achievementDifficulty {
+func (a achAlexandrite) Difficulty() achievementDifficulty {
 	return diffHard
 }
 
-func (it *AchAlexandrite) Check(session *UserInfo) {
+func (it *achAlexandrite) Check(session *UserInfo) {
 	if session.hidden.alexandrite && !haveAchievement(session, it) {
 		session.hidden.achievements = append(session.hidden.achievements, it)
 	}
@@ -127,17 +124,17 @@ func (it *AchAlexandrite) Check(session *UserInfo) {
 
 // million
 
-type Ach1Million struct {}
+type ach1Million struct{}
 
-func (a Ach1Million) Description() string {
+func (a ach1Million) Description() string {
 	return "Have 1 Million GnoCoins."
 }
 
-func (a Ach1Million) Difficulty() achievementDifficulty {
+func (a ach1Million) Difficulty() achievementDifficulty {
 	return diffInsane
 }
 
-func (it *Ach1Million) Check(session *UserInfo) {
+func (it *ach1Million) Check(session *UserInfo) {
 	if session.Money >= 1_000_000 && !haveAchievement(session, it) {
 		session.hidden.achievements = append(session.hidden.achievements, it)
 	}
@@ -145,17 +142,17 @@ func (it *Ach1Million) Check(session *UserInfo) {
 
 // 42k
 
-type Ach42kGems struct {}
+type ach42kGems struct{}
 
-func (a Ach42kGems) Description() string {
+func (a ach42kGems) Description() string {
 	return "Mine 42k gems."
 }
 
-func (a Ach42kGems) Difficulty() achievementDifficulty {
+func (a ach42kGems) Difficulty() achievementDifficulty {
 	return diffHard
 }
 
-func (it *Ach42kGems) Check(session *UserInfo) {
+func (it *ach42kGems) Check(session *UserInfo) {
 	if session.hidden.overallMined >= 42_000 && !haveAchievement(session, it) {
 		session.hidden.achievements = append(session.hidden.achievements, it)
 	}
@@ -163,21 +160,21 @@ func (it *Ach42kGems) Check(session *UserInfo) {
 
 // bday
 
-type AchBDAY struct {}
+type achBDAY struct{}
 
-func (a AchBDAY) Description() string {
+func (a achBDAY) Description() string {
 	return "Mine 42k gems."
 }
 
-func (a AchBDAY) Difficulty() achievementDifficulty {
+func (a achBDAY) Difficulty() achievementDifficulty {
 	return diffHard
 }
 
-func (it *AchBDAY) Check(session *UserInfo) {
+func (it *achBDAY) Check(session *UserInfo) {
 	if haveAchievement(session, it) {
 		return
 	}
-	pick := BirthdayPickaxe{}
+	pick := pickaxes.BirthdayPickaxe{}
 	for _, p := range session.Pickaxes {
 		if p.String() == pick.String() {
 			session.hidden.achievements = append(session.hidden.achievements, it)

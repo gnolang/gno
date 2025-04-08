@@ -1,1 +1,1 @@
-module gno.land/p/pol/querryparsing
+module gno.land/p/pol/queryparsing

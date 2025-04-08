@@ -155,12 +155,14 @@ func renderDAOStuff() string {
 			out += "> [ended] " + prop.Title + "\n\n---\n\n"
 			continue
 		}
+
 		out += "### " + prop.Title + "\n"
 		out += prop.Description + "\n\n"
 		out += "> by " + iprop.GetAuthor().Address().String() + "\n\n"
 		out += strconv.Itoa(int(prop.HowManyVoters())) + " votes -- "
+
 		var lnk string
-		for k, v := range polDao.GetChoicesNames() {
+		for k, v := range iprop.GetChoicesNames() {
 			lnk = txlink.Call("Vote", "vote", strconv.Itoa(int(k)), "id",  strconv.Itoa(propID))
 			out += "[" + v + "](" + lnk + ") "
 		}

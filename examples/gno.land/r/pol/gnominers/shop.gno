@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"gno.land/p/moul/txlink"
+	"gno.land/r/pol/gnominers/pickaxes"
 )
 
 const shopImage = "https://raw.githubusercontent.com/paulogarithm/gnoplayground/refs/heads/main/images/gnoshop.png"
@@ -12,11 +13,11 @@ const shopImage = "https://raw.githubusercontent.com/paulogarithm/gnoplayground/
 const birthday = "09/01"
 const myAdress = "g1euj8ry6ygx02x48u4505heckkclyps3w87uqtj"
 
-var avaiblePickaxes = map[IPickaxe]float64 {
-	&TriPickaxe{}: 110.0,
-	&PentaPickaxe{}: 1000.0,
-	&DecaPickaxe{}: 10000.42,
-	&BirthdayPickaxe{}: 0xbebe_caca, // baby poop in french
+var avaiblePickaxes = map[pickaxes.IPickaxe]float64{
+	&pickaxes.TriPickaxe{}:      110.0,
+	&pickaxes.PentaPickaxe{}:    1000.0,
+	&pickaxes.DecaPickaxe{}:     10000.42,
+	&pickaxes.BirthdayPickaxe{}: 0xbebe_caca, // baby poop in french
 }
 
 func totalGemsPrice(session *UserInfo) (total float64) {
@@ -29,28 +30,30 @@ func totalGemsPrice(session *UserInfo) (total float64) {
 	return
 }
 
+// pub/ The function to sell all your gems
 func Sell() {
 	session := assertCallerExists()
 	session.Owner.AssertCallerIsOwner()
 	money := totalGemsPrice(session)
-	session.GemsCount = map[gemType]uint{}
+	session.GemsCount = map[GemType]uint{}
 	session.Money += money
 	achievements["million"].Check(session)
 }
 
+// pub/ Function to buy a new pickaxe
 func Buy(pickname string) {
 	session := assertCallerExists()
 	session.Owner.AssertCallerIsOwner()
 
 	// Check for birthday
-	birthdayPick := BirthdayPickaxe{}
+	birthdayPick := pickaxes.BirthdayPickaxe{}
 	today := time.Now().Format("02/01")
 	if pickname == birthdayPick.String() && today != birthday {
 		panic("its not my birthday yet")
 	}
 
 	// Get the pickaxe
-	var pick IPickaxe = nil
+	var pick pickaxes.IPickaxe = nil
 	price := 0.
 	for k, v := range avaiblePickaxes {
 		if k.String() == pickname {
@@ -71,7 +74,7 @@ func Buy(pickname string) {
 		panic("youre too broke to buy this")
 	}
 	session.Money -= price
-	addPickaxeAnyway:
+addPickaxeAnyway:
 	session.Pickaxes = append(session.Pickaxes, pick.Clone())
 	achievements["bday"].Check(session)
 }
@@ -102,7 +105,7 @@ func renderShop(params map[string]string) string {
 	// Buy
 	content += "### Buy some pickaxes (you have " + strconv.FormatFloat(session.Money, 'f', 2, 64) + " GnoCoins):\n\n"
 	content += "|Pickaxe|Price|Buy|\n|-|-|-|\n"
-	birthdayPick := BirthdayPickaxe{}
+	birthdayPick := pickaxes.BirthdayPickaxe{}
 	today := time.Now().Format("02/01")
 	for pick2buy, price := range avaiblePickaxes {
 		havePick := false
