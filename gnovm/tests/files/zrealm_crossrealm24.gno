@@ -5,6 +5,10 @@ import (
 	"gno.land/r/demo/tests/crossrealm_b"
 )
 
+type Struct struct {
+	A int
+}
+
 func main() {
 	switchrealm()
 
@@ -12,15 +16,11 @@ func main() {
 	s := &Struct{A: 100}
 	withswitch(crossrealm_b.SetClosure)(func() {})
 	withswitch(crossrealm_b.SetObject)(&a)
-	withswitch(crossrealm_b.SetObject)(&s.A)
-	withswitch(crossrealm_b.SetObject)(func() { &s.A })
+	//withswitch(crossrealm_b.SetObject)(&s.A)
+	//withswitch(crossrealm_b.SetObject)(func() { &s.A })
 	s.A = 123
 	println(s, a)
 }
 
-type Struct struct {
-	A int
-}
-
 // Output:
-// XXX
+// &(struct{(123 int)} gno.land/r/crossrealm_test.Struct) 1

@@ -689,9 +689,10 @@ func (m *Machine) doOpFuncLit() {
 		V: &FuncValue{
 			Type:        ft,
 			IsMethod:    false,
+			IsClosure:   true,
 			Source:      x,
 			Name:        "",
-			Closure:     lb,
+			Parent:      nil,
 			Captures:    captures,
 			PkgPath:     m.Package.PkgPath,
 			SwitchRealm: x.Body.isSwitchRealm(),

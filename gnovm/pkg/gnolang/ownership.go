@@ -130,6 +130,7 @@ type Object interface {
 var (
 	_ Object = &ArrayValue{}
 	_ Object = &StructValue{}
+	_ Object = &FuncValue{}
 	_ Object = &BoundMethodValue{}
 	_ Object = &MapValue{}
 	_ Object = &Block{}
@@ -358,7 +359,7 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 	case *StructValue:
 		return cv
 	case *FuncValue:
-		return cv.GetClosure(store)
+		return cv
 	case *MapValue:
 		return cv
 	case *BoundMethodValue:
@@ -394,7 +395,7 @@ func (tv *TypedValue) GetFirstObjectID() (ObjectID, bool) {
 	case *StructValue:
 		return cv.GetObjectID(), true
 	case *FuncValue:
-		return cv.Closure.(ObjectIDer).GetObjectID(), true
+		return cv.GetObjectID(), true
 	case *MapValue:
 		return cv.GetObjectID(), true
 	case *BoundMethodValue:

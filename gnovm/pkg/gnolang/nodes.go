@@ -1615,8 +1615,8 @@ func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 			if fv, ok := tv.V.(*FuncValue); ok {
 				// copy function value and assign closure from package value.
 				fv = fv.Copy(nilAllocator)
-				fv.Closure = pv.fBlocksMap[fv.FileName]
-				if fv.Closure == nil {
+				fv.Parent = pv.fBlocksMap[fv.FileName]
+				if fv.Parent == nil {
 					panic(fmt.Sprintf("file block missing for file %q", fv.FileName))
 				}
 				nvs[i].V = fv

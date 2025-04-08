@@ -876,7 +876,7 @@ func getChildObjects(val Value, more []Value) []Value {
 		}
 		return more
 	case *FuncValue:
-		if bv, ok := cv.Closure.(*Block); ok {
+		if bv, ok := cv.Parent.(*Block); ok {
 			more = getSelfOrChildObjects(bv, more)
 		}
 		for _, c := range cv.Captures {
@@ -1160,9 +1160,9 @@ func copyValueWithRefs(val Value) Value {
 			// Ignore _test files
 			return nil
 		}
-		var closure Value
-		if cv.Closure != nil {
-			closure = toRefValue(cv.Closure)
+		var parent Value
+		if cv.Parent != nil {
+			parent = toRefValue(cv.Parent)
 		}
 		captures := make([]TypedValue, len(cv.Captures))
 		for i, ctv := range cv.Captures {
@@ -1176,11 +1176,12 @@ func copyValueWithRefs(val Value) Value {
 		}
 		ft := copyTypeWithRefs(cv.Type)
 		return &FuncValue{
+			ObjectInfo:  cv.ObjectInfo.Copy(),
 			Type:        ft,
 			IsMethod:    cv.IsMethod,
 			Source:      source,
 			Name:        cv.Name,
-			Closure:     closure,
+			Parent:      parent,
 			Captures:    captures,
 			FileName:    cv.FileName,
 			PkgPath:     cv.PkgPath,

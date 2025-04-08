@@ -65,8 +65,8 @@ var (
 	_ Value = BigdecValue{}
 	_ Value = DataByteValue{}
 	_ Value = PointerValue{}
-	_ Value = &ArrayValue{} // TODO doesn't have to be pointer?
-	_ Value = &SliceValue{} // TODO doesn't have to be pointer?
+	_ Value = &ArrayValue{}
+	_ Value = &SliceValue{}
 	_ Value = &StructValue{}
 	_ Value = &FuncValue{}
 	_ Value = &MapValue{}
@@ -482,11 +482,13 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 // makes construction TypedValue{T:*FuncType{},V:*FuncValue{}}
 // faster.
 type FuncValue struct {
+	ObjectInfo
 	Type        Type         // includes unbound receiver(s)
 	IsMethod    bool         // is an (unbound) method
+	IsClosure   bool         // is a func lit expr closure (not decl)
 	Source      BlockNode    // for block mem allocation
 	Name        Name         // name of function/method
-	Closure     Value        // *Block or RefValue to closure (may be nil for file blocks; lazy)
+	Parent      Value        // *Block or RefValue to closure (may be nil for file blocks; lazy)
 	Captures    []TypedValue `json:",omitempty"` // HeapItemValues captured from closure.
 	FileName    Name         // file name where declared
 	PkgPath     string       // package path in which func declared
@@ -517,7 +519,7 @@ func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
 		IsMethod:    fv.IsMethod,
 		Source:      fv.Source,
 		Name:        fv.Name,
-		Closure:     fv.Closure,
+		Parent:      fv.Parent,
 		FileName:    fv.FileName,
 		PkgPath:     fv.PkgPath,
 		NativePkg:   fv.NativePkg,
@@ -575,11 +577,11 @@ func (fv *FuncValue) GetPackage(store Store) *PackageValue {
 	return pv
 }
 
-// NOTE: this function does not automatically memoize the closure for
-// file-level declared methods and functions. For those, caller
-// should set .Closure manually after *FuncValue.Copy().
-func (fv *FuncValue) GetClosure(store Store) *Block {
-	switch cv := fv.Closure.(type) {
+func (fv *FuncValue) GetParent(store Store) *Block {
+	if fv.IsClosure {
+		return nil
+	}
+	switch cv := fv.Parent.(type) {
 	case nil:
 		if fv.FileName == "" {
 			return nil
@@ -589,10 +591,11 @@ func (fv *FuncValue) GetClosure(store Store) *Block {
 		if fb == nil {
 			panic(fmt.Sprintf("file block missing for file %q", fv.FileName))
 		}
+		fv.Parent = fb
 		return fb
 	case RefValue:
 		block := store.GetObject(cv.ObjectID).(*Block)
-		fv.Closure = block
+		fv.Parent = block
 		return block
 	case *Block:
 		return cv

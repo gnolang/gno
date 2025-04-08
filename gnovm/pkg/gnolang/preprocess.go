@@ -2743,7 +2743,20 @@ func findHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 			pushInitBlock(n.(BlockNode), &last, &stack)
 
 		// ----------------------------------------
-		case TRANS_ENTER:
+		case TRANS_LEAVE:
+
+			// Pop block from stack.
+			// NOTE: DO NOT USE TRANS_SKIP WITHIN BLOCK
+			// NODES, AS TRANS_LEAVE WILL BE SKIPPED; OR
+			// POP BLOCK YOURSELF.
+			defer func() {
+				switch n.(type) {
+				case BlockNode:
+					stack = stack[:len(stack)-1]
+					last = stack[len(stack)-1]
+				}
+			}()
+
 			switch n := n.(type) {
 			case *ValueDecl:
 				// Top level value decls are always heap escaped.
@@ -2790,45 +2803,35 @@ func findHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 				dbn := last.GetBlockNodeForPath(nil, n.Path)
 				switch n.Type {
 				case NameExprTypeNormal:
-					// If used as closure capture, mark as heap use.
-					flx, depth, found := findFirstClosure(stack, dbn)
-					if !found {
-						return n, TRANS_CONTINUE
-					}
-					// Ignore top level declarations.
-					// This get replaced by findPackageSelectors.
-					if pn, ok := dbn.(*PackageNode); ok {
-						if pn.PkgPath != ".uverse" {
-							n.SetAttribute(ATTR_PACKAGE_DECL, true)
+					for {
+						// If used as closure capture, mark as heap use.
+						flx, depth, found := findFirstClosure(stack, dbn)
+						if !found {
 							return n, TRANS_CONTINUE
 						}
-					}
+						// Ignore top level declarations.
+						// This get replaced by findPackageSelectors.
+						if pn, ok := dbn.(*PackageNode); ok {
+							if pn.PkgPath != ".uverse" {
+								n.SetAttribute(ATTR_PACKAGE_DECL, true)
+								return n, TRANS_CONTINUE
+							}
+						}
 
-					// Found a heap item closure capture.
-					addAttrHeapUse(dbn, n.Name)
-					// The path must stay same for now,
-					// used later in findHeapUsesDemoteDefines.
-					idx := addHeapCapture(dbn, flx, depth, n)
-					// adjust NameExpr type.
-					n.Type = NameExprTypeHeapUse
-					n.Path.SetDepth(uint8(depth))
-					n.Path.Index = idx
+						// Found a heap item closure capture.
+						addAttrHeapUse(dbn, n.Name)
+						// The path must stay same for now,
+						// used later in findHeapUsesDemoteDefines.
+						idx := addHeapCapture(dbn, flx, depth, n)
+						// adjust NameExpr type.
+						n.Type = NameExprTypeHeapUse
+						n.Path.SetDepth(uint8(depth))
+						n.Path.Index = idx
+						// Loop again for more closures.
+						dbn = flx
+					}
 				}
 			}
-			return n, TRANS_CONTINUE
-
-		// ----------------------------------------
-		case TRANS_LEAVE:
-			// Pop block from stack.
-			// NOTE: DO NOT USE TRANS_SKIP WITHIN BLOCK
-			// NODES, AS TRANS_LEAVE WILL BE SKIPPED; OR
-			// POP BLOCK YOURSELF.
-			switch n.(type) {
-			case BlockNode:
-				stack = stack[:len(stack)-1]
-				last = stack[len(stack)-1]
-			}
-
 			return n, TRANS_CONTINUE
 		}
 		return n, TRANS_CONTINUE
@@ -4718,7 +4721,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 				IsMethod:    true,
 				Source:      cd,
 				Name:        cd.Name,
-				Closure:     nil, // set lazily.
+				Parent:      nil, // set lazily
 				FileName:    fileNameOf(last),
 				PkgPath:     pkg.PkgPath,
 				SwitchRealm: cd.Body.isSwitchRealm(),
@@ -4990,7 +4993,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 				IsMethod:    false,
 				Source:      d,
 				Name:        d.Name,
-				Closure:     nil, // set lazily.
+				Parent:      nil, // set lazily.
 				FileName:    fileNameOf(last),
 				PkgPath:     pkg.PkgPath,
 				SwitchRealm: d.Body.isSwitchRealm(),

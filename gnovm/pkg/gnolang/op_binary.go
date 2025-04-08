@@ -454,24 +454,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				panic("function can only be compared with `nil`")
 			}
 		}
-		if _, ok := lv.V.(*BoundMethodValue); ok {
-			// BoundMethodValues are objects so just compare.
-			return lv.V == rv.V
-		} else if lv.V == nil && rv.V == nil {
-			return true
-		} else {
-			lfv := lv.V.(*FuncValue)
-			rfv, ok := rv.V.(*FuncValue)
-			if !ok {
-				return false
-			}
-			if lfv.Source.GetLocation() !=
-				rfv.Source.GetLocation() {
-				return false
-			}
-			return lfv.GetClosure(store) ==
-				rfv.GetClosure(store)
-		}
+		return lv.V == rv.V
 	case PointerKind:
 		if lv.T != rv.T &&
 			lv.T.Elem() != DataByteType &&
