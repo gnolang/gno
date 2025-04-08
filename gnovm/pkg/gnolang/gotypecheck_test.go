@@ -239,6 +239,66 @@ func TestTypeCheckMemPackage(t *testing.T) {
 			},
 			errContains("undefined: std", "a_completely_different_identifier and not used"),
 		},
+		{
+			// Both inits should be considered, without an "imported and not
+			// used" error.
+			"ImportTwoInits",
+			&gnovm.MemPackage{
+				Name: "gns",
+				Path: "gno.land/r/demo/gns",
+				Files: []*gnovm.MemFile{
+					{
+						Name: "gns.gno",
+						Body: `
+							package gns
+							import (
+								"std"
+								"math/overflow"
+							)
+
+							var sink any
+
+							func init() {
+								sink = std.Address("admin")
+							}
+
+							func init() {
+								sink = overflow.Add(1, 2)
+							}
+							`,
+					},
+				},
+			},
+			mockPackageGetter{
+				&gnovm.MemPackage{
+					Name: "std",
+					Path: "std",
+					Files: []*gnovm.MemFile{
+						{
+							Name: "gnovm.gno",
+							Body: `
+								package std
+								type Address string`,
+						},
+					},
+				},
+				&gnovm.MemPackage{
+					Name: "overflow",
+					Path: "math/overflow",
+					Files: []*gnovm.MemFile{
+						{
+							Name: "overflow.gno",
+							Body: `
+								package overflow
+								func Add(a, b int) int {
+									return a + b
+								}`,
+						},
+					},
+				},
+			},
+			nil,
+		},
 	}
 
 	cacheMpg := mockPackageGetterCounts{
