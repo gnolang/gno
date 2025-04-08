@@ -10,19 +10,19 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 )
-
-//go:embed Dockerfile
-var dockerFile []byte
 
 const (
 	networkNamePrefix = "gnoland-network"
@@ -74,12 +74,19 @@ func NewClusterManager(name string, logger *slog.Logger) (*ClusterManager, error
 	}, nil
 }
 
-// BuildDockerfile builds the embedded Dockerfile // TODO make configurable?
-func (cm *ClusterManager) BuildDockerfile(ctx context.Context) error {
+// BuildDockerfile builds the tessera/gnoland Dockerfile
+// TODO separate this out from the cluster manager. Image building should be a separate process from
+// cluster creation and management
+func (cm *ClusterManager) BuildDockerfile(ctx context.Context, gnoRoot string) error {
 	var (
 		buf = bytes.NewBuffer(nil)
 		tw  = tar.NewWriter(buf)
 	)
+
+	// Add the gno root folder to the Docker build context
+	if err := addFilesToTar(tw, gnoRoot); err != nil {
+		return err
+	}
 
 	tarHeader := &tar.Header{
 		Name: "Dockerfile",
@@ -96,15 +103,36 @@ func (cm *ClusterManager) BuildDockerfile(ctx context.Context) error {
 		return err
 	}
 
+	// Add the .dockerignore
+	ignoreHeader := &tar.Header{
+		Name: ".dockerignore",
+		Size: int64(len(dockerIgnore)),
+		Mode: 0644,
+	}
+
+	if err := tw.WriteHeader(ignoreHeader); err != nil {
+		return err
+	}
+
+	if _, err := tw.Write(dockerIgnore); err != nil {
+		return err
+	}
+
+	if err = tw.Close(); err != nil {
+		return err
+	}
+
 	dockerFileTarReader := bytes.NewReader(buf.Bytes())
 
 	imageBuildRes, err := cm.client.ImageBuild(
 		ctx,
 		dockerFileTarReader,
 		types.ImageBuildOptions{
-			Context:    dockerFileTarReader,
-			Dockerfile: "Dockerfile",
-			Remove:     true,
+			Context:     dockerFileTarReader,
+			Dockerfile:  "Dockerfile",
+			Remove:      true,
+			ForceRemove: true,
+			Tags:        []string{"tessera/gnoland:latest"},
 		},
 	)
 	if err != nil {
@@ -131,7 +159,75 @@ func (cm *ClusterManager) BuildDockerfile(ctx context.Context) error {
 		)
 	}
 
+	// Clean up dangling images
+	_, err = cm.client.ImagesPrune(ctx, filters.NewArgs(filters.Arg("dangling", "true")))
+	if err != nil {
+		cm.logger.Warn("failed to prune dangling images", "err", err)
+	}
+
 	return nil
+}
+
+// addFilesToTar adds all files from the source directory to the tar writer
+func addFilesToTar(tw *tar.Writer, srcDir string) error {
+	walkFn := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Create a relative path within the tar archive
+		relPath, err := filepath.Rel(srcDir, path)
+		if err != nil {
+			return err
+		}
+
+		// Skip if this is the source directory itself
+		if relPath == "." {
+			return nil
+		}
+
+		// Create the full path within the tar
+		tarPath := relPath
+
+		// For directories create an entry
+		if info.IsDir() {
+			header, err := tar.FileInfoHeader(info, "")
+			if err != nil {
+				return err
+			}
+
+			header.Name = tarPath + "/"
+			header.Mode = int64(info.Mode())
+
+			return tw.WriteHeader(header)
+		}
+
+		// For files, add the content
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+
+		header, err := tar.FileInfoHeader(info, "")
+		if err != nil {
+			return err
+		}
+
+		header.Name = tarPath
+		header.Mode = int64(info.Mode())
+		header.Size = info.Size()
+
+		if err := tw.WriteHeader(header); err != nil {
+			return err
+		}
+
+		_, err = io.Copy(tw, file)
+
+		return err
+	}
+
+	return filepath.Walk(srcDir, walkFn)
 }
 
 // SetupNetwork creates the cluster's Docker network, if it doesn't exist

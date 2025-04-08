@@ -39,6 +39,8 @@ type runCfg struct {
 	runAll     bool
 	tags       commands.StringArr
 	recipesDir string
+
+	gnoRoot string // TODO revise
 }
 
 // NewRunCmd creates the tessera run subcommand
@@ -106,6 +108,13 @@ func (c *runCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"the top-level path containing recipes",
 	)
+
+	fs.StringVar(
+		&c.gnoRoot,
+		"gno-root",
+		"",
+		"the root of the gno repository",
+	)
 }
 
 func (c *runCfg) validateFlags(args []string) error {
@@ -150,6 +159,11 @@ func (c *runCfg) validateFlags(args []string) error {
 		return fmt.Errorf("%w: %q", errInvalidOutputFormat, c.outputFormat)
 	}
 
+	// Make sure the gno root is set
+	if c.gnoRoot == "" {
+		return errors.New("gno root is not set")
+	}
+
 	return nil
 }
 
@@ -180,13 +194,21 @@ func execRun(
 
 	// TODO set up a reporter (for output)
 
+	// TODO cleanup
+	gnoRoot, err := filepath.Abs(cfg.gnoRoot)
+	if err != nil {
+		return fmt.Errorf("unable to get abs path for gnoroot: %w", err)
+	}
+
+	cfg.gnoRoot = gnoRoot
+
 	// Run the recipes
 	io.Printf("Running %d recipes...\n\n", len(recipePaths))
 
 	if cfg.runInBand {
 		// Run sequentially
 		for _, path := range recipePaths {
-			if err := runSingleRecipe(timeoutCtx, path, io); err != nil {
+			if err := runSingleRecipe(timeoutCtx, path, io, cfg.gnoRoot); err != nil {
 				io.ErrPrintfln("Error running recipe %s: %v\n", path, err)
 			}
 		}
@@ -203,7 +225,7 @@ func execRun(
 			go func(recipePath string) {
 				defer wg.Done()
 
-				if e := runSingleRecipe(timeoutCtx, recipePath, io); e != nil {
+				if e := runSingleRecipe(timeoutCtx, recipePath, io, cfg.gnoRoot); e != nil {
 					errorCh <- fmt.Errorf("error running recipe %s: %w", recipePath, e)
 				}
 			}(path)
@@ -223,8 +245,8 @@ func execRun(
 	return nil
 }
 
-// runSingleRecipe
-func runSingleRecipe(ctx context.Context, path string, io commands.IO) error {
+// runSingleRecipe // TODO drop gnoroot
+func runSingleRecipe(ctx context.Context, path string, io commands.IO, gnoRoot string) error {
 	io.Printf("Running recipe: %s\n", path)
 
 	// Set up logger
@@ -239,7 +261,7 @@ func runSingleRecipe(ctx context.Context, path string, io commands.IO) error {
 	}
 
 	// Create and set up cluster
-	c, err := cluster.New(ctx, logger, r.Cluster)
+	c, err := cluster.New(ctx, logger, r.Cluster, gnoRoot)
 	if err != nil {
 		return fmt.Errorf("failed to create cluster: %w", err)
 	}

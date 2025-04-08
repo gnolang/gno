@@ -20,6 +20,7 @@ func New(
 	ctx context.Context,
 	logger *slog.Logger,
 	config Config,
+	gnoRoot string,
 ) (*Cluster, error) {
 	c := &Cluster{
 		config: config,
@@ -42,7 +43,7 @@ func New(
 	}
 
 	// Build the docker images for the cluster
-	if err = manager.BuildDockerfile(ctx); err != nil {
+	if err = manager.BuildDockerfile(ctx, gnoRoot); err != nil {
 		return nil, fmt.Errorf("unable to build Dockerfile: %w", err)
 	}
 
