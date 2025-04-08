@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gnolang/gno/contribs/gnodev/internal/txindexer"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
@@ -40,6 +41,7 @@ const (
 	AccountsLogName    = "Accounts"
 	LoaderLogName      = "Loader"
 	ProxyLogName       = "Proxy"
+	TxIndexerLogName   = "TxIndexer"
 )
 
 type App struct {
@@ -61,6 +63,7 @@ type App struct {
 	book          *address.Book
 	exportPath    string
 	proxy         *proxy.PathInterceptor
+	txIndexer     txindexer.Manager
 
 	// XXX: move this
 	exported uint
@@ -238,6 +241,12 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 
 	ds.watcher.UpdatePackagesWatch(ds.devNode.ListPkgs()...)
 
+	ds.txIndexer, err = newTXIndexer(ds.cfg, ds.logger)
+	if err != nil {
+		return fmt.Errorf("unable to setup tx-indexer: %w", err)
+	}
+	ds.DeferClose(func() error { return ds.txIndexer.Stop(ctx) })
+
 	return nil
 }
 
@@ -412,6 +421,10 @@ func (ds *App) RunServer(ctx context.Context, term *rawterm.RawTerm) error {
 				ds.logger.WithGroup(NodeLogName).Error("unable to reload node", "err", err)
 			}
 			ds.watcher.UpdatePackagesWatch(ds.devNode.ListPkgs()...)
+
+			if err := ds.txIndexer.Reload(ctx); err != nil {
+				ds.logger.WithGroup(TxIndexerLogName).Error("unable to reload tx-indexer", "err", err)
+			}
 		}
 	}
 }
@@ -473,6 +486,10 @@ func (ds *App) handleKeyPress(ctx context.Context, key rawterm.KeyPress) {
 			ds.logger.WithGroup(NodeLogName).Error("unable to reload node", "err", err)
 		}
 
+		if err := ds.txIndexer.Reload(ctx); err != nil {
+			ds.logger.WithGroup(NodeLogName).Error("unable to reload tx-indexer", "err", err)
+		}
+
 	case rawterm.KeyCtrlR: // Reset
 		ds.logger.WithGroup(NodeLogName).Info("resetting node state...")
 		// Reset paths
@@ -481,6 +498,10 @@ func (ds *App) handleKeyPress(ctx context.Context, key rawterm.KeyPress) {
 		// Reset the node
 		if err = ds.devNode.Reset(ctx); err != nil {
 			ds.logger.WithGroup(NodeLogName).Error("unable to reset node state", "err", err)
+		}
+
+		if err := ds.txIndexer.Reload(ctx); err != nil {
+			ds.logger.WithGroup(NodeLogName).Error("unable to reload tx-indexer", "err", err)
 		}
 
 	case rawterm.KeyCtrlS: // Save
@@ -579,4 +600,29 @@ func listenForKeyPress(logger *slog.Logger, rt *rawterm.RawTerm) <-chan rawterm.
 	}()
 
 	return cc
+}
+
+func newTXIndexer(appCfg *AppConfig, logger *slog.Logger) (txindexer.Manager, error) {
+	cfg := txindexer.Config{
+		Enabled:       appCfg.txIndexerEnabled,
+		DBPath:        appCfg.txIndexerDBPath,
+		HTTPRateLimit: appCfg.txIndexerHttpRateLimit.Value(),
+		ListenAddress: appCfg.txIndexerListenAddress,
+		LogLevel:      appCfg.txIndexerLogLevel.Value(),
+		MaxChunkSize:  appCfg.txIndexerMaxChunkSize.Value(),
+		MaxSlots:      appCfg.txIndexerMaxSlots.Value(),
+		Remote:        appCfg.txIndexerRemote.Value(),
+	}
+
+	if !cfg.Enabled {
+		logger.WithGroup(TxIndexerLogName).Info("tx-indexer disabled, using using no-op")
+		return txindexer.NewNoOp(), nil
+	}
+
+	svc, err := txindexer.NewService(logger.WithGroup(TxIndexerLogName), cfg)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create tx-indexer service: %w", err)
+	}
+
+	return svc, nil
 }

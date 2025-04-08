@@ -56,7 +56,7 @@ func (s *Service) Start(ctx context.Context) error {
 // 2. Remove the tx-indexer database
 // 3. Start the tx-indexer process again
 func (s *Service) Reload(ctx context.Context) error {
-	if err := s.stop(ctx); err != nil {
+	if err := s.Stop(ctx); err != nil {
 		return err
 	}
 
@@ -74,8 +74,8 @@ func (s *Service) Reload(ctx context.Context) error {
 	return nil
 }
 
-// stop stops the tx-indexer process.
-func (s *Service) stop(ctx context.Context) error {
+// Stop stops the tx-indexer process.
+func (s *Service) Stop(ctx context.Context) error {
 	if err := s.process.stop(ctx); err != nil {
 		const msg = "failed to stop tx-indexer"
 		s.logger.Error(msg, "error", err)

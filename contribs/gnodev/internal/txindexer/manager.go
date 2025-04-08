@@ -6,5 +6,6 @@ import "context"
 // functionality to start, and reload the process.
 type Manager interface {
 	Start(ctx context.Context) error
+	Stop(ctx context.Context) error
 	Reload(ctx context.Context) error
 }
