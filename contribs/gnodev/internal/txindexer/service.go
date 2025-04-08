@@ -22,26 +22,8 @@ type Service struct {
 }
 
 // NewService returns an instantiated tx-indexer service or an error
-// due to missing dependencies.
-// Example:
-//
-// svc, err := NewService(logger, cfg)
-//
-//	if err != nil {
-//	   return err
-//	}
-//
-// // start the tx-indexer process
-//
-//	if err := svc.Start(ctx); err != nil {
-//	  return err
-//	}
-//
-// reload the tx-indexer process
-//
-//	if err := svc.Reload(ctx); err != nil {
-//	  return err
-//	}
+// due to missing dependencies. Please refer to the README for an
+// example usage of the tx-indexer service.
 func NewService(logger *slog.Logger, cfg Config) (*Service, error) {
 	s := Service{
 		logger:  logger,
