@@ -23,7 +23,7 @@ var (
 
 	categories = avl.NewTree()
 
-	Auth = authz.NewWithAddress(
+	Auth = authz.NewMemberAuthority(
 		std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"), // leon
 		std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"), // moul
 	)
@@ -445,12 +445,5 @@ func addDappToCategory(dappID seqid.ID, categoryName string) error {
 }
 
 func isAdmin(addr std.Address) bool {
-	return Auth.Current().(*authz.MemberAuthority).Has(addr)
-}
-
-// NewWithAddress creates a new Authorizer with specific addresses as members
-func NewWithAddress(addresses ...std.Address) *Authorizer {
-	return &Authorizer{
-		current: NewMemberAuthority(addresses...),
-	}
+	return Auth.Has(addr)
 }

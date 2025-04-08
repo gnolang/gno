@@ -35,7 +35,7 @@ const (
 
 type Proposal struct {
 	ID        seqid.ID
-	Dapp      Dapp
+	Dapp      *Dapp
 	Status    string
 	Proposer  std.Address
 	Reason    string
