@@ -166,34 +166,26 @@ func (dbv DataByteValue) SetByte(b byte) {
 // ----------------------------------------
 // PointerValue
 
-// Base is set if the pointer refers to an array index or
-// struct field or block var.
-// A pointer constructed via a &x{} composite lit
-// expression or constructed via new() or make() are
-// independent objects, and have nil Base.
-// A pointer to a block var may end up pointing to an escape
-// value after a block var escapes "to the heap".
-// *(PointerValue.TypedValue) must have already become
-// initialized, namely T set if a typed-nil.
-// Index is -1 for the shared "_" block var,
-// and -2 for (gno and native) map items.
+// *(PointerValue.TypedValue) must have already become initialized, namely T
+// set if a typed-nil.  Index is -1 for the shared "_" block var, and -2 for
+// (gno and native) map items.
 //
 // A pointer constructed via a &x{} composite lit expression or constructed via
 // new() or make() will have a virtual HeapItemValue as base.
 //
-// Allocation for PointerValue is not immediate,
-// as usually PointerValues are temporary for assignment
-// or binary operations. When a pointer is to be
-// allocated, *Allocator.AllocatePointer() is called separately,
-// as in OpRef.
+// The Base is only nil for references to certain values that cannot
+// be modified anyways, such as top level functions.
 //
-// Since PointerValue is used internally for assignment etc,
-// it MUST stay minimal for computational efficiency.
+// Allocation for PointerValue is not immediate, as usually PointerValues are
+// temporary for assignment or binary operations. When a pointer is to be
+// allocated, *Allocator.AllocatePointer() is called separately, as in OpRef.
+//
+// Since PointerValue is used internally for assignment etc, it MUST stay
+// minimal for computational efficiency.
 type PointerValue struct {
-	TV    *TypedValue // escape val if pointer to var.
+	TV    *TypedValue // &Base[Index] or &Base.Index.
 	Base  Value       // array/struct/block, or heapitem.
 	Index int         // list/fields/values index, or -1 or -2 (see below).
-	Key   *TypedValue `json:",omitempty"` // for maps.
 }
 
 const (
@@ -725,28 +717,22 @@ func (mv *MapValue) GetLength() int {
 	return mv.List.Size // panics if uninitialized
 }
 
-// NOTE: Go doesn't support referencing into maps, and maybe
-// Gno will, but here we just use this method signature as we
-// do for structs and arrays for assigning new entries.  If key
-// doesn't exist, a new slot is created.
+// GetPointerForKey is only used for assignment, so the key
+// is not returned as part of the pointer, and TV is not filled.
 func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedValue) PointerValue {
 	kmk := key.ComputeMapKey(store, false)
 	if mli, ok := mv.vmap[kmk]; ok {
-		key2 := key.Copy(alloc)
 		return PointerValue{
 			TV:    fillValueTV(store, &mli.Value),
 			Base:  mv,
-			Key:   &key2,
 			Index: PointerIndexMap,
 		}
 	}
 	mli := mv.List.Append(alloc, *key)
 	mv.vmap[kmk] = mli
-	key2 := key.Copy(alloc)
 	return PointerValue{
 		TV:    fillValueTV(store, &mli.Value),
 		Base:  mv,
-		Key:   &key2,
 		Index: PointerIndexMap,
 	}
 }

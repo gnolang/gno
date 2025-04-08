@@ -419,8 +419,21 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	if pv == nil {
 		panic("RunFiles requires Machine.Package")
 	}
+	rlm := pv.GetRealm()
+	if rlm == nil && pv.IsRealm() {
+		rlm = NewRealm(pv.PkgPath) // throwaway
+	}
 	updates := m.runFileDecls(IsStdlib(pv.PkgPath), fns...)
+	if rlm != nil {
+		pb := pv.GetBlock(m.Store)
+		for _, update := range updates {
+			rlm.DidUpdate(pb, nil, update.GetFirstObject(m.Store))
+		}
+	}
 	m.runInitFromUpdates(pv, updates)
+	if rlm != nil {
+		rlm.FinalizeRealmTransaction(m.Store)
+	}
 }
 
 // PreprocessFiles runs Preprocess on the given files. It is used to detect
