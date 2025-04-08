@@ -48,7 +48,7 @@ func AddCategory(name, description string) (seqid.ID, error) {
 		return 0, ErrCategoryExists
 	}
 
-	category := Category{
+	category := &Category{
 		ID:          nextCategoryID.Next(),
 		Name:        name,
 		Description: description,
@@ -149,7 +149,7 @@ func ProposeNewDapp(title, description, url string, categoryNamesStr string) (se
 		}
 	}
 
-	dapp := Dapp{
+	dapp := &Dapp{
 		Title:       title,
 		Description: description,
 		Author:      caller,
@@ -159,7 +159,7 @@ func ProposeNewDapp(title, description, url string, categoryNamesStr string) (se
 		Categories:  categoryNames,
 	}
 
-	proposal := Proposal{
+	proposal := &Proposal{
 		ID:        nextProposalID.Next(),
 		Dapp:      dapp,
 		Status:    StatusPending,
