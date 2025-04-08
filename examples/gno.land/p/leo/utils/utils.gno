@@ -1,10 +1,11 @@
 package utils
 
 import (
+	"std"
 	"strings"
 )
 
-func srtSpliter(full string, sep string) (string, string) {
+func strSpliter(full string, sep string) (string, string) {
 	i := strings.Index(full, sep)
 	if i == -1 {
 		return full, ""
@@ -12,23 +13,23 @@ func srtSpliter(full string, sep string) (string, string) {
 	return full[:i], full[i+1:]
 }
 
-func ParseParams(fullpath string) map[string]string {
+func ParsePath(fullpath string) (string, map[string]string) {
 	params := map[string]string{}
 
-	_, paramsStr := srtSpliter(fullpath, "?")
+	path, paramsStr := strSpliter(fullpath, "?")
 	paramList := strings.Split(paramsStr, "&")
 	for _, v := range paramList {
-		x, y := srtSpliter(v, "=")
+		x, y := strSpliter(v, "=")
 		params[x] = y
 	}
-	return params
+	return path, params
 }
 
 func ShowRaw(data string) string {
-	return "```\n" + data + "```\n\n"
+	return "```\n" + data + "\n\n```\n\n"
 }
 
-func SliceContainsInt(s []int, f func(int, int) bool) bool {
+func IntSliceContains(s []int, f func(int, int) bool) bool {
 	for i, e := range s {
 		if f(i, e) {
 			return true
@@ -37,11 +38,29 @@ func SliceContainsInt(s []int, f func(int, int) bool) bool {
 	return false
 }
 
-func SliceContainsString(s []string, f func(int, string) bool) bool {
+func StringSliceContains(s []string, f func(int, string) bool) bool {
 	for i, e := range s {
 		if f(i, e) {
 			return true
 		}
 	}
 	return false
+}
+
+func AddressSliceContains(s []std.Address, f func(int, std.Address) bool) bool {
+	for i, e := range s {
+		if f(i, e) {
+			return true
+		}
+	}
+	return false
+}
+
+func AddressSliceIndex(s []std.Address, f func(int, std.Address) bool) int {
+	for i, e := range s {
+		if f(i, e) {
+			return i
+		}
+	}
+	return -1
 }

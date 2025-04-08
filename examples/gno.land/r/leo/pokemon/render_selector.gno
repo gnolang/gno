@@ -11,117 +11,13 @@ import (
 )
 
 var (
-	nl = "\n\n"
+	rand = randomizer.NewRandomizer()
+	nl   = "\n\n"
 )
-
-type Attack struct {
-	name   string
-	damage int
-	pc     int
-}
-
-type Pokemon struct {
-	name      string
-	assetPath string
-	pv        int
-	attacks   []Attack
-}
-
-type Game struct {
-	myId    int
-	me      Pokemon
-	otherId int
-	other   Pokemon
-}
-
-var (
-	rand     = randomizer.NewRandomizer()
-	pokemons = []Pokemon{
-		{
-			"Pikachu",
-			"https://www.pokemon.com/static-assets/content-assets/cms2/img/pokedex/full/025.png",
-			60,
-			[]Attack{
-				{"Thunderbolt", 50, 2},
-				{"Tackle", 10, 10},
-				{"Iron Tail", 30, 5},
-			},
-		},
-		{
-			"Bulbasaur",
-			"https://www.pokemon.com/static-assets/content-assets/cms2/img/pokedex/full/001.png",
-			80,
-			[]Attack{
-				{"Razor Leaf", 25, 6},
-				{"False Swipe", 15, 10},
-				{"Vine Whip", 45, 2},
-			},
-		},
-		{
-			"Charmander",
-			"https://www.pokemon.com/static-assets/content-assets/cms2/img/pokedex/full/004.png",
-			70,
-			[]Attack{
-				{"Flamethrower", 40, 3},
-				{"Scratch", 10, 15},
-				{"Fire Spin", 35, 4},
-			},
-		},
-		{
-			"Squirtle",
-			"https://www.pokemon.com/static-assets/content-assets/cms2/img/pokedex/full/007.png",
-			75,
-			[]Attack{
-				{"Water Gun", 30, 6},
-				{"Tackle", 10, 12},
-				{"Bubble Beam", 40, 3},
-			},
-		},
-		{
-			"Eevee",
-			"https://www.pokemon.com/static-assets/content-assets/cms2/img/pokedex/full/133.png",
-			65,
-			[]Attack{
-				{"Quick Attack", 20, 10},
-				{"Swift", 25, 8},
-				{"Bite", 30, 5},
-			},
-		},
-		{
-			"Jigglypuff",
-			"https://www.pokemon.com/static-assets/content-assets/cms2/img/pokedex/full/039.png",
-			85,
-			[]Attack{
-				{"Sing", 0, 5},
-				{"Pound", 15, 12},
-				{"Double Slap", 25, 6},
-			},
-		},
-	}
-)
-
-func (p Pokemon) deepCopy() Pokemon {
-	copiedAttacks := make([]Attack, len(p.attacks))
-	copy(copiedAttacks, p.attacks)
-	return Pokemon{
-		name:      p.name,
-		assetPath: p.assetPath,
-		pv:        p.pv,
-		attacks:   copiedAttacks,
-	}
-}
-
-func (g Game) deepCopy() Game {
-	return Game{
-		myId:    g.myId,
-		me:      g.me.deepCopy(),
-		otherId: g.otherId,
-		other:   g.other.deepCopy(),
-	}
-}
 
 func getUrlFromGame(game Game) string {
-	path := "?started=1&me=" + strconv.Itoa(game.myId) + "&other=" + strconv.Itoa(game.otherId) +
+	path := "?started=1&me=" + strconv.Itoa(game.myId) +
+		"&other=" + strconv.Itoa(game.otherId) +
 		"&myPv=" + strconv.Itoa(game.me.pv) +
 		"&otherPv=" + strconv.Itoa(game.other.pv) +
 		"&myPc="
@@ -162,21 +58,21 @@ func getGameFromUrl(params map[string]string) (Game, error) {
 	if errOtherPv != nil {
 		return Game{}, errOtherPv
 	}
-	if me >= len(pokemons) {
+	if me >= len(pokemonList) {
 		return Game{}, errors.New("game bad formatted : my id is bad")
 	}
-	if other >= len(pokemons) {
+	if other >= len(pokemonList) {
 		return Game{}, errors.New("game bad formatted : other id is bad")
 	}
-	if len(myPc) != len(pokemons[me].attacks) {
+	if len(myPc) != len(pokemonList[me].attacks) {
 		return Game{}, errors.New("game bad formatted : len of my pc missmatch")
 	}
-	if len(otherPc) != len(pokemons[other].attacks) {
+	if len(otherPc) != len(pokemonList[other].attacks) {
 		return Game{}, errors.New("game bad formatted : len of other pc missmatch")
 	}
 
-	myPokemon := pokemons[me].deepCopy()
-	otherPokemon := pokemons[other].deepCopy()
+	myPokemon := pokemonList[me].deepCopy()
+	otherPokemon := pokemonList[other].deepCopy()
 	myPokemon.pv = myPv
 	otherPokemon.pv = otherPv
 
@@ -200,14 +96,14 @@ func getGameFromUrl(params map[string]string) (Game, error) {
 func renderLobbyPokemon(id int, pokemon Pokemon) (rend string) {
 	rend += renderer.Header(3, pokemon.name)
 
-	otherId := rand.Next() % len(pokemons)
-	path := getUrlFromGame(Game{myId: id, me: pokemon, otherId: otherId, other: pokemons[otherId]})
+	otherId := rand.Next() % len(pokemonList)
+	path := getUrlFromGame(Game{myId: id, me: pokemon, otherId: otherId, other: pokemonList[otherId]})
 	rend += renderer.Link(renderer.Picture(pokemon.name, pokemon.assetPath), path)
 	rend += renderer.Bold(strconv.Itoa(pokemon.pv)) + " Pv\n"
 
-	attackTab := [][]string{[]string{"Attack"},
-		[]string{renderer.Bold("Damage")},
-		[]string{renderer.Bold("PC")}}
+	attackTab := [][]string{{"Attack"},
+		{renderer.Bold("Damage")},
+		{renderer.Bold("PC")}}
 	for _, attack := range pokemon.attacks {
 		attackTab[0] = append(attackTab[0], attack.name)
 		attackTab[1] = append(attackTab[1], strconv.Itoa(attack.damage))
@@ -218,8 +114,8 @@ func renderLobbyPokemon(id int, pokemon Pokemon) (rend string) {
 }
 
 func renderPokemonLobby() (rend string) {
-	rend += renderer.Header(2, "Choose a pokemon :")
-	for id, pokemon := range pokemons {
+	rend += renderer.Header(2, "Choose a Pokémon :")
+	for id, pokemon := range pokemonList {
 		rend += renderLobbyPokemon(id, pokemon)
 	}
 	return
@@ -228,14 +124,14 @@ func renderPokemonLobby() (rend string) {
 func renderGamePokemon(id int, pokemon Pokemon) (rend string) {
 	rend += renderer.Header(3, pokemon.name)
 
-	otherId := rand.Next() % len(pokemons)
-	path := getUrlFromGame(Game{myId: id, me: pokemon, otherId: otherId, other: pokemons[otherId]})
+	otherId := rand.Next() % len(pokemonList)
+	path := getUrlFromGame(Game{myId: id, me: pokemon, otherId: otherId, other: pokemonList[otherId]})
 	rend += renderer.Link(renderer.Picture(pokemon.name, pokemon.assetPath), path)
 	rend += renderer.Bold(strconv.Itoa(pokemon.pv)) + " Pv\n"
 
-	attackTab := [][]string{[]string{"Attack"},
-		[]string{renderer.Bold("Damage")},
-		[]string{renderer.Bold("PC")}}
+	attackTab := [][]string{{"Attack"},
+		{renderer.Bold("Damage")},
+		{renderer.Bold("PC")}}
 	for _, attack := range pokemon.attacks {
 		attackTab[0] = append(attackTab[0], attack.name)
 		attackTab[1] = append(attackTab[1], strconv.Itoa(attack.damage))
@@ -250,19 +146,19 @@ func renderGame(game Game) (rend string) {
 	rend += renderer.Picture(game.me.name, game.me.assetPath) + nl
 
 	myData := [][]string{
-		[]string{"Me", "PV"},
-		[]string{game.me.name, strconv.Itoa(game.me.pv) + " / " + strconv.Itoa(pokemons[game.myId].pv)},
+		{"Me", "PV"},
+		{game.me.name, strconv.Itoa(game.me.pv) + " / " + strconv.Itoa(pokemonList[game.myId].pv)},
 	}
 	rend += renderer.Table(myData) + nl
 
-	attackTab := [][]string{[]string{"Attack"},
-		[]string{renderer.Bold("Damage")},
-		[]string{renderer.Bold("PC")},
-		[]string{""}}
+	attackTab := [][]string{{"Attack"},
+		{renderer.Bold("Damage")},
+		{renderer.Bold("PC")},
+		{""}}
 	for idx, attack := range game.me.attacks {
 		attackTab[0] = append(attackTab[0], attack.name)
 		attackTab[1] = append(attackTab[1], strconv.Itoa(attack.damage))
-		attackTab[2] = append(attackTab[2], strconv.Itoa(attack.pc)+" / "+strconv.Itoa(pokemons[game.myId].attacks[idx].pc))
+		attackTab[2] = append(attackTab[2], strconv.Itoa(attack.pc)+" / "+strconv.Itoa(pokemonList[game.myId].attacks[idx].pc))
 
 		otherAttack := rand.Next() % len(game.other.attacks)
 
@@ -297,8 +193,8 @@ func renderGame(game Game) (rend string) {
 	rend += renderer.Table(attackTab)
 
 	enemyData := [][]string{
-		[]string{"Ennemy", "PV"},
-		[]string{game.other.name, strconv.Itoa(game.other.pv) + " / " + strconv.Itoa(pokemons[game.otherId].pv)},
+		{"Ennemy", "PV"},
+		{game.other.name, strconv.Itoa(game.other.pv) + " / " + strconv.Itoa(pokemonList[game.otherId].pv)},
 	}
 	rend += renderer.Table(enemyData) + nl
 
@@ -316,23 +212,34 @@ func endGame(win bool) (rend string) {
 	return
 }
 
-func Render(path string) (rend string) {
-	params := utils.ParseParams(path)
-	gameState := params["started"]
-	game, err := getGameFromUrl(params)
-	rend += renderer.Header(1, "Pokemon")
+type RenderPage string
 
-	if gameState == "1" && err == nil {
-		if game.me.pv <= 0 || game.other.pv <= 0 {
-			rend += endGame(game.me.pv > game.other.pv)
-			return
-		}
-		rend += renderGame(game)
+const (
+	pokemonLobby        RenderPage = "lobby"
+	pokemonLogin        RenderPage = "login"
+	pokemonTeamSelector RenderPage = "team"
+	pokemonFight        RenderPage = "fight"
+	pokemonShop         RenderPage = "shop"
+)
+
+var (
+	pokemonPath = map[RenderPage]func(map[string]string) string{
+		pokemonLobby:        renderPokemonLogin,
+		pokemonLogin:        renderPokemonLogin,
+		pokemonTeamSelector: renderPokemonLogin,
+		pokemonFight:        renderPokemonLogin,
+		pokemonShop:         renderPokemonLogin,
+	}
+)
+
+func Render(path string) (rend string) {
+	rend += renderer.Header(1, "Pokémon")
+	path, params := utils.ParsePath(path)
+
+	if pathRenderer := pokemonPath[RenderPage(path)]; pathRenderer != nil && params["user"] != "" {
+		rend += pathRenderer(params)
 	} else {
-		if gameState == "1" {
-			rend += err.Error() + nl
-		}
-		rend += renderPokemonLobby()
+		rend += renderPokemonLogin(params)
 	}
 	return
 }
