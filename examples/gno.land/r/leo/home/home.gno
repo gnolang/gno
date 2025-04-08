@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	hof.Register("Leo's", "Come play some games")
+	hof.Register("Leo's Pokémon", "Come play Pokémon on the Block Chain !!")
 }
 
 func Render(path string) (rend string) {
@@ -16,7 +16,7 @@ func Render(path string) (rend string) {
 	rend += "(never made a portfolio I have no clue what the hell i have to put here)\n\n"
 
 	rend += renderer.Header(2, "Wanna Play ?")
-	rend += renderer.Header(3, renderer.Link("Pokemon", "home/pokemon"))
+	rend += renderer.Header(3, renderer.Link("Pokémon", "pokemon"))
 
 	return
 }
