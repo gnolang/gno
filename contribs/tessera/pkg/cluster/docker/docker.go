@@ -107,7 +107,7 @@ func (cm *ClusterManager) BuildDockerfile(ctx context.Context, gnoRoot string) e
 	ignoreHeader := &tar.Header{
 		Name: ".dockerignore",
 		Size: int64(len(dockerIgnore)),
-		Mode: 0644,
+		Mode: 0o644,
 	}
 
 	if err := tw.WriteHeader(ignoreHeader); err != nil {
