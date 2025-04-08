@@ -538,9 +538,11 @@ func (t Time) GoString() string {
 	buf = append(buf, ", "...)
 	buf = appendInt(buf, t.Nanosecond(), 0)
 	buf = append(buf, ", "...)
-	switch loc := ChainTZ; loc {
+	switch loc := t.Location(); loc {
 	case UTC, nil:
 		buf = append(buf, "time.UTC"...)
+	case ChainTZ:
+		buf = append(buf, "time.ChainTZ"...)
 	default:
 		// there are several options for how we could display this, none of
 		// which are great:
@@ -944,7 +946,7 @@ func ParseInLocation(layout, value string, loc *Location) (Time, error) {
 	return parse(layout, value, loc, loc)
 }
 
-func parse(layout, value string, defaultLocation, local *Location) (Time, error) {
+func parse(layout, value string, defaultLocation, chainTZ *Location) (Time, error) {
 	alayout, avalue := layout, value
 	rangeErrString := "" // set if a value is out of range
 	amSet := false       // do we need to subtract 12 from the hour for midnight?
@@ -1272,12 +1274,14 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 
 		// Look for local zone with the given offset.
 		// If that zone was in effect at the given time, use it.
-		name, offset, _, _, _ := local.lookup(t.unixSec())
+		name, offset, _, _, _ := chainTZ.lookup(t.unixSec())
 		if offset == zoneOffset && (zoneName == "" || name == zoneName) {
+			t.setLoc(chainTZ)
 			return t, nil
 		}
 
 		// Otherwise create fake zone to record offset.
+		t.setLoc(FixedZone(zoneName, zoneOffset))
 		return t, nil
 	}
 
@@ -1285,7 +1289,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
 		// Look for local zone with the given offset.
 		// If that zone was in effect at the given time, use it.
-		offset, ok := local.lookupName(zoneName, t.unixSec())
+		offset, ok := chainTZ.lookupName(zoneName, t.unixSec())
 		if ok {
 			t.addSec(-int64(offset))
 			return t, nil
@@ -1296,6 +1300,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			offset, _ = atoi(zoneName[3:]) // Guaranteed OK by parseGMT.
 			offset *= 3600
 		}
+		t.setLoc(FixedZone(zoneName, offset))
 		return t, nil
 	}
 

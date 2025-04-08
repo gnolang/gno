@@ -1,3 +1,12 @@
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Package time provides functionality for measuring and displaying time.
+//
+// The calendrical calculations always assume a Gregorian calendar, with
+// no leap seconds.
+
 package time
 
 import "errors"
@@ -30,6 +39,7 @@ type Time struct {
 	// The nanoseconds field is in the range [0, 999999999].
 	sec  int64
 	nsec int32
+	loc  *Location
 }
 
 // unixSec returns the time's seconds since Jan 1 1970 (Unix time).
@@ -45,6 +55,14 @@ func (t *Time) addSec(d int64) {
 	} else {
 		t.sec = -(1<<63 - 1)
 	}
+}
+
+// setLoc sets the location associated with the time.
+func (t *Time) setLoc(loc *Location) {
+	if loc == &utcLoc {
+		loc = nil
+	}
+	t.loc = loc
 }
 
 // After reports whether the time instant t is after u.
@@ -222,7 +240,10 @@ func (t Time) IsZero() bool {
 // abs returns the time t as an absolute time, adjusted by the zone offset.
 // It is called when computing a presentation property like Month or Hour.
 func (t Time) abs() uint64 {
-	l := ChainTZ
+	l := t.loc
+	if l == nil {
+		l = &utcLoc
+	}
 	sec := t.unixSec()
 	if l != &utcLoc {
 		if l.cacheZone != nil && l.cacheStart <= sec && sec < l.cacheEnd {
@@ -238,7 +259,10 @@ func (t Time) abs() uint64 {
 // locabs is a combination of the Zone and abs methods,
 // extracting both return values from a single zone lookup.
 func (t Time) locabs() (name string, offset int, abs uint64) {
-	l := ChainTZ
+	l := t.loc
+	if l == nil {
+		l = &utcLoc
+	}
 	// Avoid function call if we hit the local time cache.
 	sec := t.unixSec()
 	if l != &utcLoc {
@@ -664,7 +688,7 @@ func Until(t Time) Duration {
 func (t Time) AddDate(years int, months int, days int) Time {
 	year, month, day := t.Date()
 	hour, min, sec := t.Clock()
-	return Date(year+years, month+Month(months), day+days, hour, min, sec, int(t.nsec), nil)
+	return Date(year+years, month+Month(months), day+days, hour, min, sec, int(t.nsec), t.Location())
 }
 
 const (
@@ -817,17 +841,52 @@ func now() (sec int64, nsec int32, mono int64) // injected
 func Now() Time {
 	sec, nsec, _ := now()
 	sec += unixToInternal
-	return Time{sec, nsec}
+	return Time{sec, nsec, ChainTZ}
 }
 
 func unixTime(sec int64, nsec int32) Time {
-	return Time{sec + unixToInternal, nsec}
+	return Time{sec + unixToInternal, nsec, ChainTZ}
+}
+
+// UTC returns t with the location set to UTC.
+func (t Time) UTC() Time {
+	t.setLoc(&utcLoc)
+	return t
+}
+
+// Replace time.Local()
+// ChainTZ returns t with the location set to ChainTZ time.
+func (t Time) ChainTZ() Time {
+	t.setLoc(ChainTZ)
+	return t
+}
+
+// In returns a copy of t representing the same time instant, but
+// with the copy's location information set to loc for display
+// purposes.
+//
+// In panics if loc is nil.
+func (t Time) In(loc *Location) Time {
+	if loc == nil {
+		panic("time: missing Location in call to Time.In")
+	}
+	t.setLoc(loc)
+	return t
+}
+
+// Location returns the time zone information associated with t.
+func (t Time) Location() *Location {
+	l := t.loc
+	if l == nil {
+		l = UTC
+	}
+	return l
 }
 
 // Zone computes the time zone in effect at time t, returning the abbreviated
 // name of the zone (such as "CET") and its offset in seconds east of UTC.
 func (t Time) Zone() (name string, offset int) {
-	name, offset, _, _, _ = ChainTZ.lookup(t.unixSec())
+	name, offset, _, _, _ = t.loc.lookup(t.unixSec())
 	return
 }
 
@@ -837,12 +896,14 @@ func (t Time) Zone() (name string, offset int) {
 // If the zone goes on forever, end will be returned as a zero Time.
 // The Location of the returned times will be the same as t.
 func (t Time) ZoneBounds() (start, end Time) {
-	_, _, startSec, endSec, _ := ChainTZ.lookup(t.unixSec())
+	_, _, startSec, endSec, _ := t.loc.lookup(t.unixSec())
 	if startSec != alpha {
 		start = unixTime(startSec, 0)
+		start.setLoc(t.loc)
 	}
 	if endSec != omega {
 		end = unixTime(endSec, 0)
+		end.setLoc(t.loc)
 	}
 	return
 }
@@ -885,13 +946,38 @@ func (t Time) UnixNano() int64 {
 	return (t.unixSec())*1e9 + int64(t.nsec)
 }
 
+const (
+	timeBinaryVersionV1 byte = iota + 1 // For general situation
+	timeBinaryVersionV2                 // For LMT only
+)
+
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
 func (t Time) MarshalBinary() ([]byte, error) {
+	var offsetMin int16 // minutes east of UTC. -1 is UTC.
+	var offsetSec int8
+	version := timeBinaryVersionV1
+
+	if t.Location() == UTC {
+		offsetMin = -1
+	} else {
+		_, offset := t.Zone()
+		if offset%60 != 0 {
+			version = timeBinaryVersionV2
+			offsetSec = int8(offset % 60)
+		}
+
+		offset /= 60
+		if offset < -32768 || offset == -1 || offset > 32767 {
+			return nil, errors.New("Time.MarshalBinary: unexpected zone offset")
+		}
+		offsetMin = int16(offset)
+	}
+
 	sec := t.sec
 	nsec := t.nsec
 	enc := []byte{
-		// encode seconds (int64) / bytes 0 to 7
-		byte(sec >> 56),
+		version,         // byte 0 : version
+		byte(sec >> 56), // bytes 1-8: seconds
 		byte(sec >> 48),
 		byte(sec >> 40),
 		byte(sec >> 32),
@@ -899,11 +985,15 @@ func (t Time) MarshalBinary() ([]byte, error) {
 		byte(sec >> 16),
 		byte(sec >> 8),
 		byte(sec),
-		// encode nanoseconds (int32) / bytes 8 to 11
-		byte(nsec >> 24),
+		byte(nsec >> 24), // bytes 9-12: nanoseconds
 		byte(nsec >> 16),
 		byte(nsec >> 8),
 		byte(nsec),
+		byte(offsetMin >> 8), // bytes 13-14: zone offset in minutes
+		byte(offsetMin),
+	}
+	if version == timeBinaryVersionV2 {
+		enc = append(enc, byte(offsetSec))
 	}
 
 	return enc, nil
@@ -916,19 +1006,43 @@ func (t *Time) UnmarshalBinary(data []byte) error {
 		return errors.New("Time.UnmarshalBinary: no data")
 	}
 
-	if len(buf) != 12 { // 8 bytes for sec (int64) + 4 bytes for nsec (int32)
+	version := buf[0]
+	if version != timeBinaryVersionV1 && version != timeBinaryVersionV2 {
+		return errors.New("Time.UnmarshalBinary: unsupported version")
+	}
+
+	wantLen := /*version*/ 1 + /*sec*/ 8 + /*nsec*/ 4 + /*zone offset*/ 2
+	if version == timeBinaryVersionV2 {
+		wantLen++
+	}
+	if len(buf) != wantLen {
 		return errors.New("Time.UnmarshalBinary: invalid length")
 	}
 
+	buf = buf[1:]
 	sec := int64(buf[7]) | int64(buf[6])<<8 | int64(buf[5])<<16 | int64(buf[4])<<24 |
 		int64(buf[3])<<32 | int64(buf[2])<<40 | int64(buf[1])<<48 | int64(buf[0])<<56
 
 	buf = buf[8:]
 	nsec := int32(buf[3]) | int32(buf[2])<<8 | int32(buf[1])<<16 | int32(buf[0])<<24
 
+	buf = buf[4:]
+	offset := int(int16(buf[1])|int16(buf[0])<<8) * 60
+	if version == timeBinaryVersionV2 {
+		offset += int(buf[2])
+	}
+
 	*t = Time{}
 	t.sec = sec
 	t.nsec = nsec
+
+	if offset == -1*60 {
+		t.setLoc(&utcLoc)
+	} else if _, localoff, _, _, _ := ChainTZ.lookup(t.unixSec()); offset == localoff {
+		t.setLoc(ChainTZ)
+	} else {
+		t.setLoc(FixedZone("", offset))
+	}
 
 	return nil
 }
@@ -1028,7 +1142,7 @@ func UnixMicro(usec int64) Time {
 
 // IsDST reports whether the time in the configured location is in Daylight Savings Time.
 func (t Time) IsDST() bool {
-	_, _, _, _, isDST := ChainTZ.lookup(t.Unix())
+	_, _, _, _, isDST := t.loc.lookup(t.Unix())
 	return isDST
 }
 
@@ -1072,7 +1186,9 @@ func norm(hi, lo, base int) (nhi, nlo int) {
 // in the transition, but it does not guarantee which.
 func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) Time {
 	// enforce usage of Chain time zone
-	loc = ChainTZ
+	if loc == nil {
+		panic("time: missing Location in call to Date")
+	}
 
 	// Normalize month, overflowing into year.
 	m := int(month) - 1
@@ -1119,6 +1235,7 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
 	}
 
 	t := unixTime(unix, int32(nsec))
+	t.setLoc(loc)
 	return t
 }
 
