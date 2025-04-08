@@ -3,28 +3,28 @@ package dao
 import (
 	"std"
 	"strconv"
-	"gno.land/p/moonia/utils"
 )
 
 type DAO struct {
-	Admin     std.Address
-	Whitelist map[std.Address]bool
+	Admin     	std.Address
+	Whitelist 	map[std.Address]bool
+	Requests  	map[std.Address]bool
+	Name        string
+	Description string
 }
 
-func NewDAO() *DAO {
+func NewDAO(name, desc string) *DAO {
 	return &DAO{
-		Admin:     "",
-		Whitelist: make(map[std.Address]bool),
+		Admin:      	"",
+		Whitelist:  	make(map[std.Address]bool),
+		Requests:   	make(map[std.Address]bool),
+		Name:       	name,
+		Description:	desc,
 	}
 }
 
-func (d *DAO) SetAdmin() string {
-	if d.Admin != "" {
-		panic("Admin is already set.")
-	}
-	caller := utils.GetCaller()
-	d.Admin = caller
-	return "Admin set to: " + caller.String()
+func (d *DAO) ListRequests() map[std.Address]bool {
+	return d.Requests
 }
 
 func (d *DAO) ShowAdmin() string {
@@ -34,17 +34,20 @@ func (d *DAO) ShowAdmin() string {
 	return "Admin: `" + d.Admin.String() + "`"
 }
 
-func (d *DAO) JoinDAO() string {
-	caller := utils.GetCaller()
+func (d *DAO) RequestDAO() string {
+	caller := std.PreviousRealm().Address()
 	if d.Whitelist[caller] {
-		panic("You're already a member of the DAO.")
+		return "You are already a member."
 	}
-	d.Whitelist[caller] = true
-	return "You have successfully joined the DAO."
+	if d.Requests[caller] {
+		return "You have already requested to join."
+	}
+	d.Requests[caller] = true
+	return "Request to join sent."
 }
 
 func (d *DAO) LeaveDAO() string {
-	caller := utils.GetCaller()
+	caller := std.PreviousRealm().Address()
 	if !d.Whitelist[caller] {
 		panic("You are not a member of the DAO.")
 	}
@@ -58,7 +61,11 @@ func (d *DAO) ShowWhitelist() string {
 		return out + "_Whitelist is empty._\n"
 	}
 	for addr := range d.Whitelist {
-		out += "- " + addr.String() + "\n"
+		if addr == d.Admin {
+			out += "- " + addr.String() + " (Admin)" + "\n"
+		} else {
+			out += "- " + addr.String() + "\n"
+		}
 	}
 	return out
 }

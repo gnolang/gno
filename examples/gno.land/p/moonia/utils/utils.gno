@@ -1,21 +1,18 @@
 package utils
 
 import (
-	"std"
 	"strconv"
+	"time"
 	"strings"
 )
 
-func GetCaller() std.Address {
-	return std.PreviousRealm().Address()
+func GetBlockTime() int64 {
+	return time.Now().Unix()
 }
 
-func Parse(fullpath string) (string, map[string]string) {
-	parts := strings.Split(fullpath, ":")
-	if len(parts) == 2 {
-		return parts[1], map[string]string{}
-	}
-	return "", map[string]string{}
+func FormatTimestamp(timestamp int64) string {
+	t := time.Unix(timestamp, 0)
+	return t.Format("02 Jan 2006, 15:04")
 }
 
 func ParseIndex(indexStr string, max int) int {
@@ -27,4 +24,21 @@ func ParseIndex(indexStr string, max int) int {
 		panic("Proposal does not exist.")
 	}
 	return index
+}
+
+func ParseQuery(path string) (daoID string, showStats bool) {
+	parts := strings.Split(path, "?")
+	if len(parts) < 2 {
+		return "", false
+	}
+
+	args := strings.Split(parts[1], "&")
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "dao=") {
+			daoID = arg[len("dao="):]
+		} else if arg == "stats" {
+			showStats = true
+		}
+	}
+	return
 }

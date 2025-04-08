@@ -3,24 +3,28 @@ package dao
 import (
 	"std"
 	"strconv"
+
 	"gno.land/p/moonia/utils"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/moul/md"
 )
 
 type Proposal struct {
-	Title       string
-	Description string
-	Creator     std.Address
-	YesVotes    int
-	NoVotes     int
-	Voters      map[std.Address]bool
-	Active      bool
+	Title        string
+	Description  string
+	Creator      std.Address
+	YesVotes     int
+	NoVotes      int
+	Voters       map[std.Address]bool
+	Active       bool
+	VotingPeriod int64
+	CreatedAt    int64
 }
 
 type ProposalStore struct {
 	Proposals []Proposal
 	DAO       *DAO
+
 }
 
 func NewProposalStore(dao *DAO) *ProposalStore {
@@ -30,30 +34,32 @@ func NewProposalStore(dao *DAO) *ProposalStore {
 	}
 }
 
-func (ps *ProposalStore) CreateProposal(title string, description string) string {
-	caller := utils.GetCaller()
+func (ps *ProposalStore) CreateProposal(title, description string, period int64) string {
+	caller := std.PreviousRealm().Address()
 	if !ps.DAO.Whitelist[caller] {
 		panic("Only whitelisted members can create proposals.")
 	}
+	if period <= 0 {
+		panic("Voting period must be greater than 0.")
+	}
+
 	p := Proposal{
-		Title:       title,
-		Description: description,
-		Creator:     caller,
-		Voters:      make(map[std.Address]bool),
-		Active:      true,
+		Title:        title,
+		Description:  description,
+		Creator:      caller,
+		Voters:       make(map[std.Address]bool),
+		Active:       true,
+		VotingPeriod: period,
+		CreatedAt:    utils.GetBlockTime(),
 	}
 	ps.Proposals = append(ps.Proposals, p)
-	return "Proposal created: " + title
-}
-
-func (ps *ProposalStore) CreateProposalTest() string {
-	return ps.CreateProposal("Survey", "Would you like to visit Guatemala?")
+	return "Proposal created: " + title + " Voting period: " + strconv.Itoa(int(period))
 }
 
 func (ps *ProposalStore) CloseProposal(indexStr string) string {
 	index := utils.ParseIndex(indexStr, len(ps.Proposals))
 	p := &ps.Proposals[index]
-	if p.Creator != utils.GetCaller() {
+	if p.Creator != std.PreviousRealm().Address() {
 		panic("Only the proposal creator can close it.")
 	}
 	if !p.Active {
@@ -63,17 +69,23 @@ func (ps *ProposalStore) CloseProposal(indexStr string) string {
 	return "Proposal '" + p.Title + "' has been closed."
 }
 
-// gnokey maketx call -pkgpath "gno.land/r/moonia/home" -func "Vote" -args "0" -args "true" -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid "dev" -remote "tcp://127.0.0.1:26657" g15dz69sch7fkhc9gk57hpe4qea77thmy20apu9x
-func (ps *ProposalStore) Vote(indexStr string, voteYesStr string) string {
+func (ps *ProposalStore) Vote(indexStr, voteYesStr string) string {
 	index := utils.ParseIndex(indexStr, len(ps.Proposals))
 	voteYes := voteYesStr == "true"
-	caller := utils.GetCaller()
+	caller := std.PreviousRealm().Address()
 
 	if !ps.DAO.Whitelist[caller] {
 		panic("Only whitelisted members can vote.")
 	}
 
 	p := &ps.Proposals[index]
+
+	currentTime := utils.GetBlockTime()
+	if currentTime - p.CreatedAt >= p.VotingPeriod {
+		p.Active = false
+		panic("Voting period is over. Proposal is now closed.")
+	}
+
 	if !p.Active {
 		panic("Voting is closed for this proposal.")
 	}
@@ -101,6 +113,7 @@ func (ps *ProposalStore) ShowProposals() string {
 		proposalStr := "**[" + strconv.Itoa(i) + "]** " + p.Title + "\n"
 		proposalStr += p.Description + "\n\n"
 		proposalStr += "by _" + p.Creator.String() + "_\n\n"
+		proposalStr += "📅 Voting ends at: " + utils.FormatTimestamp(p.CreatedAt + p.VotingPeriod) + "\n\n"
 		proposalStr += "✅ " + strconv.Itoa(p.YesVotes) + " | ❌ " + strconv.Itoa(p.NoVotes) + "\n"
 
 		if p.Active {
@@ -116,7 +129,6 @@ func (ps *ProposalStore) ShowProposals() string {
 			closedOut += proposalStr + "\n\n ---- \n\n"
 		}
 	}
-
 	if !hasActive {
 		activeOut += "_No active proposals._\n\n"
 	}
@@ -126,22 +138,24 @@ func (ps *ProposalStore) ShowProposals() string {
 	return activeOut + "\n" + closedOut
 }
 
-// gnokey maketx call -pkgpath "gno.land/r/moonia/home" -func "EditProposal" -args "2" -args "hehehehe" -args "hihihihi" -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid "dev" -remote "tcp://127.0.0.1:26657" g15dz69sch7fkhc9gk57hpe4qea77thmy20apu9x
-func (ps *ProposalStore) EditProposal(indexStr, newTitle, newDescription string) string {
+func (ps *ProposalStore) EditProposal(indexStr, newTitle, newDescription string, newPeriod int64) string {
 	index := utils.ParseIndex(indexStr, len(ps.Proposals))
 	p := &ps.Proposals[index]
-	if p.Creator != utils.GetCaller() {
+	if p.Creator != std.PreviousRealm().Address() {
 		panic("Only the creator can edit the proposal.")
 	}
 	if !p.Active {
 		panic("Cannot edit a closed proposal.")
 	}
+	if newPeriod <= 0 {
+		panic("Voting period must be greater than 0.")
+	}
 	p.Title = newTitle
 	p.Description = newDescription
-	return "Proposal updated: " + newTitle + newDescription
+	p.VotingPeriod = newPeriod
+	return "Proposal updated: " + newTitle + newDescription + strconv.Itoa(int(newPeriod))
 }
 
-// gnokey maketx call -pkgpath "gno.land/r/moonia/home" -func "GetProposal" -args "0" -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid "dev" -remote "tcp://127.0.0.1:26657" g15dz69sch7fkhc9gk57hpe4qea77thmy20apu9x
 func (ps *ProposalStore) GetProposal(indexStr string) Proposal {
 	index := utils.ParseIndex(indexStr, len(ps.Proposals))
 	return ps.Proposals[index]
