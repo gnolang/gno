@@ -2,7 +2,9 @@ package gnolang
 
 import (
 	"fmt"
+	"math"
 	"reflect"
+	"strconv"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
@@ -1275,4 +1277,165 @@ func isBlankIdentifier(x Expr) bool {
 		return nx.Name == blankIdentifier
 	}
 	return false
+}
+
+// Check for invalid arguments in builtin functions
+// len, cap, make
+func AssertValidBuiltinArgType(store Store, last BlockNode, currExpr Expr) {
+	switch currExpr := currExpr.(type) {
+	case *ConstExpr:
+		AssertValidBuiltinArgType(store, last, currExpr.Source)
+	case *CallExpr:
+		ift := evalStaticTypeOf(store, last, currExpr.Func)
+		switch baseOf(ift).(type) {
+		case *FuncType:
+			validateMakeArg(store, last, currExpr)
+		}
+	}
+}
+
+// Validate argument for len() function
+func ValidateLenArg(at Type) {
+	if at == nil {
+		panic("invalid argument: nil for built-in len")
+	}
+
+	switch at := unwrapPointerType(baseOf(at)).(type) {
+	case PrimitiveType:
+		if at.Kind() != StringKind {
+			panic(fmt.Sprintf("unexpected type for len(): %v", at))
+		}
+	case *ArrayType, *SliceType, *MapType, *ChanType:
+		// Valid types for len()
+	default:
+		panic(fmt.Sprintf("unexpected type for len(): %v", baseOf(at)))
+	}
+}
+
+// Validate argument for cap() function
+func ValidateCapArg(at Type) {
+	if at == nil {
+		panic("invalid argument: nil for built-in cap")
+	}
+
+	typeStr := at.String()
+
+	switch unwrapPointerType(baseOf(at)).(type) {
+	case *ArrayType, *SliceType, *ChanType:
+		// Valid types for cap()
+	default:
+		panic(fmt.Sprintf("unexpected type for cap(): %v", typeStr))
+	}
+}
+
+// Validate arguments for make() function
+func validateMakeArg(store Store, last BlockNode, currExpr *CallExpr) {
+	if len(currExpr.Args) < 1 || len(currExpr.Args) > 3 {
+		panic(fmt.Sprintf("invalid number of arguments for built-in make: expected 1 to 3, got %d", len(currExpr.Args)))
+	}
+
+	// Validate first argument: must be a slice, map, or channel type
+	at := evalStaticType(store, last, currExpr.Args[0])
+	validateMakeType(baseOf(at))
+
+	var length int
+	var capacity int
+
+	// Validate length argument (second argument for make)
+	if len(currExpr.Args) > 1 {
+		at1 := evalStaticTypeOf(store, last, currExpr.Args[1])
+		if at1 == nil {
+			panic("invalid argument 2: nil for built-in make")
+		}
+
+		var err error
+		length, err = parseIntValue(currExpr.Args[1], "length")
+		if err != nil {
+			panic(err.Error()) // Convert error to panic message
+		}
+		if length < 0 {
+			panic(fmt.Sprintf("invalid length argument for built-in %s: cannot be negative, got %d", "make", length))
+		}
+	}
+
+	// Validate capacity argument (third argument for make)
+	if len(currExpr.Args) > 2 {
+		at2 := evalStaticTypeOf(store, last, currExpr.Args[2])
+		if at2 == nil {
+			panic("invalid argument 3: nil for built-in make")
+		}
+		var err error
+		capacity, err = parseIntValue(currExpr.Args[2], "capacity")
+		if err != nil {
+			panic(err.Error()) // Convert error to panic message
+		}
+		if _, ok := currExpr.Args[2].(*BasicLitExpr); ok {
+			if capacity < length {
+				panic(fmt.Sprintf("invalid argument: length and capacity swapped"))
+			}
+		}
+	}
+}
+
+// Ensures that the first argument to make() is a valid type
+func validateMakeType(tp Type) {
+	switch tp.(type) {
+	case *SliceType, *MapType, *ChanType:
+		// Valid types for make()
+	default:
+		panic(fmt.Sprintf("invalid type for built-in %s: %s (must be slice, map, or channel)", "make", tp.String()))
+	}
+}
+
+func parseIntValue(expr Expr, argName string) (int, error) {
+	switch e := expr.(type) {
+	case *ConstExpr:
+		return parseIntValue(e.Source, argName)
+
+	case *BasicLitExpr:
+		var num int64
+		if e.Kind == FLOAT {
+			f, err := hasFractionalPart(e.Value)
+			if err != nil {
+				return 0, err
+			}
+			num = int64(f)
+		} else {
+			n, err := strconv.Atoi(e.Value)
+			if err != nil {
+				return 0, fmt.Errorf("invalid %s argument for built-in %s: cannot convert %q to int", argName, "make", e.Value)
+			}
+			return n, nil
+		}
+		return int(num), nil
+	}
+	return 0, nil
+}
+
+func extractFunctionName(n *CallExpr) string {
+	ce, ok := n.Func.(*ConstExpr)
+	if !ok {
+		return ""
+	}
+
+	ne, ok := ce.Source.(*NameExpr)
+	if !ok {
+		return ""
+	}
+	return string(ne.Name)
+}
+
+func hasFractionalPart(s string) (float64, error) {
+	// Parse the string as a float64
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	// Check if the float has a fractional part by comparing it with its integer part
+	intPart := math.Trunc(f)
+	if f != intPart {
+		return f, fmt.Errorf("%g (untyped float constant) truncated to int", f)
+	}
+	return f, nil
 }
