@@ -25,12 +25,15 @@ type IDAO interface {
 	IsMember(who Member) bool
 
 	// Assert if the user is a member
-	AssertUserIsMember(who Member) 
+	AssertUserIsMember(who Member)
+
+	// Assert if the user is not a member
+	AssertUserIsNotMember(who Member)
 }
 
 type DAO struct {
-	IDAO
-	ProposalStore
+	// IDAO
+	// ProposalStore
 	members []Member
 }
 
@@ -63,6 +66,12 @@ func (d *DAO) IsMember(who Member) bool {
 		}
 	}
 	return false
+}
+
+func (d *DAO) AssertUserIsNotMember(who Member) {
+	if who.Address().String() == "" || d.IsMember(who) {
+		panic("user is in DAO")
+	}
 }
 
 func (d *DAO) AssertUserIsMember(who Member) {

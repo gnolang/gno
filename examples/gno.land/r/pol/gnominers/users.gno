@@ -6,8 +6,6 @@ import (
 	"gno.land/p/demo/ownable"
 	"gno.land/p/moul/txlink"
 	"gno.land/r/sys/users"
-	"gno.land/r/pol/gnominers/pickaxes"
-	"gno.land/p/pol/dao"
 )
 
 // The user table
@@ -18,35 +16,38 @@ type hiddenData struct {
 	achievements []iAchievement
 }
 
-type UserInfo struct {
-	hidden    hiddenData
-	Money     float64
-	GemsCount map[GemType]uint
-	Pickaxes  []pickaxes.IPickaxe
-	Active    pickaxes.IPickaxe
-	Adress    std.Address
-	Owner     *ownable.Ownable
-	DAO 	  *dao.DAO
+type UserSession struct {
+	hidden      hiddenData
+	Money       float64
+	GemsCount   map[gemType]uint
+	Pickaxes    []IPickaxe
+	Active      IPickaxe
+	Owner       *ownable.Ownable
+	DAO         *minerDAO
 }
 
 func shorten(str string, of int) string {
 	return str[:of] + "..." + str[len(str)-of:]
 }
 
-// Display the user great
-func (u *UserInfo) GetName() string {
+func generateCoolName(addr std.Address) string {
 	var author string
-	user := users.ResolveAddress(u.Adress)
+	user := users.ResolveAddress(addr)
 	if user != nil {
 		author = "@" + user.Name()
 	} else {
-		author = shorten(u.Adress.String(), 4)
+		author = shorten(addr.String(), 4)
 	}
 	return author
 }
 
+// Display the user great
+func (u *UserSession) GetName() string {
+	return generateCoolName(u.Owner.Owner())
+}
+
 // The list of users
-var userSessions = map[string]*UserInfo{}
+var userSessions = map[string]*UserSession{}
 
 // pub/ The function to log a new user with default values
 func Login() {
@@ -55,15 +56,14 @@ func Login() {
 	if ok {
 		panic("user already registered")
 	}
-	infos = &UserInfo{
-		Money:     100,
-		GemsCount: map[GemType]uint{},
-		Adress:    caller,
-		Pickaxes:  []pickaxes.IPickaxe{&pickaxes.NormalPickaxe{}},
-		Owner:     ownable.NewWithAddress(caller),
-		DAO: 	   nil,
+	infos = &UserSession{
+		Money:       100,
+		GemsCount:   map[gemType]uint{},
+		Pickaxes:    []IPickaxe{&NormalPickaxe{}},
+		Owner:       ownable.NewWithAddress(caller),
+		DAO:         nil,
 	}
-	for gem := GemRock; gem < _GemEnd; gem++ {
+	for gem := gemRock; gem < _GemEnd; gem++ {
 		infos.GemsCount[gem] = 0
 		gem++
 	}

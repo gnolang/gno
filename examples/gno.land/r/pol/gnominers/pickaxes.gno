@@ -1,4 +1,4 @@
-package pickaxes
+package gnominers
 
 type IPickaxe interface {
 	HowMuchMining() uint
@@ -94,4 +94,40 @@ func (p *BirthdayPickaxe) String() string {
 
 func (p BirthdayPickaxe) Clone() IPickaxe {
 	return &BirthdayPickaxe{}
+}
+
+// venti
+
+type VentiPickaxe struct {
+	IPickaxe
+}
+
+func (p *VentiPickaxe) HowMuchMining() uint {
+	return 20
+}
+
+func (p *VentiPickaxe) String() string {
+	return "ventiPickaxe"
+}
+
+func (p VentiPickaxe) Clone() IPickaxe {
+	return &VentiPickaxe{}
+}
+
+// drill
+
+type DrillPickaxe struct {
+	IPickaxe
+}
+
+func (p *DrillPickaxe) HowMuchMining() uint {
+	return uint(randomMachine.RandInt(15, 50))
+}
+
+func (p *DrillPickaxe) String() string {
+	return "drillPickaxe"
+}
+
+func (p DrillPickaxe) Clone() IPickaxe {
+	return &DrillPickaxe{}
 }

@@ -7,7 +7,7 @@ import (
 	"gno.land/p/pol/queryparsing"
 )
 
-var RandomMachine *notrandom.Machine
+var randomMachine *notrandom.Machine
 
 const (
 	gnominersPath         = "/r/pol/gnominers"
@@ -27,7 +27,7 @@ var redirectionsPath = map[string]func(params map[string]string) string{
 // the rendering
 
 func init() {
-	RandomMachine = notrandom.NewMachine(time.Now().Unix())
+	randomMachine = notrandom.NewMachine(time.Now().Unix())
 }
 
 func Render(fullpath string) string {

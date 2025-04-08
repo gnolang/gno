@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"gno.land/p/moul/txlink"
+	"gno.land/p/pol/dao"
 )
 
 // pub/ Mine some gems with your active pickaxe
@@ -15,15 +16,16 @@ func Mine() {
 		infos.GemsCount[gem] += 1
 		infos.hidden.overallMined += 1
 		switch gem {
-		case GemRock:
+		case gemRock:
 			infos.hidden.rockMined += 1
 			achievements["1000rocks"].Check(infos)
-		case GemAlexandrite:
+		case gemAlexandrite:
 			infos.hidden.alexandrite = true
 			achievements["alexandrite"].Check(infos)
 		}
 	}
 	achievements["a gem"].Check(infos)
+	achievements["diamonds"].Check(infos)
 	achievements["42k gems"].Check(infos)
 }
 
@@ -41,6 +43,9 @@ func Equip(index string) {
 func OpenDAO() {
 	infos := assertCallerExists()
 	infos.Owner.AssertCallerIsOwner()
+	infos.DAO = newMinerDAO()
+	infos.DAO.AddMember(dao.Member(infos.Owner.Owner()))
+	achievements["dao"].Check(infos)
 }
 
 // Render the Dashboard
@@ -64,12 +69,12 @@ func renderDashboard(params map[string]string) string {
 	content += "[Mine](" + lnk + ") - "
 	content += "[Shop](" + gnominersShopPath + "?user=" + user + ") - "
 	content += "[Achievements](" + gnominersAchievements + "?user=" + user + ") - "
-	// if session.DAO != nil {
-	// 	lnk = txlink.Call("OpenDAO")
-	// 	content += "[Open DAO](" + lnk + ")"
-	// } else {
-	// 	content += "[Your DAO](" + gnominersAchievements
-	// }
+	if session.DAO == nil {
+		lnk = txlink.Call("OpenDAO")
+		content += "[Open DAO](" + lnk + ")"
+	} else {
+		content += "[Your DAO](" + gnominersDAO + "?user=" + user + ")"
+	}
 	content += "\n\n"
 
 	// money money money, must be funny
@@ -80,13 +85,13 @@ func renderDashboard(params map[string]string) string {
 	content += "### Your Gems\n"
 	content += "|Gem|Quantity|Price|\n"
 	content += "|-|-|-|\n"
-	var gem GemType = GemRock
+	var gem gemType = gemRock
 	for gem < _GemEnd {
 		count, ok := session.GemsCount[gem]
 		if !ok {
 			count = 0
 		}
-		content += "|" + GemNames[gem]
+		content += "|" + gemNames[gem]
 		content += "|" + strconv.Itoa(int(count))
 		content += "|" + strconv.FormatFloat(float64(count)*float64(gemPriceCaratTable[gem]), 'f', 2, 64)
 		content += "|\n"
@@ -108,12 +113,4 @@ func renderDashboard(params map[string]string) string {
 	}
 	content += "\n"
 	return content
-}
-
-
-// DAO RENDERING HERE
-
-// Render the dao !
-func renderDao(map[string]string) string {
-	return "dao here"
 }
