@@ -34,18 +34,31 @@ func main() {
 		fmt.Sprintf("http://localhost:%d", service.GetTcpPort()),
 	)
 
-	if err := setup(client); err != nil {
+	// Get test1Address.
+	res, err := client.AddressFromBech32(
+		context.Background(),
+		connect.NewRequest(&api_gen.AddressFromBech32Request{
+			Bech32Address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+		}),
+	)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	test1Address := res.Msg.Address
+
+	if err := setup(client, test1Address); err != nil {
 		log.Fatal(err)
 		return
 	}
 
-	if err := doAction(client); err != nil {
+	if err := doAction(client, test1Address); err != nil {
 		log.Fatal(err)
 		return
 	}
 }
 
-func setup(client _goconnect.GnoNativeServiceClient) error {
+func setup(client _goconnect.GnoNativeServiceClient, test1Address []byte) error {
 	// gnoland already has coins for test_1. Recover the test_1 key in our temporary on-disk keybase.
 	_, err := client.CreateAccount(
 		context.Background(),
@@ -58,9 +71,9 @@ func setup(client _goconnect.GnoNativeServiceClient) error {
 	if err != nil {
 		return err
 	}
-	_, err = client.SelectAccount(
+	_, err = client.ActivateAccount(
 		context.Background(),
-		connect.NewRequest(&api_gen.SelectAccountRequest{
+		connect.NewRequest(&api_gen.ActivateAccountRequest{
 			NameOrBech32: "test_1",
 		}),
 	)
@@ -70,6 +83,7 @@ func setup(client _goconnect.GnoNativeServiceClient) error {
 	_, err = client.SetPassword(
 		context.Background(),
 		connect.NewRequest(&api_gen.SetPasswordRequest{
+			Address:  test1Address,
 			Password: "password",
 		}),
 	)
@@ -77,17 +91,35 @@ func setup(client _goconnect.GnoNativeServiceClient) error {
 		return err
 	}
 
-	// Register test_1 with r/demo/users. Let this fail if it's already registered.
+	// test_1 is already registered. Create a board and a thread. List these fail if already created.
 	res, err := client.Call(
 		context.Background(),
 		connect.NewRequest(&api_gen.CallRequest{
-			GasFee:    "1ugnot",
-			GasWanted: 10_000_000,
+			GasFee:        "1000000ugnot",
+			GasWanted:     10_000_000,
+			CallerAddress: test1Address,
 			Msgs: []*api_gen.MsgCall{{
-				PackagePath: "gno.land/r/demo/users",
-				Fnc:         "Register",
-				Args:        []string{"", "test_1", "Profile description"},
-				Send:        "200000000ugnot",
+				PackagePath: "gno.land/r/demo/boards",
+				Fnc:         "CreateBoard",
+				Args:        []string{"testboard"},
+			}}}),
+	)
+	if err != nil {
+		return err
+	}
+	for res.Receive() {
+	}
+
+	res, err = client.Call(
+		context.Background(),
+		connect.NewRequest(&api_gen.CallRequest{
+			GasFee:        "1000000ugnot",
+			GasWanted:     10_000_000,
+			CallerAddress: test1Address,
+			Msgs: []*api_gen.MsgCall{{
+				PackagePath: "gno.land/r/demo/boards",
+				Fnc:         "CreateThread",
+				Args:        []string{"1", "Test thread", "Test post"},
 			}}}),
 	)
 	if err != nil {
@@ -99,12 +131,12 @@ func setup(client _goconnect.GnoNativeServiceClient) error {
 	return nil
 }
 
-func doAction(client _goconnect.GnoNativeServiceClient) error {
+func doAction(client _goconnect.GnoNativeServiceClient, test1Address []byte) error {
 	postsPerCall := 50
 	totalPostsWanted := 1_000_000
 
 	// A script to call CreateReply postsPerCall times in one transaction.
-	// By default, gno.land starts with a board and post. Reply to board #1 post #1.
+	// Reply to board #1 post #1.
 	code := `package main
 
 import (
@@ -129,8 +161,9 @@ func main() {
 		res, err := client.Run(
 			context.Background(),
 			connect.NewRequest(&api_gen.RunRequest{
-				GasFee:    "1ugnot",
-				GasWanted: 100_000_000,
+				GasFee:        "1000000ugnot",
+				GasWanted:     100_000_000,
+				CallerAddress: test1Address,
 				Msgs: []*api_gen.MsgRun{{
 					Package: code,
 				}}}),

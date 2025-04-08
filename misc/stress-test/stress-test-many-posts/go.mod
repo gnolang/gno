@@ -5,12 +5,12 @@ go 1.23
 toolchain go1.23.8
 
 require (
-	connectrpc.com/connect v1.14.0
-	github.com/gnolang/gnonative v1.0.1
+	connectrpc.com/connect v1.16.2
+	github.com/gnolang/gnonative v1.8.2-0.20250407145431-4a9b0eea1a2c
 )
 
 require (
-	connectrpc.com/grpchealth v1.2.0 // indirect
+	connectrpc.com/grpchealth v1.3.0 // indirect
 	connectrpc.com/grpcreflect v1.2.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.6 // indirect
@@ -19,7 +19,7 @@ require (
 	github.com/cosmos/ledger-cosmos-go v0.14.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0 // indirect
-	github.com/gnolang/gno v0.0.0-20240429153043-de2fc456c1cd // indirect
+	github.com/gnolang/gno v0.1.2-0.20240826090356-651f5aac3706 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
