@@ -5,9 +5,8 @@ tx-indexer process for gnodev development. It handles the lifecycle of the
 tx-indexer process, including starting, stopping, reloading the service. 
 Reloading comprises stopping the current process, removing the database, and
 starting it again. It's important to note that since the tx-indexer is in a
-separate repo we use the cmd.Exec package to manage the process.
-This functionality is provided by a `Service` for which an example of its usage
-is provided below. 
+separate repo we use exec.Cmd to manage the process. This functionality is
+provided by a `Service` for which an example of its usage is provided below. 
 
 ## Usage
 

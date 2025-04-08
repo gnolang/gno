@@ -11,7 +11,7 @@ import (
 var _ Manager = (*Service)(nil)
 
 // Service provides functionality to start, stop, and reload the tx-indexer
-// process using cmd.Exec constructs. The methods are meant to be
+// process using exec.Cmd constructs. The methods are meant to be
 // idempotent and should be safe to call multiple times without causing
 // side effects.
 type Service struct {
