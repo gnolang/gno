@@ -25,19 +25,19 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:6]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:8]=
 //     @@ -1,8 +1,8 @@
 //      {
 //          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:8",
 //     -        "ModTime": "0",
 //     -        "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
-//     +        "ModTime": "9",
-//     +        "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:9",
+//     +        "ModTime": "11",
+//     +        "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:11",
 //              "RefCount": "1"
 //          },
 //          "Value": {
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:11]={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:13]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -92,17 +92,17 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:11",
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:13",
 //         "ModTime": "0",
-//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:10",
+//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:12",
 //         "RefCount": "1"
 //     }
 // }
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:10]={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:12]={
 //     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:10",
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:12",
 //         "ModTime": "0",
-//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:9",
+//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:11",
 //         "RefCount": "1"
 //     },
 //     "Value": {
@@ -112,12 +112,12 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "c868579bb56defa78c588086d2569b998a0eae51",
-//             "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:11"
+//             "Hash": "4dba380235bb2da730434d50decc59b8e9e44d48",
+//             "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:13"
 //         }
 //     }
 // }
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:9]={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:11]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -156,8 +156,8 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "fe03d12c74ef37890fb8a7b3fe992e093fde9e11",
-//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6"
+//                     "Hash": "a87525f2721b8f7a44d92bfb16e49ef5f871a6cd",
+//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:8"
 //                 },
 //                 "Index": "0",
 //                 "TV": null
@@ -175,8 +175,8 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "22fab2a1d2444a6f768e41f161687d7337112d85",
-//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:10"
+//                     "Hash": "2902f943b5a422592e03caee355d00280b055809",
+//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:12"
 //                 },
 //                 "Index": "0",
 //                 "TV": null
@@ -184,15 +184,15 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:9",
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:11",
 //         "ModTime": "0",
-//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:8",
+//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:10",
 //         "RefCount": "1"
 //     }
 // }
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:8]={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:10]={
 //     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:8",
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:10",
 //         "ModTime": "0",
 //         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
 //         "RefCount": "1"
@@ -204,8 +204,8 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "d60b2983a3995dab4520495d39c8dfd94c03aa58",
-//             "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:9"
+//             "Hash": "69090b750a9f5eb9fe19dc6a1b56023c10c4e5f4",
+//             "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:11"
 //         }
 //     }
 // }
@@ -214,10 +214,10 @@ func main() {
 //                      "@type": "/gno.PointerValue",
 //                      "Base": {
 //                          "@type": "/gno.RefValue",
-//     -                    "Hash": "dc23ab0ed49befbb054b6f7870ce56de555d9b59",
-//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6"
-//     +                    "Hash": "357e11a985515baa1790ce90b3bb170140f83925",
-//     +                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:8"
+//     -                    "Hash": "38d92623e7ba4beb1d35693382b944d1dd9df1d2",
+//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:8"
+//     +                    "Hash": "c33568a8795f10e8834d5e6d0319d7eaef1841e4",
+//     +                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:10"
 //                      },
 //                      "Index": "0",
 //                      "TV": null
@@ -225,8 +225,8 @@ func main() {
 //          ],
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
-//     -        "ModTime": "5",
-//     +        "ModTime": "7",
+//     -        "ModTime": "7",
+//     +        "ModTime": "9",
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
 //              "RefCount": "1"
 //          }

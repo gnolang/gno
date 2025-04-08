@@ -28,7 +28,7 @@ func main() {
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
 //     -        "ModTime": "0",
-//     +        "ModTime": "4",
+//     +        "ModTime": "5",
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
 //              "RefCount": "1"
 //          },

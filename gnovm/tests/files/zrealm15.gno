@@ -52,7 +52,7 @@ func main() {
 //     -                "Base": {
 //     -                    "@type": "/gno.RefValue",
 //     -                    "Escaped": true,
-//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:12"
+//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:14"
 //     -                },
 //     -                "Index": "0",
 //     -                "TV": null
@@ -69,7 +69,7 @@ func main() {
 //     -                "Base": {
 //     -                    "@type": "/gno.RefValue",
 //     -                    "Escaped": true,
-//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:12"
+//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:14"
 //     -                },
 //     -                "Index": "0",
 //     -                "TV": null
@@ -78,19 +78,19 @@ func main() {
 //          ],
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
-//     -        "ModTime": "9",
-//     +        "ModTime": "13",
+//     -        "ModTime": "11",
+//     +        "ModTime": "15",
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
 //              "RefCount": "1"
 //          }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:12]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:14]=
 //     @@ -2,8 +2,8 @@
 //          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:12",
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:14",
 //              "IsEscaped": true,
 //     -        "ModTime": "0",
 //     -        "RefCount": "2"
-//     +        "ModTime": "13",
+//     +        "ModTime": "15",
 //     +        "RefCount": "0"
 //          },
 //          "Value": {
@@ -106,7 +106,7 @@ func main() {
 //     -                "Base": {
 //     -                    "@type": "/gno.RefValue",
 //     -                    "Escaped": true,
-//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:10"
+//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:12"
 //     -                },
 //     -                "Index": "0",
 //     -                "TV": null
@@ -115,19 +115,19 @@ func main() {
 //          ],
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5",
-//     -        "ModTime": "9",
-//     +        "ModTime": "13",
+//     -        "ModTime": "11",
+//     +        "ModTime": "15",
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
 //              "RefCount": "1"
 //          }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:10]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:12]=
 //     @@ -2,8 +2,8 @@
 //          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:10",
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:12",
 //              "IsEscaped": true,
 //     -        "ModTime": "0",
 //     -        "RefCount": "3"
-//     +        "ModTime": "13",
+//     +        "ModTime": "15",
 //     +        "RefCount": "1"
 //          },
 //          "Value": {
@@ -136,7 +136,7 @@ func main() {
 //     @@ -3,7 +3,7 @@
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
 //              "IsEscaped": true,
-//              "ModTime": "13",
+//              "ModTime": "15",
 //     -        "RefCount": "2"
 //     +        "RefCount": "1"
 //          },
@@ -146,10 +146,10 @@ func main() {
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
-//     -            "Hash": "3e283fe6350543030e617b385afb7aa54bc735e8",
-//     +            "Hash": "bbdbe7b740dc9b8983d844f0323748d9a80212d7",
+//     -            "Hash": "4641faa430640c89d2730115d8159609a3fd1492",
+//     +            "Hash": "47746c70f1dda9b50d12a68174a4d2f3cb7065e8",
 //                  "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
 //              }
 //          }
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:12]
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:13]
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:14]
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:15]

@@ -27,7 +27,7 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/test"]
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:5]={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:6]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -43,7 +43,7 @@ func main() {
 //         {}
 //     ],
 //     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5",
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
 //         "ModTime": "0",
 //         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
 //         "RefCount": "1"
@@ -55,7 +55,7 @@ func main() {
 //          "ObjectInfo": {
 //              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
 //     -        "ModTime": "0",
-//     +        "ModTime": "4",
+//     +        "ModTime": "5",
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
 //              "RefCount": "1"
 //          },
@@ -67,8 +67,8 @@ func main() {
 //     +        },
 //     +        "V": {
 //     +            "@type": "/gno.RefValue",
-//     +            "Hash": "e9c91722e6417a87e3c05b8b9f1e2782de0fd94a",
-//     +            "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
+//     +            "Hash": "860c81a9b1ccd2bc42fc95635a1e940c88b758d7",
+//     +            "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6"
 //     +        }
 //     +    }
 //      }
