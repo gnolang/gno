@@ -273,11 +273,11 @@ func (hiv *HeapItemValue) String() string {
 // ----------------------------------------
 // *TypedValue.Sprint
 
-func (tv *TypedValue) IsStringer() bool {
+func (tv *TypedValue) ImplStringer() bool {
 	return IsImplementedBy(gStringerType, tv.T)
 }
 
-func (tv *TypedValue) IsError() bool {
+func (tv *TypedValue) ImplError() bool {
 	return IsImplementedBy(gErrorType, tv.T)
 }
 
@@ -288,14 +288,14 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 		return undefinedStr
 	}
 
-	// if implements .String(), return it.
 	if !tv.IsNilInterface() {
-		if tv.IsStringer() {
+		// if implements .String(), return it.
+		if tv.ImplStringer() {
 			res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
 			return res[0].GetString()
 		}
 		// if implements .Error(), return it.
-		if tv.IsError() {
+		if tv.ImplError() {
 			res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "Error")))
 			return res[0].GetString()
 		}

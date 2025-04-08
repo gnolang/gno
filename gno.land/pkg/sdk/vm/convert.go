@@ -342,7 +342,7 @@ func tryGetError(m *gno.Machine, tv gno.TypedValue) (string, bool) {
 	}
 
 	// If implements .Error(), return this
-	if ptv.IsError() {
+	if ptv.ImplError() {
 		res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: ptv}, "Error")))
 		return strconv.Quote(res[0].GetString()), true
 	}
