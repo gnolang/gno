@@ -223,8 +223,7 @@ func toConstExpTrace(cte *ConstExpr) string {
 		}
 	}
 
-	return cte.Source.String()
-	//return tv.T.String()
+	return tv.V.String()
 }
 
 //----------------------------------------
