@@ -726,7 +726,6 @@ func TestGasPriceUpdate(t *testing.T) {
 	header := &bft.Header{ChainID: "test-chain", Height: 1}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 	// Delvier Tx consumes more than that target block gas 6000.
-
 	tx6001 := newCounterTx(6001)
 	tx6001.Fee = std.Fee{
 		GasWanted: 20000,
@@ -895,7 +894,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	)
 
 	// Set a handler Route.
-	baseApp.Router().AddRoute("auth", auth.NewHandler(acck))
+	baseApp.Router().AddRoute("auth", auth.NewHandler(acck, gpk))
 	baseApp.Router().AddRoute("bank", bank.NewHandler(bankk))
 	baseApp.Router().AddRoute(
 		testutils.RouteMsgCounter,
