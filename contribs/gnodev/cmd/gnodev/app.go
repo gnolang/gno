@@ -620,7 +620,7 @@ func newTXIndexer(appCfg *AppConfig, logger *slog.Logger) (txindexer.Manager, er
 	}
 
 	if !cfg.Enabled {
-		logger.WithGroup(TxIndexerLogName).Info("tx-indexer disabled, using using no-op")
+		logger.WithGroup(TxIndexerLogName).Info("tx-indexer disabled, using no-op")
 		return txindexer.NewNoOp(), nil
 	}
 
