@@ -103,7 +103,7 @@ func init() {
 	members.SetMember(T1, std.Address("g19p3yzr3cuhzqa02j0ce6kzvyjqfzwemw3vam0x"), &Member{InvitationPoints: 3}) // Guilhem
 	members.SetMember(T1, std.Address("g1mx4pum9976th863jgry4sdjzfwu03qan5w2v9j"), &Member{InvitationPoints: 3}) // Ray
 	members.SetMember(T1, std.Address("g127l4gkhk0emwsx5tmxe96sp86c05h8vg5tufzq"), &Member{InvitationPoints: 3}) // Maxwell
-	members.SetMember(T1, std.Address("g1cpx59z5r8vzeww2fm4ezpz7yvjs7kptywkm864"), &Member{InvitationPoints: 3}) // Morgan
+	members.SetMember(T1, std.Address("g1m0rgan0rla00ygmdmp55f5m0unvsvknluyg2a4"), &Member{InvitationPoints: 3}) // Morgan
 	members.SetMember(T1, std.Address("g1ker4vvggvsyatexxn3hkthp2hu80pkhrwmuczr"), &Member{InvitationPoints: 3}) // Sergio
 	members.SetMember(T1, std.Address("g18x425qmujg99cfz3q97y4uep5pxjq3z8lmpt25"), &Member{InvitationPoints: 3}) // Antoine
 	members.SetMember(T1, std.Address("g16tfrrul20g4jzt3z303raqw8vs8s2pqqh5clwu"), &Member{InvitationPoints: 3}) // Ilker
