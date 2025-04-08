@@ -33,7 +33,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 		return
 	}
 	// special case for undefined/nil source
-	if tv.IsUndefined() {
+	if tv.IsUndefined2() {
 		switch t.Kind() {
 		case BoolKind, StringKind, IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind, UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind, Float32Kind, Float64Kind, BigintKind, BigdecKind:
 			panic(fmt.Sprintf("cannot convert %v to %v", tv, t))

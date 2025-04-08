@@ -949,7 +949,7 @@ func (tv *TypedValue) IsImmutable() bool {
 }
 
 func (tv *TypedValue) IsDefined() bool {
-	return !tv.IsUndefined()
+	return !tv.IsUndefined2()
 }
 
 // XXX replace IsUndefined() with IsUndefined2() and delete IsUndefined, replace.
@@ -1658,7 +1658,7 @@ func (tv *TypedValue) DefineToBlock(other TypedValue) {
 // as in OpRef.
 func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path ValuePath) PointerValue {
 	if debug {
-		if tv.IsUndefined() {
+		if tv.IsUndefined2() {
 			panic("GetPointerToFromTV() on undefined value")
 		}
 	}
@@ -1870,7 +1870,7 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			Base: nil, // a bound method is free floating.
 		}
 	case VPInterface:
-		if dtv.IsUndefined() {
+		if dtv.IsUndefined2() {
 			panic("interface method call on undefined value")
 		}
 		callerPath := dtv.T.GetPkgPath()
@@ -1943,7 +1943,7 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 		}
 		mv := tv.V.(*MapValue)
 		pv := mv.GetPointerForKey(alloc, store, iv)
-		if pv.TV.IsUndefined() {
+		if pv.TV.IsUndefined2() {
 			vt := baseOf(tv.T).(*MapType).Value
 			if vt.Kind() != InterfaceKind {
 				// this will get assigned over, so no alloc.

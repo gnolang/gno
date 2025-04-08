@@ -733,7 +733,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								store, last, cx).(Expr)
 							var ct Type
 							if cxx, ok := cx.(*ConstExpr); ok {
-								if !cxx.IsUndefined() {
+								if !cxx.IsUndefined2() {
 									panic("should not happen")
 								}
 								// only in type switch cases, nil type allowed.
@@ -1021,14 +1021,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if n.Path.Depth == 0 { // uverse
 						cx := evalConst(store, last, n)
 						// built-in functions must be called.
-						if !cx.IsUndefined() &&
+						if !cx.IsUndefined2() &&
 							cx.T.Kind() == FuncKind &&
 							ftype != TRANS_CALL_FUNC {
 							panic(fmt.Sprintf(
 								"use of builtin %s not in function call",
 								n.Name))
 						}
-						if !cx.IsUndefined() && cx.T.Kind() == TypeKind {
+						if !cx.IsUndefined2() && cx.T.Kind() == TypeKind {
 							return constType(n, cx.GetType()), TRANS_CONTINUE
 						}
 						return cx, TRANS_CONTINUE
@@ -1272,7 +1272,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						}
 
 						// check legal type for nil
-						if arg0.IsUndefined() {
+						if arg0.IsUndefined2() {
 							switch ct.Kind() { // special case for nil conversion check.
 							case SliceKind, PointerKind, FuncKind, MapKind, InterfaceKind, ChanKind:
 								convertConst(store, last, n, arg0, ct)
@@ -2447,7 +2447,7 @@ func parseAssignFromExprList(
 		if len(valueExprs) > 0 {
 			vx := valueExprs[i]
 			if cx, ok := vx.(*ConstExpr); ok &&
-				!cx.TypedValue.IsUndefined() {
+				!cx.TypedValue.IsUndefined2() {
 				if isConst {
 					// const _ = <const_expr>: static block should contain value
 					tvs[i] = cx.TypedValue

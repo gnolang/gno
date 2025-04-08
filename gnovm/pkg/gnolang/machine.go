@@ -1923,7 +1923,7 @@ func (m *Machine) PopFrameAndReturn() {
 	resStart := m.NumValues - numRes
 	for i := 0; i < numRes; i++ {
 		res := m.Values[resStart+i]
-		if res.IsUndefined() && rtypes[i].Type.Kind() != InterfaceKind {
+		if res.IsUndefined2() && rtypes[i].Type.Kind() != InterfaceKind {
 			res.T = rtypes[i].Type
 		}
 		m.Values[fr.NumValues+i] = res

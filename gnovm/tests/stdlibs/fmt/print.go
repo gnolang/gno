@@ -10,7 +10,7 @@ import (
 )
 
 func X_typeString(v gnolang.TypedValue) string {
-	if v.IsUndefined() {
+	if v.IsUndefined2() {
 		return "<nil>"
 	}
 	return v.T.String()

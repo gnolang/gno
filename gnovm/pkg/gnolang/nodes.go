@@ -2113,7 +2113,7 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 				n))
 		}
 		old := sb.Block.Values[idx]
-		if !old.IsUndefined() && tv.T != nil {
+		if !old.IsUndefined2() && tv.T != nil {
 			if tv.T.Kind() == FuncKind && tv.T.(*FuncType).IsZero() {
 				// special case,
 				// allow re-predefining for func upgrades.

@@ -222,7 +222,7 @@ func gno2GoType(t Type) reflect.Type {
 // doesn't really make sense in the general case, and there is a FillValue()
 // function available for eager fetching of ref values.
 func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
-	if tv.IsUndefined() {
+	if tv.IsUndefined2() {
 		if debug {
 			if !rv.IsValid() {
 				panic("unexpected undefined gno value")
@@ -317,7 +317,7 @@ func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		if av.Data == nil {
 			for i := 0; i < ct.Len; i++ {
 				etv := &av.List[i]
-				if etv.IsUndefined() {
+				if etv.IsUndefined2() {
 					continue
 				}
 				Gno2GoValue(etv, rv.Index(i))
@@ -345,7 +345,7 @@ func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 			rv.Set(reflect.MakeSlice(st, svl, svc))
 			for i := 0; i < svl; i++ {
 				etv := &(svb.List[svo+i])
-				if etv.IsUndefined() {
+				if etv.IsUndefined2() {
 					continue
 				}
 				Gno2GoValue(etv, rv.Index(i))

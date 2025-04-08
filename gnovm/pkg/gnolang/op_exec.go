@@ -834,7 +834,7 @@ func (m *Machine) doOpTypeSwitch() {
 				}
 				ct := cx.(*constTypeExpr).Type
 				if ct == nil {
-					if xv.IsUndefined() {
+					if xv.IsUndefined2() {
 						// match nil type with undefined
 						match = true
 					}

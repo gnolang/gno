@@ -519,7 +519,7 @@ func (m *Machine) doOpSliceLit2() {
 	// fill in empty values.
 	ste := st.Elem()
 	for i, etv := range es {
-		if etv.IsUndefined() {
+		if etv.IsUndefined2() {
 			es[i] = defaultTypedValue(m.Alloc, ste)
 		}
 	}
@@ -616,7 +616,7 @@ func (m *Machine) doOpStructLit() {
 		ftvs := m.PopValues(el)
 		for _, ftv := range ftvs {
 			if debug {
-				if !ftv.IsUndefined() && ftv.T.Kind() == InterfaceKind {
+				if !ftv.IsUndefined2() && ftv.T.Kind() == InterfaceKind {
 					panic("should not happen")
 				}
 			}
@@ -639,7 +639,7 @@ func (m *Machine) doOpStructLit() {
 				if fnx.Path.Depth != 0 {
 					panic("unexpected struct composite lit key path generation value")
 				}
-				if !ftv.IsUndefined() && ftv.T.Kind() == InterfaceKind {
+				if !ftv.IsUndefined2() && ftv.T.Kind() == InterfaceKind {
 					panic("should not happen")
 				}
 			}

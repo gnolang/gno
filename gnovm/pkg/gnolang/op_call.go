@@ -127,7 +127,7 @@ func (m *Machine) doOpCall() {
 		m.PushOp(OpCallNativeBody)
 	}
 	// Assign receiver as first parameter, if any.
-	if !fr.Receiver.IsUndefined() {
+	if !fr.Receiver.IsUndefined2() {
 		isMethod = 1
 	}
 	// Convert variadic argument to slice argument.

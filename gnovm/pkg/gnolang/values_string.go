@@ -452,7 +452,7 @@ func (tv TypedValue) String() string {
 }
 
 func (tv TypedValue) ProtectedString(seen *seenValues) string {
-	if tv.IsUndefined() {
+	if tv.IsUndefined2() {
 		return "(undefined)"
 	}
 	vs := ""
