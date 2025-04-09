@@ -10,7 +10,7 @@ context is the same.
 
 A function declared in p packages when called: 
 
- * Inherits the last realm when the function is declared at the package level.
+ * Inherits the last realm for package declared functions and closures.
  * Inherits the last realm when a method is called on unreal receiver.
  * Implicitly switches to the realm in which the receiver resides when a method
    is called.
