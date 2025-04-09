@@ -50,18 +50,14 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 		return out
 	}
 
-	out += "<div class='columns-2'>\n\n"
-
-	for _, item := range page.Items {
-		out += "<div>\n\n"
+	str := make([]string, len(page.Items))
+	for i, item := range page.Items {
 		itemValue := item.Value.(*Item)
-		out += md.H3(itemValue.title + "\n\n")
-		out += itemValue.Render(dashboard)
-		out += "</div>"
+		str[i] += md.H3(itemValue.title + "\n\n")
+		str[i] += itemValue.Render(dashboard)
 	}
 
-	out += "</div><!-- /columns-2 -->\n\n"
-
+	out += md.ColumnsN(str, 3, true)
 	out += page.Picker(path)
 
 	return out

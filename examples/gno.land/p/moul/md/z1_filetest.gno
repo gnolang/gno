@@ -48,7 +48,14 @@ func main() {
 		"Column1\ncontent1",
 		"Column2\ncontent2",
 		"Column3\ncontent3",
-	}, 3))
+	}, 3, false))
+
+	// Should be padded, up to 4 cols
+	println("padded:")
+	println(md.ColumnsN([]string{
+		"Column1\ncontent1",
+		"Column1\ncontent1",
+	}, 6, true))
 
 }
 
@@ -130,7 +137,16 @@ func main() {
 // Column3
 // content3
 // </gno-columns>
-//
+// <gno-columns>
+// Column1
+// content1
+// |||
+// Column2
+// content2
+// |||
+// Column3
+// content3
+// </gno-columns>
 // <gno-columns>
 // Column1
 // content1
@@ -142,15 +158,16 @@ func main() {
 // content3
 // </gno-columns>
 //
+// padded:
 // <gno-columns>
 // Column1
 // content1
 // |||
-// Column2
-// content2
+// Column1
+// content1
 // |||
-// Column3
-// content3
-// </gno-columns>
 //
+// |||
+//
+// </gno-columns>
 //

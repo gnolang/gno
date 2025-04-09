@@ -262,9 +262,25 @@ func Columns(contentByColumn []string) string {
 
 // ColumnsN splits content into multiple rows of N columns each and formats them.
 // If colsPerRow <= 0, all items are placed in one <gno-columns> block.
-func ColumnsN(content []string, colsPerRow int) string {
+// If padded is true, empty column elements are placed to pad the colsPerRow.
+// Padding works only with colsPerRow > 0.
+func ColumnsN(content []string, colsPerRow int, padded bool) string {
 	if colsPerRow <= 0 {
 		return Columns(content)
+	}
+
+	// maximum cols rendered by gnoweb
+	if colsPerRow > 4 {
+		colsPerRow = 4
+	}
+
+	// If padding is needed
+	remainder := len(content) % colsPerRow
+	if padded && remainder != 0 {
+		// Append empty elements to pad empty columns
+		for i := 0; i < colsPerRow-remainder; i++ {
+			content = append(content, "")
+		}
 	}
 
 	var sb strings.Builder
@@ -274,7 +290,6 @@ func ColumnsN(content []string, colsPerRow int) string {
 			end = len(content)
 		}
 		sb.WriteString(Columns(content[i:end]))
-		sb.WriteString("\n")
 	}
 	return sb.String()
 }
