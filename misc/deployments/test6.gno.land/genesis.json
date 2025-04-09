@@ -1,0 +1,19 @@
+{
+  "genesis_time": "2025-04-14T08:00:00Z",
+  "chain_id": "test6",
+  "consensus_params": {
+    "Block": {
+      "MaxTxBytes": "1000000",
+      "MaxDataBytes": "2000000",
+      "MaxBlockBytes": "0",
+      "MaxGas": "3000000000",
+      "TimeIotaMS": "100"
+    },
+    "Validator": {
+      "PubKeyTypeURLs": [
+        "/tm.PubKeyEd25519"
+      ]
+    }
+  },
+  "app_hash": null
+}
