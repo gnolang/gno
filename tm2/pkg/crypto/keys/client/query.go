@@ -132,7 +132,7 @@ func printResultABCIQueryJson(qres *ctypes.ResultABCIQuery, io commands.IO) erro
 	var buff bytes.Buffer
 	jqueryEnc := json.NewEncoder(&buff)
 	jqueryEnc.SetEscapeHTML(false) // disable HTML escaping, as we want to correctly display `<`, `>`
-	jqueryEnc.SetIndent("", "  ")
+	jqueryEnc.SetIndent("", "\t")
 
 	if err := jqueryEnc.Encode(output); err != nil {
 		io.ErrPrintfln("Unable to marshal\n Response: %+v\n Data: %+v\n",

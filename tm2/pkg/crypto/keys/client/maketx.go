@@ -290,7 +290,7 @@ func printResultBroadcastTxCommitJson(bres *types.ResultBroadcastTxCommit, io co
 	var buff bytes.Buffer
 	jsonEnc := json.NewEncoder(&buff)
 	jsonEnc.SetEscapeHTML(false) // Disable HTML escaping for better readability of characters like `<`, `>`
-	jsonEnc.SetIndent("", "  ")
+	jsonEnc.SetIndent("", "\t")
 
 	// Marshal output
 	if err := jsonEnc.Encode(output); err != nil {
