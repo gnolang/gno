@@ -7,6 +7,23 @@ import (
 
 // Admin Methods //
 
+func (d *DAO) TransferAdmin(addr std.Address) string {
+	caller := utils.GetCaller()
+
+	if !d.IsAdmin(caller) {
+		panic("Only the admin can transfer admin.")
+	}
+	if d.IsAdmin(addr) {
+		return "Address is already the admin."
+	}
+	if !d.IsMember(addr) {
+		panic("New admin must be a member.")
+	}
+
+	d.Admin = addr
+	return "Admin transferred to " + addr.String()
+}
+
 func (d *DAO) SetAdmin() string {
 	if d.Admin != "" {
 		panic("Admin is already set.")
@@ -24,13 +41,17 @@ func (d *DAO) IsAdmin(addr std.Address) bool {
 
 // Member Methods //
 
+func (d *DAO) IsMember(addr std.Address) bool {
+	return d.Whitelist[addr]
+}
+
 func (d *DAO) AddMember(addr std.Address) string {
 	caller := utils.GetCaller()
 
 	if !d.IsAdmin(caller) {
 		panic("Only the admin can add members.")
 	}
-	if d.Whitelist[addr] {
+	if d.IsMember(addr) {
 		return "Address is already a member."
 	}
 	d.Whitelist[addr] = true
@@ -43,8 +64,8 @@ func (d *DAO) KickMember(addr std.Address) string {
 	if !d.IsAdmin(caller) {
 		panic("Only the admin can kick members.")
 	}
-	if !d.Whitelist[addr] {
-		return "Member not found."
+	if !d.IsMember(addr) {
+		return "Address is not a member."
 	}
 	delete(d.Whitelist, addr)
 	return "Member kicked: " + addr.String()

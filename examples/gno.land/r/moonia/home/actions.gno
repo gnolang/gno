@@ -15,9 +15,9 @@ func SetAdmin() string {
 	return ds.DAO.SetAdmin()
 }
 
-// func TransferAdmin(addr string) string {
-// 	return ds.DAO.TransferAdmin(addr)
-// }
+func TransferAdmin(addr std.Address) string {
+	return ds.DAO.TransferAdmin(addr)
+}
 
 func KickMember(addr std.Address) string {
 	return ds.DAO.KickMember(addr)
@@ -44,10 +44,6 @@ func JoinDAO() string {
 
 func LeaveDAO() string {
 	return ds.DAO.LeaveDAO()
-}
-
-func IsMember(addr std.Address) bool {
-	return ds.DAO.Whitelist[addr]
 }
 
 // Proposals Methods //

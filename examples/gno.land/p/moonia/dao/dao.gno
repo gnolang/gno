@@ -49,7 +49,11 @@ func (d *DAO) ShowWhitelist() string {
 		return out + "_Whitelist is empty._\n"
 	}
 	for addr := range d.Whitelist {
-		out += "- " + addr.String() + "\n"
+		if addr == d.Admin {
+			out += "- " + addr.String() + " (Admin)" + "\n"
+		} else {
+			out += "- " + addr.String() + "\n"
+		}
 	}
 	return out
 }

@@ -4,6 +4,7 @@ import (
 	"gno.land/p/moul/txlink"
 	"gno.land/p/moul/md"
 	"gno.land/p/moonia/dao"
+	"gno.land/p/moonia/utils"
 )
 
 var ds DAOState
@@ -34,6 +35,7 @@ func countActive() int {
 }
 
 func renderDAO() string {
+	caller := utils.GetCaller()
 	out := "# Moonia's DAO\n\n"
 	out += ds.DAO.ShowAdmin() + "\n\n"
 	out += ds.DAO.Stats(len(ds.Proposals.Proposals), countActive()) + "\n"
@@ -41,6 +43,7 @@ func renderDAO() string {
 	if ds.DAO.Admin == "" {
 		out += "- " + md.Link("Set Admin (once)", txlink.Call("SetAdmin")) + "\n"
 	}
+	out += "- " + md.Link("Transfer Admin", txlink.Call("TransferAdmin", "args", caller.String())) + "\n"
 	out += "- " + md.Link("Join DAO", txlink.Call("JoinDAO")) + "\n"
 	out += "- " + md.Link("Leave DAO", txlink.Call("LeaveDAO")) + "\n"
 	out += "- " + md.Link("Create Sample Proposal", txlink.Call("CreateProposalTest")) + "\n"
