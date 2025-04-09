@@ -231,28 +231,7 @@ func JSONPrimitiveValue(m *gno.Machine, tv gno.TypedValue) string {
 	bt := gno.BaseOf(tv.T)
 	switch bt := bt.(type) {
 	case gno.PrimitiveType:
-		switch bt {
-		case gno.UntypedBoolType, gno.BoolType:
-			return fmt.Sprintf("%t", tv.GetBool())
-		case gno.UntypedStringType, gno.StringType:
-			return strconv.Quote(tv.GetString())
-		case gno.Float32Type:
-			f32 := math.Float32frombits(tv.GetFloat32())
-			return fmt.Sprintf("%f", f32)
-		case gno.Float64Type:
-			f64 := math.Float64frombits(tv.GetFloat64())
-			return fmt.Sprintf("%f", f64)
-		case gno.UntypedBigintType:
-			return tv.V.(gno.BigintValue).V.String()
-		case gno.UntypedBigdecType:
-			return tv.V.(gno.BigdecValue).V.String()
-		case gno.IntType, gno.Int8Type, gno.Int16Type, gno.Int32Type, gno.UntypedRuneType, gno.Int64Type:
-			return fmt.Sprintf("%d", getSignedIntValue(bt, tv))
-		case gno.UintType, gno.Uint8Type, gno.Uint16Type, gno.Uint32Type, gno.Uint64Type, gno.DataByteType:
-			return fmt.Sprintf("%d", getUnsignedIntValue(bt, tv))
-		default:
-			panic("invalid primitive type - should not happen")
-		}
+		return tv.String() // Use TypedValue String representation directly
 	case *gno.ArrayType:
 		if bt.Elt == gno.Uint8Type {
 			arr := tv.V.(*gno.ArrayValue)
