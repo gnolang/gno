@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/md"
 
 	"gno.land/r/demo/art/gnoface"
 	"gno.land/r/demo/art/millipede"
@@ -67,27 +68,30 @@ func UpdateAboutMe(col1, col2 string) {
 }
 
 func renderAboutMe() string {
-	out := "<gno-columns>\n"
-	out += ufmt.Sprintf("![my profile pic](%s)\n\n%s\n", pfp, pfpCaption)
-	out += "|||\n"
-	out += abtMe[0] + "\n"
-	out += "|||\n"
-	out += abtMe[1] + "\n"
-	out += "</gno-columns>\n"
 
-	return out
+	//out := "<gno-columns>\n"
+	//out +=
+	//out += "|||\n"
+	//out +=
+	//out += "|||\n"
+	//out +=  + "\n"
+	//out += "</gno-columns>\n"
+
+	return md.Columns([]string{
+		ufmt.Sprintf("![my profile pic](%s)\n\n%s\n", pfp, pfpCaption),
+		abtMe[0],
+		abtMe[1],
+	})
 }
 
 func renderArt() string {
 	out := "# Gno Art\n"
-	out += "<gno-columns>\n"
-	out += gnoface.Render(strconv.Itoa(int(std.ChainHeight())))
-	out += "|||\n"
-	out += renderMillipede()
-	out += "|||\n"
-	out += "Empty spot :/"
-	out += "\n"
-	out += "</gno-columns>\n\n"
+
+	out += md.Columns([]string{
+		gnoface.Render(strconv.Itoa(int(std.ChainHeight()))),
+		renderMillipede(),
+		"Empty spot :/",
+	})
 
 	out += "This art is dynamic; it will change with every new block.\n\n"
 
@@ -97,7 +101,6 @@ func renderArt() string {
 func renderMillipede() string {
 	out := "Millipede\n\n"
 	out += "```\n" + millipede.Draw(int(std.ChainHeight())%10+1) + "```\n"
-
 	return out
 }
 

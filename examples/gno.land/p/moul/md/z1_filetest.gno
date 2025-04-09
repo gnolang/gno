@@ -29,6 +29,12 @@ func main() {
 	println(md.InlineImageWithLink("Alt Text", "http://example.com/image.png", "http://example.com"))
 	println(md.Footnote("ref", "This is a footnote"))
 	println(md.Paragraph("This is a paragraph."))
+	println(md.Columns([]string{
+		"Column1\ncontent1",
+		"Column2\ncontent2",
+		"Column3\ncontent3",
+		"Column4\ncontent4",
+	}))
 }
 
 // Output:
@@ -84,4 +90,18 @@ func main() {
 // [ref]: This is a footnote
 // This is a paragraph.
 //
+//
+// <gno-columns>
+// Column1
+// content1
+// |||
+// Column2
+// content2
+// |||
+// Column3
+// content3
+// |||
+// Column4
+// content4
+// </gno-columns>
 //

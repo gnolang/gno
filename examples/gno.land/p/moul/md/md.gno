@@ -240,3 +240,26 @@ func EscapeText(text string) string {
 	)
 	return replacer.Replace(text)
 }
+
+// Columns returns a formatted row of columns by the Gno standard.
+// A maximum of 4 columns per row is allowed, and columns cannot be nested
+// More info at r/docs/markdown#columns
+func Columns(contentByColumn []string) string {
+	if len(contentByColumn) > 4 {
+		panic("maximum 4 columns per row ")
+	}
+
+	var sb strings.Builder
+	sb.WriteString("<gno-columns>\n")
+
+	for i, column := range contentByColumn {
+		sb.WriteString(column + "\n")
+		if i < len(contentByColumn)-1 {
+			sb.WriteString("|||\n")
+		}
+	}
+
+	sb.WriteString("</gno-columns>\n")
+
+	return sb.String()
+}
