@@ -27,6 +27,10 @@ type (
 		Reason string
 
 		// Context can store any custom voting values related to the vote.
+		//
+		// Warning: When using context be careful if references/pointers are
+		// assigned to it because they could potentially be accessed anywhere,
+		// which could lead to unwanted indirect modifications.
 		Context any
 	}
 )
@@ -44,7 +48,7 @@ func (r ReadonlyVotingRecord) Size() int {
 
 // Choices returns the voting choices that has been voted.
 func (r ReadonlyVotingRecord) Choices() []VoteChoice {
-	var choices []VoteChoice
+	choices := make([]VoteChoice, 0, r.count.Size())
 	r.count.Iterate("", "", func(k string, v any) bool {
 		choices = append(choices, VoteChoice(k))
 		return false
@@ -53,7 +57,7 @@ func (r ReadonlyVotingRecord) Choices() []VoteChoice {
 }
 
 // Iterate iterates voting record votes.
-func (r ReadonlyVotingRecord) Iterate(fn VoteIterFn) bool {
+func (r ReadonlyVotingRecord) Iterate(fn VoteIterFn) bool { // TODO: Add offset & size
 	return r.votes.Iterate("", "", func(_ string, v any) bool {
 		return fn(v.(Vote))
 	})
@@ -135,7 +139,7 @@ func SelectChoiceByAbsoluteMajority(r ReadonlyVotingRecord, membersCount int) (V
 }
 
 // SelectChoiceBySuperMajority select the vote choice by super majority using a 2/3s threshold.
-// Abstentions are not considered when calculating the super majority choice.
+// Abstentions are considered when calculating the super majority choice.
 func SelectChoiceBySuperMajority(r ReadonlyVotingRecord, membersCount int) (VoteChoice, bool) {
 	if membersCount < 3 {
 		return ChoiceNone, false

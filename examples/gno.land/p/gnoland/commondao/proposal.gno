@@ -135,7 +135,6 @@ func NewProposal(id uint64, creator std.Address, d ProposalDefinition) (*Proposa
 		p.voteChoices.Set(string(ChoiceNo), struct{}{})
 		p.voteChoices.Set(string(ChoiceAbstain), struct{}{})
 	}
-
 	return p, nil
 }
 
@@ -183,14 +182,9 @@ func (p Proposal) VotingDeadline() time.Time {
 
 // VoteChoices returns the list of vote choices allowed for the proposal.
 func (p Proposal) VoteChoices() []VoteChoice {
-	var (
-		i       int
-		choices = make([]VoteChoice, p.voteChoices.Size())
-	)
-
+	choices := make([]VoteChoice, 0, p.voteChoices.Size())
 	p.voteChoices.Iterate("", "", func(c string, _ any) bool {
-		choices[i] = VoteChoice(c)
-		i++
+		choices = append(choices, VoteChoice(c))
 		return false
 	})
 	return choices
@@ -210,7 +204,7 @@ func (p Proposal) Validate() error {
 }
 
 // IsValidVoteChoice checks if a vote choice is valid for the proposal.
-func (p Proposal) IsValidVoteChoice(c VoteChoice) bool {
+func (p Proposal) IsValidVoteChoice(c VoteChoice) bool { // TODO: Rename to IsVoteChoiceValid
 	return p.voteChoices.Has(string(c))
 }
 
