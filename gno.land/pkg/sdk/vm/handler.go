@@ -78,6 +78,16 @@ const (
 	QueryFormatDefault             = QueryFormatMachine
 )
 
+func (format QueryFormat) Validate() bool {
+	// Validate format
+	switch format {
+	case QueryFormatMachine, QueryFormatJSON, QueryFormatString:
+		return true
+	default:
+		return false
+	}
+}
+
 // query paths
 const (
 	QueryRender = "qrender"
@@ -160,16 +170,11 @@ func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.
 	case 2:
 		format = QueryFormatDefault
 	case 3:
-		format = QueryFormat(ss[2])
+		if format = QueryFormat(ss[2]); !format.Validate() {
+			return sdk.ABCIResponseQueryFromError(fmt.Errorf("invalid query result format %q", format))
+		}
 	default:
 		return sdk.ABCIResponseQueryFromError(errors.New("invalid query path"))
-	}
-
-	// Validate format
-	switch format {
-	case QueryFormatMachine, QueryFormatJSON, QueryFormatString:
-	default:
-		return sdk.ABCIResponseQueryFromError(fmt.Errorf("invalid query result format %q", format))
 	}
 
 	pkgpath, expr := parseQueryEvalData(string(req.Data))
