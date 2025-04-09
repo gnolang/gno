@@ -242,8 +242,8 @@ func EscapeText(text string) string {
 }
 
 // Columns returns a formatted row of columns using the Gno syntax.
-// There is no enforced limit; the renderer decides how to lay them out.
 // 4 columns per row is the current maximum, with more overflowing to the next row.
+// If you want a specific number of columns per row (<=4), use ColumnsN.
 // Check /r/docs/markdown#columns for more info.
 func Columns(contentByColumn []string) string {
 	var sb strings.Builder
@@ -262,34 +262,61 @@ func Columns(contentByColumn []string) string {
 
 // ColumnsN splits content into multiple rows of N columns each and formats them.
 // If colsPerRow <= 0, all items are placed in one <gno-columns> block.
-// If padded is true, empty column elements are placed to pad the colsPerRow.
+// If padded=true & the final row is missing column content, an empty
+// column element will be placed to keep the cols per row constant.
 // Padding works only with colsPerRow > 0.
 func ColumnsN(content []string, colsPerRow int, padded bool) string {
-	if colsPerRow <= 0 {
-		return Columns(content)
-	}
-
-	// maximum cols rendered by gnoweb
-	if colsPerRow > 4 {
-		colsPerRow = 4
-	}
-
-	// If padding is needed
-	remainder := len(content) % colsPerRow
-	if padded && remainder != 0 {
-		// Append empty elements to pad empty columns
-		for i := 0; i < colsPerRow-remainder; i++ {
-			content = append(content, "")
-		}
+	if len(content) == 0 {
+		return "<gno-columns>\n</gno-columns>"
 	}
 
 	var sb strings.Builder
-	for i := 0; i < len(content); i += colsPerRow {
-		end := i + colsPerRow
-		if end > len(content) {
-			end = len(content)
+
+	// Case 1: All in one block
+	if colsPerRow <= 0 {
+		sb.WriteString("<gno-columns>\n")
+		for i, item := range content {
+			if i > 0 {
+				sb.WriteString("|||\n")
+			}
+			sb.WriteString(item + "\n")
 		}
-		sb.WriteString(Columns(content[i:end]))
+		sb.WriteString("</gno-columns>")
+		return sb.String()
 	}
+
+	// Case 2: Multiple blocks with max 4 columns
+	colsPerRow = min(colsPerRow, 4) // Enforce max 4 columns
+	for i := 0; i < len(content); i += colsPerRow {
+		sb.WriteString("<gno-columns>\n")
+		end := min(i+colsPerRow, len(content))
+		row := content[i:end]
+
+		// Add padding if needed
+		if padded && len(row) < colsPerRow {
+			row = append(row, make([]string, colsPerRow-len(row))...)
+		}
+
+		// Write columns
+		for j, col := range row {
+			if j > 0 {
+				sb.WriteString("|||\n")
+			}
+			sb.WriteString(col + "\n")
+		}
+
+		sb.WriteString("</gno-columns>")
+		if i+colsPerRow < len(content) {
+			sb.WriteString("\n") // Separate blocks
+		}
+	}
+	sb.WriteString("\n") // Separate blocks
 	return sb.String()
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

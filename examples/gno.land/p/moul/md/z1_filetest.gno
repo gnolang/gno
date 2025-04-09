@@ -39,19 +39,19 @@ func main() {
 
 	// Should be automatically placed in multiple column tags
 	println(md.ColumnsN([]string{
-		"Column1\ncontent1",
-		"Column2\ncontent2",
-		"Column3\ncontent3",
-		"Column1\ncontent1",
-		"Column2\ncontent2",
-		"Column3\ncontent3",
-		"Column1\ncontent1",
-		"Column2\ncontent2",
-		"Column3\ncontent3",
+		"Row1Column1\ncontent1",
+		"Row1Column2\ncontent2",
+		"Row1Column3\ncontent3",
+		"Row2Column1\ncontent1",
+		"Row2Column2\ncontent2",
+		"Row2Column3\ncontent3",
+		"Row3Column1\ncontent1",
+		"Row3Column2\ncontent2",
+		"Row3Column3\ncontent3",
 	}, 3, false))
 
 	// Should be padded, up to 4 cols
-	println("padded:")
+	println("2 padded to 6 (resized to 4):")
 	println(md.ColumnsN([]string{
 		"Column1\ncontent1",
 		"Column1\ncontent1",
@@ -128,37 +128,37 @@ func main() {
 // </gno-columns>
 //
 // <gno-columns>
-// Column1
+// Row1Column1
 // content1
 // |||
-// Column2
+// Row1Column2
 // content2
 // |||
-// Column3
+// Row1Column3
 // content3
 // </gno-columns>
 // <gno-columns>
-// Column1
+// Row2Column1
 // content1
 // |||
-// Column2
+// Row2Column2
 // content2
 // |||
-// Column3
+// Row2Column3
 // content3
 // </gno-columns>
 // <gno-columns>
-// Column1
+// Row3Column1
 // content1
 // |||
-// Column2
+// Row3Column2
 // content2
 // |||
-// Column3
+// Row3Column3
 // content3
 // </gno-columns>
 //
-// padded:
+// 2 padded to 6 (resized to 4):
 // <gno-columns>
 // Column1
 // content1

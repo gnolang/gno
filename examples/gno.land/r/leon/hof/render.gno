@@ -10,10 +10,11 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
+	"gno.land/r/sys/users"
 )
 
 const (
-	pageSize = 5
+	colsPerRow = 3
 )
 
 func Render(path string) string {
@@ -41,8 +42,7 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 	u, _ := url.Parse(path)
 	reversed := u.Query().Get("sort") != "oldest"
 
-	page := pager.NewPager(tree, pageSize, reversed).MustGetPageByPath(path)
-
+	page := pager.NewPager(tree, colsPerRow*3, reversed).MustGetPageByPath(path)
 	out := ufmt.Sprintf("%s\n\n", e.description)
 
 	if e.items.Size() == 0 {
@@ -53,11 +53,11 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 	str := make([]string, len(page.Items))
 	for i, item := range page.Items {
 		itemValue := item.Value.(*Item)
-		str[i] += md.H3(itemValue.title + "\n\n")
+		str[i] += ufmt.Sprintf("### %d - %s\n", int(itemValue.id), itemValue.title)
 		str[i] += itemValue.Render(dashboard)
 	}
 
-	out += md.ColumnsN(str, 3, true)
+	out += md.ColumnsN(str, colsPerRow, true)
 	out += page.Picker(path)
 
 	return out
@@ -65,10 +65,26 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 
 func (i Item) Render(dashboard bool) string {
 	out := ufmt.Sprintf("\n%s\n\n", md.CodeBlock(i.pkgpath))
+	//out := ufmt.Sprintf("\n%s\n\n", i.pkgpath)
+	if i.description == "" {
+		i.description = "_No description provided._\n"
+	}
 	out += ufmt.Sprintf("%s\n\n", i.description)
-	out += ufmt.Sprintf("by %s\n\n", strings.Split(i.pkgpath, "/")[2])
+
+	namespace := strings.Split(i.pkgpath, "/")[2]
+	user := users.ResolveAny(namespace)
+	if user != nil {
+		namespace = user.RenderLink("")
+	}
+	out += ufmt.Sprintf("by %s\n\n", namespace)
+
 	out += md.Link("View Realm", strings.TrimPrefix(i.pkgpath, "gno.land")) + "\n\n"
-	out += ufmt.Sprintf("Submitted at Block #%d\n\n", i.blockNum)
+
+	blockMsg := "Submitted via the [Monorepo](https://github.com/gnolang/gno)"
+	if i.blockNum > 0 {
+		blockMsg = ufmt.Sprintf("Submitted at Block #%d", i.blockNum)
+	}
+	out += ufmt.Sprintf("%s\n\n", blockMsg)
 
 	out += md.Bold(ufmt.Sprintf("[%d👍](%s) - [%d👎](%s)",
 		i.upvote.Size(), txlink.Call("Upvote", "pkgpath", i.pkgpath),

@@ -36,6 +36,18 @@ func ResolveAddress(addr std.Address) *UserData {
 	return data
 }
 
+// ResolveAny tries to resolve any given string to *UserData
+// If the input is not found in the registry in any form, nil is returned
+func ResolveAny(input string) *UserData {
+	addr := std.Address(input)
+	if addr.IsValid() {
+		return ResolveAddress(addr)
+	}
+
+	data, _ := ResolveName(input)
+	return data
+}
+
 // GetReadonlyAddrStore exposes the address store in readonly mode
 func GetReadonlyAddrStore() *rotree.ReadOnlyTree {
 	return rotree.Wrap(addressStore, makeUserDataSafe)
