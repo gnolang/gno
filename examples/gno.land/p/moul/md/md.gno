@@ -250,10 +250,10 @@ func Columns(contentByColumn []string) string {
 	sb.WriteString("<gno-columns>\n")
 
 	for i, column := range contentByColumn {
-		sb.WriteString(strings.TrimSpace(column) + "\n")
-		if i < len(contentByColumn)-1 {
+		if i > 0 {
 			sb.WriteString("|||\n")
 		}
+		sb.WriteString(column + "\n")
 	}
 
 	sb.WriteString("</gno-columns>\n")

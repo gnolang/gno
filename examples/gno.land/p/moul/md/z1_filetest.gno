@@ -37,7 +37,7 @@ func main() {
 		"Column4\ncontent4",
 	}))
 
-	// Should be automatically placed in multiple column tags, 3 cols per row
+	// Should be automatically placed in multiple column tags
 	println(md.ColumnsN([]string{
 		"Column1\ncontent1",
 		"Column2\ncontent2",
