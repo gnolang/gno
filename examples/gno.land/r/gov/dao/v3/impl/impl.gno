@@ -14,11 +14,6 @@ func init() {
 	law = &Law{
 		Supermajority: 66,
 	}
-
-	dao.UpdateImpl(dao.UpdateRequest{
-		DAO:         govDAO,
-		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
-	})
 }
 
 func context() *dao.Context {
