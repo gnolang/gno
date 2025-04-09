@@ -16,7 +16,7 @@ var (
 )
 
 func init() {
-	hof.Register("N2p5's Home Realm", "")
+	hor.Register("N2p5's Home Realm", "")
 
 }
 

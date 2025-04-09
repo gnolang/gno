@@ -12,7 +12,7 @@ import (
 var db *forms.FormDB
 
 func init() {
-	hof.Register("Ahgerasle's forms", "")
+	hor.Register("Ahgerasle's forms", "")
 	db = forms.NewDB()
 }
 

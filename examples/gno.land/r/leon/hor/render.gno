@@ -19,11 +19,16 @@ const colsPerRow = 3
 func Render(path string) string {
 	out := md.H1("The Hall of Realms\n\n")
 
-	out += renderAbout()
+	if !strings.Contains(path, "hall") && !strings.Contains(path, "dashboard") {
+		out += renderAbout()
+		return out
+	}
 
-	dashboardEnabled := path == "dashboard"
+	dashboardEnabled := strings.Contains(path, "dashboard")
 	if dashboardEnabled {
 		out += renderDashboard()
+		out += renderActions(path)
+		return out
 	}
 
 	out += exhibition.Render(path, dashboardEnabled)
@@ -64,8 +69,6 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 }
 
 func (i Item) Render(dashboard bool) string {
-	//out := ufmt.Sprintf("\n%s\n\n", md.CodeBlock(i.pkgpath))
-
 	if i.description == "" {
 		i.description = "_No description provided._\n"
 	}
@@ -99,8 +102,7 @@ func (i Item) Render(dashboard bool) string {
 }
 
 func renderDashboard() string {
-	out := md.HorizontalRule()
-	out += md.H2("Dashboard\n\n")
+	out := md.H3("Dashboard\n\n")
 	out += ufmt.Sprintf("Total submissions: %d\n\n", exhibition.items.Size())
 
 	out += ufmt.Sprintf("Exhibition admin: %s\n\n", Ownable.Owner().String())
@@ -154,17 +156,36 @@ func getTreeByPath(e *Exhibition, path string) *avl.Tree {
 
 func renderAbout() string {
 	out := `
-Welcome, gnome, to the Hall of Realms!
+Welcome, gnomes!
 
 The Hall of Realms is a simple & permissionless dashboard for gnomes to share 
 their work with the community.
 
-Here, anyone is welcome to submit their own realms. Simply add a call to the Registry  
+Here, anyone is welcome to submit their own code. This realm utilizes a common
+Gno pattern - the registry pattern - to allow anyone to programmatically submit 
+their work. 
 
+Simply import the Hall of Realms in your code, and call the "Register()" function
+inside your realm init, as shown below:
 
----
+"""go
+package myrealm
+
+import "gno.land/r/leon/hor"
+
+func init() {
+	hor.Register("My Gnome App", "This is my submission to the Hall of Realms.")
+}
+...
+"""
+
+%s
 
 `
+
+	out = ufmt.Sprintf(out, "## [Visit The Hall ->](/r/leon/hor:hall)")
+
+	out = strings.ReplaceAll(out, "\"", "`")
 
 	return out
 }
@@ -177,10 +198,13 @@ func renderActions(path string) string {
 	out += md.Link("Sort by Oldest", "?sort=oldest") + " | "
 
 	if !strings.Contains(path, "dashboard") {
-		out += md.Link("Dashboard", "/r/leon/hof:dashboard") + "\n\n"
+		out += md.Link("Dashboard", "/r/leon/hor:dashboard")
 	} else {
-		out += md.Link("Dashboard off", "/r/leon/hof") + "\n\n"
+		out += md.Link("Dashboard off", "/r/leon/hor:hall")
 	}
+
+	out += " | "
+	out += md.Link("About", "/r/leon/hor") + "\n\n"
 
 	out += md.HorizontalRule()
 
