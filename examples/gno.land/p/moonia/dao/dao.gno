@@ -18,16 +18,6 @@ func NewDAO() *DAO {
 	}
 }
 
-func (d *DAO) SetAdmin() string {
-	if d.Admin != "" {
-		panic("Admin is already set.")
-	}
-	caller := utils.GetCaller()
-	d.Admin = caller
-	d.JoinDAO()
-	return "Admin set to: " + caller.String()
-}
-
 func (d *DAO) ShowAdmin() string {
 	if d.Admin == "" {
 		return "_No admin set._"

@@ -1,11 +1,12 @@
 package dao
 
-// import "std"
+import "std"
 
 type IAdmin interface {
 	SetAdmin() string
-	TransferAdmin(newAdmin string) string
-	// KickMember(addr std.Address) string
+	TransferAdmin(addr string) string
+	KickMember(addr std.Address) string
+	AddMember(addr std.Address) string
 }
 
 type IDao interface {
