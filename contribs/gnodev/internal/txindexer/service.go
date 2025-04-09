@@ -103,7 +103,7 @@ func (s *Service) validate() error {
 	}
 
 	if len(missing) > 0 {
-		return fmt.Errorf("unable to initalize service due to missing dependencies: %s", strings.Join(missing, ", "))
+		return fmt.Errorf("unable to initialize service due to missing dependencies: %s", strings.Join(missing, ", "))
 	}
 
 	return nil

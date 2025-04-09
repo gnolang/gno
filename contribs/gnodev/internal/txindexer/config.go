@@ -19,15 +19,3 @@ type Config struct {
 	// Remote is the remote JSON-RPC URL of the Gno chain
 	Remote *string
 }
-
-func (c *Config) validate() error {
-	if c == nil {
-		return nil
-	}
-
-	if c.Enabled && c.DBPath == "" {
-		return ErrInvalidConfigMissingDBPath
-	}
-
-	return nil
-}
