@@ -77,6 +77,7 @@ var utcLoc = Location{name: "UTC"}
 
 func chainTZParamData() (data []byte) // injected
 
+// ChainTZFromTZData returns the ChainTZ location from the TZ data injected
 func ChainTZFromTZData() Location {
 	data := chainTZParamData()
 	if len(data) == 0 {

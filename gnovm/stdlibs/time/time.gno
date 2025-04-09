@@ -29,17 +29,35 @@ import "errors"
 // As this time is unlikely to come up in practice, the IsZero method gives
 // a simple way of detecting a time that has not been initialized explicitly.
 //
-// Each Time rely on a fixed Location, defined as a constant in the code. Users
-// cannot change the time's location directly. For display purposes,
-// developers should use external formatting libraries to format the time
-// into another timezone.
+// Each Time has associated with it a Location, consulted when computing the
+// presentation form of the time, such as in the Format, Hour, and Year methods.
+// The methods Local, UTC, and In return a Time with a specific location.
+// Changing the location in this way changes only the presentation; it does not
+// change the instant in time being denoted and therefore does not affect the
+// computations described in earlier paragraphs.
+//
+// Representations of a Time value saved by the GobEncode, MarshalBinary,
+// MarshalJSON, and MarshalText methods store the Time.Location's offset, but not
+// the location name. They therefore lose information about Daylight Saving Time.
+//
+// Note that the Go == operator compares not just the time instant but also the
+// Location. Therefore, Time values should not
+// be used as map or database keys without first guaranteeing that the
+// identical Location has been set for all values, which can be achieved
+// through use of the UTC or Local method.
 type Time struct {
 	// sec and nsec represent the wall time seconds and nanoseconds.
 	//
 	// The nanoseconds field is in the range [0, 999999999].
 	sec  int64
 	nsec int32
-	loc  *Location
+	// loc specifies the Location that should be used to
+	// determine the minute, hour, month, day, and year
+	// that correspond to this Time.
+	// The nil location means UTC.
+	// All UTC times are represented with loc==nil, never loc==&utcLoc.
+	// default location is ChainTZ
+	loc *Location
 }
 
 // unixSec returns the time's seconds since Jan 1 1970 (Unix time).
@@ -1184,6 +1202,8 @@ func norm(hi, lo, base int) (nhi, nlo int) {
 // choice of time zone, and therefore the time, is not well-defined.
 // Date returns a time that is correct in one of the two zones involved
 // in the transition, but it does not guarantee which.
+//
+// Date panics if loc is nil.
 func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) Time {
 	if loc == nil {
 		panic("time: missing Location in call to Date")
