@@ -46,13 +46,26 @@ func (b Blog) RenderHome(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	res.Write("<div class='columns-3'>")
+	columnCount := 0
+	rowBuffer := ""
 	b.PostsPublished.ReverseIterate("", "", func(key string, value any) bool {
 		post := value.(*Post)
-		res.Write(post.RenderListItem())
+		content := post.RenderListItem()
+
+		if columnCount > 0 {
+			rowBuffer += "\n|||\n"
+		}
+		rowBuffer += content
+		columnCount++
+
+		if columnCount == 3 {
+			res.Write("<gno-columns>\n" + rowBuffer + "\n</gno-columns>\n\n")
+			columnCount = 0
+			rowBuffer = ""
+		}
+
 		return false
 	})
-	res.Write("</div>")
 
 	// FIXME: tag list/cloud.
 }
@@ -295,15 +308,13 @@ func (p *Post) RenderListItem() string {
 	if p == nil {
 		return "error: no such post\n"
 	}
-	output := "<div>\n\n"
-	output += ufmt.Sprintf("### [%s](%s)\n", p.Title, p.URL())
+	output := ufmt.Sprintf("\n### [%s](%s)\n", p.Title, p.URL())
 	// output += ufmt.Sprintf("**[Learn More](%s)**\n\n", p.URL())
 
 	output += " " + p.CreatedAt.Format("02 Jan 2006")
 	// output += p.Summary() + "\n\n"
 	// output += p.RenderTagList() + "\n\n"
 	output += "\n"
-	output += "</div>"
 	return output
 }
 
