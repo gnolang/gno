@@ -55,7 +55,16 @@ func AddDapp(title, description, url, authorAddress string) seqid.ID {
 
 func UpdateDapp(dappID seqid.ID, title, description, url string, categories ...seqid.ID) {
 	if err := Auth.Do("update_dapp", func() error {
-		updateDapp(dappID, title, description, url, categories...)
+		updateDapp(dappID, title, description, url, []std.Address{}, categories...)
+		return nil
+	}); err != nil {
+		panic(err)
+	}
+}
+
+func UpdateDappsAuthors(dappID seqid.ID, authors []std.Address) {
+	if err := Auth.Do("update_dapps_authors", func() error {
+		updateDapp(dappID, "", "", "", authors, []seqid.ID{}...)
 		return nil
 	}); err != nil {
 		panic(err)
@@ -109,7 +118,7 @@ func addDapp(name, description, url string, author std.Address) seqid.ID {
 		ID:          nextDappID.Next(),
 		Title:       name,
 		Description: description,
-		Author:      author,
+		Authors:     []std.Address{author},
 		URL:         url,
 		CreatedAt:   time.Now(),
 		categories:  avl.NewTree(),
@@ -125,7 +134,7 @@ func addDapp(name, description, url string, author std.Address) seqid.ID {
 	return dapp.ID
 }
 
-func updateDapp(dappID seqid.ID, title, description, url string, categoryIDs ...seqid.ID) {
+func updateDapp(dappID seqid.ID, title, description, url string, authors []std.Address, categoryIDs ...seqid.ID) {
 	dapp, found := dapps.Get(dappID.String())
 	if !found {
 		panic("dApp not found: " + dappID.String())
@@ -141,6 +150,9 @@ func updateDapp(dappID seqid.ID, title, description, url string, categoryIDs ...
 	}
 	if url != "" {
 		d.URL = url
+	}
+	if len(authors) > 0 {
+		d.Authors = authors
 	}
 
 	if len(categoryIDs) > 0 {
@@ -164,8 +176,20 @@ func updateDapp(dappID seqid.ID, title, description, url string, categoryIDs ...
 		"title", d.Title,
 		"description", d.Description,
 		"url", d.URL,
+		"authors", authorsToString(d.Authors),
 		"categories", categoriesstr,
 	)
+}
+
+func authorsToString(authors []std.Address) string {
+	result := ""
+	for i, author := range authors {
+		if i > 0 {
+			result += ","
+		}
+		result += string(author)
+	}
+	return result
 }
 
 func deleteDapp(dappID seqid.ID) {

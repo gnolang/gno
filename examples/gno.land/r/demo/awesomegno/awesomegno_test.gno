@@ -53,6 +53,21 @@ func TestUpdateDapp(t *testing.T) {
 	})
 }
 
+func TestUpdateDappsAuthors(t *testing.T) {
+	t.Helper()
+	testing.SetOriginCaller(adminAddr)
+
+	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	validAddr2 := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf6")
+	id := AddDapp("Original Dapp", "Original description", "https://original.com", validAddr.String())
+
+	authors := []std.Address{validAddr, validAddr2}
+
+	urequire.NotPanics(t, func() {
+		UpdateDappsAuthors(id, authors)
+	})
+}
+
 func TestDeleteDapp(t *testing.T) {
 	t.Helper()
 	testing.SetOriginCaller(adminAddr)

@@ -20,7 +20,7 @@ type Dapp struct {
 	ID          seqid.ID
 	Title       string
 	Description string
-	Author      std.Address
+	Authors     []std.Address
 	URL         string
 	CreatedAt   time.Time
 	categories  *avl.Tree

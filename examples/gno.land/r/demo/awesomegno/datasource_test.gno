@@ -138,7 +138,7 @@ func TestDappRecord(t *testing.T) {
 		ID:          1,
 		Title:       "Test Dapp",
 		Description: "This is a test dapp",
-		Author:      addr,
+		Authors:     []std.Address{addr},
 		URL:         "https://test.com",
 		CreatedAt:   time.Now(),
 		categories:  categories,
@@ -152,9 +152,8 @@ func TestDappRecord(t *testing.T) {
 	fields, err := r.Fields()
 	urequire.NoError(t, err)
 
-	author, found := fields.Get("author")
-	urequire.True(t, found, "author field")
-	uassert.Equal(t, addr.String(), author)
+	authors, found := fields.Get("authors")
+	urequire.True(t, found, "authors field")
 
 	url, found := fields.Get("url")
 	urequire.True(t, found, "url field")

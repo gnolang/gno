@@ -120,8 +120,13 @@ func renderSingleDapp(id string) string {
 	out := md.H1(dapp.Title)
 	out += md.Paragraph(dapp.Description)
 
+	dappAuthors := []string{}
+	for _, author := range dapp.Authors {
+		dappAuthors = append(dappAuthors, author.String())
+	}
+
 	metadata := []string{
-		ufmt.Sprintf("Author: %s", dapp.Author),
+		ufmt.Sprintf("Authors: %s", strings.Join(dappAuthors, ", ")),
 		ufmt.Sprintf("Created: %s", dapp.CreatedAt.Format("2006-01-02")),
 		ufmt.Sprintf("URL: %s", md.Link("Visit Dapp", dapp.URL)),
 	}

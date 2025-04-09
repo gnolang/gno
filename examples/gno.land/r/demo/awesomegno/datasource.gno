@@ -46,7 +46,7 @@ func (r dappRecord) String() string { return r.dapp.Title }
 
 func (r dappRecord) Fields() (datasource.Fields, error) {
 	fields := avl.NewTree()
-	fields.Set("author", r.dapp.Author.String())
+	fields.Set("authors", r.dapp.Authors)
 	fields.Set("url", r.dapp.URL)
 	return fields, nil
 }
