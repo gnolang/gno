@@ -12,10 +12,10 @@ import (
 )
 
 var (
-	dapps     = avl.NewTree()
+	dapps      = avl.NewTree()
 	categories = avl.NewTree()
 
-	Dapps = rotree.Wrap(dapps, nil)
+	Dapps      = rotree.Wrap(dapps, nil)
 	Categories = rotree.Wrap(categories, nil)
 
 	nextDappID     seqid.ID
@@ -113,7 +113,7 @@ func addDapp(name, description, url string, author std.Address) seqid.ID {
 		CreatedAt:   time.Now(),
 		categories:  avl.NewTree(),
 	}
-	
+
 	dapps.Set(dapp.ID.String(), dapp)
 
 	std.Emit("DappAdded",
@@ -129,7 +129,7 @@ func updateDapp(dappID seqid.ID, title, description, url string, categoryIDs ...
 	if !found {
 		panic("dApp not found: " + dappID.String())
 	}
-	
+
 	var newTitle, newDescription, newURL string
 	if title != "" {
 		newTitle = title
@@ -153,7 +153,7 @@ func updateDapp(dappID seqid.ID, title, description, url string, categoryIDs ...
 			dapp.(*Dapp).categories.Set(categoryID.String(), category)
 		}
 	}
-	
+
 	dapp.(*Dapp).Title = newTitle
 	dapp.(*Dapp).Description = newDescription
 	dapp.(*Dapp).URL = newURL
@@ -175,7 +175,7 @@ func updateDapp(dappID seqid.ID, title, description, url string, categoryIDs ...
 func deleteDapp(dappID seqid.ID) {
 	dapp, found := dapps.Get(dappID.String())
 	if !found {
-		panic("dApp not found: " + dappID.String()	)
+		panic("dApp not found: " + dappID.String())
 	}
 
 	dapp.(*Dapp).categories.Iterate("", "", func(categoryID string, value any) bool {
@@ -213,7 +213,7 @@ func updateCategory(categoryID seqid.ID, name, description string) {
 	if !found {
 		panic("category not found: " + categoryID.String())
 	}
-	
+
 	var newName, newDescription string
 	if name != "" {
 		newName = name
@@ -226,7 +226,7 @@ func updateCategory(categoryID seqid.ID, name, description string) {
 	category.(*Category).Name = newName
 	category.(*Category).Description = newDescription
 
-	std.Emit("CategoryUpdated", 
+	std.Emit("CategoryUpdated",
 		"id", categoryID.String(),
 		"name", newName,
 		"description", newDescription,
