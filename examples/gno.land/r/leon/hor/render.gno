@@ -54,11 +54,6 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 	str := make([]string, len(page.Items))
 	for i, item := range page.Items {
 		itemValue := item.Value.(*Item)
-		str[i] += ufmt.Sprintf("### [%s](%s)\n",
-			itemValue.title,
-			strings.TrimPrefix(itemValue.pkgpath, "gno.land"),
-		)
-
 		str[i] += itemValue.Render(dashboard)
 	}
 
@@ -69,10 +64,15 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 }
 
 func (i Item) Render(dashboard bool) string {
+	out := ufmt.Sprintf("### [%s](%s)\n",
+		i.title,
+		strings.TrimPrefix(i.pkgpath, "gno.land"),
+	)
+
 	if i.description == "" {
 		i.description = "_No description provided._\n"
 	}
-	out := ufmt.Sprintf("%s\n\n", i.description)
+	out += ufmt.Sprintf("%s\n\n", i.description)
 
 	namespace := strings.Split(i.pkgpath, "/")[2]
 	user := users.ResolveAny(namespace)
