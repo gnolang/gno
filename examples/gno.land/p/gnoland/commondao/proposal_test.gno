@@ -281,7 +281,7 @@ func TestIsQuorumReached(t *testing.T) {
 				record.AddVote(v)
 			}
 
-			success := IsQuorumReached(tc.quorum, record.Readonly(), NewMemberSet(members))
+			success := IsQuorumReached(tc.quorum, record.Readonly(), NewMemberSet(&members))
 
 			if tc.fail {
 				uassert.False(t, success, "expect quorum to fail")

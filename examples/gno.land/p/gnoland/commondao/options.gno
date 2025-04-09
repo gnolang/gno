@@ -1,10 +1,6 @@
 package commondao
 
-import (
-	"std"
-
-	"gno.land/p/moul/addrset"
-)
+import "std"
 
 // Option configures the CommonDAO.
 type Option func(*CommonDAO)
@@ -60,14 +56,14 @@ func WithMember(addr std.Address) Option {
 	}
 }
 
-// WithMembers assigns multiple members to the DAO.
-// An empty member set is used by default when specified members set is nil.
-func WithMembers(members *addrset.Set) Option {
+// WithMemberStorage assigns a custom member storage to the DAO.
+// An empty member storage is used by default if the specified storage is nil.
+func WithMemberStorage(s MemberStorage) Option {
 	return func(dao *CommonDAO) {
-		if members == nil {
-			members = &addrset.Set{}
+		if s == nil {
+			s = NewMemberStorage()
 		}
-		dao.members = members
+		dao.members = s
 	}
 }
 

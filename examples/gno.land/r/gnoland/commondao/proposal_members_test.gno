@@ -227,7 +227,7 @@ func TestMembersPropDefinitionTally(t *testing.T) {
 				record.AddVote(v)
 			}
 
-			success, err := p.Tally(record.Readonly(), commondao.NewMemberSet(members))
+			success, err := p.Tally(record.Readonly(), commondao.NewMemberSet(&members))
 
 			if tc.err != nil {
 				urequire.ErrorIs(t, err, tc.err, "expect an error")
@@ -340,7 +340,9 @@ func TestMembersPropDefinitionExecute(t *testing.T) {
 			var i int
 			tc.dao.Members().IterateByOffset(0, tc.dao.Members().Size(), func(addr std.Address) bool {
 				urequire.Equal(t, tc.members[i], addr, "member address must match")
+
 				i++
+				return false
 			})
 		})
 	}

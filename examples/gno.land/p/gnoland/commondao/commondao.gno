@@ -30,7 +30,7 @@ type CommonDAO struct {
 	description       string
 	parent            *CommonDAO
 	children          list.IList
-	members           *addrset.Set // TODO: Consider saving members as groups, PR #3933
+	members           MemberStorage
 	genID             seqid.ID
 	activeProposals   ProposalStorage
 	finishedProposals ProposalStorage
@@ -108,7 +108,7 @@ func (dao *CommonDAO) TopParent() *CommonDAO {
 }
 
 // Members returns the list of DAO members.
-func (dao CommonDAO) Members() *addrset.Set {
+func (dao CommonDAO) Members() MemberStorage {
 	return dao.members
 }
 
@@ -246,7 +246,7 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 
 func (dao *CommonDAO) checkProposalPasses(p *Proposal) error {
 	record := p.VotingRecord().Readonly()
-	members := NewMemberSet(*dao.Members())
+	members := NewMemberSet(dao.Members())
 	passes, err := p.Definition().Tally(record, members)
 	if err != nil {
 		return err
