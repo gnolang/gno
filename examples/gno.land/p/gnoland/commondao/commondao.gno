@@ -189,7 +189,7 @@ func (dao *CommonDAO) Vote(member std.Address, proposalID uint64, c VoteChoice, 
 		return ErrProposalNotFound
 	}
 
-	if !p.IsValidVoteChoice(c) {
+	if !p.IsVoteChoiceValid(c) {
 		return ErrInvalidVoteChoice
 	}
 

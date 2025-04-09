@@ -213,8 +213,8 @@ func (p Proposal) Validate() error {
 	return nil
 }
 
-// IsValidVoteChoice checks if a vote choice is valid for the proposal.
-func (p Proposal) IsValidVoteChoice(c VoteChoice) bool { // TODO: Rename to IsVoteChoiceValid
+// IsVoteChoiceValid checks if a vote choice is valid for the proposal.
+func (p Proposal) IsVoteChoiceValid(c VoteChoice) bool {
 	return p.voteChoices.Has(string(c))
 }
 
