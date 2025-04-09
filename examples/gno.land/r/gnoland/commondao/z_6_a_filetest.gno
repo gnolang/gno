@@ -66,8 +66,8 @@ func init() {
 func main() {
 	commondao.Execute(dao.ID(), proposal.ID())
 
-	p, found := dao.GetFinishedProposal(proposal.ID())
-	if !found {
+	p := dao.FinishedProposals().Get(proposal.ID())
+	if p == nil {
 		panic("expected proposal to be finished")
 	}
 

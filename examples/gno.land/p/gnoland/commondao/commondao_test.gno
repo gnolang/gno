@@ -171,7 +171,7 @@ func TestCommonDAOPropose(t *testing.T) {
 
 			urequire.NoError(t, err)
 
-			_, found := dao.GetActiveProposal(p.ID())
+			found := dao.ActiveProposals().Has(p.ID())
 			urequire.True(t, found, "proposal not found")
 			uassert.Equal(t, p.Creator(), tc.creator)
 		})
@@ -258,8 +258,8 @@ func TestCommonDAOVote(t *testing.T) {
 
 			urequire.NoError(t, err)
 
-			p, found := dao.GetActiveProposal(tc.proposalID)
-			urequire.True(t, found, "proposal not found")
+			p := dao.ActiveProposals().Get(tc.proposalID)
+			urequire.NotEqual(t, nil, p, "proposal not found")
 
 			record := p.VotingRecord()
 			uassert.True(t, record.HasVoted(tc.member))
@@ -439,11 +439,11 @@ func TestCommonDAOExecute(t *testing.T) {
 
 			urequire.NoError(t, err, "expect no error")
 
-			_, found := dao.GetActiveProposal(tc.proposalID)
+			found := dao.ActiveProposals().Has(tc.proposalID)
 			urequire.False(t, found, "proposal should not be active")
 
-			p, found := dao.GetFinishedProposal(tc.proposalID)
-			urequire.True(t, found, "proposal must be found")
+			p := dao.FinishedProposals().Get(tc.proposalID)
+			urequire.NotEqual(t, nil, p, "proposal must be found")
 			uassert.Equal(t, string(p.Status()), string(tc.status), "status must match")
 			uassert.Equal(t, string(p.StatusReason()), string(tc.statusReason), "status reason must match")
 		})
