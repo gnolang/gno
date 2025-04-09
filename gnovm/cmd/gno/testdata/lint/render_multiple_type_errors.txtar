@@ -1,0 +1,22 @@
+# testing gno tool lint command: Render function with multiple type errors (wrong parameter and return types)
+
+! gno tool lint ./multiple_type_errors.gno
+
+cmp stdout stdout.golden
+cmp stderr stderr.golden
+
+-- multiple_type_errors.gno --
+package main
+
+// multiple type errors: wrong parameter type and wrong return type
+func Render(path int) int {
+	return path
+}
+
+-- gno.mod --
+module gno.land/p/test
+
+-- stdout.golden --
+-- stderr.golden --
+multiple_type_errors.gno:4: Render function parameter should be of type string, found: int type, expected: func Render(string) string (code=5)
+multiple_type_errors.gno:4: Render function should return a single string, found: int type: expected func Render(string) string (code=5)

@@ -60,6 +60,7 @@ const (
 	lintGnoError
 	lintParserError
 	lintTypeCheckError
+	lintRenderFuncSignature
 
 	// TODO: add new linter codes here.
 )
@@ -169,6 +170,11 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			tm.PreprocessFiles(memPkg.Name, memPkg.Path, packageFiles, false, false)
 		})
 		if hasRuntimeErr {
+			hasError = true
+		}
+
+		// ensure Render function signature matches what's expected
+		if renderErr := lintRenderSignature(io, memPkg); renderErr {
 			hasError = true
 		}
 	}
@@ -316,4 +322,94 @@ func issueFromError(pkgPath string, err error) lintIssue {
 		issue.Msg = err.Error()
 	}
 	return issue
+}
+
+// lintRenderSignature checks if a Render function in the package has the
+// expected signature: func Render(string) string
+func lintRenderSignature(io commands.IO, memPkg *gnovm.MemPackage) bool {
+	var (
+		hasError   bool
+		exp        = "func Render(string) string"
+		stringType = "string"
+
+		errParameterCount = func(count int) string {
+			return fmt.Sprintf("Render function should have exactly one parameter, found: %d parameters, expected: %s", count, exp)
+		}
+		errParameterType = func(t string) string {
+			return fmt.Sprintf("Render function parameter should be of type string, found: %s type, expected: %s", t, exp)
+		}
+		errReturnCount = func(count int) string {
+			return fmt.Sprintf("Render function should return exactly one string value, found: %d returns, expected: %s", count, exp)
+		}
+		errReturnType = func(t string) string {
+			return fmt.Sprintf("Render function should return a single string, found: %s type: expected %s", t, exp)
+		}
+		errPrintln = func(errMsg, file string, line int) {
+			hasError = true
+			io.ErrPrintln(lintIssue{
+				Code:       lintRenderFuncSignature,
+				Msg:        errMsg,
+				Confidence: 1,
+				Location:   fmt.Sprintf("%s:%d", file, line),
+			})
+		}
+	)
+
+	for _, file := range memPkg.Files {
+		if !strings.HasSuffix(file.Name, ".gno") {
+			continue
+		}
+
+		fileNode := gno.MustParseFile(file.Name, file.Body)
+		// we will likely panic before we return nil, but we continue for
+		// consistency
+		if fileNode == nil {
+			continue
+		}
+
+		for _, decl := range fileNode.Decls {
+			// ignore non-function declarations
+			funcDecl, ok := decl.(*gno.FuncDecl)
+			if !ok {
+				continue
+			}
+
+			// ignore non-Render functions
+			if funcDecl.NameExpr.Name.String() != "Render" {
+				continue
+			}
+
+			// ensure we have a single string parameter
+			n := len(funcDecl.Type.Params)
+			switch n {
+			case 1:
+				param := funcDecl.Type.Params[0]
+				paramType, ok := param.Type.(*gno.NameExpr)
+				if !ok || paramType.Name.String() != stringType {
+					msg := errParameterType(paramType.Name.String())
+					errPrintln(msg, file.Name, funcDecl.GetLine())
+				}
+			default:
+				msg := errParameterCount(n)
+				errPrintln(msg, file.Name, funcDecl.GetLine())
+			}
+
+			// ensure return type is a single string
+			n = len(funcDecl.Type.Results)
+			switch n {
+			case 1:
+				ret := funcDecl.Type.Results[0]
+				retType, ok := ret.Type.(*gno.NameExpr)
+				if !ok || retType.Name.String() != stringType {
+					msg := errReturnType(retType.Name.String())
+					errPrintln(msg, file.Name, funcDecl.GetLine())
+				}
+			default:
+				msg := errReturnCount(n)
+				errPrintln(msg, file.Name, funcDecl.GetLine())
+			}
+		}
+	}
+
+	return hasError
 }

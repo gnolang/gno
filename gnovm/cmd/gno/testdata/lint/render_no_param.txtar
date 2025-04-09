@@ -1,0 +1,21 @@
+# testing gno tool lint command: Render function with no parameter
+
+! gno tool lint ./no_param.gno
+
+cmp stdout stdout.golden
+cmp stderr stderr.golden
+
+-- no_param.gno --
+package test
+
+// no parameter
+func Render() string {
+	return "Hello World"
+}
+
+-- gno.mod --
+module gno.land/p/test
+
+-- stdout.golden --
+-- stderr.golden --
+no_param.gno:4: Render function should have exactly one parameter, found: 0 parameters, expected: func Render(string) string (code=5)
