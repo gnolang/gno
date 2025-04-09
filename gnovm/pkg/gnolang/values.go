@@ -715,7 +715,7 @@ func (mv *MapValue) GetLength() int {
 // do for structs and arrays for assigning new entries.  If key
 // doesn't exist, a new slot is created.
 func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedValue) PointerValue {
-	kmk := key.ComputeMapKey(store, false)
+	kmk := key.ComputeMapKey(store, false, mv)
 	if mli, ok := mv.vmap[kmk]; ok {
 		key2 := key.Copy(alloc)
 		return PointerValue{
@@ -739,7 +739,7 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 // Like GetPointerForKey, but does not create a slot if key
 // doesn't exist.
 func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue, ok bool) {
-	kmk := key.ComputeMapKey(store, false)
+	kmk := key.ComputeMapKey(store, false, mv)
 	if mli, exists := mv.vmap[kmk]; exists {
 		fillValueTV(store, &mli.Value)
 		val, ok = mli.Value, true
@@ -748,7 +748,7 @@ func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue
 }
 
 func (mv *MapValue) DeleteForKey(store Store, key *TypedValue) {
-	kmk := key.ComputeMapKey(store, false)
+	kmk := key.ComputeMapKey(store, false, mv)
 	if mli, ok := mv.vmap[kmk]; ok {
 		mv.List.Remove(mli)
 		delete(mv.vmap, kmk)
@@ -1472,7 +1472,24 @@ func randNaN32() uint32 {
 	return rand.Uint32()&^uvnan32 | uvnan32 //nolint:gosec
 }
 
-func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
+// IsMapKey returns true if tv is an existing key of map mv, false otherwise.
+func (tv *TypedValue) IsMapKey(mv *MapValue) bool {
+	if mv == nil || mv.vmap == nil {
+		return false
+	}
+
+	b := make([]byte, 0, 64)
+	b = append(b, tv.T.TypeID().Bytes()...)
+	b = append(b, ':')
+	b = append(b, tv.PrimitiveBytes()...)
+
+	_, exists := mv.vmap[MapKey(b)]
+	return exists
+}
+
+const maxNaNTries = 100 // maxNaNTries is the maximum number of tries when generating unique NaN.
+
+func (tv *TypedValue) ComputeMapKey(store Store, omitType bool, mv *MapValue) MapKey {
 	// Special case when nil: has no separator.
 	if tv.T == nil {
 		if debug {
@@ -1495,7 +1512,17 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 			if f != f {
 				// If NaN, shuffle its value, thus allowing several NaN per map
 				// and ensuring that a value cannot be retrieved by NaN.
-				tv.SetFloat64(randNaN64())
+				// The value is guarranted to be an unique key in map mv, or we
+				// panic if it could not be generated in less than n tries.
+				for i := 0; ; i++ {
+					tv.SetFloat64(randNaN64())
+					if !tv.IsMapKey(mv) {
+						break
+					}
+					if i == maxNaNTries {
+						panic("Could not generate a unique NaN map index value")
+					}
+				}
 			} else if f == 0.0 {
 				// If zero, clear the sign, so +0.0 and -0.0 match the same key.
 				tv.SetFloat64(math.Float64bits(+0.0))
@@ -1505,7 +1532,17 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 			if f != f {
 				// If NaN, shuffle its value, thus allowing several NaN per map
 				// and ensuring that a value cannot be retrieved by NaN.
-				tv.SetFloat32(randNaN32())
+				// The value is guarranted to be an unique key in map mv, or we
+				// panic if it could not be generated in less than n tries.
+				for i := 0; ; i++ {
+					tv.SetFloat32(randNaN32())
+					if !tv.IsMapKey(mv) {
+						break
+					}
+					if i == maxNaNTries {
+						panic("Could not generate a unique NaN map index value")
+					}
+				}
 			} else if f == 0.0 {
 				// If zero, clear the sign, so +0.0 and -0.0 match the same key.
 				tv.SetFloat32(math.Float32bits(+0.0))
@@ -1527,7 +1564,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 			omitTypes := bt.Elem().Kind() != InterfaceKind
 			for i := 0; i < al; i++ {
 				ev := fillValueTV(store, &av.List[i])
-				bz = append(bz, ev.ComputeMapKey(store, omitTypes)...)
+				bz = append(bz, ev.ComputeMapKey(store, omitTypes, nil)...)
 				if i != al-1 {
 					bz = append(bz, ',')
 				}
@@ -1545,7 +1582,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		for i := 0; i < sl; i++ {
 			fv := fillValueTV(store, &sv.Fields[i])
 			omitTypes := bt.Fields[i].Type.Kind() != InterfaceKind
-			bz = append(bz, fv.ComputeMapKey(store, omitTypes)...)
+			bz = append(bz, fv.ComputeMapKey(store, omitTypes, nil)...)
 			if i != sl-1 {
 				bz = append(bz, ',')
 			}
