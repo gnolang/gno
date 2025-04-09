@@ -1,33 +1,29 @@
 package commondao
 
-import (
-	"std"
-
-	"gno.land/p/moul/addrset"
-)
+import "std"
 
 // NewMemberSet creates a new readonly memberset.
-func NewMemberSet(members addrset.Set) MemberSet { // TODO: Use an interface instead of addrset.Set
-	return MemberSet{members}
+func NewMemberSet(s MemberStorage) MemberSet {
+	return MemberSet{s}
 }
 
 // MemberSet contains a readonly list of member addresses.
 type MemberSet struct {
-	members addrset.Set
+	storage MemberStorage
 }
 
 // Size returns the number of addresses in the set.
 func (s MemberSet) Size() int {
-	return s.members.Size()
+	return s.storage.Size()
 }
 
 // Has checks if an address exists in the set.
 func (s MemberSet) Has(member std.Address) bool {
-	return s.members.Has(member)
+	return s.storage.Has(member)
 }
 
 // IterateByOffset walks through addresses starting at the given offset.
 // The callback should return true to stop iteration.
 func (s MemberSet) IterateByOffset(offset, count int, fn func(std.Address) bool) {
-	s.members.IterateByOffset(offset, count, fn)
+	s.storage.IterateByOffset(offset, count, fn)
 }
