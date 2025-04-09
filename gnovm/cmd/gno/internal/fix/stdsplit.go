@@ -140,12 +140,10 @@ func stdsplit(f *ast.File) (fixed bool) {
 				}
 				target, ok := splitFuncs[joined]
 				if !ok {
-					if ip == "std" {
-						panic(fmt.Errorf(
-							"file contains function std.%s that cannot be converted",
-							n.Sel.Name,
-						))
-					}
+					// There's nothing to convert.
+					// NOTE: this is also the case for some outright removed
+					// functions, but these will error in lint and the user can
+					// fix them.
 					break
 				}
 				ident := target.ident
