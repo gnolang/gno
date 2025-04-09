@@ -26,7 +26,6 @@ func Render(_ string) string {
 	out += renderAboutMe()
 	out += renderArt()
 	out += config.Banner()
-	out += "\n\n"
 
 	return out
 }
