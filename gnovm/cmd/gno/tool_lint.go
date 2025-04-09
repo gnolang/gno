@@ -326,6 +326,7 @@ func issueFromError(pkgPath string, err error) lintIssue {
 
 // lintRenderSignature checks if a Render function in the package has the
 // expected signature: func Render(string) string
+// Methods are ignored (e.g., func (t *Type) Render()).
 func lintRenderSignature(io commands.IO, memPkg *gnovm.MemPackage) bool {
 	var (
 		hasError   bool
@@ -360,14 +361,14 @@ func lintRenderSignature(io commands.IO, memPkg *gnovm.MemPackage) bool {
 			continue
 		}
 
-		fileNode := gno.MustParseFile(file.Name, file.Body)
+		fn := gno.MustParseFile(file.Name, file.Body)
 		// we will likely panic before we return nil, but we continue for
 		// consistency
-		if fileNode == nil {
+		if fn == nil {
 			continue
 		}
 
-		for _, decl := range fileNode.Decls {
+		for _, decl := range fn.Decls {
 			// ignore non-function declarations
 			funcDecl, ok := decl.(*gno.FuncDecl)
 			if !ok {
@@ -376,6 +377,11 @@ func lintRenderSignature(io commands.IO, memPkg *gnovm.MemPackage) bool {
 
 			// ignore non-Render functions
 			if funcDecl.NameExpr.Name.String() != "Render" {
+				continue
+			}
+
+			// ignore methods
+			if funcDecl.IsMethod {
 				continue
 			}
 

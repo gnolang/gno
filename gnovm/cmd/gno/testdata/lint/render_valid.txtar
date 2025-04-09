@@ -8,6 +8,12 @@ cmp stdout stderr.golden
 -- valid_render.gno --
 package test
 
+type Test struct{}
+// valid as well since it contains a receiver
+func (t *Test) Render(n int) int {
+    return n
+}
+
 // valid Render
 func Render(path string) string {
 	return "Hello World"
