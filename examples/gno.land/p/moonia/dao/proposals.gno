@@ -63,7 +63,6 @@ func (ps *ProposalStore) CloseProposal(indexStr string) string {
 	return "Proposal '" + p.Title + "' has been closed."
 }
 
-// gnokey maketx call -pkgpath "gno.land/r/moonia/home" -func "Vote" -args "0" -args "true" -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid "dev" -remote "tcp://127.0.0.1:26657" g15dz69sch7fkhc9gk57hpe4qea77thmy20apu9x
 func (ps *ProposalStore) Vote(indexStr string, voteYesStr string) string {
 	index := utils.ParseIndex(indexStr, len(ps.Proposals))
 	voteYes := voteYesStr == "true"
@@ -126,7 +125,6 @@ func (ps *ProposalStore) ShowProposals() string {
 	return activeOut + "\n" + closedOut
 }
 
-// gnokey maketx call -pkgpath "gno.land/r/moonia/home" -func "EditProposal" -args "2" -args "hehehehe" -args "hihihihi" -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid "dev" -remote "tcp://127.0.0.1:26657" g15dz69sch7fkhc9gk57hpe4qea77thmy20apu9x
 func (ps *ProposalStore) EditProposal(indexStr, newTitle, newDescription string) string {
 	index := utils.ParseIndex(indexStr, len(ps.Proposals))
 	p := &ps.Proposals[index]
@@ -141,7 +139,6 @@ func (ps *ProposalStore) EditProposal(indexStr, newTitle, newDescription string)
 	return "Proposal updated: " + newTitle + newDescription
 }
 
-// gnokey maketx call -pkgpath "gno.land/r/moonia/home" -func "GetProposal" -args "0" -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid "dev" -remote "tcp://127.0.0.1:26657" g15dz69sch7fkhc9gk57hpe4qea77thmy20apu9x
 func (ps *ProposalStore) GetProposal(indexStr string) Proposal {
 	index := utils.ParseIndex(indexStr, len(ps.Proposals))
 	return ps.Proposals[index]
