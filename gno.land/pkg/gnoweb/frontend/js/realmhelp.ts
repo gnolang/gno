@@ -49,12 +49,12 @@ class Help {
     this.bindEvents();
   }
 
-  private restoreValue(storageKey: string, inputElement: HTMLInputElement | HTMLSelectElement | null, updateCallback: ((value: string) => void)): void {
+  private restoreValue(storageKey: string, inputElement: HTMLInputElement | HTMLSelectElement | null, updateCallback: (value: string) => void): void {
     if (inputElement) {
       const storedValue = localStorage.getItem(storageKey);
       if (storedValue) {
         inputElement.value = storedValue;
-        if (updateCallback) updateCallback(storedValue);
+        updateCallback(storedValue);
       }
     }
   }
