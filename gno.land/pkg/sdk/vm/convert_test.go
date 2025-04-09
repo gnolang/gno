@@ -2,7 +2,6 @@ package vm
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -102,7 +101,7 @@ func TestConvertJSONValuePrimtive(t *testing.T) {
 
 			tv := tps[0]
 
-			rep := JSONPrimitiveValue(m, tv)
+			rep := stringifyJSONPrimitiveValue(m, tv)
 			require.Equal(t, tc.Expected, rep)
 		})
 	}
@@ -123,6 +122,7 @@ func (e *E) Error() string { return e.S }
 		defer m.Release()
 
 		const expected = "null"
+
 		nn := gnolang.MustParseFile("struct.gno", StructsFile)
 		m.RunFiles(nn)
 		nn = gnolang.MustParseFile("testdata.gno", `package testdata; var Value *E = nil`)
@@ -133,7 +133,7 @@ func (e *E) Error() string { return e.S }
 		require.Len(t, tps, 1)
 
 		tv := tps[0]
-		rep := JSONPrimitiveValue(m, tv)
+		rep := stringifyJSONPrimitiveValue(m, tv)
 		require.Equal(t, expected, rep)
 	})
 
@@ -141,11 +141,13 @@ func (e *E) Error() string { return e.S }
 		m := gnolang.NewMachine("testdata", nil)
 		defer m.Release()
 
-		const expected = "Hello World"
+		const value = "Hello World"
+		const expected = `{"$error":"Hello World"}`
+
 		nn := gnolang.MustParseFile("struct.gno", StructsFile)
 		m.RunFiles(nn)
 		nn = gnolang.MustParseFile("testdata.gno",
-			fmt.Sprintf(`package testdata; var Value = E{%q}`, expected))
+			fmt.Sprintf(`package testdata; var Value = E{%q}`, value))
 		m.RunFiles(nn)
 		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
 
@@ -153,19 +155,22 @@ func (e *E) Error() string { return e.S }
 		require.Len(t, tps, 1)
 
 		tv := tps[0]
-		rep := JSONPrimitiveValue(m, tv)
-		require.Equal(t, strconv.Quote(expected), rep)
+		fmt.Println(tv.String())
+		rep := stringifyJSONPrimitiveValue(m, tv)
+		require.Equal(t, expected, rep)
 	})
 
 	t.Run("with pointer", func(t *testing.T) {
 		m := gnolang.NewMachine("testdata", nil)
 		defer m.Release()
 
-		const expected = "Hello World"
+		const value = "Hello World"
+		const expected = `{"$error":"Hello World"}`
+
 		nn := gnolang.MustParseFile("struct.gno", StructsFile)
 		m.RunFiles(nn)
 		nn = gnolang.MustParseFile("testdata.gno",
-			fmt.Sprintf(`package testdata; var Value = &E{%q}`, expected))
+			fmt.Sprintf(`package testdata; var Value = &E{%q}`, value))
 		m.RunFiles(nn)
 		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
 
@@ -173,8 +178,8 @@ func (e *E) Error() string { return e.S }
 		require.Len(t, tps, 1)
 
 		tv := tps[0]
-		rep := JSONPrimitiveValue(m, tv)
-		require.Equal(t, strconv.Quote(expected), rep)
+		rep := stringifyJSONPrimitiveValue(m, tv)
+		require.Equal(t, expected, rep)
 	})
 }
 
@@ -217,6 +222,55 @@ func TestConvertJSONValuesList(t *testing.T) {
 			tpvs := tps[0].V.(*gnolang.SliceValue).Base.(*gnolang.ArrayValue).List
 			rep := stringifyJSONPrimitiveValues(m, tpvs)
 			require.Equal(t, tc.Expected, rep)
+		})
+	}
+}
+
+func TestConvertError(t *testing.T) {
+	cases := []struct {
+		ValueRep string // Go representation
+		Expected string // string representation
+	}{
+		{
+			"my error",
+			`{ "$error": "my error" }`,
+		},
+		{
+			"", // empty error
+			`{ "$error": "" }`,
+		},
+		{
+			"special error }",
+			`{ "$error": "my error }" }`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.ValueRep, func(t *testing.T) {
+			m := gnolang.NewMachine("testdata", nil)
+			defer m.Release()
+
+			nn := gnolang.MustParseFile("testdata.gno",
+				fmt.Sprintf(`
+package testdata
+
+type myError struct { }
+
+func (err myError) Error() string { return %q }
+
+var Value error = &myError{}
+`, tc.ValueRep))
+
+			m.RunFiles(nn)
+			m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+			tps := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+			require.Len(t, tps, 1)
+
+			tv := tps[0]
+			rep := stringifyJSONPrimitiveValue(m, tv)
+			require.Equal(t, tc.Expected, rep)
+
 		})
 	}
 }

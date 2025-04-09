@@ -835,7 +835,7 @@ func stringifyResultValues(m *gno.Machine, format QueryFormat, values []gno.Type
 				return tv.GetString()
 			}
 		case *gno.PointerType:
-			if tv.IsStringer() {
+			if tv.ImplStringer() {
 				res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: tv}, "String")))
 				return strconv.Quote(res[0].GetString())
 			}

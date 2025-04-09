@@ -216,14 +216,14 @@ func stringifyJSONPrimitiveValues(m *gno.Machine, tvs []gno.TypedValue) string {
 		if i > 0 {
 			str.WriteRune(',')
 		}
-		str.WriteString(JSONPrimitiveValue(m, tv))
+		str.WriteString(stringifyJSONPrimitiveValue(m, tv))
 	}
 	str.WriteRune(']')
 
 	return str.String()
 }
 
-func JSONPrimitiveValue(m *gno.Machine, tv gno.TypedValue) string {
+func stringifyJSONPrimitiveValue(m *gno.Machine, tv gno.TypedValue) string {
 	if tv.T == nil {
 		return "null"
 	}
@@ -255,7 +255,7 @@ func JSONPrimitiveValue(m *gno.Machine, tv gno.TypedValue) string {
 	}
 
 	if err, ok := tryGetError(m, tv); ok {
-		return fmt.Sprintf(`{ "$error": %q }`, err)
+		return fmt.Sprintf(`{"$error":%q}`, err)
 	}
 
 	var oid gno.ObjectID
@@ -323,7 +323,7 @@ func tryGetError(m *gno.Machine, tv gno.TypedValue) (string, bool) {
 	// If implements .Error(), return this
 	if ptv.ImplError() {
 		res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: ptv}, "Error")))
-		return strconv.Quote(res[0].GetString()), true
+		return res[0].GetString(), true
 	}
 
 	return "", false
