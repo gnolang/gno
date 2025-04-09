@@ -19,14 +19,11 @@ var (
 	abtMe      [2]string
 )
 
-func Render(path string) string {
+func Render(_ string) string {
 	out := "# Leon's Homepage\n\n"
 
 	out += renderAboutMe()
-	out += renderBlogPosts()
-	out += "\n\n"
 	out += renderArt()
-	out += "\n\n"
 	out += config.Banner()
 	out += "\n\n"
 
@@ -69,66 +66,46 @@ func UpdateAboutMe(col1, col2 string) {
 	abtMe[1] = col2
 }
 
+func renderAboutMe() string {
+	out := "<gno-columns>\n"
+	out += ufmt.Sprintf("![my profile pic](%s)\n\n%s\n", pfp, pfpCaption)
+	out += "|||\n"
+	out += abtMe[0] + "\n"
+	out += "|||\n"
+	out += abtMe[1] + "\n"
+	out += "</gno-columns>\n"
+
+	return out
+}
+
+func renderArt() string {
+	out := "# Gno Art\n"
+	out += "<gno-columns>\n"
+	out += gnoface.Render(strconv.Itoa(int(std.ChainHeight())))
+	out += "|||\n"
+	out += renderMillipede()
+	out += "|||\n"
+	out += "Empty spot :/"
+	out += "\n"
+	out += "</gno-columns>\n\n"
+
+	out += "This art is dynamic; it will change with every new block.\n\n"
+
+	return out
+}
+
+func renderMillipede() string {
+	out := "Millipede\n\n"
+	out += "```\n" + millipede.Draw(int(std.ChainHeight())%10+1) + "```\n"
+
+	return out
+}
+
 func renderBlogPosts() string {
 	out := ""
 	// out += "## Leon's Blog Posts"
 
 	// todo fetch blog posts authored by @leohhhn
 	// and render them
-	return out
-}
-
-func renderAboutMe() string {
-	out := "<div class='columns-3'>"
-
-	out += "<div>\n\n"
-	out += ufmt.Sprintf("![my profile pic](%s)\n\n%s\n\n", pfp, pfpCaption)
-	out += "</div>\n\n"
-
-	out += "<div>\n\n"
-	out += abtMe[0] + "\n\n"
-	out += "</div>\n\n"
-
-	out += "<div>\n\n"
-	out += abtMe[1] + "\n\n"
-	out += "</div>\n\n"
-
-	out += "</div><!-- /columns-3 -->\n\n"
-
-	return out
-}
-
-func renderArt() string {
-	out := `<div class="jumbotron">` + "\n\n"
-	out += "# Gno Art\n\n"
-
-	out += "<div class='columns-3'>"
-
-	out += renderGnoFace()
-	out += renderMillipede()
-	out += "Empty spot :/"
-
-	out += "</div><!-- /columns-3 -->\n\n"
-
-	out += "This art is dynamic; it will change with every new block.\n\n"
-	out += `</div><!-- /jumbotron -->` + "\n"
-
-	return out
-}
-
-func renderGnoFace() string {
-	out := "<div>\n\n"
-	out += gnoface.Render(strconv.Itoa(int(std.ChainHeight())))
-	out += "</div>\n\n"
-
-	return out
-}
-
-func renderMillipede() string {
-	out := "<div>\n\n"
-	out += "Millipede\n\n"
-	out += "```\n" + millipede.Draw(int(std.ChainHeight())%10+1) + "```\n"
-	out += "</div>\n\n"
-
 	return out
 }
