@@ -1,4 +1,4 @@
-package hof
+package hor
 
 import (
 	"net/url"
@@ -10,28 +10,24 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
+
 	"gno.land/r/sys/users"
 )
 
-const (
-	colsPerRow = 3
-)
+const colsPerRow = 3
 
 func Render(path string) string {
-	out := md.H1("Hall of Fame\n\n")
-	out += md.Link("Reset Sort", "?") + " | "
-	out += md.Link("Sort by Upvotes", "?sort=upvotes") + " | "
-	out += md.Link("Sort by Downvotes", "?sort=downvotes") + " | "
-	out += md.Link("Sort by Most Recent", "?sort=creation") + " | "
-	out += md.Link("Sort by Oldest", "?sort=oldest") + "\n\n"
+	out := md.H1("The Hall of Realms\n\n")
+
+	out += renderAbout()
 
 	dashboardEnabled := path == "dashboard"
-
 	if dashboardEnabled {
 		out += renderDashboard()
 	}
 
 	out += exhibition.Render(path, dashboardEnabled)
+	out += renderActions(path)
 
 	return out
 }
@@ -53,23 +49,27 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 	str := make([]string, len(page.Items))
 	for i, item := range page.Items {
 		itemValue := item.Value.(*Item)
-		str[i] += ufmt.Sprintf("### %d - %s\n", int(itemValue.id), itemValue.title)
+		str[i] += ufmt.Sprintf("### [%s](%s)\n",
+			itemValue.title,
+			strings.TrimPrefix(itemValue.pkgpath, "gno.land"),
+		)
+
 		str[i] += itemValue.Render(dashboard)
 	}
 
 	out += md.ColumnsN(str, colsPerRow, true)
-	out += page.Picker(path)
+	out += md.H3(page.Picker(path))
 
 	return out
 }
 
 func (i Item) Render(dashboard bool) string {
-	out := ufmt.Sprintf("\n%s\n\n", md.CodeBlock(i.pkgpath))
-	//out := ufmt.Sprintf("\n%s\n\n", i.pkgpath)
+	//out := ufmt.Sprintf("\n%s\n\n", md.CodeBlock(i.pkgpath))
+
 	if i.description == "" {
 		i.description = "_No description provided._\n"
 	}
-	out += ufmt.Sprintf("%s\n\n", i.description)
+	out := ufmt.Sprintf("%s\n\n", i.description)
 
 	namespace := strings.Split(i.pkgpath, "/")[2]
 	user := users.ResolveAny(namespace)
@@ -78,7 +78,7 @@ func (i Item) Render(dashboard bool) string {
 	}
 	out += ufmt.Sprintf("by %s\n\n", namespace)
 
-	out += md.Link("View Realm", strings.TrimPrefix(i.pkgpath, "gno.land")) + "\n\n"
+	//out += md.Link(i.pkgpath, strings.TrimPrefix(i.pkgpath, "gno.land")) + "\n\n"
 
 	blockMsg := "Submitted via the [Monorepo](https://github.com/gnolang/gno)"
 	if i.blockNum > 0 {
@@ -111,6 +111,7 @@ func renderDashboard() string {
 		out += md.Link("Unpause exhibition", txlink.Call("Unpause"))
 	}
 
+	out += "\n\n"
 	out += md.HorizontalRule()
 
 	return out
@@ -149,4 +150,39 @@ func getTreeByPath(e *Exhibition, path string) *avl.Tree {
 	default:
 		return e.items
 	}
+}
+
+func renderAbout() string {
+	out := `
+Welcome, gnome, to the Hall of Realms!
+
+The Hall of Realms is a simple & permissionless dashboard for gnomes to share 
+their work with the community.
+
+Here, anyone is welcome to submit their own realms. Simply add a call to the Registry  
+
+
+---
+
+`
+
+	return out
+}
+
+func renderActions(path string) string {
+	out := md.Link("Reset Sort", "?") + " | "
+	out += md.Link("Sort by Upvotes", "?sort=upvotes") + " | "
+	out += md.Link("Sort by Downvotes", "?sort=downvotes") + " | "
+	out += md.Link("Sort by Most Recent", "?sort=creation") + " | "
+	out += md.Link("Sort by Oldest", "?sort=oldest") + " | "
+
+	if !strings.Contains(path, "dashboard") {
+		out += md.Link("Dashboard", "/r/leon/hof:dashboard") + "\n\n"
+	} else {
+		out += md.Link("Dashboard off", "/r/leon/hof") + "\n\n"
+	}
+
+	out += md.HorizontalRule()
+
+	return out
 }

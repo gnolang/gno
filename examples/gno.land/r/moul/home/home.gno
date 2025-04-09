@@ -9,7 +9,7 @@ import (
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/moul/web25"
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 	"gno.land/r/moul/config"
 )
 

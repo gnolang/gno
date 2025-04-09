@@ -10,7 +10,7 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/addrset"
 	"gno.land/p/moul/md"
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 	"gno.land/r/mouss/config"
 )
 

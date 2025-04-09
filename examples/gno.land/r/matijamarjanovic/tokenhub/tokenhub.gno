@@ -9,7 +9,7 @@ import (
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/r/demo/grc20reg"
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 )
 
 type GRC1155TokenInfo struct {

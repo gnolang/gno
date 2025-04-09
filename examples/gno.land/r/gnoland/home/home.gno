@@ -9,7 +9,7 @@ import (
 	"gno.land/p/moul/dynreplacer"
 	blog "gno.land/r/gnoland/blog"
 	"gno.land/r/gnoland/events"
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 )
 
 var (

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 )
 
 const (

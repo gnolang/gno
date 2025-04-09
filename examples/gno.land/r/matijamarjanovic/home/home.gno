@@ -6,7 +6,7 @@ import (
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 )
 
 var (
