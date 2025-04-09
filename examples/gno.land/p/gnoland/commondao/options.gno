@@ -70,3 +70,27 @@ func WithMembers(members *addrset.Set) Option {
 		dao.members = members
 	}
 }
+
+// WithActiveProposalStorage assigns a custom storage for active proposals.
+// A default empty proposal storage is used when the custopm storage is nil.
+// Custom storage implementations can be used to store proposals in a different location.
+func WithActiveProposalStorage(s ProposalStorage) Option {
+	return func(dao *CommonDAO) {
+		if s == nil {
+			s = NewProposalStorage()
+		}
+		dao.activeProposals = s
+	}
+}
+
+// WithFinishedProposalStorage assigns a custom storage for finished proposals.
+// A default empty proposal storage is used when the custopm storage is nil.
+// Custom storage implementations can be used to store proposals in a different location.
+func WithFinishedProposalStorage(s ProposalStorage) Option {
+	return func(dao *CommonDAO) {
+		if s == nil {
+			s = NewProposalStorage()
+		}
+		dao.finishedProposals = s
+	}
+}

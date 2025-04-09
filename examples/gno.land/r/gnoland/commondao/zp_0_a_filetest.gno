@@ -34,8 +34,8 @@ func init() {
 func main() {
 	pID := commondao.CreateMembersUpdateProposal(dao.ID(), "", newMembers, removeMembers)
 
-	p, found := dao.GetActiveProposal(pID)
-	if !found {
+	p := dao.ActiveProposals().Get(pID)
+	if p == nil {
 		panic("expected proposal to be created")
 	}
 

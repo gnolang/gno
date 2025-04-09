@@ -5,9 +5,7 @@ import (
 	"std"
 	"time"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/demo/avl/list"
-	"gno.land/p/demo/avl/rotree"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/moul/addrset"
 )
@@ -25,27 +23,26 @@ var (
 )
 
 // CommonDAO defines a DAO.
-// TODO: Support optional storage of proposals in a different location
 type CommonDAO struct {
-	id          uint64
-	slug        string
-	name        string
-	description string
-	parent      *CommonDAO
-	children    list.IList
-	members     *addrset.Set // TODO: Consider saving members as groups, PR #3933
-	genID       seqid.ID
-	active      *avl.Tree // string(proposal ID) -> *Proposal
-	finished    *avl.Tree // string(proposal ID) -> *Proposal
+	id                uint64
+	slug              string
+	name              string
+	description       string
+	parent            *CommonDAO
+	children          list.IList
+	members           *addrset.Set // TODO: Consider saving members as groups, PR #3933
+	genID             seqid.ID
+	activeProposals   ProposalStorage
+	finishedProposals ProposalStorage
 }
 
 // New creates a new common DAO.
 func New(options ...Option) *CommonDAO {
 	dao := &CommonDAO{
-		members:  &addrset.Set{},
-		children: &list.List{},
-		active:   avl.NewTree(),
-		finished: avl.NewTree(),
+		members:           &addrset.Set{},
+		children:          &list.List{},
+		activeProposals:   NewProposalStorage(),
+		finishedProposals: NewProposalStorage(),
 	}
 	for _, apply := range options {
 		apply(dao)
@@ -115,14 +112,14 @@ func (dao CommonDAO) Members() *addrset.Set {
 	return dao.members
 }
 
-// ActiveProposals returns all active DAO proposals.
-func (dao CommonDAO) ActiveProposals() rotree.IReadOnlyTree {
-	return dao.active
+// ActiveProposals returns active DAO proposals.
+func (dao CommonDAO) ActiveProposals() ProposalStorage {
+	return dao.activeProposals
 }
 
-// FinishedProposalsi returns all finished DAO proposals.
-func (dao CommonDAO) FinishedProposals() rotree.IReadOnlyTree {
-	return dao.finished
+// FinishedProposalsi returns finished DAO proposals.
+func (dao CommonDAO) FinishedProposals() ProposalStorage {
+	return dao.finishedProposals
 }
 
 // Propose creates a new DAO proposal.
@@ -137,8 +134,7 @@ func (dao *CommonDAO) Propose(creator std.Address, d ProposalDefinition) (*Propo
 		return nil, err
 	}
 
-	key := makeProposalKey(p.ID())
-	dao.active.Set(key, p)
+	dao.activeProposals.Add(p)
 	return p, nil
 }
 
@@ -151,31 +147,13 @@ func (dao *CommonDAO) MustPropose(creator std.Address, d ProposalDefinition) *Pr
 	return p
 }
 
-// GetActiveProposal returns an active proposal.
-func (dao CommonDAO) GetActiveProposal(proposalID uint64) (_ *Proposal, found bool) {
-	key := makeProposalKey(proposalID)
-	if v, ok := dao.active.Get(key); ok {
-		return v.(*Proposal), true
+// GetProposal returns a proposal or nil when proposal is not found.
+func (dao CommonDAO) GetProposal(proposalID uint64) *Proposal {
+	p := dao.activeProposals.Get(proposalID)
+	if p != nil {
+		return p
 	}
-	return nil, false
-}
-
-// GetFinishedProposal returns a finished proposal.
-func (dao CommonDAO) GetFinishedProposal(proposalID uint64) (_ *Proposal, found bool) {
-	key := makeProposalKey(proposalID)
-	if v, ok := dao.finished.Get(key); ok {
-		return v.(*Proposal), true
-	}
-	return nil, false
-}
-
-// GetProposal returns an proposal.
-func (dao CommonDAO) GetProposal(proposalID uint64) (p *Proposal, found bool) {
-	p, found = dao.GetActiveProposal(proposalID)
-	if !found {
-		return dao.GetFinishedProposal(proposalID)
-	}
-	return p, found
+	return dao.finishedProposals.Get(proposalID)
 }
 
 // Vote submits a new vote for a proposal.
@@ -184,8 +162,8 @@ func (dao *CommonDAO) Vote(member std.Address, proposalID uint64, c VoteChoice, 
 		return ErrNotMember
 	}
 
-	p, found := dao.GetActiveProposal(proposalID)
-	if !found {
+	p := dao.activeProposals.Get(proposalID)
+	if p == nil {
 		return ErrProposalNotFound
 	}
 
@@ -203,8 +181,8 @@ func (dao *CommonDAO) Vote(member std.Address, proposalID uint64, c VoteChoice, 
 
 // Tally counts votes and validates if a proposal passes.
 func (dao *CommonDAO) Tally(proposalID uint64) (passes bool, _ error) {
-	p, found := dao.GetActiveProposal(proposalID)
-	if !found {
+	p := dao.activeProposals.Get(proposalID)
+	if p == nil {
 		return false, ErrProposalNotFound
 	}
 
@@ -224,8 +202,8 @@ func (dao *CommonDAO) Tally(proposalID uint64) (passes bool, _ error) {
 
 // Execute executes a proposal.
 func (dao *CommonDAO) Execute(proposalID uint64) error {
-	p, found := dao.GetActiveProposal(proposalID)
-	if !found {
+	p := dao.activeProposals.Get(proposalID)
+	if p == nil {
 		return ErrProposalNotFound
 	}
 
@@ -261,9 +239,8 @@ func (dao *CommonDAO) Execute(proposalID uint64) error {
 
 	// Whichever the outcome of the validation, tallying
 	// and execution consider the proposal finished.
-	key := makeProposalKey(p.id)
-	dao.active.Remove(key)
-	dao.finished.Set(key, p)
+	dao.activeProposals.Remove(p.id)
+	dao.finishedProposals.Add(p)
 	return nil
 }
 
@@ -279,8 +256,4 @@ func (dao *CommonDAO) checkProposalPasses(p *Proposal) error {
 		return ErrProposalFailed
 	}
 	return nil
-}
-
-func makeProposalKey(id uint64) string {
-	return seqid.ID(id).String()
 }
