@@ -1,7 +1,6 @@
 package hor
 
 import (
-	"strings"
 	"testing"
 
 	"gno.land/p/demo/avl"
