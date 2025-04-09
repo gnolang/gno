@@ -2,13 +2,13 @@ package main
 
 type mySuperFuncType func() // define a typed function
 
-func funcAndInt() (mySuperFuncType, int) { // return this type and another crap
+func funcAndInt() (mySuperFuncType, int) {
 	return func() { println("hey") }, 42
 }
 
 func main() {
 	var f mySuperFuncType
-	f, i := funcAndInt() // try to get both: panic
+	f, i := funcAndInt()
 	_ = i
 	_ = f
 	f()
