@@ -30,8 +30,13 @@ const (
 	QuorumFull                 = 1
 )
 
+// MaxCustomVoteChoices defines the maximum number of custom
+// vote choices that a proposal definition can define.
+const MaxCustomVoteChoices = 10
+
 var (
 	ErrInvalidCreatorAddress      = errors.New("invalid proposal creator address")
+	ErrMaxCustomVoteChoices       = errors.New("max number of custom vote choices exceeded")
 	ErrProposalDefinitionRequired = errors.New("proposal definition is required")
 	ErrNoQuorum                   = errors.New("no quorum")
 	ErrStatusIsNotActive          = errors.New("proposal status is not active")
@@ -124,7 +129,12 @@ func NewProposal(id uint64, creator std.Address, d ProposalDefinition) (*Proposa
 	}
 
 	if v, ok := d.(CustomizableVoteChoices); ok {
-		for _, c := range v.CustomVoteChoices() {
+		choices := v.CustomVoteChoices()
+		if len(choices) > MaxCustomVoteChoices {
+			return nil, ErrMaxCustomVoteChoices
+		}
+
+		for _, c := range choices {
 			p.voteChoices.Set(string(c), struct{}{})
 		}
 	}
