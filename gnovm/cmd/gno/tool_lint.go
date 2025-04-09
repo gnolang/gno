@@ -361,10 +361,10 @@ func lintRenderSignature(io commands.IO, memPkg *gnovm.MemPackage) bool {
 			continue
 		}
 
-		fn := gno.MustParseFile(file.Name, file.Body)
-		// we will likely panic before we return nil, but we continue for
-		// consistency
-		if fn == nil {
+		fn, err := gno.ParseFile(file.Name, file.Body)
+		// if we can't parse the file for whatever reason, there is no point in
+		// attempting a lint check on the Render func
+		if err != nil {
 			continue
 		}
 
