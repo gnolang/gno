@@ -1,4 +1,4 @@
-package gnolang
+package typecheck
 
 import (
 	"testing"
@@ -305,7 +305,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 			t.Parallel()
 
 			format := false
-			err := TypeCheckMemPackage(tc.pkg, tc.getter, format)
+			err := CheckMemPackage(tc.pkg, tc.getter, false, format)
 			if tc.check == nil {
 				assert.NoError(t, err)
 			} else {
@@ -340,7 +340,7 @@ func TestTypeCheckMemPackage_format(t *testing.T) {
 
 	mpkgGetter := mockPackageGetter{}
 	format := false
-	err := TypeCheckMemPackage(pkg, mpkgGetter, format)
+	err := CheckMemPackage(pkg, mpkgGetter, false, format)
 	assert.NoError(t, err)
 	assert.Equal(t, input, pkg.Files[0].Body) // unchanged
 
@@ -352,7 +352,7 @@ func Hello(name string) string {
 `
 
 	format = true
-	err = TypeCheckMemPackage(pkg, mpkgGetter, format)
+	err = CheckMemPackage(pkg, mpkgGetter, false, format)
 	assert.NoError(t, err)
 	assert.NotEqual(t, input, pkg.Files[0].Body)
 	assert.Equal(t, expected, pkg.Files[0].Body)
