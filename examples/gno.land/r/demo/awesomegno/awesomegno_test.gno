@@ -15,15 +15,15 @@ func TestAddDapp(t *testing.T) {
 	testing.SetOriginCaller(adminAddr)
 
 	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	id := AddDapp("Test Dapp", "A test description", "https://test.com", validAddr)
+	id := AddDapp("Test Dapp", "A test description", "https://test.com", validAddr.String())
 	urequire.NotEmpty(t, id.String())
 
 	urequire.PanicsWithMessage(t, "dapp title cannot be empty", func() {
-		AddDapp("", "description", "url", validAddr)
+		AddDapp("", "description", "url", validAddr.String())
 	})
 
 	urequire.PanicsWithMessage(t, "invalid author address", func() {
-		AddDapp("title", "description", "url", std.Address(""))
+		AddDapp("title", "description", "url", "")
 	})
 }
 
@@ -32,7 +32,7 @@ func TestUpdateDapp(t *testing.T) {
 	testing.SetOriginCaller(adminAddr)
 
 	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	id := AddDapp("Original Dapp", "Original description", "https://original.com", validAddr)
+	id := AddDapp("Original Dapp", "Original description", "https://original.com", validAddr.String())
 
 	catID := AddCategory("Test Category", "Test Category Description")
 
@@ -58,7 +58,7 @@ func TestDeleteDapp(t *testing.T) {
 	testing.SetOriginCaller(adminAddr)
 
 	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	id := AddDapp("Dapp to Delete", "Will be deleted", "https://delete.com", validAddr)
+	id := AddDapp("Dapp to Delete", "Will be deleted", "https://delete.com", validAddr.String())
 
 	urequire.NotPanics(t, func() {
 		DeleteDapp(id)
@@ -118,7 +118,7 @@ func TestDappCategoryRelationship(t *testing.T) {
 	testing.SetOriginCaller(adminAddr)
 
 	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	dappID := AddDapp("Relationship Test Dapp", "Testing relationships", "https://test.com", validAddr)
+	dappID := AddDapp("Relationship Test Dapp", "Testing relationships", "https://test.com", validAddr.String())
 	catID := AddCategory("Relationship Category", "For testing relationships")
 
 	urequire.NotPanics(t, func() {

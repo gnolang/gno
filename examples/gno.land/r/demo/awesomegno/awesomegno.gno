@@ -24,6 +24,7 @@ var (
 	authority = authz.NewMemberAuthority(
 		std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"), // leon
 		std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"), // moul
+		std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"), // matijamarjanovic (for testing)
 	)
 	Auth = authz.NewWithAuthority(authority)
 )
@@ -32,18 +33,18 @@ func init() {
 	hof.Register("AwesomeGno", "Awesome Gno is a registry for gnowesome dApps on gno.land")
 }
 
-func AddDapp(title, description, url string, author std.Address) seqid.ID {
+func AddDapp(title, description, url, authorAddress string) seqid.ID {
 	if title == "" {
 		panic("dapp title cannot be empty")
 	}
 
-	if !author.IsValid() {
+	if !std.Address(authorAddress).IsValid() {
 		panic("invalid author address")
 	}
 
 	var dappID seqid.ID
 	if err := Auth.Do("add_dapp", func() error {
-		dappID = addDapp(title, description, url, author)
+		dappID = addDapp(title, description, url, std.Address(authorAddress))
 		return nil
 	}); err != nil {
 		panic(err)
@@ -130,17 +131,16 @@ func updateDapp(dappID seqid.ID, title, description, url string, categoryIDs ...
 		panic("dApp not found: " + dappID.String())
 	}
 
-	var newTitle, newDescription, newURL string
+	d := dapp.(*Dapp)
+
 	if title != "" {
-		newTitle = title
+		d.Title = title
 	}
-
 	if description != "" {
-		newDescription = description
+		d.Description = description
 	}
-
 	if url != "" {
-		newURL = url
+		d.URL = url
 	}
 
 	if len(categoryIDs) > 0 {
@@ -150,13 +150,9 @@ func updateDapp(dappID seqid.ID, title, description, url string, categoryIDs ...
 				panic("category not found: " + categoryID.String())
 			}
 			category.(*Category).dapps.Set(dappID.String(), dapp)
-			dapp.(*Dapp).categories.Set(categoryID.String(), category)
+			d.categories.Set(categoryID.String(), category)
 		}
 	}
-
-	dapp.(*Dapp).Title = newTitle
-	dapp.(*Dapp).Description = newDescription
-	dapp.(*Dapp).URL = newURL
 
 	categoriesstr := ""
 	for _, categoryID := range categoryIDs {
@@ -165,9 +161,9 @@ func updateDapp(dappID seqid.ID, title, description, url string, categoryIDs ...
 
 	std.Emit("DappUpdated",
 		"id", dappID.String(),
-		"title", newTitle,
-		"description", newDescription,
-		"url", newURL,
+		"title", d.Title,
+		"description", d.Description,
+		"url", d.URL,
 		"categories", categoriesstr,
 	)
 }
@@ -214,22 +210,19 @@ func updateCategory(categoryID seqid.ID, name, description string) {
 		panic("category not found: " + categoryID.String())
 	}
 
-	var newName, newDescription string
+	c := category.(*Category)
+
 	if name != "" {
-		newName = name
+		c.Name = name
 	}
-
 	if description != "" {
-		newDescription = description
+		c.Description = description
 	}
-
-	category.(*Category).Name = newName
-	category.(*Category).Description = newDescription
 
 	std.Emit("CategoryUpdated",
 		"id", categoryID.String(),
-		"name", newName,
-		"description", newDescription,
+		"name", c.Name,
+		"description", c.Description,
 	)
 }
 
