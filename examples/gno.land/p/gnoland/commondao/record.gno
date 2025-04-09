@@ -57,8 +57,8 @@ func (r ReadonlyVotingRecord) Choices() []VoteChoice {
 }
 
 // Iterate iterates voting record votes.
-func (r ReadonlyVotingRecord) Iterate(fn VoteIterFn) bool { // TODO: Add offset & size
-	return r.votes.Iterate("", "", func(_ string, v any) bool {
+func (r ReadonlyVotingRecord) Iterate(offset, count int, fn VoteIterFn) bool {
+	return r.votes.IterateByOffset(offset, count, func(_ string, v any) bool {
 		return fn(v.(Vote))
 	})
 }
