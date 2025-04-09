@@ -2858,6 +2858,8 @@ func hasAttrHeapUse(bn BlockNode, name Name) bool {
 
 // adds ~name to func lit static block and to heap captures atomically.
 func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (idx uint16) {
+	//fmt.Println("---addHeapCapture, fle: ", fle)
+	//fmt.Println("---nx: ", nx)
 	if depth <= 0 {
 		panic("invalid depth")
 	}

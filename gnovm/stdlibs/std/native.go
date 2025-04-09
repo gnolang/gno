@@ -119,7 +119,7 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 			continue
 		}
 		if !fr.WithSwitch {
-			lfr = fr
+			lfr = fr // switchrealm()?
 			continue
 		}
 
@@ -131,14 +131,20 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 		}
 
 		switches++
+		// the one before switchrealm() frame
 		if switches > height {
 			currlm := lfr.LastRealm
+			//fmt.Println("---lfr: ", lfr)
+			//fmt.Println("---currlm: ", currlm)
 			caller, rlmPath := gno.DerivePkgAddr(currlm.Path).Bech32(), currlm.Path
 			return string(caller), rlmPath
 		}
+
 		lfr = fr
 	}
 
+	//fmt.Println("---switches: ", switches)
+	//fmt.Println("---height: ", height)
 	if switches != height {
 		panic("height too large")
 	}

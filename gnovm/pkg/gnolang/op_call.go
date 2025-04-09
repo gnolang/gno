@@ -62,6 +62,7 @@ func (m *Machine) doOpCall() {
 	// discard the correct number of results for func calls in ExprStmts.
 	fr := m.LastFrame()
 	fv := fr.Func
+	//fmt.Println("---doOpCall, fv: ", fv)
 	fs := fv.GetSource(m.Store)
 	ft := fr.Func.GetType(m.Store)
 	pts := ft.Params

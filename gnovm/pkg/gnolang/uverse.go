@@ -751,7 +751,16 @@ func makeUverseNode() {
 		nil, // params
 		nil, // results
 		func(m *Machine) {
+
+			//fmt.Println("---switchrealm...")
+			//for i, fr := range m.Frames {
+			//	fmt.Printf("frame %d is %v:\n", i, fr)
+			//}
+
 			stmt := m.PeekStmt(1)
+
+			//fmt.Printf("stmt: %v\n", stmt)
+
 			bs, ok := stmt.(*bodyStmt)
 			if !ok {
 				panic("unexpected origin of switchrealm call")

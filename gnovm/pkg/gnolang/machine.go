@@ -1788,6 +1788,8 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
+	//fmt.Println("---PushFrameCall, cx: ", cx)
+	//fmt.Println("---fv: ", fv)
 	withSwitch := cx.IsWithSwitch()
 	fr := &Frame{
 		Source:      cx,
