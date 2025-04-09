@@ -288,7 +288,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 		return undefinedStr
 	}
 
-	if !tv.IsNilInterface() {
+	if !tv.IsUndefined() {
 		// if implements .String(), return it.
 		if tv.ImplStringer() {
 			res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
