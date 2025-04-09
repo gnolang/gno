@@ -38,14 +38,13 @@ func ResolveAddress(addr std.Address) *UserData {
 
 // ResolveAny tries to resolve any given string to *UserData
 // If the input is not found in the registry in any form, nil is returned
-func ResolveAny(input string) *UserData {
+func ResolveAny(input string) (*UserData, isCurrent) {
 	addr := std.Address(input)
 	if addr.IsValid() {
-		return ResolveAddress(addr)
+		return ResolveAddress(addr), true
 	}
 
-	data, _ := ResolveName(input)
-	return data
+	return ResolveName(input)
 }
 
 // GetReadonlyAddrStore exposes the address store in readonly mode
