@@ -5,6 +5,7 @@ import (
 	"std"
 	"time"
 
+	"gno.land/p/demo/avl"
 	"gno.land/p/demo/seqid"
 )
 
@@ -13,7 +14,7 @@ type Category struct {
 	Name        string
 	Description string
 	CreatedAt   time.Time
-	DappIDs     []seqid.ID
+	dapps       *avl.Tree
 }
 
 type Dapp struct {
@@ -22,24 +23,8 @@ type Dapp struct {
 	Description string
 	Author      std.Address
 	URL         string
-	Approved    bool
 	CreatedAt   time.Time
-	Categories  []string
-}
-
-const (
-	StatusPending  = "pending"
-	StatusApproved = "approved"
-	StatusRejected = "rejected"
-)
-
-type Proposal struct {
-	ID        seqid.ID
-	Dapp      *Dapp
-	Status    string
-	Proposer  std.Address
-	Reason    string
-	CreatedAt time.Time
+	categories  *avl.Tree
 }
 
 var (
