@@ -208,7 +208,7 @@ func convertStringToFloat(value string, precision int) float64 {
 	return f64
 }
 
-func JSONPrimitiveValues(m *gno.Machine, tvs []gno.TypedValue) string {
+func stringifyJSONPrimitiveValues(m *gno.Machine, tvs []gno.TypedValue) string {
 	var str strings.Builder
 
 	str.WriteRune('[')

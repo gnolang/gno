@@ -215,7 +215,7 @@ func TestConvertJSONValuesList(t *testing.T) {
 			require.Len(t, tps, 1)
 			require.Equal(t, gnolang.SliceKind.String(), tps[0].T.Kind().String())
 			tpvs := tps[0].V.(*gnolang.SliceValue).Base.(*gnolang.ArrayValue).List
-			rep := JSONPrimitiveValues(m, tpvs)
+			rep := stringifyJSONPrimitiveValues(m, tpvs)
 			require.Equal(t, tc.Expected, rep)
 		})
 	}
