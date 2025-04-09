@@ -10,8 +10,11 @@ import (
 	"go/token"
 	"slices"
 	"strconv"
+
+	"golang.org/x/tools/go/ast/astutil"
 )
 
+// Fix is an individual fix provided by this package.
 type Fix struct {
 	Name     string
 	Date     string // date that fix was introduced, in YYYY-MM-DD format
@@ -20,11 +23,13 @@ type Fix struct {
 	Disabled bool // whether this fix should be disabled by default
 }
 
-var Fixes []Fix
-
-func register(f Fix) Fix {
-	Fixes = append(Fixes, f)
-	return f
+var Fixes = []Fix{
+	{
+		Name: "stdsplit",
+		Date: "2025-04-10",
+		Desc: "rewrites imports and symbols of the std package into the new packages and symbols",
+		F:    stdsplit,
+	},
 }
 
 // imports reports whether f imports path.
@@ -53,6 +58,7 @@ func importPath(s *ast.ImportSpec) string {
 	}
 	t, err := strconv.Unquote(s.Path.Value)
 	if err == nil {
+		importPathCache[s] = t
 		return t
 	}
 	return ""
@@ -68,7 +74,7 @@ func matchLen(x, y string) int {
 }
 
 // addImport adds the import path to the file f, if absent.
-func addImport(f *ast.File, ipath string) (added bool) {
+func addImport(f *ast.File, ipath, name string) (added bool) {
 	if imports(f, ipath) {
 		return false
 	}
@@ -78,6 +84,11 @@ func addImport(f *ast.File, ipath string) (added bool) {
 			Kind:  token.STRING,
 			Value: strconv.Quote(ipath),
 		},
+	}
+	if name != "" {
+		newImport.Name = &ast.Ident{
+			Name: name,
+		}
 	}
 
 	// Find an import decl to add to.
@@ -186,6 +197,104 @@ func deleteImport(f *ast.File, path string) (deleted bool) {
 	}
 
 	return
+}
+
+// apply is a modified version of astutil.Apply that additionally keeps track of
+// the scopes of the file, to resolve any name to its declaration.
+//
+// Callers are responsible for tracking identifiers of any ImportSpec.
+func apply(f ast.Node, pre, post func(*astutil.Cursor, scopes) bool) ast.Node {
+	sc := scopes{scope{}}
+	return astutil.Apply(
+		f,
+		func(c *astutil.Cursor) bool {
+			if pre != nil && !pre(c, sc) {
+				return false
+			}
+
+			n := c.Node()
+
+			// This contains the logic for handling scopes.
+			switch n := n.(type) {
+			case *ast.TypeSpec:
+				sc.declare(n.Name.Name, n)
+			case *ast.ValueSpec:
+				for _, name := range n.Names {
+					sc.declare(name.Name, n)
+				}
+			case *ast.AssignStmt:
+				if n.Tok == token.DEFINE {
+					for _, name := range n.Lhs {
+						// only declare if it doesn't exist in the last scope,
+						// := allows the LHS to contain already defined values
+						// which are then simply assigned instead of declared.
+						name := name.(*ast.Ident).Name
+						if _, ok := sc[len(sc)-1][name]; !ok {
+							sc.declare(name, n)
+						}
+					}
+				}
+			case *ast.FuncDecl:
+				name := n.Name.Name
+				if n.Recv != nil && len(n.Recv.List) > 0 {
+					tp := recvType(n.Recv.List[0].Type)
+					if tp != nil {
+						name = tp.Name + "." + name
+					}
+				}
+				sc.declare(name, n)
+				sc.push()
+				sc.declareList(n.Recv)
+				sc.declareList(n.Type.Params)
+				sc.declareList(n.Type.Results)
+			case *ast.FuncLit:
+				sc.push()
+				sc.declareList(n.Type.Params)
+				sc.declareList(n.Type.Results)
+			case *ast.RangeStmt:
+				sc.push()
+				if n.Tok == token.DEFINE {
+					if id, ok := n.Key.(*ast.Ident); ok {
+						sc.declare(id.Name, n)
+					}
+					if id, ok := n.Value.(*ast.Ident); ok {
+						sc.declare(id.Name, n)
+					}
+				}
+			case *ast.BlockStmt,
+				*ast.IfStmt,
+				*ast.SwitchStmt,
+				*ast.TypeSwitchStmt,
+				*ast.CaseClause,
+				*ast.CommClause,
+				*ast.ForStmt,
+				*ast.SelectStmt:
+				sc.push()
+			}
+			return true
+		},
+		func(c *astutil.Cursor) bool {
+			if post != nil && !post(c, sc) {
+				return false
+			}
+
+			n := c.Node()
+			switch n.(type) {
+			case *ast.BlockStmt,
+				*ast.FuncLit,
+				*ast.IfStmt,
+				*ast.SwitchStmt,
+				*ast.TypeSwitchStmt,
+				*ast.CaseClause,
+				*ast.CommClause,
+				*ast.ForStmt,
+				*ast.SelectStmt,
+				*ast.RangeStmt:
+				sc.pop()
+			}
+			return true
+		},
+	)
 }
 
 type scope map[string]ast.Node

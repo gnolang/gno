@@ -4,17 +4,11 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"slices"
 	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
 )
-
-var stdsplitFix = register(Fix{
-	Name: "stdsplit",
-	Date: "2025-04-15",
-	Desc: "rewrites imports and calls to std packages into the new functions",
-	F:    stdsplit,
-})
 
 type splitFunc struct {
 	importPath string
@@ -35,8 +29,10 @@ func newSplitFunc(joined string) splitFunc {
 	}
 }
 
-func stdsplit(f *ast.File) (fixed bool) {
-	splitFuncs := map[string]splitFunc{
+var splitFuncs map[string]splitFunc
+
+func makeSplitFuncs() {
+	splitFuncs = map[string]splitFunc{
 		"std.Address":       newSplitFunc("chain.Address"),
 		"std.Emit":          newSplitFunc("chain.Emit"),
 		"std.EncodeBech32":  newSplitFunc("chain.EncodeBech32"),
@@ -75,8 +71,6 @@ func stdsplit(f *ast.File) (fixed bool) {
 		"std.SetParamString":  newSplitFunc("chain/params.SetString"),
 		"std.SetParamStrings": newSplitFunc("chain/params.SetStrings"),
 		"std.SetParamUint64":  newSplitFunc("chain/params.SetUint64"),
-
-		// TODO: compat package for AddressSet
 	}
 
 	// From a previous batch of std changes: https://github.com/gnolang/gno/pull/3374
@@ -88,6 +82,12 @@ func stdsplit(f *ast.File) (fixed bool) {
 	splitFuncs["std.GetBanker"] = splitFuncs["std.NewBanker"]
 	splitFuncs["std.GetChainDomain"] = splitFuncs["std.ChainDomain"]
 	splitFuncs["std.GetHeight"] = splitFuncs["std.ChainHeight"]
+}
+
+func stdsplit(f *ast.File) (fixed bool) {
+	if splitFuncs == nil {
+		makeSplitFuncs()
+	}
 
 	knownImportIdentifiers := map[string]string{
 		"std":           "std",
@@ -96,65 +96,16 @@ func stdsplit(f *ast.File) (fixed bool) {
 		"chain/params":  "params",
 		"chain/banker":  "banker",
 	}
-	sc := scopes{scope{}}
-	astutil.Apply(
+
+	var toRename []string
+	ignoreIdents := map[*ast.Ident]struct{}{}
+
+	apply(
 		f,
-		func(c *astutil.Cursor) bool {
+		func(c *astutil.Cursor, sc scopes) bool {
 			n := c.Node()
 
 			// This type-switch contains the business logic for the std split.
-			switch n := n.(type) {
-			case *ast.SelectorExpr:
-				id, ok := n.X.(*ast.Ident)
-				if !ok {
-					break
-				}
-				def, ok := sc.lookup(id.Name).(*ast.ImportSpec)
-				if !ok {
-					break
-				}
-				ip := importPath(def)
-				joined := ip + "." + n.Sel.Name
-				target, ok := splitFuncs[joined]
-				if !ok {
-					if ip == "std" {
-						// TODO: handle more gracefully.
-						panic(fmt.Errorf(
-							"file contains function std.%s that cannot be converted",
-							n.Sel.Name,
-						))
-					}
-					break
-				}
-				if addImport(f, target.importPath) {
-					// TODO: handle colliding identifiers, both at the top level
-					// and for shadowing.
-					if sc[0][target.ident] != nil {
-						panic(fmt.Errorf(
-							"cannot add import for %q when top-level identifier %q is already defined",
-							target.importPath,
-							target.ident,
-						))
-					}
-					decl := f.Imports[len(f.Imports)-1]
-					sc[0][target.ident] = decl
-					if sc.lookup(target.ident) != decl {
-						panic(fmt.Errorf(
-							"identifier %q is shadowed and cannot be added as import for %q",
-							target.ident,
-							target.importPath,
-						))
-					}
-				}
-				c.Replace(&ast.SelectorExpr{
-					X:   &ast.Ident{Name: target.ident},
-					Sel: &ast.Ident{Name: target.fname},
-				})
-				fixed = true
-				return false
-			}
-
-			// This contains the logic for handling scopes.
 			switch n := n.(type) {
 			case *ast.ImportSpec:
 				unq := importPath(n)
@@ -166,64 +117,77 @@ func stdsplit(f *ast.File) (fixed bool) {
 					return false
 				}
 				sc.declare(id, n)
-			case *ast.TypeSpec:
-				sc.declare(n.Name.Name, n)
-			case *ast.ValueSpec:
-				for _, name := range n.Names {
-					sc.declare(name.Name, n)
+			case *ast.SelectorExpr:
+				id, ok := n.X.(*ast.Ident)
+				if !ok {
+					break
 				}
-			case *ast.AssignStmt:
-				if n.Tok == token.DEFINE {
-					for _, name := range n.Lhs {
-						// only declare if it doesn't exist in the last scope,
-						// := allows the LHS to contain already defined values
-						// which are then simply assigned instead of declared.
-						name := name.(*ast.Ident).Name
-						if _, ok := sc[len(sc)-1][name]; !ok {
-							sc.declare(name, n)
-						}
+				def, ok := sc.lookup(id.Name).(*ast.ImportSpec)
+				if !ok {
+					break
+				}
+				ip := importPath(def)
+				joined := ip + "." + n.Sel.Name
+				if joined == "std.RawAddressSize" {
+					// Special case: this no longer exists, but provide a simple
+					// replacement as a direct literal.
+					c.Replace(&ast.BasicLit{
+						ValuePos: n.Pos(),
+						Kind:     token.INT,
+						Value:    "20",
+					})
+					return false
+				}
+				target, ok := splitFuncs[joined]
+				if !ok {
+					if ip == "std" {
+						panic(fmt.Errorf(
+							"file contains function std.%s that cannot be converted",
+							n.Sel.Name,
+						))
+					}
+					break
+				}
+				ident := target.ident
+				pos := slices.IndexFunc(f.Imports, func(decl *ast.ImportSpec) bool {
+					return importPath(decl) == target.importPath
+				})
+				if pos >= 0 {
+					if name := f.Imports[pos].Name; name != nil {
+						ident = name.Name
+					} else {
+						ident = knownImportIdentifiers[target.importPath]
+					}
+				} else {
+					importName := ""
+					for sc[0][ident] != nil {
+						ident += "_"
+						importName = ident
+					}
+					if !addImport(f, target.importPath, importName) {
+						panic("import should not exist")
+					}
+
+					decl := f.Imports[len(f.Imports)-1]
+					sc[0][ident] = decl
+					if sc.lookup(target.ident) != decl {
+						// Will be tackled in post
+						toRename = append(toRename, target.ident)
 					}
 				}
-			case *ast.FuncDecl:
-				name := n.Name.Name
-				if n.Recv != nil && len(n.Recv.List) > 0 {
-					tp := recvType(n.Recv.List[0].Type)
-					if tp != nil {
-						name = tp.Name + "." + name
-					}
-				}
-				sc.declare(name, n)
-				sc.push()
-				sc.declareList(n.Recv)
-				sc.declareList(n.Type.Params)
-				sc.declareList(n.Type.Results)
-			case *ast.FuncLit:
-				sc.push()
-				sc.declareList(n.Type.Params)
-				sc.declareList(n.Type.Results)
-			case *ast.RangeStmt:
-				sc.push()
-				if n.Tok == token.DEFINE {
-					if id, ok := n.Key.(*ast.Ident); ok {
-						sc.declare(id.Name, n)
-					}
-					if id, ok := n.Value.(*ast.Ident); ok {
-						sc.declare(id.Name, n)
-					}
-				}
-			case *ast.BlockStmt,
-				*ast.IfStmt,
-				*ast.SwitchStmt,
-				*ast.TypeSwitchStmt,
-				*ast.CaseClause,
-				*ast.CommClause,
-				*ast.ForStmt,
-				*ast.SelectStmt:
-				sc.push()
+				newPkgIdent := &ast.Ident{NamePos: id.Pos(), Name: ident}
+				ignoreIdents[newPkgIdent] = struct{}{}
+				c.Replace(&ast.SelectorExpr{
+					X:   newPkgIdent,
+					Sel: &ast.Ident{NamePos: n.Sel.Pos(), Name: target.fname},
+				})
+				fixed = true
+				return false
 			}
+
 			return true
 		},
-		func(c *astutil.Cursor) bool {
+		func(c *astutil.Cursor, sc scopes) bool {
 			n := c.Node()
 			switch n.(type) {
 			case *ast.BlockStmt,
@@ -236,7 +200,41 @@ func stdsplit(f *ast.File) (fixed bool) {
 				*ast.ForStmt,
 				*ast.SelectStmt,
 				*ast.RangeStmt:
-				sc.pop()
+				// We're popping a block; if our current scope contains one
+				// of the identifiers in toRename, and none of the parent scopes
+				// (except the root, for the import) does, then apply() on the
+				// node again to rename the definition(s) and all usages.
+				// Usages that actually refer to the import are detected through
+				// ignoreIdents.
+
+				newToRename := toRename[:0]
+				for _, tr := range toRename {
+					if sc[len(sc)-1][tr] != nil &&
+						scopes(sc[1:len(sc)-1]).lookup(tr) == nil {
+						astutil.Apply(
+							n,
+							func(c *astutil.Cursor) bool {
+								switch n := c.Node().(type) {
+								case *ast.Ident:
+									_, ignore := ignoreIdents[n]
+									if !ignore && n.Name == tr {
+										// NOTE: there could still be collisions,
+										// but these would be extreme edge cases.
+										n.Name += "_"
+									}
+									// This may overcorrect some slice literals
+									// which use names which are being replaced;
+									// let the user fix them.
+								}
+								return true
+							},
+							nil,
+						)
+					} else {
+						newToRename = append(newToRename, tr)
+					}
+				}
+				toRename = newToRename
 			}
 			return true
 		},
@@ -244,6 +242,7 @@ func stdsplit(f *ast.File) (fixed bool) {
 	if deleteImport(f, "std") {
 		fixed = true
 	}
+
 	return
 }
 

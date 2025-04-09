@@ -33,14 +33,14 @@ func main() {}`,
 			input: `package test
 import "std"
 func main() {
-	addr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	addr := std.Address("g1337")
 }`,
 			expected: `package test
 
 import "chain"
 
 func main() {
-	addr := chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	addr := chain.Address("g1337")
 }`,
 		},
 		{
@@ -63,7 +63,7 @@ func main() {
 			input: `package test
 import "std"
 func main() {
-	addr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	addr := std.Address("g1337")
 	std.AssertOriginCall()
 }`,
 			expected: `package test
@@ -74,7 +74,7 @@ import (
 )
 
 func main() {
-	addr := chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	addr := chain.Address("g1337")
 	runtime.AssertOriginCall()
 }`,
 		},
@@ -87,7 +87,7 @@ import (
 )
 func main() {
 	fmt.Println("hello")
-	addr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	addr := std.Address("g1337")
 }`,
 			expected: `package test
 
@@ -98,7 +98,7 @@ import (
 
 func main() {
 	fmt.Println("hello")
-	addr := chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	addr := chain.Address("g1337")
 }`,
 		},
 		{
@@ -106,14 +106,237 @@ func main() {
 			input: `package test
 import s "std"
 func main() {
-	addr := s.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	addr := s.Address("g1337")
 }`,
 			expected: `package test
 
 import "chain"
 
 func main() {
-	addr := chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	addr := chain.Address("g1337")
+}`,
+		},
+		{
+			name: "handle RawAddressSize special case",
+			input: `package test
+import "std"
+func main() {
+	size := std.RawAddressSize
+}`,
+			expected: `package test
+
+func main() {
+	size := 20
+}`,
+		},
+		{
+			name: "name collision handling",
+			input: `package test
+import "std"
+func main() {
+	// Local variable with same name as import identifier
+	runtime := "collision"
+	// Should still rewrite properly
+	std.AssertOriginCall()
+	println(runtime)
+}`,
+			expected: `package test
+
+import "chain/runtime"
+
+func main() {
+	// Local variable with same name as import identifier
+	runtime_ := "collision"
+	// Should still rewrite properly
+	runtime.AssertOriginCall()
+	println(runtime_)
+}`,
+		},
+		{
+			name: "multiple std functions with same target package",
+			input: `package test
+import "std"
+func main() {
+	std.AssertOriginCall()
+	std.PreviousRealm()
+	std.CurrentRealm()
+}`,
+			expected: `package test
+
+import "chain/runtime"
+
+func main() {
+	runtime.AssertOriginCall()
+	runtime.PreviousRealm()
+	runtime.CurrentRealm()
+}`,
+		},
+		{
+			name: "std with aliased target package",
+			input: `package test
+import (
+	"std"
+	rt "chain/runtime"
+)
+func main() {
+	std.AssertOriginCall()
+	rt.CurrentRealm()
+}`,
+			expected: `package test
+
+import rt "chain/runtime"
+
+func main() {
+	rt.AssertOriginCall()
+	rt.CurrentRealm()
+}`,
+		},
+		{
+			name: "fix with nested blocks and scopes",
+			input: `package test
+import "std"
+func main() {
+	if true {
+		addr := std.Address("g1337")
+		if true {
+			std.AssertOriginCall()
+		}
+		_ = addr
+	}
+	for i := 0; i < 10; i++ {
+		std.Emit("test", i)
+	}
+}`,
+			expected: `package test
+
+import (
+	"chain"
+	"chain/runtime"
+)
+
+func main() {
+	if true {
+		addr := chain.Address("g1337")
+		if true {
+			runtime.AssertOriginCall()
+		}
+	}
+	for i := 0; i < 10; i++ {
+		chain.Emit("test", i)
+	}
+}`,
+		},
+		{
+			name: "handle aliased functions (GetOrigCaller to OriginCaller)",
+			input: `package test
+import "std"
+func main() {
+	caller := std.GetOrigCaller()
+}`,
+			expected: `package test
+
+import "chain/runtime"
+
+func main() {
+	caller := runtime.OriginCaller()
+}`,
+		},
+		{
+			name: "handle banker functions",
+			input: `package test
+import "std"
+func main() {
+	banker := std.NewBanker(std.BankerTypeReadonly)
+	coin := std.NewCoin("gnot", 100)
+}`,
+			expected: `package test
+
+import "chain/banker"
+
+func main() {
+	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
+	coin := banker.NewCoin("gnot", 100)
+}`,
+		},
+		{
+			name: "scope shadowing name collision",
+			input: `package test
+import "std"
+func main() {
+	banker := "someone who banks"
+	{
+		// In this scope, banker is shadowed but we need to rename
+		// the variable to avoid collision
+		std.NewBanker(std.BankerTypeReadonly)
+	}
+	println(banker)
+}`,
+			expected: `package test
+
+import "chain/banker"
+
+func main() {
+	banker_ := "someone who banks"
+	{
+		// In this scope, banker is shadowed but we need to rename
+		// the variable to avoid collision
+		banker.NewBanker(banker.BankerTypeReadonly)
+	}
+	println(banker_)
+}`,
+		},
+		{
+			name: "allow methods of same name",
+			input: `package main
+
+import "std"
+
+type (
+	S string
+	I int
+)
+
+func (S) String() { return string(std.Address("123")) }
+func (I) String() { return std.RawAddressSize + 123 }`,
+			expected: `package main
+
+import "chain"
+
+type (
+	S string
+	I int
+)
+
+func (S) String() { return string(chain.Address("123")) }
+func (I) String() { return 20 + 123 }`,
+		},
+		{
+			name: "colliding imports",
+			input: `package main
+
+import (
+	"std"
+)
+
+var (
+	banker  = 123
+	banker_ = 456
+)
+
+func main() {
+	println(std.Coins{})
+}`,
+			expected: `package main
+
+import banker__ "chain/banker"
+
+var (
+	banker  = 123
+	banker_ = 456
+)
+
+func main() {
+	println(banker__.Coins{})
 }`,
 		},
 	}
@@ -133,32 +356,49 @@ func main() {
 	}
 }
 
-func TestCollisionHandling(t *testing.T) {
-	// Test cases where there might be identifier collisions
+func astToString(t *testing.T, fset *token.FileSet, f *ast.File) string {
+	t.Helper()
+	var buf bytes.Buffer
+	err := format.Node(&buf, fset, f)
+	require.NoError(t, err)
+	return strings.TrimSuffix(buf.String(), "\n")
+}
+
+func TestStdsplitFixIndicator(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       string
-		shouldPanic bool
+		name          string
+		input         string
+		expectedFixed bool
 	}{
 		{
-			name: "collision with top-level identifier",
+			name: "file without std import",
 			input: `package test
-import "std"
-var chain int
+import "fmt"
 func main() {
-	addr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	fmt.Println("hello")
 }`,
-			shouldPanic: true,
+			expectedFixed: false,
 		},
 		{
-			name: "shadowing of runtime identifier",
+			name: "file with std import but no std calls",
+			input: `package test
+import (
+	"fmt"
+	"std"
+)
+func main() {
+	fmt.Println("hello")
+}`,
+			expectedFixed: true, // Because the std import is removed
+		},
+		{
+			name: "file with std calls",
 			input: `package test
 import "std"
 func main() {
-	runtime := 123
-	std.AssertOriginCall()
+	std.Address("g1337")
 }`,
-			shouldPanic: true,
+			expectedFixed: true,
 		},
 	}
 
@@ -168,23 +408,55 @@ func main() {
 			f, err := parser.ParseFile(fset, "test.go", tc.input, parser.ParseComments)
 			require.NoError(t, err)
 
-			if tc.shouldPanic {
-				assert.Panics(t, func() {
-					stdsplit(f)
-				})
-			} else {
-				assert.NotPanics(t, func() {
-					stdsplit(f)
-				})
-			}
+			fixed := stdsplit(f)
+			assert.Equal(t, tc.expectedFixed, fixed)
 		})
 	}
 }
 
-func astToString(t *testing.T, fset *token.FileSet, f *ast.File) string {
-	t.Helper()
-	var buf bytes.Buffer
-	err := format.Node(&buf, fset, f)
+func TestStdsplitWithMixedPackages(t *testing.T) {
+	input := `package test
+import (
+	"std"
+	"chain"
+	"chain/runtime"
+)
+func main() {
+	// Already using chain packages along with std
+	std.Address("g1337")
+	chain.Emit("event", "data")
+	runtime.CurrentRealm()
+
+	// These should be converted
+	std.AssertOriginCall()
+	std.DecodeBech32("g1337")
+}`
+
+	expected := `package test
+
+import (
+	"chain"
+	"chain/runtime"
+)
+
+func main() {
+	// Already using chain packages along with std
+	chain.Address("g1337")
+	chain.Emit("event", "data")
+	runtime.CurrentRealm()
+
+	// These should be converted
+	runtime.AssertOriginCall()
+	chain.DecodeBech32("g1337")
+}`
+
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "test.go", input, parser.ParseComments)
 	require.NoError(t, err)
-	return strings.TrimSuffix(buf.String(), "\n")
+
+	fixed := stdsplit(f)
+	assert.True(t, fixed)
+
+	output := astToString(t, fset, f)
+	assert.Equal(t, expected, output)
 }

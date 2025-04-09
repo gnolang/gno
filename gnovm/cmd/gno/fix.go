@@ -8,6 +8,7 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
+	"runtime"
 
 	"github.com/gnolang/gno/gnovm/cmd/gno/internal/fix"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -64,10 +65,12 @@ func execFix(cfg *fixCfg, args []string, io commands.IO) error {
 					switch rec := rec.(type) {
 					case nil:
 						return
+					case runtime.Error:
+						panic(rec)
+					default:
+						panic(rec)
 					case error:
 						err = rec
-					default:
-						err = fmt.Errorf("panic: %v", rec)
 					}
 				}()
 				res = fx.F(parsed)
