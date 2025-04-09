@@ -692,12 +692,9 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1()
 			tt := arg0.TV.GetType()
-			vv := defaultValue(m.Alloc, tt)
+			tv := defaultTypedValue(m.Alloc, tt)
 			m.Alloc.AllocatePointer()
-			hi := m.Alloc.NewHeapItem(TypedValue{
-				T: tt,
-				V: vv,
-			})
+			hi := m.Alloc.NewHeapItem(tv)
 			m.PushValue(TypedValue{
 				T: m.Alloc.NewType(&PointerType{
 					Elt: tt,

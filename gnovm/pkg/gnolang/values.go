@@ -938,27 +938,18 @@ func (tv *TypedValue) IsDefined() bool {
 	return !tv.IsUndefined()
 }
 
-// XXX replace IsUndefined() with IsUndefined2() and delete IsUndefined, replace.
-func (tv *TypedValue) IsUndefined2() bool {
-	return tv.T == nil
-}
-
 func (tv *TypedValue) IsUndefined() bool {
 	if debug {
-		if tv == nil {
-			panic("should not happen")
-		}
-	}
-	if tv.T == nil {
-		if debug {
-			if tv.V != nil || tv.N != [8]byte{} {
-				panic(fmt.Sprintf(
-					"corrupted TypeValue (nil T)"))
+		if tv.T == nil {
+			if tv.V != nil {
+				panic("should not happen")
+			}
+			if tv.N != [8]byte{} {
+				panic("should not happen")
 			}
 		}
-		return true
 	}
-	return tv.IsNilInterface()
+	return tv.T == nil
 }
 
 // (this is used mostly by the preprocessor)
@@ -2230,7 +2221,8 @@ func (tv *TypedValue) DeepFill(store Store) {
 // instead the value is written into the heap item's slot--except for loopvars
 // assignments which may replace the heap item with another one. This is
 // how Gno supports Go1.22 loopvars.
-type BlockValue struct {
+// TODO XXX rename to BlockValue
+type Block struct {
 	ObjectInfo
 	Source   BlockNode
 	Values   []TypedValue
@@ -2238,8 +2230,6 @@ type BlockValue struct {
 	Blank    TypedValue // captures "_" // XXX remove and replace with global instance.
 	bodyStmt bodyStmt   // XXX expose for persistence, not needed for MVP.
 }
-
-type Block = BlockValue // TODO remove
 
 // NOTE: for allocation, use *Allocator.NewBlock.
 // XXX pass allocator in for heap items.
@@ -2497,8 +2487,7 @@ func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
 	tvs := alloc.NewStructFields(len(st.Fields))
 	for i, ft := range st.Fields {
 		if ft.Type.Kind() != InterfaceKind {
-			tvs[i].T = ft.Type
-			tvs[i].V = defaultValue(alloc, ft.Type)
+			tvs[i] = defaultTypedValue(alloc, ft.Type)
 		}
 	}
 	return tvs
@@ -2518,37 +2507,43 @@ func defaultArrayValue(alloc *Allocator, at *ArrayType) *ArrayValue {
 	tvs := av.List
 	if et := at.Elem(); et.Kind() != InterfaceKind {
 		for i := 0; i < at.Len; i++ {
-			tvs[i].T = et
-			tvs[i].V = defaultValue(alloc, et)
+			tvs[i] = defaultTypedValue(alloc, et)
 		}
 	}
 	return av
 }
 
-func defaultValue(alloc *Allocator, t Type) Value {
+func defaultTypedValue(alloc *Allocator, t Type) TypedValue {
 	switch ct := baseOf(t).(type) {
 	case nil:
 		panic("unexpected nil type")
-	case *ArrayType:
-		return defaultArrayValue(alloc, ct)
-	case *StructType:
-		return defaultStructValue(alloc, ct)
-	case *SliceType:
-		return nil
-	case *MapType:
-		return nil
-	default:
-		return nil
-	}
-}
-
-func defaultTypedValue(alloc *Allocator, t Type) TypedValue {
-	if t.Kind() == InterfaceKind {
+	case *InterfaceType:
 		return TypedValue{}
-	}
-	return TypedValue{
-		T: t,
-		V: defaultValue(alloc, t),
+	case *ArrayType:
+		return TypedValue{
+			T: t,
+			V: defaultArrayValue(alloc, ct),
+		}
+	case *StructType:
+		return TypedValue{
+			T: t,
+			V: defaultStructValue(alloc, ct),
+		}
+	case *SliceType:
+		return TypedValue{
+			T: t,
+			V: nil,
+		}
+	case *MapType:
+		return TypedValue{
+			T: t,
+			V: nil,
+		}
+	default:
+		return TypedValue{
+			T: t,
+			V: nil,
+		}
 	}
 }
 
