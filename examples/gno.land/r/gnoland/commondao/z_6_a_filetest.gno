@@ -2,10 +2,11 @@ package main
 
 import (
 	"std"
+	"testing"
 	"time"
 
 	"gno.land/p/demo/testutils"
-	pcommondao "gno.land/p/gnoland/commondao"
+	pdao "gno.land/p/gnoland/commondao"
 
 	"gno.land/r/gnoland/commondao"
 )
@@ -14,12 +15,11 @@ const owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
 
 type propDef struct{}
 
-func (propDef) Title() string                                   { return "" }
-func (propDef) Body() string                                    { return "" }
-func (propDef) Quorum() float64                                 { return 0 }
-func (propDef) VotingPeriod() time.Duration                     { return 0 }
-func (propDef) Validate() error                                 { return nil }
-func (propDef) Tally(pcommondao.ReadonlyVotingRecord, int) bool { return true }
+func (propDef) Title() string                                                 { return "" }
+func (propDef) Body() string                                                  { return "" }
+func (propDef) VotingPeriod() time.Duration                                   { return 0 }
+func (propDef) Validate() error                                               { return nil }
+func (propDef) Tally(pdao.ReadonlyVotingRecord, pdao.MemberSet) (bool, error) { return true, nil }
 
 func (propDef) Execute() error {
 	executed = true
@@ -27,8 +27,8 @@ func (propDef) Execute() error {
 }
 
 var (
-	dao      *pcommondao.CommonDAO
-	proposal *pcommondao.Proposal
+	dao      *pdao.CommonDAO
+	proposal *pdao.Proposal
 	executed bool
 	user1    = testutils.TestAddress("user1")
 	user2    = testutils.TestAddress("user2")
@@ -37,14 +37,14 @@ var (
 
 func init() {
 	// Use a realm caller
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 
 	// Invite a user to be able to start creating DAOs
-	std.TestSetOriginCaller(owner)
+	testing.SetOriginCaller(owner)
 	commondao.Invite(user1)
 
 	// Create a new DAO which gives ownership to `commondao_test`
-	std.TestSetOriginCaller(user1)
+	testing.SetOriginCaller(user1)
 	dao = commondao.New("Foo")
 
 	// Configure DAO
@@ -56,22 +56,22 @@ func init() {
 	proposal, _ = dao.Propose(user1, propDef{})
 
 	// Submit user1 vote
-	commondao.Vote(dao.ID(), proposal.ID(), pcommondao.ChoiceYes, "")
+	commondao.Vote(dao.ID(), proposal.ID(), pdao.ChoiceYes, "")
 
 	// Submit user2 vote
-	std.TestSetOriginCaller(user2)
-	commondao.Vote(dao.ID(), proposal.ID(), pcommondao.ChoiceYes, "")
+	testing.SetOriginCaller(user2)
+	commondao.Vote(dao.ID(), proposal.ID(), pdao.ChoiceYes, "")
 }
 
 func main() {
 	commondao.Execute(dao.ID(), proposal.ID())
 
-	p, found := dao.GetFinishedProposal(proposal.ID())
-	if !found {
+	p := dao.FinishedProposals().Get(proposal.ID())
+	if p == nil {
 		panic("expected proposal to be finished")
 	}
 
-	println(p.Status() == pcommondao.StatusExecuted)
+	println(p.Status() == pdao.StatusPassed)
 	println(executed)
 }
 

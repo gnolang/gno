@@ -2,6 +2,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/r/gnoland/commondao"
 )
@@ -12,7 +13,7 @@ const (
 )
 
 func init() {
-	std.TestSetOriginCaller(owner)
+	testing.SetOriginCaller(owner)
 }
 
 func main() {

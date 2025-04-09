@@ -16,6 +16,10 @@ var reSlug = regexp.MustCompile("^[a-zA-Z]+[a-zA-Z0-9-]*$")
 // Invite invites a user to the realm.
 // A user invitation is required to start creating new DAOs.
 func Invite(invitee std.Address) {
+	if !invitee.IsValid() {
+		panic("invalid address")
+	}
+
 	dao := mustGetDAO(CommonDAOID)
 	caller := std.OriginCaller()
 	if !dao.Members().Has(caller) {
@@ -88,6 +92,7 @@ func NewSubDAO(name, slug string, parent *commondao.CommonDAO) *commondao.Common
 	}
 
 	tree.Set(path, dao)
+	parent.Children().Append(dao)
 
 	return dao
 }
@@ -100,6 +105,10 @@ func IsOwner(addr std.Address, daoID uint64) bool {
 // TransferOwnership transfers DAO access ownership to a different address.
 func TransferOwnership(daoID uint64, newOwner std.Address) {
 	assertCallerIsOwner(daoID)
+
+	if !newOwner.IsValid() {
+		panic("invalid owner address")
+	}
 
 	caller := std.PreviousRealm().Address()
 	ids := getOwnership(caller)

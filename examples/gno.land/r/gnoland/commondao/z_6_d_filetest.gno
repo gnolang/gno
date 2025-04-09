@@ -2,6 +2,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	pcommondao "gno.land/p/gnoland/commondao"
 
@@ -17,14 +18,14 @@ var dao *pcommondao.CommonDAO
 
 func init() {
 	// Use a realm caller
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 
 	// Invite a user to be able to start creating DAOs
-	std.TestSetOriginCaller(owner)
+	testing.SetOriginCaller(owner)
 	commondao.Invite(user)
 
 	// Create a new DAO which gives ownership to `commondao_test`
-	std.TestSetOriginCaller(user)
+	testing.SetOriginCaller(user)
 	dao = commondao.New("Foo")
 
 	// Configure DAO

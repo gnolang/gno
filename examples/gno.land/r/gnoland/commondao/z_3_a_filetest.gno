@@ -3,6 +3,7 @@ package commondao_test
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/r/gnoland/commondao"
 )
@@ -23,11 +24,11 @@ func init() {
 	realm = std.CurrentRealm().Address()
 
 	// Invite a user to be able to start creating DAOs
-	std.TestSetOriginCaller(owner)
+	testing.SetOriginCaller(owner)
 	commondao.Invite(user)
 
 	// Create a new DAO which gives ownership to `commondao_test`
-	std.TestSetOriginCaller(user)
+	testing.SetOriginCaller(user)
 	daoID = commondao.New("Foo").ID()
 }
 

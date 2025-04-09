@@ -2,9 +2,10 @@ package main
 
 import (
 	"std"
+	"testing"
 	"time"
 
-	pcommondao "gno.land/p/gnoland/commondao"
+	pdao "gno.land/p/gnoland/commondao"
 
 	"gno.land/r/gnoland/commondao"
 )
@@ -16,29 +17,28 @@ const (
 
 type propDef struct{}
 
-func (propDef) Title() string                                   { return "" }
-func (propDef) Body() string                                    { return "" }
-func (propDef) Quorum() float64                                 { return 0 }
-func (propDef) VotingPeriod() time.Duration                     { return 0 }
-func (propDef) Validate() error                                 { return nil }
-func (propDef) Tally(pcommondao.ReadonlyVotingRecord, int) bool { return false }
-func (propDef) Execute() error                                  { return nil }
+func (propDef) Title() string                                                 { return "" }
+func (propDef) Body() string                                                  { return "" }
+func (propDef) VotingPeriod() time.Duration                                   { return 0 }
+func (propDef) Validate() error                                               { return nil }
+func (propDef) Tally(pdao.ReadonlyVotingRecord, pdao.MemberSet) (bool, error) { return false, nil }
+func (propDef) Execute() error                                                { return nil }
 
 var (
 	daoID    uint64
-	proposal *pcommondao.Proposal
+	proposal *pdao.Proposal
 )
 
 func init() {
 	// Use a realm caller
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 
 	// Invite a user to be able to start creating DAOs
-	std.TestSetOriginCaller(owner)
+	testing.SetOriginCaller(owner)
 	commondao.Invite(user)
 
 	// Create a new DAO which gives ownership to `commondao_test`
-	std.TestSetOriginCaller(user)
+	testing.SetOriginCaller(user)
 	dao := commondao.New("Foo")
 	daoID = dao.ID()
 

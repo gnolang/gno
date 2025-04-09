@@ -22,7 +22,7 @@ const (
 
 func nextStatus(m *Monitor) Status {
 	samples := m.samples
-	for i := 0; i < 30; i++ {
+	for range 30 {
 		if s := m.Status(); s.Samples != samples {
 			return s
 		}

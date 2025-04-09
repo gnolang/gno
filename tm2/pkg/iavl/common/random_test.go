@@ -35,7 +35,7 @@ func TestDeterminism(t *testing.T) {
 	// (It isn't strictly necessary).
 	mrand.Seed(1)
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		output := testThemAll()
 		if i == 0 {
 			firstOutput = output

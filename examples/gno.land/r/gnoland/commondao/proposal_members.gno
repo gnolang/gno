@@ -12,6 +12,7 @@ import (
 
 // TODO: Support optional parent DAO mechanics to add/remove direct SubDAO members
 
+// NewMembersPropDefinition creates a new proposal definition for adding/removing DAO members.
 func NewMembersPropDefinition(dao *commondao.CommonDAO, add, remove addrset.Set) MembersPropDefinition {
 	if dao == nil {
 		panic("DAO is required")
@@ -32,6 +33,7 @@ func NewMembersPropDefinition(dao *commondao.CommonDAO, add, remove addrset.Set)
 	}
 }
 
+// MembersUpdateProposal defines a proposal type for adding/removing DAO members.
 type MembersPropDefinition struct {
 	dao             *commondao.CommonDAO
 	toAdd, toRemove addrset.Set
@@ -39,7 +41,6 @@ type MembersPropDefinition struct {
 
 func (MembersPropDefinition) Title() string               { return "Members Update" }
 func (MembersPropDefinition) VotingPeriod() time.Duration { return time.Hour * 24 * 7 }
-func (MembersPropDefinition) Quorum() float64             { return 0.67 } // two thirds
 
 func (p MembersPropDefinition) Body() string {
 	var b strings.Builder
@@ -47,7 +48,9 @@ func (p MembersPropDefinition) Body() string {
 	if p.toAdd.Size() > 0 {
 		b.WriteString("**Members to Add:**  \n")
 		p.toAdd.IterateByOffset(0, p.toAdd.Size(), func(addr std.Address) bool {
-			b.WriteString("- " + addr.String() + "\n")
+			b.WriteString("- ")
+			b.WriteString(addr.String())
+			b.WriteString("\n")
 			return false
 		})
 	}
@@ -55,7 +58,9 @@ func (p MembersPropDefinition) Body() string {
 	if p.toRemove.Size() > 0 {
 		b.WriteString("\n**Members to Remove:**  \n")
 		p.toRemove.IterateByOffset(0, p.toRemove.Size(), func(addr std.Address) bool {
-			b.WriteString("- " + addr.String() + "\n")
+			b.WriteString("- ")
+			b.WriteString(addr.String())
+			b.WriteString("\n")
 			return false
 		})
 	}
@@ -96,15 +101,22 @@ func (p MembersPropDefinition) Validate() error {
 	return err
 }
 
-func (MembersPropDefinition) Tally(r commondao.ReadonlyVotingRecord, membersCount int) bool {
+func (MembersPropDefinition) Tally(r commondao.ReadonlyVotingRecord, members commondao.MemberSet) (bool, error) {
 	// When DAO has one or two members succeed when there is a YES vote, otherwise
 	// tally requires at least three votes to be able to tally by 2/3s super majority
-	if membersCount < 3 {
-		return r.VoteCount(commondao.ChoiceYes) > 0
+	if members.Size() < 3 {
+		return r.VoteCount(commondao.ChoiceYes) > 0, nil
 	}
 
-	_, success := commondao.SelectChoiceBySuperMajority(r, membersCount)
-	return success
+	if !commondao.IsQuorumReached(commondao.QuorumTwoThirds, r, members) {
+		return false, commondao.ErrNoQuorum
+	}
+
+	c, success := commondao.SelectChoiceBySuperMajority(r, members.Size())
+	if success {
+		return c == commondao.ChoiceYes, nil
+	}
+	return false, nil
 }
 
 func (p MembersPropDefinition) Execute() error {

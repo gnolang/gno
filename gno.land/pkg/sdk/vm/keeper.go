@@ -24,9 +24,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
-	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
-	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
-	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
@@ -66,9 +63,9 @@ type VMKeeper struct {
 
 	baseKey store.StoreKey
 	iavlKey store.StoreKey
-	acck    auth.AccountKeeper
-	bank    bank.BankKeeper
-	prmk    params.ParamsKeeper
+	acck    AccountKeeperI
+	bank    BankKeeperI
+	prmk    ParamsKeeperI
 
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
@@ -80,9 +77,9 @@ type VMKeeper struct {
 func NewVMKeeper(
 	baseKey store.StoreKey,
 	iavlKey store.StoreKey,
-	acck auth.AccountKeeper,
-	bank bank.BankKeeper,
-	prmk params.ParamsKeeper,
+	acck AccountKeeperI,
+	bank BankKeeperI,
+	prmk ParamsKeeperI,
 ) *VMKeeper {
 	vmk := &VMKeeper{
 		baseKey: baseKey,
@@ -268,7 +265,6 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	}
 
 	// Parse and run the files, construct *PV.
-	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	msgCtx := stdlibs.ExecContext{
 		ChainID:         ctx.ChainID(),
 		ChainDomain:     chainDomain,
@@ -276,7 +272,6 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 		Timestamp:       ctx.BlockTime().Unix(),
 		OriginCaller:    creator.Bech32(),
 		OriginSendSpent: new(std.Coins),
-		OriginPkgAddr:   pkgAddr.Bech32(),
 		// XXX: should we remove the banker ?
 		Banker:      NewSDKBanker(vm, ctx),
 		Params:      NewSDKParams(vm.prmk, ctx),
@@ -386,7 +381,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		OriginCaller:    creator.Bech32(),
 		OriginSend:      deposit,
 		OriginSendSpent: new(std.Coins),
-		OriginPkgAddr:   pkgAddr.Bech32(),
 		Banker:          NewSDKBanker(vm, ctx),
 		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
@@ -477,7 +471,6 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		OriginCaller:    caller.Bech32(),
 		OriginSend:      send,
 		OriginSendSpent: new(std.Coins),
-		OriginPkgAddr:   pkgAddr.Bech32(),
 		Banker:          NewSDKBanker(vm, ctx),
 		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
@@ -609,7 +602,6 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		OriginCaller:    caller.Bech32(),
 		OriginSend:      send,
 		OriginSendSpent: new(std.Coins),
-		OriginPkgAddr:   pkgAddr.Bech32(),
 		Banker:          NewSDKBanker(vm, ctx),
 		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
@@ -769,7 +761,6 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	alloc := gno.NewAllocator(maxAllocQuery)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
-	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	// Get Package.
 	pv := gnostore.GetPackage(pkgPath, false)
 	if pv == nil {
@@ -792,10 +783,9 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 		// OrigCaller:    caller,
 		// OrigSend:      send,
 		// OrigSendSpent: nil,
-		OriginPkgAddr: pkgAddr.Bech32(),
-		Banker:        NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
-		Params:        NewSDKParams(vm.prmk, ctx),
-		EventLogger:   ctx.EventLogger(),
+		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
+		Params:      NewSDKParams(vm.prmk, ctx),
+		EventLogger: ctx.EventLogger(),
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{

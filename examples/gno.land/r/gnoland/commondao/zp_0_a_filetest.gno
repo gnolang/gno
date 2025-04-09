@@ -2,6 +2,7 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	pcommondao "gno.land/p/gnoland/commondao"
 
@@ -18,23 +19,23 @@ const (
 var dao *pcommondao.CommonDAO
 
 func init() {
-	std.TestSetOriginCaller(owner)
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/tests"))
+	testing.SetOriginCaller(owner)
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/tests"))
 	commondao.Invite(user)
 
-	std.TestSetOriginCaller(user)
+	testing.SetOriginCaller(user)
 	dao = commondao.New("Foo")
 	dao.Members().Add(user)
 	dao.Members().Add(owner)
 
-	std.TestSetRealm(std.NewUserRealm(user))
+	testing.SetRealm(std.NewUserRealm(user))
 }
 
 func main() {
 	pID := commondao.CreateMembersUpdateProposal(dao.ID(), "", newMembers, removeMembers)
 
-	p, found := dao.GetActiveProposal(pID)
-	if !found {
+	p := dao.ActiveProposals().Get(pID)
+	if p == nil {
 		panic("expected proposal to be created")
 	}
 
