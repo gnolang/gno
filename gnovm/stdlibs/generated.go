@@ -1222,11 +1222,9 @@ var nativeFuncs = [...]NativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("[]byte")},
 		},
-		true,
+		false,
 		func(m *gno.Machine) {
-			r0 := libs_time.X_chainTZParamData(
-				m,
-			)
+			r0 := libs_time.X_chainTZParamData()
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
