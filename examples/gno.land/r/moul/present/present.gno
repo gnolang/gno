@@ -18,6 +18,8 @@ import (
 	"gno.land/p/moul/txlink"
 )
 
+var chainDomain = std.ChainDomain()
+
 type Presentation struct {
 	Slug      string
 	Title     string
@@ -38,18 +40,18 @@ var (
 func init() {
 	presentations = collection.New()
 	// for /view and /slides
-	presentations.AddIndex("slug", func(v interface{}) string {
+	presentations.AddIndex("slug", func(v any) string {
 		return v.(*Presentation).Slug
 	}, collection.UniqueIndex)
 
 	// for table sorting
-	presentations.AddIndex("date", func(v interface{}) string {
+	presentations.AddIndex("date", func(v any) string {
 		return v.(*Presentation).Date.String()
 	}, collection.DefaultIndex)
-	presentations.AddIndex("author", func(v interface{}) string {
+	presentations.AddIndex("author", func(v any) string {
 		return v.(*Presentation).Author
 	}, collection.DefaultIndex)
-	presentations.AddIndex("title", func(v interface{}) string {
+	presentations.AddIndex("title", func(v any) string {
 		return v.(*Presentation).Title
 	}, collection.DefaultIndex)
 
@@ -107,7 +109,7 @@ func Set(slug, title, event, author, date, content string) string {
 		Title:     title,
 		Event:     event,
 		Author:    author,
-		Uploader:  std.PrevRealm().Addr(),
+		Uploader:  std.PreviousRealm().Address(),
 		Date:      parsedDate,
 		Content:   content,
 		EditDate:  time.Now(),
@@ -128,7 +130,7 @@ func Delete(slug string) string {
 	}
 
 	// XXX: consider this:
-	// if entry.Obj.(*Presentation).Uploader != std.PrevRealm().Addr() {
+	// if entry.Obj.(*Presentation).Uploader != std.PreviousRealm().Address() {
 	// 	return "401: unauthorized - only the uploader can delete their presentations"
 	// }
 
@@ -193,7 +195,7 @@ func renderList(req *realmpath.Request) string {
 	}
 
 	out.WriteString(table.String())
-	out.WriteString(page.Picker()) // XXX: picker is not preserving the previous flags, should take "req" as argument.
+	out.WriteString(page.Picker(req.String()))
 	return out.String()
 }
 
@@ -210,7 +212,7 @@ func (p *Presentation) LastSlide() string {
 	out.WriteString(md.H1(p.Title))
 	out.WriteString(md.H2("Thank You!"))
 	out.WriteString(md.Paragraph(p.Author))
-	fullPath := "https://" + std.GetChainDomain() + localPath(p.Slug, nil)
+	fullPath := "https://" + chainDomain + localPath(p.Slug, nil)
 	out.WriteString(md.Paragraph("🔗 " + md.Link(fullPath, fullPath)))
 	// XXX: QRCode
 	return out.String()

@@ -81,7 +81,7 @@ func (s *basicNFT) SetTokenURI(tid TokenID, tURI TokenURI) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	if caller != owner {
 		return false, ErrCallerIsNotOwner
 	}
@@ -93,12 +93,12 @@ func (s *basicNFT) SetTokenURI(tid TokenID, tURI TokenURI) (bool, error) {
 // Otherwise, returns false
 func (s *basicNFT) IsApprovedForAll(owner, operator std.Address) bool {
 	key := owner.String() + ":" + operator.String()
-	_, found := s.operatorApprovals.Get(key)
+	approved, found := s.operatorApprovals.Get(key)
 	if !found {
 		return false
 	}
 
-	return true
+	return approved.(bool)
 }
 
 // Approve approves the input address for particular token
@@ -115,7 +115,7 @@ func (s *basicNFT) Approve(to std.Address, tid TokenID) error {
 		return ErrApprovalToCurrentOwner
 	}
 
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	if caller != owner && !s.IsApprovedForAll(owner, caller) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -147,7 +147,7 @@ func (s *basicNFT) SetApprovalForAll(operator std.Address, approved bool) error 
 		return ErrInvalidAddress
 	}
 
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	return s.setApprovalForAll(caller, operator, approved)
 }
 
@@ -155,7 +155,7 @@ func (s *basicNFT) SetApprovalForAll(operator std.Address, approved bool) error 
 // contract recipients are aware of the GRC721 protocol to prevent
 // tokens from being forever locked.
 func (s *basicNFT) SafeTransferFrom(from, to std.Address, tid TokenID) error {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	if !s.isApprovedOrOwner(caller, tid) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -174,7 +174,7 @@ func (s *basicNFT) SafeTransferFrom(from, to std.Address, tid TokenID) error {
 
 // Transfers `tokenId` token from `from` to `to`.
 func (s *basicNFT) TransferFrom(from, to std.Address, tid TokenID) error {
-	caller := std.PrevRealm().Addr()
+	caller := std.PreviousRealm().Address()
 	if !s.isApprovedOrOwner(caller, tid) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -361,12 +361,12 @@ func (s *basicNFT) isApprovedOrOwner(addr std.Address, tid TokenID) bool {
 		return true
 	}
 
-	_, err := s.GetApproved(tid)
+	approved, err := s.GetApproved(tid)
 	if err != nil {
 		return false
 	}
 
-	return true
+	return approved == addr
 }
 
 // Checks if token id already exists
@@ -394,4 +394,10 @@ func (s *basicNFT) RenderHome() (str string) {
 	str += ufmt.Sprintf("* **Known accounts**: %d\n", s.balances.Size())
 
 	return
+}
+
+func (n *basicNFT) Getter() NFTGetter {
+	return func() IGRC721 {
+		return n
+	}
 }

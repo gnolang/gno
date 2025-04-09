@@ -62,7 +62,7 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "download"},
 			testDir:              "../../tests/integ/replace_with_module",
 			simulateExternalRepo: true,
-			stderrShouldContain:  "gno: downloading gno.land/p/demo/users",
+			stderrShouldContain:  "gno: downloading gno.land/p/demo/seqid",
 		},
 		{
 			args:                 []string{"mod", "download"},

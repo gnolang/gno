@@ -1,24 +1,21 @@
 package test
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"go/token"
 	"io"
-	"math/big"
 	"os"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
-	"time"
 
 	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
-	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
@@ -39,23 +36,19 @@ type StoreOptions struct {
 // NOTE: this isn't safe, should only be used for testing.
 func Store(
 	rootDir string,
-	pkgs packages.PkgList,
-	stdin io.Reader,
-	stdout, stderr io.Writer,
+	output io.Writer,
 ) (
 	baseStore storetypes.CommitStore,
 	resStore gno.Store,
 ) {
-	return StoreWithOptions(rootDir, pkgs, stdin, stdout, stderr, StoreOptions{})
+	return StoreWithOptions(rootDir, output, StoreOptions{})
 }
 
 // StoreWithOptions is a variant of [Store] which additionally accepts a
 // [StoreOptions] argument.
 func StoreWithOptions(
 	rootDir string,
-	pkgs packages.PkgList,
-	stdin io.Reader,
-	stdout, stderr io.Writer,
+	output io.Writer,
 	opts StoreOptions,
 ) (
 	baseStore storetypes.CommitStore,
@@ -71,10 +64,8 @@ func StoreWithOptions(
 		}
 	}
 	getPackage := func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
-		// fmt.Println("getting pkg", pkgPath)
-
 		if pkgPath == "" {
-			panic(errors.New("invalid zero package path in testStore().pkgGetter"))
+			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))
 		}
 
 		if opts.WithExtern {
@@ -82,12 +73,12 @@ func StoreWithOptions(
 			const testPath = "github.com/gnolang/gno/_test/"
 			if strings.HasPrefix(pkgPath, testPath) {
 				baseDir := filepath.Join(rootDir, "gnovm", "tests", "files", "extern", pkgPath[len(testPath):])
-				memPkg := gno.MustReadMemPackage(baseDir, pkgPath, nil)
+				memPkg := gno.MustReadMemPackage(baseDir, pkgPath)
 				send := std.Coins{}
 				ctx := Context(pkgPath, send)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 					PkgPath: "test",
-					Output:  stdout,
+					Output:  output,
 					Store:   store,
 					Context: ctx,
 				})
@@ -95,102 +86,30 @@ func StoreWithOptions(
 			}
 		}
 
-		// gonative exceptions.
-		// These are values available using gonative; eventually they should all be removed.
-		switch pkgPath {
-		case "os":
-			pkg := gno.NewPackageNode("os", pkgPath, nil)
-			pkg.DefineGoNativeValue("Stdin", stdin)
-			pkg.DefineGoNativeValue("Stdout", stdout)
-			pkg.DefineGoNativeValue("Stderr", stderr)
-			return pkg, pkg.NewPackage()
-		case "fmt":
-			pkg := gno.NewPackageNode("fmt", pkgPath, nil)
-			pkg.DefineGoNativeValue("Println", func(a ...interface{}) (n int, err error) {
-				// NOTE: uncomment to debug long running tests
-				// fmt.Println(a...)
-				res := fmt.Sprintln(a...)
-				return stdout.Write([]byte(res))
-			})
-			pkg.DefineGoNativeValue("Printf", func(format string, a ...interface{}) (n int, err error) {
-				res := fmt.Sprintf(format, a...)
-				return stdout.Write([]byte(res))
-			})
-			pkg.DefineGoNativeValue("Print", func(a ...interface{}) (n int, err error) {
-				res := fmt.Sprint(a...)
-				return stdout.Write([]byte(res))
-			})
-			pkg.DefineGoNativeValue("Sprint", fmt.Sprint)
-			pkg.DefineGoNativeValue("Sprintf", fmt.Sprintf)
-			pkg.DefineGoNativeValue("Sprintln", fmt.Sprintln)
-			pkg.DefineGoNativeValue("Sscanf", fmt.Sscanf)
-			pkg.DefineGoNativeValue("Errorf", fmt.Errorf)
-			pkg.DefineGoNativeValue("Fprintln", fmt.Fprintln)
-			pkg.DefineGoNativeValue("Fprintf", fmt.Fprintf)
-			pkg.DefineGoNativeValue("Fprint", fmt.Fprint)
-			return pkg, pkg.NewPackage()
-		case "encoding/json":
-			pkg := gno.NewPackageNode("json", pkgPath, nil)
-			pkg.DefineGoNativeValue("Unmarshal", json.Unmarshal)
-			pkg.DefineGoNativeValue("Marshal", json.Marshal)
-			return pkg, pkg.NewPackage()
-		case "internal/os_test":
-			pkg := gno.NewPackageNode("os_test", pkgPath, nil)
-			pkg.DefineNative("Sleep",
-				gno.Flds( // params
-					"d", gno.AnyT(), // NOTE: should be time.Duration
-				),
-				gno.Flds( // results
-				),
-				func(m *gno.Machine) {
-					// For testing purposes here, nanoseconds are separately kept track.
-					arg0 := m.LastBlock().GetParams1().TV
-					d := arg0.GetInt64()
-					sec := d / int64(time.Second)
-					nano := d % int64(time.Second)
-					ctx := m.Context.(*teststd.TestExecContext)
-					ctx.Timestamp += sec
-					ctx.TimestampNano += nano
-					if ctx.TimestampNano >= int64(time.Second) {
-						ctx.Timestamp += 1
-						ctx.TimestampNano -= int64(time.Second)
-					}
-					m.Context = ctx
-				},
-			)
-			return pkg, pkg.NewPackage()
-		case "math/big":
-			pkg := gno.NewPackageNode("big", pkgPath, nil)
-			pkg.DefineGoNativeValue("NewInt", big.NewInt)
-			return pkg, pkg.NewPackage()
-		}
-
 		// Load normal stdlib.
-		pn, pv = loadStdlib(rootDir, pkgPath, store, stdout, opts.PreprocessOnly)
+		pn, pv = loadStdlib(rootDir, pkgPath, store, output, opts.PreprocessOnly)
 		if pn != nil {
 			return
 		}
 
-		// if known package
-		if memPkg := pkgs.GetMemPackage(pkgPath); memPkg != nil {
+		// if examples package...
+		examplePath := filepath.Join(rootDir, "examples", pkgPath)
+		if osm.DirExists(examplePath) {
+			memPkg := gno.MustReadMemPackage(examplePath, pkgPath)
 			if memPkg.IsEmpty() {
-				fmt.Fprintln(os.Stderr, string(debug.Stack()))
 				panic(fmt.Sprintf("found an empty package %q", pkgPath))
 			}
-
-			// fmt.Println("loading", pkgPath, "from", pkg.Dir, "err", pkg.Error)
 
 			send := std.Coins{}
 			ctx := Context(pkgPath, send)
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 				PkgPath: "test",
-				Output:  stdout,
+				Output:  output,
 				Store:   store,
 				Context: ctx,
 			})
 			return processMemPackage(m2, memPkg, true)
 		}
-
 		return nil, nil
 	}
 	db := memdb.NewMemDB()
@@ -231,7 +150,7 @@ func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer, prep
 		return nil, nil
 	}
 
-	memPkg := gno.MustReadMemPackageFromList(files, pkgPath, nil)
+	memPkg := gno.MustReadMemPackageFromList(files, pkgPath)
 	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 		// NOTE: see also pkgs/sdk/vm/builtins.go
 		// Needs PkgPath != its name because TestStore.getPackage is the package
@@ -263,7 +182,7 @@ func (e *stackWrappedError) String() string {
 // from the store. This is mostly useful for "eager import loading", whereby all
 // imports are pre-loaded in a permanent store, so that the tests can use
 // ephemeral transaction stores.
-func LoadImports(store gno.Store, memPkg *gnovm.MemPackage, fset *token.FileSet) (err error) {
+func LoadImports(store gno.Store, memPkg *gnovm.MemPackage) (err error) {
 	defer func() {
 		// This is slightly different from other similar error handling; we do not have a
 		// machine to work with, as this comes from an import; so we need
@@ -273,7 +192,7 @@ func LoadImports(store gno.Store, memPkg *gnovm.MemPackage, fset *token.FileSet)
 			case *gno.TypedValue:
 				err = errors.New(v.String())
 			case *gno.PreprocessError:
-				err = v.Unwrap()
+				err = &stackWrappedError{v.Unwrap(), debug.Stack()}
 			case gno.UnhandledPanicError:
 				err = v
 			case error:
@@ -284,24 +203,21 @@ func LoadImports(store gno.Store, memPkg *gnovm.MemPackage, fset *token.FileSet)
 		}
 	}()
 
-	if fset == nil {
-		fset = token.NewFileSet()
-	}
-
+	fset := token.NewFileSet()
 	importsMap, err := packages.Imports(memPkg, fset)
 	if err != nil {
 		return err
 	}
 	imports := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
-	for _, im := range imports {
-		if gno.IsRealmPath(im.PkgPath) {
+	for _, imp := range imports {
+		if gno.IsRealmPath(imp.PkgPath) {
 			// Don't eagerly load realms.
 			// Realms persist state and can change the state of other realms in initialization.
 			continue
 		}
-		pkg := store.GetPackage(im.PkgPath, true)
+		pkg := store.GetPackage(imp.PkgPath, true)
 		if pkg == nil {
-			return fmt.Errorf("%s: unknown import path %s", fset.Position(im.Spec.Pos()).String(), im.PkgPath)
+			return fmt.Errorf("%v: unknown import path %v", fset.Position(imp.Spec.Pos()).String(), imp.PkgPath)
 		}
 	}
 	return nil

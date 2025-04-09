@@ -2,12 +2,13 @@ package main
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/r/moul/home"
 )
 
 func main() {
-	std.TestSetOrigCaller("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+	testing.SetOriginCaller(std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
 	home.AddTodo("aaa")
 	home.AddTodo("bbb")
 	home.AddTodo("ccc")
@@ -62,10 +63,10 @@ func main() {
 // | Key | Value |
 // | --- | --- |
 // | `std.CurrentRealm().PkgPath()` | gno.land/r/moul/home |
-// | `std.CurrentRealm().Addr()` | g1h8h57ntxadcze3f703skymfzdwa6t3ugf0nq3z |
-// | `std.PrevRealm().PkgPath()` |  |
-// | `std.PrevRealm().Addr()` | g1manfred47kzduec920z88wfr64ylksmdcedlf5 |
-// | `std.GetHeight()` | 123 |
+// | `std.CurrentRealm().Address()` | g1h8h57ntxadcze3f703skymfzdwa6t3ugf0nq3z |
+// | `std.PreviousRealm().PkgPath()` |  |
+// | `std.PreviousRealm().Address()` | g1manfred47kzduec920z88wfr64ylksmdcedlf5 |
+// | `std.ChainHeight()` | 123 |
 // | `time.Now().Format(time.RFC3339)` | 2009-02-13T23:31:30Z |
 //
 // </details>

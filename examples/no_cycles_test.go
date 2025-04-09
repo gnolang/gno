@@ -12,21 +12,32 @@ import (
 
 	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
-	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	"github.com/stretchr/testify/require"
 )
 
-// XXX: move this into `gno lint`
-
-var injectedTestingLibs = []string{"encoding/json", "fmt", "os", "internal/os_test"}
-
 // TestNoCycles checks that there is no import cycles in stdlibs and non-draft examples
 func TestNoCycles(t *testing.T) {
-	// find examples and stdlibs
-	cfg := &packages.LoadConfig{Deps: true, Fetcher: pkgdownload.NewNoopFetcher()}
-	pkgs, err := packages.Load(cfg, filepath.Join(gnoenv.RootDir(), "examples", "..."))
+	// find stdlibs
+	gnoRoot := gnoenv.RootDir()
+	pkgs, err := listPkgs(gnomod.Pkg{
+		Dir:  filepath.Join(gnoRoot, "gnovm", "stdlibs"),
+		Name: "",
+	})
 	require.NoError(t, err)
+
+	// find examples
+	examples, err := gnomod.ListPkgs(filepath.Join(gnoRoot, "examples"))
+	require.NoError(t, err)
+	for _, example := range examples {
+		if example.Draft {
+			continue
+		}
+		examplePkgs, err := listPkgs(example)
+		require.NoError(t, err)
+		pkgs = append(pkgs, examplePkgs...)
+	}
 
 	// detect cycles
 	visited := make(map[string]bool)
@@ -61,7 +72,7 @@ func TestNoCycles(t *testing.T) {
 // - foo_pkg/foo.go imports bar_pkg
 //
 // - bar_pkg/bar_test.go imports foo_pkg
-func detectCycles(root *packages.Package, pkgs packages.PkgList, visited map[string]bool) error {
+func detectCycles(root testPkg, pkgs []testPkg, visited map[string]bool) error {
 	// check cycles in package's sources
 	stack := []string{}
 	if err := visitPackage(root, pkgs, visited, stack); err != nil {
@@ -74,8 +85,8 @@ func detectCycles(root *packages.Package, pkgs packages.PkgList, visited map[str
 
 	// check cycles in tests' imports by marking the current package as visited while visiting the tests' imports
 	// we also consider PackageSource imports here because tests can call package code
-	visited = map[string]bool{root.ImportPath: true}
-	stack = []string{root.ImportPath}
+	visited = map[string]bool{root.PkgPath: true}
+	stack = []string{root.PkgPath}
 	if err := visitImports([]packages.FileKind{packages.FileKindPackageSource, packages.FileKindTest}, root, pkgs, visited, stack); err != nil {
 		return fmt.Errorf("test import: %w", err)
 	}
@@ -84,18 +95,13 @@ func detectCycles(root *packages.Package, pkgs packages.PkgList, visited map[str
 }
 
 // visitImports resolves and visits imports by kinds
-func visitImports(kinds []packages.FileKind, root *packages.Package, pkgs packages.PkgList, visited map[string]bool, stack []string) error {
-	for _, imp := range root.ImportsSpecs.Merge(kinds...) {
-		if slices.Contains(injectedTestingLibs, imp.PkgPath) {
-			continue
+func visitImports(kinds []packages.FileKind, root testPkg, pkgs []testPkg, visited map[string]bool, stack []string) error {
+	for _, imp := range root.Imports.Merge(kinds...) {
+		idx := slices.IndexFunc(pkgs, func(p testPkg) bool { return p.PkgPath == imp.PkgPath })
+		if idx == -1 {
+			return fmt.Errorf("import %q not found for %q tests", imp.PkgPath, root.PkgPath)
 		}
-
-		dep := pkgs.Get(imp.PkgPath)
-		if dep == nil {
-			return fmt.Errorf("import %q not found for %q tests", imp.PkgPath, root.ImportPath)
-		}
-
-		if err := visitPackage(dep, pkgs, visited, stack); err != nil {
+		if err := visitPackage(pkgs[idx], pkgs, visited, stack); err != nil {
 			return fmt.Errorf("test import error: %w", err)
 		}
 	}
@@ -104,16 +110,16 @@ func visitImports(kinds []packages.FileKind, root *packages.Package, pkgs packag
 }
 
 // visitNode visits a package and its imports recursively. It only considers imports in PackageSource
-func visitPackage(pkg *packages.Package, pkgs packages.PkgList, visited map[string]bool, stack []string) error {
-	if slices.Contains(stack, pkg.ImportPath) {
-		return fmt.Errorf("cycle detected: %s -> %s", strings.Join(stack, " -> "), pkg.ImportPath)
+func visitPackage(pkg testPkg, pkgs []testPkg, visited map[string]bool, stack []string) error {
+	if slices.Contains(stack, pkg.PkgPath) {
+		return fmt.Errorf("cycle detected: %s -> %s", strings.Join(stack, " -> "), pkg.PkgPath)
 	}
-	if visited[pkg.ImportPath] {
+	if visited[pkg.PkgPath] {
 		return nil
 	}
 
-	visited[pkg.ImportPath] = true
-	stack = append(stack, pkg.ImportPath)
+	visited[pkg.PkgPath] = true
+	stack = append(stack, pkg.PkgPath)
 
 	if err := visitImports([]packages.FileKind{packages.FileKindPackageSource}, pkg, pkgs, visited, stack); err != nil {
 		return err
@@ -129,7 +135,7 @@ type testPkg struct {
 }
 
 // listPkgs lists all packages in rootMod
-func listPkgs(rootMod *packages.Package) ([]testPkg, error) {
+func listPkgs(rootMod gnomod.Pkg) ([]testPkg, error) {
 	res := []testPkg{}
 	rootDir := rootMod.Dir
 	visited := map[string]struct{}{}

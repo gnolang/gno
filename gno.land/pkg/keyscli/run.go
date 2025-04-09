@@ -106,11 +106,12 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 			}
 		}
 	}
+
+	memPkg.Name = "main"
 	if memPkg.IsEmpty() {
 		panic(fmt.Sprintf("found an empty package %q", memPkg.Path))
 	}
 
-	memPkg.Name = "main"
 	// Set to empty; this will be automatically set by the VM keeper.
 	memPkg.Path = ""
 

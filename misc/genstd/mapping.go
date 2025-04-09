@@ -35,8 +35,12 @@ func (mt mappingType) GoQualifiedName() string {
 	return types.ExprString(mt.Type)
 }
 
-func (mt mappingType) GnoType() string {
-	return types.ExprString(mt.Type)
+func (mt mappingType) GnoTypeExpression() string {
+	s := types.ExprString(mt.Type)
+	if s == "interface{}" {
+		return "gno.AnyT()"
+	}
+	return fmt.Sprintf("gno.X(%q)", s)
 }
 
 func linkFunctions(pkgs []*pkgData) []mapping {
@@ -163,7 +167,7 @@ func iterFields(gnol, gol []*ast.Field, callback func(gnoType, goType ast.Expr) 
 			n = 1
 		}
 		gnoe := l.Type
-		for i := 0; i < n; i++ {
+		for range n {
 			goe := gol[goIdx].Type
 
 			if err := callback(gnoe, goe); err != nil {

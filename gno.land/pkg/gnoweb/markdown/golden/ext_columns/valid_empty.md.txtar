@@ -1,0 +1,21 @@
+-- input.md --
+
+### no columns
+
+<gno-columns>
+</gno-columns>
+
+### no columns with space
+
+<gno-columns>
+
+</gno-columns>
+
+
+-- output.html --
+<h3>no columns</h3>
+<div class="gno-columns">
+</div> <!-- </gno-columns> -->
+<h3>no columns with space</h3>
+<div class="gno-columns">
+</div> <!-- </gno-columns> -->

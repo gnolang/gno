@@ -52,8 +52,6 @@ func TestBuiltinIdentifiersShadowing(t *testing.T) {
 		"iota",
 		"append",
 		"cap",
-		"close",
-		"complex",
 		"copy",
 		"delete",
 		"len",
@@ -64,7 +62,6 @@ func TestBuiltinIdentifiersShadowing(t *testing.T) {
 		"println",
 		"recover",
 		"nil",
-		"bigint",
 		"bool",
 		"byte",
 		"float32",
@@ -81,10 +78,10 @@ func TestBuiltinIdentifiersShadowing(t *testing.T) {
 		"uint16",
 		"uint32",
 		"uint64",
-		"typeval",
 		"error",
 		"true",
 		"false",
+		"any",
 	}
 
 	for _, name := range uverseNames {
@@ -168,90 +165,254 @@ func TestConvertTo(t *testing.T) {
 	tests := []cases{
 		{
 			`package test
-
-func main() {
-	const a int = -1
-    println(uint(a))
-}`,
-			`test/main.go:5:13: cannot convert constant of type IntKind to UintKind`,
+		func main() {
+			var t interface{}
+			t = 2
+			var g = float32(t)
+			println(g)
+		}
+		`, `test/main.go:5:12: cannot convert interface{} to float32: need type assertion`,
 		},
 		{
 			`package test
-
-func main() {
-	const a int = -1
-    println(uint8(a))
-}`,
-			`test/main.go:5:13: cannot convert constant of type IntKind to Uint8Kind`,
+		func main() {
+		   var t interface{}
+		   t = 2
+		   var g = int(t)
+		   println(g)
+		}
+		`, `test/main.go:5:14: cannot convert interface{} to int: need type assertion`,
 		},
 		{
 			`package test
-
-func main() {
-	const a int = -1
-    println(uint16(a))
-}`,
-			`test/main.go:5:13: cannot convert constant of type IntKind to Uint16Kind`,
+		func main() {
+		   var t interface{}
+		   t = 2
+		   var g = int8(t)
+		   println(g)
+		}
+		`, `test/main.go:5:14: cannot convert interface{} to int8: need type assertion`,
 		},
 		{
 			`package test
-
-func main() {
-	const a int = -1
-    println(uint32(a))
-}`,
-			`test/main.go:5:13: cannot convert constant of type IntKind to Uint32Kind`,
+		func main() {
+		   var t interface{}
+		   t = 2
+		   var g = int16(t)
+		   println(g)
+		}
+		`, `test/main.go:5:14: cannot convert interface{} to int16: need type assertion`,
 		},
 		{
 			`package test
-
-func main() {
-	const a int = -1
-    println(uint64(a))
-}`,
-			`test/main.go:5:13: cannot convert constant of type IntKind to Uint64Kind`,
+				func main() {
+				   var t interface{}
+				   t = 2
+				   var g = int32(t)
+				   println(g)
+				}
+				`, `test/main.go:5:16: cannot convert interface{} to int32: need type assertion`,
 		},
 		{
 			`package test
-
-func main() {
-	const a float32 = 1.5
-    println(int32(a))
-}`,
-			`test/main.go:5:13: cannot convert constant of type Float32Kind to Int32Kind`,
+		func main() {
+		   var t interface{}
+		   t = 2
+		   var g = int64(t)
+		   println(g)
+		}
+		`, `test/main.go:5:14: cannot convert interface{} to int64: need type assertion`,
 		},
 		{
 			`package test
-
-func main() {
-    println(int32(1.5))
-}`,
-			`test/main.go:4:13: cannot convert (const (1.5 <untyped> bigdec)) to integer type`,
+		func main() {
+		   var t interface{}
+		   t = 2
+		   var g = uint(t)
+		   println(g)
+		}
+		`, `test/main.go:5:14: cannot convert interface{} to uint: need type assertion`,
 		},
 		{
 			`package test
-
-func main() {
-	const a float64 = 1.5
-    println(int64(a))
-}`,
-			`test/main.go:5:13: cannot convert constant of type Float64Kind to Int64Kind`,
+		func main() {
+		   var t interface{}
+		   t = 2
+		   var g = uint8(t)
+		   println(g)
+		}
+		`, `test/main.go:5:14: cannot convert interface{} to uint8: need type assertion`,
 		},
 		{
 			`package test
+		func main() {
+		   var t interface{}
+		   t = 2
+		   var g = uint16(t)
+		   println(g)
+		}
+		`, `test/main.go:5:14: cannot convert interface{} to uint16: need type assertion`,
+		},
+		{
+			`package test
+		func main() {
+		   var t interface{}
+		   t = 2
+		   var g = uint32(t)
+		   println(g)
+		}
+		`, `test/main.go:5:14: cannot convert interface{} to uint32: need type assertion`,
+		},
+		{
+			`package test
+		func main() {
+		   var t interface{}
+		   t = 2
+		   var g = uint64(t)
+		   println(g)
+		}
+		`, `test/main.go:5:14: cannot convert interface{} to uint64: need type assertion`,
+		},
 
-func main() {
-    println(int64(1.5))
-}`,
-			`test/main.go:4:13: cannot convert (const (1.5 <untyped> bigdec)) to integer type`,
+		// Built-in non-numeric types
+		{
+			`package test
+		func main() {
+		   var t interface{}
+		   t = "hello"
+		   var g = string(t)
+		   println(g)
+		}
+		`, `test/main.go:5:14: cannot convert interface{} to string: need type assertion`,
+		},
+		{
+			`package test
+		func main() {
+		   var t interface{}
+		   t = true
+		   var g = bool(t)
+		   println(g)
+		}
+		`, `test/main.go:5:14: cannot convert interface{} to bool: need type assertion`,
+		},
+		{
+			`package test
+		func main() {
+		   var t interface{}
+		   t = 'a'
+		   var g = rune(t)
+		   println(g)
+		}
+		`, `test/main.go:5:14: cannot convert interface{} to int32: need type assertion`,
+		},
+		{
+			`package test
+		func main() {
+		   var t interface{}
+		   t = byte(65)
+		   var g = byte(t)
+		   println(g)
+		}
+		`, `test/main.go:5:14: cannot convert interface{} to uint8: need type assertion`,
+		},
+
+		{
+			`package test
+		type MyInt int
+		func main() {
+		   var t interface{}
+		   t = MyInt(2)
+		   var g = MyInt(t)
+		   println(g)
+		}
+		`, `test/main.go:6:14: cannot convert interface{} to test.MyInt: need type assertion`,
 		},
 		{
 			`package test
 		
 		func main() {
-			const f = float64(1.0)
-		   println(int64(f))
+			const a int = -1
+		   println(uint(a))
 		}`,
+			`test/main.go:5:14: cannot convert constant of type IntKind to UintKind`,
+		},
+		{
+			`package test
+		
+		func main() {
+			const a int = -1
+		   println(uint8(a))
+		}`,
+			`test/main.go:5:14: cannot convert constant of type IntKind to Uint8Kind`,
+		},
+		{
+			`package test
+		
+		func main() {
+			const a int = -1
+		   println(uint16(a))
+		}`,
+			`test/main.go:5:14: cannot convert constant of type IntKind to Uint16Kind`,
+		},
+		{
+			`package test
+		
+		func main() {
+			const a int = -1
+		   println(uint32(a))
+		}`,
+			`test/main.go:5:14: cannot convert constant of type IntKind to Uint32Kind`,
+		},
+		{
+			`package test
+		
+		func main() {
+			const a int = -1
+		   println(uint64(a))
+		}`,
+			`test/main.go:5:14: cannot convert constant of type IntKind to Uint64Kind`,
+		},
+		{
+			`package test
+		
+		func main() {
+			const a float32 = 1.5
+		   println(int32(a))
+		}`,
+			`test/main.go:5:14: cannot convert constant of type Float32Kind to Int32Kind`,
+		},
+		{
+			`package test
+		
+		func main() {
+		   println(int32(1.5))
+		}`,
+			`test/main.go:4:14: cannot convert (const (1.5 <untyped> bigdec)) to integer type`,
+		},
+		{
+			`package test
+		
+		func main() {
+			const a float64 = 1.5
+		   println(int64(a))
+		}`,
+			`test/main.go:5:14: cannot convert constant of type Float64Kind to Int64Kind`,
+		},
+		{
+			`package test
+		
+		func main() {
+		   println(int64(1.5))
+		}`,
+			`test/main.go:4:14: cannot convert (const (1.5 <untyped> bigdec)) to integer type`,
+		},
+		{
+			`package test
+		
+				func main() {
+					const f = float64(1.0)
+				   println(int64(f))
+				}`,
 			``,
 		},
 	}
@@ -422,54 +583,6 @@ func assertOutput(t *testing.T, input string, output string) {
 	assert.Nil(t, err)
 }
 
-func TestRunMakeStruct(t *testing.T) {
-	t.Parallel()
-
-	assertOutput(t, `package test
-type Outfit struct {
-	Scarf string
-	Shirt string
-	Belts string
-	Strap string
-	Pants string
-	Socks string
-	Shoes string
-}
-func main() {
-	s := Outfit {
-		// some fields are out of order.
-		// some fields are left unset.
-		Scarf:"scarf",
-		Shirt:"shirt",
-		Shoes:"shoes",
-		Socks:"socks",
-	}
-	// some fields out of order are used.
-	// some fields left unset are used.
-	print(s.Shoes+","+s.Shirt+","+s.Pants+","+s.Scarf)
-}`, `shoes,shirt,,scarf`)
-}
-
-func TestRunReturnStruct(t *testing.T) {
-	t.Parallel()
-
-	assertOutput(t, `package test
-type MyStruct struct {
-	FieldA string
-	FieldB string
-}
-func myStruct(a, b string) MyStruct {
-	return MyStruct{
-		FieldA: a,
-		FieldB: b,
-	}
-}
-func main() {
-	s := myStruct("aaa", "bbb")
-	print(s.FieldA+","+s.FieldB)
-}`, `aaa,bbb`)
-}
-
 // ----------------------------------------
 // Benchmarks
 
@@ -570,7 +683,7 @@ func TestModifyTypeAsserted(t *testing.T) {
 	t.Parallel()
 
 	x := Struct1{1, 1}
-	var v interface{} = x
+	var v any = x
 	x2 := v.(Struct1)
 	x2.A = 2
 
@@ -588,7 +701,7 @@ func TestTypeConversion(t *testing.T) {
 	t.Parallel()
 
 	x := 1
-	var v interface{} = x
+	var v any = x
 	if _, ok := v.(Interface1); ok {
 		panic("should not happen")
 	}
@@ -607,11 +720,11 @@ func TestSomething(t *testing.T) {
 	t.Parallel()
 
 	type Foo struct {
-		X interface{}
+		X any
 	}
 
 	type Bar struct {
-		X interface{}
+		X any
 		Y bool
 	}
 
@@ -702,7 +815,7 @@ func TestBinaryShortCircuit(t *testing.T) {
 func TestSwitchDefine(t *testing.T) {
 	t.Parallel()
 
-	var x interface{} = 1
+	var x any = 1
 	switch y := x.(type) {
 	case int:
 		fmt.Println("int", y) // XXX

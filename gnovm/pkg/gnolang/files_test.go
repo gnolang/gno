@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/stretchr/testify/require"
 )
@@ -36,10 +35,7 @@ func (nopReader) Read(p []byte) (int, error) { return 0, io.EOF }
 func TestFiles(t *testing.T) {
 	t.Parallel()
 
-	rootDir, err := filepath.Abs(filepath.FromSlash("../../.."))
-	require.NoError(t, err)
-
-	pkgs, err := packages.Load(nil, filepath.Join(rootDir, "examples", "..."))
+	rootDir, err := filepath.Abs("../../../")
 	require.NoError(t, err)
 
 	newOpts := func() *test.TestOptions {
@@ -49,9 +45,9 @@ func TestFiles(t *testing.T) {
 			Error:   io.Discard,
 			Sync:    *withSync,
 		}
-		o.BaseStore, o.TestStore = test.Store(
-			rootDir, pkgs,
-			nopReader{}, o.WriterForStore(), io.Discard,
+		o.BaseStore, o.TestStore = test.StoreWithOptions(
+			rootDir, o.WriterForStore(),
+			test.StoreOptions{WithExtern: true},
 		)
 		return o
 	}
@@ -125,7 +121,7 @@ func TestStdlibs(t *testing.T) {
 			capture = new(bytes.Buffer)
 			out = capture
 		}
-		opts = test.NewTestOptions(rootDir, nil, nopReader{}, out, out)
+		opts = test.NewTestOptions(rootDir, out, out)
 		opts.Verbose = true
 		return
 	}
@@ -142,7 +138,7 @@ func TestStdlibs(t *testing.T) {
 		}
 
 		fp := filepath.Join(dir, path)
-		memPkg := gnolang.MustReadMemPackage(fp, path, nil)
+		memPkg := gnolang.MustReadMemPackage(fp, path)
 		t.Run(strings.ReplaceAll(memPkg.Path, "/", "-"), func(t *testing.T) {
 			capture, opts := sharedCapture, sharedOpts
 			switch memPkg.Path {
@@ -172,6 +168,43 @@ func TestStdlibs(t *testing.T) {
 			err := test.Test(memPkg, "", opts)
 			if !testing.Verbose() {
 				t.Log(capture.String())
+			}
+			if err != nil {
+				t.Error(err)
+			}
+		})
+
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testDir := "../../tests/stdlibs/"
+	testFs := os.DirFS(testDir)
+	err = fs.WalkDir(testFs, ".", func(path string, de fs.DirEntry, err error) error {
+		switch {
+		case err != nil:
+			return err
+		case !de.IsDir() || path == ".":
+			return nil
+		}
+		if _, err := os.Stat(filepath.Join(dir, path)); err == nil {
+			// skip; this dir exists already in the normal stdlibs and we
+			// currently don't support testing these "mixed stdlibs".
+			return nil
+		}
+
+		fp := filepath.Join(testDir, path)
+		memPkg := gnolang.MustReadMemPackage(fp, path)
+		t.Run("test-"+strings.ReplaceAll(memPkg.Path, "/", "-"), func(t *testing.T) {
+			if sharedCapture != nil {
+				sharedCapture.Reset()
+			}
+
+			err := test.Test(memPkg, "", sharedOpts)
+			if !testing.Verbose() {
+				t.Log(sharedCapture.String())
 			}
 			if err != nil {
 				t.Error(err)

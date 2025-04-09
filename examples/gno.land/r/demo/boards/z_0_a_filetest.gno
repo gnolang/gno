@@ -1,8 +1,11 @@
 // PKGPATH: gno.land/r/demo/boards_test
 package boards_test
 
+// SEND: 1000000ugnot
+
 import (
 	"std"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
@@ -12,7 +15,7 @@ var bid boards.BoardID
 
 func init() {
 	caller := testutils.TestAddress("caller")
-	std.TestSetRealm(std.NewUserRealm(caller))
+	testing.SetRealm(std.NewUserRealm(caller))
 	bid = boards.CreateBoard("test_board")
 	boards.CreateThread(bid, "First Post (title)", "Body of the first post. (body)")
 	pid := boards.CreateThread(bid, "Second Post (title)", "Body of the second post. (body)")

@@ -105,7 +105,7 @@ func TestDownloadDeps(t *testing.T) {
 
 			dirPath := t.TempDir()
 
-			err := os.WriteFile(filepath.Join(dirPath, "main.gno"), []byte(fmt.Sprintf("package main\n\n import %q\n", tc.pkgPath)), 0o644)
+			err := os.WriteFile(filepath.Join(dirPath, "main.gno"), fmt.Appendf(nil, "package main\n\n import %q\n", tc.pkgPath), 0o644)
 			require.NoError(t, err)
 
 			tmpGnoHome := t.TempDir()

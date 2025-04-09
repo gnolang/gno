@@ -4,8 +4,8 @@ gno test -v .
 
 ! stdout .+ # stdout should be empty
 stderr '=== RUN   file/x_filetest.gno'
-stderr '--- PASS: file/x_filetest.gno \(\d\.\d\ds\)'
-stderr 'ok      \. 	\d\.\d\ds'
+stderr '--- PASS: file/x_filetest.gno \(\d+\.\d\ds\)'
+stderr 'ok      \. 	\d+\.\d\ds'
 
 -- x_filetest.gno --
 // PKGPATH: gno.land/r/xx
@@ -19,3 +19,12 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/xx"]
+// u[aea84df38908f9569d0f552575606e6e6e7e22dd:2]=
+//     @@ -19,6 +19,7 @@
+//          },
+//          "Values": [
+//              {
+//     +            "N": "AQAAAAAAAAA=",
+//                  "T": {
+//                      "@type": "/gno.PrimitiveType",
+//                      "value": "32"

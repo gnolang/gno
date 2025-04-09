@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"path/filepath"
+	gopath "path"
 	"regexp"
 	"slices"
 	"strings"
@@ -12,16 +12,13 @@ import (
 
 var ErrURLInvalidPath = errors.New("invalid path")
 
-// rePkgOrRealmPath matches and validates a flexible path.
-var rePkgOrRealmPath = regexp.MustCompile(`^/[a-z][a-z0-9_/]*$`)
-
 // GnoURL decomposes the parts of an URL to query a realm.
 type GnoURL struct {
 	// Example full path:
 	// gno.land/r/demo/users/render.gno:jae$help&a=b?c=d
 
 	Domain   string     // gno.land
-	Path     string     // /r/demo/users
+	Path     string     // /r/gnoland/users/v1
 	Args     string     // jae
 	WebQuery url.Values // help&a=b
 	Query    url.Values // c=d
@@ -126,7 +123,7 @@ func (gnoURL GnoURL) EncodeArgs() string {
 // EncodeURL encodes the path, arguments, and query parameters into a string.
 // This function provides the full representation of the URL without the web query.
 func (gnoURL GnoURL) EncodeURL() string {
-	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeQuery)
+	return gnoURL.Encode(EncodePath | EncodeArgs | EncodeQuery | EncodeNoEscape)
 }
 
 // EncodeWebURL encodes the path, package arguments, web query, and query into a string.
@@ -156,12 +153,31 @@ func (gnoURL GnoURL) IsDir() bool {
 		len(gnoURL.Path) > 0 && gnoURL.Path[len(gnoURL.Path)-1] == '/'
 }
 
-func (gnoURL GnoURL) IsValid() bool {
-	return rePkgOrRealmPath.MatchString(gnoURL.Path)
+// rePkgPath matches and validates a path.
+var rePkgPath = regexp.MustCompile(`^/[a-z0-9_/]*$`)
+
+func (gnoURL GnoURL) IsValidPath() bool {
+	return rePkgPath.MatchString(gnoURL.Path)
 }
 
-// ParseGnoURL parses a URL into a GnoURL structure, extracting and validating its components.
-func ParseGnoURL(u *url.URL) (*GnoURL, error) {
+var reNamespace = regexp.MustCompile(`^/[a-z]/[a-z][a-z0-9_/]*$`)
+
+// Extract the package name from the path (e.g., "/r/test/foo" -> "test")
+func (gnoURL GnoURL) Namespace() string {
+	if !reNamespace.MatchString(gnoURL.Path) {
+		return ""
+	}
+
+	path := gnoURL.Path[3:] // skip `/x/`
+	if idx := strings.Index(path, "/"); idx > 1 {
+		return path[:idx] // namespace
+	}
+
+	return path
+}
+
+// ParseFromURL parses a URL into a GnoURL structure, extracting and validating its components.
+func ParseFromURL(u *url.URL) (*GnoURL, error) {
 	var webargs string
 	path, args, found := strings.Cut(u.EscapedPath(), ":")
 	if found {
@@ -179,8 +195,8 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 
 	// A file is considered as one that either ends with an extension or
 	// contains an uppercase rune
-	ext := filepath.Ext(upath)
-	base := filepath.Base(upath)
+	ext := gopath.Ext(upath)
+	base := gopath.Base(upath)
 	if ext != "" || strings.ToLower(base) != base {
 		file = base
 		upath = strings.TrimSuffix(upath, base)
@@ -191,7 +207,7 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 		}
 	}
 
-	if !rePkgOrRealmPath.MatchString(upath) {
+	if !rePkgPath.MatchString(upath) {
 		return nil, fmt.Errorf("%w: %q", ErrURLInvalidPath, upath)
 	}
 
@@ -216,6 +232,15 @@ func ParseGnoURL(u *url.URL) (*GnoURL, error) {
 		Domain:   u.Hostname(),
 		File:     file,
 	}, nil
+}
+
+func Parse(u string) (gnourl *GnoURL, err error) {
+	var pu *url.URL
+	if pu, err = url.Parse(u); err == nil {
+		gnourl, err = ParseFromURL(pu)
+	}
+
+	return gnourl, err
 }
 
 // EncodeValues generates a URL-encoded query string from the given url.Values.

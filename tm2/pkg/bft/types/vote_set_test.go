@@ -123,7 +123,7 @@ func Test2_3Majority(t *testing.T) {
 		BlockID:          BlockID{nil, PartSetHeader{}},
 	}
 	// 6 out of 10 voted for nil.
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		addr := privValidators[i].GetPubKey().Address()
 		vote := withValidator(voteProto, addr, i)
 		_, err := signAddVote(privValidators[i], vote, voteSet)
@@ -186,7 +186,7 @@ func Test2_3MajorityRedux(t *testing.T) {
 	}
 
 	// 66 out of 100 voted for nil.
-	for i := 0; i < 66; i++ {
+	for i := range 66 {
 		addr := privValidators[i].GetPubKey().Address()
 		vote := withValidator(voteProto, addr, i)
 		_, err := signAddVote(privValidators[i], vote, voteSet)
@@ -492,7 +492,7 @@ func TestMakeCommit(t *testing.T) {
 	}
 
 	// 6 out of 10 voted for some block.
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		addr := privValidators[i].GetPubKey().Address()
 		vote := withValidator(voteProto, addr, i)
 		_, err := signAddVote(privValidators[i], vote, voteSet)

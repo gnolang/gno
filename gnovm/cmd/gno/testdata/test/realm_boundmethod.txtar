@@ -1,4 +1,10 @@
-gno test -v ./r/demo/realm2
+# Set up GNOROOT in the current directory.
+mkdir $WORK/gnovm/tests
+symlink $WORK/gnovm/stdlibs -> $GNOROOT/gnovm/stdlibs
+symlink $WORK/gnovm/tests/stdlibs -> $GNOROOT/gnovm/tests/stdlibs
+env GNOROOT=$WORK
+
+gno test -v ./examples/gno.land/r/demo/realm2
 
 stderr '=== RUN   TestDo'
 stderr '--- PASS: TestDo.*'
@@ -6,10 +12,10 @@ stderr '--- PASS: TestDo.*'
 stderr '=== RUN   file/realm2_filetest.gno'
 stderr '--- PASS: file/realm2_filetest.*'
 
--- p/demo/counter/gno.mod --
+-- examples/gno.land/p/demo/counter/gno.mod --
 module gno.land/p/demo/counter
 
--- p/demo/counter/counter.gno --
+-- examples/gno.land/p/demo/counter/counter.gno --
 package counter
 
 type Counter struct {
@@ -20,10 +26,7 @@ func (c *Counter) Inc() {
 	c.n++
 }
 
--- r/demo/realm1/gno.mod --
-module gno.land/r/demo/realm1
-
--- r/demo/realm1/realm1.gno --
+-- examples/gno.land/r/demo/realm1/realm1.gno --
 package realm1
 
 import "gno.land/p/demo/counter"
@@ -34,10 +37,7 @@ func GetCounter() *counter.Counter {
 	return &c
 }
 
--- r/demo/realm2/gno.mod --
-module gno.land/r/demo/realm2
-
--- r/demo/realm2/realm2.gno --
+-- examples/gno.land/r/demo/realm2/realm2.gno --
 package realm2
 
 import (
@@ -48,7 +48,7 @@ func Do() {
 	realm1.GetCounter().Inc()
 }
 
--- r/demo/realm2/realm2_filetest.gno --
+-- examples/gno.land/r/demo/realm2/realm2_filetest.gno --
 // PKGPATH: gno.land/r/tests
 package tests
 
@@ -62,7 +62,7 @@ func main() {
 // Output:
 // OK
 
--- r/demo/realm2/realm2_test.gno --
+-- examples/gno.land/r/demo/realm2/realm2_test.gno --
 package realm2
 
 import "testing"

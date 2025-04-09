@@ -131,7 +131,7 @@ func (f *File) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modf
 			Err:      err,
 		})
 	}
-	errorf := func(format string, args ...interface{}) {
+	errorf := func(format string, args ...any) {
 		wrapError(fmt.Errorf(format, args...))
 	}
 
@@ -176,6 +176,10 @@ func (f *File) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modf
 		s, err := parseString(&args[0])
 		if err != nil {
 			errorf("invalid quoted string: %v", err)
+			return
+		}
+		if err := module.CheckImportPath(s); err != nil {
+			errorf("invalid module path: %v", err)
 			return
 		}
 		f.Module.Mod = module.Version{Path: s}

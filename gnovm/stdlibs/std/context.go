@@ -8,18 +8,17 @@ import (
 )
 
 type ExecContext struct {
-	ChainID       string
-	ChainDomain   string
-	Height        int64
-	Timestamp     int64 // seconds
-	TimestampNano int64 // nanoseconds, only used for testing.
-	OrigCaller    crypto.Bech32Address
-	OrigPkgAddr   crypto.Bech32Address
-	OrigSend      std.Coins
-	OrigSendSpent *std.Coins // mutable
-	Banker        BankerInterface
-	Params        ParamsInterface
-	EventLogger   *sdk.EventLogger
+	ChainID         string
+	ChainDomain     string
+	Height          int64
+	Timestamp       int64 // seconds
+	TimestampNano   int64 // nanoseconds, only used for testing.
+	OriginCaller    crypto.Bech32Address
+	OriginSend      std.Coins
+	OriginSendSpent *std.Coins // mutable
+	Banker          BankerInterface
+	Params          ParamsInterface
+	EventLogger     *sdk.EventLogger
 }
 
 // GetContext returns the execution context.

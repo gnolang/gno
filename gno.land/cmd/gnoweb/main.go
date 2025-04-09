@@ -16,6 +16,30 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// Authorized external image host providers.
+var cspImgHost = []string{
+	// Gno-related hosts
+	"https://gnolang.github.io",
+	"https://assets.gnoteam.com",
+	"https://sa.gno.services",
+
+	// Other providers should respect DMCA guidelines.
+	// NOTE: Feel free to open a PR to add more providers here :)
+
+	// imgur
+	"https://imgur.com",
+	"https://*.imgur.com",
+
+	// GitHub
+	"https://*.github.io",
+	"https://github.com",
+	"https://*.githubusercontent.com",
+
+	// IPFS
+	"https://ipfs.io",
+	"https://cloudflare-ipfs.com",
+}
+
 type webCfg struct {
 	chainid    string
 	remote     string
@@ -23,9 +47,11 @@ type webCfg struct {
 	bind       string
 	faucetURL  string
 	assetsDir  string
+	timeout    time.Duration
 	analytics  bool
 	json       bool
 	html       bool
+	noStrict   bool
 	verbose    bool
 }
 
@@ -33,6 +59,7 @@ var defaultWebOptions = webCfg{
 	chainid: "dev",
 	remote:  "127.0.0.1:26657",
 	bind:    ":8888",
+	timeout: time.Minute,
 }
 
 func main() {
@@ -127,7 +154,14 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.analytics,
 		"with-analytics",
 		defaultWebOptions.analytics,
-		"nable privacy-first analytics",
+		"enable privacy-first analytics",
+	)
+
+	fs.BoolVar(
+		&c.noStrict,
+		"no-strict",
+		defaultWebOptions.noStrict,
+		"allow cross-site resource forgery and disable https enforcement",
 	)
 
 	fs.BoolVar(
@@ -135,6 +169,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"v",
 		defaultWebOptions.verbose,
 		"verbose logging mode",
+	)
+
+	fs.DurationVar(
+		&c.timeout,
+		"timeout",
+		defaultWebOptions.timeout,
+		"set read/write/idle timeout for server connections",
 	)
 }
 
@@ -179,11 +220,17 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 	logger.Info("Running", "listener", bindaddr.String())
 
+	// Setup security headers
+	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict)
+
 	// Setup server
 	server := &http.Server{
-		Handler:           app,
+		Handler:           secureHandler,
 		Addr:              bindaddr.String(),
-		ReadHeaderTimeout: 60 * time.Second,
+		ReadTimeout:       cfg.timeout, // Time to read the request
+		WriteTimeout:      cfg.timeout, // Time to write the entire response
+		IdleTimeout:       cfg.timeout, // Time to keep idle connections open
+		ReadHeaderTimeout: time.Minute, // Time to read request headers
 	}
 
 	return func() error {
@@ -191,6 +238,52 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 			logger.Error("HTTP server stopped", "error", err)
 			return commands.ExitCodeError(1)
 		}
+
 		return nil
 	}, nil
+}
+
+func SecureHeadersMiddleware(next http.Handler, strict bool) http.Handler {
+	// Build img-src CSP directive
+	imgSrc := "'self' data:image/svg+xml"
+
+	for _, host := range cspImgHost {
+		imgSrc += " " + host
+	}
+
+	// Define a Content Security Policy (CSP) to restrict the sources of
+	// scripts, styles, images, and other resources. This helps prevent
+	// cross-site scripting (XSS) and other code injection attacks.
+	csp := fmt.Sprintf(
+		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src %s; font-src 'self'",
+		imgSrc,
+	)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Prevent MIME type sniffing by browsers. This ensures that the browser
+		// does not interpret files as a different MIME type than declared.
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+
+		// Prevent the page from being embedded in an iframe. This mitigates
+		// clickjacking attacks by ensuring the page cannot be loaded in a frame.
+		w.Header().Set("X-Frame-Options", "DENY")
+
+		// Control the amount of referrer information sent in the Referer header.
+		// 'no-referrer' ensures that no referrer information is sent, which
+		// enhances privacy and prevents leakage of sensitive URLs.
+		w.Header().Set("Referrer-Policy", "no-referrer")
+
+		// In `strict` mode, prevent cross-site ressources forgery and enforce https
+		if strict {
+			// Set `csp` defined above.
+			w.Header().Set("Content-Security-Policy", csp)
+
+			// Enforce HTTPS by telling browsers to only access the site over HTTPS
+			// for a specified duration (1 year in this case). This also applies to
+			// subdomains and allows preloading into the browser's HSTS list.
+			w.Header().Set("Strict-Transport-Security", "max-age=31536000")
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
