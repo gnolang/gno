@@ -3,6 +3,7 @@ package gnominers
 import (
 	"time"
 
+	"gno.land/r/leon/hof"
 	"gno.land/p/pol/notrandom"
 	"gno.land/p/pol/queryparsing"
 )
@@ -30,6 +31,7 @@ var redirectionsPath = map[string]func(params map[string]string) string{
 
 func init() {
 	randomMachine = notrandom.NewMachine(time.Now().Unix())
+	hof.Register("GnoMiners", "A super mining game !")
 }
 
 func Render(fullpath string) string {
