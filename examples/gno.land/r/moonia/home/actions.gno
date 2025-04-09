@@ -56,11 +56,11 @@ func CreateProposalTest() string {
 	return ds.Proposals.CreateProposalTest()
 }
 
-func CreateProposal(title string, description string) string {
-	return ds.Proposals.CreateProposal(title, description)
+func CreateProposal(title, description string, period int64) string {
+	return ds.Proposals.CreateProposal(title, description, period)
 }
 
-func Vote(indexStr string, voteYesStr string) string {
+func Vote(indexStr, voteYesStr string) string {
 	return ds.Proposals.Vote(indexStr, voteYesStr)
 }
 
@@ -68,15 +68,10 @@ func CloseProposal(indexStr string) string {
 	return ds.Proposals.CloseProposal(indexStr)
 }
 
-func EditProposal(indexStr, newTitle, newDescription string) string {
-	return ds.Proposals.EditProposal(indexStr, newTitle, newDescription)
+func EditProposal(indexStr, newTitle, newDescription string, newPeriod int64) string {
+	return ds.Proposals.EditProposal(indexStr, newTitle, newDescription, newPeriod)
 }
 
 func GetProposal(indexStr string) dao.Proposal {
 	return ds.Proposals.GetProposal(indexStr)
 }
-
-// TODO:
-// func SetVotingPeriod(period int64) string {
-// 	return ds.Proposals.SetVotingPeriod(period)
-// }

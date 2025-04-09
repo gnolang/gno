@@ -9,18 +9,21 @@ import (
 )
 
 type Proposal struct {
-	Title       string
-	Description string
-	Creator     std.Address
-	YesVotes    int
-	NoVotes     int
-	Voters      map[std.Address]bool
-	Active      bool
+	Title        string
+	Description  string
+	Creator      std.Address
+	YesVotes     int
+	NoVotes      int
+	Voters       map[std.Address]bool
+	Active       bool
+	VotingPeriod int64
+	CreatedAt    int64
 }
 
 type ProposalStore struct {
 	Proposals []Proposal
 	DAO       *DAO
+
 }
 
 func NewProposalStore(dao *DAO) *ProposalStore {
@@ -30,24 +33,30 @@ func NewProposalStore(dao *DAO) *ProposalStore {
 	}
 }
 
-func (ps *ProposalStore) CreateProposal(title string, description string) string {
+func (ps *ProposalStore) CreateProposal(title, description string, period int64) string {
 	caller := utils.GetCaller()
 	if !ps.DAO.Whitelist[caller] {
 		panic("Only whitelisted members can create proposals.")
 	}
+	if period <= 0 {
+		panic("Voting period must be greater than 0.")
+	}
+
 	p := Proposal{
-		Title:       title,
-		Description: description,
-		Creator:     caller,
-		Voters:      make(map[std.Address]bool),
-		Active:      true,
+		Title:        title,
+		Description:  description,
+		Creator:      caller,
+		Voters:       make(map[std.Address]bool),
+		Active:       true,
+		VotingPeriod: period,
+		CreatedAt:    utils.GetBlockTime(),
 	}
 	ps.Proposals = append(ps.Proposals, p)
-	return "Proposal created: " + title
+	return "Proposal created: " + title + " Voting period: " + strconv.Itoa(int(period))
 }
 
 func (ps *ProposalStore) CreateProposalTest() string {
-	return ps.CreateProposal("Survey", "Would you like to visit Guatemala?")
+	return ps.CreateProposal("Survey", "Would you like to visit Guatemala?", 30)
 }
 
 func (ps *ProposalStore) CloseProposal(indexStr string) string {
@@ -63,7 +72,7 @@ func (ps *ProposalStore) CloseProposal(indexStr string) string {
 	return "Proposal '" + p.Title + "' has been closed."
 }
 
-func (ps *ProposalStore) Vote(indexStr string, voteYesStr string) string {
+func (ps *ProposalStore) Vote(indexStr, voteYesStr string) string {
 	index := utils.ParseIndex(indexStr, len(ps.Proposals))
 	voteYes := voteYesStr == "true"
 	caller := utils.GetCaller()
@@ -73,6 +82,13 @@ func (ps *ProposalStore) Vote(indexStr string, voteYesStr string) string {
 	}
 
 	p := &ps.Proposals[index]
+
+	currentTime := utils.GetBlockTime()
+	if currentTime - p.CreatedAt >= p.VotingPeriod {
+		p.Active = false
+		panic("Voting period is over. Proposal is now closed.")
+	}
+
 	if !p.Active {
 		panic("Voting is closed for this proposal.")
 	}
@@ -100,6 +116,7 @@ func (ps *ProposalStore) ShowProposals() string {
 		proposalStr := "**[" + strconv.Itoa(i) + "]** " + p.Title + "\n"
 		proposalStr += p.Description + "\n\n"
 		proposalStr += "by _" + p.Creator.String() + "_\n\n"
+		proposalStr += "📅 Voting ends at: " + utils.FormatTimestamp(p.CreatedAt + p.VotingPeriod) + "\n\n"
 		proposalStr += "✅ " + strconv.Itoa(p.YesVotes) + " | ❌ " + strconv.Itoa(p.NoVotes) + "\n"
 
 		if p.Active {
@@ -115,7 +132,6 @@ func (ps *ProposalStore) ShowProposals() string {
 			closedOut += proposalStr + "\n\n ---- \n\n"
 		}
 	}
-
 	if !hasActive {
 		activeOut += "_No active proposals._\n\n"
 	}
@@ -125,7 +141,7 @@ func (ps *ProposalStore) ShowProposals() string {
 	return activeOut + "\n" + closedOut
 }
 
-func (ps *ProposalStore) EditProposal(indexStr, newTitle, newDescription string) string {
+func (ps *ProposalStore) EditProposal(indexStr, newTitle, newDescription string, newPeriod int64) string {
 	index := utils.ParseIndex(indexStr, len(ps.Proposals))
 	p := &ps.Proposals[index]
 	if p.Creator != utils.GetCaller() {
@@ -134,9 +150,13 @@ func (ps *ProposalStore) EditProposal(indexStr, newTitle, newDescription string)
 	if !p.Active {
 		panic("Cannot edit a closed proposal.")
 	}
+	if newPeriod <= 0 {
+		panic("Voting period must be greater than 0.")
+	}
 	p.Title = newTitle
 	p.Description = newDescription
-	return "Proposal updated: " + newTitle + newDescription
+	p.VotingPeriod = newPeriod
+	return "Proposal updated: " + newTitle + newDescription + strconv.Itoa(int(newPeriod))
 }
 
 func (ps *ProposalStore) GetProposal(indexStr string) Proposal {

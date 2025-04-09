@@ -17,11 +17,10 @@ type IDao interface {
 }
 
 type IProposal interface {
-	CreateProposal(title string, description string) string
+	CreateProposal(title, description string) string
 	CloseProposal(indexStr string) string
-	Vote(indexStr string, voteYesStr string) string
-	EditProposal(indexStr, newTitle, newDescription string) string
+	Vote(indexStr, voteYesStr string) string
+	EditProposal(indexStr, newTitle, newDescription string, newPeriod int64) string
 	GetProposal(indexStr string) Proposal
 	ShowProposals() string
-	// SetVotingPeriod(duration string) string // by the proposal owner (maybe admin too)
 }
