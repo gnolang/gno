@@ -254,8 +254,8 @@ func JSONPrimitiveValue(m *gno.Machine, tv gno.TypedValue) string {
 		return "null"
 	}
 
-	if res, ok := tryGetError(m, tv); ok {
-		return res
+	if err, ok := tryGetError(m, tv); ok {
+		return fmt.Sprintf(`{ "$error": %q }`, err)
 	}
 
 	var oid gno.ObjectID
