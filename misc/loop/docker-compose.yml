@@ -170,7 +170,7 @@ services:
       - $HOME/.docker/config.json:/config.json
     env_file: .env
     environment:
-      - WATCHTOWER_HTTP_API_TOKEN=atoken
+      - WATCHTOWER_HTTP_API_TOKEN=${WATCHTOWER_HTTP_API_TOKEN}
       - WATCHTOWER_NOTIFICATIONS_HOSTNAME="Portal Loop Watchtower"
     ports:
       - "127.0.0.1:8080:8080"

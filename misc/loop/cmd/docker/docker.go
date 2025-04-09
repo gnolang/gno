@@ -104,6 +104,8 @@ func (dh *DockerHandler) StartGnoPortalLoopContainer(ctx context.Context, contai
 			"26657/tcp": struct{}{},
 		},
 	}, &container.HostConfig{
+		// This is probably no more supported by Docker and was left just as historical reference
+		// but should be useless for the application to succeed
 		// PublishAllPorts: true,
 		PortBindings: nat.PortMap{
 			"26657/tcp": []nat.PortBinding{
