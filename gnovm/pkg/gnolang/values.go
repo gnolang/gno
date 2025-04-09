@@ -888,9 +888,9 @@ func (pv *PackageValue) GetPkgAddr() crypto.Address {
 // TypedValue (is not a value, but a tuple)
 
 type TypedValue struct {
-	T Type    `json:",omitempty"` // never nil
-	V Value   `json:",omitempty"` // an untyped value
-	N [8]byte `json:",omitempty"` // numeric bytes
+	T Type    `json:",omitempty"`
+	V Value   `json:",omitempty"`
+	N [8]byte `json:",omitempty"`
 }
 
 // Magic 8 bytes to denote a readonly wrapped non-nil V of mutable type that is
@@ -2214,22 +2214,23 @@ func (tv *TypedValue) DeepFill(store Store) {
 // ----------------------------------------
 // Block
 //
-// Blocks hold values referred to by var/const/func/type
-// declarations in BlockNodes such as packages, functions,
-// and switch statements.  Unlike structs or packages,
-// names and paths may refer to parent blocks.  (In the
-// future, the same mechanism may be used to support
-// inheritance or prototype-like functionality for structs
-// and packages.)
+// Blocks hold values referred to by var/const/func/type declarations in
+// BlockNodes such as packages, functions, and switch statements.  Unlike
+// structs or packages, names and paths may refer to parent blocks.  (In the
+// future, the same mechanism may be used to support inheritance or
+// prototype-like functionality for structs and packages.)
 //
-// When a block would otherwise become gc'd because it is no
-// longer used except for escaped reference pointers to
-// variables, and there are no closures that reference the
-// block, the remaining references to objects become detached
-// from the block and become ownerless.
-
-// TODO rename to BlockValue.
-type Block struct {
+// When a block would otherwise become gc'd because it is no longer used, the
+// block is forgotten and GC'd.
+//
+// Variables declared in a closure or passed by reference are first discovered
+// and marked as such from the preprocessor, and NewBlock() will prepopulate
+// these slots with *HeapItemValues.  When a *HeapItemValue (or sometimes
+// HeapItemType in .T) is present in a block slot it is not written over but
+// instead the value is written into the heap item's slot--except for loopvars
+// assignments which may replace the heap item with another one. This is
+// how Gno supports Go1.22 loopvars.
+type BlockValue struct {
 	ObjectInfo
 	Source   BlockNode
 	Values   []TypedValue
@@ -2237,6 +2238,8 @@ type Block struct {
 	Blank    TypedValue // captures "_" // XXX remove and replace with global instance.
 	bodyStmt bodyStmt   // XXX expose for persistence, not needed for MVP.
 }
+
+type Block = BlockValue // TODO remove
 
 // NOTE: for allocation, use *Allocator.NewBlock.
 // XXX pass allocator in for heap items.
