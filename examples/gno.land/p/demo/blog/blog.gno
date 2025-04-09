@@ -47,19 +47,24 @@ func (b Blog) RenderHome(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	columnCount := 0
+	maxCol := 3
+	if maxCol > b.Posts.Size() {
+		maxCol = b.Posts.Size()
+	}
+
 	rowBuffer := ""
 	b.PostsPublished.ReverseIterate("", "", func(key string, value any) bool {
 		post := value.(*Post)
 		content := post.RenderListItem()
 
 		if columnCount > 0 {
-			rowBuffer += "\n|||\n"
+			rowBuffer += "|||"
 		}
 		rowBuffer += content
 		columnCount++
 
-		if columnCount == 3 {
-			res.Write("<gno-columns>\n" + rowBuffer + "\n</gno-columns>\n\n")
+		if columnCount == maxCol {
+			res.Write("<gno-columns>" + rowBuffer + "</gno-columns>\n")
 			columnCount = 0
 			rowBuffer = ""
 		}
@@ -311,7 +316,7 @@ func (p *Post) RenderListItem() string {
 	output := ufmt.Sprintf("\n### [%s](%s)\n", p.Title, p.URL())
 	// output += ufmt.Sprintf("**[Learn More](%s)**\n\n", p.URL())
 
-	output += " " + p.CreatedAt.Format("02 Jan 2006")
+	output += p.CreatedAt.Format("02 Jan 2006")
 	// output += p.Summary() + "\n\n"
 	// output += p.RenderTagList() + "\n\n"
 	output += "\n"
