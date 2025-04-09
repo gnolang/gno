@@ -3,7 +3,25 @@ package home
 import (
 	"gno.land/p/moul/txlink"
 	"gno.land/p/moul/md"
+	"gno.land/p/moonia/dao"
 )
+
+var ds DAOState
+
+type DAOState struct {
+	DAO       *dao.DAO
+	Proposals *dao.ProposalStore
+}
+
+func init() {
+	myDao := dao.NewDAO()
+	myProps := dao.NewProposalStore(myDao)
+
+	ds = DAOState{
+		DAO:       myDao,
+		Proposals: myProps,
+	}
+}
 
 func countActive() int {
 	count := 0

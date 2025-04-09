@@ -24,6 +24,7 @@ func (d *DAO) SetAdmin() string {
 	}
 	caller := utils.GetCaller()
 	d.Admin = caller
+	d.JoinDAO()
 	return "Admin set to: " + caller.String()
 }
 
