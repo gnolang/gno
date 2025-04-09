@@ -4,7 +4,7 @@
 by providing immediate feedback on code changes.
 
 Please note that this is a quick overview. For a more detailed guide, refer to the official documentation at
-[docs/gno-tooling/gnodev.md](../../docs/gno-tooling/cli/gnodev.md).
+[docs/builders/local-dev-with-gnodev.md](../../docs/builders/local-dev-with-gnodev.md).
 
 ### Synopsis
 **gnodev** [**options**] [**PKG_PATH ...**]
