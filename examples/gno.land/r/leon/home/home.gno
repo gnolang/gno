@@ -67,15 +67,6 @@ func UpdateAboutMe(col1, col2 string) {
 }
 
 func renderAboutMe() string {
-
-	//out := "<gno-columns>\n"
-	//out +=
-	//out += "|||\n"
-	//out +=
-	//out += "|||\n"
-	//out +=  + "\n"
-	//out += "</gno-columns>\n"
-
 	return md.Columns([]string{
 		ufmt.Sprintf("![my profile pic](%s)\n\n%s\n", pfp, pfpCaption),
 		abtMe[0],
