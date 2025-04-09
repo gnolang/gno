@@ -241,25 +241,40 @@ func EscapeText(text string) string {
 	return replacer.Replace(text)
 }
 
-// Columns returns a formatted row of columns by the Gno standard.
-// A maximum of 4 columns per row is allowed, and columns cannot be nested
-// More info at r/docs/markdown#columns
+// Columns returns a formatted row of columns using the Gno syntax.
+// There is no enforced limit; the renderer decides how to lay them out.
+// 4 columns per row is the current maximum, with more overflowing to the next row.
+// Check /r/docs/markdown#columns for more info.
 func Columns(contentByColumn []string) string {
-	if len(contentByColumn) > 4 {
-		panic("maximum 4 columns per row ")
-	}
-
 	var sb strings.Builder
 	sb.WriteString("<gno-columns>\n")
 
 	for i, column := range contentByColumn {
-		sb.WriteString(column + "\n")
+		sb.WriteString(strings.TrimSpace(column) + "\n")
 		if i < len(contentByColumn)-1 {
 			sb.WriteString("|||\n")
 		}
 	}
 
 	sb.WriteString("</gno-columns>\n")
+	return sb.String()
+}
 
+// ColumnsN splits content into multiple rows of N columns each and formats them.
+// If colsPerRow <= 0, all items are placed in one <gno-columns> block.
+func ColumnsN(content []string, colsPerRow int) string {
+	if colsPerRow <= 0 {
+		return Columns(content)
+	}
+
+	var sb strings.Builder
+	for i := 0; i < len(content); i += colsPerRow {
+		end := i + colsPerRow
+		if end > len(content) {
+			end = len(content)
+		}
+		sb.WriteString(Columns(content[i:end]))
+		sb.WriteString("\n")
+	}
 	return sb.String()
 }

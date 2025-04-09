@@ -29,12 +29,27 @@ func main() {
 	println(md.InlineImageWithLink("Alt Text", "http://example.com/image.png", "http://example.com"))
 	println(md.Footnote("ref", "This is a footnote"))
 	println(md.Paragraph("This is a paragraph."))
+
 	println(md.Columns([]string{
 		"Column1\ncontent1",
 		"Column2\ncontent2",
 		"Column3\ncontent3",
 		"Column4\ncontent4",
 	}))
+
+	// Should be automatically placed in multiple column tags, 3 cols per row
+	println(md.ColumnsN([]string{
+		"Column1\ncontent1",
+		"Column2\ncontent2",
+		"Column3\ncontent3",
+		"Column1\ncontent1",
+		"Column2\ncontent2",
+		"Column3\ncontent3",
+		"Column1\ncontent1",
+		"Column2\ncontent2",
+		"Column3\ncontent3",
+	}, 3))
+
 }
 
 // Output:
@@ -104,4 +119,38 @@ func main() {
 // Column4
 // content4
 // </gno-columns>
+//
+// <gno-columns>
+// Column1
+// content1
+// |||
+// Column2
+// content2
+// |||
+// Column3
+// content3
+// </gno-columns>
+//
+// <gno-columns>
+// Column1
+// content1
+// |||
+// Column2
+// content2
+// |||
+// Column3
+// content3
+// </gno-columns>
+//
+// <gno-columns>
+// Column1
+// content1
+// |||
+// Column2
+// content2
+// |||
+// Column3
+// content3
+// </gno-columns>
+//
 //
