@@ -81,13 +81,20 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	for _, fn := range fset.Files {
 		for i := range fn.Decls {
 			d := fn.Decls[i]
-			switch d.(type) {
+			switch fnc := d.(type) {
 			case *FuncDecl:
 				if d.GetAttribute(ATTR_PREDEFINED) == true {
 					// skip declarations already predefined
 					// (e.g. through recursion for a
 					// dependent)
 					continue
+				}
+
+				// to avoid complicated code handling of the blank identifier "_"
+				// rewrite the name to its ascii code so it can be preprocessed as any normal function
+				// this matches Go's behavior to process these functions but users won't be able to call them
+				if fnc.Name == blankIdentifier {
+					fnc.Name = "95"
 				}
 
 				// recursively predefine dependencies.
