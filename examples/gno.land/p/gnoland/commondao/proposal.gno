@@ -30,8 +30,13 @@ const (
 	QuorumFull                 = 1
 )
 
+// MaxCustomVoteChoices defines the maximum number of custom
+// vote choices that a proposal definition can define.
+const MaxCustomVoteChoices = 10
+
 var (
 	ErrInvalidCreatorAddress      = errors.New("invalid proposal creator address")
+	ErrMaxCustomVoteChoices       = errors.New("max number of custom vote choices exceeded")
 	ErrProposalDefinitionRequired = errors.New("proposal definition is required")
 	ErrNoQuorum                   = errors.New("no quorum")
 	ErrStatusIsNotActive          = errors.New("proposal status is not active")
@@ -124,7 +129,12 @@ func NewProposal(id uint64, creator std.Address, d ProposalDefinition) (*Proposa
 	}
 
 	if v, ok := d.(CustomizableVoteChoices); ok {
-		for _, c := range v.CustomVoteChoices() {
+		choices := v.CustomVoteChoices()
+		if len(choices) > MaxCustomVoteChoices {
+			return nil, ErrMaxCustomVoteChoices
+		}
+
+		for _, c := range choices {
 			p.voteChoices.Set(string(c), struct{}{})
 		}
 	}
@@ -135,7 +145,6 @@ func NewProposal(id uint64, creator std.Address, d ProposalDefinition) (*Proposa
 		p.voteChoices.Set(string(ChoiceNo), struct{}{})
 		p.voteChoices.Set(string(ChoiceAbstain), struct{}{})
 	}
-
 	return p, nil
 }
 
@@ -183,14 +192,9 @@ func (p Proposal) VotingDeadline() time.Time {
 
 // VoteChoices returns the list of vote choices allowed for the proposal.
 func (p Proposal) VoteChoices() []VoteChoice {
-	var (
-		i       int
-		choices = make([]VoteChoice, p.voteChoices.Size())
-	)
-
+	choices := make([]VoteChoice, 0, p.voteChoices.Size())
 	p.voteChoices.Iterate("", "", func(c string, _ any) bool {
-		choices[i] = VoteChoice(c)
-		i++
+		choices = append(choices, VoteChoice(c))
 		return false
 	})
 	return choices
@@ -209,8 +213,8 @@ func (p Proposal) Validate() error {
 	return nil
 }
 
-// IsValidVoteChoice checks if a vote choice is valid for the proposal.
-func (p Proposal) IsValidVoteChoice(c VoteChoice) bool {
+// IsVoteChoiceValid checks if a vote choice is valid for the proposal.
+func (p Proposal) IsVoteChoiceValid(c VoteChoice) bool {
 	return p.voteChoices.Has(string(c))
 }
 

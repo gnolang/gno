@@ -11,21 +11,55 @@ import (
 )
 
 func TestProposalNew(t *testing.T) {
-	id := uint64(1)
-	creator := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	votingPeriod := time.Minute * 10
+	cases := []struct {
+		name       string
+		creator    std.Address
+		definition ProposalDefinition
+		err        error
+	}{
+		{
+			name:       "success",
+			creator:    "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+			definition: testPropDef{votingPeriod: time.Minute * 10},
+		},
+		{
+			name:       "invalid creator address",
+			creator:    "invalid",
+			definition: testPropDef{},
+			err:        ErrInvalidCreatorAddress,
+		},
+		{
+			name:    "max custom vote choices exceeded",
+			creator: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+			definition: testPropDef{
+				voteChoices: make([]VoteChoice, MaxCustomVoteChoices+1),
+			},
+			err: ErrMaxCustomVoteChoices,
+		},
+	}
 
-	p, err := NewProposal(id, creator, testPropDef{votingPeriod: votingPeriod})
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			id := uint64(1)
 
-	uassert.NoError(t, err)
-	uassert.Equal(t, p.ID(), id)
-	uassert.NotEqual(t, p.Definition(), nil)
-	uassert.True(t, p.Status() == StatusActive)
-	uassert.Equal(t, p.Creator(), creator)
-	uassert.False(t, p.CreatedAt().IsZero())
-	uassert.NotEqual(t, p.VotingRecord(), nil)
-	uassert.Empty(t, p.StatusReason())
-	uassert.True(t, p.VotingDeadline() == p.CreatedAt().Add(votingPeriod))
+			p, err := NewProposal(id, tc.creator, tc.definition)
+
+			if tc.err != nil {
+				urequire.ErrorIs(t, err, tc.err, "expected an error")
+				return
+			}
+
+			urequire.NoError(t, err, "unexpected error")
+			uassert.Equal(t, p.ID(), id)
+			uassert.NotEqual(t, p.Definition(), nil)
+			uassert.True(t, p.Status() == StatusActive)
+			uassert.Equal(t, p.Creator(), tc.creator)
+			uassert.False(t, p.CreatedAt().IsZero())
+			uassert.NotEqual(t, p.VotingRecord(), nil)
+			uassert.Empty(t, p.StatusReason())
+			uassert.True(t, p.VotingDeadline() == p.CreatedAt().Add(tc.definition.VotingPeriod()))
+		})
+	}
 }
 
 func TestProposalVoteChoices(t *testing.T) {
