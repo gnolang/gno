@@ -10,6 +10,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	amino.GetCallersDirname(),
 ).WithDependencies().WithTypes(
 	&GnoAccount{}, "Account",
+	&GnoSession{}, "Session",
 	GnoGenesisState{}, "GenesisState",
 	TxWithMetadata{}, "TxWithMetadata",
 	GnoTxMetadata{}, "GnoTxMetadata",
