@@ -167,6 +167,40 @@ func TestROStores(t *testing.T) {
 	})
 }
 
+func TestResolveAny(t *testing.T) {
+	testing.SetOriginCaller(whitelistedCallerAddr)
+
+	t.Run("name", func(t *testing.T) {
+		cleanStore(t)
+
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
+
+		res := ResolveAny(alice)
+
+		uassert.Equal(t, aliceAddr, res.Addr())
+		uassert.Equal(t, alice, res.Name())
+	})
+
+	t.Run("address", func(t *testing.T) {
+		cleanStore(t)
+
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
+
+		res := ResolveAny(aliceAddr.String())
+
+		uassert.Equal(t, aliceAddr, res.Addr())
+		uassert.Equal(t, alice, res.Name())
+	})
+
+	t.Run("not_registered", func(t *testing.T) {
+		cleanStore(t)
+
+		res := ResolveAny(aliceAddr.String())
+
+		uassert.Equal(t, nil, res)
+	})
+}
+
 // TODO Uncomment after gnoweb /u/ page.
 //func TestUserRenderLink(t *testing.T) {
 //	testing.SetOriginCaller(whitelistedCallerAddr)
