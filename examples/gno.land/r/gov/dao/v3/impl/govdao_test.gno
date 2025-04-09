@@ -34,7 +34,7 @@ var (
 )
 
 func loadMembers() {
-	// This is needed because state is saved beteen unit tests,
+	// This is needed because state is saved between unit tests,
 	// and we want to avoid having real members used on tests
 	memberstore.Get().DeleteAll()
 

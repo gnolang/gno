@@ -9,7 +9,7 @@ import (
 )
 
 func Init() {
-	// This is needed because state is saved beteen unit tests,
+	// This is needed because state is saved between unit tests,
 	// and we want to avoid having real members used on tests
 	memberstore.Get().DeleteAll()
 	dao.UpdateImpl(dao.UpdateRequest{
@@ -19,7 +19,7 @@ func Init() {
 }
 
 func InitWithUsers(addrs ...std.Address) {
-	// This is needed because state is saved beteen unit tests,
+	// This is needed because state is saved between unit tests,
 	// and we want to avoid having real members used on tests
 	memberstore.Get().DeleteAll()
 	memberstore.Get().SetTier(memberstore.T1)
