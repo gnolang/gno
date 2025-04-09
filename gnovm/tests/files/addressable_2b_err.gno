@@ -9,4 +9,4 @@ func getSlice() []int {
 }
 
 // Error:
-// main/files/addressable_2b_err.gno:4:6: cannot take address of getSlice<VPBlock(3,1)>()
+// main/files/addressable_2b_err.gno:4:6: illegal assignment X expression type *gnolang.CallExpr

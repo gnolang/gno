@@ -5,4 +5,4 @@ func main() {
 }
 
 // Error:
-// main/files/addressable_3d_err.gno:4:6: cannot take address of &(struct {  }{})
+// main/files/addressable_3d_err.gno:4:6: illegal assignment X expression type *gnolang.RefExpr
