@@ -340,7 +340,9 @@ func TestMembersPropDefinitionExecute(t *testing.T) {
 			var i int
 			tc.dao.Members().IterateByOffset(0, tc.dao.Members().Size(), func(addr std.Address) bool {
 				urequire.Equal(t, tc.members[i], addr, "member address must match")
+
 				i++
+				return i == tc.dao.Members().Size()
 			})
 		})
 	}

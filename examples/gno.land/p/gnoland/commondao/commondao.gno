@@ -30,7 +30,8 @@ type CommonDAO struct {
 	description       string
 	parent            *CommonDAO
 	children          list.IList
-	members           *addrset.Set // TODO: Consider saving members as groups, PR #3933
+	members           *addrset.Set
+	groupings         Groupings
 	genID             seqid.ID
 	activeProposals   ProposalStorage
 	finishedProposals ProposalStorage
@@ -110,6 +111,11 @@ func (dao *CommonDAO) TopParent() *CommonDAO {
 // Members returns the list of DAO members.
 func (dao CommonDAO) Members() *addrset.Set {
 	return dao.members
+}
+
+// TODO: Document member groups
+func (dao CommonDAO) MemberGroups() Groupings {
+	return dao.groupings
 }
 
 // ActiveProposals returns active DAO proposals.
