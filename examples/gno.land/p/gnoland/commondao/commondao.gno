@@ -7,7 +7,6 @@ import (
 
 	"gno.land/p/demo/avl/list"
 	"gno.land/p/demo/seqid"
-	"gno.land/p/moul/addrset"
 )
 
 // PathSeparator is the separator character used in DAO paths.
@@ -39,8 +38,8 @@ type CommonDAO struct {
 // New creates a new common DAO.
 func New(options ...Option) *CommonDAO {
 	dao := &CommonDAO{
-		members:           &addrset.Set{},
 		children:          &list.List{},
+		members:           NewMemberStorage(),
 		activeProposals:   NewProposalStorage(),
 		finishedProposals: NewProposalStorage(),
 	}
