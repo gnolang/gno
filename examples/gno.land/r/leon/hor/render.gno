@@ -75,7 +75,7 @@ func (i Item) Render(dashboard bool) string {
 	out += ufmt.Sprintf("%s\n\n", i.description)
 
 	namespace := strings.Split(i.pkgpath, "/")[2]
-	user := users.ResolveAny(namespace)
+	user, _ := users.ResolveAny(namespace)
 	if user != nil {
 		namespace = user.RenderLink("")
 	}

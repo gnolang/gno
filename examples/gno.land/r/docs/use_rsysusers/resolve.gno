@@ -1,8 +1,6 @@
 package use_rsysusers
 
 import (
-	"std"
-
 	"gno.land/r/sys/users" // Import the user registry
 )
 
