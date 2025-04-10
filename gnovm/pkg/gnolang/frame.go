@@ -27,8 +27,8 @@ type Frame struct {
 	NumArgs     int           // number of arguments in call
 	IsVarg      bool          // is form fncall(???, vargs...)
 	Defers      []Defer       // deferred calls
-	LastPackage *PackageValue // previous package context
-	LastRealm   *Realm        // previous realm context
+	LastPackage *PackageValue // previous frame's package
+	LastRealm   *Realm        // previous frame's realm
 	WithSwitch  bool          // true if called like withswitch(fn)(...). expects switchrealm() after.
 	DidSwitch   bool          // true if switchrealm() was called.
 

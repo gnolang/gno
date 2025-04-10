@@ -80,6 +80,7 @@ func X_originPkgAddr(m *gno.Machine) string {
 	return string(GetContext(m).OriginPkgAddr)
 }
 
+/* See comment in stdlibs/std/native.gno
 func X_callerAt(m *gno.Machine, n int) string {
 	if n <= 0 {
 		m.Panic(typedString("CallerAt requires positive arg"))
@@ -99,8 +100,9 @@ func X_callerAt(m *gno.Machine, n int) string {
 		ctx := GetContext(m)
 		return string(ctx.OriginCaller)
 	}
-	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
+	return string(m.MustPeekCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
+*/
 
 func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 	// NOTE: keep in sync with test/stdlibs/std.getRealm

@@ -756,7 +756,7 @@ func makeUverseNode() {
 			if bs.NextBodyIndex != 1 {
 				panic("switchrealm call must be the first call of a function or method")
 			}
-			fr1 := m.LastCallFrame(1) // fr1.LastPackage created fr.
+			fr1 := m.PeekCallFrame(1) // fr1.LastPackage created fr.
 			if !fr1.LastPackage.IsRealm() {
 				panic("switchrealm call only allowed in realm packages") // XXX test
 			}
@@ -764,15 +764,17 @@ func makeUverseNode() {
 			// NOTE: fr.WithSwitch may or may not be true,
 			// switcherealm() (which sets fr.DidSwitch) can be
 			// stacked.
-			for i := 2; ; i++ {
-				fri := m.LastCallFrame(i)
+			for i := 1 + 1; ; i++ {
+				fri := m.PeekCallFrame(i)
 				if fri == nil {
 					panic("switchrealm could not find corresponding withswitch(fn)(...) call")
 				}
 				if fri.WithSwitch || fri.DidSwitch {
 					// NOTE: fri.DidSwitch implies
 					// everything under it is also valid.
-					fr2 := m.LastCallFrame(2)
+					// fri.DidSwitch && !fri.WithSwitch
+					// can happen with an implicit switch.
+					fr2 := m.PeekCallFrame(2)
 					fr2.SetDidSwitch()
 					return
 				}

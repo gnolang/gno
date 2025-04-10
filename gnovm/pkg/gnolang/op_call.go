@@ -102,7 +102,6 @@ func (m *Machine) doOpCall() {
 		} else {
 			// Initialize return variables with default value.
 			for i, rt := range ft.Results {
-				//rnx := &ftxz.Results[i].NameExpr
 				dtv := defaultTypedValue(m.Alloc, rt.Type)
 				ptr := b.GetPointerToInt(nil, numParams+i)
 				// Write to existing heap item if result is heap defined.
@@ -190,16 +189,7 @@ func (m *Machine) doOpReturn() {
 	// See if we are exiting a realm boundary.
 	crlm := m.Realm
 	if crlm != nil {
-		lrlm := cfr.LastRealm
-		finalize := false
-		if m.NumFrames() == 1 {
-			// We are exiting the machine's realm.
-			finalize = true
-		} else if crlm != lrlm {
-			// We are changing realms or exiting a realm.
-			finalize = true
-		}
-		if finalize {
+		if cfr.DidSwitch {
 			// Finalize realm updates!
 			// NOTE: This is a resource intensive undertaking.
 			crlm.FinalizeRealmTransaction(m.Store)
@@ -214,7 +204,7 @@ func (m *Machine) doOpReturn() {
 func (m *Machine) doOpReturnAfterCopy() {
 	// If there are named results that are heap defined,
 	// need to write to those from stack before returning.
-	cfr := m.MustLastCallFrame(1)
+	cfr := m.MustPeekCallFrame(1)
 	fv := cfr.Func
 	ft := fv.GetType(m.Store)
 	numParams := len(ft.Params)
@@ -293,7 +283,7 @@ func (m *Machine) doOpReturnFromBlock() {
 // deferred statements can refer to results with name
 // expressions.
 func (m *Machine) doOpReturnToBlock() {
-	cfr := m.MustLastCallFrame(1)
+	cfr := m.MustPeekCallFrame(1)
 	fv := cfr.Func
 	ft := fv.GetType(m.Store)
 	numParams := len(ft.Params)
@@ -307,7 +297,7 @@ func (m *Machine) doOpReturnToBlock() {
 }
 
 func (m *Machine) doOpReturnCallDefers() {
-	cfr := m.MustLastCallFrame(1)
+	cfr := m.MustPeekCallFrame(1)
 	dfr, ok := cfr.PopDefer()
 	if !ok {
 		// Done with defers.
@@ -374,7 +364,7 @@ func (m *Machine) doOpReturnCallDefers() {
 
 func (m *Machine) doOpDefer() {
 	lb := m.LastBlock()
-	cfr := m.MustLastCallFrame(1)
+	cfr := m.MustPeekCallFrame(1)
 	ds := m.PopStmt().(*DeferStmt)
 	// Pop arguments
 	numArgs := len(ds.Call.Args)

@@ -1877,12 +1877,13 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 				// no switch
 				return
 			} else {
-				// "soft" switch to storage realm.
+				// implicit switch to storage realm.
 				// neither withswitch nor didswitch.
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
 				rlm = objpv.GetRealm()
 				m.Realm = rlm
+				fr.DidSwitch = true // XXX test this.
 				return
 			}
 		}
@@ -1972,25 +1973,26 @@ func (m *Machine) NumFrames() int {
 	return len(m.Frames)
 }
 
+// Returns the current frame.
 func (m *Machine) LastFrame() *Frame {
 	return m.Frames[len(m.Frames)-1]
 }
 
-// MustLastCallFrame returns the last call frame with an offset of n. It panics if the frame is not found.
-func (m *Machine) MustLastCallFrame(n int) *Frame {
-	return m.lastCallFrame(n, true)
+// MustPeekCallFrame returns the last call frame with an offset of n. It panics if the frame is not found.
+func (m *Machine) MustPeekCallFrame(n int) *Frame {
+	return m.peekCallFrame(n, true)
 }
 
-// LastCallFrame behaves the same as MustLastCallFrame, but rather than panicking,
+// PeekCallFrame behaves the same as MustPeekCallFrame, but rather than panicking,
 // returns nil if the frame is not found.
-func (m *Machine) LastCallFrame(n int) *Frame {
-	return m.lastCallFrame(n, false)
+func (m *Machine) PeekCallFrame(n int) *Frame {
+	return m.peekCallFrame(n, false)
 }
 
 // TODO: this function and PopUntilLastCallFrame() is used in conjunction
 // spanning two disjoint operations upon return. Optimize.
 // If n is 1, returns the immediately last call frame.
-func (m *Machine) lastCallFrame(n int, mustBeFound bool) *Frame {
+func (m *Machine) peekCallFrame(n int, mustBeFound bool) *Frame {
 	if n == 0 {
 		panic("n must be positive")
 	}
@@ -2183,7 +2185,7 @@ func (m *Machine) Panic(ex TypedValue) {
 		m.Exceptions,
 		Exception{
 			Value:      ex,
-			Frame:      m.MustLastCallFrame(1),
+			Frame:      m.MustPeekCallFrame(1),
 			Stacktrace: m.Stacktrace(),
 		},
 	)
@@ -2215,7 +2217,7 @@ func (m *Machine) Recover() *Exception {
 		// If the frame is not the current frame, the exception is not in scope; return nil.
 		// This retrieves the second most recent call frame because the first most recent
 		// is the call to recover itself.
-		if frame := m.LastCallFrame(2); frame == nil || frame != exception.Frame {
+		if frame := m.PeekCallFrame(2); frame == nil || frame != exception.Frame {
 			return nil
 		}
 	}

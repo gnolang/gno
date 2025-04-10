@@ -62,6 +62,7 @@ func isOriginCall(m *gno.Machine) bool {
 	panic("unable to determine if test is a _test or a _filetest")
 }
 
+/* See comment in stdlibs/std/native.gno
 func X_callerAt(m *gno.Machine, n int) string {
 	if n <= 0 {
 		m.Panic(typedString("CallerAt requires positive arg"))
@@ -81,8 +82,9 @@ func X_callerAt(m *gno.Machine, n int) string {
 		ctx := m.Context.(*TestExecContext)
 		return string(ctx.OriginCaller)
 	}
-	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
+	return string(m.MustPeekCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
+*/
 
 func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 	// NOTE: keep in sync with stdlibs/std.getRealm
