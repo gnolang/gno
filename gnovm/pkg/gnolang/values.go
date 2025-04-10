@@ -888,9 +888,9 @@ func (pv *PackageValue) GetPkgAddr() crypto.Address {
 // TypedValue (is not a value, but a tuple)
 
 type TypedValue struct {
-	T Type    `json:",omitempty"` // never nil
-	V Value   `json:",omitempty"` // an untyped value
-	N [8]byte `json:",omitempty"` // numeric bytes
+	T Type    `json:",omitempty"`
+	V Value   `json:",omitempty"`
+	N [8]byte `json:",omitempty"`
 }
 
 // Magic 8 bytes to denote a readonly wrapped non-nil V of mutable type that is
@@ -938,27 +938,18 @@ func (tv *TypedValue) IsDefined() bool {
 	return !tv.IsUndefined()
 }
 
-// XXX replace IsUndefined() with IsUndefined2() and delete IsUndefined, replace.
-func (tv *TypedValue) IsUndefined2() bool {
-	return tv.T == nil
-}
-
 func (tv *TypedValue) IsUndefined() bool {
 	if debug {
-		if tv == nil {
-			panic("should not happen")
-		}
-	}
-	if tv.T == nil {
-		if debug {
-			if tv.V != nil || tv.N != [8]byte{} {
-				panic(fmt.Sprintf(
-					"corrupted TypeValue (nil T)"))
+		if tv.T == nil {
+			if tv.V != nil {
+				panic("should not happen")
+			}
+			if tv.N != [8]byte{} {
+				panic("should not happen")
 			}
 		}
-		return true
 	}
-	return tv.IsNilInterface()
+	return tv.T == nil
 }
 
 // (this is used mostly by the preprocessor)
@@ -2214,21 +2205,23 @@ func (tv *TypedValue) DeepFill(store Store) {
 // ----------------------------------------
 // Block
 //
-// Blocks hold values referred to by var/const/func/type
-// declarations in BlockNodes such as packages, functions,
-// and switch statements.  Unlike structs or packages,
-// names and paths may refer to parent blocks.  (In the
-// future, the same mechanism may be used to support
-// inheritance or prototype-like functionality for structs
-// and packages.)
+// Blocks hold values referred to by var/const/func/type declarations in
+// BlockNodes such as packages, functions, and switch statements.  Unlike
+// structs or packages, names and paths may refer to parent blocks.  (In the
+// future, the same mechanism may be used to support inheritance or
+// prototype-like functionality for structs and packages.)
 //
-// When a block would otherwise become gc'd because it is no
-// longer used except for escaped reference pointers to
-// variables, and there are no closures that reference the
-// block, the remaining references to objects become detached
-// from the block and become ownerless.
-
-// TODO rename to BlockValue.
+// When a block would otherwise become gc'd because it is no longer used, the
+// block is forgotten and GC'd.
+//
+// Variables declared in a closure or passed by reference are first discovered
+// and marked as such from the preprocessor, and NewBlock() will prepopulate
+// these slots with *HeapItemValues.  When a *HeapItemValue (or sometimes
+// HeapItemType in .T) is present in a block slot it is not written over but
+// instead the value is written into the heap item's slot--except for loopvars
+// assignments which may replace the heap item with another one. This is
+// how Gno supports Go1.22 loopvars.
+// TODO XXX rename to BlockValue
 type Block struct {
 	ObjectInfo
 	Source   BlockNode
@@ -2494,8 +2487,7 @@ func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
 	tvs := alloc.NewStructFields(len(st.Fields))
 	for i, ft := range st.Fields {
 		if ft.Type.Kind() != InterfaceKind {
-			tvs[i].T = ft.Type
-			tvs[i].V = defaultValue(alloc, ft.Type)
+			tvs[i] = defaultTypedValue(alloc, ft.Type)
 		}
 	}
 	return tvs
@@ -2515,37 +2507,43 @@ func defaultArrayValue(alloc *Allocator, at *ArrayType) *ArrayValue {
 	tvs := av.List
 	if et := at.Elem(); et.Kind() != InterfaceKind {
 		for i := 0; i < at.Len; i++ {
-			tvs[i].T = et
-			tvs[i].V = defaultValue(alloc, et)
+			tvs[i] = defaultTypedValue(alloc, et)
 		}
 	}
 	return av
 }
 
-func defaultValue(alloc *Allocator, t Type) Value {
+func defaultTypedValue(alloc *Allocator, t Type) TypedValue {
 	switch ct := baseOf(t).(type) {
 	case nil:
 		panic("unexpected nil type")
-	case *ArrayType:
-		return defaultArrayValue(alloc, ct)
-	case *StructType:
-		return defaultStructValue(alloc, ct)
-	case *SliceType:
-		return nil
-	case *MapType:
-		return nil
-	default:
-		return nil
-	}
-}
-
-func defaultTypedValue(alloc *Allocator, t Type) TypedValue {
-	if t.Kind() == InterfaceKind {
+	case *InterfaceType:
 		return TypedValue{}
-	}
-	return TypedValue{
-		T: t,
-		V: defaultValue(alloc, t),
+	case *ArrayType:
+		return TypedValue{
+			T: t,
+			V: defaultArrayValue(alloc, ct),
+		}
+	case *StructType:
+		return TypedValue{
+			T: t,
+			V: defaultStructValue(alloc, ct),
+		}
+	case *SliceType:
+		return TypedValue{
+			T: t,
+			V: nil,
+		}
+	case *MapType:
+		return TypedValue{
+			T: t,
+			V: nil,
+		}
+	default:
+		return TypedValue{
+			T: t,
+			V: nil,
+		}
 	}
 }
 

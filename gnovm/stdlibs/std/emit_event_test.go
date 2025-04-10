@@ -11,17 +11,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func NewMachine(pkgPath string) *gno.Machine {
-	m := gno.NewMachine(pkgPath, nil)
-	m.Frames = append(m.Frames, &gno.Frame{LastPackage: &gno.PackageValue{PkgPath: ""}, Func: &gno.FuncValue{Name: "SetFoo"},
-		WithSwitch: true, DidSwitch: true, LastRealm: &gno.Realm{Path: ""}})
-	m.Context = ExecContext{}
-	return m
+func pushMainFrame(m *gno.Machine) {
+	fv := &gno.FuncValue{PkgPath: m.Package.PkgPath}
+	m.PushFrameCall(gno.Call("main"), fv, gno.TypedValue{}) // fake frame
 }
 
 func TestEmit(t *testing.T) {
-	m := NewMachine("emit")
+	m := gno.NewMachine("emit", nil)
+	m.Context = ExecContext{}
+	pushMainFrame(m)
 	_, pkgPath := X_getRealm(m, 0)
+	if pkgPath != m.Package.PkgPath {
+		panic("inconsistent package paths")
+	}
 	tests := []struct {
 		name           string
 		eventType      string
@@ -136,7 +138,8 @@ func TestEmit(t *testing.T) {
 
 func TestEmit_MultipleEvents(t *testing.T) {
 	t.Parallel()
-	m := NewMachine("emit")
+	m := gno.NewMachine("emit", nil)
+	pushMainFrame(m)
 
 	elgs := sdk.NewEventLogger()
 	m.Context = ExecContext{EventLogger: elgs}
@@ -199,8 +202,8 @@ func TestEmit_ContractInteraction(t *testing.T) {
 	)
 
 	t.Parallel()
-	m := NewMachine("emit")
-
+	m := gno.NewMachine("emit", nil)
+	pushMainFrame(m)
 	elgs := sdk.NewEventLogger()
 	m.Context = ExecContext{EventLogger: elgs}
 
@@ -238,7 +241,8 @@ func TestEmit_ContractInteraction(t *testing.T) {
 
 func TestEmit_Iteration(t *testing.T) {
 	const testBar = "bar"
-	m := NewMachine("emit")
+	m := gno.NewMachine("emit", nil)
+	pushMainFrame(m)
 
 	elgs := sdk.NewEventLogger()
 	m.Context = ExecContext{EventLogger: elgs}
@@ -303,7 +307,8 @@ func callbackEmitExample(m *gno.Machine, callback func()) {
 }
 
 func TestEmit_ComplexInteraction(t *testing.T) {
-	m := NewMachine("emit")
+	m := gno.NewMachine("emit", nil)
+	pushMainFrame(m)
 
 	elgs := sdk.NewEventLogger()
 	m.Context = ExecContext{EventLogger: elgs}

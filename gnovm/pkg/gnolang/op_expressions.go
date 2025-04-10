@@ -20,10 +20,7 @@ func (m *Machine) doOpIndex1() {
 			*xv = vv // reuse as result
 		} else {
 			vt := ct.Value
-			*xv = TypedValue{ // reuse as result
-				T: vt,
-				V: defaultValue(m.Alloc, vt),
-			}
+			*xv = defaultTypedValue(m.Alloc, vt) // reuse as result
 		}
 	default:
 		res := xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
@@ -42,11 +39,8 @@ func (m *Machine) doOpIndex2() {
 	case *MapType:
 		vt := ct.Value
 		if xv.V == nil { // uninitialized map
-			*xv = TypedValue{ // reuse as result
-				T: vt,
-				V: defaultValue(m.Alloc, vt),
-			}
-			*iv = untypedBool(false) // reuse as result
+			*xv = defaultTypedValue(m.Alloc, vt) // reuse as result
+			*iv = untypedBool(false)             // reuse as result
 		} else {
 			mv := xv.V.(*MapValue)
 			vv, exists := mv.GetValueForKey(m.Store, iv)
@@ -54,11 +48,8 @@ func (m *Machine) doOpIndex2() {
 				*xv = vv                // reuse as result
 				*iv = untypedBool(true) // reuse as result
 			} else {
-				*xv = TypedValue{ // reuse as result
-					T: vt,
-					V: defaultValue(m.Alloc, vt),
-				}
-				*iv = untypedBool(false) // reuse as result
+				*xv = defaultTypedValue(m.Alloc, vt) // reuse as result
+				*iv = untypedBool(false)             // reuse as result
 			}
 		}
 	default:
@@ -316,10 +307,7 @@ func (m *Machine) doOpTypeAssert2() {
 		}
 	} else { // is concrete assert
 		if xt == nil {
-			*xv = TypedValue{
-				T: t,
-				V: defaultValue(m.Alloc, t),
-			}
+			*xv = defaultTypedValue(m.Alloc, t)
 			*tv = untypedBool(false)
 			return
 		}
@@ -333,10 +321,7 @@ func (m *Machine) doOpTypeAssert2() {
 			// *xv = *xv
 			*tv = untypedBool(true)
 		} else {
-			*xv = TypedValue{
-				T: t,
-				V: defaultValue(m.Alloc, t),
-			}
+			*xv = defaultTypedValue(m.Alloc, t)
 			*tv = untypedBool(false)
 		}
 	}

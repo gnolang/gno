@@ -3082,6 +3082,9 @@ func findHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 }
 
 // Replaces all pkg.name selectors with const exprs containing refs.
+// TODO Do not perform this transform unless the name is used
+// inside of a closure. Top level declared functions and methods
+// do not need this indirection. XXX
 func findPackageSelectors(bn BlockNode) {
 	// Iterate over all nodes recursively.
 	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
