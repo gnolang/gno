@@ -2039,10 +2039,6 @@ func (m *Machine) CheckEmpty() error {
 	}
 }
 
-func (m *Machine) PanicString(ex string) {
-	m.Panic(typedString(ex))
-}
-
 func (m *Machine) Panic(ex TypedValue) {
 	m.Exceptions = append(
 		m.Exceptions,
