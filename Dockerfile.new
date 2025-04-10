@@ -101,7 +101,7 @@ RUN         --mount=type=cache,target=/go/pkg/mod/,id=countercache \
             go build -o /gnoroot/build/autocounterd ./cmd
 
 # Base image
-FROM        alpine:3.21 AS base
+FROM        alpine:3 AS base
 WORKDIR     /gnoroot
 ENV         GNOROOT="/gnoroot"
 RUN         apk add --no-cache ca-certificates

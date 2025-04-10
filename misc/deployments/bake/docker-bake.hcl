@@ -59,20 +59,24 @@ group "_all" {
 ############### TARGETS #################
 #########################################
 
+target "docker-metadata-action" {}
+
 target "common" {
+  inherits = ["docker-metadata-action"]
   attest = [
     "type=provenance,mode=max",
     "type=sbom",
   ]
   context = "../../../"
+  dockerfile = "Dockerfile.new"
   
-  labels = {
-    "org.opencontainers.image.created" = "${DATE}"
-    "org.opencontainers.image.title" = "${PROJECT_NAME}"
-    "org.opencontainers.image.revision" = "${FULL_COMMIT}"
-    "org.opencontainers.image.version" = "${VERSION}"
-    "org.opencontainers.image.authors" = "Gno Core Team"
-  }
+  # labels = {
+  #   # "org.opencontainers.image.created" = "${DATE}"
+  #   # "org.opencontainers.image.title" = "${PROJECT_NAME}"
+  #   # "org.opencontainers.image.revision" = "${FULL_COMMIT}"
+  #   # "org.opencontainers.image.version" = "${VERSION}"
+  #   # "org.opencontainers.image.authors" = "Gno Core Team"
+  # }
   platforms = [
     "linux/amd64",
     "linux/arm64"
@@ -106,7 +110,7 @@ target "gnoweb" {
   inherits = ["common"]
   target = "gnoweb"
   tags = [
-    "ghcr.io/gnolang/gno/gnoweb"
+    "ghcr.io/gnolang/gno/gnoweb:${TAG}"
   ]
   labels = {
     "org.opencontainers.image.title" = "${PROJECT_NAME}/gnoweb"
@@ -117,7 +121,7 @@ target "gnofaucet" {
   inherits = ["common"]
   target = "gnofaucet"
   tags = [
-    "ghcr.io/gnolang/gno/mygnofaucet"
+    "ghcr.io/gnolang/gno/gnofaucet:${TAG}"
   ]
   labels = {
     "org.opencontainers.image.title" = "${PROJECT_NAME}/gnofaucet"
@@ -128,7 +132,7 @@ target "gno" {
   inherits = ["common"]
   target = "gno"
   tags = [
-    "ghcr.io/gnolang/gno"
+    "ghcr.io/gnolang/gno:${TAG}"
   ]
   labels = {
     "org.opencontainers.image.title" = "${PROJECT_NAME}/gno"
@@ -139,7 +143,7 @@ target "gnodev" {
   inherits = ["common"]
   target = "gnodev"
   tags = [
-    "ghcr.io/gnolang/gno/gnodev"
+    "ghcr.io/gnolang/gno/gnodev:${TAG}"
   ]
   labels = {
     "org.opencontainers.image.title" = "${PROJECT_NAME}/gnodev"
@@ -150,7 +154,7 @@ target "gnocontribs" {
   inherits = ["common"]
   target = "gnocontribs"
   tags = [
-    "ghcr.io/gnolang/gno/gnocontribs"
+    "ghcr.io/gnolang/gno/gnocontribs:${TAG}"
   ]
   labels = {
     "org.opencontainers.image.title" = "${PROJECT_NAME}/gnocontribs"

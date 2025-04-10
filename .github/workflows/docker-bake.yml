@@ -4,7 +4,8 @@ on:
   push:
     branches:
       - refactor/gnoland-home
-      - feat/docker-bak
+      - feat/docker-bake
+      - chain/test*
   workflow_dispatch:
 
 permissions:
@@ -13,6 +14,8 @@ permissions:
 
 jobs:
   bake:
+    # Match only branches whose name is chain/test[0-9][0-9]
+    # if: startsWith(github.ref, 'refs/heads/chain/test') && github.ref =~ '^refs/heads/chain/test[0-9][0-9]$'
     runs-on: ubuntu-latest
     steps:
       - name: Set up Docker Buildx
@@ -28,13 +31,27 @@ jobs:
           echo "NOW=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_ENV
           echo "VERSION=${REF_NAME}-${GITHUB_SHA::7}" >> $GITHUB_ENV
           echo "REF_NAME=${REF_NAME}" >> $GITHUB_ENV
+      
+      - name: Extract metadata
+        uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/${{ github.repository }}/gnoland
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=sha-
+          labels: |
+            org.opencontainers.image.authors=Gno Core Team
 
       # Using Github Context. Overriding context with an explicit `set` is required
       - name: Bake build and push
         uses: docker/bake-action@v6
         with:
-          files: misc/deployments/bake/docker-bake.hcl
-          push: true
+          files: |
+            misc/deployments/bake/docker-bake.hcl
+            cwd://${{ steps.meta.outputs.bake-file-tags }}
+            cwd://${{ steps.meta.outputs.bake-file-labels }}
+          push: false
           set: |
             *.cache-from=type=gha
             *.cache-to=type=gha,mode=max
