@@ -39,7 +39,7 @@ func (m *Machine) doOpAddAssign() {
 	s := m.PopStmt().(*AssignStmt)
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
@@ -54,7 +54,7 @@ func (m *Machine) doOpSubAssign() {
 	s := m.PopStmt().(*AssignStmt)
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
@@ -69,7 +69,7 @@ func (m *Machine) doOpMulAssign() {
 	s := m.PopStmt().(*AssignStmt)
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
@@ -84,7 +84,7 @@ func (m *Machine) doOpQuoAssign() {
 	s := m.PopStmt().(*AssignStmt)
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
@@ -103,7 +103,7 @@ func (m *Machine) doOpRemAssign() {
 	s := m.PopStmt().(*AssignStmt)
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
@@ -122,7 +122,7 @@ func (m *Machine) doOpBandAssign() {
 	s := m.PopStmt().(*AssignStmt)
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
@@ -137,7 +137,7 @@ func (m *Machine) doOpBandnAssign() {
 	s := m.PopStmt().(*AssignStmt)
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
@@ -152,7 +152,7 @@ func (m *Machine) doOpBorAssign() {
 	s := m.PopStmt().(*AssignStmt)
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
@@ -167,7 +167,7 @@ func (m *Machine) doOpXorAssign() {
 	s := m.PopStmt().(*AssignStmt)
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
-	if debug {
+	if zealous {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 

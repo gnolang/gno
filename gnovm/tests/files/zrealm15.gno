@@ -82,18 +82,6 @@ func main() {
 //              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
 //              "RefCount": "1"
 //          }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:9]=
-//     @@ -3,8 +3,8 @@
-//          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:9",
-//              "IsEscaped": true,
-//     -        "ModTime": "0",
-//     -        "RefCount": "2"
-//     +        "ModTime": "10",
-//     +        "RefCount": "0"
-//          },
-//          "Parent": {
-//              "@type": "/gno.RefValue",
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4]=
 //     @@ -7,22 +7,12 @@
 //                          "@type": "/gno.RefType",
