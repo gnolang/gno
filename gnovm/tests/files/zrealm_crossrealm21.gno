@@ -30,7 +30,7 @@ func main() {
 //          "ObjectInfo": {
 //              "ID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:7",
 //     -        "ModTime": "0",
-//     +        "ModTime": "24",
+//     +        "ModTime": "27",
 //              "OwnerID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:2",
 //              "RefCount": "1"
 //          },
@@ -62,7 +62,7 @@ func main() {
 //              "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:4",
 //     -        "ModTime": "0",
 //     +        "IsEscaped": true,
-//     +        "ModTime": "24",
+//     +        "ModTime": "27",
 //              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:3",
 //     -        "RefCount": "1"
 //     +        "RefCount": "2"
@@ -85,7 +85,7 @@ func main() {
 //          "ObjectInfo": {
 //              "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:5",
 //     -        "ModTime": "0",
-//     +        "ModTime": "14",
+//     +        "ModTime": "15",
 //              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:4",
 //              "RefCount": "1"
 //          }

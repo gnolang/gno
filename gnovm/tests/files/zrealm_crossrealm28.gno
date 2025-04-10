@@ -38,8 +38,8 @@ func main() {
 //      {
 //          "ObjectInfo": {
 //              "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:13",
-//     -        "ModTime": "14",
-//     +        "ModTime": "15",
+//     -        "ModTime": "15",
+//     +        "ModTime": "16",
 //              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:2",
 //              "RefCount": "1"
 //          },
@@ -53,14 +53,14 @@ func main() {
 //     -        },
 //     -        "V": {
 //     -            "@type": "/gno.RefValue",
-//     -            "Hash": "eec84a09a6ad6ffbdf788b4599ded4a85761878b",
-//     -            "ObjectID": "0edc46caf30c00efd87b6c272673239eafbd051e:15"
+//     -            "Hash": "fceb8ae8f879ca4448cc5279acf767a7a66e06c0",
+//     -            "ObjectID": "0edc46caf30c00efd87b6c272673239eafbd051e:16"
 //     +            "@type": "/gno.PrimitiveType",
 //     +            "value": "32"
 //              }
 //          }
 //      }
-// d[0edc46caf30c00efd87b6c272673239eafbd051e:15]
+// d[0edc46caf30c00efd87b6c272673239eafbd051e:16]
 // switchrealm["gno.land/r/crossrealm_test"]
 // u[f5a516808f8976c33939133293d598ce3bca4e8d:8]=
 //     @@ -1,7 +1,7 @@
