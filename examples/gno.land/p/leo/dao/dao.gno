@@ -16,7 +16,7 @@ type IDAO interface {
 
 	IsMember(std.Address) bool
 
-	AsserUserIsMember(std.Address)
+	AssertUserIsMember(std.Address)
 }
 
 var (

@@ -59,13 +59,15 @@ func defaultUserData() UserData {
 func Login() {
 	usr := std.PreviousRealm().Address()
 	pokemonDAO.AsserUserIsNotMember(usr)
-	pokemonDAO.AddMember(usr)
+
 	pokemonDAO.userData = append(pokemonDAO.userData, defaultUserData())
+	pokemonDAO.AddMember(usr)
 }
 
 func DeleteMyAccount() {
 	usr := std.PreviousRealm().Address()
 	pokemonDAO.AsserUserIsMember(usr)
+
 	idx := utils.AddressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
 		return usr == member
 	})
