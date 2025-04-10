@@ -45,7 +45,7 @@ func formatFromFloat(n float64) string {
 // * Format(3_980_000) -> "3.98M"
 //
 //
-func Format(n any) (string, error) {
+func FormatRound(n any) (string, error) {
 	switch v := n.(type) {
 	case float64:
 		return formatFromFloat(v), nil
@@ -64,7 +64,7 @@ func Format(n any) (string, error) {
 		}
 		return formatFromFloat(x), nil
 	case interface { String() string }:
-		return Format(v.String())
+		return FormatRound(v.String())
 	}
 	return "", errors.New("invalid type")
 }
