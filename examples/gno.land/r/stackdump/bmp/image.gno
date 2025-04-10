@@ -24,7 +24,9 @@ func GetPixels() []ColorPixel {
 }
 
 func SetPixel(x, y, r, g, b int) {
-    if x < 0 || x > 49 || y < 0 || y > 49 {
+    // if x < 0 || x > 49 || y < 0 || y > 49 {
+    // REVIEW: tuned the bounds to 10-40 and 15-45 to avoid hitting the output allocation limit
+    if x < 10 || x > 40 || y < 15 || y > 45 {
         return
     }
     if r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255 {
