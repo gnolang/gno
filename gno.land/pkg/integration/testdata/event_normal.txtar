@@ -24,7 +24,7 @@ stdout 'TX HASH:    '
 package ee
 
 import (
-	"std"
+	"chain"
 )
 
 const (
@@ -38,23 +38,23 @@ func Foo(){
 }
 
 func SubFoo() {
-    std.Emit(
+    chain.Emit(
         EventFoo,
 		"key1", "value1",
 		"key2", "value2",
 		"key3", "value3",
-    )  
+    )
 }
 
 func SubBar() {
-    std.Emit(
+    chain.Emit(
         EventBar,
         "bar", "baz",
     )
 }
 
 func Bar() {
-    std.Emit(
+    chain.Emit(
         EventBar,
         "foo", "bar",
     )

@@ -120,7 +120,7 @@ stderr 'invalid non-origin call'
 -- r/myrlm/rlm.gno --
 package myrlm
 
-import "std"
+import "chain/runtime"
 
 func A() {
 	C()
@@ -133,7 +133,7 @@ func B() {
 }
 
 func C() {
-	std.AssertOriginCall()
+	runtime.AssertOriginCall()
 }
 -- r/foo/foo.gno --
 package foo
@@ -154,7 +154,7 @@ func C() {
 -- p/demo/bar/bar.gno --
 package bar
 
-import "std"
+import "chain/runtime"
 
 func A() {
 	C()
@@ -166,7 +166,7 @@ func B() {
 	}
 }
 func C() {
-	std.AssertOriginCall()
+	runtime.AssertOriginCall()
 }
 -- run/myrlmA.gno --
 package main
@@ -243,8 +243,8 @@ func main() {
 -- run/baz.gno --
 package main
 
-import "std"
+import "chain/runtime"
 
 func main() {
-	std.AssertOriginCall()
+	runtime.AssertOriginCall()
 }

@@ -42,11 +42,11 @@ stdout 'EVENTS:     \[{\"type\":\"TAG\",\"attrs\":\[{\"key\":\"KEY\",\"value\":\
 package simple_event
 
 import (
-	"std"
+	"chain"
 )
 
 func Event(value string) {
-    std.Emit("TAG", "KEY", value)
+    chain.Emit("TAG", "KEY", value)
 }
 
 -- multi/multi_msg.tx --
