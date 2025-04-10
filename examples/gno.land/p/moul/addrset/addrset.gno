@@ -9,7 +9,7 @@
 // Example usage:
 //
 //	import (
-//	    "std"
+//	    "chain"
 //	    "gno.land/p/moul/addrset"
 //	)
 //
@@ -18,8 +18,8 @@
 //	    var set addrset.Set
 //
 //	    // Add some addresses
-//	    addr1 := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-//	    addr2 := std.Address("g1sss5g0rkqr88k4u648yd5d3l9t4d8vvqwszqth")
+//	    addr1 := chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+//	    addr2 := chain.Address("g1sss5g0rkqr88k4u648yd5d3l9t4d8vvqwszqth")
 //
 //	    set.Add(addr1)  // returns true (newly added)
 //	    set.Add(addr2)  // returns true (newly added)
@@ -34,7 +34,7 @@
 //	    size := set.Size()  // returns 2
 //
 //	    // Iterate with pagination (10 items per page, starting at offset 0)
-//	    set.IterateByOffset(0, 10, func(addr std.Address) bool {
+//	    set.IterateByOffset(0, 10, func(addr chain.Address) bool {
 //	        // Process addr
 //	        return false  // continue iteration
 //	    })
