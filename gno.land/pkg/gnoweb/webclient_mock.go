@@ -76,7 +76,6 @@ func (m *MockWebClient) SourceFile(w io.Writer, pkgPath, fileName string, isRaw 
 			_, err := w.Write([]byte(body))
 			if err != nil {
 				return nil, err
-
 			}
 		}
 		return &FileMeta{
