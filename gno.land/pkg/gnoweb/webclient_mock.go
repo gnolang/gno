@@ -97,6 +97,21 @@ func (m *MockWebClient) Sources(path string) ([]string, error) {
 	return fileNames, nil
 }
 
+// RenderMd simulates rendering a markdown file.
+func (m *MockWebClient) RenderMd(w io.Writer, u *weburl.GnoURL, fileName string) (*RealmMeta, error) {
+	pkg, exists := m.Packages[u.Path]
+	if !exists {
+		return nil, ErrClientPathNotFound
+	}
+
+	if body, ok := pkg.Files[fileName]; ok {
+		w.Write([]byte(body))
+		return &RealmMeta{}, nil
+	}
+
+	return nil, ErrClientPathNotFound
+}
+
 func pkgHasRender(pkg *MockPackage) bool {
 	if len(pkg.Functions) == 0 {
 		return false
