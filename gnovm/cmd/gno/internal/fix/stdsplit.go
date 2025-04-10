@@ -150,12 +150,14 @@ func stdsplit(f *ast.File) (fixed bool) {
 				pos := slices.IndexFunc(f.Imports, func(decl *ast.ImportSpec) bool {
 					return importPath(decl) == target.importPath
 				})
+				var decl *ast.ImportSpec
 				if pos >= 0 {
 					if name := f.Imports[pos].Name; name != nil {
 						ident = name.Name
 					} else {
 						ident = knownImportIdentifiers[target.importPath]
 					}
+					decl = f.Imports[pos]
 				} else {
 					importName := ""
 					for sc[0][ident] != nil {
@@ -166,12 +168,12 @@ func stdsplit(f *ast.File) (fixed bool) {
 						panic("import should not exist")
 					}
 
-					decl := f.Imports[len(f.Imports)-1]
+					decl = f.Imports[len(f.Imports)-1]
 					sc[0][ident] = decl
-					if sc.lookup(target.ident) != decl {
-						// Will be tackled in post
-						toRename = append(toRename, target.ident)
-					}
+				}
+				if sc.lookup(ident) != decl {
+					// Will be tackled in post
+					toRename = append(toRename, target.ident)
 				}
 				newPkgIdent := &ast.Ident{NamePos: id.Pos(), Name: ident}
 				ignoreIdents[newPkgIdent] = struct{}{}
