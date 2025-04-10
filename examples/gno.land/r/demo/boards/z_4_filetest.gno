@@ -410,7 +410,7 @@ func main() {
 //         {
 //             "T": {
 //                 "@type": "/gno.RefType",
-//                 "ID": "std.Address"
+//                 "ID": "chain.Address"
 //             },
 //             "V": {
 //                 "@type": "/gno.StringValue",
@@ -534,7 +534,7 @@ func main() {
 //         },
 //         "V": {
 //             "@type": "/gno.RefValue",
-//             "Hash": "c45bbd47a46681a63af973db0ec2180922e4a8ae",
+//             "Hash": "43c7bd1f92e23c625d17d3474d8d2d800c7a3906",
 //             "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:127"
 //         }
 //     }
@@ -809,8 +809,8 @@ func main() {
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
-//     -            "Hash": "058a49e6ee26f75cc44901754d4c298fd1a1655c",
-//     +            "Hash": "a88a9b837af217656ee27084309f7cd02cd94cb3",
+//     -            "Hash": "c82cdf2ba339407ac48fec77dcc4604630cadc76",
+//     +            "Hash": "014c5b733e71ca5988db523b0857d57c14153c27",
 //                  "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:85"
 //              }
 //          }
