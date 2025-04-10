@@ -29,7 +29,7 @@ func formatFromFloat(n float64) string {
 
 	for _, s := range suffixes {
 		if n >= s.value {
-			return ufmt.Sprintf("%.1f%s", n/s.value, s.suffix)
+			return ufmt.Sprintf("%.2f%s", n/s.value, s.suffix)
 		}
 	}
 	return ufmt.Sprintf("%.0f", n)
