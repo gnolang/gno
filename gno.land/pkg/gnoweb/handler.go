@@ -301,7 +301,7 @@ func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL) (int, *components.V
 
 	// Check if README.md exists and render it
 	var readmeContent components.Component
-	for i, f := range files {
+	for _, f := range files {
 		if strings.EqualFold(f, "README.md") {
 			var content bytes.Buffer
 			_, err := h.Client.(*HTMLWebClient).RenderMd(&content, pkgPath, "README.md")
@@ -311,8 +311,6 @@ func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL) (int, *components.V
 				break
 			}
 			readmeContent = components.NewReaderComponent(&content)
-			// Move README.md to the first position
-			files[0], files[i] = files[i], files[0]
 			break
 		}
 	}
