@@ -2818,8 +2818,28 @@ func findHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 							}
 						}
 
+						findFaux := func(b BlockNode, stack []BlockNode) BlockNode {
+							for i, b2 := range stack {
+								if b2 == b {
+									if i > 0 {
+										return stack[i-1]
+									} else {
+										panic("faux block node not found in stack")
+									}
+								}
+							}
+							return nil
+						}
+
+						// set attr in faux block node
+						switch rbn := dbn.GetStaticBlock().Source.(type) {
+						case *IfCaseStmt, *SwitchClauseStmt:
+							fbn := findFaux(rbn, stack)
+							addAttrHeapUse(fbn, n.Name)
+						}
+
 						// Found a heap item closure capture.
-						addAttrHeapUse(dbn, n.Name)
+						addAttrHeapUse(dbn, n.Name) // Max: why also here?
 						// The path must stay same for now,
 						// used later in findHeapUsesDemoteDefines.
 						idx := addHeapCapture(dbn, flx, depth, n)
@@ -2853,6 +2873,7 @@ func addAttrHeapUse(bn BlockNode, name Name) {
 
 func hasAttrHeapUse(bn BlockNode, name Name) bool {
 	hds, _ := bn.GetAttribute(ATTR_HEAP_USES).([]Name)
+	//fmt.Println("---hasAttrHeapUse, hds: ", hds)
 	return slices.Contains(hds, name)
 }
 
@@ -3155,6 +3176,7 @@ func isSwitchLabel(ns []Node, label Name) bool {
 // Idempotent.
 // Also makes sure the stack doesn't reach MaxUint8 in length.
 func pushInitBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
+	//fmt.Println("---pushInitBlock, bn: ", bn, reflect.TypeOf(bn))
 	if !bn.IsInitialized() {
 		switch bn.(type) {
 		case *IfCaseStmt, *SwitchClauseStmt:

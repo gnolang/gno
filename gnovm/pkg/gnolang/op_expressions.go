@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"reflect"
 )
 
 // OpBinary1 defined in op_binary.go
@@ -95,7 +96,7 @@ func (m *Machine) doOpSlice() {
 	// shorthand for (*a)[low : high : max]
 	// XXX fix this in precompile instead.
 	if xv.T.Kind() == PointerKind &&
-			xv.T.Elem().Kind() == ArrayKind {
+		xv.T.Elem().Kind() == ArrayKind {
 		// simply deref xv.
 		*xv = xv.V.(PointerValue).Deref()
 		// check array also for ro.
@@ -589,7 +590,7 @@ func (m *Machine) doOpStructLit() {
 				// package doesn't match, we cannot use this
 				// method to initialize the struct.
 				if FieldTypeList(st.Fields).HasUnexported() &&
-						st.PkgPath != m.Package.PkgPath {
+					st.PkgPath != m.Package.PkgPath {
 					panic(fmt.Sprintf(
 						"Cannot initialize imported struct %s.%s with nameless composite lit expression (has unexported fields) from package %s",
 						st.PkgPath, st.String(), m.Package.PkgPath))
@@ -658,18 +659,19 @@ func (m *Machine) doOpFuncLit() {
 	// every invocation of the function.
 	captures := []TypedValue(nil)
 	for _, nx := range x.HeapCaptures {
-		//fmt.Println("---nx: ", nx, nx.Type)
+		fmt.Println("---nx: ", nx, nx.Type)
 		ptr := lb.GetPointerToDirect(m.Store, nx.Path)
 		// check that ptr.TV is a heap item value.
 		// it must be in the form of:
 		// {T:heapItemType{},V:HeapItemValue{...}}
-		//if _, ok := ptr.TV.T.(heapItemType); !ok {
-		//	fmt.Println("---type of ...T: ", ptr.TV.T, reflect.TypeOf(ptr.TV.T))
-		//	panic("should not happen, should be heapItemType")
-		//}
-		//if _, ok := ptr.TV.V.(*HeapItemValue); !ok {
-		//	panic("should not happen, should be heapItemValue")
-		//}
+		//fmt.Println("---ptr.TV: ", ptr.TV)
+		if _, ok := ptr.TV.T.(heapItemType); !ok {
+			fmt.Println("---type of ...T: ", ptr.TV.T, reflect.TypeOf(ptr.TV.T))
+			panic("should not happen, should be heapItemType")
+		}
+		if _, ok := ptr.TV.V.(*HeapItemValue); !ok {
+			panic("should not happen, should be heapItemValue")
+		}
 		captures = append(captures, *ptr.TV)
 	}
 	m.PushValue(TypedValue{
@@ -702,7 +704,7 @@ func (m *Machine) doOpConvert() {
 	// Otherwise anyone could convert an external object insecurely.
 	if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(xv) {
 		if xvdt, ok := xv.T.(*DeclaredType); ok &&
-				xvdt.PkgPath == m.Realm.Path {
+			xvdt.PkgPath == m.Realm.Path {
 			// Except allow if xv.T is m.Realm.
 			// XXX do we need/want this?
 		} else {
