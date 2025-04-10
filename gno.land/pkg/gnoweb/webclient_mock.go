@@ -185,39 +185,3 @@ type ABCIResponse struct {
 type ABCIQueryResponse struct {
 	Response ABCIResponse
 }
-
-// dummyRPCClient is a mock RPC client for testing
-type dummyRPCClient struct{}
-
-func (c *dummyRPCClient) ABCIQuery(path string, data []byte) (*ABCIQueryResponse, error) {
-	// Mock responses based on the query path
-	switch path {
-	case "vm/qdoc":
-		return &ABCIQueryResponse{
-			Response: ABCIResponse{
-				Data: []byte(`{"title": "Documentation Test"}`),
-			},
-		}, nil
-	case "vm/qfile":
-		if strings.Contains(string(data), "test.gno") {
-			return &ABCIQueryResponse{
-				Response: ABCIResponse{
-					Data: []byte("package main\n\nfunc main() { println(\"Hello\") }"),
-				},
-			}, nil
-		}
-		return &ABCIQueryResponse{
-			Response: ABCIResponse{
-				Data: []byte("file1.gno\nfile2.gno"),
-			},
-		}, nil
-	case "vm/qrender":
-		return &ABCIQueryResponse{
-			Response: ABCIResponse{
-				Data: []byte("# Test Realm\n\nThis is a test realm."),
-			},
-		}, nil
-	default:
-		return nil, nil
-	}
-}
