@@ -1,6 +1,8 @@
 package components
 
 import (
+	"io"
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
@@ -12,7 +14,10 @@ func TestIndexLayout(t *testing.T) {
 		HeadData: HeadData{
 			Title: "Test Title",
 		},
-		BodyView: &View{Type: "test-view"},
+		BodyView: &View{
+			Type:      "test-view",
+			Component: NewReaderComponent(strings.NewReader("testdata")),
+		},
 	}
 
 	component := IndexLayout(data)
@@ -26,6 +31,8 @@ func TestIndexLayout(t *testing.T) {
 	assert.True(t, ok, "expected indexLayoutParams type in component data")
 
 	assert.Equal(t, FullLayout, layoutParams.Layout, "expected layout %s, got %s", FullLayout, layoutParams.Layout)
+
+	assert.NoError(t, component.Render(io.Discard))
 }
 
 func TestEnrichFooterData(t *testing.T) {

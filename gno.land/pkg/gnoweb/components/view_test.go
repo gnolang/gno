@@ -1,6 +1,8 @@
 package components
 
 import (
+	"io"
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
@@ -24,7 +26,7 @@ func TestSourceView(t *testing.T) {
 				FileLines:    100,
 				FileCounter:  1,
 				FileDownload: "example/path/main.gno",
-				FileSource:   NewTemplateComponent("ui/code_wrapper", nil),
+				FileSource:   NewReaderComponent(strings.NewReader("testdata")),
 			},
 			expected: 4,
 		},
@@ -38,7 +40,7 @@ func TestSourceView(t *testing.T) {
 				FileLines:    100,
 				FileCounter:  1,
 				FileDownload: "example/path/main.gno",
-				FileSource:   NewTemplateComponent("ui/code_wrapper", nil),
+				FileSource:   NewReaderComponent(strings.NewReader("testdata")),
 			},
 			expected: 0,
 		},
@@ -53,6 +55,8 @@ func TestSourceView(t *testing.T) {
 			tocItemsCount := len(tt.data.Files)
 			assert.Equal(t, tt.expected, tocItemsCount, "expected %d TOC items, got %d", tt.expected, tocItemsCount)
 			assert.Equal(t, SourceViewType, view.Type, "expected view type %s, got %s", SourceViewType, view.Type)
+
+			assert.NoError(t, view.Render(io.Discard))
 		})
 	}
 }
@@ -71,6 +75,8 @@ func TestStatusErrorComponent(t *testing.T) {
 	assert.True(t, ok, "expected StatusData type in component data")
 
 	assert.Equal(t, expectedTitle, statusData.Title, "expected title %s, got %s", expectedTitle, statusData.Title)
+
+	assert.NoError(t, view.Render(io.Discard))
 }
 
 func TestStatusNoRenderComponent(t *testing.T) {
@@ -87,6 +93,8 @@ func TestStatusNoRenderComponent(t *testing.T) {
 
 	expectedURL := pkgPath + "$source"
 	assert.Equal(t, expectedURL, statusData.ButtonURL, "expected ButtonURL %s, got %s", expectedURL, statusData.ButtonURL)
+
+	assert.NoError(t, view.Render(io.Discard))
 }
 
 func TestRedirectView(t *testing.T) {
@@ -106,6 +114,8 @@ func TestRedirectView(t *testing.T) {
 
 	assert.Equal(t, data.To, redirectData.To, "expected redirect to %s, got %s", data.To, redirectData.To)
 	assert.Equal(t, data.WithAnalytics, redirectData.WithAnalytics, "expected WithAnalytics to be %v, got %v", data.WithAnalytics, redirectData.WithAnalytics)
+
+	assert.NoError(t, view.Render(io.Discard))
 }
 
 func TestViewRender(t *testing.T) {
@@ -132,14 +142,14 @@ func (m *mockWriter) Write(p []byte) (n int, err error) {
 }
 
 func TestRealmView(t *testing.T) {
-	component := NewTemplateComponent("ui/content", nil)
+	content := NewReaderComponent(strings.NewReader("testdata"))
 	tocItems := &RealmTOCData{
 		Items: []*markdown.TocItem{
 			{Title: []byte("Introduction"), ID: []byte("introduction")},
 		},
 	}
 	data := RealmData{
-		ComponentContent: component,
+		ComponentContent: content,
 		TocItems:         tocItems,
 	}
 
@@ -153,7 +163,9 @@ func TestRealmView(t *testing.T) {
 	realmViewParams, ok := templateComponent.data.(realmViewParams)
 	assert.True(t, ok, "expected realmViewParams type in component data")
 
-	assert.Equal(t, component, realmViewParams.Article.ComponentContent, "expected component content to match")
+	assert.Equal(t, content, realmViewParams.Article.ComponentContent, "expected component content to match")
+
+	assert.NoError(t, view.Render(io.Discard))
 }
 
 func TestHelpView(t *testing.T) {
@@ -178,6 +190,8 @@ func TestHelpView(t *testing.T) {
 	assert.True(t, ok, "expected helpViewParams type in component data")
 
 	assert.Equal(t, data.RealmName, helpViewParams.HelpData.RealmName, "expected realm name %s, got %s", data.RealmName, helpViewParams.HelpData.RealmName)
+
+	assert.NoError(t, view.Render(io.Discard))
 }
 
 func TestDirectoryView(t *testing.T) {
@@ -200,4 +214,6 @@ func TestDirectoryView(t *testing.T) {
 	assert.Equal(t, data.PkgPath, dirData.PkgPath, "expected PkgPath %s, got %s", data.PkgPath, dirData.PkgPath)
 	assert.Equal(t, len(data.Files), len(dirData.Files), "expected %d files, got %d", len(data.Files), len(dirData.Files))
 	assert.Equal(t, data.FileCounter, dirData.FileCounter, "expected FileCounter %d, got %d", data.FileCounter, dirData.FileCounter)
+
+	assert.NoError(t, view.Render(io.Discard))
 }
