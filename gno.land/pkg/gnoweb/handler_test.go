@@ -229,3 +229,69 @@ func TestWebHandler_GetSourceDownload(t *testing.T) {
 		})
 	}
 }
+
+// TestWebHandler_GetMarkdown tests markdown file rendering with and without plain mode
+func TestWebHandler_GetMarkdown(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/path",
+		Files: map[string]string{
+			"README.md": `# Test Markdown
+
+This is a test markdown file.
+
+- Item 1
+- Item 2`,
+		},
+	}
+
+	webclient := gnoweb.NewMockWebClient(mockPackage)
+	config := gnoweb.WebHandlerConfig{
+		WebClient: webclient,
+	}
+
+	cases := []struct {
+		Path    string
+		Status  int
+		Contain string
+	}{
+		{
+			Path:    "/r/mock/path$source&file=README.md&plain",
+			Status:  http.StatusOK,
+			Contain: "# Test Markdown", // Plain mode should show raw markdown
+		},
+		{
+			Path:    "/r/mock/path$source&file=README.md",
+			Status:  http.StatusOK,
+			Contain: "<h1>Test Markdown</h1>", // Rendered markdown should contain HTML
+		},
+		{
+			Path:    "/r/mock/path$source&file=nonexistent.md",
+			Status:  http.StatusNotFound,
+			Contain: "not found",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(strings.TrimPrefix(tc.Path, "/"), func(t *testing.T) {
+			t.Parallel()
+			t.Logf("input: %+v", tc)
+
+			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+			handler, err := gnoweb.NewWebHandler(logger, config)
+			require.NoError(t, err)
+
+			req, err := http.NewRequest(http.MethodGet, tc.Path, nil)
+			require.NoError(t, err)
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			assert.Equal(t, tc.Status, rr.Code)
+			assert.Contains(t, rr.Body.String(), tc.Contain)
+		})
+	}
+}
