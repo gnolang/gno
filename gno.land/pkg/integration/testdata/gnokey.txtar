@@ -33,30 +33,26 @@ stderr '"gnokey" error: unknown request error'
 
 ## succeed json call: string
 gnokey -json query vm/qeval/json -data "gno.land/r/dev/silo.Hello(\"juliette\")"
-stdout '"data": \['
-stdout '   "Hello juliette",'
-stdout '   null'
-stdout '\]'
+cmp stdout gnokey-json-call-string.stdout.golden
+cmp stderr gnokey-json-call-string.stderr.golden
+
 
 ## succeed json call: error
 gnokey -json query vm/qeval/json -data "gno.land/r/dev/silo.Hello(\"bernard\")"
-stdout '"data": \['
-stdout '   "",'
-stdout '   "not for you bernard!"'
-stdout '\]'
+cmp stdout gnokey-json-call-error.stdout.golden
+cmp stderr gnokey-json-call-error.stderr.golden
+
 
 ## success json call: object
 gnokey -json query vm/qeval/json -data "gno.land/r/dev/silo.GetSilo()"
-stdout '"data": \['
-stdout '  "<obj:\*gno.land/r/dev/silo.Silo:6aed2eda72c79e411eec1ea7f661c5e30383fb59:2>"'
-stdout '\]'
+cmp stdout gnokey-json-call-object.stdout.golden
+cmp stderr gnokey-json-call-object.stderr.golden
+
 
 ## success json call: []byte
 gnokey -json query vm/qeval/json -data "gno.land/r/dev/silo.GetSiloData()"
-stdout '"data": \['
-stdout '  "c2VjcmV0IG1lc3NhZ2U="'
-stdout '\]'
-
+cmp stdout gnokey-json-call-bytes.stdout.golden
+cmp stderr gnokey-json-call-bytes.stderr.golden
 
 -- silo/silo.gno --
 package silo
@@ -86,3 +82,116 @@ func GetSilo() *Silo {
 func GetSiloData() []byte {
 	return []byte(mysilo.Data)
 }
+
+-- gnokey-json-call-string.stdout.golden --
+{
+	"response": {
+		"ResponseBase": {
+			"Error": null,
+			"Data": "WyJIZWxsbyBqdWxpZXR0ZSIsbnVsbF0=",
+			"Events": null,
+			"Log": "",
+			"Info": ""
+		},
+		"Key": null,
+		"Value": null,
+		"Proof": null,
+		"Height": "0"
+	},
+	"data": [
+		"Hello juliette",
+		null
+	]
+}
+
+-- gnokey-json-call-string.stderr.golden --
+-- gnokey-json-call-error.stdout.golden --
+{
+	"response": {
+		"ResponseBase": {
+			"Error": null,
+			"Data": "WyIiLHsiJGVycm9yIjoibm90IGZvciB5b3UgYmVybmFyZCEifV0=",
+			"Events": null,
+			"Log": "",
+			"Info": ""
+		},
+		"Key": null,
+		"Value": null,
+		"Proof": null,
+		"Height": "0"
+	},
+	"data": [
+		"",
+		{
+			"$error": "not for you bernard!"
+		}
+	]
+}
+
+-- gnokey-json-call-error.stderr.golden --
+-- gnokey-json-call-error.stdout.golden --
+{
+	"response": {
+		"ResponseBase": {
+			"Error": null,
+			"Data": "WyIiLHsiJGVycm9yIjoibm90IGZvciB5b3UgYmVybmFyZCEifV0=",
+			"Events": null,
+			"Log": "",
+			"Info": ""
+		},
+		"Key": null,
+		"Value": null,
+		"Proof": null,
+		"Height": "0"
+	},
+	"data": [
+		"",
+		{
+			"$error": "not for you bernard!"
+		}
+	]
+}
+
+-- gnokey-json-call-error.stderr.golden --
+-- gnokey-json-call-object.stdout.golden --
+{
+	"response": {
+		"ResponseBase": {
+			"Error": null,
+			"Data": "WyI8b2JqOipnbm8ubGFuZC9yL2Rldi9zaWxvLlNpbG86NmFlZDJlZGE3MmM3OWU0MTFlZWMxZWE3ZjY2MWM1ZTMwMzgzZmI1OToyPiJd",
+			"Events": null,
+			"Log": "",
+			"Info": ""
+		},
+		"Key": null,
+		"Value": null,
+		"Proof": null,
+		"Height": "0"
+	},
+	"data": [
+		"<obj:*gno.land/r/dev/silo.Silo:6aed2eda72c79e411eec1ea7f661c5e30383fb59:2>"
+	]
+}
+
+-- gnokey-json-call-object.stderr.golden --
+-- gnokey-json-call-bytes.stdout.golden --
+{
+	"response": {
+		"ResponseBase": {
+			"Error": null,
+			"Data": "WyJjMlZqY21WMElHMWxjM05oWjJVPSJd",
+			"Events": null,
+			"Log": "",
+			"Info": ""
+		},
+		"Key": null,
+		"Value": null,
+		"Proof": null,
+		"Height": "0"
+	},
+	"data": [
+		"c2VjcmV0IG1lc3NhZ2U="
+	]
+}
+
+-- gnokey-json-call-bytes.stderr.golden --
