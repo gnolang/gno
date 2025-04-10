@@ -58,7 +58,6 @@ services:
     volumes:
       # Shared Volume
       - gnoland-shared:/gnoroot/shared-data
-      - ../../genesis.json:/gnoroot/genesis.json
     entrypoint:
       - sh
       - -c
