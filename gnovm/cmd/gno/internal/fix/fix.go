@@ -242,7 +242,9 @@ func apply(f ast.Node, pre, post func(*astutil.Cursor, scopes) bool) ast.Node {
 						name = tp.Name + "." + name
 					}
 				}
-				sc.declare(name, n)
+				if name != "init" {
+					sc.declare(name, n)
+				}
 				sc.push()
 				sc.declareList(n.Recv)
 				sc.declareList(n.Type.Params)
