@@ -1,4 +1,4 @@
-package namechecker
+package use_rsysusers
 
 import (
 	"std"
@@ -11,7 +11,13 @@ func Render(path string) string {
 
 	// Default render
 	if path == "" {
-		out += "Add `:{name OR address}` to the search bar to check for a name or address!\n\n"
+		out += `This is short example on how developers can use the gno.land user registry to resolve
+usernames and addresses in their realms. Check out the example below.
+
+---
+
+`
+		out += "Add `:{name OR address}` to the search bar to check for a name or address.\n\n"
 		out += "Here are some examples:\n\n"
 		out += "- [@test1](/r/docs/users:test1)\n"
 		out += "- [g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5](/r/docs/users:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5)\n"
