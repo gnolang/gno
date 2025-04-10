@@ -241,12 +241,6 @@ func transpilePkg(dirPath string, opts *transpileOptions) error {
 func transpileFile(srcPath string, opts *transpileOptions) error {
 	flags := opts.getFlags()
 
-	// Allows for correct stdlib detection in Transpile.
-	srcPath, err := filepath.Abs(srcPath)
-	if err != nil {
-		return fmt.Errorf("abs: %w", err)
-	}
-
 	// parse .gno.
 	source, err := os.ReadFile(srcPath)
 	if err != nil {

@@ -15,7 +15,7 @@ stderr '^2 transpile error\(s\)$'
 package main
 
 import (
-	"std"
+	"chain"
 	"xxx"
 )
 

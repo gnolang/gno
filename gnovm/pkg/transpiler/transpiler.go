@@ -98,10 +98,14 @@ func Transpile(source, tags, filename string) (*Result, error) {
 		// enable as such "package checking" also on test files.
 		ctx.rootDir = ""
 	}
-	if strings.HasPrefix(filename, stdlibPrefix) {
+	absFilename, err := filepath.Abs(filename)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get absolute path of filename: %w", err)
+	}
+	if strings.HasPrefix(absFilename, stdlibPrefix) {
 		// this is a standard library. Mark it in the options so the native
 		// bindings resolve correctly.
-		path := strings.TrimPrefix(filename, stdlibPrefix)
+		path := strings.TrimPrefix(absFilename, stdlibPrefix)
 		path = filepath.ToSlash(filepath.Dir(path))
 		path = strings.TrimLeft(path, "/")
 

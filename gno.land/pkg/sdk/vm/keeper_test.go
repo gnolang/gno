@@ -122,16 +122,19 @@ func TestVMKeeperOriginSend1(t *testing.T) {
 		{Name: "init.gno", Body: `
 package test
 
-import "std"
+import (
+	"chain/runtime"
+	"chain/banker"
+)
 
 func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.OriginCaller()
-	pkgAddr := std.CurrentRealm().Address()
-	send := std.OriginSend()
-	banker := std.NewBanker(std.BankerTypeOriginSend)
+	addr := runtime.OriginCaller()
+	pkgAddr := runtime.CurrentRealm().Address()
+	send := banker.OriginSend()
+	banker := banker.NewBanker(banker.BankerTypeOriginSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -167,19 +170,23 @@ func TestVMKeeperOriginSend2(t *testing.T) {
 		{Name: "init.gno", Body: `
 package test
 
-import "std"
+import (
+	"chain"
+	"chain/runtime"
+	"chain/banker"
+)
 
-var admin std.Address
+var admin chain.Address
 
 func init() {
-     admin =	std.OriginCaller()
+     admin = runtime.OriginCaller()
 }
 
 func Echo(msg string) string {
-	addr := std.OriginCaller()
-	pkgAddr := std.CurrentRealm().Address()
-	send := std.OriginSend()
-	banker := std.NewBanker(std.BankerTypeOriginSend)
+	addr := runtime.OriginCaller()
+	pkgAddr := runtime.CurrentRealm().Address()
+	send := banker.OriginSend()
+	banker := banker.NewBanker(banker.BankerTypeOriginSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }
@@ -220,16 +227,19 @@ func TestVMKeeperOriginSend3(t *testing.T) {
 		{Name: "init.gno", Body: `
 package test
 
-import "std"
+import (
+	"chain/banker"
+	"chain/runtime"
+)
 
 func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.OriginCaller()
-	pkgAddr := std.CurrentRealm().Address()
-	send := std.Coins{{"ugnot", 10000000}}
-	banker := std.NewBanker(std.BankerTypeOriginSend)
+	addr := runtime.OriginCaller()
+	pkgAddr := runtime.CurrentRealm().Address()
+	send := banker.Coins{{"ugnot", 10000000}}
+	banker := banker.NewBanker(banker.BankerTypeOriginSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
 	return "echo:"+msg
 }`},
@@ -261,21 +271,23 @@ func TestVMKeeperRealmSend1(t *testing.T) {
 
 	// Create test package.
 	files := []*gnovm.MemFile{
-		{Name: "init.gno", Body: `
-package test
+		{Name: "init.gno", Body: `package test
 
-import "std"
+import (
+	"chain/banker"
+	"chain/runtime"
+)
 
 func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.OriginCaller()
-	pkgAddr := std.CurrentRealm().Address()
-	send := std.Coins{{"ugnot", 10000000}}
-	banker := std.NewBanker(std.BankerTypeRealmSend)
-	banker.SendCoins(pkgAddr, addr, send) // send back
-	return "echo:"+msg
+	addr := runtime.OriginCaller()
+	pkgAddr := runtime.CurrentRealm().Address()
+	send := banker.Coins{{"ugnot", 10000000}}
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_.SendCoins(pkgAddr, addr, send) // send back
+	return "echo:" + msg
 }`},
 	}
 	pkgPath := "gno.land/r/test"
@@ -308,18 +320,21 @@ func TestVMKeeperRealmSend2(t *testing.T) {
 		{Name: "init.gno", Body: `
 package test
 
-import "std"
+import (
+	"chain/banker"
+	"chain/runtime"
+)
 
 func init() {
 }
 
 func Echo(msg string) string {
-	addr := std.OriginCaller()
-	pkgAddr := std.CurrentRealm().Address()
-	send := std.Coins{{"ugnot", 10000000}}
-	banker := std.NewBanker(std.BankerTypeRealmSend)
-	banker.SendCoins(pkgAddr, addr, send) // send back
-	return "echo:"+msg
+	addr := runtime.OriginCaller()
+	pkgAddr := runtime.CurrentRealm().Address()
+	send := banker.Coins{{"ugnot", 10000000}}
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_.SendCoins(pkgAddr, addr, send) // send back
+	return "echo:" + msg
 }`},
 	}
 	pkgPath := "gno.land/r/test"
@@ -353,15 +368,15 @@ func TestVMKeeperParams(t *testing.T) {
 		{Name: "init.gno", Body: `
 package params
 
-import "std"
+import "chain/params"
 
 func init() {
-	std.SetParamString("foo.string", "foo1")
+	params.SetString("foo.string", "foo1")
 }
 
 func Do() string {
-	std.SetParamInt64("bar.int64", int64(1337))
-	std.SetParamString("foo.string", "foo2") // override init
+	params.SetInt64("bar.int64", int64(1337))
+	params.SetString("foo.string", "foo2") // override init
 
 	return "XXX" // return std.GetConfig("gno.land/r/test.foo"), if we want to expose std.GetConfig, maybe as a std.TestGetConfig
 }`},
@@ -406,21 +421,25 @@ func TestVMKeeperOriginCallerInit(t *testing.T) {
 		{Name: "init.gno", Body: `
 package test
 
-import "std"
+import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
+)
 
-var admin std.Address
+var admin chain.Address
 
 func init() {
-     admin = std.OriginCaller()
+	admin = runtime.OriginCaller()
 }
 
 func Echo(msg string) string {
-	addr := std.OriginCaller()
-	pkgAddr := std.CurrentRealm().Address()
-	send := std.OriginSend()
-	banker := std.NewBanker(std.BankerTypeOriginSend)
-	banker.SendCoins(pkgAddr, addr, send) // send back
-	return "echo:"+msg
+	addr := runtime.OriginCaller()
+	pkgAddr := runtime.CurrentRealm().Address()
+	send := banker.OriginSend()
+	banker_ := banker.NewBanker(banker.BankerTypeOriginSend)
+	banker_.SendCoins(pkgAddr, addr, send) // send back
+	return "echo:" + msg
 }
 
 func GetAdmin() string {
@@ -496,10 +515,10 @@ func testVMKeeperRunImportStdlibs(t *testing.T, env testEnv) {
 		{Name: "script.gno", Body: `
 package main
 
-import "std"
+import "chain/runtime"
 
 func main() {
-	addr := std.OriginCaller()
+	addr := runtime.OriginCaller()
 	println("hello world!", addr)
 }
 `},

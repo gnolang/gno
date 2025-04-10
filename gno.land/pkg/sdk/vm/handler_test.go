@@ -66,7 +66,7 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 	}{
 		// valid queries
 		{input: []byte(`gno.land/r/hello.Echo("hello")`), expectedResult: `("echo:hello" string)`},
-		{input: []byte(`gno.land/r/hello.caller()`), expectedResult: `("" std.Address)`}, // FIXME?
+		{input: []byte(`gno.land/r/hello.caller()`), expectedResult: `("" chain.Address)`}, // FIXME?
 		{input: []byte(`gno.land/r/hello.GetHeight()`), expectedResult: `(0 int64)`},
 		// {input: []byte(`gno.land/r/hello.time.RFC3339`), expectedResult: `test`}, // not working, but should we care?
 		{input: []byte(`gno.land/r/hello.PubString`), expectedResult: `("public string" string)`},
@@ -122,12 +122,15 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 				{Name: "hello.gno", Body: `
 package hello
 
-import "std"
-import "time"
+import (
+	"chain"
+	"chain/runtime"
+	"time"
+)
 
 var _ = time.RFC3339
-func caller() std.Address { return std.OriginCaller() }
-var GetHeight = std.ChainHeight
+func caller() chain.Address { return runtime.OriginCaller() }
+var GetHeight = runtime.ChainHeight
 var sl = []int{1,2,3,4,5}
 func fn() func(string) string { return Echo }
 type myStruct struct{a int}
