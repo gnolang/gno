@@ -227,6 +227,11 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						// this also makes them unreferenceable.
 						dname := Name(fmt.Sprintf("init.%d", idx))
 						n.Name = dname
+					} else if n.Name == blankIdentifier {
+						idx := pkg.GetNumNames()
+						dname := Name(fmt.Sprintf("._%d", idx))
+						n.Name = dname
+
 					}
 					nx := &n.NameExpr
 					nx.Type = NameExprTypeDefine
