@@ -83,7 +83,8 @@ func FuzzParseFile(f *testing.F) {
 	}
 
 	// 2. Now run the fuzzer.
+	var m *Machine
 	f.Fuzz(func(t *testing.T, goFileContents string) {
-		_, _ = ParseFile("a.go", goFileContents)
+		_, _ = m.ParseFile("a.go", goFileContents)
 	})
 }

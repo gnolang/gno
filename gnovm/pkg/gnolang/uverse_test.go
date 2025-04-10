@@ -159,7 +159,7 @@ func TestIssue1337PrintNilSliceAsUndefined(t *testing.T) {
 	for _, tc := range test {
 		t.Run(tc.name, func(t *testing.T) {
 			m := NewMachine("test", nil)
-			n := MustParseFile("main.go", tc.code)
+			n := m.MustParseFile("main.go", tc.code)
 			m.RunFiles(n)
 			m.RunMain()
 			assertOutput(t, tc.code, tc.expected)

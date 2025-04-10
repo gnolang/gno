@@ -32,8 +32,9 @@ func FuzzTranspiling(f *testing.F) {
 
 	// 2. Run the fuzzer.
 	f.Fuzz(func(t *testing.T, gnoSourceCode []byte) {
+		var m *gnolang.Machine
 		gnoSrc := string(gnoSourceCode)
-		fn, err := gnolang.ParseFile("main.go", string(gnoSourceCode))
+		fn, err := m.ParseFile("main.go", string(gnoSourceCode))
 		if err != nil {
 			// TODO: it could be discrepancy that if it compiled alright that it later failed.
 			return
@@ -283,7 +284,8 @@ func FuzzTypecheckThenGnoRunMemPackageVsCompileGo(f *testing.F) {
 		}()
 
 		// Next run the code to see if it can be ran.
-		fn, err := gnolang.ParseFile("main.go", string(gnoSourceCode))
+		var m *gnolang.Machine
+		fn, err := m.ParseFile("main.go", string(gnoSourceCode))
 		if err != nil {
 			// TODO: it could be discrepancy that if it compiled alright that it later failed.
 			panic(err)
@@ -297,7 +299,7 @@ func FuzzTypecheckThenGnoRunMemPackageVsCompileGo(f *testing.F) {
 		baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
 		iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
 		store := gnolang.NewStore(nil, baseStore, iavlStore)
-		m := gnolang.NewMachine(string(fn.PkgName), store)
+		m = gnolang.NewMachine(string(fn.PkgName), store)
 		memPkg := &gnovm.MemPackage{
 			Name: string(fn.PkgName),
 			Path: string(fn.Name),
