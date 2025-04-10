@@ -1,0 +1,137 @@
+package bmp
+
+import (
+	"encoding/base64"
+	"gno.land/p/demo/ufmt"
+	"strings"
+)
+
+var (
+    pixels = NewGrid(50)
+)
+
+type ColorPixel struct {
+	X int
+	Y int
+	R uint8
+	G uint8
+	B uint8
+}
+
+// Replace this with the output from the browser tool
+func GetPixels() []ColorPixel {
+    return pixels
+}
+
+func SetPixel(x, y, r, g, b int) {
+    if x < 0 || x > 49 || y < 0 || y > 49 {
+        return
+    }
+    if r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255 {
+        return
+    }
+    pixels[x*50+y] = ColorPixel{
+        X: x,
+        Y: y,
+        R: uint8(r),
+        G: uint8(g),
+        B: uint8(b),
+    }
+}
+
+func Render(path string) string {
+	return "![bmp](data:image/svg+xml;base64," +
+		base64.StdEncoding.EncodeToString([]byte(GenerateSVG())) + ")"
+}
+
+func GenerateSVG() string {
+	pixels := GetPixels()
+	tileSize := 1
+
+	var sb strings.Builder
+
+	// Compute viewbox
+	var maxX, maxY int
+	for _, p := range pixels {
+		if p.X > maxX {
+			maxX = p.X
+		}
+		if p.Y > maxY {
+			maxY = p.Y
+		}
+	}
+	width := (maxX + 1) * tileSize
+	height := (maxY + 1) * tileSize
+
+	sb.WriteString(ufmt.Sprintf(
+		`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 %d %d">`,
+		width, height))
+
+	sb.WriteString(`
+  <defs>
+    <rect id="p" width="1" height="1" rx="0.2" ry="0.2"/>
+  </defs>
+  <style>
+`)
+
+	// Generate unique CSS classes per RGB color
+	colorClassMap := make(map[string]string)
+	classCount := 0
+	for _, p := range pixels {
+		key := ufmt.Sprintf("%d_%d_%d", p.R, p.G, p.B)
+		if _, ok := colorClassMap[key]; !ok {
+			className := ufmt.Sprintf("c%d", classCount)
+			colorClassMap[key] = className
+			classCount++
+			sb.WriteString(ufmt.Sprintf("  .%s { fill: rgb(%d,%d,%d); }\n", className, p.R, p.G, p.B))
+			sb.WriteString(ufmt.Sprintf("  .%s:hover { opacity: 0.8; }\n", className))
+		}
+	}
+
+	sb.WriteString("  </style>\n")
+
+	// Add <use> tags per pixel
+	for _, p := range pixels {
+		key := ufmt.Sprintf("%d_%d_%d", p.R, p.G, p.B)
+		className := colorClassMap[key]
+		sb.WriteString(ufmt.Sprintf(
+			`  <use href="#p" x="%d" y="%d" class="%s"/>`+"\n",
+			p.X*tileSize, p.Y*tileSize, className))
+	}
+
+	sb.WriteString(`</svg>`)
+
+	return sb.String()
+}
+
+func NewGrid(size ...int) []ColorPixel {
+    gridSize := 50
+    if len(size) > 0 {
+        gridSize = size[0]
+    }
+    pixels := make([][]ColorPixel, gridSize)
+    for i := range pixels {
+        pixels[i] = make([]ColorPixel, gridSize)
+        for j := range pixels[i] {
+            pixels[i][j] = ColorPixel{
+                X: i,
+                Y: j,
+                R: 0,
+                G: 0,
+                B: 0,
+            }
+        }
+    }
+
+    // Flatten the 2D slice into a 1D slice
+    var flatPixels []ColorPixel
+    for _, row := range pixels {
+        flatPixels = append(flatPixels, row...)
+    }
+
+    return flatPixels
+}
+
+func init() {
+    // extend this image by calling SetPixel from another realm
+}
