@@ -92,14 +92,19 @@ func GenerateSVG() string {
 
 	sb.WriteString("  </style>\n")
 
+    sb.WriteString("<g transform=\"translate(-13, -21) scale(1.5, 1.5) \">\n")
 	// Add <use> tags per pixel
 	for _, p := range pixels {
+	    if p.R == 0 && p.G == 0 && p.B == 0 {
+            continue // Skip black pixels
+        }
 		key := ufmt.Sprintf("%d_%d_%d", p.R, p.G, p.B)
 		className := colorClassMap[key]
 		sb.WriteString(ufmt.Sprintf(
 			`  <use href="#p" x="%d" y="%d" class="%s"/>`+"\n",
 			p.X*tileSize, p.Y*tileSize, className))
 	}
+    sb.WriteString("</g>\n")
 
 	sb.WriteString(`</svg>`)
 
