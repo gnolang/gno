@@ -16,7 +16,7 @@ gnokey maketx addpkg -pkgdir $WORK/long -pkgpath gno.land/r/test/package89_12345
 gnokey maketx addpkg -pkgdir $WORK/invalid_realm_denom -pkgpath gno.land/r/test/invalid_realm_denom -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
 
 ## test2 spend all balance
-gnokey maketx send -send "9999999ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 1ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+gnokey maketx send -send "9990000ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 10000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
 
 ## check test2 balance
 gnokey query bank/balances/${test2_user_addr}
@@ -36,11 +36,11 @@ gnokey maketx call -pkgpath gno.land/r/test/realm_banker -func Burn -args ${test
 gnokey query bank/balances/${test2_user_addr}
 stdout '"31330/gno.land/r/test/realm_banker:ugnot"'
 
-## transfer 1ugnot to test2 for gas-fee of below tx
-gnokey maketx send -send "1ugnot" -to ${test2_user_addr} -gas-fee 1ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+## transfer 100000ugnot to test2 for gas-fee of below tx
+gnokey maketx send -send "100000ugnot" -to ${test2_user_addr} -gas-fee 100000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 
 ## transfer coin
-gnokey maketx send -send "1330/gno.land/r/test/realm_banker:ugnot" -to g1yr0dpfgthph7y6mepdx8afuec4q3ga2lg8tjt0 -gas-fee 1ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
+gnokey maketx send -send "1330/gno.land/r/test/realm_banker:ugnot" -to g1yr0dpfgthph7y6mepdx8afuec4q3ga2lg8tjt0 -gas-fee 100000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
 
 ## check sender balance
 gnokey query bank/balances/${test2_user_addr}
