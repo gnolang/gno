@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/helplink"
 )
 
 var posts []*Post // inefficient for large amounts of posts; see v2
@@ -29,6 +30,10 @@ func CreatePost(text string) error {
 
 func Render(_ string) string {
 	output := "# MiniSocial\n\n" // \n is needed just like in standard Markdown
+
+	// Create a clickable link to create a post
+	output += helplink.Func("Write a post!", "CreatePost", "text", "")
+	output += "\n\n"
 
 	// Handle the edge case
 	if len(posts) == 0 {
