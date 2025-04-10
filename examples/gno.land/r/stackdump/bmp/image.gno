@@ -10,10 +10,10 @@ var (
     pixels = NewGrid(50)
     published = false
     bounds = Bounds{
-        X1: 10,
-        Y1: 15,
+        X1: 0,
+        Y1: 13,
         X2: 40,
-        Y2: 45,
+        Y2: 42,
     }
 )
 
@@ -32,10 +32,6 @@ type ColorPixel struct {
 	B uint8
 }
 
-// Replace this with the output from the browser tool
-func GetPixels() []ColorPixel {
-    return pixels
-}
 // REVIEW: tuned the bounds to 10-40 and 15-45 to constraint the image
 // 30x30 seems to be about the largest size we can render in SVG without hitting the limit
 
@@ -63,13 +59,15 @@ func Publish() {
 }
 
 func Render(path string) string {
+    if strings.HasPrefix(path, "gno") {
+        return "```\n"+Source()+"\n```"
+    }
 	svg := GenerateSVG()
 	escaped := url.PathEscape(svg)
 	return "![bmp](data:image/svg+xml;utf8," + escaped + ")"
 }
 
 func GenerateSVG() string {
-	pixels := GetPixels()
 	tileSize := 1
 
 	var sb strings.Builder
@@ -128,7 +126,7 @@ func GenerateSVG() string {
 
 	sb.WriteString("  </style>\n")
 
-    sb.WriteString("<g id="bmp-image">\n")
+    sb.WriteString("<g id=\"bmp-image\">\n")
 	for _, p := range pixels {
 	    if p.R == 0 && p.G == 0 && p.B == 0 {
             continue // Skip black pixels
@@ -167,15 +165,31 @@ func NewGrid(size ...int) []ColorPixel {
 }
 
 
-// extend the image by calling SetPixel from another realm
-const example = `
+const heading = `
 import (
     image "gno.land/r/stackdump/bmp"
 )
 
 func init() {
-    p := image.SetPixel
-    p(0, 0, 81, 101, 170) // set pixel at (0, 0) to color (81, 101, 170)
+    p := image.SetPixel()
+`
+
+const footer = `
     image.Publish() // finalize the image
 }
-` // example
+`
+
+func Source() string {
+    src := heading
+    livePixels := 0
+    for i := 0; i < len(pixels); i++ {
+        p := pixels[i]
+        if p.R == 0 && p.G == 0 && p.B == 0 {
+            continue // Skip black pixels
+        }
+        src += ufmt.Sprintf("\tp(%d, %d, %d, %d, %d)\n", p.X, p.Y, p.R, p.G, p.B)
+        livePixels++
+    }
+    src += ufmt.Sprintf("\t// Found %d/%d live Pixels", livePixels, len(pixels)) +footer
+    return src
+}
