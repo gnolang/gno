@@ -19,7 +19,7 @@ func DirectoryView(data DirData) *View {
 		DirData: data,
 		Article: ArticleData{
 			ComponentContent: data.ComponentContent,
-			Classes:          "md-view",
+			Classes:          "md-view bg-light rounded px-4",
 		},
 	}
 	return NewTemplateView(DirectoryViewType, "renderDir", viewData)

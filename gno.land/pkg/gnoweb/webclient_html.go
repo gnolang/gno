@@ -234,16 +234,18 @@ func (s *HTMLWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL) (*RealmMeta, 
 }
 
 // RenderMd renders a markdown file and returns the rendered content
-func (s *HTMLWebClient) RenderMd(w io.Writer, path, fileName string) (*RealmMeta, error) {
+func (s *HTMLWebClient) RenderMd(w io.Writer, u *weburl.GnoURL, fileName string) (*RealmMeta, error) {
 	// Read and render markdown file
 	var content bytes.Buffer
-	_, err := s.SourceFile(&content, path, fileName, true)
+	_, err := s.SourceFile(&content, u.Path, fileName, true)
 	if err != nil {
 		return nil, err
 	}
 
+	ctxOpts := parser.WithContext(md.NewGnoParserContext(u))
+
 	var renderedContent bytes.Buffer
-	doc, err := s.ParseMarkdown(&renderedContent, content.Bytes())
+	doc, err := s.ParseMarkdown(&renderedContent, content.Bytes(), ctxOpts)
 	if err != nil {
 		return nil, err
 	}

@@ -53,7 +53,7 @@ func SourceView(data SourceData) *View {
 	viewData := sourceViewParams{
 		Article: ArticleData{
 			ComponentContent: content,
-			Classes:          "source-view col-span-1 lg:col-span-7 lg:row-start-2 pb-24 text-gray-900",
+			Classes:          "source-view col-span-1 lg:col-span-7 lg:row-start-2 mb-24 text-gray-900",
 		},
 		ComponentTOC: toc,
 		Files:        data.Files,

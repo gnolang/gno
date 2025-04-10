@@ -192,7 +192,6 @@ func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL) (int, *components.View)
 
 		// NOTE: `RenderRealm` should ensure that HTML content is
 		// sanitized before rendering
-
 		ComponentContent: components.NewReaderComponent(&content),
 	})
 }
@@ -308,7 +307,7 @@ func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL) (int, *components.V
 	for _, f := range files {
 		if strings.EqualFold(f, "README.md") {
 			var content bytes.Buffer
-			_, err := h.Client.(*HTMLWebClient).RenderMd(&content, pkgPath, "README.md")
+			_, err := h.Client.RenderMd(&content, gnourl, "README.md")
 			if err != nil {
 				h.Logger.Error("unable to render README.md", "path", gnourl.Path, "error", err)
 				// Continue without README if there's an error
