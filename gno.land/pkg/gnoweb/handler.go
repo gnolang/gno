@@ -188,7 +188,11 @@ func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL) (int, *components.View)
 	}
 
 	return http.StatusOK, components.RealmView(components.RealmData{
-		TocItems:         &components.RealmTOCData{Items: meta.Toc.Items},
+		TocItems: &components.RealmTOCData{Items: meta.Toc.Items},
+
+		// NOTE: `RenderRealm` should ensure that HTML content is
+		// sanitized before rendering
+
 		ComponentContent: components.NewReaderComponent(&content),
 	})
 }

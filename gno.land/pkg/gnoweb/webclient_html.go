@@ -233,7 +233,7 @@ func (s *HTMLWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL) (*RealmMeta, 
 	return &meta, nil
 }
 
-// RenderMd rend un fichier markdown en HTML avec sa table des matières
+// RenderMd renders a markdown file and returns the rendered content
 func (s *HTMLWebClient) RenderMd(w io.Writer, path, fileName string) (*RealmMeta, error) {
 	// Read and render markdown file
 	var content bytes.Buffer
