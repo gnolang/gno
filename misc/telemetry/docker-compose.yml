@@ -12,13 +12,11 @@ services:
     depends_on:
       - tempo
       - prometheus
-    profiles:
-      - ''
-      - dev
   
   tempo:
     image: grafana/tempo:latest
-    command: [ "-config.file=/etc/tempo.yaml" ]
+    command:
+      - "-config.file=/etc/tempo.yaml"
     volumes:
       - tempo:/var/tempo
       - ./tempo/tempo.yaml:/etc/tempo.yaml
@@ -26,9 +24,6 @@ services:
       - "3200:3200"
     networks:
       - gnoland-net
-    profiles:
-      - ''
-      - dev
 
   prometheus:
     image: prom/prometheus:latest
@@ -42,9 +37,6 @@ services:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     networks:
       - gnoland-net
-    profiles:
-      - ''
-      - dev
   
   grafana:
     image: grafana/grafana
@@ -58,9 +50,6 @@ services:
       - "3000:3000"
     networks:
       - gnoland-net
-    profiles:
-      - ''
-      - dev
 
   gnoland-val:
     image: ghcr.io/gnolang/gno/gnoland:master
@@ -100,8 +89,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 60s
-    profiles:
-      - ''
 
   gnoland-rpc:
     image: ghcr.io/gnolang/gno/gnoland:master
@@ -129,8 +116,6 @@ services:
       gnoland-val:
         condition: service_healthy
         restart: true
-    profiles:
-      - ''
 
   supernova:
     image: ghcr.io/gnolang/supernova:1.3.1
@@ -141,8 +126,6 @@ services:
     restart: unless-stopped
     networks:
       - gnoland-net
-    profiles:
-      - ''
 
 networks:
   gnoland-net:
