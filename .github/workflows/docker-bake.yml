@@ -28,16 +28,16 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
        
-      - name: Set Multiple ENV Variables
-        run: |
-          REF_NAME="${{ github.ref_name }}"
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            REF_NAME="${REF_NAME#v}"
-          fi
-          REF_NAME="${REF_NAME//\//_}"
-          echo "NOW=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_ENV
-          echo "VERSION=${REF_NAME}-${GITHUB_SHA::7}" >> $GITHUB_ENV
-          echo "REF_NAME=${REF_NAME}" >> $GITHUB_ENV
+      # - name: Set Multiple ENV Variables
+      #   run: |
+      #     REF_NAME="${{ github.ref_name }}"
+      #     if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+      #       REF_NAME="${REF_NAME#v}"
+      #     fi
+      #     REF_NAME="${REF_NAME//\//_}"
+      #     echo "NOW=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_ENV
+      #     echo "VERSION=${REF_NAME}-${GITHUB_SHA::7}" >> $GITHUB_ENV
+      #     echo "REF_NAME=${REF_NAME}" >> $GITHUB_ENV
       
       - name: Extract metadata
         uses: docker/metadata-action@v5
@@ -65,8 +65,8 @@ jobs:
             *.cache-to=type=gha,mode=max
             *.context=.
             *.platform=linux/amd64
-        env:
-          DATE: ${{ env.NOW }}
-          FULL_COMMIT: ${{ github.sha }}
-          VERSION: ${{ env.VERSION }}
-          TAG: ${{ env.REF_NAME }}
+        # env:
+        #   DATE: ${{ env.NOW }}
+        #   FULL_COMMIT: ${{ github.sha }}
+        #   VERSION: ${{ env.VERSION }}
+        #   TAG: ${{ env.REF_NAME }}
