@@ -49,6 +49,7 @@ The available fixes are the following:
 }
 
 func (c *fixCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.BoolVar(&c.diff, "diff", false, "only show a diff of the changes that would be applied")
 }
 
 func execFix(cfg *fixCfg, args []string, io commands.IO) error {
@@ -79,30 +80,36 @@ func execFix(cfg *fixCfg, args []string, io commands.IO) error {
 		if err != nil {
 			return err
 		}
+		// set if any of the fixes changed the AST>
+		fixed := false
 		for _, fx := range fix.Fixes {
-			if !fx.F(parsed) {
-				continue
+			fixed = fx.F(parsed) || fixed
+		}
+		if !fixed {
+			// onto the next file.
+			continue
+		}
+		if cfg.diff {
+			var buf bytes.Buffer
+			if err := format.Node(&buf, fset, parsed); err != nil {
+				return fmt.Errorf("error formatting: %w", err)
 			}
-			if cfg.diff {
-				var buf, diffBuf bytes.Buffer
-				if err := format.Node(&buf, fset, parsed); err != nil {
-					return fmt.Errorf("error formatting: %w", err)
-				}
-				difflib.WriteUnifiedDiff(&diffBuf, difflib.UnifiedDiff{
-					A:       difflib.SplitLines(string(src)),
-					B:       difflib.SplitLines(buf.String()),
-					Context: 3,
-				})
-			} else {
-				f, err := os.Create(file)
-				if err != nil {
-					return fmt.Errorf("cannot write to dst file: %w", err)
-				}
-				err = format.Node(f, fset, parsed)
-				f.Close()
-				if err != nil {
-					return fmt.Errorf("error formatting: %w", err)
-				}
+			difflib.WriteUnifiedDiff(io.Out(), difflib.UnifiedDiff{
+				FromFile: file,
+				ToFile:   file,
+				A:        difflib.SplitLines(string(src)),
+				B:        difflib.SplitLines(buf.String()),
+				Context:  3,
+			})
+		} else {
+			f, err := os.Create(file)
+			if err != nil {
+				return fmt.Errorf("cannot write to dst file: %w", err)
+			}
+			err = format.Node(f, fset, parsed)
+			f.Close()
+			if err != nil {
+				return fmt.Errorf("error formatting: %w", err)
 			}
 		}
 	}
