@@ -109,6 +109,18 @@ func LoadGenesisParamsFile(path string, ggs *GnoGenesisState) error {
 		}
 	}
 
+	if authparams, ok := m["auth"]; ok {
+		for name, value := range authparams {
+			name, _ := splitTypedName(name)
+			switch name {
+			case "fee_collector":
+				ggs.Auth.Params.FeeCollector = crypto.MustAddressFromString(value.(string))
+			default:
+				return errors.New("unexpected auth parameter " + name)
+			}
+		}
+	}
+
 	// Write onto ggs.VM.RealmParams.
 	for modrlm, values := range m {
 		if !strings.HasPrefix(modrlm, "vm:") {

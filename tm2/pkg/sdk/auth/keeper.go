@@ -156,6 +156,18 @@ func (ak AccountKeeper) GetNextAccountNumber(ctx sdk.Context) uint64 {
 	return accNumber
 }
 
+func (ak AccountKeeper) FeeCollectorAddress(ctx sdk.Context) crypto.Address {
+	feeCollector := ak.GetParams(ctx).FeeCollector
+	if feeCollector.IsZero() {
+		panic("empty `fee_collector` param value")
+	}
+	return feeCollector
+}
+
+func (ak AccountKeeper) SetFeesCollectorAddress(ctx sdk.Context, addr crypto.Address) {
+	ak.prmk.SetString(ctx, FeeCollectorKey, addr.Bech32().String())
+}
+
 // -----------------------------------------------------------------------------
 // Misc.
 func (ak AccountKeeper) decodeAccount(bz []byte) (acc std.Account) {

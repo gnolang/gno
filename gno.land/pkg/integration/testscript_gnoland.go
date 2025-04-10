@@ -292,6 +292,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 				genesis.Bank.Params.RestrictedDenoms = []string{"ugnot"}
 			}
 			genesis.VM.RealmParams = append(genesis.VM.RealmParams, tsGenesis.VM.RealmParams...)
+			genesis.Auth.Params = tsGenesis.Auth.Params
 
 			cfg.Genesis.AppState = genesis
 			if *nonVal {
