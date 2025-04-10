@@ -144,7 +144,9 @@ func (g *GnoImporter) ParseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*t
 func deleteOldIdents(idents map[string]func(), f *ast.File) {
 	for _, decl := range f.Decls {
 		fd, ok := decl.(*ast.FuncDecl)
-		if !ok || fd.Recv != nil { // ignore methods
+		// ignore methods and init functions
+		//nolint:goconst
+		if !ok || fd.Recv != nil || fd.Name.Name == "init" {
 			continue
 		}
 		if del := idents[fd.Name.Name]; del != nil {

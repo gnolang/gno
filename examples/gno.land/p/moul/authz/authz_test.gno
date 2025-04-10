@@ -1,13 +1,13 @@
 package authz
 
 import (
+	"chain"
 	"errors"
-	"std"
+	"strings"
 	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/ufmt"
 )
 
 func TestNew(t *testing.T) {
@@ -24,8 +24,7 @@ func TestNew(t *testing.T) {
 	uassert.True(t, memberAuth.Has(testAddr), "caller should be a member")
 
 	// Check string representation
-	expected := ufmt.Sprintf("member_authority[size=%d]", 1)
-	uassert.Equal(t, expected, auth.String())
+	uassert.True(t, strings.Contains(auth.String(), testAddr.String()))
 }
 
 func TestNewWithAuthority(t *testing.T) {
@@ -136,7 +135,7 @@ func TestAuthorizerTransferChain(t *testing.T) {
 	// Finally transfer to an auto-accept authority
 	autoAuth := NewAutoAcceptAuthority()
 
-	testing.SetOriginCaller(std.DerivePkgAddr("gno.land/r/test"))
+	testing.SetOriginCaller(chain.DerivePkgAddr("gno.land/r/test"))
 	err = auth.Transfer(autoAuth)
 	uassert.True(t, err == nil, "unexpected error in final transfer")
 	uassert.True(t, auth.Current() == autoAuth, "expected auto-accept authority")
@@ -183,7 +182,7 @@ func TestContractAuthorityHandlerExecutionOnce(t *testing.T) {
 	})
 
 	// Set caller to contract address
-	testing.SetOriginCaller(std.DerivePkgAddr("gno.land/r/test"))
+	testing.SetOriginCaller(chain.DerivePkgAddr("gno.land/r/test"))
 
 	testArgs := []any{"proposal_id", 42, "metadata", map[string]string{"key": "value"}}
 	err := contractAuth.Authorize("test_action", func() error {
@@ -204,7 +203,7 @@ func TestContractAuthorityExecutionTwice(t *testing.T) {
 	})
 
 	// Set caller to contract address
-	testing.SetOriginCaller(std.DerivePkgAddr("gno.land/r/test"))
+	testing.SetOriginCaller(chain.DerivePkgAddr("gno.land/r/test"))
 
 	testArgs := []any{"proposal_id", 42, "metadata", map[string]string{"key": "value"}}
 
@@ -236,7 +235,7 @@ func TestContractAuthorityWithProposer(t *testing.T) {
 	contractAuth := NewRestrictedContractAuthority("gno.land/r/test", func(title string, action PrivilegedAction) error {
 		handlerCalled = true
 		// Set caller to contract address before executing action
-		testing.SetOriginCaller(std.DerivePkgAddr("gno.land/r/test"))
+		testing.SetOriginCaller(chain.DerivePkgAddr("gno.land/r/test"))
 		return action()
 	}, memberAuth)
 
@@ -317,7 +316,7 @@ func TestMemberAuthorityMultipleMembers(t *testing.T) {
 	auth := NewMemberAuthority(alice, bob)
 
 	// Test that both members can execute actions
-	for _, member := range []std.Address{alice, bob} {
+	for _, member := range []chain.Address{alice, bob} {
 		testing.SetOriginCaller(member)
 		err := auth.Authorize("test_action", func() error {
 			return nil
@@ -337,9 +336,9 @@ func TestMemberAuthorityMultipleMembers(t *testing.T) {
 	uassert.True(t, tree.Size() == 2, "tree should have 2 members")
 
 	// Verify both members are in the tree
-	found := make(map[std.Address]bool)
+	found := make(map[chain.Address]bool)
 	tree.Iterate("", "", func(key string, _ any) bool {
-		found[std.Address(key)] = true
+		found[chain.Address(key)] = true
 		return false
 	})
 	uassert.True(t, found[alice], "alice should be in the tree")
@@ -386,7 +385,7 @@ func TestAuthorizerString(t *testing.T) {
 func TestContractAuthorityValidation(t *testing.T) {
 	// Test empty path
 	auth := NewContractAuthority("", nil)
-	testing.SetOriginCaller(std.DerivePkgAddr(""))
+	testing.SetOriginCaller(chain.DerivePkgAddr(""))
 	err := auth.Authorize("test", func() error {
 		return nil
 	})
@@ -394,7 +393,7 @@ func TestContractAuthorityValidation(t *testing.T) {
 
 	// Test nil handler
 	auth = NewContractAuthority("gno.land/r/test", nil)
-	testing.SetOriginCaller(std.DerivePkgAddr("gno.land/r/test"))
+	testing.SetOriginCaller(chain.DerivePkgAddr("gno.land/r/test"))
 	err = auth.Authorize("test", func() error {
 		return nil
 	})
@@ -405,7 +404,7 @@ func TestContractAuthorityValidation(t *testing.T) {
 		return nil
 	}
 	contractAuth := NewContractAuthority("gno.land/r/test", handler)
-	testing.SetOriginCaller(std.DerivePkgAddr("gno.land/r/test"))
+	testing.SetOriginCaller(chain.DerivePkgAddr("gno.land/r/test"))
 	err = contractAuth.Authorize("test", func() error {
 		return nil
 	})

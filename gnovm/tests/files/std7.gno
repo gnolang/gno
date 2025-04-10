@@ -1,17 +1,17 @@
 package main
 
 import (
-	"std"
+	"chain/runtime"
 
 	"gno.land/p/demo/testutils"
 )
 
 func inner() {
-	caller1 := std.CallerAt(1)
+	caller1 := runtime.CallerAt(1)
 	println(caller1)
-	caller2 := std.CallerAt(2)
+	caller2 := runtime.CallerAt(2)
 	println(caller2)
-	caller3 := std.CallerAt(3)
+	caller3 := runtime.CallerAt(3)
 	println(caller3)
 }
 

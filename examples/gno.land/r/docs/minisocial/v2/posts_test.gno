@@ -1,7 +1,7 @@
 package minisocial
 
 import (
-	"std"
+	"chain/runtime"
 	"strings"
 	"testing"
 
@@ -12,7 +12,7 @@ func TestCreatePostSingle(t *testing.T) {
 	// Get a test address for alice
 	aliceAddr := testutils.TestAddress("alice")
 	// TestSetRealm sets the realm caller, in this case Alice
-	testing.SetRealm(std.NewUserRealm(aliceAddr))
+	testing.SetRealm(runtime.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
 	err := CreatePost(text1)
@@ -44,7 +44,7 @@ func TestCreatePostMultiple(t *testing.T) {
 	for _, p := range posts {
 		// Set the appropriate caller realm based on the author
 		authorAddr := testutils.TestAddress(p.author)
-		testing.SetRealm(std.NewUserRealm(authorAddr))
+		testing.SetRealm(runtime.NewUserRealm(authorAddr))
 
 		// Create the post
 		err := CreatePost(p.text)
@@ -68,7 +68,7 @@ func TestCreatePostMultiple(t *testing.T) {
 
 func TestReset(t *testing.T) {
 	aliceAddr := testutils.TestAddress("alice")
-	testing.SetRealm(std.NewUserRealm(aliceAddr))
+	testing.SetRealm(runtime.NewUserRealm(aliceAddr))
 
 	text1 := "Hello World!"
 	_ = CreatePost(text1)
@@ -79,7 +79,7 @@ func TestReset(t *testing.T) {
 	}
 
 	// Set admin
-	testing.SetRealm(std.NewUserRealm(Ownable.Owner()))
+	testing.SetRealm(runtime.NewUserRealm(Ownable.Owner()))
 	ResetPosts()
 
 	got = Render("")

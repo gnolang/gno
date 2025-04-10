@@ -4,7 +4,7 @@ package valopers_test
 // SEND: 20000000ugnot
 
 import (
-	"std"
+	"chain"
 
 	"gno.land/r/gnoland/valopers"
 )
@@ -12,7 +12,7 @@ import (
 const (
 	validMoniker     = "test-1"
 	validDescription = "test-1's description"
-	validAddress     = std.Address("g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h")
+	validAddress     = chain.Address("g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h")
 	validPubKey      = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p"
 )
 

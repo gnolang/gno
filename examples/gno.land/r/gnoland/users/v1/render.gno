@@ -1,7 +1,7 @@
 package users
 
 import (
-	"std"
+	"chain"
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
@@ -70,8 +70,10 @@ will gain permission to deploy packages and realms to package paths with the pat
 	out += md.Paragraph("In later versions of the registry, vanity usernames will be allowed through specific mechanisms.")
 
 	if !paused {
-		out += md.H3(ufmt.Sprintf(" [[Click here to register]](%s)", txlink.Call("Register")))
-		out += ufmt.Sprintf("Registration price: %f GNOT (%dugnot)\n\n", float64(registerPrice)/1_000_000, registerPrice)
+		amount := ufmt.Sprintf("%dugnot", registerPrice)
+		out += md.H3(ufmt.Sprintf(" [[Click here to register]](%s)", txlink.NewLink("Register").SetSend(amount).URL()))
+		// XXX: Display registration price adjusting for dynamic GNOT price when it becomes possible.
+		out += ufmt.Sprintf("Registration price: %f GNOT (%s)\n\n", float64(registerPrice)/1_000_000, amount)
 	}
 
 	out += md.HorizontalRule()
@@ -82,8 +84,8 @@ will gain permission to deploy packages and realms to package paths with the pat
 
 // resolveUser resolves the user based on the path, determining if it's a name or address
 func resolveUser(path string) (*susers.UserData, bool, bool) {
-	if std.Address(path).IsValid() {
-		return susers.ResolveAddress(std.Address(path)), false, false
+	if chain.Address(path).IsValid() {
+		return susers.ResolveAddress(chain.Address(path)), false, false
 	}
 
 	data, isLatest := susers.ResolveName(path)

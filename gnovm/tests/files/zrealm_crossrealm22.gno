@@ -2,8 +2,6 @@
 package crossrealm_test
 
 import (
-	"std"
-
 	"gno.land/r/demo/tests/crossrealm"
 	"gno.land/r/demo/tests/crossrealm_b"
 )
@@ -57,7 +55,7 @@ func main() {
 //         "Location": {
 //             "Column": "1",
 //             "File": "files/zrealm_crossrealm22.gno",
-//             "Line": "11",
+//             "Line": "9",
 //             "PkgPath": "gno.land/r/crossrealm_test"
 //         }
 //     },
@@ -102,7 +100,7 @@ func main() {
 //     +                "@type": "/gno.FuncValue",
 //     +                "Closure": {
 //     +                    "@type": "/gno.RefValue",
-//     +                    "Hash": "23de97a577d573252d00394ce9b71c24b0646546",
+//     +                    "Hash": "d712109ae95ccd670ac61014377f2960887c5d01",
 //     +                    "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:6"
 //     +                },
 //     +                "FileName": "",
@@ -117,7 +115,7 @@ func main() {
 //     +                    "Location": {
 //     +                        "Column": "28",
 //     +                        "File": "files/zrealm_crossrealm22.gno",
-//     +                        "Line": "13",
+//     +                        "Line": "11",
 //     +                        "PkgPath": "gno.land/r/crossrealm_test"
 //     +                    }
 //     +                },
@@ -216,7 +214,7 @@ func main() {
 //                      "@type": "/gno.FuncValue",
 //                      "Closure": {
 //                          "@type": "/gno.RefValue",
-//     -                    "Hash": "23de97a577d573252d00394ce9b71c24b0646546",
+//     -                    "Hash": "d712109ae95ccd670ac61014377f2960887c5d01",
 //     -                    "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:6"
 //     +                    "Escaped": true,
 //     +                    "ObjectID": "0edc46caf30c00efd87b6c272673239eafbd051e:5"
@@ -233,7 +231,7 @@ func main() {
 //     -                    "Location": {
 //     -                        "Column": "28",
 //     -                        "File": "files/zrealm_crossrealm22.gno",
-//     -                        "Line": "13",
+//     -                        "Line": "11",
 //     -                        "PkgPath": "gno.land/r/crossrealm_test"
 //     +                "PkgPath": "gno.land/r/demo/tests/crossrealm_b",
 //     +                "Source": {

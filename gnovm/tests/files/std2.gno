@@ -1,9 +1,9 @@
 package main
 
-import "std"
+import "chain/runtime"
 
 func main() {
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	println(caller)
 }
 

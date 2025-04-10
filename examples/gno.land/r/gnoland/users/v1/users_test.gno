@@ -1,7 +1,8 @@
 package users
 
 import (
-	"std"
+	"chain/banker"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -19,8 +20,8 @@ var (
 )
 
 func TestRegister_Valid(t *testing.T) {
-	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 1_000_000)))
-	testing.SetRealm(std.NewUserRealm(aliceAddr))
+	testing.SetOriginSend(banker.NewCoins(banker.NewCoin("ugnot", 1_000_000)))
+	testing.SetRealm(runtime.NewUserRealm(aliceAddr))
 	testing.SetOriginCaller(aliceAddr)
 
 	uassert.NotPanics(t, func() {
@@ -37,8 +38,8 @@ func TestRegister_Valid(t *testing.T) {
 }
 
 func TestRegister_Invalid(t *testing.T) {
-	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 1_000_000)))
-	testing.SetRealm(std.NewUserRealm(bobAddr))
+	testing.SetOriginSend(banker.NewCoins(banker.NewCoin("ugnot", 1_000_000)))
+	testing.SetRealm(runtime.NewUserRealm(bobAddr))
 	testing.SetOriginCaller(bobAddr)
 
 	// Invalid usernames
@@ -85,10 +86,10 @@ func TestRegister_Invalid(t *testing.T) {
 }
 
 func TestRegister_InvalidPayment(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(bobAddr))
+	testing.SetRealm(runtime.NewUserRealm(bobAddr))
 	testing.SetOriginCaller(bobAddr)
 
-	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 12))) // invalid payment amount
+	testing.SetOriginSend(banker.NewCoins(banker.NewCoin("ugnot", 12))) // invalid payment amount
 
 	uassert.PanicsWithMessage(t, ErrInvalidPayment.Error(), func() {
 		Register(alice)

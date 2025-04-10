@@ -1,14 +1,14 @@
 package helplink
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/demo/urequire"
 )
 
 func TestFunc(t *testing.T) {
-	cd := std.ChainDomain()
+	cd := runtime.ChainDomain()
 	tests := []struct {
 		title string
 		fn    string
@@ -25,6 +25,17 @@ func TestFunc(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.title, func(t *testing.T) {
+			if tt.fn == "oddArgsFunc" {
+				defer func() {
+					if r := recover(); r != nil {
+						if r != "odd number of arguments" {
+							t.Errorf("expected panic with message 'odd number of arguments', got: %v", r)
+						}
+					} else {
+						t.Error("expected panic for odd number of arguments, but did not panic")
+					}
+				}()
+			}
 			got := tt.realm.Func(tt.title, tt.fn, tt.args...)
 			urequire.Equal(t, tt.want, got)
 		})
@@ -32,7 +43,7 @@ func TestFunc(t *testing.T) {
 }
 
 func TestFuncURL(t *testing.T) {
-	cd := std.ChainDomain()
+	cd := runtime.ChainDomain()
 	tests := []struct {
 		fn    string
 		args  []string
@@ -56,6 +67,17 @@ func TestFuncURL(t *testing.T) {
 	for _, tt := range tests {
 		title := tt.fn
 		t.Run(title, func(t *testing.T) {
+			if tt.fn == "oddArgsFunc" {
+				defer func() {
+					if r := recover(); r != nil {
+						if r != "odd number of arguments" {
+							t.Errorf("expected panic with message 'odd number of arguments', got: %v", r)
+						}
+					} else {
+						t.Error("expected panic for odd number of arguments, but did not panic")
+					}
+				}()
+			}
 			got := tt.realm.FuncURL(tt.fn, tt.args...)
 			urequire.Equal(t, tt.want, got)
 		})
@@ -63,7 +85,7 @@ func TestFuncURL(t *testing.T) {
 }
 
 func TestHome(t *testing.T) {
-	cd := std.ChainDomain()
+	cd := runtime.ChainDomain()
 	tests := []struct {
 		realm Realm
 		want  string

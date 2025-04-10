@@ -322,7 +322,7 @@ func checkDuplicates(fset *FileSet) error {
 			var name Name
 			switch d := d.(type) {
 			case *FuncDecl:
-				if d.Name == "init" { //nolint:goconst
+				if d.Name == "init" {
 					continue
 				}
 				name = d.Name
@@ -1015,7 +1015,7 @@ const GasFactorCPU int64 = 1
 
 func (m *Machine) incrCPU(cycles int64) {
 	if m.GasMeter != nil {
-		gasCPU := overflow.Mul64p(cycles, GasFactorCPU)
+		gasCPU := overflow.Mulp(cycles, GasFactorCPU)
 		m.GasMeter.ConsumeGas(gasCPU, "CPUCycles") // May panic if out of gas.
 	}
 	m.Cycles += cycles

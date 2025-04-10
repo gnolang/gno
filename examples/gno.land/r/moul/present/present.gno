@@ -1,8 +1,9 @@
 package present
 
 import (
+	"chain"
+	"chain/runtime"
 	"net/url"
-	"std"
 	"strconv"
 	"strings"
 	"time"
@@ -18,14 +19,14 @@ import (
 	"gno.land/p/moul/txlink"
 )
 
-var chainDomain = std.ChainDomain()
+var chainDomain = runtime.ChainDomain()
 
 type Presentation struct {
 	Slug      string
 	Title     string
 	Event     string
 	Author    string
-	Uploader  std.Address
+	Uploader  chain.Address
 	Date      time.Time
 	Content   string
 	EditDate  time.Time
@@ -109,7 +110,7 @@ func Set(slug, title, event, author, date, content string) string {
 		Title:     title,
 		Event:     event,
 		Author:    author,
-		Uploader:  std.PreviousRealm().Address(),
+		Uploader:  runtime.PreviousRealm().Address(),
 		Date:      parsedDate,
 		Content:   content,
 		EditDate:  time.Now(),

@@ -1,17 +1,15 @@
 package users
 
 import (
-	"std"
+	"chain/runtime"
 	"strings"
 
-	"gno.land/p/demo/dao"
 	"gno.land/p/demo/releases"
-
-	"gno.land/r/gov/dao/bridge"
+	"gno.land/r/gov/dao"
 )
 
 var (
-	cd        = std.ChainDomain()
+	cd        = runtime.ChainDomain()
 	changelog = releases.NewChangelog("r/gnoland/users")
 )
 
@@ -30,7 +28,7 @@ func LatestRelease() string {
 }
 
 // ProposeNewRelease allows a GovDAO proposal to add a release to the changelog
-func ProposeNewRelease(newVerPkgPath, note string) dao.Executor {
+func ProposeNewRelease(newVerPkgPath, note string) dao.ProposalRequest {
 	ver := strings.TrimPrefix(newVerPkgPath, usersPrefix)
 	if ver == newVerPkgPath || // TrimPrefix returns unchanged newVerPkgPath if !HasPrefix
 		strings.Contains(ver, "/") { // if has prefix, has to be first child under
@@ -42,5 +40,11 @@ func ProposeNewRelease(newVerPkgPath, note string) dao.Executor {
 		return nil
 	}
 
-	return bridge.GovDAO().NewGovDAOExecutor(cb)
+	e := dao.NewSimpleExecutor(cb, "")
+
+	return dao.NewProposalRequest(
+		"Propose a new release for gnoland/users realm",
+		"",
+		e,
+	)
 }

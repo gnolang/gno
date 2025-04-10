@@ -1,6 +1,9 @@
 package ownable
 
-import "std"
+import (
+	"chain"
+	"chain/runtime"
+)
 
 const OwnershipTransferEvent = "OwnershipTransfer"
 
@@ -8,23 +11,23 @@ const OwnershipTransferEvent = "OwnershipTransfer"
 // being embedded in a Gno object to manage per-object ownership.
 // Ownable is safe to export as a top-level object
 type Ownable struct {
-	owner std.Address
+	owner chain.Address
 }
 
 func New() *Ownable {
 	return &Ownable{
-		owner: std.PreviousRealm().Address(),
+		owner: runtime.PreviousRealm().Address(),
 	}
 }
 
-func NewWithAddress(addr std.Address) *Ownable {
+func NewWithAddress(addr chain.Address) *Ownable {
 	return &Ownable{
 		owner: addr,
 	}
 }
 
 // TransferOwnership transfers ownership of the Ownable struct to a new address
-func (o *Ownable) TransferOwnership(newOwner std.Address) error {
+func (o *Ownable) TransferOwnership(newOwner chain.Address) error {
 	if !o.CallerIsOwner() {
 		return ErrUnauthorized
 	}
@@ -35,7 +38,7 @@ func (o *Ownable) TransferOwnership(newOwner std.Address) error {
 
 	prevOwner := o.owner
 	o.owner = newOwner
-	std.Emit(
+	chain.Emit(
 		OwnershipTransferEvent,
 		"from", prevOwner.String(),
 		"to", newOwner.String(),
@@ -55,7 +58,7 @@ func (o *Ownable) DropOwnership() error {
 	prevOwner := o.owner
 	o.owner = ""
 
-	std.Emit(
+	chain.Emit(
 		OwnershipTransferEvent,
 		"from", prevOwner.String(),
 		"to", "",
@@ -65,9 +68,9 @@ func (o *Ownable) DropOwnership() error {
 }
 
 // Owner returns the owner address from Ownable
-func (o *Ownable) Owner() std.Address {
+func (o *Ownable) Owner() chain.Address {
 	if o == nil {
-		return std.Address("")
+		return chain.Address("")
 	}
 	return o.owner
 }
@@ -77,7 +80,7 @@ func (o *Ownable) CallerIsOwner() bool {
 	if o == nil {
 		return false
 	}
-	return std.PreviousRealm().Address() == o.owner
+	return runtime.PreviousRealm().Address() == o.owner
 }
 
 // AssertCallerIsOwner panics if the caller is not the owner
@@ -85,7 +88,7 @@ func (o *Ownable) AssertCallerIsOwner() {
 	if o == nil {
 		panic(ErrUnauthorized)
 	}
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	if caller != o.owner {
 		panic(ErrUnauthorized)
 	}

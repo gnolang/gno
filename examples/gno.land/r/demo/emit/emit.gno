@@ -3,10 +3,8 @@
 // std.Emit is variadic; apart from the event name, it can take in any number of key-value pairs to emit.
 package emit
 
-import (
-	"std"
-)
+import "chain"
 
 func Emit(value string) {
-	std.Emit("EventName", "key", value)
+	chain.Emit("EventName", "key", value)
 }

@@ -1,8 +1,7 @@
 ## It tests unlocking token transfers through GovDAO voting
 loadpkg gno.land/r/sys/params
-loadpkg gno.land/r/gov/dao/v2
-
-patchpkg "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm" "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+loadpkg gno.land/r/gov/dao/v3/init
+loadpkg gno.land/r/gov/dao
 
 adduser regular1
 
@@ -20,12 +19,14 @@ stdout 'OK!'
 
 stderr 'restricted token transfer error'
 
+## Load member as T1 to be able to vote afterwards
+gnokey maketx run  -gas-fee 1ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/load_user.gno
+
 ## Submit a proposal to unlock the transfer. When token transfer is locked, only the predefined unrestricted account test1 in the genesis state can
 ## pay the fee and submit a proposal to unlock the transfer.
-gnokey maketx call -pkgpath gno.land/r/sys/params -func ProposeUnlockTransfer -send 250000000ugnot -gas-fee 1ugnot -gas-wanted 9500000 -broadcast -chainid=tendermint_test test1
+gnokey maketx run  -gas-fee 1ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/propose_unlock.gno
 
-stdout '(0 uint64)'
-
+stdout '0'
 
 ## Vote unlock proposal with unrestricted account test1
 gnokey maketx run  -gas-fee 1ugnot -gas-wanted 95000000 -broadcast -chainid=tendermint_test test1 $WORK/run/vote_proposal.gno
@@ -42,24 +43,57 @@ gnokey maketx send -send "100ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 
 stdout 'OK!'
 
+-- run/load_user.gno --
+package main
+
+import (
+  i "gno.land/r/gov/dao/v3/init"
+  "chain"
+)
+
+func main() {
+	i.InitWithUsers(chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+}
+
+-- run/propose_unlock.gno --
+package main
+
+import (
+  "gno.land/r/gov/dao"
+  "gno.land/r/sys/params"
+)
+
+func main() {
+	pr := params.ProposeUnlockTransferRequest()
+  pid := dao.MustCreateProposal(pr)
+  println(pid.String())
+}
+
+
 -- run/vote_proposal.gno --
 package main
 
 import (
-  govdao "gno.land/r/gov/dao/v2"
+  "gno.land/r/gov/dao"
 )
 
 func main() {
-	govdao.GovDAO.VoteOnProposal(0,"YES")
+	dao.MustVoteOnProposal(dao.VoteRequest{
+		Option:     dao.YesVote,
+		ProposalID: dao.ProposalID(0),
+	})
 }
 
 -- run/exec_proposal.gno --
 package main
 
 import (
-  govdao "gno.land/r/gov/dao/v2"
+  "gno.land/r/gov/dao"
 )
 
 func main() {
-	govdao.GovDAO.ExecuteProposal(0)
+	ok := dao.ExecuteProposal(dao.ProposalID(0))
+  if ok {
+    println("OK!")
+  }
 }

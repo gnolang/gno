@@ -1,7 +1,8 @@
 package ownable2step
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 )
 
 const OwnershipTransferEvent = "OwnershipTransfer"
@@ -9,18 +10,18 @@ const OwnershipTransferEvent = "OwnershipTransfer"
 // Ownable2Step is a two-step ownership transfer package
 // It allows the current owner to set a new owner and the new owner will need to accept the ownership before it is transferred
 type Ownable2Step struct {
-	owner        std.Address
-	pendingOwner std.Address
+	owner        chain.Address
+	pendingOwner chain.Address
 }
 
 func New() *Ownable2Step {
 	return &Ownable2Step{
-		owner:        std.PreviousRealm().Address(),
+		owner:        runtime.PreviousRealm().Address(),
 		pendingOwner: "",
 	}
 }
 
-func NewWithAddress(addr std.Address) *Ownable2Step {
+func NewWithAddress(addr chain.Address) *Ownable2Step {
 	return &Ownable2Step{
 		owner:        addr,
 		pendingOwner: "",
@@ -28,7 +29,7 @@ func NewWithAddress(addr std.Address) *Ownable2Step {
 }
 
 // TransferOwnership initiate the transfer of the ownership to a new address by setting the PendingOwner
-func (o *Ownable2Step) TransferOwnership(newOwner std.Address) error {
+func (o *Ownable2Step) TransferOwnership(newOwner chain.Address) error {
 	if !o.CallerIsOwner() {
 		return ErrUnauthorized
 	}
@@ -45,7 +46,7 @@ func (o *Ownable2Step) AcceptOwnership() error {
 	if o.pendingOwner.String() == "" {
 		return ErrNoPendingOwner
 	}
-	if std.PreviousRealm().Address() != o.pendingOwner {
+	if runtime.PreviousRealm().Address() != o.pendingOwner {
 		return ErrPendingUnauthorized
 	}
 
@@ -66,7 +67,7 @@ func (o *Ownable2Step) DropOwnership() error {
 	prevOwner := o.owner
 	o.owner = ""
 
-	std.Emit(
+	chain.Emit(
 		OwnershipTransferEvent,
 		"from", prevOwner.String(),
 		"to", "",
@@ -76,23 +77,23 @@ func (o *Ownable2Step) DropOwnership() error {
 }
 
 // Owner returns the owner address from Ownable
-func (o *Ownable2Step) Owner() std.Address {
+func (o *Ownable2Step) Owner() chain.Address {
 	return o.owner
 }
 
 // PendingOwner returns the pending owner address from Ownable2Step
-func (o *Ownable2Step) PendingOwner() std.Address {
+func (o *Ownable2Step) PendingOwner() chain.Address {
 	return o.pendingOwner
 }
 
 // CallerIsOwner checks if the caller of the function is the Realm's owner
 func (o *Ownable2Step) CallerIsOwner() bool {
-	return std.PreviousRealm().Address() == o.owner
+	return runtime.PreviousRealm().Address() == o.owner
 }
 
 // AssertCallerIsOwner panics if the caller is not the owner
 func (o *Ownable2Step) AssertCallerIsOwner() {
-	if std.PreviousRealm().Address() != o.owner {
+	if runtime.PreviousRealm().Address() != o.owner {
 		panic(ErrUnauthorized)
 	}
 }

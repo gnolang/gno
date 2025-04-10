@@ -1,7 +1,7 @@
 package timelock
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 	"time"
 
@@ -15,7 +15,7 @@ func TestTimelock(t *testing.T) {
 	// Initialization
 	timestamps := avl.NewTree()
 	minDelay := uint64(2) // 2 seconds to simplify testing
-	accessControl, _ := accesscontrol.NewRole("admin", std.OriginCaller())
+	accessControl, _ := accesscontrol.NewRole("admin", runtime.OriginCaller())
 	timelockUtil, err := NewTimeLock(timestamps, accessControl, minDelay)
 
 	// Generate a new ID from time.Now().UnixNano() with seconds added to guarantee uniqueness

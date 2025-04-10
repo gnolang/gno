@@ -34,8 +34,9 @@
 package authz
 
 import (
+	"chain"
+	"chain/runtime"
 	"errors"
-	"std"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/avl/rotree"
@@ -69,7 +70,7 @@ type PrivilegedActionHandler func(title string, action PrivilegedAction) error
 // New creates a new Authorizer with the current realm's address as authority
 func New() *Authorizer {
 	return &Authorizer{
-		current: NewMemberAuthority(std.PreviousRealm().Address()),
+		current: NewMemberAuthority(runtime.PreviousRealm().Address()),
 	}
 }
 
@@ -109,7 +110,7 @@ type MemberAuthority struct {
 	members addrset.Set
 }
 
-func NewMemberAuthority(members ...std.Address) *MemberAuthority {
+func NewMemberAuthority(members ...chain.Address) *MemberAuthority {
 	auth := &MemberAuthority{}
 	for _, addr := range members {
 		auth.members.Add(addr)
@@ -118,7 +119,7 @@ func NewMemberAuthority(members ...std.Address) *MemberAuthority {
 }
 
 func (a *MemberAuthority) Authorize(title string, action PrivilegedAction, args ...any) error {
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	if !a.members.Has(caller) {
 		return errors.New("unauthorized")
 	}
@@ -130,19 +131,35 @@ func (a *MemberAuthority) Authorize(title string, action PrivilegedAction, args 
 }
 
 func (a *MemberAuthority) String() string {
-	return ufmt.Sprintf("member_authority[size=%d]", a.members.Size())
+	out := ""
+	a.members.Tree().Iterate("", "", func(key string, _ any) bool {
+		out += "- " + key + "\n"
+		return false
+	})
+
+	return out
 }
 
 // AddMember adds a new member to the authority
-func (a *MemberAuthority) AddMember(addr std.Address) error {
+func (a *MemberAuthority) AddMember(addr chain.Address) error {
 	return a.Authorize("add_member", func() error {
 		a.members.Add(addr)
 		return nil
 	})
 }
 
+// AddMembers adds a list of members to the authority
+func (a *MemberAuthority) AddMembers(addrs ...chain.Address) error {
+	return a.Authorize("add_members", func() error {
+		for _, addr := range addrs {
+			a.members.Add(addr)
+		}
+		return nil
+	})
+}
+
 // RemoveMember removes a member from the authority
-func (a *MemberAuthority) RemoveMember(addr std.Address) error {
+func (a *MemberAuthority) RemoveMember(addr chain.Address) error {
 	return a.Authorize("remove_member", func() error {
 		a.members.Remove(addr)
 		return nil
@@ -156,14 +173,14 @@ func (a *MemberAuthority) Tree() *rotree.ReadOnlyTree {
 }
 
 // Has checks if the given address is a member of the authority
-func (a *MemberAuthority) Has(addr std.Address) bool {
+func (a *MemberAuthority) Has(addr chain.Address) bool {
 	return a.members.Has(addr)
 }
 
 // ContractAuthority implements async contract-based authority
 type ContractAuthority struct {
 	contractPath    string
-	contractAddr    std.Address
+	contractAddr    chain.Address
 	contractHandler PrivilegedActionHandler
 	proposer        Authority // controls who can create proposals
 }
@@ -171,7 +188,7 @@ type ContractAuthority struct {
 func NewContractAuthority(path string, handler PrivilegedActionHandler) *ContractAuthority {
 	return &ContractAuthority{
 		contractPath:    path,
-		contractAddr:    std.DerivePkgAddr(path),
+		contractAddr:    chain.DerivePkgAddr(path),
 		contractHandler: handler,
 		proposer:        NewAutoAcceptAuthority(), // default: anyone can propose
 	}
@@ -190,7 +207,7 @@ func NewRestrictedContractAuthority(path string, handler PrivilegedActionHandler
 	}
 	return &ContractAuthority{
 		contractPath:    path,
-		contractAddr:    std.DerivePkgAddr(path),
+		contractAddr:    chain.DerivePkgAddr(path),
 		contractHandler: handler,
 		proposer:        proposer,
 	}
@@ -206,7 +223,7 @@ func (a *ContractAuthority) Authorize(title string, action PrivilegedAction, arg
 
 	// Wrap the action to ensure it can only be executed by the contract
 	wrappedAction := func() error {
-		caller := std.PreviousRealm().Address()
+		caller := runtime.PreviousRealm().Address()
 		if caller != a.contractAddr {
 			return errors.New("action can only be executed by the contract")
 		}

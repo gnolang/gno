@@ -1,7 +1,7 @@
 package forms
 
 import (
-	"std"
+	"chain"
 	"time"
 
 	"gno.land/p/demo/seqid"
@@ -21,7 +21,7 @@ type Field struct {
 
 type Form struct {
 	ID          string
-	Owner       std.Address
+	Owner       chain.Address
 	Title       string
 	Description string
 	Fields      []Field
@@ -34,7 +34,7 @@ type Form struct {
 // - ["Alex", 21, true, 0, [0, 1]]
 type Submission struct {
 	FormID      string
-	Author      std.Address
+	Author      chain.Address
 	Answers     string // json
 	SubmittedAt time.Time
 }
@@ -109,7 +109,7 @@ func (db *FormDB) GetForm(id string) (*Form, error) {
 }
 
 // GetAnswer returns an answer by its form - and author ids if it exists
-func (db *FormDB) GetAnswer(formID string, author std.Address) (*Submission, error) {
+func (db *FormDB) GetAnswer(formID string, author chain.Address) (*Submission, error) {
 	for _, answer := range db.Answers {
 		if answer.FormID == formID && answer.Author.String() == author.String() {
 			return answer, nil

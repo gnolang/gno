@@ -1,14 +1,15 @@
 package home
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
 	"testing"
 
 	"gno.land/p/demo/testutils"
 )
 
 func TestUpdateGithubUrl(t *testing.T) {
-	caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
+	caller := chain.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
 	testing.SetOriginCaller(caller)
 
 	newUrl := "https://github.com/example"
@@ -21,7 +22,7 @@ func TestUpdateGithubUrl(t *testing.T) {
 }
 
 func TestUpdateLinkedinUrl(t *testing.T) {
-	caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
+	caller := chain.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
 	testing.SetOriginCaller(caller)
 
 	newUrl := "https://www.linkedin.com/in/example"
@@ -34,7 +35,7 @@ func TestUpdateLinkedinUrl(t *testing.T) {
 }
 
 func TestUpdateAboutMe(t *testing.T) {
-	caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
+	caller := chain.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
 	testing.SetOriginCaller(caller)
 
 	newAboutMe := "This is new description!"
@@ -52,7 +53,7 @@ func TestUpdateSelectedImage(t *testing.T) {
 
 	validImageUrl := "https://i.ibb.co/hLtmnX0/beautiful-rain-forest-ang-ka-nature-trail-doi-inthanon-national-park-thailand-36703721.webp"
 
-	coinsSent := std.NewCoins(std.NewCoin("ugnot", 5000000)) // Update to match the price expected by your function
+	coinsSent := banker.NewCoins(banker.NewCoin("ugnot", 5000000)) // Update to match the price expected by your function
 	testing.SetOriginSend(coinsSent)
 
 	UpdateSelectedImage(validImageUrl)
@@ -71,7 +72,7 @@ func TestUpdateSelectedImage(t *testing.T) {
 
 	UpdateSelectedImage(invalidImageUrl)
 
-	invalidCoins := std.NewCoins(std.NewCoin("ugnot", 1000000))
+	invalidCoins := banker.NewCoins(banker.NewCoin("ugnot", 1000000))
 	testing.SetOriginSend(invalidCoins)
 
 	defer func() {
@@ -84,7 +85,7 @@ func TestUpdateSelectedImage(t *testing.T) {
 }
 
 func TestUpdateImagePrice(t *testing.T) {
-	caller := std.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
+	caller := chain.Address("g1d24j8fwnc0w5q427fauyey4gdd30qgu69k6n0x")
 	testing.SetOriginCaller(caller)
 
 	var newImageUpdatePrice int64 = 3000000

@@ -1,7 +1,7 @@
 package validators
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/demo/avl"
@@ -66,7 +66,7 @@ func TestValidators_AddRemove(t *testing.T) {
 	}
 
 	// Save the beginning height for the removal
-	initialRemoveHeight := std.ChainHeight()
+	initialRemoveHeight := runtime.ChainHeight()
 
 	// Clear any changes
 	changes = avl.NewTree()

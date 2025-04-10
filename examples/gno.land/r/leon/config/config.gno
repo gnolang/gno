@@ -1,8 +1,9 @@
 package config
 
 import (
+	"chain"
+	"chain/runtime"
 	"errors"
-	"std"
 	"strings"
 	"time"
 
@@ -15,7 +16,7 @@ var (
 	cfgID   seqid.ID
 	configs = avl.NewTree()
 
-	absPath = strings.TrimPrefix(std.CurrentRealm().PkgPath(), std.ChainDomain())
+	absPath = strings.TrimPrefix(runtime.CurrentRealm().PkgPath(), runtime.ChainDomain())
 
 	// SafeObjects
 	OwnableMain   = ownable.NewWithAddress("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
@@ -32,7 +33,7 @@ type Config struct {
 }
 
 func AddConfig(name, lines string) {
-	if !IsAuthorized(std.PreviousRealm().Address()) {
+	if !IsAuthorized(runtime.PreviousRealm().Address()) {
 		panic(ErrUnauthorized)
 	}
 
@@ -46,7 +47,7 @@ func AddConfig(name, lines string) {
 }
 
 func EditConfig(id string, name, lines string) {
-	if !IsAuthorized(std.PreviousRealm().Address()) {
+	if !IsAuthorized(runtime.PreviousRealm().Address()) {
 		panic(ErrUnauthorized)
 	}
 
@@ -63,7 +64,7 @@ func EditConfig(id string, name, lines string) {
 }
 
 func RemoveConfig(id string) {
-	if !IsAuthorized(std.PreviousRealm().Address()) {
+	if !IsAuthorized(runtime.PreviousRealm().Address()) {
 		panic(ErrUnauthorized)
 	}
 
@@ -73,13 +74,13 @@ func RemoveConfig(id string) {
 }
 
 func UpdateBanner(newBanner string) {
-	if !IsAuthorized(std.PreviousRealm().Address()) {
+	if !IsAuthorized(runtime.PreviousRealm().Address()) {
 		panic(ErrUnauthorized)
 	}
 
 	banner = newBanner
 }
 
-func IsAuthorized(addr std.Address) bool {
+func IsAuthorized(addr chain.Address) bool {
 	return addr == OwnableMain.Owner() || addr == OwnableBackup.Owner()
 }

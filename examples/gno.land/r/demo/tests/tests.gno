@@ -1,7 +1,8 @@
 package tests
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 
 	"gno.land/p/demo/nestedpkg"
 	rsubtests "gno.land/r/demo/tests/subtests"
@@ -18,21 +19,21 @@ func Counter() int {
 }
 
 func CurrentRealmPath() string {
-	return std.CurrentRealm().PkgPath()
+	return runtime.CurrentRealm().PkgPath()
 }
 
-var initOriginCaller = std.OriginCaller()
+var initOriginCaller = runtime.OriginCaller()
 
-func InitOriginCaller() std.Address {
+func InitOriginCaller() chain.Address {
 	return initOriginCaller
 }
 
 func CallAssertOriginCall() {
-	std.AssertOriginCall()
+	runtime.AssertOriginCall()
 }
 
 func CallIsOriginCall() bool {
-	return std.PreviousRealm().IsUser()
+	return runtime.PreviousRealm().IsUser()
 }
 
 func CallSubtestsAssertOriginCall() {
@@ -91,11 +92,11 @@ func PrintTestNodes() {
 	println(gTestNode2.Child.Name)
 }
 
-func GetPreviousRealm() std.Realm {
-	return std.PreviousRealm()
+func GetPreviousRealm() runtime.Realm {
+	return runtime.PreviousRealm()
 }
 
-func GetRSubtestsPreviousRealm() std.Realm {
+func GetRSubtestsPreviousRealm() runtime.Realm {
 	return rsubtests.GetPreviousRealm()
 }
 

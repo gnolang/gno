@@ -1,7 +1,7 @@
 package fomo3d
 
 import (
-	"std"
+	"chain"
 
 	"gno.land/p/demo/ufmt"
 )
@@ -48,7 +48,7 @@ const (
 )
 
 func emitGameStarted(round, startBlock, endBlock, startingPot int64) {
-	std.Emit(
+	chain.Emit(
 		GameStartedEvent,
 		EventRoundKey, ufmt.Sprintf("%d", round),
 		EventStartBlockKey, ufmt.Sprintf("%d", startBlock),
@@ -57,8 +57,8 @@ func emitGameStarted(round, startBlock, endBlock, startingPot int64) {
 	)
 }
 
-func emitGameEnded(round int64, winner std.Address, jackpot int64) {
-	std.Emit(
+func emitGameEnded(round int64, winner chain.Address, jackpot int64) {
+	chain.Emit(
 		GameEndedEvent,
 		EventRoundKey, ufmt.Sprintf("%d", round),
 		EventWinnerKey, winner.String(),
@@ -66,8 +66,8 @@ func emitGameEnded(round int64, winner std.Address, jackpot int64) {
 	)
 }
 
-func emitKeysPurchased(buyer std.Address, numKeys, price, jackpotShare, dividendShare int64) {
-	std.Emit(
+func emitKeysPurchased(buyer chain.Address, numKeys, price, jackpotShare, dividendShare int64) {
+	chain.Emit(
 		KeysPurchasedEvent,
 		EventBuyerKey, buyer.String(),
 		EventNumKeysKey, ufmt.Sprintf("%d", numKeys),
@@ -77,16 +77,16 @@ func emitKeysPurchased(buyer std.Address, numKeys, price, jackpotShare, dividend
 	)
 }
 
-func emitDividendsClaimed(claimer std.Address, amount int64) {
-	std.Emit(
+func emitDividendsClaimed(claimer chain.Address, amount int64) {
+	chain.Emit(
 		DividendsClaimedEvent,
 		EventClaimerKey, claimer.String(),
 		EventAmountKey, ufmt.Sprintf("%d", amount),
 	)
 }
 
-func emitOwnerFeeClaimed(owner std.Address, amount int64) {
-	std.Emit(
+func emitOwnerFeeClaimed(owner chain.Address, amount int64) {
+	chain.Emit(
 		OwnerFeeClaimedEvent,
 		EventOwnerKey, owner.String(),
 		EventAmountKey, ufmt.Sprintf("%d", amount),

@@ -1,7 +1,7 @@
 package home
 
 import (
-	"std"
+	"chain/runtime"
 	"strconv"
 
 	"gno.land/p/demo/ufmt"
@@ -35,7 +35,7 @@ func Render(path string) string {
 
 func init() {
 	hof.Register("Leon's Home Realm", "")
-	mirror.Register(std.CurrentRealm().PkgPath(), Render)
+	mirror.Register(runtime.CurrentRealm().PkgPath(), Render)
 
 	pfp = "https://i.imgflip.com/91vskx.jpg"
 	pfpCaption = "[My favourite painting & pfp](https://en.wikipedia.org/wiki/Wanderer_above_the_Sea_of_Fog)"
@@ -52,7 +52,7 @@ TODO import r/gh`,
 }
 
 func UpdatePFP(url, caption string) {
-	if !config.IsAuthorized(std.PreviousRealm().Address()) {
+	if !config.IsAuthorized(runtime.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -61,7 +61,7 @@ func UpdatePFP(url, caption string) {
 }
 
 func UpdateAboutMe(col1, col2 string) {
-	if !config.IsAuthorized(std.PreviousRealm().Address()) {
+	if !config.IsAuthorized(runtime.PreviousRealm().Address()) {
 		panic(config.ErrUnauthorized)
 	}
 
@@ -118,7 +118,7 @@ func renderArt() string {
 
 func renderGnoFace() string {
 	out := "<div>\n\n"
-	out += gnoface.Render(strconv.Itoa(int(std.ChainHeight())))
+	out += gnoface.Render(strconv.Itoa(int(runtime.ChainHeight())))
 	out += "</div>\n\n"
 
 	return out
@@ -127,7 +127,7 @@ func renderGnoFace() string {
 func renderMillipede() string {
 	out := "<div>\n\n"
 	out += "Millipede\n\n"
-	out += "```\n" + millipede.Draw(int(std.ChainHeight())%10+1) + "```\n"
+	out += "```\n" + millipede.Draw(int(runtime.ChainHeight())%10+1) + "```\n"
 	out += "</div>\n\n"
 
 	return out

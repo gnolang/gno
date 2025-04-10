@@ -1,7 +1,8 @@
 package main
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -10,14 +11,14 @@ import (
 
 // mints ugnot to current realm
 func init() {
-	facuetaddr := std.DerivePkgAddr("gno.land/r/gnoland/faucet")
-	testing.IssueCoins(facuetaddr, std.Coins{{"ugnot", 200000000}})
+	facuetaddr := chain.DerivePkgAddr("gno.land/r/gnoland/faucet")
+	testing.IssueCoins(facuetaddr, banker.Coins{{"ugnot", 200000000}})
 }
 
 // assert render with empty path and 2 controllers
 func main() {
 	var (
-		adminaddr       = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+		adminaddr       = chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 		controlleraddr1 = testutils.TestAddress("controller1")
 		controlleraddr2 = testutils.TestAddress("controller2")
 	)

@@ -4,38 +4,64 @@ package valopers_proposal_test
 // SEND: 100000000ugnot
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
+	"testing"
 
 	"gno.land/r/gnoland/valopers"
 	"gno.land/r/gnoland/valopers_proposal"
-	_ "gno.land/r/gov/dao/init" // so that the govdao initializer is executed
-	govdao "gno.land/r/gov/dao/v2"
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/init" // so that the govdao initializer is executed
 )
 
 const (
 	validMoniker     = "test-1"
 	validDescription = "test-1's description"
-	validAddress     = std.Address("g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h")
+	validAddress     = chain.Address("g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h")
 	validPubKey      = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p"
 )
 
 func init() {
+	c := runtime.OriginCaller()
+	init.InitWithUsers(c)
+
 	// Register a validator and add the proposal
 	valopers.Register(validMoniker, validDescription, validAddress, validPubKey)
-	valopers_proposal.ProposeNewValidator(validAddress)
+	pr := valopers_proposal.NewValidatorProposalRequest(validAddress)
+
+	testing.SetOriginCaller(c)
+	dao.MustCreateProposal(pr)
 }
 
 func main() {
-	println(govdao.Render(""))
+	println(dao.Render(""))
 }
 
 // Output:
-// # GovDAO Proposals
+// # Active Proposals:
+// ## Proposal with id: 0
+// ### Title: Add valoper test-1 to the valset
 //
-// ## [Prop #0 - Add valoper test-1 to the valset](/r/gov/dao/v2:0)
+// ### Proposed by: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
-// **Status: ACTIVE**
+// Valoper profile: [test-1](/r/gnoland/valopers:g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h)
 //
-// **Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm**
+// ## test-1
+// test-1's description
+//
+// - Address: g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h
+// - PubKey: gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p
+//
+// [Profile link](/r/demo/profile:u/g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h)
+//
+//
+//
+// ### Proposal Status:
+//
+// - **Proposal open for votes**
+// - Allowed tiers to vote: T1 T2 T3
+// - YES PERCENT: 0%
+// - NO PERCENT: 0%
+// - [Go to votes list](/r/gov/dao:0/votes).
 //
 //
