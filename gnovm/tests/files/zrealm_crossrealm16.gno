@@ -2,14 +2,14 @@
 package crossrealm_test
 
 import (
-	"std"
+	"chain/runtime"
 
 	crossrealm "gno.land/r/demo/tests/crossrealm"
 )
 
 type fooer struct{}
 
-func (fooer) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
+func (fooer) Foo() { println("hello " + runtime.CurrentRealm().PkgPath()) }
 
 var f *fooer
 

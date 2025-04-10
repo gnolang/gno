@@ -1,10 +1,10 @@
 package main
 
-import "std"
+import "chain/banker"
 
 func main() {
 	// Type constants are not addressable.
-	_ = &std.BankerTypeReadonly
+	_ = &banker.BankerTypeReadonly
 }
 
 // Error:

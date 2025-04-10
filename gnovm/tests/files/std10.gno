@@ -1,13 +1,13 @@
 package main
 
-import "std"
+import "chain/runtime"
 
 func main() {
 	defer func() {
 		// assert panic is recoverable
 		println(recover())
 	}()
-	std.CallerAt(0)
+	runtime.CallerAt(0)
 }
 
 // Output:

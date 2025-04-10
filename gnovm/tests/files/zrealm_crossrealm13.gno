@@ -1,22 +1,22 @@
 package main
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 )
 
 func main() {
 	PrintRealm()
-	println(pad("CurrentRealm:"), std.CurrentRealm())
-	println(pad("PreviousRealm:"), std.PreviousRealm())
-	testing.SetRealm(std.NewUserRealm("g1user"))
+	println(pad("CurrentRealm:"), runtime.CurrentRealm())
+	println(pad("PreviousRealm:"), runtime.PreviousRealm())
+	testing.SetRealm(runtime.NewUserRealm("g1user"))
 	PrintRealm()
-	println(pad("CurrentRealm:"), std.CurrentRealm())
-	println(pad("PreviousRealm:"), std.PreviousRealm())
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
+	println(pad("CurrentRealm:"), runtime.CurrentRealm())
+	println(pad("PreviousRealm:"), runtime.PreviousRealm())
+	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/sys/users"))
 	PrintRealm()
-	println(pad("CurrentRealm:"), std.CurrentRealm())
-	println(pad("PreviousRealm:"), std.PreviousRealm())
+	println(pad("CurrentRealm:"), runtime.CurrentRealm())
+	println(pad("PreviousRealm:"), runtime.PreviousRealm())
 }
 
 func pad(s string) string {
@@ -27,8 +27,8 @@ func pad(s string) string {
 }
 
 func PrintRealm() {
-	println(pad("PrintRealm: CurrentRealm:"), std.CurrentRealm())
-	println(pad("PrintRealm: PreviousRealm:"), std.PreviousRealm())
+	println(pad("PrintRealm: CurrentRealm:"), runtime.CurrentRealm())
+	println(pad("PrintRealm: PreviousRealm:"), runtime.PreviousRealm())
 }
 
 // Because this is the context of a package, using PrintRealm()
