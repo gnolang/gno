@@ -147,6 +147,11 @@ func (s *HTMLWebClient) SourceFile(w io.Writer, path, fileName string, isRaw boo
 		SizeKb: float64(len(source)) / 1024.0,
 	}
 
+	// If writer is nil, just return metadata
+	if w == nil {
+		return &fileMeta, nil
+	}
+
 	if isRaw {
 		// Use raw syntax for source
 		if _, err := w.Write(source); err != nil {

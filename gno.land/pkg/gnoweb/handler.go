@@ -270,15 +270,39 @@ func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View
 	}
 
 	var source bytes.Buffer
-	meta, err := h.Client.SourceFile(&source, pkgPath, fileName, false)
-	if err != nil {
-		h.Logger.Error("unable to get source file", "file", fileName, "error", err)
-		return GetClientErrorStatusPage(gnourl, err)
+	var meta *FileMeta
+	var mode components.DisplayMode
+
+	// Check if file is markdown and plain mode is not requested
+	isMarkdown := strings.HasSuffix(strings.ToLower(fileName), ".md")
+	if isMarkdown && !gnourl.WebQuery.Has("plain") {
+		// For markdown files, get metadata first
+		mode = components.ModeMarkdown
+		meta, err = h.Client.SourceFile(nil, pkgPath, fileName, false)
+		if err != nil {
+			h.Logger.Error("unable to get source file metadata", "file", fileName, "error", err)
+			return GetClientErrorStatusPage(gnourl, err)
+		}
+		// Then render markdown content
+		_, err = h.Client.RenderMd(&source, gnourl, fileName)
+		if err != nil {
+			h.Logger.Error("unable to render markdown", "file", fileName, "error", err)
+			return GetClientErrorStatusPage(gnourl, err)
+		}
+	} else {
+		// For code files or markdown files in plain mode, get both metadata and content in one call
+		mode = components.ModeCode
+		meta, err = h.Client.SourceFile(&source, pkgPath, fileName, false)
+		if err != nil {
+			h.Logger.Error("unable to get source file", "file", fileName, "error", err)
+			return GetClientErrorStatusPage(gnourl, err)
+		}
 	}
 
 	fileSizeStr := fmt.Sprintf("%.2f Kb", meta.SizeKb)
 	return http.StatusOK, components.SourceView(components.SourceData{
 		PkgPath:      gnourl.Path,
+		Mode:         mode,
 		Files:        files,
 		FileName:     fileName,
 		FileCounter:  len(files),
@@ -286,6 +310,7 @@ func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View
 		FileSize:     fileSizeStr,
 		FileDownload: gnourl.Path + "$download&file=" + fileName,
 		FileSource:   components.NewReaderComponent(&source),
+		IsMarkdown:   isMarkdown,
 	})
 }
 
