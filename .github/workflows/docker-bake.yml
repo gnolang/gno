@@ -51,7 +51,11 @@ jobs:
             misc/deployments/bake/docker-bake.hcl
             cwd://${{ steps.meta.outputs.bake-file-tags }}
             cwd://${{ steps.meta.outputs.bake-file-labels }}
-          push: false
+          ### TBmodified
+          push: true
+          target: gnoland
+          platforms: linux/amd64
+          ###
           set: |
             *.cache-from=type=gha
             *.cache-to=type=gha,mode=max

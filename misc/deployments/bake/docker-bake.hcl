@@ -91,7 +91,7 @@ target "gnoland" {
     "ghcr.io/gnolang/gno/gnoland:${TAG}"
   ]
   labels = {
-    "org.opencontainers.image.titlse" = "${PROJECT_NAME}/gnoland"
+    "org.opencontainers.image.title" = "${PROJECT_NAME}/gnoland"
   }
 }
 
