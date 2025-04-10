@@ -2,7 +2,7 @@
 package test_test
 
 import (
-	"std"
+	"chain"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -12,7 +12,7 @@ import (
 func main() {
 	var (
 		eoa        = testutils.TestAddress("someone")
-		rTestsAddr = std.DerivePkgAddr("gno.land/r/demo/tests")
+		rTestsAddr = chain.DerivePkgAddr("gno.land/r/demo/tests")
 	)
 	testing.SetOriginCaller(eoa)
 	// Contrarily to z2_filetest.gno we EXPECT GetPreviousRealms != eoa (#1704)

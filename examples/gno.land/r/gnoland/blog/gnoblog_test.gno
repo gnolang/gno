@@ -1,13 +1,13 @@
 package gnoblog
 
 import (
-	"std"
+	"chain"
 	"strings"
 	"testing"
 )
 
 func TestPackage(t *testing.T) {
-	testing.SetOriginCaller(std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
+	testing.SetOriginCaller(chain.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
 	// by default, no posts.
 	{
 		got := Render("")

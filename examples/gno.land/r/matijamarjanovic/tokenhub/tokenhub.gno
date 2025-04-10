@@ -1,7 +1,7 @@
 package tokenhub
 
 import (
-	"std"
+	"chain/runtime"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/fqname"
@@ -36,11 +36,11 @@ func init() {
 //
 // Note: register token returns the key path that can be used to retrieve the token
 func RegisterToken(tokenGetter grc20.TokenGetter, slug string) string {
-	rlmPath := std.PreviousRealm().PkgPath()
+	rlmPath := runtime.PreviousRealm().PkgPath()
 	key := fqname.Construct(rlmPath, slug)
 	grc20reg.Register(tokenGetter, key)
 
-	return fqname.Construct(std.CurrentRealm().PkgPath(), key)
+	return fqname.Construct(runtime.CurrentRealm().PkgPath(), key)
 }
 
 // RegisterNFT is a function that registers an NFT in an avl.Tree
@@ -60,7 +60,7 @@ func RegisterNFT(nftGetter grc721.NFTGetter, collection string, tokenId string) 
 		return ErrNFTtokIDNotExists
 	}
 
-	rlmPath := std.PreviousRealm().PkgPath()
+	rlmPath := runtime.PreviousRealm().PkgPath()
 	key := rlmPath + "." + collection + "." + tokenId
 
 	if registeredNFTs.Has(key) {
@@ -74,7 +74,7 @@ func RegisterNFT(nftGetter grc721.NFTGetter, collection string, tokenId string) 
 // RegisterMultiToken is a function that registers a multi-token in an avl.Tree
 // The avl.Tree value is a struct defined in this realm. It contains not only the getter (like other token types) but also the tokenID
 func RegisterMultiToken(mtGetter grc1155.MultiTokenGetter, tokenID string) error {
-	rlmPath := std.PreviousRealm().PkgPath()
+	rlmPath := runtime.PreviousRealm().PkgPath()
 
 	key := rlmPath + "." + tokenID
 

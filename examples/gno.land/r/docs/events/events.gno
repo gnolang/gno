@@ -1,6 +1,6 @@
 package emitevents
 
-import "std"
+import "chain"
 
 func Render(_ string) string {
 	out := "# Emitting events in Gno\n\n"
@@ -21,5 +21,5 @@ This function takes in string arguments as follows:
 }
 
 func Emit(CustomEventValue string) {
-	std.Emit("ExampleEvent", "key", CustomEventValue)
+	chain.Emit("ExampleEvent", "key", CustomEventValue)
 }

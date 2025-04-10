@@ -1,8 +1,9 @@
 package impl
 
 import (
+	"chain"
+	"chain/runtime"
 	"errors"
-	"std"
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/gov/dao"
@@ -32,12 +33,12 @@ func NewGovDAO() *GovDAO {
 // Setting this to a global variable forces attaching the GovDAO struct to this realm.
 var _govdao *GovDAO
 
-func (g *GovDAO) PreCreateProposal(ctx *dao.Context, r dao.ProposalRequest) (std.Address, error) {
+func (g *GovDAO) PreCreateProposal(ctx *dao.Context, r dao.ProposalRequest) (chain.Address, error) {
 	if !g.isValidCall(ctx) {
 		return "", errors.New("proposal creation must be done directly by a user")
 	}
 
-	return std.OriginCaller(), nil
+	return runtime.OriginCaller(), nil
 }
 
 func (g *GovDAO) PostCreateProposal(ctx *dao.Context, r dao.ProposalRequest, pid dao.ProposalID) {
@@ -64,7 +65,7 @@ func (g *GovDAO) VoteOnProposal(ctx *dao.Context, r dao.VoteRequest) error {
 		return errors.New("proposal voting must be done directly by a user")
 	}
 
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	mem, tie := memberstore.Get().GetMember(caller)
 	if mem == nil {
 		return ErrMemberNotFound

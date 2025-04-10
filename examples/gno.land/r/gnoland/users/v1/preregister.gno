@@ -1,7 +1,7 @@
 package users
 
 import (
-	"std"
+	"chain"
 
 	susers "gno.land/r/sys/users"
 )
@@ -9,7 +9,7 @@ import (
 // pre-registered users
 var preRegisteredUsers = []struct {
 	Name    string
-	Address std.Address
+	Address chain.Address
 }{
 	// system name
 	{"archives", "g1xlnyjrnf03ju82v0f98ruhpgnquk28knmjfe5k"}, // -> @r_archives

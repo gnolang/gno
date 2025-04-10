@@ -1,27 +1,28 @@
 package home
 
 import (
+	"chain"
+	"chain/runtime"
 	"errors"
-	"std"
 )
 
 var (
-	mainAddr   = std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y") // matija's main address
-	backupAddr std.Address                                               // backup address
+	mainAddr   = chain.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y") // matija's main address
+	backupAddr chain.Address                                               // backup address
 
 	errorInvalidAddr  = errors.New("config: invalid address")
 	errorUnauthorized = errors.New("config: unauthorized")
 )
 
-func Address() std.Address {
+func Address() chain.Address {
 	return mainAddr
 }
 
-func Backup() std.Address {
+func Backup() chain.Address {
 	return backupAddr
 }
 
-func SetAddress(newAddress std.Address) error {
+func SetAddress(newAddress chain.Address) error {
 	if !newAddress.IsValid() {
 		return errorInvalidAddr
 	}
@@ -34,7 +35,7 @@ func SetAddress(newAddress std.Address) error {
 	return nil
 }
 
-func SetBackup(newAddress std.Address) error {
+func SetBackup(newAddress chain.Address) error {
 	if !newAddress.IsValid() {
 		return errorInvalidAddr
 	}
@@ -48,7 +49,7 @@ func SetBackup(newAddress std.Address) error {
 }
 
 func checkAuthorized() error {
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	if caller != mainAddr && caller != backupAddr {
 		return errorUnauthorized
 	}
@@ -57,7 +58,7 @@ func checkAuthorized() error {
 }
 
 func AssertAuthorized() {
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	if caller != mainAddr && caller != backupAddr {
 		panic(errorUnauthorized)
 	}

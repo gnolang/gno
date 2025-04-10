@@ -1,7 +1,8 @@
 package nft
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"strconv"
 
 	"gno.land/p/demo/avl"
@@ -17,8 +18,8 @@ type token struct {
 }
 
 type NFToken struct {
-	owner    std.Address
-	approved std.Address
+	owner    chain.Address
+	approved chain.Address
 	tokenID  grc721.TokenID
 	data     string
 }
@@ -41,7 +42,7 @@ func (grc *token) getToken(tid grc721.TokenID) (*NFToken, bool) {
 	return token.(*NFToken), true
 }
 
-func (grc *token) Mint(to std.Address, data string) grc721.TokenID {
+func (grc *token) Mint(to chain.Address, data string) grc721.TokenID {
 	tid := grc.nextTokenID()
 	grc.tokens.Set(string(tid), &NFToken{
 		owner:   to,
@@ -51,11 +52,11 @@ func (grc *token) Mint(to std.Address, data string) grc721.TokenID {
 	return tid
 }
 
-func (grc *token) BalanceOf(owner std.Address) (count int64) {
+func (grc *token) BalanceOf(owner chain.Address) (count int64) {
 	panic("not yet implemented")
 }
 
-func (grc *token) OwnerOf(tid grc721.TokenID) std.Address {
+func (grc *token) OwnerOf(tid grc721.TokenID) chain.Address {
 	token, ok := grc.getToken(tid)
 	if !ok {
 		panic("token does not exist")
@@ -64,7 +65,7 @@ func (grc *token) OwnerOf(tid grc721.TokenID) std.Address {
 }
 
 // XXX not fully implemented yet.
-func (grc *token) SafeTransferFrom(from, to std.Address, tid grc721.TokenID) {
+func (grc *token) SafeTransferFrom(from, to chain.Address, tid grc721.TokenID) {
 	grc.TransferFrom(from, to, tid)
 	// When transfer is complete, this function checks if `_to` is a smart
 	// contract (code size > 0). If so, it calls `onERC721Received` on
@@ -73,8 +74,8 @@ func (grc *token) SafeTransferFrom(from, to std.Address, tid grc721.TokenID) {
 	// XXX ensure "to" is a realm with onERC721Received() signature.
 }
 
-func (grc *token) TransferFrom(from, to std.Address, tid grc721.TokenID) {
-	caller := std.CallerAt(2)
+func (grc *token) TransferFrom(from, to chain.Address, tid grc721.TokenID) {
+	caller := runtime.CallerAt(2)
 	token, ok := grc.getToken(tid)
 	// Throws if `_tokenId` is not a valid NFT.
 	if !ok {
@@ -84,7 +85,7 @@ func (grc *token) TransferFrom(from, to std.Address, tid grc721.TokenID) {
 	// operator, or the approved address for this NFT.
 	if caller != token.owner && caller != token.approved {
 		operator, ok := grc.operators.Get(token.owner.String())
-		if !ok || caller != operator.(std.Address) {
+		if !ok || caller != operator.(chain.Address) {
 			panic("unauthorized")
 		}
 	}
@@ -100,8 +101,8 @@ func (grc *token) TransferFrom(from, to std.Address, tid grc721.TokenID) {
 	token.owner = to
 }
 
-func (grc *token) Approve(approved std.Address, tid grc721.TokenID) {
-	caller := std.CallerAt(2)
+func (grc *token) Approve(approved chain.Address, tid grc721.TokenID) {
+	caller := runtime.CallerAt(2)
 	token, ok := grc.getToken(tid)
 	// Throws if `_tokenId` is not a valid NFT.
 	if !ok {
@@ -111,7 +112,7 @@ func (grc *token) Approve(approved std.Address, tid grc721.TokenID) {
 	// or an authorized operator.
 	if caller != token.owner {
 		operator, ok := grc.operators.Get(token.owner.String())
-		if !ok || caller != operator.(std.Address) {
+		if !ok || caller != operator.(chain.Address) {
 			panic("unauthorized")
 		}
 	}
@@ -120,12 +121,12 @@ func (grc *token) Approve(approved std.Address, tid grc721.TokenID) {
 }
 
 // XXX make it work for set of operators.
-func (grc *token) SetApprovalForAll(operator std.Address, approved bool) {
-	caller := std.CallerAt(2)
+func (grc *token) SetApprovalForAll(operator chain.Address, approved bool) {
+	caller := runtime.CallerAt(2)
 	grc.operators.Set(caller.String(), operator)
 }
 
-func (grc *token) GetApproved(tid grc721.TokenID) std.Address {
+func (grc *token) GetApproved(tid grc721.TokenID) chain.Address {
 	token, ok := grc.getToken(tid)
 	// Throws if `_tokenId` is not a valid NFT.
 	if !ok {
@@ -135,10 +136,10 @@ func (grc *token) GetApproved(tid grc721.TokenID) std.Address {
 }
 
 // XXX make it work for set of operators
-func (grc *token) IsApprovedForAll(owner, operator std.Address) bool {
+func (grc *token) IsApprovedForAll(owner, operator chain.Address) bool {
 	operator2, ok := grc.operators.Get(owner.String())
 	if !ok {
 		return false
 	}
-	return operator == operator2.(std.Address)
+	return operator == operator2.(chain.Address)
 }

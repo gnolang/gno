@@ -1,7 +1,7 @@
 package btree_dao
 
 import (
-	"std"
+	"chain"
 	"strings"
 	"testing"
 	"time"
@@ -12,7 +12,7 @@ import (
 )
 
 func setupTest() {
-	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
+	testing.SetOriginCaller(chain.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
 	members = btree.New()
 }
 
@@ -82,12 +82,12 @@ func TestRegistrationDetailsOrdering(t *testing.T) {
 	setupTest()
 
 	rd1 := &RegistrationDetails{
-		Address: std.Address("test1"),
+		Address: chain.Address("test1"),
 		RegTime: time.Now(),
 		NFTID:   "0",
 	}
 	rd2 := &RegistrationDetails{
-		Address: std.Address("test2"),
+		Address: chain.Address("test2"),
 		RegTime: time.Now().Add(time.Hour),
 		NFTID:   "1",
 	}

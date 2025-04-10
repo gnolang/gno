@@ -1,7 +1,8 @@
 package grc721
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -52,8 +53,8 @@ func TestBalanceOf(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	addr1 := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
-	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	addr1 := chain.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr2 := chain.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 	balanceAddr1, err := dummy.BalanceOf(addr1)
 	uassert.NoError(t, err, "should not result in error")
@@ -77,8 +78,8 @@ func TestOwnerOf(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	addr1 := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
-	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	addr1 := chain.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr2 := chain.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 	owner, err := dummy.OwnerOf(TokenID("invalid"))
 	uassert.Error(t, err, "should not result in error")
@@ -101,8 +102,8 @@ func TestIsApprovedForAll(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	addr1 := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
-	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	addr1 := chain.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr2 := chain.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 	isApprovedForAll := dummy.IsApprovedForAll(addr1, addr2)
 	uassert.False(t, isApprovedForAll)
@@ -112,8 +113,8 @@ func TestSetApprovalForAll(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := std.PreviousRealm().Address()
-	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	caller := runtime.PreviousRealm().Address()
+	addr := chain.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	// Test setting approval to true
 	isApprovedForAll := dummy.IsApprovedForAll(caller, addr)
@@ -145,8 +146,8 @@ func TestApprove(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := std.PreviousRealm().Address()
-	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	caller := runtime.PreviousRealm().Address()
+	addr := chain.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	dummy.mint(caller, TokenID("1"))
 
@@ -165,8 +166,8 @@ func TestTransferFrom(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := std.PreviousRealm().Address()
-	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	caller := runtime.PreviousRealm().Address()
+	addr := chain.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	dummy.mint(caller, TokenID("1"))
 	dummy.mint(caller, TokenID("2"))
@@ -194,8 +195,8 @@ func TestSafeTransferFrom(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	caller := std.PreviousRealm().Address()
-	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	caller := runtime.PreviousRealm().Address()
+	addr := chain.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	dummy.mint(caller, TokenID("1"))
 	dummy.mint(caller, TokenID("2"))
@@ -223,8 +224,8 @@ func TestMint(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	addr1 := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
-	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	addr1 := chain.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr2 := chain.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 	err := dummy.Mint(addr1, TokenID("1"))
 	uassert.NoError(t, err, "should not result in error")
@@ -247,7 +248,7 @@ func TestBurn(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr := chain.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	dummy.mint(addr, TokenID("1"))
 	dummy.mint(addr, TokenID("2"))
@@ -264,8 +265,8 @@ func TestSetTokenURI(t *testing.T) {
 	dummy := NewBasicNFT(dummyNFTName, dummyNFTSymbol)
 	uassert.True(t, dummy != nil, "should not be nil")
 
-	addr1 := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
-	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	addr1 := chain.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr2 := chain.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 	tokenURI := "http://example.com/token"
 
 	testing.SetOriginCaller(addr1) // addr1

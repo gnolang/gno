@@ -1,7 +1,7 @@
 package evaluation
 
 import (
-	"std"
+	"chain"
 	"time"
 )
 
@@ -9,7 +9,7 @@ var contributionStatus = map[string]string{}
 
 type Contribution struct {
 	id               int
-	contributor      std.Address
+	contributor      chain.Address
 	status           string // approved, proposed, negotiation, discussion, evaluation, etc.
 	votes            []Vote
 	tallyResult      TallyResult
@@ -26,7 +26,7 @@ func init() {
 	contributionStatus["Negotiated"] = "Negotiated"
 }
 
-func NewContribution(id int, contributor std.Address) *Contribution {
+func NewContribution(id int, contributor chain.Address) *Contribution {
 	c := &Contribution{
 		id:          id,
 		contributor: contributor,

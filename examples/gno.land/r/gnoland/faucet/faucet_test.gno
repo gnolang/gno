@@ -1,7 +1,8 @@
 package faucet_test
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -10,8 +11,8 @@ import (
 
 func TestPackage(t *testing.T) {
 	var (
-		adminaddr        = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-		faucetaddr       = std.DerivePkgAddr("gno.land/r/gnoland/faucet")
+		adminaddr        = chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+		faucetaddr       = chain.DerivePkgAddr("gno.land/r/gnoland/faucet")
 		controlleraddr1  = testutils.TestAddress("controller1")
 		controlleraddr2  = testutils.TestAddress("controller2")
 		controlleraddr3  = testutils.TestAddress("controller3")
@@ -27,7 +28,7 @@ func TestPackage(t *testing.T) {
 		test1addr = testutils.TestAddress("test1")
 	)
 	// deposit 1000gnot to faucet contract
-	testing.IssueCoins(faucetaddr, std.Coins{{"ugnot", 1000000000}})
+	testing.IssueCoins(faucetaddr, banker.Coins{{"ugnot", 1000000000}})
 	assertBalance(t, faucetaddr, 1000000000)
 
 	// by default, balance is empty, and as a user I cannot call Transfer, or Admin commands.
@@ -103,9 +104,9 @@ func assertNoErr(t *testing.T, err string) {
 	}
 }
 
-func assertBalance(t *testing.T, addr std.Address, expectedBal int64) {
+func assertBalance(t *testing.T, addr chain.Address, expectedBal int64) {
 	t.Helper()
-	banker := std.NewBanker(std.BankerTypeReadonly)
+	banker := banker.NewBanker(banker.BankerTypeReadonly)
 	coins := banker.GetCoins(addr)
 	got := coins.AmountOf("ugnot")
 

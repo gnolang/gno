@@ -1,7 +1,8 @@
 package dao
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -27,7 +28,7 @@ func TestProxy_Functions(t *testing.T) {
 	})
 
 	// invalid package cannot add a new dao in charge
-	testing.SetRealm(std.NewCodeRealm(invalid))
+	testing.SetRealm(runtime.NewCodeRealm(invalid))
 	urequire.PanicsWithMessage(t, "permission denied for prev realm: gno.land/r/invalid/dao", func() {
 		UpdateImpl(UpdateRequest{
 			DAO: &dummyDao{},
@@ -35,7 +36,7 @@ func TestProxy_Functions(t *testing.T) {
 	})
 
 	// dao in charge can add a new dao
-	testing.SetRealm(std.NewCodeRealm(v3))
+	testing.SetRealm(runtime.NewCodeRealm(v3))
 	urequire.NotPanics(t, func() {
 		UpdateImpl(UpdateRequest{
 			DAO: &dummyDao{},
@@ -43,7 +44,7 @@ func TestProxy_Functions(t *testing.T) {
 	})
 
 	// v3 that is in charge adds v5 in charge
-	testing.SetRealm(std.NewCodeRealm(v3))
+	testing.SetRealm(runtime.NewCodeRealm(v3))
 	urequire.NotPanics(t, func() {
 		UpdateImpl(UpdateRequest{
 			DAO:         &dummyDao{},
@@ -52,7 +53,7 @@ func TestProxy_Functions(t *testing.T) {
 	})
 
 	// v3 can still do updates
-	testing.SetRealm(std.NewCodeRealm(v3))
+	testing.SetRealm(runtime.NewCodeRealm(v3))
 	urequire.NotPanics(t, func() {
 		UpdateImpl(UpdateRequest{
 			AllowedDAOs: []string{v4},
@@ -60,7 +61,7 @@ func TestProxy_Functions(t *testing.T) {
 	})
 
 	// not after removing himself from allowedDAOs list
-	testing.SetRealm(std.NewCodeRealm(v3))
+	testing.SetRealm(runtime.NewCodeRealm(v3))
 	urequire.PanicsWithMessage(t, "permission denied for prev realm: gno.land/r/gov/dao/v3/impl", func() {
 		UpdateImpl(UpdateRequest{
 			AllowedDAOs: []string{v3},
@@ -68,7 +69,7 @@ func TestProxy_Functions(t *testing.T) {
 	})
 
 	var pid ProposalID
-	testing.SetRealm(std.NewUserRealm(alice))
+	testing.SetRealm(runtime.NewUserRealm(alice))
 	urequire.NotPanics(t, func() {
 		e := NewSimpleExecutor(
 			func() error {
@@ -97,7 +98,7 @@ func TestProxy_Functions(t *testing.T) {
 	)
 
 	// reset state
-	testing.SetRealm(std.NewCodeRealm(v4))
+	testing.SetRealm(runtime.NewCodeRealm(v4))
 	UpdateImpl(UpdateRequest{
 		DAO:         &dummyDao{},
 		AllowedDAOs: []string{},
@@ -107,8 +108,8 @@ func TestProxy_Functions(t *testing.T) {
 type dummyDao struct {
 }
 
-func (dd *dummyDao) PreCreateProposal(ctx *Context, r ProposalRequest) (std.Address, error) {
-	return std.OriginCaller(), nil
+func (dd *dummyDao) PreCreateProposal(ctx *Context, r ProposalRequest) (chain.Address, error) {
+	return runtime.OriginCaller(), nil
 }
 
 func (dd *dummyDao) PostCreateProposal(ctx *Context, r ProposalRequest, pid ProposalID) {

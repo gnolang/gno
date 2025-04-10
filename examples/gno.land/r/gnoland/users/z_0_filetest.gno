@@ -1,7 +1,7 @@
 package main
 
 import (
-	"std"
+	"chain/runtime"
 
 	"gno.land/r/gnoland/users"
 	"gno.land/r/gov/dao"
@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	c := std.OriginCaller()
+	c := runtime.OriginCaller()
 	init.InitWithUsers(c)
 	pReq := users.ProposeNewRelease("gno.land/r/gnoland/users/v2", "This is a note!")
 

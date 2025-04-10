@@ -1,7 +1,7 @@
 package impl
 
 import (
-	"std"
+	"chain/runtime"
 	"strconv"
 	"strings"
 
@@ -46,9 +46,9 @@ func NewRender(d *GovDAO) *render {
 }
 
 func (ren *render) Render(path string, pkg string) string {
-	relativePath, found := strings.CutPrefix(pkg, std.ChainDomain())
+	relativePath, found := strings.CutPrefix(pkg, runtime.ChainDomain())
 	if !found {
-		panic(ufmt.Sprintf("realm package with unexpected name found: %v in chain domain %v", pkg, std.ChainDomain()))
+		panic(ufmt.Sprintf("realm package with unexpected name found: %v in chain domain %v", pkg, runtime.ChainDomain()))
 	}
 
 	ren.relativeRealmPath = relativePath

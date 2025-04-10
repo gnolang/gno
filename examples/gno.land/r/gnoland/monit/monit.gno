@@ -7,7 +7,8 @@
 package monit
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"time"
 
 	"gno.land/p/demo/ownable"
@@ -18,7 +19,7 @@ import (
 var (
 	counter          int
 	lastUpdate       time.Time
-	lastCaller       std.Address
+	lastCaller       chain.Address
 	wd               = watchdog.Watchdog{Duration: 5 * time.Minute}
 	Ownable          = ownable.New() // TODO: replace with -> ownable.NewWithAddress...
 	watchdogDuration = 5 * time.Minute
@@ -29,7 +30,7 @@ var (
 func Incr() int {
 	counter++
 	lastUpdate = time.Now()
-	lastCaller = std.PreviousRealm().Address()
+	lastCaller = runtime.PreviousRealm().Address()
 	wd.Alive()
 	return counter
 }
@@ -40,7 +41,7 @@ func Reset() {
 	Ownable.AssertCallerIsOwner()
 
 	counter = 0
-	lastCaller = std.PreviousRealm().Address()
+	lastCaller = runtime.PreviousRealm().Address()
 	lastUpdate = time.Now()
 	wd = watchdog.Watchdog{Duration: 5 * time.Minute}
 }

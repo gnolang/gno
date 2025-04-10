@@ -1,20 +1,23 @@
 package config
 
-import "std"
+import (
+	"chain"
+	"chain/runtime"
+)
 
-var addr = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @moul
+var addr = chain.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @moul
 
-func Addr() std.Address {
+func Addr() chain.Address {
 	return addr
 }
 
-func UpdateAddr(newAddr std.Address) {
+func UpdateAddr(newAddr chain.Address) {
 	AssertIsAdmin()
 	addr = newAddr
 }
 
 func AssertIsAdmin() {
-	if std.OriginCaller() != addr {
+	if runtime.OriginCaller() != addr {
 		panic("restricted area")
 	}
 }

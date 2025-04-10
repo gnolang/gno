@@ -2,8 +2,9 @@
 package wugnot_test
 
 import (
+	"chain"
+	"chain/banker"
 	"fmt"
-	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -12,15 +13,15 @@ import (
 
 var (
 	addr1 = testutils.TestAddress("test1")
-	addrc = std.DerivePkgAddr("gno.land/r/demo/wugnot")
-	addrt = std.DerivePkgAddr("gno.land/r/demo/wugnot_test")
+	addrc = chain.DerivePkgAddr("gno.land/r/demo/wugnot")
+	addrt = chain.DerivePkgAddr("gno.land/r/demo/wugnot_test")
 )
 
 func main() {
-	testing.IssueCoins(addrc, std.Coins{{"ugnot", 100000001}}) // TODO: remove this
+	testing.IssueCoins(addrc, banker.Coins{{"ugnot", 100000001}}) // TODO: remove this
 
 	// issue ugnots
-	testing.IssueCoins(addr1, std.Coins{{"ugnot", 100000001}})
+	testing.IssueCoins(addr1, banker.Coins{{"ugnot", 100000001}})
 
 	// print initial state
 	printBalances()
@@ -28,7 +29,7 @@ func main() {
 	// println("A -", wugnot.Render(""))
 
 	testing.SetOriginCaller(addr1)
-	testing.SetOriginSend(std.Coins{{"ugnot", 123_400}})
+	testing.SetOriginSend(banker.Coins{{"ugnot", 123_400}})
 	wugnot.Deposit()
 	printBalances()
 	wugnot.Withdraw(4242)
@@ -36,10 +37,10 @@ func main() {
 }
 
 func printBalances() {
-	printSingleBalance := func(name string, addr std.Address) {
+	printSingleBalance := func(name string, addr chain.Address) {
 		wugnotBal := wugnot.BalanceOf(addr)
 		testing.SetOriginCaller(addr)
-		robanker := std.NewBanker(std.BankerTypeReadonly)
+		robanker := banker.NewBanker(banker.BankerTypeReadonly)
 		coins := robanker.GetCoins(addr).AmountOf("ugnot")
 		fmt.Printf("| %-13s | addr=%s | wugnot=%-5d | ugnot=%-9d |\n",
 			name, addr, wugnotBal, coins)

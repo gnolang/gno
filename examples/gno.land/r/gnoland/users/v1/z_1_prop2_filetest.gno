@@ -3,7 +3,8 @@ package main
 // SEND: 1000000ugnot
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -15,7 +16,7 @@ import (
 
 // Test updating a name via GovDAO
 
-var c std.Address = std.OriginCaller()
+var c chain.Address = runtime.OriginCaller()
 
 func init() {
 	init.InitWithUsers(c)
@@ -24,14 +25,14 @@ func init() {
 
 	// Register alice
 	testing.SetOriginCaller(alice)
-	testing.SetRealm(std.NewUserRealm(alice))
+	testing.SetRealm(runtime.NewUserRealm(alice))
 	users.Register("alice123")
 
 	// Prop to change name
 	pr := users.ProposeDeleteUser(alice, "Change alice's name!")
 
 	testing.SetOriginCaller(c)
-	testing.SetRealm(std.NewUserRealm(c))
+	testing.SetRealm(runtime.NewUserRealm(c))
 	dao.MustCreateProposal(pr)
 }
 

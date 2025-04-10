@@ -1,7 +1,7 @@
 package use_rsysusers
 
 import (
-	"std"
+	"chain"
 
 	"gno.land/r/sys/users" // Import the user registry
 )
@@ -26,9 +26,9 @@ usernames and addresses in their realms. Check out the example below.
 	}
 
 	// If the user inputted an address
-	if std.Address(path).IsValid() {
+	if chain.Address(path).IsValid() {
 		// Try resolving an address
-		data := users.ResolveAddress(std.Address(path))
+		data := users.ResolveAddress(chain.Address(path))
 		if data != nil {
 			out += "## Found the user you're looking for: "
 			// RenderLink will return a clickable gnoweb link leading to the user's page

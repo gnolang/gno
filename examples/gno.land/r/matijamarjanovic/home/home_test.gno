@@ -1,7 +1,8 @@
 package home
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
 	"strings"
 	"testing"
 
@@ -11,7 +12,7 @@ import (
 
 // Helper function to set up test environment
 func setupTest() {
-	testing.SetOriginCaller(std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
+	testing.SetOriginCaller(chain.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"))
 }
 
 func TestUpdatePFP(t *testing.T) {
@@ -38,8 +39,8 @@ func TestVoteModern(t *testing.T) {
 	setupTest()
 	modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
-	coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
-	coinsSpent := std.NewCoins(std.NewCoin("ugnot", 1))
+	coinsSent := banker.NewCoins(banker.NewCoin("ugnot", 75000000))
+	coinsSpent := banker.NewCoins(banker.NewCoin("ugnot", 1))
 
 	testing.SetOriginSend(coinsSent)
 	testing.SetOriginSpend(coinsSpent)
@@ -53,8 +54,8 @@ func TestVoteClassic(t *testing.T) {
 	setupTest()
 	modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
-	coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
-	coinsSpent := std.NewCoins(std.NewCoin("ugnot", 1))
+	coinsSent := banker.NewCoins(banker.NewCoin("ugnot", 75000000))
+	coinsSpent := banker.NewCoins(banker.NewCoin("ugnot", 1))
 
 	testing.SetOriginSend(coinsSent)
 	testing.SetOriginSpend(coinsSpent)
@@ -68,8 +69,8 @@ func TestVoteMinimal(t *testing.T) {
 	setupTest()
 	modernVotes, classicVotes, minimalVotes = 0, 0, 0
 
-	coinsSent := std.NewCoins(std.NewCoin("ugnot", 75000000))
-	coinsSpent := std.NewCoins(std.NewCoin("ugnot", 1))
+	coinsSent := banker.NewCoins(banker.NewCoin("ugnot", 75000000))
+	coinsSpent := banker.NewCoins(banker.NewCoin("ugnot", 1))
 
 	testing.SetOriginSend(coinsSent)
 	testing.SetOriginSpend(coinsSpent)

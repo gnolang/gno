@@ -1,7 +1,7 @@
 package home
 
 import (
-	"std"
+	"chain/banker"
 	"strconv"
 	"strings"
 
@@ -74,7 +74,7 @@ func UpdateSelectedImage(url string) {
 		panic("Url is not valid!")
 	}
 
-	sentCoins := std.OriginSend()
+	sentCoins := banker.OriginSend()
 
 	if len(sentCoins) != 1 || sentCoins.AmountOf("ugnot") != imageUpdatePrice {
 		panic("Please send exactly " + strconv.Itoa(int(imageUpdatePrice)) + " ugnot")

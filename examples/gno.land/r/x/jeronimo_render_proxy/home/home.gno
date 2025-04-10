@@ -1,7 +1,7 @@
 package home
 
 import (
-	"std"
+	"chain/runtime"
 	"strings"
 )
 
@@ -24,8 +24,8 @@ func Register(fn RenderFn) {
 		panic("render function must not be nil")
 	}
 
-	proxyPath := std.CurrentRealm().PkgPath()
-	callerPath := std.PreviousRealm().PkgPath()
+	proxyPath := runtime.CurrentRealm().PkgPath()
+	callerPath := runtime.PreviousRealm().PkgPath()
 	if !strings.HasPrefix(callerPath, proxyPath+"/") {
 		panic("caller realm path must start with " + proxyPath)
 	}
@@ -36,7 +36,7 @@ func Register(fn RenderFn) {
 
 // URL returns a URL that links to the proxy realm.
 func URL(renderPath string) string {
-	url := "http://" + std.CurrentRealm().PkgPath()
+	url := "http://" + runtime.CurrentRealm().PkgPath()
 	if renderPath != "" {
 		url += ":" + renderPath
 	}

@@ -1,7 +1,7 @@
 package keystore
 
 import (
-	"std"
+	"chain"
 	"strings"
 	"testing"
 
@@ -12,13 +12,13 @@ import (
 
 func TestRender(t *testing.T) {
 	var (
-		author1 std.Address = testutils.TestAddress("author1")
-		author2 std.Address = testutils.TestAddress("author2")
+		author1 chain.Address = testutils.TestAddress("author1")
+		author2 chain.Address = testutils.TestAddress("author2")
 	)
 
 	tt := []struct {
-		caller std.Address
-		owner  std.Address
+		caller chain.Address
+		owner  chain.Address
 		ps     []string
 		exp    string
 	}{

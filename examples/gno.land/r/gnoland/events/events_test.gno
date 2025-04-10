@@ -1,7 +1,7 @@
 package events
 
 import (
-	"std"
+	"chain/runtime"
 	"strings"
 	"testing"
 	"time"
@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	suRealm = std.NewUserRealm(su)
+	suRealm = runtime.NewUserRealm(su)
 
 	now              = "2009-02-13T23:31:30Z" // time.Now() is hardcoded to this value in the gno test machine currently
 	parsedTimeNow, _ = time.Parse(time.RFC3339, now)

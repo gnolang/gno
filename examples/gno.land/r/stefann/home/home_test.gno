@@ -1,7 +1,8 @@
 package home
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
 	"strings"
 	"testing"
 
@@ -10,7 +11,7 @@ import (
 )
 
 func TestUpdateAboutMe(t *testing.T) {
-	owner := std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
+	owner := chain.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
 	testing.SetOriginCaller(owner)
 
 	profile.aboutMe = []string{}
@@ -31,7 +32,7 @@ func TestUpdateAboutMe(t *testing.T) {
 }
 
 func TestUpdateCities(t *testing.T) {
-	owner := std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
+	owner := chain.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
 	testing.SetOriginCaller(owner)
 
 	travel.cities = []City{}
@@ -53,7 +54,7 @@ func TestUpdateCities(t *testing.T) {
 }
 
 func TestUpdateJarLink(t *testing.T) {
-	owner := std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
+	owner := chain.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
 	testing.SetOriginCaller(owner)
 
 	travel.jarLink = ""
@@ -66,7 +67,7 @@ func TestUpdateJarLink(t *testing.T) {
 }
 
 func TestUpdateMaxSponsors(t *testing.T) {
-	owner := std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
+	owner := chain.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
 	testing.SetOriginCaller(owner)
 
 	sponsorship.maxSponsors = 0
@@ -86,7 +87,7 @@ func TestUpdateMaxSponsors(t *testing.T) {
 }
 
 func TestAddCities(t *testing.T) {
-	owner := std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
+	owner := chain.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
 	testing.SetOriginCaller(owner)
 
 	travel.cities = []City{}
@@ -114,7 +115,7 @@ func TestAddCities(t *testing.T) {
 }
 
 func TestAddAboutMeRows(t *testing.T) {
-	owner := std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
+	owner := chain.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8")
 	testing.SetOriginCaller(owner)
 
 	profile.aboutMe = []string{}
@@ -147,7 +148,7 @@ func TestDonate(t *testing.T) {
 	sponsorship.sponsorsCount = 0
 	travel.currentCityIndex = 0
 
-	coinsSent := std.NewCoins(std.NewCoin("ugnot", 500))
+	coinsSent := banker.NewCoins(banker.NewCoin("ugnot", 500))
 	testing.SetOriginSend(coinsSent)
 	Donate()
 
@@ -156,8 +157,8 @@ func TestDonate(t *testing.T) {
 		t.Fatalf("expected sponsor to be added, but it was not found")
 	}
 
-	if existingAmount.(std.Coins).AmountOf("ugnot") != 500 {
-		t.Fatalf("expected donation amount to be 500ugnot, got %d", existingAmount.(std.Coins).AmountOf("ugnot"))
+	if existingAmount.(banker.Coins).AmountOf("ugnot") != 500 {
+		t.Fatalf("expected donation amount to be 500ugnot, got %d", existingAmount.(banker.Coins).AmountOf("ugnot"))
 	}
 
 	if sponsorship.DonationsCount != 1 {
@@ -172,7 +173,7 @@ func TestDonate(t *testing.T) {
 		t.Fatalf("expected currentCityIndex to be 1, got %d", travel.currentCityIndex)
 	}
 
-	coinsSent = std.NewCoins(std.NewCoin("ugnot", 300))
+	coinsSent = banker.NewCoins(banker.NewCoin("ugnot", 300))
 	testing.SetOriginSend(coinsSent)
 	Donate()
 
@@ -181,8 +182,8 @@ func TestDonate(t *testing.T) {
 		t.Fatalf("expected sponsor to exist after second donation, but it was not found")
 	}
 
-	if existingAmount.(std.Coins).AmountOf("ugnot") != 800 {
-		t.Fatalf("expected total donation amount to be 800ugnot, got %d", existingAmount.(std.Coins).AmountOf("ugnot"))
+	if existingAmount.(banker.Coins).AmountOf("ugnot") != 800 {
+		t.Fatalf("expected total donation amount to be 800ugnot, got %d", existingAmount.(banker.Coins).AmountOf("ugnot"))
 	}
 
 	if sponsorship.DonationsCount != 2 {
@@ -201,9 +202,9 @@ func TestGetTopSponsors(t *testing.T) {
 	sponsorship.sponsors = avl.NewTree()
 	sponsorship.sponsorsCount = 0
 
-	sponsorship.sponsors.Set("g1address1", std.NewCoins(std.NewCoin("ugnot", 300)))
-	sponsorship.sponsors.Set("g1address2", std.NewCoins(std.NewCoin("ugnot", 500)))
-	sponsorship.sponsors.Set("g1address3", std.NewCoins(std.NewCoin("ugnot", 200)))
+	sponsorship.sponsors.Set("g1address1", banker.NewCoins(banker.NewCoin("ugnot", 300)))
+	sponsorship.sponsors.Set("g1address2", banker.NewCoins(banker.NewCoin("ugnot", 500)))
+	sponsorship.sponsors.Set("g1address3", banker.NewCoins(banker.NewCoin("ugnot", 200)))
 	sponsorship.sponsorsCount = 3
 
 	topSponsors := GetTopSponsors()
@@ -232,9 +233,9 @@ func TestGetTotalDonations(t *testing.T) {
 	sponsorship.sponsors = avl.NewTree()
 	sponsorship.sponsorsCount = 0
 
-	sponsorship.sponsors.Set("g1address1", std.NewCoins(std.NewCoin("ugnot", 300)))
-	sponsorship.sponsors.Set("g1address2", std.NewCoins(std.NewCoin("ugnot", 500)))
-	sponsorship.sponsors.Set("g1address3", std.NewCoins(std.NewCoin("ugnot", 200)))
+	sponsorship.sponsors.Set("g1address1", banker.NewCoins(banker.NewCoin("ugnot", 300)))
+	sponsorship.sponsors.Set("g1address2", banker.NewCoins(banker.NewCoin("ugnot", 500)))
+	sponsorship.sponsors.Set("g1address3", banker.NewCoins(banker.NewCoin("ugnot", 200)))
 	sponsorship.sponsorsCount = 3
 
 	totalDonations := GetTotalDonations()

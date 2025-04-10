@@ -1,6 +1,6 @@
 package dao
 
-import "std"
+import "chain/runtime"
 
 // dao is the actual govDAO implementation, having all the needed business logic
 var dao DAO
@@ -129,7 +129,7 @@ func GetProposal(pid ProposalID) (*Proposal, error) {
 // If AllowedDAOs field is not set correctly, the actual DAO
 // implementation wont be able to execute new Proposals!
 func UpdateImpl(r UpdateRequest) {
-	realm := std.PreviousRealm().PkgPath()
+	realm := runtime.PreviousRealm().PkgPath()
 
 	if !InAllowedDAOs(realm) {
 		panic("permission denied for prev realm: " + realm)
@@ -158,7 +158,7 @@ func InAllowedDAOs(pkg string) bool {
 
 func context() *Context {
 	return &Context{
-		PrevRealm:    std.PreviousRealm(),
-		CurrentRealm: std.CurrentRealm(),
+		PrevRealm:    runtime.PreviousRealm(),
+		CurrentRealm: runtime.CurrentRealm(),
 	}
 }
