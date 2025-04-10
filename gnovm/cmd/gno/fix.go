@@ -80,10 +80,23 @@ func execFix(cfg *fixCfg, args []string, io commands.IO) error {
 		if err != nil {
 			return err
 		}
-		// set if any of the fixes changed the AST>
+		// set if any of the fixes changed the AST.
 		fixed := false
 		for _, fx := range fix.Fixes {
-			fixed = fx.F(parsed) || fixed
+			// wrap in anonymous func so we can recover and wrap errors with file name.
+			func() {
+				defer func() {
+					rec := recover()
+					switch rec := rec.(type) {
+					case nil:
+					case error:
+						panic(fmt.Errorf("%s: %w", file, rec))
+					default:
+						panic(fmt.Errorf("%s: %v", file, rec))
+					}
+				}()
+				fixed = fx.F(parsed) || fixed
+			}()
 		}
 		if !fixed {
 			// onto the next file.
