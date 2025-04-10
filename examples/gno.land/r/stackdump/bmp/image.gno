@@ -1,14 +1,28 @@
 package bmp
 
 import (
-	"encoding/base64"
+    "net/url"
 	"gno.land/p/demo/ufmt"
 	"strings"
 )
 
 var (
     pixels = NewGrid(50)
+    published = false
+    bounds = Bounds{
+        X1: 10,
+        Y1: 15,
+        X2: 40,
+        Y2: 45,
+    }
 )
+
+type Bounds struct {
+    X1 int
+    Y1 int
+    X2 int
+    Y2 int
+}
 
 type ColorPixel struct {
 	X int
@@ -22,11 +36,14 @@ type ColorPixel struct {
 func GetPixels() []ColorPixel {
     return pixels
 }
+// REVIEW: tuned the bounds to 10-40 and 15-45 to constraint the image
+// 30x30 seems to be about the largest size we can render in SVG without hitting the limit
 
 func SetPixel(x, y, r, g, b int) {
-    // if x < 0 || x > 49 || y < 0 || y > 49 {
-    // REVIEW: tuned the bounds to 10-40 and 15-45 to avoid hitting the output allocation limit
-    if x < 10 || x > 40 || y < 15 || y > 45 {
+    if published {
+        panic("Cannot set pixel after publishing")
+    }
+    if x < bounds.X1 || x > bounds.X2 || y < bounds.Y1 || y > bounds.Y2 {
         return
     }
     if r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255 {
@@ -41,9 +58,14 @@ func SetPixel(x, y, r, g, b int) {
     }
 }
 
+func Publish() {
+    published = true
+}
+
 func Render(path string) string {
-	return "![bmp](data:image/svg+xml;base64," +
-		base64.StdEncoding.EncodeToString([]byte(GenerateSVG())) + ")"
+	svg := GenerateSVG()
+	escaped := url.PathEscape(svg)
+	return "![bmp](data:image/svg+xml;utf8," + escaped + ")"
 }
 
 func GenerateSVG() string {
@@ -54,7 +76,21 @@ func GenerateSVG() string {
 
 	// Compute viewbox
 	var maxX, maxY int
+	var minX, minY int
 	for _, p := range pixels {
+	    if p.R == 0 && p.G == 0 && p.B == 0 {
+	       continue // Skip black pixels
+        }
+        if minX == 0 && minY == 0 {
+            minX = p.X
+            minY = p.Y
+        }
+	    if p.X < minX {
+            minX = p.X
+        }
+        if p.Y < minY {
+            minY = p.Y
+        }
 		if p.X > maxX {
 			maxX = p.X
 		}
@@ -62,12 +98,14 @@ func GenerateSVG() string {
 			maxY = p.Y
 		}
 	}
-	width := (maxX + 1) * tileSize
-	height := (maxY + 1) * tileSize
+	minX = minX * tileSize
+	minY = minY * tileSize
+	width := (maxX - minX + 1) * tileSize
+	height := (maxY - minY + 1) * tileSize
 
 	sb.WriteString(ufmt.Sprintf(
-		`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 %d %d">`,
-		width, height))
+		`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="%d %d %d %d">`,
+		minX, minY, width, height))
 
 	sb.WriteString(`
   <defs>
@@ -76,7 +114,6 @@ func GenerateSVG() string {
   <style>
 `)
 
-	// Generate unique CSS classes per RGB color
 	colorClassMap := make(map[string]string)
 	classCount := 0
 	for _, p := range pixels {
@@ -86,14 +123,12 @@ func GenerateSVG() string {
 			colorClassMap[key] = className
 			classCount++
 			sb.WriteString(ufmt.Sprintf("  .%s { fill: rgb(%d,%d,%d); }\n", className, p.R, p.G, p.B))
-			sb.WriteString(ufmt.Sprintf("  .%s:hover { opacity: 0.8; }\n", className))
 		}
 	}
 
 	sb.WriteString("  </style>\n")
 
-    sb.WriteString("<g transform=\"translate(-13, -21) scale(1.5, 1.5) \">\n")
-	// Add <use> tags per pixel
+    sb.WriteString("<g id="bmp-image">\n")
 	for _, p := range pixels {
 	    if p.R == 0 && p.G == 0 && p.B == 0 {
             continue // Skip black pixels
@@ -119,15 +154,7 @@ func NewGrid(size ...int) []ColorPixel {
     pixels := make([][]ColorPixel, gridSize)
     for i := range pixels {
         pixels[i] = make([]ColorPixel, gridSize)
-        for j := range pixels[i] {
-            pixels[i][j] = ColorPixel{
-                X: i,
-                Y: j,
-                R: 0,
-                G: 0,
-                B: 0,
-            }
-        }
+        for j := range pixels[i] { pixels[i][j] = ColorPixel{}}
     }
 
     // Flatten the 2D slice into a 1D slice
@@ -139,6 +166,16 @@ func NewGrid(size ...int) []ColorPixel {
     return flatPixels
 }
 
+
+// extend the image by calling SetPixel from another realm
+const example = `
+import (
+    image "gno.land/r/stackdump/bmp"
+)
+
 func init() {
-    // extend this image by calling SetPixel from another realm
+    p := image.SetPixel
+    p(0, 0, 81, 101, 170) // set pixel at (0, 0) to color (81, 101, 170)
+    image.Publish() // finalize the image
 }
+` // example
