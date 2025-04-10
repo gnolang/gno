@@ -248,15 +248,15 @@ func DefaultGenState() GnoGenesisState {
 
 func ValidateGenState(state GnoGenesisState) error {
 	if err := auth.ValidateGenesis(state.Auth); err != nil {
-		return err
+		return fmt.Errorf("unable to validate auth state: %w", err)
 	}
 
 	if err := bank.ValidateGenesis(state.Bank); err != nil {
-		return err
+		return fmt.Errorf("unable to validate bank state: %w", err)
 	}
 
 	if err := vmm.ValidateGenesis(state.VM); err != nil {
-		return err
+		return fmt.Errorf("unable to validate vm state: %w", err)
 	}
 
 	return nil
