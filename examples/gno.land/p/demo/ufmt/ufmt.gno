@@ -7,9 +7,12 @@ package ufmt
 
 import (
 	"errors"
+	// "fmt"
 	"io"
+	"math"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -32,13 +35,120 @@ func (b *buffer) writeRune(r rune) {
 	*b = utf8.AppendRune(*b, r)
 }
 
+// the different flags
+const (
+	flagHashtag uint8 = 1
+	flagZero    uint8 = 1 << 1
+	flagMinus   uint8 = 1 << 2
+	flagSpace   uint8 = 1 << 3
+	flagPlus    uint8 = 1 << 4
+)
+
+// the different len modifiers
+const (
+	lenNo uint8 = iota
+	lenHH
+	lenH
+	lenL
+	lenLL
+	lenZ
+)
+
+type printerMeta struct {
+	flags     uint8
+	padding   uint
+	length    uint8
+	width     uint
+	precision int
+}
+
 // printer holds state for formatting operations.
 type printer struct {
-	buf buffer
+	buf  buffer
+	meta printerMeta
+}
+
+func strtoi(s string) (int, string) {
+	i := 0
+	for i < len(s) && unicode.IsDigit(rune(s[i])) {
+		i++
+	}
+	if i == 0 {
+		return 0, s
+	}
+	num, err := strconv.Atoi(s[:i])
+	if err != nil {
+		return 0, s
+	}
+	return num, s[i:]
+}
+
+// parse the flags
+// parse the flags
+func (p *printer) parse(str string, index *int) {
+	*index++
+	if str[*index] == '#' {
+		p.meta.flags |= flagHashtag
+		*index++
+	}
+	c2f := map[byte]uint8{
+		'-': flagMinus,
+		'+': flagPlus,
+		' ': flagSpace,
+		'0': flagZero,
+	}
+	stop := false
+	for {
+		x, ok := c2f[str[*index]]
+		switch {
+		case ok:
+			p.meta.flags |= x
+			*index++
+		case unicode.IsNumber(rune(str[*index])):
+			n, rest := strtoi(str[*index:])
+			if rest == str {
+				continue
+			}
+			p.meta.padding = uint(n)
+			*index += len(strconv.Itoa(n))
+		case str[*index] == '.':
+			*index++
+			n, rest := strtoi(str[*index:])
+			p.meta.precision = n // 0 by default, not an error
+			if rest == str[*index:] {
+				continue
+			}
+			*index += len(strconv.Itoa(n))
+		default:
+			stop = true
+		}
+		if stop {
+			break
+		}
+	}
+	for k, v := range map[string]uint8{
+		"ll": lenLL,
+		"l":  lenL,
+		"h":  lenH,
+		"hh": lenHH,
+		"z":  lenZ,
+	} {
+		if str[*index:*index+len(k)-1] == k {
+			p.meta.length = v
+			*index += len(k)
+			break
+		}
+	}
+	*index--
 }
 
 func newPrinter() *printer {
-	return &printer{}
+	return &printer{
+		buf:  buffer{},
+		meta: printerMeta{
+			precision: 6,
+		},
+	}
 }
 
 // Sprint formats using the default formats for its operands and returns the resulting string.
@@ -150,6 +260,8 @@ func (p *printer) doPrintf(format string, args []any) {
 			continue
 		}
 
+		p.parse(format, &i)
+
 		verb := sTor[i+1]
 		if verb == '%' {
 			p.buf.writeRune('%')
@@ -170,14 +282,14 @@ func (p *printer) doPrintf(format string, args []any) {
 			writeString(p, verb, arg)
 		case 'c':
 			writeChar(p, verb, arg)
-		case 'd':
+		case 'd', 'i':
 			writeInt(p, verb, arg)
 		case 'e', 'E', 'f', 'F', 'g', 'G':
 			writeFloat(p, verb, arg)
 		case 't':
 			writeBool(p, verb, arg)
-		case 'x':
-			writeHex(p, verb, arg)
+		case 'x', 'X':
+			writeHex(p, verb, arg, verb == 'X')
 		case 'q':
 			writeQuotedString(p, verb, arg)
 		case 'T':
@@ -276,53 +388,65 @@ func writeChar(p *printer, verb rune, arg any) {
 	}
 }
 
-// writeInt handles %d formatting
+// writeInt handles %d & %i formatting
 func writeInt(p *printer, verb rune, arg any) {
+	var subBuf string
 	switch v := arg.(type) {
 	case int:
-		p.buf.writeString(strconv.Itoa(v))
+		subBuf = strconv.Itoa(v)
 	case int8:
-		p.buf.writeString(strconv.Itoa(int(v)))
+		subBuf = strconv.Itoa(int(v))
 	case int16:
-		p.buf.writeString(strconv.Itoa(int(v)))
+		subBuf = strconv.Itoa(int(v))
 	case int32:
-		p.buf.writeString(strconv.Itoa(int(v)))
+		subBuf = strconv.Itoa(int(v))
 	case int64:
-		p.buf.writeString(strconv.Itoa(int(v)))
+		subBuf = strconv.Itoa(int(v))
 	case uint:
-		p.buf.writeString(strconv.FormatUint(uint64(v), 10))
+		subBuf = strconv.FormatUint(uint64(v), 10)
 	case uint8:
-		p.buf.writeString(strconv.FormatUint(uint64(v), 10))
+		subBuf = strconv.FormatUint(uint64(v), 10)
 	case uint16:
-		p.buf.writeString(strconv.FormatUint(uint64(v), 10))
+		subBuf = strconv.FormatUint(uint64(v), 10)
 	case uint32:
-		p.buf.writeString(strconv.FormatUint(uint64(v), 10))
+		subBuf = strconv.FormatUint(uint64(v), 10)
 	case uint64:
-		p.buf.writeString(strconv.FormatUint(v, 10))
+		subBuf = strconv.FormatUint(v, 10)
 	default:
-		p.buf.writeString(fallback(verb, v))
+		subBuf = fallback(verb, v)
 	}
+	if p.meta.flags&flagSpace != 0 {
+		subBuf = strings.Repeat(" ", int(math.Max(0, float64(int(p.meta.padding)-len(subBuf))))) + subBuf
+	} else if p.meta.flags&flagZero != 0 {
+		subBuf = strings.Repeat("0", int(math.Max(0, float64(int(p.meta.padding)-len(subBuf))))) + subBuf
+	}
+	p.buf.writeString(subBuf)
 }
 
 // writeFloat handles floating-point formatting verbs
 func writeFloat(p *printer, verb rune, arg any) {
+	var subBuf string
+	bits := 64
+	n := 0.
 	switch v := arg.(type) {
 	case float64:
-		switch verb {
-		case 'e':
-			p.buf.writeString(strconv.FormatFloat(v, 'e', -1, 64))
-		case 'E':
-			p.buf.writeString(strconv.FormatFloat(v, 'E', -1, 64))
-		case 'f', 'F':
-			p.buf.writeString(strconv.FormatFloat(v, 'f', 6, 64))
-		case 'g':
-			p.buf.writeString(strconv.FormatFloat(v, 'g', -1, 64))
-		case 'G':
-			p.buf.writeString(strconv.FormatFloat(v, 'G', -1, 64))
-		}
+		bits = 64
+		n = v
+	case float32:
+		bits = 32
+		n = float64(v)
 	default:
 		p.buf.writeString(fallback(verb, v))
+		return
 	}
+	prec := -1
+	verbChar := byte(verb)
+	if verbChar == 'f' || verbChar == 'F' {
+		prec = p.meta.precision
+		verbChar = 'f'
+	}
+	subBuf = strconv.FormatFloat(n, verbChar, prec, bits)
+	p.buf.writeString(subBuf)
 }
 
 // writeBool handles %t formatting
@@ -340,13 +464,29 @@ func writeBool(p *printer, verb rune, arg any) {
 }
 
 // writeHex handles %x formatting
-func writeHex(p *printer, verb rune, arg any) {
+func writeHex(p *printer, verb rune, arg any, big bool) {
+	var subBuf string
 	switch v := arg.(type) {
-	case uint8:
-		p.buf.writeString(strconv.FormatUint(uint64(v), 16))
+	case uint:
+		subBuf += strconv.FormatUint(uint64(v), 16)
+	case int:
+		subBuf += strconv.FormatUint(uint64(v), 16)
 	default:
 		p.buf.writeString("(unhandled)")
+		return
 	}
+	if p.meta.flags&flagSpace != 0 {
+		subBuf = strings.Repeat(" ", int(math.Max(0, float64(int(p.meta.padding)-len(subBuf))))) + subBuf
+	} else if p.meta.flags&flagZero != 0 {
+		subBuf = strings.Repeat("0", int(math.Max(0, float64(int(p.meta.padding)-len(subBuf))))) + subBuf
+	}
+	if p.meta.flags&flagHashtag != 0 {
+		subBuf = "0x" + subBuf
+	}
+	if big {
+		subBuf = strings.ToUpper(subBuf)
+	}
+	p.buf.writeString(subBuf)
 }
 
 // writeQuotedString handles %q formatting

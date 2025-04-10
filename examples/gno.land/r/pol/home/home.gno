@@ -8,8 +8,8 @@ import (
 	"gno.land/p/moul/txlink"
 	"gno.land/p/pol/dao"
 	sdao "gno.land/p/pol/dao/simple"
-	"gno.land/p/pol/uufmt"
-	"gno.land/p/pol/nfmt"
+	// "gno.land/p/pol/uufmt"
+	_"gno.land/p/pol/nfmt"
 	// "gno.land/p/pol/unsafe"
 )
 
@@ -121,11 +121,11 @@ func renderIntroduction() string {
 	out += "Hi my name is Paul, I'm a developer and welcome to my page !\n\n"
 	out += "### Go check out my super game: [gnominers](/r/pol/gnominers) !\n\n"
 	out += "### Check out my own [DAO implementation](/r/pol/home:dao) !\n\n"
-	x, err := nfmt.Format(1_000_000)
-	out += uufmt.Sprintf("hello %.2f\n\n", 3.141592)
-	if err == nil {
-		out += "number: " + x + "\n\n"
-	}
+	// x, err := nfmt.Format(1_000_000)
+	// out += uufmt.Sprintf("hello %.2f\n\n", 3.141592)
+	// if err == nil {
+	// 	out += "number: " + x + "\n\n"
+	// }
 	return out
 }
 

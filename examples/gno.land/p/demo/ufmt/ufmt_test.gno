@@ -20,12 +20,24 @@ func TestSprintf(t *testing.T) {
 		values         []any
 		expectedOutput string
 	}{
+		// normal usage
 		{"hello %s!", []any{"planet"}, "hello planet!"},
 		{"hello %v!", []any{"planet"}, "hello planet!"},
 		{"hi %%%s!", []any{"worl%d"}, "hi %worl%d!"},
 		{"%s %c %d %t", []any{"foo", 'α', 421, true}, "foo α 421 true"},
 		{"string [%s]", []any{"foo"}, "string [foo]"},
+
+		// ints
 		{"int [%d]", []any{int(42)}, "int [42]"},
+		{"int [%03d]", []any{int(42)}, "int [042]"},
+		{"int [%010d]", []any{int(42)}, "int [0000000042]"},
+		{"int [% 10d]", []any{int(42)}, "int [        42]"},
+		{"hex [%x]", []any{int(42)}, "hex [2a]"},
+		{"hex [%X]", []any{int(42)}, "hex [2A]"},
+		{"hex [%02x]", []any{int(42)}, "hex [2a]"},
+		{"hex [%03x]", []any{int(42)}, "hex [02a]"},
+		{"hex [%#03x]", []any{int(42)}, "hex [0x02a]"},
+		{"hex [%#03X]", []any{int(42)}, "hex [0X02A]"},
 		{"int [%v]", []any{int(42)}, "int [42]"},
 		{"int8 [%d]", []any{int8(8)}, "int8 [8]"},
 		{"int8 [%v]", []any{int8(8)}, "int8 [8]"},
@@ -45,16 +57,27 @@ func TestSprintf(t *testing.T) {
 		{"uint32 [%v]", []any{uint32(32)}, "uint32 [32]"},
 		{"uint64 [%d]", []any{uint64(64)}, "uint64 [64]"},
 		{"uint64 [%v]", []any{uint64(64)}, "uint64 [64]"},
+
+		// floats
 		{"float64 [%e]", []any{float64(64.1)}, "float64 [6.41e+01]"},
 		{"float64 [%E]", []any{float64(64.1)}, "float64 [6.41E+01]"},
 		{"float64 [%f]", []any{float64(64.1)}, "float64 [64.100000]"},
+		{"float64 [%.2f]", []any{float64(64.1)}, "float64 [64.10]"},
+		{"float32 [%.1f]", []any{float32(64.1)}, "float32 [64.1]"},
+		{"float64 [%.f]", []any{float64(64.1)}, "float64 [64]"},
+		{"float64 [%.0f]", []any{float64(64.1)}, "float64 [64]"},
+		{"float64 [%.1f]", []any{float64(64.1)}, "float64 [64.1]"},
 		{"float64 [%F]", []any{float64(64.1)}, "float64 [64.100000]"},
 		{"float64 [%g]", []any{float64(64.1)}, "float64 [64.1]"},
 		{"float64 [%G]", []any{float64(64.1)}, "float64 [64.1]"},
+
+		// bool
 		{"bool [%t]", []any{true}, "bool [true]"},
 		{"bool [%v]", []any{true}, "bool [true]"},
 		{"bool [%t]", []any{false}, "bool [false]"},
 		{"bool [%v]", []any{false}, "bool [false]"},
+
+		// errros/special cases
 		{"no args", nil, "no args"},
 		{"finish with %", nil, "finish with %"},
 		{"stringer [%s]", []any{stringer{}}, "stringer [I'm a stringer]"},
