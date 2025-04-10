@@ -26,9 +26,9 @@ func renderDashboard() string {
 	if len(daoMap) == 0 {
 		out += "_No DAOs created yet._\n"
 	} else {
-		for id := range daoMap {
-			out += "- " + md.Link("DAO: "+id, "/r/moonia/home?dao="+id) + "\n"
-		}
+		for id, dao := range daoMap {
+			out += "- " + md.Link(dao.Name, "/r/moonia/home?dao="+id) + " : " + dao.Description
+		}		
 	}
 	out += "\n## 👥 My DAOs:\n"
 	// TODO: display addr DAOs
