@@ -129,6 +129,7 @@ func TestWebHandler_NoRender(t *testing.T) {
 		Files: map[string]string{
 			"render.gno": `package main; func init() {}`,
 			"gno.mod":    `module gno.land/r/mock/path`,
+			"README.md":  `# Mock Package\n\nThis is a mock package.`,
 		},
 	}
 
@@ -148,8 +149,8 @@ func TestWebHandler_NoRender(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code, "unexpected status code")
-	expectedBody := "This realm does not implement a Render() function."
-	assert.Contains(t, rr.Body.String(), expectedBody, "rendered body should contain: %q", expectedBody)
+	assert.Contains(t, rr.Body.String(), "README.md", "should display directory view with README.md")
+	assert.Contains(t, rr.Body.String(), "Mock Package", "should display README.md content")
 }
 
 // TestWebHandler_GetSourceDownload tests the source file download functionality
