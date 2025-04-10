@@ -97,3 +97,15 @@ func SetClosure(f func()) {
 
 	Closure = f
 }
+
+var Object any
+
+func SetObject(x any) {
+	switchrealm()
+
+	Object = x
+}
+
+func GetObject() any {
+	return Object
+}

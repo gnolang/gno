@@ -1883,7 +1883,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
 				rlm = objpv.GetRealm()
 				m.Realm = rlm
-				fr.DidSwitch = true // XXX test this.
+				fr.DidSwitch = true
 				return
 			}
 		}

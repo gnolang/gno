@@ -41,3 +41,7 @@ func SetObject(x any) {
 
 	Object = x
 }
+
+func GetObject() any {
+	return Object
+}
