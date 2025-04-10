@@ -35,6 +35,7 @@ func TestGenesis_Verify(t *testing.T) {
 					Name:    "valid validator",
 				},
 			},
+			AppState: gnoland.DefaultGenState(),
 		}
 	}
 
@@ -70,18 +71,16 @@ func TestGenesis_Verify(t *testing.T) {
 	t.Run("invalid tx signature", func(t *testing.T) {
 		t.Parallel()
 
-		g := getValidTestGenesis()
-
 		testTable := []struct {
 			name        string
-			signBytesFn func(tx *std.Tx) []byte
+			signBytesFn func(tx *std.Tx, chainID string) []byte
 		}{
 			{
 				name: "invalid chain ID",
-				signBytesFn: func(tx *std.Tx) []byte {
+				signBytesFn: func(tx *std.Tx, chainID string) []byte {
 					// Sign the transaction, but with a chain ID
 					// that differs from the genesis chain ID
-					signBytes, err := tx.GetSignBytes(g.ChainID+"wrong", 0, 0)
+					signBytes, err := tx.GetSignBytes(chainID+"wrong", 0, 0)
 					require.NoError(t, err)
 
 					return signBytes
@@ -89,10 +88,10 @@ func TestGenesis_Verify(t *testing.T) {
 			},
 			{
 				name: "invalid account params",
-				signBytesFn: func(tx *std.Tx) []byte {
+				signBytesFn: func(tx *std.Tx, chainID string) []byte {
 					// Sign the transaction, but with an
 					// account number that is not 0
-					signBytes, err := tx.GetSignBytes(g.ChainID, 10, 0)
+					signBytes, err := tx.GetSignBytes(chainID, 10, 0)
 					require.NoError(t, err)
 
 					return signBytes
@@ -106,6 +105,9 @@ func TestGenesis_Verify(t *testing.T) {
 
 				tempFile, cleanup := testutils.NewTestFile(t)
 				t.Cleanup(cleanup)
+
+				// Generate the genesis
+				g := getValidTestGenesis()
 
 				// Generate the transaction
 				signer := ed25519.GenPrivKey()
@@ -125,7 +127,7 @@ func TestGenesis_Verify(t *testing.T) {
 				}
 
 				// Sign the transaction
-				signBytes := testCase.signBytesFn(&tx)
+				signBytes := testCase.signBytesFn(&tx, g.ChainID)
 
 				signature, err := signer.Sign(signBytes)
 				require.NoError(t, err)
@@ -135,14 +137,13 @@ func TestGenesis_Verify(t *testing.T) {
 					Signature: signature,
 				})
 
-				g.AppState = gnoland.GnoGenesisState{
-					Balances: []gnoland.Balance{},
-					Txs: []gnoland.TxWithMetadata{
-						{
-							Tx: tx,
-						},
+				appState := g.AppState.(gnoland.GnoGenesisState)
+				appState.Txs = []gnoland.TxWithMetadata{
+					{
+						Tx: tx,
 					},
 				}
+				g.AppState = appState
 
 				require.NoError(t, g.SaveAs(tempFile.Name()))
 
@@ -196,11 +197,6 @@ func TestGenesis_Verify(t *testing.T) {
 		t.Cleanup(cleanup)
 
 		g := getValidTestGenesis()
-		g.AppState = gnoland.GnoGenesisState{
-			Balances: []gnoland.Balance{},
-			Txs:      []gnoland.TxWithMetadata{},
-		}
-
 		require.NoError(t, g.SaveAs(tempFile.Name()))
 
 		// Create the command
