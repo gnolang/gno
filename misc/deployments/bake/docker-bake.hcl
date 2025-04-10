@@ -87,9 +87,9 @@ target "common" {
 target "gnoland" {
   inherits = ["common"]
   target = "gnoland"
-  tags = [
-    "ghcr.io/gnolang/gno/gnoland:${TAG}"
-  ]
+  # tags = [
+  #   "ghcr.io/gnolang/gno/gnoland:${TAG}"
+  # ]
   labels = {
     "org.opencontainers.image.title" = "${PROJECT_NAME}/gnoland"
   }
