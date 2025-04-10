@@ -2,11 +2,13 @@ package gnoweb
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/yuin/goldmark/parser"
 )
 
 // JSONParam represents a function parameter in JSON format
@@ -18,6 +20,18 @@ type JSONParam struct {
 // JSONResult represents a function result in JSON format
 type JSONResult struct {
 	Type string `json:"type"`
+}
+
+// errorWriter is a writer that always fails
+type errorWriter struct{}
+
+func (w *errorWriter) Write(p []byte) (int, error) {
+	return 0, fmt.Errorf("write error")
+}
+
+// dummyGnoURL creates a dummy GnoURL for testing
+func dummyGnoURL(path string) *weburl.GnoURL {
+	return &weburl.GnoURL{Path: path}
 }
 
 // --- Unit Tests ---
@@ -87,6 +101,31 @@ func TestSourceFile(t *testing.T) {
 	}
 	if meta.Lines != metaRaw.Lines {
 		t.Error("number of lines should be identical in raw and formatted mode")
+	}
+}
+
+// TestSourceFileNilWriter verifies that SourceFile returns metadata when writer is nil
+func TestSourceFileNilWriter(t *testing.T) {
+	// Create a mock package with a source file
+	mockPkg := &MockPackage{
+		Path: "test/pkg",
+		Files: map[string]string{
+			"test.gno": "package main\n\nfunc main() { println(\"Hello\") }",
+		},
+	}
+	client := NewMockWebClient(mockPkg)
+
+	// Test with nil writer
+	meta, err := client.SourceFile(nil, "test/pkg", "test.gno", false)
+	if err != nil {
+		t.Fatalf("SourceFile returned an error: %v", err)
+	}
+	if meta == nil {
+		t.Fatal("metadata should not be nil")
+	}
+	// Only check Lines if meta is not nil
+	if meta.Lines != 3 {
+		t.Errorf("expected 3 lines, got %d", meta.Lines)
 	}
 }
 
@@ -172,6 +211,45 @@ func TestRenderMd(t *testing.T) {
 	}
 }
 
+// TestRenderMdNotFound verifies error handling when markdown file is not found
+func TestRenderMdNotFound(t *testing.T) {
+	// Create a mock package
+	mockPkg := &MockPackage{
+		Path:  "test/pkg",
+		Files: map[string]string{
+			// No markdown files
+		},
+	}
+	client := NewMockWebClient(mockPkg)
+
+	var buf bytes.Buffer
+	url := dummyGnoURL("test/pkg")
+	_, err := client.RenderMd(&buf, url, "nonexistent.md")
+	if err == nil {
+		t.Error("expected an error when file is not found")
+	}
+}
+
+// TestRenderMdWriteError verifies error handling when writing rendered content fails
+func TestRenderMdWriteError(t *testing.T) {
+	// Create a mock package with a markdown file
+	mockPkg := &MockPackage{
+		Path: "test/pkg",
+		Files: map[string]string{
+			"test.md": "# Test\n\nThis is a test.",
+		},
+	}
+	client := NewMockWebClient(mockPkg)
+
+	// Use errorWriter to simulate write failure
+	errorWriter := &errorWriter{}
+	url := dummyGnoURL("test/pkg")
+	_, err := client.RenderMd(errorWriter, url, "test.md")
+	if err == nil {
+		t.Error("expected an error when writing fails")
+	}
+}
+
 // TestParseMarkdown verifies markdown parsing and rendering.
 func TestParseMarkdown(t *testing.T) {
 	// Create a mock package with a markdown file
@@ -195,6 +273,51 @@ func TestParseMarkdown(t *testing.T) {
 	rendered := buf.String()
 	if !strings.Contains(rendered, "<h1") {
 		t.Error("HTML rendering should contain <h1> tag")
+	}
+}
+
+// TestParseMarkdownWithContext verifies markdown parsing with context options
+func TestParseMarkdownWithContext(t *testing.T) {
+	// Create a mock package
+	mockPkg := &MockPackage{
+		Path: "test/pkg",
+	}
+	client := NewMockWebClient(mockPkg)
+
+	markdownContent := []byte("# Hello\n\nThis is a *test* markdown.")
+	var buf bytes.Buffer
+
+	// Create a dummy context option
+	ctxOpt := parser.WithContext(parser.NewContext())
+
+	node, err := client.ParseMarkdown(&buf, markdownContent, ctxOpt)
+	if err != nil {
+		t.Fatalf("ParseMarkdown returned an error: %v", err)
+	}
+	if node == nil {
+		t.Error("AST should not be nil")
+	}
+	rendered := buf.String()
+	if !strings.Contains(rendered, "<h1") {
+		t.Error("HTML rendering should contain <h1> tag")
+	}
+}
+
+// TestParseMarkdownError verifies error handling in markdown parsing
+func TestParseMarkdownError(t *testing.T) {
+	// Create a mock package
+	mockPkg := &MockPackage{
+		Path: "test/pkg",
+	}
+	client := NewMockWebClient(mockPkg)
+
+	// Create a writer that will fail
+	errorWriter := &errorWriter{}
+	markdownContent := []byte("# Hello\n\nThis is a *test* markdown.")
+
+	_, err := client.ParseMarkdown(errorWriter, markdownContent)
+	if err == nil {
+		t.Error("expected an error when writer fails")
 	}
 }
 
