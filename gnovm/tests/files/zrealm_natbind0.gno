@@ -1,14 +1,12 @@
 // PKGPATH: gno.land/r/test
 package test
 
-import (
-	"std"
-)
+import "chain/runtime"
 
 var node any
 
 func init() {
-	node = std.ChainHeight
+	node = runtime.ChainHeight
 }
 
 func main() {
@@ -17,7 +15,7 @@ func main() {
 	// to convert the types to builtin go/gno identifiers).
 	f := node.(func() int64)
 	println(f())
-	node = std.ChainID
+	node = runtime.ChainID
 	g := node.(func() string)
 	println(g())
 }
@@ -46,16 +44,16 @@ func main() {
 //     -                "NativeName": "ChainHeight",
 //     +                "Name": "ChainID",
 //     +                "NativeName": "ChainID",
-//                      "NativePkg": "std",
-//                      "PkgPath": "std",
+//                      "NativePkg": "chain/runtime",
+//                      "PkgPath": "chain/runtime",
 //                      "Source": {
 //     @@ -54,7 +54,7 @@
 //                          "Location": {
 //                              "Column": "1",
 //                              "File": "native.gno",
-//     -                        "Line": "11",
-//     +                        "Line": "9",
-//                              "PkgPath": "std"
+//     -                        "Line": "15",
+//     +                        "Line": "13",
+//                              "PkgPath": "chain/runtime"
 //                          }
 //                      },
 //     @@ -69,7 +69,7 @@
@@ -67,4 +65,4 @@ func main() {
 //                                  }
 //                              }
 //                          ]
-// u[a7f5397443359ea76c50be82c77f1f893a060925:10]=(noop)
+// u[c09c8277a76bf0c457fdf56bd592edcdcf839a50:5]=(noop)

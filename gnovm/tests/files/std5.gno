@@ -11,12 +11,12 @@ func main() {
 
 // Stacktrace:
 // panic: frame not found
-// callerAt<VPBlock(3,50)>(n<VPBlock(1,0)>)
-//     gonative:std.callerAt
-// std<VPBlock(2,0)>.CallerAt(2)
-//     std/native.gno:37
+// callerAt<VPBlock(3,11)>(n<VPBlock(1,0)>)
+//     gonative:chain/runtime.callerAt
+// runtime<VPBlock(2,0)>.CallerAt(2)
+//     chain/runtime/native.gno:32
 // main<VPBlock(1,0)>()
-//     main/files/std5.gno:10
+//     main/files/std5.gno:8
 
 // Error:
 // frame not found

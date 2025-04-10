@@ -1,12 +1,10 @@
 // PKGPATH: gno.land/r/test
 package test
 
-import (
-	"std"
-)
+import "chain/runtime"
 
 func main() {
-	println(std.ChainDomain())
+	println(runtime.ChainDomain())
 }
 
 // Output:
