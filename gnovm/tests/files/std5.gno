@@ -5,18 +5,18 @@ import (
 )
 
 func main() {
-	caller1 := std.CallerAt(1)
-	println(caller1)
-	caller2 := std.CallerAt(2)
-	println(caller2)
+	realm1 := std.CurrentRealm()
+	println(realm1)
+	realm2 := std.PreviousRealm()
+	println(realm2)
 }
 
 // Stacktrace:
 // panic: frame not found
-// callerAt<VPBlock(3,52)>(n<VPBlock(1,0)>)
-//     gonative:std.callerAt
-// ref(std).CallerAt(2)
-//     std/native.gno:41
+// getRealm<VPBlock(3,51)>(1)
+//     gonative:std.getRealm
+// ref(std).PreviousRealm()
+//     std/native.gno:32
 // main<VPBlock(1,0)>()
 //     main/files/std5.gno:10
 

@@ -142,7 +142,7 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 	}
 
 	if switches != height {
-		panic("height too large")
+		m.Panic(typedString("frame not found"))
 	}
 
 	// Special case if package initialization.
