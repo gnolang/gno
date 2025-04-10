@@ -4,6 +4,7 @@ import (
 	"std"
 	"strconv"
 	"time"
+	"strings"
 )
 
 func GetBlockTime() int64 {
@@ -28,4 +29,21 @@ func ParseIndex(indexStr string, max int) int {
 		panic("Proposal does not exist.")
 	}
 	return index
+}
+
+func ParseQuery(path string) (daoID string, showStats bool) {
+	parts := strings.Split(path, "?")
+	if len(parts) < 2 {
+		return "", false
+	}
+
+	args := strings.Split(parts[1], "&")
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "dao=") {
+			daoID = arg[len("dao="):]
+		} else if arg == "stats" {
+			showStats = true
+		}
+	}
+	return
 }

@@ -5,7 +5,6 @@ import (
 	"gno.land/p/moul/md"
 	"gno.land/p/moonia/dao"
 	"gno.land/p/moonia/utils"
-	"strings"
 )
 
 var ds DAOState
@@ -66,32 +65,16 @@ func Render(path string) string {
 	if path == "/" || path == "" {
 		return renderDashboard()
 	}
-	parts := strings.Split(path, "?")
-	if len(parts) > 1 {
-		query := parts[1]
-		args := strings.Split(query, "&")
-
-		var daoID string
-		showStats := false
-
-		for _, arg := range args {
-			if strings.HasPrefix(arg, "dao=") {
-				daoID = arg[len("dao="):]
-			} else if arg == "stats" {
-				showStats = true
-			}
-		}
-		d := daoMap[daoID]
-		if d == nil {
-			return "DAO not found: `" + daoID + "`"
-		}
-		ds.DAO = d
-		ds.Proposals = proposalMap[daoID]
-
-		if showStats {
-			return renderDAOStats()
-		}
-		return renderDAO()
+	daoID, showStats := utils.ParseQuery(path)
+	d := daoMap[daoID]
+	if d == nil {
+		return "DAO not found: `" + daoID + "`"
 	}
-	return "Unknown path or query: `" + path + "`"
+	ds.DAO = d
+	ds.Proposals = proposalMap[daoID]
+
+	if showStats {
+		return renderDAOStats()
+	}
+	return renderDAO()
 }
