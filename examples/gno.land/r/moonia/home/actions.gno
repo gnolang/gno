@@ -31,9 +31,33 @@ func ListMembers() map[std.Address]bool {
 	return ds.DAO.Whitelist
 }
 
+// func AcceptRequest(addr std.Address) string {
+// 	return ds.DAO.AcceptRequest(addr)
+// }
+
+// func DeclineRequest(addr std.Address) string {
+// 	return ds.DAO.DeclineRequest(addr)
+// }
+
+func ListRequests() map[std.Address]bool {
+	return ds.DAO.ListRequests()
+}
+
 // DAO Methods //
 
-// TODO:
+func CreateDAO(id, name, desc string) string {
+	if daoMap[id] != nil {
+		return "DAO with this ID already exists."
+	}
+	newDAO := dao.NewDAO(name, desc)
+	daoMap[id] = newDAO
+	proposalMap[id] = dao.NewProposalStore(newDAO)
+
+	newDAO.SetAdmin()
+
+	return "DAO '" + id + "' created with name: " + name
+}
+
 // func RequestDAO() string {
 // 	return ds.DAO.RequestDAO()
 // }

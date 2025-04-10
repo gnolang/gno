@@ -7,15 +7,25 @@ import (
 )
 
 type DAO struct {
-	Admin     std.Address
-	Whitelist map[std.Address]bool
+	Admin     	std.Address
+	Whitelist 	map[std.Address]bool
+	Requests  	map[std.Address]bool
+	Name        string
+	Description string
 }
 
-func NewDAO() *DAO {
+func NewDAO(name, desc string) *DAO {
 	return &DAO{
-		Admin:     "",
-		Whitelist: make(map[std.Address]bool),
+		Admin:      	"",
+		Whitelist:  	make(map[std.Address]bool),
+		Requests:   	make(map[std.Address]bool),
+		Name:       	name,
+		Description:	desc,
 	}
+}
+
+func (d *DAO) ListRequests() map[std.Address]bool {
+	return d.Requests
 }
 
 func (d *DAO) ShowAdmin() string {

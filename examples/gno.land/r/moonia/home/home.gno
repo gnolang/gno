@@ -5,9 +5,12 @@ import (
 	"gno.land/p/moul/md"
 	"gno.land/p/moonia/dao"
 	"gno.land/p/moonia/utils"
+	"strings"
 )
 
 var ds DAOState
+var daoMap map[string]*dao.DAO
+var proposalMap map[string]*dao.ProposalStore
 
 type DAOState struct {
 	DAO       *dao.DAO
@@ -15,13 +18,8 @@ type DAOState struct {
 }
 
 func init() {
-	myDao := dao.NewDAO()
-	myProps := dao.NewProposalStore(myDao)
-
-	ds = DAOState{
-		DAO:       myDao,
-		Proposals: myProps,
-	}
+	daoMap = make(map[string]*dao.DAO)
+	proposalMap = make(map[string]*dao.ProposalStore)
 }
 
 func countActive() int {
@@ -34,24 +32,66 @@ func countActive() int {
 	return count
 }
 
+func renderDAOStats() string {
+	out := "# Statistics for `" + ds.DAO.Name + "`\n"
+	totalProposals := len(ds.Proposals.Proposals)
+	activeProposals := countActive()
+	out += ds.DAO.Stats(totalProposals, activeProposals) + "\n"
+
+	return out
+}
+
 func renderDAO() string {
 	caller := utils.GetCaller()
-	out := "# Moonia's DAO\n\n"
+	out := "# " + ds.DAO.Name + "\n\n"
+	out += "_" + ds.DAO.Description + "_\n\n"
 	out += ds.DAO.ShowAdmin() + "\n\n"
-	out += ds.DAO.Stats(len(ds.Proposals.Proposals), countActive()) + "\n"
+
 	out += "## Actions:\n\n"
-	if ds.DAO.Admin == "" {
-		out += "- " + md.Link("Set Admin (once)", txlink.Call("SetAdmin")) + "\n"
+	if !ds.DAO.IsMember(caller) && ds.DAO.Admin != "" {
+		out += "- " + md.Link("Request to Join DAO", txlink.Call("RequestDAO")) + "\n"
 	}
-	out += "- " + md.Link("Transfer Admin", txlink.Call("TransferAdmin", "args", caller.String())) + "\n"
-	out += "- " + md.Link("Join DAO", txlink.Call("JoinDAO")) + "\n"
 	out += "- " + md.Link("Leave DAO", txlink.Call("LeaveDAO")) + "\n"
 	out += "- " + md.Link("Create Sample Proposal", txlink.Call("CreateProposalTest")) + "\n"
+	for id := range daoMap {
+		out += "- " + md.Link("View Stats", "/r/moonia/home?dao="+id+"&stats") + "\n"
+	}
+	out += "- " + md.Link("Transfer Admin", txlink.Call("TransferAdmin", "args", "addr")) + "\n"
 	out += ds.DAO.ShowWhitelist() + "\n"
 	out += ds.Proposals.ShowProposals()
 	return out
 }
 
 func Render(path string) string {
-	return renderDAO()
+	if path == "/" || path == "" {
+		return renderDashboard()
+	}
+	parts := strings.Split(path, "?")
+	if len(parts) > 1 {
+		query := parts[1]
+		args := strings.Split(query, "&")
+
+		var daoID string
+		showStats := false
+
+		for _, arg := range args {
+			if strings.HasPrefix(arg, "dao=") {
+				daoID = arg[len("dao="):]
+			} else if arg == "stats" {
+				showStats = true
+			}
+		}
+		d := daoMap[daoID]
+		if d == nil {
+			return "DAO not found: `" + daoID + "`"
+		}
+		ds.DAO = d
+		ds.Proposals = proposalMap[daoID]
+
+		if showStats {
+			return renderDAOStats()
+		}
+		return renderDAO()
+	}
+	return "Unknown path or query: `" + path + "`"
 }
