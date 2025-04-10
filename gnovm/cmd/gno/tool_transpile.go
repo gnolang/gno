@@ -142,10 +142,6 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 	opts := newTranspileOptions(cfg, io)
 	var errlist scanner.ErrorList
 	for _, path := range paths {
-		path, err = filepath.Abs(path)
-		if err != nil {
-			return err
-		}
 		st, err := os.Stat(path)
 		if err != nil {
 			return err
@@ -244,6 +240,11 @@ func transpilePkg(dirPath string, opts *transpileOptions) error {
 
 func transpileFile(srcPath string, opts *transpileOptions) error {
 	flags := opts.getFlags()
+
+	srcPath, err := filepath.Abs(srcPath)
+	if err != nil {
+		return fmt.Errorf("abs: %w", err)
+	}
 
 	// parse .gno.
 	source, err := os.ReadFile(srcPath)
