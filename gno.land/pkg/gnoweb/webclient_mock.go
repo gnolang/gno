@@ -7,8 +7,13 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/text"
 )
 
 // MockPackage represents a mock package with files and function signatures.
@@ -22,6 +27,7 @@ type MockPackage struct {
 // MockWebClient is a mock implementation of the Client interface.
 type MockWebClient struct {
 	Packages map[string]*MockPackage // path -> package
+	markdown goldmark.Markdown
 }
 
 func NewMockWebClient(pkgs ...*MockPackage) *MockWebClient {
@@ -30,7 +36,14 @@ func NewMockWebClient(pkgs ...*MockPackage) *MockWebClient {
 		mpkgs[pkg.Path] = pkg
 	}
 
-	return &MockWebClient{Packages: mpkgs}
+	return &MockWebClient{
+		Packages: mpkgs,
+		markdown: goldmark.New(
+			goldmark.WithExtensions(
+				markdown.GnoExtension,
+			),
+		),
+	}
 }
 
 // RenderRealm simulates rendering a package by writing its content to the writer.
@@ -59,7 +72,12 @@ func (m *MockWebClient) SourceFile(w io.Writer, pkgPath, fileName string, isRaw 
 	}
 
 	if body, ok := pkg.Files[fileName]; ok {
-		w.Write([]byte(body))
+		if w != nil {
+			_, err := w.Write([]byte(body))
+			if err != nil {
+				return nil, err
+			}
+		}
 		return &FileMeta{
 			Lines:  len(bytes.Split([]byte(body), []byte("\n"))),
 			SizeKb: float64(len(body)) / 1024.0,
@@ -105,11 +123,39 @@ func (m *MockWebClient) RenderMd(w io.Writer, u *weburl.GnoURL, fileName string)
 	}
 
 	if body, ok := pkg.Files[fileName]; ok {
-		w.Write([]byte(body))
+		// Parse and render the markdown
+		doc := m.markdown.Parser().Parse(text.NewReader([]byte(body)))
+		if err := m.markdown.Renderer().Render(w, []byte(body), doc); err != nil {
+			return nil, fmt.Errorf("unable to render markdown: %w", err)
+		}
+
 		return &RealmMeta{}, nil
 	}
 
 	return nil, ErrClientPathNotFound
+}
+
+// ParseMarkdown parses and renders Markdown content using Goldmark.
+func (m *MockWebClient) ParseMarkdown(w io.Writer, rawContent []byte, ctxOpts ...parser.ParseOption) (ast.Node, error) {
+	doc := m.markdown.Parser().Parse(text.NewReader(rawContent), ctxOpts...)
+	if err := m.markdown.Renderer().Render(w, rawContent, doc); err != nil {
+		return nil, fmt.Errorf("unable to render markdown: %w", err)
+	}
+	return doc, nil
+}
+
+// FormatSource simulates formatting source code with syntax highlighting.
+func (m *MockWebClient) FormatSource(w io.Writer, fileName string, source []byte) error {
+	// For testing, we just write the source as-is with a CSS class
+	fmt.Fprintf(w, "<pre class=\"chroma-\">%s</pre>", source)
+	return nil
+}
+
+// WriteFormatterCSS simulates writing CSS for syntax highlighting.
+func (m *MockWebClient) WriteFormatterCSS(w io.Writer) error {
+	// For testing, we just write a minimal CSS
+	_, err := w.Write([]byte(".chroma- { background-color: #f8f8f8; }"))
+	return err
 }
 
 func pkgHasRender(pkg *MockPackage) bool {
@@ -128,4 +174,50 @@ func pkgHasRender(pkg *MockPackage) bool {
 	}
 
 	return false
+}
+
+// ABCIResponse is a mock type for testing
+type ABCIResponse struct {
+	Data []byte
+}
+
+// ABCIQueryResponse is a mock type for testing
+type ABCIQueryResponse struct {
+	Response ABCIResponse
+}
+
+// dummyRPCClient is a mock RPC client for testing
+type dummyRPCClient struct{}
+
+func (c *dummyRPCClient) ABCIQuery(path string, data []byte) (*ABCIQueryResponse, error) {
+	// Mock responses based on the query path
+	switch path {
+	case "vm/qdoc":
+		return &ABCIQueryResponse{
+			Response: ABCIResponse{
+				Data: []byte(`{"title": "Documentation Test"}`),
+			},
+		}, nil
+	case "vm/qfile":
+		if strings.Contains(string(data), "test.gno") {
+			return &ABCIQueryResponse{
+				Response: ABCIResponse{
+					Data: []byte("package main\n\nfunc main() { println(\"Hello\") }"),
+				},
+			}, nil
+		}
+		return &ABCIQueryResponse{
+			Response: ABCIResponse{
+				Data: []byte("file1.gno\nfile2.gno"),
+			},
+		}, nil
+	case "vm/qrender":
+		return &ABCIQueryResponse{
+			Response: ABCIResponse{
+				Data: []byte("# Test Realm\n\nThis is a test realm."),
+			},
+		}, nil
+	default:
+		return nil, nil
+	}
 }
