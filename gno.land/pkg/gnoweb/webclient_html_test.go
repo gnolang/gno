@@ -211,6 +211,60 @@ func TestRenderMd(t *testing.T) {
 	}
 }
 
+func TestRenderMd_SourceFileError(t *testing.T) {
+	// Create a mock package without the markdown file
+	mockPkg := &MockPackage{
+		Path:  "test/pkg",
+		Files: map[string]string{},
+	}
+	client := NewMockWebClient(mockPkg)
+
+	url := &weburl.GnoURL{Path: "test/pkg"}
+	var buf bytes.Buffer
+	_, err := client.RenderMd(&buf, url, "nonexistent.md")
+	if err == nil {
+		t.Error("expected error when file does not exist")
+	}
+}
+
+func TestRenderMd_ParseError(t *testing.T) {
+	// Create a mock package with a markdown file
+	mockPkg := &MockPackage{
+		Path: "test/pkg",
+		Files: map[string]string{
+			"readme.md": "# Test Markdown\n\nThis is a test.",
+		},
+	}
+	client := NewMockWebClient(mockPkg)
+
+	url := &weburl.GnoURL{Path: "test/pkg"}
+	// Use errorWriter to simulate write error
+	errorWriter := &errorWriter{}
+	_, err := client.RenderMd(errorWriter, url, "readme.md")
+	if err == nil {
+		t.Error("expected error when writing fails")
+	}
+}
+
+func TestRenderMd_WriteError(t *testing.T) {
+	// Create a mock package with a markdown file
+	mockPkg := &MockPackage{
+		Path: "test/pkg",
+		Files: map[string]string{
+			"readme.md": "# Test Markdown\n\nThis is a test.",
+		},
+	}
+	client := NewMockWebClient(mockPkg)
+
+	url := &weburl.GnoURL{Path: "test/pkg"}
+	// Use errorWriter to simulate write failure
+	errorWriter := &errorWriter{}
+	_, err := client.RenderMd(errorWriter, url, "readme.md")
+	if err == nil {
+		t.Error("expected error when writing fails")
+	}
+}
+
 // TestRenderMdNotFound verifies error handling when markdown file is not found
 func TestRenderMdNotFound(t *testing.T) {
 	// Create a mock package
