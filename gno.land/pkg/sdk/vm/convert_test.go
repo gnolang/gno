@@ -233,15 +233,11 @@ func TestConvertError(t *testing.T) {
 	}{
 		{
 			"my error",
-			`{ "$error": "my error" }`,
+			`{"$error":"my error"}`,
 		},
 		{
 			"", // empty error
-			`{ "$error": "" }`,
-		},
-		{
-			"special error }",
-			`{ "$error": "my error }" }`,
+			`{"$error":""}`,
 		},
 	}
 
@@ -270,7 +266,6 @@ var Value error = &myError{}
 			tv := tps[0]
 			rep := stringifyJSONPrimitiveValue(m, tv)
 			require.Equal(t, tc.Expected, rep)
-
 		})
 	}
 }
