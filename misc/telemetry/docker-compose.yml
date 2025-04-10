@@ -20,8 +20,6 @@ services:
     volumes:
       - tempo:/var/tempo
       - ./tempo/tempo.yaml:/etc/tempo.yaml
-    ports:
-      - "3200:3200"
     networks:
       - gnoland-net
 
