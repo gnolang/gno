@@ -280,7 +280,8 @@ func apply(f ast.Node, pre, post func(*astutil.Cursor, scopes) bool) ast.Node {
 
 			n := c.Node()
 			switch n.(type) {
-			case *ast.BlockStmt,
+			case *ast.FuncDecl,
+				*ast.BlockStmt,
 				*ast.FuncLit,
 				*ast.IfStmt,
 				*ast.SwitchStmt,
