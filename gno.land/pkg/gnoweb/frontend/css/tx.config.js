@@ -49,10 +49,7 @@ export default {
       inherit: "inherit",
     },
     fontFamily: {
-      mono: [
-        "Roboto",
-        'Menlo, Consolas, "Ubuntu Mono", "Roboto Mono", "DejaVu Sans Mono", monospace;',
-      ],
+      mono: ["Roboto", 'Menlo, Consolas, "Ubuntu Mono", "Roboto Mono", "DejaVu Sans Mono", monospace;'],
       interVar: [
         '"Inter var"',
         '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif',
@@ -72,13 +69,6 @@ export default {
       900: `${pxToRem(42)}rem`,
     },
   },
-  safelist: [
-    "realm-view",
-    { pattern: /^realm-view/ },
-    "link-external",
-    "link-internal",
-    "link-tx",
-    "tooltip",
-  ],
+  safelist: ["md-view", { pattern: /^md-view/ }, "link-external", "link-internal", "link-tx", "tooltip"],
   plugins: [],
 };

@@ -179,52 +179,16 @@ func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL) (int, *components.View)
 	meta, err := h.Client.RenderRealm(&content, gnourl)
 	if err != nil {
 		if errors.Is(err, ErrRenderNotDeclared) {
-			// Check if README.md exists
-			files, err := h.Client.Sources(gnourl.Path)
-			if err != nil {
-				h.Logger.Error("unable to list sources file", "path", gnourl.Path, "error", err)
-				return GetClientErrorStatusPage(gnourl, err)
-			}
-
-			// Look for README.md
-			for _, file := range files {
-				if strings.EqualFold(file, "README.md") {
-					// Found README.md, render it as a realm
-					var readmeContent bytes.Buffer
-					_, err := h.Client.SourceFile(&readmeContent, gnourl.Path, "README.md", true)
-					if err != nil {
-						h.Logger.Error("unable to read README.md", "path", gnourl.Path, "error", err)
-						return GetClientErrorStatusPage(gnourl, err)
-					}
-					meta, err = h.Client.RenderRealm(&readmeContent, gnourl)
-					if err != nil {
-						h.Logger.Error("unable to render README.md", "path", gnourl.Path, "error", err)
-						return GetClientErrorStatusPage(gnourl, err)
-					}
-					return http.StatusOK, components.RealmView(components.RealmData{
-						TocItems: &components.RealmTOCData{
-							Items: meta.Toc.Items,
-						},
-						ComponentContent: components.NewReaderComponent(&readmeContent),
-					})
-				}
-			}
-
-			// No README.md found, show no render component
-			return http.StatusOK, components.StatusNoRenderComponent(gnourl.Path)
+			// If no render is declared, show directory view instead
+			return h.GetDirectoryView(gnourl)
+		} else {
+			h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
+			return GetClientErrorStatusPage(gnourl, err)
 		}
-
-		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
-		return GetClientErrorStatusPage(gnourl, err)
 	}
 
 	return http.StatusOK, components.RealmView(components.RealmData{
-		TocItems: &components.RealmTOCData{
-			Items: meta.Toc.Items,
-		},
-
-		// NOTE: `RenderRealm` should ensure that HTML content is
-		// sanitized before rendering
+		TocItems:         &components.RealmTOCData{Items: meta.Toc.Items},
 		ComponentContent: components.NewReaderComponent(&content),
 	})
 }
@@ -335,18 +299,29 @@ func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL) (int, *components.V
 		return http.StatusOK, components.StatusErrorComponent("no files available")
 	}
 
-	// Move README.md to the first position
+	// Check if README.md exists and render it
+	var readmeContent components.Component
 	for i, f := range files {
 		if strings.EqualFold(f, "README.md") {
+			var content bytes.Buffer
+			_, err := h.Client.(*HTMLWebClient).RenderMd(&content, pkgPath, "README.md")
+			if err != nil {
+				h.Logger.Error("unable to render README.md", "path", gnourl.Path, "error", err)
+				// Continue without README if there's an error
+				break
+			}
+			readmeContent = components.NewReaderComponent(&content)
+			// Move README.md to the first position
 			files[0], files[i] = files[i], files[0]
 			break
 		}
 	}
 
 	return http.StatusOK, components.DirectoryView(components.DirData{
-		PkgPath:     gnourl.Path,
-		Files:       files,
-		FileCounter: len(files),
+		PkgPath:          gnourl.Path,
+		Files:            files,
+		FileCounter:      len(files),
+		ComponentContent: readmeContent,
 	})
 }
 

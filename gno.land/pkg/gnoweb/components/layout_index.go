@@ -60,6 +60,7 @@ func IndexLayout(data IndexData) Component {
 
 	case DirectoryViewType:
 		dataLayout.IsDevmodView = true
+		dataLayout.Layout = SidebarLayout
 
 	case StatusViewType:
 		dataLayout.IsDevmodView = true

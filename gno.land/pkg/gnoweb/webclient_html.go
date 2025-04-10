@@ -1,6 +1,7 @@
 package gnoweb
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -20,6 +21,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
 	markdown "github.com/yuin/goldmark-highlighting/v2"
+	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
@@ -183,6 +185,28 @@ func (s *HTMLWebClient) Sources(path string) ([]string, error) {
 	return files, nil
 }
 
+// ParseMarkdown parses and renders Markdown content using Goldmark.
+// It takes a writer, the raw markdown content, and optional parser context options.
+// Returns the parsed document and any error that occurred.
+func (s *HTMLWebClient) ParseMarkdown(w io.Writer, rawContent []byte, ctxOpts ...parser.ParseOption) (ast.Node, error) {
+	// Use Goldmark for Markdown parsing
+	doc := s.Markdown.Parser().Parse(text.NewReader(rawContent), ctxOpts...)
+	if err := s.Markdown.Renderer().Render(w, rawContent, doc); err != nil {
+		return nil, fmt.Errorf("unable to render markdown: %w", err)
+	}
+	return doc, nil
+}
+
+// generateTOC generates a table of contents from a markdown document
+func (s *HTMLWebClient) generateTOC(doc ast.Node, content []byte) *md.Toc {
+	toc, err := md.TocInspect(doc, content, md.TocOptions{MaxDepth: 6, MinDepth: 2})
+	if err != nil {
+		s.logger.Warn("unable to inspect for TOC elements", "error", err)
+		return &md.Toc{}
+	}
+	return &toc
+}
+
 // RenderRealm renders the content of a realm from a given path
 // and arguments into the provided writer. It uses Goldmark for
 // Markdown processing to generate HTML content.
@@ -198,18 +222,39 @@ func (s *HTMLWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL) (*RealmMeta, 
 	}
 
 	ctxOpts := parser.WithContext(md.NewGnoParserContext(u))
-
-	// Use Goldmark for Markdown parsing
-	doc := s.Markdown.Parser().Parse(text.NewReader(rawres), ctxOpts)
-	if err := s.Markdown.Renderer().Render(w, rawres, doc); err != nil {
+	doc, err := s.ParseMarkdown(w, rawres, ctxOpts)
+	if err != nil {
 		return nil, fmt.Errorf("unable to render realm %q: %w", data, err)
 	}
 
 	var meta RealmMeta
-	meta.Toc, err = md.TocInspect(doc, rawres, md.TocOptions{MaxDepth: 6, MinDepth: 2})
+	meta.Toc = *s.generateTOC(doc, rawres)
+
+	return &meta, nil
+}
+
+// RenderMd rend un fichier markdown en HTML avec sa table des matières
+func (s *HTMLWebClient) RenderMd(w io.Writer, path, fileName string) (*RealmMeta, error) {
+	// Read and render markdown file
+	var content bytes.Buffer
+	_, err := s.SourceFile(&content, path, fileName, true)
 	if err != nil {
-		s.logger.Warn("unable to inspect for TOC elements", "error", err)
+		return nil, err
 	}
+
+	var renderedContent bytes.Buffer
+	doc, err := s.ParseMarkdown(&renderedContent, content.Bytes())
+	if err != nil {
+		return nil, err
+	}
+
+	// Copy rendered content to output writer
+	if _, err := w.Write(renderedContent.Bytes()); err != nil {
+		return nil, err
+	}
+
+	var meta RealmMeta
+	meta.Toc = *s.generateTOC(doc, content.Bytes())
 
 	return &meta, nil
 }
