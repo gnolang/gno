@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
 	"gno.land/r/leon/hof"
 )
@@ -16,17 +17,20 @@ type Node struct {
 }
 
 const (
-	specialCharacters = "+-*/."
+	specialCharacters = "p-*/."
 	topPriority       = "*/"
-	lowPriority       = "+-"
+	lowPriority       = "p-"
+
+	realmPath = "/r/miko/calculator"
 )
 
 var (
-	val        float64
-	displayVal string
+	val            float64
+	expressionPath string
+	displayVal     string
 
 	operaationMap = map[string]func(left float64, right float64) float64{
-		"+": func(left float64, right float64) float64 { return left + right },
+		"p": func(left float64, right float64) float64 { return left + right },
 		"-": func(left float64, right float64) float64 { return left - right },
 		"*": func(left float64, right float64) float64 { return left * right },
 		"/": func(left float64, right float64) float64 { return left / right },
@@ -35,23 +39,21 @@ var (
 
 func init() {
 	hof.Register("Miko's calculator", "Let's do maths")
-	val = 0
-	displayVal = "0"
 }
 
-func AddToMath(newEl string) {
-	ufmt.Print("add to math %s", newEl)
-	if displayVal == "0" {
-		displayVal = newEl
-		return
-	}
-	displayVal += newEl
-}
+// func AddToMath(newEl string) {
+// 	ufmt.Print("add to math %s", newEl)
+// 	if displayVal == "0" {
+// 		displayVal = newEl
+// 		return
+// 	}
+// 	displayVal += newEl
+// }
 
-func Reset() {
-	val = 0
-	displayVal = "0"
-}
+// func Reset() {
+// 	val = 0
+// 	displayVal = "0"
+// }
 
 func evaluateValidity(line string) {
 	if len(line) == 0 {
@@ -72,7 +74,7 @@ func evaluateValidity(line string) {
 			isPriorSpecial = true
 			continue
 		}
-		if line[i] < '0' || line[i] > '9' {
+		if (line[i] < '0' || line[i] > '9') && line[i] != 'p' {
 			panic("Invalid character encountered ")
 		}
 		isPriorSpecial = false
@@ -116,24 +118,43 @@ func readTree(tree *Node) float64 {
 }
 
 func ComputeResult() {
-	evaluateValidity(displayVal)
-	tree := createTree(displayVal)
+	println(expressionPath)
+	req := realmpath.Parse(expressionPath)
+	query := req.Query
+	expression := query.Get("expression")
+
+	evaluateValidity(expression)
+	tree := createTree(expression)
 
 	val = readTree(tree)
+	query.Set("expression", strconv.FormatFloat(val, 'g', 6, 64))
 	displayVal = strconv.FormatFloat(val, 'g', 6, 64)
 }
 
-func RemoveLast() {
-	lenVal := len(displayVal)
-	if lenVal > 1 {
-		displayVal = displayVal[:lenVal-1]
-	} else if lenVal == 1 {
-		displayVal = "0"
+func RemoveLast(path string) string {
+	lenPath := len(path)
+	if lenPath > 0 {
+		path = path[:lenPath-1]
 	}
+	return path
 }
 
-func Render(_ string) string {
+func Render(path string) string {
 	var sb strings.Builder
+
+	println(path)
+	expressionPath = path
+	println(expressionPath)
+	req := realmpath.Parse(path)
+	query := req.Query
+	expression := query.Get("expression")
+
+	if expression == "" {
+		displayVal = "0"
+	} else {
+		displayVal = strings.Replace(expression, "p", "+", -1)
+	}
+
 	sb.WriteString(`# Calculator page
 
 Have you ever wanted to do maths but never actually found a calculator ?
@@ -141,12 +162,12 @@ Do I have the realm for you...
 
 Result: ` + displayVal + `
 ---------------
-| ` + ufmt.Sprintf("[res](%s)", txlink.Call("Reset")) + `|||` + ufmt.Sprintf("[del](%s)", txlink.Call("RemoveLast")) + `|
+| ` + ufmt.Sprintf("[res](%s)", realmPath) + `|||` + ufmt.Sprintf("[del](%s)", realmPath+":?expression="+RemoveLast(expression)) + `|
 |---|---|---|---|
-| ` + ufmt.Sprintf("[7](%s)", txlink.Call("AddToMath", "newEl", "7")) + `| ` + ufmt.Sprintf("[8](%s)", txlink.Call("AddToMath", "newEl", "8")) + `| ` + ufmt.Sprintf("[9](%s)", txlink.Call("AddToMath", "newEl", "9")) + `| ` + ufmt.Sprintf("[+](%s)", txlink.Call("AddToMath", "newEl", `+`)) /* Adena transforms non alphanumeric char to their hexadecimal values as of now*/ + `|
-| ` + ufmt.Sprintf("[4](%s)", txlink.Call("AddToMath", "newEl", "4")) + `| ` + ufmt.Sprintf("[5](%s)", txlink.Call("AddToMath", "newEl", "5")) + `| ` + ufmt.Sprintf("[6](%s)", txlink.Call("AddToMath", "newEl", "6")) + `| ` + ufmt.Sprintf("[-](%s)", txlink.Call("AddToMath", "newEl", "-")) + `|
-| ` + ufmt.Sprintf("[1](%s)", txlink.Call("AddToMath", "newEl", "1")) + `| ` + ufmt.Sprintf("[2](%s)", txlink.Call("AddToMath", "newEl", "2")) + `| ` + ufmt.Sprintf("[3](%s)", txlink.Call("AddToMath", "newEl", "3")) + `| ` + ufmt.Sprintf("[*](%s)", txlink.Call("AddToMath", "newEl", "*")) + `|
-| ` + ufmt.Sprintf("[0](%s)", txlink.Call("AddToMath", "newEl", "0")) + `| ` + ufmt.Sprintf("[.](%s)", txlink.Call("AddToMath", "newEl", ".")) + `| ` + ufmt.Sprintf("[=](%s)", txlink.Call("ComputeResult")) + `| ` + ufmt.Sprintf("[/](%s)", txlink.Call("AddToMath", "newEl", "/")) + `|
+| ` + ufmt.Sprintf("[7](%s)", realmPath+":?expression="+expression+"7") + `| ` + ufmt.Sprintf("[8](%s)", realmPath+":?expression="+expression+"8") + `| ` + ufmt.Sprintf("[9](%s)", realmPath+":?expression="+expression+"9") + `| ` + ufmt.Sprintf("[+](%s)", realmPath+":?expression="+expression+"p") /* here p replaces + because of how + works in bnormal paths*/ + `|
+| ` + ufmt.Sprintf("[4](%s)", realmPath+":?expression="+expression+"4") + `| ` + ufmt.Sprintf("[5](%s)", realmPath+":?expression="+expression+"5") + `| ` + ufmt.Sprintf("[6](%s)", realmPath+":?expression="+expression+"6") + `| ` + ufmt.Sprintf("[-](%s)", realmPath+":?expression="+expression+"-") + `|
+| ` + ufmt.Sprintf("[1](%s)", realmPath+":?expression="+expression+"1") + `| ` + ufmt.Sprintf("[2](%s)", realmPath+":?expression="+expression+"2") + `| ` + ufmt.Sprintf("[3](%s)", realmPath+":?expression="+expression+"3") + `| ` + ufmt.Sprintf("[*](%s)", realmPath+":?expression="+expression+"*") + `|
+| ` + ufmt.Sprintf("[0](%s)", realmPath+":?expression="+expression+"0") + `| ` + ufmt.Sprintf("[.](%s)", realmPath+":?expression="+expression+".") + `| ` + ufmt.Sprintf("[=](%s)", txlink.Call("ComputeResult")) + `| ` + ufmt.Sprintf("[/](%s)", realmPath+":?expression="+expression+"/") + `|
 `)
 	return sb.String()
 }
