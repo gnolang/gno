@@ -1,7 +1,8 @@
 package fomo3d
 
 import (
-	"std"
+	"chain/banker"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/demo/avl"
@@ -49,9 +50,9 @@ func TestOwnership(t *testing.T) {
 	StartGame()
 	payment := MIN_KEY_PRICE * 10
 	testing.SetOriginCaller(owner)
-	testing.SetOriginSend(std.Coins{{"ugnot", payment}})
-	testing.IssueCoins(owner, std.Coins{{"ugnot", payment}})
-	testing.IssueCoins(std.CurrentRealm().Address(), std.Coins{{"ugnot", payment}})
+	testing.SetOriginSend(banker.Coins{{"ugnot", payment}})
+	testing.IssueCoins(owner, banker.Coins{{"ugnot", payment}})
+	testing.IssueCoins(runtime.CurrentRealm().Address(), banker.Coins{{"ugnot", payment}})
 	BuyKeys()
 
 	// Verify fee accumulation
@@ -65,15 +66,15 @@ func TestOwnership(t *testing.T) {
 
 	// Test authorized fee claim (using new owner)
 	testing.SetOriginCaller(nonOwner)
-	initialBalance := std.NewBanker(std.BankerTypeRealmSend).GetCoins(nonOwner)
-	testing.IssueCoins(std.CurrentRealm().Address(), std.Coins{{"ugnot", expectedFees}})
+	initialBalance := banker.NewBanker(banker.BankerTypeRealmSend).GetCoins(nonOwner)
+	testing.IssueCoins(runtime.CurrentRealm().Address(), banker.Coins{{"ugnot", expectedFees}})
 	urequire.NotPanics(t, ClaimOwnerFee)
 
 	// Verify fees were claimed
 	_, feesAfter := GetOwnerInfo()
 	urequire.Equal(t, int64(0), feesAfter)
 
-	finalBalance := std.NewBanker(std.BankerTypeRealmSend).GetCoins(nonOwner)
+	finalBalance := banker.NewBanker(banker.BankerTypeRealmSend).GetCoins(nonOwner)
 	urequire.Equal(t, initialBalance.AmountOf("ugnot")+expectedFees, finalBalance.AmountOf("ugnot"))
 }
 
@@ -93,23 +94,23 @@ func TestFullGameFlow(t *testing.T) {
 	// Start game
 	urequire.NotPanics(t, StartGame)
 	urequire.Equal(t, false, gameState.Ended)
-	urequire.Equal(t, std.ChainHeight(), gameState.StartBlock)
+	urequire.Equal(t, runtime.ChainHeight(), gameState.StartBlock)
 	urequire.Equal(t, int64(1), gameState.CurrentRound)
 
 	t.Run("buying keys", func(t *testing.T) {
 		// Test insufficient payment
 		testing.SetOriginCaller(player1)
-		testing.IssueCoins(player1, std.Coins{{"ugnot", MIN_KEY_PRICE - 1}})
-		testing.SetOriginSend(std.Coins{{"ugnot", MIN_KEY_PRICE - 1}})
-		testing.IssueCoins(std.CurrentRealm().Address(), std.Coins{{"ugnot", MIN_KEY_PRICE - 1}})
+		testing.IssueCoins(player1, banker.Coins{{"ugnot", MIN_KEY_PRICE - 1}})
+		testing.SetOriginSend(banker.Coins{{"ugnot", MIN_KEY_PRICE - 1}})
+		testing.IssueCoins(runtime.CurrentRealm().Address(), banker.Coins{{"ugnot", MIN_KEY_PRICE - 1}})
 		urequire.PanicsWithMessage(t, ErrInsufficientPayment.Error(), BuyKeys)
 
 		// Test successful key purchase
 		payment := MIN_KEY_PRICE * 3
-		testing.SetOriginSend(std.Coins{{"ugnot", payment}})
-		testing.IssueCoins(std.CurrentRealm().Address(), std.Coins{{"ugnot", payment}})
+		testing.SetOriginSend(banker.Coins{{"ugnot", payment}})
+		testing.IssueCoins(runtime.CurrentRealm().Address(), banker.Coins{{"ugnot", payment}})
 
-		currentBlock := std.ChainHeight()
+		currentBlock := runtime.ChainHeight()
 		urequire.NotPanics(t, BuyKeys)
 
 		// Verify time extension
@@ -140,8 +141,8 @@ func TestFullGameFlow(t *testing.T) {
 		// Player 2 buys keys
 		testing.SetOriginCaller(player2)
 		payment := gameState.KeyPrice * 2 // Buy 2 keys using current keyPrice
-		testing.SetOriginSend(std.Coins{{"ugnot", payment}})
-		testing.IssueCoins(std.CurrentRealm().Address(), std.Coins{{"ugnot", payment}})
+		testing.SetOriginSend(banker.Coins{{"ugnot", payment}})
+		testing.IssueCoins(runtime.CurrentRealm().Address(), banker.Coins{{"ugnot", payment}})
 		urequire.NotPanics(t, BuyKeys)
 
 		// Check player1 received dividends
@@ -155,14 +156,14 @@ func TestFullGameFlow(t *testing.T) {
 		{
 			// Player1 claims dividends
 			testing.SetOriginCaller(player1)
-			initialBalance := std.NewBanker(std.BankerTypeRealmSend).GetCoins(player1)
+			initialBalance := banker.NewBanker(banker.BankerTypeRealmSend).GetCoins(player1)
 			urequire.NotPanics(t, ClaimDividends)
 
 			// Verify dividends were claimed
 			_, dividendsAfter := GetPlayerInfo(player1.String())
 			urequire.Equal(t, int64(0), dividendsAfter)
 
-			lastBuyerBalance := std.NewBanker(std.BankerTypeRealmSend).GetCoins(player1)
+			lastBuyerBalance := banker.NewBanker(banker.BankerTypeRealmSend).GetCoins(player1)
 			urequire.Equal(t, initialBalance.AmountOf("ugnot")+expectedDividends, lastBuyerBalance.AmountOf("ugnot"))
 		}
 	})
@@ -173,7 +174,7 @@ func TestFullGameFlow(t *testing.T) {
 
 		// Skip to end of current time window
 		currentEndBlock := gameState.EndBlock
-		testing.SkipHeights(currentEndBlock - std.ChainHeight() + 1)
+		testing.SkipHeights(currentEndBlock - runtime.ChainHeight() + 1)
 
 		// End game successfully
 		urequire.NotPanics(t, EndGame)
@@ -181,7 +182,7 @@ func TestFullGameFlow(t *testing.T) {
 		urequire.Equal(t, int64(1), gameState.CurrentRound)
 
 		// Verify winner received jackpot
-		lastBuyerBalance := std.NewBanker(std.BankerTypeRealmSend).GetCoins(gameState.LastBuyer)
+		lastBuyerBalance := banker.NewBanker(banker.BankerTypeRealmSend).GetCoins(gameState.LastBuyer)
 		urequire.Equal(t, gameState.Jackpot, lastBuyerBalance.AmountOf("ugnot"))
 
 		// Verify NFT was minted to winner
@@ -225,7 +226,7 @@ func TestStartGame(t *testing.T) {
 	// Test starting first game
 	urequire.NotPanics(t, StartGame)
 	urequire.Equal(t, false, gameState.Ended)
-	urequire.Equal(t, std.ChainHeight(), gameState.StartBlock)
+	urequire.Equal(t, runtime.ChainHeight(), gameState.StartBlock)
 
 	// Test cannot start while game in progress
 	urequire.PanicsWithMessage(t, ErrGameInProgress.Error(), StartGame)
@@ -239,27 +240,27 @@ func TestBuyKeys(t *testing.T) {
 	testing.SetOriginCaller(player)
 
 	// Test invalid coin denomination
-	testing.IssueCoins(player, std.Coins{{"invalid", MIN_KEY_PRICE}})
-	testing.SetOriginSend(std.Coins{{"invalid", MIN_KEY_PRICE}})
-	testing.IssueCoins(std.CurrentRealm().Address(), std.Coins{{"invalid", MIN_KEY_PRICE}})
+	testing.IssueCoins(player, banker.Coins{{"invalid", MIN_KEY_PRICE}})
+	testing.SetOriginSend(banker.Coins{{"invalid", MIN_KEY_PRICE}})
+	testing.IssueCoins(runtime.CurrentRealm().Address(), banker.Coins{{"invalid", MIN_KEY_PRICE}})
 	urequire.PanicsWithMessage(t, ErrInvalidPayment.Error(), BuyKeys)
 
 	// Test multiple coin types
-	testing.IssueCoins(player, std.Coins{{"ugnot", MIN_KEY_PRICE}, {"other", 100}})
-	testing.SetOriginSend(std.Coins{{"ugnot", MIN_KEY_PRICE}, {"other", 100}})
-	testing.IssueCoins(std.CurrentRealm().Address(), std.Coins{{"ugnot", MIN_KEY_PRICE}, {"other", 100}})
+	testing.IssueCoins(player, banker.Coins{{"ugnot", MIN_KEY_PRICE}, {"other", 100}})
+	testing.SetOriginSend(banker.Coins{{"ugnot", MIN_KEY_PRICE}, {"other", 100}})
+	testing.IssueCoins(runtime.CurrentRealm().Address(), banker.Coins{{"ugnot", MIN_KEY_PRICE}, {"other", 100}})
 	urequire.PanicsWithMessage(t, ErrInvalidPayment.Error(), BuyKeys)
 
 	// Test insufficient payment
-	testing.IssueCoins(player, std.Coins{{"ugnot", MIN_KEY_PRICE - 1}})
-	testing.SetOriginSend(std.Coins{{"ugnot", MIN_KEY_PRICE - 1}})
-	testing.IssueCoins(std.CurrentRealm().Address(), std.Coins{{"ugnot", MIN_KEY_PRICE - 1}})
+	testing.IssueCoins(player, banker.Coins{{"ugnot", MIN_KEY_PRICE - 1}})
+	testing.SetOriginSend(banker.Coins{{"ugnot", MIN_KEY_PRICE - 1}})
+	testing.IssueCoins(runtime.CurrentRealm().Address(), banker.Coins{{"ugnot", MIN_KEY_PRICE - 1}})
 	urequire.PanicsWithMessage(t, ErrInsufficientPayment.Error(), BuyKeys)
 
 	// Test successful purchase
-	testing.IssueCoins(player, std.Coins{{"ugnot", MIN_KEY_PRICE * 2}})
-	testing.SetOriginSend(std.Coins{{"ugnot", MIN_KEY_PRICE * 2}})
-	testing.IssueCoins(std.CurrentRealm().Address(), std.Coins{{"ugnot", MIN_KEY_PRICE * 2}})
+	testing.IssueCoins(player, banker.Coins{{"ugnot", MIN_KEY_PRICE * 2}})
+	testing.SetOriginSend(banker.Coins{{"ugnot", MIN_KEY_PRICE * 2}})
+	testing.IssueCoins(runtime.CurrentRealm().Address(), banker.Coins{{"ugnot", MIN_KEY_PRICE * 2}})
 	urequire.NotPanics(t, BuyKeys)
 }
 
@@ -274,17 +275,17 @@ func TestClaimDividends(t *testing.T) {
 	urequire.PanicsWithMessage(t, ErrNoDividendsToClaim.Error(), ClaimDividends)
 
 	// Setup player with dividends
-	testing.IssueCoins(player, std.Coins{{"ugnot", MIN_KEY_PRICE}})
-	testing.SetOriginSend(std.Coins{{"ugnot", MIN_KEY_PRICE}})
-	testing.IssueCoins(std.CurrentRealm().Address(), std.Coins{{"ugnot", MIN_KEY_PRICE}})
+	testing.IssueCoins(player, banker.Coins{{"ugnot", MIN_KEY_PRICE}})
+	testing.SetOriginSend(banker.Coins{{"ugnot", MIN_KEY_PRICE}})
+	testing.IssueCoins(runtime.CurrentRealm().Address(), banker.Coins{{"ugnot", MIN_KEY_PRICE}})
 	BuyKeys()
 
 	// Have another player buy to generate dividends
 	player2 := testutils.TestAddress("player2")
 	testing.SetOriginCaller(player2)
-	testing.IssueCoins(player2, std.Coins{{"ugnot", MIN_KEY_PRICE * 2}})
-	testing.SetOriginSend(std.Coins{{"ugnot", MIN_KEY_PRICE * 2}})
-	testing.IssueCoins(std.CurrentRealm().Address(), std.Coins{{"ugnot", MIN_KEY_PRICE * 2}})
+	testing.IssueCoins(player2, banker.Coins{{"ugnot", MIN_KEY_PRICE * 2}})
+	testing.SetOriginSend(banker.Coins{{"ugnot", MIN_KEY_PRICE * 2}})
+	testing.IssueCoins(runtime.CurrentRealm().Address(), banker.Coins{{"ugnot", MIN_KEY_PRICE * 2}})
 	BuyKeys()
 
 	// Test successful claim

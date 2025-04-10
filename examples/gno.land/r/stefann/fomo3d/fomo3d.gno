@@ -1,7 +1,9 @@
 package fomo3d
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
+	"chain/runtime"
 	"strings"
 
 	"gno.land/p/demo/avl"
@@ -47,20 +49,20 @@ type PlayerInfo struct {
 
 // GameState represents the current state of the FOMO3D game
 type GameState struct { // TODO: Separate GameState and RoundState and save round history tree in GameState
-	StartBlock         int64       // Block when the game started
-	EndBlock           int64       // Block when the game will end
-	LastKeyBlock       int64       // Block of last key purchase
-	LastBuyer          std.Address // Address of last key buyer
-	Jackpot            int64       // Current jackpot in ugnot
-	KeyPrice           int64       // Current price of keys in ugnot
-	TotalKeys          int64       // Total number of keys in circulation
-	Ended              bool        // Whether the game has ended
-	CurrentRound       int64       // Current round number
-	NextPot            int64       // Next round's starting pot
-	OwnerFee           int64       // Accumulated owner fees
-	BuyKeysLink        string      // Link to BuyKeys function
-	ClaimDividendsLink string      // Link to ClaimDividends function
-	StartGameLink      string      // Link to StartGame function
+	StartBlock         int64         // Block when the game started
+	EndBlock           int64         // Block when the game will end
+	LastKeyBlock       int64         // Block of last key purchase
+	LastBuyer          chain.Address // Address of last key buyer
+	Jackpot            int64         // Current jackpot in ugnot
+	KeyPrice           int64         // Current price of keys in ugnot
+	TotalKeys          int64         // Total number of keys in circulation
+	Ended              bool          // Whether the game has ended
+	CurrentRound       int64         // Current round number
+	NextPot            int64         // Next round's starting pot
+	OwnerFee           int64         // Accumulated owner fees
+	BuyKeysLink        string        // Link to BuyKeys function
+	ClaimDividendsLink string        // Link to ClaimDividends function
+	StartGameLink      string        // Link to StartGame function
 }
 
 var (
@@ -83,7 +85,7 @@ func StartGame() {
 	}
 
 	gameState.CurrentRound++
-	gameState.StartBlock = std.ChainHeight()
+	gameState.StartBlock = runtime.ChainHeight()
 	gameState.EndBlock = gameState.StartBlock + TIME_EXTENSION // Initial 24h window
 	gameState.LastKeyBlock = gameState.StartBlock
 	gameState.Jackpot = gameState.NextPot
@@ -109,13 +111,13 @@ func BuyKeys() {
 		panic(ErrGameEnded.Error())
 	}
 
-	currentBlock := std.ChainHeight()
+	currentBlock := runtime.ChainHeight()
 	if currentBlock > gameState.EndBlock {
 		panic(ErrGameTimeExpired.Error())
 	}
 
 	// Get sent coins
-	sent := std.OriginSend()
+	sent := banker.OriginSend()
 	if len(sent) != 1 || sent[0].Denom != "ugnot" {
 		panic(ErrInvalidPayment.Error())
 	}
@@ -131,7 +133,7 @@ func BuyKeys() {
 	excess := payment - actualCost
 
 	// Update buyer's info
-	buyer := std.PreviousRealm().Address()
+	buyer := runtime.PreviousRealm().Address()
 	var buyerInfo PlayerInfo
 	if info, exists := players.Get(buyer.String()); exists {
 		buyerInfo = info.(PlayerInfo)
@@ -153,11 +155,11 @@ func BuyKeys() {
 
 	// Return excess payment to buyer if any
 	if excess > 0 {
-		banker := std.NewBanker(std.BankerTypeOriginSend)
-		banker.SendCoins(
-			std.CurrentRealm().Address(),
+		banker_ := banker.NewBanker(banker.BankerTypeOriginSend)
+		banker_.SendCoins(
+			runtime.CurrentRealm().Address(),
 			buyer,
-			std.NewCoins(std.NewCoin("ugnot", excess)),
+			banker.NewCoins(banker.NewCoin("ugnot", excess)),
 		)
 	}
 
@@ -192,7 +194,7 @@ func BuyKeys() {
 
 // ClaimDividends allows players to withdraw their earned dividends
 func ClaimDividends() {
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 
 	info, exists := players.Get(caller.String())
 	if !exists {
@@ -209,11 +211,11 @@ func ClaimDividends() {
 	playerInfo.Dividends = 0
 	players.Set(caller.String(), playerInfo)
 
-	banker := std.NewBanker(std.BankerTypeRealmSend)
-	banker.SendCoins(
-		std.CurrentRealm().Address(),
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_.SendCoins(
+		runtime.CurrentRealm().Address(),
 		caller,
-		std.NewCoins(std.NewCoin("ugnot", amount)),
+		banker.NewCoins(banker.NewCoin("ugnot", amount)),
 	)
 
 	emitDividendsClaimed(caller, amount)
@@ -230,11 +232,11 @@ func ClaimOwnerFee() {
 	amount := gameState.OwnerFee
 	gameState.OwnerFee = 0
 
-	banker := std.NewBanker(std.BankerTypeRealmSend)
-	banker.SendCoins(
-		std.CurrentRealm().Address(),
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_.SendCoins(
+		runtime.CurrentRealm().Address(),
 		Ownable.Owner(),
-		std.NewCoins(std.NewCoin("ugnot", amount)),
+		banker.NewCoins(banker.NewCoin("ugnot", amount)),
 	)
 
 	emitOwnerFeeClaimed(Ownable.Owner(), amount)
@@ -246,7 +248,7 @@ func EndGame() {
 		panic(ErrGameEnded.Error())
 	}
 
-	currentBlock := std.ChainHeight()
+	currentBlock := runtime.ChainHeight()
 	if currentBlock <= gameState.EndBlock {
 		panic(ErrGameNotInProgress.Error())
 	}
@@ -258,11 +260,11 @@ func EndGame() {
 	gameState.Ended = true
 
 	// Send jackpot to winner
-	banker := std.NewBanker(std.BankerTypeRealmSend)
-	banker.SendCoins(
-		std.CurrentRealm().Address(),
+	banker_ := banker.NewBanker(banker.BankerTypeRealmSend)
+	banker_.SendCoins(
+		runtime.CurrentRealm().Address(),
 		gameState.LastBuyer,
-		std.NewCoins(std.NewCoin("ugnot", gameState.Jackpot)),
+		banker.NewCoins(banker.NewCoin("ugnot", gameState.Jackpot)),
 	)
 
 	emitGameEnded(
@@ -278,7 +280,7 @@ func EndGame() {
 }
 
 // GetGameState returns current game state
-func GetGameState() (int64, int64, int64, std.Address, int64, int64, int64, bool, int64, int64) {
+func GetGameState() (int64, int64, int64, chain.Address, int64, int64, int64, bool, int64, int64) {
 	return gameState.StartBlock,
 		gameState.EndBlock,
 		gameState.LastKeyBlock,
@@ -292,14 +294,14 @@ func GetGameState() (int64, int64, int64, std.Address, int64, int64, int64, bool
 }
 
 // GetOwnerInfo returns the owner address and unclaimed fees
-func GetOwnerInfo() (std.Address, int64) {
+func GetOwnerInfo() (chain.Address, int64) {
 	return Ownable.Owner(), gameState.OwnerFee
 }
 
 // Helper to convert string (address or username) to address
-func stringToAddress(input string) std.Address {
+func stringToAddress(input string) chain.Address {
 	// Check if input is valid address
-	addr := std.Address(input)
+	addr := chain.Address(input)
 	if addr.IsValid() {
 		return addr
 	}
@@ -312,7 +314,7 @@ func stringToAddress(input string) std.Address {
 	return ""
 }
 
-func isPlayerInGame(addr std.Address) bool {
+func isPlayerInGame(addr chain.Address) bool {
 	_, exists := players.Get(addr.String())
 	return exists
 }
