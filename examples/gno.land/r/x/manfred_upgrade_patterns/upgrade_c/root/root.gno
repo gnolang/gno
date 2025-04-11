@@ -1,6 +1,6 @@
 package root
 
-import "std"
+import "chain/runtime"
 
 var (
 	counter     int
@@ -23,7 +23,7 @@ func SetCurrentImpl(pkgpath string) {
 }
 
 func assertIsCurrentImpl() {
-	if std.PreviousRealm().PkgPath() != currentImpl {
+	if runtime.PreviousRealm().PkgPath() != currentImpl {
 		panic("unauthorized")
 	}
 }

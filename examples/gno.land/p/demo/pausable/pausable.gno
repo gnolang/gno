@@ -4,8 +4,8 @@
 package pausable
 
 import (
+	"chain"
 	"errors"
-	"std"
 
 	"gno.land/p/demo/ownable"
 )
@@ -37,7 +37,7 @@ func (p *Pausable) Pause() error {
 	}
 
 	p.paused = true
-	std.Emit("Paused", "by", p.o.Owner().String())
+	chain.Emit("Paused", "by", p.o.Owner().String())
 
 	return nil
 }
@@ -49,7 +49,7 @@ func (p *Pausable) Unpause() error {
 	}
 
 	p.paused = false
-	std.Emit("Unpaused", "by", p.o.Owner().String())
+	chain.Emit("Unpaused", "by", p.o.Owner().String())
 
 	return nil
 }

@@ -1,7 +1,7 @@
 package impl
 
 import (
-	"std"
+	"chain/runtime"
 	"strings"
 	"testing"
 
@@ -69,7 +69,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	testing.SetOriginCaller(m1)
-	testing.SetRealm(std.NewUserRealm(m1))
+	testing.SetRealm(runtime.NewUserRealm(m1))
 
 	pid := dao.MustCreateProposal(NewAddMemberRequest(nm1, memberstore.T2, portfolio))
 	urequire.Equal(t, int(pid), 0)

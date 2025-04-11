@@ -1,7 +1,7 @@
 package memberstore
 
 import (
-	"std"
+	"chain/runtime"
 
 	"gno.land/p/demo/avl"
 	"gno.land/r/gov/dao"
@@ -93,7 +93,7 @@ func init() {
 
 // Get gets the Members store
 func Get() MembersByTier {
-	realm := std.PreviousRealm().PkgPath()
+	realm := runtime.PreviousRealm().PkgPath()
 	if !dao.InAllowedDAOs(realm) {
 		panic("this Realm is not allowed to get the Members data: " + realm)
 	}

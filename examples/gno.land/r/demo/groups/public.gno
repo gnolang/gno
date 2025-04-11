@@ -1,7 +1,8 @@
 package groups
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 
 	"gno.land/r/sys/users"
 )
@@ -18,8 +19,8 @@ func GetGroupIDFromName(name string) (GroupID, bool) {
 }
 
 func CreateGroup(name string) GroupID {
-	std.AssertOriginCall()
-	caller := std.OriginCaller()
+	runtime.AssertOriginCall()
+	caller := runtime.OriginCaller()
 	usernameOf(caller)
 	url := "/r/demo/groups:" + name
 	group := newGroup(url, name, caller)
@@ -30,19 +31,19 @@ func CreateGroup(name string) GroupID {
 }
 
 func AddMember(gid GroupID, address string, weight int, metadata string) MemberID {
-	std.AssertOriginCall()
-	caller := std.OriginCaller()
+	runtime.AssertOriginCall()
+	caller := runtime.OriginCaller()
 	usernameOf(caller)
 	group := getGroup(gid)
 	if !group.HasPermission(caller, EditPermission) {
 		panic("unauthorized to edit group")
 	}
-	user := users.ResolveAddress(std.Address(address))
+	user := users.ResolveAddress(chain.Address(address))
 	if user == nil {
 		panic("unknown address " + address)
 	}
 	mid := group.lastMemberID
-	member := group.newMember(mid, std.Address(address), weight, metadata)
+	member := group.newMember(mid, chain.Address(address), weight, metadata)
 	midkey := memberIDKey(mid)
 	group.members.Set(midkey, member)
 	mid++
@@ -51,8 +52,8 @@ func AddMember(gid GroupID, address string, weight int, metadata string) MemberI
 }
 
 func DeleteGroup(gid GroupID) {
-	std.AssertOriginCall()
-	caller := std.OriginCaller()
+	runtime.AssertOriginCall()
+	caller := runtime.OriginCaller()
 	group := getGroup(gid)
 	if !group.HasPermission(caller, DeletePermission) {
 		panic("unauthorized to delete group")
@@ -61,8 +62,8 @@ func DeleteGroup(gid GroupID) {
 }
 
 func DeleteMember(gid GroupID, mid MemberID) {
-	std.AssertOriginCall()
-	caller := std.OriginCaller()
+	runtime.AssertOriginCall()
+	caller := runtime.OriginCaller()
 	group := getGroup(gid)
 	if !group.HasPermission(caller, DeletePermission) {
 		panic("unauthorized to delete member")

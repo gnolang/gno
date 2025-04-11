@@ -1,7 +1,8 @@
 package fomo3d
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"strconv"
 	"strings"
 
@@ -53,7 +54,7 @@ func RenderHome() string {
 		} else {
 			builder.WriteString("🟢 **Game Status:** Active\n\n")
 			builder.WriteString(ufmt.Sprintf("🔄 **Round:** %d\n\n", gameState.CurrentRound))
-			builder.WriteString(ufmt.Sprintf("⏱️ **Time Remaining:** %d blocks\n\n", gameState.EndBlock-std.ChainHeight()))
+			builder.WriteString(ufmt.Sprintf("⏱️ **Time Remaining:** %d blocks\n\n", gameState.EndBlock-runtime.ChainHeight()))
 		}
 		builder.WriteString(ufmt.Sprintf("💰 **Jackpot:** %d ugnot\n\n", gameState.Jackpot))
 		builder.WriteString(ufmt.Sprintf("🔑 **Key Price:** %d ugnot\n\n", gameState.KeyPrice))
@@ -84,7 +85,7 @@ func RenderHome() string {
 }
 
 // RenderPlayer renders specific player information
-func RenderPlayer(addr std.Address, keys int64, dividends int64) string {
+func RenderPlayer(addr chain.Address, keys int64, dividends int64) string {
 	var builder strings.Builder
 	displayName := getDisplayName(addr)
 	builder.WriteString(ufmt.Sprintf("# Player Stats: %s\n\n", displayName))
@@ -122,7 +123,7 @@ func RenderPlayer(addr std.Address, keys int64, dividends int64) string {
 }
 
 // Helper to get display name - just returns namespace if exists, otherwise address
-func getDisplayName(addr std.Address) string {
+func getDisplayName(addr chain.Address) string {
 	if user := users.ResolveAddress(addr); user != nil {
 		return user.Name()
 	}

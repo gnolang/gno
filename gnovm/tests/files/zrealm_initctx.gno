@@ -2,15 +2,16 @@
 package tests_test
 
 import (
+	"chain"
+	"chain/runtime"
 	"gno.land/r/demo/tests"
-	"std"
 )
 
-var addr = std.Address("test")
-var addrInit = std.Address("addrInit")
+var addr = chain.Address("test")
+var addrInit = chain.Address("addrInit")
 
 func init() {
-	addr = std.OriginCaller()
+	addr = runtime.OriginCaller()
 	addrInit = tests.InitOriginCaller()
 }
 

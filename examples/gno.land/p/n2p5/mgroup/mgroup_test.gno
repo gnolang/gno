@@ -1,7 +1,7 @@
 package mgroup
 
 import (
-	"std"
+	"chain"
 	"testing"
 
 	"gno.land/p/demo/avl"
@@ -38,7 +38,7 @@ func TestManagedGroup(t *testing.T) {
 		// ensure invalid address is caught
 		{
 			testing.SetOriginCaller(u1)
-			var badAddr std.Address
+			var badAddr chain.Address
 			err := g.AddBackupOwner(badAddr)
 			if err != ErrInvalidAddress {
 				t.Errorf("expected %v, got %v", ErrInvalidAddress.Error(), err.Error())
@@ -75,7 +75,7 @@ func TestManagedGroup(t *testing.T) {
 		}
 		{
 			testing.SetOriginCaller(u1)
-			var badAddr std.Address
+			var badAddr chain.Address
 			err := g.RemoveBackupOwner(badAddr)
 			if err != ErrInvalidAddress {
 				t.Errorf("expected %v, got %v", ErrInvalidAddress.Error(), err.Error())
@@ -149,7 +149,7 @@ func TestManagedGroup(t *testing.T) {
 		// ensure invalid address is caught
 		{
 			testing.SetOriginCaller(u1)
-			var badAddr std.Address
+			var badAddr chain.Address
 			err := g.AddMember(badAddr)
 			if err != ErrInvalidAddress {
 				t.Errorf("expected %v, got %v", ErrInvalidAddress.Error(), err.Error())
@@ -190,7 +190,7 @@ func TestManagedGroup(t *testing.T) {
 		// ensure invalid address is caught
 		{
 			testing.SetOriginCaller(u1)
-			var badAddr std.Address
+			var badAddr chain.Address
 			err := g.RemoveMember(badAddr)
 			if err != ErrInvalidAddress {
 				t.Errorf("expected %v, got %v", ErrInvalidAddress.Error(), err.Error())

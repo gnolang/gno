@@ -1,7 +1,8 @@
 package home
 
 import (
-	"std"
+	"chain/banker"
+	"chain/runtime"
 	"strings"
 
 	"gno.land/p/demo/ufmt"
@@ -71,21 +72,21 @@ func maxOfThree(a, b, c int64) int64 {
 }
 
 func VoteModern() {
-	ugnotAmount := std.OriginSend().AmountOf("ugnot")
+	ugnotAmount := banker.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	modernVotes += votes
 	updateCurrentTheme()
 }
 
 func VoteClassic() {
-	ugnotAmount := std.OriginSend().AmountOf("ugnot")
+	ugnotAmount := banker.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	classicVotes += votes
 	updateCurrentTheme()
 }
 
 func VoteMinimal() {
-	ugnotAmount := std.OriginSend().AmountOf("ugnot")
+	ugnotAmount := banker.OriginSend().AmountOf("ugnot")
 	votes := ugnotAmount
 	minimalVotes += votes
 	updateCurrentTheme()
@@ -106,10 +107,10 @@ func updateCurrentTheme() {
 func CollectBalance() {
 	AssertAuthorized()
 
-	banker := std.NewBanker(std.BankerTypeRealmSend)
+	banker := banker.NewBanker(banker.BankerTypeRealmSend)
 	ownerAddr := Address()
 
-	banker.SendCoins(std.CurrentRealm().Address(), ownerAddr, banker.GetCoins(std.CurrentRealm().Address()))
+	banker.SendCoins(runtime.CurrentRealm().Address(), ownerAddr, banker.GetCoins(runtime.CurrentRealm().Address()))
 }
 
 func Render(path string) string {

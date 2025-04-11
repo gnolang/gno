@@ -1,7 +1,8 @@
 package names
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/demo/ownable"
@@ -27,11 +28,11 @@ func TestDefaultVerifier(t *testing.T) {
 	uassert.True(t, verifier(true, alice, alice.String()))
 
 	// Empty name/address
-	uassert.False(t, verifier(true, std.Address(""), ""))
+	uassert.False(t, verifier(true, chain.Address(""), ""))
 
 	// Register proper username
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoland/users/v1")) // authorized write
-	testing.SetOriginCaller(std.DerivePkgAddr("gno.land/r/gnoland/users/v1"))
+	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/gnoland/users/v1")) // authorized write
+	testing.SetOriginCaller(chain.DerivePkgAddr("gno.land/r/gnoland/users/v1"))
 	urequire.NoError(t, users.RegisterUser("alice", alice))
 
 	// Proper namespace
@@ -39,7 +40,7 @@ func TestDefaultVerifier(t *testing.T) {
 }
 
 func TestEnable(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
+	testing.SetRealm(runtime.NewUserRealm("g1manfred47kzduec920z88wfr64ylksmdcedlf5"))
 	testing.SetOriginCaller("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 	uassert.NotPanics(t, func() {

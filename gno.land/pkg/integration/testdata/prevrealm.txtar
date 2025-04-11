@@ -93,10 +93,10 @@ stdout ${test1_user_addr}
 -- r/myrlm/myrlm.gno --
 package myrlm
 
-import "std"
+import "chain/runtime"
 
 func A() string {
-	return std.PreviousRealm().Address().String()
+	return runtime.PreviousRealm().Address().String()
 }
 
 func B() string {
@@ -117,15 +117,16 @@ func B() string {
 -- p/demo/bar/bar.gno --
 package bar
 
-import "std"
+import "chain/runtime"
 
 func A() string {
-	return std.PreviousRealm().Address().String()
+	return runtime.PreviousRealm().Address().String()
 }
 
 func B() string {
 	return A()
 }
+
 -- run/myrlmA.gno --
 package main
 
@@ -177,8 +178,8 @@ func main() {
 -- run/baz.gno --
 package main
 
-import "std"
+import "chain/runtime"
 
 func main() {
-	println(std.PreviousRealm().Address().String())
+	println(runtime.PreviousRealm().Address().String())
 }

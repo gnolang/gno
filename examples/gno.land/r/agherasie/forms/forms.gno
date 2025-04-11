@@ -1,7 +1,7 @@
 package forms
 
 import (
-	"std"
+	"chain"
 
 	"gno.land/p/agherasie/forms"
 	"gno.land/p/demo/json"
@@ -82,7 +82,7 @@ func GetAnswer(formID string, authorID string) string {
 		panic(err)
 	}
 
-	answer, err := db.GetAnswer(formID, std.Address(authorID))
+	answer, err := db.GetAnswer(formID, chain.Address(authorID))
 	if answer != nil {
 		panic(err)
 	}

@@ -8,13 +8,6 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-// mostly for the "testing" package, these only exist as Gno native injections
-var nativeInjections = []string{
-	"fmt",
-	"os",
-	"encoding/json",
-}
-
 // sortPackages sorts pkgs into their initialization order.
 func sortPackages(pkgs []*pkgData) []string {
 	res := make([]string, 0, len(pkgs))
@@ -35,10 +28,6 @@ func sortPackages(pkgs []*pkgData) []string {
 		slices.Sort(imports)
 		for _, imp := range imports {
 			if slices.Contains(res, imp) {
-				continue
-			}
-			if pkg.importPath == "testing" &&
-				slices.Contains(nativeInjections, imp) {
 				continue
 			}
 

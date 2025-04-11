@@ -1,8 +1,10 @@
 package home
 
 import (
+	"chain"
+	"chain/banker"
+	"chain/runtime"
 	"sort"
-	"std"
 	"strings"
 
 	"gno.land/p/demo/avl"
@@ -20,8 +22,8 @@ type City struct {
 }
 
 type Sponsor struct {
-	Address std.Address
-	Amount  std.Coins
+	Address chain.Address
+	Amount  banker.Coins
 }
 
 type Profile struct {
@@ -127,8 +129,8 @@ func UpdateMaxSponsors(newMax int) {
 }
 
 func Donate() {
-	address := std.OriginCaller()
-	amount := std.OriginSend()
+	address := runtime.OriginCaller()
+	amount := banker.OriginSend()
 
 	if amount.AmountOf("ugnot") == 0 {
 		panic("Donation must include GNOT")
@@ -136,7 +138,7 @@ func Donate() {
 
 	existingAmount, exists := sponsorship.sponsors.Get(address.String())
 	if exists {
-		updatedAmount := existingAmount.(std.Coins).Add(amount)
+		updatedAmount := existingAmount.(banker.Coins).Add(amount)
 		sponsorship.sponsors.Set(address.String(), updatedAmount)
 	} else {
 		sponsorship.sponsors.Set(address.String(), amount)
@@ -146,9 +148,9 @@ func Donate() {
 	travel.currentCityIndex++
 	sponsorship.DonationsCount++
 
-	banker := std.NewBanker(std.BankerTypeRealmSend)
+	banker := banker.NewBanker(banker.BankerTypeRealmSend)
 	ownerAddr := registry.MainAddr()
-	banker.SendCoins(std.CurrentRealm().Address(), ownerAddr, banker.GetCoins(std.CurrentRealm().Address()))
+	banker.SendCoins(runtime.CurrentRealm().Address(), ownerAddr, banker.GetCoins(runtime.CurrentRealm().Address()))
 }
 
 type SponsorSlice []Sponsor
@@ -169,8 +171,8 @@ func GetTopSponsors() []Sponsor {
 	var sponsorSlice SponsorSlice
 
 	sponsorship.sponsors.Iterate("", "", func(key string, value any) bool {
-		addr := std.Address(key)
-		amount := value.(std.Coins)
+		addr := chain.Address(key)
+		amount := value.(banker.Coins)
 		sponsorSlice = append(sponsorSlice, Sponsor{Address: addr, Amount: amount})
 		return false
 	})
@@ -182,7 +184,7 @@ func GetTopSponsors() []Sponsor {
 func GetTotalDonations() int {
 	total := 0
 	sponsorship.sponsors.Iterate("", "", func(key string, value any) bool {
-		total += int(value.(std.Coins).AmountOf("ugnot"))
+		total += int(value.(banker.Coins).AmountOf("ugnot"))
 		return false
 	})
 	return total
@@ -230,14 +232,14 @@ func formatAddress(address string) string {
 	return address[:4] + "..." + address[len(address)-4:]
 }
 
-func getDisplayName(addr std.Address) string {
+func getDisplayName(addr chain.Address) string {
 	if user := users.ResolveAddress(addr); user != nil {
 		return user.Name()
 	}
 	return formatAddress(addr.String())
 }
 
-func formatAmount(amount std.Coins) string {
+func formatAmount(amount banker.Coins) string {
 	ugnot := amount.AmountOf("ugnot")
 	if ugnot >= 1000000 {
 		gnot := float64(ugnot) / 1000000

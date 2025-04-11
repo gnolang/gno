@@ -1,7 +1,8 @@
 package valopers_proposal
 
 import (
-	"std"
+	"chain/banker"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -13,7 +14,7 @@ import (
 )
 
 func init() {
-	c := std.OriginCaller()
+	c := runtime.OriginCaller()
 	init.InitWithUsers(c)
 }
 
@@ -31,7 +32,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 	t.Run("remove an unexisting validator", func(t *testing.T) {
 		// Send coins to be able to register a valoper
-		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)})
+		testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", registerMinFee)})
 
 		urequire.NotPanics(t, func() {
 			valopers.Register(moniker, description, test1Address, pubKey)
@@ -45,7 +46,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		})
 
 		// Send coins to be able to make a proposal
-		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
+		testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", proposalMinFee)})
 
 		urequire.PanicsWithMessage(t, ErrValidatorMissing.Error(), func() {
 			pr := NewValidatorProposalRequest(test1Address)
@@ -56,7 +57,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 	t.Run("proposal successfully created", func(t *testing.T) {
 		// Send coins to be able to register a valoper
-		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)})
+		testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", registerMinFee)})
 
 		urequire.NotPanics(t, func() {
 			valopers.UpdateKeepRunning(test1Address, true)
@@ -69,7 +70,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		})
 
 		// Send coins to be able to make a proposal
-		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
+		testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", proposalMinFee)})
 
 		var pid dao.ProposalID
 		urequire.NotPanics(t, func() {
@@ -93,7 +94,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 
 	t.Run("try to update a validator with the same values", func(t *testing.T) {
 		// Send coins to be able to register a valoper
-		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", registerMinFee)})
+		testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", registerMinFee)})
 
 		var valoper valopers.Valoper
 
@@ -113,7 +114,7 @@ func TestValopers_ProposeNewValidator(t *testing.T) {
 		})
 
 		// Send coins to be able to make a proposal
-		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
+		testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", proposalMinFee)})
 
 		urequire.PanicsWithMessage(t, ErrSameValues.Error(), func() {
 			pr := NewValidatorProposalRequest(test1Address)
@@ -130,7 +131,7 @@ func TestValopers_ProposeNewInstructions(t *testing.T) {
 	description := ufmt.Sprintf("Update the instructions to: \n\n%s", newInstructions)
 
 	// Send coins to be able to make a proposal
-	testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
+	testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", proposalMinFee)})
 
 	var pid dao.ProposalID
 	urequire.NotPanics(t, func() {
@@ -155,7 +156,7 @@ func TestValopers_ProposeNewMinFee(t *testing.T) {
 	description := ufmt.Sprintf("Update the minimum register fee to: %d ugnot", newMinFee)
 
 	// Send coins to be able to make a proposal
-	testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", proposalMinFee)})
+	testing.SetOriginSend(banker.Coins{banker.NewCoin("ugnot", proposalMinFee)})
 
 	var pid dao.ProposalID
 	urequire.NotPanics(t, func() {

@@ -1,7 +1,7 @@
 package upgradeb
 
 import (
-	"std"
+	"chain/runtime"
 
 	v1 "gno.land/r/x/manfred_upgrade_patterns/upgrade_b/v1"
 )
@@ -26,10 +26,10 @@ func Get() int {
 
 func SetNextVersion(addr string) {
 	// assert CallTx call.
-	std.AssertOriginCall()
+	runtime.AssertOriginCall()
 	// assert admin.
-	caller := std.CallerAt(2)
-	if caller != std.OriginCaller() {
+	caller := runtime.CallerAt(2)
+	if caller != runtime.OriginCaller() {
 		panic("should not happen") // because std.AssertOriginCall().
 	}
 	if caller != admin {

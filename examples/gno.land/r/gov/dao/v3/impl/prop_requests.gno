@@ -1,7 +1,8 @@
 package impl
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/gov/dao"
@@ -9,7 +10,7 @@ import (
 )
 
 func NewChangeLawRequest(newLaw *Law) dao.ProposalRequest {
-	member, _ := memberstore.Get().GetMember(std.OriginCaller())
+	member, _ := memberstore.Get().GetMember(runtime.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
@@ -25,7 +26,7 @@ func NewChangeLawRequest(newLaw *Law) dao.ProposalRequest {
 	return dao.NewProposalRequest("Change Law Proposal", "This proposal is looking to change the actual govDAO Law", e)
 }
 
-func NewAddMemberRequest(addr std.Address, tier string, portfolio string) dao.ProposalRequest {
+func NewAddMemberRequest(addr chain.Address, tier string, portfolio string) dao.ProposalRequest {
 	_, ok := memberstore.Tiers.GetTier(tier)
 	if !ok {
 		panic("provided tier does not exists")
@@ -39,7 +40,7 @@ func NewAddMemberRequest(addr std.Address, tier string, portfolio string) dao.Pr
 		panic("A portfolio for the proposed member is required")
 	}
 
-	member, _ := memberstore.Get().GetMember(std.OriginCaller())
+	member, _ := memberstore.Get().GetMember(runtime.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
 	}
@@ -64,7 +65,7 @@ func NewAddMemberRequest(addr std.Address, tier string, portfolio string) dao.Pr
 	)
 }
 
-func NewWithdrawMemberRequest(addr std.Address, reason string) dao.ProposalRequest {
+func NewWithdrawMemberRequest(addr chain.Address, reason string) dao.ProposalRequest {
 	member, tier := memberstore.Get().GetMember(addr)
 	if member == nil {
 		panic("user we want to remove not found")
@@ -85,7 +86,7 @@ func NewWithdrawMemberRequest(addr std.Address, reason string) dao.ProposalReque
 	return dao.NewProposalRequest("Member Withdrawn", "This proposal is looking to remove a member from the board.", e)
 }
 
-func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) dao.ProposalRequest {
+func NewPromoteMemberRequest(addr chain.Address, fromTier string, toTier string) dao.ProposalRequest {
 	cb := func() error {
 		prevTier := memberstore.Get().RemoveMember(addr)
 		if prevTier == "" {

@@ -1,8 +1,6 @@
 package authz
 
-import (
-	"std"
-)
+import "chain"
 
 // Example_basic demonstrates initializing and using a basic member authority
 func Example_basic() {
@@ -23,7 +21,7 @@ func Example_addingMembers() {
 
 	// Add a new member to the authority
 	memberAuth := auth.Current().(*MemberAuthority)
-	memberAuth.AddMember(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	memberAuth.AddMember(chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 }
 
 // Example_contractAuthority demonstrates using a contract-based authority
@@ -47,8 +45,8 @@ func Example_contractAuthority() {
 func Example_restrictedContractAuthority() {
 	// Initialize member authority for proposers
 	proposerAuth := NewMemberAuthority(
-		std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), // admin1
-		std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"), // admin2
+		chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), // admin1
+		chain.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"), // admin2
 	)
 
 	// Create contract authority with restricted proposers

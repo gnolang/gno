@@ -2,8 +2,9 @@
 package crossrealm_test
 
 import (
+	"chain"
+	"chain/runtime"
 	"fmt"
-	"std"
 
 	psubtests "gno.land/p/demo/tests/subtests"
 	rsubtests "gno.land/r/demo/tests/subtests"
@@ -11,9 +12,9 @@ import (
 
 func main() {
 	tests := []struct {
-		fn func() std.Realm
+		fn func() runtime.Realm
 	}{
-		{std.CurrentRealm},
+		{runtime.CurrentRealm},
 		{psubtests.GetCurrentRealm},
 		{rsubtests.GetCurrentRealm},
 	}
@@ -21,9 +22,9 @@ func main() {
 	for _, test := range tests {
 		r := test.fn()
 
-		if std.DerivePkgAddr(r.PkgPath()) != r.Address() {
+		if chain.DerivePkgAddr(r.PkgPath()) != r.Address() {
 			panic(fmt.Sprintf("ERROR: expected: %v, got: %v",
-				std.DerivePkgAddr(r.PkgPath()), r.Address(),
+				chain.DerivePkgAddr(r.PkgPath()), r.Address(),
 			))
 		}
 

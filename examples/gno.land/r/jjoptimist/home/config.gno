@@ -1,7 +1,7 @@
 package home
 
 import (
-	"std"
+	"chain"
 
 	"gno.land/p/demo/ownable"
 )
@@ -18,7 +18,7 @@ var config = Config{
 	Github:      "jjoptimist",
 }
 
-var Ownable = ownable.NewWithAddress(std.Address("g16vfw3r7zuz43fhky3xfsuc2hdv9tnhvlkyn0nj"))
+var Ownable = ownable.NewWithAddress(chain.Address("g16vfw3r7zuz43fhky3xfsuc2hdv9tnhvlkyn0nj"))
 
 func GetConfig() Config {
 	return config

@@ -1,10 +1,11 @@
 package dice_roller
 
 import (
+	"chain"
+	"chain/runtime"
 	"errors"
 	"math/rand"
 	"sort"
-	"std"
 	"strconv"
 	"strings"
 
@@ -19,13 +20,13 @@ import (
 type (
 	// game represents a Dice Roller game between two players
 	game struct {
-		player1, player2 std.Address
+		player1, player2 chain.Address
 		roll1, roll2     int
 	}
 
 	// player holds the information about each player including their stats
 	player struct {
-		addr                        std.Address
+		addr                        chain.Address
 		wins, losses, draws, points int
 	}
 
@@ -57,13 +58,13 @@ func rollDice() int {
 }
 
 // NewGame initializes a new game with the provided opponent's address
-func NewGame(addr std.Address) int {
+func NewGame(addr chain.Address) int {
 	if !addr.IsValid() {
 		panic("invalid opponent's address")
 	}
 
 	games.Set(gameId.Next().String(), &game{
-		player1: std.PreviousRealm().Address(),
+		player1: runtime.PreviousRealm().Address(),
 		player2: addr,
 	})
 
@@ -80,7 +81,7 @@ func Play(idx int) int {
 	roll := rollDice() // Random the player's dice roll
 
 	// Play the game and update the player's roll
-	if err := g.play(std.PreviousRealm().Address(), roll); err != nil {
+	if err := g.play(runtime.PreviousRealm().Address(), roll); err != nil {
 		panic(err)
 	}
 
@@ -110,7 +111,7 @@ func Play(idx int) int {
 }
 
 // play processes a player's roll and updates their score
-func (g *game) play(player std.Address, roll int) error {
+func (g *game) play(player chain.Address, roll int) error {
 	if player != g.player1 && player != g.player2 {
 		return errors.New("invalid player")
 	}
@@ -222,7 +223,7 @@ The top players are ranked by performance. Games played against oneself are not 
 }
 
 // shortName returns a shortened name for the given address
-func shortName(addr std.Address) string {
+func shortName(addr chain.Address) string {
 	user := users.ResolveAddress(addr)
 	if user != nil {
 		return user.Name()
@@ -257,7 +258,7 @@ func (p *player) updateStats(result int) {
 }
 
 // getPlayer retrieves a player or initializes a new one if they don't exist
-func getPlayer(addr std.Address) *player {
+func getPlayer(addr chain.Address) *player {
 	v, ok := players.Get(addr.String())
 	if !ok {
 		player := &player{

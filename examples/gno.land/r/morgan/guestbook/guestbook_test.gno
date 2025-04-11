@@ -1,7 +1,8 @@
 package guestbook
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"strings"
 	"testing"
 
@@ -13,10 +14,10 @@ func TestSign(t *testing.T) {
 	guestbook = avl.Tree{}
 	hasSigned = avl.Tree{}
 
-	testing.SetRealm(std.NewUserRealm("g1user"))
+	testing.SetRealm(runtime.NewUserRealm("g1user"))
 	Sign("Hello!")
 
-	testing.SetRealm(std.NewUserRealm("g1user2"))
+	testing.SetRealm(runtime.NewUserRealm("g1user2"))
 	Sign("Hello2!")
 
 	res := Render("")
@@ -33,7 +34,7 @@ func TestSign(t *testing.T) {
 }
 
 func TestSign_FromRealm(t *testing.T) {
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoland/users/v1"))
+	testing.SetRealm(runtime.NewCodeRealm("gno.land/r/gnoland/users/v1"))
 
 	defer func() {
 		rec := recover()
@@ -55,7 +56,7 @@ func TestSign_Double(t *testing.T) {
 	guestbook = avl.Tree{}
 	hasSigned = avl.Tree{}
 
-	testing.SetRealm(std.NewUserRealm("g1user"))
+	testing.SetRealm(runtime.NewUserRealm("g1user"))
 	Sign("Hello!")
 
 	defer func() {
@@ -79,7 +80,7 @@ func TestSign_InvalidMessage(t *testing.T) {
 	guestbook = avl.Tree{}
 	hasSigned = avl.Tree{}
 
-	testing.SetRealm(std.NewUserRealm("g1user"))
+	testing.SetRealm(runtime.NewUserRealm("g1user"))
 
 	defer func() {
 		rec := recover()
@@ -98,8 +99,8 @@ func TestSign_InvalidMessage(t *testing.T) {
 
 func TestAdminDelete(t *testing.T) {
 	const (
-		userAddr  std.Address = "g1user"
-		adminAddr std.Address = "g1admin"
+		userAddr  chain.Address = "g1user"
+		adminAddr chain.Address = "g1admin"
 	)
 
 	guestbook = avl.Tree{}
@@ -107,7 +108,7 @@ func TestAdminDelete(t *testing.T) {
 	owner = ownable.NewWithAddress(adminAddr)
 	signatureID = 0
 
-	testing.SetRealm(std.NewUserRealm(userAddr))
+	testing.SetRealm(runtime.NewUserRealm(userAddr))
 
 	const bad = "Very Bad Message! Nyeh heh heh!"
 	Sign(bad)
@@ -116,7 +117,7 @@ func TestAdminDelete(t *testing.T) {
 		t.Fatal("render does not contain bad message", rnd)
 	}
 
-	testing.SetRealm(std.NewUserRealm(adminAddr))
+	testing.SetRealm(runtime.NewUserRealm(adminAddr))
 	AdminDelete(signatureID.String())
 
 	if rnd := Render(""); strings.Contains(rnd, bad) {

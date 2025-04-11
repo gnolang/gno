@@ -1,7 +1,7 @@
 package users
 
 import (
-	"std"
+	"chain"
 	"testing"
 
 	"gno.land/p/demo/avl"
@@ -16,7 +16,7 @@ var (
 	bob       = "bob"
 	bobAddr   = testutils.TestAddress(bob)
 
-	whitelistedCallerAddr = std.DerivePkgAddr(gusersv1)
+	whitelistedCallerAddr = chain.DerivePkgAddr(gusersv1)
 )
 
 func TestRegister(t *testing.T) {

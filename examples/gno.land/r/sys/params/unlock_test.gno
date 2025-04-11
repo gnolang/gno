@@ -1,7 +1,7 @@
 package params
 
 import (
-	"std"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/demo/urequire"
@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	c := std.OriginCaller()
+	c := runtime.OriginCaller()
 	init.InitWithUsers(c)
 }
 

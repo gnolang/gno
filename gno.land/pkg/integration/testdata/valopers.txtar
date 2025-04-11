@@ -62,24 +62,24 @@ package main
 
 import (
   i "gno.land/r/gov/dao/v3/init"
-  "std"
+  "chain"
 )
 
 func main() {
-	i.InitWithUsers(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	i.InitWithUsers(chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 }
 
 -- run/new_proposal_bad.gno --
 package main
 
 import (
-  "std"
+  "chain"
   "gno.land/r/gov/dao"
   "gno.land/r/gnoland/valopers_proposal"
 )
 
 func main() {
-  pr := valopers_proposal.NewValidatorProposalRequest(std.Address("g1juz2yxmdsa6audkp6ep9vfv80c8p5u76e03vvh"))
+  pr := valopers_proposal.NewValidatorProposalRequest(chain.Address("g1juz2yxmdsa6audkp6ep9vfv80c8p5u76e03vvh"))
   pid := dao.MustCreateProposal(pr)
   println(pid.String())
 }
@@ -88,13 +88,13 @@ func main() {
 package main
 
 import (
-  "std"
+  "chain"
   "gno.land/r/gov/dao"
   "gno.land/r/gnoland/valopers_proposal"
 )
 
 func main() {
-  pr := valopers_proposal.NewValidatorProposalRequest(std.Address("g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl"))
+  pr := valopers_proposal.NewValidatorProposalRequest(chain.Address("g1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl"))
   pid := dao.MustCreateProposal(pr)
   println(pid.String())
 }
