@@ -34,8 +34,12 @@ Some configuration params are required, while others are advised to be set.
 - `p2p.laddr` - the listen address for P2P traffic, **specific to every node deployment**. It is advised to use a
   reverse-proxy, and keep this value at `tcp://0.0.0.0:<port>`.
 - `p2p.max_num_outbound_peers` - the max number of outbound peer connections. **Advised to be `40`**.
-- `p2p.persistent_peers` - the persistent peers. ⚠️ **Required to be `TODO` ** ⚠️.
-- `p2p.seeds` - the bootnode peers. ⚠️ **Required to be `TODO` ** ⚠️.
+- `p2p.persistent_peers` - the persistent peers. ⚠️ **Required to be
+`g16384atcuf6ew3ufpwtvhymwfyl2aw390aq8jtt@gno-core-sen-01.test6.testnets.gno.land:26656,g16384atcuf6ew3ufpwtvhymwfyl2aw390aq8jtt@gno-core-sen-02.test6.testnets.gno.land:26656`
+** ⚠️.
+- `p2p.seeds` - the bootnode peers. ⚠️ **Required to be
+`g16384atcuf6ew3ufpwtvhymwfyl2aw390aq8jtt@gno-core-sen-01.test6.testnets.gno.land:26656,g16384atcuf6ew3ufpwtvhymwfyl2aw390aq8jtt@gno-core-sen-02.test6.testnets.gno.land:26656`
+** ⚠️.
 - `p2p.pex` - if using a sentry node architecture, should be `false`. **If not, please set to `true`**.
 - `p2p.external_address` - the advertised peer dial address. If empty, will use the same port as the `p2p.laddr`. This
   value should be **changed to `{{ your_ip_address }}:26656`**
@@ -58,7 +62,7 @@ wget TODO
 The `sha3` hash of the `genesis.json` should be `TODO`.
 Verify it by running:
 
-```
+```sh
 shasum -a 256 genesis.json
 TODO genesis.json
 ```
