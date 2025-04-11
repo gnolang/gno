@@ -55,7 +55,7 @@ func (ps *ProposalStore) CreateProposal(title, description string, period int64)
 	return "Proposal created: " + title + " Voting period: " + strconv.Itoa(int(period))
 }
 
-func (ps *ProposalStore) CreateProposalTest() string {
+func (ps *ProposalStore) CreateProposalSample() string {
 	return ps.CreateProposal("Survey", "Would you like to visit Guatemala?", 30)
 }
 

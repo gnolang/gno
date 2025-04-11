@@ -51,7 +51,7 @@ func renderDAO() string {
 		out += "- " + md.Link("Request to Join DAO", txlink.Call("RequestDAO")) + "\n"
 	}	
 	out += "- " + md.Link("Leave DAO", txlink.Call("LeaveDAO")) + "\n"
-	out += "- " + md.Link("Create Sample Proposal", txlink.Call("CreateProposalTest")) + "\n"
+	out += "- " + md.Link("Create Sample Proposal", txlink.Call("CreateProposalSample")) + "\n"
 	for id := range daoMap {
 		out += "- " + md.Link("View Stats", "/r/moonia/home?dao="+id+"&stats") + "\n"
 	}
