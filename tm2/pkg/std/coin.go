@@ -130,7 +130,7 @@ func (coin Coin) AddUnsafe(coinB Coin) Coin {
 	if coin.Denom != coinB.Denom {
 		panic(fmt.Sprintf("invalid coin denominations; %s, %s", coin.Denom, coinB.Denom))
 	}
-	sum, ok := overflow.Add64(coin.Amount, coinB.Amount)
+	sum, ok := overflow.Add(coin.Amount, coinB.Amount)
 	if !ok {
 		panic(fmt.Sprintf("coin add overflow/underflow: %v, %v", coin, coinB))
 	}
@@ -153,7 +153,7 @@ func (coin Coin) SubUnsafe(coinB Coin) Coin {
 	if coin.Denom != coinB.Denom {
 		panic(fmt.Sprintf("invalid coin denominations; %s, %s", coin.Denom, coinB.Denom))
 	}
-	dff, ok := overflow.Sub64(coin.Amount, coinB.Amount)
+	dff, ok := overflow.Sub(coin.Amount, coinB.Amount)
 	if !ok {
 		panic(fmt.Sprintf("coin subtract overflow/underflow: %v, %v", coin, coinB))
 	}

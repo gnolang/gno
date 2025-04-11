@@ -1,12 +1,13 @@
 package grc20
 
 import (
-	"math/overflow"
 	"std"
 	"strconv"
 
 	"gno.land/p/demo/ufmt"
 )
+
+const MaxUint64 = uint64(1<<63 - 1)
 
 // NewToken creates a new Token.
 // It returns a pointer to the Token and a pointer to the Ledger.
@@ -192,14 +193,17 @@ func (led *PrivateLedger) Mint(address std.Address, amount uint64) error {
 		return ErrInvalidAddress
 	}
 
-	// XXX: math/overflow is not supporting uint64.
-	// This checks prevents overflow but makes the totalSupply limited to a uint63.
-	sum, ok := overflow.Add64(int64(led.totalSupply), int64(amount))
-	if !ok {
+	// limit totalSupply to MaxUint64
+	if led.totalSupply > MaxUint64 {
 		return ErrOverflow
 	}
 
-	led.totalSupply = uint64(sum)
+	// limit amount to MaxUint64 - totalSupply
+	if amount > MaxUint64-led.totalSupply {
+		return ErrOverflow
+	}
+
+	led.totalSupply += amount
 	currentBalance := led.balanceOf(address)
 	newBalance := currentBalance + amount
 

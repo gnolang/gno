@@ -1,0 +1,27 @@
+gno tool lint .
+
+cmp stdout stdout.golden
+cmp stderr stderr.golden
+
+-- hello.gno --
+package hello
+
+import (
+"fmt"
+"math"
+)
+
+func init() {
+	fmt.Println("here", math.MaxInt)
+}
+
+func init() {
+	println("second")
+}
+
+func Get(){}
+-- gno.mod --
+module gno.land/r/demo/hello
+
+-- stdout.golden --
+-- stderr.golden --
