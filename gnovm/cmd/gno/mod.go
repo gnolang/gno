@@ -4,14 +4,15 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"go/token"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload"
-	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload/rpcpkgfetcher"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
+	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
+	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"go.uber.org/multierr"
@@ -179,16 +180,18 @@ func execModGraph(cfg *modGraphCfg, args []string, io commands.IO) error {
 
 	stdout := io.Out()
 
-	pkgs, err := gnomod.ListPkgs(args[0])
+	pkgs, err := packages.Load(&packages.LoadConfig{Fetcher: testPackageFetcher, Deps: true}, args...)
 	if err != nil {
 		return err
 	}
-	for _, pkg := range pkgs {
-		for _, dep := range pkg.Imports {
-			fmt.Fprintf(stdout, "%s %s\n", pkg.Name, dep)
+
+	return pkgs.Explore(pkgs.Matches().PkgPaths(), func(p *packages.Package) ([]string, error) {
+		imports := p.Imports[packages.FileKindPackageSource]
+		for _, imp := range imports {
+			fmt.Fprintf(stdout, "%s %s\n", p.ImportPath, imp)
 		}
-	}
-	return nil
+		return imports, nil
+	})
 }
 
 func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
@@ -235,7 +238,8 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("validate: %w", err)
 	}
 
-	if err := downloadDeps(io, path, gnoMod, fetcher); err != nil {
+	conf := &packages.LoadConfig{Out: io.Err(), Fetcher: fetcher}
+	if err := packages.DownloadDeps(conf, path, gnoMod); err != nil {
 		return err
 	}
 
@@ -307,7 +311,8 @@ func execModTidy(cfg *modTidyCfg, args []string, io commands.IO) error {
 	}
 
 	if cfg.recursive {
-		pkgs, err := gnomod.ListPkgs(wd)
+		loadCfg := packages.LoadConfig{Out: io.Err(), Fetcher: testPackageFetcher}
+		pkgs, err := packages.Load(&loadCfg, filepath.Join(wd, "..."))
 		if err != nil {
 			return err
 		}
@@ -347,23 +352,27 @@ func execModWhy(args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	wd, err := os.Getwd()
+	conf := &packages.LoadConfig{Fetcher: testPackageFetcher}
+	pkgs, err := packages.Load(conf, ".")
 	if err != nil {
 		return err
 	}
-	fname := filepath.Join(wd, "gno.mod")
-	gm, err := gnomod.ParseGnoMod(fname)
+	if len(pkgs) < 1 {
+		return errors.New("no package found")
+	}
+	pkg := pkgs[0]
+
+	importToFilesMap, err := getImportToFilesMap(pkg)
 	if err != nil {
 		return err
 	}
 
-	importToFilesMap, err := getImportToFilesMap(wd)
-	if err != nil {
-		return err
+	if pkg.ModPath == "" {
+		pkg.ModPath = "."
 	}
 
 	// Format and print `gno mod why` output stanzas
-	out := formatModWhyStanzas(gm.Module.Mod.Path, args, importToFilesMap)
+	out := formatModWhyStanzas(pkg.ModPath, args, importToFilesMap)
 	io.Printf(out)
 
 	return nil
@@ -394,11 +403,12 @@ func formatModWhyStanzas(modulePath string, args []string, importToFilesMap map[
 
 // getImportToFilesMap returns a map where each key is an import path and its
 // value is a list of files importing that package with the specified import path.
-func getImportToFilesMap(pkgPath string) (map[string][]string, error) {
-	entries, err := os.ReadDir(pkgPath)
+func getImportToFilesMap(pkg *packages.Package) (map[string][]string, error) {
+	entries, err := os.ReadDir(pkg.Dir)
 	if err != nil {
 		return nil, err
 	}
+	fset := token.NewFileSet()
 	m := make(map[string][]string) // import -> []file
 	for _, e := range entries {
 		filename := e.Name()
@@ -409,11 +419,11 @@ func getImportToFilesMap(pkgPath string) (map[string][]string, error) {
 			continue
 		}
 
-		data, err := os.ReadFile(filepath.Join(pkgPath, filename))
+		data, err := os.ReadFile(filepath.Join(pkg.Dir, filename))
 		if err != nil {
 			return nil, err
 		}
-		imports, err := packages.FileImports(filename, string(data), nil)
+		imports, err := packages.FileImports(filename, string(data), fset)
 		if err != nil {
 			return nil, err
 		}

@@ -1,15 +1,13 @@
-package main
+package packages
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload/examplespkgfetcher"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/examplespkgfetcher"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/mod/modfile"
@@ -103,9 +101,7 @@ func TestDownloadDeps(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			mockErr := bytes.NewBufferString("")
-			io := commands.NewTestIO()
-			io.SetErr(commands.WriteNopCloser(mockErr))
+			mockErr := writeCloser{}
 
 			dirPath := t.TempDir()
 
@@ -115,10 +111,10 @@ func TestDownloadDeps(t *testing.T) {
 			tmpGnoHome := t.TempDir()
 			t.Setenv("GNOHOME", tmpGnoHome)
 
-			fetcher := examplespkgfetcher.New()
+			fetcher := examplespkgfetcher.New("")
 
 			// gno: downloading dependencies
-			err = downloadDeps(io, dirPath, &tc.modFile, fetcher)
+			err = DownloadDeps(&mockErr, fetcher, dirPath, &tc.modFile)
 			if tc.errorShouldContain != "" {
 				require.ErrorContains(t, err, tc.errorShouldContain)
 			} else {
@@ -144,7 +140,7 @@ func TestDownloadDeps(t *testing.T) {
 				mockErr.Reset()
 
 				// Try fetching again. Should be cached
-				downloadDeps(io, dirPath, &tc.modFile, fetcher)
+				DownloadDeps(&mockErr, fetcher, dirPath, &tc.modFile)
 				for _, c := range tc.ioErrContains {
 					assert.NotContains(t, mockErr.String(), c)
 				}
