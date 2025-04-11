@@ -31,13 +31,13 @@ func ListMembers() map[std.Address]bool {
 	return ds.DAO.Whitelist
 }
 
-// func AcceptRequest(addr std.Address) string {
-// 	return ds.DAO.AcceptRequest(addr)
-// }
+func AcceptRequest(addr std.Address) string {
+	return ds.DAO.AcceptRequest(addr)
+}
 
-// func DeclineRequest(addr std.Address) string {
-// 	return ds.DAO.DeclineRequest(addr)
-// }
+func DeclineRequest(addr std.Address) string {
+	return ds.DAO.DeclineRequest(addr)
+}
 
 func ListRequests() map[std.Address]bool {
 	return ds.DAO.ListRequests()
@@ -58,12 +58,8 @@ func CreateDAO(id, name, desc string) string {
 	return "DAO '" + id + "' created with name: " + name
 }
 
-// func RequestDAO() string {
-// 	return ds.DAO.RequestDAO()
-// }
-
-func JoinDAO() string {
-	return ds.DAO.JoinDAO()
+func RequestDAO() string {
+	return ds.DAO.RequestDAO()
 }
 
 func LeaveDAO() string {

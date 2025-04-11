@@ -35,13 +35,16 @@ func (d *DAO) ShowAdmin() string {
 	return "Admin: `" + d.Admin.String() + "`"
 }
 
-func (d *DAO) JoinDAO() string {
+func (d *DAO) RequestDAO() string {
 	caller := utils.GetCaller()
 	if d.Whitelist[caller] {
-		panic("You're already a member of the DAO.")
+		return "You are already a member."
 	}
-	d.Whitelist[caller] = true
-	return "You have successfully joined the DAO."
+	if d.Requests[caller] {
+		return "You have already requested to join."
+	}
+	d.Requests[caller] = true
+	return "Request to join sent."
 }
 
 func (d *DAO) LeaveDAO() string {

@@ -19,7 +19,6 @@ func (d *DAO) TransferAdmin(addr std.Address) string {
 	if !d.IsMember(addr) {
 		panic("New admin must be a member.")
 	}
-
 	d.Admin = addr
 	return "Admin transferred to " + addr.String()
 }
@@ -30,13 +29,36 @@ func (d *DAO) SetAdmin() string {
 	}
 	caller := utils.GetCaller()
 	d.Admin = caller
-	d.JoinDAO()
-
+	d.Whitelist[caller] = true
 	return "Admin set to: " + caller.String()
 }
 
 func (d *DAO) IsAdmin(addr std.Address) bool {
 	return addr == d.Admin
+}
+
+func (d *DAO) AcceptRequest(addr std.Address) string {
+	caller := utils.GetCaller()
+	if !d.IsAdmin(caller) {
+		panic("Only admin can accept requests.")
+	}
+	if !d.Requests[addr] {
+		panic("No such request.")
+	}
+	delete(d.Requests, addr)
+	return d.AddMember(addr)
+}
+
+func (d *DAO) DeclineRequest(addr std.Address) string {
+	caller := utils.GetCaller()
+	if !d.IsAdmin(caller) {
+		panic("Only admin can decline requests.")
+	}
+	if !d.Requests[addr] {
+		panic("No such request.")
+	}
+	delete(d.Requests, addr)
+	return "Request declined for " + addr.String()
 }
 
 // Member Methods //

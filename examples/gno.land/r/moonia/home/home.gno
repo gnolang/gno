@@ -49,7 +49,7 @@ func renderDAO() string {
 	out += "## Actions:\n\n"
 	if !ds.DAO.IsMember(caller) && ds.DAO.Admin != "" {
 		out += "- " + md.Link("Request to Join DAO", txlink.Call("RequestDAO")) + "\n"
-	}
+	}	
 	out += "- " + md.Link("Leave DAO", txlink.Call("LeaveDAO")) + "\n"
 	out += "- " + md.Link("Create Sample Proposal", txlink.Call("CreateProposalTest")) + "\n"
 	for id := range daoMap {
@@ -57,6 +57,18 @@ func renderDAO() string {
 	}
 	out += "- " + md.Link("Transfer Admin", txlink.Call("TransferAdmin", "args", "addr")) + "\n"
 	out += ds.DAO.ShowWhitelist() + "\n"
+	if ds.DAO.IsAdmin(caller) {
+		out += "\n## 📨 Join Requests:\n"
+		if len(ds.DAO.Requests) == 0 {
+			out += "_No pending requests._\n"
+		} else {
+			for addr := range ds.DAO.Requests {
+				out += "- " + addr.String() + " " +
+					md.Link("[Accept]", txlink.Call("AcceptRequest", "args", addr.String())) + " " +
+					md.Link("[Decline]", txlink.Call("DeclineRequest", "args", addr.String())) + "\n"
+			}
+		}
+	}
 	out += ds.Proposals.ShowProposals()
 	return out
 }

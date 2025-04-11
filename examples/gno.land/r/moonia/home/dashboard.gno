@@ -1,7 +1,7 @@
 package home
 
 import (
-	// "gno.land/p/moonia/utils"
+	"gno.land/p/moonia/utils"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/moul/md"
 )
@@ -15,7 +15,7 @@ func renderDashboardDesc() string {
 }
 
 func renderDashboard() string {
-	// caller := utils.GetCaller()
+	caller := utils.GetCaller()
 	out := "# Welcome to the DAO Hub\n\n"
 	out += renderDashboardDesc()
 
@@ -30,8 +30,17 @@ func renderDashboard() string {
 			out += "- " + md.Link(dao.Name, "/r/moonia/home?dao="+id) + " : " + dao.Description
 		}		
 	}
-	out += "\n## 👥 My DAOs:\n"
-	// TODO: display addr DAOs
-	out += "_You are not a member of any DAO._\n"
+	out += "\n## 👥 Your DAOs:\n"
+	found := false
+	for id, dao := range daoMap {
+		if dao.IsAdmin(caller) || dao.IsMember(caller) {
+			out += "- " + md.Link(dao.Name, "/r/moonia/home?dao="+id) + "\n"
+			found = true
+		}
+	}
+	if !found {
+		out += "_You are not a member of any DAO._\n"
+	}
+
 	return out
 }
