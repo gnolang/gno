@@ -957,7 +957,8 @@ func gnoGenesisState(t *testing.T) GnoGenesisState {
         "sig_verify_cost_secp256k1": "1000",
         "target_gas_ratio": "60",
         "tx_sig_limit": "7",
-        "tx_size_cost_per_byte": "10"
+        "tx_size_cost_per_byte": "10",
+        "fee_collector": "g1najfm5t7dr4f2m38cg55xt6gh2lxsk92tgh0xy"
       }
     }
   }`)
