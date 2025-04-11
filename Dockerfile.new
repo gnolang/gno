@@ -13,19 +13,19 @@ COPY        . ./
 # Gnoland
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=gomodcache \
             --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
-            go build -o -ldflags "-w -s" ./build/gnoland ./gno.land/cmd/gnoland
+            go build -ldflags "-w -s" -o ./build/gnoland ./gno.land/cmd/gnoland
 # Gnokey
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=gomodcache \
             --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
-            go build -o -ldflags "-w -s" ./build/gnokey ./gno.land/cmd/gnokey
+            go build -ldflags "-w -s" -o ./build/gnokey ./gno.land/cmd/gnokey
 # Gnoweb
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=gomodcache \
             --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
-            go build -o -ldflags "-w -s" ./build/gnoweb ./gno.land/cmd/gnoweb
+            go build -ldflags "-w -s" -o ./build/gnoweb ./gno.land/cmd/gnoweb
 # Gno
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=gomodcache \
             --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
-            go build -o -ldflags "-w -s" ./build/gno ./gnovm/cmd/gno
+            go build -ldflags "-w -s" -o ./build/gno ./gnovm/cmd/gno
 
 # Gnofaucet build
 FROM        build-gno AS build-gnofaucet
@@ -35,7 +35,7 @@ RUN         --mount=type=cache,target=/go/pkg/mod/,id=faucet-modcache \
             go mod download -x
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=faucet \
             --mount=type=cache,target=/root/.cache/go-build,id=faucet-buildcache \
-            go build -o -ldflags "-w -s" /gnoroot/build/gnofaucet .
+            go build -ldflags "-w -s" -o /gnoroot/build/gnofaucet .
 
 # Gnodev build
 FROM        build-gno AS build-gnodev
@@ -64,7 +64,7 @@ RUN         --mount=type=cache,target=/go/pkg/mod/,id=contribs_modcache \
             go mod download -x
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=contribs_modcache \
             --mount=type=cache,target=/root/.cache/go-build,id=contribs_buildcache \
-            go build -o -ldflags "-w -s" /gnoroot/build/gnogenesis .
+            go build -ldflags "-w -s" -o /gnoroot/build/gnogenesis .
 
 # Misc build
 FROM        build-gno AS build-misc
@@ -75,7 +75,7 @@ RUN         --mount=type=cache,target=/go/pkg/mod/,id=pl-modcache \
             go mod download -x
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=pl-modcache \
             --mount=type=cache,target=/root/.cache/go-build,id=pl-buildcache \
-            go build -o -ldflags "-w -s" /gnoroot/build/portalloopd ./cmd
+            go build -ldflags "-w -s" -o /gnoroot/build/portalloopd ./cmd
 ## Autocounterd
 WORKDIR     /gnoroot/misc/autocounterd
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=acd-modcache \
@@ -85,7 +85,7 @@ RUN         --mount=type=cache,target=/go/pkg/mod/,id=acd-modcache \
             go mod download -x
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=acd-modcache \
             --mount=type=cache,target=/root/.cache/go-build,id=acd-buildcache \
-            go build -o -ldflags "-w -s" /gnoroot/build/autocounterd ./cmd
+            go build -ldflags "-w -s" -o /gnoroot/build/autocounterd ./cmd
 
 # Base image
 FROM        alpine:3 AS base
