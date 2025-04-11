@@ -6,7 +6,6 @@ import (
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/realmpath"
-	"gno.land/p/moul/txlink"
 	"gno.land/r/leon/hof"
 )
 
@@ -25,9 +24,8 @@ const (
 )
 
 var (
-	val            float64
-	expressionPath string
-	displayVal     string
+	val        float64
+	displayVal string
 
 	operaationMap = map[string]func(left float64, right float64) float64{
 		"p": func(left float64, right float64) float64 { return left + right },
@@ -40,20 +38,6 @@ var (
 func init() {
 	hof.Register("Miko's calculator", "Let's do maths")
 }
-
-// func AddToMath(newEl string) {
-// 	ufmt.Print("add to math %s", newEl)
-// 	if displayVal == "0" {
-// 		displayVal = newEl
-// 		return
-// 	}
-// 	displayVal += newEl
-// }
-
-// func Reset() {
-// 	val = 0
-// 	displayVal = "0"
-// }
 
 func evaluateValidity(line string) {
 	if len(line) == 0 {
@@ -117,21 +101,16 @@ func readTree(tree *Node) float64 {
 	return parsedValue
 }
 
-func ComputeResult() {
-	println(expressionPath)
-	req := realmpath.Parse(expressionPath)
-	query := req.Query
-	expression := query.Get("expression")
-
+func ComputeResult(path string, expression string) string {
 	evaluateValidity(expression)
 	tree := createTree(expression)
 
 	val = readTree(tree)
-	query.Set("expression", strconv.FormatFloat(val, 'g', 6, 64))
 	displayVal = strconv.FormatFloat(val, 'g', 6, 64)
+	return displayVal
 }
 
-func RemoveLast(path string) string {
+func removeLast(path string) string {
 	lenPath := len(path)
 	if lenPath > 0 {
 		path = path[:lenPath-1]
@@ -142,9 +121,6 @@ func RemoveLast(path string) string {
 func Render(path string) string {
 	var sb strings.Builder
 
-	println(path)
-	expressionPath = path
-	println(expressionPath)
 	req := realmpath.Parse(path)
 	query := req.Query
 	expression := query.Get("expression")
@@ -152,7 +128,11 @@ func Render(path string) string {
 	if expression == "" {
 		displayVal = "0"
 	} else {
-		displayVal = strings.Replace(expression, "p", "+", -1)
+		if expression[len(expression)-1] == '=' {
+			expression = ComputeResult(path, expression[:len(expression)-1])
+		} else {
+			displayVal = strings.Replace(expression, "p", "+", -1)
+		}
 	}
 
 	sb.WriteString(`# Calculator page
@@ -162,12 +142,12 @@ Do I have the realm for you...
 
 Result: ` + displayVal + `
 ---------------
-| ` + ufmt.Sprintf("[res](%s)", realmPath) + `|||` + ufmt.Sprintf("[del](%s)", realmPath+":?expression="+RemoveLast(expression)) + `|
+| ` + ufmt.Sprintf("[res](%s)", realmPath) + `|||` + ufmt.Sprintf("[del](%s)", realmPath+":?expression="+removeLast(expression)) + `|
 |---|---|---|---|
 | ` + ufmt.Sprintf("[7](%s)", realmPath+":?expression="+expression+"7") + `| ` + ufmt.Sprintf("[8](%s)", realmPath+":?expression="+expression+"8") + `| ` + ufmt.Sprintf("[9](%s)", realmPath+":?expression="+expression+"9") + `| ` + ufmt.Sprintf("[+](%s)", realmPath+":?expression="+expression+"p") /* here p replaces + because of how + works in bnormal paths*/ + `|
 | ` + ufmt.Sprintf("[4](%s)", realmPath+":?expression="+expression+"4") + `| ` + ufmt.Sprintf("[5](%s)", realmPath+":?expression="+expression+"5") + `| ` + ufmt.Sprintf("[6](%s)", realmPath+":?expression="+expression+"6") + `| ` + ufmt.Sprintf("[-](%s)", realmPath+":?expression="+expression+"-") + `|
 | ` + ufmt.Sprintf("[1](%s)", realmPath+":?expression="+expression+"1") + `| ` + ufmt.Sprintf("[2](%s)", realmPath+":?expression="+expression+"2") + `| ` + ufmt.Sprintf("[3](%s)", realmPath+":?expression="+expression+"3") + `| ` + ufmt.Sprintf("[*](%s)", realmPath+":?expression="+expression+"*") + `|
-| ` + ufmt.Sprintf("[0](%s)", realmPath+":?expression="+expression+"0") + `| ` + ufmt.Sprintf("[.](%s)", realmPath+":?expression="+expression+".") + `| ` + ufmt.Sprintf("[=](%s)", txlink.Call("ComputeResult")) + `| ` + ufmt.Sprintf("[/](%s)", realmPath+":?expression="+expression+"/") + `|
+| ` + ufmt.Sprintf("[0](%s)", realmPath+":?expression="+expression+"0") + `| ` + ufmt.Sprintf("[.](%s)", realmPath+":?expression="+expression+".") + `| ` + ufmt.Sprintf("[=](%s)", realmPath+":?expression="+expression+"=") + `| ` + ufmt.Sprintf("[/](%s)", realmPath+":?expression="+expression+"/") + `|
 `)
 	return sb.String()
 }
