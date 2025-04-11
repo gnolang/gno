@@ -11,6 +11,7 @@ import (
 
 	"github.com/cockroachdb/apd/v3"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
@@ -724,7 +725,11 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 		}
 	}
 	mli := mv.List.Append(alloc, *key)
-	mv.vmap[kmk] = mli
+	if !key.IsNaN() {
+		// NaN's can only be accessed through iteration, so no need to place it
+		// in the vmap.
+		mv.vmap[kmk] = mli
+	}
 	key2 := key.Copy(alloc)
 	return PointerValue{
 		TV:    fillValueTV(store, &mli.Value),
@@ -746,6 +751,10 @@ func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue
 }
 
 func (mv *MapValue) DeleteForKey(store Store, key *TypedValue) {
+	if key.IsNaN() {
+		// NaN keys cannot be removed.
+		return
+	}
 	kmk := key.ComputeMapKey(store, false)
 	if mli, ok := mv.vmap[kmk]; ok {
 		mv.List.Remove(mli)
@@ -928,6 +937,19 @@ func (tv *TypedValue) IsNilInterface() bool {
 	return false
 }
 
+func (tv *TypedValue) IsNaN() bool {
+	switch tv.T.Kind() {
+	case Float32Kind:
+		_, _, _, _, nan := softfloat.Funpack32(tv.GetFloat32())
+		return nan
+	case Float64Kind:
+		_, _, _, _, nan := softfloat.Funpack64(tv.GetFloat64())
+		return nan
+	default:
+		return false
+	}
+}
+
 func (tv *TypedValue) HasKind(k Kind) bool {
 	if tv.T == nil {
 		return false
@@ -994,8 +1016,8 @@ func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
 }
 
 // Returns encoded bytes for primitive values.
-// These bytes are used for both value hashes as well
-// as hash key bytes.
+// These are used for computing map keys.
+// If tv is a float and it is negative zero, the value is normalized to zero.
 func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 	switch bt := baseOf(tv.T); bt {
 	case BoolType:
@@ -1042,12 +1064,20 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 	case Float32Type:
 		data = make([]byte, 4)
 		u32 := tv.GetFloat32()
+		// If this is negative zero, normalize to zero.
+		if u32 == (1 << 31) {
+			u32 = 0
+		}
 		binary.LittleEndian.PutUint32(
 			data, u32)
 		return data
 	case Float64Type:
 		data = make([]byte, 8)
 		u64 := tv.GetFloat64()
+		// If this is negative zero, normalize to zero.
+		if u64 == (1 << 63) {
+			u64 = 0
+		}
 		binary.LittleEndian.PutUint64(
 			data, u64)
 		return data
