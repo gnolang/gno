@@ -8,11 +8,7 @@ import (
 
 // NOTE: keep in sync with doOpIndex2.
 func (m *Machine) doOpIndex1() {
-	if debug {
-		_ = m.PopExpr().(*IndexExpr)
-	} else {
-		m.PopExpr()
-	}
+	m.PopExpr()
 	iv := m.PopValue()   // index
 	xv := m.PeekValue(1) // x
 	ro := m.IsReadonly(xv)
@@ -24,10 +20,7 @@ func (m *Machine) doOpIndex1() {
 			*xv = vv // reuse as result
 		} else {
 			vt := ct.Value
-			*xv = TypedValue{ // reuse as result
-				T: vt,
-				V: defaultValue(m.Alloc, vt),
-			}
+			*xv = defaultTypedValue(m.Alloc, vt) // reuse as result
 		}
 	default:
 		res := xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
@@ -38,11 +31,7 @@ func (m *Machine) doOpIndex1() {
 
 // NOTE: keep in sync with doOpIndex1.
 func (m *Machine) doOpIndex2() {
-	if debug {
-		_ = m.PopExpr().(*IndexExpr)
-	} else {
-		m.PopExpr()
-	}
+	m.PopExpr()
 	iv := m.PeekValue(1) // index
 	xv := m.PeekValue(2) // x
 	ro := m.IsReadonly(xv)
@@ -50,11 +39,8 @@ func (m *Machine) doOpIndex2() {
 	case *MapType:
 		vt := ct.Value
 		if xv.V == nil { // uninitialized map
-			*xv = TypedValue{ // reuse as result
-				T: vt,
-				V: defaultValue(m.Alloc, vt),
-			}
-			*iv = untypedBool(false) // reuse as result
+			*xv = defaultTypedValue(m.Alloc, vt) // reuse as result
+			*iv = untypedBool(false)             // reuse as result
 		} else {
 			mv := xv.V.(*MapValue)
 			vv, exists := mv.GetValueForKey(m.Store, iv)
@@ -62,11 +48,8 @@ func (m *Machine) doOpIndex2() {
 				*xv = vv                // reuse as result
 				*iv = untypedBool(true) // reuse as result
 			} else {
-				*xv = TypedValue{ // reuse as result
-					T: vt,
-					V: defaultValue(m.Alloc, vt),
-				}
-				*iv = untypedBool(false) // reuse as result
+				*xv = defaultTypedValue(m.Alloc, vt) // reuse as result
+				*iv = untypedBool(false)             // reuse as result
 			}
 		}
 	default:
@@ -77,7 +60,7 @@ func (m *Machine) doOpIndex2() {
 
 func (m *Machine) doOpSelector() {
 	sx := m.PopExpr().(*SelectorExpr)
-	xv := m.PeekValue(1)
+	xv := m.PeekValue(1) // package, struct, whatever.
 	ro := m.IsReadonly(xv)
 	res := xv.GetPointerToFromTV(m.Alloc, m.Store, sx.Path).Deref()
 	if debug {
@@ -324,10 +307,7 @@ func (m *Machine) doOpTypeAssert2() {
 		}
 	} else { // is concrete assert
 		if xt == nil {
-			*xv = TypedValue{
-				T: t,
-				V: defaultValue(m.Alloc, t),
-			}
+			*xv = defaultTypedValue(m.Alloc, t)
 			*tv = untypedBool(false)
 			return
 		}
@@ -341,10 +321,7 @@ func (m *Machine) doOpTypeAssert2() {
 			// *xv = *xv
 			*tv = untypedBool(true)
 		} else {
-			*xv = TypedValue{
-				T: t,
-				V: defaultValue(m.Alloc, t),
-			}
+			*xv = defaultTypedValue(m.Alloc, t)
 			*tv = untypedBool(false)
 		}
 	}
@@ -680,15 +657,15 @@ func (m *Machine) doOpFuncLit() {
 	// every invocation of the function.
 	captures := []TypedValue(nil)
 	for _, nx := range x.HeapCaptures {
-		ptr := lb.GetPointerTo(m.Store, nx.Path)
+		ptr := lb.GetPointerToDirect(m.Store, nx.Path)
 		// check that ptr.TV is a heap item value.
 		// it must be in the form of:
 		// {T:heapItemType{},V:HeapItemValue{...}}
 		if _, ok := ptr.TV.T.(heapItemType); !ok {
-			panic("should not happen, should be heapItemType")
+			panic("should not happen, should be heapItemType: " + nx.String())
 		}
 		if _, ok := ptr.TV.V.(*HeapItemValue); !ok {
-			panic("should not happen, should be heapItemValue")
+			panic("should not happen, should be heapItemValue: " + nx.String())
 		}
 		captures = append(captures, *ptr.TV)
 	}
@@ -697,9 +674,10 @@ func (m *Machine) doOpFuncLit() {
 		V: &FuncValue{
 			Type:        ft,
 			IsMethod:    false,
+			IsClosure:   true,
 			Source:      x,
 			Name:        "",
-			Closure:     lb,
+			Parent:      nil,
 			Captures:    captures,
 			PkgPath:     m.Package.PkgPath,
 			SwitchRealm: x.Body.isSwitchRealm(),

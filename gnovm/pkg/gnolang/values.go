@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"reflect"
 	"strconv"
-	"strings"
 	"unsafe"
 
 	"github.com/cockroachdb/apd/v3"
@@ -66,8 +65,8 @@ var (
 	_ Value = BigdecValue{}
 	_ Value = DataByteValue{}
 	_ Value = PointerValue{}
-	_ Value = &ArrayValue{} // TODO doesn't have to be pointer?
-	_ Value = &SliceValue{} // TODO doesn't have to be pointer?
+	_ Value = &ArrayValue{}
+	_ Value = &SliceValue{}
 	_ Value = &StructValue{}
 	_ Value = &FuncValue{}
 	_ Value = &MapValue{}
@@ -167,34 +166,26 @@ func (dbv DataByteValue) SetByte(b byte) {
 // ----------------------------------------
 // PointerValue
 
-// Base is set if the pointer refers to an array index or
-// struct field or block var.
-// A pointer constructed via a &x{} composite lit
-// expression or constructed via new() or make() are
-// independent objects, and have nil Base.
-// A pointer to a block var may end up pointing to an escape
-// value after a block var escapes "to the heap".
-// *(PointerValue.TypedValue) must have already become
-// initialized, namely T set if a typed-nil.
-// Index is -1 for the shared "_" block var,
-// and -2 for (gno and native) map items.
+// *(PointerValue.TypedValue) must have already become initialized, namely T
+// set if a typed-nil.  Index is -1 for the shared "_" block var, and -2 for
+// (gno and native) map items.
 //
 // A pointer constructed via a &x{} composite lit expression or constructed via
 // new() or make() will have a virtual HeapItemValue as base.
 //
-// Allocation for PointerValue is not immediate,
-// as usually PointerValues are temporary for assignment
-// or binary operations. When a pointer is to be
-// allocated, *Allocator.AllocatePointer() is called separately,
-// as in OpRef.
+// The Base is only nil for references to certain values that cannot
+// be modified anyways, such as top level functions.
 //
-// Since PointerValue is used internally for assignment etc,
-// it MUST stay minimal for computational efficiency.
+// Allocation for PointerValue is not immediate, as usually PointerValues are
+// temporary for assignment or binary operations. When a pointer is to be
+// allocated, *Allocator.AllocatePointer() is called separately, as in OpRef.
+//
+// Since PointerValue is used internally for assignment etc, it MUST stay
+// minimal for computational efficiency.
 type PointerValue struct {
-	TV    *TypedValue // escape val if pointer to var.
+	TV    *TypedValue // &Base[Index] or &Base.Index.
 	Base  Value       // array/struct/block, or heapitem.
 	Index int         // list/fields/values index, or -1 or -2 (see below).
-	Key   *TypedValue `json:",omitempty"` // for maps.
 }
 
 const (
@@ -483,11 +474,13 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 // makes construction TypedValue{T:*FuncType{},V:*FuncValue{}}
 // faster.
 type FuncValue struct {
+	ObjectInfo
 	Type        Type         // includes unbound receiver(s)
 	IsMethod    bool         // is an (unbound) method
+	IsClosure   bool         // is a func lit expr closure (not decl)
 	Source      BlockNode    // for block mem allocation
 	Name        Name         // name of function/method
-	Closure     Value        // *Block or RefValue to closure (may be nil for file blocks; lazy)
+	Parent      Value        // *Block or RefValue to closure (may be nil for file blocks; lazy)
 	Captures    []TypedValue `json:",omitempty"` // HeapItemValues captured from closure.
 	FileName    Name         // file name where declared
 	PkgPath     string       // package path in which func declared
@@ -518,7 +511,7 @@ func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
 		IsMethod:    fv.IsMethod,
 		Source:      fv.Source,
 		Name:        fv.Name,
-		Closure:     fv.Closure,
+		Parent:      fv.Parent,
 		FileName:    fv.FileName,
 		PkgPath:     fv.PkgPath,
 		NativePkg:   fv.NativePkg,
@@ -576,11 +569,11 @@ func (fv *FuncValue) GetPackage(store Store) *PackageValue {
 	return pv
 }
 
-// NOTE: this function does not automatically memoize the closure for
-// file-level declared methods and functions. For those, caller
-// should set .Closure manually after *FuncValue.Copy().
-func (fv *FuncValue) GetClosure(store Store) *Block {
-	switch cv := fv.Closure.(type) {
+func (fv *FuncValue) GetParent(store Store) *Block {
+	if fv.IsClosure {
+		return nil
+	}
+	switch cv := fv.Parent.(type) {
 	case nil:
 		if fv.FileName == "" {
 			return nil
@@ -590,10 +583,11 @@ func (fv *FuncValue) GetClosure(store Store) *Block {
 		if fb == nil {
 			panic(fmt.Sprintf("file block missing for file %q", fv.FileName))
 		}
+		fv.Parent = fb
 		return fb
 	case RefValue:
 		block := store.GetObject(cv.ObjectID).(*Block)
-		fv.Closure = block
+		fv.Parent = block
 		return block
 	case *Block:
 		return cv
@@ -723,28 +717,22 @@ func (mv *MapValue) GetLength() int {
 	return mv.List.Size // panics if uninitialized
 }
 
-// NOTE: Go doesn't support referencing into maps, and maybe
-// Gno will, but here we just use this method signature as we
-// do for structs and arrays for assigning new entries.  If key
-// doesn't exist, a new slot is created.
+// GetPointerForKey is only used for assignment, so the key
+// is not returned as part of the pointer, and TV is not filled.
 func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedValue) PointerValue {
 	kmk := key.ComputeMapKey(store, false)
 	if mli, ok := mv.vmap[kmk]; ok {
-		key2 := key.Copy(alloc)
 		return PointerValue{
 			TV:    fillValueTV(store, &mli.Value),
 			Base:  mv,
-			Key:   &key2,
 			Index: PointerIndexMap,
 		}
 	}
 	mli := mv.List.Append(alloc, *key)
 	mv.vmap[kmk] = mli
-	key2 := key.Copy(alloc)
 	return PointerValue{
 		TV:    fillValueTV(store, &mli.Value),
 		Base:  mv,
-		Key:   &key2,
 		Index: PointerIndexMap,
 	}
 }
@@ -900,9 +888,9 @@ func (pv *PackageValue) GetPkgAddr() crypto.Address {
 // TypedValue (is not a value, but a tuple)
 
 type TypedValue struct {
-	T Type    `json:",omitempty"` // never nil
-	V Value   `json:",omitempty"` // an untyped value
-	N [8]byte `json:",omitempty"` // numeric bytes
+	T Type    `json:",omitempty"`
+	V Value   `json:",omitempty"`
+	N [8]byte `json:",omitempty"`
 }
 
 // Magic 8 bytes to denote a readonly wrapped non-nil V of mutable type that is
@@ -950,27 +938,18 @@ func (tv *TypedValue) IsDefined() bool {
 	return !tv.IsUndefined()
 }
 
-// XXX replace IsUndefined() with IsUndefined2() and delete IsUndefined, replace.
-func (tv *TypedValue) IsUndefined2() bool {
-	return tv.T == nil
-}
-
 func (tv *TypedValue) IsUndefined() bool {
 	if debug {
-		if tv == nil {
-			panic("should not happen")
-		}
-	}
-	if tv.T == nil {
-		if debug {
-			if tv.V != nil || tv.N != [8]byte{} {
-				panic(fmt.Sprintf(
-					"corrupted TypeValue (nil T)"))
+		if tv.T == nil {
+			if tv.V != nil {
+				panic("should not happen")
+			}
+			if tv.N != [8]byte{} {
+				panic("should not happen")
 			}
 		}
-		return true
 	}
-	return tv.IsNilInterface()
+	return tv.T == nil
 }
 
 // (this is used mostly by the preprocessor)
@@ -1623,6 +1602,32 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 	}
 }
 
+// Define to a block slot that takes into account heap escapes.
+// (only blocks can contain heap items).
+// This should only be used when both the base parent and the value are unreal
+// new values, or call rlm.DidUpdate manually.
+func (tv *TypedValue) AssignToBlock(other TypedValue) {
+	if _, ok := tv.T.(heapItemType); ok {
+		tv.V.(*HeapItemValue).Value = other
+	} else {
+		*tv = other
+	}
+}
+
+// Like AssignToBlock but creates a new heap item instead.
+// This should only be used when both the base parent and the value are unreal
+// new values, or call rlm.DidUpdate manually.
+func (tv *TypedValue) DefineToBlock(other TypedValue) {
+	if _, ok := tv.T.(heapItemType); ok {
+		*tv = TypedValue{
+			T: heapItemType{},
+			V: &HeapItemValue{Value: other},
+		}
+	} else {
+		*tv = other
+	}
+}
+
 // NOTE: Allocation for PointerValue is not immediate,
 // as usually PointerValues are temporary for assignment
 // or binary operations. When a pointer is to be
@@ -2200,21 +2205,23 @@ func (tv *TypedValue) DeepFill(store Store) {
 // ----------------------------------------
 // Block
 //
-// Blocks hold values referred to by var/const/func/type
-// declarations in BlockNodes such as packages, functions,
-// and switch statements.  Unlike structs or packages,
-// names and paths may refer to parent blocks.  (In the
-// future, the same mechanism may be used to support
-// inheritance or prototype-like functionality for structs
-// and packages.)
+// Blocks hold values referred to by var/const/func/type declarations in
+// BlockNodes such as packages, functions, and switch statements.  Unlike
+// structs or packages, names and paths may refer to parent blocks.  (In the
+// future, the same mechanism may be used to support inheritance or
+// prototype-like functionality for structs and packages.)
 //
-// When a block would otherwise become gc'd because it is no
-// longer used except for escaped reference pointers to
-// variables, and there are no closures that reference the
-// block, the remaining references to objects become detached
-// from the block and become ownerless.
-
-// TODO rename to BlockValue.
+// When a block would otherwise become gc'd because it is no longer used, the
+// block is forgotten and GC'd.
+//
+// Variables declared in a closure or passed by reference are first discovered
+// and marked as such from the preprocessor, and NewBlock() will prepopulate
+// these slots with *HeapItemValues.  When a *HeapItemValue (or sometimes
+// HeapItemType in .T) is present in a block slot it is not written over but
+// instead the value is written into the heap item's slot--except for loopvars
+// assignments which may replace the heap item with another one. This is
+// how Gno supports Go1.22 loopvars.
+// TODO XXX rename to BlockValue
 type Block struct {
 	ObjectInfo
 	Source   BlockNode
@@ -2225,49 +2232,26 @@ type Block struct {
 }
 
 // NOTE: for allocation, use *Allocator.NewBlock.
+// XXX pass allocator in for heap items.
 func NewBlock(source BlockNode, parent *Block) *Block {
-	var values []TypedValue
-	if source != nil {
-		values = make([]TypedValue, source.GetNumNames())
+	numNames := source.GetNumNames()
+	values := make([]TypedValue, numNames)
+	// Keep in sync with ExpandWith().
+	for i, isHeap := range source.GetHeapItems() {
+		if !isHeap {
+			continue
+		}
+		// indicates must always be heap item.
+		values[i] = TypedValue{
+			T: heapItemType{},
+			V: &HeapItemValue{},
+		}
 	}
 	return &Block{
 		Source: source,
 		Values: values,
 		Parent: parent,
 	}
-}
-
-func (b *Block) String() string {
-	return b.StringIndented("    ")
-}
-
-func (b *Block) StringIndented(indent string) string {
-	source := toString(b.Source)
-	if len(source) > 32 {
-		source = source[:32] + "..."
-	}
-	lines := make([]string, 0, 3)
-	lines = append(lines,
-		fmt.Sprintf("Block(ID:%v,Addr:%p,Source:%s,Parent:%p)",
-			b.ObjectInfo.ID, b, source, b.Parent)) // XXX Parent may be RefValue{}.
-	if b.Source != nil {
-		if _, ok := b.Source.(RefNode); ok {
-			lines = append(lines,
-				fmt.Sprintf("%s(RefNode names not shown)", indent))
-		} else {
-			for i, n := range b.Source.GetBlockNames() {
-				if len(b.Values) <= i {
-					lines = append(lines,
-						fmt.Sprintf("%s%s: undefined", indent, n))
-				} else {
-					lines = append(lines,
-						fmt.Sprintf("%s%s: %s",
-							indent, n, b.Values[i].String()))
-				}
-			}
-		}
-	}
-	return strings.Join(lines, "\n")
 }
 
 func (b *Block) GetSource(store Store) BlockNode {
@@ -2295,6 +2279,24 @@ func (b *Block) GetParent(store Store) *Block {
 }
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
+	vv := fillValueTV(store, &b.Values[index])
+	if hiv, ok := vv.V.(*HeapItemValue); ok {
+		fillValueTV(store, &hiv.Value)
+		return PointerValue{
+			TV:    &hiv.Value,
+			Base:  vv.V,
+			Index: 0,
+		}
+	} else {
+		return PointerValue{
+			TV:    vv,
+			Base:  b,
+			Index: index,
+		}
+	}
+}
+
+func (b *Block) GetPointerToIntDirect(store Store, index int) PointerValue {
 	vv := fillValueTV(store, &b.Values[index])
 	return PointerValue{
 		TV:    vv,
@@ -2328,67 +2330,62 @@ func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	return b.GetPointerToInt(store, int(path.Index))
 }
 
-// Convenience
-func (b *Block) GetPointerToMaybeHeapUse(store Store, nx *NameExpr) PointerValue {
-	switch nx.Type {
-	case NameExprTypeNormal:
-		return b.GetPointerTo(store, nx.Path)
-	case NameExprTypeHeapUse:
-		return b.GetPointerToHeapUse(store, nx.Path)
-	case NameExprTypeHeapClosure:
-		panic("should not happen with type heap closure")
-	default:
-		panic("unexpected NameExpr type for GetPointerToMaybeHeapUse")
+func (b *Block) GetPointerToDirect(store Store, path ValuePath) PointerValue {
+	if path.IsBlockBlankPath() {
+		if debug {
+			if path.Name != blankIdentifier {
+				panic(fmt.Sprintf(
+					"zero value path is reserved for \"_\", but got %s",
+					path.Name))
+			}
+		}
+		return PointerValue{
+			TV:    b.GetBlankRef(),
+			Base:  b,
+			Index: PointerIndexBlockBlank, // -1
+		}
 	}
+	// NOTE: For most block paths, Depth starts at 1, but
+	// the generation for uverse is 0.  If path.Depth is
+	// 0, it implies that b == uverse, and the condition
+	// would fail as if it were 1.
+	for i := uint8(1); i < path.Depth; i++ {
+		b = b.GetParent(store)
+	}
+	return b.GetPointerToIntDirect(store, int(path.Index))
 }
 
-// Convenience
+// First defines a new HeapItemValue if heap slot.
 func (b *Block) GetPointerToMaybeHeapDefine(store Store, nx *NameExpr) PointerValue {
 	switch nx.Type {
 	case NameExprTypeNormal:
+		// XXX convert rangestmt switchstmt names
+		// into NameExpr and then panic here instead.
 		return b.GetPointerTo(store, nx.Path)
 	case NameExprTypeDefine:
 		return b.GetPointerTo(store, nx.Path)
 	case NameExprTypeHeapDefine:
-		return b.GetPointerToHeapDefine(store, nx.Path)
+		path := nx.Path
+		ptr := b.GetPointerToDirect(store, path)
+		if _, ok := ptr.TV.T.(heapItemType); ok {
+			if nx.Type != NameExprTypeHeapDefine {
+				panic("expected name expr heap define type")
+			}
+			hiv := &HeapItemValue{}
+			*ptr.TV = TypedValue{
+				T: heapItemType{},
+				V: hiv,
+			}
+			return PointerValue{
+				TV:    &hiv.Value,
+				Base:  hiv,
+				Index: 0,
+			}
+		} else {
+			return ptr
+		}
 	default:
 		panic("unexpected NameExpr type for GetPointerToMaybeHeapDefine")
-	}
-}
-
-// First defines a new HeapItemValue.
-// This gets called from NameExprTypeHeapDefine name expressions.
-func (b *Block) GetPointerToHeapDefine(store Store, path ValuePath) PointerValue {
-	ptr := b.GetPointerTo(store, path)
-	hiv := &HeapItemValue{}
-	// point to a heapItem
-	*ptr.TV = TypedValue{
-		T: heapItemType{},
-		V: hiv,
-	}
-
-	return PointerValue{
-		TV:    &hiv.Value,
-		Base:  hiv,
-		Index: 0,
-	}
-}
-
-// Assumes a HeapItemValue, and gets inner pointer.
-// This gets called from NameExprTypeHeapUse name expressions.
-func (b *Block) GetPointerToHeapUse(store Store, path ValuePath) PointerValue {
-	ptr := b.GetPointerTo(store, path)
-	if _, ok := ptr.TV.T.(heapItemType); !ok {
-		panic("should not happen, should be heapItemType")
-	}
-	if _, ok := ptr.TV.V.(*HeapItemValue); !ok {
-		panic("should not happen, should be HeapItemValue")
-	}
-
-	return PointerValue{
-		TV:    &ptr.TV.V.(*HeapItemValue).Value,
-		Base:  ptr.TV.V,
-		Index: 0,
 	}
 }
 
@@ -2422,18 +2419,44 @@ func (b *Block) GetBodyStmt() *bodyStmt {
 	return &b.bodyStmt
 }
 
-// Used by SwitchStmt upon clause match.
-func (b *Block) ExpandToSize(alloc *Allocator, size uint16) {
+// Used by faux blocks like IfCond and SwitchStmt upon clause match.
+func (b *Block) ExpandWith(alloc *Allocator, source BlockNode) {
+	// XXX make more efficient by only storing new names in source.
+	numNames := source.GetNumNames()
+	if len(b.Values) > int(numNames) {
+		panic(fmt.Sprintf(
+			"unexpected block size shrinkage: %v vs %v",
+			len(b.Values), numNames))
+	}
 	if debug {
-		if len(b.Values) >= int(size) {
+		if len(b.Values) >= int(numNames) {
 			panic(fmt.Sprintf(
 				"unexpected block size shrinkage: %v vs %v",
-				len(b.Values), size))
+				len(b.Values), numNames))
 		}
 	}
-	alloc.AllocateBlockItems(int64(size) - int64(len(b.Values)))
-	values := make([]TypedValue, int(size))
+	if int(numNames) == len(b.Values) {
+		return // nothing to do
+	}
+	alloc.AllocateBlockItems(int64(numNames) - int64(len(b.Values)))
+	values := make([]TypedValue, numNames)
 	copy(values, b.Values)
+	// NOTE this is a bit confusing because of the faux offset.
+	// The heap item values are always false for the old names.
+	// Keep in sync with NewBlock().
+	// XXX pass allocator in for heap items.
+	heapItems := source.GetHeapItems()
+	for i := len(b.Values); i < int(numNames); i++ {
+		isHeap := heapItems[i]
+		if !isHeap {
+			continue
+		}
+		// indicates must always be heap item.
+		values[i] = TypedValue{
+			T: heapItemType{},
+			V: &HeapItemValue{},
+		}
+	}
 	b.Values = values
 }
 
@@ -2464,8 +2487,7 @@ func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
 	tvs := alloc.NewStructFields(len(st.Fields))
 	for i, ft := range st.Fields {
 		if ft.Type.Kind() != InterfaceKind {
-			tvs[i].T = ft.Type
-			tvs[i].V = defaultValue(alloc, ft.Type)
+			tvs[i] = defaultTypedValue(alloc, ft.Type)
 		}
 	}
 	return tvs
@@ -2485,37 +2507,43 @@ func defaultArrayValue(alloc *Allocator, at *ArrayType) *ArrayValue {
 	tvs := av.List
 	if et := at.Elem(); et.Kind() != InterfaceKind {
 		for i := 0; i < at.Len; i++ {
-			tvs[i].T = et
-			tvs[i].V = defaultValue(alloc, et)
+			tvs[i] = defaultTypedValue(alloc, et)
 		}
 	}
 	return av
 }
 
-func defaultValue(alloc *Allocator, t Type) Value {
+func defaultTypedValue(alloc *Allocator, t Type) TypedValue {
 	switch ct := baseOf(t).(type) {
 	case nil:
 		panic("unexpected nil type")
-	case *ArrayType:
-		return defaultArrayValue(alloc, ct)
-	case *StructType:
-		return defaultStructValue(alloc, ct)
-	case *SliceType:
-		return nil
-	case *MapType:
-		return nil
-	default:
-		return nil
-	}
-}
-
-func defaultTypedValue(alloc *Allocator, t Type) TypedValue {
-	if t.Kind() == InterfaceKind {
+	case *InterfaceType:
 		return TypedValue{}
-	}
-	return TypedValue{
-		T: t,
-		V: defaultValue(alloc, t),
+	case *ArrayType:
+		return TypedValue{
+			T: t,
+			V: defaultArrayValue(alloc, ct),
+		}
+	case *StructType:
+		return TypedValue{
+			T: t,
+			V: defaultStructValue(alloc, ct),
+		}
+	case *SliceType:
+		return TypedValue{
+			T: t,
+			V: nil,
+		}
+	case *MapType:
+		return TypedValue{
+			T: t,
+			V: nil,
+		}
+	default:
+		return TypedValue{
+			T: t,
+			V: nil,
+		}
 	}
 }
 
@@ -2547,6 +2575,8 @@ func typedString(s string) TypedValue {
 // returns the same tv instance for convenience.
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 	switch cv := tv.V.(type) {
+	case *HeapItemValue:
+		fillValueTV(store, &cv.Value)
 	case RefValue:
 		if cv.PkgPath != "" { // load package
 			tv.V = store.GetPackage(cv.PkgPath, false)

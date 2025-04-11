@@ -35,38 +35,6 @@ func ChainHeight(m *gno.Machine) int64 {
 	return GetContext(m).Height
 }
 
-// getPreviousFunctionNameFromTarget returns the last called function name (identifier) from the call stack.
-func getPreviousFunctionNameFromTarget(m *gno.Machine, targetFunc string) string {
-	targetIndex := findTargetFunctionIndex(m, targetFunc)
-	if targetIndex == -1 {
-		return ""
-	}
-	return findPreviousFunctionName(m, targetIndex)
-}
-
-// findTargetFunctionIndex finds and returns the index of the target function in the call stack.
-func findTargetFunctionIndex(m *gno.Machine, targetFunc string) int {
-	for i := len(m.Frames) - 1; i >= 0; i-- {
-		currFunc := m.Frames[i].Func
-		if currFunc != nil && currFunc.Name == gno.Name(targetFunc) {
-			return i
-		}
-	}
-	return -1
-}
-
-// findPreviousFunctionName returns the function name before the given index in the call stack.
-func findPreviousFunctionName(m *gno.Machine, targetIndex int) string {
-	for i := targetIndex - 1; i >= 0; i-- {
-		currFunc := m.Frames[i].Func
-		if currFunc != nil {
-			return string(currFunc.Name)
-		}
-	}
-
-	panic("function name not found")
-}
-
 func X_originSend(m *gno.Machine) (denoms []string, amounts []int64) {
 	os := GetContext(m).OriginSend
 	return ExpandCoins(os)
@@ -80,6 +48,7 @@ func X_originPkgAddr(m *gno.Machine) string {
 	return string(GetContext(m).OriginPkgAddr)
 }
 
+/* See comment in stdlibs/std/native.gno
 func X_callerAt(m *gno.Machine, n int) string {
 	if n <= 0 {
 		m.Panic(typedString("CallerAt requires positive arg"))
@@ -99,8 +68,9 @@ func X_callerAt(m *gno.Machine, n int) string {
 		ctx := GetContext(m)
 		return string(ctx.OriginCaller)
 	}
-	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
+	return string(m.MustPeekCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
+*/
 
 func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 	// NOTE: keep in sync with test/stdlibs/std.getRealm
@@ -140,7 +110,7 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 	}
 
 	if switches != height {
-		panic("height too large")
+		m.Panic(typedString("frame not found"))
 	}
 
 	// Special case if package initialization.

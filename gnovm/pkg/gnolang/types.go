@@ -880,10 +880,6 @@ func (pt *PackageType) Kind() Kind {
 
 func (pt *PackageType) TypeID() TypeID {
 	if pt.typeid.IsZero() {
-		// NOTE Different package types may have the same
-		// TypeID if and only if neither have unexported fields.
-		// pt.Path is only included in field names that are not
-		// uppercase.
 		pt.typeid = typeid("package{}")
 	}
 	return pt.typeid
@@ -1677,10 +1673,10 @@ func (dt *DeclaredType) GetValueAt(alloc *Allocator, store Store, path ValuePath
 	case VPValMethod, VPPtrMethod, VPField:
 		if path.Depth == 0 {
 			mtv := dt.Methods[path.Index]
-			// Fill in *FV.Closure.
+			// Fill in *FV.Parent.
 			ft := mtv.T
 			fv := mtv.V.(*FuncValue).Copy(alloc)
-			fv.Closure = fv.GetClosure(store)
+			fv.Parent = fv.GetParent(store)
 			return TypedValue{T: ft, V: fv}
 		} else {
 			panic("DeclaredType.GetValueAt() expects depth == 0")
@@ -1692,7 +1688,7 @@ func (dt *DeclaredType) GetValueAt(alloc *Allocator, store Store, path ValuePath
 	}
 }
 
-// Like GetValueAt, but doesn't fill *FuncValue closures.
+// Like GetValueAt, but doesn't fill *FuncValue parent blocks.
 func (dt *DeclaredType) GetStaticValueAt(path ValuePath) TypedValue {
 	switch path.Type {
 	case VPInterface:

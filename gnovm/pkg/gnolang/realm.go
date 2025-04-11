@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"strings"
 	"sync"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
@@ -876,7 +875,7 @@ func getChildObjects(val Value, more []Value) []Value {
 		}
 		return more
 	case *FuncValue:
-		if bv, ok := cv.Closure.(*Block); ok {
+		if bv, ok := cv.Parent.(*Block); ok {
 			more = getSelfOrChildObjects(bv, more)
 		}
 		for _, c := range cv.Captures {
@@ -884,7 +883,7 @@ func getChildObjects(val Value, more []Value) []Value {
 		}
 		return more
 	case *BoundMethodValue:
-		more = getChildObjects(cv.Func, more) // *FuncValue not object
+		more = getSelfOrChildObjects(cv.Func, more)
 		more = getSelfOrChildObjects(cv.Receiver.V, more)
 		return more
 	case *MapValue:
@@ -1080,6 +1079,8 @@ func copyTypeWithRefs(typ Type) Type {
 		return RefType{
 			ID: ct.ID,
 		}
+	case heapItemType:
+		return ct
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %v", typ))
@@ -1154,13 +1155,13 @@ func copyValueWithRefs(val Value) Value {
 		}
 	case *FuncValue:
 		source := toRefNode(cv.Source)
-		if strings.HasSuffix(source.Location.File, "_test.gno") {
-			// Ignore _test files
-			return nil
+		var parent Value
+		if cv.Parent != nil {
+			parent = toRefValue(cv.Parent)
 		}
-		var closure Value
-		if cv.Closure != nil {
-			closure = toRefValue(cv.Closure)
+		captures := make([]TypedValue, len(cv.Captures))
+		for i, ctv := range cv.Captures {
+			captures[i] = refOrCopyValue(ctv)
 		}
 		// nativeBody funcs which don't come from NativeResolver (and thus don't
 		// have NativePkg/Name) can't be persisted, and should not be able
@@ -1170,12 +1171,13 @@ func copyValueWithRefs(val Value) Value {
 		}
 		ft := copyTypeWithRefs(cv.Type)
 		return &FuncValue{
+			ObjectInfo:  cv.ObjectInfo.Copy(),
 			Type:        ft,
 			IsMethod:    cv.IsMethod,
 			Source:      source,
 			Name:        cv.Name,
-			Closure:     closure,
-			Captures:    cv.Captures,
+			Parent:      parent,
+			Captures:    captures,
 			FileName:    cv.FileName,
 			PkgPath:     cv.PkgPath,
 			NativePkg:   cv.NativePkg,
@@ -1186,7 +1188,7 @@ func copyValueWithRefs(val Value) Value {
 		fnc := copyValueWithRefs(cv.Func).(*FuncValue)
 		rtv := refOrCopyValue(cv.Receiver)
 		return &BoundMethodValue{
-			ObjectInfo: cv.ObjectInfo.Copy(), // XXX ???
+			ObjectInfo: cv.ObjectInfo.Copy(),
 			Func:       fnc,
 			Receiver:   rtv,
 		}
@@ -1239,18 +1241,6 @@ func copyValueWithRefs(val Value) Value {
 	case RefValue:
 		return cv
 	case *HeapItemValue:
-		// NOTE: While this could be eliminated sometimes with some
-		// intelligence prior to persistence, to unwrap the
-		// HeapItemValue in case where the HeapItemValue only has
-		// refcount of 1,
-		//
-		//  1.  The HeapItemValue is necessary when the .Value is a
-		//    primitive non-object anyways, and
-		//  2. This would mean PointerValue.Base is nil, and we'd need
-		//    additional logic to re-wrap when necessary, and
-		//  3. And with the above point, it's not clear the result
-		//    would be any faster.  But this is something we could
-		//    explore after launch.
 		hiv := &HeapItemValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
 			Value:      refOrCopyValue(cv.Value),
@@ -1342,6 +1332,8 @@ func fillType(store Store, typ Type) Type {
 		return ct
 	case RefType:
 		return store.GetType(ct.TypeID())
+	case heapItemType:
+		return ct
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %v", reflect.TypeOf(typ)))

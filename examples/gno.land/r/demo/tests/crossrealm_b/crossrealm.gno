@@ -25,3 +25,23 @@ var (
 	FooerGetter        = func() crossrealm.Fooer { return Fooer }
 	FooerGetterBuilder = func() crossrealm.FooerGetter { return func() crossrealm.Fooer { return Fooer } }
 )
+
+var Closure func()
+
+func SetClosure(f func()) {
+	switchrealm()
+
+	Closure = f
+}
+
+var Object any
+
+func SetObject(x any) {
+	switchrealm()
+
+	Object = x
+}
+
+func GetObject() any {
+	return Object
+}

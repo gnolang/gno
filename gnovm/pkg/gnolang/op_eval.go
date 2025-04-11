@@ -21,7 +21,6 @@ func (m *Machine) doOpEval() {
 	x := m.PeekExpr(1)
 	if debug {
 		debug.Printf("EVAL: (%T) %v\n", x, x)
-		// fmt.Println(m.String())
 	}
 	// This case moved out of switch for performance.
 	// TODO: understand this better.
@@ -36,7 +35,7 @@ func (m *Machine) doOpEval() {
 			// Get value from scope.
 			lb := m.LastBlock()
 			// Push value, done.
-			ptr := lb.GetPointerToMaybeHeapUse(m.Store, nx)
+			ptr := lb.GetPointerTo(m.Store, nx.Path)
 			m.PushValue(ptr.Deref())
 			return
 		}

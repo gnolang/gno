@@ -116,6 +116,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 						Attributes: base.NameExprs[j].Attributes,
 						Path:       base.NameExprs[j].Path,
 						Name:       base.NameExprs[j].Name,
+						Type:       NameExprTypeDefine,
 					}}
 
 					if j < len(base.Values) {
@@ -140,6 +141,8 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 }
 
 // Initialize static block info.
+// TODO: ensure and keep idempotent.
+// PrpedefineFileSet may precede Preprocess.
 func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
@@ -166,7 +169,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 							continue
 						}
 						if !isLocallyDefined2(last, ln) {
-							// if loop extern, will promote to
+							// if loopvar, will promote to
 							// NameExprTypeHeapDefine later.
 							nx.Type = NameExprTypeDefine
 							last.Predefine(false, ln)
@@ -224,6 +227,11 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						// this also makes them unreferenceable.
 						dname := Name(fmt.Sprintf("init.%d", idx))
 						n.Name = dname
+					} else if n.Name == blankIdentifier {
+						idx := pkg.GetNumNames()
+						dname := Name(fmt.Sprintf("._%d", idx))
+						n.Name = dname
+
 					}
 					nx := &n.NameExpr
 					nx.Type = NameExprTypeDefine
@@ -242,11 +250,13 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				}
 				for i := range n.Results {
 					r := &n.Results[i]
+					if r.Name == "" {
+						// create an unnamed name with leading dot.
+						r.Name = Name(fmt.Sprintf("%s%d", missingResultNamePrefix, i))
+					}
 					if r.Name == blankIdentifier {
-						// create a hidden var with leading dot.
-						// NOTE: document somewhere.
-						rn := fmt.Sprintf("%s%d", hiddenResultVariable, i)
-						r.Name = Name(rn)
+						// create an underscore name with leading dot.
+						r.Name = Name(fmt.Sprintf("%s%d", underscoreResultNamePrefix, i))
 					}
 				}
 			}
@@ -268,38 +278,35 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 					if n.Key != nil {
 						nx := n.Key.(*NameExpr)
 						if nx.Name != blankIdentifier {
-							// XXX, this should be uncommented when fully
-							// support Go1.22 loopvar, to make it consistent
-							// with for i := 0; i < 10; i++ {...}.
-							// nx.Type = NameExprTypeDefine
-
+							nx.Type = NameExprTypeDefine
 							last.Predefine(false, nx.Name)
 						}
 					}
 					if n.Value != nil {
 						nx := n.Value.(*NameExpr)
 						if nx.Name != blankIdentifier {
-							// nx.Type = NameExprTypeDefine // XXX,ditto
+							nx.Type = NameExprTypeDefine
 							last.Predefine(false, nx.Name)
 						}
 					}
 				}
 			case *FuncLitExpr:
-				for _, p := range n.Type.Params {
-					last.Predefine(false, p.Name)
+				for i := range n.Type.Params {
+					px := &n.Type.Params[i].NameExpr
+					px.Type = NameExprTypeDefine
+					last.Predefine(false, px.Name)
 				}
-				for _, rf := range n.Type.Results {
-					if rf.Name != "" {
-						last.Predefine(false, rf.Name)
+				for i := range n.Type.Results {
+					rx := &n.Type.Results[i].NameExpr
+					if rx.Name == "" {
+						rn := fmt.Sprintf("%s%d", missingResultNamePrefix, i)
+						rx.Name = Name(rn)
 					}
+					rx.Type = NameExprTypeDefine
+					last.Predefine(false, rx.Name)
 				}
 			case *SwitchStmt:
-				if n.VarName != "" {
-					// NOTE: this defines for default clauses too,
-					// see comment on block copying @
-					// SwitchClauseStmt:TRANS_BLOCK.
-					last.Predefine(false, n.VarName)
-				}
+				// n.Varname is declared in each clause.
 			case *SwitchClauseStmt:
 				blen := len(n.Body)
 				if blen > 0 {
@@ -308,13 +315,14 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 
 				// parent switch statement.
 				ss := ns[len(ns)-1].(*SwitchStmt)
-				// anything declared in ss are copied,
-				// namely ss.VarName if defined.
+				// anything declared in ss.init are copied.
 				for _, n := range ss.GetBlockNames() {
 					last.Predefine(false, n)
 				}
 				if ss.IsTypeSwitch {
 					if ss.VarName != "" {
+						// XXX NameExprTypeDefine in NameExpr?
+						// XXX XXX fix and test.
 						last.Predefine(false, ss.VarName)
 					}
 				} else {
@@ -324,20 +332,25 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				}
 			case *FuncDecl:
 				if n.IsMethod {
+					n.Recv.NameExpr.Type = NameExprTypeDefine
 					n.Predefine(false, n.Recv.Name)
 				}
-				for _, pte := range n.Type.Params {
-					if pte.Name == "" {
+				for i := range n.Type.Params {
+					px := &n.Type.Params[i].NameExpr
+					if px.Name == "" {
 						panic("should not happen")
 					}
-					n.Predefine(false, pte.Name)
+					px.Type = NameExprTypeDefine
+					n.Predefine(false, px.Name)
 				}
-				for i, rte := range n.Type.Results {
-					if rte.Name == "" {
-						rn := fmt.Sprintf("%s%d", hiddenResultVariable, i)
-						rte.Name = Name(rn)
+				for i := range n.Type.Results {
+					rx := &n.Type.Results[i].NameExpr
+					if rx.Name == "" {
+						rn := fmt.Sprintf("%s%d", missingResultNamePrefix, i)
+						rx.Name = Name(rn)
 					}
-					n.Predefine(false, rte.Name)
+					rx.Type = NameExprTypeDefine
+					n.Predefine(false, rx.Name)
 				}
 			}
 			return n, TRANS_CONTINUE
@@ -415,12 +428,16 @@ var preprocessing atomic.Int32
 //   - Assigns BlockValuePath to NameExprs.
 //   - TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
-	// If initStaticBlocks doesn't happen here,
-	// it means Preprocess on blocks might fail.
-	// it works for now because preprocess also does pushInitBlock,
-	// but it's kinda weird.
-	// maybe consider moving initStaticBlocks here and ensure idempotency of it.
+	// First init static blocks if blocknode.
+	// This may have already happened.
+	// Keep this function idemponent.
+	if bn, ok := n.(BlockNode); ok {
+		initStaticBlocks(store, ctx, bn)
+	}
+
+	// Bulk of the preprocessor function
 	n = preprocess1(store, ctx, n)
+
 	// XXX check node lines and locations
 	checkNodeLinesLocations("XXXpkgPath", "XXXfileName", n)
 	// XXX what about the fact that preprocess1 sets the PREPROCESSED attr on all nodes?
@@ -428,9 +445,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	// XXX well the following may be isn't idempotent,
 	// XXX so it is currently strange.
 	if bn, ok := n.(BlockNode); ok {
-		findGotoLoopDefines(ctx, bn)
-		findLoopUses1(ctx, bn)
-		findLoopUses2(ctx, bn)
+		//findGotoLoopDefines(ctx, bn)
+		findHeapDefinesByUse(ctx, bn)
+		findHeapUsesDemoteDefines(ctx, bn)
+		findPackageSelectors(bn)
 	}
 	return n
 }
@@ -651,19 +669,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// push func body block.
 				pushInitBlock(n, &last, &stack)
 				// define parameters in new block.
-				for _, p := range ft.Params {
+				for i, p := range ft.Params {
 					last.Define(p.Name, anyValue(p.Type))
+					n.Type.Params[i].Path = n.GetPathForName(nil, p.Name)
 				}
 				// define results in new block.
 				for i, rf := range ft.Results {
-					if 0 < len(rf.Name) {
-						last.Define(rf.Name, anyValue(rf.Type))
-					} else {
-						// create a hidden var with leading dot.
-						// NOTE: document somewhere.
-						rn := fmt.Sprintf("%s%d", hiddenResultVariable, i)
-						last.Define(Name(rn), anyValue(rf.Type))
-					}
+					name := rf.Name
+					last.Define(name, anyValue(rf.Type))
+					n.Type.Results[i].Path = n.GetPathForName(nil, name)
 				}
 
 			// TRANS_BLOCK -----------------------
@@ -684,20 +698,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// know which clause will match, we expand the
 				// block once a clause has matched.
 				pushInitBlock(n, &last, &stack)
-				if n.VarName != "" {
-					// NOTE: this defines for default clauses too,
-					// see comment on block copying @
-					// SwitchClauseStmt:TRANS_BLOCK.
-					last.Define(n.VarName, anyValue(nil))
-				}
 
 			// TRANS_BLOCK -----------------------
 			case *SwitchClauseStmt:
 				pushInitBlockAndCopy(n, &last, &stack)
 				// parent switch statement.
 				ss := ns[len(ns)-1].(*SwitchStmt)
-				// anything declared in ss are copied,
-				// namely ss.VarName if defined.
+				// anything declared in ss.Init are copied.
 				for _, n := range ss.GetBlockNames() {
 					tv := ss.GetValueRef(nil, n, false)
 					last.Define(n, *tv)
@@ -767,25 +774,24 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				pushInitBlock(n, &last, &stack)
 				// define receiver in new block, if method.
 				if n.IsMethod {
-					if 0 < len(n.Recv.Name) {
+					name := n.Recv.Name
+					if name != "" {
 						rft := getType(&n.Recv).(FieldType)
 						rt := rft.Type
-						last.Define(n.Recv.Name, anyValue(rt))
+						last.Define(name, anyValue(rt))
+						n.Recv.Path = n.GetPathForName(nil, name)
 					}
 				}
 				// define parameters in new block.
-				for _, p := range ft.Params {
+				for i, p := range ft.Params {
 					last.Define(p.Name, anyValue(p.Type))
+					n.Type.Params[i].Path = n.GetPathForName(nil, p.Name)
 				}
 				// define results in new block.
 				for i, rf := range ft.Results {
-					if 0 < len(rf.Name) {
-						last.Define(rf.Name, anyValue(rf.Type))
-					} else {
-						// create a hidden var with leading dot.
-						rn := fmt.Sprintf("%s%d", hiddenResultVariable, i)
-						last.Define(Name(rn), anyValue(rf.Type))
-					}
+					name := rf.Name
+					last.Define(name, anyValue(rf.Type))
+					n.Type.Results[i].Path = n.GetPathForName(nil, name)
 				}
 				// functions that don't return a value do not need termination analysis
 				// functions that are externally defined or builtin implemented in the vm can't be analysed
@@ -1023,20 +1029,31 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						cx := evalConst(store, last, n)
 						return cx, TRANS_CONTINUE
 					}
-					// If name refers to a package, and this is not in
-					// the context of a selector, fail. Packages cannot
-					// be used as a value, for go compatibility but also
-					// to preserve the security expectation regarding imports.
+					// Special handling of packages
 					nt := evalStaticTypeOf(store, last, n)
 					if nt == nil {
 						// this is fine, e.g. for TRANS_ASSIGN_LHS (define) etc.
-					} else if ftype != TRANS_SELECTOR_X {
-						nk := nt.Kind()
-						if nk == PackageKind {
+					} else if nt.Kind() == PackageKind {
+						// If name refers to a package, and this is not in
+						// the context of a selector, fail. Packages cannot
+						// be used as a value, for go compatibility but also
+						// to preserve the security expectation regarding imports.
+						if ftype != TRANS_SELECTOR_X {
 							panic(fmt.Sprintf(
 								"package %s cannot only be referred to in a selector expression",
 								n.Name))
 						}
+						// Remember the package path
+						// for findPackageSelectors().
+						pvc := evalConst(store, last, n)
+						pv, ok := pvc.V.(*PackageValue)
+						if !ok {
+							panic(fmt.Sprintf(
+								"missing package %s",
+								n.String()))
+						}
+						pref := toRefValue(pv)
+						n.SetAttribute(ATTR_PACKAGE_REF, pref)
 					}
 				}
 
@@ -1797,7 +1814,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					var pv *PackageValue
 					if cx, ok := n.X.(*ConstExpr); ok {
 						// NOTE: *Machine.TestMemPackage() needs this
-						// to pass in an imported package as *ConstEzpr.
+						// to pass in an imported package as *ConstExpr.
 						pv = cx.V.(*PackageValue)
 					} else {
 						// otherwise, packages can only be referred to by
@@ -2113,6 +2130,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *ReturnStmt:
 				fnode, ft := funcOf(last)
+				// Mark return statement as needing to copy
+				// results to named heap items of block.
+				// This is necessary because if the results
+				// are unnamed, they are omitted from block.
+				if ft.Results.IsNamed() && len(n.Results) != 0 {
+					// NOTE: We don't know yet whether any
+					// results are heap items or not, as
+					// they are found after this
+					// preprocessor step.  Either find heap
+					// items before, or do another pass to
+					// demote for speed.
+					n.CopyResults = true
+				}
 				// Check number of return arguments.
 				if len(n.Results) != len(ft.Results) {
 					if len(n.Results) == 0 {
@@ -2336,12 +2366,13 @@ func defineOrDecl(
 
 	node := skipFile(bn)
 
-	for i := 0; i < len(sts); i++ {
-		nx := nameExprs[i]
+	skip := 0 // skip unnamed names like _.
+	for i, nx := range nameExprs {
 		if nx.Name == blankIdentifier {
-			nx.Path = NewValuePathBlock(0, 0, blankIdentifier)
+			skip++
+			nx.Path = NewValuePathBlock(0, 0, nx.Name)
 		} else {
-			node.Define2(isConst, nx.Name, sts[i], tvs[i])
+			node.Define2(isConst, nx.Name, sts[i-skip], tvs[i-skip])
 			nx.Path = bn.GetPathForName(nil, nx.Name)
 		}
 	}
@@ -2404,6 +2435,7 @@ func parseAssignFromExprList(
 	}
 
 	// Evaluate typed value for static definition.
+
 	for i := range nameExprs {
 		// Consider value if specified.
 		if len(valueExprs) > 0 {
@@ -2495,7 +2527,13 @@ func parseMultipleAssignFromOneExpr(
 		st = evalStaticType(store, bn, typeExpr)
 	}
 
-	for i := 0; i < numNames; i++ {
+	skip := 0 // skip unnamed names like _.
+	for i, nx := range nameExprs {
+		if nx.Name == blankIdentifier {
+			skip++
+			continue
+		}
+		// := 0; i < numNames; i++ {
 		if st != nil {
 			tt := tuple.Elts[i]
 
@@ -2510,18 +2548,22 @@ func parseMultipleAssignFromOneExpr(
 				)
 			}
 
-			sts[i] = st
+			sts[i-skip] = st
 		} else {
 			// Set types as return types.
-			sts[i] = tuple.Elts[i]
+			sts[i-skip] = tuple.Elts[i]
 		}
 
-		tvs[i] = anyValue(sts[i])
+		tvs[i-skip] = anyValue(sts[i-skip])
 	}
 }
 
 // Identifies NameExprTypeHeapDefines.
-// Also finds GotoLoopStmts, XXX but probably remove, not needed.
+// Also finds GotoLoopStmts.
+// XXX DEPRECATED but kept here in case needed in the future.
+// We may still want this for optimizing heap defines;
+// the current implementation of findHeapDefinesByUse/findHeapUsesDemoteDefines
+// produces false positives.
 func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
@@ -2675,12 +2717,13 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 	})
 }
 
-// Find uses of loop names; those names that are defined as loop defines;
-// defines within loops that are used as reference or captured in a closure
-// later. Also happens to adjust the type (but not paths) of such usage.
-// If there is no usage of the &name or as closure capture, a
-// NameExprTypeHeapDefine gets demoted to NameExprTypeDefine in demoteHeapDefines().
-func findLoopUses1(ctx BlockNode, bn BlockNode) {
+// Finds heap defines by their use in ref expressions or
+// closures (captures). Also adjusts the name expr type,
+// and sets new closure captures' path to refer to local
+// capture.
+// Also happens to declare all package and file names
+// as heap use, so that functions added later may use them.
+func findHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = ctx
@@ -2691,7 +2734,7 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 		defer doRecover(stack, n)
 
 		if debug {
-			debug.Printf("findLoopUses1 %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			debug.Printf("findHeapDefinesByUse %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -2700,103 +2743,125 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 			pushInitBlock(n.(BlockNode), &last, &stack)
 
 		// ----------------------------------------
-		case TRANS_ENTER:
+		case TRANS_LEAVE:
+
+			// Pop block from stack.
+			// NOTE: DO NOT USE TRANS_SKIP WITHIN BLOCK
+			// NODES, AS TRANS_LEAVE WILL BE SKIPPED; OR
+			// POP BLOCK YOURSELF.
+			defer func() {
+				switch n.(type) {
+				case BlockNode:
+					stack = stack[:len(stack)-1]
+					last = stack[len(stack)-1]
+				}
+			}()
+
 			switch n := n.(type) {
+			case *ValueDecl:
+				// Top level value decls are always heap escaped.
+				// See also corresponding case in findHeapUsesDemoteDefines.
+				if !n.Const {
+					switch last.(type) {
+					case *PackageNode, *FileNode:
+						pn := skipFile(last)
+						for _, nx := range n.NameExprs {
+							if nx.Name == "_" {
+								continue
+							}
+							addAttrHeapUse(pn, nx.Name)
+						}
+					}
+				}
+			case *RefExpr:
+				lmx := LeftmostX(n.X)
+				if nx, ok := lmx.(*NameExpr); ok {
+					// Find the block where name is defined
+					dbn := last.GetBlockNodeForPath(nil, nx.Path)
+					// The leftmost name of possibly nested index
+					// and selector exprs.
+					// e.g. leftmost.middle[0][2].rightmost
+					// Mark name for heap use.
+					addAttrHeapUse(dbn, nx.Name)
+					// adjust NameExpr type.
+					nx.Type = NameExprTypeHeapUse
+				}
 			case *NameExpr:
 				// Ignore non-block type paths
 				if n.Path.Type != VPBlock {
 					return n, TRANS_CONTINUE
 				}
+				// Ignore package names
+				if n.GetAttribute(ATTR_PACKAGE_REF) != nil {
+					return n, TRANS_CONTINUE
+				}
+				// Ignore decls names.
+				if ftype == TRANS_VAR_NAME {
+					return n, TRANS_CONTINUE
+				}
+				// Find the block where name is defined
+				dbn := last.GetBlockNodeForPath(nil, n.Path)
 				switch n.Type {
 				case NameExprTypeNormal:
-					// Find the block where name is defined
-					dbn := last.GetBlockNodeForPath(nil, n.Path)
-					// if the name is loop defined,
-					lds, _ := dbn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
-					if slices.Contains(lds, n.Name) {
-						fle, depth, found := findFirstClosure(stack, dbn)
-						if found {
-							// If across a closure,
-							// mark name as loop used.
-							addAttrHeapUse(dbn, n.Name)
-							// The path must stay same for now,
-							// used later in findLoopUses2.
-							idx := addHeapCapture(dbn, fle, n.Name)
-							// adjust NameExpr type.
-							n.Type = NameExprTypeHeapUse
-							n.Path.SetDepth(uint8(depth))
-							n.Path.Index = idx
-						} else {
-							if ftype == TRANS_REF_X {
-								// if used as a reference,
-								// mark name as loop used.
-								addAttrHeapUse(dbn, n.Name)
-								// Also adjust NameExpr type.
-								// We could do this later too.
-								n.Type = NameExprTypeHeapUse
+					for {
+						// If used as closure capture, mark as heap use.
+						flx, depth, found := findFirstClosure(stack, dbn)
+						if !found {
+							return n, TRANS_CONTINUE
+						}
+						// Ignore top level declarations.
+						// This get replaced by findPackageSelectors.
+						if pn, ok := dbn.(*PackageNode); ok {
+							if pn.PkgPath != ".uverse" {
+								n.SetAttribute(ATTR_PACKAGE_DECL, true)
+								return n, TRANS_CONTINUE
 							}
 						}
-					} else {
-						// if the name is not loop defined,
-						// do nothing.
+
+						// Found a heap item closure capture.
+						addAttrHeapUse(dbn, n.Name)
+						// The path must stay same for now,
+						// used later in findHeapUsesDemoteDefines.
+						idx := addHeapCapture(dbn, flx, depth, n)
+						// adjust NameExpr type.
+						n.Type = NameExprTypeHeapUse
+						n.Path.SetDepth(uint8(depth))
+						n.Path.Index = idx
+						// Loop again for more closures.
+						dbn = flx
 					}
-				case NameExprTypeDefine:
-					// nothing to do.
-				case NameExprTypeHeapDefine:
-					// Set name in attribute, so later matches
-					// on NameExpr can know that this was loop defined
-					// on this block.
-					setAttrHeapDefine(last, n.Name)
-				case NameExprTypeHeapUse, NameExprTypeHeapClosure:
-					panic("unexpected node type")
 				}
 			}
-			return n, TRANS_CONTINUE
-
-		// ----------------------------------------
-		case TRANS_LEAVE:
-			// Pop block from stack.
-			// NOTE: DO NOT USE TRANS_SKIP WITHIN BLOCK
-			// NODES, AS TRANS_LEAVE WILL BE SKIPPED; OR
-			// POP BLOCK YOURSELF.
-			switch n.(type) {
-			case BlockNode:
-				stack = stack[:len(stack)-1]
-				last = stack[len(stack)-1]
-			}
-
 			return n, TRANS_CONTINUE
 		}
 		return n, TRANS_CONTINUE
 	})
 }
 
-func assertNotHasName(names []Name, name Name) {
-	if slices.Contains(names, name) {
-		panic(fmt.Sprintf("name: %s already contained in names: %v", name, names))
+func addName(names []Name, name Name) []Name {
+	if !slices.Contains(names, name) {
+		names = append(names, name)
 	}
-}
-
-func setAttrHeapDefine(bn BlockNode, name Name) {
-	bnLDs, _ := bn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
-	assertNotHasName(bnLDs, name)
-	bnLDs = append(bnLDs, name)
-	bn.SetAttribute(ATTR_LOOP_DEFINES, bnLDs)
+	return names
 }
 
 func addAttrHeapUse(bn BlockNode, name Name) {
-	bnLUs, _ := bn.GetAttribute(ATTR_LOOP_USES).([]Name)
-	if slices.Contains(bnLUs, name) {
-		return
-	} else {
-		bnLUs = append(bnLUs, name)
-		bn.SetAttribute(ATTR_LOOP_USES, bnLUs)
-		return
-	}
+	lus, _ := bn.GetAttribute(ATTR_HEAP_USES).([]Name)
+	lus = addName(lus, name)
+	bn.SetAttribute(ATTR_HEAP_USES, lus)
 }
 
-// adds ~name to fle static block and to heap captures atomically.
-func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, name Name) (idx uint16) {
+func hasAttrHeapUse(bn BlockNode, name Name) bool {
+	hds, _ := bn.GetAttribute(ATTR_HEAP_USES).([]Name)
+	return slices.Contains(hds, name)
+}
+
+// adds ~name to func lit static block and to heap captures atomically.
+func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (idx uint16) {
+	if depth <= 0 {
+		panic("invalid depth")
+	}
+	name := nx.Name
 	for _, ne := range fle.HeapCaptures {
 		if ne.Name == name {
 			// assert ~name also already defined.
@@ -2819,8 +2884,11 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, name Name) (idx uint16) {
 	fle.Define("~"+name, tv.Copy(nil))
 
 	// add name to fle.HeapCaptures.
-	vp := fle.GetPathForName(nil, name)
-	vp.SetDepth(vp.Depth - 1) // minus 1 for fle itself.
+	// NOTE: this doesn't work with shadowing, see define1.gno.
+	// vp := fle.GetPathForName(nil, name)
+	vp := nx.Path
+	vp.SetDepth(vp.Depth - uint8(depth))
+	//vp.SetDepth(vp.Depth - 1) // minus 1 for fle itself.
 	ne := NameExpr{
 		Path: vp,
 		Name: name,
@@ -2854,8 +2922,8 @@ func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, dept
 			fle = stbn
 			depth = len(stack) - 1 - redundant - i + 1 // +1 since 1 is lowest.
 			found = true
-		// even if found, continue iteration in case
-		// an earlier *FuncLitExpr is found.
+			// even if found, continue iteration in case
+			// an earlier *FuncLitExpr is found.
 		case *IfCaseStmt, *SwitchClauseStmt:
 			if stbn == stop {
 				return
@@ -2870,10 +2938,10 @@ func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, dept
 	panic("stop not found in stack")
 }
 
-// Convert non-loop uses of loop names to NameExprTypeHeapUse.
-// Also, NameExprTypeHeapDefine gets demoted to NameExprTypeDefine if no actual
-// usage was found that warrants a NameExprTypeHeapDefine.
-func findLoopUses2(ctx BlockNode, bn BlockNode) {
+// If a name is used as a heap item, Convert all other uses of such names
+// for heap use. If a name of type heap define is not actually used
+// as heap use, demotes them.
+func findHeapUsesDemoteDefines(ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = ctx
@@ -2884,7 +2952,7 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 		defer doRecover(stack, n)
 
 		if debug {
-			debug.Printf("findLoopUses2 %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			debug.Printf("findHeapUsesDemoteDefines %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
@@ -2904,29 +2972,42 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 				case NameExprTypeNormal:
 					// Find the block where name is defined
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
-					// if the name is loop defined,
-					lds, _ := dbn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
-					if slices.Contains(lds, n.Name) {
-						// if the name is actually loop used,
-						lus, _ := dbn.GetAttribute(ATTR_LOOP_USES).([]Name)
-						if slices.Contains(lus, n.Name) {
-							// change type finally to HeapUse.
-							n.Type = NameExprTypeHeapUse
-						} else {
-							// else, will be demoted in later clause.
-						}
+					// If the name is heap used,
+					if hasAttrHeapUse(dbn, n.Name) {
+						// Change type to heap use.
+						n.Type = NameExprTypeHeapUse
 					}
-				case NameExprTypeHeapDefine:
+				case NameExprTypeDefine, NameExprTypeHeapDefine:
 					// Find the block where name is defined
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
-					// if the name is loop defined
-					lds, _ := dbn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
-					if slices.Contains(lds, n.Name) {
-						// if the name is actually loop used
-						lus, _ := dbn.GetAttribute(ATTR_LOOP_USES).([]Name)
-						if !slices.Contains(lus, n.Name) {
-							// demote type finally to Define.
-							n.Type = NameExprTypeDefine
+					// If the name is actually heap used:
+					if hasAttrHeapUse(dbn, n.Name) {
+						// Promote type to heap define.
+						n.Type = NameExprTypeHeapDefine
+						// Make record in static block.
+						dbn.SetIsHeapItem(n.Name)
+					} else {
+						// Demote type to regular define.
+						n.Type = NameExprTypeDefine
+					}
+				}
+			case *ValueDecl:
+				// Top level var value decls are always heap escaped.
+				// See also corresponding case in findHeapDefinesByUse.
+				if !n.Const {
+					switch last.(type) {
+					case *PackageNode, *FileNode:
+						pn := skipFile(last)
+						for i := range n.NameExprs {
+							nx := &n.NameExprs[i]
+							if nx.Name == "_" {
+								continue
+							}
+							if !hasAttrHeapUse(pn, nx.Name) {
+								panic("expected heap use for top level value decl")
+							}
+							nx.Type = NameExprTypeHeapDefine
+							pn.SetIsHeapItem(nx.Name)
 						}
 					}
 				}
@@ -2950,16 +3031,103 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 
 			switch n := n.(type) {
 			case BlockNode:
-				lds, _ := n.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
-				lus, _ := n.GetAttribute(ATTR_LOOP_USES).([]Name)
-				if len(lds) < len(lus) {
-					panic("defines should be a superset of used-defines")
+				switch fd := n.(type) {
+				case *FuncDecl:
+					recv := &fd.Recv
+					if hasAttrHeapUse(fd, recv.Name) {
+						recv.NameExpr.Type = NameExprTypeHeapDefine
+						fd.SetIsHeapItem(recv.Name)
+					}
+					for i := 0; i < len(fd.Type.Params); i++ {
+						name := fd.Type.Params[i].Name
+						if hasAttrHeapUse(fd, name) {
+							fd.Type.Params[i].NameExpr.Type = NameExprTypeHeapDefine
+							fd.SetIsHeapItem(name)
+						}
+					}
+					for i := 0; i < len(fd.Type.Results); i++ {
+						name := fd.Type.Results[i].Name
+						if hasAttrHeapUse(fd, name) {
+							fd.Type.Results[i].NameExpr.Type = NameExprTypeHeapDefine
+							fd.SetIsHeapItem(name)
+						}
+					}
+				case *FuncLitExpr:
+					for i := 0; i < len(fd.Type.Params); i++ {
+						name := fd.Type.Params[i].Name
+						if hasAttrHeapUse(fd, name) {
+							fd.Type.Params[i].NameExpr.Type = NameExprTypeHeapDefine
+							fd.SetIsHeapItem(name)
+						}
+					}
+					for i := 0; i < len(fd.Type.Results); i++ {
+						name := fd.Type.Results[i].Name
+						if hasAttrHeapUse(fd, name) {
+							fd.Type.Results[i].NameExpr.Type = NameExprTypeHeapDefine
+							fd.SetIsHeapItem(name)
+						}
+					}
 				}
+
 				// no need anymore
-				n.DelAttribute(ATTR_LOOP_USES)
-				n.DelAttribute(ATTR_LOOP_DEFINES)
+				n.DelAttribute(ATTR_HEAP_USES)
+				n.DelAttribute(ATTR_HEAP_DEFINES)
 			}
 			return n, TRANS_CONTINUE
+		}
+		return n, TRANS_CONTINUE
+	})
+}
+
+// Replaces all pkg.name selectors with const exprs containing refs.
+// TODO Do not perform this transform unless the name is used
+// inside of a closure. Top level declared functions and methods
+// do not need this indirection. XXX
+func findPackageSelectors(bn BlockNode) {
+	// Iterate over all nodes recursively.
+	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		switch stage {
+		case TRANS_ENTER:
+			switch n := n.(type) {
+			case *NameExpr:
+				// Replace a package name with RefValue{PkgPath}
+				prefi := n.GetAttribute(ATTR_PACKAGE_REF)
+				if prefi != nil {
+					pref := prefi.(RefValue)
+					cx := &ConstExpr{
+						Source: n,
+						TypedValue: TypedValue{
+							T: gPackageType,
+							V: pref,
+						},
+					}
+					return cx, TRANS_CONTINUE
+				}
+				// Replace a local package declared name with
+				// SelectorExpr{X:RefValue{PkgPath},Sel:name}
+				pdi := n.GetAttribute(ATTR_PACKAGE_DECL)
+				if pdi != nil { // is true
+					if n.Path.Type != VPBlock {
+						panic("expected block path")
+					}
+					pn := packageOf(bn)
+					cx := &ConstExpr{
+						Source: n,
+						TypedValue: TypedValue{
+							T: gPackageType,
+							V: RefValue{
+								PkgPath: pn.PkgPath,
+							},
+						},
+					}
+					sx := &SelectorExpr{
+						X:    cx,
+						Path: NewValuePathBlock(1, n.Path.Index, n.Name),
+						Sel:  n.Name,
+					}
+					return sx, TRANS_CONTINUE
+				}
+			}
 		}
 		return n, TRANS_CONTINUE
 	})
@@ -2986,13 +3154,7 @@ func isSwitchLabel(ns []Node, label Name) bool {
 // Also makes sure the stack doesn't reach MaxUint8 in length.
 func pushInitBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 	if !bn.IsInitialized() {
-		switch bn.(type) {
-		case *IfCaseStmt, *SwitchClauseStmt:
-			// skip faux block
-			bn.InitStaticBlock(bn, (*last).GetParentNode(nil))
-		default:
-			bn.InitStaticBlock(bn, *last)
-		}
+		bn.InitStaticBlock(bn, *last)
 	}
 	if bn.GetStaticBlock().Source != bn {
 		panic("expected the source of a block node to be itself")
@@ -3318,7 +3480,7 @@ func findBranchLabel(last BlockNode, label Name) (
 				bn = cbn
 				return
 			}
-			last = cbn.GetParentNode(nil)
+			last = skipFaux(cbn.GetParentNode(nil))
 			depth += 1
 		case *IfStmt:
 			// These are faux blocks -- shouldn't happen.
@@ -3377,7 +3539,7 @@ func findGotoLabel(last BlockNode, label Name) (
 				bn = cbn
 				return
 			} else {
-				last = cbn.GetParentNode(nil)
+				last = skipFaux(cbn.GetParentNode(nil))
 				depth += 1
 			}
 		default:
@@ -4556,7 +4718,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 				IsMethod:    true,
 				Source:      cd,
 				Name:        cd.Name,
-				Closure:     nil, // set lazily.
+				Parent:      nil, // set lazily
 				FileName:    fileNameOf(last),
 				PkgPath:     pkg.PkgPath,
 				SwitchRealm: cd.Body.isSwitchRealm(),
@@ -4828,7 +4990,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 				IsMethod:    false,
 				Source:      d,
 				Name:        d.Name,
-				Closure:     nil, // set lazily.
+				Parent:      nil, // set lazily.
 				FileName:    fileNameOf(last),
 				PkgPath:     pkg.PkgPath,
 				SwitchRealm: d.Body.isSwitchRealm(),
@@ -4895,6 +5057,21 @@ func constUntypedBigint(source Expr, i64 int64) *ConstExpr {
 	return cx
 }
 
+func skipFaux(bn BlockNode) BlockNode {
+	if fauxBlockNode(bn) {
+		return bn.GetParentNode(nil)
+	}
+	return bn
+}
+
+func fauxBlockNode(bn BlockNode) bool {
+	switch bn.(type) {
+	case *IfStmt, *SwitchStmt:
+		return true
+	}
+	return false
+}
+
 func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 	if nx.Name == blankIdentifier {
 		// Blank name has no path; caller error.
@@ -4909,9 +5086,13 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 			// and declared variables. See tests/files/define1.go for test case.
 			var path ValuePath
 			var i int = 0
+			var faux int = 0
 			for {
 				i++
 				last = last.GetParentNode(nil)
+				if fauxBlockNode(last) {
+					faux++
+				}
 				if last == nil {
 					if isUverseName(nx.Name) {
 						idx, ok := UverseNode().GetLocalIndex(nx.Name)
@@ -4935,7 +5116,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 					break
 				}
 			}
-			path.SetDepth(path.Depth + uint8(i))
+			path.SetDepth(path.Depth + uint8(i) - uint8(faux))
 			path.Validate()
 			nx.Path = path
 			return

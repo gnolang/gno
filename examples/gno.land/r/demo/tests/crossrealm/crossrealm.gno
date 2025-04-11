@@ -77,3 +77,35 @@ func CallFooerGetterFooSR2() {
 
 	withswitch(fooerGetter().Foo)()
 }
+
+// This is a top function that does switch realms.
+func ExecSR(cb func() string) string {
+	switchrealm()
+
+	return cb()
+}
+
+// This is a top function that doesn't switch realms.
+func Exec(cb func() string) string {
+	return cb()
+}
+
+var Closure func()
+
+func SetClosure(f func()) {
+	switchrealm()
+
+	Closure = f
+}
+
+var Object any
+
+func SetObject(x any) {
+	switchrealm()
+
+	Object = x
+}
+
+func GetObject() any {
+	return Object
+}
