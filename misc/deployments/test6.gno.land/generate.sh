@@ -35,8 +35,8 @@ gnogenesis validator add -name aib-val-01 -power 1 -address TODO -pub-key TODO
 gnogenesis validator add -name aib-val-02 -power 1 -address TODO -pub-key TODO
 
 # Onbloc (2)
-gnogenesis validator add -name onbloc-val-01 -power 1 -address TODO -pub-key TODO
-gnogenesis validator add -name onbloc-val-02 -power 1 -address TODO -pub-key TODO
+gnogenesis validator add -name onbloc-val-01 -power 1 -address g14cppfre9hsvu6p4scttuyu7mj082lfwxl7hvz9 -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqe87d7lc0c4l4yaa8a94fucfre8882n8556l9z5220zjaaaqj7k5cl5sud
+gnogenesis validator add -name onbloc-val-02 -power 1 -address g1927k3s7q9ujla04r5zy7q5m3gl84wsrart6663 -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq762adl0tcvdn54d6nzqf68r9wrywn7zj87v92mk3qpr436mevpvc63wsz
 
 # Add the transactions (all examples).
 # Test1 is the deployer key for all genesis transactions, and
