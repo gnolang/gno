@@ -45,18 +45,26 @@ class Help {
     this.funcList = this.DOM.funcs.map((funcEl) => new HelpFunc(funcEl));
 
     this.restoreAddress();
+    this.restoreMode();
     this.bindEvents();
   }
 
-  private restoreAddress(): void {
-    const { addressInput } = this.DOM;
-    if (addressInput) {
-      const storedAddress = localStorage.getItem("helpAddressInput");
-      if (storedAddress) {
-        addressInput.value = storedAddress;
-        this.funcList.forEach((func) => func.updateAddr(storedAddress));
+  private restoreValue(storageKey: string, inputElement: HTMLInputElement | HTMLSelectElement | null, updateCallback: (value: string) => void): void {
+    if (inputElement) {
+      const storedValue = localStorage.getItem(storageKey);
+      if (storedValue) {
+        inputElement.value = storedValue;
+        updateCallback(storedValue);
       }
     }
+  }
+
+  private restoreAddress(): void {
+    this.restoreValue("helpAddressInput", this.DOM.addressInput, (value) => this.funcList.forEach((func) => func.updateAddr(value)));
+  }
+
+  private restoreMode(): void {
+    this.restoreValue("helpCmdMode", this.DOM.cmdModeSelect, (value) => this.funcList.forEach((func) => func.updateMode(value)));
   }
 
   private bindEvents(): void {
@@ -64,7 +72,6 @@ class Help {
 
     const debouncedUpdate = debounce((addressInput: HTMLInputElement) => {
       const address = addressInput.value;
-
       localStorage.setItem("helpAddressInput", address);
       this.funcList.forEach((func) => func.updateAddr(address));
     }, 50);
@@ -72,7 +79,9 @@ class Help {
 
     cmdModeSelect?.addEventListener("change", (e) => {
       const target = e.target as HTMLSelectElement;
-      this.funcList.forEach((func) => func.updateMode(target.value));
+      const mode = target.value;
+      localStorage.setItem("helpCmdMode", mode);
+      this.funcList.forEach((func) => func.updateMode(mode));
     });
   }
 }
