@@ -35,29 +35,9 @@ func ChainHeight(m *gno.Machine) int64 {
 	return GetContext(m).Height
 }
 
-// getPreviousFunctionNameFromTarget returns the last called function name (identifier) from the call stack.
-func getPreviousFunctionNameFromTarget(m *gno.Machine, targetFunc string) string {
-	targetIndex := findTargetFunctionIndex(m, targetFunc)
-	if targetIndex == -1 {
-		return ""
-	}
-	return findPreviousFunctionName(m, targetIndex)
-}
-
-// findTargetFunctionIndex finds and returns the index of the target function in the call stack.
-func findTargetFunctionIndex(m *gno.Machine, targetFunc string) int {
-	for i := len(m.Frames) - 1; i >= 0; i-- {
-		currFunc := m.Frames[i].Func
-		if currFunc != nil && currFunc.Name == gno.Name(targetFunc) {
-			return i
-		}
-	}
-	return -1
-}
-
-// findPreviousFunctionName returns the function name before the given index in the call stack.
-func findPreviousFunctionName(m *gno.Machine, targetIndex int) string {
-	for i := targetIndex - 1; i >= 0; i-- {
+// findPreviousFunctionName returns the function name before the given offset in the call stack.
+func findPreviousFunctionName(m *gno.Machine, offset int) string {
+	for i := len(m.Frames) - 1 - offset; i >= 0; i-- {
 		currFunc := m.Frames[i].Func
 		if currFunc != nil {
 			return string(currFunc.Name)
