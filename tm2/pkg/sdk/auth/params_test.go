@@ -25,6 +25,7 @@ func TestValidate(t *testing.T) {
 				SigVerifyCostSecp256k1:    200,
 				GasPricesChangeCompressor: 1,
 				TargetGasRatio:            50,
+				FeeCollector:              crypto.AddressFromPreimage([]byte("test_collector")),
 			},
 			expectsError: false,
 		},
