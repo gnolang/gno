@@ -30,8 +30,8 @@ gnogenesis validator add -name gnocore-val-01 -power 1 -address g1wsa9j6nel8ltt6
 gnogenesis validator add -name gnocore-val-02 -power 1 -address g13762rd7y8s7jcc6uc4lyxv269hguchhpyzaamt -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq5ndww8w6qrxgfdeastcx2lsuuk5r8w9jckkgevylq6duw59d54n935fq2
 
 # Gno DevX (2)
-# gnogenesis validator add -name devx-val-01 -power 1 -address TODO -pub-key TODO
-# gnogenesis validator add -name devx-val-02 -power 1 -address TODO -pub-key TODO
+gnogenesis validator add -name devx-val-01 -power 1 -address g1mxguhd5zacar64txhfm0v7hhtph5wur5hx86vs -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqz6fwulsygvu9xypka3zqxhkxllm467e3adphmj6y44vn3yy8qq34vxnse
+gnogenesis validator add -name devx-val-02 -power 1 -address g1t9ctfa468hn6czff8kazw08crazehcxaqa2uaa -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpsq650w975vqsf6ajj5x4wdzfnrh64kmw7sljqz7wts6k0p6l36d0huls3
 
 # AiB (2)
 gnogenesis validator add -name aib-val-01 -power 1 -address g12yvv8pl5s20suxyd30g7ychqenamtlhctgfu90 -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zplgfkp8609ghdh20w6newh40f9tz7ussw2zylq23ca0tjda3csztm242ft
