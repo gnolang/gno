@@ -122,13 +122,13 @@ persistent_peers = ""
 pex = true
 
 # Comma separated list of peer IDs to keep private (will not be gossiped to other peers)
-private_peer_ids = ""
+private_peer_ids = "g16384atcuf6ew3ufpwtvhymwfyl2aw390aq8jtt@gno-core-sen-01.test6.testnets.gno.land:26656,g16384atcuf6ew3ufpwtvhymwfyl2aw390aq8jtt@gno-core-sen-02.test6.testnets.gno.land:26656"
 
 # Rate at which packets can be received, in bytes/second
 recv_rate = 5120000
 
 # Comma separated list of seed nodes to connect to
-seeds = ""
+seeds = "g16384atcuf6ew3ufpwtvhymwfyl2aw390aq8jtt@gno-core-sen-01.test6.testnets.gno.land:26656,g16384atcuf6ew3ufpwtvhymwfyl2aw390aq8jtt@gno-core-sen-02.test6.testnets.gno.land:26656"
 
 # Rate at which packets can be sent, in bytes/second
 send_rate = 5120000

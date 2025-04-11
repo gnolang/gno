@@ -23,8 +23,8 @@ gnogenesis generate -chain-id $CHAIN_ID -genesis-time $GENESIS_TIME -output-path
 
 # Add the initial validators (8)
 # Gno Core (2)
-gnogenesis validator add -name gnocore-val-01 -power 1 -address TODO -pub-key TODO
-gnogenesis validator add -name gnocore-val-02 -power 1 -address TODO -pub-key TODO
+gnogenesis validator add -name gnocore-val-01 -power 1 -address g1wsa9j6nel8ltt6q2lmf78585ymyfh5nsvhaxa3 -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqma223maxmnw4f42kfqppvgyn8dr8wu7mhtdm6lcq64303a3vlln8xdmms
+gnogenesis validator add -name gnocore-val-02 -power 1 -address g13762rd7y8s7jcc6uc4lyxv269hguchhpyzaamt -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq5ndww8w6qrxgfdeastcx2lsuuk5r8w9jckkgevylq6duw59d54n935fq2
 
 # Gno DevX (2)
 gnogenesis validator add -name devx-val-01 -power 1 -address TODO -pub-key TODO
