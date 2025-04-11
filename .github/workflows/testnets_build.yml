@@ -1,10 +1,9 @@
-name: Docker Bake Build And Push
+# Build and Push Docker Images using Docker Bake
+name: Build and Push Images for Testntes
 
 on:
   push:
     branches:
-      - refactor/gnoland-home
-      - feat/docker-bake
       - chain/test*
   workflow_dispatch:
 
@@ -54,7 +53,6 @@ jobs:
             cwd://${{ steps.meta.outputs.bake-file-tags }}
             cwd://${{ steps.meta.outputs.bake-file-labels }}
           push: true
-          targets: gnoland # to be removed
           set: |
             *.cache-from=type=gha
             *.cache-to=type=gha,mode=max
