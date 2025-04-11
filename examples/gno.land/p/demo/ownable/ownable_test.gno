@@ -1,7 +1,8 @@
 package ownable
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -43,7 +44,7 @@ func TestTransferOwnership(t *testing.T) {
 }
 
 func TestCallerIsOwner(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(alice))
+	testing.SetRealm(runtime.NewUserRealm(alice))
 
 	o := New()
 	unauthorizedCaller := bob
@@ -54,7 +55,7 @@ func TestCallerIsOwner(t *testing.T) {
 }
 
 func TestDropOwnership(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(alice))
+	testing.SetRealm(runtime.NewUserRealm(alice))
 
 	o := New()
 
@@ -91,7 +92,7 @@ func TestErrInvalidAddress(t *testing.T) {
 }
 
 func TestAssertCallerIsOwner(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(alice))
+	testing.SetRealm(runtime.NewUserRealm(alice))
 	testing.SetOriginCaller(alice)
 
 	o := New()
@@ -100,7 +101,7 @@ func TestAssertCallerIsOwner(t *testing.T) {
 	o.AssertCallerIsOwner()
 
 	// Should panic when caller is not owner
-	testing.SetRealm(std.NewUserRealm(bob))
+	testing.SetRealm(runtime.NewUserRealm(bob))
 	testing.SetOriginCaller(bob)
 
 	defer func() {
@@ -119,7 +120,7 @@ func TestNilReceiver(t *testing.T) {
 	var o *Ownable
 
 	owner := o.Owner()
-	if owner != std.Address("") {
+	if owner != chain.Address("") {
 		t.Errorf("expected empty address but got %v", owner)
 	}
 

@@ -1,12 +1,10 @@
 // PKGPATH: gno.land/r/std_test
 package std_test
 
-import (
-	"std"
-)
+import "chain/runtime"
 
 func main() {
-	caller := std.OriginCaller()
+	caller := runtime.OriginCaller()
 	println(caller)
 }
 

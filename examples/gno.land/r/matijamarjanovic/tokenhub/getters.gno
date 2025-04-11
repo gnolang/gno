@@ -1,7 +1,7 @@
 package tokenhub
 
 import (
-	"std"
+	"chain"
 	"strings"
 
 	"gno.land/p/demo/grc/grc1155"
@@ -202,8 +202,8 @@ func getMultiTokenBalances(input string, nonZero bool) string {
 }
 
 // getAddressForUsername returns an address for a given username or address
-func getAddressForUsername(addrOrName string) std.Address {
-	addr := std.Address(addrOrName)
+func getAddressForUsername(addrOrName string) chain.Address {
+	addr := chain.Address(addrOrName)
 	if addr.IsValid() {
 		return addr
 	}

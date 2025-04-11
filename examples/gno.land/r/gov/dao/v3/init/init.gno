@@ -1,7 +1,7 @@
 package init
 
 import (
-	"std"
+	"chain"
 
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/impl"
@@ -15,7 +15,7 @@ func Init() {
 	})
 }
 
-func InitWithUsers(addrs ...std.Address) {
+func InitWithUsers(addrs ...chain.Address) {
 	memberstore.Get().SetTier(memberstore.T1)
 	for _, a := range addrs {
 		memberstore.Get().SetMember(memberstore.T1, a, &memberstore.Member{InvitationPoints: 3})

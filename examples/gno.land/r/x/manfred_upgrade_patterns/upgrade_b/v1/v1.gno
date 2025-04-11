@@ -1,6 +1,6 @@
 package upgradea
 
-import "std"
+import "chain/runtime"
 
 const admin = "blahblah"
 
@@ -22,10 +22,10 @@ func Get() int {
 
 func SetNextVersion(addr string) {
 	// assert CallTx call.
-	std.AssertOriginCall()
+	runtime.AssertOriginCall()
 	// assert admin.
-	caller := std.CallerAt(2)
-	if caller != std.OriginCaller() {
+	caller := runtime.CallerAt(2)
+	if caller != runtime.OriginCaller() {
 		panic("should not happen") // because std.AssertOriginCall().
 	}
 	if caller != admin {

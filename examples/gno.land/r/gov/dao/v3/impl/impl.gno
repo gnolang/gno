@@ -1,7 +1,8 @@
 package impl
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/memberstore"
@@ -18,8 +19,8 @@ func init() {
 
 func context() *dao.Context {
 	return &dao.Context{
-		PrevRealm:    std.PreviousRealm(),
-		CurrentRealm: std.CurrentRealm(),
+		PrevRealm:    runtime.PreviousRealm(),
+		CurrentRealm: runtime.CurrentRealm(),
 	}
 }
 
@@ -28,8 +29,8 @@ func Render(in string) string {
 }
 
 // AddMember allows T1 and T2 members to freely add T3 members using their invitation points.
-func AddMember(addr std.Address) {
-	caller := std.OriginCaller()
+func AddMember(addr chain.Address) {
+	caller := runtime.OriginCaller()
 	m, t := memberstore.Get().GetMember(caller)
 	if m == nil {
 		panic("caller is not a member")

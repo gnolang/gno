@@ -1,7 +1,7 @@
 package users
 
 import (
-	"std"
+	"chain"
 
 	"gno.land/p/demo/avl/rotree"
 )
@@ -22,7 +22,7 @@ func ResolveName(name string) (data *UserData, isCurrent bool) {
 }
 
 // ResolveAddress returns the latest UserData of a specific user by address
-func ResolveAddress(addr std.Address) *UserData {
+func ResolveAddress(addr chain.Address) *UserData {
 	raw, ok := addressStore.Get(addr.String())
 	if !ok {
 		return nil

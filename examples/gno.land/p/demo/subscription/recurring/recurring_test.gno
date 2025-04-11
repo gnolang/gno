@@ -1,7 +1,8 @@
 package recurring
 
 import (
-	"std"
+	"chain/banker"
+	"chain/runtime"
 	"testing"
 	"time"
 
@@ -16,25 +17,25 @@ var (
 )
 
 func TestRecurringSubscription(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(alice))
+	testing.SetRealm(runtime.NewUserRealm(alice))
 	rs := NewRecurringSubscription(time.Hour*24, 1000)
 
-	testing.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}})
+	testing.SetOriginSend([]banker.Coin{{Denom: "ugnot", Amount: 1000}})
 	err := rs.Subscribe()
 	uassert.NoError(t, err, "Expected ProcessPayment to succeed for Alice")
 
-	err = rs.HasValidSubscription(std.PreviousRealm().Address())
+	err = rs.HasValidSubscription(runtime.PreviousRealm().Address())
 	uassert.NoError(t, err, "Expected Alice to have access")
 
-	_, err = rs.GetExpiration(std.PreviousRealm().Address())
+	_, err = rs.GetExpiration(runtime.PreviousRealm().Address())
 	uassert.NoError(t, err, "Expected to get expiration for Alice")
 }
 
 func TestRecurringSubscriptionGift(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(alice))
+	testing.SetRealm(runtime.NewUserRealm(alice))
 	rs := NewRecurringSubscription(time.Hour*24, 1000)
 
-	testing.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}})
+	testing.SetOriginSend([]banker.Coin{{Denom: "ugnot", Amount: 1000}})
 	err := rs.GiftSubscription(bob)
 	uassert.NoError(t, err, "Expected ProcessPaymentGift to succeed for Bob")
 
@@ -46,20 +47,20 @@ func TestRecurringSubscriptionGift(t *testing.T) {
 }
 
 func TestRecurringSubscriptionExpiration(t *testing.T) {
-	testing.SetRealm(std.NewUserRealm(alice))
+	testing.SetRealm(runtime.NewUserRealm(alice))
 	rs := NewRecurringSubscription(time.Hour, 1000)
 
-	testing.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}})
+	testing.SetOriginSend([]banker.Coin{{Denom: "ugnot", Amount: 1000}})
 	err := rs.Subscribe()
 	uassert.NoError(t, err, "Expected ProcessPayment to succeed for Alice")
 
-	err = rs.HasValidSubscription(std.PreviousRealm().Address())
+	err = rs.HasValidSubscription(runtime.PreviousRealm().Address())
 	uassert.NoError(t, err, "Expected Alice to have access")
 
 	expiration := time.Now().Add(-time.Hour * 2)
-	rs.subs.Set(std.PreviousRealm().Address().String(), expiration)
+	rs.subs.Set(runtime.PreviousRealm().Address().String(), expiration)
 
-	err = rs.HasValidSubscription(std.PreviousRealm().Address())
+	err = rs.HasValidSubscription(runtime.PreviousRealm().Address())
 	uassert.Error(t, err, "Expected Alice's subscription to be expired")
 }
 
@@ -93,7 +94,7 @@ func TestIncorrectPaymentAmount(t *testing.T) {
 	testing.SetOriginCaller(alice)
 	rs := NewRecurringSubscription(time.Hour*24, 1000)
 
-	testing.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 500}})
+	testing.SetOriginSend([]banker.Coin{{Denom: "ugnot", Amount: 500}})
 	err := rs.Subscribe()
 	uassert.Error(t, err, "Expected payment with incorrect amount to fail")
 }
@@ -102,11 +103,11 @@ func TestMultiplePaymentsForSameUser(t *testing.T) {
 	testing.SetOriginCaller(alice)
 	rs := NewRecurringSubscription(time.Hour*24, 1000)
 
-	testing.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}})
+	testing.SetOriginSend([]banker.Coin{{Denom: "ugnot", Amount: 1000}})
 	err := rs.Subscribe()
 	uassert.NoError(t, err, "Expected first ProcessPayment to succeed for Alice")
 
-	testing.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}})
+	testing.SetOriginSend([]banker.Coin{{Denom: "ugnot", Amount: 1000}})
 	err = rs.Subscribe()
 	uassert.Error(t, err, "Expected second ProcessPayment to fail for Alice due to existing subscription")
 }
@@ -115,20 +116,20 @@ func TestRecurringSubscriptionWithMultiplePayments(t *testing.T) {
 	testing.SetOriginCaller(alice)
 	rs := NewRecurringSubscription(time.Hour, 1000)
 
-	testing.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}})
+	testing.SetOriginSend([]banker.Coin{{Denom: "ugnot", Amount: 1000}})
 	err := rs.Subscribe()
 	uassert.NoError(t, err, "Expected first ProcessPayment to succeed for Alice")
 
-	err = rs.HasValidSubscription(std.PreviousRealm().Address())
+	err = rs.HasValidSubscription(runtime.PreviousRealm().Address())
 	uassert.NoError(t, err, "Expected Alice to have access after first payment")
 
 	expiration := time.Now().Add(-time.Hour * 2)
-	rs.subs.Set(std.PreviousRealm().Address().String(), expiration)
+	rs.subs.Set(runtime.PreviousRealm().Address().String(), expiration)
 
-	testing.SetOriginSend([]std.Coin{{Denom: "ugnot", Amount: 1000}})
+	testing.SetOriginSend([]banker.Coin{{Denom: "ugnot", Amount: 1000}})
 	err = rs.Subscribe()
 	uassert.NoError(t, err, "Expected second ProcessPayment to succeed for Alice")
 
-	err = rs.HasValidSubscription(std.PreviousRealm().Address())
+	err = rs.HasValidSubscription(runtime.PreviousRealm().Address())
 	uassert.NoError(t, err, "Expected Alice to have access after second payment")
 }

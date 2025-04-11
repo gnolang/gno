@@ -4,8 +4,8 @@
 package events
 
 import (
+	"chain"
 	"sort"
-	"std"
 	"strings"
 	"time"
 
@@ -29,7 +29,7 @@ type (
 )
 
 var (
-	su   = std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // @leohhhn
+	su   = chain.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // @leohhhn
 	Auth = authorizable.NewAuthorizableWithAddress(su)
 
 	events    = make(eventsSlice, 0) // sorted
@@ -76,7 +76,7 @@ func AddEvent(name, description, link, location, startTime, endTime string) (str
 	events = append(events, e)
 	sort.Sort(events)
 
-	std.Emit(EventAdded,
+	chain.Emit(EventAdded,
 		"id", e.id,
 	)
 
@@ -94,7 +94,7 @@ func DeleteEvent(id string) {
 
 	events = append(events[:idx], events[idx+1:]...)
 
-	std.Emit(EventDeleted,
+	chain.Emit(EventDeleted,
 		"id", e.id,
 	)
 }
@@ -143,7 +143,7 @@ func EditEvent(id string, name, description, link, location, startTime, endTime 
 		}
 	}
 
-	std.Emit(EventEdited,
+	chain.Emit(EventEdited,
 		"id", e.id,
 	)
 }

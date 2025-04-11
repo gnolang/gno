@@ -1,4 +1,4 @@
-package std
+package chain
 
 // Emit is a function that constructs a GnoEvent with a specified type and attributes.
 // It then forwards this event to the event logger. Each emitted event carries metadata

@@ -1,9 +1,9 @@
 package main
 
-import "std"
+import "chain/banker"
 
 func main() {
-	v := std.Coin{}
+	v := banker.Coin{}
 	const c = v.Denom
 }
 

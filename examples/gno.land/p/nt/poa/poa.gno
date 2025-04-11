@@ -1,8 +1,8 @@
 package poa
 
 import (
+	"chain"
 	"errors"
-	"std"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/sys/validators"
@@ -37,7 +37,7 @@ func NewPoA(opts ...Option) *PoA {
 	return p
 }
 
-func (p *PoA) AddValidator(address std.Address, pubKey string, power uint64) (validators.Validator, error) {
+func (p *PoA) AddValidator(address chain.Address, pubKey string, power uint64) (validators.Validator, error) {
 	// Validate that the operation is a valid call.
 	// Check if the validator is already in the set
 	if p.IsValidator(address) {
@@ -61,7 +61,7 @@ func (p *PoA) AddValidator(address std.Address, pubKey string, power uint64) (va
 	return v, nil
 }
 
-func (p *PoA) RemoveValidator(address std.Address) (validators.Validator, error) {
+func (p *PoA) RemoveValidator(address chain.Address) (validators.Validator, error) {
 	// Validate that the operation is a valid call
 	// Fetch the validator
 	validator, err := p.GetValidator(address)
@@ -75,13 +75,13 @@ func (p *PoA) RemoveValidator(address std.Address) (validators.Validator, error)
 	return validator, nil
 }
 
-func (p *PoA) IsValidator(address std.Address) bool {
+func (p *PoA) IsValidator(address chain.Address) bool {
 	_, exists := p.validators.Get(address.String())
 
 	return exists
 }
 
-func (p *PoA) GetValidator(address std.Address) (validators.Validator, error) {
+func (p *PoA) GetValidator(address chain.Address) (validators.Validator, error) {
 	validatorRaw, exists := p.validators.Get(address.String())
 	if !exists {
 		return validators.Validator{}, validators.ErrValidatorMissing

@@ -1,4 +1,4 @@
-package std
+package chain
 
 import (
 	"crypto/bech32"
@@ -20,10 +20,6 @@ func (a Address) IsValid() bool {
 	_, _, ok := DecodeBech32(a)
 	return ok
 }
-
-const RawAddressSize = 20
-
-type RawAddress [RawAddressSize]byte
 
 func EncodeBech32(prefix string, bz [20]byte) Address {
 	b32, err := convertAndEncode(prefix, bz[:])
@@ -68,7 +64,7 @@ func DerivePkgAddr(pkgPath string) Address {
 
 func sumTruncated(bz []byte) [20]byte {
 	hash := sha256.Sum256(bz)
-	return convertTo20Byte(hash[:RawAddressSize])
+	return convertTo20Byte(hash[:20])
 }
 
 func convertTo20Byte(in []byte) [20]byte {

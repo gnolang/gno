@@ -1,11 +1,13 @@
-package std
+package runtime
+
+import "chain"
 
 type Realm struct {
-	addr    Address
+	addr    chain.Address
 	pkgPath string
 }
 
-func (r Realm) Address() Address {
+func (r Realm) Address() chain.Address {
 	return r.addr
 }
 

@@ -1,7 +1,8 @@
 package foo20
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 	"strings"
 
 	"gno.land/p/demo/avl"
@@ -21,11 +22,11 @@ type instance struct {
 }
 
 func New(name, symbol string, decimals uint, initialMint, faucet uint64) {
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	NewWithAdmin(name, symbol, decimals, initialMint, faucet, caller)
 }
 
-func NewWithAdmin(name, symbol string, decimals uint, initialMint, faucet uint64, admin std.Address) {
+func NewWithAdmin(name, symbol string, decimals uint, initialMint, faucet uint64, admin chain.Address) {
 	exists := instances.Has(symbol)
 	if exists {
 		panic("token already exists")
@@ -64,33 +65,33 @@ func TotalSupply(symbol string) uint64 {
 	return inst.token.ReadonlyTeller().TotalSupply()
 }
 
-func BalanceOf(symbol string, owner std.Address) uint64 {
+func BalanceOf(symbol string, owner chain.Address) uint64 {
 	inst := mustGetInstance(symbol)
 	return inst.token.ReadonlyTeller().BalanceOf(owner)
 }
 
-func Allowance(symbol string, owner, spender std.Address) uint64 {
+func Allowance(symbol string, owner, spender chain.Address) uint64 {
 	inst := mustGetInstance(symbol)
 	return inst.token.ReadonlyTeller().Allowance(owner, spender)
 }
 
-func Transfer(symbol string, to std.Address, amount uint64) {
+func Transfer(symbol string, to chain.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.Transfer(to, amount))
 }
 
-func Approve(symbol string, spender std.Address, amount uint64) {
+func Approve(symbol string, spender chain.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.Approve(spender, amount))
 }
 
-func TransferFrom(symbol string, from, to std.Address, amount uint64) {
+func TransferFrom(symbol string, from, to chain.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.TransferFrom(from, to, amount))
 }
@@ -103,17 +104,17 @@ func Faucet(symbol string) {
 	}
 	// FIXME: add limits?
 	// FIXME: add payment in gnot?
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 	checkErr(inst.ledger.Mint(caller, inst.faucet))
 }
 
-func Mint(symbol string, to std.Address, amount uint64) {
+func Mint(symbol string, to chain.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
 	inst.admin.AssertCallerIsOwner()
 	checkErr(inst.ledger.Mint(to, amount))
 }
 
-func Burn(symbol string, from std.Address, amount uint64) {
+func Burn(symbol string, from chain.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
 	inst.admin.AssertCallerIsOwner()
 	checkErr(inst.ledger.Burn(from, amount))
@@ -125,7 +126,7 @@ func DropInstanceOwnership(symbol string) {
 	checkErr(inst.admin.DropOwnership())
 }
 
-func TransferInstanceOwnership(symbol string, newOwner std.Address) {
+func TransferInstanceOwnership(symbol string, newOwner chain.Address) {
 	inst := mustGetInstance(symbol)
 	checkErr(inst.admin.TransferOwnership(newOwner))
 }
@@ -144,7 +145,7 @@ func Render(path string) string {
 	case c == 3 && parts[1] == "balance":
 		symbol := parts[0]
 		inst := mustGetInstance(symbol)
-		owner := std.Address(parts[2])
+		owner := chain.Address(parts[2])
 		balance := inst.token.CallerTeller().BalanceOf(owner)
 		return ufmt.Sprintf("%d", balance)
 	default:

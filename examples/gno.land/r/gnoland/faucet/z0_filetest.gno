@@ -1,7 +1,8 @@
 package main
 
 import (
-	"std"
+	"chain"
+	"chain/banker"
 	"testing"
 
 	"gno.land/r/gnoland/faucet"
@@ -9,8 +10,8 @@ import (
 
 // mints ugnot to current realm
 func init() {
-	facuetaddr := std.DerivePkgAddr("gno.land/r/gnoland/faucet")
-	testing.IssueCoins(facuetaddr, std.Coins{{"ugnot", 200000000}})
+	facuetaddr := chain.DerivePkgAddr("gno.land/r/gnoland/faucet")
+	testing.IssueCoins(facuetaddr, banker.Coins{{"ugnot", 200000000}})
 }
 
 // assert render with empty path and no controllers

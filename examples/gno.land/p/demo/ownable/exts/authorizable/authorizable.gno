@@ -6,7 +6,8 @@
 package authorizable
 
 import (
-	"std"
+	"chain"
+	"chain/runtime"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
@@ -29,7 +30,7 @@ func NewAuthorizable() *Authorizable {
 	return a
 }
 
-func NewAuthorizableWithAddress(addr std.Address) *Authorizable {
+func NewAuthorizableWithAddress(addr chain.Address) *Authorizable {
 	a := &Authorizable{
 		ownable.NewWithAddress(addr),
 		avl.NewTree(),
@@ -40,7 +41,7 @@ func NewAuthorizableWithAddress(addr std.Address) *Authorizable {
 	return a
 }
 
-func (a *Authorizable) AddToAuthList(addr std.Address) error {
+func (a *Authorizable) AddToAuthList(addr chain.Address) error {
 	if !a.CallerIsOwner() {
 		return ErrNotSuperuser
 	}
@@ -54,7 +55,7 @@ func (a *Authorizable) AddToAuthList(addr std.Address) error {
 	return nil
 }
 
-func (a *Authorizable) DeleteFromAuthList(addr std.Address) error {
+func (a *Authorizable) DeleteFromAuthList(addr chain.Address) error {
 	if !a.CallerIsOwner() {
 		return ErrNotSuperuser
 	}
@@ -72,7 +73,7 @@ func (a *Authorizable) DeleteFromAuthList(addr std.Address) error {
 }
 
 func (a Authorizable) CallerOnAuthList() error {
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 
 	if !a.authorized.Has(caller.String()) {
 		return ErrNotInAuthList
@@ -82,7 +83,7 @@ func (a Authorizable) CallerOnAuthList() error {
 }
 
 func (a Authorizable) AssertOnAuthList() {
-	caller := std.PreviousRealm().Address()
+	caller := runtime.PreviousRealm().Address()
 
 	if !a.authorized.Has(caller.String()) {
 		panic(ErrNotInAuthList)

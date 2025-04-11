@@ -2,14 +2,14 @@
 package nft_test
 
 import (
-	"std"
+	"chain/runtime"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/nft"
 )
 
 func main() {
-	caller := std.CallerAt(1)
+	caller := runtime.CallerAt(1)
 	addr1 := testutils.TestAddress("addr1")
 	// addr2 := testutils.TestAddress("addr2")
 	grc721 := nft.GetToken()

@@ -1,8 +1,8 @@
 package valopers_proposal
 
 import (
+	"chain"
 	"errors"
-	"std"
 
 	"gno.land/p/demo/ufmt"
 	pVals "gno.land/p/sys/validators"
@@ -18,7 +18,7 @@ var (
 
 // NewValidatorProposalRequest creates a proposal request to the GovDAO
 // for adding the given valoper to the validator set.
-func NewValidatorProposalRequest(address std.Address) dao.ProposalRequest {
+func NewValidatorProposalRequest(address chain.Address) dao.ProposalRequest {
 	var (
 		valoper     = valopers.GetByAddr(address)
 		votingPower = uint64(1)

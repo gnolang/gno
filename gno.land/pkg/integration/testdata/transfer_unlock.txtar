@@ -48,11 +48,11 @@ package main
 
 import (
   i "gno.land/r/gov/dao/v3/init"
-  "std"
+  "chain"
 )
 
 func main() {
-	i.InitWithUsers(std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+	i.InitWithUsers(chain.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
 }
 
 -- run/propose_unlock.gno --
