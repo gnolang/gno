@@ -64,8 +64,8 @@ the origin caller's address.
 
 - `std.GetOrigCaller()` - returns the address of the original signer of the
   transaction
-- `std.PrevRealm()` - returns the previous realm instance, which can be a user realm
-  or a smart contract realm
+- `std.PrevRealm()` - returns the previous realm instance, which can be a user 
+  realm or a smart contract realm
 - `std.CurrentRealm()` - returns the instance of the realm that has called it
 
 Let's look at the return values of these functions in two distinct situations:
@@ -74,18 +74,18 @@ Let's look at the return values of these functions in two distinct situations:
 
 #### 1. EOA calling a realm
 
-XXX Consider modifying the below in accordance with the [interrealm
-spec](./gno-interrealm.md).
+When an EOA calls a realm, the call stack is initiated by the EOA, and the realm
+becomes the current context.
 
 Take these two actors in the call stack:
 ```
 EOA:
-    addr: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+    addr: `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
     pkgPath: "" // empty as this is a user realm
 
 Realm A:
-    addr: g17m4ga9t9dxn8uf06p3cahdavzfexe33ecg8v2s
-    pkgPath: gno.land/r/demo/users
+    addr:    `g17m4ga9t9dxn8uf06p3cahdavzfexe33ecg8v2s`
+    pkgPath: `gno.land/r/demo/users`
 
         ┌─────────────────────┐      ┌─────────────────────────┐
         │         EOA         │      │         Realm A         │
@@ -98,7 +98,8 @@ Realm A:
         └─────────────────────┘      └─────────────────────────┘
 ```
 
-Let's look at return values for each of the methods, called from within `Realm A`:
+Let's look at return values for each of the methods, called from within
+`Realm A`:
 ```
 std.GetOrigCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
 std.PrevRealm() => Realm {
@@ -107,10 +108,15 @@ std.PrevRealm() => Realm {
 }
 std.CurrentRealm() => Realm {
     addr:    `g17m4ga9t9dxn8uf06p3cahdavzfexe33ecg8v2s`
-    pkgPath: `gno.land/r/demo/users`}
+    pkgPath: `gno.land/r/demo/users`
+}
 ```
 
 #### 2. EOA calling a sequence of realms
+
+Assuming that you use interrealm switching, when an EOA calls a sequence of
+realms, the call stack transitions through multiple realms. Each realm in the
+sequence becomes the current context as the call progresses.
 
 Take these three actors in the call stack:
 ```
