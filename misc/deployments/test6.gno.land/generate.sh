@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# This script generates the test6 genesis.json
-# locally, by using external
+# This script generates the test6 genesis.json locally, by using external
+# sources for large artifacts such as genesis balances
 
 set -e # exit on error
 
