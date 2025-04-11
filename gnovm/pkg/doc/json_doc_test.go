@@ -184,9 +184,18 @@ func TestJSONDocumentation(t *testing.T) {
 		},
 		Types: []*JSONType{
 			{
+				Interface: true,
+				Name:      "myInterface",
+				Signature: "type myInterface interface {\n\tBar() string // Bar is for testing\n}",
+				Doc:       "myInterface is an interface for testing\n",
+			},
+			{
 				Name:      "myStruct",
-				Signature: "type myStruct struct{ a int }",
+				Signature: "type myStruct struct {\n\ta int // a comment\n}",
 				Doc:       "myStruct is a struct for testing\n",
+				Fields: []*JSONField{
+					{Name: "a", Type: "int", Doc: "// a comment"},
+				},
 			},
 		},
 	}
