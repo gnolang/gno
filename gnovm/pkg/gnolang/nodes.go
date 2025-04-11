@@ -2290,6 +2290,8 @@ func validatePkgName(name string) error {
 	return nil
 }
 
+const hiddenFunction = ".func_"
+
 const hiddenResultVariable = ".res_"
 
 func isHiddenResultVariable(name string) bool {

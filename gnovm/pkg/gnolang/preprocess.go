@@ -90,11 +90,9 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 					continue
 				}
 
-				// to avoid complicated code handling of the blank identifier "_"
-				// rewrite the name to its ascii code so it can be preprocessed as any normal function
-				// this matches Go's behavior to process these functions but users won't be able to call them
 				if fnc.Name == blankIdentifier {
-					fnc.Name = "95"
+					n := fmt.Sprintf("%s%d", hiddenFunction, i)
+					fnc.Name = Name(n)
 				}
 
 				// recursively predefine dependencies.
