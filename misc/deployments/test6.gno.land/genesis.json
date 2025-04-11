@@ -15,5 +15,33 @@
       ]
     }
   },
-  "app_hash": null
+  "validators": [
+    {
+      "address": "g14cppfre9hsvu6p4scttuyu7mj082lfwxl7hvz9",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "ZP5vv4fiv6k70/S1TzCR5Oc6pnpTXyiopTxS73oJetQ="
+      },
+      "power": "1",
+      "name": "onbloc-val-1"
+    },
+    {
+      "address": "g1927k3s7q9ujla04r5zy7q5m3gl84wsrart6663",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "e0rrfvXhjZ0q3UxATo4yuGR0/CkfzCq3aIAjrHW8sCw="
+      },
+      "power": "1",
+      "name": "onbloc-val-2"
+    }
+  ],
+  "app_hash": null,
+  "app_state": {
+    "@type": "/gno.GenesisState",
+    "balances": [
+      "g1er355fkjksqpdtwmhf5penwa82p0rhqxkkyhk5=9000000000000000000ugnot",
+      "g1tt57pa4yqf288velh7528ejkfzadg0z0z6tk0a=9000000000000000000ugnot"
+    ],
+    "txs": null
+  }
 }
