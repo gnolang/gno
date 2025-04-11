@@ -369,6 +369,7 @@ func (hiv *HeapItemValue) GetShallowSize() int64 {
 }
 
 func (rv RefValue) GetShallowSize() int64 {
+	fmt.Println("---refValue, get shallow size...")
 	return allocRefValue
 }
 

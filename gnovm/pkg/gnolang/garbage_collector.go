@@ -53,6 +53,9 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 
 	// Visit blocks
 	for _, block := range m.Blocks {
+		if block == nil {
+			continue
+		}
 		stop := vis(block)
 		if stop {
 			return -1, false
@@ -92,16 +95,11 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 	var vis func(value Value) bool
 
 	vis = func(v Value) bool {
-		if v == nil || v == (*Block)(nil) || v == (*PackageValue)(nil) {
-			return false
-		}
-
 		if debug {
 			debug.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
 		}
 
 		oo, isObject := v.(Object)
-
 		if isObject {
 			defer func() {
 				// Finally bump cycle for object.
@@ -145,14 +143,20 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 
 func (sv *SliceValue) VisitAssociated(vis Visitor) (stop bool) {
 	// Visit base.
-	stop = vis(sv.Base)
+	if sv.Base != nil {
+		stop = vis(sv.Base)
+	}
 	return stop
 }
 
 func (av *ArrayValue) VisitAssociated(vis Visitor) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(av.List); i++ {
-		stop = vis(av.List[i].V)
+		v := av.List[i].V
+		if v == nil {
+			continue
+		}
+		stop = vis(v)
 		if stop {
 			return
 		}
@@ -163,7 +167,11 @@ func (av *ArrayValue) VisitAssociated(vis Visitor) (stop bool) {
 func (fv *FuncValue) VisitAssociated(vis Visitor) (stop bool) {
 	// visit captures
 	for _, tv := range fv.Captures {
-		stop = vis(tv.V)
+		v := tv.V
+		if v == nil {
+			continue
+		}
+		stop = vis(v)
 		if stop {
 			return
 		}
@@ -175,7 +183,11 @@ func (fv *FuncValue) VisitAssociated(vis Visitor) (stop bool) {
 func (sv *StructValue) VisitAssociated(vis Visitor) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(sv.Fields); i++ {
-		stop = vis(sv.Fields[i].V)
+		v := sv.Fields[i].V
+		if v == nil {
+			continue
+		}
+		stop = vis(v)
 		if stop {
 			return
 		}
@@ -188,7 +200,10 @@ func (bmv *BoundMethodValue) VisitAssociated(vis Visitor) (stop bool) {
 	// So we do not visit it (for garbage collection).
 
 	// Visit receiver.
-	stop = vis(bmv.Receiver.V)
+	v := bmv.Receiver.V
+	if v != nil {
+		stop = vis(v)
+	}
 	return
 }
 
@@ -196,13 +211,21 @@ func (mv *MapValue) VisitAssociated(vis Visitor) (stop bool) {
 	// visit mv.List.
 	for cur := mv.List.Head; cur != nil; cur = cur.Next {
 		// vis key
-		stop = vis(cur.Key.V)
+		k := cur.Key.V
+		if k != nil {
+			stop = vis(k)
+		}
+
 		if stop {
 			return
 		}
 
 		// vis value
-		stop = vis(cur.Value.V)
+		v := cur.Value.V
+		if v != nil {
+			stop = vis(v)
+		}
+
 		if stop {
 			return
 		}
@@ -212,13 +235,21 @@ func (mv *MapValue) VisitAssociated(vis Visitor) (stop bool) {
 
 func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
 	// visit pv.Block
-	stop = vis(pv.Block)
+	v := pv.Block
+	if v != nil {
+		stop = vis(pv.Block)
+	}
+
 	if stop {
 		return
 	}
 
 	// visit pv.FBlocks
 	for _, fb := range pv.FBlocks {
+		if fb == nil {
+			continue
+		}
+
 		stop = vis(fb)
 		if stop {
 			return
@@ -233,25 +264,45 @@ func (pv *PackageValue) VisitAssociated(vis Visitor) (stop bool) {
 func (b *Block) VisitAssociated(vis Visitor) (stop bool) {
 	// Visit each value.
 	for i := 0; i < len(b.Values); i++ {
-		stop = vis(b.Values[i].V)
+		v := b.Values[i].V
+		if v == nil {
+			continue
+		}
+		stop = vis(v)
 		if stop {
 			return
 		}
 	}
 
 	// Visit parent.
-	stop = vis(b.Parent)
+	switch v := b.Parent.(type) {
+	case nil:
+		return
+	case *Block:
+		if v != nil {
+			stop = vis(v)
+		}
+	case RefValue:
+		stop = vis(v)
+	}
+
 	return
 }
 
 func (hiv *HeapItemValue) VisitAssociated(vis Visitor) (stop bool) {
-	stop = vis(hiv.Value.V)
+	v := hiv.Value.V
+	if v != nil {
+		stop = vis(hiv.Value.V)
+	}
 	return
 }
 
 func (pv PointerValue) VisitAssociated(vis Visitor) (stop bool) {
 	// NOTE: *TV and Key will be visited along with base.
-	stop = vis(pv.Base)
+	v := pv.Base
+	if v != nil {
+		stop = vis(pv.Base)
+	}
 	return
 }
 
@@ -285,7 +336,10 @@ func (tv TypeValue) VisitAssociated(vis Visitor) (stop bool) {
 
 func (fr *Frame) Visit(vis Visitor) (stop bool) {
 	// vis receiver
-	stop = vis(fr.Receiver.V)
+	v := fr.Receiver.V
+	if v != nil {
+		stop = vis(v)
+	}
 	if stop {
 		return
 	}
@@ -301,26 +355,34 @@ func (fr *Frame) Visit(vis Visitor) (stop bool) {
 	// vis defer
 	for _, dfr := range fr.Defers {
 		// visit dfr.Func
-		stop = vis(dfr.Func)
+		if dfr.Func != nil {
+			stop = vis(dfr.Func)
+		}
 		if stop {
 			return
 		}
 
 		for _, arg := range dfr.Args {
-			stop = vis(arg.V)
+			if arg.V != nil {
+				stop = vis(arg.V)
+			}
 			if stop {
 				return
 			}
 		}
 
-		stop = vis(dfr.Parent)
+		if dfr.Parent != nil {
+			stop = vis(dfr.Parent)
+		}
 		if stop {
 			return
 		}
 	}
 
 	// vis last package
-	stop = vis(fr.LastPackage)
+	if fr.LastPackage != nil {
+		stop = vis(fr.LastPackage)
+	}
 	if stop {
 		return
 	}
@@ -330,7 +392,10 @@ func (fr *Frame) Visit(vis Visitor) (stop bool) {
 
 func (ex *Exception) Visit(vis Visitor) (stop bool) {
 	// vis value
-	stop = vis(ex.Value.V)
+	v := ex.Value.V
+	if v != nil {
+		stop = vis(v)
+	}
 	if stop {
 		return
 	}
