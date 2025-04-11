@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"gno.land/p/moul/txlink"
+	"gno.land/p/pol/nfmt"
 )
 
 const shopImage = "https://raw.githubusercontent.com/paulogarithm/gnoplayground/refs/heads/main/images/gnoshop.png"
@@ -105,7 +106,11 @@ func renderShop(params map[string]string) string {
 	content += "or...\n\n"
 
 	// Buy
-	content += "### Buy some pickaxes (you have " + strconv.FormatFloat(session.Money, 'f', 2, 64) + " GnoCoins):\n\n"
+	str, err := nfmt.FormatRound(session.Money)
+	if err != nil {
+		str = strconv.FormatFloat(session.Money, 'f', 2, 64)
+	}
+	content += "### Buy some pickaxes (you have " + str + " GnoCoins):\n\n"
 	content += "|Pickaxe|Price|Buy|\n|-|-|-|\n"
 	birthdayPick := BirthdayPickaxe{}
 	today := time.Now().Format("02/01")
@@ -123,7 +128,11 @@ func renderShop(params map[string]string) string {
 		if !havePick {
 			buyLink := txlink.Call("Buy", "pickname", pick2buy.String())
 			content += "|" + pick2buy.String()
-			content += "|" + strconv.FormatFloat(price, 'f', -1, 64)
+			str, err = nfmt.FormatRound(price)
+			if err != nil {
+				str = strconv.FormatFloat(price, 'f', -1, 64)
+			}
+			content += "|" + str
 			content += "|[Buy](" + buyLink + ")|\n"
 		}
 	}
