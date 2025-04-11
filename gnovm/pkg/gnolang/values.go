@@ -1016,8 +1016,8 @@ func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
 }
 
 // Returns encoded bytes for primitive values.
-// These bytes are used for both value hashes as well
-// as hash key bytes.
+// These are used for computing map keys.
+// If tv is a float and it is negative zero, the value is normalized to zero.
 func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 	switch bt := baseOf(tv.T); bt {
 	case BoolType:
@@ -1064,12 +1064,20 @@ func (tv *TypedValue) PrimitiveBytes() (data []byte) {
 	case Float32Type:
 		data = make([]byte, 4)
 		u32 := tv.GetFloat32()
+		// If this is negative zero, normalize to zero.
+		if u32 == (1 << 31) {
+			u32 = 0
+		}
 		binary.LittleEndian.PutUint32(
 			data, u32)
 		return data
 	case Float64Type:
 		data = make([]byte, 8)
 		u64 := tv.GetFloat64()
+		// If this is negative zero, normalize to zero.
+		if u64 == (1 << 63) {
+			u64 = 0
+		}
 		binary.LittleEndian.PutUint64(
 			data, u64)
 		return data
