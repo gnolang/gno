@@ -85,13 +85,13 @@ func strtoi(s string) (int, string) {
 
 // parse the flags
 // parse the flags
-func (p *printer) parse(str string, index *int) {
+func (p *printer) parse(runes []rune, index *int) {
 	*index++
-	if str[*index] == '#' {
+	if runes[*index] == '#' {
 		p.meta.flags |= flagHashtag
 		*index++
 	}
-	c2f := map[byte]uint8{
+	c2f := map[rune]uint8{
 		'-': flagMinus,
 		'+': flagPlus,
 		' ': flagSpace,
@@ -99,23 +99,23 @@ func (p *printer) parse(str string, index *int) {
 	}
 	stop := false
 	for {
-		x, ok := c2f[str[*index]]
+		x, ok := c2f[runes[*index]]
 		switch {
 		case ok:
 			p.meta.flags |= x
 			*index++
-		case unicode.IsNumber(rune(str[*index])):
-			n, rest := strtoi(str[*index:])
-			if rest == str {
+		case unicode.IsNumber(runes[*index]):
+			n, rest := strtoi(string(runes[*index:]))
+			if rest == string(runes) {
 				continue
 			}
 			p.meta.padding = uint(n)
 			*index += len(strconv.Itoa(n))
-		case str[*index] == '.':
+		case runes[*index] == '.':
 			*index++
-			n, rest := strtoi(str[*index:])
+			n, rest := strtoi(string(runes[*index:]))
 			p.meta.precision = n // 0 by default, not an error
-			if rest == str[*index:] {
+			if rest == string(runes[*index:]) {
 				continue
 			}
 			*index += len(strconv.Itoa(n))
@@ -133,7 +133,7 @@ func (p *printer) parse(str string, index *int) {
 		"hh": lenHH,
 		"z":  lenZ,
 	} {
-		if str[*index:*index+len(k)-1] == k {
+		if string(runes[*index:*index+len(k)-1]) == k {
 			p.meta.length = v
 			*index += len(k)
 			break
@@ -252,7 +252,7 @@ func (p *printer) doPrintf(format string, args []any) {
 	for i := 0; i < end; {
 		isLast := i == end-1
 		c := sTor[i]
-
+		
 		if isLast || c != '%' {
 			// we don't check for invalid format like a one ending with "%"
 			p.buf.writeRune(c)
@@ -260,7 +260,7 @@ func (p *printer) doPrintf(format string, args []any) {
 			continue
 		}
 
-		p.parse(format, &i)
+		p.parse(sTor, &i)
 
 		verb := sTor[i+1]
 		if verb == '%' {
