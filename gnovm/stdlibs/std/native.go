@@ -35,18 +35,6 @@ func ChainHeight(m *gno.Machine) int64 {
 	return GetContext(m).Height
 }
 
-// findPreviousFunctionName returns the function name before the given offset in the call stack.
-func findPreviousFunctionName(m *gno.Machine, offset int) string {
-	for i := len(m.Frames) - 1 - offset; i >= 0; i-- {
-		currFunc := m.Frames[i].Func
-		if currFunc != nil {
-			return string(currFunc.Name)
-		}
-	}
-
-	panic("function name not found")
-}
-
 func X_originSend(m *gno.Machine) (denoms []string, amounts []int64) {
 	os := GetContext(m).OriginSend
 	return ExpandCoins(os)

@@ -722,15 +722,15 @@ func (ftxz FieldTypeExprs) IsNamed() bool {
 	named := false
 	for i, ftx := range ftxz {
 		if i == 0 {
-			if ftx.Name == "" || isMissingResult(string(ftx.Name)) {
+			if ftx.Name == "" || isMissingResult(ftx.Name) {
 				named = false
 			} else {
 				named = true
 			}
 		} else {
-			if named && (ftx.Name == "" || isMissingResult(string(ftx.Name))) {
+			if named && (ftx.Name == "" || isMissingResult(ftx.Name)) {
 				panic("[]FieldTypeExpr has inconsistent namedness (starts named)")
-			} else if !named && (ftx.Name != "" && !isMissingResult(string(ftx.Name))) {
+			} else if !named && (ftx.Name != "" && !isMissingResult(ftx.Name)) {
 				panic("[]FieldTypeExpr has inconsistent namedness (starts unnamed)")
 			}
 		}
@@ -1739,6 +1739,7 @@ type StaticBlock struct {
 	UnassignableNames []Name
 	Consts            []Name // TODO consider merging with Names.
 	Externs           []Name
+	Parent            BlockNode
 	Loc               Location
 
 	// temporary storage for rolling back redefinitions.
@@ -1770,10 +1771,28 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 			Parent: nil,
 		}
 	} else {
-		sb.Block = Block{
-			Source: source,
-			Values: nil,
-			Parent: parent.GetStaticBlock().GetBlock(),
+		switch source.(type) {
+		case *IfCaseStmt, *SwitchClauseStmt:
+			if parent == nil {
+				sb.Block = Block{
+					Source: source,
+					Values: nil,
+					Parent: nil,
+				}
+			} else {
+				parent2 := parent.GetParentNode(nil)
+				sb.Block = Block{
+					Source: source,
+					Values: nil,
+					Parent: parent2.GetStaticBlock().GetBlock(),
+				}
+			}
+		default:
+			sb.Block = Block{
+				Source: source,
+				Values: nil,
+				Parent: parent.GetStaticBlock().GetBlock(),
+			}
 		}
 	}
 	sb.NumNames = 0
@@ -1781,6 +1800,7 @@ func (sb *StaticBlock) InitStaticBlock(source BlockNode, parent BlockNode) {
 	sb.HeapItems = make([]bool, 0, 16)
 	sb.Consts = make([]Name, 0, 16)
 	sb.Externs = make([]Name, 0, 16)
+	sb.Parent = parent
 	return
 }
 
@@ -1852,12 +1872,7 @@ func (sb *StaticBlock) SetIsHeapItem(n Name) {
 
 // Implements BlockNode.
 func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
-	pblock := sb.Block.GetParent(store)
-	if pblock == nil {
-		return nil
-	} else {
-		return pblock.GetSource(store)
-	}
+	return sb.Parent
 }
 
 // Implements BlockNode.
@@ -1871,26 +1886,34 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	if idx, ok := sb.GetLocalIndex(n); ok {
 		return NewValuePathBlock(uint8(gen), idx, n)
 	}
+	sn := sb.GetSource(store)
 	// Register as extern.
 	// NOTE: uverse names are externs too.
 	// NOTE: externs may also be shadowed later in the block. Thus, usages
 	// before the declaration will have depth > 1; following it, depth == 1,
 	// matching the two different identifiers they refer to.
-	if !isFile(sb.GetSource(store)) {
+	if !isFile(sn) {
 		sb.GetStaticBlock().addExternName(n)
 	}
 	// Check ancestors.
 	gen++
-	bp := sb.GetParentNode(store)
-	for bp != nil {
-		if idx, ok := bp.GetLocalIndex(n); ok {
-			return NewValuePathBlock(uint8(gen), idx, n)
+	faux := 0
+	sn = sn.GetParentNode(store)
+	if fauxBlockNode(sn) {
+		faux++
+	}
+	for sn != nil {
+		if idx, ok := sn.GetLocalIndex(n); ok {
+			return NewValuePathBlock(uint8(gen-faux), idx, n)
 		} else {
-			if !isFile(bp) {
-				bp.GetStaticBlock().addExternName(n)
+			if !isFile(sn) {
+				sn.GetStaticBlock().addExternName(n)
 			}
-			bp = bp.GetParentNode(store)
 			gen++
+			sn = sn.GetParentNode(store)
+			if fauxBlockNode(sn) {
+				faux++
+			}
 			if 0xff < gen {
 				panic("value path depth overflow")
 			}
@@ -1914,6 +1937,18 @@ func (sb *StaticBlock) GetBlockNodeForPath(store Store, path ValuePath) BlockNod
 	bn := sb.GetSource(store)
 	for i := 1; i < int(path.Depth); i++ {
 		bn = bn.GetParentNode(store)
+		if fauxBlockNode(bn) {
+			bn = bn.GetParentNode(store)
+		}
+	}
+
+	// If bn is a faux block node, check also its parent.
+	switch bn := bn.(type) {
+	case *IfCaseStmt, *SwitchClauseStmt:
+		pn := bn.GetParentNode(store)
+		if path.Index < pn.GetNumNames() {
+			return pn
+		}
 	}
 
 	return bn
@@ -2425,16 +2460,16 @@ func validatePkgName(name string) error {
 const missingResultNamePrefix = ".res."    // if there was no name
 const underscoreResultNamePrefix = ".res_" // if was underscore
 
-func isUnnamedResult(name string) bool {
+func isUnnamedResult(name Name) bool {
 	return isMissingResult(name) || isUnderscoreResult(name)
 }
 
-func isMissingResult(name string) bool {
-	return strings.HasPrefix(name, missingResultNamePrefix)
+func isMissingResult(name Name) bool {
+	return strings.HasPrefix(string(name), missingResultNamePrefix)
 }
 
-func isUnderscoreResult(name string) bool {
-	return strings.HasPrefix(name, underscoreResultNamePrefix)
+func isUnderscoreResult(name Name) bool {
+	return strings.HasPrefix(string(name), underscoreResultNamePrefix)
 }
 
 type addressabilityStatus int

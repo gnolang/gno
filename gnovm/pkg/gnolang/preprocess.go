@@ -306,13 +306,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 					last.Predefine(false, rx.Name)
 				}
 			case *SwitchStmt:
-				if n.VarName != "" {
-					// XXX NameExprTypeDefine in NameExpr?
-					// NOTE: this defines for default clauses too,
-					// see comment on block copying @
-					// SwitchClauseStmt:TRANS_BLOCK.
-					last.Predefine(false, n.VarName)
-				}
+				// n.Varname is declared in each clause.
 			case *SwitchClauseStmt:
 				blen := len(n.Body)
 				if blen > 0 {
@@ -321,14 +315,14 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 
 				// parent switch statement.
 				ss := ns[len(ns)-1].(*SwitchStmt)
-				// anything declared in ss are copied,
-				// namely ss.VarName if defined.
+				// anything declared in ss.init are copied.
 				for _, n := range ss.GetBlockNames() {
 					last.Predefine(false, n)
 				}
 				if ss.IsTypeSwitch {
 					if ss.VarName != "" {
 						// XXX NameExprTypeDefine in NameExpr?
+						// XXX XXX fix and test.
 						last.Predefine(false, ss.VarName)
 					}
 				} else {
@@ -704,20 +698,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// know which clause will match, we expand the
 				// block once a clause has matched.
 				pushInitBlock(n, &last, &stack)
-				if n.VarName != "" {
-					// NOTE: this defines for default clauses too,
-					// see comment on block copying @
-					// SwitchClauseStmt:TRANS_BLOCK.
-					last.Define(n.VarName, anyValue(nil))
-				}
 
 			// TRANS_BLOCK -----------------------
 			case *SwitchClauseStmt:
 				pushInitBlockAndCopy(n, &last, &stack)
 				// parent switch statement.
 				ss := ns[len(ns)-1].(*SwitchStmt)
-				// anything declared in ss are copied,
-				// namely ss.VarName if defined.
+				// anything declared in ss.Init are copied.
 				for _, n := range ss.GetBlockNames() {
 					tv := ss.GetValueRef(nil, n, false)
 					last.Define(n, *tv)
@@ -2379,12 +2366,13 @@ func defineOrDecl(
 
 	node := skipFile(bn)
 
-	for i := 0; i < len(sts); i++ {
-		nx := nameExprs[i]
+	skip := 0 // skip unnamed names like _.
+	for i, nx := range nameExprs {
 		if nx.Name == blankIdentifier {
-			nx.Path = NewValuePathBlock(0, 0, blankIdentifier)
+			skip++
+			nx.Path = NewValuePathBlock(0, 0, nx.Name)
 		} else {
-			node.Define2(isConst, nx.Name, sts[i], tvs[i])
+			node.Define2(isConst, nx.Name, sts[i-skip], tvs[i-skip])
 			nx.Path = bn.GetPathForName(nil, nx.Name)
 		}
 	}
@@ -2447,6 +2435,7 @@ func parseAssignFromExprList(
 	}
 
 	// Evaluate typed value for static definition.
+
 	for i := range nameExprs {
 		// Consider value if specified.
 		if len(valueExprs) > 0 {
@@ -2538,7 +2527,13 @@ func parseMultipleAssignFromOneExpr(
 		st = evalStaticType(store, bn, typeExpr)
 	}
 
-	for i := 0; i < numNames; i++ {
+	skip := 0 // skip unnamed names like _.
+	for i, nx := range nameExprs {
+		if nx.Name == blankIdentifier {
+			skip++
+			continue
+		}
+		// := 0; i < numNames; i++ {
 		if st != nil {
 			tt := tuple.Elts[i]
 
@@ -2553,13 +2548,13 @@ func parseMultipleAssignFromOneExpr(
 				)
 			}
 
-			sts[i] = st
+			sts[i-skip] = st
 		} else {
 			// Set types as return types.
-			sts[i] = tuple.Elts[i]
+			sts[i-skip] = tuple.Elts[i]
 		}
 
-		tvs[i] = anyValue(sts[i])
+		tvs[i-skip] = anyValue(sts[i-skip])
 	}
 }
 
@@ -3159,13 +3154,7 @@ func isSwitchLabel(ns []Node, label Name) bool {
 // Also makes sure the stack doesn't reach MaxUint8 in length.
 func pushInitBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 	if !bn.IsInitialized() {
-		switch bn.(type) {
-		case *IfCaseStmt, *SwitchClauseStmt:
-			// skip faux block
-			bn.InitStaticBlock(bn, (*last).GetParentNode(nil))
-		default:
-			bn.InitStaticBlock(bn, *last)
-		}
+		bn.InitStaticBlock(bn, *last)
 	}
 	if bn.GetStaticBlock().Source != bn {
 		panic("expected the source of a block node to be itself")
@@ -3491,7 +3480,7 @@ func findBranchLabel(last BlockNode, label Name) (
 				bn = cbn
 				return
 			}
-			last = cbn.GetParentNode(nil)
+			last = skipFaux(cbn.GetParentNode(nil))
 			depth += 1
 		case *IfStmt:
 			// These are faux blocks -- shouldn't happen.
@@ -3550,7 +3539,7 @@ func findGotoLabel(last BlockNode, label Name) (
 				bn = cbn
 				return
 			} else {
-				last = cbn.GetParentNode(nil)
+				last = skipFaux(cbn.GetParentNode(nil))
 				depth += 1
 			}
 		default:
@@ -5068,6 +5057,21 @@ func constUntypedBigint(source Expr, i64 int64) *ConstExpr {
 	return cx
 }
 
+func skipFaux(bn BlockNode) BlockNode {
+	if fauxBlockNode(bn) {
+		return bn.GetParentNode(nil)
+	}
+	return bn
+}
+
+func fauxBlockNode(bn BlockNode) bool {
+	switch bn.(type) {
+	case *IfStmt, *SwitchStmt:
+		return true
+	}
+	return false
+}
+
 func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 	if nx.Name == blankIdentifier {
 		// Blank name has no path; caller error.
@@ -5082,9 +5086,13 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 			// and declared variables. See tests/files/define1.go for test case.
 			var path ValuePath
 			var i int = 0
+			var faux int = 0
 			for {
 				i++
 				last = last.GetParentNode(nil)
+				if fauxBlockNode(last) {
+					faux++
+				}
 				if last == nil {
 					if isUverseName(nx.Name) {
 						idx, ok := UverseNode().GetLocalIndex(nx.Name)
@@ -5108,7 +5116,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 					break
 				}
 			}
-			path.SetDepth(path.Depth + uint8(i))
+			path.SetDepth(path.Depth + uint8(i) - uint8(faux))
 			path.Validate()
 			nx.Path = path
 			return
