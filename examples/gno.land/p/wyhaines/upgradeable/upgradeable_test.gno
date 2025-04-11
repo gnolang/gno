@@ -521,7 +521,7 @@ func TestComplexFunctionSignature(t *testing.T) {
 	// Get and call the function
 	fn := holder.Get()
 	result := fn.(func(string, int, bool) string)("test", 3, true)
-	uassert.Equal(t, "testtest", result) // "test" repeated 2 times (count-1 loop iterations)
+	uassert.Equal(t, "testtesttest", result) // "test" repeated 3 times (initial + 2 loop iterations)
 
 	// Check with different flag
 	result = fn.(func(string, int, bool) string)("test", 3, false)
