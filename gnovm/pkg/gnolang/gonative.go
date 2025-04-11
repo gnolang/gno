@@ -132,11 +132,13 @@ func Go2GnoValue(alloc *Allocator, store Store, rv reflect.Value) (tv TypedValue
 	case reflect.Slice:
 		rvl := rv.Len()
 		rvc := rv.Cap()
-		list := make([]TypedValue, rvl, rvc)
+
+		baseArray := alloc.NewListArray2(rvl, rvc)
+		list := baseArray.List
 		for i := range rvl {
 			list[i] = Go2GnoValue(alloc, store, rv.Index(i))
 		}
-		tv.V = alloc.NewSliceFromList(list)
+		tv.V = alloc.NewSlice(baseArray, 0, rvl, rvc)
 	case reflect.Ptr:
 		val := Go2GnoValue(alloc, store, rv.Elem())
 		tv.V = PointerValue{TV: &val} // heap alloc
