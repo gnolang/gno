@@ -501,7 +501,7 @@ func (c *MConnection) sendSomePacketMsgs() bool {
 	c.sendMonitor.Limit(c._maxPacketMsgSize, atomic.LoadInt64(&c.config.SendRate), true)
 
 	// Now send some PacketMsgs.
-	for i := 0; i < numBatchPacketMsgs; i++ {
+	for range numBatchPacketMsgs {
 		if c.sendPacketMsg() {
 			return true
 		}

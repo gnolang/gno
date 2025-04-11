@@ -6,7 +6,7 @@ import (
 )
 
 func (params ValidatorParams) IsValidPubKeyTypeURL(pubKeyTypeURL string) bool {
-	for i := 0; i < len(params.PubKeyTypeURLs); i++ {
+	for i := range params.PubKeyTypeURLs {
 		if params.PubKeyTypeURLs[i] == pubKeyTypeURL {
 			return true
 		}

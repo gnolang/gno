@@ -24,9 +24,9 @@ func main() {
 	println("main before:", mainbal) // plus OriginSend equals 300.
 
 	// simulate a Deposit call.
-	testing.SetOriginPkgAddress(banktestAddr)
 	testing.IssueCoins(banktestAddr, std.Coins{{"ugnot", 100000000}})
 	testing.SetOriginSend(std.Coins{{"ugnot", 100000000}})
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/banktest"))
 	res := banktest.Deposit("ugnot", 55000000)
 	println("Deposit():", res)
 

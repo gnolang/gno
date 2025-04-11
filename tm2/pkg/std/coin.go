@@ -3,6 +3,7 @@ package std
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -129,7 +130,7 @@ func (coin Coin) AddUnsafe(coinB Coin) Coin {
 	if coin.Denom != coinB.Denom {
 		panic(fmt.Sprintf("invalid coin denominations; %s, %s", coin.Denom, coinB.Denom))
 	}
-	sum, ok := overflow.Add64(coin.Amount, coinB.Amount)
+	sum, ok := overflow.Add(coin.Amount, coinB.Amount)
 	if !ok {
 		panic(fmt.Sprintf("coin add overflow/underflow: %v, %v", coin, coinB))
 	}
@@ -152,7 +153,7 @@ func (coin Coin) SubUnsafe(coinB Coin) Coin {
 	if coin.Denom != coinB.Denom {
 		panic(fmt.Sprintf("invalid coin denominations; %s, %s", coin.Denom, coinB.Denom))
 	}
-	dff, ok := overflow.Sub64(coin.Amount, coinB.Amount)
+	dff, ok := overflow.Sub(coin.Amount, coinB.Amount)
 	if !ok {
 		panic(fmt.Sprintf("coin subtract overflow/underflow: %v, %v", coin, coinB))
 	}
@@ -504,7 +505,7 @@ func (coins Coins) IsEqual(coinsB Coins) bool {
 	coins = coins.Sort()
 	coinsB = coinsB.Sort()
 
-	for i := 0; i < len(coins); i++ {
+	for i := range coins {
 		if !coins[i].IsEqual(coinsB[i]) {
 			return false
 		}
@@ -602,7 +603,7 @@ func removeZeroCoins(coins Coins) Coins {
 	for i < l {
 		if coins[i].IsZero() {
 			// remove coin
-			coins = append(coins[:i], coins[i+1:]...)
+			coins = slices.Delete(coins, i, i+1)
 			l--
 		} else {
 			i++

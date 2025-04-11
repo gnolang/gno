@@ -1,0 +1,14 @@
+package loader
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/impl"
+)
+
+// this is only executed when loaded into genesis
+func init() {
+	dao.UpdateImpl(dao.UpdateRequest{
+		DAO:         impl.NewGovDAO(),
+		AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl"},
+	})
+}

@@ -15,9 +15,10 @@ import (
 
 func TestRoutes(t *testing.T) {
 	const (
-		ok       = http.StatusOK
-		found    = http.StatusFound
-		notFound = http.StatusNotFound
+		ok         = http.StatusOK
+		found      = http.StatusFound
+		notFound   = http.StatusNotFound
+		BadRequest = http.StatusBadRequest
 	)
 	routes := []struct {
 		route     string
@@ -49,7 +50,7 @@ func TestRoutes(t *testing.T) {
 		{"/blog", found, "/r/gnoland/blog"},
 		{"/r/docs/optional_render", http.StatusOK, "No Render"},
 		{"/r/not/found/", notFound, ""},
-		{"/404/not/found", notFound, ""},
+		{"/z/bad/request", BadRequest, ""}, // not realm or pure
 		{"/아스키문자가아닌경로", notFound, ""},
 		{"/%ED%85%8C%EC%8A%A4%ED%8A%B8", notFound, ""},
 		{"/グノー", notFound, ""},

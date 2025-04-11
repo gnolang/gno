@@ -3,11 +3,11 @@ package authz
 import (
 	"errors"
 	"std"
+	"strings"
 	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/ufmt"
 )
 
 func TestNew(t *testing.T) {
@@ -24,8 +24,7 @@ func TestNew(t *testing.T) {
 	uassert.True(t, memberAuth.Has(testAddr), "caller should be a member")
 
 	// Check string representation
-	expected := ufmt.Sprintf("member_authority[size=%d]", 1)
-	uassert.Equal(t, expected, auth.String())
+	uassert.True(t, strings.Contains(auth.String(), testAddr.String()))
 }
 
 func TestNewWithAuthority(t *testing.T) {

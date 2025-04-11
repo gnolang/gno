@@ -280,7 +280,7 @@ func TestCreateProposalBlock(t *testing.T) {
 	// fill the mempool with more txs
 	// than can fit in a block
 	txLength := 1000
-	for i := 0; i < maxBlockBytes/txLength; i++ {
+	for range maxBlockBytes / txLength {
 		tx := random.RandBytes(txLength)
 		err := mempool.CheckTx(tx, nil)
 		assert.NoError(t, err)
@@ -306,8 +306,8 @@ func TestCreateProposalBlock(t *testing.T) {
 
 func state(nVals int, height int64) (sm.State, dbm.DB) {
 	vals := make([]types.GenesisValidator, nVals)
-	for i := 0; i < nVals; i++ {
-		secret := []byte(fmt.Sprintf("test%d", i))
+	for i := range nVals {
+		secret := fmt.Appendf(nil, "test%d", i)
 		pk := ed25519.GenPrivKeyFromSecret(secret)
 		vals[i] = types.GenesisValidator{
 			Address: pk.PubKey().Address(),

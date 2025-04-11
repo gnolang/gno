@@ -18,7 +18,7 @@ func TestCacheRemove(t *testing.T) {
 	cache := newMapTxCache(100)
 	numTxs := 10
 	txs := make([][]byte, numTxs)
-	for i := 0; i < numTxs; i++ {
+	for i := range numTxs {
 		// probability of collision is 2**-256
 		txBytes := make([]byte, 32)
 		rand.Read(txBytes)
@@ -28,7 +28,7 @@ func TestCacheRemove(t *testing.T) {
 		require.Equal(t, i+1, len(cache.map_))
 		require.Equal(t, i+1, cache.list.Len())
 	}
-	for i := 0; i < numTxs; i++ {
+	for i := range numTxs {
 		cache.Remove(txs[i])
 		// make sure its removed from both the map and the linked list
 		require.Equal(t, numTxs-(i+1), len(cache.map_))
@@ -59,7 +59,7 @@ func TestCacheAfterUpdate(t *testing.T) {
 		{2, []int{1}, []int{1}, []int{1, 0}},   // re-adding after update doesn't make dupe
 	}
 	for tcIndex, tc := range tests {
-		for i := 0; i < tc.numTxsToCreate; i++ {
+		for i := range tc.numTxsToCreate {
 			tx := types.Tx{byte(i)}
 			err := mempool.CheckTx(tx, nil)
 			require.NoError(t, err)

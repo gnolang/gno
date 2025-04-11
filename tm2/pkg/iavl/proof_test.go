@@ -66,7 +66,7 @@ func TestTreeKeyExistsProof(t *testing.T) {
 
 	// insert lots of info and store the bytes
 	allkeys := make([][]byte, 200)
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		key := random.RandStr(20)
 		value := "value_for_" + key
 		tree.Set([]byte(key), []byte(value))
@@ -223,7 +223,7 @@ func verifyProof(t *testing.T, proof *RangeProof, root []byte) {
 	require.Nil(t, err, "Failed to read KeyExistsProof from bytes: %v", err)
 
 	// Random mutations must not verify
-	for i := 0; i < 1e4; i++ {
+	for range 1_000 {
 		badProofBytes := testutils.MutateByteSlice(proofBytes)
 		badProof := new(RangeProof)
 		err := cdc.UnmarshalSized(badProofBytes, badProof)

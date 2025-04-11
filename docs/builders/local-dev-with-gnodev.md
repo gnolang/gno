@@ -1,4 +1,4 @@
-# 4.4 Running a local dev node
+# Running a local dev node
 
 ## Prerequisites
 

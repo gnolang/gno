@@ -527,12 +527,7 @@ func calculateBackoff(
 	}
 
 	// Calculate the interval by exponentiating the base interval by the number of attempts.
-	interval := baseInterval << attempts
-
-	// Cap the interval to the maximum interval.
-	if interval > maxInterval {
-		interval = maxInterval
-	}
+	interval := min(baseInterval<<attempts, maxInterval)
 
 	// Below is the code to add a jitter factor to the interval.
 	// Read random bytes into an 8 bytes buffer (size of an int64).
@@ -554,12 +549,7 @@ func calculateBackoff(
 	)
 
 	// Calculate the maximum jitter based on interval percentage.
-	maxJitter := interval * maxJitterPercentage / 100
-
-	// Cap the maximum jitter to the maximum duration.
-	if maxJitter > maxJitterDuration {
-		maxJitter = maxJitterDuration
-	}
+	maxJitter := min(interval*maxJitterPercentage/100, maxJitterDuration)
 
 	// Calculate the jitter.
 	jitter := time.Duration(float64(maxJitter) * jitterMultiplier)

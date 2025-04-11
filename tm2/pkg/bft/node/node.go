@@ -1037,7 +1037,7 @@ func splitAndTrimEmpty(s, sep, cutset string) []string {
 
 	spl := strings.Split(s, sep)
 	nonEmptyStrings := make([]string, 0, len(spl))
-	for i := 0; i < len(spl); i++ {
+	for i := range spl {
 		element := strings.Trim(spl[i], cutset)
 		if element != "" {
 			nonEmptyStrings = append(nonEmptyStrings, element)

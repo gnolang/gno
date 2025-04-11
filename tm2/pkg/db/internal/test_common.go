@@ -20,7 +20,7 @@ MAIN_LOOP:
 	for {
 		//nolint:gosec
 		val := rand.Int63()
-		for i := 0; i < 10; i++ {
+		for range 10 {
 			v := int(val & 0x3f) // rightmost 6 bits
 			if v >= 62 {         // only 62 characters in strChars
 				val >>= 6
@@ -73,7 +73,7 @@ func BenchmarkRandomReadsWrites(b *testing.B, db db.DB) {
 	// create dummy data
 	const numItems = int64(1000000)
 	internal := map[int64]int64{}
-	for i := 0; i < int(numItems); i++ {
+	for i := range int(numItems) {
 		internal[int64(i)] = int64(0)
 	}
 

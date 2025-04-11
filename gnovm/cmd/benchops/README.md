@@ -8,10 +8,10 @@
 
 The benchmark only involves the GnoVM and the persistent store. It benchmarks the bare minimum components, and the results are isolated from other components. We use standardize gno contract to perform the benchmarking.
 
-This mode is the best for benchmarking each major release and/or changes in GnoVM.
+This mode is the best for benchmarking each major release and/or changes in GnoVM. Build it using the GnoVM Makefile:
 
-    make opcode
-    make storage
+    make build.bench.opcode
+    make build.bench.storage
 
 ### Production mode
 

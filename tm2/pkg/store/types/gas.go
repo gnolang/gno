@@ -79,7 +79,7 @@ func (g *basicGasMeter) Limit() Gas {
 }
 
 func (g *basicGasMeter) Remaining() Gas {
-	return overflow.Sub64p(g.Limit(), g.GasConsumedToLimit())
+	return overflow.Subp(g.Limit(), g.GasConsumedToLimit())
 }
 
 func (g *basicGasMeter) GasConsumedToLimit() Gas {
@@ -94,7 +94,7 @@ func (g *basicGasMeter) ConsumeGas(amount Gas, descriptor string) {
 	if amount < 0 {
 		panic("gas must not be negative")
 	}
-	consumed, ok := overflow.Add64(g.consumed, amount)
+	consumed, ok := overflow.Add(g.consumed, amount)
 	if !ok {
 		panic(GasOverflowError{descriptor})
 	}
@@ -145,7 +145,7 @@ func (g *infiniteGasMeter) Remaining() Gas {
 }
 
 func (g *infiniteGasMeter) ConsumeGas(amount Gas, descriptor string) {
-	consumed, ok := overflow.Add64(g.consumed, amount)
+	consumed, ok := overflow.Add(g.consumed, amount)
 	if !ok {
 		panic(GasOverflowError{descriptor})
 	}

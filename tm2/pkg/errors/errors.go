@@ -8,18 +8,18 @@ import (
 // ----------------------------------------
 // Convenience method.
 
-func Wrap(cause interface{}, msg string) Error {
+func Wrap(cause any, msg string) Error {
 	if causeCmnError, ok := cause.(*cmnError); ok { //nolint:gocritic
 		return causeCmnError.Stacktrace().Trace(1, msg)
 	} else if cause == nil {
-		return newCmnError(FmtError{format: msg, args: []interface{}{}}).Stacktrace()
+		return newCmnError(FmtError{format: msg, args: []any{}}).Stacktrace()
 	} else {
 		// NOTE: causeCmnError is a typed nil here.
 		return newCmnError(cause).Stacktrace().Trace(1, msg)
 	}
 }
 
-func Wrapf(cause interface{}, format string, args ...interface{}) Error {
+func Wrapf(cause any, format string, args ...any) Error {
 	if cause == nil {
 		return newCmnError(FmtError{format, args}).Stacktrace()
 	}
@@ -63,24 +63,24 @@ Usage with arbitrary error data:
 type Error interface {
 	Error() string
 	Stacktrace() Error
-	Trace(offset int, format string, args ...interface{}) Error
-	Data() interface{}
+	Trace(offset int, format string, args ...any) Error
+	Data() any
 }
 
 // New Error with formatted message.
 // The Error's Data will be a FmtError type.
-func New(format string, args ...interface{}) Error {
+func New(format string, args ...any) Error {
 	err := FmtError{format, args}
 	return newCmnError(err)
 }
 
 // New Error with specified data.
-func NewWithData(data interface{}) Error {
+func NewWithData(data any) Error {
 	return newCmnError(data)
 }
 
 type cmnError struct {
-	data       interface{}    // associated data
+	data       any            // associated data
 	msgtraces  []msgtraceItem // all messages traced
 	stacktrace []uintptr      // first stack trace
 }
@@ -88,7 +88,7 @@ type cmnError struct {
 var _ Error = &cmnError{}
 
 // NOTE: do not expose.
-func newCmnError(data interface{}) *cmnError {
+func newCmnError(data any) *cmnError {
 	return &cmnError{
 		data:       data,
 		msgtraces:  nil,
@@ -125,7 +125,7 @@ func (err *cmnError) Stacktrace() Error {
 
 // Add tracing information with msg.
 // Set n=0 unless wrapped with some function, then n > 0.
-func (err *cmnError) Trace(offset int, format string, args ...interface{}) Error {
+func (err *cmnError) Trace(offset int, format string, args ...any) Error {
 	msg := fmt.Sprintf(format, args...)
 	return err.doTrace(msg, offset)
 }
@@ -133,7 +133,7 @@ func (err *cmnError) Trace(offset int, format string, args ...interface{}) Error
 // Return the "data" of this error.
 // Data could be used for error handling/switching,
 // or for holding general error/debug information.
-func (err *cmnError) Data() interface{} {
+func (err *cmnError) Data() any {
 	return err.data
 }
 
@@ -240,7 +240,7 @@ Theoretically it could be used to switch on the format string.
 */
 type FmtError struct {
 	format string
-	args   []interface{}
+	args   []any
 }
 
 func (fe FmtError) Error() string {

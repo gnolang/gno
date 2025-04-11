@@ -10,18 +10,12 @@ import (
 
 func TestParseGnoURL(t *testing.T) {
 	testCases := []struct {
-		Name     string
-		Input    string
-		Expected *GnoURL
-		Err      error
+		Name          string
+		Input         string
+		Expected      *GnoURL
+		Err           error
+		IsInvalidPath bool
 	}{
-		{
-			Name:     "malformed url",
-			Input:    "https://gno.land/r/dem)o:$?",
-			Expected: nil,
-			Err:      ErrURLInvalidPath,
-		},
-
 		{
 			Name:  "simple",
 			Input: "https://gno.land/r/simple/test",
@@ -250,6 +244,13 @@ func TestParseGnoURL(t *testing.T) {
 				Domain:   "gno.land",
 			},
 		},
+
+		{
+			Name:     "invalid path",
+			Input:    "https://gno.land/r/dem)o:$?",
+			Expected: nil,
+			Err:      ErrURLInvalidPath,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -259,7 +260,7 @@ func TestParseGnoURL(t *testing.T) {
 			u, err := url.Parse(tc.Input)
 			require.NoError(t, err)
 
-			result, err := ParseGnoURL(u)
+			result, err := ParseFromURL(u)
 			if tc.Err == nil {
 				require.NoError(t, err)
 				t.Logf("encoded web path: %q", result.EncodeWebURL())
@@ -269,6 +270,61 @@ func TestParseGnoURL(t *testing.T) {
 			}
 
 			assert.Equal(t, tc.Expected, result)
+		})
+	}
+}
+
+func TestIsValidPath(t *testing.T) {
+	testCases := []struct {
+		Path  string
+		Valid bool
+	}{
+		{Path: "/", Valid: true},
+		{Path: "/r/valid", Valid: true},
+		{Path: "/p/abc_123", Valid: true},
+		{Path: "/r/demo/users/", Valid: true},
+		{Path: "/R/invalid", Valid: false},
+		{Path: "/r/invalid@path", Valid: false},
+		{Path: "r/invalid", Valid: false},
+		{Path: "", Valid: false},
+		{Path: "/r/valid/path_with/underscores", Valid: true},
+		{Path: "/r/", Valid: true},
+		{Path: "/r/with space", Valid: false},
+		{Path: "/r/hyphen-invalid", Valid: false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Path, func(t *testing.T) {
+			gnoURL := GnoURL{Path: tc.Path}
+			assert.Equal(t, tc.Valid, gnoURL.IsValidPath())
+		})
+	}
+}
+
+func TestNamespace(t *testing.T) {
+	testCases := []struct {
+		Path     string
+		Expected string
+	}{
+		{Path: "/r/test", Expected: "test"},
+		{Path: "/r/test/foo", Expected: "test"},
+		{Path: "/p/another", Expected: "another"},
+		{Path: "/r/123invalid", Expected: ""},
+		{Path: "/r/TEST", Expected: ""},
+		{Path: "/x/ns", Expected: "ns"},
+		{Path: "/r/a", Expected: "a"},
+		{Path: "/r/a1", Expected: "a1"},
+		{Path: "/r/a_b/c", Expected: "a_b"},
+		{Path: "/invalidpath", Expected: ""},
+		{Path: "/r/", Expected: ""},
+		{Path: "/r/a-b/c", Expected: ""},
+		{Path: "/r/valid-ns", Expected: ""},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Path, func(t *testing.T) {
+			gnoURL := GnoURL{Path: tc.Path}
+			assert.Equal(t, tc.Expected, gnoURL.Namespace())
 		})
 	}
 }
@@ -518,7 +574,7 @@ func TestEncode(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			result := tc.GnoURL.Encode(tc.EncodeFlags)
-			require.True(t, tc.GnoURL.IsValid(), "gno url is not valid")
+			require.True(t, tc.GnoURL.IsValidPath(), "gno url is not valid")
 			assert.Equal(t, tc.Expected, result)
 		})
 	}

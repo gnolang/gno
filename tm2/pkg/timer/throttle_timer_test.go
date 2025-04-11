@@ -60,7 +60,7 @@ func TestThrottle(test *testing.T) {
 	assert.Equal(1, c.Count())
 
 	// send a burst adds one
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		t.Set()
 	}
 	time.Sleep(longwait)
@@ -68,7 +68,7 @@ func TestThrottle(test *testing.T) {
 
 	// send 14, over 2 delay sections, adds 3
 	short := time.Duration(ms/5) * time.Millisecond
-	for i := 0; i < 14; i++ {
+	for range 14 {
 		t.Set()
 		time.Sleep(short)
 	}

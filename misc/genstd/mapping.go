@@ -167,7 +167,7 @@ func iterFields(gnol, gol []*ast.Field, callback func(gnoType, goType ast.Expr) 
 			n = 1
 		}
 		gnoe := l.Type
-		for i := 0; i < n; i++ {
+		for range n {
 			goe := gol[goIdx].Type
 
 			if err := callback(gnoe, goe); err != nil {

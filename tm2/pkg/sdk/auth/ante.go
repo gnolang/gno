@@ -135,7 +135,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		// When simulating, this would just be a 0-length slice.
 		stdSigs := tx.GetSignatures()
 
-		for i := 0; i < len(stdSigs); i++ {
+		for i := range stdSigs {
 			// skip the fee payer, account is cached and fees were deducted already
 			if i != 0 {
 				signerAccs[i], res = GetSignerAcc(newCtx, ak, signerAddrs[i])
@@ -182,7 +182,7 @@ func ValidateSigCount(tx std.Tx, params Params) sdk.Result {
 	stdSigs := tx.GetSignatures()
 
 	sigCount := 0
-	for i := 0; i < len(stdSigs); i++ {
+	for i := range stdSigs {
 		sigCount += std.CountSubKeys(stdSigs[i].PubKey)
 		if int64(sigCount) > params.TxSigLimit {
 			return abciResult(std.ErrTooManySignatures(
@@ -295,7 +295,7 @@ func consumeMultisignatureVerificationGas(meter store.GasMeter,
 ) {
 	size := sig.BitArray.Size()
 	sigIndex := 0
-	for i := 0; i < size; i++ {
+	for i := range size {
 		if sig.BitArray.GetIndex(i) {
 			DefaultSigVerificationGasConsumer(meter, sig.Sigs[sigIndex], pubkey.PubKeys[i], params)
 			sigIndex++

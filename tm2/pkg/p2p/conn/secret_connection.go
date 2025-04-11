@@ -278,14 +278,14 @@ func genEphKeys() (ephPub, ephPriv *[32]byte) {
 func shareEphPubKey(conn io.ReadWriteCloser, locEphPub *[32]byte) (remEphPub *[32]byte, err error) {
 	// Send our pubkey and receive theirs in tandem.
 	trs, _ := async.Parallel(
-		func(_ int) (val interface{}, err error, abort bool) {
+		func(_ int) (val any, err error, abort bool) {
 			_, err1 := amino.MarshalSizedWriter(conn, locEphPub)
 			if err1 != nil {
 				return nil, err1, true // abort
 			}
 			return nil, nil, false
 		},
-		func(_ int) (val interface{}, err error, abort bool) {
+		func(_ int) (val any, err error, abort bool) {
 			var _remEphPub [32]byte
 			_, err2 := amino.UnmarshalSizedReader(conn, &_remEphPub, 1024*1024) // TODO
 			if err2 != nil {
@@ -436,14 +436,14 @@ type authSigMessage struct {
 func shareAuthSignature(sc *SecretConnection, pubKey crypto.PubKey, signature []byte) (recvMsg authSigMessage, err error) {
 	// Send our info and receive theirs in tandem.
 	trs, _ := async.Parallel(
-		func(_ int) (val interface{}, err error, abort bool) {
+		func(_ int) (val any, err error, abort bool) {
 			_, err1 := amino.MarshalSizedWriter(sc, authSigMessage{pubKey, signature})
 			if err1 != nil {
 				return nil, err1, true // abort
 			}
 			return nil, nil, false
 		},
-		func(_ int) (val interface{}, err error, abort bool) {
+		func(_ int) (val any, err error, abort bool) {
 			var _recvMsg authSigMessage
 			_, err2 := amino.UnmarshalSizedReader(sc, &_recvMsg, 1024*1024) // TODO
 			if err2 != nil {

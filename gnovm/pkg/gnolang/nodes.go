@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -164,7 +165,7 @@ type Attributes struct {
 	Line   int
 	Column int
 	Label  Name
-	data   map[GnoAttribute]interface{} // not persisted
+	data   map[GnoAttribute]any // not persisted
 }
 
 func (attr *Attributes) GetLine() int {
@@ -198,13 +199,13 @@ func (attr *Attributes) HasAttribute(key GnoAttribute) bool {
 
 // GnoAttribute must not be user provided / arbitrary,
 // otherwise will create potential exploits.
-func (attr *Attributes) GetAttribute(key GnoAttribute) interface{} {
+func (attr *Attributes) GetAttribute(key GnoAttribute) any {
 	return attr.data[key]
 }
 
-func (attr *Attributes) SetAttribute(key GnoAttribute, value interface{}) {
+func (attr *Attributes) SetAttribute(key GnoAttribute, value any) {
 	if attr.data == nil {
-		attr.data = make(map[GnoAttribute]interface{})
+		attr.data = make(map[GnoAttribute]any)
 	}
 	attr.data[key] = value
 }
@@ -230,8 +231,8 @@ type Node interface {
 	GetLabel() Name
 	SetLabel(Name)
 	HasAttribute(key GnoAttribute) bool
-	GetAttribute(key GnoAttribute) interface{}
-	SetAttribute(key GnoAttribute, value interface{})
+	GetAttribute(key GnoAttribute) any
+	SetAttribute(key GnoAttribute, value any)
 	DelAttribute(key GnoAttribute)
 }
 
@@ -1172,12 +1173,7 @@ func (x *TypeDecl) GetDeclNames() []Name {
 
 func HasDeclName(d Decl, n2 Name) bool {
 	ns := d.GetDeclNames()
-	for _, n := range ns {
-		if n == n2 {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ns, n2)
 }
 
 // ----------------------------------------
@@ -1266,15 +1262,23 @@ func ReadMemPackage(dir string, pkgPath string) (*gnovm.MemPackage, error) {
 
 	list := make([]string, 0, len(files))
 	for _, file := range files {
+		// Ignore directories and hidden files, only include allowed files & extensions,
+		// then exclude files that are of the rejected extensions.
 		if file.IsDir() ||
 			strings.HasPrefix(file.Name(), ".") ||
-			(!endsWith(file.Name(), allowedFileExtensions) && !contains(allowedFiles, file.Name())) ||
-			endsWith(file.Name(), rejectedFileExtensions) {
+			(!endsWithAny(file.Name(), allowedFileExtensions) && !slices.Contains(allowedFiles, file.Name())) ||
+			endsWithAny(file.Name(), rejectedFileExtensions) {
 			continue
 		}
 		list = append(list, filepath.Join(dir, file.Name()))
 	}
 	return ReadMemPackageFromList(list, pkgPath)
+}
+
+func endsWithAny(str string, suffixes []string) bool {
+	return slices.ContainsFunc(suffixes, func(s string) bool {
+		return strings.HasSuffix(str, s)
+	})
 }
 
 // MustReadMemPackage is a wrapper around [ReadMemPackage] that panics on error.
@@ -1349,7 +1353,7 @@ func ParseMemPackage(memPkg *gnovm.MemPackage) (fset *FileSet) {
 	var errs error
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") ||
-			endsWith(mfile.Name, []string{"_test.gno", "_filetest.gno"}) {
+			endsWithAny(mfile.Name, []string{"_test.gno", "_filetest.gno"}) {
 			continue // skip spurious or test file.
 		}
 		n, err := ParseFile(mfile.Name, mfile.Body)
@@ -1720,10 +1724,8 @@ func (sb *StaticBlock) GetExternNames() (ns []Name) {
 }
 
 func (sb *StaticBlock) addExternName(n Name) {
-	for _, extern := range sb.Externs {
-		if extern == n {
-			return
-		}
+	if slices.Contains(sb.Externs, n) {
+		return
 	}
 	sb.Externs = append(sb.Externs, n)
 }
@@ -1828,12 +1830,7 @@ func (sb *StaticBlock) GetIsConstAt(store Store, path ValuePath) bool {
 
 // Returns true iff n is a local const defined name.
 func (sb *StaticBlock) getLocalIsConst(n Name) bool {
-	for _, name := range sb.Consts {
-		if name == n {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(sb.Consts, n)
 }
 
 func (sb *StaticBlock) IsAssignable(store Store, n Name) bool {
@@ -1843,13 +1840,7 @@ func (sb *StaticBlock) IsAssignable(store Store, n Name) bool {
 
 	for {
 		if ok {
-			for _, uname := range un {
-				if n == uname {
-					return false
-				}
-			}
-
-			return true
+			return !slices.Contains(un, n)
 		} else if bp != nil {
 			_, ok = bp.GetLocalIndex(n)
 			un = bp.GetStaticBlock().UnassignableNames

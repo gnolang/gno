@@ -62,6 +62,10 @@ func execVerify(cfg *verifyCfg, io commands.IO) error {
 			return errInvalidGenesisState
 		}
 
+		if err := gnoland.ValidateGenState(state); err != nil {
+			return fmt.Errorf("invalid genesis state: %w", err)
+		}
+
 		// Validate the initial transactions
 		for index, tx := range state.Txs {
 			if validateErr := tx.Tx.ValidateBasic(); validateErr != nil {

@@ -130,13 +130,29 @@ func (a *MemberAuthority) Authorize(title string, action PrivilegedAction, args 
 }
 
 func (a *MemberAuthority) String() string {
-	return ufmt.Sprintf("member_authority[size=%d]", a.members.Size())
+	out := ""
+	a.members.Tree().Iterate("", "", func(key string, _ any) bool {
+		out += "- " + key + "\n"
+		return false
+	})
+
+	return out
 }
 
 // AddMember adds a new member to the authority
 func (a *MemberAuthority) AddMember(addr std.Address) error {
 	return a.Authorize("add_member", func() error {
 		a.members.Add(addr)
+		return nil
+	})
+}
+
+// AddMembers adds a list of members to the authority
+func (a *MemberAuthority) AddMembers(addrs ...std.Address) error {
+	return a.Authorize("add_members", func() error {
+		for _, addr := range addrs {
+			a.members.Add(addr)
+		}
 		return nil
 	})
 }

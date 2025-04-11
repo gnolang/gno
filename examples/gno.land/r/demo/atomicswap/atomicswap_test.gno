@@ -102,7 +102,6 @@ func TestNewCustomCoinSwap_Refund(t *testing.T) {
 
 	// Test Refund
 	pkgAddr := std.DerivePkgAddr("gno.land/r/demo/atomicswap")
-	testing.SetOriginPkgAddress(pkgAddr)
 	testing.IssueCoins(pkgAddr, std.Coins{{"ugnot", 100000000}})
 	uassert.PanicsWithMessage(t, "timelock not expired", swap.Refund)
 	swap.timelock = time.Now().Add(-1 * time.Hour) // override timelock
@@ -233,7 +232,6 @@ func TestNewCustomGRC20Swap_Refund(t *testing.T) {
 
 	// Test Refund
 	pkgAddr := std.DerivePkgAddr("gno.land/r/demo/atomicswap")
-	testing.SetOriginPkgAddress(pkgAddr)
 	testing.IssueCoins(pkgAddr, std.Coins{{"ugnot", 100000000}})
 	uassert.PanicsWithMessage(t, "timelock not expired", swap.Refund)
 	swap.timelock = time.Now().Add(-1 * time.Hour) // override timelock
@@ -372,7 +370,6 @@ func TestNewGRC20Swap_Refund(t *testing.T) {
 
 	// Test Refund
 	pkgAddr := std.DerivePkgAddr("gno.land/r/demo/atomicswap")
-	testing.SetOriginPkgAddress(pkgAddr)
 	testing.IssueCoins(pkgAddr, std.Coins{{"ugnot", 100000000}})
 	uassert.PanicsWithMessage(t, "timelock not expired", swap.Refund)
 	swap.timelock = time.Now().Add(-1 * time.Hour) // override timelock

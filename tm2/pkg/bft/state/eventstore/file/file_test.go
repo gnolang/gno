@@ -15,7 +15,7 @@ import (
 func generateTestTransactions(count int) []types.TxResult {
 	txs := make([]types.TxResult, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		txs[i] = types.TxResult{}
 	}
 

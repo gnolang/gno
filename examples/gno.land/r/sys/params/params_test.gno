@@ -2,8 +2,6 @@ package params
 
 import (
 	"testing"
-
-	_ "gno.land/r/gov/dao/init" // so that loader.init is executed
 )
 
 // Testing this package is limited because it only contains an `std.Set` method
@@ -11,9 +9,9 @@ import (
 // the tests located in the r/gov/dao/ directory, specifically in one of the
 // propX_filetest.gno files.
 
-func TestNewStringPropExecutor(t *testing.T) {
-	executor := NewSysParamStringPropExecutor("foo", "bar", "baz", "qux")
-	if executor == nil {
+func TestNewStringPropRequest(t *testing.T) {
+	pr := NewSysParamStringPropRequest("foo", "bar", "baz", "qux")
+	if pr.Title() == "" {
 		t.Errorf("executor shouldn't be nil")
 	}
 }

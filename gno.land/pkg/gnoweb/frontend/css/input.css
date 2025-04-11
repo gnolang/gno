@@ -12,6 +12,7 @@
   font-family: "Inter var";
   font-weight: 100 900;
   font-display: block;
+  font-variant: normal;
   font-style: oblique 0deg 10deg;
   src: url("./fonts/intervar/Intervar.woff2") format("woff2");
 }
@@ -287,44 +288,30 @@
     @apply block;
   }
 
-  :is(
-      .main-header:has(#sidemenu-source:checked),
-      .main-header:has(#sidemenu-docs:checked),
-      .main-header:has(#sidemenu-meta:checked)
-    )
-    + main
-    .realm-view,
-  :is(
-      .main-header:has(#sidemenu-source:checked),
-      .main-header:has(#sidemenu-docs:checked),
-      .main-header:has(#sidemenu-meta:checked)
-    )
-    .main-navigation {
+  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) + main .realm-view,
+  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) .main-navigation {
     @apply md:col-span-6;
   }
-  :is(
-      .main-header:has(#sidemenu-source:checked),
-      .main-header:has(#sidemenu-docs:checked),
-      .main-header:has(#sidemenu-meta:checked)
-    )
-    + main
-    #sidebar,
-  :is(
-      .main-header:has(#sidemenu-source:checked),
-      .main-header:has(#sidemenu-docs:checked),
-      .main-header:has(#sidemenu-meta:checked)
-    )
-    .sidemenu {
+  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) + main #sidebar,
+  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) .sidemenu {
     @apply md:col-span-4;
   }
-  :is(
-      .main-header:has(#sidemenu-source:checked),
-      .main-header:has(#sidemenu-docs:checked),
-      .main-header:has(#sidemenu-meta:checked)
-    )
-    + main
-    #sidebar::before {
+  :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) + main #sidebar::before {
     @apply absolute block content-[''] top-0 w-[50vw] h-full -left-7 bg-gray-100 z-min;
+  }
+
+  /* Tooltip */
+  .tooltip {
+    @apply relative inline;
+  }
+
+  .tooltip::after {
+    content: attr(data-tooltip);
+    @apply absolute z-max scale-0 invisible px-2 py-1 bg-light rounded border border-gray-100 w-fit min-w-32 max-w-48 top-full -left-1 text-center text-100 text-gray-600 font-normal transition-opacity opacity-0;
+  }
+
+  .tooltip:hover::after {
+    @apply visible opacity-100 delay-300 scale-100;
   }
 
   /* chroma */
@@ -339,20 +326,9 @@
     @apply !bg-transparent;
   }
   main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-ln:target),
-  main
-    :is(.realm-view, .source-code)
-    > pre
-    .chroma-line:has(.chroma-lnlinks:hover),
-  main
-    :is(.realm-view, .source-code)
-    > pre
-    .chroma-line:has(.chroma-ln:target)
-    .chroma-cl,
-  main
-    :is(.realm-view, .source-code)
-    > pre
-    .chroma-line:has(.chroma-lnlinks:hover)
-    .chroma-cl {
+  main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-lnlinks:hover),
+  main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-ln:target) .chroma-cl,
+  main :is(.realm-view, .source-code) > pre .chroma-line:has(.chroma-lnlinks:hover) .chroma-cl {
     @apply !bg-gray-100 rounded;
   }
   main :is(.realm-view, .source-code) > pre .chroma-ln {
@@ -376,7 +352,7 @@
   }
 
   .quotes {
-    @apply italic-subtle text-[#555] border-l-4 border-l-[#ccc] pl-4 my-6 [quotes:"“"_"”"_"‘"_"’"];
+    @apply italic-subtle text-gray-600 border-l-4 border-l-gray-300 pl-4 my-6 [quotes:"""_""""_"''_"''"];
   }
 
   .quotes::before,
@@ -399,6 +375,24 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  .link-external {
+    @apply text-[.7em];
+  }
+  .link-internal {
+    @apply font-[400] text-[.8em];
+  }
+  .link-tx {
+    @apply text-[.8em];
+  }
+
+  :is(.link-external, .link-internal, .link-tx) {
+    @apply inline align-text-top;
+  }
+
+  .realm-view a > span:first-of-type {
+    @apply ml-0.5;
   }
 
   .field-content {

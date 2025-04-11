@@ -16,7 +16,7 @@ func generateKeys(t *testing.T, count int) []*NodeKey {
 
 	keys := make([]*NodeKey, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		keys[i] = GenerateNodeKey()
 	}
 

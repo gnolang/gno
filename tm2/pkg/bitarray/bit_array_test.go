@@ -15,8 +15,8 @@ import (
 func randBitArray(bits int) (*BitArray, []byte) {
 	src := random.RandBytes((bits + 7) / 8)
 	bA := NewBitArray(bits)
-	for i := 0; i < len(src); i++ {
-		for j := 0; j < 8; j++ {
+	for i := range src {
+		for j := range 8 {
 			if i*8+j >= bits {
 				return bA, src
 			}
@@ -45,7 +45,7 @@ func TestAnd(t *testing.T) {
 	if len(bA3.Elems) != len(bA2.Elems) {
 		t.Error("Expected min elems length")
 	}
-	for i := 0; i < bA3.Bits; i++ {
+	for i := range bA3.Bits {
 		expected := bA1.GetIndex(i) && bA2.GetIndex(i)
 		if bA3.GetIndex(i) != expected {
 			t.Error("Wrong bit from bA3", i, bA1.GetIndex(i), bA2.GetIndex(i), bA3.GetIndex(i))
@@ -71,7 +71,7 @@ func TestOr(t *testing.T) {
 	if len(bA3.Elems) != len(bA1.Elems) {
 		t.Error("Expected max elems length")
 	}
-	for i := 0; i < bA3.Bits; i++ {
+	for i := range bA3.Bits {
 		expected := bA1.GetIndex(i) || bA2.GetIndex(i)
 		if bA3.GetIndex(i) != expected {
 			t.Error("Wrong bit from bA3", i, bA1.GetIndex(i), bA2.GetIndex(i), bA3.GetIndex(i))
@@ -181,7 +181,7 @@ func TestEmptyFull(t *testing.T) {
 		if !bA.IsEmpty() {
 			t.Fatal("Expected bit array to be empty")
 		}
-		for i := 0; i < n; i++ {
+		for i := range n {
 			bA.SetIndex(i, true)
 		}
 		if !bA.IsFull() {

@@ -91,6 +91,6 @@ func (vm *VMKeeper) getSysNamesPkgParam(ctx sdk.Context) string {
 	return sysNamesPkg
 }
 
-func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
+func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	// XXX validate input?
 }

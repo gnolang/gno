@@ -345,7 +345,7 @@ func Benchmark_txLogRead(b *testing.B) {
 		stack2  = Wrap(stack1)             // n'th values filled (n%9 == 0)
 	)
 
-	for i := 0; i < maxValues; i++ {
+	for i := range maxValues {
 		baseMap[i] = i
 		switch i % 9 {
 		case 1, 4, 7:
@@ -454,7 +454,7 @@ func Benchmark_bufferedTxMapRead(b *testing.B) {
 		// does not support stacking
 	)
 
-	for i := 0; i < maxValues; i++ {
+	for i := range maxValues {
 		baseMap[i] = i
 		switch i % 9 {
 		case 0, 1, 4, 7:

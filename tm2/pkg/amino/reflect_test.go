@@ -108,7 +108,7 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 		}
 	}()
 
-	for i := 0; i < 1e4; i++ {
+	for range 10_000 {
 		f.Fuzz(ptr)
 
 		// Reset, which makes debugging decoding easier.
@@ -205,7 +205,7 @@ func _testDeepCopy(t *testing.T, rt reflect.Type) {
 		}
 	}()
 
-	for i := 0; i < 1e4; i++ {
+	for range 10_000 {
 		f.Fuzz(ptr)
 
 		ptr2 := amino.DeepCopy(ptr)
@@ -399,7 +399,7 @@ func TestCodecMarshalAny(t *testing.T) {
 	cdc.RegisterTypeFrom(reflect.TypeOf(tests.ConcreteWrappedBytes{}), tests.Package)
 
 	obj := tests.ConcreteWrappedBytes{Value: []byte("0123")}
-	ifc := (interface{})(obj)
+	ifc := (any)(obj)
 
 	bz1, err := cdc.MarshalAny(obj)
 	assert.Nil(t, err)
@@ -507,11 +507,11 @@ func TestCodecBinaryStructFieldNilInterface(t *testing.T) {
 // ----------------------------------------
 // Misc.
 
-func spw(o interface{}) string {
+func spw(o any) string {
 	return spew.Sprintf("%#v", o)
 }
 
-var fuzzFuncs = []interface{}{
+var fuzzFuncs = []any{
 	func(ptr **int8, c fuzz.Continue) {
 		var i int8
 		c.Fuzz(&i)
@@ -651,14 +651,14 @@ var fuzzFuncs = []interface{}{
 			// Empty slice elements should be non-nil,
 			// since we don't set amino:"nil_elements".
 			*esz = make([]*tests.EmptyStruct, n)
-			for i := 0; i < n; i++ {
+			for i := range n {
 				(*esz)[i] = &tests.EmptyStruct{}
 			}
 		}
 	},
 }
 
-func getTypeFromPointer(ptr interface{}) reflect.Type {
+func getTypeFromPointer(ptr any) reflect.Type {
 	rt := reflect.TypeOf(ptr)
 	if rt.Kind() != reflect.Ptr {
 		panic(fmt.Sprintf("expected pointer, got %v", rt))

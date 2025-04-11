@@ -21,7 +21,7 @@ type StructB struct {
 	FieldD uint32
 	FieldE submodule.StructSM
 	FieldF StructA
-	FieldG interface{}
+	FieldG any
 }
 
 func main() {

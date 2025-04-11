@@ -194,6 +194,21 @@ func (alloc *Allocator) NewListArray(n int) *ArrayValue {
 	}
 }
 
+func (alloc *Allocator) NewListArray2(l, c int) *ArrayValue {
+	if l < 0 || c < 0 {
+		panic(&Exception{Value: typedString("len or cap out of range")})
+	}
+
+	if c < l {
+		panic(&Exception{Value: typedString("length and capacity swapped")})
+	}
+
+	alloc.AllocateListArray(int64(c))
+	return &ArrayValue{
+		List: make([]TypedValue, l, c),
+	}
+}
+
 func (alloc *Allocator) NewDataArray(n int) *ArrayValue {
 	if n < 0 {
 		panic(&Exception{Value: typedString("len out of range")})

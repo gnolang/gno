@@ -131,7 +131,7 @@ func (f *File) add(errs *modfile.ErrorList, block *modfile.LineBlock, line *modf
 			Err:      err,
 		})
 	}
-	errorf := func(format string, args ...interface{}) {
+	errorf := func(format string, args ...any) {
 		wrapError(fmt.Errorf(format, args...))
 	}
 

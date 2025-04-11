@@ -159,7 +159,7 @@ type (
 func (response *RPCResponse) UnmarshalJSON(data []byte) error {
 	unsafeResp := &struct {
 		JSONRPC string          `json:"jsonrpc"`
-		ID      interface{}     `json:"id"`
+		ID      any             `json:"id"`
 		Result  json.RawMessage `json:"result,omitempty"`
 		Error   *RPCError       `json:"error,omitempty"`
 	}{}

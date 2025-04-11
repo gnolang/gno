@@ -12,6 +12,11 @@ type rootResolver struct {
 }
 
 func NewRootResolver(path string) Resolver {
+	if abs, err := filepath.Abs(path); err == nil {
+		return &rootResolver{root: abs}
+	}
+
+	// fallback on path
 	return &rootResolver{root: path}
 }
 

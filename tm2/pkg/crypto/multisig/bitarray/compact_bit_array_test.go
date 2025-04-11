@@ -15,7 +15,7 @@ func randCompactBitArray(bits int) (*CompactBitArray, []byte) {
 	src := random.RandBytes((bits + 7) / 8)
 	bA := NewCompactBitArray(bits)
 
-	for i := 0; i < numBytes-1; i++ {
+	for i := range numBytes - 1 {
 		for j := uint8(0); j < 8; j++ {
 			bA.SetIndex(i*8+int(j), src[i]&(uint8(1)<<(8-j)) > 0)
 		}
@@ -187,7 +187,7 @@ func TestCompactBitArrayNumOfTrueBitsBefore(t *testing.T) {
 			err := json.Unmarshal([]byte(tc.marshalledBA), &bA)
 			require.NoError(t, err)
 
-			for i := 0; i < len(tc.bAIndex); i++ {
+			for i := range tc.bAIndex {
 				require.Equal(t, tc.trueValueIndex[i], bA.NumTrueBitsBefore(tc.bAIndex[i]), "tc %d, i %d", tcIndex, i)
 			}
 		})
@@ -200,11 +200,11 @@ func TestCompactBitArrayGetSetIndex(t *testing.T) {
 	r := rand.New(rand.NewSource(100))
 	numTests := 10
 	numBitsPerArr := 100
-	for i := 0; i < numTests; i++ {
+	for range numTests {
 		bits := r.Intn(1000)
 		bA, _ := randCompactBitArray(bits)
 
-		for j := 0; j < numBitsPerArr; j++ {
+		for range numBitsPerArr {
 			copied := bA.Copy()
 			index := r.Intn(bits)
 			val := (r.Int63() % 2) == 0

@@ -6,7 +6,7 @@ import (
 )
 
 // SignerMessage is sent between Signer Clients and Servers.
-type SignerMessage interface{}
+type SignerMessage any
 
 // TODO: Add ChainIDRequest
 

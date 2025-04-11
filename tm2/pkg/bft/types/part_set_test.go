@@ -33,7 +33,7 @@ func TestBasicPartSet(t *testing.T) {
 	partSet2 := NewPartSetFromHeader(partSet.Header())
 
 	assert.True(t, partSet2.HasHeader(partSet.Header()))
-	for i := 0; i < partSet.Total(); i++ {
+	for i := range partSet.Total() {
 		part := partSet.GetPart(i)
 		// t.Logf("\n%v", part)
 		added, err := partSet2.AddPart(part)

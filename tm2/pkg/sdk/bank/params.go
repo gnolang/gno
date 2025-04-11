@@ -59,7 +59,7 @@ func (bank BankKeeper) GetParams(ctx sdk.Context) Params {
 	return params
 }
 
-func (bank BankKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
+func (bank BankKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	switch key {
 	case "p:restricted_denoms": // XXX test
 		bank.WillSetRestrictedDenoms(ctx, value.([]string))

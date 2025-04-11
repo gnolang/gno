@@ -260,7 +260,7 @@ func (cdc *Codec) decodeReflectJSONArray(bz []byte, info *TypeInfo, rv reflect.V
 		}
 
 		// Decode each item in rawSlice.
-		for i := 0; i < length; i++ {
+		for i := range length {
 			erv := rv.Index(i)
 			ebz := rawSlice[i]
 			err = cdc.decodeReflectJSON(ebz, einfo, erv, fopts)
@@ -333,7 +333,7 @@ func (cdc *Codec) decodeReflectJSONSlice(bz []byte, info *TypeInfo, rv reflect.V
 		// Read into a new slice.
 		esrt := reflect.SliceOf(ert) // TODO could be optimized.
 		srv := reflect.MakeSlice(esrt, length, length)
-		for i := 0; i < length; i++ {
+		for i := range length {
 			erv := srv.Index(i)
 			ebz := rawSlice[i]
 			err = cdc.decodeReflectJSON(ebz, einfo, erv, fopts)
