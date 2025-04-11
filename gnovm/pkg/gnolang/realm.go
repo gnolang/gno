@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"slices"
 	"strings"
 	"sync"
 
@@ -358,7 +357,7 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	// mark all owned-ancestors also as dirty.
 	rlm.markDirtyAncestors(store)
 	if debugRealm {
-		ensureUniq(rlm.created, rlm.updated, rlm.deleted)
+		ensureUniq(rlm.created, rlm.updated)
 		ensureUniq(rlm.escaped)
 	}
 	// save all the created and updated objects.
@@ -508,8 +507,6 @@ func (rlm *Realm) processNewDeletedMarks(store Store) {
 			rlm.decRefDeletedDescendants(store, oo)
 		}
 	}
-	// clear deleted from all other sets.
-	rlm.clearDeleted()
 }
 
 // Like incRefCreatedDescendants but decrements.
@@ -680,38 +677,17 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 	// NOTE: newly dirty-marked owners get appended
 	// to .updated without affecting iteration.
 	for _, oo := range rlm.updated {
-		markAncestorsOne(oo)
+		if !oo.GetIsDeleted() {
+			markAncestorsOne(oo)
+		}
 	}
 	// NOTE: must happen after iterating over rlm.updated
 	// for the same reason.
 	for _, oo := range rlm.created {
-		markAncestorsOne(oo)
-	}
-}
-
-// clearDeleted removes any objects from .updated, .created,
-// and .newEscaped slices that are also present in the .deleted slice.
-func (rlm *Realm) clearDeleted() {
-	if len(rlm.deleted) == 0 {
-		return
-	}
-
-	filter := func(slice []Object) []Object {
-		if slice == nil {
-			return nil
+		if !oo.GetIsDeleted() {
+			markAncestorsOne(oo)
 		}
-		filtered := slice[:0]
-		for _, obj := range slice {
-			if !slices.Contains(rlm.deleted, obj) {
-				filtered = append(filtered, obj)
-			}
-		}
-		return filtered
 	}
-
-	rlm.updated = filter(rlm.updated)
-	rlm.created = filter(rlm.created)
-	rlm.newEscaped = filter(rlm.newEscaped)
 }
 
 //----------------------------------------
@@ -727,7 +703,9 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 			// of something else created.
 			continue
 		} else {
-			rlm.saveUnsavedObjectRecursively(store, co)
+			if !co.GetIsDeleted() {
+				rlm.saveUnsavedObjectRecursively(store, co)
+			}
 		}
 	}
 	for _, uo := range rlm.updated {
@@ -738,7 +716,9 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 			// of something else created/dirty.
 			continue
 		} else {
-			rlm.saveUnsavedObjectRecursively(store, uo)
+			if !uo.GetIsDeleted() {
+				rlm.saveUnsavedObjectRecursively(store, uo)
+			}
 		}
 	}
 }
