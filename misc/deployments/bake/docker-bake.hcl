@@ -2,10 +2,6 @@
 ############### VARIABLES ###############
 #########################################
 
-variable "TAG" {
-  default = "chain-test6"
-}
-
 variable "PROJECT_NAME" {
   default = "gno"
 }
@@ -68,9 +64,6 @@ target "common" {
 target "gnoland" {
   inherits = ["common"]
   target = "gnoland"
-  tags = [
-    "ghcr.io/gnolang/gno/gnoland:${TAG}"
-  ]
   labels = {
     "org.opencontainers.image.title" = "${PROJECT_NAME}/gnoland"
   }
@@ -79,9 +72,6 @@ target "gnoland" {
 target "gnokey" {
   inherits = ["common"]
   target = "gnokey"
-  tags = [
-    "ghcr.io/gnolang/gno/gnokey:${TAG}"
-  ]
   labels = {
     "org.opencontainers.image.title" = "${PROJECT_NAME}/gnokey"
   }
@@ -90,9 +80,6 @@ target "gnokey" {
 target "gnoweb" {
   inherits = ["common"]
   target = "gnoweb"
-  tags = [
-    "ghcr.io/gnolang/gno/gnoweb:${TAG}"
-  ]
   labels = {
     "org.opencontainers.image.title" = "${PROJECT_NAME}/gnoweb"
   }
@@ -101,9 +88,6 @@ target "gnoweb" {
 target "gnofaucet" {
   inherits = ["common"]
   target = "gnofaucet"
-  tags = [
-    "ghcr.io/gnolang/gno/gnofaucet:${TAG}"
-  ]
   labels = {
     "org.opencontainers.image.title" = "${PROJECT_NAME}/gnofaucet"
   }
@@ -112,9 +96,6 @@ target "gnofaucet" {
 target "gno" {
   inherits = ["common"]
   target = "gno"
-  tags = [
-    "ghcr.io/gnolang/gno:${TAG}"
-  ]
   labels = {
     "org.opencontainers.image.title" = "${PROJECT_NAME}/gno"
   }
@@ -123,9 +104,6 @@ target "gno" {
 target "gnodev" {
   inherits = ["common"]
   target = "gnodev"
-  tags = [
-    "ghcr.io/gnolang/gno/gnodev:${TAG}"
-  ]
   labels = {
     "org.opencontainers.image.title" = "${PROJECT_NAME}/gnodev"
   }
@@ -134,9 +112,6 @@ target "gnodev" {
 target "gnocontribs" {
   inherits = ["common"]
   target = "gnocontribs"
-  tags = [
-    "ghcr.io/gnolang/gno/gnocontribs:${TAG}"
-  ]
   labels = {
     "org.opencontainers.image.title" = "${PROJECT_NAME}/gnocontribs"
   }
