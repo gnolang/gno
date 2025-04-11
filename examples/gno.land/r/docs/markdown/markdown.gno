@@ -356,6 +356,75 @@ My Image ![Alt](/public/imgs/gnoland.svg)
 
 ---
 
+### Forms
+
+Gno-Flavored Markdown introduces a secure form system that integrates directly with realms. The system uses custom HTML-like tags that are rendered with proper styling and validation.
+
+#### Basic Usage
+
+Create a form using the ±<gno-form>± tag and add inputs with ±<gno-input>±:
+
+±±±markdown
+<gno-form>
+  <gno-input name="name" placeholder="Enter your name" />
+  <gno-input name="email" placeholder="Enter your email" />
+</gno-form>
+±±±
+
+<gno-form>
+  <gno-input name="name" placeholder="Enter your name" />
+  <gno-input name="email" placeholder="Enter your email" />
+</gno-form>
+
+#### Form Structure
+
+1. **Form Container**
+   - Must start with ±<gno-form>± and end with ±</gno-form>±
+   - Cannot be nested (forms inside forms are not allowed)
+   - Automatically includes a header showing the realm name
+
+2. **Input Fields**
+   - Created with ±<gno-input>± tag
+   - Required attributes:
+     - ±name±: Unique identifier for the input (required)
+     - ±placeholder±: Hint text shown in the input (optional, defaults to "Enter value")
+   - Each input must have a unique name
+   - Inputs are rendered with labels and proper styling
+
+#### Example Use Cases
+
+1. **Simple Data Entry**
+±±±markdown
+<gno-form>
+  <gno-input name="username" placeholder="Enter username" />
+  <gno-input name="message" placeholder="Type your message" />
+</gno-form>
+±±±
+
+2. **Transaction Form**
+±±±markdown
+<gno-form>
+  <gno-input name="recipient" placeholder="Enter recipient address" />
+  <gno-input name="amount" placeholder="Enter amount in ugnot" />
+</gno-form>
+±±±
+
+#### Important Rules
+
+1. **Validation Rules**:
+   - Every ±<gno-input>± must have a ±name± attribute
+   - Duplicate attribute names are not allowed
+   - Forms must be properly closed
+   - Nested forms will not render
+
+2. **Security Features**:
+   - Forms are processed on the realm where they are defined
+   - Each form submission is associated with its realm
+   - The realm name is displayed in the form header
+   - Input validation is handled by the realm's smart contract
+
+--- 
+
 ### Usernames
 
 XXX: TODO (add again this feature that was removed)

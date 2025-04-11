@@ -150,7 +150,7 @@
   }
 
   .realm-view pre {
-    @apply bg-gray-50 p-4 rounded overflow-x-auto font-mono;
+    @apply bg-gray-50 p-4 my-6 rounded overflow-x-auto font-mono;
   }
 
   .realm-view hr {
@@ -265,7 +265,7 @@
     @apply grow shrink basis-52 lg:basis-44;
   }
   .realm-view .gno-form {
-    @apply block border rounded pt-2 pb-4 px-4;
+    @apply block border rounded pt-2 pb-4 px-4 my-12;
   }
   .realm-view .gno-form_header {
     @apply flex justify-between text-gray-600 text-50 mb-6;
