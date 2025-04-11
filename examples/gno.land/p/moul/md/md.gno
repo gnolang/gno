@@ -262,12 +262,13 @@ func Columns(contentByColumn []string) string {
 
 // ColumnsN splits content into multiple rows of N columns each and formats them.
 // If colsPerRow <= 0, all items are placed in one <gno-columns> block.
+// 4 columns per row is the current maximum for gnoweb, with any more overflowing to the next row.
 // If padded=true & the final row is missing column content, an empty
 // column element will be placed to keep the cols per row constant.
 // Padding works only with colsPerRow > 0.
 func ColumnsN(content []string, colsPerRow int, padded bool) string {
 	if len(content) == 0 {
-		return "<gno-columns>\n</gno-columns>"
+		return Columns(content)
 	}
 
 	var sb strings.Builder
