@@ -3,7 +3,7 @@ package upgradeable
 import (
 	"errors"
 	"std"
-	
+
 	"gno.land/p/demo/ownable"
 )
 
@@ -11,8 +11,8 @@ import (
 // It stores data but delegates logic to the implementation
 type ContractProxy struct {
 	*ownable.Ownable
-	implementation string  // Path to the implementation realm
-	data          Any     // Contract state
+	implementation string // Path to the implementation realm
+	data           Any    // Contract state
 }
 
 // NewContractProxy creates a new proxy with the caller as owner
@@ -28,20 +28,20 @@ func (p *ContractProxy) SetImplementation(implementationPath string) error {
 	if !p.CallerIsOwner() {
 		return ownable.ErrUnauthorized
 	}
-	
+
 	// Check if the implementation exists
 	// Note: In a real implementation, we would validate that the realm exists
 	// and implements the required interface
-	
+
 	oldImpl := p.implementation
 	p.implementation = implementationPath
-	
+
 	std.Emit(
 		EventImplementationUpgraded,
 		"from", oldImpl,
 		"to", implementationPath,
 	)
-	
+
 	return nil
 }
 
@@ -60,7 +60,7 @@ func (p *ContractProxy) GetState() Any {
 func (p *ContractProxy) SetState(newState Any) error {
 	// In a real implementation, we would check that the caller
 	// is the implementation contract
-	
+
 	p.data = newState
 	return nil
 }
@@ -72,14 +72,14 @@ func (p *ContractProxy) DelegateCall(method string, args ...Any) (Any, error) {
 	if p.implementation == "" {
 		return nil, ErrImplementationNotSet
 	}
-	
+
 	// In a real implementation, this would use Gno's inter-realm call mechanism
 	// to invoke the method on the implementation contract
 	// and pass along the proxy's state
-	
+
 	// Placeholder:
 	// result := std.Call(p.implementation, method, append([]interface{}{p.data}, args...))
-	
+
 	return nil, errors.New("delegate call not implemented")
 }
 

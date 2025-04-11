@@ -9,6 +9,7 @@ package upgradeable
 // Import dependencies to ensure they're included in the package
 import (
 	_ "std"
+
 	_ "gno.land/p/demo/ownable"
 )
 

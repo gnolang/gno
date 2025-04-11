@@ -2,7 +2,7 @@ package upgradeable
 
 import (
 	"testing"
-	
+
 	"gno.land/p/demo/testutils"
 )
 
@@ -11,7 +11,7 @@ func BenchmarkDirectFunctionCall(b *testing.B) {
 	fn := func(s string) string {
 		return "prefix: " + s
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = fn("test")
@@ -22,14 +22,14 @@ func BenchmarkDirectFunctionCall(b *testing.B) {
 func BenchmarkRegistryGet(b *testing.B) {
 	alice := testutils.TestAddress("alice")
 	testing.SetOriginCaller(alice)
-	
+
 	registry := New()
 	fn := func(s string) string {
 		return "prefix: " + s
 	}
-	
+
 	_ = registry.RegisterFunction("test", fn)
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = registry.GetFunction("test")
@@ -40,14 +40,14 @@ func BenchmarkRegistryGet(b *testing.B) {
 func BenchmarkFunctionHolderGet(b *testing.B) {
 	alice := testutils.TestAddress("alice")
 	testing.SetOriginCaller(alice)
-	
+
 	registry := New()
 	fn := func(s string) string {
 		return "prefix: " + s
 	}
-	
+
 	holder := NewFunctionHolder(registry, "test", fn)
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = holder.Get()
@@ -58,14 +58,14 @@ func BenchmarkFunctionHolderGet(b *testing.B) {
 func BenchmarkStringFuncHolderGet(b *testing.B) {
 	alice := testutils.TestAddress("alice")
 	testing.SetOriginCaller(alice)
-	
+
 	registry := New()
 	fn := func(s string) string {
 		return "prefix: " + s
 	}
-	
+
 	holder := NewStringFuncHolder(registry, "test", fn)
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = holder.Get()
@@ -76,14 +76,14 @@ func BenchmarkStringFuncHolderGet(b *testing.B) {
 func BenchmarkStringFuncHolderGetAndCall(b *testing.B) {
 	alice := testutils.TestAddress("alice")
 	testing.SetOriginCaller(alice)
-	
+
 	registry := New()
 	fn := func(s string) string {
 		return "prefix: " + s
 	}
-	
+
 	holder := NewStringFuncHolder(registry, "test", fn)
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		f := holder.Get()
@@ -95,7 +95,7 @@ func BenchmarkStringFuncHolderGetAndCall(b *testing.B) {
 func BenchmarkFunctionUpgrade(b *testing.B) {
 	alice := testutils.TestAddress("alice")
 	testing.SetOriginCaller(alice)
-	
+
 	registry := New()
 	fn1 := func(s string) string {
 		return "prefix1: " + s
@@ -103,9 +103,9 @@ func BenchmarkFunctionUpgrade(b *testing.B) {
 	fn2 := func(s string) string {
 		return "prefix2: " + s
 	}
-	
+
 	holder := NewStringFuncHolder(registry, "test", fn1)
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		// Alternate between two functions to simulate upgrades

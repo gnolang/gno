@@ -17,16 +17,16 @@ type Registry struct {
 // New creates a new Registry with the caller as the owner
 func New() *Registry {
 	return &Registry{
-		Ownable:    ownable.New(),
-		functions:  make(map[string]Function),
+		Ownable:   ownable.New(),
+		functions: make(map[string]Function),
 	}
 }
 
 // NewWithAddress creates a new Registry with the specified owner address
 func NewWithAddress(addr std.Address) *Registry {
 	return &Registry{
-		Ownable:    ownable.NewWithAddress(addr),
-		functions:  make(map[string]Function),
+		Ownable:   ownable.NewWithAddress(addr),
+		functions: make(map[string]Function),
 	}
 }
 

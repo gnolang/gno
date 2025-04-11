@@ -6,8 +6,8 @@ import "std"
 // This is the base holder that can work with any function type
 // For common function signatures, use the specialized holders below
 type FunctionHolder struct {
-	registry *Registry
-	name     string
+	registry  *Registry
+	name      string
 	defaultFn Function
 }
 
@@ -18,10 +18,10 @@ func NewFunctionHolder(registry *Registry, name string, defaultFn Function) *Fun
 		name:      name,
 		defaultFn: defaultFn,
 	}
-	
+
 	// Register the default function
 	_ = registry.RegisterFunction(name, defaultFn)
-	
+
 	return holder
 }
 
