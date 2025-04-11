@@ -2,6 +2,8 @@
 
 This deployment folder contains minimal information needed to launch a full test6.gno.land validator node.
 
+Below is the information relating to the `genesis.json`, how to download it or generate it independently.
+
 ## `genesis.json`
 
 The initial `genesis.json` validator set is consisted of 4 entities (8 validators in total):
@@ -42,3 +44,53 @@ Some configuration params are required, while others are advised to be set.
 - `telemetry.enabled` - flag indicating if telemetry should be turned on. **Advised to be `true`**.
 - `telemetry.exporter_endpoint` - endpoint for the otel exported. ⚠️ **Required if `telemetry.enabled=true`** ⚠️.
 - `telemetry.service_instance_id` - unique ID of the node telemetry instance, **specific to every node deployment**.
+
+---
+
+## test6 `genesis.json` download
+
+You can download the full `genesis.json` using the following steps:
+
+```shell
+wget TODO
+```
+
+The `sha3` hash of the `genesis.json` should be `TODO`.
+Verify it by running:
+
+```
+shasum -a 256 genesis.json
+TODO genesis.json
+```
+
+---
+
+## Generating the test6 `genesis.json`
+
+To generate the `genesis.json`, you will need the `gnogenesis` tool from this branch.
+
+### Step 1: Install `gnogenesis` globally
+
+From the repo root:
+
+```shell
+cd contribs/gnogenesis
+make install
+```
+
+### Step 2: Run the generation script
+
+The required `genesis.json` generation logic is packaged up in `generate.sh`.
+To run it, make sure to adjust correct permissions:
+
+```shell
+chmod +x ./generate.sh
+```
+
+Run the script, and it should generate a `genesis.json` locally. We also opt to verify the genesis sum:
+
+```shell
+CHECKSUM=TODO ./generate.sh
+
+TODO output
+```
