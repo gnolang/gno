@@ -31,8 +31,8 @@ func Render(path string) string {
 		return out
 	}
 
-	out += exhibition.Render(path, dashboardEnabled)
 	out += renderActions(path)
+	out += exhibition.Render(path, dashboardEnabled)
 
 	return out
 }
@@ -57,7 +57,7 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 		str[i] += itemValue.Render(dashboard)
 	}
 
-	out += md.ColumnsN(str, colsPerRow, true)
+	out += md.ColumnsN(str, 3, true)
 	out += md.H3(page.Picker(path))
 
 	return out
@@ -80,8 +80,6 @@ func (i Item) Render(dashboard bool) string {
 		namespace = user.RenderLink("")
 	}
 	out += ufmt.Sprintf("by %s\n\n", namespace)
-
-	//out += md.Link(i.pkgpath, strings.TrimPrefix(i.pkgpath, "gno.land")) + "\n\n"
 
 	blockMsg := "Submitted via the [Monorepo](https://github.com/gnolang/gno)"
 	if i.blockNum > 0 {
@@ -114,8 +112,6 @@ func renderDashboard() string {
 	}
 
 	out += "\n\n"
-	out += md.HorizontalRule()
-
 	return out
 }
 
@@ -150,7 +146,7 @@ func getTreeByPath(e *Exhibition, path string) *avl.Tree {
 	case "oldest":
 		return e.itemsSortedByCreation
 	default:
-		return e.items
+		return e.itemsSortedByCreation
 	}
 }
 
@@ -191,7 +187,8 @@ func init() {
 }
 
 func renderActions(path string) string {
-	out := md.Link("Reset Sort", "?") + " | "
+	out := md.HorizontalRule()
+	out += md.Link("Reset Sort", "?") + " | "
 	out += md.Link("Sort by Upvotes", "?sort=upvotes") + " | "
 	out += md.Link("Sort by Downvotes", "?sort=downvotes") + " | "
 	out += md.Link("Sort by Most Recent", "?sort=creation") + " | "

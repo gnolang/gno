@@ -1,6 +1,6 @@
-// Package hof is the hall of fame realm.
-// The Hall of Fame is an exhibition that holds items. Users can add their realms to the Hall of Fame by
-// importing the Hall of Fame realm and calling hor.Register() from their init function.
+// Package hor is the hall of realms.
+// The Hall of Realms is an exhibition that holds items. Users can add their realms to the Hall of Realms by
+// importing the Hall of Realms package and calling hor.Register() from their init function.
 package hor
 
 import (
