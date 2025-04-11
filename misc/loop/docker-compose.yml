@@ -62,6 +62,7 @@ services:
     image: ghcr.io/gnolang/gno/gnofaucet:master
     command:
       - serve
+      - captcha
       - --listen-address=0.0.0.0:5050
       - --chain-id=portal-loop
       - --is-behind-proxy=true
