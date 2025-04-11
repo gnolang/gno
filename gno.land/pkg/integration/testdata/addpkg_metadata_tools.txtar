@@ -1,0 +1,28 @@
+# Start a new node
+gnoland start
+
+# Fail deploy when using invalid JSON for metadata tools field argument
+! gnokey maketx addpkg -meta "tools=" -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/realm -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stderr 'invalid tools field format'
+
+# Fail deploy when using empty tools value for metadata tools field argument
+! gnokey maketx addpkg -meta "tools={}" -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/realm -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stderr 'tools list is empty'
+
+# Fail deploy when using invalid tool name value for metadata tools field argument
+# To pass tool name must have minimum 6 chars, lowercase alphanumeric with underscore
+! gnokey maketx addpkg -meta "tools={\"tools\":[{\"name\":\"foo\",\"weight\":1}]}" -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/realm -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stderr 'invalid tool name'
+
+# Successfully deploy a package with tools metadata
+gnokey maketx addpkg -meta "tools={\"tools\":[{\"name\":\"foobar\",\"weight\":1}]}" -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/realm -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+# Check "tools" metadata field
+gnokey query vm/qmeta --data "gno.land/r/$test1_user_addr/realm:tools"
+stdout 'data: eyJ0b29scyI6W3sibmFtZSI6ImZvb2JhciIsIndlaWdodCI6MX1dfQ=='
+
+-- realm.gno --
+package realm
+
+func Render(string) string { return "" }
