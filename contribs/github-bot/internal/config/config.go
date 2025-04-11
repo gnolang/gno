@@ -63,8 +63,26 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 				c.FileChanged(gh, "^gno.land/pkg/gnoweb/"),
 			),
 			Then: r.Or(
-				r.ReviewByUser(gh, "alexiscolin"),
-				r.ReviewByUser(gh, "gfanton"),
+				// If alexiscolin or gfanton is the author of the PR, the other must review it.
+				r.Or(
+					r.And(
+						r.Author("alexiscolin"),
+						r.ReviewByUser(gh, "gfanton").WithDesiredState(utils.ReviewStateApproved),
+					),
+					r.And(
+						r.Author("gfanton"),
+						r.ReviewByUser(gh, "alexiscolin").WithDesiredState(utils.ReviewStateApproved),
+					),
+				),
+				// If neither of them is the author of the PR, at least one of them must review it.
+				r.And(
+					r.Not(r.Author("alexiscolin")),
+					r.Not(r.Author("gfanton")),
+					r.Or(
+						r.ReviewByUser(gh, "alexiscolin").WithDesiredState(utils.ReviewStateApproved),
+						r.ReviewByUser(gh, "gfanton").WithDesiredState(utils.ReviewStateApproved),
+					),
+				),
 			),
 		},
 		{
