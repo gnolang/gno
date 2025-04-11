@@ -13,6 +13,26 @@ type Pokemon struct {
 	attacks   []Attack
 }
 
+type ItemType int
+
+type Item struct {
+	price       int
+	name        string
+	description string
+	applyer     func(*Pokemon)
+}
+
+const (
+	teamSize             = 6
+	SmallPotion ItemType = iota
+	BigPotion
+	MaxPotion
+	Revive
+	MaxRevive
+	Elixer
+	MaxElixer
+)
+
 func (p *Pokemon) deepCopy() Pokemon {
 	copiedAttacks := make([]Attack, len(p.attacks))
 	copy(copiedAttacks, p.attacks)
@@ -24,20 +44,22 @@ func (p *Pokemon) deepCopy() Pokemon {
 	}
 }
 
-func (g *Game) deepCopy() Game {
-	return Game{
-		myId:    g.myId,
-		me:      g.me.deepCopy(),
-		otherId: g.otherId,
-		other:   g.other.deepCopy(),
+func (p *Pokemon) getDefault() *Pokemon {
+	for _, d := range pokemonList {
+		if p.name == d.name {
+			return &d
+		}
 	}
+	return nil
 }
 
-type Game struct {
-	myId    int
-	me      Pokemon
-	otherId int
-	other   Pokemon
+func (p *Pokemon) getId() int {
+	for i, d := range pokemonList {
+		if p.name == d.name {
+			return i
+		}
+	}
+	return -1
 }
 
 var (

@@ -26,7 +26,7 @@ func ParsePath(fullpath string) (string, map[string]string) {
 }
 
 func ShowRaw(data string) string {
-	return "```\n" + data + "\n\n```\n\n"
+	return "\n\n```\n" + data + "\n```\n\n"
 }
 
 func IntSliceContains(s []int, f func(int, int) bool) bool {
