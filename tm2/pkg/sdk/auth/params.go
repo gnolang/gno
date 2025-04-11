@@ -120,6 +120,23 @@ func (p Params) Validate() error {
 	return nil
 }
 
+const (
+	// feeCollectorPath the params path for the fee collector account address
+	feeCollectorPath = "p:fee_collector"
+)
+
+func (ak AccountKeeper) FeeCollectorAddress(ctx sdk.Context) crypto.Address {
+	feeCollector := ak.GetParams(ctx).FeeCollector
+	if feeCollector.IsZero() {
+		panic("empty `fee_collector` param value")
+	}
+	return feeCollector
+}
+
+func (ak AccountKeeper) SetFeesCollectorAddress(ctx sdk.Context, addr crypto.Address) {
+	ak.prmk.SetString(ctx, feeCollectorPath, addr.Bech32().String())
+}
+
 func (ak AccountKeeper) SetParams(ctx sdk.Context, params Params) error {
 	if err := params.Validate(); err != nil {
 		return err

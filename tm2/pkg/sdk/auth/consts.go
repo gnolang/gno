@@ -11,9 +11,6 @@ const (
 	// StoreKey is string representation of the store key for auth
 	StoreKey = "acc"
 
-	// FeeCollectorKey the params key for the fee collector account address
-	FeeCollectorKey = "p:fee_collector"
-
 	// QuerierRoute is the querier route for acc
 	QuerierRoute = StoreKey
 
