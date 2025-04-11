@@ -9,4 +9,4 @@ func getSlice() any {
 }
 
 // Error:
-// main/files/addressable_6d_err.gno:4:6: cannot take address of getSlice<VPBlock(3,1)>().([](const-type int))
+// main/files/addressable_6d_err.gno:4:6: illegal assignment X expression type *gnolang.TypeAssertExpr
