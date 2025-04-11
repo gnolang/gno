@@ -395,7 +395,6 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 				}
 			}
 			// No need to unmark, will be garbage collected.
-			// also see comment in clearMarks().
 			// oo.SetIsNewReal(false)
 			// skip if became deleted.
 			continue
@@ -467,7 +466,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 				rlm.incRefCreatedDescendants(store, child)
 			}
 		} else if rc > 1 {
-			// new real or dirty won't be marked(again).
+			// new real or dirty shouldn't be marked.
 			rlm.MarkDirty(child)
 			if child.GetIsEscaped() {
 				// already escaped, do nothing.
