@@ -68,10 +68,6 @@ func LeaveDAO() string {
 
 // Proposals Methods //
 
-func CreateProposalSample() string {
-	return ds.Proposals.CreateProposalSample()
-}
-
 func CreateProposal(title, description string, period int64) string {
 	return ds.Proposals.CreateProposal(title, description, period)
 }

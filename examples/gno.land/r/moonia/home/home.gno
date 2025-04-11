@@ -40,6 +40,19 @@ func renderDAOStats() string {
 	return out
 }
 
+func CreateProposalSample(daoID string) string {
+	d := daoMap[daoID]
+	if d == nil {
+		panic("DAO not found: " + daoID)
+	}
+	ds.DAO = d
+	ds.Proposals = proposalMap[daoID]
+	if ds.Proposals == nil {
+		panic("ProposalStore not found for DAO: " + daoID)
+	}
+	return ds.Proposals.CreateProposal("Survey", "Would you like to visit Guatemala?", 30)
+}
+
 func renderDAO() string {
 	caller := utils.GetCaller()
 	out := "# " + ds.DAO.Name + "\n\n"
@@ -51,7 +64,7 @@ func renderDAO() string {
 		out += "- " + md.Link("Request to Join DAO", txlink.Call("RequestDAO")) + "\n"
 	}	
 	out += "- " + md.Link("Leave DAO", txlink.Call("LeaveDAO")) + "\n"
-	out += "- " + md.Link("Create Sample Proposal", txlink.Call("CreateProposalSample")) + "\n"
+	out += "- " + md.Link("Create Sample Proposal", txlink.Call("CreateProposalSample", "args", "0")) + "\n"
 	for id := range daoMap {
 		out += "- " + md.Link("View Stats", "/r/moonia/home?dao="+id+"&stats") + "\n"
 	}
