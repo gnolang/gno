@@ -179,17 +179,16 @@ func (h *WebHandler) GetRealmView(gnourl *weburl.GnoURL) (int, *components.View)
 	meta, err := h.Client.RenderRealm(&content, gnourl)
 	if err != nil {
 		if errors.Is(err, ErrRenderNotDeclared) {
-			return http.StatusOK, components.StatusNoRenderComponent(gnourl.Path)
+			// If no render is declared, show directory view instead
+			return h.GetDirectoryView(gnourl)
+		} else {
+			h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
+			return GetClientErrorStatusPage(gnourl, err)
 		}
-
-		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
-		return GetClientErrorStatusPage(gnourl, err)
 	}
 
 	return http.StatusOK, components.RealmView(components.RealmData{
-		TocItems: &components.RealmTOCData{
-			Items: meta.Toc.Items,
-		},
+		TocItems: &components.RealmTOCData{Items: meta.Toc.Items},
 
 		// NOTE: `RenderRealm` should ensure that HTML content is
 		// sanitized before rendering
@@ -271,15 +270,39 @@ func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View
 	}
 
 	var source bytes.Buffer
-	meta, err := h.Client.SourceFile(&source, pkgPath, fileName, false)
-	if err != nil {
-		h.Logger.Error("unable to get source file", "file", fileName, "error", err)
-		return GetClientErrorStatusPage(gnourl, err)
+	var meta *FileMeta
+	var mode components.DisplayMode
+
+	// Check if file is markdown and plain mode is not requested
+	isMarkdown := strings.HasSuffix(strings.ToLower(fileName), ".md")
+	if isMarkdown && !gnourl.WebQuery.Has("plain") {
+		// For markdown files, get metadata first
+		mode = components.ModeMarkdown
+		meta, err = h.Client.SourceFile(nil, pkgPath, fileName, false)
+		if err != nil {
+			h.Logger.Error("unable to get source file metadata", "file", fileName, "error", err)
+			return GetClientErrorStatusPage(gnourl, err)
+		}
+		// Then render markdown content
+		_, err = h.Client.RenderMd(&source, gnourl, fileName)
+		if err != nil {
+			h.Logger.Error("unable to render markdown", "file", fileName, "error", err)
+			return GetClientErrorStatusPage(gnourl, err)
+		}
+	} else {
+		// For code files or markdown files in plain mode, get both metadata and content in one call
+		mode = components.ModeCode
+		meta, err = h.Client.SourceFile(&source, pkgPath, fileName, false)
+		if err != nil {
+			h.Logger.Error("unable to get source file", "file", fileName, "error", err)
+			return GetClientErrorStatusPage(gnourl, err)
+		}
 	}
 
 	fileSizeStr := fmt.Sprintf("%.2f Kb", meta.SizeKb)
 	return http.StatusOK, components.SourceView(components.SourceData{
 		PkgPath:      gnourl.Path,
+		Mode:         mode,
 		Files:        files,
 		FileName:     fileName,
 		FileCounter:  len(files),
@@ -287,6 +310,7 @@ func (h *WebHandler) GetSourceView(gnourl *weburl.GnoURL) (int, *components.View
 		FileSize:     fileSizeStr,
 		FileDownload: gnourl.Path + "$download&file=" + fileName,
 		FileSource:   components.NewReaderComponent(&source),
+		IsMarkdown:   isMarkdown,
 	})
 }
 
@@ -303,10 +327,27 @@ func (h *WebHandler) GetDirectoryView(gnourl *weburl.GnoURL) (int, *components.V
 		return http.StatusOK, components.StatusErrorComponent("no files available")
 	}
 
+	// Check if README.md exists and render it
+	var readmeContent components.Component
+	for _, f := range files {
+		if strings.EqualFold(f, "README.md") {
+			var content bytes.Buffer
+			_, err := h.Client.RenderMd(&content, gnourl, "README.md")
+			if err != nil {
+				h.Logger.Error("unable to render README.md", "path", gnourl.Path, "error", err)
+				// Continue without README if there's an error
+				break
+			}
+			readmeContent = components.NewReaderComponent(&content)
+			break
+		}
+	}
+
 	return http.StatusOK, components.DirectoryView(components.DirData{
-		PkgPath:     gnourl.Path,
-		Files:       files,
-		FileCounter: len(files),
+		PkgPath:          gnourl.Path,
+		Files:            files,
+		FileCounter:      len(files),
+		ComponentContent: readmeContent,
 	})
 }
 

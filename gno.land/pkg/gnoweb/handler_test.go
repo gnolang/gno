@@ -1,6 +1,7 @@
 package gnoweb_test
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -8,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,6 +23,23 @@ type testingLogger struct {
 func (t *testingLogger) Write(b []byte) (n int, err error) {
 	t.T.Log(strings.TrimSpace(string(b)))
 	return len(b), nil
+}
+
+func (t *testingLogger) Enabled(ctx context.Context, level slog.Level) bool {
+	return true
+}
+
+func (t *testingLogger) Handle(ctx context.Context, r slog.Record) error {
+	t.T.Log(r.Message)
+	return nil
+}
+
+func (t *testingLogger) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return t
+}
+
+func (t *testingLogger) WithGroup(name string) slog.Handler {
+	return t
 }
 
 // TestWebHandler_Get tests the Get method of WebHandler using table-driven tests.
@@ -129,6 +149,7 @@ func TestWebHandler_NoRender(t *testing.T) {
 		Files: map[string]string{
 			"render.gno": `package main; func init() {}`,
 			"gno.mod":    `module gno.land/r/mock/path`,
+			"README.md":  `# Mock Package\n\nThis is a mock package.`,
 		},
 	}
 
@@ -148,8 +169,8 @@ func TestWebHandler_NoRender(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code, "unexpected status code")
-	expectedBody := "This realm does not implement a Render() function."
-	assert.Contains(t, rr.Body.String(), expectedBody, "rendered body should contain: %q", expectedBody)
+	assert.Contains(t, rr.Body.String(), "README.md", "should display directory view with README.md")
+	assert.Contains(t, rr.Body.String(), "Mock Package", "should display README.md content")
 }
 
 // TestWebHandler_GetSourceDownload tests the source file download functionality
@@ -227,4 +248,239 @@ func TestWebHandler_GetSourceDownload(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestWebHandler_GetMarkdown tests markdown file rendering with and without plain mode
+func TestWebHandler_GetMarkdown(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/path",
+		Files: map[string]string{
+			"README.md": `# Test Markdown
+
+This is a test markdown file.
+
+- Item 1
+- Item 2`,
+		},
+	}
+
+	webclient := gnoweb.NewMockWebClient(mockPackage)
+	config := gnoweb.WebHandlerConfig{
+		WebClient: webclient,
+	}
+
+	cases := []struct {
+		Path    string
+		Status  int
+		Contain string
+	}{
+		{
+			Path:    "/r/mock/path$source&file=README.md&plain",
+			Status:  http.StatusOK,
+			Contain: "# Test Markdown", // Plain mode should show raw markdown
+		},
+		{
+			Path:    "/r/mock/path$source&file=README.md",
+			Status:  http.StatusOK,
+			Contain: "<h1>Test Markdown</h1>", // Rendered markdown should contain HTML
+		},
+		{
+			Path:    "/r/mock/path$source&file=nonexistent.md",
+			Status:  http.StatusNotFound,
+			Contain: "not found",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(strings.TrimPrefix(tc.Path, "/"), func(t *testing.T) {
+			t.Parallel()
+			t.Logf("input: %+v", tc)
+
+			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+			handler, err := gnoweb.NewWebHandler(logger, config)
+			require.NoError(t, err)
+
+			req, err := http.NewRequest(http.MethodGet, tc.Path, nil)
+			require.NoError(t, err)
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			assert.Equal(t, tc.Status, rr.Code)
+			assert.Contains(t, rr.Body.String(), tc.Contain)
+		})
+	}
+}
+
+func TestWebHandler_GetDirectoryView(t *testing.T) {
+	t.Parallel()
+
+	// Set up test cases
+	testCases := []struct {
+		name           string
+		files          map[string]string
+		hasReadme      bool
+		readmeError    bool
+		expectedStatus int
+		expectedType   components.ViewType
+	}{
+		{
+			name: "with README.md",
+			files: map[string]string{
+				"render.gno": `package main; func Render(path string) string { return "one more time" }`,
+				"README.md":  `# Test README\n\nThis is a test README file.`,
+				"gno.mod":    `module example.com/r/mock/path`,
+			},
+			hasReadme:      true,
+			readmeError:    false,
+			expectedStatus: http.StatusOK,
+			expectedType:   components.DirectoryViewType,
+		},
+		{
+			name: "with README.md that fails to render",
+			files: map[string]string{
+				"render.gno": `package main; func Render(path string) string { return "one more time" }`,
+				"README.md":  `# Invalid README`, // This will cause a render error
+				"gno.mod":    `module example.com/r/mock/path`,
+			},
+			hasReadme:      true,
+			readmeError:    true,
+			expectedStatus: http.StatusOK,
+			expectedType:   components.DirectoryViewType,
+		},
+		{
+			name: "without README.md",
+			files: map[string]string{
+				"render.gno": `package main; func Render(path string) string { return "one more time" }`,
+				"gno.mod":    `module example.com/r/mock/path`,
+			},
+			hasReadme:      false,
+			readmeError:    false,
+			expectedStatus: http.StatusOK,
+			expectedType:   components.DirectoryViewType,
+		},
+		{
+			name:           "no files",
+			files:          map[string]string{},
+			hasReadme:      false,
+			readmeError:    false,
+			expectedStatus: http.StatusOK,
+			expectedType:   components.StatusViewType,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			// Create mock package
+			mockPackage := &gnoweb.MockPackage{
+				Domain: "example.com",
+				Path:   "/r/mock/path",
+				Files:  tc.files,
+			}
+
+			// Create mock web client
+			webclient := gnoweb.NewMockWebClient(mockPackage)
+
+			// Create handler
+			handler, err := gnoweb.NewWebHandler(slog.New(&testingLogger{t}), gnoweb.WebHandlerConfig{
+				Meta: gnoweb.StaticMetadata{
+					Domain:     "example.com",
+					AssetsPath: "/assets",
+					ChromaPath: "/chroma",
+					ChainId:    "test-chain",
+				},
+				WebClient: webclient,
+			})
+			require.NoError(t, err)
+
+			// Create test request
+			req := httptest.NewRequest(http.MethodGet, "/r/mock/path", nil)
+			gnourl, err := weburl.ParseFromURL(req.URL)
+			require.NoError(t, err)
+
+			// Call GetDirectoryView
+			status, view := handler.GetDirectoryView(gnourl)
+
+			// Verify status
+			assert.Equal(t, tc.expectedStatus, status)
+
+			// Verify view is not nil
+			assert.NotNil(t, view)
+
+			// Verify view type
+			assert.Equal(t, tc.expectedType, view.Type)
+
+			// If we expect a README, verify the content
+			if tc.hasReadme {
+				if !tc.readmeError {
+					// When README is present and renders successfully
+					assert.NotNil(t, view.Component)
+				} else {
+					// When README rendering fails
+					assert.NotNil(t, view)
+				}
+			} else if tc.expectedType == components.DirectoryViewType {
+				// When no README is expected but we have a directory view
+				assert.NotNil(t, view.Component)
+			}
+		})
+	}
+}
+
+func TestWebHandler_GetDirectoryView_README_RenderError(t *testing.T) {
+	t.Parallel()
+
+	// Create a mock package with a README.md that will cause a render error
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/path",
+		Files: map[string]string{
+			"render.gno": `package main; func Render(path string) string { return "one more time" }`,
+			"README.md":  `# Invalid README`, // This will cause a render error
+			"gno.mod":    `module example.com/r/mock/path`,
+		},
+	}
+
+	// Create mock web client
+	webclient := gnoweb.NewMockWebClient(mockPackage)
+
+	// Create handler with a logger
+	logger := slog.New(&testingLogger{t})
+	logger = logger.With(slog.String("test", "TestWebHandler_GetDirectoryView_README_RenderError"))
+
+	handler, err := gnoweb.NewWebHandler(logger, gnoweb.WebHandlerConfig{
+		Meta: gnoweb.StaticMetadata{
+			Domain:     "example.com",
+			AssetsPath: "/assets",
+			ChromaPath: "/chroma",
+			ChainId:    "test-chain",
+		},
+		WebClient: webclient,
+	})
+	require.NoError(t, err)
+
+	// Create test request
+	req := httptest.NewRequest(http.MethodGet, "/r/mock/path", nil)
+	gnourl, err := weburl.ParseFromURL(req.URL)
+	require.NoError(t, err)
+
+	// Call GetDirectoryView
+	status, view := handler.GetDirectoryView(gnourl)
+
+	// Verify status is OK even with render error
+	assert.Equal(t, http.StatusOK, status)
+
+	// Verify view is not nil
+	assert.NotNil(t, view)
+
+	// Verify view type is DirectoryView
+	assert.Equal(t, components.DirectoryViewType, view.Type)
+
+	// Verify that the view still contains the directory listing
+	assert.NotNil(t, view.Component)
 }

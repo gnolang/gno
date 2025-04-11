@@ -44,4 +44,7 @@ type WebClient interface {
 	// Sources lists all source files available in a specified
 	// package path.
 	Sources(path string) ([]string, error)
+
+	// RenderMd renders a markdown file and returns the rendered content
+	RenderMd(w io.Writer, u *weburl.GnoURL, fileName string) (*RealmMeta, error)
 }

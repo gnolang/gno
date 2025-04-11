@@ -48,7 +48,8 @@ func TestRoutes(t *testing.T) {
 		{"/game-of-realms", found, "/contribute"},
 		{"/gor", found, "/contribute"},
 		{"/blog", found, "/r/gnoland/blog"},
-		{"/r/docs/optional_render", http.StatusOK, "No Render"},
+		{"/r/docs/optional_render", ok, "Directory"},
+		{"/r/docs/optional_render/", ok, "Directory"},
 		{"/r/not/found/", notFound, ""},
 		{"/z/bad/request", BadRequest, ""}, // not realm or pure
 		{"/아스키문자가아닌경로", notFound, ""},
