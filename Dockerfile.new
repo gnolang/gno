@@ -1,30 +1,30 @@
 # build gno
 FROM        golang:1.23-alpine AS build-gno
-RUN         go env -w GOMODCACHE=/root/.cache/go-build
-WORKDIR     /gnoroot
 ENV         GNOROOT="/gnoroot"
 ENV         CGO_ENABLED=0 GOOS=linux 
-COPY        . ./
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=gnocache \
-            --mount=type=cache,target=/root/.cache/go-build,id=gnocache \
-            --mount=type=bind,source=go.sum,target=go.sum \
-            --mount=type=bind,source=go.mod,target=go.mod \
+WORKDIR     /gnoroot
+RUN         go env -w GOMODCACHE=/root/.cache/go-build
+# Mod files
+COPY        go.mod go.sum ./
+RUN         --mount=type=cache,target=/go/pkg/mod/,id=gomodcache \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
             go mod download -x
+COPY        . ./
 # Gnoland
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=gnocache \
-            --mount=type=cache,target=/root/.cache/go-build,id=gnocache \
+RUN         --mount=type=cache,target=/go/pkg/mod/,id=gomodcache \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
             go build -o ./build/gnoland ./gno.land/cmd/gnoland
 # Gnokey
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=gnocache \
-            --mount=type=cache,target=/root/.cache/go-build,id=gnocache \
+RUN         --mount=type=cache,target=/go/pkg/mod/,id=gomodcache \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
             go build -o ./build/gnokey ./gno.land/cmd/gnokey
 # Gnoweb
-RUN         --mount=type=cache,target=/go/pkg/mod/ \
-            --mount=type=cache,target=/root/.cache/go-build \
+RUN         --mount=type=cache,target=/go/pkg/mod/,id=gomodcache \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
             go build -o ./build/gnoweb ./gno.land/cmd/gnoweb
 # Gno
-RUN         --mount=type=cache,target=/go/pkg/mod/ \
-            --mount=type=cache,target=/root/.cache/go-build \
+RUN         --mount=type=cache,target=/go/pkg/mod/,id=gomodcache \
+            --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache \
             go build -o ./build/gno ./gnovm/cmd/gno
 
 # Gnofaucet build
@@ -147,11 +147,16 @@ COPY        --from=build-gno /gnoroot/examples      /gnoroot/examples
 COPY        --from=build-gno /gnoroot/gnovm/stdlibs /gnoroot/gnovm/stdlibs
 COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
 COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
+# gnoweb port exposed by default
+EXPOSE     8888
 ENTRYPOINT  ["/usr/bin/gnodev"]
 
 # Gno
 FROM        base AS gno
 COPY        --from=build-gno /gnoroot/build/gno /usr/bin/gno
+COPY        --from=build-gno /gnoroot/examples      /gnoroot/examples
+COPY        --from=build-gno /gnoroot/gnovm/stdlibs /gnoroot/gnovm/stdlibs
+COPY        --from=build-gno /gnoroot/tests/gnovm/stdlibs /gnoroot/gnovm/tests/stdlibs
 ENTRYPOINT  ["/usr/bin/gno"]
 
 # Gno Contribs [ Gnobro, Gnogenesis ]

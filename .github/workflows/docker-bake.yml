@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  actions: write # useful for gha caching
   packages: write
 
 jobs:
@@ -27,18 +28,7 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-       
-      # - name: Set Multiple ENV Variables
-      #   run: |
-      #     REF_NAME="${{ github.ref_name }}"
-      #     if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-      #       REF_NAME="${REF_NAME#v}"
-      #     fi
-      #     REF_NAME="${REF_NAME//\//_}"
-      #     echo "NOW=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_ENV
-      #     echo "VERSION=${REF_NAME}-${GITHUB_SHA::7}" >> $GITHUB_ENV
-      #     echo "REF_NAME=${REF_NAME}" >> $GITHUB_ENV
-      
+
       - name: Extract metadata
         uses: docker/metadata-action@v5
         id: meta
@@ -46,7 +36,12 @@ jobs:
           images: ghcr.io/${{ github.repository }}/gnoland
           tags: |
             type=ref,event=branch
+            type=ref,event=tag
             type=sha,prefix=sha-
+          # Timestamp (optional, good for nightly builds)
+          #type=raw,value={{date 'YYYYMMDD-HHmmss'}},prefix=ts- # e.g. "ts-20250410-153001"
+          # Latest tag (only on main branch, optional)
+          #type=raw,value=latest,enable={{ is_default_branch }}
           labels: |
             org.opencontainers.image.authors=Gno Core Team
 
@@ -59,14 +54,8 @@ jobs:
             cwd://${{ steps.meta.outputs.bake-file-tags }}
             cwd://${{ steps.meta.outputs.bake-file-labels }}
           push: true
-          targets: gnoland
+          targets: gnoland # to be removed
           set: |
             *.cache-from=type=gha
             *.cache-to=type=gha,mode=max
             *.context=.
-            *.platform=linux/amd64
-        # env:
-        #   DATE: ${{ env.NOW }}
-        #   FULL_COMMIT: ${{ github.sha }}
-        #   VERSION: ${{ env.VERSION }}
-        #   TAG: ${{ env.REF_NAME }}
