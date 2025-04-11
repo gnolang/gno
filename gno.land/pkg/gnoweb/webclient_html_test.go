@@ -4,10 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"testing"
-
-	"log/slog"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"

@@ -375,6 +375,7 @@ func TestWebHandler_GetDirectoryView(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			// Create mock package
 			mockPackage := &gnoweb.MockPackage{
 				Domain: "example.com",
