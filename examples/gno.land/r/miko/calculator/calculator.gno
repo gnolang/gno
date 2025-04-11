@@ -31,7 +31,12 @@ var (
 		"p": func(left float64, right float64) float64 { return left + right },
 		"-": func(left float64, right float64) float64 { return left - right },
 		"*": func(left float64, right float64) float64 { return left * right },
-		"/": func(left float64, right float64) float64 { return left / right },
+		"/": func(left float64, right float64) float64 {
+			if right == 0 {
+				panic("Division by 0 is forbidden")
+			}
+			return left / right
+		},
 	}
 )
 
@@ -101,7 +106,9 @@ func readTree(tree *Node) float64 {
 	return parsedValue
 }
 
-func ComputeResult(path string, expression string) string {
+// expression is the equation you want to solve (p replaces the + symbol)
+// exemple: 2p4/2
+func ComputeResult(expression string) string {
 	evaluateValidity(expression)
 	tree := createTree(expression)
 
@@ -129,7 +136,7 @@ func Render(path string) string {
 		displayVal = "0"
 	} else {
 		if expression[len(expression)-1] == '=' {
-			expression = ComputeResult(path, expression[:len(expression)-1])
+			expression = ComputeResult(expression[:len(expression)-1])
 		} else {
 			displayVal = strings.Replace(expression, "p", "+", -1)
 		}
