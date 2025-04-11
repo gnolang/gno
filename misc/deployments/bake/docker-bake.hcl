@@ -10,18 +10,6 @@ variable "PROJECT_NAME" {
   default = "gno"
 }
 
-variable "DATE" {
-  default = "2025-03-31"
-}
-
-variable "FULL_COMMIT" {
-  default = "959e90374dfea8afa791df43352ec6dbac3f30ed"
-}
-
-variable "VERSION" {
-  default = "1.0.0"
-}
-
 #########################################
 ################ GROUPS #################
 #########################################
@@ -70,13 +58,6 @@ target "common" {
   context = "../../../"
   dockerfile = "Dockerfile.new"
   
-  # labels = {
-  #   # "org.opencontainers.image.created" = "${DATE}"
-  #   # "org.opencontainers.image.title" = "${PROJECT_NAME}"
-  #   # "org.opencontainers.image.revision" = "${FULL_COMMIT}"
-  #   # "org.opencontainers.image.version" = "${VERSION}"
-  #   # "org.opencontainers.image.authors" = "Gno Core Team"
-  # }
   platforms = [
     "linux/amd64",
     "linux/arm64"
@@ -87,9 +68,9 @@ target "common" {
 target "gnoland" {
   inherits = ["common"]
   target = "gnoland"
-  # tags = [
-  #   "ghcr.io/gnolang/gno/gnoland:${TAG}"
-  # ]
+  tags = [
+    "ghcr.io/gnolang/gno/gnoland:${TAG}"
+  ]
   labels = {
     "org.opencontainers.image.title" = "${PROJECT_NAME}/gnoland"
   }
