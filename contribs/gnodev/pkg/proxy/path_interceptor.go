@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go/parser"
+	"go/token"
 	"io"
 	"log/slog"
 	"net"
@@ -297,7 +299,32 @@ func handleTx(bz []byte, upaths uniqPaths) error {
 
 	for _, msg := range tx.Msgs {
 		switch msg := msg.(type) {
-		case vm.MsgAddPackage: // MsgAddPackage should not be handled
+		case vm.MsgAddPackage:
+			if msg.Package == nil {
+				continue
+			}
+
+			fset := token.NewFileSet()
+			for _, file := range msg.Package.Files {
+				if !strings.HasSuffix(file.Name, ".gno") {
+					continue
+				}
+
+				f, err := parser.ParseFile(fset, file.Name, file.Body, parser.ImportsOnly)
+				if err != nil {
+					return fmt.Errorf("unable to parse file %q: %w", file.Name, err)
+				}
+
+				for _, imp := range f.Imports {
+					if len(imp.Path.Value) <= 2 {
+						continue
+					}
+
+					path := imp.Path.Value[1 : len(imp.Path.Value)-1]
+					upaths.add(path)
+				}
+			}
+
 		case vm.MsgCall:
 			upaths.add(msg.PkgPath)
 		case vm.MsgRun:
