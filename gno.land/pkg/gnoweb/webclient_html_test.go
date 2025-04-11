@@ -2,13 +2,18 @@ package gnoweb
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strings"
 	"testing"
 
+	"log/slog"
+
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/text"
 )
 
 // JSONParam represents a function parameter in JSON format
@@ -32,6 +37,33 @@ func (w *errorWriter) Write(p []byte) (int, error) {
 // dummyGnoURL creates a dummy GnoURL for testing
 func dummyGnoURL(path string) *weburl.GnoURL {
 	return &weburl.GnoURL{Path: path}
+}
+
+// testingLogger is a logger that writes to the test output
+type testingLogger struct {
+	*testing.T
+}
+
+func (t *testingLogger) Write(b []byte) (n int, err error) {
+	t.T.Log(strings.TrimSpace(string(b)))
+	return len(b), nil
+}
+
+func (t *testingLogger) Enabled(ctx context.Context, level slog.Level) bool {
+	return true
+}
+
+func (t *testingLogger) Handle(ctx context.Context, r slog.Record) error {
+	t.T.Log(r.Message)
+	return nil
+}
+
+func (t *testingLogger) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return t
+}
+
+func (t *testingLogger) WithGroup(name string) slog.Handler {
+	return t
 }
 
 // --- Unit Tests ---
@@ -417,5 +449,68 @@ func TestWriteFormatterCSS(t *testing.T) {
 	css := buf.String()
 	if len(css) == 0 {
 		t.Error("generated CSS should not be empty")
+	}
+}
+
+// TestGenerateTOC verifies the table of contents generation from markdown content
+func TestGenerateTOC(t *testing.T) {
+	// Create a HTMLWebClient with default configuration
+	config := NewDefaultHTMLWebClientConfig(nil)
+	config.GoldmarkOptions = append(config.GoldmarkOptions, goldmark.WithParserOptions(parser.WithAutoHeadingID()))
+	client := NewHTMLClient(slog.New(&testingLogger{t}), config)
+
+	// Test cases
+	cases := []struct {
+		name     string
+		content  string
+		expected int // expected number of TOC items
+	}{
+		{
+			name: "simple headings",
+			content: `# Title 1
+## Subtitle 1.1
+## Subtitle 1.2
+### Sub-subtitle 1.2.1
+# Title 2`,
+			expected: 2, // Only ## and ### headings
+		},
+		{
+			name: "no headings",
+			content: `This is a paragraph
+with no headings.`,
+			expected: 0,
+		},
+		{
+			name: "nested headings",
+			content: `# Main Title
+## Section 1
+### Subsection 1.1
+#### Detail 1.1.1
+## Section 2
+### Subsection 2.1`,
+			expected: 2, // Only ## headings
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Parse the markdown content
+			doc := client.Markdown.Parser().Parse(text.NewReader([]byte(tc.content)))
+
+			// Generate TOC
+			toc := client.generateTOC(doc, []byte(tc.content))
+
+			// Print the TOC structure for debugging
+			t.Logf("Generated TOC items: %d", len(toc.Items))
+			for i, item := range toc.Items {
+				t.Logf("Item %d: Title='%s', ID='%s', Children=%d",
+					i, string(item.Title), string(item.ID), len(item.Items))
+			}
+
+			// Verify the number of TOC items
+			if len(toc.Items) != tc.expected {
+				t.Errorf("expected %d TOC items, got %d", tc.expected, len(toc.Items))
+			}
+		})
 	}
 }
