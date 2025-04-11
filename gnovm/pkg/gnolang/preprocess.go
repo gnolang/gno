@@ -451,7 +451,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	// XXX well the following may be isn't idempotent,
 	// XXX so it is currently strange.
 	if bn, ok := n.(BlockNode); ok {
-		//findGotoLoopDefines(ctx, bn)
+		// findGotoLoopDefines(ctx, bn)
 		findHeapDefinesByUse(ctx, bn)
 		findHeapUsesDemoteDefines(ctx, bn)
 		findPackageSelectors(bn)
@@ -2893,7 +2893,7 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (i
 	// vp := fle.GetPathForName(nil, name)
 	vp := nx.Path
 	vp.SetDepth(vp.Depth - uint8(depth))
-	//vp.SetDepth(vp.Depth - 1) // minus 1 for fle itself.
+	// vp.SetDepth(vp.Depth - 1) // minus 1 for fle itself.
 	ne := NameExpr{
 		Path: vp,
 		Name: name,

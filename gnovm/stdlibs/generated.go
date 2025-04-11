@@ -245,7 +245,7 @@ var nativeFuncs = [...]NativeFunc{
 		"MemStats",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
 		},
 		true,
 		func(m *gno.Machine) {

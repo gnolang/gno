@@ -558,7 +558,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store, start int) int {
 	// (and never can be unescaped,)
 	// except for new-reals that get demoted
 	// because ref-count isn't >= 2.
-	//for _, eo := range rlm.newEscaped[start:] {
+	// for _, eo := range rlm.newEscaped[start:] {
 	for i := 0; i < len(rlm.newEscaped[start:]); i++ { // may expand.
 		eo := rlm.newEscaped[i]
 		if debug {

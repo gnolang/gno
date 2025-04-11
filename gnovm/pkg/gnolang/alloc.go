@@ -2,7 +2,6 @@ package gnolang
 
 import (
 	"fmt"
-	"reflect"
 )
 
 // Keeps track of in-memory allocations.
@@ -30,9 +29,6 @@ const (
 	_allocStructValue      = 160
 	_allocArrayValue       = 184
 	_allocSliceValue       = 40
-	_allocMapValue         = 144
-	_allocBoundMethodValue = 176
-	_allocBlock            = 464
 	_allocFuncValue        = 196
 	_allocMapValue         = 152
 	_allocBoundMethodValue = 184
@@ -394,10 +390,6 @@ func (fv *FuncValue) GetShallowSize() int64 {
 
 func (sv StringValue) GetShallowSize() int64 {
 	return allocString + allocStringByte*int64(len(sv))
-}
-
-func (nv *NativeValue) GetShallowSize() int64 {
-	return allocNative
 }
 
 func (bv BigintValue) GetShallowSize() int64 {

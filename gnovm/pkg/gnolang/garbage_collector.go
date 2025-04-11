@@ -271,10 +271,6 @@ func (dbv DataByteValue) VisitAssociated(vis Visitor) (stop bool) {
 	return false
 }
 
-func (nv *NativeValue) VisitAssociated(vis Visitor) (stop bool) {
-	return false
-}
-
 func (rv RefValue) VisitAssociated(vis Visitor) (stop bool) {
 	return false
 }
