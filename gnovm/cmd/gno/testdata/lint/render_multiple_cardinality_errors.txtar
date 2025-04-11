@@ -1,0 +1,22 @@
+# testing gno tool lint command: Render function with multiple cardinality errors (too many parameters and returns)
+
+! gno tool lint ./multiple_cardinality_errors.gno
+
+cmp stdout stdout.golden
+cmp stderr stderr.golden
+
+-- multiple_cardinality_errors.gno --
+package main
+
+// multiple cardinality errors: too many parameters and return values
+func Render(path string, extra string) (string, error) {
+	return "Hello World " + path, nil 
+}
+
+-- gno.mod --
+module gno.land/p/test
+
+-- stdout.golden --
+-- stderr.golden --
+multiple_cardinality_errors.gno:4: Render function should have exactly one parameter, found: 2 parameters, expected: func Render(string) string (code=5)
+multiple_cardinality_errors.gno:4: Render function should return exactly one string value, found: 2 returns, expected: func Render(string) string (code=5)

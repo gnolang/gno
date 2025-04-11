@@ -1,0 +1,21 @@
+# testing gno tool lint command: Render function with too many return values
+
+! gno tool lint ./too_many_returns.gno
+
+cmp stdout stdout.golden
+cmp stderr stderr.golden
+
+-- too_many_returns.gno --
+package main
+
+// too many return values
+func Render(path string) (string, error) {
+	return "Hello World " + path, nil
+}
+
+-- gno.mod --
+module gno.land/p/test
+
+-- stdout.golden --
+-- stderr.golden --
+too_many_returns.gno:4: Render function should return exactly one string value, found: 2 returns, expected: func Render(string) string (code=5)

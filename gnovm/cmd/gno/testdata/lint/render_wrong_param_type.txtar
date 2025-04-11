@@ -1,0 +1,23 @@
+# testing gno tool lint command: all invalid Render function signature cases
+
+! gno tool lint ./wrong_param_type.gno
+
+cmp stdout stdout.golden
+cmp stderr stderr.golden
+
+-- wrong_param_type.gno --
+package test
+
+import "fmt"
+
+// wrong parameter type (int vs string)
+func Render(path int) string {
+	return "Hello World" + fmt.Sprint(path)
+}
+
+-- gno.mod --
+module gno.land/p/test
+
+-- stdout.golden --
+-- stderr.golden --
+wrong_param_type.gno:6: Render function parameter should be of type string, found: int type, expected: func Render(string) string (code=5)

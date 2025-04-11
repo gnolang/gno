@@ -1,0 +1,21 @@
+# testing gno tool lint command: Render function with wrong return type
+
+! gno tool lint ./wrong_return_type.gno
+
+cmp stdout stdout.golden
+cmp stderr stderr.golden
+
+-- wrong_return_type.gno --
+package main
+
+// wrong return type (int vs string)
+func Render(path string) int {
+	return 42
+}
+
+-- gno.mod --
+module gno.land/p/test
+
+-- stdout.golden --
+-- stderr.golden --
+wrong_return_type.gno:4: Render function should return a single string, found: int type: expected func Render(string) string (code=5)

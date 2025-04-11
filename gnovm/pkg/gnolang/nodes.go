@@ -112,6 +112,8 @@ const (
 
 type Name string
 
+func (n Name) String() string { return string(n) }
+
 // ----------------------------------------
 // Location
 // Acts as an identifier for nodes.
