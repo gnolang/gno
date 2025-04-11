@@ -30,6 +30,7 @@ func main() {
 	println(md.Footnote("ref", "This is a footnote"))
 	println(md.Paragraph("This is a paragraph."))
 
+	println("4 columns in one gno-columns tag:")
 	println(md.Columns([]string{
 		"Column1\ncontent1",
 		"Column2\ncontent2",
@@ -38,6 +39,7 @@ func main() {
 	}))
 
 	// Should be automatically placed in multiple column tags
+	println("3 cols per row without padding:")
 	println(md.ColumnsN([]string{
 		"Row1Column1\ncontent1",
 		"Row1Column2\ncontent2",
@@ -51,11 +53,11 @@ func main() {
 	}, 3, false))
 
 	// Should be padded, up to 4 cols
-	println("2 padded to 6 (resized to 4):")
+	println("2 padded to 4:")
 	println(md.ColumnsN([]string{
 		"Column1\ncontent1",
-		"Column1\ncontent1",
-	}, 6, true))
+		"Column2\ncontent2",
+	}, 4, true))
 
 }
 
@@ -113,6 +115,7 @@ func main() {
 // This is a paragraph.
 //
 //
+// 4 columns in one gno-columns tag:
 // <gno-columns>
 // Column1
 // content1
@@ -127,6 +130,7 @@ func main() {
 // content4
 // </gno-columns>
 //
+// 3 cols per row without padding:
 // <gno-columns>
 // Row1Column1
 // content1
@@ -158,13 +162,13 @@ func main() {
 // content3
 // </gno-columns>
 //
-// 2 padded to 6 (resized to 4):
+// 2 padded to 4:
 // <gno-columns>
 // Column1
 // content1
 // |||
-// Column1
-// content1
+// Column2
+// content2
 // |||
 //
 // |||

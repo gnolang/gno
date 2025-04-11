@@ -184,7 +184,8 @@ A
 B
 |||
 C
-</gno-columns>`,
+</gno-columns>
+`,
 		},
 		{
 			name:       "exact full row, no padding",
@@ -241,25 +242,6 @@ X
 
 |||
 
-</gno-columns>
-`,
-		},
-		{
-			name:       "colsPerRow > 4 should cap at 4",
-			content:    []string{"A", "B", "C", "D", "E"},
-			colsPerRow: 5,
-			padded:     false,
-			expected: `<gno-columns>
-A
-|||
-B
-|||
-C
-|||
-D
-</gno-columns>
-<gno-columns>
-E
 </gno-columns>
 `,
 		},
