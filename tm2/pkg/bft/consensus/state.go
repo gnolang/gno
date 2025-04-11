@@ -520,8 +520,9 @@ func (cs *ConsensusState) updateToState(state sm.State) {
 	var span trace.Span
 
 	if telemetry.TracesEnabled() {
-		cs.traceCtx, span = tracer.Start(context.Background(), fmt.Sprintf("NewHeight: %v", state.LastBlockHeight+1))
-		span.SetAttributes(attribute.Int64("csHeight", state.LastBlockHeight+1))
+        newHeight := state.LastBlockHeight+1
+		cs.traceCtx, span = tracer.Start(context.Background(), fmt.Sprintf("NewHeight: %d", newHeight))
+		span.SetAttributes(attribute.Int64("csHeight", newHeight))
 		span.SetAttributes(attribute.Int64("csRound", 0))
 		span.SetAttributes(attribute.Int64("csStep", int64(cstypes.RoundStepNewHeight)))
 		defer span.End()
