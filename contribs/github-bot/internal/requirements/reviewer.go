@@ -106,6 +106,8 @@ func (r *ReviewByUserRequirement) IsSatisfied(pr *github.PullRequest, details tr
 
 		if requested {
 			r.gh.Logger.Debugf("Review of user %s already requested on PR %d", r.user, pr.GetNumber())
+		} else if r.user == pr.GetUser().GetLogin() {
+			r.gh.Logger.Debugf("Review of user %s is not requested on PR %d because he's the author", r.user, pr.GetNumber())
 		} else {
 			r.gh.Logger.Debugf("Requesting review from user %s on PR %d", r.user, pr.GetNumber())
 			if _, _, err := r.gh.Client.PullRequests.RequestReviewers(

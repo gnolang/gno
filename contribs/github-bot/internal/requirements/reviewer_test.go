@@ -91,6 +91,8 @@ func Test_deduplicateReviews(t *testing.T) {
 func TestReviewByUser(t *testing.T) {
 	t.Parallel()
 
+	prAuthor := &github.User{Login: github.String("prAuthor")}
+
 	reviewers := github.Reviewers{
 		Users: []*github.User{
 			{Login: github.String("notTheRightOne")},
@@ -125,6 +127,7 @@ func TestReviewByUser(t *testing.T) {
 		{"reviewer matches", "user", true, false},
 		{"reviewer matches without approval", "anotherOne", false, false},
 		{"reviewer doesn't match", "user2", false, true},
+		{"reviewer is the author", *prAuthor.Login, false, false},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
@@ -161,7 +164,8 @@ func TestReviewByUser(t *testing.T) {
 				Logger: logger.NewNoopLogger(),
 			}
 
-			pr := &github.PullRequest{}
+			// Create a new PullRequest object with an author
+			pr := &github.PullRequest{User: prAuthor}
 			details := treeprint.New()
 			requirement := ReviewByUser(gh, testCase.user).WithDesiredState(utils.ReviewStateApproved)
 
