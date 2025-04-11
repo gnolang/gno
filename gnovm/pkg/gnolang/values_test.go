@@ -11,7 +11,7 @@ type mockTypedValueStruct struct {
 
 func (m *mockTypedValueStruct) assertValue() {}
 
-func (m *mockTypedValueStruct) String() string {
+func (m *mockTypedValueStruct) String(_ *Machine) string {
 	return fmt.Sprintf("MockTypedValueStruct(%d)", m.field)
 }
 

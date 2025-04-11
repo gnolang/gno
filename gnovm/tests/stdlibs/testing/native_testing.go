@@ -24,5 +24,5 @@ func X_recoverWithStacktrace(m *gnolang.Machine) (gnolang.TypedValue, string) {
 	if exception == nil {
 		return gnolang.TypedValue{}, ""
 	}
-	return exception.Value, exception.Stacktrace.String()
+	return exception.Value, exception.Stacktrace.String(m)
 }
