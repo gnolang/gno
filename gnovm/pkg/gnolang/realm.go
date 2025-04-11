@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 
@@ -695,19 +696,13 @@ func (rlm *Realm) clearDeleted() {
 		return
 	}
 
-	// Convert deleted objects to a map for O(1) lookups
-	deleted := make(map[Object]struct{}, len(rlm.deleted))
-	for _, do := range rlm.deleted {
-		deleted[do] = struct{}{}
-	}
-
 	filter := func(slice []Object) []Object {
 		if slice == nil {
 			return nil
 		}
 		filtered := slice[:0]
 		for _, obj := range slice {
-			if _, exists := deleted[obj]; !exists {
+			if !slices.Contains(rlm.deleted, obj) {
 				filtered = append(filtered, obj)
 			}
 		}
