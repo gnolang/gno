@@ -42,6 +42,7 @@ type JSONValue struct {
 type JSONField struct {
 	Name string `json:"name"`
 	Type string `json:"type"`
+	Doc  string `json:"doc"` // markdown
 }
 
 type JSONFunc struct {
@@ -54,9 +55,11 @@ type JSONFunc struct {
 }
 
 type JSONType struct {
-	Name      string `json:"name"`
-	Signature string `json:"signature"`
-	Doc       string `json:"doc"` // markdown
+	Interface bool         `json:"interface"` // true if the type is an interface, false if struct
+	Name      string       `json:"name"`
+	Signature string       `json:"signature"`
+	Doc       string       `json:"doc"` // markdown
+	Fields    []*JSONField `json:"fields"`
 }
 
 // NewDocumentableFromMemPkg gets the pkgData from memPkg and returns a Documentable
@@ -121,10 +124,39 @@ func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
 	}
 
 	for _, typ := range pkg.Types {
+		// Set typeSpec to the ast.TypeSpec within the declaration that defines the symbol.
+		var typeSpec *ast.TypeSpec
+		for _, spec := range typ.Decl.Specs {
+			tSpec := spec.(*ast.TypeSpec) // Must succeed
+			if typ.Name == tSpec.Name.Name {
+				typeSpec = tSpec
+				break
+			}
+		}
+
+		isInterface := false
+		if typeSpec != nil {
+			_, ok := typeSpec.Type.(*ast.InterfaceType)
+			if ok {
+				isInterface = true
+			}
+		}
+
+		var fields []*JSONField
+		if typeSpec != nil {
+			structType, ok := typeSpec.Type.(*ast.StructType)
+			if ok {
+				// TODO: Anonymous fields.
+				fields = d.extractJSONFields(structType.Fields)
+			}
+		}
+
 		jsonDoc.Types = append(jsonDoc.Types, &JSONType{
+			Interface: isInterface,
 			Name:      typ.Name,
 			Signature: mustFormatNode(d.pkgData.fset, typ.Decl),
 			Doc:       string(pkg.Markdown(typ.Doc)),
+			Fields:    fields,
 		})
 
 		// values of this type
@@ -175,11 +207,19 @@ func (d *Documentable) extractJSONFields(fieldList *ast.FieldList) []*JSONField 
 	results := []*JSONField{}
 	if fieldList != nil {
 		for _, field := range fieldList.List {
+			commentBuf := new(strings.Builder)
+			if field.Comment != nil {
+				for _, comment := range field.Comment.List {
+					commentBuf.WriteString(comment.Text)
+				}
+			}
+
 			if len(field.Names) == 0 {
 				// if there are no names, then the field is unnamed, but still has a type
 				f := &JSONField{
 					Name: "",
 					Type: mustFormatNode(d.pkgData.fset, field.Type),
+					Doc:  commentBuf.String(),
 				}
 				results = append(results, f)
 			} else {
@@ -189,6 +229,7 @@ func (d *Documentable) extractJSONFields(fieldList *ast.FieldList) []*JSONField 
 					f := &JSONField{
 						Name: name.Name,
 						Type: mustFormatNode(d.pkgData.fset, field.Type),
+						Doc:  commentBuf.String(),
 					}
 					results = append(results, f)
 				}
