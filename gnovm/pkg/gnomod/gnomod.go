@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
@@ -37,42 +35,6 @@ func CreateGnoModFile(rootDir, modPath string) error {
 		return errors.New("gno.mod file already exists")
 	}
 
-	if modPath == "" {
-		// Check .gno files for package name
-		// and use it as modPath
-		files, err := os.ReadDir(rootDir)
-		if err != nil {
-			return fmt.Errorf("read dir %q: %w", rootDir, err)
-		}
-
-		var pkgName gnolang.Name
-		for _, file := range files {
-			if file.IsDir() || !strings.HasSuffix(file.Name(), ".gno") || strings.HasSuffix(file.Name(), "_filetest.gno") {
-				continue
-			}
-
-			fpath := filepath.Join(rootDir, file.Name())
-			bz, err := os.ReadFile(fpath)
-			if err != nil {
-				return fmt.Errorf("read file %q: %w", fpath, err)
-			}
-
-			pn := gnolang.MustPackageNameFromFileBody(file.Name(), string(bz))
-			if strings.HasSuffix(string(pkgName), "_test") {
-				pkgName = pkgName[:len(pkgName)-len("_test")]
-			}
-			if pkgName == "" {
-				pkgName = pn
-			}
-			if pkgName != pn {
-				return fmt.Errorf("package name mismatch: [%q] and [%q]", pkgName, pn)
-			}
-		}
-		if pkgName == "" {
-			return errors.New("cannot determine package name")
-		}
-		modPath = string(pkgName)
-	}
 	if err := module.CheckImportPath(modPath); err != nil {
 		return err
 	}
