@@ -52,6 +52,9 @@ BALANCES_PATH=./tmp-genesis/genesis_balances.txt
 pullBalances $BALANCES_PATH
 gnogenesis balances add -balance-sheet $BALANCES_PATH
 
+# Verify that the genesis.json is valid
+gnogenesis verify -genesis-path $GENESIS_FILE
+
 # Verify the checksum, if any
 if [[ -n "$CHECKSUM" ]]; then
   ACTUAL_CHECKSUM=$(sha256sum "$GENESIS_FILE" | awk '{print $1}')
