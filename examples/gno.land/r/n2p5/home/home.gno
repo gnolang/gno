@@ -6,7 +6,7 @@ import (
 
 	"gno.land/p/n2p5/chonk"
 
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 	"gno.land/r/n2p5/config"
 )
 
@@ -16,7 +16,7 @@ var (
 )
 
 func init() {
-	hof.Register("N2p5's Home Realm", "")
+	hor.Register("N2p5's Home Realm", "")
 
 }
 

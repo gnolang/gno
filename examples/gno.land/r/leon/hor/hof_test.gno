@@ -1,4 +1,4 @@
-package hof
+package hor
 
 import (
 	"std"

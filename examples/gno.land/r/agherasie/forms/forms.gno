@@ -6,13 +6,13 @@ import (
 	"gno.land/p/agherasie/forms"
 	"gno.land/p/demo/json"
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 )
 
 var db *forms.FormDB
 
 func init() {
-	hof.Register("Ahgerasle's forms", "")
+	hor.Register("Ahgerasle's forms", "")
 	db = forms.NewDB()
 }
 

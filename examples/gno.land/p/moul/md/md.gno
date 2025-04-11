@@ -240,3 +240,51 @@ func EscapeText(text string) string {
 	)
 	return replacer.Replace(text)
 }
+
+// Columns returns a formatted row of columns using the Gno syntax.
+// If you want a specific number of columns per row (<=4), use ColumnsN.
+// Check /r/docs/markdown#columns for more info.
+func Columns(contentByColumn []string) string {
+	var sb strings.Builder
+	sb.WriteString("<gno-columns>\n")
+
+	for i, column := range contentByColumn {
+		if i > 0 {
+			sb.WriteString("|||\n")
+		}
+		sb.WriteString(column + "\n")
+	}
+
+	sb.WriteString("</gno-columns>\n")
+	return sb.String()
+}
+
+// ColumnsN splits content into multiple rows of N columns each and formats them.
+// If colsPerRow <= 0, all items are placed in one <gno-columns> block.
+// If padded=true & the final <gno-columns> tag is missing column content, an empty
+// column element will be placed to keep the cols per row constant.
+// Padding works only with colsPerRow > 0.
+// Note: On standard-size screens, gnoweb handles a max of 4 cols per row.
+func ColumnsN(content []string, colsPerRow int, padded bool) string {
+	if len(content) == 0 || colsPerRow <= 0 {
+		return Columns(content)
+	}
+
+	var sb strings.Builder
+	// Case 2: Multiple blocks with max 4 columns
+	for i := 0; i < len(content); i += colsPerRow {
+		end := i + colsPerRow
+		if end > len(content) {
+			end = len(content)
+		}
+		row := content[i:end]
+
+		// Add padding if needed
+		if padded && len(row) < colsPerRow {
+			row = append(row, make([]string, colsPerRow-len(row))...)
+		}
+
+		sb.WriteString(Columns(row))
+	}
+	return sb.String()
+}

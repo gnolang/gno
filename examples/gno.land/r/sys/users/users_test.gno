@@ -158,12 +158,46 @@ func TestROStores(t *testing.T) {
 		rawRoData, ok := roNS.Get(alice)
 		// uassert.False(t, ok)
 		// XXX: not sure what to do here, as the tree technically has the data so returns ok
-		// However the data is intercepted and something else (nilin this case) is returned.
+		// However the data is intercepted and something else (nil in this case) is returned.
 		// should we handle this somehow?
 
 		uassert.Equal(t, rawRoData, nil)
 		_, ok = rawRoData.(*UserData) // shouldn't be castable
 		uassert.False(t, ok)
+	})
+}
+
+func TestResolveAny(t *testing.T) {
+	testing.SetOriginCaller(whitelistedCallerAddr)
+
+	t.Run("name", func(t *testing.T) {
+		cleanStore(t)
+
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
+
+		res, _ := ResolveAny(alice)
+
+		uassert.Equal(t, aliceAddr, res.Addr())
+		uassert.Equal(t, alice, res.Name())
+	})
+
+	t.Run("address", func(t *testing.T) {
+		cleanStore(t)
+
+		urequire.NoError(t, RegisterUser(alice, aliceAddr))
+
+		res, _ := ResolveAny(aliceAddr.String())
+
+		uassert.Equal(t, aliceAddr, res.Addr())
+		uassert.Equal(t, alice, res.Name())
+	})
+
+	t.Run("not_registered", func(t *testing.T) {
+		cleanStore(t)
+
+		res, _ := ResolveAny(aliceAddr.String())
+
+		uassert.Equal(t, nil, res)
 	})
 }
 

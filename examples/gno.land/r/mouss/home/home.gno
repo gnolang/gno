@@ -10,7 +10,7 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/addrset"
 	"gno.land/p/moul/md"
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 	"gno.land/r/mouss/config"
 )
 
@@ -81,7 +81,7 @@ func init() {
 		Instructions: " Mix flour and water until incorporated\n Add yeast and salt, knead for 20 minutes\n Let rise for 2 hours at room temperature\n Divide into 250g balls\n Cold ferment for 24-48 hours\n Shape by hand, being gentle with the dough\n Top with crushed tomatoes, torn mozzarella, and basil\n Cook at 450°C for 60-90 seconds",
 		Tips:         "Use a pizza steel or stone preheated for at least 1 hour. The dough should be soft and extensible. For best results, cook in a wood-fired oven.",
 	}
-	hof.Register("Mouss's Home Realm", "")
+	hor.Register("Mouss's Home Realm", "")
 }
 
 // AddRecipe adds a new recipe in recipe page by users

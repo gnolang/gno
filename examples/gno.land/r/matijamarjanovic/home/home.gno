@@ -6,7 +6,7 @@ import (
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 )
 
 var (
@@ -45,7 +45,7 @@ func init() {
 	modernLink = "https://www.google.com"
 	classicLink = "https://www.google.com"
 	minimalLink = "https://www.google.com"
-	hof.Register("Matija Marijanovic's Home Realm", "")
+	hor.Register("Matija Marijanovic's Home Realm", "")
 }
 
 func UpdatePFP(url, caption string) {

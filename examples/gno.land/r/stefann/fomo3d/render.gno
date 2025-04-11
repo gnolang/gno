@@ -67,7 +67,7 @@ func RenderHome() string {
 
 	// Vote For Me section
 	builder.WriteString("### Vote For Us! 🗳️\n\n")
-	builder.WriteString("If you enjoy playing FOMO3D, please consider upvoting this game in the [Hall of Realms](https://gno.land/r/leon/hof)!\n\n")
+	builder.WriteString("If you enjoy playing FOMO3D, please consider upvoting this game in the [Hall of Realms](https://gno.land/r/leon/hor)!\n\n")
 	builder.WriteString("Your support helps more players discover the game and grow our community! 🚀\n\n")
 
 	// Report Bug section

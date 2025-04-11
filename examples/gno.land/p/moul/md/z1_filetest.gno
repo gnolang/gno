@@ -29,6 +29,36 @@ func main() {
 	println(md.InlineImageWithLink("Alt Text", "http://example.com/image.png", "http://example.com"))
 	println(md.Footnote("ref", "This is a footnote"))
 	println(md.Paragraph("This is a paragraph."))
+
+	println("4 columns in one gno-columns tag:")
+	println(md.Columns([]string{
+		"Column1\ncontent1",
+		"Column2\ncontent2",
+		"Column3\ncontent3",
+		"Column4\ncontent4",
+	}))
+
+	// Should be automatically placed in multiple column tags
+	println("3 cols per row without padding:")
+	println(md.ColumnsN([]string{
+		"Row1Column1\ncontent1",
+		"Row1Column2\ncontent2",
+		"Row1Column3\ncontent3",
+		"Row2Column1\ncontent1",
+		"Row2Column2\ncontent2",
+		"Row2Column3\ncontent3",
+		"Row3Column1\ncontent1",
+		"Row3Column2\ncontent2",
+		"Row3Column3\ncontent3",
+	}, 3, false))
+
+	// Should be padded, up to 4 cols
+	println("2 padded to 4:")
+	println(md.ColumnsN([]string{
+		"Column1\ncontent1",
+		"Column2\ncontent2",
+	}, 4, true))
+
 }
 
 // Output:
@@ -84,4 +114,64 @@ func main() {
 // [ref]: This is a footnote
 // This is a paragraph.
 //
+//
+// 4 columns in one gno-columns tag:
+// <gno-columns>
+// Column1
+// content1
+// |||
+// Column2
+// content2
+// |||
+// Column3
+// content3
+// |||
+// Column4
+// content4
+// </gno-columns>
+//
+// 3 cols per row without padding:
+// <gno-columns>
+// Row1Column1
+// content1
+// |||
+// Row1Column2
+// content2
+// |||
+// Row1Column3
+// content3
+// </gno-columns>
+// <gno-columns>
+// Row2Column1
+// content1
+// |||
+// Row2Column2
+// content2
+// |||
+// Row2Column3
+// content3
+// </gno-columns>
+// <gno-columns>
+// Row3Column1
+// content1
+// |||
+// Row3Column2
+// content2
+// |||
+// Row3Column3
+// content3
+// </gno-columns>
+//
+// 2 padded to 4:
+// <gno-columns>
+// Column1
+// content1
+// |||
+// Column2
+// content2
+// |||
+//
+// |||
+//
+// </gno-columns>
 //
