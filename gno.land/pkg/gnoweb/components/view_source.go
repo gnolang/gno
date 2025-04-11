@@ -1,5 +1,9 @@
 package components
 
+import (
+	"strings"
+)
+
 const SourceViewType ViewType = "source-view"
 
 type SourceData struct {
@@ -14,8 +18,10 @@ type SourceData struct {
 }
 
 type SourceTocData struct {
-	Icon  string
-	Items []SourceTocItem
+	Icon         string
+	ReadmeFile   SourceTocItem
+	GnoFiles     []SourceTocItem
+	GnoTestFiles []SourceTocItem
 }
 
 type SourceTocItem struct {
@@ -37,18 +43,28 @@ type sourceViewParams struct {
 
 func SourceView(data SourceData) *View {
 	tocData := SourceTocData{
-		Icon:  "file",
-		Items: make([]SourceTocItem, len(data.Files)),
+		Icon: "file",
 	}
 
-	for i, file := range data.Files {
-		tocData.Items[i] = SourceTocItem{
+	for _, file := range data.Files {
+		item := SourceTocItem{
 			Link: data.PkgPath + "$source&file=" + file,
 			Text: file,
 		}
+
+		switch {
+		case file == "README.md":
+			tocData.ReadmeFile = item
+
+		case strings.HasSuffix(file, "_test.gno") || strings.HasSuffix(file, "_filetest.gno"):
+			tocData.GnoTestFiles = append(tocData.GnoTestFiles, item)
+
+		case strings.HasSuffix(file, ".gno"):
+			tocData.GnoFiles = append(tocData.GnoFiles, item)
+		}
 	}
 
-	toc := NewTemplateComponent("ui/toc_generic", tocData)
+	toc := NewTemplateComponent("ui/toc_source", tocData)
 	content := NewTemplateComponent("ui/code_wrapper", data.FileSource)
 	viewData := sourceViewParams{
 		Article: ArticleData{
