@@ -34,8 +34,8 @@ gnogenesis validator add -name gnocore-val-02 -power 1 -address g13762rd7y8s7jcc
 # gnogenesis validator add -name devx-val-02 -power 1 -address TODO -pub-key TODO
 
 # AiB (2)
-# gnogenesis validator add -name aib-val-01 -power 1 -address TODO -pub-key TODO
-# gnogenesis validator add -name aib-val-02 -power 1 -address TODO -pub-key TODO
+gnogenesis validator add -name aib-val-01 -power 1 -address g12yvv8pl5s20suxyd30g7ychqenamtlhctgfu90 -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zplgfkp8609ghdh20w6newh40f9tz7ussw2zylq23ca0tjda3csztm242ft
+gnogenesis validator add -name aib-val-02 -power 1 -address g1p3lyk676gludkk6hqceem58c6xgnpsld45s4v9 -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpf65yj5xh8y9qux89skvve77w7hytfcfey92zlvx56ruugqvk9eepk73fg
 
 # Onbloc (2)
 gnogenesis validator add -name onbloc-val-01 -power 1 -address g14cppfre9hsvu6p4scttuyu7mj082lfwxl7hvz9 -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqe87d7lc0c4l4yaa8a94fucfre8882n8556l9z5220zjaaaqj7k5cl5sud
