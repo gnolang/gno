@@ -291,8 +291,10 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			if *lockTransfer {
 				genesis.Bank.Params.RestrictedDenoms = []string{"ugnot"}
 			}
+
+			// XXX: temporary, we should set feecollector and other params whithin txtar
 			genesis.VM.RealmParams = append(genesis.VM.RealmParams, tsGenesis.VM.RealmParams...)
-			genesis.Auth.Params = tsGenesis.Auth.Params
+			genesis.Auth.Params.FeeCollector = tsGenesis.Auth.Params.FeeCollector
 
 			cfg.Genesis.AppState = genesis
 			if *nonVal {
