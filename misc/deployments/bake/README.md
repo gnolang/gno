@@ -5,19 +5,19 @@ Building Docker images by _baking_ them.
 * Bake Gno basic images from `${project_root_folder}`
 
 ```sh
-docker buildx bake --allow fs=\* --file misc/deployments/bake/docker-bake.hcl --set \*.context=. --set \*.dockerfile=Dockerfile.new
+docker buildx bake --allow fs=\* --file misc/deployments/bake/docker-bake.hcl --set \*.context=. --set \*.dockerfile=Dockerfile
 ```
 
 * Bake the Gno family images from this folder
 
 ```sh
-docker buildx bake --allow fs=\* --file docker-bake.hcl --set \*.dockerfile=Dockerfile.new _gno
+docker buildx bake --allow fs=\* --file docker-bake.hcl --set \*.dockerfile=Dockerfile _gno
 ```
 
 * Bake a single target and push to registry, from `${project_root_folder}`
 
 ```sh
-docker buildx bake --allow fs=\* --file misc/deployments/bake/docker-bake.hcl --set \*.context=. --set \*. dockerfile=Dockerfile.new --push gnoland
+docker buildx bake --allow fs=\* --file misc/deployments/bake/docker-bake.hcl --set \*.context=. --set \*. dockerfile=Dockerfile --push gnoland
 ```
 
 ## See Also
