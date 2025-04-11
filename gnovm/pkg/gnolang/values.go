@@ -11,6 +11,7 @@ import (
 
 	"github.com/cockroachdb/apd/v3"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
@@ -724,7 +725,11 @@ func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedVa
 		}
 	}
 	mli := mv.List.Append(alloc, *key)
-	mv.vmap[kmk] = mli
+	if !key.IsNaN() {
+		// NaN's can only be accessed through iteration, so no need to place it
+		// in the vmap.
+		mv.vmap[kmk] = mli
+	}
 	key2 := key.Copy(alloc)
 	return PointerValue{
 		TV:    fillValueTV(store, &mli.Value),
@@ -746,6 +751,10 @@ func (mv *MapValue) GetValueForKey(store Store, key *TypedValue) (val TypedValue
 }
 
 func (mv *MapValue) DeleteForKey(store Store, key *TypedValue) {
+	if key.IsNaN() {
+		// NaN keys cannot be removed.
+		return
+	}
 	kmk := key.ComputeMapKey(store, false)
 	if mli, ok := mv.vmap[kmk]; ok {
 		mv.List.Remove(mli)
@@ -926,6 +935,19 @@ func (tv *TypedValue) IsNilInterface() bool {
 		return false
 	}
 	return false
+}
+
+func (tv *TypedValue) IsNaN() bool {
+	switch tv.T.Kind() {
+	case Float32Kind:
+		_, _, _, _, nan := softfloat.Funpack32(tv.GetFloat32())
+		return nan
+	case Float64Kind:
+		_, _, _, _, nan := softfloat.Funpack64(tv.GetFloat64())
+		return nan
+	default:
+		return false
+	}
 }
 
 func (tv *TypedValue) HasKind(k Kind) bool {
