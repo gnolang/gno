@@ -124,10 +124,10 @@ func renderIntroduction() string {
 	out += "Hi my name is Paul, I'm a developer and welcome to my page !\n\n"
 	out += "### Go check out my super game: [gnominers](/r/pol/gnominers) !\n\n"
 	out += "### Check out my own [DAO implementation](/r/pol/home:dao) !\n\n"
-	out += ufmt.Sprintf("hello %.2f\n\n", 3.141592)
+	out += ufmt.Sprintf("Here is a formatted float using `ufmt`: %.2f\n\n", 3.141592)
 	x, err := nfmt.FormatRound(982_123_000_100)
 	if err == nil {
-		out += "number: " + x + "\n\n"
+		out += "And here is a formatted big number using `nfmt`: " + x + "\n\n"
 	}
 	return out
 }

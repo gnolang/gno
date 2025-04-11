@@ -7,6 +7,8 @@ import (
 	"gno.land/p/pol/dao"
 )
 
+const br = "\n\n"
+
 // pub/ Mine some gems with your active pickaxe
 func Mine() {
 	infos := assertCallerExists()
@@ -64,6 +66,7 @@ func renderDashboard(params map[string]string) string {
 	content := "# Dashboard of " + session.GetName() + "\n"
 
 	// actions
+	content += "<gno-columns>" + br
 	content += "### Actions\n"
 	lnk := txlink.Call("Mine")
 	content += "[Mine](" + lnk + ") - "
@@ -75,13 +78,16 @@ func renderDashboard(params map[string]string) string {
 	} else {
 		content += "[Your DAO](" + gnominersDAO + "?user=" + user + ")"
 	}
-	content += "\n\n"
-
+	content += br
+	
 	// money money money, must be funny
+	content += "|||" + br
 	content += "### Money\n"
 	content += "Currently, you have " + strconv.FormatFloat(session.Money, 'f', 2, 64) + " GnoCoins\n"
-
+	content += "</gno-columns>" + br
+	
 	// your gems
+	content += "<gno-columns>" + br
 	content += "### Your Gems\n"
 	content += "|Gem|Quantity|Price|\n"
 	content += "|-|-|-|\n"
@@ -98,6 +104,7 @@ func renderDashboard(params map[string]string) string {
 		gem++
 	}
 	content += "\n"
+	content += "|||" + br
 
 	// your inventory
 	content += "### Your inventory\n"
@@ -112,5 +119,6 @@ func renderDashboard(params map[string]string) string {
 		content += "|\n"
 	}
 	content += "\n"
+	content += "</gno-columns>"
 	return content
 }

@@ -97,13 +97,16 @@ func renderShop(params map[string]string) string {
 	content := "# Shop\n"
 	content += "Go back to [DashBoard](" + gnominersDashboard + "?user=" + user + ")."
 	content += "![Alt text](" + shopImage + " \"Optional title\")\n\n"
+	content += "## Actions\n"
 
 	// Sell
-	content += "## Actions\n"
+	content += "<gno-columns>" + br
 	sellLink := txlink.Call("Sell")
 	content += "### [Sell](" + sellLink + ") your rocks"
-	content += " (worth " + strconv.FormatFloat(totalGemsPrice(session), 'f', 2, 64) + " GnoCoins).\n\n\n"
-	content += "or...\n\n"
+	content += " (worth " + strconv.FormatFloat(totalGemsPrice(session), 'f', 2, 64) + " GnoCoins).\n" + br
+	// content += "|||" + br
+	// content += "---" + br + "### or..." + br
+	content += "|||" + br
 
 	// Buy
 	str, err := nfmt.FormatRound(session.Money)
@@ -137,5 +140,6 @@ func renderShop(params map[string]string) string {
 		}
 	}
 	content += "\n"
+	content += "</gno-columns>" + br
 	return content
 }

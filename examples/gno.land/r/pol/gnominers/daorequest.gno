@@ -49,13 +49,12 @@ func displayCount(params map[string]string) string {
 
 	// Buttons
 	content += "### How much to convert : " + strconv.Itoa(int(count)) + "\n"
-	content += "[-100](" + redoLink(params, int(math.Max(1, count-100)), _gemEnd, _gemEnd) + ") "
-	content += "[-10](" + redoLink(params, int(math.Max(1, count-10)), _gemEnd, _gemEnd) + ") "
-	content += "[-1](" + redoLink(params, int(math.Max(1, count-1)), _gemEnd, _gemEnd) + ") "
-	content += "|"
-	content += "[+1](" + redoLink(params, int(count)+1, _gemEnd, _gemEnd) + ") "
-	content += "[+10](" + redoLink(params, int(count)+10, _gemEnd, _gemEnd) + ") "
-	content += "[+100](" + redoLink(params, int(count)+100, _gemEnd, _gemEnd) + ")\n\n"
+	content += "[+1](" + redoLink(params, int(count)+1, _gemEnd, _gemEnd) + ") /"
+	content += "[+10](" + redoLink(params, int(count)+10, _gemEnd, _gemEnd) + ") /"
+	content += "[+100](" + redoLink(params, int(count)+100, _gemEnd, _gemEnd) + ")" + br
+	content += "[-1](" + redoLink(params, int(math.Max(1, count-1)), _gemEnd, _gemEnd) + ") / "
+	content += "[-10](" + redoLink(params, int(math.Max(1, count-10)), _gemEnd, _gemEnd) + ") / "
+	content += "[-100](" + redoLink(params, int(math.Max(1, count-100)), _gemEnd, _gemEnd) + ")" + br
 	return content
 }
 
@@ -131,7 +130,11 @@ func renderDaoRequestGenerator(params map[string]string) string {
 	content += "Go back to [DashBoard](" + gnominersDashboard + "?user=" + user + ").\n\n"
 	content += ufmt.Sprintf("## [Click here when you are done to Generate](%s) !\n", gnominersDAO+"?user="+user+"&request="+strings.Join(req, ","))
 	content += displayFinal(req) + "\n"
+	content += "---" + br
+	content += "<gno-columns>" + br
 	content += displayCount(params)
+	content += "|||" + br
 	content += displayTable(params, req)
+	content += "</gno-columns>" + br
 	return content
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/pol/dao"
 )
@@ -186,30 +187,41 @@ func (d minerProposal) String() string {
 		return ufmt.Sprintf("> #%d results with %d %s.", d.index, d.executor.success, upperFirstLetter(gemNames[d.executor.to]))
 	}
 
-	var out, s, quote string
-	out += "### " + generateCoolName(d.author.Address()) + "'s proposal n°" + strconv.Itoa(int(d.index)) + "\n"
+	// header
+	t := mdtable.Table{
+		Headers: []string{generateCoolName(d.author.Address()) + "'s proposal n°" + strconv.Itoa(int(d.index))},
+	}
+
+	// first line (chance + convertion data)
+	var s, quote, out string
 	if d.executor.count > 1 {
 		s = "s"
 	}
 	if d.executor.from < d.executor.to {
-		quote = " (" + strconv.FormatFloat(merge(float64(d.executor.to-d.executor.from), d.executor.count)*100., 'f', -1, 64) + "% chance)"
+		quote = ufmt.Sprintf(" (%.2f%% chance)", merge(float64(d.executor.to-d.executor.from), d.executor.count)*100.)
 	} else {
-		quote = " (between 0 and " + strconv.Itoa(int(unMerge(float64(d.executor.from-d.executor.to), d.executor.count))) + ")"
+		quote = ufmt.Sprintf(" (between 0 and %d)", int(unMerge(float64(d.executor.from-d.executor.to), d.executor.count)))
 	}
-	out += ufmt.Sprintf("Should we convert %d %s%s into %s%s ?\n",
+	t.Append([]string{ufmt.Sprintf("Should we convert %d **%s%s** 	into **%s**%s ?",
 		d.executor.count,
 		upperFirstLetter(gemNames[d.executor.from]),
 		s,
 		upperFirstLetter(gemNames[d.executor.to]),
 		quote,
-	)
-	out += "\n\n"
-	out += strconv.Itoa(int(d.HowManyVoters())) + " votes\n\n"
+	)})
 
-	for _, choiceStr := range d.GetChoicesNames() {
-		out += ufmt.Sprintf("[%s](%s) - ", choiceStr, txlink.Call("DaoRespond"+choiceStr, "a", d.executor.session.Owner.Owner().String(), "name", strconv.Itoa(int(d.index))))
+	// second line, votes
+	t.Append([]string{strconv.Itoa(int(d.HowManyVoters())) + " votes"})
+
+	// third line, answers
+	for k, choiceStr := range d.GetChoicesNames() {
+		if k == dao.ProposalChoice(0) {
+			out += " - "
+		}
+		out += ufmt.Sprintf("[%s](%s)", choiceStr, txlink.Call("DaoRespond"+choiceStr, "a", d.executor.session.Owner.Owner().String(), "name", strconv.Itoa(int(d.index))))
 	}
-	return out
+	t.Append([]string{out})
+	return t.String()
 }
 
 // Create a new miner proposal
@@ -348,6 +360,8 @@ func renderDao(params map[string]string) string {
 	content += "# DAO of " + session.GetName() + "\n"
 	content += "Go back to [DashBoard](" + gnominersDashboard + "?user=" + user + ").\n\n"
 	content += "DAO have " + strconv.Itoa(len(session.DAO.GetMembers())) + " members.\n\n"
+
+	content += "<gno-columns>" + br
 	content += "## Actions\n"
 	lnk, err := generateRequestLink(params, user)
 	if err != nil {
@@ -367,6 +381,7 @@ func renderDao(params map[string]string) string {
  	content += "\n\n"
 
 	// The requests
+	content += "|||" + br
 	content += "## Requests\n"
 	props := session.DAO.GetProposals()
 	if len(props) == 0 {
@@ -381,6 +396,7 @@ func renderDao(params map[string]string) string {
 		content += p.String() + "\n\n"
 	}
 	content += "\n"
+	content += "</gno-columns>" + br
 
 	return content
 }
