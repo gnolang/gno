@@ -99,8 +99,7 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator) Visitor {
 			debug.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
 		}
 
-		oo, isObject := v.(Object)
-		if isObject {
+		if oo, isObject := v.(Object); isObject {
 			defer func() {
 				// Finally bump cycle for object.
 				oo.SetLastGCCycle(gcCycle)
@@ -177,6 +176,8 @@ func (fv *FuncValue) VisitAssociated(vis Visitor) (stop bool) {
 		}
 	}
 
+	// Skip visiting the parent to avoid redundancy
+	// and prevent a potential cycle.
 	return
 }
 
