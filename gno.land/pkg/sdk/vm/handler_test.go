@@ -377,6 +377,9 @@ func TestVmHandlerQuery_Doc(t *testing.T) {
 				Name:      "myStruct",
 				Signature: "type myStruct struct{ a int }",
 				Doc:       "myStruct is a struct for testing\n",
+				Fields: []*doc.JSONField{
+					{Name: "a", Type: "int", Doc: ""},
+				},
 			},
 		},
 	}

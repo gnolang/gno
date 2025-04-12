@@ -7,7 +7,9 @@ var sl = []int{1, 2, 3, 4, 5}
 func fn() func(string) string { return Echo }
 
 // myStruct is a struct for testing
-type myStruct struct{ a int }
+type myStruct struct {
+	a int // a comment
+}
 
 var myStructInst = myStruct{a: 1000}
 
@@ -22,6 +24,11 @@ func (ms myStruct) Foo() string { return "myStruct.Foo" }
 
 // Panic is a func for testing
 func Panic() { panic("foo") }
+
+// myInterface is an interface for testing
+type myInterface interface {
+	Bar() string // Bar is for testing
+}
 
 var counter int = 42
 
