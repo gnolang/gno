@@ -76,16 +76,6 @@ RUN         --mount=type=cache,target=/go/pkg/mod/,id=pl-modcache \
 RUN         --mount=type=cache,target=/go/pkg/mod/,id=pl-modcache \
             --mount=type=cache,target=/root/.cache/go-build,id=pl-buildcache \
             go build -ldflags "-w -s" -o /gnoroot/build/portalloopd ./cmd
-## Autocounterd
-WORKDIR     /gnoroot/misc/autocounterd
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=acd-modcache \
-            --mount=type=cache,target=/root/.cache/go-build,id=acd-buildcache \
-            --mount=type=bind,source=go.sum,target=go.sum \
-            --mount=type=bind,source=go.mod,target=go.mod \
-            go mod download -x
-RUN         --mount=type=cache,target=/go/pkg/mod/,id=acd-modcache \
-            --mount=type=cache,target=/root/.cache/go-build,id=acd-buildcache \
-            go build -ldflags "-w -s" -o /gnoroot/build/autocounterd ./cmd
 
 # Base image
 FROM        alpine:3 AS base
@@ -166,12 +156,6 @@ RUN         apk add --no-cache ca-certificates bash curl jq
 COPY        --from=build-misc /gnoroot/build/portalloopd /usr/bin/portalloopd
 ENTRYPOINT  ["/usr/bin/portalloopd"]
 CMD         ["serve"]
-
-# misc/autocounterd
-FROM        base AS autocounterd
-COPY        --from=build-misc /gnoroot/build/autocounterd /usr/bin/autocounterd
-ENTRYPOINT  ["/usr/bin/autocounterd"]
-CMD         ["start"]
 
 # all, contains everything.
 FROM        base AS all
