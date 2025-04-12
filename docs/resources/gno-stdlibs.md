@@ -420,7 +420,7 @@ currentRealm := std.CurrentRealm()
 ```
 ---
 
-### PrevRealm
+### PreviousRealm
 ```go
 func PreviousRealm() Realm
 ```

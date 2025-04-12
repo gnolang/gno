@@ -15,7 +15,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	println(m[&arr[0]])
 	println(m[&arr[1]] == "")

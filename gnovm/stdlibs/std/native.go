@@ -76,32 +76,32 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 	// NOTE: keep in sync with test/stdlibs/std.getRealm
 
 	var (
-		ctx      = GetContext(m)
-		switches int                        // track realm withswitches
-		lfr      *gno.Frame = m.LastFrame() // last call frame
+		ctx     = GetContext(m)
+		crosses int                        // track realm crosses
+		lfr     *gno.Frame = m.LastFrame() // last call frame
 	)
 
 	for i := m.NumFrames() - 1; i >= 0; i-- {
 		fr := m.Frames[i]
 
-		// Skip over (non-realm) non-withswitches.
+		// Skip over (non-realm) non-crosses.
 		if !fr.IsCall() {
 			continue
 		}
-		if !fr.WithSwitch {
+		if !fr.WithCross {
 			lfr = fr
 			continue
 		}
 
 		// Sanity check
-		if !fr.DidSwitch {
+		if !fr.DidCross {
 			panic(fmt.Sprintf(
-				"call to withswitch(fn) did not call switchrealm: %s",
+				"call to cross(fn) did not call crossing : %s",
 				fr.Func.String()))
 		}
 
-		switches++
-		if switches > height {
+		crosses++
+		if crosses > height {
 			currlm := lfr.LastRealm
 			caller, rlmPath := gno.DerivePkgAddr(currlm.Path).Bech32(), currlm.Path
 			return string(caller), rlmPath
@@ -109,7 +109,7 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 		lfr = fr
 	}
 
-	if switches != height {
+	if crosses != height {
 		m.Panic(typedString("frame not found"))
 	}
 

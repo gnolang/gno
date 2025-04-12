@@ -14,7 +14,7 @@ type Int struct {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	zero = &Int{
 		abs: []word{0},

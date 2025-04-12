@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	switchrealm()
+	crossing()
 
 	// even though we are running within a realm,
 	// we aren't storing the result of crossrealm.Make1(),

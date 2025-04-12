@@ -9,7 +9,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	println(m[&arr]) // Output: example
 }

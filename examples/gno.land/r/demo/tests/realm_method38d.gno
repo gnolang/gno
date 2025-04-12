@@ -7,14 +7,14 @@ func (n nat) Add() nat {
 }
 
 func GetAbs() nat {
-	switchrealm()
+	crossing()
 
 	abs = []Word{0}
 	return abs
 }
 
 func AbsAdd() nat {
-	switchrealm()
+	crossing()
 
 	rt := GetAbs().Add()
 	return rt

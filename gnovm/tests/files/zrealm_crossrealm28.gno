@@ -13,14 +13,14 @@ var s *Struct
 
 func init() {
 	s = &Struct{A: 100}
-	withswitch(crossrealm_b.SetObject)(func() { &s.A })
+	cross(crossrealm_b.SetObject)(func() { &s.A })
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	//s := &Struct{A: 100}
-	withswitch(crossrealm_b.SetObject)(123)
+	cross(crossrealm_b.SetObject)(123)
 	s.A = 123
 	println(s)
 }
@@ -29,7 +29,7 @@ func main() {
 // &(struct{(123 int)} gno.land/r/crossrealm_test.Struct)
 
 // Preprocessed:
-// file{ package crossrealm_test; import crossrealm_b gno.land/r/demo/tests/crossrealm_b; type Struct (const-type gno.land/r/crossrealm_test.Struct); var s<!~VPBlock(2,1)> *(Struct<VPBlock(2,0)>); func init.2() { s<~VPBlock(3,1)> = &(Struct<VPBlock(3,0)>{A<VPField(0,0,A)>: (const (100 int))}); (const (withswitch func(func(interface {})) func(interface {})))((const (ref(gno.land/r/demo/tests/crossrealm_b) package{})).SetObject)(func func(){ &((const (ref(gno.land/r/crossrealm_test) package{})).s.A) }) }; func main() { (const (switchrealm func()))(); (const (withswitch func(func(interface {})) func(interface {})))((const (ref(gno.land/r/demo/tests/crossrealm_b) package{})).SetObject)((const (123 int))); s<~VPBlock(3,1)>.A = (const (123 int)); (const (println func(...interface {})))(s<~VPBlock(3,1)>) } }
+// file{ package crossrealm_test; import crossrealm_b gno.land/r/demo/tests/crossrealm_b; type Struct (const-type gno.land/r/crossrealm_test.Struct); var s<!~VPBlock(2,1)> *(Struct<VPBlock(2,0)>); func init.2() { s<~VPBlock(3,1)> = &(Struct<VPBlock(3,0)>{A<VPField(0,0,A)>: (const (100 int))}); (const (cross func(func(interface {})) func(interface {})))((const (ref(gno.land/r/demo/tests/crossrealm_b) package{})).SetObject)(func func(){ &((const (ref(gno.land/r/crossrealm_test) package{})).s.A) }) }; func main() { (const (crossing func()))(); (const (cross func(func(interface {})) func(interface {})))((const (ref(gno.land/r/demo/tests/crossrealm_b) package{})).SetObject)((const (123 int))); s<~VPBlock(3,1)>.A = (const (123 int)); (const (println func(...interface {})))(s<~VPBlock(3,1)>) } }
 
 // Realm:
 // switchrealm["gno.land/r/demo/tests/crossrealm_b"]
@@ -53,7 +53,7 @@ func main() {
 //     -        },
 //     -        "V": {
 //     -            "@type": "/gno.RefValue",
-//     -            "Hash": "fceb8ae8f879ca4448cc5279acf767a7a66e06c0",
+//     -            "Hash": "5b8e03f7f8b6fe2399fb8f4a27dd5a1a49518df8",
 //     -            "ObjectID": "0edc46caf30c00efd87b6c272673239eafbd051e:16"
 //     +            "@type": "/gno.PrimitiveType",
 //     +            "value": "32"

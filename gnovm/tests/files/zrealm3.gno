@@ -18,7 +18,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	root = &Node{
 		Key: "new",

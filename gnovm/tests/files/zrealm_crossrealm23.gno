@@ -8,9 +8,9 @@ import (
 )
 
 func main() {
-	switchrealm()
+	crossing()
 
-	println(withswitch(crossrealm.ExecSR)(func() string {
+	println(cross(crossrealm.ExecSR)(func() string {
 		rlm1 := std.CurrentRealm()
 		rlm2 := std.PreviousRealm()
 		return string(rlm1.Address()) + " " + rlm1.PkgPath() + "\n" + string(rlm2.Address()) + " " + rlm2.PkgPath()

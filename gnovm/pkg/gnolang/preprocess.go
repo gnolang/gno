@@ -1376,14 +1376,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// The pointer value returned is not addressable, but maybe some selector
 						// will make it addressable. For now mark it as not addressable.
 						n.Addressability = addressabilityStatusUnsatisfied
-					} else if fv.PkgPath == uversePkgPath && fv.Name == "withswitch" {
-						// Memoize *CallExpr.WithSwitch.
+					} else if fv.PkgPath == uversePkgPath && fv.Name == "cross" {
+						// Memoize *CallExpr.WithCross.
 						pc, ok := ns[len(ns)-1].(*CallExpr)
 						if !ok {
-							panic("withswitch(fn) must be followed by a call")
+							panic("cross(fn) must be followed by a call")
 						}
-						pc.SetWithSwitch()
-					} else if fv.PkgPath == uversePkgPath && fv.Name == "switchrealm" {
+						pc.SetWithCross()
+					} else if fv.PkgPath == uversePkgPath && fv.Name == "crossing" {
 						// XXX Make sure it's only used in a realm.
 					}
 				}

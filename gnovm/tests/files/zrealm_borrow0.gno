@@ -29,12 +29,12 @@ func (s *Struct) printRealms() {
 	// printRealm is called from s.PrintRealm()
 	// which in this test is persisted in the same realm.
 	// Therefore p.printRealm() -> s.PrintRealm()
-	// borrows this realm, and then the switchrealm()
+	// borrows this realm, and then the crossing()
 	// below is called.
 	// Should this be allowed?
 	// Whether it panics or not is determined by
-	// 'fr.DidSwitch = true' in PushFrameCall.
-	switchrealm()
+	// 'fr.DidCross = true' in PushFrameCall.
+	crossing()
 
 	fmt.Println(std.CurrentRealm())
 	fmt.Println(std.PreviousRealm())
@@ -67,13 +67,13 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
-	// withswitch(crossrealm_b.SetObject)(s) // saved in crossrealm_b
+	// cross(crossrealm_b.SetObject)(s) // saved in crossrealm_b
 
 	p := &Passthrough{S: s}
 
-	withswitch(crossrealm.SetObject)(p) // saved in crossrealm.
+	cross(crossrealm.SetObject)(p) // saved in crossrealm.
 
 	p.Mutate() // receiver method borrows crossrealm_b.
 

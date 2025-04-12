@@ -12,7 +12,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	// NOTE: this test uses ChainHeight and ChainID, which are "pure"
 	// natively bound functions (ie. not indirections through a wrapper fn,

@@ -247,7 +247,7 @@ func (m *Machine) doOpEval() {
 			m.PushOp(OpEval)
 		}
 		// evaluate func
-		if x.IsWithSwitch() {
+		if x.IsWithCross() {
 			m.PushExpr(x.Func.(*CallExpr).Args[0])
 		} else {
 			m.PushExpr(x.Func)

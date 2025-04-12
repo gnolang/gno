@@ -45,7 +45,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	printVars("premain ")
 	mutateVars("C")

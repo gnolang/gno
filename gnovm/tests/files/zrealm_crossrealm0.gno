@@ -9,7 +9,7 @@ import (
 var somevalue tests.TestRealmObject
 
 func main() {
-	switchrealm()
+	crossing()
 
 	somevalue.Field = "test"
 	println(somevalue)

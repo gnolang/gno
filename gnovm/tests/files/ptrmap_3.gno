@@ -21,7 +21,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	r := GetFromMap()
 	println(r == 5)

@@ -486,7 +486,7 @@ type FuncValue struct {
 	PkgPath     string       // package path in which func declared
 	NativePkg   string       // for native bindings through NativeResolver
 	NativeName  Name         // not redundant with Name; this cannot be changed in userspace
-	SwitchRealm bool         // true if .body's first statement is switchrealm().
+	SwitchRealm bool         // true if .body's first statement is crossing().
 
 	body       []Stmt         // function body
 	nativeBody func(*Machine) // alternative to Body

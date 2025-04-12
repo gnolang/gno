@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	switchrealm()
+	crossing()
 
 	tests := []struct {
 		fn func() std.Realm
@@ -18,7 +18,7 @@ func main() {
 		{std.CurrentRealm},
 		{psubtests.GetCurrentRealm},
 		{func() std.Realm {
-			return withswitch(rsubtests.GetCurrentRealm)()
+			return cross(rsubtests.GetCurrentRealm)()
 		}},
 	}
 

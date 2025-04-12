@@ -13,7 +13,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	var updated bool
 	tree, updated = tree.Put(types.String("key0"), "value0-new")

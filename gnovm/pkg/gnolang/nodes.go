@@ -430,7 +430,7 @@ type CallExpr struct { // Func(Args<Varg?...>)
 	Varg           bool  // if true, final arg is variadic.
 	NumArgs        int   // len(Args) or len(Args[0].Results).
 	Addressability addressabilityStatus
-	WithSwitch     bool // if called like withswitch(fn)(...).
+	WithCross      bool // if called like cross(fn)(...).
 }
 
 // if x is *ConstExpr returns its source.
@@ -441,11 +441,11 @@ func unwrapConstExpr(x Expr) Expr {
 	return x
 }
 
-// returns true if x is of form withswitch(fn)(...).
-func (x *CallExpr) isWithSwitch() bool {
+// returns true if x is of form cross(fn)(...).
+func (x *CallExpr) isWithCross() bool {
 	if fnc, ok := x.Func.(*CallExpr); ok {
 		if nx, ok := unwrapConstExpr(fnc.Func).(*NameExpr); ok {
-			if nx.Name == "withswitch" {
+			if nx.Name == "cross" {
 				return true
 			}
 		}
@@ -453,28 +453,28 @@ func (x *CallExpr) isWithSwitch() bool {
 	return false
 }
 
-// returns true if x is of form switchrealm().
+// returns true if x is of form crossing().
 func (x *CallExpr) isSwitchRealm() bool {
 	if x == nil {
 		return false
 	}
 	if nx, ok := unwrapConstExpr(x.Func).(*NameExpr); ok {
-		if nx.Name == "switchrealm" {
+		if nx.Name == "crossing" {
 			return true
 		}
 	}
 	return false
 }
 
-func (x *CallExpr) SetWithSwitch() {
-	if !x.isWithSwitch() {
-		panic("expected withswitch(fn)(...)")
+func (x *CallExpr) SetWithCross() {
+	if !x.isWithCross() {
+		panic("expected cross(fn)(...)")
 	}
-	x.WithSwitch = true
+	x.WithCross = true
 }
 
-func (x *CallExpr) IsWithSwitch() bool {
-	return x.WithSwitch
+func (x *CallExpr) IsWithCross() bool {
+	return x.WithCross
 }
 
 func (x *CallExpr) addressability() addressabilityStatus {
@@ -859,7 +859,7 @@ func (ss Body) GetLabeledStmt(label Name) (stmt Stmt, idx int) {
 	return nil, -1
 }
 
-// Convenience, returns true if first statement is switchrealm()
+// Convenience, returns true if first statement is crossing()
 func (ss Body) IsSwitchRealm() bool {
 	return ss.isSwitchRealm()
 }

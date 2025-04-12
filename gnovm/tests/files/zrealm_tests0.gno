@@ -12,7 +12,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	tests_foo.AddFooStringer("three")
 	println(tests.Render(""))
