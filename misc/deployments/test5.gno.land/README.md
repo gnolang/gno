@@ -29,7 +29,7 @@ Some configuration params are required, while others are advised to be set.
 
 - `moniker` - the recognizable identifier of the node.
 - `consensus.timeout_commit` - the timeout value after the consensus commit phase. ⚠️ **Required to be `1s`** ⚠️.
-- `conseuns.peer_gossip_sleep_duration` - the timeout for peer gossip. ⚠️ **Required to be `10ms`** ⚠️.
+- `consensus.peer_gossip_sleep_duration` - the timeout for peer gossip. ⚠️ **Required to be `10ms`** ⚠️.
 - `mempool.size` - the maximum number of txs in the mempool. **Advised to be `10000`**.
 - `p2p.laddr` - the listen address for P2P traffic, **specific to every node deployment**. It is advised to use a
   reverse-proxy, and keep this value at `tcp://0.0.0.0:<port>`.
