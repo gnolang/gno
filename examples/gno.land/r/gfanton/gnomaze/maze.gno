@@ -19,10 +19,12 @@ import (
 	"gno.land/p/moul/txlink"
 )
 
+const baseLevel = 7
+
 // Constants for cell dimensions
 const (
-	CellSize = 1.0
-	HalfCell = CellSize / 2
+	cellSize = 1.0
+	halfCell = cellSize / 2
 )
 
 type CellKind int
@@ -68,7 +70,7 @@ func (p *PlayerState) Angle() float64 {
 
 // Position returns the player's exact position in the grid
 func (p *PlayerState) Position() (float64, float64) {
-	return float64(p.CellX) + HalfCell, float64(p.CellY) + HalfCell
+	return float64(p.CellX) + halfCell, float64(p.CellY) + halfCell
 }
 
 // SumCode returns a hash string based on the player's position
@@ -129,7 +131,7 @@ func generateLevel(rng *rand.Rand, level int) {
 		panic("invalid level")
 	}
 
-	size := level + 5
+	size := level + baseLevel
 	maze, startPos, endPos = generateMap(rng, size, size)
 }
 
