@@ -80,7 +80,7 @@ func (p *PlayerState) SumCode() string {
 		width = len(maze[0])
 	}
 
-	ufmt.Fprintf(a, "%d-%d", p.CellY*width+p.CellX, salt)
+	ufmt.Fprintf(a, "%d-%d-%d", p.CellY*width+p.CellX, level, salt)
 	return strconv.FormatUint(uint64(a.Sum32()), 10)
 }
 
@@ -430,10 +430,8 @@ func Render(path string) string {
 	psum := p.SumCode()
 	reset := "[reset](" + cpath + ")"
 
-	if startPos.X != p.CellX && startPos.Y != p.CellY {
-		sum := query.Get("sum")
-		check := psum
-		if check != sum {
+	if startPos.X != p.CellX || startPos.Y != p.CellY {
+		if sum := query.Get("sum"); psum != sum {
 			return "invalid sum : " + reset
 		}
 	}
