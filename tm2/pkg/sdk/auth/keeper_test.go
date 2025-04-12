@@ -176,3 +176,7 @@ func TestCalcBlockGasPrice(t *testing.T) {
 	newGasPrice = gk.calcBlockGasPrice(lastGasPrice, gasUsed, maxGas, params)
 	require.Equal(t, int64(100), newGasPrice.Price.Amount)
 }
+
+// XXX: test sessions
+// XXX: test account creation flows (especially multistep)
+// XXX: test session validity

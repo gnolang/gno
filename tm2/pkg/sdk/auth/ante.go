@@ -33,12 +33,19 @@ type AnteOptions struct {
 	// This is useful for development, and maybe production chains.
 	// Always check your settings and inspect genesis transactions.
 	VerifyGenesisSignatures bool
+
+	DenySharedPubkeys bool // XXX: probably not possible, just because a session can be created with a pubkey that then become the root key of another account.
 }
 
 // NewAnteHandler returns an AnteHandler that checks and increments sequence
 // numbers, checks signatures & account numbers, and deducts fees from the first
 // signer.
-func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer SignatureVerificationGasConsumer, opts AnteOptions) sdk.AnteHandler {
+func NewAnteHandler(
+	ak AccountKeeper,
+	bank BankKeeperI,
+	sigGasConsumer SignatureVerificationGasConsumer,
+	opts AnteOptions,
+) sdk.AnteHandler {
 	return func(
 		ctx sdk.Context, tx std.Tx, simulate bool,
 	) (newCtx sdk.Context, res sdk.Result, abort bool) {
@@ -110,12 +117,12 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 
 		// stdSigs contains the sequence number, account number, and signatures.
 		// When simulating, this would just be a 0-length slice.
-		signerAddrs := tx.GetSigners()
-		signerAccs := make([]std.Account, len(signerAddrs))
+		signerInfos := tx.GetSignerInfos()
+		signerAccs := make([]std.Account, len(signerInfos))
 		isGenesis := ctx.BlockHeight() == 0
 
 		// fetch first signer, who's going to pay the fees
-		signerAccs[0], res = GetSignerAcc(newCtx, ak, signerAddrs[0])
+		signerAccs[0], res = GetSignerAcc(newCtx, ak, signerInfos[0].Address)
 		if !res.IsOK() {
 			return newCtx, res, true
 		}
@@ -138,7 +145,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		for i := range stdSigs {
 			// skip the fee payer, account is cached and fees were deducted already
 			if i != 0 {
-				signerAccs[i], res = GetSignerAcc(newCtx, ak, signerAddrs[i])
+				signerAccs[i], res = GetSignerAcc(newCtx, ak, signerInfos[i].Address)
 				if !res.IsOK() {
 					return newCtx, res, true
 				}
@@ -146,11 +153,12 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 
 			// check signature, return account with incremented nonce
 			sacc := signerAccs[i]
+			spubkey := signerInfos[i].PubKey
 			if isGenesis && !opts.VerifyGenesisSignatures {
 				// No signatures are needed for genesis.
 			} else {
 				// Check signature
-				signBytes, err := GetSignBytes(newCtx.ChainID(), tx, sacc, isGenesis)
+				signBytes, err := GetSignBytes(newCtx.ChainID(), tx, sacc, spubkey, isGenesis)
 				if err != nil {
 					return newCtx, res, true
 				}
@@ -212,53 +220,89 @@ func ValidateMemo(tx std.Tx, params Params) sdk.Result {
 // verify the signature and increment the sequence. If the account doesn't
 // have a pubkey, set it.
 func processSig(
-	ctx sdk.Context, acc std.Account, sig std.Signature, signBytes []byte, simulate bool, params Params,
-	sigGasConsumer SignatureVerificationGasConsumer,
+	ctx sdk.Context, acc std.Account, sig std.Signature, signBytes []byte, simulate bool, params Params, sigGasConsumer SignatureVerificationGasConsumer,
 ) (updatedAcc std.Account, res sdk.Result) {
 	pubKey, res := ProcessPubKey(acc, sig)
 	if !res.IsOK() {
 		return nil, res
 	}
 
-	err := acc.SetPubKey(pubKey)
-	if err != nil {
-		return nil, abciResult(std.ErrInternal("setting PubKey on signer's account"))
+	var currentKey std.AccountKey
+	// If this is the account's root key and it's not set yet, set it
+	if acc.GetRootKey() == nil {
+		newKey, err := acc.SetRootKey(pubKey)
+		currentKey = newKey
+		if err != nil {
+			return nil, abciResult(std.ErrInternal("setting root key on signer's account"))
+		}
+	} else {
+		// Check if the pubkey is the root key or a session key
+		for _, key := range acc.GetAllKeys() {
+			if key.GetPubKey().Equals(pubKey) {
+				currentKey = key
+				break
+			}
+		}
+	}
+	if currentKey == nil {
+		return nil, abciResult(std.ErrUnauthorized("account does not have this key"))
 	}
 
+	// XXX: Check if the session is valid (not expired, etc)?
+
+	// Consume gas for signature verification
 	if res := sigGasConsumer(ctx.GasMeter(), sig.Signature, pubKey, params); !res.IsOK() {
 		return nil, res
 	}
 
+	// Verify signature
 	if !simulate && !pubKey.VerifyBytes(signBytes, sig.Signature) {
 		return nil, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id"))
 	}
 
-	if err := acc.SetSequence(acc.GetSequence() + 1); err != nil {
-		panic(err)
+	// Increment account and session sequences
+	if err := currentKey.SetSequence(currentKey.GetSequence() + 1); err != nil {
+		return nil, abciResult(std.ErrInternal("setting sequence on signer's key"))
+	}
+	if err := acc.SetGlobalSequence(acc.GetGlobalSequence() + 1); err != nil {
+		return nil, abciResult(std.ErrInternal("setting global sequence on signer's account"))
 	}
 
 	return acc, res
 }
 
 // ProcessPubKey verifies that the given account address matches that of the
-// std.Signature. In addition, it will set the public key of the account if it
-// has not been set.
+// std.Signature. In addition, it will:
+// 1. If account has no master pubkey/session, set it from the signature
+// 2. Verify if the signature's pubkey belongs to one of the account's sessions (master or otherwise)
 func ProcessPubKey(acc std.Account, sig std.Signature) (crypto.PubKey, sdk.Result) {
-	// If pubkey is not known for account, set it from the std.Signature.
-	pubKey := acc.GetPubKey()
-	if pubKey == nil {
-		pubKey = sig.PubKey
-		if pubKey == nil {
-			return nil, abciResult(std.ErrInvalidPubKey("PubKey not found"))
-		}
+	sigPubKey := sig.PubKey
+	if sigPubKey == nil {
+		return nil, abciResult(std.ErrInvalidPubKey("PubKey not found in signature"))
+	}
 
-		if pubKey.Address() != acc.GetAddress() {
+	// Case 1: If account has no master pubkey/session, set it from the signature
+	rootKey := acc.GetRootKey()
+	if rootKey == nil {
+		// Verify the signature's pubkey matches the account address
+		if sigPubKey.Address() != acc.GetAddress() {
 			return nil, abciResult(std.ErrInvalidPubKey(
 				fmt.Sprintf("PubKey does not match Signer address %s", acc.GetAddress())))
 		}
+		return sigPubKey, sdk.Result{}
 	}
 
-	return pubKey, sdk.Result{}
+	// Case 2: Check if it's a valid session key
+	_, err := acc.GetKey(sigPubKey)
+	if err != nil {
+		return nil, abciResult(std.ErrInvalidPubKey(
+			fmt.Sprintf("pubkey %s is not associated with account %s",
+				sigPubKey.Address(), acc.GetAddress())))
+	}
+
+	// TODO: Check if the session key is valid, or let this be handled later?
+	//       Maybe just check for expiration date?
+	return sigPubKey, sdk.Result{}
 }
 
 // DefaultSigVerificationGasConsumer is the default implementation of
@@ -419,21 +463,25 @@ func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
 
 // GetSignBytes returns a slice of bytes to sign over for a given transaction
 // and an account.
-func GetSignBytes(chainID string, tx std.Tx, acc std.Account, genesis bool) ([]byte, error) {
+func GetSignBytes(chainID string, tx std.Tx, acc std.Account, pubKey crypto.PubKey, genesis bool) ([]byte, error) {
 	var (
-		accNum      uint64
-		accSequence uint64
+		accNum     uint64
+		akSequence uint64
 	)
 	if !genesis {
 		accNum = acc.GetAccountNumber()
-		accSequence = acc.GetSequence()
+		ak, err := acc.GetKey(pubKey)
+		if err != nil {
+			return nil, err
+		}
+		akSequence = ak.GetSequence()
 	}
 
 	return std.GetSignaturePayload(
 		std.SignDoc{
 			ChainID:       chainID,
 			AccountNumber: accNum,
-			Sequence:      accSequence,
+			Sequence:      akSequence,
 			Fee:           tx.Fee,
 			Msgs:          tx.Msgs,
 			Memo:          tx.Memo,

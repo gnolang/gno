@@ -1,4 +1,4 @@
-package vm
+git gghpackage vm
 
 import (
 	"fmt"
@@ -91,6 +91,6 @@ func (vm *VMKeeper) getSysNamesPkgParam(ctx sdk.Context) string {
 	return sysNamesPkg
 }
 
-func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
+func (vm *VMKeeper) WillSetParam(ctx sdk.Context, key string, value interface{}) {
 	// XXX validate input?
 }
