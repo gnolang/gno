@@ -18,7 +18,7 @@ func (m *Machine) doOpPrecall() {
 		}
 	}
 
-	// handle withswitch().
+	// handle cross().
 	switch fv := v.(type) {
 	case *FuncValue:
 		m.PushFrameCall(cx, fv, TypedValue{})
@@ -189,7 +189,7 @@ func (m *Machine) doOpReturn() {
 	// See if we are exiting a realm boundary.
 	crlm := m.Realm
 	if crlm != nil {
-		if cfr.DidSwitch {
+		if cfr.DidCross {
 			// Finalize realm updates!
 			// NOTE: This is a resource intensive undertaking.
 			crlm.FinalizeRealmTransaction(m.Store)

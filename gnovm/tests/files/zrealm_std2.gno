@@ -17,7 +17,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	println(*(aset.(*std.AddressList)))
 	caller := std.OriginCaller()

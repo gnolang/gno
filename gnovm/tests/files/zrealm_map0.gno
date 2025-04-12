@@ -8,7 +8,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	m["foobar"] = 1
 	println(m)

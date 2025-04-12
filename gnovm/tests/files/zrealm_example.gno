@@ -12,7 +12,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	gPlot.AddPost("TEST_TITLE", "TEST_BODY")
 	println(gPlot.String())

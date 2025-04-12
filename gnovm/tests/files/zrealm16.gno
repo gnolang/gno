@@ -30,7 +30,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	b[0].A = a2
 }

@@ -10,7 +10,7 @@ func foo() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	println("main", std.CurrentRealm().PkgPath())
 	foo()

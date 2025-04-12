@@ -15,7 +15,7 @@ package aa
 import "gno.land/r/demo/bb"
 
 func init() {
-	withswitch(bb).Call()
+	cross(bb).Call()
 }
 
 -- examples/gno.land/r/demo/aa/a_test.gno --
@@ -31,7 +31,7 @@ package bb
 var called int
 
 func Call() {
-	switchrealm()
+	crossing()
 
 	called++
 }

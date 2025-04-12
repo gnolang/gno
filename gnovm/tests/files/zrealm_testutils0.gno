@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	switchrealm()
+	crossing()
 
 	println(testutils.TestAddress("test1"))
 	println(testutils.TestAddress("test2"))

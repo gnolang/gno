@@ -710,7 +710,7 @@ func (m *Machine) RunFunc(fn Name, withSwitch bool) {
 		}
 	}()
 	if withSwitch {
-		m.RunStatement(S(Call(Call(Nx("withswitch"), Nx(fn)))))
+		m.RunStatement(S(Call(Call(Nx("cross"), Nx(fn)))))
 	} else {
 		m.RunStatement(S(Call(Nx(fn))))
 	}
@@ -733,7 +733,7 @@ func (m *Machine) RunMain() {
 		}
 	}()
 	if m.Package.IsRealm() {
-		m.RunStatement(S(Call(Nx("withswitch"), Nx("main"))))
+		m.RunStatement(S(Call(Nx("cross"), Nx("main"))))
 	} else {
 		m.RunStatement(S(Call(X("main"))))
 	}
@@ -1788,7 +1788,7 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
-	withSwitch := cx.IsWithSwitch()
+	withSwitch := cx.IsWithCross()
 	fr := &Frame{
 		Source:      cx,
 		NumOps:      m.NumOps,
@@ -1803,8 +1803,8 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 		Defers:      nil,
 		LastPackage: m.Package,
 		LastRealm:   m.Realm,
-		WithSwitch:  withSwitch,
-		DidSwitch:   false,
+		WithCross:   withSwitch,
+		DidCross:    false,
 	}
 	if debug {
 		if m.Package == nil {
@@ -1830,13 +1830,13 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 		return
 	}
 
-	// If withswitch, always switch to pv.Realm.
+	// If cross, always switch to pv.Realm.
 	// If method, this means the object cannot be modified if
 	// stored externally by this method; but other methods can.
 	if withSwitch {
 		if !fv.IsSwitchRealm() {
 			panic(fmt.Sprintf(
-				"missing switchrealm() after withswitch call in %v from %s to %s",
+				"missing crossing() after cross call in %v from %s to %s",
 				fr.Func.String(),
 				m.Realm.Path,
 				pv.Realm.Path,
@@ -1846,12 +1846,12 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 		return
 	}
 
-	// Not called like withswitch(fn)(...).
+	// Not called like cross(fn)(...).
 	if fv.IsSwitchRealm() {
 		if m.Realm != pv.Realm {
 			// panic; not explicit
 			panic(fmt.Sprintf(
-				"missing withswitch before external switchrealm() in %v from %s to %s",
+				"missing cross before external crossing() in %v from %s to %s",
 				fr.Func.String(),
 				m.Realm.Path,
 				pv.Realm.Path,
@@ -1863,7 +1863,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 		}
 	}
 
-	// Not withswitch nor switchrealm.
+	// Not cross nor crossing.
 	// Only "soft" switch to storage realm of receiver.
 	var rlm *Realm
 	if recv.IsDefined() { // method call
@@ -1878,12 +1878,12 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 				return
 			} else {
 				// implicit switch to storage realm.
-				// neither withswitch nor didswitch.
+				// neither cross nor didswitch.
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
 				rlm = objpv.GetRealm()
 				m.Realm = rlm
-				fr.DidSwitch = true
+				fr.DidCross = true
 				return
 			}
 		}

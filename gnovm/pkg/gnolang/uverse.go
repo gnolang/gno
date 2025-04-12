@@ -744,50 +744,50 @@ func makeUverseNode() {
 			}
 		},
 	)
-	defNative("switchrealm",
+	defNative("crossing",
 		nil, // params
 		nil, // results
 		func(m *Machine) {
 			stmt := m.PeekStmt(1)
 			bs, ok := stmt.(*bodyStmt)
 			if !ok {
-				panic("unexpected origin of switchrealm call")
+				panic("unexpected origin of crossing call")
 			}
 			if bs.NextBodyIndex != 1 {
-				panic("switchrealm call must be the first call of a function or method")
+				panic("crossing call must be the first call of a function or method")
 			}
 			fr1 := m.PeekCallFrame(1) // fr1.LastPackage created fr.
 			if !fr1.LastPackage.IsRealm() {
-				panic("switchrealm call only allowed in realm packages") // XXX test
+				panic("crossing call only allowed in realm packages") // XXX test
 			}
-			// Verify prior fr.WithSwitch or fr.DidSwitch.
-			// NOTE: fr.WithSwitch may or may not be true,
-			// switcherealm() (which sets fr.DidSwitch) can be
+			// Verify prior fr.WithCross or fr.DidCross.
+			// NOTE: fr.WithCross may or may not be true,
+			// switcherealm() (which sets fr.DidCross) can be
 			// stacked.
 			for i := 1 + 1; ; i++ {
 				fri := m.PeekCallFrame(i)
 				if fri == nil {
-					panic("switchrealm could not find corresponding withswitch(fn)(...) call")
+					panic("crossing could not find corresponding cross(fn)(...) call")
 				}
-				if fri.WithSwitch || fri.DidSwitch {
-					// NOTE: fri.DidSwitch implies
+				if fri.WithCross || fri.DidCross {
+					// NOTE: fri.DidCross implies
 					// everything under it is also valid.
-					// fri.DidSwitch && !fri.WithSwitch
+					// fri.DidCross && !fri.WithCross
 					// can happen with an implicit switch.
 					fr2 := m.PeekCallFrame(2)
-					fr2.SetDidSwitch()
+					fr2.SetDidCross()
 					return
 				}
-				// Neither fri.WithSwitch nor fri.DidSwitch, yet
+				// Neither fri.WithCross nor fri.DidCross, yet
 				// Realm already switched implicitly.
 				if fri.LastRealm != m.Realm {
-					panic("switchrealm could not find corresponding withswitch(fn)(...) call")
+					panic("crossing could not find corresponding cross(fn)(...) call")
 				}
 			}
 			panic("should not happen") // defensive
 		},
 	)
-	defNative("withswitch",
+	defNative("cross",
 		Flds( // param
 			"x", GenT("X", nil),
 		),
@@ -796,7 +796,7 @@ func makeUverseNode() {
 		),
 		func(m *Machine) {
 			// This is handled by op_call instead.
-			panic("withswitch is a virtual function")
+			panic("cross is a virtual function")
 			/*
 				arg0 := m.LastBlock().GetParams1()
 				m.PushValue(arg0.Deref())

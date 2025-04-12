@@ -6,7 +6,7 @@ import "gno.land/p/demo/uassert"
 type TestingT = uassert.TestingT
 
 func main() {
-	switchrealm()
+	crossing()
 
 	println("ok")
 }

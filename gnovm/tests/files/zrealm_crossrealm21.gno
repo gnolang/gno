@@ -7,13 +7,13 @@ import (
 )
 
 func main() {
-	switchrealm()
+	crossing()
 
 	f := crossrealm_b.Fooer
-	withswitch(crossrealm.SetFooer)(f)
-	withswitch(crossrealm.CallFooerFooSR2)()
+	cross(crossrealm.SetFooer)(f)
+	cross(crossrealm.CallFooerFooSR2)()
 	f.SetS("B")
-	withswitch(crossrealm.CallFooerFooSR2)()
+	cross(crossrealm.CallFooerFooSR2)()
 	print(".")
 }
 

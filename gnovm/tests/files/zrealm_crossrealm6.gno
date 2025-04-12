@@ -12,7 +12,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	// this is OK because the method is declared in a non-realm package.
 	somevalue.Modify()

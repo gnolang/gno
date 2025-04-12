@@ -57,7 +57,7 @@ found [here](../users/interact-with-gnokey.md#making-transactions).
 
 ### Working with Realms
 
-Every Gno transaction produce a call stack that can switch between functions
+Every Gno transaction produce a call stack that can switch across functions
 declared in realm packages and functions declared in p packages. The `std`
 package contains functions that return the current realm, previous realm, and
 the origin caller's address.

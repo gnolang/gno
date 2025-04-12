@@ -277,8 +277,8 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		m.Store.SetLogStoreOps(opslog) // resets.
 		// Call main() like withrealm(main)().
 		// This will switch the realm to the package.
-		// main() must start with switchrealm().
-		m.RunStatement(gno.S(gno.Call(gno.Call(gno.X("withswitch"), gno.X("main"))))) // switch realm.
+		// main() must start with crossing().
+		m.RunStatement(gno.S(gno.Call(gno.Call(gno.X("cross"), gno.X("main"))))) // switch realm.
 	}
 
 	return runResult{

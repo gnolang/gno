@@ -14,12 +14,12 @@ func (fooer) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
 var f *fooer
 
 func main() {
-	switchrealm()
+	crossing()
 
 	f = &fooer{}
-	withswitch(crossrealm.SetFooer)(f)
+	cross(crossrealm.SetFooer)(f)
 	crossrealm.CallFooerFoo()
-	withswitch(crossrealm.CallFooerFooSR)()
+	cross(crossrealm.CallFooerFooSR)()
 	print(".")
 }
 

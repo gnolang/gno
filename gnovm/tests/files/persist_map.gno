@@ -10,7 +10,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	println("premain", amap)
 	amap["c"] = "3"

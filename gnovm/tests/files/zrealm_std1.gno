@@ -16,7 +16,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	println(*aset)
 	caller := std.OriginCaller()
