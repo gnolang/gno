@@ -64,7 +64,7 @@ the origin caller's address.
 
 - `std.GetOrigCaller()` - returns the address of the original signer of the
   transaction
-- `std.PrevRealm()` - returns the previous realm instance, which can be a user 
+- `std.PreviousRealm()` - returns the previous realm instance, which can be a user 
   realm or a smart contract realm
 - `std.CurrentRealm()` - returns the instance of the realm that has called it
 
@@ -102,7 +102,7 @@ Let's look at return values for each of the methods, called from within
 `Realm A`:
 ```
 std.GetOrigCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
-std.PrevRealm() => Realm {
+std.PreviousRealm() => Realm {
     addr:    `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
     pkgPath: ``
 }
@@ -147,7 +147,7 @@ Depending on which realm the methods are called in, the values will change. For
 `Realm A`:
 ```
 std.GetOrigCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
-std.PrevRealm() => Realm {
+std.PreviousRealm() => Realm {
     addr:    `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
     pkgPath: ``
 }
@@ -160,7 +160,7 @@ std.CurrentRealm() => Realm {
 For `Realm B`:
 ```
 std.GetOrigCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
-std.PrevRealm() => Realm {
+std.PreviousRealm() => Realm {
     addr:    `g1dvqd8qgvavqayxklzfdmccd2eps263p43pu2c6`
     pkgPath: `gno.land/r/demo/a`
 }
@@ -172,7 +172,9 @@ std.CurrentRealm() => Realm {
 
 ### Resources
 
-See the [Gno Interrealm Specification](./gno-interrealm.md).
+See the [Gno Interrealm Specification](./gno-interrealm.md) for more
+information on language rules for interrealm (cross) safety including how and
+when to use the `cross()` and `crossing()` functions and more.
 
 For more information about realms and how they fit into the gno.land ecosystem,
 see the [Package Path Structure](./gno-packages.md#package-path-structure)
