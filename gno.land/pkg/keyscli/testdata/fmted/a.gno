@@ -1,0 +1,8 @@
+package p
+
+func m() int {
+	println("foo")
+	return 1
+	panic("foo")
+	const _ = (1 + (2 + (3 + (4 + (5 + (6 + (7 + (8 + (9 + (10 + (11 + (12))))))))))))
+}
