@@ -20,18 +20,18 @@ func init() {
 			PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq5ndww8w6qrxgfdeastcx2lsuuk5r8w9jckkgevylq6duw59d54n935fq2",
 			VotingPower: 1,
 		},
-		// // devx-val-01
-		// {
-		// 	Address:     std.Address("TODO"),
-		// 	PubKey:      "TODO",
-		// 	VotingPower: 1,
-		// },
-		// // devx-val-02
-		// {
-		// 	Address:     std.Address("TODO"),
-		// 	PubKey:      "TODO",
-		// 	VotingPower: 1,
-		// },
+		// devx-val-01
+		{
+			Address:     std.Address("g1mxguhd5zacar64txhfm0v7hhtph5wur5hx86vs"),
+			PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqz6fwulsygvu9xypka3zqxhkxllm467e3adphmj6y44vn3yy8qq34vxnse",
+			VotingPower: 1,
+		},
+		// devx-val-02
+		{
+			Address:     std.Address("g1t9ctfa468hn6czff8kazw08crazehcxaqa2uaa"),
+			PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpsq650w975vqsf6ajj5x4wdzfnrh64kmw7sljqz7wts6k0p6l36d0huls3",
+			VotingPower: 1,
+		},
 		// aib-val-01
 		{
 			Address:     std.Address("g12yvv8pl5s20suxyd30g7ychqenamtlhctgfu90"),
