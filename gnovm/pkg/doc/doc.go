@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
-	"go/doc"
 	"go/token"
 	"io"
 	"log"
@@ -59,39 +58,69 @@ func (d *Documentable) WriteDocumentation(w io.Writer, o *WriteDocumentationOpti
 		}
 	}
 
-	astpkg, pkg, err := d.pkgData.docPackage(o)
+	doc, err := d.WriteJSONDocumentation()
 	if err != nil {
 		return err
 	}
 
 	// copied from go source - map vars, constants and constructors to their respective types.
-	typedValue := make(map[*doc.Value]bool)
-	constructor := make(map[*doc.Func]bool)
-	for _, typ := range pkg.Types {
-		pkg.Consts = append(pkg.Consts, typ.Consts...)
-		pkg.Vars = append(pkg.Vars, typ.Vars...)
-		pkg.Funcs = append(pkg.Funcs, typ.Funcs...)
-		if !o.Unexported && !token.IsExported(typ.Name) {
-			continue
-		}
-		for _, value := range typ.Consts {
-			typedValue[value] = true
-		}
-		for _, value := range typ.Vars {
-			typedValue[value] = true
-		}
-		for _, fun := range typ.Funcs {
-			// We don't count it as a constructor bound to the type
-			// if the type itself is not exported.
-			constructor[fun] = true
+	typedValue := make(map[string]string)
+	constructor := make(map[string]string)
+	types := make(map[string]bool)
+	for _, typ := range doc.Types {
+		types[typ.Name] = true
+	}
+
+	for _, decl := range doc.Values {
+		for _, val := range decl.Values {
+			typeName := strings.Replace(val.Type, "*", "", -1)
+			if !types[typeName] {
+				// We only care about types defined in this package
+				typeName = ""
+			}
+			if typeName == "" || (!o.Unexported && !token.IsExported(typeName)) {
+				// We don't count it as a value bound to the type if the type itself is not exported
+				continue
+			}
+			typedValue[val.Name] = typeName
 		}
 	}
 
+	for _, fun := range doc.Funcs {
+		if fun.Type != "" {
+			// Constructors are not methods
+			continue
+		}
+		returnType := ""
+		if len(fun.Results) == 1 {
+			returnType = strings.Replace(fun.Results[0].Type, "*", "", -1)
+			if !types[returnType] {
+				// We only care about types defined in this package
+				returnType = ""
+			}
+		}
+		if returnType == "" || (!o.Unexported && !token.IsExported(returnType)) {
+			// We don't count it as a constructor bound to the type if the type itself is not exported
+			continue
+		}
+		constructor[fun.Name] = returnType
+	}
+
+	// Collect .gno files in a map for ast.MergePackageFiles.
+	fileMap := make(map[string]*ast.File)
+	for i, file := range d.pkgData.files {
+		f := d.pkgData.fset.File(file.Pos())
+		if f == nil {
+			return fmt.Errorf("commands/doc: file pkg.files[%d] is not found in the provided file set", i)
+		}
+		fileMap[f.Name()] = file
+	}
+	astpkg, _ := ast.NewPackage(d.pkgData.fset, fileMap, simpleImporter, nil)
+
 	pp := &pkgPrinter{
 		name:        d.pkgData.name,
-		pkg:         astpkg,
+		doc:         doc,
 		file:        ast.MergePackageFiles(astpkg, 0),
-		doc:         pkg,
 		typedValue:  typedValue,
 		constructor: constructor,
 		fs:          d.pkgData.fset,
