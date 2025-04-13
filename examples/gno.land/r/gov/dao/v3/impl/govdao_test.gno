@@ -33,8 +33,11 @@ var (
 	noMember = testutils.TestAddress("nm1")
 )
 
-// TODO: This is not needed right now. Tests keep the same vm state: https://github.com/gnolang/gno/issues/1982
 func loadMembers() {
+	// This is needed because state is saved between unit tests,
+	// and we want to avoid having real members used on tests
+	memberstore.Get().DeleteAll()
+
 	memberstore.Get().SetTier(memberstore.T1)
 	memberstore.Get().SetTier(memberstore.T2)
 	memberstore.Get().SetTier(memberstore.T3)

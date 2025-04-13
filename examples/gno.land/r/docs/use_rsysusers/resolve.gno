@@ -1,8 +1,6 @@
 package use_rsysusers
 
 import (
-	"std"
-
 	"gno.land/r/sys/users" // Import the user registry
 )
 
@@ -25,25 +23,16 @@ usernames and addresses in their realms. Check out the example below.
 		return out
 	}
 
-	// If the user inputted an address
-	if std.Address(path).IsValid() {
-		// Try resolving an address
-		data := users.ResolveAddress(std.Address(path))
-		if data != nil {
-			out += "## Found the user you're looking for: "
-			// RenderLink will return a clickable gnoweb link leading to the user's page
-			out += data.RenderLink("")
-			return out
-		}
-	}
-
-	// Else, try resolving a name to get user data
-	data, _ := users.ResolveName(path)
+	// Try to resolve the search input in the registry
+	data, _ := users.ResolveAny(path)
 	if data != nil {
 		out += "## Found the user you're looking for: "
+		// RenderLink will return a clickable gnoweb link leading to the user's page
 		out += data.RenderLink("")
 		return out
 	}
+
+	// Note: the above can be done with known inputs as well, ie ResolveName & ResolveAddress.
 
 	out += "## Didn't find that user :/"
 
