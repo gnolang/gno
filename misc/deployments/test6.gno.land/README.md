@@ -56,15 +56,15 @@ Some configuration params are required, while others are advised to be set.
 You can download the full `genesis.json` using the following steps:
 
 ```shell
-wget TODO
+wget -O genesis.json https://gno-testnets-genesis.s3.eu-central-1.amazonaws.com/test6/genesis.json
 ```
 
-The `shasum` hash of the `genesis.json` should be `496334b0d4e6ac4bd6853c296b83820ee11d44006f60a7c3ebb94ac20f2d2658`.
+The `shasum` hash of the `genesis.json` should be `9a5e21d0b1ed394a0999f04ac5b88776df702a798b326aad70cf1cd2888a238a`.
 Verify it by running:
 
 ```sh
 shasum -a 256 genesis.json
-496334b0d4e6ac4bd6853c296b83820ee11d44006f60a7c3ebb94ac20f2d2658  genesis.json
+9a5e21d0b1ed394a0999f04ac5b88776df702a798b326aad70cf1cd2888a238a  genesis.json
 ```
 
 --- 
