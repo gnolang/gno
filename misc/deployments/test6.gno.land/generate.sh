@@ -42,28 +42,38 @@ gnogenesis validator add -name onbloc-val-01 -power 1 -address g14cppfre9hsvu6p4
 gnogenesis validator add -name onbloc-val-02 -power 1 -address g1927k3s7q9ujla04r5zy7q5m3gl84wsrart6663 -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq762adl0tcvdn54d6nzqf68r9wrywn7zj87v92mk3qpr436mevpvc63wsz
 
 
-printf "\nAdding txs (this may take a while)...\n"
+# Use a temporary directory for intermediary states
+TMP_DIR=./tmp-genesis
+
+printf "\nAdding txs (this may take a while). Ignore the prompts that come up...\n"
+
+# Add the deployer (genesis txs) key into gnokey
+DEPLOYER_MNEMONIC="anchor hurt name seed oak spread anchor filter lesson shaft wasp home improve text behind toe segment lamp turn marriage female royal twice wealth"
+DEPLOYER_NAME=Test6Deployer
+
+echo -e "\n\n${DEPLOYER_MNEMONIC}" | gnokey add --recover $DEPLOYER_NAME --home $TMP_DIR -insecure-password-stdin -quiet
+
 # Add the transactions (all examples).
-# Test1 is the deployer key for all genesis transactions, and
+# Test6Deployer is the deployer key for all genesis transactions, and
 # it has an adequate premine amount in the balances already
-gnogenesis txs add packages ../../../examples
+echo -e "" | gnogenesis txs add packages ../../../examples -gno-home $TMP_DIR -insecure-password-stdin -key-name $DEPLOYER_NAME
 
 # Add the balances.
 # Since there is a significant number of balances
 # for the test6 deployment (~42MB), this balance sheet is stored
 # externally and fetched to generate the genesis.json
-BALANCES_DIR=./tmp-genesis
-BALANCES_PATH=$BALANCES_DIR/genesis_balances.txt
+BALANCES_PATH=$TMP_DIR/genesis_balances.txt
 
 printf "\nAdding balances...\n"
 
-pullBalances $BALANCES_DIR
+pullBalances $TMP_DIR
 gnogenesis balances add -balance-sheet $BALANCES_PATH
 
-rm -rf $BALANCES_DIR
+# Cleanup
+rm -rf $TMP_DIR
 
 # Verify that the genesis.json is valid
-printf "\Verifying genesis.json...\n"
+printf "\nVerifying genesis.json...\n"
 gnogenesis verify -genesis-path $GENESIS_FILE
 
 # Verify the checksum, if any

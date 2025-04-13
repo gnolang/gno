@@ -59,12 +59,25 @@ You can download the full `genesis.json` using the following steps:
 wget TODO
 ```
 
-The `sha3` hash of the `genesis.json` should be `TODO`.
+The `shasum` hash of the `genesis.json` should be `TODO`.
 Verify it by running:
 
 ```sh
 shasum -a 256 genesis.json
 TODO genesis.json
+```
+
+The `genesis_balances.txt` can be fetched locally by:
+
+```shell
+wget -O genesis_balances.txt https://gno-testnets-genesis.s3.eu-central-1.amazonaws.com/test6/genesis_balances.txt
+```
+
+To verify the checksum of the genesis balances sheet:
+
+```shell
+shasum -a 256 genesis_balances.txt
+3c265896283fa144f6cc5c7db7fd0583d762a075d9ea06ccb98084f73888429d  genesis_balances.txt
 ```
 
 ---
@@ -82,7 +95,15 @@ cd contribs/gnogenesis
 make install
 ```
 
-### Step 2: Run the generation script
+### Step 2: Install `gnokey` globally
+
+From the repo root:
+
+```shell
+make install.gnokey
+```
+
+### Step 3: Run the generation script
 
 The required `genesis.json` generation logic is packaged up in `generate.sh`.
 To run it, make sure to adjust correct permissions:
