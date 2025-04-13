@@ -85,12 +85,8 @@ func (addr *Address) UnmarshalAmino(b32str string) (err error) {
 	return nil
 }
 
-func (addr Address) Compare(other Address) int {
-	bz1 := make([]byte, len(addr))
-	bz2 := make([]byte, len(other))
-	copy(bz1, addr[:])
-	copy(bz2, other[:])
-	return bytes.Compare(bz1, bz2)
+func (addr *Address) Compare(other Address) int {
+	return bytes.Compare(addr[:], other[:])
 }
 
 func (addr Address) IsZero() bool {

@@ -120,7 +120,8 @@ func execAddMultisig(cfg *AddMultisigCfg, args []string, io commands.IO) error {
 	// Check if the keys should be sorted
 	if !cfg.NoSort {
 		sort.Slice(publicKeys, func(i, j int) bool {
-			return publicKeys[i].Address().Compare(publicKeys[j].Address()) < 0
+			pki := publicKeys[i].Address()
+			return pki.Compare(publicKeys[j].Address()) < 0
 		})
 	}
 
