@@ -67,56 +67,7 @@ shasum -a 256 genesis.json
 TODO genesis.json
 ```
 
-The `genesis_balances.txt` can be fetched locally by:
-
-```shell
-wget -O genesis_balances.txt https://gno-testnets-genesis.s3.eu-central-1.amazonaws.com/test6/genesis_balances.txt
-```
-
-To verify the checksum of the genesis balances sheet:
-
-```shell
-shasum -a 256 genesis_balances.txt
-3c265896283fa144f6cc5c7db7fd0583d762a075d9ea06ccb98084f73888429d  genesis_balances.txt
-```
-
-The `genesis_txs.jsonl` can be fetched locally by:
-
-```shell
-wget -O genesis_txs.jsonl https://gno-testnets-genesis.s3.eu-central-1.amazonaws.com/test6/genesis_txs.jsonl
-```
-
-To verify the checksum of the genesis transaction sheet:
-
-```shell
-shasum -a 256 genesis_txs.jsonl
-85341afa5f273ae7837ef8217db320da8869debf8399675c66b246c6ca807c22  genesis_txs.jsonl
-```
-
-### Reconstructing the genesis transactions
-
-Test6 genesis transactions are generated from the `chain/test6` branch, and they are exclusively the `examples` deploy
-transactions, with the state on that branch.
-
-The deployer account for each test6 genesis transaction is derived from the mnemonic (`index 0`, `account 0`):
-
-```shell
-anchor hurt name seed oak spread anchor filter lesson shaft wasp home improve text behind toe segment lamp turn marriage female royal twice wealth
-```
-
-You can run the following steps to regenerate the `genesis_txs.jsonl`, from the root of the `chain/test6` branch
-
-```shell
-mkdir -p tmp-gnokey
-
-gnokey add --recover Test6Deployer --home tmp-gnokey
-gnogenesis generate -chain-id test6 -genesis-time 1744614000
-gnogenesis txs add packages ./examples -gno-home tmp-gnokey -key-name Test6Deployer
-
-rm -rf tmp-gnokey
-```
-
----
+--- 
 
 ## Generating the test6 `genesis.json`
 
@@ -154,4 +105,58 @@ Run the script, and it should generate a `genesis.json` locally. We also opt to 
 CHECKSUM=TODO ./generate.sh
 
 TODO output
+```
+
+---
+
+### genesis.json Artifacts
+
+The `genesis_balances.txt` can be fetched locally by:
+
+```shell
+wget -O genesis_balances.txt https://gno-testnets-genesis.s3.eu-central-1.amazonaws.com/test6/genesis_balances.txt
+```
+
+To verify the checksum of the genesis balances sheet:
+
+```shell
+shasum -a 256 genesis_balances.txt
+3c265896283fa144f6cc5c7db7fd0583d762a075d9ea06ccb98084f73888429d  genesis_balances.txt
+```
+
+The `genesis_txs.jsonl` can be fetched locally by:
+
+```shell
+wget -O genesis_txs.jsonl https://gno-testnets-genesis.s3.eu-central-1.amazonaws.com/test6/genesis_txs.jsonl
+```
+
+To verify the checksum of the genesis transaction sheet:
+
+```shell
+shasum -a 256 genesis_txs.jsonl
+d6eaa5f88f31deacf82accb4beb8ff63b75083d624e1df4136521aa4c672bdc9  genesis_txs.jsonl
+```
+
+### Reconstructing the genesis transactions
+
+Test6 genesis transactions are generated from the `chain/test6` branch, and they are exclusively the `examples` deploy
+transactions, with the state on that branch.
+
+The deployer account for each test6 genesis transaction is derived from the mnemonic (`index 0`, `account 0`):
+
+```shell
+anchor hurt name seed oak spread anchor filter lesson shaft wasp home improve text behind toe segment lamp turn marriage female royal twice wealth
+```
+
+You can run the following steps to regenerate the `genesis_txs.jsonl`, from the root of the `chain/test6` branch
+
+```shell
+mkdir -p tmp-gnokey
+
+gnokey add --recover Test6Deployer --home tmp-gnokey
+gnogenesis generate -chain-id test6 -genesis-time 1744614000
+gnogenesis txs add packages ./examples -gno-home tmp-gnokey -key-name Test6Deployer
+gnogenesis txs export genesis_txs.jsonl
+
+rm -rf tmp-gnokey
 ```
