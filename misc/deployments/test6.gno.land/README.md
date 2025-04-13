@@ -67,6 +67,10 @@ shasum -a 256 genesis.json
 9a5e21d0b1ed394a0999f04ac5b88776df702a798b326aad70cf1cd2888a238a  genesis.json
 ```
 
+**NOTE**: Keep in mind that the generated genesis.json checksum will differ from the downloaded one,
+because of a bug in `gnogenesis balances` that doesn't deterministically generate the genesis balance list:
+https://github.com/gnolang/gno/issues/4122
+
 --- 
 
 ## Generating the test6 `genesis.json`
