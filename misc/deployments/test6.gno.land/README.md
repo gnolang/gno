@@ -90,7 +90,7 @@ To verify the checksum of the genesis transaction sheet:
 
 ```shell
 shasum -a 256 genesis_txs.jsonl
-657c0e5f52718c3a75c77dbba762abef814ac4b998bae346c16221ab1d4b0b03  genesis_txs.jsonl
+85341afa5f273ae7837ef8217db320da8869debf8399675c66b246c6ca807c22  genesis_txs.jsonl
 ```
 
 ### Reconstructing the genesis transactions
@@ -121,7 +121,8 @@ echo "$DEPLOYER_MNEMONIC" | gnokey add --recover "$DEPLOYER_NAME" --home "$TMP_D
 # Add the transactions (all examples).
 # Test6Deployer is the deployer key for all genesis transactions, and
 # it has an adequate premine amount in the balances already
-echo "" | gnogenesis txs add packages ../../../examples -gno-home "$TMP_DIR" -insecure-password-stdin -key-name "$DEPLOYER_NAME"
+gnogenesis generate -chain-id test6
+echo "" | gnogenesis txs add packages ./examples -gno-home "$TMP_DIR" -insecure-password-stdin -key-name "$DEPLOYER_NAME"
 
 # Cleanup
 rm -rf $TMP_DIR
