@@ -14,8 +14,6 @@ permissions:
 
 jobs:
   bake:
-    # Match only branches whose name is chain/test[0-9][0-9]
-    if: startsWith(github.ref, 'refs/heads/chain/test') && github.ref =~ '^refs/heads/chain/test[0-9][0-9]?$'
     runs-on: ubuntu-latest
     steps:
       - name: Login to GitHub Container Registry
