@@ -133,7 +133,7 @@ FROM        base AS gno
 COPY        --from=build-gno /gnoroot/build/gno /usr/bin/gno
 COPY        --from=build-gno /gnoroot/examples      /gnoroot/examples
 COPY        --from=build-gno /gnoroot/gnovm/stdlibs /gnoroot/gnovm/stdlibs
-COPY        --from=build-gno /gnoroot/tests/gnovm/stdlibs /gnoroot/gnovm/tests/stdlibs
+COPY        --from=build-gno /gnoroot/gnovm/tests/stdlibs /gnoroot/gnovm/tests/stdlibs
 ENTRYPOINT  ["/usr/bin/gno"]
 
 # Gno Contribs [ Gnobro, Gnogenesis ]
