@@ -59,12 +59,12 @@ You can download the full `genesis.json` using the following steps:
 wget TODO
 ```
 
-The `shasum` hash of the `genesis.json` should be `TODO`.
+The `shasum` hash of the `genesis.json` should be `496334b0d4e6ac4bd6853c296b83820ee11d44006f60a7c3ebb94ac20f2d2658`.
 Verify it by running:
 
 ```sh
 shasum -a 256 genesis.json
-TODO genesis.json
+496334b0d4e6ac4bd6853c296b83820ee11d44006f60a7c3ebb94ac20f2d2658  genesis.json
 ```
 
 --- 
@@ -99,12 +99,10 @@ To run it, make sure to adjust correct permissions:
 chmod +x ./generate.sh
 ```
 
-Run the script, and it should generate a `genesis.json` locally. We also opt to verify the genesis sum:
+Run the script, and it should generate a `genesis.json` locally:
 
 ```shell
-CHECKSUM=TODO ./generate.sh
-
-TODO output
+./generate.sh
 ```
 
 ---

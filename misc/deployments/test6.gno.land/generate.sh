@@ -77,20 +77,3 @@ rm -rf $TMP_DIR
 # Verify that the genesis.json is valid
 printf "\nVerifying genesis.json...\n"
 gnogenesis verify -genesis-path $GENESIS_FILE
-
-# Verify the checksum, if any
-if [[ -n "$CHECKSUM" ]]; then
-  ACTUAL_CHECKSUM=$(sha256sum "$GENESIS_FILE" | awk '{print $1}')
-
-  if [[ "$ACTUAL_CHECKSUM" != "$CHECKSUM" ]]; then
-    echo "❌ Genesis checksum mismatch"
-    echo "Expected: $CHECKSUM"
-    echo "Actual:   $ACTUAL_CHECKSUM"
-
-    return 1
-  fi
-
-  echo "✅ Checksum verified"
-
-  return 0
-fi
