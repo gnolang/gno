@@ -14,6 +14,15 @@ pullBalances () {
   wget -O "$TARGET_FILE" "$BALANCES_URL"
 }
 
+pullTxs () {
+    local TARGET_DIR=$1
+    local TXS_URL="https://gno-testnets-genesis.s3.eu-central-1.amazonaws.com/test6/genesis_txs.jsonl"
+    local TARGET_FILE="$TARGET_DIR/genesis_txs.jsonl"
+
+    mkdir -p "$TARGET_DIR"
+    wget -O "$TARGET_FILE" "$TXS_URL"
+}
+
 CHAIN_ID=test6
 GENESIS_TIME=1744614000 # Monday, April 14th 2025 09:00 GMT+0200 (Central European Summer Time)
 GENESIS_FILE=genesis.json
@@ -44,19 +53,12 @@ gnogenesis validator add -name onbloc-val-02 -power 1 -address g1927k3s7q9ujla04
 
 # Use a temporary directory for intermediary states
 TMP_DIR=./tmp-genesis
+TXS_PATH=$TMP_DIR/genesis_txs.jsonl
 
-printf "\nAdding txs (this may take a while). Ignore the prompts that come up...\n"
+printf "\nAdding txs (this may take a while)...\n"
 
-# Add the deployer (genesis txs) key into gnokey
-DEPLOYER_MNEMONIC="anchor hurt name seed oak spread anchor filter lesson shaft wasp home improve text behind toe segment lamp turn marriage female royal twice wealth"
-DEPLOYER_NAME=Test6Deployer
-
-echo -e "\n\n${DEPLOYER_MNEMONIC}" | gnokey add --recover $DEPLOYER_NAME --home $TMP_DIR -insecure-password-stdin -quiet
-
-# Add the transactions (all examples).
-# Test6Deployer is the deployer key for all genesis transactions, and
-# it has an adequate premine amount in the balances already
-echo -e "" | gnogenesis txs add packages ../../../examples -gno-home $TMP_DIR -insecure-password-stdin -key-name $DEPLOYER_NAME
+pullTxs $TMP_DIR
+gnogenesis txs add sheets $TXS_PATH
 
 # Add the balances.
 # Since there is a significant number of balances

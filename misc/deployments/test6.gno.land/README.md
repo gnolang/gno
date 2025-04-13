@@ -80,6 +80,53 @@ shasum -a 256 genesis_balances.txt
 3c265896283fa144f6cc5c7db7fd0583d762a075d9ea06ccb98084f73888429d  genesis_balances.txt
 ```
 
+The `genesis_txs.jsonl` can be fetched locally by:
+
+```shell
+wget -O genesis_txs.jsonl https://gno-testnets-genesis.s3.eu-central-1.amazonaws.com/test6/genesis_txs.jsonl
+```
+
+To verify the checksum of the genesis transaction sheet:
+
+```shell
+shasum -a 256 genesis_txs.jsonl
+657c0e5f52718c3a75c77dbba762abef814ac4b998bae346c16221ab1d4b0b03  genesis_txs.jsonl
+```
+
+### Reconstructing the genesis transactions
+
+Test6 genesis transactions are generated from the `chain/test6` branch, and they are exclusively the `examples` deploy
+transactions, with the state on that branch.
+
+The deployer account for each test6 genesis transaction is derived from the mnemonic (`index 0`, `account 0`):
+
+```shell
+anchor hurt name seed oak spread anchor filter lesson shaft wasp home improve text behind toe segment lamp turn marriage female royal twice wealth
+```
+
+You can run the following steps to regenerate the `genesis_txs.jsonl`, from the root of the `chain/test6` branch
+
+```shell
+# Use a temporary directory for intermediary states
+TMP_DIR=./tmp-gnokey
+
+printf "\nAdding txs (this may take a while). Ignore the prompts that come up...\n"
+
+# Add the deployer (genesis txs) key into gnokey
+DEPLOYER_MNEMONIC="anchor hurt name seed oak spread anchor filter lesson shaft wasp home improve text behind toe segment lamp turn marriage female royal twice wealth"
+DEPLOYER_NAME=Test6Deployer
+
+echo "$DEPLOYER_MNEMONIC" | gnokey add --recover "$DEPLOYER_NAME" --home "$TMP_DIR" -insecure-password-stdin -quiet
+
+# Add the transactions (all examples).
+# Test6Deployer is the deployer key for all genesis transactions, and
+# it has an adequate premine amount in the balances already
+echo "" | gnogenesis txs add packages ../../../examples -gno-home "$TMP_DIR" -insecure-password-stdin -key-name "$DEPLOYER_NAME"
+
+# Cleanup
+rm -rf $TMP_DIR
+```
+
 ---
 
 ## Generating the test6 `genesis.json`
