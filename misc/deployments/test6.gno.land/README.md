@@ -107,25 +107,13 @@ anchor hurt name seed oak spread anchor filter lesson shaft wasp home improve te
 You can run the following steps to regenerate the `genesis_txs.jsonl`, from the root of the `chain/test6` branch
 
 ```shell
-# Use a temporary directory for intermediary states
-TMP_DIR=./tmp-gnokey
+mkdir -p tmp-gnokey
 
-printf "\nAdding txs (this may take a while). Ignore the prompts that come up...\n"
+gnokey add --recover Test6Deployer --home tmp-gnokey
+gnogenesis generate -chain-id test6 -genesis-time 1744614000
+gnogenesis txs add packages ./examples -gno-home tmp-gnokey -key-name Test6Deployer
 
-# Add the deployer (genesis txs) key into gnokey
-DEPLOYER_MNEMONIC="anchor hurt name seed oak spread anchor filter lesson shaft wasp home improve text behind toe segment lamp turn marriage female royal twice wealth"
-DEPLOYER_NAME=Test6Deployer
-
-echo "$DEPLOYER_MNEMONIC" | gnokey add --recover "$DEPLOYER_NAME" --home "$TMP_DIR" -insecure-password-stdin -quiet
-
-# Add the transactions (all examples).
-# Test6Deployer is the deployer key for all genesis transactions, and
-# it has an adequate premine amount in the balances already
-gnogenesis generate -chain-id test6
-echo "" | gnogenesis txs add packages ./examples -gno-home "$TMP_DIR" -insecure-password-stdin -key-name "$DEPLOYER_NAME"
-
-# Cleanup
-rm -rf $TMP_DIR
+rm -rf tmp-gnokey
 ```
 
 ---
