@@ -1,14 +1,14 @@
 # Upgradeable
 
-A comprehensive Gno.land package for implementing upgradeable functions and contracts with proper access control.
+A Gno.land package for implementing upgradeable functions and contracts with proper access control.
 
 ## Overview
 
-The `upgradeable` package provides a robust system for implementing upgradeable functions and contracts in Gno.land realms. This library solves the challenging problem of creating systems that can evolve over time without requiring redeployment or migration of existing state.
+The `upgradeable` package provides a system for implementing upgradeable functions and contracts in Gno.land realms. This library solves the problem of creating systems that can be updated.
 
 ### Key Features
 
-- **Access Control**: Only authorized users can upgrade functions
+- **Multi-Owner Access Control**: Multiple authorized users can upgrade functions
 - **Type Safety**: Specialized holders for common function signatures reduce casting errors
 - **Low Boilerplate**: Centralized registry system minimizes repetitive code
 - **Transparency**: All upgrades emit events for audit trails
@@ -21,28 +21,42 @@ The `upgradeable` package provides a robust system for implementing upgradeable 
 package mywebsite
 
 import (
-    "std"
-    "gno.land/p/demo/upgradeable"
+	"gno.land/p/demo/upgradeable"
 )
 
 // Global registry and function holders
 var (
-    registry = upgradeable.New()
-    renderFunc = upgradeable.NewStringFuncHolder(
-        registry,
-        "render",
-        RenderV1, // Using a named package function
-    )
+	registry   = upgradeable.New()
+	renderFunc = upgradeable.NewStringFuncHolder(
+		registry,
+		"render",
+		RenderV1, // Using a named package function
+	)
 )
 
-// V1 implementation 
+// V1 implementation
 func RenderV1(path string) string {
-    return "Basic page for " + path
+	return "Basic page for " + path
 }
 
 // V2 implementation with enhanced features
 func RenderV2(path string) string {
-    return "<h1>Enhanced page for " + path + "</h1>"
+	return "# Enhanced page for " + path
+}
+
+// Public function that uses the upgradeable implementation
+func Render(path string) string {
+	fn := renderFunc.Get()
+	return fn(path)
+}
+
+// Admin function to upgrade the implementation
+func UpgradeRender() error {
+	return renderFunc.Update(RenderV2)
+}
+
+func UpgradeRenderTo(target interface{}) error {
+	return renderFunc.Update(target)
 }
 
 // Public function that uses the upgradeable implementation
@@ -53,8 +67,13 @@ func Render(path string) string {
 
 // Admin function to upgrade the implementation
 func UpgradeRender() error {
-    // Only owner can call successfully
+    // Only an owner can call successfully
     return renderFunc.Update(RenderV2)
+}
+
+// Add another owner to allow them to perform upgrades
+func AddUpgradeAdmin(addr std.Address) error {
+    return registry.AddOwner(addr)
 }
 ```
 
@@ -65,14 +84,26 @@ func UpgradeRender() error {
 The Registry is the central component that manages all upgradeable functions with ownership controls:
 
 ```go
-// Create a new registry (caller becomes the owner)
+// Create a new registry (caller becomes the initial owner)
 registry := upgradeable.New()
 
-// Create with a specific owner
+// Create with a specific initial owner
 registry := upgradeable.NewWithAddress(ownerAddress)
 
-// Transfer ownership
-registry.TransferOwnership(newOwnerAddress)
+// Add another owner (only callable by an existing owner)
+registry.AddOwner(newOwnerAddress)
+
+// Remove an owner (only callable by an existing owner)
+registry.RemoveOwner(ownerAddress)
+
+// Check if an address is an owner
+isOwner := registry.IsOwner(someAddress)
+
+// Check if the caller is an owner
+callerIsOwner := registry.CallerIsOwner()
+
+// Get a list of all owners
+owners := registry.ListOwners()
 
 // Register a function (owner-only)
 registry.RegisterFunction("my_function", myFunc)
@@ -173,6 +204,9 @@ proxy := upgradeable.NewContractProxy()
 
 // Set implementation path (owner-only)
 err := proxy.SetImplementation("gno.land/r/demo/my_implementation")
+
+// Add another owner that can upgrade the implementation
+err := proxy.AddOwner(collaboratorAddress)
 
 // Get current implementation
 impl := proxy.Implementation()
@@ -298,7 +332,7 @@ func RenderPage(path string) string {
     return renderFn(path)
 }
 
-// Admin upgrade functions
+// Admin function to upgrade to V2
 func UpgradeToV2() error {
     if !registry.CallerIsOwner() {
         return std.ErrUnauthorized
@@ -320,6 +354,7 @@ func UpgradeToV2() error {
     return renderFooterHolder.Update(RenderFooterV2)
 }
 
+// Admin function to upgrade to V3
 func UpgradeToV3() error {
     if !registry.CallerIsOwner() {
         return std.ErrUnauthorized
@@ -328,6 +363,15 @@ func UpgradeToV3() error {
     // Update version and page renderer only
     currentVersion = 3
     return renderPageHolder.Update(RenderPageV3)
+}
+
+// Allow others to help manage the site
+func AddAdmin(addr std.Address) error {
+    if !registry.CallerIsOwner() {
+        return std.ErrUnauthorized
+    }
+    
+    return registry.AddOwner(addr)
 }
 ```
 
@@ -432,6 +476,15 @@ func UpgradeProcessor(version int) error {
         return std.ErrInvalidArg
     }
 }
+
+// Add another admin that can upgrade the processor
+func AddProcessorAdmin(addr std.Address) error {
+    if !registry.CallerIsOwner() {
+        return std.ErrUnauthorized
+    }
+    
+    return registry.AddOwner(addr)
+}
 ```
 
 ### 3. Access Control System with Upgradeable Rules
@@ -449,9 +502,8 @@ var (
     registry = upgradeable.New()
     
     // List of admins (state that persists across upgrades)
-    admins = map[std.Address]bool{
-        registry.Owner(): true,
-    }
+    // We'll initialize this with the first owner in init()
+    admins = make(map[std.Address]bool)
     
     // User roles
     roles = map[std.Address]string{}
@@ -463,6 +515,17 @@ var (
         CheckAccessV1,
     )
 )
+
+// Initialize admins with the registry's owners
+func init() {
+    // This would normally be done in a realm initialization function
+    // that would be called once, since we can't actually execute
+    // code in package-level init() in Gno yet
+    owners := registry.ListOwners()
+    for _, owner := range owners {
+        admins[owner] = true
+    }
+}
 
 // V1: Basic access control - only admins have access
 func CheckAccessV1(addr std.Address) bool {
@@ -515,7 +578,7 @@ func HasAccess(addr std.Address) bool {
 
 // AddAdmin adds a new admin
 func AddAdmin(addr std.Address) error {
-    caller := std.GetOrigCaller()
+    caller := std.OriginCaller()
     if !HasAccess(caller) {
         return std.ErrUnauthorized
     }
@@ -526,7 +589,7 @@ func AddAdmin(addr std.Address) error {
 
 // SetRole assigns a role to an address
 func SetRole(addr std.Address, role string) error {
-    caller := std.GetOrigCaller()
+    caller := std.OriginCaller()
     if !HasAccess(caller) {
         return std.ErrUnauthorized
     }
@@ -537,8 +600,7 @@ func SetRole(addr std.Address, role string) error {
 
 // UpgradeAccessControl changes the access control implementation
 func UpgradeAccessControl(version int) error {
-    caller := std.GetOrigCaller()
-    if caller != registry.Owner() {
+    if !registry.CallerIsOwner() {
         return std.ErrUnauthorized
     }
     
@@ -644,7 +706,7 @@ func CheckFeatureV3(featureName string, userAddr std.Address) bool {
 
 // IsFeatureEnabled checks if a feature is enabled for a user
 func IsFeatureEnabled(featureName string) bool {
-    userAddr := std.GetOrigCaller()
+    userAddr := std.OriginCaller()
     checkFn := checkFeature.Get().(func(string, std.Address) bool)
     return checkFn(featureName, userAddr)
 }
@@ -706,6 +768,15 @@ func UpgradeFeatureChecker(version int) error {
         return std.ErrInvalidArg
     }
 }
+
+// AddFeatureAdmin adds a new admin who can manage features
+func AddFeatureAdmin(addr std.Address) error {
+    if !registry.CallerIsOwner() {
+        return std.ErrUnauthorized
+    }
+    
+    return registry.AddOwner(addr)
+}
 ```
 
 ## Custom Function Holders
@@ -755,7 +826,7 @@ func (h *TransferFuncHolder) Get() func(std.Address, std.Address, int) error {
 
 1. **Access Control**: Always verify the caller has appropriate permissions before upgrading
 2. **Event Emission**: All upgrades should emit events for transparency and auditability
-3. **Multi-Signature**: Consider using a multi-signature approach for critical upgrades
+3. **Multi-Signature**: Consider using multiple owners for critical upgrades
 4. **Timelock**: Implement a timelock for sensitive upgrades to give users time to react
 5. **Escape Hatch**: Include emergency functions in case of critical issues
 
@@ -783,13 +854,15 @@ func (h *TransferFuncHolder) Get() func(std.Address, std.Address, int) error {
 |--------|-------------|
 | `New()` | Creates a new registry with the caller as owner |
 | `NewWithAddress(addr)` | Creates a registry with a specific owner |
+| `AddOwner(addr)` | Adds a new owner (owner-only) |
+| `RemoveOwner(addr)` | Removes an owner (owner-only) |
+| `IsOwner(addr)` | Checks if an address is an owner |
+| `CallerIsOwner()` | Checks if caller is an owner |
+| `ListOwners()` | Lists all owner addresses |
 | `RegisterFunction(name, fn)` | Registers or updates a function |
 | `GetFunction(name)` | Retrieves a registered function |
 | `HasFunction(name)` | Checks if a function exists |
 | `ListFunctions()` | Lists all registered function names |
-| `Owner()` | Returns the current owner address |
-| `TransferOwnership(addr)` | Transfers ownership to a new address |
-| `CallerIsOwner()` | Checks if caller is the owner |
 
 ### Function Holders
 
@@ -808,6 +881,10 @@ func (h *TransferFuncHolder) Get() func(std.Address, std.Address, int) error {
 | Method | Description |
 |--------|-------------|
 | `NewContractProxy()` | Creates a new proxy with the caller as owner |
+| `AddOwner(addr)` | Adds a new owner (owner-only) |
+| `RemoveOwner(addr)` | Removes an owner (owner-only) |
+| `IsOwner(addr)` | Checks if an address is an owner |
+| `CallerIsOwner()` | Checks if caller is an owner |
 | `SetImplementation(path)` | Updates the implementation realm path |
 | `Implementation()` | Gets the current implementation path |
 | `GetState()` | Retrieves the contract state |
@@ -823,6 +900,7 @@ func (h *TransferFuncHolder) Get() func(std.Address, std.Address, int) error {
 | `ErrTypeMismatch` | The function type doesn't match the expected type |
 | `ErrImplementationNotSet` | No implementation is set for the proxy |
 | `ErrCallerNotAdmin` | The caller doesn't have administrative privileges |
+| `ErrCannotRemoveLastOwner` | Cannot remove the last owner of a registry or proxy |
 
 ## Version History
 

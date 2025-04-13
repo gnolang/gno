@@ -29,4 +29,5 @@ var (
 	// Security errors
 	ErrCallerNotImplementation = errors.New("upgradeable: caller is not the implementation")
 	ErrCallerNotAdmin          = errors.New("upgradeable: caller is not the admin")
+	ErrCannotRemoveLastOwner   = errors.New("upgradeable: cannot remove last owner")
 )

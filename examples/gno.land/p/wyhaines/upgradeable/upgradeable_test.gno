@@ -97,11 +97,11 @@ func TestRegistryCreation(t *testing.T) {
 	testing.SetOriginCaller(alice)
 
 	registry := New()
-	uassert.Equal(t, registry.Owner(), alice)
+	uassert.True(t, registry.IsOwner(alice))
 
 	// Create with specific address
 	registry2 := NewWithAddress(bob)
-	uassert.Equal(t, registry2.Owner(), bob)
+	uassert.True(t, registry2.IsOwner(bob))
 }
 
 // TestRegistryFunctionOperations tests function registration, retrieval, and management
@@ -155,11 +155,11 @@ func TestOwnershipRestrictions(t *testing.T) {
 	testing.SetOriginCaller(bob)
 	err = registry.RegisterFunction("bob", fn)
 	uassert.Error(t, err)
-	uassert.ErrorContains(t, err, "not owner")
+	uassert.ErrorContains(t, err, "not the admin")
 
-	// Transfer ownership and test again
+	// Add Bob as an owner
 	testing.SetOriginCaller(alice)
-	err = registry.TransferOwnership(bob)
+	err = registry.AddOwner(bob)
 	uassert.NoError(t, err)
 
 	// Now Bob should be able to register
@@ -167,10 +167,40 @@ func TestOwnershipRestrictions(t *testing.T) {
 	err = registry.RegisterFunction("bob", fn)
 	uassert.NoError(t, err)
 
-	// And Alice should be blocked
-	testing.SetOriginCaller(alice)
-	err = registry.RegisterFunction("alice", fn)
+	// Charlie should still be blocked
+	testing.SetOriginCaller(charlie)
+	err = registry.RegisterFunction("charlie", fn)
 	uassert.Error(t, err)
+
+	// Bob can add Charlie
+	testing.SetOriginCaller(bob)
+	err = registry.AddOwner(charlie)
+	uassert.NoError(t, err)
+
+	// Charlie should now be able to register
+	testing.SetOriginCaller(charlie)
+	err = registry.RegisterFunction("charlie", fn)
+	uassert.NoError(t, err)
+
+	// Test removing owners
+	testing.SetOriginCaller(alice)
+	err = registry.RemoveOwner(bob)
+	uassert.NoError(t, err)
+
+	// Bob should no longer be able to register
+	testing.SetOriginCaller(bob)
+	err = registry.RegisterFunction("bob2", fn)
+	uassert.Error(t, err)
+
+	// Check preventing removal of last owner
+	testing.SetOriginCaller(alice)
+	err = registry.RemoveOwner(charlie)
+	uassert.NoError(t, err)
+
+	// Now try to remove the last owner (should fail)
+	err = registry.RemoveOwner(alice)
+	uassert.Error(t, err)
+	uassert.ErrorContains(t, err, "cannot remove last owner")
 }
 
 // TestFunctionHolder tests the base function holder
@@ -429,6 +459,19 @@ func TestContractProxy(t *testing.T) {
 	// Implementation hasn't changed
 	impl = proxy.Implementation()
 	uassert.Equal(t, "gno.land/r/demo/example_impl", impl)
+
+	// Test multi-owner functionality
+	testing.SetOriginCaller(alice)
+	err = proxy.AddOwner(bob)
+	uassert.NoError(t, err)
+
+	// Now Bob can update the implementation
+	testing.SetOriginCaller(bob)
+	err = proxy.SetImplementation("gno.land/r/demo/bob_impl")
+	uassert.NoError(t, err)
+
+	impl = proxy.Implementation()
+	uassert.Equal(t, "gno.land/r/demo/bob_impl", impl)
 }
 
 // TestProxyState tests the state management in the proxy pattern
@@ -553,6 +596,66 @@ func TestComplexFunctionSignature(t *testing.T) {
 	// Check with different flag
 	result = fn.(func(string, int, bool) string)("test", 3, false)
 	uassert.Equal(t, "flag is false", result)
+}
+
+// TestMultiOwnerManagement tests the multi-owner functionality
+func TestMultiOwnerManagement(t *testing.T) {
+	testing.SetOriginCaller(alice)
+	registry := New()
+
+	// Check initial owners
+	owners := registry.ListOwners()
+	uassert.Equal(t, 1, len(owners))
+	uassert.True(t, registry.IsOwner(alice))
+
+	// Add multiple owners
+	err := registry.AddOwner(bob)
+	uassert.NoError(t, err)
+
+	err = registry.AddOwner(charlie)
+	uassert.NoError(t, err)
+
+	// Check updated owners list
+	owners = registry.ListOwners()
+	uassert.Equal(t, 3, len(owners))
+	uassert.True(t, registry.IsOwner(alice))
+	uassert.True(t, registry.IsOwner(bob))
+	uassert.True(t, registry.IsOwner(charlie))
+
+	// Each owner should be able to register functions
+	testing.SetOriginCaller(bob)
+	err = registry.RegisterFunction("bob_func", func() string { return "bob" })
+	uassert.NoError(t, err)
+
+	testing.SetOriginCaller(charlie)
+	err = registry.RegisterFunction("charlie_func", func() string { return "charlie" })
+	uassert.NoError(t, err)
+
+	// Remove an owner
+	testing.SetOriginCaller(alice)
+	err = registry.RemoveOwner(bob)
+	uassert.NoError(t, err)
+
+	// Check updated owners list
+	owners = registry.ListOwners()
+	uassert.Equal(t, 2, len(owners))
+	uassert.True(t, registry.IsOwner(alice))
+	uassert.False(t, registry.IsOwner(bob))
+	uassert.True(t, registry.IsOwner(charlie))
+
+	// Bob should no longer be able to register functions
+	testing.SetOriginCaller(bob)
+	err = registry.RegisterFunction("bob_func2", func() string { return "bob2" })
+	uassert.Error(t, err)
+
+	// Test preventing removal of last owner
+	testing.SetOriginCaller(alice)
+	err = registry.RemoveOwner(charlie)
+	uassert.NoError(t, err)
+
+	err = registry.RemoveOwner(alice)
+	uassert.Error(t, err)
+	uassert.ErrorContains(t, err, "cannot remove last owner")
 }
 
 // TestPackageFunctionUpgrades tests upgrading actual named package functions

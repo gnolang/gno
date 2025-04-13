@@ -1,40 +1,81 @@
-// Package upgradeable provides a generic system for managing
-// upgradeable functions in a Gno.land realm.
 package upgradeable
 
 import (
 	"std"
-
-	"gno.land/p/demo/ownable"
 )
 
 // Registry manages a set of upgradeable functions with ownership controls
 type Registry struct {
-	*ownable.Ownable
+	owners    map[std.Address]bool // Store owner addresses
 	functions map[string]Function
 }
 
 // New creates a new Registry with the caller as the owner
 func New() *Registry {
-	return &Registry{
-		Ownable:   ownable.New(),
+	registry := &Registry{
+		owners:    make(map[std.Address]bool),
 		functions: make(map[string]Function),
 	}
+
+	// Add the caller as the initial owner
+	registry.owners[std.OriginCaller()] = true
+
+	return registry
 }
 
 // NewWithAddress creates a new Registry with the specified owner address
 func NewWithAddress(addr std.Address) *Registry {
-	return &Registry{
-		Ownable:   ownable.NewWithAddress(addr),
+	registry := &Registry{
+		owners:    make(map[std.Address]bool),
 		functions: make(map[string]Function),
 	}
+
+	// Add the specified address as the initial owner
+	registry.owners[addr] = true
+
+	return registry
+}
+
+// IsOwner checks if an address is an owner
+func (r *Registry) IsOwner(addr std.Address) bool {
+	return r.owners[addr]
+}
+
+// CallerIsOwner checks if the caller is an owner
+func (r *Registry) CallerIsOwner() bool {
+	return r.IsOwner(std.OriginCaller())
+}
+
+// AddOwner adds a new owner (only callable by an existing owner)
+func (r *Registry) AddOwner(addr std.Address) error {
+	if !r.CallerIsOwner() {
+		return ErrCallerNotAdmin
+	}
+
+	r.owners[addr] = true
+	return nil
+}
+
+// RemoveOwner removes an owner (only callable by an existing owner)
+func (r *Registry) RemoveOwner(addr std.Address) error {
+	if !r.CallerIsOwner() {
+		return ErrCallerNotAdmin
+	}
+
+	// Prevent removing the last owner
+	if len(r.owners) <= 1 {
+		return ErrCannotRemoveLastOwner
+	}
+
+	delete(r.owners, addr)
+	return nil
 }
 
 // RegisterFunction registers or updates a function in the registry
-// Only the owner can register functions
+// Only owners can register functions
 func (r *Registry) RegisterFunction(name string, fn Function) error {
 	if !r.CallerIsOwner() {
-		return ownable.ErrUnauthorized
+		return ErrCallerNotAdmin
 	}
 
 	if fn == nil {
@@ -68,4 +109,13 @@ func (r *Registry) ListFunctions() []string {
 		names = append(names, name)
 	}
 	return names
+}
+
+// ListOwners returns all owner addresses
+func (r *Registry) ListOwners() []std.Address {
+	owners := make([]std.Address, 0, len(r.owners))
+	for addr := range r.owners {
+		owners = append(owners, addr)
+	}
+	return owners
 }

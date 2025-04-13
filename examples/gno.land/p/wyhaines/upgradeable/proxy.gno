@@ -3,30 +3,65 @@ package upgradeable
 import (
 	"errors"
 	"std"
-
-	"gno.land/p/demo/ownable"
 )
 
 // ContractProxy is a proxy that delegates calls to an implementation contract
 // It stores data but delegates logic to the implementation
 type ContractProxy struct {
-	*ownable.Ownable
-	implementation string // Path to the implementation realm
-	data           Any    // Contract state
+	owners         map[std.Address]bool // Owner addresses
+	implementation string               // Path to the implementation realm
+	data           Any                  // Contract state
 }
 
 // NewContractProxy creates a new proxy with the caller as owner
 func NewContractProxy() *ContractProxy {
 	return &ContractProxy{
-		Ownable: ownable.New(),
+		owners: map[std.Address]bool{
+			std.OriginCaller(): true,
+		},
 	}
 }
 
+// IsOwner checks if an address is an owner
+func (p *ContractProxy) IsOwner(addr std.Address) bool {
+	return p.owners[addr]
+}
+
+// CallerIsOwner checks if the caller is an owner
+func (p *ContractProxy) CallerIsOwner() bool {
+	return p.IsOwner(std.OriginCaller())
+}
+
+// AddOwner adds a new owner (only callable by an existing owner)
+func (p *ContractProxy) AddOwner(addr std.Address) error {
+	if !p.CallerIsOwner() {
+		return ErrCallerNotAdmin
+	}
+
+	p.owners[addr] = true
+	return nil
+}
+
+// RemoveOwner removes an owner (only callable by an existing owner)
+func (p *ContractProxy) RemoveOwner(addr std.Address) error {
+	if !p.CallerIsOwner() {
+		return ErrCallerNotAdmin
+	}
+
+	// Prevent removing the last owner
+	if len(p.owners) <= 1 {
+		return ErrCannotRemoveLastOwner
+	}
+
+	delete(p.owners, addr)
+	return nil
+}
+
 // SetImplementation updates the implementation realm path
-// Only the owner can update the implementation
+// Only an owner can update the implementation
 func (p *ContractProxy) SetImplementation(implementationPath string) error {
 	if !p.CallerIsOwner() {
-		return ownable.ErrUnauthorized
+		return ErrCallerNotAdmin
 	}
 
 	// Check if the implementation exists
@@ -65,9 +100,7 @@ func (p *ContractProxy) SetState(newState Any) error {
 	return nil
 }
 
-// Example of a delegate call helper
-// This would call a function on the implementation contract
-// and provide it access to the state
+// DelegateCall helper
 func (p *ContractProxy) DelegateCall(method string, args ...Any) (Any, error) {
 	if p.implementation == "" {
 		return nil, ErrImplementationNotSet
@@ -77,33 +110,5 @@ func (p *ContractProxy) DelegateCall(method string, args ...Any) (Any, error) {
 	// to invoke the method on the implementation contract
 	// and pass along the proxy's state
 
-	// Placeholder:
-	// result := std.Call(p.implementation, method, append([]interface{}{p.data}, args...))
-
 	return nil, errors.New("delegate call not implemented")
-}
-
-// Implementation contract interface
-// This is conceptual and would be defined by developers
-type ImplementationContract interface {
-	Initialize(state Any) error
-	Execute(method string, args ...Any) (Any, error)
-}
-
-// Contract implementation example
-// The proxy delegates to an implementation that might be upgraded
-type ContractImplementation struct {
-	// Implementation details
-}
-
-// Initialize sets up the implementation with state from the proxy
-func (i *ContractImplementation) Initialize(state Any) error {
-	// Setup code
-	return nil
-}
-
-// Execute handles method calls from the proxy
-func (i *ContractImplementation) Execute(method string, args ...Any) (Any, error) {
-	// Implementation logic
-	return nil, nil
 }
