@@ -52,8 +52,6 @@ target "common" {
     "type=sbom",
   ]
   context = "../../../"
-  dockerfile = "Dockerfile.new"
-  
   platforms = [
     "linux/amd64",
     "linux/arm64"
