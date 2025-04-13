@@ -86,15 +86,7 @@ cd contribs/gnogenesis
 make install
 ```
 
-### Step 2: Install `gnokey` globally
-
-From the repo root:
-
-```shell
-make install.gnokey
-```
-
-### Step 3: Run the generation script
+### Step 2: Run the generation script
 
 The required `genesis.json` generation logic is packaged up in `generate.sh`.
 To run it, make sure to adjust correct permissions:
