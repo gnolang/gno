@@ -4,7 +4,7 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/gnoland/commondao"
+	"gno.land/p/nt/commondao"
 
 	boards2 "gno.land/r/gnoland/boards2/v1"
 )
