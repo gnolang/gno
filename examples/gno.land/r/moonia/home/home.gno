@@ -53,7 +53,7 @@ func CreateProposalSample(daoID string) string {
 	return ds.Proposals.CreateProposal("Survey", "Would you like to visit Guatemala?", 30)
 }
 
-func renderDAO() string {
+func renderDAO(daoID string) string {
 	caller := utils.GetCaller()
 	out := "# " + ds.DAO.Name + "\n\n"
 	out += "_" + ds.DAO.Description + "_\n\n"
@@ -65,9 +65,7 @@ func renderDAO() string {
 	}	
 	out += "- " + md.Link("Leave DAO", txlink.Call("LeaveDAO")) + "\n"
 	out += "- " + md.Link("Create Sample Proposal", txlink.Call("CreateProposalSample", "args", "0")) + "\n"
-	for id := range daoMap {
-		out += "- " + md.Link("View Stats", "/r/moonia/home?dao="+id+"&stats") + "\n"
-	}
+	out += "- " + md.Link("View Stats", "/r/moonia/home?dao="+daoID+"&stats") + "\n"
 	out += "- " + md.Link("Transfer Admin", txlink.Call("TransferAdmin", "args", "addr")) + "\n"
 	out += ds.DAO.ShowWhitelist() + "\n"
 	if ds.DAO.IsAdmin(caller) {
@@ -101,5 +99,5 @@ func Render(path string) string {
 	if showStats {
 		return renderDAOStats()
 	}
-	return renderDAO()
+	return renderDAO(daoID)
 }
