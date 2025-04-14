@@ -23,12 +23,12 @@ func Render(_ string) string {
 	out := "# Hey !\n"
 	out += "My name is Nicolas, french student in computer science !\n\n"
 	out += "Want to hear about me ?\n\n"
-	out += RenderPassion()
-	out += RenderCounter()
+	out += renderPassion()
+	out += renderCounter()
 	return out
 }
 
-func RenderPassion() string {
+func renderPassion() string {
 	out := "## Passions\n\n"
 	out += "### I love:\n\n"
 	out += "Crying about Hollow knight silksong never coming out\n\n"
@@ -39,7 +39,7 @@ func RenderPassion() string {
 	return out
 }
 
-func RenderCounter() string {
+func renderCounter() string {
 	out := "## Secret counter\n\n"
 	out += "No one really knows what this counter actually counts\n\n"
 	out += "**" + ufmt.Sprintf("%d", count) + "**"
