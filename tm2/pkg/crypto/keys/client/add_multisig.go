@@ -121,7 +121,8 @@ func execAddMultisig(cfg *AddMultisigCfg, args []string, io commands.IO) error {
 	if !cfg.NoSort {
 		sort.Slice(publicKeys, func(i, j int) bool {
 			pki := publicKeys[i].Address()
-			return pki.Compare(publicKeys[j].Address()) < 0
+			pkj := publicKeys[j].Address()
+			return pki.Compare(&pkj) < 0
 		})
 	}
 

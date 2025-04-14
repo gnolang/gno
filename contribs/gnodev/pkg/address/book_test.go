@@ -47,7 +47,7 @@ func TestAdd(t *testing.T) {
 	t.Run("get by name", func(t *testing.T) {
 		addrFromName, ok := bk.GetByName("testname")
 		assert.True(t, ok)
-		assert.True(t, addrFromName.Compare(testAddr) == 0)
+		assert.True(t, addrFromName.Compare(&testAddr) == 0)
 	})
 
 	// Add same address with a new name
@@ -59,7 +59,7 @@ func TestAdd(t *testing.T) {
 		require.True(t, ok)
 		addr2, ok := bk.GetByName("testname2")
 		require.True(t, ok)
-		assert.True(t, addr1.Compare(addr2) == 0)
+		assert.True(t, addr1.Compare(&addr2) == 0)
 	})
 }
 
@@ -75,7 +75,7 @@ func TestList(t *testing.T) {
 	assert.Equal(t, 1, len(entries))
 	entry := entries[0]
 
-	assert.True(t, testAddr.Compare(entry.Address) == 0)
+	assert.True(t, testAddr.Compare(&entry.Address) == 0)
 	assert.Equal(t, 1, len(entries[0].Names))
 	assert.Equal(t, "testname", entries[0].Names[0])
 }
@@ -103,7 +103,7 @@ func TestGetFromNameOrAddress(t *testing.T) {
 			require.True(t, ok)
 			require.Len(t, names, 1)
 			assert.Equal(t, "testname", names[0])
-			assert.True(t, resultAddr.Compare(testAddr) == 0)
+			assert.True(t, resultAddr.Compare(&testAddr) == 0)
 		})
 	}
 }

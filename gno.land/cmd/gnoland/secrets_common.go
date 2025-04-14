@@ -89,7 +89,7 @@ func validateValidatorKey(key *privval.FilePVKey) error {
 
 	// Make sure the address is derived
 	// from the public key
-	if pk := key.PubKey.Address(); pk.Compare(key.Address) != 0 {
+	if pk := key.PubKey.Address(); pk.Compare(&key.Address) != 0 {
 		return errAddressMismatch
 	}
 

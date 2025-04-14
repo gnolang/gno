@@ -85,7 +85,7 @@ func (addr *Address) UnmarshalAmino(b32str string) (err error) {
 	return nil
 }
 
-func (addr *Address) Compare(other Address) int {
+func (addr *Address) Compare(other *Address) int {
 	return bytes.Compare(addr[:], other[:])
 }
 

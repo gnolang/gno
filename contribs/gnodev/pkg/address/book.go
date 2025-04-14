@@ -51,7 +51,7 @@ func (bk *Book) Add(addr crypto.Address, name string) {
 	}
 
 	// Check if the association already exist
-	if oldAddr.Compare(addr) == 0 {
+	if oldAddr.Compare(&addr) == 0 {
 		return // nothing to do
 	}
 
@@ -87,7 +87,7 @@ func (bk Book) List() []Entry {
 
 		// Find the correct place to insert newEntry using binary search.
 		i := sort.Search(len(entries), func(i int) bool {
-			return entries[i].Address.Compare(newEntry.Address) >= 0
+			return entries[i].Address.Compare(&newEntry.Address) >= 0
 		})
 
 		entries = append(entries[:i], append([]Entry{newEntry}, entries[i:]...)...)

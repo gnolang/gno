@@ -15,10 +15,10 @@ func BenchmarkAddressCompare(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		sink = addr1.Compare(addr1)
-		sink = addr1.Compare(addr2)
-		sink = addr2.Compare(addr2)
-		sink = addr2.Compare(addr1)
+		sink = addr1.Compare(&addr1)
+		sink = addr1.Compare(&addr2)
+		sink = addr2.Compare(&addr2)
+		sink = addr2.Compare(&addr1)
 	}
 
 	if sink == nil {
