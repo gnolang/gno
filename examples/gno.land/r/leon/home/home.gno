@@ -5,12 +5,13 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/md"
 
 	"gno.land/r/demo/art/gnoface"
 	"gno.land/r/demo/art/millipede"
 	"gno.land/r/demo/mirror"
 	"gno.land/r/leon/config"
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 )
 
 var (
@@ -19,22 +20,18 @@ var (
 	abtMe      [2]string
 )
 
-func Render(path string) string {
+func Render(_ string) string {
 	out := "# Leon's Homepage\n\n"
 
 	out += renderAboutMe()
-	out += renderBlogPosts()
-	out += "\n\n"
 	out += renderArt()
-	out += "\n\n"
 	out += config.Banner()
-	out += "\n\n"
 
 	return out
 }
 
 func init() {
-	hof.Register("Leon's Home Realm", "")
+	hor.Register("Leon's Home Realm", "")
 	mirror.Register(std.CurrentRealm().PkgPath(), Render)
 
 	pfp = "https://i.imgflip.com/91vskx.jpg"
@@ -69,66 +66,39 @@ func UpdateAboutMe(col1, col2 string) {
 	abtMe[1] = col2
 }
 
+func renderAboutMe() string {
+	return md.Columns([]string{
+		ufmt.Sprintf("![my profile pic](%s)\n\n%s\n", pfp, pfpCaption),
+		abtMe[0],
+		abtMe[1],
+	})
+}
+
+func renderArt() string {
+	out := "# Gno Art\n"
+
+	out += md.Columns([]string{
+		gnoface.Render(strconv.Itoa(int(std.ChainHeight()))),
+		renderMillipede(),
+		"Empty spot :/",
+	})
+
+	out += "This art is dynamic; it will change with every new block.\n\n"
+
+	return out
+}
+
+func renderMillipede() string {
+	out := "Millipede\n\n"
+	out += "```\n" + millipede.Draw(int(std.ChainHeight())%10+1) + "```\n"
+	return out
+}
+
 func renderBlogPosts() string {
 	out := ""
 	// out += "## Leon's Blog Posts"
 
 	// todo fetch blog posts authored by @leohhhn
 	// and render them
-	return out
-}
-
-func renderAboutMe() string {
-	out := "<div class='columns-3'>"
-
-	out += "<div>\n\n"
-	out += ufmt.Sprintf("![my profile pic](%s)\n\n%s\n\n", pfp, pfpCaption)
-	out += "</div>\n\n"
-
-	out += "<div>\n\n"
-	out += abtMe[0] + "\n\n"
-	out += "</div>\n\n"
-
-	out += "<div>\n\n"
-	out += abtMe[1] + "\n\n"
-	out += "</div>\n\n"
-
-	out += "</div><!-- /columns-3 -->\n\n"
-
-	return out
-}
-
-func renderArt() string {
-	out := `<div class="jumbotron">` + "\n\n"
-	out += "# Gno Art\n\n"
-
-	out += "<div class='columns-3'>"
-
-	out += renderGnoFace()
-	out += renderMillipede()
-	out += "Empty spot :/"
-
-	out += "</div><!-- /columns-3 -->\n\n"
-
-	out += "This art is dynamic; it will change with every new block.\n\n"
-	out += `</div><!-- /jumbotron -->` + "\n"
-
-	return out
-}
-
-func renderGnoFace() string {
-	out := "<div>\n\n"
-	out += gnoface.Render(strconv.Itoa(int(std.ChainHeight())))
-	out += "</div>\n\n"
-
-	return out
-}
-
-func renderMillipede() string {
-	out := "<div>\n\n"
-	out += "Millipede\n\n"
-	out += "```\n" + millipede.Draw(int(std.ChainHeight())%10+1) + "```\n"
-	out += "</div>\n\n"
-
 	return out
 }

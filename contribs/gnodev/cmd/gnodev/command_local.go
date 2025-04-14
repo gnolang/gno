@@ -97,7 +97,7 @@ func execLocalApp(cfg *LocalAppConfig, args []string, cio commands.IO) error {
 
 	if len(cfg.resolvers) == 0 {
 		// Check if we are not in gnoroot
-		if !strings.HasPrefix(dir, cfg.root) {
+		if !strings.HasPrefix(dir, filepath.Clean(cfg.root)+"/") {
 			// Add current dir as root resolvers
 			baseResolvers = append(baseResolvers, packages.NewRootResolver(dir))
 		}
