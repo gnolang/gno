@@ -4,14 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
-
-	"errors"
 
 	"github.com/google/go-github/v64/github"
 )
