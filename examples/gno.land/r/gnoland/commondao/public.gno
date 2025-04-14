@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/gnoland/commondao"
+	"gno.land/p/nt/commondao"
 )
 
 // TODO: Allow different ownerships of DAOs within the same tree

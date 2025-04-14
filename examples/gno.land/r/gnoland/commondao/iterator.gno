@@ -2,7 +2,7 @@ package commondao
 
 import (
 	"gno.land/p/demo/avl/rotree"
-	"gno.land/p/gnoland/commondao"
+	"gno.land/p/nt/commondao"
 )
 
 // Iterate returns a SubDAO iterator.

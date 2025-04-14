@@ -3,7 +3,7 @@ package commondao
 import (
 	"errors"
 
-	"gno.land/p/gnoland/commondao"
+	"gno.land/p/nt/commondao"
 )
 
 var ErrInvalidProposal = errors.New("invalid proposal definition")

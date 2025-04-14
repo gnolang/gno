@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/gnoland/commondao"
+	"gno.land/p/nt/commondao"
 	"gno.land/p/moul/addrset"
 )
 

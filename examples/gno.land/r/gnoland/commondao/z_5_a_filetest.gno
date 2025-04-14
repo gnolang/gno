@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	pdao "gno.land/p/gnoland/commondao"
+	pdao "gno.land/p/nt/commondao"
 
 	"gno.land/r/gnoland/commondao"
 )

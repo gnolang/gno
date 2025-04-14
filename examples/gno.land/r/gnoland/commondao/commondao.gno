@@ -5,7 +5,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/seqid"
-	"gno.land/p/gnoland/commondao"
+	"gno.land/p/nt/commondao"
 )
 
 // TODO: Use a trie tree to store hierarchical DAOs

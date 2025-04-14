@@ -5,7 +5,7 @@ import (
 	"std"
 	"testing"
 
-	pcommondao "gno.land/p/gnoland/commondao"
+	pcommondao "gno.land/p/nt/commondao"
 
 	"gno.land/r/gnoland/commondao"
 )

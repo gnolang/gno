@@ -3,7 +3,7 @@ package commondao
 import (
 	"std"
 
-	"gno.land/p/gnoland/commondao"
+	"gno.land/p/nt/commondao"
 )
 
 func init() {
