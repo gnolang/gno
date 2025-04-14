@@ -14,8 +14,11 @@ The `upgradeable` package provides a system for implementing upgradeable functio
 - **Transparency**: All upgrades emit events for audit trails
 - **Flexibility**: Works with any function type through a common interface
 - **Proxy Pattern**: Built-in support for contract upgradeability via proxy
+- **Cross-Realm Upgrades**: Upgrade functions across different realm versions automatically
 
 ### Basic Usage
+
+#### Single Realm Upgrades
 
 ```go
 package mywebsite
@@ -58,22 +61,72 @@ func UpgradeRender() error {
 func UpgradeRenderTo(target interface{}) error {
 	return renderFunc.Update(target)
 }
+```
+
+#### Cross-Realm Upgrades
+
+For automatic upgrades across realm versions:
+
+**Version 1 (Original Realm)**
+
+```go
+package mywebsite
+
+import (
+	"gno.land/p/demo/upgradeable"
+)
+
+// Global registry - capitalized to make it public and accessible from other realms
+var (
+	Registry   = upgradeable.New() // Public registry that can be accessed by other realms
+	renderFunc = upgradeable.NewStringFuncHolder(
+		Registry,
+		"render",
+		RenderV1,
+	)
+)
+
+// V1 implementation
+func RenderV1(path string) string {
+	return "Basic page for " + path
+}
 
 // Public function that uses the upgradeable implementation
 func Render(path string) string {
-    fn := renderFunc.Get()
-    return fn(path)
+	fn := renderFunc.Get()
+	return fn(path)
+}
+```
+
+**Version 2 (New Realm)**
+
+```go
+package mywebsitev2
+
+import (
+	"std"
+	
+	"gno.land/p/demo/upgradeable"
+	v1 "gno.land/r/demo/mywebsite" // Import the v1 realm
+)
+
+func init() {
+	// Directly upgrade the function in the v1 registry
+	err := v1.Registry.RegisterFunction("render", RenderV2)
+	if err != nil {
+		std.Emit("UpgradeError", "error", err.Error())
+	}
 }
 
-// Admin function to upgrade the implementation
-func UpgradeRender() error {
-    // Only an owner can call successfully
-    return renderFunc.Update(RenderV2)
+// V2 implementation with enhanced features
+func RenderV2(path string) string {
+	return "# Enhanced page for " + path
 }
 
-// Add another owner to allow them to perform upgrades
-func AddUpgradeAdmin(addr std.Address) error {
-    return registry.AddOwner(addr)
+// We maintain the same API, which now uses the upgraded implementation
+func Render(path string) string {
+	// This just calls v1's function which will now use our V2 implementation
+	return v1.Render(path)
 }
 ```
 
@@ -194,6 +247,21 @@ accessFn := upgradeable.NewAddressBoolFuncHolder(
 hasAccess := accessFn.Get()(userAddress) // No type assertion needed
 ```
 
+### Cross-Realm Upgrader
+
+For more complex cross-realm upgrade scenarios:
+
+```go
+// Create a cross-realm upgrader
+upgrader := upgradeable.NewCrossRealmUpgrader(
+    "gno.land/r/mypackage/v2", // Source package
+    "gno.land/r/mypackage/v1", // Target realm with registry
+)
+
+// Register a function from this realm to the target realm
+err := upgrader.RegisterFunction("render", myRenderV2Function)
+```
+
 ### Contract Proxy Pattern
 
 For implementing upgradeable contracts:
@@ -241,24 +309,25 @@ import (
 var currentVersion = 1
 
 // Store the registry and function holders at package level
+// Make Registry public (capitalized) so other realms can access it
 var (
-    registry = upgradeable.New()
+    Registry = upgradeable.New() // Public registry that newer versions can access
     
     // Function holders for each upgradeable component
     renderPageHolder = upgradeable.NewStringFuncHolder(
-        registry, 
+        Registry, 
         "render_page", 
         RenderPageV1,
     )
     
     renderHeaderHolder = upgradeable.NewStringFuncHolder(
-        registry, 
+        Registry, 
         "render_header", 
         RenderHeaderV1,
     )
     
     renderFooterHolder = upgradeable.NewStringFuncHolder(
-        registry, 
+        Registry, 
         "render_footer", 
         RenderFooterV1,
     )
@@ -283,49 +352,6 @@ func RenderFooterV1() string {
     return "<footer>© 2024 My Website</footer>"
 }
 
-// V2 implementations with enhanced features
-func RenderPageV2(path string) string {
-    renderHeader := renderHeaderHolder.Get()
-    renderFooter := renderFooterHolder.Get()
-    
-    // V2 adds navigation
-    nav := "<nav><a href='/'>Home</a> | <a href='/about'>About</a></nav>"
-    
-    return renderHeader("My Page") + 
-           nav +
-           "<div>Content for: " + path + "</div>" +
-           renderFooter()
-}
-
-func RenderHeaderV2(title string) string {
-    return "<header style='background-color: #f0f0f0;'>" +
-           "<h1>" + title + "</h1>" +
-           "</header>"
-}
-
-func RenderFooterV2() string {
-    // V2 footer shows version
-    return "<footer>© 2024 My Website | Version " + 
-           fmt.Sprintf("%d", currentVersion) + "</footer>"
-}
-
-// V3 implementations with further enhancements
-func RenderPageV3(path string) string {
-    renderHeader := renderHeaderHolder.Get()
-    renderFooter := renderFooterHolder.Get()
-    
-    // V3 adds sidebar and improved structure
-    nav := "<nav><a href='/'>Home</a> | <a href='/about'>About</a></nav>"
-    
-    return renderHeader("My Page") + 
-           nav +
-           "<div class='layout'>" +
-           "  <div class='sidebar'>Recent Updates</div>" +
-           "  <div class='content'>Content for: " + path + "</div>" +
-           "</div>" +
-           renderFooter()
-}
-
 // Public API - remains stable despite implementation changes
 func RenderPage(path string) string {
     renderFn := renderPageHolder.Get()
@@ -334,7 +360,7 @@ func RenderPage(path string) string {
 
 // Admin function to upgrade to V2
 func UpgradeToV2() error {
-    if !registry.CallerIsOwner() {
+    if !Registry.CallerIsOwner() {
         return std.ErrUnauthorized
     }
     
@@ -354,28 +380,153 @@ func UpgradeToV2() error {
     return renderFooterHolder.Update(RenderFooterV2)
 }
 
-// Admin function to upgrade to V3
-func UpgradeToV3() error {
-    if !registry.CallerIsOwner() {
-        return std.ErrUnauthorized
-    }
-    
-    // Update version and page renderer only
-    currentVersion = 3
-    return renderPageHolder.Update(RenderPageV3)
-}
-
 // Allow others to help manage the site
 func AddAdmin(addr std.Address) error {
-    if !registry.CallerIsOwner() {
+    if !Registry.CallerIsOwner() {
         return std.ErrUnauthorized
     }
     
-    return registry.AddOwner(addr)
+    return Registry.AddOwner(addr)
 }
 ```
 
-### 2. Data Processing with Complex Function Signature
+### 2. Cross-Realm Package Versioning with Auto-Upgrades
+
+**Version 1 (Original Realm)**
+
+```go
+package website
+
+import (
+    "std"
+    "gno.land/p/demo/upgradeable"
+)
+
+// Public registry and state - capitals so they're accessible from other realms
+var (
+    Version     = 1
+    Registry    = upgradeable.New()
+    SiteConfig  = map[string]string{
+        "title": "My Website",
+        "theme": "light",
+    }
+
+    // Function holders with descriptive names
+    renderPageHolder    = upgradeable.NewStringFuncHolder(Registry, "renderPage", RenderPageV1)
+    renderHeaderHolder  = upgradeable.NewStringFuncHolder(Registry, "renderHeader", RenderHeaderV1)
+    renderFooterHolder  = upgradeable.NewStringFuncHolder(Registry, "renderFooter", RenderFooterV1)
+    getThemeHolder      = upgradeable.NewStringFuncHolder(Registry, "getTheme", GetThemeV1)
+)
+
+// V1 implementations
+func RenderPageV1(path string) string {
+    header := renderHeaderHolder.Get()(SiteConfig["title"])
+    content := "<div>Content for: " + path + "</div>"
+    footer := renderFooterHolder.Get()()
+    return header + content + footer
+}
+
+func RenderHeaderV1(title string) string {
+    return "<header><h1>" + title + "</h1></header>"
+}
+
+func RenderFooterV1() string {
+    return "<footer>© 2024 My Website</footer>"
+}
+
+func GetThemeV1() string {
+    return SiteConfig["theme"]
+}
+
+// Public API functions
+func RenderPage(path string) string {
+    fn := renderPageHolder.Get()
+    return fn(path)
+}
+
+func GetTheme() string {
+    fn := getThemeHolder.Get()
+    return fn()
+}
+
+// Update site config (also public)
+func UpdateConfig(key, value string) {
+    SiteConfig[key] = value
+    std.Emit("ConfigUpdated", "key", key, "value", value)
+}
+```
+
+**Version 2 (New Realm)**
+
+```go
+package websitev2
+
+import (
+    "std"
+    v1 "gno.land/r/demo/website" // Import the v1 realm
+)
+
+const Version = 2
+
+func init() {
+    // Upgrade specific functions
+    err := v1.Registry.RegisterFunction("renderHeader", RenderHeaderV2)
+    if err != nil {
+        std.Emit("UpgradeError", "function", "renderHeader", "error", err.Error())
+    }
+    
+    err = v1.Registry.RegisterFunction("renderFooter", RenderFooterV2)
+    if err != nil {
+        std.Emit("UpgradeError", "function", "renderFooter", "error", err.Error())
+    }
+    
+    // Update configuration
+    v1.UpdateConfig("version", "2")
+    
+    // Add new theme options
+    v1.UpdateConfig("darkTheme", "enabled")
+    
+    std.Emit("UpgradeComplete", "version", Version)
+}
+
+// V2 implementations
+func RenderHeaderV2(title string) string {
+    theme := v1.GetTheme()
+    themeClass := "theme-" + theme
+    
+    return "<header class='" + themeClass + "'>" +
+           "<h1>" + title + "</h1>" +
+           "<nav><a href='/'>Home</a> | <a href='/about'>About</a></nav>" +
+           "</header>"
+}
+
+func RenderFooterV2() string {
+    return "<footer>" +
+           "<div>© 2024 My Website - Version " + v1.SiteConfig["version"] + "</div>" +
+           "<div><a href='/terms'>Terms</a> | <a href='/privacy'>Privacy</a></div>" +
+           "</footer>"
+}
+
+// Public API
+func RenderPage(path string) string {
+    return v1.RenderPage(path)
+}
+
+// Additional functionality specific to v2
+func ToggleTheme() string {
+    currentTheme := v1.GetTheme()
+    
+    if currentTheme == "light" {
+        v1.UpdateConfig("theme", "dark")
+        return "Theme switched to dark"
+    } else {
+        v1.UpdateConfig("theme", "light")
+        return "Theme switched to light"
+    }
+}
+```
+
+### 3. Data Processing with Complex Function Signature
 
 ```go
 package dataprocessor
@@ -386,14 +537,14 @@ import (
     "gno.land/p/demo/upgradeable"
 )
 
-// Registry for upgradeable functions
+// Registry for upgradeable functions - public for cross-realm upgrades
 var (
-    registry = upgradeable.New()
+    Registry = upgradeable.New()
     
     // Holder for a complex data processing function
     // Takes a string, an int, a bool, and returns a string
     processHolder = upgradeable.NewFunctionHolder(
-        registry,
+        Registry,
         "process_data",
         ProcessDataV1,
     )
@@ -417,6 +568,38 @@ func ProcessDataV1(input string, multiplier int, uppercase bool) string {
     }
     
     return "v1 processor: " + combined
+}
+
+// Public API that remains stable
+func ProcessData(input string, multiplier int, uppercase bool) string {
+    // Get current implementation and type-cast it
+    processor := processHolder.Get().(func(string, int, bool) string)
+    return processor(input, multiplier, uppercase)
+}
+
+// Admin function to upgrade processor
+func UpgradeProcessor(version int) error {
+    if !Registry.CallerIsOwner() {
+        return std.ErrUnauthorized
+    }
+    
+    switch version {
+    case 2:
+        return processHolder.Update(ProcessDataV2)
+    case 3:
+        return processHolder.Update(ProcessDataV3)
+    default:
+        return std.ErrInvalidArg
+    }
+}
+
+// Add another admin that can upgrade the processor
+func AddProcessorAdmin(addr std.Address) error {
+    if !Registry.CallerIsOwner() {
+        return std.ErrUnauthorized
+    }
+    
+    return Registry.AddOwner(addr)
 }
 
 // V2: Enhanced processing with different formatting
@@ -453,330 +636,76 @@ func ProcessDataV3(input string, multiplier int, uppercase bool) string {
     
     return combined
 }
+```
 
-// Public API that remains stable
+**Version 2 (Cross-Realm Upgrade)**
+
+```go
+package dataprocessorv2
+
+import (
+    "fmt"
+    "std"
+    
+    v1 "gno.land/r/demo/dataprocessor" // Import v1 realm
+)
+
+func init() {
+    // Automatically upgrade the processor to v2
+    err := v1.Registry.RegisterFunction("process_data", ProcessDataV2)
+    if err != nil {
+        std.Emit("UpgradeError", "error", err.Error())
+    } else {
+        std.Emit("ProcessorUpgraded", "version", 2)
+    }
+}
+
+// V2: Enhanced processing with different formatting
+func ProcessDataV2(input string, multiplier int, uppercase bool) string {
+    result := input
+    if uppercase {
+        result = "UPPERCASE: " + result
+    }
+    
+    // V2 uses a different separator
+    combined := ""
+    for i := 0; i < multiplier; i++ {
+        if i > 0 {
+            combined += " | "
+        }
+        combined += result
+    }
+    
+    return "v2 processor: " + combined
+}
+
+// Public API that uses v1's function (which now uses our v2 implementation)
 func ProcessData(input string, multiplier int, uppercase bool) string {
-    // Get current implementation and type-cast it
-    processor := processHolder.Get().(func(string, int, bool) string)
-    return processor(input, multiplier, uppercase)
-}
-
-// Admin function to upgrade processor
-func UpgradeProcessor(version int) error {
-    if !registry.CallerIsOwner() {
-        return std.ErrUnauthorized
-    }
-    
-    switch version {
-    case 2:
-        return processHolder.Update(ProcessDataV2)
-    case 3:
-        return processHolder.Update(ProcessDataV3)
-    default:
-        return std.ErrInvalidArg
-    }
-}
-
-// Add another admin that can upgrade the processor
-func AddProcessorAdmin(addr std.Address) error {
-    if !registry.CallerIsOwner() {
-        return std.ErrUnauthorized
-    }
-    
-    return registry.AddOwner(addr)
+    return v1.ProcessData(input, multiplier, uppercase)
 }
 ```
 
-### 3. Access Control System with Upgradeable Rules
+## Cross-Realm Upgrade Utilities
+
+The package provides utilities for more complex cross-realm upgrade scenarios:
 
 ```go
-package access
-
-import (
-    "std"
-    "gno.land/p/demo/upgradeable"
+// Create a cross-realm upgrader
+upgrader := upgradeable.NewCrossRealmUpgrader(
+    "gno.land/r/mypackage/v2", // Source package
+    "gno.land/r/mypackage/v1", // Target realm containing the Registry
 )
 
-// Registry and function holders
-var (
-    registry = upgradeable.New()
-    
-    // List of admins (state that persists across upgrades)
-    // We'll initialize this with the first owner in init()
-    admins = make(map[std.Address]bool)
-    
-    // User roles
-    roles = map[std.Address]string{}
-    
-    // Upgradeable access control checker
-    accessChecker = upgradeable.NewAddressBoolFuncHolder(
-        registry,
-        "check_access",
-        CheckAccessV1,
-    )
+// Register a function from this realm to the target realm
+err := upgrader.RegisterFunction("render", RenderV2Function)
+
+// Alternatively, use the helper function directly
+err := upgradeable.UpgradeFunction(
+    "gno.land/r/mypackage/v1", // Target realm
+    "Registry",                // Name of the registry variable in the target realm
+    "render",                  // Function name to upgrade
+    RenderV2Function           // New function implementation
 )
-
-// Initialize admins with the registry's owners
-func init() {
-    // This would normally be done in a realm initialization function
-    // that would be called once, since we can't actually execute
-    // code in package-level init() in Gno yet
-    owners := registry.ListOwners()
-    for _, owner := range owners {
-        admins[owner] = true
-    }
-}
-
-// V1: Basic access control - only admins have access
-func CheckAccessV1(addr std.Address) bool {
-    return admins[addr]
-}
-
-// V2: Role-based access control
-func CheckAccessV2(addr std.Address) bool {
-    // Admins always have access
-    if admins[addr] {
-        return true
-    }
-    
-    // Users with "editor" role have access
-    return roles[addr] == "editor"
-}
-
-// V3: Time-based access control
-func CheckAccessV3(addr std.Address) bool {
-    // Admins always have access
-    if admins[addr] {
-        return true
-    }
-    
-    // Editors have access
-    if roles[addr] == "editor" {
-        return true
-    }
-    
-    // Users with "limited" role only have access during business hours
-    if roles[addr] == "limited" {
-        // Simplified time check (in a real implementation, use proper time functions)
-        timestamp := std.GetTimestamp()
-        hour := (timestamp / 3600) % 24
-        
-        // Business hours: 9am to 5pm
-        return hour >= 9 && hour < 17
-    }
-    
-    return false
-}
-
-// Public API
-
-// HasAccess checks if an address has access
-func HasAccess(addr std.Address) bool {
-    fn := accessChecker.Get()
-    return fn(addr)
-}
-
-// AddAdmin adds a new admin
-func AddAdmin(addr std.Address) error {
-    caller := std.OriginCaller()
-    if !HasAccess(caller) {
-        return std.ErrUnauthorized
-    }
-    
-    admins[addr] = true
-    return nil
-}
-
-// SetRole assigns a role to an address
-func SetRole(addr std.Address, role string) error {
-    caller := std.OriginCaller()
-    if !HasAccess(caller) {
-        return std.ErrUnauthorized
-    }
-    
-    roles[addr] = role
-    return nil
-}
-
-// UpgradeAccessControl changes the access control implementation
-func UpgradeAccessControl(version int) error {
-    if !registry.CallerIsOwner() {
-        return std.ErrUnauthorized
-    }
-    
-    switch version {
-    case 1:
-        return accessChecker.Update(CheckAccessV1)
-    case 2:
-        return accessChecker.Update(CheckAccessV2)
-    case 3:
-        return accessChecker.Update(CheckAccessV3)
-    default:
-        return std.ErrInvalidArg
-    }
-}
-```
-
-### 4. Feature Flag System with Evolving Logic
-
-```go
-package features
-
-import (
-    "std"
-    "gno.land/p/demo/upgradeable"
-)
-
-// Registry and state
-var (
-    registry = upgradeable.New()
-    featureFlags = make(map[string]bool)
-    
-    // Upgradeable feature flag checker
-    checkFeature = upgradeable.NewFunctionHolder(
-        registry,
-        "check_feature",
-        CheckFeatureV1,
-    )
-)
-
-// Initialize with default features
-func init() {
-    featureFlags["dark_mode"] = false
-    featureFlags["beta_features"] = false
-}
-
-// V1: Simple direct lookup
-func CheckFeatureV1(featureName string, userAddr std.Address) bool {
-    return featureFlags[featureName]
-}
-
-// V2: User-specific overrides
-var userOverrides = make(map[std.Address]map[string]bool)
-
-func CheckFeatureV2(featureName string, userAddr std.Address) bool {
-    // Check for user-specific override
-    if userOverrides[userAddr] != nil {
-        if override, exists := userOverrides[userAddr][featureName]; exists {
-            return override
-        }
-    }
-    
-    // Fall back to global setting
-    return featureFlags[featureName]
-}
-
-// V3: Role-based + percentage rollout
-var userRoles = make(map[std.Address]string)
-var rolloutPercentages = make(map[string]int) // 0-100
-
-func CheckFeatureV3(featureName string, userAddr std.Address) bool {
-    // Admin users get all features
-    if userRoles[userAddr] == "admin" {
-        return true
-    }
-    
-    // Beta users get beta features
-    if featureName == "beta_features" && userRoles[userAddr] == "beta_tester" {
-        return true
-    }
-    
-    // Check for user-specific override
-    if userOverrides[userAddr] != nil {
-        if override, exists := userOverrides[userAddr][featureName]; exists {
-            return override
-        }
-    }
-    
-    // Check percentage rollout (simplified - in reality, use a hash function)
-    if percentage, exists := rolloutPercentages[featureName]; exists && percentage > 0 {
-        // This is a simplified percentage check
-        // In reality, you'd use a consistent hash of the address
-        addrStr := string(userAddr)
-        if len(addrStr) > 0 {
-            return int(addrStr[0]) % 100 < percentage
-        }
-    }
-    
-    // Fall back to global setting
-    return featureFlags[featureName]
-}
-
-// Public API
-
-// IsFeatureEnabled checks if a feature is enabled for a user
-func IsFeatureEnabled(featureName string) bool {
-    userAddr := std.OriginCaller()
-    checkFn := checkFeature.Get().(func(string, std.Address) bool)
-    return checkFn(featureName, userAddr)
-}
-
-// Admin functions
-
-// SetFeature enables or disables a feature globally
-func SetFeature(featureName string, enabled bool) error {
-    if !registry.CallerIsOwner() {
-        return std.ErrUnauthorized
-    }
-    
-    featureFlags[featureName] = enabled
-    return nil
-}
-
-// SetUserOverride sets a user-specific override
-func SetUserOverride(userAddr std.Address, featureName string, enabled bool) error {
-    if !registry.CallerIsOwner() {
-        return std.ErrUnauthorized
-    }
-    
-    if userOverrides[userAddr] == nil {
-        userOverrides[userAddr] = make(map[string]bool)
-    }
-    
-    userOverrides[userAddr][featureName] = enabled
-    return nil
-}
-
-// SetRolloutPercentage sets the percentage rollout for a feature
-func SetRolloutPercentage(featureName string, percentage int) error {
-    if !registry.CallerIsOwner() {
-        return std.ErrUnauthorized
-    }
-    
-    if percentage < 0 || percentage > 100 {
-        return std.ErrInvalidArg
-    }
-    
-    rolloutPercentages[featureName] = percentage
-    return nil
-}
-
-// UpgradeFeatureChecker upgrades the feature checking logic
-func UpgradeFeatureChecker(version int) error {
-    if !registry.CallerIsOwner() {
-        return std.ErrUnauthorized
-    }
-    
-    switch version {
-    case 1:
-        return checkFeature.Update(CheckFeatureV1)
-    case 2:
-        return checkFeature.Update(CheckFeatureV2)
-    case 3:
-        return checkFeature.Update(CheckFeatureV3)
-    default:
-        return std.ErrInvalidArg
-    }
-}
-
-// AddFeatureAdmin adds a new admin who can manage features
-func AddFeatureAdmin(addr std.Address) error {
-    if !registry.CallerIsOwner() {
-        return std.ErrUnauthorized
-    }
-    
-    return registry.AddOwner(addr)
-}
 ```
 
 ## Custom Function Holders
@@ -817,10 +746,18 @@ func (h *TransferFuncHolder) Get() func(std.Address, std.Address, int) error {
 
 ### State Management
 
-1. **Shared State**: Use package-level variables for state that persists across upgrades
+1. **Shared State**: Use public package-level variables for state that persists across upgrades
 2. **State Validation**: Add validation in newer versions when state structure evolves
 3. **State Documentation**: Document how state is expected to be structured for each version
 4. **Default Values**: Provide sensible defaults for new state fields introduced in upgrades
+
+### Cross-Realm Upgrades
+
+1. **Public Registry**: Make registry variables public (capitalized) in V1 realms
+2. **Auto-Initialization**: Use `init()` functions to register upgrades automatically
+3. **Consistent Package Paths**: Keep your package path structure consistent for discovery
+4. **Event Emission**: Emit events for all upgrades for transparency
+5. **Error Handling**: Always check and report errors during automatic upgrades
 
 ### Security Considerations
 
@@ -845,6 +782,7 @@ func (h *TransferFuncHolder) Get() func(std.Address, std.Address, int) error {
 3. **Test Error Cases**: Check that appropriate errors are returned
 4. **Test Default Fallbacks**: Ensure defaults work if a function is removed
 5. **Test with Package Functions**: Test with actual named package functions, not just anonymous functions
+6. **Test Cross-Realm Upgrades**: Verify that cross-realm upgrades work as expected
 
 ## Component Reference
 
@@ -875,6 +813,14 @@ func (h *TransferFuncHolder) Get() func(std.Address, std.Address, int) error {
 | `VoidFuncHolder` | `func()` | For parameterless functions with no return |
 | `StringVoidFuncHolder` | `func(string)` | For action functions with string param |
 | `IntFuncHolder` | `func() int` | For numeric getter functions |
+
+### Cross-Realm Upgrader Methods
+
+| Method | Description |
+|--------|-------------|
+| `NewCrossRealmUpgrader(source, target)` | Creates a new cross-realm upgrader |
+| `RegisterFunction(name, fn)` | Registers a function from this realm to the target realm |
+| `UpgradeFunction(realm, registry, name, fn)` | Helper to upgrade a specific function across realms |
 
 ### Contract Proxy Methods
 
@@ -908,6 +854,10 @@ func (h *TransferFuncHolder) Get() func(std.Address, std.Address, int) error {
   - Basic function registry with ownership controls
   - Specialized function holders for common types
   - Contract proxy implementation
+- **0.2.0**: Cross-realm upgrades
+  - Added support for automatic cross-realm upgrades
+  - Added CrossRealmUpgrader utility for complex scenarios
+  - Documentation for cross-realm upgrade patterns
 
 ## License
 

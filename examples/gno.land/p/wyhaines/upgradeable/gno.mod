@@ -1,1 +1,1 @@
-module gno.land/p/demo/upgradeable
+module gno.land/p/wyhaines/upgradeable

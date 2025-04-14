@@ -1,4 +1,4 @@
-package mywebsitev2
+package mywebsitev3
 
 import (
 	"std"
@@ -9,13 +9,12 @@ import (
 
 // Package information
 const (
-	Version = 2
+	Version = 3
 )
 
 func init() {
 	// Directly upgrade the function in the v1 realm's Registry
-	// We can access the Registry because it's public (capitalized)
-	err := v1.Registry.RegisterFunction("render", RenderV2)
+	err := v1.Registry.RegisterFunction("render", RenderV3)
 	if err != nil {
 		std.Emit("UpgradeError", "error", err.Error())
 	} else {
@@ -23,13 +22,13 @@ func init() {
 	}
 }
 
-// V2 implementation with enhanced features
-func RenderV2(path string) string {
-	return "# Enhanced page for " + path + " (v2)"
+// V3 implementation with more enhancements
+func RenderV3(path string) string {
+	return "# V3 Enhanced page for " + path + " with advanced formatting"
 }
 
-// We can still have our own implementation that calls v1's function
-// which will now use the upgraded implementation
+// We can provide our own public API that uses the v1 function
+// (which now uses the v3 implementation)
 func Render(path string) string {
 	return v1.Render(path)
 }

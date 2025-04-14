@@ -1,16 +1,23 @@
 package mywebsite
 
 import (
-	"gno.land/p/demo/upgradeable"
+	"gno.land/p/wyhaines/upgradeable"
+)
+
+// Package information
+const (
+	PackagePath = "gno.land/r/wyhaines/v1/mywebsite"
+	Version     = 1
 )
 
 // Global registry and function holders
+// Notice Registry is public (capitalized) so other realms can access it
 var (
-	registry   = upgradeable.New()
+	Registry   = upgradeable.New() // Public, accessible from other realms
 	renderFunc = upgradeable.NewStringFuncHolder(
-		registry,
+		Registry,
 		"render",
-		RenderV1, // Using a named package function
+		RenderV1,
 	)
 )
 
@@ -19,22 +26,13 @@ func RenderV1(path string) string {
 	return "Basic page for " + path
 }
 
-// V2 implementation with enhanced features
-func RenderV2(path string) string {
-	return "# Enhanced page for " + path
-}
-
 // Public function that uses the upgradeable implementation
 func Render(path string) string {
 	fn := renderFunc.Get()
 	return fn(path)
 }
 
-// Admin function to upgrade the implementation
-func UpgradeRender() error {
-	return renderFunc.Update(RenderV2)
-}
-
-func UpgradeRenderTo(target interface{}) error {
-	return renderFunc.Update(target)
+// Public function to check current version
+func GetVersion() int {
+	return Version
 }

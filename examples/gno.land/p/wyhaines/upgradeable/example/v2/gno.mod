@@ -1,1 +1,1 @@
-module gno.land/r/wyhaines/mywebsite/v2
+module gno.land/r/wyhaines/v2/mywebsite
