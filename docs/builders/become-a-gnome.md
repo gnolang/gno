@@ -41,8 +41,8 @@ to document your work, as well as a [Game of Realms](https://github.com/gnolang/
 From there, you can start building your profile, starting with a
 Home realm — your personal realm which can serve as your on-chain profile,
 to document work, share updates, and use as a workspace. It doesn't have to be fancy;
-it just needs to represent you. Check out some of the existing Home ealm examples
-on the [Hall of Fame](https://gno.land/r/leon/hof).
+it just needs to represent you. Check out some of the existing Home realm examples
+in the [Hall of Realms](https://gno.land/r/leon/hor).
 
 Sharing progress is key. Whether it's a challenge you overcame, a cool discovery,
 or a lesson learned, your updates help others and foster education to support a

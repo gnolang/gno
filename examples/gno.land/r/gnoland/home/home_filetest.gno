@@ -58,9 +58,9 @@ func main() {
 //
 // No events.
 //
-// ## [Hall of Fame](/r/leon/hof)
+// ## [Hall of Realms](/r/leon/hor)
 //
-// :latest-hof:
+//
 //
 // ---
 //
