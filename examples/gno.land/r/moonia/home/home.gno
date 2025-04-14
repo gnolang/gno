@@ -73,8 +73,7 @@ func renderDAO(daoID string) string {
 	out += "- Admin: `" + ds.DAO.Admin.String() + "`\n"
 	out += "- Caller: `" + caller.String() + "`\n"
 	if ds.DAO.IsAdmin(caller) {
-		out += "\n## 📨 Join Requests:\n"
-		out += "- Requests count: " + strconv.Itoa(len(ds.DAO.Requests)) + "\n"
+		out += "\n## 📨 Join Requests: " + strconv.Itoa(len(ds.DAO.Requests)) + "\n"
 		if len(ds.DAO.Requests) == 0 {
 			out += "_No pending requests._\n"
 		} else {
