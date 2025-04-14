@@ -7,7 +7,6 @@ package ufmt
 
 import (
 	"errors"
-	// "fmt"
 	"io"
 	"math"
 	"strconv"
@@ -220,7 +219,7 @@ func (p *printer) doPrintln(a []any) {
 //	%G: Formats a float value with %G for large exponents, and %F with full precision for smaller numbers
 //	%t: Formats a boolean value to "true" or "false".
 //	%x: Formats an integer value as a hexadecimal string.
-//	    Currently supports only uint8, []uint8, [32]uint8.
+//	    Currently supports only int, uint, uint8, 16, 32, 64 and []uint8.
 //	%c: Formats a rune value as a string.
 //	    Currently supports only rune, int.
 //	%q: Formats a string value as a quoted string.
@@ -463,14 +462,30 @@ func writeBool(p *printer, verb rune, arg any) {
 	}
 }
 
-// writeHex handles %x formatting
+// writeHex handles %x & %X formatting
 func writeHex(p *printer, verb rune, arg any, big bool) {
 	var subBuf string
 	switch v := arg.(type) {
-	case uint:
-		subBuf += strconv.FormatUint(uint64(v), 16)
 	case int:
 		subBuf += strconv.FormatUint(uint64(v), 16)
+	case uint:
+		subBuf += strconv.FormatUint(uint64(v), 16)
+	case uint8:
+		subBuf += strconv.FormatUint(uint64(v), 16)
+	case uint16:
+		subBuf += strconv.FormatUint(uint64(v), 16)
+	case uint32:
+		subBuf += strconv.FormatUint(uint64(v), 16)
+	case uint64:
+		subBuf += strconv.FormatUint(v, 16)
+	case []uint8:
+		for _, v := range v {
+			x := strconv.FormatUint(uint64(v), 16)
+			if len(x) == 1 {
+				x = "0" + x
+			}
+			subBuf += x
+		}
 	default:
 		p.buf.writeString("(unhandled)")
 		return
