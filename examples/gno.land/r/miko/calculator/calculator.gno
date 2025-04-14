@@ -27,7 +27,7 @@ var (
 	val        float64
 	displayVal string
 
-	operaationMap = map[string]func(left float64, right float64) float64{
+	operationMap = map[string]func(left float64, right float64) float64{
 		"p": func(left float64, right float64) float64 { return left + right },
 		"-": func(left float64, right float64) float64 { return left - right },
 		"*": func(left float64, right float64) float64 { return left * right },
@@ -44,13 +44,13 @@ func init() {
 	hof.Register("Miko's calculator", "Let's do maths")
 }
 
-func evaluateValidity(line string) {
+func evaluateValidity(line string) (bool, string) {
 	if len(line) == 0 {
-		panic("Invalid empty input")
+		return false, "Invalid empty input"
 	} // edge case empty line
 	if strings.Index(specialCharacters, string(line[0])) != -1 ||
 		strings.Index(specialCharacters, string(line[len(line)-1])) != -1 {
-		panic("Invalid equation")
+		return false, "Invalid equation"
 	} // edge case special character at begining or end
 
 	isPriorSpecial := false
@@ -58,16 +58,17 @@ func evaluateValidity(line string) {
 	for i := 1; i < len(line)-1; i++ {
 		if strings.Index(specialCharacters, string(line[i])) != -1 {
 			if isPriorSpecial {
-				panic("Invalid equation")
+				return false, "Invalid equation"
 			}
 			isPriorSpecial = true
 			continue
 		}
 		if (line[i] < '0' || line[i] > '9') && line[i] != 'p' {
-			panic("Invalid character encountered ")
+			return false, "Invalid character encountered "
 		}
 		isPriorSpecial = false
 	}
+	return true, ""
 }
 
 func searchForPriority(priorityList string, line string) *Node {
@@ -95,7 +96,7 @@ func createTree(line string) *Node {
 }
 
 func readTree(tree *Node) float64 {
-	operation, exists := operaationMap[tree.value]
+	operation, exists := operationMap[tree.value]
 
 	if exists { // check if the current node is an operator
 		return operation(readTree(tree.left), readTree(tree.right))
@@ -109,7 +110,14 @@ func readTree(tree *Node) float64 {
 // expression is the equation you want to solve (p replaces the + symbol)
 // exemple: 2p4/2
 func ComputeResult(expression string) string {
-	evaluateValidity(expression)
+	valid, errString := evaluateValidity(expression)
+
+	if !valid { // If a basic error is encountered, return the expression without the = at the end and display the same expression
+		println(errString) // display error for debug
+		displayVal = strings.Replace(expression, "p", "+", -1)
+		return expression
+	}
+
 	tree := createTree(expression)
 
 	val = readTree(tree)
