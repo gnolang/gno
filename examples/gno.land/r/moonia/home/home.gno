@@ -10,9 +10,11 @@ import (
 	"gno.land/p/moonia/utils"
 )
 
-var ds DAOState
-var daoMap map[string]*dao.DAO
-var proposalMap map[string]*dao.ProposalStore
+var (
+	ds DAOState
+	daoMap map[string]*dao.DAO
+	proposalMap map[string]*dao.ProposalStore
+)
 
 type DAOState struct {
 	DAO       *dao.DAO
