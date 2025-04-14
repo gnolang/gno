@@ -15,7 +15,7 @@ Before deploying, you need:
 
 In this tutorial, you will learn how to deploy Gno code to a gno.land network
 via the CLI using `gnokey`. We will be reusing code from a
-[previous tutorial](developing-locally/running-testing-gno.md#setup).
+[previous tutorial](anatomy-of-a-gno-package.md).
 
 ### A word about gas
 
@@ -42,8 +42,8 @@ Gno address to which you want to receive GNOT, complete the captcha and request
 tokens. Soon you should have a GNOT balance.
 
 If you don't have a Gno address, check out
-[Creating a key pair](developing-locally/creating-a-keypair.md), or create one
-via a third-party web extension wallet, such as Adena.
+[Managing keypairs](../users/interact-with-gnokey.md#managing-key-pairs), or
+create one via a third-party web extension wallet, such as Adena.
 
 ## Deploying with `gnokey`
 

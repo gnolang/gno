@@ -470,7 +470,8 @@ func (m *Machine) doOpSliceLit() {
 	// peek slice type.
 	st := m.PeekValue(1 + el).V.(TypeValue).Type
 	// construct element buf slice.
-	es := make([]TypedValue, el)
+	baseArray := m.Alloc.NewListArray(el)
+	es := baseArray.List
 	for i := el - 1; 0 <= i; i-- {
 		es[i] = *m.PopValue()
 	}
@@ -482,7 +483,7 @@ func (m *Machine) doOpSliceLit() {
 	} else {
 		m.PopValue()
 	}
-	sv := m.Alloc.NewSliceFromList(es)
+	sv := m.Alloc.NewSlice(baseArray, 0, el, el)
 	m.PushValue(TypedValue{
 		T: st,
 		V: sv,
@@ -498,7 +499,7 @@ func (m *Machine) doOpSliceLit2() {
 	st := m.PeekValue(1).V.(TypeValue).Type
 	// calculate maximum index.
 	var maxVal int64
-	for i := 0; i < el; i++ {
+	for i := range el {
 		itv := tvs[i*2+0]
 		idx := itv.ConvertGetInt()
 		if idx > maxVal {
@@ -506,8 +507,11 @@ func (m *Machine) doOpSliceLit2() {
 		}
 	}
 	// construct element buf slice.
-	es := make([]TypedValue, maxVal+1)
-	for i := 0; i < el; i++ {
+	// alloc before the underlying array constructed
+	baseArray := m.Alloc.NewListArray(int(maxVal + 1))
+	es := baseArray.List
+
+	for i := range el {
 		itv := tvs[i*2+0]
 		vtv := tvs[i*2+1]
 		idx := itv.ConvertGetInt()
@@ -532,7 +536,7 @@ func (m *Machine) doOpSliceLit2() {
 	} else {
 		m.PopValue()
 	}
-	sv := m.Alloc.NewSliceFromList(es)
+	sv := m.Alloc.NewSlice(baseArray, 0, int(maxVal+1), int(maxVal+1))
 	m.PushValue(TypedValue{
 		T: st,
 		V: sv,
@@ -551,11 +555,11 @@ func (m *Machine) doOpMapLit() {
 		kvs := m.PopValues(ne * 2)
 		// TODO: future optimization
 		// omitType := baseOf(mt).Elem().Kind() != InterfaceKind
-		for i := 0; i < ne; i++ {
+		for i := range ne {
 			ktv := &kvs[i*2]
 			vtv := kvs[i*2+1]
 			ptr := mv.GetPointerForKey(m.Alloc, m.Store, ktv)
-			if ptr.TV.IsDefined() {
+			if ptr.TV.IsDefined() && isConst(x.Elts[i].Key) {
 				// map key has already been assigned
 				panic(fmt.Sprintf("duplicate key %s in map literal", ktv.V))
 			}
@@ -633,7 +637,7 @@ func (m *Machine) doOpStructLit() {
 		fs = defaultStructFields(m.Alloc, st)
 		fsset := make([]bool, len(fs))
 		ftvs := m.PopValues(el)
-		for i := 0; i < el; i++ {
+		for i := range el {
 			fnx := x.Elts[i].Key.(*NameExpr)
 			ftv := ftvs[i]
 			if debug {

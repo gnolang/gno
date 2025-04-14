@@ -5,13 +5,14 @@ package boards_test
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/r/demo/boards"
 	users "gno.land/r/gnoland/users/v1"
 )
 
 func main() {
-	std.TestSetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
 	users.Register("gnouser123")
 	bid1 := boards.CreateBoard("test_board1")
 	boards.CreateThread(bid1, "First Post (title)", "Body of the first post. (body)")

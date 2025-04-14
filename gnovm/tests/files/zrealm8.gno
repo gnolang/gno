@@ -23,20 +23,13 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3]={
-//     "Fields": [
-//         {
-//             "N": "AgAAAAAAAAA=",
-//             "T": {
-//                 "@type": "/gno.PrimitiveType",
-//                 "value": "32"
-//             }
-//         }
-//     ],
-//     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
-//         "ModTime": "4",
-//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
-//         "RefCount": "1"
-//     }
-// }
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3]=
+//     @@ -1,7 +1,7 @@
+//      {
+//          "Fields": [
+//              {
+//     -            "N": "AQAAAAAAAAA=",
+//     +            "N": "AgAAAAAAAAA=",
+//                  "T": {
+//                      "@type": "/gno.PrimitiveType",
+//                      "value": "32"

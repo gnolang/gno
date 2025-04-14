@@ -43,16 +43,16 @@ type ParamsKeeperI interface {
 	GetRaw(ctx sdk.Context, key string) []byte
 	SetRaw(ctx sdk.Context, key string, value []byte)
 
-	GetStruct(ctx sdk.Context, key string, strctPtr interface{})
-	SetStruct(ctx sdk.Context, key string, strct interface{})
+	GetStruct(ctx sdk.Context, key string, strctPtr any)
+	SetStruct(ctx sdk.Context, key string, strct any)
 
 	// NOTE: GetAny and SetAny don't work on structs.
-	GetAny(ctx sdk.Context, key string) interface{}
-	SetAny(ctx sdk.Context, key string, value interface{})
+	GetAny(ctx sdk.Context, key string) any
+	SetAny(ctx sdk.Context, key string, value any)
 }
 
 type ParamfulKeeper interface {
-	WillSetParam(ctx sdk.Context, key string, value interface{})
+	WillSetParam(ctx sdk.Context, key string, value any)
 }
 
 var _ ParamsKeeperI = ParamsKeeper{}
@@ -168,7 +168,7 @@ func (pk ParamsKeeper) SetRaw(ctx sdk.Context, key string, value []byte) {
 	stor.Set(storeKey(key), value)
 }
 
-func (pk ParamsKeeper) GetStruct(ctx sdk.Context, key string, strctPtr interface{}) {
+func (pk ParamsKeeper) GetStruct(ctx sdk.Context, key string, strctPtr any) {
 	parts := strings.Split(key, ":")
 	if len(parts) != 2 {
 		panic("struct key expected format <module>:<struct name>")
@@ -186,7 +186,7 @@ func (pk ParamsKeeper) GetStruct(ctx sdk.Context, key string, strctPtr interface
 	decodeStructFields(strctPtr, kvz)
 }
 
-func (pk ParamsKeeper) SetStruct(ctx sdk.Context, key string, strct interface{}) {
+func (pk ParamsKeeper) SetStruct(ctx sdk.Context, key string, strct any) {
 	parts := strings.Split(key, ":")
 	if len(parts) != 2 {
 		panic("struct key expected format <module>:<struct name>")
@@ -206,11 +206,11 @@ func (pk ParamsKeeper) SetStruct(ctx sdk.Context, key string, strct interface{})
 	}
 }
 
-func (pk ParamsKeeper) GetAny(ctx sdk.Context, key string) interface{} {
+func (pk ParamsKeeper) GetAny(ctx sdk.Context, key string) any {
 	panic("not yet implemented")
 }
 
-func (pk ParamsKeeper) SetAny(ctx sdk.Context, key string, value interface{}) {
+func (pk ParamsKeeper) SetAny(ctx sdk.Context, key string, value any) {
 	switch value := value.(type) {
 	case string:
 		pk.SetString(ctx, key, value)
@@ -229,7 +229,7 @@ func (pk ParamsKeeper) SetAny(ctx sdk.Context, key string, value interface{}) {
 	}
 }
 
-func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr interface{}) {
+func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr any) {
 	stor := ctx.Store(pk.key)
 	bz := stor.Get(storeKey(key))
 	if bz == nil {
@@ -238,7 +238,7 @@ func (pk ParamsKeeper) getIfExists(ctx sdk.Context, key string, ptr interface{})
 	amino.MustUnmarshalJSON(bz, ptr)
 }
 
-func (pk ParamsKeeper) set(ctx sdk.Context, key string, value interface{}) {
+func (pk ParamsKeeper) set(ctx sdk.Context, key string, value any) {
 	module, rawKey := parsePrefix(key)
 	if module != "" {
 		kpr := pk.GetRegisteredKeeper(module)
@@ -343,18 +343,18 @@ func (ppk prefixParamsKeeper) SetRaw(ctx sdk.Context, key string, value []byte) 
 	ppk.pk.SetRaw(ctx, ppk.prefixed(key), value)
 }
 
-func (ppk prefixParamsKeeper) GetStruct(ctx sdk.Context, key string, paramPtr interface{}) {
+func (ppk prefixParamsKeeper) GetStruct(ctx sdk.Context, key string, paramPtr any) {
 	ppk.pk.GetStruct(ctx, ppk.prefixed(key), paramPtr)
 }
 
-func (ppk prefixParamsKeeper) SetStruct(ctx sdk.Context, key string, param interface{}) {
+func (ppk prefixParamsKeeper) SetStruct(ctx sdk.Context, key string, param any) {
 	ppk.pk.SetStruct(ctx, ppk.prefixed(key), param)
 }
 
-func (ppk prefixParamsKeeper) GetAny(ctx sdk.Context, key string) interface{} {
+func (ppk prefixParamsKeeper) GetAny(ctx sdk.Context, key string) any {
 	return ppk.pk.GetAny(ctx, ppk.prefixed(key))
 }
 
-func (ppk prefixParamsKeeper) SetAny(ctx sdk.Context, key string, value interface{}) {
+func (ppk prefixParamsKeeper) SetAny(ctx sdk.Context, key string, value any) {
 	ppk.pk.SetAny(ctx, ppk.prefixed(key), value)
 }

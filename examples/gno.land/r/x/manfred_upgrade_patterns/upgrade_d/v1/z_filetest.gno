@@ -1,7 +1,7 @@
 package main
 
 import (
-	"gno.land/r/x/manfred_upgrade_patterns/upgrade_d/v1"
+	v1 "gno.land/r/x/manfred_upgrade_patterns/upgrade_d/v1"
 )
 
 func main() {

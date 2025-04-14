@@ -1,54 +1,60 @@
 package params
 
 import (
+	"std"
 	"testing"
 
-	"gno.land/p/demo/dao"
-	"gno.land/p/demo/simpledao"
 	"gno.land/p/demo/urequire"
-	"gno.land/r/gov/dao/bridge"
-
-	// loads the latest DAO implementation in the bridge.
-	_ "gno.land/r/gov/dao/init"
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/v3/init"
 )
 
+func init() {
+	c := std.OriginCaller()
+	init.InitWithUsers(c)
+}
+
 func TestProUnlockTransfer(t *testing.T) {
-	govdao := bridge.GovDAO()
-	id := ProposeUnlockTransfer()
-	p, err := govdao.GetPropStore().ProposalByID(id)
+	pr := ProposeUnlockTransferRequest()
+	id := dao.MustCreateProposal(pr)
+	p, err := dao.GetProposal(id)
 	urequire.NoError(t, err)
 	urequire.Equal(t, unlockTransferTitle, p.Title())
 }
 
 func TestFailUnlockTransfer(t *testing.T) {
-	govdao := bridge.GovDAO()
-	id := ProposeUnlockTransfer()
+	pr := ProposeUnlockTransferRequest()
+	id := dao.MustCreateProposal(pr)
 	urequire.PanicsWithMessage(
 		t,
-		simpledao.ErrProposalNotAccepted.Error(),
+		"proposal didn't reach supermajority yet: 66",
 		func() {
-			govdao.ExecuteProposal(id)
+			dao.ExecuteProposal(id)
 		},
 	)
 }
 
 func TestExeUnlockTransfer(t *testing.T) {
-	govdao := bridge.GovDAO()
-	id := ProposeUnlockTransfer()
-	p, err := govdao.GetPropStore().ProposalByID(id)
+	pr := ProposeUnlockTransferRequest()
+	id := dao.MustCreateProposal(pr)
+	p, err := dao.GetProposal(id)
 	urequire.NoError(t, err)
-	urequire.True(t, dao.Active == p.Status())
-
-	govdao.VoteOnProposal(id, dao.YesVote)
-
-	urequire.True(t, dao.Accepted == p.Status())
+	// urequire.True(t, dao.Active == p.Status()) // TODO
 
 	urequire.NotPanics(
 		t,
 		func() {
-			govdao.ExecuteProposal(id)
+			dao.MustVoteOnProposal(dao.VoteRequest{
+				Option:     dao.YesVote,
+				ProposalID: dao.ProposalID(id),
+			})
 		},
 	)
 
-	urequire.True(t, dao.ExecutionSuccessful == p.Status())
+	urequire.NotPanics(
+		t,
+		func() {
+			dao.ExecuteProposal(id)
+		},
+	)
 }

@@ -19,9 +19,9 @@ var (
 )
 
 func TestRegister_Valid(t *testing.T) {
-	std.TestSetOriginSend(std.NewCoins(std.NewCoin("ugnot", 1_000_000)), nil)
-	std.TestSetRealm(std.NewUserRealm(aliceAddr))
-	std.TestSetOriginCaller(aliceAddr)
+	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 1_000_000)))
+	testing.SetRealm(std.NewUserRealm(aliceAddr))
+	testing.SetOriginCaller(aliceAddr)
 
 	uassert.NotPanics(t, func() {
 		Register(alice)
@@ -37,9 +37,9 @@ func TestRegister_Valid(t *testing.T) {
 }
 
 func TestRegister_Invalid(t *testing.T) {
-	std.TestSetOriginSend(std.NewCoins(std.NewCoin("ugnot", 1_000_000)), nil)
-	std.TestSetRealm(std.NewUserRealm(bobAddr))
-	std.TestSetOriginCaller(bobAddr)
+	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 1_000_000)))
+	testing.SetRealm(std.NewUserRealm(bobAddr))
+	testing.SetOriginCaller(bobAddr)
 
 	// Invalid usernames
 	uassert.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
@@ -83,11 +83,12 @@ func TestRegister_Invalid(t *testing.T) {
 		Register(bob) // already registered
 	})
 }
-func TestRegister_InvalidPayment(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(bobAddr))
-	std.TestSetOriginCaller(bobAddr)
 
-	std.TestSetOriginSend(std.NewCoins(std.NewCoin("ugnot", 12)), nil) // invalid payment amount
+func TestRegister_InvalidPayment(t *testing.T) {
+	testing.SetRealm(std.NewUserRealm(bobAddr))
+	testing.SetOriginCaller(bobAddr)
+
+	testing.SetOriginSend(std.NewCoins(std.NewCoin("ugnot", 12))) // invalid payment amount
 
 	uassert.PanicsWithMessage(t, ErrInvalidPayment.Error(), func() {
 		Register(alice)

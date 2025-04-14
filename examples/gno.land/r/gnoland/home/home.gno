@@ -9,7 +9,7 @@ import (
 	"gno.land/p/moul/dynreplacer"
 	blog "gno.land/r/gnoland/blog"
 	"gno.land/r/gnoland/events"
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 )
 
 var (
@@ -26,8 +26,8 @@ func Render(_ string) string {
 		out, _ := events.RenderEventWidget(events.MaxWidgetSize)
 		return out
 	})
-	r.RegisterCallback(":latest-hof:", func() string {
-		return hof.RenderExhibWidget(5)
+	r.RegisterCallback(":latest-hor:", func() string {
+		return hor.RenderExhibWidget(5)
 	})
 	r.RegisterCallback(":qotb:", quoteOfTheBlock)
 	r.RegisterCallback(":chain-height:", func() string {
@@ -85,9 +85,9 @@ the foundations of a fairer and freer world, join us today.
 
 :upcoming-events:
 
-## [Hall of Fame](/r/leon/hof)
+## [Hall of Realms](/r/leon/hor)
 
-:latest-hof:
+:latest-hor:
 
 ---
 
@@ -107,7 +107,7 @@ Experience the convenience of code sharing and rapid experimentation with
 ### [r/gnoland](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gnoland)
 
 - [r/gnoland/blog](/r/gnoland/blog)
-- [r/gnoland/blog](/r/gnoland/users)
+- [r/gnoland/users](/r/gnoland/users)
 - [r/gnoland/home](/r/gnoland/home)
 - [r/gnoland/pages](/r/gnoland/pages)
 
@@ -174,10 +174,10 @@ Package names are not guaranteed to be available for production.
 }
 
 func latestHOFItems(num int) ui.Element {
-	submissions := hof.RenderExhibWidget(num)
+	submissions := hor.RenderExhibWidget(num)
 
 	return ui.Element{
-		ui.H2("[Hall of Fame](/r/leon/hof)"),
+		ui.H2("[Hall of Realms](/r/leon/hor)"),
 		ui.Text(submissions),
 	}
 }

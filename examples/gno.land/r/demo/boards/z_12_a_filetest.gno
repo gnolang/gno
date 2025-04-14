@@ -5,6 +5,7 @@ package boards_test
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/boards"
@@ -12,7 +13,7 @@ import (
 )
 
 func main() {
-	std.TestSetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
+	testing.SetRealm(std.NewUserRealm(std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"))) // so that CurrentRealm.Addr() matches OrigCaller
 	users.Register("gnouser123")
 	// create a post via registered user
 	bid1 := boards.CreateBoard("test_board1")
@@ -21,8 +22,8 @@ func main() {
 
 	// create a repost via anon user
 	test2 := testutils.TestAddress("test2")
-	std.TestSetOriginCaller(test2)
-	std.TestSetOriginSend(std.Coins{{"ugnot", 9000000}}, nil)
+	testing.SetOriginCaller(test2)
+	testing.SetOriginSend(std.Coins{{"ugnot", 9000000}})
 
 	rid := boards.CreateRepost(bid1, pid, "", "Check this out", bid2)
 	println(rid)

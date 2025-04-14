@@ -50,7 +50,7 @@ gno.land/[r|p]/[namespace]/[package-name]
 
 For example:
 - `gno.land/r/gnoland/home` is the gno.land home realm
-- `gno.land/r/leon/hof` is the Hall of Fame realm
+- `gno.land/r/leon/hor` is the Hall of Realms
 - `gno.land/p/demo/avl` is the AVL tree package
 
 The components of these paths are:

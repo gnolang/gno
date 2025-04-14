@@ -1,8 +1,9 @@
 package gnolang
 
 import (
+	"bytes"
 	"fmt"
-	"strings"
+	"io"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 )
@@ -230,7 +231,7 @@ func makeUverseNode() {
 						// append(nil, *SliceValue) new list ---------
 						arrayValue := m.Alloc.NewListArray(arg1Length)
 						if arg1Length > 0 {
-							for i := 0; i < arg1Length; i++ {
+							for i := range arg1Length {
 								arrayValue.List[i] = arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
 							}
 						}
@@ -274,7 +275,7 @@ func makeUverseNode() {
 								// append(*SliceValue.List, *SliceValue) ---------
 								list := arg0Base.List
 								if arg1Base.Data == nil {
-									for i := 0; i < arg1Length; i++ {
+									for i := range arg1Length {
 										oldElem := list[arg0Offset+arg0Length+i]
 										// unrefCopy will resolve references and copy their values
 										// to copy by value rather than by reference.
@@ -357,7 +358,7 @@ func makeUverseNode() {
 						arrayValue := m.Alloc.NewListArray(arrayLen)
 						if arg0Length > 0 {
 							if arg0Base.Data == nil {
-								for i := 0; i < arg0Length; i++ {
+								for i := range arg0Length {
 									arrayValue.List[i] = arg0Base.List[arg0Offset+i].unrefCopy(m.Alloc, m.Store)
 								}
 							} else {
@@ -367,7 +368,7 @@ func makeUverseNode() {
 
 						if arg1Length > 0 {
 							if arg1Base.Data == nil {
-								for i := 0; i < arg1Length; i++ {
+								for i := range arg1Length {
 									arrayValue.List[arg0Length+i] = arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
 								}
 							} else {
@@ -442,10 +443,7 @@ func makeUverseNode() {
 					// is possible if dstv.Data != nil.
 					dstl := dst.TV.GetLength()
 					srcl := src.TV.GetLength()
-					minl := dstl
-					if srcl < dstl {
-						minl = srcl
-					}
+					minl := min(srcl, dstl)
 					if minl == 0 {
 						// return 0.
 						m.PushValue(defaultTypedValue(m.Alloc, IntType))
@@ -453,7 +451,7 @@ func makeUverseNode() {
 					}
 					dstv := dst.TV.V.(*SliceValue)
 					// TODO: consider an optimization if dstv.Data != nil.
-					for i := 0; i < minl; i++ {
+					for i := range minl {
 						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
 						srcev := src.TV.GetPointerAtIndexInt(m.Store, i)
 						dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
@@ -468,10 +466,7 @@ func makeUverseNode() {
 				case *SliceType:
 					dstl := dst.TV.GetLength()
 					srcl := src.TV.GetLength()
-					minl := dstl
-					if srcl < dstl {
-						minl = srcl
-					}
+					minl := min(srcl, dstl)
 					if minl == 0 {
 						// return 0.
 						m.PushValue(defaultTypedValue(m.Alloc, IntType))
@@ -479,7 +474,7 @@ func makeUverseNode() {
 					}
 					dstv := dst.TV.V.(*SliceValue)
 					srcv := src.TV.V.(*SliceValue)
-					for i := 0; i < minl; i++ {
+					for i := range minl {
 						dstev := dstv.GetPointerAtIndexInt2(m.Store, i, bdt.Elt)
 						srcev := srcv.GetPointerAtIndexInt2(m.Store, i, bst.Elt)
 						dstev.Assign2(m.Alloc, m.Store, m.Realm, srcev.Deref(), false)
@@ -587,7 +582,7 @@ func makeUverseNode() {
 							// leave as is
 						} else {
 							// init zero elements with concrete type.
-							for i := 0; i < li; i++ {
+							for i := range li {
 								arrayValue.List[i] = defaultTypedValue(m.Alloc, et)
 							}
 						}
@@ -632,7 +627,7 @@ func makeUverseNode() {
 							// require a bit more work to handle correctly, requiring that
 							// all new TypedValue slice elements be checked to ensure they have
 							// a value for every slice operation, which is not desirable.
-							for i := 0; i < ci; i++ {
+							for i := range ci {
 								arrayValue.List[i] = defaultTypedValue(m.Alloc, et)
 							}
 						}
@@ -708,6 +703,7 @@ func makeUverseNode() {
 			return
 		},
 	)
+
 	// NOTE: panic is its own statement type, and is not defined as a function.
 	defNative("print",
 		Flds( // params
@@ -716,18 +712,7 @@ func makeUverseNode() {
 		nil, // results
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1()
-			xv := arg0
-			xvl := xv.TV.GetLength()
-			ss := make([]string, xvl)
-			for i := 0; i < xvl; i++ {
-				ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
-				ss[i] = ev.Sprint(m)
-			}
-			rs := strings.Join(ss, " ")
-			if debug {
-				print(rs)
-			}
-			m.Output.Write([]byte(rs))
+			uversePrint(m, arg0, false)
 		},
 	)
 	defNative("println",
@@ -737,18 +722,7 @@ func makeUverseNode() {
 		nil, // results
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1()
-			xv := arg0
-			xvl := xv.TV.GetLength()
-			ss := make([]string, xvl)
-			for i := 0; i < xvl; i++ {
-				ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
-				ss[i] = ev.Sprint(m)
-			}
-			rs := strings.Join(ss, " ") + "\n"
-			if debug {
-				println("DEBUG/stdout: " + rs)
-			}
-			m.Output.Write([]byte(rs))
+			uversePrint(m, arg0, true)
 		},
 	)
 	defNative("recover",
@@ -769,20 +743,55 @@ func makeUverseNode() {
 }
 
 func copyDataToList(dst []TypedValue, data []byte, et Type) {
-	for i := 0; i < len(data); i++ {
+	for i := range data {
 		dst[i] = TypedValue{T: et}
 		dst[i].SetUint8(data[i])
 	}
 }
 
 func copyListToData(dst []byte, tvs []TypedValue) {
-	for i := 0; i < len(tvs); i++ {
+	for i := range tvs {
 		dst[i] = tvs[i].GetUint8()
 	}
 }
 
 func copyListToRunes(dst []rune, tvs []TypedValue) {
-	for i := 0; i < len(tvs); i++ {
+	for i := range tvs {
 		dst[i] = tvs[i].GetInt32()
 	}
 }
+
+// uversePrint is used for the print and println functions.
+// println passes newline = true.
+// xv contains the variadic argument passed to the function.
+func uversePrint(m *Machine, xv PointerValue, newline bool) {
+	xvl := xv.TV.GetLength()
+	switch xvl {
+	case 0:
+		if newline {
+			m.Output.Write(bNewline)
+		}
+	case 1:
+		ev := xv.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
+		res := ev.Sprint(m)
+		io.WriteString(m.Output, res)
+		if newline {
+			m.Output.Write(bNewline)
+		}
+	default:
+		var buf bytes.Buffer
+		for i := range xvl {
+			if i != 0 { // Not the last item.
+				buf.WriteByte(' ')
+			}
+			ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
+			buf.WriteString(ev.Sprint(m))
+		}
+		if newline {
+			buf.WriteByte('\n')
+		}
+		m.Output.Write(buf.Bytes())
+	}
+}
+
+var bNewline = []byte("\n")

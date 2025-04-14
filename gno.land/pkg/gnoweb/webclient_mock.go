@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 
-	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
+	"github.com/gnolang/gno/gnovm/pkg/doc"
 )
 
 // MockPackage represents a mock package with files and function signatures.
@@ -14,7 +16,7 @@ type MockPackage struct {
 	Path      string
 	Domain    string
 	Files     map[string]string // filename -> body
-	Functions []vm.FunctionSignature
+	Functions []*doc.JSONFunc
 }
 
 // MockWebClient is a mock implementation of the Client interface.
@@ -32,8 +34,8 @@ func NewMockWebClient(pkgs ...*MockPackage) *MockWebClient {
 }
 
 // RenderRealm simulates rendering a package by writing its content to the writer.
-func (m *MockWebClient) RenderRealm(w io.Writer, path string, args string) (*RealmMeta, error) {
-	pkg, exists := m.Packages[path]
+func (m *MockWebClient) RenderRealm(w io.Writer, u *weburl.GnoURL) (*RealmMeta, error) {
+	pkg, exists := m.Packages[u.Path]
 	if !exists {
 		return nil, ErrClientPathNotFound
 	}
@@ -42,15 +44,15 @@ func (m *MockWebClient) RenderRealm(w io.Writer, path string, args string) (*Rea
 		return nil, ErrRenderNotDeclared
 	}
 
-	// Write to the realm render
-	fmt.Fprintf(w, "[%s]%s:", pkg.Domain, pkg.Path)
+	// Return the production format [domain]/path:args
+	fmt.Fprintf(w, "[%s]/%s:%s", pkg.Domain, strings.Trim(u.Path, "/"), u.Args)
 
 	// Return a dummy RealmMeta for simplicity
 	return &RealmMeta{}, nil
 }
 
 // SourceFile simulates retrieving a source file's metadata.
-func (m *MockWebClient) SourceFile(w io.Writer, pkgPath, fileName string) (*FileMeta, error) {
+func (m *MockWebClient) SourceFile(w io.Writer, pkgPath, fileName string, isRaw bool) (*FileMeta, error) {
 	pkg, exists := m.Packages[pkgPath]
 	if !exists {
 		return nil, ErrClientPathNotFound
@@ -67,14 +69,14 @@ func (m *MockWebClient) SourceFile(w io.Writer, pkgPath, fileName string) (*File
 	return nil, ErrClientPathNotFound
 }
 
-// Functions simulates retrieving function signatures from a package.
-func (m *MockWebClient) Functions(path string) ([]vm.FunctionSignature, error) {
+// Doc simulates retrieving function docs from a package.
+func (m *MockWebClient) Doc(path string) (*doc.JSONDocumentation, error) {
 	pkg, exists := m.Packages[path]
 	if !exists {
 		return nil, ErrClientPathNotFound
 	}
 
-	return pkg.Functions, nil
+	return &doc.JSONDocumentation{Funcs: pkg.Functions}, nil
 }
 
 // Sources simulates listing all source files in a package.
@@ -101,7 +103,7 @@ func pkgHasRender(pkg *MockPackage) bool {
 	}
 
 	for _, fn := range pkg.Functions {
-		if fn.FuncName == "Render" &&
+		if fn.Name == "Render" &&
 			len(fn.Params) == 1 &&
 			len(fn.Results) == 1 &&
 			fn.Params[0].Type == "string" &&

@@ -47,6 +47,8 @@ func main() {
 // - [Gnoscan](https://gnoscan.io)
 // - [Staging chain](https://docs.gno.land/concepts/portal-loop)
 // - [Testnet 6](https://test6.gno.land/)
+// - [Portal Loop](https://docs.gno.land/concepts/portal-loop)
+// - Testnet 6 (upcoming)
 // - [Testnet 5](https://test5.gno.land/)
 // - [Faucet Hub](https://faucet.gno.land)
 //
@@ -58,7 +60,7 @@ func main() {
 //
 // No events.
 //
-// ## [Hall of Fame](/r/leon/hof)
+// ## [Hall of Realms](/r/leon/hor)
 //
 //
 //
@@ -80,7 +82,7 @@ func main() {
 // ### [r/gnoland](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gnoland)
 //
 // - [r/gnoland/blog](/r/gnoland/blog)
-// - [r/gnoland/blog](/r/gnoland/users)
+// - [r/gnoland/users](/r/gnoland/users)
 // - [r/gnoland/home](/r/gnoland/home)
 // - [r/gnoland/pages](/r/gnoland/pages)
 //
