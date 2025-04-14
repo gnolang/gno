@@ -80,7 +80,7 @@ func newModInitCmd() *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "init",
-			ShortUsage: "init [module-path]",
+			ShortUsage: "init <module-path>",
 			ShortHelp:  "initialize gno.mod file in current directory",
 		},
 		commands.NewEmptyConfig(),

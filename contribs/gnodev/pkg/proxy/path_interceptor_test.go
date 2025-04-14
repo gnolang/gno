@@ -6,6 +6,7 @@ import (
 	"path"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/proxy"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
@@ -64,7 +65,7 @@ func TestProxy(t *testing.T) {
 		pathChan <- paths
 	})
 
-	// ---- Test Cases ----
+	var seq uint64
 
 	t.Run("valid_vm_query", func(t *testing.T) {
 		cli, err := client.NewHTTPClient(interceptor.TargetAddress())
@@ -111,7 +112,9 @@ func TestProxy(t *testing.T) {
 			vm.NewMsgCall(creator, send, targetPath, "Render", []string{""}),
 		}
 
-		bytes, err := tx.GetSignBytes(cfg.Genesis.ChainID, 0, 0)
+		bytes, err := tx.GetSignBytes(cfg.Genesis.ChainID, 0, seq)
+		seq++
+
 		require.NoError(t, err)
 		signature, err := privKey.Sign(bytes)
 		require.NoError(t, err)
@@ -133,6 +136,59 @@ func TestProxy(t *testing.T) {
 			require.Len(t, paths, 1)
 			assert.Equal(t, []string{targetPath}, paths)
 		default:
+			t.Fatal("paths not captured")
+		}
+	})
+
+	t.Run("add_pkg", func(t *testing.T) {
+		const barPath = "gno.land/r/target/bar"
+		files := []*gnovm.MemFile{
+			{
+				Name: "bar.gno",
+				Body: `package bar
+import foo "` + targetPath + `"
+
+func Render(_ string) string { return foo.Render("bar") }`,
+			},
+			{Name: "gno.mod", Body: `module ` + barPath},
+		}
+
+		cli, err := client.NewHTTPClient(interceptor.TargetAddress())
+		require.NoError(t, err)
+		defer cli.Close()
+
+		// Build transaction
+		var tx std.Tx
+		tx.Fee = std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}}
+		tx.Msgs = []std.Msg{
+			vm.NewMsgAddPackage(creator, barPath, files),
+		}
+
+		bytes, err := tx.GetSignBytes(cfg.Genesis.ChainID, 0, seq)
+		seq++
+
+		require.NoError(t, err)
+		signature, err := privKey.Sign(bytes)
+		require.NoError(t, err)
+		tx.Signatures = []std.Signature{{PubKey: privKey.PubKey(), Signature: signature}}
+
+		bz, err := amino.Marshal(tx)
+		require.NoError(t, err)
+
+		res, err := cli.BroadcastTxCommit(bz)
+		require.NoError(t, err)
+		if !assert.NoError(t, res.CheckTx.Error) {
+			t.Logf("logs: %s", res.CheckTx.Log)
+		}
+		if !assert.NoError(t, res.DeliverTx.Error) {
+			t.Logf("logs: %s", res.DeliverTx.Log)
+		}
+
+		select {
+		case paths := <-pathChan:
+			require.Len(t, paths, 1)
+			assert.Equal(t, []string{targetPath}, paths)
+		case <-time.After(time.Second):
 			t.Fatal("paths not captured")
 		}
 	})

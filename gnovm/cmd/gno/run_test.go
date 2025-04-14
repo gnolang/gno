@@ -28,8 +28,8 @@ func TestRunApp(t *testing.T) {
 			stdoutShouldContain: "hello, other world!",
 		},
 		{
-			args:                 []string{"run", "../../tests/integ/run_package"},
-			recoverShouldContain: "name main not declared",
+			args:             []string{"run", "../../tests/integ/run_package"},
+			errShouldContain: "name main not declared",
 		},
 		{
 			args:                []string{"run", "-expr", "Hello()", "../../tests/integ/run_package"},
@@ -48,7 +48,7 @@ func TestRunApp(t *testing.T) {
 				"run", "-expr", "otherFile()",
 				"../../tests/integ/run_package/package.gno",
 			},
-			recoverShouldContain: "name otherFile not declared",
+			errShouldContain: "name otherFile not declared",
 		},
 		{
 			args: []string{

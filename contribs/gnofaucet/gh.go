@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -39,12 +40,14 @@ func getGithubMiddleware(clientID, secret string, coolDownLimiter *CooldownLimit
 				code := r.URL.Query().Get("code")
 				if code == "" {
 					http.Error(w, "missing code", http.StatusBadRequest)
+
 					return
 				}
 
 				user, err := exchangeCodeForUser(r.Context(), secret, clientID, code)
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusBadRequest)
+
 					return
 				}
 
@@ -103,38 +106,74 @@ func getClaimAmount(r *http.Request) (int64, error) {
 	return value, nil
 }
 
-type gitHubTokenResponse struct {
+// ghTokenResponse is the GitHub OAuth response
+// for successful code exchanges
+type ghTokenResponse struct {
 	AccessToken string `json:"access_token"`
+	TokenType   string `json:"token_type"`
+	Scope       string `json:"scope"`
+}
+
+// ghExchangeErrorResponse is the GitHub OAuth error response
+type ghExchangeErrorResponse struct {
+	Error       string `json:"error"`
+	Description string `json:"error_description"`
+	URI         string `json:"error_uri"`
 }
 
 //nolint:gosec
 const githubTokenExchangeURL = "https://github.com/login/oauth/access_token"
 
 var exchangeCodeForUser = func(ctx context.Context, secret, clientID, code string) (*github.User, error) {
-	body := fmt.Sprintf("client_id=%s&client_secret=%s&code=%s", clientID, secret, code)
-	req, err := http.NewRequest("POST", githubTokenExchangeURL, strings.NewReader(body))
+	client := new(http.Client)
+
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		githubTokenExchangeURL,
+		strings.NewReader(fmt.Sprintf("client_id=%s&client_secret=%s&code=%s", clientID, secret, code)))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to create HTTP request: %w", err)
 	}
+
 	req.Header.Set("Accept", "application/json")
 
-	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to post HTTP request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	var tokenResponse gitHubTokenResponse
-	if err := json.NewDecoder(resp.Body).Decode(&tokenResponse); err != nil {
+	// Read the response body into a byte slice so we can use it multiple times
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
 		return nil, err
 	}
 
-	if tokenResponse.AccessToken == "" {
-		return nil, fmt.Errorf("unable to exchange code for token")
+	// Attempt to decode as an error response.
+	// The GitHub API returns 200 both for errors and valid response types
+	var errorResponse ghExchangeErrorResponse
+	if err := json.Unmarshal(respBody, &errorResponse); err == nil && errorResponse.Error != "" {
+		return nil, fmt.Errorf("GitHub OAuth error: %s - %s", errorResponse.Error, errorResponse.Description)
 	}
 
+	// Attempt to decode as a token response
+	var tokenResponse ghTokenResponse
+	if err := json.Unmarshal(respBody, &tokenResponse); err != nil {
+		return nil, err
+	}
+
+	// Make sure the response is set
+	if tokenResponse.AccessToken == "" {
+		return nil, errors.New("unable to exchange GitHub code for OAuth token")
+	}
+
+	// Fetch the user
 	ghClient := github.NewClient(http.DefaultClient).WithAuthToken(tokenResponse.AccessToken)
 	user, _, err := ghClient.Users.Get(ctx, "")
-	return user, err
+	if err != nil {
+		return nil, fmt.Errorf("unable to fetch GitHub user: %w", err)
+	}
+
+	return user, nil
 }
