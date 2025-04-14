@@ -74,6 +74,19 @@ gnogenesis balances add -balance-sheet $BALANCES_PATH
 # Cleanup
 rm -rf $TMP_DIR
 
+# Update the whitelisted addresses (NT + the faucet)
+printf "\nUpdating whitelisted addresses...\n"
+
+jq '.app_state.auth.params.unrestricted_addrs = [
+  "g148583t5x66zs6p90ehad6l4qefeyaf54s69wql",
+  "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
+]' genesis.json > tmp && mv tmp genesis.json
+
+# Update the restricted denoms (enable token locking)
+printf "\nEnabling token locking...\n"
+
+jq '.app_state.bank.params.restricted_denoms = ["ugnot"]' genesis.json > tmp && mv tmp genesis.json
+
 # Verify that the genesis.json is valid
 printf "\nVerifying genesis.json...\n"
 gnogenesis verify -genesis-path $GENESIS_FILE
