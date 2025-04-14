@@ -6,7 +6,6 @@ package telemetry
 import (
 	"fmt"
 	"log/slog"
-	"sync/atomic"
 
 	"github.com/gnolang/gno/tm2/pkg/telemetry/config"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
@@ -15,19 +14,14 @@ import (
 	sdkTrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
-var (
-	globalConfig         config.Config
-	telemetryInitialized atomic.Bool
-)
-
 // MetricsEnabled returns true if metrics have been initialized
 func MetricsEnabled() bool {
-	return globalConfig.MetricsEnabled
+	return config.GetGlobalConfig().MetricsEnabled
 }
 
 // TracesEnabled returns true if traces have been initialized
 func TracesEnabled() bool {
-	return globalConfig.TracesEnabled
+	return config.GetGlobalConfig().TracesEnabled
 }
 
 // Init initializes the global telemetry
@@ -43,12 +37,12 @@ func Init(c config.Config, logger *slog.Logger) (*sdkTrace.TracerProvider, *sdkM
 	}
 
 	// Check if it's been enabled already
-	if !telemetryInitialized.CompareAndSwap(false, true) {
+	if !config.SetTelemetryInitialized() {
 		return nil, nil, nil
 	}
 
 	// Update the global configuration
-	globalConfig = c
+	config.SetGlobalConfig(c)
 
 	// Check if the metrics are enabled at all
 	var metricsProvider *sdkMetric.MeterProvider
