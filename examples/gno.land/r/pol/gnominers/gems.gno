@@ -64,7 +64,6 @@ func randomGem() (gemType, float64) {
 	for _, v := range gemLootTable {
 		total += v
 	}
-	// r := MachineRandFloat()
 	r := randomMachine.RandFloat()
 	value := r * total
 	for k, v := range gemLootTable {

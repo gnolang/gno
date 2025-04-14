@@ -4,6 +4,8 @@ import (
 	"strconv"
 	"time"
 
+	"gno.land/p/moul/md"
+	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/pol/nfmt"
 )
@@ -102,15 +104,12 @@ func renderShop(params map[string]string) string {
 	// Sell
 	content += "<gno-columns>" + br
 	sellLink := txlink.Call("Sell")
-	content += "### [Sell](" + sellLink + ") your rocks"
 	n := totalGemsPrice(session)
 	x, err := nfmt.FormatRound(n)
 	if err != nil {
 		x = strconv.FormatFloat(n, 'f', 2, 64)
 	}
-	content += " (worth " + x + " GnoCoins).\n" + br
-	// content += "|||" + br
-	// content += "---" + br + "### or..." + br
+	content += md.H3(md.Link("Sell", sellLink) + " your rocks (worth " + x + " GnoCoins).") + br
 	content += "|||" + br
 
 	// Buy
@@ -118,8 +117,10 @@ func renderShop(params map[string]string) string {
 	if err != nil {
 		str = strconv.FormatFloat(session.Money, 'f', 2, 64)
 	}
-	content += "### Buy some pickaxes (you have " + str + " GnoCoins):\n\n"
-	content += "|Pickaxe|Price|Buy|\n|-|-|-|\n"
+	content += md.H3("Buy some pickaxes (you have " + str + " GnoCoins):")
+	t := mdtable.Table{
+		Headers: []string{"Pickaxe", "Price", "Buy"},
+	}
 	birthdayPick := BirthdayPickaxe{}
 	today := time.Now().Format("02/01")
 	for pick2buy, price := range avaiblePickaxes {
@@ -135,16 +136,14 @@ func renderShop(params map[string]string) string {
 		}
 		if !havePick {
 			buyLink := txlink.Call("Buy", "pickname", pick2buy.String())
-			content += "|" + pick2buy.String()
 			str, err = nfmt.FormatRound(price)
 			if err != nil {
 				str = strconv.FormatFloat(price, 'f', -1, 64)
 			}
-			content += "|" + str
-			content += "|[Buy](" + buyLink + ")|\n"
+			t.Append([]string{ pick2buy.String(), str, md.Link("Buy", buyLink) })
 		}
 	}
-	content += "\n"
+	content += t.String()
 	content += "</gno-columns>" + br
 	return content
 }

@@ -1,5 +1,7 @@
 package gnominers
 
+import "gno.land/p/moul/md"
+
 var achievements = map[string]iAchievement{
 	"a gem":       &achMineAGem{},
 	"dao":         &achDAO{},
@@ -9,7 +11,7 @@ var achievements = map[string]iAchievement{
 	"42k gems":    &ach42kGems{},
 	"bday":        &achBDAY{},
 	"diamonds":    &achDiamonds{},
-	"billion":    &ach1Billion{},
+	"billion":     &ach1Billion{},
 }
 
 type achievementDifficulty uint
@@ -51,23 +53,23 @@ func renderAchievements(params map[string]string) string {
 	// Assertions
 	user, ok := params["user"]
 	if !ok {
-		return "user is not specified. [Go back to home](" + gnominersPath + ") to select a user."
+		return "user is not specified. " + md.Link("Go back to home", gnominersPath) + " to select a user."
 	}
 	session, ok := userSessions[user]
 	if !ok {
-		return "this user is not registered. [Go back to home](" + gnominersPath + ") to register."
+		return "this user is not registered. " + md.Link("Go back to home", gnominersPath) + " to register."
 	}
 
 	// Content
-	content := "# Achievements\n"
-	content += "Go back to [DashBoard](" + gnominersDashboard + "?user=" + user + ")." + br
+	content := md.H1("Achievements")
+	content += "Go back to " + md.Link("DashBoard", gnominersDashboard + "?user=" + user) + "." + br
 	if len(session.hidden.achievements) == 0 {
 		content += "Hmmm... it looks like you don't have any achievement yet." + br
 		content += "Play the game to discover them !" + br
 		return content
 	}
 	for _, a := range session.hidden.achievements {
-		content += "- `" + achievementDifficultyNames[a.Difficulty()] + "` - " + a.Description() + "\n"
+		content += "- " + md.InlineCode(achievementDifficultyNames[a.Difficulty()]) + " - " + a.Description() + "\n"
 	}
 	return content
 }

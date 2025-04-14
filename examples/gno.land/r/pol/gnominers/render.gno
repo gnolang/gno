@@ -35,13 +35,9 @@ func init() {
 }
 
 func Render(fullpath string) string {
-	// RANDOM_MACHINE = notrandom.NewMachine(time.Now().Unix())
 	path, params := queryparsing.Parse(fullpath)
 	if redirect, ok := redirectionsPath[path]; ok {
 		return redirect(params)
 	}
-	// if _, ok := params["user"]; ok {
-	// 	return renderDashboard(params)
-	// }
 	return renderUserPage(params)
 }

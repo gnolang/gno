@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/pol/dao"
@@ -184,7 +185,7 @@ func (d minerProposal) String() string {
 		return ""
 	}
 	if d.ended {
-		return ufmt.Sprintf("> #%d results with %d %s.", d.index, d.executor.success, upperFirstLetter(gemNames[d.executor.to]))
+		return md.Blockquote(ufmt.Sprintf("#%d results with %d %s.", d.index, d.executor.success, upperFirstLetter(gemNames[d.executor.to])))
 	}
 
 	// header
@@ -202,7 +203,7 @@ func (d minerProposal) String() string {
 	} else {
 		quote = ufmt.Sprintf(" (between 0 and %d)", int(unMerge(float64(d.executor.from-d.executor.to), d.executor.count)))
 	}
-	t.Append([]string{ufmt.Sprintf("Should we convert %d **%s%s** 	into **%s**%s ?",
+	t.Append([]string{ufmt.Sprintf("Should we convert %d **%s%s** into **%s**%s ?",
 		d.executor.count,
 		upperFirstLetter(gemNames[d.executor.from]),
 		s,
@@ -218,7 +219,7 @@ func (d minerProposal) String() string {
 		if k == dao.ProposalChoice(0) {
 			out += " - "
 		}
-		out += ufmt.Sprintf("[%s](%s)", choiceStr, txlink.Call("DaoRespond"+choiceStr, "a", d.executor.session.Owner.Owner().String(), "name", strconv.Itoa(int(d.index))))
+		out += md.Link(choiceStr, txlink.Call("DaoRespond"+choiceStr, "a", d.executor.session.Owner.Owner().String(), "name", strconv.Itoa(int(d.index))))
 	}
 	t.Append([]string{out})
 	return t.String()
@@ -250,15 +251,7 @@ type minerDAO struct {
 	globalIndex uint
 }
 
-// Get the proposals, also update the dao by removing ended proposals
 func (d *minerDAO) GetProposals() []dao.Proposal {
-	// newProps := []dao.Proposal{}
-	// for _, p := range d.props {
-	// 	if !p.IsEnded() {
-	// 		newProps = append(newProps, p)
-	// 	}
-	// }
-	// d.props = newProps
 	return d.props
 }
 
@@ -345,44 +338,41 @@ func generateRequestLink(params map[string]string, user string) (string, error) 
 func renderDao(params map[string]string) string {
 	user, ok := params["user"]
 	if !ok {
-		return "user is not specified. [Go back to home](" + gnominersPath + ") to select a user."
+		return "user is not specified. " + md.Link("Go back to home", gnominersPath) + " to select a user."
 	}
 	session, ok := userSessions[user]
 	if !ok {
-		return "this user is not registered. [Go back to home](" + gnominersPath + ") to register."
+		return "this user is not registered. " + md.Link("Go back to home", gnominersPath) + " to register."
 	}
 	if session.DAO == nil {
-		return "this user does not opened DAO yet. [Go back to the dashboard](" + gnominersDashboard + "?user=" + user + ")."
+		return "this user does not opened DAO yet. " + md.Link("Go back to the dashboard", gnominersDashboard + "?user=" + user) + "."
 	}
 
 	// The actions and main content
 	var content string
-	content += "# DAO of " + session.GetName() + "\n"
-	content += "Go back to [DashBoard](" + gnominersDashboard + "?user=" + user + ").\n\n"
-	content += "DAO have " + strconv.Itoa(len(session.DAO.GetMembers())) + " members.\n\n"
+	content += md.H1("DAO of " + session.GetName())
+	content += "Go back to " + md.Link("DashBoard", gnominersDashboard + "?user=" + user) + "." + br
+	content += "DAO have " + strconv.Itoa(len(session.DAO.GetMembers())) + " members." + br
 
 	content += "<gno-columns>" + br
-	content += "## Actions\n"
+	content += md.H2("Actions")
 	lnk, err := generateRequestLink(params, user)
 	if err != nil {
-		return "error: " + err.Error() + "[Go back to the dashboard](" + gnominersDashboard + "?user=" + user + ")."
+		return "error: " + err.Error() + md.Link("Go back to the dashboard", gnominersDashboard + "?user=" + user)
 	}
-	content += ufmt.Sprintf("[Join](%s) - [Leave](%s)",
-		txlink.Call("JoinDAO", "what", user),
-		txlink.Call("LeaveDAO", "what", user),
-	)
+	content += md.Link("Join", txlink.Call("JoinDAO", "what", user)) + " - " + md.Link("Leave", txlink.Call("LeaveDAO", "what", user))
 	if lnk == "" {
-		content += ufmt.Sprintf(" - You can also [Generate A Request](%s).\n\n", gnominersDAORequest + "?user=" + user)
-		content += "> It is advised to generate a request by click on the link above.\n"
-		content += "> Also, note that if the owner leaves, the DAO is disbanded.\n\n"
+		content += " - You can also " + md.Link("Generate A Request", gnominersDAORequest + "?user=" + user) + br
+		x := "It is advised to generate a request by click on the link above.\nAlso, note that if the owner leaves, the DAO is disbanded"
+		content += md.Blockquote(x) + br
 	} else {
-		content += ufmt.Sprintf("\n\n### [Submit your Request](%s)", lnk)
+		content += md.H3(md.Link("Submit your Request", lnk))
 	}
- 	content += "\n\n"
+ 	content += br
 
 	// The requests
 	content += "|||" + br
-	content += "## Requests\n"
+	content += md.H2("Requests")
 	props := session.DAO.GetProposals()
 	if len(props) == 0 {
 		content += "Hmmm... It seems that there is no propositions yet.\n"

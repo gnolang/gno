@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/md"
+	"gno.land/p/moul/mdtable"
 )
 
 func redoLink(params map[string]string, count int, from, to gemType) string {
@@ -48,13 +50,14 @@ func displayCount(params map[string]string) string {
 	}
 
 	// Buttons
-	content += "### How much to convert : " + strconv.Itoa(int(count)) + "\n"
-	content += "[+1](" + redoLink(params, int(count)+1, _gemEnd, _gemEnd) + ") /"
-	content += "[+10](" + redoLink(params, int(count)+10, _gemEnd, _gemEnd) + ") /"
-	content += "[+100](" + redoLink(params, int(count)+100, _gemEnd, _gemEnd) + ")" + br
-	content += "[-1](" + redoLink(params, int(math.Max(1, count-1)), _gemEnd, _gemEnd) + ") / "
-	content += "[-10](" + redoLink(params, int(math.Max(1, count-10)), _gemEnd, _gemEnd) + ") / "
-	content += "[-100](" + redoLink(params, int(math.Max(1, count-100)), _gemEnd, _gemEnd) + ")" + br
+	content += md.H3("How much to convert : " + strconv.Itoa(int(count)))
+	content += md.Link("+1", redoLink(params, int(count)+1, _gemEnd, _gemEnd)) + " /"
+	content += md.Link("+10", redoLink(params, int(count)+10, _gemEnd, _gemEnd)) + " / "
+	content += md.Link("+100", redoLink(params, int(count)+100, _gemEnd, _gemEnd)) + br
+
+	content += md.Link("-1", redoLink(params, int(math.Max(1, count-1)), _gemEnd, _gemEnd)) + " / "
+	content += md.Link("-10", redoLink(params, int(math.Max(1, count-10)), _gemEnd, _gemEnd)) + " / "
+	content += md.Link("-100", redoLink(params, int(math.Max(1, count-100)), _gemEnd, _gemEnd)) + br
 	return content
 }
 
@@ -87,28 +90,35 @@ func generateReq(params map[string]string) []string {
 }
 
 func displayFinal(req []string) string {
-	return ufmt.Sprintf("## Convertion: %s %s \u2192 %s\n", req[0], gemNames[mustAtoi(req[1])], gemNames[mustAtoi(req[2])])
+	return md.H2(ufmt.Sprintf("Convertion: %s %s \u2192 %s\n", req[0], gemNames[mustAtoi(req[1])], gemNames[mustAtoi(req[2])]))
 }
 
 func displayTable(params map[string]string, req []string) string {
-	var content string
+	var content, a, b string
 
-	content += "### Gem Selecion\n"
-	content += "|From|To|\n|-|-|\n"
+	t := mdtable.Table{Headers: []string{"From", "To"}}
+	content += md.H3("Gem Selecion")
 	for gem, gemName := range gemNames {
 		switch gem {
-		case mustAtoi(req[2]): content += ufmt.Sprintf("|[%s](%s)", gemName, redoLink(params, -1, gemType(mustAtoi(req[2])), gemType(mustAtoi(req[1]))))
-		case mustAtoi(req[1]): content += ufmt.Sprintf("|**%s**", gemName)
-		default: content += ufmt.Sprintf("|[%s](%s)", gemName, redoLink(params, -1, gemType(gem), _gemEnd))
+		case mustAtoi(req[2]):
+			a = md.Link(gemName, redoLink(params, -1, gemType(mustAtoi(req[2])), gemType(mustAtoi(req[1]))))
+		case mustAtoi(req[1]):
+			a = md.Bold(gemName)
+		default:
+			a = md.Link(gemName, redoLink(params, -1, gemType(gem), _gemEnd))
 		}
 
 		switch gem {
-		case mustAtoi(req[1]): content += ufmt.Sprintf("|[%s](%s)|\n", gemName, redoLink(params, -1, gemType(mustAtoi(req[2])), gemType(mustAtoi(req[1]))))
-		case mustAtoi(req[2]): content += ufmt.Sprintf("|**%s**|\n", gemName)
-		default: content += ufmt.Sprintf("|[%s](%s)|\n", gemName, redoLink(params, -1, _gemEnd, gemType(gem)))
+		case mustAtoi(req[1]):
+			b = md.Link(gemName, redoLink(params, -1, gemType(mustAtoi(req[2])), gemType(mustAtoi(req[1]))))
+		case mustAtoi(req[2]):
+			b = md.Bold(gemName)
+		default:
+			b = md.Link(gemName, redoLink(params, -1, _gemEnd, gemType(gem)))
 		}
+		t.Append([]string{a, b})
 	}
-	content += "\n"
+	content += t.String()
 	return content
 }
 
@@ -126,11 +136,11 @@ func renderDaoRequestGenerator(params map[string]string) string {
 	// Content creator
 	var content string
 	req := generateReq(params)
-	content += "# Generate a request\n"
-	content += "Go back to [DashBoard](" + gnominersDashboard + "?user=" + user + ").\n\n"
-	content += ufmt.Sprintf("## [Click here when you are done to Generate](%s) !\n", gnominersDAO+"?user="+user+"&request="+strings.Join(req, ","))
+	content += md.H1("Generate a request")
+	content += "Go back to " + md.Link("DashBoard", gnominersDashboard + "?user=" + user) + br
+	content += md.H2(md.Link("Click here when you are done to Generate", gnominersDAO+"?user="+user+"&request="+strings.Join(req, ",")))
 	content += displayFinal(req) + "\n"
-	content += "---" + br
+	content += md.HorizontalRule() + br
 	content += "<gno-columns>" + br
 	content += displayCount(params)
 	content += "|||" + br

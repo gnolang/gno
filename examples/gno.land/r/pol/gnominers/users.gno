@@ -126,12 +126,13 @@ func sortUsers(slice []*UserSession, less func(i, j *UserSession) bool, rev bool
 func renderUserPage(params map[string]string) string {
 	var content string
 	lnk := txlink.Call("Login")
-	content += md.H1("GnoMiners\n")
-	content += "Welcome to gno miners ! Please select an user realm, or " + md.Link("Register", lnk) + " if you want to create your own." + br
+	content += md.H1("GnoMiners")
+	content += "Welcome to gno miners !" + br
+	content += "Please select an user realm, or " + md.Link("Register", lnk) + " if you want to create your own." + br
 
 	// sessions
 	content += "<gno-columns>" + br
-	content += md.H2("Here are all the sessions:\n")
+	content += md.H2("Here are all the sessions:")
 	if len(userSessions) == 0 {
 		content += "Hmmm, looks like there is nobody for now... be the first one to play !\n"
 	}
@@ -141,7 +142,7 @@ func renderUserPage(params map[string]string) string {
 	content += br
 	content += "If you want to play, you can " +  md.Link("Register", lnk) + "." + br
 
-	// hall of fame
+	// leaderboard
 	var sortMethod int
 	var err error
 	sortStr, ok := params["sort"]
@@ -155,7 +156,7 @@ func renderUserPage(params map[string]string) string {
 	}
 	_, desc := params["desc"]
 	content += "|||" + br
-	content += "## Leaderboard\n"
+	content += md.H2("Leaderboard")
 	content += "Sort by: "
 	for k, name := range sortNames {
 		if k != 0 {

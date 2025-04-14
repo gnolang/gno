@@ -3,6 +3,8 @@ package gnominers
 import (
 	"strconv"
 
+	"gno.land/p/moul/md"
+	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/pol/dao"
 	"gno.land/p/pol/nfmt"
@@ -64,26 +66,26 @@ func renderDashboard(params map[string]string) string {
 	}
 
 	// the content
-	content := "# Dashboard of " + session.GetName() + "\n"
+	content := md.H1("Dashboard of " + session.GetName())
 
 	// actions
 	content += "<gno-columns>" + br
-	content += "### Actions\n"
+	content += md.H3("Actions")
 	lnk := txlink.Call("Mine")
-	content += "[Mine](" + lnk + ") - "
-	content += "[Shop](" + gnominersShopPath + "?user=" + user + ") - "
-	content += "[Achievements](" + gnominersAchievements + "?user=" + user + ") - "
+	content += md.Link("Mine", lnk) + " - "
+	content += md.Link("Shop", gnominersShopPath + "?user=" + user) + " - "
+	content += md.Link("Achievements", gnominersAchievements + "?user=" + user) + " - "
 	if session.DAO == nil {
 		lnk = txlink.Call("OpenDAO")
-		content += "[Open DAO](" + lnk + ")"
+		content += md.Link("Open a new DAO", lnk)
 	} else {
-		content += "[Your DAO](" + gnominersDAO + "?user=" + user + ")"
+		content += md.Link("Your DAO", gnominersDAO + "?user=" + user)
 	}
 	content += br
 	
 	// money money money, must be funny
 	content += "|||" + br
-	content += "### Money\n"
+	content += md.H3("Money")
 	x, err := nfmt.FormatRound(session.Money)
 	precise := strconv.FormatFloat(session.Money, 'f', 2, 64)
 	if err != nil {
@@ -96,43 +98,38 @@ func renderDashboard(params map[string]string) string {
 	content += "</gno-columns>" + br
 	
 	// your gems
+	t := mdtable.Table{ Headers: []string{ "Gem", "Quantity", "Price" } }
 	content += "<gno-columns>" + br
-	content += "### Your Gems\n"
-	content += "|Gem|Quantity|Price|\n"
-	content += "|-|-|-|\n"
+	content += md.H3("Your Gems")
 	var gem gemType = gemRock
 	for gem < _gemEnd {
 		count, ok := session.GemsCount[gem]
 		if !ok {
 			count = 0
 		}
-		content += "|" + gemNames[gem]
-		content += "|" + strconv.Itoa(int(count))
 		n := float64(count)*float64(gemPriceCaratTable[gem])
 		x, err := nfmt.FormatRound(n)
 		if err != nil {
 			x = strconv.FormatFloat(n, 'f', 2, 64)
 		}
-		content += "|" + x + " GC"
-		content += "|\n"
+		t.Append([]string{ gemNames[gem], strconv.Itoa(int(count)), x + " GC" })
 		gem++
 	}
-	content += "\n"
+	content += t.String()
 	content += "|||" + br
 
 	// your inventory
-	content += "### Your inventory\n"
-	content += "|Pickaxe|Equip|\n"
-	content += "|-|-|\n"
+	t = mdtable.Table{ Headers: []string{ "Pickaxe", "Equip" } }
+	content += md.H3("Your inventory")
 	for index, pick := range session.Pickaxes {
-		content += "|" + pick.String() + "|"
+		str := ""
 		if pick != session.Active {
 			tx := txlink.Call("Equip", "index", strconv.Itoa(index))
-			content += "[equip](" + tx + ")"
+			str = md.Link("Equip", tx)
 		}
-		content += "|\n"
+		t.Append([]string{pick.String(), str})
 	}
-	content += "\n"
+	content += t.String()
 	content += "</gno-columns>"
 	return content
 }
