@@ -9,7 +9,7 @@ import (
 	"gno.land/p/moul/dynreplacer"
 	blog "gno.land/r/gnoland/blog"
 	"gno.land/r/gnoland/events"
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 )
 
 var (
@@ -26,8 +26,8 @@ func Render(_ string) string {
 		out, _ := events.RenderEventWidget(events.MaxWidgetSize)
 		return out
 	})
-	r.RegisterCallback(":latest-hof:", func() string {
-		return hof.RenderExhibWidget(5)
+	r.RegisterCallback(":latest-hor:", func() string {
+		return hor.RenderExhibWidget(5)
 	})
 	r.RegisterCallback(":qotb:", quoteOfTheBlock)
 	r.RegisterCallback(":chain-height:", func() string {
@@ -174,10 +174,10 @@ Package names are not guaranteed to be available for production.
 }
 
 func latestHOFItems(num int) ui.Element {
-	submissions := hof.RenderExhibWidget(num)
+	submissions := hor.RenderExhibWidget(num)
 
 	return ui.Element{
-		ui.H2("[Hall of Fame](/r/leon/hof)"),
+		ui.H2("[Hall of Realms](/r/leon/hor)"),
 		ui.Text(submissions),
 	}
 }
