@@ -58,7 +58,12 @@ func CreateDAO(id, name, desc string) string {
 	return "DAO '" + id + "' created with name: " + name
 }
 
-func RequestDAO() string {
+func RequestDAO(daoID string) string {
+	d := daoMap[daoID]
+	if d == nil {
+		panic("DAO not found: " + daoID)
+	}
+	ds.DAO = d
 	return ds.DAO.RequestDAO()
 }
 

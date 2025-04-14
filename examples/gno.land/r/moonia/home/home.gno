@@ -5,6 +5,8 @@ import (
 	"gno.land/p/moul/md"
 	"gno.land/p/moonia/dao"
 	"gno.land/p/moonia/utils"
+	"strconv"
+	"std"
 )
 
 var ds DAOState
@@ -54,7 +56,7 @@ func CreateProposalSample(daoID string) string {
 }
 
 func renderDAO(daoID string) string {
-	caller := utils.GetCaller()
+	caller := std.Address("g15dz69sch7fkhc9gk57hpe4qea77thmy20apu9x")
 	out := "# " + ds.DAO.Name + "\n\n"
 	out += "_" + ds.DAO.Description + "_\n\n"
 	out += ds.DAO.ShowAdmin() + "\n\n"
@@ -68,8 +70,11 @@ func renderDAO(daoID string) string {
 	out += "- " + md.Link("View Stats", "/r/moonia/home?dao="+daoID+"&stats") + "\n"
 	out += "- " + md.Link("Transfer Admin", txlink.Call("TransferAdmin", "args", "addr")) + "\n"
 	out += ds.DAO.ShowWhitelist() + "\n"
+	out += "- Admin: `" + ds.DAO.Admin.String() + "`\n"
+	out += "- Caller: `" + caller.String() + "`\n"
 	if ds.DAO.IsAdmin(caller) {
 		out += "\n## 📨 Join Requests:\n"
+		out += "- Requests count: " + strconv.Itoa(len(ds.DAO.Requests)) + "\n"
 		if len(ds.DAO.Requests) == 0 {
 			out += "_No pending requests._\n"
 		} else {
@@ -79,12 +84,12 @@ func renderDAO(daoID string) string {
 					md.Link("[Decline]", txlink.Call("DeclineRequest", "args", addr.String())) + "\n"
 			}
 		}
-	}
+	}	
 	out += ds.Proposals.ShowProposals()
 	return out
 }
 
-func Render(path string) string {
+func Render(path string) string { 
 	if path == "/" || path == "" {
 		return renderDashboard()
 	}
