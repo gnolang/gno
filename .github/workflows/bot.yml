@@ -63,7 +63,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /usr/local/bin/github-bot
-          key: ${{ runner.os }}-github-bot-${{ hashFiles('contribs/github-bot/go.sum', 'contribs/github-bot/go.mod') }}
+          key: ${{ runner.os }}-github-bot-${{ hashFiles('contribs/github-bot/**/*', '!contribs/github-bot/**/*.md', '!contribs/github-bot/Makefile') }}
 
       - name: Install Go
         if: steps.cache-bot-bin.outputs.cache-hit != 'true'
@@ -130,7 +130,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /usr/local/bin/github-bot
-          key: ${{ runner.os }}-github-bot-${{ hashFiles('contribs/github-bot/go.sum', 'contribs/github-bot/go.mod') }}
+          key: ${{ runner.os }}-github-bot-${{ hashFiles('contribs/github-bot/**/*', '!contribs/github-bot/**/*.md', '!contribs/github-bot/Makefile') }}
 
       - name: Install Go
         if: steps.cache-bot-bin.outputs.cache-hit != 'true'
