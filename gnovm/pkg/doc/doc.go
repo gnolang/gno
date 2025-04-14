@@ -8,7 +8,6 @@ package doc
 import (
 	"errors"
 	"fmt"
-	"go/ast"
 	"go/token"
 	"io"
 	"log"
@@ -106,24 +105,11 @@ func (d *Documentable) WriteDocumentation(w io.Writer, o *WriteDocumentationOpti
 		constructor[fun.Name] = returnType
 	}
 
-	// Collect .gno files in a map for ast.MergePackageFiles.
-	fileMap := make(map[string]*ast.File)
-	for i, file := range d.pkgData.files {
-		f := d.pkgData.fset.File(file.Pos())
-		if f == nil {
-			return fmt.Errorf("commands/doc: file pkg.files[%d] is not found in the provided file set", i)
-		}
-		fileMap[f.Name()] = file
-	}
-	astpkg, _ := ast.NewPackage(d.pkgData.fset, fileMap, simpleImporter, nil)
-
 	pp := &pkgPrinter{
 		name:        d.pkgData.name,
 		doc:         doc,
-		file:        ast.MergePackageFiles(astpkg, 0),
 		typedValue:  typedValue,
 		constructor: constructor,
-		fs:          d.pkgData.fset,
 		opt:         o,
 		importPath:  d.importPath,
 	}

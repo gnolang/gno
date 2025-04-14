@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"go/ast"
 	"go/doc/comment"
 	"go/token"
 	"io"
@@ -26,11 +25,9 @@ const (
 
 type pkgPrinter struct {
 	name        string             // Package name, json for encoding/json.
-	file        *ast.File          // Merged from all files in the package
 	doc         *JSONDocumentation // From WriteJSONDocumentation
 	typedValue  map[string]string  // Consts and vars related to types. val_name -> type_name
 	constructor map[string]string  // Constructors. func_name -> type_name
-	fs          *token.FileSet     // Needed for printing.
 	buf         pkgBuffer
 	opt         *WriteDocumentationOptions
 	importPath  string
