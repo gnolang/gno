@@ -1,6 +1,6 @@
-# testing simple gno tool lint command with any error
+# testing simple gno lint command with any error
 
-gno tool lint ./good_file.gno
+gno lint ./good_file.gno
 
 cmp stdout stdout.golden
 cmp stdout stderr.golden

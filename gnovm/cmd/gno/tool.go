@@ -27,7 +27,6 @@ func newToolCmd(io commands.IO) *commands.Command {
 		// gno specific commands:
 		//
 		// ast
-		newLintCmd(io),
 		// publish/release
 		// render -- call render()?
 		newReplCmd(),

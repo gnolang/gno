@@ -191,7 +191,7 @@ are requested.
 
 (flycheck-define-checker gno-lint
   "A GNO syntax checker using the gno lint tool."
-  :command ("gno" "tool" "lint" source-original)
+  :command ("gno" "lint" source-original)
   :error-patterns (;; ./file.gno:32: error message (code=1)
                    (error line-start (file-name) ":" line ": " (message) " (code=" (id (one-or-more digit)) ")." line-end))
   ;; Ensure the file is saved, to work around

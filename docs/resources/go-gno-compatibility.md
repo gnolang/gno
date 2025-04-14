@@ -322,4 +322,4 @@ Legend:
 | go tool           |                              |                                                                       |
 | go version        |                              |                                                                       |
 | go vet            |                              |                                                                       |
-| golint            | gno tool lint                | same intention                                                        |
+| golint            | gno lint                     | same intention                                                        |

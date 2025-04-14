@@ -42,7 +42,7 @@ test.fast:
 
 .PHONY: lint
 lint:
-	go run ../gnovm/cmd/gno tool lint -v .
+	go run ../gnovm/cmd/gno lint -v .
 
 .PHONY: test.sync
 test.sync:

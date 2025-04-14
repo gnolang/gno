@@ -34,6 +34,7 @@ func newGnocliCmd(io commands.IO) *commands.Command {
 		// get
 		// install
 		// list -- list packages
+		newLintCmd(io),
 		newModCmd(io),
 		// work
 		newRunCmd(io),
