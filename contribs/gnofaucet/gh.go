@@ -11,7 +11,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gnolang/gno/tm2/pkg/errors"
+	"errors"
+
 	"github.com/google/go-github/v64/github"
 )
 
