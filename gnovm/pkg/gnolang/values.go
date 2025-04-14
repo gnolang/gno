@@ -2275,6 +2275,8 @@ func (b *Block) GetPointerToMaybeHeapDefine(store Store, nx *NameExpr) PointerVa
 	case NameExprTypeHeapDefine:
 		return b.GetPointerToHeapDefine(store, nx.Path)
 	default:
+		fmt.Println("===nx.Type: ", nx.Type)
+		fmt.Println("===nx: ", nx)
 		panic("unexpected NameExpr type for GetPointerToMaybeHeapDefine")
 	}
 }
