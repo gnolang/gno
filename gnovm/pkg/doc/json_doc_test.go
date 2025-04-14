@@ -205,7 +205,7 @@ func TestJSONDocumentation(t *testing.T) {
 	require.NoError(t, err)
 	d, err := NewDocumentableFromMemPkg(memPkg, true, "", "")
 	require.NoError(t, err)
-	jdoc, err := d.WriteJSONDocumentation()
+	jdoc, err := d.WriteJSONDocumentation(nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, expected.JSON(), jdoc.JSON())

@@ -79,8 +79,11 @@ func NewDocumentableFromMemPkg(memPkg *gnovm.MemPackage, unexported bool, symbol
 }
 
 // WriteJSONDocumentation returns a JSONDocumentation for the package
-func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
-	opt := &WriteDocumentationOptions{}
+// A useful opt is Source=true. opt may be nil
+func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*JSONDocumentation, error) {
+	if opt == nil {
+		opt = &WriteDocumentationOptions{}
+	}
 	_, pkg, err := d.pkgData.docPackage(opt)
 	if err != nil {
 		return nil, err

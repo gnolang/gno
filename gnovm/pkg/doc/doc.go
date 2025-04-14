@@ -58,7 +58,7 @@ func (d *Documentable) WriteDocumentation(w io.Writer, o *WriteDocumentationOpti
 		}
 	}
 
-	doc, err := d.WriteJSONDocumentation()
+	doc, err := d.WriteJSONDocumentation(o)
 	if err != nil {
 		return err
 	}
