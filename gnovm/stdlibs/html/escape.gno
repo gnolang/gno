@@ -163,18 +163,20 @@ func unescapeEntity(b []byte, dst, src int) (dst1, src1 int) {
 	return dst1, src1
 }
 
+var htmlEscaper = strings.NewReplacer(
+	`&`, "&amp;",
+	`'`, "&#39;", // "&#39;" is shorter than "&apos;" and apos was not in HTML until HTML5.
+	`<`, "&lt;",
+	`>`, "&gt;",
+	`"`, "&#34;", // "&#34;" is shorter than "&quot;".
+)
+
 // EscapeString escapes special characters like "<" to become "&lt;". It
 // escapes only five such characters: <, >, &, ' and ".
 // UnescapeString(EscapeString(s)) == s always holds, but the converse isn't
 // always true.
 func EscapeString(s string) string {
-	return strings.NewReplacer(
-		`&`, "&amp;",
-		`'`, "&#39;", // "&#39;" is shorter than "&apos;" and apos was not in HTML until HTML5.
-		`<`, "&lt;",
-		`>`, "&gt;",
-		`"`, "&#34;", // "&#34;" is shorter than "&quot;".
-	).Replace(s)
+	return htmlEscaper.Replace(s)
 }
 
 // UnescapeString unescapes entities like "&lt;" to become "<". It unescapes a
