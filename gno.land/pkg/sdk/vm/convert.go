@@ -287,11 +287,7 @@ func stringifyJSONPrimitiveValue(m *gno.Machine, tv gno.TypedValue) string {
 		oid = v.GetObjectID()
 	}
 
-	if !oid.IsZero() {
-		return strconv.Quote(fmt.Sprintf(`<obj:%s:%s>`, tv.T.String(), oid))
-	}
-
-	return strconv.Quote(fmt.Sprintf(`<obj:%s:0>`, tv.T.String()))
+	return fmt.Sprintf(`{"$type":%q,"$oid":%q}`, tv.T.String(), oid.String())
 }
 
 func getSignedIntValue(bt gno.PrimitiveType, tv gno.TypedValue) int64 {

@@ -158,7 +158,7 @@ func GetSiloData() []byte {
 	"response": {
 		"ResponseBase": {
 			"Error": null,
-			"Data": "WyI8b2JqOipnbm8ubGFuZC9yL2Rldi9zaWxvLlNpbG86NmFlZDJlZGE3MmM3OWU0MTFlZWMxZWE3ZjY2MWM1ZTMwMzgzZmI1OToyPiJd",
+			"Data": "W3siJHR5cGUiOiIqZ25vLmxhbmQvci9kZXYvc2lsby5TaWxvIiwiJG9pZCI6IjZhZWQyZWRhNzJjNzllNDExZWVjMWVhN2Y2NjFjNWUzMDM4M2ZiNTk6MiJ9XQ==",
 			"Events": null,
 			"Log": "",
 			"Info": ""
@@ -169,7 +169,10 @@ func GetSiloData() []byte {
 		"Height": "0"
 	},
 	"data": [
-		"<obj:*gno.land/r/dev/silo.Silo:6aed2eda72c79e411eec1ea7f661c5e30383fb59:2>"
+		{
+			"$type": "*gno.land/r/dev/silo.Silo",
+			"$oid": "6aed2eda72c79e411eec1ea7f661c5e30383fb59:2"
+		}
 	]
 }
 

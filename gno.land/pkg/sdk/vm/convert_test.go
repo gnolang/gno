@@ -155,7 +155,6 @@ func (e *E) Error() string { return e.S }
 		require.Len(t, tps, 1)
 
 		tv := tps[0]
-		fmt.Println(tv.String())
 		rep := stringifyJSONPrimitiveValue(m, tv)
 		require.Equal(t, expected, rep)
 	})
@@ -202,7 +201,7 @@ func TestConvertJSONValuesList(t *testing.T) {
 		},
 		{
 			[]string{"42", `"hello world"`, "[]int{42}"},
-			`[42,"hello world","<obj:[]int:0>"]`,
+			`[42,"hello world",{"$type":"[]int","$oid":"0000000000000000000000000000000000000000:0"}]`,
 		},
 	}
 
