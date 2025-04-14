@@ -1,20 +1,19 @@
 package dao
 
 import (
-	"gno.land/p/moonia/utils"
 	"std"
 )
 
 // Admin Methods //
 
 func (d *DAO) TransferAdmin(addr std.Address) string {
-	caller := utils.GetCaller()
+	caller := std.PreviousRealm().Address()
 
 	if !d.IsAdmin(caller) {
 		panic("Only the admin can transfer admin.")
 	}
 	if d.IsAdmin(addr) {
-		return "Address is already the admin."
+		panic("Address is already the admin.")
 	}
 	if !d.IsMember(addr) {
 		panic("New admin must be a member.")
@@ -27,7 +26,7 @@ func (d *DAO) SetAdmin() string {
 	if d.Admin != "" {
 		panic("Admin is already set.")
 	}
-	caller := utils.GetCaller()
+	caller := std.PreviousRealm().Address()
 	d.Admin = caller
 	d.Whitelist[caller] = true
 	return "Admin set to: " + caller.String()
@@ -38,7 +37,7 @@ func (d *DAO) IsAdmin(addr std.Address) bool {
 }
 
 func (d *DAO) AcceptRequest(addr std.Address) string {
-	caller := utils.GetCaller()
+	caller := std.PreviousRealm().Address()
 	if !d.IsAdmin(caller) {
 		panic("Only admin can accept requests.")
 	}
@@ -50,7 +49,7 @@ func (d *DAO) AcceptRequest(addr std.Address) string {
 }
 
 func (d *DAO) DeclineRequest(addr std.Address) string {
-	caller := utils.GetCaller()
+	caller := std.PreviousRealm().Address()
 	if !d.IsAdmin(caller) {
 		panic("Only admin can decline requests.")
 	}
@@ -68,7 +67,7 @@ func (d *DAO) IsMember(addr std.Address) bool {
 }
 
 func (d *DAO) AddMember(addr std.Address) string {
-	caller := utils.GetCaller()
+	caller := std.PreviousRealm().Address()
 
 	if !d.IsAdmin(caller) {
 		panic("Only the admin can add members.")
@@ -81,7 +80,7 @@ func (d *DAO) AddMember(addr std.Address) string {
 }
 
 func (d *DAO) KickMember(addr std.Address) string {
-	caller := utils.GetCaller()
+	caller := std.PreviousRealm().Address()
 
 	if !d.IsAdmin(caller) {
 		panic("Only the admin can kick members.")

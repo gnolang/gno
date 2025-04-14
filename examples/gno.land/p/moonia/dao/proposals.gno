@@ -3,6 +3,7 @@ package dao
 import (
 	"std"
 	"strconv"
+
 	"gno.land/p/moonia/utils"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/moul/md"
@@ -34,7 +35,7 @@ func NewProposalStore(dao *DAO) *ProposalStore {
 }
 
 func (ps *ProposalStore) CreateProposal(title, description string, period int64) string {
-	caller := utils.GetCaller()
+	caller := std.PreviousRealm().Address()
 	if !ps.DAO.Whitelist[caller] {
 		panic("Only whitelisted members can create proposals.")
 	}
@@ -58,7 +59,7 @@ func (ps *ProposalStore) CreateProposal(title, description string, period int64)
 func (ps *ProposalStore) CloseProposal(indexStr string) string {
 	index := utils.ParseIndex(indexStr, len(ps.Proposals))
 	p := &ps.Proposals[index]
-	if p.Creator != utils.GetCaller() {
+	if p.Creator != std.PreviousRealm().Address() {
 		panic("Only the proposal creator can close it.")
 	}
 	if !p.Active {
@@ -71,7 +72,7 @@ func (ps *ProposalStore) CloseProposal(indexStr string) string {
 func (ps *ProposalStore) Vote(indexStr, voteYesStr string) string {
 	index := utils.ParseIndex(indexStr, len(ps.Proposals))
 	voteYes := voteYesStr == "true"
-	caller := utils.GetCaller()
+	caller := std.PreviousRealm().Address()
 
 	if !ps.DAO.Whitelist[caller] {
 		panic("Only whitelisted members can vote.")
@@ -140,7 +141,7 @@ func (ps *ProposalStore) ShowProposals() string {
 func (ps *ProposalStore) EditProposal(indexStr, newTitle, newDescription string, newPeriod int64) string {
 	index := utils.ParseIndex(indexStr, len(ps.Proposals))
 	p := &ps.Proposals[index]
-	if p.Creator != utils.GetCaller() {
+	if p.Creator != std.PreviousRealm().Address() {
 		panic("Only the creator can edit the proposal.")
 	}
 	if !p.Active {

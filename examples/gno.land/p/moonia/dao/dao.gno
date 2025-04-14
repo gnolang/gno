@@ -3,7 +3,6 @@ package dao
 import (
 	"std"
 	"strconv"
-	"gno.land/p/moonia/utils"
 )
 
 type DAO struct {
@@ -36,7 +35,7 @@ func (d *DAO) ShowAdmin() string {
 }
 
 func (d *DAO) RequestDAO() string {
-	caller := utils.GetCaller()
+	caller := std.PreviousRealm().Address()
 	if d.Whitelist[caller] {
 		return "You are already a member."
 	}
@@ -48,7 +47,7 @@ func (d *DAO) RequestDAO() string {
 }
 
 func (d *DAO) LeaveDAO() string {
-	caller := utils.GetCaller()
+	caller := std.PreviousRealm().Address()
 	if !d.Whitelist[caller] {
 		panic("You are not a member of the DAO.")
 	}

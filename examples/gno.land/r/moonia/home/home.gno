@@ -1,12 +1,13 @@
 package home
 
 import (
+	"std"
+	"strconv"
+
 	"gno.land/p/moul/txlink"
 	"gno.land/p/moul/md"
 	"gno.land/p/moonia/dao"
 	"gno.land/p/moonia/utils"
-	"strconv"
-	"std"
 )
 
 var ds DAOState
@@ -58,7 +59,7 @@ func CreateProposalSample(daoID string) string {
 func renderDAO(daoID string) string {
 	// TODO: fix empty string for caller, for the moment -> change it manually
 	caller := std.Address("g15dz69sch7fkhc9gk57hpe4qea77thmy20apu9x")
-	trueCaller := utils.GetCaller() // result: empty string
+	trueCaller := std.PreviousRealm().Address() // result: empty string
 	out := "# " + ds.DAO.Name + "\n\n"
 	out += "_" + ds.DAO.Description + "_\n\n"
 	out += ds.DAO.ShowAdmin() + "\n\n"
@@ -90,7 +91,7 @@ func renderDAO(daoID string) string {
 }
 
 func Render(path string) string { 
-	if path == "/" || path == "" {
+	if path == "" {
 		return renderDashboard()
 	}
 	daoID, showStats := utils.ParseQuery(path)

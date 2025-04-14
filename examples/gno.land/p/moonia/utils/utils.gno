@@ -16,10 +16,6 @@ func FormatTimestamp(timestamp int64) string {
 	return t.Format("02 Jan 2006, 15:04")
 }
 
-func GetCaller() std.Address {
-	return std.PreviousRealm().Address()
-}
-
 func ParseIndex(indexStr string, max int) int {
 	index, err := strconv.Atoi(indexStr)
 	if err != nil {

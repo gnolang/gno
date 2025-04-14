@@ -1,8 +1,9 @@
 package home
 
 import (
-	"gno.land/p/moonia/dao"
 	"std"
+
+	"gno.land/p/moonia/dao"
 )
 
 // Admin Methods //
@@ -47,7 +48,7 @@ func ListRequests() map[std.Address]bool {
 
 func CreateDAO(id, name, desc string) string {
 	if daoMap[id] != nil {
-		return "DAO with this ID already exists."
+		panic("DAO with this ID already exists.")
 	}
 	newDAO := dao.NewDAO(name, desc)
 	daoMap[id] = newDAO

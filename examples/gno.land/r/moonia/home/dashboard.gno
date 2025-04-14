@@ -1,9 +1,10 @@
 package home
 
 import (
-	"gno.land/p/moul/txlink"
-	"gno.land/p/moul/md"
 	"std"
+
+	"gno.land/p/moul/md"
+	"gno.land/p/moul/txlink"
 )
 
 func renderDashboardDesc() string {
