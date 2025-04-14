@@ -1,4 +1,4 @@
-package home
+package gnomaze
 
 type svg string
 

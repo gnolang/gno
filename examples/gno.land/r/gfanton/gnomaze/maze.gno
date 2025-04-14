@@ -2,7 +2,7 @@
 // based on different query parameters.
 // Raycasting implementation as been heavily inspired by this project: https://github.com/AZHenley/raycasting
 
-package home
+package gnomaze
 
 import (
 	"encoding/base64"
@@ -42,6 +42,7 @@ var (
 )
 
 func init() {
+	// Generate the map
 	seed := uint64(std.ChainHeight())
 	rng := rand.New(rand.NewPCG(seed, uint64(time.Now().Unix())))
 	generateLevel(rng, level)
