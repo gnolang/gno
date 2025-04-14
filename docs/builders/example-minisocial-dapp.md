@@ -124,7 +124,7 @@ included in, instead of the system time.
 :::info Lint & format
 
 The `gno` binary provides tooling which can help you write correct code.
-You can use `gno tool lint` and `gno tool fmt` to lint and format your code,
+You can use `gno lint` and `gno tool fmt` to lint and format your code,
 respectively.
 :::
 
