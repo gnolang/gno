@@ -19,7 +19,7 @@ import (
 
 type Value interface {
 	assertValue()
-	String() string // for debugging
+	String(m *Machine) string // for debugging
 
 	// DeepFill returns the same value, filled.
 	//
@@ -218,7 +218,7 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // cu: convert untyped; pass false for const definitions
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
-func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
+func (pv PointerValue) Assign2(m *Machine, alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
 	// Special cases.
 	if pv.TV.T == DataByteType {
 		// Special case of DataByte into (base=*SliceValue).Data.
@@ -2160,12 +2160,12 @@ func NewBlock(source BlockNode, parent *Block) *Block {
 	}
 }
 
-func (b *Block) String() string {
-	return b.StringIndented("    ")
+func (b *Block) String(m *Machine) string {
+	return b.StringIndented(m, "    ")
 }
 
-func (b *Block) StringIndented(indent string) string {
-	source := toString(b.Source)
+func (b *Block) StringIndented(m *Machine, indent string) string {
+	source := toString(m, b.Source)
 	if len(source) > 32 {
 		source = source[:32] + "..."
 	}
@@ -2185,7 +2185,7 @@ func (b *Block) StringIndented(indent string) string {
 				} else {
 					lines = append(lines,
 						fmt.Sprintf("%s%s: %s",
-							indent, n, b.Values[i].String()))
+							indent, n, b.Values[i].String(m)))
 				}
 			}
 		}

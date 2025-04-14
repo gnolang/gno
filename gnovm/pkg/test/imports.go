@@ -190,7 +190,7 @@ func LoadImports(store gno.Store, memPkg *gnovm.MemPackage) (err error) {
 		if r := recover(); r != nil {
 			switch v := r.(type) {
 			case *gno.TypedValue:
-				err = errors.New(v.String())
+				err = errors.New(v.String(nil))
 			case *gno.PreprocessError:
 				err = &stackWrappedError{v.Unwrap(), debug.Stack()}
 			case gno.UnhandledPanicError:

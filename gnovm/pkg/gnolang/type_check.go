@@ -237,7 +237,7 @@ Main:
 		if _, ok := ty.(*TypeType); ok {
 			ty = evalStaticType(store, last, currExpr)
 		}
-		panic(fmt.Sprintf("%s (comma, ok expression of type %s) is not constant", currExpr.String(), currExpr.Type))
+		panic(fmt.Sprintf("%s (comma, ok expression of type %s) is not constant", currExpr.String(nil), currExpr.Type))
 	case *CallExpr:
 		ift := evalStaticTypeOf(store, last, currExpr.Func)
 		switch baseOf(ift).(type) {
@@ -273,11 +273,11 @@ Main:
 
 			switch {
 			case len(tup.Elts) == 0:
-				panic(fmt.Sprintf("%s (no value) used as value", currExpr.String()))
+				panic(fmt.Sprintf("%s (no value) used as value", currExpr.String(nil)))
 			case len(tup.Elts) == 1:
-				panic(fmt.Sprintf("%s (value of type %s) is not constant", currExpr.String(), tup.Elts[0]))
+				panic(fmt.Sprintf("%s (value of type %s) is not constant", currExpr.String(nil), tup.Elts[0]))
 			default:
-				panic(fmt.Sprintf("multiple-value %s (value of type %s) in single-value context", currExpr.String(), tup.Elts))
+				panic(fmt.Sprintf("multiple-value %s (value of type %s) in single-value context", currExpr.String(nil), tup.Elts))
 			}
 		case *TypeType:
 			for _, arg := range currExpr.Args {
@@ -308,7 +308,7 @@ Main:
 				if !ok {
 					panic(fmt.Sprintf(
 						"missing package in selector expr %s",
-						currExpr.String()))
+						currExpr.String(nil)))
 				}
 				pv = pv_
 			}
@@ -317,13 +317,13 @@ Main:
 			}
 
 			tt := pv.GetBlock(store).Source.GetStaticTypeOf(store, currExpr.Sel)
-			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), tt))
+			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(nil), tt))
 		case *PointerType, *DeclaredType, *StructType, *InterfaceType, *TypeType:
 			ty := evalStaticTypeOf(store, last, currExpr)
 			if _, ok := ty.(*TypeType); ok {
 				ty = evalStaticType(store, last, currExpr)
 			}
-			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), ty))
+			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(nil), ty))
 		default:
 			panic(fmt.Sprintf(
 				"unexpected selector expression type %v",
@@ -334,7 +334,7 @@ Main:
 		if _, ok := ift.(*TypeType); ok {
 			ift = evalStaticType(store, last, currExpr)
 		}
-		panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), ift))
+		panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(nil), ift))
 	}
 }
 
@@ -393,10 +393,10 @@ func checkValDefineMismatch(n Node) {
 
 	if valueDecl != nil {
 		if numNames > numValues {
-			panic(fmt.Sprintf("missing init expr for %s", valueDecl.NameExprs[numValues].String()))
+			panic(fmt.Sprintf("missing init expr for %s", valueDecl.NameExprs[numValues].String(nil)))
 		}
 
-		panic(fmt.Sprintf("extra init expr %s", values[numNames].String()))
+		panic(fmt.Sprintf("extra init expr %s", values[numNames].String(nil)))
 	}
 
 	panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numValues))
@@ -878,7 +878,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					panic(fmt.Sprintf(
 						"assignment mismatch: "+
 							"%d variables but %s returns %d values",
-						len(x.Lhs), cx.Func.String(), len(cft.Results)))
+						len(x.Lhs), cx.Func.String(nil), len(cft.Results)))
 				}
 				if x.Op == ASSIGN {
 					// check assignable
@@ -1061,7 +1061,7 @@ func assertValidAssignRhs(store Store, last BlockNode, n Node) {
 		if cx, ok := exp.(*CallExpr); ok {
 			tType, ok := tt.(*tupleType)
 			if ok && len(tType.Elts) == 0 {
-				panic(fmt.Sprintf("%s (no value) used as value", cx.Func.String()))
+				panic(fmt.Sprintf("%s (no value) used as value", cx.Func.String(nil)))
 			}
 		}
 	}

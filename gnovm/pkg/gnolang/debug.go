@@ -96,22 +96,22 @@ func (p *PreprocessError) Unwrap() error {
 
 // Stack produces a string representation of the preprocessing stack
 // trace that was associated with the error occurrence.
-func (p *PreprocessError) Stack() string {
+func (p *PreprocessError) Stack(m *Machine) string {
 	var stacktrace strings.Builder
 	for i := len(p.stack) - 1; i >= 0; i-- {
 		sbn := p.stack[i]
-		fmt.Fprintf(&stacktrace, "stack %d: %s\n", i, sbn.String())
+		fmt.Fprintf(&stacktrace, "stack %d: %s\n", i, sbn.String(m))
 	}
 	return stacktrace.String()
 }
 
 // Error consolidates and returns the full error message, including
 // the actual error followed by its associated preprocessing stack.
-func (p *PreprocessError) Error() string {
+func (p *PreprocessError) Error(m *Machine) string {
 	var err strings.Builder
 	fmt.Fprintf(&err, "%s:\n", p.Unwrap())
 	fmt.Fprintln(&err, "--- preprocess stack ---")
-	fmt.Fprint(&err, p.Stack())
+	fmt.Fprint(&err, p.Stack(m))
 	fmt.Fprintf(&err, "------------------------")
 	return err.String()
 }

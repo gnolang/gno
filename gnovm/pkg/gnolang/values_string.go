@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 type protectedStringer interface {
@@ -59,27 +61,34 @@ func newSeenValues() *seenValues {
 	}
 }
 
-func (sv StringValue) String() string {
+func (sv StringValue) String(m *Machine) string {
 	return strconv.Quote(string(sv))
 }
 
-func (biv BigintValue) String() string {
+func (biv BigintValue) String(m *Machine) string {
 	return biv.V.String()
 }
 
-func (bdv BigdecValue) String() string {
+func (bdv BigdecValue) String(m *Machine) string {
 	return bdv.V.String()
 }
 
-func (dbv DataByteValue) String() string {
+func (dbv DataByteValue) String(m *Machine) string {
 	return fmt.Sprintf("(%0X)", (dbv.GetByte()))
 }
 
-func (av *ArrayValue) String() string {
-	return av.ProtectedString(newSeenValues())
+func (av *ArrayValue) String(m *Machine) string {
+	return av.ProtectedString(m, newSeenValues())
 }
 
-func (av *ArrayValue) ProtectedString(seen *seenValues) string {
+const CPUCYCLES = "CPUCycles"
+
+func (av *ArrayValue) ProtectedString(m *Machine, seen *seenValues) string {
+	defer func() {
+		// 7 characters for the array itself
+		m.GasMeter.ConsumeGas(types.Gas(7*OpCharPrint), CPUCYCLES)
+	}()
+
 	if i := seen.IndexOf(av); i != -1 {
 		return fmt.Sprintf("ref@%d", i)
 	}
@@ -94,11 +103,13 @@ func (av *ArrayValue) ProtectedString(seen *seenValues) string {
 	ss := make([]string, len(av.List))
 	if av.Data == nil {
 		for i, e := range av.List {
-			ss[i] = e.ProtectedString(seen)
+			m.GasMeter.ConsumeGas(OpCPUAssign, CPUCYCLES)
+			ss[i] = e.ProtectedString(m, seen)
 		}
 		// NOTE: we may want to unify the representation,
 		// but for now tests expect this to be different.
 		// This may be helpful for testing implementation behavior.
+		m.GasMeter.ConsumeGas(OpCPUAssign, CPUCYCLES)
 		return "array[" + strings.Join(ss, ",") + "]"
 	}
 	if len(av.Data) > 256 {
@@ -107,21 +118,30 @@ func (av *ArrayValue) ProtectedString(seen *seenValues) string {
 	return fmt.Sprintf("array[0x%X]", av.Data)
 }
 
-func (sv *SliceValue) String() string {
-	return sv.ProtectedString(newSeenValues())
+func (sv *SliceValue) String(m *Machine) string {
+	return sv.ProtectedString(m, newSeenValues())
 }
 
-func (sv *SliceValue) ProtectedString(seen *seenValues) string {
+func (sv *SliceValue) ProtectedString(m *Machine, seen *seenValues) string {
+	defer func() {
+		// 7 characters for the slice itself
+		m.GasMeter.ConsumeGas(types.Gas(7*OpCharPrint), CPUCYCLES)
+	}()
+
 	if sv.Base == nil {
 		return "nil-slice"
 	}
 
 	if i := seen.IndexOf(sv); i != -1 {
-		return fmt.Sprintf("ref@%d", i)
+		res := fmt.Sprintf("ref@%d", i)
+		m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+		return res
 	}
 
 	if ref, ok := sv.Base.(RefValue); ok {
-		return fmt.Sprintf("slice[%v]", ref)
+		res := fmt.Sprintf("slice[%v]", ref)
+		m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+		return res
 	}
 
 	seen.Put(sv)
@@ -129,25 +149,29 @@ func (sv *SliceValue) ProtectedString(seen *seenValues) string {
 
 	vbase := sv.Base.(*ArrayValue)
 	if vbase.Data == nil {
+		m.GasMeter.ConsumeGas(int64(sv.Length*OpCPUAssign), CPUCYCLES)
 		ss := make([]string, sv.Length)
 		for i, e := range vbase.List[sv.Offset : sv.Offset+sv.Length] {
-			ss[i] = e.ProtectedString(seen)
+			ss[i] = e.ProtectedString(m, seen)
 		}
 		return "slice[" + strings.Join(ss, ",") + "]"
 	}
+
 	if sv.Length > 256 {
 		return fmt.Sprintf("slice[0x%X...(%d)]", vbase.Data[sv.Offset:sv.Offset+256], sv.Length)
 	}
 	return fmt.Sprintf("slice[0x%X]", vbase.Data[sv.Offset:sv.Offset+sv.Length])
 }
 
-func (pv PointerValue) String() string {
-	return pv.ProtectedString(newSeenValues())
+func (pv PointerValue) String(m *Machine) string {
+	return pv.ProtectedString(m, newSeenValues())
 }
 
-func (pv PointerValue) ProtectedString(seen *seenValues) string {
+func (pv PointerValue) ProtectedString(m *Machine, seen *seenValues) string {
 	if i := seen.IndexOf(pv); i != -1 {
-		return fmt.Sprintf("ref@%d", i)
+		res := fmt.Sprintf("ref@%d", i)
+		m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+		return res
 	}
 
 	seen.Put(pv)
@@ -155,19 +179,25 @@ func (pv PointerValue) ProtectedString(seen *seenValues) string {
 
 	// Handle nil TV's, avoiding a nil pointer deref below.
 	if pv.TV == nil {
-		return "&<nil>"
+		res := "&<nil>"
+		m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+		return res
 	}
 
-	return fmt.Sprintf("&%s", pv.TV.ProtectedString(seen))
+	res := fmt.Sprintf("&%s", pv.TV.ProtectedString(m, seen))
+	m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+	return res
 }
 
-func (sv *StructValue) String() string {
-	return sv.ProtectedString(newSeenValues())
+func (sv *StructValue) String(m *Machine) string {
+	return sv.ProtectedString(m, newSeenValues())
 }
 
-func (sv *StructValue) ProtectedString(seen *seenValues) string {
+func (sv *StructValue) ProtectedString(m *Machine, seen *seenValues) string {
 	if i := seen.IndexOf(sv); i != -1 {
-		return fmt.Sprintf("ref@%d", i)
+		res := fmt.Sprintf("ref@%d", i)
+		m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+		return res
 	}
 
 	seen.Put(sv)
@@ -175,12 +205,16 @@ func (sv *StructValue) ProtectedString(seen *seenValues) string {
 
 	ss := make([]string, len(sv.Fields))
 	for i, f := range sv.Fields {
-		ss[i] = f.ProtectedString(seen)
+		ss[i] = f.ProtectedString(m, seen)
 	}
+
+	// 8 characters for the struct
+	// the fields will be accounted for in their own function call
+	m.GasMeter.ConsumeGas(types.Gas(8*OpCharPrint), CPUCYCLES)
 	return "struct{" + strings.Join(ss, ",") + "}"
 }
 
-func (fv *FuncValue) String() string {
+func (fv *FuncValue) String(m *Machine) string {
 	name := string(fv.Name)
 	if fv.Type == nil {
 		return fmt.Sprintf("incomplete-func ?%s(?)?", name)
@@ -191,7 +225,7 @@ func (fv *FuncValue) String() string {
 	return name
 }
 
-func (bmv *BoundMethodValue) String() string {
+func (bmv *BoundMethodValue) String(m *Machine) string {
 	name := bmv.Func.Name
 	var (
 		recvT   string = "?"
@@ -210,17 +244,21 @@ func (bmv *BoundMethodValue) String() string {
 		recvT, name, params, results)
 }
 
-func (mv *MapValue) String() string {
-	return mv.ProtectedString(newSeenValues())
+func (mv *MapValue) String(m *Machine) string {
+	return mv.ProtectedString(m, newSeenValues())
 }
 
-func (mv *MapValue) ProtectedString(seen *seenValues) string {
+func (mv *MapValue) ProtectedString(m *Machine, seen *seenValues) string {
 	if mv.List == nil {
-		return "zero-map"
+		res := "zero-map"
+		m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+		return res
 	}
 
 	if i := seen.IndexOf(mv); i != -1 {
-		return fmt.Sprintf("ref@%d", i)
+		res := fmt.Sprintf("ref@%d", i)
+		m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+		return res
 	}
 
 	seen.Put(mv)
@@ -229,15 +267,18 @@ func (mv *MapValue) ProtectedString(seen *seenValues) string {
 	ss := make([]string, 0, mv.GetLength())
 	next := mv.List.Head
 	for next != nil {
+		m.GasMeter.ConsumeGas(OpCharPrint, CPUCYCLES)
 		ss = append(ss,
-			next.Key.ProtectedString(seen)+":"+
-				next.Value.ProtectedString(seen))
+			next.Key.ProtectedString(m, seen)+":"+
+				next.Value.ProtectedString(m, seen))
 		next = next.Next
 	}
+
+	m.GasMeter.ConsumeGas(types.Gas(5*OpCharPrint), CPUCYCLES)
 	return "map{" + strings.Join(ss, ",") + "}"
 }
 
-func (tv TypeValue) String() string {
+func (tv TypeValue) String(m *Machine) string {
 	ptr := ""
 	if reflect.TypeOf(tv.Type).Kind() == reflect.Ptr {
 		ptr = fmt.Sprintf(" (%p)", tv.Type)
@@ -252,11 +293,11 @@ func (tv TypeValue) String() string {
 		tv.Type.String(), ptr)
 }
 
-func (pv *PackageValue) String() string {
+func (pv *PackageValue) String(m *Machine) string {
 	return fmt.Sprintf("package(%s %s)", pv.PkgName, pv.PkgPath)
 }
 
-func (rv RefValue) String() string {
+func (rv RefValue) String(m *Machine) string {
 	if rv.PkgPath == "" {
 		return fmt.Sprintf("ref(%v)",
 			rv.ObjectID)
@@ -265,7 +306,7 @@ func (rv RefValue) String() string {
 		rv.PkgPath)
 }
 
-func (hiv *HeapItemValue) String() string {
+func (hiv *HeapItemValue) String(m *Machine) string {
 	return fmt.Sprintf("heapitem(%v)",
 		hiv.Value)
 }
@@ -291,24 +332,28 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 		return res[0].GetString()
 	}
 
-	return tv.ProtectedSprint(newSeenValues(), true)
+	return tv.ProtectedSprint(m, newSeenValues(), true)
 }
 
-func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType bool) string {
+func (tv *TypedValue) ProtectedSprint(m *Machine, seen *seenValues, considerDeclaredType bool) string {
 	if i := seen.IndexOf(tv.V); i != -1 {
-		return fmt.Sprintf("ref@%d", i)
+		res := fmt.Sprintf("ref@%d", i)
+		m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+		return res
 	}
 
 	// print declared type
 	if _, ok := tv.T.(*DeclaredType); ok && considerDeclaredType {
-		return tv.ProtectedString(seen)
+		return tv.ProtectedString(m, seen)
 	}
 
 	// This is a special case that became necessary after adding `ProtectedString()` methods to
 	// reliably prevent recursive print loops.
 	if tv.V != nil {
 		if v, ok := tv.V.(RefValue); ok {
-			return v.String()
+			res := v.String(m)
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
 		}
 	}
 
@@ -317,54 +362,96 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 	case PrimitiveType:
 		switch bt {
 		case UntypedBoolType, BoolType:
-			return fmt.Sprintf("%t", tv.GetBool())
+			res := fmt.Sprintf("%t", tv.GetBool())
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
 		case UntypedStringType, StringType:
-			return tv.GetString()
+			res := tv.GetString()
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
 		case IntType:
-			return fmt.Sprintf("%d", tv.GetInt())
+			res := fmt.Sprintf("%d", tv.GetInt())
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
 		case Int8Type:
-			return fmt.Sprintf("%d", tv.GetInt8())
+			res := fmt.Sprintf("%d", tv.GetInt8())
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
 		case Int16Type:
-			return fmt.Sprintf("%d", tv.GetInt16())
+			res := fmt.Sprintf("%d", tv.GetInt16())
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
 		case UntypedRuneType, Int32Type:
-			return fmt.Sprintf("%d", tv.GetInt32())
+			res := fmt.Sprintf("%d", tv.GetInt32())
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
 		case Int64Type:
-			return fmt.Sprintf("%d", tv.GetInt64())
+			res := fmt.Sprintf("%d", tv.GetInt64())
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
 		case UintType:
-			return fmt.Sprintf("%d", tv.GetUint())
+			res := fmt.Sprintf("%d", tv.GetUint())
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
 		case Uint8Type:
-			return fmt.Sprintf("%d", tv.GetUint8())
+			res := fmt.Sprintf("%d", tv.GetUint8())
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
 		case DataByteType:
-			return fmt.Sprintf("%d", tv.GetDataByte())
+			res := fmt.Sprintf("%d", tv.GetDataByte())
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
 		case Uint16Type:
-			return fmt.Sprintf("%d", tv.GetUint16())
+			res := fmt.Sprintf("%d", tv.GetUint16())
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
 		case Uint32Type:
-			return fmt.Sprintf("%d", tv.GetUint32())
+			res := fmt.Sprintf("%d", tv.GetUint32())
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
 		case Uint64Type:
-			return fmt.Sprintf("%d", tv.GetUint64())
+			res := fmt.Sprintf("%d", tv.GetUint64())
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
 		case Float32Type:
-			return fmt.Sprintf("%v", math.Float32frombits(tv.GetFloat32()))
+			res := fmt.Sprintf("%v", math.Float32frombits(tv.GetFloat32()))
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
 		case Float64Type:
-			return fmt.Sprintf("%v", math.Float64frombits(tv.GetFloat64()))
+			res := fmt.Sprintf("%v", math.Float64frombits(tv.GetFloat64()))
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
 		case UntypedBigintType:
-			return tv.V.(BigintValue).V.String()
+			res := tv.V.(BigintValue).V.String()
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
 		case UntypedBigdecType:
-			return tv.V.(BigdecValue).V.String()
+			res := tv.V.(BigdecValue).V.String()
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
 		default:
 			panic("should not happen")
 		}
 	case *PointerType:
 		if tv.V == nil {
-			return "invalid-pointer"
+			res := "invalid-pointer"
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
 		}
-		return tv.V.(PointerValue).ProtectedString(seen)
+		res := tv.V.(PointerValue).ProtectedString(m, seen)
+		m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+		return res
 	case *FuncType:
 		switch fv := tv.V.(type) {
 		case nil:
 			ft := tv.T.String()
-			return nilStr + " " + ft
+			res := nilStr + " " + ft
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
 		case *FuncValue, *BoundMethodValue:
-			return fv.String()
+			res := fv.String(m)
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
 		default:
 			panic(fmt.Sprintf(
 				"unexpected func type %v",
@@ -376,27 +463,38 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 				panic("should not happen")
 			}
 		}
+		m.GasMeter.ConsumeGas(types.Gas(len(nilStr)*OpCharPrint), CPUCYCLES)
 		return nilStr
 	case *DeclaredType:
 		panic("should not happen")
 	case *PackageType:
-		return tv.V.(*PackageValue).String()
+		res := tv.V.(*PackageValue).String(m)
+		m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+		return res
 	case *ChanType:
 		panic("not yet implemented")
 	case *TypeType:
-		return tv.V.(TypeValue).String()
+		res := tv.V.(TypeValue).String(m)
+		m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+		return res
 	default:
 		// The remaining types may have a nil value.
 		if tv.V == nil {
-			return "(" + nilStr + " " + tv.T.String() + ")"
+			res := "(" + nilStr + " " + tv.T.String() + ")"
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
 		}
 
 		// *ArrayType, *SliceType, *StructType, *MapType
 		if ps, ok := tv.V.(protectedStringer); ok {
-			return ps.ProtectedString(seen)
-		} else if s, ok := tv.V.(fmt.Stringer); ok {
+			res := ps.ProtectedString(seen)
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
+		} else if s, ok := tv.V.(GasStringer); ok {
 			// *NativeType
-			return s.String()
+			res := s.String(m)
+			m.GasMeter.ConsumeGas(types.Gas(len(res)*OpCharPrint), CPUCYCLES)
+			return res
 		}
 
 		if debug {
@@ -409,15 +507,21 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 	}
 }
 
+type GasStringer interface {
+	String(m *Machine) string
+}
+
 // ----------------------------------------
 // TypedValue.String()
 
 // For gno debugging/testing.
-func (tv TypedValue) String() string {
-	return tv.ProtectedString(newSeenValues())
+func (tv TypedValue) String(m *Machine) string {
+	return tv.ProtectedString(m, newSeenValues())
 }
 
-func (tv TypedValue) ProtectedString(seen *seenValues) string {
+func (tv TypedValue) ProtectedString(m *Machine, seen *seenValues) string {
+	m.GasMeter.ConsumeGas(OpCPUAssign, CPUCYCLES)
+
 	if tv.IsUndefined() {
 		return "(undefined)"
 	}
@@ -459,7 +563,7 @@ func (tv TypedValue) ProtectedString(seen *seenValues) string {
 			vs = nilStr
 		}
 	} else {
-		vs = tv.ProtectedSprint(seen, false)
+		vs = tv.ProtectedSprint(m, seen, false)
 		if base := baseOf(tv.T); base == StringType || base == UntypedStringType {
 			vs = strconv.Quote(vs)
 		}
