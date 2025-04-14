@@ -9,7 +9,7 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/txlink"
 
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 	"gno.land/r/sys/users"
 )
 
@@ -54,7 +54,7 @@ func init() {
 	Ownable = ownable.NewWithAddress(std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8"))
 	players = avl.NewTree()
 	gameState.Ended = true
-	hof.Register("FOMO3D Game!", "")
+	hor.Register("FOMO3D Game!", "")
 }
 
 // StartGame starts a new game round
