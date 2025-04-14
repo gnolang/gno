@@ -35,18 +35,18 @@ func RenderHome() string {
 
 	// Play Game section
 	builder.WriteString("## How to Play\n\n")
-	builder.WriteString(ufmt.Sprintf("1. **Buy Keys** - Send GNOT to this realm with [BuyKeys](%s)\n",
-		txlink.Call("BuyKeys"),
-	))
-	builder.WriteString(ufmt.Sprintf("2. **Collect Dividends** - Call [ClaimDividends](%s) to collect your earnings\n",
-		txlink.Call("ClaimDividends"),
-	))
-	builder.WriteString("3. **Check Your Stats** - Append `:player/` followed by your address or namespace to the current URL to view your keys and dividends\n")
 	if gameState.Ended {
-		builder.WriteString(ufmt.Sprintf("4. **Start New Round** - Call [StartGame](%s) to begin a new round\n",
+		builder.WriteString(ufmt.Sprintf("1. **Start New Round** - Call [StartGame](%s) to begin a new round\n",
 			txlink.Call("StartGame"),
 		))
 	}
+	builder.WriteString(ufmt.Sprintf("1. **Buy Keys** - Send GNOT to this realm with [BuyKeys](%s)\n",
+		txlink.Call("BuyKeys"),
+	))
+	builder.WriteString(ufmt.Sprintf("1. **Collect Dividends** - Call [ClaimDividends](%s) to collect your earnings\n",
+		txlink.Call("ClaimDividends"),
+	))
+	builder.WriteString("1. **Check Your Stats** - Append `:player/` followed by your address or namespace to the current URL to view your keys and dividends\n")
 	builder.WriteString("\n")
 
 	// Game Status section

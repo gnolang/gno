@@ -54,7 +54,7 @@ func init() {
 	Ownable = ownable.NewWithAddress(std.Address("g1sd5ezmxt4rwpy52u6wl3l3y085n8x0p6nllxm8"))
 	players = avl.NewTree()
 	gameState.Ended = true
-	hor.Register("FOMO3D Game!", "")
+	hor.Register("FOMO3D", "A thrilling game of strategy, timing, and FOMO!")
 }
 
 // StartGame starts a new game round
