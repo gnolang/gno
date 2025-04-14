@@ -56,10 +56,13 @@ func CreateProposalSample(daoID string) string {
 }
 
 func renderDAO(daoID string) string {
+	// TODO: fix empty string for caller, for the moment -> change it manually
 	caller := std.Address("g15dz69sch7fkhc9gk57hpe4qea77thmy20apu9x")
+	trueCaller := utils.GetCaller() // result: empty string
 	out := "# " + ds.DAO.Name + "\n\n"
 	out += "_" + ds.DAO.Description + "_\n\n"
 	out += ds.DAO.ShowAdmin() + "\n\n"
+	out += "Caller (debug): `" + trueCaller.String() + "`\n"
 
 	out += "## Actions:\n\n"
 	if !ds.DAO.IsMember(caller) && ds.DAO.Admin != "" {
@@ -70,8 +73,6 @@ func renderDAO(daoID string) string {
 	out += "- " + md.Link("View Stats", "/r/moonia/home?dao="+daoID+"&stats") + "\n"
 	out += "- " + md.Link("Transfer Admin", txlink.Call("TransferAdmin", "args", "addr")) + "\n"
 	out += ds.DAO.ShowWhitelist() + "\n"
-	out += "- Admin: `" + ds.DAO.Admin.String() + "`\n"
-	out += "- Caller: `" + caller.String() + "`\n"
 	if ds.DAO.IsAdmin(caller) {
 		out += "\n## 📨 Join Requests: " + strconv.Itoa(len(ds.DAO.Requests)) + "\n"
 		if len(ds.DAO.Requests) == 0 {

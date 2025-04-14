@@ -1,9 +1,9 @@
 package home
 
 import (
-	"gno.land/p/moonia/utils"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/moul/md"
+	"std"
 )
 
 func renderDashboardDesc() string {
@@ -15,7 +15,8 @@ func renderDashboardDesc() string {
 }
 
 func renderDashboard() string {
-	caller := utils.GetCaller()
+	// TODO: fix empty string for caller, for the moment -> change it manually
+	caller := std.Address("g15dz69sch7fkhc9gk57hpe4qea77thmy20apu9x")
 	out := "# Welcome to the DAO Hub\n\n"
 	out += renderDashboardDesc()
 
@@ -41,6 +42,5 @@ func renderDashboard() string {
 	if !found {
 		out += "_You are not a member of any DAO._\n"
 	}
-
 	return out
 }
