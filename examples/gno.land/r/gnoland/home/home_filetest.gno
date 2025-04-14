@@ -60,7 +60,7 @@ func main() {
 //
 // ## [Hall of Fame](/r/leon/hof)
 //
-//
+// :latest-hof:
 //
 // ---
 //
