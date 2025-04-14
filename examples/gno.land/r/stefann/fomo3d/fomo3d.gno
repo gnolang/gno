@@ -7,27 +7,11 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/txlink"
 
 	"gno.land/r/leon/hof"
 	"gno.land/r/sys/users"
 )
-
-// FOMO3D (Fear Of Missing Out 3D) is a blockchain-based game that combines elements
-// of a lottery and investment mechanics. Players purchase keys using GNOT tokens,
-// where each key purchase:
-// - Extends the game timer
-// - Increases the key price by 1%
-// - Makes the buyer the potential winner of the jackpot
-// - Distributes dividends to all key holders
-//
-// Game Mechanics:
-// - The last person to buy a key before the timer expires wins the jackpot (47% of all purchases)
-// - Key holders earn dividends from each purchase (28% of all purchases)
-// - 20% of purchases go to the next round's starting pot
-// - 5% goes to development fee
-// - Game ends when the timer expires
-//
-// Inspired by the original Ethereum FOMO3D game but implemented in Gno.
 
 const (
 	MIN_KEY_PRICE  int64 = 100000 // minimum key price in ugnot
@@ -47,20 +31,17 @@ type PlayerInfo struct {
 
 // GameState represents the current state of the FOMO3D game
 type GameState struct { // TODO: Separate GameState and RoundState and save round history tree in GameState
-	StartBlock         int64       // Block when the game started
-	EndBlock           int64       // Block when the game will end
-	LastKeyBlock       int64       // Block of last key purchase
-	LastBuyer          std.Address // Address of last key buyer
-	Jackpot            int64       // Current jackpot in ugnot
-	KeyPrice           int64       // Current price of keys in ugnot
-	TotalKeys          int64       // Total number of keys in circulation
-	Ended              bool        // Whether the game has ended
-	CurrentRound       int64       // Current round number
-	NextPot            int64       // Next round's starting pot
-	OwnerFee           int64       // Accumulated owner fees
-	BuyKeysLink        string      // Link to BuyKeys function
-	ClaimDividendsLink string      // Link to ClaimDividends function
-	StartGameLink      string      // Link to StartGame function
+	StartBlock   int64       // Block when the game started
+	EndBlock     int64       // Block when the game will end
+	LastKeyBlock int64       // Block of last key purchase
+	LastBuyer    std.Address // Address of last key buyer
+	Jackpot      int64       // Current jackpot in ugnot
+	KeyPrice     int64       // Current price of keys in ugnot
+	TotalKeys    int64       // Total number of keys in circulation
+	Ended        bool        // Whether the game has ended
+	CurrentRound int64       // Current round number
+	NextPot      int64       // Next round's starting pot
+	OwnerFee     int64       // Accumulated owner fees
 }
 
 var (
@@ -344,11 +325,11 @@ func Render(path string) string {
 		return RenderHome()
 	case c == 2 && parts[0] == "player":
 		if gameState.Ended {
-			return ufmt.Sprintf("🔴 Game has not started yet.\n\n Call [`StartGame()`](%s) to start a new round.\n\n", gameState.StartGameLink)
+			return ufmt.Sprintf("🔴 Game has not started yet.\n\n Call [StartGame](%s) to start a new round.\n\n", txlink.Call("StartGame"))
 		}
 		addr := stringToAddress(parts[1])
 		if addr == "" || !isPlayerInGame(addr) {
-			return "Address not found in game. You need to buy keys first to view your stats.\n\n"
+			return ufmt.Sprintf("Address or namespace not found. You need to [Buy Keys](%s) first to view your stats.\n\n", txlink.Call("BuyKeys"))
 		}
 		keys, dividends := GetPlayerInfo(parts[1])
 		return RenderPlayer(addr, keys, dividends)
