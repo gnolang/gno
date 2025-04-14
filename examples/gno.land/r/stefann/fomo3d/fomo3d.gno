@@ -2,12 +2,9 @@ package fomo3d
 
 import (
 	"std"
-	"strings"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
-	"gno.land/p/demo/ufmt"
-	"gno.land/p/moul/txlink"
 
 	"gno.land/r/leon/hor"
 	"gno.land/r/sys/users"
@@ -313,27 +310,4 @@ func GetPlayerInfo(addrOrName string) (int64, int64) {
 	info, _ := players.Get(addr.String())
 	playerInfo := info.(PlayerInfo)
 	return playerInfo.Keys, playerInfo.Dividends
-}
-
-// Render handles the rendering of game state
-func Render(path string) string {
-	parts := strings.Split(path, "/")
-	c := len(parts)
-
-	switch {
-	case path == "":
-		return RenderHome()
-	case c == 2 && parts[0] == "player":
-		if gameState.Ended {
-			return ufmt.Sprintf("🔴 Game has not started yet.\n\n Call [StartGame](%s) to start a new round.\n\n", txlink.Call("StartGame"))
-		}
-		addr := stringToAddress(parts[1])
-		if addr == "" || !isPlayerInGame(addr) {
-			return ufmt.Sprintf("Address or namespace not found. You need to [Buy Keys](%s) first to view your stats.\n\n", txlink.Call("BuyKeys"))
-		}
-		keys, dividends := GetPlayerInfo(parts[1])
-		return RenderPlayer(addr, keys, dividends)
-	default:
-		return "404: Invalid path\n\n"
-	}
 }
