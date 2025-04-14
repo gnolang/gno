@@ -32,7 +32,7 @@ func formatFromFloat(n float64) string {
 			return ufmt.Sprintf("%.2f%s", n/s.value, s.suffix)
 		}
 	}
-	return ufmt.Sprintf("%.0f", n)
+	return ufmt.Sprintf("%.2f", n)
 }
 
 //

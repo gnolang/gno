@@ -103,7 +103,12 @@ func renderShop(params map[string]string) string {
 	content += "<gno-columns>" + br
 	sellLink := txlink.Call("Sell")
 	content += "### [Sell](" + sellLink + ") your rocks"
-	content += " (worth " + strconv.FormatFloat(totalGemsPrice(session), 'f', 2, 64) + " GnoCoins).\n" + br
+	n := totalGemsPrice(session)
+	x, err := nfmt.FormatRound(n)
+	if err != nil {
+		x = strconv.FormatFloat(n, 'f', 2, 64)
+	}
+	content += " (worth " + x + " GnoCoins).\n" + br
 	// content += "|||" + br
 	// content += "---" + br + "### or..." + br
 	content += "|||" + br

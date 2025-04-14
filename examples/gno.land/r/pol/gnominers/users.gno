@@ -50,15 +50,9 @@ func (u *UserSession) GetName() string {
 	return generateCoolName(u.Owner.Owner())
 }
 
-type UserList []*UserSession
-
-func (a UserList) Len() int           { return len(a) }
-func (a UserList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a UserList) Less(i, j int) bool { return true } // idc about less
-
 // The list of users
 var userSessions = map[string]*UserSession{}
-var userSessionsList = UserList{}
+var userSessionsList = []*UserSession{}
 
 // pub/ The function to log a new user with default values
 func Login() {
@@ -132,20 +126,20 @@ func sortUsers(slice []*UserSession, less func(i, j *UserSession) bool, rev bool
 func renderUserPage(params map[string]string) string {
 	var content string
 	lnk := txlink.Call("Login")
-	content += "# GnoMiners\n"
-	content += "Welcome to gno miners ! Please select an user realm, or [Register](" + lnk + ") if you want to create your own.\n\n"
+	content += md.H1("GnoMiners\n")
+	content += "Welcome to gno miners ! Please select an user realm, or " + md.Link("Register", lnk) + " if you want to create your own." + br
 
 	// sessions
 	content += "<gno-columns>" + br
-	content += "## Here are all the sessions:\n"
+	content += md.H2("Here are all the sessions:\n")
 	if len(userSessions) == 0 {
 		content += "Hmmm, looks like there is nobody for now... be the first one to play !\n"
 	}
 	for k, v := range userSessions {
-		content += "- Session of [" + v.GetName() + "](" + gnominersDashboard + "?user=" + k + ")\n"
+		content += "- Session of " + md.Link(v.GetName(), gnominersDashboard + "?user=" + k) + "\n"
 	}
-	content += "\n"
-	content += "If you want to play, you can [Register](" + lnk + ")" + br
+	content += br
+	content += "If you want to play, you can " +  md.Link("Register", lnk) + "." + br
 
 	// hall of fame
 	var sortMethod int
@@ -161,7 +155,7 @@ func renderUserPage(params map[string]string) string {
 	}
 	_, desc := params["desc"]
 	content += "|||" + br
-	content += "## Best players\n"
+	content += "## Leaderboard\n"
 	content += "Sort by: "
 	for k, name := range sortNames {
 		if k != 0 {
@@ -188,7 +182,7 @@ func renderUserPage(params map[string]string) string {
 	copy(cpySessions, userSessionsList)
 	sortUsers(cpySessions, sortFunc[sortMethod], desc)
 	for i := 0; i < len(cpySessions) && i < 5; i++ {
-		content += "- " + cpySessions[i].GetName() + "\n"
+		content += "- " + md.Link(cpySessions[i].GetName(), gnominersDashboard + "?user=" + cpySessions[i].Owner.Owner().String()) + "\n"
 	}
 	content += br
 	content += "</gno-columns>" + br

@@ -60,7 +60,12 @@ func renderAchievements(params map[string]string) string {
 
 	// Content
 	content := "# Achievements\n"
-	content += "Go back to [DashBoard](" + gnominersDashboard + "?user=" + user + ").\n\n"
+	content += "Go back to [DashBoard](" + gnominersDashboard + "?user=" + user + ")." + br
+	if len(session.hidden.achievements) == 0 {
+		content += "Hmmm... it looks like you don't have any achievement yet." + br
+		content += "Play the game to discover them !" + br
+		return content
+	}
 	for _, a := range session.hidden.achievements {
 		content += "- `" + achievementDifficultyNames[a.Difficulty()] + "` - " + a.Description() + "\n"
 	}

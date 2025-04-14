@@ -5,6 +5,7 @@ import (
 
 	"gno.land/p/moul/txlink"
 	"gno.land/p/pol/dao"
+	"gno.land/p/pol/nfmt"
 )
 
 const br = "\n\n"
@@ -83,7 +84,15 @@ func renderDashboard(params map[string]string) string {
 	// money money money, must be funny
 	content += "|||" + br
 	content += "### Money\n"
-	content += "Currently, you have " + strconv.FormatFloat(session.Money, 'f', 2, 64) + " GnoCoins\n"
+	x, err := nfmt.FormatRound(session.Money)
+	precise := strconv.FormatFloat(session.Money, 'f', 2, 64)
+	if err != nil {
+		x = precise
+	}
+	content += "Currently, you have " + x + " GnoCoins." + br
+	if err == nil {
+		content += "(precisely " + strconv.FormatFloat(session.Money, 'f', 2, 64) + " GnoCoins)" + br
+	}
 	content += "</gno-columns>" + br
 	
 	// your gems
@@ -99,7 +108,12 @@ func renderDashboard(params map[string]string) string {
 		}
 		content += "|" + gemNames[gem]
 		content += "|" + strconv.Itoa(int(count))
-		content += "|" + strconv.FormatFloat(float64(count)*float64(gemPriceCaratTable[gem]), 'f', 2, 64)
+		n := float64(count)*float64(gemPriceCaratTable[gem])
+		x, err := nfmt.FormatRound(n)
+		if err != nil {
+			x = strconv.FormatFloat(n, 'f', 2, 64)
+		}
+		content += "|" + x + " GC"
 		content += "|\n"
 		gem++
 	}
