@@ -321,12 +321,12 @@ func handleTx(bz []byte, upaths uniqPaths) error {
 	for _, msg := range tx.Msgs {
 		switch msg := msg.(type) {
 		case vm.MsgAddPackage:
-			// NOTE: Do not add the package to avoid conflict.
+			// NOTE: Do not add the package itself to avoid conflict.
 			if msg.Package != nil {
 				upaths.addPackageDeps(msg.Package)
 			}
 		case vm.MsgRun:
-			// NOTE: Do not add the package to avoid conflict.
+			// NOTE: Do not add the package itself to avoid conflict.
 			if msg.Package != nil {
 				upaths.addPackageDeps(msg.Package)
 			}
