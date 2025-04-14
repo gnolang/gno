@@ -1,9 +1,11 @@
 package home
 
 import (
+	"errors"
 	"net/url"
 	"std"
 	"strconv"
+	"strings"
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
@@ -17,6 +19,8 @@ import (
 	_ "gno.land/p/pol/nfmt"
 	// "gno.land/p/pol/unsafe"
 )
+
+var myPage = std.CurrentRealm().PkgPath()[:len(std.CurrentRealm().PkgPath())-len("home")]
 
 var polDao *sdao.SimpleDAO
 var voteId int = 0
@@ -42,6 +46,17 @@ func LeaveDao() {
 	if err != nil {
 		panic(err)
 	}
+}
+
+var prout = ""
+
+func ProposeSomething(prop *sdao.SimpleProposal) error {
+	prout = std.PreviousRealm().PkgPath() + " - " + myPage
+	if !strings.HasPrefix(std.PreviousRealm().PkgPath(), myPage) {
+		return errors.New("needs to be from a r/pol base")
+	}
+	polDao.Propose(prop)
+	return nil
 }
 
 func Proposal(title string, description string) {
@@ -110,7 +125,7 @@ func EndVote(id string) {
 
 	// end the vote (only if its the user)
 	prop := allProps[propID]
-	if prop.GetAuthor() != actor {
+	if prop.GetAuthor() != "" && prop.GetAuthor() != actor {
 		panic("the actor is not the author")
 	}
 	err = prop.ExecuteIfAccepted()
@@ -171,7 +186,11 @@ func renderDAOStuff() string {
 
 		out += "### " + prop.Title + "\n"
 		out += prop.Description + "\n\n"
-		out += "> by " + iprop.GetAuthor().Address().String() + "\n\n"
+		addr := iprop.GetAuthor().Address().String()
+		if addr == "" {
+			addr = "nobody"
+		}
+		out += "> by " + addr + "\n\n"
 		out += strconv.Itoa(int(prop.HowManyVoters())) + " votes -- "
 
 		var lnk string
@@ -182,7 +201,7 @@ func renderDAOStuff() string {
 		lnk = txlink.Call("EndVote", "id", strconv.Itoa(propID))
 		out += "([End Vote](" + lnk + "))\n\n---\n\n" 
 	}
-	out += "\n"
+	out += "\n" + prout
 	return out
 }
 

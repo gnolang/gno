@@ -1,12 +1,14 @@
 package gnominers
 
 import (
-	"time"
 	"std"
+	"time"
 
-	"gno.land/r/leon/hof"
 	"gno.land/p/pol/notrandom"
 	"gno.land/p/pol/queryparsing"
+	"gno.land/r/leon/hof"
+	"gno.land/r/pol/gnominers"
+	"gno.land/r/pol/home"
 )
 
 var randomMachine *notrandom.Machine
