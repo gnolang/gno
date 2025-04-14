@@ -35,10 +35,10 @@ Some configuration params are required, while others are advised to be set.
   reverse-proxy, and keep this value at `tcp://0.0.0.0:<port>`.
 - `p2p.max_num_outbound_peers` - the max number of outbound peer connections. **Advised to be `40`**.
 - `p2p.persistent_peers` - the persistent peers. ⚠️ **Required to be
-  `g16384atcuf6ew3ufpwtvhymwfyl2aw390aq8jtt@gno-core-sen-01.test6.testnets.gno.land:26656,g16384atcuf6ew3ufpwtvhymwfyl2aw390aq8jtt@gno-core-sen-02.test6.testnets.gno.land:26656`
+  `g1s0x78pl3c2xv2n7hp33lh4jkyqvhg5hlx6huh7@gno-core-sen-01.test6.testnets.gno.land:26656,g1jeta40dllwtrh293498hq0dh0cr3u4gw77h5rc@gno-core-sen-02.test6.testnets.gno.land:26656`
   ** ⚠️.
 - `p2p.seeds` - the bootnode peers. ⚠️ **Required to be
-  `g16384atcuf6ew3ufpwtvhymwfyl2aw390aq8jtt@gno-core-sen-01.test6.testnets.gno.land:26656,g16384atcuf6ew3ufpwtvhymwfyl2aw390aq8jtt@gno-core-sen-02.test6.testnets.gno.land:26656`
+  `g1s0x78pl3c2xv2n7hp33lh4jkyqvhg5hlx6huh7@gno-core-sen-01.test6.testnets.gno.land:26656,g1jeta40dllwtrh293498hq0dh0cr3u4gw77h5rc@gno-core-sen-02.test6.testnets.gno.land:26656`
   ** ⚠️.
 - `p2p.pex` - if using a sentry node architecture, should be `false`. **If not, please set to `true`**.
 - `p2p.external_address` - the advertised peer dial address. If empty, will use the same port as the `p2p.laddr`. This
@@ -59,12 +59,12 @@ You can download the full `genesis.json` using the following steps:
 wget -O genesis.json https://gno-testnets-genesis.s3.eu-central-1.amazonaws.com/test6/genesis.json
 ```
 
-The `shasum` hash of the `genesis.json` should be `9a5e21d0b1ed394a0999f04ac5b88776df702a798b326aad70cf1cd2888a238a`.
+The `shasum` hash of the `genesis.json` should be `f0a07d42b394b9371580294583b3669d4060da73db8d126f70d428856b9a1da7`.
 Verify it by running:
 
 ```sh
 shasum -a 256 genesis.json
-9a5e21d0b1ed394a0999f04ac5b88776df702a798b326aad70cf1cd2888a238a  genesis.json
+f0a07d42b394b9371580294583b3669d4060da73db8d126f70d428856b9a1da7  genesis.json
 ```
 
 **NOTE**: Keep in mind that the generated genesis.json checksum will differ from the downloaded one,
