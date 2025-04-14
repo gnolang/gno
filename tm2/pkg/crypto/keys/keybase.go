@@ -429,9 +429,9 @@ func (kb dbKeybase) writeInfo(name string, info Info) error {
 }
 
 func addrKey(address crypto.Address) []byte {
-	return []byte(fmt.Sprintf("%s.%s", address.String(), addressSuffix))
+	return fmt.Appendf(nil, "%s.%s", address.String(), addressSuffix)
 }
 
 func infoKey(name string) []byte {
-	return []byte(fmt.Sprintf("%s.%s", name, infoSuffix))
+	return fmt.Appendf(nil, "%s.%s", name, infoSuffix)
 }

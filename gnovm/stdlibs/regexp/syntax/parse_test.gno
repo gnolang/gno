@@ -319,7 +319,7 @@ var opNames = []string{
 	OpAlternate:      "alt",
 }
 
-func fmtFprintf(b io.Writer, format string, args ...interface{}) {
+func fmtFprintf(b io.Writer, format string, args ...any) {
 	res := fmt.Sprintf(format, args...)
 	b.Write([]byte(res))
 }

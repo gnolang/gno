@@ -23,7 +23,7 @@ func getPtr() *int {
 }
 
 func derefTypeAssert() {
-	var i interface{}
+	var i any
 	i = new(int)
 	println(&(*(i.(*int))))
 }

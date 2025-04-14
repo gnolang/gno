@@ -262,12 +262,12 @@ func SponsorOtherProject(projectName string) {
 }
 
 func Withdraw() string {
-	if !isAuthorized(std.PreviousRealm().Address()) {
+	realmAddress := std.PreviousRealm().Address()
+	if !isAuthorized(realmAddress) {
 		panic(config.ErrUnauthorized)
 	}
 
 	banker := std.NewBanker(std.BankerTypeRealmSend)
-	realmAddress := std.OriginPkgAddress()
 	coins := banker.GetCoins(realmAddress)
 
 	if len(coins) == 0 {

@@ -19,7 +19,7 @@ stdout '  "BaseAccount": {'
 stdout '    "address": "g1meuazsmy8ztaz2xpuyraqq4axy6s00ycl07zva",'
 stdout '    "coins": "[0-9]*ugnot",' # dynamic
 stdout '    "public_key": null,'
-stdout '    "account_number": "57",'
+stdout '    "account_number": "58",'
 stdout '    "sequence": "0"'
 stdout '  }'
 stdout '}'
@@ -30,7 +30,7 @@ gnokey maketx call -pkgpath "gno.land/r/demo/echo" -func "Render" -gas-fee 10000
 cp stdout call.tx
 
 # Sign
-gnokey sign -tx-path $WORK/call.tx -chainid "tendermint_test" -account-number 57 -account-sequence 0 user1
+gnokey sign -tx-path $WORK/call.tx -chainid "tendermint_test" -account-number 58 -account-sequence 0 user1
 cmpenv stdout sign.stdout.golden
 
 gnokey broadcast $WORK/call.tx

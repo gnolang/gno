@@ -27,7 +27,9 @@
 // * Offset-based iteration with count control
 package ulist
 
+// TODO: Make avl/pager compatible in some way. Explain the limitations (not always 10 items because of nil ones).
 // TODO: Use this ulist in moul/collection for the primary index.
+// TODO: Consider adding a "compact" method that removes nil nodes.
 // TODO: Benchmarks.
 
 import (
@@ -45,12 +47,12 @@ type List struct {
 // and Value is the stored data
 type Entry struct {
 	Index int
-	Value interface{}
+	Value any
 }
 
 // treeNode represents a node in the binary tree
 type treeNode struct {
-	data  interface{}
+	data  any
 	left  *treeNode
 	right *treeNode
 }
@@ -68,7 +70,7 @@ func New() *List {
 
 // Append adds one or more values to the end of the list.
 // Values are added sequentially, and the list grows automatically.
-func (l *List) Append(values ...interface{}) {
+func (l *List) Append(values ...any) {
 	for _, value := range values {
 		index := l.totalSize
 		node := l.findNode(index, true)
@@ -80,7 +82,7 @@ func (l *List) Append(values ...interface{}) {
 
 // Get retrieves the value at the specified index.
 // Returns nil if the index is out of bounds or if the element was deleted.
-func (l *List) Get(index int) interface{} {
+func (l *List) Get(index int) any {
 	node := l.findNode(index, false)
 	if node == nil {
 		return nil
@@ -117,7 +119,7 @@ func (l *List) Delete(indices ...int) error {
 
 // Set updates or restores a value at the specified index if within bounds
 // Returns ErrOutOfBounds if the index is invalid
-func (l *List) Set(index int, value interface{}) error {
+func (l *List) Set(index int, value any) error {
 	if l == nil || index < 0 || index >= l.totalSize {
 		return ErrOutOfBounds
 	}
@@ -160,7 +162,7 @@ func (l *List) TotalSize() int {
 
 // IterCbFn is a callback function type used in iteration methods.
 // Return true to stop iteration, false to continue.
-type IterCbFn func(index int, value interface{}) bool
+type IterCbFn func(index int, value any) bool
 
 // Iterator performs iteration between start and end indices, calling cb for each entry.
 // If start > end, iteration is performed in reverse order.
@@ -246,7 +248,7 @@ func (l *List) IteratorByOffset(offset int, count int, cb IterCbFn) bool {
 
 	// Wrap the callback to limit iterations
 	remaining := abs(count)
-	wrapper := func(index int, value interface{}) bool {
+	wrapper := func(index int, value any) bool {
 		if remaining <= 0 {
 			wrapperReturned = true
 			return true
@@ -365,7 +367,7 @@ func (l *List) MustDelete(indices ...int) {
 
 // MustGet retrieves the value at the specified index.
 // Panics if the index is out of bounds or if the element was deleted.
-func (l *List) MustGet(index int) interface{} {
+func (l *List) MustGet(index int) any {
 	if l == nil || index < 0 || index >= l.totalSize {
 		panic(ErrOutOfBounds)
 	}
@@ -378,7 +380,7 @@ func (l *List) MustGet(index int) interface{} {
 
 // MustSet updates or restores a value at the specified index.
 // Panics if the index is out of bounds.
-func (l *List) MustSet(index int, value interface{}) {
+func (l *List) MustSet(index int, value any) {
 	if err := l.Set(index, value); err != nil {
 		panic(err)
 	}
@@ -389,7 +391,7 @@ func (l *List) MustSet(index int, value interface{}) {
 // Deleted elements are skipped.
 func (l *List) GetRange(start, end int) []Entry {
 	var entries []Entry
-	l.Iterator(start, end, func(index int, value interface{}) bool {
+	l.Iterator(start, end, func(index int, value any) bool {
 		entries = append(entries, Entry{Index: index, Value: value})
 		return false
 	})
@@ -402,7 +404,7 @@ func (l *List) GetRange(start, end int) []Entry {
 // Deleted elements are skipped.
 func (l *List) GetByOffset(offset int, count int) []Entry {
 	var entries []Entry
-	l.IteratorByOffset(offset, count, func(index int, value interface{}) bool {
+	l.IteratorByOffset(offset, count, func(index int, value any) bool {
 		entries = append(entries, Entry{Index: index, Value: value})
 		return false
 	})
@@ -412,17 +414,17 @@ func (l *List) GetByOffset(offset int, count int) []Entry {
 // IList defines the interface for an ulist.List compatible structure.
 type IList interface {
 	// Basic operations
-	Append(values ...interface{})
-	Get(index int) interface{}
+	Append(values ...any)
+	Get(index int) any
 	Delete(indices ...int) error
 	Size() int
 	TotalSize() int
-	Set(index int, value interface{}) error
+	Set(index int, value any) error
 
 	// Must variants that panic instead of returning errors
 	MustDelete(indices ...int)
-	MustGet(index int) interface{}
-	MustSet(index int, value interface{})
+	MustGet(index int) any
+	MustSet(index int, value any)
 
 	// Range operations
 	GetRange(start, end int) []Entry

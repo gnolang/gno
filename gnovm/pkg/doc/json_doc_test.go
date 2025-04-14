@@ -83,6 +83,30 @@ func TestJSONDocumentation(t *testing.T) {
 					},
 				},
 			},
+			{
+				Signature: "const myStructConst *myStruct = &myStruct{a: 1000}",
+				Const:     true,
+				Doc:       "This const belongs to the myStruct type\n",
+				Values: []*JSONValue{
+					{
+						Name: "myStructConst",
+						Doc:  "",
+						Type: "*myStruct",
+					},
+				},
+			},
+			{
+				Signature: "var myStructPtr *myStruct",
+				Const:     false,
+				Doc:       "This var belongs to the myStruct type\n",
+				Values: []*JSONValue{
+					{
+						Name: "myStructPtr",
+						Doc:  "",
+						Type: "*myStruct",
+					},
+				},
+			},
 		},
 		Funcs: []*JSONFunc{
 			{

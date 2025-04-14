@@ -38,6 +38,10 @@ type Account interface {
 	String() string
 }
 
+type AccountUnrestricter interface {
+	IsUnrestricted() bool
+}
+
 //----------------------------------------
 // BaseAccount
 

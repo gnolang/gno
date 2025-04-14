@@ -3,7 +3,7 @@ package groups
 import (
 	"std"
 
-	"gno.land/r/demo/users"
+	"gno.land/r/sys/users"
 )
 
 //----------------------------------------
@@ -37,7 +37,7 @@ func AddMember(gid GroupID, address string, weight int, metadata string) MemberI
 	if !group.HasPermission(caller, EditPermission) {
 		panic("unauthorized to edit group")
 	}
-	user := users.GetUserByAddress(std.Address(address))
+	user := users.ResolveAddress(std.Address(address))
 	if user == nil {
 		panic("unknown address " + address)
 	}

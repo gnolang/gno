@@ -319,7 +319,7 @@ func randConsensusState(nValidators int) (*ConsensusState, []*validatorStub) {
 
 	cs := newConsensusState(state, privVals[0], counter.NewCounterApplication(true))
 
-	for i := 0; i < nValidators; i++ {
+	for i := range nValidators {
 		vss[i] = NewValidatorStub(privVals[i], i)
 	}
 	// since cs1 starts at 1
@@ -576,7 +576,7 @@ func randConsensusNet(nValidators int, testName string, tickerFunc func() Timeou
 	apps := make([]abci.Application, nValidators)
 	logger := log.NewNoopLogger()
 	configRootDirs := make([]string, 0, nValidators)
-	for i := 0; i < nValidators; i++ {
+	for i := range nValidators {
 		stateDB := memdb.NewMemDB() // each state needs its own db
 		state, _ := sm.LoadStateFromDBOrGenesisDoc(stateDB, genDoc)
 		thisConfig, _ := ResetConfig(fmt.Sprintf("%s_%d", testName, i))
@@ -616,7 +616,7 @@ func randConsensusNetWithPeers(nValidators, nPeers int, testName string, tickerF
 	logger := log.NewNoopLogger()
 	var peer0Config *cfg.Config
 	configRootDirs := make([]string, 0, nPeers)
-	for i := 0; i < nPeers; i++ {
+	for i := range nPeers {
 		stateDB := memdb.NewMemDB() // each state needs its own db
 		state, _ := sm.LoadStateFromDBOrGenesisDoc(stateDB, genDoc)
 		thisConfig, _ := ResetConfig(fmt.Sprintf("%s_%d", testName, i))
@@ -675,7 +675,7 @@ func randConsensusNetWithPeers(nValidators, nPeers int, testName string, tickerF
 func randGenesisDoc(numValidators int, randPower bool, minPower int64) (*types.GenesisDoc, []types.PrivValidator) {
 	validators := make([]types.GenesisValidator, numValidators)
 	privValidators := make([]types.PrivValidator, numValidators)
-	for i := 0; i < numValidators; i++ {
+	for i := range numValidators {
 		val, privVal := types.RandValidator(randPower, minPower)
 		validators[i] = types.GenesisValidator{
 			PubKey: val.PubKey,

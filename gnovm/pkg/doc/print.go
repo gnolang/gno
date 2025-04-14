@@ -18,6 +18,7 @@ import (
 	"go/token"
 	"io"
 	"log"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -687,11 +688,8 @@ func (pkg *pkgPrinter) typeDoc(typ *doc.Type) {
 		values := typ.Consts
 		values = append(values, typ.Vars...)
 		for _, value := range values {
-			for _, name := range value.Names {
-				if pkg.isExported(name) {
-					pkg.valueDoc(value, printed)
-					break
-				}
+			if slices.ContainsFunc(value.Names, pkg.isExported) {
+				pkg.valueDoc(value, printed)
 			}
 		}
 		funcs := typ.Funcs

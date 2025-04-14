@@ -7,7 +7,7 @@ func v() string {
 }
 
 func main() {
-	var i interface{} = 1
+	var i any = 1
 	const t, ok = i.(int)
 	fmt.Println(t, ok)
 }

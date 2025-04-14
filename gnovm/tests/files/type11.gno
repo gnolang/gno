@@ -14,4 +14,4 @@ func main() {
 }
 
 // Output:
-// [10]int64
+// [10]time.Duration

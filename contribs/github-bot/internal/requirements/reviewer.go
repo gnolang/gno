@@ -36,10 +36,21 @@ func deduplicateReviews(reviews []*github.PullRequestReview) []*github.PullReque
 				result = append(result, rev)
 				added[rev.User.GetLogin()] = len(result) - 1
 			}
+		case utils.ReviewStateDismissed:
+			// this state just dismisses any previous review, so remove previous
+			// entry for this user if it exists.
+			if ok {
+				result[idx] = nil
+			}
 		default:
 			panic(fmt.Sprintf("invalid review state %q", rev.GetState()))
 		}
 	}
+	// Remove nil entries from the result (dismissed reviews).
+	result = slices.DeleteFunc(result, func(r *github.PullRequestReview) bool {
+		return r == nil
+	})
+
 	return result
 }
 

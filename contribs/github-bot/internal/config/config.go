@@ -57,6 +57,17 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 			),
 		},
 		{
+			Description: "Changes related to gnoweb must be reviewed by its codeowners",
+			If: c.And(
+				c.BaseBranch("^master$"),
+				c.FileChanged(gh, "^gno.land/pkg/gnoweb/"),
+			),
+			Then: r.Or(
+				r.ReviewByUser(gh, "alexiscolin"),
+				r.ReviewByUser(gh, "gfanton"),
+			),
+		},
+		{
 			Description: "Must not contain the \"don't merge\" label",
 			If:          c.Label("don't merge"),
 			Then:        r.Never(),

@@ -23,7 +23,7 @@ const (
 	defaultGasFee        = "1000000ugnot"
 	defaultGasWanted     = "100000"
 	defaultRemote        = "http://127.0.0.1:26657"
-	defaultListenAddress = "127.0.0.1:5050"
+	defaultListenAddress = "0.0.0.0:5050"
 )
 
 // url & struct for verify captcha
@@ -55,26 +55,29 @@ type serveCfg struct {
 	maxSendAmount string
 	numAccounts   uint64
 
-	remote string
-
-	captchaSecret string
+	remote        string
 	isBehindProxy bool
 }
 
 func newServeCmd() *commands.Command {
 	cfg := &serveCfg{}
-
-	return commands.NewCommand(
+	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "serve",
-			ShortUsage: "serve [flags]",
+			ShortUsage: "<subcommand> [flags]",
+			ShortHelp:  "serve <subcommand> [flags]",
 			LongHelp:   "Serves the gno.land faucet to users",
 		},
 		cfg,
-		func(ctx context.Context, args []string) error {
-			return execServe(ctx, cfg, commands.NewDefaultIO())
-		},
+		commands.HelpExec,
 	)
+
+	cmd.AddSubCommands(
+		newCaptchaCmd(cfg),
+		newGithubCmd(cfg),
+	)
+
+	return cmd
 }
 
 func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
@@ -120,13 +123,6 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 		"the static max send amount (native currency)",
 	)
 
-	fs.StringVar(
-		&c.captchaSecret,
-		"captcha-secret",
-		"",
-		"recaptcha secret key (if empty, captcha are disabled)",
-	)
-
 	fs.BoolVar(
 		&c.isBehindProxy,
 		"is-behind-proxy",
@@ -150,7 +146,7 @@ func (c *serveCfg) generateFaucetConfig() *config.Config {
 	return cfg
 }
 
-func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
+func serveFaucet(ctx context.Context, cfg *serveCfg, io commands.IO, extraMiddlewares ...faucet.Middleware) error {
 	// Parse static gas values.
 	// It is worth noting that this is temporary,
 	// and will be removed once gas estimation is enabled
@@ -189,13 +185,15 @@ func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
 
 	// Start throttled faucet.
 	st := newIPThrottler(defaultRateLimitInterval, defaultCleanTimeout)
+
 	st.start(ctx)
 
 	// Prepare the middlewares
 	middlewares := []faucet.Middleware{
 		getIPMiddleware(cfg.isBehindProxy, st),
-		getCaptchaMiddleware(cfg.captchaSecret),
 	}
+
+	middlewares = append(middlewares, extraMiddlewares...)
 
 	// Create a new faucet with
 	// static gas estimation

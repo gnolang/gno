@@ -31,4 +31,4 @@ func main() {
 
 // Output:
 // Recovered. Error:
-//  0
+//  error: 0

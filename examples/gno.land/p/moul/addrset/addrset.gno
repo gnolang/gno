@@ -81,7 +81,7 @@ func (s *Set) Size() int {
 // IterateByOffset walks through addresses starting at the given offset.
 // The callback should return true to stop iteration.
 func (s *Set) IterateByOffset(offset int, count int, cb func(addr std.Address) bool) {
-	s.tree.IterateByOffset(offset, count, func(key string, _ interface{}) bool {
+	s.tree.IterateByOffset(offset, count, func(key string, _ any) bool {
 		return cb(std.Address(key))
 	})
 }
@@ -89,7 +89,7 @@ func (s *Set) IterateByOffset(offset int, count int, cb func(addr std.Address) b
 // ReverseIterateByOffset walks through addresses in reverse order starting at the given offset.
 // The callback should return true to stop iteration.
 func (s *Set) ReverseIterateByOffset(offset int, count int, cb func(addr std.Address) bool) {
-	s.tree.ReverseIterateByOffset(offset, count, func(key string, _ interface{}) bool {
+	s.tree.ReverseIterateByOffset(offset, count, func(key string, _ any) bool {
 		return cb(std.Address(key))
 	})
 }

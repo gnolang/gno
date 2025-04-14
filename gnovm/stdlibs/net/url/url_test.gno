@@ -8,7 +8,7 @@ import (
 
 	// encodingPkg "encoding"
 	// "encoding/gob"
-	"encoding/json"
+	//"encoding/json"
 	"fmt"
 	"io"
 
@@ -1870,8 +1870,8 @@ func TestURLHostnameAndPort(t *testing.T) {
 // 	_ encodingPkg.BinaryMarshaler   = (*URL)(nil)
 // 	_ encodingPkg.BinaryUnmarshaler = (*URL)(nil)
 // )
-
-func TestJSON(t *testing.T) {
+// XXX: this require `encoding/json` package
+/*func TestJSON(t *testing.T) {
 	u, err := Parse("https://www.google.com/x?y=z")
 	if err != nil {
 		t.Fatal(err)
@@ -1896,7 +1896,7 @@ func TestJSON(t *testing.T) {
 	if u1.String() != u.String() {
 		t.Errorf("json decoded to: %s\nwant: %s\n", u1, u)
 	}
-}
+}*/
 
 // XXX: this require `encoding/gob`
 // func TestGob(t *testing.T) {

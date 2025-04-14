@@ -17,7 +17,7 @@ func (e Error1) Error() string {
 	return "error: " + strconv.Itoa(int(e))
 }
 
-func get() interface{} {
+func get() any {
 	return Error1(0)
 }
 

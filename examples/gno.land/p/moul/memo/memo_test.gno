@@ -1,13 +1,12 @@
 package memo
 
 import (
-	"std"
 	"testing"
 	"time"
 )
 
 type timestampedValue struct {
-	value     interface{}
+	value     any
 	timestamp time.Time
 }
 
@@ -20,8 +19,8 @@ type complexKey struct {
 func TestMemoize(t *testing.T) {
 	tests := []struct {
 		name      string
-		key       interface{}
-		value     interface{}
+		key       any
+		value     any
 		callCount *int
 	}{
 		{
@@ -51,7 +50,7 @@ func TestMemoize(t *testing.T) {
 				t.Errorf("Initial size = %d, want 0", m.Size())
 			}
 
-			fn := func() interface{} {
+			fn := func() any {
 				*tt.callCount++
 				return tt.value
 			}
@@ -86,8 +85,8 @@ func TestMemoize(t *testing.T) {
 func TestMemoizeWithValidator(t *testing.T) {
 	tests := []struct {
 		name            string
-		key             interface{}
-		value           interface{}
+		key             any
+		value           any
 		validDuration   time.Duration
 		waitDuration    time.Duration
 		expectedCalls   int
@@ -118,7 +117,7 @@ func TestMemoizeWithValidator(t *testing.T) {
 			m := New()
 			callCount := 0
 
-			fn := func() interface{} {
+			fn := func() any {
 				callCount++
 				return timestampedValue{
 					value:     tt.value,
@@ -126,7 +125,7 @@ func TestMemoizeWithValidator(t *testing.T) {
 				}
 			}
 
-			isValid := func(cached interface{}) bool {
+			isValid := func(cached any) bool {
 				if tv, ok := cached.(timestampedValue); ok {
 					return time.Since(tv.timestamp) < tt.validDuration
 				}
@@ -140,7 +139,7 @@ func TestMemoizeWithValidator(t *testing.T) {
 			}
 
 			// Wait
-			std.TestSkipHeights(10)
+			testing.SkipHeights(10)
 
 			// Second call
 			result = m.MemoizeWithValidator(tt.key, fn, isValid)
@@ -158,8 +157,8 @@ func TestMemoizeWithValidator(t *testing.T) {
 func TestInvalidate(t *testing.T) {
 	tests := []struct {
 		name      string
-		key       interface{}
-		value     interface{}
+		key       any
+		value     any
 		callCount *int
 	}{
 		{
@@ -179,7 +178,7 @@ func TestInvalidate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := New()
-			fn := func() interface{} {
+			fn := func() any {
 				*tt.callCount++
 				return tt.value
 			}
@@ -215,7 +214,7 @@ func TestClear(t *testing.T) {
 	m := New()
 	callCount := 0
 
-	fn := func() interface{} {
+	fn := func() any {
 		callCount++
 		return "value"
 	}
@@ -257,7 +256,7 @@ func TestSize(t *testing.T) {
 	}
 
 	callCount := 0
-	fn := func() interface{} {
+	fn := func() any {
 		callCount++
 		return "value"
 	}
@@ -295,32 +294,32 @@ func TestSize(t *testing.T) {
 func TestMemoizeWithDifferentKeyTypes(t *testing.T) {
 	tests := []struct {
 		name      string
-		keys      []interface{} // Now an array of keys
-		values    []string      // Corresponding values
+		keys      []any    // Now an array of keys
+		values    []string // Corresponding values
 		callCount *int
 	}{
 		{
 			name:      "integer keys",
-			keys:      []interface{}{42, 43},
+			keys:      []any{42, 43},
 			values:    []string{"value-for-42", "value-for-43"},
 			callCount: new(int),
 		},
 		{
 			name:      "float keys",
-			keys:      []interface{}{3.14, 2.718},
+			keys:      []any{3.14, 2.718},
 			values:    []string{"value-for-pi", "value-for-e"},
 			callCount: new(int),
 		},
 		{
 			name:      "bool keys",
-			keys:      []interface{}{true, false},
+			keys:      []any{true, false},
 			values:    []string{"value-for-true", "value-for-false"},
 			callCount: new(int),
 		},
 		/*
 			{
 				name: "struct keys",
-				keys: []interface{}{
+				keys: []any{
 					complexKey{ID: 1, Name: "test1"},
 					complexKey{ID: 2, Name: "test2"},
 				},
@@ -329,7 +328,7 @@ func TestMemoizeWithDifferentKeyTypes(t *testing.T) {
 			},
 			{
 				name:      "nil and empty interface keys",
-				keys:      []interface{}{nil, interface{}(nil)},
+				keys:      []any{nil, any(nil)},
 				values:    []string{"value-for-nil", "value-for-empty-interface"},
 				callCount: new(int),
 			},
@@ -343,7 +342,7 @@ func TestMemoizeWithDifferentKeyTypes(t *testing.T) {
 			// Test both keys
 			for i, key := range tt.keys {
 				value := tt.values[i]
-				fn := func() interface{} {
+				fn := func() any {
 					*tt.callCount++
 					return value
 				}
@@ -366,7 +365,7 @@ func TestMemoizeWithDifferentKeyTypes(t *testing.T) {
 			// Second call for each key should use cache
 			for i, key := range tt.keys {
 				initialCount := *tt.callCount
-				result := m.Memoize(key, func() interface{} {
+				result := m.Memoize(key, func() any {
 					*tt.callCount++
 					return "should-not-be-called"
 				})
@@ -395,7 +394,7 @@ func TestMultipleKeyTypes(t *testing.T) {
 	callCount := 0
 
 	// Insert different key types simultaneously (two of each type)
-	keys := []interface{}{
+	keys := []any{
 		42, 43, // ints
 		"string-key1", "string-key2", // strings
 		3.14, 2.718, // floats
@@ -404,7 +403,7 @@ func TestMultipleKeyTypes(t *testing.T) {
 
 	for i, key := range keys {
 		value := i
-		m.Memoize(key, func() interface{} {
+		m.Memoize(key, func() any {
 			callCount++
 			return value
 		})
@@ -418,7 +417,7 @@ func TestMultipleKeyTypes(t *testing.T) {
 	// Verify all values are cached correctly
 	for i, key := range keys {
 		initialCount := callCount
-		result := m.Memoize(key, func() interface{} {
+		result := m.Memoize(key, func() any {
 			callCount++
 			return -1 // Should never be returned if cache works
 		})

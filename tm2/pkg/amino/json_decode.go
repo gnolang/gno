@@ -260,7 +260,7 @@ func (cdc *Codec) decodeReflectJSONArray(bz []byte, info *TypeInfo, rv reflect.V
 		}
 
 		// Decode each item in rawSlice.
-		for i := 0; i < length; i++ {
+		for i := range length {
 			erv := rv.Index(i)
 			ebz := rawSlice[i]
 			err = cdc.decodeReflectJSON(ebz, einfo, erv, fopts)
@@ -315,18 +315,25 @@ func (cdc *Codec) decodeReflectJSONSlice(bz []byte, info *TypeInfo, rv reflect.V
 			return
 		}
 
-		// Special case when length is 0.
-		// NOTE: We prefer nil slices.
-		length := len(rawSlice)
-		if length == 0 {
+		// Special case when rawSlice is nil.
+		// This happens when the JSON was 'null'.
+		if rawSlice == nil {
 			rv.Set(info.ZeroValue)
-			return
 		}
+
+		length := len(rawSlice)
+		// NOTE: While we prefer nil slices for binary decoding,
+		// we prefer empty slices for json "[]".
+		// This is also how json.Unmarshal() behaves.
+		// if length == 0 {
+		//	rv.Set(info.ZeroValue)
+		//	return
+		// }
 
 		// Read into a new slice.
 		esrt := reflect.SliceOf(ert) // TODO could be optimized.
 		srv := reflect.MakeSlice(esrt, length, length)
-		for i := 0; i < length; i++ {
+		for i := range length {
 			erv := srv.Index(i)
 			ebz := rawSlice[i]
 			err = cdc.decodeReflectJSON(ebz, einfo, erv, fopts)

@@ -37,7 +37,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 	}
 
 	// bob uses the faucet.
-	std.TestSetOriginCaller(bob)
+	testing.SetOriginCaller(bob)
 	Faucet()
 
 	// check balances #2.

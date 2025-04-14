@@ -11,7 +11,7 @@ func test1() {
 		}
 	}()
 
-	var v interface{}
+	var v any
 	v = 9
 	_ = v.(A)
 }
@@ -23,7 +23,7 @@ func test2() {
 		}
 	}()
 
-	var v interface{}
+	var v any
 	vp := new(int)
 	*vp = 99
 	v = vp
@@ -36,5 +36,5 @@ func main() {
 }
 
 // Output:
-// int doesn't implement interface{Do func(string)()} (missing method Do)
-// *int doesn't implement interface{Do func(string)()} (missing method Do)
+// int doesn't implement interface {Do func(string)} (missing method Do)
+// *int doesn't implement interface {Do func(string)} (missing method Do)

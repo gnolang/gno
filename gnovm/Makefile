@@ -117,6 +117,7 @@ _test.pkg:
 
 .PHONY: _test.stdlibs
 _test.stdlibs:
+	go test -v ./stdlibs/...
 	go run ./cmd/gno test -v ./stdlibs/...
 
 .PHONY: _test.filetest

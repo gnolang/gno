@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	node interface{}
+	node any
 	tdl  *todolist.TodoList
 )
 

@@ -1,12 +1,13 @@
 package grc20
 
 import (
-	"math/overflow"
 	"std"
 	"strconv"
 
 	"gno.land/p/demo/ufmt"
 )
+
+const MaxUint64 = uint64(1<<63 - 1)
 
 // NewToken creates a new Token.
 // It returns a pointer to the Token and a pointer to the Ledger.
@@ -144,11 +145,28 @@ func (led *PrivateLedger) TransferFrom(owner, spender, to std.Address, amount ui
 	if led.balanceOf(owner) < amount {
 		return ErrInsufficientBalance
 	}
-	if err := led.SpendAllowance(owner, spender, amount); err != nil {
+
+	// allowance must be sufficient
+	currentAllowance := led.allowance(owner, spender)
+	if currentAllowance < amount {
+		return ErrInsufficientAllowance
+	}
+
+	if err := led.Transfer(owner, to, amount); err != nil {
 		return err
 	}
-	// XXX: since we don't "panic", we should take care of rollbacking spendAllowance if transfer fails.
-	return led.Transfer(owner, to, amount)
+
+	// decrease the allowance only when transfer is successful
+	key := allowanceKey(owner, spender)
+	newAllowance := currentAllowance - amount
+
+	if newAllowance == 0 {
+		led.allowances.Remove(key)
+	} else {
+		led.allowances.Set(key, newAllowance)
+	}
+
+	return nil
 }
 
 // Approve sets the allowance of the specified owner and spender.
@@ -175,14 +193,17 @@ func (led *PrivateLedger) Mint(address std.Address, amount uint64) error {
 		return ErrInvalidAddress
 	}
 
-	// XXX: math/overflow is not supporting uint64.
-	// This checks prevents overflow but makes the totalSupply limited to a uint63.
-	sum, ok := overflow.Add64(int64(led.totalSupply), int64(amount))
-	if !ok {
+	// limit totalSupply to MaxUint64
+	if led.totalSupply > MaxUint64 {
 		return ErrOverflow
 	}
 
-	led.totalSupply = uint64(sum)
+	// limit amount to MaxUint64 - totalSupply
+	if amount > MaxUint64-led.totalSupply {
+		return ErrOverflow
+	}
+
+	led.totalSupply += amount
 	currentBalance := led.balanceOf(address)
 	newBalance := currentBalance + amount
 

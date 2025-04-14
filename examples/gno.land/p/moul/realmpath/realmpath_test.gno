@@ -11,7 +11,8 @@ import (
 )
 
 func TestExample(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/lorem/ipsum"))
+	cd := std.ChainDomain()
+	testing.SetRealm(std.NewCodeRealm(cd + "/r/lorem/ipsum"))
 
 	// initial parsing
 	path := "hello/world?foo=bar&baz=foobar"
@@ -32,7 +33,8 @@ func TestExample(t *testing.T) {
 }
 
 func TestParse(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/lorem/ipsum"))
+	cd := std.ChainDomain()
+	testing.SetRealm(std.NewCodeRealm(cd + "/r/lorem/ipsum"))
 
 	tests := []struct {
 		rawPath        string
@@ -126,7 +128,7 @@ func TestParse(t *testing.T) {
 		},
 		{
 			rawPath:      "custom/realm?foo=bar&baz=foobar",
-			realm:        "gno.land/r/foo/bar",
+			realm:        cd + "/r/foo/bar",
 			expectedPath: "custom/realm",
 			expectedQuery: url.Values{
 				"foo": []string{"bar"},

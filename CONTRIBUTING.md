@@ -109,7 +109,7 @@ cexpr system('go run -modfile </path/to/gno>/misc/devdeps/go.mod mvdan.cc/gofump
 To integrate GNO linting in Vim, you can use Vim's `:make` command with a custom `makeprg` and `errorformat` to run the GNO linter and parse its output. Add the following configuration to your `.vimrc` file:
 
 ```vim
-autocmd FileType gno setlocal makeprg=gno\ lint\ %
+autocmd FileType gno setlocal makeprg=gno\ tool\ lint\ %
 autocmd FileType gno setlocal errorformat=%f:%l:\ %m
 
 " Optional: Key binding to run :make on the current file
@@ -118,7 +118,7 @@ autocmd FileType gno nnoremap <buffer> <F5> :make<CR>
 
 ### ViM Support (with LSP)
 
-There is an experimental and unofficial [Gno Language Server](https://github.com/jdkato/gnols)
+There is an experimental and unofficial [Gno Language Server](https://github.com/gnoverse/gnopls)
 developed by the community, with an installation guide for Neovim.
 
 For ViM purists, you have to install the [`vim-lsp`](https://github.com/prabirshrestha/vim-lsp)
@@ -132,34 +132,29 @@ augroup gno_autocmd
         \ set syntax=go
 augroup END
 
-if (executable('gnols'))
+if (executable('gnopls'))
     au User lsp_setup call lsp#register_server({
-        \ 'name': 'gnols',
-        \ 'cmd': ['gnols'],
+        \ 'name': 'gnopls',
+        \ 'cmd': ['gnopls'],
         \ 'allowlist': ['gno'],
         \ 'config': {},
-        \ 'workspace_config': {
-        \   'root' : '/path/to/gno_repo',
-        \	'gno'  : '/path/to/gno_bin',
-        \   'precompileOnSave' : v:true,
-        \   'buildOnSave'      : v:false,
-        \ },
         \ 'languageId': {server_info->'gno'},
     \ })
 else
-	echomsg 'gnols binary not found: LSP disabled for Gno files'
+	echomsg 'gnopls binary not found: LSP disabled for Gno files'
 endif
 
 function! s:on_lsp_buffer_enabled() abort
     " Autocompletion
     setlocal omnifunc=lsp#complete
     " Format on save
-    autocmd BufWritePre <buffer> LspDocumentFormatSync
-    " Some optional mappings
+    autocmd BufWritePre <buffer> LspDocumentFormat
+    " Some other mappings
+    nmap <buffer> gd <plug>(lsp-definition)
+    nmap <buffer> <leader>rr <Plug>(lsp-rename)
+    nmap <buffer> <leader>ri <Plug>(lsp-implementation)
+    nmap <buffer> <leader>rf <Plug>(lsp-references)
     nmap <buffer> <leader>i <Plug>(lsp-hover)
-    " Following mappings are not supported yet by gnols
-    " nmap <buffer> gd <plug>(lsp-definition)
-    " nmap <buffer> <leader>rr <plug>(lsp-rename)
 endfunction
 augroup lsp_install
     au!
@@ -171,12 +166,10 @@ Note that unlike the previous ViM setup without LSP, here it is required by
 `vim-lsp` to have a specific `filetype=gno`. Syntax highlighting is preserved
 thanks to `syntax=go`.
 
-Inside `lsp#register_server()`, you also have to replace
-`workspace_config.root` and `workspace_config.gno` with the correct directories
-from your machine.
-
-Additionally, it's not possible to use `gofumpt` for code formatting with
-`gnols` for now.
+Since `gnopls` invokes `gnoenv.GuessRootDir()` to determine the path of the gno
+root directory, the env var `GNOROOT=/path/to/gno` should be set so `gnopls`
+has access to the latest gno source files when commands like `lsp-definition`
+are requested.
 
 #### Emacs Support
 

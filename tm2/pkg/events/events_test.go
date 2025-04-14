@@ -122,7 +122,7 @@ func TestAddAndRemoveListenerConcurrency(t *testing.T) {
 	// Must be executed concurrently to uncover the ev race.
 	// 1. RemoveListener
 	go func() {
-		for i := 0; i < roundCount; i++ {
+		for range roundCount {
 			evsw.RemoveListener("listener")
 		}
 		close(done1)
@@ -130,7 +130,7 @@ func TestAddAndRemoveListenerConcurrency(t *testing.T) {
 
 	// 2. AddListener
 	go func() {
-		for i := 0; i < roundCount; i++ {
+		for i := range roundCount {
 			index := i
 			evsw.AddListener("listener", func(ev Event) {
 				t.Errorf("should not run callback for %d.\n", index)
@@ -220,7 +220,7 @@ func TestRemoveListener(t *testing.T) {
 			sum2++
 		}
 	})
-	for i := 0; i < count; i++ {
+	for range count {
 		evsw.FireEvent(StringEvent("BEEP"))
 		evsw.FireEvent(StringEvent("boop"))
 	}
@@ -229,7 +229,7 @@ func TestRemoveListener(t *testing.T) {
 
 	// remove one by event and make sure it is gone
 	evsw.RemoveListener("boop-listener")
-	for i := 0; i < count; i++ {
+	for range count {
 		evsw.FireEvent(StringEvent("BEEP"))
 		evsw.FireEvent(StringEvent("boop"))
 	}
@@ -238,7 +238,7 @@ func TestRemoveListener(t *testing.T) {
 
 	// remove the listener entirely and make sure both gone
 	evsw.RemoveListener("BEEP-listener")
-	for i := 0; i < count; i++ {
+	for range count {
 		evsw.FireEvent(StringEvent("BEEP"))
 		evsw.FireEvent(StringEvent("boop"))
 	}

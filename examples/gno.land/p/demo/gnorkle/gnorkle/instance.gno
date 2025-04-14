@@ -193,7 +193,7 @@ func (i *Instance) GetFeedDefinitions(forAddress string) (string, error) {
 	var err error
 
 	// The boolean value returned by this callback function indicates whether to stop iterating.
-	i.feeds.Iterate("", "", func(_ string, value interface{}) bool {
+	i.feeds.Iterate("", "", func(_ string, value any) bool {
 		feedWithWhitelist, ok := value.(FeedWithWhitelist)
 		if !ok {
 			err = errors.New("invalid feed type")

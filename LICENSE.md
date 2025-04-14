@@ -48,6 +48,14 @@ Work.  For purposes of this Strong Attribution requirement, Covered Work shall
 mean any work that is licensed under the GNO Network General Public License,
 Version 4 or later, by NewTendermint, LLC.
 
+For clarification, this strong attribution clause is viral; you are responsible
+for ensuring that any other person or entity you have a contractional
+relationship with preserves the spirit of this strong attribution clause.  The
+user who uses or modifies this software, the owner and maintainers of primary
+portals, and the validators and full nodes that run the blockchain software may
+all be different entities, but the strong attribution clause shall persist
+across these entities whereever contractional relationships exist.
+
 
 # GNO NETWORK GENERAL PUBLIC LICENSE
 

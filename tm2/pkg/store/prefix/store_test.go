@@ -32,7 +32,7 @@ type kvpair struct {
 func genRandomKVPairs() []kvpair {
 	kvps := make([]kvpair, 20)
 
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		kvps[i].key = make([]byte, 32)
 		rand.Read(kvps[i].key)
 		kvps[i].value = make([]byte, 32)
@@ -61,7 +61,7 @@ func testPrefixStore(t *testing.T, baseStore types.Store, prefix []byte) {
 
 	kvps := setRandomKVPairs(prefixPrefixStore)
 
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		key := kvps[i].key
 		value := kvps[i].value
 		require.True(t, prefixPrefixStore.Has(key))

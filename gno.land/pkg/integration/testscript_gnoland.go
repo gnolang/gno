@@ -183,19 +183,17 @@ func SetupGnolandTestscript(t *testing.T, p *testscript.Params) error {
 			env.Setenv("SID", sid)
 		}
 
-		balanceFile := LoadDefaultGenesisBalanceFile(t, gnoRootDir)
-		genesisParamFile := LoadDefaultGenesisParamFile(t, gnoRootDir)
-
 		// Track new user balances added via the `adduser`
 		// command and packages added with the `loadpkg` command.
 		// This genesis will be use when node is started.
-		genesis := &gnoland.GnoGenesisState{
-			Balances: balanceFile,
-			Params:   genesisParamFile,
-			Txs:      []gnoland.TxWithMetadata{},
-		}
 
-		env.Values[envKeyGenesis] = genesis
+		genesis := gnoland.DefaultGenState()
+		genesis.Balances = LoadDefaultGenesisBalanceFile(t, gnoRootDir)
+		genesis.Auth.Params.InitialGasPrice = std.GasPrice{Gas: 0, Price: std.Coin{Amount: 0, Denom: "ugnot"}}
+		genesis.Txs = []gnoland.TxWithMetadata{}
+		LoadDefaultGenesisParamFile(t, gnoRootDir, &genesis)
+
+		env.Values[envKeyGenesis] = &genesis
 		env.Values[envKeyPkgsLoader] = NewPkgsLoader()
 
 		env.Setenv("GNOROOT", gnoRootDir)
@@ -273,6 +271,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			// directly or use the config command for this.
 			fs := flag.NewFlagSet("start", flag.ContinueOnError)
 			nonVal := fs.Bool("non-validator", false, "set up node as a non-validator")
+			lockTransfer := fs.Bool("lock-transfer", false, "lock transfer ugnot")
 			if err := fs.Parse(cmdargs); err != nil {
 				ts.Fatalf("unable to parse `gnoland start` flags: %s", err)
 			}
@@ -285,10 +284,16 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			}
 
 			cfg := TestingMinimalNodeConfig(gnoRootDir)
-			genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
-			genesis.Txs = append(pkgsTxs, genesis.Txs...)
+			tsGenesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
+			genesis := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
+			genesis.Txs = append(genesis.Txs, append(pkgsTxs, tsGenesis.Txs...)...)
+			genesis.Balances = append(genesis.Balances, tsGenesis.Balances...)
+			if *lockTransfer {
+				genesis.Bank.Params.RestrictedDenoms = []string{"ugnot"}
+			}
+			genesis.VM.RealmParams = append(genesis.VM.RealmParams, tsGenesis.VM.RealmParams...)
 
-			cfg.Genesis.AppState = *genesis
+			cfg.Genesis.AppState = genesis
 			if *nonVal {
 				pv := gnoland.NewMockedPrivValidator()
 				cfg.Genesis.Validators = []bft.GenesisValidator{
@@ -308,6 +313,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			priv := ts.Value(envKeyPrivValKey).(ed25519.PrivKeyEd25519)
 			nodep := setupNode(ts, ctx, &ProcessNodeConfig{
 				ValidatorKey: priv,
+				Verbose:      false,
 				DBDir:        dbdir,
 				RootDir:      gnoRootDir,
 				TMConfig:     cfg.TMConfig,

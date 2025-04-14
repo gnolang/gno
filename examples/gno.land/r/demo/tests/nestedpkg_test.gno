@@ -8,7 +8,7 @@ import (
 func TestNestedPkg(t *testing.T) {
 	// direct child
 	cur := "gno.land/r/demo/tests/foo"
-	std.TestSetRealm(std.NewCodeRealm(cur))
+	testing.SetRealm(std.NewCodeRealm(cur))
 	if !IsCallerSubPath() {
 		t.Errorf(cur + " should be a sub path")
 	}
@@ -21,7 +21,7 @@ func TestNestedPkg(t *testing.T) {
 
 	// grand-grand-child
 	cur = "gno.land/r/demo/tests/foo/bar/baz"
-	std.TestSetRealm(std.NewCodeRealm(cur))
+	testing.SetRealm(std.NewCodeRealm(cur))
 	if !IsCallerSubPath() {
 		t.Errorf(cur + " should be a sub path")
 	}
@@ -34,7 +34,7 @@ func TestNestedPkg(t *testing.T) {
 
 	// direct parent
 	cur = "gno.land/r/demo"
-	std.TestSetRealm(std.NewCodeRealm(cur))
+	testing.SetRealm(std.NewCodeRealm(cur))
 	if IsCallerSubPath() {
 		t.Errorf(cur + " should not be a sub path")
 	}
@@ -47,7 +47,7 @@ func TestNestedPkg(t *testing.T) {
 
 	// fake parent (prefix)
 	cur = "gno.land/r/dem"
-	std.TestSetRealm(std.NewCodeRealm(cur))
+	testing.SetRealm(std.NewCodeRealm(cur))
 	if IsCallerSubPath() {
 		t.Errorf(cur + " should not be a sub path")
 	}
@@ -60,7 +60,7 @@ func TestNestedPkg(t *testing.T) {
 
 	// different namespace
 	cur = "gno.land/r/foo"
-	std.TestSetRealm(std.NewCodeRealm(cur))
+	testing.SetRealm(std.NewCodeRealm(cur))
 	if IsCallerSubPath() {
 		t.Errorf(cur + " should not be a sub path")
 	}

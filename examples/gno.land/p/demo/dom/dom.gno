@@ -30,7 +30,7 @@ func (plot *Plot) AddPost(title string, body string) {
 func (plot *Plot) String() string {
 	str := "# [plot] " + plot.Name + "\n"
 	if plot.Posts.Size() > 0 {
-		plot.Posts.Iterate("", "", func(key string, value interface{}) bool {
+		plot.Posts.Iterate("", "", func(key string, value any) bool {
 			str += "\n"
 			str += value.(*Post).String()
 			return false
@@ -50,7 +50,7 @@ func (post *Post) String() string {
 	str += ""
 	str += post.Body
 	if post.Comments.Size() > 0 {
-		post.Comments.Iterate("", "", func(key string, value interface{}) bool {
+		post.Comments.Iterate("", "", func(key string, value any) bool {
 			str += "\n"
 			str += value.(*Comment).String()
 			return false

@@ -28,4 +28,4 @@ func main() {
 
 // Output:
 // bar
-// uint64
+// main.U64

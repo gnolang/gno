@@ -35,7 +35,7 @@ func TestExample(t *testing.T) {
 	// Define a makeEntrySafeFn that:
 	// 1. Creates a defensive copy of the User struct
 	// 2. Omits sensitive internal data
-	makeEntrySafeFn := func(v interface{}) interface{} {
+	makeEntrySafeFn := func(v any) any {
 		originalUser := v.(*User)
 		return &User{
 			ID:       originalUser.ID,
@@ -93,7 +93,7 @@ func TestExample(t *testing.T) {
 	// Test ForEach functionality
 	t.Run("ForEach Users", func(t *testing.T) {
 		count := 0
-		roList.ForEach(func(index int, value interface{}) bool {
+		roList.ForEach(func(index int, value any) bool {
 			user := value.(*User)
 			if user.Internal != "" {
 				t.Error("Sensitive data exposed during iteration")
@@ -132,7 +132,7 @@ func TestNilMakeEntrySafeFn(t *testing.T) {
 
 func TestReadOnlyList(t *testing.T) {
 	// Example of a makeEntrySafeFn that appends "_readonly" to demonstrate transformation
-	makeEntrySafeFn := func(value interface{}) interface{} {
+	makeEntrySafeFn := func(value any) any {
 		return value.(string) + "_readonly"
 	}
 
@@ -144,7 +144,7 @@ func TestReadOnlyList(t *testing.T) {
 	tests := []struct {
 		name     string
 		index    int
-		expected interface{}
+		expected any
 	}{
 		{"ExistingIndex0", 0, "value1_readonly"},
 		{"ExistingIndex1", 1, "value2_readonly"},

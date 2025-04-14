@@ -20,6 +20,7 @@ func CreateBoard(name string) BoardID {
 	if !std.PreviousRealm().IsUser() {
 		panic("invalid non-user call")
 	}
+
 	bid := incGetBoardID()
 	caller := std.OriginCaller()
 	if usernameOf(caller) == "" {

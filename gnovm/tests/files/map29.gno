@@ -6,7 +6,7 @@ import (
 )
 
 type Item struct {
-	Object interface{}
+	Object any
 	Expiry time.Duration
 }
 
@@ -23,4 +23,4 @@ func main() {
 }
 
 // Output:
-// {test 1000000000}
+// {test 1s}

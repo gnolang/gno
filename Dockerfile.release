@@ -9,7 +9,7 @@ CMD     [ "" ]
 
 #
 ## ghcr.io/gnolang/gno/gnoland
-FROM base as gnoland
+FROM base AS gnoland
 
 COPY     ./gnoland                               /usr/bin/gnoland
 COPY     ./examples                              /gnoroot/examples/
@@ -23,14 +23,14 @@ ENTRYPOINT [ "/usr/bin/gnoland" ]
 
 #
 ## ghcr.io/gnolang/gno/gnokey
-FROM base as gnokey
+FROM base AS gnokey
 
 COPY       ./gnokey /usr/bin/gnokey
 ENTRYPOINT [ "/usr/bin/gnokey" ]
 
 #
 ## ghcr.io/gnolang/gno/gnoweb
-FROM base as gnoweb
+FROM base AS gnoweb
 
 COPY       ./gnoweb /usr/bin/gnoweb
 EXPOSE      8888
@@ -38,7 +38,7 @@ ENTRYPOINT [ "/usr/bin/gnoweb" ]
 
 #
 ## ghcr.io/gnolang/gno/gnofaucet
-FROM base as gnofaucet
+FROM base AS gnofaucet
 
 COPY       ./gnofaucet /usr/bin/gnofaucet
 EXPOSE     5050
@@ -46,7 +46,7 @@ ENTRYPOINT [ "/usr/bin/gnofaucet" ]
 
 #
 ## ghcr.io/gnolang/gno/gnodev
-FROM base as gnodev
+FROM base AS gnodev
 
 COPY       ./gnodev /usr/bin/gnodev
 COPY       ./examples                              /gnoroot/examples/
@@ -59,7 +59,7 @@ ENTRYPOINT [ "/usr/bin/gnodev" ]
 
 #
 ## ghcr.io/gnolang/gno
-FROM base as gno
+FROM base AS gno
 
 COPY       ./gno                 /usr/bin/gno
 COPY       ./examples            /gnoroot/examples/
@@ -70,7 +70,7 @@ ENTRYPOINT [ "/usr/bin/gno" ]
 
 #
 ## ghcr.io/gnolang/gnocontribs
-FROM base as gnocontribs
+FROM base AS gnocontribs
 
 COPY       ./gnobro                                /usr/bin/gnobro
 COPY       ./gnogenesis                            /usr/bin/gnogenesis

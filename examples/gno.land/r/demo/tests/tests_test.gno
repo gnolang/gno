@@ -11,13 +11,13 @@ import (
 func TestAssertOriginCall(t *testing.T) {
 	// CallAssertOriginCall(): no panic
 	caller := testutils.TestAddress("caller")
-	std.TestSetRealm(std.NewUserRealm(caller))
+	testing.SetRealm(std.NewUserRealm(caller))
 	tests.CallAssertOriginCall()
 	if !tests.CallIsOriginCall() {
 		t.Errorf("expected IsOriginCall=true but got false")
 	}
 
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/tests"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/tests"))
 	// CallAssertOriginCall() from a block: panic
 	expectedReason := "invalid non-origin call"
 	func() {

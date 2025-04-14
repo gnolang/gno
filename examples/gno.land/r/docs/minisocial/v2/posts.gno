@@ -12,7 +12,7 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/md"
 
-	"gno.land/r/demo/users"
+	"gno.land/r/sys/users"
 )
 
 var (
@@ -122,18 +122,18 @@ func Render(path string) string {
 
 		// Try resolving the address for a username
 		text := post.author.String()
-		user := users.GetUserByAddress(post.author)
+		user := users.ResolveAddress(post.author)
 		if user != nil {
-			text = user.Name
+			text = user.RenderLink("")
 		}
 
-		out += md.H4(ufmt.Sprintf("Post #%d - @%s\n\n", int(post.id), text))
+		out += md.H4(ufmt.Sprintf("Post #%d - %s\n\n", int(post.id), text))
 
 		out += post.String()
 		out += md.HorizontalRule()
 	}
 
-	out += page.Picker()
+	out += page.Picker(path)
 	out += "\n\n"
 	out += "Page " + strconv.Itoa(page.PageNumber) + " of " + strconv.Itoa(page.TotalPages) + "\n\n"
 

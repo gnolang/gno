@@ -15,7 +15,7 @@ import (
 func generateTxEvents(count int) []types.EventTx {
 	txEvents := make([]types.EventTx, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		txEvents[i] = types.EventTx{
 			Result: types.TxResult{},
 		}

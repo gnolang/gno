@@ -80,7 +80,7 @@ If the user requested the return of coins...
 use a std.Banker instance to return any deposited coins to the original sender.
 
 ```go
-        pkgaddr := std.OriginPkgAddress()
+        pkgaddr := std.CurrentRealm().Address()
         // TODO: use std.Coins constructors, this isn't generally safe.
         banker.SendCoins(pkgaddr, caller, send)
         return "returned!"
@@ -94,7 +94,7 @@ Finally, the results are rendered via an ABCI query call when you visit [/r/demo
 func Render(path string) string {
     // get realm coins.
     banker := std.NewBanker(std.BankerTypeReadonly)
-    coins := banker.GetCoins(std.OriginPkgAddress())
+    coins := banker.GetCoins(std.CurrentRealm().Address())
 
     // render
     res := ""

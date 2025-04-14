@@ -8,7 +8,7 @@ func BenchmarkDetaching(b *testing.B) {
 	}
 
 	lst := New()
-	for i := 0; i < b.N+1; i++ {
+	for i := range b.N + 1 {
 		lst.PushBack(i)
 	}
 	start := lst.Front()
@@ -31,7 +31,7 @@ func BenchmarkRemoved(b *testing.B) {
 	}
 
 	lst := New()
-	for i := 0; i < b.N+1; i++ {
+	for i := range b.N + 1 {
 		lst.PushBack(i)
 	}
 	start := lst.Front()

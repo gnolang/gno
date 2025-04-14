@@ -377,7 +377,7 @@ func (cdc *Codec) encodeReflectBinaryList(w io.Writer, info *TypeInfo, rv reflec
 	typ3 := einfo.GetTyp3(fopts)
 	if typ3 != Typ3ByteLength || (newoptions&beOptionByte > 0) {
 		// Write elems in packed form.
-		for i := 0; i < rv.Len(); i++ {
+		for i := range rv.Len() {
 			erv := rv.Index(i)
 			// If pointer, get dereferenced element value (or zero).
 			if ert.Kind() == reflect.Ptr {
@@ -405,7 +405,7 @@ func (cdc *Codec) encodeReflectBinaryList(w io.Writer, info *TypeInfo, rv reflec
 		defer poolBytesBuffer.Put(elemBuf)
 
 		// Write elems in unpacked form.
-		for i := 0; i < rv.Len(); i++ {
+		for i := range rv.Len() {
 			// Write elements as repeated fields of the parent struct.
 			err = encodeFieldNumberAndTyp3(buf, fopts.BinFieldNum, Typ3ByteLength)
 			if err != nil {

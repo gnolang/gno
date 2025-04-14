@@ -110,7 +110,7 @@ func Test_StringManipulation(t *T) {
 func TestFuzz(t *T) {
 	f := F{}
 	f.Add("hello", "world", "foo")
-	f.Fuzz(func(t *T, inputs ...interface{}) {
+	f.Fuzz(func(t *T, inputs ...any) {
 		for _, input := range inputs {
 			strInput, ok := input.(string)
 			if !ok {

@@ -3,16 +3,16 @@ package authz
 import (
 	"errors"
 	"std"
+	"strings"
 	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/ufmt"
 )
 
 func TestNew(t *testing.T) {
 	testAddr := testutils.TestAddress("alice")
-	std.TestSetOriginCaller(testAddr)
+	testing.SetOriginCaller(testAddr)
 
 	auth := New()
 
@@ -24,8 +24,7 @@ func TestNew(t *testing.T) {
 	uassert.True(t, memberAuth.Has(testAddr), "caller should be a member")
 
 	// Check string representation
-	expected := ufmt.Sprintf("member_authority[size=%d]", 1)
-	uassert.Equal(t, expected, auth.String())
+	uassert.True(t, strings.Contains(auth.String(), testAddr.String()))
 }
 
 func TestNewWithAuthority(t *testing.T) {
@@ -40,13 +39,13 @@ func TestNewWithAuthority(t *testing.T) {
 
 func TestAuthorizerAuthorize(t *testing.T) {
 	testAddr := testutils.TestAddress("alice")
-	std.TestSetOriginCaller(testAddr)
+	testing.SetOriginCaller(testAddr)
 
 	auth := New()
 
 	// Test successful action with args
 	executed := false
-	args := []interface{}{"test_arg", 123}
+	args := []any{"test_arg", 123}
 	err := auth.Do("test_action", func() error {
 		executed = true
 		return nil
@@ -56,7 +55,7 @@ func TestAuthorizerAuthorize(t *testing.T) {
 	uassert.True(t, executed, "action should have been executed")
 
 	// Test unauthorized action with args
-	std.TestSetOriginCaller(testutils.TestAddress("bob"))
+	testing.SetOriginCaller(testutils.TestAddress("bob"))
 
 	executed = false
 	err = auth.Do("test_action", func() error {
@@ -68,7 +67,7 @@ func TestAuthorizerAuthorize(t *testing.T) {
 	uassert.False(t, executed, "action should not have been executed")
 
 	// Test action returning error
-	std.TestSetOriginCaller(testAddr)
+	testing.SetOriginCaller(testAddr)
 	expectedErr := errors.New("test error")
 
 	err = auth.Do("test_action", func() error {
@@ -80,7 +79,7 @@ func TestAuthorizerAuthorize(t *testing.T) {
 
 func TestAuthorizerTransfer(t *testing.T) {
 	testAddr := testutils.TestAddress("alice")
-	std.TestSetOriginCaller(testAddr)
+	testing.SetOriginCaller(testAddr)
 
 	auth := New()
 
@@ -93,13 +92,13 @@ func TestAuthorizerTransfer(t *testing.T) {
 	uassert.True(t, auth.Current() == newAuth, "expected new authority")
 
 	// Test unauthorized transfer
-	std.TestSetOriginCaller(testutils.TestAddress("carol"))
+	testing.SetOriginCaller(testutils.TestAddress("carol"))
 
 	err = auth.Transfer(NewMemberAuthority(testAddr))
 	uassert.True(t, err != nil, "expected error")
 
 	// Test transfer to contract authority
-	std.TestSetOriginCaller(newAddr)
+	testing.SetOriginCaller(newAddr)
 
 	contractAuth := NewContractAuthority("gno.land/r/test", func(title string, action PrivilegedAction) error {
 		return action()
@@ -112,7 +111,7 @@ func TestAuthorizerTransfer(t *testing.T) {
 
 func TestAuthorizerTransferChain(t *testing.T) {
 	testAddr := testutils.TestAddress("alice")
-	std.TestSetOriginCaller(testAddr)
+	testing.SetOriginCaller(testAddr)
 
 	// Create a chain of transfers
 	auth := New()
@@ -129,14 +128,14 @@ func TestAuthorizerTransferChain(t *testing.T) {
 		return action()
 	})
 
-	std.TestSetOriginCaller(newAddr)
+	testing.SetOriginCaller(newAddr)
 	err = auth.Transfer(contractAuth)
 	uassert.True(t, err == nil, "unexpected error in second transfer")
 
 	// Finally transfer to an auto-accept authority
 	autoAuth := NewAutoAcceptAuthority()
 
-	std.TestSetOriginCaller(std.DerivePkgAddr("gno.land/r/test"))
+	testing.SetOriginCaller(std.DerivePkgAddr("gno.land/r/test"))
 	err = auth.Transfer(autoAuth)
 	uassert.True(t, err == nil, "unexpected error in final transfer")
 	uassert.True(t, auth.Current() == autoAuth, "expected auto-accept authority")
@@ -144,7 +143,7 @@ func TestAuthorizerTransferChain(t *testing.T) {
 
 func TestAuthorizerWithDroppedAuthority(t *testing.T) {
 	testAddr := testutils.TestAddress("alice")
-	std.TestSetOriginCaller(testAddr)
+	testing.SetOriginCaller(testAddr)
 
 	auth := New()
 
@@ -163,10 +162,9 @@ func TestAuthorizerWithDroppedAuthority(t *testing.T) {
 	uassert.True(t, err != nil, "expected error when transferring from dropped authority")
 }
 
-func TestContractAuthorityExecutionOnce(t *testing.T) {
+func TestContractAuthorityHandlerExecutionOnce(t *testing.T) {
 	attempts := 0
 	executed := 0
-	var capturedArgs []interface{}
 
 	contractAuth := NewContractAuthority("gno.land/r/test", func(title string, action PrivilegedAction) error {
 		// Try to execute the action twice in the same handler
@@ -184,9 +182,9 @@ func TestContractAuthorityExecutionOnce(t *testing.T) {
 	})
 
 	// Set caller to contract address
-	std.TestSetOriginCaller(std.DerivePkgAddr("gno.land/r/test"))
+	testing.SetOriginCaller(std.DerivePkgAddr("gno.land/r/test"))
 
-	testArgs := []interface{}{"proposal_id", 42, "metadata", map[string]string{"key": "value"}}
+	testArgs := []any{"proposal_id", 42, "metadata", map[string]string{"key": "value"}}
 	err := contractAuth.Authorize("test_action", func() error {
 		executed++
 		return nil
@@ -195,6 +193,36 @@ func TestContractAuthorityExecutionOnce(t *testing.T) {
 	uassert.True(t, err == nil, "handler execution should succeed")
 	uassert.True(t, attempts == 2, "handler should have attempted execution twice")
 	uassert.True(t, executed == 1, "handler should have executed once")
+}
+
+func TestContractAuthorityExecutionTwice(t *testing.T) {
+	executed := 0
+
+	contractAuth := NewContractAuthority("gno.land/r/test", func(title string, action PrivilegedAction) error {
+		return action()
+	})
+
+	// Set caller to contract address
+	testing.SetOriginCaller(std.DerivePkgAddr("gno.land/r/test"))
+
+	testArgs := []any{"proposal_id", 42, "metadata", map[string]string{"key": "value"}}
+
+	err := contractAuth.Authorize("test_action", func() error {
+		executed++
+		return nil
+	}, testArgs...)
+
+	uassert.True(t, err == nil, "handler execution should succeed")
+	uassert.True(t, executed == 1, "handler should have executed once")
+
+	// A new action, even with the same title, should be executed
+	err = contractAuth.Authorize("test_action", func() error {
+		executed++
+		return nil
+	}, testArgs...)
+
+	uassert.True(t, err == nil, "handler execution should succeed")
+	uassert.True(t, executed == 2, "handler should have executed twice")
 }
 
 func TestContractAuthorityWithProposer(t *testing.T) {
@@ -207,13 +235,13 @@ func TestContractAuthorityWithProposer(t *testing.T) {
 	contractAuth := NewRestrictedContractAuthority("gno.land/r/test", func(title string, action PrivilegedAction) error {
 		handlerCalled = true
 		// Set caller to contract address before executing action
-		std.TestSetOriginCaller(std.DerivePkgAddr("gno.land/r/test"))
+		testing.SetOriginCaller(std.DerivePkgAddr("gno.land/r/test"))
 		return action()
 	}, memberAuth)
 
 	// Test authorized member
-	std.TestSetOriginCaller(testAddr)
-	testArgs := []interface{}{"proposal_metadata", "test value"}
+	testing.SetOriginCaller(testAddr)
+	testArgs := []any{"proposal_metadata", "test value"}
 	err := contractAuth.Authorize("test_action", func() error {
 		actionExecuted = true
 		return nil
@@ -228,7 +256,7 @@ func TestContractAuthorityWithProposer(t *testing.T) {
 	actionExecuted = false
 
 	// Test unauthorized proposer
-	std.TestSetOriginCaller(testutils.TestAddress("bob"))
+	testing.SetOriginCaller(testutils.TestAddress("bob"))
 	err = contractAuth.Authorize("test_action", func() error {
 		actionExecuted = true
 		return nil
@@ -253,7 +281,7 @@ func TestAutoAcceptAuthority(t *testing.T) {
 	uassert.True(t, executed, "action should have been executed")
 
 	// Test with different caller
-	std.TestSetOriginCaller(testutils.TestAddress("random"))
+	testing.SetOriginCaller(testutils.TestAddress("random"))
 	executed = false
 	err = auth.Authorize("test_action", func() error {
 		executed = true
@@ -269,7 +297,7 @@ func TestAutoAcceptAuthorityWithArgs(t *testing.T) {
 
 	// Test that any action is authorized with args
 	executed := false
-	testArgs := []interface{}{"arg1", 42, "arg3"}
+	testArgs := []any{"arg1", 42, "arg3"}
 	err := auth.Authorize("test_action", func() error {
 		executed = true
 		return nil
@@ -289,7 +317,7 @@ func TestMemberAuthorityMultipleMembers(t *testing.T) {
 
 	// Test that both members can execute actions
 	for _, member := range []std.Address{alice, bob} {
-		std.TestSetOriginCaller(member)
+		testing.SetOriginCaller(member)
 		err := auth.Authorize("test_action", func() error {
 			return nil
 		})
@@ -297,7 +325,7 @@ func TestMemberAuthorityMultipleMembers(t *testing.T) {
 	}
 
 	// Test that non-member cannot execute
-	std.TestSetOriginCaller(carol)
+	testing.SetOriginCaller(carol)
 	err := auth.Authorize("test_action", func() error {
 		return nil
 	})
@@ -309,7 +337,7 @@ func TestMemberAuthorityMultipleMembers(t *testing.T) {
 
 	// Verify both members are in the tree
 	found := make(map[std.Address]bool)
-	tree.Iterate("", "", func(key string, _ interface{}) bool {
+	tree.Iterate("", "", func(key string, _ any) bool {
 		found[std.Address(key)] = true
 		return false
 	})
@@ -357,7 +385,7 @@ func TestAuthorizerString(t *testing.T) {
 func TestContractAuthorityValidation(t *testing.T) {
 	// Test empty path
 	auth := NewContractAuthority("", nil)
-	std.TestSetOriginCaller(std.DerivePkgAddr(""))
+	testing.SetOriginCaller(std.DerivePkgAddr(""))
 	err := auth.Authorize("test", func() error {
 		return nil
 	})
@@ -365,7 +393,7 @@ func TestContractAuthorityValidation(t *testing.T) {
 
 	// Test nil handler
 	auth = NewContractAuthority("gno.land/r/test", nil)
-	std.TestSetOriginCaller(std.DerivePkgAddr("gno.land/r/test"))
+	testing.SetOriginCaller(std.DerivePkgAddr("gno.land/r/test"))
 	err = auth.Authorize("test", func() error {
 		return nil
 	})
@@ -376,7 +404,7 @@ func TestContractAuthorityValidation(t *testing.T) {
 		return nil
 	}
 	contractAuth := NewContractAuthority("gno.land/r/test", handler)
-	std.TestSetOriginCaller(std.DerivePkgAddr("gno.land/r/test"))
+	testing.SetOriginCaller(std.DerivePkgAddr("gno.land/r/test"))
 	err = contractAuth.Authorize("test", func() error {
 		return nil
 	})

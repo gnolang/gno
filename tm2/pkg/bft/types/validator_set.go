@@ -97,7 +97,7 @@ func (vals *ValidatorSet) IncrementProposerPriority(times int) {
 
 	var proposer *Validator
 	// Call IncrementProposerPriority(1) times times.
-	for i := 0; i < times; i++ {
+	for range times {
 		proposer = vals.incrementProposerPriority()
 	}
 
@@ -456,12 +456,12 @@ func (vals *ValidatorSet) applyUpdates(updates []*Validator) {
 	}
 
 	// Add the elements which are left.
-	for j := 0; j < len(existing); j++ {
+	for j := range existing {
 		merged[i] = existing[j]
 		i++
 	}
 	// OR add updates which are left.
-	for j := 0; j < len(updates); j++ {
+	for j := range updates {
 		merged[i] = updates[j]
 		i++
 	}
@@ -505,7 +505,7 @@ func (vals *ValidatorSet) applyRemovals(deletes []*Validator) {
 	}
 
 	// Add the elements which are left.
-	for j := 0; j < len(existing); j++ {
+	for j := range existing {
 		merged[i] = existing[j]
 		i++
 	}
@@ -831,7 +831,7 @@ func (valz ValidatorsByAddress) Swap(i, j int) {
 func RandValidatorSet(numValidators int, votingPower int64) (*ValidatorSet, []PrivValidator) {
 	valz := make([]*Validator, numValidators)
 	privValidators := make([]PrivValidator, numValidators)
-	for i := 0; i < numValidators; i++ {
+	for i := range numValidators {
 		val, privValidator := RandValidator(false, votingPower)
 		valz[i] = val
 		privValidators[i] = privValidator

@@ -5,8 +5,8 @@ type S struct {
 
 func main() {
 	x := (*S)(nil)
-	var y interface{} = (*S)(nil)
-	var znil interface{} = nil
+	var y any = (*S)(nil)
+	var znil any = nil
 
 	println("y == znil", y == znil)
 	println("znil == y", znil == y)

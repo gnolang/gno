@@ -5,7 +5,7 @@ import (
 )
 
 func main() {
-	var i interface{} = "Hello, world!"
+	var i any = "Hello, world!"
 
 	// Attempt to assert the type of i to string
 	var n int

@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"unicode"
 	"unsafe"
@@ -155,12 +156,7 @@ func isUverseName(n Name) bool {
 		return true
 	}
 	uverseNames := UverseNode().GetBlockNames()
-	for _, name := range uverseNames {
-		if name == n {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(uverseNames, n)
 }
 
 //----------------------------------------

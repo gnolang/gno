@@ -47,7 +47,7 @@ func (tl *TodoList) RemoveTask(taskId string) {
 
 func (tl *TodoList) GetTasks() []*Task {
 	tasks := make([]*Task, 0, tl.Tasks.Size())
-	tl.Tasks.Iterate("", "", func(key string, value interface{}) bool {
+	tl.Tasks.Iterate("", "", func(key string, value any) bool {
 		tasks = append(tasks, value.(*Task))
 		return false
 	})

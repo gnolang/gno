@@ -11,6 +11,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -24,10 +25,13 @@ import (
 	_ "embed"
 )
 
+var skipInitOrder = flag.Bool("skip-init-order", false, "skip generating packages initialization order.")
+
 func main() {
+	flag.Parse()
 	path := "."
-	if len(os.Args) > 1 {
-		path = os.Args[1]
+	if a := flag.Arg(0); a != "" {
+		path = a
 	}
 	if err := _main(path); err != nil {
 		fmt.Fprintf(os.Stderr, "%+v\n", err)
@@ -54,7 +58,10 @@ func _main(stdlibsPath string) error {
 
 	// Link up each Gno function with its matching Go function.
 	mappings := linkFunctions(pkgs)
-	initOrder := sortPackages(pkgs)
+	var initOrder []string
+	if !*skipInitOrder {
+		initOrder = sortPackages(pkgs)
+	}
 
 	// Create generated file.
 	f, err := os.Create(outputFile)

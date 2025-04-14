@@ -1,7 +1,7 @@
 package main
 
 func main() {
-	var i interface{}
+	var i any
 	i = [1]int{1}
 	println(&i.([1]int)[0])
 }

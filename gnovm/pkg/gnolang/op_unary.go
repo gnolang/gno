@@ -113,8 +113,8 @@ func (m *Machine) doOpUxor() {
 	case Uint64Type:
 		xv.SetUint64(^xv.GetUint64())
 	case UntypedBigintType:
-		// XXX can it even be implemented?
-		panic("not yet implemented")
+		bv := xv.V.(BigintValue)
+		xv.V = BigintValue{V: new(big.Int).Not(bv.V)}
 	default:
 		panic(fmt.Sprintf("unexpected type %s in operation",
 			baseOf(xv.T)))

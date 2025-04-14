@@ -1,7 +1,7 @@
 package main
 
 func main() {
-	var i interface{}
+	var i any
 	i = 4
 	var ok bool
 	nil, nil = i.(int)

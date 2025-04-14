@@ -24,7 +24,6 @@ func Test_Scripts(t *testing.T) {
 		}
 
 		name := dir.Name()
-		t.Logf("testing: %s", name)
 		t.Run(name, func(t *testing.T) {
 			testdir := filepath.Join(testdata, name)
 			p := integration.NewTestingParams(t, testdir)

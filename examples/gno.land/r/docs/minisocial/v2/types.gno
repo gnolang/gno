@@ -6,6 +6,8 @@ import (
 
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
+
+	"gno.land/r/sys/users"
 )
 
 // Post defines the main data we keep about each post
@@ -17,18 +19,18 @@ type Post struct {
 	updatedAt time.Time
 }
 
-// String stringifies a Post
 func (p Post) String() string {
-	out := "**" + p.text + "**"
-	out += "\n\n"
-	// We can use `ufmt` to format strings, and the built-in time library formatting function
-	out += ufmt.Sprintf("_on %s_", p.createdAt.Format("02 Jan 2006, 15:04"))
+	out := p.text + "\n\n"
 
-	// Let users know if the post was updated
-	if p.updatedAt.After(p.createdAt) {
-		out += ufmt.Sprintf(" - _edited on %s_\n\n", p.updatedAt.Format("02 Jan 2006, 15:04"))
+	author := p.author.String()
+	// We can import and use the r/sys/users package to resolve addresses
+	user := users.ResolveAddress(p.author)
+	if user != nil {
+		// RenderLink provides a link that is clickable
+		// The link goes to the user's profile page
+		author = user.RenderLink("")
 	}
 
-	out += "\n\n"
+	out += ufmt.Sprintf("_by %s on %s_\n\n", author, p.createdAt.Format("02 Jan 2006, 15:04"))
 	return out
 }

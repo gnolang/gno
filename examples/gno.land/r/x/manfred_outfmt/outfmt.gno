@@ -1,8 +1,8 @@
 package outfmt
 
 import (
-	"encoding/json"
 	"math/rand"
+	"strconv"
 	"strings"
 
 	"gno.land/p/demo/ufmt"
@@ -47,6 +47,23 @@ func genResult() Result {
 	return res
 }
 
+// marshal function to manually convert struct to JSON string
+func (r Result) marshal() string {
+	// Start JSON string
+	jsonStr := `{"Number":` + strconv.Itoa(r.Number) + `,"Text":"` + r.Text + `","Numbers":[`
+
+	for i, num := range r.Numbers {
+		jsonStr += strconv.Itoa(num)
+		if i < len(r.Numbers)-1 {
+			jsonStr += ","
+		}
+	}
+
+	jsonStr += "]}"
+
+	return jsonStr
+}
+
 func Render(path string) string {
 	if path == "" {
 		output := ""
@@ -85,14 +102,12 @@ func Render(path string) string {
 		return res.String()
 	case "json":
 		// FIXME: return content-type?
-		out, err := json.Marshal(res)
-		checkErr(err)
+		out := res.marshal()
 		return string(out)
 	case "jsonp":
 		// FIXME: return content-type?
 		callback := "callback" // FIXME: get it from query
-		out, err := json.Marshal(res)
-		checkErr(err)
+		out := res.marshal()
 		return callback + "(" + string(out) + ")"
 	default:
 		panic("unknown format")

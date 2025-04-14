@@ -99,7 +99,7 @@ func Render(maxID string) string {
 
 	var lastID seqid.ID
 	var printed int
-	guestbook.ReverseIterate("", maxIDBinary, func(key string, val interface{}) bool {
+	guestbook.ReverseIterate("", maxIDBinary, func(key string, val any) bool {
 		sig := val.(Signature)
 		message := strings.ReplaceAll(sig.Message, "\n", "\n> ")
 		bld.WriteString("> " + message + "\n>\n")

@@ -7,7 +7,7 @@ import (
 
 func main() {
 	{
-		var v interface{}
+		var v any
 		var r io.Reader
 		r = bytes.NewBuffer([]byte("hello"))
 		v = r
@@ -18,7 +18,7 @@ func main() {
 		}
 	}
 	{
-		var v interface{}
+		var v any
 		var r io.Reader
 		v = r
 		if _, ok := v.(io.Reader); ok {
@@ -28,7 +28,7 @@ func main() {
 		}
 	}
 	{
-		var v interface{}
+		var v any
 		v = bytes.NewBuffer([]byte("hello"))
 		if _, ok := v.(io.Reader); ok {
 			println("ok")

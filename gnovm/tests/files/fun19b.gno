@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-func foo() ([]string, interface{}) {
+func foo() ([]string, any) {
 	return nil, fmt.Errorf("bar")
 }
 

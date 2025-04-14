@@ -5,7 +5,7 @@ import (
 	"io"
 )
 
-func testImpl(v interface{}) {
+func testImpl(v any) {
 	defer func() {
 		if r := recover(); r != nil {
 			println(r)
@@ -18,20 +18,20 @@ func testImpl(v interface{}) {
 
 func main() {
 	{
-		var v interface{}
+		var v any
 		var r io.Reader
 		r = bytes.NewBuffer([]byte("hello"))
 		v = r
 		testImpl(v)
 	}
 	{
-		var v interface{}
+		var v any
 		var r io.Reader
 		v = r
 		testImpl(v)
 	}
 	{
-		var v interface{}
+		var v any
 		v = bytes.NewBuffer([]byte("hello"))
 		testImpl(v)
 	}

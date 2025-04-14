@@ -8,8 +8,8 @@ import (
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
 
-	"gno.land/r/demo/users"
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
+	"gno.land/r/sys/users"
 )
 
 // FOMO3D (Fear Of Missing Out 3D) is a blockchain-based game that combines elements
@@ -73,7 +73,7 @@ func init() {
 	Ownable = ownable.New()
 	players = avl.NewTree()
 	gameState.Ended = true
-	hof.Register()
+	hor.Register("FOMO3D Game!", "")
 }
 
 // StartGame starts a new game round
@@ -164,7 +164,7 @@ func BuyKeys() {
 	// Distribute dividends to all key holders
 	if players.Size() > 0 && gameState.TotalKeys > 0 {
 		dividendPerKey := dividendShare / gameState.TotalKeys
-		players.Iterate("", "", func(key string, value interface{}) bool {
+		players.Iterate("", "", func(key string, value any) bool {
 			playerInfo := value.(PlayerInfo)
 			playerInfo.Dividends += playerInfo.Keys * dividendPerKey
 			players.Set(key, playerInfo)
@@ -305,8 +305,8 @@ func stringToAddress(input string) std.Address {
 	}
 
 	// Not an address, try to find namespace
-	if user := users.GetUserByName(input); user != nil {
-		return user.Address
+	if user, _ := users.ResolveName(input); user != nil {
+		return user.Addr()
 	}
 
 	return ""

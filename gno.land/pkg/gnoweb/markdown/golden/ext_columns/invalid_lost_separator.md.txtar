@@ -1,0 +1,12 @@
+-- input.md --
+## shorthand lost separator
+|||
+
+## html tag log separator
+<gno-columns-sep />
+
+-- output.html --
+<h2>shorthand lost separator</h2>
+<p>|||</p>
+<h2>html tag log separator</h2>
+<!-- unexpected/invalid columns tag omitted -->

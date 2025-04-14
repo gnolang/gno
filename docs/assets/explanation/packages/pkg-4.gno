@@ -1,8 +1,0 @@
-admin := users.AddressOrName("g1tntwtvzrkt2gex69f0pttan0fp05zmeg5yykv8")
-test2 := users.AddressOrName(testutils.TestAddress("test2"))
-recv := users.AddressOrName(testutils.TestAddress("recv"))
-normal := users.AddressOrName(testutils.TestAddress("normal"))
-owner := users.AddressOrName(testutils.TestAddress("owner"))
-spender := users.AddressOrName(testutils.TestAddress("spender"))
-recv2 := users.AddressOrName(testutils.TestAddress("recv2"))
-mibu := users.AddressOrName(testutils.TestAddress("mint_burn"))

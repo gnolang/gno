@@ -3,13 +3,16 @@
   font-style: normal;
   font-weight: 900;
   font-display: swap;
-  src: url("./fonts/roboto/roboto-mono-normal.woff2") format("woff2"), url("./fonts/roboto/roboto-mono-normal.woff") format("woff");
+  src:
+    url("./fonts/roboto/roboto-mono-normal.woff2") format("woff2"),
+    url("./fonts/roboto/roboto-mono-normal.woff") format("woff");
 }
 
 @font-face {
   font-family: "Inter var";
   font-weight: 100 900;
   font-display: block;
+  font-variant: normal;
   font-style: oblique 0deg 10deg;
   src: url("./fonts/intervar/Intervar.woff2") format("woff2");
 }
@@ -21,8 +24,16 @@
 @layer base {
   html {
     @apply font-interVar text-gray-600 bg-light text-200;
-    font-feature-settings: "kern" on, "liga" on, "calt" on, "zero" on;
-    -webkit-font-feature-settings: "kern" on, "liga" on, "calt" on, "zero" on;
+    font-feature-settings:
+      "kern" on,
+      "liga" on,
+      "calt" on,
+      "zero" on;
+    -webkit-font-feature-settings:
+      "kern" on,
+      "liga" on,
+      "calt" on,
+      "zero" on;
     text-size-adjust: 100%;
     -moz-osx-font-smoothing: grayscale;
     font-smoothing: antialiased;
@@ -179,7 +190,7 @@
   .realm-view ul ol,
   .realm-view ol ul,
   .realm-view ol ol {
-    @apply mt-3 mb-2 pl-4;
+    @apply my-2 pl-4;
   }
 
   .realm-view ul {
@@ -245,6 +256,14 @@
   ::selection {
     @apply bg-green-600 text-light;
   }
+
+  /* MD components */
+  .realm-view .gno-columns {
+    @apply flex flex-wrap gap-x-10 xxl:gap-x-12;
+  }
+  .realm-view .gno-columns > * {
+    @apply grow shrink basis-52 lg:basis-44;
+  }
 }
 
 @layer components {
@@ -279,6 +298,20 @@
   }
   :is(.main-header:has(#sidemenu-source:checked), .main-header:has(#sidemenu-docs:checked), .main-header:has(#sidemenu-meta:checked)) + main #sidebar::before {
     @apply absolute block content-[''] top-0 w-[50vw] h-full -left-7 bg-gray-100 z-min;
+  }
+
+  /* Tooltip */
+  .tooltip {
+    @apply relative inline;
+  }
+
+  .tooltip::after {
+    content: attr(data-tooltip);
+    @apply absolute z-max scale-0 invisible px-2 py-1 bg-light rounded border border-gray-100 w-fit min-w-32 max-w-48 top-full -left-1 text-center text-100 text-gray-600 font-normal transition-opacity opacity-0;
+  }
+
+  .tooltip:hover::after {
+    @apply visible opacity-100 delay-300 scale-100;
   }
 
   /* chroma */
@@ -319,7 +352,7 @@
   }
 
   .quotes {
-    @apply italic-subtle text-[#555] border-l-4 border-l-[#ccc] pl-4 my-6 [quotes:"“"_"”"_"‘"_"’"];
+    @apply italic-subtle text-gray-600 border-l-4 border-l-gray-300 pl-4 my-6 [quotes:"""_""""_"''_"''"];
   }
 
   .quotes::before,
@@ -342,5 +375,34 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  .link-external {
+    @apply text-[.7em];
+  }
+  .link-internal {
+    @apply font-[400] text-[.8em];
+  }
+  .link-tx {
+    @apply text-[.8em];
+  }
+
+  :is(.link-external, .link-internal, .link-tx) {
+    @apply inline align-text-top;
+  }
+
+  .realm-view a > span:first-of-type {
+    @apply ml-0.5;
+  }
+
+  .field-content {
+    field-sizing: content;
+  }
+}
+
+/* supports rules */
+@supports not (field-sizing: content) {
+  .focus-no-field-sizing\:w-20:focus {
+    width: 5rem !important;
   }
 }

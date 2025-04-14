@@ -11,6 +11,12 @@ type myStruct struct{ a int }
 
 var myStructInst = myStruct{a: 1000}
 
+// This var belongs to the myStruct type
+var myStructPtr *myStruct
+
+// This const belongs to the myStruct type
+const myStructConst *myStruct = &myStruct{a: 1000}
+
 // Foo is a method for testing
 func (ms myStruct) Foo() string { return "myStruct.Foo" }
 

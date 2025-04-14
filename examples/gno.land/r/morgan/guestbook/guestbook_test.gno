@@ -13,10 +13,10 @@ func TestSign(t *testing.T) {
 	guestbook = avl.Tree{}
 	hasSigned = avl.Tree{}
 
-	std.TestSetRealm(std.NewUserRealm("g1user"))
+	testing.SetRealm(std.NewUserRealm("g1user"))
 	Sign("Hello!")
 
-	std.TestSetRealm(std.NewUserRealm("g1user2"))
+	testing.SetRealm(std.NewUserRealm("g1user2"))
 	Sign("Hello2!")
 
 	res := Render("")
@@ -33,7 +33,7 @@ func TestSign(t *testing.T) {
 }
 
 func TestSign_FromRealm(t *testing.T) {
-	std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/users"))
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/gnoland/users/v1"))
 
 	defer func() {
 		rec := recover()
@@ -55,7 +55,7 @@ func TestSign_Double(t *testing.T) {
 	guestbook = avl.Tree{}
 	hasSigned = avl.Tree{}
 
-	std.TestSetRealm(std.NewUserRealm("g1user"))
+	testing.SetRealm(std.NewUserRealm("g1user"))
 	Sign("Hello!")
 
 	defer func() {
@@ -79,7 +79,7 @@ func TestSign_InvalidMessage(t *testing.T) {
 	guestbook = avl.Tree{}
 	hasSigned = avl.Tree{}
 
-	std.TestSetRealm(std.NewUserRealm("g1user"))
+	testing.SetRealm(std.NewUserRealm("g1user"))
 
 	defer func() {
 		rec := recover()
@@ -107,7 +107,7 @@ func TestAdminDelete(t *testing.T) {
 	owner = ownable.NewWithAddress(adminAddr)
 	signatureID = 0
 
-	std.TestSetRealm(std.NewUserRealm(userAddr))
+	testing.SetRealm(std.NewUserRealm(userAddr))
 
 	const bad = "Very Bad Message! Nyeh heh heh!"
 	Sign(bad)
@@ -116,7 +116,7 @@ func TestAdminDelete(t *testing.T) {
 		t.Fatal("render does not contain bad message", rnd)
 	}
 
-	std.TestSetRealm(std.NewUserRealm(adminAddr))
+	testing.SetRealm(std.NewUserRealm(adminAddr))
 	AdminDelete(signatureID.String())
 
 	if rnd := Render(""); strings.Contains(rnd, bad) {

@@ -89,3 +89,21 @@ func main() {
 //         }
 //     }
 // }
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2]=
+//     @@ -65,6 +65,16 @@
+//                          "@type": "/gno.RefType",
+//                          "ID": "gno.land/r/test.Int"
+//                      }
+//     +            },
+//     +            "V": {
+//     +                "@type": "/gno.PointerValue",
+//     +                "Base": {
+//     +                    "@type": "/gno.RefValue",
+//     +                    "Hash": "3c89d875f7d6daa94113aa4c7e03432ba56202c2",
+//     +                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
+//     +                },
+//     +                "Index": "0",
+//     +                "TV": null
+//                  }
+//              },
+//              {

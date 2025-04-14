@@ -24,7 +24,7 @@ func TestLoadOpcodesPackage(t *testing.T) {
 		"dog",
 		"foofighter",
 	}
-	for i := 0; i < len(declTypes); i++ {
+	for i := range declTypes {
 		tv := pb.Values[i]
 		v, ok := tv.V.(gno.TypeValue)
 		require.True(ok, "it should be a TypeValue")

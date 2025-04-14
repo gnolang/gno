@@ -9,7 +9,7 @@ import (
 )
 
 // All implementors must be amino-encodable.
-type Event interface{}
+type Event any
 
 // Eventable is the interface reactors and other modules must export to become
 // eventable.

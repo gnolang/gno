@@ -345,3 +345,9 @@ func (s *basicGRC1155Token) RenderHome() (str string) {
 
 	return
 }
+
+func (mt *basicGRC1155Token) Getter() MultiTokenGetter {
+	return func() IGRC1155 {
+		return mt
+	}
+}

@@ -46,7 +46,7 @@ func TestFiles(t *testing.T) {
 			Sync:    *withSync,
 		}
 		o.BaseStore, o.TestStore = test.StoreWithOptions(
-			rootDir, nopReader{}, o.WriterForStore(), io.Discard,
+			rootDir, o.WriterForStore(),
 			test.StoreOptions{WithExtern: true},
 		)
 		return o
@@ -121,7 +121,7 @@ func TestStdlibs(t *testing.T) {
 			capture = new(bytes.Buffer)
 			out = capture
 		}
-		opts = test.NewTestOptions(rootDir, nopReader{}, out, out)
+		opts = test.NewTestOptions(rootDir, out, out)
 		opts.Verbose = true
 		return
 	}
@@ -168,6 +168,43 @@ func TestStdlibs(t *testing.T) {
 			err := test.Test(memPkg, "", opts)
 			if !testing.Verbose() {
 				t.Log(capture.String())
+			}
+			if err != nil {
+				t.Error(err)
+			}
+		})
+
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testDir := "../../tests/stdlibs/"
+	testFs := os.DirFS(testDir)
+	err = fs.WalkDir(testFs, ".", func(path string, de fs.DirEntry, err error) error {
+		switch {
+		case err != nil:
+			return err
+		case !de.IsDir() || path == ".":
+			return nil
+		}
+		if _, err := os.Stat(filepath.Join(dir, path)); err == nil {
+			// skip; this dir exists already in the normal stdlibs and we
+			// currently don't support testing these "mixed stdlibs".
+			return nil
+		}
+
+		fp := filepath.Join(testDir, path)
+		memPkg := gnolang.MustReadMemPackage(fp, path)
+		t.Run("test-"+strings.ReplaceAll(memPkg.Path, "/", "-"), func(t *testing.T) {
+			if sharedCapture != nil {
+				sharedCapture.Reset()
+			}
+
+			err := test.Test(memPkg, "", sharedOpts)
+			if !testing.Verbose() {
+				t.Log(sharedCapture.String())
 			}
 			if err != nil {
 				t.Error(err)

@@ -68,6 +68,16 @@ func Test_deduplicateReviews(t *testing.T) {
 				{User: &github.User{Login: github.String("userB")}, State: github.String("CHANGES_REQUESTED")},
 			},
 		},
+		{
+			name: "two authors - approval/changes requested then dismissed",
+			reviews: []*github.PullRequestReview{
+				{User: &github.User{Login: github.String("user1")}, State: github.String("APPROVED")},
+				{User: &github.User{Login: github.String("user1")}, State: github.String("DISMISSED")},
+				{User: &github.User{Login: github.String("user2")}, State: github.String("CHANGES_REQUESTED")},
+				{User: &github.User{Login: github.String("user2")}, State: github.String("DISMISSED")},
+			},
+			expected: []*github.PullRequestReview{},
+		},
 	}
 
 	for _, tt := range tests {
