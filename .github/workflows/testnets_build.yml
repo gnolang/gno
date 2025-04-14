@@ -14,6 +14,9 @@ permissions:
 
 jobs:
   bake:
+    strategy:
+      matrix:
+        image: [gnoland,gnokey,gnoweb,gno,gnofaucet,gnodev,gnocontribs]
     runs-on: ubuntu-latest
     steps:
       - name: Login to GitHub Container Registry
@@ -30,7 +33,7 @@ jobs:
         uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/${{ github.repository }}/gnoland
+          images: ghcr.io/${{ github.repository }}/${{ matrix.image }}
           tags: |
             type=ref,event=branch
             type=ref,event=tag
@@ -51,6 +54,7 @@ jobs:
             cwd://${{ steps.meta.outputs.bake-file-tags }}
             cwd://${{ steps.meta.outputs.bake-file-labels }}
           push: true
+          targets: ${{ matrix.image }}
           set: |
             *.cache-from=type=gha
             *.cache-to=type=gha,mode=max
