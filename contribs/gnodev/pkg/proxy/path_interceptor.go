@@ -13,10 +13,12 @@ import (
 	"net"
 	"net/http"
 	gopath "path"
+	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -223,9 +225,28 @@ func (upaths uniqPaths) list() []string {
 }
 
 // Add a path to
-func (upaths uniqPaths) add(path string) {
+func (upaths uniqPaths) addPath(path string) {
 	path = cleanupPath(path)
 	upaths[path] = struct{}{}
+}
+
+func (upaths uniqPaths) addPackageDeps(pkg *gnovm.MemPackage) {
+	fset := token.NewFileSet()
+	for _, file := range pkg.Files {
+		if !strings.HasSuffix(file.Name, ".gno") {
+			continue
+		}
+
+		f, err := parser.ParseFile(fset, file.Name, file.Body, parser.ImportsOnly)
+		if err != nil {
+			continue
+		}
+
+		for _, imp := range f.Imports {
+			path, _ := strconv.Unquote(imp.Path.Value)
+			upaths.addPath(path)
+		}
+	}
 }
 
 // handleRequest parses and processes the RPC request body.
@@ -300,35 +321,18 @@ func handleTx(bz []byte, upaths uniqPaths) error {
 	for _, msg := range tx.Msgs {
 		switch msg := msg.(type) {
 		case vm.MsgAddPackage:
-			if msg.Package == nil {
-				continue
+			// NOTE: Do not add the package to avoid conflict.
+			if msg.Package != nil {
+				upaths.addPackageDeps(msg.Package)
 			}
-
-			fset := token.NewFileSet()
-			for _, file := range msg.Package.Files {
-				if !strings.HasSuffix(file.Name, ".gno") {
-					continue
-				}
-
-				f, err := parser.ParseFile(fset, file.Name, file.Body, parser.ImportsOnly)
-				if err != nil {
-					return fmt.Errorf("unable to parse file %q: %w", file.Name, err)
-				}
-
-				for _, imp := range f.Imports {
-					if len(imp.Path.Value) <= 2 {
-						continue
-					}
-
-					path := imp.Path.Value[1 : len(imp.Path.Value)-1]
-					upaths.add(path)
-				}
-			}
-
-		case vm.MsgCall:
-			upaths.add(msg.PkgPath)
 		case vm.MsgRun:
-			upaths.add(msg.Package.Path)
+			// NOTE: Do not add the package to avoid conflict.
+			if msg.Package != nil {
+				upaths.addPackageDeps(msg.Package)
+			}
+		case vm.MsgCall:
+			upaths.addPath(msg.PkgPath)
+
 		}
 	}
 
@@ -343,7 +347,7 @@ func handleQuery(path string, data []byte, upaths uniqPaths) error {
 
 	case "vm/qrender", "vm/qfile", "vm/qfuncs", "vm/qeval":
 		path, _, _ := strings.Cut(string(data), ":") // Cut arguments out
-		upaths.add(path)
+		upaths.addPath(path)
 		return nil
 
 	default:
