@@ -332,7 +332,6 @@ func handleTx(bz []byte, upaths uniqPaths) error {
 			}
 		case vm.MsgCall:
 			upaths.addPath(msg.PkgPath)
-
 		}
 	}
 
