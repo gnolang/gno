@@ -110,7 +110,7 @@ The Coin(s) API can be found in the `std` package.
 
 ## Banker
 
-The Banker's main purpose is to handle balance changes of [native coins](coin.md)
+The Banker's main purpose is to handle balance changes of [native coins](#coin)
 within Gno chains. This includes issuance, transfers, and burning of coins.
 
 The Banker module can be cast into 4 subtypes of bankers that expose different
