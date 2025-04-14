@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	hof.Register("Leo's Pokémon", "Come play Pokémon on the Block Chain !!")
+	hof.Register("Leo's Pokémon", "Come play Pokémon on the Block Chain !")
 }
 
 func Render(path string) (rend string) {

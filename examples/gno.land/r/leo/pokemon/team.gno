@@ -11,13 +11,9 @@ import (
 	"gno.land/p/moul/txlink"
 )
 
-func SwapTeam(user, team string) {
+func SwapTeam(team string) {
 	usr := std.PreviousRealm().Address()
 	pokemonDAO.AsserUserIsMember(usr)
-
-	if usr != std.Address(user) {
-		panic("you are not : " + user)
-	}
 	idx := utils.AddressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
 		return usr == member
 	})
@@ -130,7 +126,7 @@ func renderPokemonTeam(params map[string]string) (rend string) {
 	} else {
 		rend += md.H3("Wich Pokémon do you want to swap ? (first pokemon is also your first during fight)")
 		rend += renderTeam(team, params, -1) + nl
-		rend += md.Link("Validate swap", txlink.Call("SwapTeam", "user", params["user"], "team", team)) + nl
+		rend += md.Link("Validate swap", txlink.Call("SwapTeam", "team", team)) + nl
 	}
 	rend += md.Link("Back to lobby", atm_path+":lobby?user="+params["user"])
 	return

@@ -15,6 +15,7 @@ var (
 		pokemonTeamSelector: "To select a team of 6 Pokémon",
 		pokemonFight:        "Fight against other Pokémon trainer",
 		pokemonShop:         "A shop to buy items with your Pokedollars",
+		pokemonRank:         "Hall of Fame for the better Pokémon trainers !",
 	}
 )
 

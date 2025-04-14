@@ -16,6 +16,7 @@ const (
 	pokemonTeamSelector RenderPage = "team"
 	pokemonFight        RenderPage = "fight"
 	pokemonShop         RenderPage = "shop"
+	pokemonRank         RenderPage = "rank"
 )
 
 var (
@@ -28,6 +29,7 @@ var (
 		pokemonTeamSelector: renderPokemonTeam,
 		pokemonFight:        renderPokemonFight,
 		pokemonShop:         renderPokemonShop,
+		pokemonRank:         renderPokemonRank,
 	}
 )
 

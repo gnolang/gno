@@ -8,15 +8,46 @@ import (
 	"gno.land/p/leo/utils"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
+	"gno.land/p/moul/txlink"
+)
+
+const (
+	gameContinue int = iota
+	gameWin
+	gameLoose
 )
 
 type GameState struct {
 	myPokemon    *Pokemon
 	otherPokemon *Pokemon
 	otherTeam    [teamSize]Pokemon
+	state        int
 }
 
-func getGameState(params map[string]string, state string, me *UserData) (game GameState, err error) {
+func checkGameEnd(myTeam [teamSize]Pokemon, game *GameState) bool {
+	game.state = gameWin
+	for j := 0; j < teamSize; j++ {
+		if game.otherTeam[j].pv > 0 {
+			game.state = gameContinue
+			break
+		}
+	}
+	if game.state == gameWin {
+		return true
+	}
+	game.state = gameLoose
+	for j := 0; j < teamSize; j++ {
+		if myTeam[j].pv > 0 {
+			game.state = gameContinue
+			break
+		}
+	}
+	if game.state == gameLoose {
+		return true
+	}
+	return false
+}
+func getGameState(state string, me *UserData) (game GameState, err error) {
 	if len(state)%2 == 1 {
 		err = errors.New("state bad format")
 		return
@@ -28,7 +59,7 @@ func getGameState(params map[string]string, state string, me *UserData) (game Ga
 		}
 	}
 	if game.myPokemon == nil {
-		err = errors.New("you need at least one Pokémon de play " + md.Bold(md.Link("Go to team selector", atm_path+":team?user="+params["user"])))
+		err = errors.New("you need at least one Pokémon to play")
 		return
 	}
 	for i := 0; i < teamSize; i += 1 {
@@ -40,6 +71,9 @@ func getGameState(params map[string]string, state string, me *UserData) (game Ga
 		game.otherTeam[i] = pokemonList[pokemonId].deepCopy()
 	}
 	game.otherPokemon = &game.otherTeam[0]
+	if checkGameEnd(me.team, &game) {
+		return
+	}
 	for i := teamSize; i < len(state); i += 2 {
 		actionParam := state[i+1] - '0'
 		switch state[i] {
@@ -53,6 +87,14 @@ func getGameState(params map[string]string, state string, me *UserData) (game Ga
 			if game.myPokemon != nil && game.myPokemon.pv > 0 && game.myPokemon.attacks[actionParam].pc > 0 {
 				game.myPokemon.attacks[actionParam].pc -= 1
 				game.otherPokemon.pv -= game.myPokemon.attacks[actionParam].damage
+				if game.otherPokemon.pv <= 0 {
+					for i := 0; i < teamSize; i++ {
+						if game.otherTeam[i].pv > 0 {
+							game.otherPokemon = &game.otherTeam[i]
+							break
+						}
+					}
+				}
 			} else {
 				err = errors.New("invalid ally attack : " + string(state[i+1]))
 			}
@@ -63,7 +105,7 @@ func getGameState(params map[string]string, state string, me *UserData) (game Ga
 			} else {
 				err = errors.New("invalid item use : " + string(state[i+1]))
 			}
-		case 'o':
+		case 'e':
 			if game.otherPokemon != nil && game.otherPokemon.pv > 0 && game.otherPokemon.attacks[actionParam].pc > 0 {
 				game.otherPokemon.attacks[actionParam].pc -= 1
 				game.myPokemon.pv -= game.otherPokemon.attacks[actionParam].damage
@@ -73,12 +115,34 @@ func getGameState(params map[string]string, state string, me *UserData) (game Ga
 		default:
 			err = errors.New("invalid action : " + string(state[i]))
 		}
+		if checkGameEnd(me.team, &game) {
+			return
+		}
 	}
 	return
 }
 
 func getFightLink(params map[string]string) string {
 	return atm_path + ":fight?user=" + params["user"] + "&state=" + params["state"]
+}
+
+func getEnnemyNextAttack(p *Pokemon) string {
+	can_attack := false
+	for _, a := range p.attacks {
+		if a.pc > 0 {
+			can_attack = true
+		}
+	}
+	if !can_attack {
+		return ""
+	}
+	for true {
+		attack_id := rand.Next() % len(p.attacks)
+		if p.attacks[attack_id].pc > 0 {
+			return "e" + strconv.Itoa(attack_id)
+		}
+	}
+	return ""
 }
 
 func renderTeamSwap(game GameState, team *[teamSize]Pokemon, params map[string]string) (rend string) {
@@ -95,7 +159,11 @@ func renderTeamSwap(game GameState, team *[teamSize]Pokemon, params map[string]s
 			link := getFightLink(params) + "s" + strconv.Itoa(i)
 			table.Headers = append(table.Headers, md.Link(p.name, link)+md.InlineImageWithLink(p.name, p.assetPath, link))
 		}
-		table.Rows[0] = append(table.Rows[0], strconv.Itoa(p.pv)+" / "+strconv.Itoa(p.getDefault().pv))
+		if p.pv > 0 {
+			table.Rows[0] = append(table.Rows[0], strconv.Itoa(p.pv)+" / "+strconv.Itoa(p.getDefault().pv))
+		} else {
+			table.Rows[0] = append(table.Rows[0], strconv.Itoa(0)+" / "+strconv.Itoa(p.getDefault().pv))
+		}
 	}
 	if !have_pokemon {
 		rend += "Team : " + md.Bold("None !") + nl
@@ -108,8 +176,8 @@ func renderTeamSwap(game GameState, team *[teamSize]Pokemon, params map[string]s
 func renderInventoryUse(inventory []ItemType, params map[string]string) (rend string) {
 	if len(inventory) != 0 {
 		table := mdtable.Table{Headers: []string{"Item", "Description"}}
-		for _, e := range inventory {
-			table.Append([]string{md.Link("Use "+itemData[e].name, getFightLink(params)+"i"+strconv.Itoa(int(e))), itemData[e].description})
+		for i, e := range inventory {
+			table.Append([]string{md.Link("Use "+itemData[e].name, getFightLink(params)+"i"+strconv.Itoa(i)), itemData[e].description})
 		}
 		rend += nl + table.String()
 	} else {
@@ -118,7 +186,7 @@ func renderInventoryUse(inventory []ItemType, params map[string]string) (rend st
 	return
 }
 
-func renderFightPokemon(p *Pokemon, params map[string]string, canAttack bool) (rend string) {
+func renderFightPokemon(p *Pokemon, params map[string]string, canAttack bool, otherP *Pokemon) (rend string) {
 	if p == nil {
 		rend = "Pokémon is NULL ??"
 		return
@@ -126,7 +194,11 @@ func renderFightPokemon(p *Pokemon, params map[string]string, canAttack bool) (r
 	rend += md.H3(p.name)
 
 	rend += md.Image(p.name, p.assetPath)
-	rend += md.Bold(strconv.Itoa(p.pv)+" / "+strconv.Itoa(p.getDefault().pv)) + " HP\n"
+	if p.pv > 0 {
+		rend += md.Bold(strconv.Itoa(p.pv)+" / "+strconv.Itoa(p.getDefault().pv)) + " HP\n"
+	} else {
+		rend += md.Bold(strconv.Itoa(0)+" / "+strconv.Itoa(p.getDefault().pv)) + " HP\n"
+	}
 
 	table := mdtable.Table{Headers: []string{"ATTACK"},
 		Rows: [][]string{
@@ -138,8 +210,8 @@ func renderFightPokemon(p *Pokemon, params map[string]string, canAttack bool) (r
 		table.Headers[0] = ""
 	}
 	for i, attack := range p.attacks {
-		if canAttack {
-			table.Headers = append(table.Headers, md.Link(attack.name, getFightLink(params)+"a"+strconv.Itoa(i)))
+		if canAttack && attack.pc > 0 && p.pv > 0 {
+			table.Headers = append(table.Headers, md.Link(attack.name, getFightLink(params)+"a"+strconv.Itoa(i)+getEnnemyNextAttack(otherP)))
 		} else {
 			table.Headers = append(table.Headers, attack.name)
 		}
@@ -152,9 +224,9 @@ func renderFightPokemon(p *Pokemon, params map[string]string, canAttack bool) (r
 
 func renderPokemon1v1(game GameState, params map[string]string) (rend string) {
 	rend += "<gno-columns>" + nl
-	rend += renderFightPokemon(game.myPokemon, params, true)
+	rend += renderFightPokemon(game.myPokemon, params, true, game.myPokemon)
 	rend += nl + "|||" + nl
-	rend += renderFightPokemon(game.otherPokemon, params, false)
+	rend += renderFightPokemon(game.otherPokemon, params, false, nil)
 	rend += nl + "</gno-columns>"
 	return
 }
@@ -170,6 +242,52 @@ func initEnemy(state string) string {
 	return res
 }
 
+func ApplyGameEnd(state string) {
+	usr := std.PreviousRealm().Address()
+	pokemonDAO.AsserUserIsMember(usr)
+	idx := utils.AddressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
+		return usr == member
+	})
+	me := &pokemonDAO.userData[idx]
+
+	game, err := getGameState(state, me)
+	if err != nil {
+		panic("bad state : " + err.Error())
+	}
+	switch game.state {
+	case gameContinue:
+		panic("game is not finished yet")
+	case gameLoose:
+		if me.pokedollar >= 200 {
+			me.pokedollar -= 200
+		} else {
+			me.pokedollar = 0
+		}
+	case gameWin:
+		me.pokedollar += 1000
+	}
+	for i, e := range me.team {
+		if e.name == "" {
+			continue
+		}
+		me.team[i] = e.getDefault().deepCopy()
+	}
+}
+
+func renderEndGame(game GameState, me *UserData, params map[string]string) (rend string) {
+	if game.state == gameWin {
+		rend += md.H3("You WIN ! GGWP")
+		rend += md.Link("Get your reward !", txlink.Call("ApplyGameEnd", "state", params["state"])) + nl
+		rend += md.Link("Go back to lobby", atm_path+":lobby?user="+params["user"]) + nl
+	}
+	if game.state == gameLoose {
+		rend += md.H3("You LOOSE...")
+		rend += md.Link("Accept !", txlink.Call("ApplyGameEnd", "state", params["state"])) + nl
+		rend += md.Link("Go back to lobby", atm_path+":lobby?user="+params["user"]) + nl
+	}
+	return
+}
+
 func renderPokemonFight(params map[string]string) (rend string) {
 	rend += md.H2("Fight !")
 	idx := utils.AddressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
@@ -177,9 +295,14 @@ func renderPokemonFight(params map[string]string) (rend string) {
 	})
 	me := &pokemonDAO.userData[idx]
 	params["state"] = initEnemy(params["state"])
-	game, err := getGameState(params, params["state"], me)
+	game, err := getGameState(params["state"], me)
 	if err != nil {
 		rend += md.Italic(err.Error()) + nl
+		rend += md.Link("Go back to lobby", atm_path+":lobby?user="+params["user"])
+		return
+	}
+	if game.state != gameContinue {
+		rend += renderEndGame(game, me, params) + nl
 		return
 	}
 	rend += renderTeamSwap(game, &me.team, params) + nl
