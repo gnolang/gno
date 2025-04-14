@@ -47,8 +47,6 @@ func main() {
 // - [Gnoscan](https://gnoscan.io)
 // - [Staging chain](https://docs.gno.land/concepts/portal-loop)
 // - [Testnet 6](https://test6.gno.land/)
-// - [Portal Loop](https://docs.gno.land/concepts/portal-loop)
-// - Testnet 6 (upcoming)
 // - [Testnet 5](https://test5.gno.land/)
 // - [Faucet Hub](https://faucet.gno.land)
 //
