@@ -77,7 +77,7 @@ gnokey maketx call \
   --gas-fee 1000000ugnot \
   --gas-wanted 2000000 \
   --remote https://rpc.gno.land:443 \
-  --chainid staging \
+  --chainid portal-loop \
   YOUR_KEY_NAME
 ```
 
