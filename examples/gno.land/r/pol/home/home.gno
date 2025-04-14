@@ -6,10 +6,12 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/pol/dao"
 	sdao "gno.land/p/pol/dao/simple"
 	"gno.land/p/pol/nfmt"
+	"gno.land/r/pol/gnominers"
 
 	// "gno.land/p/pol/uufmt"
 	_ "gno.land/p/pol/nfmt"
@@ -122,7 +124,7 @@ func EndVote(id string) {
 func renderIntroduction() string {
 	out := "# Welcome to the `pol` gno page !\n"
 	out += "Hi my name is Paul, I'm a developer and welcome to my page !\n\n"
-	out += "### Go check out my super game: [gnominers](/r/pol/gnominers) !\n\n"
+	out += md.H3("Go check out the latest version of my super game: " + md.Link("GnoMiners", gnominers.LatestRelease()) + " !")
 	out += "### Check out my own [DAO implementation](/r/pol/home:dao) !\n\n"
 	out += ufmt.Sprintf("Here is a formatted float using `ufmt`: %.2f\n\n", 3.141592)
 	x, err := nfmt.FormatRound(982_123_000_100)

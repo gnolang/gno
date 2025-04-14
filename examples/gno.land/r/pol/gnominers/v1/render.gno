@@ -2,6 +2,7 @@ package gnominers
 
 import (
 	"time"
+	"std"
 
 	"gno.land/r/leon/hof"
 	"gno.land/p/pol/notrandom"
@@ -10,8 +11,8 @@ import (
 
 var randomMachine *notrandom.Machine
 
-const (
-	gnominersPath         = "/r/pol/gnominers"
+var (
+	gnominersPath         = std.CurrentRealm().PkgPath()[len(std.ChainDomain()):]
 	gnominersShopPath     = gnominersPath + ":shop"
 	gnominersDashboard    = gnominersPath + ":dashboard"
 	gnominersAchievements = gnominersPath + ":achievements"
