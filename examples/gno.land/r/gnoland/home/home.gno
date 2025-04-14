@@ -85,9 +85,9 @@ the foundations of a fairer and freer world, join us today.
 
 :upcoming-events:
 
-## [Hall of Fame](/r/leon/hof)
+## [Hall of Realms](/r/leon/hor)
 
-:latest-hof:
+:latest-hor:
 
 ---
 
