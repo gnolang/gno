@@ -205,19 +205,17 @@ func Render(path string) string {
 		}
 	}
 
-	sb.WriteString(`# Calculator page
-
-Have you ever wanted to do maths but never actually found a calculator ?
-Do I have the realm for you...
-
-Result: ` + displayVal + `
----------------
-| ` + ufmt.Sprintf("[res](%s)", realmPath) + `| ` + ufmt.Sprintf("[(](%s)", realmPath+":?expression="+expression+"<") + `| ` + ufmt.Sprintf("[)](%s)", realmPath+":?expression="+expression+">") + `| ` + ufmt.Sprintf("[del](%s)", realmPath+":?expression="+removeLast(expression)) + `|
-|---|---|---|---|
-| ` + ufmt.Sprintf("[7](%s)", realmPath+":?expression="+expression+"7") + `| ` + ufmt.Sprintf("[8](%s)", realmPath+":?expression="+expression+"8") + `| ` + ufmt.Sprintf("[9](%s)", realmPath+":?expression="+expression+"9") + `| ` + ufmt.Sprintf("[+](%s)", realmPath+":?expression="+expression+"p") /* here p replaces + because of how + works in bnormal paths*/ + `|
-| ` + ufmt.Sprintf("[4](%s)", realmPath+":?expression="+expression+"4") + `| ` + ufmt.Sprintf("[5](%s)", realmPath+":?expression="+expression+"5") + `| ` + ufmt.Sprintf("[6](%s)", realmPath+":?expression="+expression+"6") + `| ` + ufmt.Sprintf("[-](%s)", realmPath+":?expression="+expression+"-") + `|
-| ` + ufmt.Sprintf("[1](%s)", realmPath+":?expression="+expression+"1") + `| ` + ufmt.Sprintf("[2](%s)", realmPath+":?expression="+expression+"2") + `| ` + ufmt.Sprintf("[3](%s)", realmPath+":?expression="+expression+"3") + `| ` + ufmt.Sprintf("[*](%s)", realmPath+":?expression="+expression+"*") + `|
-| ` + ufmt.Sprintf("[0](%s)", realmPath+":?expression="+expression+"0") + `| ` + ufmt.Sprintf("[.](%s)", realmPath+":?expression="+expression+".") + `| ` + ufmt.Sprintf("[=](%s)", realmPath+":?expression="+expression+"=") + `| ` + ufmt.Sprintf("[/](%s)", realmPath+":?expression="+expression+"/") + `|
-`)
+	out := "# Calculator page\n\n"
+	out += "Have you ever wanted to do maths but never actually found a calculator ?\n\n"
+	out += "Do I have the realm for you...\n\n"
+	out += "Result: "
+	out += displayVal
+	out += "---------------"
+	out += "| " + ufmt.Sprintf("[res](%s)", realmPath) + "| " + ufmt.Sprintf("[(](%s)", realmPath+":?expression="+expression+"<") + "| " + ufmt.Sprintf("[)](%s)", realmPath+":?expression="+expression+">") + "| " + ufmt.Sprintf("[del](%s)", realmPath+":?expression="+removeLast(expression)) + "|\n"
+	out += "|---|---|---|---|\n"
+	out += "| " + ufmt.Sprintf("[7](%s)", realmPath+":?expression="+expression+"7") + "| " + ufmt.Sprintf("[8](%s)", realmPath+":?expression="+expression+"8") + "| " + ufmt.Sprintf("[9](%s)", realmPath+":?expression="+expression+"9") + "| " + ufmt.Sprintf("[+](%s)", realmPath+":?expression="+expression+"p") /* here p replaces + because of how + works in bnormal paths*/ + "|\n"
+	out += "| " + ufmt.Sprintf("[4](%s)", realmPath+":?expression="+expression+"4") + "| " + ufmt.Sprintf("[5](%s)", realmPath+":?expression="+expression+"5") + "| " + ufmt.Sprintf("[6](%s)", realmPath+":?expression="+expression+"6") + "| " + ufmt.Sprintf("[-](%s)", realmPath+":?expression="+expression+"-") + "|\n"
+	out += "| " + ufmt.Sprintf("[1](%s)", realmPath+":?expression="+expression+"1") + "| " + ufmt.Sprintf("[2](%s)", realmPath+":?expression="+expression+"2") + "| " + ufmt.Sprintf("[3](%s)", realmPath+":?expression="+expression+"3") + "| " + ufmt.Sprintf("[*](%s)", realmPath+":?expression="+expression+"*") + "|\n"
+	out += "| " + ufmt.Sprintf("[0](%s)", realmPath+":?expression="+expression+"0") + "| " + ufmt.Sprintf("[.](%s)", realmPath+":?expression="+expression+".") + "| " + ufmt.Sprintf("[=](%s)", realmPath+":?expression="+expression+"=") + "| " + ufmt.Sprintf("[/](%s)", realmPath+":?expression="+expression+"/") + "|\n"
 	return sb.String()
 }
