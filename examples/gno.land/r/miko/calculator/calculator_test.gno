@@ -2,7 +2,7 @@ package calculator
 
 import "testing"
 
-func TestCounter_Addition(t *testing.T) {
+func Test_Addition(t *testing.T) {
 
 	// Increment the value
 	value := ComputeResult("1p1")
@@ -13,7 +13,7 @@ func TestCounter_Addition(t *testing.T) {
 	}
 }
 
-func TestCounter_Subtraction(t *testing.T) {
+func Test_Subtraction(t *testing.T) {
 
 	// Increment the value
 	value := ComputeResult("1-1")
@@ -24,7 +24,7 @@ func TestCounter_Subtraction(t *testing.T) {
 	}
 }
 
-func TestCounter_Multiplication(t *testing.T) {
+func Test_Multiplication(t *testing.T) {
 
 	// Increment the value
 	value := ComputeResult("1*4")
@@ -35,7 +35,7 @@ func TestCounter_Multiplication(t *testing.T) {
 	}
 }
 
-func TestCounter_Division(t *testing.T) {
+func Test_Division(t *testing.T) {
 
 	// Increment the value
 	value := ComputeResult("4/2")
@@ -46,7 +46,7 @@ func TestCounter_Division(t *testing.T) {
 	}
 }
 
-func TestCounter_AdditionDecimal(t *testing.T) {
+func Test_AdditionDecimal(t *testing.T) {
 
 	// Increment the value
 	value := ComputeResult("1.2p1.3")
@@ -57,7 +57,7 @@ func TestCounter_AdditionDecimal(t *testing.T) {
 	}
 }
 
-func TestCounter_SubtractionDecimal(t *testing.T) {
+func Test_SubtractionDecimal(t *testing.T) {
 
 	// Increment the value
 	value := ComputeResult("1.3-1.2")
@@ -68,7 +68,7 @@ func TestCounter_SubtractionDecimal(t *testing.T) {
 	}
 }
 
-func TestCounter_MultiplicationDecimal(t *testing.T) {
+func Test_MultiplicationDecimal(t *testing.T) {
 
 	// Increment the value
 	value := ComputeResult("3*1.5")
@@ -79,7 +79,7 @@ func TestCounter_MultiplicationDecimal(t *testing.T) {
 	}
 }
 
-func TestCounter_DivisionDecimal(t *testing.T) {
+func Test_DivisionDecimal(t *testing.T) {
 
 	// Increment the value
 	value := ComputeResult("2/0.5")
@@ -87,5 +87,49 @@ func TestCounter_DivisionDecimal(t *testing.T) {
 	// Verify the value is equal to 4
 	if value != "4" {
 		t.Fatalf("2 / 0.5 is not equal to 4")
+	}
+}
+
+func Test_BaseParenthesis(t *testing.T) {
+
+	// Increment the value
+	value := ComputeResult("2*<3p4>")
+
+	// Verify the value is equal to 14
+	if value != "14" {
+		t.Fatalf("2 * (3 + 4) is not equal to 14")
+	}
+}
+
+func Test_AdvancedParenthesis(t *testing.T) {
+
+	// Increment the value
+	value := ComputeResult("2*<3p4/<6-2>>")
+
+	// Verify the value is equal to 8
+	if value != "8" {
+		t.Fatalf("2 * (3 + 4 / (6 - 2)) is not equal to 8")
+	}
+}
+
+func Test_Negative(t *testing.T) {
+
+	// Increment the value
+	value := ComputeResult("-2p10")
+
+	// Verify the value is equal to 8
+	if value != "8" {
+		t.Fatalf("-2 + 10 is not equal to 8")
+	}
+}
+
+func Test_Negative2(t *testing.T) {
+
+	// Increment the value
+	value := ComputeResult("-2*-10")
+
+	// Verify the value is equal to 20
+	if value != "20" {
+		t.Fatalf("-2 * -10 is not equal to 20")
 	}
 }

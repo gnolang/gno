@@ -16,9 +16,10 @@ type Node struct {
 }
 
 const (
-	specialCharacters = "p-*/."
-	topPriority       = "*/"
-	lowPriority       = "p-"
+	specialCharacters             = "p-*/."
+	specialCharactersWithoutMinus = "p*/."
+	topPriority                   = "*/"
+	lowPriority                   = "p-"
 
 	realmPath = "/r/miko/calculator"
 )
@@ -48,7 +49,7 @@ func evaluateValidity(line string) (bool, string) {
 	if len(line) == 0 {
 		return false, "Invalid empty input"
 	} // edge case empty line
-	if strings.Index(specialCharacters, string(line[0])) != -1 ||
+	if strings.Index(specialCharactersWithoutMinus, string(line[0])) != -1 ||
 		strings.Index(specialCharacters, string(line[len(line)-1])) != -1 {
 		return false, "Invalid equation"
 	} // edge case special character at begining or end
@@ -70,7 +71,7 @@ func evaluateValidity(line string) (bool, string) {
 			continue
 		}
 		if strings.Index(specialCharacters, string(line[i])) != -1 {
-			if isPriorSpecial {
+			if isPriorSpecial && !(line[i] == '-' && i < (len(line)-1) && line[i+1] >= '0' && line[i+1] <= '9') { // if we have two subsequent operator and the second one isn't a - before a number (negative number)
 				return false, "Invalid equation"
 			}
 			isPriorSpecial = true
@@ -85,18 +86,10 @@ func evaluateValidity(line string) (bool, string) {
 	if countParenthesis != 0 {
 		return false, "Invalid equation"
 	}
-	println(countParenthesis)
 	return true, ""
 }
 
 func searchForPriority(priorityList string, line string) *Node {
-	// for i := 0; i < len(priorityList); i++ {
-	// 	idx := strings.Index(line, string(priorityList[i]))
-	// 	if idx != -1 {
-	// 		return &Node{string(line[idx]), createTree(line[:idx]), createTree(line[idx+1:])}
-	// 	}
-	// }
-
 	countParenthesis := 0
 	for iPrio := 0; iPrio < len(priorityList); iPrio++ {
 		for idx := 0; idx < len(line); idx++ {
@@ -106,8 +99,8 @@ func searchForPriority(priorityList string, line string) *Node {
 			if line[idx] == '>' {
 				countParenthesis -= 1
 			}
-			if countParenthesis == 0 && line[idx] == priorityList[iPrio] {
-				println("seen operator")
+			if countParenthesis == 0 && line[idx] == priorityList[iPrio] &&
+				!(line[idx] == '-' && (idx == 0 || strings.Index(specialCharacters, string(line[idx-1])) != -1)) { // - is not a substract sign if at the begining or after another sign
 				return &Node{string(line[idx]), createTree(line[:idx]), createTree(line[idx+1:])}
 			}
 
@@ -116,10 +109,28 @@ func searchForPriority(priorityList string, line string) *Node {
 	return nil
 }
 
+// checks if the expression in line is contained in one big parenthesis
+func isInOneParenthesis(line string) bool {
+	if line[0] != '<' || line[len(line)-1] != '>' {
+		return false
+	}
+	countParenthesis := 1
+	for i := 1; i < len(line)-1; i++ {
+		if line[i] == '<' {
+			countParenthesis += 1
+		}
+		if line[i] == '>' {
+			countParenthesis -= 1
+		}
+		if countParenthesis == 0 {
+			return false
+		}
+	}
+	return true
+}
+
 func createTree(line string) *Node {
-	println(line)
-	if line[0] == '<' && line[len(line)-1] == '>' && strings.Index(line[1:], "<") == -1 {
-		println("no parenthesis anymore")
+	if isInOneParenthesis(line) {
 		return createTree(line[1 : len(line)-1])
 	}
 	node := searchForPriority(lowPriority, line) // we put the lowest priority at the top of the tree, these operations will be executed last
