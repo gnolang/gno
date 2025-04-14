@@ -1,38 +1,37 @@
-package main
+package packages
 
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/cmd/gno/internal/pkgdownload"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/gnovm/pkg/packages"
-	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	"golang.org/x/mod/module"
 )
 
-// downloadDeps recursively fetches the imports of a local package while following a given gno.mod replace directives
-func downloadDeps(io commands.IO, pkgDir string, gnoMod *gnomod.File, fetcher pkgdownload.PackageFetcher) error {
+// DownloadDeps recursively fetches the imports of a local package while following a given gno.mod replace directives
+func DownloadDeps(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgDir string, gnoMod *gnomod.File) error {
 	if fetcher == nil {
 		return errors.New("fetcher is nil")
 	}
 
-	pkg, err := gnolang.ReadMemPackage(pkgDir, gnoMod.Module.Mod.Path)
+	pkg, err := gnolang.ReadMemPackage(pkgDir, gnoMod.Module.Mod.Path, nil)
 	if err != nil {
 		return fmt.Errorf("read package at %q: %w", pkgDir, err)
 	}
-	importsMap, err := packages.Imports(pkg, nil)
+	importsMap, err := Imports(pkg, nil)
 	if err != nil {
 		return fmt.Errorf("read imports at %q: %w", pkgDir, err)
 	}
-	imports := importsMap.Merge(packages.FileKindPackageSource, packages.FileKindTest, packages.FileKindXTest)
+	imports := importsMap.Merge(FileKindPackageSource, FileKindTest, FileKindXTest)
 
-	for _, pkgPath := range imports {
-		resolved := gnoMod.Resolve(module.Version{Path: pkgPath.PkgPath})
+	for _, imp := range imports {
+		resolved := gnoMod.Resolve(module.Version{Path: imp.PkgPath})
 		resolvedPkgPath := resolved.Path
 
 		if !isRemotePkgPath(resolvedPkgPath) {
@@ -41,11 +40,11 @@ func downloadDeps(io commands.IO, pkgDir string, gnoMod *gnomod.File, fetcher pk
 
 		depDir := gnomod.PackageDir("", module.Version{Path: resolvedPkgPath})
 
-		if err := downloadPackage(io, resolvedPkgPath, depDir, fetcher); err != nil {
+		if err := downloadPackage(out, fetcher, resolvedPkgPath, depDir); err != nil {
 			return fmt.Errorf("download import %q of %q: %w", resolvedPkgPath, pkgDir, err)
 		}
 
-		if err := downloadDeps(io, depDir, gnoMod, fetcher); err != nil {
+		if err := DownloadDeps(out, fetcher, depDir, gnoMod); err != nil {
 			return err
 		}
 	}
@@ -53,8 +52,8 @@ func downloadDeps(io commands.IO, pkgDir string, gnoMod *gnomod.File, fetcher pk
 	return nil
 }
 
-// downloadPackage downloads a remote gno package by pkg path and store it at dst
-func downloadPackage(io commands.IO, pkgPath string, dst string, fetcher pkgdownload.PackageFetcher) error {
+// Download downloads a remote gno package by pkg path and store it at dst
+func downloadPackage(out io.Writer, fetcher pkgdownload.PackageFetcher, pkgPath string, dst string) error {
 	modFilePath := filepath.Join(dst, "gno.mod")
 
 	if _, err := os.Stat(modFilePath); err == nil {
@@ -64,7 +63,7 @@ func downloadPackage(io commands.IO, pkgPath string, dst string, fetcher pkgdown
 		return fmt.Errorf("stat downloaded module %q at %q: %w", pkgPath, dst, err)
 	}
 
-	io.ErrPrintfln("gno: downloading %s", pkgPath)
+	fmt.Fprintf(out, "gno: downloading %s\n", pkgPath)
 
 	if err := pkgdownload.Download(pkgPath, dst, fetcher); err != nil {
 		return err

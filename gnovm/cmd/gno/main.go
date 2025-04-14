@@ -28,8 +28,9 @@ func newGnocliCmd(io commands.IO) *commands.Command {
 		newCleanCmd(io),
 		newDocCmd(io),
 		newEnvCmd(io),
-		// fix
-		newFmtCmd(io),
+		newBugCmd(io),
+		newListCmd(io),
+		newFmtCmd(io), // fix
 		// generate
 		// get
 		// install

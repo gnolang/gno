@@ -1,0 +1,1 @@
+module gno.example.com/r/wspace2/foo

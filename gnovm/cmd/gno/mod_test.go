@@ -177,7 +177,9 @@ func TestModApp(t *testing.T) {
 			args:                 []string{"mod", "why", "std"},
 			testDir:              "../../tests/integ/empty_dir",
 			simulateExternalRepo: true,
-			errShouldContain:     "could not read gno.mod file",
+			stdoutShouldBe: `# std
+(module . does not need package std)
+`,
 		},
 		{
 			args:                 []string{"mod", "why", "std"},
