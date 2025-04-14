@@ -57,7 +57,7 @@ counter/
 ```
 
 Let's deploy the `Counter` realm to the
-[Portal Loop](../resources/gnoland-networks.md#portal-loop) network. For this,
+[Staging](../resources/gnoland-networks.md#staging-chain) network. For this,
 we can use the `gnokey maketx addpkg` subcommand, which executes a package
 deployment transaction.
 
@@ -65,7 +65,7 @@ We need to tell `gnokey` a couple of things:
 - `pkgpath`[^1] to which we want to deploy to on the chain,
 - `pkgdir` in which the package is found locally,
 - `gas-fee` and `gas-wanted` values,
-- the `remote` (RPC endpoint) and `chainid` of the Portal Loop network[^2],
+- the `remote` (RPC endpoint) and `chainid` of the Staging network[^2],
 - that we want to broadcast the transaction, and
 - the key or the address we want to use to deploy the package.
 
@@ -77,7 +77,7 @@ gnokey maketx addpkg \
 -gas-fee 10000000ugnot \
 -gas-wanted 8000000 \
 -broadcast \
--chainid portal-loop \
+-chainid staging \
 -remote "https://rpc.gno.land:443" \
 MyKey
 ```
@@ -89,7 +89,7 @@ To go into more detail:
 error, try increasing the `gas-wanted` value [^4].
 
 After entering your password, you will have successfully deployed the `Counter`
-realm to the Portal Loop network:
+realm to the Staging network:
 
 ```
 OK!
@@ -136,7 +136,7 @@ documentation](../resources/gas-fees.md).
 ## Conclusion
 
 Congratulations! If everything went as expected, you've successfully deployed a
-realm to the Portal Loop network. To see it on `gnoweb` for the Portal Loop,
+realm to the Staging network. To see it on `gnoweb` for the Staging chain,
 append `r/<your_address>/counter` to https://gno.land in your browser.
 
 :::info
