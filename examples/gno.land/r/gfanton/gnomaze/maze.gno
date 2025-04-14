@@ -17,6 +17,7 @@ import (
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/moul/txlink"
+	"gno.land/r/leon/hor"
 )
 
 const baseLevel = 7
@@ -47,6 +48,9 @@ func init() {
 	rng := rand.New(rand.NewPCG(seed, uint64(time.Now().Unix())))
 	generateLevel(rng, level)
 	salt = rng.Int64()
+
+	// Register to hor
+	hor.Register("GnoMaze, A 3D Maze Game", "")
 }
 
 // Position represents the X, Y coordinates in the maze
