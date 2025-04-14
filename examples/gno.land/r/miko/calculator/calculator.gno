@@ -54,8 +54,21 @@ func evaluateValidity(line string) (bool, string) {
 	} // edge case special character at begining or end
 
 	isPriorSpecial := false
+	countParenthesis := 0
 
-	for i := 1; i < len(line)-1; i++ {
+	for i := 0; i < len(line); i++ {
+		if line[i] == '<' {
+			countParenthesis += 1
+			continue
+		}
+		if line[i] == '>' {
+			if isPriorSpecial == true {
+				return false, "Invalid equation"
+			}
+			countParenthesis -= 1
+			isPriorSpecial = false
+			continue
+		}
 		if strings.Index(specialCharacters, string(line[i])) != -1 {
 			if isPriorSpecial {
 				return false, "Invalid equation"
@@ -63,25 +76,52 @@ func evaluateValidity(line string) (bool, string) {
 			isPriorSpecial = true
 			continue
 		}
-		if (line[i] < '0' || line[i] > '9') && line[i] != 'p' {
+		if line[i] != 'p' && (line[i] < '0' || line[i] > '9') {
 			return false, "Invalid character encountered "
 		}
 		isPriorSpecial = false
 	}
+
+	if countParenthesis != 0 {
+		return false, "Invalid equation"
+	}
+	println(countParenthesis)
 	return true, ""
 }
 
 func searchForPriority(priorityList string, line string) *Node {
-	for i := 0; i < len(priorityList); i++ {
-		idx := strings.Index(line, string(priorityList[i]))
-		if idx != -1 {
-			return &Node{string(line[idx]), createTree(line[:idx]), createTree(line[idx+1:])}
+	// for i := 0; i < len(priorityList); i++ {
+	// 	idx := strings.Index(line, string(priorityList[i]))
+	// 	if idx != -1 {
+	// 		return &Node{string(line[idx]), createTree(line[:idx]), createTree(line[idx+1:])}
+	// 	}
+	// }
+
+	countParenthesis := 0
+	for iPrio := 0; iPrio < len(priorityList); iPrio++ {
+		for idx := 0; idx < len(line); idx++ {
+			if line[idx] == '<' {
+				countParenthesis += 1
+			}
+			if line[idx] == '>' {
+				countParenthesis -= 1
+			}
+			if countParenthesis == 0 && line[idx] == priorityList[iPrio] {
+				println("seen operator")
+				return &Node{string(line[idx]), createTree(line[:idx]), createTree(line[idx+1:])}
+			}
+
 		}
 	}
 	return nil
 }
 
 func createTree(line string) *Node {
+	println(line)
+	if line[0] == '<' && line[len(line)-1] == '>' && strings.Index(line[1:], "<") == -1 {
+		println("no parenthesis anymore")
+		return createTree(line[1 : len(line)-1])
+	}
 	node := searchForPriority(lowPriority, line) // we put the lowest priority at the top of the tree, these operations will be executed last
 	if node != nil {
 		return node
@@ -115,6 +155,8 @@ func ComputeResult(expression string) string {
 	if !valid { // If a basic error is encountered, return the expression without the = at the end and display the same expression
 		println(errString) // display error for debug
 		displayVal = strings.Replace(expression, "p", "+", -1)
+		displayVal = strings.Replace(displayVal, "<", "(", -1)
+		displayVal = strings.Replace(displayVal, ">", ")", -1)
 		return expression
 	}
 
@@ -147,6 +189,8 @@ func Render(path string) string {
 			expression = ComputeResult(expression[:len(expression)-1])
 		} else {
 			displayVal = strings.Replace(expression, "p", "+", -1)
+			displayVal = strings.Replace(displayVal, "<", "(", -1)
+			displayVal = strings.Replace(displayVal, ">", ")", -1)
 		}
 	}
 
@@ -157,7 +201,7 @@ Do I have the realm for you...
 
 Result: ` + displayVal + `
 ---------------
-| ` + ufmt.Sprintf("[res](%s)", realmPath) + `|||` + ufmt.Sprintf("[del](%s)", realmPath+":?expression="+removeLast(expression)) + `|
+| ` + ufmt.Sprintf("[res](%s)", realmPath) + `| ` + ufmt.Sprintf("[(](%s)", realmPath+":?expression="+expression+"<") + `| ` + ufmt.Sprintf("[)](%s)", realmPath+":?expression="+expression+">") + `| ` + ufmt.Sprintf("[del](%s)", realmPath+":?expression="+removeLast(expression)) + `|
 |---|---|---|---|
 | ` + ufmt.Sprintf("[7](%s)", realmPath+":?expression="+expression+"7") + `| ` + ufmt.Sprintf("[8](%s)", realmPath+":?expression="+expression+"8") + `| ` + ufmt.Sprintf("[9](%s)", realmPath+":?expression="+expression+"9") + `| ` + ufmt.Sprintf("[+](%s)", realmPath+":?expression="+expression+"p") /* here p replaces + because of how + works in bnormal paths*/ + `|
 | ` + ufmt.Sprintf("[4](%s)", realmPath+":?expression="+expression+"4") + `| ` + ufmt.Sprintf("[5](%s)", realmPath+":?expression="+expression+"5") + `| ` + ufmt.Sprintf("[6](%s)", realmPath+":?expression="+expression+"6") + `| ` + ufmt.Sprintf("[-](%s)", realmPath+":?expression="+expression+"-") + `|
