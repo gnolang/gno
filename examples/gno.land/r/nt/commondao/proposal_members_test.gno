@@ -6,8 +6,8 @@ import (
 
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
-	"gno.land/p/nt/commondao"
 	"gno.land/p/moul/addrset"
+	"gno.land/p/nt/commondao"
 )
 
 var _ commondao.ProposalDefinition = (*MembersPropDefinition)(nil)
