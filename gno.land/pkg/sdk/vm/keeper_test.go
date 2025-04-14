@@ -3,6 +3,7 @@ package vm
 // TODO: move most of the logic in ROOT/gno.land/...
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strings"
@@ -66,6 +67,56 @@ func Echo() string {return "hello world"}`,
 func Echo() string { return "hello world" }
 `
 	assert.Equal(t, expected, memFile.Body)
+}
+
+func TestVMKeeperAddPackage_runOutOfGasInTypecheck(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	ctx = ctx.WithGasMeter(types.NewGasMeter(100_000))
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+
+	// Create the package.
+	src := func() string {
+		buf := new(bytes.Buffer)
+		N := 1000
+		buf.WriteString("package main\nfunc main() {\n\tconst x = 1")
+		for i := 0; i < 3; i++ {
+			for j := 0; j < N; j++ {
+				buf.WriteString("+\n(1")
+			}
+			for j := 0; j < N; j++ {
+				buf.WriteByte(')')
+			}
+		}
+		buf.WriteString("\nprintln(x)\n}")
+		return buf.String()
+	}()
+	files := []*gnovm.MemFile{
+		{
+			Name: "test.gno",
+			Body: src,
+		},
+	}
+	pkgPath := "gno.land/r/main"
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+
+	defer func() {
+		r := recover()
+		require.NotNil(t, r, "expected a panic")
+		rs := fmt.Sprintf("%s", r)
+		require.Contains(t, rs, "out of gas in location: typeCheck")
+		_, ok := r.(types.OutOfGasError)
+		require.True(t, ok)
+	}()
+
+	_ = env.vmk.AddPackage(ctx, msg1)
 }
 
 func TestVMKeeperAddPackage_InvalidDomain(t *testing.T) {
