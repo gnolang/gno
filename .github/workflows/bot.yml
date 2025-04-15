@@ -58,12 +58,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Get last commit hash for directory
+        id: get-hash
+        run: echo "dir_hash=$(git log -1 --format="%H" -- contribs/github-bot/)" >> $GITHUB_OUTPUT
+
       - name: Cache github-bot binary
         id: cache-bot-bin
         uses: actions/cache@v4
         with:
           path: /usr/local/bin/github-bot
-          key: ${{ runner.os }}-github-bot-${{ hashFiles('contribs/github-bot/**/*', '!contribs/github-bot/**/*.md', '!contribs/github-bot/Makefile') }}
+          key: ${{ runner.os }}-github-bot-${{ steps.get-hash.outputs.dir_hash }}
 
       - name: Install Go
         if: steps.cache-bot-bin.outputs.cache-hit != 'true'
@@ -125,12 +129,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Get last commit hash for directory
+        id: get-hash
+        run: echo "dir_hash=$(git log -1 --format="%H" -- contribs/github-bot/)" >> $GITHUB_OUTPUT
+
       - name: Cache github-bot binary
         id: cache-bot-bin
         uses: actions/cache@v4
         with:
           path: /usr/local/bin/github-bot
-          key: ${{ runner.os }}-github-bot-${{ hashFiles('contribs/github-bot/**/*', '!contribs/github-bot/**/*.md', '!contribs/github-bot/Makefile') }}
+          key: ${{ runner.os }}-github-bot-${{ steps.get-hash.outputs.dir_hash }}
 
       - name: Install Go
         if: steps.cache-bot-bin.outputs.cache-hit != 'true'
