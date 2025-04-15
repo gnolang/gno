@@ -3,6 +3,7 @@ package users
 import (
 	"std"
 
+	"gno.land/p/demo/ufmt"
 	"gno.land/r/gov/dao"
 	susers "gno.land/r/sys/users"
 )
@@ -18,7 +19,15 @@ func NewSetPausedExecutor(newPausedValue bool) dao.ProposalRequest {
 
 	e := dao.NewSimpleExecutor(cb, "")
 
-	return dao.NewProposalRequest("Pause users/v1 realm", "", e)
+	title := ""
+	if newPausedValue {
+		title = "Pause `/r/gnoland/users/v1`"
+	} else {
+		title = "Unpause `/r/gnoland/users/v1`"
+	}
+
+	desc := ufmt.Sprintf("Proposal to set the users/v1 realm to `paused=%v`.", newPausedValue)
+	return dao.NewProposalRequest(title, desc, e)
 }
 
 // ProposeNewName allows GovDAO to propose a new name for an existing user
