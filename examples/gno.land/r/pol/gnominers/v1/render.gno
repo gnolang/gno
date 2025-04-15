@@ -6,7 +6,7 @@ import (
 
 	"gno.land/p/pol/notrandom"
 	"gno.land/p/pol/queryparsing"
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 	// "gno.land/r/pol/gnominers"
 	// "gno.land/r/pol/home"
 )
@@ -34,7 +34,7 @@ var redirectionsPath = map[string]func(params map[string]string) string{
 
 func init() {
 	randomMachine = notrandom.NewMachine(time.Now().Unix())
-	hof.Register("GnoMiners", "A super mining game !")
+	hor.Register("GnoMiners", "A super mining game !")
 }
 
 func Render(fullpath string) string {
