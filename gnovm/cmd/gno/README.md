@@ -19,6 +19,7 @@ SUBCOMMANDS
   doc      show documentation for package or symbol
   env      print gno environment information
   fmt      gnofmt (reformat) package sources
+  lint     runs the linter for the specified packages
   mod      module maintenance
   run      run gno packages
   test     test packages

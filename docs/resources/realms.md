@@ -49,9 +49,9 @@ found [here](../users/interact-with-gnokey.md#making-transactions).
 In Gno, each transaction contains a realm call stack. Every item in the stack and
 its properties can be accessed via different functions defined in the `std`
 package in Gno:
-- `std.GetOrigCaller()` - returns the address of the original signer of the
+- `std.OriginCaller()` - returns the address of the original signer of the
   transaction
-- `std.PrevRealm()` - returns the previous realm instance, which can be a user realm
+- `std.PreviousRealm()` - returns the previous realm instance, which can be a user realm
   or a smart contract realm
 - `std.CurrentRealm()` - returns the instance of the realm that has called it
 
@@ -84,8 +84,8 @@ Realm A:
 
 Let's look at return values for each of the methods, called from within `Realm A`:
 ```
-std.GetOrigCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
-std.PrevRealm() => Realm {
+std.OriginCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
+std.PreviousRealm() => Realm {
     addr:    `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
     pkgPath: ``
 }
@@ -124,8 +124,8 @@ Realm B:
 Depending on which realm the methods are called in, the values will change. For
 `Realm A`:
 ```
-std.GetOrigCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
-std.PrevRealm() => Realm {
+std.OriginCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
+std.PreviousRealm() => Realm {
     addr:    `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
     pkgPath: ``
 }
@@ -137,8 +137,8 @@ std.CurrentRealm() => Realm {
 
 For `Realm B`:
 ```
-std.GetOrigCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
-std.PrevRealm() => Realm {
+std.OriginCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
+std.PreviousRealm() => Realm {
     addr:    `g1dvqd8qgvavqayxklzfdmccd2eps263p43pu2c6`
     pkgPath: `gno.land/r/demo/a`
 }
