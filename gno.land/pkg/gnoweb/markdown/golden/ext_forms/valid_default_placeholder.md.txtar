@@ -1,6 +1,8 @@
 -- input.md --
 <gno-form>
+
 <gno-input name="age" />
+
 </gno-form>
 
 -- output.html --

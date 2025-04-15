@@ -1,11 +1,13 @@
 -- input.md --
+
 <gno-form>
-<gno-input name="username" placeholder="Enter username" />
-<gno-input name="email" placeholder="Enter email" />
+
+<gno-input name="test" placeholder="Enter test value" />
+
 </gno-form>
 
 -- output.html --
 <form class="gno-form" method="post">
 <div class="gno-form_header">
 <span><span class="font-bold"> r/test </span> Form</span><span class="tooltip" data-tooltip="This form is secure and processed on the current r/test realm itself."><svg class="w-4 h-4"><use href="#ico-info"></use></svg></span></div>
-<div class="gno-form_input"><label for="username"> Enter username </label><input type="text" id="username" name="username" placeholder="Enter username" /></div><div class="gno-form_input"><label for="email"> Enter email </label><input type="text" id="email" name="email" placeholder="Enter email" /></div><input type="submit" value="Submit to r/test Realm" /></form>
+<div class="gno-form_input"><label for="test"> Enter test value </label><input type="text" id="test" name="test" placeholder="Enter test value" /></div><input type="submit" value="Submit to r/test Realm" /></form>
