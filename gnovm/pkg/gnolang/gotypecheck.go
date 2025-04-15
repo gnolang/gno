@@ -141,7 +141,7 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*t
 			deleteOldIdents(delFunc, f)
 		}
 
-		filterWithSwitchRealm(f)
+		filterCrossing(f)
 
 		// enforce formatting
 		if fmt {
@@ -183,19 +183,19 @@ func deleteOldIdents(idents map[string]func(), f *ast.File) {
 	}
 }
 
-func filterWithSwitchRealm(f *ast.File) {
+func filterCrossing(f *ast.File) {
 	astutil.Apply(f, nil, func(c *astutil.Cursor) bool {
 		switch n := c.Node().(type) {
 		case *ast.ExprStmt:
 			if ce, ok := n.X.(*ast.CallExpr); ok {
-				if id, ok := ce.Fun.(*ast.Ident); ok && id.Name == "switchrealm" {
-					// Delete statement 'switchrealm()'.
+				if id, ok := ce.Fun.(*ast.Ident); ok && id.Name == "crossing" {
+					// Delete statement 'crossing()'.
 					c.Delete()
 				}
 			}
 		case *ast.CallExpr:
-			if id, ok := n.Fun.(*ast.Ident); ok && id.Name == "withswitch" {
-				// Replace expression 'withswitch(x)' by 'x'.
+			if id, ok := n.Fun.(*ast.Ident); ok && id.Name == "cross" {
+				// Replace expression 'cross(x)' by 'x'.
 				var a ast.Node
 				if len(n.Args) > 0 {
 					a = n.Args[0]
