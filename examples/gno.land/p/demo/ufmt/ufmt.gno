@@ -143,7 +143,7 @@ func (p *printer) parse(runes []rune, index *int) {
 
 func newPrinter() *printer {
 	return &printer{
-		buf:  buffer{},
+		buf: buffer{},
 		meta: printerMeta{
 			precision: 6,
 		},
@@ -251,7 +251,7 @@ func (p *printer) doPrintf(format string, args []any) {
 	for i := 0; i < end; {
 		isLast := i == end-1
 		c := sTor[i]
-		
+
 		if isLast || c != '%' {
 			// we don't check for invalid format like a one ending with "%"
 			p.buf.writeRune(c)
@@ -415,15 +415,13 @@ func writeInt(p *printer, verb rune, arg any) {
 		subBuf = fallback(verb, v)
 	}
 	paddingCount := int(p.meta.padding) - len(subBuf)
-if paddingCount < 0 {
-    paddingCount = 0
-}
-
-if p.meta.flags&flagSpace != 0 {
-    subBuf = strings.Repeat(" ", paddingCount) + subBuf
-} else if p.meta.flags&flagZero != 0 {
-    subBuf = strings.Repeat("0", paddingCount) + subBuf
-}
+	if paddingCount < 0 {
+		paddingCount = 0
+	}
+	if p.meta.flags&flagSpace != 0 {
+		subBuf = strings.Repeat(" ", paddingCount) + subBuf
+	} else if p.meta.flags&flagZero != 0 {
+		subBuf = strings.Repeat("0", paddingCount) + subBuf
 	}
 	p.buf.writeString(subBuf)
 }
