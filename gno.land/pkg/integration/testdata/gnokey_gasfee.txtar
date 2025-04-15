@@ -1,0 +1,57 @@
+# Estimating gas and gas fees for users
+# using the 'gnokey maketx --simulate-only' option
+
+# start a new node
+gnoland start
+
+# user's account sequence starts from 1 with 10000000000000ugnot
+gnokey query auth/accounts/$test1_user_addr
+stdout '"sequence": "0"'
+stdout '"coins": "10000000000000ugnot"'
+
+# Tx add package -simulate only, estimate gas used and gas fee
+gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/hello  -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate only test1
+stdout 'GAS USED:   178390'
+stdout 'INFO:       estimated gas usage: 178390, gas fee: 187ugnot, current gas price: 1000gas/1ugnot'
+
+## No fee was charged, and the sequence number did not change.
+gnokey query auth/accounts/$test1_user_addr
+stdout '"sequence": "0"'
+stdout '"coins": "10000000000000ugnot"'
+
+# Using the simulated gas and estimated gas fee should ensure the transaction executes successfully.
+gnokey maketx addpkg -pkgdir $WORK/hello -pkgpath gno.land/r/hello  -gas-wanted 178390 -gas-fee 187ugnot -broadcast -chainid tendermint_test test1
+stdout 'OK'
+
+## fee is charged and sequence number increased
+gnokey query auth/accounts/$test1_user_addr
+stdout '"sequence": "1"'
+stdout '"coins": "9999999999813ugnot"'
+
+# Tx Call -simulate only, estimate gas used and gas fee
+gnokey maketx call -pkgpath gno.land/r/hello -func Hello -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate only test1
+stdout 'GAS USED:   98553'
+stdout 'INFO:       estimated gas usage: 98553, gas fee: 103ugnot, current gas price: 1000gas/1ugnot'
+
+## No fee was charged, and the sequence number did not change.
+gnokey query auth/accounts/$test1_user_addr
+stdout '"sequence": "1"'
+stdout '"coins": "9999999999813ugnot"'
+
+# Using the simulated gas and estimated gas fee should ensure the transaction executes successfully.
+gnokey maketx call -pkgpath gno.land/r/hello -func Hello -gas-wanted 98553 -gas-fee 103ugnot -broadcast -chainid tendermint_test test1
+stdout 'OK'
+
+## fee is charged and sequence number increased
+gnokey query auth/accounts/$test1_user_addr
+stdout '"sequence": "2"'
+stdout '"coins": "9999999999710ugnot"'
+
+-- hello/hello.gno --
+package hello
+
+var s = "hello"
+
+func Hello() string {
+	return s
+}
