@@ -48,11 +48,11 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 			Then: r.And(
 				r.Or(
 					r.AuthorInTeam(gh, "tech-staff"),
-					r.ReviewByTeamMembers(gh, "tech-staff").WithDesiredState(utils.ReviewStateApproved),
+					r.ReviewByTeamMembers(gh, "tech-staff", r.RequestApply).WithDesiredState(utils.ReviewStateApproved),
 				),
 				r.Or(
 					r.AuthorInTeam(gh, "devrels"),
-					r.ReviewByTeamMembers(gh, "devrels").WithDesiredState(utils.ReviewStateApproved),
+					r.ReviewByTeamMembers(gh, "devrels", r.RequestApply).WithDesiredState(utils.ReviewStateApproved),
 				),
 			),
 		},
@@ -63,8 +63,26 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 				c.FileChanged(gh, "^gno.land/pkg/gnoweb/"),
 			),
 			Then: r.Or(
-				r.ReviewByUser(gh, "alexiscolin"),
-				r.ReviewByUser(gh, "gfanton"),
+				// If alexiscolin or gfanton is the author of the PR, the other must review it.
+				r.Or(
+					r.And(
+						r.Author("alexiscolin"),
+						r.ReviewByUser(gh, "gfanton", r.RequestApply).WithDesiredState(utils.ReviewStateApproved),
+					),
+					r.And(
+						r.Author("gfanton"),
+						r.ReviewByUser(gh, "alexiscolin", r.RequestApply).WithDesiredState(utils.ReviewStateApproved),
+					),
+				),
+				// If neither of them is the author of the PR, at least one of them must review it.
+				r.And(
+					r.Not(r.Author("alexiscolin")),
+					r.Not(r.Author("gfanton")),
+					r.Or(
+						r.ReviewByUser(gh, "alexiscolin", r.RequestApply).WithDesiredState(utils.ReviewStateApproved),
+						r.ReviewByUser(gh, "gfanton", r.RequestApply).WithDesiredState(utils.ReviewStateApproved),
+					),
+				),
 			),
 		},
 		{
@@ -81,16 +99,29 @@ func Config(gh *client.GitHub) ([]AutomaticCheck, []ManualCheck) {
 			Then: r.
 				If(r.Or(
 					r.ReviewByOrgMembers(gh).WithDesiredState(utils.ReviewStateApproved),
-					r.ReviewByTeamMembers(gh, "tech-staff"),
+					r.ReviewByTeamMembers(gh, "tech-staff", r.RequestIgnore),
 					r.Draft(),
 				)).
 				// Either there was a first approval from a member, and we
-				// assert that the label for triage-pending is removed...
-				Then(r.Not(r.Label(gh, "review/triage-pending", r.LabelRemove))).
-				// Or there was not, and we apply the triage pending label.
+				// assert that the label for triage-pending is removed and we
+				// request a review from the tech-staff team...
+				Then(
+					r.And(
+						r.Not(r.Label(gh, "review/triage-pending", r.LabelRemove)),
+						r.ReviewByTeamMembers(gh, "tech-staff", r.RequestApply),
+					),
+				).
+				// Or there was not, and we apply the triage-pending label
+				// and remove the request for review from the tech-staff team.
 				// The requirement should always fail, to mark the PR is not
 				// ready to be merged.
-				Else(r.And(r.Label(gh, "review/triage-pending", r.LabelApply), r.Never())),
+				Else(
+					r.And(
+						r.Label(gh, "review/triage-pending", r.LabelApply),
+						r.ReviewByTeamMembers(gh, "tech-staff", r.RequestRemove),
+						r.Never(), // Always fail the requirement.
+					),
+				),
 		},
 	}
 
