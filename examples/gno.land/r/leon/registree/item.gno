@@ -3,10 +3,5 @@ package registree
 import "gno.land/r/leon/registry"
 
 func ManualRegister() {
-	fn := registry.Register
-	crossing(fn)
+	crossing(registry.Register)
 }
-
-//func init() {
-//	registry.Register()
-//}
