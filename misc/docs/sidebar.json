@@ -38,6 +38,7 @@
           },
           "resources/effective-gno",
           "resources/gno-packages",
+          "resources/realms",
           "resources/gnoland-networks",
           "resources/users-and-teams",
           "resources/gas-fees",

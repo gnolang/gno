@@ -39,6 +39,7 @@ Learn about core concepts found in gno.land & Gno.
 - [Awesome Gno](https://github.com/gnoverse/awesome-gno) - Curated list of Gno freshness.
 - [Effective Gno](resources/effective-gno.md) - Learn how to write Gno following best practices, including counter-intuitive good practices specific to blockchain
 - [Packages](resources/gno-packages.md) - Learn about realms, pure packages, smart contracts, dApps and how they're organized in the gno.land ecosystem.
+- [Realms](resources/realms.md) - Learn about the specifics of working with realms in Gno.
 - [Networks](resources/gnoland-networks.md) - Discover different gno.land networks (testnets, devnets) and their purposes, including network configurations.
 - [Users and Teams](resources/users-and-teams.md) - Understand user registration, namespace ownership, and team collaboration in the gno.land ecosystem.
 - [Gas Fees](resources/gas-fees.md) - Learn about gas pricing, estimation, and optimization strategies in gno.land.
