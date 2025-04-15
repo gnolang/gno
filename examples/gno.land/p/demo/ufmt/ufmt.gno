@@ -132,7 +132,7 @@ func (p *printer) parse(runes []rune, index *int) {
 		"hh": lenHH,
 		"z":  lenZ,
 	} {
-		if string(runes[*index:*index+len(k)-1]) == k {
+		if string(runes[*index:*index+len(k)]) == k {
 			p.meta.length = v
 			*index += len(k)
 			break
