@@ -262,6 +262,12 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		}
 		orig, tx := m.Store, m.Store.BeginTransaction(nil, nil, nil)
 		m.Store = tx
+
+		// Validate Gno syntax and type check.
+		if err := gno.TypeCheckMemPackageTest(memPkg, m.Store); err != nil {
+			return runResult{Error: err.Error()}
+		}
+
 		// Run decls and init functions.
 		m.RunMemPackage(memPkg, true)
 		// Clear store cache and reconstruct machine from committed info
