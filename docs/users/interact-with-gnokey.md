@@ -352,7 +352,7 @@ the publicly-known `test1` address, and `100ugnot` for the coins we want to send
 respectively.
 
 To check the balance of a specific address, check out the `bank/balances` query
-in the [Querying a network](querying-a-network.md#bankbalances) section.
+in the [Querying a network](#bankbalances) section.
 
 ## `Run`
 
@@ -536,7 +536,7 @@ which is not currently possible with the `Call` message.
 
 `gnokey` provides a way to create a transaction, sign it, and later
 broadcast it to a chain in the most secure fashion. This approach, while more
-complicated than the standard approach shown [in a previous tutorial](making-transactions.md),
+complicated than the standard approach shown [in another section](#making-transactions),
 grants full control and provides [airgap](https://en.wikipedia.org/wiki/Air_gap_(networking))
 support.
 
@@ -558,7 +558,7 @@ with the separation of steps as follows:
 ## 1. Fetching account information from the chain
 
 First, we need to fetch data for the account we are using to sign the transaction,
-using the [auth/accounts](querying-a-network.md#authaccounts) query:
+using the [auth/accounts](#authaccounts) query:
 
 ```bash
 gnokey query auth/accounts/<your_address> -remote "https://rpc.gno.land:443"
@@ -586,7 +586,7 @@ of the transaction, preventing replay attacks.
 
 ## 2. Creating an unsigned transaction locally
 
-To create the transaction you want, you can use the [`call` API](making-transactions.md#call),
+To create the transaction you want, you can use the [`call` API](#call),
 without the `-broadcast` flag, while redirecting the output to a local file:
 
 ```bash
