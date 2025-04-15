@@ -102,11 +102,7 @@ func (ren *render) renderProposalListItem(sPid string, d *GovDAO) string {
 	out := ufmt.Sprintf("### [Prop #%v - %v](%v:%v)\n", sPid, p.Title(), ren.relativeRealmPath, sPid)
 	out += ufmt.Sprintf("Author: %s\n\n", p.Author())
 
-	if isPropActive(ps) {
-		out += "Status: ACTIVE"
-	} else {
-		out += "Status: Voting finished"
-	}
+	out += "Status: " + getPropStatus(ps)
 	out += "\n\n"
 
 	out += "Tiers eligible to vote: "
@@ -124,7 +120,7 @@ func (ren *render) renderVotesForProposal(sPid string, d *GovDAO) string {
 	ps := d.pss.GetStatus(dao.ProposalID(pid))
 
 	out := ""
-	out += ufmt.Sprintf("## Voters for Proposal with id: %v\n\n", sPid)
+	out += ufmt.Sprintf("# Proposal #%v - Vote List\n\n", sPid)
 	out += StringifyVotes(ps)
 
 	return out
@@ -132,6 +128,15 @@ func (ren *render) renderVotesForProposal(sPid string, d *GovDAO) string {
 
 func isPropActive(ps *proposalStatus) bool {
 	return !ps.Accepted && !ps.Denied
+}
+
+func getPropStatus(ps *proposalStatus) string {
+	if ps.Accepted {
+		return "ACCEPTED"
+	} else if ps.Denied {
+		return "REJECTED"
+	}
+	return "ACTIVE"
 }
 
 func renderActionBar(sPid string) string {
