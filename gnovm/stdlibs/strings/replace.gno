@@ -12,9 +12,7 @@ import (
 // It is safe for concurrent use by multiple goroutines.
 type Replacer struct {
 	// Custom code: remove variable once of type sync.Once on golang package
-	// End of custom code
-	r      replacer
-	oldnew []string
+	r replacer
 }
 
 // replacer is the interface that a replacement algorithm needs to implement.
@@ -33,21 +31,10 @@ func NewReplacer(oldnew ...string) *Replacer {
 	if len(oldnew)%2 == 1 {
 		panic("strings.NewReplacer: odd argument count")
 	}
-	return &Replacer{oldnew: append([]string(nil), oldnew...)}
+	return &Replacer{r: buildReplacer(oldnew)}
 }
 
-func (r *Replacer) buildOnce() {
-	// Custom code: check replacer is null instead of call sync.Once
-	if r.r != nil {
-		return
-	}
-	// End of custom code
-	r.r = r.build()
-	r.oldnew = nil
-}
-
-func (b *Replacer) build() replacer {
-	oldnew := b.oldnew
+func buildReplacer(oldnew []string) replacer {
 	if len(oldnew) == 2 && len(oldnew[0]) > 1 {
 		return makeSingleStringReplacer(oldnew[0], oldnew[1])
 	}
@@ -98,17 +85,11 @@ func (b *Replacer) build() replacer {
 
 // Replace returns a copy of s with all replacements performed.
 func (r *Replacer) Replace(s string) string {
-	// Custom code: adaptation without sync.Once
-	r.buildOnce()
-	// End of custom code
 	return r.r.Replace(s)
 }
 
 // WriteString writes s to w with all replacements performed.
 func (r *Replacer) WriteString(w io.Writer, s string) (n int, err error) {
-	// Custom code: adaptation without sync.Once
-	r.buildOnce()
-	// End of custom code
 	return r.r.WriteString(w, s)
 }
 
@@ -527,7 +508,6 @@ func (r *byteStringReplacer) Replace(s string) string {
 				newSize += c * (len(r.replacements[x[0]]) - 1)
 				anyChanges = true
 			}
-
 		}
 	} else {
 		for i := 0; i < len(s); i++ {
