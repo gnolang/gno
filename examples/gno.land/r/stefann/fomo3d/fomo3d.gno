@@ -94,6 +94,9 @@ func BuyKeys() {
 
 	// Get sent coins
 	sent := std.OriginSend()
+	if len(sent) == 0 {
+		panic(ErrNoCoinsSent.Error())
+	}
 	if len(sent) != 1 || sent[0].Denom != "ugnot" {
 		panic(ErrInvalidPayment.Error())
 	}
