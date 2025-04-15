@@ -58,17 +58,33 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Get last commit hash for directory
+        id: get-hash
+        run: echo "dir_hash=$(git log -1 --format="%H" -- contribs/github-bot/)" >> $GITHUB_OUTPUT
+
+      - name: Cache github-bot binary
+        id: cache-bot-bin
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/github-bot
+          key: ${{ runner.os }}-github-bot-${{ steps.get-hash.outputs.dir_hash }}
+
       - name: Install Go
+        if: steps.cache-bot-bin.outputs.cache-hit != 'true'
         uses: actions/setup-go@v5
         with:
           go-version-file: contribs/github-bot/go.mod
 
+      - name: Build github-bot binary
+        if: steps.cache-bot-bin.outputs.cache-hit != 'true'
+        working-directory: contribs/github-bot
+        run: go build -o /usr/local/bin/github-bot .
+
       - name: Generate matrix from event
         id: pr-numbers
-        working-directory: contribs/github-bot
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: go run . matrix -matrix-key 'pr-numbers' -verbose
+        run: github-bot matrix -matrix-key 'pr-numbers' -verbose
 
   # This job is executed if an event with read-only permission has triggered this
   # workflow (e.g 'pull_request_review' on a pull request opened from a fork).
@@ -113,13 +129,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Get last commit hash for directory
+        id: get-hash
+        run: echo "dir_hash=$(git log -1 --format="%H" -- contribs/github-bot/)" >> $GITHUB_OUTPUT
+
+      - name: Cache github-bot binary
+        id: cache-bot-bin
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/github-bot
+          key: ${{ runner.os }}-github-bot-${{ steps.get-hash.outputs.dir_hash }}
+
       - name: Install Go
+        if: steps.cache-bot-bin.outputs.cache-hit != 'true'
         uses: actions/setup-go@v5
         with:
           go-version-file: contribs/github-bot/go.mod
+
+      - name: Build github-bot binary
+        if: steps.cache-bot-bin.outputs.cache-hit != 'true'
+        working-directory: contribs/github-bot
+        run: go build -o /usr/local/bin/github-bot .
 
       - name: Run GitHub Bot
         working-directory: contribs/github-bot
         env:
           GITHUB_TOKEN: ${{ secrets.GH_BOT_PAT }}
-        run: go run . check -pr-numbers '${{ matrix.pr-number }}' -verbose
+        run: github-bot check -pr-numbers '${{ matrix.pr-number }}' -verbose
