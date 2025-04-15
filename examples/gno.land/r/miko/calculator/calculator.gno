@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/moul/md"
 	"gno.land/p/moul/realmpath"
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 )
 
 type Node struct {
@@ -42,7 +42,7 @@ var (
 )
 
 func init() {
-	hof.Register("Miko's calculator", "Let's do maths")
+	hor.Register("Miko's calculator", "Let's do maths")
 }
 
 func evaluateValidity(line string) (bool, string) {
@@ -187,7 +187,6 @@ func removeLast(path string) string {
 }
 
 func Render(path string) string {
-	var sb strings.Builder
 
 	req := realmpath.Parse(path)
 	query := req.Query
@@ -205,17 +204,16 @@ func Render(path string) string {
 		}
 	}
 
-	out := "# Calculator page\n\n"
-	out += "Have you ever wanted to do maths but never actually found a calculator ?\n\n"
-	out += "Do I have the realm for you...\n\n"
-	out += "Result: "
-	out += displayVal
-	out += "---------------"
-	out += "| " + ufmt.Sprintf("[res](%s)", realmPath) + "| " + ufmt.Sprintf("[(](%s)", realmPath+":?expression="+expression+"<") + "| " + ufmt.Sprintf("[)](%s)", realmPath+":?expression="+expression+">") + "| " + ufmt.Sprintf("[del](%s)", realmPath+":?expression="+removeLast(expression)) + "|\n"
+	out := md.H1("Calculator page")
+	out += md.H3("Have you ever wanted to do maths but never actually found a calculator ?")
+	out += md.H3("Do I have the realm for you...")
+	out += "---------------\n"
+	out += md.H2("Result: " + displayVal)
+	out += "| " + md.Link("res", realmPath) + "| " + md.Link("(", realmPath+":?expression="+expression+"<") + "| " + md.Link(")", realmPath+":?expression="+expression+">") + "| " + md.Link("del", realmPath+":?expression="+removeLast(expression)) + "|\n"
 	out += "|---|---|---|---|\n"
-	out += "| " + ufmt.Sprintf("[7](%s)", realmPath+":?expression="+expression+"7") + "| " + ufmt.Sprintf("[8](%s)", realmPath+":?expression="+expression+"8") + "| " + ufmt.Sprintf("[9](%s)", realmPath+":?expression="+expression+"9") + "| " + ufmt.Sprintf("[+](%s)", realmPath+":?expression="+expression+"p") /* here p replaces + because of how + works in bnormal paths*/ + "|\n"
-	out += "| " + ufmt.Sprintf("[4](%s)", realmPath+":?expression="+expression+"4") + "| " + ufmt.Sprintf("[5](%s)", realmPath+":?expression="+expression+"5") + "| " + ufmt.Sprintf("[6](%s)", realmPath+":?expression="+expression+"6") + "| " + ufmt.Sprintf("[-](%s)", realmPath+":?expression="+expression+"-") + "|\n"
-	out += "| " + ufmt.Sprintf("[1](%s)", realmPath+":?expression="+expression+"1") + "| " + ufmt.Sprintf("[2](%s)", realmPath+":?expression="+expression+"2") + "| " + ufmt.Sprintf("[3](%s)", realmPath+":?expression="+expression+"3") + "| " + ufmt.Sprintf("[*](%s)", realmPath+":?expression="+expression+"*") + "|\n"
-	out += "| " + ufmt.Sprintf("[0](%s)", realmPath+":?expression="+expression+"0") + "| " + ufmt.Sprintf("[.](%s)", realmPath+":?expression="+expression+".") + "| " + ufmt.Sprintf("[=](%s)", realmPath+":?expression="+expression+"=") + "| " + ufmt.Sprintf("[/](%s)", realmPath+":?expression="+expression+"/") + "|\n"
-	return sb.String()
+	out += "| " + md.Link("7", realmPath+":?expression="+expression+"7") + "| " + md.Link("8", realmPath+":?expression="+expression+"8") + "| " + md.Link("9", realmPath+":?expression="+expression+"9") + "| " + md.Link("+", realmPath+":?expression="+expression+"p") /* here p replaces + because of how + works in bnormal paths*/ + "|\n"
+	out += "| " + md.Link("4", realmPath+":?expression="+expression+"4") + "| " + md.Link("5", realmPath+":?expression="+expression+"5") + "| " + md.Link("6", realmPath+":?expression="+expression+"6") + "| " + md.Link("-", realmPath+":?expression="+expression+"-") + "|\n"
+	out += "| " + md.Link("1", realmPath+":?expression="+expression+"1") + "| " + md.Link("2", realmPath+":?expression="+expression+"2") + "| " + md.Link("3", realmPath+":?expression="+expression+"3") + "| " + md.Link("*", realmPath+":?expression="+expression+"*") + "|\n"
+	out += "| " + md.Link("0", realmPath+":?expression="+expression+"0") + "| " + md.Link(".", realmPath+":?expression="+expression+".") + "| " + md.Link("=", realmPath+":?expression="+expression+"=") + "| " + md.Link("/", realmPath+":?expression="+expression+"/") + "|\n"
+	return out
 }
