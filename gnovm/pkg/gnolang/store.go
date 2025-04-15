@@ -867,7 +867,7 @@ func (ds *defaultStore) GetMemFile(path string, name string) *gnovm.MemFile {
 }
 
 // FindPathsByPrefix retrieves all paths starting with the given prefix.
-func (p *defaultStore) FindPathsByPrefix(prefix string) []string {
+func (ds *defaultStore) FindPathsByPrefix(prefix string) []string {
 	startKey := []byte(backendPackagePathKey(prefix))
 	endKey := incrementLastByte(startKey)
 
