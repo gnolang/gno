@@ -895,7 +895,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	)
 
 	// Set a handler Route.
-	baseApp.Router().AddRoute("auth", auth.NewHandler(acck))
+	baseApp.Router().AddRoute("auth", auth.NewHandler(acck, gpk))
 	baseApp.Router().AddRoute("bank", bank.NewHandler(bankk))
 	baseApp.Router().AddRoute(
 		testutils.RouteMsgCounter,
