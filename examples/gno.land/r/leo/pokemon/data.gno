@@ -124,5 +124,45 @@ var (
 				{"Double Slap", 25, 6},
 			},
 		},
+		{
+			"Meowth",
+			"https://www.pokemon.com/static-assets/content-assets/cms2/img/pokedex/full/052.png",
+			60,
+			[]Attack{
+				{"Scratch", 15, 12},
+				{"Bite", 25, 7},
+				{"Pay Day", 30, 4},
+			},
+		},
+		{
+			"Psyduck",
+			"https://www.pokemon.com/static-assets/content-assets/cms2/img/pokedex/full/054.png",
+			70,
+			[]Attack{
+				{"Confusion", 35, 5},
+				{"Water Gun", 30, 6},
+				{"Zen Headbutt", 40, 3},
+			},
+		},
+		{
+			"Snorlax",
+			"https://www.pokemon.com/static-assets/content-assets/cms2/img/pokedex/full/143.png",
+			160,
+			[]Attack{
+				{"Body Slam", 40, 5},
+				{"Lick", 20, 10},
+				{"Hyper Beam", 60, 2},
+			},
+		},
+		{
+			"Gengar",
+			"https://www.pokemon.com/static-assets/content-assets/cms2/img/pokedex/full/094.png",
+			80,
+			[]Attack{
+				{"Shadow Ball", 45, 3},
+				{"Lick", 20, 10},
+				{"Dark Pulse", 35, 4},
+			},
+		},
 	}
 )

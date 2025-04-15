@@ -128,6 +128,6 @@ func renderPokemonTeam(params map[string]string) (rend string) {
 		rend += renderTeam(team, params, -1) + nl
 		rend += md.Link("Validate swap", txlink.Call("SwapTeam", "team", team)) + nl
 	}
-	rend += md.Link("Back to lobby", atm_path+":lobby?user="+params["user"])
+	rend += nl + md.Link("Back to lobby", atm_path+":lobby?user="+params["user"])
 	return
 }
