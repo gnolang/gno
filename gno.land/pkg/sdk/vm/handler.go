@@ -136,17 +136,16 @@ func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci
 	fsigs, err := vh.vm.QueryFuncs(ctx, pkgPath)
 	if err != nil {
 		return sdk.ABCIResponseQueryFromError(err)
-
 	}
 	res.Data = []byte(fsigs.JSON())
 	return
 }
 
-var reUser = regexp.MustCompile(`[\.~_a-zA-Z0-9]+`)
+var reUserNamespace = regexp.MustCompile(`[\.~_a-zA-Z0-9]+`)
 
 // queryPaths retrieves paginated package paths based on request data.
 func (vh vmHandler) queryPaths(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	if !reUser.Match(req.Data) {
+	if !reUserNamespace.Match(req.Data) {
 		return sdk.ABCIResponseQueryFromError(
 			fmt.Errorf("invalid user namespace"),
 		)

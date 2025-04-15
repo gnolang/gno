@@ -18,6 +18,13 @@ cmp stdout bbb-qpaths.stdout.golden
 cmp stderr bbb-qpaths.stderr.golden
 
 gnokey query vm/qpaths --data "ccc"
+cmp stdout ccc-qpaths.stdout.golden
+cmp stderr ccc-qpaths.stderr.golden
+
+! gnokey query vm/qpaths --data ""
+cmp stdout empty-qpaths.stdout.golden
+cmp stderr empty-qpaths.stderr.golden
+
 
 
 -- main.gno --
@@ -36,5 +43,9 @@ gno.land/p/bbb/ccc
 -- bbb-qpaths.stderr.golden --
 -- ccc-qpaths.stdout.golden --
 height: 0
-data: gno.land/r/aaa/bbb/ccc
+data: 
 -- ccc-qpaths.stderr.golden --
+-- empty-qpaths.stderr.golden --
+"gnokey" error: invalid user namespace
+-- empty-qpaths.stdout.golden --
+Log: &errors.errorString{s:"invalid user namespace"}
