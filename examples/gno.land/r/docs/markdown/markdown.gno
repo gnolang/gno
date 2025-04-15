@@ -366,14 +366,20 @@ Create a form using the ±<gno-form>± tag and add inputs with ±<gno-input>±:
 
 ±±±markdown
 <gno-form>
+
   <gno-input name="name" placeholder="Enter your name" />
+
   <gno-input name="email" placeholder="Enter your email" />
+
 </gno-form>
 ±±±
 
 <gno-form>
+
   <gno-input name="name" placeholder="Enter your name" />
+
   <gno-input name="email" placeholder="Enter your email" />
+
 </gno-form>
 
 #### Form Structure
@@ -396,16 +402,22 @@ Create a form using the ±<gno-form>± tag and add inputs with ±<gno-input>±:
 1. **Simple Data Entry**
 ±±±markdown
 <gno-form>
+
   <gno-input name="username" placeholder="Enter username" />
+
   <gno-input name="message" placeholder="Type your message" />
+
 </gno-form>
 ±±±
 
 2. **Transaction Form**
 ±±±markdown
 <gno-form>
+
   <gno-input name="recipient" placeholder="Enter recipient address" />
+
   <gno-input name="amount" placeholder="Enter amount in ugnot" />
+  
 </gno-form>
 ±±±
 
