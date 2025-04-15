@@ -122,10 +122,11 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 	if cfg.DryRun || cfg.testSimulate {
 		res, err := SimulateTx(cli, bz)
 		hasError := err != nil || res.CheckTx.IsErr() || res.DeliverTx.IsErr()
-		if cfg.DryRun || hasError {
-			if cfg.DryRun { // we estmate the gas fee in dry run
-				err = estimateGasFee(cli, res)
-			}
+		if hasError {
+			return res, err
+		}
+		if cfg.DryRun { // we estmate the gas fee in dry run
+			err = estimateGasFee(cli, res)
 			return res, err
 		}
 	}
