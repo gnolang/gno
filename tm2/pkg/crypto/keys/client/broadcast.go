@@ -150,15 +150,17 @@ func estimateGasFee(cli client.ABCIClient, bres *ctypes.ResultBroadcastTxCommit)
 		return errors.Wrap(err, "unmarshaling query gas price result")
 	}
 
-	if gp.Gas != 0 {
-		fee := bres.DeliverTx.GasUsed/gp.Gas + 1
-		fee = overflow.Mulp(fee, gp.Price.Amount)
-		// 5% fee buffer to cover the suden change of gas price
-		feeBuffer := overflow.Mulp(fee, 5) / 100
-		fee = overflow.Addp(fee, feeBuffer)
-		s := fmt.Sprintf("estimated gas usage: %d, gas fee: %d%s, current gas price: %s\n", bres.DeliverTx.GasUsed, fee, gp.Price.Denom, gp.String())
-		bres.DeliverTx.Info = s
+	if gp.Gas == 0 {
+		return nil
 	}
+
+	fee := bres.DeliverTx.GasUsed/gp.Gas + 1
+	fee = overflow.Mulp(fee, gp.Price.Amount)
+	// 5% fee buffer to cover the suden change of gas price
+	feeBuffer := overflow.Mulp(fee, 5) / 100
+	fee = overflow.Addp(fee, feeBuffer)
+	s := fmt.Sprintf("estimated gas usage: %d, gas fee: %d%s, current gas price: %s\n", bres.DeliverTx.GasUsed, fee, gp.Price.Denom, gp.String())
+	bres.DeliverTx.Info = s
 	return nil
 }
 
