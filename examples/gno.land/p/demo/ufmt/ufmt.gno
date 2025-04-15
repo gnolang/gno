@@ -414,10 +414,16 @@ func writeInt(p *printer, verb rune, arg any) {
 	default:
 		subBuf = fallback(verb, v)
 	}
-	if p.meta.flags&flagSpace != 0 {
-		subBuf = strings.Repeat(" ", int(math.Max(0, float64(int(p.meta.padding)-len(subBuf))))) + subBuf
-	} else if p.meta.flags&flagZero != 0 {
-		subBuf = strings.Repeat("0", int(math.Max(0, float64(int(p.meta.padding)-len(subBuf))))) + subBuf
+	paddingCount := int(p.meta.padding) - len(subBuf)
+if paddingCount < 0 {
+    paddingCount = 0
+}
+
+if p.meta.flags&flagSpace != 0 {
+    subBuf = strings.Repeat(" ", paddingCount) + subBuf
+} else if p.meta.flags&flagZero != 0 {
+    subBuf = strings.Repeat("0", paddingCount) + subBuf
+}
 	}
 	p.buf.writeString(subBuf)
 }
