@@ -99,25 +99,27 @@ func (p *printer) parse(runes []rune, index *int) {
 	stop := false
 	for {
 		x, ok := c2f[runes[*index]]
+		strRunes := string(runes[*index:])
+		oldLen := len(strRunes)
 		switch {
 		case ok:
 			p.meta.flags |= x
 			*index++
 		case unicode.IsNumber(runes[*index]):
-			n, rest := strtoi(string(runes[*index:]))
-			if rest == string(runes) {
+			n, rest := strtoi(strRunes)
+			if rest == strRunes {
 				continue
 			}
 			p.meta.padding = uint(n)
-			*index += len(strconv.Itoa(n))
+			*index += oldLen - len(rest)
 		case runes[*index] == '.':
 			*index++
-			n, rest := strtoi(string(runes[*index:]))
+			n, rest := strtoi(strRunes)
 			p.meta.precision = n // 0 by default, not an error
-			if rest == string(runes[*index:]) {
+			if rest == strRunes {
 				continue
 			}
-			*index += len(strconv.Itoa(n))
+			*index += oldLen - len(rest)
 		default:
 			stop = true
 		}
