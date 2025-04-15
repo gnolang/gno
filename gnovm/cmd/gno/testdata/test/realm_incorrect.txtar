@@ -19,7 +19,7 @@ package xx
 var x int
 
 func main() {
-	switchrealm()
+	crossing()
 
 	x = 1
 }

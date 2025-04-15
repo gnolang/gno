@@ -10,14 +10,14 @@ type Struct struct {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	a := 1
 	s := &Struct{A: 100}
-	withswitch(crossrealm_b.SetClosure)(func() {})
-	withswitch(crossrealm_b.SetObject)(&a)
-	//withswitch(crossrealm_b.SetObject)(&s.A)
-	//withswitch(crossrealm_b.SetObject)(func() { &s.A })
+	cross(crossrealm_b.SetClosure)(func() {})
+	cross(crossrealm_b.SetObject)(&a)
+	//cross(crossrealm_b.SetObject)(&s.A)
+	//cross(crossrealm_b.SetObject)(func() { &s.A })
 	s.A = 123
 	println(s, a)
 }

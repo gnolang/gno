@@ -32,7 +32,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	b[0] = nil
 	b[1] = nil

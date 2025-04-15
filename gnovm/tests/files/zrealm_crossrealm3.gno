@@ -13,7 +13,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	// NOTE: it is also valid to modify it using an external realm function.
 	somevalue.Modify()

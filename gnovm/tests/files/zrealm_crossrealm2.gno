@@ -13,10 +13,10 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	// NOTE: but it is invalid to modify it using an external realm function.
-	withswitch(tests.ModifyTestRealmObject)(&somevalue)
+	cross(tests.ModifyTestRealmObject)(&somevalue)
 	println(somevalue)
 }
 

@@ -318,14 +318,14 @@ func (x IfStmt) String() string {
 	then := x.Then.String()
 	els_ := x.Else.String()
 	if x.Else.Body == nil {
-		return fmt.Sprintf("if %s%s { %s }", init, cond, then)
+		return fmt.Sprintf("if %s%s %s", init, cond, then)
 	}
-	return fmt.Sprintf("if %s%s { %s } else { %s }",
+	return fmt.Sprintf("if %s%s %s else %s",
 		init, cond, then, els_)
 }
 
 func (x IfCaseStmt) String() string {
-	return x.Body.String()
+	return "{ " + x.Body.String() + " }"
 }
 
 func (x IncDecStmt) String() string {

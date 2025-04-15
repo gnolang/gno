@@ -6,14 +6,14 @@ import (
 )
 
 func main() {
-	switchrealm()
+	crossing()
 
-	println("test1", withswitch(tests.CurrentRealmPath)())
+	println("test1", cross(tests.CurrentRealmPath)())
 	func() {
-		println("test2", withswitch(tests.CurrentRealmPath)())
+		println("test2", cross(tests.CurrentRealmPath)())
 	}()
 	x := tests.CurrentRealmPath
-	println("test3", withswitch(x)())
+	println("test3", cross(x)())
 }
 
 // Output:

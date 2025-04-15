@@ -10,7 +10,7 @@ var (
 )
 
 func main() {
-	switchrealm()
+	crossing()
 
 	println(realmAddr)
 }

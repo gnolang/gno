@@ -7,23 +7,23 @@ import (
 )
 
 func main() {
-	switchrealm()
+	crossing()
 
 	f := crossrealm_b.Fooer
-	withswitch(crossrealm.SetFooerGetter)(func() crossrealm.Fooer { return f })
-	withswitch(crossrealm.CallFooerGetterFooSR2)()
+	cross(crossrealm.SetFooerGetter)(func() crossrealm.Fooer { return f })
+	cross(crossrealm.CallFooerGetterFooSR2)()
 	f.SetS("B")
-	withswitch(crossrealm.CallFooerGetterFooSR2)()
+	cross(crossrealm.CallFooerGetterFooSR2)()
 	println(".")
 
 	f.SetS("C")
-	withswitch(crossrealm.SetFooerGetter)(crossrealm_b.FooerGetter)
-	withswitch(crossrealm.CallFooerGetterFooSR2)()
+	cross(crossrealm.SetFooerGetter)(crossrealm_b.FooerGetter)
+	cross(crossrealm.CallFooerGetterFooSR2)()
 	println(".")
 
 	f.SetS("D")
-	withswitch(crossrealm.SetFooerGetter)(crossrealm_b.FooerGetterBuilder())
-	withswitch(crossrealm.CallFooerGetterFooSR2)()
+	cross(crossrealm.SetFooerGetter)(crossrealm_b.FooerGetterBuilder())
+	cross(crossrealm.CallFooerGetterFooSR2)()
 	println(".")
 }
 
@@ -96,7 +96,7 @@ func main() {
 //         "@type": "/gno.RefNode",
 //         "BlockNode": null,
 //         "Location": {
-//             "Column": "40",
+//             "Column": "35",
 //             "File": "files/zrealm_crossrealm22.gno",
 //             "Line": "13",
 //             "PkgPath": "gno.land/r/crossrealm_test"
@@ -137,7 +137,7 @@ func main() {
 //     +        },
 //     +        "V": {
 //     +            "@type": "/gno.RefValue",
-//     +            "Hash": "01155485b2a5136755b04d3262c4571fe2d19fdd",
+//     +            "Hash": "96fa7ba7744e6e490ac43c0d656e11e09f3e9450",
 //     +            "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:28"
 //              }
 //          }
@@ -204,7 +204,7 @@ func main() {
 //              },
 //              "V": {
 //                  "@type": "/gno.RefValue",
-//     -            "Hash": "01155485b2a5136755b04d3262c4571fe2d19fdd",
+//     -            "Hash": "96fa7ba7744e6e490ac43c0d656e11e09f3e9450",
 //     -            "ObjectID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:28"
 //     +            "Escaped": true,
 //     +            "ObjectID": "0edc46caf30c00efd87b6c272673239eafbd051e:7"

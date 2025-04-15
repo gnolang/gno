@@ -90,22 +90,22 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 	// NOTE: keep in sync with stdlibs/std.getRealm
 
 	var (
-		ctx      = m.Context.(*TestExecContext)
-		switches int                        // track realm withswitches
-		lfr      *gno.Frame = m.LastFrame() // last call frame
+		ctx     = m.Context.(*TestExecContext)
+		crosses int                        // track realm crosses
+		lfr     *gno.Frame = m.LastFrame() // last call frame
 	)
 
 	for i := m.NumFrames() - 1; i >= 0; i-- {
 		fr := m.Frames[i]
 
-		// Skip over (non-realm) non-withswitches.
-		// Override implies withswitch.
+		// Skip over (non-realm) non-crosses.
+		// Override implies cross.
 		override, overridden := ctx.RealmFrames[m.Frames[i]]
 		if !overridden {
 			if !fr.IsCall() {
 				continue
 			}
-			if !fr.WithSwitch {
+			if !fr.WithCross {
 				lfr = fr
 				continue
 			}
@@ -113,16 +113,16 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 
 		// Sanity check XXX move check elsewhere
 		if !overridden {
-			if !fr.DidSwitch {
+			if !fr.DidCross {
 				panic(fmt.Sprintf(
-					"withswitch(fn) but fn didn't call switchrealm(): %s.%s",
+					"cross(fn) but fn didn't call crossing(): %s.%s",
 					fr.Func.PkgPath,
 					fr.Func.String()))
 			}
 		}
 
-		switches++
-		if switches > height {
+		crosses++
+		if crosses > height {
 			if overridden {
 				caller, pkgPath := override.Addr, override.PkgPath
 				return string(caller), pkgPath
@@ -135,7 +135,7 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 		lfr = fr
 	}
 
-	if switches != height {
+	if crosses != height {
 		m.Panic(typedString("frame not found"))
 	}
 

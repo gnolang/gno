@@ -45,7 +45,7 @@ func printEvents(events []*Event) {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	DelEvent("event2")
 	InsertEvent("event1.5")

@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	switchrealm()
+	crossing()
 
 	println("test1", tests.CurrentRealmPath())
 	func() {

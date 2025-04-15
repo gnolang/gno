@@ -861,18 +861,20 @@ func (m *Machine) doOpTypeSwitch() {
 		if match { // did match
 			if len(cs.Body) != 0 {
 				b := m.LastBlock()
+				// remember size (from init)
+				size := len(b.Values)
+				// expand block size
+				b.ExpandWith(m.Alloc, cs)
 				// define if varname
 				if ss.VarName != "" {
-					// NOTE: assumes the var is first in block.
+					// NOTE: assumes the var is first after size.
 					vp := NewValuePath(
-						VPBlock, 1, 0, ss.VarName)
+						VPBlock, 1, uint16(size), ss.VarName)
 					// NOTE: GetPointerToMaybeHeapDefine not needed,
 					// because this type is in new type switch clause block.
 					ptr := b.GetPointerTo(m.Store, vp)
 					ptr.TV.Assign(m.Alloc, *xv, false)
 				}
-				// expand block size
-				b.ExpandWith(m.Alloc, cs)
 				// exec clause body
 				b.bodyStmt = bodyStmt{
 					Body:          cs.Body,

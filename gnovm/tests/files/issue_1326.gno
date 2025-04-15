@@ -11,7 +11,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	println(Delta())
 }

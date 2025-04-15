@@ -16,7 +16,7 @@ package xx
 var x int
 
 func main() {
-	switchrealm()
+	crossing()
 
 	x = 1
 }
@@ -30,7 +30,7 @@ package xx
 var x int
 
 func main() {
-	switchrealm()
+	crossing()
 
 	x = 1
 }

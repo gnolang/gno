@@ -38,7 +38,6 @@ func TestEmit(t *testing.T) {
 				{
 					Type:    "test",
 					PkgPath: "emit_test",
-					Func:    "main",
 					Attributes: []GnoEventAttribute{
 						{Key: "key1", Value: "value1"},
 						{Key: "key2", Value: "value2"},
@@ -61,7 +60,6 @@ func TestEmit(t *testing.T) {
 				{
 					Type:    "test",
 					PkgPath: "emit_test",
-					Func:    "main",
 					Attributes: []GnoEventAttribute{
 						{Key: "key1", Value: ""},
 						{Key: "key2", Value: "value2"},
@@ -78,7 +76,6 @@ func TestEmit(t *testing.T) {
 				{
 					Type:    "",
 					PkgPath: "emit_test",
-					Func:    "main",
 					Attributes: []GnoEventAttribute{
 						{Key: "key1", Value: "value1"},
 						{Key: "key2", Value: "value2"},
@@ -95,7 +92,6 @@ func TestEmit(t *testing.T) {
 				{
 					Type:    "test",
 					PkgPath: "emit_test",
-					Func:    "main",
 					Attributes: []GnoEventAttribute{
 						{Key: "", Value: "value1"},
 						{Key: "key2", Value: "value2"},
@@ -159,7 +155,6 @@ func TestEmit_MultipleEvents(t *testing.T) {
 		{
 			Type:    "test1",
 			PkgPath: "emit_test",
-			Func:    "main",
 			Attributes: []GnoEventAttribute{
 				{Key: "key1", Value: "value1"},
 				{Key: "key2", Value: "value2"},
@@ -168,7 +163,6 @@ func TestEmit_MultipleEvents(t *testing.T) {
 		{
 			Type:    "test2",
 			PkgPath: "emit_test",
-			Func:    "main",
 			Attributes: []GnoEventAttribute{
 				{Key: "key3", Value: "value3"},
 				{Key: "key4", Value: "value4"},

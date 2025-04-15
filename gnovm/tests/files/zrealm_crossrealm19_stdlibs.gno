@@ -20,12 +20,12 @@ var f *fooer
 
 func init() {
 	f = &fooer{s: "A"}
-	withswitch(crossrealm.SetFooer)(f)
+	cross(crossrealm.SetFooer)(f)
 	crossrealm.CallFooerFoo()
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	print(".")
 }

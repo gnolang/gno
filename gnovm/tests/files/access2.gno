@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	switchrealm()
+	crossing()
 
 	testutils.TestVar1 += 1
 	println(testutils.TestVar1)

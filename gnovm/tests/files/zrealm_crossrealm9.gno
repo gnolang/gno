@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	switchrealm()
+	crossing()
 
 	tests.SomeValue2.Field = "modified"
 	println("done")

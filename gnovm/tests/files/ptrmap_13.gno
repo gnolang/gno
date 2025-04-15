@@ -15,7 +15,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	println(m[s[myStruct.Index]])
 }

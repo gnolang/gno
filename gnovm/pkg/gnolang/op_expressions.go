@@ -662,10 +662,10 @@ func (m *Machine) doOpFuncLit() {
 		// it must be in the form of:
 		// {T:heapItemType{},V:HeapItemValue{...}}
 		if _, ok := ptr.TV.T.(heapItemType); !ok {
-			panic("should not happen, should be heapItemType")
+			panic("should not happen, should be heapItemType: " + nx.String())
 		}
 		if _, ok := ptr.TV.V.(*HeapItemValue); !ok {
-			panic("should not happen, should be heapItemValue")
+			panic("should not happen, should be heapItemValue: " + nx.String())
 		}
 		captures = append(captures, *ptr.TV)
 	}

@@ -14,7 +14,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	b = a
 }

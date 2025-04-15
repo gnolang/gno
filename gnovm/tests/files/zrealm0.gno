@@ -4,7 +4,7 @@ package test
 var root any
 
 func main() {
-	switchrealm()
+	crossing()
 
 	println(root)
 	root = 1

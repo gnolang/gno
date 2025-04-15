@@ -7,17 +7,17 @@ import (
 )
 
 func main() {
-	switchrealm()
+	crossing()
 
 	PrintRealm()
 	println(pad("CurrentRealm:"), std.CurrentRealm())
 	println(pad("PreviousRealm:"), std.PreviousRealm())
 	testing.SetRealm(std.NewUserRealm("g1user"))
-	withswitch(PrintRealm)()
+	cross(PrintRealm)()
 	println(pad("CurrentRealm:"), std.CurrentRealm())
 	println(pad("PreviousRealm:"), std.PreviousRealm())
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/sys/users"))
-	withswitch(PrintRealm)()
+	cross(PrintRealm)()
 	println(pad("CurrentRealm:"), std.CurrentRealm())
 	println(pad("PreviousRealm:"), std.PreviousRealm())
 }
@@ -30,7 +30,7 @@ func pad(s string) string {
 }
 
 func PrintRealm() {
-	switchrealm()
+	crossing()
 
 	println(pad("PrintRealm: CurrentRealm:"), std.CurrentRealm())
 	println(pad("PrintRealm: PreviousRealm:"), std.PreviousRealm())

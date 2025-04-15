@@ -4,7 +4,7 @@ package const_test
 import "std"
 
 func main() {
-	switchrealm()
+	crossing()
 
 	println(std.RawAddressSize)
 }

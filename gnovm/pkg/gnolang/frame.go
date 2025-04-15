@@ -29,8 +29,8 @@ type Frame struct {
 	Defers      []Defer       // deferred calls
 	LastPackage *PackageValue // previous frame's package
 	LastRealm   *Realm        // previous frame's realm
-	WithSwitch  bool          // true if called like withswitch(fn)(...). expects switchrealm() after.
-	DidSwitch   bool          // true if switchrealm() was called.
+	WithCross   bool          // true if called like cross(fn)(...). expects crossing() after.
+	DidCross    bool          // true if crossing() was called.
 
 	Popped bool // true if frame has been popped
 }
@@ -48,8 +48,8 @@ func (fr Frame) String() string {
 			fr.NumBlocks,
 			fr.LastPackage.PkgPath,
 			fr.LastRealm,
-			fr.WithSwitch,
-			fr.DidSwitch)
+			fr.WithCross,
+			fr.DidCross)
 	} else {
 		return fmt.Sprintf("[FRAME LABEL: %s %d/%d/%d/%d/%d]",
 			fr.Label,
@@ -78,18 +78,18 @@ func (fr *Frame) PopDefer() (res Defer, ok bool) {
 	return
 }
 
-func (fr *Frame) SetWithSwitch() {
-	if fr.WithSwitch {
-		panic("fr.WithSwitch already set")
+func (fr *Frame) SetWithCross() {
+	if fr.WithCross {
+		panic("fr.WithCross already set")
 	}
-	fr.WithSwitch = true
+	fr.WithCross = true
 }
 
-func (fr *Frame) SetDidSwitch() {
-	if fr.DidSwitch {
-		panic("fr.DidSwitch already set")
+func (fr *Frame) SetDidCross() {
+	if fr.DidCross {
+		panic("fr.DidCross already set")
 	}
-	fr.DidSwitch = true
+	fr.DidCross = true
 }
 
 //----------------------------------------

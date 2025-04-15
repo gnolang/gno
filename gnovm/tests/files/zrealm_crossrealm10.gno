@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	switchrealm()
+	crossing()
 
 	tests.ModifyTestRealmObject2c()
 	println("done")

@@ -17,7 +17,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	i2 := *i1
 	println(m[&i2] == "")

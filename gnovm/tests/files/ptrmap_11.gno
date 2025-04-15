@@ -13,7 +13,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	println(m[S[index]]) // Output: first key
 	println(m[S[1]] == "")

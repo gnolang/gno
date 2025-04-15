@@ -12,7 +12,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	var updated bool
 	updated = tree.Set("key2", "value2")

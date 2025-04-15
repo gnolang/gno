@@ -21,7 +21,7 @@ func init() {
 }
 
 func main() {
-	switchrealm()
+	crossing()
 
 	root = InnerNode{
 		Key: "new",

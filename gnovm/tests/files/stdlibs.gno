@@ -4,7 +4,7 @@ package test
 import "time"
 
 func main() {
-	switchrealm()
+	crossing()
 
 	println(time.UTC == nil)
 	time.UTC = nil
