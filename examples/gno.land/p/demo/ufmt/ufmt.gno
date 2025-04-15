@@ -92,18 +92,27 @@ func ptrForward(ptr *int, runes []rune, inc int) {
 	*ptr += inc
 }
 
+var c2f = map[rune]uint8{
+	'-': flagMinus,
+	'+': flagPlus,
+	' ': flagSpace,
+	'0': flagZero,
+}
+
+var lenMap = map[string]uint8{
+	"ll": lenLL,
+	"l":  lenL,
+	"h":  lenH,
+	"hh": lenHH,
+	"z":  lenZ,
+}
+
 // parse the flags
 func (p *printer) parse(runes []rune, index *int) {
 	ptrForward(index, runes, 1)
 	if runes[*index] == '#' {
 		p.meta.flags |= flagHashtag
 		ptrForward(index, runes, 1)
-	}
-	c2f := map[rune]uint8{
-		'-': flagMinus,
-		'+': flagPlus,
-		' ': flagSpace,
-		'0': flagZero,
 	}
 	stop := false
 	for {
@@ -136,13 +145,7 @@ func (p *printer) parse(runes []rune, index *int) {
 			break
 		}
 	}
-	for k, v := range map[string]uint8{
-		"ll": lenLL,
-		"l":  lenL,
-		"h":  lenH,
-		"hh": lenHH,
-		"z":  lenZ,
-	} {
+	for k, v := range lenMap {
 		if string(runes[*index:*index+len(k)-1]) == k {
 			p.meta.length = v
 			ptrForward(index, runes, len(k))

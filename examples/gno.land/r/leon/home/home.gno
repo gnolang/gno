@@ -71,7 +71,7 @@ func renderAboutMe() string {
 		ufmt.Sprintf("![my profile pic](%s)\n\n%s\n", pfp, pfpCaption),
 		abtMe[0],
 		abtMe[1],
-	})
+	}) + ufmt.Sprintf("hello world %.2f\n\n", 3.1415)
 }
 
 func renderArt() string {
