@@ -869,28 +869,22 @@ func (ds *defaultStore) GetMemFile(path string, name string) *gnovm.MemFile {
 // FindPathsByPrefix retrieves all paths starting with the given prefix.
 func (ds *defaultStore) FindPathsByPrefix(prefix string) []string {
 	startKey := []byte(backendPackagePathKey(prefix))
-	endKey := incrementLastByte(startKey)
 
-	var paths []string
+	// create endkey by incrementing last byte of startkey
+	endKey := make([]byte, len(startKey))
+	copy(endKey, startKey)
+	endKey[len(endKey)-1]++
+
 	iter := ds.iavlStore.Iterator(startKey, endKey)
 	defer iter.Close()
 
+	var paths []string
 	for ; iter.Valid(); iter.Next() {
 		path := decodeBackendPackagePathKey(string(iter.Key()))
 		paths = append(paths, path)
 	}
 
 	return paths
-}
-
-func incrementLastByte(b []byte) []byte {
-	if len(b) == 0 {
-		return nil
-	}
-	newKey := make([]byte, len(b))
-	copy(newKey, b)
-	newKey[len(newKey)-1]++
-	return newKey
 }
 
 func (ds *defaultStore) IterMemPackage() <-chan *gnovm.MemPackage {
