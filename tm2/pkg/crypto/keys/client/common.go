@@ -2,6 +2,9 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
+	"net/url"
+	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -32,4 +35,25 @@ func printJson(v any, io commands.IO) {
 	}
 
 	io.Println(string(res))
+}
+
+func generatePathQuery(path string, def url.Values) (string, error) {
+	path, query, _ := strings.Cut(path, "?")
+	values, err := url.ParseQuery(query)
+	if err != nil {
+		return "", fmt.Errorf("invalid path query %q: %w", query, err)
+	}
+
+	for k := range def {
+		if values.Has(k) {
+			continue
+		}
+		values.Set(k, def.Get(k))
+	}
+
+	if len(values) > 0 {
+		path = path + "?" + values.Encode() // generate path
+	}
+
+	return path, nil
 }

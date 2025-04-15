@@ -32,25 +32,25 @@ stdout 'Log:'
 stderr '"gnokey" error: unknown request error'
 
 ## succeed json call: string
-gnokey -json query vm/qeval/json -data "gno.land/r/dev/silo.Hello(\"juliette\")"
+gnokey -json query vm/qeval -data "gno.land/r/dev/silo.Hello(\"juliette\")"
 cmp stdout gnokey-json-call-string.stdout.golden
 cmp stderr gnokey-json-call-string.stderr.golden
 
 
 ## succeed json call: error
-gnokey -json query vm/qeval/json -data "gno.land/r/dev/silo.Hello(\"bernard\")"
+gnokey -json query vm/qeval -data "gno.land/r/dev/silo.Hello(\"bernard\")"
 cmp stdout gnokey-json-call-error.stdout.golden
 cmp stderr gnokey-json-call-error.stderr.golden
 
 
 ## success json call: object
-gnokey -json query vm/qeval/json -data "gno.land/r/dev/silo.GetSilo()"
+gnokey -json query vm/qeval -data "gno.land/r/dev/silo.GetSilo()"
 cmp stdout gnokey-json-call-object.stdout.golden
 cmp stderr gnokey-json-call-object.stderr.golden
 
 
 ## success json call: []byte
-gnokey -json query vm/qeval/json -data "gno.land/r/dev/silo.GetSiloData()"
+gnokey -json query vm/qeval -data "gno.land/r/dev/silo.GetSiloData()"
 cmp stdout gnokey-json-call-bytes.stdout.golden
 cmp stderr gnokey-json-call-bytes.stderr.golden
 
@@ -88,7 +88,7 @@ func GetSiloData() []byte {
 	"response": {
 		"ResponseBase": {
 			"Error": null,
-			"Data": "WyJIZWxsbyBqdWxpZXR0ZSIsbnVsbF0=",
+			"Data": "W3siVCI6InN0cmluZyIsIlYiOiJIZWxsbyBqdWxpZXR0ZSJ9LHsiVCI6bnVsbCwiViI6bnVsbH1d",
 			"Events": null,
 			"Log": "",
 			"Info": ""
@@ -99,8 +99,14 @@ func GetSiloData() []byte {
 		"Height": "0"
 	},
 	"data": [
-		"Hello juliette",
-		null
+		{
+			"T": "string",
+			"V": "Hello juliette"
+		},
+		{
+			"T": null,
+			"V": null
+		}
 	]
 }
 
@@ -110,7 +116,7 @@ func GetSiloData() []byte {
 	"response": {
 		"ResponseBase": {
 			"Error": null,
-			"Data": "WyIiLHsiJGVycm9yIjoibm90IGZvciB5b3UgYmVybmFyZCEifV0=",
+			"Data": "W3siVCI6InN0cmluZyIsIlYiOiIifSx7IkBlcnJvciI6Im5vdCBmb3IgeW91IGJlcm5hcmQhIn1d",
 			"Events": null,
 			"Log": "",
 			"Info": ""
@@ -121,9 +127,12 @@ func GetSiloData() []byte {
 		"Height": "0"
 	},
 	"data": [
-		"",
 		{
-			"$error": "not for you bernard!"
+			"T": "string",
+			"V": ""
+		},
+		{
+			"@error": "not for you bernard!"
 		}
 	]
 }
@@ -134,7 +143,7 @@ func GetSiloData() []byte {
 	"response": {
 		"ResponseBase": {
 			"Error": null,
-			"Data": "WyIiLHsiJGVycm9yIjoibm90IGZvciB5b3UgYmVybmFyZCEifV0=",
+			"Data": "W3siVCI6InN0cmluZyIsIlYiOiIifSx7IkBlcnJvciI6Im5vdCBmb3IgeW91IGJlcm5hcmQhIn1d",
 			"Events": null,
 			"Log": "",
 			"Info": ""
@@ -145,9 +154,12 @@ func GetSiloData() []byte {
 		"Height": "0"
 	},
 	"data": [
-		"",
 		{
-			"$error": "not for you bernard!"
+			"T": "string",
+			"V": ""
+		},
+		{
+			"@error": "not for you bernard!"
 		}
 	]
 }
@@ -158,7 +170,7 @@ func GetSiloData() []byte {
 	"response": {
 		"ResponseBase": {
 			"Error": null,
-			"Data": "W3siJHR5cGUiOiIqZ25vLmxhbmQvci9kZXYvc2lsby5TaWxvIiwiJG9pZCI6IjZhZWQyZWRhNzJjNzllNDExZWVjMWVhN2Y2NjFjNWUzMDM4M2ZiNTk6MiJ9XQ==",
+			"Data": "W3siVCI6Iipnbm8ubGFuZC9yL2Rldi9zaWxvLlNpbG8iLCJWIjoiNmFlZDJlZGE3MmM3OWU0MTFlZWMxZWE3ZjY2MWM1ZTMwMzgzZmI1OToyIn1d",
 			"Events": null,
 			"Log": "",
 			"Info": ""
@@ -170,8 +182,8 @@ func GetSiloData() []byte {
 	},
 	"data": [
 		{
-			"$type": "*gno.land/r/dev/silo.Silo",
-			"$oid": "6aed2eda72c79e411eec1ea7f661c5e30383fb59:2"
+			"T": "*gno.land/r/dev/silo.Silo",
+			"V": "6aed2eda72c79e411eec1ea7f661c5e30383fb59:2"
 		}
 	]
 }
@@ -182,7 +194,7 @@ func GetSiloData() []byte {
 	"response": {
 		"ResponseBase": {
 			"Error": null,
-			"Data": "WyJjMlZqY21WMElHMWxjM05oWjJVPSJd",
+			"Data": "W3siVCI6IltddWludDgiLCJWIjoiYzJWamNtVjBJRzFsYzNOaFoyVT0ifV0=",
 			"Events": null,
 			"Log": "",
 			"Info": ""
@@ -193,7 +205,10 @@ func GetSiloData() []byte {
 		"Height": "0"
 	},
 	"data": [
-		"c2VjcmV0IG1lc3NhZ2U="
+		{
+			"T": "[]uint8",
+			"V": "c2VjcmV0IG1lc3NhZ2U="
+		}
 	]
 }
 

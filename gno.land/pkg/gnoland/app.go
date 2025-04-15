@@ -445,7 +445,7 @@ func EndBlocker(
 
 		// Run the VM to get the updates from the chain
 		response, err := vmk.QueryEval(ctx,
-			vm.EvalCfg{
+			vm.QueryMsgEval{
 				PkgPath: valRealm,
 				Expr:    fmt.Sprintf("%s(%d)", valChangesFn, app.LastBlockHeight()),
 				Format:  vm.QueryFormatMachine,

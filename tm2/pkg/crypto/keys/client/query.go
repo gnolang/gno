@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net/url"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
@@ -86,6 +87,16 @@ func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 		return nil, errors.New("missing remote url")
 	}
 
+	defaultValues := url.Values{}
+	if cfg.RootCfg.Json {
+		defaultValues.Set("format", "json")
+	}
+
+	path, err := generatePathQuery(cfg.Path, defaultValues)
+	if err != nil {
+		return nil, errors.Wrap(err, "generate path query error")
+	}
+
 	data := []byte(cfg.Data)
 	opts2 := client.ABCIQueryOptions{
 		// Height: height, XXX
@@ -97,7 +108,7 @@ func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 	}
 
 	qres, err := cli.ABCIQueryWithOptions(
-		cfg.Path, data, opts2)
+		path, data, opts2)
 	if err != nil {
 		return nil, errors.Wrap(err, "querying")
 	}

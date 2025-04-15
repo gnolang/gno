@@ -46,8 +46,8 @@ const (
 type VMKeeperI interface {
 	AddPackage(ctx sdk.Context, msg MsgAddPackage) error
 	Call(ctx sdk.Context, msg MsgCall) (res string, err error)
-	QueryEval(ctx sdk.Context, cfg EvalCfg) (res string, err error)
 	Run(ctx sdk.Context, msg MsgRun) (res string, err error)
+	QueryEval(ctx sdk.Context, msg QueryMsgEval) (res string, err error)
 	LoadStdlib(ctx sdk.Context, stdlibDir string)
 	LoadStdlibCached(ctx sdk.Context, stdlibDir string)
 	MakeGnoTransactionStore(ctx sdk.Context) sdk.Context
@@ -735,27 +735,21 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 	return fsigs, nil
 }
 
-type EvalCfg struct {
-	Expr    string
-	PkgPath string
-	Format  QueryFormat
-}
-
 // QueryEval evaluates a gno expression (readonly, for ABCI queries).
-func (vm *VMKeeper) QueryEval(ctx sdk.Context, cfg EvalCfg) (res string, err error) {
+func (vm *VMKeeper) QueryEval(ctx sdk.Context, msg QueryMsgEval) (res string, err error) {
 	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
 	alloc := gno.NewAllocator(maxAllocQuery)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 
 	// Get Package.
-	pv := gnostore.GetPackage(cfg.PkgPath, false)
+	pv := gnostore.GetPackage(msg.PkgPath, false)
 	if pv == nil {
 		err = ErrInvalidPkgPath(fmt.Sprintf(
-			"package not found: %s", cfg.PkgPath))
+			"package not found: %s", msg.PkgPath))
 		return "", err
 	}
 	// Parse expression.
-	xx, err := gno.ParseExpr(cfg.Expr)
+	xx, err := gno.ParseExpr(msg.Expr)
 	if err != nil {
 		return "", err
 	}
@@ -775,7 +769,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, cfg EvalCfg) (res string, err err
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:  cfg.PkgPath,
+			PkgPath:  msg.PkgPath,
 			Output:   vm.Output,
 			Store:    gnostore,
 			Context:  msgCtx,
@@ -787,7 +781,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, cfg EvalCfg) (res string, err err
 	defer doRecoverQuery(m, &err)
 
 	rtvs := m.Eval(xx)
-	return stringifyResultValues(m, cfg.Format, rtvs), nil
+	return stringifyResultValues(m, msg.Format, rtvs), nil
 }
 
 func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err error) {

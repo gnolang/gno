@@ -2,11 +2,11 @@ package vm
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/version"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -97,19 +97,23 @@ const (
 	QueryDoc    = "qdoc"
 )
 
-func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQuery {
-	var (
-		res  abci.ResponseQuery
-		path = secondPart(req.Path)
-	)
+func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	path, query, _ := strings.Cut(req.Path, "?")
 
-	switch path {
+	switch path2 := secondPart(path); path2 {
 	case QueryRender:
 		res = vh.queryRender(ctx, req)
 	case QueryFuncs:
 		res = vh.queryFuncs(ctx, req)
 	case QueryEval:
-		res = vh.queryEval(ctx, req)
+		values, err := url.ParseQuery(query)
+		if err != nil {
+			return sdk.ABCIResponseQueryFromError(
+				fmt.Errorf("invalid query params: %w", err),
+			)
+		}
+
+		res = vh.queryEval(ctx, req, values)
 	case QueryFile:
 		res = vh.queryFile(ctx, req)
 	case QueryDoc:
@@ -138,7 +142,7 @@ func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abc
 	expr := fmt.Sprintf("Render(%q)", path)
 
 	// Try evaluate `Render` function
-	result, err := vh.vm.QueryEval(ctx, EvalCfg{Expr: expr, PkgPath: pkgPath, Format: QueryFormatString})
+	result, err := vh.vm.QueryEval(ctx, QueryMsgEval{Expr: expr, PkgPath: pkgPath, Format: QueryFormatString})
 	if err != nil {
 		if strings.Contains(err.Error(), "Render not declared") {
 			err = NoRenderDeclError{}
@@ -163,18 +167,13 @@ func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci
 	return
 }
 
-// queryEval evaluates any expression in readonly mode and returns the results based on the given format.
-func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	var format QueryFormat
-	switch ss := strings.Split(req.Path, "/"); len(ss) {
-	case 2:
+// queryEval evaluates any expression in readonly mode and returns the results.
+func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery, values url.Values) (res abci.ResponseQuery) {
+	format := QueryFormat(values.Get("format"))
+	if format == "" {
 		format = QueryFormatDefault
-	case 3:
-		if format = QueryFormat(ss[2]); !format.Validate() {
-			return sdk.ABCIResponseQueryFromError(fmt.Errorf("invalid query result format %q", format))
-		}
-	default:
-		return sdk.ABCIResponseQueryFromError(errors.New("invalid query path"))
+	} else if !format.Validate() {
+		return sdk.ABCIResponseQueryFromError(fmt.Errorf("invalid query result format %q", format))
 	}
 
 	pkgpath, expr := parseQueryEvalData(string(req.Data))
@@ -182,7 +181,7 @@ func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.
 		return sdk.ABCIResponseQueryFromError(fmt.Errorf("expr cannot be empty"))
 	}
 
-	result, err := vh.vm.QueryEval(ctx, EvalCfg{Expr: expr, PkgPath: pkgpath, Format: format})
+	result, err := vh.vm.QueryEval(ctx, QueryMsgEval{Expr: expr, PkgPath: pkgpath, Format: format})
 	if err != nil {
 		return sdk.ABCIResponseQueryFromError(err)
 	}
