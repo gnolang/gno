@@ -1391,10 +1391,7 @@ func fillTypesOfValue(store Store, val Value) Value {
 			fillTypesTV(store, &cur.Key)
 			fillTypesTV(store, &cur.Value)
 
-			if !cur.Key.IsNaN() {
-				// Only insert in vmap if the key is comparable.
-				cv.vmap[cur.Key.ComputeMapKey(store, false)] = cur
-			}
+			cv.vmap[cur.Key.ComputeMapKey(store, false)] = cur
 		}
 		return cv
 	case TypeValue:

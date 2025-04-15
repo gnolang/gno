@@ -5,11 +5,15 @@ import (
 	"math"
 )
 
-var NaN = float32(math.NaN())
-
 func main() {
-	fmt.Println(map[float32]int{NaN: 1, NaN: 2})
+	n0 := math.Float64frombits(1 << 63)
+	fmt.Println(n0)
+	m := map[float64]string{}
+	m[0] = "hey"
+	m[n0] = "world"
+	fmt.Println(m)
 }
 
 // Output:
-// map[NaN:1 NaN:2]
+// -0
+// map[-0:world]
