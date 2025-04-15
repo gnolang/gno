@@ -872,7 +872,7 @@ func (ds *defaultStore) FindPathsByPrefix(prefix string) []string {
 	endKey := incrementLastByte(startKey)
 
 	var paths []string
-	iter := p.iavlStore.Iterator(startKey, endKey)
+	iter := ds.iavlStore.Iterator(startKey, endKey)
 	defer iter.Close()
 
 	for ; iter.Valid(); iter.Next() {
