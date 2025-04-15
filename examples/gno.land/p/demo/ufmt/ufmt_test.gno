@@ -74,6 +74,7 @@ func TestSprintf(t *testing.T) {
 		{"float64 [%F]", []any{float64(64.1)}, "float64 [64.100000]"},
 		{"float64 [%g]", []any{float64(64.1)}, "float64 [64.1]"},
 		{"float64 [%G]", []any{float64(64.1)}, "float64 [64.1]"},
+		{"float64 [%.000001f]", []any{float64(64.1)}, "float64 [64.1]"},
 
 		// bool
 		{"bool [%t]", []any{true}, "bool [true]"},

@@ -82,13 +82,22 @@ func strtoi(s string) (int, string) {
 	return num, s[i:]
 }
 
-// parse the flags
+func ptrForward(ptr *int, runes []rune, inc int) {
+	if inc <= 0 {
+		return
+	}
+	if *ptr + inc > len(runes) {
+		return
+	}
+	*ptr += inc
+}
+
 // parse the flags
 func (p *printer) parse(runes []rune, index *int) {
-	*index++
+	ptrForward(index, runes, 1)
 	if runes[*index] == '#' {
 		p.meta.flags |= flagHashtag
-		*index++
+		ptrForward(index, runes, 1)
 	}
 	c2f := map[rune]uint8{
 		'-': flagMinus,
@@ -99,27 +108,27 @@ func (p *printer) parse(runes []rune, index *int) {
 	stop := false
 	for {
 		x, ok := c2f[runes[*index]]
-		strRunes := string(runes[*index:])
-		oldLen := len(strRunes)
 		switch {
 		case ok:
 			p.meta.flags |= x
-			*index++
+			ptrForward(index, runes, 1)
 		case unicode.IsNumber(runes[*index]):
+			strRunes := string(runes[*index:])
 			n, rest := strtoi(strRunes)
 			if rest == strRunes {
 				continue
 			}
 			p.meta.padding = uint(n)
-			*index += oldLen - len(rest)
+			ptrForward(index, runes, len(strRunes) - len(rest))
 		case runes[*index] == '.':
-			*index++
+			ptrForward(index, runes, 1)
+			strRunes := string(runes[*index:])
 			n, rest := strtoi(strRunes)
 			p.meta.precision = n // 0 by default, not an error
 			if rest == strRunes {
 				continue
 			}
-			*index += oldLen - len(rest)
+			ptrForward(index, runes, len(strRunes) - len(rest))
 		default:
 			stop = true
 		}
@@ -134,9 +143,9 @@ func (p *printer) parse(runes []rune, index *int) {
 		"hh": lenHH,
 		"z":  lenZ,
 	} {
-		if string(runes[*index:*index+len(k)]) == k {
+		if string(runes[*index:*index+len(k)-1]) == k {
 			p.meta.length = v
-			*index += len(k)
+			ptrForward(index, runes, len(k))
 			break
 		}
 	}
