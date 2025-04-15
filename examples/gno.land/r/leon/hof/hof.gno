@@ -13,7 +13,6 @@ import (
 	"gno.land/p/demo/pausable"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/moul/addrset"
-	"gno.land/r/leon/config"
 )
 
 const (
@@ -58,13 +57,15 @@ func init() {
 		itemsSortedByDownvotes: avl.NewTree(),
 	}
 
-	Ownable = ownable.NewWithAddress(config.OwnableMain.Owner()) // OrigSendOwnable?
-	Pausable = pausable.NewFromOwnable(Ownable)
+	//Ownable = ownable.NewWithAddress(config.OwnableMain.Owner()) // OrigSendOwnable?
+	//Pausable = pausable.NewFromOwnable(Ownable)
 }
 
 // Register registers your realm to the Hall of Fame
 // Should be called from within code
 func Register(title, description string) {
+	crossing()
+
 	if Pausable.IsPaused() {
 		return
 	}
@@ -111,81 +112,82 @@ func Register(title, description string) {
 	std.Emit("Registration")
 }
 
-func Upvote(pkgpath string) {
-	rawItem, ok := exhibition.items.Get(pkgpath)
-	if !ok {
-		panic(ErrNoSuchItem)
-	}
-
-	item := rawItem.(*Item)
-	caller := std.PreviousRealm().Address()
-
-	if item.upvote.Has(caller) {
-		panic(ErrDoubleUpvote)
-	}
-
-	if _, exists := exhibition.itemsSortedByUpvotes.Remove(getVoteSortKey(item.upvote.Size(), item.id)); !exists {
-		panic("error removing old upvote entry")
-	}
-
-	item.upvote.Add(caller)
-
-	exhibition.itemsSortedByUpvotes.Set(getVoteSortKey(item.upvote.Size(), item.id), item)
-}
-
-func Downvote(pkgpath string) {
-	rawItem, ok := exhibition.items.Get(pkgpath)
-	if !ok {
-		panic(ErrNoSuchItem)
-	}
-
-	item := rawItem.(*Item)
-	caller := std.PreviousRealm().Address()
-
-	if item.downvote.Has(caller) {
-		panic(ErrDoubleDownvote)
-	}
-
-	if _, exist := exhibition.itemsSortedByDownvotes.Remove(getVoteSortKey(item.downvote.Size(), item.id)); !exist {
-		panic("error removing old downvote entry")
-
-	}
-
-	item.downvote.Add(caller)
-
-	exhibition.itemsSortedByDownvotes.Set(getVoteSortKey(item.downvote.Size(), item.id), item)
-}
-
-func Delete(pkgpath string) {
-	if !Ownable.CallerIsOwner() {
-		panic(ownable.ErrUnauthorized)
-	}
-
-	i, ok := exhibition.items.Get(pkgpath)
-	if !ok {
-		panic(ErrNoSuchItem)
-	}
-
-	item := i.(*Item)
-	upvoteKey := getVoteSortKey(item.upvote.Size(), item.id)
-	downvoteKey := getVoteSortKey(item.downvote.Size(), item.id)
-
-	if _, removed := exhibition.items.Remove(pkgpath); !removed {
-		panic(ErrNoSuchItem)
-	}
-
-	if _, removed := exhibition.itemsSortedByUpvotes.Remove(upvoteKey); !removed {
-		panic(ErrNoSuchItem)
-	}
-
-	if _, removed := exhibition.itemsSortedByDownvotes.Remove(downvoteKey); !removed {
-		panic(ErrNoSuchItem)
-	}
-
-	if _, removed := exhibition.itemsSortedByCreation.Remove(getCreationSortKey(item.blockNum, item.id)); !removed {
-		panic(ErrNoSuchItem)
-	}
-}
+//
+//func Upvote(pkgpath string) {
+//	rawItem, ok := exhibition.items.Get(pkgpath)
+//	if !ok {
+//		panic(ErrNoSuchItem)
+//	}
+//
+//	item := rawItem.(*Item)
+//	caller := std.PreviousRealm().Address()
+//
+//	if item.upvote.Has(caller) {
+//		panic(ErrDoubleUpvote)
+//	}
+//
+//	if _, exists := exhibition.itemsSortedByUpvotes.Remove(getVoteSortKey(item.upvote.Size(), item.id)); !exists {
+//		panic("error removing old upvote entry")
+//	}
+//
+//	item.upvote.Add(caller)
+//
+//	exhibition.itemsSortedByUpvotes.Set(getVoteSortKey(item.upvote.Size(), item.id), item)
+//}
+//
+//func Downvote(pkgpath string) {
+//	rawItem, ok := exhibition.items.Get(pkgpath)
+//	if !ok {
+//		panic(ErrNoSuchItem)
+//	}
+//
+//	item := rawItem.(*Item)
+//	caller := std.PreviousRealm().Address()
+//
+//	if item.downvote.Has(caller) {
+//		panic(ErrDoubleDownvote)
+//	}
+//
+//	if _, exist := exhibition.itemsSortedByDownvotes.Remove(getVoteSortKey(item.downvote.Size(), item.id)); !exist {
+//		panic("error removing old downvote entry")
+//
+//	}
+//
+//	item.downvote.Add(caller)
+//
+//	exhibition.itemsSortedByDownvotes.Set(getVoteSortKey(item.downvote.Size(), item.id), item)
+//}
+//
+//func Delete(pkgpath string) {
+//	if !Ownable.CallerIsOwner() {
+//		panic(ownable.ErrUnauthorized)
+//	}
+//
+//	i, ok := exhibition.items.Get(pkgpath)
+//	if !ok {
+//		panic(ErrNoSuchItem)
+//	}
+//
+//	item := i.(*Item)
+//	upvoteKey := getVoteSortKey(item.upvote.Size(), item.id)
+//	downvoteKey := getVoteSortKey(item.downvote.Size(), item.id)
+//
+//	if _, removed := exhibition.items.Remove(pkgpath); !removed {
+//		panic(ErrNoSuchItem)
+//	}
+//
+//	if _, removed := exhibition.itemsSortedByUpvotes.Remove(upvoteKey); !removed {
+//		panic(ErrNoSuchItem)
+//	}
+//
+//	if _, removed := exhibition.itemsSortedByDownvotes.Remove(downvoteKey); !removed {
+//		panic(ErrNoSuchItem)
+//	}
+//
+//	if _, removed := exhibition.itemsSortedByCreation.Remove(getCreationSortKey(item.blockNum, item.id)); !removed {
+//		panic(ErrNoSuchItem)
+//	}
+//}
 
 func getVoteSortKey(votes int, id seqid.ID) string {
 	votesStr := strconv.Itoa(votes)
