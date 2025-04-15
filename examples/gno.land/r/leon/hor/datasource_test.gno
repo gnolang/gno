@@ -1,17 +1,13 @@
-package hof
+package hor
 
 import (
-	"strings"
 	"testing"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/urequire"
 	"gno.land/p/jeronimoalbi/datasource"
 	"gno.land/p/moul/addrset"
-	"gno.land/p/moul/md"
-	"gno.land/p/moul/txlink"
 )
 
 var (
@@ -156,16 +152,13 @@ func TestItemRecord(t *testing.T) {
 	uassert.Equal(t, "Votes: ⏶ 2 - ⏷ 1", details)
 
 	content, _ := r.Content()
-	wantContent := md.H1(item.title) +
-		md.H2(r.item.description) +
-		ufmt.Sprintf("\n%s\n\n", md.CodeBlock(item.pkgpath)) +
-		ufmt.Sprintf("%s\n\n", item.description) +
-		ufmt.Sprintf("by %s\n\n", strings.Split(item.pkgpath, "/")[2]) +
-		md.Link("View Realm", strings.TrimPrefix(item.pkgpath, "gno.land")) + "\n\n" +
-		ufmt.Sprintf("Submitted at Block #%d\n\n", item.blockNum) +
-		md.Bold(ufmt.Sprintf("[%d👍](%s) - [%d👎](%s)",
-			item.upvote.Size(), txlink.Call("Upvote", "pkgpath", item.pkgpath),
-			item.downvote.Size(), txlink.Call("Downvote", "pkgpath", item.pkgpath),
-		))
+	wantContent := `### [Test Realm](/r/demo/test)
+This is a test realm in the Hall of Fame
+
+by demo
+
+Submitted at Block #42
+
+**[2👍](/r/leon/hor$help&func=Upvote&pkgpath=gno.land%2Fr%2Fdemo%2Ftest) - [1👎](/r/leon/hor$help&func=Downvote&pkgpath=gno.land%2Fr%2Fdemo%2Ftest)**`
 	uassert.Equal(t, wantContent, content)
 }
