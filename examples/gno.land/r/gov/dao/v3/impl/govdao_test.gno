@@ -137,9 +137,7 @@ func TestCreateProposalAndVote(t *testing.T) {
 	})
 
 	accepted := dao.ExecuteProposal(dao.ProposalID(0))
+
 	urequire.Equal(t, false, accepted)
-
-	println(dao.Render(""))
-
 	urequire.Equal(t, true, strings.Contains(dao.Render(""), "Status: REJECTED"))
 }
