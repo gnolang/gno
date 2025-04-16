@@ -184,6 +184,74 @@ func TestProposalPagination(t *testing.T) {
 	urequire.Equal(t, true, contains(dao.Render("/?page=3"), "## Proposal with id: 0"))
 }
 
+func TestUpgradeDaoImplementation(t *testing.T) {
+	loadMembers()
+
+	testing.SetOriginCaller(noMember)
+
+	nm1 := testutils.TestAddress("nm1")
+
+	urequire.PanicsWithMessage(t, "proposer is not a member", func() {
+		preq := NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
+		dao.MustCreateProposal(preq)
+	})
+
+	testing.SetOriginCaller(m1)
+	testing.SetRealm(std.NewUserRealm(m1))
+
+	preq := NewUpgradeDaoImplRequest(govDAO, "gno.land/r/gov/dao/v4/impl", "Something happened and we have to fix it.")
+	pid := dao.MustCreateProposal(preq)
+	urequire.Equal(t, int(pid), 7)
+
+	// m1 votes yes because that member is interested on it
+	dao.MustVoteOnProposal(dao.VoteRequest{
+		Option:     dao.YesVote,
+		ProposalID: dao.ProposalID(pid),
+	})
+
+	testing.SetOriginCaller(m11)
+
+	dao.MustVoteOnProposal(dao.VoteRequest{
+		Option:     dao.YesVote,
+		ProposalID: dao.ProposalID(pid),
+	})
+
+	testing.SetOriginCaller(m2)
+
+	dao.MustVoteOnProposal(dao.VoteRequest{
+		Option:     dao.YesVote,
+		ProposalID: dao.ProposalID(pid),
+	})
+
+	testing.SetOriginCaller(m3)
+
+	dao.MustVoteOnProposal(dao.VoteRequest{
+		Option:     dao.YesVote,
+		ProposalID: dao.ProposalID(pid),
+	})
+
+	testing.SetOriginCaller(m4)
+
+	testing.SetOriginCaller(m111)
+
+	// Same effect as:
+	// dao.MustVoteOnProposal(dao.VoteRequest{
+	// 	Option:     dao.YesVote,
+	// 	ProposalID: dao.ProposalID(pid),
+	// })
+	dao.MustVoteOnProposalSimple(int64(pid), "YES")
+
+	urequire.Equal(t, true, contains(dao.Render("7"), "Proposal open for votes"))
+	urequire.Equal(t, true, contains(dao.Render("7"), "68.42105263157895%"))
+	urequire.Equal(t, true, contains(dao.Render("7"), "0%"))
+
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/loader")) // check if the proposal will be executed even if the execution was made from another package
+	accepted := dao.ExecuteProposal(dao.ProposalID(pid))
+	urequire.Equal(t, true, accepted)
+	urequire.Equal(t, true, contains(dao.Render("7"), "**PROPOSAL HAS BEEN ACCEPTED**"))
+	urequire.Equal(t, true, contains(dao.Render("7"), "YES PERCENT: 68.42105263157895%"))
+}
+
 func contains(s, substr string) bool {
 	return strings.Index(s, substr) >= 0
 }
