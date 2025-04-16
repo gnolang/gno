@@ -446,6 +446,16 @@ By default, the alert boxes are opened. The title is optional and if not provide
 > [!FOO]
 > This is a default alert
 
+±±±markdown
+> [!NOTE]
+> > [!NOTE]
+> > This is scoped a note
+±±±
+
+> [!NOTE]
+> > [!NOTE]
+> > This is scoped a note
+
 ---
 
 ### Usernames
