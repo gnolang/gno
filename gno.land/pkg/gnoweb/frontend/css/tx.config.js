@@ -44,6 +44,18 @@ export default {
         400: "#2D8D72", // Primary dark color
         600: "#226C57", // Primary light color
       },
+      blue: {
+        600: "#2563EB", // Note alert color
+      },
+      yellow: {
+        600: "#D97706", // Warning alert color
+      },
+      red: {
+        600: "#DC2626", // Caution alert color
+      },
+      purple: {
+        600: "#7C3AED", // Important alert color
+      },
       transparent: "transparent",
       current: "currentColor",
       inherit: "inherit",
