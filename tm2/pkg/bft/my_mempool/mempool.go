@@ -1,10 +1,47 @@
 package my_mempool
 
 import (
+	"container/heap"
 	"errors"
 	"sort"
 	"sync"
 )
+
+// senderEntry represents an entry in the sender heap
+type senderEntry struct {
+	sender string
+	fee    uint64
+	index  int // required for heap.Fix
+}
+
+// senderHeap implements heap.Interface for prioritizing senders by fee
+type senderHeap []*senderEntry
+
+func (h senderHeap) Len() int { return len(h) }
+func (h senderHeap) Less(i, j int) bool {
+	// inverted for max-heap by fee
+	return h[i].fee > h[j].fee
+}
+func (h senderHeap) Swap(i, j int) {
+	h[i], h[j] = h[j], h[i]
+	h[i].index = i
+	h[j].index = j
+}
+
+func (h *senderHeap) Push(x any) {
+	entry := x.(*senderEntry)
+	entry.index = len(*h)
+	*h = append(*h, entry)
+}
+
+func (h *senderHeap) Pop() any {
+	old := *h
+	n := len(old)
+	item := old[n-1]
+	item.index = -1 // safety measure
+	*h = old[0 : n-1]
+	return item
+}
 
 // Transaction represents a basic transaction structure
 type Transaction struct {
@@ -15,137 +52,149 @@ type Transaction struct {
 
 // Mempool stores transactions grouped by sender address
 type Mempool struct {
-	txsBySender          map[string][]Transaction
-	highestFeeTxBySender map[string]Transaction
-	mutex                sync.RWMutex
+	txsBySender map[string][]Transaction
+	senderHeap  senderHeap
+	senderMap   map[string]*senderEntry
+	mutex       sync.RWMutex
 }
 
 // NewMempool creates a new mempool instance
 func NewMempool() *Mempool {
 	return &Mempool{
-		txsBySender:          make(map[string][]Transaction),
-		highestFeeTxBySender: make(map[string]Transaction),
+		txsBySender: make(map[string][]Transaction),
+		senderHeap:  make(senderHeap, 0),
+		senderMap:   make(map[string]*senderEntry),
 	}
 }
 
 // CheckTx validates and adds a transaction to the mempool
 func (mp *Mempool) CheckTx(tx Transaction) error {
-	// Acquire write lock
 	mp.mutex.Lock()
 	defer mp.mutex.Unlock()
 
-	// Basic validation
 	if tx.Sender == "" {
 		return errors.New("sender address cannot be empty")
 	}
 
-	// Add transaction to the mempool
 	mp.txsBySender[tx.Sender] = append(mp.txsBySender[tx.Sender], tx)
 
-	// Update highest fee transaction for this sender if needed
-	currentHighest, exists := mp.highestFeeTxBySender[tx.Sender]
-	if !exists || tx.GasFee > currentHighest.GasFee {
-		mp.highestFeeTxBySender[tx.Sender] = tx
+	// Update heap
+	entry, exists := mp.senderMap[tx.Sender]
+	if exists {
+		if tx.GasFee > entry.fee {
+			entry.fee = tx.GasFee
+			heap.Fix(&mp.senderHeap, entry.index)
+		}
+	} else {
+		entry = &senderEntry{
+			sender: tx.Sender,
+			fee:    tx.GasFee,
+		}
+		mp.senderMap[tx.Sender] = entry
+		heap.Push(&mp.senderHeap, entry)
 	}
 
 	return nil
 }
 
-// Update selects and removes a specified number of transactions from the mempool
-// prioritizing transactions with the highest gas fees
+// Update selects and removes transactions from the mempool based on priority
+// Returns selected transactions up to maxTxs limit
 func (mp *Mempool) Update(maxTxs uint) []Transaction {
 	mp.mutex.Lock()
 	defer mp.mutex.Unlock()
 
+	// Early return if maxTxs is 0
+	if maxTxs == 0 {
+		return []Transaction{}
+	}
+
 	selectedTxs := make([]Transaction, 0, maxTxs)
 	txsToRemove := make(map[string][]int)
 
-	// Step 1: Sort senders by their highest fee transaction
-	type senderWithHighestFee struct {
-		sender    string
-		highestTx Transaction
-	}
+	// Step 1: Create a copy of the heap (to avoid mutating the main heap during update)
+	heapCopy := make(senderHeap, len(mp.senderHeap))
+	copy(heapCopy, mp.senderHeap)
+	heap.Init(&heapCopy)
 
-	sendersByFee := make([]senderWithHighestFee, 0, len(mp.highestFeeTxBySender))
-	for sender, tx := range mp.highestFeeTxBySender {
-		sendersByFee = append(sendersByFee, senderWithHighestFee{
-			sender:    sender,
-			highestTx: tx,
-		})
-	}
+	const maxPerSender = 10
 
-	// Sort senders by gas fee in descending order
-	sort.Slice(sendersByFee, func(i, j int) bool {
-		return sendersByFee[i].highestTx.GasFee > sendersByFee[j].highestTx.GasFee
-	})
-
-	// Step 2: Process transactions from senders with highest fees first
-	for _, senderInfo := range sendersByFee {
-		sender := senderInfo.sender
+	for heapCopy.Len() > 0 && uint(len(selectedTxs)) < maxTxs {
+		entry := heap.Pop(&heapCopy).(*senderEntry)
+		sender := entry.sender
 		txs := mp.txsBySender[sender]
 
 		if len(txs) == 0 {
 			continue
 		}
 
-		// Sort transactions by nonce in ascending order
+		// Sort by nonce
 		sort.Slice(txs, func(i, j int) bool {
 			return txs[i].Nonce < txs[j].Nonce
 		})
 
-		// Add transactions from this sender until we reach maxTxs
+		var senderTxs []Transaction
+		var indicesToRemove []int
+
+		expectedNonce := txs[0].Nonce
+		count := 0
+
+		// Calculate how many more transactions we can add
+		remainingCapacity := int(maxTxs) - len(selectedTxs)
+		// Limit by both maxPerSender and remaining capacity
+		maxToAdd := min(maxPerSender, remainingCapacity)
+
 		for i, tx := range txs {
-			if uint(len(selectedTxs)) >= maxTxs {
+			if count >= maxToAdd {
 				break
 			}
-
-			selectedTxs = append(selectedTxs, tx)
-
-			// Track which transactions to remove
-			if _, exists := txsToRemove[sender]; !exists {
-				txsToRemove[sender] = []int{}
+			if tx.Nonce != expectedNonce {
+				break
 			}
-			txsToRemove[sender] = append(txsToRemove[sender], i)
+			senderTxs = append(senderTxs, tx)
+			indicesToRemove = append(indicesToRemove, i)
+			expectedNonce++
+			count++
 		}
 
-		if uint(len(selectedTxs)) >= maxTxs {
-			break
-		}
+		selectedTxs = append(selectedTxs, senderTxs...)
+		txsToRemove[sender] = indicesToRemove
 	}
 
-	// Remove selected transactions from the mempool
+	// Step 2: Remove transactions and update the heap
 	for sender, indices := range txsToRemove {
-		// Remove in reverse order to avoid index shifting problems
+		txs := mp.txsBySender[sender]
 		for i := len(indices) - 1; i >= 0; i-- {
 			idx := indices[i]
-			txs := mp.txsBySender[sender]
-
-			// Check if we're removing the highest fee transaction
-			if mp.highestFeeTxBySender[sender].Nonce == txs[idx].Nonce &&
-				mp.highestFeeTxBySender[sender].GasFee == txs[idx].GasFee {
-				// We need to find a new highest fee transaction or delete the entry
-				delete(mp.highestFeeTxBySender, sender)
+			if idx >= len(txs) {
+				continue
 			}
-
-			mp.txsBySender[sender] = append(txs[:idx], txs[idx+1:]...)
+			txs = append(txs[:idx], txs[idx+1:]...)
 		}
+		mp.txsBySender[sender] = txs
 
-		// If we deleted the highest fee transaction, find a new one
-		if _, exists := mp.highestFeeTxBySender[sender]; !exists && len(mp.txsBySender[sender]) > 0 {
-			// Find the new highest fee transaction
-			highest := mp.txsBySender[sender][0]
-			for _, tx := range mp.txsBySender[sender] {
-				if tx.GasFee > highest.GasFee {
-					highest = tx
-				}
-			}
-			mp.highestFeeTxBySender[sender] = highest
-		}
-
-		// If no transactions left for this sender, remove the sender entry
-		if len(mp.txsBySender[sender]) == 0 {
+		if len(txs) == 0 {
 			delete(mp.txsBySender, sender)
-			delete(mp.highestFeeTxBySender, sender)
+			if entry, exists := mp.senderMap[sender]; exists {
+				if entry.index >= 0 && entry.index < len(mp.senderHeap) {
+					heap.Remove(&mp.senderHeap, entry.index)
+				}
+				delete(mp.senderMap, sender)
+			}
+			continue
+		}
+
+		// Otherwise: update fee and position in heap
+		newMax := txs[0].GasFee
+		for _, tx := range txs {
+			if tx.GasFee > newMax {
+				newMax = tx.GasFee
+			}
+		}
+		if entry, exists := mp.senderMap[sender]; exists {
+			entry.fee = newMax
+			if entry.index >= 0 && entry.index < len(mp.senderHeap) {
+				heap.Fix(&mp.senderHeap, entry.index)
+			}
 		}
 	}
 
@@ -171,15 +220,6 @@ func (mp *Mempool) GetTransactionsBySender(sender string) []Transaction {
 	defer mp.mutex.RUnlock()
 
 	return mp.txsBySender[sender]
-}
-
-// GetHighestFeeTxBySender returns the transaction with the highest gas fee for a specific sender
-func (mp *Mempool) GetHighestFeeTxBySender(sender string) (Transaction, bool) {
-	mp.mutex.RLock()
-	defer mp.mutex.RUnlock()
-
-	tx, exists := mp.highestFeeTxBySender[sender]
-	return tx, exists
 }
 
 // Size returns the total number of transactions in the mempool
