@@ -1,7 +1,7 @@
 -- input.md --
 > [!NOTE]
 > > [!NOTE]
-> > This is scoped a note
+> > This is a scoped note
 
 -- output.html --
 <details class="gno-alert gno-alert-note" open>
