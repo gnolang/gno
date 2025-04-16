@@ -1,4 +1,3 @@
-// Package markdown provides extensions for Goldmark markdown parser
 package markdown
 
 import (
