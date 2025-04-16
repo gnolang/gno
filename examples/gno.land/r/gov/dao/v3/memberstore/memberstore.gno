@@ -104,7 +104,7 @@ func init() {
 	members.SetMember(T1, std.Address("g18x425qmujg99cfz3q97y4uep5pxjq3z8lmpt25"), &Member{InvitationPoints: 3}) // Antoine
 	members.SetMember(T1, std.Address("g1778y2yphxs2wpuaflsy5y9qwcd4gttn4g5yjx5"), &Member{InvitationPoints: 3}) // Michelle
 	members.SetMember(T1, std.Address("g12vx7dn3dqq89mz550zwunvg4qw6epq73d9csay"), &Member{InvitationPoints: 3}) // Dongwon
-	members.SetMember(T1, std.Address("g1p5r4xx5k62v9uh8gjffjw79gf2rtk7n0cnux3p"), &Member{InvitationPoints: 3}) // Zooma
+	members.SetMember(T1, std.Address("g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"), &Member{InvitationPoints: 3}) // Zooma
 
 	members.SetTier(T2)
 	members.SetMember(T2, std.Address("g1jazghxvvgz3egnr2fc8uf72z4g0l03596y9ls7"), &Member{InvitationPoints: 2}) // Nemanja
