@@ -6,6 +6,7 @@ import (
 	"gno.land/p/leo/randomizer"
 	"gno.land/p/leo/utils"
 	"gno.land/p/moul/md"
+	"gno.land/r/leon/hor"
 )
 
 type RenderPage string
@@ -32,6 +33,10 @@ var (
 		pokemonRank:         renderPokemonRank,
 	}
 )
+
+func init() {
+	hor.Register("Leo's Pokémon", "Come play Pokémon on the Block Chain !")
+}
 
 func Render(path string) (rend string) {
 	rend += md.H1("Pokémon")

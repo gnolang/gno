@@ -2,12 +2,7 @@ package home
 
 import (
 	"gno.land/p/moul/md"
-	"gno.land/r/leon/hof"
 )
-
-func init() {
-	hof.Register("Leo's Pokémon", "Come play Pokémon on the Block Chain !")
-}
 
 func Render(path string) (rend string) {
 	rend += md.H1("Leo's home page")
