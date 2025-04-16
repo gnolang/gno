@@ -45,3 +45,11 @@ func AddMember(addr std.Address) {
 		panic(err.Error())
 	}
 }
+
+func GetInstance() *GovDAO {
+	if std.PreviousRealm().PkgPath() != "gno.land/r/gov/dao/v3/loader" {
+		panic("not allowed")
+	}
+
+	return govDAO
+}
