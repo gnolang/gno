@@ -39,12 +39,12 @@ func TestBalanceChecker(t *testing.T) {
 		// },
 		{
 			name:     "addr1's balance",
-			path: ufmt.Sprintf("%s/%s", denom, addr1.String()),
+			path:     ufmt.Sprintf("%s/%s", denom, addr1.String()),
 			expected: "Balance: 1000000 testtoken",
 		},
 		{
 			name:     "addr2's balance",
-			path: ufmt.Sprintf("%s/%s", denom, addr2.String()),
+			path:     ufmt.Sprintf("%s/%s", denom, addr2.String()),
 			expected: "Balance: 500000 testtoken",
 		},
 		{
