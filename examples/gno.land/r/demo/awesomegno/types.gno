@@ -23,5 +23,5 @@ type Item struct {
 	Authors     []std.Address
 	URL         string
 	CreatedAt   time.Time
-	categories  *avl.Tree
+	Categories  []seqid.ID
 }

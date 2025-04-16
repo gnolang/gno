@@ -61,6 +61,14 @@ func renderHome() string {
 		out += md.Paragraph(md.Link("See all items →", "/r/demo/awesomegno:items"))
 	} else {
 		out += md.Italic("No items added yet")
+		addItemLink := txlink.NewLink("AddItem").
+		AddArgs(
+			"title", "",
+			"description", "",
+			"url", "",
+			"author", "",
+		).URL()
+		out += md.Paragraph(md.Link("➕ Add New Item", addItemLink))
 		out += "\n"
 	}
 
@@ -155,17 +163,19 @@ func renderSingleItem(id string) string {
 	out += md.BulletList(metadata)
 
 	out += md.H2("Categories")
-	var categories []string
-	item.categories.Iterate("", "", func(key string, value interface{}) bool {
-		cat := value.(*Category)
-		categories = append(categories, md.Link(cat.Name, "/r/demo/awesomegno:c/"+cat.ID.String()))
-		return false
-	})
+	var categoryLinks []string
+	for _, catID := range item.Categories {
+		if cat, found := categories.Get(catID.String()); found {
+			category := cat.(*Category)
+			categoryLinks = append(categoryLinks, md.Link(category.Name, "/r/demo/awesomegno:c/"+category.ID.String()))
+		}
+	}
 
-	if len(categories) > 0 {
-		out += md.BulletList(categories)
+	if len(categoryLinks) > 0 {
+		out += md.BulletList(categoryLinks)
 	} else {
 		out += md.Italic("No categories assigned")
+		out += "\n"
 	}
 
 	out += md.H2("Management")
@@ -215,6 +225,7 @@ func renderSingleCategory(id string) string {
 		out += md.BulletList(itemsList)
 	} else {
 		out += md.Italic("No items in this category yet")
+		out += "\n"
 	}
 
 	out += md.H2("Management")

@@ -25,7 +25,6 @@ var (
 	authority = authz.NewMemberAuthority(
 		std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"), // leon
 		std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"), // moul
-		std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"), // matija
 	)
 	Auth = authz.NewWithAuthority(authority)
 )
@@ -113,7 +112,7 @@ func addItem(name, description, url string, author std.Address) seqid.ID {
 		Authors:     []std.Address{author},
 		URL:         url,
 		CreatedAt:   time.Now(),
-		categories:  avl.NewTree(),
+		Categories:  []seqid.ID{},
 	}
 
 	items.Set(item.ID.String(), item)
@@ -148,13 +147,19 @@ func updateItem(itemID seqid.ID, title, description, url string, authors []std.A
 	}
 
 	if len(categoryIDs) > 0 {
+		for _, oldCatID := range d.Categories {
+			if cat, found := categories.Get(oldCatID.String()); found {
+				cat.(*Category).items.Remove(itemID.String())
+			}
+		}
+
+		d.Categories = categoryIDs
 		for _, categoryID := range categoryIDs {
 			category, found := categories.Get(categoryID.String())
 			if !found {
 				panic("category not found: " + categoryID.String())
 			}
 			category.(*Category).items.Set(itemID.String(), item)
-			d.categories.Set(categoryID.String(), category)
 		}
 	}
 
@@ -190,11 +195,11 @@ func deleteItem(itemID seqid.ID) {
 		panic("item not found: " + itemID.String())
 	}
 
-	item.(*Item).categories.Iterate("", "", func(categoryID string, value any) bool {
-		category := value.(*Category)
-		category.items.Remove(itemID.String())
-		return false
-	})
+	for _, catID := range item.(*Item).Categories {
+		if cat, found := categories.Get(catID.String()); found {
+			cat.(*Category).items.Remove(itemID.String())
+		}
+	}
 
 	items.Remove(itemID.String())
 
@@ -249,8 +254,15 @@ func deleteCategory(categoryID seqid.ID) {
 	}
 
 	category.(*Category).items.Iterate("", "", func(itemID string, value any) bool {
-		item := value.(*Item)
-		item.categories.Remove(categoryID.String())
+		if item, ok := value.(*Item); ok {
+			newCategories := make([]seqid.ID, 0)
+			for _, catID := range item.Categories {
+				if catID != categoryID {
+					newCategories = append(newCategories, catID)
+				}
+			}
+			item.Categories = newCategories
+		}
 		return false
 	})
 

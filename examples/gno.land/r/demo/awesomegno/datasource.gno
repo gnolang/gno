@@ -57,11 +57,12 @@ func (r itemRecord) Content() (string, error) {
 	content += r.item.Description
 	content += md.H2("Categories")
 
-	r.item.categories.Iterate("", "", func(key string, value interface{}) bool {
-		cat := value.(*Category)
-		content += md.BulletItem(cat.Name)
-		return false
-	})
+	for _, catID := range r.item.Categories {
+		if cat, found := categories.Get(catID.String()); found {
+			category := cat.(*Category)
+			content += md.BulletItem(category.Name)
+		}
+	}
 
 	return content, nil
 }

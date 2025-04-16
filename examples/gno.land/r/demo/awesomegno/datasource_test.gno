@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/urequire"
@@ -130,8 +131,9 @@ func TestItemDatasourceRecord(t *testing.T) {
 
 func TestItemRecord(t *testing.T) {
 	addr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	categories := avl.NewTree()
-	cat := &Category{ID: 1, Name: "Test Category"}
+	catID := seqid.ID(1)
+	
+	cat := &Category{ID: catID, Name: "Test Category"}
 	categories.Set(cat.ID.String(), cat)
 
 	item := Item{
@@ -141,7 +143,7 @@ func TestItemRecord(t *testing.T) {
 		Authors:     []std.Address{addr},
 		URL:         "https://test.com",
 		CreatedAt:   time.Now(),
-		categories:  categories,
+		Categories:  []seqid.ID{catID}, 
 	}
 
 	r := itemRecord{&item}
