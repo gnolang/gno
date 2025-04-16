@@ -200,7 +200,7 @@ func renderSingleCategory(id string) string {
 		out += md.Italic("No items in this category yet")
 	}
 
-	out += md.H2("Management")
+	out += md.H2("Management\n")
 	out += md.Paragraph("Use these actions to manage the category:")
 
 	updateLink := txlink.NewLink("UpdateCategory").
