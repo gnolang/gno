@@ -24,7 +24,7 @@ pullTxs () {
 }
 
 CHAIN_ID=test6
-GENESIS_TIME=1744614000 # Monday, April 14th 2025 09:00 GMT+0200 (Central European Summer Time)
+GENESIS_TIME=1744876800 # Thursday, April 17th 2025 10:00 GMT+0200 (Central European Summer Time)
 GENESIS_FILE=genesis.json
 
 # Generate a fresh genesis.json
