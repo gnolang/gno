@@ -66,7 +66,7 @@ var (
 	pokemonList = []Pokemon{
 		{
 			"Pikachu",
-			"https://www.pokemon.com/static-assets/content-assets/cms2/img/pokedex/full/025.png",
+			"https://raw.githubusercontent.com/HybridShivam/Pokemon/refs/heads/master/assets/images/025.png",
 			60,
 			[]Attack{
 				{"Thunderbolt", 50, 2},
@@ -76,7 +76,7 @@ var (
 		},
 		{
 			"Bulbasaur",
-			"https://www.pokemon.com/static-assets/content-assets/cms2/img/pokedex/full/001.png",
+			"https://raw.githubusercontent.com/HybridShivam/Pokemon/refs/heads/master/assets/images/001.png",
 			80,
 			[]Attack{
 				{"Razor Leaf", 25, 6},
@@ -86,7 +86,7 @@ var (
 		},
 		{
 			"Charmander",
-			"https://www.pokemon.com/static-assets/content-assets/cms2/img/pokedex/full/004.png",
+			"https://raw.githubusercontent.com/HybridShivam/Pokemon/refs/heads/master/assets/images/004.png",
 			70,
 			[]Attack{
 				{"Flamethrower", 40, 3},
@@ -96,7 +96,7 @@ var (
 		},
 		{
 			"Squirtle",
-			"https://www.pokemon.com/static-assets/content-assets/cms2/img/pokedex/full/007.png",
+			"https://raw.githubusercontent.com/HybridShivam/Pokemon/refs/heads/master/assets/images/007.png",
 			75,
 			[]Attack{
 				{"Water Gun", 30, 6},
@@ -106,7 +106,7 @@ var (
 		},
 		{
 			"Eevee",
-			"https://www.pokemon.com/static-assets/content-assets/cms2/img/pokedex/full/133.png",
+			"https://raw.githubusercontent.com/HybridShivam/Pokemon/refs/heads/master/assets/images/133.png",
 			65,
 			[]Attack{
 				{"Quick Attack", 20, 10},
@@ -116,7 +116,7 @@ var (
 		},
 		{
 			"Jigglypuff",
-			"https://www.pokemon.com/static-assets/content-assets/cms2/img/pokedex/full/039.png",
+			"https://raw.githubusercontent.com/HybridShivam/Pokemon/refs/heads/master/assets/images/039.png",
 			85,
 			[]Attack{
 				{"Sing", 0, 5},
@@ -126,7 +126,7 @@ var (
 		},
 		{
 			"Meowth",
-			"https://www.pokemon.com/static-assets/content-assets/cms2/img/pokedex/full/052.png",
+			"https://raw.githubusercontent.com/HybridShivam/Pokemon/refs/heads/master/assets/images/052.png",
 			60,
 			[]Attack{
 				{"Scratch", 15, 12},
@@ -136,7 +136,7 @@ var (
 		},
 		{
 			"Psyduck",
-			"https://www.pokemon.com/static-assets/content-assets/cms2/img/pokedex/full/054.png",
+			"https://raw.githubusercontent.com/HybridShivam/Pokemon/refs/heads/master/assets/images/054.png",
 			70,
 			[]Attack{
 				{"Confusion", 35, 5},
@@ -146,7 +146,7 @@ var (
 		},
 		{
 			"Snorlax",
-			"https://www.pokemon.com/static-assets/content-assets/cms2/img/pokedex/full/143.png",
+			"https://raw.githubusercontent.com/HybridShivam/Pokemon/refs/heads/master/assets/images/143.png",
 			160,
 			[]Attack{
 				{"Body Slam", 40, 5},
@@ -156,7 +156,7 @@ var (
 		},
 		{
 			"Gengar",
-			"https://www.pokemon.com/static-assets/content-assets/cms2/img/pokedex/full/094.png",
+			"https://raw.githubusercontent.com/HybridShivam/Pokemon/refs/heads/master/assets/images/094.png",
 			80,
 			[]Attack{
 				{"Shadow Ball", 45, 3},
