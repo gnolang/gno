@@ -18,11 +18,11 @@ const (
 	pokemonFight        RenderPage = "fight"
 	pokemonShop         RenderPage = "shop"
 	pokemonRank         RenderPage = "rank"
+	nl                             = "\n\n"
 )
 
 var (
 	rand        = randomizer.NewRandomizer()
-	nl          = "\n\n"
 	atm_path    = std.CurrentRealm().PkgPath()[len(std.ChainDomain()):]
 	pokemonPath = map[RenderPage]func(map[string]string) string{
 		pokemonLogin:        renderPokemonLogin,
@@ -35,7 +35,7 @@ var (
 )
 
 func init() {
-	hor.Register("Leo's Pokémon", "Come play Pokémon on the Block Chain !")
+	hor.Register("Pokémon", "Come play some Pokémon's fights")
 }
 
 func Render(path string) (rend string) {
