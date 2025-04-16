@@ -8,6 +8,7 @@ import (
 	"gno.land/p/leo/utils"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/txlink"
+	"gno.land/r/sys/users"
 )
 
 type UserData struct {
@@ -48,13 +49,20 @@ func DeleteMyAccount() {
 	pokemonDAO.DeleteMember(usr)
 }
 func renderPokemonLogin(rend *mux.ResponseWriter, _ *mux.Request) {
+	members := pokemonDAO.GetMembers()
+
 	rend.Write(md.H2("Are you a already Pokémon Trainer ?"))
 	rend.Write(md.Link("Get me a brand new Pokémon Licence !", txlink.Call("Login")) + nl)
 	rend.Write(md.Link("Delete my existing Pokémon Licence", txlink.Call("DeleteMyAccount")) + nl)
 	rend.Write(md.H2("Select your account"))
 	for i, e := range pokemonDAO.userData {
-		link := atmPath + ":" + string(pokemonLobby) + "?user=" + string(pokemonDAO.GetMembers()[i])
-		rend.Write(" - " + md.Link(string(pokemonDAO.GetMembers()[i]), link))
+		name := string(members[i])
+		data := users.ResolveAddress(members[i])
+		if data != nil {
+			name = data.Name()
+		}
+		link := atmPath + ":" + string(pokemonLobby) + "?user=" + string(members[i])
+		rend.Write(" - " + md.Link(name, link))
 		rend.Write(" : " + renderPokedollar(int(e.pokedollar)) + nl)
 	}
 	return
