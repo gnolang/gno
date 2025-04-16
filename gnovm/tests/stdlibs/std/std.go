@@ -164,14 +164,7 @@ func (tb *TestBanker) SendCoins(from, to crypto.Bech32Address, amt tm2std.Coins)
 
 // TotalCoin implements the Banker interface.
 func (tb *TestBanker) TotalCoin(denom string) int64 {
-	if denom == "" {
-		panic("empty denom")
-	}
-	var total int64
-	for _, coins := range tb.CoinTable {
-		total += coins.AmountOf(denom)
-	}
-	return total
+	panic("not yet implemented")
 }
 
 // IssueCoin implements the Banker interface.

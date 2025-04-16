@@ -120,7 +120,6 @@ func (b banker) SendCoins(from, to Address, amt Coins) {
 }
 
 func (b banker) TotalCoin(denom string) int64 {
-	assertCoinDenom(denom)
 	return bankerTotalCoin(uint8(b.bt), denom)
 }
 

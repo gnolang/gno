@@ -40,7 +40,7 @@ func (bnk *SDKBanker) SendCoins(b32from, b32to crypto.Bech32Address, amt std.Coi
 }
 
 func (bnk *SDKBanker) TotalCoin(denom string) int64 {
-	panic("not implemented")
+	panic("not yet implemented")
 }
 
 func (bnk *SDKBanker) IssueCoin(b32addr crypto.Bech32Address, denom string, amount int64) {

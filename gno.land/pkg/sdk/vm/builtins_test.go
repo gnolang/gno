@@ -8,7 +8,7 @@ import (
 
 func TestParamsKeeper(t *testing.T) {
 	env := setupTestEnv()
-	params := NewSDKParams(env.prmk, env.ctx)
+	params := NewSDKParams(env.vmk.prmk, env.ctx)
 
 	testCases := []struct {
 		name        string

@@ -21,120 +21,17 @@
 //	/r/gnoland/coins:ugnot/g1... - shows the ugnot balance of a specific address
 package coins
 
-import (
-	"errors"
-	"std"
-	"strconv"
-
-	"gno.land/p/demo/mux"
-)
-
-var (
-	errEmptyDenom     = errors.New("empty denom")
-	errInvalidAddress = errors.New("invalid address")
-	errInvalidPath    = errors.New("invalid path")
-)
-
-var router *mux.Router
-
-func init() {
-	router = mux.NewRouter()
-
-	// Homepage
-	router.HandleFunc("/", func(res *mux.ResponseWriter, req *mux.Request) {
-		res.Write(renderHomepage())
-	})
-
-	// Coin Info
-	router.HandleFunc("/{denom}", func(res *mux.ResponseWriter, req *mux.Request) {
-		denom := req.GetVar("denom")
-		totalSupply := TotalSupply(denom)
-		res.Write(renderCoinInfo(denom, totalSupply))
-	})
-
-	// Address Balance
-	router.HandleFunc("/{denom}/{addr}", func(res *mux.ResponseWriter, req *mux.Request) {
-		denom := req.GetVar("denom")
-		addr := req.GetVar("addr")
-		res.Write(renderAddressBalance(denom, std.Address(addr)))
-	})
-}
-
-// TotalSupply returns the total supply of the specified denomination
-func TotalSupply(denom string) int64 {
-	if denom == "" {
-		panic(errEmptyDenom)
-	}
-	// make the coin's denom to follow the correct format
-	qualifiedDenom := std.CurrentRealm().CoinDenom(denom)
-	return std.NewBanker(std.BankerTypeReadonly).TotalCoin(qualifiedDenom)
-}
-
-// AddressBalance returns the balance of the specified token for the given address
-func AddressBalance(denom string, address std.Address) int64 {
-	if denom == "" {
-		panic(errEmptyDenom)
-	}
-	if !address.IsValid() {
-		panic(errInvalidAddress)
-	}
-	return std.NewBanker(std.BankerTypeReadonly).
-		GetCoins(address).
-		AmountOf(denom)
-}
+import "std"
 
 // Path parsing logic:
 // - Empty path: Show homepage with general info and usage instructions
 // - "<denom>": Show total supply and info about the specified coin
 // - "<denom>/<address>": Show specific address balance for the given coin
 func Render(path string) string {
-	if path == "" {
-		return renderHomepage()
-	}
-	return router.Render(path)
-}
+	banker := std.NewBanker(std.BankerTypeReadonly)
 
-func renderHomepage() string {
-	out := "# Gno.land Coins\n\n"
-	out += "This realm provides an interface to query coin information on the Gno.land chain.\n\n"
-
-	out += "## Usage\n\n"
-	out += "You can query information using the following URL patterns:\n\n"
-	out += "* /r/gnoland/coins:ugnot - Check total supply of ugnot\n"
-	out += "* /r/gnoland/coins:ugnot/{address} - Check ugnot balance of a specific address\n\n"
-
-	out += "## Supported Coins\n\n"
-	out += "* ugnot - The native token of Gno.land\n"
-
-	return out
-}
-
-func renderCoinInfo(denom string, totalSupply int64) string {
-	out := "# Coin Information\n\n"
-
-	out += "## Denomination\n\n"
-	out += denom + "\n\n"
-
-	out += "## Total Supply\n\n"
-	out += std.NewCoin(denom, totalSupply).String() + "\n\n"
-
-	out += "## Statistics\n\n"
-	out += "* Total Supply: " + std.NewCoin(denom, totalSupply).String() + "\n"
-	out += "* Chain ID: " + std.ChainID() + "\n"
-	out += "* Current Block Height: " + strconv.Itoa(int(std.ChainHeight())) + "\n"
-
-	return out
-}
-
-func renderAddressBalance(denom string, address std.Address) string {
-	balance := AddressBalance(denom, address)
-	out := "# Address Balance Information\n\n"
-
-	out += "## Address\n\n"
-	out += address.String() + "\n\n"
-
-	out += "## Balance\n\n"
-	out += std.NewCoin(denom, balance).String() + "\n"
-
-	return out
+	// TODO: implement an explanatory homepage that shows usage instructions
+	// TODO: implement a coin info page showing total supply, and other metrics if we have them
+	// TODO: implement an address page showing balance for specified coin
+	// TODO: create navigation links between pages to enable intuitive exploration without typing URLs
 }
