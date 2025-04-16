@@ -54,13 +54,14 @@ func renderHome() string {
 		count++
 		return false
 	})
-	
+
 	if len(recentItems) > 0 {
 		out += md.BulletList(recentItems)
 		out += "\n"
 		out += md.Paragraph(md.Link("See all items →", "/r/demo/awesomegno:items"))
 	} else {
 		out += md.Italic("No items added yet")
+		out += "\n"
 	}
 
 	out += md.H2("Quick Stats")
@@ -168,6 +169,7 @@ func renderSingleItem(id string) string {
 	}
 
 	out += md.H2("Management")
+	out += "\n"
 	out += md.Paragraph("Use these actions to manage the item:")
 
 	updateLink := txlink.NewLink("UpdateItem").
@@ -215,7 +217,8 @@ func renderSingleCategory(id string) string {
 		out += md.Italic("No items in this category yet")
 	}
 
-	out += md.H2("Management\n")
+	out += md.H2("Management")
+	out += "\n"
 	out += md.Paragraph("Use these actions to manage the category:")
 
 	updateLink := txlink.NewLink("UpdateCategory").
