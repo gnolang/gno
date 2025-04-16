@@ -5,6 +5,7 @@ package groups_test
 
 import (
 	"std"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/groups"
@@ -17,26 +18,26 @@ const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func main() {
 	caller := std.OriginCaller() // main
-	std.TestSetRealm(std.NewUserRealm(caller))
+	testing.SetRealm(std.NewUserRealm(caller))
 	users.Register("main123")
 
 	test1 := testutils.TestAddress("gnouser1")
-	std.TestSetOriginCaller(test1)
-	std.TestSetRealm(std.NewUserRealm(test1))
+	testing.SetOriginCaller(test1)
+	testing.SetRealm(std.NewUserRealm(test1))
 	users.Register("test123")
 
 	test2 := testutils.TestAddress("gnouser2")
-	std.TestSetOriginCaller(test2)
-	std.TestSetRealm(std.NewUserRealm(test2))
+	testing.SetOriginCaller(test2)
+	testing.SetRealm(std.NewUserRealm(test2))
 	users.Register("test223")
 
 	test3 := testutils.TestAddress("gnouser3")
-	std.TestSetOriginCaller(test3)
-	std.TestSetRealm(std.NewUserRealm(test3))
+	testing.SetOriginCaller(test3)
+	testing.SetRealm(std.NewUserRealm(test3))
 	users.Register("test323")
 
-	std.TestSetOriginCaller(caller)
-	std.TestSetRealm(std.NewUserRealm(caller))
+	testing.SetOriginCaller(caller)
+	testing.SetRealm(std.NewUserRealm(caller))
 
 	gid = groups.CreateGroup("test_group")
 	println(groups.Render("test_group"))

@@ -248,7 +248,7 @@ func generateValidatorUpdates(t *testing.T, count int) []abci.ValidatorUpdate {
 
 	validators := make([]abci.ValidatorUpdate, 0, count)
 
-	for i := 0; i < count; i++ {
+	for range count {
 		// Generate a random private key
 		key := getDummyKey(t).PubKey()
 
@@ -895,7 +895,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	)
 
 	// Set a handler Route.
-	baseApp.Router().AddRoute("auth", auth.NewHandler(acck))
+	baseApp.Router().AddRoute("auth", auth.NewHandler(acck, gpk))
 	baseApp.Router().AddRoute("bank", bank.NewHandler(bankk))
 	baseApp.Router().AddRoute(
 		testutils.RouteMsgCounter,

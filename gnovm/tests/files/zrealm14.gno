@@ -36,53 +36,82 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:5]={
-//     "Data": null,
-//     "List": [
-//         {
-//             "T": {
-//                 "@type": "/gno.PointerType",
-//                 "Elt": {
-//                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/r/test.B"
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.PointerType",
-//                 "Elt": {
-//                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/r/test.B"
-//                 }
-//             }
-//         }
-//     ],
-//     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5",
-//         "ModTime": "9",
-//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
-//         "RefCount": "1"
-//     }
-// }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3]={
-//     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
-//         "IsEscaped": true,
-//         "ModTime": "9",
-//         "RefCount": "1"
-//     },
-//     "Value": {
-//         "T": {
-//             "@type": "/gno.RefType",
-//             "ID": "gno.land/r/test.A"
-//         },
-//         "V": {
-//             "@type": "/gno.RefValue",
-//             "Hash": "95dca2f5b12899b6367402ecdac04c7ca59a03d9",
-//             "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
-//         }
-//     }
-// }
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:5]=
+//     @@ -8,16 +8,6 @@
+//                          "@type": "/gno.RefType",
+//                          "ID": "gno.land/r/test.B"
+//                      }
+//     -            },
+//     -            "V": {
+//     -                "@type": "/gno.PointerValue",
+//     -                "Base": {
+//     -                    "@type": "/gno.RefValue",
+//     -                    "Escaped": true,
+//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7"
+//     -                },
+//     -                "Index": "0",
+//     -                "TV": null
+//                  }
+//              },
+//              {
+//     @@ -27,22 +17,12 @@
+//                          "@type": "/gno.RefType",
+//                          "ID": "gno.land/r/test.B"
+//                      }
+//     -            },
+//     -            "V": {
+//     -                "@type": "/gno.PointerValue",
+//     -                "Base": {
+//     -                    "@type": "/gno.RefValue",
+//     -                    "Escaped": true,
+//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7"
+//     -                },
+//     -                "Index": "1",
+//     -                "TV": null
+//                  }
+//              }
+//          ],
+//          "ObjectInfo": {
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5",
+//     -        "ModTime": "6",
+//     +        "ModTime": "9",
+//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//              "RefCount": "1"
+//          }
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7]=
+//     @@ -3,8 +3,8 @@
+//          "ObjectInfo": {
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
+//              "IsEscaped": true,
+//     -        "ModTime": "0",
+//     -        "RefCount": "2"
+//     +        "ModTime": "9",
+//     +        "RefCount": "0"
+//          },
+//          "Parent": {
+//              "@type": "/gno.RefValue",
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3]=
+//     @@ -2,8 +2,8 @@
+//          "ObjectInfo": {
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
+//              "IsEscaped": true,
+//     -        "ModTime": "8",
+//     -        "RefCount": "3"
+//     +        "ModTime": "9",
+//     +        "RefCount": "1"
+//          },
+//          "Value": {
+//              "T": {
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:6]=
+//     @@ -4,7 +4,7 @@
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
+//              "IsEscaped": true,
+//              "ModTime": "9",
+//     -        "RefCount": "4"
+//     +        "RefCount": "3"
+//          },
+//          "Parent": {
+//              "@type": "/gno.RefValue",
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:7]
 // d[a8ada09dee16d791fd406d629fe29bb0ed084a30:8]
 // d[a8ada09dee16d791fd406d629fe29bb0ed084a30:9]

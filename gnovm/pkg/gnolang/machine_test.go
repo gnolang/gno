@@ -9,7 +9,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
-	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -109,9 +108,7 @@ func TestMachineString(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.in.String()
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Fatalf("Mismatch: got - want +\n%s", diff)
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

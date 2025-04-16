@@ -1,7 +1,6 @@
 package authorizable
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -15,8 +14,7 @@ var (
 )
 
 func TestNewAuthorizable(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
-	std.TestSetOriginCaller(alice) // TODO(bug, issue #2371): should not be needed
+	testing.SetOriginCaller(alice)
 
 	a := NewAuthorizable()
 	got := a.Owner()
@@ -38,8 +36,7 @@ func TestNewAuthorizableWithAddress(t *testing.T) {
 
 func TestCallerOnAuthList(t *testing.T) {
 	a := NewAuthorizableWithAddress(alice)
-	std.TestSetRealm(std.NewUserRealm(alice))
-	std.TestSetOriginCaller(alice)
+	testing.SetOriginCaller(alice)
 
 	if err := a.CallerOnAuthList(); err == ErrNotInAuthList {
 		t.Fatalf("expected alice to be on the list")
@@ -48,8 +45,7 @@ func TestCallerOnAuthList(t *testing.T) {
 
 func TestNotCallerOnAuthList(t *testing.T) {
 	a := NewAuthorizableWithAddress(alice)
-	std.TestSetRealm(std.NewUserRealm(bob))
-	std.TestSetOriginCaller(bob)
+	testing.SetOriginCaller(bob)
 
 	if err := a.CallerOnAuthList(); err == nil {
 		t.Fatalf("expected bob to not be on the list")
@@ -58,15 +54,13 @@ func TestNotCallerOnAuthList(t *testing.T) {
 
 func TestAddToAuthList(t *testing.T) {
 	a := NewAuthorizableWithAddress(alice)
-	std.TestSetRealm(std.NewUserRealm(alice))
-	std.TestSetOriginCaller(alice)
+	testing.SetOriginCaller(alice)
 
 	if err := a.AddToAuthList(bob); err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 
-	std.TestSetRealm(std.NewUserRealm(bob))
-	std.TestSetOriginCaller(bob)
+	testing.SetOriginCaller(bob)
 
 	if err := a.AddToAuthList(bob); err == nil {
 		t.Fatalf("Expected AddToAuth to error while bob called it, but it didn't")
@@ -75,8 +69,7 @@ func TestAddToAuthList(t *testing.T) {
 
 func TestDeleteFromList(t *testing.T) {
 	a := NewAuthorizableWithAddress(alice)
-	std.TestSetRealm(std.NewUserRealm(alice))
-	std.TestSetOriginCaller(alice)
+	testing.SetOriginCaller(alice)
 
 	if err := a.AddToAuthList(bob); err != nil {
 		t.Fatalf("Expected no error, got %v", err)
@@ -86,16 +79,14 @@ func TestDeleteFromList(t *testing.T) {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 
-	std.TestSetRealm(std.NewUserRealm(bob))
-	std.TestSetOriginCaller(bob)
+	testing.SetOriginCaller(bob)
 
 	// Try an unauthorized deletion
 	if err := a.DeleteFromAuthList(alice); err == nil {
 		t.Fatalf("Expected DelFromAuth to error with %v", err)
 	}
 
-	std.TestSetRealm(std.NewUserRealm(alice))
-	std.TestSetOriginCaller(alice)
+	testing.SetOriginCaller(alice)
 
 	if err := a.DeleteFromAuthList(charlie); err != nil {
 		t.Fatalf("Expected no error, got %v", err)
@@ -103,12 +94,11 @@ func TestDeleteFromList(t *testing.T) {
 }
 
 func TestAssertOnList(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
-	std.TestSetOriginCaller(alice)
+	testing.SetOriginCaller(alice)
+
 	a := NewAuthorizableWithAddress(alice)
 
-	std.TestSetRealm(std.NewUserRealm(bob))
-	std.TestSetOriginCaller(bob)
+	testing.SetOriginCaller(bob)
 
 	uassert.PanicsWithMessage(t, ErrNotInAuthList.Error(), func() {
 		a.AssertOnAuthList()

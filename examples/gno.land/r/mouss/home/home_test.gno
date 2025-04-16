@@ -1,7 +1,6 @@
 package home
 
 import (
-	"std"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -24,7 +23,7 @@ func TestProfile(t *testing.T) {
 }
 
 func TestAddRecipe(t *testing.T) {
-	std.TestSetOriginCaller(user1)
+	testing.SetOriginCaller(user1)
 	name := "Test Recipe"
 	origin := "Test Origin"
 	ingredients := "Ingredient 1\nIngredient 2"
@@ -65,29 +64,29 @@ func TestAddRecipe(t *testing.T) {
 
 func TestFollow(t *testing.T) {
 	// Test user following admin's profile
-	std.TestSetOriginCaller(user1)
+	testing.SetOriginCaller(user1)
 	err := Follow()
 	uassert.NoError(t, err, "user should be able to follow admin's profile")
 
 	// Test admin trying to follow themselves
-	std.TestSetOriginCaller(mainAddr)
+	testing.SetOriginCaller(mainAddr)
 	err = Follow()
 	uassert.Error(t, err, "you cannot follow yourself")
 
 	// Test following same address twice
-	std.TestSetOriginCaller(user1)
+	testing.SetOriginCaller(user1)
 	err = Follow()
 	uassert.Error(t, err, "should not be able to follow same address twice")
 
 	// Test multiple users following admin
-	std.TestSetOriginCaller(user2)
+	testing.SetOriginCaller(user2)
 	err = Follow()
 	uassert.NoError(t, err, "another user should be able to follow admin's profile")
 }
 
 func TestUnfollow(t *testing.T) {
 	// Test successful unfollow
-	std.TestSetOriginCaller(user1)
+	testing.SetOriginCaller(user1)
 	err := Unfollow()
 	uassert.NoError(t, err)
 	uassert.False(t, profile.Followers.Has(user1))
