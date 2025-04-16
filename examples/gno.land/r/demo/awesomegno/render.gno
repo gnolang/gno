@@ -40,19 +40,35 @@ func renderHome() string {
 	out := md.H1("AwesomeGno")
 	out += md.Paragraph("Welcome to AwesomeGno - A curated list of awesome items built on gno.land. Here you can discover and explore the growing ecosystem of decentralized applications.")
 
+	out += md.Paragraph(md.Link("Browse categories →", "/r/demo/awesomegno:categories"))
+
+	out += md.H2("Recent Additions")
+	var recentItems []string
+	count := 0
+	items.ReverseIterateByOffset(0, 5, func(key string, value interface{}) bool {
+		if count >= 5 {
+			return true
+		}
+		item := value.(*Item)
+		recentItems = append(recentItems, formatItemListItem(item))
+		count++
+		return false
+	})
+	
+	if len(recentItems) > 0 {
+		out += md.BulletList(recentItems)
+		out += "\n"
+		out += md.Paragraph(md.Link("See all items →", "/r/demo/awesomegno:items"))
+	} else {
+		out += md.Italic("No items added yet")
+	}
+
 	out += md.H2("Quick Stats")
 	stats := []string{
 		ufmt.Sprintf("Total Items: %d", items.Size()),
 		ufmt.Sprintf("Categories: %d", categories.Size()),
 	}
 	out += md.BulletList(stats)
-
-	out += md.H2("Navigation")
-	links := []string{
-		md.Link("Browse All Items", "/r/demo/awesomegno:items"),
-		md.Link("Browse Categories", "/r/demo/awesomegno:categories"),
-	}
-	out += md.BulletList(links)
 
 	out += md.Blockquote("AwesomeGno is a community-driven project that aims to showcase and promote the best items built on gno.land. Each item is carefully categorized and reviewed to ensure quality and usefulness.")
 
