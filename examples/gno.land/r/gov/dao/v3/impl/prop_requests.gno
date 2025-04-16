@@ -25,6 +25,26 @@ func NewChangeLawRequest(newLaw *Law) dao.ProposalRequest {
 	return dao.NewProposalRequest("Change Law Proposal", "This proposal is looking to change the actual govDAO Law", e)
 }
 
+func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.ProposalRequest {
+	member, _ := memberstore.Get().GetMember(std.OriginCaller())
+	if member == nil {
+		panic("proposer is not a member")
+	}
+
+	cb := func() error {
+		dao.UpdateImpl(dao.UpdateRequest{
+			DAO:         newDao,
+			AllowedDAOs: []string{"gno.land/r/gov/dao/v3/impl", realmPkg}, // keeping previous realm just in case something went wrong
+		})
+
+		return nil
+	}
+
+	e := dao.NewSimpleExecutor(cb, "")
+
+	return dao.NewProposalRequest("Change DAO implementation", "This proposal is looking to change the actual govDAO implementation. Reason: "+reason, e)
+}
+
 func NewAddMemberRequest(addr std.Address, tier string, portfolio string) dao.ProposalRequest {
 	_, ok := memberstore.Tiers.GetTier(tier)
 	if !ok {
