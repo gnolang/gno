@@ -1197,6 +1197,18 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				ift := evalStaticTypeOf(store, last, n.Func)
 				switch cft := baseOf(ift).(type) {
 				case *FuncType:
+					fn := extractFunctionName(n)
+					if fn == "len" { //nolint
+						at := evalStaticTypeOf(store, last, n.Args[0])
+						ValidateLenArg(at)
+					}
+					if fn == "cap" { //nolint
+						at := evalStaticTypeOf(store, last, n.Args[0])
+						ValidateCapArg(at)
+					}
+					if fn == "make" {
+						AssertValidBuiltinArgType(store, last, n)
+					}
 					ft = cft
 				case *TypeType:
 					if len(n.Args) != 1 {
@@ -1205,11 +1217,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					n.NumArgs = 1
 					ct := evalStaticType(store, last, n.Func)
 					at := evalStaticTypeOf(store, last, n.Args[0])
-
 					if _, isIface := baseOf(ct).(*InterfaceType); isIface {
 						assertAssignableTo(n, at, ct, false)
 					}
-
 					var constConverted bool
 					switch arg0 := n.Args[0].(type) {
 					case *ConstExpr:
