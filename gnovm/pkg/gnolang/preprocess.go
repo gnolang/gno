@@ -1206,6 +1206,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					ct := evalStaticType(store, last, n.Func)
 					at := evalStaticTypeOf(store, last, n.Args[0])
 
+					// OPTIMIZATION: Skip redundant type conversions when source and target types are identical
+					if at != nil && ct.TypeID() == at.TypeID() && !isUntyped(at) {
+						n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+						return n.Args[0], TRANS_CONTINUE
+					}
+
 					if _, isIface := baseOf(ct).(*InterfaceType); isIface {
 						assertAssignableTo(n, at, ct, false)
 					}
