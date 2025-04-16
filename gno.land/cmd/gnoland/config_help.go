@@ -25,7 +25,7 @@ func generateSubCommandHelper(gen metadataHelperGenerator, s any, exec commands.
 	metas := gen.generateFields(rv, "", 0)
 
 	cmds := make([]*commands.Command, len(metas))
-	for i := 0; i < len(metas); i++ {
+	for i := range metas {
 		meta := metas[i]
 		exec := func(ctx context.Context, args []string) error {
 			args = append([]string{meta.Name}, args...)
@@ -57,7 +57,7 @@ func (g *metadataHelperGenerator) generateFields(rv reflect.Value, parent string
 	}
 
 	rt := rv.Type()
-	for i := 0; i < rv.NumField(); i++ {
+	for i := range rv.NumField() {
 		field := rt.Field(i)
 		if !field.IsExported() {
 			continue

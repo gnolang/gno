@@ -76,16 +76,16 @@ type RPCFunc struct {
 
 // NewRPCFunc wraps a function for introspection.
 // f is the function, args are comma separated argument names
-func NewRPCFunc(f interface{}, args string) *RPCFunc {
+func NewRPCFunc(f any, args string) *RPCFunc {
 	return newRPCFunc(f, args, false)
 }
 
 // NewWSRPCFunc wraps a function for introspection and use in the websockets.
-func NewWSRPCFunc(f interface{}, args string) *RPCFunc {
+func NewWSRPCFunc(f any, args string) *RPCFunc {
 	return newRPCFunc(f, args, true)
 }
 
-func newRPCFunc(f interface{}, args string, ws bool) *RPCFunc {
+func newRPCFunc(f any, args string, ws bool) *RPCFunc {
 	var argNames []string
 	if args != "" {
 		argNames = strings.Split(args, ",")
@@ -100,22 +100,22 @@ func newRPCFunc(f interface{}, args string, ws bool) *RPCFunc {
 }
 
 // return a function's argument types
-func funcArgTypes(f interface{}) []reflect.Type {
+func funcArgTypes(f any) []reflect.Type {
 	t := reflect.TypeOf(f)
 	n := t.NumIn()
 	typez := make([]reflect.Type, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		typez[i] = t.In(i)
 	}
 	return typez
 }
 
 // return a function's return types
-func funcReturnTypes(f interface{}) []reflect.Type {
+func funcReturnTypes(f any) []reflect.Type {
 	t := reflect.TypeOf(f)
 	n := t.NumOut()
 	typez := make([]reflect.Type, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		typez[i] = t.Out(i)
 	}
 	return typez
@@ -856,7 +856,7 @@ func (wm *WebsocketManager) WebsocketHandler(w http.ResponseWriter, r *http.Requ
 // -----------------------------------------------------------------------------
 
 // NOTE: assume returns is result struct and error. If error is not nil, return it
-func unreflectResult(returns []reflect.Value) (interface{}, error) {
+func unreflectResult(returns []reflect.Value) (any, error) {
 	errV := returns[1]
 	if errV.Interface() != nil {
 		return nil, errors.New("%v", errV.Interface())

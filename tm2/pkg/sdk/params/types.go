@@ -12,7 +12,7 @@ import (
 type Param struct {
 	Key   string
 	Type  string
-	Value interface{}
+	Value any
 }
 
 const (
@@ -25,7 +25,7 @@ const (
 )
 
 // NOTE: do not support structs here.
-func NewParam(key string, value interface{}) Param {
+func NewParam(key string, value any) Param {
 	switch value.(type) {
 	case string:
 		return Param{Key: key, Type: ParamTypeString, Value: value}

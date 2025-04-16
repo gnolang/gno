@@ -12,7 +12,7 @@ func DeriveRand(r *rand.Rand) *rand.Rand {
 	const num = 8 // TODO what's a good number?  Too large is too slow.
 	ms := multiSource(make([]rand.Source, num))
 
-	for i := 0; i < num; i++ {
+	for i := range num {
 		ms[i] = rand.NewSource(r.Int63())
 	}
 
