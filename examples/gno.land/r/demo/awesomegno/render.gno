@@ -54,8 +54,7 @@ func renderHome() string {
 	}
 	out += md.BulletList(links)
 
-	out += md.H2("About")
-	out += md.Paragraph("AwesomeGno is a community-driven project that aims to showcase and promote the best items built on gno.land. Each item is carefully categorized and reviewed to ensure quality and usefulness.")
+	out += md.Blockquote("AwesomeGno is a community-driven project that aims to showcase and promote the best items built on gno.land. Each item is carefully categorized and reviewed to ensure quality and usefulness.")
 
 	return out
 }
