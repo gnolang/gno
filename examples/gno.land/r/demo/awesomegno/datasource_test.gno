@@ -132,7 +132,7 @@ func TestItemDatasourceRecord(t *testing.T) {
 func TestItemRecord(t *testing.T) {
 	addr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	catID := seqid.ID(1)
-	
+
 	cat := &Category{ID: catID, Name: "Test Category"}
 	categories.Set(cat.ID.String(), cat)
 
@@ -143,7 +143,7 @@ func TestItemRecord(t *testing.T) {
 		Authors:     []std.Address{addr},
 		URL:         "https://test.com",
 		CreatedAt:   time.Now(),
-		Categories:  []seqid.ID{catID}, 
+		Categories:  []seqid.ID{catID},
 	}
 
 	r := itemRecord{&item}

@@ -62,12 +62,12 @@ func renderHome() string {
 	} else {
 		out += md.Italic("No items added yet")
 		addItemLink := txlink.NewLink("AddItem").
-		AddArgs(
-			"title", "",
-			"description", "",
-			"url", "",
-			"author", "",
-		).URL()
+			AddArgs(
+				"title", "",
+				"description", "",
+				"url", "",
+				"author", "",
+			).URL()
 		out += md.Paragraph(md.Link("➕ Add New Item", addItemLink))
 		out += "\n"
 	}
