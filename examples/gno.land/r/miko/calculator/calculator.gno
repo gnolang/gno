@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"gno.land/p/moul/md"
+	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/realmpath"
 	"gno.land/r/leon/hor"
 )
@@ -208,12 +209,16 @@ func Render(path string) string {
 	out += md.H3("Have you ever wanted to do maths but never actually found a calculator ?")
 	out += md.H3("Do I have the realm for you...")
 	out += "---------------\n"
+
 	out += md.H2("Result: " + displayVal)
-	out += "| " + md.Link("res", realmPath) + "| " + md.Link("(", realmPath+":?expression="+expression+"<") + "| " + md.Link(")", realmPath+":?expression="+expression+">") + "| " + md.Link("del", realmPath+":?expression="+removeLast(expression)) + "|\n"
-	out += "|---|---|---|---|\n"
-	out += "| " + md.Link("7", realmPath+":?expression="+expression+"7") + "| " + md.Link("8", realmPath+":?expression="+expression+"8") + "| " + md.Link("9", realmPath+":?expression="+expression+"9") + "| " + md.Link("+", realmPath+":?expression="+expression+"p") /* here p replaces + because of how + works in bnormal paths*/ + "|\n"
-	out += "| " + md.Link("4", realmPath+":?expression="+expression+"4") + "| " + md.Link("5", realmPath+":?expression="+expression+"5") + "| " + md.Link("6", realmPath+":?expression="+expression+"6") + "| " + md.Link("-", realmPath+":?expression="+expression+"-") + "|\n"
-	out += "| " + md.Link("1", realmPath+":?expression="+expression+"1") + "| " + md.Link("2", realmPath+":?expression="+expression+"2") + "| " + md.Link("3", realmPath+":?expression="+expression+"3") + "| " + md.Link("*", realmPath+":?expression="+expression+"*") + "|\n"
-	out += "| " + md.Link("0", realmPath+":?expression="+expression+"0") + "| " + md.Link(".", realmPath+":?expression="+expression+".") + "| " + md.Link("=", realmPath+":?expression="+expression+"=") + "| " + md.Link("/", realmPath+":?expression="+expression+"/") + "|\n"
+	table := mdtable.Table{
+		Headers: []string{md.Link("res", realmPath), md.Link("(", realmPath+":?expression="+expression+"<"), md.Link(")", realmPath+":?expression="+expression+">"), md.Link("del", realmPath+":?expression="+removeLast(expression))},
+	}
+	table.Append([]string{md.Link("7", realmPath+":?expression="+expression+"7"), md.Link("8", realmPath+":?expression="+expression+"8"), md.Link("9", realmPath+":?expression="+expression+"9"), md.Link("+", realmPath+":?expression="+expression+"p")})
+	table.Append([]string{md.Link("4", realmPath+":?expression="+expression+"4"), md.Link("5", realmPath+":?expression="+expression+"5"), md.Link("6", realmPath+":?expression="+expression+"6"), md.Link("-", realmPath+":?expression="+expression+"-")})
+	table.Append([]string{md.Link("1", realmPath+":?expression="+expression+"1"), md.Link("2", realmPath+":?expression="+expression+"2"), md.Link("3", realmPath+":?expression="+expression+"3"), md.Link("*", realmPath+":?expression="+expression+"*")})
+	table.Append([]string{md.Link("0", realmPath+":?expression="+expression+"0"), md.Link(".", realmPath+":?expression="+expression+"."), md.Link("=", realmPath+":?expression="+expression+"="), md.Link("/", realmPath+":?expression="+expression+"/")})
+	out += table.String()
+
 	return out
 }
