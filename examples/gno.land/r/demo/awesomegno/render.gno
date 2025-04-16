@@ -38,7 +38,7 @@ func Render(path string) string {
 
 func renderHome() string {
 	out := md.H1("AwesomeGno")
-	out += md.Paragraph("Welcome to AwesomeGno - A curated list of awesome items built on Gno.land. Here you can discover and explore the growing ecosystem of decentralized applications.")
+	out += md.Paragraph("Welcome to AwesomeGno - A curated list of awesome items built on gno.land. Here you can discover and explore the growing ecosystem of decentralized applications.")
 
 	out += md.H2("Quick Stats")
 	stats := []string{
@@ -55,14 +55,14 @@ func renderHome() string {
 	out += md.BulletList(links)
 
 	out += md.H2("About")
-	out += md.Paragraph("AwesomeGno is a community-driven project that aims to showcase and promote the best items built on Gno.land. Each item is carefully categorized and reviewed to ensure quality and usefulness.")
+	out += md.Paragraph("AwesomeGno is a community-driven project that aims to showcase and promote the best items built on gno.land. Each item is carefully categorized and reviewed to ensure quality and usefulness.")
 
 	return out
 }
 
 func renderItems(path string) string {
 	out := md.H1("Items")
-	out += md.Paragraph("Browse through all the awesome items built on Gno.land.")
+	out += md.Paragraph("Browse through all the awesome items built on gno.land.")
 
 	addItemLink := txlink.NewLink("AddItem").
 		AddArgs(
