@@ -42,7 +42,7 @@ func NewUpgradeDaoImplRequest(newDao dao.DAO, realmPkg, reason string) dao.Propo
 
 	e := dao.NewSimpleExecutor(cb, "")
 
-	return dao.NewProposalRequest("Change DAO implementation", "This proposal is looking to change the actual govDAO implementation. Reason: " + reason, e)
+	return dao.NewProposalRequest("Change DAO implementation", "This proposal is looking to change the actual govDAO implementation. Reason: "+reason, e)
 }
 
 func NewAddMemberRequest(addr std.Address, tier string, portfolio string) dao.ProposalRequest {
