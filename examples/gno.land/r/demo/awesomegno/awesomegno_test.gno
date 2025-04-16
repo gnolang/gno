@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/urequire"
+	"gno.land/p/demo/uassert"
 )
 
 var adminAddr = std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
@@ -15,10 +15,12 @@ func TestAddItem(t *testing.T) {
 	testing.SetOriginCaller(adminAddr)
 
 	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	id := AddItem("Test Item", "A test description", "https://test.com", validAddr.String())
-	urequire.NotEmpty(t, id.String())
 
-	urequire.PanicsWithMessage(t, "item title cannot be empty", func() {
+	uassert.NotPanics(t, func() {
+		AddItem("Test Item", "A test description", "https://test.com", validAddr.String())
+	})
+
+	uassert.PanicsWithMessage(t, "item title cannot be empty", func() {
 		AddItem("", "description", "url", validAddr.String())
 	})
 }
@@ -28,24 +30,21 @@ func TestUpdateItem(t *testing.T) {
 	testing.SetOriginCaller(adminAddr)
 
 	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	id := AddItem("Original Item", "Original description", "https://original.com", validAddr.String())
 
-	catID := AddCategory("Test Category", "Test Category Description")
+	AddItem("Original Item", "Original description", "https://original.com", validAddr.String())
 
-	urequire.NotPanics(t, func() {
-		UpdateItem(id, "Updated Item", "Updated description", "https://updated.com", catID)
+	AddCategory("Test Category", "Test Category Description")
+
+	_, itemValue := items.GetByIndex(0)
+	item := itemValue.(*Item)
+
+	uassert.NotPanics(t, func() {
+		UpdateItem(item.ID, "Updated Item", "Updated description", "https://updated.com")
 	})
 
-	nonExistentID, err := seqid.FromString("9999999")
-	urequire.NoError(t, err)
-	urequire.PanicsWithMessage(t, "item not found: "+nonExistentID.String(), func() {
-		UpdateItem(nonExistentID, "title", "desc", "url")
-	})
-
-	invalidCatID, err := seqid.FromString("9999999")
-	urequire.NoError(t, err)
-	urequire.PanicsWithMessage(t, "category not found: "+invalidCatID.String(), func() {
-		UpdateItem(id, "title", "desc", "url", invalidCatID)
+	invalidID := seqid.ID(999999)
+	uassert.PanicsWithMessage(t, "item not found: "+invalidID.String(), func() {
+		UpdateItem(invalidID, "title", "desc", "url")
 	})
 }
 
@@ -55,12 +54,16 @@ func TestUpdateItemsAuthors(t *testing.T) {
 
 	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	validAddr2 := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf6")
-	id := AddItem("Original Item", "Original description", "https://original.com", validAddr.String())
+
+	AddItem("Original Item", "Original description", "https://original.com", validAddr.String())
+
+	_, itemValue := items.GetByIndex(0)
+	item := itemValue.(*Item)
 
 	authors := []std.Address{validAddr, validAddr2}
 
-	urequire.NotPanics(t, func() {
-		UpdateItemsAuthors(id, authors)
+	uassert.NotPanics(t, func() {
+		UpdateItemsAuthors(item.ID, authors)
 	})
 }
 
@@ -69,14 +72,18 @@ func TestDeleteItem(t *testing.T) {
 	testing.SetOriginCaller(adminAddr)
 
 	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	id := AddItem("Item to Delete", "Will be deleted", "https://delete.com", validAddr.String())
 
-	urequire.NotPanics(t, func() {
-		DeleteItem(id)
+	AddItem("Item to Delete", "Will be deleted", "https://delete.com", validAddr.String())
+
+	_, itemValue := items.GetByIndex(0)
+	item := itemValue.(*Item)
+
+	uassert.NotPanics(t, func() {
+		DeleteItem(item.ID)
 	})
 
-	urequire.PanicsWithMessage(t, "item not found: "+id.String(), func() {
-		DeleteItem(id)
+	uassert.PanicsWithMessage(t, "item not found: "+item.ID.String(), func() {
+		DeleteItem(item.ID)
 	})
 }
 
@@ -84,10 +91,11 @@ func TestAddCategory(t *testing.T) {
 	t.Helper()
 	testing.SetOriginCaller(adminAddr)
 
-	id := AddCategory("Test Category", "A test category description")
-	urequire.NotEmpty(t, id.String())
+	uassert.NotPanics(t, func() {
+		AddCategory("Test Category", "A test category description")
+	})
 
-	urequire.PanicsWithMessage(t, "category name cannot be empty", func() {
+	uassert.PanicsWithMessage(t, "category name cannot be empty", func() {
 		AddCategory("", "description")
 	})
 }
@@ -96,16 +104,18 @@ func TestUpdateCategory(t *testing.T) {
 	t.Helper()
 	testing.SetOriginCaller(adminAddr)
 
-	id := AddCategory("Original Category", "Original description")
+	AddCategory("Original Category", "Original description")
 
-	urequire.NotPanics(t, func() {
-		UpdateCategory(id, "Updated Category", "Updated description")
+	_, catValue := categories.GetByIndex(0)
+	category := catValue.(*Category)
+
+	uassert.NotPanics(t, func() {
+		UpdateCategory(category.ID, "Updated Category", "Updated description")
 	})
 
-	nonExistentID, err := seqid.FromString("9999999")
-	urequire.NoError(t, err)
-	urequire.PanicsWithMessage(t, "category not found: "+nonExistentID.String(), func() {
-		UpdateCategory(nonExistentID, "name", "desc")
+	invalidID := seqid.ID(999999)
+	uassert.PanicsWithMessage(t, "category not found: "+invalidID.String(), func() {
+		UpdateCategory(invalidID, "name", "desc")
 	})
 }
 
@@ -113,14 +123,17 @@ func TestDeleteCategory(t *testing.T) {
 	t.Helper()
 	testing.SetOriginCaller(adminAddr)
 
-	id := AddCategory("Category to Delete", "Will be deleted")
+	AddCategory("Category to Delete", "Will be deleted")
 
-	urequire.NotPanics(t, func() {
-		DeleteCategory(id)
+	_, catValue := categories.GetByIndex(0)
+	category := catValue.(*Category)
+
+	uassert.NotPanics(t, func() {
+		DeleteCategory(category.ID)
 	})
 
-	urequire.PanicsWithMessage(t, "category not found: "+id.String(), func() {
-		DeleteCategory(id)
+	uassert.PanicsWithMessage(t, "category not found: "+category.ID.String(), func() {
+		DeleteCategory(category.ID)
 	})
 }
 
@@ -129,16 +142,22 @@ func TestItemCategoryRelationship(t *testing.T) {
 	testing.SetOriginCaller(adminAddr)
 
 	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	itemID := AddItem("Relationship Test Item", "Testing relationships", "https://test.com", validAddr.String())
-	catID := AddCategory("Relationship Category", "For testing relationships")
 
-	urequire.NotPanics(t, func() {
-		UpdateItem(itemID, "", "", "", catID)
+	AddItem("Relationship Test Item", "Testing relationships", "https://test.com", validAddr.String())
+	AddCategory("Relationship Category", "For testing relationships")
+
+	_, itemValue := items.GetByIndex(0)
+	_, catValue := categories.GetByIndex(0)
+	item := itemValue.(*Item)
+	category := catValue.(*Category)
+
+	uassert.NotPanics(t, func() {
+		UpdateItem(item.ID, "", "", "", category.ID)
 	})
 
-	DeleteCategory(catID)
+	DeleteCategory(category.ID)
 
-	urequire.PanicsWithMessage(t, "category not found: "+catID.String(), func() {
-		UpdateItem(itemID, "", "", "", catID)
+	uassert.PanicsWithMessage(t, "category not found: "+category.ID.String(), func() {
+		UpdateItem(item.ID, "", "", "", category.ID)
 	})
 }

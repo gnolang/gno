@@ -34,20 +34,17 @@ func init() {
 	hor.Register("AwesomeGno", "Awesome Gno is a registry for gnowesome dApps, tools and resources on gno.land")
 }
 
-func AddItem(title, description, url, authorAddress string) seqid.ID {
+func AddItem(title, description, url, authorAddress string) {
 	if title == "" {
 		panic("item title cannot be empty")
 	}
 
-	var itemID seqid.ID
 	if err := Auth.Do("add_item", func() error {
-		itemID = addItem(title, description, url, std.Address(authorAddress))
+		addItem(title, description, url, std.Address(authorAddress))
 		return nil
 	}); err != nil {
 		panic(err)
 	}
-
-	return itemID
 }
 
 func UpdateItem(itemID seqid.ID, title, description, url string, categories ...seqid.ID) {
@@ -77,20 +74,17 @@ func DeleteItem(itemID seqid.ID) {
 	}
 }
 
-func AddCategory(name, description string) seqid.ID {
+func AddCategory(name, description string) {
 	if name == "" {
 		panic("category name cannot be empty")
 	}
 
-	var categoryID seqid.ID
 	if err := Auth.Do("add_category", func() error {
-		categoryID = addCategory(name, description)
+		addCategory(name, description)
 		return nil
 	}); err != nil {
 		panic(err)
 	}
-
-	return categoryID
 }
 
 func UpdateCategory(categoryID seqid.ID, name, description string) {

@@ -1,5 +1,9 @@
 package awesomegno
 
+import (
+	"gno.land/p/demo/seqid"
+)
+
 var (
 	mockAddr1 = ""
 	mockAddr2 = ""
@@ -7,94 +11,115 @@ var (
 )
 
 func AddMockData() {
-	defiID := AddCategory("DeFi", "Decentralized Finance applications and protocols")
-	nftID := AddCategory("NFT", "Non-Fungible Token marketplaces and collections")
-	gamesID := AddCategory("Games", "Blockchain games and gaming platforms")
-	socialID := AddCategory("Social", "Social networks and communication platforms")
-	govID := AddCategory("Governance", "DAOs and governance applications")
-	utilityID := AddCategory("Utility", "Utility tools and services")
-	dataID := AddCategory("Data & Analytics", "Blockchain data and analytics platforms")
-	identityID := AddCategory("Identity", "Identity and authentication solutions")
-	marketID := AddCategory("Marketplaces", "Decentralized marketplaces")
-	infraID := AddCategory("Infrastructure", "Blockchain infrastructure and developer tools")
+	AddCategory("DeFi", "Decentralized Finance applications and protocols")
+	AddCategory("NFT", "Non-Fungible Token marketplaces and collections")
+	AddCategory("Games", "Blockchain games and gaming platforms")
+	AddCategory("Social", "Social networks and communication platforms")
+	AddCategory("Governance", "DAOs and governance applications")
+	AddCategory("Utility", "Utility tools and services")
+	AddCategory("Data & Analytics", "Blockchain data and analytics platforms")
+	AddCategory("Identity", "Identity and authentication solutions")
+	AddCategory("Marketplaces", "Decentralized marketplaces")
+	AddCategory("Infrastructure", "Blockchain infrastructure and developer tools")
 
-	item1ID := AddItem(
+	AddItem(
 		"GnoSwap",
 		"Decentralized exchange for Gno.land tokens with automated market making",
 		"https://gnoswap.io",
 		mockAddr1,
 	)
-	UpdateItem(item1ID, "", "", "", defiID)
+	updateFirstItemCategories("DeFi")
 
-	item2ID := AddItem(
+	AddItem(
 		"GnoArt",
 		"NFT marketplace for digital art on Gno.land",
 		"https://gnoart.io",
 		mockAddr2,
 	)
-	UpdateItem(item2ID, "", "", "", nftID, marketID)
+	updateFirstItemCategories("NFT", "Marketplaces")
 
-	item3ID := AddItem(
+	AddItem(
 		"CryptoQuest",
 		"RPG game built on Gno.land with player-owned assets",
 		"https://cryptoquest.io",
 		mockAddr3,
 	)
-	UpdateItem(item3ID, "", "", "", gamesID, nftID)
+	updateFirstItemCategories("Games", "NFT")
 
-	item4ID := AddItem(
+	AddItem(
 		"GnoChat",
 		"Decentralized messaging platform with end-to-end encryption",
 		"https://gnochat.io",
 		mockAddr1,
 	)
-	UpdateItem(item4ID, "", "", "", socialID)
+	updateFirstItemCategories("Social")
 
-	item5ID := AddItem(
+	AddItem(
 		"GnoDAO",
 		"DAO creation and management platform",
 		"https://gnodao.io",
 		mockAddr2,
 	)
-	UpdateItem(item5ID, "", "", "", govID)
+	updateFirstItemCategories("Governance")
 
-	item6ID := AddItem(
+	AddItem(
 		"GnoTools",
 		"Developer toolkit for building on Gno.land",
 		"https://gnotools.io",
 		mockAddr3,
 	)
-	UpdateItem(item6ID, "", "", "", utilityID, infraID)
+	updateFirstItemCategories("Utility", "Infrastructure")
 
-	item7ID := AddItem(
+	AddItem(
 		"GnoMetrics",
 		"Analytics dashboard for Gno.land blockchain",
 		"https://gnometrics.io",
 		mockAddr1,
 	)
-	UpdateItem(item7ID, "", "", "", dataID)
+	updateFirstItemCategories("Data & Analytics")
 
-	item8ID := AddItem(
+	AddItem(
 		"GnoID",
 		"Decentralized identity verification system",
 		"https://gnoid.io",
 		mockAddr2,
 	)
-	UpdateItem(item8ID, "", "", "", identityID)
+	updateFirstItemCategories("Identity")
 
-	item9ID := AddItem(
+	AddItem(
 		"GnoMarket",
 		"P2P marketplace for digital and physical goods",
 		"https://gnomarket.io",
 		mockAddr3,
 	)
-	UpdateItem(item9ID, "", "", "", marketID)
+	updateFirstItemCategories("Marketplaces")
 
-	item10ID := AddItem(
+	AddItem(
 		"GnoStack",
 		"Full-stack development framework for Gno.land",
 		"https://gnostack.io",
 		mockAddr1,
 	)
-	UpdateItem(item10ID, "", "", "", infraID, utilityID)
+	updateFirstItemCategories("Infrastructure", "Utility")
+}
+
+func updateFirstItemCategories(categoryNames ...string) {
+	_, itemValue := items.GetByIndex(0)
+	item := itemValue.(*Item)
+
+	var categoryIDs []seqid.ID
+	for _, name := range categoryNames {
+		categories.Iterate("", "", func(key string, value interface{}) bool {
+			category := value.(*Category)
+			if category.Name == name {
+				categoryIDs = append(categoryIDs, category.ID)
+				return true
+			}
+			return false
+		})
+	}
+
+	for _, categoryID := range categoryIDs {
+		UpdateItem(item.ID, "", "", "", categoryID)
+	}
 }
