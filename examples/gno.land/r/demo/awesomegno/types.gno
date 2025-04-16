@@ -13,10 +13,10 @@ type Category struct {
 	Name        string
 	Description string
 	CreatedAt   time.Time
-	dapps       *avl.Tree
+	items       *avl.Tree
 }
 
-type Dapp struct {
+type Item struct {
 	ID          seqid.ID
 	Title       string
 	Description string

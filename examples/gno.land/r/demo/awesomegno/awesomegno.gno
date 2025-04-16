@@ -8,17 +8,17 @@ import (
 	"gno.land/p/demo/avl/rotree"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/moul/authz"
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 )
 
 var (
-	dapps      = avl.NewTree()
+	items      = avl.NewTree()
 	categories = avl.NewTree()
 
-	Dapps      = rotree.Wrap(dapps, nil)
+	Items      = rotree.Wrap(items, nil)
 	Categories = rotree.Wrap(categories, nil)
 
-	nextDappID     seqid.ID
+	nextItemID     seqid.ID
 	nextCategoryID seqid.ID
 
 	authority = authz.NewMemberAuthority(
@@ -30,50 +30,46 @@ var (
 )
 
 func init() {
-	hof.Register("AwesomeGno", "Awesome Gno is a registry for gnowesome dApps on gno.land")
+	hor.Register("AwesomeGno", "Awesome Gno is a registry for gnowesome dApps, tools and resources on gno.land")
 }
 
-func AddDapp(title, description, url, authorAddress string) seqid.ID {
+func AddItem(title, description, url, authorAddress string) seqid.ID {
 	if title == "" {
-		panic("dapp title cannot be empty")
+		panic("item title cannot be empty")
 	}
 
-	if !std.Address(authorAddress).IsValid() {
-		panic("invalid author address")
-	}
-
-	var dappID seqid.ID
-	if err := Auth.Do("add_dapp", func() error {
-		dappID = addDapp(title, description, url, std.Address(authorAddress))
+	var itemID seqid.ID
+	if err := Auth.Do("add_item", func() error {
+		itemID = addItem(title, description, url, std.Address(authorAddress))
 		return nil
 	}); err != nil {
 		panic(err)
 	}
 
-	return dappID
+	return itemID
 }
 
-func UpdateDapp(dappID seqid.ID, title, description, url string, categories ...seqid.ID) {
-	if err := Auth.Do("update_dapp", func() error {
-		updateDapp(dappID, title, description, url, []std.Address{}, categories...)
-		return nil
-	}); err != nil {
-		panic(err)
-	}
-}
-
-func UpdateDappsAuthors(dappID seqid.ID, authors []std.Address) {
-	if err := Auth.Do("update_dapps_authors", func() error {
-		updateDapp(dappID, "", "", "", authors, []seqid.ID{}...)
+func UpdateItem(itemID seqid.ID, title, description, url string, categories ...seqid.ID) {
+	if err := Auth.Do("update_item", func() error {
+		updateItem(itemID, title, description, url, []std.Address{}, categories...)
 		return nil
 	}); err != nil {
 		panic(err)
 	}
 }
 
-func DeleteDapp(dappID seqid.ID) {
-	if err := Auth.Do("delete_dapp", func() error {
-		deleteDapp(dappID)
+func UpdateItemsAuthors(itemID seqid.ID, authors []std.Address) {
+	if err := Auth.Do("update_items_authors", func() error {
+		updateItem(itemID, "", "", "", authors, []seqid.ID{}...)
+		return nil
+	}); err != nil {
+		panic(err)
+	}
+}
+
+func DeleteItem(itemID seqid.ID) {
+	if err := Auth.Do("delete_item", func() error {
+		deleteItem(itemID)
 		return nil
 	}); err != nil {
 		panic(err)
@@ -113,9 +109,9 @@ func DeleteCategory(categoryID seqid.ID) {
 	}
 }
 
-func addDapp(name, description, url string, author std.Address) seqid.ID {
-	dapp := &Dapp{
-		ID:          nextDappID.Next(),
+func addItem(name, description, url string, author std.Address) seqid.ID {
+	item := &Item{
+		ID:          nextItemID.Next(),
 		Title:       name,
 		Description: description,
 		Authors:     []std.Address{author},
@@ -124,23 +120,23 @@ func addDapp(name, description, url string, author std.Address) seqid.ID {
 		categories:  avl.NewTree(),
 	}
 
-	dapps.Set(dapp.ID.String(), dapp)
+	items.Set(item.ID.String(), item)
 
-	std.Emit("DappAdded",
-		"id", dapp.ID.String(),
+	std.Emit("ItemAdded",
+		"id", item.ID.String(),
 		"name", name,
 	)
 
-	return dapp.ID
+	return item.ID
 }
 
-func updateDapp(dappID seqid.ID, title, description, url string, authors []std.Address, categoryIDs ...seqid.ID) {
-	dapp, found := dapps.Get(dappID.String())
+func updateItem(itemID seqid.ID, title, description, url string, authors []std.Address, categoryIDs ...seqid.ID) {
+	item, found := items.Get(itemID.String())
 	if !found {
-		panic("dApp not found: " + dappID.String())
+		panic("item not found: " + itemID.String())
 	}
 
-	d := dapp.(*Dapp)
+	d := item.(*Item)
 
 	if title != "" {
 		d.Title = title
@@ -161,7 +157,7 @@ func updateDapp(dappID seqid.ID, title, description, url string, authors []std.A
 			if !found {
 				panic("category not found: " + categoryID.String())
 			}
-			category.(*Category).dapps.Set(dappID.String(), dapp)
+			category.(*Category).items.Set(itemID.String(), item)
 			d.categories.Set(categoryID.String(), category)
 		}
 	}
@@ -171,8 +167,8 @@ func updateDapp(dappID seqid.ID, title, description, url string, authors []std.A
 		categoriesstr += categoryID.String() + ","
 	}
 
-	std.Emit("DappUpdated",
-		"id", dappID.String(),
+	std.Emit("ItemUpdated",
+		"id", itemID.String(),
 		"title", d.Title,
 		"description", d.Description,
 		"url", d.URL,
@@ -192,21 +188,21 @@ func authorsToString(authors []std.Address) string {
 	return result
 }
 
-func deleteDapp(dappID seqid.ID) {
-	dapp, found := dapps.Get(dappID.String())
+func deleteItem(itemID seqid.ID) {
+	item, found := items.Get(itemID.String())
 	if !found {
-		panic("dApp not found: " + dappID.String())
+		panic("item not found: " + itemID.String())
 	}
 
-	dapp.(*Dapp).categories.Iterate("", "", func(categoryID string, value any) bool {
+	item.(*Item).categories.Iterate("", "", func(categoryID string, value any) bool {
 		category := value.(*Category)
-		category.dapps.Remove(dappID.String())
+		category.items.Remove(itemID.String())
 		return false
 	})
 
-	dapps.Remove(dappID.String())
+	items.Remove(itemID.String())
 
-	std.Emit("DappDeleted", "id", dappID.String())
+	std.Emit("ItemDeleted", "id", itemID.String())
 }
 
 func addCategory(name, description string) seqid.ID {
@@ -215,7 +211,7 @@ func addCategory(name, description string) seqid.ID {
 		Name:        name,
 		Description: description,
 		CreatedAt:   time.Now(),
-		dapps:       avl.NewTree(),
+		items:       avl.NewTree(),
 	}
 
 	categories.Set(category.ID.String(), category)
@@ -256,9 +252,9 @@ func deleteCategory(categoryID seqid.ID) {
 		panic("category not found: " + categoryID.String())
 	}
 
-	category.(*Category).dapps.Iterate("", "", func(dappID string, value any) bool {
-		dapp := value.(*Dapp)
-		dapp.categories.Remove(categoryID.String())
+	category.(*Category).items.Iterate("", "", func(itemID string, value any) bool {
+		item := value.(*Item)
+		item.categories.Remove(categoryID.String())
 		return false
 	})
 

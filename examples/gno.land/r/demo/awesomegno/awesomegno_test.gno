@@ -10,77 +10,73 @@ import (
 
 var adminAddr = std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
 
-func TestAddDapp(t *testing.T) {
+func TestAddItem(t *testing.T) {
 	t.Helper()
 	testing.SetOriginCaller(adminAddr)
 
 	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	id := AddDapp("Test Dapp", "A test description", "https://test.com", validAddr.String())
+	id := AddItem("Test Item", "A test description", "https://test.com", validAddr.String())
 	urequire.NotEmpty(t, id.String())
 
-	urequire.PanicsWithMessage(t, "dapp title cannot be empty", func() {
-		AddDapp("", "description", "url", validAddr.String())
-	})
-
-	urequire.PanicsWithMessage(t, "invalid author address", func() {
-		AddDapp("title", "description", "url", "")
+	urequire.PanicsWithMessage(t, "item title cannot be empty", func() {
+		AddItem("", "description", "url", validAddr.String())
 	})
 }
 
-func TestUpdateDapp(t *testing.T) {
+func TestUpdateItem(t *testing.T) {
 	t.Helper()
 	testing.SetOriginCaller(adminAddr)
 
 	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	id := AddDapp("Original Dapp", "Original description", "https://original.com", validAddr.String())
+	id := AddItem("Original Item", "Original description", "https://original.com", validAddr.String())
 
 	catID := AddCategory("Test Category", "Test Category Description")
 
 	urequire.NotPanics(t, func() {
-		UpdateDapp(id, "Updated Dapp", "Updated description", "https://updated.com", catID)
+		UpdateItem(id, "Updated Item", "Updated description", "https://updated.com", catID)
 	})
 
 	nonExistentID, err := seqid.FromString("9999999")
 	urequire.NoError(t, err)
-	urequire.PanicsWithMessage(t, "dApp not found: "+nonExistentID.String(), func() {
-		UpdateDapp(nonExistentID, "title", "desc", "url")
+	urequire.PanicsWithMessage(t, "item not found: "+nonExistentID.String(), func() {
+		UpdateItem(nonExistentID, "title", "desc", "url")
 	})
 
 	invalidCatID, err := seqid.FromString("9999999")
 	urequire.NoError(t, err)
 	urequire.PanicsWithMessage(t, "category not found: "+invalidCatID.String(), func() {
-		UpdateDapp(id, "title", "desc", "url", invalidCatID)
+		UpdateItem(id, "title", "desc", "url", invalidCatID)
 	})
 }
 
-func TestUpdateDappsAuthors(t *testing.T) {
+func TestUpdateItemsAuthors(t *testing.T) {
 	t.Helper()
 	testing.SetOriginCaller(adminAddr)
 
 	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	validAddr2 := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf6")
-	id := AddDapp("Original Dapp", "Original description", "https://original.com", validAddr.String())
+	id := AddItem("Original Item", "Original description", "https://original.com", validAddr.String())
 
 	authors := []std.Address{validAddr, validAddr2}
 
 	urequire.NotPanics(t, func() {
-		UpdateDappsAuthors(id, authors)
+		UpdateItemsAuthors(id, authors)
 	})
 }
 
-func TestDeleteDapp(t *testing.T) {
+func TestDeleteItem(t *testing.T) {
 	t.Helper()
 	testing.SetOriginCaller(adminAddr)
 
 	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	id := AddDapp("Dapp to Delete", "Will be deleted", "https://delete.com", validAddr.String())
+	id := AddItem("Item to Delete", "Will be deleted", "https://delete.com", validAddr.String())
 
 	urequire.NotPanics(t, func() {
-		DeleteDapp(id)
+		DeleteItem(id)
 	})
 
-	urequire.PanicsWithMessage(t, "dApp not found: "+id.String(), func() {
-		DeleteDapp(id)
+	urequire.PanicsWithMessage(t, "item not found: "+id.String(), func() {
+		DeleteItem(id)
 	})
 }
 
@@ -128,21 +124,21 @@ func TestDeleteCategory(t *testing.T) {
 	})
 }
 
-func TestDappCategoryRelationship(t *testing.T) {
+func TestItemCategoryRelationship(t *testing.T) {
 	t.Helper()
 	testing.SetOriginCaller(adminAddr)
 
 	validAddr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	dappID := AddDapp("Relationship Test Dapp", "Testing relationships", "https://test.com", validAddr.String())
+	itemID := AddItem("Relationship Test Item", "Testing relationships", "https://test.com", validAddr.String())
 	catID := AddCategory("Relationship Category", "For testing relationships")
 
 	urequire.NotPanics(t, func() {
-		UpdateDapp(dappID, "", "", "", catID)
+		UpdateItem(itemID, "", "", "", catID)
 	})
 
 	DeleteCategory(catID)
 
 	urequire.PanicsWithMessage(t, "category not found: "+catID.String(), func() {
-		UpdateDapp(dappID, "", "", "", catID)
+		UpdateItem(itemID, "", "", "", catID)
 	})
 }

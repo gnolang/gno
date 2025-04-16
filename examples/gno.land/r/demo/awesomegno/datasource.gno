@@ -9,55 +9,55 @@ import (
 	"gno.land/p/moul/md"
 )
 
-// Dapps
+// Items
 
-func NewDappDatasource() DappDatasource {
-	return DappDatasource{dapps}
+func NewItemDatasource() ItemDatasource {
+	return ItemDatasource{items}
 }
 
-type DappDatasource struct {
-	dapps *avl.Tree
+type ItemDatasource struct {
+	items *avl.Tree
 }
 
-func (ds DappDatasource) Size() int { return ds.dapps.Size() }
+func (ds ItemDatasource) Size() int { return ds.items.Size() }
 
-func (ds DappDatasource) Records(q datasource.Query) datasource.Iterator {
-	return &dappIterator{
-		dapps:    ds.dapps,
+func (ds ItemDatasource) Records(q datasource.Query) datasource.Iterator {
+	return &itemIterator{
+		items:    ds.items,
 		index:    q.Offset,
 		maxIndex: q.Offset + q.Count,
 	}
 }
 
-func (ds DappDatasource) Record(id string) (datasource.Record, error) {
-	v, found := ds.dapps.Get(id)
+func (ds ItemDatasource) Record(id string) (datasource.Record, error) {
+	v, found := ds.items.Get(id)
 	if !found {
-		return nil, errors.New("dapp not found")
+		return nil, errors.New("item not found")
 	}
-	return dappRecord{v.(*Dapp)}, nil
+	return itemRecord{v.(*Item)}, nil
 }
 
-type dappRecord struct {
-	dapp *Dapp
+type itemRecord struct {
+	item *Item
 }
 
-func (r dappRecord) ID() string     { return r.dapp.ID.String() }
-func (r dappRecord) String() string { return r.dapp.Title }
+func (r itemRecord) ID() string     { return r.item.ID.String() }
+func (r itemRecord) String() string { return r.item.Title }
 
-func (r dappRecord) Fields() (datasource.Fields, error) {
+func (r itemRecord) Fields() (datasource.Fields, error) {
 	fields := avl.NewTree()
-	fields.Set("authors", r.dapp.Authors)
-	fields.Set("url", r.dapp.URL)
+	fields.Set("authors", r.item.Authors)
+	fields.Set("url", r.item.URL)
 	return fields, nil
 }
 
-func (r dappRecord) Content() (string, error) {
-	content := md.H1(r.dapp.Title)
+func (r itemRecord) Content() (string, error) {
+	content := md.H1(r.item.Title)
 	content += md.H2("Description")
-	content += r.dapp.Description
+	content += r.item.Description
 	content += md.H2("Categories")
 
-	r.dapp.categories.Iterate("", "", func(key string, value interface{}) bool {
+	r.item.categories.Iterate("", "", func(key string, value interface{}) bool {
 		cat := value.(*Category)
 		content += md.BulletItem(cat.Name)
 		return false
@@ -66,22 +66,22 @@ func (r dappRecord) Content() (string, error) {
 	return content, nil
 }
 
-type dappIterator struct {
-	dapps           *avl.Tree
+type itemIterator struct {
+	items           *avl.Tree
 	index, maxIndex int
-	record          *dappRecord
+	record          *itemRecord
 }
 
-func (it dappIterator) Record() datasource.Record { return it.record }
-func (it dappIterator) Err() error                { return nil }
+func (it itemIterator) Record() datasource.Record { return it.record }
+func (it itemIterator) Err() error                { return nil }
 
-func (it *dappIterator) Next() bool {
-	if it.index >= it.maxIndex || it.index >= it.dapps.Size() {
+func (it *itemIterator) Next() bool {
+	if it.index >= it.maxIndex || it.index >= it.items.Size() {
 		return false
 	}
 
-	_, v := it.dapps.GetByIndex(it.index)
-	it.record = &dappRecord{v.(*Dapp)}
+	_, v := it.items.GetByIndex(it.index)
+	it.record = &itemRecord{v.(*Item)}
 	it.index++
 	return true
 }
@@ -123,7 +123,7 @@ func (r categoryRecord) String() string { return r.category.Name }
 
 func (r categoryRecord) Fields() (datasource.Fields, error) {
 	fields := avl.NewTree()
-	fields.Set("dapp_count", ufmt.Sprintf("%d dapps", r.category.dapps.Size()))
+	fields.Set("item_count", ufmt.Sprintf("%d items", r.category.items.Size()))
 	return fields, nil
 }
 
@@ -131,11 +131,11 @@ func (r categoryRecord) Content() (string, error) {
 	content := md.H1(r.category.Name)
 	content += md.H2("Description")
 	content += r.category.Description
-	content += md.H2("Dapps in this category")
+	content += md.H2("Items in this category")
 
-	r.category.dapps.Iterate("", "", func(key string, value interface{}) bool {
-		dapp := value.(*Dapp)
-		content += md.BulletItem(ufmt.Sprintf("[%s](%s)", dapp.Title, dapp.URL))
+	r.category.items.Iterate("", "", func(key string, value interface{}) bool {
+		item := value.(*Item)
+		content += md.BulletItem(ufmt.Sprintf("[%s](%s)", item.Title, item.URL))
 		return false
 	})
 

@@ -1,9 +1,9 @@
 package awesomegno
 
 var (
-	mockAddr1 = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
-	mockAddr2 = "g1w4ek2u33ta047h6lta047h6lta047h6ldvdwpn"
-	mockAddr3 = "g1w4ek2u3jta047h6lta047h6lta047h6l9huexc"
+	mockAddr1 = ""
+	mockAddr2 = ""
+	mockAddr3 = ""
 )
 
 func AddMockData() {
@@ -18,83 +18,83 @@ func AddMockData() {
 	marketID := AddCategory("Marketplaces", "Decentralized marketplaces")
 	infraID := AddCategory("Infrastructure", "Blockchain infrastructure and developer tools")
 
-	dapp1ID := AddDapp(
+	item1ID := AddItem(
 		"GnoSwap",
 		"Decentralized exchange for Gno.land tokens with automated market making",
 		"https://gnoswap.io",
 		mockAddr1,
 	)
-	UpdateDapp(dapp1ID, "", "", "", defiID)
+	UpdateItem(item1ID, "", "", "", defiID)
 
-	dapp2ID := AddDapp(
+	item2ID := AddItem(
 		"GnoArt",
 		"NFT marketplace for digital art on Gno.land",
 		"https://gnoart.io",
 		mockAddr2,
 	)
-	UpdateDapp(dapp2ID, "", "", "", nftID, marketID)
+	UpdateItem(item2ID, "", "", "", nftID, marketID)
 
-	dapp3ID := AddDapp(
+	item3ID := AddItem(
 		"CryptoQuest",
 		"RPG game built on Gno.land with player-owned assets",
 		"https://cryptoquest.io",
 		mockAddr3,
 	)
-	UpdateDapp(dapp3ID, "", "", "", gamesID, nftID)
+	UpdateItem(item3ID, "", "", "", gamesID, nftID)
 
-	dapp4ID := AddDapp(
+	item4ID := AddItem(
 		"GnoChat",
 		"Decentralized messaging platform with end-to-end encryption",
 		"https://gnochat.io",
 		mockAddr1,
 	)
-	UpdateDapp(dapp4ID, "", "", "", socialID)
+	UpdateItem(item4ID, "", "", "", socialID)
 
-	dapp5ID := AddDapp(
+	item5ID := AddItem(
 		"GnoDAO",
 		"DAO creation and management platform",
 		"https://gnodao.io",
 		mockAddr2,
 	)
-	UpdateDapp(dapp5ID, "", "", "", govID)
+	UpdateItem(item5ID, "", "", "", govID)
 
-	dapp6ID := AddDapp(
+	item6ID := AddItem(
 		"GnoTools",
 		"Developer toolkit for building on Gno.land",
 		"https://gnotools.io",
 		mockAddr3,
 	)
-	UpdateDapp(dapp6ID, "", "", "", utilityID, infraID)
+	UpdateItem(item6ID, "", "", "", utilityID, infraID)
 
-	dapp7ID := AddDapp(
+	item7ID := AddItem(
 		"GnoMetrics",
 		"Analytics dashboard for Gno.land blockchain",
 		"https://gnometrics.io",
 		mockAddr1,
 	)
-	UpdateDapp(dapp7ID, "", "", "", dataID)
+	UpdateItem(item7ID, "", "", "", dataID)
 
-	dapp8ID := AddDapp(
+	item8ID := AddItem(
 		"GnoID",
 		"Decentralized identity verification system",
 		"https://gnoid.io",
 		mockAddr2,
 	)
-	UpdateDapp(dapp8ID, "", "", "", identityID)
+	UpdateItem(item8ID, "", "", "", identityID)
 
-	dapp9ID := AddDapp(
+	item9ID := AddItem(
 		"GnoMarket",
 		"P2P marketplace for digital and physical goods",
 		"https://gnomarket.io",
 		mockAddr3,
 	)
-	UpdateDapp(dapp9ID, "", "", "", marketID)
+	UpdateItem(item9ID, "", "", "", marketID)
 
-	dapp10ID := AddDapp(
+	item10ID := AddItem(
 		"GnoStack",
 		"Full-stack development framework for Gno.land",
 		"https://gnostack.io",
 		mockAddr1,
 	)
-	UpdateDapp(dapp10ID, "", "", "", infraID, utilityID)
+	UpdateItem(item10ID, "", "", "", infraID, utilityID)
 }

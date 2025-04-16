@@ -14,10 +14,10 @@ import (
 )
 
 var (
-	_ datasource.Datasource    = (*DappDatasource)(nil)
-	_ datasource.Record        = (*dappRecord)(nil)
-	_ datasource.ContentRecord = (*dappRecord)(nil)
-	_ datasource.Iterator      = (*dappIterator)(nil)
+	_ datasource.Datasource    = (*ItemDatasource)(nil)
+	_ datasource.Record        = (*itemRecord)(nil)
+	_ datasource.ContentRecord = (*itemRecord)(nil)
+	_ datasource.Iterator      = (*itemIterator)(nil)
 
 	_ datasource.Datasource    = (*CategoryDatasource)(nil)
 	_ datasource.Record        = (*categoryRecord)(nil)
@@ -25,33 +25,33 @@ var (
 	_ datasource.Iterator      = (*categoryIterator)(nil)
 )
 
-func TestDappDatasourceRecords(t *testing.T) {
+func TestItemDatasourceRecords(t *testing.T) {
 	cases := []struct {
 		name      string
-		dapps     []*Dapp
+		items     []*Item
 		recordIDs []string
 		options   []datasource.QueryOption
 	}{
 		{
-			name:      "all dapps",
-			dapps:     []*Dapp{{ID: 1}, {ID: 2}, {ID: 3}},
+			name:      "all items",
+			items:     []*Item{{ID: 1}, {ID: 2}, {ID: 3}},
 			recordIDs: []string{"0000001", "0000002", "0000003"},
 		},
 		{
 			name:      "with offset",
-			dapps:     []*Dapp{{ID: 1}, {ID: 2}, {ID: 3}},
+			items:     []*Item{{ID: 1}, {ID: 2}, {ID: 3}},
 			recordIDs: []string{"0000002", "0000003"},
 			options:   []datasource.QueryOption{datasource.WithOffset(1)},
 		},
 		{
 			name:      "with count",
-			dapps:     []*Dapp{{ID: 1}, {ID: 2}, {ID: 3}},
+			items:     []*Item{{ID: 1}, {ID: 2}, {ID: 3}},
 			recordIDs: []string{"0000001", "0000002"},
 			options:   []datasource.QueryOption{datasource.WithCount(2)},
 		},
 		{
 			name:      "with offset and count",
-			dapps:     []*Dapp{{ID: 1}, {ID: 2}, {ID: 3}},
+			items:     []*Item{{ID: 1}, {ID: 2}, {ID: 3}},
 			recordIDs: []string{"0000002"},
 			options: []datasource.QueryOption{
 				datasource.WithOffset(1),
@@ -62,16 +62,16 @@ func TestDappDatasourceRecords(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			dapps := avl.NewTree()
-			for _, dapp := range tc.dapps {
-				dapps.Set(dapp.ID.String(), dapp)
+			items := avl.NewTree()
+			for _, item := range tc.items {
+				items.Set(item.ID.String(), item)
 			}
 
-			ds := DappDatasource{dapps}
+			ds := ItemDatasource{items}
 			query := datasource.NewQuery(tc.options...)
 			iter := ds.Records(query)
 
-			urequire.Equal(t, len(tc.dapps), ds.Size(), "datasource size")
+			urequire.Equal(t, len(tc.items), ds.Size(), "datasource size")
 
 			var records []datasource.Record
 			for iter.Next() {
@@ -86,34 +86,34 @@ func TestDappDatasourceRecords(t *testing.T) {
 	}
 }
 
-func TestDappDatasourceRecord(t *testing.T) {
+func TestItemDatasourceRecord(t *testing.T) {
 	cases := []struct {
 		name  string
-		dapps []*Dapp
+		items []*Item
 		id    string
 		err   string
 	}{
 		{
 			name:  "found",
-			dapps: []*Dapp{{ID: 1}, {ID: 2}, {ID: 3}},
+			items: []*Item{{ID: 1}, {ID: 2}, {ID: 3}},
 			id:    "0000001",
 		},
 		{
 			name:  "not found",
-			dapps: []*Dapp{{ID: 1}, {ID: 2}, {ID: 3}},
+			items: []*Item{{ID: 1}, {ID: 2}, {ID: 3}},
 			id:    "42",
-			err:   "dapp not found",
+			err:   "item not found",
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			dapps := avl.NewTree()
-			for _, dapp := range tc.dapps {
-				dapps.Set(dapp.ID.String(), dapp)
+			items := avl.NewTree()
+			for _, item := range tc.items {
+				items.Set(item.ID.String(), item)
 			}
 
-			ds := DappDatasource{dapps}
+			ds := ItemDatasource{items}
 			r, err := ds.Record(tc.id)
 
 			if tc.err != "" {
@@ -128,26 +128,26 @@ func TestDappDatasourceRecord(t *testing.T) {
 	}
 }
 
-func TestDappRecord(t *testing.T) {
+func TestItemRecord(t *testing.T) {
 	addr := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	categories := avl.NewTree()
 	cat := &Category{ID: 1, Name: "Test Category"}
 	categories.Set(cat.ID.String(), cat)
 
-	dapp := Dapp{
+	item := Item{
 		ID:          1,
-		Title:       "Test Dapp",
-		Description: "This is a test dapp",
+		Title:       "Test Item",
+		Description: "This is a test item",
 		Authors:     []std.Address{addr},
 		URL:         "https://test.com",
 		CreatedAt:   time.Now(),
 		categories:  categories,
 	}
 
-	r := dappRecord{&dapp}
+	r := itemRecord{&item}
 
 	uassert.Equal(t, "0000001", r.ID())
-	uassert.Equal(t, "Test Dapp", r.String())
+	uassert.Equal(t, "Test Item", r.String())
 
 	fields, err := r.Fields()
 	urequire.NoError(t, err)
@@ -162,9 +162,9 @@ func TestDappRecord(t *testing.T) {
 	content, err := r.Content()
 	urequire.NoError(t, err)
 
-	wantContent := md.H1(dapp.Title) +
+	wantContent := md.H1(item.Title) +
 		md.H2("Description") +
-		dapp.Description +
+		item.Description +
 		md.H2("Categories") +
 		md.BulletItem("Test Category")
 
@@ -224,20 +224,20 @@ func TestCategoryDatasourceRecords(t *testing.T) {
 }
 
 func TestCategoryRecord(t *testing.T) {
-	dapps := avl.NewTree()
-	dapp := &Dapp{
+	items := avl.NewTree()
+	item := &Item{
 		ID:    1,
-		Title: "Test Dapp",
+		Title: "Test Item",
 		URL:   "https://test.com",
 	}
-	dapps.Set(dapp.ID.String(), dapp)
+	items.Set(item.ID.String(), item)
 
 	category := Category{
 		ID:          1,
 		Name:        "Test Category",
 		Description: "This is a test category",
 		CreatedAt:   time.Now(),
-		dapps:       dapps,
+		items:       items,
 	}
 
 	r := categoryRecord{&category}
@@ -248,9 +248,9 @@ func TestCategoryRecord(t *testing.T) {
 	fields, err := r.Fields()
 	urequire.NoError(t, err)
 
-	dappCount, found := fields.Get("dapp_count")
-	urequire.True(t, found, "dapp_count field")
-	uassert.Equal(t, "1 dapps", dappCount)
+	itemCount, found := fields.Get("item_count")
+	urequire.True(t, found, "item_count field")
+	uassert.Equal(t, "1 items", itemCount)
 
 	content, err := r.Content()
 	urequire.NoError(t, err)
@@ -258,8 +258,8 @@ func TestCategoryRecord(t *testing.T) {
 	wantContent := md.H1(category.Name) +
 		md.H2("Description") +
 		category.Description +
-		md.H2("Dapps in this category") +
-		md.BulletItem(ufmt.Sprintf("[%s](%s)", dapp.Title, dapp.URL))
+		md.H2("Items in this category") +
+		md.BulletItem(ufmt.Sprintf("[%s](%s)", item.Title, item.URL))
 
 	uassert.Equal(t, wantContent, content)
 }
