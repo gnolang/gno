@@ -45,8 +45,8 @@ func main() {
 //
 // - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 // - [Gnoscan](https://gnoscan.io)
-// - [Portal Loop](https://docs.gno.land/concepts/portal-loop)
-// - Testnet 6 (upcoming)
+// - [Staging chain](https://docs.gno.land/concepts/portal-loop)
+// - [Testnet 6](https://test6.gno.land/)
 // - [Testnet 5](https://test5.gno.land/)
 // - [Faucet Hub](https://faucet.gno.land)
 //
@@ -58,9 +58,9 @@ func main() {
 //
 // No events.
 //
-// ## [Hall of Fame](/r/leon/hof)
+// ## [Hall of Realms](/r/leon/hor)
 //
-// :latest-hof:
+//
 //
 // ---
 //
