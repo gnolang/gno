@@ -35,7 +35,7 @@ func testGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string, []by
 	// Create parser context with the test URL
 	ctxOpts := parser.WithContext(NewGnoParserContext(gnourl))
 
-	ext := NewGnoExtension(WithImageFilter(func(uri string) bool {
+	ext := NewGnoExtension(WithImageValidator(func(uri string) bool {
 		return strings.HasPrefix(uri, "https://")
 	}))
 

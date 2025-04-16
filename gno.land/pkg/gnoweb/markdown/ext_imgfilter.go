@@ -8,17 +8,17 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
-// ImageFilterFunc filter the element if returning `true`
-type ImageFilterFunc func(uri string) bool
+// ImageValidatorFunc filter the element if returning `true`
+type ImageValidatorFunc func(uri string) (ok bool)
 
 // linkTransformer implements ASTTransformer
 type imgFilterTransformer struct {
-	filterFunc ImageFilterFunc
+	valFunc ImageValidatorFunc
 }
 
 // Transform filterr `ast.Image` nodes if `filterFunc` return true.
 func (t *imgFilterTransformer) Transform(doc *ast.Document, reader text.Reader, pc parser.Context) {
-	if t.filterFunc == nil {
+	if t.valFunc == nil {
 		return
 	}
 
@@ -32,7 +32,7 @@ func (t *imgFilterTransformer) Transform(doc *ast.Document, reader text.Reader, 
 			return ast.WalkContinue, nil
 		}
 
-		if t.filterFunc(string(img.Destination)) {
+		if !t.valFunc(string(img.Destination)) {
 			img.Destination = []byte{} // Erase destination
 		}
 
@@ -48,8 +48,8 @@ type imgFilterExtension struct{}
 var ExtImageFilter = &imgFilterExtension{}
 
 // Extend adds the LinkExtension to the provided Goldmark markdown processor
-func (l *imgFilterExtension) Extend(m goldmark.Markdown, filter ImageFilterFunc) {
+func (l *imgFilterExtension) Extend(m goldmark.Markdown, valFunc ImageValidatorFunc) {
 	m.Parser().AddOptions(parser.WithASTTransformers(
-		util.Prioritized(&imgFilterTransformer{filter}, 500),
+		util.Prioritized(&imgFilterTransformer{valFunc}, 500),
 	))
 }

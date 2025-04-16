@@ -62,7 +62,7 @@ func NewDefaultHTMLWebClientConfig(client *client.RPCClient) *HTMLWebClientConfi
 			extension.Table,
 
 			md.NewGnoExtension(
-				md.WithImageFilter(svgImageDataOnly),
+				md.WithImageValidator(svgImageDataOnly),
 			),
 		),
 	}

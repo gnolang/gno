@@ -43,14 +43,14 @@ type GnoExtension struct {
 // Option
 
 type config struct {
-	imgFilter ImageFilterFunc
+	imgValidatorFunc ImageValidatorFunc
 }
 
 type Option func(cfg *config)
 
-func WithImageFilter(imageFilter ImageFilterFunc) Option {
+func WithImageValidator(valFunc ImageValidatorFunc) Option {
 	return func(cfg *config) {
-		cfg.imgFilter = imageFilter
+		cfg.imgValidatorFunc = valFunc
 	}
 }
 
@@ -72,7 +72,7 @@ func (e *GnoExtension) Extend(m goldmark.Markdown) {
 	ExtLinks.Extend(m)
 
 	// If set, setup images filter
-	if e.cfg.imgFilter != nil {
-		ExtImageFilter.Extend(m, e.cfg.imgFilter)
+	if e.cfg.imgValidatorFunc != nil {
+		ExtImageFilter.Extend(m, e.cfg.imgValidatorFunc)
 	}
 }
