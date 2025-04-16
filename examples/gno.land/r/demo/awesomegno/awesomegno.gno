@@ -8,6 +8,7 @@ import (
 	"gno.land/p/demo/avl/rotree"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/moul/authz"
+
 	"gno.land/r/leon/hor"
 )
 
@@ -100,6 +101,7 @@ func UpdateCategory(categoryID seqid.ID, name, description string) {
 		panic(err)
 	}
 }
+
 func DeleteCategory(categoryID seqid.ID) {
 	if err := Auth.Do("delete_category", func() error {
 		deleteCategory(categoryID)
