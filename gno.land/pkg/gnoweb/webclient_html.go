@@ -46,9 +46,9 @@ func NewDefaultHTMLWebClientConfig(client *client.RPCClient) *HTMLWebClientConfi
 	}
 
 	// Only allow svg data image
-	svgImageDataOnly := func(uri string) bool {
+	allowSvgDataImage := func(uri string) bool {
 		const svgdata = "image/svg+xml"
-		return strings.HasPrefix(uri, "data:") && !strings.HasPrefix(uri, "data:"+svgdata)
+		return !strings.HasPrefix(uri, "data:") || strings.HasPrefix(uri, "data:"+svgdata)
 	}
 
 	goldmarkOptions := []goldmark.Option{
@@ -62,7 +62,7 @@ func NewDefaultHTMLWebClientConfig(client *client.RPCClient) *HTMLWebClientConfi
 			extension.Table,
 
 			md.NewGnoExtension(
-				md.WithImageValidator(svgImageDataOnly),
+				md.WithImageValidator(allowSvgDataImage),
 			),
 		),
 	}

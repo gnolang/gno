@@ -73,6 +73,6 @@ func (e *GnoExtension) Extend(m goldmark.Markdown) {
 
 	// If set, setup images filter
 	if e.cfg.imgValidatorFunc != nil {
-		ExtImageFilter.Extend(m, e.cfg.imgValidatorFunc)
+		ExtImageValidator.Extend(m, e.cfg.imgValidatorFunc)
 	}
 }

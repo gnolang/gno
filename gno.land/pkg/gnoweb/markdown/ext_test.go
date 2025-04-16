@@ -36,7 +36,7 @@ func testGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string, []by
 	ctxOpts := parser.WithContext(NewGnoParserContext(gnourl))
 
 	ext := NewGnoExtension(WithImageValidator(func(uri string) bool {
-		return strings.HasPrefix(uri, "https://")
+		return !strings.HasPrefix(uri, "https://") // disallow https
 	}))
 
 	// Create markdown processor with extensions and renderer options
