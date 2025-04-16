@@ -40,9 +40,10 @@ func init() {
 
 	// coin info
 	router.HandleFunc("{denom}", func(res *mux.ResponseWriter, req *mux.Request) {
-		denom := req.GetVar("denom")
-		banker := std.NewBanker(std.BankerTypeReadonly)
-		res.Write(renderAddressBalance(banker, denom, denom))
+		// denom := req.GetVar("denom")
+		// banker := std.NewBanker(std.BankerTypeReadonly)
+		// res.Write(renderAddressBalance(banker, denom, denom))
+		panic("not supported yet")
 	})
 
 	// address balance
