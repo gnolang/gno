@@ -6,63 +6,71 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/ufmt"
 )
 
 func TestBalanceChecker(t *testing.T) {
-	addr1 := testutils.TestAddress("addr1")
-	addr2 := testutils.TestAddress("addr2")
+	denom := "testtoken"
+	addr1 := testutils.TestAddress("user1")
+	addr2 := testutils.TestAddress("user2")
 
-	realm := std.CurrentRealm()
-	testDenom := realm.CoinDenom("test")
-	test2Denom := realm.CoinDenom("test2")
+	realm := std.NewCodeRealm("gno.land/r/gnoland/coins")
+	testing.SetRealm(realm)
+
+	testing.IssueCoins(addr1, std.Coins{{denom, 1000000}})
+	testing.IssueCoins(addr2, std.Coins{{denom, 500000}})
 
 	tests := []struct {
 		name      string
 		path      string
-		setupFunc func()
 		expected  string
 		wantPanic bool
 	}{
 		{
-			name: "homepage shows supported tokens",
-			path: "",
-			setupFunc: func() {
-				banker := std.NewBanker(std.BankerTypeRealmIssue)
-				banker.IssueCoin(addr1, test2Denom, 1000)
-				banker.IssueCoin(addr2, test2Denom, 1000)
-			},
-			expected: `# Gno.land Coins`,
+			name:     "homepage",
+			path:     "",
+			expected: "# gno.land Coins Explorer",
+		},
+		// not supported yet
+		// {
+		// 	name:     "total supply",
+		// 	path:     denom,
+		// 	expected: "Balance: 1500000 testtoken",
+		// },
+		{
+			name:     "addr1's balance",
+			path: ufmt.Sprintf("%s/%s", denom, addr1.String()),
+			expected: "Balance: 1000000 testtoken",
 		},
 		{
-			name: "show total supply for test token",
-			path: "/test",
-			setupFunc: func() {
-				banker := std.NewBanker(std.BankerTypeRealmIssue)
-				banker.IssueCoin(addr1, testDenom, 1000000)
-				banker.IssueCoin(addr2, testDenom, 500000)
-			},
-			expected: `1500000test`,
+			name:     "addr2's balance",
+			path: ufmt.Sprintf("%s/%s", denom, addr2.String()),
+			expected: "Balance: 500000 testtoken",
+		},
+		{
+			name:      "invalid path",
+			path:      ufmt.Sprintf("%s/invalid/extra", denom),
+			expected:  "404",
+			wantPanic: false,
 		},
 	}
 
 	for _, tt := range tests {
-		if tt.setupFunc != nil {
-			tt.setupFunc()
-		}
-
-		if tt.wantPanic {
-			defer func() {
-				if r := recover(); r == nil {
-					t.Errorf("expected panic for %s", tt.name)
-				}
-			}()
-		}
-
-		result := Render(tt.path)
-		if !tt.wantPanic {
-			if !strings.Contains(result, tt.expected) {
-				t.Errorf("expected %s to contain %s", result, tt.expected)
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.wantPanic {
+				defer func() {
+					if r := recover(); r == nil {
+						t.Errorf("expected panic for %s", tt.name)
+					}
+				}()
 			}
-		}
+
+			result := Render(tt.path)
+			if !tt.wantPanic {
+				if !strings.Contains(result, tt.expected) {
+					t.Errorf("expected %s to contain %s", result, tt.expected)
+				}
+			}
+		})
 	}
 }

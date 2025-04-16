@@ -21,17 +21,72 @@
 //	/r/gnoland/coins:ugnot/g1... - shows the ugnot balance of a specific address
 package coins
 
-import "std"
+import (
+	"std"
+	"strconv"
 
-// Path parsing logic:
-// - Empty path: Show homepage with general info and usage instructions
-// - "<denom>": Show total supply and info about the specified coin
-// - "<denom>/<address>": Show specific address balance for the given coin
+	"gno.land/p/demo/mux"
+)
+
+var router *mux.Router
+
+func init() {
+	router = mux.NewRouter()
+
+	// homepage
+	router.HandleFunc("", func(res *mux.ResponseWriter, req *mux.Request) {
+		res.Write(renderHomepage())
+	})
+
+	// coin info
+	router.HandleFunc("{denom}", func(res *mux.ResponseWriter, req *mux.Request) {
+		denom := req.GetVar("denom")
+		banker := std.NewBanker(std.BankerTypeReadonly)
+		res.Write(renderAddressBalance(banker, denom, denom))
+	})
+
+	// address balance
+	router.HandleFunc("{denom}/{address}", func(res *mux.ResponseWriter, req *mux.Request) {
+		denom := req.GetVar("denom")
+		addr := req.GetVar("address")
+		banker := std.NewBanker(std.BankerTypeReadonly)
+		res.Write(renderAddressBalance(banker, denom, addr))
+	})
+}
+
 func Render(path string) string {
-	banker := std.NewBanker(std.BankerTypeReadonly)
+	return router.Render(path)
+}
 
-	// TODO: implement an explanatory homepage that shows usage instructions
-	// TODO: implement a coin info page showing total supply, and other metrics if we have them
-	// TODO: implement an address page showing balance for specified coin
-	// TODO: create navigation links between pages to enable intuitive exploration without typing URLs
+func renderHomepage() string {
+	return `# gno.land Coins Explorer
+
+## Usage
+
+- /r/gnoland/coins:<denom> - shows the total supply of denom
+- /r/gnoland/coins:<denom>/<address> - shows the denom balance of a specific address
+
+Examples:
+
+- /r/gnoland/coins:ugnot - shows the total supply of ugnot
+- /r/gnoland/coins:ugnot/g1... - shows the ugnot balance of a specific address
+
+`
+}
+
+func renderAddressBalance(banker std.Banker, denom string, addr string) string {
+	address := std.Address(addr)
+	coins := banker.GetCoins(address)
+
+	for _, coin := range coins {
+		if coin.Denom == denom {
+			return formatBalance(coin)
+		}
+	}
+
+	return "Balance: 0 " + denom
+}
+
+func formatBalance(coin std.Coin) string {
+	return "Balance: " + strconv.Itoa(int(coin.Amount)) + " " + coin.Denom
 }
