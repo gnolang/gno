@@ -4,6 +4,7 @@ import (
 	"sort"
 	"std"
 
+	"gno.land/p/demo/mux"
 	"gno.land/p/moul/md"
 )
 
@@ -26,8 +27,8 @@ func (p playerList) Swap(i, j int) {
 	p[i], p[j] = p[j], p[i]
 }
 
-func renderPokemonRank(params map[string]string) (rend string) {
-	rend += md.H2("Ranking")
+func renderPokemonRank(rend *mux.ResponseWriter, req *mux.Request) {
+	rend.Write(md.H2("Ranking"))
 	membersAddress := pokemonDAO.GetMembers()
 
 	var players playerList
@@ -42,13 +43,13 @@ func renderPokemonRank(params map[string]string) (rend string) {
 
 	var playerOrdered []string
 	for _, u := range players {
-		if u.adress == std.Address(params["user"]) {
+		if u.adress == std.Address(req.Query.Get("user")) {
 			playerOrdered = append(playerOrdered, "-> You: "+string(u.adress)+" : "+renderPokedollar(int(u.pokedollar)))
 		} else {
 			playerOrdered = append(playerOrdered, string(u.adress)+" : "+renderPokedollar(int(u.pokedollar)))
 		}
 	}
-	rend += md.OrderedList(playerOrdered) + nl
-	rend += md.Link("Go back to lobby", atm_path+":lobby?user="+params["user"])
+	rend.Write(md.OrderedList(playerOrdered) + nl)
+	rend.Write(md.Link("Go back to lobby", atmPath+":lobby?user="+req.Query.Get("user")))
 	return
 }

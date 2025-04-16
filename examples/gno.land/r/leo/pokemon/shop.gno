@@ -4,6 +4,7 @@ import (
 	"std"
 	"strconv"
 
+	"gno.land/p/demo/mux"
 	"gno.land/p/leo/utils"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
@@ -109,16 +110,17 @@ func renderShop() (rend string) {
 	return
 }
 
-func renderPokemonShop(params map[string]string) (rend string) {
-	rend += md.H2("Shop")
-	rend += md.H3("Me")
+func renderPokemonShop(rend *mux.ResponseWriter, req *mux.Request) {
+	user := req.Query.Get("user")
+	rend.Write(md.H2("Shop"))
+	rend.Write(md.H3("Me"))
 	idx := utils.AddressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
-		return std.Address(params["user"]) == member
+		return std.Address(user) == member
 	})
 	me := &pokemonDAO.userData[idx]
-	rend += renderWallet(me.pokedollar)
-	rend += renderInventory(me.inventory) + nl
-	rend += renderShop() + nl
-	rend += md.Link("Go back to lobby", atm_path+":lobby?user="+params["user"])
+	rend.Write(renderWallet(me.pokedollar))
+	rend.Write(renderInventory(me.inventory) + nl)
+	rend.Write(renderShop() + nl)
+	rend.Write(md.Link("Go back to lobby", atmPath+":lobby?user="+user))
 	return
 }

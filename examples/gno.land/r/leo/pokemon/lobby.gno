@@ -3,6 +3,7 @@ package pokemon
 import (
 	"std"
 
+	"gno.land/p/demo/mux"
 	"gno.land/p/leo/utils"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
@@ -70,20 +71,22 @@ func renderMe(user string) (rend string) {
 
 func renderMap(user string) (rend string) {
 	for k, v := range pathDescription {
-		link := atm_path + ":" + string(k) + "?user=" + user
+		link := atmPath + ":" + string(k) + "?user=" + user
 		rend += " - " + md.Link(string(k), link)
 		rend += " : " + v + nl
 	}
 	return
 }
 
-func renderPokemonLobby(params map[string]string) (rend string) {
-	rend += md.H2("Lobby")
+func renderPokemonLobby(rend *mux.ResponseWriter, req *mux.Request) {
+	user := req.Query.Get("user")
 
-	rend += md.H3("Where do you want to go ?")
-	rend += renderMap(params["user"])
+	rend.Write(md.H2("Lobby"))
 
-	rend += md.H3("Me")
-	rend += renderMe(params["user"])
+	rend.Write(md.H3("Where do you want to go ?"))
+	rend.Write(renderMap(user))
+
+	rend.Write(md.H3("Me"))
+	rend.Write(renderMe(user))
 	return
 }

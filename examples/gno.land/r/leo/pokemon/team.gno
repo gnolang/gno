@@ -5,6 +5,7 @@ import (
 	"std"
 	"strconv"
 
+	"gno.land/p/demo/mux"
 	"gno.land/p/leo/utils"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
@@ -48,11 +49,11 @@ func getTeam(state string) (err error) {
 	return
 }
 
-func getTeamLink(params map[string]string, team string) string {
-	return atm_path + ":team?user=" + params["user"] + "&team=" + team
+func getTeamLink(user, team string) string {
+	return atmPath + ":team?user=" + user + "&team=" + team
 }
 
-func renderTeam(team string, params map[string]string, swap int) (rend string) {
+func renderTeam(team string, user string, swap int) (rend string) {
 	table := mdtable.Table{Headers: []string{}, Rows: [][]string{[]string{}, []string{}}}
 	for i, p := range team {
 		if p == 'p' {
@@ -65,7 +66,7 @@ func renderTeam(team string, params map[string]string, swap int) (rend string) {
 		if i == swap {
 			table.Rows[1] = append(table.Rows[1], "Swapping...")
 		} else {
-			table.Rows[1] = append(table.Rows[1], md.Link("Swap", getTeamLink(params, team)+"&swap="+strconv.Itoa(i)))
+			table.Rows[1] = append(table.Rows[1], md.Link("Swap", getTeamLink(user, team)+"&swap="+strconv.Itoa(i)))
 		}
 	}
 	rend += table.String()
@@ -93,17 +94,20 @@ func renderPokemonList(p Pokemon, link string) (rend string) {
 	return
 }
 
-func renderPokemonTeam(params map[string]string) (rend string) {
-	rend += md.H2("Team selector")
+func renderPokemonTeam(rend *mux.ResponseWriter, req *mux.Request) {
+	user := req.Query.Get("user")
+	team := req.Query.Get("team")
+	swapParam := req.Query.Get("swap")
+
+	rend.Write(md.H2("Team selector"))
 	idx := utils.AddressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
-		return std.Address(params["user"]) == member
+		return std.Address(user) == member
 	})
 	me := &pokemonDAO.userData[idx]
-	team := params["team"]
-	err := getTeam(params["team"])
+	err := getTeam(team)
 	if err != nil {
 		if len(err.Error()) != 0 {
-			rend += md.Italic(err.Error()) + nl
+			rend.Write(md.Italic(err.Error()) + nl)
 		}
 		team = ""
 		for _, p := range me.team {
@@ -115,19 +119,19 @@ func renderPokemonTeam(params map[string]string) (rend string) {
 			}
 		}
 	}
-	swap, err := strconv.Atoi(params["swap"])
+	swap, err := strconv.Atoi(swapParam)
 	if err == nil && swap >= 0 && swap <= teamSize {
-		rend += renderTeam(team, params, swap) + nl
+		rend.Write(renderTeam(team, user, swap) + nl)
 		for i, p := range pokemonList {
 			b := []byte(team)
 			b[swap] = byte(i + '0')
-			rend += renderPokemonList(p, getTeamLink(params, string(b)))
+			rend.Write(renderPokemonList(p, getTeamLink(user, string(b))))
 		}
 	} else {
-		rend += md.H3("Wich Pokémon do you want to swap ? (first pokemon is also your first during fight)")
-		rend += renderTeam(team, params, -1) + nl
-		rend += md.Link("Validate swap", txlink.Call("SwapTeam", "team", team)) + nl
+		rend.Write(md.H3("Wich Pokémon do you want to swap ? (first pokemon is also your first during fight)"))
+		rend.Write(renderTeam(team, user, -1) + nl)
+		rend.Write(md.Link("Validate swap", txlink.Call("SwapTeam", "team", team)) + nl)
 	}
-	rend += nl + md.Link("Back to lobby", atm_path+":lobby?user="+params["user"])
+	rend.Write(nl + md.Link("Back to lobby", atmPath+":lobby?user="+user))
 	return
 }

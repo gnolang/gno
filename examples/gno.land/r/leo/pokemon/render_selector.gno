@@ -1,10 +1,12 @@
 package pokemon
 
 import (
+	"net/url"
 	"std"
+	"strings"
 
+	"gno.land/p/demo/mux"
 	"gno.land/p/leo/randomizer"
-	"gno.land/p/leo/utils"
 	"gno.land/p/moul/md"
 	"gno.land/r/leon/hor"
 )
@@ -23,8 +25,8 @@ const (
 
 var (
 	rand        = randomizer.NewRandomizer()
-	atm_path    = std.CurrentRealm().PkgPath()[len(std.ChainDomain()):]
-	pokemonPath = map[RenderPage]func(map[string]string) string{
+	atmPath     = std.CurrentRealm().PkgPath()[len(std.ChainDomain()):]
+	pokemonPath = map[RenderPage]mux.HandlerFunc{
 		pokemonLogin:        renderPokemonLogin,
 		pokemonLobby:        renderPokemonLobby,
 		pokemonTeamSelector: renderPokemonTeam,
@@ -39,13 +41,17 @@ func init() {
 }
 
 func Render(path string) (rend string) {
+	router := mux.NewRouter()
 	rend += md.H1("Pokémon")
-	path, params := utils.ParsePath(path)
+	_, rawQuery, _ := strings.Cut(path, "?")
+	query, _ := url.ParseQuery(rawQuery)
 
-	if pathRenderer := pokemonPath[RenderPage(path)]; pathRenderer != nil && pokemonDAO.IsMember(std.Address(params["user"])) {
-		rend += pathRenderer(params)
-	} else {
-		rend += renderPokemonLogin(params)
+	if pokemonDAO.IsMember(std.Address(query.Get("user"))) {
+		for p, f := range pokemonPath {
+			router.HandleFunc(string(p), f)
+		}
 	}
+	router.NotFoundHandler = renderPokemonLogin
+	rend += router.Render(path)
 	return
 }

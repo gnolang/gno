@@ -3,6 +3,7 @@ package pokemon
 import (
 	"std"
 
+	"gno.land/p/demo/mux"
 	"gno.land/p/leo/dao"
 	"gno.land/p/leo/utils"
 	"gno.land/p/moul/md"
@@ -46,16 +47,15 @@ func DeleteMyAccount() {
 	pokemonDAO.userData = append(pokemonDAO.userData[:idx], pokemonDAO.userData[idx+1:]...)
 	pokemonDAO.DeleteMember(usr)
 }
-
-func renderPokemonLogin(params map[string]string) (rend string) {
-	rend += md.H2("Are you a already Pokémon Trainer ?")
-	rend += md.Link("Get me a brand new Pokémon Licence !", txlink.Call("Login")) + nl
-	rend += md.Link("Delete my existing Pokémon Licence", txlink.Call("DeleteMyAccount")) + nl
-	rend += md.H2("Select your account")
+func renderPokemonLogin(rend *mux.ResponseWriter, _ *mux.Request) {
+	rend.Write(md.H2("Are you a already Pokémon Trainer ?"))
+	rend.Write(md.Link("Get me a brand new Pokémon Licence !", txlink.Call("Login")) + nl)
+	rend.Write(md.Link("Delete my existing Pokémon Licence", txlink.Call("DeleteMyAccount")) + nl)
+	rend.Write(md.H2("Select your account"))
 	for i, e := range pokemonDAO.userData {
-		link := atm_path + ":" + string(pokemonLobby) + "?user=" + string(pokemonDAO.GetMembers()[i])
-		rend += " - " + md.Link(string(pokemonDAO.GetMembers()[i]), link)
-		rend += " : " + renderPokedollar(int(e.pokedollar)) + nl
+		link := atmPath + ":" + string(pokemonLobby) + "?user=" + string(pokemonDAO.GetMembers()[i])
+		rend.Write(" - " + md.Link(string(pokemonDAO.GetMembers()[i]), link))
+		rend.Write(" : " + renderPokedollar(int(e.pokedollar)) + nl)
 	}
 	return
 }

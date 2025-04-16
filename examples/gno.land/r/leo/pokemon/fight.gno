@@ -5,6 +5,7 @@ import (
 	"std"
 	"strconv"
 
+	"gno.land/p/demo/mux"
 	"gno.land/p/leo/utils"
 	"gno.land/p/moul/md"
 	"gno.land/p/moul/mdtable"
@@ -122,8 +123,8 @@ func getGameState(state string, me *UserData) (game GameState, err error) {
 	return
 }
 
-func getFightLink(params map[string]string) string {
-	return atm_path + ":fight?user=" + params["user"] + "&state=" + params["state"]
+func getFightLink(user, state string) string {
+	return atmPath + ":fight?user=" + user + "&state=" + state
 }
 
 func getEnnemyNextAttack(p *Pokemon) string {
@@ -145,7 +146,7 @@ func getEnnemyNextAttack(p *Pokemon) string {
 	return ""
 }
 
-func renderTeamSwap(game GameState, team *[teamSize]Pokemon, params map[string]string) (rend string) {
+func renderTeamSwap(game GameState, team *[teamSize]Pokemon, user, state string) (rend string) {
 	have_pokemon := false
 	table := mdtable.Table{Headers: []string{"Swap for "}, Rows: [][]string{[]string{"HP"}}}
 	for i, p := range team {
@@ -156,7 +157,7 @@ func renderTeamSwap(game GameState, team *[teamSize]Pokemon, params map[string]s
 		if &team[i] == game.myPokemon {
 			table.Headers = append(table.Headers, "Selected : "+p.name+md.Image(p.name, p.assetPath))
 		} else {
-			link := getFightLink(params) + "s" + strconv.Itoa(i)
+			link := getFightLink(user, state) + "s" + strconv.Itoa(i)
 			table.Headers = append(table.Headers, md.Link(p.name, link)+md.InlineImageWithLink(p.name, p.assetPath, link))
 		}
 		if p.pv > 0 {
@@ -173,11 +174,11 @@ func renderTeamSwap(game GameState, team *[teamSize]Pokemon, params map[string]s
 	return
 }
 
-func renderInventoryUse(inventory []ItemType, params map[string]string) (rend string) {
+func renderInventoryUse(inventory []ItemType, user, state string) (rend string) {
 	if len(inventory) != 0 {
 		table := mdtable.Table{Headers: []string{"Item", "Description"}}
 		for i, e := range inventory {
-			table.Append([]string{md.Link("Use "+itemData[e].name, getFightLink(params)+"i"+strconv.Itoa(i)), itemData[e].description})
+			table.Append([]string{md.Link("Use "+itemData[e].name, getFightLink(user, state)+"i"+strconv.Itoa(i)), itemData[e].description})
 		}
 		rend += nl + table.String()
 	} else {
@@ -186,7 +187,7 @@ func renderInventoryUse(inventory []ItemType, params map[string]string) (rend st
 	return
 }
 
-func renderFightPokemon(p *Pokemon, params map[string]string, canAttack bool, otherP *Pokemon) (rend string) {
+func renderFightPokemon(p *Pokemon, user, state string, canAttack bool, otherP *Pokemon) (rend string) {
 	if p == nil {
 		rend = "Pokémon is NULL ??"
 		return
@@ -211,7 +212,7 @@ func renderFightPokemon(p *Pokemon, params map[string]string, canAttack bool, ot
 	}
 	for i, attack := range p.attacks {
 		if canAttack && attack.pc > 0 && p.pv > 0 {
-			table.Headers = append(table.Headers, md.Link(attack.name, getFightLink(params)+"a"+strconv.Itoa(i)+getEnnemyNextAttack(otherP)))
+			table.Headers = append(table.Headers, md.Link(attack.name, getFightLink(user, state)+"a"+strconv.Itoa(i)+getEnnemyNextAttack(otherP)))
 		} else {
 			table.Headers = append(table.Headers, attack.name)
 		}
@@ -222,11 +223,11 @@ func renderFightPokemon(p *Pokemon, params map[string]string, canAttack bool, ot
 	return
 }
 
-func renderPokemon1v1(game GameState, params map[string]string) (rend string) {
+func renderPokemon1v1(game GameState, user, state string) (rend string) {
 	rend += "<gno-columns>" + nl
-	rend += renderFightPokemon(game.myPokemon, params, true, game.myPokemon)
+	rend += renderFightPokemon(game.myPokemon, user, state, true, game.myPokemon)
 	rend += nl + "|||" + nl
-	rend += renderFightPokemon(game.otherPokemon, params, false, nil)
+	rend += renderFightPokemon(game.otherPokemon, user, state, false, nil)
 	rend += nl + "</gno-columns>"
 	return
 }
@@ -274,40 +275,42 @@ func ApplyGameEnd(state string) {
 	}
 }
 
-func renderEndGame(game GameState, me *UserData, params map[string]string) (rend string) {
+func renderEndGame(game GameState, me *UserData, user string, state string) (rend string) {
 	if game.state == gameWin {
 		rend += md.H3("You WIN ! GGWP")
-		rend += md.Link("Get your reward !", txlink.Call("ApplyGameEnd", "state", params["state"])) + nl
-		rend += md.Link("Go back to lobby", atm_path+":lobby?user="+params["user"]) + nl
+		rend += md.Link("Get your reward !", txlink.Call("ApplyGameEnd", "state", state)) + nl
+		rend += md.Link("Go back to lobby", atmPath+":lobby?user="+user) + nl
 	}
 	if game.state == gameLoose {
 		rend += md.H3("You LOOSE...")
-		rend += md.Link("Accept !", txlink.Call("ApplyGameEnd", "state", params["state"])) + nl
-		rend += md.Link("Go back to lobby", atm_path+":lobby?user="+params["user"]) + nl
+		rend += md.Link("Accept !", txlink.Call("ApplyGameEnd", "state", state)) + nl
+		rend += md.Link("Go back to lobby", atmPath+":lobby?user="+user) + nl
 	}
 	return
 }
 
-func renderPokemonFight(params map[string]string) (rend string) {
-	rend += md.H2("Fight !")
+func renderPokemonFight(rend *mux.ResponseWriter, req *mux.Request) {
+	rend.Write(md.H2("Fight !"))
+	user := req.Query.Get("user")
 	idx := utils.AddressSliceIndex(pokemonDAO.GetMembers(), func(_ int, member std.Address) bool {
-		return std.Address(params["user"]) == member
+		return std.Address(user) == member
 	})
 	me := &pokemonDAO.userData[idx]
-	params["state"] = initEnemy(params["state"])
-	game, err := getGameState(params["state"], me)
+	req.Query.Set("state", initEnemy(req.Query.Get("state")))
+	state := req.Query.Get("state")
+	game, err := getGameState(state, me)
 	if err != nil {
-		rend += md.Italic(err.Error()) + nl
-		rend += md.Link("Go back to lobby", atm_path+":lobby?user="+params["user"])
+		rend.Write(md.Italic(err.Error()) + nl)
+		rend.Write(md.Link("Go back to lobby", atmPath+":lobby?user="+user))
 		return
 	}
 	if game.state != gameContinue {
-		rend += renderEndGame(game, me, params) + nl
+		rend.Write(renderEndGame(game, me, user, state) + nl)
 		return
 	}
-	rend += renderTeamSwap(game, &me.team, params) + nl
-	rend += renderInventoryUse(me.inventory, params) + nl
-	rend += renderPokemon1v1(game, params) + nl
-	rend += md.Link("Give up and go back to lobby", atm_path+":lobby?user="+params["user"])
+	rend.Write(renderTeamSwap(game, &me.team, user, state) + nl)
+	rend.Write(renderInventoryUse(me.inventory, user, state) + nl)
+	rend.Write(renderPokemon1v1(game, user, state) + nl)
+	rend.Write(md.Link("Give up and go back to lobby", atmPath+":lobby?user="+user))
 	return
 }
