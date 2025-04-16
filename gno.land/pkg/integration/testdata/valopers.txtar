@@ -44,7 +44,7 @@ gnokey maketx run  -gas-fee 1000000ugnot -gas-wanted 95000000 -broadcast -chaini
 stdout OK!
 
 # see the instructions in gov/dao proposition Render
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func Render -gas-fee 1000000ugnot -gas-wanted 10000000 -args "1" -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func Render -gas-fee 1000000ugnot -gas-wanted 12000000 -args "1" -broadcast -chainid=tendermint_test test1
 stdout OK!
 stdout 'new instructions'
 
@@ -53,7 +53,7 @@ gnokey maketx run  -gas-fee 1000000ugnot -gas-wanted 95000000 -broadcast -chaini
 stdout OK!
 
 # see the instructions in gov/dao proposition Render
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func Render -gas-fee 1000000ugnot -gas-wanted 10000000 -args "2" -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func Render -gas-fee 1000000ugnot -gas-wanted 12000000 -args "2" -broadcast -chainid=tendermint_test test1
 stdout OK!
 stdout 'Update the minimum register fee to: 1000000 ugnot'
 

@@ -26,6 +26,10 @@ func NewChangeLawRequest(newLaw *Law) dao.ProposalRequest {
 }
 
 func NewAddMemberRequest(addr std.Address, tier string, portfolio string) dao.ProposalRequest {
+	if !addr.IsValid() {
+		panic("invalid address provided")
+	}
+
 	_, ok := memberstore.Tiers.GetTier(tier)
 	if !ok {
 		panic("provided tier does not exists")
@@ -57,14 +61,18 @@ func NewAddMemberRequest(addr std.Address, tier string, portfolio string) dao.Pr
 	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("A new member with address %v is proposed to be on tier %v. Provided Portfolio information:\n\n%v", addr, tier, portfolio))
 
 	return dao.NewProposalRequestWithFilter(
-		"New Member Proposal",
-		"This proposal is looking to add a new member to the board.",
+		ufmt.Sprintf("New %s Member Proposal", tier),
+		ufmt.Sprintf("This is a proposal to add %s to **%s**.", tryResolveAddr(addr), tier),
 		e,
 		FilterByTier{Tier: tier},
 	)
 }
 
 func NewWithdrawMemberRequest(addr std.Address, reason string) dao.ProposalRequest {
+	if !addr.IsValid() {
+		panic("invalid address provided")
+	}
+
 	member, tier := memberstore.Get().GetMember(addr)
 	if member == nil {
 		panic("user we want to remove not found")
@@ -82,7 +90,11 @@ func NewWithdrawMemberRequest(addr std.Address, reason string) dao.ProposalReque
 
 	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("Member with address %v will be withdrawn.\n\n REASON: %v.", addr, reason))
 
-	return dao.NewProposalRequest("Member Withdrawn", "This proposal is looking to remove a member from the board.", e)
+	return dao.NewProposalRequest(
+		"Member Withdrawal Proposal",
+		ufmt.Sprintf("This is a proposal to remove %s from the GovDAO", tryResolveAddr(addr)),
+		e,
+	)
 }
 
 func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) dao.ProposalRequest {
@@ -102,8 +114,8 @@ func NewPromoteMemberRequest(addr std.Address, fromTier string, toTier string) d
 	e := dao.NewSimpleExecutor(cb, ufmt.Sprintf("A new member with address %v will be promoted from tier %v to tier %v.", addr, fromTier, toTier))
 
 	return dao.NewProposalRequestWithFilter(
-		"Member Promotion",
-		"This proposal is looking to promote a member to an upper tier.",
+		"Member Promotion Proposal",
+		ufmt.Sprintf("This is a proposal to promote %s from **%s** to **%s**.", tryResolveAddr(addr), fromTier, toTier),
 		e,
 		FilterByTier{Tier: toTier},
 	)
