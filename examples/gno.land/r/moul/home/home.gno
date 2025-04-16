@@ -9,7 +9,7 @@ import (
 	"gno.land/p/moul/mdtable"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/moul/web25"
-	"gno.land/r/leon/hof"
+	"gno.land/r/leon/hor"
 	"gno.land/r/moul/config"
 )
 
@@ -24,7 +24,7 @@ func init() {
 	todos = append(todos, "fill this todo list...")
 	status = "Online" // Initial status set to "Online"
 	memeImgURL = "https://i.imgflip.com/7ze8dc.jpg"
-	hof.Register("Moul's Home Realm!", "")
+	hor.Register("Moul's Home Realm!", "")
 }
 
 func Render(path string) string {
