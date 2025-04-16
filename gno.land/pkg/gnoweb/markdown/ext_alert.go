@@ -2,17 +2,17 @@
 package markdown
 
 import (
+	"fmt"
+	"regexp"
+	"strings"
+
 	"github.com/yuin/goldmark"
-	gast "github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer"
 	"github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
-
-	"fmt"
-	"regexp"
-	"strings"
 )
 
 //--- Alert Types and Constants
@@ -20,19 +20,19 @@ import (
 // Alert represents a block-level alert element in markdown
 // It can contain a header and content, and supports different alert types
 type Alert struct {
-	gast.BaseBlock
+	ast.BaseBlock
 }
 
 // Dump prints the AST structure for debugging purposes
 func (n *Alert) Dump(source []byte, level int) {
-	gast.DumpHelper(n, source, level, nil, nil)
+	ast.DumpHelper(n, source, level, nil, nil)
 }
 
 // KindAlert is the node kind identifier for Alert nodes
-var KindAlert = gast.NewNodeKind("Alert")
+var KindAlert = ast.NewNodeKind("Alert")
 
 // Kind returns the node kind identifier
-func (n *Alert) Kind() gast.NodeKind {
+func (n *Alert) Kind() ast.NodeKind {
 	return KindAlert
 }
 
@@ -44,19 +44,19 @@ func NewAlert() *Alert {
 // AlertHeader represents the header part of an alert
 // It contains the alert type and title
 type AlertHeader struct {
-	gast.BaseBlock
+	ast.BaseBlock
 }
 
 // Dump prints the AST structure for debugging purposes
 func (n *AlertHeader) Dump(source []byte, level int) {
-	gast.DumpHelper(n, source, level, nil, nil)
+	ast.DumpHelper(n, source, level, nil, nil)
 }
 
 // KindAlertHeader is the node kind identifier for AlertHeader nodes
-var KindAlertHeader = gast.NewNodeKind("AlertHeader")
+var KindAlertHeader = ast.NewNodeKind("AlertHeader")
 
 // Kind returns the node kind identifier
-func (n *AlertHeader) Kind() gast.NodeKind {
+func (n *AlertHeader) Kind() ast.NodeKind {
 	return KindAlertHeader
 }
 
@@ -140,7 +140,7 @@ func parseAlertType(kind string) (AlertType, string) {
 }
 
 // Open creates a new Alert node when alert syntax is detected
-func (b *alertParser) Open(parent gast.Node, reader text.Reader, pc parser.Context) (gast.Node, parser.State) {
+func (b *alertParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	ok, advance_by := b.process(reader)
 	if !ok {
 		return nil, parser.NoChildren
@@ -175,7 +175,7 @@ func (b *alertParser) Open(parent gast.Node, reader text.Reader, pc parser.Conte
 }
 
 // Continue processes subsequent lines of an alert block
-func (b *alertParser) Continue(node gast.Node, reader text.Reader, pc parser.Context) parser.State {
+func (b *alertParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
 	ok, advance_by := b.process(reader)
 	if !ok {
 		return parser.Close
@@ -186,7 +186,7 @@ func (b *alertParser) Continue(node gast.Node, reader text.Reader, pc parser.Con
 }
 
 // Close is called when the alert block ends
-func (b *alertParser) Close(node gast.Node, reader text.Reader, pc parser.Context) {
+func (b *alertParser) Close(node ast.Node, reader text.Reader, pc parser.Context) {
 	// nothing to do
 }
 
@@ -222,15 +222,15 @@ func (r *AlertHTMLRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegistere
 }
 
 // renderAlert renders an Alert node to HTML
-func (r *AlertHTMLRenderer) renderAlert(w util.BufWriter, source []byte, node gast.Node, entering bool) (gast.WalkStatus, error) {
-	var alertType string = ""
+func (r *AlertHTMLRenderer) renderAlert(w util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
+	var alertType string
 	if t, ok := node.AttributeString("kind"); ok {
 		alertType = string(t.([]uint8))
 	}
 
 	open := " open"
 	if t, ok := node.AttributeString("closed"); ok {
-		if bool(t.(bool)) {
+		if t.(bool) {
 			open = ""
 		}
 	}
@@ -243,7 +243,7 @@ func (r *AlertHTMLRenderer) renderAlert(w util.BufWriter, source []byte, node ga
 	} else {
 		w.WriteString("</div>\n</details>\n")
 	}
-	return gast.WalkContinue, nil
+	return ast.WalkContinue, nil
 }
 
 //--- AlertHeader Components
@@ -266,7 +266,7 @@ func (b *alertHeaderParser) Trigger() []byte {
 }
 
 // Open creates a new AlertHeader node
-func (b *alertHeaderParser) Open(parent gast.Node, reader text.Reader, pc parser.Context) (gast.Node, parser.State) {
+func (b *alertHeaderParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	if parent.ChildCount() != 0 || parent.Kind() != KindAlert {
 		return nil, parser.NoChildren
 	}
@@ -304,7 +304,7 @@ func (b *alertHeaderParser) Open(parent gast.Node, reader text.Reader, pc parser
 		segments := text.Segments{}
 		segments.Append(segment)
 
-		paragraph := gast.NewTextBlock()
+		paragraph := ast.NewTextBlock()
 		paragraph.SetLines(&segments)
 
 		alert.AppendChild(alert, paragraph)
@@ -315,12 +315,12 @@ func (b *alertHeaderParser) Open(parent gast.Node, reader text.Reader, pc parser
 }
 
 // Continue processes subsequent lines of an alert header
-func (b *alertHeaderParser) Continue(node gast.Node, reader text.Reader, pc parser.Context) parser.State {
+func (b *alertHeaderParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
 	return parser.Close
 }
 
 // Close is called when the alert header ends
-func (b *alertHeaderParser) Close(node gast.Node, reader text.Reader, pc parser.Context) {
+func (b *alertHeaderParser) Close(node ast.Node, reader text.Reader, pc parser.Context) {
 	// nothing to do
 }
 
@@ -356,12 +356,12 @@ func (r *AlertHeaderHTMLRenderer) RegisterFuncs(reg renderer.NodeRendererFuncReg
 }
 
 // renderAlertHeader renders an AlertHeader node to HTML
-func (r *AlertHeaderHTMLRenderer) renderAlertHeader(w util.BufWriter, source []byte, node gast.Node, entering bool) (gast.WalkStatus, error) {
+func (r *AlertHeaderHTMLRenderer) renderAlertHeader(w util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
 	if entering {
 		w.WriteString("<summary>\n")
-		var kind string = ""
+		var kind string
 		if t, ok := node.AttributeString("kind"); ok {
-			kind = strings.ToLower(string(t.(string)))
+			kind = strings.ToLower(t.(string))
 			w.WriteString(fmt.Sprintf(`<svg><use href="#ico-%s"></use></svg>`, kind))
 			// Only show the kind if there's no explicit title
 			if hasTitle, ok := node.AttributeString("hasTitle"); !ok || !hasTitle.(bool) {
@@ -372,7 +372,7 @@ func (r *AlertHeaderHTMLRenderer) renderAlertHeader(w util.BufWriter, source []b
 		w.WriteString(`<svg><use href="#ico-arrow"></use></svg>`)
 		w.WriteString("\n</summary>\n<div>\n")
 	}
-	return gast.WalkContinue, nil
+	return ast.WalkContinue, nil
 }
 
 //--- Extension
