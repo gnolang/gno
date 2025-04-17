@@ -4,7 +4,7 @@ A Gno.land package for implementing upgradeable functions and contracts with pro
 
 ## Overview
 
-The `upgradeable` package provides a system for implementing upgradeable functions and contracts in Gno.land realms. This library solves the problem of creating systems that can be updated.
+The `upgradeable` package provides a system for implementing upgradeable functions and contracts in Gno.land realms. This library provides one solution to the problem of creating systems that can be updated.
 
 ### Key Features
 
@@ -851,13 +851,9 @@ func (h *TransferFuncHolder) Get() func(std.Address, std.Address, int) error {
 ## Version History
 
 - **0.1.0**: Initial release
-  - Basic function registry with ownership controls
-  - Specialized function holders for common types
-  - Contract proxy implementation
+  - Basic functionality works
 - **0.2.0**: Cross-realm upgrades
-  - Added support for automatic cross-realm upgrades
-  - Added CrossRealmUpgrader utility for complex scenarios
-  - Documentation for cross-realm upgrade patterns
+  - Added support for a better, less manual pattern for implementing upgrades.
 
 ## License
 
