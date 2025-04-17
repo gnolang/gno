@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unsafe"
 
 	"github.com/gnolang/gno/gnovm"
 	"go.uber.org/multierr"
@@ -1307,7 +1308,10 @@ func ReadMemPackageFromList(list []string, pkgPath string) (*gnovm.MemPackage, e
 		}
 		// XXX: should check that all pkg names are the same (else package is invalid)
 		if pkgName == "" && strings.HasSuffix(fname, ".gno") {
-			pkgName, err = PackageNameFromFileBody(fname, string(bz))
+			// The string derived from bz is never modified inside PackageNameFromFileBody
+			// hence shave these unnecessary allocations by an unsafe
+			// byteslice->string conversion per https://github.com/gnolang/gno/issues/3598
+			pkgName, err = PackageNameFromFileBody(fname, unsafeBytesliceToStr(bz))
 			if err != nil {
 				return nil, err
 			}
@@ -1318,7 +1322,12 @@ func ReadMemPackageFromList(list []string, pkgPath string) (*gnovm.MemPackage, e
 		memPkg.Files = append(memPkg.Files,
 			&gnovm.MemFile{
 				Name: fname,
-				Body: string(bz),
+				// The string derived from bz is never modified, hence to shave
+				// unnecessary allocations, perform this unsafe byteslice->string
+				// conversion per https://github.com/gnolang/gno/issues/3598
+				// and the Go garbage collector will knows to garbage collect
+				// bz when no other object points to that memory.
+				Body: unsafeBytesliceToStr(bz),
 			})
 	}
 
@@ -1332,6 +1341,13 @@ func ReadMemPackageFromList(list []string, pkgPath string) (*gnovm.MemPackage, e
 	}
 
 	return memPkg, nil
+}
+
+// unsafeBytesliceToStr helps rid the unnecessary byteslice->string conversion
+// in instances where we definitely would not be modifying the input byteslice
+// such as in ReadMemPackageFromList.
+func unsafeBytesliceToStr(bz []byte) string {
+	return unsafe.String(&bz[0], len(bz))
 }
 
 // MustReadMemPackageFromList is a wrapper around [ReadMemPackageFromList] that panics on error.
