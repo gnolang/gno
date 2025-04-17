@@ -217,9 +217,16 @@ func (d *Documentable) extractJSONFields(fieldList *ast.FieldList) []*JSONField 
 	if fieldList != nil {
 		for _, field := range fieldList.List {
 			commentBuf := new(strings.Builder)
+			if field.Doc != nil {
+				for _, comment := range field.Doc.List {
+					commentBuf.WriteString(comment.Text)
+					commentBuf.WriteString("\n")
+				}
+			}
 			if field.Comment != nil {
 				for _, comment := range field.Comment.List {
 					commentBuf.WriteString(comment.Text)
+					commentBuf.WriteString("\n")
 				}
 			}
 

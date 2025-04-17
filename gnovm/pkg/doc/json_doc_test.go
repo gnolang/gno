@@ -192,10 +192,10 @@ func TestJSONDocumentation(t *testing.T) {
 			},
 			{
 				Name:      "myStruct",
-				Signature: "type myStruct struct {\n\ta int // a comment\n}",
+				Signature: "type myStruct struct {\n\t// a is a field\n\ta int // a comment\n}",
 				Doc:       "myStruct is a struct for testing\n",
 				Fields: []*JSONField{
-					{Name: "a", Type: "int", Doc: "// a comment"},
+					{Name: "a", Type: "int", Doc: "// a is a field\n// a comment\n"},
 				},
 			},
 		},

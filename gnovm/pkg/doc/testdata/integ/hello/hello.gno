@@ -8,6 +8,7 @@ func fn() func(string) string { return Echo }
 
 // myStruct is a struct for testing
 type myStruct struct {
+	// a is a field
 	a int // a comment
 }
 
