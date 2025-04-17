@@ -15,10 +15,10 @@ import (
 // JSONDocumentation holds package documentation suitable for transmitting
 // as JSON with printable string fields
 type JSONDocumentation struct {
-	PackagePath string `json:"package_path"`
-	PackageLine string `json:"package_line"` // package io // import "io"
-	PackageDoc  string `json:"package_doc"`  // markdown of top-level package documentation
-	// https://pkg.go.dev/go/doc#Package.Markdown to render markdown
+	PackagePath string   `json:"package_path"`
+	PackageLine string   `json:"package_line"` // package io // import "io"
+	PackageDoc  string   `json:"package_doc"`  // markdown of top-level package documentation
+	Bugs        []string `json:"bugs"`         // From comments with "BUG(who): Details"
 
 	// These match each of the sections in a pkg.go.dev package documentation
 	Values []*JSONValueDecl `json:"values"` // constants and variables declared
@@ -96,6 +96,12 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 		Values:      []*JSONValueDecl{},
 		Funcs:       []*JSONFunc{},
 		Types:       []*JSONType{},
+	}
+
+	if pkg.Notes["BUG"] != nil {
+		for _, note := range pkg.Notes["BUG"] {
+			jsonDoc.Bugs = append(jsonDoc.Bugs, note.Body)
+		}
 	}
 
 	for _, value := range pkg.Consts {

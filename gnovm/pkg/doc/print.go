@@ -255,6 +255,9 @@ func (pkg *pkgPrinter) packageDoc() {
 	pkg.valueSummary(pkg.doc.Values, false, "")
 	pkg.funcSummary(pkg.doc.Funcs, false, "")
 	pkg.typeSummary()
+	if !pkg.opt.Short {
+		pkg.bugs()
+	}
 }
 
 // packageClause prints the package clause.
@@ -390,6 +393,18 @@ func (pkg *pkgPrinter) typeSummary() {
 				ToText(&pkg.buf, constructor.Signature, indent, "")
 			}
 		}
+	}
+}
+
+// bugs prints the BUGS information for the package.
+// TODO: Provide access to TODOs and NOTEs as well (very noisy so off by default)?
+func (pkg *pkgPrinter) bugs() {
+	if len(pkg.doc.Bugs) == 0 {
+		return
+	}
+	pkg.Printf("\n")
+	for _, note := range pkg.doc.Bugs {
+		pkg.Printf("%s: %v\n", "BUG", note)
 	}
 }
 
