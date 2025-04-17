@@ -1,4 +1,4 @@
-package hof
+package hor
 
 import (
 	"errors"
@@ -6,7 +6,6 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/jeronimoalbi/datasource"
-	"gno.land/p/moul/md"
 )
 
 func NewDatasource() Datasource {
@@ -52,9 +51,7 @@ func (r record) Fields() (datasource.Fields, error) {
 }
 
 func (r record) Content() (string, error) {
-	content := md.H1(r.item.title)
-	content += md.H2(r.item.description)
-	content += r.item.Render(false)
+	content := r.item.Render(false)
 	return content, nil
 }
 
