@@ -56,12 +56,12 @@
       {{ end }}
       <div class="mb-1 mt-6">
         <div class="flex flex-col gap-1 items-stretch text-gray-400">
-          {{- with .Params }}
-            <h3 class="mr-10 text-50">
-              Param{{- if gt (len .) 1 }}s{{ end }}
-            </h3>
-          {{ end }}
           <form class="w-full text-100">
+            {{- with .Params }}
+              <h3 class="mr-10 mb-1 text-50">
+                Param{{- if gt (len .) 1 }}s{{ end }}
+              </h3>
+            {{ end }}
             {{ $funcName := .Name }}
             {{ range .Params }}
               <div class="flex flex-col gap-3 items-stretch text-gray-400 mb-2">
@@ -92,6 +92,15 @@
                 </div>
               </div>
             {{ end }}
+            {{ with getSelectedSendValue $data }}
+              <div class="my-3">
+                <h3 class="mr-10 mb-1 text-50">Send Action</h3>
+                <div class="flex gap-2 items-center justify-between">                
+                  <p class="text-gray-600 text-200">The Tx Link had a send flag set to <code class="text-red-800">{{ . }}</code>. Do you want to add it to the command? </p>
+                  <input type="checkbox" id="func-{{ $funcName }}-send-flag" data-send="{{ . }}" data-role="help-send-input" class="w-4 h-4" />
+                </div>
+                </div>
+            {{ end }}
           </form>
         </div>
       </div>
@@ -113,8 +122,8 @@
 # and avoid trusting any computer connected to the internet,
 # as your private keys could be exposed.
 
-gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .Name }}"{{ range .Params }} -args "<span data-role="help-code-args" data-arg="{{ .Name }}"></span>"{{ end }} -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid "{{ $.ChainId }}" -remote "{{ $.Remote }}" <span data-role="help-code-address">ADDRESS</span></span><span data-code-mode="secure" class="inline" data-copy-content="help-cmd-{{ .Name }}">gnokey query -remote "{{ $.Remote }}" auth/accounts/<span data-role="help-code-address">ADDRESS</span>
-gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .Name }}" {{ range .Params }} -args "<span data-role="help-code-args" data-arg="{{ .Name }}"></span>"{{ end }} -gas-fee 1000000ugnot -gas-wanted 5000000 -send "" <span data-role="help-code-address">ADDRESS</span> > call.tx
+gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .Name }}"{{ range .Params }} -args "<span data-role="help-code-args" data-arg="{{ .Name }}"></span>"{{ end }} -gas-fee 1000000ugnot -gas-wanted 5000000 -send "<span data-role="help-code-send"></span>" -broadcast -chainid "{{ $.ChainId }}" -remote "{{ $.Remote }}" <span data-role="help-code-address">ADDRESS</span></span><span data-code-mode="secure" class="inline" data-copy-content="help-cmd-{{ .Name }}">gnokey query -remote "{{ $.Remote }}" auth/accounts/<span data-role="help-code-address">ADDRESS</span>
+gnokey maketx call -pkgpath "{{ $.PkgPath }}" -func "{{ .Name }}" {{ range .Params }} -args "<span data-role="help-code-args" data-arg="{{ .Name }}"></span>"{{ end }} -gas-fee 1000000ugnot -gas-wanted 5000000 -send "<span data-role="help-code-send"></span>" <span data-role="help-code-address">ADDRESS</span> > call.tx
 gnokey sign -tx-path call.tx -chainid "{{ $.ChainId }}" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-role="help-code-address">ADDRESS</span>
 gnokey broadcast -remote "{{ $.Remote }}" call.tx</span></code></pre>
           {{/* prettier-ignore-end */}}

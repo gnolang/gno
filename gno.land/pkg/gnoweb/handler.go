@@ -217,6 +217,7 @@ func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) 
 	// Get selected function
 	selArgs := make(map[string]string)
 	selFn := gnourl.WebQuery.Get("func")
+	selSend := gnourl.WebQuery.Get(".send")
 	if selFn != "" {
 		for _, fn := range fsigs {
 			if selFn != fn.Name {
@@ -236,6 +237,7 @@ func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) 
 	return http.StatusOK, components.HelpView(components.HelpData{
 		SelectedFunc: selFn,
 		SelectedArgs: selArgs,
+		SelectedSend: selSend,
 		RealmName:    realmName,
 		// TODO: get chain domain and use that.
 		ChainId:   h.Static.ChainId,
