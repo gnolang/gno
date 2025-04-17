@@ -283,10 +283,10 @@
     @apply h-6 w-6;
   }
   .realm-view .gno-alert > summary svg:last-of-type {
-    @apply h-4 w-4 ml-auto rotate-0;
+    @apply h-4 w-4 ml-auto -rotate-90;
   }
   .realm-view .gno-alert[open] > summary svg:last-of-type {
-    @apply rotate-180;
+    @apply rotate-0;
   }
 
   .realm-view .gno-alert > summary::marker,
