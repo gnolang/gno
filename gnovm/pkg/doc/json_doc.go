@@ -55,11 +55,11 @@ type JSONFunc struct {
 }
 
 type JSONType struct {
-	Interface bool         `json:"interface"` // true if the type is an interface, false if struct
-	Name      string       `json:"name"`
-	Signature string       `json:"signature"`
-	Doc       string       `json:"doc"` // markdown
-	Fields    []*JSONField `json:"fields"`
+	Name      string       `json:"name"`            // "MyType"
+	Signature string       `json:"signature"`       // "struct { ... }"
+	Doc       string       `json:"doc"`             // godoc documentation...
+	Kind      string       `json:"kind"`            // struct | interface | array | slice | map | channel | func | pointer | ident
+	Fields    []*JSONField `json:"fields,omitzero"` // struct fields (Kind == "struct")
 }
 
 // NewDocumentableFromMemPkg gets the pkgData from memPkg and returns a Documentable
@@ -142,29 +142,31 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 				break
 			}
 		}
-
-		isInterface := false
-		if typeSpec != nil {
-			_, ok := typeSpec.Type.(*ast.InterfaceType)
-			if ok {
-				isInterface = true
-			}
+		if typeSpec == nil || typeSpec.Type == nil {
+			// We don't expect this
+			continue
 		}
 
+		kind := ""
 		var fields []*JSONField
-		if typeSpec != nil {
-			structType, ok := typeSpec.Type.(*ast.StructType)
-			if ok {
-				// TODO: Anonymous fields.
-				fields = d.extractJSONFields(structType.Fields)
-			}
+
+		switch t := typeSpec.Type.(type) {
+		case *ast.InterfaceType:
+			kind = "interface"
+		case *ast.StructType:
+			kind = "struct"
+			// TODO: Anonymous fields.
+			fields = d.extractJSONFields(t.Fields)
+		default:
+			// Default to ident
+			kind = "ident"
 		}
 
 		jsonDoc.Types = append(jsonDoc.Types, &JSONType{
-			Interface: isInterface,
 			Name:      typ.Name,
 			Signature: mustFormatNode(d.pkgData.fset, typ.Decl),
 			Doc:       string(pkg.Markdown(typ.Doc)),
+			Kind:      kind,
 			Fields:    fields,
 		})
 
