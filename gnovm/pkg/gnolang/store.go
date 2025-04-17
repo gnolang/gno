@@ -871,9 +871,10 @@ func (ds *defaultStore) FindPathsByPrefix(prefix string) []string {
 	startKey := []byte(backendPackagePathKey(prefix))
 
 	// create endkey by incrementing last byte of startkey
-	endKey := make([]byte, len(startKey))
-	copy(endKey, startKey)
-	endKey[len(endKey)-1]++
+	endKey := slices.Clone(startKey)
+	if len(endKey) > 0 {
+		endKey[len(endKey)-1]++
+	}
 
 	iter := ds.iavlStore.Iterator(startKey, endKey)
 	defer iter.Close()
