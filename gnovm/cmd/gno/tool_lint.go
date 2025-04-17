@@ -149,9 +149,9 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			// Run type checking
 			if gmFile == nil || !gmFile.Draft {
 				err := lintTypeCheck(io, memPkg, gs)
-				//fmt.Println("---tool_lint, lint err: ", err)
+				// fmt.Println("---tool_lint, lint err: ", err)
 				if err != nil {
-					//io.ErrPrintln(err)
+					// io.ErrPrintln(err)
 					panic(err)
 				}
 			} else if verbose {
