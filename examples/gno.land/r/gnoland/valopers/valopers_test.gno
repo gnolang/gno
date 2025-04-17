@@ -68,7 +68,7 @@ func TestValopers_Register(t *testing.T) {
 		// Send no coins
 		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", 0)})
 
-		uassert.PanicsWithMessage(t, ufmt.Sprintf("payment must not be less than %d", minFee.Amount), func() {
+		uassert.PanicsWithMessage(t, ufmt.Sprintf("payment must not be less than %d%s", minFee.Amount, minFee.Denom), func() {
 			Register(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 	})
@@ -82,7 +82,7 @@ func TestValopers_Register(t *testing.T) {
 		// Send invalid coins
 		testing.SetOriginSend(std.Coins{std.NewCoin("ugnot", minFee.Amount-1)})
 
-		uassert.PanicsWithMessage(t, ufmt.Sprintf("payment must not be less than %d", minFee.Amount), func() {
+		uassert.PanicsWithMessage(t, ufmt.Sprintf("payment must not be less than %d%s", minFee.Amount, minFee.Denom), func() {
 			Register(info.Moniker, info.Description, info.Address, info.PubKey)
 		})
 	})
