@@ -10,7 +10,6 @@
     </div>
   {{ end }}
 
-
   <h2 class="text-400 text-gray-800 font-bold mb-4">
     Function{{- if gt (len .Functions) 1 }}s{{- end }}
   </h2>
@@ -93,12 +92,23 @@
               </div>
             {{ end }}
             {{ with getSelectedSendValue $data }}
-              <div class="my-3">
-                <h3 class="mr-10 mb-1 text-50">Send Action</h3>
-                <div class="flex gap-2 items-center justify-between">                
-                  <p class="text-gray-600 text-200">The Tx Link had a send flag set to <code class="text-red-800">{{ . }}</code>. Do you want to add it to the command? </p>
-                  <input type="checkbox" id="func-{{ $funcName }}-send-flag" data-send="{{ . }}" data-role="help-send-input" class="w-4 h-4" />
-                </div>
+              <div class="my-3 py-3 px-4 rounded-sm bg-yellow-50">
+                <h3 class="flex gap-1 items-center mr-10 mb-1 text-50 text-yellow-600">              
+                  <svg class="w-4 h-4 shrink-0 inline-block">
+                    <use href="#ico-warning"></use>
+                  </svg>Send flag
+                </h3>
+                <div class="flex md:flex-row flex-col gap-4 md:justify-between md:items-center">   
+                  <p class="text-gray-500 text-200">The Tx Link has a send flag set to <strong class="text-yellow-600">{{ . }}</strong>. Do you want to include it in the command?</p>
+                  <div class="bg-yellow-600 text-light text-center min-w-32 hover:bg-yellow-500 rounded-sm font-semibold border border-yellow-700">
+                    <input type="checkbox" id="func-{{ $funcName }}-send-flag" data-send="{{ . }}" data-role="help-send-input" class="peer hidden" />
+                    <label for="func-{{ $funcName }}-send-flag" class="peer-checked:hidden block px-4 py-2 cursor-pointer">
+                      Add to the command
+                    </label>
+                    <label for="func-{{ $funcName }}-send-flag" class="hidden peer-checked:block px-4 py-2 cursor-pointer">
+                      Remove from the command
+                    </label>
+                  </div>                
                 </div>
             {{ end }}
           </form>
