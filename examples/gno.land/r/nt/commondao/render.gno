@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/mux"
-	"gno.land/p/gnoland/commondao"
 	"gno.land/p/jeronimoalbi/pager"
+	"gno.land/p/nt/commondao"
 )
 
 func Render(path string) string {
@@ -34,7 +34,17 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	dao := getDAO(daoID)
+	var (
+		dao  *commondao.CommonDAO
+		path = req.Query.Get("path")
+	)
+
+	if path != "" {
+		dao = getSubDAO(daoID, path)
+	} else {
+		dao = getDAO(daoID)
+	}
+
 	if dao == nil {
 		res.Write("DAO not found")
 		return
@@ -51,7 +61,6 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 
 	// TODO: Add link to DAO's proposals list view
 
-	res.Write("## Members\n")
 	renderMembers(res, dao, req.RawPath)
 
 	if dao.Children().Len() > 0 {
@@ -66,7 +75,7 @@ func renderMembers(res *mux.ResponseWriter, dao *commondao.CommonDAO, path strin
 	members := dao.Members()
 	membersCount := members.Size()
 	if membersCount == 0 {
-		res.Write("The DAO has no members\n\n")
+		res.Write("**⚠ The DAO has no members**\n\n")
 		return
 	}
 
@@ -76,10 +85,11 @@ func renderMembers(res *mux.ResponseWriter, dao *commondao.CommonDAO, path strin
 		return
 	}
 
+	res.Write("| Members |\n| --- |\n")
 	members.IterateByOffset(p.Offset(), p.PageSize(), func(addr std.Address) bool {
-		res.Write("- ")
+		res.Write("| ")
 		res.Write(addr.String())
-		res.Write("\n")
+		res.Write(" |\n")
 		return false
 	})
 
