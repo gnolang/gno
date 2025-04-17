@@ -883,7 +883,7 @@ func (h *TransferFuncHolder) Get() func(std.Address, std.Address, int) error {
 
 - **0.1.0**: Initial release
   - Basic functionality works
-- **0.2.0**: Cross-realm upgrades
+- **0.2.0**: Cross-realm version upgrades
   - Added support for a better, less manual pattern for implementing upgrades.
 
 ## License
