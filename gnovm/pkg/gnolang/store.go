@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"io"
+	"iter"
 	"slices"
 	"strconv"
 	"strings"
@@ -63,7 +64,7 @@ type Store interface {
 	AddMemPackage(memPkg *gnovm.MemPackage)
 	GetMemPackage(path string) *gnovm.MemPackage
 	GetMemFile(path string, name string) *gnovm.MemFile
-	FindPathsByPrefix(prefix string) []string
+	FindPathsByPrefix(prefix string) iter.Seq[string]
 	IterMemPackage() <-chan *gnovm.MemPackage
 	ClearObjectCache()                                    // run before processing a message
 	SetNativeResolver(NativeResolver)                     // for native functions
@@ -867,25 +868,27 @@ func (ds *defaultStore) GetMemFile(path string, name string) *gnovm.MemFile {
 }
 
 // FindPathsByPrefix retrieves all paths starting with the given prefix.
-func (ds *defaultStore) FindPathsByPrefix(prefix string) []string {
-	startKey := []byte(backendPackagePathKey(prefix))
-
-	// create endkey by incrementing last byte of startkey
-	endKey := slices.Clone(startKey)
-	if len(endKey) > 0 {
+func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
+	// If prefix is empty range every package
+	startKey, endKey := []byte(backendPackagePathKey("\x00")), []byte(backendPackagePathKey("\xFF"))
+	if len(prefix) > 0 {
+		startKey = []byte(backendPackagePathKey(prefix))
+		// Create endkey by incrementing last byte of startkey
+		endKey = slices.Clone(startKey)
 		endKey[len(endKey)-1]++
 	}
 
-	iter := ds.iavlStore.Iterator(startKey, endKey)
-	defer iter.Close()
+	return func(yield func(string) bool) {
+		iter := ds.iavlStore.Iterator(startKey, endKey)
+		defer iter.Close()
 
-	var paths []string
-	for ; iter.Valid(); iter.Next() {
-		path := decodeBackendPackagePathKey(string(iter.Key()))
-		paths = append(paths, path)
+		for ; iter.Valid(); iter.Next() {
+			path := decodeBackendPackagePathKey(string(iter.Key()))
+			if !yield(path) {
+				return
+			}
+		}
 	}
-
-	return paths
 }
 
 func (ds *defaultStore) IterMemPackage() <-chan *gnovm.MemPackage {
