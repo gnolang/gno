@@ -10,7 +10,7 @@ func main() {
 }
 
 // Output:
-// tests.gno.land
+// gno.land
 
 // Realm:
 // switchrealm["gno.land/r/test"]

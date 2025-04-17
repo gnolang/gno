@@ -1,7 +1,6 @@
 package forms
 
 import (
-	"std"
 	"strings"
 	"testing"
 
@@ -11,7 +10,7 @@ import (
 
 func TestGetFormByID(t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	std.TestSetOriginCaller(alice)
+	testing.SetOriginCaller(alice)
 	title := "Simple Form"
 	description := "This is a form"
 	openAt := "2021-01-01T00:00:00Z"
@@ -29,7 +28,7 @@ func TestGetFormByID(t *testing.T) {
 
 func TestGetForms(t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	std.TestSetOriginCaller(alice)
+	testing.SetOriginCaller(alice)
 	description := "This is a form"
 	openAt := "2021-01-01T00:00:00Z"
 	closeAt := "2021-01-02T00:00:00Z"
