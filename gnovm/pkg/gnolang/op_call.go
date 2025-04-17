@@ -65,7 +65,7 @@ func (m *Machine) doOpCall() {
 		if len(fv.Captures) > len(b.Values) {
 			panic("should not happen, length of captured variables must not exceed the number of values")
 		}
-		for i := 0; i < len(fv.Captures); i++ {
+		for i := range fv.Captures {
 			b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
 		}
 	}
@@ -231,7 +231,7 @@ func (m *Machine) doOpReturnFromBlock() {
 	numParams := len(ft.Params)
 	numResults := len(ft.Results)
 	fblock := m.Blocks[cfr.NumBlocks] // frame +1
-	for i := 0; i < numResults; i++ {
+	for i := range numResults {
 		rtv := fillValueTV(m.Store, &fblock.Values[i+numParams])
 		m.PushValue(*rtv)
 	}
@@ -267,7 +267,7 @@ func (m *Machine) doOpReturnToBlock() {
 	numResults := len(ft.Results)
 	fblock := m.Blocks[cfr.NumBlocks] // frame +1
 	results := m.PopValues(numResults)
-	for i := 0; i < numResults; i++ {
+	for i := range numResults {
 		rtv := results[i]
 		fblock.Values[numParams+i] = rtv
 	}
@@ -306,7 +306,7 @@ func (m *Machine) doOpReturnCallDefers() {
 			if len(fv.Captures) > len(b.Values) {
 				panic("should not happen, length of captured variables must not exceed the number of values")
 			}
-			for i := 0; i < len(fv.Captures); i++ {
+			for i := range fv.Captures {
 				b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
 			}
 		}
@@ -343,9 +343,10 @@ func (m *Machine) doOpReturnCallDefers() {
 			} else {
 				// Convert last nvar to slice.
 				vart := pts[len(pts)-1].Type.(*SliceType)
-				vargs := make([]TypedValue, nvar)
+				baseArray := m.Alloc.NewListArray(nvar)
+				vargs := baseArray.List
 				copy(vargs, dfr.Args[numArgs-nvar:numArgs])
-				varg := m.Alloc.NewSliceFromList(vargs)
+				varg := m.Alloc.NewSlice(baseArray, 0, nvar, nvar)
 				dfr.Args = dfr.Args[:numArgs-nvar]
 				dfr.Args = append(dfr.Args, TypedValue{
 					T: vart,
