@@ -6,7 +6,7 @@ import (
 
 	"gno.land/p/demo/ufmt"
 	pVals "gno.land/p/sys/validators"
-	valopers "gno.land/r/gnoland/valopers"
+	valopers "gno.land/r/gnoland/valopers/v2"
 	"gno.land/r/gov/dao"
 	validators "gno.land/r/sys/validators/v2"
 )

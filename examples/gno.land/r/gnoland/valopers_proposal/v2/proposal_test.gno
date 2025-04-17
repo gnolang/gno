@@ -7,7 +7,7 @@ import (
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/urequire"
-	"gno.land/r/gnoland/valopers"
+	valopers "gno.land/r/gnoland/valopers/v2"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/init" // so that the govdao initializer is executed
 )

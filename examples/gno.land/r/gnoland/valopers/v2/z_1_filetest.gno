@@ -6,7 +6,7 @@ package valopers_test
 import (
 	"std"
 
-	"gno.land/r/gnoland/valopers"
+	valopers "gno.land/r/gnoland/valopers/v2"
 )
 
 const (
@@ -39,7 +39,7 @@ func main() {
 //
 // ## 📝 How to Register Your Validator Node
 //
-// To add your validator node to the registry, use the [**Register**](/r/gnoland/valopers$help&func=Register) function with the following parameters:
+// To add your validator node to the registry, use the [**Register**](/r/gnoland/valopers/v2$help&func=Register) function with the following parameters:
 //
 // - **Moniker** (Validator Name)
 //   - Must be **human-readable**

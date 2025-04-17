@@ -6,7 +6,7 @@ package valopers_test
 import (
 	"std"
 
-	"gno.land/r/gnoland/valopers"
+	valopers "gno.land/r/gnoland/valopers/v2"
 )
 
 const (

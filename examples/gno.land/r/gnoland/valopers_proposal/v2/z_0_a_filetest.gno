@@ -6,8 +6,8 @@ package valopers_proposal_test
 import (
 	"std"
 
-	"gno.land/r/gnoland/valopers"
-	"gno.land/r/gnoland/valopers_proposal"
+	valopers "gno.land/r/gnoland/valopers/v2"
+	valopers_proposal "gno.land/r/gnoland/valopers_proposal/v2"
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/v3/init"
 )
