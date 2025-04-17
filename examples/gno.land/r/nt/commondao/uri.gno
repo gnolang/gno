@@ -21,3 +21,23 @@ func daoURL(dao *commondao.CommonDAO) string {
 	rootDAO := dao.TopParent()
 	return ufmt.Sprintf("%s:%d?path=%s", path, rootDAO.ID(), dao.Path())
 }
+
+func daoProposalsURL(dao *commondao.CommonDAO) string {
+	path := currentRealmPath()
+	if dao.Parent() == nil {
+		return ufmt.Sprintf("%s:%d/proposals", path, dao.ID())
+	}
+
+	rootDAO := dao.TopParent()
+	return ufmt.Sprintf("%s:%d/proposals?path=%s", path, rootDAO.ID(), dao.Path())
+}
+
+func proposalURL(dao *commondao.CommonDAO, p *commondao.Proposal) string {
+	path := currentRealmPath()
+	if dao.Parent() == nil {
+		return ufmt.Sprintf("%s:%d/proposals/%d", path, dao.ID(), p.ID())
+	}
+
+	rootDAO := dao.TopParent()
+	return ufmt.Sprintf("%s:%d/proposals/%d?path=%s", path, rootDAO.ID(), p.ID(), dao.Path())
+}
