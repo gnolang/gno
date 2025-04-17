@@ -9,16 +9,15 @@ The `upgradeable` package provides a system for implementing upgradeable functio
 ### Key Features
 
 - **Multi-Owner Access Control**: Multiple authorized users can upgrade functions
-- **Type Safety**: Specialized holders for common function signatures reduce casting errors
 - **Low Boilerplate**: Centralized registry system minimizes repetitive code
 - **Transparency**: All upgrades emit events for audit trails
 - **Flexibility**: Works with any function type through a common interface
 - **Proxy Pattern**: Built-in support for contract upgradeability via proxy
 - **Cross-Realm Upgrades**: Upgrade functions across different realm versions automatically
 
-### Basic Usage
+### Basic Example
 
-#### Single Realm Upgrades
+This introduces a trivial realm that just renders some content. Calling `Render()` will in turn call `RenderV1()` to perform the actual rendering work. After the `UpgradeRender()` function is called by a realm owner (typically, the account that deployed the realm), `Render()` will have been upgraded, and calling it will call `RenderV2()`.
 
 ```go
 package mywebsite
@@ -57,15 +56,43 @@ func Render(path string) string {
 func UpgradeRender() error {
 	return renderFunc.Update(RenderV2)
 }
+```
 
+### Cross-Realm Version Upgrades
+
+The sort of highly manual upgrades illustrated in the first example work, but in a realm that may have many functions that evolve over time, the pattern that this style of usage leans towards is essentially one of patches. i.e. there might be an additional function in the original realm something like this:
+
+```go
 func UpgradeRenderTo(target interface{}) error {
 	return renderFunc.Update(target)
 }
 ```
 
-#### Cross-Realm Upgrades
+When called, this function will upgrade the `Render()` function to call the provided function, whatever it may be. You could include a function like this for every upgradeable function, and then when it's time to release a new version of a function or functions, one might do something like this:
 
-For automatic upgrades across realm versions:
+```go
+package mywebsite
+
+import (
+        v1 "gno.land/r/wyhaines/v1/mywebsite"
+)
+
+func init() {
+        v1.UpgradeRenderTo(RenderV3)
+}
+
+func RenderV3(path string) string {
+        return "# V3 Enhanced page for: " + path
+}
+
+func Render(path string) string {
+        return v1.Render(path)
+}
+```
+
+This pattern will work fine, but it has two problems. First, it's got a lot of manual boilerplate that has to be implemented for every upgradeable function. Second, the upgrades are themselves applied just as patches to the first realm. For a trivial example, this is probably fine, but with a large system that is maintained and evolves over a long period of time, it will become harder and harder to reasona bout what is actually running as this pattern repeats.
+
+Fortunately, the `upgradeable` package provides an upgrade path that addresses these concerns by providing a mechanism for automatic version upgrades across realm versions. Consider the following example:
 
 **Version 1 (Original Realm)**
 
@@ -129,6 +156,10 @@ func Render(path string) string {
 	return v1.Render(path)
 }
 ```
+
+With this pattern, the initial version of the contract that is deployed will record in a registry the functions that are upgradeable. Then, in subsequent versions of the realm after the first, the `init()` function will serve to register any function upgrades. In this example, the original `Render()` callsite for the originally deployed realm, and the `Render()` callsite on the deployed V2 of the realm will both end up calling the same function.
+
+This in turn lets one keep published Realm callsites static while replacing the implementation behind them, over time. This same pattern can be extended to any number of functions.
 
 ## Core Components
 
@@ -249,7 +280,7 @@ hasAccess := accessFn.Get()(userAddress) // No type assertion needed
 
 ### Cross-Realm Upgrader
 
-For more complex cross-realm upgrade scenarios:
+For more complex cross-realm version upgrade scenarios:
 
 ```go
 // Create a cross-realm upgrader
