@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"reflect"
 	"runtime/debug"
-	"strings"
 	"sync"
 	"time"
 
@@ -28,7 +27,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/service"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -36,7 +34,7 @@ import (
 
 // -----------------------------------------------------------------------------
 // Tracer
-var tracer = otel.Tracer("tm2/bft/consensus")
+var tracer = telemetry.Tracer("tm2/bft/consensus")
 
 // -----------------------------------------------------------------------------
 // Errors
@@ -517,16 +515,12 @@ func (cs *ConsensusState) reconstructLastCommit(state sm.State) {
 func (cs *ConsensusState) updateToState(state sm.State) {
 	// Here we start a new height, round 0 and RoundStepNewHeight and hence
 	// start the new trace context and new root span
-	var span trace.Span
 
-	if telemetry.TracesEnabled() {
-		newHeight := state.LastBlockHeight + 1
-		cs.traceCtx, span = tracer.Start(context.Background(), fmt.Sprintf("NewHeight: %d", newHeight))
-		span.SetAttributes(attribute.Int64("csHeight", newHeight))
-		span.SetAttributes(attribute.Int64("csRound", 0))
-		span.SetAttributes(attribute.Int64("csStep", int64(cstypes.RoundStepNewHeight)))
-		defer span.End()
-	}
+	// Next desired block height
+	height := state.LastBlockHeight + 1
+
+	span := cs.startRootSpan(height)
+	defer span.End()
 
 	if cs.CommitRound > -1 && 0 < cs.Height && cs.Height != state.LastBlockHeight {
 		cs.panicWithTrace(span, fmt.Sprintf("updateToState() expected state height of %v but found %v",
@@ -559,9 +553,6 @@ func (cs *ConsensusState) updateToState(state sm.State) {
 		}
 		lastPrecommits = cs.Votes.Precommits(cs.CommitRound)
 	}
-
-	// Next desired block height
-	height := state.LastBlockHeight + 1
 
 	// RoundState fields
 	cs.updateHeight(height)
@@ -692,13 +683,14 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 
 // state transitions on complete-proposal, 2/3-any, 2/3-one
 func (cs *ConsensusState) handleMsg(mi msgInfo) {
-	span := cs.addTrace(fmt.Sprintf("handleMsg(peerID:%s)", mi.PeerID))
-	if span != nil {
-		defer span.End()
-	}
-
 	cs.mtx.Lock()
 	defer cs.mtx.Unlock()
+
+	span := cs.addSpan("handleMsg")
+	span.SetAttributes(
+		attribute.String("peerID", mi.PeerID.String()),
+	)
+	defer span.End()
 
 	var (
 		added bool
@@ -757,11 +749,6 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 }
 
 func (cs *ConsensusState) handleTimeout(ti timeoutInfo, rs cstypes.RoundState) {
-	span := cs.addTrace("handleTimeout")
-	if span != nil {
-		defer span.End()
-	}
-
 	cs.Logger.Debug("Received tock", "timeout", ti.Duration, "height", ti.Height, "round", ti.Round, "step", ti.Step)
 
 	// timeouts must be for current height, round, step
@@ -773,6 +760,9 @@ func (cs *ConsensusState) handleTimeout(ti timeoutInfo, rs cstypes.RoundState) {
 	// the timeout will now cause a state transition
 	cs.mtx.Lock()
 	defer cs.mtx.Unlock()
+
+	span := cs.addSpan("handleTimeout")
+	defer span.End()
 
 	switch ti.Step {
 	case cstypes.RoundStepNewHeight:
@@ -797,12 +787,11 @@ func (cs *ConsensusState) handleTimeout(ti timeoutInfo, rs cstypes.RoundState) {
 }
 
 func (cs *ConsensusState) handleTxsAvailable() {
-	if span := cs.addTrace("handleTxsAvailable"); span != nil {
-		defer span.End()
-	}
-
 	cs.mtx.Lock()
 	defer cs.mtx.Unlock()
+
+	span := cs.addSpan("handleTxsAvailable")
+	defer span.End()
 
 	// We only need to do this for round 0.
 	if cs.Round != 0 {
@@ -837,9 +826,8 @@ func (cs *ConsensusState) handleTxsAvailable() {
 // Enter: +2/3 prevotes any or +2/3 precommits for block or any from (height, round)
 // NOTE: cs.StartTime was already set for height.
 func (cs *ConsensusState) enterNewRound(height int64, round int) {
-	if span := cs.addTrace(fmt.Sprintf("enterNewRound(%v,%v)", height, round)); span != nil {
-		defer span.End()
-	}
+	span := cs.addSpan("enterNewRound")
+	defer span.End()
 
 	logger := cs.Logger.With("height", height, "round", round)
 
@@ -912,9 +900,8 @@ func (cs *ConsensusState) needProofBlock(height int64) bool {
 // Enter (CreateEmptyBlocks, CreateEmptyBlocksInterval > 0 ): after enterNewRound(height,round), after timeout of CreateEmptyBlocksInterval
 // Enter (!CreateEmptyBlocks) : after enterNewRound(height,round), once txs are in the mempool
 func (cs *ConsensusState) enterPropose(height int64, round int) {
-	if span := cs.addTrace(fmt.Sprintf("enterPropose(%v,%v)", height, round)); span != nil {
-		defer span.End()
-	}
+	span := cs.addSpan("enterPropose")
+	defer span.End()
 
 	logger := cs.Logger.With("height", height, "round", round)
 
@@ -967,10 +954,8 @@ func (cs *ConsensusState) isProposer(address crypto.Address) bool {
 }
 
 func (cs *ConsensusState) defaultDecideProposal(height int64, round int) {
-	span := cs.addTrace(fmt.Sprintf("defaultDecideProposal(%v,%v)", height, round))
-	if span != nil {
-		defer span.End()
-	}
+	span := cs.addSpan("defaultDecideProposal")
+	defer span.End()
 
 	var block *types.Block
 	var blockParts *types.PartSet
@@ -1069,9 +1054,8 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block, blockParts 
 // Prevote for LockedBlock if we're locked, or ProposalBlock if valid.
 // Otherwise vote nil.
 func (cs *ConsensusState) enterPrevote(height int64, round int) {
-	if span := cs.addTrace(fmt.Sprintf("enterPrevote(%v,%v)", height, round)); span != nil {
-		defer span.End()
-	}
+	span := cs.addSpan("enterPrevote")
+	defer span.End()
 
 	if cs.Height != height || round < cs.Round || (cs.Round == round && cstypes.RoundStepPrevote <= cs.Step) {
 		cs.Logger.Debug(fmt.Sprintf("enterPrevote(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
@@ -1094,10 +1078,8 @@ func (cs *ConsensusState) enterPrevote(height int64, round int) {
 }
 
 func (cs *ConsensusState) defaultDoPrevote(height int64, round int) {
-	span := cs.addTrace(fmt.Sprintf("defaultDoPrevote(%v,%v)", height, round))
-	if span != nil {
-		defer span.End()
-	}
+	span := cs.addSpan("defaultDoPrevote")
+	defer span.End()
 
 	logger := cs.Logger.With("height", height, "round", round)
 
@@ -1133,10 +1115,8 @@ func (cs *ConsensusState) defaultDoPrevote(height int64, round int) {
 
 // Enter: any +2/3 prevotes at next round.
 func (cs *ConsensusState) enterPrevoteWait(height int64, round int) {
-	span := cs.addTrace(fmt.Sprintf("enterPrevoteWait(%v,%v)", height, round))
-	if span != nil {
-		defer span.End()
-	}
+	span := cs.addSpan("enterPrevoteWait")
+	defer span.End()
 
 	logger := cs.Logger.With("height", height, "round", round)
 
@@ -1166,10 +1146,8 @@ func (cs *ConsensusState) enterPrevoteWait(height int64, round int) {
 // else, unlock an existing lock and precommit nil if +2/3 of prevotes were nil,
 // else, precommit nil otherwise.
 func (cs *ConsensusState) enterPrecommit(height int64, round int) {
-	span := cs.addTrace(fmt.Sprintf("enterPrecommit(%v,%v)", height, round))
-	if span != nil {
-		defer span.End()
-	}
+	span := cs.addSpan("enterPrecommit")
+	defer span.End()
 
 	logger := cs.Logger.With("height", height, "round", round)
 
@@ -1267,10 +1245,8 @@ func (cs *ConsensusState) enterPrecommit(height int64, round int) {
 
 // Enter: any +2/3 precommits for next round.
 func (cs *ConsensusState) enterPrecommitWait(height int64, round int) {
-	span := cs.addTrace(fmt.Sprintf("enterPrecommitWait(%v,%v)", height, round))
-	if span != nil {
-		defer span.End()
-	}
+	span := cs.addSpan("enterPrecommitWait")
+	defer span.End()
 
 	logger := cs.Logger.With("height", height, "round", round)
 
@@ -1300,10 +1276,8 @@ func (cs *ConsensusState) enterPrecommitWait(height int64, round int) {
 
 // Enter: +2/3 precommits for block
 func (cs *ConsensusState) enterCommit(height int64, commitRound int) {
-	span := cs.addTrace(fmt.Sprintf("enterCommit(%v,%v)", height, commitRound))
-	if span != nil {
-		defer span.End()
-	}
+	span := cs.addSpan("enterCommit")
+	defer span.End()
 
 	logger := cs.Logger.With("height", height, "commitRound", commitRound)
 
@@ -1357,10 +1331,8 @@ func (cs *ConsensusState) enterCommit(height int64, commitRound int) {
 
 // If we have the block AND +2/3 commits for it, finalize.
 func (cs *ConsensusState) tryFinalizeCommit(height int64) {
-	span := cs.addTrace(fmt.Sprintf("tryFinalizeCommit(%v)", height))
-	if span != nil {
-		defer span.End()
-	}
+	span := cs.addSpan("tryFinalizeCommit")
+	defer span.End()
 
 	logger := cs.Logger.With("height", height)
 
@@ -1386,10 +1358,8 @@ func (cs *ConsensusState) tryFinalizeCommit(height int64) {
 
 // Increment height and goto cstypes.RoundStepNewHeight
 func (cs *ConsensusState) finalizeCommit(height int64) {
-	span := cs.addTrace(fmt.Sprintf("finalizeCommit(%v)", height))
-	if span != nil {
-		defer span.End()
-	}
+	span := cs.addSpan("finalizeCommit")
+	defer span.End()
 
 	if cs.Height != height || cs.Step != cstypes.RoundStepCommit {
 		cs.Logger.Debug(fmt.Sprintf("finalizeCommit(%v): Invalid args. Current step: %v/%v/%v", height, cs.Height, cs.Round, cs.Step))
@@ -1495,10 +1465,8 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 // -----------------------------------------------------------------------------
 
 func (cs *ConsensusState) defaultSetProposal(proposal *types.Proposal) error {
-	span := cs.addTrace(fmt.Sprintf("defaultSetProposal(%v,%v)", proposal.Height, proposal.Round))
-	if span != nil {
-		defer span.End()
-	}
+	span := cs.addSpan("defaultSetProposal")
+	defer span.End()
 
 	// Already have one
 	// TODO: possibly catch double proposals
@@ -1545,9 +1513,11 @@ func (cs *ConsensusState) defaultSetProposal(proposal *types.Proposal) error {
 // NOTE: block is not necessarily valid.
 // Asynchronously triggers either enterPrevote (before we timeout of propose) or tryFinalizeCommit, once we have the full block.
 func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2pTypes.ID) (added bool, err error) {
-	if span := cs.addTrace(fmt.Sprintf("addProposalBlockPart(%v,%v,peerID:%v)", msg.Height, msg.Round, peerID)); span != nil {
-		defer span.End()
-	}
+	span := cs.addSpan("addProposalBlockPart")
+	span.SetAttributes(
+		attribute.String("peerID", peerID.String()),
+	)
+	defer span.End()
 
 	height, round, part := msg.Height, msg.Round, msg.Part
 
@@ -1619,9 +1589,12 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 
 // Attempt to add the vote. if its a duplicate signature, dupeout the validator
 func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2pTypes.ID) (bool, error) {
-	if span := cs.addTrace(fmt.Sprintf("tryAddVote(vote:%v,peerID:%s)", vote.Type, peerID)); span != nil {
-		defer span.End()
-	}
+	span := cs.addSpan("tryAddVote")
+	span.SetAttributes(
+		attribute.Int("voteType", int(vote.Type)),
+		attribute.String("peerID", peerID.String()),
+	)
+	defer span.End()
 
 	added, err := cs.addVote(vote, peerID)
 	if err != nil {
@@ -1656,10 +1629,12 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2pTypes.ID) (bool
 // -----------------------------------------------------------------------------
 
 func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2pTypes.ID) (added bool, err error) {
-	span := cs.addTrace(fmt.Sprintf("addVote(vote:%v,peerID:%s)", vote.Type, peerID))
-	if span != nil {
-		defer span.End()
-	}
+	span := cs.addSpan("addVote")
+	span.SetAttributes(
+		attribute.Int("voteType", int(vote.Type)),
+		attribute.String("peerID", peerID.String()),
+	)
+	defer span.End()
 
 	cs.Logger.Debug("addVote", "voteHeight", vote.Height, "voteType", vote.Type, "valIndex", vote.ValidatorIndex, "csHeight", cs.Height)
 
@@ -1814,9 +1789,8 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2pTypes.ID) (added b
 }
 
 func (cs *ConsensusState) signVote(type_ types.SignedMsgType, hash []byte, header types.PartSetHeader) (*types.Vote, error) {
-	if span := cs.addTrace("signVote"); span != nil {
-		defer span.End()
-	}
+	span := cs.addSpan("signVote")
+	defer span.End()
 
 	// Flush the WAL. Otherwise, we may not recompute the same vote to sign, and the privValidator will refuse to sign anything.
 	cs.wal.FlushAndSync()
@@ -1858,10 +1832,8 @@ func (cs *ConsensusState) voteTime() time.Time {
 
 // sign the vote and publish on internalMsgQueue
 func (cs *ConsensusState) signAddVote(type_ types.SignedMsgType, hash []byte, header types.PartSetHeader) *types.Vote {
-	span := cs.addTrace("signAddVote")
-	if span != nil {
-		defer span.End()
-	}
+	span := cs.addSpan("signAddVote")
+	defer span.End()
 
 	// if we don't have a key or we're not in the validator set, do nothing
 	if cs.privValidator == nil || !cs.Validators.HasAddress(cs.privValidator.GetPubKey().Address()) {
@@ -1932,24 +1904,27 @@ func (cs *ConsensusState) panicWithTrace(span trace.Span, msg string) {
 	panic(msg)
 }
 
-func (cs *ConsensusState) addTrace(spanName string, opts ...trace.SpanStartOption) trace.Span {
-	var span trace.Span
+func (cs *ConsensusState) startRootSpan(height int64) trace.Span {
+	ctx, span := tracer().Start(context.Background(), fmt.Sprintf("NewHeight: %d", height))
+	cs.traceCtx = ctx
+	return span
+}
 
-	if telemetry.TracesEnabled() {
-		var ctx context.Context
-		spanNameWithInfo := fmt.Sprintf("%s - CS(%v/%v/%v)", spanName, cs.Height, cs.Round, cs.Step)
-		spanNameWithInfo = strings.ReplaceAll(spanNameWithInfo, "RoundStep", "RS")
+func (cs *ConsensusState) addSpan(spanName string, opts ...trace.SpanStartOption) trace.Span {
+	step := fmt.Sprintf("%v", cs.Step)
 
-		ctx, span = tracer.Start(cs.traceCtx, spanNameWithInfo, opts...)
-		if span.IsRecording() {
-			span.SetAttributes(
-				attribute.Int64("csHeight", cs.Height),
-				attribute.Int("csRound", cs.Round),
-				attribute.Int("csStep", int(cs.Step)),
-			)
-		}
-		cs.traceCtx = ctx
+	spanNameWithInfo := fmt.Sprintf("%s - %d/%s", spanName, cs.Round, step)
+
+	ctx, span := tracer().Start(cs.traceCtx, spanNameWithInfo, opts...)
+	if span.IsRecording() {
+		span.SetAttributes(
+			attribute.Int64("csHeight", cs.Height),
+			attribute.Int("csRound", cs.Round),
+			attribute.String("csStep", step),
+		)
 	}
+
+	cs.traceCtx = ctx
 
 	return span
 }
