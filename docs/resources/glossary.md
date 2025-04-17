@@ -203,8 +203,8 @@ A unique identifier of code on the gno.land blockchain, following the format:
 `gno.land/[r|p]/[namespace]/[name]`. The package path determines where the code
 is stored and how it can be imported or accessed.
 
-### Staging network
-The main gno.land chain for testing, accessible at [gno.land](https://gno.land).
+### Portal Loop
+Former testing network that was replaced by the Staging network.
 
 ### Pure Package
 A stateless, importable, and reusable code (library) on the gno.land
@@ -231,6 +231,9 @@ nonce. Used to protect against replay attacks.
 
 ### Smart Contract
 See [Realm](#realm).
+
+### Staging network
+The main gno.land chain for testing, accessible at [gno.land](https://gno.land).
 
 ### Standard Library
 Built-in packages that provide core functionality to Gno programs without
