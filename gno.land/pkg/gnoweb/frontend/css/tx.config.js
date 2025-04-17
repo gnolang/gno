@@ -54,7 +54,7 @@ export default {
         600: "#DC2626", // Caution alert color
       },
       purple: {
-        600: "#7C3AED", // Important alert color
+        600: "#7C3AED", // Tip alert color
       },
       transparent: "transparent",
       current: "currentColor",
