@@ -148,12 +148,11 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 
 			// Run type checking
 			if gmFile == nil || !gmFile.Draft {
-				foundErr, err := lintTypeCheck(io, memPkg, gs)
+				err := lintTypeCheck(io, memPkg, gs)
+				//fmt.Println("---tool_lint, lint err: ", err)
 				if err != nil {
-					io.ErrPrintln(err)
-					hasError = true
-				} else if foundErr {
-					hasError = true
+					//io.ErrPrintln(err)
+					panic(err)
 				}
 			} else if verbose {
 				io.ErrPrintfln("%s: module is draft, skipping type check", pkgPath)
@@ -180,10 +179,11 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	return nil
 }
 
-func lintTypeCheck(io commands.IO, memPkg *gnovm.MemPackage, testStore gno.Store) (errorsFound bool, err error) {
+// maybe return errs...
+func lintTypeCheck(io commands.IO, memPkg *gnovm.MemPackage, testStore gno.Store) error {
 	tcErr := gno.TypeCheckMemPackageTest(memPkg, testStore)
 	if tcErr == nil {
-		return false, nil
+		return nil
 	}
 
 	errs := multierr.Errors(tcErr)
@@ -213,10 +213,10 @@ func lintTypeCheck(io commands.IO, memPkg *gnovm.MemPackage, testStore gno.Store
 				Location:   err.Pos.String(),
 			})
 		default:
-			return false, fmt.Errorf("unexpected error type: %T", err)
+			return fmt.Errorf("unexpected error type: %T", err)
 		}
 	}
-	return true, nil
+	return errors.New("lintTypeCheck error")
 }
 
 func sourceAndTestFileset(memPkg *gnovm.MemPackage) *gno.FileSet {

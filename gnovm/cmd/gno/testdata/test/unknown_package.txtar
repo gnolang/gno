@@ -3,7 +3,9 @@
 ! gno test -v .
 
 ! stdout .+
-stderr 'contract.gno:3:8: unknown import path foobarbaz'
+stderr 'contract.gno:3:8: could not import foobarbaz'
+stderr 'lintTypeCheck error'
+
 
 -- contract.gno --
 package contract
