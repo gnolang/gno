@@ -2,8 +2,7 @@
 
 ! gno test -v .
 
-stdout 'hello123'
-stderr 'PASS: TestAlwaysValid'
+! stdout .+ # stdout should be empty
 stderr 'declared and not used: x'
 stderr 'FAIL'
 

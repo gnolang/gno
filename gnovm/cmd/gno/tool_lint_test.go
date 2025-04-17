@@ -23,7 +23,7 @@ func TestLintApp(t *testing.T) {
 		},
 		{
 			args:                []string{"lint", "../../tests/integ/package_not_declared/main.gno"},
-			stderrShouldContain: "main.gno:4:2: name fmt not declared (code=2)",
+			stderrShouldContain: "main.gno:4:2: undefined: fmt (code=4)",
 			errShouldBe:         "exit code: 1",
 		},
 		{

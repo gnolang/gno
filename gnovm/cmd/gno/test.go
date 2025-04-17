@@ -244,29 +244,25 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 		memPkg := gno.MustReadMemPackage(pkg.Dir, gnoPkgPath)
 
-		var hasError bool
+		var hasRunTimeError bool
 
 		startedAt := time.Now()
-		runtimeError := catchRuntimeError(gnoPkgPath, io.Err(), func() {
+		hasRunTimeError = catchRuntimeError(gnoPkgPath, io.Err(), func() {
 			if modfile == nil || !modfile.Draft {
-				foundErr, lintErr := lintTypeCheck(io, memPkg, opts.TestStore)
+				lintErr := lintTypeCheck(io, memPkg, opts.TestStore)
 				if lintErr != nil {
-					io.ErrPrintln(lintErr)
-					hasError = true
-				} else if foundErr {
-					hasError = true
+					panic(lintErr)
 				}
 			} else if cfg.verbose {
 				io.ErrPrintfln("%s: module is draft, skipping type check", gnoPkgPath)
 			}
 			err = test.Test(memPkg, pkg.Dir, opts)
 		})
-		hasError = hasError || runtimeError
 
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
 
-		if hasError || err != nil {
+		if hasRunTimeError || err != nil {
 			if err != nil {
 				io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, err)
 			}
