@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -663,6 +664,49 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	)
 
 	return res, nil
+}
+
+var reUserNamespace = regexp.MustCompile(`^[~_a-zA-Z0-9/]+$`)
+
+// QueryNamespacePaths returns public facing function signatures.
+func (vm *VMKeeper) QueryPaths(ctx sdk.Context, target string, limit int) ([]string, error) {
+	const maxlimit = 1_000_000
+	if limit == 0 { // 0 means unlimited elements
+		limit = maxlimit
+	} else {
+		limit = min(limit, maxlimit)
+	}
+
+	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed) // XXX: is that really needed ?
+
+	var count int
+	var paths []string
+	yield := func(path string) bool {
+		if count >= limit {
+			return false
+		}
+
+		paths = append(paths, path)
+		count++
+		return true
+	}
+
+	if strings.HasPrefix(target, "@") {
+		name := target[1:]
+		if !reUserNamespace.MatchString(name) {
+			return nil, errors.New("invalid username format")
+		}
+
+		domain := vm.getChainDomainParam(ctx)
+		store := vm.newGnoTransactionStore(ctx) // throwaway (never committed) // XXX: is that really needed ?
+		rpath, ppath := path.Join(domain, "r", name)+"/", path.Join(domain, "p", name)+"/"
+		store.FindPathsByPrefix(rpath)(yield)
+		store.FindPathsByPrefix(ppath)(yield)
+		return paths, nil
+	}
+
+	store.FindPathsByPrefix(target)(yield)
+	return paths, nil
 }
 
 // QueryFuncs returns public facing function signatures.
