@@ -36,7 +36,7 @@ import (
 
 // -----------------------------------------------------------------------------
 // Tracer
-var tracer = otel.Tracer("consensus")
+var tracer = otel.Tracer("tm2/bft/consensus")
 
 // -----------------------------------------------------------------------------
 // Errors
@@ -520,7 +520,7 @@ func (cs *ConsensusState) updateToState(state sm.State) {
 	var span trace.Span
 
 	if telemetry.TracesEnabled() {
-        newHeight := state.LastBlockHeight+1
+		newHeight := state.LastBlockHeight + 1
 		cs.traceCtx, span = tracer.Start(context.Background(), fmt.Sprintf("NewHeight: %d", newHeight))
 		span.SetAttributes(attribute.Int64("csHeight", newHeight))
 		span.SetAttributes(attribute.Int64("csRound", 0))
