@@ -533,7 +533,7 @@ func (pkg *pkgPrinter) typeDoc(typ *JSONType) {
 	saveFieldCount := len(typ.Fields)
 	pkg.trimUnexportedElems(typ)
 	if len(typ.Fields) == saveFieldCount {
-		pkg.emit(typ.Doc, typ.Signature)
+		pkg.emit(typ.Doc, "type "+typ.Name+" "+typ.Type)
 	} else {
 		pkg.Printf("type %s struct {\n", typ.Name)
 		for _, field := range typ.Fields {

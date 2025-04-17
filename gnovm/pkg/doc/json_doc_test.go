@@ -185,16 +185,16 @@ func TestJSONDocumentation(t *testing.T) {
 		},
 		Types: []*JSONType{
 			{
-				Name:      "myInterface",
-				Signature: "type myInterface interface {\n\tBar() string // Bar is for testing\n}",
-				Doc:       "myInterface is an interface for testing\n",
-				Kind:      "interface",
+				Name: "myInterface",
+				Type: "interface {\n\tBar() string // Bar is for testing\n}",
+				Doc:  "myInterface is an interface for testing\n",
+				Kind: "interface",
 			},
 			{
-				Name:      "myStruct",
-				Signature: "type myStruct struct {\n\t// a is a field\n\ta int // a comment\n}",
-				Doc:       "myStruct is a struct for testing\n",
-				Kind:      "struct",
+				Name: "myStruct",
+				Type: "struct {\n\t// a is a field\n\ta int // a comment\n}",
+				Doc:  "myStruct is a struct for testing\n",
+				Kind: "struct",
 				Fields: []*JSONField{
 					{Name: "a", Type: "int", Doc: "// a is a field\n// a comment\n"},
 				},

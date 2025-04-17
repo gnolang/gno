@@ -55,11 +55,12 @@ type JSONFunc struct {
 }
 
 type JSONType struct {
-	Name      string       `json:"name"`            // "MyType"
-	Signature string       `json:"signature"`       // "struct { ... }"
-	Doc       string       `json:"doc"`             // godoc documentation...
-	Kind      string       `json:"kind"`            // struct | interface | array | slice | map | channel | func | pointer | ident
-	Fields    []*JSONField `json:"fields,omitzero"` // struct fields (Kind == "struct")
+	Name string `json:"name"` // "MyType"
+	Type string `json:"type"` // "struct { ... }"
+	Doc  string `json:"doc"`  // godoc documentation...
+	Kind string `json:"kind"` // struct | interface | array | slice | map | channel | func | pointer | ident
+	// TODO: Use omitzero when upgraded to Go 1.24
+	Fields []*JSONField `json:"fields,omitzero"` // struct fields (Kind == "struct")
 }
 
 // NewDocumentableFromMemPkg gets the pkgData from memPkg and returns a Documentable
@@ -163,11 +164,11 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 		}
 
 		jsonDoc.Types = append(jsonDoc.Types, &JSONType{
-			Name:      typ.Name,
-			Signature: mustFormatNode(d.pkgData.fset, typ.Decl),
-			Doc:       string(pkg.Markdown(typ.Doc)),
-			Kind:      kind,
-			Fields:    fields,
+			Name:   typ.Name,
+			Type:   mustFormatNode(d.pkgData.fset, typeSpec.Type),
+			Doc:    string(pkg.Markdown(typ.Doc)),
+			Kind:   kind,
+			Fields: fields,
 		})
 
 		// values of this type
