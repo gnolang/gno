@@ -13,6 +13,7 @@ type HelpData struct {
 	// Selected function
 	SelectedFunc string
 	SelectedArgs map[string]string
+	SelectedSend string
 
 	RealmName string
 	Functions []*doc.JSONFunc
@@ -45,6 +46,13 @@ func registerHelpFuncs(funcs template.FuncMap) {
 		}
 
 		return data.SelectedArgs[param.Name], nil
+	}
+	funcs["getSelectedSendValue"] = func(data HelpData) string {
+		if data.SelectedSend == "" {
+			return ""
+		}
+
+		return data.SelectedSend
 	}
 }
 
