@@ -67,7 +67,7 @@ type JSONType struct {
 	Alias bool   `json:"alias"` // if an alias like `type A = B`
 	Kind  string `json:"kind"`  // struct | interface | array | slice | map | channel | func | pointer | ident
 	// TODO: Use omitzero when upgraded to Go 1.24
-	Methods []*JSONFunc  `json:"methods,omitempty"` // interface methods (Kind == "interface")
+	Methods []*JSONFunc  `json:"methods,omitempty"` // interface methods (Kind == "interface") (struct methods are in JSONDocumentation.Funcs)
 	Fields  []*JSONField `json:"fields,omitempty"`  // struct fields (Kind == "struct")
 }
 
@@ -168,7 +168,11 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 		case *ast.InterfaceType:
 			kind = interfaceKind
 			for _, iMethod := range t.Methods.List {
-				fun := iMethod.Type.(*ast.FuncType)
+				fun, ok := iMethod.Type.(*ast.FuncType)
+				if !ok {
+					// We don't expect this
+					continue
+				}
 				// This is an interface, so we should expect only one name
 				if len(iMethod.Names) != 1 {
 					continue
