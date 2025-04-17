@@ -548,7 +548,7 @@ func (pkg *pkgPrinter) typeDoc(typ *JSONType) {
 			pkg.Printf("%s%s %s%s\n", indent, field.Name, field.Type, lineComment)
 		}
 		what := "methods"
-		if typ.Kind != "interface" {
+		if typ.Kind != interfaceKind {
 			what = "fields"
 		}
 		pkg.Printf("%s// Has unexported %s.\n", indent, what)
@@ -613,7 +613,7 @@ func (pkg *pkgPrinter) trimUnexportedElems(typ *JSONType) {
 	if pkg.opt.Unexported || pkg.opt.Source {
 		return
 	}
-	typ.Fields = pkg.trimUnexportedFields(typ.Fields, typ.Kind == "interface")
+	typ.Fields = pkg.trimUnexportedFields(typ.Fields, typ.Kind == interfaceKind)
 }
 
 // trimUnexportedFields returns the field list trimmed of unexported fields.

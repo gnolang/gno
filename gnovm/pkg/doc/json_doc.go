@@ -54,6 +54,12 @@ type JSONFunc struct {
 	Results   []*JSONField `json:"results"`
 }
 
+const (
+	structKind    = "struct"
+	interfaceKind = "interface"
+	identKind     = "ident"
+)
+
 type JSONType struct {
 	Name  string `json:"name"`  // "MyType"
 	Type  string `json:"type"`  // "struct { ... }"
@@ -153,15 +159,15 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 		var fields []*JSONField
 
 		switch t := typeSpec.Type.(type) {
-		case *ast.InterfaceType:
-			kind = "interface"
 		case *ast.StructType:
-			kind = "struct"
+			kind = structKind
 			// TODO: Anonymous fields.
 			fields = d.extractJSONFields(t.Fields)
+		case *ast.InterfaceType:
+			kind = interfaceKind
 		default:
 			// Default to ident
-			kind = "ident"
+			kind = identKind
 		}
 
 		jsonDoc.Types = append(jsonDoc.Types, &JSONType{
