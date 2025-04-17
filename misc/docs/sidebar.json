@@ -31,11 +31,6 @@
         "type": "category",
         "label": "Resources",
         "items": [
-          {
-            "type": "link",
-            "label": "Awesome Gno",
-            "href": "https://github.com/gnoverse/awesome-gno"
-          },
           "resources/effective-gno",
           "resources/gno-packages",
           "resources/gnoland-networks",
@@ -54,6 +49,11 @@
             "type": "link",
             "label": "Gno Workshops",
             "href": "https://github.com/gnolang/workshops"
+          },
+          {
+            "type": "link",
+            "label": "Awesome Gno",
+            "href": "https://github.com/gnoverse/awesome-gno"
           }
         ]
       }

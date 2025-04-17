@@ -36,7 +36,6 @@ Gno-specific features, connect to Gno apps with clients, and more.
 
 Learn about core concepts found in gno.land & Gno.
 
-- [Awesome Gno](https://github.com/gnoverse/awesome-gno) - Curated list of Gno freshness.
 - [Effective Gno](resources/effective-gno.md) - Learn how to write Gno following best practices, including counter-intuitive good practices specific to blockchain
 - [Packages](resources/gno-packages.md) - Learn about realms, pure packages, smart contracts, dApps and how they're organized in the gno.land ecosystem.
 - [Networks](resources/gnoland-networks.md) - Discover different gno.land networks (testnets, devnets) and their purposes, including network configurations.
@@ -48,3 +47,4 @@ Learn about core concepts found in gno.land & Gno.
 - [Go - Gno compatibility](resources/go-gno-compatibility.md) - A detailed compatibility list between Go and Gno features, including supported keywords, types, and standard libraries.
 - [Gno Examples](https://github.com/gnolang/gno/tree/master/examples) - A large library of existing pure packages and realms to use and learn from.
 - [Gno Workshops](https://github.com/gnolang/workshops) - Previous workshops and presentations by the gno.land team and the community.
+- [Awesome Gno](https://github.com/gnoverse/awesome-gno) - Curated, ever-growing collection of the best Gno tools, libraries, projects, and resources from the community.
