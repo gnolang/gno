@@ -33,7 +33,8 @@ func Panic() { panic("foo") }
 
 // myInterface is an interface for testing
 type myInterface interface {
-	Bar() string // Bar is for testing
+	// Bar is for testing
+	Bar(x int) string // Bar line comment
 }
 
 var counter int = 42

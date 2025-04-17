@@ -67,7 +67,8 @@ type JSONType struct {
 	Alias bool   `json:"alias"` // if an alias like `type A = B`
 	Kind  string `json:"kind"`  // struct | interface | array | slice | map | channel | func | pointer | ident
 	// TODO: Use omitzero when upgraded to Go 1.24
-	Fields []*JSONField `json:"fields,omitzero"` // struct fields (Kind == "struct")
+	Methods []*JSONFunc  `json:"methods,omitempty"` // interface methods (Kind == "interface")
+	Fields  []*JSONField `json:"fields,omitempty"`  // struct fields (Kind == "struct")
 }
 
 // NewDocumentableFromMemPkg gets the pkgData from memPkg and returns a Documentable
@@ -156,6 +157,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 		}
 
 		kind := ""
+		var methods []*JSONFunc
 		var fields []*JSONField
 
 		switch t := typeSpec.Type.(type) {
@@ -165,18 +167,50 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 			fields = d.extractJSONFields(t.Fields)
 		case *ast.InterfaceType:
 			kind = interfaceKind
+			for _, iMethod := range t.Methods.List {
+				fun := iMethod.Type.(*ast.FuncType)
+				// This is an interface, so we should expect only one name
+				if len(iMethod.Names) != 1 {
+					continue
+				}
+				name := iMethod.Names[0].Name
+
+				docBuf := new(strings.Builder)
+				if iMethod.Doc != nil {
+					for _, comment := range iMethod.Doc.List {
+						docBuf.WriteString(comment.Text)
+						docBuf.WriteString("\n")
+					}
+				}
+				if iMethod.Comment != nil {
+					for _, comment := range iMethod.Comment.List {
+						docBuf.WriteString(comment.Text)
+						docBuf.WriteString("\n")
+					}
+				}
+
+				methods = append(methods, &JSONFunc{
+					Type:      typ.Name,
+					Name:      name,
+					Signature: name + strings.TrimPrefix(mustFormatNode(d.pkgData.fset, fun), "func"),
+					Doc:       string(pkg.Markdown(docBuf.String())),
+					Params:    d.extractJSONFields(fun.Params),
+					Results:   d.extractJSONFields(fun.Results),
+				})
+			}
 		default:
 			// Default to ident
 			kind = identKind
 		}
 
 		jsonDoc.Types = append(jsonDoc.Types, &JSONType{
-			Name:   typ.Name,
-			Type:   mustFormatNode(d.pkgData.fset, typeSpec.Type),
-			Doc:    string(pkg.Markdown(typ.Doc)),
-			Alias:  typeSpec.Assign != 0,
-			Kind:   kind,
-			Fields: fields,
+			Name:    typ.Name,
+			Type:    mustFormatNode(d.pkgData.fset, typeSpec.Type),
+			Doc:     string(pkg.Markdown(typ.Doc)),
+			Alias:   typeSpec.Assign != 0,
+			Kind:    kind,
+			Methods: methods,
+			Fields:  fields,
 		})
 
 		// values of this type
