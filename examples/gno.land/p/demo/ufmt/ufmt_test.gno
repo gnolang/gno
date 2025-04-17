@@ -254,7 +254,6 @@ func TestFprintf(t *testing.T) {
 	}
 }
 
-// TODO: replace os.Stdout with a buffer to capture the output and test it.
 func TestPrintf(t *testing.T) {
 	n, err := Printf("The answer is %d", 42)
 	if err != nil {
@@ -367,5 +366,214 @@ func assertNoError(t *testing.T, err error) {
 	t.Helper()
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
+	}
+}
+
+func TestParseMeta(t *testing.T) {
+	tests := []struct {
+		name           string
+		format         string
+		expectedFlags  uint8
+		expectedPad    uint
+		expectedPrec   int
+		expectedLength uint8
+		expectedIdx    int // Expected index after parsing
+	}{
+		{
+			name:           "Empty format string",
+			format:         "%",
+			expectedFlags:  0,
+			expectedPad:    0,
+			expectedPrec:   6, // Default precision
+			expectedLength: lenNo,
+			expectedIdx:    1, // Index is incremented after '%'
+		},
+		{
+			name:           "Simple format with no metadata",
+			format:         "%d",
+			expectedFlags:  0,
+			expectedPad:    0,
+			expectedPrec:   6,
+			expectedLength: lenNo,
+			expectedIdx:    0, // Index should point to 'd'
+		},
+		{
+			name:           "Format with hashtag flag",
+			format:         "%#x",
+			expectedFlags:  flagHashtag,
+			expectedPad:    0,
+			expectedPrec:   6,
+			expectedLength: lenNo,
+			expectedIdx:    1, // Index should point to 'x'
+		},
+		{
+			name:           "Format with multiple flags",
+			format:         "%+-0 d",
+			expectedFlags:  flagPlus | flagMinus | flagZero | flagSpace,
+			expectedPad:    0,
+			expectedPrec:   6,
+			expectedLength: lenNo,
+			expectedIdx:    4, // Index should point to 'd'
+		},
+		{
+			name:           "Format with padding",
+			format:         "%10d",
+			expectedFlags:  0,
+			expectedPad:    10,
+			expectedPrec:   6,
+			expectedLength: lenNo,
+			expectedIdx:    2, // Index should point to 'd'
+		},
+		{
+			name:           "Format with precision",
+			format:         "%.3f",
+			expectedFlags:  0,
+			expectedPad:    0,
+			expectedPrec:   3,
+			expectedLength: lenNo,
+			expectedIdx:    2, // Index should point to 'f'
+		},
+		{
+			name:           "Format with empty precision",
+			format:         "%.f",
+			expectedFlags:  0,
+			expectedPad:    0,
+			expectedPrec:   0, // Empty precision should be 0
+			expectedLength: lenNo,
+			expectedIdx:    1, // Index should point to 'f'
+		},
+		{
+			name:           "Format with padding and precision",
+			format:         "%10.3f",
+			expectedFlags:  0,
+			expectedPad:    10,
+			expectedPrec:   3,
+			expectedLength: lenNo,
+			expectedIdx:    4, // Index should point to 'f'
+		},
+		{
+			name:           "Format with single 'h' length modifier",
+			format:         "%hd",
+			expectedFlags:  0,
+			expectedPad:    0,
+			expectedPrec:   6,
+			expectedLength: lenH,
+			expectedIdx:    1, // Index should point to 'd'
+		},
+		{
+			name:           "Format with 'hh' length modifier",
+			format:         "%hhd",
+			expectedFlags:  0,
+			expectedPad:    0,
+			expectedPrec:   6,
+			expectedLength: lenHH,
+			expectedIdx:    2, // Index should point to 'd'
+		},
+		{
+			name:           "Format with 'll' length modifier",
+			format:         "%lld",
+			expectedFlags:  0,
+			expectedPad:    0,
+			expectedPrec:   6,
+			expectedLength: lenLL,
+			expectedIdx:    2, // Index should point to 'd'
+		},
+		{
+			name:           "Format with 'z' length modifier",
+			format:         "%zd",
+			expectedFlags:  0,
+			expectedPad:    0,
+			expectedPrec:   6,
+			expectedLength: lenZ,
+			expectedIdx:    1, // Index should point to 'd'
+		},
+		{
+			name:           "Complex format with all elements",
+			format:         "%#+-0 15.8llx",
+			expectedFlags:  flagHashtag | flagPlus | flagMinus | flagZero | flagSpace,
+			expectedPad:    15,
+			expectedPrec:   8,
+			expectedLength: lenLL,
+			expectedIdx:    11, // Index should point to 'x'
+		},
+		{
+			name:           "Truncated format after percent",
+			format:         "%",
+			expectedFlags:  0,
+			expectedPad:    0,
+			expectedPrec:   6,
+			expectedLength: lenNo,
+			expectedIdx:    1, // Index is incremented after '%'
+		},
+		{
+			name:           "Truncated format after dot",
+			format:         "%.",
+			expectedFlags:  0,
+			expectedPad:    0,
+			expectedPrec:   6, // No change in precision without digits
+			expectedLength: lenNo,
+			expectedIdx:    2, // Index after '%' and '.'
+		},
+		{
+			name:           "Extremely large padding number",
+			format:         "%999999d",
+			expectedFlags:  0,
+			expectedPad:    999999,
+			expectedPrec:   6,
+			expectedLength: lenNo,
+			expectedIdx:    6, // Index should point to 'd'
+		},
+		{
+			name:           "Non-digit after padding specification",
+			format:         "%123abc",
+			expectedFlags:  0,
+			expectedPad:    123,
+			expectedPrec:   6,
+			expectedLength: lenNo,
+			expectedIdx:    3, // Index should point to 'a'
+		},
+		{
+			name:           "Incomplete length modifier at end",
+			format:         "%l",
+			expectedFlags:  0,
+			expectedPad:    0,
+			expectedPrec:   6,
+			expectedLength: lenL,
+			expectedIdx:    2, // Index increments past '%' and 'l' then stops
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := newPrinter()
+			runes := []rune(tt.format)
+
+			// Skip initial '%'
+			index := 0
+
+			// Call parseMeta which will be testing
+			parseMeta(p, runes, &index, len(runes))
+
+			// Verify the results
+			if p.meta.flags != tt.expectedFlags {
+				t.Errorf("flags = %d, want %d", p.meta.flags, tt.expectedFlags)
+			}
+
+			if p.meta.padding != tt.expectedPad {
+				t.Errorf("padding = %d, want %d", p.meta.padding, tt.expectedPad)
+			}
+
+			if p.meta.precision != tt.expectedPrec {
+				t.Errorf("precision = %d, want %d", p.meta.precision, tt.expectedPrec)
+			}
+
+			if p.meta.length != tt.expectedLength {
+				t.Errorf("length = %d, want %d", p.meta.length, tt.expectedLength)
+			}
+
+			if index != tt.expectedIdx {
+				t.Errorf("index = %d, want %d", index, tt.expectedIdx)
+			}
+		})
 	}
 }

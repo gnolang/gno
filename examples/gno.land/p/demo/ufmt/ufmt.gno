@@ -6,12 +6,9 @@
 package ufmt
 
 import (
-	"errors"
 	"io"
-	"math"
 	"strconv"
 	"strings"
-	"unicode"
 	"unicode/utf8"
 )
 
@@ -53,6 +50,7 @@ const (
 	lenZ
 )
 
+// printerMeta holds formatting metadata.
 type printerMeta struct {
 	flags     uint8
 	padding   uint
@@ -67,97 +65,136 @@ type printer struct {
 	meta printerMeta
 }
 
-func strtoi(s string) (int, string) {
+// parseDigit parses a digit rune and returns its integer value.
+// Returns -1 if the rune is not a digit.
+func parseDigit(r rune) int {
+	if '0' <= r && r <= '9' {
+		return int(r - '0')
+	}
+	return -1
+}
+
+// parseNumber parses a number from runes starting at the given index.
+// Returns the parsed number, the number of runes consumed, and a boolean
+// indicating if a number was successfully parsed.
+func parseNumber(runes []rune, start int, end int) (int, int, bool) {
+	if start >= end {
+		return 0, 0, false
+	}
+
+	num := 0
 	i := 0
-	for i < len(s) && unicode.IsDigit(rune(s[i])) {
+	for start+i < end {
+		digit := parseDigit(runes[start+i])
+		if digit < 0 {
+			break
+		}
+		num = num*10 + digit
 		i++
 	}
+
 	if i == 0 {
-		return 0, s
+		return 0, 0, false
 	}
-	num, err := strconv.Atoi(s[:i])
-	if err != nil {
-		return 0, s
-	}
-	return num, s[i:]
+
+	return num, i, true
 }
 
-func ptrForward(ptr *int, runes []rune, inc int) {
-	if inc <= 0 {
-		return
-	}
-	if *ptr + inc > len(runes) {
-		return
-	}
-	*ptr += inc
-}
-
-var c2f = map[rune]uint8{
+// flagMap maps flag characters to their corresponding flag constants.
+var flagMap = [256]uint8{
 	'-': flagMinus,
 	'+': flagPlus,
 	' ': flagSpace,
 	'0': flagZero,
 }
 
-var lenMap = map[string]uint8{
-	"ll": lenLL,
-	"l":  lenL,
-	"h":  lenH,
-	"hh": lenHH,
-	"z":  lenZ,
-}
-
-// parse the flags
-func (p *printer) parse(runes []rune, index *int) {
-	ptrForward(index, runes, 1)
-	if runes[*index] == '#' {
-		p.meta.flags |= flagHashtag
-		ptrForward(index, runes, 1)
+// parseMeta parses formatting metadata from format string runes.
+func parseMeta(p *printer, runes []rune, index *int, end int) {
+	// Skip the '%' character that starts format specifiers
+	*index++
+	if *index >= end {
+		return
 	}
-	stop := false
-	for {
-		x, ok := c2f[runes[*index]]
-		switch {
-		case ok:
-			p.meta.flags |= x
-			ptrForward(index, runes, 1)
-		case unicode.IsNumber(runes[*index]):
-			strRunes := string(runes[*index:])
-			n, rest := strtoi(strRunes)
-			if rest == strRunes {
-				continue
+
+	// Single-pass parsing with lookahead for efficient processing
+	for *index < end {
+		c := runes[*index]
+
+		switch c {
+		case '#':
+			// Handle hashtag flag for alternate format
+			p.meta.flags |= flagHashtag
+			*index++
+
+		case '-', '+', ' ', '0':
+			// Process format flags using direct array indexing
+			p.meta.flags |= flagMap[c]
+			*index++
+
+		case '1', '2', '3', '4', '5', '6', '7', '8', '9':
+			// Parse width specification (padding)
+			if num, consumed, ok := parseNumber(runes, *index, end); ok {
+				p.meta.padding = uint(num)
+				*index += consumed
 			}
-			p.meta.padding = uint(n)
-			ptrForward(index, runes, len(strRunes) - len(rest))
-		case runes[*index] == '.':
-			ptrForward(index, runes, 1)
-			strRunes := string(runes[*index:])
-			n, rest := strtoi(strRunes)
-			p.meta.precision = n // 0 by default, not an error
-			if rest == strRunes {
-				continue
+
+		case '.':
+			// Parse precision specification (after decimal point)
+			*index++
+			if *index < end {
+				if num, consumed, ok := parseNumber(runes, *index, end); ok {
+					p.meta.precision = num
+					*index += consumed
+				} else {
+					// Handle case where only '.' is provided (precision = 0)
+					p.meta.precision = 0
+				}
 			}
-			ptrForward(index, runes, len(strRunes) - len(rest))
+
+		case 'h', 'l', 'z':
+			// Use lookahead to check for double-character length modifiers
+			// like 'hh' (char) or 'll' (long long) without iterating through options
+			if *index+1 < end {
+				next := runes[*index+1]
+				if c == 'h' && next == 'h' {
+					p.meta.length = lenHH
+					*index += 2 // Skip both characters
+					continue
+				} else if c == 'l' && next == 'l' {
+					p.meta.length = lenLL
+					*index += 2 // Skip both characters
+					continue
+				}
+			}
+
+			// Handle single-character length modifiers
+			switch c {
+			case 'h':
+				p.meta.length = lenH
+			case 'l':
+				p.meta.length = lenL
+			case 'z':
+				p.meta.length = lenZ
+			}
+			*index++
+
 		default:
-			stop = true
-		}
-		if stop {
-			break
+			// Found a non-metadata character (likely a verb), exit parsing
+			goto endParse
 		}
 	}
-	for k, v := range lenMap {
-		if string(runes[*index:*index+len(k)-1]) == k {
-			p.meta.length = v
-			ptrForward(index, runes, len(k))
-			break
-		}
+
+endParse:
+	// Adjust index to position before the verb for subsequent processing
+	if *index < end {
+		*index-- // Back up one position to position at the verb
 	}
-	*index--
 }
 
+// newPrinter creates a new printer with preallocated buffer.
 func newPrinter() *printer {
 	return &printer{
-		buf: buffer{},
+		buf: make(buffer, 0, 64), // Preallocate buffer with reasonable capacity
 		meta: printerMeta{
 			precision: 6,
 		},
@@ -177,7 +214,7 @@ func Sprint(a ...any) string {
 func (p *printer) doPrint(args []any) {
 	for argNum, arg := range args {
 		if argNum > 0 {
-			p.buf.writeRune(' ')
+			p.buf.writeByte(' ')
 		}
 
 		switch v := arg.(type) {
@@ -188,9 +225,27 @@ func (p *printer) doPrint(args []any) {
 		case error:
 			p.buf.writeString(v.Error())
 		case float64:
-			p.buf.writeString(Sprintf("%f", v))
-		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
-			p.buf.writeString(Sprintf("%d", v))
+			p.buf.writeString(strconv.FormatFloat(v, 'f', 6, 64))
+		case int:
+			p.buf.writeString(strconv.Itoa(v))
+		case int8:
+			p.buf.writeString(strconv.Itoa(int(v)))
+		case int16:
+			p.buf.writeString(strconv.Itoa(int(v)))
+		case int32:
+			p.buf.writeString(strconv.Itoa(int(v)))
+		case int64:
+			p.buf.writeString(strconv.FormatInt(v, 10))
+		case uint:
+			p.buf.writeString(strconv.FormatUint(uint64(v), 10))
+		case uint8:
+			p.buf.writeString(strconv.FormatUint(uint64(v), 10))
+		case uint16:
+			p.buf.writeString(strconv.FormatUint(uint64(v), 10))
+		case uint32:
+			p.buf.writeString(strconv.FormatUint(uint64(v), 10))
+		case uint64:
+			p.buf.writeString(strconv.FormatUint(v, 10))
 		case bool:
 			if v {
 				p.buf.writeString("true")
@@ -257,28 +312,37 @@ func Sprintf(format string, a ...any) string {
 
 // doPrintf parses the format string and writes formatted arguments to the buffer.
 func (p *printer) doPrintf(format string, args []any) {
-	sTor := []rune(format)
-	end := len(sTor)
+	// TODO: This line consumes memory proportional to the length of the string.
+	// If we only need to process UTF-8 encoding, we can reduce memory allocation
+	// by iterating through the string directly.
+	runes := []rune(format)
+	end := len(runes)
 	argNum := 0
 	argLen := len(args)
 
 	for i := 0; i < end; {
-		isLast := i == end-1
-		c := sTor[i]
+		c := runes[i]
 
-		if isLast || c != '%' {
-			// we don't check for invalid format like a one ending with "%"
+		if c != '%' || i == end-1 {
 			p.buf.writeRune(c)
 			i++
 			continue
 		}
 
-		p.parse(sTor, &i)
+		// Reset meta for each format directive
+		p.meta = printerMeta{precision: 6}
 
-		verb := sTor[i+1]
+		parseMeta(p, runes, &i, end)
+		i++
+
+		if i >= end {
+			break
+		}
+
+		verb := runes[i]
 		if verb == '%' {
-			p.buf.writeRune('%')
-			i += 2
+			p.buf.writeByte('%')
+			i++
 			continue
 		}
 
@@ -302,9 +366,9 @@ func (p *printer) doPrintf(format string, args []any) {
 		case 't':
 			writeBool(p, verb, arg)
 		case 'x', 'X':
-			writeHex(p, verb, arg, verb == 'X')
+			writeHex(p, arg, verb == 'X')
 		case 'q':
-			writeQuotedString(p, verb, arg)
+			writeQuotedString(p, arg)
 		case 'T':
 			writeType(p, arg)
 		// % handled before, as it does not consume an argument
@@ -312,12 +376,29 @@ func (p *printer) doPrintf(format string, args []any) {
 			p.buf.writeString("(unhandled verb: %" + string(verb) + ")")
 		}
 
-		i += 2
+		i++
 	}
 
 	if argNum < argLen {
 		panic("ufmt: too many arguments")
 	}
+}
+
+// applyPadding applies padding according to flags.
+func applyPadding(p *printer, content string) string {
+	paddingCount := int(p.meta.padding) - len(content)
+	if paddingCount <= 0 {
+		return content
+	}
+
+	// Use a single conditional rather than multiple if checks
+	if p.meta.flags&flagZero != 0 {
+		return strings.Repeat("0", paddingCount) + content
+	}
+	if p.meta.flags&flagSpace != 0 || p.meta.flags&flagMinus == 0 {
+		return strings.Repeat(" ", paddingCount) + content
+	}
+	return content
 }
 
 // writeValue handles %v formatting
@@ -383,7 +464,7 @@ func writeChar(p *printer, verb rune, arg any) {
 	switch v := arg.(type) {
 	// rune is int32. Exclude overflowing numeric types and dups (byte, int32):
 	case rune:
-		p.buf.writeString(string(v))
+		p.buf.writeRune(v)
 	case int:
 		p.buf.writeRune(rune(v))
 	case int8:
@@ -414,7 +495,7 @@ func writeInt(p *printer, verb rune, arg any) {
 	case int32:
 		subBuf = strconv.Itoa(int(v))
 	case int64:
-		subBuf = strconv.Itoa(int(v))
+		subBuf = strconv.FormatInt(v, 10)
 	case uint:
 		subBuf = strconv.FormatUint(uint64(v), 10)
 	case uint8:
@@ -426,44 +507,38 @@ func writeInt(p *printer, verb rune, arg any) {
 	case uint64:
 		subBuf = strconv.FormatUint(v, 10)
 	default:
-		subBuf = fallback(verb, v)
+		p.buf.writeString(fallback(verb, v))
+		return
 	}
-	paddingCount := int(p.meta.padding) - len(subBuf)
-	if paddingCount < 0 {
-		paddingCount = 0
-	}
-	if p.meta.flags&flagSpace != 0 {
-		subBuf = strings.Repeat(" ", paddingCount) + subBuf
-	} else if p.meta.flags&flagZero != 0 {
-		subBuf = strings.Repeat("0", paddingCount) + subBuf
-	}
-	p.buf.writeString(subBuf)
+
+	p.buf.writeString(applyPadding(p, subBuf))
 }
 
 // writeFloat handles floating-point formatting verbs
 func writeFloat(p *printer, verb rune, arg any) {
-	var subBuf string
-	bits := 64
-	n := 0.
+	var n float64
+	var bits int
+
 	switch v := arg.(type) {
 	case float64:
-		bits = 64
 		n = v
+		bits = 64
 	case float32:
-		bits = 32
 		n = float64(v)
+		bits = 32
 	default:
 		p.buf.writeString(fallback(verb, v))
 		return
 	}
+
 	prec := -1
 	verbChar := byte(verb)
 	if verbChar == 'f' || verbChar == 'F' {
 		prec = p.meta.precision
 		verbChar = 'f'
 	}
-	subBuf = strconv.FormatFloat(n, verbChar, prec, bits)
-	p.buf.writeString(subBuf)
+
+	p.buf.writeString(strconv.FormatFloat(n, verbChar, prec, bits))
 }
 
 // writeBool handles %t formatting
@@ -481,49 +556,59 @@ func writeBool(p *printer, verb rune, arg any) {
 }
 
 // writeHex handles %x & %X formatting
-func writeHex(p *printer, verb rune, arg any, big bool) {
-	var subBuf string
+func writeHex(p *printer, arg any, big bool) {
+	// to avoid the use of intermediate buffers (i.e. strings.Builder)
+	var buf buffer
+	buf = make(buffer, 0, 32)
+
 	switch v := arg.(type) {
 	case int:
-		subBuf += strconv.FormatUint(uint64(v), 16)
+		buf.writeString(strconv.FormatUint(uint64(v), 16))
 	case uint:
-		subBuf += strconv.FormatUint(uint64(v), 16)
+		buf.writeString(strconv.FormatUint(uint64(v), 16))
 	case uint8:
-		subBuf += strconv.FormatUint(uint64(v), 16)
+		buf.writeString(strconv.FormatUint(uint64(v), 16))
 	case uint16:
-		subBuf += strconv.FormatUint(uint64(v), 16)
+		buf.writeString(strconv.FormatUint(uint64(v), 16))
 	case uint32:
-		subBuf += strconv.FormatUint(uint64(v), 16)
+		buf.writeString(strconv.FormatUint(uint64(v), 16))
 	case uint64:
-		subBuf += strconv.FormatUint(v, 16)
+		buf.writeString(strconv.FormatUint(v, 16))
 	case []uint8:
-		for _, v := range v {
-			x := strconv.FormatUint(uint64(v), 16)
+		for _, b := range v {
+			x := strconv.FormatUint(uint64(b), 16)
 			if len(x) == 1 {
-				x = "0" + x
+				buf.writeByte('0')
 			}
-			subBuf += x
+			buf.writeString(x)
 		}
 	default:
 		p.buf.writeString("(unhandled)")
 		return
 	}
-	if p.meta.flags&flagSpace != 0 {
-		subBuf = strings.Repeat(" ", int(math.Max(0, float64(int(p.meta.padding)-len(subBuf))))) + subBuf
-	} else if p.meta.flags&flagZero != 0 {
-		subBuf = strings.Repeat("0", int(math.Max(0, float64(int(p.meta.padding)-len(subBuf))))) + subBuf
+
+	result := string(buf)
+
+	// apply padding if needed
+	if p.meta.padding > 0 {
+		result = applyPadding(p, result)
 	}
+
+	// apply 0x prefix if flagHashtag is set
 	if p.meta.flags&flagHashtag != 0 {
-		subBuf = "0x" + subBuf
+		result = "0x" + result
 	}
+
+	// convert to uppercase if requested
 	if big {
-		subBuf = strings.ToUpper(subBuf)
+		result = strings.ToUpper(result)
 	}
-	p.buf.writeString(subBuf)
+
+	p.buf.writeString(result)
 }
 
 // writeQuotedString handles %q formatting
-func writeQuotedString(p *printer, verb rune, arg any) {
+func writeQuotedString(p *printer, arg any) {
 	switch v := arg.(type) {
 	case string:
 		p.buf.writeString(strconv.Quote(v))
@@ -534,38 +619,42 @@ func writeQuotedString(p *printer, verb rune, arg any) {
 
 // writeType handles %T formatting
 func writeType(p *printer, arg any) {
+	var typeName string
+
 	switch arg.(type) {
 	case bool:
-		p.buf.writeString("bool")
+		typeName = "bool"
 	case int:
-		p.buf.writeString("int")
+		typeName = "int"
 	case int8:
-		p.buf.writeString("int8")
+		typeName = "int8"
 	case int16:
-		p.buf.writeString("int16")
+		typeName = "int16"
 	case int32:
-		p.buf.writeString("int32")
+		typeName = "int32"
 	case int64:
-		p.buf.writeString("int64")
+		typeName = "int64"
 	case uint:
-		p.buf.writeString("uint")
+		typeName = "uint"
 	case uint8:
-		p.buf.writeString("uint8")
+		typeName = "uint8"
 	case uint16:
-		p.buf.writeString("uint16")
+		typeName = "uint16"
 	case uint32:
-		p.buf.writeString("uint32")
+		typeName = "uint32"
 	case uint64:
-		p.buf.writeString("uint64")
+		typeName = "uint64"
 	case string:
-		p.buf.writeString("string")
+		typeName = "string"
 	case []byte:
-		p.buf.writeString("[]byte")
+		typeName = "[]byte"
 	case []rune:
-		p.buf.writeString("[]rune")
+		typeName = "[]rune"
 	default:
-		p.buf.writeString("unknown")
+		typeName = "unknown"
 	}
+
+	p.buf.writeString(typeName)
 }
 
 // Fprintf formats according to a format specifier and writes to w.
@@ -582,6 +671,7 @@ func Fprintf(w io.Writer, format string, a ...any) (n int, err error) {
 // XXX: Replace with os.Stdout handling when available.
 func Printf(format string, a ...any) (n int, err error) {
 	var out strings.Builder
+	out.Grow(64)
 	n, err = Fprintf(&out, format, a...)
 	print(out.String())
 	return n, err
@@ -611,6 +701,7 @@ func Fprint(w io.Writer, a ...any) (n int, err error) {
 // XXX: Replace with os.Stdout handling when available.
 func Print(a ...any) (n int, err error) {
 	var out strings.Builder
+	out.Grow(64)
 	n, err = Fprint(&out, a...)
 	print(out.String())
 	return n, err
@@ -638,6 +729,7 @@ func Fprintln(w io.Writer, a ...any) (n int, err error) {
 // XXX: Replace with os.Stdout handling when available.
 func Println(a ...any) (n int, err error) {
 	var out strings.Builder
+	out.Grow(64)
 	n, err = Fprintln(&out, a...)
 	print(out.String())
 	return n, err
@@ -671,67 +763,49 @@ func Appendln(b []byte, a ...any) []byte {
 //	fallback("d", nil) -> "%!d(<nil>)", and so on.f
 func fallback(verb rune, arg any) string {
 	var s string
+
 	switch v := arg.(type) {
 	case string:
 		s = "string=" + v
 	case (interface{ String() string }):
 		s = "string=" + v.String()
 	case error:
-		// note: also "string=" in Go fmt
 		s = "string=" + v.Error()
 	case float64:
-		s = "float64=" + Sprintf("%f", v)
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
-		// note: rune, byte would be dups, being aliases
-		if typename, e := typeToString(v); e == nil {
-			s = typename + "=" + Sprintf("%d", v)
-		} else {
-			panic("ufmt: unexpected type error")
-		}
+		s = "float64=" + strconv.FormatFloat(v, 'f', 6, 64)
+	case int:
+		s = "int=" + strconv.Itoa(v)
+	case int8:
+		s = "int8=" + strconv.Itoa(int(v))
+	case int16:
+		s = "int16=" + strconv.Itoa(int(v))
+	case int32:
+		s = "int32=" + strconv.Itoa(int(v))
+	case int64:
+		s = "int64=" + strconv.FormatInt(v, 10)
+	case uint:
+		s = "uint=" + strconv.FormatUint(uint64(v), 10)
+	case uint8:
+		s = "uint8=" + strconv.FormatUint(uint64(v), 10)
+	case uint16:
+		s = "uint16=" + strconv.FormatUint(uint64(v), 10)
+	case uint32:
+		s = "uint32=" + strconv.FormatUint(uint64(v), 10)
+	case uint64:
+		s = "uint64=" + strconv.FormatUint(v, 10)
 	case bool:
-		s = "bool=" + strconv.FormatBool(v)
+		if v {
+			s = "bool=true"
+		} else {
+			s = "bool=false"
+		}
 	case nil:
 		s = "<nil>"
 	default:
 		s = "(unhandled)"
 	}
-	return "%!" + string(verb) + "(" + s + ")"
-}
 
-// typeToString returns the name of basic Go types as string.
-func typeToString(v any) (string, error) {
-	switch v.(type) {
-	case string:
-		return "string", nil
-	case int:
-		return "int", nil
-	case int8:
-		return "int8", nil
-	case int16:
-		return "int16", nil
-	case int32:
-		return "int32", nil
-	case int64:
-		return "int64", nil
-	case uint:
-		return "uint", nil
-	case uint8:
-		return "uint8", nil
-	case uint16:
-		return "uint16", nil
-	case uint32:
-		return "uint32", nil
-	case uint64:
-		return "uint64", nil
-	case float32:
-		return "float32", nil
-	case float64:
-		return "float64", nil
-	case bool:
-		return "bool", nil
-	default:
-		return "", errors.New("unsupported type")
-	}
+	return "%!" + string(verb) + "(" + s + ")"
 }
 
 // errMsg implements the error interface for formatted error strings.

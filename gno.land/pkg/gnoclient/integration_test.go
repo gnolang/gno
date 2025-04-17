@@ -454,11 +454,13 @@ func main() {
 	res, err := client.Run(baseCfg, msg1, msg2)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
+	t.Logf("Gas used for first run: %d", res.DeliverTx.GasUsed)
 	assert.Equal(t, expected, string(res.DeliverTx.Data))
 
 	res, err = runSigningSeparately(t, client, baseCfg, msg1, msg2)
 	require.NoError(t, err)
 	require.NotNil(t, res)
+	t.Logf("Gas used for second run: %d", res.DeliverTx.GasUsed)
 	expected2 := "- before: 10\n- after: 20\nhi gnoclient!\n"
 	assert.Equal(t, expected2, string(res.DeliverTx.Data))
 }
