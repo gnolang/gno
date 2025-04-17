@@ -23,6 +23,9 @@ const myStructConst *myStruct = &myStruct{a: 1000}
 // Foo is a method for testing
 func (ms myStruct) Foo() string { return "myStruct.Foo" }
 
+// Test type aliases
+type myAlias = myStruct
+
 // Panic is a func for testing
 func Panic() { panic("foo") }
 

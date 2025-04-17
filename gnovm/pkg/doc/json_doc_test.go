@@ -185,6 +185,13 @@ func TestJSONDocumentation(t *testing.T) {
 		},
 		Types: []*JSONType{
 			{
+				Name:  "myAlias",
+				Type:  "myStruct",
+				Doc:   "Test type aliases\n",
+				Alias: true,
+				Kind:  "ident",
+			},
+			{
 				Name: "myInterface",
 				Type: "interface {\n\tBar() string // Bar is for testing\n}",
 				Doc:  "myInterface is an interface for testing\n",

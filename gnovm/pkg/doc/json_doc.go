@@ -55,10 +55,11 @@ type JSONFunc struct {
 }
 
 type JSONType struct {
-	Name string `json:"name"` // "MyType"
-	Type string `json:"type"` // "struct { ... }"
-	Doc  string `json:"doc"`  // godoc documentation...
-	Kind string `json:"kind"` // struct | interface | array | slice | map | channel | func | pointer | ident
+	Name  string `json:"name"`  // "MyType"
+	Type  string `json:"type"`  // "struct { ... }"
+	Doc   string `json:"doc"`   // godoc documentation...
+	Alias bool   `json:"alias"` // if an alias like `type A = B`
+	Kind  string `json:"kind"`  // struct | interface | array | slice | map | channel | func | pointer | ident
 	// TODO: Use omitzero when upgraded to Go 1.24
 	Fields []*JSONField `json:"fields,omitzero"` // struct fields (Kind == "struct")
 }
@@ -167,6 +168,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 			Name:   typ.Name,
 			Type:   mustFormatNode(d.pkgData.fset, typeSpec.Type),
 			Doc:    string(pkg.Markdown(typ.Doc)),
+			Alias:  typeSpec.Assign != 0,
 			Kind:   kind,
 			Fields: fields,
 		})
