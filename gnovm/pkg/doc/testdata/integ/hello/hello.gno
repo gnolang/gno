@@ -7,7 +7,10 @@ var sl = []int{1, 2, 3, 4, 5}
 func fn() func(string) string { return Echo }
 
 // myStruct is a struct for testing
-type myStruct struct{ a int }
+type myStruct struct {
+	// a is a field
+	a int // a comment
+}
 
 var myStructInst = myStruct{a: 1000}
 
@@ -20,8 +23,19 @@ const myStructConst *myStruct = &myStruct{a: 1000}
 // Foo is a method for testing
 func (ms myStruct) Foo() string { return "myStruct.Foo" }
 
+// Test type aliases
+type myAlias = myStruct
+
 // Panic is a func for testing
 func Panic() { panic("foo") }
+
+// BUG(who): Bug about myInterface
+
+// myInterface is an interface for testing
+type myInterface interface {
+	// Bar is for testing
+	Bar(x int) string // Bar line comment
+}
 
 var counter int = 42
 

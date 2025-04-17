@@ -17,6 +17,7 @@ func TestJSONDocumentation(t *testing.T) {
 		PackagePath: "gno.land/r/hello",
 		PackageLine: "package hello // import \"hello\"",
 		PackageDoc:  "hello is a package for testing\n",
+		Bugs:        []string{"Bug about myInterface\n"},
 		Values: []*JSONValueDecl{
 			{
 				Signature: "const ConstString = \"const string\"",
@@ -184,9 +185,40 @@ func TestJSONDocumentation(t *testing.T) {
 		},
 		Types: []*JSONType{
 			{
-				Name:      "myStruct",
-				Signature: "type myStruct struct{ a int }",
-				Doc:       "myStruct is a struct for testing\n",
+				Name:  "myAlias",
+				Type:  "myStruct",
+				Doc:   "Test type aliases\n",
+				Alias: true,
+				Kind:  "ident",
+			},
+			{
+				Name: "myInterface",
+				Type: "interface {\n\t// Bar is for testing\n\tBar(x int) string // Bar line comment\n}",
+				Doc:  "myInterface is an interface for testing\n",
+				Kind: "interface",
+				Methods: []*JSONFunc{
+					{
+						Type:      "myInterface",
+						Name:      "Bar",
+						Signature: "Bar(x int) string",
+						Doc:       "// Bar is for testing // Bar line comment\n",
+						Params: []*JSONField{
+							{Name: "x", Type: "int"},
+						},
+						Results: []*JSONField{
+							{Name: "", Type: "string"},
+						},
+					},
+				},
+			},
+			{
+				Name: "myStruct",
+				Type: "struct {\n\t// a is a field\n\ta int // a comment\n}",
+				Doc:  "myStruct is a struct for testing\n",
+				Kind: "struct",
+				Fields: []*JSONField{
+					{Name: "a", Type: "int", Doc: "// a is a field\n// a comment\n"},
+				},
 			},
 		},
 	}
@@ -196,7 +228,7 @@ func TestJSONDocumentation(t *testing.T) {
 	require.NoError(t, err)
 	d, err := NewDocumentableFromMemPkg(memPkg, true, "", "")
 	require.NoError(t, err)
-	jdoc, err := d.WriteJSONDocumentation()
+	jdoc, err := d.WriteJSONDocumentation(nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, expected.JSON(), jdoc.JSON())

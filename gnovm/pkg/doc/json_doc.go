@@ -15,10 +15,10 @@ import (
 // JSONDocumentation holds package documentation suitable for transmitting
 // as JSON with printable string fields
 type JSONDocumentation struct {
-	PackagePath string `json:"package_path"`
-	PackageLine string `json:"package_line"` // package io // import "io"
-	PackageDoc  string `json:"package_doc"`  // markdown of top-level package documentation
-	// https://pkg.go.dev/go/doc#Package.Markdown to render markdown
+	PackagePath string   `json:"package_path"`
+	PackageLine string   `json:"package_line"` // package io // import "io"
+	PackageDoc  string   `json:"package_doc"`  // markdown of top-level package documentation
+	Bugs        []string `json:"bugs"`         // From comments with "BUG(who): Details"
 
 	// These match each of the sections in a pkg.go.dev package documentation
 	Values []*JSONValueDecl `json:"values"` // constants and variables declared
@@ -42,6 +42,7 @@ type JSONValue struct {
 type JSONField struct {
 	Name string `json:"name"`
 	Type string `json:"type"`
+	Doc  string `json:"doc"` // markdown
 }
 
 type JSONFunc struct {
@@ -53,10 +54,21 @@ type JSONFunc struct {
 	Results   []*JSONField `json:"results"`
 }
 
+const (
+	structKind    = "struct"
+	interfaceKind = "interface"
+	identKind     = "ident"
+)
+
 type JSONType struct {
-	Name      string `json:"name"`
-	Signature string `json:"signature"`
-	Doc       string `json:"doc"` // markdown
+	Name  string `json:"name"`  // "MyType"
+	Type  string `json:"type"`  // "struct { ... }"
+	Doc   string `json:"doc"`   // godoc documentation...
+	Alias bool   `json:"alias"` // if an alias like `type A = B`
+	Kind  string `json:"kind"`  // struct | interface | array | slice | map | channel | func | pointer | ident
+	// TODO: Use omitzero when upgraded to Go 1.24
+	Methods []*JSONFunc  `json:"methods,omitempty"` // interface methods (Kind == "interface") (struct methods are in JSONDocumentation.Funcs)
+	Fields  []*JSONField `json:"fields,omitempty"`  // struct fields (Kind == "struct")
 }
 
 // NewDocumentableFromMemPkg gets the pkgData from memPkg and returns a Documentable
@@ -76,8 +88,11 @@ func NewDocumentableFromMemPkg(memPkg *gnovm.MemPackage, unexported bool, symbol
 }
 
 // WriteJSONDocumentation returns a JSONDocumentation for the package
-func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
-	opt := &WriteDocumentationOptions{}
+// A useful opt is Source=true. opt may be nil
+func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*JSONDocumentation, error) {
+	if opt == nil {
+		opt = &WriteDocumentationOptions{}
+	}
 	_, pkg, err := d.pkgData.docPackage(opt)
 	if err != nil {
 		return nil, err
@@ -90,6 +105,12 @@ func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
 		Values:      []*JSONValueDecl{},
 		Funcs:       []*JSONFunc{},
 		Types:       []*JSONType{},
+	}
+
+	if pkg.Notes["BUG"] != nil {
+		for _, note := range pkg.Notes["BUG"] {
+			jsonDoc.Bugs = append(jsonDoc.Bugs, note.Body)
+		}
 	}
 
 	for _, value := range pkg.Consts {
@@ -121,10 +142,79 @@ func (d *Documentable) WriteJSONDocumentation() (*JSONDocumentation, error) {
 	}
 
 	for _, typ := range pkg.Types {
+		// Set typeSpec to the ast.TypeSpec within the declaration that defines the symbol.
+		var typeSpec *ast.TypeSpec
+		for _, spec := range typ.Decl.Specs {
+			tSpec := spec.(*ast.TypeSpec) // Must succeed
+			if typ.Name == tSpec.Name.Name {
+				typeSpec = tSpec
+				break
+			}
+		}
+		if typeSpec == nil || typeSpec.Type == nil {
+			// We don't expect this
+			continue
+		}
+
+		kind := ""
+		var methods []*JSONFunc
+		var fields []*JSONField
+
+		switch t := typeSpec.Type.(type) {
+		case *ast.StructType:
+			kind = structKind
+			// TODO: Anonymous fields.
+			fields = d.extractJSONFields(t.Fields)
+		case *ast.InterfaceType:
+			kind = interfaceKind
+			for _, iMethod := range t.Methods.List {
+				fun, ok := iMethod.Type.(*ast.FuncType)
+				if !ok {
+					// We don't expect this
+					continue
+				}
+				// This is an interface, so we should expect only one name
+				if len(iMethod.Names) != 1 {
+					continue
+				}
+				name := iMethod.Names[0].Name
+
+				docBuf := new(strings.Builder)
+				if iMethod.Doc != nil {
+					for _, comment := range iMethod.Doc.List {
+						docBuf.WriteString(comment.Text)
+						docBuf.WriteString("\n")
+					}
+				}
+				if iMethod.Comment != nil {
+					for _, comment := range iMethod.Comment.List {
+						docBuf.WriteString(comment.Text)
+						docBuf.WriteString("\n")
+					}
+				}
+
+				methods = append(methods, &JSONFunc{
+					Type:      typ.Name,
+					Name:      name,
+					Signature: name + strings.TrimPrefix(mustFormatNode(d.pkgData.fset, fun), "func"),
+					Doc:       string(pkg.Markdown(docBuf.String())),
+					Params:    d.extractJSONFields(fun.Params),
+					Results:   d.extractJSONFields(fun.Results),
+				})
+			}
+		default:
+			// Default to ident
+			kind = identKind
+		}
+
 		jsonDoc.Types = append(jsonDoc.Types, &JSONType{
-			Name:      typ.Name,
-			Signature: mustFormatNode(d.pkgData.fset, typ.Decl),
-			Doc:       string(pkg.Markdown(typ.Doc)),
+			Name:    typ.Name,
+			Type:    mustFormatNode(d.pkgData.fset, typeSpec.Type),
+			Doc:     string(pkg.Markdown(typ.Doc)),
+			Alias:   typeSpec.Assign != 0,
+			Kind:    kind,
+			Methods: methods,
+			Fields:  fields,
 		})
 
 		// values of this type
@@ -175,11 +265,26 @@ func (d *Documentable) extractJSONFields(fieldList *ast.FieldList) []*JSONField 
 	results := []*JSONField{}
 	if fieldList != nil {
 		for _, field := range fieldList.List {
+			commentBuf := new(strings.Builder)
+			if field.Doc != nil {
+				for _, comment := range field.Doc.List {
+					commentBuf.WriteString(comment.Text)
+					commentBuf.WriteString("\n")
+				}
+			}
+			if field.Comment != nil {
+				for _, comment := range field.Comment.List {
+					commentBuf.WriteString(comment.Text)
+					commentBuf.WriteString("\n")
+				}
+			}
+
 			if len(field.Names) == 0 {
 				// if there are no names, then the field is unnamed, but still has a type
 				f := &JSONField{
 					Name: "",
 					Type: mustFormatNode(d.pkgData.fset, field.Type),
+					Doc:  commentBuf.String(),
 				}
 				results = append(results, f)
 			} else {
@@ -189,6 +294,7 @@ func (d *Documentable) extractJSONFields(fieldList *ast.FieldList) []*JSONField 
 					f := &JSONField{
 						Name: name.Name,
 						Type: mustFormatNode(d.pkgData.fset, field.Type),
+						Doc:  commentBuf.String(),
 					}
 					results = append(results, f)
 				}
