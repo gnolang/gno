@@ -1,6 +1,7 @@
 package calculator
 
 import (
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -21,8 +22,7 @@ const (
 	specialCharactersWithoutMinus = "p*/."
 	topPriority                   = "*/"
 	lowPriority                   = "p-"
-
-	realmPath = "/r/miko/calculator"
+	realmPath                     = "/r/miko/calculator"
 )
 
 var (
@@ -59,11 +59,11 @@ func evaluateValidity(line string) (bool, string) {
 	countParenthesis := 0
 
 	for i := 0; i < len(line); i++ {
-		if line[i] == '<' {
+		if line[i] == '(' {
 			countParenthesis += 1
 			continue
 		}
-		if line[i] == '>' {
+		if line[i] == ')' {
 			if isPriorSpecial == true {
 				return false, "Invalid equation"
 			}
@@ -94,10 +94,10 @@ func searchForPriority(priorityList string, line string) *Node {
 	countParenthesis := 0
 	for iPrio := 0; iPrio < len(priorityList); iPrio++ {
 		for idx := 0; idx < len(line); idx++ {
-			if line[idx] == '<' {
+			if line[idx] == '(' {
 				countParenthesis += 1
 			}
-			if line[idx] == '>' {
+			if line[idx] == ')' {
 				countParenthesis -= 1
 			}
 			if countParenthesis == 0 && line[idx] == priorityList[iPrio] &&
@@ -112,15 +112,15 @@ func searchForPriority(priorityList string, line string) *Node {
 
 // checks if the expression in line is contained in one big parenthesis
 func isInOneParenthesis(line string) bool {
-	if line[0] != '<' || line[len(line)-1] != '>' {
+	if line[0] != '(' || line[len(line)-1] != ')' {
 		return false
 	}
 	countParenthesis := 1
 	for i := 1; i < len(line)-1; i++ {
-		if line[i] == '<' {
+		if line[i] == '(' {
 			countParenthesis += 1
 		}
-		if line[i] == '>' {
+		if line[i] == ')' {
 			countParenthesis -= 1
 		}
 		if countParenthesis == 0 {
@@ -166,14 +166,9 @@ func ComputeResult(expression string) string {
 
 	if !valid { // If a basic error is encountered, return the expression without the = at the end and display the same expression
 		println(errString) // display error for debug
-		displayVal = strings.Replace(expression, "p", "+", -1)
-		displayVal = strings.Replace(displayVal, "<", "(", -1)
-		displayVal = strings.Replace(displayVal, ">", ")", -1)
 		return expression
 	}
-
 	tree := createTree(expression)
-
 	val = readTree(tree)
 	displayVal = strconv.FormatFloat(val, 'g', 6, 64)
 	return displayVal
@@ -187,8 +182,36 @@ func removeLast(path string) string {
 	return path
 }
 
-func Render(path string) string {
+func createTable(req *realmpath.Request, query url.Values, expression string) mdtable.Table {
+	line := make([]string, 0, 4)
+	query.Set("expression", "")
+	line = append(line, md.Link("res", req.String()))
+	for _, str := range []string{"(", ")"} {
+		query.Set("expression", expression+str)
+		line = append(line, md.Link(str, req.String()))
+	}
+	query.Set("expression", removeLast(expression))
+	line = append(line, md.Link("del", req.String())) // req and del are two special cases
+	table := mdtable.Table{
+		Headers: line,
+	}
+	line = []string{}
+	for _, c := range "789p456-123*0.=/" {
+		query.Set("expression", expression+string(c))
+		if c == 'p' {
+			line = append(line, md.Link(string('+'), req.String()))
+		} else {
+			line = append(line, md.Link(string(c), req.String()))
+		}
+		if len(line) == 4 {
+			table.Append(line)
+			line = []string{}
+		}
+	}
+	return table
+}
 
+func Render(path string) string {
 	req := realmpath.Parse(path)
 	query := req.Query
 	expression := query.Get("expression")
@@ -200,25 +223,15 @@ func Render(path string) string {
 			expression = ComputeResult(expression[:len(expression)-1])
 		} else {
 			displayVal = strings.Replace(expression, "p", "+", -1)
-			displayVal = strings.Replace(displayVal, "<", "(", -1)
-			displayVal = strings.Replace(displayVal, ">", ")", -1)
 		}
 	}
-
 	out := md.H1("Calculator page")
 	out += md.H3("Have you ever wanted to do maths but never actually found a calculator ?")
 	out += md.H3("Do I have the realm for you...")
 	out += "---------------\n"
-
 	out += md.H2("Result: " + displayVal)
-	table := mdtable.Table{
-		Headers: []string{md.Link("res", realmPath), md.Link("(", realmPath+":?expression="+expression+"<"), md.Link(")", realmPath+":?expression="+expression+">"), md.Link("del", realmPath+":?expression="+removeLast(expression))},
-	}
-	table.Append([]string{md.Link("7", realmPath+":?expression="+expression+"7"), md.Link("8", realmPath+":?expression="+expression+"8"), md.Link("9", realmPath+":?expression="+expression+"9"), md.Link("+", realmPath+":?expression="+expression+"p")})
-	table.Append([]string{md.Link("4", realmPath+":?expression="+expression+"4"), md.Link("5", realmPath+":?expression="+expression+"5"), md.Link("6", realmPath+":?expression="+expression+"6"), md.Link("-", realmPath+":?expression="+expression+"-")})
-	table.Append([]string{md.Link("1", realmPath+":?expression="+expression+"1"), md.Link("2", realmPath+":?expression="+expression+"2"), md.Link("3", realmPath+":?expression="+expression+"3"), md.Link("*", realmPath+":?expression="+expression+"*")})
-	table.Append([]string{md.Link("0", realmPath+":?expression="+expression+"0"), md.Link(".", realmPath+":?expression="+expression+"."), md.Link("=", realmPath+":?expression="+expression+"="), md.Link("/", realmPath+":?expression="+expression+"/")})
-	out += table.String()
 
+	table := createTable(req, query, expression)
+	out += table.String()
 	return out
 }
