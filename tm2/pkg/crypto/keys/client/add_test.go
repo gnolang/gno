@@ -212,7 +212,7 @@ func TestAdd_Base_Add(t *testing.T) {
 func generateDerivationPaths(count int) []string {
 	paths := make([]string, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		paths[i] = fmt.Sprintf("44'/118'/0'/0/%d", i)
 	}
 

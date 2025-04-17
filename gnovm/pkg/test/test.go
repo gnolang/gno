@@ -57,7 +57,6 @@ func Context(caller crypto.Bech32Address, pkgPath string, send std.Coins) *tests
 		Height:          DefaultHeight,
 		Timestamp:       DefaultTimestamp,
 		OriginCaller:    caller,
-		OriginPkgAddr:   pkgAddr.Bech32(),
 		OriginSend:      send,
 		OriginSendSpent: new(std.Coins),
 		Banker:          banker,

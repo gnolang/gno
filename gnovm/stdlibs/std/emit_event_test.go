@@ -238,7 +238,7 @@ func TestEmit_Iteration(t *testing.T) {
 	m.Context = ExecContext{EventLogger: elgs}
 
 	iterEvent := func(m *gno.Machine) {
-		for i := 0; i < 10; i++ {
+		for range 10 {
 			X_emit(m, testBar, []string{"qux", "value1"})
 		}
 	}
@@ -252,7 +252,7 @@ func TestEmit_Iteration(t *testing.T) {
 
 	var builder strings.Builder
 	builder.WriteString("[")
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		builder.WriteString(`{"type":"bar","attrs":[{"key":"qux","value":"value1"}],"pkg_path":"","func":""},`)
 	}
 	expected := builder.String()[:builder.Len()-1] + "]"
@@ -283,7 +283,7 @@ func forLoopEmitExample(m *gno.Machine, count int, callback func(int)) {
 		X_emit(m, "ForLoopCompletionEvent", []string{"count", strconv.Itoa(count)})
 	}()
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		callback(i)
 	}
 }

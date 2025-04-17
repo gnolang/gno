@@ -16,6 +16,30 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// Authorized external image host providers.
+var cspImgHost = []string{
+	// Gno-related hosts
+	"https://gnolang.github.io",
+	"https://assets.gnoteam.com",
+	"https://sa.gno.services",
+
+	// Other providers should respect DMCA guidelines.
+	// NOTE: Feel free to open a PR to add more providers here :)
+
+	// imgur
+	"https://imgur.com",
+	"https://*.imgur.com",
+
+	// GitHub
+	"https://*.github.io",
+	"https://github.com",
+	"https://*.githubusercontent.com",
+
+	// IPFS
+	"https://ipfs.io",
+	"https://cloudflare-ipfs.com",
+}
+
 type webCfg struct {
 	chainid    string
 	remote     string
@@ -220,6 +244,21 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 }
 
 func SecureHeadersMiddleware(next http.Handler, strict bool) http.Handler {
+	// Build img-src CSP directive
+	imgSrc := "'self' data:image/svg+xml"
+
+	for _, host := range cspImgHost {
+		imgSrc += " " + host
+	}
+
+	// Define a Content Security Policy (CSP) to restrict the sources of
+	// scripts, styles, images, and other resources. This helps prevent
+	// cross-site scripting (XSS) and other code injection attacks.
+	csp := fmt.Sprintf(
+		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src %s; font-src 'self'",
+		imgSrc,
+	)
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Prevent MIME type sniffing by browsers. This ensures that the browser
 		// does not interpret files as a different MIME type than declared.
@@ -236,13 +275,8 @@ func SecureHeadersMiddleware(next http.Handler, strict bool) http.Handler {
 
 		// In `strict` mode, prevent cross-site ressources forgery and enforce https
 		if strict {
-			// Define a Content Security Policy (CSP) to restrict the sources of
-			// scripts, styles, images, and other resources. This helps prevent
-			// cross-site scripting (XSS) and other code injection attacks.
-			// - 'self' allows resources from the same origin.
-			// - 'data:' allows inline images (e.g., base64-encoded images).
-			// - 'https://gnolang.github.io' allows images from this specific domain - used by gno.land. TODO: use a proper generic whitelisted service
-			w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src 'self' data: https://gnolang.github.io https://assets.gnoteam.com https://sa.gno.services; font-src 'self'")
+			// Set `csp` defined above.
+			w.Header().Set("Content-Security-Policy", csp)
 
 			// Enforce HTTPS by telling browsers to only access the site over HTTPS
 			// for a specified duration (1 year in this case). This also applies to

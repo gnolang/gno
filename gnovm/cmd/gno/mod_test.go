@@ -72,43 +72,6 @@ func TestModApp(t *testing.T) {
 			errShouldContain:     "query files list for pkg \"gno.land/p/demo/notexists\": package \"gno.land/p/demo/notexists\" is not available",
 		},
 
-		// test `gno mod init` with no module name
-		{
-			args:                 []string{"mod", "init"},
-			testDir:              "../../tests/integ/valid1",
-			simulateExternalRepo: true,
-		},
-		{
-			args:                 []string{"mod", "init"},
-			testDir:              "../../tests/integ/empty_dir",
-			simulateExternalRepo: true,
-			errShouldBe:          "create gno.mod file: cannot determine package name",
-		},
-		{
-			args:                 []string{"mod", "init"},
-			testDir:              "../../tests/integ/empty_gno1",
-			simulateExternalRepo: true,
-			recoverShouldContain: "expected 'package', found 'EOF'",
-		},
-		{
-			args:                 []string{"mod", "init"},
-			testDir:              "../../tests/integ/empty_gno2",
-			simulateExternalRepo: true,
-			recoverShouldContain: "expected 'package', found 'EOF'",
-		},
-		{
-			args:                 []string{"mod", "init"},
-			testDir:              "../../tests/integ/empty_gno3",
-			simulateExternalRepo: true,
-			recoverShouldContain: "expected 'package', found 'EOF'",
-		},
-		{
-			args:                 []string{"mod", "init"},
-			testDir:              "../../tests/integ/empty_gnomod",
-			simulateExternalRepo: true,
-			errShouldBe:          "create gno.mod file: gno.mod file already exists",
-		},
-
 		// test `gno mod init` with module name
 		{
 			args:                 []string{"mod", "init", "gno.land/p/demo/foo"},

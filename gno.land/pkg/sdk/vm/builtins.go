@@ -110,7 +110,7 @@ func (prm *SDKParams) SetStrings(key string, value []string) {
 	prm.pmk.SetStrings(prm.ctx, key, value)
 }
 
-func (prm *SDKParams) willSetKeeperParams(ctx sdk.Context, key string, value interface{}) {
+func (prm *SDKParams) willSetKeeperParams(ctx sdk.Context, key string, value any) {
 	parts := strings.Split(key, ":")
 	if len(parts) == 0 {
 		panic(fmt.Sprintf("SDKParams encountered invalid param key format: %s", key))

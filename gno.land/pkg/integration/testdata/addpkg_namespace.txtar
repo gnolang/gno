@@ -4,7 +4,7 @@ loadpkg gno.land/r/gnoland/users/v1
 adduser admin
 adduser gui
 
-patchpkg "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" $admin_user_addr # use our custom admin
+patchpkg "g1manfred47kzduec920z88wfr64ylksmdcedlf5" $admin_user_addr # use our custom admin
 
 gnoland start
 
