@@ -466,6 +466,27 @@ func main() {
 	}
 }
 
+func TestOptimizeConversion(t *testing.T) {
+	t.Parallel()
+
+	m := NewMachine("test", nil)
+	c := `package test
+func main() {}
+
+func foo(a int) {
+    b := int(a)
+    println(b)
+}`
+	n := MustParseFile("main.go", c)
+	m.RunFiles(n)
+	fn := n.Decls[1].(*FuncDecl)
+	as := fn.Body[0].(*AssignStmt)
+	ne := as.Rhs[0].(*NameExpr)
+	if ne.Name != "a" {
+		t.Fatalf("expecting optimized 'a', got %v", ne.String())
+	}
+}
+
 func BenchmarkIfStatement(b *testing.B) {
 	m := NewMachine("test", nil)
 	c := `package test

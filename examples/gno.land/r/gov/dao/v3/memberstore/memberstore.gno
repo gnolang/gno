@@ -94,12 +94,10 @@ func init() {
 
 	members.SetTier(T1)
 	members.SetMember(T1, std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"), &Member{InvitationPoints: 3}) // Jae
-	members.SetMember(T1, std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"), &Member{InvitationPoints: 3}) // Manfred
+	members.SetMember(T1, std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"), &Member{InvitationPoints: 3}) // Manfred
 	members.SetMember(T1, std.Address("g1e6gxg5tvc55mwsn7t7dymmlasratv7mkv0rap2"), &Member{InvitationPoints: 3}) // Milos
-	members.SetMember(T1, std.Address("g1jazghxvvgz3egnr2fc8uf72z4g0l03596y9ls7"), &Member{InvitationPoints: 3}) // Nemanja
 	members.SetMember(T1, std.Address("g1qhskthp2uycmg4zsdc9squ2jds7yv3t0qyrlnp"), &Member{InvitationPoints: 3}) // Petar
 	members.SetMember(T1, std.Address("g18amm3fc00t43dcxsys6udug0czyvqt9e7p23rd"), &Member{InvitationPoints: 3}) // Marc
-	members.SetMember(T1, std.Address("g1dfr24yhk5ztwtqn2a36m8f6ud8cx5hww4dkjfl"), &Member{InvitationPoints: 3}) // Antonio
 	members.SetMember(T1, std.Address("g19p3yzr3cuhzqa02j0ce6kzvyjqfzwemw3vam0x"), &Member{InvitationPoints: 3}) // Guilhem
 	members.SetMember(T1, std.Address("g1mx4pum9976th863jgry4sdjzfwu03qan5w2v9j"), &Member{InvitationPoints: 3}) // Ray
 	members.SetMember(T1, std.Address("g127l4gkhk0emwsx5tmxe96sp86c05h8vg5tufzq"), &Member{InvitationPoints: 3}) // Maxwell
@@ -109,7 +107,7 @@ func init() {
 	members.SetMember(T1, std.Address("g16tfrrul20g4jzt3z303raqw8vs8s2pqqh5clwu"), &Member{InvitationPoints: 3}) // Ilker
 	members.SetMember(T1, std.Address("g1hy6zry03hg5d8le9s2w4fxme6236hkgd928dun"), &Member{InvitationPoints: 3}) // Jerónimo
 	members.SetMember(T1, std.Address("g15ruzptpql4dpuyzej0wkt5rq6r26kw4nxu9fwd"), &Member{InvitationPoints: 3}) // Denis
-	members.SetMember(T1, std.Address("g1dnllrdzwfhxv3evyk09y48mgn5phfjvtyrlzm7"), &Member{InvitationPoints: 3}) // Danny
+	members.SetMember(T1, std.Address("g1lckl8j2g3jyyuq6fx7pke3uz4kemht7lw4fg5l"), &Member{InvitationPoints: 3}) // Danny
 	members.SetMember(T1, std.Address("g1778y2yphxs2wpuaflsy5y9qwcd4gttn4g5yjx5"), &Member{InvitationPoints: 3}) // Michelle
 	members.SetMember(T1, std.Address("g1mq7g0jszdmn4qdpc9tq94w0gyex37su892n80m"), &Member{InvitationPoints: 3}) // Alan
 	members.SetMember(T1, std.Address("g197q5e9v00vuz256ly7fq7v3ekaun5cr7wmjgfh"), &Member{InvitationPoints: 3}) // Salvo
@@ -119,6 +117,8 @@ func init() {
 	members.SetMember(T1, std.Address("g1sw5xklxjjuv0yvuxy5f5s3l3mnj0nqq626a9wr"), &Member{InvitationPoints: 3}) // Albert
 
 	members.SetTier(T2)
+	members.SetMember(T2, std.Address("g1jazghxvvgz3egnr2fc8uf72z4g0l03596y9ls7"), &Member{InvitationPoints: 2}) // Nemanja
+	members.SetMember(T2, std.Address("g1dfr24yhk5ztwtqn2a36m8f6ud8cx5hww4dkjfl"), &Member{InvitationPoints: 2}) // Antonio
 	members.SetMember(T2, std.Address("g12vx7dn3dqq89mz550zwunvg4qw6epq73d9csay"), &Member{InvitationPoints: 2}) // Dongwon
 	members.SetMember(T2, std.Address("g1r04aw56fgvzy859fachr8hzzhqkulkaemltr76"), &Member{InvitationPoints: 2}) // Blake
 	members.SetMember(T2, std.Address("g17n4y745s08awwq4e0a38lagsgtntna0749tnxe"), &Member{InvitationPoints: 2}) // Jinwoo
