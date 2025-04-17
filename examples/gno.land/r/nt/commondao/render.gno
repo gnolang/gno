@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/mux"
+	"gno.land/p/demo/ufmt"
 	"gno.land/p/jeronimoalbi/pager"
 	"gno.land/p/nt/commondao"
 )
@@ -59,9 +60,18 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write("\n\n")
 	}
 
+	if parentDAO := dao.Parent(); parentDAO != nil {
+		res.Write(ufmt.Sprintf("[Go to Parent DAO](%s)\n\n", daoURL(parentDAO)))
+	}
+
 	// TODO: Add link to DAO's proposals list view
 
-	renderMembers(res, dao, req.RawPath)
+	members := dao.Members()
+	if members.Size() == 0 {
+		res.Write("**⚠ The DAO has no members**\n\n")
+	} else {
+		renderMembers(res, req.RawPath, members)
+	}
 
 	if dao.Children().Len() > 0 {
 		res.Write("## Tree\n")
@@ -71,15 +81,8 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 	// TODO: List latest 10 proposals
 }
 
-func renderMembers(res *mux.ResponseWriter, dao *commondao.CommonDAO, path string) {
-	members := dao.Members()
-	membersCount := members.Size()
-	if membersCount == 0 {
-		res.Write("**⚠ The DAO has no members**\n\n")
-		return
-	}
-
-	p, err := pager.New(path, membersCount, pager.WithPageQueryParam("members"), pager.WithPageSize(10))
+func renderMembers(res *mux.ResponseWriter, path string, members commondao.MemberStorage) {
+	p, err := pager.New(path, members.Size(), pager.WithPageQueryParam("members"), pager.WithPageSize(10))
 	if err != nil {
 		res.Write(err.Error())
 		return
@@ -103,12 +106,7 @@ func renderMembers(res *mux.ResponseWriter, dao *commondao.CommonDAO, path strin
 }
 
 func renderTree(res *mux.ResponseWriter, dao *commondao.CommonDAO, indent string) {
-	// TODO: Use bold and no DAO link for the current DAO (requires req.Query support)
-	// TODO: Render a link to the DAO page
-	res.Write(indent)
-	res.Write("- ")
-	res.Write(dao.Name())
-	res.Write("\n")
+	res.Write(ufmt.Sprintf("%s- [%s](%s)\n", indent, dao.Name(), daoURL(dao)))
 
 	indent += "  "
 	dao.Children().ForEach(func(_ int, v any) bool {
