@@ -870,9 +870,10 @@ func (ds *defaultStore) GetMemFile(path string, name string) *gnovm.MemFile {
 // FindPathsByPrefix retrieves all paths starting with the given prefix.
 func (ds *defaultStore) FindPathsByPrefix(prefix string) iter.Seq[string] {
 	// If prefix is empty range every package
-	startKey, endKey := []byte(backendPackagePathKey("\x00")), []byte(backendPackagePathKey("\xFF"))
+	startKey := []byte(backendPacakgeGlobalPath("\x00"))
+	endKey := []byte(backendPacakgeGlobalPath("\xFF"))
 	if len(prefix) > 0 {
-		startKey = []byte(backendPackagePathKey(prefix))
+		startKey = []byte(backendPacakgeGlobalPath(prefix))
 		// Create endkey by incrementing last byte of startkey
 		endKey = slices.Clone(startKey)
 		endKey[len(endKey)-1]++
@@ -1015,12 +1016,23 @@ func backendPackageIndexKey(index uint64) string {
 	return fmt.Sprintf("pkgidx:%020d", index)
 }
 
+// We need to prefix stdlibs path with `_` to matain them lexicographically
+// ordered with domain path
 func backendPackagePathKey(path string) string {
-	return "pkg:" + path
+	if IsStdlib(path) {
+		return backendPacakgeStdlibPath(path)
+	}
+
+	return backendPacakgeGlobalPath(path)
 }
 
+func backendPacakgeStdlibPath(path string) string { return "pkg:_/" + path }
+
+func backendPacakgeGlobalPath(path string) string { return "pkg:" + path }
+
 func decodeBackendPackagePathKey(key string) string {
-	return strings.TrimPrefix(key, "pkg:")
+	path := strings.TrimPrefix(key, "pkg:")
+	return strings.TrimPrefix(path, "_/")
 }
 
 // ----------------------------------------

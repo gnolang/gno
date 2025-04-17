@@ -2,50 +2,116 @@ loadpkg gno.land/r/aaa/bbb/ccc $WORK
 loadpkg gno.land/r/aaa/ccc/ddd $WORK
 loadpkg gno.land/r/aaa $WORK
 loadpkg gno.land/r/bbb/ccc $WORK
-loadpkg gno.land/p/bbb/ccc $WORK
+loadpkg gno.land/p/bbb/ccc/ppp $WORK
 loadpkg gno.land/r/bbb/aaa $WORK
-loadpkg gno.land/p/bbb0 $WORK # should not match `bbb`
+loadpkg gno.land/r/bbb/aaa $WORK
+loadpkg gno.land/r/bbb0 $WORK
 
 gnoland start
 
-# query path for namespace
-gnokey query vm/qpaths --data "aaa"
+# query path for prefix
+gnokey query vm/qpaths --data "gno.land/r/aaa"
 cmp stdout aaa-qpaths.stdout.golden
 cmp stderr aaa-qpaths.stderr.golden
 
-gnokey query vm/qpaths --data "bbb"
+gnokey query vm/qpaths --data "gno.land/r/bbb"
 cmp stdout bbb-qpaths.stdout.golden
 cmp stderr bbb-qpaths.stderr.golden
 
-gnokey query vm/qpaths --data "ccc"
+gnokey query vm/qpaths --data "gno.land/r/bbb/"
+cmp stdout bbb-slash-qpaths.stdout.golden
+cmp stderr bbb-slash-qpaths.stderr.golden
+
+# query path for namespace
+gnokey query vm/qpaths --data "@bbb"
+cmp stdout bbb-name-qpaths.stdout.golden
+cmp stderr bbb-name-qpaths.stderr.golden
+
+# query path for namespace
+gnokey query vm/qpaths --data "@bbb/ccc"
+cmp stdout bbb-name-qpaths.stdout.golden
+cmp stderr bbb-name-qpaths.stderr.golden
+
+! gnokey query vm/qpaths --data "@invalid\\name"
+cmp stdout invalid-name-qpaths.stdout.golden
+cmp stderr invalid-name-qpaths.stderr.golden
+
+gnokey query vm/qpaths --data "gno.land/r/ccc"
 cmp stdout ccc-qpaths.stdout.golden
 cmp stderr ccc-qpaths.stderr.golden
 
-! gnokey query vm/qpaths --data ""
+gnokey query vm/qpaths?limit=5 --data "_"
+cmp stdout stdlibs-qpaths.stdout.golden
+cmp stderr stdlibs-qpaths.stderr.golden
+
+
+gnokey query vm/qpaths --data "_/encoding"
+cmp stdout stdlibs-encoding-qpaths.stdout.golden
+cmp stderr stdlibs-encoding-qpaths.stderr.golden
+
+
+gnokey query vm/qpaths?limit=5 --data ""
 cmp stdout empty-qpaths.stdout.golden
 cmp stderr empty-qpaths.stderr.golden
-
-
 
 -- main.gno --
 package main; func main() { println("A") }
 
 -- aaa-qpaths.stdout.golden --
 height: 0
-data: gno.land/r/aaa/bbb/ccc
+data: gno.land/r/aaa
+gno.land/r/aaa/bbb/ccc
 gno.land/r/aaa/ccc/ddd
 -- aaa-qpaths.stderr.golden --
 -- bbb-qpaths.stdout.golden --
 height: 0
 data: gno.land/r/bbb/aaa
 gno.land/r/bbb/ccc
-gno.land/p/bbb/ccc
+gno.land/r/bbb0
 -- bbb-qpaths.stderr.golden --
+-- bbb-slash-qpaths.stdout.golden --
+height: 0
+data: gno.land/r/bbb/aaa
+gno.land/r/bbb/ccc
+-- bbb-slash-qpaths.stderr.golden --
+-- bbb-name-qpaths.stdout.golden --
+height: 0
+data: gno.land/p/bbb/ccc/ppp
+-- bbb-name-qpaths.stderr.golden --
+-- invalid-name-qpaths.stdout.golden --
+Log: --= Error =--
+Data: errors.FmtError{format:"invalid username format", args:[]interface {}(nil)}
+Msg Traces:
+--= /Error =--
+
+-- invalid-name-qpaths.stderr.golden --
+"gnokey" error: invalid username format
 -- ccc-qpaths.stdout.golden --
 height: 0
 data: 
 -- ccc-qpaths.stderr.golden --
 -- empty-qpaths.stderr.golden --
-"gnokey" error: invalid user namespace
 -- empty-qpaths.stdout.golden --
-Log: &errors.errorString{s:"invalid user namespace"}
+height: 0
+data: bufio
+bytes
+crypto/bech32
+crypto/chacha20
+crypto/chacha20/chacha
+-- stdlibs-qpaths.stdout.golden --
+height: 0
+data: bufio
+bytes
+crypto/bech32
+crypto/chacha20
+crypto/chacha20/chacha
+-- stdlibs-qpaths.stderr.golden --
+-- stdlibs-encoding-qpaths.stdout.golden --
+height: 0
+data: encoding
+encoding/base32
+encoding/base64
+encoding/binary
+encoding/csv
+encoding/hex
+-- stdlibs-encoding-qpaths.stderr.golden --

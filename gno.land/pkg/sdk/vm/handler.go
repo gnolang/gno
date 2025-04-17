@@ -2,7 +2,8 @@ package vm
 
 import (
 	"fmt"
-	"regexp"
+	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/version"
@@ -78,11 +79,11 @@ const (
 	QueryPaths  = "qpaths"
 )
 
-func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQuery {
-	var (
-		res  abci.ResponseQuery
-		path = secondPart(req.Path)
-	)
+func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	path := secondPart(string(req.Path))
+	if i := strings.IndexByte(path, '?'); i > 0 { // cut query
+		path = path[:i]
+	}
 
 	switch path {
 	case QueryRender:
@@ -141,17 +142,36 @@ func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci
 	return
 }
 
-var reUserNamespace = regexp.MustCompile(`[\.~_a-zA-Z0-9]+`)
-
 // queryPaths retrieves paginated package paths based on request data.
+// data can be username prefixed by a @ or a path prefix.
 func (vh vmHandler) queryPaths(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	if !reUserNamespace.Match(req.Data) {
-		return sdk.ABCIResponseQueryFromError(
-			fmt.Errorf("invalid user namespace"),
-		)
+	const defaultLimit = 1_000
+
+	target := string(req.Data)
+
+	var query string
+	if i := strings.IndexByte(req.Path, '?'); i > 0 {
+		query = req.Path[i+1:]
 	}
 
-	paths := vh.vm.QueryNamespacePaths(ctx, string(req.Data))
+	params, _ := url.ParseQuery(query)
+
+	// XXX: implement pagination
+
+	// Get limit param, if any
+	limit := defaultLimit // default
+	if l := params.Get("limit"); len(l) > 0 {
+		var err error
+		if limit, err = strconv.Atoi(l); err != nil {
+			return sdk.ABCIResponseQueryFromError(fmt.Errorf("invalid limit argument"))
+		}
+	}
+
+	paths, err := vh.vm.QueryPaths(ctx, target, limit)
+	if err != nil {
+		return sdk.ABCIResponseQueryFromError(err)
+	}
+
 	res.Data = []byte(strings.Join(paths, "\n"))
 	return
 }
