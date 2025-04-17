@@ -17,6 +17,7 @@ func TestJSONDocumentation(t *testing.T) {
 		PackagePath: "gno.land/r/hello",
 		PackageLine: "package hello // import \"hello\"",
 		PackageDoc:  "hello is a package for testing\n",
+		Bugs:        []string{"Bug about myInterface\n"},
 		Values: []*JSONValueDecl{
 			{
 				Signature: "const ConstString = \"const string\"",

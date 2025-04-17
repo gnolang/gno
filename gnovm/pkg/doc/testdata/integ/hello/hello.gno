@@ -25,6 +25,8 @@ func (ms myStruct) Foo() string { return "myStruct.Foo" }
 // Panic is a func for testing
 func Panic() { panic("foo") }
 
+// BUG(who): Bug about myInterface
+
 // myInterface is an interface for testing
 type myInterface interface {
 	Bar() string // Bar is for testing
