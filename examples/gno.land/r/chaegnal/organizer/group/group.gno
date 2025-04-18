@@ -23,22 +23,6 @@ func parseQuery(url string) string {
 	return foundId[1]
 }
 
-// Returns group associated with given ID
-// Verify that the ID is valid and associated with a group
-func getGroupFromId(groupId string) organizer.FriendGroup {
-	convertedId, err := strconv.Atoi(groupId)
-	if err != nil {
-		panic("Invalid ID")
-	}
-
-	raw, found := organizer.ListGroups.Groups.Get(strconv.Itoa(convertedId))
-	if !found {
-		panic("Could not find group")
-	}
-
-	return raw.(organizer.FriendGroup)
-}
-
 // Retrieve the group ID from the URL
 func getGroupFromUrl(url string) organizer.FriendGroup {
 	groupId := parseQuery(url)
@@ -46,40 +30,40 @@ func getGroupFromUrl(url string) organizer.FriendGroup {
 		panic("No groupId provided")
 	}
 
-	return getGroupFromId(groupId)
+	return organizer.GetGroupFromId(groupId)
 }
 
 // Wrapper to accept new members into friendgroup and DAO
 func AcceptAwaitingMember(groupId string, adr std.Address) {
-	group := getGroupFromId(groupId)
+	group := organizer.GetGroupFromId(groupId)
 
 	group.DAO.WhitelistingAwaitingApproval(organizer.AddressLoggedIn, adr)
 }
 
 // Wrapper to refuse new members into friendgroup and DAO
 func RefuseAwaitingMember(groupId string, adr std.Address) {
-	group := getGroupFromId(groupId)
+	group := organizer.GetGroupFromId(groupId)
 
 	group.DAO.RefuseAwaitingMember(organizer.AddressLoggedIn, adr)
 }
 
 // Wrapper to remove members from group and DAO
 func RemoveMember(groupId string, adr std.Address) {
-	group := getGroupFromId(groupId)
+	group := organizer.GetGroupFromId(groupId)
 
 	group.DAO.RemoveMember(organizer.AddressLoggedIn, adr)
 }
 
 // Wrapper to promote member to admin status
 func MakeAdmin(groupId string, adr std.Address) {
-	group := getGroupFromId(groupId)
+	group := organizer.GetGroupFromId(groupId)
 
 	group.DAO.SetAdmin(organizer.AddressLoggedIn, adr)
 }
 
 // Wrapper to demote admin to member status
 func RemoveAdminRank(groupId string, adr std.Address) {
-	group := getGroupFromId(groupId)
+	group := organizer.GetGroupFromId(groupId)
 
 	group.DAO.RemoveAdminRank(organizer.AddressLoggedIn, adr)
 }
@@ -87,7 +71,7 @@ func RemoveAdminRank(groupId string, adr std.Address) {
 // Wrapper to create proposal
 // Sanitizes the arguments given
 func CreateProposals(groupId, title, desc, callback string, callbackArgsStr string) {
-	group := getGroupFromId(groupId)
+	group := organizer.GetGroupFromId(groupId)
 
 	callbackArgsStr = strings.Trim(callbackArgsStr, "\"")
 	callbackArgs := strings.Split(callbackArgsStr, ",")
@@ -97,7 +81,7 @@ func CreateProposals(groupId, title, desc, callback string, callbackArgsStr stri
 
 // Allows the owner to delete the friendgroup
 func DeleteFriendGroup(groupId string) {
-	group := getGroupFromId(groupId)
+	group := organizer.GetGroupFromId(groupId)
 
 	if group.Owner.Owner() != organizer.AddressLoggedIn {
 		panic("Only the owner can delete the group.")
@@ -107,7 +91,7 @@ func DeleteFriendGroup(groupId string) {
 }
 
 func SwitchOwner(groupId string, adr std.Address) {
-	group := getGroupFromId(groupId)
+	group := organizer.GetGroupFromId(groupId)
 
 	if group.Owner.Owner() != organizer.AddressLoggedIn {
 		panic("Only the owner give ownership away.")
@@ -115,7 +99,7 @@ func SwitchOwner(groupId string, adr std.Address) {
 
 	ok := group.DAO.IsAdmin(adr)
 	if !ok {
-		panic("The new owner must be an admin")
+		panic("The new owner must be an admin.")
 	}
 
 	group.Owner = ownable.NewWithAddress(adr)
@@ -125,7 +109,7 @@ func SwitchOwner(groupId string, adr std.Address) {
 // Wrapper to vote on proposal
 // Verify if the vote ID exist and if the vote's choice exists
 func VoteOnProposal(groupId string, voteIdStr string, voteStr string) {
-	group := getGroupFromId(groupId)
+	group := organizer.GetGroupFromId(groupId)
 
 	voteId, err := strconv.Atoi(voteIdStr)
 	if err != nil {
