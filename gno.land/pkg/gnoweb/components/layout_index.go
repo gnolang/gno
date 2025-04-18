@@ -50,6 +50,9 @@ func IndexLayout(data IndexData) Component {
 	case RealmViewType:
 		dataLayout.Layout = SidebarLayout
 
+	case UserViewType:
+		dataLayout.Layout = SidebarLayout
+
 	case HelpViewType:
 		dataLayout.IsDevmodView = true
 		dataLayout.Layout = SidebarLayout
