@@ -16,6 +16,7 @@ const (
 	setAdminFunc     = "SetAdmin"
 	removeAdminFunc  = "RemoveAdminRank"
 	removeMemberFunc = "RemoveMember"
+	setHangoutFunc   = "SetHangoutTimeAndPlace"
 
 	VoteYay = 1
 	VoteNay = 0
@@ -39,10 +40,20 @@ type WhitelistedUser struct {
 	Rank    string
 }
 
+type HangoutInfo struct {
+	Id          int
+	Date        string
+	Time        string
+	Place       string
+	Description string
+	Active      bool
+}
+
 type DAO struct {
 	Proposals        *avl.Tree
 	Whitelist        *avl.Tree
 	AwaitingApproval *avl.Tree
+	Hangouts         *avl.Tree
 }
 
 // Create a new DAO
@@ -52,6 +63,7 @@ func NewDAO(caller std.Address) *DAO {
 		Proposals:        avl.NewTree(),
 		Whitelist:        avl.NewTree(),
 		AwaitingApproval: avl.NewTree(),
+		Hangouts:         avl.NewTree(),
 	}
 
 	newDao.WhitelistMember(caller)
@@ -122,6 +134,10 @@ func (dao *DAO) GetAwaiting() *avl.Tree {
 
 func (dao *DAO) GetProposals() *avl.Tree {
 	return dao.Proposals
+}
+
+func (dao *DAO) GetHangouts() *avl.Tree {
+	return dao.Hangouts
 }
 
 // Set user into the waitlist
@@ -270,6 +286,24 @@ func (dao *DAO) CreateProposals(title, desc, callback string, callbackArgs []str
 	dao.Proposals.Set(strconv.Itoa(newProposal.Id), newProposal)
 }
 
+// Set Hangout in a avl.tree
+func (dao *DAO) SetHangoutTimeAndPlace(date, time, place, desc string, caller std.Address) {
+	if !dao.IsAdmin(caller) {
+		panic("You cannot create proposals")
+	}
+
+	hangout := HangoutInfo{
+		Id:          dao.Hangouts.Size() + 1,
+		Date:        date,
+		Time:        time,
+		Place:       place,
+		Description: desc,
+		Active:      true,
+	}
+
+	dao.Hangouts.Set(strconv.Itoa(dao.Hangouts.Size()+1), hangout)
+}
+
 // Execute a function when proposal closes if a callback was set
 // Verify the number of arguments
 func (dao *DAO) ExecuteCallback(proposal Proposal) {
@@ -296,6 +330,13 @@ func (dao *DAO) ExecuteCallback(proposal Proposal) {
 
 	case removeMemberFunc:
 		dao.RemoveMember(std.Address(proposal.CallbackArgs[0]), std.Address(proposal.CallbackArgs[1]))
+
+	case setHangoutFunc:
+		if len(proposal.CallbackArgs) < 5 {
+			panic("Not enough arguments for SetHangoutTimeAndPlace.")
+		}
+		dao.SetHangoutTimeAndPlace(proposal.CallbackArgs[0], proposal.CallbackArgs[1],
+			proposal.CallbackArgs[2], proposal.CallbackArgs[3], std.Address(proposal.CallbackArgs[4]))
 
 	default:
 		panic("Unknown callback: " + proposal.Callback)
