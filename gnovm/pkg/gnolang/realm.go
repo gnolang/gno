@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/gnolang/gno/tm2/pkg/store/types"
+
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 )
 
@@ -321,7 +323,7 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 // transactions
 
 // OpReturn calls this when exiting a realm transaction.
-func (rlm *Realm) FinalizeRealmTransaction(store Store) {
+func (rlm *Realm) FinalizeRealmTransaction(store Store, gm types.GasMeter) {
 	if bm.OpsEnabled {
 		bm.PauseOpCode()
 		defer bm.ResumeOpCode()
@@ -347,7 +349,7 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	store.LogSwitchRealm(rlm.Path)
 	// increment recursively for created descendants.
 	// also assigns object ids for all.
-	rlm.processNewCreatedMarks(store)
+	rlm.processNewCreatedMarks(store, gm)
 	// decrement recursively for deleted descendants.
 	rlm.processNewDeletedMarks(store)
 	// at this point, all ref-counts are final.
@@ -378,7 +380,7 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 // finding more newly created objects recursively.
 // All newly created objects become appended to .created,
 // and get assigned ids.
-func (rlm *Realm) processNewCreatedMarks(store Store) {
+func (rlm *Realm) processNewCreatedMarks(store Store, gm types.GasMeter) {
 	// Create new objects and their new descendants.
 	for _, oo := range rlm.newCreated {
 		if debug {
@@ -397,7 +399,7 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 			// skip if became deleted.
 			continue
 		} else {
-			rlm.incRefCreatedDescendants(store, oo)
+			rlm.incRefCreatedDescendants(store, gm, oo)
 		}
 	}
 	// Save new realm time.
@@ -407,7 +409,7 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 }
 
 // oo must be marked new-real, and ref-count already incremented.
-func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
+func (rlm *Realm) incRefCreatedDescendants(store Store, gm types.GasMeter, oo Object) {
 	if debug {
 		if oo.GetIsDirty() {
 			panic("cannot increase reference of descendants of dirty objects")
@@ -416,6 +418,13 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 			panic("cannot increase reference of descendants of unreferenced object")
 		}
 	}
+
+	cost := 1
+	defer func() {
+		if gm != nil {
+			gm.ConsumeGas(types.Gas(cost), "incRefCreatedDescendants")
+		}
+	}()
 
 	// RECURSE GUARD
 	// if id already set, skip.
@@ -440,6 +449,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 			// extern package values are skipped.
 			continue
 		}
+		cost += 1
 		child.IncRefCount()
 		rc := child.GetRefCount()
 		if rc == 1 {
@@ -453,7 +463,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 				// NOTE: may already be marked for first gen
 				// newCreated or updated.
 				child.SetOwner(oo)
-				rlm.incRefCreatedDescendants(store, child)
+				rlm.incRefCreatedDescendants(store, gm, child)
 				child.SetIsNewReal(true)
 			}
 		} else if rc > 1 {
