@@ -49,7 +49,7 @@ func makeAndConnectReactors(t *testing.T, mconfig *memcfg.MempoolConfig, pconfig
 		options  = make(map[int][]p2p.SwitchOption)
 	)
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		app := kvstore.NewKVStoreApplication()
 		cc := proxy.NewLocalClientCreator(app)
 		mempool, cleanup := newMempoolWithApp(cc)
@@ -276,7 +276,7 @@ func TestMempoolIDsPanicsIfNodeRequestsOvermaxActiveIDs(t *testing.T) {
 	// 0 is already reserved for UnknownPeerID
 	ids := newMempoolIDs()
 
-	for i := 0; i < maxActiveIDs-1; i++ {
+	for range maxActiveIDs - 1 {
 		id := p2pTypes.GenerateNodeKey().ID()
 		ids.ReserveForPeer(id)
 	}

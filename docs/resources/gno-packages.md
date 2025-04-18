@@ -50,7 +50,7 @@ gno.land/[r|p]/[namespace]/[package-name]
 
 For example:
 - `gno.land/r/gnoland/home` is the gno.land home realm
-- `gno.land/r/leon/hof` is the Hall of Fame realm
+- `gno.land/r/leon/hor` is the Hall of Realms
 - `gno.land/p/demo/avl` is the AVL tree package
 
 The components of these paths are:
@@ -150,7 +150,7 @@ func Get(key string) int {
 }
 ```
 
-View the package on the [Portal Loop network](https://gno.land/p/demo/avl)
+View the package on the [Staging network](https://gno.land/p/demo/avl)
 or on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/avl).
 
 ### Package `ufmt`
@@ -165,7 +165,7 @@ Deployed under `gno.land/p/demo/ufmt`, this package is a minimal version of the
 package ufmt
 ```
 
-View the package on the [Portal Loop network](https://gno.land/p/demo/ufmt) or
+View the package on the [Staging network](https://gno.land/p/demo/ufmt) or
 on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/ufmt).
 
 ### Package `seqid`
@@ -188,7 +188,7 @@ have sequential IDs in Gno:
 package seqid
 ```
 
-View the package on the [Portal Loop network](https://gno.land/p/demo/seqid) or
+View the package on the [Staging network](https://gno.land/p/demo/seqid) or
 on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/seqid).
 
 ## Exploring Deployed Packages
