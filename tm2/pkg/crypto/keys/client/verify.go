@@ -53,6 +53,10 @@ func execVerify(cfg *VerifyCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
+	if cfg.RootCfg.Json {
+		io.ErrPrintln("warning: -json flag has no effect on `verify` command")
+	}
+
 	name := args[0]
 	sig, err := parseSignature(args[1])
 	if err != nil {

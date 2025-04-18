@@ -128,12 +128,10 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	}
 
 	if cfg.RootCfg.Broadcast {
-		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, cmdio)
-		if err != nil {
-			return err
-		}
-	} else {
-		cmdio.Println(string(amino.MustMarshalJSON(tx)))
+		return client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, cmdio)
 	}
+
+	cmdio.Println(string(amino.MustMarshalJSON(tx)))
+
 	return nil
 }
