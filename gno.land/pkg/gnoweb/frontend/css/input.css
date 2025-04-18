@@ -27,12 +27,12 @@
     font-feature-settings:
       "kern" on,
       "liga" on,
-      "calt" on,
+      "calt" off,
       "zero" on;
     -webkit-font-feature-settings:
       "kern" on,
       "liga" on,
-      "calt" on,
+      "calt" off,
       "zero" on;
     text-size-adjust: 100%;
     -moz-osx-font-smoothing: grayscale;
