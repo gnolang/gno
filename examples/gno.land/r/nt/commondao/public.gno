@@ -155,7 +155,7 @@ func GetSize(rootID uint64) int {
 
 // Vote submits a vote for a DAO proposal.
 func Vote(daoID, proposalID uint64, vote commondao.VoteChoice, reason string) {
-	dao := mustGetDAO(daoID)
+	dao := mustGetDAO(daoID) // TODO: How to vote within SubDAOs which have no ID?
 	caller := std.OriginCaller()
 	assertCallerIsMember(caller, dao)
 
@@ -167,7 +167,7 @@ func Vote(daoID, proposalID uint64, vote commondao.VoteChoice, reason string) {
 
 // Execute executes a DAO proposal.
 func Execute(daoID, proposalID uint64) {
-	dao := mustGetDAO(daoID)
+	dao := mustGetDAO(daoID) // TODO: How to execute within SubDAOs which have no ID?
 	caller := std.OriginCaller()
 	assertCallerIsMember(caller, dao)
 

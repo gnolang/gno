@@ -9,13 +9,13 @@ import (
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/jeronimoalbi/pager"
+	"gno.land/p/moul/txlink"
 	"gno.land/p/nt/commondao"
 )
 
-const dateFormat = "2006-01-02 3:04pm MST"
-
 func Render(path string) string {
 	// TODO: Add view to render a single proposal (allow/disallow must be configurable)
+
 	router := mux.NewRouter()
 	router.HandleFunc("", renderHome)
 	router.HandleFunc("{daoID}", renderDAO)
@@ -163,10 +163,21 @@ func renderProposalListItem(res *mux.ResponseWriter, dao *commondao.CommonDAO, p
 	def := p.Definition()
 	record := p.VotingRecord()
 
+	// Render title
 	res.Write(ufmt.Sprintf("**[#%d %s](%s)**  \n", p.ID(), def.Title(), proposalURL(dao, p)))
+
+	// Render details
 	res.Write(ufmt.Sprintf("Created by %s  \n", p.Creator())) // TODO: Add users link
-	res.Write(ufmt.Sprintf("Voting ends on %s  \n", p.VotingDeadline().Format(dateFormat)))
-	res.Write(ufmt.Sprintf("**%d votes**\n\n", record.Size()))
+	res.Write(ufmt.Sprintf("Voting ends on %s  \n", p.VotingDeadline().Format("Mon, 02 Jan 2006 03:04pm MST")))
+
+	// Render status
+	res.Write(ufmt.Sprintf("**%d votes** • ", record.Size()))
+
+	// Render actions
+	res.Write(voteLink(dao.ID(), p.ID()))
+	res.Write(" • ")
+	res.Write(executeLink(dao.ID(), p.ID()))
+	res.Write("\n\n")
 }
 
 func getRequestDAO(req *mux.Request) (*commondao.CommonDAO, error) {
@@ -191,4 +202,22 @@ func getRequestDAO(req *mux.Request) (*commondao.CommonDAO, error) {
 		return nil, errors.New("DAO not found")
 	}
 	return dao, nil
+}
+
+func voteLink(daoID, proposalID uint64) string {
+	return ufmt.Sprintf("[vote](%s)", txlink.Call(
+		"Vote",
+		"daoID", strconv.FormatUint(daoID, 10), // TODO: SubDAOs have no ID, only slug
+		"proposalID", strconv.FormatUint(proposalID, 10),
+		"vote", "",
+		"reason", "",
+	))
+}
+
+func executeLink(daoID, proposalID uint64) string {
+	return ufmt.Sprintf("[execute](%s)", txlink.Call(
+		"Execute",
+		"daoID", strconv.FormatUint(daoID, 10), // TODO: SubDAOs have no ID, only slug
+		"proposalID", strconv.FormatUint(proposalID, 10),
+	))
 }
