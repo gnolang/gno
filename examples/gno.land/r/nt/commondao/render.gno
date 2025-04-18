@@ -122,9 +122,6 @@ func renderDAOProposals(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	// TODO: Support listing finished proposals
-	// TODO: Support sort order
-
 	// Render header
 	res.Write("# ")
 	res.Write(dao.Name())
@@ -134,10 +131,16 @@ func renderDAOProposals(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(ufmt.Sprintf("[Go to DAO](%s)", daoURL(dao)))
 	res.Write("\n\n---\n")
 
-	proposals := dao.ActiveProposals()
-	if proposals.Size() == 0 {
+	// Render proposals
+	if dao.ActiveProposals().Size() == 0 && dao.FinishedProposals().Size() == 0 {
 		res.Write("**⚠ The DAO has no proposals**\n")
 		return
+	}
+
+	proposals := dao.ActiveProposals()
+	renderFinished := req.Query.Has("finished")
+	if renderFinished {
+		proposals = dao.FinishedProposals()
 	}
 
 	p, err := pager.New(req.RawPath, proposals.Size(), pager.WithPageSize(8))
@@ -146,10 +149,20 @@ func renderDAOProposals(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
+	res.Write("View: ")
 	r := realmpath.Parse(req.RawPath)
-	reverseSort := r.Query.Get("order") != "asc"
+	if renderFinished {
+		r.Query.Del("finished")
+		res.Write(ufmt.Sprintf("[active](%s)", r.String()))
+	} else {
+		r.Query.Add("finished", "")
+		res.Write(ufmt.Sprintf("[finished](%s)", r.String()))
+	}
 
-	res.Write("Sort by: ")
+	res.Write(" • Sort by: ")
+
+	r = realmpath.Parse(req.RawPath)
+	reverseSort := r.Query.Get("order") != "asc"
 	if reverseSort {
 		r.Query.Set("order", "asc")
 		res.Write(ufmt.Sprintf("[oldest](%s)", r.String()))
@@ -160,7 +173,6 @@ func renderDAOProposals(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write("\n\n")
 
-	// Render proposals
 	proposals.Iterate(p.Offset(), p.PageSize(), reverseSort, func(p *commondao.Proposal) bool {
 		renderProposalListItem(res, dao, p)
 		return false
