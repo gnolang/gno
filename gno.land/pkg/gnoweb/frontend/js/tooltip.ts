@@ -2,32 +2,23 @@ import { throttle } from "./utils";
 
 class Tooltip {
     private DOM: {
-      el: HTMLElement | null;
       tooltip: HTMLSpanElement[];
     };
-    
     private static SELECTORS = {
       tooltip: "[data-tooltip]",
     };
-
     private screenWidth: number;
   
     constructor() {
       this.DOM = {
-        el: document.querySelector<HTMLElement>("main"),
         tooltip: [...document.querySelectorAll<HTMLSpanElement>(Tooltip.SELECTORS.tooltip)]
       };
-  
-      if (this.DOM.el) {
-        this.init();
-      } else {
-        console.warn("Copy: Main container not found.");
-      }
+
+      this.init()
     }
   
     private init(): void {
       this.bindEvents();
-
       this.positionTooltip();
     }
   
