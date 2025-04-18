@@ -1,0 +1,7 @@
+package evm
+
+// for `gno run`
+func main() {
+	code := []byte{0x60, 0x0a, 0x60, 0x0b, 0x01} // PUSH1 0x0a, PUSH1 0x0b, ADD
+	Execute(code)
+}
