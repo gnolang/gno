@@ -18,16 +18,16 @@ func (s *ByteStack) Push(b byte) {
 
 func (s *ByteStack) Pop() (byte, error) {
 	if len(s.data) == 0 {
-		return 0, errors.New("stack underflow")
+		return 0, errors.New("stack is empty")
 	}
 	top := s.data[len(s.data)-1]
 	s.data = s.data[:len(s.data)-1]
 	return top, nil
 }
 
-func (s *ByteStack) Top() (byte, error) {
+func (s *ByteStack) Top() (*byte, error) {
 	if len(s.data) == 0 {
-		return 0, errors.New("stack is empty")
+		return nil, errors.New("stack is empty")
 	}
-	return s.data[len(s.data)-1], nil
+	return &s.data[len(s.data)-1], nil
 }
