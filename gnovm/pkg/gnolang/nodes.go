@@ -2448,8 +2448,10 @@ func validatePkgName(name string) error {
 
 // The distinction is used for validation to work
 // both before and after preprocessing.
-const missingResultNamePrefix = ".res."    // if there was no name
-const underscoreResultNamePrefix = ".res_" // if was underscore
+const (
+	missingResultNamePrefix    = ".res." // if there was no name
+	underscoreResultNamePrefix = ".res_" // if was underscore
+)
 
 func isUnnamedResult(name Name) bool {
 	return isMissingResult(name) || isUnderscoreResult(name)
