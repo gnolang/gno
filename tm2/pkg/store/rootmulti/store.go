@@ -3,6 +3,7 @@ package rootmulti
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -32,6 +33,7 @@ type multiStore struct {
 	storesParams map[types.StoreKey]storeParams
 	stores       map[types.StoreKey]types.CommitStore
 	keysByName   map[string]types.StoreKey
+	mux          sync.Mutex
 }
 
 var (
@@ -87,17 +89,30 @@ func (ms *multiStore) MountStoreWithDB(key types.StoreKey, cons types.CommitStor
 
 // Implements CommitMultiStore.
 func (ms *multiStore) GetCommitStore(key types.StoreKey) types.CommitStore {
+	ms.mux.Lock()
+	defer ms.mux.Unlock()
+
 	return ms.stores[key]
 }
 
 // Implements CommitMultiStore.
 func (ms *multiStore) LoadLatestVersion() error {
+	ms.mux.Lock()
+	defer ms.mux.Unlock()
+
 	ver := getLatestVersion(ms.db)
-	return ms.LoadVersion(ver)
+	return ms.loadVersion(ver)
 }
 
 // Implements CommitMultiStore.
 func (ms *multiStore) LoadVersion(ver int64) error {
+	ms.mux.Lock()
+	defer ms.mux.Unlock()
+
+	return ms.loadVersion(ver)
+}
+
+func (ms *multiStore) loadVersion(ver int64) error {
 	if ver == 0 {
 		// Special logic for version 0 where there is no need to get commit
 		// information.
@@ -167,11 +182,17 @@ func (ms *multiStore) LoadVersion(ver int64) error {
 
 // Implements Committer/CommitStore.
 func (ms *multiStore) LastCommitID() types.CommitID {
+	ms.mux.Lock()
+	defer ms.mux.Unlock()
+
 	return ms.lastCommitID
 }
 
 // Implements Committer/CommitStore.
 func (ms *multiStore) Commit() types.CommitID {
+	ms.mux.Lock()
+	defer ms.mux.Unlock()
+
 	// Commit stores.
 	version := ms.lastCommitID.Version + 1
 	commitInfo := commitStores(version, ms.stores)
@@ -197,6 +218,9 @@ func (ms *multiStore) Commit() types.CommitID {
 
 // Implements MultiStore.
 func (ms *multiStore) MultiCacheWrap() types.MultiStore {
+	ms.mux.Lock()
+	defer ms.mux.Unlock()
+
 	stores := make(map[types.StoreKey]types.Store)
 	for k, v := range ms.stores {
 		stores[k] = v
@@ -212,6 +236,9 @@ func (ms *multiStore) MultiWrite() {
 
 // Implements CommitMultiStore.
 func (ms *multiStore) MultiImmutableCacheWrapWithVersion(version int64) (types.MultiStore, error) {
+	ms.mux.Lock()
+	defer ms.mux.Unlock()
+
 	ims := &multiStore{
 		db:           dbm.NewImmutableDB(ms.db),
 		storeOpts:    ms.storeOpts,
@@ -233,6 +260,9 @@ func (ms *multiStore) MultiImmutableCacheWrapWithVersion(version int64) (types.M
 // Implements MultiStore.
 // If the store does not exist, panics.
 func (ms *multiStore) GetStore(key types.StoreKey) types.Store {
+	ms.mux.Lock()
+	defer ms.mux.Unlock()
+
 	store := ms.stores[key]
 	if store == nil {
 		panic("Could not load store " + key.String())
@@ -262,6 +292,9 @@ func (ms *multiStore) getStoreByName(name string) types.Store {
 // Ie. `req.Path` here is `/<substore>/<path>`, and trimmed to `/<path>` for the substore.
 // TODO: add proof for `multistore -> substore`.
 func (ms *multiStore) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
+	ms.mux.Lock()
+	defer ms.mux.Unlock()
+
 	// Query just routes this to a substore.
 	path := req.Path
 	storeName, subpath, err := parsePath(path)
