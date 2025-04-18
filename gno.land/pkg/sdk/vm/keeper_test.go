@@ -68,6 +68,49 @@ func Echo() string { return "hello world" }
 	assert.Equal(t, expected, memFile.Body)
 }
 
+func TestVMKeeperAddPackage_Metadata(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+
+	// Prepare a message with an invalid tools metadata field
+	files := []*gnovm.MemFile{
+		{
+			Name: "test.gno",
+			Body: "package foo\nfunc Render(string) string{ return \"\"}\n",
+		},
+	}
+	pkgPath := "gno.land/r/test"
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	msg.Metadata = []*MetaField{
+		{Name: "foo", Value: []byte("bar")},
+		{Name: "other", Value: []byte("value")},
+	}
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+
+	err := env.vmk.AddPackage(ctx, msg)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+
+	metadata := make(map[string]string)
+	store := env.vmk.getGnoTransactionStore(ctx)
+	store.IteratePackageMeta(pkgPath, func(field string, value []byte) bool {
+		metadata[field] = string(value)
+		return false
+	})
+	assert.Len(t, metadata, 2)
+	assert.Equal(t, "bar", metadata["foo"])
+	assert.Equal(t, "value", metadata["other"])
+}
+
 func TestVMKeeperAddPackage_InvalidDomain(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
@@ -103,6 +146,90 @@ func Echo() string {return "hello world"}`,
 	store := env.vmk.getGnoTransactionStore(ctx)
 	memFile := store.GetMemFile("gno.land/r/test", "test.gno")
 	assert.Nil(t, memFile)
+}
+
+func TestVMKeeperAddPackage_MetadataTools(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bankk.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+
+	// Prepare a message with an invalid tools metadata field
+	files := []*gnovm.MemFile{
+		{
+			Name: "test.gno",
+			Body: "package foo\nfunc Render(string) string{ return \"\"}\n",
+		},
+	}
+	pkgPath := "gno.land/r/test"
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	msg.Metadata = []*MetaField{{Name: "tools"}}
+
+	t.Run("invalid JSON", func(t *testing.T) {
+		msg.Metadata[0].Value = []byte(`invalid JSON`)
+		err := env.vmk.AddPackage(ctx, msg)
+		assert.Error(t, err, ErrInvalidPkgMeta("invalid tools field format"))
+		assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+	})
+
+	t.Run("tools field missing", func(t *testing.T) {
+		msg.Metadata[0].Value = []byte(`{}`)
+		err := env.vmk.AddPackage(ctx, msg)
+		assert.Error(t, err, ErrInvalidPkgMeta("tools list is empty"))
+		assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+	})
+
+	t.Run("invalid tool name", func(t *testing.T) {
+		msg.Metadata[0].Value = []byte(`{"tools":[{"name":"x","weight":1}]}`)
+		err := env.vmk.AddPackage(ctx, msg)
+		assert.Error(t, err, ErrInvalidPkgMeta(
+			"invalid tool name: x (minimum 6 chars, lowercase alphanumeric with underscore)",
+		))
+		assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+	})
+
+	t.Run("long tool description", func(t *testing.T) {
+		msg.Metadata[0].Value = []byte(fmt.Sprintf(
+			`{"tools":[{"name":"foobar","weight":1,"description":"%s"}]}`,
+			strings.Repeat("A", 101),
+		))
+		err := env.vmk.AddPackage(ctx, msg)
+		assert.Error(t, err, ErrInvalidPkgMeta("maximum length for tool description is 100"))
+		assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+	})
+
+	t.Run("invalid total weight", func(t *testing.T) {
+		msg.Metadata[0].Value = []byte(
+			`{"tools":[{"name":"foobar","weight":0.8}, {"name":"foobaz","weight":0.3}]}`,
+		)
+		err := env.vmk.AddPackage(ctx, msg)
+		assert.Error(t, err, ErrInvalidPkgMeta("the sum of all tool weights must be 1"))
+		assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+	})
+
+	t.Run("success", func(t *testing.T) {
+		expectTools := `{"tools":[{"name":"foobar","weight":1}]}`
+		msg.Metadata[0].Value = []byte(expectTools)
+		err := env.vmk.AddPackage(ctx, msg)
+		assert.NoError(t, err)
+
+		var tools string
+		store := env.vmk.getGnoTransactionStore(ctx)
+		store.IteratePackageMeta(pkgPath, func(field string, value []byte) bool {
+			if field == "tools" {
+				tools = string(value)
+				return true
+			}
+			return false
+		})
+		assert.Equal(t, expectTools, tools)
+	})
 }
 
 // Sending total send amount succeeds.

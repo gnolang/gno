@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"slices"
@@ -67,6 +68,8 @@ type Store interface {
 	ClearObjectCache()                                    // run before processing a message
 	SetNativeResolver(NativeResolver)                     // for native functions
 	GetNative(pkgPath string, name Name) func(m *Machine) // for native functions
+	SetPackageMetaField(pkgPath, field string, value []byte)
+	IteratePackageMeta(pkgPath string, fn func(field string, value []byte) bool) bool
 	SetLogStoreOps(dst io.Writer)
 	LogSwitchRealm(rlmpath string) // to mark change of realm boundaries
 	Print()
@@ -921,6 +924,29 @@ func (ds *defaultStore) GetNative(pkgPath string, name Name) func(m *Machine) {
 	return nil
 }
 
+func (ds *defaultStore) SetPackageMetaField(pkgPath, field string, value []byte) {
+	key := backendPackageMetaFieldKey(pkgPath, field)
+	ds.iavlStore.Set([]byte(key), value)
+}
+
+func (ds *defaultStore) IteratePackageMeta(pkgPath string, fn func(field string, value []byte) bool) bool {
+	prefix := []byte(packageMetaFieldKeyPrefix(pkgPath))
+	iter := ds.iavlStore.Iterator(prefix, nil)
+	defer iter.Close()
+	for ; iter.Valid(); iter.Next() {
+		if !bytes.HasPrefix(iter.Key(), prefix) {
+			// Stop when all package fields are iterated
+			break
+		}
+
+		field := iter.Key()[len(prefix):]
+		if fn(string(field), iter.Value()) {
+			return true
+		}
+	}
+	return false
+}
+
 // Set to nil to disable.
 func (ds *defaultStore) SetLogStoreOps(buf io.Writer) {
 	if enabled {
@@ -991,6 +1017,14 @@ func backendPackageIndexKey(index uint64) string {
 
 func backendPackagePathKey(path string) string {
 	return "pkg:" + path
+}
+
+func backendPackageMetaFieldKey(path, field string) string {
+	return packageMetaFieldKeyPrefix(path) + field
+}
+
+func packageMetaFieldKeyPrefix(path string) string {
+	return "pkgmeta:" + path + "#"
 }
 
 // ----------------------------------------
