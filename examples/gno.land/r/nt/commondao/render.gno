@@ -9,6 +9,7 @@ import (
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/jeronimoalbi/pager"
+	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/nt/commondao"
 )
@@ -145,8 +146,22 @@ func renderDAOProposals(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
+	r := realmpath.Parse(req.RawPath)
+	reverseSort := r.Query.Get("order") != "asc"
+
+	res.Write("Sort by: ")
+	if reverseSort {
+		r.Query.Set("order", "asc")
+		res.Write(ufmt.Sprintf("[oldest](%s)", r.String()))
+	} else {
+		r.Query.Set("order", "desc")
+		res.Write(ufmt.Sprintf("[newest](%s)", r.String()))
+	}
+
+	res.Write("\n\n")
+
 	// Render proposals
-	proposals.Iterate(p.Offset(), p.PageSize(), func(p *commondao.Proposal) bool {
+	proposals.Iterate(p.Offset(), p.PageSize(), reverseSort, func(p *commondao.Proposal) bool {
 		renderProposalListItem(res, dao, p)
 		return false
 	})
