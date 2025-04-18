@@ -65,6 +65,9 @@ func MakeAdmin(groupId string, adr std.Address) {
 func RemoveAdminRank(groupId string, adr std.Address) {
 	group := organizer.GetGroupFromId(groupId)
 
+	if adr == group.Owner.Owner() {
+		panic("You cannot undo admin rights of the owner")
+	}
 	group.DAO.RemoveAdminRank(organizer.AddressLoggedIn, adr)
 }
 
@@ -77,6 +80,18 @@ func CreateProposals(groupId, title, desc, callback string, callbackArgsStr stri
 	callbackArgs := strings.Split(callbackArgsStr, ",")
 
 	group.DAO.CreateProposals(title, desc, callback, callbackArgs, organizer.AddressLoggedIn)
+}
+
+// Wrapper for admin to close proposal forcefully
+func AdminCloseProposal(groupId string, voteIdStr string) {
+	group := organizer.GetGroupFromId(groupId)
+
+	voteId, err := strconv.Atoi(voteIdStr)
+	if err != nil {
+		panic("Invalid vote ID.")
+	}
+
+	group.DAO.AdminCloseProposal(voteId, organizer.AddressLoggedIn)
 }
 
 // Allows the owner to delete the friendgroup
@@ -152,7 +167,7 @@ func displayPendingApproval(group organizer.FriendGroup, awaiting *avl.Tree) str
 // Let the admin promote / demote / remove member
 func displayMembers(group organizer.FriendGroup, whitelist *avl.Tree) string {
 	table := mdtable.Table{
-		Headers: []string{"Address", "Action"},
+		Headers: []string{"Address", "Rank", "Action"},
 	}
 
 	whitelist.Iterate("", "", func(indexStr string, val any) bool {
@@ -163,14 +178,26 @@ func displayMembers(group organizer.FriendGroup, whitelist *avl.Tree) string {
 			return false
 		}
 
-		if group.DAO.IsAdmin(adr) {
-			actionAdmin = md.Link("Remove Admin", txlink.Call("RemoveAdminRank", "groupId", strconv.Itoa(group.ID), "adr", adr.String()))
-		} else {
-			actionAdmin = md.Link("Make Admin", txlink.Call("MakeAdmin", "groupId", strconv.Itoa(group.ID), "adr", adr.String()))
+		var rank string
+		switch {
+		case adr == group.Owner.Owner():
+			rank = "Owner"
+		case group.DAO.IsAdmin(adr):
+			rank = "Admin"
+		default:
+			rank = "Member"
 		}
 
-		table.Append([]string{adr.String(),
-			actionAdmin + " | " +
+		if rank != "Owner" {
+			if group.DAO.IsAdmin(adr) {
+				actionAdmin = md.Link("Remove Admin", txlink.Call("RemoveAdminRank", "groupId", strconv.Itoa(group.ID), "adr", adr.String())) + " | "
+			} else {
+				actionAdmin = md.Link("Make Admin", txlink.Call("MakeAdmin", "groupId", strconv.Itoa(group.ID), "adr", adr.String())) + " | "
+			}
+		}
+
+		table.Append([]string{adr.String(), rank,
+			actionAdmin +
 				md.Link("Kick out", txlink.Call("RemoveMember", "groupId", strconv.Itoa(group.ID), "adr", adr.String())),
 		})
 
@@ -211,6 +238,29 @@ func displayAdminBoard(group organizer.FriendGroup) string {
 	out += md.HorizontalRule() + "\n"
 
 	return out
+}
+
+func displayHangouts(group organizer.FriendGroup) string {
+	hangouts := group.DAO.GetHangouts()
+
+	table := mdtable.Table{
+		Headers: []string{"ID", "Date", "Time", "Place", "Description"},
+	}
+
+	hangouts.Iterate("", "", func(_ string, val any) bool {
+		hangout := val.(dao.HangoutInfo)
+		table.Append([]string{
+			strconv.Itoa(hangout.Id),
+			hangout.Date,
+			hangout.Time,
+			hangout.Place,
+			hangout.Description,
+		})
+
+		return false
+	})
+
+	return table.String()
 }
 
 func displayProposals(group organizer.FriendGroup, activeOnly bool) string {
@@ -260,6 +310,16 @@ func displayProposals(group organizer.FriendGroup, activeOnly bool) string {
 						"groupId", strconv.Itoa(group.ID),
 						"index", index,
 						"vote", strconv.Itoa(organizer.VoteNay)))
+
+			if group.DAO.IsAdmin(organizer.AddressLoggedIn) {
+				closeLink := md.Link("Close", txlink.Call("AdminCloseProposal",
+					"groupId", strconv.Itoa(group.ID), "voteId", index))
+				if voteActions == "-" {
+					voteActions = closeLink
+				} else {
+					voteActions += " | " + closeLink
+				}
+			}
 		}
 
 		table.Append([]string{
@@ -291,6 +351,10 @@ func Render(url string) string {
 		out += displayAdminBoard(group)
 	}
 
+	out += md.H2("Hangouts")
+	out += displayHangouts(group)
+	out += md.HorizontalRule()
+
 	out += md.H2("Active DAOs")
 	out += displayProposals(group, true)
 	out += md.HorizontalRule()
@@ -303,6 +367,7 @@ func Render(url string) string {
 
 	if group.Owner.Owner() == organizer.AddressLoggedIn {
 		out += md.Paragraph(" | " + md.Link("Delete Group", txlink.Call("DeleteFriendGroup", "groupId", strconv.Itoa(group.ID))))
+		out += md.Paragraph(" | " + md.Link("Give ownership", txlink.Call("SwitchOwner", "groupId", strconv.Itoa(group.ID), "adr", "default")))
 	}
 	return out
 }
