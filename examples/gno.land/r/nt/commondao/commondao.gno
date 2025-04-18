@@ -9,6 +9,7 @@ import (
 )
 
 // TODO: Use a trie tree to store hierarchical DAOs
+// TODO: Support DAO options (ex. review deadline, private, allow subDAOs, ...)
 
 // CommonDAOID is the ID of the realm's DAO.
 const CommonDAOID uint64 = 1
