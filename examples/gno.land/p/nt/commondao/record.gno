@@ -78,6 +78,14 @@ func (r ReadonlyVotingRecord) HasVoted(user std.Address) bool {
 	return r.votes.Has(user.String())
 }
 
+// GetVote returns a vote.
+func (r ReadonlyVotingRecord) GetVote(user std.Address) (_ Vote, found bool) {
+	if v, found := r.votes.Get(user.String()); found {
+		return v.(Vote), true
+	}
+	return Vote{}, false
+}
+
 // VotingRecord stores accounts that voted and vote choices.
 type VotingRecord struct {
 	ReadonlyVotingRecord

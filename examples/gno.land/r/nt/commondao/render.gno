@@ -226,22 +226,15 @@ func renderProposalsListItem(res *mux.ResponseWriter, dao *commondao.CommonDAO, 
 }
 
 func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
-	rawID := req.GetVar("proposalID")
-	proposalID, err := strconv.ParseUint(rawID, 10, 64)
-	if err != nil {
-		res.Write("Invalid proposal ID")
-		return
-	}
-
 	dao, err := getRequestDAO(req)
 	if err != nil {
 		res.Write(err.Error())
 		return
 	}
 
-	p := dao.GetProposal(proposalID)
-	if p == nil {
-		res.Write("Proposal not found")
+	p, err := getRequestProposal(req, dao)
+	if err != nil {
+		res.Write(err.Error())
 		return
 	}
 
@@ -254,7 +247,7 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Render header
 	res.Write("# #")
-	res.Write(strconv.FormatUint(proposalID, 10))
+	res.Write(strconv.FormatUint(p.ID(), 10))
 	res.Write(" ")
 	res.Write(def.Title())
 	res.Write("\n")
@@ -273,8 +266,6 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	res.Write("\n\n---\n")
-
-	// TODO: dao.Tally()
 
 	// Render details
 	res.Write("## Details\n")
@@ -339,7 +330,43 @@ func renderProposalVotes(res *mux.ResponseWriter, path string, dao *commondao.Co
 }
 
 func renderProposalVote(res *mux.ResponseWriter, req *mux.Request) {
-	// TODO: Implement proposal vote view
+	member := std.Address(req.GetVar("address"))
+	if !member.IsValid() {
+		res.Write("Invalid address")
+		return
+	}
+
+	dao, err := getRequestDAO(req)
+	if err != nil {
+		res.Write(err.Error())
+		return
+	}
+
+	p, err := getRequestProposal(req, dao)
+	if err != nil {
+		res.Write(err.Error())
+		return
+	}
+
+	v, found := p.VotingRecord().GetVote(member)
+	if !found {
+		res.Write("Vote not found")
+		return
+	}
+
+	res.Write(ufmt.Sprintf("# Vote for Proposal #%d\n", p.ID()))
+	res.Write(ufmt.Sprintf("[Go to DAO](%s) • ", daoURL(dao)))
+	res.Write(ufmt.Sprintf("[Go to Proposal](%s)", proposalURL(dao, p)))
+	res.Write("\n\n---\n")
+
+	res.Write("## Details\n")
+	res.Write(ufmt.Sprintf("- Address: %s\n", v.Address)) // TODO: Add users link
+	res.Write(ufmt.Sprintf("- Vote: %s\n", string(v.Choice)))
+
+	if v.Reason != "" {
+		res.Write("## Reason\n")
+		res.Write(v.Reason)
+	}
 }
 
 func getRequestDAO(req *mux.Request) (*commondao.CommonDAO, error) {
@@ -366,6 +393,20 @@ func getRequestDAO(req *mux.Request) (*commondao.CommonDAO, error) {
 		return nil, errors.New("DAO not found")
 	}
 	return dao, nil
+}
+
+func getRequestProposal(req *mux.Request, dao *commondao.CommonDAO) (*commondao.Proposal, error) {
+	rawID := req.GetVar("proposalID")
+	proposalID, err := strconv.ParseUint(rawID, 10, 64)
+	if err != nil {
+		return nil, errors.New("Invalid proposal ID")
+	}
+
+	p := dao.GetProposal(proposalID)
+	if p == nil {
+		return nil, errors.New("Proposal not found")
+	}
+	return p, nil
 }
 
 func voteLink(daoID, proposalID uint64) string {
