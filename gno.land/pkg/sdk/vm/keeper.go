@@ -668,9 +668,11 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 var reUserNamespace = regexp.MustCompile(`^[~_a-zA-Z0-9/]+$`)
 
-// QueryNamespacePaths returns public facing function signatures.
+// QueryPaths returns public facing function signatures.
+// XXX: Implement pagination
 func (vm *VMKeeper) QueryPaths(ctx sdk.Context, target string, limit int) ([]string, error) {
-	const maxlimit = 1_000_000
+	const maxlimit = 10_000
+
 	if limit == 0 { // 0 means unlimited elements
 		limit = maxlimit
 	} else {
@@ -692,14 +694,22 @@ func (vm *VMKeeper) QueryPaths(ctx sdk.Context, target string, limit int) ([]str
 	}
 
 	if strings.HasPrefix(target, "@") {
-		name := target[1:]
+		name, prefix, found := strings.Cut(target[1:], "/")
 		if !reUserNamespace.MatchString(name) {
 			return nil, errors.New("invalid username format")
 		}
 
-		domain := vm.getChainDomainParam(ctx)
+		ctxDomain := vm.getChainDomainParam(ctx)
 		store := vm.newGnoTransactionStore(ctx) // throwaway (never committed) // XXX: is that really needed ?
-		rpath, ppath := path.Join(domain, "r", name)+"/", path.Join(domain, "p", name)+"/"
+		rpath := path.Join(ctxDomain, "r", name, prefix)
+		ppath := path.Join(ctxDomain, "p", name, prefix)
+
+		// If a no path is specified behind name, add a slash
+		if !found {
+			rpath += "/"
+			ppath += "/"
+		}
+
 		store.FindPathsByPrefix(rpath)(yield)
 		store.FindPathsByPrefix(ppath)(yield)
 		return paths, nil
