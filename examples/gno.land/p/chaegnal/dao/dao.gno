@@ -215,13 +215,9 @@ func (dao *DAO) RemoveAdminRank(caller, adr std.Address) {
 		panic("Only admins can demote members.")
 	}
 
-	member, ok := dao.IsMember(adr)
+	member, _ := dao.IsMember(adr)
 	if !dao.IsAdmin(adr) {
 		panic("Member is not an admin.")
-	}
-
-	if !ok {
-		panic("Not a member.")
 	}
 
 	if caller == adr {
