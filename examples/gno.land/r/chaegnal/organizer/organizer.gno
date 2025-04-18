@@ -52,7 +52,7 @@ func ResolveAddressName(addr std.Address) string {
 }
 
 // Retrieve a group from a given ID
-func getGroupFromId(groupId string) FriendGroup {
+func GetGroupFromId(groupId string) FriendGroup {
 	convertedId, err := strconv.Atoi(groupId)
 	if err != nil {
 		panic("Invalid ID")
@@ -117,7 +117,7 @@ func Logout() {
 
 // Wrapper to leave a group and DAO
 func LeaveGroup(groupId string) {
-	group := getGroupFromId(groupId)
+	group := GetGroupFromId(groupId)
 
 	if AddressLoggedIn == group.Owner.Owner() {
 		panic("Owner cannot leave the group.")
@@ -268,7 +268,7 @@ func Render(rawURL string) string {
 	out += md.H1("Welcome to Friendly Organizer")
 	out += md.Paragraph("Here you can join and create FriendGroups to organize your next hangout")
 
-	out += md.Paragraph(md.Link("Create New FriendGroup", txlink.Call("CreateFriendGroup", "title")))
+	out += md.Paragraph(md.Link("Create New FriendGroup", txlink.Call("CreateFriendGroup", "title", "default")))
 
 	if AddressLoggedIn == "" {
 		out += md.H2(md.Link("Login to see your joined group", txlink.Call("Login")))
