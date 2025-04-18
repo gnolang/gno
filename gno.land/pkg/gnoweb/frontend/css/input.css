@@ -27,12 +27,12 @@
     font-feature-settings:
       "kern" on,
       "liga" on,
-      "calt" on,
+      "calt" off,
       "zero" on;
     -webkit-font-feature-settings:
       "kern" on,
       "liga" on,
-      "calt" on,
+      "calt" off,
       "zero" on;
     text-size-adjust: 100%;
     -moz-osx-font-smoothing: grayscale;
@@ -59,7 +59,7 @@
   }
 
   .realm-view a {
-    @apply text-green-600 font-medium hover:underline;
+    @apply relative text-green-600 font-medium hover:underline;
   }
 
   .realm-view h1,
@@ -134,7 +134,7 @@
   }
 
   .realm-view img {
-    @apply max-w-full my-8;
+    @apply max-w-full my-8 border border-gray-100 select-none rounded ;
   }
 
   .realm-view figure {
@@ -302,12 +302,16 @@
 
   /* Tooltip */
   .tooltip {
+    --tooltip-left: 0;
+    --tooltip-right: initial;
     @apply relative inline;
   }
 
   .tooltip::after {
     content: attr(data-tooltip);
-    @apply absolute z-max scale-0 invisible px-2 py-1 bg-light rounded border border-gray-100 w-fit min-w-32 max-w-48 top-full -left-1 text-center text-100 text-gray-600 font-normal transition-opacity opacity-0;
+    left: var(--tooltip-left);
+    right: var(--tooltip-right);
+    @apply absolute z-max scale-0 invisible px-2 py-1 bg-light rounded border border-gray-100 w-fit min-w-32 max-w-48 top-full text-center text-100 text-gray-600 font-normal transition-opacity opacity-0;
   }
 
   .tooltip:hover::after {
@@ -387,8 +391,17 @@
     @apply text-[.8em];
   }
 
-  :is(.link-external, .link-internal, .link-tx) {
+  .tooltip {
     @apply inline align-text-top;
+  }
+
+  /* link with image only shoud display the link badge on the image */
+  .realm-view a:has(> img:first-child):has(.tooltip:last-child):not(:has(> :nth-child(3))) > .tooltip,
+  .realm-view a:has(> img:first-child):has(.tooltip + .tooltip:last-child):not(:has(> :nth-child(4))) > .tooltip  {
+    @apply absolute bottom-2 left-2 bg-light px-1 rounded-full ml-0;
+  }
+  .realm-view a:has(> img:first-child):has(.tooltip + .tooltip:last-child):not(:has(> :nth-child(4))) > .tooltip:first-of-type  {
+    @apply absolute bottom-1 left-6;
   }
 
   .realm-view a > span:first-of-type {
