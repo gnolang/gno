@@ -5,6 +5,7 @@ import (
 	"std"
 	"strconv"
 	"strings"
+	"time"
 
 	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
@@ -14,14 +15,15 @@ import (
 	"gno.land/p/nt/commondao"
 )
 
-func Render(path string) string {
-	// TODO: Add view to render a single proposal (allow/disallow must be configurable)
+const dateFormat = "Mon, 02 Jan 2006 03:04pm MST"
 
+func Render(path string) string {
 	router := mux.NewRouter()
 	router.HandleFunc("", renderHome)
 	router.HandleFunc("{daoID}", renderDAO)
-	router.HandleFunc("{daoID}/proposals", renderDAOProposals)
-	// TODO: Implement proposal view
+	router.HandleFunc("{daoID}/proposals", renderProposalsList)
+	router.HandleFunc("{daoID}/proposals/{proposalID}", renderProposal)
+	router.HandleFunc("{daoID}/proposals/{proposalID}/vote/{address}", renderProposalVote)
 	return router.Render(path)
 }
 
@@ -32,8 +34,6 @@ func renderHome(res *mux.ResponseWriter, _ *mux.Request) {
 }
 
 func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
-	// TODO: Support config option to allow/disallow rendering a DAO
-
 	dao, err := getRequestDAO(req)
 	if err != nil {
 		res.Write(err.Error())
@@ -84,29 +84,29 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write("## Latest Proposals\n")
 	proposals.Iterate(0, 3, true, func(p *commondao.Proposal) bool {
-		renderProposalListItem(res, dao, p)
+		renderProposalsListItem(res, dao, p)
 		return false
 	})
 }
 
 func renderMembers(res *mux.ResponseWriter, path string, members commondao.MemberStorage) {
-	p, err := pager.New(path, members.Size(), pager.WithPageQueryParam("members"), pager.WithPageSize(8))
+	pages, err := pager.New(path, members.Size(), pager.WithPageQueryParam("members"), pager.WithPageSize(8))
 	if err != nil {
 		res.Write(err.Error())
 		return
 	}
 
 	res.Write("| Members |\n| --- |\n")
-	members.IterateByOffset(p.Offset(), p.PageSize(), func(addr std.Address) bool {
+	members.IterateByOffset(pages.Offset(), pages.PageSize(), func(addr std.Address) bool {
 		res.Write("| ")
 		res.Write(addr.String())
 		res.Write(" |\n")
 		return false
 	})
 
-	if p.HasPages() {
+	if pages.HasPages() {
 		res.Write("\n")
-		res.Write(pager.Picker(p))
+		res.Write(pager.Picker(pages))
 		res.Write("\n")
 	}
 
@@ -125,7 +125,7 @@ func renderTree(res *mux.ResponseWriter, dao *commondao.CommonDAO, indent string
 	})
 }
 
-func renderDAOProposals(res *mux.ResponseWriter, req *mux.Request) {
+func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
 	dao, err := getRequestDAO(req)
 	if err != nil {
 		res.Write(err.Error())
@@ -153,7 +153,7 @@ func renderDAOProposals(res *mux.ResponseWriter, req *mux.Request) {
 		proposals = dao.FinishedProposals()
 	}
 
-	p, err := pager.New(req.RawPath, proposals.Size(), pager.WithPageSize(8))
+	pages, err := pager.New(req.RawPath, proposals.Size(), pager.WithPageSize(8))
 	if err != nil {
 		res.Write(err.Error())
 		return
@@ -183,20 +183,20 @@ func renderDAOProposals(res *mux.ResponseWriter, req *mux.Request) {
 
 	res.Write("\n\n")
 
-	proposals.Iterate(p.Offset(), p.PageSize(), reverseSort, func(p *commondao.Proposal) bool {
-		renderProposalListItem(res, dao, p)
+	proposals.Iterate(pages.Offset(), pages.PageSize(), reverseSort, func(p *commondao.Proposal) bool {
+		renderProposalsListItem(res, dao, p)
 		return false
 	})
 
 	// Render pager
-	if p.HasPages() {
+	if pages.HasPages() {
 		res.Write("\n\n---\n")
-		res.Write(pager.Picker(p))
+		res.Write(pager.Picker(pages))
 		res.Write("\n")
 	}
 }
 
-func renderProposalListItem(res *mux.ResponseWriter, dao *commondao.CommonDAO, p *commondao.Proposal) {
+func renderProposalsListItem(res *mux.ResponseWriter, dao *commondao.CommonDAO, p *commondao.Proposal) {
 	def := p.Definition()
 	record := p.VotingRecord()
 
@@ -205,23 +205,150 @@ func renderProposalListItem(res *mux.ResponseWriter, dao *commondao.CommonDAO, p
 
 	// Render details
 	res.Write(ufmt.Sprintf("Created by %s  \n", p.Creator())) // TODO: Add users link
-	res.Write(ufmt.Sprintf("Voting ends on %s  \n", p.VotingDeadline().Format("Mon, 02 Jan 2006 03:04pm MST")))
+	res.Write(ufmt.Sprintf("Voting ends on %s  \n", p.VotingDeadline().UTC().Format(dateFormat)))
 
 	// Render status
-	res.Write(ufmt.Sprintf("**%d votes** • ", record.Size()))
+	status := []string{
+		ufmt.Sprintf("**%d votes**", record.Size()),
+	}
 
 	// Render actions
-	res.Write(voteLink(dao.ID(), p.ID()))
-	res.Write(" • ")
-	res.Write(executeLink(dao.ID(), p.ID()))
+	if isVotingAllowed(p) {
+		status = append(status, voteLink(dao.ID(), p.ID()))
+	}
+
+	if isExecutionAllowed(p) {
+		status = append(status, executeLink(dao.ID(), p.ID()))
+	}
+
+	res.Write(strings.Join(status, " • "))
 	res.Write("\n\n")
 }
 
+func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
+	rawID := req.GetVar("proposalID")
+	proposalID, err := strconv.ParseUint(rawID, 10, 64)
+	if err != nil {
+		res.Write("Invalid proposal ID")
+		return
+	}
+
+	dao, err := getRequestDAO(req)
+	if err != nil {
+		res.Write(err.Error())
+		return
+	}
+
+	p := dao.GetProposal(proposalID)
+	if p == nil {
+		res.Write("Proposal not found")
+		return
+	}
+
+	votingAllowed := isVotingAllowed(p)
+	if votingAllowed {
+		res.Write(ufmt.Sprintf("> Voting ends on **%s**\n", p.VotingDeadline().UTC().Format(dateFormat)))
+	}
+
+	def := p.Definition()
+
+	// Render header
+	res.Write("# #")
+	res.Write(strconv.FormatUint(proposalID, 10))
+	res.Write(" ")
+	res.Write(def.Title())
+	res.Write("\n")
+
+	// Render main menu
+	res.Write(ufmt.Sprintf("[Go to DAO](%s)", daoURL(dao)))
+
+	if votingAllowed {
+		res.Write(" • ")
+		res.Write(voteLink(dao.ID(), p.ID()))
+	}
+
+	if isExecutionAllowed(p) {
+		res.Write(" • ")
+		res.Write(executeLink(dao.ID(), p.ID()))
+	}
+
+	res.Write("\n\n---\n")
+
+	// TODO: dao.Tally()
+
+	// Render details
+	res.Write("## Details\n")
+	res.Write(ufmt.Sprintf("- Proposer: %s\n", p.Creator())) // TODO: Add users link
+	res.Write(ufmt.Sprintf("- Submit Time: %s\n", p.CreatedAt().UTC().Format(time.RFC1123)))
+
+	res.Write(ufmt.Sprintf("- Status: **%s**", string(p.Status())))
+	if reason := p.StatusReason(); reason != "" {
+		res.Write(ufmt.Sprintf(" • _%s_", reason))
+	}
+	res.Write("\n")
+
+	// Render proposal body
+	if body := def.Body(); body != "" {
+		res.Write("## Description\n")
+		res.Write(body)
+		res.Write("\n\n")
+	}
+
+	// Render voting stats
+	// TODO: Render voting stats (update and save stats on vote?)
+
+	// Render votes
+	record := p.VotingRecord()
+	if record.Size() > 0 {
+		res.Write("## Votes\n")
+		res.Write(ufmt.Sprintf("Total number of votes: **%d**\n", record.Size()))
+		renderProposalVotes(res, req.RawPath, dao, p)
+	}
+}
+
+func renderProposalVotes(res *mux.ResponseWriter, path string, dao *commondao.CommonDAO, p *commondao.Proposal) {
+	record := p.VotingRecord()
+	pages, err := pager.New(path, record.Size(), pager.WithPageQueryParam("votes"), pager.WithPageSize(5))
+	if err != nil {
+		res.Write(err.Error())
+		return
+	}
+
+	res.Write("| Member | Vote |\n| --- | --- |\n")
+	record.Iterate(pages.Offset(), pages.PageSize(), false, func(v commondao.Vote) bool {
+		res.Write("| ")
+		res.Write(v.Address.String())
+		res.Write(" | ")
+		res.Write(ufmt.Sprintf("[%s](%s)", string(v.Choice), voteURL(dao, p, v.Address)))
+
+		if v.Reason != "" {
+			res.Write(" with a reason")
+		}
+
+		res.Write(" |\n")
+		return false
+	})
+
+	if pages.HasPages() {
+		res.Write("\n")
+		res.Write(pager.Picker(pages))
+		res.Write("\n")
+	}
+
+	res.Write("\n")
+}
+
+func renderProposalVote(res *mux.ResponseWriter, req *mux.Request) {
+	// TODO: Implement proposal vote view
+}
+
 func getRequestDAO(req *mux.Request) (*commondao.CommonDAO, error) {
+	// TODO: Check options to see if DAO rendering is allowed
+
 	rawID := req.GetVar("daoID")
 	daoID, err := strconv.ParseUint(rawID, 10, 64)
 	if err != nil {
-		return nil, errors.New("Value is an invalid DAO ID")
+		return nil, errors.New("Invalid DAO ID")
 	}
 
 	var (
@@ -242,7 +369,7 @@ func getRequestDAO(req *mux.Request) (*commondao.CommonDAO, error) {
 }
 
 func voteLink(daoID, proposalID uint64) string {
-	return ufmt.Sprintf("[vote](%s)", txlink.Call(
+	return ufmt.Sprintf("[Vote](%s)", txlink.Call(
 		"Vote",
 		"daoID", strconv.FormatUint(daoID, 10), // TODO: SubDAOs have no ID, only slug
 		"proposalID", strconv.FormatUint(proposalID, 10),
@@ -252,9 +379,17 @@ func voteLink(daoID, proposalID uint64) string {
 }
 
 func executeLink(daoID, proposalID uint64) string {
-	return ufmt.Sprintf("[execute](%s)", txlink.Call(
+	return ufmt.Sprintf("[Execute](%s)", txlink.Call(
 		"Execute",
 		"daoID", strconv.FormatUint(daoID, 10), // TODO: SubDAOs have no ID, only slug
 		"proposalID", strconv.FormatUint(proposalID, 10),
 	))
+}
+
+func isVotingAllowed(p *commondao.Proposal) bool {
+	return p.Status() == commondao.StatusActive && time.Now().Before(p.VotingDeadline())
+}
+
+func isExecutionAllowed(p *commondao.Proposal) bool {
+	return p.Status() == commondao.StatusActive && !time.Now().Before(p.VotingDeadline())
 }
