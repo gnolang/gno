@@ -1,46 +1,32 @@
-import { throttle } from "./utils";
-
 class Tooltip {
-    private DOM: {
-      tooltip: HTMLSpanElement[];
-    };
-    private static SELECTORS = {
-      tooltip: "[data-tooltip]",
-    };
-    private screenWidth: number;
-  
-    constructor() {
-      this.DOM = {
-        tooltip: [...document.querySelectorAll<HTMLSpanElement>(Tooltip.SELECTORS.tooltip)]
-      };
+  private DOM = {
+    tooltip: [] as HTMLSpanElement[],
+  };
 
-      this.init()
-    }
-  
-    private init(): void {
-      this.bindEvents();
-      this.positionTooltip();
-    }
-  
-    private bindEvents(): void {
-      window.addEventListener("resize", throttle(this.positionTooltip.bind(this), 100));
-    }
-  
-    private positionTooltip(): void {
-        this.screenWidth = window.innerWidth;
-        this.DOM.tooltip.forEach((tooltip) => {
-           const tooltipLeft = tooltip.getBoundingClientRect().left;
+  private static SELECTORS = {
+    tooltip: "[data-tooltip]",
+  };
 
-           if(tooltipLeft > this.screenWidth / 2) {
-            tooltip.style.setProperty("--tooltip-left", `initial`);
-            tooltip.style.setProperty("--tooltip-right", `0`);
-           } else {
-            tooltip.style.setProperty("--tooltip-left", `0`);
-            tooltip.style.setProperty("--tooltip-right", `initial`);
-           }
-        });
-    }
+  constructor() {
+    this.DOM.tooltip = [
+      ...document.querySelectorAll<HTMLSpanElement>(Tooltip.SELECTORS.tooltip),
+    ];
+    
+    this.positionTooltip();
+    window.addEventListener("resize", this.positionTooltip.bind(this));
   }
-  
-  export default () => new Tooltip();
-  
+
+  private positionTooltip(): void {
+    const screenWidth = window.innerWidth;
+
+    this.DOM.tooltip.forEach((tooltip) => {
+      const tooltipLeft = tooltip.getBoundingClientRect().left;
+      const isRightSide = tooltipLeft > screenWidth / 2;
+
+      tooltip.style.setProperty("--tooltip-left", isRightSide ? "initial" : "0");
+      tooltip.style.setProperty("--tooltip-right", isRightSide ? "0" : "initial");
+    });
+  }
+}
+
+export default () => new Tooltip();
