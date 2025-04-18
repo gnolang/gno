@@ -76,7 +76,17 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 		renderTree(res, dao, "")
 	}
 
-	// TODO: List latest 10 proposals
+	// Render latest proposals
+	proposals := dao.ActiveProposals()
+	if proposals.Size() == 0 {
+		return
+	}
+
+	res.Write("## Latest Proposals\n")
+	proposals.Iterate(0, 3, true, func(p *commondao.Proposal) bool {
+		renderProposalListItem(res, dao, p)
+		return false
+	})
 }
 
 func renderMembers(res *mux.ResponseWriter, path string, members commondao.MemberStorage) {
