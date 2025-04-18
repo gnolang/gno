@@ -203,6 +203,51 @@ func tee(ptr *io.Writer, dst io.Writer) (revert func()) {
 	}
 }
 
+// an empty type
+type void struct{}
+
+// a set of string, to only check for string containing
+type stringSet map[string]void
+
+// remove the '_filetest' and '_test' extensions
+// example: when 'foo_test.gno' is given, you get 'foo.gno'
+func cleanTestFilename(name string) string {
+	// get the extension
+	ext := ""
+	for i := len(name) - 1; i >= 0; i-- {
+		if name[i] == '.' {
+			ext = name[i:]
+			name = name[:i]
+			break
+		}
+	}
+
+	// remove the suffix
+	if len(name) >= 9 && name[len(name)-9:] == "_filetest" {
+		name = name[:len(name)-9]
+	} else if len(name) >= 5 && name[len(name)-5:] == "_test" {
+		name = name[:len(name)-5]
+	}
+	return name + ext
+}
+
+// check for filetests and tests files if they have there matching twin.
+// example: 'foo_test.gno' should have 'foo.gno'
+func (opts *TestOptions) removeNonTwinTests(rset stringSet, set *gno.FileSet) {
+	n := 0
+	for _, x := range set.Files {
+		rgFile := cleanTestFilename(string(x.Name))
+		_, ok := rset[rgFile]
+		if ok {
+			set.Files = append(set.Files, x)
+			n++
+		} else {
+			fmt.Fprintf(opts.Error, "=== \x1b[33mWARN\x1b[m  '%s' does not have a matching candidate ('%s'). Test file is ignored.\n", x.Name, rgFile)
+		}
+	}
+	set.Files = set.Files[:n]
+}
+
 // Test runs tests on the specified memPkg.
 // fsDir is the directory on filesystem of package; it's used in case opts.Sync
 // is enabled, and points to the directory where the files are contained if they
@@ -223,7 +268,11 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 	// Stands for "test", "integration test", and "filetest".
 	// "integration test" are the test files with `package xxx_test` (they are
 	// not necessarily integration tests, it's just for our internal reference.)
-	tset, itset, itfiles, ftfiles := parseMemPackageTests(memPkg)
+	tset, itset, rset, itfiles, ftfiles := parseMemPackageTests(memPkg)
+
+	// Remove the tests if there is no regular files linked to it
+	opts.removeNonTwinTests(rset, tset)
+	opts.removeNonTwinTests(rset, itset)
 
 	// Testing with *_test.gno
 	if len(tset.Files)+len(itset.Files) > 0 {
@@ -258,41 +307,42 @@ func Test(memPkg *gnovm.MemPackage, fsDir string, opts *TestOptions) error {
 
 	// Testing with *_filetest.gno.
 	if len(ftfiles) > 0 {
-		filter := splitRegexp(opts.RunFlag)
-		for _, testFile := range ftfiles {
-			testFileName := testFile.Name
-			testFilePath := filepath.Join(fsDir, testFileName)
-			testName := "file/" + testFileName
-			if !shouldRun(filter, testName) {
-				continue
-			}
-
-			startedAt := time.Now()
-			if opts.Verbose {
-				fmt.Fprintf(opts.Error, "=== RUN   %s\n", testName)
-			}
-
-			changed, err := opts.runFiletest(testFileName, []byte(testFile.Body))
-			if changed != "" {
-				// Note: changed always == "" if opts.Sync == false.
-				err = os.WriteFile(testFilePath, []byte(changed), 0o644)
-				if err != nil {
-					panic(fmt.Errorf("could not fix golden file: %w", err))
-				}
-			}
-
-			duration := time.Since(startedAt)
-			dstr := fmtDuration(duration)
-			if err != nil {
-				fmt.Fprintf(opts.Error, "--- FAIL: %s (%s)\n", testName, dstr)
-				fmt.Fprintln(opts.Error, err.Error())
-				errs = multierr.Append(errs, fmt.Errorf("%s failed", testName))
-			} else if opts.Verbose {
-				fmt.Fprintf(opts.Error, "--- PASS: %s (%s)\n", testName, dstr)
-			}
-
-			// XXX: add per-test metrics
+		return errs
+	}
+	filter := splitRegexp(opts.RunFlag)
+	for _, testFile := range ftfiles {
+		testFileName := testFile.Name
+		testFilePath := filepath.Join(fsDir, testFileName)
+		testName := "file/" + testFileName
+		if !shouldRun(filter, testName) {
+			continue
 		}
+
+		startedAt := time.Now()
+		if opts.Verbose {
+			fmt.Fprintf(opts.Error, "=== RUN   %s\n", testName)
+		}
+
+		changed, err := opts.runFiletest(testFileName, []byte(testFile.Body))
+		if changed != "" {
+			// Note: changed always == "" if opts.Sync == false.
+			err = os.WriteFile(testFilePath, []byte(changed), 0o644)
+			if err != nil {
+				panic(fmt.Errorf("could not fix golden file: %w", err))
+			}
+		}
+
+		duration := time.Since(startedAt)
+		dstr := fmtDuration(duration)
+		if err != nil {
+			fmt.Fprintf(opts.Error, "--- FAIL: %s (%s)\n", testName, dstr)
+			fmt.Fprintln(opts.Error, err.Error())
+			errs = multierr.Append(errs, fmt.Errorf("%s failed", testName))
+		} else if opts.Verbose {
+			fmt.Fprintf(opts.Error, "--- PASS: %s (%s)\n", testName, dstr)
+		}
+
+		// XXX: add per-test metrics
 	}
 
 	return errs
@@ -365,7 +415,7 @@ func (opts *TestOptions) runTestFiles(
 				}
 				if err != nil {
 					p = filepath.Join(opts.RootDir, "examples", ppath, name)
-					b, err = os.ReadFile(p)
+					b, _ = os.ReadFile(p)
 				}
 				return string(b)
 			}
@@ -473,9 +523,10 @@ func loadTestFuncs(pkgName string, tfiles *gno.FileSet) (rt []testFunc) {
 }
 
 // parseMemPackageTests parses test files (skipping filetests) in the memPkg.
-func parseMemPackageTests(memPkg *gnovm.MemPackage) (tset, itset *gno.FileSet, itfiles, ftfiles []*gnovm.MemFile) {
+func parseMemPackageTests(memPkg *gnovm.MemPackage) (tset, itset *gno.FileSet, rset stringSet, itfiles, ftfiles []*gnovm.MemFile) {
 	tset = &gno.FileSet{}
 	itset = &gno.FileSet{}
+	rset = stringSet{}
 	var errs error
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
@@ -499,7 +550,7 @@ func parseMemPackageTests(memPkg *gnovm.MemPackage) (tset, itset *gno.FileSet, i
 			itset.AddFiles(n)
 			itfiles = append(itfiles, mfile)
 		case memPkg.Name == string(n.PkgName):
-			// normal package file
+			rset[string(n.Name)] = void{}
 		default:
 			panic(fmt.Sprintf(
 				"expected package name [%s] or [%s_test] but got [%s] file [%s]",
