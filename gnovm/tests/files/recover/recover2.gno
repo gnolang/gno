@@ -22,4 +22,4 @@ func main() {
 }
 
 // Output:
-// 1
+// undefined

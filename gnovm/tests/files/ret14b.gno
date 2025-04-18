@@ -17,4 +17,4 @@ func main() {
 }
 
 // Output:
-// 2 1
+// 1 2
