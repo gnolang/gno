@@ -302,12 +302,16 @@
 
   /* Tooltip */
   .tooltip {
+    --tooltip-left: 0;
+    --tooltip-right: initial;
     @apply relative inline;
   }
 
   .tooltip::after {
     content: attr(data-tooltip);
-    @apply absolute z-max scale-0 invisible px-2 py-1 bg-light rounded border border-gray-100 w-fit min-w-32 max-w-48 top-full -left-1 text-center text-100 text-gray-600 font-normal transition-opacity opacity-0;
+    left: var(--tooltip-left);
+    right: var(--tooltip-right);
+    @apply absolute z-max scale-0 invisible px-2 py-1 bg-light rounded border border-gray-100 w-fit min-w-32 max-w-48 top-full text-center text-100 text-gray-600 font-normal transition-opacity opacity-0;
   }
 
   .tooltip:hover::after {

@@ -1,1 +1,1 @@
-function i(e,n=250){let t;return function(...r){t!==void 0&&clearTimeout(t),t=setTimeout(()=>{e.apply(this,r)},n)}}function a(e){return e.replace(/([$`"\\!|&;<>*?{}()])/g,"\\$1")}export{i as debounce,a as escapeShellSpecialChars};
+function i(t,n=250){let e;return function(...r){e!==void 0&&clearTimeout(e),e=setTimeout(()=>{t.apply(this,r)},n)}}var s=(t,n)=>{let e=!1;return(...r)=>{e||(t(...r),e=!0,setTimeout(()=>{e=!1},n))}};function u(t){return t.replace(/([$`"\\!|&;<>*?{}()])/g,"\\$1")}export{i as debounce,u as escapeShellSpecialChars,s as throttle};
