@@ -798,7 +798,7 @@ func (pv *PackageValue) deriveFBlocksMap(store Store) {
 		panic("should not happen")
 	}
 	pv.fBlocksMap = make(map[Name]*Block, len(pv.FNames))
-	for i := 0; i < len(pv.FNames); i++ {
+	for i := range pv.FNames {
 		fname := pv.FNames[i]
 		fblock := pv.GetFileBlock(store, fname)
 		pv.fBlocksMap[fname] = fblock
@@ -1531,7 +1531,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		bz = append(bz, '[')
 		if av.Data == nil {
 			omitTypes := bt.Elem().Kind() != InterfaceKind
-			for i := 0; i < al; i++ {
+			for i := range al {
 				ev := fillValueTV(store, &av.List[i])
 				bz = append(bz, ev.ComputeMapKey(store, omitTypes)...)
 				if i != al-1 {
@@ -1548,7 +1548,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		sv := tv.V.(*StructValue)
 		sl := len(sv.Fields)
 		bz = append(bz, '{')
-		for i := 0; i < sl; i++ {
+		for i := range sl {
 			fv := fillValueTV(store, &sv.Fields[i])
 			omitTypes := bt.Fields[i].Type.Kind() != InterfaceKind
 			bz = append(bz, fv.ComputeMapKey(store, omitTypes)...)
@@ -2506,7 +2506,7 @@ func defaultArrayValue(alloc *Allocator, at *ArrayType) *ArrayValue {
 	av := alloc.NewListArray(at.Len)
 	tvs := av.List
 	if et := at.Elem(); et.Kind() != InterfaceKind {
-		for i := 0; i < at.Len; i++ {
+		for i := range at.Len {
 			tvs[i] = defaultTypedValue(alloc, et)
 		}
 	}

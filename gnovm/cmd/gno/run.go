@@ -133,9 +133,7 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 
 	// run files
 	m.RunFiles(files...)
-	runExpr(m, cfg.expr)
-
-	return nil
+	return runExpr(m, cfg.expr)
 }
 
 func parseFiles(fnames []string, stderr io.WriteCloser) ([]*gno.FileNode, error) {
@@ -187,23 +185,23 @@ func listNonTestFiles(dir string) ([]string, error) {
 	return fn, nil
 }
 
-func runExpr(m *gno.Machine, expr string) {
+func runExpr(m *gno.Machine, expr string) (err error) {
+	ex, err := gno.ParseExpr(expr)
+	if err != nil {
+		return fmt.Errorf("could not parse expression: %w", err)
+	}
 	defer func() {
 		if r := recover(); r != nil {
 			switch r := r.(type) {
 			case gno.UnhandledPanicError:
-				fmt.Printf("panic running expression %s: %v\nStacktrace:\n%s\n",
+				err = fmt.Errorf("panic running expression %s: %v\nStacktrace:\n%s",
 					expr, r.Error(), m.ExceptionsStacktrace())
 			default:
-				fmt.Printf("panic running expression %s: %v\nMachine State:%s\nStacktrace:\n%s\n",
+				err = fmt.Errorf("panic running expression %s: %v\nMachine State:%s\nStacktrace:\n%s",
 					expr, r, m.String(), m.Stacktrace().String())
 			}
-			panic(r)
 		}
 	}()
-	ex, err := gno.ParseExpr(expr)
-	if err != nil {
-		panic(fmt.Errorf("could not parse: %w", err))
-	}
 	m.Eval(ex)
+	return nil
 }

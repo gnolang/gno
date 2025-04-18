@@ -248,7 +248,7 @@ func generateValidatorUpdates(t *testing.T, count int) []abci.ValidatorUpdate {
 
 	validators := make([]abci.ValidatorUpdate, 0, count)
 
-	for i := 0; i < count; i++ {
+	for range count {
 		// Generate a random private key
 		key := getDummyKey(t).PubKey()
 
@@ -895,7 +895,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	)
 
 	// Set a handler Route.
-	baseApp.Router().AddRoute("auth", auth.NewHandler(acck))
+	baseApp.Router().AddRoute("auth", auth.NewHandler(acck, gpk))
 	baseApp.Router().AddRoute("bank", bank.NewHandler(bankk))
 	baseApp.Router().AddRoute(
 		testutils.RouteMsgCounter,
@@ -957,7 +957,8 @@ func gnoGenesisState(t *testing.T) GnoGenesisState {
         "sig_verify_cost_secp256k1": "1000",
         "target_gas_ratio": "60",
         "tx_sig_limit": "7",
-        "tx_size_cost_per_byte": "10"
+        "tx_size_cost_per_byte": "10",
+        "fee_collector": "g1najfm5t7dr4f2m38cg55xt6gh2lxsk92tgh0xy"
       }
     }
   }`)

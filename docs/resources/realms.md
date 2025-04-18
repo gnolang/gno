@@ -101,7 +101,7 @@ Realm A:
 Let's look at return values for each of the methods, called from within
 `Realm A`:
 ```
-std.GetOrigCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
+std.OriginCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
 std.PreviousRealm() => Realm {
     addr:    `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
     pkgPath: ``
@@ -146,7 +146,7 @@ Realm B:
 Depending on which realm the methods are called in, the values will change. For
 `Realm A`:
 ```
-std.GetOrigCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
+std.OriginCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
 std.PreviousRealm() => Realm {
     addr:    `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
     pkgPath: ``
@@ -159,7 +159,7 @@ std.CurrentRealm() => Realm {
 
 For `Realm B`:
 ```
-std.GetOrigCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
+std.OriginCaller() => `g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`
 std.PreviousRealm() => Realm {
     addr:    `g1dvqd8qgvavqayxklzfdmccd2eps263p43pu2c6`
     pkgPath: `gno.land/r/demo/a`
