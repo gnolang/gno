@@ -14,6 +14,8 @@ type Int struct {
 }
 
 func main() {
+	switchrealm()
+
 	zero = &Int{
 		abs: []word{0},
 	}

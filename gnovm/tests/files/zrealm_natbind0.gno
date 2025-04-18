@@ -12,6 +12,8 @@ func init() {
 }
 
 func main() {
+	switchrealm()
+
 	// NOTE: this test uses ChainHeight and ChainID, which are "pure"
 	// natively bound functions (ie. not indirections through a wrapper fn,
 	// to convert the types to builtin go/gno identifiers).
@@ -58,7 +60,7 @@ func main() {
 //                              "PkgPath": "std"
 //                          }
 //                      },
-//     @@ -69,7 +69,7 @@
+//     @@ -70,7 +70,7 @@
 //                                  "Tag": "",
 //                                  "Type": {
 //                                      "@type": "/gno.PrimitiveType",

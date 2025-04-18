@@ -12,6 +12,8 @@ func init() {
 }
 
 func main() {
+	switchrealm()
+
 	println(ms)
 	ms.Field += 2
 	println(ms)

@@ -12,6 +12,8 @@ func init() {
 }
 
 func main() {
+	switchrealm()
+
 	var updated bool
 	updated = tree.Set("key2", "value2")
 	// println(tree, updated)

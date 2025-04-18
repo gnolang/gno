@@ -16,6 +16,8 @@ func init() {
 }
 
 func main() {
+	switchrealm()
+
 	println(m[i1.Key]) // Output: first key
 }
 

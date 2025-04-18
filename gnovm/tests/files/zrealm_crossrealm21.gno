@@ -2,18 +2,18 @@
 package crossrealm_test
 
 import (
-	"std"
-
 	"gno.land/r/demo/tests/crossrealm"
 	"gno.land/r/demo/tests/crossrealm_b"
 )
 
 func main() {
+	switchrealm()
+
 	f := crossrealm_b.Fooer
-	crossrealm.SetFooer(f)
-	crossrealm.CallFooerFoo()
+	withswitch(crossrealm.SetFooer)(f)
+	withswitch(crossrealm.CallFooerFooSR2)()
 	f.SetS("B")
-	crossrealm.CallFooerFoo()
+	withswitch(crossrealm.CallFooerFooSR2)()
 	print(".")
 }
 
@@ -29,17 +29,19 @@ func main() {
 //          "ObjectInfo": {
 //              "ID": "1712ac7adcfdc8e58a67e5615e20fb312394c4df:2",
 //              "IsEscaped": true,
-//     -        "ModTime": "3",
-//     +        "ModTime": "5",
-//              "RefCount": "2"
+//     -        "ModTime": "4",
+//     +        "ModTime": "6",
+//              "RefCount": "3"
 //          },
 //          "Parent": null,
-//     @@ -283,8 +283,21 @@
+//     @@ -284,7 +284,26 @@
+//                      }
+//                  }
 //              },
-//              {
-//                  "T": {
-//     -                "@type": "/gno.RefType",
-//     -                "ID": "gno.land/r/demo/tests/crossrealm.Fooer"
+//     -        {},
+//     +        {
+//     +            "N": "UmVhRG9OTFk=",
+//     +            "T": {
 //     +                "@type": "/gno.PointerType",
 //     +                "Elt": {
 //     +                    "@type": "/gno.RefType",
@@ -55,9 +57,11 @@ func main() {
 //     +                },
 //     +                "Index": "0",
 //     +                "TV": null
-//                  }
-//              },
+//     +            }
+//     +        },
 //              {
+//                  "T": {
+//                      "@type": "/gno.FuncType",
 // u[0edc46caf30c00efd87b6c272673239eafbd051e:3]=
 //     @@ -1,9 +1,10 @@
 //      {
@@ -65,7 +69,7 @@ func main() {
 //              "ID": "0edc46caf30c00efd87b6c272673239eafbd051e:3",
 //     -        "ModTime": "0",
 //     +        "IsEscaped": true,
-//     +        "ModTime": "5",
+//     +        "ModTime": "6",
 //              "OwnerID": "0edc46caf30c00efd87b6c272673239eafbd051e:2",
 //     -        "RefCount": "1"
 //     +        "RefCount": "2"
@@ -95,6 +99,3 @@ func main() {
 // switchrealm["gno.land/r/demo/tests/crossrealm_b"]
 // switchrealm["gno.land/r/demo/tests/crossrealm"]
 // switchrealm["gno.land/r/crossrealm_test"]
-
-// Error:
-//

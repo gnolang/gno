@@ -17,6 +17,8 @@ func (m *Machine) doOpPrecall() {
 			panic("should not happen")
 		}
 	}
+
+	// handle withswitch().
 	switch fv := v.(type) {
 	case *FuncValue:
 		m.PushFrameCall(cx, fv, TypedValue{})
@@ -31,7 +33,6 @@ func (m *Machine) doOpPrecall() {
 		if cx.GetAttribute(ATTR_SHIFT_RHS) == true {
 			xv.AssertNonNegative("runtime error: negative shift amount")
 		}
-
 		m.PushOp(OpConvert)
 		if debug {
 			if len(cx.Args) != 1 {

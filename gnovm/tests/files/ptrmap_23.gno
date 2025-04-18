@@ -9,6 +9,7 @@ func init() {
 }
 
 func main() {
+	switchrealm()
 
 	println(m[&arr]) // Output: example
 }

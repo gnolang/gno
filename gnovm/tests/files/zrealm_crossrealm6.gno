@@ -12,6 +12,8 @@ func init() {
 }
 
 func main() {
+	switchrealm()
+
 	// this is OK because the method is declared in a non-realm package.
 	somevalue.Modify()
 	println(somevalue)

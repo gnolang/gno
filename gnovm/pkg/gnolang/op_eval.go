@@ -248,7 +248,11 @@ func (m *Machine) doOpEval() {
 			m.PushOp(OpEval)
 		}
 		// evaluate func
-		m.PushExpr(x.Func)
+		if x.IsWithSwitch() {
+			m.PushExpr(x.Func.(*CallExpr).Args[0])
+		} else {
+			m.PushExpr(x.Func)
+		}
 		m.PushOp(OpEval)
 	case *IndexExpr:
 		if x.HasOK {

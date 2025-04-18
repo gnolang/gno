@@ -6,6 +6,8 @@ import (
 )
 
 func main() {
+	switchrealm()
+
 	tests.SomeValue2.Field = "modified"
 	println("done")
 }

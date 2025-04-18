@@ -30,6 +30,8 @@ func init() {
 }
 
 func main() {
+	switchrealm()
+
 	b[0].A = a2
 }
 

@@ -14,6 +14,8 @@ func init() {
 }
 
 func main() {
+	switchrealm()
+
 	b = a
 }
 

@@ -8,6 +8,8 @@ func init() {
 }
 
 func main() {
+	switchrealm()
+
 	m["foobar"] = 1
 	println(m)
 }

@@ -613,6 +613,8 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 // multiple files belonging to the same package in
 // lexical file name order to a compiler."
 func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
+	// Only for the init functions make the origin caller
+	// the package addr.
 	for _, tv := range updates {
 		if tv.IsDefined() && tv.T.Kind() == FuncKind && tv.V != nil {
 			fv, ok := tv.V.(*FuncValue)
@@ -622,7 +624,7 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 			if strings.HasPrefix(string(fv.Name), "init.") {
 				fb := pv.GetFileBlock(m.Store, fv.FileName)
 				m.PushBlock(fb)
-				m.RunFunc(fv.Name)
+				m.RunFunc(fv.Name, false)
 				m.PopBlock()
 			}
 		}
@@ -680,12 +682,20 @@ func (m *Machine) resavePackageValues(rlm *Realm) {
 	// even after running the init function.
 }
 
-func (m *Machine) RunFunc(fn Name) {
-	m.RunStatement(S(Call(Nx(fn))))
+func (m *Machine) RunFunc(fn Name, withSwitch bool) {
+	if withSwitch {
+		m.RunStatement(S(Call(Call(Nx("withswitch"), Nx(fn)))))
+	} else {
+		m.RunStatement(S(Call(Nx(fn))))
+	}
 }
 
 func (m *Machine) RunMain() {
-	m.RunStatement(S(Call(X("main"))))
+	if m.Package.IsRealm() {
+		m.RunStatement(S(Call(Nx("withswitch"), Nx("main"))))
+	} else {
+		m.RunStatement(S(Call(X("main"))))
+	}
 }
 
 // Evaluate throwaway expression in new block scope.
@@ -1719,6 +1729,7 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
+	withSwitch := cx.IsWithSwitch()
 	fr := &Frame{
 		Source:      cx,
 		NumOps:      m.NumOps,
@@ -1733,6 +1744,8 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 		Defers:      nil,
 		LastPackage: m.Package,
 		LastRealm:   m.Realm,
+		WithSwitch:  withSwitch,
+		DidSwitch:   false,
 	}
 	if debug {
 		if m.Package == nil {
@@ -1743,29 +1756,80 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 		m.Printf("+F %#v\n", fr)
 	}
 	m.Frames = append(m.Frames, fr)
+
+	// Set the package.
+	// .Package always refers to the code being run,
+	// and may differ from .Realm.
 	pv := fv.GetPackage(m.Store)
 	if pv == nil {
 		panic(fmt.Sprintf("package value missing in store: %s", fv.PkgPath))
 	}
-	rlm := pv.GetRealm()
-	if rlm == nil && recv.IsDefined() {
-		obj := recv.GetFirstObject(m.Store)
-		if obj == nil {
-			// could be a nil receiver.
-			// just ignore.
+	m.Package = pv
+
+	// If no realm, return early.
+	if m.Realm == nil {
+		return
+	}
+
+	// If withswitch, always switch to pv.Realm.
+	// If method, this means the object cannot be modified if
+	// stored externally by this method; but other methods can.
+	if withSwitch {
+		if !fv.IsSwitchRealm() {
+			panic(fmt.Sprintf(
+				"missing switchrealm() after withswitch call in %v from %s to %s",
+				fr.Func.String(),
+				m.Realm.Path,
+				pv.Realm.Path,
+			))
+		}
+		m.Realm = pv.GetRealm()
+		return
+	}
+
+	// Not called like withswitch(fn)(...).
+	if fv.IsSwitchRealm() {
+		if m.Realm != pv.Realm {
+			// panic; not explicit
+			panic(fmt.Sprintf(
+				"missing withswitch before external switchrealm() in %v from %s to %s",
+				fr.Func.String(),
+				m.Realm.Path,
+				pv.Realm.Path,
+			))
 		} else {
-			recvOID := obj.GetObjectInfo().ID
-			if !recvOID.IsZero() {
-				// override the pv and rlm with receiver's.
-				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
-				pv = m.Store.GetObject(recvPkgOID).(*PackageValue)
-				rlm = pv.GetRealm() // done
-			}
+			// ok
+			// Technically OK even if recv.Realm is different.
+			return
 		}
 	}
-	m.Package = pv
-	if rlm != nil && m.Realm != rlm {
-		m.Realm = rlm // enter new realm
+
+	// Not withswitch nor switchrealm.
+	// Only "soft" switch to storage realm of receiver.
+	var rlm *Realm
+	if recv.IsDefined() { // method call
+		obj := recv.GetFirstObject(m.Store)
+		if obj == nil { // nil receiver
+			// no switch
+			return
+		} else {
+			recvOID := obj.GetObjectInfo().ID
+			if recvOID.IsZero() || recvOID.PkgID == m.Realm.ID {
+				// no switch
+				return
+			} else {
+				// "soft" switch to storage realm.
+				// neither withswitch nor didswitch.
+				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
+				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
+				rlm = objpv.GetRealm()
+				m.Realm = rlm
+				return
+			}
+		}
+	} else { // top level function
+		// no switch
+		return
 	}
 }
 
@@ -1941,16 +2005,56 @@ func (m *Machine) PushForPointer(lx Expr) {
 	}
 }
 
+// Pop a pointer (for writing only).
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
+	pv, ro := m.PopAsPointer2(lx)
+	if ro {
+		// panic("cannot modify external-realm or non-realm object with " + lx.String())
+		panic("cannot modify external-realm or non-realm object")
+	}
+	return pv
+}
+
+// Returns true if tv is N_Readonly or, its "first object" resides in a
+// different non-zero realm. Returns false for non-N_Readonly StringValue, free
+// floating pointers, and unreal objects.
+func (m *Machine) IsReadonly(tv *TypedValue) bool {
+	if m.Realm == nil {
+		return false
+	}
+	if tv.IsReadonly() {
+		return true
+	}
+	tvoid, ok := tv.GetFirstObjectID()
+	if !ok {
+		// e.g. if tv is a string, or free floating pointers.
+		return false
+	}
+	if tvoid.IsZero() {
+		return false
+	}
+	if tvoid.PkgID != m.Realm.ID {
+		return true
+	}
+	return false
+}
+
+// Returns ro = true if the base is readonly,
+// or if the base's storage realm != m.Realm and both are non-nil,
+// and the lx isn't a name (base is a block),
+// and the lx isn't a composit lit expr.
+func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 	switch lx := lx.(type) {
 	case *NameExpr:
 		switch lx.Type {
 		case NameExprTypeNormal:
 			lb := m.LastBlock()
-			return lb.GetPointerTo(m.Store, lx.Path)
+			pv = lb.GetPointerTo(m.Store, lx.Path)
+			ro = false // always mutable
 		case NameExprTypeHeapUse:
 			lb := m.LastBlock()
-			return lb.GetPointerToHeapUse(m.Store, lx.Path)
+			pv = lb.GetPointerToHeapUse(m.Store, lx.Path)
+			ro = false // always mutable
 		case NameExprTypeHeapClosure:
 			panic("should not happen")
 		default:
@@ -1959,24 +2063,29 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
-		return xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
+		pv = xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
+		ro = m.IsReadonly(xv)
 	case *SelectorExpr:
 		xv := m.PopValue()
-		return xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
+		pv = xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
+		ro = m.IsReadonly(xv)
 	case *StarExpr:
-		ptr := m.PopValue().V.(PointerValue)
-		return ptr
+		xv := m.PopValue()
+		pv = xv.V.(PointerValue)
+		ro = m.IsReadonly(xv)
 	case *CompositeLitExpr: // for *RefExpr
 		tv := *m.PopValue()
 		hv := m.Alloc.NewHeapItem(tv)
-		return PointerValue{
+		pv = PointerValue{
 			TV:    &hv.Value,
 			Base:  hv,
 			Index: 0,
 		}
+		ro = false // always mutable
 	default:
 		panic("should not happen")
 	}
+	return
 }
 
 // for testing.
