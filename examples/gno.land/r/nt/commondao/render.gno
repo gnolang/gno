@@ -13,6 +13,8 @@ import (
 	"gno.land/p/moul/realmpath"
 	"gno.land/p/moul/txlink"
 	"gno.land/p/nt/commondao"
+
+	"gno.land/r/sys/users"
 )
 
 const dateFormat = "Mon, 02 Jan 2006 03:04pm MST"
@@ -99,7 +101,7 @@ func renderMembers(res *mux.ResponseWriter, path string, members commondao.Membe
 	res.Write("| Members |\n| --- |\n")
 	members.IterateByOffset(pages.Offset(), pages.PageSize(), func(addr std.Address) bool {
 		res.Write("| ")
-		res.Write(addr.String())
+		res.Write(userLink(addr))
 		res.Write(" |\n")
 		return false
 	})
@@ -204,7 +206,7 @@ func renderProposalsListItem(res *mux.ResponseWriter, dao *commondao.CommonDAO, 
 	res.Write(ufmt.Sprintf("**[#%d %s](%s)**  \n", p.ID(), def.Title(), proposalURL(dao, p)))
 
 	// Render details
-	res.Write(ufmt.Sprintf("Created by %s  \n", p.Creator())) // TODO: Add users link
+	res.Write(ufmt.Sprintf("Created by %s  \n", userLink(p.Creator())))
 	res.Write(ufmt.Sprintf("Voting ends on %s  \n", p.VotingDeadline().UTC().Format(dateFormat)))
 
 	// Render status
@@ -269,7 +271,7 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Render details
 	res.Write("## Details\n")
-	res.Write(ufmt.Sprintf("- Proposer: %s\n", p.Creator())) // TODO: Add users link
+	res.Write(ufmt.Sprintf("- Proposer: %s\n", userLink(p.Creator())))
 	res.Write(ufmt.Sprintf("- Submit Time: %s\n", p.CreatedAt().UTC().Format(time.RFC1123)))
 
 	res.Write(ufmt.Sprintf("- Status: **%s**", string(p.Status())))
@@ -305,10 +307,10 @@ func renderProposalVotes(res *mux.ResponseWriter, path string, dao *commondao.Co
 		return
 	}
 
-	res.Write("| Member | Vote |\n| --- | --- |\n")
+	res.Write("| User | Vote |\n| --- | --- |\n")
 	record.Iterate(pages.Offset(), pages.PageSize(), false, func(v commondao.Vote) bool {
 		res.Write("| ")
-		res.Write(v.Address.String())
+		res.Write(userLink(v.Address))
 		res.Write(" | ")
 		res.Write(ufmt.Sprintf("[%s](%s)", string(v.Choice), voteURL(dao, p, v.Address)))
 
@@ -360,7 +362,7 @@ func renderProposalVote(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write("\n\n---\n")
 
 	res.Write("## Details\n")
-	res.Write(ufmt.Sprintf("- Address: %s\n", v.Address)) // TODO: Add users link
+	res.Write(ufmt.Sprintf("- User: %s\n", userLink(v.Address)))
 	res.Write(ufmt.Sprintf("- Vote: %s\n", string(v.Choice)))
 
 	if v.Reason != "" {
@@ -425,6 +427,14 @@ func executeLink(daoID, proposalID uint64) string {
 		"daoID", strconv.FormatUint(daoID, 10), // TODO: SubDAOs have no ID, only slug
 		"proposalID", strconv.FormatUint(proposalID, 10),
 	))
+}
+
+func userLink(addr std.Address) string {
+	user := users.ResolveAddress(addr)
+	if user != nil {
+		return user.RenderLink("")
+	}
+	return addr.String()
 }
 
 func isVotingAllowed(p *commondao.Proposal) bool {
