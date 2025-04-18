@@ -12,6 +12,7 @@ var (
 	ErrPlayerNotInGame   = errors.New("fomo3d: player is not in the game")
 
 	// Payment errors
+	ErrNoCoinsSent         = errors.New("fomo3d: must send ugnot to buy keys")
 	ErrInvalidPayment      = errors.New("fomo3d: must send ugnot only")
 	ErrInsufficientPayment = errors.New("fomo3d: insufficient payment for key")
 
