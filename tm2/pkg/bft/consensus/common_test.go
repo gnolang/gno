@@ -128,7 +128,9 @@ func (vss ValidatorStubsByAddress) Len() int {
 }
 
 func (vss ValidatorStubsByAddress) Less(i, j int) bool {
-	return vss[i].GetPubKey().Address().Compare(vss[j].GetPubKey().Address()) == -1
+	vai := vss[i].GetPubKey().Address()
+	vaj := vss[j].GetPubKey().Address()
+	return vai.Compare(&vaj) == -1
 }
 
 func (vss ValidatorStubsByAddress) Swap(i, j int) {

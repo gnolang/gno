@@ -58,7 +58,7 @@ func (v *Validator) CompareProposerPriority(other *Validator) *Validator {
 	case v.ProposerPriority < other.ProposerPriority:
 		return other
 	default:
-		result := v.Address.Compare(other.Address)
+		result := v.Address.Compare(&other.Address)
 		switch {
 		case result < 0:
 			return v
