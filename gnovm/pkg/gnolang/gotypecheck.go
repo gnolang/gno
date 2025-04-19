@@ -31,18 +31,19 @@ type MemPackageGetter interface {
 // If format is true, the code will be automatically updated with the
 // formatted source code.
 func TypeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, format bool) error {
-	return typeCheckMemPackage(mempkg, getter, false, format)
+	_, err := typeCheckMemPackage(mempkg, getter, false, format)
+	return err
 }
 
 // TypeCheckMemPackageTest performs the same type checks as [TypeCheckMemPackage],
 // but allows re-declarations.
 //
 // Note: like TypeCheckMemPackage, this function ignores tests and filetests.
-func TypeCheckMemPackageTest(mempkg *gnovm.MemPackage, getter MemPackageGetter) error {
+func TypeCheckMemPackageTest(mempkg *gnovm.MemPackage, getter MemPackageGetter) (*types.Package, error) {
 	return typeCheckMemPackage(mempkg, getter, true, false)
 }
 
-func typeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, testing, format bool) error {
+func typeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, testing, format bool) (*types.Package, error) {
 	var errs error
 	imp := &gnoImporter{
 		getter: getter,
@@ -56,13 +57,14 @@ func typeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, test
 	}
 	imp.cfg.Importer = imp
 
-	_, err := imp.parseCheckMemPackage(mempkg, format)
+	pkg, err := imp.parseCheckMemPackage(mempkg, format)
 	// prefer to return errs instead of err:
 	// err will generally contain only the first error encountered.
 	if errs != nil {
-		return errs
+		return nil, errs
 	}
-	return err
+
+	return pkg, err
 }
 
 type gnoImporterResult struct {

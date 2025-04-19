@@ -60,6 +60,7 @@ const (
 	lintGnoError
 	lintParserError
 	lintTypeCheckError
+	lintRenderFuncSignature
 
 	// TODO: add new linter codes here.
 )
@@ -181,9 +182,9 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 }
 
 func lintTypeCheck(io commands.IO, memPkg *gnovm.MemPackage, testStore gno.Store) (errorsFound bool, err error) {
-	tcErr := gno.TypeCheckMemPackageTest(memPkg, testStore)
+	pkg, tcErr := gno.TypeCheckMemPackageTest(memPkg, testStore)
 	if tcErr == nil {
-		return false, nil
+		return lintRenderSignature(io, pkg), nil
 	}
 
 	errs := multierr.Errors(tcErr)
@@ -316,4 +317,68 @@ func issueFromError(pkgPath string, err error) lintIssue {
 		issue.Msg = err.Error()
 	}
 	return issue
+}
+
+// lintRenderSignature checks if a Render function in the package has the
+// expected signature: func Render(string) string
+// Methods are ignored (e.g. func (t *Type) Render()).
+// Returns true if the signature is incorrect.
+func lintRenderSignature(io commands.IO, pkg *types.Package) bool {
+	if pkg == nil {
+		return false
+	}
+
+	o := pkg.Scope().Lookup("Render")
+	if o == nil {
+		// no Render
+		return false
+	}
+
+	var (
+		stringType = "string"
+		errPrintln = func() {
+			io.ErrPrintln(lintIssue{
+				Code: lintRenderFuncSignature,
+				Msg: fmt.Sprintf(
+					"The 'Render' function signature is incorrect for the '%s' package. The signature must be of the form: func Render(string) string",
+					pkg.Name(),
+				),
+				Confidence: 1,
+				Location:   pkg.Path(),
+			})
+		}
+		isSingleString = func(t *types.Tuple) bool {
+			return t != nil &&
+				t.Len() == 1 &&
+				t.At(0) != nil &&
+				t.At(0).Type().String() == stringType
+		}
+	)
+
+	fn, ok := o.(*types.Func)
+	if !ok {
+		// not a function
+		return false
+	}
+
+	s, ok := fn.Type().(*types.Signature)
+	if !ok {
+		// not a valid function signature, would have been caught through
+		// another check so we return false here
+		return false
+	}
+
+	if s.Recv() != nil {
+		// ignore methods
+		return false
+	}
+
+	switch {
+	// ensure we have a single string parameter and return
+	case !isSingleString(s.Params()), !isSingleString(s.Results()):
+		errPrintln()
+		return true
+	default:
+		return false
+	}
 }
