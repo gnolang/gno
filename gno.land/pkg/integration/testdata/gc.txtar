@@ -1,0 +1,26 @@
+# Init
+## deploy realm
+loadpkg gno.land/r/gc $WORK/r/gc
+
+## start a new node
+gnoland start
+
+
+
+gnokey maketx call -pkgpath gno.land/r/gc -func Alloc -gas-fee 100000ugnot -gas-wanted 3000000 -simulate skip -broadcast -chainid tendermint_test test1
+stdout 'GAS USED:   576890'
+
+
+-- r/gc/gc.gno --
+package gc
+
+func gen() {
+	_ = make([]byte, 250*1024*1024)
+}
+
+func Alloc() {
+	for i := 0; i < 100; i++ {
+		gen()
+	    gen()
+	}
+}
