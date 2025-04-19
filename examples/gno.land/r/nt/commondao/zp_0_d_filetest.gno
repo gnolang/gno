@@ -21,14 +21,16 @@ func init() {
 
 	testing.SetOriginCaller(user)
 	dao := commondao.New("Foo")
-
 	daoID = dao.ID()
+
+	options := commondao.GetOptions(daoID)
+	options.SetAllowMembersUpdate(true)
 
 	testing.SetRealm(std.NewUserRealm(user))
 }
 
 func main() {
-	commondao.CreateMembersUpdateProposal(daoID, "", "", "")
+	commondao.CreateMembersUpdateProposal(daoID, "", "")
 }
 
 // Error:

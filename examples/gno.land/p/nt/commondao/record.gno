@@ -57,10 +57,12 @@ func (r ReadonlyVotingRecord) Choices() []VoteChoice {
 }
 
 // Iterate iterates voting record votes.
-func (r ReadonlyVotingRecord) Iterate(offset, count int, fn VoteIterFn) bool {
-	return r.votes.IterateByOffset(offset, count, func(_ string, v any) bool {
-		return fn(v.(Vote))
-	})
+func (r ReadonlyVotingRecord) Iterate(offset, count int, reverse bool, fn VoteIterFn) bool {
+	cb := func(_ string, v any) bool { return fn(v.(Vote)) }
+	if reverse {
+		return r.votes.ReverseIterateByOffset(offset, count, cb)
+	}
+	return r.votes.IterateByOffset(offset, count, cb)
 }
 
 // VoteCount returns the number of votes for a single voting choice.
@@ -74,6 +76,14 @@ func (r ReadonlyVotingRecord) VoteCount(c VoteChoice) int {
 // HasVoted checks if an account already voted.
 func (r ReadonlyVotingRecord) HasVoted(user std.Address) bool {
 	return r.votes.Has(user.String())
+}
+
+// GetVote returns a vote.
+func (r ReadonlyVotingRecord) GetVote(user std.Address) (_ Vote, found bool) {
+	if v, found := r.votes.Get(user.String()); found {
+		return v.(Vote), true
+	}
+	return Vote{}, false
 }
 
 // VotingRecord stores accounts that voted and vote choices.

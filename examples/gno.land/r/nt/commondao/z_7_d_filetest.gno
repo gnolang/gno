@@ -30,7 +30,7 @@ func init() {
 }
 
 func main() {
-	commondao.NewSubDAO("", "foo", rootDAO)
+	commondao.NewSubDAO("", rootDAO)
 }
 
 // Error:

@@ -21,16 +21,20 @@ func init() {
 
 	testing.SetOriginCaller(user)
 	dao := commondao.New("Foo")
-	dao.Members().Add(user)
+	subDAO := commondao.NewSubDAO("Bar", dao)
+	subDAO.Members().Add(user)
 
 	daoID = dao.ID()
+
+	options := commondao.GetOptions(daoID)
+	options.SetAllowMembersUpdate(false) // Disallow udpating members
 
 	testing.SetRealm(std.NewUserRealm(user))
 }
 
 func main() {
-	commondao.CreateMembersUpdateProposal(daoID, "not/found", "", "")
+	commondao.CreateMembersUpdateProposal(daoID, "", "")
 }
 
 // Error:
-// subDAO not found
+// forbidden

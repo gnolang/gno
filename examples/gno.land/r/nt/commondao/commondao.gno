@@ -8,8 +8,6 @@ import (
 	"gno.land/p/nt/commondao"
 )
 
-// TODO: Use a trie tree to store hierarchical DAOs
-
 // CommonDAOID is the ID of the realm's DAO.
 const CommonDAOID uint64 = 1
 
@@ -19,6 +17,7 @@ var (
 	ownership = avl.NewTree() // string(std.Address) -> []uint64(DAO ID)
 	invites   = avl.NewTree() // string(std.Address) -> std.Address(inviter)
 	trees     = avl.NewTree() // string(root ID) -> avl.Tree(string(path) -> *commondao.CommonDAO)
+	options   = avl.NewTree() // string(root ID) -> *Options
 )
 
 func getDAO(daoID uint64) *commondao.CommonDAO {
@@ -49,14 +48,6 @@ func getSubDAO(rootID uint64, path string) *commondao.CommonDAO {
 	return nil
 }
 
-func mustGetSubDAO(rootID uint64, path string) *commondao.CommonDAO {
-	dao := getSubDAO(rootID, path)
-	if dao == nil {
-		panic("subDAO not found")
-	}
-	return dao
-}
-
 func getTree(rootID uint64) *avl.Tree {
 	key := makeIDKey(rootID)
 	if v, found := trees.Get(key); found {
@@ -68,6 +59,14 @@ func getTree(rootID uint64) *avl.Tree {
 func getOwnership(addr std.Address) []uint64 {
 	if v, ok := ownership.Get(addr.String()); ok {
 		return v.([]uint64)
+	}
+	return nil
+}
+
+func getOptions(daoID uint64) *Options {
+	key := makeIDKey(daoID)
+	if v, found := options.Get(key); found {
+		return v.(*Options)
 	}
 	return nil
 }
