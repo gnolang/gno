@@ -172,7 +172,6 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		if hasRuntimeErr {
 			hasError = true
 		}
-
 	}
 
 	if hasError {
