@@ -22,7 +22,7 @@ func Render(path string) string {
 	router := mux.NewRouter()
 	router.HandleFunc("", renderHome)
 	router.HandleFunc("{daoID}", renderDAO)
-	// router.HandleFunc("{daoID}/options", renderOptions) // TODO: Add view for DAO options
+	router.HandleFunc("{daoID}/settings", renderSettings)
 	router.HandleFunc("{daoID}/proposals", renderProposalsList)
 	router.HandleFunc("{daoID}/proposals/{proposalID}", renderProposal)
 	router.HandleFunc("{daoID}/proposals/{proposalID}/vote/{address}", renderProposalVote)
@@ -51,7 +51,10 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 	// Render main menu
 	menu := []string{
 		ufmt.Sprintf("[List Proposals](%s)", daoProposalsURL(dao)),
+		ufmt.Sprintf("[View Settings](%s)", settingsURL(dao)),
 	}
+
+	// TODO: Add link to create a members modification proposal
 
 	if parentDAO := dao.Parent(); parentDAO != nil {
 		menu = append(menu, ufmt.Sprintf("[Go to Parent DAO](%s)", daoURL(parentDAO)))
@@ -121,6 +124,32 @@ func renderTree(res *mux.ResponseWriter, dao *commondao.CommonDAO, indent string
 		}
 		return false
 	})
+}
+
+func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
+	dao := mustGetRequestDAO(req)
+	o := getOptions(dao.ID())
+
+	// Render header
+	res.Write("# ")
+	res.Write(dao.Name())
+	res.Write(": Settings\n")
+
+	// Render main menu
+	res.Write(ufmt.Sprintf("[Go to DAO](%s)", daoURL(dao)))
+	res.Write("\n\n---\n")
+
+	// Render options
+	res.Write("## Options\n")
+	res.Write("| Option | Value |\n| --- | --- |\n")
+	res.Write(ufmt.Sprintf("| Allow SubDAOs | %s |\n", strconv.FormatBool(o.AllowChildren)))
+	res.Write(ufmt.Sprintf("| Enable Voting | %s |\n", strconv.FormatBool(o.AllowVoting)))
+	res.Write(ufmt.Sprintf("| Enable Proposal Execution | %s |\n", strconv.FormatBool(o.AllowExecution)))
+	res.Write(ufmt.Sprintf("| Allow Updating Members of this DAO | %s |\n", strconv.FormatBool(o.AllowMembersUpdate)))
+
+	if o.ReviewDeadline != 0 {
+		res.Write(ufmt.Sprintf("| Review Deadline | %s |\n", o.ReviewDeadline))
+	}
 }
 
 func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
@@ -393,7 +422,7 @@ func mustGetRequestProposal(req *mux.Request, dao *commondao.CommonDAO) *commond
 func voteLink(daoID, proposalID uint64) string {
 	return ufmt.Sprintf("[Vote](%s)", txlink.Call(
 		"Vote",
-		"daoID", strconv.FormatUint(daoID, 10), // TODO: SubDAOs have no ID, only slug
+		"daoID", strconv.FormatUint(daoID, 10),
 		"proposalID", strconv.FormatUint(proposalID, 10),
 		"vote", "",
 		"reason", "",
@@ -403,7 +432,7 @@ func voteLink(daoID, proposalID uint64) string {
 func executeLink(daoID, proposalID uint64) string {
 	return ufmt.Sprintf("[Execute](%s)", txlink.Call(
 		"Execute",
-		"daoID", strconv.FormatUint(daoID, 10), // TODO: SubDAOs have no ID, only slug
+		"daoID", strconv.FormatUint(daoID, 10),
 		"proposalID", strconv.FormatUint(proposalID, 10),
 	))
 }
