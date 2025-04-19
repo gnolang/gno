@@ -173,10 +173,6 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			hasError = true
 		}
 
-		// ensure Render function signature matches what's expected
-		if renderErr := lintRenderSignature(io, memPkg); renderErr {
-			hasError = true
-		}
 	}
 
 	if hasError {
@@ -187,11 +183,12 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 }
 
 func lintTypeCheck(io commands.IO, memPkg *gnovm.MemPackage, testStore gno.Store) (errorsFound bool, err error) {
-	tcErr := gno.TypeCheckMemPackageTest(memPkg, testStore)
+	pkg, tcErr := gno.TypeCheckMemPackageTest(memPkg, testStore)
 	if tcErr == nil {
-		return false, nil
+		return lintRenderSignature(io, pkg), nil
 	}
 
+	// go through type check errors and print
 	errs := multierr.Errors(tcErr)
 	for _, err := range errs {
 		switch err := err.(type) {
@@ -326,96 +323,63 @@ func issueFromError(pkgPath string, err error) lintIssue {
 
 // lintRenderSignature checks if a Render function in the package has the
 // expected signature: func Render(string) string
-// Methods are ignored (e.g., func (t *Type) Render()).
-func lintRenderSignature(io commands.IO, memPkg *gnovm.MemPackage) bool {
-	var (
-		hasError   bool
-		exp        = "func Render(string) string"
-		stringType = "string"
+// Methods are ignored (e.g. func (t *Type) Render()).
+// Returns true if the signature is incorrect.
+func lintRenderSignature(io commands.IO, pkg *types.Package) bool {
+	if pkg == nil {
+		return false
+	}
 
-		errParameterCount = func(count int) string {
-			return fmt.Sprintf("Render function should have exactly one parameter, found: %d parameters, expected: %s", count, exp)
-		}
-		errParameterType = func(t string) string {
-			return fmt.Sprintf("Render function parameter should be of type string, found: %s type, expected: %s", t, exp)
-		}
-		errReturnCount = func(count int) string {
-			return fmt.Sprintf("Render function should return exactly one string value, found: %d returns, expected: %s", count, exp)
-		}
-		errReturnType = func(t string) string {
-			return fmt.Sprintf("Render function should return a single string, found: %s type: expected %s", t, exp)
-		}
-		errPrintln = func(errMsg, file string, line int) {
-			hasError = true
+	o := pkg.Scope().Lookup("Render")
+	if o == nil {
+		// no Render
+		return false
+	}
+
+	var (
+		stringType = "string"
+		errPrintln = func() {
 			io.ErrPrintln(lintIssue{
-				Code:       lintRenderFuncSignature,
-				Msg:        errMsg,
+				Code: lintRenderFuncSignature,
+				Msg: fmt.Sprintf(
+					"The 'Render' function signature is incorrect for the '%s' package. The signature must be of the form: func Render(string) string",
+					pkg.Name(),
+				),
 				Confidence: 1,
-				Location:   fmt.Sprintf("%s:%d", file, line),
+				Location:   pkg.Path(),
 			})
+		}
+		isSingleString = func(t *types.Tuple) bool {
+			return t != nil &&
+				t.Len() == 1 &&
+				t.At(0) != nil &&
+				t.At(0).Type().String() == stringType
 		}
 	)
 
-	for _, file := range memPkg.Files {
-		if !strings.HasSuffix(file.Name, ".gno") {
-			continue
-		}
-
-		fn, err := gno.ParseFile(file.Name, file.Body)
-		// if we can't parse the file for whatever reason, there is no point in
-		// attempting a lint check on the Render func
-		if err != nil {
-			continue
-		}
-
-		for _, decl := range fn.Decls {
-			// ignore non-function declarations
-			funcDecl, ok := decl.(*gno.FuncDecl)
-			if !ok {
-				continue
-			}
-
-			// ignore non-Render functions
-			if funcDecl.NameExpr.Name.String() != "Render" {
-				continue
-			}
-
-			// ignore methods
-			if funcDecl.IsMethod {
-				continue
-			}
-
-			// ensure we have a single string parameter
-			n := len(funcDecl.Type.Params)
-			switch n {
-			case 1:
-				param := funcDecl.Type.Params[0]
-				paramType, ok := param.Type.(*gno.NameExpr)
-				if !ok || paramType.Name.String() != stringType {
-					msg := errParameterType(paramType.Name.String())
-					errPrintln(msg, file.Name, funcDecl.GetLine())
-				}
-			default:
-				msg := errParameterCount(n)
-				errPrintln(msg, file.Name, funcDecl.GetLine())
-			}
-
-			// ensure return type is a single string
-			n = len(funcDecl.Type.Results)
-			switch n {
-			case 1:
-				ret := funcDecl.Type.Results[0]
-				retType, ok := ret.Type.(*gno.NameExpr)
-				if !ok || retType.Name.String() != stringType {
-					msg := errReturnType(retType.Name.String())
-					errPrintln(msg, file.Name, funcDecl.GetLine())
-				}
-			default:
-				msg := errReturnCount(n)
-				errPrintln(msg, file.Name, funcDecl.GetLine())
-			}
-		}
+	fn, ok := o.(*types.Func)
+	if !ok {
+		// not a function
+		return false
 	}
 
-	return hasError
+	s, ok := fn.Type().(*types.Signature)
+	if !ok {
+		// not a valid function signature, would have been caught through
+		// another check so we return false here
+		return false
+	}
+
+	if s.Recv() != nil {
+		// ignore methods
+		return false
+	}
+
+	// ensure we have a single string parameter and return
+	if !isSingleString(s.Params()) || !isSingleString(s.Results()) {
+		errPrintln()
+		return true
+	}
+
+	return false
 }

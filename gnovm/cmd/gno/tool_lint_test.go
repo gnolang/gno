@@ -1,8 +1,15 @@
 package main
 
 import (
+	"bytes"
+	"github.com/gnolang/gno/gnovm"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/stretchr/testify/require"
+	"go/types"
 	"strings"
 	"testing"
+
+	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
 func TestLintApp(t *testing.T) {
@@ -74,4 +81,144 @@ func TestLintApp(t *testing.T) {
 		// TODO: check for imports of native libs from non _test.gno files
 	}
 	testMainCaseRun(t, tc)
+}
+
+func TestLintRenderSignature(t *testing.T) {
+	type test struct {
+		desc  string
+		input string
+		err   bool
+	}
+
+	const errMsg = "gno.land/test: The 'Render' function signature is incorrect for the 'test' package. The signature must be of the form: func Render(string) string (code=5)\n"
+
+	tests := []test{
+		{
+			desc: "no render function",
+			input: `
+				package test
+
+				func Random() {}
+			`,
+		},
+		{
+			desc: "ignore methods",
+			input: `
+				package test
+
+				type Test struct{}
+
+				func (t *Test) Render(input int) int {
+					return input
+				}
+			`,
+		},
+
+		{
+			desc: "wrong parameter type",
+			input: `
+				package test
+
+				func Render(input int) string {
+					return "hello"
+				}
+			`,
+			err: true,
+		},
+		{
+			desc: "wrong return type",
+			input: `
+				package test
+
+				func Render(input string) int {
+					return 9001
+				}
+			`,
+			err: true,
+		},
+		{
+			desc: "too many parameters",
+			input: `
+				package test
+
+				func Render(input string, extra int) string {
+					return input
+				}
+			`,
+			err: true,
+		},
+		{
+			desc: "correct signature",
+			input: `
+				package test
+
+				func Render(input string) string {
+					return input
+				}
+			`,
+			err: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			buf := new(bytes.Buffer)
+			io := commands.NewTestIO()
+			io.SetErr(commands.WriteNopCloser(buf))
+
+			pkg := typesPkg(t, tc.input)
+			hasErr := lintRenderSignature(io, pkg)
+
+			switch {
+			case tc.err:
+				require.True(t, hasErr)
+				require.Equal(t, errMsg, buf.String())
+			default:
+				require.False(t, hasErr)
+				require.Empty(t, buf.String())
+			}
+		})
+	}
+}
+
+// helper to take in a file body string and return a types.Package.
+// makes plenty of assumptions on the path, pkg name, and files
+func typesPkg(t *testing.T, input string) *types.Package {
+	t.Helper()
+
+	memPkg := &gnovm.MemPackage{
+		Name: "test",
+		Path: "gno.land/test",
+		Files: []*gnovm.MemFile{
+			{
+				Name: "main.gno",
+				Body: input,
+			},
+		},
+	}
+
+	pkg, err := gno.TypeCheckMemPackageTest(memPkg, &mockMemPkgGetter{name: "test", body: input})
+	require.NoError(t, err)
+
+	return pkg
+}
+
+// provides a simple impl of MemPackageGetter that only assumes a single file
+// of 'main.go' using the underlying name and body of the struct
+type mockMemPkgGetter struct {
+	name string
+	body string
+}
+
+func (m *mockMemPkgGetter) GetMemPackage(path string) *gnovm.MemPackage {
+	return &gnovm.MemPackage{
+		Name: m.name,
+		Path: path,
+		Files: []*gnovm.MemFile{
+			{
+				Name: "main.go",
+				Body: m.body,
+			},
+		},
+	}
 }
