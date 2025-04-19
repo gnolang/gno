@@ -30,7 +30,7 @@ func init() {
 }
 
 func main() {
-	commondao.CreateMembersUpdateProposal(daoID, "", "", "")
+	commondao.CreateMembersUpdateProposal(daoID, "", "")
 }
 
 // Error:

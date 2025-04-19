@@ -5,27 +5,16 @@ import (
 	"strings"
 
 	"gno.land/p/moul/addrset"
-	"gno.land/p/nt/commondao"
 )
 
 // CreateMembersUpdateProposal creates a new proposal to add and/or remove DAO members.
 //
-// Proposals can be created for standalone DAOs or SubDAOs when DAO is hierarchical.
-// The `subPath` parameter is required to create proposals for a SubDAOs.
-//
 // Parameters:
 // - daoID: ID of the root DAO (required)
-// - subPath: Optional path to a SubDAO
 // - newMembers: Comma separated list of addresses to add as members
 // - removeMembers: Comma separated list of member addresses to remove
-func CreateMembersUpdateProposal(daoID uint64, subPath, newMembers, removeMembers string) uint64 {
-	var dao *commondao.CommonDAO
-	if subPath != "" {
-		dao = mustGetSubDAO(daoID, subPath)
-	} else {
-		dao = mustGetDAO(daoID)
-	}
-
+func CreateMembersUpdateProposal(daoID uint64, newMembers, removeMembers string) uint64 {
+	dao := mustGetDAO(daoID)
 	options := getOptions(daoID)
 	if !options.AllowMembersUpdate {
 		panic("forbidden")

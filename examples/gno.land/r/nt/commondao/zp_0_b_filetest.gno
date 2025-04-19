@@ -14,7 +14,7 @@ func init() {
 }
 
 func main() {
-	commondao.CreateMembersUpdateProposal(404, "", "", "")
+	commondao.CreateMembersUpdateProposal(404, "", "")
 }
 
 // Error:

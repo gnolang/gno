@@ -35,7 +35,7 @@ func init() {
 }
 
 func main() {
-	pID := commondao.CreateMembersUpdateProposal(dao.ID(), "", newMembers, removeMembers)
+	pID := commondao.CreateMembersUpdateProposal(dao.ID(), newMembers, removeMembers)
 
 	p := dao.ActiveProposals().Get(pID)
 	if p == nil {

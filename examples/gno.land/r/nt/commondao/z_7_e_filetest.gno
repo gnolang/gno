@@ -27,11 +27,15 @@ func init() {
 
 	// Create the root DAO
 	rootDAO = commondao.New("Parent DAO")
+
+	// Change options to disallow subDAOs
+	options := commondao.GetOptions(rootDAO.ID())
+	options.SetAllowChildren(false)
 }
 
 func main() {
-	commondao.NewSubDAO("Foo", "", rootDAO)
+	commondao.NewSubDAO("Foo", rootDAO)
 }
 
 // Error:
-// invalid DAO slug
+// forbidden

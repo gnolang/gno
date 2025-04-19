@@ -8,8 +8,6 @@ import (
 	"gno.land/p/nt/commondao"
 )
 
-// TODO: Use a trie tree to store hierarchical DAOs
-
 // CommonDAOID is the ID of the realm's DAO.
 const CommonDAOID uint64 = 1
 
@@ -48,14 +46,6 @@ func getSubDAO(rootID uint64, path string) *commondao.CommonDAO {
 		return v.(*commondao.CommonDAO)
 	}
 	return nil
-}
-
-func mustGetSubDAO(rootID uint64, path string) *commondao.CommonDAO {
-	dao := getSubDAO(rootID, path)
-	if dao == nil {
-		panic("subDAO not found")
-	}
-	return dao
 }
 
 func getTree(rootID uint64) *avl.Tree {

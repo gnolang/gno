@@ -1,17 +1,12 @@
 package commondao
 
 import (
-	"regexp"
 	"std"
 	"strings"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/nt/commondao"
 )
-
-// TODO: Allow different ownerships of DAOs within the same tree
-
-var reSlug = regexp.MustCompile("^[a-zA-Z]+[a-zA-Z0-9-]*$")
 
 // Invite invites a user to the realm.
 // A user invitation is required to start creating new DAOs.
@@ -64,41 +59,41 @@ func New(name string) *commondao.CommonDAO {
 }
 
 // NewSubDAO creates a new SubDAO.
-func NewSubDAO(name, slug string, parent *commondao.CommonDAO) *commondao.CommonDAO {
+func NewSubDAO(name string, parent *commondao.CommonDAO) *commondao.CommonDAO {
 	assertCallerIsRealm() // TODO: Allow users to create SubDAOs using run TX?
 
 	if parent == nil {
 		panic("parent is required")
 	}
 
-	rootID := parent.TopParent().ID()
-	options := getOptions(rootID)
-	if !options.AllowChildren {
+	parentOptions := getOptions(parent.ID())
+	if !parentOptions.AllowChildren {
 		panic("forbidden")
 	}
 
 	name = strings.TrimSpace(name)
 	assertNameIsNotEmpty(name)
-	assertSlugIsValid(slug)
 
+	id := daoID.Next()
 	dao := commondao.New(
+		commondao.WithID(uint64(id)),
 		commondao.WithParent(parent),
 		commondao.WithName(name),
-		commondao.WithSlug(slug), // TODO: Use ID and remove slug?
 	)
 
+	daoOptions := defaultOptions
+	options.Set(id.String(), &daoOptions)
+
+	daos.Set(id.String(), dao)
+
+	rootID := parent.TopParent().ID()
 	tree := getTree(rootID)
 	if tree == nil {
 		tree = avl.NewTree()
 		trees.Set(makeIDKey(rootID), tree)
 	}
 
-	path := dao.Path()
-	if tree.Has(path) {
-		panic("subDAO slug is already taken")
-	}
-
-	tree.Set(path, dao)
+	tree.Set(id.String(), dao)
 	parent.Children().Append(dao)
 
 	return dao
@@ -151,15 +146,6 @@ func Get(daoID uint64) *commondao.CommonDAO {
 	return mustGetDAO(daoID)
 }
 
-// GetSubDAO returns a SubDAO searched by path.
-// It panics if caller doesn't have ownership to the topmost DAO.
-func GetSubDAO(rootID uint64, path string) *commondao.CommonDAO {
-	assertCallerIsRealm() // TODO: Allow users to get SubDAOs using run TX?
-	assertCallerIsOwner(rootID)
-
-	return mustGetSubDAO(rootID, path)
-}
-
 // GetSize returns the number of SubDAOs under a specified root DAO.
 func GetSize(rootID uint64) int {
 	assertCallerIsOwner(rootID)
@@ -174,7 +160,7 @@ func GetSize(rootID uint64) int {
 
 // Vote submits a vote for a DAO proposal.
 func Vote(daoID, proposalID uint64, vote commondao.VoteChoice, reason string) {
-	dao := mustGetDAO(daoID) // TODO: How to vote within SubDAOs which have no ID?
+	dao := mustGetDAO(daoID)
 
 	options := getOptions(dao.ID())
 	if !options.AllowVoting {
@@ -192,7 +178,7 @@ func Vote(daoID, proposalID uint64, vote commondao.VoteChoice, reason string) {
 
 // Execute executes a DAO proposal.
 func Execute(daoID, proposalID uint64) {
-	dao := mustGetDAO(daoID) // TODO: How to execute within SubDAOs which have no ID?
+	dao := mustGetDAO(daoID)
 
 	options := getOptions(dao.ID())
 	if !options.AllowExecution {
@@ -219,6 +205,10 @@ func checkIsInvited(addr std.Address) bool {
 }
 
 func checkIsOwner(addr std.Address, daoID uint64) bool {
+	// Make sure to check the root DAO ID, in case daoID belongs to a SubDAO.
+	// This is required because ownership is assigned to the root DAO.
+	daoID = mustGetDAO(daoID).TopParent().ID()
+
 	for _, id := range getOwnership(addr) {
 		if id == daoID {
 			return true
@@ -258,11 +248,5 @@ func assertNameIsNotEmpty(name string) {
 func assertCallerIsMember(caller std.Address, dao *commondao.CommonDAO) {
 	if !dao.Members().Has(caller) {
 		panic("caller is not a DAO member")
-	}
-}
-
-func assertSlugIsValid(slug string) {
-	if !reSlug.MatchString(slug) {
-		panic("invalid DAO slug")
 	}
 }
