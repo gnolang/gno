@@ -29,6 +29,10 @@ func init() {
 	// Create the root DAO
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 	rootDAO = commondao.New("Parent DAO")
+
+	// Change options to disallow subDAOs
+	options := commondao.GetOptions(rootDAO.ID())
+	options.SetAllowChildren(false)
 }
 
 func main() {
@@ -37,8 +41,8 @@ func main() {
 	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 
-	commondao.NewSubDAO("Foo", "", rootDAO)
+	commondao.NewSubDAO("Foo", rootDAO)
 }
 
 // Error:
-// invalid DAO slug
+// forbidden

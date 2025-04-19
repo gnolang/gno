@@ -35,7 +35,7 @@ func init() {
 func main() {
 	testing.SetRealm(std.NewUserRealm("g1vh7krmmzfua5xjmkatvmx09z37w34lsvd2mxa5"))
 
-	cross(commondao.CreateMembersUpdateProposal)(daoID, "", "", "")
+	cross(commondao.CreateMembersUpdateProposal)(daoID, "", "")
 }
 
 // Error:

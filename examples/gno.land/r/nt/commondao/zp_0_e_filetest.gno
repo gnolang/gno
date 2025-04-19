@@ -26,8 +26,7 @@ func init() {
 	// Create root DAO with a subDAO
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 	dao := commondao.New("Foo")
-	subDAO := commondao.NewSubDAO("Bar", "bar", dao)
-	subDAO.Members().Add(user)
+	dao.Members().Add(user)
 
 	daoID = dao.ID()
 
@@ -38,7 +37,7 @@ func init() {
 func main() {
 	testing.SetRealm(std.NewUserRealm(user))
 
-	cross(commondao.CreateMembersUpdateProposal)(daoID, "bar", "not-an-address", "")
+	cross(commondao.CreateMembersUpdateProposal)(daoID, "not-an-address", "")
 }
 
 // Error:

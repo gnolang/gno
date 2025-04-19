@@ -36,7 +36,7 @@ func main() {
 	testing.SetRealm(std.NewUserRealm(user))
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 
-	commondao.NewSubDAO("", "foo", rootDAO)
+	commondao.NewSubDAO("", rootDAO)
 }
 
 // Error:

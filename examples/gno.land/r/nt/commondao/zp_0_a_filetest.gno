@@ -35,7 +35,7 @@ func init() {
 func main() {
 	testing.SetRealm(std.NewUserRealm(user))
 
-	pID := cross(commondao.CreateMembersUpdateProposal)(dao.ID(), "", newMembers, removeMembers)
+	pID := cross(commondao.CreateMembersUpdateProposal)(dao.ID(), newMembers, removeMembers)
 
 	p := dao.ActiveProposals().Get(pID)
 	if p == nil {

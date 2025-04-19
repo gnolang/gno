@@ -12,6 +12,9 @@ func init() {
 	dao := commondao.New(
 		commondao.WithID(uint64(id)),
 		commondao.WithName("Common DAO"),
+		commondao.WithDescription(
+			"This DAO is responsible for managing `commondao` realm functionalities.",
+		),
 	)
 
 	// Add initial members
@@ -27,6 +30,8 @@ func init() {
 
 	// Save DAO configuration
 	options.Set(id.String(), &Options{
-		AllowChildren: false,
+		AllowVoting:        true,
+		AllowExecution:     true,
+		AllowMembersUpdate: true,
 	})
 }

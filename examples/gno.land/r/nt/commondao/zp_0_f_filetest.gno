@@ -21,7 +21,7 @@ func init() {
 
 	testing.SetOriginCaller(user)
 	dao := commondao.New("Foo")
-	subDAO := commondao.NewSubDAO("Bar", "bar", dao)
+	subDAO := commondao.NewSubDAO("Bar", dao)
 	subDAO.Members().Add(user)
 
 	daoID = dao.ID()
@@ -33,7 +33,7 @@ func init() {
 }
 
 func main() {
-	commondao.CreateMembersUpdateProposal(daoID, "bar", "not-an-address", "")
+	commondao.CreateMembersUpdateProposal(daoID, "", "")
 }
 
 // Error:

@@ -32,7 +32,7 @@ func init() {
 func main() {
 	testing.SetRealm(std.NewUserRealm(user))
 
-	commondao.NewSubDAO("Foo", "foo", rootDAO)
+	commondao.NewSubDAO("Foo", rootDAO)
 }
 
 // Error:
