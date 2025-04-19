@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/format"
-	"go/parser"
 	goscanner "go/scanner"
 	"go/token"
 	"os"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/parser"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"golang.org/x/tools/go/ast/astutil"
 )

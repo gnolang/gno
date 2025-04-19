@@ -138,6 +138,7 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 
 func parseFiles(fnames []string, stderr io.WriteCloser) ([]*gno.FileNode, error) {
 	files := make([]*gno.FileNode, 0, len(fnames))
+	var m *gno.Machine
 	var hasError bool
 	for _, fname := range fnames {
 		if s, err := os.Stat(fname); err == nil && s.IsDir() {
@@ -158,7 +159,7 @@ func parseFiles(fnames []string, stderr io.WriteCloser) ([]*gno.FileNode, error)
 		}
 
 		hasError = catchRuntimeError(fname, stderr, func() {
-			files = append(files, gno.MustReadFile(fname))
+			files = append(files, m.MustReadFile(fname))
 		})
 	}
 

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"go/ast"
 	"go/format"
-	"go/parser"
 	"go/token"
 	"go/types"
 	"path"
@@ -12,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm"
+	"github.com/gnolang/gno/gnovm/pkg/parser"
 	"go.uber.org/multierr"
 )
 

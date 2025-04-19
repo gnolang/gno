@@ -164,7 +164,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			defer tm.Release()
 
 			// Check test files
-			packageFiles := sourceAndTestFileset(memPkg)
+			packageFiles := sourceAndTestFileset(tm, memPkg)
 
 			tm.PreprocessFiles(memPkg.Name, memPkg.Path, packageFiles, false, false)
 		})
@@ -219,14 +219,14 @@ func lintTypeCheck(io commands.IO, memPkg *gnovm.MemPackage, testStore gno.Store
 	return true, nil
 }
 
-func sourceAndTestFileset(memPkg *gnovm.MemPackage) *gno.FileSet {
+func sourceAndTestFileset(m *gno.Machine, memPkg *gnovm.MemPackage) *gno.FileSet {
 	testfiles := &gno.FileSet{}
 	for _, mfile := range memPkg.Files {
 		if !strings.HasSuffix(mfile.Name, ".gno") {
 			continue // Skip non-GNO files
 		}
 
-		n := gno.MustParseFile(mfile.Name, mfile.Body)
+		n := m.MustParseFile(mfile.Name, mfile.Body)
 		if n == nil {
 			continue // Skip empty files
 		}
