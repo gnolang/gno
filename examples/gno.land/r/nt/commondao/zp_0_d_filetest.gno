@@ -27,6 +27,9 @@ func init() {
 	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
 	dao := commondao.New("Foo")
 	daoID = dao.ID()
+
+	options := commondao.GetOptions(daoID)
+	options.SetAllowMembersUpdate(true)
 }
 
 func main() {

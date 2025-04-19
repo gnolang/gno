@@ -9,7 +9,6 @@ import (
 )
 
 // TODO: Use a trie tree to store hierarchical DAOs
-// TODO: Support DAO options (ex. review deadline, private, allow subDAOs, ...)
 
 // CommonDAOID is the ID of the realm's DAO.
 const CommonDAOID uint64 = 1
@@ -20,6 +19,7 @@ var (
 	ownership = avl.NewTree() // string(std.Address) -> []uint64(DAO ID)
 	invites   = avl.NewTree() // string(std.Address) -> std.Address(inviter)
 	trees     = avl.NewTree() // string(root ID) -> avl.Tree(string(path) -> *commondao.CommonDAO)
+	options   = avl.NewTree() // string(root ID) -> *Options
 )
 
 func getDAO(daoID uint64) *commondao.CommonDAO {
@@ -69,6 +69,14 @@ func getTree(rootID uint64) *avl.Tree {
 func getOwnership(addr std.Address) []uint64 {
 	if v, ok := ownership.Get(addr.String()); ok {
 		return v.([]uint64)
+	}
+	return nil
+}
+
+func getOptions(daoID uint64) *Options {
+	key := makeIDKey(daoID)
+	if v, found := options.Get(key); found {
+		return v.(*Options)
 	}
 	return nil
 }

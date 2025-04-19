@@ -30,6 +30,9 @@ func init() {
 	subDAO.Members().Add(user)
 
 	daoID = dao.ID()
+
+	options := commondao.GetOptions(daoID)
+	options.SetAllowMembersUpdate(true)
 }
 
 func main() {

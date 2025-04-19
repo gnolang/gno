@@ -27,6 +27,9 @@ func init() {
 	dao = commondao.New("Foo")
 	dao.Members().Add(user)
 	dao.Members().Add(owner)
+
+	options := commondao.GetOptions(dao.ID())
+	options.SetAllowMembersUpdate(true)
 }
 
 func main() {

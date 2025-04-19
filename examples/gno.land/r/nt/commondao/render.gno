@@ -1,7 +1,6 @@
 package commondao
 
 import (
-	"errors"
 	"std"
 	"strconv"
 	"strings"
@@ -23,6 +22,7 @@ func Render(path string) string {
 	router := mux.NewRouter()
 	router.HandleFunc("", renderHome)
 	router.HandleFunc("{daoID}", renderDAO)
+	// router.HandleFunc("{daoID}/options", renderOptions) // TODO: Add view for DAO options
 	router.HandleFunc("{daoID}/proposals", renderProposalsList)
 	router.HandleFunc("{daoID}/proposals/{proposalID}", renderProposal)
 	router.HandleFunc("{daoID}/proposals/{proposalID}/vote/{address}", renderProposalVote)
@@ -36,11 +36,7 @@ func renderHome(res *mux.ResponseWriter, _ *mux.Request) {
 }
 
 func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
-	dao, err := getRequestDAO(req)
-	if err != nil {
-		res.Write(err.Error())
-		return
-	}
+	dao := mustGetRequestDAO(req)
 
 	// Render header
 	res.Write("# ")
@@ -128,11 +124,7 @@ func renderTree(res *mux.ResponseWriter, dao *commondao.CommonDAO, indent string
 }
 
 func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
-	dao, err := getRequestDAO(req)
-	if err != nil {
-		res.Write(err.Error())
-		return
-	}
+	dao := mustGetRequestDAO(req)
 
 	// Render header
 	res.Write("# ")
@@ -201,6 +193,7 @@ func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
 func renderProposalsListItem(res *mux.ResponseWriter, dao *commondao.CommonDAO, p *commondao.Proposal) {
 	def := p.Definition()
 	record := p.VotingRecord()
+	options := getOptions(dao.ID())
 
 	// Render title
 	res.Write(ufmt.Sprintf("**[#%d %s](%s)**  \n", p.ID(), def.Title(), proposalURL(dao, p)))
@@ -215,11 +208,11 @@ func renderProposalsListItem(res *mux.ResponseWriter, dao *commondao.CommonDAO, 
 	}
 
 	// Render actions
-	if isVotingAllowed(p) {
+	if options.AllowVoting && isVotingPeriodActive(p) {
 		status = append(status, voteLink(dao.ID(), p.ID()))
 	}
 
-	if isExecutionAllowed(p) {
+	if options.AllowExecution && isExecutionAllowed(p) {
 		status = append(status, executeLink(dao.ID(), p.ID()))
 	}
 
@@ -228,20 +221,10 @@ func renderProposalsListItem(res *mux.ResponseWriter, dao *commondao.CommonDAO, 
 }
 
 func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
-	dao, err := getRequestDAO(req)
-	if err != nil {
-		res.Write(err.Error())
-		return
-	}
-
-	p, err := getRequestProposal(req, dao)
-	if err != nil {
-		res.Write(err.Error())
-		return
-	}
-
-	votingAllowed := isVotingAllowed(p)
-	if votingAllowed {
+	dao := mustGetRequestDAO(req)
+	p := mustGetRequestProposal(req, dao)
+	votingActive := isVotingPeriodActive(p)
+	if votingActive {
 		res.Write(ufmt.Sprintf("> Voting ends on **%s**\n", p.VotingDeadline().UTC().Format(dateFormat)))
 	}
 
@@ -257,12 +240,13 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 	// Render main menu
 	res.Write(ufmt.Sprintf("[Go to DAO](%s)", daoURL(dao)))
 
-	if votingAllowed {
+	options := getOptions(dao.ID())
+	if options.AllowVoting && votingActive {
 		res.Write(" • ")
 		res.Write(voteLink(dao.ID(), p.ID()))
 	}
 
-	if isExecutionAllowed(p) {
+	if options.AllowExecution && isExecutionAllowed(p) {
 		res.Write(" • ")
 		res.Write(executeLink(dao.ID(), p.ID()))
 	}
@@ -338,18 +322,8 @@ func renderProposalVote(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	dao, err := getRequestDAO(req)
-	if err != nil {
-		res.Write(err.Error())
-		return
-	}
-
-	p, err := getRequestProposal(req, dao)
-	if err != nil {
-		res.Write(err.Error())
-		return
-	}
-
+	dao := mustGetRequestDAO(req)
+	p := mustGetRequestProposal(req, dao)
 	v, found := p.VotingRecord().GetVote(member)
 	if !found {
 		res.Write("Vote not found")
@@ -371,13 +345,16 @@ func renderProposalVote(res *mux.ResponseWriter, req *mux.Request) {
 	}
 }
 
-func getRequestDAO(req *mux.Request) (*commondao.CommonDAO, error) {
-	// TODO: Check options to see if DAO rendering is allowed
-
+func mustGetRequestDAO(req *mux.Request) *commondao.CommonDAO {
 	rawID := req.GetVar("daoID")
 	daoID, err := strconv.ParseUint(rawID, 10, 64)
 	if err != nil {
-		return nil, errors.New("Invalid DAO ID")
+		panic("Invalid DAO ID")
+	}
+
+	options := getOptions(daoID)
+	if options.Private {
+		panic("Forbidden")
 	}
 
 	var (
@@ -392,23 +369,25 @@ func getRequestDAO(req *mux.Request) (*commondao.CommonDAO, error) {
 	}
 
 	if dao == nil {
-		return nil, errors.New("DAO not found")
+		panic("DAO not found")
 	}
-	return dao, nil
+
+	return dao
 }
 
-func getRequestProposal(req *mux.Request, dao *commondao.CommonDAO) (*commondao.Proposal, error) {
+func mustGetRequestProposal(req *mux.Request, dao *commondao.CommonDAO) *commondao.Proposal {
 	rawID := req.GetVar("proposalID")
 	proposalID, err := strconv.ParseUint(rawID, 10, 64)
 	if err != nil {
-		return nil, errors.New("Invalid proposal ID")
+		panic("Invalid proposal ID")
 	}
 
 	p := dao.GetProposal(proposalID)
 	if p == nil {
-		return nil, errors.New("Proposal not found")
+		panic("Proposal not found")
 	}
-	return p, nil
+
+	return p
 }
 
 func voteLink(daoID, proposalID uint64) string {
@@ -437,7 +416,7 @@ func userLink(addr std.Address) string {
 	return addr.String()
 }
 
-func isVotingAllowed(p *commondao.Proposal) bool {
+func isVotingPeriodActive(p *commondao.Proposal) bool {
 	return p.Status() == commondao.StatusActive && time.Now().Before(p.VotingDeadline())
 }
 
