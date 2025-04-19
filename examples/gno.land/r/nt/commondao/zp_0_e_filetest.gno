@@ -26,6 +26,9 @@ func init() {
 
 	daoID = dao.ID()
 
+	options := commondao.GetOptions(daoID)
+	options.SetAllowMembersUpdate(true)
+
 	testing.SetRealm(std.NewUserRealm(user))
 }
 

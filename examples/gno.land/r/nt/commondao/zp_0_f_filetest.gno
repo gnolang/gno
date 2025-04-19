@@ -21,17 +21,20 @@ func init() {
 
 	testing.SetOriginCaller(user)
 	dao := commondao.New("Foo")
+	subDAO := commondao.NewSubDAO("Bar", "bar", dao)
+	subDAO.Members().Add(user)
+
 	daoID = dao.ID()
 
 	options := commondao.GetOptions(daoID)
-	options.SetAllowMembersUpdate(true)
+	options.SetAllowMembersUpdate(false) // Disallow udpating members
 
 	testing.SetRealm(std.NewUserRealm(user))
 }
 
 func main() {
-	commondao.CreateMembersUpdateProposal(daoID, "", "", "")
+	commondao.CreateMembersUpdateProposal(daoID, "bar", "not-an-address", "")
 }
 
 // Error:
-// caller is not a DAO member
+// forbidden

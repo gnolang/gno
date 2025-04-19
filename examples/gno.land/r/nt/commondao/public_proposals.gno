@@ -26,6 +26,11 @@ func CreateMembersUpdateProposal(daoID uint64, subPath, newMembers, removeMember
 		dao = mustGetDAO(daoID)
 	}
 
+	options := getOptions(daoID)
+	if !options.AllowMembersUpdate {
+		panic("forbidden")
+	}
+
 	caller := std.PreviousRealm().Address()
 	assertCallerIsMember(caller, dao)
 

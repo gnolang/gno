@@ -15,23 +15,26 @@ const (
 var daoID uint64
 
 func init() {
+	// Use a realm caller
+	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/commondao_test"))
+
+	// Invite a user to be able to start creating DAOs
 	testing.SetOriginCaller(owner)
-	testing.SetRealm(std.NewCodeRealm("gno.land/r/demo/tests"))
 	commondao.Invite(user)
 
+	// Create a new DAO which gives ownership to `commondao_test`
 	testing.SetOriginCaller(user)
 	dao := commondao.New("Foo")
 	daoID = dao.ID()
 
-	options := commondao.GetOptions(daoID)
-	options.SetAllowMembersUpdate(true)
-
-	testing.SetRealm(std.NewUserRealm(user))
+	// Change options to disallow voting
+	options := commondao.GetOptions(dao.ID())
+	options.SetAllowVoting(false)
 }
 
 func main() {
-	commondao.CreateMembersUpdateProposal(daoID, "", "", "")
+	commondao.Vote(daoID, 0, "", "")
 }
 
 // Error:
-// caller is not a DAO member
+// forbidden

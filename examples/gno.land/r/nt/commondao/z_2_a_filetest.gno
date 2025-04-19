@@ -39,9 +39,11 @@ func main() {
 	println(dao.Name() == name)
 	println(commondao.IsOwner(realm, dao.ID()))
 	println(commondao.IsInvited(user))
+	println(commondao.GetOptions(dao.ID()) != nil)
 }
 
 // Output:
 // true
 // true
 // false
+// true
