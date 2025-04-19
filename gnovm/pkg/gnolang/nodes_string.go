@@ -364,10 +364,6 @@ func (x ReturnStmt) String() string {
 	return fmt.Sprintf("return %v", x.Results)
 }
 
-func (x PanicStmt) String() string {
-	return fmt.Sprintf("panic(%s)", x.Exception.String())
-}
-
 func (x SelectStmt) String() string {
 	cases := ""
 	for i, s := range x.Cases {

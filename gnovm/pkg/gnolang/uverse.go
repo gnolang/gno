@@ -724,6 +724,32 @@ func makeUverseNode() {
 			uversePrint(m, arg0, true)
 		},
 	)
+	defNative("panic",
+		Flds( // params
+			"exception", AnyT(),
+		),
+		nil, // results
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1()
+			ex := arg0.TV.Copy(m.Alloc)
+
+			// NOTE: duplicated in m.Panic().
+			m.Exceptions = append(
+				m.Exceptions,
+				Exception{
+					Value:      ex,
+					Frame:      m.MustPeekCallFrame(2),
+					Stacktrace: m.Stacktrace(),
+				},
+			)
+
+			m.PanicScope++
+			m.PopUntilLastCallFrame()
+			m.PushOp(OpPanic2)
+			m.PushOp(OpReturnCallDefers)
+
+		},
+	)
 	defNative("recover",
 		nil, // params
 		Flds( // results

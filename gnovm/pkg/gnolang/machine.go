@@ -906,7 +906,7 @@ const (
 	OpPopResults          Op = 0x13 // pop n call results
 	OpPopBlock            Op = 0x14 // pop block NOTE breaks certain invariants.
 	OpPopFrameAndReset    Op = 0x15 // pop frame and reset.
-	OpPanic1              Op = 0x16 // pop exception and pop call frames.
+	OpPanic1              Op = 0x16 // pop exception and pop call frames. XXX DEPRECATED
 	OpPanic2              Op = 0x17 // pop call frames.
 	OpReturn              Op = 0x1A // return ...
 	OpReturnAfterCopy     Op = 0x1B // return ... (with named results)
@@ -2155,6 +2155,7 @@ func (m *Machine) CheckEmpty() error {
 
 // This function does not go-panic:
 // caller must return manually.
+// NOTE: duplicated in "panic" uverse function.
 func (m *Machine) Panic(ex TypedValue) {
 	m.Exceptions = append(
 		m.Exceptions,
@@ -2352,7 +2353,6 @@ func (m *Machine) ExceptionsStacktrace() string {
 	var builder strings.Builder
 
 	ex := m.Exceptions[0]
-	builder.WriteString("panic: " + ex.Sprint(m) + "\n")
 	builder.WriteString(ex.Stacktrace.String())
 
 	switch {
@@ -2361,7 +2361,6 @@ func (m *Machine) ExceptionsStacktrace() string {
 		fallthrough // to print last exception
 	case len(m.Exceptions) == 2:
 		ex = m.Exceptions[len(m.Exceptions)-1]
-		builder.WriteString("panic: " + ex.Sprint(m) + "\n")
 		builder.WriteString(ex.Stacktrace.String())
 	}
 
