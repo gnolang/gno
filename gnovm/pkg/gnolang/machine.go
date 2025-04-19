@@ -427,7 +427,11 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	if rlm != nil {
 		pb := pv.GetBlock(m.Store)
 		for _, update := range updates {
-			rlm.DidUpdate(pb, nil, update.GetFirstObject(m.Store))
+			if hiv, ok := update.V.(*HeapItemValue); ok {
+				rlm.DidUpdate(pb, nil, hiv)
+			} else {
+				rlm.DidUpdate(pb, nil, update.GetFirstObject(m.Store))
+			}
 		}
 	}
 	m.runInitFromUpdates(pv, updates)
