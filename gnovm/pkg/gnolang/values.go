@@ -2581,7 +2581,6 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 		if cv.PkgPath != "" { // load package
 			tv.V = store.GetPackage(cv.PkgPath, false)
 		} else { // load object
-			// XXX XXX allocate object.
 			tv.V = store.GetObject(cv.ObjectID)
 		}
 	case PointerValue:
@@ -2592,26 +2591,29 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 		// `PointerValue.Deref(store) *TypedValue`,
 		// but for execution speed traded off for
 		// loading speed, we do the following for now:
-		if ref, ok := cv.Base.(RefValue); ok {
-			base := store.GetObject(ref.ObjectID).(Value)
+		switch cbv := cv.Base.(type) {
+		case *HeapItemValue:
+			fillValueTV(store, &cbv.Value)
+		case RefValue:
+			base := store.GetObject(cbv.ObjectID).(Value)
 			cv.Base = base
-			switch cb := base.(type) {
+			switch cbv := base.(type) {
 			case *ArrayValue:
 				et := baseOf(tv.T).(*PointerType).Elt
-				epv := cb.GetPointerAtIndexInt2(store, cv.Index, et)
+				epv := cbv.GetPointerAtIndexInt2(store, cv.Index, et)
 				cv.TV = epv.TV // TODO optimize? (epv.* ignored)
 			case *StructValue:
-				fpv := cb.GetPointerToInt(store, cv.Index)
+				fpv := cbv.GetPointerToInt(store, cv.Index)
 				cv.TV = fpv.TV // TODO optimize?
 			case *BoundMethodValue:
 				panic("should not happen")
 			case *MapValue:
 				panic("should not happen")
 			case *Block:
-				vpv := cb.GetPointerToInt(store, cv.Index)
+				vpv := cbv.GetPointerToInt(store, cv.Index)
 				cv.TV = vpv.TV // TODO optimize?
 			case *HeapItemValue:
-				cv.TV = &cb.Value
+				cv.TV = &cbv.Value
 			default:
 				panic("should not happen")
 			}
