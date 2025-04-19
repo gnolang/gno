@@ -2,13 +2,14 @@ package main
 
 import (
 	"bytes"
-	"github.com/gnolang/gno/gnovm"
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/stretchr/testify/require"
 	"go/types"
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/gnovm"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 

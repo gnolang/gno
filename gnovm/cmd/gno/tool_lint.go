@@ -375,11 +375,12 @@ func lintRenderSignature(io commands.IO, pkg *types.Package) bool {
 		return false
 	}
 
+	switch {
 	// ensure we have a single string parameter and return
-	if !isSingleString(s.Params()) || !isSingleString(s.Results()) {
+	case !isSingleString(s.Params()), !isSingleString(s.Results()):
 		errPrintln()
 		return true
+	default:
+		return false
 	}
-
-	return false
 }
