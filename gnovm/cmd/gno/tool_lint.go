@@ -188,7 +188,6 @@ func lintTypeCheck(io commands.IO, memPkg *gnovm.MemPackage, testStore gno.Store
 		return lintRenderSignature(io, pkg), nil
 	}
 
-	// go through type check errors and print
 	errs := multierr.Errors(tcErr)
 	for _, err := range errs {
 		switch err := err.(type) {
