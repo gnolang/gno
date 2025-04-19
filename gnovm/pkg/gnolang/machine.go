@@ -322,7 +322,7 @@ func checkDuplicates(fset *FileSet) error {
 			var name Name
 			switch d := d.(type) {
 			case *FuncDecl:
-				if d.Name == "init" { //nolint:goconst
+				if d.Name == "init" {
 					continue
 				}
 				name = d.Name
@@ -681,38 +681,10 @@ func (m *Machine) resavePackageValues(rlm *Realm) {
 }
 
 func (m *Machine) RunFunc(fn Name) {
-	defer func() {
-		if r := recover(); r != nil {
-			switch r := r.(type) {
-			case UnhandledPanicError:
-				fmt.Printf("Machine.RunFunc(%q) panic: %s\nStacktrace:\n%s\n",
-					fn, r.Error(), m.ExceptionsStacktrace())
-			default:
-				fmt.Printf("Machine.RunFunc(%q) panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
-					fn, r, m.String(), m.Stacktrace().String())
-			}
-			panic(r)
-		}
-	}()
 	m.RunStatement(S(Call(Nx(fn))))
 }
 
 func (m *Machine) RunMain() {
-	defer func() {
-		r := recover()
-
-		if r != nil {
-			switch r := r.(type) {
-			case UnhandledPanicError:
-				fmt.Printf("Machine.RunMain() panic: %s\nStacktrace:\n%s\n",
-					r.Error(), m.ExceptionsStacktrace())
-			default:
-				fmt.Printf("Machine.RunMain() panic: %v\nMachine State:%s\nStacktrace:\n%s\n",
-					r, m.String(), m.Stacktrace())
-			}
-			panic(r)
-		}
-	}()
 	m.RunStatement(S(Call(X("main"))))
 }
 
