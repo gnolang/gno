@@ -1144,7 +1144,7 @@ func (ft *FuncType) Kind() Kind {
 	return FuncKind
 }
 
-// bound function type (if ft is a method).
+// bound function type w/o receiver (if ft is a method).
 func (ft *FuncType) BoundType() *FuncType {
 	if ft.bound == nil {
 		ft.bound = &FuncType{

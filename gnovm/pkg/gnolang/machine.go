@@ -1671,7 +1671,7 @@ func (m *Machine) PopValue() (tv *TypedValue) {
 
 // Returns a slice of n values in the stack and decrements NumValues.
 // NOTE: The results are on the values stack, so they must be copied or used
-// immediately.  If you need to use the machine before or during usage,
+// immediately. If you need to use the machine before or during usage,
 // consider using PopCopyValues().
 // NOTE: the values are in stack order, oldest first, the opposite order of
 // multiple pop calls.  This is used for params assignment, for example.
@@ -1686,12 +1686,13 @@ func (m *Machine) PopValues(n int) []TypedValue {
 	return m.Values[m.NumValues : m.NumValues+n]
 }
 
-// Like PopValues(), but copies the values onto a new slice.
-func (m *Machine) PopCopyValues(n int) []TypedValue {
-	res := make([]TypedValue, n)
+// Like PopValues(), but copies the values onto given slice.
+func (m *Machine) PopCopyValues(res []TypedValue) {
+	n := len(res)
 	ptvs := m.PopValues(n)
-	copy(res, ptvs)
-	return res
+	for i := 0; i < n; i++ {
+		res[i] = ptvs[i].Copy(m.Alloc)
+	}
 }
 
 // Decrements NumValues by number of last results.
@@ -2152,6 +2153,8 @@ func (m *Machine) CheckEmpty() error {
 	}
 }
 
+// This function does not go-panic:
+// caller must return manually.
 func (m *Machine) Panic(ex TypedValue) {
 	m.Exceptions = append(
 		m.Exceptions,
@@ -2186,9 +2189,10 @@ func (m *Machine) Recover() *Exception {
 	// If the frame the exception occurred in is not popped, it's possible that
 	// the exception is still in scope and can be recovered.
 	if !exception.Frame.Popped {
-		// If the frame is not the current frame, the exception is not in scope; return nil.
-		// This retrieves the second most recent call frame because the first most recent
-		// is the call to recover itself.
+		// If the frame is not the current frame, the exception is not
+		// in scope; return nil.  This retrieves the second most recent
+		// call frame because the first most recent is the call to
+		// recover itself.
 		if frame := m.PeekCallFrame(2); frame == nil || frame != exception.Frame {
 			return nil
 		}

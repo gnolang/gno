@@ -10,6 +10,7 @@ import (
 func AssertOriginCall(m *gno.Machine) {
 	if !isOriginCall(m) {
 		m.Panic(typedString("invalid non-origin call"))
+		return
 	}
 }
 
@@ -107,6 +108,7 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 
 	if crosses != height {
 		m.Panic(typedString("frame not found"))
+		return
 	}
 
 	// Special case if package initialization.
@@ -131,6 +133,7 @@ func X_assertCallerIsRealm(m *gno.Machine) {
 	frame := m.Frames[m.NumFrames()-2]
 	if path := frame.LastPackage.PkgPath; !gno.IsRealmPath(path) {
 		m.Panic(typedString("caller is not a realm"))
+		return
 	}
 }
 

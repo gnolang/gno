@@ -414,7 +414,7 @@ func (m *Machine) doOpArrayLit() {
 				if al == nil {
 					ad[k] = v.GetUint8()
 				} else {
-					al[k] = v
+					al[k] = v.Copy(m.Alloc)
 				}
 				idx = k + 1
 			} else {
@@ -426,7 +426,7 @@ func (m *Machine) doOpArrayLit() {
 				if al == nil {
 					ad[idx] = v.GetUint8()
 				} else {
-					al[idx] = v
+					al[idx] = v.Copy(m.Alloc)
 				}
 				idx++
 			}
@@ -456,9 +456,7 @@ func (m *Machine) doOpSliceLit() {
 	// construct element buf slice.
 	baseArray := m.Alloc.NewListArray(el)
 	es := baseArray.List
-	for i := el - 1; 0 <= i; i-- {
-		es[i] = *m.PopValue()
-	}
+	m.PopCopyValues(es)
 	// construct and push value.
 	if debug {
 		if m.PopValue().V.(TypeValue).Type != st {
@@ -503,7 +501,7 @@ func (m *Machine) doOpSliceLit2() {
 			// slice index has already been assigned
 			panic(fmt.Sprintf("duplicate index %d in array or slice literal", idx))
 		}
-		es[idx] = vtv
+		es[idx] = vtv.Copy(m.Alloc)
 	}
 	// fill in empty values.
 	ste := st.Elem()
@@ -547,7 +545,7 @@ func (m *Machine) doOpMapLit() {
 				// map key has already been assigned
 				panic(fmt.Sprintf("duplicate key %s in map literal", ktv.V))
 			}
-			*ptr.TV = vtv
+			*ptr.TV = vtv.Copy(m.Alloc)
 		}
 	}
 	// pop map type.
@@ -582,7 +580,7 @@ func (m *Machine) doOpStructLit() {
 	} else if x.Elts[0].Key == nil {
 		// field values are in order.
 		m.Alloc.AllocateStructFields(int64(len(st.Fields)))
-		fs = make([]TypedValue, 0, len(st.Fields))
+		fs = make([]TypedValue, len(st.Fields))
 		if debug {
 			if el == 0 {
 				// this is fine.
@@ -602,20 +600,7 @@ func (m *Machine) doOpStructLit() {
 				}
 			}
 		}
-		ftvs := m.PopValues(el)
-		for _, ftv := range ftvs {
-			if debug {
-				if !ftv.IsUndefined() && ftv.T.Kind() == InterfaceKind {
-					panic("should not happen")
-				}
-			}
-			fs = append(fs, ftv)
-		}
-		if debug {
-			if len(fs) != cap(fs) {
-				panic("should not happen")
-			}
-		}
+		m.PopCopyValues(fs)
 	} else {
 		// field values are by name and may be out of order.
 		fs = defaultStructFields(m.Alloc, st)
@@ -637,7 +622,7 @@ func (m *Machine) doOpStructLit() {
 				panic(fmt.Sprintf("duplicate field name %s in struct literal", fnx.Name))
 			}
 			fsset[fnx.Path.Index] = true
-			fs[fnx.Path.Index] = ftv
+			fs[fnx.Path.Index] = ftv.Copy(m.Alloc)
 		}
 	}
 	// construct and push value.
@@ -692,7 +677,7 @@ func (m *Machine) doOpFuncLit() {
 }
 
 func (m *Machine) doOpConvert() {
-	xv := m.PopValue()
+	xv := m.PopValue().Copy(m.Alloc)
 	t := m.PopValue().GetType()
 
 	// BEGIN conversion checks
@@ -701,7 +686,7 @@ func (m *Machine) doOpConvert() {
 	// Case 1.
 	// Do not allow conversion of value stored in eternal realm.
 	// Otherwise anyone could convert an external object insecurely.
-	if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(xv) {
+	if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(&xv) {
 		if xvdt, ok := xv.T.(*DeclaredType); ok &&
 			xvdt.PkgPath == m.Realm.Path {
 			// Except allow if xv.T is m.Realm.
@@ -725,6 +710,6 @@ func (m *Machine) doOpConvert() {
 	}
 	// END conversion checks
 
-	ConvertTo(m.Alloc, m.Store, xv, t, false)
-	m.PushValue(*xv)
+	ConvertTo(m.Alloc, m.Store, &xv, t, false)
+	m.PushValue(xv)
 }

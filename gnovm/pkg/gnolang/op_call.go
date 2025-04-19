@@ -64,9 +64,6 @@ func (m *Machine) doOpCall() {
 	fv := fr.Func
 	fs := fv.GetSource(m.Store)
 	ft := fr.Func.GetType(m.Store)
-	pts := ft.Params
-	numParams := len(pts)
-	isMethod := 0 // 1 if true
 	// Create new block scope.
 	pb := fr.Func.GetParent(m.Store)
 	b := m.Alloc.NewBlock(fs, pb)
@@ -100,6 +97,8 @@ func (m *Machine) doOpCall() {
 			m.PushStmt(gReturnStmt)
 			m.PushOp(OpExec)
 		} else {
+			// NOTE: not a bound method.
+			numParams := len(ft.Params)
 			// Initialize return variables with default value.
 			for i, rt := range ft.Results {
 				dtv := defaultTypedValue(m.Alloc, rt.Type)
@@ -125,50 +124,15 @@ func (m *Machine) doOpCall() {
 		// so this op follows (this) OpCall.
 		m.PushOp(OpCallNativeBody)
 	}
-	// Assign receiver as first parameter, if any.
+	// Construct arg values.
+	bft := ft
 	if !fr.Receiver.IsUndefined() {
-		isMethod = 1
+		bft = ft.BoundType()
 	}
-	// Convert variadic argument to slice argument.
-	// TODO: more optimizations may be possible here if
-	// varg is unescaping.
-	// NOTE: this logic is somewhat duplicated for
-	// doOpReturnCallDefers().
-	if ft.HasVarg() {
-		nvar := fr.NumArgs - (numParams - 1 - isMethod)
-		if fr.IsVarg {
-			// Do nothing, last arg type is already slice
-			// type called with form fncall(?, vargs...)
-			if debug {
-				if nvar != 1 {
-					panic("should not happen")
-				}
-			}
-		} else {
-			list := m.PopCopyValues(nvar)
-			vart := pts[numParams-1].Type.(*SliceType)
-			varg := m.Alloc.NewSliceFromList(list)
-			m.PushValue(TypedValue{
-				T: vart,
-				V: varg,
-			})
-		}
-	}
-	// Assign non-receiver parameters in forward order.
-	pvs := m.PopValues(numParams - isMethod)
-	for i := 0; i < numParams; i++ {
-		var pv TypedValue
-		if i >= isMethod {
-			pv = pvs[i-isMethod]
-			// Make a copy so that a reference to the argument isn't used
-			// in cases where the non-primitive value type is represented
-			// as a pointer, but the declared type is not; e.g. *StructValue
-			// otherwise the struct won't actually be copied by value.
-			pv = pv.Copy(m.Alloc)
-		} else {
-			pv = fr.Receiver
-		}
-		b.Values[i].AssignToBlock(pv)
+	args := m.popCopyArgs(bft, fr.NumArgs, fr.IsVarg, fr.Receiver)
+	// Assign parameters in forward order.
+	for i, argtv := range args {
+		b.Values[i].AssignToBlock(argtv)
 	}
 }
 
@@ -313,102 +277,124 @@ func (m *Machine) doOpReturnCallDefers() {
 
 	m.DeferPanicScope = dfr.PanicScope
 
+	if dfr.Func == nil {
+		m.Panic(typedString("defer called a nil function"))
+		return
+	}
+
 	// Call last deferred call.
 	// NOTE: the following logic is largely duplicated in doOpCall().
 	// Convert if variadic argument.
-	if dfr.Func != nil {
-		fv := dfr.Func
-		ft := fv.GetType(m.Store)
-		// Create new block scope for defer.
-		pb := dfr.Func.GetParent(m.Store)
-		b := m.Alloc.NewBlock(fv.GetSource(m.Store), pb)
-		// copy values from captures
-		if len(fv.Captures) != 0 {
-			if len(fv.Captures) > len(b.Values) {
-				panic("should not happen, length of captured variables must not exceed the number of values")
-			}
-			for i := range fv.Captures {
-				b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
-			}
+	fv := dfr.Func
+	ft := fv.GetType(m.Store)
+	// Create new block scope for defer.
+	pb := dfr.Func.GetParent(m.Store)
+	b := m.Alloc.NewBlock(fv.GetSource(m.Store), pb)
+	// copy values from captures
+	if len(fv.Captures) != 0 {
+		if len(fv.Captures) > len(b.Values) {
+			panic("should not happen, length of captured variables must not exceed the number of values")
 		}
-		m.PushBlock(b)
-		if fv.nativeBody == nil {
-			fbody := fv.GetBodyFromSource(m.Store)
-			// Exec body.
-			b.bodyStmt = bodyStmt{
-				Body:          fbody,
-				BodyLen:       len(fbody),
-				NextBodyIndex: -2,
-			}
-			m.PushOp(OpBody)
-			m.PushStmt(b.GetBodyStmt())
-		} else {
-			// Call native function.
-			m.PushValue(TypedValue{
-				T: ft,
-				V: fv,
-			})
-			m.PushOp(OpCallDeferNativeBody)
+		for i := range fv.Captures {
+			b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
 		}
-		// Assign parameters in forward order.
-		for i, arg := range dfr.Args {
-			// We need to define, but b was already populated
-			// with new empty heap items, so AssignToBlock is
-			// faster.
-			b.Values[i].AssignToBlock(arg)
-		}
-	} else {
-		panic("should not happen")
 	}
+	m.PushBlock(b)
+	if fv.nativeBody == nil {
+		fbody := fv.GetBodyFromSource(m.Store)
+		// Exec body.
+		b.bodyStmt = bodyStmt{
+			Body:          fbody,
+			BodyLen:       len(fbody),
+			NextBodyIndex: -2,
+		}
+		m.PushOp(OpBody)
+		m.PushStmt(b.GetBodyStmt())
+	} else {
+		// Call native function.
+		m.PushValue(TypedValue{
+			T: ft,
+			V: fv,
+		})
+		m.PushOp(OpCallDeferNativeBody)
+	}
+	// Assign parameters in forward order.
+	for i, arg := range dfr.Args {
+		// We need to define, but b was already populated
+		// with new empty heap items, so AssignToBlock is
+		// faster.
+		b.Values[i].AssignToBlock(arg)
+	}
+}
+
+// ft: the (bound) func type.
+// numArgs: number of arguments provided.
+// isVarg: true if called with ...varg.
+// recv: receiver if bound otherwise undefined.
+// Returns a slice of parameters with receiver (if any) and varg conversion.
+// For bound method calls the returned slice is 1 greater than len(ft.Params).
+// Constructed varg slice is allocated, but the result slice is not.
+func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv TypedValue) []TypedValue {
+	pts := ft.Params
+	numParams := len(pts)
+	isMethod := 0
+	if !recv.IsUndefined() {
+		isMethod = 1
+	}
+	args := make([]TypedValue, isMethod+numParams)
+	if isMethod == 1 {
+		args[0] = recv
+	}
+	nvar := numArgs - (numParams - 1)
+	if ft.HasVarg() {
+		if isVarg {
+			// Do nothing special, last arg type is already slice
+			// type called with form fncall(?, vargs...)
+			if debug {
+				if nvar != 1 {
+					panic("should not happen")
+				}
+			}
+		} else {
+			// Convert variadic argument to slice argument.
+			// Convert last nvar to slice.
+			list := make([]TypedValue, nvar)
+			m.PopCopyValues(list)
+			varg := m.Alloc.NewSliceFromList(list)
+			// Pop non-receiver non-varg args.
+			m.PopCopyValues(args[isMethod : isMethod+numParams-1])
+			// Set varg slice.
+			vart := pts[numParams-1].Type.(*SliceType)
+			args[isMethod+numParams-1] = TypedValue{
+				T: vart,
+				V: varg,
+			}
+			return args
+		}
+	}
+	// Pop non-receiver args.
+	m.PopCopyValues(args[isMethod:])
+	return args
 }
 
 func (m *Machine) doOpDefer() {
 	lb := m.LastBlock()
 	cfr := m.MustPeekCallFrame(1)
 	ds := m.PopStmt().(*DeferStmt)
-	// Pop arguments
 	numArgs := len(ds.Call.Args)
-	args := m.PopCopyValues(numArgs)
-	// Pop func
-	ftv := m.PopValue()
+	// Peek func to get type.
+	ftv := m.PeekValue(numArgs + 1)
 	// Push defer.
 	switch cv := ftv.V.(type) {
 	case *FuncValue:
 		fv := cv
-		ft := fv.GetType(m.Store)
-		pts := ft.Params
-		numParams := len(pts)
-		isMethod := 0
-		nvar := numArgs - (numParams - 1 - isMethod)
-		if ft.HasVarg() {
-			if ds.Call.Varg {
-				// Do nothing, last arg type is already slice
-				// type called with form fncall(?, vargs...)
-				if debug {
-					if nvar != 1 {
-						panic("should not happen")
-					}
-				}
-			} else {
-				// Convert last nvar to slice.
-				vart := pts[numParams-1].Type.(*SliceType)
-				list := make([]TypedValue, nvar)
-				copy(list, args[numParams-1-isMethod:])
-				varg := m.Alloc.NewSliceFromList(list)
-				args = append(args[:numParams-1-isMethod], TypedValue{
-					T: vart,
-					V: varg,
-				})
-			}
-		}
-		/*
-			for i := 0; i < numParams; i++ {
-				// args will be copy()'d to block later.
-				args[i].DefineToBlock(args[i])
-			}
-		*/
+		args := m.popCopyArgs(
+			baseOf(ftv.T).(*FuncType),
+			numArgs,
+			ds.Call.Varg,
+			TypedValue{})
 		cfr.PushDefer(Defer{
-			Func:       cv,
+			Func:       fv,
 			Args:       args,
 			Source:     ds,
 			Parent:     lb,
@@ -416,54 +402,28 @@ func (m *Machine) doOpDefer() {
 		})
 	case *BoundMethodValue:
 		fv := cv.Func
-		ft := fv.GetType(m.Store)
-		pts := ft.Params
-		numParams := len(pts)
-		isMethod := 1
-		nvar := numArgs - (numParams - 1 - isMethod)
-		if ft.HasVarg() {
-			if ds.Call.Varg {
-				// Do nothing, last arg type is already slice
-				// type called with form fncall(?, vargs...)
-				if debug {
-					if nvar != 1 {
-						panic("should not happen")
-					}
-				}
-			} else {
-				// Convert last nvar to slice.
-				vart := pts[numParams-1].Type.(*SliceType)
-				list := make([]TypedValue, nvar)
-				copy(list, args[numParams-1-isMethod:])
-				varg := m.Alloc.NewSliceFromList(list)
-				args = append(args[:numParams-1-isMethod], TypedValue{
-					T: vart,
-					V: varg,
-				})
-			}
-		}
-		args2 := make([]TypedValue, len(args)+1)
-		// Make heap item if param is heap defined.
-		// This also heap escapes the receiver.
-		for i := 0; i < numParams; i++ {
-			var pv TypedValue
-			if i >= isMethod {
-				pv = args[i-isMethod]
-			} else {
-				pv = cv.Receiver
-			}
-			args2[i] = pv
-		}
+		recv := cv.Receiver
+		args := m.popCopyArgs(
+			baseOf(ftv.T).(*FuncType),
+			numArgs,
+			ds.Call.Varg,
+			recv)
 		cfr.PushDefer(Defer{
 			Func:       fv,
-			Args:       args2,
+			Args:       args,
 			Source:     ds,
 			Parent:     lb,
 			PanicScope: m.PanicScope,
 		})
+	case nil:
+		cfr.PushDefer(Defer{
+			Func: nil,
+		})
 	default:
-		panic("should not happen")
+		m.Panic(typedString(fmt.Sprintf("invalid defer function call: %v", cv)))
+		return
 	}
+	m.PopValue() // pop func
 }
 
 func (m *Machine) doOpPanic1() {
@@ -471,6 +431,7 @@ func (m *Machine) doOpPanic1() {
 	var ex TypedValue = m.PopValue().Copy(m.Alloc)
 	// Panic
 	m.Panic(ex)
+	return
 }
 
 func (m *Machine) doOpPanic2() {

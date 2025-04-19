@@ -15,6 +15,7 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 	eventAttrs, err := attrKeysAndValues(attrs)
 	if err != nil {
 		m.Panic(typedString(err.Error()))
+		return
 	}
 
 	_, pkgPath := currentRealm(m)

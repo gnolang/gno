@@ -28,6 +28,7 @@ type RealmOverride struct {
 func AssertOriginCall(m *gno.Machine) {
 	if !isOriginCall(m) {
 		m.Panic(typedString("invalid non-origin call"))
+		return
 	}
 }
 
@@ -137,6 +138,7 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 
 	if crosses != height {
 		m.Panic(typedString("frame not found"))
+		return "", ""
 	}
 
 	// Special case if package initialization.

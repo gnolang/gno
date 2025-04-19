@@ -2372,13 +2372,11 @@ func defineOrDecl(
 
 	node := skipFile(bn)
 
-	skip := 0 // skip unnamed names like _.
 	for i, nx := range nameExprs {
 		if nx.Name == blankIdentifier {
-			skip++
 			nx.Path = NewValuePathBlock(0, 0, nx.Name)
 		} else {
-			node.Define2(isConst, nx.Name, sts[i-skip], tvs[i-skip])
+			node.Define2(isConst, nx.Name, sts[i], tvs[i])
 			nx.Path = bn.GetPathForName(nil, nx.Name)
 		}
 	}
@@ -2533,16 +2531,9 @@ func parseMultipleAssignFromOneExpr(
 		st = evalStaticType(store, bn, typeExpr)
 	}
 
-	skip := 0 // skip unnamed names like _.
-	for i, nx := range nameExprs {
-		if nx.Name == blankIdentifier {
-			skip++
-			continue
-		}
-		// := 0; i < numNames; i++ {
+	for i, _ := range nameExprs {
 		if st != nil {
 			tt := tuple.Elts[i]
-
 			if checkAssignableTo(n, tt, st, false) != nil {
 				panic(
 					fmt.Sprintf(
@@ -2553,14 +2544,12 @@ func parseMultipleAssignFromOneExpr(
 					),
 				)
 			}
-
-			sts[i-skip] = st
+			sts[i] = st
 		} else {
 			// Set types as return types.
-			sts[i-skip] = tuple.Elts[i]
+			sts[i] = tuple.Elts[i]
 		}
-
-		tvs[i-skip] = anyValue(sts[i-skip])
+		tvs[i] = anyValue(sts[i])
 	}
 }
 
