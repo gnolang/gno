@@ -123,7 +123,6 @@ func main() {
 //     +                },
 //     +                "Type": {
 //     +                    "@type": "/gno.FuncType",
-//     +                    "IsClosure": false,
 //     +                    "Params": null,
 //     +                    "Results": [
 //     +                        {
