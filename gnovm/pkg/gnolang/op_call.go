@@ -426,6 +426,7 @@ func (m *Machine) doOpDefer() {
 	m.PopValue() // pop func
 }
 
+// XXX DEPRECATED
 func (m *Machine) doOpPanic1() {
 	// Pop exception
 	var ex TypedValue = m.PopValue().Copy(m.Alloc)

@@ -3967,12 +3967,6 @@ func findUndefinedStmt(store Store, last BlockNode, stmt Stmt, t Type) Name {
 		if un != "" {
 			return un
 		}
-	case *PanicStmt:
-		un := findUndefined2SkipLocals(store, last, s.Exception, t)
-
-		if un != "" {
-			return un
-		}
 	case *BlockStmt:
 		for _, rh := range s.Body {
 			un := findUndefinedStmt(store, s, rh, t)

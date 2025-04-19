@@ -573,12 +573,6 @@ EXEC_SWITCH:
 			m.PushExpr(res)
 			m.PushOp(OpEval)
 		}
-	case *PanicStmt:
-		m.PopStmt()
-		m.PushOp(OpPanic1)
-		// evaluate exception
-		m.PushExpr(cs.Exception)
-		m.PushOp(OpEval)
 	case *RangeStmt:
 		m.PushFrameBasic(cs)
 		b := m.Alloc.NewBlock(cs, m.LastBlock())

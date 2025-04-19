@@ -137,7 +137,8 @@ func (m *Machine) doOpStar() {
 	switch bt := baseOf(xv.T).(type) {
 	case *PointerType:
 		if xv.V == nil {
-			panic(&Exception{Value: typedString("nil pointer dereference")})
+			m.Panic(typedString("nil pointer dereference"))
+			return
 		}
 
 		pv := xv.V.(PointerValue)
