@@ -419,8 +419,25 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	if pv == nil {
 		panic("RunFiles requires Machine.Package")
 	}
+	rlm := pv.GetRealm()
+	if rlm == nil && pv.IsRealm() {
+		rlm = NewRealm(pv.PkgPath) // throwaway
+	}
 	updates := m.runFileDecls(IsStdlib(pv.PkgPath), fns...)
+	if rlm != nil {
+		pb := pv.GetBlock(m.Store)
+		for _, update := range updates {
+			if hiv, ok := update.V.(*HeapItemValue); ok {
+				rlm.DidUpdate(pb, nil, hiv)
+			} else {
+				rlm.DidUpdate(pb, nil, update.GetFirstObject(m.Store))
+			}
+		}
+	}
 	m.runInitFromUpdates(pv, updates)
+	if rlm != nil {
+		rlm.FinalizeRealmTransaction(m.Store)
+	}
 }
 
 // PreprocessFiles runs Preprocess on the given files. It is used to detect
@@ -613,6 +630,8 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 // multiple files belonging to the same package in
 // lexical file name order to a compiler."
 func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
+	// Only for the init functions make the origin caller
+	// the package addr.
 	for _, tv := range updates {
 		if tv.IsDefined() && tv.T.Kind() == FuncKind && tv.V != nil {
 			fv, ok := tv.V.(*FuncValue)
@@ -622,7 +641,7 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 			if strings.HasPrefix(string(fv.Name), "init.") {
 				fb := pv.GetFileBlock(m.Store, fv.FileName)
 				m.PushBlock(fb)
-				m.RunFunc(fv.Name)
+				m.RunFunc(fv.Name, false)
 				m.PopBlock()
 			}
 		}
@@ -680,12 +699,20 @@ func (m *Machine) resavePackageValues(rlm *Realm) {
 	// even after running the init function.
 }
 
-func (m *Machine) RunFunc(fn Name) {
-	m.RunStatement(S(Call(Nx(fn))))
+func (m *Machine) RunFunc(fn Name, withSwitch bool) {
+	if withSwitch {
+		m.RunStatement(S(Call(Call(Nx("cross"), Nx(fn)))))
+	} else {
+		m.RunStatement(S(Call(Nx(fn))))
+	}
 }
 
 func (m *Machine) RunMain() {
-	m.RunStatement(S(Call(X("main"))))
+	if m.Package.IsRealm() {
+		m.RunStatement(S(Call(Nx("cross"), Nx("main"))))
+	} else {
+		m.RunStatement(S(Call(X("main"))))
+	}
 }
 
 // Evaluate throwaway expression in new block scope.
@@ -871,9 +898,6 @@ const (
 	OpPrecall             Op = 0x04 // sets X (func) to frame
 	OpCall                Op = 0x05 // call(Frame.Func, [...])
 	OpCallNativeBody      Op = 0x06 // call body is native
-	OpReturn              Op = 0x07 // return ...
-	OpReturnFromBlock     Op = 0x08 // return results (after defers)
-	OpReturnToBlock       Op = 0x09 // copy results to block (before defer)
 	OpDefer               Op = 0x0A // defer call(X, [...])
 	OpCallDeferNativeBody Op = 0x0B // call body is native
 	OpGo                  Op = 0x0C // go call(X, [...])
@@ -888,6 +912,10 @@ const (
 	OpPopFrameAndReset    Op = 0x15 // pop frame and reset.
 	OpPanic1              Op = 0x16 // pop exception and pop call frames.
 	OpPanic2              Op = 0x17 // pop call frames.
+	OpReturn              Op = 0x1A // return ...
+	OpReturnAfterCopy     Op = 0x1B // return ... (with named results)
+	OpReturnFromBlock     Op = 0x1C // return results (after defers)
+	OpReturnToBlock       Op = 0x1D // copy results to block (before defer) XXX rename to OpCopyResultsToBlock
 
 	/* Unary & binary operators */
 	OpUpos  Op = 0x20 // + (unary)
@@ -976,7 +1004,7 @@ const (
 	OpRangeIterString   Op = 0xD4
 	OpRangeIterMap      Op = 0xD5
 	OpRangeIterArrayPtr Op = 0xD6
-	OpReturnCallDefers  Op = 0xD7 // TODO rename?
+	OpReturnCallDefers  Op = 0xD7 // XXX rename to OpCallDefers
 	OpVoid              Op = 0xFF // For profiling simple operation
 )
 
@@ -1003,9 +1031,6 @@ const (
 	OpCPUPrecall             = 207
 	OpCPUCall                = 256
 	OpCPUCallNativeBody      = 424
-	OpCPUReturn              = 38
-	OpCPUReturnFromBlock     = 36
-	OpCPUReturnToBlock       = 23
 	OpCPUDefer               = 64
 	OpCPUCallDeferNativeBody = 33
 	OpCPUGo                  = 1 // Not yet implemented
@@ -1020,6 +1045,10 @@ const (
 	OpCPUPopFrameAndReset    = 15
 	OpCPUPanic1              = 121
 	OpCPUPanic2              = 21
+	OpCPUReturn              = 38
+	OpCPUReturnAfterCopy     = 38 // XXX
+	OpCPUReturnFromBlock     = 36
+	OpCPUReturnToBlock       = 23
 
 	/* Unary & binary operators */
 	OpCPUUpos  = 7
@@ -1178,6 +1207,9 @@ func (m *Machine) Run() {
 		case OpReturn:
 			m.incrCPU(OpCPUReturn)
 			m.doOpReturn()
+		case OpReturnAfterCopy:
+			m.incrCPU(OpCPUReturnAfterCopy)
+			m.doOpReturnAfterCopy()
 		case OpReturnFromBlock:
 			m.incrCPU(OpCPUReturnFromBlock)
 			m.doOpReturnFromBlock()
@@ -1598,9 +1630,22 @@ func (m *Machine) PeekValue(offset int) *TypedValue {
 	return &m.Values[m.NumValues-offset]
 }
 
+// Returns a slice of the values stack.
+// Use or copy the result, as well as the slice.
+func (m *Machine) PeekValues(n int) []TypedValue {
+	return m.Values[m.NumValues-n : m.NumValues]
+}
+
 // XXX delete?
 func (m *Machine) PeekType(offset int) Type {
 	return m.Values[m.NumValues-offset].T
+}
+
+func (m *Machine) PushValueFromBlock(tv TypedValue) {
+	if hiv, ok := tv.V.(*HeapItemValue); ok {
+		tv = hiv.Value
+	}
+	m.PushValue(tv)
 }
 
 func (m *Machine) PushValue(tv TypedValue) {
@@ -1630,7 +1675,7 @@ func (m *Machine) PopValue() (tv *TypedValue) {
 
 // Returns a slice of n values in the stack and decrements NumValues.
 // NOTE: The results are on the values stack, so they must be copied or used
-// immediately.  If you need to use the machine before or during usage,
+// immediately. If you need to use the machine before or during usage,
 // consider using PopCopyValues().
 // NOTE: the values are in stack order, oldest first, the opposite order of
 // multiple pop calls.  This is used for params assignment, for example.
@@ -1645,12 +1690,13 @@ func (m *Machine) PopValues(n int) []TypedValue {
 	return m.Values[m.NumValues : m.NumValues+n]
 }
 
-// Like PopValues(), but copies the values onto a new slice.
-func (m *Machine) PopCopyValues(n int) []TypedValue {
-	res := make([]TypedValue, n)
+// Like PopValues(), but copies the values onto given slice.
+func (m *Machine) PopCopyValues(res []TypedValue) {
+	n := len(res)
 	ptvs := m.PopValues(n)
-	copy(res, ptvs)
-	return res
+	for i := 0; i < n; i++ {
+		res[i] = ptvs[i].Copy(m.Alloc)
+	}
 }
 
 // Decrements NumValues by number of last results.
@@ -1719,6 +1765,7 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
+	withSwitch := cx.IsWithCross()
 	fr := &Frame{
 		Source:      cx,
 		NumOps:      m.NumOps,
@@ -1733,6 +1780,8 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 		Defers:      nil,
 		LastPackage: m.Package,
 		LastRealm:   m.Realm,
+		WithCross:   withSwitch,
+		DidCross:    false,
 	}
 	if debug {
 		if m.Package == nil {
@@ -1743,29 +1792,81 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 		m.Printf("+F %#v\n", fr)
 	}
 	m.Frames = append(m.Frames, fr)
+
+	// Set the package.
+	// .Package always refers to the code being run,
+	// and may differ from .Realm.
 	pv := fv.GetPackage(m.Store)
 	if pv == nil {
 		panic(fmt.Sprintf("package value missing in store: %s", fv.PkgPath))
 	}
-	rlm := pv.GetRealm()
-	if rlm == nil && recv.IsDefined() {
-		obj := recv.GetFirstObject(m.Store)
-		if obj == nil {
-			// could be a nil receiver.
-			// just ignore.
+	m.Package = pv
+
+	// If no realm, return early.
+	if m.Realm == nil {
+		return
+	}
+
+	// If cross, always switch to pv.Realm.
+	// If method, this means the object cannot be modified if
+	// stored externally by this method; but other methods can.
+	if withSwitch {
+		if !fv.IsSwitchRealm() {
+			panic(fmt.Sprintf(
+				"missing crossing() after cross call in %v from %s to %s",
+				fr.Func.String(),
+				m.Realm.Path,
+				pv.Realm.Path,
+			))
+		}
+		m.Realm = pv.GetRealm()
+		return
+	}
+
+	// Not called like cross(fn)(...).
+	if fv.IsSwitchRealm() {
+		if m.Realm != pv.Realm {
+			// panic; not explicit
+			panic(fmt.Sprintf(
+				"missing cross before external crossing() in %v from %s to %s",
+				fr.Func.String(),
+				m.Realm.Path,
+				pv.Realm.Path,
+			))
 		} else {
-			recvOID := obj.GetObjectInfo().ID
-			if !recvOID.IsZero() {
-				// override the pv and rlm with receiver's.
-				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
-				pv = m.Store.GetObject(recvPkgOID).(*PackageValue)
-				rlm = pv.GetRealm() // done
-			}
+			// ok
+			// Technically OK even if recv.Realm is different.
+			return
 		}
 	}
-	m.Package = pv
-	if rlm != nil && m.Realm != rlm {
-		m.Realm = rlm // enter new realm
+
+	// Not cross nor crossing.
+	// Only "soft" switch to storage realm of receiver.
+	var rlm *Realm
+	if recv.IsDefined() { // method call
+		obj := recv.GetFirstObject(m.Store)
+		if obj == nil { // nil receiver
+			// no switch
+			return
+		} else {
+			recvOID := obj.GetObjectInfo().ID
+			if recvOID.IsZero() || recvOID.PkgID == m.Realm.ID {
+				// no switch
+				return
+			} else {
+				// implicit switch to storage realm.
+				// neither cross nor didswitch.
+				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
+				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
+				rlm = objpv.GetRealm()
+				m.Realm = rlm
+				fr.DidCross = true
+				return
+			}
+		}
+	} else { // top level function
+		// no switch
+		return
 	}
 }
 
@@ -1849,25 +1950,26 @@ func (m *Machine) NumFrames() int {
 	return len(m.Frames)
 }
 
+// Returns the current frame.
 func (m *Machine) LastFrame() *Frame {
 	return m.Frames[len(m.Frames)-1]
 }
 
-// MustLastCallFrame returns the last call frame with an offset of n. It panics if the frame is not found.
-func (m *Machine) MustLastCallFrame(n int) *Frame {
-	return m.lastCallFrame(n, true)
+// MustPeekCallFrame returns the last call frame with an offset of n. It panics if the frame is not found.
+func (m *Machine) MustPeekCallFrame(n int) *Frame {
+	return m.peekCallFrame(n, true)
 }
 
-// LastCallFrame behaves the same as MustLastCallFrame, but rather than panicking,
+// PeekCallFrame behaves the same as MustPeekCallFrame, but rather than panicking,
 // returns nil if the frame is not found.
-func (m *Machine) LastCallFrame(n int) *Frame {
-	return m.lastCallFrame(n, false)
+func (m *Machine) PeekCallFrame(n int) *Frame {
+	return m.peekCallFrame(n, false)
 }
 
 // TODO: this function and PopUntilLastCallFrame() is used in conjunction
 // spanning two disjoint operations upon return. Optimize.
 // If n is 1, returns the immediately last call frame.
-func (m *Machine) lastCallFrame(n int, mustBeFound bool) *Frame {
+func (m *Machine) peekCallFrame(n int, mustBeFound bool) *Frame {
 	if n == 0 {
 		panic("n must be positive")
 	}
@@ -1941,16 +2043,55 @@ func (m *Machine) PushForPointer(lx Expr) {
 	}
 }
 
+// Pop a pointer (for writing only).
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
+	pv, ro := m.PopAsPointer2(lx)
+	if ro {
+		panic("cannot modify external-realm or non-realm object")
+	}
+	return pv
+}
+
+// Returns true if tv is N_Readonly or, its "first object" resides in a
+// different non-zero realm. Returns false for non-N_Readonly StringValue, free
+// floating pointers, and unreal objects.
+func (m *Machine) IsReadonly(tv *TypedValue) bool {
+	if m.Realm == nil {
+		return false
+	}
+	if tv.IsReadonly() {
+		return true
+	}
+	tvoid, ok := tv.GetFirstObjectID()
+	if !ok {
+		// e.g. if tv is a string, or free floating pointers.
+		return false
+	}
+	if tvoid.IsZero() {
+		return false
+	}
+	if tvoid.PkgID != m.Realm.ID {
+		return true
+	}
+	return false
+}
+
+// Returns ro = true if the base is readonly,
+// or if the base's storage realm != m.Realm and both are non-nil,
+// and the lx isn't a name (base is a block),
+// and the lx isn't a composit lit expr.
+func (m *Machine) PopAsPointer2(lx Expr) (pv PointerValue, ro bool) {
 	switch lx := lx.(type) {
 	case *NameExpr:
 		switch lx.Type {
 		case NameExprTypeNormal:
 			lb := m.LastBlock()
-			return lb.GetPointerTo(m.Store, lx.Path)
+			pv = lb.GetPointerTo(m.Store, lx.Path)
+			ro = false // always mutable
 		case NameExprTypeHeapUse:
 			lb := m.LastBlock()
-			return lb.GetPointerToHeapUse(m.Store, lx.Path)
+			pv = lb.GetPointerTo(m.Store, lx.Path)
+			ro = false // always mutable
 		case NameExprTypeHeapClosure:
 			panic("should not happen")
 		default:
@@ -1959,24 +2100,29 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
-		return xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
+		pv = xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
+		ro = m.IsReadonly(xv)
 	case *SelectorExpr:
 		xv := m.PopValue()
-		return xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
+		pv = xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
+		ro = m.IsReadonly(xv)
 	case *StarExpr:
-		ptr := m.PopValue().V.(PointerValue)
-		return ptr
+		xv := m.PopValue()
+		pv = xv.V.(PointerValue)
+		ro = m.IsReadonly(xv)
 	case *CompositeLitExpr: // for *RefExpr
 		tv := *m.PopValue()
 		hv := m.Alloc.NewHeapItem(tv)
-		return PointerValue{
+		pv = PointerValue{
 			TV:    &hv.Value,
 			Base:  hv,
 			Index: 0,
 		}
+		ro = false // always mutable
 	default:
 		panic("should not happen")
 	}
+	return
 }
 
 // for testing.
@@ -2011,12 +2157,14 @@ func (m *Machine) CheckEmpty() error {
 	}
 }
 
+// This function does not go-panic:
+// caller must return manually.
 func (m *Machine) Panic(ex TypedValue) {
 	m.Exceptions = append(
 		m.Exceptions,
 		Exception{
 			Value:      ex,
-			Frame:      m.MustLastCallFrame(1),
+			Frame:      m.MustPeekCallFrame(1),
 			Stacktrace: m.Stacktrace(),
 		},
 	)
@@ -2045,10 +2193,11 @@ func (m *Machine) Recover() *Exception {
 	// If the frame the exception occurred in is not popped, it's possible that
 	// the exception is still in scope and can be recovered.
 	if !exception.Frame.Popped {
-		// If the frame is not the current frame, the exception is not in scope; return nil.
-		// This retrieves the second most recent call frame because the first most recent
-		// is the call to recover itself.
-		if frame := m.LastCallFrame(2); frame == nil || frame != exception.Frame {
+		// If the frame is not the current frame, the exception is not
+		// in scope; return nil.  This retrieves the second most recent
+		// call frame because the first most recent is the call to
+		// recover itself.
+		if frame := m.PeekCallFrame(2); frame == nil || frame != exception.Frame {
 			return nil
 		}
 	}
@@ -2147,14 +2296,6 @@ func (m *Machine) String() string {
 		} else {
 			bsi := b.StringIndented("            ")
 			fmt.Fprintf(builder, "          %s(%d) %s\n", gens, gen, bsi)
-
-			if b.Source != nil {
-				sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
-				fmt.Fprintf(builder, " (s vals) %s(%d) %s\n", gens, gen, sb.StringIndented("            "))
-
-				sts := b.GetSource(m.Store).GetStaticBlock().Types
-				fmt.Fprintf(builder, " (s typs) %s(%d) %s\n", gens, gen, sts)
-			}
 		}
 
 		// Update b
@@ -2185,11 +2326,6 @@ func (m *Machine) String() string {
 		} else {
 			fmt.Fprintf(builder, "          #%d %s\n", i,
 				b.StringIndented("            "))
-			if b.Source != nil {
-				sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
-				fmt.Fprintf(builder, " (static) #%d %s\n", i,
-					sb.StringIndented("            "))
-			}
 		}
 	}
 

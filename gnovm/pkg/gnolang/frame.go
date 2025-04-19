@@ -27,15 +27,17 @@ type Frame struct {
 	NumArgs     int           // number of arguments in call
 	IsVarg      bool          // is form fncall(???, vargs...)
 	Defers      []Defer       // deferred calls
-	LastPackage *PackageValue // previous package context
-	LastRealm   *Realm        // previous realm context
+	LastPackage *PackageValue // previous frame's package
+	LastRealm   *Realm        // previous frame's realm
+	WithCross   bool          // true if called like cross(fn)(...). expects crossing() after.
+	DidCross    bool          // true if crossing() was called.
 
 	Popped bool // true if frame has been popped
 }
 
 func (fr Frame) String() string {
 	if fr.Func != nil {
-		return fmt.Sprintf("[FRAME FUNC:%v RECV:%s (%d args) %d/%d/%d/%d/%d LASTPKG:%s LASTRLM:%v]",
+		return fmt.Sprintf("[FRAME FUNC:%v RECV:%s (%d args) %d/%d/%d/%d/%d LASTPKG:%s LASTRLM:%v WSW:%v DSW:%v]",
 			fr.Func,
 			fr.Receiver,
 			fr.NumArgs,
@@ -45,7 +47,9 @@ func (fr Frame) String() string {
 			fr.NumStmts,
 			fr.NumBlocks,
 			fr.LastPackage.PkgPath,
-			fr.LastRealm)
+			fr.LastRealm,
+			fr.WithCross,
+			fr.DidCross)
 	} else {
 		return fmt.Sprintf("[FRAME LABEL: %s %d/%d/%d/%d/%d]",
 			fr.Label,
@@ -72,6 +76,20 @@ func (fr *Frame) PopDefer() (res Defer, ok bool) {
 		fr.Defers = fr.Defers[:len(fr.Defers)-1]
 	}
 	return
+}
+
+func (fr *Frame) SetWithCross() {
+	if fr.WithCross {
+		panic("fr.WithCross already set")
+	}
+	fr.WithCross = true
+}
+
+func (fr *Frame) SetDidCross() {
+	if fr.DidCross {
+		panic("fr.DidCross already set")
+	}
+	fr.DidCross = true
 }
 
 //----------------------------------------
@@ -204,7 +222,7 @@ func toConstExpTrace(cte *ConstExpr) string {
 		}
 	}
 
-	return tv.T.String()
+	return tv.V.String()
 }
 
 //----------------------------------------

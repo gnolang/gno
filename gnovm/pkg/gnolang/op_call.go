@@ -17,12 +17,15 @@ func (m *Machine) doOpPrecall() {
 			panic("should not happen")
 		}
 	}
+
+	// handle cross().
 	switch fv := v.(type) {
 	case *FuncValue:
 		m.PushFrameCall(cx, fv, TypedValue{})
 		m.PushOp(OpCall)
 	case *BoundMethodValue:
-		m.PushFrameCall(cx, fv.Func, fv.Receiver)
+		recv := fv.Receiver
+		m.PushFrameCall(cx, fv.Func, recv)
 		m.PushOp(OpCall)
 	case TypeValue:
 		// Do not pop type yet.
@@ -31,7 +34,6 @@ func (m *Machine) doOpPrecall() {
 		if cx.GetAttribute(ATTR_SHIFT_RHS) == true {
 			xv.AssertNonNegative("runtime error: negative shift amount")
 		}
-
 		m.PushOp(OpConvert)
 		if debug {
 			if len(cx.Args) != 1 {
@@ -47,18 +49,24 @@ func (m *Machine) doOpPrecall() {
 
 var gReturnStmt = &ReturnStmt{}
 
+func getFuncTypeExprFromSource(source Node) *FuncTypeExpr {
+	if fd, ok := source.(*FuncDecl); ok {
+		return fd.GetUnboundTypeExpr()
+	} else {
+		return &source.(*FuncLitExpr).Type
+	}
+}
+
 func (m *Machine) doOpCall() {
 	// NOTE: Frame won't be popped until the statement is complete, to
 	// discard the correct number of results for func calls in ExprStmts.
 	fr := m.LastFrame()
 	fv := fr.Func
+	fs := fv.GetSource(m.Store)
 	ft := fr.Func.GetType(m.Store)
-	pts := ft.Params
-	numParams := len(pts)
-	isMethod := 0 // 1 if true
 	// Create new block scope.
-	clo := fr.Func.GetClosure(m.Store)
-	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
+	pb := fr.Func.GetParent(m.Store)
+	b := m.Alloc.NewBlock(fs, pb)
 
 	// Copy *FuncValue.Captures into block
 	// NOTE: addHeapCapture in preprocess ensures order.
@@ -89,13 +97,14 @@ func (m *Machine) doOpCall() {
 			m.PushStmt(gReturnStmt)
 			m.PushOp(OpExec)
 		} else {
-			// Initialize return variables with default value.
+			// NOTE: not a bound method.
 			numParams := len(ft.Params)
+			// Initialize return variables with default value.
 			for i, rt := range ft.Results {
-				// results/parameters never are heap use/closure.
-				ptr := b.GetPointerToInt(nil, numParams+i)
 				dtv := defaultTypedValue(m.Alloc, rt.Type)
-				ptr.Assign2(m.Alloc, nil, nil, dtv, false)
+				ptr := b.GetPointerToInt(nil, numParams+i)
+				// Write to existing heap item if result is heap defined.
+				ptr.TV.AssignToBlock(dtv)
 			}
 		}
 		// Exec body.
@@ -115,72 +124,15 @@ func (m *Machine) doOpCall() {
 		// so this op follows (this) OpCall.
 		m.PushOp(OpCallNativeBody)
 	}
-	// Assign receiver as first parameter, if any.
+	// Construct arg values.
+	bft := ft
 	if !fr.Receiver.IsUndefined() {
-		if debug {
-			pt := pts[0].Type
-			rt := fr.Receiver.T
-			if pt.TypeID() != rt.TypeID() {
-				panic(fmt.Sprintf(
-					"expected %s but got %s",
-					pt.String(),
-					rt.String()))
-			}
-		}
-		b.Values[0] = fr.Receiver
-		isMethod = 1
+		bft = ft.BoundType()
 	}
-	// Convert variadic argument to slice argument.
-	// TODO: more optimizations may be possible here if
-	// varg is unescaping.
-	// NOTE: this logic is somewhat duplicated for
-	// doOpReturnCallDefers().
-	if ft.HasVarg() {
-		nvar := fr.NumArgs - (numParams - 1 - isMethod)
-		if fr.IsVarg {
-			// Do nothing, last arg type is already slice
-			// type called with form fncall(?, vargs...)
-			if debug {
-				if nvar != 1 {
-					panic("should not happen")
-				}
-			}
-		} else {
-			list := m.PopCopyValues(nvar)
-			vart := pts[numParams-1].Type.(*SliceType)
-			varg := m.Alloc.NewSliceFromList(list)
-			m.PushValue(TypedValue{
-				T: vart,
-				V: varg,
-			})
-		}
-	}
-	// Assign non-receiver parameters in forward order.
-	pvs := m.PopValues(numParams - isMethod)
-	for i := isMethod; i < numParams; i++ {
-		pv := pvs[i-isMethod]
-		if debug {
-			// This is how run-time untyped const
-			// conversions would work, but we
-			// expect the preprocessor to convert
-			// these to *ConstExpr.
-			/*
-				// Convert if untyped const.
-				if isUntyped(pv.T) {
-					ConvertUntypedTo(&pv, pv.Type)
-				}
-			*/
-			if isUntyped(pv.T) {
-				panic("unexpected untyped const type for assign during runtime")
-			}
-		}
-		// TODO: some more pt <> pv.Type
-		// reconciliations/conversions necessary.
-
-		// Make a copy so that a reference to the argument isn't used
-		// in cases where the non-primitive value type is represented
-		// as a pointer, *StructValue, for example.
-		b.Values[i] = pv.Copy(m.Alloc)
+	args := m.popCopyArgs(bft, fr.NumArgs, fr.IsVarg, fr.Receiver)
+	// Assign parameters in forward order.
+	for i, argtv := range args {
+		b.Values[i].AssignToBlock(argtv)
 	}
 }
 
@@ -195,13 +147,43 @@ func (m *Machine) doOpCallDeferNativeBody() {
 
 // Assumes that result values are pushed onto the Values stack.
 func (m *Machine) doOpReturn() {
+	// Unwind stack.
 	cfr := m.PopUntilLastCallFrame()
+
 	// See if we are exiting a realm boundary.
-	// NOTE: there are other ways to implement realm boundary transitions,
-	// e.g. with independent Machine instances per realm for example, or
-	// even only finalizing all realm transactions at the end of the
-	// original statement execution, but for now we handle them like this,
-	// per OpReturn*.
+	crlm := m.Realm
+	if crlm != nil {
+		if cfr.DidCross {
+			// Finalize realm updates!
+			// NOTE: This is a resource intensive undertaking.
+			crlm.FinalizeRealmTransaction(m.Store)
+		}
+	}
+
+	// Finalize
+	m.PopFrameAndReturn()
+}
+
+// Like doOpReturn but first copies results to block.
+func (m *Machine) doOpReturnAfterCopy() {
+	// If there are named results that are heap defined,
+	// need to write to those from stack before returning.
+	cfr := m.MustPeekCallFrame(1)
+	fv := cfr.Func
+	ft := fv.GetType(m.Store)
+	numParams := len(ft.Params)
+	numResults := len(ft.Results)
+	fblock := m.Blocks[cfr.NumBlocks] // frame +1
+	results := m.PeekValues(numResults)
+	for i := 0; i < numResults; i++ {
+		rtv := results[i].Copy(m.Alloc)
+		fblock.Values[numParams+i].AssignToBlock(rtv)
+	}
+
+	// Unwind stack.
+	cfr = m.PopUntilLastCallFrame()
+
+	// See if we are exiting a realm boundary.
 	crlm := m.Realm
 	if crlm != nil {
 		lrlm := cfr.LastRealm
@@ -219,22 +201,25 @@ func (m *Machine) doOpReturn() {
 			crlm.FinalizeRealmTransaction(m.Store)
 		}
 	}
-	// finalize
+
+	// Finalize
 	m.PopFrameAndReturn()
 }
 
 // Like doOpReturn, but with results from the block;
-// i.e. named result vars declared in func signatures.
+// i.e. named result vars declared in func signatures,
+// because return was called with no return arguments.
 func (m *Machine) doOpReturnFromBlock() {
 	// Copy results from block.
 	cfr := m.PopUntilLastCallFrame()
-	ft := cfr.Func.GetType(m.Store)
+	fv := cfr.Func
+	ft := fv.GetType(m.Store)
 	numParams := len(ft.Params)
 	numResults := len(ft.Results)
 	fblock := m.Blocks[cfr.NumBlocks] // frame +1
 	for i := range numResults {
-		rtv := fillValueTV(m.Store, &fblock.Values[i+numParams])
-		m.PushValue(*rtv)
+		rtv := *fillValueTV(m.Store, &fblock.Values[i+numParams])
+		m.PushValueFromBlock(rtv)
 	}
 	// See if we are exiting a realm boundary.
 	crlm := m.Realm
@@ -262,20 +247,21 @@ func (m *Machine) doOpReturnFromBlock() {
 // deferred statements can refer to results with name
 // expressions.
 func (m *Machine) doOpReturnToBlock() {
-	cfr := m.MustLastCallFrame(1)
-	ft := cfr.Func.GetType(m.Store)
+	cfr := m.MustPeekCallFrame(1)
+	fv := cfr.Func
+	ft := fv.GetType(m.Store)
 	numParams := len(ft.Params)
 	numResults := len(ft.Results)
 	fblock := m.Blocks[cfr.NumBlocks] // frame +1
 	results := m.PopValues(numResults)
 	for i := range numResults {
 		rtv := results[i]
-		fblock.Values[numParams+i] = rtv
+		fblock.Values[numParams+i].AssignToBlock(rtv)
 	}
 }
 
 func (m *Machine) doOpReturnCallDefers() {
-	cfr := m.MustLastCallFrame(1)
+	cfr := m.MustPeekCallFrame(1)
 	dfr, ok := cfr.PopDefer()
 	if !ok {
 		// Done with defers.
@@ -291,119 +277,153 @@ func (m *Machine) doOpReturnCallDefers() {
 
 	m.DeferPanicScope = dfr.PanicScope
 
+	if dfr.Func == nil {
+		m.Panic(typedString("defer called a nil function"))
+		return
+	}
+
 	// Call last deferred call.
 	// NOTE: the following logic is largely duplicated in doOpCall().
 	// Convert if variadic argument.
-	if dfr.Func != nil {
-		fv := dfr.Func
-		ft := fv.GetType(m.Store)
-		pts := ft.Params
-		numParams := len(ft.Params)
-		// Create new block scope for defer.
-		clo := dfr.Func.GetClosure(m.Store)
-		b := m.Alloc.NewBlock(fv.GetSource(m.Store), clo)
-		// copy values from captures
-		if len(fv.Captures) != 0 {
-			if len(fv.Captures) > len(b.Values) {
-				panic("should not happen, length of captured variables must not exceed the number of values")
-			}
-			for i := range fv.Captures {
-				b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
-			}
+	fv := dfr.Func
+	ft := fv.GetType(m.Store)
+	// Create new block scope for defer.
+	pb := dfr.Func.GetParent(m.Store)
+	b := m.Alloc.NewBlock(fv.GetSource(m.Store), pb)
+	// copy values from captures
+	if len(fv.Captures) != 0 {
+		if len(fv.Captures) > len(b.Values) {
+			panic("should not happen, length of captured variables must not exceed the number of values")
 		}
-		m.PushBlock(b)
-		if fv.nativeBody == nil {
-			fbody := fv.GetBodyFromSource(m.Store)
-			// Exec body.
-			b.bodyStmt = bodyStmt{
-				Body:          fbody,
-				BodyLen:       len(fbody),
-				NextBodyIndex: -2,
-			}
-			m.PushOp(OpBody)
-			m.PushStmt(b.GetBodyStmt())
-		} else {
-			// Call native function.
-			m.PushValue(TypedValue{
-				T: ft,
-				V: fv,
-			})
-			m.PushOp(OpCallDeferNativeBody)
+		for i := range fv.Captures {
+			b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
 		}
-		if ft.HasVarg() {
-			numArgs := len(dfr.Args)
-			nvar := numArgs - (numParams - 1)
-			if dfr.Source.Call.Varg {
-				if debug {
-					if nvar != 1 {
-						panic("should not happen")
-					}
-				}
-				// Do nothing, last arg type is already slice type
-				// called with form fncall(?, vargs...)
-			} else {
-				// Convert last nvar to slice.
-				vart := pts[len(pts)-1].Type.(*SliceType)
-				baseArray := m.Alloc.NewListArray(nvar)
-				vargs := baseArray.List
-				copy(vargs, dfr.Args[numArgs-nvar:numArgs])
-				varg := m.Alloc.NewSlice(baseArray, 0, nvar, nvar)
-				dfr.Args = dfr.Args[:numArgs-nvar]
-				dfr.Args = append(dfr.Args, TypedValue{
-					T: vart,
-					V: varg,
-				})
-			}
-		}
-		copy(b.Values, dfr.Args)
-	} else {
-		panic("should not happen")
 	}
+	m.PushBlock(b)
+	if fv.nativeBody == nil {
+		fbody := fv.GetBodyFromSource(m.Store)
+		// Exec body.
+		b.bodyStmt = bodyStmt{
+			Body:          fbody,
+			BodyLen:       len(fbody),
+			NextBodyIndex: -2,
+		}
+		m.PushOp(OpBody)
+		m.PushStmt(b.GetBodyStmt())
+	} else {
+		// Call native function.
+		m.PushValue(TypedValue{
+			T: ft,
+			V: fv,
+		})
+		m.PushOp(OpCallDeferNativeBody)
+	}
+	// Assign parameters in forward order.
+	for i, arg := range dfr.Args {
+		// We need to define, but b was already populated
+		// with new empty heap items, so AssignToBlock is
+		// faster.
+		b.Values[i].AssignToBlock(arg)
+	}
+}
+
+// ft: the (bound) func type.
+// numArgs: number of arguments provided.
+// isVarg: true if called with ...varg.
+// recv: receiver if bound otherwise undefined.
+// Returns a slice of parameters with receiver (if any) and varg conversion.
+// For bound method calls the returned slice is 1 greater than len(ft.Params).
+// Constructed varg slice is allocated, but the result slice is not.
+func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv TypedValue) []TypedValue {
+	pts := ft.Params
+	numParams := len(pts)
+	isMethod := 0
+	if !recv.IsUndefined() {
+		isMethod = 1
+	}
+	args := make([]TypedValue, isMethod+numParams)
+	if isMethod == 1 {
+		args[0] = recv
+	}
+	nvar := numArgs - (numParams - 1)
+	if ft.HasVarg() {
+		if isVarg {
+			// Do nothing special, last arg type is already slice
+			// type called with form fncall(?, vargs...)
+			if debug {
+				if nvar != 1 {
+					panic("should not happen")
+				}
+			}
+		} else {
+			// Convert variadic argument to slice argument.
+			// Convert last nvar to slice.
+			list := make([]TypedValue, nvar)
+			m.PopCopyValues(list)
+			varg := m.Alloc.NewSliceFromList(list)
+			// Pop non-receiver non-varg args.
+			m.PopCopyValues(args[isMethod : isMethod+numParams-1])
+			// Set varg slice.
+			vart := pts[numParams-1].Type.(*SliceType)
+			args[isMethod+numParams-1] = TypedValue{
+				T: vart,
+				V: varg,
+			}
+			return args
+		}
+	}
+	// Pop non-receiver args.
+	m.PopCopyValues(args[isMethod:])
+	return args
 }
 
 func (m *Machine) doOpDefer() {
 	lb := m.LastBlock()
-	cfr := m.MustLastCallFrame(1)
+	cfr := m.MustPeekCallFrame(1)
 	ds := m.PopStmt().(*DeferStmt)
-	// Pop arguments
 	numArgs := len(ds.Call.Args)
-	args := m.PopCopyValues(numArgs)
-	// Pop func
-	ftv := m.PopValue()
+	// Peek func to get type.
+	ftv := m.PeekValue(numArgs + 1)
 	// Push defer.
 	switch cv := ftv.V.(type) {
 	case *FuncValue:
+		fv := cv
+		args := m.popCopyArgs(
+			baseOf(ftv.T).(*FuncType),
+			numArgs,
+			ds.Call.Varg,
+			TypedValue{})
 		cfr.PushDefer(Defer{
-			Func:       cv,
+			Func:       fv,
 			Args:       args,
 			Source:     ds,
 			Parent:     lb,
 			PanicScope: m.PanicScope,
 		})
 	case *BoundMethodValue:
-		if debug {
-			pt := cv.Func.GetType(m.Store).Params[0]
-			rt := cv.Receiver.T
-			if pt.TypeID() != rt.TypeID() {
-				panic(fmt.Sprintf(
-					"expected %s but got %s",
-					pt.String(),
-					rt.String()))
-			}
-		}
-		args2 := make([]TypedValue, len(args)+1)
-		args2[0] = cv.Receiver
-		copy(args2[1:], args)
+		fv := cv.Func
+		recv := cv.Receiver
+		args := m.popCopyArgs(
+			baseOf(ftv.T).(*FuncType),
+			numArgs,
+			ds.Call.Varg,
+			recv)
 		cfr.PushDefer(Defer{
-			Func:       cv.Func,
-			Args:       args2,
+			Func:       fv,
+			Args:       args,
 			Source:     ds,
 			Parent:     lb,
 			PanicScope: m.PanicScope,
 		})
+	case nil:
+		cfr.PushDefer(Defer{
+			Func: nil,
+		})
 	default:
-		panic("should not happen")
+		m.Panic(typedString(fmt.Sprintf("invalid defer function call: %v", cv)))
+		return
 	}
+	m.PopValue() // pop func
 }
 
 func (m *Machine) doOpPanic1() {
@@ -411,6 +431,7 @@ func (m *Machine) doOpPanic1() {
 	var ex TypedValue = m.PopValue().Copy(m.Alloc)
 	// Panic
 	m.Panic(ex)
+	return
 }
 
 func (m *Machine) doOpPanic2() {

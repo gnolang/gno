@@ -6,6 +6,8 @@ import (
 )
 
 func main() {
+	crossing()
+
 	caller := std.OriginCaller()
 	println(caller)
 }

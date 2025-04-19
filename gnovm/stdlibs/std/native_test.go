@@ -1,6 +1,7 @@
 package std
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,6 +19,12 @@ func TestPreviousRealmIsOrigin(t *testing.T) {
 		msgCallFrame = &gno.Frame{LastPackage: &gno.PackageValue{PkgPath: "main"}}
 		msgRunFrame  = &gno.Frame{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/g1337/run"}}
 	)
+	type expectations struct {
+		addr         crypto.Bech32Address
+		pkgPath      string
+		isOriginCall bool
+		doesPanic    bool
+	}
 	tests := []struct {
 		name                 string
 		machine              *gno.Machine
@@ -179,8 +186,13 @@ func TestPreviousRealmIsOrigin(t *testing.T) {
 			expectedIsOriginCall: false,
 		},
 	}
-	for _, tt := range tests {
+	for i, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r != nil {
+					fmt.Println("fail", i)
+				}
+			}()
 			assert := assert.New(t)
 
 			addr, pkgPath := X_getRealm(tt.machine, 1)

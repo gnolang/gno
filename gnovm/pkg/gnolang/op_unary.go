@@ -78,7 +78,7 @@ func (m *Machine) doOpUnot() {
 	case BoolType, UntypedBoolType:
 		xv.SetBool(!xv.GetBool())
 	default:
-		panic(fmt.Sprintf("unexpected type %s in operation",
+		panic(fmt.Sprintf("unexpected type %v in operation",
 			baseOf(xv.T)))
 	}
 }

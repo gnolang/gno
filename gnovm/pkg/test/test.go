@@ -37,11 +37,12 @@ const (
 )
 
 // Context returns a TestExecContext. Usable for test purpose only.
+// The caller should be empty for package initialization.
 // The returned context has a mock banker, params and event logger. It will give
 // the pkgAddr the coins in `send` by default, and only that.
 // The Height and Timestamp parameters are set to the [DefaultHeight] and
 // [DefaultTimestamp].
-func Context(pkgPath string, send std.Coins) *teststd.TestExecContext {
+func Context(caller crypto.Bech32Address, pkgPath string, send std.Coins) *teststd.TestExecContext {
 	// FIXME: create a better package to manage this, with custom constructors
 	pkgAddr := gno.DerivePkgAddr(pkgPath) // the addr of the pkgPath called.
 
@@ -55,7 +56,7 @@ func Context(pkgPath string, send std.Coins) *teststd.TestExecContext {
 		ChainDomain:     "gno.land", // TODO: make this configurable
 		Height:          DefaultHeight,
 		Timestamp:       DefaultTimestamp,
-		OriginCaller:    DefaultCaller,
+		OriginCaller:    caller,
 		OriginSend:      send,
 		OriginSendSpent: new(std.Coins),
 		Banker:          banker,
@@ -69,11 +70,12 @@ func Context(pkgPath string, send std.Coins) *teststd.TestExecContext {
 }
 
 // Machine is a minimal machine, set up with just the Store, Output and Context.
+// It is only used for linting/preprocessing.
 func Machine(testStore gno.Store, output io.Writer, pkgPath string, debug bool) *gno.Machine {
 	return gno.NewMachineWithOptions(gno.MachineOptions{
 		Store:   testStore,
 		Output:  output,
-		Context: Context(pkgPath, nil),
+		Context: Context("", pkgPath, nil),
 		Debug:   debug,
 	})
 }
@@ -336,6 +338,7 @@ func (opts *TestOptions) runTestFiles(
 	}
 	pv := m.Package
 
+	// Load the test files into package and save.
 	m.RunFiles(files.Files...)
 
 	for _, tf := range tests {

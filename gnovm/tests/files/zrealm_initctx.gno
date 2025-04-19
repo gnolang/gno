@@ -2,8 +2,9 @@
 package tests_test
 
 import (
-	"gno.land/r/demo/tests"
 	"std"
+
+	"gno.land/r/demo/tests"
 )
 
 var addr = std.Address("test")
@@ -11,17 +12,21 @@ var addrInit = std.Address("addrInit")
 
 func init() {
 	addr = std.OriginCaller()
-	addrInit = tests.InitOriginCaller()
+	addrInit = cross(tests.InitOriginCaller)()
 }
 
 func main() {
+	crossing()
+
+	// Prints blanks because init's origin caller is blank.
+	// XXX consider panic instead
 	println(addr)
 	println(addrInit)
 }
 
 // Output:
-// g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-// g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+//
 
 // Realm:
 // switchrealm["gno.land/r/demo/tests_test"]

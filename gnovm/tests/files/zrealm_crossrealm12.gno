@@ -10,12 +10,16 @@ import (
 )
 
 func main() {
+	crossing()
+
 	tests := []struct {
 		fn func() std.Realm
 	}{
 		{std.CurrentRealm},
 		{psubtests.GetCurrentRealm},
-		{rsubtests.GetCurrentRealm},
+		{func() std.Realm {
+			return cross(rsubtests.GetCurrentRealm)()
+		}},
 	}
 
 	for _, test := range tests {
