@@ -2534,7 +2534,7 @@ func parseMultipleAssignFromOneExpr(
 		st = evalStaticType(store, bn, typeExpr)
 	}
 
-	for i, _ := range nameExprs {
+	for i := range nameExprs {
 		if st != nil {
 			tt := tuple.Elts[i]
 			if checkAssignableTo(n, tt, st, false) != nil {

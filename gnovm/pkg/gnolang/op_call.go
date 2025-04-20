@@ -460,6 +460,5 @@ func (m *Machine) doOpPanic2() {
 			Descriptor: strings.Join(exs, "\n\t"),
 		})
 	}
-	//m.PushOp(OpPanic2)
-	m.PushOp(OpReturnCallDefers) // XXX rename, not return?
+	m.PushOp(OpReturnCallDefers)
 }
