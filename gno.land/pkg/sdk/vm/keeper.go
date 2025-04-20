@@ -546,7 +546,7 @@ func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 			*e = errors.Wrapf(
 				errors.New(up.Descriptor),
 				"VM panic: %s\nStacktrace:\n%s\n",
-				up.Descriptor, m.ExceptionsStacktrace(),
+				up.Descriptor, m.ExceptionStacktrace(),
 			)
 			return
 		}
