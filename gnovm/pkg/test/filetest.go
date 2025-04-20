@@ -71,6 +71,11 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 	defer m.Release()
 	result := opts.runTest(m, pkgPath, filename, source, opslog)
 
+	// If there was a type-check error, return immediately.
+	if result.TypeCheckError != "" {
+		return "", fmt.Errorf("typecheck error: %s", result.TypeCheckError)
+	}
+
 	// updated tells whether the directives have been updated, and as such
 	// a new generated filetest should be returned.
 	// returnErr is used as the return value, and may be a MultiError if
@@ -177,6 +182,8 @@ func unifiedDiff(wanted, actual string) string {
 type runResult struct {
 	Output string
 	Error  string
+	// Set if there was an issue with type-checking.
+	TypeCheckError string
 	// Set if there was a panic within gno code.
 	GnoStacktrace string
 	// Set if this was recovered from a panic.
@@ -262,6 +269,12 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		}
 		orig, tx := m.Store, m.Store.BeginTransaction(nil, nil, nil)
 		m.Store = tx
+
+		// Validate Gno syntax and type check.
+		if err := gno.TypeCheckMemPackageTest(memPkg, m.Store); err != nil {
+			return runResult{TypeCheckError: err.Error()}
+		}
+
 		// Run decls and init functions.
 		m.RunMemPackage(memPkg, true)
 		// Clear store cache and reconstruct machine from committed info

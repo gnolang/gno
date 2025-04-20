@@ -15,7 +15,7 @@ package aa
 import "gno.land/r/demo/bb"
 
 func init() {
-	cross(bb).Call()
+	cross(bb.Call)()
 }
 
 -- examples/gno.land/r/demo/aa/a_test.gno --
