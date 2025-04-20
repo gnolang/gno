@@ -1,6 +1,9 @@
 package gnolang
 
 import (
+	"archive/zip"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -80,6 +83,61 @@ func FuzzParseFile(f *testing.F) {
 			f.Fatal(err)
 		}
 		f.Add(string(blob))
+	}
+
+	// 1.5. Next we should get more valid and diverse Go files.
+	// Opt-ing to always download from the latest Go tree on Github instead
+	// of committing 35+MiB into this Git tree's history for life.
+	goTreeURL := "https://github.com/golang/go/archive/refs/heads/master.zip"
+	res, err := http.Get(goTreeURL)
+	if err != nil {
+		f.Fatal(err)
+	}
+	defer res.Body.Close()
+	// Write the downloaded zip into the temporary directory so that
+	// zip.OpenReader can use an io.ReaderAt instead of the io.ReadCloser
+	// that http.Response.Body is.
+	goTreeZipLocally := filepath.Join(f.TempDir(), "go-tree.zip")
+	fz, err := os.Create(goTreeZipLocally)
+	if err != nil {
+		f.Fatal(err)
+	}
+	_, _ = io.Copy(fz, res.Body)
+	res.Body.Close()
+	fz.Close()
+
+	goZip, err := zip.OpenReader(goTreeZipLocally)
+	if err != nil {
+		f.Fatal(err)
+	}
+	for _, fz := range goZip.File {
+		if !strings.HasSuffix(fz.Name, ".go") {
+			continue
+		}
+
+		// We only want to add files in the "/test/" directory or *_test.go
+		// for valid and diverse Go code samples.
+		acceptable := strings.Contains(fz.Name, "/test/") || strings.HasSuffix(fz.Name, "test.go")
+		if !acceptable {
+			continue
+		}
+
+		fi := fz.FileInfo()
+		if fi.IsDir() {
+			continue
+		}
+
+		rc, err := fz.Open()
+		if err != nil {
+			f.Fatal(err)
+		}
+		goProgramBody, err := io.ReadAll(rc)
+		rc.Close()
+		if err != nil {
+			f.Fatal(err)
+		}
+
+		f.Add(string(goProgramBody))
 	}
 
 	// 2. Now run the fuzzer.
