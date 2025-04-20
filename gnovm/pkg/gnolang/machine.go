@@ -30,13 +30,13 @@ type Machine struct {
 	Exprs      []Expr        // pending expressions
 	Stmts      []Stmt        // pending statements
 	Blocks     []*Block      // block (scope) stack
-	Frames     []*Frame      // func call stack
+	Frames     []Frame       // func call stack
 	Package    *PackageValue // active package
 	Realm      *Realm        // active realm
 	Alloc      *Allocator    // memory allocations
-	Exceptions []Exception
-	NumResults int   // number of results returned
-	Cycles     int64 // number of "cpu" cycles
+	Exception  *Exception    // last exception
+	NumResults int           // number of results returned
+	Cycles     int64         // number of "cpu" cycles
 
 	Debugger Debugger
 
@@ -46,13 +46,6 @@ type Machine struct {
 	Store            Store
 	Context          any
 	GasMeter         store.GasMeter
-	// PanicScope is incremented each time a panic occurs and is reset to
-	// zero when it is recovered.
-	PanicScope uint
-	// DeferPanicScope is set to the value of the defer's panic scope before
-	// it is executed. It is reset to zero after the defer functions in the current
-	// scope have finished executing.
-	DeferPanicScope uint
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -376,9 +369,12 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 
 	calls := make([]StacktraceCall, 0, len(m.Frames))
 	for i := len(m.Frames) - 1; i >= 0; i-- {
-		if m.Frames[i].IsCall() {
+		fr := &m.Frames[i]
+		if fr.IsCall() && fr.Func.Name != "panic" {
 			calls = append(calls, StacktraceCall{
-				Frame: m.Frames[i],
+				CallExpr: fr.Source.(*CallExpr),
+				IsDefer:  fr.IsDefer,
+				FuncLoc:  fr.Func.GetSource(m.Store).GetLocation(),
 			})
 		}
 	}
@@ -395,16 +391,20 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 	stacktrace.Calls = calls
 
 	// XXX move to machine.LastLine()?
-	if len(m.Exprs) > 0 {
-		stacktrace.LastLine = m.PeekExpr(1).GetLine()
-	} else if len(m.Stmts) > 0 {
-		stmt := m.PeekStmt(1)
-		if bs, ok := stmt.(*bodyStmt); ok {
-			if 0 <= bs.NextBodyIndex-1 {
-				stmt = bs.Body[bs.NextBodyIndex-1]
+	if m.LastFrame().Func != nil && m.LastFrame().Func.IsNative() {
+		stacktrace.LastLine = -1 // special line for native.
+	} else {
+		if len(m.Exprs) > 0 {
+			stacktrace.LastLine = m.PeekExpr(1).GetLine()
+		} else if len(m.Stmts) > 0 {
+			stmt := m.PeekStmt(1)
+			if bs, ok := stmt.(*bodyStmt); ok {
+				if 0 <= bs.NextBodyIndex-1 {
+					stmt = bs.Body[bs.NextBodyIndex-1]
+				}
 			}
+			stacktrace.LastLine = stmt.GetLine()
 		}
-		stacktrace.LastLine = stmt.GetLine()
 	}
 
 	return
@@ -1742,7 +1742,7 @@ func (m *Machine) LastBlock() *Block {
 // Pushes a frame with one less statement.
 func (m *Machine) PushFrameBasic(s Stmt) {
 	label := s.GetLabel()
-	fr := &Frame{
+	fr := Frame{
 		Label:     label,
 		Source:    s,
 		NumOps:    m.NumOps,
@@ -1760,24 +1760,34 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // TODO: track breaks/panics/returns on frame and
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
-func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
+func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, isDefer bool) {
 	withSwitch := cx.IsWithCross()
-	fr := &Frame{
-		Source:      cx,
-		NumOps:      m.NumOps,
-		NumValues:   m.NumValues - cx.NumArgs - 1,
-		NumExprs:    len(m.Exprs),
-		NumStmts:    len(m.Stmts),
-		NumBlocks:   len(m.Blocks),
-		Func:        fv,
-		Receiver:    recv,
-		NumArgs:     cx.NumArgs,
-		IsVarg:      cx.Varg,
-		Defers:      nil,
-		LastPackage: m.Package,
-		LastRealm:   m.Realm,
-		WithCross:   withSwitch,
-		DidCross:    false,
+	numValues := 0
+	if isDefer {
+		// defer frame calls do not get their args and func from the
+		// values stack (they were stored in fr.Defers).
+		numValues = m.NumValues
+	} else {
+		numValues = m.NumValues - cx.NumArgs - 1
+	}
+	fr := Frame{
+		Source:        cx,
+		NumOps:        m.NumOps,
+		NumValues:     numValues,
+		NumExprs:      len(m.Exprs),
+		NumStmts:      len(m.Stmts),
+		NumBlocks:     len(m.Blocks),
+		Func:          fv,
+		Receiver:      recv,
+		NumArgs:       cx.NumArgs,
+		IsVarg:        cx.Varg,
+		LastPackage:   m.Package,
+		LastRealm:     m.Realm,
+		WithCross:     withSwitch,
+		DidCross:      false,
+		Defers:        nil,
+		IsDefer:       isDefer,
+		LastException: m.Exception, // XXX XXX XXX <---- nil?
 	}
 	if debug {
 		if m.Package == nil {
@@ -1787,6 +1797,14 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	if debug {
 		m.Printf("+F %#v\n", fr)
 	}
+	// If m.Exception is the same as the last call frame's LastException,
+	// there has been no new exceptions, so there is nothing for a defer
+	// call to catch.
+	pfr := m.PeekCallFrame(1)
+	if isDefer && m.Exception == pfr.LastException {
+		m.Exception = nil
+	}
+
 	m.Frames = append(m.Frames, fr)
 
 	// Set the package.
@@ -1869,18 +1887,16 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 func (m *Machine) PopFrame() Frame {
 	numFrames := len(m.Frames)
 	f := m.Frames[numFrames-1]
-	f.Popped = true
 	if debug {
 		m.Printf("-F %#v\n", f)
 	}
 	m.Frames = m.Frames[:numFrames-1]
 
-	return *f
+	return f
 }
 
 func (m *Machine) PopFrameAndReset() {
 	fr := m.PopFrame()
-	fr.Popped = true
 	m.NumOps = fr.NumOps
 	m.NumValues = fr.NumValues
 	m.Exprs = m.Exprs[:fr.NumExprs]
@@ -1892,7 +1908,6 @@ func (m *Machine) PopFrameAndReset() {
 // TODO: optimize by passing in last frame.
 func (m *Machine) PopFrameAndReturn() {
 	fr := m.PopFrame()
-	fr.Popped = true
 	if debug {
 		if !fr.IsCall() {
 			panic("unexpected non-call (loop) frame")
@@ -1918,6 +1933,14 @@ func (m *Machine) PopFrameAndReturn() {
 	m.NumValues = fr.NumValues + numRes
 	m.Package = fr.LastPackage
 	m.Realm = fr.LastRealm
+	if m.Exception != nil {
+		// Inner defer exceptions replace the outer defer
+		// ones.  You can still reach the previous exceptions
+		// via m.Exception.Previous*.
+	} else if fr.IsDefer {
+		pfr := m.PeekCallFrame(1)
+		m.Exception = pfr.LastException // may or may not be nil
+	}
 }
 
 func (m *Machine) PeekFrameAndContinueFor() {
@@ -1948,29 +1971,33 @@ func (m *Machine) NumFrames() int {
 
 // Returns the current frame.
 func (m *Machine) LastFrame() *Frame {
-	return m.Frames[len(m.Frames)-1]
+	return &m.Frames[len(m.Frames)-1]
 }
 
 // MustPeekCallFrame returns the last call frame with an offset of n. It panics if the frame is not found.
 func (m *Machine) MustPeekCallFrame(n int) *Frame {
-	return m.peekCallFrame(n, true)
+	fr := m.peekCallFrame(n)
+	if fr == nil {
+		panic("frame not found")
+	}
+	return fr
 }
 
 // PeekCallFrame behaves the same as MustPeekCallFrame, but rather than panicking,
 // returns nil if the frame is not found.
 func (m *Machine) PeekCallFrame(n int) *Frame {
-	return m.peekCallFrame(n, false)
+	return m.peekCallFrame(n)
 }
 
 // TODO: this function and PopUntilLastCallFrame() is used in conjunction
 // spanning two disjoint operations upon return. Optimize.
 // If n is 1, returns the immediately last call frame.
-func (m *Machine) peekCallFrame(n int, mustBeFound bool) *Frame {
+func (m *Machine) peekCallFrame(n int) *Frame {
 	if n == 0 {
 		panic("n must be positive")
 	}
 	for i := len(m.Frames) - 1; i >= 0; i-- {
-		fr := m.Frames[i]
+		fr := &m.Frames[i]
 		if fr.IsCall() {
 			if n == 1 {
 				return fr
@@ -1980,10 +2007,18 @@ func (m *Machine) peekCallFrame(n int, mustBeFound bool) *Frame {
 		}
 	}
 
-	if mustBeFound {
-		panic("frame not found")
-	}
+	return nil
+}
 
+// Returns the last defer call frame or nil.
+func (m *Machine) LastDeferCallFrame() *Frame {
+	return &m.Frames[len(m.Frames)-1]
+	for i := len(m.Frames) - 1; i >= 0; i-- {
+		fr := &m.Frames[i]
+		if fr.IsDefer {
+			return fr
+		}
+	}
 	return nil
 }
 
@@ -1991,21 +2026,12 @@ func (m *Machine) peekCallFrame(n int, mustBeFound bool) *Frame {
 // and returns the last call frame (which is left on stack).
 func (m *Machine) PopUntilLastCallFrame() *Frame {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
-		fr := m.Frames[i]
+		fr := &m.Frames[i]
 		if fr.IsCall() {
 			m.Frames = m.Frames[:i+1]
 			return fr
 		}
-
-		fr.Popped = true
 	}
-
-	// No frames are popped, so revert all the frames' popped flag.
-	// This is expected to happen infrequently.
-	for _, frame := range m.Frames {
-		frame.Popped = false
-	}
-
 	return nil
 }
 
@@ -2156,18 +2182,24 @@ func (m *Machine) CheckEmpty() error {
 // This function does not go-panic:
 // caller must return manually.
 // NOTE: duplicated in "panic" uverse function.
-func (m *Machine) Panic(ex TypedValue) {
-	m.Exceptions = append(
-		m.Exceptions,
-		Exception{
-			Value:      ex,
-			Frame:      m.MustPeekCallFrame(1),
-			Stacktrace: m.Stacktrace(),
-		},
-	)
+// XXX deduplicate
+func (m *Machine) Panic(etv TypedValue) {
+	// Construct a new exception.
+	ex := &Exception{
+		Value:      etv,
+		Stacktrace: m.Stacktrace(),
+	}
+	// Pop after capturing stacktrace.
+	fr := m.PopUntilLastCallFrame()
+	// Link ex.Previous.
+	if m.Exception == nil {
+		// Recall the last m.Exception before frame.
+		m.Exception = ex.WithPrevious(fr.LastException)
+	} else {
+		// Replace existing m.Exception with new.
+		m.Exception = ex.WithPrevious(m.Exception)
+	}
 
-	m.PanicScope++
-	m.PopUntilLastCallFrame()
 	m.PushOp(OpPanic2)
 	m.PushOp(OpReturnCallDefers)
 }
@@ -2176,35 +2208,39 @@ func (m *Machine) Panic(ex TypedValue) {
 // GnoVM. It returns nil if there was no exception to be recovered, otherwise
 // it returns the [Exception], which also contains the value passed into panic().
 func (m *Machine) Recover() *Exception {
-	if len(m.Exceptions) == 0 {
+	// The return value of recover is nil when **the goroutine is not
+	// panicking** or recover was not called directly by a deferred
+	// function.
+	if m.Exception == nil {
 		return nil
 	}
-
-	// If the exception is out of scope, this recover can't help; return nil.
-	if m.PanicScope <= m.DeferPanicScope {
+	// The return value of recover is nil when the goroutine is not
+	// panicking or **recover was not called directly by a deferred
+	// function**.
+	fr := m.PeekCallFrame(1) // this Recover() call.
+	if fr.IsDefer {          // not **called directly**
 		return nil
 	}
-
-	exception := &m.Exceptions[len(m.Exceptions)-1]
-
-	// If the frame the exception occurred in is not popped, it's possible that
-	// the exception is still in scope and can be recovered.
-	if !exception.Frame.Popped {
-		// If the frame is not the current frame, the exception is not
-		// in scope; return nil.  This retrieves the second most recent
-		// call frame because the first most recent is the call to
-		// recover itself.
-		if frame := m.PeekCallFrame(2); frame == nil || frame != exception.Frame {
-			return nil
-		}
+	fr = m.PeekCallFrame(2) // what contained recover().
+	if !fr.IsDefer {        // not **by a deferred function**
+		return nil
 	}
-
-	if isUntyped(exception.Value.T) {
-		ConvertUntypedTo(&exception.Value, nil)
-	}
-	// Recover complete; remove exceptions.
-	m.Exceptions = nil
-	return exception
+	// Suppose a function G defers a function D that calls recover and a
+	// panic occurs in a function on the same goroutine in which G is
+	// executing. When the running of deferred functions reaches D, the
+	// return value of D's call to recover will be the value passed to the
+	// call of panic.
+	ex := m.Exception
+	// If D returns normally, without starting a new panic, the panicking
+	// sequence stops. In that case, the state of functions called between
+	// G and the call to panic is discarded, and normal execution resumes.
+	//
+	// NOTE: recover() > m.Recover() will clear m.Exception but m.Exception
+	// may become re-set during PopFrameAndReturn() (returning from a defer
+	// call) to an older value when popping a frame with .LastException set
+	// from doOpReturnCallDefers() > m.PushFrameCall(isDefer=true).
+	m.Exception = nil
+	return ex
 }
 
 //----------------------------------------
@@ -2248,7 +2284,7 @@ func (m *Machine) String() string {
 		bsLength         = 1024
 		obsLength        = len(m.Blocks) * 32
 		fsLength         = len(m.Frames) * 32
-		exceptionsLength = len(m.Exceptions)
+		exceptionsLength = m.Exception.NumExceptions() * 32
 
 		totalLength = vsLength + ssLength + xsLength + bsLength + obsLength + fsLength + exceptionsLength
 	)
@@ -2336,33 +2372,34 @@ func (m *Machine) String() string {
 		fmt.Fprintf(builder, "    Realm:\n      %s\n", m.Realm.Path)
 	}
 
-	builder.WriteString("    Exceptions:\n")
-
-	for _, ex := range m.Exceptions {
-		fmt.Fprintf(builder, "      %s\n", ex.Sprint(m))
+	if m.Exception != nil {
+		builder.WriteString("    Exception:\n")
+		fmt.Fprintf(builder, "      %s\n", m.Exception.Sprint(m))
 	}
 
 	return builder.String()
 }
 
-func (m *Machine) ExceptionsStacktrace() string {
-	if len(m.Exceptions) == 0 {
+func (m *Machine) ExceptionStacktrace() string {
+	if m.Exception == nil {
 		return ""
 	}
 
 	var builder strings.Builder
 
-	ex := m.Exceptions[0]
-	builder.WriteString(ex.Stacktrace.String())
-
-	switch {
-	case len(m.Exceptions) > 2:
-		fmt.Fprintf(&builder, "... %d panic(s) elided ...\n", len(m.Exceptions)-2)
-		fallthrough // to print last exception
-	case len(m.Exceptions) == 2:
-		ex = m.Exceptions[len(m.Exceptions)-1]
-		builder.WriteString(ex.Stacktrace.String())
+	last := m.Exception
+	first := m.Exception
+	var numPrevious int
+	for ; first.Previous != nil; first = first.Previous {
+		numPrevious++
 	}
 
+	builder.WriteString(first.StringWithStacktrace(m))
+	if numPrevious >= 2 {
+		fmt.Fprintf(&builder, "... %d panic(s) elided ...\n", numPrevious-1)
+	}
+	if numPrevious >= 1 {
+		builder.WriteString(last.StringWithStacktrace(m))
+	}
 	return builder.String()
 }

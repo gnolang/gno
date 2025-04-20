@@ -550,7 +550,6 @@ EXEC_SWITCH:
 			// NOTE: unnamed results are given hidden names
 			// ".res%d" from the preprocessor, so they are
 			// present in the func block.
-			m.PushOp(OpReturnFromBlock)
 			m.PushOp(OpReturnCallDefers) // sticky
 			if cs.Results == nil {
 				// results already in block, if any.

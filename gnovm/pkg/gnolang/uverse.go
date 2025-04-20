@@ -732,22 +732,7 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1()
 			ex := arg0.TV.Copy(m.Alloc)
-
-			// NOTE: duplicated in m.Panic().
-			m.Exceptions = append(
-				m.Exceptions,
-				Exception{
-					Value:      ex,
-					Frame:      m.MustPeekCallFrame(2),
-					Stacktrace: m.Stacktrace(),
-				},
-			)
-
-			m.PanicScope++
-			m.PopUntilLastCallFrame()
-			m.PushOp(OpPanic2)
-			m.PushOp(OpReturnCallDefers)
-
+			m.Panic(ex)
 		},
 	)
 	defNative("recover",

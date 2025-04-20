@@ -65,7 +65,7 @@ func Context(caller crypto.Bech32Address, pkgPath string, send std.Coins) *tests
 	}
 	return &teststd.TestExecContext{
 		ExecContext: ctx,
-		RealmFrames: make(map[*gno.Frame]teststd.RealmOverride),
+		RealmFrames: make(map[int]teststd.RealmOverride),
 	}
 }
 
@@ -308,7 +308,7 @@ func (opts *TestOptions) runTestFiles(
 	var m *gno.Machine
 	defer func() {
 		if r := recover(); r != nil {
-			if st := m.ExceptionsStacktrace(); st != "" {
+			if st := m.ExceptionStacktrace(); st != "" {
 				errs = multierr.Append(errors.New(st), errs)
 			}
 			errs = multierr.Append(
