@@ -2395,23 +2395,23 @@ func (b *Block) GetBlankRef() *TypedValue {
 }
 
 // Convenience for implementing nativeBody functions.
-func (b *Block) GetParams1() (pv1 PointerValue) {
-	pv1 = b.GetPointerTo(nil, NewValuePathBlock(1, 0, ""))
+func (b *Block) GetParams1(store Store) (pv1 PointerValue) {
+	pv1 = b.GetPointerTo(store, NewValuePathBlock(1, 0, ""))
 	return
 }
 
 // Convenience for implementing nativeBody functions.
-func (b *Block) GetParams2() (pv1, pv2 PointerValue) {
-	pv1 = b.GetPointerTo(nil, NewValuePathBlock(1, 0, ""))
-	pv2 = b.GetPointerTo(nil, NewValuePathBlock(1, 1, ""))
+func (b *Block) GetParams2(store Store) (pv1, pv2 PointerValue) {
+	pv1 = b.GetPointerTo(store, NewValuePathBlock(1, 0, ""))
+	pv2 = b.GetPointerTo(store, NewValuePathBlock(1, 1, ""))
 	return
 }
 
 // Convenience for implementing nativeBody functions.
-func (b *Block) GetParams3() (pv1, pv2, pv3 PointerValue) {
-	pv1 = b.GetPointerTo(nil, NewValuePathBlock(1, 0, ""))
-	pv2 = b.GetPointerTo(nil, NewValuePathBlock(1, 1, ""))
-	pv3 = b.GetPointerTo(nil, NewValuePathBlock(1, 2, ""))
+func (b *Block) GetParams3(store Store) (pv1, pv2, pv3 PointerValue) {
+	pv1 = b.GetPointerTo(store, NewValuePathBlock(1, 0, ""))
+	pv2 = b.GetPointerTo(store, NewValuePathBlock(1, 1, ""))
+	pv3 = b.GetPointerTo(store, NewValuePathBlock(1, 2, ""))
 	return
 }
 
