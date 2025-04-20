@@ -1,9 +1,11 @@
+# aaa namespace
 loadpkg gno.land/r/aaa/bbb/ccc $WORK
 loadpkg gno.land/r/aaa/ccc/ddd $WORK
 loadpkg gno.land/r/aaa $WORK
+
+# bbb namespace
 loadpkg gno.land/r/bbb/ccc $WORK
 loadpkg gno.land/p/bbb/ccc/ppp $WORK
-loadpkg gno.land/r/bbb/aaa $WORK
 loadpkg gno.land/r/bbb/aaa $WORK
 loadpkg gno.land/r/bbb0 $WORK
 
@@ -76,7 +78,9 @@ gno.land/r/bbb/ccc
 -- bbb-slash-qpaths.stderr.golden --
 -- bbb-name-qpaths.stdout.golden --
 height: 0
-data: gno.land/p/bbb/ccc/ppp
+data: gno.land/r/bbb/aaa
+gno.land/r/bbb/ccc
+gno.land/p/bbb/ccc/ppp
 -- bbb-name-qpaths.stderr.golden --
 -- invalid-name-qpaths.stdout.golden --
 Log: --= Error =--
