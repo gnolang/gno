@@ -30,52 +30,54 @@ func init() {
 }
 
 func main() {
+	crossing()
+
 	b[0].A = a2
 }
 
 // Realm:
 // switchrealm["gno.land/r/test"]
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:10]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:15]=
 //     @@ -13,7 +13,7 @@
 //                      "Base": {
 //                          "@type": "/gno.RefValue",
 //                          "Escaped": true,
-//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
-//     +                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
+//     -                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
+//     +                    "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7"
 //                      },
 //                      "Index": "0",
 //                      "TV": null
 //     @@ -32,7 +32,7 @@
 //          ],
 //          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:10",
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:15",
 //     -        "ModTime": "0",
-//     +        "ModTime": "11",
-//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:9",
+//     +        "ModTime": "17",
+//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:14",
 //              "RefCount": "1"
 //          }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:5]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7]=
 //     @@ -1,9 +1,10 @@
 //      {
 //          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5",
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
 //     -        "ModTime": "0",
 //     +        "IsEscaped": true,
-//     +        "ModTime": "11",
-//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//     +        "ModTime": "17",
+//              "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
 //     -        "RefCount": "1"
 //     +        "RefCount": "2"
 //          },
 //          "Value": {
 //              "T": {
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:3]=
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4]=
 //     @@ -2,8 +2,8 @@
 //          "ObjectInfo": {
-//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3",
+//              "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
 //              "IsEscaped": true,
-//     -        "ModTime": "10",
+//     -        "ModTime": "15",
 //     -        "RefCount": "3"
-//     +        "ModTime": "11",
+//     +        "ModTime": "17",
 //     +        "RefCount": "2"
 //          },
 //          "Value": {

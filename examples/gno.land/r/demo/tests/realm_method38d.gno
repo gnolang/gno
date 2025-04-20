@@ -7,13 +7,15 @@ func (n nat) Add() nat {
 }
 
 func GetAbs() nat {
-	abs = []Word{0}
+	crossing()
 
+	abs = []Word{0}
 	return abs
 }
 
 func AbsAdd() nat {
-	rt := GetAbs().Add()
+	crossing()
 
+	rt := GetAbs().Add()
 	return rt
 }

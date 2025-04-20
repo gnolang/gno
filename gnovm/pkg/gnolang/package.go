@@ -85,7 +85,6 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	IncDecStmt{},
 	RangeStmt{},
 	ReturnStmt{},
-	PanicStmt{},
 	SelectStmt{},
 	SelectCaseStmt{},
 	SendStmt{},
@@ -124,4 +123,5 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	blockType{},
 	&tupleType{},
 	RefType{},
+	heapItemType{},
 ))

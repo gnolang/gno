@@ -1,14 +1,16 @@
 package std
 
 import (
+	"fmt"
+
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 func AssertOriginCall(m *gno.Machine) {
 	if !isOriginCall(m) {
 		m.Panic(typedString("invalid non-origin call"))
+		return
 	}
 }
 
@@ -34,38 +36,6 @@ func ChainHeight(m *gno.Machine) int64 {
 	return GetContext(m).Height
 }
 
-// getPreviousFunctionNameFromTarget returns the last called function name (identifier) from the call stack.
-func getPreviousFunctionNameFromTarget(m *gno.Machine, targetFunc string) string {
-	targetIndex := findTargetFunctionIndex(m, targetFunc)
-	if targetIndex == -1 {
-		return ""
-	}
-	return findPreviousFunctionName(m, targetIndex)
-}
-
-// findTargetFunctionIndex finds and returns the index of the target function in the call stack.
-func findTargetFunctionIndex(m *gno.Machine, targetFunc string) int {
-	for i := len(m.Frames) - 1; i >= 0; i-- {
-		currFunc := m.Frames[i].Func
-		if currFunc != nil && currFunc.Name == gno.Name(targetFunc) {
-			return i
-		}
-	}
-	return -1
-}
-
-// findPreviousFunctionName returns the function name before the given index in the call stack.
-func findPreviousFunctionName(m *gno.Machine, targetIndex int) string {
-	for i := targetIndex - 1; i >= 0; i-- {
-		currFunc := m.Frames[i].Func
-		if currFunc != nil {
-			return string(currFunc.Name)
-		}
-	}
-
-	panic("function name not found")
-}
-
 func X_originSend(m *gno.Machine) (denoms []string, amounts []int64) {
 	os := GetContext(m).OriginSend
 	return ExpandCoins(os)
@@ -75,6 +45,7 @@ func X_originCaller(m *gno.Machine) string {
 	return string(GetContext(m).OriginCaller)
 }
 
+/* See comment in stdlibs/std/native.gno
 func X_callerAt(m *gno.Machine, n int) string {
 	if n <= 0 {
 		m.Panic(typedString("CallerAt requires positive arg"))
@@ -94,40 +65,61 @@ func X_callerAt(m *gno.Machine, n int) string {
 		ctx := GetContext(m)
 		return string(ctx.OriginCaller)
 	}
-	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
+	return string(m.MustPeekCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
+*/
 
 func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 	// NOTE: keep in sync with test/stdlibs/std.getRealm
 
 	var (
-		ctx           = GetContext(m)
-		currentCaller crypto.Bech32Address
-		// Keeps track of the number of times currentCaller
-		// has changed.
-		changes int
+		ctx     = GetContext(m)
+		crosses int                        // track realm crosses
+		lfr     *gno.Frame = m.LastFrame() // last call frame
 	)
 
 	for i := m.NumFrames() - 1; i >= 0; i-- {
-		fr := m.Frames[i]
-		if fr.LastPackage == nil || !fr.LastPackage.IsRealm() {
+		fr := &m.Frames[i]
+
+		// Skip over (non-realm) non-crosses.
+		if !fr.IsCall() {
+			continue
+		}
+		if !fr.WithCross {
+			lfr = fr
 			continue
 		}
 
-		// LastPackage is a realm. Get caller and pkgPath, and compare against
-		// current* values.
-		caller := fr.LastPackage.GetPkgAddr().Bech32()
-		pkgPath := fr.LastPackage.PkgPath
-		if caller != currentCaller {
-			if changes == height {
-				return string(caller), pkgPath
-			}
-			currentCaller = caller
-			changes++
+		// Sanity check
+		if !fr.DidCross {
+			panic(fmt.Sprintf(
+				"call to cross(fn) did not call crossing : %s",
+				fr.Func.String()))
 		}
+
+		crosses++
+		if crosses > height {
+			currlm := lfr.LastRealm
+			caller, rlmPath := gno.DerivePkgAddr(currlm.Path).Bech32(), currlm.Path
+			return string(caller), rlmPath
+		}
+		lfr = fr
 	}
 
-	// Fallback case: return OriginCaller.
+	if crosses != height {
+		m.Panic(typedString("frame not found"))
+		return
+	}
+
+	// Special case if package initialization.
+	if ctx.OriginCaller == "" {
+		fr := &m.Frames[0]
+		caller := string(fr.LastPackage.GetPkgAddr().Bech32())
+		pkgPath := fr.LastPackage.PkgPath
+		return string(caller), pkgPath
+	}
+
+	// Base case: return OriginCaller.
 	return string(ctx.OriginCaller), ""
 }
 
@@ -138,9 +130,10 @@ func currentRealm(m *gno.Machine) (address, pkgPath string) {
 }
 
 func X_assertCallerIsRealm(m *gno.Machine) {
-	frame := m.Frames[m.NumFrames()-2]
-	if path := frame.LastPackage.PkgPath; !gno.IsRealmPath(path) {
+	fr := &m.Frames[m.NumFrames()-2]
+	if path := fr.LastPackage.PkgPath; !gno.IsRealmPath(path) {
 		m.Panic(typedString("caller is not a realm"))
+		return
 	}
 }
 

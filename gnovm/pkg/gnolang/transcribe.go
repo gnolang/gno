@@ -48,6 +48,7 @@ const (
 	TRANS_FUNCLIT_TYPE
 	TRANS_FUNCLIT_HEAP_CAPTURE
 	TRANS_FUNCLIT_BODY
+	TRANS_FIELDTYPE_NAME
 	TRANS_FIELDTYPE_TYPE
 	TRANS_FIELDTYPE_TAG
 	TRANS_ARRAYTYPE_LEN
@@ -82,7 +83,6 @@ const (
 	TRANS_RANGE_VALUE
 	TRANS_RANGE_BODY
 	TRANS_RETURN_RESULT
-	TRANS_PANIC_EXCEPTION
 	TRANS_SELECT_CASE
 	TRANS_SELECTCASE_COMM
 	TRANS_SELECTCASE_BODY
@@ -278,6 +278,9 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			}
 		}
 	case *FieldTypeExpr:
+		/* XXX make this an option. these are not normal names.
+		cnn.NameExpr = *(transcribe(t, nns, TRANS_FIELDTYPE_NAME, 0, &cnn.NameExpr, &c).(*NameExpr))
+		*/
 		cnn.Type = transcribe(t, nns, TRANS_FIELDTYPE_TYPE, 0, cnn.Type, &c).(Expr)
 		if isStopOrSkip(nc, c) {
 			return
@@ -518,8 +521,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 				return
 			}
 		}
-	case *PanicStmt:
-		cnn.Exception = transcribe(t, nns, TRANS_PANIC_EXCEPTION, 0, cnn.Exception, &c).(Expr)
 	case *SelectStmt:
 		for idx := range cnn.Cases {
 			cnn.Cases[idx] = *transcribe(t, nns, TRANS_SELECT_CASE, idx, &cnn.Cases[idx], &c).(*SelectCaseStmt)

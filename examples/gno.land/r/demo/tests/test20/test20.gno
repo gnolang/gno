@@ -16,5 +16,7 @@ import (
 var Token, PrivateLedger = grc20.NewToken("Test20", "TST", 4)
 
 func init() {
+	crossing()
+
 	grc20reg.Register(Token.Getter(), "")
 }

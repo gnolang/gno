@@ -8,6 +8,8 @@ func init() {
 }
 
 func main() {
+	crossing()
+
 	m["foobar"] = 1
 	println(m)
 }

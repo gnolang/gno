@@ -13,6 +13,8 @@ func init() {
 }
 
 func main() {
+	crossing()
+
 	println(somevalue)
 }
 

@@ -10,6 +10,8 @@ func foo() {
 }
 
 func main() {
+	crossing()
+
 	println("main", std.CurrentRealm().PkgPath())
 	foo()
 }

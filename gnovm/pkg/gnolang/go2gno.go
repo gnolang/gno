@@ -241,15 +241,15 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 	case *ast.Field:
 		if len(gon.Names) == 0 {
 			return &FieldTypeExpr{
-				Name: "",
-				Type: toExpr(fs, gon.Type),
-				Tag:  toExpr(fs, gon.Tag),
+				NameExpr: *Nx(""),
+				Type:     toExpr(fs, gon.Type),
+				Tag:      toExpr(fs, gon.Tag),
 			}
 		} else if len(gon.Names) == 1 {
 			return &FieldTypeExpr{
-				Name: toName(gon.Names[0]),
-				Type: toExpr(fs, gon.Type),
-				Tag:  toExpr(fs, gon.Tag),
+				NameExpr: *Nx(toName(gon.Names[0])),
+				Type:     toExpr(fs, gon.Type),
+				Tag:      toExpr(fs, gon.Tag),
 			}
 		} else {
 			panicWithPos(
@@ -334,16 +334,6 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Call: *cx,
 		}
 	case *ast.ExprStmt:
-		if cx, ok := gon.X.(*ast.CallExpr); ok {
-			if ix, ok := cx.Fun.(*ast.Ident); ok && ix.Name == "panic" {
-				if len(cx.Args) != 1 {
-					panicWithPos("expected panic statement to have single exception value")
-				}
-				return &PanicStmt{
-					Exception: toExpr(fs, cx.Args[0]),
-				}
-			}
-		}
 		return &ExprStmt{
 			X: toExpr(fs, gon.X),
 		}
@@ -764,17 +754,17 @@ func toFields(fs *token.FileSet, fields ...*ast.Field) (ftxs []FieldTypeExpr) {
 		if len(f.Names) == 0 {
 			// a single unnamed field w/ type
 			ftxs = append(ftxs, FieldTypeExpr{
-				Name: "",
-				Type: toExpr(fs, f.Type),
-				Tag:  toExpr(fs, f.Tag),
+				NameExpr: *Nx(""),
+				Type:     toExpr(fs, f.Type),
+				Tag:      toExpr(fs, f.Tag),
 			})
 		} else {
 			// one or more named fields
 			for _, n := range f.Names {
 				ftxs = append(ftxs, FieldTypeExpr{
-					Name: toName(n),
-					Type: toExpr(fs, f.Type),
-					Tag:  toExpr(fs, f.Tag),
+					NameExpr: *Nx(toName(n)),
+					Type:     toExpr(fs, f.Type),
+					Tag:      toExpr(fs, f.Tag),
 				})
 			}
 		}

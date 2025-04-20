@@ -47,7 +47,7 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 		Input:   stdin,
 		Output:  output,
 		Store:   testStore,
-		Context: test.Context(string(f.PkgName), nil),
+		Context: test.Context(test.DefaultCaller, string(f.PkgName), nil),
 		Debug:   true,
 	})
 

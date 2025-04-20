@@ -13,10 +13,12 @@ func init() {
 }
 
 func main() {
-	// NOTE: but it is invalid to modify it using an external realm function.
+	crossing()
+
+	// NOTE: it is also valid to modify it using an external realm function.
 	somevalue.Modify()
 	println(somevalue)
 }
 
-// Error:
-// cannot modify external-realm or non-realm object
+// Output:
+// (struct{("test_modified" string)} gno.land/r/demo/tests.TestRealmObject)

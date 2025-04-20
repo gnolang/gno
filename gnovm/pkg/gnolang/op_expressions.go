@@ -8,13 +8,10 @@ import (
 
 // NOTE: keep in sync with doOpIndex2.
 func (m *Machine) doOpIndex1() {
-	if debug {
-		_ = m.PopExpr().(*IndexExpr)
-	} else {
-		m.PopExpr()
-	}
+	m.PopExpr()
 	iv := m.PopValue()   // index
 	xv := m.PeekValue(1) // x
+	ro := m.IsReadonly(xv)
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
 		mv := xv.V.(*MapValue)
@@ -23,35 +20,27 @@ func (m *Machine) doOpIndex1() {
 			*xv = vv // reuse as result
 		} else {
 			vt := ct.Value
-			*xv = TypedValue{ // reuse as result
-				T: vt,
-				V: defaultValue(m.Alloc, vt),
-			}
+			*xv = defaultTypedValue(m.Alloc, vt) // reuse as result
 		}
 	default:
 		res := xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 		*xv = res.Deref() // reuse as result
 	}
+	xv.SetReadonly(ro)
 }
 
 // NOTE: keep in sync with doOpIndex1.
 func (m *Machine) doOpIndex2() {
-	if debug {
-		_ = m.PopExpr().(*IndexExpr)
-	} else {
-		m.PopExpr()
-	}
+	m.PopExpr()
 	iv := m.PeekValue(1) // index
 	xv := m.PeekValue(2) // x
+	ro := m.IsReadonly(xv)
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
 		vt := ct.Value
 		if xv.V == nil { // uninitialized map
-			*xv = TypedValue{ // reuse as result
-				T: vt,
-				V: defaultValue(m.Alloc, vt),
-			}
-			*iv = untypedBool(false) // reuse as result
+			*xv = defaultTypedValue(m.Alloc, vt) // reuse as result
+			*iv = untypedBool(false)             // reuse as result
 		} else {
 			mv := xv.V.(*MapValue)
 			vv, exists := mv.GetValueForKey(m.Store, iv)
@@ -59,27 +48,27 @@ func (m *Machine) doOpIndex2() {
 				*xv = vv                // reuse as result
 				*iv = untypedBool(true) // reuse as result
 			} else {
-				*xv = TypedValue{ // reuse as result
-					T: vt,
-					V: defaultValue(m.Alloc, vt),
-				}
-				*iv = untypedBool(false) // reuse as result
+				*xv = defaultTypedValue(m.Alloc, vt) // reuse as result
+				*iv = untypedBool(false)             // reuse as result
 			}
 		}
 	default:
 		panic("should not happen")
 	}
+	xv.SetReadonly(ro)
 }
 
 func (m *Machine) doOpSelector() {
 	sx := m.PopExpr().(*SelectorExpr)
-	xv := m.PeekValue(1)
+	xv := m.PeekValue(1) // package, struct, whatever.
+	ro := m.IsReadonly(xv)
 	res := xv.GetPointerToFromTV(m.Alloc, m.Store, sx.Path).Deref()
 	if debug {
 		m.Printf("-v[S] %v\n", xv)
 		m.Printf("+v[S] %v\n", res)
 	}
 	*xv = res // reuse as result
+	xv.SetReadonly(ro)
 }
 
 func (m *Machine) doOpSlice() {
@@ -101,12 +90,18 @@ func (m *Machine) doOpSlice() {
 	}
 	// slice base x
 	xv := m.PopValue()
+	ro := m.IsReadonly(xv)
 	// if a is a pointer to an array, a[low : high : max] is
 	// shorthand for (*a)[low : high : max]
+	// XXX fix this in precompile instead.
 	if xv.T.Kind() == PointerKind &&
 		xv.T.Elem().Kind() == ArrayKind {
 		// simply deref xv.
 		*xv = xv.V.(PointerValue).Deref()
+		// check array also for ro.
+		if !ro {
+			ro = xv.IsReadonly()
+		}
 	}
 	// fill default based on xv
 	if sx.High == nil {
@@ -115,10 +110,10 @@ func (m *Machine) doOpSlice() {
 	// all low:high:max cases
 	if maxVal == -1 {
 		sv := xv.GetSlice(m.Alloc, lowVal, highVal)
-		m.PushValue(sv)
+		m.PushValue(sv.WithReadonly(ro))
 	} else {
 		sv := xv.GetSlice2(m.Alloc, lowVal, highVal, maxVal)
-		m.PushValue(sv)
+		m.PushValue(sv.WithReadonly(ro))
 	}
 }
 
@@ -142,7 +137,8 @@ func (m *Machine) doOpStar() {
 	switch bt := baseOf(xv.T).(type) {
 	case *PointerType:
 		if xv.V == nil {
-			panic(&Exception{Value: typedString("nil pointer dereference")})
+			m.Panic(typedString("nil pointer dereference"))
+			return
 		}
 
 		pv := xv.V.(PointerValue)
@@ -152,17 +148,13 @@ func (m *Machine) doOpStar() {
 			tv.SetUint8(dbv.GetByte())
 			m.PushValue(tv)
 		} else {
-			if pv.TV.IsUndefined() && bt.Elt.Kind() != InterfaceKind {
-				refv := TypedValue{T: bt.Elt}
-				m.PushValue(refv)
-			} else {
-				m.PushValue(*pv.TV)
-			}
+			ro := m.IsReadonly(xv)
+			pvtv := (*pv.TV).WithReadonly(ro)
+			m.PushValue(pvtv)
 		}
 	case *TypeType:
 		t := xv.GetType()
 		pt := &PointerType{Elt: t}
-
 		m.PushValue(asValue(pt))
 	default:
 		panic(fmt.Sprintf(
@@ -174,17 +166,16 @@ func (m *Machine) doOpStar() {
 // XXX this is wrong, for var i interface{}; &i is *interface{}.
 func (m *Machine) doOpRef() {
 	rx := m.PopExpr().(*RefExpr)
-	m.Alloc.AllocatePointer()
-	xv := m.PopAsPointer(rx.X)
-	// when obtaining a pointer of the databyte type, use the ElemType of databyte
+	xv, ro := m.PopAsPointer2(rx.X)
 	elt := xv.TV.T
 	if elt == DataByteType {
 		elt = xv.TV.V.(DataByteValue).ElemType
 	}
+	m.Alloc.AllocatePointer()
 	m.PushValue(TypedValue{
 		T: m.Alloc.NewType(&PointerType{Elt: elt}),
 		V: xv,
-	})
+	}.WithReadonly(ro))
 }
 
 // NOTE: keep in sync with doOpTypeAssert2.
@@ -317,10 +308,7 @@ func (m *Machine) doOpTypeAssert2() {
 		}
 	} else { // is concrete assert
 		if xt == nil {
-			*xv = TypedValue{
-				T: t,
-				V: defaultValue(m.Alloc, t),
-			}
+			*xv = defaultTypedValue(m.Alloc, t)
 			*tv = untypedBool(false)
 			return
 		}
@@ -334,10 +322,7 @@ func (m *Machine) doOpTypeAssert2() {
 			// *xv = *xv
 			*tv = untypedBool(true)
 		} else {
-			*xv = TypedValue{
-				T: t,
-				V: defaultValue(m.Alloc, t),
-			}
+			*xv = defaultTypedValue(m.Alloc, t)
 			*tv = untypedBool(false)
 		}
 	}
@@ -430,7 +415,7 @@ func (m *Machine) doOpArrayLit() {
 				if al == nil {
 					ad[k] = v.GetUint8()
 				} else {
-					al[k] = v
+					al[k] = v.Copy(m.Alloc)
 				}
 				idx = k + 1
 			} else {
@@ -442,7 +427,7 @@ func (m *Machine) doOpArrayLit() {
 				if al == nil {
 					ad[idx] = v.GetUint8()
 				} else {
-					al[idx] = v
+					al[idx] = v.Copy(m.Alloc)
 				}
 				idx++
 			}
@@ -472,9 +457,7 @@ func (m *Machine) doOpSliceLit() {
 	// construct element buf slice.
 	baseArray := m.Alloc.NewListArray(el)
 	es := baseArray.List
-	for i := el - 1; 0 <= i; i-- {
-		es[i] = *m.PopValue()
-	}
+	m.PopCopyValues(es)
 	// construct and push value.
 	if debug {
 		if m.PopValue().V.(TypeValue).Type != st {
@@ -519,7 +502,7 @@ func (m *Machine) doOpSliceLit2() {
 			// slice index has already been assigned
 			panic(fmt.Sprintf("duplicate index %d in array or slice literal", idx))
 		}
-		es[idx] = vtv
+		es[idx] = vtv.Copy(m.Alloc)
 	}
 	// fill in empty values.
 	ste := st.Elem()
@@ -563,7 +546,7 @@ func (m *Machine) doOpMapLit() {
 				// map key has already been assigned
 				panic(fmt.Sprintf("duplicate key %s in map literal", ktv.V))
 			}
-			*ptr.TV = vtv
+			*ptr.TV = vtv.Copy(m.Alloc)
 		}
 	}
 	// pop map type.
@@ -598,7 +581,7 @@ func (m *Machine) doOpStructLit() {
 	} else if x.Elts[0].Key == nil {
 		// field values are in order.
 		m.Alloc.AllocateStructFields(int64(len(st.Fields)))
-		fs = make([]TypedValue, 0, len(st.Fields))
+		fs = make([]TypedValue, len(st.Fields))
 		if debug {
 			if el == 0 {
 				// this is fine.
@@ -618,20 +601,7 @@ func (m *Machine) doOpStructLit() {
 				}
 			}
 		}
-		ftvs := m.PopValues(el)
-		for _, ftv := range ftvs {
-			if debug {
-				if !ftv.IsUndefined() && ftv.T.Kind() == InterfaceKind {
-					panic("should not happen")
-				}
-			}
-			fs = append(fs, ftv)
-		}
-		if debug {
-			if len(fs) != cap(fs) {
-				panic("should not happen")
-			}
-		}
+		m.PopCopyValues(fs)
 	} else {
 		// field values are by name and may be out of order.
 		fs = defaultStructFields(m.Alloc, st)
@@ -653,7 +623,7 @@ func (m *Machine) doOpStructLit() {
 				panic(fmt.Sprintf("duplicate field name %s in struct literal", fnx.Name))
 			}
 			fsset[fnx.Path.Index] = true
-			fs[fnx.Path.Index] = ftv
+			fs[fnx.Path.Index] = ftv.Copy(m.Alloc)
 		}
 	}
 	// construct and push value.
@@ -677,37 +647,70 @@ func (m *Machine) doOpFuncLit() {
 	// every invocation of the function.
 	captures := []TypedValue(nil)
 	for _, nx := range x.HeapCaptures {
-		ptr := lb.GetPointerTo(m.Store, nx.Path)
+		ptr := lb.GetPointerToDirect(m.Store, nx.Path)
 		// check that ptr.TV is a heap item value.
 		// it must be in the form of:
 		// {T:heapItemType{},V:HeapItemValue{...}}
 		if _, ok := ptr.TV.T.(heapItemType); !ok {
-			panic("should not happen, should be heapItemType")
+			panic("should not happen, should be heapItemType: " + nx.String())
 		}
 		if _, ok := ptr.TV.V.(*HeapItemValue); !ok {
-			panic("should not happen, should be heapItemValue")
+			panic("should not happen, should be heapItemValue: " + nx.String())
 		}
 		captures = append(captures, *ptr.TV)
 	}
 	m.PushValue(TypedValue{
 		T: ft,
 		V: &FuncValue{
-			Type:       ft,
-			IsMethod:   false,
-			Source:     x,
-			Name:       "",
-			Closure:    lb,
-			Captures:   captures,
-			PkgPath:    m.Package.PkgPath,
-			body:       x.Body,
-			nativeBody: nil,
+			Type:        ft,
+			IsMethod:    false,
+			IsClosure:   true,
+			Source:      x,
+			Name:        "",
+			Parent:      nil,
+			Captures:    captures,
+			PkgPath:     m.Package.PkgPath,
+			SwitchRealm: x.Body.isSwitchRealm(),
+			body:        x.Body,
+			nativeBody:  nil,
 		},
 	})
 }
 
 func (m *Machine) doOpConvert() {
-	xv := m.PopValue()
+	xv := m.PopValue().Copy(m.Alloc)
 	t := m.PopValue().GetType()
-	ConvertTo(m.Alloc, m.Store, xv, t, false)
-	m.PushValue(*xv)
+
+	// BEGIN conversion checks
+	// These protect against inter-realm conversion exploits.
+
+	// Case 1.
+	// Do not allow conversion of value stored in eternal realm.
+	// Otherwise anyone could convert an external object insecurely.
+	if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(&xv) {
+		if xvdt, ok := xv.T.(*DeclaredType); ok &&
+			xvdt.PkgPath == m.Realm.Path {
+			// Except allow if xv.T is m.Realm.
+			// XXX do we need/want this?
+		} else {
+			panic("illegal conversion of readonly or externally stored value")
+		}
+	}
+
+	// Case 2.
+	// Do not allow conversion to type of external realm.
+	// Only code declared within the same realm my perform such
+	// conversions, otherwise the realm could be tricked
+	// into executing a subtle exploit of mutating some
+	// value (say a pointer) stored in its own realm by
+	// a hostile construction converted to look safe.
+	if tdt, ok := t.(*DeclaredType); ok && !tdt.IsImmutable() && m.Realm != nil {
+		if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path {
+			panic("illegal conversion to external realm type")
+		}
+	}
+	// END conversion checks
+
+	ConvertTo(m.Alloc, m.Store, &xv, t, false)
+	m.PushValue(xv)
 }

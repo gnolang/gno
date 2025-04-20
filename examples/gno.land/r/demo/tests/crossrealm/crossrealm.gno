@@ -33,6 +33,8 @@ type Fooer interface{ Foo() }
 var fooer Fooer
 
 func SetFooer(f Fooer) Fooer {
+	crossing()
+
 	fooer = f
 	return fooer
 }
@@ -41,11 +43,25 @@ func GetFooer() Fooer { return fooer }
 
 func CallFooerFoo() { fooer.Foo() }
 
+func CallFooerFooSR() {
+	crossing()
+
+	fooer.Foo()
+}
+
+func CallFooerFooSR2() {
+	crossing()
+
+	cross(fooer.Foo)()
+}
+
 type FooerGetter func() Fooer
 
 var fooerGetter FooerGetter
 
 func SetFooerGetter(fg FooerGetter) FooerGetter {
+	crossing()
+
 	fooerGetter = fg
 	return fg
 }
@@ -55,3 +71,41 @@ func GetFooerGetter() FooerGetter {
 }
 
 func CallFooerGetterFoo() { fooerGetter().Foo() }
+
+func CallFooerGetterFooSR2() {
+	crossing()
+
+	cross(fooerGetter().Foo)()
+}
+
+// This is a top function that does switch realms.
+func ExecSR(cb func() string) string {
+	crossing()
+
+	return cb()
+}
+
+// This is a top function that doesn't switch realms.
+func Exec(cb func() string) string {
+	return cb()
+}
+
+var Closure func()
+
+func SetClosure(f func()) {
+	crossing()
+
+	Closure = f
+}
+
+var Object any
+
+func SetObject(x any) {
+	crossing()
+
+	Object = x
+}
+
+func GetObject() any {
+	return Object
+}

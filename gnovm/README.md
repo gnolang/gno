@@ -21,3 +21,7 @@ This enables non-web3 developers to contribute without requiring an understandin
 Install [`gno`](./cmd/gno) and refer to the [`examples`](../examples) folder to start developing contracts.
 
 Check the [Makefile](./Makefile) to enhance GnoVM, Gnolang, and stdlibs.
+
+## Known Issues
+
+* Switch varnames cannot be captured as heap items. [test](../gnovm/tests/files/closure11_known.gno)

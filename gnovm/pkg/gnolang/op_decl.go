@@ -23,8 +23,10 @@ func (m *Machine) doOpValueDecl() {
 			// requiring the consideration of the typed-nil case.
 			if nt == nil {
 				tv = TypedValue{}
+			} else if nt.Kind() == InterfaceKind {
+				tv = TypedValue{}
 			} else {
-				tv = TypedValue{T: nt, V: defaultValue(m.Alloc, nt)}
+				tv = defaultTypedValue(m.Alloc, nt)
 			}
 		} else {
 			tv = rvs[i]

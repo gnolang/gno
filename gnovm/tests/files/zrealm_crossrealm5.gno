@@ -13,6 +13,8 @@ func init() {
 }
 
 func main() {
+	crossing()
+
 	// NOTE: but it is invalid to modify it directly.
 	somevalue.Field = "test"
 	println(somevalue)

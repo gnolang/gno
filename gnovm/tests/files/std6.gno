@@ -3,16 +3,26 @@ package main
 import "std"
 
 func inner() {
-	caller1 := std.CallerAt(1)
-	println(caller1)
-	caller2 := std.CallerAt(2)
-	println(caller2)
+	realm1 := std.CurrentRealm()
+	println(realm1)
+	realm2 := std.PreviousRealm()
+	println(realm2)
 }
 
 func main() {
 	inner()
 }
 
-// Output:
-// g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4
-// g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// Stacktrace:
+// panic: frame not found
+// getRealm<VPBlock(3,49)>(1)
+//     gonative:std/std.gno
+// ref(std).PreviousRealm()
+//     std/native.gno:32
+// inner<VPBlock(3,0)>()
+//     main/files/std6.gno:8
+// main<VPBlock(1,1)>()
+//     main/files/std6.gno:13
+
+// Error:
+// frame not found

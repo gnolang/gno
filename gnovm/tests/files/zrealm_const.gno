@@ -4,6 +4,8 @@ package const_test
 import "std"
 
 func main() {
+	crossing()
+
 	println(std.RawAddressSize)
 }
 

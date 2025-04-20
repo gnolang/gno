@@ -6,6 +6,8 @@ import (
 )
 
 func main() {
+	crossing()
+
 	// even though we are running within a realm,
 	// we aren't storing the result of crossrealm.Make1(),
 	// so this should print fine.

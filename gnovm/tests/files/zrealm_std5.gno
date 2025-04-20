@@ -6,6 +6,8 @@ import (
 )
 
 func main() {
+	crossing()
+
 	println("test1", tests.CurrentRealmPath())
 	func() {
 		println("test2", tests.CurrentRealmPath())

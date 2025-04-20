@@ -21,13 +21,15 @@ var f *fooer
 func init() {
 	f = &fooer{s: "A"}
 	fg := func() crossrealm.Fooer { return f }
-	crossrealm.SetFooerGetter(fg)
+	cross(crossrealm.SetFooerGetter)(fg)
 	crossrealm.CallFooerGetterFoo()
 	f.s = "C"
 	crossrealm.CallFooerGetterFoo()
 }
 
 func main() {
+	crossing()
+
 	print(".")
 }
 
@@ -38,6 +40,3 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/crossrealm_test"]
-
-// Error:
-//

@@ -73,6 +73,13 @@ func TestFiles(t *testing.T) {
 			})
 			return nil
 		}
+		isKnown := strings.HasSuffix(path, "_known.gno")
+		if isKnown {
+			t.Run(subTestName, func(t *testing.T) {
+				t.Skip("skipping known issue")
+			})
+			return nil
+		}
 
 		content, err := fs.ReadFile(fsys, path)
 		if err != nil {

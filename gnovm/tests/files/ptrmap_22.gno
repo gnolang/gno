@@ -17,6 +17,8 @@ func init() {
 }
 
 func main() {
+	crossing()
+
 	i2 := *i1
 	println(m[&i2] == "")
 
