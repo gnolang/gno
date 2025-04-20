@@ -1,7 +1,9 @@
 package gnolang
 
 import (
+	"fmt"
 	"io"
+	"path"
 	"testing"
 
 	"github.com/gnolang/gno/gnovm"
@@ -9,6 +11,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTransactionStore(t *testing.T) {
@@ -93,4 +96,87 @@ func TestCopyFromCachedStore(t *testing.T) {
 	assert.Equal(t, c1, d1, "cached baseStore and dest baseStore should match")
 	assert.Equal(t, c2, d2, "cached iavlStore and dest iavlStore should match")
 	assert.Equal(t, cachedStore.cacheTypes, destStore.cacheTypes, "cacheTypes should match")
+}
+
+func TestFindByPrefix(t *testing.T) {
+	stdlibs := []string{"abricot", "balloon", "call", "dingdong", "gnocci"}
+	pkgs := []string{
+		"gnolang.org/abricot",
+		"gnolang.org/abricot/fraise",
+		"gnolang.org/fraise",
+	}
+
+	cases := []struct {
+		Prefix   string
+		Limit    int
+		Expected []string
+	}{
+		{"", 100, append(stdlibs, pkgs...)}, // no prefix == everything
+		{"gnolang.org", 100, pkgs},
+		{"gnolang.org/abricot", 100, []string{
+			"gnolang.org/abricot", "gnolang.org/abricot/fraise",
+		}},
+		{"gnolang.org/abricot/", 100, []string{
+			"gnolang.org/abricot/fraise",
+		}},
+		{"gno", 100, pkgs}, // no stdlibs (prefixed by "_" keys)
+		{"_", 100, stdlibs},
+		{"_/a", 100, []string{"abricot"}},
+		// testing iter seq
+		{"_", 0, []string{}},
+		{"_", 2, stdlibs[:2]},
+	}
+
+	// Create cached store, with a type and a mempackage.
+	d1, d2 := memdb.NewMemDB(), memdb.NewMemDB()
+	d1s := dbadapter.StoreConstructor(d1, storetypes.StoreOptions{})
+	d2s := dbadapter.StoreConstructor(d2, storetypes.StoreOptions{})
+	cachedStore := NewStore(nil, d1s, d2s)
+
+	// Add stdlibs
+	for _, lib := range stdlibs {
+		cachedStore.AddMemPackage(&gnovm.MemPackage{
+			Name: lib,
+			Path: lib,
+			Files: []*gnovm.MemFile{
+				{Name: lib + ".gno", Body: "package " + lib},
+			},
+		})
+	}
+
+	// Add pkgs
+	for _, pkg := range pkgs {
+		name := path.Base(pkg)
+		cachedStore.AddMemPackage(&gnovm.MemPackage{
+			Name: name,
+			Path: pkg,
+			Files: []*gnovm.MemFile{
+				{Name: name + ".gno", Body: "package " + name},
+			},
+		})
+	}
+
+	store := NewStore(nil, d1s, d2s)
+	for _, tc := range cases {
+		name := fmt.Sprintf("%s:limit(%d)", tc.Prefix, tc.Limit)
+		t.Run(name, func(t *testing.T) {
+			t.Logf("lookup prefix: %q, limit: %d", tc.Prefix, tc.Limit)
+
+			paths := []string{}
+
+			var count int
+			yield := func(path string) bool {
+				if count >= tc.Limit {
+					return false
+				}
+
+				paths = append(paths, path)
+				count++
+				return true // continue
+			}
+
+			store.FindPathsByPrefix(tc.Prefix)(yield) // find stdlibs
+			require.Equal(t, tc.Expected, paths)
+		})
+	}
 }
