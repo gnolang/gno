@@ -941,7 +941,7 @@ To see how this was achieved, check out `wugnot`'s `Render()` function.
 `vm/qpaths` lists all existing paths prefixed with the specified path using `--data=<prefix>`.
 If no paths are provided, all known paths will be listed, including those from `stdlibs`.
 You can specify an additional *limit* at the end of the path using `<path>?limit=<x>` to restrict the results to `x` elements.
-If 0 is specified as *limit*, then, no limit will be applied. The default *limit* is 1000.
+If `0` is specified as *limit*, then, no limit will be applied, with an hard limit of `10_000`. The default *limit* is `1_000`.
 
 For example:
 ```bash

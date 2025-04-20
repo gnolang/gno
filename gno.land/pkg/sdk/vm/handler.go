@@ -80,7 +80,7 @@ const (
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	path := secondPart(string(req.Path))
+	path := secondPart(req.Path)
 	if i := strings.IndexByte(path, '?'); i > 0 { // cut query
 		path = path[:i]
 	}
