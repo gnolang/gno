@@ -322,7 +322,10 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				if ss.IsTypeSwitch {
 					if ss.VarName != "" {
 						// XXX NameExprTypeDefine in NameExpr?
-						// XXX XXX fix and test.
+						// See known issues in README.nd:
+						// > Switch varnames cannot be
+						// captured as heap items.
+						// [test](../gnovm/tests/files/closure11_known.gno)
 						last.Predefine(false, ss.VarName)
 					}
 				} else {

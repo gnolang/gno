@@ -1997,7 +1997,6 @@ func (sb *StaticBlock) IsAssignable(store Store, n Name) bool {
 }
 
 // Implements BlockNode.
-// XXX XXX what about uverse?
 func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 	idx, ok := sb.GetLocalIndex(n)
 	ts := sb.Types

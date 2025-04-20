@@ -1787,7 +1787,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		DidCross:      false,
 		Defers:        nil,
 		IsDefer:       isDefer,
-		LastException: m.Exception, // XXX XXX XXX <---- nil?
+		LastException: m.Exception,
 	}
 	if debug {
 		if m.Package == nil {
