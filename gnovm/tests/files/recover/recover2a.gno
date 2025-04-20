@@ -20,4 +20,4 @@ func main() {
 }
 
 // Output:
-// undefined
+// 2

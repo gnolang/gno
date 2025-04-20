@@ -79,7 +79,7 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 	)
 
 	for i := m.NumFrames() - 1; i >= 0; i-- {
-		fr := m.Frames[i]
+		fr := &m.Frames[i]
 
 		// Skip over (non-realm) non-crosses.
 		if !fr.IsCall() {
@@ -113,7 +113,7 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 
 	// Special case if package initialization.
 	if ctx.OriginCaller == "" {
-		fr := m.Frames[0]
+		fr := &m.Frames[0]
 		caller := string(fr.LastPackage.GetPkgAddr().Bech32())
 		pkgPath := fr.LastPackage.PkgPath
 		return string(caller), pkgPath
@@ -130,8 +130,8 @@ func currentRealm(m *gno.Machine) (address, pkgPath string) {
 }
 
 func X_assertCallerIsRealm(m *gno.Machine) {
-	frame := m.Frames[m.NumFrames()-2]
-	if path := frame.LastPackage.PkgPath; !gno.IsRealmPath(path) {
+	fr := &m.Frames[m.NumFrames()-2]
+	if path := fr.LastPackage.PkgPath; !gno.IsRealmPath(path) {
 		m.Panic(typedString("caller is not a realm"))
 		return
 	}

@@ -724,6 +724,17 @@ func makeUverseNode() {
 			uversePrint(m, arg0, true)
 		},
 	)
+	defNative("panic",
+		Flds( // params
+			"exception", AnyT(),
+		),
+		nil, // results
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1()
+			ex := arg0.TV.Copy(m.Alloc)
+			m.Panic(ex)
+		},
+	)
 	defNative("recover",
 		nil, // params
 		Flds( // results

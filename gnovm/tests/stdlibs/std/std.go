@@ -15,7 +15,7 @@ type TestExecContext struct {
 	std.ExecContext
 
 	// These are used to set up the result of CurrentRealm() and PreviousRealm().
-	RealmFrames map[*gno.Frame]RealmOverride
+	RealmFrames map[int]RealmOverride
 }
 
 var _ std.ExecContexter = &TestExecContext{}
@@ -97,11 +97,14 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 	)
 
 	for i := m.NumFrames() - 1; i >= 0; i-- {
-		fr := m.Frames[i]
+		fr := &m.Frames[i]
 
 		// Skip over (non-realm) non-crosses.
 		// Override implies cross.
-		override, overridden := ctx.RealmFrames[m.Frames[i]]
+		override, overridden := ctx.RealmFrames[i]
+		if overridden && !fr.TestOverridden {
+			overridden = false // overridden frame was replaced.
+		}
 		if !overridden {
 			if !fr.IsCall() {
 				continue

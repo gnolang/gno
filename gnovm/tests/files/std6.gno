@@ -16,7 +16,7 @@ func main() {
 // Stacktrace:
 // panic: frame not found
 // getRealm<VPBlock(3,49)>(1)
-//     gonative:std.getRealm
+//     gonative:std/std.gno
 // ref(std).PreviousRealm()
 //     std/native.gno:32
 // inner<VPBlock(3,0)>()

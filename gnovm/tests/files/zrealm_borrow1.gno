@@ -21,19 +21,10 @@ func (s *Struct) Get() int {
 }
 
 func (s *Struct) PrintRealms() {
-	s.printRealms()
+	cross(s.printRealms)()
 }
 
 func (s *Struct) printRealms() {
-	// XXX
-	// printRealm is called from s.PrintRealm()
-	// which in this test is persisted in the same realm.
-	// Therefore p.printRealm() -> s.PrintRealm()
-	// borrows this realm, and then the crossing()
-	// below is called.
-	// Should this be allowed?
-	// Whether it panics or not is determined by
-	// 'fr.DidCross = true' in PushFrameCall.
 	crossing()
 
 	fmt.Println(std.CurrentRealm())
@@ -82,5 +73,7 @@ func main() {
 	p.PrintRealms()
 }
 
-// Error:
-// crossing could not find corresponding cross(fn)(...) call
+// Output:
+// 101
+// {g1evmgnh6rmk8vgahd4p2pc3reh0dw26twaz3rqq gno.land/r/borrow_test}
+// {g1evmgnh6rmk8vgahd4p2pc3reh0dw26twaz3rqq gno.land/r/borrow_test}

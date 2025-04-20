@@ -550,7 +550,6 @@ EXEC_SWITCH:
 			// NOTE: unnamed results are given hidden names
 			// ".res%d" from the preprocessor, so they are
 			// present in the func block.
-			m.PushOp(OpReturnFromBlock)
 			m.PushOp(OpReturnCallDefers) // sticky
 			if cs.Results == nil {
 				// results already in block, if any.
@@ -573,12 +572,6 @@ EXEC_SWITCH:
 			m.PushExpr(res)
 			m.PushOp(OpEval)
 		}
-	case *PanicStmt:
-		m.PopStmt()
-		m.PushOp(OpPanic1)
-		// evaluate exception
-		m.PushExpr(cs.Exception)
-		m.PushOp(OpEval)
 	case *RangeStmt:
 		m.PushFrameBasic(cs)
 		b := m.Alloc.NewBlock(cs, m.LastBlock())

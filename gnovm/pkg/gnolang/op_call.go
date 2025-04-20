@@ -21,11 +21,11 @@ func (m *Machine) doOpPrecall() {
 	// handle cross().
 	switch fv := v.(type) {
 	case *FuncValue:
-		m.PushFrameCall(cx, fv, TypedValue{})
+		m.PushFrameCall(cx, fv, TypedValue{}, false)
 		m.PushOp(OpCall)
 	case *BoundMethodValue:
 		recv := fv.Receiver
-		m.PushFrameCall(cx, fv.Func, recv)
+		m.PushFrameCall(cx, fv.Func, recv, false)
 		m.PushOp(OpCall)
 	case TypeValue:
 		// Do not pop type yet.
@@ -91,8 +91,7 @@ func (m *Machine) doOpCall() {
 		fbody := fv.GetBodyFromSource(m.Store)
 		if len(ft.Results) == 0 {
 			// Push final empty *ReturnStmt;
-			// TODO: transform in preprocessor instead to return only
-			// when necessary.
+			// TODO: transform in preprocessor instead.
 			// NOTE: m.PushOp(OpReturn) doesn't handle defers.
 			m.PushStmt(gReturnStmt)
 			m.PushOp(OpExec)
@@ -265,17 +264,19 @@ func (m *Machine) doOpReturnCallDefers() {
 	dfr, ok := cfr.PopDefer()
 	if !ok {
 		// Done with defers.
-		m.DeferPanicScope = 0
 		m.ForcePopOp()
-		if len(m.Exceptions) > 0 {
-			// In a state of panic (not return).
-			// Pop the containing function frame.
+		// If still in panic state pop this frame so doOpPanic2() will
+		// try doOpReturnCallDefers() in the previous frame.
+		if m.Exception != nil {
 			m.PopFrame()
+			m.PushOp(OpPanic2)
+		} else {
+			// Otherwise continue with the return process,
+			// OpReturnFromBlock needs frame, don't pop here.
+			m.PushOp(OpReturnFromBlock)
 		}
 		return
 	}
-
-	m.DeferPanicScope = dfr.PanicScope
 
 	if dfr.Func == nil {
 		m.Panic(typedString("defer called a nil function"))
@@ -283,14 +284,21 @@ func (m *Machine) doOpReturnCallDefers() {
 	}
 
 	// Call last deferred call.
-	// NOTE: the following logic is largely duplicated in doOpCall().
-	// Convert if variadic argument.
 	fv := dfr.Func
 	ft := fv.GetType(m.Store)
+	// Push frame for defer.
+	m.PushFrameCall(&dfr.Source.Call, fv, TypedValue{}, true)
+	// NOTE: the following logic is largely duplicated in doOpCall().
+	// Push final empty *ReturnStmt;
+	// TODO: transform in preprocessor instead.
+	// NOTE: m.PushOp(OpReturn) doesn't handle defers.
+	m.PushStmt(gReturnStmt)
+	m.PushOp(OpExec)
+	// Convert if variadic argument.
 	// Create new block scope for defer.
 	pb := dfr.Func.GetParent(m.Store)
 	b := m.Alloc.NewBlock(fv.GetSource(m.Store), pb)
-	// copy values from captures
+	// Copy values from captures.
 	if len(fv.Captures) != 0 {
 		if len(fv.Captures) > len(b.Values) {
 			panic("should not happen, length of captured variables must not exceed the number of values")
@@ -394,11 +402,10 @@ func (m *Machine) doOpDefer() {
 			ds.Call.Varg,
 			TypedValue{})
 		cfr.PushDefer(Defer{
-			Func:       fv,
-			Args:       args,
-			Source:     ds,
-			Parent:     lb,
-			PanicScope: m.PanicScope,
+			Func:   fv,
+			Args:   args,
+			Source: ds,
+			Parent: lb,
 		})
 	case *BoundMethodValue:
 		fv := cv.Func
@@ -409,11 +416,10 @@ func (m *Machine) doOpDefer() {
 			ds.Call.Varg,
 			recv)
 		cfr.PushDefer(Defer{
-			Func:       fv,
-			Args:       args,
-			Source:     ds,
-			Parent:     lb,
-			PanicScope: m.PanicScope,
+			Func:   fv,
+			Args:   args,
+			Source: ds,
+			Parent: lb,
 		})
 	case nil:
 		cfr.PushDefer(Defer{
@@ -426,7 +432,9 @@ func (m *Machine) doOpDefer() {
 	m.PopValue() // pop func
 }
 
+// XXX DEPRECATED
 func (m *Machine) doOpPanic1() {
+	panic("doOpPanic1 is deprecated")
 	// Pop exception
 	var ex TypedValue = m.PopValue().Copy(m.Alloc)
 	// Panic
@@ -435,25 +443,22 @@ func (m *Machine) doOpPanic1() {
 }
 
 func (m *Machine) doOpPanic2() {
-	if len(m.Exceptions) == 0 {
-		// Recovered from panic
-		m.PushOp(OpReturnFromBlock)
-		m.PushOp(OpReturnCallDefers)
-		m.PanicScope = 0
-	} else {
-		// Keep panicking
-		last := m.PopUntilLastCallFrame()
-		if last == nil {
-			// Build exception string just as go, separated by \n\t.
-			exs := make([]string, len(m.Exceptions))
-			for i, ex := range m.Exceptions {
-				exs[i] = ex.Sprint(m)
-			}
-			panic(UnhandledPanicError{
-				Descriptor: strings.Join(exs, "\n\t"),
-			})
-		}
-		m.PushOp(OpPanic2)
-		m.PushOp(OpReturnCallDefers) // XXX rename, not return?
+	if m.Exception == nil {
+		panic("should not happen")
 	}
+	last := m.PopUntilLastCallFrame()
+	if last == nil {
+		// Build exception string just as go, separated by \n\t.
+		numExceptions := m.Exception.NumExceptions()
+		exs := make([]string, numExceptions)
+		last := m.Exception
+		for i := 0; i < numExceptions; i++ {
+			exs[numExceptions-1-i] = last.Sprint(m)
+			last = last.Previous
+		}
+		panic(UnhandledPanicError{
+			Descriptor: strings.Join(exs, "\n\t"),
+		})
+	}
+	m.PushOp(OpReturnCallDefers)
 }

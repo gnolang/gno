@@ -11,7 +11,7 @@ import (
 
 func pushFuncFrame(m *gno.Machine, name gno.Name) {
 	fv := &gno.FuncValue{Name: name, PkgPath: m.Package.PkgPath}
-	m.PushFrameCall(gno.Call(name), fv, gno.TypedValue{}) // fake frame
+	m.PushFrameCall(gno.Call(name), fv, gno.TypedValue{}, false) // fake frame
 }
 
 func TestEmit(t *testing.T) {
@@ -109,7 +109,7 @@ func TestEmit(t *testing.T) {
 
 			if tt.expectPanic {
 				X_emit(m, tt.eventType, tt.attrs)
-				assert.Equal(t, 1, len(m.Exceptions))
+				assert.NotNil(t, m.Exception)
 			} else {
 				X_emit(m, tt.eventType, tt.attrs)
 				assert.Equal(t, len(tt.expectedEvents), len(elgs.Events()))

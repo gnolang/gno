@@ -195,7 +195,7 @@ func runExpr(m *gno.Machine, expr string) (err error) {
 			switch r := r.(type) {
 			case gno.UnhandledPanicError:
 				err = fmt.Errorf("panic running expression %s: %v\nStacktrace:\n%s",
-					expr, r.Error(), m.ExceptionsStacktrace())
+					expr, r.Error(), m.ExceptionStacktrace())
 			default:
 				err = fmt.Errorf("panic running expression %s: %v\nMachine State:%s\nStacktrace:\n%s",
 					expr, r, m.String(), m.Stacktrace().String())

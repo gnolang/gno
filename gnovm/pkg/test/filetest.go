@@ -221,7 +221,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 				rr.Error = v.Unwrap().Error()
 			case gno.UnhandledPanicError:
 				rr.Error = v.Error()
-				rr.GnoStacktrace = m.ExceptionsStacktrace()
+				rr.GnoStacktrace = m.ExceptionStacktrace()
 			default:
 				rr.Error = fmt.Sprint(v)
 				rr.GnoStacktrace = m.Stacktrace().String()

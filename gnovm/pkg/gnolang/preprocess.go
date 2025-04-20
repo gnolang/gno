@@ -322,7 +322,10 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				if ss.IsTypeSwitch {
 					if ss.VarName != "" {
 						// XXX NameExprTypeDefine in NameExpr?
-						// XXX XXX fix and test.
+						// See known issues in README.nd:
+						// > Switch varnames cannot be
+						// captured as heap items.
+						// [test](../gnovm/tests/files/closure11_known.gno)
 						last.Predefine(false, ss.VarName)
 					}
 				} else {
@@ -2531,7 +2534,7 @@ func parseMultipleAssignFromOneExpr(
 		st = evalStaticType(store, bn, typeExpr)
 	}
 
-	for i, _ := range nameExprs {
+	for i := range nameExprs {
 		if st != nil {
 			tt := tuple.Elts[i]
 			if checkAssignableTo(n, tt, st, false) != nil {
@@ -3963,12 +3966,6 @@ func findUndefinedStmt(store Store, last BlockNode, stmt Stmt, t Type) Name {
 		}
 	case *IncDecStmt:
 		un := findUndefined2SkipLocals(store, last, s.X, t)
-
-		if un != "" {
-			return un
-		}
-	case *PanicStmt:
-		un := findUndefined2SkipLocals(store, last, s.Exception, t)
 
 		if un != "" {
 			return un

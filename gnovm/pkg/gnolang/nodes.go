@@ -276,7 +276,6 @@ func (x *IfCaseStmt) assertNode()        {}
 func (x *IncDecStmt) assertNode()        {}
 func (x *RangeStmt) assertNode()         {}
 func (x *ReturnStmt) assertNode()        {}
-func (x *PanicStmt) assertNode()         {}
 func (x *SelectStmt) assertNode()        {}
 func (x *SelectCaseStmt) assertNode()    {}
 func (x *SendStmt) assertNode()          {}
@@ -329,7 +328,6 @@ var (
 	_ Node = &IncDecStmt{}
 	_ Node = &RangeStmt{}
 	_ Node = &ReturnStmt{}
-	_ Node = &PanicStmt{}
 	_ Node = &SelectStmt{}
 	_ Node = &SelectCaseStmt{}
 	_ Node = &SendStmt{}
@@ -896,7 +894,6 @@ func (*IfCaseStmt) assertStmt()       {}
 func (*IncDecStmt) assertStmt()       {}
 func (*RangeStmt) assertStmt()        {}
 func (*ReturnStmt) assertStmt()       {}
-func (*PanicStmt) assertStmt()        {}
 func (*SelectStmt) assertStmt()       {}
 func (*SelectCaseStmt) assertStmt()   {}
 func (*SendStmt) assertStmt()         {}
@@ -919,7 +916,6 @@ var (
 	_ Stmt = &IncDecStmt{}
 	_ Stmt = &RangeStmt{}
 	_ Stmt = &ReturnStmt{}
-	_ Stmt = &PanicStmt{}
 	_ Stmt = &SelectStmt{}
 	_ Stmt = &SelectCaseStmt{}
 	_ Stmt = &SendStmt{}
@@ -1024,11 +1020,6 @@ type ReturnStmt struct {
 	Attributes
 	Results     Exprs // result expressions; or nil
 	CopyResults bool  // copy results to block first
-}
-
-type PanicStmt struct {
-	Attributes
-	Exception Expr // panic expression; not nil
 }
 
 type SelectStmt struct {
@@ -2006,7 +1997,6 @@ func (sb *StaticBlock) IsAssignable(store Store, n Name) bool {
 }
 
 // Implements BlockNode.
-// XXX XXX what about uverse?
 func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 	idx, ok := sb.GetLocalIndex(n)
 	ts := sb.Types

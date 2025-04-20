@@ -56,7 +56,7 @@ func X_setContext(
 
 	if currRealmAddr != "" {
 		// Associate the given Realm with the caller's frame.
-		var frame *gno.Frame
+		var frameIdx int
 		// NOTE: the frames are different from when calling testing.SetRealm (has been refactored to this code)
 		//
 		// When calling this function from Gno, the 3 top frames are the following:
@@ -67,12 +67,13 @@ func X_setContext(
 		for i := m.NumFrames() - 4; i >= 0; i-- {
 			// Must be a frame from calling a function.
 			if fr := m.Frames[i]; fr.Func != nil && fr.Func.PkgPath != "testing" {
-				frame = fr
+				frameIdx = i
 				break
 			}
 		}
 
-		ctx.RealmFrames[frame] = teststd.RealmOverride{
+		m.Frames[frameIdx].TestOverridden = true // in case frame gets popped
+		ctx.RealmFrames[frameIdx] = teststd.RealmOverride{
 			Addr:    crypto.Bech32Address(currRealmAddr),
 			PkgPath: currRealmPkgPath,
 		}
