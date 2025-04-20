@@ -102,8 +102,8 @@ func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Pac
 		g.cache[path] = gnoImporterResult{err: err}
 		return nil, err
 	}
-	fmt := false
-	result, err := g.parseCheckMemPackage(mpkg, fmt)
+	fmt_ := false
+	result, err := g.parseCheckMemPackage(mpkg, fmt_)
 	g.cache[path] = gnoImporterResult{pkg: result, err: err}
 	return result, err
 }
