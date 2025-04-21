@@ -138,6 +138,14 @@ func NewRealm(path string) *Realm {
 	}
 }
 
+func (rlm *Realm) GetPath() string {
+	if rlm == nil {
+		return ""
+	} else {
+		return rlm.Path
+	}
+}
+
 func (rlm *Realm) String() string {
 	if rlm == nil {
 		return "Realm(nil)"

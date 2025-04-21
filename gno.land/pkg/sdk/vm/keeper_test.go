@@ -42,7 +42,7 @@ func TestVMKeeperAddPackage(t *testing.T) {
 			Body: `package test
 func Echo() string {
 	crossing()
-	
+
 	return "hello world"
 }`,
 		},
@@ -67,9 +67,9 @@ func Echo() string {
 	assert.NotNil(t, memFile)
 	expected := `package test
 
-func Echo() string { 
+func Echo() string {
 	crossing()
-	
+
 	return "hello world"
 }
 `
@@ -94,7 +94,7 @@ func TestVMKeeperAddPackage_InvalidDomain(t *testing.T) {
 			Body: `package test
 func Echo() string {
 	crossing()
-	
+
 	return "hello world"
 }`,
 		},
@@ -141,7 +141,7 @@ func init() {
 
 func Echo(msg string) string {
 	crossing()
-	
+
 	addr := std.OriginCaller()
 	pkgAddr := std.CurrentRealm().Address()
 	send := std.OriginSend()
@@ -191,7 +191,7 @@ func init() {
 
 func Echo(msg string) string {
 	crossing()
-	
+
 	addr := std.OriginCaller()
 	pkgAddr := std.CurrentRealm().Address()
 	send := std.OriginSend()
@@ -202,7 +202,7 @@ func Echo(msg string) string {
 
 func GetAdmin() string {
 	crossing()
-	
+
 	return admin.String()
 }
 `},
@@ -245,7 +245,7 @@ func init() {
 
 func Echo(msg string) string {
 	crossing()
-	
+
 	addr := std.OriginCaller()
 	pkgAddr := std.CurrentRealm().Address()
 	send := std.Coins{{"ugnot", 10000000}}
@@ -291,7 +291,7 @@ func init() {
 
 func Echo(msg string) string {
 	crossing()
-	
+
 	addr := std.OriginCaller()
 	pkgAddr := std.CurrentRealm().Address()
 	send := std.Coins{{"ugnot", 10000000}}
@@ -337,7 +337,7 @@ func init() {
 
 func Echo(msg string) string {
 	crossing()
-	
+
 	addr := std.OriginCaller()
 	pkgAddr := std.CurrentRealm().Address()
 	send := std.Coins{{"ugnot", 10000000}}
@@ -385,7 +385,7 @@ func init() {
 
 func Do() string {
 	crossing()
-	
+
 	std.SetParamInt64("bar.int64", int64(1337))
 	std.SetParamString("foo.string", "foo2") // override init
 
@@ -442,7 +442,7 @@ func init() {
 
 func Echo(msg string) string {
 	crossing()
-	
+
 	addr := std.OriginCaller()
 	pkgAddr := std.CurrentRealm().Address()
 	send := std.OriginSend()
@@ -453,7 +453,7 @@ func Echo(msg string) string {
 
 func GetAdmin() string {
 	crossing()
-	
+
 	return admin.String()
 }
 
@@ -489,7 +489,7 @@ package main
 
 func main() {
 	crossing()
-	
+
 	println("hello world!")
 }
 `},
@@ -532,7 +532,7 @@ import "std"
 
 func main() {
 	crossing()
-	
+
 	addr := std.OriginCaller()
 	println("hello world!", addr)
 }
@@ -566,7 +566,7 @@ func TestNumberOfArgsError(t *testing.T) {
 
 func Echo(msg string) string {
 	crossing()
-	
+
 	return "echo:"+msg
 }`,
 		},
@@ -606,7 +606,7 @@ package test
 
 func Echo(msg string) string {
 	crossing()
-	
+
 	return "echo:"+msg
 }`},
 	}

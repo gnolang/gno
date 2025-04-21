@@ -1828,7 +1828,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			panic(fmt.Sprintf(
 				"missing crossing() after cross call in %v from %s to %s",
 				fr.Func.String(),
-				m.Realm.Path,
+				m.Realm.GetPath(),
 				pv.Realm.Path,
 			))
 		}
@@ -1868,13 +1868,18 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				// no switch
 				return
 			} else {
-				// implicit switch to storage realm.
-				// neither cross nor didswitch.
+				// Implicit switch to storage realm.
+				// Neither cross nor didswitch.
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
 				rlm = objpv.GetRealm()
 				m.Realm = rlm
-				fr.DidCross = true
+				// Do not set DidCross here.
+				// Make DidCross only happen upon explicit
+				// cross(fn)(...) calls to avoid user
+				// confusion.
+				// fr.DidCross = true
+				// XXX write test.
 				return
 			}
 		}

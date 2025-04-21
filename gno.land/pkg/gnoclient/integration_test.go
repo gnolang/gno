@@ -61,7 +61,7 @@ func TestCallSingle_Integration(t *testing.T) {
 	msg := vm.MsgCall{
 		Caller:  caller.GetAddress(),
 		PkgPath: "gno.land/r/demo/deep/very/deep",
-		Func:    "Render",
+		Func:    "RenderCrossing",
 		Args:    []string{"test argument"},
 		Send:    nil,
 	}
@@ -120,7 +120,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 	msg1 := vm.MsgCall{
 		Caller:  caller.GetAddress(),
 		PkgPath: "gno.land/r/demo/deep/very/deep",
-		Func:    "Render",
+		Func:    "RenderCrossing",
 		Args:    []string{""},
 		Send:    nil,
 	}
@@ -129,7 +129,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 	msg2 := vm.MsgCall{
 		Caller:  caller.GetAddress(),
 		PkgPath: "gno.land/r/demo/deep/very/deep",
-		Func:    "Render",
+		Func:    "RenderCrossing",
 		Args:    []string{"test argument"},
 		Send:    nil,
 	}
@@ -326,11 +326,11 @@ import (
 func main() {
 	crossing()
 
-	println(ufmt.Sprintf("- before: %d", tests.Counter()))
+	println(ufmt.Sprintf("- before: %d", cross(tests.Counter)()))
 	for i := 0; i < 10; i++ {
 		cross(tests.IncCounter)()
 	}
-	println(ufmt.Sprintf("- after: %d", tests.Counter()))
+	println(ufmt.Sprintf("- after: %d", cross(tests.Counter)()))
 }`
 
 	caller, err := client.Signer.Info()
@@ -408,11 +408,11 @@ import (
 func main() {
 	crossing()
 
-	println(ufmt.Sprintf("- before: %d", tests.Counter()))
+	println(ufmt.Sprintf("- before: %d", cross(tests.Counter)()))
 	for i := 0; i < 10; i++ {
-		tests.IncCounter()
+		cross(tests.IncCounter)()
 	}
-	println(ufmt.Sprintf("- after: %d", tests.Counter()))
+	println(ufmt.Sprintf("- after: %d", cross(tests.Counter)()))
 }`
 
 	fileBody2 := `package main
