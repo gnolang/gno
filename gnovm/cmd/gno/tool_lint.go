@@ -96,6 +96,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	}
 
 	hasError := false
+	hasError2 := false
 
 	bs, ts := test.StoreWithOptions(
 		rootDir, goio.Discard,
@@ -140,7 +141,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		}
 
 		// Handle runtime errors
-		hasRuntimeErr := catchRuntimeError(pkgPath, io.Err(), func() {
+		hasError2 = catchError(pkgPath, io.Err(), func() {
 			// Wrap in cache wrap so execution of the linter doesn't impact
 			// other packages.
 			cw := bs.CacheWrap()
@@ -149,9 +150,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			// Run type checking
 			if gmFile == nil || !gmFile.Draft {
 				err := lintTypeCheck(io, memPkg, gs)
-				// fmt.Println("---tool_lint, lint err: ", err)
 				if err != nil {
-					// io.ErrPrintln(err)
 					panic(err)
 				}
 			} else if verbose {
@@ -167,9 +166,10 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 
 			tm.PreprocessFiles(memPkg.Name, memPkg.Path, packageFiles, false, false)
 		})
-		if hasRuntimeErr {
-			hasError = true
-		}
+	}
+
+	if hasError2 {
+		hasError = true
 	}
 
 	if hasError {
@@ -179,7 +179,6 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	return nil
 }
 
-// maybe return errs...
 func lintTypeCheck(io commands.IO, memPkg *gnovm.MemPackage, testStore gno.Store) error {
 	tcErr := gno.TypeCheckMemPackageTest(memPkg, testStore)
 	if tcErr == nil {
@@ -216,7 +215,7 @@ func lintTypeCheck(io commands.IO, memPkg *gnovm.MemPackage, testStore gno.Store
 			return fmt.Errorf("unexpected error type: %T", err)
 		}
 	}
-	return errors.New("lintTypeCheck error")
+	return errors.New("lintTypeCheck failed")
 }
 
 func sourceAndTestFileset(memPkg *gnovm.MemPackage) *gno.FileSet {
@@ -263,7 +262,7 @@ func guessSourcePath(pkg, source string) string {
 // XXX: Ideally, error handling should encapsulate location details within a dedicated error type.
 var reParseRecover = regexp.MustCompile(`^([^:]+)((?::(?:\d+)){1,2}):? *(.*)$`)
 
-func catchRuntimeError(pkgPath string, stderr goio.WriteCloser, action func()) (hasError bool) {
+func catchError(pkgPath string, stderr goio.WriteCloser, action func()) (hasError bool) {
 	defer func() {
 		// Errors catched here mostly come from: gnovm/pkg/gnolang/preprocess.go
 		r := recover()
@@ -271,6 +270,7 @@ func catchRuntimeError(pkgPath string, stderr goio.WriteCloser, action func()) (
 			return
 		}
 		hasError = true
+
 		switch verr := r.(type) {
 		case *gno.PreprocessError:
 			err := verr.Unwrap()
@@ -289,6 +289,8 @@ func catchRuntimeError(pkgPath string, stderr goio.WriteCloser, action func()) (
 			}
 		case string:
 			fmt.Fprintln(stderr, issueFromError(pkgPath, errors.New(verr)).String())
+		case lintIssue:
+			fmt.Fprintln(stderr, verr)
 		default:
 			panic(r)
 		}

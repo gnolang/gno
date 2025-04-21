@@ -243,10 +243,11 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 		memPkg := gno.MustReadMemPackage(pkg.Dir, gnoPkgPath)
 
-		var hasRunTimeError bool
+		var hasLintTypeCheckError bool
+		var runtimeErr error
 
 		startedAt := time.Now()
-		hasRunTimeError = catchRuntimeError(gnoPkgPath, io.Err(), func() {
+		hasLintTypeCheckError = catchError(gnoPkgPath, io.Err(), func() {
 			if modfile == nil || !modfile.Draft {
 				lintErr := lintTypeCheck(io, memPkg, opts.TestStore)
 				if lintErr != nil {
@@ -255,15 +256,17 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			} else if cfg.verbose {
 				io.ErrPrintfln("%s: module is draft, skipping type check", gnoPkgPath)
 			}
-			err = test.Test(memPkg, pkg.Dir, opts)
+			runtimeErr = test.Test(memPkg, pkg.Dir, opts) // runtime error
+			//fmt.Println("--------------1, runtime err: ", runtimeErr)
 		})
 
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
 
-		if hasRunTimeError || err != nil {
-			if err != nil {
-				io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, err)
+		if hasLintTypeCheckError || runtimeErr != nil {
+			if runtimeErr != nil {
+				//fmt.Println("--------------2, runtime err: ", runtimeErr)
+				io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, runtimeErr)
 			}
 			io.ErrPrintfln("FAIL    %s \t%s", pkg.Dir, dstr)
 			testErrCount++
