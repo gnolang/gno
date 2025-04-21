@@ -19,6 +19,7 @@ type ExecContext struct {
 	Banker          BankerInterface
 	Params          ParamsInterface
 	EventLogger     *sdk.EventLogger
+	ExecKind        *gno.ExecKind // mutable
 }
 
 // GetContext returns the execution context.
@@ -28,12 +29,26 @@ func (e ExecContext) GetExecContext() ExecContext {
 	return e
 }
 
+func (e ExecContext) SetExecKind(ek gno.ExecKind) {
+	if e.ExecKind == nil {
+		return
+	}
+	*e.ExecKind = ek
+}
+func (e ExecContext) GetExecKind() gno.ExecKind {
+	if e.ExecKind == nil {
+		panic("ExecContext.ExecKind never allocated")
+	}
+	return *e.ExecKind
+}
+
 var _ ExecContexter = ExecContext{}
 
 // ExecContexter is a type capable of returning the parent [ExecContext]. When
 // using these standard libraries, m.Context should always implement this
 // interface. This can be obtained by embedding [ExecContext].
 type ExecContexter interface {
+	gno.ExecContextI
 	GetExecContext() ExecContext
 }
 

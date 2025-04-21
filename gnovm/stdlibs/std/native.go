@@ -2,7 +2,6 @@ package std
 
 import (
 	"fmt"
-	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -107,29 +106,36 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 		lfr = fr
 	}
 
-	if crosses != height {
-		m.Panic(typedString("frame not found"))
-		return
+	switch ctx.GetExecKind() {
+	case gno.ExecKindAdd:
+		switch height {
+		case crosses:
+			fr := m.Frames[0]
+			path := fr.LastPackage.PkgPath
+			return string(gno.DerivePkgBech32Addr(path)), path
+		case crosses + 1:
+			return string(ctx.OriginCaller), ""
+		default:
+			m.Panic(typedString("frame not found"))
+			return "", ""
+		}
+	case gno.ExecKindRun:
+		switch height {
+		case crosses:
+			return string(ctx.OriginCaller), ""
+		default:
+			m.Panic(typedString("frame not found"))
+			return "", ""
+		}
+	default:
+		panic("exec kind unspecified")
 	}
+}
 
-	// Get first frame.
-	fr := &m.Frames[0]
-
-	// Special case if package initialization with no caller.
-	if ctx.OriginCaller == "" {
-		caller := string(fr.LastPackage.GetPkgAddr().Bech32())
-		pkgPath := fr.LastPackage.PkgPath
-		return string(caller), pkgPath
-	}
-
-	// Special case if package initialization with caller (MsgAddPackage).
-	if ctx.OriginCaller != "" && strings.HasPrefix(string(fr.Func.Name), "init") {
-		path := fr.LastPackage.PkgPath
-		return string(gno.DerivePkgBech32Addr(path)), path
-	}
-
-	// Base case: return OriginCaller.
-	return string(ctx.OriginCaller), ""
+// currentPkgPath retrieves the current package's pkgPath.
+// It's not a native binding; but is used within this package to clarify usage.
+func currentPkgPath(m *gno.Machine) (pkgPath string) {
+	return m.MustPeekCallFrame(2).LastPackage.PkgPath
 }
 
 // currentRealm retrieves the current realm's address and pkgPath.

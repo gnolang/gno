@@ -44,7 +44,7 @@ type Machine struct {
 	PreprocessorMode bool // this is used as a flag when const values are evaluated during preprocessing
 	Output           io.Writer
 	Store            Store
-	Context          any
+	Context          ExecContextI
 	GasMeter         store.GasMeter
 }
 
@@ -74,7 +74,7 @@ type MachineOptions struct {
 	Input            io.Reader // used for default debugger input only
 	Output           io.Writer // default os.Stdout
 	Store            Store     // default NewStore(Alloc, nil, nil)
-	Context          any
+	Context          ExecContextI
 	Alloc            *Allocator // or see MaxAllocBytes.
 	MaxAllocBytes    int64      // or 0 for no limit.
 	GasMeter         store.GasMeter
@@ -641,7 +641,7 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 			if strings.HasPrefix(string(fv.Name), "init.") {
 				fb := pv.GetFileBlock(m.Store, fv.FileName)
 				m.PushBlock(fb)
-				m.RunFunc(fv.Name, false)
+				m.runFunc(ExecKindAdd, fv.Name, false)
 				m.PopBlock()
 			}
 		}
@@ -699,20 +699,16 @@ func (m *Machine) resavePackageValues(rlm *Realm) {
 	// even after running the init function.
 }
 
-func (m *Machine) RunFunc(fn Name, withCross bool) {
+func (m *Machine) runFunc(ek ExecKind, fn Name, withCross bool) {
 	if withCross {
-		m.RunStatement(S(Call(Call(Nx("cross"), Nx(fn)))))
+		m.RunStatement(ek, S(Call(Call(Nx("cross"), Nx(fn)))))
 	} else {
-		m.RunStatement(S(Call(Nx(fn))))
+		m.RunStatement(ek, S(Call(Nx(fn))))
 	}
 }
 
 func (m *Machine) RunMain() {
-	if m.Package.IsRealm() {
-		m.RunStatement(S(Call(Call(Nx("cross"), Nx("main")))))
-	} else {
-		m.RunStatement(S(Call(X("main"))))
-	}
+	m.runFunc(ExecKindRun, "main", m.Package.IsRealm())
 }
 
 // Evaluate throwaway expression in new block scope.
@@ -758,7 +754,7 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 	m.PushOp(OpHalt)
 	m.PushExpr(x)
 	m.PushOp(OpEval)
-	m.Run()
+	m.Run(ExecKindRun)
 	res := m.ReapValues(start)
 	return res
 }
@@ -784,7 +780,7 @@ func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
 	m.PushOp(OpPopBlock)
 	m.PushExpr(x)
 	m.PushOp(OpEval)
-	m.Run()
+	m.Run(ExecKindRun)
 	res := m.ReapValues(start)
 	if len(res) != 1 {
 		panic("should not happen")
@@ -813,7 +809,7 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 	m.PushOp(OpPopBlock)
 	m.PushExpr(x)
 	m.PushOp(OpStaticTypeOf)
-	m.Run()
+	m.Run(ExecKindRun)
 	res := m.ReapValues(start)
 	if len(res) != 1 {
 		panic("should not happen")
@@ -822,13 +818,13 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 	return tv.Type
 }
 
-func (m *Machine) RunStatement(s Stmt) {
+func (m *Machine) RunStatement(ek ExecKind, s Stmt) {
 	sn := m.LastBlock().GetSource(m.Store)
 	s = Preprocess(m.Store, sn, s).(Stmt)
 	m.PushOp(OpHalt)
 	m.PushStmt(s)
 	m.PushOp(OpExec)
-	m.Run()
+	m.Run(ek)
 }
 
 // Runs a declaration after preprocessing d.  If d was already
@@ -872,12 +868,12 @@ func (m *Machine) runDeclaration(d Decl) {
 		m.PushOp(OpHalt)
 		m.PushStmt(d)
 		m.PushOp(OpExec)
-		m.Run()
+		m.Run(ExecKindAdd)
 	case *TypeDecl:
 		m.PushOp(OpHalt)
 		m.PushStmt(d)
 		m.PushOp(OpExec)
-		m.Run()
+		m.Run(ExecKindAdd)
 	default:
 		// Do nothing for package constants.
 	}
@@ -1145,7 +1141,10 @@ const (
 //----------------------------------------
 // main run loop.
 
-func (m *Machine) Run() {
+func (m *Machine) Run(ek ExecKind) {
+	if m.Context != nil {
+		m.Context.SetExecKind(ek)
+	}
 	if bm.OpsEnabled {
 		defer func() {
 			// output each machine run results to file
@@ -1159,7 +1158,7 @@ func (m *Machine) Run() {
 			switch r := r.(type) {
 			case *Exception:
 				m.Panic(r.Value)
-				m.Run()
+				m.Run(ek)
 			default:
 				panic(r)
 			}
