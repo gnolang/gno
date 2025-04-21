@@ -73,7 +73,7 @@ func N(n any) Name {
 	case Name:
 		return n
 	default:
-		panic("unexpected name arg")
+		panic("unexpected name type")
 	}
 }
 
@@ -137,8 +137,8 @@ func Flds(args ...any) FieldTypeExprs {
 	list := FieldTypeExprs{}
 	for i := 0; i < len(args); i += 2 {
 		list = append(list, FieldTypeExpr{
-			Name: N(args[i]),
-			Type: X(args[i+1]),
+			NameExpr: *Nx(args[i]),
+			Type:     X(args[i+1]),
 		})
 	}
 	return list
@@ -149,8 +149,8 @@ func Recv(n, t any) FieldTypeExpr {
 		n = blankIdentifier
 	}
 	return FieldTypeExpr{
-		Name: N(n),
-		Type: X(t),
+		NameExpr: *Nx(n),
+		Type:     X(t),
 	}
 }
 
@@ -841,6 +841,24 @@ func SIf(cond bool, then_, else_ Stmt) Stmt {
 		return else_
 	} else {
 		return &EmptyStmt{}
+	}
+}
+
+// ----------------------------------------
+// AST Query
+
+// Unwraps IndexExpr and SelectorExpr only.
+// (defensive, in case malformed exprs that mix).
+func LeftmostX(x Expr) Expr {
+	for {
+		switch x := x.(type) {
+		case *IndexExpr:
+			return x.X
+		case *SelectorExpr:
+			return x.X
+		default:
+			return x
+		}
 	}
 }
 
