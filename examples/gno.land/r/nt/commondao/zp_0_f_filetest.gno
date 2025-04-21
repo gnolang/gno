@@ -21,7 +21,7 @@ func init() {
 
 	testing.SetOriginCaller(user)
 	dao := commondao.New("Foo")
-	subDAO := commondao.NewSubDAO("Bar", dao)
+	subDAO := commondao.NewSubDAO("Bar", dao.ID())
 	subDAO.Members().Add(user)
 
 	daoID = dao.ID()

@@ -32,9 +32,8 @@ func IsInvited(addr std.Address) bool {
 }
 
 // New creates a new CommonDAO.
+// An invitation is required to be able to create new DAOs.
 func New(name string) *commondao.CommonDAO {
-	assertCallerIsRealm() // TODO: Allow users to create DAOs using run TX?
-
 	name = strings.TrimSpace(name)
 	assertNameIsNotEmpty(name)
 
@@ -61,14 +60,11 @@ func New(name string) *commondao.CommonDAO {
 }
 
 // NewSubDAO creates a new SubDAO.
-func NewSubDAO(name string, parent *commondao.CommonDAO) *commondao.CommonDAO {
-	assertCallerIsRealm() // TODO: Allow users to create SubDAOs using run TX?
+func NewSubDAO(name string, parentID uint64) *commondao.CommonDAO {
+	caller := std.PreviousRealm().Address()
+	assertIsOwner(caller, parentID)
 
-	if parent == nil {
-		panic("parent DAO is required")
-	}
-
-	parentOptions := getOptions(parent.ID())
+	parentOptions := getOptions(parentID)
 	if !parentOptions.AllowChildren {
 		panic("SubDAO support is not enabled")
 	}
@@ -76,6 +72,7 @@ func NewSubDAO(name string, parent *commondao.CommonDAO) *commondao.CommonDAO {
 	name = strings.TrimSpace(name)
 	assertNameIsNotEmpty(name)
 
+	parent := getDAO(parentID)
 	id := daoID.Next()
 	dao := commondao.New(
 		commondao.WithID(uint64(id)),
@@ -103,8 +100,6 @@ func NewSubDAO(name string, parent *commondao.CommonDAO) *commondao.CommonDAO {
 // GetOptions returns the configuration of a DAO.
 // It panics if caller doesn't have ownership of the DAO instance.
 func GetOptions(daoID uint64) *Options {
-	assertCallerIsRealm()
-
 	if !checkIsOwner(std.PreviousRealm().Address(), daoID) {
 		panic("unauthorized")
 	}
@@ -143,9 +138,7 @@ func TransferOwnership(daoID uint64, newOwner std.Address) {
 // It panics if caller doesn't have ownership of the DAO instance.
 // Only toplevel DAOs are returned, to get SubDAOs use `GetSubDAO()`.
 func Get(daoID uint64) *commondao.CommonDAO {
-	assertCallerIsRealm() // TODO: Allow users to get DAOs using run TX?
 	assertIsOwner(std.CurrentRealm().Address(), daoID)
-
 	return mustGetDAO(daoID)
 }
 
@@ -224,12 +217,6 @@ func checkIsOwner(addr std.Address, daoID uint64) bool {
 func assertIsInvited(addr std.Address) {
 	if !checkIsInvited(addr) {
 		panic("unauthorized")
-	}
-}
-
-func assertCallerIsRealm() { // Assert for non crossing functions
-	if std.CurrentRealm().PkgPath() == "" {
-		panic("caller is not a realm")
 	}
 }
 
