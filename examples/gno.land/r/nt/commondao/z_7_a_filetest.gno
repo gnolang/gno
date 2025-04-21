@@ -1,5 +1,4 @@
-// PKGPATH: gno.land/r/demo/commondao_test
-package commondao_test
+package main
 
 import (
 	"std"
@@ -16,7 +15,7 @@ const (
 	name  = "Foo"
 )
 
-var rootDAO *pcommondao.CommonDAO
+var parentID uint64
 
 func init() {
 	// Invite a user to be able to start creating DAOs
@@ -28,18 +27,18 @@ func init() {
 	testing.SetOriginCaller(user)
 
 	// Create the root DAO
-	rootDAO = commondao.New("Parent DAO")
+	parentID = commondao.New("Parent DAO").ID()
 }
 
 func main() {
-	dao := commondao.NewSubDAO(name, rootDAO)
+	dao := commondao.NewSubDAO(name, parentID)
 
 	if dao == nil {
 		panic("expected subDAO to be created")
 	}
 
 	println(dao.Name() == name)
-	println(dao.Parent().ID() == rootDAO.ID())
+	println(dao.Parent().ID() == parentID)
 
 	// Check that SubDAO is added as a child to the parent DAO
 	if v := dao.Parent().Children().Get(0); v != nil {

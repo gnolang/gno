@@ -1,5 +1,4 @@
-// PKGPATH: gno.land/r/demo/commondao_test
-package commondao_test
+package main
 
 import (
 	"std"
@@ -8,23 +7,16 @@ import (
 	"gno.land/r/nt/commondao"
 )
 
-const (
-	owner = std.Address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	user  = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
-)
+const user = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 
 func init() {
-	// Invite a user to be able to start creating DAOs
-	testing.SetOriginCaller(owner)
-	commondao.Invite(user)
-
-	// The origin must be the invited user
+	// Calling with a user that was not invited
 	testing.SetOriginCaller(user)
 }
 
 func main() {
-	commondao.New("")
+	commondao.New("Foo")
 }
 
 // Error:
-// DAO name is empty
+// unauthorized

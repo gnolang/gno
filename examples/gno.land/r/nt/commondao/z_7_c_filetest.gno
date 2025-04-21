@@ -1,5 +1,4 @@
-// PKGPATH: gno.land/r/demo/commondao_test
-package commondao_test
+package main
 
 import (
 	"std"
@@ -13,6 +12,8 @@ const (
 	user  = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
+var parentID uint64
+
 func init() {
 	// Invite a user to be able to start creating DAOs
 	testing.SetOriginCaller(owner)
@@ -20,11 +21,14 @@ func init() {
 
 	// The origin must be the invited user
 	testing.SetOriginCaller(user)
+
+	// Create the root DAO
+	parentID = commondao.New("Parent DAO").ID()
 }
 
 func main() {
-	commondao.NewSubDAO("Foo", nil)
+	commondao.NewSubDAO("", parentID)
 }
 
 // Error:
-// parent DAO is required
+// DAO name is empty

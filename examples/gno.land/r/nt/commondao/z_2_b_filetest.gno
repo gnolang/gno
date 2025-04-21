@@ -22,8 +22,8 @@ func init() {
 }
 
 func main() {
-	commondao.New("Foo")
+	commondao.New("")
 }
 
 // Error:
-// caller is not a realm
+// DAO name is empty

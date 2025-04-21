@@ -4,8 +4,6 @@ import (
 	"std"
 	"testing"
 
-	pcommondao "gno.land/p/nt/commondao"
-
 	"gno.land/r/nt/commondao"
 )
 
@@ -14,8 +12,6 @@ const (
 	user  = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
-var rootDAO *pcommondao.CommonDAO
-
 func init() {
 	// Invite a user to be able to start creating DAOs
 	testing.SetOriginCaller(owner)
@@ -23,14 +19,11 @@ func init() {
 
 	// The origin must be the invited user
 	testing.SetOriginCaller(user)
-
-	// Create the root DAO
-	rootDAO = commondao.New("Parent DAO")
 }
 
 func main() {
-	commondao.NewSubDAO("Foo", rootDAO)
+	commondao.NewSubDAO("Foo", 404)
 }
 
 // Error:
-// caller is not a realm
+// DAO not found

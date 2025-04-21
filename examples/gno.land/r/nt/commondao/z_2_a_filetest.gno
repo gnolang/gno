@@ -1,5 +1,4 @@
-// PKGPATH: gno.land/r/demo/commondao_test
-package commondao_test
+package main
 
 import (
 	"std"
@@ -17,9 +16,6 @@ const (
 var realm std.Address
 
 func init() {
-	// Init `commondao_test` realm address
-	realm = std.CurrentRealm().Address()
-
 	// Invite a user to be able to start creating DAOs
 	testing.SetOriginCaller(owner)
 	commondao.Invite(user)
@@ -37,7 +33,7 @@ func main() {
 	}
 
 	println(dao.Name() == name)
-	println(commondao.IsOwner(realm, dao.ID()))
+	println(commondao.IsOwner(user, dao.ID()))
 	println(commondao.IsInvited(user))
 	println(commondao.GetOptions(dao.ID()) != nil)
 }

@@ -7,7 +7,6 @@ import (
 
 // Iterate returns a SubDAO iterator.
 func NewIterator(rootID uint64, options ...IteratorOption) Iterator {
-	assertCallerIsRealm() // TODO: Allow users to iterate SubDAOs using run TX?
 	assertCallerIsOwner(rootID)
 
 	tree := getTree(rootID)

@@ -1,5 +1,4 @@
-// PKGPATH: gno.land/r/demo/commondao_test
-package commondao_test
+package main
 
 import (
 	"std"
@@ -26,10 +25,10 @@ func init() {
 
 	// Create root DAO with subDAOs
 	rootDAO := commondao.New("Root DAO")
-	fooDAO := commondao.NewSubDAO("A", rootDAO)
-	barDAO := commondao.NewSubDAO("B", fooDAO)
-	commondao.NewSubDAO("C", barDAO)
-	commondao.NewSubDAO("D", fooDAO)
+	fooDAO := commondao.NewSubDAO("A", rootDAO.ID())
+	barDAO := commondao.NewSubDAO("B", fooDAO.ID())
+	commondao.NewSubDAO("C", barDAO.ID())
+	commondao.NewSubDAO("D", fooDAO.ID())
 
 	rootID = rootDAO.ID()
 }
