@@ -151,10 +151,6 @@ func isReservedName(n Name) bool {
 
 // scans uverse static node for blocknames. (slow)
 func isUverseName(n Name) bool {
-	if n == "panic" {
-		// panic is not in uverse, as it is parsed as its own statement (PanicStmt)
-		return true
-	}
 	uverseNames := UverseNode().GetBlockNames()
 	return slices.Contains(uverseNames, n)
 }
