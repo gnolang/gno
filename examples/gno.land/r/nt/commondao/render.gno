@@ -36,7 +36,7 @@ func renderHome(res *mux.ResponseWriter, _ *mux.Request) {
 }
 
 func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
-	dao := mustGetRequestDAO(req)
+	dao := mustGetDAOFromRequest(req)
 
 	// Render header
 	res.Write("# ")
@@ -127,7 +127,7 @@ func renderTree(res *mux.ResponseWriter, dao *commondao.CommonDAO, indent string
 }
 
 func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
-	dao := mustGetRequestDAO(req)
+	dao := mustGetDAOFromRequest(req)
 	o := getOptions(dao.ID())
 
 	// Render header
@@ -153,7 +153,7 @@ func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
 }
 
 func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
-	dao := mustGetRequestDAO(req)
+	dao := mustGetDAOFromRequest(req)
 
 	// Render header
 	res.Write("# ")
@@ -250,8 +250,8 @@ func renderProposalsListItem(res *mux.ResponseWriter, dao *commondao.CommonDAO, 
 }
 
 func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
-	dao := mustGetRequestDAO(req)
-	p := mustGetRequestProposal(req, dao)
+	dao := mustGetDAOFromRequest(req)
+	p := mustGetProposalFromRequest(req, dao)
 	votingActive := isVotingPeriodActive(p)
 	if votingActive {
 		res.Write(ufmt.Sprintf("> Voting ends on **%s**\n", p.VotingDeadline().UTC().Format(dateFormat)))
@@ -351,8 +351,8 @@ func renderProposalVote(res *mux.ResponseWriter, req *mux.Request) {
 		return
 	}
 
-	dao := mustGetRequestDAO(req)
-	p := mustGetRequestProposal(req, dao)
+	dao := mustGetDAOFromRequest(req)
+	p := mustGetProposalFromRequest(req, dao)
 	v, found := p.VotingRecord().GetVote(member)
 	if !found {
 		res.Write("Vote not found")
@@ -374,7 +374,7 @@ func renderProposalVote(res *mux.ResponseWriter, req *mux.Request) {
 	}
 }
 
-func mustGetRequestDAO(req *mux.Request) *commondao.CommonDAO {
+func mustGetDAOFromRequest(req *mux.Request) *commondao.CommonDAO {
 	rawID := req.GetVar("daoID")
 	daoID, err := strconv.ParseUint(rawID, 10, 64)
 	if err != nil {
@@ -386,25 +386,10 @@ func mustGetRequestDAO(req *mux.Request) *commondao.CommonDAO {
 		panic("Forbidden")
 	}
 
-	var (
-		dao  *commondao.CommonDAO
-		path = req.Query.Get("path")
-	)
-
-	if path != "" {
-		dao = getSubDAO(daoID, path)
-	} else {
-		dao = getDAO(daoID)
-	}
-
-	if dao == nil {
-		panic("DAO not found")
-	}
-
-	return dao
+	return mustGetDAO(daoID)
 }
 
-func mustGetRequestProposal(req *mux.Request, dao *commondao.CommonDAO) *commondao.Proposal {
+func mustGetProposalFromRequest(req *mux.Request, dao *commondao.CommonDAO) *commondao.Proposal {
 	rawID := req.GetVar("proposalID")
 	proposalID, err := strconv.ParseUint(rawID, 10, 64)
 	if err != nil {
