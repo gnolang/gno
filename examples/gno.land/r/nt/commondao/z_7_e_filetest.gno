@@ -45,4 +45,4 @@ func main() {
 }
 
 // Error:
-// forbidden
+// SubDAO support is not enabled

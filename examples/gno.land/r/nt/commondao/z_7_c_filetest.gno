@@ -26,4 +26,4 @@ func main() {
 }
 
 // Error:
-// parent is required
+// parent DAO is required
