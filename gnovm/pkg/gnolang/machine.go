@@ -46,6 +46,8 @@ type Machine struct {
 	Store            Store
 	Context          any
 	GasMeter         store.GasMeter
+
+	TestHelper *TestHelper // should exist in gno tests only
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -169,6 +171,50 @@ func (m *Machine) Release() {
 	*m = Machine{Ops: ops, Values: values}
 
 	machinePool.Put(m)
+}
+
+func (m *Machine) ResetContext() {
+	pkgValue := m.Package
+	store := m.Store
+	output := m.Output
+	context := m.Context
+	gasMeter := m.GasMeter
+	alloc := m.Alloc
+	debugger := m.Debugger
+	preprocessorMode := m.PreprocessorMode
+
+	m.NumOps = 0
+	m.NumValues = 0
+	m.NumResults = 0
+	m.Exprs = nil
+	m.Stmts = nil
+	m.Blocks = nil
+	m.Frames = nil
+	m.Exception = nil
+	m.Cycles = 0
+	m.Realm = nil
+
+	ops, values := m.Ops[:VMSliceSize:VMSliceSize], m.Values[:VMSliceSize:VMSliceSize]
+	copy(ops, opZeroed[:])
+	copy(values, valueZeroed[:])
+	m.Ops = ops
+	m.Values = values
+
+	m.Package = pkgValue
+	m.Store = store
+	m.Output = output
+	m.Context = context
+	m.GasMeter = gasMeter
+	m.Alloc = alloc
+	m.Debugger = debugger
+	m.PreprocessorMode = preprocessorMode
+
+	if pkgValue != nil {
+		m.Blocks = []*Block{
+			pkgValue.GetBlock(store),
+		}
+		m.Realm = pkgValue.GetRealm()
+	}
 }
 
 func (m *Machine) SetActivePackage(pv *PackageValue) {

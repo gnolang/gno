@@ -16,3 +16,10 @@ func X_matchString(pat, str string) (bool, string) {
 func X_recoverWithStacktrace() (gnolang.TypedValue, string) {
 	panic("only available in testing stdlibs")
 }
+
+func X_ResetState(m *gnolang.Machine) {
+	err := m.TestHelper.ResetState()
+	if err != nil {
+		panic(err)
+	}
+}

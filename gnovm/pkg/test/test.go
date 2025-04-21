@@ -146,6 +146,25 @@ type TestOptions struct {
 
 	filetestBuffer bytes.Buffer
 	outWriter      proxyWriter
+
+	realmTracker *gno.RealmTracker
+}
+
+func (opts *TestOptions) WrapStoreForStateReset(store gno.Store) gno.Store {
+	if opts.realmTracker == nil {
+		return store
+	}
+
+	return gno.NewInterceptStore(store, opts.realmTracker)
+}
+
+// ResetMachineState resets the machine state between tests
+func (opts *TestOptions) ResetMachineState(m *gno.Machine) error {
+	if opts.realmTracker == nil {
+		return nil
+	}
+
+	return gno.ResetMachineState(m, m.Store, opts.realmTracker)
 }
 
 // WriterForStore is the writer that should be passed to [Store], so that
@@ -353,6 +372,7 @@ func (opts *TestOptions) runTestFiles(
 		m = Machine(gs, opts.WriterForStore(), memPkg.Path, opts.Debug)
 		m.Alloc = alloc.Reset()
 		m.SetActivePackage(pv)
+		m.TestHelper = gno.NewTestHelper(m, m.Store)
 
 		testingpv := m.Store.GetPackage("testing", false)
 		testingtv := gno.TypedValue{T: &gno.PackageType{}, V: testingpv}
