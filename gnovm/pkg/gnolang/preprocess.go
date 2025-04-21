@@ -447,12 +447,22 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	// XXX do any of the following need the attr, or similar attrs?
 	// XXX well the following may be isn't idempotent,
 	// XXX so it is currently strange.
-	if bn, ok := n.(BlockNode); ok {
-		// findGotoLoopDefines(ctx, bn)
-		findHeapDefinesByUse(ctx, bn)
-		findHeapUsesDemoteDefines(ctx, bn)
-		findPackageSelectors(bn)
-	}
+	// NOTE: need to use Transcribe() here instead of `bn, ok := n.(BlockNode)`
+	// because say n may be a *CallExpr containing an anonymous function.
+	Transcribe(n,
+		func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+			if stage != TRANS_ENTER {
+				return n, TRANS_CONTINUE
+			}
+			if bn, ok := n.(BlockNode); ok {
+				// findGotoLoopDefines(ctx, bn)
+				findHeapDefinesByUse(ctx, bn)
+				findHeapUsesDemoteDefines(ctx, bn)
+				findPackageSelectors(bn)
+				return n, TRANS_SKIP
+			}
+			return n, TRANS_CONTINUE
+		})
 	return n
 }
 
@@ -1389,7 +1399,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// Memoize *CallExpr.WithCross.
 						pc, ok := ns[len(ns)-1].(*CallExpr)
 						if !ok {
-							fmt.Println("!!!!", ns[len(ns)-1])
 							panic("cross(fn) must be followed by a call")
 						}
 						pc.SetWithCross()
@@ -2934,7 +2943,10 @@ func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, dept
 			}
 		}
 	}
-	panic("stop not found in stack")
+	// This can happen e.g. if stop is a package but we are
+	// Preprocess()'ing an expression such as `func(){ ... }()` from
+	// Machine.Eval() on an already preprocessed package.
+	return
 }
 
 // If a name is used as a heap item, Convert all other uses of such names

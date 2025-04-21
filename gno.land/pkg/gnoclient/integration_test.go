@@ -1,7 +1,6 @@
 package gnoclient
 
 import (
-	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -342,7 +341,8 @@ func main() {
 		Caller: caller.GetAddress(),
 		Package: &gnovm.MemPackage{
 			Name: "main",
-			Path: fmt.Sprintf("gno.land/r/%s/run", caller.GetAddress().String()),
+			// Path will be automatically set by handler.
+			// Path: fmt.Sprintf("gno.land/r/%s/run", caller.GetAddress().String()),
 			Files: []*gnovm.MemFile{
 				{
 					Name: "main.gno",
@@ -430,6 +430,8 @@ func main() {
 		Caller: caller.GetAddress(),
 		Package: &gnovm.MemPackage{
 			Name: "main",
+			// Path will be automatically set by handler.
+			// Path: fmt.Sprintf("gno.land/r/%s/run", caller.GetAddress().String()),
 			Files: []*gnovm.MemFile{
 				{
 					Name: "main.gno",
@@ -443,6 +445,8 @@ func main() {
 		Caller: caller.GetAddress(),
 		Package: &gnovm.MemPackage{
 			Name: "main",
+			// Path will be automatically set by handler.
+			// Path: fmt.Sprintf("gno.land/r/%s/run", caller.GetAddress().String()),
 			Files: []*gnovm.MemFile{
 				{
 					Name: "main.gno",

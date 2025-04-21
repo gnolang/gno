@@ -190,7 +190,7 @@ func TestVmHandlerQuery_Funcs(t *testing.T) {
 		expectedErrorMatch string
 	}{
 		// valid queries
-		{input: []byte(`gno.land/r/hello`), expectedResult: `[{"FuncName":"Panic","Params":null,"Results":null},{"FuncName":"Echo","Params":[{"Name":"msg","Type":"string","Value":""}],"Results":[{"Name":"_","Type":"string","Value":""}]},{"FuncName":"GetCounter","Params":null,"Results":[{"Name":"_","Type":"int","Value":""}]},{"FuncName":"Inc","Params":null,"Results":[{"Name":"_","Type":"int","Value":""}]}]`},
+		{input: []byte(`gno.land/r/hello`), expectedResult: `[{"FuncName":"Panic","Params":null,"Results":null},{"FuncName":"Echo","Params":[{"Name":"msg","Type":"string","Value":""}],"Results":[{"Name":".res.0","Type":"string","Value":""}]},{"FuncName":"GetCounter","Params":null,"Results":[{"Name":".res.0","Type":"int","Value":""}]},{"FuncName":"Inc","Params":null,"Results":[{"Name":".res.0","Type":"int","Value":""}]}]`},
 		{input: []byte(`gno.land/r/doesnotexist`), expectedErrorMatch: `invalid package path`},
 		{input: []byte(`std`), expectedErrorMatch: `invalid package path`},
 		{input: []byte(`strings`), expectedErrorMatch: `invalid package path`},
