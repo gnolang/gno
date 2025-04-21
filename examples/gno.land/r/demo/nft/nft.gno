@@ -74,7 +74,7 @@ func (grc *token) SafeTransferFrom(from, to std.Address, tid grc721.TokenID) {
 }
 
 func (grc *token) TransferFrom(from, to std.Address, tid grc721.TokenID) {
-	caller := std.CallerAt(2)
+	caller := std.CallerAt(2) // XXX use CurrentRealm or PreviousRealm().
 	token, ok := grc.getToken(tid)
 	// Throws if `_tokenId` is not a valid NFT.
 	if !ok {
