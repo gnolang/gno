@@ -2,6 +2,7 @@ package std
 
 import (
 	"fmt"
+	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -111,12 +112,20 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 		return
 	}
 
-	// Special case if package initialization.
+	// Get first frame.
+	fr := &m.Frames[0]
+
+	// Special case if package initialization with no caller.
 	if ctx.OriginCaller == "" {
-		fr := &m.Frames[0]
 		caller := string(fr.LastPackage.GetPkgAddr().Bech32())
 		pkgPath := fr.LastPackage.PkgPath
 		return string(caller), pkgPath
+	}
+
+	// Special case if package initialization with caller (MsgAddPackage).
+	if ctx.OriginCaller != "" && strings.HasPrefix(string(fr.Func.Name), "init") {
+		path := fr.LastPackage.PkgPath
+		return string(gno.DerivePkgBech32Addr(path)), path
 	}
 
 	// Base case: return OriginCaller.
