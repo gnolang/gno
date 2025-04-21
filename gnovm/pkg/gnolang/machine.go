@@ -699,8 +699,8 @@ func (m *Machine) resavePackageValues(rlm *Realm) {
 	// even after running the init function.
 }
 
-func (m *Machine) RunFunc(fn Name, withSwitch bool) {
-	if withSwitch {
+func (m *Machine) RunFunc(fn Name, withCross bool) {
+	if withCross {
 		m.RunStatement(S(Call(Call(Nx("cross"), Nx(fn)))))
 	} else {
 		m.RunStatement(S(Call(Nx(fn))))
@@ -1765,7 +1765,7 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, isDefer bool) {
-	withSwitch := cx.IsWithCross()
+	withCross := cx.IsWithCross()
 	numValues := 0
 	if isDefer {
 		// defer frame calls do not get their args and func from the
@@ -1787,7 +1787,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		IsVarg:        cx.Varg,
 		LastPackage:   m.Package,
 		LastRealm:     m.Realm,
-		WithCross:     withSwitch,
+		WithCross:     withCross,
 		DidCross:      false,
 		Defers:        nil,
 		IsDefer:       isDefer,
@@ -1809,6 +1809,8 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		m.Exception = nil
 	}
 
+	// NOTE: fr cannot be mutated from hereon, as it is a value.
+	// If it must be mutated after append, use m.LastFrame() instead.
 	m.Frames = append(m.Frames, fr)
 
 	// Set the package.
@@ -1823,11 +1825,11 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	// If cross, always switch to pv.Realm.
 	// If method, this means the object cannot be modified if
 	// stored externally by this method; but other methods can.
-	if withSwitch {
+	if withCross {
 		if !fv.IsCrossing() {
 			panic(fmt.Sprintf(
 				"missing crossing() after cross call in %v from %s to %s",
-				fr.Func.String(),
+				fv.String(),
 				m.Realm.GetPath(),
 				pv.Realm.Path,
 			))
@@ -1842,7 +1844,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			// panic; not explicit
 			panic(fmt.Sprintf(
 				"missing cross before external crossing() in %v from %s to %s",
-				fr.Func.String(),
+				fv.String(),
 				m.Realm.Path,
 				pv.Realm.Path,
 			))
@@ -1874,12 +1876,13 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
 				rlm = objpv.GetRealm()
 				m.Realm = rlm
-				// Do not set DidCross here.
-				// Make DidCross only happen upon explicit
-				// cross(fn)(...) calls to avoid user
-				// confusion.
-				// fr.DidCross = true
-				// XXX write test.
+				// DO NOT set DidCross here. Make DidCross only
+				// happen upon explicit cross(fn)(...) calls to
+				// avoid user confusion. Otherwise whether
+				// DidCross happened or not depends on where
+				// the receiver resides, which isn't explicit
+				// enough to avoid confusion.
+				//   fr.DidCross = true
 				return
 			}
 		}

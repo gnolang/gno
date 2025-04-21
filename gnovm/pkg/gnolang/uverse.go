@@ -763,12 +763,11 @@ func makeUverseNode() {
 			}
 			fr1 := m.PeekCallFrame(1) // fr1.LastPackage created fr.
 			if !fr1.LastPackage.IsRealm() {
-				fmt.Println("LASTPACKAGE", fr1.LastPackage.PkgPath)
 				panic("crossing call only allowed in realm packages") // XXX test
 			}
 			// Verify prior fr.WithCross or fr.DidCross.
 			// NOTE: fr.WithCross may or may not be true,
-			// switcherealm() (which sets fr.DidCross) can be
+			// crossing() (which sets fr.DidCross) can be
 			// stacked.
 			for i := 1 + 1; ; i++ {
 				fri := m.PeekCallFrame(i)
