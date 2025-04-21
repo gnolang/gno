@@ -37,4 +37,4 @@ func main() {
 }
 
 // Error:
-// forbidden
+// voting is not enabled

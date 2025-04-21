@@ -37,4 +37,4 @@ func main() {
 }
 
 // Error:
-// forbidden
+// proposal execution is not enabled
