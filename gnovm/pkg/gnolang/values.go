@@ -805,12 +805,18 @@ func (pv *PackageValue) deriveFBlocksMap(store Store) {
 	}
 }
 
+// Retrieves the block from store if necessary, and if so fills all the values
+// of the block.
 func (pv *PackageValue) GetBlock(store Store) *Block {
 	bv := pv.Block
 	switch bv := bv.(type) {
 	case RefValue:
 		bb := store.GetObject(bv.ObjectID).(*Block)
 		pv.Block = bb
+		for i := range bb.Values {
+			tv := &bb.Values[i]
+			fillValueTV(store, tv)
+		}
 		return bb
 	case *Block:
 		return bv
