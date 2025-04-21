@@ -36,18 +36,6 @@ func mustGetDAO(daoID uint64) *commondao.CommonDAO {
 	return dao
 }
 
-func getSubDAO(rootID uint64, path string) *commondao.CommonDAO {
-	tree := getTree(rootID)
-	if tree == nil {
-		return nil
-	}
-
-	if v, found := tree.Get(path); found {
-		return v.(*commondao.CommonDAO)
-	}
-	return nil
-}
-
 func getTree(rootID uint64) *avl.Tree {
 	key := makeIDKey(rootID)
 	if v, found := trees.Get(key); found {
