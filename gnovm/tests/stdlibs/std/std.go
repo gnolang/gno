@@ -147,7 +147,7 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 	// Special case if package initialization.
 	if ctx.OriginCaller == "" {
 		fr := m.Frames[0]
-		caller := string(fr.LastPackage.GetPkgAddr().Bech32())
+		caller := fr.LastPackage.GetPkgAddr().Bech32()
 		pkgPath := fr.LastPackage.PkgPath
 		return string(caller), pkgPath
 	}
