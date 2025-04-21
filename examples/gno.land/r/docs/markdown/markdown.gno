@@ -384,11 +384,11 @@ By default, the alert boxes are opened. The title is optional and if not provide
 
 ±±±markdown
 > [!NOTE]-
-> This is a note closed
+> This is a closed note
 ±±±
 
 > [!NOTE]-
-> This is a note closed
+> This is a closed note
 
 ±±±markdown
 > [!NOTE] This is a note with title
@@ -444,17 +444,17 @@ By default, the alert boxes are opened. The title is optional and if not provide
 ±±±
 
 > [!FOO]
-> This is a default alert
+> This is the default alert
 
 ±±±markdown
 > [!NOTE]
 > > [!NOTE]
-> > This is scoped a note
+> > This is a scoped note
 ±±±
 
 > [!NOTE]
 > > [!NOTE]
-> > This is scoped a note
+> > This is a scoped note
 
 ---
 
