@@ -431,12 +431,22 @@ var preprocessing atomic.Int32
 //   - Assigns BlockValuePath to NameExprs.
 //   - TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
-	// First init static blocks if blocknode.
+	// First init static blocks of blocknodes.
 	// This may have already happened.
 	// Keep this function idemponent.
-	if bn, ok := n.(BlockNode); ok {
-		initStaticBlocks(store, ctx, bn)
-	}
+	// NOTE: need to use Transcribe() here instead of `bn, ok := n.(BlockNode)`
+	// because say n may be a *CallExpr containing an anonymous function.
+	Transcribe(n,
+		func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+			if stage != TRANS_ENTER {
+				return n, TRANS_CONTINUE
+			}
+			if bn, ok := n.(BlockNode); ok {
+				initStaticBlocks(store, ctx, bn)
+				return n, TRANS_SKIP
+			}
+			return n, TRANS_CONTINUE
+		})
 
 	// Bulk of the preprocessor function
 	n = preprocess1(store, ctx, n)
