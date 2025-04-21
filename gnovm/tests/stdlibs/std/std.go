@@ -15,7 +15,7 @@ type TestExecContext struct {
 	std.ExecContext
 
 	// These are used to set up the result of CurrentRealm() and PreviousRealm().
-	RealmFrames map[*gno.Frame]RealmOverride
+	RealmFrames map[int]RealmOverride
 }
 
 var _ std.ExecContexter = &TestExecContext{}
@@ -28,6 +28,7 @@ type RealmOverride struct {
 func AssertOriginCall(m *gno.Machine) {
 	if !isOriginCall(m) {
 		m.Panic(typedString("invalid non-origin call"))
+		return
 	}
 }
 
@@ -62,6 +63,7 @@ func isOriginCall(m *gno.Machine) bool {
 	panic("unable to determine if test is a _test or a _filetest")
 }
 
+/* See comment in stdlibs/std/native.gno
 func X_callerAt(m *gno.Machine, n int) string {
 	if n <= 0 {
 		m.Panic(typedString("CallerAt requires positive arg"))
@@ -81,45 +83,76 @@ func X_callerAt(m *gno.Machine, n int) string {
 		ctx := m.Context.(*TestExecContext)
 		return string(ctx.OriginCaller)
 	}
-	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
+	return string(m.MustPeekCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
+*/
 
 func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 	// NOTE: keep in sync with stdlibs/std.getRealm
 
 	var (
-		ctx           = m.Context.(*TestExecContext)
-		currentCaller crypto.Bech32Address
-		// Keeps track of the number of times currentCaller
-		// has changed.
-		changes int
+		ctx     = m.Context.(*TestExecContext)
+		crosses int                        // track realm crosses
+		lfr     *gno.Frame = m.LastFrame() // last call frame
 	)
 
 	for i := m.NumFrames() - 1; i >= 0; i-- {
-		fr := m.Frames[i]
-		override, overridden := ctx.RealmFrames[m.Frames[max(i-1, 0)]]
-		if !overridden &&
-			(fr.LastPackage == nil || !fr.LastPackage.IsRealm()) {
-			continue
+		fr := &m.Frames[i]
+
+		// Skip over (non-realm) non-crosses.
+		// Override implies cross.
+		override, overridden := ctx.RealmFrames[i]
+		if overridden && !fr.TestOverridden {
+			overridden = false // overridden frame was replaced.
+		}
+		if !overridden {
+			if !fr.IsCall() {
+				continue
+			}
+			if !fr.WithCross {
+				lfr = fr
+				continue
+			}
 		}
 
-		// LastPackage is a realm. Get caller and pkgPath, and compare against
-		// currentCaller.
-		caller, pkgPath := override.Addr, override.PkgPath
+		// Sanity check XXX move check elsewhere
 		if !overridden {
-			caller = fr.LastPackage.GetPkgAddr().Bech32()
-			pkgPath = fr.LastPackage.PkgPath
-		}
-		if caller != currentCaller {
-			if changes == height {
-				return string(caller), pkgPath
+			if !fr.DidCross {
+				panic(fmt.Sprintf(
+					"cross(fn) but fn didn't call crossing(): %s.%s",
+					fr.Func.PkgPath,
+					fr.Func.String()))
 			}
-			currentCaller = caller
-			changes++
 		}
+
+		crosses++
+		if crosses > height {
+			if overridden {
+				caller, pkgPath := override.Addr, override.PkgPath
+				return string(caller), pkgPath
+			} else {
+				currlm := lfr.LastRealm
+				caller, rlmPath := gno.DerivePkgAddr(currlm.Path).Bech32(), currlm.Path
+				return string(caller), rlmPath
+			}
+		}
+		lfr = fr
 	}
 
-	// Fallback case: return OriginCaller.
+	if crosses != height {
+		m.Panic(typedString("frame not found"))
+		return "", ""
+	}
+
+	// Special case if package initialization.
+	if ctx.OriginCaller == "" {
+		fr := m.Frames[0]
+		caller := string(fr.LastPackage.GetPkgAddr().Bech32())
+		pkgPath := fr.LastPackage.PkgPath
+		return string(caller), pkgPath
+	}
+
+	// Base case: return OriginCaller.
 	return string(ctx.OriginCaller), ""
 }
 

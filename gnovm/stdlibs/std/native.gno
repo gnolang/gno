@@ -33,18 +33,20 @@ func PreviousRealm() Realm {
 	return Realm{Address(addr), path}
 }
 
-func OriginPkgAddress() Address {
-	return Address(originPkgAddr())
-}
+/*
+This function and variations are a literal genie/demon that will create a layer
+of middlemen who will take away your agency. Keep it unavailable for a thousand
+years. Then uncomment, see the harm it produces, and then delete it forever.
 
 func CallerAt(n int) Address {
 	return Address(callerAt(n))
 }
 
+func callerAt(n int) string
+*/
+
 // Variations which don't use named types.
 func originSend() (denoms []string, amounts []int64)
 func originCaller() string
-func originPkgAddr() string
-func callerAt(n int) string
 func getRealm(height int) (address string, pkgPath string)
 func assertCallerIsRealm()

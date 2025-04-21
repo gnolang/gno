@@ -1,11 +1,14 @@
 package gnolang
 
+// XXX test that p is not actually mutable
+
+// XXX finalize should consider hard boundaries only
+
 import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"strings"
 	"sync"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
@@ -120,8 +123,8 @@ type Realm struct {
 	sumDiff int64  // Total size difference from added, updated, or deleted objects
 
 	newCreated []Object
-	newEscaped []Object
 	newDeleted []Object
+	newEscaped []Object
 
 	created []Object // about to become real.
 	updated []Object // real objects that were modified.
@@ -180,7 +183,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		return // do nothing.
 	}
 	if po.GetObjectID().PkgID != rlm.ID {
-		panic("cannot modify external-realm or non-realm object")
+		panic(&Exception{Value: typedString("cannot modify external-realm or non-realm object")})
 	}
 
 	// XXX check if this boosts performance
@@ -337,8 +340,8 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 		// * newEscaped - may become escaped unless new-real and refcount 0 or 1.
 		// * updated - includes all real updated objects, and will be appended with ancestors
 		ensureUniq(rlm.newCreated)
-		ensureUniq(rlm.newEscaped)
 		ensureUniq(rlm.newDeleted)
+		ensureUniq(rlm.newEscaped)
 		ensureUniq(rlm.updated)
 		if false ||
 			rlm.created != nil ||
@@ -351,12 +354,12 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	store.LogSwitchRealm(rlm.Path)
 	// increment recursively for created descendants.
 	// also assigns object ids for all.
-	rlm.processNewCreatedMarks(store)
+	rlm.processNewCreatedMarks(store, 0)
 	// decrement recursively for deleted descendants.
 	rlm.processNewDeletedMarks(store)
 	// at this point, all ref-counts are final.
 	// demote any escaped if ref-count is 1.
-	rlm.processNewEscapedMarks(store)
+	rlm.processNewEscapedMarks(store, 0)
 	// given created and updated objects,
 	// mark all owned-ancestors also as dirty.
 	rlm.markDirtyAncestors(store)
@@ -387,9 +390,10 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 // finding more newly created objects recursively.
 // All newly created objects become appended to .created,
 // and get assigned ids.
-func (rlm *Realm) processNewCreatedMarks(store Store) {
+// Starts processing with index 'start', returns len(newCreated).
+func (rlm *Realm) processNewCreatedMarks(store Store, start int) int {
 	// Create new objects and their new descendants.
-	for _, oo := range rlm.newCreated {
+	for _, oo := range rlm.newCreated[start:] {
 		if debug {
 			if oo.GetIsDirty() {
 				panic("new created mark cannot be dirty")
@@ -413,6 +417,7 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 	if len(rlm.newCreated) > 0 {
 		store.SetPackageRealm(rlm)
 	}
+	return len(rlm.newCreated)
 }
 
 // oo must be marked new-real, and ref-count already incremented.
@@ -553,7 +558,8 @@ func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 // demotes new-real escaped objects with refcount 0 or 1.  remaining
 // objects get their original owners marked dirty (to be further
 // marked via markDirtyAncestors).
-func (rlm *Realm) processNewEscapedMarks(store Store) {
+// Starts processing with index 'start', returns len(newEscaped).
+func (rlm *Realm) processNewEscapedMarks(store Store, start int) int {
 	escaped := make([]Object, 0, len(rlm.newEscaped))
 	// These are those marked by MarkNewEscaped(),
 	// regardless of whether new-real or was real,
@@ -561,7 +567,9 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 	// (and never can be unescaped,)
 	// except for new-reals that get demoted
 	// because ref-count isn't >= 2.
-	for _, eo := range rlm.newEscaped {
+	// for _, eo := range rlm.newEscaped[start:] {
+	for i := 0; i < len(rlm.newEscaped[start:]); i++ { // may expand.
+		eo := rlm.newEscaped[i]
 		if debug {
 			if !eo.GetIsNewEscaped() {
 				panic("new escaped mark not marked as new escaped")
@@ -598,7 +606,9 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 					rlm.MarkDirty(po)
 				}
 				if eo.GetObjectID().IsZero() {
-					panic("new escaped mark has no object ID")
+					// eo was passed from caller.
+					rlm.incRefCreatedDescendants(store, eo)
+					eo.SetIsNewReal(true)
 				}
 				// escaped has no owner.
 				eo.SetOwner(nil)
@@ -606,6 +616,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 		}
 	}
 	rlm.escaped = escaped // XXX is this actually used?
+	return len(rlm.newEscaped)
 }
 
 //----------------------------------------
@@ -873,7 +884,7 @@ func getChildObjects(val Value, more []Value) []Value {
 		}
 		return more
 	case *FuncValue:
-		if bv, ok := cv.Closure.(*Block); ok {
+		if bv, ok := cv.Parent.(*Block); ok {
 			more = getSelfOrChildObjects(bv, more)
 		}
 		for _, c := range cv.Captures {
@@ -881,7 +892,7 @@ func getChildObjects(val Value, more []Value) []Value {
 		}
 		return more
 	case *BoundMethodValue:
-		more = getChildObjects(cv.Func, more) // *FuncValue not object
+		more = getSelfOrChildObjects(cv.Func, more)
 		more = getSelfOrChildObjects(cv.Receiver.V, more)
 		return more
 	case *MapValue:
@@ -1077,6 +1088,8 @@ func copyTypeWithRefs(typ Type) Type {
 		return RefType{
 			ID: ct.ID,
 		}
+	case heapItemType:
+		return ct
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %v", typ))
@@ -1151,13 +1164,13 @@ func copyValueWithRefs(val Value) Value {
 		}
 	case *FuncValue:
 		source := toRefNode(cv.Source)
-		if strings.HasSuffix(source.Location.File, "_test.gno") {
-			// Ignore _test files
-			return nil
+		var parent Value
+		if cv.Parent != nil {
+			parent = toRefValue(cv.Parent)
 		}
-		var closure Value
-		if cv.Closure != nil {
-			closure = toRefValue(cv.Closure)
+		captures := make([]TypedValue, len(cv.Captures))
+		for i, ctv := range cv.Captures {
+			captures[i] = refOrCopyValue(ctv)
 		}
 		// nativeBody funcs which don't come from NativeResolver (and thus don't
 		// have NativePkg/Name) can't be persisted, and should not be able
@@ -1167,22 +1180,24 @@ func copyValueWithRefs(val Value) Value {
 		}
 		ft := copyTypeWithRefs(cv.Type)
 		return &FuncValue{
-			Type:       ft,
-			IsMethod:   cv.IsMethod,
-			Source:     source,
-			Name:       cv.Name,
-			Closure:    closure,
-			Captures:   cv.Captures,
-			FileName:   cv.FileName,
-			PkgPath:    cv.PkgPath,
-			NativePkg:  cv.NativePkg,
-			NativeName: cv.NativeName,
+			ObjectInfo:  cv.ObjectInfo.Copy(),
+			Type:        ft,
+			IsMethod:    cv.IsMethod,
+			Source:      source,
+			Name:        cv.Name,
+			Parent:      parent,
+			Captures:    captures,
+			FileName:    cv.FileName,
+			PkgPath:     cv.PkgPath,
+			NativePkg:   cv.NativePkg,
+			NativeName:  cv.NativeName,
+			SwitchRealm: cv.SwitchRealm,
 		}
 	case *BoundMethodValue:
 		fnc := copyValueWithRefs(cv.Func).(*FuncValue)
 		rtv := refOrCopyValue(cv.Receiver)
 		return &BoundMethodValue{
-			ObjectInfo: cv.ObjectInfo.Copy(), // XXX ???
+			ObjectInfo: cv.ObjectInfo.Copy(),
 			Func:       fnc,
 			Receiver:   rtv,
 		}
@@ -1235,18 +1250,6 @@ func copyValueWithRefs(val Value) Value {
 	case RefValue:
 		return cv
 	case *HeapItemValue:
-		// NOTE: While this could be eliminated sometimes with some
-		// intelligence prior to persistence, to unwrap the
-		// HeapItemValue in case where the HeapItemValue only has
-		// refcount of 1,
-		//
-		//  1.  The HeapItemValue is necessary when the .Value is a
-		//    primitive non-object anyways, and
-		//  2. This would mean PointerValue.Base is nil, and we'd need
-		//    additional logic to re-wrap when necessary, and
-		//  3. And with the above point, it's not clear the result
-		//    would be any faster.  But this is something we could
-		//    explore after launch.
 		hiv := &HeapItemValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
 			Value:      refOrCopyValue(cv.Value),
@@ -1338,6 +1341,8 @@ func fillType(store Store, typ Type) Type {
 		return ct
 	case RefType:
 		return store.GetType(ct.TypeID())
+	case heapItemType:
+		return ct
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %v", reflect.TypeOf(typ)))

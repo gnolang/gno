@@ -361,7 +361,7 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	if bz == nil {
 		return nil
 	}
-	gas := overflow.Mul64p(ds.gasConfig.GasGetPackageRealm, store.Gas(len(bz)))
+	gas := overflow.Mulp(ds.gasConfig.GasGetPackageRealm, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasGetPackageRealmDesc)
 	amino.MustUnmarshal(bz, &rlm)
 	size = len(bz)
@@ -391,7 +391,7 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 	oid := ObjectIDFromPkgPath(rlm.Path)
 	key := backendRealmKey(oid)
 	bz := amino.MustMarshal(rlm)
-	gas := overflow.Mul64p(ds.gasConfig.GasSetPackageRealm, store.Gas(len(bz)))
+	gas := overflow.Mulp(ds.gasConfig.GasSetPackageRealm, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasSetPackageRealmDesc)
 	ds.baseStore.Set([]byte(key), bz)
 	size = len(bz)
@@ -457,7 +457,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		bz := hashbz[HashSize:]
 		var oo Object
 		ds.alloc.AllocateAmino(int64(len(bz)))
-		gas := overflow.Mul64p(ds.gasConfig.GasGetObject, store.Gas(len(bz)))
+		gas := overflow.Mulp(ds.gasConfig.GasGetObject, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasGetObjectDesc)
 		amino.MustUnmarshal(bz, &oo)
 		if debug {
@@ -494,7 +494,7 @@ func (ds *defaultStore) SetObject(oo Object) int64 {
 	o2 := copyValueWithRefs(oo)
 	// marshal to binary.
 	bz := amino.MustMarshalAny(o2)
-	gas := overflow.Mul64p(ds.gasConfig.GasSetObject, store.Gas(len(bz)))
+	gas := overflow.Mulp(ds.gasConfig.GasSetObject, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasSetObjectDesc)
 	// set hash.
 	hash := HashBytes(bz) // XXX objectHash(bz)???
@@ -640,7 +640,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 		key := backendTypeKey(tid)
 		bz := ds.baseStore.Get([]byte(key))
 		if bz != nil {
-			gas := overflow.Mul64p(ds.gasConfig.GasGetType, store.Gas(len(bz)))
+			gas := overflow.Mulp(ds.gasConfig.GasGetType, store.Gas(len(bz)))
 			ds.consumeGas(gas, GasGetTypeDesc)
 			var tt Type
 			amino.MustUnmarshal(bz, &tt)
@@ -700,7 +700,7 @@ func (ds *defaultStore) SetType(tt Type) {
 		key := backendTypeKey(tid)
 		tcopy := copyTypeWithRefs(tt)
 		bz := amino.MustMarshalAny(tcopy)
-		gas := overflow.Mul64p(ds.gasConfig.GasSetType, store.Gas(len(bz)))
+		gas := overflow.Mulp(ds.gasConfig.GasSetType, store.Gas(len(bz)))
 		ds.consumeGas(gas, GasSetTypeDesc)
 		ds.baseStore.Set([]byte(key), bz)
 		size = len(bz)
@@ -822,7 +822,7 @@ func (ds *defaultStore) AddMemPackage(memPkg *gnovm.MemPackage) {
 	ctr := ds.incGetPackageIndexCounter()
 	idxkey := []byte(backendPackageIndexKey(ctr))
 	bz := amino.MustMarshal(memPkg)
-	gas := overflow.Mul64p(ds.gasConfig.GasAddMemPackage, store.Gas(len(bz)))
+	gas := overflow.Mulp(ds.gasConfig.GasAddMemPackage, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasAddMemPackageDesc)
 	ds.baseStore.Set(idxkey, []byte(memPkg.Path))
 	pathkey := []byte(backendPackagePathKey(memPkg.Path))
@@ -865,7 +865,7 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *gnovm.MemPacka
 		}
 		return nil
 	}
-	gas := overflow.Mul64p(ds.gasConfig.GasGetMemPackage, store.Gas(len(bz)))
+	gas := overflow.Mulp(ds.gasConfig.GasGetMemPackage, store.Gas(len(bz)))
 	ds.consumeGas(gas, GasGetMemPackageDesc)
 
 	var memPkg *gnovm.MemPackage
