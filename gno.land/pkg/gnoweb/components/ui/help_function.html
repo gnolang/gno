@@ -34,22 +34,25 @@
             <button
               class="js-copy-btn mr-2 text-gray-400 hover:text-gray-600"
               aria-label="Copy Function"
-              data-copy-btn="func-{{ .Name }}"
+              data-copy-src="func-{{ .Name }}"
             >
               {{ template "ui/copy" }}
             </button>
           </span>
         </span>
         <span class="flex gap-x-2">
-        <a
-          href="#func-{{ .Name }}"
-          class="text-300 text-gray-400 hover:text-gray-600"
-          title="Function anchor link"
-        >
+        <button
+        class="js-copy-btn mr-2 text-gray-400 hover:text-gray-600"
+        aria-label="Copy Function"
+        data-copy-txt="{{ $data.PkgFullPath }}$help&func={{ .Name }}"
+        title="Function anchor link"
+      >
           <svg class="w-5 h-5 shrink-0 inline-block" data-copy-icon>
             <use href="#ico-link"></use>
+            <use href="#ico-check" class="hidden text-green-600"></use>
+
           </svg>
-        </a>
+       </button>
         <a href="{{ buildHelpURL $data . }}" data-role="help-function-link" class="text-400 text-gray-400 hover:text-gray-600">⚡︎</a>
       </span>
       </div>
@@ -104,7 +107,7 @@
           <button
             class="js-copy-btn absolute top-2 right-2 text-gray-400 hover:text-gray-600"
             aria-label="Copy Command"
-            data-copy-btn="help-cmd-{{ .Name }}"
+            data-copy-src="help-cmd-{{ .Name }}"
           >
             {{ template "ui/copy" }}
           </button>
@@ -116,8 +119,8 @@
 # and avoid trusting any computer connected to the internet,
 # as your private keys could be exposed.
 
-gnokey maketx call -pkgpath "{{ $.FullPath }}" -func "{{ .Name }}"{{ range .Params }} -args "<span data-role="help-code-args" data-arg="{{ .Name }}"></span>"{{ end }} -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid "{{ $.ChainId }}" -remote "{{ $.Remote }}" <span data-role="help-code-address">ADDRESS</span></span><span data-code-mode="secure" class="inline" data-copy-content="help-cmd-{{ .Name }}">gnokey query -remote "{{ $.Remote }}" auth/accounts/<span data-role="help-code-address">ADDRESS</span>
-gnokey maketx call -pkgpath "{{ $.FullPath }}" -func "{{ .Name }}" {{ range .Params }} -args "<span data-role="help-code-args" data-arg="{{ .Name }}"></span>"{{ end }} -gas-fee 1000000ugnot -gas-wanted 5000000 -send "" <span data-role="help-code-address">ADDRESS</span> > call.tx
+gnokey maketx call -pkgpath "{{ $.PkgFullPath }}" -func "{{ .Name }}"{{ range .Params }} -args "<span data-role="help-code-args" data-arg="{{ .Name }}"></span>"{{ end }} -gas-fee 1000000ugnot -gas-wanted 5000000 -broadcast -chainid "{{ $.ChainId }}" -remote "{{ $.Remote }}" <span data-role="help-code-address">ADDRESS</span></span><span data-code-mode="secure" class="inline" data-copy-content="help-cmd-{{ .Name }}">gnokey query -remote "{{ $.Remote }}" auth/accounts/<span data-role="help-code-address">ADDRESS</span>
+gnokey maketx call -pkgpath "{{ $.PkgFullPath }}" -func "{{ .Name }}" {{ range .Params }} -args "<span data-role="help-code-args" data-arg="{{ .Name }}"></span>"{{ end }} -gas-fee 1000000ugnot -gas-wanted 5000000 -send "" <span data-role="help-code-address">ADDRESS</span> > call.tx
 gnokey sign -tx-path call.tx -chainid "{{ $.ChainId }}" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-role="help-code-address">ADDRESS</span>
 gnokey broadcast -remote "{{ $.Remote }}" call.tx</span></code></pre>
           {{/* prettier-ignore-end */}}

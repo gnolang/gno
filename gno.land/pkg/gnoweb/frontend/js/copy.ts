@@ -43,21 +43,31 @@ class Copy {
     this.btnClicked = button;
     this.btnClickedIcons = Array.from(button.querySelectorAll<HTMLElement>(Copy.SELECTORS.icon));
 
-    const contentId = button.getAttribute("data-copy-btn");
-    if (!contentId) {
-      console.warn("Copy: No content ID found on the button.");
+    const contentTxt = button.getAttribute("data-copy-txt");
+    const contentSrc = button.getAttribute("data-copy-src");
+
+    if (contentTxt) {
+      this.copyToClipboard(contentTxt, this.btnClickedIcons);
       return;
     }
 
-    const codeBlock = this.DOM.el?.querySelector<HTMLElement>(Copy.SELECTORS.content(contentId));
-    if (codeBlock) {
+    if (contentSrc) {
+      const codeBlock = this.DOM.el?.querySelector<HTMLElement>(Copy.SELECTORS.content(contentSrc));
+      if (!codeBlock) {
+        console.warn(`Copy: No content found for source "${contentSrc}".`);
+        return;
+      }
       this.copyToClipboard(codeBlock, this.btnClickedIcons);
-    } else {
-      console.warn(`Copy: No content found for ID "${contentId}".`);
+      return;
     }
+
+    console.warn("Copy: No content to copy found on the button.");
   }
 
-  private sanitizeContent(codeBlock: HTMLElement): string {
+  private sanitizeContent(codeBlock: HTMLElement | string): string {
+    if (typeof codeBlock === 'string') {
+      return codeBlock.trim();
+    }
     const html = codeBlock.innerHTML.replace(/<span[^>]*class="chroma-ln"[^>]*>[\s\S]*?<\/span>/g, "");
 
     const tempDiv = document.createElement("div");
@@ -83,7 +93,7 @@ class Copy {
     }, Copy.FEEDBACK_DELAY);
   }
 
-  private async copyToClipboard(codeBlock: HTMLElement, icons: HTMLElement[]): Promise<void> {
+  private async copyToClipboard(codeBlock: HTMLElement | string, icons: HTMLElement[]): Promise<void> {
     const sanitizedText = this.sanitizeContent(codeBlock);
 
     if (!navigator.clipboard) {

@@ -238,12 +238,12 @@ func (h *WebHandler) GetHelpView(gnourl *weburl.GnoURL) (int, *components.View) 
 		SelectedArgs: selArgs,
 		RealmName:    realmName,
 		// TODO: get chain domain and use that.
-		ChainId:   h.Static.ChainId,
-		PkgPath:   gnourl.Path,
-		FullPath:  path.Join(h.Static.Domain, gnourl.Path),
-		Remote:    h.Static.RemoteHelp,
-		Functions: fsigs,
-		Doc:       jdoc.PackageDoc,
+		ChainId:     h.Static.ChainId,
+		PkgPath:     gnourl.Path,
+		PkgFullPath: path.Join(h.Static.Domain, gnourl.Path),
+		Remote:      h.Static.RemoteHelp,
+		Functions:   fsigs,
+		Doc:         jdoc.PackageDoc,
 	})
 }
 
