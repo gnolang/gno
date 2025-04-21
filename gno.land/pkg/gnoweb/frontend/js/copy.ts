@@ -44,7 +44,7 @@ class Copy {
     this.btnClickedIcons = Array.from(button.querySelectorAll<HTMLElement>(Copy.SELECTORS.icon));
 
     const contentTxt = button.getAttribute("data-copy-txt");
-    const contentSrc = button.getAttribute("data-copy-src");
+    const contentSrc = button.getAttribute("data-copy-target");
 
     if (contentTxt) {
       this.copyToClipboard(contentTxt, this.btnClickedIcons);
