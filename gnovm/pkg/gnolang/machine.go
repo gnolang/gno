@@ -709,7 +709,7 @@ func (m *Machine) RunFunc(fn Name, withSwitch bool) {
 
 func (m *Machine) RunMain() {
 	if m.Package.IsRealm() {
-		m.RunStatement(S(Call(Nx("cross"), Nx("main"))))
+		m.RunStatement(S(Call(Call(Nx("cross"), Nx("main")))))
 	} else {
 		m.RunStatement(S(Call(X("main"))))
 	}
@@ -1829,7 +1829,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	// If method, this means the object cannot be modified if
 	// stored externally by this method; but other methods can.
 	if withSwitch {
-		if !fv.IsSwitchRealm() {
+		if !fv.IsCrossing() {
 			panic(fmt.Sprintf(
 				"missing crossing() after cross call in %v from %s to %s",
 				fr.Func.String(),
@@ -1842,7 +1842,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	}
 
 	// Not called like cross(fn)(...).
-	if fv.IsSwitchRealm() {
+	if fv.IsCrossing() {
 		if m.Realm != pv.Realm {
 			// panic; not explicit
 			panic(fmt.Sprintf(

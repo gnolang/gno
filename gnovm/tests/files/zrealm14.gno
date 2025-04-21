@@ -36,7 +36,7 @@ func main() {
 }
 
 // Realm:
-// switchrealm["gno.land/r/test"]
+// finalizerealm["gno.land/r/test"]
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:7]=
 //     @@ -8,16 +8,6 @@
 //                          "@type": "/gno.RefType",

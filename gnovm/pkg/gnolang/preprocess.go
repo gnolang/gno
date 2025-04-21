@@ -1389,6 +1389,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// Memoize *CallExpr.WithCross.
 						pc, ok := ns[len(ns)-1].(*CallExpr)
 						if !ok {
+							fmt.Println("!!!!", ns[len(ns)-1])
 							panic("cross(fn) must be followed by a call")
 						}
 						pc.SetWithCross()
@@ -4704,16 +4705,16 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 			}
 			// The body may get altered during preprocessing later.
 			if !dt.TryDefineMethod(&FuncValue{
-				Type:        ft,
-				IsMethod:    true,
-				Source:      cd,
-				Name:        cd.Name,
-				Parent:      nil, // set lazily
-				FileName:    fileNameOf(last),
-				PkgPath:     pkg.PkgPath,
-				SwitchRealm: cd.Body.isSwitchRealm(),
-				body:        cd.Body,
-				nativeBody:  nil,
+				Type:       ft,
+				IsMethod:   true,
+				Source:     cd,
+				Name:       cd.Name,
+				Parent:     nil, // set lazily
+				FileName:   fileNameOf(last),
+				PkgPath:    pkg.PkgPath,
+				Crossing:   cd.Body.isCrossing(),
+				body:       cd.Body,
+				nativeBody: nil,
 			}) {
 				// Revert to old function declarations in the package we're preprocessing.
 				pkg := packageOf(last)
@@ -4976,16 +4977,16 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 			// fill in later during *FuncDecl:BLOCK.
 			// The body may get altered during preprocessing later.
 			fv := &FuncValue{
-				Type:        ft,
-				IsMethod:    false,
-				Source:      d,
-				Name:        d.Name,
-				Parent:      nil, // set lazily.
-				FileName:    fileNameOf(last),
-				PkgPath:     pkg.PkgPath,
-				SwitchRealm: d.Body.isSwitchRealm(),
-				body:        d.Body,
-				nativeBody:  nil,
+				Type:       ft,
+				IsMethod:   false,
+				Source:     d,
+				Name:       d.Name,
+				Parent:     nil, // set lazily.
+				FileName:   fileNameOf(last),
+				PkgPath:    pkg.PkgPath,
+				Crossing:   d.Body.isCrossing(),
+				body:       d.Body,
+				nativeBody: nil,
 			}
 			// NOTE: fv.body == nil means no body (ie. not even curly braces)
 			// len(fv.body) == 0 could mean also {} (ie. no statements inside)

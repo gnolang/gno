@@ -189,8 +189,9 @@ func (msg MsgRun) ValidateBasic() error {
 	}
 
 	// Force memPkg path to the reserved run path.
-	wantSuffix := "/r/" + msg.Caller.String() + "/run"
-	if path := msg.Package.Path; path != "" && !strings.HasSuffix(path, wantSuffix) {
+	expected := "gno.land/r/" + msg.Caller.String() + "/run"
+	if path := msg.Package.Path; path != expected {
+		fmt.Println("path", path, "expected", expected)
 		return ErrInvalidPkgPath(fmt.Sprintf("invalid pkgpath for MsgRun: %q", path))
 	}
 

@@ -475,18 +475,18 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 // faster.
 type FuncValue struct {
 	ObjectInfo
-	Type        Type         // includes unbound receiver(s)
-	IsMethod    bool         // is an (unbound) method
-	IsClosure   bool         // is a func lit expr closure (not decl)
-	Source      BlockNode    // for block mem allocation
-	Name        Name         // name of function/method
-	Parent      Value        // *Block or RefValue to closure (may be nil for file blocks; lazy)
-	Captures    []TypedValue `json:",omitempty"` // HeapItemValues captured from closure.
-	FileName    Name         // file name where declared
-	PkgPath     string       // package path in which func declared
-	NativePkg   string       // for native bindings through NativeResolver
-	NativeName  Name         // not redundant with Name; this cannot be changed in userspace
-	SwitchRealm bool         // true if .body's first statement is crossing().
+	Type       Type         // includes unbound receiver(s)
+	IsMethod   bool         // is an (unbound) method
+	IsClosure  bool         // is a func lit expr closure (not decl)
+	Source     BlockNode    // for block mem allocation
+	Name       Name         // name of function/method
+	Parent     Value        // *Block or RefValue to closure (may be nil for file blocks; lazy)
+	Captures   []TypedValue `json:",omitempty"` // HeapItemValues captured from closure.
+	FileName   Name         // file name where declared
+	PkgPath    string       // package path in which func declared
+	NativePkg  string       // for native bindings through NativeResolver
+	NativeName Name         // not redundant with Name; this cannot be changed in userspace
+	Crossing   bool         // true if .body's first statement is crossing().
 
 	body       []Stmt         // function body
 	nativeBody func(*Machine) // alternative to Body
@@ -507,18 +507,18 @@ func (fv *FuncValue) IsNative() bool {
 func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
 	alloc.AllocateFunc()
 	return &FuncValue{
-		Type:        fv.Type,
-		IsMethod:    fv.IsMethod,
-		Source:      fv.Source,
-		Name:        fv.Name,
-		Parent:      fv.Parent,
-		FileName:    fv.FileName,
-		PkgPath:     fv.PkgPath,
-		NativePkg:   fv.NativePkg,
-		NativeName:  fv.NativeName,
-		SwitchRealm: fv.SwitchRealm,
-		body:        fv.body,
-		nativeBody:  fv.nativeBody,
+		Type:       fv.Type,
+		IsMethod:   fv.IsMethod,
+		Source:     fv.Source,
+		Name:       fv.Name,
+		Parent:     fv.Parent,
+		FileName:   fv.FileName,
+		PkgPath:    fv.PkgPath,
+		NativePkg:  fv.NativePkg,
+		NativeName: fv.NativeName,
+		Crossing:   fv.Crossing,
+		body:       fv.body,
+		nativeBody: fv.nativeBody,
 	}
 }
 
@@ -596,8 +596,8 @@ func (fv *FuncValue) GetParent(store Store) *Block {
 	}
 }
 
-func (fv *FuncValue) IsSwitchRealm() bool {
-	return fv.SwitchRealm
+func (fv *FuncValue) IsCrossing() bool {
+	return fv.Crossing
 }
 
 // ----------------------------------------
@@ -616,8 +616,8 @@ type BoundMethodValue struct {
 	Receiver TypedValue
 }
 
-func (bmv *BoundMethodValue) IsSwitchRealm() bool {
-	return bmv.Func.IsSwitchRealm()
+func (bmv *BoundMethodValue) IsCrossing() bool {
+	return bmv.Func.IsCrossing()
 }
 
 // ----------------------------------------

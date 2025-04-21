@@ -347,7 +347,7 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 		}
 	}
 	// log realm boundaries in opslog.
-	store.LogSwitchRealm(rlm.Path)
+	store.LogFinalizeRealm(rlm.Path)
 	// increment recursively for created descendants.
 	// also assigns object ids for all.
 	rlm.processNewCreatedMarks(store, 0)
@@ -1171,18 +1171,18 @@ func copyValueWithRefs(val Value) Value {
 		}
 		ft := copyTypeWithRefs(cv.Type)
 		return &FuncValue{
-			ObjectInfo:  cv.ObjectInfo.Copy(),
-			Type:        ft,
-			IsMethod:    cv.IsMethod,
-			Source:      source,
-			Name:        cv.Name,
-			Parent:      parent,
-			Captures:    captures,
-			FileName:    cv.FileName,
-			PkgPath:     cv.PkgPath,
-			NativePkg:   cv.NativePkg,
-			NativeName:  cv.NativeName,
-			SwitchRealm: cv.SwitchRealm,
+			ObjectInfo: cv.ObjectInfo.Copy(),
+			Type:       ft,
+			IsMethod:   cv.IsMethod,
+			Source:     source,
+			Name:       cv.Name,
+			Parent:     parent,
+			Captures:   captures,
+			FileName:   cv.FileName,
+			PkgPath:    cv.PkgPath,
+			NativePkg:  cv.NativePkg,
+			NativeName: cv.NativeName,
+			Crossing:   cv.Crossing,
 		}
 	case *BoundMethodValue:
 		fnc := copyValueWithRefs(cv.Func).(*FuncValue)

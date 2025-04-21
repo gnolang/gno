@@ -1,6 +1,7 @@
 package gnoclient
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -324,9 +325,11 @@ import (
 	"gno.land/r/demo/tests"
 )
 func main() {
+	crossing()
+
 	println(ufmt.Sprintf("- before: %d", tests.Counter()))
 	for i := 0; i < 10; i++ {
-		tests.IncCounter()
+		cross(tests.IncCounter)()
 	}
 	println(ufmt.Sprintf("- after: %d", tests.Counter()))
 }`
@@ -339,6 +342,7 @@ func main() {
 		Caller: caller.GetAddress(),
 		Package: &gnovm.MemPackage{
 			Name: "main",
+			Path: fmt.Sprintf("gno.land/r/%s/run", caller.GetAddress().String()),
 			Files: []*gnovm.MemFile{
 				{
 					Name: "main.gno",
