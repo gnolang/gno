@@ -2021,15 +2021,6 @@ func (m *Machine) peekCallFrame(n int) *Frame {
 // Returns the last defer call frame or nil.
 func (m *Machine) LastDeferCallFrame() *Frame {
 	return &m.Frames[len(m.Frames)-1]
-	/*
-		for i := len(m.Frames) - 1; i >= 0; i-- {
-			fr := &m.Frames[i]
-			if fr.IsDefer {
-				return fr
-			}
-		}
-		return nil
-	*/
 }
 
 // pops the last non-call (loop) frames
