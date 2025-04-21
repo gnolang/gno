@@ -19,6 +19,7 @@ type HelpData struct {
 	ChainId   string
 	Remote    string
 	PkgPath   string
+	FullPath  string
 	Doc       string
 }
 
@@ -45,6 +46,23 @@ func registerHelpFuncs(funcs template.FuncMap) {
 		}
 
 		return data.SelectedArgs[param.Name], nil
+	}
+
+	funcs["buildHelpURL"] = func(data HelpData, fn *doc.JSONFunc) string {
+		url := data.PkgPath + "$help&func=" + fn.Name
+		if len(fn.Params) > 0 {
+			url += "&"
+			for i, param := range fn.Params {
+				if i > 0 {
+					url += "&"
+				}
+				url += param.Name + "="
+				if val, ok := data.SelectedArgs[param.Name]; ok {
+					url += val
+				}
+			}
+		}
+		return url
 	}
 }
 

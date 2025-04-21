@@ -93,6 +93,7 @@ class HelpFunc {
     args: HTMLElement[];
     modes: HTMLElement[];
     paramInputs: HTMLInputElement[];
+    functionLink: HTMLAnchorElement | null;
   };
 
   private funcName: string | null;
@@ -102,6 +103,7 @@ class HelpFunc {
     args: "[data-role='help-code-args']",
     mode: "[data-code-mode]",
     paramInput: "[data-role='help-param-input']",
+    functionLink: "[data-role='help-function-link']",
   };
 
   constructor(el: HTMLElement) {
@@ -111,6 +113,7 @@ class HelpFunc {
       args: Array.from(el.querySelectorAll<HTMLElement>(HelpFunc.SELECTORS.args)),
       modes: Array.from(el.querySelectorAll<HTMLElement>(HelpFunc.SELECTORS.mode)),
       paramInputs: Array.from(el.querySelectorAll<HTMLInputElement>(HelpFunc.SELECTORS.paramInput)),
+      functionLink: el.querySelector<HTMLAnchorElement>(HelpFunc.SELECTORS.functionLink),
     };
 
     this.funcName = el.dataset.func || null;
@@ -158,6 +161,19 @@ class HelpFunc {
       .forEach((arg) => {
         arg.textContent = escapedValue || "";
       });
+
+    if (this.DOM.functionLink) {
+      const currentUrl = this.DOM.functionLink.getAttribute('href');
+      if (!currentUrl) {
+        console.warn(`No href attribute found for function ${this.funcName}`);
+        return;
+      }
+      const newUrl = currentUrl.replace(
+        new RegExp(`(${paramName}=)[^&]*`),
+        `$1${encodeURIComponent(paramValue)}`
+      );
+      this.DOM.functionLink.setAttribute('href', newUrl);
+    }
   }
 
   public updateAddr(addr: string): void {
