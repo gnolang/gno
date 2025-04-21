@@ -2562,6 +2562,7 @@ func parseMultipleAssignFromOneExpr(
 // We may still want this for optimizing heap defines;
 // the current implementation of findHeapDefinesByUse/findHeapUsesDemoteDefines
 // produces false positives.
+// nolint:unused
 func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
