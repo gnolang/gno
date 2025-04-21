@@ -92,15 +92,15 @@
               </div>
             {{ end }}
             {{ with getSelectedSendValue $data }}
-              <div class="my-3 py-3 px-4 rounded-sm bg-yellow-50">
-                <h3 class="flex gap-1 items-center mr-10 mb-1 text-50 text-yellow-600">              
-                  <svg class="w-4 h-4 shrink-0 inline-block">
+              <div class="my-3 py-3 px-4 rounded-sm bg-yellow-50 text-gray-600 border-l-4 border-l-yellow-600">
+                <h3 class="flex gap-2 items-center mr-10 mb-1 text-100 font-bold text-yellow-900">              
+                  <svg class="w-6 h-6 shrink-0 inline-block text-yellow-600">
                     <use href="#ico-warning"></use>
-                  </svg>Send flag
+                  </svg>Warning
                 </h3>
                 <div class="flex md:flex-row flex-col gap-4 md:justify-between md:items-center">   
-                  <p class="text-gray-500 text-200">The Tx Link has a send flag set to <strong class="text-yellow-600">{{ . }}</strong>. Do you want to include it in the command?</p>
-                  <div class="bg-yellow-600 text-light text-center min-w-32 hover:bg-yellow-500 rounded-sm font-semibold border border-yellow-700">
+                  <p class="text-yellow-900 text-100">A -send flag with <strong class="">{{ . }}</strong> was detected in the URL. For your safety, you must confirm to add it.</p>
+                  <div class="bg-yellow-600 text-yellow-900 text-center text-50 min-w-32 hover:bg-yellow-400 rounded-sm font-semibold">
                     <input type="checkbox" id="func-{{ $funcName }}-send-flag" data-send="{{ . }}" data-role="help-send-input" class="peer hidden" />
                     <label for="func-{{ $funcName }}-send-flag" class="peer-checked:hidden block px-4 py-2 cursor-pointer">
                       Add to the command

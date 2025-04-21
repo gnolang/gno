@@ -45,16 +45,10 @@ export default {
         600: "#226C57", // Primary light color
       },
       yellow: {
-        50: "#FFF7E6",
-        100: "#FFE8B3",
-        200: "#FFD980",
-        300: "#FFCA4D",
-        400: "#FFBB1A",
-        500: "#F59E0B",
-        600: "#D97706", // Warning alert color
-        700: "#B35900",
-        800: "#8C3D00",
-        900: "#662900",
+        50: "#FFFCF1",
+        400: "#FACC32",
+        600: "#FBBF24",
+        900: "#7b4807",
       },
       transparent: "transparent",
       current: "currentColor",
