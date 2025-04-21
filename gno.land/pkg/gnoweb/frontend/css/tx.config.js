@@ -41,20 +41,34 @@ export default {
         900: "#080809", // Title color
       },
       green: {
-        400: "#2D8D72", // Primary dark color
+        50: "#F0F9FF",
+        400: "#60AB96", // Primary dark color
         600: "#226C57", // Primary light color
+        900: "#144134",
       },
       blue: {
-        600: "#2563EB", // Note alert color
+        50: "#F0F9FF",
+        400: "#49AFEB",
+        600: "#3E96C9", // Note alert color
+        900: "#21506B",
       },
       yellow: {
-        600: "#D97706", // Warning alert color
+        50: "#FFFCF1",
+        400: "#FACC32",
+        600: "#FBBF24",
+        900: "#7b4807",
       },
       red: {
-        600: "#DC2626", // Caution alert color
+        50: "#FEF2F2",
+        400: "#EB6C49",
+        600: "#C95C3E", // Caution alert color
+        900: "#6B2521",
       },
       purple: {
-        600: "#7C3AED", // Tip alert color
+        50: "#F5F3FF",
+        400: "#7F49EB",
+        600: "#6C3EC9", // Tip alert color
+        900: "#39216B",
       },
       transparent: "transparent",
       current: "currentColor",

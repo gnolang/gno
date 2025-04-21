@@ -293,45 +293,52 @@
   .realm-view .gno-alert > summary::-webkit-details-marker {
     @apply hidden;
   }
+
+  /* Alert variants */
   .realm-view .gno-alert-info {
-    @apply border-l-gray-600 bg-gray-600/10;
+    @apply border-l-gray-600 bg-gray-600/10 text-gray-900;
   }
-  .realm-view .gno-alert-info summary,
+  .realm-view .gno-alert-info summary svg,
   .realm-view .gno-alert-info a {
     @apply text-gray-600;
   }
+
   .realm-view .gno-alert-note {
-    @apply border-l-blue-600 bg-blue-600/10;
+    @apply border-l-blue-600 bg-blue-600/10 text-blue-900;
   }
-  .realm-view .gno-alert-note summary,
+  .realm-view .gno-alert-note summary svg,
   .realm-view .gno-alert-note a {
     @apply text-blue-600;
   }
+
   .realm-view .gno-alert-success {
-    @apply border-l-green-600 bg-green-600/10;
+    @apply border-l-green-600 bg-green-600/10 text-green-900;
   }
-  .realm-view .gno-alert-success summary,
+  .realm-view .gno-alert-success summary svg,
   .realm-view .gno-alert-success a {
     @apply text-green-600;
   }
+
   .realm-view .gno-alert-warning {
-    @apply border-l-yellow-600 bg-yellow-600/10;
+    @apply border-l-yellow-600 bg-yellow-600/10 text-yellow-900;
   }
-  .realm-view .gno-alert-warning summary,
+  .realm-view .gno-alert-warning summary svg,
   .realm-view .gno-alert-warning a {
     @apply text-yellow-600;
   }
+
   .realm-view .gno-alert-caution {
-    @apply border-l-red-600 bg-red-600/10;
+    @apply border-l-red-600 bg-red-600/10 text-red-900;
   }
-  .realm-view .gno-alert-caution summary,
+  .realm-view .gno-alert-caution summary svg,
   .realm-view .gno-alert-caution a {
     @apply text-red-600;
   }
+
   .realm-view .gno-alert-tip {
-    @apply border-l-purple-600 bg-purple-600/10;
+    @apply border-l-purple-600 bg-purple-600/10 text-purple-900;
   }
-  .realm-view .gno-alert-tip summary,
+  .realm-view .gno-alert-tip summary svg,
   .realm-view .gno-alert-tip a {
     @apply text-purple-600;
   }
