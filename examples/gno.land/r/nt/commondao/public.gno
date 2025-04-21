@@ -8,6 +8,8 @@ import (
 	"gno.land/p/nt/commondao"
 )
 
+// TODO: Limit the number of DAOs per address, maybe discuss fees ranges to avoid spaming
+
 // Invite invites a user to the realm.
 // A user invitation is required to start creating new DAOs.
 func Invite(invitee std.Address) {

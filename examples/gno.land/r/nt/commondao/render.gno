@@ -251,6 +251,14 @@ func renderProposalsListItem(res *mux.ResponseWriter, dao *commondao.CommonDAO, 
 func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 	dao := mustGetDAOFromRequest(req)
 	p := mustGetProposalFromRequest(req, dao)
+
+	// Check that proposal has no issues
+	if err := p.Validate(); err != nil {
+		res.Write("> ⚠ **ERROR**: ")
+		res.Write(err.Error())
+		res.Write("\n")
+	}
+
 	votingActive := isVotingPeriodActive(p)
 	if votingActive {
 		res.Write(ufmt.Sprintf("> Voting ends on **%s**\n", p.VotingDeadline().UTC().Format(dateFormat)))
@@ -292,6 +300,8 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 	}
 	res.Write("\n")
 
+	// TODO: Render expected outcome
+
 	// Render proposal body
 	if body := def.Body(); body != "" {
 		res.Write("## Description\n")
@@ -300,7 +310,8 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	// Render voting stats
-	// TODO: Render voting stats (update and save stats on vote?)
+	res.Write("## Stats\n")
+	renderProposalStats(res, p)
 
 	// Render votes
 	record := p.VotingRecord()
@@ -309,6 +320,20 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write(ufmt.Sprintf("Total number of votes: **%d**\n", record.Size()))
 		renderProposalVotes(res, req.RawPath, dao, p)
 	}
+}
+
+func renderProposalStats(res *mux.ResponseWriter, p *commondao.Proposal) {
+	record := p.VotingRecord()
+	totalCount := float64(record.Size())
+
+	res.Write("| Vote Choice | Percentage of Votes |\n| --- | --- |\n")
+	record.IterateVotesCount(func(c commondao.VoteChoice, voteCount int) bool {
+		percentage := float64(voteCount*100) / totalCount
+		res.Write(
+			ufmt.Sprintf("| %s | %s%% |\n", string(c), strconv.FormatFloat(percentage, 'f', 2, 64)),
+		)
+		return false
+	})
 }
 
 func renderProposalVotes(res *mux.ResponseWriter, path string, dao *commondao.CommonDAO, p *commondao.Proposal) {
