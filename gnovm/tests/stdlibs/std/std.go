@@ -132,7 +132,7 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 				return string(caller), pkgPath
 			} else {
 				currlm := lfr.LastRealm
-				caller, rlmPath := gno.DerivePkgAddr(currlm.Path).Bech32(), currlm.Path
+				caller, rlmPath := gno.DerivePkgBech32Addr(currlm.Path), currlm.Path
 				return string(caller), rlmPath
 			}
 		}

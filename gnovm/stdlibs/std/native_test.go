@@ -12,7 +12,7 @@ import (
 
 func TestPreviousRealmIsOrigin(t *testing.T) {
 	var (
-		user = gno.DerivePkgAddr("user1.gno").Bech32()
+		user = gno.DerivePkgBech32Addr("user1.gno")
 		ctx  = ExecContext{
 			OriginCaller: user,
 		}
@@ -181,7 +181,7 @@ func TestPreviousRealmIsOrigin(t *testing.T) {
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/xxx"}},
 				},
 			},
-			expectedAddr:         gno.DerivePkgAddr("gno.land/r/yyy").Bech32(),
+			expectedAddr:         gno.DerivePkgBech32Addr("gno.land/r/yyy"),
 			expectedPkgPath:      "gno.land/r/yyy",
 			expectedIsOriginCall: false,
 		},

@@ -887,7 +887,7 @@ func (pv *PackageValue) GetPackageNode(store Store) *PackageNode {
 
 // Convenience
 func (pv *PackageValue) GetPkgAddr() crypto.Address {
-	return DerivePkgAddr(pv.PkgPath)
+	return DerivePkgCryptoAddr(pv.PkgPath)
 }
 
 // ----------------------------------------
