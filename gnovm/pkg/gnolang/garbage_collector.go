@@ -35,7 +35,7 @@ type Visitor func(v Value) (stop bool)
 // XXX: make sure tv.T isn't bumped from allocation either.
 func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	defer func() {
-		gasCPU := overflow.Mul64p(m.Alloc.visitCount*VisitCpuFactor, GasFactorCPU)
+		gasCPU := overflow.Mulp(m.Alloc.visitCount*VisitCpuFactor, GasFactorCPU)
 		m.Alloc.visitCount = 0
 		if m.GasMeter != nil {
 			m.GasMeter.ConsumeGas(gasCPU, "GC")
@@ -77,11 +77,9 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	}
 
 	// Visit exceptions
-	for _, exception := range m.Exceptions {
-		stop = exception.Visit(vis)
-		if stop {
-			return -1, false
-		}
+	stop = m.Exception.Visit(vis)
+	if stop {
+		return -1, false
 	}
 
 	// Return bytes remaining.
@@ -393,16 +391,15 @@ func (fr *Frame) Visit(vis Visitor) (stop bool) {
 
 func (ex *Exception) Visit(vis Visitor) (stop bool) {
 	// vis value
-	v := ex.Value.V
-	if v != nil {
-		stop = vis(v)
-	}
-	if stop {
-		return
+	if ex != nil {
+		if v := ex.Value.V; v != nil {
+			stop = vis(v)
+		}
+		if stop {
+			return
+		}
 	}
 
-	// The frame should have been visited elsewhere.
-	// This ensures integrity and improves readability.
-	stop = ex.Frame.Visit(vis)
+	// TODO: previous, next, stacktrace...
 	return
 }

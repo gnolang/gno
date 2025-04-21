@@ -37,6 +37,7 @@ type Machine struct {
 	Exception  *Exception    // last exception
 	NumResults int           // number of results returned
 	Cycles     int64         // number of "cpu" cycles
+	GCCycle    int64         // number of "gc" cycles
 
 	Debugger Debugger
 
@@ -2228,7 +2229,6 @@ func (m *Machine) Recover() *Exception {
 	if fr.IsDefer {          // not **called directly**
 		return nil
 	}
-<<< HEAD
 	fr = m.PeekCallFrame(2) // what contained recover().
 	if !fr.IsDefer {        // not **by a deferred function**
 		return nil
