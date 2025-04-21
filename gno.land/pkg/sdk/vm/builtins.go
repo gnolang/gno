@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -30,9 +33,10 @@ func (bnk *SDKBanker) GetCoins(b32addr crypto.Bech32Address) (dst std.Coins) {
 	return coins
 }
 
-func (bnk *SDKBanker) SendCoins(b32from, b32to crypto.Bech32Address, amt std.Coins) {
+func (bnk *SDKBanker) SendCoins(b32from, b32to crypto.Bech32Address, amt std.Coins, rlmPath string) {
 	from := crypto.MustAddressFromString(string(b32from))
 	to := crypto.MustAddressFromString(string(b32to))
+	bnk.assertEnoughStorageDeposit(from, amt, rlmPath)
 	err := bnk.vmk.bank.SendCoins(bnk.ctx, from, to, amt)
 	if err != nil {
 		panic(err)
@@ -57,6 +61,20 @@ func (bnk *SDKBanker) RemoveCoin(b32addr crypto.Bech32Address, denom string, amo
 	if err != nil {
 		panic(err)
 	}
+}
+
+func (bnk *SDKBanker) assertEnoughStorageDeposit(from crypto.Address, amt std.Coins, rlmPath string) {
+	acc := bnk.vmk.acck.GetAccount(bnk.ctx, from)
+	balance := acc.GetCoins().AmountOf(ugnot.Denom)
+	sendAmt := amt.AmountOf(ugnot.Denom)
+	gnostore := bnk.ctx.Value(gnoStoreContextKey).(gno.TransactionStore)
+	rlm := gnostore.GetPackageRealm(rlmPath)
+	sum := overflow.AddUint64p(rlm.Deposit, uint64(sendAmt))
+
+	if sum > uint64(balance) {
+		panic(fmt.Sprintf("Cannot send more tokens than allowed. A deposit of %d%s must be held in the balance (current balance: %d%s).", rlm.Deposit, ugnot.Denom, balance, ugnot.Denom))
+	}
+
 }
 
 // ----------------------------------------

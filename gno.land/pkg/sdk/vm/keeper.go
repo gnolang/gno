@@ -408,7 +408,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 
 	// use the parameters before executing the message, as they may change during execution.
 	// The message should not fail due to parameter changes in the same transaction.
-	err = vm.processDeposit(ctx, creator, deposit, gnostore, params)
+	err = vm.processStorageDeposit(ctx, creator, deposit, gnostore, params)
 	if err != nil {
 		return err
 	}
@@ -512,7 +512,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	}
 	// Use parameters before executing the message, as they may change during execution.
 	// Parameter changes take effect only after the message has executed successfully.
-	err = vm.processDeposit(ctx, caller, msg.Deposit, gnostore, params)
+	err = vm.processStorageDeposit(ctx, caller, msg.Deposit, gnostore, params)
 	if err != nil {
 		return "", err
 	}
@@ -675,7 +675,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	res = buf.String()
 	// Use parameters before executing the message, as they may change during execution.
 	// Parameter changes take effect only after the message has executed successfully.
-	err = vm.processDeposit(ctx, caller, msg.Deposit, gnostore, params)
+	err = vm.processStorageDeposit(ctx, caller, msg.Deposit, gnostore, params)
 	if err != nil {
 		return "", err
 	}
@@ -891,7 +891,7 @@ func (vm *VMKeeper) QueryStorage(ctx sdk.Context, pkgPath string) (string, error
 	return res, nil
 }
 
-// processDeposit processes storage deposit adjustments for package realms based on
+// processStorageDeposit processes storage deposit adjustments for package realms based on
 // storage size changes tracked within the gnoStore.
 //
 // For each realm, it:
@@ -901,7 +901,7 @@ func (vm *VMKeeper) QueryStorage(ctx sdk.Context, pkgPath string) (string, error
 // An error is returned if there's insufficient deposit, a transfer error occurs,
 // or an invariant violation happens during deposit or storage adjustments.
 
-func (vm *VMKeeper) processDeposit(ctx sdk.Context, caller crypto.Address, deposit std.Coins, gnostore gno.Store, params Params) error {
+func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address, deposit std.Coins, gnostore gno.Store, params Params) error {
 	realmDiffs := gnostore.RealmDiffs()
 	depositAmt := deposit.AmountOf(ugnot.Denom)
 	if depositAmt == 0 {
@@ -920,7 +920,7 @@ func (vm *VMKeeper) processDeposit(ctx sdk.Context, caller crypto.Address, depos
 			// lock deposit for the additional storage used.
 			requiredDeposit := overflow.Mul64p(diff, price.Amount)
 			if depositAmt < requiredDeposit {
-				return fmt.Errorf("not enough deposit to cover the stroage usage, %d%s, %d bytes", requiredDeposit, ugnot.Denom, diff)
+				return fmt.Errorf("not enough deposit to cover the storage usage: requires %d%s for %d bytes", requiredDeposit, ugnot.Denom, diff)
 			}
 			err := vm.lockStorageDeposit(ctx, caller, rlm, requiredDeposit, diff)
 			if err != nil {
