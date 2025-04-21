@@ -30,6 +30,7 @@ func pushFuncFrame(m *gno.Machine, name gno.Name) {
 func TestEmit(t *testing.T) {
 	m := gno.NewMachine(pkgPath, nil)
 	m.Context = ExecContext{}
+	m.Stage = gno.StageAdd
 	pushFuncFrame(m, "main")
 	pushFuncFrame(m, "Emit")
 	_, pkgPath := X_getRealm(m, 0)
