@@ -1,14 +1,9 @@
 package gnolang
 
-type ExecKind string
+type Stage string
 
 const (
-	ExecKindPre ExecKind = "ExecKindPre" // e.g. preprocessing
-	ExecKindAdd ExecKind = "ExecKindAdd" // e.g. init()
-	ExecKindRun ExecKind = "ExecKindRun" // e.g. main()
+	StagePre Stage = "StagePre" // e.g. preprocessing TODO use
+	StageAdd Stage = "StageAdd" // e.g. init()
+	StageRun Stage = "StageRun" // e.g. main()
 )
-
-type ExecContextI interface {
-	SetExecKind(ExecKind)
-	GetExecKind() ExecKind
-}

@@ -384,7 +384,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		Banker:          NewSDKBanker(vm, ctx),
 		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
-		ExecKind:        new(gno.ExecKind),
 	}
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
@@ -475,7 +474,6 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		Banker:          NewSDKBanker(vm, ctx),
 		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
-		ExecKind:        new(gno.ExecKind),
 	}
 	// Construct machine and evaluate.
 	m := gno.NewMachineWithOptions(
@@ -607,7 +605,6 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		Banker:          NewSDKBanker(vm, ctx),
 		Params:          NewSDKParams(vm.prmk, ctx),
 		EventLogger:     ctx.EventLogger(),
-		ExecKind:        new(gno.ExecKind),
 	}
 
 	buf := new(bytes.Buffer)
@@ -789,7 +786,6 @@ func (vm *VMKeeper) queryEvalInternal(ctx sdk.Context, pkgPath string, expr stri
 		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
 		Params:      NewSDKParams(vm.prmk, ctx),
 		EventLogger: ctx.EventLogger(),
-		ExecKind:    new(gno.ExecKind),
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{

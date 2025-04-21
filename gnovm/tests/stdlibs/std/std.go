@@ -139,8 +139,8 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 		lfr = fr
 	}
 
-	switch ctx.GetExecKind() {
-	case gno.ExecKindAdd:
+	switch m.Stage {
+	case gno.StageAdd:
 		switch height {
 		case crosses:
 			fr := m.Frames[0]
@@ -152,7 +152,7 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 			m.Panic(typedString("frame not found"))
 			return "", ""
 		}
-	case gno.ExecKindRun:
+	case gno.StageRun:
 		switch height {
 		case crosses:
 			return string(ctx.OriginCaller), ""

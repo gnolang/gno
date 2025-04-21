@@ -62,7 +62,6 @@ func Context(caller crypto.Bech32Address, pkgPath string, send std.Coins) *tests
 		Banker:          banker,
 		Params:          newTestParams(),
 		EventLogger:     sdk.NewEventLogger(),
-		ExecKind:        new(gno.ExecKind),
 	}
 	return &teststd.TestExecContext{
 		ExecContext: ctx,
