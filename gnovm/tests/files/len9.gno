@@ -1,10 +1,9 @@
 package main
 
 func main() {
-	var a map[string]string
-
-	println(len(a))
+    a := len(nil)
+    println(a)
 }
 
-// Output:
-// 0
+// Error:
+// main/files/len9.gno:4:10: invalid argument: nil for built-in len

@@ -2,7 +2,7 @@ package main
 
 import "fmt"
 
-func f() any {
+func f() interface{} {
 	return make(map[int]int)
 }
 

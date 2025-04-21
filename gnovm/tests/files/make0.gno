@@ -1,6 +1,6 @@
 package main
 
-func f() any {
+func f() interface{} {
 	return make([]int, 2)
 }
 

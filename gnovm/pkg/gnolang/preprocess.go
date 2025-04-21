@@ -1200,14 +1200,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					fn := extractFunctionName(n)
 					if fn == "len" { //nolint
 						at := evalStaticTypeOf(store, last, n.Args[0])
-						ValidateLenArg(at)
+						validateLenArg(at)
 					}
 					if fn == "cap" { //nolint
 						at := evalStaticTypeOf(store, last, n.Args[0])
-						ValidateCapArg(at)
+						validateCapArg(at)
 					}
 					if fn == "make" {
-						AssertValidBuiltinArgType(store, last, n)
+						validateMakeArg(store, last, n)
 					}
 					ft = cft
 				case *TypeType:

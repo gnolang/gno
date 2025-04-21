@@ -1147,55 +1147,57 @@ func isBlankIdentifier(x Expr) bool {
 
 // Check for invalid arguments in builtin functions
 // len, cap, make
-func AssertValidBuiltinArgType(store Store, last BlockNode, currExpr Expr) {
+func validateMakeArg(store Store, last BlockNode, currExpr Expr) {
 	switch currExpr := currExpr.(type) {
-	case *ConstExpr:
-		AssertValidBuiltinArgType(store, last, currExpr.Source)
 	case *CallExpr:
 		ift := evalStaticTypeOf(store, last, currExpr.Func)
 		switch baseOf(ift).(type) {
 		case *FuncType:
-			validateMakeArg(store, last, currExpr)
+			assertValidMakeArg(store, last, currExpr)
 		}
 	}
 }
 
 // Validate argument for len() function
-func ValidateLenArg(at Type) {
+func validateLenArg(at Type) {
 	if at == nil {
 		panic("invalid argument: nil for built-in len")
+	}
+
+	if pt, ok := at.(*PointerType); ok {
+		if pt.Elt == IntType {
+			panic(fmt.Sprintf("unexpected type for len(): %v", pt))
+		}
 	}
 
 	switch at := unwrapPointerType(baseOf(at)).(type) {
 	case PrimitiveType:
 		if at.Kind() != StringKind {
-			panic(fmt.Sprintf("unexpected type for len(): %v", at))
+			panic(fmt.Sprintf("unexpected type for len(): %v", baseOf(at).String()))
 		}
 	case *ArrayType, *SliceType, *MapType, *ChanType:
-		// Valid types for len()
+	// Valid types for len()
 	default:
-		panic(fmt.Sprintf("unexpected type for len(): %v", baseOf(at)))
+		panic(fmt.Sprintf("unexpected type for len(): %v", baseOf(at).String()))
 	}
 }
 
 // Validate argument for cap() function
-func ValidateCapArg(at Type) {
+func validateCapArg(at Type) {
 	if at == nil {
 		panic("invalid argument: nil for built-in cap")
 	}
-
-	typeStr := at.String()
 
 	switch unwrapPointerType(baseOf(at)).(type) {
 	case *ArrayType, *SliceType, *ChanType:
 		// Valid types for cap()
 	default:
-		panic(fmt.Sprintf("unexpected type for cap(): %v", typeStr))
+		panic(fmt.Sprintf("unexpected type for cap(): %v", at.String()))
 	}
 }
 
 // Validate arguments for make() function
-func validateMakeArg(store Store, last BlockNode, currExpr *CallExpr) {
+func assertValidMakeArg(store Store, last BlockNode, currExpr *CallExpr) {
 	if len(currExpr.Args) < 1 || len(currExpr.Args) > 3 {
 		panic(fmt.Sprintf("invalid number of arguments for built-in make: expected 1 to 3, got %d", len(currExpr.Args)))
 	}
@@ -1205,7 +1207,6 @@ func validateMakeArg(store Store, last BlockNode, currExpr *CallExpr) {
 	validateMakeType(baseOf(at))
 
 	var length int
-	var capacity int
 
 	// Validate length argument (second argument for make)
 	if len(currExpr.Args) > 1 {
@@ -1214,14 +1215,18 @@ func validateMakeArg(store Store, last BlockNode, currExpr *CallExpr) {
 			panic("invalid argument 2: nil for built-in make")
 		}
 
-		var err error
-		length, err = parseIntValue(currExpr.Args[1], "length")
+		if at1 == Float64Type {
+			panic(fmt.Sprintf("invalid argument: index length (variable of type float64) must be integer"))
+		}
+
+		l, err := parseIntValue(currExpr.Args[1])
 		if err != nil {
-			panic(err.Error()) // Convert error to panic message
+			panic(fmt.Sprintf("invalid length argument for built-in make: %s", err.Error()))
 		}
-		if length < 0 {
-			panic(fmt.Sprintf("invalid length argument for built-in %s: cannot be negative, got %d", "make", length))
+		if l < 0 {
+			panic(fmt.Sprintf("invalid length argument for built-in make: cannot be negative, got %d", length))
 		}
+		length = l
 	}
 
 	// Validate capacity argument (third argument for make)
@@ -1230,10 +1235,12 @@ func validateMakeArg(store Store, last BlockNode, currExpr *CallExpr) {
 		if at2 == nil {
 			panic("invalid argument 3: nil for built-in make")
 		}
-		var err error
-		capacity, err = parseIntValue(currExpr.Args[2], "capacity")
+		capacity, err := parseIntValue(currExpr.Args[2])
 		if err != nil {
-			panic(err.Error()) // Convert error to panic message
+			panic(fmt.Sprintf("invalid capacity argument for built-in make: %s", err.Error()))
+		}
+		if capacity < 0 {
+			panic(fmt.Sprintf("invalid capacity argument for built-in make: cannot be negative, got %d", capacity))
 		}
 		if _, ok := currExpr.Args[2].(*BasicLitExpr); ok {
 			if capacity < length {
@@ -1249,31 +1256,37 @@ func validateMakeType(tp Type) {
 	case *SliceType, *MapType, *ChanType:
 		// Valid types for make()
 	default:
-		panic(fmt.Sprintf("invalid type for built-in %s: %s (must be slice, map, or channel)", "make", tp.String()))
+		panic(fmt.Sprintf("invalid type for built-in make: %s (must be slice, map, or channel)", tp.String()))
 	}
 }
 
-func parseIntValue(expr Expr, argName string) (int, error) {
+func parseIntValue(expr Expr) (int, error) {
 	switch e := expr.(type) {
 	case *ConstExpr:
-		return parseIntValue(e.Source, argName)
-
-	case *BasicLitExpr:
-		var num int64
-		if e.Kind == FLOAT {
-			f, err := hasFractionalPart(e.Value)
-			if err != nil {
-				return 0, err
+		if ble, ok := e.Source.(*BasicLitExpr); ok {
+			if ble.Kind == FLOAT {
+				f, err := strconv.ParseFloat(ble.Value, 64)
+				if err != nil {
+					return 0, err
+				}
+				intPart := math.Trunc(f)
+				if f != intPart {
+					return 0, fmt.Errorf("%g (untyped float constant) truncated to int", f)
+				}
+				if f > float64(math.MaxInt) {
+					return 0, errors.New("value out of range for int type")
+				}
+				return int(f), nil
 			}
-			num = int64(f)
-		} else {
-			n, err := strconv.Atoi(e.Value)
+			n, err := strconv.ParseInt(ble.Value, 0, 64)
 			if err != nil {
-				return 0, fmt.Errorf("invalid %s argument for built-in %s: cannot convert %q to int", argName, "make", e.Value)
+				return 0, fmt.Errorf("cannot convert %s to int", ble.Value)
 			}
-			return n, nil
+			if n > int64(math.MaxInt) {
+				return 0, errors.New("value out of range for int type")
+			}
+			return int(n), nil
 		}
-		return int(num), nil
 	}
 	return 0, nil
 }
@@ -1289,19 +1302,4 @@ func extractFunctionName(n *CallExpr) string {
 		return ""
 	}
 	return string(ne.Name)
-}
-
-func hasFractionalPart(s string) (float64, error) {
-	// Parse the string as a float64
-	f, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	// Check if the float has a fractional part by comparing it with its integer part
-	intPart := math.Trunc(f)
-	if f != intPart {
-		return f, fmt.Errorf("%g (untyped float constant) truncated to int", f)
-	}
-	return f, nil
 }

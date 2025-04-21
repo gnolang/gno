@@ -1,6 +1,6 @@
 package main
 
-func f(a []int) any {
+func f(a []int) interface{} {
 	return len(a)
 }
 
