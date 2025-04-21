@@ -37,6 +37,7 @@ func renderHome(res *mux.ResponseWriter, _ *mux.Request) {
 
 func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 	dao := mustGetDAOFromRequest(req)
+	o := getOptions(dao.ID())
 
 	// Render header
 	res.Write("# ")
@@ -54,7 +55,9 @@ func renderDAO(res *mux.ResponseWriter, req *mux.Request) {
 		ufmt.Sprintf("[View Settings](%s)", settingsURL(dao)),
 	}
 
-	// TODO: Add link to create a members modification proposal
+	if o.AllowMembersUpdate {
+		menu = append(menu, updateMembersLink(dao.ID()))
+	}
 
 	if parentDAO := dao.Parent(); parentDAO != nil {
 		menu = append(menu, ufmt.Sprintf("[Go to Parent DAO](%s)", daoURL(parentDAO)))
@@ -222,7 +225,7 @@ func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {
 func renderProposalsListItem(res *mux.ResponseWriter, dao *commondao.CommonDAO, p *commondao.Proposal) {
 	def := p.Definition()
 	record := p.VotingRecord()
-	options := getOptions(dao.ID())
+	o := getOptions(dao.ID())
 
 	// Render title
 	res.Write(ufmt.Sprintf("**[#%d %s](%s)**  \n", p.ID(), def.Title(), proposalURL(dao, p)))
@@ -237,11 +240,11 @@ func renderProposalsListItem(res *mux.ResponseWriter, dao *commondao.CommonDAO, 
 	}
 
 	// Render actions
-	if options.AllowVoting && isVotingPeriodActive(p) {
+	if o.AllowVoting && isVotingPeriodActive(p) {
 		status = append(status, voteLink(dao.ID(), p.ID()))
 	}
 
-	if options.AllowExecution && isExecutionAllowed(p) {
+	if o.AllowExecution && isExecutionAllowed(p) {
 		status = append(status, executeLink(dao.ID(), p.ID()))
 	}
 
@@ -269,13 +272,13 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 	// Render main menu
 	res.Write(ufmt.Sprintf("[Go to DAO](%s)", daoURL(dao)))
 
-	options := getOptions(dao.ID())
-	if options.AllowVoting && votingActive {
+	o := getOptions(dao.ID())
+	if o.AllowVoting && votingActive {
 		res.Write(" • ")
 		res.Write(voteLink(dao.ID(), p.ID()))
 	}
 
-	if options.AllowExecution && isExecutionAllowed(p) {
+	if o.AllowExecution && isExecutionAllowed(p) {
 		res.Write(" • ")
 		res.Write(executeLink(dao.ID(), p.ID()))
 	}
@@ -381,8 +384,8 @@ func mustGetDAOFromRequest(req *mux.Request) *commondao.CommonDAO {
 		panic("Invalid DAO ID")
 	}
 
-	options := getOptions(daoID)
-	if options.Private {
+	o := getOptions(daoID)
+	if o.Private {
 		panic("Forbidden")
 	}
 
@@ -419,6 +422,15 @@ func executeLink(daoID, proposalID uint64) string {
 		"Execute",
 		"daoID", strconv.FormatUint(daoID, 10),
 		"proposalID", strconv.FormatUint(proposalID, 10),
+	))
+}
+
+func updateMembersLink(daoID uint64) string {
+	return ufmt.Sprintf("[Update Members](%s)", txlink.Call(
+		"CreateMembersUpdateProposal",
+		"daoID", strconv.FormatUint(daoID, 10),
+		"newMembers", "",
+		"removeMembers", "",
 	))
 }
 
