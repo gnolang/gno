@@ -40,7 +40,11 @@ func TestVMKeeperAddPackage(t *testing.T) {
 		{
 			Name: "test.gno",
 			Body: `package test
-func Echo() string {return "hello world"}`,
+func Echo() string {
+	crossing()
+
+	return "hello world"
+}`,
 		},
 	}
 	pkgPath := "gno.land/r/test"
@@ -63,7 +67,11 @@ func Echo() string {return "hello world"}`,
 	assert.NotNil(t, memFile)
 	expected := `package test
 
-func Echo() string { return "hello world" }
+func Echo() string {
+	crossing()
+
+	return "hello world"
+}
 `
 	assert.Equal(t, expected, memFile.Body)
 }
@@ -84,7 +92,11 @@ func TestVMKeeperAddPackage_InvalidDomain(t *testing.T) {
 		{
 			Name: "test.gno",
 			Body: `package test
-func Echo() string {return "hello world"}`,
+func Echo() string {
+	crossing()
+
+	return "hello world"
+}`,
 		},
 	}
 	pkgPath := "anotherdomain.land/r/test"
@@ -128,8 +140,10 @@ func init() {
 }
 
 func Echo(msg string) string {
+	crossing()
+
 	addr := std.OriginCaller()
-	pkgAddr := std.OriginPkgAddress()
+	pkgAddr := std.CurrentRealm().Address()
 	send := std.OriginSend()
 	banker := std.NewBanker(std.BankerTypeOriginSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
@@ -176,8 +190,10 @@ func init() {
 }
 
 func Echo(msg string) string {
+	crossing()
+
 	addr := std.OriginCaller()
-	pkgAddr := std.OriginPkgAddress()
+	pkgAddr := std.CurrentRealm().Address()
 	send := std.OriginSend()
 	banker := std.NewBanker(std.BankerTypeOriginSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
@@ -185,6 +201,8 @@ func Echo(msg string) string {
 }
 
 func GetAdmin() string {
+	crossing()
+
 	return admin.String()
 }
 `},
@@ -226,8 +244,10 @@ func init() {
 }
 
 func Echo(msg string) string {
+	crossing()
+
 	addr := std.OriginCaller()
-	pkgAddr := std.OriginPkgAddress()
+	pkgAddr := std.CurrentRealm().Address()
 	send := std.Coins{{"ugnot", 10000000}}
 	banker := std.NewBanker(std.BankerTypeOriginSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
@@ -270,8 +290,10 @@ func init() {
 }
 
 func Echo(msg string) string {
+	crossing()
+
 	addr := std.OriginCaller()
-	pkgAddr := std.OriginPkgAddress()
+	pkgAddr := std.CurrentRealm().Address()
 	send := std.Coins{{"ugnot", 10000000}}
 	banker := std.NewBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
@@ -314,8 +336,10 @@ func init() {
 }
 
 func Echo(msg string) string {
+	crossing()
+
 	addr := std.OriginCaller()
-	pkgAddr := std.OriginPkgAddress()
+	pkgAddr := std.CurrentRealm().Address()
 	send := std.Coins{{"ugnot", 10000000}}
 	banker := std.NewBanker(std.BankerTypeRealmSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
@@ -360,6 +384,8 @@ func init() {
 }
 
 func Do() string {
+	crossing()
+
 	std.SetParamInt64("bar.int64", int64(1337))
 	std.SetParamString("foo.string", "foo2") // override init
 
@@ -415,8 +441,10 @@ func init() {
 }
 
 func Echo(msg string) string {
+	crossing()
+
 	addr := std.OriginCaller()
-	pkgAddr := std.OriginPkgAddress()
+	pkgAddr := std.CurrentRealm().Address()
 	send := std.OriginSend()
 	banker := std.NewBanker(std.BankerTypeOriginSend)
 	banker.SendCoins(pkgAddr, addr, send) // send back
@@ -424,6 +452,8 @@ func Echo(msg string) string {
 }
 
 func GetAdmin() string {
+	crossing()
+
 	return admin.String()
 }
 
@@ -458,6 +488,8 @@ func TestVMKeeperRunSimple(t *testing.T) {
 package main
 
 func main() {
+	crossing()
+
 	println("hello world!")
 }
 `},
@@ -499,6 +531,8 @@ package main
 import "std"
 
 func main() {
+	crossing()
+
 	addr := std.OriginCaller()
 	println("hello world!", addr)
 }
@@ -531,6 +565,8 @@ func TestNumberOfArgsError(t *testing.T) {
 			Body: `package test
 
 func Echo(msg string) string {
+	crossing()
+
 	return "echo:"+msg
 }`,
 		},
@@ -569,6 +605,8 @@ func TestVMKeeperReinitialize(t *testing.T) {
 package test
 
 func Echo(msg string) string {
+	crossing()
+
 	return "echo:"+msg
 }`},
 	}

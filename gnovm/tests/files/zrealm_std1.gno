@@ -8,12 +8,16 @@ import (
 var aset *std.AddressList
 
 func init() {
-	caller := std.OriginCaller()
+	// This won't work, init is called with empty caller.
+	// caller := std.OriginCaller()
+	caller := std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")
 	aset = std.NewAddressList()
 	aset.AddAddress(caller)
 }
 
 func main() {
+	crossing()
+
 	println(*aset)
 	caller := std.OriginCaller()
 	err := aset.AddAddress(caller)
@@ -25,7 +29,7 @@ func main() {
 }
 
 // Output:
-// (slice[ref(1ed29bd278d735e20e296bd4afe927501941392f:5)] std.AddressList)
+// (slice[ref(1ed29bd278d735e20e296bd4afe927501941392f:8)] std.AddressList)
 // error: address already exists
 // has: true
 // has: false

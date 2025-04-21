@@ -9,7 +9,6 @@ import (
 )
 
 func TestReadOnlyPublicMethods(t *testing.T) {
-	testing.SetOriginPkgAddress("gno.land/r/demo/grc20factory")
 	admin := testutils.TestAddress("admin")
 	bob := testutils.TestAddress("bob")
 	carl := testutils.TestAddress("carl")

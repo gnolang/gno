@@ -56,7 +56,7 @@ func TestNewAppWithOptions(t *testing.T) {
 				Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*gnovm.MemFile{
 					{
 						Name: "demo.gno",
-						Body: "package demo; func Hello() string { return `hello`; }",
+						Body: "package demo; func Hello() string { crossing(); return `hello`; }",
 					},
 				})},
 				Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
@@ -373,7 +373,7 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 	var t time.Time = time.Now()
 
 	// GetT returns the time that was saved from genesis
-	func GetT() int64 { return t.Unix() }
+	func GetT() int64 { crossing(); return t.Unix() }
 `
 			)
 
@@ -895,7 +895,7 @@ func newGasPriceTestApp(t *testing.T) abci.Application {
 	)
 
 	// Set a handler Route.
-	baseApp.Router().AddRoute("auth", auth.NewHandler(acck))
+	baseApp.Router().AddRoute("auth", auth.NewHandler(acck, gpk))
 	baseApp.Router().AddRoute("bank", bank.NewHandler(bankk))
 	baseApp.Router().AddRoute(
 		testutils.RouteMsgCounter,
@@ -957,7 +957,8 @@ func gnoGenesisState(t *testing.T) GnoGenesisState {
         "sig_verify_cost_secp256k1": "1000",
         "target_gas_ratio": "60",
         "tx_sig_limit": "7",
-        "tx_size_cost_per_byte": "10"
+        "tx_size_cost_per_byte": "10",
+        "fee_collector": "g1najfm5t7dr4f2m38cg55xt6gh2lxsk92tgh0xy"
       }
     }
   }`)

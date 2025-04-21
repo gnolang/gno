@@ -2,7 +2,6 @@ package std
 
 import (
 	"crypto/bech32"
-	"crypto/sha256"
 	"errors"
 )
 
@@ -61,24 +60,17 @@ func decodeAndConvert(bech string) (string, []byte, error) {
 	return hrp, converted, nil
 }
 
-func DerivePkgAddr(pkgPath string) Address {
-	data := sumTruncated([]byte("pkgPath:" + pkgPath))
-	return EncodeBech32(bech32AddrPrefix, data)
-}
+func derivePkgAddr(string) string
 
-func sumTruncated(bz []byte) [20]byte {
-	hash := sha256.Sum256(bz)
-	return convertTo20Byte(hash[:RawAddressSize])
+// Returns a crypto hash derived pkgPath, unless pkgPath is a MsgRun run path,
+// in which case the address is extracted from the path.
+func DerivePkgAddr(pkgPath string) Address {
+	addr := derivePkgAddr(pkgPath)
+	return Address(addr)
 }
 
 func convertTo20Byte(in []byte) [20]byte {
-	/* For some reason [20]byte(bz) fails with: 'cannot convert []uint8 to ArrayKind'
-	Maybe there is an issue to create
-	*/
 	result := [20]byte{}
-	for index, b := range in {
-		result[index] = b
-	}
-
+	copy(result[:], in)
 	return result
 }

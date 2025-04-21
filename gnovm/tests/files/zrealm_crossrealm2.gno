@@ -13,8 +13,10 @@ func init() {
 }
 
 func main() {
+	crossing()
+
 	// NOTE: but it is invalid to modify it using an external realm function.
-	tests.ModifyTestRealmObject(&somevalue)
+	cross(tests.ModifyTestRealmObject)(&somevalue)
 	println(somevalue)
 }
 

@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"bytes"
+	"errors"
 	"go/ast"
 	"go/format"
 	"go/parser"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm"
 	"go.uber.org/multierr"
+	"golang.org/x/tools/go/ast/astutil"
 )
 
 // type checking (using go/types)
@@ -28,7 +30,7 @@ type MemPackageGetter interface {
 //
 // The syntax checking is performed entirely using Go's go/types package.
 //
-// If format is true, the code will be automatically updated with the
+// If format is true, the code in msmpkg will be automatically updated with the
 // formatted source code.
 func TypeCheckMemPackage(mempkg *gnovm.MemPackage, getter MemPackageGetter, format bool) error {
 	return typeCheckMemPackage(mempkg, getter, false, format)
@@ -100,8 +102,8 @@ func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Pac
 		g.cache[path] = gnoImporterResult{err: err}
 		return nil, err
 	}
-	fmt := false
-	result, err := g.parseCheckMemPackage(mpkg, fmt)
+	fmt_ := false
+	result, err := g.parseCheckMemPackage(mpkg, fmt_)
 	g.cache[path] = gnoImporterResult{pkg: result, err: err}
 	return result, err
 }
@@ -136,11 +138,15 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*t
 			continue
 		}
 
+		//----------------------------------------
+		// Non-logical formatting transforms
+
 		if delFunc != nil {
 			deleteOldIdents(delFunc, f)
 		}
 
-		// enforce formatting
+		// Enforce formatting.
+		// This must happen before logical transforms.
 		if fmt {
 			var buf bytes.Buffer
 			err = format.Node(&buf, fset, f)
@@ -149,6 +155,15 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*t
 				continue
 			}
 			file.Body = buf.String()
+		}
+
+		//----------------------------------------
+		// Logical transforms
+
+		// filter crossings for type checker
+		if err := filterCrossing(f); err != nil {
+			errs = multierr.Append(errs, err)
+			continue
 		}
 
 		files = append(files, f)
@@ -163,7 +178,9 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*t
 func deleteOldIdents(idents map[string]func(), f *ast.File) {
 	for _, decl := range f.Decls {
 		fd, ok := decl.(*ast.FuncDecl)
-		if !ok || fd.Recv != nil { // ignore methods
+		// ignore methods and init functions
+		//nolint:goconst
+		if !ok || fd.Recv != nil || fd.Name.Name == "init" {
 			continue
 		}
 		if del := idents[fd.Name.Name]; del != nil {
@@ -176,4 +193,35 @@ func deleteOldIdents(idents map[string]func(), f *ast.File) {
 			f.Decls = slices.DeleteFunc(f.Decls, func(d ast.Decl) bool { return decl == d })
 		}
 	}
+}
+
+func filterCrossing(f *ast.File) (err error) {
+	astutil.Apply(f, nil, func(c *astutil.Cursor) bool {
+		switch n := c.Node().(type) {
+		case *ast.ExprStmt:
+			if ce, ok := n.X.(*ast.CallExpr); ok {
+				if id, ok := ce.Fun.(*ast.Ident); ok && id.Name == "crossing" {
+					// Validate syntax.
+					if len(ce.Args) != 0 {
+						err = errors.New("crossing called with non empty parameters")
+					}
+					// Delete statement 'crossing()'.
+					c.Delete()
+				}
+			}
+		case *ast.CallExpr:
+			if id, ok := n.Fun.(*ast.Ident); ok && id.Name == "cross" {
+				// Replace expression 'cross(x)' by 'x'.
+				var a ast.Node
+				if len(n.Args) == 1 {
+					a = n.Args[0]
+				} else {
+					err = errors.New("cross called with invalid parameters")
+				}
+				c.Replace(a)
+			}
+		}
+		return true
+	})
+	return err
 }

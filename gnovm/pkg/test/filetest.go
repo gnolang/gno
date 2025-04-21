@@ -47,10 +47,7 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 	if err != nil {
 		return "", err
 	}
-	ctx := Context(
-		pkgPath,
-		coins,
-	)
+	ctx := Context("", pkgPath, coins)
 	maxAllocRaw := dirs.FirstDefault(DirectiveMaxAlloc, "0")
 	maxAlloc, err := strconv.ParseInt(maxAllocRaw, 10, 64)
 	if err != nil {
@@ -73,6 +70,11 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 	})
 	defer m.Release()
 	result := opts.runTest(m, pkgPath, filename, source, opslog)
+
+	// If there was a type-check error, return immediately.
+	if result.TypeCheckError != "" {
+		return "", fmt.Errorf("typecheck error: %s", result.TypeCheckError)
+	}
 
 	// updated tells whether the directives have been updated, and as such
 	// a new generated filetest should be returned.
@@ -103,8 +105,8 @@ func (opts *TestOptions) runFiletest(filename string, source []byte) (string, er
 		// Ensure this error was supposed to happen.
 		errDirective := dirs.First(DirectiveError)
 		if errDirective == nil {
-			return "", fmt.Errorf("unexpected panic: %s\noutput:\n%s\nstack:\n%v",
-				result.Error, result.Output, string(result.GoPanicStack))
+			return "", fmt.Errorf("unexpected panic: %s\noutput:\n%s\nstacktrace:%s\nstack:\n%v",
+				result.Error, result.Output, result.GnoStacktrace, string(result.GoPanicStack))
 		}
 
 		// The Error directive (and many others) will have one trailing newline,
@@ -180,6 +182,8 @@ func unifiedDiff(wanted, actual string) string {
 type runResult struct {
 	Output string
 	Error  string
+	// Set if there was an issue with type-checking.
+	TypeCheckError string
 	// Set if there was a panic within gno code.
 	GnoStacktrace string
 	// Set if this was recovered from a panic.
@@ -224,7 +228,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 				rr.Error = v.Unwrap().Error()
 			case gno.UnhandledPanicError:
 				rr.Error = v.Error()
-				rr.GnoStacktrace = m.ExceptionsStacktrace()
+				rr.GnoStacktrace = m.ExceptionStacktrace()
 			default:
 				rr.Error = fmt.Sprint(v)
 				rr.GnoStacktrace = m.Stacktrace().String()
@@ -240,9 +244,10 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 		m.SetActivePackage(pv)
+		m.Context.(*teststd.TestExecContext).OriginCaller = DefaultCaller
 		n := gno.MustParseFile(filename, string(content))
 		m.RunFiles(n)
-		m.RunStatement(gno.S(gno.Call(gno.X("main"))))
+		m.RunStatement(gno.StageRun, gno.S(gno.Call(gno.X("main"))))
 	} else {
 		// Realm case.
 		gno.DisableDebug() // until main call.
@@ -264,6 +269,12 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		}
 		orig, tx := m.Store, m.Store.BeginTransaction(nil, nil, nil)
 		m.Store = tx
+
+		// Validate Gno syntax and type check.
+		if err := gno.TypeCheckMemPackageTest(memPkg, m.Store); err != nil {
+			return runResult{TypeCheckError: err.Error()}
+		}
+
 		// Run decls and init functions.
 		m.RunMemPackage(memPkg, true)
 		// Clear store cache and reconstruct machine from committed info
@@ -272,11 +283,15 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, filename string, conte
 		m.Store = orig
 
 		pv2 := m.Store.GetPackage(pkgPath, false)
-		m.SetActivePackage(pv2)
+		m.SetActivePackage(pv2) // XXX should it set the realm?
+		m.Context.(*teststd.TestExecContext).OriginCaller = DefaultCaller
 		gno.EnableDebug()
 		// clear store.opslog from init function(s).
 		m.Store.SetLogStoreOps(opslog) // resets.
-		m.RunStatement(gno.S(gno.Call(gno.X("main"))))
+		// Call main() like withrealm(main)().
+		// This will switch the realm to the package.
+		// main() must start with crossing().
+		m.RunStatement(gno.StageRun, gno.S(gno.Call(gno.Call(gno.X("cross"), gno.X("main"))))) // switch realm.
 	}
 
 	return runResult{
