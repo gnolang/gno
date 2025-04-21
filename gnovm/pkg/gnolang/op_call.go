@@ -49,6 +49,7 @@ func (m *Machine) doOpPrecall() {
 
 var gReturnStmt = &ReturnStmt{}
 
+//nolint:unused
 func getFuncTypeExprFromSource(source Node) *FuncTypeExpr {
 	if fd, ok := source.(*FuncDecl); ok {
 		return fd.GetUnboundTypeExpr()

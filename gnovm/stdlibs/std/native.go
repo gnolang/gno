@@ -74,8 +74,8 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 
 	var (
 		ctx     = GetContext(m)
-		crosses int                        // track realm crosses
-		lfr     *gno.Frame = m.LastFrame() // last call frame
+		lfr     = m.LastFrame() // last call frame
+		crosses int             // track realm crosses
 	)
 
 	for i := m.NumFrames() - 1; i >= 0; i-- {
@@ -114,7 +114,7 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 	// Special case if package initialization.
 	if ctx.OriginCaller == "" {
 		fr := &m.Frames[0]
-		caller := string(fr.LastPackage.GetPkgAddr().Bech32())
+		caller := fr.LastPackage.GetPkgAddr().Bech32()
 		pkgPath := fr.LastPackage.PkgPath
 		return string(caller), pkgPath
 	}
