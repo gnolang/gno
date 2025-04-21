@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"bytes"
+	"errors"
 	"go/ast"
 	"go/format"
 	"go/parser"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm"
 	"go.uber.org/multierr"
+	"golang.org/x/tools/go/ast/astutil"
 )
 
 // type checking (using go/types)
@@ -100,8 +102,8 @@ func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Pac
 		g.cache[path] = gnoImporterResult{err: err}
 		return nil, err
 	}
-	fmt := false
-	result, err := g.parseCheckMemPackage(mpkg, fmt)
+	fmt_ := false
+	result, err := g.parseCheckMemPackage(mpkg, fmt_)
 	g.cache[path] = gnoImporterResult{pkg: result, err: err}
 	return result, err
 }
@@ -138,6 +140,11 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *gnovm.MemPackage, fmt bool) (*t
 
 		if delFunc != nil {
 			deleteOldIdents(delFunc, f)
+		}
+
+		if err := filterCrossing(f); err != nil {
+			errs = multierr.Append(errs, err)
+			continue
 		}
 
 		// enforce formatting
@@ -178,4 +185,35 @@ func deleteOldIdents(idents map[string]func(), f *ast.File) {
 			f.Decls = slices.DeleteFunc(f.Decls, func(d ast.Decl) bool { return decl == d })
 		}
 	}
+}
+
+func filterCrossing(f *ast.File) (err error) {
+	astutil.Apply(f, nil, func(c *astutil.Cursor) bool {
+		switch n := c.Node().(type) {
+		case *ast.ExprStmt:
+			if ce, ok := n.X.(*ast.CallExpr); ok {
+				if id, ok := ce.Fun.(*ast.Ident); ok && id.Name == "crossing" {
+					// Validate syntax.
+					if len(ce.Args) != 0 {
+						err = errors.New("crossing called with non empty parameters")
+					}
+					// Delete statement 'crossing()'.
+					c.Delete()
+				}
+			}
+		case *ast.CallExpr:
+			if id, ok := n.Fun.(*ast.Ident); ok && id.Name == "cross" {
+				// Replace expression 'cross(x)' by 'x'.
+				var a ast.Node
+				if len(n.Args) == 1 {
+					a = n.Args[0]
+				} else {
+					err = errors.New("cross called with invalid parameters")
+				}
+				c.Replace(a)
+			}
+		}
+		return true
+	})
+	return err
 }

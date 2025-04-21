@@ -12,8 +12,10 @@ func main() {
 
 // Stacktrace:
 // panic: other panic
-// main<VPBlock(1,0)>()
+// defer func(){ ... }()
 //     main/files/recover1b.gno:8
+// main<VPBlock(1,0)>()
+//     main/files/recover1b.gno:6
 
 // Error:
 // other panic
