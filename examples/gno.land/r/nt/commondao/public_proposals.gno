@@ -15,8 +15,8 @@ import (
 // - removeMembers: Comma separated list of member addresses to remove
 func CreateMembersUpdateProposal(daoID uint64, newMembers, removeMembers string) uint64 {
 	dao := mustGetDAO(daoID)
-	options := getOptions(daoID)
-	if !options.AllowMembersUpdate {
+	o := getOptions(daoID)
+	if !o.AllowMembersUpdate {
 		panic("forbidden")
 	}
 

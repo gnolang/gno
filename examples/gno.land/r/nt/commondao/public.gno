@@ -63,12 +63,12 @@ func NewSubDAO(name string, parent *commondao.CommonDAO) *commondao.CommonDAO {
 	assertCallerIsRealm() // TODO: Allow users to create SubDAOs using run TX?
 
 	if parent == nil {
-		panic("parent is required")
+		panic("parent DAO is required")
 	}
 
 	parentOptions := getOptions(parent.ID())
 	if !parentOptions.AllowChildren {
-		panic("forbidden")
+		panic("SubDAO support is not enabled")
 	}
 
 	name = strings.TrimSpace(name)
@@ -162,9 +162,9 @@ func GetSize(rootID uint64) int {
 func Vote(daoID, proposalID uint64, vote commondao.VoteChoice, reason string) {
 	dao := mustGetDAO(daoID)
 
-	options := getOptions(dao.ID())
-	if !options.AllowVoting {
-		panic("forbidden")
+	o := getOptions(dao.ID())
+	if !o.AllowVoting {
+		panic("voting is not enabled")
 	}
 
 	caller := std.OriginCaller()
@@ -180,9 +180,9 @@ func Vote(daoID, proposalID uint64, vote commondao.VoteChoice, reason string) {
 func Execute(daoID, proposalID uint64) {
 	dao := mustGetDAO(daoID)
 
-	options := getOptions(dao.ID())
-	if !options.AllowExecution {
-		panic("forbidden")
+	o := getOptions(dao.ID())
+	if !o.AllowExecution {
+		panic("proposal execution is not enabled")
 	}
 
 	caller := std.OriginCaller()
