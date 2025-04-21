@@ -149,10 +149,6 @@ func renderSettings(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(ufmt.Sprintf("| Enable Voting | %s |\n", strconv.FormatBool(o.AllowVoting)))
 	res.Write(ufmt.Sprintf("| Enable Proposal Execution | %s |\n", strconv.FormatBool(o.AllowExecution)))
 	res.Write(ufmt.Sprintf("| Allow Updating Members of this DAO | %s |\n", strconv.FormatBool(o.AllowMembersUpdate)))
-
-	if o.ReviewDeadline != 0 {
-		res.Write(ufmt.Sprintf("| Review Deadline | %s |\n", o.ReviewDeadline))
-	}
 }
 
 func renderProposalsList(res *mux.ResponseWriter, req *mux.Request) {

@@ -1,7 +1,5 @@
 package commondao
 
-import "time"
-
 var defaultOptions = Options{
 	AllowChildren:  true,
 	AllowVoting:    true,
@@ -24,10 +22,6 @@ type Options struct {
 	// AllowExecution enables proposal execution support.
 	AllowExecution bool
 
-	// ReviewDeadline configures a deadline where proposals can be withdrawn
-	// by the proposer. Votes can't be submitted during the review deadline.
-	ReviewDeadline time.Duration // TODO: Support voting deadline & proposal withdrawal (status failed + reason)
-
 	// AllowMembersUpdate allows creating a proposal to update DAO members.
 	AllowMembersUpdate bool
 }
@@ -46,10 +40,6 @@ func (o *Options) SetAllowVoting(allow bool) {
 
 func (o *Options) SetAllowExecution(allow bool) {
 	o.AllowExecution = allow
-}
-
-func (o *Options) SetReviewDeadline(deadline time.Duration) {
-	o.ReviewDeadline = deadline
 }
 
 func (o *Options) SetAllowMembersUpdate(allow bool) {

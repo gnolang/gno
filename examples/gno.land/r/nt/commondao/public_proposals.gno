@@ -17,8 +17,8 @@ func CreateMembersUpdateProposal(daoID uint64, newMembers, removeMembers string)
 	crossing()
 
 	dao := mustGetDAO(daoID)
-	options := getOptions(daoID)
-	if !options.AllowMembersUpdate {
+	o := getOptions(daoID)
+	if !o.AllowMembersUpdate {
 		panic("forbidden")
 	}
 
