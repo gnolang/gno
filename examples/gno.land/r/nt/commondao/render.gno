@@ -294,13 +294,21 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 	res.Write(ufmt.Sprintf("- Proposer: %s\n", userLink(p.Creator())))
 	res.Write(ufmt.Sprintf("- Submit Time: %s\n", p.CreatedAt().UTC().Format(time.RFC1123)))
 
+	record := p.VotingRecord()
+	if p.Status() == commondao.StatusActive {
+		passes, _ := def.Tally(record.Readonly(), commondao.NewMemberSet(dao.Members()))
+		if passes {
+			res.Write("- Expected Outcome: **pass** ☑\n")
+		} else {
+			res.Write("- Expected Outcome: **fail** ☒\n")
+		}
+	}
+
 	res.Write(ufmt.Sprintf("- Status: **%s**", string(p.Status())))
 	if reason := p.StatusReason(); reason != "" {
 		res.Write(ufmt.Sprintf(" • _%s_", reason))
 	}
 	res.Write("\n")
-
-	// TODO: Render expected outcome
 
 	// Render proposal body
 	if body := def.Body(); body != "" {
@@ -309,21 +317,19 @@ func renderProposal(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write("\n\n")
 	}
 
-	// Render voting stats
-	res.Write("## Stats\n")
-	renderProposalStats(res, p)
-
-	// Render votes
-	record := p.VotingRecord()
 	if record.Size() > 0 {
+		// Render voting stats
+		res.Write("## Stats\n")
+		renderProposalStats(res, record)
+
+		// Render votes
 		res.Write("## Votes\n")
 		res.Write(ufmt.Sprintf("Total number of votes: **%d**\n", record.Size()))
 		renderProposalVotes(res, req.RawPath, dao, p)
 	}
 }
 
-func renderProposalStats(res *mux.ResponseWriter, p *commondao.Proposal) {
-	record := p.VotingRecord()
+func renderProposalStats(res *mux.ResponseWriter, record *commondao.VotingRecord) {
 	totalCount := float64(record.Size())
 
 	res.Write("| Vote Choice | Percentage of Votes |\n| --- | --- |\n")
@@ -406,7 +412,7 @@ func mustGetDAOFromRequest(req *mux.Request) *commondao.CommonDAO {
 	}
 
 	o := getOptions(daoID)
-	if o.Private {
+	if o == nil || o.Private {
 		panic("Forbidden")
 	}
 
