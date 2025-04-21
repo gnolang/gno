@@ -1820,11 +1820,6 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	}
 	m.Package = pv
 
-	// If no realm, return early.
-	if m.Realm == nil {
-		return
-	}
-
 	// If cross, always switch to pv.Realm.
 	// If method, this means the object cannot be modified if
 	// stored externally by this method; but other methods can.
@@ -1868,7 +1863,8 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			return
 		} else {
 			recvOID := obj.GetObjectInfo().ID
-			if recvOID.IsZero() || recvOID.PkgID == m.Realm.ID {
+			if recvOID.IsZero() ||
+				(m.Realm != nil && recvOID.PkgID == m.Realm.ID) {
 				// no switch
 				return
 			} else {

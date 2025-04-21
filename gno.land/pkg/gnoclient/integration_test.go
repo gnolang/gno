@@ -406,6 +406,8 @@ import (
 	"gno.land/r/demo/tests"
 )
 func main() {
+	crossing()
+
 	println(ufmt.Sprintf("- before: %d", tests.Counter()))
 	for i := 0; i < 10; i++ {
 		tests.IncCounter()
@@ -419,6 +421,8 @@ import (
 	"gno.land/r/demo/deep/very/deep"
 )
 func main() {
+	crossing()
+
 	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
 }`
 

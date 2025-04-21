@@ -18,7 +18,6 @@ func (m *Machine) doOpPrecall() {
 		}
 	}
 
-	// handle cross().
 	switch fv := v.(type) {
 	case *FuncValue:
 		m.PushFrameCall(cx, fv, TypedValue{}, false)
