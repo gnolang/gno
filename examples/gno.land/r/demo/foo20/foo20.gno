@@ -66,14 +66,14 @@ func Faucet() {
 func Mint(to std.Address, amount uint64) {
 	crossing()
 
-	Ownable.AssertCallerIsOwner()
+	Ownable.AssertOwnedByPrevious()
 	checkErr(privateLedger.Mint(to, amount))
 }
 
 func Burn(from std.Address, amount uint64) {
 	crossing()
 
-	Ownable.AssertCallerIsOwner()
+	Ownable.AssertOwnedByPrevious()
 	checkErr(privateLedger.Burn(from, amount))
 }
 

@@ -165,7 +165,7 @@ func Downvote(pkgpath string) {
 func Delete(pkgpath string) {
 	crossing()
 
-	if !Ownable.CallerIsOwner() {
+	if !Ownable.OwnedByPrevious() {
 		panic(ownable.ErrUnauthorized)
 	}
 

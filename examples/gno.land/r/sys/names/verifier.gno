@@ -29,7 +29,7 @@ func IsAuthorizedAddressForNamespace(address std.Address, namespace string) bool
 func Enable() {
 	crossing()
 
-	Ownable.AssertCallerIsOwner()
+	Ownable.AssertOwnedByPrevious()
 	enabled = true
 	Ownable.DropOwnership()
 }
