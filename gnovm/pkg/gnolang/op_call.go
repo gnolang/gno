@@ -434,6 +434,8 @@ func (m *Machine) doOpDefer() {
 }
 
 // XXX DEPRECATED
+//
+//nolint:govet // unreachable code
 func (m *Machine) doOpPanic1() {
 	panic("doOpPanic1 is deprecated")
 	// Pop exception
