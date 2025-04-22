@@ -1353,8 +1353,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				if cx, ok := n.Func.(*ConstExpr); ok {
 					fv := cx.GetFunc()
 					if fv.PkgPath == uversePkgPath && fv.Name == "append" {
-						// append returns a slice and slices are always addressable.
-						n.Addressability = addressabilityStatusSatisfied
 						if n.Varg && len(n.Args) == 2 {
 							// If the second argument is a string,
 							// convert to byteslice.
@@ -1401,10 +1399,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								n.Args[1] = args1
 							}
 						}
-					} else if fv.PkgPath == uversePkgPath && fv.Name == "new" {
-						// The pointer value returned is not addressable, but maybe some selector
-						// will make it addressable. For now mark it as not addressable.
-						n.Addressability = addressabilityStatusUnsatisfied
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "cross" {
 						// Memoize *CallExpr.WithCross.
 						pc, ok := ns[len(ns)-1].(*CallExpr)
@@ -1415,16 +1409,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "crossing" {
 						// XXX Make sure it's only used in a realm.
 					}
-				}
-
-				// If addressability is not satisfied at this point and the function call returns only one
-				// result, then mark addressability as unsatisfied. Otherwise, this expression has already
-				// been explicitly marked as satisfied, or the function returns multiple results, rendering
-				// addressability NotApplicable for this situation -- it should fallback to the error produced
-				// when trying to take a reference or slice the result of a call expression that returns
-				// multiple values.
-				if n.Addressability != addressabilityStatusSatisfied && len(ft.Results) == 1 {
-					n.Addressability = addressabilityStatusUnsatisfied
 				}
 
 				// Continue with general case.
@@ -1572,23 +1556,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// Replace const index with int *ConstExpr,
 					// or if not const, assert integer type..
 					checkOrConvertIntegerKind(store, last, n, n.Index)
-
-					// Addressability of this index expression can only be known for slice and
-					// strings, explanations below in the respective blocks. If this is an index
-					// on an array, do nothing. This will defer to the array's addresability when
-					// the `addressability` method is called on this index expression.
-					if dt.Kind() == SliceKind {
-						// A value at a slice index is always addressable because the underlying
-						// array is addressable.
-						n.Addressability = addressabilityStatusSatisfied
-					} else if dt.Kind() == StringKind {
-						// Special case; string indexes are never addressable.
-						n.Addressability = addressabilityStatusUnsatisfied
-					}
 				case MapKind:
 					mt := baseOf(dt).(*MapType)
 					checkOrConvertType(store, last, n, &n.Index, mt.Key, false)
-					n.Addressability = addressabilityStatusUnsatisfied
 				default:
 					panic(fmt.Sprintf(
 						"unexpected index base kind for type %s",
@@ -1604,11 +1574,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				checkOrConvertIntegerKind(store, last, n, n.Max)
 
 				t := evalStaticTypeOf(store, last, n.X)
-				if t.Kind() == ArrayKind {
-					if n.X.addressability() == addressabilityStatusUnsatisfied {
-						panic(fmt.Sprintf("cannot take address of %s", n.X.String()))
-					}
-				}
 
 				// if n.X is untyped, convert to corresponding type
 				if isUntyped(t) {
@@ -1686,10 +1651,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						convertType(store, last, n, &n.Elts[i].Key, IntType)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt, false)
 					}
-
-					// Slices are always addressable because the underlying array
-					// is added to the heap during initialization.
-					n.IsAddressable = true
 				case *MapType:
 					for i := range n.Elts {
 						checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key, false)
@@ -1726,16 +1687,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 				}
 
-				// If ftype is TRANS_REF_X, then this composite literal being created looks
-				// something like this in the code: `&MyStruct{}`. It is marked as addressable here
-				// because on TRANS_LEAVE for a RefExpr, it defers to the addressability of the
-				// expression it is referencing. When a composite literal is created with a preceding
-				// '&', it means the value is assigned to an address and that address is returned,
-				// so the value is addressable.
-				if ftype == TRANS_REF_X {
-					n.IsAddressable = true
-				}
-
 			// TRANS_LEAVE -----------------------
 			case *KeyValueExpr:
 				// NOTE: For simplicity we just
@@ -1752,9 +1703,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
 				xt := evalStaticTypeOf(store, last, n.X)
-				if xt.Kind() == PointerKind {
-					n.IsAddressable = true
-				}
 
 				// Set selector path based on xt's type.
 				switch cxt := xt.(type) {
@@ -2345,15 +2293,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				n.Type = constType(n.Type, dst)
 
 			case *RefExpr:
-				// If n.X is a RefExpr, then this expression is something like:
-				// &(&value). The resulting pointer value of the first reference is not
-				// addressable. Otherwise fall back to the target expression's addressability.
-				_, xIsRef := n.X.(*RefExpr)
-				tt := evalStaticTypeOf(store, last, n.X)
-
-				if ft, is_func := tt.(*FuncType); (is_func && !ft.IsClosure) || xIsRef || n.X.addressability() == addressabilityStatusUnsatisfied {
-					panic(fmt.Sprintf("cannot take address of %s", n.X.String()))
-				}
 			}
 			// end type switch statement
 			// END TRANS_LEAVE -----------------------
