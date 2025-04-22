@@ -77,16 +77,12 @@ func (o *Ownable) OwnedByPrevious() bool {
 	if o == nil {
 		return false
 	}
-	return std.CurrentRealm().Address() == o.owner
+	return std.PreviousRealm().Address() == o.owner
 }
 
 // AssertOwnedByPrevious panics if the caller is not the owner
 func (o *Ownable) AssertOwnedByPrevious() {
-	if o == nil {
-		panic(ErrUnauthorized)
-	}
-	caller := std.CurrentRealm().Address()
-	if caller != o.owner {
+	if !o.OwnedByPrevious() {
 		panic(ErrUnauthorized)
 	}
 }
