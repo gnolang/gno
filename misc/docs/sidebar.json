@@ -38,6 +38,8 @@
           "resources/gas-fees",
           "resources/gno-stdlibs",
           "resources/gno-testing",
+          "resources/gno-interrealm",
+          "resources/gno-memory-model",
           "resources/glossary",
           "resources/go-gno-compatibility",
           {
