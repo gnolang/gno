@@ -14,3 +14,6 @@ func main() {
 
 // Output:
 // 2
+
+// TypeCheckError:
+// main/files/const49.gno:3:8: "io" imported and not used

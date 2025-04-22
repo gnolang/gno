@@ -8,3 +8,6 @@ func main() {
 
 // Error:
 // main/files/assign38.gno:5:2: cannot use nil as int value in assignment
+
+// TypeCheckError:
+// main/files/assign38.gno:5:6: cannot use nil as int value in assignment
