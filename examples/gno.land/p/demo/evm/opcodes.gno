@@ -280,7 +280,7 @@ var (
 		DUP14:          {DUP14, "DUP14", opNotImplemented /*opDup14*/},
 		DUP15:          {DUP15, "DUP15", opNotImplemented /*opDup15*/},
 		DUP16:          {DUP16, "DUP16", opNotImplemented /*opDup16*/},
-		SWAP1:          {SWAP1, "SWAP1", opNotImplemented /*opSwap1*/},
+		SWAP1:          {SWAP1, "SWAP1", opSwap1},
 		SWAP2:          {SWAP2, "SWAP2", opNotImplemented /*opSwap2*/},
 		SWAP3:          {SWAP3, "SWAP3", opNotImplemented /*opSwap3*/},
 		SWAP4:          {SWAP4, "SWAP4", opNotImplemented /*opSwap4*/},

@@ -15,19 +15,19 @@ func TestExecuteEvm(t *testing.T) {
 	}{
 		{
 			name:             "simple addition",
-			code:             []byte{0x60, 1, 0x60, 1, 0x01, 0x00}, // PUSH1 1, PUSH1 1, ADD
+			code:             []byte{byte(PUSH1), 1, byte(PUSH1), 1, byte(ADD), byte(STOP)}, // PUSH1 1, PUSH1 1, ADD
 			expected_success: []byte{2},
 			expected_error:   nil,
 		},
 		{
 			name:             "error can't add on empty stack",
-			code:             []byte{0x01}, // ADD
+			code:             []byte{byte(ADD)}, // ADD
 			expected_success: []byte{},
 			expected_error:   errors.New("can't ADD: empty stack"),
 		},
 		{
 			name:             "error push out of bounds",
-			code:             []byte{0x60}, // PUSH1
+			code:             []byte{byte(PUSH1)}, // PUSH1
 			expected_success: []byte{},
 			expected_error:   outOfBounds,
 		},
@@ -35,6 +35,12 @@ func TestExecuteEvm(t *testing.T) {
 			name:             "simple addition and mul",
 			code:             []byte{byte(PUSH1), 10, byte(PUSH1), 11, byte(ADD), byte(PUSH1), 2, byte(MUL), byte(STOP)}, // PUSH1 10, PUSH1 11, ADD, PUSH1 2, MUL
 			expected_success: []byte{42},
+			expected_error:   nil,
+		},
+		{
+			name:             "exchange 1st and 2nd stack items",
+			code:             []byte{byte(PUSH0), byte(PUSH1), 0x42, byte(SWAP1), byte(STOP)}, // PUSH0, PUSH1 0x42, SWAP1
+			expected_success: []byte{66, 0},
 			expected_error:   nil,
 		},
 		// Add more test cases as needed
