@@ -2,31 +2,31 @@ package evm
 
 const memSize = 30000
 
-type State struct {
+type state struct {
 	memory []byte
-	stack  ByteStack
+	stack  byteStack
 	buf    []byte
-	code   Instructions
+	code   instructions
 }
 
-func newState() *State {
-	return &State{
+func newState() *state {
+	return &state{
 		stack:  *NewByteStack(),
 		memory: make([]byte, memSize),
 		buf:    []byte{},
-		code:   Instructions{},
+		code:   instructions{},
 	}
 }
 
 // TODO: return the s.buf
-func (s State) getResult() []byte {
+func (s state) getResult() []byte {
 	// return s.buf
 	return s.stack.data
 }
 
-func (s *State) executeByteCode(code []byte) error {
+func (s *state) executeByteCode(code []byte) error {
 	s.code.Reset(code)
-	for !s.code.Ill() && s.code.Current() != byte(STOP) {
+	for !s.code.Ill() && s.code.Current() != byte(STOP) { // 60 01 60 02 01 00
 		opData, ok := opCodes[OpCode(s.code.Current())]
 		if !ok {
 			return opNotImplemented(s)

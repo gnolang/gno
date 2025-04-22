@@ -2,24 +2,24 @@ package evm
 
 import "errors"
 
-type ByteStack struct {
+type byteStack struct {
 	data   []byte
 	length uint
 }
 
-func NewByteStack() *ByteStack {
-	return &ByteStack{
+func NewByteStack() *byteStack {
+	return &byteStack{
 		data:   make([]byte, 0),
 		length: 0,
 	}
 }
 
-func (s *ByteStack) Push(b byte) {
+func (s *byteStack) Push(b byte) {
 	s.data = append(s.data, b)
 	s.length++
 }
 
-func (s *ByteStack) Pop() (byte, error) {
+func (s *byteStack) Pop() (byte, error) {
 	if s.length == 0 {
 		return 0, errors.New("stack is empty")
 	}
@@ -29,7 +29,7 @@ func (s *ByteStack) Pop() (byte, error) {
 	return top, nil
 }
 
-func (s *ByteStack) Top() (*byte, error) {
+func (s *byteStack) Top() (*byte, error) {
 	if s.length == 0 {
 		return nil, errors.New("stack is empty")
 	}
