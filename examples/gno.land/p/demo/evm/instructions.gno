@@ -1,5 +1,11 @@
 package evm
 
+import (
+	"fmt"
+
+	"gno.land/p/demo/evm/uint256"
+)
+
 type instructions struct {
 	rip          int
 	instructions []byte
@@ -15,7 +21,7 @@ func (i *instructions) Reset(l []byte) {
 func (i *instructions) Increment(more ...int) *instructions {
 	x := 1
 	if len(more) > 0 {
-		i.rip = more[0]
+		x = more[0]
 	}
 	if (i.rip + x) >= i.length {
 		i.rip = -1 // out of bounds
@@ -38,21 +44,11 @@ func (i instructions) Ill() bool {
 
 // read n bytes and jump to rip + n
 // TODO: make it uint256
-func (i *instructions) Read(n int) uint64 {
+func (i *instructions) Read(n int) *uint256.Uint {
 	if i.rip < 0 {
-		return 0
+		return uint256.New()
 	}
-
-	var res uint64 = 0
-	for n > 0 {
-		res <<= 8
-		res |= uint64(i.Current())
-		i.rip++
-		if i.rip >= i.length {
-			i.rip = -1 // out of bounds
-			return 0
-		}
-		n--
-	}
-	return res
+	x := uint256.NewFromBytes(i.instructions[i.rip:i.rip+n])
+	i.Increment(n)
+	return x
 }

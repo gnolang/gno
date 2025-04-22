@@ -1,5 +1,11 @@
 package evm
 
+import (
+	"fmt"
+
+	"gno.land/p/demo/evm/uint256"
+)
+
 const memSize = 30000
 
 type state struct {
@@ -19,9 +25,13 @@ func newState() *state {
 }
 
 // TODO: return the s.buf
-func (s state) getResult() []byte {
+func (s state) getStackData() []*uint256.Uint {
 	// return s.buf
 	return s.stack.data
+}
+
+func (s state) getResult() []byte {
+	return s.buf
 }
 
 func (s *state) executeByteCode(code []byte) error {

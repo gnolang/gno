@@ -2,7 +2,10 @@ package evm
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
+
+	"gno.land/p/demo/evm/uint256"
 )
 
 var outOfBounds = errors.New("out of bounds")
@@ -22,7 +25,7 @@ func opAdd(s *state) error {
 		return errors.New("can't ADD: stack of size 1")
 	}
 
-	s.stack.Push(a1 + a2)
+	s.stack.Push(a1.Add256(a2))
 	s.code.Increment()
 	return nil
 }
@@ -38,13 +41,13 @@ func opMul(s *state) error {
 		return errors.New("can't MUL: stack of size 1")
 	}
 
-	s.stack.Push(a1 * a2)
+	s.stack.Push(a1.Mul256(a2))
 	s.code.Increment()
 	return nil
 }
 
 func opPush0(s *state) error {
-	s.stack.Push(0)
+	s.stack.Push(uint256.New())
 	s.code.Increment()
 	return nil
 }
@@ -54,7 +57,6 @@ func opPush1(s *state) error {
 	if s.code.Ill() {
 		return outOfBounds
 	}
-	x := s.code.Read(1)
-	s.stack.Push(byte(x))
+	s.stack.Push(s.code.Read(1))
 	return nil
 }

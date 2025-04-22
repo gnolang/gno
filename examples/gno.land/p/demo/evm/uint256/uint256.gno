@@ -3,11 +3,12 @@ package uint256
 import (
 	"encoding/binary"
 	"errors"
+	"math/bits"
 	"strconv"
 	"strings"
 )
 
-type uint256 struct {
+type Uint struct {
 	data [4]uint64
 }
 
@@ -31,7 +32,7 @@ func lpad(s string, totalLength int, padChar rune) string {
 
 // ctors
 
-func NewFromString(s string, base int) (*uint256, error) {
+func NewFromString(s string, base int) (*Uint, error) {
 	u := New()
 	for _, c := range s {
 		var digit uint64
@@ -55,11 +56,11 @@ func NewFromString(s string, base int) (*uint256, error) {
 	return u, nil
 }
 
-func New() *uint256 {
-	return &uint256{data: [4]uint64{0, 0, 0, 0}}
+func New() *Uint {
+	return &Uint{data: [4]uint64{0, 0, 0, 0}}
 }
 
-func NewFrom64s(us ...uint64) *uint256 {
+func NewFrom64s(us ...uint64) *Uint {
 	u := New()
 	for n := 0; n < len(us) && n < 4; n++ {
 		u.data[n] = us[n]
@@ -67,7 +68,7 @@ func NewFrom64s(us ...uint64) *uint256 {
 	return u
 }
 
-func NewFromBytes(b []byte) *uint256 {
+func NewFromBytes(b []byte) *Uint {
 	u := New()
 	lenBlocs := (len(b) / 8) + 1
 	blocs := [4][]byte{}
@@ -89,7 +90,7 @@ func NewFromBytes(b []byte) *uint256 {
 
 // string
 
-func (u uint256) HexString() string {
+func (u Uint) HexString() string {
 	buf := "0x"
 	last0 := 3
 	for i := 3; i >= 0; i-- {
@@ -113,8 +114,8 @@ func (u uint256) HexString() string {
 	return buf
 }
 
-func (u uint256) divMod10() (uint256, uint64) {
-	var result uint256
+func (u Uint) divMod10() (Uint, uint64) {
+	var result Uint
 	var remainder uint64 = 0
 
 	for i := 3; i >= 0; i-- {
@@ -145,7 +146,7 @@ func div128by10(hi, lo uint64) (quotient, remainder uint64) {
 	return q, hi
 }
 
-func (u uint256) String() string {
+func (u Uint) String() string {
 	if u.IsZero() {
 		return "0"
 	}
@@ -203,7 +204,7 @@ func carryMul(a, b uint64) (lo, hi uint64) {
 	return lo, hi
 }
 
-func (u *uint256) add64Level(x uint64, n int) {
+func (u *Uint) add64Level(x uint64, n int) {
 	for i := n; true; i++ {
 		res, carry := carryAdd(u.data[i], x)
 		u.data[i] = res
@@ -214,11 +215,41 @@ func (u *uint256) add64Level(x uint64, n int) {
 	}
 }
 
-func (u *uint256) Add64(x uint64) {
+func (u *Uint) Add64(x uint64) {
 	u.add64Level(x, 0)
 }
 
-func (u *uint256) Mul64(x uint64) {
+func (x *Uint) Add256(y *Uint) *Uint {
+	var carry uint64
+	x.data[0], carry = bits.Add64(x.data[0], y.data[0], 0)
+	x.data[1], carry = bits.Add64(x.data[1], y.data[1], carry)
+	x.data[2], carry = bits.Add64(x.data[2], y.data[2], carry)
+	x.data[3], _ = bits.Add64(x.data[3], y.data[3], carry)
+	return x
+}
+
+func (x *Uint) Mul256(y *Uint) *Uint {
+	result := New()
+	for i := 0; i < 4; i++ {
+		if x.data[i] == 0 {
+			continue
+		}
+		for j := 0; j < 4; j++ {
+			if i+j >= 4 {
+				break // skip overflow >256 bits
+			}
+			lo, hi := carryMul(x.data[i], y.data[j])
+			result.add64Level(lo, i+j)
+			if i+j+1 < 4 {
+				result.add64Level(hi, i+j+1)
+			}
+		}
+	}
+	x.data = result.data
+	return x
+}
+
+func (u *Uint) Mul64(x uint64) {
 	dup := New()
 	for i := 0; i < 3; i++ {
 		lo, hi := carryMul(u.data[i], x)
@@ -234,6 +265,10 @@ func (u *uint256) Mul64(x uint64) {
 	u.data = dup.data
 }
 
-func (u uint256) IsZero() bool {
+func (u Uint) IsZero() bool {
 	return u.data[0] == 0 && u.data[1] == 0 && u.data[2] == 0 && u.data[3] == 0
+}
+
+func (x Uint) Equals(y *Uint) bool {
+	return x.data[0] == y.data[0] && x.data[1] == y.data[1] && x.data[2] == y.data[2] && x.data[3] == y.data[3]
 }
