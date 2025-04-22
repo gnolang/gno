@@ -170,7 +170,7 @@ func NewMsgRun(caller crypto.Address, send std.Coins, files []*gnovm.MemFile) Ms
 		Send:   send,
 		Package: &gnovm.MemPackage{
 			Name:  "main",
-			Path:  "", // auto set by the handler
+			Path:  "", // auto-set by handler to fmt.Sprintf("gno.land/r/%v/run", caller.String()),
 			Files: files,
 		},
 	}
@@ -188,10 +188,12 @@ func (msg MsgRun) ValidateBasic() error {
 		return std.ErrInvalidAddress("missing caller address")
 	}
 
-	// Force memPkg path to the reserved run path.
-	wantSuffix := "/r/" + msg.Caller.String() + "/run"
-	if path := msg.Package.Path; path != "" && !strings.HasSuffix(path, wantSuffix) {
-		return ErrInvalidPkgPath(fmt.Sprintf("invalid pkgpath for MsgRun: %q", path))
+	if msg.Package.Path != "" {
+		// Force memPkg path to the reserved run path.
+		expected := "gno.land/r/" + msg.Caller.String() + "/run"
+		if path := msg.Package.Path; path != expected {
+			return ErrInvalidPkgPath(fmt.Sprintf("invalid pkgpath for MsgRun: %q", path))
+		}
 	}
 
 	return nil

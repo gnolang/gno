@@ -55,6 +55,8 @@ package tests
 import "gno.land/r/demo/realm2"
 
 func main() {
+	crossing()
+
 	realm2.Do()
 	println("OK")
 }

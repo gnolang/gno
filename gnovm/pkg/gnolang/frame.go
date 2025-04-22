@@ -22,20 +22,25 @@ type Frame struct {
 	NumBlocks int  // number of blocks in stack
 
 	// call frame
-	Func        *FuncValue    // function value
-	Receiver    TypedValue    // if bound method
-	NumArgs     int           // number of arguments in call
-	IsVarg      bool          // is form fncall(???, vargs...)
-	Defers      []Defer       // deferred calls
-	LastPackage *PackageValue // previous package context
-	LastRealm   *Realm        // previous realm context
+	Func          *FuncValue    // function value
+	Receiver      TypedValue    // if bound method
+	NumArgs       int           // number of arguments in call
+	IsVarg        bool          // is form fncall(???, vargs...)
+	LastPackage   *PackageValue // previous frame's package
+	LastRealm     *Realm        // previous frame's realm
+	WithCross     bool          // true if called like cross(fn)(...). expects crossing() after.
+	DidCross      bool          // true if crossing() was called.
+	Defers        []Defer       // deferred calls
+	IsDefer       bool          // was func defer called
+	LastException *Exception    // previous m.exception
 
-	Popped bool // true if frame has been popped
+	// test info
+	TestOverridden bool // bool if overridden by test SetContext.
 }
 
 func (fr Frame) String() string {
 	if fr.Func != nil {
-		return fmt.Sprintf("[FRAME FUNC:%v RECV:%s (%d args) %d/%d/%d/%d/%d LASTPKG:%s LASTRLM:%v]",
+		return fmt.Sprintf("[FRAME FUNC:%v RECV:%s (%d args) %d/%d/%d/%d/%d LASTPKG:%s LASTRLM:%v WSW:%v DSW:%v ISDEFER:%v LASTEX:%v]",
 			fr.Func,
 			fr.Receiver,
 			fr.NumArgs,
@@ -45,7 +50,12 @@ func (fr Frame) String() string {
 			fr.NumStmts,
 			fr.NumBlocks,
 			fr.LastPackage.PkgPath,
-			fr.LastRealm)
+			fr.LastRealm,
+			fr.WithCross,
+			fr.DidCross,
+			fr.IsDefer,
+			fr.LastException,
+		)
 	} else {
 		return fmt.Sprintf("[FRAME LABEL: %s %d/%d/%d/%d/%d]",
 			fr.Label,
@@ -74,6 +84,20 @@ func (fr *Frame) PopDefer() (res Defer, ok bool) {
 	return
 }
 
+func (fr *Frame) SetWithCross() {
+	if fr.WithCross {
+		panic("fr.WithCross already set")
+	}
+	fr.WithCross = true
+}
+
+func (fr *Frame) SetDidCross() {
+	if fr.DidCross {
+		panic("fr.DidCross already set")
+	}
+	fr.DidCross = true
+}
+
 //----------------------------------------
 // Defer
 
@@ -82,15 +106,12 @@ type Defer struct {
 	Args   []TypedValue // arguments
 	Source *DeferStmt   // source
 	Parent *Block
-
-	// PanicScope is set to the value of the Machine's PanicScope when the
-	// defer is created. The PanicScope of the Machine is incremented each time
-	// a panic occurs and is decremented each time a panic is recovered.
-	PanicScope uint
 }
 
 type StacktraceCall struct {
-	Frame *Frame
+	CallExpr *CallExpr
+	IsDefer  bool
+	FuncLoc  Location // func loc in which CallExpr is declared
 }
 type Stacktrace struct {
 	Calls           []StacktraceCall
@@ -109,19 +130,17 @@ func (s Stacktrace) String() string {
 		if i == 0 {
 			line = s.LastLine
 		} else {
-			line = s.Calls[i-1].Frame.Source.GetLine()
+			line = s.Calls[i-1].CallExpr.GetLine()
 		}
 
-		cx := call.Frame.Source.(*CallExpr)
-		switch {
-		case call.Frame.Func != nil && call.Frame.Func.IsNative():
-			fmt.Fprintf(&builder, "%s\n", toExprTrace(cx))
-			fmt.Fprintf(&builder, "    gonative:%s.%s\n", call.Frame.Func.NativePkg, call.Frame.Func.NativeName)
-		case call.Frame.Func != nil:
-			fmt.Fprintf(&builder, "%s\n", toExprTrace(cx))
-			fmt.Fprintf(&builder, "    %s/%s:%d\n", call.Frame.Func.PkgPath, call.Frame.Func.FileName, line)
-		default:
-			panic("StacktraceCall has a non-call Frame")
+		if call.IsDefer {
+			fmt.Fprintf(&builder, "defer ")
+		}
+		fmt.Fprintf(&builder, "%s\n", toExprTrace(call.CallExpr))
+		if line == -1 { // special line for native
+			fmt.Fprintf(&builder, "    gonative:%s/%s\n", call.FuncLoc.PkgPath, call.FuncLoc.File)
+		} else {
+			fmt.Fprintf(&builder, "    %s/%s:%d\n", call.FuncLoc.PkgPath, call.FuncLoc.File, line)
 		}
 	}
 	return builder.String()
@@ -204,7 +223,7 @@ func toConstExpTrace(cte *ConstExpr) string {
 		}
 	}
 
-	return tv.T.String()
+	return tv.V.String()
 }
 
 //----------------------------------------
@@ -212,17 +231,45 @@ func toConstExpTrace(cte *ConstExpr) string {
 
 // Exception represents a panic that originates from a gno program.
 type Exception struct {
-	// Value is the value passed to panic.
-	Value TypedValue
-	// Frame is used to reference the frame a panic occurred in so that recover() knows if the
-	// currently executing deferred function is able to recover from the panic.
-	Frame *Frame
-
+	Value      TypedValue
 	Stacktrace Stacktrace
+	Previous   *Exception
+	Next       *Exception
 }
 
-func (e Exception) Sprint(m *Machine) string {
-	return e.Value.Sprint(m)
+func (e *Exception) StringWithStacktrace(m *Machine) string {
+	return "panic: " + e.Value.Sprint(m) + "\n" + e.Stacktrace.String()
+}
+
+func (e *Exception) Sprint(m *Machine) string {
+	res := e.Value.Sprint(m)
+	return res
+}
+
+func (e *Exception) NumExceptions() int {
+	if e == nil {
+		return 0
+	}
+	num := 1
+	for ; e.Previous != nil; e = e.Previous {
+		num++
+	}
+	return num
+}
+
+func (e *Exception) WithPrevious(e2 *Exception) *Exception {
+	if e == nil {
+		panic("missing exception")
+	}
+	if e.Previous != nil {
+		panic("previous exception already exists")
+	}
+	if e2 == nil {
+		return e
+	}
+	e.Previous = e2
+	e2.Next = e
+	return e
 }
 
 // UnhandledPanicError represents an error thrown when a panic is not handled in the realm.

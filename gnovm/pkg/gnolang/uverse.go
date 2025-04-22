@@ -1,5 +1,7 @@
 package gnolang
 
+// XXX append and delete need checks too.
+
 import (
 	"bytes"
 	"fmt"
@@ -162,7 +164,7 @@ func makeUverseNode() {
 			"res", GenT("X", nil), // res
 		),
 		func(m *Machine) {
-			arg0, arg1 := m.LastBlock().GetParams2()
+			arg0, arg1 := m.LastBlock().GetParams2(m.Store)
 			// As a special case, if arg1 is a string type, first convert it into
 			// a data slice type.
 			if arg1.TV.T != nil && arg1.TV.T.Kind() == StringKind {
@@ -404,7 +406,7 @@ func makeUverseNode() {
 			"", "int",
 		),
 		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1()
+			arg0 := m.LastBlock().GetParams1(m.Store)
 			res0 := TypedValue{
 				T: IntType,
 				V: nil,
@@ -423,7 +425,7 @@ func makeUverseNode() {
 			"", "int",
 		),
 		func(m *Machine) {
-			arg0, arg1 := m.LastBlock().GetParams2()
+			arg0, arg1 := m.LastBlock().GetParams2(m.Store)
 			dst, src := arg0, arg1
 			switch bdt := baseOf(dst.TV.T).(type) {
 			case *SliceType:
@@ -501,7 +503,7 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
-			arg0, arg1 := m.LastBlock().GetParams2()
+			arg0, arg1 := m.LastBlock().GetParams2(m.Store)
 			itv := arg1.Deref()
 			switch baseOf(arg0.TV.T).(type) {
 			case *MapType:
@@ -540,7 +542,7 @@ func makeUverseNode() {
 			"", "int",
 		),
 		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1()
+			arg0 := m.LastBlock().GetParams1(m.Store)
 			res0 := TypedValue{
 				T: IntType,
 				V: nil,
@@ -559,7 +561,7 @@ func makeUverseNode() {
 			"", GenT("T", nil),
 		),
 		func(m *Machine) {
-			arg0, arg1 := m.LastBlock().GetParams2()
+			arg0, arg1 := m.LastBlock().GetParams2(m.Store)
 			vargs := arg1
 			vargsl := vargs.TV.GetLength()
 			tt := arg0.TV.GetType()
@@ -682,14 +684,11 @@ func makeUverseNode() {
 			"", GenT("*T", nil),
 		),
 		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1()
+			arg0 := m.LastBlock().GetParams1(m.Store)
 			tt := arg0.TV.GetType()
-			vv := defaultValue(m.Alloc, tt)
+			tv := defaultTypedValue(m.Alloc, tt)
 			m.Alloc.AllocatePointer()
-			hi := m.Alloc.NewHeapItem(TypedValue{
-				T: tt,
-				V: vv,
-			})
+			hi := m.Alloc.NewHeapItem(tv)
 			m.PushValue(TypedValue{
 				T: m.Alloc.NewType(&PointerType{
 					Elt: tt,
@@ -711,7 +710,7 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1()
+			arg0 := m.LastBlock().GetParams1(m.Store)
 			uversePrint(m, arg0, false)
 		},
 	)
@@ -721,8 +720,19 @@ func makeUverseNode() {
 		),
 		nil, // results
 		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1()
+			arg0 := m.LastBlock().GetParams1(m.Store)
 			uversePrint(m, arg0, true)
+		},
+	)
+	defNative("panic",
+		Flds( // params
+			"exception", AnyT(),
+		),
+		nil, // results
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(m.Store)
+			ex := arg0.TV.Copy(m.Alloc)
+			m.Panic(ex)
 		},
 	)
 	defNative("recover",
@@ -737,6 +747,65 @@ func makeUverseNode() {
 			} else {
 				m.PushValue(exception.Value)
 			}
+		},
+	)
+	defNative("crossing",
+		nil, // params
+		nil, // results
+		func(m *Machine) {
+			stmt := m.PeekStmt(1)
+			bs, ok := stmt.(*bodyStmt)
+			if !ok {
+				panic("unexpected origin of crossing call")
+			}
+			if bs.NextBodyIndex != 1 {
+				panic("crossing call must be the first call of a function or method")
+			}
+			fr1 := m.PeekCallFrame(1) // fr1.LastPackage created fr.
+			if !fr1.LastPackage.IsRealm() {
+				panic("crossing call only allowed in realm packages") // XXX test
+			}
+			// Verify prior fr.WithCross or fr.DidCross.
+			// NOTE: fr.WithCross may or may not be true,
+			// crossing() (which sets fr.DidCross) can be
+			// stacked.
+			for i := 1 + 1; ; i++ {
+				fri := m.PeekCallFrame(i)
+				if fri == nil {
+					panic("crossing could not find corresponding cross(fn)(...) call")
+				}
+				if fri.WithCross || fri.DidCross {
+					// NOTE: fri.DidCross implies
+					// everything under it is also valid.
+					// fri.DidCross && !fri.WithCross
+					// can happen with an implicit switch.
+					fr2 := m.PeekCallFrame(2)
+					fr2.SetDidCross()
+					return
+				}
+				// Neither fri.WithCross nor fri.DidCross, yet
+				// Realm already switched implicitly.
+				if fri.LastRealm != m.Realm {
+					panic("crossing could not find corresponding cross(fn)(...) call")
+				}
+			}
+			panic("should not happen") // defensive
+		},
+	)
+	defNative("cross",
+		Flds( // param
+			"x", GenT("X", nil),
+		),
+		Flds( // results
+			"x", GenT("X", nil),
+		),
+		func(m *Machine) {
+			// This is handled by op_call instead.
+			panic("cross is a virtual function")
+			/*
+				arg0 := m.LastBlock().GetParams1(m.Store)
+				m.PushValue(arg0.Deref())
+			*/
 		},
 	)
 	uverseValue = uverseNode.NewPackage()

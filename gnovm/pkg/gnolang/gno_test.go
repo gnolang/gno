@@ -21,15 +21,15 @@ func setupMachine(b *testing.B, numValues, numStmts, numExprs, numBlocks, numFra
 	b.Helper()
 
 	m := &Machine{
-		Ops:        make([]Op, 100),
-		NumOps:     100,
-		Values:     make([]TypedValue, numValues),
-		NumValues:  numValues,
-		Exprs:      make([]Expr, numExprs),
-		Stmts:      make([]Stmt, numStmts),
-		Blocks:     make([]*Block, numBlocks),
-		Frames:     make([]*Frame, numFrames),
-		Exceptions: make([]Exception, numExceptions),
+		Ops:       make([]Op, 100),
+		NumOps:    100,
+		Values:    make([]TypedValue, numValues),
+		NumValues: numValues,
+		Exprs:     make([]Expr, numExprs),
+		Stmts:     make([]Stmt, numStmts),
+		Blocks:    make([]*Block, numBlocks),
+		Frames:    make([]Frame, numFrames),
+		Exception: nil,
 	}
 	return m
 }
@@ -463,6 +463,27 @@ func main() {
 
 	for i := 0; i < b.N; i++ {
 		m.RunMain()
+	}
+}
+
+func TestOptimizeConversion(t *testing.T) {
+	t.Parallel()
+
+	m := NewMachine("test", nil)
+	c := `package test
+func main() {}
+
+func foo(a int) {
+    b := int(a)
+    println(b)
+}`
+	n := MustParseFile("main.go", c)
+	m.RunFiles(n)
+	fn := n.Decls[1].(*FuncDecl)
+	as := fn.Body[0].(*AssignStmt)
+	ne := as.Rhs[0].(*NameExpr)
+	if ne.Name != "a" {
+		t.Fatalf("expecting optimized 'a', got %v", ne.String())
 	}
 }
 
