@@ -140,7 +140,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			continue
 		}
 
-		// Handle runtime errors
+		// Handle lintTypecheck error and preprocess errors
 		hasError2 = catchError(pkgPath, io.Err(), func() {
 			// Wrap in cache wrap so execution of the linter doesn't impact
 			// other packages.
@@ -168,11 +168,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		})
 	}
 
-	if hasError2 {
-		hasError = true
-	}
-
-	if hasError {
+	if hasError || hasError2 {
 		return commands.ExitCodeError(1)
 	}
 
@@ -289,8 +285,6 @@ func catchError(pkgPath string, stderr goio.WriteCloser, action func()) (hasErro
 			}
 		case string:
 			fmt.Fprintln(stderr, issueFromError(pkgPath, errors.New(verr)).String())
-		case lintIssue:
-			fmt.Fprintln(stderr, verr)
 		default:
 			panic(r)
 		}

@@ -177,8 +177,8 @@ func listNonTestFiles(dir string) ([]string, error) {
 	for _, f := range fs {
 		n := f.Name()
 		if isGnoFile(f) &&
-				!strings.HasSuffix(n, "_test.gno") &&
-				!strings.HasSuffix(n, "_filetest.gno") {
+			!strings.HasSuffix(n, "_test.gno") &&
+			!strings.HasSuffix(n, "_filetest.gno") {
 			fn = append(fn, filepath.Join(dir, n))
 		}
 	}

@@ -257,7 +257,6 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 				io.ErrPrintfln("%s: module is draft, skipping type check", gnoPkgPath)
 			}
 			runtimeErr = test.Test(memPkg, pkg.Dir, opts) // runtime error
-			//fmt.Println("--------------1, runtime err: ", runtimeErr)
 		})
 
 		duration := time.Since(startedAt)
@@ -265,7 +264,6 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 		if hasLintTypeCheckError || runtimeErr != nil {
 			if runtimeErr != nil {
-				//fmt.Println("--------------2, runtime err: ", runtimeErr)
 				io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, runtimeErr)
 			}
 			io.ErrPrintfln("FAIL    %s \t%s", pkg.Dir, dstr)
