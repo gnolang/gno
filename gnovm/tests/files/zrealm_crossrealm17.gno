@@ -16,12 +16,17 @@ type fooer struct{}
 var f *fooer
 
 func main() {
+	crossing()
+
 	f = &fooer{}
 	c := &container{f}
-	crossrealm.SetFooer(c)
+	cross(crossrealm.SetFooer)(c)
 	crossrealm.CallFooerFoo()
+	cross(crossrealm.CallFooerFooSR)()
 	print(".")
 }
 
-// Error:
-// new escaped mark has no object ID
+// Output:
+// hello container gno.land/r/crossrealm_test
+// hello container gno.land/r/demo/tests/crossrealm
+// .
