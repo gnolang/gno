@@ -23,6 +23,18 @@ func Test2Ctor64(t *testing.T) {
 	}
 }
 
+func TestCtorBytes(t *testing.T) {
+	u := NewFromBytes([]byte{0x01, 0x02, 0x03}) // [ 0x10203, 0, 0, 0 ] / [01 02 03]
+	if u.String() != "66051" { // 0x010203
+		t.Error("expected 66051, got " + u.String())
+	}
+
+	u = NewFromBytes([]byte{0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00})
+	if u.String() != "18446744073709551616" {
+		t.Error("expected 18446744073709551616, got " + u.String())
+	}
+}
+
 func TestAdd(t *testing.T) {
 	u := New()
 	u.Add64(42)

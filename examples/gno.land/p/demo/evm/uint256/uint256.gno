@@ -1,9 +1,10 @@
 package uint256
 
 import (
+	"encoding/binary"
+	"errors"
 	"strconv"
 	"strings"
-	"errors"
 )
 
 type uint256 struct {
@@ -62,6 +63,26 @@ func NewFrom64s(us ...uint64) *uint256 {
 	u := New()
 	for n := 0; n < len(us) && n < 4; n++ {
 		u.data[n] = us[n]
+	}
+	return u
+}
+
+func NewFromBytes(b []byte) *uint256 {
+	u := New()
+	lenBlocs := (len(b) / 8) + 1
+	blocs := [4][]byte{}
+	for i := 0; i < lenBlocs; i++ {
+		l := len(b)
+		if l < 8 {
+			blocs[i] = append(make([]byte, 8-l), b...)
+			b = []byte{}
+		} else {
+			blocs[i] = b[l-8:]
+			b = b[:l-8]
+		}
+	}
+	for i := 0; i < lenBlocs; i++ {
+		u.data[i] = binary.BigEndian.Uint64(blocs[i])
 	}
 	return u
 }
