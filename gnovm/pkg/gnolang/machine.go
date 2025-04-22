@@ -371,15 +371,11 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := &m.Frames[i]
 		if fr.IsCall() && fr.Func.Name != "panic" {
-			call := StacktraceCall{
+			calls = append(calls, StacktraceCall{
 				CallExpr: fr.Source.(*CallExpr),
 				IsDefer:  fr.IsDefer,
-			}
-			fnSource := fr.Func.GetSource(m.Store)
-			if fnSource != nil {
-				call.FuncLoc = fnSource.GetLocation()
-			}
-			calls = append(calls, call)
+				FuncLoc:  fr.Func.GetSource(m.Store).GetLocation(),
+			})
 		}
 	}
 
